@@ -116,8 +116,10 @@ while ($_rpl_i) {
     if (!$rpl_only_running_threads)
     {
       --connection server_$_rpl_prev_server
+      --let $saved_value= $sync_slave_connection
       --let $sync_slave_connection= server_$_rpl_server
       --source include/sync_slave_sql_with_master.inc
+      --let $sync_slave_connection= $saved_value
     }
   }
 

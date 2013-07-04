@@ -1,0 +1,33 @@
+################################################################################
+# WL#6969    Additional concurrency tests for BGC
+#
+# Concurrency test verifies that there is not 3-way deadlock any more.
+#
+# ################################################################################
+--source include/have_debug_sync.inc
+--source include/master-slave.inc
+--source include/install_semisync.inc
+
+--echo # Initialization
+SET @debug_save= @@GLOBAL.DEBUG;
+SET GLOBAL rpl_semi_sync_master_timeout= 6000000;
+
+--echo #
+--echo # Verify no deadlock at AFTER_SYNC
+--echo #
+--source extra/rpl_tests/rpl_semi_sync_deadlock.test
+
+--echo #
+--echo # Verify no deadlock at AFTER_COMMIT
+--echo #
+SET GLOBAL rpl_semi_sync_master_wait_point= AFTER_COMMIT;
+--source extra/rpl_tests/rpl_semi_sync_deadlock.test
+
+--echo # Cleanup
+SET DEBUG_SYNC= 'RESET';
+SET @@GLOBAL.DEBUG= @debug_save;
+SET GLOBAL rpl_semi_sync_master_wait_point= AFTER_SYNC;
+--sync_slave_with_master
+
+--source include/uninstall_semisync.inc
+--source include/rpl_end.inc

@@ -1,6 +1,6 @@
 /*****************************************************************************
 
-Copyright (c) 1997, 2012, Oracle and/or its affiliates. All Rights Reserved.
+Copyright (c) 1997, 2013, Oracle and/or its affiliates. All Rights Reserved.
 
 This program is free software; you can redistribute it and/or modify it under
 the terms of the GNU General Public License as published by the Free Software
@@ -42,8 +42,8 @@ index record.
 NOTE that this function can return false positives but never false
 negatives. The caller must confirm all positive results by calling
 trx_is_active() while holding lock_sys->mutex. */
-UNIV_INTERN
-trx_id_t
+
+trx_t*
 row_vers_impl_x_locked(
 /*===================*/
 	const rec_t*	rec,	/*!< in: record in a secondary index */
@@ -52,8 +52,8 @@ row_vers_impl_x_locked(
 /*****************************************************************//**
 Finds out if we must preserve a delete marked earlier version of a clustered
 index record, because it is >= the purge view.
-@return	TRUE if earlier version should be preserved */
-UNIV_INTERN
+@return TRUE if earlier version should be preserved */
+
 ibool
 row_vers_must_preserve_del_marked(
 /*==============================*/
@@ -67,8 +67,8 @@ purge view, should have ientry as its secondary index entry. We check
 if there is any not delete marked version of the record where the trx
 id >= purge view, and the secondary index entry == ientry; exactly in
 this case we return TRUE.
-@return	TRUE if earlier version should have */
-UNIV_INTERN
+@return TRUE if earlier version should have */
+
 ibool
 row_vers_old_has_index_entry(
 /*=========================*/
@@ -85,8 +85,8 @@ row_vers_old_has_index_entry(
 Constructs the version of a clustered index record which a consistent
 read should see. We assume that the trx id stored in rec is such that
 the consistent read should not see rec in its present version.
-@return	DB_SUCCESS or DB_MISSING_HISTORY */
-UNIV_INTERN
+@return DB_SUCCESS or DB_MISSING_HISTORY */
+
 dberr_t
 row_vers_build_for_consistent_read(
 /*===============================*/
@@ -115,7 +115,7 @@ row_vers_build_for_consistent_read(
 /*****************************************************************//**
 Constructs the last committed version of a clustered index record,
 which should be seen by a semi-consistent read. */
-UNIV_INTERN
+
 void
 row_vers_build_for_semi_consistent_read(
 /*====================================*/

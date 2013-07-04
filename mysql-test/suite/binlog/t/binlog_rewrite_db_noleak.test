@@ -50,6 +50,10 @@ CREATE DATABASE db3;
 # The SQL file will be applied but only db1 events will be replayed on db3.
 # Database db2 will not be applied on db3 confirming there is no leak.
 DROP DATABASE db2;
+
+# With gtid-mode=on we need purge gtid_executed, if not transactions
+# replayed through mysqlbinlog will be skipped.
+RESET MASTER;
 --echo [The sql file will be applied on the current database]
 --exec $MYSQL --database=db3 --local-infile=1 < $MYSQLTEST_VARDIR/tmp/rewrite_noleak.sql
 
@@ -69,7 +73,7 @@ DROP DATABASE db2;
 
 --echo CLEANUP
 
---remove_file $MYSQLTEST_VARDIR/tmp/rewrite_noleak.sql
+#--remove_file $MYSQLTEST_VARDIR/tmp/rewrite_noleak.sql
 DROP DATABASE db1;
 DROP DATABASE db2;
 DROP DATABASE db3;

@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2001, 2012, Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2001, 2013, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -12,7 +12,7 @@
 
    You should have received a copy of the GNU General Public License
    along with this program; if not, write to the Free Software
-   Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA */
+   Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA 02110-1301, USA */
 
 /*
   Handling of uchar arrays as large bitmaps.
@@ -282,6 +282,14 @@ uint bitmap_set_next(MY_BITMAP *map)
 }
 
 
+/**
+  Set the specified number of bits in the bitmap buffer.
+
+  @param map         [IN]       Bitmap
+  @param prefix_size [IN]       Number of bits to be set
+
+  @return                       void
+*/
 void bitmap_set_prefix(MY_BITMAP *map, uint prefix_size)
 {
   uint prefix_bytes, prefix_bits, d;
@@ -294,7 +302,11 @@ void bitmap_set_prefix(MY_BITMAP *map, uint prefix_size)
     memset(m, 0xff, prefix_bytes);
   m+= prefix_bytes;
   if ((prefix_bits= prefix_size & 7))
+  {
     *(m++)= (1 << prefix_bits)-1;
+    // As the prefix bits are set, lets count this byte too as a prefix byte.
+    prefix_bytes ++;
+  }
   if ((d= no_bytes_in_map(map)-prefix_bytes))
     memset(m, 0, d);
 }

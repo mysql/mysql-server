@@ -44,10 +44,6 @@ int mi_panic(enum ha_panic_function flag)
       mysql_mutex_lock(&THR_LOCK_myisam);
       break;
     case HA_PANIC_WRITE:		/* Do this to free databases */
-#ifdef CANT_OPEN_FILES_TWICE
-      if (info->s->options & HA_OPTION_READ_ONLY_DATA)
-	break;
-#endif
       if (flush_key_blocks(info->s->key_cache, info->s->kfile, FLUSH_RELEASE))
 	error=my_errno;
       if (info->opt_flag & WRITE_CACHE_USED)
@@ -66,37 +62,7 @@ int mi_panic(enum ha_panic_function flag)
 	if (mi_lock_database(info,F_UNLCK))
 	  error=my_errno;
       }
-#ifdef CANT_OPEN_FILES_TWICE
-      if (info->s->kfile >= 0 && mysql_file_close(info->s->kfile, MYF(0)))
-	error = my_errno;
-      if (info->dfile >= 0 && mysql_file_close(info->dfile, MYF(0)))
-	error = my_errno;
-      info->s->kfile=info->dfile= -1;	/* Files aren't open anymore */
-      break;
-#endif
     case HA_PANIC_READ:			/* Restore to before WRITE */
-#ifdef CANT_OPEN_FILES_TWICE
-      {					/* Open closed files */
-	char name_buff[FN_REFLEN];
-	if (info->s->kfile < 0)
-          if ((info->s->kfile= mysql_file_open(mi_key_file_kfile,
-                                               fn_format(name_buff,
-                                                         info->filename, "",
-                                                         N_NAME_IEXT, 4),
-                                               info->mode, MYF(MY_WME))) < 0)
-	    error = my_errno;
-	if (info->dfile < 0)
-	{
-          if ((info->dfile= mysql_file_open(mi_key_file_dfile,
-                                            fn_format(name_buff,
-                                                      info->filename, "",
-                                                      N_NAME_DEXT, 4),
-                                            info->mode, MYF(MY_WME))) < 0)
-	    error = my_errno;
-	  info->rec_cache.file=info->dfile;
-	}
-      }
-#endif
       if (info->was_locked)
       {
 	if (mi_lock_database(info, info->was_locked))

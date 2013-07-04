@@ -760,16 +760,3 @@ prepare stmt1 from ' select sum(a) + 200 as the_sum, ? as the_town from t1
                      having avg(a) > ? ';
 execute stmt1 using @Oporto, @1, @2, @Lisboa, @2, @3;
 
-
-################ explain select tests ################
---disable_query_log
-select '------ explain select tests ------' as test_sequence ;
---enable_query_log
---disable_metadata
-# table with many column types
-prepare stmt1 from ' explain select * from t9 ' ;
---enable_metadata
-execute stmt1;
---disable_metadata
-
-

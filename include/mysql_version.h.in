@@ -1,13 +1,12 @@
-/* Copyright Abandoned 1996, 1999, 2001 MySQL AB
+/* Copyright Abandoned 1996, 1999, 2001 MySQL AB, 2013 Oracle and/or
+   its affiliates.
    This file is public domain and comes with NO WARRANTY of any kind */
 
 /* Version numbers for protocol & mysqld */
 
 #ifndef _mysql_version_h
 #define _mysql_version_h
-#ifdef _CUSTOMCONFIG_
-#include <custom_conf.h>
-#else
+
 #define PROTOCOL_VERSION		@PROTOCOL_VERSION@
 #define MYSQL_SERVER_VERSION		"@VERSION@"
 #define MYSQL_BASE_VERSION		"mysqld-@MYSQL_BASE_VERSION@"
@@ -19,9 +18,6 @@
 #define MYSQL_UNIX_ADDR			"@MYSQL_UNIX_ADDR@"
 #define MYSQL_CONFIG_NAME		"my"
 #define MYSQL_COMPILATION_COMMENT	"@COMPILATION_COMMENT@"
-
-/* mysqld compile time options */
-#endif /* _CUSTOMCONFIG_ */
 
 #ifndef LICENSE
 #define LICENSE				GPL

@@ -109,7 +109,7 @@ include/rpl_start_server.inc [server_number=2 parameters: --log-slave-updates]
 CHANGE MASTER TO MASTER_HOST = '127.0.0.1', MASTER_PORT = PORT, MASTER_USER = 'root', MASTER_LOG_FILE = 'FILE', MASTER_LOG_POS = POS, MASTER_CONNECT_RETRY = 1;
 Warnings:
 Note	####	Sending passwords in plain text without SSL/TLS is extremely insecure.
-Note	####	Storing MySQL user name or password information in the master.info repository is not secure and is therefore not recommended. Please see the MySQL Manual for more about this issue and possible alternatives.
+Note	####	Storing MySQL user name or password information in the master info repository is not secure and is therefore not recommended. Please consider using the USER and PASSWORD connection options for START SLAVE; see the 'START SLAVE Syntax' in the MySQL Manual for more information.
 ---- Slave can't connect ----
 START SLAVE;
 include/wait_for_slave_io_error.inc [errno=1593 # ER_SLAVE_FATAL_ERROR]

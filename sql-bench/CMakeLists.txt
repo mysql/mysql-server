@@ -1,4 +1,4 @@
-# Copyright (c) 2006, 2010, Oracle and/or its affiliates. All rights reserved.
+# Copyright (c) 2006, 2013, Oracle and/or its affiliates. All rights reserved.
 # 
 # This program is free software; you can redistribute it and/or modify
 # it under the terms of the GNU General Public License as published by
@@ -38,26 +38,34 @@ FILE(GLOB all_files ${CMAKE_CURRENT_SOURCE_DIR}/*)
 
 FOREACH(file ${all_files})
   IF(NOT IS_DIRECTORY ${file} AND NOT ${file} MATCHES "Make|as3ap|/example$" )
-  GET_FILENAME_COMPONENT(ext ${file} EXT)
-  GET_FILENAME_COMPONENT(name ${file} NAME)
-  SET(target ${name})
-  IF(ext MATCHES ".sh$")
-    # Those are perl files actually
-    STRING(REPLACE ".sh" "" target ${target} )
-    IF(WIN32)
-      IF(NOT ext MATCHES ".pl")
-        SET(target "${target}.pl")
+    GET_FILENAME_COMPONENT(ext ${file} EXT)
+    GET_FILENAME_COMPONENT(name ${file} NAME)
+    SET(target ${name})
+    IF(ext MATCHES ".sh$")
+      # Those are perl files actually
+      STRING(REPLACE ".sh" "" target ${target} )
+      IF(WIN32)
+        IF(NOT ext MATCHES ".pl")
+          SET(target "${target}.pl")
+        ENDIF()
       ENDIF()
     ENDIF()
-  ENDIF()
-  SET(target "${CMAKE_CURRENT_BINARY_DIR}/${target}")
-  CONFIGURE_FILE(${file} ${target} COPYONLY)
-  IF (ext MATCHES ".bat")
-    IF(WIN32) 
-      INSTALL(FILES ${target} DESTINATION ${prefix}sql-bench COMPONENT SqlBench)
+    SET(target "${CMAKE_CURRENT_BINARY_DIR}/${target}")
+    CONFIGURE_FILE(${file} ${target} COPYONLY)
+    IF (UNIX AND NOT ${name} MATCHES "README")
+      EXECUTE_PROCESS(COMMAND chmod +x ${target})
     ENDIF()
-  ELSE()
-    INSTALL(FILES ${target} DESTINATION ${prefix}sql-bench COMPONENT SqlBench)
-  ENDIF()
+    IF (ext MATCHES ".bat")
+      IF(WIN32) 
+        INSTALL(PROGRAMS ${target}
+          DESTINATION ${prefix}sql-bench COMPONENT SqlBench)
+      ENDIF()
+    ELSEIF(name MATCHES "README")
+      INSTALL(FILES ${target}
+        DESTINATION ${prefix}sql-bench COMPONENT SqlBench)
+    ELSE()
+      INSTALL(PROGRAMS ${target}
+        DESTINATION ${prefix}sql-bench COMPONENT SqlBench)
+    ENDIF()
   ENDIF()
 ENDFOREACH()

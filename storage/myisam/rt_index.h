@@ -11,12 +11,10 @@
    
    You should have received a copy of the GNU General Public License
    along with this program; if not, write to the Free Software
-   Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA */
+   Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA 02110-1301, USA */
 
 #ifndef _rt_index_h
 #define _rt_index_h
-
-#ifdef HAVE_RTREE_KEYS
 
 #define rt_PAGE_FIRST_KEY(page, nod_flag) (page + 2 + nod_flag)
 #define rt_PAGE_NEXT_KEY(key, key_length, nod_flag) (key + key_length + \
@@ -41,5 +39,4 @@ ha_rows rtree_estimate(MI_INFO *info, uint keynr, uchar *key,
 int rtree_split_page(MI_INFO *info, MI_KEYDEF *keyinfo, uchar *page, uchar *key, 
                     uint key_length, my_off_t *new_page_offs);
 
-#endif /*HAVE_RTREE_KEYS*/
 #endif /* _rt_index_h */

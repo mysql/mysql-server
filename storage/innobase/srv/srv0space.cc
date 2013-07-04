@@ -23,24 +23,25 @@ Multi file shared tablespace implementation.
 Created 2012-11-16 by Sunny Bains.
 *******************************************************/
 
+#include "ha_prototypes.h"
+
 #include "srv0space.h"
 #include "srv0start.h"
 #include "fil0fil.h"
 #include "fsp0fsp.h"
 
 /** The control info of the system tablespace. */
-UNIV_INTERN Tablespace srv_sys_space;
+Tablespace srv_sys_space;
 
 /** The control info of a temporary table shared tablespace. */
-UNIV_INTERN Tablespace srv_tmp_space;
+Tablespace srv_tmp_space;
 
-/**
-Convert a numeric string that optionally ends in G or M, to a number
+/** Convert a numeric string that optionally ends in G or M, to a number
 containing megabytes.
-@param str - string with a quantity in bytes
-@param megs - out the number in megabytes
+@param str string with a quantity in bytes
+@param megs out the number in megabytes
 @return next character in string */
-UNIV_INTERN
+
 char*
 Tablespace::parse_units(
 /*====================*/
@@ -68,11 +69,10 @@ Tablespace::parse_units(
 	return(ptr);
 }
 
-/**
-Parse the input params and populate member variables.
-@param filepath - path to data files
+/** Parse the input params and populate member variables.
+@param filepath path to data files
 @return true on success parse */
-UNIV_INTERN
+
 bool
 Tablespace::parse(
 /*==============*/
@@ -272,12 +272,11 @@ Tablespace::parse(
 	return(true);
 }
 
-/**
-Check if two shared tablespaces have common data file names.
-@param space1 - space to check
-@param space2 - space to check
+/** Check if two shared tablespaces have common data file names.
+@param space1 space to check
+@param space2 space to check
 @return true if they have the same data filenames and paths */
-UNIV_INTERN
+
 bool
 Tablespace::intersection(
 /*=====================*/
@@ -299,11 +298,10 @@ Tablespace::intersection(
 	return(false);
 }
 
-/**
-Get the file name only
-@param filepath - filepath as specified by user (can be relative too).
+/** Get the file name only
+@param filepath filepath as specified by user (can be relative too).
 @return filename extract filepath */
-UNIV_INTERN
+
 char*
 Tablespace::get_file_name(
 /*======================*/
@@ -313,9 +311,8 @@ Tablespace::get_file_name(
 	return(last_slash ? last_slash + 1 : (char*) filepath);
 }
 
-/**
-Frees the memory allocated by the parse method. */
-UNIV_INTERN
+/** Frees the memory allocated by the parse method. */
+
 void
 Tablespace::shutdown()
 {
@@ -337,7 +334,7 @@ Tablespace::shutdown()
 
 /**
 @return ULINT_UNDEFINED if the size is invalid else the sum of sizes */
-UNIV_INTERN
+
 ulint
 Tablespace::get_sum_of_sizes() const
 {
@@ -347,7 +344,7 @@ Tablespace::get_sum_of_sizes() const
 
 	for (files_t::const_iterator it = m_files.begin(); it != end; ++it) {
 
-#ifndef __WIN__
+#ifndef _WIN32
 		if (sizeof(off_t) < 5
 		    && it->m_size >= (1UL << (32UL - UNIV_PAGE_SIZE_SHIFT))) {
 
@@ -361,18 +358,17 @@ Tablespace::get_sum_of_sizes() const
 
 			return(ULINT_UNDEFINED);
 		}
-#endif /* __WIN__ */
+#endif /* _WIN32 */
 		sum += it->m_size;
 	}
 
 	return(sum);
 }
 
-/**
-Create/open a data file.
-@param file - data file spec
+/** Create/open a data file.
+@param file data file spec
 @return DB_SUCCESS or error code */
-UNIV_INTERN
+
 dberr_t
 Tablespace::open_data_file(
 /*=======================*/
@@ -381,7 +377,7 @@ Tablespace::open_data_file(
 	ibool	success;
 
 	file.m_handle = os_file_create(
-		innodb_file_data_key, file.m_filename, file.m_open_flags,
+		innodb_data_file_key, file.m_filename, file.m_open_flags,
 		OS_FILE_NORMAL, OS_DATA_FILE, &success);
 
 	if (!success) {
@@ -397,11 +393,10 @@ Tablespace::open_data_file(
 	return(DB_SUCCESS);
 }
 
-/**
-Verify the size of the physical file.
-@param file - data file spec
+/** Verify the size of the physical file.
+@param file data file spec
 @return DB_SUCCESS if OK else error code. */
-UNIV_INTERN
+
 dberr_t
 Tablespace::check_size(
 /*===================*/
@@ -454,11 +449,10 @@ Tablespace::check_size(
 	return(DB_SUCCESS);
 }
 
-/**
-Make physical filename from control info.
-@param file - data file spec
-@param tablespace_path - path where tablespace file will reside */
-UNIV_INTERN
+/** Make physical filename from control info.
+@param file data file spec
+@param tablespace_path path where tablespace file will reside */
+
 void
 Tablespace::make_name(
 /*==================*/
@@ -492,11 +486,10 @@ Tablespace::make_name(
 	file.m_filename = strdup(name);
 }
 
-/**
-Set the size of the file.
-@param file - data file spec
+/** Set the size of the file.
+@param file data file spec
 @return DB_SUCCESS or error code */
-UNIV_INTERN
+
 dberr_t
 Tablespace::set_size(
 /*=================*/
@@ -529,11 +522,10 @@ Tablespace::set_size(
 	return(DB_SUCCESS);
 }
 
-/**
-Create a data file.
-@param file - data file spec
+/** Create a data file.
+@param file data file spec
 @return DB_SUCCESS or error code */
-UNIV_INTERN
+
 dberr_t
 Tablespace::create_file(
 /*====================*/
@@ -572,11 +564,10 @@ Tablespace::create_file(
 	return(err);
 }
 
-/**
-Open a data file.
-@param file - data file spec
+/** Open a data file.
+@param file data file spec
 @return DB_SUCCESS or error code */
-UNIV_INTERN
+
 dberr_t
 Tablespace::open_file(
 /*==================*/
@@ -617,18 +608,21 @@ Tablespace::open_file(
 
 	if (file.m_type != SRV_OLD_RAW) {
 		err = check_size(file);
+		if (err != DB_SUCCESS) {
+			os_file_close(file.m_handle);
+			file.m_handle = os_file_t(~0);
+		}
 	}
 
 	return(err);
 }
 
-/**
-Read the flush lsn values and check the header flags.
+/** Read the flush lsn values and check the header flags.
 
-@param min_flushed_lsn - min of flushed lsn values in data files
-@param max_flushed_lsn - max of flushed lsn values in data files
+@param min_flushed_lsn min of flushed lsn values in data files
+@param max_flushed_lsn max of flushed lsn values in data files
 @return DB_SUCCESS or error code */
-UNIV_INTERN
+
 dberr_t
 Tablespace::read_lsn_and_check_flags(
 /*=================================*/
@@ -657,9 +651,9 @@ Tablespace::read_lsn_and_check_flags(
 			return(DB_ERROR);
 		}
 
-		fil_read_first_page(
-			it->m_handle, &flags, &space,
-			min_flushed_lsn, max_flushed_lsn);
+		const char* check_msg = fil_read_first_page(
+			it->m_handle, !check_tablespace_attributes,
+			&flags, &space, min_flushed_lsn, max_flushed_lsn);
 
 		ibool	success = os_file_close(it->m_handle);
 		ut_a(success);
@@ -673,6 +667,16 @@ Tablespace::read_lsn_and_check_flags(
 		ut_a(!check_tablespace_attributes || space == TRX_SYS_SPACE);
 
 		/* Check the flags for the first system tablespace file only. */
+
+		if (check_tablespace_attributes && check_msg) {
+			ib_logf(IB_LOG_LEVEL_ERROR,
+				"%s in %sData file \"%s\"",
+				check_msg,
+				((m_space_id == TRX_SYS_SPACE) ? "" : "Temp-"),
+				it->m_filename);
+			return(DB_ERROR);
+		}
+
 		if (check_tablespace_attributes
 		    && UNIV_PAGE_SIZE != fsp_flags_get_page_size(flags)) {
 
@@ -695,15 +699,16 @@ Tablespace::read_lsn_and_check_flags(
 	return(DB_SUCCESS);
 }
 
-/**
-Check if a file can be opened in the correct mode.
-@param file - data file spec
+/** Check if a file can be opened in the correct mode.
+@param file data file spec
+@param reason_if_failed exact reason if file_status check failed.
 @return DB_SUCCESS or error code. */
-UNIV_INTERN
+
 dberr_t
 Tablespace::check_file_status(
 /*==========================*/
-	const file_t&	file)
+	const file_t&	file,
+	file_status_t&  reason_if_failed)
 {
 	os_file_stat_t	stat;
 
@@ -711,6 +716,7 @@ Tablespace::check_file_status(
 
 	dberr_t	err = os_file_get_status(file.m_filename, &stat, true);
 
+	reason_if_failed = FILE_STATUS_VOID;
 	/* File exists but we can't read the rw-permission settings. */
 	switch (err) {
 	case DB_FAIL:
@@ -720,6 +726,7 @@ Tablespace::check_file_status(
 			file.m_filename);
 
 		err = DB_ERROR;
+		reason_if_failed = FILE_STATUS_RW_PERMISSION_ERROR;
 		break;
 
 	case DB_SUCCESS:
@@ -731,11 +738,14 @@ Tablespace::check_file_status(
 			if (!stat.rw_perm) {
 
 				ib_logf(IB_LOG_LEVEL_ERROR,
-					"The system tablespace must be %s",
+					"%s must be %s",
+					file.m_filename,
 					!srv_read_only_mode
 					? "writable" : "readable");
 
 				err = DB_ERROR;
+				reason_if_failed =
+					FILE_STATUS_READ_WRITE_ERROR;
 			}
 
 		} else {
@@ -746,6 +756,7 @@ Tablespace::check_file_status(
 				file.m_filename);
 
 			err = DB_ERROR;
+			reason_if_failed = FILE_STATUS_NOT_REGULAR_FILE_ERROR;
 		}
 		break;
 
@@ -759,17 +770,16 @@ Tablespace::check_file_status(
 	return(err);
 }
 
-/**
-Note that the data file was not found.
-@param file - data file spec
-@param create_new_db - [out] true if a new instance to be created
+/** Note that the data file was not found.
+@param file data file spec
+@param[out] create_new_db true if a new instance to be created
 @return DB_SUCESS or error code */
-UNIV_INTERN
+
 dberr_t
 Tablespace::file_not_found(
 /*=======================*/
 	file_t&	file,
-	ibool*	create_new_db)
+	bool*	create_new_db)
 {
 	file.m_exists = false;
 
@@ -788,14 +798,13 @@ Tablespace::file_not_found(
 		ut_a(!*create_new_db);
 		*create_new_db = TRUE;
 
-		ib_logf(IB_LOG_LEVEL_INFO,
-			"The first specified %sdata file \"%s\" "
-			"did not exist%s",
-			((m_space_id == TRX_SYS_SPACE) ? "" : "temp-"),
-			file.m_name,
-			(m_space_id == TRX_SYS_SPACE)
-			? " : a new database to be created!"
-			: "");
+		if (m_space_id == TRX_SYS_SPACE) {
+			ib_logf(IB_LOG_LEVEL_INFO,
+				"The first specified data file \"%s\" "
+				"did not exist%s",
+				file.m_name,
+				" : a new database to be created!");
+		}
 
 	} else if (&file == &m_files.back()) {
 
@@ -840,10 +849,9 @@ Tablespace::file_not_found(
 	return(DB_SUCCESS);
 }
 
-/**
-Note that the data file was found.
-@param file - data file spec */
-UNIV_INTERN
+/** Note that the data file was found.
+@param file data file spec */
+
 void
 Tablespace::file_found(
 /*===================*/
@@ -868,16 +876,15 @@ Tablespace::file_found(
 	}
 }
 
-/**
-Check the data file specification.
-@param create_new_db - [out] true if a new database is to be created
-@param min_expected_tablespace_size - [in] expected tablespace size in bytes
+/** Check the data file specification.
+@param[out] create_new_db true if a new database is to be created
+@param[in] min_expected_tablespace_size expected tablespace size in bytes
 @return DB_SUCCESS if all OK else error code */
-UNIV_INTERN
+
 dberr_t
 Tablespace::check_file_spec(
 /*========================*/
-	ibool*	create_new_db,
+	bool*	create_new_db,
 	ulint	min_expected_tablespace_size)
 {
 	srv_normalize_path_for_win(m_tablespace_path);
@@ -921,7 +928,8 @@ Tablespace::check_file_spec(
 
 		make_name(*it, m_tablespace_path);
 
-		err = check_file_status(*it);
+		file_status_t reason_if_failed;
+		err = check_file_status(*it, reason_if_failed);
 
 		if (err == DB_NOT_FOUND) {
 
@@ -932,6 +940,14 @@ Tablespace::check_file_spec(
 			}
 
 		} else if (err != DB_SUCCESS) {
+			if (reason_if_failed == FILE_STATUS_READ_WRITE_ERROR) {
+				ib_logf(IB_LOG_LEVEL_ERROR,
+					"The system %stablespace must be %s",
+					m_space_id == TRX_SYS_SPACE
+					? "" : "temp-",
+					!srv_read_only_mode
+					? "writable" : "readable");
+			}
 
 			ut_a(err != DB_FAIL);
 			break;
@@ -958,12 +974,11 @@ Tablespace::check_file_spec(
 	return(err);
 }
 
-/**
-Opens/Creates the data files if they don't exist.
+/** Opens/Creates the data files if they don't exist.
 
-@param sum_of_new_sizes - sum of sizes of the new files added
-@return	DB_SUCCESS or error code */
-UNIV_INTERN
+@param sum_of_new_sizes sum of sizes of the new files added
+@return DB_SUCCESS or error code */
+
 dberr_t
 Tablespace::open(
 /*=============*/
@@ -1039,9 +1054,8 @@ Tablespace::open(
 	return(err);
 }
 
-/**
-Normalize the file size, convert to extents. */
-UNIV_INTERN
+/** Normalize the file size, convert to extents. */
+
 void
 Tablespace::normalize()
 {
@@ -1058,7 +1072,7 @@ Tablespace::normalize()
 
 /**
 @return next increment size */
-UNIV_INTERN
+
 ulint
 Tablespace::get_increment() const
 {
@@ -1091,7 +1105,7 @@ Tablespace::get_increment() const
 
 /**
 @return true if configured to use raw devices */
-UNIV_INTERN
+
 bool
 Tablespace::has_raw_device() const
 {
@@ -1109,7 +1123,7 @@ Tablespace::has_raw_device() const
 
 /**
 @return true if the filename exists in the data files */
-UNIV_INTERN
+
 bool
 Tablespace::find(const char* filename) const
 {
@@ -1127,9 +1141,8 @@ Tablespace::find(const char* filename) const
 }
 
 
-/**
-Delete all the data files. */
-UNIV_INTERN
+/** Delete all the data files. */
+
 void
 Tablespace::delete_files()
 {
@@ -1140,19 +1153,21 @@ Tablespace::delete_files()
 	for (files_t::iterator it = m_files.begin(); it != end; ++it) {
 
 		make_name(*it, m_tablespace_path);
+		bool file_pre_exists;
+		bool success = os_file_delete_if_exists(
+			innodb_data_file_key, it->m_filename, &file_pre_exists);
 
-		if (os_file_delete_if_exists(
-			innodb_file_data_key, it->m_filename)) {
+		if (success && file_pre_exists) {
 			ib_logf(IB_LOG_LEVEL_INFO,
 				"Removed temporary tablespace data file: "
-				"\"%s\" (if exists)", it->m_name);
+				"\"%s\"", it->m_name);
 		}
 	}
 }
 
 /** Check if system-tablespace (shared + temp).
 @return true if system tablespace */
-UNIV_INTERN
+
 bool
 Tablespace::is_system_tablespace(
 /*=============================*/
@@ -1162,4 +1177,14 @@ Tablespace::is_system_tablespace(
 	       || id == srv_tmp_space.space_id());
 }
 
+/** Check if shared-system or undo tablespace.
+@return true if shared-system or undo tablespace */
 
+bool
+Tablespace::is_system_or_undo_tablespace(
+/*=====================================*/
+	ulint   id)
+{
+	return(id == srv_sys_space.space_id()
+	       || id <= srv_undo_tablespaces_open);
+}

@@ -11,12 +11,12 @@
 
    You should have received a copy of the GNU General Public License
    along with this program; if not, write to the Free Software
-   Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA */
+   Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA 02110-1301, USA */
 
 #include "mysys_priv.h"
 #include <m_string.h>
 
-#ifdef __WIN__
+#ifdef _WIN32
 
 /*
   Check a file or path for accessability.
@@ -51,7 +51,7 @@ int my_access(const char *path, int amode)
   return 0;
 }
 
-#endif /* __WIN__ */
+#endif /* _WIN32 */
 
 
 /*
@@ -156,7 +156,7 @@ int check_if_legal_tablename(const char *name)
 }
 
 
-#ifdef __WIN__
+#ifdef _WIN32
 /**
   Checks if the drive letter supplied is valid or not. Valid drive
   letters are A to Z, both lower case and upper case.
@@ -214,9 +214,9 @@ my_bool is_filename_allowed(const char *name __attribute__((unused)),
   }
   return TRUE;
 } /* is_filename_allowed */
-#endif  /* __WIN__ */
+#endif  /* _WIN32 */
 
-#if defined(__WIN__) || defined(__EMX__)
+#if defined(_WIN32)
 
 
 /*
@@ -262,4 +262,4 @@ int check_if_legal_filename(const char *path)
   DBUG_RETURN(0);
 }
 
-#endif /* defined(__WIN__) || defined(__EMX__) */
+#endif /* defined(_WIN32) */

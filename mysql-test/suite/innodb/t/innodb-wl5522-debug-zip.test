@@ -733,7 +733,7 @@ call mtr.add_suppression("'Resource temporarily unavailable'");
 call mtr.add_suppression("Monitor ibuf_merges is already enabled");
 call mtr.add_suppression("Monitor ibuf_merges_insert is already enabled");
 call mtr.add_suppression("Got error -1 when reading table '.*'");
-call mtr.add_suppression("InnoDB: Table '.*' tablespace is set as discarded.");
+call mtr.add_suppression("InnoDB: Table .* tablespace is set as discarded.");
 call mtr.add_suppression("InnoDB: Tablespace '.*' exists in the cache.*");
 call mtr.add_suppression("InnoDB: Freeing existing tablespace '.*' entry from the cache with id.*");
 call mtr.add_suppression("InnoDB: The table .* doesn't have a corresponding tablespace, it was discarded");
@@ -744,7 +744,7 @@ call mtr.add_suppression("Error in page .* of index \"GEN_CLUST_INDEX\" of table
 call mtr.add_suppression("Page is marked as free");
 call mtr.add_suppression("t1.ibd: Page .* at offset .* looks corrupted");
 call mtr.add_suppression("but tablespace with that id or name does not exist");
-call mtr.add_suppression("Failed to find tablespace for table '\"test_wl5522\".\"t1\"' in the cache");
+call mtr.add_suppression("Failed to find tablespace for table \"test_wl5522\".\"t1\" in the cache");
 call mtr.add_suppression("Could not find a valid tablespace file for 'test_wl5522.*t1'");
 --enable_query_log
 

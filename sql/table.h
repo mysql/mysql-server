@@ -262,7 +262,7 @@ typedef struct st_grant_internal_info GRANT_INTERNAL_INFO;
    A GRANT_INFO also serves as a cache of the privilege hash tables. Relevant
    members are grant_table and version.
  */
-typedef struct st_grant_info
+struct GRANT_INFO
 {
   /**
      @brief A copy of the privilege information regarding the current host,
@@ -311,7 +311,7 @@ typedef struct st_grant_info
   ulong orig_want_privilege;
   /** The grant state for internal tables. */
   GRANT_INTERNAL_INFO m_internal;
-} GRANT_INFO;
+};
 
 enum tmp_table_type
 {
@@ -368,7 +368,7 @@ public:
 };
 
 class Field_blob;
-class Table_triggers_list;
+class Table_trigger_dispatcher;
 
 /**
   Category of table found in the table share.
@@ -1016,6 +1016,18 @@ public:
   key_map covering_keys;
   key_map quick_keys, merge_keys;
   key_map used_keys;  /* Indexes that cover all fields used by the query */
+  
+  /*
+    possible_quick_keys is a superset of quick_keys to use with EXPLAIN of
+    JOIN-less commands (single-table UPDATE and DELETE).
+    
+    When explaining regular JOINs, we use JOIN_TAB::keys to output the 
+    "possible_keys" column value. However, it is not available for
+    single-table UPDATE and DELETE commands, since they don't use JOIN
+    optimizer at the top level. OTOH they directly use the range optimizer,
+    that collects all keys usable for range access here.
+  */
+  key_map possible_quick_keys;
 
   /*
     A set of keys that can be used in the query that references this
@@ -1039,7 +1051,7 @@ public:
   Field *found_next_number_field;	/* Set on open */
 
   /* Table's triggers, 0 if there are no of them */
-  Table_triggers_list *triggers;
+  Table_trigger_dispatcher *triggers;
   TABLE_LIST *pos_in_table_list;/* Element referring to this table */
   /* Position in thd->locked_table_list under LOCK TABLES */
   TABLE_LIST *pos_in_locked_tables;
@@ -1342,6 +1354,8 @@ typedef struct st_field_info
   /**
      For string-type columns, this is the maximum number of
      characters. Otherwise, it is the 'display-length' for the column.
+     For the data type MYSQL_TYPE_DATETIME this field specifies the
+     number of digits in the fractional part of time value.
   */
   uint field_length;
   /**
@@ -1520,6 +1534,7 @@ class Item_exists_subselect;
        ;
 */
 
+struct Name_resolution_context;
 struct LEX;
 struct TABLE_LIST
 {
@@ -1550,6 +1565,13 @@ struct TABLE_LIST
     callback_func= 0;
   }
 
+  /// Create a TABLE_LIST object representing a nested join
+  static TABLE_LIST *new_nested_join(MEM_ROOT *allocator,
+                                     const char *alias,
+                                     TABLE_LIST *embedding,
+                                     List<TABLE_LIST> *belongs_to,
+                                     class st_select_lex *select);
+
   /*
     List of tables local to a subquery or the top-level SELECT (used by
     SQL_I_List). Considers views as leaves (unlike 'next_leaf' below).
@@ -1561,6 +1583,13 @@ struct TABLE_LIST
   TABLE_LIST *next_global, **prev_global;
   char		*db, *alias, *table_name, *schema_table_name;
   char          *option;                /* Used by cache index  */
+  /**
+     Context which should be used to resolve identifiers contained in the ON
+     condition of the embedding join nest.
+     @todo When name resolution contexts are created after parsing, we should
+     be able to store this in the embedding join nest instead.
+  */
+  Name_resolution_context *context_of_embedding;
 
 private:
   Item		*m_join_cond;           /* Used with outer join */
@@ -1805,6 +1834,11 @@ public:
     OPEN_NORMAL= 0,
     /* Associate a table share only if the the table exists. */
     OPEN_IF_EXISTS,
+    /*
+      Associate a table share only if the the table exists.
+      Also upgrade metadata lock to exclusive if table doesn't exist.
+    */
+    OPEN_FOR_CREATE,
     /* Don't associate a table share. */
     OPEN_STUB
   } open_strategy;
@@ -1859,6 +1893,9 @@ public:
   enum enum_schema_table_state schema_table_state;
 
   MDL_request mdl_request;
+
+  /// if true, EXPLAIN can't explain view due to insufficient rights.
+  bool view_no_explain;
 
 #ifdef WITH_PARTITION_STORAGE_ENGINE
   /* List to carry partition names from PARTITION (...) clause in statement */
@@ -2042,6 +2079,7 @@ private:
   /** See comments for TABLE_SHARE::get_table_ref_version() */
   ulonglong m_table_ref_version;
 };
+
 
 struct st_position;
   
@@ -2417,6 +2455,7 @@ inline void mark_as_null_row(TABLE *table)
 {
   table->null_row=1;
   table->status|=STATUS_NULL_ROW;
+  memset(table->null_flags, 255, table->s->null_bytes);
 }
 
 bool is_simple_order(ORDER *order);

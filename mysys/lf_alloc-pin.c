@@ -1,5 +1,5 @@
 /* QQ: TODO multi-pinbox */
-/* Copyright (c) 2006, 2011, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2006, 2013, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -344,7 +344,6 @@ static void _lf_pinbox_real_free(LF_PINS *pins)
 
   npins= pinbox->pins_in_array+1;
 
-#ifdef HAVE_ALLOCA
   if (pins->stack_ends_here != NULL)
   {
     int alloca_size= sizeof(void *)*LF_PINBOX_PINS*npins;
@@ -365,7 +364,6 @@ static void _lf_pinbox_real_free(LF_PINS *pins)
         qsort(addr, npins, sizeof(void *), (qsort_cmp)ptr_cmp);
     }
   }
-#endif
 
   list= pins->purgatory;
   pins->purgatory= 0;

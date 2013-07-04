@@ -1,4 +1,4 @@
-/* Copyright (c) 2000, 2012, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2000, 2013, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -275,6 +275,18 @@ enum ha_base_keytype {
   This flag can be calculated -- it's based on key lengths comparison.
 */
 #define HA_KEY_HAS_PART_KEY_SEG 65536
+/**
+  Key was renamed (or is result of renaming a key).
+
+  This is another flag internal to SQL-layer.
+  Used by in-place ALTER TABLE implementation.
+
+  @note This flag can be set for keys which have other changes than
+        simple renaming as well. So from the point of view of storage
+        engine such key might have to be dropped and re-created with
+        new definition.
+*/
+#define HA_KEY_RENAMED          (1 << 17)
 
 	/* Automatic bits in key-flag */
 
@@ -478,7 +490,11 @@ is the global server default. */
 #define HA_ERR_TABLE_IN_FK_CHECK  183    /* Table being used in foreign key check */
 #define HA_ERR_TABLESPACE_EXISTS  184    /* The tablespace existed in storage engine */
 #define HA_ERR_TOO_MANY_FIELDS    185    /* Table has too many columns */
-#define HA_ERR_LAST               185    /* Copy of last error nr */
+#define HA_ERR_ROW_IN_WRONG_PARTITION 186 /* Row in wrong partition */
+#define HA_ERR_INNODB_READ_ONLY   187    /* InnoDB is in read only mode. */
+#define HA_ERR_FTS_EXCEED_RESULT_CACHE_LIMIT  188 /* FTS query exceeds result cache limit */
+#define HA_ERR_FK_DEPTH_EXCEEDED  189    /* FK cascade depth exceeded */
+#define HA_ERR_LAST               189    /* Copy of last error nr */
 
 /* Number of different errors */
 #define HA_ERR_ERRORS            (HA_ERR_LAST - HA_ERR_FIRST + 1)
@@ -602,13 +618,8 @@ typedef struct st_key_multi_range
 
 
 /* For number of records */
-#ifdef BIG_TABLES
 #define rows2double(A)	ulonglong2double(A)
 typedef my_off_t	ha_rows;
-#else
-#define rows2double(A)	(double) (A)
-typedef ulong		ha_rows;
-#endif
 
 #define HA_POS_ERROR	(~ (ha_rows) 0)
 #define HA_OFFSET_ERROR	(~ (my_off_t) 0)

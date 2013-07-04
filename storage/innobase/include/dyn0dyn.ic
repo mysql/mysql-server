@@ -30,8 +30,8 @@ Created 2/5/1996 Heikki Tuuri
 
 /************************************************************//**
 Adds a new block to a dyn array.
-@return	created block */
-UNIV_INTERN
+@return created block */
+
 dyn_block_t*
 dyn_array_add_block(
 /*================*/
@@ -40,7 +40,7 @@ dyn_array_add_block(
 
 /********************************************************************//**
 Gets the number of used bytes in a dyn array block.
-@return	number of bytes used */
+@return number of bytes used */
 UNIV_INLINE
 ulint
 dyn_block_get_used(
@@ -54,7 +54,7 @@ dyn_block_get_used(
 
 /********************************************************************//**
 Gets pointer to the start of data in a dyn array block.
-@return	pointer to data */
+@return pointer to data */
 UNIV_INLINE
 byte*
 dyn_block_get_data(
@@ -68,7 +68,7 @@ dyn_block_get_data(
 
 /*********************************************************************//**
 Initializes a dynamic array.
-@return	initialized dyn array */
+@return initialized dyn array */
 UNIV_INLINE
 dyn_array_t*
 dyn_array_create(
@@ -108,7 +108,7 @@ dyn_array_free(
 /*********************************************************************//**
 Makes room on top of a dyn array and returns a pointer to the added element.
 The caller must copy the element to the pointer returned.
-@return	pointer to the element */
+@return pointer to the element */
 UNIV_INLINE
 void*
 dyn_array_push(
@@ -148,7 +148,7 @@ dyn_array_push(
 Makes room on top of a dyn array and returns a pointer to a buffer in it.
 After copying the elements, the caller must close the buffer using
 dyn_array_close.
-@return	pointer to the buffer */
+@return pointer to the buffer */
 UNIV_INLINE
 byte*
 dyn_array_open(
@@ -211,7 +211,7 @@ dyn_array_close(
 
 /************************************************************//**
 Returns pointer to an element in dyn array.
-@return	pointer to element */
+@return pointer to element */
 UNIV_INLINE
 void*
 dyn_array_get_element(
@@ -250,7 +250,7 @@ dyn_array_get_element(
 
 /************************************************************//**
 Returns the size of stored data in a dyn array.
-@return	data size in bytes */
+@return data size in bytes */
 UNIV_INLINE
 ulint
 dyn_array_get_data_size(

@@ -1,3 +1,8 @@
+# The include statement below is a temp one for tests that are yet to
+#be ported to run with InnoDB,
+#but needs to be kept for tests that would need MyISAM in future.
+--source include/force_myisam_default.inc
+
 
 # Initialise
 --disable_warnings
@@ -1783,8 +1788,8 @@ FROM (
         t3 AS alias2
     )
 WHERE (
-    (SELECT MIN(SQ1_alias1.pk)
-     FROM t2 AS SQ1_alias1
+    (SELECT MIN(sq1_alias1.pk)
+     FROM t2 AS sq1_alias1
     )
 ) OR (alias1.col_varchar_key = alias2.col_varchar_key
   AND alias1.col_varchar_key = 'j'

@@ -1,5 +1,5 @@
 /* -*- C++ -*- */
-/* Copyright (c) 2002, 2012, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2002, 2013, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -168,6 +168,11 @@ public:
     DBUG_ASSERT(type != ERROR_CODE && type != SQLSTATE);
   }
 
+  /// Print a condition_value in human-readable form.
+  ///
+  /// @param str The variable to print to.
+  void print(String *str) const;
+
   /// Check if two instances of sp_condition_value are equal or not.
   ///
   /// @param cv another instance of sp_condition_value to check.
@@ -220,7 +225,7 @@ public:
   sp_pcontext *scope;
 
   /// Conditions caught by this handler.
-  List<sp_condition_value> condition_values;
+  List<const sp_condition_value> condition_values;
 
 public:
   /// The constructor.
@@ -232,6 +237,16 @@ public:
     type(_type),
     scope(_scope)
   { }
+
+  /// Print all conditions of a handler in human-readable form.
+  ///
+  /// @param str The variable to print to.
+  void print_conditions(String *str) const;
+
+  /// Print type and conditions (but not body) of a handler.
+  ///
+  /// @param str The variable to print to.
+  void print(String *str) const;
 };
 
 ///////////////////////////////////////////////////////////////////////////

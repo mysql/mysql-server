@@ -1,4 +1,4 @@
-/* Copyright (c) 2003, 2012, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2003, 2013, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -67,9 +67,9 @@ my_bool	net_flush(NET *net);
 #include "errmsg.h"
 #include <violite.h>
 
-#if !defined(__WIN__)
+#if !defined(_WIN32)
 #include <my_pthread.h>				/* because of signal()	*/
-#endif /* !defined(__WIN__) */
+#endif /* !defined(_WIN32) */
 
 #include <sys/stat.h>
 #include <signal.h>
@@ -79,14 +79,12 @@ my_bool	net_flush(NET *net);
 #include <pwd.h>
 #endif
 
-#if !defined(__WIN__)
 #ifdef HAVE_SELECT_H
 #  include <select.h>
 #endif
 #ifdef HAVE_SYS_SELECT_H
 #  include <sys/select.h>
 #endif
-#endif /* !defined(__WIN__) */
 
 #ifdef HAVE_SYS_UN_H
 #  include <sys/un.h>
@@ -110,7 +108,7 @@ char		*mysql_unix_port= 0;
 const char	*unknown_sqlstate= "HY000";
 const char	*not_error_sqlstate= "00000";
 const char	*cant_connect_sqlstate= "08001";
-#ifdef HAVE_SMEM
+#if defined (_WIN32) && !defined (EMBEDDED_LIBRARY)
 char		 *shared_memory_base_name= 0;
 const char 	*def_shared_memory_base_name= default_shared_memory_base_name;
 #endif
@@ -223,6 +221,16 @@ void set_mysql_error(MYSQL *mysql, int errcode, const char *sqlstate)
     strmov(mysql_server_last_error, ER(errcode));
   }
   DBUG_VOID_RETURN;
+}
+
+/**
+  Is this NET instance initialized?
+  @c my_net_init() and net_end()
+ */
+
+my_bool my_net_is_inited(NET *net)
+{
+  return net->buff != NULL;
 }
 
 /**
@@ -358,7 +366,7 @@ static HANDLE create_named_pipe(MYSQL *mysql, DWORD connect_timeout,
   @return HANDLE to the shared memory area.
 */
 
-#ifdef HAVE_SMEM
+#if defined (_WIN32) && !defined (EMBEDDED_LIBRARY)
 static HANDLE create_shared_memory(MYSQL *mysql, NET *net,
                                    DWORD connect_timeout)
 {
@@ -886,7 +894,7 @@ static void cli_flush_use_result(MYSQL *mysql, my_bool flush_all_results)
 }
 
 
-#ifdef __WIN__
+#ifdef _WIN32
 static my_bool is_NT(void)
 {
   char *os=getenv("OS");
@@ -1272,7 +1280,7 @@ void mysql_read_default_options(struct st_mysql_options *options,
           }
           break;
         case OPT_shared_memory_base_name:
-#ifdef HAVE_SMEM
+#if defined (_WIN32) && !defined (EMBEDDED_LIBRARY)
           if (options->shared_memory_base_name != def_shared_memory_base_name)
             my_free(options->shared_memory_base_name);
           options->shared_memory_base_name=my_strdup(opt_arg,MYF(MY_WME));
@@ -1302,7 +1310,7 @@ void mysql_read_default_options(struct st_mysql_options *options,
                                     opt_arg));
               break;
             }
-            convert_dirname(buff, buff2, NULL);
+            convert_dirname(buff2, buff, NULL);
             EXTENSION_SET_STRING(options, plugin_dir, buff2);
           }
           break;
@@ -1663,7 +1671,7 @@ mysql_init(MYSQL *mysql)
   mysql->options.client_flag|= CLIENT_LOCAL_FILES;
 #endif
 
-#ifdef HAVE_SMEM
+#if defined (_WIN32) && !defined (EMBEDDED_LIBRARY)
   mysql->options.shared_memory_base_name= (char*) def_shared_memory_base_name;
 #endif
 
@@ -1925,7 +1933,7 @@ typedef struct str2str_st
 
 const MY_CSET_OS_NAME charsets[]=
 {
-#ifdef __WIN__
+#ifdef _WIN32
   {"cp437",          "cp850",    my_cs_approx},
   {"cp850",          "cp850",    my_cs_exact},
   {"cp852",          "cp852",    my_cs_exact},
@@ -2111,15 +2119,13 @@ def:
 }
 
 
-#ifndef __WIN__
+#ifndef _WIN32
 #include <stdlib.h> /* for getenv() */
 #ifdef HAVE_LANGINFO_H
 #include <langinfo.h>
 #endif
-#ifdef HAVE_LOCALE_H
 #include <locale.h>
-#endif
-#endif /* __WIN__ */
+#endif /* _WIN32 */
 
 
 static int
@@ -2127,19 +2133,21 @@ mysql_autodetect_character_set(MYSQL *mysql)
 {
   const char *csname= MYSQL_DEFAULT_CHARSET_NAME;
 
-#ifdef __WIN__
+#ifdef _WIN32
   char cpbuf[64];
   {
     my_snprintf(cpbuf, sizeof(cpbuf), "cp%d", (int) GetConsoleCP());
     csname= my_os_charset_to_mysql_charset(cpbuf);
   }
-#elif defined(HAVE_SETLOCALE) && defined(HAVE_NL_LANGINFO)
+#elif defined(HAVE_NL_LANGINFO)
   {
     if (setlocale(LC_CTYPE, "") && (csname= nl_langinfo(CODESET)))
       csname= my_os_charset_to_mysql_charset(csname);
   }
 #endif
 
+  if (mysql->options.charset_name)
+    my_free(mysql->options.charset_name);
   if (!(mysql->options.charset_name= my_strdup(csname, MYF(MY_WME))))
     return 1;
   return 0;
@@ -2410,6 +2418,24 @@ char *write_length_encoded_string4(char *dest, char *dest_end, char *src,
   return (char*)(to + src_len);
 }
 
+
+/*
+  Write 1 byte of string length header information to dest and
+  copy src_len bytes from src to dest.
+*/
+char *write_string(char *dest, char *dest_end, char *src, char *src_end)
+{
+  size_t src_len= (size_t)(src_end - src);
+  uchar *to= NULL;
+  if (src_len >= 251)
+    return NULL;
+  *dest=(uchar) src_len;
+  to= (uchar*) dest+1;
+  if ((char*)(to + src_len) >= dest_end)
+    return NULL;
+  memcpy(to, src, src_len);
+  return (char*)(to + src_len);
+}
 /**
   sends a COM_CHANGE_USER command with a caller provided payload
 
@@ -2672,9 +2698,22 @@ static int send_client_reply_packet(MCPVIO_EXT *mpvio,
   {
     if (mysql->server_capabilities & CLIENT_SECURE_CONNECTION)
     {
-      end= write_length_encoded_string4(end, (char *)(buff + buff_size),
-                                       (char *) data,
-                                       (char *)(data + data_len));
+      /* 
+        Since the older versions of server do not have
+        CLIENT_PLUGIN_AUTH_LENENC_CLIENT_DATA capability,
+        a check is performed on this before sending auth data.
+        If lenenc support is not available, the data is sent
+        in the format of first byte representing the length of
+        the string followed by the actual string.
+      */
+      if (mysql->server_capabilities & CLIENT_PLUGIN_AUTH_LENENC_CLIENT_DATA)
+        end= write_length_encoded_string4(end, (char *)(buff + buff_size),
+                                         (char *) data,
+                                         (char *)(data + data_len));
+      else
+        end= write_string(end, (char *)(buff + buff_size),
+                         (char *) data,
+                         (char *)(data + data_len));
       if (end == NULL)
         goto error;
     }
@@ -2846,7 +2885,7 @@ void mpvio_info(Vio *vio, MYSQL_PLUGIN_VIO_INFO *info)
     info->protocol= MYSQL_VIO_PIPE;
     info->handle= vio->hPipe;
     return;
-#ifdef HAVE_SMEM
+#if defined (_WIN32) && !defined (EMBEDDED_LIBRARY)
   case VIO_TYPE_SHARED_MEMORY:
     info->protocol= MYSQL_VIO_MEMORY;
     info->handle= vio->handle_file_map; /* or what ? */
@@ -2961,7 +3000,12 @@ int run_plugin_auth(MYSQL *mysql, char *data, uint data_len,
 
   compile_time_assert(CR_OK == -1);
   compile_time_assert(CR_ERROR == 0);
-  if (res > CR_OK && mysql->net.read_pos[0] != 254)
+
+  /*
+    The connection may be closed. If so: do not try to read from the buffer.
+  */
+  if (res > CR_OK && 
+      (!my_net_is_inited(&mysql->net) || mysql->net.read_pos[0] != 254))
   {
     /*
       the plugin returned an error. write it down in mysql,
@@ -3092,14 +3136,14 @@ set_connect_attributes(MYSQL *mysql, char *buff, size_t buf_len)
                       "_os", SYSTEM_TYPE);
   rc+= mysql_options4(mysql, MYSQL_OPT_CONNECT_ATTR_ADD,
                       "_platform", MACHINE_TYPE);
-#ifdef __WIN__
+#ifdef _WIN32
   snprintf(buff, buf_len, "%lu", (ulong) GetCurrentProcessId());
 #else
   snprintf(buff, buf_len, "%lu", (ulong) getpid());
 #endif
   rc+= mysql_options4(mysql, MYSQL_OPT_CONNECT_ATTR_ADD, "_pid", buff);
 
-#ifdef __WIN__
+#ifdef _WIN32
   snprintf(buff, buf_len, "%lu", (ulong) GetCurrentThreadId());
   rc+= mysql_options4(mysql, MYSQL_OPT_CONNECT_ATTR_ADD, "_thread", buff);
 #endif
@@ -3120,7 +3164,7 @@ CLI_MYSQL_REAL_CONNECT(MYSQL *mysql,const char *host, const char *user,
   const char    *scramble_plugin;
   ulong		pkt_length;
   NET		*net= &mysql->net;
-#ifdef __WIN__
+#ifdef _WIN32
   HANDLE	hPipe=INVALID_HANDLE_VALUE;
 #endif
 #ifdef HAVE_SYS_UN_H
@@ -3191,7 +3235,7 @@ CLI_MYSQL_REAL_CONNECT(MYSQL *mysql,const char *host, const char *user,
   /*
     Part 0: Grab a socket and connect it to the server
   */
-#if defined(HAVE_SMEM)
+#if defined (_WIN32) && !defined (EMBEDDED_LIBRARY)
   if ((!mysql->options.protocol ||
        mysql->options.protocol == MYSQL_PROTOCOL_MEMORY) &&
       (!host || !strcmp(host,LOCAL_HOST)))
@@ -3229,7 +3273,7 @@ CLI_MYSQL_REAL_CONNECT(MYSQL *mysql,const char *host, const char *user,
                   ER(CR_SHARED_MEMORY_CONNECTION), host);
     }
   }
-#endif /* HAVE_SMEM */
+#endif /* _WIN32 && !EMBEDDED_LIBRARY */
 #if defined(HAVE_SYS_UN_H)
   if (!net->vio &&
       (!mysql->options.protocol ||
@@ -3867,10 +3911,10 @@ static void mysql_close_free_options(MYSQL *mysql)
 #if defined(HAVE_OPENSSL) && !defined(EMBEDDED_LIBRARY)
   mysql_ssl_free(mysql);
 #endif /* HAVE_OPENSSL && !EMBEDDED_LIBRARY */
-#ifdef HAVE_SMEM
+#if defined (_WIN32) && !defined (EMBEDDED_LIBRARY)
   if (mysql->options.shared_memory_base_name != def_shared_memory_base_name)
     my_free(mysql->options.shared_memory_base_name);
-#endif /* HAVE_SMEM */
+#endif /* _WIN32 && !EMBEDDED_LIBRARY */
   if (mysql->options.extension)
   {
     my_free(mysql->options.extension->plugin_dir);
@@ -4324,7 +4368,7 @@ mysql_options(MYSQL *mysql,enum mysql_option option, const void *arg)
     mysql->options.protocol= *(uint*) arg;
     break;
   case MYSQL_SHARED_MEMORY_BASE_NAME:
-#ifdef HAVE_SMEM
+#if defined (_WIN32) && !defined (EMBEDDED_LIBRARY)
     if (mysql->options.shared_memory_base_name != def_shared_memory_base_name)
       my_free(mysql->options.shared_memory_base_name);
     mysql->options.shared_memory_base_name=my_strdup(arg,MYF(MY_WME));
@@ -4747,10 +4791,27 @@ static int old_password_auth_client(MYSQL_PLUGIN_VIO *vio, MYSQL *mysql)
 
   if (mysql->passwd[0])
   {
-    char scrambled[SCRAMBLE_LENGTH_323 + 1];
-    scramble_323(scrambled, (char*)pkt, mysql->passwd);
-    if (vio->write_packet(vio, (uchar*)scrambled, SCRAMBLE_LENGTH_323 + 1))
+    /*
+       If --secure-auth option is used, throw an error.
+       Note that, we do not need to check for CLIENT_SECURE_CONNECTION
+       capability of server. If server is not capable of handling secure
+       connections, we would have raised error before reaching here.
+
+       TODO: Change following code to access MYSQL structure through
+       client-side plugin service.
+    */
+    if (mysql->options.secure_auth)
+    {
+      set_mysql_error(mysql, CR_SECURE_AUTH, unknown_sqlstate);
       DBUG_RETURN(CR_ERROR);
+    }
+    else
+    {
+      char scrambled[SCRAMBLE_LENGTH_323 + 1];
+      scramble_323(scrambled, (char*)pkt, mysql->passwd);
+      if (vio->write_packet(vio, (uchar*)scrambled, SCRAMBLE_LENGTH_323 + 1))
+        DBUG_RETURN(CR_ERROR);
+    }
   }
   else
     if (vio->write_packet(vio, 0, 0)) /* no password */

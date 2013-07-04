@@ -1,6 +1,6 @@
 /*****************************************************************************
 
-Copyright (c) 1997, 2012, Oracle and/or its affiliates. All Rights Reserved.
+Copyright (c) 1997, 2013, Oracle and/or its affiliates. All Rights Reserved.
 
 This program is free software; you can redistribute it and/or modify it under
 the terms of the GNU General Public License as published by the Free Software
@@ -70,7 +70,7 @@ read_view_list_validate(void)
 {
 	ut_ad(mutex_own(&trx_sys->mutex));
 
-	ut_list_map(trx_sys->view_list, &read_view_t::view_list, ViewCheck());
+	ut_list_map(trx_sys->view_list, ViewCheck());
 
 	return(true);
 }
@@ -78,7 +78,7 @@ read_view_list_validate(void)
 
 /*********************************************************************//**
 Checks if a read view sees the specified transaction.
-@return	true if sees */
+@return true if sees */
 UNIV_INLINE
 bool
 read_view_sees_trx_id(
@@ -86,7 +86,7 @@ read_view_sees_trx_id(
 	const read_view_t*	view,	/*!< in: read view */
 	trx_id_t		trx_id)	/*!< in: trx id */
 {
-	if (trx_id < view->up_limit_id) {
+	if (trx_id < view->up_limit_id || trx_id == view->creator_trx_id) {
 
 		return(true);
 	} else if (trx_id >= view->low_limit_id) {
@@ -136,7 +136,7 @@ read_view_remove(
 
 		ut_ad(read_view_validate(view));
 
-		UT_LIST_REMOVE(view_list, trx_sys->view_list, view);
+		UT_LIST_REMOVE(trx_sys->view_list, view);
 
 		ut_ad(read_view_list_validate());
 
@@ -146,3 +146,11 @@ read_view_remove(
 	}
 }
 
+/*********************************************************************//**
+Insert the view in the proper order into the trx_sys->view_list. The
+read view list is ordered by read_view_t::low_limit_no in descending order. */
+
+void
+read_view_add(
+/*==========*/
+	read_view_t*	view);		/*!< in: view to add to */

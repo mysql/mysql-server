@@ -17,7 +17,7 @@
 /* Return useful base information for an open table */
 
 #include "myisamdef.h"
-#ifdef	__WIN__
+#ifdef	_WIN32
 #include <sys/stat.h>
 #endif
 

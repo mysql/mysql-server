@@ -1,4 +1,5 @@
-/* Copyright (c) 2000, 2013, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2000, 2013  Oracle and/or its affiliates. All
+   rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -76,7 +77,7 @@ bool Item_sum::init_sum_func_check(THD *thd)
   in_sum_func= thd->lex->in_sum_func;
   /* Save a pointer to object to be used in items for nested set functions */
   thd->lex->in_sum_func= this;
-  nest_level= thd->lex->current_select->nest_level;
+  nest_level= thd->lex->current_select()->nest_level;
   ref_by= 0;
   aggr_level= -1;
   aggr_sel= NULL;
@@ -145,7 +146,7 @@ bool Item_sum::check_sum_func(THD *thd, Item **ref)
     greater than the current value of max_arg_level.
     max_arg_level cannot be greater than nest level.
     nest level is always >= 0  
-  */ 
+  */
   if (nest_level == max_arg_level)
   {
     /*
@@ -173,7 +174,7 @@ bool Item_sum::check_sum_func(THD *thd, Item **ref)
   if (!invalid && aggr_level < 0)
   {
     aggr_level= nest_level;
-    aggr_sel= thd->lex->current_select;
+    aggr_sel= thd->lex->current_select();
   }
   /*
     By this moment we either found a subquery where the set function is
@@ -308,31 +309,21 @@ bool Item_sum::check_sum_func(THD *thd, Item **ref)
 
 bool Item_sum::register_sum_func(THD *thd, Item **ref)
 {
-  SELECT_LEX *sl;
   nesting_map allow_sum_func= thd->lex->allow_sum_func;
-  for (sl= thd->lex->current_select->master_unit()->outer_select() ;
-       sl && sl->nest_level > max_arg_level;
-       sl= sl->master_unit()->outer_select() )
+
+  // Find the outer-most query block where this function can be aggregated.
+
+  for (SELECT_LEX *sl= thd->lex->current_select()->outer_select() ;
+       sl && sl->nest_level >= max_arg_level;
+       sl= sl->outer_select() )
   {
-    if (aggr_level < 0 &&
-        (allow_sum_func & ((nesting_map)1 << sl->nest_level)))
+    if (allow_sum_func & ((nesting_map)1 << sl->nest_level))
     {
-      /* Found the most nested subquery where the function can be aggregated */
       aggr_level= sl->nest_level;
       aggr_sel= sl;
     }
   }
-  if (sl && (allow_sum_func & ((nesting_map)1 << sl->nest_level)))
-  {
-    /* 
-      We reached the subquery of level max_arg_level and checked
-      that the function can be aggregated here. 
-      The set function will be aggregated in this subquery.
-    */   
-    aggr_level= sl->nest_level;
-    aggr_sel= sl;
 
-  }
   if (aggr_level >= 0)
   {
     ref_by= ref;
@@ -345,7 +336,7 @@ bool Item_sum::register_sum_func(THD *thd, Item **ref)
       aggr_sel->inner_sum_func_list->next= this;
     }
     aggr_sel->inner_sum_func_list= this;
-    aggr_sel->with_sum_func= 1;
+    aggr_sel->with_sum_func= true;
 
     /* 
       Mark Item_subselect(s) as containing aggregate function all the way up
@@ -359,20 +350,20 @@ bool Item_sum::register_sum_func(THD *thd, Item **ref)
       or through intermediate items to an aggregate function that is calculated
       in a context "outside" of the Item (e.g. in the current or outer select).
 
-      with_sum_func being set for an st_select_lex means that this st_select_lex
-      has aggregate functions directly referenced (i.e. not through a sub-select).
+      with_sum_func being set for an st_select_lex means that this query block
+      has aggregate functions directly referenced (i.e. not through a subquery).
     */
-    for (sl= thd->lex->current_select; 
+    for (SELECT_LEX *sl= thd->lex->current_select(); 
          sl && sl != aggr_sel && sl->master_unit()->item;
-         sl= sl->master_unit()->outer_select() )
-      sl->master_unit()->item->with_sum_func= 1;
+         sl= sl->outer_select())
+      sl->master_unit()->item->with_sum_func= true;
   }
-  thd->lex->current_select->mark_as_dependent(aggr_sel);
-  return FALSE;
+  thd->lex->current_select()->mark_as_dependent(aggr_sel);
+  return false;
 }
 
 
-Item_sum::Item_sum(List<Item> &list) :arg_count(list.elements), 
+Item_sum::Item_sum(List<Item> &list) :next(NULL), arg_count(list.elements), 
   forced_const(FALSE)
 {
   if ((args=(Item**) sql_alloc(sizeof(Item*)*arg_count)))
@@ -402,6 +393,7 @@ Item_sum::Item_sum(List<Item> &list) :arg_count(list.elements),
 
 Item_sum::Item_sum(THD *thd, Item_sum *item):
   Item_result_field(thd, item),
+  next(NULL),
   aggr_sel(item->aggr_sel),
   nest_level(item->nest_level), aggr_level(item->aggr_level),
   quick_group(item->quick_group),
@@ -432,7 +424,7 @@ Item_sum::Item_sum(THD *thd, Item_sum *item):
 
 void Item_sum::mark_as_sum_func()
 {
-  SELECT_LEX *cur_select= current_thd->lex->current_select;
+  SELECT_LEX *cur_select= current_thd->lex->current_select();
   cur_select->n_sum_items++;
   cur_select->with_sum_func= 1;
   with_sum_func= 1;
@@ -520,29 +512,32 @@ bool Item_sum::walk (Item_processor processor, bool walk_subquery,
 bool Item_sum::clean_up_after_removal(uchar *arg)
 {
   /*
-    Sometimes we remove unresolved items. This may happen if an
-    expression occurs twice in the same query. In that case, the whole
-    item tree for the second occurence is replaced by the item tree
-    for the first occurence, without calling fix_fields() on the
-    second tree. Therefore there's nothing to clean up.
+    Don't do anything if
+    1) this is an unresolved item (This may happen if an
+       expression occurs twice in the same query. In that case, the
+       whole item tree for the second occurence is replaced by the
+       item tree for the first occurence, without calling fix_fields()
+       on the second tree. Therefore there's nothing to clean up.), or
+    2) there is no inner_sum_func_list, or
+    3) the item is not an element in the inner_sum_func_list.
   */
-  if (!fixed)
+  if (!fixed ||                                                    // 1
+      aggr_sel == NULL || aggr_sel->inner_sum_func_list == NULL || // 2
+      next == NULL)                                                // 3
     return false;
 
-  if (aggr_sel && aggr_sel->inner_sum_func_list)
+  if (next == this)
+    aggr_sel->inner_sum_func_list= NULL;
+  else
   {
-    if (next == this)
-      aggr_sel->inner_sum_func_list= NULL;
-    else
-    {
-      Item_sum *prev;
-      for (prev= this; prev->next != this; prev= prev->next)
-        ;
-      prev->next= next;
-      if (aggr_sel->inner_sum_func_list == this)
-        aggr_sel->inner_sum_func_list= prev;
-    }
+    Item_sum *prev;
+    for (prev= this; prev->next != this; prev= prev->next)
+      ;
+    prev->next= next;
+    if (aggr_sel->inner_sum_func_list == this)
+      aggr_sel->inner_sum_func_list= prev;
   }
+
   return false;
 }
 
@@ -591,8 +586,17 @@ void Item_sum::update_used_tables ()
 
     used_tables_cache&= PSEUDO_TABLE_BITS;
 
-    /* the aggregate function is aggregated into its local context */
-    used_tables_cache|= ((table_map)1 << aggr_sel->join->tables) - 1;
+    /*
+     if the function is aggregated into its local context, it can
+     be calculated only after evaluating the full join, thus it
+     depends on all tables of this join. Otherwise, it depends on
+     outer tables, even if its arguments args[] do not explicitly
+     reference an outer table, like COUNT (*) or COUNT(123).
+    */
+    used_tables_cache|= aggr_level == nest_level ?
+      ((table_map)1 << aggr_sel->join->tables) - 1 :
+      OUTER_REF_TABLE_BIT;
+
   }
 }
 
@@ -782,7 +786,7 @@ bool Aggregator_distinct::setup(THD *thd)
       item_sum->sum_func() == Item_sum::COUNT_DISTINCT_FUNC)
   {
     List<Item> list;
-    SELECT_LEX *select_lex= thd->lex->current_select;
+    SELECT_LEX *select_lex= thd->lex->current_select();
 
     if (!(tmp_table_param= new TMP_TABLE_PARAM))
       return TRUE;
@@ -2942,9 +2946,9 @@ int group_concat_key_cmp_with_distinct(const void* arg, const void* key1,
   for (uint i= 0; i < item_func->arg_count_field; i++)
   {
     Item *item= item_func->args[i];
-    /* 
-      If field_item is a const item then either get_tp_table_field returns 0
-      or it is an item over a const table. 
+    /*
+      If item is a const item then either get_tmp_table_field returns 0
+      or it is an item over a const table.
     */
     if (item->const_item())
       continue;
@@ -2954,9 +2958,13 @@ int group_concat_key_cmp_with_distinct(const void* arg, const void* key1,
       the temporary table, not the original field
     */
     Field *field= item->get_tmp_table_field();
-    int res;
+
+    if (!field)
+      continue;
+
     uint offset= field->offset(field->table->record[0])-table->s->null_bytes;
-    if((res= field->cmp((uchar*)key1 + offset, (uchar*)key2 + offset)))
+    int res= field->cmp((uchar*)key1 + offset, (uchar*)key2 + offset);
+    if (res)
       return res;
   }
   return 0;
@@ -2981,24 +2989,25 @@ int group_concat_key_cmp_with_order(const void* arg, const void* key1,
   {
     Item *item= *(*order_item)->item;
     /*
+      If item is a const item then either get_tmp_table_field returns 0
+      or it is an item over a const table.
+    */
+    if (item->const_item())
+      continue;
+    /*
       We have to use get_tmp_table_field() instead of
       real_item()->get_tmp_table_field() because we want the field in
       the temporary table, not the original field
-    */
+     */
     Field *field= item->get_tmp_table_field();
-    /* 
-      If item is a const item then either get_tp_table_field returns 0
-      or it is an item over a const table. 
-    */
-    if (field && !item->const_item())
-    {
-      int res;
-      uint offset= (field->offset(field->table->record[0]) -
-                    table->s->null_bytes);
-      if ((res= field->cmp((uchar*)key1 + offset, (uchar*)key2 + offset)))
-        return ((*order_item)->direction == ORDER::ORDER_ASC) ? res : -res;
-          
-    }
+    if (!field)
+      continue;
+
+    uint offset= (field->offset(field->table->record[0]) -
+                  table->s->null_bytes);
+    int res= field->cmp((uchar*)key1 + offset, (uchar*)key2 + offset);
+    if (res)
+      return ((*order_item)->direction == ORDER::ORDER_ASC) ? res : -res;
   }
   /*
     We can't return 0 because in that case the tree class would remove this
@@ -3037,23 +3046,28 @@ int dump_leaf_key(void* key_arg, element_count count __attribute__((unused)),
   for (; arg < arg_end; arg++)
   {
     String *res;
-    if (! (*arg)->const_item())
-    {
-      /*
-	We have to use get_tmp_table_field() instead of
-	real_item()->get_tmp_table_field() because we want the field in
-	the temporary table, not the original field
-        We also can't use table->field array to access the fields
-        because it contains both order and arg list fields.
-      */
-      Field *field= (*arg)->get_tmp_table_field();
-      uint offset= (field->offset(field->table->record[0]) -
-                    table->s->null_bytes);
-      DBUG_ASSERT(offset < table->s->reclength);
-      res= field->val_str(&tmp, key + offset);
-    }
-    else
+    /*
+      We have to use get_tmp_table_field() instead of
+      real_item()->get_tmp_table_field() because we want the field in
+      the temporary table, not the original field
+      We also can't use table->field array to access the fields
+      because it contains both order and arg list fields.
+     */
+    if ((*arg)->const_item())
       res= (*arg)->val_str(&tmp);
+    else
+    {
+      Field *field= (*arg)->get_tmp_table_field();
+      if (field)
+      {
+        uint offset= (field->offset(field->table->record[0]) -
+                      table->s->null_bytes);
+        DBUG_ASSERT(offset < table->s->reclength);
+        res= field->val_str(&tmp, key + offset);
+      }
+      else
+        res= (*arg)->val_str(&tmp);
+    }
     if (res)
       result->append(*res);
   }
@@ -3106,11 +3120,12 @@ int dump_leaf_key(void* key_arg, element_count count __attribute__((unused)),
 Item_func_group_concat::
 Item_func_group_concat(Name_resolution_context *context_arg,
                        bool distinct_arg, List<Item> *select_list,
-                       SQL_I_List<ORDER> *order_list, String *separator_arg)
+                       const SQL_I_List<ORDER> &order_list,
+                       String *separator_arg)
   :tmp_table_param(0), separator(separator_arg), tree(0),
    unique_filter(NULL), table(0),
    order(0), context(context_arg),
-   arg_count_order(order_list ? order_list->elements : 0),
+   arg_count_order(order_list.elements),
    arg_count_field(select_list->elements),
    row_count(0),
    distinct(distinct_arg),
@@ -3150,7 +3165,7 @@ Item_func_group_concat(Name_resolution_context *context_arg,
   if (arg_count_order)
   {
     ORDER **order_ptr= order;
-    for (ORDER *order_item= order_list->first;
+    for (ORDER *order_item= order_list.first;
          order_item != NULL;
          order_item= order_item->next)
     {
@@ -3198,7 +3213,14 @@ Item_func_group_concat::Item_func_group_concat(THD *thd,
   tmp= (ORDER *)(order + arg_count_order);
   for (uint i= 0; i < arg_count_order; i++, tmp++)
   {
-    memcpy(tmp, item->order[i], sizeof(ORDER));
+    /*
+      Compiler generated copy constructor is used to
+      to copy all the members of ORDER struct.
+      It's also necessary to update ORDER::next pointer
+      so that it points to new ORDER element.
+    */
+    new (tmp) st_order(*(item->order[i])); 
+    tmp->next= (i + 1 == arg_count_order) ? NULL : (tmp + 1);
     order[i]= tmp;
   }
 }
@@ -3301,12 +3323,12 @@ bool Item_func_group_concat::add()
   for (uint i= 0; i < arg_count_field; i++)
   {
     Item *show_item= args[i];
-    if (!show_item->const_item())
-    {
-      Field *f= show_item->get_tmp_table_field();
-      if (f->is_null_in_record((const uchar*) table->record[0]))
+    if (show_item->const_item())
+      continue;
+
+    Field *field= show_item->get_tmp_table_field();
+    if (field && field->is_null_in_record((const uchar*) table->record[0]))
         return 0;                               // Skip row if it contains null
-    }
   }
 
   null_value= FALSE;
@@ -3412,7 +3434,7 @@ Item_func_group_concat::fix_fields(THD *thd, Item **ref)
 bool Item_func_group_concat::setup(THD *thd)
 {
   List<Item> list;
-  SELECT_LEX *select_lex= thd->lex->current_select;
+  SELECT_LEX *select_lex= thd->lex->current_select();
   const bool order_or_distinct= test(arg_count_order > 0 || distinct);
   DBUG_ENTER("Item_func_group_concat::setup");
 

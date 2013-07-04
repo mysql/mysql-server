@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2006, 2012, Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2006, 2013, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -605,5 +605,32 @@ TEST_P(BitMapTest, TestIntersect)
 }
 
 #endif
+
+// Bug#11761614
+
+bool bitmap_set_prefix_t() {
+  MY_BITMAP map;
+  my_bitmap_map buf[2];                         /* 64-bit buffer */
+  uint32 _max= ~((uint32)0);
+  bitmap_init(&map, buf, 32, false);
+
+  // set all bits in the 2nd half of the buf
+  buf[1]= _max;
+  bitmap_clear_all(&map);
+
+  /*
+    Choose prefix_size as number that is not a multiple
+    of 8, so that leftover bits in the last prefix byte
+    will be set separately.
+  */
+  bitmap_set_prefix(&map, 31);
+  // 2nd half should remain unaltered
+  return (buf[1] == _max);
+}
+
+TEST(BitMapTestEx, TestSetPrefixEx)
+{
+  EXPECT_TRUE(bitmap_set_prefix_t());
+}
 
 }

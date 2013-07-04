@@ -1,4 +1,4 @@
-# Copyright (c) 2006, 2012, Oracle and/or its affiliates. All rights reserved.
+# Copyright (c) 2006, 2013, Oracle and/or its affiliates. All rights reserved.
 # 
 # This program is free software; you can redistribute it and/or modify
 # it under the terms of the GNU General Public License as published by
@@ -49,6 +49,17 @@ IF(NOT DEFINED MANUFACTURER)
   SET(MANUFACTURER "Built from Source" CACHE  STRING ${MANUFACTURER_DOCSTRING})
   MARK_AS_ADVANCED(MANUFACTURER)
 ENDIF()
+
+
+# MAX_INDEXES - Set the maximum number of indexes per table, default 64U
+IF (NOT MAX_INDEXES)
+  SET(MAX_INDEXES 64U)
+ENDIF(NOT MAX_INDEXES)
+
+IF (${MAX_INDEXES} GREATER 255)
+  MESSAGE(FATAL_ERROR "MAX_INDEXES values greater than 255 is not supported!")
+ENDIF()
+MESSAGE(STATUS "Configuring with MAX_INDEXES = ${MAX_INDEXES}")
 
 # We choose to provide WITH_DEBUG as alias to standard CMAKE_BUILD_TYPE=Debug
 # which turns out to be not trivial, as this involves synchronization 
@@ -211,7 +222,9 @@ OPTION(WITHOUT_SERVER OFF)
 IF(UNIX)
   OPTION(WITH_VALGRIND "Valgrind instrumentation" OFF)
 ENDIF()
-OPTION (WITH_UNIT_TESTS "Compile MySQL with unit tests" ON)
+IF(NOT WITHOUT_SERVER)
+  OPTION (WITH_UNIT_TESTS "Compile MySQL with unit tests" ON)
+ENDIF()
 MARK_AS_ADVANCED(CYBOZU BACKUP_TEST WITHOUT_SERVER DISABLE_SHARED)
 
 OPTION(ENABLE_DEBUG_SYNC "Enable debug sync (debug builds only)" ON) 
@@ -321,8 +334,8 @@ INCLUDE_DIRECTORIES(${CMAKE_CURRENT_BINARY_DIR}/include)
 MYSQL_CHECK_ZLIB_WITH_COMPRESS()
 # Add bundled yassl/taocrypt or system openssl.
 MYSQL_CHECK_SSL()
-# Add readline or libedit.
-MYSQL_CHECK_READLINE()
+# Add system/bundled editline.
+MYSQL_CHECK_EDITLINE()
 # Add libevent
 MYSQL_CHECK_LIBEVENT()
 
@@ -374,15 +387,23 @@ IF(WITH_UNIT_TESTS)
   ADD_SUBDIRECTORY(unittest/examples)
   ADD_SUBDIRECTORY(unittest/mytap)
   ADD_SUBDIRECTORY(unittest/mytap/t)
+  # Visual Studio 11 needs this extra flag in order to compile gmock.
+  IF(WIN32)
+    ADD_DEFINITIONS( /D _VARIADIC_MAX=10 )
+  ENDIF()
   ADD_SUBDIRECTORY(unittest/gunit)
 ENDIF()
 
 ADD_SUBDIRECTORY(extra)
+ADD_SUBDIRECTORY(client)
+ADD_SUBDIRECTORY(sql/share)
+ADD_SUBDIRECTORY(scripts)
+IF(UNIX)
+  ADD_SUBDIRECTORY(man)
+ENDIF()
 IF(NOT WITHOUT_SERVER)
   ADD_SUBDIRECTORY(tests)
-  ADD_SUBDIRECTORY(client)
   ADD_SUBDIRECTORY(sql)
-  ADD_SUBDIRECTORY(sql/share)
   ADD_SUBDIRECTORY(libservices)
   OPTION (WITH_EMBEDDED_SERVER "Compile MySQL with embedded server" OFF)
   IF(WITH_EMBEDDED_SERVER) 
@@ -393,11 +414,7 @@ IF(NOT WITHOUT_SERVER)
   ADD_SUBDIRECTORY(mysql-test)
   ADD_SUBDIRECTORY(mysql-test/lib/My/SafeProcess)
   ADD_SUBDIRECTORY(support-files)
-  ADD_SUBDIRECTORY(scripts)
   ADD_SUBDIRECTORY(sql-bench)
-  IF(UNIX)
-    ADD_SUBDIRECTORY(man)
-  ENDIF()
   IF(EXISTS ${CMAKE_SOURCE_DIR}/internal/CMakeLists.txt)
     ADD_SUBDIRECTORY(internal)
   ENDIF()

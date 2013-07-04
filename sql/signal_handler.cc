@@ -1,4 +1,4 @@
-/* Copyright (c) 2011, 2012, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2011, 2013, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -11,7 +11,7 @@
 
    You should have received a copy of the GNU General Public License
    along with this program; if not, write to the Free Software
-   Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA  02111-1307  USA */
+   Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA  02110-1301  USA */
 
 #include "my_global.h"
 #include <signal.h>
@@ -20,7 +20,7 @@
 #include "my_stacktrace.h"
 #include "global_threads.h"
 
-#ifdef __WIN__
+#ifdef _WIN32
 #include <crtdbg.h>
 #define SIGNAL_FMT "exception 0x%x"
 #else
@@ -35,9 +35,6 @@
 static volatile sig_atomic_t segfaulted= 0;
 extern ulong max_used_connections;
 extern volatile sig_atomic_t calling_initgroups;
-#ifdef HAVE_NPTL
-extern volatile sig_atomic_t ld_assume_kernel_is_set;
-#endif
 
 /**
  * Handler for fatal signals
@@ -65,7 +62,7 @@ extern "C" sig_handler handle_fatal_signal(int sig)
 
   segfaulted = 1;
 
-#ifdef __WIN__
+#ifdef _WIN32
   SYSTEMTIME utc_time;
   GetSystemTime(&utc_time);
   const long hrs=  utc_time.wHour;
@@ -131,23 +128,6 @@ extern "C" sig_handler handle_fatal_signal(int sig)
   my_safe_printf_stderr("%s",
     "Hope that's ok; if not, decrease some variables in the equation.\n\n");
 
-#if defined(HAVE_LINUXTHREADS)
-#define UNSAFE_DEFAULT_LINUX_THREADS 200
-  if (sizeof(char*) == 4 && thread_count > UNSAFE_DEFAULT_LINUX_THREADS)
-  {
-    my_safe_printf_stderr(
-      "You seem to be running 32-bit Linux and have "
-      "%d concurrent connections.\n"
-      "If you have not changed STACK_SIZE in LinuxThreads "
-      "and built the binary \n"
-      "yourself, LinuxThreads is quite likely to steal "
-      "a part of the global heap for\n"
-      "the thread stack. Please read "
-      "http://dev.mysql.com/doc/mysql/en/linux-installation.html\n\n"
-      thread_count);
-  }
-#endif /* HAVE_LINUXTHREADS */
-
 #ifdef HAVE_STACKTRACE
   THD *thd=current_thd;
 
@@ -187,7 +167,7 @@ extern "C" sig_handler handle_fatal_signal(int sig)
       "Some pointers may be invalid and cause the dump to abort.\n");
 
     my_safe_printf_stderr("Query (%p): ", thd->query());
-    my_safe_print_str(thd->query(), MY_MIN(1024U, thd->query_length()));
+    my_safe_puts_stderr(thd->query(), MY_MIN(1024U, thd->query_length()));
     my_safe_printf_stderr("Connection ID (thread ID): %lu\n",
                           (ulong) thd->thread_id);
     my_safe_printf_stderr("Status: %s\n\n", kreason);
@@ -213,21 +193,6 @@ extern "C" sig_handler handle_fatal_signal(int sig)
   }
 #endif
 
-#ifdef HAVE_NPTL
-  if (thd_lib_detected == THD_LIB_LT && !ld_assume_kernel_is_set)
-  {
-    my_safe_printf_stderr("%s",
-      "You are running a statically-linked LinuxThreads binary on an NPTL\n"
-      "system. This can result in crashes on some distributions due to "
-      "LT/NPTL conflicts.\n"
-      "You should either build a dynamically-linked binary, "
-      "or force LinuxThreads\n"
-      "to be used with the LD_ASSUME_KERNEL environment variable.\n"
-      "Please consult the documentation for your distribution "
-      "on how to do that.\n");
-  }
-#endif
-
   if (locked_in_memory)
   {
     my_safe_printf_stderr("%s", "\n"
@@ -249,7 +214,7 @@ extern "C" sig_handler handle_fatal_signal(int sig)
   }
 #endif
 
-#ifndef __WIN__
+#ifndef _WIN32
   /*
      Quit, without running destructors (etc.)
      On Windows, do not terminate, but pass control to exception filter.

@@ -17,7 +17,6 @@
 #define SQL_BASE_INCLUDED
 
 #include "unireg.h"                    // REQUIRED: for other includes
-#include "sql_trigger.h"                        /* trg_event_type */
 #include "sql_class.h"                          /* enum_mark_columns */
 #include "mysqld.h"                             /* key_map */
 
@@ -30,6 +29,7 @@ struct TABLE_LIST;
 class THD;
 struct handlerton;
 struct TABLE;
+class Table_trigger_dispatcher;
 
 typedef class st_select_lex SELECT_LEX;
 
@@ -175,14 +175,14 @@ void close_thread_tables(THD *thd);
 bool fill_record_n_invoke_before_triggers(THD *thd, List<Item> &fields,
                                           List<Item> &values,
                                           bool ignore_errors,
-                                          Table_triggers_list *triggers,
-                                          enum trg_event_type event,
+                                          TABLE *table,
+                                          enum enum_trigger_event_type event,
                                           int num_fields);
 bool fill_record_n_invoke_before_triggers(THD *thd, Field **field,
                                           List<Item> &values,
                                           bool ignore_errors,
-                                          Table_triggers_list *triggers,
-                                          enum trg_event_type event,
+                                          TABLE *table,
+                                          enum enum_trigger_event_type event,
                                           int num_fields);
 bool insert_fields(THD *thd, Name_resolution_context *context,
 		   const char *db_name, const char *table_name,
@@ -289,7 +289,6 @@ void close_performance_schema_table(THD *thd, Open_tables_state *backup);
 
 bool close_cached_tables(THD *thd, TABLE_LIST *tables,
                          bool wait_for_refresh, ulong timeout);
-bool close_cached_connection_tables(THD *thd, LEX_STRING *connect_string);
 void close_all_tables_for_name(THD *thd, TABLE_SHARE *share,
                                bool remove_from_locked_tables,
                                TABLE *skip_table);
@@ -365,10 +364,11 @@ inline bool setup_fields_with_no_wrap(THD *thd, Ref_ptr_array ref_pointer_array,
                                       bool allow_sum_func)
 {
   bool res;
-  thd->lex->select_lex.no_wrap_view_item= TRUE;
+  DBUG_ASSERT(thd->lex->select_lex != NULL);
+  thd->lex->select_lex->no_wrap_view_item= true;
   res= setup_fields(thd, ref_pointer_array, item, mark_used_columns,
                     sum_func_list, allow_sum_func);
-  thd->lex->select_lex.no_wrap_view_item= FALSE;
+  thd->lex->select_lex->no_wrap_view_item= false;
   return res;
 }
 

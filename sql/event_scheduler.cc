@@ -1,4 +1,4 @@
-/* Copyright (c) 2006, 2012, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2006, 2013, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -21,8 +21,9 @@
 #include "event_queue.h"
 #include "event_db_repository.h"
 #include "sql_connect.h"         // init_new_connection_handler_thread
-#include "sql_acl.h"             // SUPER_ACL
+#include "auth_common.h"             // SUPER_ACL
 #include "global_threads.h"
+#include "log.h"
 
 /**
   @addtogroup Event_Scheduler
@@ -104,9 +105,20 @@ Event_worker_thread::print_warnings(THD *thd, Event_job_data *et)
     err_msg.append(prefix);
     err_msg.append(err->message_text(),
                    err->message_octet_length(), system_charset_info);
-    DBUG_ASSERT(err->severity() < 3);
-    (sql_print_message_handlers[err->severity()])("%*s", err_msg.length(),
-                                                  err_msg.c_ptr());
+    switch (err->severity())
+    {
+    case Sql_condition::SL_ERROR:
+      sql_print_error("%*s", err_msg.length(), err_msg.c_ptr());
+      break;
+    case Sql_condition::SL_WARNING:
+      sql_print_warning("%*s", err_msg.length(), err_msg.c_ptr());
+      break;
+    case Sql_condition::SL_NOTE:
+      sql_print_information("%*s", err_msg.length(), err_msg.c_ptr());
+      break;
+    default:
+      DBUG_ASSERT(false);
+    }
   }
   DBUG_VOID_RETURN;
 }
@@ -242,6 +254,12 @@ event_scheduler_thread(void *arg)
   my_free(arg);
   if (!res)
     scheduler->run(thd);
+  else
+  {
+    thd->proc_info= "Clearing";
+    net_end(&thd->net);
+    delete thd;
+  }
 
   DBUG_LEAVE;                               // Against gcc warnings
   my_thread_end();
@@ -361,26 +379,27 @@ Event_scheduler::~Event_scheduler()
 }
 
 
-/*
+
+/**
   Starts the scheduler (again). Creates a new THD and passes it to
   a forked thread. Does not wait for acknowledgement from the new
   thread that it has started. Asynchronous starting. Most of the
   needed initializations are done in the current thread to minimize
   the chance of failure in the spawned thread.
 
-  SYNOPSIS
-    Event_scheduler::start()
+  @param[out] err_no - errno indicating type of error which caused
+                       failure to start scheduler thread.
 
-  RETURN VALUE
-    FALSE  OK
-    TRUE   Error (not reported)
+  @return
+    @retval false Success.
+    @retval true  Error.
 */
 
 bool
-Event_scheduler::start()
+Event_scheduler::start(int *err_no)
 {
   THD *new_thd= NULL;
-  bool ret= FALSE;
+  bool ret= false;
   pthread_t th;
   struct scheduler_param *scheduler_param_value;
   DBUG_ENTER("Event_scheduler::start");
@@ -390,10 +409,16 @@ Event_scheduler::start()
   if (state > INITIALIZED)
     goto end;
 
+  DBUG_EXECUTE_IF("event_scheduler_thread_create_failure", {
+                  *err_no= 11;
+                  Events::opt_event_scheduler= Events::EVENTS_OFF;
+                  ret= true;
+                  goto end; });
+
   if (!(new_thd= new THD))
   {
     sql_print_error("Event Scheduler: Cannot initialize the scheduler thread");
-    ret= TRUE;
+    ret= true;
     goto end;
   }
   pre_init_event_thread(new_thd);
@@ -420,29 +445,30 @@ Event_scheduler::start()
   DBUG_PRINT("info", ("Setting state go RUNNING"));
   state= RUNNING;
   DBUG_PRINT("info", ("Forking new thread for scheduler. THD: 0x%lx", (long) new_thd));
-  if (mysql_thread_create(key_thread_event_scheduler,
-                          &th, &connection_attrib, event_scheduler_thread,
-                          (void*)scheduler_param_value))
+  if ((*err_no= mysql_thread_create(key_thread_event_scheduler,
+                                    &th, &connection_attrib,
+                                    event_scheduler_thread,
+                                    (void*)scheduler_param_value)))
   {
     DBUG_PRINT("error", ("cannot create a new thread"));
-    state= INITIALIZED;
-    scheduler_thd= NULL;
-    ret= TRUE;
+    sql_print_error("Event scheduler: Failed to start scheduler,"
+                    " Can not create thread for event scheduler (errno=%d)",
+                    *err_no);
 
     new_thd->proc_info= "Clearing";
     DBUG_ASSERT(new_thd->net.buff != 0);
     net_end(&new_thd->net);
 
-    dec_thread_running();
-    new_thd->release_resources();
-    mysql_mutex_lock(&LOCK_thread_count);
-    remove_global_thread(new_thd);
-    mysql_mutex_unlock(&LOCK_thread_count);
+    state= INITIALIZED;
+    scheduler_thd= NULL;
     delete new_thd;
+
+    delete scheduler_param_value;
+    ret= true;
   }
+
 end:
   UNLOCK_DATA();
-
   DBUG_RETURN(ret);
 }
 
@@ -553,7 +579,20 @@ Event_scheduler::execute_top(Event_queue_element_for_exec *event_name)
   if ((res= mysql_thread_create(key_thread_event_worker,
                                 &th, &connection_attrib, event_worker_thread,
                                 event_name)))
+  {
+    mysql_mutex_lock(&LOCK_global_system_variables);
+    Events::opt_event_scheduler= Events::EVENTS_OFF;
+    mysql_mutex_unlock(&LOCK_global_system_variables);
+
+    sql_print_error("Event_scheduler::execute_top: Can not create event worker"
+                    " thread (errno=%d). Stopping event scheduler", res);
+
+    new_thd->proc_info= "Clearing";
+    DBUG_ASSERT(new_thd->net.buff != 0);
+    net_end(&new_thd->net);
+
     goto error;
+  }
 
   ++started_events;
 
@@ -563,18 +602,8 @@ Event_scheduler::execute_top(Event_queue_element_for_exec *event_name)
 error:
   DBUG_PRINT("error", ("Event_scheduler::execute_top() res: %d", res));
   if (new_thd)
-  {
-    new_thd->proc_info= "Clearing";
-    DBUG_ASSERT(new_thd->net.buff != 0);
-    net_end(&new_thd->net);
-
-    dec_thread_running();
-    new_thd->release_resources();
-    mysql_mutex_lock(&LOCK_thread_count);
-    remove_global_thread(new_thd);
-    mysql_mutex_unlock(&LOCK_thread_count);
     delete new_thd;
-  }
+
   delete event_name;
   DBUG_RETURN(TRUE);
 }

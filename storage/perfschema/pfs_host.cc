@@ -1,4 +1,4 @@
-/* Copyright (c) 2010, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2010, 2013 Oracle and/or its affiliates. All rights reserved.
 
   This program is free software; you can redistribute it and/or modify
   it under the terms of the GNU General Public License as published by
@@ -11,7 +11,7 @@
 
   You should have received a copy of the GNU General Public License
   along with this program; if not, write to the Free Software
-  Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA */
+  Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA 02110-1301, USA */
 
 /**
   @file storage/perfschema/pfs_host.cc
@@ -345,9 +345,7 @@ void purge_host(PFS_thread *thread, PFS_host *host)
                     host->m_key.m_hash_key, host->m_key.m_key_length));
   if (entry && (entry != MY_ERRPTR))
   {
-    PFS_host *pfs;
-    pfs= *entry;
-    DBUG_ASSERT(pfs == host);
+    DBUG_ASSERT(*entry == host);
     if (host->get_refcount() == 0)
     {
       lf_hash_delete(&host_hash, pins,

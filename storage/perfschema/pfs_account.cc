@@ -1,4 +1,4 @@
-/* Copyright (c) 2010, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2010, 2013 Oracle and/or its affiliates. All rights reserved.
 
   This program is free software; you can redistribute it and/or modify
   it under the terms of the GNU General Public License as published by
@@ -11,7 +11,7 @@
 
   You should have received a copy of the GNU General Public License
   along with this program; if not, write to the Free Software
-  Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA */
+  Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA 02110-1301, USA */
 
 /**
   @file storage/perfschema/pfs_account.cc
@@ -526,9 +526,7 @@ void purge_account(PFS_thread *thread, PFS_account *account)
                     account->m_key.m_key_length));
   if (entry && (entry != MY_ERRPTR))
   {
-    PFS_account *pfs;
-    pfs= *entry;
-    DBUG_ASSERT(pfs == account);
+    DBUG_ASSERT(*entry == account);
     if (account->get_refcount() == 0)
     {
       lf_hash_delete(&account_hash, pins,

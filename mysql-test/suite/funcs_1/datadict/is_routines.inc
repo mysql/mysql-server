@@ -8,7 +8,6 @@
 #    - to show information about the all time existing routines (there are no
 #      in the moment) within the databases information_schema and mysql
 #    - for checking storage engine properties
-#      Therefore please do not alter $engine_type and $other_engine_type.
 #
 # Author:
 # 2008-01-23 mleich WL#4203 Reorganize and fix the data dictionary tests of
@@ -18,9 +17,6 @@
 # 2008-06-11 mleich Move t/is_routines.test to this file and
 #                   create variants for embedded/non embedded server.
 #
-
-let $engine_type       = MEMORY;
-let $other_engine_type = MyISAM;
 
 let $is_table = ROUTINES;
 

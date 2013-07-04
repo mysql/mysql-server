@@ -1,3 +1,8 @@
+# The include statement below is a temp one for tests that are yet to
+#be ported to run with InnoDB,
+#but needs to be kept for tests that would need MyISAM in future.
+--source include/force_myisam_default.inc
+
 # Tests for SIGNAL and RESIGNAL
 
 --echo #
@@ -1722,9 +1727,8 @@ begin
   DECLARE warn CONDITION FOR SQLSTATE "01234";
   DECLARE CONTINUE HANDLER for 1012
   begin
-    select "before RESIGNAL";
-    RESIGNAL;
-    select "after RESIGNAL";
+     select "handler called";
+     RESIGNAL;
   end;
 
   SIGNAL warn SET
@@ -1777,9 +1781,8 @@ create procedure test_resignal()
 begin
   DECLARE CONTINUE HANDLER for sqlwarning
   begin
-    select "before RESIGNAL";
+    select "handler called";
     RESIGNAL;
-    select "after RESIGNAL";
   end;
 
   insert into t_warn set a= 9999999999999999;
@@ -1833,11 +1836,10 @@ begin
   DECLARE warn CONDITION FOR SQLSTATE "01234";
   DECLARE CONTINUE HANDLER for 1012
   begin
-    select "before RESIGNAL";
+    select "handler called";
     RESIGNAL SET
       MESSAGE_TEXT = "RESIGNAL of a warning",
       MYSQL_ERRNO = 5555 ;
-    select "after RESIGNAL";
   end;
 
   SIGNAL warn SET
@@ -1894,11 +1896,10 @@ create procedure test_resignal()
 begin
   DECLARE CONTINUE HANDLER for sqlwarning
   begin
-    select "before RESIGNAL";
+    select "handler called";
     RESIGNAL SET
       MESSAGE_TEXT = "RESIGNAL of a warning",
       MYSQL_ERRNO = 5555 ;
-    select "after RESIGNAL";
   end;
 
   insert into t_warn set a= 9999999999999999;
@@ -1958,11 +1959,10 @@ begin
   DECLARE warn CONDITION FOR SQLSTATE "01111";
   DECLARE CONTINUE HANDLER for 1012
   begin
-    select "before RESIGNAL";
+    select "handler called";
     RESIGNAL SQLSTATE "01222" SET
       MESSAGE_TEXT = "RESIGNAL to warning",
       MYSQL_ERRNO = 5555 ;
-    select "after RESIGNAL";
   end;
 
   SIGNAL warn SET
@@ -2026,11 +2026,10 @@ begin
   DECLARE not_found CONDITION FOR SQLSTATE "02ABC";
   DECLARE CONTINUE HANDLER for 1012
   begin
-    select "before RESIGNAL";
+    select "handler called";
     RESIGNAL SQLSTATE "01222" SET
       MESSAGE_TEXT = "RESIGNAL to warning",
       MYSQL_ERRNO = 5555 ;
-    select "after RESIGNAL";
   end;
 
   SIGNAL not_found SET
@@ -2094,11 +2093,10 @@ begin
   DECLARE error CONDITION FOR SQLSTATE "AAAAA";
   DECLARE CONTINUE HANDLER for 1012
   begin
-    select "before RESIGNAL";
+    select "handler called";
     RESIGNAL SQLSTATE "01222" SET
       MESSAGE_TEXT = "RESIGNAL to warning",
       MYSQL_ERRNO = 5555 ;
-    select "after RESIGNAL";
   end;
 
   SIGNAL error SET
@@ -2161,11 +2159,10 @@ create procedure test_resignal()
 begin
   DECLARE CONTINUE HANDLER for sqlwarning
   begin
-    select "before RESIGNAL";
+    select "handler called";
     RESIGNAL SQLSTATE "01111" SET
       MESSAGE_TEXT = "RESIGNAL to a warning",
       MYSQL_ERRNO = 5555 ;
-    select "after RESIGNAL";
   end;
 
   insert into t_warn set a= 9999999999999999;
@@ -2222,16 +2219,17 @@ begin
   DECLARE c cursor for select * from t_cursor;
   DECLARE CONTINUE HANDLER for not found
   begin
-    select "before RESIGNAL";
+    select "handler called";
     RESIGNAL SQLSTATE "01111" SET
       MESSAGE_TEXT = "RESIGNAL to a warning",
       MYSQL_ERRNO = 5555 ;
-    select "after RESIGNAL";
   end;
 
   open c;
   fetch c into x;
-  close c;
+# We don't explicitly close for once, but rely on the end-of-scope clean-up
+# because we don't want for CLOSE to reset the diagnostics area ...
+# close c;
 end $$
 
 call test_resignal() $$
@@ -2291,11 +2289,10 @@ create procedure test_resignal()
 begin
   DECLARE CONTINUE HANDLER for sqlexception
   begin
-    select "before RESIGNAL";
+    select "handler called";
     RESIGNAL SQLSTATE "01111" SET
       MESSAGE_TEXT = "RESIGNAL to a warning",
       MYSQL_ERRNO = 5555 ;
-    select "after RESIGNAL";
   end;
 
   drop table no_such_table;
@@ -2401,7 +2398,6 @@ BEGIN
   DECLARE x CONDITION FOR SQLSTATE '42000';
   DECLARE EXIT HANDLER FOR x
   BEGIN
-    SELECT '2';
     SHOW WARNINGS;
     RESIGNAL x SET MYSQL_ERRNO = 9999;
   END;
@@ -2409,7 +2405,6 @@ BEGIN
   BEGIN
     DECLARE EXIT HANDLER FOR x
     BEGIN
-      SELECT '1';
       SHOW WARNINGS;
       RESIGNAL x SET
         SCHEMA_NAME = 'test',
@@ -2426,7 +2421,6 @@ BEGIN
   DECLARE x CONDITION for SQLSTATE '42000';
   DECLARE EXIT HANDLER FOR x
   BEGIN
-    SELECT '3';
     SHOW WARNINGS;
     RESIGNAL x SET
       MESSAGE_TEXT = 'Hi, I am a useless error message',

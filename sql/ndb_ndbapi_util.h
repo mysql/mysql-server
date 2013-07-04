@@ -31,10 +31,6 @@ union NdbValue
   void *ptr;
 };
 
-int get_ndb_blobs_value(struct TABLE* table, NdbValue* value_array,
-                        uchar*& buffer, uint& buffer_size,
-                        my_ptrdiff_t ptrdiff);
-
 char *ndb_pack_varchar(const NdbDictionary::Column *col,
                        char *buf, const char *str, int sz);
 

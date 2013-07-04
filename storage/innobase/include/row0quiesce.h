@@ -1,6 +1,6 @@
 /*****************************************************************************
 
-Copyright (c) 2012, Oracle and/or its affiliates. All Rights Reserved.
+Copyright (c) 2012, 2013, Oracle and/or its affiliates. All Rights Reserved.
 
 This program is free software; you can redistribute it and/or modify it under
 the terms of the GNU General Public License as published by the Free Software
@@ -37,7 +37,7 @@ struct trx_t;
 
 /*********************************************************************//**
 Quiesce the tablespace that the table resides in. */
-UNIV_INTERN
+
 void
 row_quiesce_table_start(
 /*====================*/
@@ -48,7 +48,7 @@ row_quiesce_table_start(
 /*********************************************************************//**
 Set a table's quiesce state.
 @return DB_SUCCESS or errro code. */
-UNIV_INTERN
+
 dberr_t
 row_quiesce_set_state(
 /*==================*/
@@ -59,7 +59,7 @@ row_quiesce_set_state(
 
 /*********************************************************************//**
 Cleanup after table quiesce. */
-UNIV_INTERN
+
 void
 row_quiesce_table_complete(
 /*=======================*/

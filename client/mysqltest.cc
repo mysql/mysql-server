@@ -40,7 +40,7 @@
 #ifdef HAVE_SYS_WAIT_H
 #include <sys/wait.h>
 #endif
-#ifdef __WIN__
+#ifdef _WIN32
 #include <direct.h>
 #endif
 #include <signal.h>
@@ -53,16 +53,11 @@
 using std::min;
 using std::max;
 
-#ifdef __WIN__
+#ifdef _WIN32
 #include <crtdbg.h>
 #define SIGNAL_FMT "exception 0x%x"
 #else
 #define SIGNAL_FMT "signal %d"
-#endif
-
-/* Use cygwin for --exec and --system before 5.0 */
-#if MYSQL_VERSION_ID < 50000
-#define USE_CYGWIN
 #endif
 
 #define MAX_VAR_NAME_LENGTH    256
@@ -364,6 +359,7 @@ enum enum_commands {
   Q_SEND_SHUTDOWN, Q_SHUTDOWN_SERVER,
   Q_RESULT_FORMAT_VERSION,
   Q_MOVE_FILE, Q_REMOVE_FILES_WILDCARD, Q_SEND_EVAL,
+  Q_OUTPUT,                            /* redirect output to a file */
   Q_UNKNOWN,			       /* Unknown command.   */
   Q_COMMENT,			       /* Comments, ignored. */
   Q_COMMENT_WITH_COMMAND,
@@ -465,6 +461,7 @@ const char *command_names[]=
   "move_file",
   "remove_files_wildcard",
   "send_eval",
+  "output",
 
   0
 };
@@ -509,6 +506,7 @@ struct st_command
   my_bool abort_on_error, used_replace;
   struct st_expected_errors expected_errors;
   char require_file[FN_REFLEN];
+  char output_file[FN_REFLEN];
   enum enum_commands type;
 };
 
@@ -578,8 +576,7 @@ void fix_win_paths(const char *val, int len);
 const char *get_errname_from_code (uint error_code);
 int multi_reg_replace(struct st_replace_regex* r,char* val);
 
-#ifdef __WIN__
-void free_tmp_sh_file();
+#ifdef _WIN32
 void free_win_path_patterns();
 #endif
 
@@ -600,6 +597,9 @@ void free_replace_regex();
 
 /* Used by sleep */
 void check_eol_junk_line(const char *eol);
+
+static void var_set(const char *var_name, const char *var_name_end,
+                    const char *var_val, const char *var_val_end);
 
 void free_all_replace(){
   free_replace();
@@ -763,8 +763,11 @@ public:
       }
     }
 
-    while ((bytes= fread(buf, 1, sizeof(buf), m_file)) > 0)
-      fwrite(buf, 1, bytes, stderr);
+    while ((bytes= fread(buf, 1, sizeof(buf), m_file)) > 0) {
+      if (fwrite(buf, 1, bytes, stderr) != bytes) {
+        perror("fwrite");
+      }
+    }
 
     if (!lines)
     {
@@ -993,7 +996,7 @@ void do_eval(DYNAMIC_STRING *query_eval, const char *query,
       break;
     }
   }
-#ifdef __WIN__
+#ifdef _WIN32
     fix_win_paths(query_eval->str, query_eval->length);
 #endif
   DBUG_VOID_RETURN;
@@ -1261,8 +1264,7 @@ void handle_command_error(struct st_command *command, uint error)
     {
       DBUG_PRINT("info", ("command \"%.*s\" failed with expected error: %d",
                           command->first_word_len, command->query, error));
-      revert_properties();
-      DBUG_VOID_RETURN;
+      goto end;
     }
     if (command->expected_errors.count > 0)
       die("command \"%.*s\" failed with wrong error: %d. my_errno=%d",
@@ -1276,6 +1278,16 @@ void handle_command_error(struct st_command *command, uint error)
         command->first_word_len, command->query,
         command->expected_errors.err[0].code.errnum);
   }
+end:
+  // Save error code
+  {
+    const char var_name[]= "__error";
+    char buf[10];
+    int err_len= snprintf(buf, 10, "%u", error);
+    buf[err_len > 9 ? 9 : err_len]= '0';
+    var_set(var_name, var_name + 7, buf, buf + err_len);
+  }
+
   revert_properties();
   DBUG_VOID_RETURN;
 }
@@ -1366,8 +1378,7 @@ void free_used_memory()
   my_free(opt_pass);
   free_defaults(default_argv);
   free_re();
-#ifdef __WIN__
-  free_tmp_sh_file();
+#ifdef _WIN32
   free_win_path_patterns();
 #endif
 
@@ -1403,7 +1414,7 @@ static void cleanup_and_exit(int exit_code)
   }
 
   /* exit() appears to be not 100% reliable on Windows under some conditions */
-#ifdef __WIN__
+#ifdef _WIN32
   fflush(stdout);
   fflush(stderr);
   _exit(exit_code);
@@ -1673,7 +1684,7 @@ static int run_tool(const char *tool_path, DYNAMIC_STRING *ds_res, ...)
 
   va_end(args);
 
-#ifdef __WIN__
+#ifdef _WIN32
   dynstr_append(&ds_cmdline, "\"");
 #endif
 
@@ -1696,7 +1707,7 @@ static int run_tool(const char *tool_path, DYNAMIC_STRING *ds_res, ...)
   not present.
 */
 
-#ifdef __WIN__
+#ifdef _WIN32
 
 static int diff_check(const char *diff_name)
 {
@@ -1750,7 +1761,7 @@ void show_diff(DYNAMIC_STRING* ds,
      in order to correctly detect non-availibility of 'diff', and
      the way it's implemented does not work with default 'diff' on Solaris.
   */
-#ifdef __WIN__
+#ifdef _WIN32
   if (diff_check("diff"))
     diff_name = "diff";
   else if (diff_check("mtrdiff"))
@@ -1813,7 +1824,7 @@ void show_diff(DYNAMIC_STRING* ds,
 "two files was shown for you to diff manually.\n\n"
 "To get a better report you should install 'diff' on your system, which you\n"
 "for example can get from http://www.gnu.org/software/diffutils/diffutils.html\n"
-#ifdef __WIN__
+#ifdef _WIN32
 "or http://gnuwin32.sourceforge.net/packages/diffutils.htm\n"
 #endif
 "\n");
@@ -2603,7 +2614,7 @@ void var_set_convert_error(struct st_command *command,VAR *var)
   char *first=command->query;
   const char *err_name;
     
-  DBUG_ENTER("var_set_query_get_value");
+  DBUG_ENTER("var_set_convert_error");
 
   DBUG_PRINT("info", ("query: %s", command->query));
 
@@ -2968,37 +2979,10 @@ void do_source(struct st_command *command)
 }
 
 
-#if defined __WIN__
-
-#ifdef USE_CYGWIN
-/* Variables used for temporary sh files used for emulating Unix on Windows */
-char tmp_sh_name[64], tmp_sh_cmd[70];
-#endif
-
-void init_tmp_sh_file()
-{
-#ifdef USE_CYGWIN
-  /* Format a name for the tmp sh file that is unique for this process */
-  my_snprintf(tmp_sh_name, sizeof(tmp_sh_name), "tmp_%d.sh", getpid());
-  /* Format the command to execute in order to run the script */
-  my_snprintf(tmp_sh_cmd, sizeof(tmp_sh_cmd), "sh %s", tmp_sh_name);
-#endif
-}
-
-
-void free_tmp_sh_file()
-{
-#ifdef USE_CYGWIN
-  my_delete(tmp_sh_name, MYF(0));
-#endif
-}
-#endif
-
-
 FILE* my_popen(DYNAMIC_STRING *ds_cmd, const char *mode,
                struct st_command *command)
 {
-#if __WIN__
+#if _WIN32
   /*
     --execw is for tests executing commands containing non-ASCII characters.
 
@@ -3039,21 +3023,15 @@ FILE* my_popen(DYNAMIC_STRING *ds_cmd, const char *mode,
     wmode[len / sizeof(wchar_t)]= 0;
     return _wpopen(wcmd, wmode);
   }
-#endif /* __WIN__ */
+#endif /* _WIN32 */
 
-#if defined __WIN__ && defined USE_CYGWIN
-  /* Dump the command into a sh script file and execute with popen */
-  str_to_file(tmp_sh_name, ds_cmd->str, ds_cmd->length);
-  return popen(tmp_sh_cmd, mode);
-#else
   return popen(ds_cmd->str, mode);
-#endif
 }
 
 
 static void init_builtin_echo(void)
 {
-#ifdef __WIN__
+#ifdef _WIN32
   size_t echo_length;
 
   /* Look for "echo.exe" in same dir as mysqltest was started from */
@@ -3159,15 +3137,13 @@ void do_exec(struct st_command *command)
     replace(&ds_cmd, "echo", 4, builtin_echo, strlen(builtin_echo));
   }
 
-#ifdef __WIN__
-#ifndef USE_CYGWIN
+#ifdef _WIN32
   /* Replace /dev/null with NUL */
   while(replace(&ds_cmd, "/dev/null", 9, "NUL", 3) == 0)
     ;
   /* Replace "closed stdout" with non existing output fd */
   while(replace(&ds_cmd, ">&-", 3, ">&4", 3) == 0)
     ;
-#endif
 #endif
 
   /* exec command is interpreted externally and will not take newlines */
@@ -3235,6 +3211,14 @@ void do_exec(struct st_command *command)
     dynstr_free(&ds_cmd);
     die("command \"%s\" succeeded - should have failed with errno %d...",
         command->first_argument, command->expected_errors.err[0].code.errnum);
+  }
+  // Save error code
+  {
+    const char var_name[]= "__error";
+    char buf[10];
+    int err_len= snprintf(buf, 10, "%u", error);
+    buf[err_len > 9 ? 9 : err_len]= '0';
+    var_set(var_name, var_name + 7, buf, buf + err_len);
   }
 
   dynstr_free(&ds_cmd);
@@ -3407,8 +3391,12 @@ void do_remove_files_wildcard(struct st_command *command)
   /* Set default wild chars for wild_compare, is changed in embedded mode */
   set_wild_chars(1);
   
+  uint length;
+  /* Storing the length of the path to the file, so it can be reused */
+  length= ds_file_to_remove.length;
   for (i= 0; i < (uint) dir_info->number_off_files; i++)
   {
+    ds_file_to_remove.length= length;
     file= dir_info->dir_entry + i;
     /* Remove only regular files, i.e. no directories etc. */
     /* if (!MY_S_ISREG(file->mystat->st_mode)) */
@@ -3418,8 +3406,10 @@ void do_remove_files_wildcard(struct st_command *command)
     if (ds_wild.length &&
         wild_compare(file->name, ds_wild.str, 0))
       continue;
-    ds_file_to_remove.length= ds_directory.length + 1;
-    ds_file_to_remove.str[ds_directory.length + 1]= 0;
+    /* Not required as the var ds_file_to_remove.length already has the
+       length in canonnicalized form */
+    /* ds_file_to_remove.length= ds_directory.length + 1;
+    ds_file_to_remove.str[ds_directory.length + 1]= 0; */
     dynstr_append(&ds_file_to_remove, file->name);
     DBUG_PRINT("info", ("removing file: %s", ds_file_to_remove.str));
     error= my_delete(ds_file_to_remove.str, MYF(0)) != 0;
@@ -4258,7 +4248,7 @@ void do_perl(struct st_command *command)
 
     /* Check for error code that indicates perl could not be started */
     int exstat= WEXITSTATUS(error);
-#ifdef __WIN__
+#ifdef _WIN32
     if (exstat == 1)
       /* Text must begin 'perl not found' as mtr looks for it */
       abort_not_supported_test("perl not found in path or did not start");
@@ -4440,7 +4430,6 @@ int do_save_master_pos()
   const char *query;
   DBUG_ENTER("do_save_master_pos");
 
-#ifdef HAVE_NDB_BINLOG
   /*
     Wait for ndb binlog to be up-to-date with all changes
     done on the local mysql server
@@ -4537,7 +4526,7 @@ int do_save_master_pos()
       }
     }
   }
-#endif
+
   if (mysql_query(mysql, query= "show master status"))
     die("failed in 'show master status': %d %s",
 	mysql_errno(mysql), mysql_error(mysql));
@@ -4745,7 +4734,7 @@ int query_get_string(MYSQL* mysql, const char* query,
 
 static int my_kill(int pid, int sig)
 {
-#ifdef __WIN__
+#ifdef _WIN32
   HANDLE proc;
   if ((proc= OpenProcess(PROCESS_TERMINATE, FALSE, pid)) == NULL)
     return -1;
@@ -5494,6 +5483,7 @@ void do_connect(struct st_command *command)
   char *con_options;
   my_bool con_ssl= 0, con_compress= 0;
   my_bool con_pipe= 0, con_shm= 0, con_cleartext_enable= 0;
+  my_bool con_secure_auth= 1;
   struct st_connection* con_slot;
 
   static DYNAMIC_STRING ds_connection_name;
@@ -5505,7 +5495,7 @@ void do_connect(struct st_command *command)
   static DYNAMIC_STRING ds_sock;
   static DYNAMIC_STRING ds_options;
   static DYNAMIC_STRING ds_default_auth;
-#ifdef HAVE_SMEM
+#if defined (_WIN32) && !defined (EMBEDDED_LIBRARY)
   static DYNAMIC_STRING ds_shm;
 #endif
   const struct command_arg connect_args[] = {
@@ -5536,7 +5526,7 @@ void do_connect(struct st_command *command)
       die("Illegal argument for port: '%s'", ds_port.str);
   }
 
-#ifdef HAVE_SMEM
+#if defined (_WIN32) && !defined (EMBEDDED_LIBRARY)
   /* Shared memory */
   init_dynamic_string(&ds_shm, ds_sock.str, 0, 0);
 #endif
@@ -5585,6 +5575,8 @@ void do_connect(struct st_command *command)
       con_shm= 1;
     else if (!strncmp(con_options, "CLEARTEXT", 9))
       con_cleartext_enable= 1;
+    else if (!strncmp(con_options, "SKIPSECUREAUTH",14))
+      con_secure_auth= 0;
     else
       die("Illegal option to connect: %.*s", 
           (int) (end - con_options), con_options);
@@ -5647,7 +5639,7 @@ void do_connect(struct st_command *command)
 
   if (con_pipe)
   {
-#if defined(__WIN__) && !defined(EMBEDDED_LIBRARY)
+#if defined(_WIN32) && !defined(EMBEDDED_LIBRARY)
     opt_protocol= MYSQL_PROTOCOL_PIPE;
 #endif
   }
@@ -5659,7 +5651,7 @@ void do_connect(struct st_command *command)
 
   if (con_shm)
   {
-#ifdef HAVE_SMEM
+#if defined (_WIN32) && !defined (EMBEDDED_LIBRARY)
     uint protocol= MYSQL_PROTOCOL_MEMORY;
     if (!ds_shm.length)
       die("Missing shared memory base name");
@@ -5667,7 +5659,7 @@ void do_connect(struct st_command *command)
     mysql_options(&con_slot->mysql, MYSQL_OPT_PROTOCOL, &protocol);
 #endif
   }
-#ifdef HAVE_SMEM
+#if defined (_WIN32) && !defined (EMBEDDED_LIBRARY)
   else if (shared_memory_base_name)
   {
     mysql_options(&con_slot->mysql, MYSQL_SHARED_MEMORY_BASE_NAME,
@@ -5695,6 +5687,10 @@ void do_connect(struct st_command *command)
   if (con_cleartext_enable)
     mysql_options(&con_slot->mysql, MYSQL_ENABLE_CLEARTEXT_PLUGIN,
                   (char*) &con_cleartext_enable);
+
+  if (!con_secure_auth)
+    mysql_options(&con_slot->mysql, MYSQL_SECURE_AUTH,
+                  (char*) &con_secure_auth);
 
   /* Special database to allow one to connect without a database name */
   if (ds_database.length && !strcmp(ds_database.str,"*NO-ONE*"))
@@ -5725,7 +5721,7 @@ void do_connect(struct st_command *command)
   dynstr_free(&ds_sock);
   dynstr_free(&ds_options);
   dynstr_free(&ds_default_auth);
-#ifdef HAVE_SMEM
+#if defined (_WIN32) && !defined (EMBEDDED_LIBRARY)
   dynstr_free(&ds_shm);
 #endif
   DBUG_VOID_RETURN;
@@ -6267,7 +6263,6 @@ int read_line(char *buf, int size)
     {
       /* Could be a multibyte character */
       /* This code is based on the code in "sql_load.cc" */
-#ifdef USE_MB
       int charlen = my_mbcharlen(charset_info, (unsigned char) c);
       /* We give up if multibyte character is started but not */
       /* completed before we pass buf_end */
@@ -6294,7 +6289,6 @@ int read_line(char *buf, int size)
 	}
       }
       else
-#endif
 	*p++= c;
     }
   }
@@ -6925,7 +6919,7 @@ void check_regerr(my_regex_t* r, int err)
 }
 
 
-#ifdef __WIN__
+#ifdef _WIN32
 
 DYNAMIC_ARRAY patterns;
 
@@ -7065,7 +7059,7 @@ void append_field(DYNAMIC_STRING *ds, uint col_idx, MYSQL_FIELD* field,
     val= null;
     len= 4;
   }
-#ifdef __WIN__
+#ifdef _WIN32
   else if ((field->type == MYSQL_TYPE_DOUBLE ||
             field->type == MYSQL_TYPE_FLOAT ) &&
            field->decimals >= 31)
@@ -7970,7 +7964,7 @@ void run_query(struct st_connection *cn, struct st_command *command, int flags)
     Create a temporary dynamic string to contain the output from
     this query.
   */
-  if (command->require_file[0])
+  if (command->require_file[0] || command->output_file[0])
   {
     init_dynamic_string(&ds_result, "", 1024, 1024);
     ds= &ds_result;
@@ -8137,6 +8131,13 @@ void run_query(struct st_connection *cn, struct st_command *command, int flags)
        existing file which has been specified using --require or --result
     */
     check_require(ds, command->require_file);
+  }
+
+  if (command->output_file[0])
+  {
+    /* An output file was specified for _this_ query */
+    str_to_file2(command->output_file, ds_result.str, ds_result.length, false);
+    command->output_file[0]= 0;
   }
 
   if (ds == &ds_result)
@@ -8444,15 +8445,15 @@ static void dump_backtrace(void)
   struct st_connection *conn= cur_con;
 
   fprintf(stderr, "read_command_buf (%p): ", read_command_buf);
-  my_safe_print_str(read_command_buf, sizeof(read_command_buf));
+  my_safe_puts_stderr(read_command_buf, sizeof(read_command_buf));
 
   if (conn)
   {
     fprintf(stderr, "conn->name (%p): ", conn->name);
-    my_safe_print_str(conn->name, conn->name_len);
+    my_safe_puts_stderr(conn->name, conn->name_len);
 #ifdef EMBEDDED_LIBRARY
     fprintf(stderr, "conn->cur_query (%p): ", conn->cur_query);
-    my_safe_print_str(conn->cur_query, conn->cur_query_len);
+    my_safe_puts_stderr(conn->cur_query, conn->cur_query_len);
 #endif
   }
   fputs("Attempting backtrace...\n", stderr);
@@ -8476,12 +8477,12 @@ static sig_handler signal_handler(int sig)
   fprintf(stderr, "Writing a core file...\n");
   fflush(stderr);
   my_write_core(sig);
-#ifndef __WIN__
+#ifndef _WIN32
   exit(1);			// Shouldn't get here but just in case
 #endif
 }
 
-#ifdef __WIN__
+#ifdef _WIN32
 
 LONG WINAPI exception_filter(EXCEPTION_POINTERS *exp)
 {
@@ -8518,7 +8519,7 @@ static void init_signal_handling(void)
   SetUnhandledExceptionFilter(exception_filter);
 }
 
-#else /* __WIN__ */
+#else /* _WIN32 */
 
 static void init_signal_handling(void)
 {
@@ -8546,7 +8547,7 @@ static void init_signal_handling(void)
   DBUG_VOID_RETURN;
 }
 
-#endif /* !__WIN__ */
+#endif /* !_WIN32 */
 
 int main(int argc, char **argv)
 {
@@ -8554,9 +8555,11 @@ int main(int argc, char **argv)
   my_bool q_send_flag= 0, abort_flag= 0;
   uint command_executed= 0, last_command_executed= 0;
   char save_file[FN_REFLEN];
+  char output_file[FN_REFLEN];
   MY_INIT(argv[0]);
 
   save_file[0]= 0;
+  output_file[0]= 0;
   TMPDIR[0]= 0;
 
   init_signal_handling();
@@ -8609,11 +8612,8 @@ int main(int argc, char **argv)
   memset(&var_reg, 0, sizeof(var_reg));
 
   init_builtin_echo();
-#ifdef __WIN__
-#ifndef USE_CYGWIN
+#ifdef _WIN32
   is_windows= 1;
-#endif
-  init_tmp_sh_file();
   init_win_path_patterns();
 #endif
 
@@ -8722,7 +8722,7 @@ int main(int argc, char **argv)
   }
 #endif
 
-#ifdef HAVE_SMEM
+#if defined (_WIN32) && !defined (EMBEDDED_LIBRARY)
   if (shared_memory_base_name)
     mysql_options(&con->mysql,MYSQL_SHARED_MEMORY_BASE_NAME,shared_memory_base_name);
 #endif
@@ -8958,6 +8958,11 @@ int main(int argc, char **argv)
 	  strmake(command->require_file, save_file, sizeof(save_file) - 1);
 	  *save_file= 0;
 	}
+	if (*output_file)
+	{
+	  strmake(command->output_file, output_file, sizeof(output_file) - 1);
+	  *output_file= 0;
+	}
 	run_query(cur_con, command, flags);
 	display_opt_trace(cur_con, command, flags);
 	command_executed++;
@@ -9127,6 +9132,18 @@ int main(int argc, char **argv)
       case Q_RESULT:
         die("result, deprecated command");
         break;
+
+      case Q_OUTPUT:
+        {
+          static DYNAMIC_STRING ds_to_file;
+          const struct command_arg output_file_args[] = 
+            {{ "to_file", ARG_STRING, TRUE, &ds_to_file, "Output filename" }};
+          check_command_args(command, command->first_argument,
+                             output_file_args, 1, ' ');
+          strmake(output_file, ds_to_file.str, FN_REFLEN);
+          dynstr_free(&ds_to_file);
+          break;
+        }
 
       default:
         processed= 0;
@@ -9391,7 +9408,7 @@ void do_get_replace(struct st_command *command)
     if (!*from)
       die("Wrong number of arguments to replace_result in '%s'",
           command->query);
-#ifdef __WIN__
+#ifdef _WIN32
     fix_win_paths(to, from - to);
 #endif
     insert_pointer_name(&from_array,to);
@@ -10534,7 +10551,7 @@ void replace_dynstr_append_mem(DYNAMIC_STRING *ds,
                                const char *val, int len)
 {
   char lower[512];
-#ifdef __WIN__
+#ifdef _WIN32
   fix_win_paths(val, len);
 #endif
 

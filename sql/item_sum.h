@@ -1,7 +1,8 @@
 #ifndef ITEM_SUM_INCLUDED
 #define ITEM_SUM_INCLUDED
 
-/* Copyright (c) 2000, 2013, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2000, 2013, Oracle and/or its affiliates. All rights
+   reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -378,19 +379,19 @@ protected:
 public:  
 
   void mark_as_sum_func();
-  Item_sum() :quick_group(1), arg_count(0), forced_const(FALSE)
+  Item_sum() :next(NULL), quick_group(1), arg_count(0), forced_const(FALSE)
   {
     mark_as_sum_func();
     init_aggregator();
   }
-  Item_sum(Item *a) :quick_group(1), arg_count(1), args(tmp_args),
+  Item_sum(Item *a) :next(NULL), quick_group(1), arg_count(1), args(tmp_args),
     orig_args(tmp_orig_args), forced_const(FALSE)
   {
     args[0]=a;
     mark_as_sum_func();
     init_aggregator();
   }
-  Item_sum( Item *a, Item *b ) :quick_group(1), arg_count(2), args(tmp_args),
+  Item_sum( Item *a, Item *b ) :next(NULL), quick_group(1), arg_count(2), args(tmp_args),
     orig_args(tmp_orig_args), forced_const(FALSE)
   {
     args[0]=a; args[1]=b;
@@ -1460,7 +1461,7 @@ class Item_func_group_concat : public Item_sum
 public:
   Item_func_group_concat(Name_resolution_context *context_arg,
                          bool is_distinct, List<Item> *is_select,
-                         SQL_I_List<ORDER> *is_order, String *is_separator);
+                         const SQL_I_List<ORDER> &is_order, String *is_separator);
 
   Item_func_group_concat(THD *thd, Item_func_group_concat *item);
   ~Item_func_group_concat();

@@ -62,12 +62,7 @@ DELETE FROM t1;
 
 --error 1
 --exec $MYSQLD_CMD $args --innodb-log-group-home-dir=foo\;bar
-let SEARCH_PATTERN= syntax error in innodb_log_group_home_dir, or a wrong number of mirrored log groups;
---source include/search_pattern_in_file.inc
---remove_file $SEARCH_FILE
-
---error 1
---exec $MYSQLD_CMD $args --innodb-mirrored-log-groups=2
+let SEARCH_PATTERN= syntax error in innodb_log_group_home_dir;
 --source include/search_pattern_in_file.inc
 --remove_file $SEARCH_FILE
 
@@ -78,11 +73,6 @@ let SEARCH_PATTERN= syntax error in innodb_log_group_home_dir, or a wrong number
 let SEARCH_PATTERN= InnoDB: Starting an apply batch of log records;
 --source include/search_pattern_in_file.inc
 --remove_file $SEARCH_FILE
---echo --innodb-force-recovery-crash=2
---error 3
---exec $MYSQLD_CMD $crash=2
-let SEARCH_PATTERN= InnoDB: Starting an apply batch of log records;
---source include/search_pattern_in_file.inc
 --echo --innodb-force-recovery-crash=3
 --error 3
 --exec $MYSQLD_CMD $crash=3

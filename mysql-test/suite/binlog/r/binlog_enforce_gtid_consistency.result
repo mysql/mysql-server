@@ -9,9 +9,6 @@ ERROR HY000: Variable 'enforce_gtid_consistency' is a read only variable
 ==== Restart server ====
 include/rpl_restart_server.inc [server_number=1 parameters: --enforce-gtid-consistency=1]
 include/assert.inc [ENFORCE_GTID_CONSISTENCY should be set to 1 at restart]
-SELECT @@GLOBAL.ENFORCE_GTID_CONSISTENCY;
-@@GLOBAL.ENFORCE_GTID_CONSISTENCY
-1
 ==== CREATE TABLE .... SELECT not allowed ====
 CREATE TABLE t1 (a INT) ENGINE = InnoDB SELECT 1;
 ERROR HY000: CREATE TABLE ... SELECT is forbidden when @@GLOBAL.ENFORCE_GTID_CONSISTENCY = 1.
@@ -104,4 +101,7 @@ DROP TEMPORARY TABLE t2;
 COMMIT;
 SET AUTOCOMMIT = 1;
 SET SQL_LOG_BIN = 1;
+==== Restart server ====
+include/rpl_restart_server.inc [server_number=1 parameters: --enforce-gtid-consistency=0]
+include/assert.inc [ENFORCE_GTID_CONSISTENCY should be set to 0 at restart]
 include/rpl_end.inc

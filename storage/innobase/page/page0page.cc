@@ -1,6 +1,6 @@
 /*****************************************************************************
 
-Copyright (c) 1994, 2012, Oracle and/or its affiliates. All Rights Reserved.
+Copyright (c) 1994, 2013, Oracle and/or its affiliates. All Rights Reserved.
 Copyright (c) 2012, Facebook Inc.
 
 This program is free software; you can redistribute it and/or modify it under
@@ -84,8 +84,8 @@ is 50 x 4 bytes = 200 bytes. */
 
 /***************************************************************//**
 Looks for the directory slot which owns the given record.
-@return	the directory slot number */
-UNIV_INTERN
+@return the directory slot number */
+
 ulint
 page_dir_find_owner_slot(
 /*=====================*/
@@ -122,10 +122,9 @@ page_dir_find_owner_slot(
 	while (UNIV_LIKELY(*(uint16*) slot != rec_offs_bytes)) {
 
 		if (UNIV_UNLIKELY(slot == first_slot)) {
-			fprintf(stderr,
-				"InnoDB: Probable data corruption on"
-				" page %lu\n"
-				"InnoDB: Original record ",
+			ib_logf(IB_LOG_LEVEL_ERROR,
+				"Probable data corruption on page %lu "
+				"Original record on that page;",
 				(ulong) page_get_page_no(page));
 
 			if (page_is_comp(page)) {
@@ -134,18 +133,15 @@ page_dir_find_owner_slot(
 				rec_print_old(stderr, rec);
 			}
 
-			fputs("\n"
-			      "InnoDB: on that page.\n"
-			      "InnoDB: Cannot find the dir slot for record ",
-			      stderr);
+			ib_logf(IB_LOG_LEVEL_ERROR,
+				"Cannot find the dir slot for this record "
+				"on that page;");
 			if (page_is_comp(page)) {
 				fputs("(compact record)", stderr);
 			} else {
 				rec_print_old(stderr, page
 					      + mach_decode_2(rec_offs_bytes));
 			}
-			fputs("\n"
-			      "InnoDB: on that page!\n", stderr);
 
 			buf_page_print(page, 0, 0);
 
@@ -160,7 +156,7 @@ page_dir_find_owner_slot(
 
 /**************************************************************//**
 Used to check the consistency of a directory slot.
-@return	TRUE if succeed */
+@return TRUE if succeed */
 static
 ibool
 page_dir_slot_check(
@@ -203,7 +199,7 @@ page_dir_slot_check(
 
 /*************************************************************//**
 Sets the max trx id field value. */
-UNIV_INTERN
+
 void
 page_set_max_trx_id(
 /*================*/
@@ -238,8 +234,8 @@ page_set_max_trx_id(
 
 /************************************************************//**
 Allocates a block of memory from the heap of an index page.
-@return	pointer to start of allocated buffer, or NULL if allocation fails */
-UNIV_INTERN
+@return pointer to start of allocated buffer, or NULL if allocation fails */
+
 byte*
 page_mem_alloc_heap(
 /*================*/
@@ -296,8 +292,8 @@ page_create_write_log(
 
 /***********************************************************//**
 Parses a redo log record of creating a page.
-@return	end of log record or NULL */
-UNIV_INTERN
+@return end of log record or NULL */
+
 byte*
 page_parse_create(
 /*==============*/
@@ -320,7 +316,7 @@ page_parse_create(
 
 /**********************************************************//**
 The index page creation function.
-@return	pointer to the page */
+@return pointer to the page */
 static
 page_t*
 page_create_low(
@@ -473,8 +469,8 @@ page_create_low(
 
 /**********************************************************//**
 Create an uncompressed B-tree index page.
-@return	pointer to the page */
-UNIV_INTERN
+@return pointer to the page */
+
 page_t*
 page_create(
 /*========*/
@@ -489,8 +485,8 @@ page_create(
 
 /**********************************************************//**
 Create a compressed B-tree index page.
-@return	pointer to the page */
-UNIV_INTERN
+@return pointer to the page */
+
 page_t*
 page_create_zip(
 /*============*/
@@ -498,7 +494,8 @@ page_create_zip(
 					page is created */
 	dict_index_t*	index,		/*!< in: the index of the page */
 	ulint		level,		/*!< in: the B-tree level of the page */
-	mtr_t*		mtr)		/*!< in: mini-transaction handle */
+	trx_id_t	max_trx_id,	/*!< in: PAGE_MAX_TRX_ID */
+	mtr_t*		mtr)		/*!< in/out: mini-transaction */
 {
 	page_t*		page;
 	page_zip_des_t*	page_zip	= buf_block_get_page_zip(block);
@@ -509,10 +506,11 @@ page_create_zip(
 	ut_ad(dict_table_is_comp(index->table));
 
 	page = page_create_low(block, TRUE);
-	mach_write_to_2(page + PAGE_HEADER + PAGE_LEVEL, level);
+	mach_write_to_2(PAGE_HEADER + PAGE_LEVEL + page, level);
+	mach_write_to_8(PAGE_HEADER + PAGE_MAX_TRX_ID + page, max_trx_id);
 
 	if (!page_zip_compress(page_zip, page, index,
-	    page_compression_level, mtr)) {
+			       page_zip_level, mtr)) {
 		/* The compression of a newly created page
 		should always succeed. */
 		ut_error;
@@ -521,10 +519,56 @@ page_create_zip(
 	return(page);
 }
 
+/**********************************************************//**
+Empty a previously created B-tree index page. */
+
+void
+page_create_empty(
+/*==============*/
+	buf_block_t*	block,	/*!< in/out: B-tree block */
+	dict_index_t*	index,	/*!< in: the index of the page */
+	mtr_t*		mtr)	/*!< in/out: mini-transaction */
+{
+	trx_id_t	max_trx_id = 0;
+	const page_t*	page	= buf_block_get_frame(block);
+	page_zip_des_t*	page_zip= buf_block_get_page_zip(block);
+
+	ut_ad(fil_page_get_type(page) == FIL_PAGE_INDEX);
+
+	/* Multiple transactions cannot simultaneously operate on the
+	same temp-table in parallel.
+	max_trx_id is ignored for temp tables because it not required
+	for MVCC. */
+	if (dict_index_is_sec_or_ibuf(index)
+	    && !dict_table_is_temporary(index->table)
+	    && page_is_leaf(page)) {
+		max_trx_id = page_get_max_trx_id(page);
+		ut_ad(max_trx_id);
+	}
+
+	if (page_zip) {
+		page_create_zip(block, index,
+				page_header_get_field(page, PAGE_LEVEL),
+				max_trx_id, mtr);
+	} else {
+		page_create(block, mtr, page_is_comp(page));
+
+		if (max_trx_id) {
+			page_update_max_trx_id(
+				block, page_zip, max_trx_id, mtr);
+		}
+	}
+}
+
 /*************************************************************//**
 Differs from page_copy_rec_list_end, because this function does not
-touch the lock table and max trx id on page or compress the page. */
-UNIV_INTERN
+touch the lock table and max trx id on page or compress the page.
+
+IMPORTANT: The caller will have to update IBUF_BITMAP_FREE
+if new_block is a compressed leaf page in a secondary index.
+This has to be done either within the same mini-transaction,
+or by invoking ibuf_reset_free_bits() before mtr_commit(). */
+
 void
 page_copy_rec_list_end_no_locks(
 /*============================*/
@@ -573,15 +617,13 @@ page_copy_rec_list_end_no_locks(
 				       BUF_PAGE_PRINT_NO_CRASH);
 			buf_page_print(page_align(rec), 0,
 				       BUF_PAGE_PRINT_NO_CRASH);
-			ut_print_timestamp(stderr);
 
-			fprintf(stderr,
-				"InnoDB: rec offset %lu, cur1 offset %lu,"
-				" cur2 offset %lu\n",
+			ib_logf(IB_LOG_LEVEL_FATAL,
+				"rec offset %lu, cur1 offset %lu,"
+				" cur2 offset %lu",
 				(ulong) page_offset(rec),
 				(ulong) page_offset(page_cur_get_rec(&cur1)),
 				(ulong) page_offset(cur2));
-			ut_error;
 		}
 
 		page_cur_move_to_next(&cur1);
@@ -598,9 +640,15 @@ page_copy_rec_list_end_no_locks(
 Copies records from page to new_page, from a given record onward,
 including that record. Infimum and supremum records are not copied.
 The records are copied to the start of the record list on new_page.
+
+IMPORTANT: The caller will have to update IBUF_BITMAP_FREE
+if new_block is a compressed leaf page in a secondary index.
+This has to be done either within the same mini-transaction,
+or by invoking ibuf_reset_free_bits() before mtr_commit().
+
 @return pointer to the original successor of the infimum record on
 new_page, or NULL on zip overflow (new_block will be decompressed) */
-UNIV_INTERN
+
 rec_t*
 page_copy_rec_list_end(
 /*===================*/
@@ -649,8 +697,14 @@ page_copy_rec_list_end(
 
 	/* Update PAGE_MAX_TRX_ID on the uncompressed page.
 	Modifications will be redo logged and copied to the compressed
-	page in page_zip_compress() or page_zip_reorganize() below. */
-	if (dict_index_is_sec_or_ibuf(index) && page_is_leaf(page)) {
+	page in page_zip_compress() or page_zip_reorganize() below.
+	Multiple transactions cannot simultaneously operate on the
+	same temp-table in parallel.
+	max_trx_id is ignored for temp tables because it not required
+	for MVCC. */
+	if (dict_index_is_sec_or_ibuf(index)
+	    && page_is_leaf(page)
+	    && !dict_table_is_temporary(index->table)) {
 		page_update_max_trx_id(new_block, NULL,
 				       page_get_max_trx_id(page), mtr);
 	}
@@ -658,11 +712,8 @@ page_copy_rec_list_end(
 	if (new_page_zip) {
 		mtr_set_log_mode(mtr, log_mode);
 
-		if (!page_zip_compress(new_page_zip,
-				       new_page,
-				       index,
-				       page_compression_level,
-				       mtr)) {
+		if (!page_zip_compress(new_page_zip, new_page,
+				       index, page_zip_level, mtr)) {
 			/* Before trying to reorganize the page,
 			store the number of preceding records on the page. */
 			ulint	ret_pos
@@ -711,9 +762,15 @@ page_copy_rec_list_end(
 Copies records from page to new_page, up to the given record,
 NOT including that record. Infimum and supremum records are not copied.
 The records are copied to the end of the record list on new_page.
+
+IMPORTANT: The caller will have to update IBUF_BITMAP_FREE
+if new_block is a compressed leaf page in a secondary index.
+This has to be done either within the same mini-transaction,
+or by invoking ibuf_reset_free_bits() before mtr_commit().
+
 @return pointer to the original predecessor of the supremum record on
 new_page, or NULL on zip overflow (new_block will be decompressed) */
-UNIV_INTERN
+
 rec_t*
 page_copy_rec_list_start(
 /*=====================*/
@@ -771,9 +828,14 @@ page_copy_rec_list_start(
 
 	/* Update PAGE_MAX_TRX_ID on the uncompressed page.
 	Modifications will be redo logged and copied to the compressed
-	page in page_zip_compress() or page_zip_reorganize() below. */
+	page in page_zip_compress() or page_zip_reorganize() below.
+	Multiple transactions cannot simultaneously operate on the
+	same temp-table in parallel.
+	max_trx_id is ignored for temp tables because it not required
+	for MVCC. */
 	if (dict_index_is_sec_or_ibuf(index)
-	    && page_is_leaf(page_align(rec))) {
+	    && page_is_leaf(page_align(rec))
+	    && !dict_table_is_temporary(index->table)) {
 		page_update_max_trx_id(new_block, NULL,
 				       page_get_max_trx_id(page_align(rec)),
 				       mtr);
@@ -786,7 +848,8 @@ page_copy_rec_list_start(
 				goto zip_reorganize;);
 
 		if (!page_zip_compress(new_page_zip, new_page, index,
-				       page_compression_level, mtr)) {
+				       page_zip_level, mtr)) {
+
 			ulint	ret_pos;
 #ifndef DBUG_OFF
 zip_reorganize:
@@ -861,8 +924,8 @@ page_delete_rec_list_write_log(
 
 /**********************************************************//**
 Parses a log record of a record list end or start deletion.
-@return	end of log record or NULL */
-UNIV_INTERN
+@return end of log record or NULL */
+
 byte*
 page_parse_delete_rec_list(
 /*=======================*/
@@ -918,7 +981,7 @@ page_parse_delete_rec_list(
 /*************************************************************//**
 Deletes records from a page from a given record onward, including that record.
 The infimum and supremum records are not deleted. */
-UNIV_INTERN
+
 void
 page_delete_rec_list_end(
 /*=====================*/
@@ -950,13 +1013,32 @@ page_delete_rec_list_end(
 	ut_a(!page_zip || page_zip_validate(page_zip, page, index));
 #endif /* UNIV_ZIP_DEBUG */
 
-	if (page_rec_is_infimum(rec)) {
-		rec = page_rec_get_next(rec);
+	if (page_rec_is_supremum(rec)) {
+		ut_ad(n_recs == 0 || n_recs == ULINT_UNDEFINED);
+		return;
 	}
 
-	if (page_rec_is_supremum(rec)) {
-
+	if (page_rec_is_infimum(rec)
+	    || n_recs == page_get_n_recs(page)) {
+delete_all:
+		/* We are deleting all records. */
+		page_create_empty(block, index, mtr);
 		return;
+	}
+
+	/* If we are deleting everything from the first user record
+	onwards, create an empty page. */
+
+	if (ulint comp = page_is_comp(page)) {
+		if (page_rec_get_next_low(page + PAGE_NEW_INFIMUM, comp)
+		    == rec) {
+			goto delete_all;
+		}
+	} else {
+		if (page_rec_get_next_low(page + PAGE_OLD_INFIMUM, comp)
+		    == rec) {
+			goto delete_all;
+		}
 	}
 
 	/* Reset the last insert info in the page header and increment
@@ -1099,7 +1181,7 @@ page_delete_rec_list_end(
 /*************************************************************//**
 Deletes records from page, up to the given record, NOT including
 that record. Infimum and supremum records are not deleted. */
-UNIV_INTERN
+
 void
 page_delete_rec_list_start(
 /*=======================*/
@@ -1135,7 +1217,12 @@ page_delete_rec_list_start(
 #endif /* UNIV_ZIP_DEBUG */
 
 	if (page_rec_is_infimum(rec)) {
+		return;
+	}
 
+	if (page_rec_is_supremum(rec)) {
+		/* We are deleting all records. */
+		page_create_empty(block, index, mtr);
 		return;
 	}
 
@@ -1173,9 +1260,15 @@ page_delete_rec_list_start(
 /*************************************************************//**
 Moves record list end to another page. Moved records include
 split_rec.
+
+IMPORTANT: The caller will have to update IBUF_BITMAP_FREE
+if new_block is a compressed leaf page in a secondary index.
+This has to be done either within the same mini-transaction,
+or by invoking ibuf_reset_free_bits() before mtr_commit().
+
 @return TRUE on success; FALSE on compression failure (new_block will
 be decompressed) */
-UNIV_INTERN
+
 ibool
 page_move_rec_list_end(
 /*===================*/
@@ -1228,8 +1321,14 @@ page_move_rec_list_end(
 /*************************************************************//**
 Moves record list start to another page. Moved records do not include
 split_rec.
-@return	TRUE on success; FALSE on compression failure */
-UNIV_INTERN
+
+IMPORTANT: The caller will have to update IBUF_BITMAP_FREE
+if new_block is a compressed leaf page in a secondary index.
+This has to be done either within the same mini-transaction,
+or by invoking ibuf_reset_free_bits() before mtr_commit().
+
+@return TRUE on success; FALSE on compression failure */
+
 ibool
 page_move_rec_list_start(
 /*=====================*/
@@ -1330,7 +1429,7 @@ page_dir_add_slot(
 
 /****************************************************************//**
 Splits a directory slot which owns too many records. */
-UNIV_INTERN
+
 void
 page_dir_split_slot(
 /*================*/
@@ -1393,7 +1492,7 @@ page_dir_split_slot(
 Tries to balance the given directory slot with too few records with the upper
 neighbor, so that there are at least the minimum number of records owned by
 the slot; this may result in the merging of two slots. */
-UNIV_INTERN
+
 void
 page_dir_balance_slot(
 /*==================*/
@@ -1463,8 +1562,8 @@ page_dir_balance_slot(
 /************************************************************//**
 Returns the nth record of the record list.
 This is the inverse function of page_rec_get_n_recs_before().
-@return	nth record */
-UNIV_INTERN
+@return nth record */
+
 const rec_t*
 page_rec_get_nth_const(
 /*===================*/
@@ -1516,8 +1615,8 @@ page_rec_get_nth_const(
 /***************************************************************//**
 Returns the number of records before the given record in chain.
 The number includes infimum and supremum records.
-@return	number of records */
-UNIV_INTERN
+@return number of records */
+
 ulint
 page_rec_get_n_recs_before(
 /*=======================*/
@@ -1582,7 +1681,7 @@ page_rec_get_n_recs_before(
 /************************************************************//**
 Prints record contents including the data relevant only in
 the index page context. */
-UNIV_INTERN
+
 void
 page_rec_print(
 /*===========*/
@@ -1613,7 +1712,7 @@ page_rec_print(
 /***************************************************************//**
 This is used to print the contents of the directory for
 debugging purposes. */
-UNIV_INTERN
+
 void
 page_dir_print(
 /*===========*/
@@ -1655,7 +1754,7 @@ page_dir_print(
 /***************************************************************//**
 This is used to print the contents of the page record list for
 debugging purposes. */
-UNIV_INTERN
+
 void
 page_print_list(
 /*============*/
@@ -1725,7 +1824,7 @@ page_print_list(
 
 /***************************************************************//**
 Prints the info in a page header. */
-UNIV_INTERN
+
 void
 page_header_print(
 /*==============*/
@@ -1753,7 +1852,7 @@ page_header_print(
 /***************************************************************//**
 This is used to print the contents of the page for
 debugging purposes. */
-UNIV_INTERN
+
 void
 page_print(
 /*=======*/
@@ -1777,8 +1876,8 @@ page_print(
 The following is used to validate a record on a page. This function
 differs from rec_validate as it can also check the n_owned field and
 the heap_no field.
-@return	TRUE if ok */
-UNIV_INTERN
+@return TRUE if ok */
+
 ibool
 page_rec_validate(
 /*==============*/
@@ -1822,11 +1921,12 @@ page_rec_validate(
 }
 
 #ifndef UNIV_HOTBACKUP
+#ifdef UNIV_DEBUG
 /***************************************************************//**
 Checks that the first directory slot points to the infimum record and
 the last to the supremum. This function is intended to track if the
 bug fixed in 4.0.14 has caused corruption to users' databases. */
-UNIV_INTERN
+
 void
 page_check_dir(
 /*===========*/
@@ -1857,14 +1957,15 @@ page_check_dir(
 		buf_page_print(page, 0, 0);
 	}
 }
+#endif /* UNIV_DEBUG */
 #endif /* !UNIV_HOTBACKUP */
 
 /***************************************************************//**
 This function checks the consistency of an index page when we do not
 know the index. This is also resilient so that this should never crash
 even if the page is total garbage.
-@return	TRUE if ok */
-UNIV_INTERN
+@return TRUE if ok */
+
 ibool
 page_simple_validate_old(
 /*=====================*/
@@ -2073,8 +2174,8 @@ func_exit:
 This function checks the consistency of an index page when we do not
 know the index. This is also resilient so that this should never crash
 even if the page is total garbage.
-@return	TRUE if ok */
-UNIV_INTERN
+@return TRUE if ok */
+
 ibool
 page_simple_validate_new(
 /*=====================*/
@@ -2282,8 +2383,8 @@ func_exit:
 
 /***************************************************************//**
 This function checks the consistency of an index page.
-@return	TRUE if ok */
-UNIV_INTERN
+@return TRUE if ok */
+
 ibool
 page_validate(
 /*==========*/
@@ -2323,8 +2424,14 @@ page_validate(
 		}
 	}
 
-	if (dict_index_is_sec_or_ibuf(index) && page_is_leaf(page)
-	    && page_get_n_recs(page) > 0) {
+	/* Multiple transactions cannot simultaneously operate on the
+	same temp-table in parallel.
+	max_trx_id is ignored for temp tables because it not required
+	for MVCC. */
+	if (dict_index_is_sec_or_ibuf(index)
+	    && !dict_table_is_temporary(index->table)
+	    && page_is_leaf(page)
+	    && !page_is_empty(page)) {
 		trx_id_t	max_trx_id	= page_get_max_trx_id(page);
 		trx_id_t	sys_max_trx_id	= trx_sys_get_max_trx_id();
 
@@ -2393,7 +2500,7 @@ page_validate(
 		if (UNIV_LIKELY(count >= PAGE_HEAP_NO_USER_LOW)
 		    && !page_rec_is_supremum(rec)) {
 			if (UNIV_UNLIKELY
-			    (1 != cmp_rec_rec(rec, old_rec,
+			    (0 >= cmp_rec_rec(rec, old_rec,
 					      offsets, old_offsets, index))) {
 				fprintf(stderr,
 					"InnoDB: Records in wrong order"
@@ -2581,8 +2688,8 @@ func_exit2:
 #ifndef UNIV_HOTBACKUP
 /***************************************************************//**
 Looks in the page record list for a record with the given heap number.
-@return	record, NULL if not found */
-UNIV_INTERN
+@return record, NULL if not found */
+
 const rec_t*
 page_find_rec_with_heap_no(
 /*=======================*/
@@ -2631,8 +2738,8 @@ page_find_rec_with_heap_no(
 Removes the record from a leaf page. This function does not log
 any changes. It is used by the IMPORT tablespace functions.
 The cursor is moved to the next record after the deleted one.
-@return	true if success, i.e., the page did not become too empty */
-UNIV_INTERN
+@return true if success, i.e., the page did not become too empty */
+
 bool
 page_delete_rec(
 /*============*/

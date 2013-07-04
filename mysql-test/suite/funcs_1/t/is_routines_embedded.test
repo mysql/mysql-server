@@ -13,6 +13,8 @@
 # 2008-06-06 mleich Create this this variant for the embedded server.
 #
 
+let $other_engine_type = InnoDB;
+--source include/have_innodb.inc
 if (`SELECT VERSION() NOT LIKE '%embedded%'`)
 {
    --skip Test requires: embedded server

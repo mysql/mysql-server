@@ -125,22 +125,19 @@ select 1, max(1) from t1i where 1=99;
 1	NULL
 explain select count(*), min(7), max(7) from t1m, t1i;
 id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
-1	SIMPLE	t1m	system	NULL	NULL	NULL	NULL	0	const row not found
-1	SIMPLE	t1i	ALL	NULL	NULL	NULL	NULL	1	NULL
+1	SIMPLE	NULL	NULL	NULL	NULL	NULL	NULL	NULL	Select tables optimized away
 select count(*), min(7), max(7) from t1m, t1i;
 count(*)	min(7)	max(7)
 0	NULL	NULL
 explain select count(*), min(7), max(7) from t1m, t2i;
 id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
-1	SIMPLE	t1m	system	NULL	NULL	NULL	NULL	0	const row not found
-1	SIMPLE	t2i	ALL	NULL	NULL	NULL	NULL	1	NULL
+1	SIMPLE	NULL	NULL	NULL	NULL	NULL	NULL	NULL	Select tables optimized away
 select count(*), min(7), max(7) from t1m, t2i;
 count(*)	min(7)	max(7)
 0	NULL	NULL
 explain select count(*), min(7), max(7) from t2m, t1i;
 id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
-1	SIMPLE	t2m	system	NULL	NULL	NULL	NULL	1	NULL
-1	SIMPLE	t1i	ALL	NULL	NULL	NULL	NULL	1	NULL
+1	SIMPLE	NULL	NULL	NULL	NULL	NULL	NULL	NULL	Select tables optimized away
 select count(*), min(7), max(7) from t2m, t1i;
 count(*)	min(7)	max(7)
 0	NULL	NULL

@@ -1,3 +1,8 @@
+# The include statement below is a temp one for tests that are yet to
+#be ported to run with InnoDB,
+#but needs to be kept for tests that would need MyISAM in future.
+--source include/force_myisam_default.inc
+
 #
 # Fulltext configurable parameters
 #
@@ -25,6 +30,8 @@ set global ft_boolean_syntax=' +-><()~*:""&|';
 select * from t1 where match b against ('+aaaaaa bbbbbb' in boolean mode);
 set global ft_boolean_syntax='@ -><()~*:""&|';
 select * from t1 where match b against ('+aaaaaa bbbbbb' in boolean mode);
+
+--error ER_PARSE_ERROR
 select * from t1 where match b against ('+aaaaaa @bbbbbb' in boolean mode);
 -- error 1231
 set global ft_boolean_syntax='@ -><()~*:""@|';

@@ -1,4 +1,4 @@
-/* Copyright (c) 2000, 2011, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2000, 2013, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -15,7 +15,7 @@
 
 #include "mysys_priv.h"
 #include "m_string.h"
-#ifdef __WIN__
+#ifdef _WIN32
 
 /* Windows NT/2000 discretionary access control utility functions. */
 
@@ -220,4 +220,4 @@ void my_security_attr_free(SECURITY_ATTRIBUTES *sa)
   }
 }
 
-#endif /* __WIN__ */
+#endif /* _WIN32 */

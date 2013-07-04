@@ -30,6 +30,8 @@ Select
 Created 12/19/1997 Heikki Tuuri
 *******************************************************/
 
+#include "ha_prototypes.h"
+
 #include "row0sel.h"
 
 #ifdef UNIV_NONINL
@@ -56,11 +58,6 @@ Created 12/19/1997 Heikki Tuuri
 #include "row0mysql.h"
 #include "read0read.h"
 #include "buf0lru.h"
-#include "ha_prototypes.h"
-#include "m_string.h" /* for my_sys.h */
-#include "my_sys.h" /* DEBUG_SYNC_C */
-
-#include "my_compare.h" /* enum icp_result */
 
 /* Maximum number of rows to prefetch; MySQL interface has another parameter */
 #define SEL_MAX_N_PREFETCH	16
@@ -85,7 +82,7 @@ is alphabetically the same as the corresponding BLOB column in the clustered
 index record.
 NOTE: the comparison is NOT done as a binary comparison, but character
 fields are compared with collation!
-@return	TRUE if the columns are equal */
+@return TRUE if the columns are equal */
 static
 ibool
 row_sel_sec_rec_is_for_blob(
@@ -263,8 +260,8 @@ func_exit:
 
 /*********************************************************************//**
 Creates a select node struct.
-@return	own: select node struct */
-UNIV_INTERN
+@return own: select node struct */
+
 sel_node_t*
 sel_node_create(
 /*============*/
@@ -286,7 +283,7 @@ sel_node_create(
 /*********************************************************************//**
 Frees the memory private to a select node when a query graph is freed,
 does not free the heap where the node was originally created. */
-UNIV_INTERN
+
 void
 sel_node_free_private(
 /*==================*/
@@ -518,7 +515,7 @@ sel_col_prefetch_buf_alloc(
 /*********************************************************************//**
 Frees a prefetch buffer for a column, including the dynamically allocated
 memory for data stored there. */
-UNIV_INTERN
+
 void
 sel_col_prefetch_buf_free(
 /*======================*/
@@ -673,7 +670,7 @@ sel_enqueue_prefetched_row(
 
 /*********************************************************************//**
 Builds a previous version of a clustered index record for a consistent read
-@return	DB_SUCCESS or error code */
+@return DB_SUCCESS or error code */
 static __attribute__((nonnull, warn_unused_result))
 dberr_t
 row_sel_build_prev_vers(
@@ -741,7 +738,7 @@ row_sel_build_committed_vers_for_mysql(
 /*********************************************************************//**
 Tests the conditions which determine when the index segment we are searching
 through has been exhausted.
-@return	TRUE if row passed the tests */
+@return TRUE if row passed the tests */
 UNIV_INLINE
 ibool
 row_sel_test_end_conds(
@@ -777,7 +774,7 @@ row_sel_test_end_conds(
 
 /*********************************************************************//**
 Tests the other conditions.
-@return	TRUE if row passed the tests */
+@return TRUE if row passed the tests */
 UNIV_INLINE
 ibool
 row_sel_test_other_conds(
@@ -806,7 +803,7 @@ row_sel_test_other_conds(
 /*********************************************************************//**
 Retrieves the clustered index record corresponding to a record in a
 non-clustered index. Does the necessary locking.
-@return	DB_SUCCESS or error code */
+@return DB_SUCCESS or error code */
 static __attribute__((nonnull, warn_unused_result))
 dberr_t
 row_sel_get_clust_rec(
@@ -978,7 +975,7 @@ err_exit:
 
 /*********************************************************************//**
 Sets a lock on a record.
-@return	DB_SUCCESS, DB_SUCCESS_LOCKED_REC, or error code */
+@return DB_SUCCESS, DB_SUCCESS_LOCKED_REC, or error code */
 UNIV_INLINE
 dberr_t
 sel_set_rec_lock(
@@ -1204,7 +1201,7 @@ plan_reset_cursor(
 /*********************************************************************//**
 Tries to do a shortcut to fetch a clustered index record with a unique key,
 using the hash index if possible (not always).
-@return	SEL_FOUND, SEL_EXHAUSTED, SEL_RETRY */
+@return SEL_FOUND, SEL_EXHAUSTED, SEL_RETRY */
 static
 ulint
 row_sel_try_search_shortcut(
@@ -1268,7 +1265,8 @@ row_sel_try_search_shortcut(
 			goto func_exit;
 		}
 	} else if (!srv_read_only_mode
-		   && !lock_sec_rec_cons_read_sees(rec, node->read_view)) {
+		   && !lock_sec_rec_cons_read_sees(
+			rec, index, node->read_view)) {
 
 		ret = SEL_RETRY;
 		goto func_exit;
@@ -1311,7 +1309,7 @@ func_exit:
 
 /*********************************************************************//**
 Performs a select step.
-@return	DB_SUCCESS or error code */
+@return DB_SUCCESS or error code */
 static __attribute__((nonnull, warn_unused_result))
 dberr_t
 row_sel(
@@ -1713,7 +1711,7 @@ skip_lock:
 			}
 		} else if (!srv_read_only_mode
 			   && !lock_sec_rec_cons_read_sees(
-				   rec, node->read_view)) {
+				   rec, index, node->read_view)) {
 
 			cons_read_requires_clust_rec = TRUE;
 		}
@@ -2032,8 +2030,8 @@ func_exit:
 /**********************************************************************//**
 Performs a select step. This is a high-level function used in SQL execution
 graphs.
-@return	query thread to run next or NULL */
-UNIV_INTERN
+@return query thread to run next or NULL */
+
 que_thr_t*
 row_sel_step(
 /*=========*/
@@ -2061,7 +2059,7 @@ row_sel_step(
 		/* It may be that the current session has not yet started
 		its transaction, or it has been committed: */
 
-		trx_start_if_not_started_xa(thr_get_trx(thr));
+		trx_start_if_not_started_xa(thr_get_trx(thr), false);
 
 		plan_reset_cursor(sel_node_get_nth_plan(node, 0));
 
@@ -2138,8 +2136,8 @@ row_sel_step(
 
 /**********************************************************************//**
 Performs a fetch for a cursor.
-@return	query thread to run next or NULL */
-UNIV_INTERN
+@return query thread to run next or NULL */
+
 que_thr_t*
 fetch_step(
 /*=======*/
@@ -2201,8 +2199,8 @@ fetch_step(
 
 /****************************************************************//**
 Sample callback function for fetch that prints each row.
-@return	always returns non-NULL */
-UNIV_INTERN
+@return always returns non-NULL */
+
 void*
 row_fetch_print(
 /*============*/
@@ -2243,8 +2241,8 @@ row_fetch_print(
 
 /***********************************************************//**
 Prints a row in a select result.
-@return	query thread to run next or NULL */
-UNIV_INTERN
+@return query thread to run next or NULL */
+
 que_thr_t*
 row_printf_step(
 /*============*/
@@ -2311,7 +2309,7 @@ the parameter key_len. But currently we do not allow search keys where the
 last field is only a prefix of the full key field len and print a warning if
 such appears. A counterpart of this function is
 ha_innobase::store_key_val_for_row() in ha_innodb.cc. */
-UNIV_INTERN
+
 void
 row_sel_convert_mysql_key_to_innobase(
 /*==================================*/
@@ -2393,8 +2391,11 @@ row_sel_convert_mysql_key_to_innobase(
 		}
 
 		/* Calculate data length and data field total length */
-
-		if (type == DATA_BLOB) {
+                /* Temporarily, prefix index on geometry data follow
+                the current behavior (currently geometry is treated as
+                BLOB), and it will be replaced by R-tree index in another
+                worklog. */
+		if (DATA_LARGE_MTYPE(type)) {
 			/* The key field is a column prefix of a BLOB or
 			TEXT */
 
@@ -2499,7 +2500,7 @@ row_sel_convert_mysql_key_to_innobase(
 				dfield_set_len(dfield, len
 					       - (ulint) (key_ptr - key_end));
 			}
-                        ut_ad(0);
+			ut_ad(0);
 		}
 
 		n_fields++;
@@ -2690,6 +2691,12 @@ row_sel_field_store_in_mysql_format_func(
 					 len);
 		break;
 
+	case DATA_GEOMETRY:
+		/* We store geometry data as BLOB data. */
+		row_mysql_store_geometry(dest, templ->mysql_col_len, data,
+					 len);
+		break;
+
 	case DATA_MYSQL:
 		memcpy(dest, data, len);
 
@@ -2798,7 +2805,7 @@ row_sel_store_mysql_field_func(
 		ut_a(!prebuilt->trx->has_search_latch);
 		ut_ad(field_no == templ->clust_rec_field_no);
 
-		if (UNIV_UNLIKELY(templ->type == DATA_BLOB)) {
+		if (DATA_LARGE_MTYPE(templ->type)) {
 			if (prebuilt->blob_heap == NULL) {
 				prebuilt->blob_heap = mem_heap_create(
 					UNIV_PAGE_SIZE);
@@ -2864,7 +2871,7 @@ row_sel_store_mysql_field_func(
 			return(TRUE);
 		}
 
-		if (UNIV_UNLIKELY(templ->type == DATA_BLOB)) {
+		if (DATA_LARGE_MTYPE(templ->type)) {
 
 			/* It is a BLOB field locally stored in the
 			InnoDB record: we MUST copy its contents to
@@ -2961,9 +2968,7 @@ row_sel_store_mysql_rec(
 	    && dict_index_is_clust(index)) {
 
 		prebuilt->fts_doc_id = fts_get_doc_id_from_rec(
-			prebuilt->table,
-			rec,
-			prebuilt->heap);
+			prebuilt->table, rec, NULL);
 	}
 
 	return(TRUE);
@@ -2971,7 +2976,7 @@ row_sel_store_mysql_rec(
 
 /*********************************************************************//**
 Builds a previous version of a clustered index record for a consistent read
-@return	DB_SUCCESS or error code */
+@return DB_SUCCESS or error code */
 static __attribute__((nonnull, warn_unused_result))
 dberr_t
 row_sel_build_prev_vers_for_mysql(
@@ -3008,7 +3013,7 @@ row_sel_build_prev_vers_for_mysql(
 Retrieves the clustered index record corresponding to a record in a
 non-clustered index. Does the necessary locking. Used in the MySQL
 interface.
-@return	DB_SUCCESS, DB_SUCCESS_LOCKED_REC, or error code */
+@return DB_SUCCESS, DB_SUCCESS_LOCKED_REC, or error code */
 static __attribute__((nonnull, warn_unused_result))
 dberr_t
 row_sel_get_clust_rec_for_mysql(
@@ -3449,7 +3454,7 @@ Tries to do a shortcut to fetch a clustered index record with a unique key,
 using the hash index if possible (not always). We assume that the search
 mode is PAGE_CUR_GE, it is a consistent read, there is a read view in trx,
 btr search latch has been locked in S-mode if AHI is enabled.
-@return	SEL_FOUND, SEL_EXHAUSTED, SEL_RETRY */
+@return SEL_FOUND, SEL_EXHAUSTED, SEL_RETRY */
 static
 ulint
 row_sel_try_search_shortcut_for_mysql(
@@ -3524,7 +3529,7 @@ row_sel_try_search_shortcut_for_mysql(
 Check a pushed-down index condition.
 @return ICP_NO_MATCH, ICP_MATCH, or ICP_OUT_OF_RANGE */
 static
-enum icp_result
+ICP_RESULT
 row_search_idx_cond_check(
 /*======================*/
 	byte*			mysql_rec,	/*!< out: record
@@ -3536,7 +3541,7 @@ row_search_idx_cond_check(
 	const rec_t*		rec,		/*!< in: InnoDB record */
 	const ulint*		offsets)	/*!< in: rec_get_offsets() */
 {
-	enum icp_result result;
+	ICP_RESULT	result;
 	ulint		i;
 
 	ut_ad(rec_offs_validate(rec, prebuilt->index, offsets));
@@ -3608,7 +3613,7 @@ from a unique index (ROW_SEL_EXACT), then we will not store the cursor
 position and fetch next or fetch prev must not be tried to the cursor!
 @return DB_SUCCESS, DB_RECORD_NOT_FOUND, DB_END_OF_INDEX, DB_DEADLOCK,
 DB_LOCK_TABLE_FULL, DB_CORRUPTION, or DB_TOO_BIG_RECORD */
-UNIV_INTERN
+
 dberr_t
 row_search_for_mysql(
 /*=================*/
@@ -3704,8 +3709,7 @@ row_search_for_mysql(
 		putc('\n', stderr);
 
 		mem_analyze_corruption(prebuilt);
-
-		ut_error;
+		ib_logf(IB_LOG_LEVEL_FATAL, "Memory Corruption");
 	}
 
 #if 0
@@ -3740,8 +3744,8 @@ row_search_for_mysql(
 	/* PHASE 0: Release a possible s-latch we are holding on the
 	adaptive hash index latch if there is someone waiting behind */
 
-	if (UNIV_UNLIKELY(rw_lock_get_writer(&btr_search_latch) != RW_LOCK_NOT_LOCKED)
-	    && trx->has_search_latch) {
+	if (trx->has_search_latch
+	    && rw_lock_get_writer(&btr_search_latch) != RW_LOCK_NOT_LOCKED) {
 
 		/* There is an x-latch request on the adaptive hash index:
 		release the s-latch to reduce starvation and wait for
@@ -3749,7 +3753,7 @@ row_search_for_mysql(
 		calls from MySQL */
 
 		rw_lock_s_unlock(&btr_search_latch);
-		trx->has_search_latch = FALSE;
+		trx->has_search_latch = false;
 
 		trx->search_latch_timeout = BTR_SEA_TIMEOUT;
 	}
@@ -3902,7 +3906,7 @@ row_search_for_mysql(
 #ifndef UNIV_SEARCH_DEBUG
 			if (!trx->has_search_latch) {
 				rw_lock_s_lock(&btr_search_latch);
-				trx->has_search_latch = TRUE;
+				trx->has_search_latch = true;
 			}
 #endif
 			switch (row_sel_try_search_shortcut_for_mysql(
@@ -3974,7 +3978,7 @@ release_search_latch_if_needed:
 					trx->search_latch_timeout--;
 
 					rw_lock_s_unlock(&btr_search_latch);
-					trx->has_search_latch = FALSE;
+					trx->has_search_latch = false;
 				}
 
 				/* NOTE that we do NOT store the cursor
@@ -3998,7 +4002,7 @@ release_search_latch_if_needed:
 
 	if (trx->has_search_latch) {
 		rw_lock_s_unlock(&btr_search_latch);
-		trx->has_search_latch = FALSE;
+		trx->has_search_latch = false;
 	}
 
 	/* The state of a running trx can only be changed by the
@@ -4015,7 +4019,7 @@ release_search_latch_if_needed:
 	      || trx->read_view
 	      || srv_read_only_mode);
 
-	trx_start_if_not_started(trx);
+	trx_start_if_not_started(trx, false);
 
 	if (trx->isolation_level <= TRX_ISO_READ_COMMITTED
 	    && prebuilt->select_lock_type != LOCK_NONE
@@ -4168,6 +4172,7 @@ rec_loop:
 	/* PHASE 4: Look for matching records in a loop */
 
 	rec = btr_pcur_get_rec(pcur);
+
 	ut_ad(!!page_rec_is_comp(rec) == comp);
 #ifdef UNIV_SEARCH_DEBUG
 	/*
@@ -4220,6 +4225,7 @@ rec_loop:
 				goto lock_wait_or_error;
 			}
 		}
+
 		/* A page supremum record cannot be in the result set: skip
 		it now that we have placed a possible lock on it */
 
@@ -4586,7 +4592,7 @@ no_gap_lock:
 
 			if (!srv_read_only_mode
 			    && !lock_sec_rec_cons_read_sees(
-				    rec, trx->read_view)) {
+					rec, index, trx->read_view)) {
 				/* We should look at the clustered index.
 				However, as this is a non-locking read,
 				we can skip the clustered index lookup if
@@ -4779,8 +4785,7 @@ requires_clust_rec:
 	    && !prebuilt->clust_index_was_generated
 	    && !prebuilt->used_in_HANDLER
 	    && !prebuilt->innodb_api
-	    && prebuilt->template_type
-	    != ROW_MYSQL_DUMMY_TEMPLATE
+	    && prebuilt->template_type != ROW_MYSQL_DUMMY_TEMPLATE
 	    && !prebuilt->in_fts_query) {
 
 		/* Inside an update, for example, we do not cache rows,
@@ -5142,8 +5147,8 @@ func_exit:
 /*******************************************************************//**
 Checks if MySQL at the moment is allowed for this table to retrieve a
 consistent read result, or store it to the query cache.
-@return	TRUE if storing or retrieving from the query cache is permitted */
-UNIV_INTERN
+@return TRUE if storing or retrieving from the query cache is permitted */
+
 ibool
 row_search_check_if_query_cache_permitted(
 /*======================================*/
@@ -5168,8 +5173,8 @@ row_search_check_if_query_cache_permitted(
 		return(FALSE);
 	}
 
-	table = dict_table_open_on_name(norm_name, FALSE, FALSE,
-					DICT_ERR_IGNORE_NONE);
+	table = dict_table_open_on_name(
+		norm_name, FALSE, FALSE, DICT_ERR_IGNORE_NONE);
 
 	if (table == NULL) {
 
@@ -5178,15 +5183,21 @@ row_search_check_if_query_cache_permitted(
 
 	/* Start the transaction if it is not started yet */
 
-	trx_start_if_not_started(trx);
+	trx_start_if_not_started(trx, false);
 
 	/* If there are locks on the table or some trx has invalidated the
-	cache up to our trx id, then ret = FALSE.
-	We do not check what type locks there are on the table, though only
-	IX type locks actually would require ret = FALSE. */
+	cache before this transaction started then this transaction cannot
+	read/write from/to the cache.
+
+	If a read view has not been created for the transaction then it doesn't
+	really matter what this transactin sees. If a read view was created
+	then the view low_limit_id is the max trx id that this transaction
+	saw at the time of the read view creation.  */
 
 	if (lock_table_get_n_locks(table) == 0
-	    && trx->id >= table->query_cache_inv_trx_id) {
+	    && ((trx->id > 0 && trx->id >= table->query_cache_inv_id)
+		|| trx->read_view == NULL
+		|| trx->read_view->low_limit_id >= table->query_cache_inv_id)) {
 
 		ret = TRUE;
 
@@ -5194,12 +5205,11 @@ row_search_check_if_query_cache_permitted(
 		transaction if it does not yet have one */
 
 		if (trx->isolation_level >= TRX_ISO_REPEATABLE_READ
-		    && !trx->read_view) {
+		    && trx->read_view == NULL
+		    && !srv_read_only_mode) {
 
 			trx->read_view = read_view_open_now(
-				trx->id, trx->global_read_view_heap);
-
-			trx->global_read_view = trx->read_view;
+				trx->id, trx->read_view_heap);
 		}
 	}
 
@@ -5211,7 +5221,7 @@ row_search_check_if_query_cache_permitted(
 /*******************************************************************//**
 Read the AUTOINC column from the current row. If the value is less than
 0 and the type is not unsigned then we reset the value to 0.
-@return	value read from the column */
+@return value read from the column */
 static
 ib_uint64_t
 row_search_autoinc_read_column(
@@ -5275,7 +5285,7 @@ func_exit:
 
 /*******************************************************************//**
 Get the last row.
-@return	current rec or NULL */
+@return current rec or NULL */
 static
 const rec_t*
 row_search_autoinc_get_rec(
@@ -5298,7 +5308,7 @@ row_search_autoinc_get_rec(
 Read the max AUTOINC value from an index.
 @return DB_SUCCESS if all OK else error code, DB_RECORD_NOT_FOUND if
 column name can't be found in index */
-UNIV_INTERN
+
 dberr_t
 row_search_max_autoinc(
 /*===================*/
@@ -5335,7 +5345,7 @@ row_search_max_autoinc(
 		btr_pcur_open_at_index_side(
 			false, index, BTR_SEARCH_LEAF, &pcur, true, 0, &mtr);
 
-		if (page_get_n_recs(btr_pcur_get_page(&pcur)) > 0) {
+		if (!page_is_empty(btr_pcur_get_page(&pcur))) {
 			const rec_t*	rec;
 
 			rec = row_search_autoinc_get_rec(&pcur, &mtr);

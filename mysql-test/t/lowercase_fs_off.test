@@ -1,9 +1,15 @@
+# The include statement below is a temp one for tests that are yet to
+#be ported to run with InnoDB,
+#but needs to be kept for tests that would need MyISAM in future.
+--source include/force_myisam_default.inc
+
 #
 # Specific tests for case sensitive file systems
 # i.e. lower_case_filesystem=OFF
 #
 -- source include/have_case_sensitive_file_system.inc
 -- source include/not_embedded.inc
+-- source include/have_lowercase0.inc
 
 connect (master,localhost,root,,);
 connection master;

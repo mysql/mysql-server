@@ -1,4 +1,4 @@
-/* Copyright (c) 2002, 2012, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2002, 2013, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -238,8 +238,7 @@ Sql_condition::Sql_condition(MEM_ROOT *mem_root, uint mysql_errno,
 
   set_message_text(message_text);
   set_returned_sqlstate(returned_sqlstate);
-  set_class_origin();
-  set_subclass_origin();
+  set_class_origins();
 }
 
 
@@ -275,10 +274,9 @@ static LEX_CSTRING sqlstate_origin[]= {
 };
 
 
-void Sql_condition::set_class_origin()
+void Sql_condition::set_class_origins()
 {
   char cls[2];
-  LEX_CSTRING *origin;
 
   /* Let CLASS = the first two letters of RETURNED_SQLSTATE. */
   cls[0]= m_returned_sqlstate[0];
@@ -293,44 +291,39 @@ void Sql_condition::set_class_origin()
 
   /*
     If CLASS[1] is any of: 0 1 2 3 4 A B C D E F G H
-    and CLASS[2] is any of: 0-9 A-Z
+    and CLASS[2] is any of: 0-9 A-Z,
+    then let CLASS_ORIGIN = 'ISO 9075'. Otherwise 'MySQL'.
+
+    Let SUBCLASS = the next three letters of RETURNED_SQLSTATE.
+    If CLASS_ORIGIN = 'ISO 9075' or SUBCLASS = '000',
+    then let SUBCLASS_ORIGIN = 'ISO 9075'. Otherwise 'MySQL'.
   */
   if (((cls[0] >= '0' && cls[0] <= '4') || (cls[0] >= 'A' && cls[0] <= 'H')) &&
       ((cls[1] >= '0' && cls[1] <= '9') || (cls[1] >= 'A' && cls[1] <= 'Z')))
-    /* then let CLASS_ORIGIN = 'ISO 9075'. */
-    origin= &sqlstate_origin[0];
+  {
+    // ISO 9075
+    m_class_origin.set_ascii(sqlstate_origin[0].str,
+                             sqlstate_origin[0].length);
+    // ISO 9075
+    m_subclass_origin.set_ascii(sqlstate_origin[0].str,
+                                sqlstate_origin[0].length);
+  }
   else
-    /* let CLASS_ORIGIN = 'MySQL'. */
-    origin= &sqlstate_origin[1];
-
-  m_class_origin.set_ascii(origin->str, origin->length);
+  {
+    // MySQL
+    m_class_origin.set_ascii(sqlstate_origin[1].str, sqlstate_origin[1].length);
+    if (!memcmp(m_returned_sqlstate + 2, STRING_WITH_LEN("000")))
+      // ISO 9075
+      m_subclass_origin.set_ascii(sqlstate_origin[0].str,
+                                  sqlstate_origin[0].length);
+    else
+      // MySQL
+      m_subclass_origin.set_ascii(sqlstate_origin[1].str,
+                                  sqlstate_origin[1].length);
+  }
 }
 
-
-void Sql_condition::set_subclass_origin()
-{
-  LEX_CSTRING *origin;
-
-  DBUG_ASSERT(! m_class_origin.is_empty());
-
-  /*
-    Let SUBCLASS = the next three letters of RETURNED_SQLSTATE.
-    If CLASS_ORIGIN = 'ISO 9075' or SUBCLASS = '000'
-  */
-  if (! memcmp(m_class_origin.ptr(), STRING_WITH_LEN("ISO 9075")) ||
-      ! memcmp(m_returned_sqlstate+2, STRING_WITH_LEN("000")))
-    /* then let SUBCLASS_ORIGIN = 'ISO 9075'. */
-    origin= &sqlstate_origin[0];
-  else
-    /* let SUBCLASS_ORIGIN = 'MySQL'. */
-    origin= &sqlstate_origin[1];
-
-  m_subclass_origin.set_ascii(origin->str, origin->length);
-}
-
-
-Diagnostics_area::Diagnostics_area(ulonglong statement_id,
-                                   bool allow_unlimited_conditions)
+Diagnostics_area::Diagnostics_area(bool allow_unlimited_conditions)
  :m_stacked_da(NULL),
   m_is_sent(false),
   m_can_overwrite_status(false),
@@ -342,7 +335,8 @@ Diagnostics_area::Diagnostics_area(ulonglong statement_id,
   m_last_statement_cond_count(0),
   m_current_statement_cond_count(0),
   m_current_row_for_condition(1),
-  m_statement_id(statement_id)
+  m_saved_error_count(0),
+  m_saved_warn_count(0)
 {
   /* Initialize sub structures */
   init_sql_alloc(&m_condition_root, WARN_ALLOC_BLOCK_SIZE,
@@ -390,7 +384,7 @@ void Diagnostics_area::set_ok_status(ulonglong affected_rows,
     with an OK packet.
   */
   if (is_error() || is_disabled())
-    return;
+    DBUG_VOID_RETURN;
 
   m_last_statement_cond_count= current_statement_cond_count();
   m_affected_rows= affected_rows;
@@ -414,7 +408,7 @@ void Diagnostics_area::set_eof_status(THD *thd)
     with an EOF packet.
   */
   if (is_error() || is_disabled())
-    return;
+    DBUG_VOID_RETURN;
 
   /*
     If inside a stored procedure, do not return the total
@@ -462,7 +456,7 @@ void Diagnostics_area::set_error_status(uint mysql_errno,
     ERROR packet.
   */
   if (is_disabled())
-    return;
+    DBUG_VOID_RETURN;
 #endif
 
   m_mysql_errno= mysql_errno;
@@ -491,9 +485,26 @@ bool Diagnostics_area::has_sql_condition(const char *message_text,
 }
 
 
-void Diagnostics_area::reset_condition_info(ulonglong statement_id)
+void Diagnostics_area::reset_condition_info(THD *thd)
 {
-  set_statement_id(statement_id);
+  /*
+    Special case: @@session.error_count, @@session.warning_count
+    These appear in non-diagnostics statements (SELECT ... [INTO ...], etc.),
+    so we must clear the DA rather than keep it.  To keep these legacy
+    system variables working, we save the counts before clearing the
+    (rest of the) DA.  The system variables have special getters that access
+    the saved values where applicable.
+  */
+  if (thd->lex->keep_diagnostics == DA_KEEP_COUNTS)
+  {
+    m_saved_error_count=
+      m_current_statement_cond_count_by_sl[(uint) Sql_condition::SL_ERROR];
+    m_saved_warn_count=
+      m_current_statement_cond_count_by_sl[(uint) Sql_condition::SL_NOTE] +
+      m_current_statement_cond_count_by_sl[(uint) Sql_condition::SL_ERROR] +
+      m_current_statement_cond_count_by_sl[(uint) Sql_condition::SL_WARNING];
+  }
+
   m_conditions_list.empty();
   m_preexisting_sql_conditions.empty();
   free_root(&m_condition_root, MYF(0));
@@ -501,6 +512,31 @@ void Diagnostics_area::reset_condition_info(ulonglong statement_id)
          sizeof(m_current_statement_cond_count_by_sl));
   m_current_statement_cond_count= 0;
   m_current_row_for_condition= 1; /* Start counting from the first row */
+}
+
+
+ulong Diagnostics_area::error_count(THD *thd) const
+{
+  // DA_KEEP_COUNTS: it was SELECT @@error_count, not SHOW COUNT(*) ERRORS
+  if (thd->lex->keep_diagnostics == DA_KEEP_COUNTS)
+    return m_saved_error_count;
+  return m_current_statement_cond_count_by_sl[(uint) Sql_condition::SL_ERROR];
+}
+
+
+ulong Diagnostics_area::warn_count(THD *thd) const
+{
+  // DA_KEEP_COUNTS: it was SELECT @@warning_count, not SHOW COUNT(*) ERRORS
+  if (thd->lex->keep_diagnostics == DA_KEEP_COUNTS)
+    return m_saved_warn_count;
+  /*
+    This may be higher than warn_list.elements() if we have
+    had more warnings than thd->variables.max_error_count.
+  */
+  return
+    m_current_statement_cond_count_by_sl[(uint) Sql_condition::SL_NOTE] +
+    m_current_statement_cond_count_by_sl[(uint) Sql_condition::SL_ERROR] +
+    m_current_statement_cond_count_by_sl[(uint) Sql_condition::SL_WARNING];
 }
 
 
@@ -637,11 +673,17 @@ Diagnostics_area::push_warning(THD *thd, const Sql_condition *sql_condition)
 }
 
 
-void Diagnostics_area::push_diagnostics_area(THD *thd, Diagnostics_area *da)
+void Diagnostics_area::push_diagnostics_area(THD *thd, Diagnostics_area *da,
+                                             bool copy_conditions)
 {
   DBUG_ASSERT(da->m_stacked_da == NULL);
   da->m_stacked_da= this;
-  da->copy_sql_conditions_from_da(thd, this);
+  if (copy_conditions)
+  {
+    da->copy_sql_conditions_from_da(thd, this);
+    da->m_saved_warn_count=  m_saved_warn_count;
+    da->m_saved_error_count= m_saved_error_count;
+  }
 }
 
 
@@ -736,13 +778,22 @@ const LEX_STRING warning_level_names[]=
 bool mysqld_show_warnings(THD *thd, ulong levels_to_show)
 {
   List<Item> field_list;
-  Diagnostics_area new_stmt_da(thd->query_id, false);
+  Diagnostics_area new_stmt_da(false);
   Diagnostics_area *first_da= thd->get_stmt_da();
   bool rc= false;
   DBUG_ENTER("mysqld_show_warnings");
 
   /* Push new Diagnostics Area, execute statement and pop. */
   thd->push_diagnostics_area(&new_stmt_da);
+  /*
+    Reset the condition counter.
+    This statement has just started and has not generated any conditions
+    on its own. However the condition counter will have been updated by
+    push_diagnostics_area() to match the number of conditions present in
+    first_da. It is therefore necessary to reset so we don't inherit the
+    old counter value.
+  */
+  new_stmt_da.reset_statement_cond_count();
 
   field_list.push_back(new Item_empty_string("Level", 7));
   field_list.push_back(new Item_return_int("Code",4, MYSQL_TYPE_LONG));
@@ -753,8 +804,8 @@ bool mysqld_show_warnings(THD *thd, ulong levels_to_show)
     rc= true;
 
   const Sql_condition *err;
-  SELECT_LEX *sel= &thd->lex->select_lex;
-  SELECT_LEX_UNIT *unit= &thd->lex->unit;
+  SELECT_LEX *sel= thd->lex->select_lex;
+  SELECT_LEX_UNIT *unit= thd->lex->unit;
   ulonglong idx= 0;
   Protocol *protocol=thd->protocol;
 

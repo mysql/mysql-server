@@ -31,7 +31,8 @@
 #include "sql_cache.h"                          // query_cache_abort
 #include "sql_base.h"                           // close_thread_tables
 #include "sql_time.h"                         // date_time_format_copy
-#include "sql_acl.h"                          // NO_ACCESS,
+#include "auth_common.h"                      // acl_getroot
+                                              // NO_ACCESS,
                                               // acl_getroot_no_password
 #include "sql_base.h"                         // close_temporary_tables
 #include "sql_handler.h"                      // mysql_ha_cleanup
@@ -45,7 +46,7 @@
 #include <m_ctype.h>
 #include <sys/stat.h>
 #include <thr_alarm.h>
-#ifdef	__WIN__
+#ifdef	_WIN32
 #include <io.h>
 #endif
 #include <mysys_err.h>
@@ -529,21 +530,21 @@ extern "C" int mysql_tmpfile(const char *prefix)
 {
   char filename[FN_REFLEN];
   File fd = create_temp_file(filename, mysql_tmpdir, prefix,
-#ifdef __WIN__
+#ifdef _WIN32
                              O_BINARY | O_TRUNC | O_SEQUENTIAL |
                              O_SHORT_LIVED |
-#endif /* __WIN__ */
+#endif /* _WIN32 */
                              O_CREAT | O_EXCL | O_RDWR | O_TEMPORARY,
                              MYF(MY_WME));
   if (fd >= 0) {
-#ifndef __WIN__
+#ifndef _WIN32
     /*
       This can be removed once the following bug is fixed:
       Bug #28903  create_temp_file() doesn't honor O_TEMPORARY option
                   (file not removed) (Unix)
     */
     unlink(filename);
-#endif /* !__WIN__ */
+#endif /* !_WIN32 */
   }
 
   return fd;
@@ -622,10 +623,7 @@ void THD::enter_stage(const PSI_stage_info *new_stage,
     m_current_stage_key= new_stage->m_key;
     proc_info= msg;
 
-#ifdef HAVE_PSI_THREAD_INTERFACE
-    PSI_THREAD_CALL(set_thread_state)(msg);
     MYSQL_SET_STAGE(m_current_stage_key, calling_file, calling_line);
-#endif
   }
   return;
 }
@@ -746,7 +744,7 @@ char *thd_security_context(THD *thd, char *buffer, unsigned int length,
                            unsigned int max_query_len)
 {
   String str(buffer, length, &my_charset_latin1);
-  const Security_context *sctx= &thd->main_security_ctx;
+  Security_context *sctx= &thd->main_security_ctx;
   char header[256];
   int len;
   /*
@@ -766,16 +764,16 @@ char *thd_security_context(THD *thd, char *buffer, unsigned int length,
   str.length(0);
   str.append(header, len);
 
-  if (sctx->host)
+  if (sctx->get_host()->length())
   {
     str.append(' ');
-    str.append(sctx->host);
+    str.append(sctx->get_host()->ptr());
   }
 
-  if (sctx->ip)
+  if (sctx->get_ip()->length())
   {
     str.append(' ');
-    str.append(sctx->ip);
+    str.append(sctx->get_ip()->ptr());
   }
 
   if (sctx->user)
@@ -886,12 +884,14 @@ THD::THD(bool enable_plugins)
    :Statement(&main_lex, &main_mem_root, STMT_CONVENTIONAL_EXECUTION,
               /* statement id */ 0),
    rli_fake(0), rli_slave(NULL),
+   query_plan(this),
    in_sub_stmt(0),
    binlog_row_event_extra_data(NULL),
    binlog_unsafe_warning_flags(0),
    binlog_table_maps(0),
    binlog_accessed_db_names(NULL),
    m_trans_log_file(NULL),
+   m_trans_fixed_log_file(NULL),
    m_trans_end_pos(0),
    table_map_for_update(0),
    arg_of_last_insert_id_function(FALSE),
@@ -919,7 +919,8 @@ THD::THD(bool enable_plugins)
 #endif /* defined(ENABLED_DEBUG_SYNC) */
    m_enable_plugins(enable_plugins),
    owned_gtid_set(global_sid_map),
-   main_da(0, false),
+   main_da(false),
+   m_parser_da(false),
    m_stmt_da(&main_da)
 {
   ulong tmp;
@@ -951,7 +952,8 @@ THD::THD(bool enable_plugins)
   m_row_count_func= -1;
   statement_id_counter= 0UL;
   // Must be reset to handle error with THD's created for init of mysqld
-  lex->current_select= 0;
+  lex->thd= NULL;
+  lex->set_current_select(0);
   user_time.tv_sec= 0;
   user_time.tv_usec= 0;
   start_time.tv_sec= 0;
@@ -971,7 +973,7 @@ THD::THD(bool enable_plugins)
   mysys_var=0;
   binlog_evt_union.do_union= FALSE;
   enable_slow_log= 0;
-  commit_error= 0;
+  commit_error= CE_NONE;
   durability_property= HA_REGULAR_DURABILITY;
 #ifndef DBUG_OFF
   dbug_sentry=THD_SENTRY_MAGIC;
@@ -990,6 +992,7 @@ THD::THD(bool enable_plugins)
   transaction.flags.enabled= true;
   active_vio = 0;
   mysql_mutex_init(key_LOCK_thd_data, &LOCK_thd_data, MY_MUTEX_INIT_FAST);
+  mysql_mutex_init(key_LOCK_query_plan, &LOCK_query_plan, MY_MUTEX_INIT_FAST);
 
   /* Variables with default values */
   proc_info="login";
@@ -1213,8 +1216,6 @@ Sql_condition* THD::raise_condition(uint sql_errno,
       (level == Sql_condition::SL_NOTE))
     DBUG_RETURN(NULL);
 
-  da->opt_reset_condition_info(query_id);
-
   /*
     TODO: replace by DBUG_ASSERT(sql_errno != 0) once all bugs similar to
     Bug#36768 are fixed: a SQL condition must have a real (!=0) error number
@@ -1258,17 +1259,17 @@ Sql_condition* THD::raise_condition(uint sql_errno,
     is_slave_error=  1; // needed to catch query errors during replication
 
     /*
-      thd->lex->current_select == 0 if lex structure is not inited
+      thd->lex->current_select() == 0 if lex structure is not inited
       (not query command (COM_QUERY))
     */
-    if (lex->current_select &&
-        lex->current_select->no_error && !is_fatal_error)
+    if (lex->current_select() &&
+        lex->current_select()->no_error && !is_fatal_error)
     {
       DBUG_PRINT("error",
                  ("Error converted to warning: current_select: no_error %d  "
                   "fatal_error: %d",
-                  (lex->current_select ?
-                   lex->current_select->no_error : 0),
+                  (lex->current_select() ?
+                   lex->current_select()->no_error : 0),
                   (int) is_fatal_error));
     }
     else
@@ -1281,15 +1282,15 @@ Sql_condition* THD::raise_condition(uint sql_errno,
     }
   }
 
-  query_cache_abort(&query_cache_tls);
+  query_cache.abort(&query_cache_tls);
 
-  DBUG_ASSERT(!(sql_errno == EE_OUTOFMEMORY || sql_errno == ER_OUTOFMEMORY) 
-              || is_fatal_error);
   /* 
-     Avoid pushing a condition for out of memory errors as this will require
-     memory allocation and therefore might fail.
+     Avoid pushing a condition for fatal out of memory errors as this will 
+     require memory allocation and therefore might fail. Non fatal out of 
+     memory errors can occur if raised by SIGNAL/RESIGNAL statement.
   */
-  if (sql_errno != EE_OUTOFMEMORY && sql_errno != ER_OUTOFMEMORY)
+  if (!(is_fatal_error && (sql_errno == EE_OUTOFMEMORY ||
+                           sql_errno == ER_OUTOFMEMORY)))
   {
     cond= da->push_warning(this, sql_errno, sqlstate, level, msg);
   }
@@ -1341,7 +1342,7 @@ void thd_get_xid(const MYSQL_THD thd, MYSQL_XID *xid)
   *xid = *(MYSQL_XID *) &thd->transaction.xid_state.xid;
 }
 
-#ifdef _WIN32
+#if defined(_WIN32)
 extern "C"   THD *_current_thd_noinline(void)
 {
   return my_pthread_get_THR_THD();
@@ -1550,6 +1551,7 @@ void THD::release_resources()
 
   /* Ensure that no one is using THD */
   mysql_mutex_lock(&LOCK_thd_data);
+  mysql_mutex_lock(&LOCK_query_plan);
 
   /* Close connection */
 #ifndef EMBEDDED_LIBRARY
@@ -1560,6 +1562,10 @@ void THD::release_resources()
     net.vio= NULL;
   }
 #endif
+
+  /* modification plan for UPDATE/DELETE should be freed. */
+  DBUG_ASSERT(!query_plan.get_plan());
+  mysql_mutex_unlock(&LOCK_query_plan);
   mysql_mutex_unlock(&LOCK_thd_data);
 
   stmt_map.reset();                     /* close all prepared statements */
@@ -1588,11 +1594,16 @@ THD::~THD()
 
   clear_next_event_pos();
 
+  /* Ensure that no one is using THD */
+  mysql_mutex_lock(&LOCK_thd_data);
+  mysql_mutex_unlock(&LOCK_thd_data);
+
   DBUG_PRINT("info", ("freeing security context"));
   main_security_ctx.destroy();
   my_free(db);
   db= NULL;
   free_root(&transaction.mem_root,MYF(0));
+  mysql_mutex_destroy(&LOCK_query_plan);
   mysql_mutex_destroy(&LOCK_thd_data);
 #ifndef DBUG_OFF
   dbug_sentry= THD_SENTRY_GONE;
@@ -1607,7 +1618,7 @@ THD::~THD()
 
   if (variables.gtid_next_list.gtid_set != NULL)
   {
-#ifdef HAVE_NDB_BINLOG
+#ifdef HAVE_GTID_NEXT_LIST
     delete variables.gtid_next_list.gtid_set;
     variables.gtid_next_list.gtid_set= NULL;
     variables.gtid_next_list.is_non_null= false;
@@ -1708,8 +1719,13 @@ void THD::awake(THD::killed_state state_to_set)
   THD_CHECK_SENTRY(this);
   mysql_mutex_assert_owner(&LOCK_thd_data);
 
-  /* Set the 'killed' flag of 'this', which is the target THD object. */
-  killed= state_to_set;
+  /*
+    If there is no command executing on the server, we should not set the
+    killed flag so that it does not affect the next command incorrectly.
+  */
+  if (!this->m_server_idle)
+    /* Set the 'killed' flag of 'this', which is the target THD object. */
+    killed= state_to_set;
 
   if (state_to_set != THD::KILL_QUERY)
   {
@@ -1953,6 +1969,10 @@ void THD::cleanup_after_query()
     auto_inc_intervals_in_cur_stmt_for_binlog.empty();
     rand_used= 0;
     binlog_accessed_db_names= NULL;
+    m_trans_fixed_log_file= NULL;
+
+    if (gtid_mode > 0)
+      gtid_post_statement_checks(this);
 #ifndef EMBEDDED_LIBRARY
     /*
       Clean possible unused INSERT_ID events by current statement.
@@ -2355,9 +2375,8 @@ void THD::rollback_item_tree_changes()
 *****************************************************************************/
 
 select_result::select_result():
-  estimated_rowcount(0)
+  thd(current_thd), unit(NULL), estimated_rowcount(0)
 {
-  thd=current_thd;
 }
 
 void select_result::send_error(uint errcode,const char *err)
@@ -2588,10 +2607,6 @@ static File create_file(THD *thd, char *path, sql_exchange *exchange,
 {
   File file;
   uint option= MY_UNPACK_FILENAME | MY_RELATIVE_PATH;
-
-#ifdef DONT_ALLOW_FULL_LOAD_DATA_PATHS
-  option|= MY_REPLACE_DIR;			// Force use of db directory
-#endif
 
   if (!dirname_length(exchange->file_name))
   {
@@ -2862,7 +2877,6 @@ bool select_export::send_data(List<Item> &items)
 	     pos != end ;
 	     pos++)
 	{
-#ifdef USE_MB
 	  if (use_mb(res_charset))
 	  {
 	    int l;
@@ -2872,7 +2886,6 @@ bool select_export::send_data(List<Item> &items)
 	      continue;
 	    }
 	  }
-#endif
 
           /*
             Special case when dumping BINARY/VARBINARY/BLOB values
@@ -3056,7 +3069,7 @@ bool select_singlerow_subselect::send_data(List<Item> &items)
   Item *val_item;
   for (uint i= 0; (val_item= li++); i++)
     it->store(i, val_item);
-  it->assigned(1);
+  it->assigned(true);
   DBUG_RETURN(0);
 }
 
@@ -3110,7 +3123,7 @@ bool select_max_min_finder_subselect::send_data(List<Item> &items)
     cache->store(val_item);
     it->store(0, cache);
   }
-  it->assigned(1);
+  it->assigned(true);
   DBUG_RETURN(0);
 }
 
@@ -3223,7 +3236,7 @@ bool select_exists_subselect::send_data(List<Item> &items)
     set elsewhere.
   */
   it->value= 1;
-  it->assigned(1);
+  it->assigned(true);
   DBUG_RETURN(0);
 }
 
@@ -3502,16 +3515,6 @@ err_st_hash:
 }
 
 
-void Statement_map::close_transient_cursors()
-{
-#ifdef TO_BE_IMPLEMENTED
-  Statement *stmt;
-  while ((stmt= transient_cursor_list.head()))
-    stmt->close_cursor();                 /* deletes itself from the list */
-#endif
-}
-
-
 void Statement_map::erase(Statement *statement)
 {
   if (statement == last_found_statement)
@@ -3661,7 +3664,10 @@ void THD::set_status_var_init()
 
 void Security_context::init()
 {
-  host= user= ip= external_user= 0;
+  user= 0;
+  ip.set("", 0, system_charset_info);
+  host.set("", 0, system_charset_info);
+  external_user.set("", 0, system_charset_info);
   host_or_ip= "connecting host";
   priv_user[0]= priv_host[0]= proxy_user[0]= '\0';
   master_access= 0;
@@ -3674,25 +3680,32 @@ void Security_context::init()
 
 void Security_context::destroy()
 {
-  // If not pointer to constant
-  if (host != my_localhost)
+  if (host.ptr() != my_localhost && host.length())
   {
-    my_free(host);
-    host= NULL;
+    char *c= (char *) host.ptr();
+    host.set("", 0, system_charset_info);
+    my_free(c);
   }
+
   if (user)
   {
     my_free(user);
     user= NULL;
   }
-  if (external_user)
-  {
-    my_free(external_user);
-    external_user= NULL;
-  }
 
-  my_free(ip);
-  ip= NULL;
+  if (external_user.length())
+  {
+    char *c= (char *) external_user.ptr();
+    external_user.set("", 0, system_charset_info);
+    my_free(c);
+  }
+  
+  if (ip.length())
+  {
+    char *c= (char *) ip.ptr();
+    ip.set("", 0, system_charset_info);
+    my_free(c); 
+  }
 }
 
 
@@ -3710,6 +3723,45 @@ bool Security_context::set_user(char *user_arg)
   my_free(user);
   user= my_strdup(user_arg, MYF(0));
   return user == 0;
+}
+
+String *Security_context::get_host()
+{
+  return (&host);
+}
+
+String *Security_context::get_ip()
+{
+  return (&ip);
+}
+
+String *Security_context::get_external_user()
+{
+  return (&external_user);
+}
+
+void Security_context::set_host(const char *str)
+{
+  uint len= str ? strlen(str) :  0;
+  host.set(str, len, system_charset_info);
+}
+
+void Security_context::set_ip(const char *str)
+{
+  uint len= str ? strlen(str) :  0;
+  ip.set(str, len, system_charset_info);
+}
+
+void Security_context::set_external_user(const char *str)
+{
+  uint len= str ? strlen(str) :  0;
+  external_user.set(str, len, system_charset_info);
+}
+
+void Security_context::set_host(const char * str, size_t len)
+{
+  host.set(str, len, system_charset_info);
+  host.c_ptr_quick();
 }
 
 #ifndef NO_EMBEDDED_ACCESS_CHECKS
@@ -3811,160 +3863,6 @@ bool Security_context::user_matches(Security_context *them)
 {
   return ((user != NULL) && (them->user != NULL) &&
           !strcmp(user, them->user));
-}
-
-
-void Log_throttle::new_window(ulonglong now)
-{
-  count= 0;
-  total_exec_time= 0;
-  total_lock_time= 0;
-  window_end= now + window_size;
-}
-
-
-Log_throttle::Log_throttle(ulong *threshold, mysql_mutex_t *lock,
-                           ulong window_usecs,
-                           bool (*logger)(THD *, const char *, uint),
-                           const char *msg)
-  :total_exec_time(0), total_lock_time(0), window_end(0),
-   rate(threshold),
-   window_size(window_usecs), count(0),
-   summary_template(msg), LOCK_log_throttle(lock), log_summary(logger)
-{
-  aggregate_sctx.init();
-}
-
-
-ulong Log_throttle::prepare_summary(THD *thd)
-{
-  ulong ret= 0;
-  /*
-    Previous throttling window is over or rate changed.
-    Return the number of lines we throttled.
-  */
-  if (count > *rate)
-  {
-    ret= count - *rate;
-    count= 0;                                 // prevent writing it again.
-  }
-  return ret;
-}
-
-
-void Log_throttle::print_summary(THD *thd, ulong suppressed,
-                                 ulonglong print_lock_time,
-                                 ulonglong print_exec_time)
-{
-  /*
-    We synthesize these values so the totals in the log will be
-    correct (just in case somebody analyses them), even if the
-    start/stop times won't be (as they're an aggregate which will
-    usually mostly lie within [ window_end - window_size ; window_end ]
-  */
-  ulonglong save_start_utime=      thd->start_utime;
-  ulonglong save_utime_after_lock= thd->utime_after_lock;
-  Security_context *save_sctx=     thd->security_ctx;
-
-  char buf[128];
-
-  snprintf(buf, sizeof(buf), summary_template, suppressed);
-
-  mysql_mutex_lock(&thd->LOCK_thd_data);
-  thd->start_utime=                thd->current_utime() - print_exec_time;
-  thd->utime_after_lock=           thd->start_utime + print_lock_time;
-  thd->security_ctx=               (Security_context *) &aggregate_sctx;
-  mysql_mutex_unlock(&thd->LOCK_thd_data);
-
-  (*log_summary)(thd, buf, strlen(buf));
-
-  mysql_mutex_lock(&thd->LOCK_thd_data);
-  thd->security_ctx    = save_sctx;
-  thd->start_utime     = save_start_utime;
-  thd->utime_after_lock= save_utime_after_lock;
-  mysql_mutex_unlock(&thd->LOCK_thd_data);
-}
-
-
-bool Log_throttle::flush(THD *thd)
-{
-  // Write summary if we throttled.
-  lock_exclusive();
-  ulonglong print_lock_time=  total_lock_time;
-  ulonglong print_exec_time=  total_exec_time;
-  ulong     suppressed_count= prepare_summary(thd);
-  unlock();
-  if (suppressed_count > 0)
-  {
-    print_summary(thd, suppressed_count, print_lock_time, print_exec_time);
-    return true;
-  }
-  return false;
-}
-
-
-bool Log_throttle::log(THD *thd, bool eligible)
-{
-  bool  suppress_current= false;
-
-  /*
-    If throttling is enabled, we might have to write a summary even if
-    the current query is not of the type we handle.
-  */
-  if (*rate > 0)
-  {
-    lock_exclusive();
-
-    ulong     suppressed_count=   0;
-    ulonglong print_lock_time=    total_lock_time;
-    ulonglong print_exec_time=    total_exec_time;
-    ulonglong end_utime_of_query= thd->current_utime();
-
-    /*
-      If the window has expired, we'll try to write a summary line.
-      The subroutine will know whether we actually need to.
-    */
-    if (!in_window(end_utime_of_query))
-    {
-      suppressed_count= prepare_summary(thd);
-      // start new window only if this is the statement type we handle
-      if (eligible)
-        new_window(end_utime_of_query);
-    }
-    if (eligible && (inc_queries() > *rate))
-    {
-      /*
-        Current query's logging should be suppressed.
-        Add its execution time and lock time to totals for the current window.
-      */
-      total_exec_time += (end_utime_of_query - thd->start_utime);
-      total_lock_time += (thd->utime_after_lock - thd->start_utime);
-      suppress_current= true;
-    }
-
-    unlock();
-
-    /*
-      print_summary() is deferred until after we release the locks to
-      avoid congestion. All variables we hand in are local to the caller,
-      so things would even be safe if print_summary() hadn't finished by the
-      time the next one comes around (60s later at the earliest for now).
-      The current design will produce correct data, but does not guarantee
-      order (there is a theoretical race condition here where the above
-      new_window()/unlock() may enable a different thread to print a warning
-      for the new window before the current thread gets to print_summary().
-      If the requirements ever change, add a print_lock to the object that
-      is held during print_summary(), AND that is briefly locked before
-      returning from this function if(eligible && !suppress_current).
-      This should ensure correct ordering of summaries with regard to any
-      follow-up summaries as well as to any (non-suppressed) warnings (of
-      the type we handle) from the next window.
-    */
-    if (suppressed_count > 0)
-      print_summary(thd, suppressed_count, print_lock_time, print_exec_time);
-  }
-
-  return suppress_current;
 }
 
 
@@ -4367,7 +4265,7 @@ void THD::inc_examined_row_count(ha_rows count)
 
 void THD::inc_status_created_tmp_disk_tables()
 {
-  status_var_increment(status_var.created_tmp_disk_tables);
+  status_var.created_tmp_disk_tables++;
 #ifdef HAVE_PSI_STATEMENT_INTERFACE
   PSI_STATEMENT_CALL(inc_statement_created_tmp_disk_tables)(m_statement_psi, 1);
 #endif
@@ -4375,7 +4273,7 @@ void THD::inc_status_created_tmp_disk_tables()
 
 void THD::inc_status_created_tmp_tables()
 {
-  status_var_increment(status_var.created_tmp_tables);
+  status_var.created_tmp_tables++;
 #ifdef HAVE_PSI_STATEMENT_INTERFACE
   PSI_STATEMENT_CALL(inc_statement_created_tmp_tables)(m_statement_psi, 1);
 #endif
@@ -4383,7 +4281,7 @@ void THD::inc_status_created_tmp_tables()
 
 void THD::inc_status_select_full_join()
 {
-  status_var_increment(status_var.select_full_join_count);
+  status_var.select_full_join_count++;
 #ifdef HAVE_PSI_STATEMENT_INTERFACE
   PSI_STATEMENT_CALL(inc_statement_select_full_join)(m_statement_psi, 1);
 #endif
@@ -4391,7 +4289,7 @@ void THD::inc_status_select_full_join()
 
 void THD::inc_status_select_full_range_join()
 {
-  status_var_increment(status_var.select_full_range_join_count);
+  status_var.select_full_range_join_count++;
 #ifdef HAVE_PSI_STATEMENT_INTERFACE
   PSI_STATEMENT_CALL(inc_statement_select_full_range_join)(m_statement_psi, 1);
 #endif
@@ -4399,7 +4297,7 @@ void THD::inc_status_select_full_range_join()
 
 void THD::inc_status_select_range()
 {
-  status_var_increment(status_var.select_range_count);
+  status_var.select_range_count++;
 #ifdef HAVE_PSI_STATEMENT_INTERFACE
   PSI_STATEMENT_CALL(inc_statement_select_range)(m_statement_psi, 1);
 #endif
@@ -4407,7 +4305,7 @@ void THD::inc_status_select_range()
 
 void THD::inc_status_select_range_check()
 {
-  status_var_increment(status_var.select_range_check_count);
+  status_var.select_range_check_count++;
 #ifdef HAVE_PSI_STATEMENT_INTERFACE
   PSI_STATEMENT_CALL(inc_statement_select_range_check)(m_statement_psi, 1);
 #endif
@@ -4415,7 +4313,7 @@ void THD::inc_status_select_range_check()
 
 void THD::inc_status_select_scan()
 {
-  status_var_increment(status_var.select_scan_count);
+  status_var.select_scan_count++;
 #ifdef HAVE_PSI_STATEMENT_INTERFACE
   PSI_STATEMENT_CALL(inc_statement_select_scan)(m_statement_psi, 1);
 #endif
@@ -4423,7 +4321,7 @@ void THD::inc_status_select_scan()
 
 void THD::inc_status_sort_merge_passes()
 {
-  status_var_increment(status_var.filesort_merge_passes);
+  status_var.filesort_merge_passes++;
 #ifdef HAVE_PSI_STATEMENT_INTERFACE
   PSI_STATEMENT_CALL(inc_statement_sort_merge_passes)(m_statement_psi, 1);
 #endif
@@ -4431,7 +4329,7 @@ void THD::inc_status_sort_merge_passes()
 
 void THD::inc_status_sort_range()
 {
-  status_var_increment(status_var.filesort_range_count);
+  status_var.filesort_range_count++;
 #ifdef HAVE_PSI_STATEMENT_INTERFACE
   PSI_STATEMENT_CALL(inc_statement_sort_range)(m_statement_psi, 1);
 #endif
@@ -4439,7 +4337,7 @@ void THD::inc_status_sort_range()
 
 void THD::inc_status_sort_rows(ha_rows count)
 {
-  statistic_add_rwlock(status_var.filesort_rows, count, &LOCK_status);
+  status_var.filesort_rows+= count;
 #ifdef HAVE_PSI_STATEMENT_INTERFACE
   PSI_STATEMENT_CALL(inc_statement_sort_rows)(m_statement_psi, count);
 #endif
@@ -4447,7 +4345,7 @@ void THD::inc_status_sort_rows(ha_rows count)
 
 void THD::inc_status_sort_scan()
 {
-  status_var_increment(status_var.filesort_scan_count);
+  status_var.filesort_scan_count++;
 #ifdef HAVE_PSI_STATEMENT_INTERFACE
   PSI_STATEMENT_CALL(inc_statement_sort_scan)(m_statement_psi, 1);
 #endif
@@ -4589,8 +4487,8 @@ void mark_transaction_to_rollback(THD *thd, bool all)
       flow, even in presence
       of IGNORE clause.
     */
-    if (thd->lex->current_select)
-      thd->lex->current_select->no_error= FALSE;
+    if (thd->lex->current_select())
+      thd->lex->current_select()->no_error= FALSE;
   }
 }
 /***************************************************************************
@@ -4819,4 +4717,15 @@ void THD::time_out_user_resource_limits()
   }
 
   DBUG_VOID_RETURN;
+}
+
+
+void THD::Query_plan::set_query_plan(enum_sql_command sql_cmd,
+                                     LEX *lex_arg, bool ps)
+{
+  mysql_mutex_lock(&thd->LOCK_query_plan);
+  sql_command= sql_cmd;
+  lex= lex_arg;
+  is_ps= ps;
+  mysql_mutex_unlock(&thd->LOCK_query_plan);
 }

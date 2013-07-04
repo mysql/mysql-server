@@ -1,3 +1,8 @@
+# The include statement below is a temp one for tests that are yet to
+#be ported to run with InnoDB,
+#but needs to be kept for tests that would need MyISAM in future.
+--source include/force_myisam_default.inc
+
 #
 # Bug with distinct and INSERT INTO
 # Bug with group by and not used fields
@@ -84,6 +89,7 @@ insert into t4 select * from t3;
 insert into t3 select * from t4;
 
 explain select distinct t1.a from t1,t3 where t1.a=t3.a;
+
 # This query uses the "not used in distinct" optimization (search for
 # not_used_in_distinct in code); it means that when we have a partial
 # record for t1, and we find a match in t3, we have a combination
@@ -98,7 +104,6 @@ flush status;
 select distinct t1.a from t1,t3 where t1.a=t3.a;
 show status like 'Handler_read%';
 flush status;
-# This one does ~200 reads, filed as Bug #13622058
 select distinct 1 from t1,t3 where t1.a=t3.a;
 show status like 'Handler_read%';
 

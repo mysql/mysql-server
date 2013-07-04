@@ -1,7 +1,7 @@
 #ifndef PARTITION_INFO_INCLUDED
 #define PARTITION_INFO_INCLUDED
 
-/* Copyright (c) 2006, 2012, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2006, 2013, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -29,7 +29,7 @@ typedef int (*get_part_id_func)(partition_info *part_info,
                                  longlong *func_value);
 typedef int (*get_subpart_id_func)(partition_info *part_info,
                                    uint32 *part_id);
- 
+
 struct st_ddl_log_memory_entry;
 
 class partition_info : public Sql_alloc
@@ -44,7 +44,7 @@ public:
   List<char> part_field_list;
   List<char> subpart_field_list;
 
-  /* 
+  /*
     If there is no subpartitioning, use only this func to get partition ids.
     If there is subpartitioning, use the this func to get partition id when
     you have both partition and subpartition fields.
@@ -54,10 +54,10 @@ public:
   /* Get partition id when we don't have subpartition fields */
   get_part_id_func get_part_partition_id;
 
-  /* 
+  /*
     Get subpartition id when we have don't have partition fields by we do
     have subpartition ids.
-    Mikael said that for given constant tuple 
+    Mikael said that for given constant tuple
     {subpart_field1, ..., subpart_fieldN} the subpartition id will be the
     same in all subpartitions
   */
@@ -77,7 +77,7 @@ public:
   Field **subpart_field_array;
   Field **part_charset_field_array;
   Field **subpart_charset_field_array;
-  /* 
+  /*
     Array of all fields used in partition and subpartition expression,
     without duplicates, NULL-terminated.
   */
@@ -109,8 +109,8 @@ public:
   struct st_ddl_log_memory_entry *exec_log_entry;
   struct st_ddl_log_memory_entry *frm_log_entry;
 
-  /* 
-    Bitmaps of partitions used by the current query. 
+  /*
+    Bitmaps of partitions used by the current query.
     * read_partitions  - partitions to be used for reading.
     * lock_partitions  - partitions that must be locked (read or write).
     Usually read_partitions is the same set as lock_partitions, but
@@ -141,12 +141,12 @@ public:
     part_column_list_val *range_col_array;
     part_column_list_val *list_col_array;
   };
-  
+
   /********************************************
    * INTERVAL ANALYSIS
    ********************************************/
   /*
-    Partitioning interval analysis function for partitioning, or NULL if 
+    Partitioning interval analysis function for partitioning, or NULL if
     interval analysis is not supported for this kind of partitioning.
   */
   get_partitions_in_range_iter get_part_iter_for_interval;
@@ -155,9 +155,9 @@ public:
     interval analysis is not supported for this kind of partitioning.
   */
   get_partitions_in_range_iter get_subpart_iter_for_interval;
-  
+
   /********************************************
-   * INTERVAL ANALYSIS ENDS 
+   * INTERVAL ANALYSIS ENDS
    ********************************************/
 
   longlong err_value;
@@ -206,6 +206,19 @@ public:
     but mainly of use to handlers supporting partitioning.
   */
   uint16 linear_hash_mask;
+  /*
+    PARTITION BY KEY ALGORITHM=N
+    Which algorithm to use for hashing the fields.
+    N = 1 - Use 5.1 hashing (numeric fields are hashed as binary)
+    N = 2 - Use 5.5 hashing (numeric fields are hashed like latin1 bytes)
+  */
+  enum enum_key_algorithm
+    {
+      KEY_ALGORITHM_NONE= 0,
+      KEY_ALGORITHM_51= 1,
+      KEY_ALGORITHM_55= 2
+    };
+  enum_key_algorithm key_algorithm;
 
   /* Only the number of partitions defined (uses default names and options). */
   bool use_default_partitions;
@@ -257,6 +270,7 @@ public:
     count_curr_subparts(0),
     num_list_values(0), num_part_fields(0), num_subpart_fields(0),
     num_full_part_fields(0), has_null_part_id(0), linear_hash_mask(0),
+    key_algorithm(KEY_ALGORITHM_NONE),
     use_default_partitions(TRUE), use_default_num_partitions(TRUE),
     use_default_subpartitions(TRUE), use_default_num_subpartitions(TRUE),
     default_partitions_setup(FALSE), defined_max_value(FALSE),
@@ -348,6 +362,7 @@ public:
                         enum_can_prune *can_prune_partitions,
                         bool *prune_needs_default_values,
                         MY_BITMAP *used_partitions);
+  bool has_same_partitioning(partition_info *new_part_info);
 private:
   static int list_part_cmp(const void* a, const void* b);
   bool set_up_default_partitions(handler *file, HA_CREATE_INFO *info,

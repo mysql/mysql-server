@@ -27,7 +27,6 @@ Created 2/5/1996 Heikki Tuuri
 #define dyn0dyn_h
 
 #include "univ.i"
-#include "ut0lst.h"
 #include "mem0mem.h"
 
 /** A block in a dynamically allocated array */
@@ -41,7 +40,7 @@ this must be > MLOG_BUF_MARGIN + 30! */
 
 /*********************************************************************//**
 Initializes a dynamic array.
-@return	initialized dyn array */
+@return initialized dyn array */
 UNIV_INLINE
 dyn_array_t*
 dyn_array_create(
@@ -61,7 +60,7 @@ dyn_array_free(
 Makes room on top of a dyn array and returns a pointer to a buffer in it.
 After copying the elements, the caller must close the buffer using
 dyn_array_close.
-@return	pointer to the buffer */
+@return pointer to the buffer */
 UNIV_INLINE
 byte*
 dyn_array_open(
@@ -83,7 +82,7 @@ dyn_array_close(
 Makes room on top of a dyn array and returns a pointer to
 the added element. The caller must copy the element to
 the pointer returned.
-@return	pointer to the element */
+@return pointer to the element */
 UNIV_INLINE
 void*
 dyn_array_push(
@@ -93,7 +92,7 @@ dyn_array_push(
 	__attribute__((nonnull, warn_unused_result));
 /************************************************************//**
 Returns pointer to an element in dyn array.
-@return	pointer to element */
+@return pointer to element */
 UNIV_INLINE
 void*
 dyn_array_get_element(
@@ -104,7 +103,7 @@ dyn_array_get_element(
 	__attribute__((nonnull, warn_unused_result));
 /************************************************************//**
 Returns the size of stored data in a dyn array.
-@return	data size in bytes */
+@return data size in bytes */
 UNIV_INLINE
 ulint
 dyn_array_get_data_size(
@@ -113,32 +112,32 @@ dyn_array_get_data_size(
 	__attribute__((nonnull, warn_unused_result, pure));
 /************************************************************//**
 Gets the first block in a dyn array.
-@param arr	dyn array
-@return		first block */
+@param arr dyn array
+@return first block */
 #define dyn_array_get_first_block(arr) (arr)
 /************************************************************//**
 Gets the last block in a dyn array.
-@param arr	dyn array
-@return		last block */
+@param arr dyn array
+@return last block */
 #define dyn_array_get_last_block(arr)				\
 	((arr)->heap ? UT_LIST_GET_LAST((arr)->base) : (arr))
 /********************************************************************//**
 Gets the next block in a dyn array.
-@param arr	dyn array
-@param block	dyn array block
-@return		pointer to next, NULL if end of list */
+@param arr dyn array
+@param block dyn array block
+@return pointer to next, NULL if end of list */
 #define dyn_array_get_next_block(arr, block)			\
 	((arr)->heap ? UT_LIST_GET_NEXT(list, block) : NULL)
 /********************************************************************//**
 Gets the previous block in a dyn array.
-@param arr	dyn array
-@param block	dyn array block
-@return		pointer to previous, NULL if end of list */
+@param arr dyn array
+@param block dyn array block
+@return pointer to previous, NULL if end of list */
 #define dyn_array_get_prev_block(arr, block)			\
 	((arr)->heap ? UT_LIST_GET_PREV(list, block) : NULL)
 /********************************************************************//**
 Gets the number of used bytes in a dyn array block.
-@return	number of bytes used */
+@return number of bytes used */
 UNIV_INLINE
 ulint
 dyn_block_get_used(
@@ -147,7 +146,7 @@ dyn_block_get_used(
 	__attribute__((nonnull, warn_unused_result, pure));
 /********************************************************************//**
 Gets pointer to the start of data in a dyn array block.
-@return	pointer to data */
+@return pointer to data */
 UNIV_INLINE
 byte*
 dyn_block_get_data(

@@ -792,6 +792,9 @@ The following options may be given as the first argument:
  not sure, leave this option unset
  --report-user=name  The account user name of the slave to be reported to the
  master during slave registration
+ --rpl-stop-slave-timeout=# 
+ Timeout in seconds to wait for slave to stop before
+ returning a warning.
  --safe-user-create  Don't allow new user creation by the user who has no
  write privileges to the mysql.user table.
  --secure-auth       Disallow authentication for accounts that have old
@@ -878,10 +881,16 @@ The following options may be given as the first argument:
  lock wait timeout, before giving up and stopping
  --slave-type-conversions=name 
  Set of slave type conversions that are enabled. Legal
- values are: ALL_LOSSY to enable lossy conversions and
- ALL_NON_LOSSY to enable non-lossy conversions. If the
- variable is assigned the empty set, no conversions are
- allowed and it is expected that the types match exactly.
+ values are: ALL_LOSSY to enable lossy conversions,
+ ALL_NON_LOSSY to enable non-lossy conversions,
+ ALL_UNSIGNED to treat all integer column type data to be
+ unsigned values, and ALL_SIGNED to treat all integer
+ column type data to be signed values. Default treatment
+ is ALL_SIGNED. If ALL_SIGNED and ALL_UNSIGNED both are
+ specifed, ALL_SIGNED will take high priority than
+ ALL_UNSIGNED. If the variable is assigned the empty set,
+ no conversions are allowed and it is expected that the
+ types match exactly.
  --slow-launch-time=# 
  If creating the thread takes longer than this value (in
  seconds), the Slow_launch_threads counter will be
@@ -974,6 +983,10 @@ The following options may be given as the first argument:
  of the underlying table and the query uses a LIMIT clause
  (usually get from GUI tools)
  -u, --user=name     Run mysqld daemon as user.
+ --validate-user-plugins 
+ Turns on additional validation of authentication plugins
+ assigned to user accounts. 
+ (Defaults to on; use --skip-validate-user-plugins to disable.)
  -v, --verbose       Used with --help option for detailed help.
  -V, --version       Output version information and exit.
  --wait-timeout=#    The number of seconds the server waits for activity on a
@@ -1064,7 +1077,7 @@ log-bin (No default value)
 log-bin-index (No default value)
 log-bin-trust-function-creators FALSE
 log-bin-use-v1-row-events FALSE
-log-error 
+log-error stderr
 log-isam myisam.log
 log-output FILE
 log-queries-not-using-indexes FALSE
@@ -1171,7 +1184,7 @@ performance-schema-max-rwlock-instances -1
 performance-schema-max-socket-classes 10
 performance-schema-max-socket-instances -1
 performance-schema-max-stage-classes 150
-performance-schema-max-statement-classes 168
+performance-schema-max-statement-classes 170
 performance-schema-max-table-handles -1
 performance-schema-max-table-instances -1
 performance-schema-max-thread-classes 50
@@ -1180,7 +1193,7 @@ performance-schema-session-connect-attrs-size -1
 performance-schema-setup-actors-size 100
 performance-schema-setup-objects-size 100
 performance-schema-users-size -1
-port 3306
+port ####
 port-open-timeout 0
 preload-buffer-size 32768
 profiling-history-size 15
@@ -1207,6 +1220,7 @@ report-host (No default value)
 report-password (No default value)
 report-port 0
 report-user (No default value)
+rpl-stop-slave-timeout 31536000
 safe-user-create FALSE
 secure-auth TRUE
 secure-file-priv (No default value)
@@ -1261,6 +1275,7 @@ transaction-isolation REPEATABLE-READ
 transaction-prealloc-size 4096
 transaction-read-only FALSE
 updatable-views-with-limit YES
+validate-user-plugins TRUE
 verbose TRUE
 wait-timeout 28800
 
