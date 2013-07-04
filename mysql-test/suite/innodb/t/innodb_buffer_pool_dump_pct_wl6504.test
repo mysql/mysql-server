@@ -72,7 +72,6 @@ AND variable_value like '%completed%';
 perl;
 my $dir = $ENV{'MYSQLD_DATADIR'};
 my $size;
-print "$dir\n";
 opendir(DIR, $dir) or die $!;
 while (my $file = readdir(DIR))
 {
