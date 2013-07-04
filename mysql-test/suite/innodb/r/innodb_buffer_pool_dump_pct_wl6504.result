@@ -29,7 +29,6 @@ SET GLOBAL innodb_buffer_pool_dump_now=ON;
 # move a copy of dump file
 # cleanup
 # get the size of the dump files & compare
-/work/wl6504/mysql/mysql-test/var/mysqld.1/data/
 wl6504 test PASS
 # reset the default value
 SET GLOBAL innodb_buffer_pool_dump_pct=Default;
