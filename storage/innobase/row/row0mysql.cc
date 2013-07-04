@@ -5190,6 +5190,7 @@ func_exit:
 				    dtuple_get_nth_field(prev_entry, i))) {
 
 				contains_null = TRUE;
+				break;
 			}
 		}
 
