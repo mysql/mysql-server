@@ -459,12 +459,11 @@ Mts_submode_logical_clock::assign_group_parent_id(Relay_log_info* rli,
     return true;
   }
 
-  if (force_new_group
-      ||(commit_seq_no != SEQ_UNINIT /* Not an internal event */ &&
+  if ((commit_seq_no != SEQ_UNINIT /* Not an internal event */ &&
       /* not same as last seq number */
       commit_seq_no != mts_last_known_commit_parent) ||
       /* first event after a submode switch */
-      first_event)
+      first_event || force_new_group)
   {
     mts_last_known_commit_parent= commit_seq_no;
     mts_last_known_parent_group_id=
