@@ -23,6 +23,7 @@ INCLUDE(${MYSQL_CMAKE_SCRIPT_DIR}/cmake_parse_arguments.cmake)
 # [STATIC_ONLY|DYNAMIC_ONLY]
 # [MODULE_OUTPUT_NAME module_name]
 # [STATIC_OUTPUT_NAME static_name]
+# [NOT_FOR_EMBEDDED]
 # [RECOMPILE_FOR_EMBEDDED]
 # [LINK_LIBRARIES lib1...libN]
 # [DEPENDENCIES target1...targetN]
@@ -47,7 +48,7 @@ ENDMACRO()
 MACRO(MYSQL_ADD_PLUGIN)
   MYSQL_PARSE_ARGUMENTS(ARG
     "LINK_LIBRARIES;DEPENDENCIES;MODULE_OUTPUT_NAME;STATIC_OUTPUT_NAME"
-    "STORAGE_ENGINE;STATIC_ONLY;MODULE_ONLY;MANDATORY;DEFAULT;DISABLED;RECOMPILE_FOR_EMBEDDED"
+    "STORAGE_ENGINE;STATIC_ONLY;MODULE_ONLY;MANDATORY;DEFAULT;DISABLED;NOT_FOR_EMBEDDED;RECOMPILE_FOR_EMBEDDED"
     ${ARGN}
   )
   
@@ -118,7 +119,7 @@ MACRO(MYSQL_ADD_PLUGIN)
     SET_TARGET_PROPERTIES(${target} PROPERTIES COMPILE_DEFINITONS "MYSQL_SERVER")
     DTRACE_INSTRUMENT(${target})
     ADD_DEPENDENCIES(${target} GenError ${ARG_DEPENDENCIES})
-    IF(WITH_EMBEDDED_SERVER)
+    IF(WITH_EMBEDDED_SERVER AND NOT ARG_NOT_FOR_EMBEDDED)
       # Embedded library should contain PIC code and be linkable
       # to shared libraries (on systems that need PIC)
       IF(ARG_RECOMPILE_FOR_EMBEDDED OR NOT _SKIP_PIC)
@@ -150,15 +151,36 @@ MACRO(MYSQL_ADD_PLUGIN)
        FORCE)
     ENDIF()
 
-    IF(ARG_MANDATORY)
-      SET (mysql_mandatory_plugins  
-        "${mysql_mandatory_plugins} builtin_${target}_plugin," 
-      PARENT_SCOPE)
+    IF(NOT ARG_NOT_FOR_EMBEDDED)
+      IF(ARG_MANDATORY)
+        SET (mysql_mandatory_plugins  
+          "${mysql_mandatory_plugins} builtin_${target}_plugin," 
+        PARENT_SCOPE)
+      ELSE()
+        SET (mysql_optional_plugins  
+          "${mysql_optional_plugins} builtin_${target}_plugin,"
+        PARENT_SCOPE)
+      ENDIF()
     ELSE()
-      SET (mysql_optional_plugins  
-        "${mysql_optional_plugins} builtin_${target}_plugin,"
-      PARENT_SCOPE)
+      IF(ARG_MANDATORY)
+        SET (mysql_mandatory_plugins  
+          "${mysql_mandatory_plugins}
+#ifndef EMBEDDED_LIBRARY
+  builtin_${target}_plugin,
+#endif
+" 
+        PARENT_SCOPE)
+      ELSE()
+        SET (mysql_optional_plugins  
+          "${mysql_optional_plugins}
+#ifndef EMBEDDED_LIBRARY
+  builtin_${target}_plugin,
+#endif
+"
+        PARENT_SCOPE)
+      ENDIF()
     ENDIF()
+
   ELSEIF(NOT WITHOUT_${plugin} AND NOT ARG_STATIC_ONLY  AND NOT WITHOUT_DYNAMIC_PLUGINS)
     IF(NOT ARG_MODULE_OUTPUT_NAME)
       IF(ARG_STORAGE_ENGINE)

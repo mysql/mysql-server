@@ -19,6 +19,7 @@
   Table replication_execute_status_by_worker (implementation).
 */
 
+#include "my_global.h"
 #include "sql_priv.h"
 #include "table_replication_execute_status_by_worker.h"
 #include "pfs_instr_class.h"
@@ -112,8 +113,6 @@ void table_replication_execute_status_by_worker::reset_position(void)
   m_pos.m_index= 0;
   m_next_pos.m_index= 0;
 }
-
-#ifndef EMBEDDED_LIBRARY
 
 int table_replication_execute_status_by_worker::rnd_next(void)
 {
@@ -238,8 +237,6 @@ void table_replication_execute_status_by_worker::make_row(Slave_worker *w)
 
   m_row_exists= true;
 }
-
-#endif /* EMBEDDED_LIBRARY */
 
 int table_replication_execute_status_by_worker
   ::read_row_values(TABLE *table, unsigned char *buf,  Field **fields,

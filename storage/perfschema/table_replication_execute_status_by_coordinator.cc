@@ -19,6 +19,7 @@
   Table replication_execute_status_by_coordinator (implementation).
 */
 
+#include "my_global.h"
 #include "sql_priv.h"
 #include "table_replication_execute_status_by_coordinator.h"
 #include "pfs_instr_class.h"
@@ -129,8 +130,6 @@ int table_replication_execute_status_by_coordinator::rnd_pos(const void *pos)
   return 0;
 }
 
-#ifndef EMBEDDED_LIBRARY
-
 void table_replication_execute_status_by_coordinator::make_row()
 {
   m_row_exists= false;
@@ -179,8 +178,6 @@ void table_replication_execute_status_by_coordinator::make_row()
 
   m_row_exists= true;
 }
-
-#endif /* EMBEDDED_LIBRARY */
 
 int table_replication_execute_status_by_coordinator
   ::read_row_values(TABLE *table, unsigned char *buf,
