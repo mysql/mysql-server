@@ -6276,6 +6276,8 @@ TABLE_LIST *st_select_lex::nest_last_join(THD *thd)
   for (uint i=0; i < 2; i++)
   {
     TABLE_LIST *table= join_list->pop();
+    if (!table)
+      DBUG_RETURN(NULL);
     table->join_list= embedded_list;
     table->embedding= ptr;
     embedded_list->push_back(table);

@@ -1472,4 +1472,9 @@ dog_id	dog_id	birthday	dog_id	t_id	birthday	dog_id	t_id	birthday	a_id	dog_id
 5918	5918	2004-07-22	5918	N	2004-07-22	5918	N	2004-07-22	5992424	5918
 SET optimizer_switch=@tmp_optimizer_switch;
 DROP TABLE t1,t2,t3,t4,t5;
+#
+# MDEV-4752: Segfault during parsing of illegal query
+#
+SELECT * FROM t5 JOIN (t1 JOIN t2 UNION SELECT * FROM t3 JOIN t4);
+ERROR 42000: You have an error in your SQL syntax; check the manual that corresponds to your MariaDB server version for the right syntax to use near '' at line 1
 SET optimizer_switch=@save_optimizer_switch;

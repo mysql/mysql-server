@@ -9600,7 +9600,10 @@ table_ref:
           {
             LEX *lex= Lex;
             if (!($$= lex->current_select->nest_last_join(lex->thd)))
+            {
+              my_parse_error(ER(ER_SYNTAX_ERROR));
               MYSQL_YYABORT;
+            }
           }
         ;
 
