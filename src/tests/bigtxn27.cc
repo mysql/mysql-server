@@ -139,7 +139,7 @@ static void *w_thread(void *arg) {
 }
 
 static void bigtxn_progress(TOKU_TXN_PROGRESS progress, void *extra) {
-    printf("%s %lu %lu %p\n", __FUNCTION__, progress->entries_processed, progress->entries_total, extra);
+    printf("%s %" PRIu64 " %" PRIu64 " %p\n", __FUNCTION__, progress->entries_processed, progress->entries_total, extra);
     sleep(1);
 }
 
