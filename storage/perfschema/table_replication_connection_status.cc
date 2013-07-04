@@ -19,6 +19,7 @@
   Table replication_connection_status (implementation).
 */
 
+#include "my_global.h"
 #include "sql_priv.h"
 #include "table_replication_connection_status.h"
 #include "pfs_instr_class.h"
@@ -136,8 +137,6 @@ int table_replication_connection_status::rnd_pos(const void *pos)
   return 0;
 }
 
-#ifndef EMBEDDED_LIBRARY
-
 void table_replication_connection_status::make_row()
 {
   m_row_exists= false;;
@@ -217,8 +216,6 @@ void table_replication_connection_status::make_row()
   m_row_exists= true;
 
 }
-
-#endif /*# EMBEDDED_LIBRARY */
 
 int table_replication_connection_status::read_row_values(TABLE *table,
                                                          unsigned char *buf,
