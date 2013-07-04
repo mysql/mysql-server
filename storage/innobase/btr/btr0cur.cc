@@ -438,15 +438,16 @@ btr_cur_will_modify_tree(
 	if (lock_intention <= BTR_INTENTION_BOTH) {
 		/* check delete will cause. (BTR_INTENTION_BOTH
 		or BTR_INTENTION_DELETE) */
-		/* first, 2nd and last records are 3 records */
-		if (page_get_n_recs(page) < 4) {
+		/* first, 2nd, 2nd-last and last records are 4 records */
+		if (page_get_n_recs(page) < 5) {
 			return(true);
 		}
 
 		/* is first, 2nd or last record */
 		if (page_rec_is_first(rec, page)
 		    || (mach_read_from_4(page + FIL_PAGE_NEXT) != FIL_NULL
-			&& page_rec_is_last(rec, page))
+			&& (page_rec_is_last(rec, page)
+			    || page_rec_is_second_last(rec, page)))
 		    || (mach_read_from_4(page + FIL_PAGE_PREV) != FIL_NULL
 			&& page_rec_is_second(rec, page))) {
 			return(true);
