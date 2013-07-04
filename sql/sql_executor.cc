@@ -38,6 +38,7 @@
 #include "sql_tmp_table.h"
 #include "records.h"          // rr_sequential
 #include "opt_explain_format.h" // Explain_format_flags
+#include "debug_sync.h"
 
 #include <algorithm>
 using std::max;
@@ -91,6 +92,9 @@ static bool cmp_buffer_with_ref(THD *thd, TABLE *table, TABLE_REF *tab_ref);
 
   @todo
     When can we have here thd->net.report_error not zero?
+
+  @note that EXPLAIN may come here (single-row derived table, uncorrelated
+    scalar subquery in WHERE clause...).
 */
 
 void
@@ -105,15 +109,16 @@ JOIN::exec()
   DBUG_ENTER("JOIN::exec");
 
   DBUG_ASSERT(!tables || thd->lex->is_query_tables_locked());
-  DBUG_ASSERT(!(select_options & SELECT_DESCRIBE));
 
   THD_STAGE_INFO(thd, stage_executing);
+  DEBUG_SYNC(thd, "before_join_exec");
 
+  executed= true;
   // Ignore errors of execution if option IGNORE present
   if (thd->lex->ignore)
-    thd->lex->current_select->no_error= true;
+    thd->lex->current_select()->no_error= true;
 
-  if (prepare_result(&columns_list))
+  if (prepare_result())
     DBUG_VOID_RETURN;
 
   if (!tables_list && (tables || !select_lex->with_sum_func))
@@ -225,8 +230,8 @@ JOIN::create_intermediate_table(JOIN_TAB *tab, List<Item> *tmp_table_fields,
                                "");
   if (!table)
     DBUG_RETURN(true);
-  tmp_table_param.using_indirect_summary_function=
-    tab->tmp_table_param->using_indirect_summary_function;
+  tmp_table_param.using_outer_summary_function=
+    tab->tmp_table_param->using_outer_summary_function;
   tab->join= this;
   DBUG_ASSERT(tab > tab->join->join_tab);
   (tab - 1)->next_select= sub_select_op;
@@ -420,24 +425,6 @@ JOIN::optimize_distinct()
   }
 }
 
-
-/**
-  There may be a pending 'sorted' request on the specified 
-  'join_tab' which we now has decided we can ignore.
-*/
-
-void
-disable_sorted_access(JOIN_TAB* join_tab)
-{
-  DBUG_ENTER("disable_sorted_access");
-  join_tab->sorted= 0;
-  if (join_tab->select && join_tab->select->quick)
-  {
-    join_tab->select->quick->need_sorted_output(false);
-  }
-  DBUG_VOID_RETURN;
-}
-
 bool prepare_sum_aggregators(Item_sum **func_ptr, bool need_distinct)
 {
   Item_sum *func;
@@ -560,11 +547,11 @@ update_sum_func(Item_sum **func_ptr)
 */
 
 bool
-copy_funcs(Item **func_ptr, const THD *thd)
+copy_funcs(Func_ptr_array *func_ptr, const THD *thd)
 {
-  Item *func;
-  for (; (func = *func_ptr) ; func_ptr++)
+  for (size_t ix= 0; ix < func_ptr->size(); ++ix)
   {
+    Item *func= func_ptr->at(ix);
     func->save_in_result_field(1);
     /*
       Need to check the THD error state because Item::val_xxx() don't
@@ -814,17 +801,12 @@ void setup_tmptable_write_func(JOIN_TAB *tab)
     op->set_write_func(end_write);
     if (tmp_tbl->precomputed_group_by)
     {
-      /*
-        A preceding call to create_tmp_table in the case when loose
-        index scan is used guarantees that
-        TMP_TABLE_PARAM::items_to_copy has enough space for the group
-        by functions. It is OK here to use memcpy since we copy
-        Item_sum pointers into an array of Item pointers.
-      */
-      memcpy(tmp_tbl->items_to_copy + tmp_tbl->func_count,
-             join->sum_funcs,
-             sizeof(Item*)*tmp_tbl->sum_func_count);
-      tmp_tbl->items_to_copy[tmp_tbl->func_count+tmp_tbl->sum_func_count]= 0;
+      Item_sum **func_ptr= join->sum_funcs;
+      Item_sum *func;
+      while ((func= *(func_ptr++)))
+      {
+        tmp_tbl->items_to_copy->push_back(func);
+      }
     }
   }
 }
@@ -951,7 +933,13 @@ do_select(JOIN *join)
   }
 
   join->thd->limit_found_rows= join->send_records;
-  /* Use info provided by filesort. */
+  /*
+    For "order by with limit", we cannot rely on send_records, but need
+    to use the rowcount read originally into the join_tab applying the
+    filesort. There cannot be any post-filtering conditions, nor any
+    following join_tabs in this case, so this rowcount properly represents
+    the correct number of qualifying rows.
+  */
   if (join->order)
   {
     // Save # of found records prior to cleanup
@@ -968,7 +956,9 @@ do_select(JOIN *join)
       sort_tab= join_tab + const_tables;
     }
     if (sort_tab->filesort &&
-        sort_tab->filesort->sortorder)
+        join->select_options & OPTION_FOUND_ROWS &&
+        sort_tab->filesort->sortorder &&
+        sort_tab->filesort->limit != HA_POS_ERROR)
     {
       join->thd->limit_found_rows= sort_tab->records;
     }
@@ -1572,7 +1562,7 @@ evaluate_join_record(JOIN *join, JOIN_TAB *join_tab)
     else if (join_tab->do_loosescan() && join_tab->match_tab->found_match)
     { 
       /* Loosescan algorithm requires 'sorted' retrieval of keys. */
-      DBUG_ASSERT(join_tab->sorted);
+      DBUG_ASSERT(join_tab->use_order());
       /* 
          Previous row combination for duplicate-generating range,
          generated a match.  Compare keys of this row and previous row
@@ -1618,8 +1608,8 @@ evaluate_join_record(JOIN *join, JOIN_TAB *join_tab)
            will give duplicates that should be skipped.
         */
         KEY *key= join_tab->table->key_info + join_tab->index;
-        key_copy(join_tab->loosescan_buf, join_tab->read_record.record, key, 
-                 join_tab->loosescan_key_len);
+        key_copy(join_tab->loosescan_buf, join_tab->table->record[0],
+                 key, join_tab->loosescan_key_len);
       }
       else if (join_tab->do_firstmatch() && join_tab->match_tab->found_match)
       {
@@ -1778,13 +1768,17 @@ int safe_index_read(JOIN_TAB *tab)
 static int
 test_if_quick_select(JOIN_TAB *tab)
 {
+  mysql_mutex_lock(&tab->join->thd->LOCK_query_plan);
   tab->select->set_quick(NULL);
-  return tab->select->test_quick_select(tab->join->thd, 
-                                        tab->keys,
-                                        0,          // empty table map
-                                        HA_POS_ERROR, 
-                                        false,      // don't force quick range
-                                        ORDER::ORDER_NOT_RELEVANT);
+  mysql_mutex_unlock(&tab->join->thd->LOCK_query_plan);
+  const bool ret=
+    tab->select->test_quick_select(tab->join->thd, 
+                                   tab->keys,
+                                   0,          // empty table map
+                                   HA_POS_ERROR, 
+                                   false,      // don't force quick range
+                                   ORDER::ORDER_NOT_RELEVANT);
+  return ret;
 }
 
 
@@ -2017,8 +2011,8 @@ join_read_key(JOIN_TAB *tab)
 
   if (!table->file->inited)
   {
-    DBUG_ASSERT(!tab->sorted);  // Don't expect sort req. for single row.
-    if ((error= table->file->ha_index_init(table_ref->key, tab->sorted)))
+    DBUG_ASSERT(!tab->use_order()); //Don't expect sort req. for single row.
+    if ((error= table->file->ha_index_init(table_ref->key, tab->use_order())))
     {
       (void) report_handler_error(table, error);
       return 1;
@@ -2116,9 +2110,9 @@ join_read_linked_first(JOIN_TAB *tab)
   TABLE *table= tab->table;
   DBUG_ENTER("join_read_linked_first");
 
-  DBUG_ASSERT(!tab->sorted); // Pushed child can't be sorted
+  DBUG_ASSERT(!tab->use_order()); // Pushed child can't be sorted
   if (!table->file->inited &&
-      (error= table->file->ha_index_init(tab->ref.key, tab->sorted)))
+      (error= table->file->ha_index_init(tab->ref.key, tab->use_order())))
   {
     (void) report_handler_error(table, error);
     DBUG_RETURN(error);
@@ -2194,7 +2188,7 @@ join_read_always_key(JOIN_TAB *tab)
 
   /* Initialize the index first */
   if (!table->file->inited &&
-      (error= table->file->ha_index_init(tab->ref.key, tab->sorted)))
+      (error= table->file->ha_index_init(tab->ref.key, tab->use_order())))
   {
     (void) report_handler_error(table, error);
     return 1;
@@ -2235,7 +2229,7 @@ join_read_last_key(JOIN_TAB *tab)
   TABLE *table= tab->table;
 
   if (!table->file->inited &&
-      (error= table->file->ha_index_init(tab->ref.key, tab->sorted)))
+      (error= table->file->ha_index_init(tab->ref.key, tab->use_order())))
   {
     (void) report_handler_error(table, error);
     return 1;
@@ -2410,17 +2404,17 @@ int join_init_read_record(JOIN_TAB *tab)
 int
 join_materialize_derived(JOIN_TAB *tab)
 {
+  THD *thd= tab->table->in_use;
   TABLE_LIST *derived= tab->table->pos_in_table_list;
   DBUG_ASSERT(derived->uses_materialization() && !tab->materialized);
 
   if (derived->materializable_is_const()) // Has been materialized by optimizer
     return NESTED_LOOP_OK;
 
-  bool res= mysql_handle_single_derived(tab->table->in_use->lex,
+  bool res= mysql_handle_single_derived(thd->lex,
                                         derived, &mysql_derived_materialize);
-  if (!tab->table->in_use->lex->describe)
-    mysql_handle_single_derived(tab->table->in_use->lex,
-                                derived, &mysql_derived_cleanup);
+  res|= mysql_handle_single_derived(thd->lex, derived, &mysql_derived_cleanup);
+  DEBUG_SYNC(thd, "after_materialize_derived");
   return res ? NESTED_LOOP_ERROR : NESTED_LOOP_OK;
 }
 
@@ -2471,6 +2465,43 @@ join_materialize_semijoin(JOIN_TAB *tab)
   DBUG_RETURN(NESTED_LOOP_OK);
 }
 
+
+/**
+  Check if access to this JOIN_TAB has to retrieve rows
+  in sorted order as defined by the ordered index
+  used to access this table.
+*/
+bool
+JOIN_TAB::use_order() const
+{
+  /*
+    No need to require sorted access for single row reads
+    being performed by const- or EQ_REF-accessed tables.
+  */
+  if (type == JT_EQ_REF ||
+      type == JT_CONST  ||
+      type == JT_SYSTEM)
+    return false;
+
+  /*
+    First non-const table requires sorted results 
+    if ORDER or GROUP BY use ordered index. 
+  */
+  if (this == &join->join_tab[join->const_tables] && 
+      join->ordered_index_usage != JOIN::ordered_index_void)
+    return true;
+
+  /*
+    LooseScan strategy for semijoin requires sorted
+    results even if final result is not to be sorted.
+  */
+  if (position->sj_strategy == SJ_OPT_LOOSE_SCAN)
+    return true;
+
+  /* Fall through: Results don't have to be sorted */
+  return false;
+}
+
 /*
   Helper function for sorting table with filesort.
 */
@@ -2503,7 +2534,7 @@ join_read_first(JOIN_TAB *tab)
   tab->read_record.read_record=join_read_next;
 
   if (!table->file->inited &&
-      (error= table->file->ha_index_init(tab->index, tab->sorted)))
+      (error= table->file->ha_index_init(tab->index, tab->use_order())))
   {
     (void) report_handler_error(table, error);
     return 1;
@@ -2541,7 +2572,7 @@ join_read_last(JOIN_TAB *tab)
   tab->read_record.index=tab->index;
   tab->read_record.record=table->record[0];
   if (!table->file->inited &&
-      (error= table->file->ha_index_init(tab->index, tab->sorted)))
+      (error= table->file->ha_index_init(tab->index, tab->use_order())))
   {
     (void) report_handler_error(table, error);
     return 1;
@@ -2569,7 +2600,7 @@ join_ft_read_first(JOIN_TAB *tab)
   TABLE *table= tab->table;
 
   if (!table->file->inited &&
-      (error= table->file->ha_index_init(tab->ref.key, tab->sorted)))
+      (error= table->file->ha_index_init(tab->ref.key, tab->use_order())))
   {
     (void) report_handler_error(table, error);
     return 1;
@@ -2763,16 +2794,15 @@ end_send(JOIN *join, JOIN_TAB *join_tab, bool end_of_records)
         !join->do_send_rows)
     {
       /*
-        If filesort is used for sorting, stop after select_limit_cnt+1
-        records are read. Because of optimization in some cases it can
-        provide only select_limit_cnt+1 records.
+        If we have used Priority Queue for optimizing order by with limit,
+        then stop here, there are no more records to consume.
         When this optimization is used, end_send is called on the next
         join_tab.
       */
       if (join->order &&
           join->select_options & OPTION_FOUND_ROWS &&
           join_tab > join->join_tab &&
-          (join_tab - 1)->filesort && (join_tab - 1)->filesort->sortorder)
+          (join_tab - 1)->filesort && (join_tab - 1)->filesort->using_pq)
       {
         DBUG_PRINT("info", ("filesort NESTED_LOOP_QUERY_LIMIT"));
         DBUG_RETURN(NESTED_LOOP_QUERY_LIMIT);
@@ -2796,7 +2826,6 @@ end_send(JOIN *join, JOIN_TAB *join_tab, bool end_of_records)
 	  /* Join over all rows in table;  Return number of found rows */
 	  TABLE *table=jt->table;
 
-	  join->select_options ^= OPTION_FOUND_ROWS;
 	  if (table->sort.record_pointers ||
 	      (table->sort.io_cache && my_b_inited(table->sort.io_cache)))
 	  {
@@ -3273,38 +3302,10 @@ create_sort_index(THD *thd, JOIN *join, JOIN_TAB *tab)
   // If table has a range, move it to select
   if (select && tab->ref.key >= 0)
   {
-    if (!select->quick)
+    DBUG_ASSERT(select->quick);
+    if (tab->type != JT_REF_OR_NULL && tab->type != JT_FT)
     {
-      if (tab->quick)
-      {
-        select->quick= tab->quick;
-        tab->quick= NULL;
-        /* 
-          We can only use 'Only index' if quick key is same as ref_key
-          and in index_merge 'Only index' cannot be used
-        */
-        if (((uint) tab->ref.key != select->quick->index))
-          table->set_keyread(FALSE);
-      }
-      else
-      {
-        /*
-          We have a ref on a const;  Change this to a range that filesort
-          can use.
-          For impossible ranges (like when doing a lookup on NULL on a NOT NULL
-          field, quick will contain an empty record set.
-        */
-        if (!(select->quick= (tab->type == JT_FT ?
-                              get_ft_select(thd, table, tab->ref.key) :
-                              get_quick_select_for_ref(thd, table, &tab->ref, 
-                                                       tab->found_records))))
-          goto err;
-      }
-      fsort->own_select= true;
-    }
-    else
-    {
-      DBUG_ASSERT(tab->type == JT_REF);
+      DBUG_ASSERT(tab->type == JT_REF || tab->type == JT_EQ_REF);
       // Update ref value
       if ((cp_buffer_from_ref(thd, table, &tab->ref) && thd->is_fatal_error))
         goto err;                                   // out of memory
@@ -3470,7 +3471,6 @@ static bool remove_dup_with_compare(THD *thd, TABLE *table, Field **first_field,
     }
     if (copy_blobs(first_field))
     {
-      my_message(ER_OUTOFMEMORY, ER(ER_OUTOFMEMORY), MYF(ME_FATALERROR));
       error=0;
       goto err;
     }

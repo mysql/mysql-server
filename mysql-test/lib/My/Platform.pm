@@ -107,9 +107,6 @@ sub check_socket_path_length {
   my ($path)= @_;
 
   return 0 if IS_WINDOWS;
-  # This may not be true, but we can't test for it on AIX due to Perl bug
-  # See Bug #45771
-  return 0 if ($^O eq 'aix');
 
   require IO::Socket::UNIX;
 

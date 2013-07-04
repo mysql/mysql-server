@@ -1,6 +1,6 @@
 /*****************************************************************************
 
-Copyright (c) 2012, Oracle and/or its affiliates. All Rights Reserved.
+Copyright (c) 2012, 2013, Oracle and/or its affiliates. All Rights Reserved.
 
 This program is free software; you can redistribute it and/or modify it under
 the terms of the GNU General Public License as published by the Free Software
@@ -22,6 +22,8 @@ Import a tablespace to a running instance.
 
 Created 2012-02-08 by Sunny Bains.
 *******************************************************/
+
+#include "ha_prototypes.h"
 
 #include "row0import.h"
 
@@ -45,7 +47,7 @@ Created 2012-02-08 by Sunny Bains.
 /** The size of the buffer to use for IO. Note: os_file_read() doesn't expect
 reads to fail. If you set the buffer size to be greater than a multiple of the
 file size then it will assert. TODO: Fix this limitation of the IO functions.
-@param n - page size of the tablespace.
+@param n page size of the tablespace.
 @retval number of pages */
 #define IO_BUFFER_SIZE(n)	((1024 * 1024) / n)
 
@@ -120,53 +122,46 @@ struct row_import {
 
 	~row_import() UNIV_NOTHROW;
 
-	/**
-	Find the index entry in in the indexes array.
-	@param name - index name
+	/** Find the index entry in in the indexes array.
+	@param name index name
 	@return instance if found else 0. */
 	row_index_t* get_index(const char* name) const UNIV_NOTHROW;
 
-	/**
-	Get the number of rows in the index.
-	@param name - index name
+	/** Get the number of rows in the index.
+	@param name index name
 	@return number of rows (doesn't include delete marked rows). */
 	ulint	get_n_rows(const char* name) const UNIV_NOTHROW;
 
-	/**
-	Find the ordinal value of the column name in the cfg table columns.
-	@param name - of column to look for.
+	/** Find the ordinal value of the column name in the cfg table columns.
+	@param name of column to look for.
 	@return ULINT_UNDEFINED if not found. */
 	ulint find_col(const char* name) const UNIV_NOTHROW;
 
-	/**
-	Find the index field entry in in the cfg indexes fields.
+	/** Find the index field entry in in the cfg indexes fields.
 	@name - of the index to look for
 	@return instance if found else 0. */
 	const dict_field_t* find_field(
 		const row_index_t*	cfg_index,
 		const char* 		name) const UNIV_NOTHROW;
 
-	/**
-	Get the number of rows for which purge failed during the convert phase.
-	@param name - index name
+	/** Get the number of rows for which purge failed during the
+	convert phase.
+	@param name index name
 	@return number of rows for which purge failed. */
-	ulint	get_n_purge_failed(const char* name) const UNIV_NOTHROW;
+	ulint get_n_purge_failed(const char* name) const UNIV_NOTHROW;
 
-	/**
-	Check if the index is clean. ie. no delete-marked records
-	@param name - index name
+	/** Check if the index is clean. ie. no delete-marked records
+	@param name index name
 	@return true if index needs to be purged. */
 	bool requires_purge(const char* name) const UNIV_NOTHROW
 	{
 		return(get_n_purge_failed(name) > 0);
 	}
 
-	/**
-	Set the index root <space, pageno> using the index name */
+	/** Set the index root <space, pageno> using the index name */
 	void set_root_by_name() UNIV_NOTHROW;
 
-	/**
-	Set the index root <space, pageno> using a heuristic
+	/** Set the index root <space, pageno> using a heuristic
 	@return DB_SUCCESS or error code */
 	dberr_t set_root_by_heuristic() UNIV_NOTHROW;
 
@@ -179,18 +174,16 @@ struct row_import {
 		THD*			thd,
 		const dict_index_t*	index) UNIV_NOTHROW;
 
-	/**
-	Check if the table schema that was read from the .cfg file matches the
-	in memory table definition.
-	@param thd - MySQL session variable
+	/** Check if the table schema that was read from the .cfg file
+	matches the in memory table definition.
+	@param thd MySQL session variable
 	@return DB_SUCCESS or error code. */
 	dberr_t match_table_columns(
 		THD*			thd) UNIV_NOTHROW;
 
-	/**
-	Check if the table (and index) schema that was read from the .cfg file
-	matches the in memory table definition.
-	@param thd - MySQL session variable
+	/** Check if the table (and index) schema that was read from the
+	.cfg file matches the in memory table definition.
+	@param thd MySQL session variable
 	@return DB_SUCCESS or error code. */
 	dberr_t match_schema(
 		THD*			thd) UNIV_NOTHROW;
@@ -232,15 +225,13 @@ struct row_import {
 /** Use the page cursor to iterate over records in a block. */
 class RecIterator {
 public:
-	/**
-	Default constructor */
+	/** Default constructor */
 	RecIterator() UNIV_NOTHROW
 	{
 		memset(&m_cur, 0x0, sizeof(m_cur));
 	}
 
-	/**
-	Position the cursor on the first user record. */
+	/** Position the cursor on the first user record. */
 	void	open(buf_block_t* block) UNIV_NOTHROW
 	{
 		page_cur_set_before_first(block, &m_cur);
@@ -250,8 +241,7 @@ public:
 		}
 	}
 
-	/**
-	Move to the next record. */
+	/** Move to the next record. */
 	void	next() UNIV_NOTHROW
 	{
 		page_cur_move_to_next(&m_cur);
@@ -297,9 +287,9 @@ couldn't purge the delete marked reocrds during Phase I. */
 class IndexPurge {
 public:
 	/** Constructor
-	@param trx - the user transaction covering the import tablespace
-	@param index - to be imported
-	@param space_id - space id of the tablespace */
+	@param trx the user transaction covering the import tablespace
+	@param index to be imported
+	@param space_id space id of the tablespace */
 	IndexPurge(
 		trx_t*		trx,
 		dict_index_t*	index) UNIV_NOTHROW
@@ -328,28 +318,23 @@ public:
 	}
 
 private:
-	/**
-	Begin import, position the cursor on the first record. */
+	/** Begin import, position the cursor on the first record. */
 	void	open() UNIV_NOTHROW;
 
-	/**
-	Close the persistent curosr and commit the mini-transaction. */
+	/** Close the persistent curosr and commit the mini-transaction. */
 	void	close() UNIV_NOTHROW;
 
-	/**
-	Position the cursor on the next record.
+	/** Position the cursor on the next record.
 	@return DB_SUCCESS or error code */
 	dberr_t	next() UNIV_NOTHROW;
 
-	/**
-	Store the persistent cursor position and reopen the
+	/** Store the persistent cursor position and reopen the
 	B-tree cursor in BTR_MODIFY_TREE mode, because the
 	tree structure may be changed during a pessimistic delete. */
 	void	purge_pessimistic_delete() UNIV_NOTHROW;
 
-	/**
-	Purge delete-marked records.
-	@param offsets - current row offsets. */
+	/** Purge delete-marked records.
+	@param offsets current row offsets. */
 	void	purge() UNIV_NOTHROW;
 
 protected:
@@ -371,7 +356,7 @@ tablespace file.  */
 class AbstractCallback : public PageCallback {
 public:
 	/** Constructor
-	@param trx - covering transaction */
+	@param trx covering transaction */
 	AbstractCallback(trx_t* trx)
 		:
 		m_trx(trx),
@@ -381,16 +366,15 @@ public:
 		m_space_flags(ULINT_UNDEFINED),
 		m_table_flags(ULINT_UNDEFINED) UNIV_NOTHROW { }
 
-	/**
-	Free any extent descriptor instance */
+	/** Free any extent descriptor instance */
 	virtual ~AbstractCallback()
 	{
 		delete [] m_xdes;
 	}
 
 	/** Determine the page size to use for traversing the tablespace
-	@param file_size - size of the tablespace file in bytes
-	@param block - contents of the first page in the tablespace file.
+	@param file_size size of the tablespace file in bytes
+	@param block contents of the first page in the tablespace file.
 	@retval DB_SUCCESS or error code. */
 	virtual dberr_t init(
 		os_offset_t		file_size,
@@ -403,9 +387,8 @@ public:
 	}
 
 protected:
-	/**
-	Get the data page depending on the table type, compressed or not.
-	@param block - block read from disk
+	/** Get the data page depending on the table type, compressed or not.
+	@param block block read from disk
 	@retval the buffer frame */
 	buf_frame_t* get_frame(buf_block_t* block) const UNIV_NOTHROW
 	{
@@ -428,10 +411,9 @@ protected:
 		return(DB_SUCCESS);
 	}
 
-	/**
-	Get the physical offset of the extent descriptor within the page.
-	@param page_no - page number of the extent descriptor
-	@param page - contents of the page containing the extent descriptor.
+	/** Get the physical offset of the extent descriptor within the page.
+	@param page_no page number of the extent descriptor
+	@param page contents of the page containing the extent descriptor.
 	@return the start of the xdes array in a page */
 	const xdes_t* xdes(
 		ulint		page_no,
@@ -444,14 +426,13 @@ protected:
 		return(page + XDES_ARR_OFFSET + XDES_SIZE * offset);
 	}
 
-	/**
-	Set the current page directory (xdes). If the extent descriptor is
+	/** Set the current page directory (xdes). If the extent descriptor is
 	marked as free then free the current extent descriptor and set it to
 	0. This implies that all pages that are covered by this extent
 	descriptor are also freed.
 
-	@param page_no - offset of page within the file
-	@param page - page contents
+	@param page_no offset of page within the file
+	@param page page contents
 	@return DB_SUCCESS or error code. */
 	dberr_t	set_current_xdes(
 		ulint		page_no,
@@ -496,9 +477,8 @@ protected:
 		       && mach_read_from_4(page + FIL_PAGE_PREV) == FIL_NULL);
 	}
 
-	/**
-	Check if the page is marked as free in the extent descriptor.
-	@param page_no - page number to check in the extent descriptor.
+	/** Check if the page is marked as free in the extent descriptor.
+	@param page_no page number to check in the extent descriptor.
 	@return true if the page is marked as free */
 	bool is_free(ulint page_no) const UNIV_NOTHROW
 	{
@@ -549,8 +529,8 @@ protected:
 };
 
 /** Determine the page size to use for traversing the tablespace
-@param file_size - size of the tablespace file in bytes
-@param block - contents of the first page in the tablespace file.
+@param file_size size of the tablespace file in bytes
+@param block contents of the first page in the tablespace file.
 @retval DB_SUCCESS or error code. */
 dberr_t
 AbstractCallback::init(
@@ -630,8 +610,8 @@ struct FetchIndexRootPages : public AbstractCallback {
 	typedef std::vector<Index> Indexes;
 
 	/** Constructor
-	@param trx - covering (user) transaction
-	@param table - table definition in server .*/
+	@param trx covering (user) transaction
+	@param table table definition in server .*/
 	FetchIndexRootPages(const dict_table_t* table, trx_t* trx)
 		:
 		AbstractCallback(trx),
@@ -647,9 +627,8 @@ struct FetchIndexRootPages : public AbstractCallback {
 		return(m_space);
 	}
 
-	/**
-	Check if the .ibd file row format is the same as the table's.
-	@param ibd_table_flags - determined from space and page.
+	/** Check if the .ibd file row format is the same as the table's.
+	@param ibd_table_flags determined from space and page.
 	@return DB_SUCCESS or error code. */
 	dberr_t check_row_format(ulint ibd_table_flags) UNIV_NOTHROW
 	{
@@ -687,10 +666,9 @@ struct FetchIndexRootPages : public AbstractCallback {
 		return(err);
 	}
 
-	/**
-	Called for each block as it is read from the file.
-	@param offset - physical offset in the file
-	@param block - block to convert, it is not from the buffer pool.
+	/** Called for each block as it is read from the file.
+	@param offset physical offset in the file
+	@param block block to convert, it is not from the buffer pool.
 	@retval DB_SUCCESS or error code. */
 	virtual dberr_t operator() (
 		os_offset_t	offset,
@@ -707,13 +685,12 @@ struct FetchIndexRootPages : public AbstractCallback {
 	Indexes			m_indexes;
 };
 
-/**
-Called for each block as it is read from the file. Check index pages to
+/** Called for each block as it is read from the file. Check index pages to
 determine the exact row format. We can't get that from the tablespace
 header flags alone.
 
-@param offset - physical offset in the file
-@param block - block to convert, it is not from the buffer pool.
+@param offset physical offset in the file
+@param block block to convert, it is not from the buffer pool.
 @retval DB_SUCCESS or error code. */
 dberr_t
 FetchIndexRootPages::operator() (
@@ -856,8 +833,8 @@ tablespace file.
 class PageConverter : public AbstractCallback {
 public:
 	/** Constructor
-	* @param cfg - config of table being imported.
-	* @param trx - transaction covering the import */
+	@param cfg config of table being imported.
+	@param trx transaction covering the import */
 	PageConverter(row_import* cfg, trx_t* trx) UNIV_NOTHROW;
 
 	virtual ~PageConverter() UNIV_NOTHROW
@@ -874,10 +851,9 @@ public:
 		return(m_cfg->m_table->space);
 	}
 
-	/**
-	Called for each block as it is read from the file.
-	@param offset - physical offset in the file
-	@param block - block to convert, it is not from the buffer pool.
+	/** Called for each block as it is read from the file.
+	@param offset physical offset in the file
+	@param block block to convert, it is not from the buffer pool.
 	@retval DB_SUCCESS or error code. */
 	virtual dberr_t operator() (
 		os_offset_t	offset,
@@ -891,10 +867,9 @@ private:
 		IMPORT_PAGE_STATUS_CORRUPTED	/*!< Page is corrupted */
 	};
 
-	/**
-	Update the page, set the space id, max trx id and index id.
-	@param block - block read from file
-	@param page_type - type of the page
+	/** Update the page, set the space id, max trx id and index id.
+	@param block block read from file
+	@param page_type type of the page
 	@retval DB_SUCCESS or error code */
 	dberr_t update_page(
 		buf_block_t*	block,
@@ -911,77 +886,69 @@ private:
 #define trigger_corruption()	(false)
 #endif /* UNIV_DEBUG */
 
-	/**
-	Update the space, index id, trx id.
-	@param block - block to convert
+	/** Update the space, index id, trx id.
+	@param block block to convert
 	@return DB_SUCCESS or error code */
 	dberr_t	update_index_page(buf_block_t*	block) UNIV_NOTHROW;
 
 	/** Update the BLOB refrences and write UNDO log entries for
 	rows that can't be purged optimistically.
-	@param block - block to update
+	@param block block to update
 	@retval DB_SUCCESS or error code */
 	dberr_t	update_records(buf_block_t* block) UNIV_NOTHROW;
 
-	/**
-	Validate the page, check for corruption.
-	@param offset - physical offset within file.
-	@param page - page read from file.
+	/** Validate the page, check for corruption.
+	@param offset physical offset within file.
+	@param page page read from file.
 	@return 0 on success, 1 if all zero, 2 if corrupted */
 	import_page_status_t validate(
 		os_offset_t	offset,
 		buf_block_t*	page) UNIV_NOTHROW;
 
-	/**
-	Validate the space flags and update tablespace header page.
-	@param block - block read from file, not from the buffer pool.
+	/** Validate the space flags and update tablespace header page.
+	@param block block read from file, not from the buffer pool.
 	@retval DB_SUCCESS or error code */
 	dberr_t	update_header(buf_block_t* block) UNIV_NOTHROW;
 
-	/**
-	Adjust the BLOB reference for a single column that is externally stored
-	@param rec - record to update
-	@param offsets - column offsets for the record
-	@param i - column ordinal value
+	/** Adjust the BLOB reference for a single column that is externally stored
+	@param rec record to update
+	@param offsets column offsets for the record
+	@param i column ordinal value
 	@return DB_SUCCESS or error code */
 	dberr_t	adjust_cluster_index_blob_column(
 		rec_t*		rec,
 		const ulint*	offsets,
 		ulint		i) UNIV_NOTHROW;
 
-	/**
-	Adjusts the BLOB reference in the clustered index row for all
+	/** Adjusts the BLOB reference in the clustered index row for all
 	externally stored columns.
-	@param rec - record to update
-	@param offsets - column offsets for the record
+	@param rec record to update
+	@param offsets column offsets for the record
 	@return DB_SUCCESS or error code */
 	dberr_t	adjust_cluster_index_blob_columns(
 		rec_t*		rec,
 		const ulint*	offsets) UNIV_NOTHROW;
 
-	/**
-	In the clustered index, adjist the BLOB pointers as needed.
+	/** In the clustered index, adjist the BLOB pointers as needed.
 	Also update the BLOB reference, write the new space id.
-	@param rec - record to update
-	@param offsets - column offsets for the record
+	@param rec record to update
+	@param offsets column offsets for the record
 	@return DB_SUCCESS or error code */
 	dberr_t	adjust_cluster_index_blob_ref(
 		rec_t*		rec,
 		const ulint*	offsets) UNIV_NOTHROW;
 
-	/**
-	Purge delete-marked records, only if it is possible to do
+	/** Purge delete-marked records, only if it is possible to do
 	so without re-organising the B+tree.
-	@param offsets - current row offsets.
+	@param offsets current row offsets.
 	@retval true if purged */
 	bool	purge(const ulint* offsets) UNIV_NOTHROW;
 
-	/**
-	Adjust the BLOB references and sys fields for the current record.
-	@param index - the index being converted
-	@param rec - record to update
-	@param offsets - column offsets for the record
-	@param deleted - true if row is delete marked
+	/** Adjust the BLOB references and sys fields for the current record.
+	@param index the index being converted
+	@param rec record to update
+	@param offsets column offsets for the record
+	@param deleted true if row is delete marked
 	@return DB_SUCCESS or error code. */
 	dberr_t	adjust_cluster_record(
 		const dict_index_t*	index,
@@ -989,8 +956,7 @@ private:
 		const ulint*		offsets,
 		bool			deleted) UNIV_NOTHROW;
 
-	/**
-	Find an index with the matching id.
+	/** Find an index with the matching id.
 	@return row_index_t* instance or 0 */
 	row_index_t* find_index(index_id_t id) UNIV_NOTHROW
 	{
@@ -1066,9 +1032,8 @@ row_import::~row_import() UNIV_NOTHROW
 	delete [] m_hostname;
 }
 
-/**
-Find the index entry in in the indexes array.
-@param name - index name
+/** Find the index entry in in the indexes array.
+@param name index name
 @return instance if found else 0. */
 row_index_t*
 row_import::get_index(
@@ -1089,9 +1054,8 @@ row_import::get_index(
 	return(0);
 }
 
-/**
-Get the number of rows in the index.
-@param name - index name
+/** Get the number of rows in the index.
+@param name index name
 @return number of rows (doesn't include delete marked rows). */
 ulint
 row_import::get_n_rows(
@@ -1104,9 +1068,8 @@ row_import::get_n_rows(
 	return(index->m_stats.m_n_rows);
 }
 
-/**
-Get the number of rows for which purge failed uding the convert phase.
-@param name - index name
+/** Get the number of rows for which purge failed uding the convert phase.
+@param name index name
 @return number of rows for which purge failed. */
 ulint
 row_import::get_n_purge_failed(
@@ -1119,9 +1082,8 @@ row_import::get_n_purge_failed(
 	return(index->m_stats.m_n_purge_failed);
 }
 
-/**
-Find the ordinal value of the column name in the cfg table columns.
-@param name - of column to look for.
+/** Find the ordinal value of the column name in the cfg table columns.
+@param name of column to look for.
 @return ULINT_UNDEFINED if not found. */
 ulint
 row_import::find_col(
@@ -1238,10 +1200,9 @@ row_import::match_index_columns(
 	return(err);
 }
 
-/**
-Check if the table schema that was read from the .cfg file matches the
+/** Check if the table schema that was read from the .cfg file matches the
 in memory table definition.
-@param thd - MySQL session variable
+@param thd MySQL session variable
 @return DB_SUCCESS or error code. */
 dberr_t
 row_import::match_table_columns(
@@ -1348,10 +1309,9 @@ row_import::match_table_columns(
 	return(err);
 }
 
-/**
-Check if the table (and index) schema that was read from the .cfg file
+/** Check if the table (and index) schema that was read from the .cfg file
 matches the in memory table definition.
-@param thd - MySQL session variable
+@param thd MySQL session variable
 @return DB_SUCCESS or error code. */
 dberr_t
 row_import::match_schema(
@@ -1646,10 +1606,9 @@ IndexPurge::purge() UNIV_NOTHROW
 	btr_pcur_restore_position(BTR_MODIFY_LEAF, &m_pcur, &m_mtr);
 }
 
-/**
-Constructor
-* @param cfg - config of table being imported.
-* @param trx - transaction covering the import */
+/** Constructor
+@param cfg config of table being imported.
+@param trx transaction covering the import */
 PageConverter::PageConverter(
 	row_import*	cfg,
 	trx_t*		trx)
@@ -1670,11 +1629,10 @@ PageConverter::PageConverter(
 	m_cluster_index = dict_table_get_first_index(m_cfg->m_table);
 }
 
-/**
-Adjust the BLOB reference for a single column that is externally stored
-@param rec - record to update
-@param offsets - column offsets for the record
-@param i - column ordinal value
+/** Adjust the BLOB reference for a single column that is externally stored
+@param rec record to update
+@param offsets column offsets for the record
+@param i column ordinal value
 @return DB_SUCCESS or error code */
 dberr_t
 PageConverter::adjust_cluster_index_blob_column(
@@ -1721,11 +1679,10 @@ PageConverter::adjust_cluster_index_blob_column(
 	return(DB_SUCCESS);
 }
 
-/**
-Adjusts the BLOB reference in the clustered index row for all externally
+/** Adjusts the BLOB reference in the clustered index row for all externally
 stored columns.
-@param rec - record to update
-@param offsets - column offsets for the record
+@param rec record to update
+@param offsets column offsets for the record
 @return DB_SUCCESS or error code */
 dberr_t
 PageConverter::adjust_cluster_index_blob_columns(
@@ -1754,11 +1711,10 @@ PageConverter::adjust_cluster_index_blob_columns(
 	return(DB_SUCCESS);
 }
 
-/**
-In the clustered index, adjust BLOB pointers as needed. Also update the
+/** In the clustered index, adjust BLOB pointers as needed. Also update the
 BLOB reference, write the new space id.
-@param rec - record to update
-@param offsets - column offsets for the record
+@param rec record to update
+@param offsets column offsets for the record
 @return DB_SUCCESS or error code */
 dberr_t
 PageConverter::adjust_cluster_index_blob_ref(
@@ -1778,10 +1734,9 @@ PageConverter::adjust_cluster_index_blob_ref(
 	return(DB_SUCCESS);
 }
 
-/**
-Purge delete-marked records, only if it is possible to do so without
+/** Purge delete-marked records, only if it is possible to do so without
 re-organising the B+tree.
-@param offsets - current row offsets.
+@param offsets current row offsets.
 @return true if purge succeeded */
 bool
 PageConverter::purge(const ulint* offsets) UNIV_NOTHROW
@@ -1801,11 +1756,10 @@ PageConverter::purge(const ulint* offsets) UNIV_NOTHROW
 	return(false);
 }
 
-/**
-Adjust the BLOB references and sys fields for the current record.
-@param rec - record to update
-@param offsets - column offsets for the record
-@param deleted - true if row is delete marked
+/** Adjust the BLOB references and sys fields for the current record.
+@param rec record to update
+@param offsets column offsets for the record
+@param deleted true if row is delete marked
 @return DB_SUCCESS or error code. */
 dberr_t
 PageConverter::adjust_cluster_record(
@@ -1830,10 +1784,9 @@ PageConverter::adjust_cluster_record(
 	return(err);
 }
 
-/**
-Update the BLOB refrences and write UNDO log entries for
+/** Update the BLOB refrences and write UNDO log entries for
 rows that can't be purged optimistically.
-@param block - block to update
+@param block block to update
 @retval DB_SUCCESS or error code */
 dberr_t
 PageConverter::update_records(
@@ -1901,8 +1854,7 @@ PageConverter::update_records(
 	return(DB_SUCCESS);
 }
 
-/**
-Update the space, index id, trx id.
+/** Update the space, index id, trx id.
 @return DB_SUCCESS or error code */
 dberr_t
 PageConverter::update_index_page(
@@ -1944,7 +1896,7 @@ PageConverter::update_index_page(
 
 	page_set_max_trx_id(block, m_page_zip_ptr, m_trx->id, 0);
 
-	if (page_get_n_recs(block->frame) == 0) {
+	if (page_is_empty(block->frame)) {
 
 		/* Only a root page can be empty. */
 		if (!is_root_page(block->frame)) {
@@ -1960,9 +1912,8 @@ PageConverter::update_index_page(
 	return(update_records(block));
 }
 
-/**
-Validate the space flags and update tablespace header page.
-@param block - block read from file, not from the buffer pool.
+/** Validate the space flags and update tablespace header page.
+@param block block read from file, not from the buffer pool.
 @retval DB_SUCCESS or error code */
 dberr_t
 PageConverter::update_header(
@@ -2005,9 +1956,8 @@ PageConverter::update_header(
 	return(DB_SUCCESS);
 }
 
-/**
-Update the page, set the space id, max trx id and index id.
-@param block - block read from file
+/** Update the page, set the space id, max trx id and index id.
+@param block block read from file
 @retval DB_SUCCESS or error code */
 dberr_t
 PageConverter::update_page(
@@ -2068,10 +2018,9 @@ PageConverter::update_page(
 	return(DB_CORRUPTION);
 }
 
-/**
-Validate the page
-@param offset - physical offset within file.
-@param page - page read from file.
+/** Validate the page
+@param offset physical offset within file.
+@param page page read from file.
 @return status */
 PageConverter::import_page_status_t
 PageConverter::validate(
@@ -2112,11 +2061,10 @@ PageConverter::validate(
 	return(IMPORT_PAGE_STATUS_OK);
 }
 
-/**
-Called for every page in the tablespace. If the page was not
+/** Called for every page in the tablespace. If the page was not
 updated then its state must be set to BUF_PAGE_NOT_USED.
-@param offset - physical offset within the file
-@param block - block read from file, note it is not from the buffer pool
+@param offset physical offset within the file
+@param block block read from file, note it is not from the buffer pool
 @retval DB_SUCCESS or error code. */
 dberr_t
 PageConverter::operator() (
@@ -2269,7 +2217,7 @@ row_import_cleanup(
 
 	DBUG_EXECUTE_IF("ib_import_before_checkpoint_crash", DBUG_SUICIDE(););
 
-	log_make_checkpoint_at(IB_ULONGLONG_MAX, TRUE);
+	log_make_checkpoint_at(LSN_MAX, TRUE);
 
 	return(err);
 }
@@ -3228,7 +3176,7 @@ row_import_read_cfg(
 Update the <space, root page> of a table's indexes from the values
 in the data dictionary.
 @return DB_SUCCESS or error code */
-UNIV_INTERN
+
 dberr_t
 row_import_update_index_root(
 /*=========================*/
@@ -3396,7 +3344,7 @@ row_import_set_discarded(
 /*****************************************************************//**
 Update the DICT_TF2_DISCARDED flag in SYS_TABLES.
 @return DB_SUCCESS or error code. */
-UNIV_INTERN
+
 dberr_t
 row_import_update_discarded_flag(
 /*=============================*/
@@ -3459,8 +3407,8 @@ row_import_update_discarded_flag(
 /*****************************************************************//**
 Imports a tablespace. The space id in the .ibd file must match the space id
 of the table in the data dictionary.
-@return	error code or DB_SUCCESS */
-UNIV_INTERN
+@return error code or DB_SUCCESS */
+
 dberr_t
 row_import_for_mysql(
 /*=================*/
@@ -3482,14 +3430,14 @@ row_import_for_mysql(
 	ut_ad(prebuilt->trx);
 	ut_a(table->ibd_file_missing);
 
-	trx_start_if_not_started(prebuilt->trx);
+	trx_start_if_not_started(prebuilt->trx, true);
 
 	trx = trx_allocate_for_mysql();
 
 	/* So that the table is not DROPped during recovery. */
 	trx_set_dict_operation(trx, TRX_DICT_OP_INDEX);
 
-	trx_start_if_not_started(trx);
+	trx_start_if_not_started(trx, true);
 
 	/* So that we can send error messages to the user. */
 	trx->mysql_thd = prebuilt->trx->mysql_thd;
@@ -3504,7 +3452,9 @@ row_import_for_mysql(
 
 	mutex_enter(&trx->undo_mutex);
 
-	err = trx_undo_assign_undo(trx, TRX_UNDO_UPDATE);
+	/* IMPORT tablespace is blocked for temp-tables and so we don't
+	need to assign temporary rollback segment for this trx. */
+	err = trx_undo_assign_undo(trx, &trx->rsegs.m_redo, TRX_UNDO_UPDATE);
 
 	mutex_exit(&trx->undo_mutex);
 
@@ -3515,7 +3465,7 @@ row_import_for_mysql(
 
 		return(row_import_cleanup(prebuilt, trx, err));
 
-	} else if (trx->update_undo == 0) {
+	} else if (trx->rsegs.m_redo.update_undo == 0) {
 
 		err = DB_TOO_MANY_CONCURRENT_TRXS;
 		return(row_import_cleanup(prebuilt, trx, err));

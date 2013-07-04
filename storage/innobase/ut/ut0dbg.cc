@@ -1,6 +1,6 @@
 /*****************************************************************************
 
-Copyright (c) 1994, 2009, Oracle and/or its affiliates. All Rights Reserved.
+Copyright (c) 1994, 2013, Oracle and/or its affiliates. All Rights Reserved.
 
 This program is free software; you can redistribute it and/or modify it under
 the terms of the GNU General Public License as published by the Free Software
@@ -23,31 +23,31 @@ Debug utilities for Innobase.
 Created 1/30/1994 Heikki Tuuri
 **********************************************************************/
 
-#include "univ.i"
+#include "ha_prototypes.h"
+
 #include "ut0dbg.h"
-#ifndef UNIV_HOTBACKUP
-# include "ha_prototypes.h"
-#endif /* !UNIV_HOTBACKUP */
 
 #if defined(__GNUC__) && (__GNUC__ > 2)
 #else
 /** This is used to eliminate compiler warnings */
-UNIV_INTERN ulint	ut_dbg_zero	= 0;
-#endif
-
-#if defined(UNIV_SYNC_DEBUG) || !defined(UT_DBG_USE_ABORT)
-/** If this is set to TRUE by ut_dbg_assertion_failed(), all threads
-will stop at the next ut_a() or ut_ad(). */
-UNIV_INTERN ibool	ut_dbg_stop_threads	= FALSE;
-#endif
-#ifndef UT_DBG_USE_ABORT
-/** A null pointer that will be dereferenced to trigger a memory trap */
-UNIV_INTERN ulint*	ut_dbg_null_ptr		= NULL;
+ulint	ut_dbg_zero	= 0;
 #endif
 
 /*************************************************************//**
+Flush stderr and stdout, then abort execution. */
+
+void
+ut_abort(void)
+/************/
+{
+	fflush(stderr);
+	fflush(stdout);
+	abort();
+}
+
+/*************************************************************//**
 Report a failed assertion. */
-UNIV_INTERN
+
 void
 ut_dbg_assertion_failed(
 /*====================*/
@@ -80,29 +80,7 @@ ut_dbg_assertion_failed(
 	      "InnoDB: corruption in the InnoDB tablespace. Please refer to\n"
 	      "InnoDB: " REFMAN "forcing-innodb-recovery.html\n"
 	      "InnoDB: about forcing recovery.\n", stderr);
-#if defined(UNIV_SYNC_DEBUG) || !defined(UT_DBG_USE_ABORT)
-	ut_dbg_stop_threads = TRUE;
-#endif
 }
-
-#if defined(UNIV_SYNC_DEBUG) || !defined(UT_DBG_USE_ABORT)
-/*************************************************************//**
-Stop a thread after assertion failure. */
-UNIV_INTERN
-void
-ut_dbg_stop_thread(
-/*===============*/
-	const char*	file,
-	ulint		line)
-{
-#ifndef UNIV_HOTBACKUP
-	fprintf(stderr, "InnoDB: Thread %lu stopped in file %s line %lu\n",
-		os_thread_pf(os_thread_get_curr_id()),
-		innobase_basename(file), line);
-	os_thread_sleep(1000000000);
-#endif /* !UNIV_HOTBACKUP */
-}
-#endif
 
 #ifdef UNIV_COMPILE_TEST_FUNCS
 
@@ -126,7 +104,7 @@ ut_dbg_stop_thread(
 
 /*******************************************************************//**
 Resets a speedo (records the current time in it). */
-UNIV_INTERN
+
 void
 speedo_reset(
 /*=========*/
@@ -140,7 +118,7 @@ speedo_reset(
 /*******************************************************************//**
 Shows the time elapsed and usage statistics since the last reset of a
 speedo. */
-UNIV_INTERN
+
 void
 speedo_show(
 /*========*/

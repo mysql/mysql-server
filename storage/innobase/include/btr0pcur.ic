@@ -1,6 +1,6 @@
 /*****************************************************************************
 
-Copyright (c) 1996, 2012, Oracle and/or its affiliates. All Rights Reserved.
+Copyright (c) 1996, 2013, Oracle and/or its affiliates. All Rights Reserved.
 
 This program is free software; you can redistribute it and/or modify it under
 the terms of the GNU General Public License as published by the Free Software
@@ -26,7 +26,7 @@ Created 2/23/1996 Heikki Tuuri
 
 /*********************************************************//**
 Gets the rel_pos field for a cursor whose position has been stored.
-@return	BTR_PCUR_ON, ... */
+@return BTR_PCUR_ON, ... */
 UNIV_INLINE
 ulint
 btr_pcur_get_rel_pos(
@@ -45,7 +45,7 @@ btr_pcur_get_rel_pos(
 #ifdef UNIV_DEBUG
 /*********************************************************//**
 Returns the btr cursor component of a persistent cursor.
-@return	pointer to btr cursor component */
+@return pointer to btr cursor component */
 UNIV_INLINE
 btr_cur_t*
 btr_pcur_get_btr_cur(
@@ -58,7 +58,7 @@ btr_pcur_get_btr_cur(
 
 /*********************************************************//**
 Returns the page cursor component of a persistent cursor.
-@return	pointer to page cursor component */
+@return pointer to page cursor component */
 UNIV_INLINE
 page_cur_t*
 btr_pcur_get_page_cur(
@@ -70,7 +70,7 @@ btr_pcur_get_page_cur(
 
 /*********************************************************//**
 Returns the page of a persistent cursor.
-@return	pointer to the page */
+@return pointer to the page */
 UNIV_INLINE
 page_t*
 btr_pcur_get_page(
@@ -84,7 +84,7 @@ btr_pcur_get_page(
 
 /*********************************************************//**
 Returns the buffer block of a persistent cursor.
-@return	pointer to the block */
+@return pointer to the block */
 UNIV_INLINE
 buf_block_t*
 btr_pcur_get_block(
@@ -98,7 +98,7 @@ btr_pcur_get_block(
 
 /*********************************************************//**
 Returns the record of a persistent cursor.
-@return	pointer to the record */
+@return pointer to the record */
 UNIV_INLINE
 rec_t*
 btr_pcur_get_rec(
@@ -300,7 +300,7 @@ btr_pcur_move_to_last_on_page(
 /*********************************************************//**
 Moves the persistent cursor to the next user record in the tree. If no user
 records are left, the cursor ends up 'after last in tree'.
-@return	TRUE if the cursor moved forward, ending on a user record */
+@return TRUE if the cursor moved forward, ending on a user record */
 UNIV_INLINE
 ibool
 btr_pcur_move_to_next_user_rec(
@@ -336,7 +336,7 @@ loop:
 /*********************************************************//**
 Moves the persistent cursor to the next record in the tree. If no records are
 left, the cursor stays 'after last in tree'.
-@return	TRUE if the cursor was not after last in tree */
+@return TRUE if the cursor was not after last in tree */
 UNIV_INLINE
 ibool
 btr_pcur_move_to_next(

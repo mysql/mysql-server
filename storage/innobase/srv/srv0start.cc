@@ -38,6 +38,8 @@ Starts the InnoDB database server
 Created 2/16/1996 Heikki Tuuri
 *************************************************************************/
 
+#include "ha_prototypes.h"
+
 #include "ut0mem.h"
 #include "mem0mem.h"
 #include "data0data.h"
@@ -89,31 +91,24 @@ Created 2/16/1996 Heikki Tuuri
 # include "row0row.h"
 # include "row0mysql.h"
 # include "btr0pcur.h"
-# include "os0sync.h"
 # include "zlib.h"
 # include "ut0crc32.h"
 
 /** Log sequence number immediately after startup */
-UNIV_INTERN lsn_t	srv_start_lsn;
+lsn_t	srv_start_lsn;
 /** Log sequence number at shutdown */
-UNIV_INTERN lsn_t	srv_shutdown_lsn;
-
-#ifdef HAVE_DARWIN_THREADS
-# include <sys/utsname.h>
-/** TRUE if the F_FULLFSYNC option is available */
-UNIV_INTERN ibool	srv_have_fullfsync = FALSE;
-#endif
+lsn_t	srv_shutdown_lsn;
 
 /** TRUE if a raw partition is in use */
-UNIV_INTERN ibool	srv_start_raw_disk_in_use = FALSE;
+ibool	srv_start_raw_disk_in_use = FALSE;
 
 /** TRUE if the server is being started, before rolling back any
 incomplete transactions */
-UNIV_INTERN ibool	srv_startup_is_before_trx_rollback_phase = FALSE;
+ibool	srv_startup_is_before_trx_rollback_phase = FALSE;
 /** TRUE if the server is being started */
-UNIV_INTERN ibool	srv_is_being_started = FALSE;
+ibool	srv_is_being_started = FALSE;
 /** TRUE if the server was successfully started */
-UNIV_INTERN ibool	srv_was_started = FALSE;
+ibool	srv_was_started = FALSE;
 /** TRUE if innobase_start_or_create_for_mysql() has been called */
 static ibool		srv_start_has_been_called = FALSE;
 
@@ -137,7 +132,7 @@ static ulint	srv_start_state;
 
 /** At a shutdown this value climbs from SRV_SHUTDOWN_NONE to
 SRV_SHUTDOWN_CLEANUP and then to SRV_SHUTDOWN_LAST_PHASE, and so on */
-UNIV_INTERN enum srv_shutdown_state	srv_shutdown_state = SRV_SHUTDOWN_NONE;
+enum srv_shutdown_state	srv_shutdown_state = SRV_SHUTDOWN_NONE;
 
 /** Files comprising the system tablespace */
 static os_file_t	files[1000];
@@ -155,6 +150,9 @@ static os_fast_mutex_t	srv_os_test_mutex;
 static char*	srv_monitor_file_name;
 #endif /* !UNIV_HOTBACKUP */
 
+/** Minimum expected tablespace size. (10M) */
+static const ulint MIN_EXPECTED_TABLESPACE_SIZE = 5 * 1024 * 1024;
+
 /** Default undo tablespace size in UNIV_PAGEs count (10MB). */
 static const ulint SRV_UNDO_TABLESPACE_SIZE_IN_PAGES =
 	((1024 * 1024) * 10) / UNIV_PAGE_SIZE_DEF;
@@ -165,21 +163,21 @@ static const ulint SRV_UNDO_TABLESPACE_SIZE_IN_PAGES =
 
 #ifdef UNIV_PFS_THREAD
 /* Keys to register InnoDB threads with performance schema */
-UNIV_INTERN mysql_pfs_key_t	io_ibuf_thread_key;
-UNIV_INTERN mysql_pfs_key_t	io_log_thread_key;
-UNIV_INTERN mysql_pfs_key_t	io_read_thread_key;
-UNIV_INTERN mysql_pfs_key_t	io_write_thread_key;
-UNIV_INTERN mysql_pfs_key_t	io_handler_thread_key;
-UNIV_INTERN mysql_pfs_key_t	srv_lock_timeout_thread_key;
-UNIV_INTERN mysql_pfs_key_t	srv_error_monitor_thread_key;
-UNIV_INTERN mysql_pfs_key_t	srv_monitor_thread_key;
-UNIV_INTERN mysql_pfs_key_t	srv_master_thread_key;
-UNIV_INTERN mysql_pfs_key_t	srv_purge_thread_key;
+mysql_pfs_key_t	io_ibuf_thread_key;
+mysql_pfs_key_t	io_log_thread_key;
+mysql_pfs_key_t	io_read_thread_key;
+mysql_pfs_key_t	io_write_thread_key;
+mysql_pfs_key_t	io_handler_thread_key;
+mysql_pfs_key_t	srv_lock_timeout_thread_key;
+mysql_pfs_key_t	srv_error_monitor_thread_key;
+mysql_pfs_key_t	srv_monitor_thread_key;
+mysql_pfs_key_t	srv_master_thread_key;
+mysql_pfs_key_t	srv_purge_thread_key;
 #endif /* UNIV_PFS_THREAD */
 
 /*********************************************************************//**
 Check if a file can be opened in read-write mode.
-@return	true if it doesn't exist or can be opened in rw mode. */
+@return true if it doesn't exist or can be opened in rw mode. */
 static
 bool
 srv_file_check_mode(
@@ -209,9 +207,9 @@ srv_file_check_mode(
 
 				ib_logf(IB_LOG_LEVEL_ERROR,
 					"%s can't be opened in %s mode",
+					name,
 					srv_read_only_mode
-					? "read-write" : "read",
-					name);
+					? "read" : "read-write");
 
 				return(false);
 			}
@@ -237,8 +235,8 @@ srv_file_check_mode(
 #ifndef UNIV_HOTBACKUP
 /********************************************************************//**
 I/o-handler thread function.
-@return	OS_THREAD_DUMMY_RETURN */
-extern "C" UNIV_INTERN
+@return OS_THREAD_DUMMY_RETURN */
+extern "C"
 os_thread_ret_t
 DECLARE_THREAD(io_handler_thread)(
 /*==============================*/
@@ -297,14 +295,14 @@ DECLARE_THREAD(io_handler_thread)(
 
 /*********************************************************************//**
 Normalizes a directory path for Windows: converts slashes to backslashes. */
-UNIV_INTERN
+
 void
 srv_normalize_path_for_win(
 /*=======================*/
 	char*	str __attribute__((unused)))	/*!< in/out: null-terminated
 						character string */
 {
-#ifdef __WIN__
+#ifdef _WIN32
 	for (; *str; str++) {
 
 		if (*str == '/') {
@@ -317,7 +315,7 @@ srv_normalize_path_for_win(
 #ifndef UNIV_HOTBACKUP
 /*********************************************************************//**
 Creates a log file.
-@return	DB_SUCCESS or error code */
+@return DB_SUCCESS or error code */
 static __attribute__((nonnull, warn_unused_result))
 dberr_t
 create_log_file(
@@ -328,7 +326,7 @@ create_log_file(
 	ibool		ret;
 
 	*file = os_file_create(
-		innodb_file_log_key, name,
+		innodb_log_file_key, name,
 		OS_FILE_CREATE, OS_FILE_NORMAL, OS_LOG_FILE, &ret);
 
 	ib_logf(IB_LOG_LEVEL_INFO,
@@ -368,7 +366,7 @@ create_log_file(
 
 /*********************************************************************//**
 Creates all log files.
-@return	DB_SUCCESS or error code */
+@return DB_SUCCESS or error code */
 static
 dberr_t
 create_log_files(
@@ -378,6 +376,8 @@ create_log_files(
 	lsn_t	lsn,		/*!< in: FIL_PAGE_FILE_FLUSH_LSN value */
 	char*&	logfile0)	/*!< out: name of the first log file */
 {
+	dberr_t err;
+
 	if (srv_read_only_mode) {
 		ib_logf(IB_LOG_LEVEL_ERROR,
 			"Cannot create log files in read-only mode");
@@ -391,7 +391,7 @@ create_log_files(
 		/* Ignore errors about non-existent files or files
 		that cannot be removed. The create_log_file() will
 		return an error when the file exists. */
-#ifdef __WIN__
+#ifdef _WIN32
 		DeleteFile((LPCTSTR) logfilename);
 #else
 		unlink(logfilename);
@@ -411,7 +411,7 @@ create_log_files(
 		sprintf(logfilename + dirnamelen,
 			"ib_logfile%u", i ? i : INIT_LOG_FILE0);
 
-		dberr_t err = create_log_file(&files[i], logfilename);
+		err = create_log_file(&files[i], logfilename);
 
 		if (err != DB_SUCCESS) {
 			return(err);
@@ -439,18 +439,22 @@ create_log_files(
 	for (unsigned i = 1; i < srv_n_log_files; i++) {
 		sprintf(logfilename + dirnamelen, "ib_logfile%u", i);
 
-		if (!fil_node_create(
-			    logfilename,
-			    (ulint) srv_log_file_size,
-			    SRV_LOG_SPACE_FIRST_ID, FALSE)) {
-			ut_error;
+		if (!fil_node_create(logfilename,
+				     (ulint) srv_log_file_size,
+				     SRV_LOG_SPACE_FIRST_ID, FALSE)) {
+			ib_logf(IB_LOG_LEVEL_ERROR,
+				"Cannot create file node for log file %s",
+				logfilename);
+			return(DB_ERROR);
 		}
 	}
 
-	log_group_init(0, srv_n_log_files,
-		       srv_log_file_size * UNIV_PAGE_SIZE,
-		       SRV_LOG_SPACE_FIRST_ID,
-		       SRV_LOG_SPACE_FIRST_ID + 1);
+	if (!log_group_init(0, srv_n_log_files,
+			    srv_log_file_size * UNIV_PAGE_SIZE,
+			    SRV_LOG_SPACE_FIRST_ID,
+			    SRV_LOG_SPACE_FIRST_ID + 1)) {
+		return(DB_ERROR);
+	}
 
 	fil_open_log_and_system_tablespace_files();
 
@@ -493,7 +497,7 @@ create_log_files_rename(
 	mutex_enter(&log_sys->mutex);
 	ut_ad(strlen(logfile0) == 2 + strlen(logfilename));
 	ibool success = os_file_rename(
-		innodb_file_log_key, logfile0, logfilename);
+		innodb_log_file_key, logfile0, logfilename);
 	ut_a(success);
 
 	RECOVERY_CRASH(10);
@@ -509,7 +513,7 @@ create_log_files_rename(
 
 /*********************************************************************//**
 Opens a log file.
-@return	DB_SUCCESS or error code */
+@return DB_SUCCESS or error code */
 static __attribute__((nonnull, warn_unused_result))
 dberr_t
 open_log_file(
@@ -520,7 +524,7 @@ open_log_file(
 {
 	ibool	ret;
 
-	*file = os_file_create(innodb_file_log_key, name,
+	*file = os_file_create(innodb_log_file_key, name,
 			       OS_FILE_OPEN, OS_FILE_AIO,
 			       OS_LOG_FILE, &ret);
 	if (!ret) {
@@ -537,7 +541,7 @@ open_log_file(
 
 /*********************************************************************//**
 Create undo tablespace.
-@return	DB_SUCCESS or error code */
+@return DB_SUCCESS or error code */
 static
 dberr_t
 srv_undo_tablespace_create(
@@ -552,7 +556,7 @@ srv_undo_tablespace_create(
 	os_file_create_subdirs_if_needed(name);
 
 	fh = os_file_create(
-		innodb_file_data_key,
+		innodb_data_file_key,
 		name,
 		srv_read_only_mode ? OS_FILE_OPEN : OS_FILE_CREATE,
 		OS_FILE_NORMAL, OS_DATA_FILE, &ret);
@@ -561,14 +565,7 @@ srv_undo_tablespace_create(
 		ib_logf(IB_LOG_LEVEL_INFO,
 			"%s opened in read-only mode", name);
 	} else if (ret == FALSE
-		   && os_file_get_last_error(false) != OS_FILE_ALREADY_EXISTS
-#ifdef UNIV_AIX
-		/* AIX 5.1 after security patch ML7 may have
-		errno set to 0 here, which causes our function
-		to return 100; work around that AIX problem */
-		   && os_file_get_last_error(false) != 100
-#endif /* UNIV_AIX */
-		) {
+		   && os_file_get_last_error(false) != OS_FILE_ALREADY_EXISTS) {
 
 		ib_logf(IB_LOG_LEVEL_ERROR,
 			"Can't create UNDO tablespace %s", name);
@@ -607,7 +604,7 @@ srv_undo_tablespace_create(
 }
 /*********************************************************************//**
 Open an undo tablespace.
-@return	DB_SUCCESS or error code */
+@return DB_SUCCESS or error code */
 static
 dberr_t
 srv_undo_tablespace_open(
@@ -629,7 +626,7 @@ srv_undo_tablespace_open(
 	}
 
 	fh = os_file_create(
-		innodb_file_data_key, name,
+		innodb_data_file_key, name,
 		OS_FILE_OPEN_RETRY
 		| OS_FILE_ON_ERROR_NO_EXIT
 		| OS_FILE_ON_ERROR_SILENT,
@@ -679,12 +676,12 @@ srv_undo_tablespace_open(
 
 /********************************************************************
 Opens the configured number of undo tablespaces.
-@return	DB_SUCCESS or error code */
+@return DB_SUCCESS or error code */
 static
 dberr_t
 srv_undo_tablespaces_init(
 /*======================*/
-	ibool		create_new_db,		/*!< in: TRUE if new db being
+	bool		create_new_db,		/*!< in: TRUE if new db being
 						created */
 	const ulint	n_conf_tablespaces,	/*!< in: configured undo
 						tablespaces */
@@ -919,13 +916,18 @@ srv_open_tmp_tablespace(
 		return(DB_SUCCESS);
 	}
 
+	/* Will try to remove if there is existing file left-over by last
+	unclean shutdown */
+	tmp_space->set_sanity_check_status(true);
+	tmp_space->delete_files();
+
 	ib_logf(IB_LOG_LEVEL_INFO,
 		"Creating shared tablespace for temporary tables");
 
-	ibool	create_new_temp_space;
+	bool	create_new_temp_space;
 	ulint	temp_space_id = ULINT_UNDEFINED;
 
-	dict_hdr_get_new_id(NULL, NULL, &temp_space_id);
+	dict_hdr_get_new_id(NULL, NULL, &temp_space_id, NULL, true);
 
 	tmp_space->set_space_id(temp_space_id);
 
@@ -995,7 +997,7 @@ srv_start_state_is_set(
 
 /****************************************************************//**
 Shutdown all background threads created by InnoDB. */
-UNIV_INTERN
+
 void
 srv_shutdown_all_bg_threads()
 /*=========================*/
@@ -1080,15 +1082,25 @@ srv_shutdown_all_bg_threads()
 	}
 }
 
+#define srv_init_abort(_db_err) srv_init_abort_low(create_new_db, _db_err)
+
 /********************************************************************
 Innobase start-up aborted. Perform cleanup actions.
 @return DB_SUCCESS or error code. */
 static
 dberr_t
-srv_init_abort(
-/*===========*/
-	dberr_t	err)	/*!< in: reason for abort */
+srv_init_abort_low(
+/*===============*/
+	bool	create_new_db,	/*!< in: TRUE if new db being created */
+	dberr_t	err)		/*!< in: reason for abort */
 {
+	if (create_new_db) {
+		ib_logf(IB_LOG_LEVEL_ERROR,
+			"InnoDB Database creation was aborted. You may"
+			" need to delete the ibdata1 file before trying"
+			" to start up again.");
+	}
+
 	srv_shutdown_all_bg_threads();
 	return(err);
 }
@@ -1096,26 +1108,23 @@ srv_init_abort(
 /********************************************************************
 Starts InnoDB and creates a new database if database files
 are not found and the user wants.
-@return	DB_SUCCESS or error code */
-UNIV_INTERN
+@return DB_SUCCESS or error code */
+
 dberr_t
 innobase_start_or_create_for_mysql(void)
 /*====================================*/
 {
-	ibool		create_new_db;
+	bool		create_new_db = false;
 	lsn_t		min_flushed_lsn;
 	lsn_t		max_flushed_lsn;
-#ifdef UNIV_LOG_ARCHIVE
-	ulint		min_arch_log_no;
-	ulint		max_arch_log_no;
-#endif /* UNIV_LOG_ARCHIVE */
 	ulint		sum_of_data_file_sizes;
 	ulint		tablespace_size_in_header;
 	dberr_t		err;
 	ulint		srv_n_log_files_found = srv_n_log_files;
 	ulint		io_limit;
 	mtr_t		mtr;
-	ib_bh_t*	ib_bh;
+	purge_pq_t*	purge_queue;
+	ulint		n_recovered_trx;
 	char		logfilename[10000];
 	char*		logfile0	= NULL;
 	size_t		dirnamelen;
@@ -1127,32 +1136,6 @@ innobase_start_or_create_for_mysql(void)
 	if (srv_read_only_mode) {
 		ib_logf(IB_LOG_LEVEL_INFO, "Started in read only mode");
 	}
-
-#ifdef HAVE_DARWIN_THREADS
-# ifdef F_FULLFSYNC
-	/* This executable has been compiled on Mac OS X 10.3 or later.
-	Assume that F_FULLFSYNC is available at run-time. */
-	srv_have_fullfsync = TRUE;
-# else /* F_FULLFSYNC */
-	/* This executable has been compiled on Mac OS X 10.2
-	or earlier.  Determine if the executable is running
-	on Mac OS X 10.3 or later. */
-	struct utsname utsname;
-	if (uname(&utsname)) {
-		ut_print_timestamp(stderr);
-		fputs(" InnoDB: cannot determine Mac OS X version!\n", stderr);
-	} else {
-		srv_have_fullfsync = strcmp(utsname.release, "7.") >= 0;
-	}
-	if (!srv_have_fullfsync) {
-		ut_print_timestamp(stderr);
-		fputs(" InnoDB: On Mac OS X, fsync() may be "
-		      "broken on internal drives,\n", stderr);
-		ut_print_timestamp(stderr);
-		fputs(" InnoDB: making transactions unsafe!\n", stderr);
-	}
-# endif /* F_FULLFSYNC */
-#endif /* HAVE_DARWIN_THREADS */
 
 	if (sizeof(ulint) != sizeof(void*)) {
 		ut_print_timestamp(stderr);
@@ -1244,10 +1227,6 @@ innobase_start_or_create_for_mysql(void)
 #endif /* UNIV_ZIP_COPY */
 
 
-	ib_logf(IB_LOG_LEVEL_INFO,
-		"CPU %s crc32 instructions",
-		ut_crc32_sse2_enabled ? "supports" : "does not support");
-
 	/* Since InnoDB does not currently clean up all its internal data
 	structures in MySQL Embedded Server Library server_end(), we
 	print an error message if someone tries to start up InnoDB a
@@ -1277,7 +1256,7 @@ innobase_start_or_create_for_mysql(void)
 	srv_is_being_started = TRUE;
 	srv_startup_is_before_trx_rollback_phase = TRUE;
 
-#ifdef __WIN__
+#ifdef _WIN32
 	switch (os_get_os_version()) {
 	case OS_WIN95:
 	case OS_WIN31:
@@ -1313,7 +1292,7 @@ innobase_start_or_create_for_mysql(void)
 	and that also when the support is compiled in. In all other
 	cases, we ignore the setting of innodb_use_native_aio. */
 	srv_use_native_aio = FALSE;
-#endif /* __WIN__ */
+#endif /* _WIN32 */
 
 	if (srv_file_flush_method_str == NULL) {
 		/* These are the default options */
@@ -1321,7 +1300,7 @@ innobase_start_or_create_for_mysql(void)
 		srv_unix_file_flush_method = SRV_UNIX_FSYNC;
 
 		srv_win_file_flush_method = SRV_WIN_IO_UNBUFFERED;
-#ifndef __WIN__
+#ifndef _WIN32
 	} else if (0 == ut_strcmp(srv_file_flush_method_str, "fsync")) {
 		srv_unix_file_flush_method = SRV_UNIX_FSYNC;
 
@@ -1351,7 +1330,7 @@ innobase_start_or_create_for_mysql(void)
 	} else if (0 == ut_strcmp(srv_file_flush_method_str,
 				  "async_unbuffered")) {
 		srv_win_file_flush_method = SRV_WIN_IO_UNBUFFERED;
-#endif /* __WIN__ */
+#endif /* _WIN32 */
 	} else {
 		ib_logf(IB_LOG_LEVEL_ERROR,
 			"Unrecognized value %s for innodb_flush_method",
@@ -1367,26 +1346,61 @@ innobase_start_or_create_for_mysql(void)
 	maximum number of threads that can wait in the 'srv_conc array' for
 	their time to enter InnoDB. */
 
-	if (srv_buf_pool_size >= 1000 * 1024 * 1024) {
-		/* If buffer pool is less than 1000 MB,
-		assume fewer threads. Also use only one
-		buffer pool instance */
+#define BUF_POOL_SIZE_THRESHOLD	(1024 * 1024 * 1024)
+
+	if (srv_buf_pool_size >= BUF_POOL_SIZE_THRESHOLD) {
 		srv_max_n_threads = 50000;
 
-	} else if (srv_buf_pool_size >= 8 * 1024 * 1024) {
-
-		srv_buf_pool_instances = 1;
-		srv_max_n_threads = 10000;
+		if (srv_buf_pool_instances == SRV_BUF_POOL_INSTANCES_NOT_SET) {
+#if defined(_WIN32) && !defined(_WIN64)
+			/* Do not allocate too large of a buffer pool on
+			Windows 32-bit systems, which can have trouble
+			allocating larger single contiguous memory blocks. */
+			srv_buf_pool_instances = ut_min(
+				MAX_BUFFER_POOLS,
+				(long) (srv_buf_pool_size
+					/ (128 * 1024 * 1024)));
+#else /* defined(_WIN32) && !defined(_WIN64) */
+			/* Default to 8 instances when size > 1GB. */
+			srv_buf_pool_instances = 8;
+#endif /* defined(_WIN32) && !defined(_WIN64) */
+		}
 	} else {
+		/* If buffer pool is less than 1 GiB, assume fewer
+		threads. Also use only one buffer pool instance. */
+		if (srv_buf_pool_instances != SRV_BUF_POOL_INSTANCES_NOT_SET
+		    && srv_buf_pool_instances != 1) {
+			/* We can't distinguish whether the user has explicitly
+			started mysqld with --innodb-buffer-pool-instances=0,
+			(SRV_BUF_POOL_INSTANCES_NOT_SET is 0) or has not
+			specified that option at all. Thus we have the
+			limitation that if the user started with =0, we
+			will not emit a warning here, but we should actually
+			do so. */
+			ib_logf(IB_LOG_LEVEL_WARN,
+				"Adjusting innodb_buffer_pool_instances from "
+				"%lu to 1 since innodb_buffer_pool_size is "
+				"less than %d MiB",
+				srv_buf_pool_instances,
+				BUF_POOL_SIZE_THRESHOLD / (1024 * 1024));
+		}
+
 		srv_buf_pool_instances = 1;
 
-		/* Saves several MB of memory, especially in
-		64-bit computers */
-
-		srv_max_n_threads = 1000;
+		if (srv_buf_pool_size >= 8 * 1024 * 1024) {
+			srv_max_n_threads = 10000;
+		} else {
+			/* Saves several MB of memory, especially in
+			64-bit computers */
+			srv_max_n_threads = 1000;
+		}
 	}
 
 	srv_boot();
+
+	ib_logf(IB_LOG_LEVEL_INFO,
+		"%s CPU crc32 instructions",
+		ut_crc32_sse2_enabled ? "Using" : "Not using");
 
 	if (!srv_read_only_mode) {
 
@@ -1474,11 +1488,11 @@ innobase_start_or_create_for_mysql(void)
 	/* On Windows when using native aio the number of aio requests
 	that a thread can handle at a given time is limited to 32
 	i.e.: SRV_N_PENDING_IOS_PER_THREAD */
-# ifdef __WIN__
+# ifdef _WIN32
 	if (srv_use_native_aio) {
 		io_limit = SRV_N_PENDING_IOS_PER_THREAD;
 	}
-# endif /* __WIN__ */
+# endif /* _WIN32 */
 
 	if (!os_aio_init(io_limit,
 			 srv_n_read_io_threads,
@@ -1504,9 +1518,10 @@ innobase_start_or_create_for_mysql(void)
 		unit = 'M';
 	}
 
-	/* Print time to initialize the buffer pool */
 	ib_logf(IB_LOG_LEVEL_INFO,
-		"Initializing buffer pool, size = %.1f%c", size, unit);
+		"Initializing buffer pool, total size = %.1f%c, "
+		"instances = %lu",
+		size, unit, srv_buf_pool_instances);
 
 	err = buf_pool_init(srv_buf_pool_size, srv_buf_pool_instances);
 
@@ -1551,17 +1566,6 @@ innobase_start_or_create_for_mysql(void)
 
 	srv_start_state_set(SRV_START_STATE_IO);
 
-#ifdef UNIV_LOG_ARCHIVE
-	if (0 != ut_strcmp(srv_log_group_home_dir, srv_arch_dir)) {
-		ut_print_timestamp(stderr);
-		fprintf(stderr, " InnoDB: Error: you must set the log group home dir in my.cnf\n");
-		ut_print_timestamp(stderr);
-		fprintf(stderr, " InnoDB: the same as log arch dir.\n");
-
-		return(srv_init_abort(DB_ERROR));
-	}
-#endif /* UNIV_LOG_ARCHIVE */
-
 	if (srv_n_log_files * srv_log_file_size * UNIV_PAGE_SIZE
 	    >= 512ULL * 1024ULL * 1024ULL * 1024ULL) {
 		/* log_block_convert_lsn_to_no() limits the returned block
@@ -1593,7 +1597,8 @@ innobase_start_or_create_for_mysql(void)
 	srv_normalize_path_for_win(srv_data_home);
 
 	/* Check if the data files exist or not. */
-	err = srv_sys_space.check_file_spec(&create_new_db, 10 * 1024 * 1024);
+	err = srv_sys_space.check_file_spec(
+		&create_new_db, MIN_EXPECTED_TABLESPACE_SIZE);
 
 	if (err != DB_SUCCESS) {
 		return(srv_init_abort(DB_ERROR));
@@ -1643,12 +1648,10 @@ innobase_start_or_create_for_mysql(void)
 	srv_log_file_size_requested = srv_log_file_size;
 
 	if (create_new_db) {
-		bool success = buf_flush_list(ULINT_MAX, LSN_MAX, NULL);
-		ut_a(success);
+
+		buf_flush_sync_all_buf_pools();
 
 		min_flushed_lsn = max_flushed_lsn = log_get_lsn();
-
-		buf_flush_wait_batch_end(NULL, BUF_FLUSH_LIST);
 
 		err = create_log_files(
 			logfilename, dirnamelen, max_flushed_lsn, logfile0);
@@ -1790,15 +1793,11 @@ innobase_start_or_create_for_mysql(void)
 			}
 		}
 
-#ifdef UNIV_LOG_ARCHIVE
-		/* Create the file space object for archived logs. Under
-		MySQL, no archiving ever done. */
-		fil_space_create("arch_log_space", SRV_LOG_SPACE_FIRST_ID + 1,
-				 0, FIL_LOG);
-#endif /* UNIV_LOG_ARCHIVE */
-		log_group_init(0, i, srv_log_file_size * UNIV_PAGE_SIZE,
-			       SRV_LOG_SPACE_FIRST_ID,
-			       SRV_LOG_SPACE_FIRST_ID + 1);
+		if (!log_group_init(0, i, srv_log_file_size * UNIV_PAGE_SIZE,
+				    SRV_LOG_SPACE_FIRST_ID,
+				    SRV_LOG_SPACE_FIRST_ID + 1)) {
+			return(srv_init_abort(DB_ERROR));
+		}
 	}
 
 files_checked:
@@ -1848,12 +1847,13 @@ files_checked:
 		after the double write buffer has been created. */
 		trx_sys_create_sys_pages();
 
-		ib_bh = trx_sys_init_at_db_start();
+		purge_queue = trx_sys_init_at_db_start();
+		n_recovered_trx = UT_LIST_GET_LEN(trx_sys->rw_trx_list);
 
 		/* The purge system needs to create the purge view and
 		therefore requires that the trx_sys is inited. */
 
-		trx_purge_sys_create(srv_n_purge_threads, ib_bh);
+		trx_purge_sys_create(srv_n_purge_threads, purge_queue);
 
 		err = dict_create();
 
@@ -1863,12 +1863,9 @@ files_checked:
 
 		srv_startup_is_before_trx_rollback_phase = FALSE;
 
-		bool success = buf_flush_list(ULINT_MAX, LSN_MAX, NULL);
-		ut_a(success);
+		buf_flush_sync_all_buf_pools();
 
 		min_flushed_lsn = max_flushed_lsn = log_get_lsn();
-
-		buf_flush_wait_batch_end(NULL, BUF_FLUSH_LIST);
 
 		/* Stamp the LSN to the data files. */
 		fil_write_flushed_lsn_to_data_files(max_flushed_lsn, 0);
@@ -1877,39 +1874,6 @@ files_checked:
 
 		create_log_files_rename(logfilename, dirnamelen,
 					max_flushed_lsn, logfile0);
-#ifdef UNIV_LOG_ARCHIVE
-	} else if (srv_archive_recovery) {
-
-		ib_logf(IB_LOG_LEVEL_INFO,
-			" Starting archive recovery from a backup...");
-
-		err = recv_recovery_from_archive_start(
-			min_flushed_lsn, srv_archive_recovery_limit_lsn,
-			min_arch_log_no);
-		if (err != DB_SUCCESS) {
-
-			return(srv_init_abort(DB_ERROR));
-		}
-		/* Since ibuf init is in dict_boot, and ibuf is needed
-		in any disk i/o, first call dict_boot */
-
-		err = dict_boot();
-
-		if (err != DB_SUCCESS) {
-			return(srv_init_abort(err));
-		}
-
-		ib_bh = trx_sys_init_at_db_start();
-
-		/* The purge system needs to create the purge view and
-		therefore requires that the trx_sys is inited. */
-
-		trx_purge_sys_create(srv_n_purge_threads, ib_bh);
-
-		srv_startup_is_before_trx_rollback_phase = FALSE;
-
-		recv_recovery_from_archive_finish();
-#endif /* UNIV_LOG_ARCHIVE */
 	} else {
 
 		/* Check if we support the max format that is stamped
@@ -1942,7 +1906,6 @@ files_checked:
 		been shut down normally: this is the normal startup path */
 
 		err = recv_recovery_from_checkpoint_start(
-			LOG_CHECKPOINT, IB_ULONGLONG_MAX,
 			min_flushed_lsn, max_flushed_lsn);
 
 		if (err != DB_SUCCESS) {
@@ -1962,12 +1925,13 @@ files_checked:
 			return(srv_init_abort(err));
 		}
 
-		ib_bh = trx_sys_init_at_db_start();
+		purge_queue = trx_sys_init_at_db_start();
+		n_recovered_trx = UT_LIST_GET_LEN(trx_sys->rw_trx_list);
 
 		/* The purge system needs to create the purge view and
 		therefore requires that the trx_sys is inited. */
 
-		trx_purge_sys_create(srv_n_purge_threads, ib_bh);
+		trx_purge_sys_create(srv_n_purge_threads, purge_queue);
 
 		/* recv_recovery_from_checkpoint_finish needs trx lists which
 		are initialized in trx_sys_init_at_db_start(). */
@@ -1990,9 +1954,17 @@ files_checked:
 			an .ibd file.
 
 			We also determine the maximum tablespace id used. */
+			dict_check_t	dict_check;
 
-			dict_check_tablespaces_and_store_max_id(
-				recv_needed_recovery);
+			if (recv_needed_recovery) {
+				dict_check = DICT_CHECK_ALL_LOADED;
+			} else if (n_recovered_trx) {
+				dict_check = DICT_CHECK_SOME_LOADED;
+			} else {
+				dict_check = DICT_CHECK_NONE_LOADED;
+			}
+
+			dict_check_tablespaces_and_store_max_id(dict_check);
 		}
 
 		if (!srv_force_recovery
@@ -2009,9 +1981,7 @@ files_checked:
 			}
 
 			/* Clean the buffer pool. */
-			bool success = buf_flush_list(
-				ULINT_MAX, LSN_MAX, NULL);
-			ut_a(success);
+			buf_flush_sync_all_buf_pools();
 
 			RECOVERY_CRASH(1);
 
@@ -2025,10 +1995,6 @@ files_checked:
 				(unsigned) srv_n_log_files,
 				(unsigned) srv_log_file_size_requested,
 				max_flushed_lsn);
-
-			buf_flush_wait_batch_end(NULL, BUF_FLUSH_LIST);
-
-			RECOVERY_CRASH(2);
 
 			/* Flush the old log files. */
 			log_buffer_flush_to_disk();
@@ -2111,34 +2077,18 @@ files_checked:
 		return(srv_init_abort(err));
 	}
 
-#ifdef UNIV_LOG_ARCHIVE
-	/* Archiving is always off under MySQL */
-	if (!srv_log_archive_on) {
-		ut_a(DB_SUCCESS == log_archive_noarchivelog());
-	} else {
-		mutex_enter(&(log_sys->mutex));
-
-		start_archive = FALSE;
-
-		if (log_sys->archiving_state == LOG_ARCH_OFF) {
-			start_archive = TRUE;
-		}
-
-		mutex_exit(&(log_sys->mutex));
-
-		if (start_archive) {
-			ut_a(DB_SUCCESS == log_archive_archivelog());
-		}
-	}
-#endif /* UNIV_LOG_ARCHIVE */
+	/* Will open temp-tablespace and will keep it open till server lifetime */
+	fil_open_log_and_system_tablespace_files();
 
 	/* fprintf(stderr, "Max allowed record size %lu\n",
 	page_get_free_space_of_empty() / 2); */
 
 	if (buf_dblwr == NULL) {
 		/* Create the doublewrite buffer to a new tablespace */
+		if (!buf_dblwr_create()) {
+			return(srv_init_abort(DB_ERROR));
+		}
 
-		buf_dblwr_create();
 	}
 
 	/* Here the double write buffer has already been created and so
@@ -2162,7 +2112,7 @@ files_checked:
 	be set using the dynamic global variable srv_undo_logs. */
 
 	srv_available_undo_logs = trx_sys_create_rsegs(
-		srv_undo_tablespaces, srv_undo_logs);
+		srv_undo_tablespaces, srv_undo_logs, srv_tmp_undo_logs);
 
 	if (srv_available_undo_logs == ULINT_UNDEFINED) {
 		/* Can only happen if force recovery is set. */
@@ -2246,10 +2196,6 @@ files_checked:
 	if (!srv_read_only_mode) {
 		os_thread_create(buf_flush_page_cleaner_thread, NULL, NULL);
 	}
-
-#ifdef UNIV_DEBUG
-	/* buf_debug_prints = TRUE; */
-#endif /* UNIV_DEBUG */
 
 	sum_of_data_file_sizes = srv_sys_space.get_sum_of_sizes();
 	ut_a(sum_of_new_sizes != ULINT_UNDEFINED);
@@ -2346,14 +2292,9 @@ files_checked:
 	os_fast_mutex_init(PFS_NOT_INSTRUMENTED, &srv_os_test_mutex);
 
 	if (0 != os_fast_mutex_trylock(&srv_os_test_mutex)) {
-		ut_print_timestamp(stderr);
-		fprintf(stderr,
-			" InnoDB: Error: pthread_mutex_trylock returns"
-			" an unexpected value on\n");
-		ut_print_timestamp(stderr);
-		fprintf(stderr,
-			" InnoDB: success! Cannot continue.\n");
-		exit(1);
+		ib_logf(IB_LOG_LEVEL_FATAL,
+			"pthread_mutex_trylock returns an unexpected"
+			" value on success! Cannot continue.");
 	}
 
 	os_fast_mutex_unlock(&srv_os_test_mutex);
@@ -2434,8 +2375,8 @@ srv_fts_close(void)
 
 /****************************************************************//**
 Shuts down the InnoDB database.
-@return	DB_SUCCESS or error code */
-UNIV_INTERN
+@return DB_SUCCESS or error code */
+
 dberr_t
 innobase_shutdown_for_mysql(void)
 /*=============================*/
@@ -2474,6 +2415,7 @@ innobase_shutdown_for_mysql(void)
 	/* 2. Make all threads created by InnoDB to exit */
 	srv_shutdown_all_bg_threads();
 
+
 	if (srv_monitor_file) {
 		fclose(srv_monitor_file);
 		srv_monitor_file = 0;
@@ -2507,6 +2449,8 @@ innobase_shutdown_for_mysql(void)
 	trx_sys_file_format_close();
 	trx_sys_close();
 
+	trx_pool_close();
+
 	/* We don't create these mutexes in RO mode because we don't create
 	the temp files that the cover. */
 	if (!srv_read_only_mode) {
@@ -2537,6 +2481,7 @@ innobase_shutdown_for_mysql(void)
 	pars_lexer_close();
 	log_mem_free();
 	buf_pool_free(srv_buf_pool_instances);
+
 	mem_close();
 
 	/* ut_free_all_mem() frees all allocated memory not freed yet
@@ -2577,7 +2522,7 @@ innobase_shutdown_for_mysql(void)
 /********************************************************************
 Signal all per-table background threads to shutdown, and wait for them to do
 so. */
-UNIV_INTERN
+
 void
 srv_shutdown_table_bg_threads(void)
 /*===============================*/
@@ -2653,7 +2598,7 @@ srv_shutdown_table_bg_threads(void)
 
 /*****************************************************************//**
 Get the meta-data filename from the table name. */
-UNIV_INTERN
+
 void
 srv_get_meta_data_filename(
 /*=======================*/

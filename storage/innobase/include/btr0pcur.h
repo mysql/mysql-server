@@ -1,6 +1,6 @@
 /*****************************************************************************
 
-Copyright (c) 1996, 2012, Oracle and/or its affiliates. All Rights Reserved.
+Copyright (c) 1996, 2013, Oracle and/or its affiliates. All Rights Reserved.
 
 This program is free software; you can redistribute it and/or modify it under
 the terms of the GNU General Public License as published by the Free Software
@@ -48,8 +48,8 @@ of a scroll cursor easier */
 
 /**************************************************************//**
 Allocates memory for a persistent cursor object and initializes the cursor.
-@return	own: persistent cursor */
-UNIV_INTERN
+@return own: persistent cursor */
+
 btr_pcur_t*
 btr_pcur_create_for_mysql(void);
 /*============================*/
@@ -57,7 +57,7 @@ btr_pcur_create_for_mysql(void);
 /**************************************************************//**
 Resets a persistent cursor object, freeing ::old_rec_buf if it is
 allocated and resetting the other members to their initial values. */
-UNIV_INTERN
+
 void
 btr_pcur_reset(
 /*===========*/
@@ -65,14 +65,14 @@ btr_pcur_reset(
 
 /**************************************************************//**
 Frees the memory for a persistent cursor object. */
-UNIV_INTERN
+
 void
 btr_pcur_free_for_mysql(
 /*====================*/
 	btr_pcur_t*	cursor);	/*!< in, own: persistent cursor */
 /**************************************************************//**
 Copies the stored position of a pcur to another pcur. */
-UNIV_INTERN
+
 void
 btr_pcur_copy_stored_position(
 /*==========================*/
@@ -181,7 +181,7 @@ PAGE_CUR_LE, on the last user record. If no such user record exists, then
 in the first case sets the cursor after last in tree, and in the latter case
 before first in tree. The latching mode must be BTR_SEARCH_LEAF or
 BTR_MODIFY_LEAF. */
-UNIV_INTERN
+
 void
 btr_pcur_open_on_user_rec_func(
 /*===========================*/
@@ -235,7 +235,7 @@ cursor data structure, or just setting a flag if the cursor id before the
 first in an EMPTY tree, or after the last in an EMPTY tree. NOTE that the
 page where the cursor is positioned must not be empty if the index tree is
 not totally empty! */
-UNIV_INTERN
+
 void
 btr_pcur_store_position(
 /*====================*/
@@ -256,7 +256,7 @@ restores to before first or after the last in the tree.
 @return TRUE if the cursor position was stored when it was on a user
 record and it can be restored on a user record whose ordering fields
 are identical to the ones of the original user record */
-UNIV_INTERN
+
 ibool
 btr_pcur_restore_position_func(
 /*===========================*/
@@ -269,7 +269,7 @@ btr_pcur_restore_position_func(
 	btr_pcur_restore_position_func(l,cur,__FILE__,__LINE__,mtr)
 /*********************************************************//**
 Gets the rel_pos field for a cursor whose position has been stored.
-@return	BTR_PCUR_ON, ... */
+@return BTR_PCUR_ON, ... */
 UNIV_INLINE
 ulint
 btr_pcur_get_rel_pos(
@@ -289,7 +289,7 @@ btr_pcur_commit_specify_mtr(
 /*********************************************************//**
 Moves the persistent cursor to the next record in the tree. If no records are
 left, the cursor stays 'after last in tree'.
-@return	TRUE if the cursor was not after last in tree */
+@return TRUE if the cursor was not after last in tree */
 UNIV_INLINE
 ibool
 btr_pcur_move_to_next(
@@ -300,8 +300,8 @@ btr_pcur_move_to_next(
 /*********************************************************//**
 Moves the persistent cursor to the previous record in the tree. If no records
 are left, the cursor stays 'before first in tree'.
-@return	TRUE if the cursor was not before first in tree */
-UNIV_INTERN
+@return TRUE if the cursor was not before first in tree */
+
 ibool
 btr_pcur_move_to_prev(
 /*==================*/
@@ -319,7 +319,7 @@ btr_pcur_move_to_last_on_page(
 /*********************************************************//**
 Moves the persistent cursor to the next user record in the tree. If no user
 records are left, the cursor ends up 'after last in tree'.
-@return	TRUE if the cursor moved forward, ending on a user record */
+@return TRUE if the cursor moved forward, ending on a user record */
 UNIV_INLINE
 ibool
 btr_pcur_move_to_next_user_rec(
@@ -332,7 +332,7 @@ Moves the persistent cursor to the first record on the next page.
 Releases the latch on the current page, and bufferunfixes it.
 Note that there must not be modifications on the current page,
 as then the x-latch can be released only in mtr_commit. */
-UNIV_INTERN
+
 void
 btr_pcur_move_to_next_page(
 /*=======================*/
@@ -349,7 +349,7 @@ The alphabetical position of the cursor is guaranteed to be sensible
 on return, but it may happen that the cursor is not positioned on the
 last record of any page, because the structure of the tree may have
 changed while the cursor had no latches. */
-UNIV_INTERN
+
 void
 btr_pcur_move_backward_from_page(
 /*=============================*/
@@ -359,7 +359,7 @@ btr_pcur_move_backward_from_page(
 #ifdef UNIV_DEBUG
 /*********************************************************//**
 Returns the btr cursor component of a persistent cursor.
-@return	pointer to btr cursor component */
+@return pointer to btr cursor component */
 UNIV_INLINE
 btr_cur_t*
 btr_pcur_get_btr_cur(
@@ -367,7 +367,7 @@ btr_pcur_get_btr_cur(
 	const btr_pcur_t*	cursor);	/*!< in: persistent cursor */
 /*********************************************************//**
 Returns the page cursor component of a persistent cursor.
-@return	pointer to page cursor component */
+@return pointer to page cursor component */
 UNIV_INLINE
 page_cur_t*
 btr_pcur_get_page_cur(
@@ -375,7 +375,7 @@ btr_pcur_get_page_cur(
 	const btr_pcur_t*	cursor);	/*!< in: persistent cursor */
 /*********************************************************//**
 Returns the page of a persistent cursor.
-@return	pointer to the page */
+@return pointer to the page */
 UNIV_INLINE
 page_t*
 btr_pcur_get_page(
@@ -383,7 +383,7 @@ btr_pcur_get_page(
 	const btr_pcur_t*	cursor);/*!< in: persistent cursor */
 /*********************************************************//**
 Returns the buffer block of a persistent cursor.
-@return	pointer to the block */
+@return pointer to the block */
 UNIV_INLINE
 buf_block_t*
 btr_pcur_get_block(
@@ -391,7 +391,7 @@ btr_pcur_get_block(
 	const btr_pcur_t*	cursor);/*!< in: persistent cursor */
 /*********************************************************//**
 Returns the record of a persistent cursor.
-@return	pointer to the record */
+@return pointer to the record */
 UNIV_INLINE
 rec_t*
 btr_pcur_get_rec(

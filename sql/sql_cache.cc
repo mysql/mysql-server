@@ -332,12 +332,11 @@ TODO list:
 #include "sql_cache.h"
 #include "sql_parse.h"                          // check_table_access
 #include "tztime.h"                             // struct Time_zone
-#include "sql_acl.h"                            // SELECT_ACL
+#include "auth_common.h"                        // SELECT_ACL
 #include "sql_base.h"                           // TMP_TABLE_KEY_EXTRA
 #include "debug_sync.h"                         // DEBUG_SYNC
 #include "opt_trace.h"
 #include "sql_table.h"
-#ifdef HAVE_QUERY_CACHE
 #include <m_ctype.h>
 #include <my_dir.h>
 #include <hash.h>
@@ -602,20 +601,34 @@ void Query_cache::unlock(void)
 /**
   Helper function for determine if a SELECT statement has a SQL_NO_CACHE
   directive.
-  
-  @param sql A pointer to the first white space character after SELECT
-  
+
+  @param sql           Query string
+  @param offset        Offset of the first whitespace character after SELECT
+  @param query_length  The total length of the query string
+
   @return
    @retval TRUE The character string contains SQL_NO_CACHE
    @retval FALSE No directive found.
 */
- 
-static bool has_no_cache_directive(char *sql)
+
+static bool has_no_cache_directive(const char *sql, uint offset,
+                                   uint query_length)
 {
-  int i=0;
-  while (sql[i] == ' ')
+  uint i= offset;
+
+  // Must have at least one whitespace char before SQL_NO_CACHE
+  if (!my_isspace(system_charset_info, sql[i]))
+    return false;
+
+  // But can have several
+  while (i < query_length &&
+         my_isspace(system_charset_info, sql[i]))
     ++i;
-    
+
+  // Check that we have enough chars left for SQL_NO_CACHE
+  if (i + 12 >= query_length)
+    return false;
+
   if (my_toupper(system_charset_info, sql[i])    == 'S' &&
       my_toupper(system_charset_info, sql[i+1])  == 'Q' &&
       my_toupper(system_charset_info, sql[i+2])  == 'L' &&
@@ -628,10 +641,10 @@ static bool has_no_cache_directive(char *sql)
       my_toupper(system_charset_info, sql[i+9])  == 'C' &&
       my_toupper(system_charset_info, sql[i+10]) == 'H' &&
       my_toupper(system_charset_info, sql[i+11]) == 'E' &&
-      my_toupper(system_charset_info, sql[i+12]) == ' ')
-    return TRUE;
-  
-  return FALSE;       
+      my_isspace(system_charset_info, sql[i+12]))
+    return true;
+
+  return false;
 }
 
 
@@ -1005,7 +1018,7 @@ void Query_cache::end_of_result(THD *thd)
 
   if (thd->killed || thd->is_error())
   {
-    query_cache_abort(&thd->query_cache_tls);
+    abort(&thd->query_cache_tls);
     DBUG_VOID_RETURN;
   }
 
@@ -1384,7 +1397,7 @@ def_week_frmt: %lu, in_trans: %d, autocommit: %d",
     }
   }
   else if (thd->lex->sql_command == SQLCOM_SELECT)
-    statistic_increment(refused, &structure_guard_mutex);
+    refused++;
 
 end:
   DBUG_VOID_RETURN;
@@ -1473,6 +1486,7 @@ Query_cache::send_result_to_client(THD *thd, char *sql, uint query_length)
   Query_cache_block_table *block_table, *block_table_end;
   ulong tot_length;
   Query_cache_query_flags flags;
+  enum xa_states xa_state= thd->transaction.xid_state.xa_state;
   DBUG_ENTER("Query_cache::send_result_to_client");
 
   /*
@@ -1484,6 +1498,16 @@ Query_cache::send_result_to_client(THD *thd, char *sql, uint query_length)
   */
   if (is_disabled() || thd->locked_tables_mode ||
       thd->variables.query_cache_type == 0 || query_cache_size == 0)
+    goto err;
+
+  /*
+    Don't work with Query_cache if the state of XA transaction is
+    either IDLE or PREPARED. If we didn't do so we would get an
+    assert fired later in the function trx_start_if_not_started_low()
+    that is called when we are checking that query cache is allowed at
+    this moment to operate on an InnoDB table.
+  */
+  if (xa_state == XA_IDLE || xa_state == XA_PREPARED)
     goto err;
 
   if (!thd->lex->safe_to_cache_query)
@@ -1518,7 +1542,10 @@ Query_cache::send_result_to_client(THD *thd, char *sql, uint query_length)
       goto err;
     }
     
-    if (query_length > 20 && has_no_cache_directive(&sql[i+6]))
+    DBUG_EXECUTE_IF("test_sql_no_cache",
+                    DBUG_ASSERT(has_no_cache_directive(sql, i+6,
+                                                       query_length)););
+    if (has_no_cache_directive(sql, i+6, query_length))
     {
       /*
         We do not increase 'refused' statistics here since it will be done
@@ -1643,6 +1670,29 @@ def_week_frmt: %lu, in_trans: %d, autocommit: %d",
   }
   DBUG_PRINT("qcache", ("Query in query hash 0x%lx", (ulong)query_block));
 
+  /*
+    We only need to clear the diagnostics area when we actually
+    find the query, as in all other cases, we'll go through
+    regular parsing and execution, where the DA will be reset
+    as needed, anyway.
+
+    We're not pushing/popping a private DA here the way we do for
+    parsing; if we got this far, we know we've got a SELECT on our
+    hands and not a diagnotics statement that might need the
+    previous statement's diagnostics area, so we just clear the DA.
+
+    We're doing it here and not in the caller as there's three of
+    them (PS, SP, interactive).  Doing it any earlier in this routine
+    would reset the DA in "SELECT @@error_count"/"SELECT @@warning_count"
+    before we can save the counts we'll need later (QC will see the
+    SELECT go into this branch, but since we haven't parsed yet, we
+    don't know yet that it's one of those legacy variables that require
+    saving and basically turn SELECT into a sort of, sort of not
+    diagnostics command.  Ugly stuff.
+  */
+  thd->get_stmt_da()->reset_diagnostics_area();
+  thd->get_stmt_da()->reset_condition_info(thd);
+
   /* Now lock and test that nothing changed while blocks was unlocked */
   BLOCK_LOCK_RD(query_block);
 
@@ -1695,7 +1745,7 @@ def_week_frmt: %lu, in_trans: %d, autocommit: %d",
       {
         DBUG_PRINT("qcache",
                    ("Temporary table detected: '%s.%s'",
-                    table_list.db, table_list.alias));
+                    tmptable->s->db.str, tmptable->s->table_name.str));
         unlock();
         /*
           We should not store result of this query because it contain
@@ -3718,14 +3768,16 @@ Query_cache::is_cacheable(THD *thd, size_t query_len, const char *query,
   TABLE_COUNTER_TYPE table_count;
   DBUG_ENTER("Query_cache::is_cacheable");
 
-  if (query_cache_is_cacheable_query(lex) &&
+  if (lex->sql_command == SQLCOM_SELECT &&
+      lex->safe_to_cache_query &&
+      !lex->describe &&
       (thd->variables.query_cache_type == 1 ||
-       (thd->variables.query_cache_type == 2 && (lex->select_lex.options &
+       (thd->variables.query_cache_type == 2 && (lex->select_lex->options &
 						 OPTION_TO_QUERY_CACHE))))
   {
     DBUG_PRINT("qcache", ("options: %lx  %lx  type: %u",
                           (long) OPTION_TO_QUERY_CACHE,
-                          (long) lex->select_lex.options,
+                          (long) lex->select_lex->options,
                           (int) thd->variables.query_cache_type));
 
     if (!(table_count= process_and_count_tables(thd, tables_used,
@@ -3746,7 +3798,7 @@ Query_cache::is_cacheable(THD *thd, size_t query_len, const char *query,
 	     ("not interesting query: %d or not cacheable, options %lx %lx  type: %u",
 	      (int) lex->sql_command,
 	      (long) OPTION_TO_QUERY_CACHE,
-	      (long) lex->select_lex.options,
+	      (long) lex->select_lex->options,
 	      (int) thd->variables.query_cache_type));
   DBUG_RETURN(0);
 }
@@ -4910,6 +4962,4 @@ err2:
 }
 
 #endif /* DBUG_OFF */
-
-#endif /*HAVE_QUERY_CACHE*/
 

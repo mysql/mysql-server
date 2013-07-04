@@ -181,14 +181,14 @@ show create table t1;
 Table	Create Table
 t1	CREATE TABLE `t1` (
   `a` int(1) NOT NULL DEFAULT '0'
-) ENGINE=MyISAM DEFAULT CHARSET=latin1
+) ENGINE=ENGINE DEFAULT CHARSET=latin1
 drop table t1;
 create table t1 select 9223372036854775809 as 'a';
 show create table t1;
 Table	Create Table
 t1	CREATE TABLE `t1` (
   `a` bigint(19) unsigned NOT NULL DEFAULT '0'
-) ENGINE=MyISAM DEFAULT CHARSET=latin1
+) ENGINE=ENGINE DEFAULT CHARSET=latin1
 select * from t1;
 a
 9223372036854775809

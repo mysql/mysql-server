@@ -1,4 +1,4 @@
-/* Copyright (c) 2002, 2012, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2002, 2013 Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -32,7 +32,7 @@
                         // date_time_format_make
 #include "derror.h"
 #include "tztime.h"     // my_tz_find, my_tz_SYSTEM, struct Time_zone
-#include "sql_acl.h"    // SUPER_ACL
+#include "auth_common.h"  // SUPER_ACL
 #include "sql_select.h" // free_underlaid_joins
 #include "sql_show.h"   // make_default_log_name, append_identifier
 #include "sql_view.h"   // updatable_views_with_limit_typelib
@@ -248,17 +248,14 @@ uchar *sys_var::value_ptr(THD *thd, enum_var_type type, LEX_STRING *base)
     return session_value_ptr(thd, base);
 }
 
-bool sys_var::set_default(THD *thd, enum_var_type type)
+bool sys_var::set_default(THD *thd, set_var* var)
 {
-  LEX_STRING empty={0,0};
-  set_var var(type, 0, &empty, 0);
-
-  if (type == OPT_GLOBAL || scope() == GLOBAL)
-    global_save_default(thd, &var);
+  if (var->type == OPT_GLOBAL || scope() == GLOBAL)
+    global_save_default(thd, var);
   else
-    session_save_default(thd, &var);
+    session_save_default(thd, var);
 
-  return check(thd, &var) || update(thd, &var);
+  return check(thd, var) || update(thd, var);
 }
 
 void sys_var::do_deprecated_warning(THD *thd)
@@ -577,7 +574,7 @@ int sql_set_variables(THD *thd, List<set_var_base> *var_list)
   }
 
 err:
-  free_underlaid_joins(thd, &thd->lex->select_lex);
+  free_underlaid_joins(thd, thd->lex->select_lex);
   DBUG_RETURN(error);
 }
 
@@ -670,7 +667,7 @@ int set_var::light_check(THD *thd)
 */
 int set_var::update(THD *thd)
 {
-  return value ? var->update(thd, this) : var->set_default(thd, type);
+  return value ? var->update(thd, this) : var->set_default(thd, this);
 }
 
 /**
@@ -754,24 +751,33 @@ void set_var_user::print(THD *thd, String *str)
   Functions to handle SET PASSWORD
 *****************************************************************************/
 
+/**
+  Check the validity of the SET PASSWORD request
+
+  User name and no host is used for SET PASSWORD =
+  No user name and no host used for SET PASSWORD for CURRENT_USER() =
+
+  @param  thd  The current thread
+  @return      status code
+  @retval 0    failure
+  @retval 1    success
+*/
 int set_var_password::check(THD *thd)
 {
 #ifndef NO_EMBEDDED_ACCESS_CHECKS
   if (!user->host.str)
   {
     DBUG_ASSERT(thd->security_ctx->priv_host);
-    if (*thd->security_ctx->priv_host != 0)
-    {
-      user->host.str= (char *) thd->security_ctx->priv_host;
-      user->host.length= strlen(thd->security_ctx->priv_host);
-    }
-    else
-    {
-      user->host.str= (char *)"%";
-      user->host.length= 1;
-    }
+    user->host.str= (char *) thd->security_ctx->priv_host;
+    user->host.length= strlen(thd->security_ctx->priv_host);
   }
-  if (user->user.length == 0)
+  /*
+    In case of anonymous user, user->user is set to empty string with length 0.
+    But there might be case when user->user.str could be NULL. For Ex:
+    "set password for current_user() = password('xyz');". In this case,
+    set user information as of the current user.
+  */
+  if (!user->user.str)
   {
     DBUG_ASSERT(thd->security_ctx->user);
     user->user.str= (char *) thd->security_ctx->user;

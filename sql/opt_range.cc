@@ -1,4 +1,4 @@
-/* Copyright (c) 2000, 2012, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2000, 2013, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -670,7 +670,7 @@ public:
       FALSE  Otherwise
   */
 
-  bool is_singlepoint()
+  bool is_singlepoint() const
   {
     /* 
       Check for NEAR_MIN ("strictly less") and NO_MIN_RANGE (-inf < field) 
@@ -838,6 +838,15 @@ public:
     statistics is used for these indexes.
   */
   bool use_index_statistics;
+
+  bool statement_should_be_aborted() const
+  {
+    return
+      thd->is_fatal_error ||
+      thd->is_error() ||
+      alloced_sel_args > SEL_ARG::MAX_SEL_ARGS;
+  }
+
 };
 
 class PARAM : public RANGE_OPT_PARAM
@@ -881,9 +890,10 @@ class TABLE_READ_PLAN;
 
 struct st_ror_scan_info;
 
-static SEL_TREE * get_mm_parts(RANGE_OPT_PARAM *param,Item *cond_func,Field *field,
-			       Item_func::Functype type,Item *value,
-			       Item_result cmp_type);
+static SEL_TREE * get_mm_parts(RANGE_OPT_PARAM *param,
+                               Item_func *cond_func,Field *field,
+                               Item_func::Functype type,Item *value,
+                               Item_result cmp_type);
 static SEL_ARG *get_mm_leaf(RANGE_OPT_PARAM *param,Item *cond_func,Field *field,
 			    KEY_PART *key_part,
 			    Item_func::Functype type,Item *value);
@@ -919,12 +929,11 @@ static void print_ror_scans_arr(TABLE *table, const char *msg,
 static void print_quick(QUICK_SELECT_I *quick, const key_map *needed_reg);
 #endif
 
-#ifdef OPTIMIZER_TRACE
-static void trace_range_all_keyparts(Opt_trace_array &trace_range,
-                                     const String *range_so_far,
-                                     SEL_ARG *keypart_root,
-                                     const KEY_PART_INFO *key_parts);
-#endif
+static void append_range_all_keyparts(Opt_trace_array *range_trace,
+                                      String *range_string,
+                                      String *range_so_far,
+                                      SEL_ARG *keypart_root,
+                                      const KEY_PART_INFO *key_parts);
 static inline void dbug_print_tree(const char *tree_name,
                                    SEL_TREE *tree, 
                                    const RANGE_OPT_PARAM *param);
@@ -1212,35 +1221,45 @@ int imerge_list_or_list(RANGE_OPT_PARAM *param,
   Perform OR operation on index_merge list and key tree.
 
   RETURN
-    0     OK, result is stored in *im1.
-    other Error
+    false     OK, result is stored in *im1.
+    true      Error
 */
 
-int imerge_list_or_tree(RANGE_OPT_PARAM *param,
-                        List<SEL_IMERGE> *im1,
-                        SEL_TREE *tree)
+static bool imerge_list_or_tree(RANGE_OPT_PARAM *param,
+                                List<SEL_IMERGE> *im1,
+                                SEL_TREE *tree)
 {
+  DBUG_ENTER("imerge_list_or_tree");
   SEL_IMERGE *imerge;
   List_iterator<SEL_IMERGE> it(*im1);
-  bool tree_used= FALSE;
+  
+  uint remaining_trees= im1->elements;
   while ((imerge= it++))
   {
     SEL_TREE *or_tree;
-    if (tree_used)
+    /*
+      Need to make a copy of 'tree' for all but the last OR operation
+      because or_sel_tree_with_checks() may change it.
+    */
+    if (--remaining_trees == 0)
+      or_tree= tree;
+    else
     {
       or_tree= new SEL_TREE (tree, param);
-      if (!or_tree ||
-          (or_tree->keys_map.is_clear_all() && or_tree->merges.is_empty()))
-        return FALSE;
+      if (!or_tree)
+        DBUG_RETURN(true);
+      if (or_tree->keys_map.is_clear_all() && or_tree->merges.is_empty())
+        DBUG_RETURN(false);
     }
-    else
-      or_tree= tree;
 
-    if (imerge->or_sel_tree_with_checks(param, or_tree))
+    int result_or= imerge->or_sel_tree_with_checks(param, or_tree);
+    if (result_or == 1)
       it.remove();
-    tree_used= TRUE;
+    else if (result_or == -1)
+      DBUG_RETURN(true);
   }
-  return im1->is_empty();
+  DBUG_ASSERT(remaining_trees == 0);
+  DBUG_RETURN(im1->is_empty());
 }
 
 
@@ -1336,7 +1355,6 @@ QUICK_RANGE_SELECT::QUICK_RANGE_SELECT(THD *thd, TABLE *table, uint key_nr,
   index= key_nr;
   head=  table;
   key_part_info= head->key_info[index].key_part;
-  my_init_dynamic_array(&ranges, sizeof(QUICK_RANGE*), 16, 16);
 
   /* 'thd' is not accessible in QUICK_RANGE_SELECT::reset(). */
   mrr_buf_size= thd->variables.read_rnd_buff_size;
@@ -1365,12 +1383,9 @@ QUICK_RANGE_SELECT::QUICK_RANGE_SELECT(THD *thd, TABLE *table, uint key_nr,
 }
 
 
-void QUICK_RANGE_SELECT::need_sorted_output(bool sort)
+void QUICK_RANGE_SELECT::need_sorted_output()
 {
-  if (sort)
-    mrr_flags |= HA_MRR_SORTED;
-  else
-    mrr_flags &= ~HA_MRR_SORTED;
+  mrr_flags |= HA_MRR_SORTED;
 }
 
 
@@ -1409,7 +1424,6 @@ QUICK_RANGE_SELECT::~QUICK_RANGE_SELECT()
         delete file;
       }
     }
-    delete_dynamic(&ranges); /* ranges are allocated in alloc */
     free_root(&alloc,MYF(0));
     my_free(column_bitmap.bitmap);
   }
@@ -2202,7 +2216,7 @@ void TRP_RANGE::trace_basic_info(const PARAM *param,
 
   String range_info;
   range_info.set_charset(system_charset_info);
-  trace_range_all_keyparts(trace_range, &range_info, key, key_part);
+  append_range_all_keyparts(&trace_range, NULL, &range_info, key, key_part);
 
 #endif
 }
@@ -2476,7 +2490,8 @@ void TRP_GROUP_MIN_MAX::trace_basic_info(const PARAM *param,
   {
     String range_info;
     range_info.set_charset(system_charset_info);
-    trace_range_all_keyparts(trace_range, &range_info, index_tree, key_part);
+    append_range_all_keyparts(&trace_range, NULL,
+                              &range_info, index_tree, key_part);
   }
 #endif
 }
@@ -2679,7 +2694,7 @@ int SQL_SELECT::test_quick_select(THD *thd, key_map keys_to_use,
 
     {
       Opt_trace_array trace_idx(trace,
-                                "potential_range_indices",
+                                "potential_range_indexes",
                                 Opt_trace_context::RANGE_OPTIMIZER);
       /*
         Make an array with description of all key parts of all table keys.
@@ -2903,9 +2918,11 @@ int SQL_SELECT::test_quick_select(THD *thd, key_map keys_to_use,
     /* If we got a read plan, create a quick select from it. */
     if (best_trp)
     {
+      mysql_mutex_lock(&thd->LOCK_query_plan);
       records= best_trp->records;
       if (!(quick= best_trp->make_quick(&param, TRUE)) || quick->init())
         set_quick(NULL);
+      mysql_mutex_unlock(&thd->LOCK_query_plan);
     }
 
 free_mem:
@@ -4326,7 +4343,7 @@ TABLE_READ_PLAN *get_best_disjunct_quick(PARAM *param, SEL_IMERGE *imerge,
                                              n_child_scans)))
     DBUG_RETURN(NULL);
   // Note: to_merge.end() is called to close this object after this for-loop.
-  Opt_trace_array to_merge(trace, "indices_to_merge");
+  Opt_trace_array to_merge(trace, "indexes_to_merge");
   /*
     Collect best 'range' scan for each of disjuncts, and, while doing so,
     analyze possibility of ROR scans. Also calculate some values needed by
@@ -4422,7 +4439,7 @@ TABLE_READ_PLAN *get_best_disjunct_quick(PARAM *param, SEL_IMERGE *imerge,
   /* Calculate cost(rowid_to_row_scan) */
   {
     Cost_estimate sweep_cost;
-    JOIN *join= param->thd->lex->select_lex.join;
+    JOIN *join= param->thd->lex->select_lex->join;
     const bool is_interrupted= join && join->tables != 1;
     get_sweep_read_cost(param->table, non_cpk_scan_records, is_interrupted,
                         &sweep_cost);
@@ -4568,7 +4585,7 @@ skip_to_ror_scan:
   double roru_total_cost;
   {
     Cost_estimate sweep_cost;
-    JOIN *join= param->thd->lex->select_lex.join;
+    JOIN *join= param->thd->lex->select_lex->join;
     const bool is_interrupted= join && join->tables != 1;
     get_sweep_read_cost(param->table, roru_total_records, is_interrupted,
                         &sweep_cost);
@@ -5160,8 +5177,9 @@ static bool ror_intersect_add(ROR_INTERSECT_INFO *info,
   if (!info->is_covering)
   {
     Cost_estimate sweep_cost;
-    JOIN *join= info->param->thd->lex->select_lex.join;
+    JOIN *join= info->param->thd->lex->select_lex->join;
     const bool is_interrupted= join && join->tables == 1;
+
     get_sweep_read_cost(info->param->table, double2rows(info->out_rows),
                         is_interrupted, &sweep_cost);
     info->total_cost += sweep_cost.total_cost();
@@ -5335,7 +5353,7 @@ TRP_ROR_INTERSECT *get_best_ror_intersect(const PARAM *param, SEL_TREE *tree,
     Note: trace_isect_idx.end() is called to close this object after
     this while-loop.
   */
-  Opt_trace_array trace_isect_idx(trace, "intersecting_indices");
+  Opt_trace_array trace_isect_idx(trace, "intersecting_indexes");
   while (cur_ror_scan != tree->ror_scans_end && !intersect->is_covering)
   {
     Opt_trace_object trace_idx(trace);
@@ -5547,7 +5565,8 @@ static TRP_RANGE *get_key_scans_params(PARAM *param, SEL_TREE *tree,
 
         String range_info;
         range_info.set_charset(system_charset_info);
-        trace_range_all_keyparts(trace_range, &range_info, *key, key_part);
+        append_range_all_keyparts(&trace_range, NULL,
+                                  &range_info, *key, key_part);
         trace_range.end(); // NOTE: ends the tracing scope
 
         trace_idx.add("index_dives_for_eq_ranges", !param->use_index_statistics).
@@ -5803,6 +5822,10 @@ static SEL_TREE *get_func_mm_tree(RANGE_OPT_PARAM *param, Item_func *cond_func,
 
   switch (cond_func->functype()) {
 
+  case Item_func::XOR_FUNC:
+    DBUG_RETURN(NULL); // Always true (don't use range access on XOR).
+    break;             // See WL#5800
+
   case Item_func::NE_FUNC:
     tree= get_ne_mm_tree(param, cond_func, field, value, value, cmp_type);
     break;
@@ -5942,6 +5965,34 @@ static SEL_TREE *get_func_mm_tree(RANGE_OPT_PARAM *param, Item_func *cond_func,
               {
                 new_interval->min_value= last_val->max_value;
                 new_interval->min_flag= NEAR_MIN;
+
+                /*
+                  If the interval is over a partial keypart, the
+                  interval must be "c_{i-1} <= X < c_i" instead of
+                  "c_{i-1} < X < c_i". Reason:
+
+                  Consider a table with a column "my_col VARCHAR(3)",
+                  and an index with definition
+                  "INDEX my_idx my_col(1)". If the table contains rows
+                  with my_col values "f" and "foo", the index will not
+                  distinguish the two rows.
+
+                  Note that tree_or() below will effectively merge
+                  this range with the range created for c_{i-1} and
+                  we'll eventually end up with only one range:
+                  "NULL < X".
+
+                  Partitioning indexes are never partial.
+                */
+                if (param->using_real_indexes)
+                {
+                  const KEY key=
+                    param->table->key_info[param->real_keynr[idx]];
+                  const KEY_PART_INFO *kpi= key.key_part + new_interval->part;
+
+                  if (kpi->key_part_flag & HA_PART_KEY_SEG)
+                    new_interval->min_flag= 0;
+                }
               }
             }
             /* 
@@ -6002,7 +6053,7 @@ static SEL_TREE *get_func_mm_tree(RANGE_OPT_PARAM *param, Item_func *cond_func,
   {
     /* 
        Here the function for the following predicates are processed:
-       <, <=, =, >=, >, LIKE, IS NULL, IS NOT NULL.
+       <, <=, =, >=, >, LIKE, IS NULL, IS NOT NULL and GIS functions.
        If the predicate is of the form (value op field) it is handled
        as the equivalent predicate (field rev_op value), e.g.
        2 <= a is handled as a >= 2.
@@ -6179,36 +6230,37 @@ static SEL_TREE *get_mm_tree(RANGE_OPT_PARAM *param,Item *cond)
 
     if (((Item_cond*) cond)->functype() == Item_func::COND_AND_FUNC)
     {
-      tree=0;
+      tree= NULL;
       Item *item;
       while ((item=li++))
       {
-	SEL_TREE *new_tree=get_mm_tree(param,item);
-	if (param->thd->is_fatal_error || 
-            param->alloced_sel_args > SEL_ARG::MAX_SEL_ARGS)
-	  DBUG_RETURN(0);	// out of memory
-	tree=tree_and(param,tree,new_tree);
+        SEL_TREE *new_tree= get_mm_tree(param,item);
+        if (param->statement_should_be_aborted())
+          DBUG_RETURN(NULL);
+        tree= tree_and(param,tree,new_tree);
         dbug_print_tree("after_and", tree, param);
-	if (tree && tree->type == SEL_TREE::IMPOSSIBLE)
-	  break;
+        if (tree && tree->type == SEL_TREE::IMPOSSIBLE)
+          break;
       }
     }
     else
-    {						// Item OR
-      tree=get_mm_tree(param,li++);
+    {                                           // Item OR
+      tree= get_mm_tree(param,li++);
+      if (param->statement_should_be_aborted())
+        DBUG_RETURN(NULL);
       if (tree)
       {
-	Item *item;
-	while ((item=li++))
-	{
-	  SEL_TREE *new_tree=get_mm_tree(param,item);
-	  if (!new_tree)
-	    DBUG_RETURN(0);	// out of memory
-	  tree=tree_or(param,tree,new_tree);
+        Item *item;
+        while ((item=li++))
+        {
+          SEL_TREE *new_tree=get_mm_tree(param,item);
+          if (new_tree == NULL || param->statement_should_be_aborted())
+            DBUG_RETURN(NULL);
+          tree= tree_or(param,tree,new_tree);
           dbug_print_tree("after_or", tree, param);
-	  if (!tree || tree->type == SEL_TREE::ALWAYS)
-	    break;
-	}
+          if (tree == NULL || tree->type == SEL_TREE::ALWAYS)
+            break;
+        }
       }
     }
     dbug_print_tree("tree_returned", tree, param);
@@ -6218,7 +6270,10 @@ static SEL_TREE *get_mm_tree(RANGE_OPT_PARAM *param,Item *cond)
     Here when simple cond 
     There are limits on what kinds of const items we can evaluate.
     At this stage a subquery in 'cond' might not be fully transformed yet
-    (example: semijoin) thus cannot be evaluated.
+    (example: semijoin) thus cannot be evaluated. Another reason is that we
+    may be called by test_if_quick_select (), which holds LOCK_query_plan,
+    thus we must not acquire this Mutex here, thus we can neither prepare nor
+    optimize any subquery here.
   */
   if (cond->const_item() && !cond->is_expensive() && !cond->has_subquery())
   {
@@ -6330,7 +6385,7 @@ static SEL_TREE *get_mm_tree(RANGE_OPT_PARAM *param,Item *cond)
       Item_result cmp_type= field->cmp_type();
       if (!((ref_tables | field->table->map) & param_comp))
       {
-        tree= get_mm_parts(param, cond, field, Item_func::EQ_FUNC,
+        tree= get_mm_parts(param, item_equal, field, Item_func::EQ_FUNC,
 		           value,cmp_type);
         ftree= !ftree ? tree : tree_and(param, ftree, tree);
       }
@@ -6377,9 +6432,43 @@ static SEL_TREE *get_mm_tree(RANGE_OPT_PARAM *param,Item *cond)
   DBUG_RETURN(ftree);
 }
 
+/**
+  Test whether a comparison operator is a spatial comparison
+  operator, i.e. Item_func::SP_*.
+
+  Used to check if range access using operator 'op_type' is applicable
+  for a non-spatial index.
+
+  @param   op_type  The comparison operator.
+  @return  true if 'op_type' is a spatial comparison operator, false otherwise.
+
+*/
+bool is_spatial_operator(Item_func::Functype op_type)
+{
+  switch (op_type)
+  {
+  case Item_func::SP_EQUALS_FUNC:
+  case Item_func::SP_DISJOINT_FUNC:
+  case Item_func::SP_INTERSECTS_FUNC:
+  case Item_func::SP_TOUCHES_FUNC:
+  case Item_func::SP_CROSSES_FUNC:
+  case Item_func::SP_WITHIN_FUNC:
+  case Item_func::SP_CONTAINS_FUNC:
+  case Item_func::SP_OVERLAPS_FUNC:
+  case Item_func::SP_STARTPOINT:
+  case Item_func::SP_ENDPOINT:
+  case Item_func::SP_EXTERIORRING:
+  case Item_func::SP_POINTN:
+  case Item_func::SP_GEOMETRYN:
+  case Item_func::SP_INTERIORRINGN:
+    return true;
+  default:
+    return false;
+  }
+}
 
 static SEL_TREE *
-get_mm_parts(RANGE_OPT_PARAM *param, Item *cond_func, Field *field,
+get_mm_parts(RANGE_OPT_PARAM *param, Item_func *cond_func, Field *field,
 	     Item_func::Functype type,
 	     Item *value, Item_result cmp_type)
 {
@@ -6397,6 +6486,14 @@ get_mm_parts(RANGE_OPT_PARAM *param, Item *cond_func, Field *field,
   {
     if (field->eq(key_part->field))
     {
+      /*
+        Cannot do range access for spatial operators when a
+        non-spatial index is used.
+      */
+      if (key_part->image_type != Field::itMBR &&
+          is_spatial_operator(cond_func->functype()))
+        continue;
+
       SEL_ARG *sel_arg=0;
       if (!tree && !(tree=new SEL_TREE()))
 	DBUG_RETURN(0);				// OOM
@@ -6497,6 +6594,7 @@ static bool save_value_and_handle_conversion(SEL_ARG **tree,
   switch (err) {
   case TYPE_OK:
   case TYPE_NOTE_TRUNCATED:
+  case TYPE_WARN_TRUNCATED:
     return false;
   case TYPE_ERR_BAD_VALUE:
     /*
@@ -6531,9 +6629,10 @@ static bool save_value_and_handle_conversion(SEL_ARG **tree,
     }
 
     // If the field is numeric, we can interpret the out of range value.
-    if (field->result_type() == REAL_RESULT ||
-        field->result_type() == INT_RESULT ||
-        field->result_type() == DECIMAL_RESULT)
+    if ((field->type() != FIELD_TYPE_BIT) &&
+        (field->result_type() == REAL_RESULT ||
+         field->result_type() == INT_RESULT ||
+         field->result_type() == DECIMAL_RESULT))
     {
       /*
         value to store was higher than field::max_value if
@@ -6621,9 +6720,13 @@ static bool save_value_and_handle_conversion(SEL_ARG **tree,
       // Equality comparison is always false when time info has been truncated.
       goto impossible_cond;
     }
-    // Fall through
-  default:
     return true;
+  case TYPE_ERR_OOM:
+    return true;
+    /*
+      No default here to avoid adding new conversion status codes that are
+      unhandled in this function.
+    */
   }
 
   DBUG_ASSERT(FALSE); // Should never get here.
@@ -6738,6 +6841,7 @@ get_mm_leaf(RANGE_OPT_PARAM *param, Item *conf_func, Field *field,
 
   if (key_part->image_type == Field::itMBR)
   {
+    // @todo: use is_spatial_operator() instead?
     switch (type) {
     case Item_func::SP_EQUALS_FUNC:
     case Item_func::SP_DISJOINT_FUNC:
@@ -7681,7 +7785,7 @@ key_or(RANGE_OPT_PARAM *param, SEL_ARG *key1, SEL_ARG *key2)
 
       Ambiguity: *** 
         The range starts or stops somewhere in the "***" range.
-        Example: a starts before b and may end before/the same plase/after b
+        Example: a starts before b and may end before/the same place/after b
         a: [----***]
         b:   [---]
 
@@ -7716,7 +7820,7 @@ key_or(RANGE_OPT_PARAM *param, SEL_ARG *key1, SEL_ARG *key2)
         -1: key_value_a is smaller than key_value_b (not adjacent)
          0: the key values are equal
          1: key_value_a is bigger than key_value_b (not adjacent)
-        -2: key_value_a is bigger than key_value_b, and they are adjacent
+         2: key_value_a is bigger than key_value_b, and they are adjacent
 
       Example: "cmp= cur_key1->cmp_max_to_min(cur_key2)"
 
@@ -8980,6 +9084,10 @@ void Sel_arg_range_sequence::stack_push_range(SEL_ARG *key_tree)
   RETURN
     0  Ok
     1  No more ranges in the sequence
+
+  NOTE: append_range_all_keyparts(), which is used to e.g. print
+  ranges to Optimizer Trace in a human readable format, mimics the
+  behavior of this function.
 */
 
 //psergey-merge-todo: support check_quick_keys:max_keypart
@@ -9178,6 +9286,11 @@ uint sel_arg_range_seq_next(range_seq_t rseq, KEY_MULTI_RANGE *range)
     range->start_key.length= min_key_length;
     range->start_key.keypart_map= make_prev_keypart_map(cur->min_key_parts);
     range->start_key.flag=  (ha_rkey_function) (cur->min_key_flag ^ GEOM_FLAG);
+    /*
+      Spatial operators are only allowed on spatial indexes, and no
+      spatial index can at the moment return rows in ROWID order
+    */
+    DBUG_ASSERT(!param->is_ror_scan);
   }
   else
   {
@@ -9363,6 +9476,7 @@ ha_rows check_quick_select(PARAM *param, uint idx, bool index_only,
       param->table->quick_condition_rows=
         min(param->table->quick_condition_rows, rows);
     }
+    param->table->possible_quick_keys.set_bit(keynr);
   }
   /* Figure out if the key scan is ROR (returns rows in ROWID order) or not */
   enum ha_key_alg key_alg= param->table->key_info[seq.real_keyno].algorithm;
@@ -9653,7 +9767,7 @@ get_quick_keys(PARAM *param,QUICK_RANGE_SELECT *quick,KEY_PART *key,
   set_if_bigger(quick->max_used_key_length, range->min_length);
   set_if_bigger(quick->max_used_key_length, range->max_length);
   set_if_bigger(quick->used_key_parts, (uint) key_tree->part+1);
-  if (insert_dynamic(&quick->ranges, &range))
+  if (quick->ranges.push_back(range))
     return 1;
 
  end:
@@ -9670,9 +9784,9 @@ get_quick_keys(PARAM *param,QUICK_RANGE_SELECT *quick,KEY_PART *key,
 
 bool QUICK_RANGE_SELECT::unique_key_range()
 {
-  if (ranges.elements == 1)
+  if (ranges.size() == 1)
   {
-    QUICK_RANGE *tmp= *((QUICK_RANGE**)ranges.buffer);
+    QUICK_RANGE *tmp= ranges[0];
     if ((tmp->flag & (EQ_RANGE | NULL_RANGE)) == EQ_RANGE)
     {
       KEY *key=head->key_info+index;
@@ -9766,7 +9880,12 @@ FT_SELECT *get_ft_select(THD *thd, TABLE *table, uint key)
     return fts;
 }
 
-#ifdef WITH_NDBCLUSTER_STORAGE_ENGINE
+
+/*
+  Check if any columns in the key value specified
+  by 'key_info' has a NULL-value.
+*/
+
 static bool
 key_has_nulls(const KEY* key_info, const uchar *key, uint key_len)
 {
@@ -9784,7 +9903,6 @@ key_has_nulls(const KEY* key_info, const uchar *key, uint key_len)
   }
   return FALSE;
 }
-#endif
 
 /*
   Create quick select from ref/ref_or_null scan.
@@ -9857,7 +9975,7 @@ QUICK_RANGE_SELECT *get_quick_select_for_ref(THD *thd, TABLE *table,
     key_part->null_bit=     key_info->key_part[part].null_bit;
     key_part->flag=         (uint8) key_info->key_part[part].key_part_flag;
   }
-  if (insert_dynamic(&quick->ranges, &range))
+  if (quick->ranges.push_back(range))
     goto err;
 
   /*
@@ -9878,7 +9996,7 @@ QUICK_RANGE_SELECT *get_quick_select_for_ref(THD *thd, TABLE *table,
                       make_prev_keypart_map(ref->key_parts), EQ_RANGE)))
       goto err;
     *ref->null_ref_key= 0;		// Clear null byte
-    if (insert_dynamic(&quick->ranges, &null_range))
+    if (quick->ranges.push_back(null_range))
       goto err;
   }
 
@@ -9887,11 +10005,9 @@ QUICK_RANGE_SELECT *get_quick_select_for_ref(THD *thd, TABLE *table,
                     (table->key_read ? HA_MRR_INDEX_ONLY : 0);
   if (thd->lex->sql_command != SQLCOM_SELECT)
     quick->mrr_flags|= HA_MRR_SORTED; // Assumed to give faster ins/upd/del
-#ifdef WITH_NDBCLUSTER_STORAGE_ENGINE
   if (!ref->null_ref_key && !key_has_nulls(key_info, range->min_key,
                                            ref->key_length))
     quick->mrr_flags |= HA_MRR_NO_NULL_ENDPOINTS;
-#endif
 
   quick->mrr_buf_size= thd->variables.read_rnd_buff_size;
   if (table->file->multi_range_read_info(quick->index, 1, records,
@@ -10265,7 +10381,7 @@ int QUICK_RANGE_SELECT::reset()
   HANDLER_BUFFER empty_buf;
   DBUG_ENTER("QUICK_RANGE_SELECT::reset");
   last_range= NULL;
-  cur_range= (QUICK_RANGE**) ranges.buffer;
+  cur_range= ranges.begin();
 
   /* set keyread to TRUE if index is covering */
   if(!head->no_keyread && head->covering_keys.is_set(index))
@@ -10320,8 +10436,8 @@ int QUICK_RANGE_SELECT::reset()
     empty_buf.buffer= empty_buf.buffer_end= empty_buf.end_of_used_area= NULL;
  
   RANGE_SEQ_IF seq_funcs= {quick_range_seq_init, quick_range_seq_next, 0, 0};
-  error= file->multi_range_read_init(&seq_funcs, (void*)this, ranges.elements,
-                                     mrr_flags, mrr_buf_desc? mrr_buf_desc: 
+  error= file->multi_range_read_init(&seq_funcs, this, ranges.size(),
+                                     mrr_flags, mrr_buf_desc? mrr_buf_desc:
                                                               &empty_buf);
   DBUG_RETURN(error);
 }
@@ -10342,11 +10458,10 @@ int QUICK_RANGE_SELECT::reset()
 
 range_seq_t quick_range_seq_init(void *init_param, uint n_ranges, uint flags)
 {
-  QUICK_RANGE_SELECT *quick= (QUICK_RANGE_SELECT*)init_param;
-  quick->qr_traversal_ctx.first=  (QUICK_RANGE**)quick->ranges.buffer;
-  quick->qr_traversal_ctx.cur=    (QUICK_RANGE**)quick->ranges.buffer;
-  quick->qr_traversal_ctx.last=   quick->qr_traversal_ctx.cur + 
-                                  quick->ranges.elements;
+  QUICK_RANGE_SELECT *quick= static_cast<QUICK_RANGE_SELECT*>(init_param);
+  quick->qr_traversal_ctx.first= quick->ranges.begin();
+  quick->qr_traversal_ctx.cur= quick->ranges.begin();
+  quick->qr_traversal_ctx.last= quick->ranges.end();
   return &quick->qr_traversal_ctx;
 }
 
@@ -10548,7 +10663,7 @@ int QUICK_RANGE_SELECT::get_next_prefix(uint prefix_length,
         DBUG_RETURN(0);
     }
 
-    uint count= ranges.elements - (cur_range - (QUICK_RANGE**) ranges.buffer);
+    const uint count= ranges.size() - (cur_range - ranges.begin());
     if (count == 0)
     {
       /* Ranges have already been used up before. None is left for read. */
@@ -10594,7 +10709,7 @@ int QUICK_RANGE_SELECT_GEOM::get_next()
 	DBUG_RETURN(result);
     }
 
-    uint count= ranges.elements - (cur_range - (QUICK_RANGE**) ranges.buffer);
+    const uint count= ranges.size() - (cur_range-ranges.begin());
     if (count == 0)
     {
       /* Ranges have already been used up before. None is left for read. */
@@ -10636,12 +10751,12 @@ bool QUICK_RANGE_SELECT::row_in_ranges()
 {
   QUICK_RANGE *res;
   uint min= 0;
-  uint max= ranges.elements - 1;
+  uint max= ranges.size() - 1;
   uint mid= (max + min)/2;
 
   while (min != max)
   {
-    if (cmp_next(*(QUICK_RANGE**)dynamic_array_ptr(&ranges, mid)))
+    if (cmp_next(ranges[mid]))
     {
       /* current row value > mid->max */
       min= mid + 1;
@@ -10650,7 +10765,7 @@ bool QUICK_RANGE_SELECT::row_in_ranges()
       max= mid;
     mid= (min + max) / 2;
   }
-  res= *(QUICK_RANGE**)dynamic_array_ptr(&ranges, mid);
+  res= ranges[mid];
   return (!cmp_next(res) && !cmp_prev(res));
 }
 
@@ -10681,9 +10796,9 @@ QUICK_SELECT_DESC::QUICK_SELECT_DESC(QUICK_RANGE_SELECT *q,
   mrr_buf_size= 0;
 
 
-  QUICK_RANGE **pr= (QUICK_RANGE**)ranges.buffer;
-  QUICK_RANGE **end_range= pr + ranges.elements;
-  for (; pr!=end_range; pr++)
+  Quick_ranges::const_iterator pr= ranges.begin();
+  Quick_ranges::const_iterator end_range= ranges.end();
+  for (; pr != end_range; pr++)
     rev_ranges.push_front(*pr);
 
   /* Remove EQ_RANGE flag for keys that are not using the full key */
@@ -10773,7 +10888,20 @@ int QUICK_SELECT_DESC::get_next()
     {
       int local_error;
       if ((local_error= file->ha_index_last(record)))
-	DBUG_RETURN(local_error);		// Empty table
+      {
+        /*
+          HA_ERR_END_OF_FILE is returned both when the table is empty and when
+          there are no qualifying records in the range (when using ICP).
+          Interpret this return value as "no qualifying rows in the range" to
+          avoid loss of records. If the error code truly meant "empty table"
+          the next iteration of the loop will exit.
+        */
+        if (local_error != HA_ERR_END_OF_FILE)
+          DBUG_RETURN(local_error);
+        last_range= NULL;                       // Go to next range
+        continue;
+      }
+
       if (cmp_prev(last_range) == 0)
 	DBUG_RETURN(0);
       last_range= 0;                            // No match; go to next range
@@ -11242,7 +11370,7 @@ static TRP_GROUP_MIN_MAX *
 get_best_group_min_max(PARAM *param, SEL_TREE *tree, double read_time)
 {
   THD *thd= param->thd;
-  JOIN *join= thd->lex->current_select->join;
+  JOIN *join= thd->lex->current_select()->join;
   TABLE *table= param->table;
   bool have_min= FALSE;              /* TRUE if there is a MIN function. */
   bool have_max= FALSE;              /* TRUE if there is a MAX function. */
@@ -11378,7 +11506,7 @@ get_best_group_min_max(PARAM *param, SEL_TREE *tree, double read_time)
   SEL_ARG *cur_index_tree= NULL;
   ha_rows cur_quick_prefix_records= 0;
   uint cur_param_idx= MAX_KEY;
-  Opt_trace_array trace_indices(trace, "potential_group_range_indices");
+  Opt_trace_array trace_indexes(trace, "potential_group_range_indexes");
   for (uint cur_index= 0 ; cur_index_info != cur_index_info_end ;
        cur_index_info++, cur_index++)
   {
@@ -11686,8 +11814,8 @@ get_best_group_min_max(PARAM *param, SEL_TREE *tree, double read_time)
 
         String range_info;
         range_info.set_charset(system_charset_info);
-        trace_range_all_keyparts(trace_range, &range_info,
-                                 cur_index_tree, key_part);
+        append_range_all_keyparts(&trace_range, NULL, &range_info,
+                                  cur_index_tree, key_part);
       }
 #endif
     }
@@ -11725,7 +11853,7 @@ get_best_group_min_max(PARAM *param, SEL_TREE *tree, double read_time)
       cause= NULL;
     }
   }
-  trace_indices.end();
+  trace_indexes.end();
 
   if (!index_info) /* No usable index found. */
     DBUG_RETURN(NULL);
@@ -12355,7 +12483,7 @@ TRP_GROUP_MIN_MAX::make_quick(PARAM *param, bool retrieve_full_rows,
   DBUG_ENTER("TRP_GROUP_MIN_MAX::make_quick");
 
   quick= new QUICK_GROUP_MIN_MAX_SELECT(param->table,
-                                        param->thd->lex->current_select->join,
+                                        param->thd->lex->current_select()->join,
                                         have_min, have_max, 
                                         have_agg_distinct, min_max_arg_part,
                                         group_prefix_len, group_key_parts,
@@ -12550,9 +12678,6 @@ int QUICK_GROUP_MIN_MAX_SELECT::init()
 
   if (min_max_arg_part)
   {
-    if (my_init_dynamic_array(&min_max_ranges, sizeof(QUICK_RANGE*), 16, 16))
-      return 1;
-
     if (have_min)
     {
       if (!(min_functions= new List<Item_sum>))
@@ -12590,8 +12715,6 @@ int QUICK_GROUP_MIN_MAX_SELECT::init()
         return 1;
     }
   }
-  else
-    min_max_ranges.elements= 0;
 
   return 0;
 }
@@ -12608,8 +12731,7 @@ QUICK_GROUP_MIN_MAX_SELECT::~QUICK_GROUP_MIN_MAX_SELECT()
       ha_*_end() for whatever is the current access method.
     */
     head->file->ha_index_or_rnd_end();
-  if (min_max_arg_part)
-    delete_dynamic(&min_max_ranges);
+
   free_root(&alloc,MYF(0));
   delete min_functions_it;
   delete max_functions_it;
@@ -12662,7 +12784,7 @@ bool QUICK_GROUP_MIN_MAX_SELECT::add_range(SEL_ARG *sel_range)
                          range_flag);
   if (!range)
     return TRUE;
-  if (insert_dynamic(&min_max_ranges, &range))
+  if (min_max_ranges.push_back(range))
     return TRUE;
   return FALSE;
 }
@@ -12690,15 +12812,10 @@ void QUICK_GROUP_MIN_MAX_SELECT::adjust_prefix_ranges ()
   if (quick_prefix_select &&
       group_prefix_len < quick_prefix_select->max_used_key_length)
   {
-    DYNAMIC_ARRAY *arr;
-    uint inx;
-
-    for (inx= 0, arr= &quick_prefix_select->ranges; inx < arr->elements; inx++)
+    for (size_t ix= 0; ix < quick_prefix_select->ranges.size(); ++ix)
     {
-      QUICK_RANGE *range;
-
-      get_dynamic(arr, (uchar*)&range, inx);
-      range->flag &= ~(NEAR_MIN | NEAR_MAX);
+      QUICK_RANGE *range= quick_prefix_select->ranges[ix];
+      range->flag&= ~(NEAR_MIN | NEAR_MAX);
     }
   }
 }
@@ -12728,14 +12845,12 @@ void QUICK_GROUP_MIN_MAX_SELECT::adjust_prefix_ranges ()
 void QUICK_GROUP_MIN_MAX_SELECT::update_key_stat()
 {
   max_used_key_length= real_prefix_len;
-  if (min_max_ranges.elements > 0)
+  if (min_max_ranges.size() > 0)
   {
-    QUICK_RANGE *cur_range;
     if (have_min)
     { /* Check if the right-most range has a lower boundary. */
-      get_dynamic(&min_max_ranges, (uchar*)&cur_range,
-                  min_max_ranges.elements - 1);
-      if (!(cur_range->flag & NO_MIN_RANGE))
+      QUICK_RANGE *rightmost_range= min_max_ranges[min_max_ranges.size() - 1];
+      if (!(rightmost_range->flag & NO_MIN_RANGE))
       {
         max_used_key_length+= min_max_arg_len;
         used_key_parts++;
@@ -12744,8 +12859,8 @@ void QUICK_GROUP_MIN_MAX_SELECT::update_key_stat()
     }
     if (have_max)
     { /* Check if the left-most range has an upper boundary. */
-      get_dynamic(&min_max_ranges, (uchar*)&cur_range, 0);
-      if (!(cur_range->flag & NO_MAX_RANGE))
+      QUICK_RANGE *leftmost_range= min_max_ranges[0];
+      if (!(leftmost_range->flag & NO_MAX_RANGE))
       {
         max_used_key_length+= min_max_arg_len;
         used_key_parts++;
@@ -12845,15 +12960,7 @@ int QUICK_GROUP_MIN_MAX_SELECT::get_next()
 {
   int min_res= 0;
   int max_res= 0;
-#ifdef HPUX11
-  /*
-    volatile is required by a bug in the HP compiler due to which the
-    last test of result fails.
-  */
-  volatile int result;
-#else
   int result;
-#endif
   int is_last_prefix= 0;
 
   DBUG_ENTER("QUICK_GROUP_MIN_MAX_SELECT::get_next");
@@ -12949,7 +13056,7 @@ int QUICK_GROUP_MIN_MAX_SELECT::next_min()
   DBUG_ENTER("QUICK_GROUP_MIN_MAX_SELECT::next_min");
 
   /* Find the MIN key using the eventually extended group prefix. */
-  if (min_max_ranges.elements > 0)
+  if (min_max_ranges.size() > 0)
   {
     if ((result= next_min_in_range()))
       DBUG_RETURN(result);
@@ -12974,9 +13081,11 @@ int QUICK_GROUP_MIN_MAX_SELECT::next_min()
     */
     if (min_max_arg_part && min_max_arg_part->field->is_null())
     {
+      uchar key_buf[MAX_KEY_LENGTH];
+
       /* Find the first subsequent record without NULL in the MIN/MAX field. */
-      key_copy(tmp_record, record, index_info, max_used_key_length);
-      result= head->file->ha_index_read_map(record, tmp_record,
+      key_copy(key_buf, record, index_info, max_used_key_length);
+      result= head->file->ha_index_read_map(record, key_buf,
                                             make_keypart_map(real_key_parts),
                                             HA_READ_AFTER_KEY);
       /*
@@ -12992,7 +13101,7 @@ int QUICK_GROUP_MIN_MAX_SELECT::next_min()
       if (!result)
       {
         if (key_cmp(index_info->key_part, group_prefix, real_prefix_len))
-          key_restore(record, tmp_record, index_info, 0);
+          key_restore(record, key_buf, index_info, 0);
       }
       else if (result == HA_ERR_KEY_NOT_FOUND || result == HA_ERR_END_OF_FILE)
         result= 0; /* There is a result in any case. */
@@ -13030,7 +13139,7 @@ int QUICK_GROUP_MIN_MAX_SELECT::next_max()
   DBUG_ENTER("QUICK_GROUP_MIN_MAX_SELECT::next_max");
 
   /* Get the last key in the (possibly extended) group. */
-  if (min_max_ranges.elements > 0)
+  if (min_max_ranges.size() > 0)
     result= next_max_in_range();
   else
     result= head->file->ha_index_read_map(record, group_prefix,
@@ -13182,21 +13291,21 @@ int QUICK_GROUP_MIN_MAX_SELECT::next_min_in_range()
 {
   ha_rkey_function find_flag;
   key_part_map keypart_map;
-  QUICK_RANGE *cur_range;
   bool found_null= FALSE;
   int result= HA_ERR_KEY_NOT_FOUND;
 
-  DBUG_ASSERT(min_max_ranges.elements > 0);
+  DBUG_ASSERT(min_max_ranges.size() > 0);
 
-  for (uint range_idx= 0; range_idx < min_max_ranges.elements; range_idx++)
-  { /* Search from the left-most range to the right. */
-    get_dynamic(&min_max_ranges, (uchar*)&cur_range, range_idx);
-
+  /* Search from the left-most range to the right. */
+  for (Quick_ranges::const_iterator it= min_max_ranges.begin();
+       it != min_max_ranges.end(); ++it)
+  {
+    QUICK_RANGE *cur_range= *it;
     /*
       If the current value for the min/max argument is bigger than the right
       boundary of cur_range, there is no need to check this range.
     */
-    if (range_idx != 0 && !(cur_range->flag & NO_MAX_RANGE) &&
+    if (it != min_max_ranges.begin() && !(cur_range->flag & NO_MAX_RANGE) &&
         (key_cmp(min_max_arg_part, (const uchar*) cur_range->max_key,
                  min_max_arg_len) == 1))
       continue;
@@ -13322,20 +13431,20 @@ int QUICK_GROUP_MIN_MAX_SELECT::next_max_in_range()
 {
   ha_rkey_function find_flag;
   key_part_map keypart_map;
-  QUICK_RANGE *cur_range;
   int result;
 
-  DBUG_ASSERT(min_max_ranges.elements > 0);
+  DBUG_ASSERT(min_max_ranges.size() > 0);
 
-  for (uint range_idx= min_max_ranges.elements; range_idx > 0; range_idx--)
-  { /* Search from the right-most range to the left. */
-    get_dynamic(&min_max_ranges, (uchar*)&cur_range, range_idx - 1);
-
+  /* Search from the right-most range to the left. */
+  for (Quick_ranges::const_iterator it= min_max_ranges.end();
+       it != min_max_ranges.begin(); --it)
+  {
+    QUICK_RANGE *cur_range = *(it - 1);
     /*
       If the current value for the min/max argument is smaller than the left
       boundary of cur_range, there is no need to check this range.
     */
-    if (range_idx != min_max_ranges.elements &&
+    if (it != min_max_ranges.end() &&
         !(cur_range->flag & NO_MIN_RANGE) &&
         (key_cmp(min_max_arg_part, (const uchar*) cur_range->min_key,
                  min_max_arg_len) == -1))
@@ -13718,72 +13827,14 @@ void append_range(String *out,
   }
 }
 
-
-#ifdef OPTIMIZER_TRACE
-
-/**
-  Traverse an R-B tree of range conditions and append all ranges for this
-  keypart and consecutive keyparts to the optimizer trace. See
-  description of R-B trees/SEL_ARG for details on how ranges are
-  linked.
-
-  @param[in,out] trace_range   Optimizer trace array ranges are appended to
-  @param[in]     range_so_far  String containing ranges for keyparts prior
-                               to this keypart.
-  @param[in]     keypart_root  The root of the R-B tree containing intervals
-                               for this keypart.
-  @param[in]     key_parts     Index components description, used when adding
-                               information to the optimizer trace
-*/
-static void trace_range_all_keyparts(Opt_trace_array &trace_range,
-                                     const String *range_so_far,
-                                     SEL_ARG *keypart_root,
-                                     const KEY_PART_INFO *key_parts)
-{
-  DBUG_ASSERT(keypart_root && keypart_root != &null_element);
-
-  // Navigate to first interval in red-black tree
-  const KEY_PART_INFO *cur_key_part= key_parts + keypart_root->part;
-  const SEL_ARG *keypart_range= keypart_root->first();
-
-  while (keypart_range)
-  {
-    String range_cur_keypart= String(*range_so_far);
-
-    // Append the current range to the range String
-    append_range(&range_cur_keypart, cur_key_part,
-                 keypart_range->min_value, keypart_range->max_value,
-                 keypart_range->min_flag | keypart_range->max_flag);
-
-    if (keypart_range->next_key_part)
-    {
-      // Not done - there are ranges in consecutive keyparts as well
-      trace_range_all_keyparts(trace_range, &range_cur_keypart,
-                               keypart_range->next_key_part, key_parts);
-    }
-    else
-    {
-      /*
-        This is the last keypart with a range. Print full range
-        info to the optimizer trace
-      */
-      trace_range.add_utf8(range_cur_keypart.ptr(),
-                           range_cur_keypart.length());
-    }
-    keypart_range= keypart_range->next;
-  }
-}
-
-#endif //OPTIMIZER_TRACE
-
 /**
   Traverse an R-B tree of range conditions and append all ranges for
-  this keypart and consecutive keyparts to a String. See description
-  of R-B trees/SEL_ARG for details on how ranges are linked.
+  this keypart and consecutive keyparts to range_trace (if non-NULL)
+  or to range_string (if range_trace is NULL). See description of R-B
+  trees/SEL_ARG for details on how ranges are linked.
 
-  @see trace_range_all_keyparts
-
-  @param[in,out] range_result  The string where range predicates are
+  @param[in,out] range_trace   Optimizer trace array ranges are appended to
+  @param[in,out] range_string  The string where range predicates are
                                appended when the last keypart has
                                been reached.
   @param[in]     range_so_far  String containing ranges for keyparts prior
@@ -13792,13 +13843,21 @@ static void trace_range_all_keyparts(Opt_trace_array &trace_range,
                                for this keypart.
   @param[in]     key_parts     Index components description, used when adding
                                information to the optimizer trace
+
+  @note This function mimics the behavior of sel_arg_range_seq_next()
 */
-static void print_range_all_keyparts(String *range_result,
-                                     String *range_so_far,
-                                     SEL_ARG *keypart_root,
-                                     const KEY_PART_INFO *key_parts)
+static void append_range_all_keyparts(Opt_trace_array *range_trace,
+                                      String *range_string,
+                                      String *range_so_far,
+                                      SEL_ARG *keypart_root,
+                                      const KEY_PART_INFO *key_parts)
 {
   DBUG_ASSERT(keypart_root && keypart_root != &null_element);
+
+  const bool append_to_trace= (range_trace != NULL);
+
+  // Either add info to range_string or to range_trace
+  DBUG_ASSERT(append_to_trace ? !range_string : (range_string != NULL));
 
   // Navigate to first interval in red-black tree
   const KEY_PART_INFO *cur_key_part= key_parts + keypart_root->part;
@@ -13809,40 +13868,54 @@ static void print_range_all_keyparts(String *range_result,
   while (keypart_range)
   {
     /*
-      Skip the rest if the string becomes too long to avoid OOM.
-      Printing very long range conditions normally doesn't make sense
-      either.
+      Skip the rest of condition printing to avoid OOM if appending to
+      range_string and the string becomes too long. Printing very long
+      range conditions normally doesn't make sense either.
      */
-    if (range_result->length() > 500)
+    if (!append_to_trace && range_string->length() > 500)
     {
-      range_result->append(STRING_WITH_LEN("..."));
+      range_string->append(STRING_WITH_LEN("..."));
       break;
     }
 
-    // Append the current range to the range String
+    // Append the current range predicate to the range String
     append_range(range_so_far, cur_key_part,
                  keypart_range->min_value, keypart_range->max_value,
                  keypart_range->min_flag | keypart_range->max_flag);
 
-    if (keypart_range->next_key_part)
+    /* 
+      Print range predicates for consecutive keyparts if
+      1) There are predicates for later keyparts
+      2) There are no "holes" in the used keyparts (keypartX can only
+         be used if there is a range predicate on keypartX-1)
+      3) The current range is an equality range
+     */
+    if (keypart_range->next_key_part &&
+        keypart_range->next_key_part->part == keypart_range->part + 1 &&
+        keypart_range->is_singlepoint())
     {
-      // Not done - there are ranges in consecutive keyparts as well
-      print_range_all_keyparts(range_result, range_so_far,
-                               keypart_range->next_key_part, key_parts);
+      append_range_all_keyparts(range_trace, range_string, range_so_far,
+                                keypart_range->next_key_part, key_parts);
     }
     else
     {
       /*
-        This is the last keypart with a range. Print full range
-        info to range_result
+        This is the last keypart with a usable range predicate. Print
+        full range info to the optimizer trace or to the string
       */
-      if (range_result->length() == 0)
-        range_result->append(STRING_WITH_LEN("("));
+      if (append_to_trace)
+        range_trace->add_utf8(range_so_far->ptr(),
+                              range_so_far->length());
       else
-        range_result->append(STRING_WITH_LEN(" OR ("));
+      {
+        if (range_string->length() == 0)
+          range_string->append(STRING_WITH_LEN("("));
+        else
+          range_string->append(STRING_WITH_LEN(" OR ("));
 
-      range_result->append(range_so_far->ptr(), range_so_far->length());
-      range_result->append(STRING_WITH_LEN(")"));
+        range_string->append(range_so_far->ptr(), range_so_far->length());
+        range_string->append(STRING_WITH_LEN(")"));
+      }
     }
     keypart_range= keypart_range->next;
     /*
@@ -13982,7 +14055,7 @@ static inline void print_tree(String *out,
 
     /*
       String holding the final range description from
-      print_range_all_keyparts()
+      append_range_all_keyparts()
     */
     char buff1[512];
     String range_result(buff1, sizeof(buff1), system_charset_info);
@@ -13990,14 +14063,14 @@ static inline void print_tree(String *out,
 
     /*
       Range description up to a certain keypart - used internally in
-      print_range_all_keyparts()
+      append_range_all_keyparts()
     */
     char buff2[128];
     String range_so_far(buff2, sizeof(buff2), system_charset_info);
     range_so_far.length(0);
 
-    print_range_all_keyparts(&range_result, &range_so_far,
-                             tree->keys[i], key_part);
+    append_range_all_keyparts(NULL, &range_result, &range_so_far,
+                              tree->keys[i], key_part);
 
     if (out)
     {
@@ -14049,7 +14122,9 @@ print_multiple_key_values(KEY_PART *key_part, const uchar *key,
     {
       if (*key)
       {
-        fwrite("NULL",sizeof(char),4,DBUG_FILE);
+        if (fwrite("NULL",sizeof(char),4,DBUG_FILE) != 4) {
+          goto restore_col_map;
+        }
         continue;
       }
       key++;                                    // Skip null byte
@@ -14060,10 +14135,13 @@ print_multiple_key_values(KEY_PART *key_part, const uchar *key,
       (void) field->val_int_as_str(&tmp, 1);
     else
       field->val_str(&tmp);
-    fwrite(tmp.ptr(),sizeof(char),tmp.length(),DBUG_FILE);
+    if (fwrite(tmp.ptr(),sizeof(char),tmp.length(),DBUG_FILE) != tmp.length()) {
+      goto restore_col_map;
+    }
     if (key+store_length < key_end)
       fputc('/',DBUG_FILE);
   }
+restore_col_map:
   dbug_tmp_restore_column_maps(table->read_set, table->write_set, old_sets);
 }
 
@@ -14096,13 +14174,10 @@ void QUICK_RANGE_SELECT::dbug_dump(int indent, bool verbose)
 
   if (verbose)
   {
-    QUICK_RANGE *range;
-    QUICK_RANGE **pr= (QUICK_RANGE**)ranges.buffer;
-    QUICK_RANGE **end_range= pr + ranges.elements;
-    for (; pr != end_range; ++pr)
+    for (size_t ix= 0; ix < ranges.size(); ++ix)
     {
       fprintf(DBUG_FILE, "%*s", indent + 2, "");
-      range= *pr;
+      QUICK_RANGE *range= ranges[ix];
       if (!(range->flag & NO_MIN_RANGE))
       {
         print_multiple_key_values(key_parts, range->min_key,
@@ -14208,10 +14283,10 @@ void QUICK_GROUP_MIN_MAX_SELECT::dbug_dump(int indent, bool verbose)
     fprintf(DBUG_FILE, "%*susing quick_range_select:\n", indent, "");
     quick_prefix_select->dbug_dump(indent + 2, verbose);
   }
-  if (min_max_ranges.elements > 0)
+  if (min_max_ranges.size() > 0)
   {
     fprintf(DBUG_FILE, "%*susing %d quick_ranges for MIN/MAX:\n",
-            indent, "", min_max_ranges.elements);
+            indent, "", static_cast<int>(min_max_ranges.size()));
   }
 }
 

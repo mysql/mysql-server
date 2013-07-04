@@ -1,4 +1,4 @@
-/* Copyright (c) 2000, 2011, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2000, 2013, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -93,7 +93,7 @@ char * fn_format(char * to, const char *name, const char *dir,
   {
     if (to == startpos)
     {
-      bmove(buff,(uchar*) name,length);		/* Save name for last copy */
+      memmove(buff, name, length);              /* Save name for last copy */
       name=buff;
     }
     pos=strmake(strmov(to,dev),name,length);

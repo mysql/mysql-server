@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2005, 2012, Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2005, 2013, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -88,19 +88,19 @@ TODO:
 #include <stdarg.h>
 #include <sslopt-vars.h>
 #include <sys/types.h>
-#ifndef __WIN__
+#ifndef _WIN32
 #include <sys/wait.h>
 #endif
 #include <ctype.h>
 #include <welcome_copyright_notice.h>   /* ORACLE_WELCOME_COPYRIGHT_NOTICE */
 
-#ifdef __WIN__
+#ifdef _WIN32
 #define srandom  srand
 #define random   rand
 #define snprintf _snprintf
 #endif
 
-#ifdef HAVE_SMEM 
+#if defined (_WIN32) && !defined (EMBEDDED_LIBRARY)
 static char *shared_memory_base_name=0;
 #endif
 
@@ -284,7 +284,7 @@ static long int timedif(struct timeval a, struct timeval b)
     return s + us;
 }
 
-#ifdef __WIN__
+#ifdef _WIN32
 static int gettimeofday(struct timeval *tp, void *tzp)
 {
   unsigned int ticks;
@@ -346,7 +346,7 @@ int main(int argc, char **argv)
 #endif
   if (opt_protocol)
     mysql_options(&mysql,MYSQL_OPT_PROTOCOL,(char*)&opt_protocol);
-#ifdef HAVE_SMEM
+#if defined (_WIN32) && !defined (EMBEDDED_LIBRARY)
   if (shared_memory_base_name)
     mysql_options(&mysql,MYSQL_SHARED_MEMORY_BASE_NAME,shared_memory_base_name);
 #endif
@@ -430,7 +430,7 @@ int main(int argc, char **argv)
   statement_cleanup(post_statements);
   option_cleanup(engine_options);
 
-#ifdef HAVE_SMEM
+#if defined (_WIN32) && !defined (EMBEDDED_LIBRARY)
   my_free(shared_memory_base_name);
 #endif
   free_defaults(defaults_argv);
@@ -652,7 +652,7 @@ static struct my_option my_long_options[] =
   {"password", 'p',
     "Password to use when connecting to server. If password is not given it's "
       "asked from the tty.", 0, 0, 0, GET_PASSWORD, OPT_ARG, 0, 0, 0, 0, 0, 0},
-#ifdef __WIN__
+#ifdef _WIN32
   {"pipe", 'W', "Use named pipes to connect to server.", 0, 0, 0, GET_NO_ARG,
     NO_ARG, 0, 0, 0, 0, 0, 0},
 #endif
@@ -684,7 +684,7 @@ static struct my_option my_long_options[] =
   {"query", 'q', "Query to run or file containing query to run.",
     &user_supplied_query, &user_supplied_query,
     0, GET_STR, REQUIRED_ARG, 0, 0, 0, 0, 0, 0},
-#ifdef HAVE_SMEM
+#if defined (_WIN32) && !defined (EMBEDDED_LIBRARY)
   {"shared-memory-base-name", OPT_SHARED_MEMORY_BASE_NAME,
     "Base name of shared memory.", &shared_memory_base_name,
     &shared_memory_base_name, 0, GET_STR_ALLOC, REQUIRED_ARG,
@@ -753,7 +753,7 @@ get_one_option(int optid, const struct my_option *opt __attribute__((unused)),
       tty_password= 1;
     break;
   case 'W':
-#ifdef __WIN__
+#ifdef _WIN32
     opt_protocol= MYSQL_PROTOCOL_PIPE;
 #endif
     break;

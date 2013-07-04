@@ -1,6 +1,6 @@
 /*****************************************************************************
 
-Copyright (c) 2000, 2012, Oracle and/or its affiliates. All Rights Reserved.
+Copyright (c) 2000, 2013, Oracle and/or its affiliates. All Rights Reserved.
 
 This program is free software; you can redistribute it and/or modify it under
 the terms of the GNU General Public License as published by the Free Software
@@ -19,20 +19,20 @@ this program; if not, write to the Free Software Foundation, Inc.,
 /*
   This file is based on ha_berkeley.h of MySQL distribution
 
-  This file defines the Innodb handler: the interface between MySQL and
-  Innodb
+  This file defines the InnoDB handler: the interface between MySQL and
+  InnoDB
 */
 
 #include "dict0stats.h"
 
-/* Structure defines translation table between mysql index and innodb
+/* Structure defines translation table between mysql index and InnoDB
 index structures */
 struct innodb_idx_translate_t {
 	ulint		index_count;	/*!< number of valid index entries
 					in the index_mapping array */
 	ulint		array_size;	/*!< array size of index_mapping */
 	dict_index_t**	index_mapping;	/*!< index pointer array directly
-					maps to index in Innodb from MySQL
+					maps to index in InnoDB from MySQL
 					array index */
 };
 
@@ -49,14 +49,14 @@ typedef struct st_innobase_share {
 	void*			table_name_hash;/*!< hash table chain node */
 	innodb_idx_translate_t	idx_trans_tbl;	/*!< index translation
 						table between MySQL and
-						Innodb */
+						InnoDB */
 } INNOBASE_SHARE;
 
 
 /** Prebuilt structures in an InnoDB table handle used within MySQL */
 struct row_prebuilt_t;
 
-/** The class defining a handle to an Innodb table */
+/** The class defining a handle to an InnoDB table */
 class ha_innobase: public handler
 {
 	row_prebuilt_t*	prebuilt;	/*!< prebuilt struct in InnoDB, used
@@ -170,6 +170,7 @@ class ha_innobase: public handler
 	int transactional_table_lock(THD *thd, int lock_type);
 	int start_stmt(THD *thd, thr_lock_type lock_type);
 	void position(uchar *record);
+	ha_rows records();
 	ha_rows records_in_range(uint inx, key_range *min_key, key_range
 								*max_key);
 	ha_rows estimate_rows_upper_bound();
@@ -222,12 +223,12 @@ class ha_innobase: public handler
 	/** On-line ALTER TABLE interface @see handler0alter.cc @{ */
 
 	/** Check if InnoDB supports a particular alter table in-place
-	@param altered_table	TABLE object for new version of table.
-	@param ha_alter_info	Structure describing changes to be done
+	@param altered_table TABLE object for new version of table.
+	@param ha_alter_info Structure describing changes to be done
 	by ALTER TABLE and holding data used during in-place alter.
 
-	@retval HA_ALTER_INPLACE_NOT_SUPPORTED	Not supported
-	@retval HA_ALTER_INPLACE_NO_LOCK	Supported
+	@retval HA_ALTER_INPLACE_NOT_SUPPORTED Not supported
+	@retval HA_ALTER_INPLACE_NO_LOCK Supported
 	@retval HA_ALTER_INPLACE_SHARED_LOCK_AFTER_PREPARE
 						Supported, but requires lock
 						during main phase and exclusive
@@ -244,12 +245,12 @@ class ha_innobase: public handler
 	did not return HA_ALTER_INPLACE_NO_LOCK).
 	This will be invoked before inplace_alter_table().
 
-	@param altered_table	TABLE object for new version of table.
-	@param ha_alter_info	Structure describing changes to be done
+	@param altered_table TABLE object for new version of table.
+	@param ha_alter_info Structure describing changes to be done
 	by ALTER TABLE and holding data used during in-place alter.
 
-	@retval true		Failure
-	@retval false		Success
+	@retval true Failure
+	@retval false Success
 	*/
 	bool prepare_inplace_alter_table(
 		TABLE*			altered_table,
@@ -260,12 +261,12 @@ class ha_innobase: public handler
 	The level of concurrency allowed during this operation depends
 	on the return value from check_if_supported_inplace_alter().
 
-	@param altered_table	TABLE object for new version of table.
-	@param ha_alter_info	Structure describing changes to be done
+	@param altered_table TABLE object for new version of table.
+	@param ha_alter_info Structure describing changes to be done
 	by ALTER TABLE and holding data used during in-place alter.
 
-	@retval true		Failure
-	@retval false		Success
+	@retval true Failure
+	@retval false Success
 	*/
 	bool inplace_alter_table(
 		TABLE*			altered_table,
@@ -278,12 +279,12 @@ class ha_innobase: public handler
 	inplace_alter_table() and thus might be higher than during
 	prepare_inplace_alter_table(). (E.g concurrent writes were
 	blocked during prepare, but might not be during commit).
-	@param altered_table	TABLE object for new version of table.
-	@param ha_alter_info	Structure describing changes to be done
+	@param altered_table TABLE object for new version of table.
+	@param ha_alter_info Structure describing changes to be done
 	by ALTER TABLE and holding data used during in-place alter.
-	@param commit		true => Commit, false => Rollback.
-	@retval true		Failure
-	@retval false		Success
+	@param commit true => Commit, false => Rollback.
+	@retval true Failure
+	@retval false Success
 	*/
 	bool commit_inplace_alter_table(
 		TABLE*			altered_table,
@@ -308,55 +309,52 @@ private:
 
 public:
 	/** @name Multi Range Read interface @{ */
+
 	/** Initialize multi range read @see DsMrr_impl::dsmrr_init
-	* @param seq
-	* @param seq_init_param
-	* @param n_ranges
-	* @param mode
-	* @param buf
-	*/
+	@param seq
+	@param seq_init_param
+	@param n_ranges
+	@param mode
+	@param buf */
 	int multi_range_read_init(RANGE_SEQ_IF* seq,
 				  void* seq_init_param,
 				  uint n_ranges, uint mode,
 				  HANDLER_BUFFER* buf);
 	/** Process next multi range read @see DsMrr_impl::dsmrr_next
-	* @param range_info
-	*/
+	@param range_info */
 	int multi_range_read_next(char** range_info);
+
 	/** Initialize multi range read and get information.
-	* @see ha_myisam::multi_range_read_info_const
-	* @see DsMrr_impl::dsmrr_info_const
-	* @param keyno
-	* @param seq
-	* @param seq_init_param
-	* @param n_ranges
-	* @param bufsz
-	* @param flags
-	* @param cost
-	*/
+	@see ha_myisam::multi_range_read_info_const
+	@see DsMrr_impl::dsmrr_info_const
+	@param keyno
+	@param seq
+	@param seq_init_param
+	@param n_ranges
+	@param bufsz
+	@param flags
+	@param cost */
 	ha_rows multi_range_read_info_const(uint keyno, RANGE_SEQ_IF* seq,
 					   void* seq_init_param,
 					   uint n_ranges, uint* bufsz,
 					   uint* flags, Cost_estimate* cost);
 	/** Initialize multi range read and get information.
-	* @see DsMrr_impl::dsmrr_info
-	* @param keyno
-	* @param seq
-	* @param seq_init_param
-	* @param n_ranges
-	* @param bufsz
-	* @param flags
-	* @param cost
-	*/
+	@see DsMrr_impl::dsmrr_info
+	@param keyno
+	@param seq
+	@param seq_init_param
+	@param n_ranges
+	@param bufsz
+	@param flags
+	@param cost */
 	ha_rows multi_range_read_info(uint keyno, uint n_ranges, uint keys,
 				      uint* bufsz, uint* flags,
 				      Cost_estimate* cost);
 
 	/** Attempt to push down an index condition.
-	* @param[in] keyno	MySQL key number
-	* @param[in] idx_cond	Index condition to be checked
-	* @return idx_cond if pushed; NULL if not pushed
-	*/
+	@param[in] keyno MySQL key number
+	@param[in] idx_cond Index condition to be checked
+	@return idx_cond if pushed; NULL if not pushed */
 	class Item* idx_cond_push(uint keyno, class Item* idx_cond);
 
 private:
@@ -377,72 +375,56 @@ LEX_STRING* thd_query_string(MYSQL_THD thd);
 
 extern "C" {
 
-struct charset_info_st *thd_charset(MYSQL_THD thd);
+CHARSET_INFO *thd_charset(MYSQL_THD thd);
 
-/**
-  Check if a user thread is a replication slave thread
-  @param thd  user thread
-  @retval 0 the user thread is not a replication slave thread
-  @retval 1 the user thread is a replication slave thread
-*/
+/** Check if a user thread is a replication slave thread
+@param thd user thread
+@retval 0 the user thread is not a replication slave thread
+@retval 1 the user thread is a replication slave thread */
 int thd_slave_thread(const MYSQL_THD thd);
 
-/**
-  Check if a user thread is running a non-transactional update
-  @param thd  user thread
-  @retval 0 the user thread is not running a non-transactional update
-  @retval 1 the user thread is running a non-transactional update
-*/
+/** Check if a user thread is running a non-transactional update
+@param thd user thread
+@retval 0 the user thread is not running a non-transactional update
+@retval 1 the user thread is running a non-transactional update */
 int thd_non_transactional_update(const MYSQL_THD thd);
 
-/**
-  Get the user thread's binary logging format
-  @param thd  user thread
-  @return Value to be used as index into the binlog_format_names array
-*/
+/** Get the user thread's binary logging format
+@param thd user thread
+@return Value to be used as index into the binlog_format_names array */
 int thd_binlog_format(const MYSQL_THD thd);
 
-/**
-  Mark transaction to rollback and mark error as fatal to a sub-statement.
-  @param  thd   Thread handle
-  @param  all   TRUE <=> rollback main transaction.
-*/
+/** Mark transaction to rollback and mark error as fatal to a sub-statement.
+@param thd Thread handle
+@param all TRUE <=> rollback main transaction. */
 void thd_mark_transaction_to_rollback(MYSQL_THD thd, bool all);
 
-/**
-  Check if binary logging is filtered for thread's current db.
-  @param  thd   Thread handle
-  @retval 1 the query is not filtered, 0 otherwise.
-*/
+/** Check if binary logging is filtered for thread's current db.
+@param thd Thread handle
+@retval 1 the query is not filtered, 0 otherwise. */
 bool thd_binlog_filter_ok(const MYSQL_THD thd);
 
-/**
-  Check if the query may generate row changes which
-  may end up in the binary.
-  @param  thd   Thread handle
-  @return 1 the query may generate row changes, 0 otherwise.
+/** Check if the query may generate row changes which may end up in the binary.
+@param thd Thread handle
+@retval 1 the query may generate row changes, 0 otherwise.
 */
 bool thd_sqlcom_can_generate_row_events(const MYSQL_THD thd);
 
-/**
-  Gets information on the durability property requested by
-  a thread.
-  @param  thd   Thread handle
-  @return a durability property.
-*/
+/** Gets information on the durability property requested by a thread.
+@param thd Thread handle
+@return a durability property. */
 enum durability_properties thd_get_durability_property(const MYSQL_THD thd);
 
 /** Get the auto_increment_offset auto_increment_increment.
-@param thd	Thread object
-@param off	auto_increment_offset
-@param inc	auto_increment_increment */
+@param thd Thread object
+@param off auto_increment_offset
+@param inc auto_increment_increment */
 void thd_get_autoinc(const MYSQL_THD thd, ulong* off, ulong* inc)
 __attribute__((nonnull));
 
 /** Is strict sql_mode set.
-@param thd	Thread object
-@return True if sql_mode has strict mode (all or trans), false otherwise.
-*/
+@param thd Thread object
+@return True if sql_mode has strict mode (all or trans), false otherwise. */
 bool thd_is_strict_mode(const MYSQL_THD thd)
 __attribute__((nonnull));
 } /* extern "C" */
@@ -462,7 +444,7 @@ typedef struct new_ft_info
 
 /*********************************************************************//**
 Allocates an InnoDB transaction for a MySQL handler object.
-@return	InnoDB transaction handle */
+@return InnoDB transaction handle */
 trx_t*
 innobase_trx_allocate(
 /*==================*/
@@ -474,7 +456,7 @@ system default primary index name 'GEN_CLUST_INDEX'. If a name
 matches, this function pushes an warning message to the client,
 and returns true.
 @return true if the index name matches the reserved name */
-UNIV_INTERN
+
 bool
 innobase_index_name_is_reserved(
 /*============================*/
@@ -487,7 +469,7 @@ innobase_index_name_is_reserved(
 /*****************************************************************//**
 Determines InnoDB table flags.
 @retval true if successful, false if error */
-UNIV_INTERN
+
 bool
 innobase_table_flags(
 /*=================*/
@@ -506,8 +488,8 @@ Validates the create options. We may build on this function
 in future. For now, it checks two specifiers:
 KEY_BLOCK_SIZE and ROW_FORMAT
 If innodb_strict_mode is not set then this function is a no-op
-@return	NULL if valid, string if not. */
-UNIV_INTERN
+@return NULL if valid, string if not. */
+
 const char*
 create_options_are_invalid(
 /*=======================*/
@@ -522,7 +504,7 @@ create_options_are_invalid(
 Retrieve the FTS Relevance Ranking result for doc with doc_id
 of prebuilt->fts_doc_id
 @return the relevance ranking value */
-UNIV_INTERN
+
 float
 innobase_fts_retrieve_ranking(
 /*==========================*/
@@ -532,7 +514,7 @@ innobase_fts_retrieve_ranking(
 Find and Retrieve the FTS Relevance Ranking result for doc with doc_id
 of prebuilt->fts_doc_id
 @return the relevance ranking value */
-UNIV_INTERN
+
 float
 innobase_fts_find_ranking(
 /*======================*/
@@ -541,7 +523,7 @@ innobase_fts_find_ranking(
 	uint		len);		/*!< in: Unused */
 /*********************************************************************//**
 Free the memory for the FTS handler */
-UNIV_INTERN
+
 void
 innobase_fts_close_ranking(
 /*=======================*/
@@ -550,7 +532,7 @@ innobase_fts_close_ranking(
 /*****************************************************************//**
 Initialize the table FTS stopword list
 @return TRUE if success */
-UNIV_INTERN
+
 ibool
 innobase_fts_load_stopword(
 /*=======================*/
@@ -570,7 +552,7 @@ enum fts_doc_id_index_enum {
 Check whether the table has a unique index with FTS_DOC_ID_INDEX_NAME
 on the Doc ID column.
 @return the status of the FTS_DOC_ID index */
-UNIV_INTERN
+
 enum fts_doc_id_index_enum
 innobase_fts_check_doc_id_index(
 /*============================*/
@@ -586,7 +568,7 @@ Check whether the table has a unique index with FTS_DOC_ID_INDEX_NAME
 on the Doc ID column in MySQL create index definition.
 @return FTS_EXIST_DOC_ID_INDEX if there exists the FTS_DOC_ID index,
 FTS_INCORRECT_DOC_ID_INDEX if the FTS_DOC_ID index is of wrong format */
-UNIV_INTERN
+
 enum fts_doc_id_index_enum
 innobase_fts_check_doc_id_index_in_def(
 /*===================================*/
@@ -629,7 +611,7 @@ Copy table flags from MySQL's HA_CREATE_INFO into an InnoDB table object.
 Those flags are stored in .frm file and end up in the MySQL table object,
 but are frequently used inside InnoDB so we keep their copies into the
 InnoDB table object. */
-UNIV_INTERN
+
 void
 innobase_copy_frm_flags_from_create_info(
 /*=====================================*/
@@ -641,7 +623,7 @@ Copy table flags from MySQL's TABLE_SHARE into an InnoDB table object.
 Those flags are stored in .frm file and end up in the MySQL table object,
 but are frequently used inside InnoDB so we keep their copies into the
 InnoDB table object. */
-UNIV_INTERN
+
 void
 innobase_copy_frm_flags_from_table_share(
 /*=====================================*/

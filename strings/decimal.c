@@ -1,4 +1,4 @@
-/* Copyright (c) 2004, 2011, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2004, 2013, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -11,7 +11,7 @@
 
    You should have received a copy of the GNU General Public License
    along with this program; if not, write to the Free Software
-   Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA */
+   Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA 02110-1301, USA */
 
 /*
 =======================================================================
@@ -1260,7 +1260,7 @@ int double2lldiv_t(double nr, lldiv_t *lld)
 
     And for -1234567890.1234 it would be
 
-                7E F2 04 37 2D FB 2D
+                7E F2 04 C7 2D FB 2D
 */
 int decimal2bin(decimal_t *from, uchar *to, int precision, int frac)
 {

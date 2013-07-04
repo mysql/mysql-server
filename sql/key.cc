@@ -1,4 +1,4 @@
-/* Copyright (c) 2000, 2012, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2000, 2013, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -338,6 +338,70 @@ bool key_cmp_if_same(TABLE *table,const uchar *key,uint idx,uint key_length)
   return 0;
 }
 
+
+/**
+  Unpack a field and append it.
+
+  @param[inout] to           String to append the field contents to.
+  @param        field        Field to unpack.
+  @param        rec          Record which contains the field data.
+  @param        max_length   Maximum length of field to unpack
+                             or 0 for unlimited.
+  @param        prefix_key   The field is used as a prefix key.
+*/
+
+void field_unpack(String *to, Field *field, const uchar *rec, uint max_length,
+                  bool prefix_key)
+{
+  String tmp;
+  DBUG_ENTER("field_unpack");
+  if (!max_length)
+    max_length= field->pack_length();
+  if (field)
+  {
+    if (field->is_null())
+    {
+      to->append(STRING_WITH_LEN("NULL"));
+      DBUG_VOID_RETURN;
+    }
+    const CHARSET_INFO *cs= field->charset();
+    field->val_str(&tmp);
+    /*
+      For BINARY(N) strip trailing zeroes to make
+      the error message nice-looking
+    */
+    if (field->binary() &&  field->type() == MYSQL_TYPE_STRING && tmp.length())
+    {
+      const char *tmp_end= tmp.ptr() + tmp.length();
+      while (tmp_end > tmp.ptr() && !*--tmp_end) ;
+      tmp.length(tmp_end - tmp.ptr() + 1);
+    }
+    if (cs->mbmaxlen > 1 && prefix_key)
+    {
+      /*
+        Prefix key, multi-byte charset.
+        For the columns of type CHAR(N), the above val_str()
+        call will return exactly "key_part->length" bytes,
+        which can break a multi-byte characters in the middle.
+        Align, returning not more than "char_length" characters.
+      */
+      uint charpos, char_length= max_length / cs->mbmaxlen;
+      if ((charpos= my_charpos(cs, tmp.ptr(),
+                               tmp.ptr() + tmp.length(),
+                               char_length)) < tmp.length())
+        tmp.length(charpos);
+    }
+    if (max_length < field->pack_length())
+      tmp.length(min(tmp.length(),max_length));
+    ErrConvString err(&tmp);
+    to->append(err.ptr());
+  }
+  else
+    to->append(STRING_WITH_LEN("???"));
+  DBUG_VOID_RETURN;
+}
+
+
 /*
   unpack key-fields from record to some buffer.
 
@@ -354,8 +418,6 @@ bool key_cmp_if_same(TABLE *table,const uchar *key,uint idx,uint key_length)
 
 void key_unpack(String *to, TABLE *table, KEY *key)
 {
-  Field *field;
-  String tmp;
   my_bitmap_map *old_map= dbug_tmp_use_all_columns(table, table->read_set);
   DBUG_ENTER("key_unpack");
 
@@ -371,46 +433,12 @@ void key_unpack(String *to, TABLE *table, KEY *key)
     {
       if (table->record[0][key_part->null_offset] & key_part->null_bit)
       {
-	to->append(STRING_WITH_LEN("NULL"));
-	continue;
+        to->append(STRING_WITH_LEN("NULL"));
+        continue;
       }
     }
-    if ((field=key_part->field))
-    {
-      const CHARSET_INFO *cs= field->charset();
-      field->val_str(&tmp);
-      /*
-        For BINARY(N) strip trailing zeroes to make
-        the error message nice-looking
-      */
-      if (field->binary() &&  field->type() == MYSQL_TYPE_STRING && tmp.length())
-      {
-        const char *tmp_end= tmp.ptr() + tmp.length();
-        while (tmp_end > tmp.ptr() && !*--tmp_end) ;
-        tmp.length(tmp_end - tmp.ptr() + 1);
-      }
-      if (cs->mbmaxlen > 1 && (key_part->key_part_flag & HA_PART_KEY_SEG))
-      {
-        /* 
-          Prefix key, multi-byte charset. 
-          For the columns of type CHAR(N), the above val_str() 
-          call will return exactly "key_part->length" bytes, 
-          which can break a multi-byte characters in the middle. 
-          Align, returning not more than "char_length" characters. 
-        */
-        uint charpos, char_length= key_part->length / cs->mbmaxlen;
-        if ((charpos= my_charpos(cs, tmp.ptr(),
-                                 tmp.ptr() + tmp.length(),
-                                 char_length)) < tmp.length())
-          tmp.length(charpos);
-      }
-      if (key_part->length < field->pack_length())
-	tmp.length(min<uint32>(tmp.length(),key_part->length));
-      ErrConvString err(&tmp);
-      to->append(err.ptr());
-    }
-    else
-      to->append(STRING_WITH_LEN("???"));
+    field_unpack(to, key_part->field, table->record[0], key_part->length,
+                 test(key_part->key_part_flag & HA_PART_KEY_SEG));
   }
   dbug_tmp_restore_column_map(table->read_set, old_map);
   DBUG_VOID_RETURN;
@@ -522,6 +550,8 @@ int key_cmp(KEY_PART_INFO *key_part, const uchar *key, uint key_length)
 
   key is a null terminated array, since in some cases (clustered
   primary key) it must compare more than one index.
+  We only compare the fields that are specified in table->read_set and
+  stop at the first non set field. The first must be set!
 
   @param key                    Null terminated array of index information
   @param first_rec              Pointer to record compare with
@@ -545,6 +575,9 @@ int key_rec_cmp(void *key_p, uchar *first_rec, uchar *second_rec)
   Field *field;
   DBUG_ENTER("key_rec_cmp");
 
+  /* Assert that at least the first key part is read. */
+  DBUG_ASSERT(bitmap_is_set(key_info->table->read_set,
+                            key_info->key_part->field->field_index));
   /* loop over all given keys */
   do
   {
@@ -556,6 +589,10 @@ int key_rec_cmp(void *key_p, uchar *first_rec, uchar *second_rec)
     do
     {
       field= key_part->field;
+
+      /* If not read, compare is done and equal! */
+      if (!bitmap_is_set(field->table->read_set, field->field_index))
+        DBUG_RETURN(0);
 
       if (key_part->null_bit)
       {

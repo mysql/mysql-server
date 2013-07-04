@@ -1,7 +1,7 @@
 #ifndef FIELD_INCLUDED
 #define FIELD_INCLUDED
 
-/* Copyright (c) 2000, 2012, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2000, 2013, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -22,6 +22,7 @@
 #include "my_decimal.h"                         /* my_decimal */
 #include "sql_error.h"                          /* Sql_condition */
 #include "mysql_version.h"                      /* FRM_VER */
+#include "mysqld_error.h"
 
 /*
 
@@ -963,20 +964,30 @@ public:
   bool is_null(my_ptrdiff_t row_offset= 0) const
   {
     /*
+      if the field is NULLable, it returns NULLity based
+      on m_null_ptr[row_offset] value. Otherwise it returns
+      NULL flag depending on TABLE::null_row value.
+
       The table may have been marked as containing only NULL values
       for all fields if it is a NULL-complemented row of an OUTER JOIN
       or if the query is an implicitly grouped query (has aggregate
       functions but no GROUP BY clause) with no qualifying rows. If
-      this is the case (in which TABLE::null_row is true), the field
-      is considered to be NULL.
+      this is the case (in which TABLE::null_row is true) and the
+      field is not nullable, the field is considered to be NULL.
 
-      Otherwise, if the field is NULLable, it has a valid m_null_ptr
-      pointer, and its NULLity is recorded in the "null_bit" bit of
-      m_null_ptr[row_offset].
+      Do not change the order of testing. Fields may be associated
+      with a TABLE object without being part of the current row.
+      For NULL value check to work for these fields, they must
+      have a valid m_null_ptr, and this pointer must be checked before
+      TABLE::null_row. 
     */
-    return table->null_row ?
-           true :
-           is_real_null(row_offset);
+    if (real_maybe_null())
+      return test(m_null_ptr[row_offset] & null_bit);
+
+    if (is_tmp_nullable())
+      return m_is_tmp_null;
+
+    return table->null_row;
   }
 
   /**
@@ -1383,8 +1394,24 @@ public:
     flags |= (column_format_arg << FIELD_FLAGS_COLUMN_FORMAT);
   }
 
+  /* Validate the value stored in a field */
+  virtual type_conversion_status validate_stored_val(THD *thd)
+  { return TYPE_OK; }
+
   /* Hash value */
   virtual void hash(ulong *nr, ulong *nr2);
+
+  /**
+    Get the upper limit of the MySQL integral and floating-point type.
+
+    @return maximum allowed value for the field
+  */
+  virtual ulonglong get_max_int_value() const
+  {
+    DBUG_ASSERT(false);
+    return 0ULL;
+  }
+
   friend int cre_myisam(char * name, TABLE *form, uint options,
 			ulonglong auto_increment_value);
   friend class Copy_field;
@@ -1651,10 +1678,11 @@ public:
 
 class Field_longstr :public Field_str
 {
-protected:
+private:
   type_conversion_status report_if_important_data(const char *ptr,
                                                   const char *end,
                                                   bool count_spaces);
+protected:
   type_conversion_status
     check_string_copy_error(const char *well_formed_error_pos,
                             const char *cannot_convert_error_pos,
@@ -1862,6 +1890,11 @@ public:
     *to= *from;
     return from + 1;
   }
+
+  virtual ulonglong get_max_int_value() const
+  {
+    return unsigned_flag ? 0xFFULL : 0x7FULL;
+  }
 };
 
 
@@ -1917,6 +1950,11 @@ public:
   {
     return unpack_int16(to, from, low_byte_first);
   }
+
+  virtual ulonglong get_max_int_value() const
+  {
+    return unsigned_flag ? 0xFFFFULL : 0x7FFFULL;
+  }
 };
 
 class Field_medium :public Field_num {
@@ -1969,6 +2007,11 @@ public:
                               uint param_data, bool low_byte_first)
   {
     return Field::unpack(to, from, param_data, low_byte_first);
+  }
+
+  virtual ulonglong get_max_int_value() const
+  {
+    return unsigned_flag ? 0xFFFFFFULL : 0x7FFFFFULL;
   }
 };
 
@@ -2032,6 +2075,11 @@ public:
                               bool low_byte_first)
   {
     return unpack_int32(to, from, low_byte_first);
+  }
+
+  virtual ulonglong get_max_int_value() const
+  {
+    return unsigned_flag ? 0xFFFFFFFFULL : 0x7FFFFFFFULL;
   }
 };
 
@@ -2098,6 +2146,11 @@ public:
   {
     return unpack_int64(to, from, low_byte_first);
   }
+
+  virtual ulonglong get_max_int_value() const
+  {
+    return unsigned_flag ? 0xFFFFFFFFFFFFFFFFULL : 0x7FFFFFFFFFFFFFFFULL;
+  }
 };
 #endif
 
@@ -2145,6 +2198,15 @@ public:
     DBUG_ASSERT(type() == MYSQL_TYPE_FLOAT);
     return new Field_float(*this);
   }
+
+  virtual ulonglong get_max_int_value() const
+  {
+    /*
+      We use the maximum as per IEEE754-2008 standard, 2^24
+    */
+    return 0x1000000ULL;
+  }
+
 private:
   int do_save_field_metadata(uchar *first_byte);
 };
@@ -2198,6 +2260,15 @@ public:
     DBUG_ASSERT(type() == MYSQL_TYPE_DOUBLE);
     return new Field_double(*this);
   }
+
+  virtual ulonglong get_max_int_value() const
+  {
+    /*
+      We use the maximum as per IEEE754-2008 standard, 2^53
+    */
+    return 0x20000000000000ULL;
+  }
+
 private:
   int do_save_field_metadata(uchar *first_byte);
 };
@@ -2530,6 +2601,8 @@ public:
   {
     return get_date(ltime, TIME_FUZZY_DATE);
   }
+  /* Validate the value stored in a field */
+  virtual type_conversion_status validate_stored_val(THD *thd);
 };
 
 
@@ -2701,6 +2774,8 @@ public:
   {
     return unpack_int32(to, from, low_byte_first);
   }
+  /* Validate the value stored in a field */
+  virtual type_conversion_status validate_stored_val(THD *thd);
 };
 
 
@@ -2769,6 +2844,8 @@ public:
   void sql_type(String &str) const;
 
   bool get_timestamp(struct timeval *tm, int *warnings);
+  /* Validate the value stored in a field */
+  virtual type_conversion_status validate_stored_val(THD *thd);
 };
 
 
@@ -3421,7 +3498,7 @@ protected:
   void store_ptr_and_length(const char *from, uint32 length)
   {
     store_length(length);
-    bmove(ptr + packlength, (char*) &from, sizeof(char *));
+    memmove(ptr + packlength, &from, sizeof(char *));
   }
   
 public:
@@ -3565,6 +3642,7 @@ public:
     if (value.copy((char*) tmp, get_length(), charset()))
     {
       Field_blob::reset();
+      my_error(ER_OUTOFMEMORY, MYF(ME_FATALERROR), get_length());
       return 1;
     }
     tmp=(uchar*) value.ptr();
@@ -3600,7 +3678,6 @@ private:
 };
 
 
-#ifdef HAVE_SPATIAL
 class Field_geom :public Field_blob {
   virtual type_conversion_status store_internal(const char *from, uint length,
                                                 const CHARSET_INFO *cs);
@@ -3650,7 +3727,6 @@ public:
   }
   uint is_equal(Create_field *new_field);
 };
-#endif /*HAVE_SPATIAL*/
 
 
 class Field_enum :public Field_str {

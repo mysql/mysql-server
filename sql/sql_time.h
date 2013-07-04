@@ -137,12 +137,12 @@ bool datetime_add_nanoseconds_with_round(MYSQL_TIME *ltime,
                                          uint nanoseconds, int *warnings);
 
 /* convenience wrapper */
-inline bool parse_date_time_format(timestamp_type format_type, 
+inline bool parse_date_time_format(timestamp_type format_type,
                                    DATE_TIME_FORMAT *date_time_format)
 {
   return parse_date_time_format(format_type,
                                 date_time_format->format.str,
-                                date_time_format->format.length,
+                                (uint) date_time_format->format.length,
                                 date_time_format);
 }
 

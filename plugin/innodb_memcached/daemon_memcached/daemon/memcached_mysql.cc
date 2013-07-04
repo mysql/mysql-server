@@ -1,6 +1,6 @@
 /***********************************************************************
 
-Copyright (c) 2012, Oracle and/or its affiliates. All Rights Reserved.
+Copyright (c) 2013, Oracle and/or its affiliates. All Rights Reserved.
 
 This program is free software; you can redistribute it and/or modify it
 under the terms of the GNU General Public License as published by the
@@ -19,7 +19,7 @@ with this program; if not, write to the Free Software Foundation, Inc.,
 
 /**************************************************//**
 @file memcached_mysql.cc
-InnoDB Memcached Plugin 
+InnoDB Memcached Plugin
 
 Created 04/12/2011 Jimmy Yang
 *******************************************************/
@@ -41,7 +41,7 @@ struct mysql_memcached_context
 
 /** Variables for configure options */
 static char*	mci_engine_library = NULL;
-static char*	mci_eng_lib_path = NULL; 
+static char*	mci_eng_lib_path = NULL;
 static char*	mci_memcached_option = NULL;
 static unsigned int mci_r_batch_size = 1048576;
 static unsigned int mci_w_batch_size = 32;
@@ -91,7 +91,14 @@ static int daemon_memcached_plugin_deinit(void *p)
 	struct mysql_memcached_context*	con = NULL;
 	int				loop_count = 0;
 
+	/* If initialization is already running, wait till it complete,
+	or 25 seconds. */
+	while (!initialize_complete() && loop_count < 25) {
+		sleep(1);
+		loop_count++;
+	}
 
+	loop_count = 0;
 	if (!shutdown_complete()) {
 		shutdown_server();
 	}

@@ -1,0 +1,170 @@
+--source include/have_innodb.inc
+
+####################################################################
+# TC to test temp-table DML optimization changes for correctness   #
+# Sceanrio covered:						   #
+# 1. autocommit: operating all dml stmt with auto-commit on        #
+# 2. begin-commit-rollback: sequence of dml stmt with trx that is  #
+#    is committed and rollback post commit to see effect.          #
+# 3. begin-rollback: sequence of dml stmt with trx rollback.       #
+#    given that undo logs are generated for trx, rollback should   #
+#    succeed.                                                      #
+# 4. begin-savepoint-rollback-commit: dml stmt with trx involving  #
+#    savepoint.                                                    #
+# 5. check error test-cases where-in insert/delete/update fails    #
+####################################################################
+
+
+#-------------------------------------------------------------------
+#
+# 1. autocommit: operating all dml stmt with auto-commit on        #
+#
+use test;
+--disable_warnings
+drop table if exists t;
+--enable_warnings
+create temporary table t (
+	i int,
+	f float,
+	primary key pk_index(i),
+	index sec_index(f)
+	) engine = innodb;
+insert into t values (10, 2.2), (20, 3.3), (30, 4.4), (40, 5.5);
+#
+rollback;
+select * from t;
+update t set i = 50 where i = 40;
+update t set i = 60 where i = 30;
+rollback;
+select * from t;
+delete from t where i = 10;
+delete from t where f < 3.4;
+rollback;
+select * from t;
+delete from t where i = 10;
+delete from t;
+select * from t;
+drop table if exists t;
+
+#-------------------------------------------------------------------
+#
+# 2. begin-commit-rollback: sequence of dml stmt with trx that is  #
+#    is committed and rollback post commit to see effect.          #
+#
+create temporary table t (
+	i int,
+	f float,
+	primary key pk_index(i),
+	index sec_index(f)
+	) engine = innodb;
+begin;
+insert into t values (10, 2.2), (20, 3.3), (30, 4.4), (40, 5.5);
+select * from t;
+commit;
+select * from t;
+rollback;
+select * from t;
+drop table if exists t;
+
+#-------------------------------------------------------------------
+#
+# 3. begin-rollback: sequence of dml stmt with trx rollback.       #
+#    given that undo logs are generated for trx, rollback should   #
+#    succeed.                                                      #
+#
+create temporary table t (
+	i int,
+	f float,
+	primary key pk_index(i),
+	index sec_index(f)
+	) engine = innodb;
+begin;
+insert into t values (10, 2.2), (20, 3.3), (30, 4.4), (40, 5.5);
+select * from t;
+rollback;
+select * from t;
+insert into t values (10, 2.2), (20, 3.3), (30, 4.4), (40, 5.5);
+begin;
+delete from t;
+select * from t;
+rollback;
+select * from t;
+begin;
+update t set i = 50 where i = 40;
+update t set i = 60 where i = 30;
+select * from t;
+rollback;
+select * from t;
+drop table if exists t;
+
+#-------------------------------------------------------------------
+#
+# 4. begin-savepoint-rollback-commit: dml stmt with trx involving  #
+#    savepoint.                                                    #
+#
+create temporary table t (
+	i int,
+	f float,
+	primary key pk_index(i),
+	index sec_index(f)
+	) engine = innodb;
+start transaction;
+savepoint first;
+insert into t values (10, 2.2), (20, 3.3), (30, 4.4), (40, 5.5);
+select * from t;
+rollback to first;
+select * from t;
+insert into t values (10, 2.2), (20, 3.3), (30, 4.4), (40, 5.5);
+begin;
+delete from t where i = 10;
+select * from t;
+savepoint first;
+delete from t;
+select * from t;
+rollback to first;
+select * from t;
+commit;
+select * from t;
+begin;
+update t set i = 50 where i = 40;
+savepoint first;
+update t set i = 60 where i = 30;
+select * from t;
+rollback to first;
+select * from t;
+commit;
+drop table if exists t;
+
+#-------------------------------------------------------------------
+#
+# 5. check error test-cases where-in insert/delete/update fails    #
+#
+use test;
+create temporary table t1 (i int, f float,
+	primary key pk(i),
+	unique index fk(f)
+	) engine = innodb;
+insert into t1 values (1, 1.2), (2, 2.3), (3, 3.4);
+select * from t1;
+--error ER_DUP_ENTRY
+insert into t1 values (4, 4.5), (1, 5.6);
+select * from t1;
+insert into t1 values (4, 4.5), (5, 5.6);
+select * from t1;
+#
+--error ER_DUP_ENTRY
+update t1 set i = 1 where i = 4;
+truncate table t1;
+insert into t1 values (1, 1.2), (3, 2.3), (5, 3.4), (6, 7.4);
+select * from t1;
+--error ER_DUP_ENTRY
+update t1 set i = i + 1;
+select * from t1;
+drop table t1;
+
+#-------------------------------------------------------------------
+#
+# remove test-bed
+#
+
+

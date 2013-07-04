@@ -1,6 +1,6 @@
 /*****************************************************************************
 
-Copyright (c) 1994, 2009, Oracle and/or its affiliates. All Rights Reserved.
+Copyright (c) 1994, 2013, Oracle and/or its affiliates. All Rights Reserved.
 
 This program is free software; you can redistribute it and/or modify it under
 the terms of the GNU General Public License as published by the Free Software
@@ -45,7 +45,7 @@ ut_rnd_set_seed(
 	ulint	 seed);		 /*!< in: seed */
 /********************************************************//**
 The following function generates a series of 'random' ulint integers.
-@return	the next 'random' number */
+@return the next 'random' number */
 UNIV_INLINE
 ulint
 ut_rnd_gen_next_ulint(
@@ -56,14 +56,14 @@ The following function generates 'random' ulint integers which
 enumerate the value space (let there be N of them) of ulint integers
 in a pseudo-random fashion. Note that the same integer is repeated
 always after N calls to the generator.
-@return	the 'random' number */
+@return the 'random' number */
 UNIV_INLINE
 ulint
 ut_rnd_gen_ulint(void);
 /*==================*/
 /********************************************************//**
 Generates a random integer from a given interval.
-@return	the 'random' number */
+@return the 'random' number */
 UNIV_INLINE
 ulint
 ut_rnd_interval(
@@ -72,7 +72,7 @@ ut_rnd_interval(
 	ulint	high);	/*!< in: high limit; can generate also this value */
 /*********************************************************//**
 Generates a random iboolean value.
-@return	the random value */
+@return the random value */
 UNIV_INLINE
 ibool
 ut_rnd_gen_ibool(void);
@@ -81,7 +81,7 @@ ut_rnd_gen_ibool(void);
 The following function generates a hash value for a ulint integer
 to a hash table of size table_size, which should be a prime or some
 random number to work reliably.
-@return	hash value */
+@return hash value */
 UNIV_INLINE
 ulint
 ut_hash_ulint(
@@ -90,7 +90,7 @@ ut_hash_ulint(
 	ulint	 table_size);	/*!< in: hash table size */
 /*************************************************************//**
 Folds a 64-bit integer.
-@return	folded value */
+@return folded value */
 UNIV_INLINE
 ulint
 ut_fold_ull(
@@ -99,7 +99,7 @@ ut_fold_ull(
 	__attribute__((const));
 /*************************************************************//**
 Folds a character string ending in the null character.
-@return	folded value */
+@return folded value */
 UNIV_INLINE
 ulint
 ut_fold_string(
@@ -109,8 +109,8 @@ ut_fold_string(
 /***********************************************************//**
 Looks for a prime number slightly greater than the given argument.
 The prime is chosen so that it is not near any power of 2.
-@return	prime */
-UNIV_INTERN
+@return prime */
+
 ulint
 ut_find_prime(
 /*==========*/
@@ -121,7 +121,7 @@ ut_find_prime(
 
 /*************************************************************//**
 Folds a pair of ulints.
-@return	folded value */
+@return folded value */
 UNIV_INLINE
 ulint
 ut_fold_ulint_pair(
@@ -131,7 +131,7 @@ ut_fold_ulint_pair(
 	__attribute__((const));
 /*************************************************************//**
 Folds a binary string.
-@return	folded value */
+@return folded value */
 UNIV_INLINE
 ulint
 ut_fold_binary(

@@ -1,4 +1,4 @@
-/* Copyright (c) 2000, 2012, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2000, 2013, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -11,7 +11,7 @@
 
    You should have received a copy of the GNU General Public License
    along with this program; if not, write to the Free Software
-   Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA */
+   Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA 02110-1301, USA */
 
 /* Describe, check and repair of MyISAM tables */
 
@@ -22,9 +22,6 @@
 #include <stdarg.h>
 #include <my_getopt.h>
 #include <my_bit.h>
-#ifdef HAVE_SYS_VADVICE_H
-#include <sys/vadvise.h>
-#endif
 #ifdef HAVE_SYS_MMAN_H
 #include <sys/mman.h>
 #endif
@@ -359,7 +356,7 @@ static void usage(void)
   -?, --help          Display this help and exit.\n\
   -t, --tmpdir=path   Path for temporary files. Multiple paths can be\n\
                       specified, separated by ");
-#if defined( __WIN__)
+#if defined(_WIN32)
    printf("semicolon (;)");
 #else
    printf("colon (:)");
@@ -1009,7 +1006,6 @@ static int myisamchk(MI_CHECK *param, char * filename)
 	  The data file is nowadays reopened in the repair code so we should
 	  soon remove the following reopen-code
 	*/
-#ifndef TO_BE_REMOVED
 	if (param->out_flag & O_NEW_DATA)
 	{			/* Change temp file to org file */
 	  (void) my_close(info->dfile,MYF(MY_WME)); /* Close new file */
@@ -1019,7 +1015,6 @@ static int myisamchk(MI_CHECK *param, char * filename)
 	  param->out_flag&= ~O_NEW_DATA; /* We are using new datafile */
 	  param->read_cache.file=info->dfile;
 	}
-#endif
 	if (! error)
 	{
 	  uint key;
@@ -1030,7 +1025,10 @@ static int myisamchk(MI_CHECK *param, char * filename)
 	  my_bool update_index=1;
 	  for (key=0 ; key < share->base.keys; key++)
 	    if (share->keyinfo[key].flag & (HA_BINARY_PACK_KEY|HA_FULLTEXT))
-	      update_index=0;
+            {
+              update_index=0;
+              break;
+            }
 
 	  error=mi_sort_records(param,info,filename,param->opt_sort_key,
                              /* what is the following parameter for ? */
@@ -1257,9 +1255,6 @@ static void descript(MI_CHECK *param, MI_INFO *info, char * name)
 
   if (param->testflag & T_VERBOSE)
   {
-#ifdef USE_RELOC
-    printf("Init-relocation:     %13s\n",llstr(share->base.reloc,llbuff));
-#endif
     printf("Datafile parts:      %13s  Deleted data:       %13s\n",
 	   llstr(share->state.split,llbuff),
 	   llstr(info->state->empty,llbuff2));

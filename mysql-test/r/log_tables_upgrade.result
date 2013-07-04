@@ -13,8 +13,6 @@ RENAME TABLE general_log TO renamed_general_log;
 RENAME TABLE test.bug49823 TO general_log;
 Warning: Using a password on the command line interface can be insecure.
 Warning: Using a password on the command line interface can be insecure.
-mtr.global_suppressions                            OK
-mtr.test_suppressions                              OK
 mysql.columns_priv                                 OK
 mysql.db                                           OK
 mysql.event                                        OK
@@ -45,6 +43,10 @@ mysql.time_zone_transition                         OK
 mysql.time_zone_transition_type                    OK
 mysql.user                                         OK
 Warning: Using a password on the command line interface can be insecure.
+Warning: Using a password on the command line interface can be insecure.
+Warning: Using a password on the command line interface can be insecure.
+mtr.global_suppressions                            OK
+mtr.test_suppressions                              OK
 DROP TABLE general_log;
 RENAME TABLE renamed_general_log TO general_log;
 SET GLOBAL general_log = @saved_general_log;

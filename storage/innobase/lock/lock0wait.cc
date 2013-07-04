@@ -1,6 +1,6 @@
 /*****************************************************************************
 
-Copyright (c) 1996, 2011, Oracle and/or its affiliates. All Rights Reserved.
+Copyright (c) 1996, 2013, Oracle and/or its affiliates. All Rights Reserved.
 
 This program is free software; you can redistribute it and/or modify it under
 the terms of the GNU General Public License as published by the Free Software
@@ -25,12 +25,14 @@ Created 25/5/2010 Sunny Bains
 
 #define LOCK_MODULE_IMPLEMENTATION
 
+#include "ha_prototypes.h"
+#include <mysql/plugin.h>
+
 #include "srv0mon.h"
 #include "que0que.h"
 #include "lock0lock.h"
 #include "row0mysql.h"
 #include "srv0start.h"
-#include "ha_prototypes.h"
 #include "lock0priv.h"
 
 /*********************************************************************//**
@@ -124,7 +126,7 @@ lock_wait_table_release_slot(
 
 /*********************************************************************//**
 Reserves a slot in the thread table for the current user OS thread.
-@return	reserved slot */
+@return reserved slot */
 static
 srv_slot_t*
 lock_wait_table_reserve_slot(
@@ -168,15 +170,12 @@ lock_wait_table_reserve_slot(
 		}
 	}
 
-	ut_print_timestamp(stderr);
-
-	fprintf(stderr,
-		"  InnoDB: There appear to be %lu user"
-		" threads currently waiting\n"
-		"InnoDB: inside InnoDB, which is the"
-		" upper limit. Cannot continue operation.\n"
-		"InnoDB: As a last thing, we print"
-		" a list of waiting threads.\n", (ulong) OS_THREAD_MAX_N);
+	ib_logf(IB_LOG_LEVEL_ERROR,
+		"There appear to be %lu user threads currently waiting"
+		" inside InnoDB, which is the upper limit."
+		" Cannot continue operation."
+		" Before aborting, we print a list of waiting threads.",
+		(ulong) OS_THREAD_MAX_N);
 
 	lock_wait_table_print();
 
@@ -190,7 +189,7 @@ occurs during the wait trx->error_state associated with thr is
 != DB_SUCCESS when we return. DB_LOCK_WAIT_TIMEOUT and DB_DEADLOCK
 are possible errors. DB_DEADLOCK is returned if selective deadlock
 resolution chose this transaction as a victim. */
-UNIV_INTERN
+
 void
 lock_wait_suspend_thread(
 /*=====================*/
@@ -236,7 +235,7 @@ lock_wait_suspend_thread(
 		if (trx->lock.was_chosen_as_deadlock_victim) {
 
 			trx->error_state = DB_DEADLOCK;
-			trx->lock.was_chosen_as_deadlock_victim = FALSE;
+			trx->lock.was_chosen_as_deadlock_victim = false;
 		}
 
 		lock_wait_mutex_exit();
@@ -265,6 +264,16 @@ lock_wait_suspend_thread(
 
 	lock_wait_mutex_exit();
 	trx_mutex_exit(trx);
+
+	ulint	lock_type = ULINT_UNDEFINED;
+
+	lock_mutex_enter();
+
+	if (const lock_t* wait_lock = trx->lock.wait_lock) {
+		lock_type = lock_get_type_low(wait_lock);
+	}
+
+	lock_mutex_exit();
 
 	had_dict_lock = trx->dict_operation_lock_mode;
 
@@ -301,7 +310,17 @@ lock_wait_suspend_thread(
 		srv_conc_force_exit_innodb(trx);
 	}
 
+	/* Unknown is also treated like a record lock */
+	if (lock_type == ULINT_UNDEFINED || lock_type == LOCK_REC) {
+		thd_wait_begin(trx->mysql_thd, THD_WAIT_ROW_LOCK);
+	} else {
+		ut_ad(lock_type == LOCK_TABLE);
+		thd_wait_begin(trx->mysql_thd, THD_WAIT_TABLE_LOCK);
+	}
+
 	os_event_wait(slot->event);
+
+	thd_wait_end(trx->mysql_thd);
 
 	/* After resuming, reacquire the data dictionary latch if
 	necessary. */
@@ -333,7 +352,8 @@ lock_wait_suspend_thread(
 			finish_time = (ib_int64_t) sec * 1000000 + ms;
 		}
 
-		diff_time = (ulint) (finish_time - start_time);
+		diff_time = (finish_time > start_time) ?
+			    (ulint) (finish_time - start_time) : 0;
 
 		srv_stats.n_lock_wait_current_count.dec();
 		srv_stats.n_lock_wait_time.add(diff_time);
@@ -369,7 +389,7 @@ lock_wait_suspend_thread(
 /********************************************************************//**
 Releases a user OS thread waiting for a lock to be released, if the
 thread is already suspended. */
-UNIV_INTERN
+
 void
 lock_wait_release_thread_if_suspended(
 /*==================================*/
@@ -390,7 +410,7 @@ lock_wait_release_thread_if_suspended(
 		if (trx->lock.was_chosen_as_deadlock_victim) {
 
 			trx->error_state = DB_DEADLOCK;
-			trx->lock.was_chosen_as_deadlock_victim = FALSE;
+			trx->lock.was_chosen_as_deadlock_victim = false;
 		}
 
 		os_event_set(thr->slot->event);
@@ -453,8 +473,8 @@ lock_wait_check_and_cancel(
 
 /*********************************************************************//**
 A thread which wakes up threads whose lock wait may have lasted too long.
-@return	a dummy parameter */
-extern "C" UNIV_INTERN
+@return a dummy parameter */
+extern "C"
 os_thread_ret_t
 DECLARE_THREAD(lock_wait_timeout_thread)(
 /*=====================================*/

@@ -11,9 +11,6 @@
 # These values can change during the test
 LET $innodb_file_per_table_orig=`select @@innodb_file_per_table`;
 
-# This warning is expected in the log
-call mtr.add_suppression("tablespace is set as discarded");
-
 # Set up some variables
 LET $MYSQL_DATA_DIR = `select @@datadir`;
 LET $data_directory_clause = DATA DIRECTORY='$MYSQL_TMP_DIR/alt_dir';
@@ -738,13 +735,18 @@ SELECT path FROM information_schema.innodb_sys_datafiles
 
 -- disable_query_log
 eval set global innodb_file_per_table=$innodb_file_per_table_orig;
+
+# These warnings are expected in the log
 call mtr.add_suppression("InnoDB: Could not find a valid tablespace file for");
 call mtr.add_suppression("InnoDB: Tablespace open failed for");
+call mtr.add_suppression("InnoDB: Tablespace 'test/t5980' exists in the cache with id");
+call mtr.add_suppression("InnoDB: Freeing existing tablespace 'test/t5980' entry from the cache with");
 call mtr.add_suppression("InnoDB: Failed to find tablespace for table ");
 call mtr.add_suppression("InnoDB: Table test/t5980.* does not have an .ibd file in the database directory.");
 call mtr.add_suppression("Trying to import a tablespace, but could not open the tablespace file");
 call mtr.add_suppression("Cannot delete tablespace .+ because it is not found in the tablespace memory cache");
 call mtr.add_suppression("Cannot delete tablespace .+ in DISCARD TABLESPACE. Tablespace not found");
 call mtr.add_suppression("doesn't have a corresponding tablespace, it was discarded.");
+call mtr.add_suppression("tablespace is set as discarded");
 -- enable_query_log
 

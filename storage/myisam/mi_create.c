@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2000, 2011, Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2000, 2013, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -20,7 +20,7 @@
 #include "sp_defs.h"
 #include <my_bit.h>
 
-#ifdef __WIN__
+#ifdef _WIN32
 #include <fcntl.h>
 #endif
 #include <m_ctype.h>
@@ -246,7 +246,6 @@ int mi_create(const char *name,uint keys,MI_KEYDEF *keydefs,
     key_length=pointer;
     if (keydef->flag & HA_SPATIAL)
     {
-#ifdef HAVE_SPATIAL
       /* BAR TODO to support 3D and more dimensions in the future */
       uint sp_segs=SPDIMS*2;
       keydef->flag=HA_SPATIAL;
@@ -278,10 +277,6 @@ int mi_create(const char *name,uint keys,MI_KEYDEF *keydefs,
       key_length+=SPLEN*sp_segs;
       length++;                              /* At least one length byte */
       min_key_length_skip+=SPLEN*2*SPDIMS;
-#else
-      my_errno= HA_ERR_UNSUPPORTED;
-      goto err_no_lock;
-#endif /*HAVE_SPATIAL*/
     }
     else if (keydef->flag & HA_FULLTEXT)
     {
@@ -495,7 +490,7 @@ int mi_create(const char *name,uint keys,MI_KEYDEF *keydefs,
     goto err_no_lock;
   }
 
-  bmove(share.state.header.file_version,(uchar*) myisam_file_magic,4);
+  memmove(share.state.header.file_version, (uchar*) myisam_file_magic, 4);
   ci->old_options=options| (ci->old_options & HA_OPTION_TEMP_COMPRESS_RECORD ?
 			HA_OPTION_COMPRESS_RECORD |
 			HA_OPTION_TEMP_COMPRESS_RECORD: 0);
@@ -707,7 +702,6 @@ int mi_create(const char *name,uint keys,MI_KEYDEF *keydefs,
     for (j=0 ; j < keydefs[i].keysegs-sp_segs ; j++)
       if (mi_keyseg_write(file, &keydefs[i].seg[j]))
        goto err;
-#ifdef HAVE_SPATIAL
     for (j=0 ; j < sp_segs ; j++)
     {
       HA_KEYSEG sseg;
@@ -725,7 +719,6 @@ int mi_create(const char *name,uint keys,MI_KEYDEF *keydefs,
       if (mi_keyseg_write(file, &sseg))
         goto err;
     }
-#endif
   }
   /* Create extra keys for unique definitions */
   offset= real_reclength - uniques * MI_UNIQUE_HASH_LENGTH;
@@ -800,11 +793,6 @@ int mi_create(const char *name,uint keys,MI_KEYDEF *keydefs,
 
   if (! (flags & HA_DONT_TOUCH_DATA))
   {
-#ifdef USE_RELOC
-    if (mysql_file_chsize(dfile, share.base.min_pack_length*ci->reloc_rows,
-                          0, MYF(0)))
-      goto err;
-#endif
     errpos=2;
     if (mysql_file_close(dfile, MYF(0)))
       goto err;
@@ -852,11 +840,6 @@ uint mi_get_pointer_length(ulonglong file_length, uint def)
   DBUG_ASSERT(def >= 2 && def <= 7);
   if (file_length)				/* If not default */
   {
-#ifdef NOT_YET_READY_FOR_8_BYTE_POINTERS
-    if (file_length >= ULL(1) << 56)
-      def=8;
-    else
-#endif
     if (file_length >= ULL(1) << 48)
       def=7;
     else if (file_length >= ULL(1) << 40)

@@ -51,7 +51,7 @@
 #else
 #include "np/vis.h"
 #endif
-#include "readline/readline.h"
+#include "editline/readline.h"
 #include "el.h"
 #include "fcns.h"		/* for EL_NUM_FCNS */
 #include "histedit.h"
@@ -446,7 +446,8 @@ readline(const char *p)
 		buf = strdup(ret);
 		if (buf == NULL)
 			return NULL;
-		lastidx = count - 1;
+                /* XXXMYSQL: Bug#16408762 */
+		lastidx = strlen(ret) - 1;
 		if (buf[lastidx] == '\n')
 			buf[lastidx] = '\0';
 	} else

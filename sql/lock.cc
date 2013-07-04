@@ -1,4 +1,4 @@
-/* Copyright (c) 2000, 2011, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2000, 2013, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -79,7 +79,7 @@
 #include "lock.h"
 #include "sql_base.h"                       // close_tables_for_reopen
 #include "sql_parse.h"                     // is_log_table_write_query
-#include "sql_acl.h"                       // SUPER_ACL
+#include "auth_common.h"                   // SUPER_ACL
 #include <hash.h>
 #include <assert.h>
 
@@ -501,16 +501,16 @@ void mysql_lock_remove(THD *thd, MYSQL_LOCK *locked,TABLE *table)
         removed_locks= table->lock_count;
 
         /* Move down all table pointers above 'i'. */
-	bmove((char*) (locked->table+i),
-	      (char*) (locked->table+i+1),
-	      (old_tables - i) * sizeof(TABLE*));
+	memmove(reinterpret_cast<char*> (locked->table + i),
+                reinterpret_cast<char*> (locked->table + i + 1),
+                (old_tables - i) * sizeof(TABLE*));
 
         lock_data_end= table->lock_data_start + table->lock_count;
         /* Move down all lock data pointers above 'table->lock_data_end-1' */
-        bmove((char*) (locked->locks + table->lock_data_start),
-              (char*) (locked->locks + lock_data_end),
-              (locked->lock_count - lock_data_end) *
-              sizeof(THR_LOCK_DATA*));
+        memmove(reinterpret_cast<char*> (locked->locks + table->lock_data_start),
+                reinterpret_cast<char*> (locked->locks + lock_data_end),
+                (locked->lock_count - lock_data_end) *
+                sizeof(THR_LOCK_DATA*));
 
         /*
           Fix moved table elements.

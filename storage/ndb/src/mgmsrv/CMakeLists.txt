@@ -56,7 +56,7 @@ MYSQL_ADD_EXECUTABLE(ndb_mgmd
   COMPONENT ClusterManagementServer)
 TARGET_LINK_LIBRARIES(ndb_mgmd ndbconf ndbclient_static ndbmgmclient)
 IF(UNIX)
-  TARGET_LINK_LIBRARIES(ndb_mgmd ${READLINE_LIBRARY})
+  TARGET_LINK_LIBRARIES(ndb_mgmd ${EDITLINE_LIBRARY})
 ENDIF(UNIX)
 
 ADD_EXECUTABLE(MgmConfig-t

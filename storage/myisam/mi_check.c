@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2000, 2011, Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2000, 2013, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -361,11 +361,6 @@ int chk_size(MI_CHECK *param, MI_INFO *info)
   skr=(my_off_t) info->state->data_file_length;
   if (info->s->options & HA_OPTION_COMPRESS_RECORD)
     skr+= MEMMAP_EXTRA_MARGIN;
-#ifdef USE_RELOC
-  if (info->data_file_type == STATIC_RECORD &&
-      skr < (my_off_t) info->s->base.reloc*info->s->base.min_pack_length)
-    skr=(my_off_t) info->s->base.reloc*info->s->base.min_pack_length;
-#endif
   if (skr != size)
   {
     info->state->data_file_length=size;	/* Skip other errors */
@@ -1237,11 +1232,9 @@ int chk_data_link(MI_CHECK *param, MI_INFO *info,int extend)
 		 concurrent threads when running myisamchk
 	      */
               int search_result=
-#ifdef HAVE_RTREE_KEYS
                 (keyinfo->flag & HA_SPATIAL) ?
                 rtree_find_first(info, key, info->lastkey, key_length,
                                  MBR_EQUAL | MBR_DATA) : 
-#endif
                 _mi_search(info,keyinfo,info->lastkey,key_length,
                            SEARCH_SAME, info->s->state.key_root[key]);
               if (search_result)
@@ -1806,14 +1799,12 @@ static int writekeys(MI_SORT_PARAM *sort_param)
         if (_mi_ft_add(info, i, key, buff, filepos))
 	  goto err;
       }
-#ifdef HAVE_SPATIAL
       else if (info->s->keyinfo[i].flag & HA_SPATIAL)
       {
 	uint key_length=_mi_make_key(info,i,key,buff,filepos);
 	if (rtree_insert(info, i, key, key_length))
 	  goto err;
       }
-#endif /*HAVE_SPATIAL*/
       else
       {
 	uint key_length=_mi_make_key(info,i,key,buff,filepos);
@@ -2508,11 +2499,6 @@ int mi_repair_by_sort(MI_CHECK *param, MI_INFO *info,
     my_off_t skr=info->state->data_file_length+
       (share->options & HA_OPTION_COMPRESS_RECORD ?
        MEMMAP_EXTRA_MARGIN : 0);
-#ifdef USE_RELOC
-    if (share->data_file_type == STATIC_RECORD &&
-	skr < share->base.reloc*share->base.min_pack_length)
-      skr=share->base.reloc*share->base.min_pack_length;
-#endif
     if (skr != sort_info.filelength)
       if (mysql_file_chsize(info->dfile, skr, 0, MYF(0)))
 	mi_check_print_warning(param,
@@ -2654,6 +2640,7 @@ int mi_repair_parallel(MI_CHECK *param, MI_INFO *info,
   ulonglong UNINIT_VAR(key_map);
   pthread_attr_t thr_attr;
   ulong max_pack_reclength;
+  int error;
   DBUG_ENTER("mi_repair_parallel");
 
   start_records=info->state->records;
@@ -2936,24 +2923,15 @@ int mi_repair_parallel(MI_CHECK *param, MI_INFO *info,
     DBUG_PRINT("io_cache_share", ("thread: %u  read_cache: 0x%lx",
                                   i, (long) &sort_param[i].read_cache));
 
-    /*
-      two approaches: the same amount of memory for each thread
-      or the memory for the same number of keys for each thread...
-      In the second one all the threads will fill their sort_buffers
-      (and call write_keys) at the same time, putting more stress on i/o.
-    */
     sort_param[i].sortbuff_size=
-#ifndef USING_SECOND_APPROACH
       param->sort_buffer_length/sort_info.total_keys;
-#else
-      param->sort_buffer_length*sort_param[i].key_length/total_key_length;
-#endif
-    if (mysql_thread_create(mi_key_thread_find_all_keys,
-                            &sort_param[i].thr, &thr_attr,
-                            thr_find_all_keys,
-                            (void *) (sort_param+i)))
+    if ((error= mysql_thread_create(mi_key_thread_find_all_keys,
+                                    &sort_param[i].thr, &thr_attr,
+                                    thr_find_all_keys,
+                                    (void *) (sort_param+i))))
     {
-      mi_check_print_error(param,"Cannot start a repair thread");
+      mi_check_print_error(param,"Cannot start a repair thread (errno= %d)",
+                           error);
       /* Cleanup: Detach from the share. Avoid others to be blocked. */
       if (io_share.total_threads)
         remove_io_thread(&sort_param[i].read_cache);
@@ -3027,11 +3005,6 @@ int mi_repair_parallel(MI_CHECK *param, MI_INFO *info,
     my_off_t skr=info->state->data_file_length+
       (share->options & HA_OPTION_COMPRESS_RECORD ?
        MEMMAP_EXTRA_MARGIN : 0);
-#ifdef USE_RELOC
-    if (share->data_file_type == STATIC_RECORD &&
-	skr < share->base.reloc*share->base.min_pack_length)
-      skr=share->base.reloc*share->base.min_pack_length;
-#endif
     if (skr != sort_info.filelength)
       if (mysql_file_chsize(info->dfile, skr, 0, MYF(0)))
 	mi_check_print_warning(param,
@@ -4193,7 +4166,7 @@ static SORT_KEY_BLOCKS *alloc_key_blocks(MI_CHECK *param, uint blocks,
 					   MYF(0))))
   {
     mi_check_print_error(param,"Not enough memory for sort-key-blocks");
-    return(0);
+    DBUG_RETURN(0);
   }
   for (i=0 ; i < blocks ; i++)
   {
@@ -4274,13 +4247,15 @@ int recreate_table(MI_CHECK *param, MI_INFO **org_info, char *filename)
   /* Copy the column definitions */
   memcpy((uchar*) recdef,(uchar*) share.rec,
 	 (size_t) (sizeof(MI_COLUMNDEF)*(share.base.fields+1)));
-  for (rec=recdef,end=recdef+share.base.fields; rec != end ; rec++)
+  if (unpack && !(share.options & HA_OPTION_PACK_RECORD))
   {
-    if (unpack && !(share.options & HA_OPTION_PACK_RECORD) &&
-	rec->type != FIELD_BLOB &&
-	rec->type != FIELD_VARCHAR &&
-	rec->type != FIELD_CHECK)
-      rec->type=(int) FIELD_NORMAL;
+     for (rec=recdef,end=recdef+share.base.fields; rec != end ; rec++)
+     {
+        if (rec->type != FIELD_BLOB &&
+            rec->type != FIELD_VARCHAR &&
+            rec->type != FIELD_CHECK)
+          rec->type=(int) FIELD_NORMAL;
+     }
   }
 
   /* Change the new key to point at the saved key segments */
@@ -4707,10 +4682,13 @@ my_bool mi_test_if_sort_rep(MI_INFO *info, ha_rows rows,
   */
   if (! mi_is_any_key_active(key_map))
     return FALSE;				/* Can't use sort */
-  for (i=0 ; i < share->base.keys ; i++,key++)
+  if (!force)
   {
-    if (!force && mi_too_big_key_for_sort(key,rows))
-      return FALSE;
+     for (i=0 ; i < share->base.keys ; i++,key++)
+     {
+        if (mi_too_big_key_for_sort(key,rows))
+          return FALSE;
+     }
   }
   return TRUE;
 }

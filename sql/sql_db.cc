@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2000, 2012, Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2000, 2013, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -26,8 +26,8 @@
 #include "sql_table.h"                   // build_table_filename,
                                          // filename_to_tablename
 #include "sql_rename.h"                  // mysql_rename_tables
-#include "sql_acl.h"                     // SELECT_ACL, DB_ACLS,
-                                         // acl_get, check_grant_db
+#include "auth_common.h"                 // acl_get, check_grant_db
+                                         // SELECT_ACL, DB_ACLS,
 #include "log_event.h"                   // Query_log_event
 #include "sql_base.h"                    // lock_table_names, tdc_remove_table
 #include "sql_handler.h"                 // mysql_ha_rm_tables
@@ -39,7 +39,7 @@
 #include "log.h"
 #include "binlog.h"                             // mysql_bin_log
 #include "log_event.h"
-#ifdef __WIN__
+#ifdef _WIN32
 #include <direct.h>
 #endif
 #include "debug_sync.h"
@@ -821,8 +821,7 @@ bool mysql_rm_db(THD *thd,char *db,bool if_exists, bool silent)
   {
     for (table= tables; table; table= table->next_local)
     {
-      if (check_if_log_table(table->db_length, table->db,
-                             table->table_name_length, table->table_name, true))
+      if (query_logger.check_if_log_table(table, true))
       {
         my_error(ER_BAD_LOG_STATEMENT, MYF(0), "DROP");
         goto exit;
@@ -872,9 +871,9 @@ bool mysql_rm_db(THD *thd,char *db,bool if_exists, bool silent)
 
     ha_drop_database(path);
     tmp_disable_binlog(thd);
-    query_cache_invalidate1(db);
+    query_cache.invalidate(db);
     (void) sp_drop_db_routines(thd, db); /* @todo Do not ignore errors */
-#ifdef HAVE_EVENT_SCHEDULER
+#ifndef EMBEDDED_LIBRARY
     Events::drop_schema_events(thd, db);
 #endif
     reenable_binlog(thd);
@@ -1537,8 +1536,8 @@ bool mysql_change_db(THD *thd, const LEX_STRING *new_db_name, bool force_switch)
   db_access=
     test_all_bits(sctx->master_access, DB_ACLS) ?
     DB_ACLS :
-    acl_get(sctx->host,
-            sctx->ip,
+    acl_get(sctx->get_host()->ptr(),
+            sctx->get_ip()->ptr(),
             sctx->priv_user,
             new_db_file_name.str,
             FALSE) | sctx->master_access;
@@ -1551,8 +1550,11 @@ bool mysql_change_db(THD *thd, const LEX_STRING *new_db_name, bool force_switch)
              sctx->priv_user,
              sctx->priv_host,
              new_db_file_name.str);
-    general_log_print(thd, COM_INIT_DB, ER(ER_DBACCESS_DENIED_ERROR),
-                      sctx->priv_user, sctx->priv_host, new_db_file_name.str);
+    query_logger.general_log_print(thd, COM_INIT_DB,
+                                   ER(ER_DBACCESS_DENIED_ERROR),
+                                   sctx->priv_user,
+                                   sctx->priv_host,
+                                   new_db_file_name.str);
     my_free(new_db_file_name.str);
     DBUG_RETURN(TRUE);
   }
@@ -1665,7 +1667,7 @@ bool mysql_upgrade_db(THD *thd, LEX_STRING *old_db)
   HA_CREATE_INFO create_info;
   MY_DIR *dirp;
   TABLE_LIST *table_list;
-  SELECT_LEX *sl= thd->lex->current_select;
+  SELECT_LEX *sl= thd->lex->current_select();
   LEX_STRING new_db;
   DBUG_ENTER("mysql_upgrade_db");
 

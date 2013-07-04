@@ -1000,20 +1000,20 @@ drop table t1;
 CREATE TABLE t1 (a int(1));
 EXPLAIN EXTENDED SELECT (SELECT RAND() FROM t1) FROM t1;
 id	select_type	table	type	possible_keys	key	key_len	ref	rows	filtered	Extra
-1	PRIMARY	t1	system	NULL	NULL	NULL	NULL	0	0.00	const row not found
-2	UNCACHEABLE SUBQUERY	t1	system	NULL	NULL	NULL	NULL	0	0.00	const row not found
+1	PRIMARY	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	no matching row in const table
+2	UNCACHEABLE SUBQUERY	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	no matching row in const table
 Warnings:
 Note	1003	/* select#1 */ select (/* select#2 */ select rand() from `test`.`t1`) AS `(SELECT RAND() FROM t1)` from `test`.`t1`
 EXPLAIN EXTENDED SELECT (SELECT ENCRYPT('test') FROM t1) FROM t1;
 id	select_type	table	type	possible_keys	key	key_len	ref	rows	filtered	Extra
-1	PRIMARY	t1	system	NULL	NULL	NULL	NULL	0	0.00	const row not found
-2	UNCACHEABLE SUBQUERY	t1	system	NULL	NULL	NULL	NULL	0	0.00	const row not found
+1	PRIMARY	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	no matching row in const table
+2	UNCACHEABLE SUBQUERY	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	no matching row in const table
 Warnings:
 Note	1003	/* select#1 */ select (/* select#2 */ select encrypt('test') from `test`.`t1`) AS `(SELECT ENCRYPT('test') FROM t1)` from `test`.`t1`
 EXPLAIN EXTENDED SELECT (SELECT BENCHMARK(1,1) FROM t1) FROM t1;
 id	select_type	table	type	possible_keys	key	key_len	ref	rows	filtered	Extra
-1	PRIMARY	t1	system	NULL	NULL	NULL	NULL	0	0.00	const row not found
-2	UNCACHEABLE SUBQUERY	t1	system	NULL	NULL	NULL	NULL	0	0.00	const row not found
+1	PRIMARY	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	no matching row in const table
+2	UNCACHEABLE SUBQUERY	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	no matching row in const table
 Warnings:
 Note	1003	/* select#1 */ select (/* select#2 */ select benchmark(1,1) from `test`.`t1`) AS `(SELECT BENCHMARK(1,1) FROM t1)` from `test`.`t1`
 drop table t1;
@@ -1162,7 +1162,7 @@ SELECT 0 IN (SELECT 1 FROM t1 a);
 EXPLAIN EXTENDED SELECT 0 IN (SELECT 1 FROM t1 a);
 id	select_type	table	type	possible_keys	key	key_len	ref	rows	filtered	Extra
 1	PRIMARY	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	No tables used
-2	DEPENDENT SUBQUERY	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	Impossible WHERE
+2	SUBQUERY	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	Impossible WHERE
 Warnings:
 Note	1003	/* select#1 */ select <in_optimizer>(0,<exists>(/* select#2 */ select 1 from `test`.`t1` `a` where 0)) AS `0 IN (SELECT 1 FROM t1 a)`
 INSERT INTO t1 (pseudo) VALUES ('test1');
@@ -1172,7 +1172,7 @@ SELECT 0 IN (SELECT 1 FROM t1 a);
 EXPLAIN EXTENDED SELECT 0 IN (SELECT 1 FROM t1 a);
 id	select_type	table	type	possible_keys	key	key_len	ref	rows	filtered	Extra
 1	PRIMARY	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	No tables used
-2	DEPENDENT SUBQUERY	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	Impossible WHERE
+2	SUBQUERY	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	Impossible WHERE
 Warnings:
 Note	1003	/* select#1 */ select <in_optimizer>(0,<exists>(/* select#2 */ select 1 from `test`.`t1` `a` where 0)) AS `0 IN (SELECT 1 FROM t1 a)`
 drop table t1;
@@ -1385,7 +1385,7 @@ a
 explain extended select * from t3 where a >= all (select b from t2);
 id	select_type	table	type	possible_keys	key	key_len	ref	rows	filtered	Extra
 1	PRIMARY	t3	ALL	NULL	NULL	NULL	NULL	3	100.00	Using where
-2	SUBQUERY	t2	system	NULL	NULL	NULL	NULL	0	0.00	const row not found
+2	SUBQUERY	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	no matching row in const table
 Warnings:
 Note	1003	/* select#1 */ select `test`.`t3`.`a` AS `a` from `test`.`t3` where <not>((`test`.`t3`.`a` < <max>(/* select#2 */ select NULL from `test`.`t2`)))
 select * from t3 where a >= some (select b from t2);
@@ -1393,7 +1393,7 @@ a
 explain extended select * from t3 where a >= some (select b from t2);
 id	select_type	table	type	possible_keys	key	key_len	ref	rows	filtered	Extra
 1	PRIMARY	t3	ALL	NULL	NULL	NULL	NULL	3	100.00	Using where
-2	SUBQUERY	t2	system	NULL	NULL	NULL	NULL	0	0.00	const row not found
+2	SUBQUERY	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	no matching row in const table
 Warnings:
 Note	1003	/* select#1 */ select `test`.`t3`.`a` AS `a` from `test`.`t3` where <nop>((`test`.`t3`.`a` >= (/* select#2 */ select min(NULL) from `test`.`t2`)))
 select * from t3 where a >= all (select b from t2 group by 1);
@@ -1404,7 +1404,7 @@ a
 explain extended select * from t3 where a >= all (select b from t2 group by 1);
 id	select_type	table	type	possible_keys	key	key_len	ref	rows	filtered	Extra
 1	PRIMARY	t3	ALL	NULL	NULL	NULL	NULL	3	100.00	Using where
-2	SUBQUERY	t2	system	NULL	NULL	NULL	NULL	0	0.00	const row not found
+2	SUBQUERY	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	no matching row in const table
 Warnings:
 Note	1003	/* select#1 */ select `test`.`t3`.`a` AS `a` from `test`.`t3` where <not>((`test`.`t3`.`a` < <max>(/* select#2 */ select NULL from `test`.`t2`)))
 select * from t3 where a >= some (select b from t2 group by 1);
@@ -1412,7 +1412,7 @@ a
 explain extended select * from t3 where a >= some (select b from t2 group by 1);
 id	select_type	table	type	possible_keys	key	key_len	ref	rows	filtered	Extra
 1	PRIMARY	t3	ALL	NULL	NULL	NULL	NULL	3	100.00	Using where
-2	SUBQUERY	t2	system	NULL	NULL	NULL	NULL	0	0.00	const row not found
+2	SUBQUERY	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	no matching row in const table
 Warnings:
 Note	1003	/* select#1 */ select `test`.`t3`.`a` AS `a` from `test`.`t3` where <nop>((`test`.`t3`.`a` >= (/* select#2 */ select min(NULL) from `test`.`t2`)))
 select * from t3 where NULL >= any (select b from t2);
@@ -1420,7 +1420,7 @@ a
 explain extended select * from t3 where NULL >= any (select b from t2);
 id	select_type	table	type	possible_keys	key	key_len	ref	rows	filtered	Extra
 1	PRIMARY	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	Impossible WHERE
-2	SUBQUERY	t2	system	NULL	NULL	NULL	NULL	0	0.00	const row not found
+2	SUBQUERY	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	no matching row in const table
 Warnings:
 Note	1003	/* select#1 */ select `test`.`t3`.`a` AS `a` from `test`.`t3` where 0
 select * from t3 where NULL >= any (select b from t2 group by 1);
@@ -1428,7 +1428,7 @@ a
 explain extended select * from t3 where NULL >= any (select b from t2 group by 1);
 id	select_type	table	type	possible_keys	key	key_len	ref	rows	filtered	Extra
 1	PRIMARY	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	Impossible WHERE
-2	SUBQUERY	t2	system	NULL	NULL	NULL	NULL	0	0.00	const row not found
+2	SUBQUERY	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	no matching row in const table
 Warnings:
 Note	1003	/* select#1 */ select `test`.`t3`.`a` AS `a` from `test`.`t3` where 0
 select * from t3 where NULL >= some (select b from t2);
@@ -1436,7 +1436,7 @@ a
 explain extended select * from t3 where NULL >= some (select b from t2);
 id	select_type	table	type	possible_keys	key	key_len	ref	rows	filtered	Extra
 1	PRIMARY	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	Impossible WHERE
-2	SUBQUERY	t2	system	NULL	NULL	NULL	NULL	0	0.00	const row not found
+2	SUBQUERY	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	no matching row in const table
 Warnings:
 Note	1003	/* select#1 */ select `test`.`t3`.`a` AS `a` from `test`.`t3` where 0
 select * from t3 where NULL >= some (select b from t2 group by 1);
@@ -1444,7 +1444,7 @@ a
 explain extended select * from t3 where NULL >= some (select b from t2 group by 1);
 id	select_type	table	type	possible_keys	key	key_len	ref	rows	filtered	Extra
 1	PRIMARY	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	Impossible WHERE
-2	SUBQUERY	t2	system	NULL	NULL	NULL	NULL	0	0.00	const row not found
+2	SUBQUERY	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	no matching row in const table
 Warnings:
 Note	1003	/* select#1 */ select `test`.`t3`.`a` AS `a` from `test`.`t3` where 0
 insert into t2 values (2,2), (2,1), (3,3), (3,1);
@@ -3348,7 +3348,7 @@ from t1' at line 1
 explain select * from t1 where not exists
 ((select t11.i from t1 t11) union (select t12.i from t1 t12));
 id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
-1	PRIMARY	t1	system	NULL	NULL	NULL	NULL	0	const row not found
+1	PRIMARY	NULL	NULL	NULL	NULL	NULL	NULL	NULL	no matching row in const table
 2	SUBQUERY	NULL	NULL	NULL	NULL	NULL	NULL	NULL	no matching row in const table
 3	UNION	NULL	NULL	NULL	NULL	NULL	NULL	NULL	no matching row in const table
 NULL	UNION RESULT	<union2,3>	ALL	NULL	NULL	NULL	NULL	NULL	Using temporary
@@ -4148,8 +4148,8 @@ SELECT MAX(b), (SELECT COUNT(*) FROM st1,st2 WHERE st2.b <= t1.b)
 FROM t1 
 WHERE a = 230;
 id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
-1	PRIMARY	NULL	NULL	NULL	NULL	NULL	NULL	NULL	Impossible WHERE noticed after reading const tables
-2	DEPENDENT SUBQUERY	NULL	NULL	NULL	NULL	NULL	NULL	NULL	Impossible WHERE noticed after reading const tables
+1	PRIMARY	NULL	NULL	NULL	NULL	NULL	NULL	NULL	no matching row in const table
+2	DEPENDENT SUBQUERY	NULL	NULL	NULL	NULL	NULL	NULL	NULL	no matching row in const table
 SELECT MAX(b), (SELECT COUNT(*) FROM st1,st2 WHERE st2.b <= t1.b)
 FROM t1 
 WHERE a = 230;
@@ -5470,7 +5470,7 @@ SELECT t1.a, (SELECT 1 FROM t2 WHERE t2.b=t3.c AND t2.c=t1.a ORDER BY t2.d LIMIT
 id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
 1	PRIMARY	t3	index	b,b_2	b	10	NULL	2	Using where; Using index
 1	PRIMARY	t1	eq_ref	PRIMARY	PRIMARY	4	test.t3.b	1	Using index
-2	DEPENDENT SUBQUERY	t2	ref	b,b_2,c	b	10	test.t3.c,test.t1.a	1	Using where; Using index; Using filesort
+2	DEPENDENT SUBQUERY	t2	ref	b,b_2,c	b	10	test.t3.c,test.t1.a	5	Using where; Using index; Using filesort
 SELECT t1.a, (SELECT 1 FROM t2 WHERE t2.b=t3.c AND t2.c=t1.a ORDER BY t2.d LIMIT 1) AS incorrect FROM t1, t3 WHERE t3.b=t1.a;
 a	incorrect
 1	1
@@ -5849,9 +5849,13 @@ CREATE TABLE t1(a LONGTEXT);
 INSERT INTO t1 VALUES (repeat('a',@@global.max_allowed_packet));
 INSERT INTO t1 VALUES (repeat('b',@@global.max_allowed_packet));
 EXPLAIN EXTENDED SELECT DISTINCT 1 FROM t1,
-(SELECT DISTINCTROW a AS away FROM t1 GROUP BY a WITH ROLLUP) AS d1  
+(SELECT a AS away FROM t1 GROUP BY a WITH ROLLUP) AS d1  
 WHERE t1.a = d1.a;
 ERROR 42S22: Unknown column 'd1.a' in 'where clause'
+EXPLAIN EXTENDED SELECT DISTINCT 1 FROM t1,
+(SELECT DISTINCTROW a AS away FROM t1 GROUP BY a WITH ROLLUP) AS d1  
+WHERE t1.a = d1.a;
+ERROR HY000: Incorrect usage of WITH ROLLUP and DISTINCT
 DROP TABLE t1;
 create table t0 (a int);
 insert into t0 values (0),(1),(2),(3),(4),(5),(6),(7),(8),(9);
@@ -6272,8 +6276,8 @@ INSERT INTO t2 VALUES (1), (2);
 EXPLAIN  
 SELECT i FROM t1 WHERE (1) NOT IN (SELECT i FROM t2);
 id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
-1	PRIMARY	NULL	NULL	NULL	NULL	NULL	NULL	NULL	Impossible WHERE noticed after reading const tables
-2	DEPENDENT SUBQUERY	t2	index_subquery	k	k	5	const	2	Using index
+1	PRIMARY	NULL	NULL	NULL	NULL	NULL	NULL	NULL	Impossible WHERE
+2	SUBQUERY	t2	index_subquery	k	k	5	const	2	Using index
 DROP TABLE t2;
 DROP TABLE t1;
 #
@@ -6494,10 +6498,10 @@ NULL
 EXPLAIN EXTENDED SELECT (SELECT 1 FROM t2 WHERE d = c) AS RESULT FROM t1 ;
 id	select_type	table	type	possible_keys	key	key_len	ref	rows	filtered	Extra
 1	PRIMARY	t1	system	NULL	NULL	NULL	NULL	1	100.00	NULL
-2	DEPENDENT SUBQUERY	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	Impossible WHERE noticed after reading const tables
+2	DEPENDENT SUBQUERY	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	no matching row in const table
 Warnings:
 Note	1276	Field or reference 'test.t1.c' of SELECT #2 was resolved in SELECT #1
-Note	1003	/* select#1 */ select (/* select#2 */ select 1 from `test`.`t2` where 0) AS `RESULT` from dual
+Note	1003	/* select#1 */ select (/* select#2 */ select 1 from `test`.`t2` where multiple equal(NULL, `test`.`t2`.`d`)) AS `RESULT` from dual
 first equivalent variant
 SELECT (SELECT 1 FROM t2 WHERE d = IFNULL(c,NULL)) AS RESULT FROM t1 GROUP BY c ;
 RESULT
@@ -6505,10 +6509,10 @@ NULL
 EXPLAIN EXTENDED SELECT (SELECT 1 FROM t2 WHERE d = IFNULL(c,NULL)) AS RESULT FROM t1 GROUP BY c;
 id	select_type	table	type	possible_keys	key	key_len	ref	rows	filtered	Extra
 1	PRIMARY	t1	system	NULL	NULL	NULL	NULL	1	100.00	NULL
-2	DEPENDENT SUBQUERY	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	Impossible WHERE noticed after reading const tables
+2	DEPENDENT SUBQUERY	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	no matching row in const table
 Warnings:
 Note	1276	Field or reference 'test.t1.c' of SELECT #2 was resolved in SELECT #1
-Note	1003	/* select#1 */ select (/* select#2 */ select 1 from `test`.`t2` where 0) AS `RESULT` from dual group by NULL
+Note	1003	/* select#1 */ select (/* select#2 */ select 1 from `test`.`t2` where (`test`.`t2`.`d` = ifnull(NULL,NULL))) AS `RESULT` from dual group by NULL
 second equivalent variant
 SELECT (SELECT 1 FROM t2 WHERE d = c) AS RESULT FROM t1 GROUP BY c ;
 RESULT
@@ -6516,10 +6520,10 @@ NULL
 EXPLAIN EXTENDED SELECT (SELECT 1 FROM t2 WHERE d = c) AS RESULT FROM t1 GROUP BY c ;
 id	select_type	table	type	possible_keys	key	key_len	ref	rows	filtered	Extra
 1	PRIMARY	t1	system	NULL	NULL	NULL	NULL	1	100.00	NULL
-2	DEPENDENT SUBQUERY	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	Impossible WHERE noticed after reading const tables
+2	DEPENDENT SUBQUERY	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	no matching row in const table
 Warnings:
 Note	1276	Field or reference 'test.t1.c' of SELECT #2 was resolved in SELECT #1
-Note	1003	/* select#1 */ select (/* select#2 */ select 1 from `test`.`t2` where 0) AS `RESULT` from dual group by NULL
+Note	1003	/* select#1 */ select (/* select#2 */ select 1 from `test`.`t2` where multiple equal(NULL, `test`.`t2`.`d`)) AS `RESULT` from dual group by NULL
 DROP TABLE t1,t2;
 
 BUG#37842: Assertion in DsMrr_impl::dsmrr_init, at handler.cc:4307
@@ -6693,7 +6697,7 @@ t1 AS t1f STRAIGHT_JOIN t3 AS t3f;
 id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
 1	PRIMARY	t1f	ALL	NULL	NULL	NULL	NULL	2	NULL
 1	PRIMARY	t3f	index	NULL	col_varchar_key	9	NULL	3	Using index; Using join buffer (Block Nested Loop)
-2	DEPENDENT SUBQUERY	t1s	ref	col_int_key	col_int_key	5	const	1	Using index condition; Using where
+2	DEPENDENT SUBQUERY	t1s	ref	col_int_key	col_int_key	5	const	1	Using where
 2	DEPENDENT SUBQUERY	t3s	index	NULL	col_int_key	5	NULL	3	Using index; Using join buffer (Block Nested Loop)
 DROP TABLE t1,t3;
 #
@@ -6999,7 +7003,7 @@ FROM t1 AS sq4_alias1
 WHERE (sq4_alias1.col_varchar_key + NULL) IS NULL OR
 sq4_alias1.col_varchar_key = @var3;
 id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
-1	SIMPLE	NULL	NULL	NULL	NULL	NULL	NULL	NULL	Impossible WHERE noticed after reading const tables
+1	SIMPLE	NULL	NULL	NULL	NULL	NULL	NULL	NULL	no matching row in const table
 SELECT @var3:=12, sq4_alias1.*
 FROM t1 AS sq4_alias1
 WHERE (sq4_alias1.col_varchar_key + NULL) IS NULL OR
@@ -7013,7 +7017,7 @@ FROM t1 AS sq4_alias1
 WHERE (sq4_alias1.col_varchar_key + NULL) IS NULL OR
 sq4_alias1.col_varchar_key = @var3 ) AS alias3;
 id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
-1	PRIMARY	<derived2>	system	NULL	NULL	NULL	NULL	0	const row not found
+1	PRIMARY	NULL	NULL	NULL	NULL	NULL	NULL	NULL	no matching row in const table
 2	DERIVED	NULL	NULL	NULL	NULL	NULL	NULL	NULL	no matching row in const table
 SELECT * FROM ( SELECT @var3:=12, sq4_alias1.*
 FROM t1 AS sq4_alias1
@@ -7036,7 +7040,7 @@ FROM t2 AS c_sq1_alias1
 WHERE (c_sq1_alias1.col_int_nokey != @var2
 OR c_sq1_alias1.pk != @var3));
 id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
-1	PRIMARY	NULL	NULL	NULL	NULL	NULL	NULL	NULL	Impossible WHERE noticed after reading const tables
+1	PRIMARY	NULL	NULL	NULL	NULL	NULL	NULL	NULL	no matching row in const table
 2	DEPENDENT SUBQUERY	c_sq1_alias1	system	PRIMARY,col_varchar_key	NULL	NULL	NULL	1	NULL
 SELECT sq4_alias1.*
 FROM t1 AS sq4_alias1
@@ -7058,7 +7062,7 @@ FROM t2 AS c_sq1_alias1
 WHERE (c_sq1_alias1.col_int_nokey != @var2
 OR c_sq1_alias1.pk != @var3)) ) AS alias3;
 id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
-1	PRIMARY	<derived2>	system	NULL	NULL	NULL	NULL	0	const row not found
+1	PRIMARY	NULL	NULL	NULL	NULL	NULL	NULL	NULL	no matching row in const table
 2	DERIVED	NULL	NULL	NULL	NULL	NULL	NULL	NULL	no matching row in const table
 3	DEPENDENT SUBQUERY	c_sq1_alias1	system	PRIMARY,col_varchar_key	NULL	NULL	NULL	1	NULL
 SELECT * FROM ( SELECT sq4_alias1.*
@@ -7264,7 +7268,7 @@ WHERE ((SELECT i1 FROM t0 WHERE i1 = 7),
 (SELECT col_int_key,col_int_nokey FROM t2);
 id	select_type	table	type	possible_keys	key	key_len	ref	rows	filtered	Extra
 1	PRIMARY	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	Impossible WHERE noticed after reading const tables
-4	DEPENDENT SUBQUERY	t2	index_subquery	col_int_key	col_int_key	5	const	4	100.00	Using where; Full scan on NULL key
+4	DEPENDENT SUBQUERY	t2	index_subquery	col_int_key	col_int_key	5	func	4	100.00	Using where; Full scan on NULL key
 3	SUBQUERY	t0	const	PRIMARY	PRIMARY	4	const	1	100.00	Using index
 2	SUBQUERY	t0	const	PRIMARY	PRIMARY	4	const	1	100.00	Using index
 Warnings:

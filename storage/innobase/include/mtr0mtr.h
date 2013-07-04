@@ -37,15 +37,17 @@ Created 11/26/1995 Heikki Tuuri
 #include "page0types.h"
 
 /* Logging modes for a mini-transaction */
-#define MTR_LOG_ALL		21	/* default mode: log all operations
-					modifying disk-based data */
-#define	MTR_LOG_NONE		22	/* log no operations */
-#define	MTR_LOG_NO_REDO		23	/* Don't generate REDO */
-/*#define	MTR_LOG_SPACE	23 */	/* log only operations modifying
-					file space page allocation data
-					(operations in fsp0fsp.* ) */
-#define	MTR_LOG_SHORT_INSERTS	24	/* inserts are logged in a shorter
-					form */
+#define MTR_LOG_ALL			21	/* default mode: log all
+						operations modifying
+						disk-based data */
+#define	MTR_LOG_NONE			22	/* log no operations and dirty
+						pages are not added to the
+						flush list */
+#define MTR_LOG_NO_REDO			23	/* Don't generate REDO log
+						but add dirty pages to
+						flush list */
+#define MTR_LOG_SHORT_INSERTS		24	/* inserts are logged in
+						a shorter form */
 
 /* Types for the mlock objects to store in the mtr memo; NOTE that the
 first 3 values must be RW_S_LATCH, RW_X_LATCH, RW_NO_LATCH */
@@ -210,7 +212,7 @@ mtr_start(
 	__attribute__((nonnull));
 /***************************************************************//**
 Commits a mini-transaction. */
-UNIV_INTERN
+
 void
 mtr_commit(
 /*=======*/
@@ -218,7 +220,7 @@ mtr_commit(
 	__attribute__((nonnull));
 /**********************************************************//**
 Sets and returns a savepoint in mtr.
-@return	savepoint */
+@return savepoint */
 UNIV_INLINE
 ulint
 mtr_set_savepoint(
@@ -240,7 +242,7 @@ mtr_release_s_latch_at_savepoint(
 #endif /* !UNIV_HOTBACKUP */
 /***************************************************************//**
 Gets the logging mode of a mini-transaction.
-@return	logging mode: MTR_LOG_NONE, ... */
+@return logging mode: MTR_LOG_NONE, ... */
 UNIV_INLINE
 ulint
 mtr_get_log_mode(
@@ -248,7 +250,7 @@ mtr_get_log_mode(
 	mtr_t*	mtr);	/*!< in: mtr */
 /***************************************************************//**
 Changes the logging mode of a mini-transaction.
-@return	old mode */
+@return old mode */
 UNIV_INLINE
 ulint
 mtr_set_log_mode(
@@ -257,8 +259,8 @@ mtr_set_log_mode(
 	ulint	mode);	/*!< in: logging mode: MTR_LOG_NONE, ... */
 /********************************************************//**
 Reads 1 - 4 bytes from a file page buffered in the buffer pool.
-@return	value read */
-UNIV_INTERN
+@return value read */
+
 ulint
 mtr_read_ulint(
 /*===========*/
@@ -299,9 +301,10 @@ mtr_x_lock_func(
 #endif /* !UNIV_HOTBACKUP */
 
 /***************************************************//**
-Releases an object in the memo stack. */
-UNIV_INTERN
-void
+Releases an object in the memo stack.
+@return true if released */
+
+bool
 mtr_memo_release(
 /*=============*/
 	mtr_t*	mtr,	/*!< in/out: mini-transaction */
@@ -312,7 +315,7 @@ mtr_memo_release(
 # ifndef UNIV_HOTBACKUP
 /**********************************************************//**
 Checks if memo contains the given item.
-@return	TRUE if contains */
+@return TRUE if contains */
 UNIV_INLINE
 ibool
 mtr_memo_contains(
@@ -324,8 +327,8 @@ mtr_memo_contains(
 
 /**********************************************************//**
 Checks if memo contains the given page.
-@return	TRUE if contains */
-UNIV_INTERN
+@return TRUE if contains */
+
 ibool
 mtr_memo_contains_page(
 /*===================*/
@@ -334,7 +337,7 @@ mtr_memo_contains_page(
 	ulint		type);	/*!< in: type of object */
 /*********************************************************//**
 Prints info of an mtr handle. */
-UNIV_INTERN
+
 void
 mtr_print(
 /*======*/
@@ -350,7 +353,7 @@ mtr_print(
 
 /***************************************************************//**
 Returns the log object of a mini-transaction buffer.
-@return	log */
+@return log */
 UNIV_INLINE
 dyn_array_t*
 mtr_get_log(

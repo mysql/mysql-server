@@ -11,7 +11,7 @@
 
    You should have received a copy of the GNU General Public License
    along with this program; if not, write to the Free Software
-   Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA */
+   Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA 02110-1301, USA */
 
 /**
    This is a unit test for the 'meta data locking' classes.
@@ -449,38 +449,6 @@ TEST_F(MDLTest, UpgradeSharedUpgradable)
                upgrade_shared_lock(m_request.ticket, MDL_EXCLUSIVE, long_timeout));
   EXPECT_EQ(MDL_EXCLUSIVE, m_request.ticket->get_type());
 
-  m_mdl_context.release_transactional_locks();
-}
-
-
-/*
-  Verifies that only upgradable locks can be upgraded to exclusive.
- */
-TEST_F(MDLDeathTest, DieUpgradeShared)
-{
-  MDL_request request_2;
-  m_request.init(MDL_key::TABLE, db_name, table_name1, MDL_SHARED,
-                 MDL_TRANSACTION);
-  request_2.init(MDL_key::TABLE, db_name, table_name2, MDL_SHARED_NO_READ_WRITE,
-                 MDL_TRANSACTION);
-
-  m_request_list.push_front(&m_request);
-  m_request_list.push_front(&request_2);
-  m_request_list.push_front(&m_global_request);
-  
-  EXPECT_FALSE(m_mdl_context.acquire_locks(&m_request_list, long_timeout));
-
-#if GTEST_HAS_DEATH_TEST && !defined(DBUG_OFF)
-  ::testing::FLAGS_gtest_death_test_style = "threadsafe";
-  EXPECT_DEATH_IF_SUPPORTED(m_mdl_context.
-                            upgrade_shared_lock(m_request.ticket,
-                                                MDL_EXCLUSIVE,
-                                                long_timeout),
-                            ".*MDL_SHARED_NO_.*");
-#endif
-  EXPECT_FALSE(m_mdl_context.
-               upgrade_shared_lock(request_2.ticket, MDL_EXCLUSIVE,
-                                   long_timeout));
   m_mdl_context.release_transactional_locks();
 }
 
@@ -1608,6 +1576,7 @@ TEST_F(MDLTest, HogLockTest5)
   mdl_thread3.join();
   mdl_thread4.join();
   mdl_thread5.join();
+  mdl_thread6.join();
 
   max_write_lock_count= org_max_write_lock_count;
 }

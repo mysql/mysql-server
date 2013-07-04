@@ -1,4 +1,4 @@
-/* Copyright (c) 2002, 2012, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2002, 2013, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -29,7 +29,7 @@ typedef void (*init_func_p)(const struct my_option *option, void *variable,
 static void default_reporter(enum loglevel level, const char *format, ...);
 my_error_reporter my_getopt_error_reporter= &default_reporter;
 
-static int findopt(char *, uint, const struct my_option **, const char **);
+static bool findopt(char *, uint, const struct my_option **);
 my_bool getopt_compare_strings(const char *, const char *, uint);
 static longlong getopt_ll(char *arg, const struct my_option *optp, int *err);
 static ulonglong getopt_ull(char *, const struct my_option *, int *);
@@ -115,6 +115,35 @@ int handle_options(int *argc, char ***argv,
   return my_handle_options(argc, argv, longopts, get_one_option, NULL);
 }
 
+union ull_dbl
+{
+  ulonglong ull;
+  double dbl;
+};
+
+/**
+  Returns an ulonglong value containing a raw
+  representation of the given double value.
+*/
+ulonglong getopt_double2ulonglong(double v)
+{
+  union ull_dbl u;
+  u.dbl= v;
+  compile_time_assert(sizeof(ulonglong) >= sizeof(double));
+  return u.ull;
+}
+
+/**
+  Returns the double value which corresponds to
+  the given raw representation.
+*/
+double getopt_ulonglong2double(ulonglong v)
+{
+  union ull_dbl u;
+  u.ull= v;
+  return u.dbl;
+}
+
 /**
   Handle command line options.
   Sort options.
@@ -186,15 +215,15 @@ int my_handle_options(int *argc, char ***argv,
                       my_get_one_option get_one_option,
                       const char **command_list)
 {
-  uint UNINIT_VAR(opt_found), argvpos= 0, length;
+  uint argvpos= 0, length;
   my_bool end_of_options= 0, must_be_var, set_maximum_value,
           option_is_loose;
   char **pos, **pos_end, *optend, *opt_str, key_name[FN_REFLEN];
-  const char *UNINIT_VAR(prev_found);
   const struct my_option *optp;
   void *value;
   int error, i;
   my_bool is_cmdline_arg= 1;
+  bool opt_found;
 
   /* handle_options() assumes arg0 (program name) always exists */
   DBUG_ASSERT(argc && *argc >= 1);
@@ -220,7 +249,7 @@ int my_handle_options(int *argc, char ***argv,
   {
     char **first= pos;
     char *cur_arg= *pos;
-    opt_found= 0;
+    opt_found= false;
     if (!is_cmdline_arg && (my_getopt_is_args_separator(cur_arg)))
     {
       is_cmdline_arg= 1;
@@ -262,7 +291,7 @@ int my_handle_options(int *argc, char ***argv,
 	  or unknown option
 	*/
 	optp= longopts;
-	if (!(opt_found= findopt(opt_str, length, &optp, &prev_found)))
+	if (!(opt_found= findopt(opt_str, length, &optp)))
 	{
 	  /*
 	    Didn't find any matching option. Let's see if someone called
@@ -286,18 +315,8 @@ int my_handle_options(int *argc, char ***argv,
                 length-= special_opt_prefix_lengths[i] + 1;
 		if (i == OPT_LOOSE)
 		  option_is_loose= 1;
-		if ((opt_found= findopt(opt_str, length, &optp, &prev_found)))
+		if ((opt_found= findopt(opt_str, length, &optp)))
 		{
-		  if (opt_found > 1)
-		  {
-		    if (my_getopt_print_errors)
-                      my_getopt_error_reporter(ERROR_LEVEL,
-                                               "%s: ambiguous option '--%s-%s' (--%s-%s)",
-                                               my_progname, special_opt_prefix[i],
-                                               opt_str, special_opt_prefix[i],
-                                               prev_found);
-		    return EXIT_AMBIGUOUS_OPTION;
-		  }
 		  switch (i) {
 		  case OPT_SKIP:
 		  case OPT_DISABLE: /* fall through */
@@ -358,26 +377,6 @@ int my_handle_options(int *argc, char ***argv,
 	      (*argc)--;
 	      continue;
 	    }
-	  }
-	}
-	if (opt_found > 1)
-	{
-	  if (must_be_var)
-	  {
-	    if (my_getopt_print_errors)
-              my_getopt_error_reporter(ERROR_LEVEL,
-                                       "%s: variable prefix '%s' is not unique",
-                                       my_progname, opt_str);
-	    return EXIT_VAR_PREFIX_NOT_UNIQUE;
-	  }
-	  else
-	  {
-	    if (my_getopt_print_errors)
-              my_getopt_error_reporter(ERROR_LEVEL,
-                                       "%s: ambiguous option '--%s' (%s, %s)",
-                                       my_progname, opt_str, prev_found, 
-                                       optp->name);
-	    return EXIT_AMBIGUOUS_OPTION;
 	  }
 	}
 	if ((optp->var_type & GET_TYPE_MASK) == GET_DISABLED)
@@ -476,13 +475,13 @@ int my_handle_options(int *argc, char ***argv,
       {
 	for (optend= cur_arg; *optend; optend++)
 	{
-	  opt_found= 0;
+	  opt_found= false;
 	  for (optp= longopts; optp->name; optp++)
 	  {
 	    if (optp->id && optp->id == (int) (uchar) *optend)
 	    {
 	      /* Option recognized. Find next what to do with it */
-	      opt_found= 1;
+	      opt_found= true;
 	      if ((optp->var_type & GET_TYPE_MASK) == GET_DISABLED)
 	      {
 		if (my_getopt_print_errors)
@@ -642,26 +641,31 @@ static void print_cmdline_password_warning()
 }
 
 
-/*
-  function: check_struct_option
+/**
+  @brief Check for struct options
 
-  Arguments: Current argument under processing from argv and a variable
-  where to store the possible key name.
+  @param[in]   cur_arg     Current argument under processing from argv
+  @param[in]   key_name    variable where to store the possible key name 
 
-  Return value: In case option is a struct option, returns a pointer to
-  the current argument at the position where the struct option (key_name)
-  ends, the next character after the dot. In case argument is not a struct
-  option, returns a pointer to the argument.
-
+  @details
+  In case option is a struct option, returns a pointer to the current
+  argument at the position where the struct option (key_name) ends, the
+  next character after the dot. In case argument is not a struct option,
+  returns a pointer to the argument.
   key_name will hold the name of the key, or 0 if not found.
+
+  @return char*
+  If struct option     Pointer to next character after dot.
+  If no struct option  Pointer to the argument
 */
 
 static char *check_struct_option(char *cur_arg, char *key_name)
 {
-  char *ptr, *end;
-
-  ptr= strcend(cur_arg + 1, '.'); /* Skip the first character */
-  end= strcend(cur_arg, '=');
+  char *dot_pos, *equal_pos, *space_pos;
+ 
+  dot_pos= strcend(cur_arg + 1, '.'); /* Skip the first character */
+  equal_pos= strcend(cur_arg, '=');
+  space_pos= strcend(cur_arg, ' ');
 
   /* 
      If the first dot is after an equal sign, then it is part
@@ -670,12 +674,12 @@ static char *check_struct_option(char *cur_arg, char *key_name)
      NULL, or the character right before equal sign is the first
      dot found, the option is not a struct option.
   */
-  if (end - ptr > 1)
+  if ((equal_pos > dot_pos) && (space_pos > dot_pos))
   {
-    uint len= (uint) (ptr - cur_arg);
+    size_t len= (uint) (dot_pos - cur_arg);
     set_if_smaller(len, FN_REFLEN-1);
     strmake(key_name, cur_arg, len);
-    return ++ptr;
+    return ++dot_pos;
   }
   else
   {
@@ -861,59 +865,32 @@ ret:
 }
 
 
-/* 
+/**
   Find option
 
-  SYNOPSIS
-    findopt()
-    optpat	Prefix of option to find (with - or _)
-    length	Length of optpat
-    opt_res	Options
-    ffname	Place for pointer to first found name
-
   IMPLEMENTATION
-    Go through all options in the my_option struct. Return number
-    of options found that match the pattern and in the argument
-    list the option found, if any. In case of ambiguous option, store
-    the name in ffname argument
+    Go through all options in the my_option struct. Return true
+    if an option is found. sets opt_res to the option found, if any. 
 
-    RETURN
-    0    No matching options
-    #   Number of matching options
-        ffname points to first matching option
+    @param         optpat   name of option to find (with - or _)
+    @param         length   Length of optpat
+    @param[in,out] opt_res  Options
+
+    @retval false    No matching options
+    @retval true     Found an option
 */
 
-static int findopt(char *optpat, uint length,
-		   const struct my_option **opt_res,
-		   const char **ffname)
+static bool findopt(char *optpat, uint length,
+		   const struct my_option **opt_res)
 {
-  uint count;
-  const struct my_option *opt= *opt_res;
-
-  for (count= 0; opt->name; opt++)
-  {
-    if (!getopt_compare_strings(opt->name, optpat, length)) /* match found */
+  for (const struct my_option *opt= *opt_res; opt->name; opt++)
+    if (!getopt_compare_strings(opt->name, optpat, length) &&
+        !opt->name[length])
     {
       (*opt_res)= opt;
-      if (!opt->name[length])		/* Exact match */
-	return 1;
-      if (!count)
-      {
-        /* We only need to know one prev */
-	count= 1;
-	*ffname= opt->name;
-      }
-      else if (strcmp(*ffname, opt->name))
-      {
-	/*
-	  The above test is to not count same option twice
-	  (see mysql.cc, option "help")
-	*/
-	count++;
-      }
+      return true;
     }
-  }
-  return count;
+  return false;
 }
 
 
@@ -969,6 +946,48 @@ static longlong eval_num_suffix(char *argument, int *error, char *option_name)
     fprintf(stderr,
 	    "Unknown suffix '%c' used for variable '%s' (value '%s')\n",
 	    *endchar, option_name, argument);
+    *error= 1;
+    return 0;
+  }
+  return num;
+}
+
+/**
+  function: eval_num_suffix_ull
+  This is the same as eval_num_suffix, but is meant for unsigned long long
+  values. Transforms an unsigned number with a suffix to real number. Suffix can
+  be k|K for kilo, m|M for mega or g|G for giga.
+  @param [IN]        argument      argument value for option_name
+  @param [IN, OUT]   error         error no.
+  @param [IN]        option_name   name of option
+*/
+
+static ulonglong eval_num_suffix_ull(char *argument, int *error, char *option_name)
+{
+  char *endchar;
+  ulonglong num;
+
+  *error= 0;
+  errno= 0;
+  num= strtoull(argument, &endchar, 10);
+  if (errno == ERANGE)
+  {
+    my_getopt_error_reporter(ERROR_LEVEL,
+                             "Incorrect unsigned integer value: '%s'", argument);
+    *error= 1;
+    return 0;
+  }
+  if (*endchar == 'k' || *endchar == 'K')
+    num*= 1024L;
+  else if (*endchar == 'm' || *endchar == 'M')
+    num*= 1024L * 1024L;
+  else if (*endchar == 'g' || *endchar == 'G')
+    num*= 1024L * 1024L * 1024L;
+  else if (*endchar)
+  {
+    fprintf(stderr,
+            "Unknown suffix '%c' used for variable '%s' (value '%s')\n",
+            *endchar, option_name, argument);
     *error= 1;
     return 0;
   }
@@ -1099,7 +1118,7 @@ static ulonglong getopt_ull(char *arg, const struct my_option *optp, int *err)
   if (arg == NULL || is_negative_num(arg) == TRUE)
     num= 0;
   else
-    num= eval_num_suffix(arg, err, (char*) optp->name);
+    num= eval_num_suffix_ull(arg, err, (char*) optp->name);
   
   return getopt_ull_limit_value(num, optp, NULL);
 }
@@ -1155,14 +1174,18 @@ double getopt_double_limit_value(double num, const struct my_option *optp,
 {
   my_bool adjusted= FALSE;
   double old= num;
-  if (optp->max_value && num > (double) optp->max_value)
+  double min, max;
+
+  max= getopt_ulonglong2double(optp->max_value);
+  min= getopt_ulonglong2double(optp->min_value);
+  if (max && num > max)
   {
-    num= (double) optp->max_value;
+    num= max;
     adjusted= TRUE;
   }
-  if (num < (double) optp->min_value)
+  if (num < min)
   {
-    num= (double) optp->min_value;
+    num= min;
     adjusted= TRUE;
   }
   if (fix)
@@ -1245,7 +1268,7 @@ static void init_one_value(const struct my_option *option, void *variable,
     *((ulonglong*) variable)= (ulonglong) value;
     break;
   case GET_DOUBLE:
-    *((double*) variable)= ulonglong2double(value);
+    *((double*) variable)= getopt_ulonglong2double(value);
     break;
   case GET_STR:
   case GET_PASSWORD:
@@ -1346,12 +1369,18 @@ static void init_variables(const struct my_option *options,
   DBUG_VOID_RETURN;
 }
 
-/** Prints variable or option name, replacing _ with - */
-static uint print_name(const struct my_option *optp)
+/**
+  Prints variable or option name, replacing _ with - to given file stream
+  parameter (by default to stdout).
+  @param [IN] optp      my_option parameter
+  @param [IN] file      stream where the output of optp parameter name
+                        goes (by default to stdout).
+*/
+static uint print_name(const struct my_option *optp, FILE* file = stdout)
 {
   const char *s= optp->name;
   for (;*s;s++)
-    putchar(*s == '_' ? '-' : *s);
+    putc(*s == '_' ? '-' : *s, file);
   return s - optp->name;
 }
 
@@ -1444,14 +1473,24 @@ void my_print_help(const struct my_option *options)
   }
 }
 
+/**
+ function: my_print_variables
+ Print variables.
+ @param [IN] options    my_option list
+*/
+void my_print_variables(const struct my_option *options)
+{
+  my_print_variables_ex(options, stdout);
+}
 
-/*
-  function: my_print_options
-
-  Print variables.
+/**
+  function: my_print_variables_ex
+  Print variables to given file parameter stream (by default to stdout).
+  @param [IN] options    my_options list
+  @param [IN] file       stream where the output goes.
 */
 
-void my_print_variables(const struct my_option *options)
+void my_print_variables_ex(const struct my_option *options, FILE* file)
 {
   uint name_space= 34, length, nr;
   ulonglong llvalue;
@@ -1465,82 +1504,83 @@ void my_print_variables(const struct my_option *options)
       name_space= length;
   }
 
-  printf("\nVariables (--variable-name=value)\n");
-  printf("%-*s%s", name_space, "and boolean options {FALSE|TRUE}",
-         "Value (after reading options)\n");
+  fprintf(file, "\nVariables (--variable-name=value)\n");
+  fprintf(file, "%-*s%s", name_space, "and boolean options {FALSE|TRUE}",
+          "Value (after reading options)\n");
   for (length=1; length < 75; length++)
-    putchar(length == name_space ? ' ' : '-');
-  putchar('\n');
-  
+    putc(length == name_space ? ' ' : '-', file);
+  putc('\n', file);
+
   for (optp= options; optp->name; optp++)
   {
     void *value= (optp->var_type & GET_ASK_ADDR ?
 		  (*getopt_get_addr)("", 0, optp, 0) : optp->value);
     if (value)
     {
-      length= print_name(optp);
+      length= print_name(optp, file);
       for (; length < name_space; length++)
-	putchar(' ');
+        putc(' ', file);
       switch ((optp->var_type & GET_TYPE_MASK)) {
       case GET_SET:
         if (!(llvalue= *(ulonglong*) value))
-	  printf("%s\n", "");
+          fprintf(file, "%s\n", "");
 	else
         for (nr= 0; llvalue && nr < optp->typelib->count; nr++, llvalue >>=1)
 	{
 	  if (llvalue & 1)
-            printf( llvalue > 1 ? "%s," : "%s\n", get_type(optp->typelib, nr));
+            fprintf(file, llvalue > 1 ? "%s," : "%s\n",
+                    get_type(optp->typelib, nr));
 	}
 	break;
       case GET_FLAGSET:
         llvalue= *(ulonglong*) value;
         for (nr= 0; llvalue && nr < optp->typelib->count; nr++, llvalue >>=1)
 	{
-          printf("%s%s=", (nr ? "," : ""), get_type(optp->typelib, nr));
-	  printf(llvalue & 1 ? "on" : "off");
+          fprintf(file, "%s%s=", (nr ? "," : ""), get_type(optp->typelib, nr));
+          fprintf(file, llvalue & 1 ? "on" : "off");
 	}
-        printf("\n");
-	break;
+        fprintf(file, "\n");
+        break;
       case GET_ENUM:
-        printf("%s\n", get_type(optp->typelib, *(ulong*) value));
-	break;
+        fprintf(file, "%s\n", get_type(optp->typelib, *(ulong*) value));
+        break;
       case GET_STR:
       case GET_PASSWORD:
       case GET_STR_ALLOC:                    /* fall through */
-	printf("%s\n", *((char**) value) ? *((char**) value) :
-	       "(No default value)");
-	break;
+        fprintf(file, "%s\n", *((char**) value) ? *((char**) value) :
+                "(No default value)");
+        break;
       case GET_BOOL:
-	printf("%s\n", *((my_bool*) value) ? "TRUE" : "FALSE");
-	break;
+        fprintf(file, "%s\n", *((my_bool*) value) ? "TRUE" : "FALSE");
+        break;
       case GET_INT:
-	printf("%d\n", *((int*) value));
-	break;
+        fprintf(file, "%d\n", *((int*) value));
+        break;
       case GET_UINT:
-	printf("%d\n", *((uint*) value));
-	break;
+        fprintf(file, "%d\n", *((uint*) value));
+        break;
       case GET_LONG:
-	printf("%ld\n", *((long*) value));
-	break;
+        fprintf(file, "%ld\n", *((long*) value));
+        break;
       case GET_ULONG:
-	printf("%lu\n", *((ulong*) value));
-	break;
+        fprintf(file, "%lu\n", *((ulong*) value));
+        break;
       case GET_LL:
-	printf("%s\n", llstr(*((longlong*) value), buff));
-	break;
+        fprintf(file, "%s\n", llstr(*((longlong*) value), buff));
+        break;
       case GET_ULL:
 	longlong2str(*((ulonglong*) value), buff, 10);
-	printf("%s\n", buff);
-	break;
+        fprintf(file, "%s\n", buff);
+        break;
       case GET_DOUBLE:
-	printf("%g\n", *(double*) value);
-	break;
+        fprintf(file, "%g\n", *(double*) value);
+        break;
       case GET_NO_ARG:
-	printf("(No default value)\n");
-	break;
+        fprintf(file, "(No default value)\n");
+        break;
       default:
-	printf("(Disabled)\n");
-	break;
+        fprintf(file, "(Disabled)\n");
+        break;
       }
     }
   }

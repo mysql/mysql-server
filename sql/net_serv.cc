@@ -1,4 +1,4 @@
-/* Copyright (c) 2000, 2011, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2000, 2013, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -72,11 +72,8 @@ using std::max;
   extern, but as it's hard to include sql_priv.h here, we have to
   live with this for a while.
 */
-#ifdef HAVE_QUERY_CACHE
-#define USE_QUERY_CACHE
 extern void query_cache_insert(const char *packet, ulong length,
                                unsigned pkt_nr);
-#endif /* HAVE_QUERY_CACHE */
 #define update_statistics(A) A
 #else /* MYSQL_SERVER */
 #define update_statistics(A)
@@ -242,14 +239,6 @@ net_should_retry(NET *net, uint *retry_count __attribute__((unused)))
 {
   my_bool retry;
 
-#if !defined(MYSQL_SERVER) && defined(THREAD_SAFE_CLIENT)
-  /*
-    In the thread safe client library, interrupted I/O operations
-    are always retried.  Otherwise, its either a timeout or a
-    unrecoverable error.
-  */
-  retry= vio_should_retry(net->vio);
-#else
   /*
     In the non-thread safe client library, or in the server,
     interrupted I/O operations are retried up to a limit.
@@ -257,7 +246,6 @@ net_should_retry(NET *net, uint *retry_count __attribute__((unused)))
     (interrupt) threads waiting for I/O.
   */
   retry= vio_should_retry(net->vio) && ((*retry_count)++ < net->retry_count);
-#endif
 
   return retry;
 }
@@ -598,7 +586,7 @@ net_write_packet(NET *net, const uchar *packet, size_t length)
   my_bool res;
   DBUG_ENTER("net_write_packet");
 
-#if defined(MYSQL_SERVER) && defined(USE_QUERY_CACHE)
+#if defined(MYSQL_SERVER)
   query_cache_insert((char*) packet, length, net->pkt_nr);
 #endif
 

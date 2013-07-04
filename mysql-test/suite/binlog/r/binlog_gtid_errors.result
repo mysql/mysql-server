@@ -179,7 +179,7 @@ AUTOMATIC
 # can't set inside transaction
 BEGIN;
 SET @@SESSION.GTID_NEXT = 'aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaaa:12';
-ERROR HY000: When @@SESSION.GTID_NEXT_LIST == NULL, the system variable @@SESSION.GTID_NEXT cannot change inside a transaction.
+ERROR HY000: The system variable @@SESSION.GTID_NEXT cannot change inside a transaction.
 INSERT INTO t1 VALUES (4);
 ROLLBACK;
 # can't set while owning a GTID
@@ -187,19 +187,24 @@ SET @@SESSION.GTID_NEXT = 'aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaaa:13';
 SET @@SESSION.GTID_NEXT = 'aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaaa:14';
 ERROR HY000: @@SESSION.GTID_NEXT cannot be changed by a client that owns a GTID. The client owns aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaaa:13. Ownership is released on COMMIT or ROLLBACK.
 SET @@SESSION.GTID_NEXT = 'AUTOMATIC';
+ROLLBACK;
+# can't set while owning a GTID
+SET @@SESSION.GTID_NEXT = 'aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaaa:13';
+SET @@SESSION.GTID_NEXT = 'AUTOMATIC';
 ERROR HY000: @@SESSION.GTID_NEXT cannot be changed by a client that owns a GTID. The client owns aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaaa:13. Ownership is released on COMMIT or ROLLBACK.
 ROLLBACK;
+SET @@SESSION.GTID_NEXT = 'aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaaa:14';
 # can't do implicit commit while gtid_next=SID:GNO
 BEGIN;
 CREATE TABLE t2 (a INT);
-ERROR HY000: Cannot execute statements with implicit commit inside a transaction when @@SESSION.GTID_NEXT != AUTOMATIC or @@SESSION.GTID_NEXT_LIST != NULL.
+ERROR HY000: Cannot execute statements with implicit commit inside a transaction when @@SESSION.GTID_NEXT != AUTOMATIC.
 ROLLBACK;
 SET GTID_NEXT = 'aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaaa:15';
 # can't do implicit commit while gtid_next=SID:GNO
 SET AUTOCOMMIT = 0;
 INSERT INTO t1 VALUES (1);
 CREATE TABLE t2 (a INT);
-ERROR HY000: Cannot execute statements with implicit commit inside a transaction when @@SESSION.GTID_NEXT != AUTOMATIC or @@SESSION.GTID_NEXT_LIST != NULL.
+ERROR HY000: Cannot execute statements with implicit commit inside a transaction when @@SESSION.GTID_NEXT != AUTOMATIC.
 ROLLBACK;
 SELECT @@SESSION.GTID_NEXT;
 @@SESSION.GTID_NEXT

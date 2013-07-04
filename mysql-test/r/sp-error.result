@@ -1778,7 +1778,7 @@ END|
 CREATE PROCEDURE p3()
 BEGIN
 SELECT CAST('3 ' as unsigned integer);
-SELECT 1; # does not clear the warning
+GET DIAGNOSTICS @n = NUMBER; # does not clear the warning
 END|
 CREATE PROCEDURE p4()
 BEGIN
@@ -1814,8 +1814,6 @@ Msg
 Warning caught!
 CAST('3 ' as unsigned integer)
 3
-1
-1
 Msg
 Warning caught!
 CAST('4 ' as unsigned integer)
@@ -2723,10 +2721,9 @@ CREATE PROCEDURE p5()
 BEGIN
 DECLARE EXIT HANDLER FOR 1292
 BEGIN
-SELECT 'Handler for 1292 (1)' AS Msg;
+SELECT 'Handler for 1292' AS Msg;
 SIGNAL SQLSTATE '01000' SET MYSQL_ERRNO = 1234;
 SHOW WARNINGS;
-SELECT 'Handler for 1292 (2)' AS Msg;
 END;
 INSERT INTO t2
 SELECT
@@ -2737,11 +2734,9 @@ END|
 
 CALL p5()|
 Msg
-Handler for 1292 (1)
+Handler for 1292
 Level	Code	Message
 Warning	1234	Unhandled user-defined warning condition
-Msg
-Handler for 1292 (2)
 Warnings:
 Warning	1234	Unhandled user-defined warning condition
 

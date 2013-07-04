@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2010, Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2010, 2013, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -34,7 +34,7 @@
 #include "sql_partition.h"  // HA_CAN_*, partition_info, part_id_range
 #include "sql_base.h"       // close_cached_tables
 #include "discover.h"       // readfrm
-#include "sql_acl.h"        // wild_case_compare
+#include "auth_common.h"    // wild_case_compare
 #include "transaction.h"
 #include "sql_test.h"       // print_where
 #include "key.h"            // key_restore

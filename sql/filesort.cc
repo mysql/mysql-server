@@ -1,4 +1,4 @@
-/* Copyright (c) 2000, 2012, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2000, 2013, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -24,9 +24,7 @@
 #include "sql_priv.h"
 #include "filesort.h"
 #include "unireg.h"                      // REQUIRED by other includes
-#ifdef HAVE_STDDEF_H
 #include <stddef.h>			/* for macro offsetof */
-#endif
 #include <m_ctype.h>
 #include "sql_sort.h"
 #include "probes_mysql.h"
@@ -280,6 +278,7 @@ ha_rows filesort(THD *thd, TABLE *table, Filesort *filesort,
     }
     // For PQ queries (with limit) we initialize all pointers.
     table_sort.init_record_pointers();
+    filesort->using_pq= true;
   }
   else
   {
@@ -559,7 +558,7 @@ static uchar *read_buffpek_from_file(IO_CACHE *buffpek_pointers, uint count,
   uchar *tmp= buf;
   DBUG_ENTER("read_buffpek_from_file");
   if (count > UINT_MAX/sizeof(BUFFPEK))
-    return 0; /* sizeof(BUFFPEK)*count will overflow */
+    DBUG_RETURN(0); /* sizeof(BUFFPEK)*count will overflow */
   if (!tmp)
     tmp= (uchar *)my_malloc(length, MYF(MY_WME));
   if (tmp)
@@ -599,17 +598,26 @@ static void dbug_print_record(TABLE *table, bool print_rowid)
   {
     Field *field=  *pfield;
 
-    if (field->is_null())
-      fwrite("NULL", sizeof(char), 4, DBUG_FILE);
+    if (field->is_null()) {
+      if (fwrite("NULL", sizeof(char), 4, DBUG_FILE) != 4) {
+        goto unlock_file_and_quit;
+      }
+    }
    
     if (field->type() == MYSQL_TYPE_BIT)
       (void) field->val_int_as_str(&tmp, 1);
     else
       field->val_str(&tmp);
 
-    fwrite(tmp.ptr(),sizeof(char),tmp.length(),DBUG_FILE);
-    if (pfield[1])
-      fwrite(", ", sizeof(char), 2, DBUG_FILE);
+    if (fwrite(tmp.ptr(),sizeof(char),tmp.length(),DBUG_FILE) != tmp.length()) {
+      goto unlock_file_and_quit;
+    }
+
+    if (pfield[1]) {
+      if (fwrite(", ", sizeof(char), 2, DBUG_FILE) != 2) {
+        goto unlock_file_and_quit;
+      }
+    }
   }
   fprintf(DBUG_FILE, ")");
   if (print_rowid)
@@ -621,6 +629,7 @@ static void dbug_print_record(TABLE *table, bool print_rowid)
     }
   }
   fprintf(DBUG_FILE, "\n");
+unlock_file_and_quit:
   DBUG_UNLOCK_FILE;
 }
 #endif 
@@ -723,8 +732,11 @@ static ha_rows find_all_keys(Sort_param *param, SQL_SELECT *select,
 
   if (quick_select)
   {
-    if (select->quick->reset())
+    if ((error= select->quick->reset()))
+    {
+      file->print_error(error, MYF(0));
       DBUG_RETURN(HA_POS_ERROR);
+    }
   }
 
   /* Remember original bitmaps */

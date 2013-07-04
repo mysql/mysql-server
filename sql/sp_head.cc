@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2002, 2012, Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2002, 2013, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -23,7 +23,7 @@
 #include "sql_show.h"          // append_identifier
 #include "sql_db.h"            // mysql_opt_change_db, mysql_change_db
 #include "sql_table.h"         // prepare_create_field
-#include "sql_acl.h"           // *_ACL
+#include "auth_common.h"       // *_ACL
 #include "sql_array.h"         // Dynamic_array
 #include "log_event.h"         // append_query_string, Query_log_event
 
@@ -264,6 +264,10 @@ sp_head::sp_head(enum_sp_type type)
   my_hash_init(&m_sptabs, system_charset_info, 0, 0, 0, sp_table_key, 0, 0);
   my_hash_init(&m_sroutines, system_charset_info, 0, 0, 0, sp_sroutine_key,
                0, 0);
+
+  m_trg_chistics.ordering_clause= TRG_ORDER_NONE;
+  m_trg_chistics.anchor_trigger_name.str= NULL;
+  m_trg_chistics.anchor_trigger_name.length= 0;
 }
 
 
@@ -346,6 +350,72 @@ void sp_head::set_body_end(THD *thd)
   m_defstr.length= end_ptr - lip->get_cpp_buf();
   m_defstr.str= thd->strmake(lip->get_cpp_buf(), m_defstr.length);
   trim_whitespace(thd->charset(), & m_defstr);
+}
+
+
+bool sp_head::setup_trigger_fields(THD *thd,
+                                   Table_trigger_field_support *tfs,
+                                   GRANT_INFO *subject_table_grant,
+                                   bool need_fix_fields)
+{
+  for (Item_trigger_field *f= m_trg_table_fields.first; f; f= f->next_trg_field)
+  {
+    f->setup_field(thd, tfs, subject_table_grant);
+
+    if (need_fix_fields &&
+        !f->fixed &&
+        f->fix_fields(thd, (Item **) NULL))
+    {
+      return true;
+    }
+  }
+
+  return false;
+}
+
+
+void sp_head::mark_used_trigger_fields(TABLE *subject_table)
+{
+  for (Item_trigger_field *f= m_trg_table_fields.first; f; f= f->next_trg_field)
+  {
+    if (f->field_idx == (uint) -1)
+    {
+      // We cannot mark fields which does not present in table.
+      continue;
+    }
+
+    bitmap_set_bit(subject_table->read_set, f->field_idx);
+
+    if (f->get_settable_routine_parameter())
+      bitmap_set_bit(subject_table->write_set, f->field_idx);
+  }
+}
+
+
+/**
+  Check whether any table's fields are used in trigger.
+
+  @param [in] used_fields       bitmap of fields to check
+
+  @return Check result
+    @retval true   Some table fields are used in trigger
+    @retval false  None of table fields are used in trigger
+*/
+
+bool sp_head::has_updated_trigger_fields(const MY_BITMAP *used_fields) const
+{
+  for (Item_trigger_field *f= m_trg_table_fields.first; f; f= f->next_trg_field)
+  {
+    // We cannot check fields which does not present in table.
+    if (f->field_idx != (uint) -1)
+    {
+      if (bitmap_is_set(used_fields, f->field_idx) &&
+          f->get_settable_routine_parameter())
+        return true;
+    }
+  }
+
+  return false;
 }
 
 
@@ -436,7 +506,7 @@ bool sp_head::execute(THD *thd, bool merge_da_on_success)
   String old_packet;
   Object_creation_ctx *saved_creation_ctx;
   Diagnostics_area *caller_da= thd->get_stmt_da();
-  Diagnostics_area sp_da(caller_da->statement_id(), false);
+  Diagnostics_area sp_da(false);
 
   /*
     Just reporting a stack overrun error
@@ -614,9 +684,6 @@ bool sp_head::execute(THD *thd, bool merge_da_on_success)
       break;
     }
 
-    /* Reset number of warnings for this query. */
-    thd->get_stmt_da()->reset_statement_cond_count();
-
     DBUG_PRINT("execute", ("Instruction %u", ip));
 
     /*
@@ -719,9 +786,9 @@ bool sp_head::execute(THD *thd, bool merge_da_on_success)
 
   /*
     - conditions generated during trigger execution should not be
-    propagated to the caller on success;
+    propagated to the caller on success;   (merge_da_on_success)
     - if there was an exception during execution, conditions should be
-    propagated to the caller in any case.
+    propagated to the caller in any case.  (err_status)
   */
   if (err_status || merge_da_on_success)
   {
@@ -732,45 +799,30 @@ bool sp_head::execute(THD *thd, bool merge_da_on_success)
       Diagnostics Area.
 
       On the other hand, if the routine body is not empty and some statement
-      in the routine generates a condition or uses tables, Diagnostics Area
-      is guaranteed to have changed. In this case we know that the routine
-      Diagnostics Area contains only new conditions, and thus we perform a copy.
+      in the routine generates a condition, Diagnostics Area is guaranteed to
+      have changed. In this case we know that the routine Diagnostics Area
+      contains only new conditions, and thus we perform a copy.
+
+      We don't use push_warning() here as to avoid invocation of
+      condition handlers or escalation of warnings to errors.
     */
-    if (caller_da->diagnostics_area_changed(&sp_da))
+    if (!err_status && thd->get_stmt_da() != &sp_da)
     {
       /*
-        If the invocation of the routine was a standalone statement,
-        rather than a sub-statement, in other words, if it's a CALL
-        of a procedure, rather than invocation of a function or a
-        trigger, we need to clear the current contents of the caller's
-        Diagnostics Area.
-
-        This is per MySQL rules: if a statement generates a warning,
-        warnings from the previous statement are flushed.  Normally
-        it's done in push_warning(). However, here we don't use
-        push_warning() to avoid invocation of condition handlers or
-        escalation of warnings to errors.
+        If we are RETURNing directly from a handler and the handler has
+        executed successfully, only transfer the conditions that were
+        raised during handler execution. Conditions that were present
+        when the handler was activated, are considered handled.
       */
-      caller_da->opt_reset_condition_info(thd->query_id);
-
-      if (!err_status && thd->get_stmt_da() != &sp_da)
-      {
-        /*
-          If we are RETURNing directly from a handler and the handler has
-          executed successfully, only transfer the conditions that were
-          raised during handler execution. Conditions that were present
-          when the handler was activated, are considered handled.
-        */
-        caller_da->copy_new_sql_conditions(thd, thd->get_stmt_da());
-      }
-      else // err_status || thd->get_stmt_da() == sp_da
-      {
-        /*
-          If we ended with an exception or the SP exited without any handler
-          active, transfer all conditions to the Diagnostics Area of the caller.
-        */
-        caller_da->copy_sql_conditions_from_da(thd, thd->get_stmt_da());
-      }
+      caller_da->copy_new_sql_conditions(thd, thd->get_stmt_da());
+    }
+    else // err_status || thd->get_stmt_da() == sp_da
+    {
+      /*
+        If we ended with an exception, or the SP exited without any handler
+        active, transfer all conditions to the Diagnostics Area of the caller.
+      */
+      caller_da->copy_sql_conditions_from_da(thd, thd->get_stmt_da());
     }
   }
 
@@ -1288,7 +1340,7 @@ bool sp_head::execute_procedure(THD *thd, List<Item> *args)
       arguments evaluation. If arguments evaluation required prelocking mode,
       we'll leave it here.
     */
-    thd->lex->unit.cleanup();
+    thd->lex->unit->cleanup(true);
 
     if (!thd->in_sub_stmt)
     {

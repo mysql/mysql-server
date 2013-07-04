@@ -3,7 +3,11 @@
 # Show that mysqlbinlog work correctly with transactions.
 #
 
-#--source include/have_myisam.inc
+# Mix transactional and non-transactional engines on the same
+# transaction is not supported by gtid-mode=ON.
+--source include/not_gtid_enabled.inc
+
+#--source include/force_myisam_default.inc
 --let $engine_type_nontrans= MyISAM
 --source include/have_innodb.inc
 --let $engine_type= InnoDB

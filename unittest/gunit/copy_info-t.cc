@@ -1,4 +1,4 @@
-/* Copyright (c) 2011, 2012, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2011, 2013, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -316,11 +316,13 @@ TEST_F(CopyInfoTest, setFunctionDefaults)
 {
   StrictMock<Mock_field> a(Field::TIMESTAMP_UN_FIELD);
   StrictMock<Mock_field> b(Field::TIMESTAMP_DNUN_FIELD);
+  StrictMock<Mock_field> c(Field::TIMESTAMP_DNUN_FIELD);
 
   EXPECT_TRUE(a.has_update_default_function());
   EXPECT_TRUE(b.has_update_default_function());
+  EXPECT_TRUE(c.has_update_default_function());
 
-  Fake_TABLE table(&a, &b);
+  Fake_TABLE table(&a, &b, &c);
 
   List<Item> assigned_columns;
   assigned_columns.push_front(new Item_field(&a));
@@ -332,15 +334,18 @@ TEST_F(CopyInfoTest, setFunctionDefaults)
 
   ASSERT_FALSE(insert.get_function_default_columns(&table)) << "Out of memory";
 
+  insert.ignore_last_columns(&table, 1); // 'c'
   insert.add_function_default_columns(&table, table.write_set);
   EXPECT_FALSE(bitmap_is_set(table.write_set, 0));
   EXPECT_TRUE (bitmap_is_set(table.write_set, 1));
+  EXPECT_FALSE(bitmap_is_set(table.write_set, 2));
 
   EXPECT_TRUE(insert.function_defaults_apply(&table)) << "They do apply";
 
-  // We expect store_timestamp() to be called for b.
+  // We expect store_timestamp() to be called for b and not for c.
   // We do not care about the argument to store_timestamp().
   EXPECT_CALL(b, store_timestamp(_)).Times(1);
+  EXPECT_CALL(c, store_timestamp(_)).Times(0);
   insert.set_function_defaults(&table);
 }
 

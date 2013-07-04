@@ -15,13 +15,19 @@
 
 /* See http://code.google.com/p/googletest/wiki/Primer */
 
+// First include (the generated) my_config.h, to get correct platform defines.
+#include "my_config.h"
+
 #include <gtest/gtest.h>
 
 #include "univ.i"
 
 #include "ut0crc32.h"
 
-TEST(crc32, simple)
+namespace innodb_ut0crc32_unittest {
+
+/* test ut_crc32() */
+TEST(ut0crc32, utcrc32)
 {
 	ut_crc32_init();
 
@@ -30,4 +36,6 @@ TEST(crc32, simple)
 	result = ut_crc32((const byte*) "innodb", 6);
 
 	EXPECT_EQ(result, 1090276284U);
+}
+
 }

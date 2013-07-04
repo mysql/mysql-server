@@ -113,7 +113,7 @@ In summary, the compressed page looks like this:
 
 /**********************************************************************//**
 Determine the size of a compressed page in bytes.
-@return	size in bytes */
+@return size in bytes */
 UNIV_INLINE
 ulint
 page_zip_get_size(
@@ -161,7 +161,7 @@ page_zip_set_size(
 #ifndef UNIV_HOTBACKUP
 /**********************************************************************//**
 Determine if a record is so big that it needs to be stored externally.
-@return	FALSE if the entire record can be stored locally on the page */
+@return FALSE if the entire record can be stored locally on the page */
 UNIV_INLINE
 ibool
 page_zip_rec_needs_ext(
@@ -176,7 +176,7 @@ page_zip_rec_needs_ext(
 	ut_ad(ut_is_2pow(zip_size));
 	ut_ad(comp || !zip_size);
 
-#if UNIV_PAGE_SIZE > REC_MAX_DATA_SIZE
+#if UNIV_PAGE_SIZE_MAX > REC_MAX_DATA_SIZE
 	if (rec_size >= REC_MAX_DATA_SIZE) {
 		return(TRUE);
 	}
@@ -202,7 +202,7 @@ page_zip_rec_needs_ext(
 #ifdef UNIV_DEBUG
 /**********************************************************************//**
 Validate a compressed page descriptor.
-@return	TRUE if ok */
+@return TRUE if ok */
 UNIV_INLINE
 ibool
 page_zip_simple_validate(
@@ -231,9 +231,7 @@ ibool
 page_zip_get_trailer_len(
 /*=====================*/
 	const page_zip_des_t*	page_zip,/*!< in: compressed page */
-	ibool			is_clust,/*!< in: TRUE if clustered index */
-	ulint*			entry_size)/*!< out: size of the uncompressed
-					portion of a user record */
+	ibool			is_clust)/*!< in: TRUE if clustered index */
 {
 	ulint	uncompressed_size;
 
@@ -252,10 +250,6 @@ page_zip_get_trailer_len(
 		ut_ad(!page_zip->n_blobs);
 	}
 
-	if (entry_size) {
-		*entry_size = uncompressed_size;
-	}
-
 	return((page_dir_get_n_heap(page_zip->data) - 2)
 	       * uncompressed_size
 	       + page_zip->n_blobs * BTR_EXTERN_FIELD_REF_SIZE);
@@ -272,11 +266,9 @@ page_zip_max_ins_size(
 	const page_zip_des_t*	page_zip,/*!< in: compressed page */
 	ibool			is_clust)/*!< in: TRUE if clustered index */
 {
-	ulint	uncompressed_size;
 	ulint	trailer_len;
 
-	trailer_len = page_zip_get_trailer_len(page_zip, is_clust,
-					       &uncompressed_size);
+	trailer_len = page_zip_get_trailer_len(page_zip, is_clust);
 
 	/* When a record is created, a pointer may be added to
 	the dense directory.
@@ -285,7 +277,7 @@ page_zip_max_ins_size(
 	Also the BLOB pointers will be allocated from there, but
 	we may as well count them in the length of the record. */
 
-	trailer_len += uncompressed_size;
+	trailer_len += PAGE_ZIP_DIR_SLOT_SIZE;
 
 	return((lint) page_zip_get_size(page_zip)
 	       - trailer_len - page_zip->m_end
@@ -294,7 +286,7 @@ page_zip_max_ins_size(
 
 /**********************************************************************//**
 Determine if enough space is available in the modification log.
-@return	TRUE if enough space is available */
+@return TRUE if enough space is available */
 UNIV_INLINE
 ibool
 page_zip_available(
@@ -305,13 +297,11 @@ page_zip_available(
 	ulint			create)	/*!< in: nonzero=add the record to
 					the heap */
 {
-	ulint	uncompressed_size;
 	ulint	trailer_len;
 
 	ut_ad(length > REC_N_NEW_EXTRA_BYTES);
 
-	trailer_len = page_zip_get_trailer_len(page_zip, is_clust,
-					       &uncompressed_size);
+	trailer_len = page_zip_get_trailer_len(page_zip, is_clust);
 
 	/* Subtract the fixed extra bytes and add the maximum
 	space needed for identifying the record (encoded heap_no). */
@@ -325,7 +315,7 @@ page_zip_available(
 		Also the BLOB pointers will be allocated from there, but
 		we may as well count them in the length of the record. */
 
-		trailer_len += uncompressed_size;
+		trailer_len += PAGE_ZIP_DIR_SLOT_SIZE;
 	}
 
 	return(length + trailer_len + page_zip->m_end
@@ -346,7 +336,7 @@ page_zip_des_init(
 
 /**********************************************************************//**
 Write a log record of writing to the uncompressed header portion of a page. */
-UNIV_INTERN
+
 void
 page_zip_write_header_log(
 /*======================*/
@@ -413,7 +403,7 @@ page_zip_compress_write_log_no_data(
 
 /**********************************************************************//**
 Parses a log record of compressing an index page without the data.
-@return	end of log record or NULL */
+@return end of log record or NULL */
 UNIV_INLINE
 byte*
 page_zip_parse_compress_no_data(
@@ -422,7 +412,7 @@ page_zip_parse_compress_no_data(
 	byte*		end_ptr,	/*!< in: buffer end */
 	page_t*		page,		/*!< in: uncompressed page */
 	page_zip_des_t*	page_zip,	/*!< out: compressed page */
-	dict_index_t* index)		/*!< in: index */
+	dict_index_t*	index)		/*!< in: index */
 {
 	ulint	level;
 	if (end_ptr == ptr) {

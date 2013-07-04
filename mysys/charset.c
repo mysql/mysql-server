@@ -1,4 +1,4 @@
-/* Copyright (c) 2000, 2011, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2000, 2013, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -75,10 +75,8 @@ static my_bool init_state_maps(CHARSET_INFO *cs)
       state_map[i]=(uchar) MY_LEX_IDENT;
     else if (my_isdigit(cs,i))
       state_map[i]=(uchar) MY_LEX_NUMBER_IDENT;
-#if defined(USE_MB) && defined(USE_MB_IDENT)
     else if (my_mbcharlen(cs, i)>1)
       state_map[i]=(uchar) MY_LEX_IDENT;
-#endif
     else if (my_isspace(cs,i))
       state_map[i]=(uchar) MY_LEX_SKIP;
     else
@@ -849,13 +847,10 @@ size_t escape_string_for_mysql(const CHARSET_INFO *charset_info,
   const char *to_start= to;
   const char *end, *to_end=to_start + (to_length ? to_length-1 : 2*length);
   my_bool overflow= FALSE;
-#ifdef USE_MB
   my_bool use_mb_flag= use_mb(charset_info);
-#endif
   for (end= from + length; from < end; from++)
   {
     char escape= 0;
-#ifdef USE_MB
     int tmp_length;
     if (use_mb_flag && (tmp_length= my_ismbchar(charset_info, from, end)))
     {
@@ -883,7 +878,6 @@ size_t escape_string_for_mysql(const CHARSET_INFO *charset_info,
     if (use_mb_flag && (tmp_length= my_mbcharlen(charset_info, *from)) > 1)
       escape= *from;
     else
-#endif
     switch (*from) {
     case 0:				/* Must be escaped for 'mysql' */
       escape= '0';
@@ -992,12 +986,9 @@ size_t escape_quotes_for_mysql(CHARSET_INFO *charset_info,
   const char *to_start= to;
   const char *end, *to_end=to_start + (to_length ? to_length-1 : 2*length);
   my_bool overflow= FALSE;
-#ifdef USE_MB
   my_bool use_mb_flag= use_mb(charset_info);
-#endif
   for (end= from + length; from < end; from++)
   {
-#ifdef USE_MB
     int tmp_length;
     if (use_mb_flag && (tmp_length= my_ismbchar(charset_info, from, end)))
     {
@@ -1016,7 +1007,6 @@ size_t escape_quotes_for_mysql(CHARSET_INFO *charset_info,
       turned into a multi-byte character by the addition of an escaping
       character, because we are only escaping the ' character with itself.
      */
-#endif
     if (*from == '\'')
     {
       if (to + 2 > to_end)

@@ -1,6 +1,6 @@
 /*****************************************************************************
 
-Copyright (c) 2007, 2012, Oracle and/or its affiliates. All Rights Reserved.
+Copyright (c) 2007, 2013, Oracle and/or its affiliates. All Rights Reserved.
 
 This program is free software; you can redistribute it and/or modify it under
 the terms of the GNU General Public License as published by the Free Software
@@ -26,6 +26,7 @@ Created 2007/03/16/03 Sunny Bains
 #ifndef INNOBASE_FST0AST_H
 #define INNOBASE_FST0AST_H
 
+#include "ha_prototypes.h"
 #include "mem0mem.h"
 
 /* The type of AST Node */
@@ -71,7 +72,7 @@ struct fts_lexer_t;
 struct fts_ast_node_t;
 struct fts_ast_state_t;
 
-typedef ulint (*fts_ast_callback)(fts_ast_oper_t, fts_ast_node_t*, void*);
+typedef dberr_t (*fts_ast_callback)(fts_ast_oper_t, fts_ast_node_t*, void*);
 
 /********************************************************************
 Parse the string using the lexer setup within state.*/
@@ -142,7 +143,7 @@ fts_ast_term_set_distance(
 /********************************************************************//**
 Free a fts_ast_node_t instance.
 @return next node to free */
-UNIV_INTERN
+
 fts_ast_node_t*
 fts_ast_free_node(
 /*==============*/
@@ -181,7 +182,7 @@ fts_ast_state_free(
 /******************************************************************//**
 Traverse the AST - in-order traversal.
 @return DB_SUCCESS if all went well */
-UNIV_INTERN
+
 dberr_t
 fts_ast_visit(
 /*==========*/
@@ -199,7 +200,7 @@ Process (nested) sub-expression, create a new result set to store the
 sub-expression result by processing nodes under current sub-expression
 list. Merge the sub-expression result with that of parent expression list.
 @return DB_SUCCESS if all went well */
-UNIV_INTERN
+
 dberr_t
 fts_ast_visit_sub_exp(
 /*==================*/
@@ -209,7 +210,7 @@ fts_ast_visit_sub_exp(
 	__attribute__((nonnull, warn_unused_result));
 /********************************************************************
 Create a lex instance.*/
-UNIV_INTERN
+
 fts_lexer_t*
 fts_lexer_create(
 /*=============*/
@@ -219,7 +220,7 @@ fts_lexer_create(
 	__attribute__((nonnull, malloc, warn_unused_result));
 /********************************************************************
 Free an fts_lexer_t instance.*/
-UNIV_INTERN
+
 void
 fts_lexer_free(
 /*===========*/
@@ -268,6 +269,8 @@ struct fts_ast_state_t {
 	fts_ast_list_t	list;			/*!< List of nodes allocated */
 
 	fts_lexer_t*	lexer;			/*!< Lexer callback + arg */
+	CHARSET_INFO*	charset;		/*!< charset used for
+						tokenization */
 };
 
 #endif /* INNOBASE_FSTS0AST_H */

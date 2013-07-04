@@ -35,6 +35,7 @@
 #include "records.h"          // init_read_record, end_read_record
 #include <my_pthread.h>
 #include "lock.h"                               // MYSQL_LOCK_IGNORE_TIMEOUT
+#include "log.h"
 
 #ifdef HAVE_DLOPEN
 extern "C"

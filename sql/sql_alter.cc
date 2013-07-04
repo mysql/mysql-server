@@ -1,4 +1,4 @@
-/* Copyright (c) 2010, 2012, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2010, 2013, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -18,12 +18,14 @@
                                              // mysql_exchange_partition
 #include "sql_base.h"                        // open_temporary_tables
 #include "sql_alter.h"
+#include "log.h"
 
 
 Alter_info::Alter_info(const Alter_info &rhs, MEM_ROOT *mem_root)
   :drop_list(rhs.drop_list, mem_root),
   alter_list(rhs.alter_list, mem_root),
   key_list(rhs.key_list, mem_root),
+  alter_rename_key_list(rhs.alter_rename_key_list, mem_root),
   create_list(rhs.create_list, mem_root),
   flags(rhs.flags),
   keys_onoff(rhs.keys_onoff),
@@ -44,6 +46,7 @@ Alter_info::Alter_info(const Alter_info &rhs, MEM_ROOT *mem_root)
   list_copy_and_replace_each_value(drop_list, mem_root);
   list_copy_and_replace_each_value(alter_list, mem_root);
   list_copy_and_replace_each_value(key_list, mem_root);
+  list_copy_and_replace_each_value(alter_rename_key_list, mem_root);
   list_copy_and_replace_each_value(create_list, mem_root);
   /* partition_names are not deeply copied currently */
 }
@@ -190,9 +193,9 @@ bool Sql_cmd_alter_table::execute(THD *thd)
 {
   LEX *lex= thd->lex;
   /* first SELECT_LEX (have special meaning for many of non-SELECTcommands) */
-  SELECT_LEX *select_lex= &lex->select_lex;
+  SELECT_LEX *select_lex= lex->select_lex;
   /* first table of first SELECT_LEX */
-  TABLE_LIST *first_table= (TABLE_LIST*) select_lex->table_list.first;
+  TABLE_LIST *first_table= select_lex->get_table_list();
   /*
     Code in mysql_alter_table() may modify its HA_CREATE_INFO argument,
     so we have to use a copy of this structure to make execution
@@ -319,9 +322,9 @@ bool Sql_cmd_alter_table::execute(THD *thd)
 bool Sql_cmd_discard_import_tablespace::execute(THD *thd)
 {
   /* first SELECT_LEX (have special meaning for many of non-SELECTcommands) */
-  SELECT_LEX *select_lex= &thd->lex->select_lex;
+  SELECT_LEX *select_lex= thd->lex->select_lex;
   /* first table of first SELECT_LEX */
-  TABLE_LIST *table_list= (TABLE_LIST*) select_lex->table_list.first;
+  TABLE_LIST *table_list= select_lex->get_table_list();
 
   if (check_access(thd, ALTER_ACL, table_list->db,
                    &table_list->grant.privilege,
@@ -340,14 +343,13 @@ bool Sql_cmd_discard_import_tablespace::execute(THD *thd)
     it is the case.
     TODO: this design is obsolete and will be removed.
   */
-  int table_kind= check_if_log_table(table_list->db_length, table_list->db,
-                                     table_list->table_name_length,
-                                     table_list->table_name, false);
+  enum_log_table_type table_kind=
+    query_logger.check_if_log_table(table_list, false);
 
-  if (table_kind)
+  if (table_kind != QUERY_LOG_NONE)
   {
-    /* Disable alter of enabled log tables */
-    if (logger.is_log_table_enabled(table_kind))
+    /* Disable alter of enabled query log tables */
+    if (query_logger.is_log_table_enabled(table_kind))
     {
       my_error(ER_BAD_LOG_STATEMENT, MYF(0), "ALTER");
       return true;

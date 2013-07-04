@@ -26,6 +26,7 @@
 #include "pfs_column_types.h"
 #include "pfs_engine_table.h"
 #include "rpl_mi.h"
+#include "rpl_reporting.h" /* MAX_SLAVE_ERRMSG */
 #include "mysql_com.h"
 
 /**
