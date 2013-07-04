@@ -40,7 +40,7 @@ let $wait_condition=
   select count(*) = 1 from information_schema.processlist
   where state = 'User lock' and
         info = 'SELECT  get_lock("test", 100)';
---source include/wait_condition.inc
+--source include/wait_condition_or_abort.inc
 CALL test.p2();
 SELECT release_lock("test");
 
