@@ -58,7 +58,7 @@ source include/start_slave.inc;
 let $ps_value= query_get_value(select Worker_Id from performance_schema.replication_execute_status_by_worker, Worker_Id, 1);
 let $assert_text= Worker_Id should be 0;
 let $assert_cond= "$ps_value"= 0;
-source include/rpl_assert.inc;
+source include/assert.inc;
 
 # To verify that the worker thread_id is correctly shown by PS table, find the
 # row in SHOW PROCESSLIST that corresponds to worker thread and extract the
@@ -104,30 +104,30 @@ remove_file $out_file;
 let $ps_value= query_get_value(select Service_State from performance_schema.replication_execute_status_by_worker, Service_State, 1);
 let $assert_text= Service_State should be "On" on a fresh slave server.;
 let $assert_cond= "$ps_value"= "On";
-source include/rpl_assert.inc;
+source include/assert.inc;
 
 let $ps_value= query_get_value(select Last_Seen_Transaction from performance_schema.replication_execute_status_by_worker, Last_Seen_Transaction, 1);
 let $assert_text= Last_Seen_Transaction should show "ANONYMOUS" if gtid-mode=off.;
 let $assert_cond= "$ps_value" = "ANONYMOUS";
-source include/rpl_assert.inc;
+source include/assert.inc;
 
 let $sss_value= query_get_value(SHOW SLAVE STATUS, Last_SQL_Errno, 1);
 let $ps_value= query_get_value(select Last_Error_Number from performance_schema.replication_execute_status_by_worker, Last_Error_Number, 1);
 let $assert_text= Value returned by SSS and PS table for Last_Error_Number should be same.;
 let $assert_cond= "$sss_value" = "$ps_value";
-source include/rpl_assert.inc;
+source include/assert.inc;
 
 let $sss_value= query_get_value(SHOW SLAVE STATUS, Last_SQL_Error, 1);
 let $ps_value= query_get_value(select Last_Error_Message from performance_schema.replication_execute_status_by_worker, Last_Error_Message, 1);
 let $assert_text= Value returned by SSS and PS table for Last_Error_Message should be same.;
 let $assert_cond= "$sss_value" = "$ps_value";
-source include/rpl_assert.inc;
+source include/assert.inc;
 
 let $sss_value= query_get_value(SHOW SLAVE STATUS, Last_SQL_Error_Timestamp, 1);
 let $ps_value= query_get_value(select Last_Error_Timestamp from performance_schema.replication_execute_status_by_worker, Last_Error_Timestamp, 1);
 let $assert_text= Value returned by PS table for Last_Error_Timestamp should be 0000-00-00 00:00:00.;
 let $assert_cond= "$ps_value" = "0000-00-00 00:00:00";
-source include/rpl_assert.inc;
+source include/assert.inc;
 
 --echo
 --echo # Introduce an error in the worker thread and check for the correctness
@@ -160,10 +160,10 @@ let $sss_value= query_get_value(SHOW SLAVE STATUS, Last_SQL_Errno, 1);
 let $ps_value= query_get_value(select Last_Error_Number from performance_schema.replication_execute_status_by_worker, Last_Error_Number, 1);
 let $assert_text= Value returned by SSS and PS table for Last_Error_Number should be same.;
 let $assert_cond= "$sss_value" = "$ps_value";
-source include/rpl_assert.inc;
+source include/assert.inc;
 
 # Availability of special characters like single quote and backtick character
-# makes it difficult use the rpl_assert.inc or mysql functionstrcmp().
+# makes it difficult use the assert.inc or mysql functionstrcmp().
 # So, the equality of error messages is checked using the below perl code.
 
 let $sss_value= query_get_value(SHOW SLAVE STATUS, Last_SQL_Error, 1);
@@ -201,7 +201,7 @@ let $ps_value_without_hyphons= `SELECT REPLACE("$ps_value", '-', '')`;
 let $ps_value_in_sss_format= `select substring("$ps_value_without_hyphons", 3)`;
 let $assert_text= Value returned by SSS and PS table for Last_Error_Timestamp should be same.;
 let $assert_cond= "$sss_value" = "$ps_value_in_sss_format";
-source include/rpl_assert.inc;
+source include/assert.inc;
 
 --echo
 --echo # Verify that the error fields are preserved after STOP SLAVE.
@@ -215,12 +215,12 @@ source include/rpl_assert.inc;
 let $ps_value= query_get_value(select thread_id from performance_schema.replication_execute_status_by_worker, thread_id, 1);
 let $assert_text= After STOP SLAVE, thread_id should be NULL;
 let $assert_cond= "$ps_value" = "NULL";
-source include/rpl_assert.inc;
+source include/assert.inc;
 
 let $ps_value= query_get_value(select Service_State from performance_schema.replication_execute_status_by_coordinator, Service_State, 1);
 let $assert_text= So, Service_State after STOP SLAVE should be "Off".;
 let $assert_cond= "$ps_value"= "Off";
-source include/rpl_assert.inc;
+source include/assert.inc;
 
 --echo
 --echo # 2. Extract the worker_id and the error related fields from SSS and PS
@@ -230,16 +230,16 @@ source include/rpl_assert.inc;
 let $ps_value= query_get_value(select Worker_Id from performance_schema.replication_execute_status_by_worker, Worker_Id, 1);
 let $assert_text= Worker_Id should be 0;
 let $assert_cond= "$ps_value"= 0;
-source include/rpl_assert.inc;
+source include/assert.inc;
 
 let $sss_value= query_get_value(SHOW SLAVE STATUS, Last_SQL_Errno, 1);
 let $ps_value= query_get_value(select Last_Error_Number from performance_schema.replication_execute_status_by_worker, Last_Error_Number, 1);
 let $assert_text= Value returned by SSS and PS table for Last_Error_Number should be same.;
 let $assert_cond= "$sss_value" = "$ps_value";
-source include/rpl_assert.inc;
+source include/assert.inc;
 
 # Availability of special characters like single quote and backtick character
-# makes it difficult use the rpl_assert.inc or mysql functionstrcmp().
+# makes it difficult use the assert.inc or mysql functionstrcmp().
 # So, the equality of error messages is checked using the below perl code.
 
 let $sss_value= query_get_value(SHOW SLAVE STATUS, Last_SQL_Error, 1);
@@ -277,7 +277,7 @@ let $ps_value_without_hyphons= `SELECT REPLACE("$ps_value", '-', '')`;
 let $ps_value_in_sss_format= `select substring("$ps_value_without_hyphons", 3)`;
 let $assert_text= Value returned by SSS and PS table for Last_Error_Timestamp should be same.;
 let $assert_cond= "$sss_value" = "$ps_value_in_sss_format";
-source include/rpl_assert.inc;
+source include/assert.inc;
 
 STOP SLAVE;
 RESET SLAVE;

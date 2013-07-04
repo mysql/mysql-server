@@ -102,31 +102,31 @@ let $sss_value= query_get_value(SHOW SLAVE STATUS, Slave_SQL_Running, 1);
 let $ps_value= query_get_value(select Service_State from performance_schema.replication_connection_status, Service_State, 1);
 let $assert_text= SSS shows Slave_IO_Running as "Yes". So, Service_State from this PS table should be "On".;
 let $assert_cond= "$sss_value" = "Yes" AND "$ps_value"= "On";
-source include/rpl_assert.inc;
+source include/assert.inc;
 
 let $sss_value= query_get_value(SHOW SLAVE STATUS, Last_SQL_Errno, 1);
 let $ps_value= query_get_value(select Last_Error_Number from performance_schema.replication_execute_status_by_coordinator, Last_Error_Number, 1);
 let $assert_text= Value returned by SSS and PS table for Last_Error_Number should be same.;
 let $assert_cond= "$sss_value" = "$ps_value";
-source include/rpl_assert.inc;
+source include/assert.inc;
 
 let $sss_value= query_get_value(SHOW SLAVE STATUS, Last_SQL_Error, 1);
 let $ps_value= query_get_value(select Last_Error_Message from performance_schema.replication_connection_status, Last_Error_Message, 1);
 let $assert_text= Value returned by SSS and PS table for Last_Error_Message should be same.;
 let $assert_cond= "$sss_value" = "$ps_value";
-source include/rpl_assert.inc;
+source include/assert.inc;
 
 let $sss_value= query_get_value(SHOW SLAVE STATUS, Last_SQL_Error_Timestamp, 1);
 let $ps_value= query_get_value(select Last_Error_Timestamp from performance_schema.replication_execute_status_by_coordinator, Last_Error_Timestamp, 1);
 let $assert_text= Value returned by SSS and PS table for Last_Error_Timestamp should be 0000-00-00 00:00:00.;
 let $assert_cond= "$ps_value" = "0000-00-00 00:00:00";
-source include/rpl_assert.inc;
+source include/assert.inc;
 
 let $sss_value= query_get_value(SHOW SLAVE STATUS, Slave_SQL_Running, 1);
 let $ps_value= query_get_value(select Service_State from performance_schema.replication_execute_status_by_coordinator, Service_State, 1);
 let $assert_text= SSS shows Slave_SQL_Running as "Yes". So, Service_State from this PS table should be "On".;
 let $assert_cond= "$sss_value" = "Yes" AND "$ps_value"= "On";
-source include/rpl_assert.inc;
+source include/assert.inc;
 
 --echo
 --echo # Cause an error in the SQL thread and check for the correctness of
@@ -159,10 +159,10 @@ let $sss_value= query_get_value(SHOW SLAVE STATUS, Last_SQL_Errno, 1);
 let $ps_value= query_get_value(select Last_Error_Number from performance_schema.replication_execute_status_by_coordinator, Last_Error_Number, 1);
 let $assert_text= Value returned by SSS and PS table for Last_Error_Number should be same.;
 let $assert_cond= "$sss_value" = "$ps_value";
-source include/rpl_assert.inc;
+source include/assert.inc;
 
 # Availability of special characters like single quote and backtick character
-# makes it difficult use the rpl_assert.inc or mysql functionstrcmp().
+# makes it difficult use the assert.inc or mysql functionstrcmp().
 # So, the equality of error messages is checked using the below perl code.
 
 let $sss_value= query_get_value(SHOW SLAVE STATUS, Last_SQL_Error, 1);
@@ -200,7 +200,7 @@ let $ps_value_without_hyphons= `SELECT REPLACE("$ps_value", '-', '')`;
 let $ps_value_in_sss_format= `select substring("$ps_value_without_hyphons", 3)`;
 let $assert_text= Value returned by SSS and PS table for Last_Error_Timestamp should be same.;
 let $assert_cond= "$sss_value" = "$ps_value_in_sss_format";
-source include/rpl_assert.inc;
+source include/assert.inc;
 
 --echo
 --echo # Verify that the error fields are preserved after STOP SLAVE, thread_id
@@ -215,13 +215,13 @@ source include/rpl_assert.inc;
 let $ps_value= query_get_value(select thread_id from performance_schema.replication_execute_status_by_coordinator, thread_id, 1);
 let $assert_text= After STOP SLAVE, thread_id should be NULL;
 let $assert_cond= "$ps_value" = "NULL";
-source include/rpl_assert.inc;
+source include/assert.inc;
 
 let $sss_value= query_get_value(SHOW SLAVE STATUS, Slave_SQL_Running, 1);
 let $ps_value= query_get_value(select Service_State from performance_schema.replication_execute_status_by_coordinator, Service_State, 1);
 let $assert_text= SSS shows Slave_SQL_Running as "No". So, Service_State from this PS table should be "Off".;
 let $assert_cond= "$sss_value" = "No" AND "$ps_value"= "Off";
-source include/rpl_assert.inc;
+source include/assert.inc;
 
 --echo
 --echo # 2. Extract the error related fields from SSS and PS table and compare
@@ -232,10 +232,10 @@ let $sss_value= query_get_value(SHOW SLAVE STATUS, Last_SQL_Errno, 1);
 let $ps_value= query_get_value(select Last_Error_Number from performance_schema.replication_execute_status_by_coordinator, Last_Error_Number, 1);
 let $assert_text= Value returned by SSS and PS table for Last_Error_Number should be same.;
 let $assert_cond= "$sss_value" = "$ps_value";
-source include/rpl_assert.inc;
+source include/assert.inc;
 
 # Availability of special characters like single quote and backtick character
-# makes it difficult use the rpl_assert.inc or mysql functionstrcmp().
+# makes it difficult use the assert.inc or mysql functionstrcmp().
 # So, the equality of error messages is checked using the below perl code.
 
 let $sss_value= query_get_value(SHOW SLAVE STATUS, Last_SQL_Error, 1);
@@ -273,7 +273,7 @@ let $ps_value_without_hyphons= `SELECT REPLACE("$ps_value", '-', '')`;
 let $ps_value_in_sss_format= `select substring("$ps_value_without_hyphons", 3)`;
 let $assert_text= Value returned by SSS and PS table for Last_Error_Timestamp should be same.;
 let $assert_cond= "$sss_value" = "$ps_value_in_sss_format";
-source include/rpl_assert.inc;
+source include/assert.inc;
 
 STOP SLAVE;
 RESET SLAVE;
@@ -352,25 +352,25 @@ let $sss_value= query_get_value(SHOW SLAVE STATUS, Slave_SQL_Running, 1);
 let $ps_value= query_get_value(select Service_State from performance_schema.replication_connection_status, Service_State, 1);
 let $assert_text= SSS shows Slave_SQL_Running as "Yes". So, Service_State from this PS table should be "On".;
 let $assert_cond= "$sss_value" = "Yes" AND "$ps_value"= "On";
-source include/rpl_assert.inc;
+source include/assert.inc;
 
 let $sss_value= query_get_value(SHOW SLAVE STATUS, Last_SQL_Errno, 1);
 let $ps_value= query_get_value(select Last_Error_Number from performance_schema.replication_execute_status_by_coordinator, Last_Error_Number, 1);
 let $assert_text= Value returned by SSS and PS table for Last_Error_Number should be same.;
 let $assert_cond= "$sss_value" = "$ps_value";
-source include/rpl_assert.inc;
+source include/assert.inc;
 
 let $sss_value= query_get_value(SHOW SLAVE STATUS, Last_IO_Error, 1);
 let $ps_value= query_get_value(select Last_Error_Message from performance_schema.replication_connection_status, Last_Error_Message, 1);
 let $assert_text= Value returned by SSS and PS table for Last_Error_Message should be same.;
 let $assert_cond= "$sss_value" = "$ps_value";
-source include/rpl_assert.inc;
+source include/assert.inc;
 
 let $sss_value= query_get_value(SHOW SLAVE STATUS, Last_SQL_Error_Timestamp, 1);
 let $ps_value= query_get_value(select Last_Error_Timestamp from performance_schema.replication_execute_status_by_coordinator, Last_Error_Timestamp, 1);
 let $assert_text= Value returned by SSS and PS table for Last_Error_Timestamp should be 0000-00-00 00:00:00.;
 let $assert_cond= "$ps_value" = "0000-00-00 00:00:00";
-source include/rpl_assert.inc;
+source include/assert.inc;
 
 --echo
 --echo # Cleanup.
