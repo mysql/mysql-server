@@ -102,24 +102,7 @@ Diff: EXPLAIN NORMAL vs OTHER
 +        "using_where": true
        }
 QUERY: SELECT t1.c2   FROM t2 STRAIGHT_JOIN t1 ON t1.c1 < t2.c1 
-STATUS:NOT_EQUAL
-SYNC_POINT:before_reset_query_plan
-Diff: EXPLAIN NORMAL vs OTHER
-@@ -25,3 +25,3 @@
-           "table_name": "t1",
--          "access_type": "ALL",
-+          "access_type": "range",
-           "possible_keys": [
-@@ -29,3 +29,8 @@
-           ],
--          "rows": 0,
-+          "key": "PRIMARY",
-+          "used_key_parts": [
-+            "c1"
-+          ],
-+          "key_length": "4",
-+          "rows": 1,
-           "filtered": 0,
+STATUS: EQUAL
 QUERY: SELECT STRAIGHT_JOIN * FROM (t1 LEFT JOIN  (t2 LEFT JOIN (t3 LEFT OUTER JOIN t4 ON t3.c1 <= t4.c1_key) ON t2.c1 = t4.c3)  ON t1.c1 = t4.c2) RIGHT OUTER JOIN t5 ON t2.c2 <= t5.c1 WHERE t1.i1 = 1 
 STATUS:NOT_EQUAL
 SYNC_POINT:before_reset_query_plan

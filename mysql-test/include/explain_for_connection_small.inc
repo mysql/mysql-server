@@ -85,7 +85,7 @@
   CREATE TABLE t2 ( c1 INT NOT NULL, c2 VARCHAR(1) DEFAULT NULL, PRIMARY KEY (c1) ) ;
   INSERT INTO t2 VALUES (10,'v') ;
   INSERT INTO t2 VALUES (11,'r') ;
-  let $point=   before_reset_query_plan;let $query=  SELECT t1.c2   FROM t2 STRAIGHT_JOIN t1 ON t1.c1 < t2.c1 ;
+  let $point=  after_join_optimize;let $query=  SELECT t1.c2   FROM t2 STRAIGHT_JOIN t1 ON t1.c1 < t2.c1 ;
   --source include/explain_for_connection.inc
   DROP TABLE t1, t2 ;
 
