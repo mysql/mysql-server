@@ -76,7 +76,7 @@ INSERT INTO d2.t1 VALUES (9);
 --let $count= 1
 --let $table= d2.t1
 --let $wait_condition= select count(*) = 1 from $table where a = 8
---source include/wait_condition.inc
+--source include/wait_condition_or_abort.inc
 
 --connection slave
 # make worker executing (13) to error out
