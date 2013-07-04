@@ -50,8 +50,6 @@
 extern ulong net_buffer_length;
 extern ulong max_allowed_packet;
 
-struct Master_info *active_mi;
-
 #if defined(__WIN__)
 #define ERRNO WSAGetLastError()
 #define perror(A)
