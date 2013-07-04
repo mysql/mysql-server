@@ -1,4 +1,4 @@
-/* Copyright (c) 2000, 2011, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2000, 2013, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -76,7 +76,7 @@ int main(int argc, char **argv)
   {
     j=i%25 +1;
     sprintf((char*) key,"%6d",j);
-    bmove(record+1,key,6);
+    memmove(record + 1, key, 6);
     error=heap_write(file,record);
     if (heap_check_heap(file,0))
     {
@@ -124,7 +124,7 @@ int main(int argc, char **argv)
   for (i=1 ; i<=25 ; i++)
   {
     sprintf((char*) key,"%6d",i);
-    bmove(record+1,key,6);
+    memmove(record + 1, key, 6);
     my_errno=0;
     error=heap_rkey(file,record,0,key,6,HA_READ_KEY_EXACT);
     if (verbose ||
@@ -135,31 +135,6 @@ int main(int argc, char **argv)
              (char*) key,error,my_errno,record+1);
     }
   }
-
-#ifdef OLD_HEAP_VERSION
-  {
-    int found;
-    printf("- Reading records with position\n");
-    for (i=1,found=0 ; i <= 30 ; i++)
-    {
-      my_errno=0;
-      if ((error=heap_rrnd(file,record,i == 1 ? 0L : (ulong) -1)) ==
-	  HA_ERR_END_OF_FILE)
-      {
-	if (found != 25-deleted)
-	  printf("Found only %d of %d records\n",found,25-deleted);
-	break;
-      }
-      if (!error)
-	found++;
-      if (verbose || (error != 0 && error != HA_ERR_RECORD_DELETED))
-      {
-	printf("pos: %2d  ni_rrnd: %3d  my_errno: %3d  record: %s\n",
-	       i-1,error,my_errno,(char*) record+1);
-      }
-    }
-  }
-#endif
 
   if (heap_close(file) || hp_panic(HA_PANIC_CLOSE))
     goto err;

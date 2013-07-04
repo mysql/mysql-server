@@ -25,7 +25,7 @@
                     // mysql_change_db, check_db_dir_existence,
                     // load_db_opt_by_name
 #include "sql_table.h"                          // write_bin_log
-#include "sql_acl.h"                       // SUPER_ACL
+#include "auth_common.h"                        // SUPER_ACL
 #include "sp_head.h"
 #include "sp_cache.h"
 #include "lock.h"                               // lock_object_name
@@ -848,7 +848,8 @@ db_load_routine(THD *thd, enum_sp_type type, sp_name *name, sp_head **sphp,
   int ret= 0;
 
   thd->lex= &newlex;
-  newlex.current_select= NULL;
+  newlex.thd= thd;
+  newlex.set_current_select(NULL);
 
   parse_user(definer, strlen(definer),
              definer_user_name.str, &definer_user_name.length,
@@ -1471,7 +1472,7 @@ public:
   {
     if (sql_errno == ER_NO_SUCH_TABLE ||
         sql_errno == ER_CANNOT_LOAD_FROM_TABLE_V2 ||
-        sql_errno == ER_COL_COUNT_DOESNT_MATCH_PLEASE_UPDATE ||
+        sql_errno == ER_COL_COUNT_DOESNT_MATCH_PLEASE_UPDATE_V2 ||
         sql_errno == ER_COL_COUNT_DOESNT_MATCH_CORRUPTED_V2)
       return true;
     return false;
@@ -1836,7 +1837,7 @@ sp_exist_routines(THD *thd, TABLE_LIST *routines, bool is_proc)
                                sp_find_routine(thd, SP_TYPE_FUNCTION,
                                                name, &thd->sp_func_cache,
                                                FALSE) != NULL;
-    thd->get_stmt_da()->reset_condition_info(thd->query_id);
+    thd->get_stmt_da()->reset_condition_info(thd);
     if (! sp_object_found)
     {
       my_error(ER_SP_DOES_NOT_EXIST, MYF(0), "FUNCTION or PROCEDURE",
@@ -2285,7 +2286,8 @@ sp_load_for_information_schema(THD *thd, TABLE *proc_table, String *db,
     return 0;
 
   thd->lex= &newlex;
-  newlex.current_select= NULL; 
+  newlex.thd= thd;
+  newlex.set_current_select(NULL); 
   sp= sp_compile(thd, &defstr, sql_mode, creation_ctx);
   *free_sp_head= 1;
   thd->lex->sphead= NULL;
@@ -2611,7 +2613,7 @@ TABLE_LIST *sp_add_to_query_tables(THD *thd, LEX *lex,
   table->table_name= thd->strmake(name, table->table_name_length);
   table->alias= thd->strdup(name);
   table->lock_type= locktype;
-  table->select_lex= lex->current_select;
+  table->select_lex= lex->current_select();
   table->cacheable_table= 1;
   table->mdl_request.init(MDL_key::TABLE, table->db, table->table_name,
                           mdl_type, MDL_TRANSACTION);

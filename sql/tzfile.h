@@ -89,15 +89,11 @@ struct tzhead {
 #endif /* !defined TZ_MAX_TIMES */
 
 #ifndef TZ_MAX_TYPES
-#ifdef SOLAR
-#define TZ_MAX_TYPES	256 /* Limited by what (unsigned char)'s can hold */
-#else
 /*
   Must be at least 14 for Europe/Riga as of Jan 12 1995,
   as noted by Earl Chew <earl@hpato.aus.hp.com>.
 */
 #define TZ_MAX_TYPES	20	/* Maximum number of local time types */
-#endif /* defined SOLAR */
 #endif /* !defined TZ_MAX_TYPES */
 
 #ifndef TZ_MAX_CHARS
@@ -110,12 +106,7 @@ struct tzhead {
 #endif /* !defined TZ_MAX_LEAPS */
 
 #ifndef TZ_MAX_REV_RANGES
-#ifdef SOLAR
-/* Solar (Asia/RiyadhXX) zones need significantly bigger TZ_MAX_REV_RANGES */
-#define TZ_MAX_REV_RANGES (TZ_MAX_TIMES*2+TZ_MAX_LEAPS*2+2)
-#else
 #define TZ_MAX_REV_RANGES (TZ_MAX_TIMES+TZ_MAX_LEAPS+2)
-#endif
 #endif
 
 #define SECS_PER_MIN	60

@@ -1,7 +1,7 @@
 #ifndef SQL_PARTITION_INCLUDED
 #define SQL_PARTITION_INCLUDED
 
-/* Copyright (c) 2006, 2012, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2006, 2013, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -136,11 +136,11 @@ void truncate_partition_filename(char *path);
     function returns next subpartition id/partition number. The sequence of
     returned numbers is not ordered and may contain duplicates.
 
-    When the end of sequence is reached, NOT_A_PARTITION_ID is returned, and 
-    the iterator resets itself (so next get_next() call will start to 
+    When the end of sequence is reached, NOT_A_PARTITION_ID is returned, and
+    the iterator resets itself (so next get_next() call will start to
     enumerate the set all over again).
 
-  RETURN 
+  RETURN
     NOT_A_PARTITION_ID if there are no more partitions.
     [sub]partition_id  of the next partition
 */
@@ -155,7 +155,7 @@ typedef uint32 (*partition_iter_func)(st_partition_iter* part_iter);
   For the user, the only meaningful field is get_next, which may be used as
   follows:
              part_iterator.get_next(&part_iterator);
-  
+
   Initialization is done by any of the following calls:
     - get_partitions_in_range_iter-type function call
     - init_single_partition_iterator()
@@ -166,7 +166,7 @@ typedef uint32 (*partition_iter_func)(st_partition_iter* part_iter);
 typedef struct st_partition_iter
 {
   partition_iter_func get_next;
-  /* 
+  /*
     Valid for "Interval mapping" in LIST partitioning: if true, let the
     iterator also produce id of the partition that contains NULL value.
   */
@@ -212,7 +212,7 @@ typedef struct st_partition_iter
 
   DESCRIPTION
     Functions with this signature are used to perform "Partitioning Interval
-    Analysis". This analysis is applicable for any type of [sub]partitioning 
+    Analysis". This analysis is applicable for any type of [sub]partitioning
     by some function of a single fieldX. The idea is as follows:
     Given an interval "const1 <=? fieldX <=? const2", find a set of partitions
     that may contain records with value of fieldX within the given interval.
@@ -226,7 +226,7 @@ typedef struct st_partition_iter
      - get_part_iter_for_interval_cols_via_map
      - get_part_iter_for_interval_via_mapping
 
-  RETURN 
+  RETURN
     0 - No matching partitions, iterator not initialized
     1 - Some partitions would match, iterator intialized for traversing them
    -1 - All partitions would match, iterator not initialized
@@ -260,7 +260,8 @@ char *generate_partition_syntax(partition_info *part_info,
                                 uint *buf_length, bool use_sql_alloc,
                                 bool show_partition_options,
                                 HA_CREATE_INFO *create_info,
-                                Alter_info *alter_info);
+                                Alter_info *alter_info,
+                                const char *current_comment_start);
 bool verify_data_with_partition(TABLE *table, TABLE *part_table,
                                 uint32 part_id);
 bool compare_partition_options(HA_CREATE_INFO *table_create_info,

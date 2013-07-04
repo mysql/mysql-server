@@ -17,7 +17,7 @@
 #include "sql_priv.h"
 #include "mysqld.h"      // select_errors
 #include "sql_class.h"   // THD
-#include "sql_acl.h"     // acl_reload
+#include "auth_common.h" // acl_reload, grant_reload
 #include "sql_servers.h" // servers_reload
 #include "sql_connect.h" // reset_mqh
 #include "sql_base.h"    // close_cached_tables
@@ -131,10 +131,10 @@ bool reload_acl_and_cache(THD *thd, unsigned long options,
     }
 
   if ((options & REFRESH_SLOW_LOG) && opt_slow_log)
-    logger.flush_slow_log();
+    query_logger.reopen_log_file(QUERY_LOG_SLOW);
 
-  if ((options & REFRESH_GENERAL_LOG) && opt_log)
-    logger.flush_general_log();
+  if ((options & REFRESH_GENERAL_LOG) && opt_general_log)
+    query_logger.reopen_log_file(QUERY_LOG_GENERAL);
 
   if (options & REFRESH_ENGINE_LOG)
     if (ha_flush_logs(NULL))
@@ -169,7 +169,6 @@ bool reload_acl_and_cache(THD *thd, unsigned long options,
     mysql_mutex_unlock(&LOCK_active_mi);
 #endif
   }
-#ifdef HAVE_QUERY_CACHE
   if (options & REFRESH_QUERY_CACHE_FREE)
   {
     query_cache.pack();				// FLUSH QUERY CACHE
@@ -179,7 +178,6 @@ bool reload_acl_and_cache(THD *thd, unsigned long options,
   {
     query_cache.flush();			// RESET QUERY CACHE
   }
-#endif /*HAVE_QUERY_CACHE*/
 
   DBUG_ASSERT(!thd || thd->locked_tables_mode ||
               !thd->mdl_context.has_locks() ||

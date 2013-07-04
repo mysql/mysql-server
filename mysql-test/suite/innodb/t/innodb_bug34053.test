@@ -22,7 +22,9 @@ FLUSH PRIVILEGES;
 -- error ER_SPECIFIC_ACCESS_DENIED_ERROR
 CREATE TABLE innodb_monitor (a INT) ENGINE=INNODB;
 # this should only fail with UNIV_MEM_DEBUG
+-- error 0,ER_SPECIFIC_ACCESS_DENIED_ERROR
 CREATE TABLE innodb_mem_validate (a INT) ENGINE=INNODB;
+-- error 0,ER_BAD_TABLE_ERROR
 DROP TABLE innodb_mem_validate;
 CREATE TABLE innodb_sql (a INT) ENGINE=INNODB;
 DROP TABLE innodb_sql;
@@ -42,10 +44,13 @@ CREATE TABLE innodb_mem_validate (a INT) ENGINE=INNODB;
 -- connection con1
 -- error ER_SPECIFIC_ACCESS_DENIED_ERROR
 DROP TABLE innodb_monitor;
+-- error 0,ER_SPECIFIC_ACCESS_DENIED_ERROR
 DROP TABLE innodb_mem_validate;
 
 -- connection default
 DROP TABLE innodb_monitor;
+-- error 0,ER_BAD_TABLE_ERROR
+DROP TABLE innodb_mem_validate;
 DROP USER 'shane'@'localhost';
 
 -- disconnect con1

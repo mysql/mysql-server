@@ -50,6 +50,9 @@ DROP DATABASE db1;
 # The SQL file will be applied but nothing is applied on Database db2 since the row event was
 # generated for database db1 and table t1.
 
+# With gtid-mode=on we need purge gtid_executed, if not transactions
+# replayed through mysqlbinlog will be skipped.
+RESET MASTER;
 --exec $MYSQL --database=db2 --local-infile=1 < $MYSQLTEST_VARDIR/tmp/row_event.sql
 --error ER_NO_SUCH_TABLE
 SELECT * FROM db2.t1;
@@ -57,6 +60,9 @@ SELECT * FROM db2.t1;
 # The SQL file should be applied since the row event was extracted using the new mysqlbinlog option.
 
 DROP DATABASE db1;
+# With gtid-mode=on we need purge gtid_executed, if not transactions
+# replayed through mysqlbinlog will be skipped.
+RESET MASTER;
 --echo [The event of table db1.t1 has been successfully applied to db2.t1]
 --exec $MYSQL  --database=db2 --local-infile=1 < $MYSQLTEST_VARDIR/tmp/row_event_rewrite.sql
 --let $assert_text= Assert that table db2.t1 has one row after applying the sql file.

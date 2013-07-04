@@ -79,12 +79,6 @@
  *
  */
 
-/*
-  We can't have SAFE_MUTEX defined here as this will cause recursion
-  in pthread_mutex_lock
-*/
-
-#undef SAFE_MUTEX
 #include <my_global.h>
 #include <m_string.h>
 #include <errno.h>
@@ -95,7 +89,7 @@
 #define fnmatch(A,B,C) strcmp(A,B)
 #endif
 
-#if defined(__WIN__)
+#if defined(_WIN32)
 #include <process.h>
 #endif
 
@@ -176,10 +170,6 @@
 /*
  *      Externally supplied functions.
  */
-
-#ifndef HAVE_PERROR
-static void perror();          /* Fake system/library error print routine */
-#endif
 
 /*
  *      The user may specify a list of functions to trace or
@@ -596,7 +586,7 @@ int DbugParse(CODE_STATE *cs, const char *control)
         if (!is_shared(stack, keywords))
           FreeList(stack->keywords);
         stack->keywords=NULL;
-        stack->flags &= ~DEBUG_ON;
+        stack->flags&= ~DEBUG_ON;
         break;
       }
       if (rel && is_shared(stack, keywords))
@@ -604,11 +594,29 @@ int DbugParse(CODE_STATE *cs, const char *control)
       if (sign < 0)
       {
         if (DEBUGGING)
+        {
           stack->keywords= ListDel(stack->keywords, control, end);
-      break;
+          /* Turn off DEBUG_ON if it is last keyword to be removed. */
+          if (stack->keywords == NULL)
+            stack->flags&= ~DEBUG_ON;
+        }
+        break;
       }
-      stack->keywords= ListAdd(stack->keywords, control, end);
-      stack->flags |= DEBUG_ON;
+
+      /* Do not add keyword if debugging all is enabled. */
+      if (!(DEBUGGING && stack->keywords == NULL))
+      {
+        stack->keywords= ListAdd(stack->keywords, control, end);
+        stack->flags|= DEBUG_ON;
+      }
+
+      /* If debug all is enabled, make the keyword list empty. */
+      if (sign == 1 && control == end)
+      {
+        FreeList(stack->keywords);
+        stack->keywords= NULL;
+      }
+
       break;
     case 'D':
       stack->delay= atoi(control);
@@ -1033,7 +1041,7 @@ void _db_pop_()
       } while (0)
 #define str_to_buf(S)    do {                   \
         char_to_buf(',');                       \
-        buf=strnmov(buf, (S), len+1);           \
+        buf=strnmov(buf, (S), end-buf);         \
         if (buf >= end) goto overflow;          \
       } while (0)
 #define list_to_buf(l, f)  do {                 \
@@ -1356,6 +1364,38 @@ void _db_pargs_(uint _line_, const char *keyword)
 /*
  *  FUNCTION
  *
+ *    _db_enabled_    check if debug is enabled for the keyword used in
+ *    DBUG_PRINT
+ *
+ *  SYNOPSIS
+ *
+ *    int _db_enabled_();
+ *
+ *  DESCRIPTION
+ *
+ *    The function checks if the debug output is to be enabled for the keyword
+ *    specified in DBUG_PRINT macro. _db_doprnt_ will be called only if this
+ *    function evaluates to 1.
+ */
+
+int _db_enabled_()
+{
+  CODE_STATE *cs;
+
+  get_code_state_or_return 0;
+
+  if (! DEBUGGING)
+    return 0;
+
+  if (_db_keyword_(cs, cs->u_keyword, 0))
+    return 1;
+
+  return 0;
+}
+
+/*
+ *  FUNCTION
+ *
  *      _db_doprnt_    handle print of debug lines
  *
  *  SYNOPSIS
@@ -1366,11 +1406,9 @@ void _db_pargs_(uint _line_, const char *keyword)
  *
  *  DESCRIPTION
  *
- *      When invoked via one of the DBUG macros, tests the current keyword
- *      set by calling _db_pargs_() to see if that macro has been selected
- *      for processing via the debugger control string, and if so, handles
- *      printing of the arguments via the format string.  The line number
- *      of the DBUG macro in the source is found in u_line.
+ *      This function handles the printing of the arguments via the format
+ *      string.  The line number of the DBUG macro in the source is found in
+ *      u_line.
  *
  *      Note that the format string SHOULD NOT include a terminating
  *      newline, this is supplied automatically.
@@ -1383,6 +1421,8 @@ void _db_doprnt_(const char *format,...)
 {
   va_list args;
   CODE_STATE *cs;
+  int save_errno;
+
   get_code_state_or_return;
 
   /* Dirty read, for DBUG_PRINT() performance. */
@@ -1392,21 +1432,19 @@ void _db_doprnt_(const char *format,...)
   va_start(args,format);
   read_lock_stack(cs);
 
-  if (_db_keyword_(cs, cs->u_keyword, 0))
-  {
-    int save_errno=errno;
-    if (!cs->locked)
-      pthread_mutex_lock(&THR_LOCK_dbug);
-    DoPrefix(cs, cs->u_line);
-    if (TRACING)
-      Indent(cs, cs->level + 1);
-    else
-      (void) fprintf(cs->stack->out_file, "%s: ", cs->func);
-    (void) fprintf(cs->stack->out_file, "%s: ", cs->u_keyword);
-    DbugVfprintf(cs->stack->out_file, format, args);
-    DbugFlush(cs);
-    errno=save_errno;
-  }
+  save_errno=errno;
+  if (!cs->locked)
+    pthread_mutex_lock(&THR_LOCK_dbug);
+  DoPrefix(cs, cs->u_line);
+  if (TRACING)
+    Indent(cs, cs->level + 1);
+  else
+    (void) fprintf(cs->stack->out_file, "%s: ", cs->func);
+  (void) fprintf(cs->stack->out_file, "%s: ", cs->u_keyword);
+  DbugVfprintf(cs->stack->out_file, format, args);
+  DbugFlush(cs);
+  errno=save_errno;
+
   unlock_stack(cs);
   va_end(args);
 }
@@ -1977,7 +2015,7 @@ static void DoPrefix(CODE_STATE *cs, uint _line_)
     (void) fprintf(cs->stack->out_file, "%5d: ", cs->lineno);
   if (cs->stack->flags & TIMESTAMP_ON)
   {
-#ifdef __WIN__
+#ifdef _WIN32
     /* FIXME This doesn't give microseconds as in Unix case, and the resolution is
        in system ticks, 10 ms intervals. See my_getsystime.c for high res */
     SYSTEMTIME loc_t;
@@ -2280,8 +2318,6 @@ static BOOLEAN Writable(const char *pathname)
  *
  */
 
-#ifdef HAVE_LONGJMP
-
 EXPORT void _db_setjmp_()
 {
   CODE_STATE *cs;
@@ -2320,43 +2356,6 @@ EXPORT void _db_longjmp_()
   if (cs->jmpfile)
     cs->file= cs->jmpfile;
 }
-#endif
-
-/*
- *  FUNCTION
- *
- *      perror    perror simulation for systems that don't have it
- *
- *  SYNOPSIS
- *
- *      static VOID perror(s)
- *      char *s;
- *
- *  DESCRIPTION
- *
- *      Perror produces a message on the standard error stream which
- *      provides more information about the library or system error
- *      just encountered.  The argument string s is printed, followed
- *      by a ':', a blank, and then a message and a newline.
- *
- *      An undocumented feature of the unix perror is that if the string
- *      's' is a null string (NOT a NULL pointer!), then the ':' and
- *      blank are not printed.
- *
- *      This version just complains about an "unknown system error".
- *
- */
-
-#ifndef HAVE_PERROR
-static void perror(s)
-char *s;
-{
-  if (s && *s != '\0')
-    (void) fprintf(stderr, "%s: ", s);
-  (void) fprintf(stderr, "<unknown system error>\n");
-}
-#endif /* HAVE_PERROR */
-
 
         /* flush dbug-stream, free mutex lock & wait delay */
         /* This is because some systems (MSDOS!!) dosn't flush fileheader */
@@ -2385,7 +2384,7 @@ void _db_flush_()
 }
 
 
-#ifndef __WIN__
+#ifndef _WIN32
 
 #ifdef HAVE_GCOV
 extern void __gcov_flush();
@@ -2422,7 +2421,7 @@ void _db_suicide_()
   fprintf(stderr, "sigsuspend returned %d errno %d \n", retval, errno);
   assert(FALSE); /* With full signal mask, we should never return here. */
 }
-#endif  /* ! __WIN__ */
+#endif  /* ! _WIN32 */
 
 
 void _db_lock_file_()

@@ -24,7 +24,7 @@ Created 2011-01-15 by Sunny Bains
 *******************************************************/
 
 #include "ut0bh.h"
-#include "ut0mem.h"	/* For ut_memcpy() */
+#include "ut0mem.h"
 
 /**********************************************************************//**
 Get the number of elements in the binary heap.

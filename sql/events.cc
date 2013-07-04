@@ -23,7 +23,7 @@
 #include "sql_db.h"                          // check_db_dir_existence
 #include "sql_table.h"                       // write_bin_log
 #include "tztime.h"                             // struct Time_zone
-#include "sql_acl.h"                            // EVENT_ACL
+#include "auth_common.h"                        // EVENT_ACL
 #include "records.h"          // init_read_record, end_read_record
 #include "event_data_objects.h"
 #include "event_db_repository.h"
@@ -786,17 +786,17 @@ Events::fill_schema_events(THD *thd, TABLE_LIST *tables, Item * /* cond */)
     DBUG_RETURN(1);
 
   /*
-    If it's SHOW EVENTS then thd->lex->select_lex.db is guaranteed not to
+    If it's SHOW EVENTS then thd->lex->select_lex->db is guaranteed not to
     be NULL. Let's do an assert anyway.
   */
   if (thd->lex->sql_command == SQLCOM_SHOW_EVENTS)
   {
-    DBUG_ASSERT(thd->lex->select_lex.db);
-    if (!is_infoschema_db(thd->lex->select_lex.db) && // There is no events in I_S
-        check_access(thd, EVENT_ACL, thd->lex->select_lex.db,
+    DBUG_ASSERT(thd->lex->select_lex->db);
+    if (!is_infoschema_db(thd->lex->select_lex->db) && // No events in I_S
+        check_access(thd, EVENT_ACL, thd->lex->select_lex->db,
                      NULL, NULL, 0, 0))
       DBUG_RETURN(1);
-    db= thd->lex->select_lex.db;
+    db= thd->lex->select_lex->db;
   }
   ret= db_repository->fill_schema_events(thd, tables, db);
 
@@ -824,6 +824,7 @@ Events::init(my_bool opt_noacl_or_bootstrap)
 {
 
   THD *thd;
+  int err_no;
   bool res= FALSE;
 
   DBUG_ENTER("Events::init");
@@ -904,7 +905,7 @@ Events::init(my_bool opt_noacl_or_bootstrap)
   }
 
   if (event_queue->init_queue(thd) || load_events_from_db(thd) ||
-      (opt_event_scheduler == EVENTS_ON && scheduler->start()))
+      (opt_event_scheduler == EVENTS_ON && scheduler->start(&err_no)))
   {
     sql_print_error("Event Scheduler: Error while loading from disk.");
     res= TRUE; /* fatal error: request unireg_abort */
@@ -1069,10 +1070,10 @@ Events::dump_internal_status()
   DBUG_VOID_RETURN;
 }
 
-bool Events::start()
+bool Events::start(int *err_no)
 {
   bool ret= false;
-  if (scheduler) ret= scheduler->start();
+  if (scheduler) ret= scheduler->start(err_no);
   return ret;
 }
 

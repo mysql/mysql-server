@@ -1,4 +1,4 @@
-/* Copyright (c) 2000, 2012, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2000, 2013, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -39,308 +39,6 @@ using std::min;
 static double prev_record_reads(JOIN *join, uint idx, table_map found_ref);
 static void trace_plan_prefix(JOIN *join, uint idx,
                               table_map excluded_tables);
-
-/*
-  This is a class for considering possible loose index scan optimizations.
-  It's usage pattern is as follows:
-    best_access_path()
-    {
-       Loose_scan_opt opt;
-
-       opt.init()
-       for each index we can do ref access with
-       {
-         opt.next_ref_key();
-         for each keyuse 
-           opt.add_keyuse();
-         opt.check_ref_access_part1();
-         opt.check_ref_access_part2();
-       }
-
-       if (some criteria for range scans)
-         opt.check_range_access();
-       
-       opt.save_to_position();
-    }
-*/
-
-class Loose_scan_opt
-{
-private:
-  /* All methods must check this before doing anything else */
-  bool try_loosescan;
-
-  /*
-    If we consider (oe1, .. oeN) IN (SELECT ie1, .. ieN) then ieK=oeK is
-    called sj-equality. If oeK depends only on preceding tables then such
-    equality is called 'bound'.
-  */
-  ulonglong bound_sj_equalities;
- 
-  /* Accumulated properties of ref access we're now considering: */
-  ulonglong handled_sj_equalities;
-  key_part_map loose_scan_keyparts;
-  /**
-     Biggest index (starting at 0) of keyparts used for the "handled", not
-     "bound", equalities.
-  */
-  uint max_loose_keypart;
-  bool part1_conds_met;
-
-  /*
-    Use of quick select is a special case. Some of its properties:
-  */
-  uint quick_uses_applicable_index;
-  uint quick_max_loose_keypart;
-  
-  /* Best loose scan method so far */
-  uint   best_loose_scan_key;
-  double best_loose_scan_cost;
-  double best_loose_scan_records;
-  Key_use *best_loose_scan_start_key;
-
-  uint best_max_loose_keypart;
-
-public:
-  Loose_scan_opt() :
-    try_loosescan(FALSE),
-    quick_uses_applicable_index(FALSE)
-  {
-    /*
-      We needn't initialize:
-      bound_sj_equalities - protected by try_loosescan
-      quick_max_loose_keypart - protected by quick_uses_applicable_index
-      best_loose_scan_key - protected by best_loose_scan_cost != DBL_MAX
-      best_loose_scan_records - same
-      best_max_loose_keypart - same
-      best_loose_scan_start_key - same
-      Not initializing them causes compiler warnings with g++ at -O1 or higher,
-      but initializing them would cause a 2% CPU time loss in a 20-table plan
-      search. So we initialize only if warnings would stop the build.
-    */
-#ifdef COMPILE_FLAG_WERROR
-    bound_sj_equalities=       0;
-    quick_max_loose_keypart=   0;
-    best_loose_scan_key=       0;
-    best_loose_scan_records=   0;
-    best_max_loose_keypart=    0;
-    best_loose_scan_start_key= NULL;
-#endif
-  }
-
-  void init(JOIN_TAB *s, table_map remaining_tables,
-            bool in_dups_producing_range, bool is_sjm_nest)
-  {
-    /*
-      We may consider the LooseScan strategy if
-        1. The next table is an SJ-inner table, and
-        2, We have no more than 64 IN expressions (must fit in bitmap), and
-        3. It is the first table from that semijoin, and
-        4. We're not within a semi-join range (i.e. all semi-joins either have
-           all or none of their tables in join_table_map), except
-           s->emb_sj_nest (which we've just entered, see #2), and
-        5. All non-IN-equality correlation references from this sj-nest are 
-           bound, and
-        6. But some of the IN-equalities aren't (so this can't be handled by 
-           FirstMatch strategy), and
-        7. LooseScan is not disabled, and
-        8. Not a derived table/view. (a temporary restriction)
-    */
-    best_loose_scan_cost= DBL_MAX;
-    if (s->emb_sj_nest && !is_sjm_nest &&                               // (1)
-        s->emb_sj_nest->nested_join->sj_inner_exprs.elements <= 64 &&   // (2)
-        ((remaining_tables & s->emb_sj_nest->sj_inner_tables) ==        // (3)
-         s->emb_sj_nest->sj_inner_tables) &&                            // (3)
-        !in_dups_producing_range &&                                     // (4)
-        !(remaining_tables & 
-          s->emb_sj_nest->nested_join->sj_corr_tables) &&               // (5)
-        (remaining_tables & s->emb_sj_nest->nested_join->sj_depends_on) && //(6)
-        s->join->thd->optimizer_switch_flag(OPTIMIZER_SWITCH_LOOSE_SCAN) &&//(7)
-        !s->table->pos_in_table_list->uses_materialization())           // (8)
-    {
-      try_loosescan= true;      // This table is a LooseScan scan candidate
-      bound_sj_equalities= 0;   // These equalities are populated later
-      DBUG_PRINT("info", ("Will try LooseScan scan"));
-    }
-  }
-
-  void next_ref_key()
-  {
-    handled_sj_equalities=0;
-    loose_scan_keyparts= 0;
-    max_loose_keypart= 0;
-    part1_conds_met= FALSE;
-  }
-  
-  void add_keyuse(table_map remaining_tables, Key_use *keyuse)
-  {
-    if (try_loosescan && keyuse->sj_pred_no != UINT_MAX)
-    {
-      if (!(remaining_tables & keyuse->used_tables))
-      {
-        /* 
-          This allows to use equality propagation to infer that some 
-          sj-equalities are bound.
-        */
-        bound_sj_equalities |= 1ULL << keyuse->sj_pred_no;
-      }
-      else
-      {
-        handled_sj_equalities |= 1ULL << keyuse->sj_pred_no;
-        loose_scan_keyparts |= ((key_part_map)1) << keyuse->keypart;
-        set_if_bigger(max_loose_keypart, keyuse->keypart);
-      }
-    }
-  }
-
-  bool have_a_case() { return test(handled_sj_equalities); }
-
-  /**
-    Check if an index can be used for LooseScan, part 1
-
-    @param s              The join_tab we are checking
-    @param key            The key being checked for the associated table
-    @param start_key      First applicable keyuse for this key.
-    @param bound_keyparts The key columns determined for this index, ie.
-                          found in earlier tables in plan.
-  */
-  void check_ref_access_part1(JOIN_TAB *s, uint key, Key_use *start_key,
-                              key_part_map bound_keyparts)
-  {
-    /*
-      Check if we can use LooseScan semi-join strategy. We can if
-      1. This is the right table at right location
-      2. All IN-equalities are either
-         - "bound", ie. the outer_expr part refers to the preceding tables
-         - "handled", ie. covered by the index we're considering
-      3. Index order allows to enumerate subquery's duplicate groups in
-         order. This happens when the index columns are defined in an order
-         that matches this pattern:
-           (handled_col|bound_col)* (other_col|bound_col)
-      4. No keys are defined over a partial column
-
-    */
-    if (try_loosescan &&                                                // (1)
-        (handled_sj_equalities | bound_sj_equalities) ==                // (2)
-        LOWER_BITS(ulonglong,
-               s->emb_sj_nest->nested_join->sj_inner_exprs.elements) && // (2)
-        (LOWER_BITS(key_part_map, max_loose_keypart+1) &                // (3)
-         ~(bound_keyparts | loose_scan_keyparts)) == 0 &&               // (3)
-        !key_uses_partial_cols(s->table, key))                          // (4)
-    {
-      /* Ok, can use the strategy */
-      part1_conds_met= TRUE;
-      if (s->quick && s->quick->index == key && 
-          s->quick->get_type() == QUICK_SELECT_I::QS_TYPE_RANGE)
-      {
-        quick_uses_applicable_index= TRUE;
-        quick_max_loose_keypart= max_loose_keypart;
-      }
-      DBUG_PRINT("info", ("Can use LooseScan scan"));
-
-      /* 
-        Check if this is a confluent where there are no usable bound
-        IN-equalities, e.g. we have
-
-          outer_expr IN (SELECT innertbl.key FROM ...) 
-        
-        and outer_expr cannot be evaluated yet, so it's actually full
-        index scan and not a ref access
-      */
-      if (!(bound_keyparts & 1 ) && /* no usable ref access for 1st key part */
-          s->table->covering_keys.is_set(key))
-      {
-        DBUG_PRINT("info", ("Can use full index scan for LooseScan"));
-        
-        /* Calculate the cost of complete loose index scan.  */
-        double records= rows2double(s->table->file->stats.records);
-
-        /* The cost is entire index scan cost (divided by 2) */
-        double read_time= s->table->file->index_only_read_time(key, records);
-
-        /*
-          Now find out how many different keys we will get (for now we
-          ignore the fact that we have "keypart_i=const" restriction for
-          some key components, that may make us think think that loose
-          scan will produce more distinct records than it actually will)
-        */
-        ulong rpc;
-        if ((rpc= s->table->key_info[key].rec_per_key[max_loose_keypart]))
-          records= records / rpc;
-
-        // TODO: previous version also did /2
-        if (read_time < best_loose_scan_cost)
-        {
-          best_loose_scan_key= key;
-          best_loose_scan_cost= read_time;
-          best_loose_scan_records= records;
-          best_max_loose_keypart= max_loose_keypart;
-          best_loose_scan_start_key= start_key;
-        }
-      }
-    }
-  }
-
-  /**
-    Check if an index can be used for LooseScan, part 2
-
-    Record this LooseScan index if it is cheaper than the currently
-    cheapest LooseScan index.
-
-    @param key            The key being checked for the associated table
-    @param start_key      First applicable keyuse for this key.
-    @param records        Row count estimate for this index access
-    @param read_time      Cost of access using this index
-  */
-  void check_ref_access_part2(uint key, Key_use *start_key, double records,
-                              double read_time)
-  {
-    if (part1_conds_met && read_time < best_loose_scan_cost)
-    {
-      /* TODO use rec-per-key-based fanout calculations */
-      best_loose_scan_key= key;
-      best_loose_scan_cost= read_time;
-      best_loose_scan_records= records;
-      best_max_loose_keypart= max_loose_keypart;
-      best_loose_scan_start_key= start_key;
-    }
-  }
-
-  void check_range_access(JOIN *join, uint idx, QUICK_SELECT_I *quick)
-  {
-    /* TODO: this the right part restriction: */
-    if (quick_uses_applicable_index && idx == join->const_tables && 
-        quick->read_time < best_loose_scan_cost)
-    {
-      best_loose_scan_key= quick->index;
-      best_loose_scan_cost= quick->read_time;
-      /* this is ok because idx == join->const_tables */
-      best_loose_scan_records= rows2double(quick->records);
-      best_max_loose_keypart= quick_max_loose_keypart;
-      best_loose_scan_start_key= NULL;
-    }
-  }
-
-  void save_to_position(JOIN_TAB *tab, POSITION *pos)
-  {
-    pos->read_time=       best_loose_scan_cost;
-    if (best_loose_scan_cost != DBL_MAX)
-    {
-      pos->records_read=    best_loose_scan_records;
-      pos->key=             best_loose_scan_start_key;
-      pos->loosescan_key=   best_loose_scan_key;
-      pos->loosescan_parts= best_max_loose_keypart + 1;
-      pos->use_join_buffer= FALSE;
-      pos->table=           tab;
-      // todo need ref_depend_map ?
-      DBUG_PRINT("info", ("Produced a LooseScan plan, key %s, %s",
-                          tab->table->key_info[best_loose_scan_key].name,
-                          best_loose_scan_start_key? "(ref access)":
-                                                     "(range/index access)"));
-    }
-  }
-};
-
 
 static uint
 max_part_bit(key_part_map bits)
@@ -389,8 +87,6 @@ cache_record_length(JOIN *join,uint idx)
   @param record_count     estimate for the number of records returned by the
                           partial plan
   @param[out] pos         Table access plan
-  @param[out] loose_scan_pos  Table plan that uses loosescan, or set cost to 
-                              DBL_MAX if not possible.
 */
 
 void Optimize_table_order::best_access_path(
@@ -399,8 +95,7 @@ void Optimize_table_order::best_access_path(
                  uint      idx,
                  bool      disable_jbuf,
                  double    record_count,
-                 POSITION *pos,
-                 POSITION *loose_scan_pos)
+                 POSITION *pos)
 {
   Key_use *best_key=        NULL;
   uint best_max_key_part=   0;
@@ -414,7 +109,7 @@ void Optimize_table_order::best_access_path(
   Opt_trace_context * const trace= &thd->opt_trace;
   TABLE *const table= s->table;
 
-  status_var_increment(thd->status_var.last_query_partial_plans);
+  thd->status_var.last_query_partial_plans++;
 
   /*
     Cannot use join buffering if either
@@ -426,35 +121,10 @@ void Optimize_table_order::best_access_path(
     idx == join->const_tables ||                                     // 1
     !thd->optimizer_switch_flag(OPTIMIZER_SWITCH_BNL);               // 2
 
-  Loose_scan_opt loose_scan_opt;
   DBUG_ENTER("Optimize_table_order::best_access_path");
 
   Opt_trace_object trace_wrapper(trace, "best_access_path");
   Opt_trace_array trace_paths(trace, "considered_access_paths");
-
-  {
-    /*
-      Loose-scan specific-logic:
-      - we must decide whether this is within the dups_producing range.
-      - if 'pos' is within the JOIN::positions array, then decide this
-      by using the pos[-1] entry.
-      - if 'pos' is not in the JOIN::position array then
-      in_dups_producing_range must be false (this case may occur in
-      semijoin_*_access_paths() which calls best_access_path() with 'pos'
-      allocated on the stack).
-      @todo One day Loose-scan will be considered in advance_sj_state() only,
-      outside best_access_path(), so this complicated logic will not be
-      needed.
-    */
-    const bool in_dups_producing_range=
-      (idx == join->const_tables) ?
-      false :
-      (pos == (join->positions + idx) ?
-       (pos[-1].dups_producing_tables != 0) :
-       false);
-    loose_scan_opt.init(s, remaining_tables, in_dups_producing_range,
-                        emb_sjm_nest != NULL);
-  }
 
   /*
     This isn't unlikely at all, but unlikely() cuts 6% CPU time on a 20-table
@@ -483,7 +153,8 @@ void Optimize_table_order::best_access_path(
       /* Calculate how many key segments of the current key we can use */
       Key_use *const start_key= keyuse;
 
-      loose_scan_opt.next_ref_key();
+      start_key->bound_keyparts= 0;  // Initially, no ref access is possible
+
       DBUG_PRINT("info", ("Considering ref access on key %s",
                           keyuse->table->key_info[keyuse->key].name));
       Opt_trace_object trace_access_idx(trace);
@@ -537,7 +208,6 @@ void Optimize_table_order::best_access_path(
             if (keyuse->optimize & KEY_OPTIMIZE_REF_OR_NULL)
               ref_or_null_part |= keyuse->keypart_map;
           }
-          loose_scan_opt.add_keyuse(remaining_tables, keyuse);
         }
 	found_ref|= best_part_found_ref;
       }
@@ -545,7 +215,7 @@ void Optimize_table_order::best_access_path(
       /*
         Assume that that each key matches a proportional part of table.
       */
-      if (!found_part && !ft_key && !loose_scan_opt.have_a_case())
+      if (!found_part && !ft_key)
       {
         trace_access_idx.add("usable", false);
         goto done_with_index;                  // Nothing usable found
@@ -569,7 +239,6 @@ void Optimize_table_order::best_access_path(
       else
       {
         found_constraint= test(found_part);
-        loose_scan_opt.check_ref_access_part1(s, key, start_key, found_part);
 
         /* Check if we found full key */
         if (found_part == LOWER_BITS(key_part_map, actual_key_parts(keyinfo)) &&
@@ -831,8 +500,9 @@ void Optimize_table_order::best_access_path(
           else
             tmp= best_time;                    // Do nothing
         }
-        loose_scan_opt.check_ref_access_part2(key, start_key, records, tmp);
-
+        start_key->bound_keyparts= found_part;
+        start_key->rowcount= records;
+        start_key->cost= tmp;
       } /* not ft_key */
 
       {
@@ -966,7 +636,6 @@ void Optimize_table_order::best_access_path(
         (s->quick->read_time +
          (s->found_records - rnd_records) * ROW_EVALUATE_COST);
 
-      loose_scan_opt.check_range_access(join, idx, s->quick);
     }
     else
     {
@@ -1059,8 +728,6 @@ skip_table_scan:
   pos->loosescan_key= MAX_KEY;
   pos->use_join_buffer= best_uses_jbuf;
 
-  loose_scan_opt.save_to_position(s, loose_scan_pos);
-
   if (!best_key &&
       idx == join->const_tables &&
       table == join->sort_by_table &&
@@ -1071,6 +738,357 @@ skip_table_scan:
   }
 
   DBUG_VOID_RETURN;
+}
+
+
+/**
+   @Returns a bitmap of bound semi-join equalities.
+
+   If we consider (oe1, .. oeN) IN (SELECT ie1, .. ieN) then ieK=oeK is
+   called sj-equality. If ieK or oeK depends only on tables available before
+   'tab' in this plan, then such equality is called "bound".
+
+   @param tab                   table
+   @param not_available_tables  bitmap of not-available tables.
+*/
+static ulonglong get_bound_sj_equalities(const JOIN_TAB *tab,
+                                         table_map not_available_tables)
+{
+  ulonglong bound_sj_equalities= 0;
+  List_iterator<Item> it_o(tab->emb_sj_nest->nested_join->sj_outer_exprs);
+  List_iterator_fast<Item>
+    it_i(tab->emb_sj_nest->nested_join->sj_inner_exprs);
+  Item *outer, *inner;
+  for (uint i= 0; ; ++i)
+  {
+    outer= it_o++;
+    if (!outer)
+      break;
+    inner= it_i++;
+    if (!((not_available_tables) & outer->used_tables()))
+    {
+      bound_sj_equalities|= 1ULL << i;
+      continue;
+    }
+    /*
+      Now we look at equality propagation, to discover that a semi-join
+      equality is bound, when the outer or inner expression is a field
+      involved in some other non-semi-join equality.
+      For example (propagation with inner field):
+      select * from t2 where (b+0,a+0) in (select a,b from t1 where a=3);
+      if the plan is t1-t2, 1st sj equality is bound, even though the
+      corresponding outer expression t2.b+0 refers to 't2' which is not yet
+      available.
+      Other example (propagation with outer field):
+      select * from t2 as t3, t2
+      where t2.filler=t3.filler and
+      (t2.b,t2.a,t2.filler) in (select a,b,a*3 from t1);
+      if the plan is t3-t1-t2, 3rd sj equality is bound.
+
+      We locate the relevant multiple equalities for the field. They are in
+      the COND_EQUAL of the join nest which embeds the field's table. For
+      example:
+      select * from t1 left join t1 as t2
+      on (t2.a= t1.a and (t2.a,t2.b) in (select a,b from t1 as t3))
+      here we have:
+      - a join nest (t2,t3) (called "wrap-nest"), which has a COND_EQUAL
+      containing, among others: t2.a=t1.a
+      - no COND_EQUAL for the WHERE clause.
+      If the plan is t1-t3-t2, by looking at t2.a=t1.a we can deduce that
+      the first semi join equality is bound.
+    */
+    Item *item;
+    if (outer->type() == Item::FIELD_ITEM)
+      item= outer;
+    else if (inner->type() == Item::FIELD_ITEM)
+      item= inner;
+    else
+      continue;
+    Item_field *const item_field= static_cast<Item_field *>(item);
+    Item_equal *item_equal= item_field->item_equal;
+    if (!item_equal)
+    {
+      TABLE_LIST *const nest=
+        item_field->field->table->pos_in_table_list->outer_join_nest();
+      item_equal= item_field->find_item_equal(nest ? nest->cond_equal :
+                                              tab->join->cond_equal);
+    }
+    if (item_equal)
+    {
+      /*
+        If the multiple equality {[optional_constant,] col1, col2...} contains
+        (1) a constant
+        (2) or a column from an available table
+        then the semi-join equality is bound.
+      */
+      if (item_equal->get_const() ||                           // (1)
+          (item_equal->used_tables() & ~not_available_tables)) // (2)
+        bound_sj_equalities|= 1ULL << i;
+    }
+  }
+  return bound_sj_equalities;
+}
+
+
+/**
+  Fills a POSITION object of the driving table of a semi-join LooseScan
+  range, with the cheapest access path.
+
+  This function was created by copying the code from best_access_path, and
+  then eliminating everything which isn't related to semi-join LooseScan.
+
+  Preconditions:
+  1. Those checked by advance_sj_state(), ensuring that 'tab' is a valid
+  LooseScan candidate.
+  2. This function uses the members 'bound_keyparts', 'cost' and 'records' of
+  each Key_use; thus best_access_path () must have been called, for this
+  table, with the current join prefix, so that the members are up to date.
+
+  @param tab              the driving table
+  @param remaining_tables set of tables not included in the partial plan yet.
+  @param idx              the length of the partial plan
+  @param[out] pos  If return code is 'true': table access path that uses
+                   loosescan
+
+  @returns true if it found a loosescan access path for this table.
+*/
+
+bool Optimize_table_order::
+semijoin_loosescan_fill_driving_table_position(const JOIN_TAB  *tab,
+                                               table_map remaining_tables,
+                                               uint      idx,
+                                               POSITION *pos)
+{
+  Opt_trace_context * const trace= &thd->opt_trace;
+  Opt_trace_object trace_wrapper(trace);
+  Opt_trace_object trace_ls(trace, "searching_loose_scan_index");
+
+  TABLE *const table= tab->table;
+  DBUG_ASSERT(remaining_tables & table->map);
+
+  const ulonglong bound_sj_equalities=
+    get_bound_sj_equalities(tab, excluded_tables | remaining_tables);
+
+  // Use of quick select is a special case. Some of its properties:
+  bool quick_uses_applicable_index= false;
+  uint quick_max_keypart= 0;
+
+  pos->read_time= DBL_MAX;
+  pos->use_join_buffer= false;
+
+  Opt_trace_array trace_all_idx(trace, "indexes");
+
+  /*
+    For each index, we calculate how many key segments of this index
+    we can use.
+  */
+  for (Key_use *keyuse= tab->keyuse; keyuse->table == table; )
+  {
+    const uint key= keyuse->key;
+
+    Key_use *const start_key= keyuse;
+    Opt_trace_object trace_idx(trace);
+    trace_idx.add_utf8("index", table->key_info[key].name);
+
+    /*
+      Equalities where one comparand is in index and other comparand is a
+      not-yet-available expression.
+    */
+    ulonglong handled_sj_equalities= 0;
+    key_part_map handled_keyparts= 0;
+    /*
+      Biggest index (starting at 0) of keyparts used for the "handled", not
+      "bound", equalities.
+    */
+    uint max_keypart= 0;
+
+    // For each keypart
+    while (keyuse->table == table && keyuse->key == key)
+    {
+      const uint keypart= keyuse->keypart;
+      // For each way to access the keypart
+      for ( ; keyuse->table == table && keyuse->key == key &&
+              keyuse->keypart == keypart ; ++keyuse)
+      {
+        /*
+          If this Key_use is not about a semi-join equality, or references an
+          excluded table, or does not reference a not-yet-available table, or
+          is for fulltext, or is over a prefix, then it is not a "handled sj
+          equality".
+        */
+        if ((keyuse->sj_pred_no == UINT_MAX) ||
+            (excluded_tables & keyuse->used_tables) ||
+            !(remaining_tables & keyuse->used_tables) ||
+            (keypart == FT_KEYPART) ||
+            (table->key_info[key].key_part[keypart].key_part_flag &
+             HA_PART_KEY_SEG))
+          continue;
+        handled_sj_equalities|= 1ULL << keyuse->sj_pred_no;
+        handled_keyparts|= keyuse->keypart_map;
+        DBUG_ASSERT(max_keypart <= keypart); // see sort_keyuse()
+        max_keypart= keypart;
+      }
+    }
+
+    const key_part_map bound_keyparts= start_key->bound_keyparts;
+
+    /*
+      We can use semi-join LooseScan if duplicate elimination is going to work
+      for all semi-join equalities. Duplicate elimination:
+      - works for a bound semi-join equality, because this equality is tested
+      before the nested loop leaves the last inner table of this semi-join
+      nest.
+      - works for a handled semi-join equality thanks to key comparison; key
+      comparison works if:
+        * the handled key parts are over a full field (not a prefix, otherwise
+        two values, differing only after the prefix, would be treated as
+        duplicates)
+        * and any key part before the handled key parts, is bound (same
+        justification as for "works for a bound semi-join equality" above).
+
+      That gives us these requirements:
+      1. All IN-equalities are either bound or handled.
+      2. No hole in sequence of key parts.
+
+      An example where (2) matters:
+        SELECT * FROM ot1
+        WHERE a IN (SELECT it1.b FROM it1 JOIN it2 ON it1.a = it2.a).
+      Say the plan is it1-ot1-it2 and it1 has an index on (a,b). The semi-join
+      equality is handled, by the second key part (it1.b). But the first key
+      part is not bound (it2.a is not available). So there is a hole. If the
+      rows of it1 are, in index order: (X,Z),(Y,Z), then the key comparison
+      will let both rows pass; after joining with ot1 this will duplicate
+      any row of ot1 having ot1.a=Z.
+
+      We add this third requirement:
+      3. At least one IN-equality is handled.
+      In theory it is a superfluous restriction. Consider:
+        select * from t2 as t3, t2
+        where t2.b=t3.b and
+              (t2.b) in (select b*3 from t1 where a=10);
+      If the plan is t3-t1-t2, and we are looking at an index on t1.a:
+      bound_sj_equalities==1 (because outer expression is equal to t3.b which
+      is available), handled_sj_equalities==0 (no index on 'b*3'),
+      handled_keyparts==0, bound_keyparts==1 (t1.a=10).
+      We could set up 'ref' on t1.a (=10), with a "LooseScan key comparison
+      length" (join_tab->loosescan_key_len) of size(t1.a), and a condition on
+      t1 (t1->m_condition) of "t1.b*3=t3.b". After finding a match in t2
+      (t2->m_condition="t2.b=t3.b"), the key comparison would skip all other
+      rows of t1 returned by ref access. But this is a bit degenerate,
+      FirstMatch-like.
+    */
+    if ((handled_sj_equalities | bound_sj_equalities) !=                // (1)
+        LOWER_BITS(ulonglong,
+                   tab->emb_sj_nest->nested_join->sj_inner_exprs.elements))// (1)
+    {
+      trace_idx.add("index_handles_needed_semijoin_equalities", false);
+      continue;
+    }
+    if (handled_keyparts == 0)                                          // (3)
+    {
+      trace_idx.add("some_index_part_used", false);
+      continue;
+    }
+    if ((LOWER_BITS(key_part_map, max_keypart + 1) &                    // (2)
+         ~(bound_keyparts | handled_keyparts)) != 0)                    // (2)
+    {
+      trace_idx.add("index_can_remove_duplicates", false);
+      continue;
+    }
+
+    // Ok, can use the strategy
+
+    if (tab->quick && tab->quick->index == key &&
+        tab->quick->get_type() == QUICK_SELECT_I::QS_TYPE_RANGE)
+    {
+      quick_uses_applicable_index= true;
+      quick_max_keypart= max_keypart;
+    }
+
+    if (bound_keyparts & 1)
+    {
+      Opt_trace_object trace_ref(trace, "ref");
+      trace_ref.add("cost", start_key->cost);
+      if (start_key->cost < pos->read_time)
+      {
+        // @TODO use rec-per-key-based fanout calculations
+        pos->loosescan_key= key;
+        pos->read_time= start_key->cost;
+        pos->records_read= start_key->rowcount;
+        pos->loosescan_parts= max_keypart + 1;
+        pos->key= start_key;
+        trace_ref.add("chosen", true);
+      }
+    }
+    else if (tab->table->covering_keys.is_set(key))
+    {
+      /*
+        There are no usable bound IN-equalities, e.g. we have
+
+        outer_expr IN (SELECT innertbl.key FROM ...)
+
+        and outer_expr cannot be evaluated yet, so it's actually full
+        index scan and not a ref access
+      */
+      Opt_trace_object trace_cov_scan(trace, "covering_scan");
+
+      // Calculate the cost of complete loose index scan.
+      double rowcount= rows2double(tab->table->file->stats.records);
+
+      // The cost is entire index scan cost
+      double cost= tab->table->file->index_only_read_time(key, rowcount);
+
+      /*
+        Now find out how many different keys we will get (for now we
+        ignore the fact that we have "keypart_i=const" restriction for
+        some key components, that may make us think that loose
+        scan will produce more distinct records than it actually will)
+      */
+      const ulong rpc= tab->table->key_info[key].rec_per_key[max_keypart];
+      if (rpc != 0)
+        rowcount= rowcount / rpc;
+
+      trace_cov_scan.add("cost", cost);
+      // @TODO: previous version also did /2
+      if (cost < pos->read_time)
+      {
+        pos->loosescan_key= key;
+        pos->read_time= cost;
+        pos->records_read= rowcount;
+        pos->loosescan_parts= max_keypart + 1;
+        pos->key= NULL;
+        trace_cov_scan.add("chosen", true);
+      }
+    }
+    else
+      trace_idx.add("ref_possible", false).
+        add("covering_scan_possible", false);
+
+
+  } // ... for (Key_use *keyuse=tab->keyuse; etc
+
+
+  trace_all_idx.end();
+
+  if (quick_uses_applicable_index && idx == join->const_tables)
+  {
+    Opt_trace_object trace_range(trace, "range_scan");
+    trace_range.add("cost", tab->quick->read_time);
+    // @TODO: this the right part restriction:
+    if (tab->quick->read_time < pos->read_time)
+    {
+      pos->loosescan_key= tab->quick->index;
+      pos->read_time= tab->quick->read_time;
+      // this is ok because idx == join->const_tables
+      pos->records_read= rows2double(tab->quick->records);
+      pos->loosescan_parts= quick_max_keypart + 1;
+      pos->key= NULL;
+      trace_range.add("chosen", true);
+    }
+  }
+
+  return (pos->read_time != DBL_MAX);
+  // @todo need ref_depend_map ?
 }
 
 
@@ -1247,7 +1265,10 @@ void Optimize_table_order::optimize_straight_join(table_map join_tables)
   uint idx= join->const_tables;
   double    record_count= 1.0;
   double    read_time=    0.0;
- 
+
+  // resolve_subquery() disables semijoin if STRAIGHT_JOIN
+  DBUG_ASSERT(join->select_lex->sj_nests.is_empty());
+
   Opt_trace_context * const trace= &join->thd->opt_trace;
   for (JOIN_TAB **pos= join->best_ref + idx ; (s= *pos) ; pos++)
   {
@@ -1265,22 +1286,14 @@ void Optimize_table_order::optimize_straight_join(table_map join_tables)
     */
     DBUG_ASSERT(!check_interleaving_with_nj(s));
     /* Find the best access method from 's' to the current partial plan */
-    POSITION  loose_scan_pos;
-    best_access_path(s, join_tables, idx, false, record_count,
-                     position, &loose_scan_pos);
+    best_access_path(s, join_tables, idx, false, record_count, position);
 
     /* compute the cost of the new plan extended with 's' */
     record_count*= position->records_read;
     read_time+=    position->read_time;
     read_time+=    record_count * ROW_EVALUATE_COST;
     position->set_prefix_costs(read_time, record_count);
-
-    // see similar if() in best_extension_by_limited_search
-    if (!join->select_lex->sj_nests.is_empty())
-      advance_sj_state(join_tables, s, idx, &record_count, &read_time,
-                       &loose_scan_pos);
-    else
-      position->no_semijoin();
+    position->no_semijoin(); // advance_sj_state() is not needed
 
     trace_table.add("cost_for_plan", read_time).
       add("rows_for_plan", record_count);
@@ -1850,9 +1863,8 @@ bool Optimize_table_order::best_extension_by_limited_search(
       // If optimizing a sj-mat nest, tables in this plan must be in nest:
       DBUG_ASSERT(emb_sjm_nest == NULL || emb_sjm_nest == s->emb_sj_nest);
       /* Find the best access method from 's' to the current partial plan */
-      POSITION loose_scan_pos;
       best_access_path(s, remaining_tables, idx, false, record_count, 
-                       position, &loose_scan_pos);
+                       position);
 
       /* Compute the cost of extending the plan with 's' */
       current_record_count= record_count * position->records_read;
@@ -1875,8 +1887,7 @@ bool Optimize_table_order::best_extension_by_limited_search(
           for a materialized semi-join nest.
         */
         advance_sj_state(remaining_tables, s, idx,
-                         &current_record_count, &current_read_time,
-                         &loose_scan_pos);
+                         &current_record_count, &current_read_time);
       }
       else
         position->no_semijoin();
@@ -2189,12 +2200,11 @@ table_map Optimize_table_order::eq_ref_extension_by_limited_search(
         trace_one_table.add_utf8_table(s->table);
       }
       POSITION *const position= join->positions + idx;
-      POSITION loose_scan_pos;
 
       DBUG_ASSERT(emb_sjm_nest == NULL || emb_sjm_nest == s->emb_sj_nest);
       /* Find the best access method from 's' to the current partial plan */
       best_access_path(s, remaining_tables, idx, false, record_count,
-                       position, &loose_scan_pos);
+                       position);
 
       /*
         EQ_REF prune logic is based on that all joins
@@ -2233,8 +2243,7 @@ table_map Optimize_table_order::eq_ref_extension_by_limited_search(
             same if() inside advance_sj_state() would be.
           */
           advance_sj_state(remaining_tables, s, idx,
-                           &current_record_count, &current_read_time,
-                           &loose_scan_pos);
+                           &current_record_count, &current_read_time);
         }
         else
           position->no_semijoin();
@@ -2810,7 +2819,7 @@ bool Optimize_table_order::semijoin_firstmatch_loosescan_access_paths(
   for (uint i= first_tab; i <= last_tab; i++)
   {
     JOIN_TAB *const tab= positions[i].table;
-    POSITION regular_pos, loose_scan_pos;
+    POSITION regular_pos;
     POSITION *const dst_pos= final ? positions + i : &regular_pos;
     POSITION *pos;        // Position for later calculations
     /*
@@ -2826,14 +2835,24 @@ bool Optimize_table_order::semijoin_firstmatch_loosescan_access_paths(
       best_access_path(tab, remaining_tables, i, 
                        i < no_jbuf_before,
                        rowcount * inner_fanout * outer_fanout,
-                       dst_pos, &loose_scan_pos);
+                       dst_pos);
       if (i == first_tab && loosescan)  // Use loose scan position
       {
-        *dst_pos= loose_scan_pos;
-        const double rows= rowcount * dst_pos->records_read;
-        dst_pos->set_prefix_costs(cost + dst_pos->read_time +
-                                  rows * ROW_EVALUATE_COST,
-                                  rows);
+        if (semijoin_loosescan_fill_driving_table_position(tab,
+                                                           remaining_tables,
+                                                           i, dst_pos))
+        {
+          dst_pos->table= tab;
+          const double rows= rowcount * dst_pos->records_read;
+          dst_pos->set_prefix_costs(cost + dst_pos->read_time +
+                                    rows * ROW_EVALUATE_COST,
+                                    rows);
+        }
+        else
+        {
+          DBUG_ASSERT(!final);
+          DBUG_RETURN(false);
+        }
       }
       pos= dst_pos;
     }
@@ -2940,10 +2959,10 @@ void Optimize_table_order::semijoin_mat_scan_access_paths(
     Opt_trace_object trace_one_table(trace);
     JOIN_TAB *const tab= positions[i].table;
     trace_one_table.add_utf8_table(tab->table);
-    POSITION regular_pos, dummy;
+    POSITION regular_pos;
     POSITION *const dst_pos= final ? positions + i : &regular_pos;
     best_access_path(tab, remaining_tables, i, false,
-                     rowcount * inner_fanout * outer_fanout, dst_pos, &dummy);
+                     rowcount * inner_fanout * outer_fanout, dst_pos);
     remaining_tables&= ~tab->table->map;
     outer_fanout*= dst_pos->records_read;
     cost+= dst_pos->read_time +
@@ -3130,8 +3149,6 @@ void Optimize_table_order::semijoin_dupsweedout_access_paths(
                           in the prefix)
   @param[in,out] current_rowcount Estimate of #rows in join prefix's output
   @param[in,out] current_cost     Cost to execute the join prefix
-  @param loose_scan_pos   A POSITION with LooseScan plan to access table
-                          new_join_tab (produced by last best_access_path call)
 
   @details
     Update semi-join optimization state after we've added another tab (table 
@@ -3183,13 +3200,13 @@ void Optimize_table_order::semijoin_dupsweedout_access_paths(
 void Optimize_table_order::advance_sj_state(
                       table_map remaining_tables, 
                       const JOIN_TAB *new_join_tab, uint idx, 
-                      double *current_rowcount, double *current_cost, 
-                      POSITION *loose_scan_pos)
+                      double *current_rowcount, double *current_cost)
 {
   Opt_trace_context * const trace= &thd->opt_trace;
   TABLE_LIST *const emb_sj_nest= new_join_tab->emb_sj_nest;
   POSITION   *const pos= join->positions + idx;
   uint sj_strategy= SJ_OPT_NONE;  // Initially: No chosen strategy
+
   /*
     Semi-join nests cannot be nested, hence we never need to advance the
     semi-join state of a materialized semi-join query.
@@ -3199,8 +3216,12 @@ void Optimize_table_order::advance_sj_state(
   */
   DBUG_ASSERT(emb_sjm_nest == NULL);
 
-  /* Add this table to the join prefix */
-  remaining_tables &= ~new_join_tab->table->map;
+  // remaining_tables include the current one:
+  DBUG_ASSERT(remaining_tables & new_join_tab->table->map);
+  // Save it:
+  const table_map remaining_tables_incl= remaining_tables;
+  // And add the current table to the join prefix:
+  remaining_tables&= ~new_join_tab->table->map;
 
   DBUG_ENTER("Optimize_table_order::advance_sj_state");
 
@@ -3284,10 +3305,9 @@ void Optimize_table_order::advance_sj_state(
       pos->first_firstmatch_table= idx;
       pos->firstmatch_need_tables= 0;
       pos->first_firstmatch_rtbl= remaining_tables;
-      // All inner tables should still be part of remaining_tables.
+      // All inner tables should still be part of remaining_tables_inc
       DBUG_ASSERT(sj_inner_tables ==
-                  ((remaining_tables | new_join_tab->table->map) &
-                   sj_inner_tables));
+                  (remaining_tables_incl & sj_inner_tables));
     }
 
     if (pos->first_firstmatch_table != MAX_TABLES)
@@ -3349,45 +3369,68 @@ void Optimize_table_order::advance_sj_state(
   */
   if (thd->optimizer_switch_flag(OPTIMIZER_SWITCH_LOOSE_SCAN))
   {
-    POSITION *const first= join->positions+pos->first_loosescan_table; 
-    /* 
-      LooseScan strategy can't handle interleaving between tables from the 
+    /*
+      LooseScan strategy can't handle interleaving between tables from the
       semi-join that LooseScan is handling and any other tables.
     */
     if (pos->first_loosescan_table != MAX_TABLES)
     {
-      if (first->table->emb_sj_nest->sj_inner_tables &
-          (remaining_tables | new_join_tab->table->map))
+      TABLE_LIST *const first_emb_sj_nest=
+        join->positions[pos->first_loosescan_table].table->emb_sj_nest;
+      if (first_emb_sj_nest->sj_inner_tables & remaining_tables_incl)
       {
         // Stage 2: Accept remaining tables from the semi-join nest:
-        if (emb_sj_nest != first->table->emb_sj_nest)
+        if (emb_sj_nest != first_emb_sj_nest)
           pos->first_loosescan_table= MAX_TABLES;
       }
       else
       {
         // Stage 3: Accept outer dependent and non-dependent tables:
-        DBUG_ASSERT(emb_sj_nest != first->table->emb_sj_nest);
+        DBUG_ASSERT(emb_sj_nest != first_emb_sj_nest);
         if (emb_sj_nest != NULL)
           pos->first_loosescan_table= MAX_TABLES;
       }
     }
+
     /*
-      If we got an option to use LooseScan for the current table, start
-      considering using LooseScan strategy
+      We may consider the LooseScan strategy if
+      1. The next table is an SJ-inner table, and
+      2, We have no more than 64 IN expressions (must fit in bitmap), and
+      3. It is the first table from that semijoin, and
+      4. We're not within a semi-join range, except
+      new_join_tab->emb_sj_nest (which we've just entered, see #3), and
+      5. All non-IN-equality correlation references from this sj-nest are
+      bound, and
+      6. But some of the IN-equalities aren't (so this can't be handled by
+      FirstMatch strategy), and
+      7. There are equalities (including maybe semi-join ones) which can be
+      handled with an index of this table, and
+      8. Not a derived table/view. (a temporary restriction)
     */
-    if (loose_scan_pos->read_time != DBL_MAX)
+    if (emb_sj_nest &&                                               // (1)
+        emb_sj_nest->nested_join->sj_inner_exprs.elements <= 64 &&   // (2)
+        ((remaining_tables_incl & emb_sj_nest->sj_inner_tables) ==   // (3)
+         emb_sj_nest->sj_inner_tables) &&                            // (3)
+        pos->dups_producing_tables == 0 &&                           // (4)
+        !(remaining_tables_incl &
+          emb_sj_nest->nested_join->sj_corr_tables) &&               // (5)
+        (remaining_tables_incl &
+         emb_sj_nest->nested_join->sj_depends_on) &&                 // (6)
+        new_join_tab->keyuse != NULL &&                              // (7)
+        !new_join_tab->table->pos_in_table_list->uses_materialization()) // (8)
     {
+      // start considering using LooseScan strategy
       pos->first_loosescan_table= idx;
       pos->loosescan_need_tables=  emb_sj_nest->sj_inner_tables |
-                                   emb_sj_nest->nested_join->sj_depends_on;
+        emb_sj_nest->nested_join->sj_depends_on;
     }
-    
+
     if ((pos->first_loosescan_table != MAX_TABLES) && 
         !(remaining_tables & pos->loosescan_need_tables))
     {
-      /* 
-        Ok we have LooseScan plan and also have all LooseScan sj-nest's
-        inner tables and outer correlated tables into the prefix.
+      /*
+        Ok we have all LooseScan sj-nest's inner tables and outer correlated
+        tables into the prefix.
       */
 
       // Got a complete LooseScan range. Calculate access paths and cost
@@ -3397,7 +3440,9 @@ void Optimize_table_order::advance_sj_state(
       /*
         The same problem as with FirstMatch - we need to save POSITIONs
         somewhere but reserving space for all cases would require too
-        much space. We will re-calculate POSITION structures later on. 
+        much space. We will re-calculate POSITION structures later on.
+        If this function returns 'false', it means LS is impossible (didn't
+        find a suitable index, etc).
       */
       if (semijoin_firstmatch_loosescan_access_paths(
                                       pos->first_loosescan_table, idx,
@@ -3416,7 +3461,8 @@ void Optimize_table_order::advance_sj_state(
         *current_rowcount= rowcount;
         trace_one_strategy.add("cost", *current_cost).
           add("rows", *current_rowcount);
-        handled_by_fm_or_ls= first->table->emb_sj_nest->sj_inner_tables;
+        handled_by_fm_or_ls=
+          join->positions[pos->first_loosescan_table].table->emb_sj_nest->sj_inner_tables;
       }
       trace_one_strategy.add("chosen", sj_strategy == SJ_OPT_LOOSE_SCAN);
     }

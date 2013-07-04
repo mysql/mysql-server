@@ -19,6 +19,8 @@
   Table replication_execute_status_by_coordinator (implementation).
 */
 
+#define HAVE_REPLICATION
+
 #include "my_global.h"
 #include "sql_priv.h"
 #include "table_replication_execute_status_by_coordinator.h"

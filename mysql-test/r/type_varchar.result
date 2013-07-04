@@ -105,7 +105,7 @@ id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
 1	SIMPLE	t1	range	v	v	257	NULL	3	Using where; Using index
 explain select * from t1 where v='This is a test' order by v;
 id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
-1	SIMPLE	t1	ref	v	v	257	const	3	Using where; Using index
+1	SIMPLE	t1	ref	v	v	257	const	3	Using index
 explain select * from t1 where v like 'S%' order by v;
 id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
 1	SIMPLE	t1	range	v	v	257	NULL	2	Using where; Using index
@@ -129,7 +129,7 @@ id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
 1	SIMPLE	t1	range	v	v	258	NULL	3	Using where; Using index
 explain select * from t1 where v='This is a test' order by v;
 id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
-1	SIMPLE	t1	ref	v	v	258	const	3	Using where; Using index
+1	SIMPLE	t1	ref	v	v	258	const	3	Using index
 explain select * from t1 where v like 'S%' order by v;
 id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
 1	SIMPLE	t1	range	v	v	258	NULL	2	Using where; Using index
@@ -153,7 +153,7 @@ id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
 1	SIMPLE	t1	range	v	v	259	NULL	3	Using where; Using index
 explain select * from t1 where v='This is a test' order by v;
 id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
-1	SIMPLE	t1	ref	v	v	259	const	3	Using where; Using index
+1	SIMPLE	t1	ref	v	v	259	const	3	Using index
 explain select * from t1 where v like 'S%' order by v;
 id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
 1	SIMPLE	t1	range	v	v	259	NULL	2	Using where; Using index
@@ -177,7 +177,7 @@ id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
 1	SIMPLE	t1	range	v	v	260	NULL	3	Using where; Using index
 explain select * from t1 where v='This is a test' order by v;
 id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
-1	SIMPLE	t1	ref	v	v	260	const	3	Using where; Using index
+1	SIMPLE	t1	ref	v	v	260	const	3	Using index
 explain select * from t1 where v like 'S%' order by v;
 id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
 1	SIMPLE	t1	range	v	v	260	NULL	2	Using where; Using index
@@ -201,7 +201,7 @@ id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
 1	SIMPLE	t1	range	v	v	261	NULL	3	Using where; Using index
 explain select * from t1 where v='This is a test' order by v;
 id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
-1	SIMPLE	t1	ref	v	v	261	const	3	Using where; Using index
+1	SIMPLE	t1	ref	v	v	261	const	3	Using index
 explain select * from t1 where v like 'S%' order by v;
 id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
 1	SIMPLE	t1	range	v	v	261	NULL	2	Using where; Using index
@@ -225,7 +225,7 @@ id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
 1	SIMPLE	t1	range	v	v	262	NULL	3	Using where; Using index
 explain select * from t1 where v='This is a test' order by v;
 id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
-1	SIMPLE	t1	ref	v	v	262	const	3	Using where; Using index
+1	SIMPLE	t1	ref	v	v	262	const	3	Using index
 explain select * from t1 where v like 'S%' order by v;
 id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
 1	SIMPLE	t1	range	v	v	262	NULL	2	Using where; Using index
@@ -249,7 +249,7 @@ id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
 1	SIMPLE	t1	range	v	v	261	NULL	3	Using where; Using index
 explain select * from t1 where v='This is a test' order by v;
 id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
-1	SIMPLE	t1	ref	v	v	261	const	3	Using where; Using index
+1	SIMPLE	t1	ref	v	v	261	const	3	Using index
 explain select * from t1 where v like 'S%' order by v;
 id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
 1	SIMPLE	t1	range	v	v	261	NULL	2	Using where; Using index
@@ -273,7 +273,7 @@ id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
 1	SIMPLE	t1	range	v	v	260	NULL	3	Using where; Using index
 explain select * from t1 where v='This is a test' order by v;
 id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
-1	SIMPLE	t1	ref	v	v	260	const	3	Using where; Using index
+1	SIMPLE	t1	ref	v	v	260	const	3	Using index
 explain select * from t1 where v like 'S%' order by v;
 id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
 1	SIMPLE	t1	range	v	v	260	NULL	2	Using where; Using index
@@ -297,7 +297,7 @@ id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
 1	SIMPLE	t1	range	v	v	259	NULL	3	Using where; Using index
 explain select * from t1 where v='This is a test' order by v;
 id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
-1	SIMPLE	t1	ref	v	v	259	const	3	Using where; Using index
+1	SIMPLE	t1	ref	v	v	259	const	3	Using index
 explain select * from t1 where v like 'S%' order by v;
 id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
 1	SIMPLE	t1	range	v	v	259	NULL	2	Using where; Using index
@@ -321,7 +321,7 @@ id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
 1	SIMPLE	t1	range	v	v	258	NULL	3	Using where; Using index
 explain select * from t1 where v='This is a test' order by v;
 id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
-1	SIMPLE	t1	ref	v	v	258	const	3	Using where; Using index
+1	SIMPLE	t1	ref	v	v	258	const	3	Using index
 explain select * from t1 where v like 'S%' order by v;
 id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
 1	SIMPLE	t1	range	v	v	258	NULL	2	Using where; Using index
@@ -345,7 +345,7 @@ id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
 1	SIMPLE	t1	range	v	v	257	NULL	3	Using where; Using index
 explain select * from t1 where v='This is a test' order by v;
 id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
-1	SIMPLE	t1	ref	v	v	257	const	3	Using where; Using index
+1	SIMPLE	t1	ref	v	v	257	const	3	Using index
 explain select * from t1 where v like 'S%' order by v;
 id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
 1	SIMPLE	t1	range	v	v	257	NULL	2	Using where; Using index

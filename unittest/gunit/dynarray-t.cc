@@ -11,7 +11,7 @@
 
    You should have received a copy of the GNU General Public License
    along with this program; if not, write to the Free Software
-   Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA */
+   Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA 02110-1301, USA */
 
 // First include (the generated) my_config.h, to get correct platform defines.
 #include "my_config.h"
@@ -162,6 +162,11 @@ public:
   {
     my_init_dynamic_array(&m_keyuse_dyn, sizeof(Key_use), num_elements, 64);
     m_keyuse_vec.reserve(num_elements);
+  }
+
+  virtual void TearDown()
+  {
+    delete_dynamic(&m_keyuse_dyn);
   }
 
   void insert_and_sort_dynamic()

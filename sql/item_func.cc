@@ -33,7 +33,7 @@
 #include "sql_show.h"                           // append_identifier
 #include "strfunc.h"                            // find_type
 #include "sql_parse.h"                          // is_update_query
-#include "sql_acl.h"                            // EXECUTE_ACL
+#include "auth_common.h"                        // EXECUTE_ACL
 #include "mysqld.h"                             // LOCK_uuid_generator
 #include "rpl_mi.h"
 #include "sql_time.h"
@@ -174,10 +174,10 @@ Item_func::fix_fields(THD *thd, Item **ref)
   Item **arg,**arg_end;
   uchar buff[STACK_BUFF_ALLOC];			// Max argument in function
 
-  Switch_resolve_place SRP(thd->lex->current_select ?
-                           &thd->lex->current_select->resolve_place : NULL,
+  Switch_resolve_place SRP(thd->lex->current_select() ?
+                           &thd->lex->current_select()->resolve_place : NULL,
                            st_select_lex::RESOLVE_NONE,
-                           thd->lex->current_select);
+                           thd->lex->current_select());
   used_tables_cache= get_initial_pseudo_tables();
   not_null_tables_cache= 0;
   const_item_cache=1;
@@ -3123,6 +3123,41 @@ my_decimal *Item_func_min_max::val_decimal(my_decimal *dec)
   return res;
 }
 
+double Item_func_rollup_const::val_real()
+{
+  DBUG_ASSERT(fixed == 1);
+  double res= args[0]->val_real();
+  if ((null_value= args[0]->null_value))
+    return 0.0;
+  return res;
+}
+
+longlong Item_func_rollup_const::val_int()
+{
+  DBUG_ASSERT(fixed == 1);
+  longlong res= args[0]->val_int();
+  if ((null_value= args[0]->null_value))
+    return 0;
+  return res;
+}
+
+String *Item_func_rollup_const::val_str(String *str)
+{
+  DBUG_ASSERT(fixed == 1);
+  String *res= args[0]->val_str(str);
+  if ((null_value= args[0]->null_value))
+    return 0;
+  return res;
+}
+
+my_decimal *Item_func_rollup_const::val_decimal(my_decimal *dec)
+{
+  DBUG_ASSERT(fixed == 1);
+  my_decimal *res= args[0]->val_decimal(dec);
+  if ((null_value= args[0]->null_value))
+    return 0;
+  return res;
+}
 
 longlong Item_func_length::val_int()
 {
@@ -3324,7 +3359,6 @@ longlong Item_func_ord::val_int()
   }
   null_value=0;
   if (!res->length()) return 0;
-#ifdef USE_MB
   if (use_mb(res->charset()))
   {
     const char *str=res->ptr();
@@ -3335,7 +3369,6 @@ longlong Item_func_ord::val_int()
       n=(n<<8)|(uint32)((uchar) *str++);
     return (longlong) n;
   }
-#endif
   return (longlong) ((uchar) (*res)[0]);
 }
 
@@ -3913,13 +3946,6 @@ String *Item_func_udf_str::val_str(String *str)
   return res;
 }
 
-
-/**
-  @note
-  This has to come last in the udf_handler methods, or C for AIX
-  version 6.0.0.0 fails to compile with debugging enabled. (Yes, really.)
-*/
-
 udf_handler::~udf_handler()
 {
   /* Everything should be properly cleaned up by this moment. */
@@ -4432,7 +4458,7 @@ longlong Item_func_last_insert_id::val_int()
 
 bool Item_func_last_insert_id::fix_fields(THD *thd, Item **ref)
 {
-  thd->lex->uncacheable(UNCACHEABLE_SIDEEFFECT);
+  thd->lex->set_uncacheable(UNCACHEABLE_SIDEEFFECT);
   return Item_int_func::fix_fields(thd, ref);
 }
 
@@ -4516,6 +4542,27 @@ longlong Item_func_sleep::val_int()
   DBUG_ASSERT(fixed == 1);
 
   timeout= args[0]->val_real();
+ 
+  /*
+    Prepare to report error or warning depends on the value of SQL_MODE.
+    If SQL is STRICT then report error, else report warning and continue
+    execution.
+  */
+  bool save_abort_on_warning= thd->abort_on_warning;
+  thd->abort_on_warning= thd->is_strict_mode();
+
+  if (args[0]->null_value || timeout < 0)
+    push_warning_printf(thd, Sql_condition::SL_WARNING, ER_WRONG_ARGUMENTS,
+                        ER(ER_WRONG_ARGUMENTS), "sleep.");
+
+  thd->abort_on_warning= save_abort_on_warning;
+  /*
+    If conversion error occurred in the strict SQL_MODE
+    then leave method.
+  */
+  if (thd->is_error())
+    return 0;
+ 
   /*
     On 64-bit OSX mysql_cond_timedwait() waits forever
     if passed abstime time has already been exceeded by 
@@ -6122,6 +6169,13 @@ void Item_func_match::init_search(bool no_order)
 {
   DBUG_ENTER("Item_func_match::init_search");
 
+  /*
+    We will skip execution if the item is not fixed
+    with fix_field
+  */
+  if (!fixed)
+    DBUG_VOID_RETURN;
+
   /* Check if init_search() has been called before */
   if (ft_handler)
   {
@@ -6210,6 +6264,7 @@ bool Item_func_match::fix_fields(THD *thd, Item **ref)
     return TRUE;
   }
 
+  bool allows_multi_table_search= true;
   const_item_cache=0;
   for (uint i=1 ; i < arg_count ; i++)
   {
@@ -6221,7 +6276,10 @@ bool Item_func_match::fix_fields(THD *thd, Item **ref)
       my_error(ER_WRONG_ARGUMENTS, MYF(0), "AGAINST");
       return TRUE;
     }
+    allows_multi_table_search &= 
+      allows_search_on_non_indexed_columns(((Item_field *)item)->field->table);
   }
+
   /*
     Check that all columns come from the same table.
     We've already checked that columns in MATCH are fields so
@@ -6230,7 +6288,7 @@ bool Item_func_match::fix_fields(THD *thd, Item **ref)
   if ((used_tables_cache & ~PARAM_TABLE_BIT) != item->used_tables())
     key=NO_SUCH_KEY;
 
-  if (key == NO_SUCH_KEY && !(flags & FT_BOOL))
+  if (key == NO_SUCH_KEY && !allows_multi_table_search)
   {
     my_error(ER_WRONG_ARGUMENTS,MYF(0),"MATCH");
     return TRUE;
@@ -6251,6 +6309,13 @@ bool Item_func_match::fix_index()
   Item_field *item;
   uint ft_to_key[MAX_KEY], ft_cnt[MAX_KEY], fts=0, keynr;
   uint max_cnt=0, mkeys=0, i;
+
+  /*
+    We will skip execution if the item is not fixed
+    with fix_field
+  */
+  if (!fixed)
+    return false;
 
   if (key == NO_SUCH_KEY)
     return 0;
@@ -6321,7 +6386,7 @@ bool Item_func_match::fix_index()
   }
 
 err:
-  if (flags & FT_BOOL)
+  if (allows_search_on_non_indexed_columns(table))
   {
     key=NO_SUCH_KEY;
     return 0;
@@ -6452,7 +6517,7 @@ Item *get_system_var(THD *thd, enum_var_type var_type, LEX_STRING name,
       return 0;
     }
   }
-  thd->lex->uncacheable(UNCACHEABLE_SIDEEFFECT);
+  thd->lex->set_uncacheable(UNCACHEABLE_SIDEEFFECT);
 
   set_if_smaller(component_name->length, MAX_SYS_VAR_LENGTH);
   

@@ -67,6 +67,7 @@ if ($value == No such row)
   disable_query_log;
   eval INSTALL PLUGIN rpl_semi_sync_master SONAME '$SEMISYNC_MASTER_PLUGIN';
   set global rpl_semi_sync_master_timeout= 60000 /* 60s */;
+  set global rpl_semi_sync_master_wait_point= AFTER_COMMIT;
   enable_query_log;
 }
 

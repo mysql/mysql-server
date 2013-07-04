@@ -35,9 +35,11 @@ set global example_ulong_var=500;
 set global example_enum_var= e1;
 show status like 'example%';
 Variable_name	Value
-example_func_example	enum_var is 0, ulong_var is 500, really
+example_func_example	enum_var is 0, ulong_var is 500, double_var is 8.500000, really
 show variables like 'example%';
 Variable_name	Value
+example_double_thdvar	8.500000
+example_double_var	8.500000
 example_enum_var	e1
 example_ulong_var	500
 UNINSTALL PLUGIN example;
@@ -81,4 +83,82 @@ select @@global.example_ulong_var;
 set session sql_mode=@old_sql_mode;
 set session old=bla;
 ERROR HY000: Variable 'old' is a read only variable
+UNINSTALL PLUGIN example;
+#
+# Bug #16194302  SUPPORT FOR FLOATING-POINT SYSTEM
+#                VARIABLES USING THE PLUGIN INTERFACE.
+#
+INSTALL PLUGIN example SONAME 'ha_example.so';
+SET GLOBAL example_double_var = -0.1;
+Warnings:
+Warning	1292	Truncated incorrect example_double_var value: '-0.1'
+SELECT @@GLOBAL.example_double_var;
+@@GLOBAL.example_double_var
+0.500000
+SET GLOBAL example_double_var = 0.000001;
+Warnings:
+Warning	1292	Truncated incorrect example_double_var value: '0.000001'
+SELECT @@GLOBAL.example_double_var;
+@@GLOBAL.example_double_var
+0.500000
+SET GLOBAL example_double_var = 0.4;
+Warnings:
+Warning	1292	Truncated incorrect example_double_var value: '0.4'
+SELECT @@GLOBAL.example_double_var;
+@@GLOBAL.example_double_var
+0.500000
+SET GLOBAL example_double_var = 123.456789;
+SELECT @@GLOBAL.example_double_var;
+@@GLOBAL.example_double_var
+123.456789
+SET GLOBAL example_double_var = 500;
+SELECT @@GLOBAL.example_double_var;
+@@GLOBAL.example_double_var
+500.000000
+SET GLOBAL example_double_var = 999.999999;
+SELECT @@GLOBAL.example_double_var;
+@@GLOBAL.example_double_var
+999.999999
+SET GLOBAL example_double_var = 1000.51;
+Warnings:
+Warning	1292	Truncated incorrect example_double_var value: '1000.51'
+SELECT @@GLOBAL.example_double_var;
+@@GLOBAL.example_double_var
+1000.500000
+SET SESSION example_double_thdvar = -0.1;
+Warnings:
+Warning	1292	Truncated incorrect example_double_thdvar value: '-0.1'
+SELECT @@SESSION.example_double_thdvar;
+@@SESSION.example_double_thdvar
+0.500000
+SET SESSION example_double_thdvar = 0.000001;
+Warnings:
+Warning	1292	Truncated incorrect example_double_thdvar value: '0.000001'
+SELECT @@SESSION.example_double_thdvar;
+@@SESSION.example_double_thdvar
+0.500000
+SET SESSION example_double_thdvar = 0.4;
+Warnings:
+Warning	1292	Truncated incorrect example_double_thdvar value: '0.4'
+SELECT @@SESSION.example_double_thdvar;
+@@SESSION.example_double_thdvar
+0.500000
+SET SESSION example_double_thdvar = 123.456789;
+SELECT @@SESSION.example_double_thdvar;
+@@SESSION.example_double_thdvar
+123.456789
+SET SESSION example_double_thdvar = 500;
+SELECT @@SESSION.example_double_thdvar;
+@@SESSION.example_double_thdvar
+500.000000
+SET SESSION example_double_thdvar = 999.999999;
+SELECT @@SESSION.example_double_thdvar;
+@@SESSION.example_double_thdvar
+999.999999
+SET SESSION example_double_thdvar = 1000.51;
+Warnings:
+Warning	1292	Truncated incorrect example_double_thdvar value: '1000.51'
+SELECT @@SESSION.example_double_thdvar;
+@@SESSION.example_double_thdvar
+1000.500000
 UNINSTALL PLUGIN example;

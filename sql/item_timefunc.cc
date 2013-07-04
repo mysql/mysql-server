@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2000, 2012, Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2000, 2013, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -90,6 +90,10 @@ adjust_time_range_with_warn(MYSQL_TIME *ltime, uint8 decimals)
     If the 'seconds' argument is inside MYSQL_TIME data range, convert it to a
     corresponding value.
     Otherwise, truncate the resulting value to the nearest endpoint.
+    Note: Truncation in this context means setting the result to the MAX/MIN
+          value of TIME type if value is outside the allowed range.
+          If the number of decimals exceeds what is supported, the value
+          is rounded to the supported number of decimals.
 
   RETURN
     1                if the value was truncated during conversion
@@ -119,7 +123,7 @@ static bool sec_to_time(lldiv_t seconds, MYSQL_TIME *ltime)
   uint sec= (uint) (seconds.quot % 3600);
   ltime->minute= sec / 60;
   ltime->second= sec % 60;
-  ltime->second_part= (uint) (seconds.rem / 1000);
+  time_add_nanoseconds_with_round(ltime, seconds.rem, &warning);
   
   adjust_time_range(ltime, &warning);
 
@@ -798,8 +802,9 @@ static bool get_interval_info(Item *args,
     {
       i++;
       /* Change values[0...i-1] -> values[0...count-1] */
-      bmove_upp((uchar*) (values+count), (uchar*) (values+i),
-		sizeof(*values)*i);
+      size_t len= sizeof(*values) * i;
+      memmove(reinterpret_cast<uchar*> (values+count) - len,
+              reinterpret_cast<uchar*> (values+i) - len, len);
       memset(values, 0, sizeof(*values)*(count-i));
       break;
     }

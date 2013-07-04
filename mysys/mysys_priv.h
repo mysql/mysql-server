@@ -1,4 +1,4 @@
-/* Copyright (c) 2000, 2011, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2000, 2013, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -15,10 +15,6 @@
 
 #include <my_global.h>
 #include <my_sys.h>
-
-#ifdef USE_SYSTEM_WRAPPERS
-#include "system_wrappers.h"
-#endif
 
 #ifdef HAVE_GETRUSAGE
 #include <sys/resource.h>
@@ -47,10 +43,6 @@ extern PSI_mutex_key key_BITMAP_mutex, key_IO_CACHE_append_buffer_lock,
 extern PSI_cond_key key_COND_alarm, key_IO_CACHE_SHARE_cond,
   key_IO_CACHE_SHARE_cond_writer, key_my_thread_var_suspend,
   key_THR_COND_threads;
-
-#ifdef USE_ALARM_THREAD
-extern PSI_thread_key key_thread_alarm;
-#endif /* USE_ALARM_THREAD */
 
 #endif /* HAVE_PSI_INTERFACE */
 

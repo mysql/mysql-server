@@ -113,7 +113,7 @@ Database: information_schema
 | INNODB_LOCKS                          |
 | INNODB_TRX                            |
 | INNODB_SYS_DATAFILES                  |
-| INNODB_LOCK_WAITS                     |
+| INNODB_FT_CONFIG                      |
 | INNODB_SYS_TABLESTATS                 |
 | INNODB_CMP                            |
 | INNODB_FT_BEING_DELETED               |
@@ -122,8 +122,8 @@ Database: information_schema
 | INNODB_CMPMEM_RESET                   |
 | INNODB_FT_DELETED                     |
 | INNODB_BUFFER_PAGE_LRU                |
-| INNODB_FT_INSERTED                    |
-| INNODB_CMPMEM                         |
+| INNODB_LOCK_WAITS                     |
+| INNODB_TEMP_TABLE_INFO                |
 | INNODB_SYS_INDEXES                    |
 | INNODB_SYS_TABLES                     |
 | INNODB_SYS_FIELDS                     |
@@ -135,7 +135,7 @@ Database: information_schema
 | INNODB_SYS_TABLESPACES                |
 | INNODB_METRICS                        |
 | INNODB_SYS_FOREIGN_COLS               |
-| INNODB_FT_CONFIG                      |
+| INNODB_CMPMEM                         |
 | INNODB_BUFFER_POOL_STATS              |
 | INNODB_SYS_COLUMNS                    |
 | INNODB_SYS_FOREIGN                    |
@@ -178,7 +178,7 @@ Database: INFORMATION_SCHEMA
 | INNODB_LOCKS                          |
 | INNODB_TRX                            |
 | INNODB_SYS_DATAFILES                  |
-| INNODB_LOCK_WAITS                     |
+| INNODB_FT_CONFIG                      |
 | INNODB_SYS_TABLESTATS                 |
 | INNODB_CMP                            |
 | INNODB_FT_BEING_DELETED               |
@@ -187,8 +187,8 @@ Database: INFORMATION_SCHEMA
 | INNODB_CMPMEM_RESET                   |
 | INNODB_FT_DELETED                     |
 | INNODB_BUFFER_PAGE_LRU                |
-| INNODB_FT_INSERTED                    |
-| INNODB_CMPMEM                         |
+| INNODB_LOCK_WAITS                     |
+| INNODB_TEMP_TABLE_INFO                |
 | INNODB_SYS_INDEXES                    |
 | INNODB_SYS_TABLES                     |
 | INNODB_SYS_FIELDS                     |
@@ -200,7 +200,7 @@ Database: INFORMATION_SCHEMA
 | INNODB_SYS_TABLESPACES                |
 | INNODB_METRICS                        |
 | INNODB_SYS_FOREIGN_COLS               |
-| INNODB_FT_CONFIG                      |
+| INNODB_CMPMEM                         |
 | INNODB_BUFFER_POOL_STATS              |
 | INNODB_SYS_COLUMNS                    |
 | INNODB_SYS_FOREIGN                    |

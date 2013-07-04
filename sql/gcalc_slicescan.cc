@@ -1,4 +1,4 @@
-/* Copyright (c) 2000, 2011, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2000, 2013, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -15,9 +15,6 @@
 
 
 #include "sql_string.h"
-
-#ifdef HAVE_SPATIAL
-
 #include "gcalc_slicescan.h"
 
 
@@ -834,5 +831,3 @@ redo_loop:
 
   return 0;
 }
-
-#endif /* HAVE_SPATIAL */

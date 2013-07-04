@@ -1,4 +1,4 @@
-/* Copyright (c) 2004, 2011, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2004, 2013, Oracle and/or its affiliates. All rights reserved.
    
    This library is free software; you can redistribute it and/or
    modify it under the terms of the GNU Library General Public
@@ -20229,17 +20229,25 @@ static void my_hash_sort_uca(const CHARSET_INFO *cs,
 {
   int   s_res;
   my_uca_scanner scanner;
-  
+  ulong tmp1;
+  ulong tmp2;
+
   slen= cs->cset->lengthsp(cs, (char*) s, slen);
   scanner_handler->init(&scanner, cs, &cs->uca->level[0], s, slen);
-  
+
+  tmp1= *n1;
+  tmp2= *n2;
+
   while ((s_res= scanner_handler->next(&scanner)) >0)
   {
-    n1[0]^= (((n1[0] & 63)+n2[0])*(s_res >> 8))+ (n1[0] << 8);
-    n2[0]+=3;
-    n1[0]^= (((n1[0] & 63)+n2[0])*(s_res & 0xFF))+ (n1[0] << 8);
-    n2[0]+=3;
+    tmp1^= (((tmp1 & 63) + tmp2) * (s_res >> 8))+ (tmp1 << 8);
+    tmp2+=3;
+    tmp1^= (((tmp1 & 63) + tmp2) * (s_res & 0xFF))+ (tmp1 << 8);
+    tmp2+=3;
   }
+
+  *n1= tmp1;
+  *n2= tmp2;
 }
 
 

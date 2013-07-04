@@ -1,6 +1,6 @@
 /*****************************************************************************
 
-Copyright (c) 1995, 2012, Oracle and/or its affiliates. All Rights Reserved.
+Copyright (c) 1995, 2013, Oracle and/or its affiliates. All Rights Reserved.
 
 This program is free software; you can redistribute it and/or modify it under
 the terms of the GNU General Public License as published by the Free Software
@@ -27,7 +27,7 @@ Created 12/18/1995 Heikki Tuuri
 
 /***********************************************************************//**
 Checks if a page address is an extent descriptor page address.
-@return	TRUE if a descriptor page */
+@return TRUE if a descriptor page */
 UNIV_INLINE
 ibool
 fsp_descr_page(
@@ -51,7 +51,7 @@ tablespace header at offset FSP_SPACE_FLAGS.  They should be 0 for
 ROW_FORMAT=COMPACT and ROW_FORMAT=REDUNDANT. The newer row formats,
 COMPRESSED and DYNAMIC, use a file format > Antelope so they should
 have a file format number plus the DICT_TF_COMPACT bit set.
-@return	true if check ok */
+@return true if check ok */
 UNIV_INLINE
 bool
 fsp_flags_is_valid(
@@ -116,7 +116,7 @@ fsp_flags_is_valid(
 
 /********************************************************************//**
 Determine if the tablespace is compressed from dict_table_t::flags.
-@return	TRUE if compressed, FALSE if not compressed */
+@return TRUE if compressed, FALSE if not compressed */
 UNIV_INLINE
 ibool
 fsp_flags_is_compressed(
@@ -130,7 +130,7 @@ fsp_flags_is_compressed(
 
 /********************************************************************//**
 Extract the zip size from tablespace flags.
-@return	compressed page size of the file-per-table tablespace in bytes,
+@return compressed page size of the file-per-table tablespace in bytes,
 or zero if the table is not compressed. */
 UNIV_INLINE
 ulint
@@ -153,7 +153,7 @@ fsp_flags_get_zip_size(
 
 /********************************************************************//**
 Extract the page size from tablespace flags.
-@return	page size of the tablespace in bytes */
+@return page size of the tablespace in bytes */
 UNIV_INLINE
 ulint
 fsp_flags_get_page_size(
@@ -181,7 +181,7 @@ fsp_flags_get_page_size(
 
 /********************************************************************//**
 Add the page size to the tablespace flags.
-@return	tablespace flags after page size is added */
+@return tablespace flags after page size is added */
 UNIV_INLINE
 ulint
 fsp_flags_set_page_size(
@@ -224,7 +224,7 @@ fsp_flags_set_page_size(
 
 /********************************************************************//**
 Calculates the descriptor index within a descriptor page.
-@return	descriptor index */
+@return descriptor index */
 UNIV_INLINE
 ulint
 xdes_calc_descriptor_index(
@@ -245,7 +245,7 @@ xdes_calc_descriptor_index(
 
 /**********************************************************************//**
 Gets a descriptor bit of a page.
-@return	TRUE if free */
+@return TRUE if free */
 UNIV_INLINE
 ibool
 xdes_get_bit(
@@ -271,7 +271,7 @@ xdes_get_bit(
 
 /********************************************************************//**
 Calculates the page where the descriptor of a page resides.
-@return	descriptor page offset */
+@return descriptor page offset */
 UNIV_INLINE
 ulint
 xdes_calc_descriptor_page(

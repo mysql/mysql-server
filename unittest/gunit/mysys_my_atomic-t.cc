@@ -1,4 +1,4 @@
-/* Copyright (c) 2006, 2012, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2006, 2013, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -160,9 +160,6 @@ pthread_handler_t test_atomic_cas(void *arg)
 
 void do_tests()
 {
-  bad= my_atomic_initialize();
-  EXPECT_FALSE(bad) << "my_atomic_initialize() returned";
-
   my_atomic_rwlock_init(&rwl);
 
   b32= c32= 0;

@@ -485,7 +485,7 @@ SHOW CREATE TABLE t1;
 Table	Create Table
 t1	CREATE TABLE `t1` (
   `latin1_f` char(32) NOT NULL
-) ENGINE=MyISAM DEFAULT CHARSET=latin1
+) ENGINE=ENGINE DEFAULT CHARSET=latin1
 SHOW FIELDS FROM  t1;
 Field	Type	Null	Key	Default	Extra
 latin1_f	char(32)	NO		NULL	
@@ -495,7 +495,7 @@ SHOW CREATE TABLE t1;
 Table	Create Table
 t1	CREATE TABLE `t1` (
   `latin1_f` char(32) CHARACTER SET latin1 COLLATE latin1_bin DEFAULT NULL
-) ENGINE=MyISAM DEFAULT CHARSET=latin1
+) ENGINE=ENGINE DEFAULT CHARSET=latin1
 SHOW FIELDS FROM  t1;
 Field	Type	Null	Key	Default	Extra
 latin1_f	char(32)	YES		NULL	
@@ -504,7 +504,7 @@ SHOW CREATE TABLE t1;
 Table	Create Table
 t1	CREATE TABLE `t1` (
   `latin1_f` char(32) COLLATE latin1_bin DEFAULT NULL
-) ENGINE=MyISAM DEFAULT CHARSET=latin1 COLLATE=latin1_bin
+) ENGINE=ENGINE DEFAULT CHARSET=latin1 COLLATE=latin1_bin
 SHOW FIELDS FROM  t1;
 Field	Type	Null	Key	Default	Extra
 latin1_f	char(32)	YES		NULL	
@@ -596,13 +596,13 @@ INSERT INTO t1 VALUES ('i','i');
 INSERT INTO t1 VALUES ('j','j');
 EXPLAIN SELECT * FROM t1 WHERE s1='a';
 id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
-1	SIMPLE	t1	ref	s1	s1	11	const	1	Using index condition
+1	SIMPLE	t1	ref	s1	s1	11	const	1	NULL
 EXPLAIN SELECT * FROM t1 WHERE s2='a';
 id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
-1	SIMPLE	t1	ref	s2	s2	11	const	1	Using index condition
+1	SIMPLE	t1	ref	s2	s2	11	const	1	NULL
 EXPLAIN SELECT * FROM t1 WHERE s1='a' COLLATE latin1_german1_ci;
 id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
-1	SIMPLE	t1	ref	s1	s1	11	const	1	Using index condition
+1	SIMPLE	t1	ref	s1	s1	11	const	1	NULL
 EXPLAIN SELECT * FROM t1 WHERE s2='a' COLLATE latin1_german1_ci;
 id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
 1	SIMPLE	t1	ALL	s2	NULL	NULL	NULL	10	Using where
@@ -650,7 +650,7 @@ show create table t1;
 Table	Create Table
 t1	CREATE TABLE `t1` (
   `f1` varchar(1) CHARACTER SET latin5 NOT NULL DEFAULT ''
-) ENGINE=MyISAM DEFAULT CHARSET=latin1
+) ENGINE=ENGINE DEFAULT CHARSET=latin1
 drop table t1;
 select case _latin1'a' when _latin2'b' then 1 when _latin5'c' collate
 latin5_turkish_ci then 2 else 3 end;
@@ -695,7 +695,7 @@ SHOW CREATE TABLE t1;
 Table	Create Table
 t1	CREATE TABLE `t1` (
   `a` varchar(20) COLLATE latin1_german2_ci DEFAULT NULL
-) ENGINE=MyISAM DEFAULT CHARSET=latin1 COLLATE=latin1_german2_ci
+) ENGINE=ENGINE DEFAULT CHARSET=latin1 COLLATE=latin1_german2_ci
 DROP TABLE t1;
 DROP FUNCTION getText;
 #
@@ -713,7 +713,7 @@ SHOW CREATE TABLE t1;
 Table	Create Table
 t1	CREATE TABLE `t1` (
   `a` varchar(20) COLLATE latin1_german2_ci DEFAULT NULL
-) ENGINE=MyISAM DEFAULT CHARSET=latin1 COLLATE=latin1_german2_ci
+) ENGINE=ENGINE DEFAULT CHARSET=latin1 COLLATE=latin1_german2_ci
 DROP TABLE t1;
 DROP FUNCTION getText;
 DROP DATABASE test1;

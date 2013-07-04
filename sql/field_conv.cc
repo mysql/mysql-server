@@ -1,4 +1,4 @@
-/* Copyright (c) 2000, 2012, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2000, 2013, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -129,8 +129,8 @@ type_conversion_status set_field_to_null(Field *field)
     return TYPE_ERR_NULL_CONSTRAINT_VIOLATION;
   }
   DBUG_ASSERT(false); // impossible
-  return TYPE_ERR_NULL_CONSTRAINT_VIOLATION; // to avoid compiler's warning
 #endif
+  return TYPE_ERR_NULL_CONSTRAINT_VIOLATION; // to avoid compiler's warning
 }
 
 
@@ -172,8 +172,12 @@ set_field_to_null_with_conversions(Field *field, bool no_conversions)
     From the manual:
 
     TIMESTAMP columns [...] assigning NULL assigns the current timestamp.
+
+    But if explicit_defaults_for_timestamp, use standard-compliant behaviour:
+    no special value.
   */
-  if (field->type() == MYSQL_TYPE_TIMESTAMP)
+  if (field->type() == MYSQL_TYPE_TIMESTAMP &&
+      !field->table->in_use->variables.explicit_defaults_for_timestamp)
   {
     Item_func_now_local::store_in(field);
     return TYPE_OK;			// Ok to set time to NULL
@@ -234,7 +238,8 @@ static void do_copy_null(Copy_field *copy)
 
 static void do_copy_not_null(Copy_field *copy)
 {
-  if (*copy->null_row || (*copy->from_null_ptr & copy->from_bit))
+  if (*copy->null_row ||
+      (copy->from_null_ptr && (*copy->from_null_ptr & copy->from_bit)))
   {
     copy->to_field->set_warning(Sql_condition::SL_WARNING,
                                 WARN_DATA_TRUNCATED, 1);
@@ -827,8 +832,10 @@ type_conversion_status field_conv(Field *to,Field *from)
         (!(to->table->in_use->variables.sql_mode &
            (MODE_NO_ZERO_IN_DATE | MODE_NO_ZERO_DATE | MODE_INVALID_DATES)) ||
          (to->type() != MYSQL_TYPE_DATE &&
-          to->type() != MYSQL_TYPE_DATETIME)) &&
-        (from->real_type() != MYSQL_TYPE_VARCHAR))
+          to->type() != MYSQL_TYPE_DATETIME &&
+          (!to->table->in_use->variables.explicit_defaults_for_timestamp ||
+           to->type() != MYSQL_TYPE_TIMESTAMP))) &&
+         (from->real_type() != MYSQL_TYPE_VARCHAR))
     {						// Identical fields
       // to->ptr==from->ptr may happen if one does 'UPDATE ... SET x=x'
       memmove(to->ptr, from->ptr, to->pack_length());

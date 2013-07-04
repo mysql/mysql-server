@@ -1,4 +1,4 @@
-/* Copyright (c) 2000, 2012, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2000, 2013, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -61,9 +61,6 @@ static void vio_init(Vio *vio, enum enum_vio_type type,
   DBUG_ENTER("vio_init");
   DBUG_PRINT("enter", ("type: %d  sd: %d  flags: %d", type, sd, flags));
 
-#ifndef HAVE_VIO_READ_BUFF
-  flags&= ~VIO_BUFFERED_READ;
-#endif
   memset(vio, 0, sizeof(*vio));
   vio->type= type;
   vio->mysql_socket= MYSQL_INVALID_SOCKET;
@@ -91,8 +88,7 @@ static void vio_init(Vio *vio, enum enum_vio_type type,
     vio->has_data       =has_no_data;
     DBUG_VOID_RETURN;
   }
-#endif
-#ifdef HAVE_SMEM
+#ifndef EMBEDDED_LIBRARY
   if (type == VIO_TYPE_SHARED_MEMORY)
   {
     vio->viodelete	=vio_delete_shared_memory;
@@ -110,7 +106,8 @@ static void vio_init(Vio *vio, enum enum_vio_type type,
     vio->has_data       =has_no_data;
     DBUG_VOID_RETURN;
   }
-#endif
+#endif /* !EMBEDDED_LIBRARY */
+#endif /* _WIN32 */
 #ifdef HAVE_OPENSSL
   if (type == VIO_TYPE_SSL)
   {
@@ -259,7 +256,7 @@ Vio *vio_new_win32pipe(HANDLE hPipe)
   DBUG_RETURN(vio);
 }
 
-#ifdef HAVE_SMEM
+#ifndef EMBEDDED_LIBRARY
 Vio *vio_new_win32shared_memory(HANDLE handle_file_map, HANDLE handle_map,
                                 HANDLE event_server_wrote, HANDLE event_server_read,
                                 HANDLE event_client_wrote, HANDLE event_client_read,

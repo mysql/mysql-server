@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2005, 2011, Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2005, 2013, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -17,7 +17,7 @@
 #include "sql_priv.h"
 #include "sql_binlog.h"
 #include "sql_parse.h"
-#include "sql_acl.h"
+#include "auth_common.h"
 #include "rpl_info.h"
 #include "rpl_info_factory.h"
 #include "base64.h"

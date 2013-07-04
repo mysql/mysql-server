@@ -1,6 +1,6 @@
 /*****************************************************************************
 
-Copyright (c) 1994, 2012, Oracle and/or its affiliates. All Rights Reserved.
+Copyright (c) 1994, 2013, Oracle and/or its affiliates. All Rights Reserved.
 
 This program is free software; you can redistribute it and/or modify it under
 the terms of the GNU General Public License as published by the Free Software
@@ -23,6 +23,8 @@ SQL data field and tuple
 Created 5/30/1994 Heikki Tuuri
 *************************************************************************/
 
+#include "ha_prototypes.h"
+
 #include "data0data.h"
 
 #ifdef UNIV_NONINL
@@ -37,35 +39,35 @@ Created 5/30/1994 Heikki Tuuri
 #include "dict0dict.h"
 #include "btr0cur.h"
 
-#include <ctype.h>
 #endif /* !UNIV_HOTBACKUP */
 
 #ifdef UNIV_DEBUG
 /** Dummy variable to catch access to uninitialized fields.  In the
 debug version, dtuple_create() will make all fields of dtuple_t point
 to data_error. */
-UNIV_INTERN byte	data_error;
+byte	data_error;
 
 # ifndef UNIV_DEBUG_VALGRIND
 /** this is used to fool the compiler in dtuple_validate */
-UNIV_INTERN ulint	data_dummy;
+ulint	data_dummy;
 # endif /* !UNIV_DEBUG_VALGRIND */
 #endif /* UNIV_DEBUG */
 
 #ifndef UNIV_HOTBACKUP
-/************************************************************//**
-Compare two data tuples, respecting the collation of character fields.
-@return 1, 0 , -1 if tuple1 is greater, equal, less, respectively,
-than tuple2 */
-UNIV_INTERN
+/** Compare two data tuples.
+@param[in] tuple1 first data tuple
+@param[in] tuple2 second data tuple
+@return positive, 0, negative if tuple1 is greater, equal, less, than tuple2,
+respectively */
+
 int
 dtuple_coll_cmp(
-/*============*/
-	const dtuple_t*	tuple1,	/*!< in: tuple 1 */
-	const dtuple_t*	tuple2)	/*!< in: tuple 2 */
+	const dtuple_t*	tuple1,
+	const dtuple_t*	tuple2)
 {
 	ulint	n_fields;
 	ulint	i;
+	int	cmp;
 
 	ut_ad(tuple1 && tuple2);
 	ut_ad(tuple1->magic_n == DATA_TUPLE_MAGIC_N);
@@ -75,30 +77,21 @@ dtuple_coll_cmp(
 
 	n_fields = dtuple_get_n_fields(tuple1);
 
-	if (n_fields != dtuple_get_n_fields(tuple2)) {
+	cmp = (int) n_fields - (int) dtuple_get_n_fields(tuple2);
 
-		return(n_fields < dtuple_get_n_fields(tuple2) ? -1 : 1);
-	}
-
-	for (i = 0; i < n_fields; i++) {
-		int		cmp;
+	for (i = 0; cmp == 0 && i < n_fields; i++) {
 		const dfield_t*	field1	= dtuple_get_nth_field(tuple1, i);
 		const dfield_t*	field2	= dtuple_get_nth_field(tuple2, i);
-
 		cmp = cmp_dfield_dfield(field1, field2);
-
-		if (cmp) {
-			return(cmp);
-		}
 	}
 
-	return(0);
+	return(cmp);
 }
 
 /*********************************************************************//**
 Sets number of fields used in a tuple. Normally this is set in
 dtuple_create, but if you want later to set it smaller, you can use this. */
-UNIV_INTERN
+
 void
 dtuple_set_n_fields(
 /*================*/
@@ -113,18 +106,18 @@ dtuple_set_n_fields(
 
 /**********************************************************//**
 Checks that a data field is typed.
-@return	TRUE if ok */
+@return TRUE if ok */
 static
 ibool
 dfield_check_typed_no_assert(
 /*=========================*/
 	const dfield_t*	field)	/*!< in: data field */
 {
-	if (dfield_get_type(field)->mtype > DATA_MYSQL
-	    || dfield_get_type(field)->mtype < DATA_VARCHAR) {
+	if (dfield_get_type(field)->mtype > DATA_MTYPE_CURRENT_MAX
+	    || dfield_get_type(field)->mtype < DATA_MTYPE_CURRENT_MIN) {
 
-		fprintf(stderr,
-			"InnoDB: Error: data field type %lu, len %lu\n",
+		ib_logf(IB_LOG_LEVEL_ERROR,
+			"data field type %lu, len %lu",
 			(ulong) dfield_get_type(field)->mtype,
 			(ulong) dfield_get_len(field));
 		return(FALSE);
@@ -135,8 +128,8 @@ dfield_check_typed_no_assert(
 
 /**********************************************************//**
 Checks that a data tuple is typed.
-@return	TRUE if ok */
-UNIV_INTERN
+@return TRUE if ok */
+
 ibool
 dtuple_check_typed_no_assert(
 /*=========================*/
@@ -173,22 +166,20 @@ dump:
 #ifdef UNIV_DEBUG
 /**********************************************************//**
 Checks that a data field is typed. Asserts an error if not.
-@return	TRUE if ok */
-UNIV_INTERN
+@return TRUE if ok */
+
 ibool
 dfield_check_typed(
 /*===============*/
 	const dfield_t*	field)	/*!< in: data field */
 {
-	if (dfield_get_type(field)->mtype > DATA_MYSQL
-	    || dfield_get_type(field)->mtype < DATA_VARCHAR) {
+	if (dfield_get_type(field)->mtype > DATA_MTYPE_CURRENT_MAX
+	    || dfield_get_type(field)->mtype < DATA_MTYPE_CURRENT_MIN) {
 
-		fprintf(stderr,
-			"InnoDB: Error: data field type %lu, len %lu\n",
+		ib_logf(IB_LOG_LEVEL_FATAL,
+			"data field type %lu, len %lu",
 			(ulong) dfield_get_type(field)->mtype,
 			(ulong) dfield_get_len(field));
-
-		ut_error;
 	}
 
 	return(TRUE);
@@ -196,8 +187,8 @@ dfield_check_typed(
 
 /**********************************************************//**
 Checks that a data tuple is typed. Asserts an error if not.
-@return	TRUE if ok */
-UNIV_INTERN
+@return TRUE if ok */
+
 ibool
 dtuple_check_typed(
 /*===============*/
@@ -219,8 +210,8 @@ dtuple_check_typed(
 /**********************************************************//**
 Validates the consistency of a tuple which must be complete, i.e,
 all fields must have been set.
-@return	TRUE if ok */
-UNIV_INTERN
+@return TRUE if ok */
+
 ibool
 dtuple_validate(
 /*============*/
@@ -273,7 +264,7 @@ dtuple_validate(
 #ifndef UNIV_HOTBACKUP
 /*************************************************************//**
 Pretty prints a dfield value according to its data type. */
-UNIV_INTERN
+
 void
 dfield_print(
 /*=========*/
@@ -316,7 +307,7 @@ dfield_print(
 /*************************************************************//**
 Pretty prints a dfield value according to its data type. Also the hex string
 is printed if a string contains non-printable characters. */
-UNIV_INTERN
+
 void
 dfield_print_also_hex(
 /*==================*/
@@ -500,7 +491,7 @@ dfield_print_raw(
 
 /**********************************************************//**
 The following function prints the contents of a tuple. */
-UNIV_INTERN
+
 void
 dtuple_print(
 /*=========*/
@@ -526,6 +517,67 @@ dtuple_print(
 	ut_ad(dtuple_validate(tuple));
 }
 
+#ifndef DBUG_OFF
+/** Print the contents of a tuple.
+@param o output stream
+@param field array of data fields
+@param n number of data fields */
+
+void
+dfield_print(
+	std::ostream&	o,
+	const dfield_t*	field,
+	ulint		n)
+{
+	for (ulint i = 0; i < n; i++, field++) {
+		const void*	data	= dfield_get_data(field);
+		const ulint	len	= dfield_get_len(field);
+
+		if (i) {
+			o << ',';
+		}
+
+		if (dfield_is_null(field)) {
+			o << "NULL";
+		} else if (dfield_is_ext(field)) {
+			ulint	local_len = len - BTR_EXTERN_FIELD_REF_SIZE;
+			ut_ad(len >= BTR_EXTERN_FIELD_REF_SIZE);
+
+			o << '['
+			  << local_len
+			  << '+' << BTR_EXTERN_FIELD_REF_SIZE << ']';
+			ut_print_buf(o, data, local_len);
+			ut_print_buf_hex(o, static_cast<const byte*>(data)
+					 + local_len,
+					 BTR_EXTERN_FIELD_REF_SIZE);
+		} else {
+			o << '[' << len << ']';
+			ut_print_buf(o, data, len);
+		}
+	}
+}
+
+/** Print the contents of a tuple.
+@param o output stream
+@param tuple data tuple */
+
+void
+dtuple_print(
+/*=========*/
+	std::ostream&	o,
+	const dtuple_t*	tuple)
+{
+	const ulint	n	= dtuple_get_n_fields(tuple);
+
+	o << "TUPLE (info_bits=" << dtuple_get_info_bits(tuple)
+	  << ", " << n << " fields): {";
+
+	dfield_print(o, tuple->fields, n);
+
+	o << "}";
+}
+#endif /* DBUG_OFF */
+
 /**************************************************************//**
 Moves parts of long fields in entry to the big record vector so that
 the size of tuple drops below the maximum record size allowed in the
@@ -534,7 +586,7 @@ to determine uniquely the insertion place of the tuple in the index.
 @return own: created big record vector, NULL if we are not able to
 shorten the entry enough, i.e., if there are too many fixed-length or
 short fields in entry or the index is clustered */
-UNIV_INTERN
+
 big_rec_t*
 dtuple_convert_big_rec(
 /*===================*/
@@ -644,8 +696,7 @@ dtuple_convert_big_rec(
 			there we always store locally columns whose
 			length is up to local_len == 788 bytes.
 			@see rec_init_offsets_comp_ordinary */
-			if (ifield->col->mtype != DATA_BLOB
-			    && ifield->col->len < 256) {
+			if (!DATA_BIG_COL(ifield->col)) {
 				goto skip_field;
 			}
 
@@ -711,7 +762,7 @@ skip_field:
 Puts back to entry the data stored in vector. Note that to ensure the
 fields in entry can accommodate the data, vector must have been created
 from entry with dtuple_convert_big_rec. */
-UNIV_INTERN
+
 void
 dtuple_convert_back_big_rec(
 /*========================*/

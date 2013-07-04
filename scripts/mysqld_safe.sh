@@ -779,8 +779,8 @@ have_sleep=1
 
 while true
 do
-  rm -f $safe_mysql_unix_port "$pid_file"	# Some extra safety
-
+  # Some extra safety
+  rm -f $safe_mysql_unix_port "$pid_file" "$pid_file.shutdown"	
   start_time=`date +%M%S`
 
   eval_log_error "$cmd"
@@ -795,6 +795,12 @@ do
 
   if test ! -f "$pid_file"		# This is removed if normal shutdown
   then
+    break
+  fi
+
+  if test -f "$pid_file.shutdown"	# created to signal that it must stop
+  then
+    log_notice "$pid_file.shutdown present. The server will not restart."
     break
   fi
 
@@ -855,6 +861,8 @@ do
   fi
   log_notice "mysqld restarted"
 done
+
+rm -f "$pid_file.shutdown"
 
 log_notice "mysqld from pid file $pid_file ended"
 

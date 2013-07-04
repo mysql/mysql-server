@@ -1,0 +1,88 @@
+--source include/have_innodb.inc
+
+SET @start_global_value = @@global.innodb_log_compressed_pages;
+SELECT @start_global_value;
+
+
+--echo '#---------------------BS_STVARS_028_01----------------------#'
+####################################################################
+#   Displaying default value                                       #
+####################################################################
+SELECT COUNT(@@GLOBAL.innodb_log_compressed_pages);
+--echo 1 Expected
+
+
+--echo '#---------------------BS_STVARS_028_02----------------------#'
+####################################################################
+#   Check if Value can set                                         #
+####################################################################
+
+SET @@global.innodb_log_compressed_pages = 0;
+SELECT @@global.innodb_log_compressed_pages;
+
+SET @@global.innodb_log_compressed_pages ='On' ;
+SELECT @@global.innodb_log_compressed_pages;
+
+SET @@global.innodb_log_compressed_pages ='Off' ;
+SELECT @@global.innodb_log_compressed_pages;
+
+SET @@global.innodb_log_compressed_pages = 1;
+SELECT @@global.innodb_log_compressed_pages;
+
+--echo '#---------------------BS_STVARS_028_03----------------------#'
+#################################################################
+# Check if the value in GLOBAL Table matches value in variable  #
+#################################################################
+
+SELECT IF(@@GLOBAL.innodb_log_compressed_pages,'ON','OFF') = VARIABLE_VALUE
+FROM INFORMATION_SCHEMA.GLOBAL_VARIABLES
+WHERE VARIABLE_NAME='innodb_log_compressed_pages';
+--echo 1 Expected
+
+SELECT COUNT(@@GLOBAL.innodb_log_compressed_pages);
+--echo 1 Expected
+
+SELECT COUNT(VARIABLE_VALUE)
+FROM INFORMATION_SCHEMA.GLOBAL_VARIABLES
+WHERE VARIABLE_NAME='innodb_log_compressed_pages';
+--echo 1 Expected
+
+
+
+--echo '#---------------------BS_STVARS_028_04----------------------#'
+################################################################################
+#  Check if accessing variable with and without GLOBAL point to same variable  #
+################################################################################
+SELECT @@innodb_log_compressed_pages = @@GLOBAL.innodb_log_compressed_pages;
+--echo 1 Expected
+
+
+
+--echo '#---------------------BS_STVARS_028_05----------------------#'
+################################################################################
+# Check if innodb_log_compressed_pages can be accessed with and without @@ sign#
+################################################################################
+
+SELECT COUNT(@@innodb_log_compressed_pages);
+--echo 1 Expected
+
+--Error ER_INCORRECT_GLOBAL_LOCAL_VAR
+SELECT COUNT(@@local.innodb_log_compressed_pages);
+--echo Expected error 'Variable is a GLOBAL variable'
+
+--Error ER_INCORRECT_GLOBAL_LOCAL_VAR
+SELECT COUNT(@@SESSION.innodb_log_compressed_pages);
+--echo Expected error 'Variable is a GLOBAL variable'
+
+SELECT COUNT(@@GLOBAL.innodb_log_compressed_pages);
+--echo 1 Expected
+
+--Error ER_BAD_FIELD_ERROR
+SELECT innodb_log_compressed_pages = @@SESSION.innodb_log_compressed_pages;
+
+#
+# Cleanup
+#
+
+SET @@global.innodb_log_compressed_pages = @start_global_value;
+SELECT @@global.innodb_log_compressed_pages;

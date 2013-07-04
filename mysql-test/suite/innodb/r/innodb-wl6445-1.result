@@ -63,7 +63,7 @@ i	LEFT(j,20)
 2	bbbbbbbbbbbbbbbbbbbb
 3	cccccccccccccccccccc
 CREATE TABLE t2 ( i int ,j blob) ENGINE = Innodb;
-ERROR HY000: Table 't2' is read only
+ERROR HY000: InnoDB is in read only mode.
 UPDATE t1 SET i = i+1;
 ERROR HY000: Can't lock file (errno: 165 - Table is read only)
 # disconnect con_test1_user
@@ -80,7 +80,7 @@ i	LEFT(j,20)
 2	bbbbbbbbbbbbbbbbbbbb
 3	cccccccccccccccccccc
 CREATE TABLE t2 ( i int , j blob) ENGINE = Innodb;
-ERROR HY000: Table 't2' is read only
+ERROR HY000: InnoDB is in read only mode.
 UPDATE t1 SET i = i+1;
 ERROR HY000: Can't lock file (errno: 165 - Table is read only)
 FLUSH STATUS;
@@ -99,7 +99,7 @@ i	LEFT(j,20)
 2	bbbbbbbbbbbbbbbbbbbb
 3	cccccccccccccccccccc
 CREATE TABLE t2 ( i int , j blob) ENGINE = Innodb;
-ERROR HY000: Table 't2' is read only
+ERROR HY000: InnoDB is in read only mode.
 UPDATE t1 SET i = i+1;
 ERROR HY000: Can't lock file (errno: 165 - Table is read only)
 INSERT INTO otherlocation VALUES (1),(2),(3);
@@ -153,7 +153,7 @@ i	LEFT(j,20)
 40	a40a40a40a40a40a40a4
 50	a50a50a50a50a50a50a5
 CREATE TABLE t2 ( i int , j blob) ENGINE = Innodb;
-ERROR HY000: Table 't2' is read only
+ERROR HY000: InnoDB is in read only mode.
 UPDATE t1 SET i = i+1;
 ERROR HY000: Can't lock file (errno: 165 - Table is read only)
 SELECT i,LEFT(j,20) FROM t1  WHERE i%10=0  ORDER BY i;
@@ -1180,7 +1180,7 @@ SELECT * FROM t3;
 i	j
 1	test1
 CREATE TEMPORARY TABLE temp_1 ( i INT ) ENGINE = Innodb;
-ERROR HY000: Table 'temp_1' is read only
+ERROR HY000: InnoDB is in read only mode.
 INSERT INTO testdb_wl6445.t4 VALUES (1),(2),(3),(4),(5),(6);
 ERROR HY000: Can't lock file (errno: 165 - Table is read only)
 SELECT * FROM testdb_wl6445.t4 ORDER BY val;
@@ -1269,6 +1269,12 @@ i	j
 5	mysql database innodb support
 6	innodb engine
 USE testdb_wl6445;
+show tables;
+Tables_in_testdb_wl6445
+t1
+select * from t1 where i = 4;
+i	j
+4	mysql database
 INSERT INTO t1 VALUES (11,repeat('a',200)),(12,repeat('b',200)),(13,repeat('c',200));
 ERROR HY000: Can't lock file (errno: 165 - Table is read only)
 UPDATE t1 SET i = i + 20;
@@ -1276,7 +1282,7 @@ ERROR HY000: Can't lock file (errno: 165 - Table is read only)
 DELETE FROM t1;
 ERROR HY000: Can't lock file (errno: 165 - Table is read only)
 CREATE TABLE t2 ( i INT ) ENGINE = Innodb;
-ERROR HY000: Table 't2' is read only
+ERROR HY000: InnoDB is in read only mode.
 CREATE USER 'test5'@'localhost' IDENTIFIED BY '123';
 GRANT ALL ON testdb_wl6445.* TO 'test5'@'localhost';
 USE testdb_wl6445;
@@ -1336,3 +1342,38 @@ i
 3
 USE testdb_wl6445;
 DROP DATABASE testdb_wl6445;
+case # 7 (restart server in read-only mode and perform check table) 
+use test;
+create table t1 (
+i int,
+f float,
+c char(100),
+b blob
+) engine = innodb;
+CREATE PROCEDURE populate_t1()
+BEGIN
+DECLARE i INT DEFAULT 1;
+while (i <= 100) DO
+insert into t1 values (
+i, 2.323,
+'adfaqfafafafafsasfafsa',
+'badfadfsaeerer234234asdfdsafdasr2354234324234234');
+SET i = i + 1;
+END WHILE;
+END|
+begin;
+call populate_t1();
+commit;
+check table t1 extended;
+Table	Op	Msg_type	Msg_text
+test.t1	check	status	OK
+"restarting server in read-only-mode"
+check table t1 extended;
+Table	Op	Msg_type	Msg_text
+test.t1	check	status	OK
+"restarting server in normal mode"
+check table t1 extended;
+Table	Op	Msg_type	Msg_text
+test.t1	check	status	OK
+drop table t1;
+drop procedure populate_t1;

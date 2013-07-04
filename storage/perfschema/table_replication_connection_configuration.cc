@@ -19,6 +19,8 @@
   Table replication_connection_configuration (implementation).
 */
 
+#define HAVE_REPLICATION
+
 #include "my_global.h"
 #include "sql_priv.h"
 #include "table_replication_connection_configuration.h"
@@ -26,7 +28,7 @@
 #include "pfs_instr.h"
 #include "rpl_slave.h"
 #include "rpl_info.h"
-#include  "rpl_rli.h"
+#include "rpl_rli.h"
 #include "rpl_mi.h"
 #include "sql_parse.h"
 

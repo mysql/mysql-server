@@ -1,4 +1,4 @@
-/* Copyright (c) 2001, 2011, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2001, 2013, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -16,7 +16,7 @@
 #include <my_global.h>
 #include <my_stacktrace.h>
 
-#ifndef __WIN__
+#ifndef _WIN32
 #include <signal.h>
 #include <my_pthread.h>
 #include <m_string.h>
@@ -132,7 +132,7 @@ static int safe_print_str(const char *addr, int max_len)
 
 #endif
 
-void my_safe_print_str(const char* val, int max_len)
+void my_safe_puts_stderr(const char* val, int max_len)
 {
   char *heap_end;
 
@@ -256,13 +256,13 @@ void my_write_core(int sig)
 {
   signal(sig, SIG_DFL);
   pthread_kill(pthread_self(), sig);
-#if defined(P_MYID) && !defined(SCO)
+#if defined(P_MYID)
   /* On Solaris, the above kill is not enough */
   sigsend(P_PID,P_MYID,sig);
 #endif
 }
 
-#else /* __WIN__*/
+#else /* _WIN32*/
 
 #include <dbghelp.h>
 #include <tlhelp32.h>
@@ -536,21 +536,22 @@ void my_write_core(int unused)
 }
 
 
-void my_safe_print_str(const char *val, int len)
+void my_safe_puts_stderr(const char *val, int len)
 {
   __try
   {
     my_write_stderr(val, len);
+    my_safe_printf_stderr("%s", "\n");
   }
   __except(EXCEPTION_EXECUTE_HANDLER)
   {
     my_safe_printf_stderr("%s", "is an invalid string pointer\n");
   }
 }
-#endif /*__WIN__*/
+#endif /* _WIN32 */
 
 
-#ifdef __WIN__
+#ifdef _WIN32
 size_t my_write_stderr(const void *buf, size_t count)
 {
   DWORD bytes_written;

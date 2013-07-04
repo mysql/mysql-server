@@ -29,6 +29,8 @@
 #include "mysql_com.h"
 #include "rpl_rli_pdb.h"
 
+class Slave_worker;
+
 /**
   @addtogroup Performance_schema_tables
   @{

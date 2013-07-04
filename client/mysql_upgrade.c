@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2006, 2012, Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2006, 2013, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -29,7 +29,7 @@
 #endif
 
 #ifndef WEXITSTATUS
-# ifdef __WIN__
+# ifdef _WIN32
 #  define WEXITSTATUS(stat_val) (stat_val)
 # else
 #  define WEXITSTATUS(stat_val) ((unsigned)(stat_val) >> 8)
@@ -40,7 +40,7 @@ static char mysql_path[FN_REFLEN];
 static char mysqlcheck_path[FN_REFLEN];
 
 static my_bool opt_force, opt_verbose, debug_info_flag, debug_check_flag,
-               opt_systables_only;
+               opt_systables_only, opt_version_check;
 static uint my_end_arg= 0;
 static char *opt_user= (char*)"root";
 
@@ -68,16 +68,11 @@ static struct my_option my_long_options[]=
 {
   {"help", '?', "Display this help message and exit.", 0, 0, 0, GET_NO_ARG,
    NO_ARG, 0, 0, 0, 0, 0, 0},
-  {"basedir", 'b', "Not used by mysql_upgrade. Only for backward compatibility.",
-   0, 0, 0, GET_STR, REQUIRED_ARG, 0, 0, 0, 0, 0, 0},
   {"character-sets-dir", OPT_CHARSETS_DIR,
    "Directory for character set files.", 0,
    0, 0, GET_STR, REQUIRED_ARG, 0, 0, 0, 0, 0, 0},
   {"compress", OPT_COMPRESS, "Use compression in server/client protocol.",
    &not_used, &not_used, 0, GET_BOOL, NO_ARG, 0, 0, 0, 0, 0, 0},
-  {"datadir", 'd',
-   "Not used by mysql_upgrade. Only for backward compatibility.",
-   0, 0, 0, GET_STR, REQUIRED_ARG, 0, 0, 0, 0, 0, 0},
 #ifdef DBUG_OFF
   {"debug", '#', "This is a non-debug version. Catch this and exit.",
    0, 0, 0, GET_DISABLED, OPT_ARG, 0, 0, 0, 0, 0, 0},
@@ -107,7 +102,7 @@ static struct my_option my_long_options[]=
    "Password to use when connecting to server. If password is not given,"
    " it's solicited on the tty.", &opt_password,&opt_password,
    0, GET_PASSWORD, OPT_ARG, 0, 0, 0, 0, 0, 0},
-#ifdef __WIN__
+#ifdef _WIN32
   {"pipe", 'W', "Use named pipes to connect to server.", 0, 0, 0,
    GET_NO_ARG, NO_ARG, 0, 0, 0, 0, 0, 0},
 #endif
@@ -124,11 +119,17 @@ static struct my_option my_long_options[]=
   {"protocol", OPT_MYSQL_PROTOCOL,
    "The protocol to use for connection (tcp, socket, pipe, memory).",
    0, 0, 0, GET_STR, REQUIRED_ARG, 0, 0, 0, 0, 0, 0},
-#ifdef HAVE_SMEM
+#if defined (_WIN32) && !defined (EMBEDDED_LIBRARY)
   {"shared-memory-base-name", OPT_SHARED_MEMORY_BASE_NAME,
    "Base name of shared memory.", 0,
    0, 0, GET_STR, REQUIRED_ARG, 0, 0, 0, 0, 0, 0},
 #endif
+  {"version-check", 'k', "Run this program only if its \'server version\' "
+   "matches the version of the server to which it's connecting, (enabled by "
+   "default); use --skip-version-check to avoid this check. Note: the \'server "
+   "version\' of the program is the version of the MySQL server with which it "
+   "was built/distributed.", &opt_version_check, &opt_version_check, 0,
+   GET_BOOL, NO_ARG, 1, 0, 0, 0, 0, 0},
   {"socket", 'S', "The socket file to use for connection.",
    0, 0, 0, GET_STR, REQUIRED_ARG, 0, 0, 0, 0, 0, 0},
 #include <sslopt-longopts.h>
@@ -280,12 +281,7 @@ get_one_option(int optid, const struct my_option *opt,
     add_option= FALSE;
     break;
 
-  case 'b': /* --basedir   */
-  case 'd': /* --datadir   */
-    fprintf(stderr, "%s: the '--%s' option is always ignored\n",
-            my_progname, optid == 'b' ? "basedir" : "datadir");
-    /* FALLTHROUGH */
-
+  case 'k':                                     /* --version-check */
   case 'v': /* --verbose   */
   case 'f': /* --force     */
   case 's':                                     /* --upgrade-system-tables */
@@ -329,6 +325,11 @@ static int run_command(char* cmd,
   FILE *res_file;
   int error;
 
+  if (! ds_res)
+  {
+    fflush(stdout);
+    fflush(stderr);
+  }
   if (!(res_file= popen(cmd, "r")))
     die("popen(\"%s\", \"r\") failed", cmd);
 
@@ -348,7 +349,10 @@ static int run_command(char* cmd,
   }
 
   if (! ds_res)
+  {
     fflush(stdout);
+    fflush(stderr);
+  }
 
   error= pclose(res_file);
   return WEXITSTATUS(error);
@@ -385,7 +389,7 @@ static int run_tool(char *tool_path, DYNAMIC_STRING *ds_res, ...)
 
   va_end(args);
 
-#ifdef __WIN__
+#ifdef _WIN32
   dynstr_append(&ds_cmdline, "\"");
 #endif
 
@@ -544,6 +548,8 @@ static int run_query(const char *query, DYNAMIC_STRING *ds_res,
 static int extract_variable_from_show(DYNAMIC_STRING* ds, char* value)
 {
   char *value_start, *value_end;
+  size_t len;
+
   /*
     The query returns "datadir\t<datadir>\n", skip past
     the tab
@@ -556,7 +562,9 @@ static int extract_variable_from_show(DYNAMIC_STRING* ds, char* value)
   if ((value_end= strchr(value_start, '\n')) == NULL)
     return 1; /* Unexpected result */
 
-  strncpy(value, value_start, MY_MIN(FN_REFLEN, value_end - value_start));
+  len= (size_t) MY_MIN(FN_REFLEN, value_end-value_start);
+  strncpy(value, value_start, len);
+  value[len]= '\0';
   return 0;
 }
 
@@ -704,6 +712,7 @@ static int run_mysqlcheck_upgrade(void)
                   ds_args.str,
                   "--check-upgrade",
                   "--all-databases",
+                  "--skip-database=mysql",
                   "--auto-repair",
                   opt_write_binlog ? "--write-binlog" : "--skip-write-binlog",
                   NULL);
@@ -718,13 +727,45 @@ static int run_mysqlcheck_fixnames(void)
                   "--no-defaults",
                   ds_args.str,
                   "--all-databases",
+                  "--skip-database=mysql",
                   "--fix-db-names",
                   "--fix-table-names",
                   opt_write_binlog ? "--write-binlog" : "--skip-write-binlog",
                   NULL);
 }
 
+/** performs the same operation as mysqlcheck_upgrade, but on the mysql db */
+static int run_mysqlcheck_mysql_db_upgrade(void)
+{
+  print_conn_args("mysqlcheck");
+  return run_tool(mysqlcheck_path,
+                  NULL, /* Send output from mysqlcheck directly to screen */
+                  "--no-defaults",
+                  ds_args.str,
+                  "--check-upgrade",
+                  "--databases",
+                  "--auto-repair",
+                  opt_write_binlog ? "--write-binlog" : "--skip-write-binlog",
+                  "mysql",
+                  NULL);
+}
 
+
+/** performs the same operation as mysqlcheck_upgrade, but on the mysql db */
+static int run_mysqlcheck_mysql_db_fixnames(void)
+{
+  print_conn_args("mysqlcheck");
+  return run_tool(mysqlcheck_path,
+                  NULL, /* Send output from mysqlcheck directly to screen */
+                  "--no-defaults",
+                  ds_args.str,
+                  "--databases",
+                  "--fix-db-names",
+                  "--fix-table-names",
+                  opt_write_binlog ? "--write-binlog" : "--skip-write-binlog",
+                  "mysql",
+                  NULL);
+}
 static const char *expected_errors[]=
 {
   "ERROR 1060", /* Duplicate column name */
@@ -850,13 +891,62 @@ static const char *load_default_groups[]=
 };
 
 
+/* Convert the specified version string into the numeric format. */
+static ulong STDCALL calc_server_version(char *some_version)
+{
+  uint major, minor, version;
+  char *point= some_version, *end_point;
+  major=   (uint) strtoul(point, &end_point, 10);   point=end_point+1;
+  minor=   (uint) strtoul(point, &end_point, 10);   point=end_point+1;
+  version= (uint) strtoul(point, &end_point, 10);
+  return (ulong) major * 10000L + (ulong)(minor * 100 + version);
+}
+
+/**
+  Check if the server version matches with the server version mysql_upgrade
+  was compiled with.
+
+  @return 0 match successful
+          1 failed
+*/
+static int check_version_match(void)
+{
+  DYNAMIC_STRING ds_version;
+  char version_str[NAME_CHAR_LEN + 1];
+
+  if (init_dynamic_string(&ds_version, NULL, NAME_CHAR_LEN, NAME_CHAR_LEN))
+    die("Out of memory");
+
+  if (run_query("show variables like 'version'",
+                &ds_version, FALSE) ||
+      extract_variable_from_show(&ds_version, version_str))
+  {
+    dynstr_free(&ds_version);
+    return 1;                                   /* Query failed */
+  }
+
+  dynstr_free(&ds_version);
+
+  if (calc_server_version((char *) version_str) != MYSQL_VERSION_ID)
+  {
+    fprintf(stderr, "Error: Server version (%s) does not match with the "
+            "version of\nthe server (%s) with which this program was built/"
+            "distributed. You can\nuse --skip-version-check to skip this "
+            "check.\n", version_str, MYSQL_SERVER_VERSION);
+    return 1;
+  }
+  else
+    return 0;
+}
+
+
 int main(int argc, char **argv)
 {
   char self_name[FN_REFLEN];
 
   MY_INIT(argv[0]);
 
-#if __WIN__
+#if _WIN32
   if (GetModuleFileName(NULL, self_name, FN_REFLEN) == 0)
 #endif
   {
@@ -916,12 +1006,20 @@ int main(int argc, char **argv)
     die(NULL);
   }
 
+  if (opt_version_check && check_version_match())
+    die("Upgrade failed");
+
   /*
     Run "mysqlcheck" and "mysql_fix_privilege_tables.sql"
+    First run mysqlcheck on the system database.
+    Then do the upgrade.
+    And then run mysqlcheck on all tables.
   */
   if ((!opt_systables_only &&
-       (run_mysqlcheck_fixnames() || run_mysqlcheck_upgrade())) ||
-      run_sql_fix_privilege_tables())
+       (run_mysqlcheck_mysql_db_fixnames() || run_mysqlcheck_mysql_db_upgrade())) ||
+      run_sql_fix_privilege_tables() ||
+      (!opt_systables_only &&
+      (run_mysqlcheck_fixnames() || run_mysqlcheck_upgrade())))
   {
     /*
       The upgrade failed to complete in some way or another,

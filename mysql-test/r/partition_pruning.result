@@ -1811,7 +1811,7 @@ id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	Extra
 EXPLAIN PARTITIONS SELECT * FROM t1
 WHERE b = CAST('2009-04-02 23:59:59' AS DATETIME);
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	Extra
-1	SIMPLE	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	Impossible WHERE noticed after reading const tables
+1	SIMPLE	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	no matching row in const table
 EXPLAIN PARTITIONS SELECT * FROM t1
 WHERE b >= CAST('2009-04-02 23:59:59' AS DATETIME);
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	Extra
@@ -1858,7 +1858,7 @@ id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	Extra
 1	SIMPLE	t1	p20090401,p20090402	index	NULL	PRIMARY	7	NULL	5	Using where; Using index
 EXPLAIN PARTITIONS SELECT * FROM t1 WHERE b = '2009-04-02 23:59:59';
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	Extra
-1	SIMPLE	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	Impossible WHERE noticed after reading const tables
+1	SIMPLE	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	no matching row in const table
 EXPLAIN PARTITIONS SELECT * FROM t1 WHERE b >= '2009-04-02 23:59:59';
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	Extra
 1	SIMPLE	t1	p20090401,p20090403,p20090404,p20090405	index	NULL	PRIMARY	7	NULL	10	Using where; Using index
@@ -1891,7 +1891,7 @@ id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	Extra
 EXPLAIN PARTITIONS SELECT * FROM t1
 WHERE b = CAST('2009-04-03 00:00:01' AS DATETIME);
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	Extra
-1	SIMPLE	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	Impossible WHERE noticed after reading const tables
+1	SIMPLE	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	no matching row in const table
 EXPLAIN PARTITIONS SELECT * FROM t1
 WHERE b >= CAST('2009-04-03 00:00:01' AS DATETIME);
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	Extra
@@ -1911,7 +1911,7 @@ id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	Extra
 EXPLAIN PARTITIONS SELECT * FROM t1
 WHERE b = CAST('2009-04-02 23:59:58' AS DATETIME);
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	Extra
-1	SIMPLE	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	Impossible WHERE noticed after reading const tables
+1	SIMPLE	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	no matching row in const table
 EXPLAIN PARTITIONS SELECT * FROM t1
 WHERE b >= CAST('2009-04-02 23:59:58' AS DATETIME);
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	Extra
@@ -2111,7 +2111,7 @@ id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	Extra
 EXPLAIN PARTITIONS SELECT * FROM t1
 WHERE b = CAST('2009-04-02 23:59:59' AS DATETIME);
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	Extra
-1	SIMPLE	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	Impossible WHERE noticed after reading const tables
+1	SIMPLE	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	no matching row in const table
 EXPLAIN PARTITIONS SELECT * FROM t1
 WHERE b >= CAST('2009-04-02 23:59:59' AS DATETIME);
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	Extra
@@ -2158,7 +2158,7 @@ id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	Extra
 1	SIMPLE	t1	p20090401,p20090402	ALL	NULL	NULL	NULL	NULL	5	Using where
 EXPLAIN PARTITIONS SELECT * FROM t1 WHERE b = '2009-04-02 23:59:59';
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	Extra
-1	SIMPLE	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	Impossible WHERE noticed after reading const tables
+1	SIMPLE	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	no matching row in const table
 EXPLAIN PARTITIONS SELECT * FROM t1 WHERE b >= '2009-04-02 23:59:59';
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	Extra
 1	SIMPLE	t1	p20090401,p20090403,p20090404,p20090405	ALL	NULL	NULL	NULL	NULL	10	Using where
@@ -2191,7 +2191,7 @@ id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	Extra
 EXPLAIN PARTITIONS SELECT * FROM t1
 WHERE b = CAST('2009-04-03 00:00:01' AS DATETIME);
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	Extra
-1	SIMPLE	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	Impossible WHERE noticed after reading const tables
+1	SIMPLE	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	no matching row in const table
 EXPLAIN PARTITIONS SELECT * FROM t1
 WHERE b >= CAST('2009-04-03 00:00:01' AS DATETIME);
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	Extra
@@ -2211,7 +2211,7 @@ id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	Extra
 EXPLAIN PARTITIONS SELECT * FROM t1
 WHERE b = CAST('2009-04-02 23:59:58' AS DATETIME);
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	Extra
-1	SIMPLE	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	Impossible WHERE noticed after reading const tables
+1	SIMPLE	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	no matching row in const table
 EXPLAIN PARTITIONS SELECT * FROM t1
 WHERE b >= CAST('2009-04-02 23:59:58' AS DATETIME);
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	Extra
@@ -2235,7 +2235,7 @@ INSERT INTO t1 VALUES (1, '2009-01-01'), (2, NULL);
 # test with an invalid date, which lead to item->null_value is set.
 EXPLAIN PARTITIONS SELECT * FROM t1 WHERE b < CAST('2009-04-99' AS DATETIME);
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	Extra
-1	SIMPLE	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	Impossible WHERE noticed after reading const tables
+1	SIMPLE	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	no matching row in const table
 Warnings:
 Warning	1292	Incorrect datetime value: '2009-04-99'
 DROP TABLE t1;
@@ -2300,10 +2300,10 @@ id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	Extra
 1	SIMPLE	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	Impossible WHERE noticed after reading const tables
 explain partitions select * from t3 where a=20;
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	Extra
-1	SIMPLE	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	Impossible WHERE noticed after reading const tables
+1	SIMPLE	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	no matching row in const table
 explain partitions select * from t3 where a=30;
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	Extra
-1	SIMPLE	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	Impossible WHERE noticed after reading const tables
+1	SIMPLE	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	no matching row in const table
 create table t4 (a int not null, b int not null) partition by LIST (a+b) (
 partition p0 values in (12),
 partition p1 values in (14)
@@ -2370,22 +2370,22 @@ partition p9 values in (9)
 insert into t6 values (1),(3),(5);
 explain partitions select * from t6 where a <  1;
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	Extra
-1	SIMPLE	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	Impossible WHERE noticed after reading const tables
+1	SIMPLE	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	no matching row in const table
 explain partitions select * from t6 where a <= 1;
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	Extra
 1	SIMPLE	t6	p1	system	NULL	NULL	NULL	NULL	1	NULL
 explain partitions select * from t6 where a >  9;
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	Extra
-1	SIMPLE	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	Impossible WHERE noticed after reading const tables
+1	SIMPLE	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	no matching row in const table
 explain partitions select * from t6 where a >= 9;
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	Extra
-1	SIMPLE	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	Impossible WHERE noticed after reading const tables
+1	SIMPLE	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	no matching row in const table
 explain partitions select * from t6 where a > 0 and a < 5;
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	Extra
 1	SIMPLE	t6	p1,p3	ALL	NULL	NULL	NULL	NULL	2	Using where
 explain partitions select * from t6 where a > 5 and a < 12;
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	Extra
-1	SIMPLE	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	Impossible WHERE noticed after reading const tables
+1	SIMPLE	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	no matching row in const table
 explain partitions select * from t6 where a > 3 and a < 8 ;
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	Extra
 1	SIMPLE	t6	p5,p7	system	NULL	NULL	NULL	NULL	1	NULL
@@ -2400,7 +2400,7 @@ id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	Extra
 1	SIMPLE	t6	p3,p5,p7	ALL	NULL	NULL	NULL	NULL	2	Using where
 explain partitions select * from t6 where a > 3 and a < 5;
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	Extra
-1	SIMPLE	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	Impossible WHERE noticed after reading const tables
+1	SIMPLE	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	no matching row in const table
 drop table t6;
 create table t6 (a int unsigned not null) partition by LIST(a) (
 partition p1 values in (1),
@@ -2412,22 +2412,22 @@ partition p9 values in (9)
 insert into t6 values (1),(3),(5);
 explain partitions select * from t6 where a <  1;
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	Extra
-1	SIMPLE	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	Impossible WHERE noticed after reading const tables
+1	SIMPLE	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	no matching row in const table
 explain partitions select * from t6 where a <= 1;
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	Extra
 1	SIMPLE	t6	p1	system	NULL	NULL	NULL	NULL	1	NULL
 explain partitions select * from t6 where a >  9;
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	Extra
-1	SIMPLE	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	Impossible WHERE noticed after reading const tables
+1	SIMPLE	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	no matching row in const table
 explain partitions select * from t6 where a >= 9;
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	Extra
-1	SIMPLE	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	Impossible WHERE noticed after reading const tables
+1	SIMPLE	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	no matching row in const table
 explain partitions select * from t6 where a > 0 and a < 5;
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	Extra
 1	SIMPLE	t6	p1,p3	ALL	NULL	NULL	NULL	NULL	2	Using where
 explain partitions select * from t6 where a > 5 and a < 12;
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	Extra
-1	SIMPLE	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	Impossible WHERE noticed after reading const tables
+1	SIMPLE	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	no matching row in const table
 explain partitions select * from t6 where a > 3 and a < 8 ;
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	Extra
 1	SIMPLE	t6	p5,p7	system	NULL	NULL	NULL	NULL	1	NULL
@@ -2442,7 +2442,7 @@ id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	Extra
 1	SIMPLE	t6	p3,p5,p7	ALL	NULL	NULL	NULL	NULL	2	Using where
 explain partitions select * from t6 where a > 3 and a < 5;
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	Extra
-1	SIMPLE	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	Impossible WHERE noticed after reading const tables
+1	SIMPLE	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	no matching row in const table
 create table t7 (a int not null) partition by RANGE(a) (
 partition p10 values less than (10),
 partition p30 values less than (30),
@@ -2453,16 +2453,16 @@ partition p90 values less than (90)
 insert into t7 values (10),(30),(50);
 explain partitions select * from t7 where a < 5;
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	Extra
-1	SIMPLE	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	Impossible WHERE noticed after reading const tables
+1	SIMPLE	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	no matching row in const table
 explain partitions select * from t7 where a < 9;
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	Extra
-1	SIMPLE	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	Impossible WHERE noticed after reading const tables
+1	SIMPLE	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	no matching row in const table
 explain partitions select * from t7 where a <= 9;
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	Extra
-1	SIMPLE	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	Impossible WHERE noticed after reading const tables
+1	SIMPLE	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	no matching row in const table
 explain partitions select * from t7 where a = 9;
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	Extra
-1	SIMPLE	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	Impossible WHERE noticed after reading const tables
+1	SIMPLE	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	no matching row in const table
 explain partitions select * from t7 where a >= 9;
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	Extra
 1	SIMPLE	t7	p10,p30,p50,p70,p90	ALL	NULL	NULL	NULL	NULL	3	Using where
@@ -2471,7 +2471,7 @@ id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	Extra
 1	SIMPLE	t7	p30,p50,p70,p90	ALL	NULL	NULL	NULL	NULL	3	Using where
 explain partitions select * from t7 where a < 10;
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	Extra
-1	SIMPLE	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	Impossible WHERE noticed after reading const tables
+1	SIMPLE	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	no matching row in const table
 explain partitions select * from t7 where a <= 10;
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	Extra
 1	SIMPLE	t7	p10,p30	system	NULL	NULL	NULL	NULL	1	NULL
@@ -2492,13 +2492,13 @@ id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	Extra
 1	SIMPLE	t7	p10,p30,p50,p70,p90	ALL	NULL	NULL	NULL	NULL	3	Using where
 explain partitions select * from t7 where a = 89;
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	Extra
-1	SIMPLE	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	Impossible WHERE noticed after reading const tables
+1	SIMPLE	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	no matching row in const table
 explain partitions select * from t7 where a > 89;
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	Extra
-1	SIMPLE	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	Impossible WHERE noticed after reading const tables
+1	SIMPLE	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	no matching row in const table
 explain partitions select * from t7 where a >= 89;
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	Extra
-1	SIMPLE	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	Impossible WHERE noticed after reading const tables
+1	SIMPLE	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	no matching row in const table
 explain partitions select * from t7 where a < 90;
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	Extra
 1	SIMPLE	t7	p10,p30,p50,p70,p90	ALL	NULL	NULL	NULL	NULL	3	Using where
@@ -2507,16 +2507,16 @@ id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	Extra
 1	SIMPLE	t7	p10,p30,p50,p70,p90	ALL	NULL	NULL	NULL	NULL	3	Using where
 explain partitions select * from t7 where a = 90;
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	Extra
-1	SIMPLE	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	Impossible WHERE noticed after reading const tables
+1	SIMPLE	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	no matching row in const table
 explain partitions select * from t7 where a > 90;
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	Extra
-1	SIMPLE	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	Impossible WHERE noticed after reading const tables
+1	SIMPLE	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	no matching row in const table
 explain partitions select * from t7 where a >= 90;
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	Extra
-1	SIMPLE	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	Impossible WHERE noticed after reading const tables
+1	SIMPLE	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	no matching row in const table
 explain partitions select * from t7 where a > 91;
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	Extra
-1	SIMPLE	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	Impossible WHERE noticed after reading const tables
+1	SIMPLE	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	no matching row in const table
 explain partitions select * from t7 where a > 11 and a < 29;
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	Extra
 1	SIMPLE	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	Impossible WHERE noticed after reading const tables
@@ -2531,16 +2531,16 @@ partition p90 values less than (90)
 insert into t7 values (10),(30),(50);
 explain partitions select * from t7 where a < 5;
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	Extra
-1	SIMPLE	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	Impossible WHERE noticed after reading const tables
+1	SIMPLE	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	no matching row in const table
 explain partitions select * from t7 where a < 9;
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	Extra
-1	SIMPLE	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	Impossible WHERE noticed after reading const tables
+1	SIMPLE	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	no matching row in const table
 explain partitions select * from t7 where a <= 9;
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	Extra
-1	SIMPLE	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	Impossible WHERE noticed after reading const tables
+1	SIMPLE	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	no matching row in const table
 explain partitions select * from t7 where a = 9;
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	Extra
-1	SIMPLE	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	Impossible WHERE noticed after reading const tables
+1	SIMPLE	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	no matching row in const table
 explain partitions select * from t7 where a >= 9;
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	Extra
 1	SIMPLE	t7	p10,p30,p50,p70,p90	ALL	NULL	NULL	NULL	NULL	3	Using where
@@ -2549,7 +2549,7 @@ id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	Extra
 1	SIMPLE	t7	p30,p50,p70,p90	ALL	NULL	NULL	NULL	NULL	3	Using where
 explain partitions select * from t7 where a < 10;
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	Extra
-1	SIMPLE	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	Impossible WHERE noticed after reading const tables
+1	SIMPLE	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	no matching row in const table
 explain partitions select * from t7 where a <= 10;
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	Extra
 1	SIMPLE	t7	p10,p30	system	NULL	NULL	NULL	NULL	1	NULL
@@ -2570,13 +2570,13 @@ id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	Extra
 1	SIMPLE	t7	p10,p30,p50,p70,p90	ALL	NULL	NULL	NULL	NULL	3	Using where
 explain partitions select * from t7 where a = 89;
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	Extra
-1	SIMPLE	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	Impossible WHERE noticed after reading const tables
+1	SIMPLE	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	no matching row in const table
 explain partitions select * from t7 where a > 89;
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	Extra
-1	SIMPLE	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	Impossible WHERE noticed after reading const tables
+1	SIMPLE	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	no matching row in const table
 explain partitions select * from t7 where a >= 89;
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	Extra
-1	SIMPLE	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	Impossible WHERE noticed after reading const tables
+1	SIMPLE	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	no matching row in const table
 explain partitions select * from t7 where a < 90;
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	Extra
 1	SIMPLE	t7	p10,p30,p50,p70,p90	ALL	NULL	NULL	NULL	NULL	3	Using where
@@ -2585,16 +2585,16 @@ id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	Extra
 1	SIMPLE	t7	p10,p30,p50,p70,p90	ALL	NULL	NULL	NULL	NULL	3	Using where
 explain partitions select * from t7 where a = 90;
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	Extra
-1	SIMPLE	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	Impossible WHERE noticed after reading const tables
+1	SIMPLE	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	no matching row in const table
 explain partitions select * from t7 where a > 90;
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	Extra
-1	SIMPLE	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	Impossible WHERE noticed after reading const tables
+1	SIMPLE	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	no matching row in const table
 explain partitions select * from t7 where a >= 90;
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	Extra
-1	SIMPLE	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	Impossible WHERE noticed after reading const tables
+1	SIMPLE	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	no matching row in const table
 explain partitions select * from t7 where a > 91;
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	Extra
-1	SIMPLE	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	Impossible WHERE noticed after reading const tables
+1	SIMPLE	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	no matching row in const table
 explain partitions select * from t7 where a > 11 and a < 29;
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	Extra
 1	SIMPLE	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	Impossible WHERE noticed after reading const tables
@@ -2615,7 +2615,7 @@ partition p2 values less than (732664)  -- 2005-12-19
 insert into t9 values ('2005-05-05'), ('2005-04-04');
 explain partitions select * from t9 where a <  '2004-12-19';
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	Extra
-1	SIMPLE	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	Impossible WHERE noticed after reading const tables
+1	SIMPLE	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	no matching row in const table
 explain partitions select * from t9 where a <= '2004-12-19';
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	Extra
 1	SIMPLE	t9	p0,p1	ALL	NULL	NULL	NULL	NULL	2	Using where
@@ -2637,7 +2637,7 @@ id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	Extra
 1	SIMPLE	t1	p1,p2	system	NULL	NULL	NULL	NULL	1	NULL
 explain partitions select * from t1 where a1 < 3 and a1 > 3;
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	Extra
-1	SIMPLE	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	Impossible WHERE noticed after reading const tables
+1	SIMPLE	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	no matching row in const table
 drop table t1;
 create table t3 (a int, b int) 
 partition by list(a) subpartition by hash(b) subpartitions 4 (
@@ -2720,10 +2720,10 @@ insert into t1 values (1),(1),(2),(2),(3),(4),(3),(4);
 # This won't do any table access
 explain extended update t1 set a=100 where a=5;
 id	select_type	table	type	possible_keys	key	key_len	ref	rows	filtered	Extra
-1	SIMPLE	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	No matching rows after partition pruning
+1	UPDATE	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	No matching rows after partition pruning
 explain partitions update t1 set a=100 where a=5;
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	Extra
-1	SIMPLE	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	No matching rows after partition pruning
+1	UPDATE	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	No matching rows after partition pruning
 flush status;
 update t1 set a=100 where a=5;
 show status like 'Handler_read_rnd_next';
@@ -2735,10 +2735,10 @@ Handler_external_lock	0
 # ... as compared to this, which will scan both partitions
 explain extended update t1 set a=100 where a+1=5+1;
 id	select_type	table	type	possible_keys	key	key_len	ref	rows	filtered	Extra
-1	SIMPLE	t1	ALL	NULL	NULL	NULL	NULL	8	100.00	Using where; Using temporary
+1	UPDATE	t1	ALL	NULL	NULL	NULL	NULL	8	100.00	Using where; Using temporary
 explain partitions update t1 set a=100 where a+1=5+1;
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	Extra
-1	SIMPLE	t1	p0,p1	ALL	NULL	NULL	NULL	NULL	8	Using where; Using temporary
+1	UPDATE	t1	p0,p1	ALL	NULL	NULL	NULL	NULL	8	Using where; Using temporary
 flush status;
 update t1 set a=100 where a+1=5+1;
 show status like 'Handler_read_rnd_next';
@@ -2750,10 +2750,10 @@ Handler_external_lock	6
 # This will only scan partition p1
 explain extended update t1 set a=3 where a=4;
 id	select_type	table	type	possible_keys	key	key_len	ref	rows	filtered	Extra
-1	SIMPLE	t1	ALL	NULL	NULL	NULL	NULL	4	100.00	Using where; Using temporary
+1	UPDATE	t1	ALL	NULL	NULL	NULL	NULL	4	100.00	Using where; Using temporary
 explain partitions update t1 set a=3 where a=4;
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	Extra
-1	SIMPLE	t1	p1	ALL	NULL	NULL	NULL	NULL	4	Using where; Using temporary
+1	UPDATE	t1	p1	ALL	NULL	NULL	NULL	NULL	4	Using where; Using temporary
 flush status;
 update t1 set a=3 where a=4;
 show status like 'Handler_read_rnd_next';
@@ -2765,10 +2765,10 @@ Handler_external_lock	6
 # This will only scan partition p1 but with a LIMIT
 explain extended update t1 set a=4 where a=3 LIMIT 2;
 id	select_type	table	type	possible_keys	key	key_len	ref	rows	filtered	Extra
-1	SIMPLE	t1	ALL	NULL	NULL	NULL	NULL	4	100.00	Using where; Using temporary
+1	UPDATE	t1	ALL	NULL	NULL	NULL	NULL	4	100.00	Using where; Using temporary
 explain partitions update t1 set a=4 where a=3 LIMIT 2;
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	Extra
-1	SIMPLE	t1	p1	ALL	NULL	NULL	NULL	NULL	4	Using where; Using temporary
+1	UPDATE	t1	p1	ALL	NULL	NULL	NULL	NULL	4	Using where; Using temporary
 flush status;
 update t1 set a=4 where a=3 LIMIT 2;
 show status like 'Handler_read_rnd_next';
@@ -2790,10 +2790,10 @@ a
 # Same as above for DELETE:
 explain extended delete from t1 where a=5;
 id	select_type	table	type	possible_keys	key	key_len	ref	rows	filtered	Extra
-1	SIMPLE	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	No matching rows after partition pruning
+1	DELETE	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	No matching rows after partition pruning
 explain partitions delete from t1 where a=5;
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	Extra
-1	SIMPLE	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	No matching rows after partition pruning
+1	DELETE	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	No matching rows after partition pruning
 flush status;
 delete from t1 where a=5;
 show status like 'Handler_read_rnd_next';
@@ -2804,10 +2804,10 @@ Variable_name	Value
 Handler_external_lock	0
 explain extended delete from t1 where a+1=5+1;
 id	select_type	table	type	possible_keys	key	key_len	ref	rows	filtered	Extra
-1	SIMPLE	t1	ALL	NULL	NULL	NULL	NULL	8	100.00	Using where
+1	DELETE	t1	ALL	NULL	NULL	NULL	NULL	8	100.00	Using where
 explain partitions delete from t1 where a+1=5+1;
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	Extra
-1	SIMPLE	t1	p0,p1	ALL	NULL	NULL	NULL	NULL	8	Using where
+1	DELETE	t1	p0,p1	ALL	NULL	NULL	NULL	NULL	8	Using where
 flush status;
 delete from t1 where a+1=5+1;
 show status like 'Handler_read_rnd_next';
@@ -2819,10 +2819,10 @@ Handler_external_lock	6
 # Will only delete from p0
 explain extended delete from t1 where a=1;
 id	select_type	table	type	possible_keys	key	key_len	ref	rows	filtered	Extra
-1	SIMPLE	t1	ALL	NULL	NULL	NULL	NULL	4	100.00	Using where
+1	DELETE	t1	ALL	NULL	NULL	NULL	NULL	4	100.00	Using where
 explain partitions delete from t1 where a=1;
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	Extra
-1	SIMPLE	t1	p0	ALL	NULL	NULL	NULL	NULL	4	Using where
+1	DELETE	t1	p0	ALL	NULL	NULL	NULL	NULL	4	Using where
 flush status;
 delete from t1 where a=1;
 show status like 'Handler_read_rnd_next';
@@ -2845,10 +2845,10 @@ create table t2 like t1;
 insert into t2 select * from t1;
 explain extended update t1,t2 set t1.a=1000, t2.a=1000 where t1.a=5 and t2.a=5;
 id	select_type	table	type	possible_keys	key	key_len	ref	rows	filtered	Extra
-1	SIMPLE	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	Impossible WHERE noticed after reading const tables
+1	UPDATE	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	no matching row in const table
 explain partitions update t1,t2 set t1.a=1000, t2.a=1000 where t1.a=5 and t2.a=5;
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	Extra
-1	SIMPLE	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	Impossible WHERE noticed after reading const tables
+1	UPDATE	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	no matching row in const table
 flush status;
 update t1,t2 set t1.a=1000, t2.a=1000 where t1.a=5 and t2.a=5;
 show status like 'Handler_read_rnd_next';
@@ -2859,10 +2859,10 @@ Variable_name	Value
 Handler_external_lock	12
 explain extended delete t1,t2 from t1, t2 where t1.a=5 and t2.a=5;
 id	select_type	table	type	possible_keys	key	key_len	ref	rows	filtered	Extra
-1	SIMPLE	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	Impossible WHERE noticed after reading const tables
+1	DELETE	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	no matching row in const table
 explain partitions delete t1,t2 from t1, t2 where t1.a=5 and t2.a=5;
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	Extra
-1	SIMPLE	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	Impossible WHERE noticed after reading const tables
+1	DELETE	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	no matching row in const table
 flush status;
 delete t1,t2 from t1, t2 where t1.a=5 and t2.a=5;
 show status like 'Handler_read_rnd_next';
@@ -2873,10 +2873,10 @@ Variable_name	Value
 Handler_external_lock	4
 explain extended delete t1,t2 from t1, t2 where t1.a=t2.a and t2.a=5;
 id	select_type	table	type	possible_keys	key	key_len	ref	rows	filtered	Extra
-1	SIMPLE	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	Impossible WHERE noticed after reading const tables
+1	DELETE	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	no matching row in const table
 explain partitions delete t1,t2 from t1, t2 where t1.a=t2.a and t2.a=5;
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	Extra
-1	SIMPLE	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	Impossible WHERE noticed after reading const tables
+1	DELETE	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	no matching row in const table
 flush status;
 delete t1,t2 from t1, t2 where t1.a=t2.a and t2.a=5;
 show status like 'Handler_read_rnd_next';
@@ -2887,12 +2887,12 @@ Variable_name	Value
 Handler_external_lock	8
 explain extended delete t1,t2 from t1, t2 where t1.a=t2.a and t2.a=3;
 id	select_type	table	type	possible_keys	key	key_len	ref	rows	filtered	Extra
-1	SIMPLE	t1	ALL	NULL	NULL	NULL	NULL	4	100.00	Using where
-1	SIMPLE	t2	ALL	NULL	NULL	NULL	NULL	4	100.00	Using where; Using join buffer (Block Nested Loop)
+1	DELETE	t1	ALL	NULL	NULL	NULL	NULL	4	100.00	Using where
+1	DELETE	t2	ALL	NULL	NULL	NULL	NULL	4	100.00	Using where; Using join buffer (Block Nested Loop)
 explain partitions delete t1,t2 from t1, t2 where t1.a=t2.a and t2.a=3;
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	Extra
-1	SIMPLE	t1	p1	ALL	NULL	NULL	NULL	NULL	4	Using where
-1	SIMPLE	t2	p1	ALL	NULL	NULL	NULL	NULL	4	Using where; Using join buffer (Block Nested Loop)
+1	DELETE	t1	p1	ALL	NULL	NULL	NULL	NULL	4	Using where
+1	DELETE	t2	p1	ALL	NULL	NULL	NULL	NULL	4	Using where; Using join buffer (Block Nested Loop)
 flush status;
 delete t1,t2 from t1, t2 where t1.a=t2.a and t2.a=3;
 show status like 'Handler_read_rnd_next';
@@ -2937,6 +2937,7 @@ CREATE TABLE `t3` (
 );
 explain partitions insert into t2 select a,1 from t1 where a < 200;
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	Extra
+1	INSERT	t2	p0,p1,p2,p3,p4	ALL	NULL	NULL	NULL	NULL	NULL	NULL
 1	SIMPLE	t1	NULL	ALL	NULL	NULL	NULL	NULL	1010	Using where
 insert into t2 select a,1 from t1 where a < 200;
 insert into t2 select a,2 from t1 where a >= 200 and a < 400;
@@ -2948,59 +2949,68 @@ id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	Extra
 1	SIMPLE	t2	p0,p1,p2,p3,p4	ALL	NULL	NULL	NULL	NULL	1010	NULL
 explain partitions insert into t3 select * from t2;
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	Extra
+1	INSERT	t3	NULL	ALL	NULL	NULL	NULL	NULL	NULL	NULL
 1	SIMPLE	t2	p0,p1,p2,p3,p4	ALL	NULL	NULL	NULL	NULL	1010	NULL
 explain extended   insert into t3 select * from t2;
 id	select_type	table	type	possible_keys	key	key_len	ref	rows	filtered	Extra
+1	INSERT	t3	ALL	NULL	NULL	NULL	NULL	NULL	NULL	NULL
 1	SIMPLE	t2	ALL	NULL	NULL	NULL	NULL	1010	100.00	NULL
 explain partitions select * from t2 where a < 801 and a > 200;
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	Extra
 1	SIMPLE	t2	p1,p2,p3,p4	ALL	NULL	NULL	NULL	NULL	800	Using where
 explain partitions insert into t3 select * from t2 where a < 801 and a > 200;
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	Extra
+1	INSERT	t3	NULL	ALL	NULL	NULL	NULL	NULL	NULL	NULL
 1	SIMPLE	t2	p1,p2,p3,p4	ALL	NULL	NULL	NULL	NULL	800	Using where
 explain partitions select * from t2 where a < 801 and a > 800;
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	Extra
 1	SIMPLE	t2	p4	ALL	NULL	NULL	NULL	NULL	200	Using where
 explain partitions insert into t3 select * from t2 where a < 801 and a > 800;
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	Extra
+1	INSERT	t3	NULL	ALL	NULL	NULL	NULL	NULL	NULL	NULL
 1	SIMPLE	t2	p4	ALL	NULL	NULL	NULL	NULL	200	Using where
 explain partitions select * from t2 where a > 600;
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	Extra
 1	SIMPLE	t2	p3,p4	ALL	NULL	NULL	NULL	NULL	400	Using where
 explain partitions insert into t3 select * from t2 where a > 600;
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	Extra
+1	INSERT	t3	NULL	ALL	NULL	NULL	NULL	NULL	NULL	NULL
 1	SIMPLE	t2	p3,p4	ALL	NULL	NULL	NULL	NULL	400	Using where
 explain partitions select * from t2 where a > 600 and b = 1;
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	Extra
 1	SIMPLE	t2	p3,p4	ALL	NULL	NULL	NULL	NULL	400	Using where
 explain partitions insert into t3 select * from t2 where a > 600 and b = 1;
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	Extra
+1	INSERT	t3	NULL	ALL	NULL	NULL	NULL	NULL	NULL	NULL
 1	SIMPLE	t2	p3,p4	ALL	NULL	NULL	NULL	NULL	400	Using where
 explain partitions select * from t2 where a > 600 and b = 4;
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	Extra
 1	SIMPLE	t2	p3,p4	ALL	NULL	NULL	NULL	NULL	400	Using where
 explain partitions insert into t3 select * from t2 where a > 600 and b = 4;
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	Extra
+1	INSERT	t3	NULL	ALL	NULL	NULL	NULL	NULL	NULL	NULL
 1	SIMPLE	t2	p3,p4	ALL	NULL	NULL	NULL	NULL	400	Using where
 explain partitions select * from t2 where a > 600 and b = 5;
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	Extra
 1	SIMPLE	t2	p3,p4	ALL	NULL	NULL	NULL	NULL	400	Using where
 explain partitions insert into t3 select * from t2 where a > 600 and b = 5;
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	Extra
+1	INSERT	t3	NULL	ALL	NULL	NULL	NULL	NULL	NULL	NULL
 1	SIMPLE	t2	p3,p4	ALL	NULL	NULL	NULL	NULL	400	Using where
 explain partitions select * from t2 where b = 5;
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	Extra
 1	SIMPLE	t2	p0,p1,p2,p3,p4	ALL	NULL	NULL	NULL	NULL	1010	Using where
 explain partitions insert into t3 select * from t2 where b = 5;
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	Extra
+1	INSERT	t3	NULL	ALL	NULL	NULL	NULL	NULL	NULL	NULL
 1	SIMPLE	t2	p0,p1,p2,p3,p4	ALL	NULL	NULL	NULL	NULL	1010	Using where
 DROP TABLE t3;
 explain extended update t2 set b = 100 where b = 6;
 id	select_type	table	type	possible_keys	key	key_len	ref	rows	filtered	Extra
-1	SIMPLE	t2	ALL	NULL	NULL	NULL	NULL	1010	100.00	Using where
+1	UPDATE	t2	ALL	NULL	NULL	NULL	NULL	1010	100.00	Using where
 explain partitions update t2 set b = 100 where b = 6;
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	Extra
-1	SIMPLE	t2	p0,p1,p2,p3,p4	ALL	NULL	NULL	NULL	NULL	1010	Using where
+1	UPDATE	t2	p0,p1,p2,p3,p4	ALL	NULL	NULL	NULL	NULL	1010	Using where
 flush status;
 update t2 set b = 100 where b = 6;
 show status like 'Handler_read_rnd_next';
@@ -3008,7 +3018,7 @@ Variable_name	Value
 Handler_read_rnd_next	1015
 explain partitions update t2 set a = 1002 where a = 1001;
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	Extra
-1	SIMPLE	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	No matching rows after partition pruning
+1	UPDATE	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	No matching rows after partition pruning
 flush status;
 update t2 set a = 1002 where a = 1001;
 show status like 'Handler_read_rnd_next';
@@ -3016,7 +3026,7 @@ Variable_name	Value
 Handler_read_rnd_next	0
 explain partitions update t2 set b = 6 where a = 600;
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	Extra
-1	SIMPLE	t2	p3	ALL	NULL	NULL	NULL	NULL	200	Using where
+1	UPDATE	t2	p3	ALL	NULL	NULL	NULL	NULL	200	Using where
 flush status;
 update t2 set b = 6 where a = 600;
 show status like 'Handler_read_rnd_next';
@@ -3024,7 +3034,7 @@ Variable_name	Value
 Handler_read_rnd_next	201
 explain partitions update t2 set b = 6 where a > 600 and a < 800;
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	Extra
-1	SIMPLE	t2	p3	ALL	NULL	NULL	NULL	NULL	200	Using where
+1	UPDATE	t2	p3	ALL	NULL	NULL	NULL	NULL	200	Using where
 flush status;
 update t2 set b = 6 where a > 600 and a < 800;
 show status like 'Handler_read_rnd_next';
@@ -3032,10 +3042,10 @@ Variable_name	Value
 Handler_read_rnd_next	201
 explain extended delete from t2 where a > 600;
 id	select_type	table	type	possible_keys	key	key_len	ref	rows	filtered	Extra
-1	SIMPLE	t2	ALL	NULL	NULL	NULL	NULL	400	100.00	Using where
+1	DELETE	t2	ALL	NULL	NULL	NULL	NULL	400	100.00	Using where
 explain partitions delete from t2 where a > 600;
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	Extra
-1	SIMPLE	t2	p3,p4	ALL	NULL	NULL	NULL	NULL	400	Using where
+1	DELETE	t2	p3,p4	ALL	NULL	NULL	NULL	NULL	400	Using where
 flush status;
 delete from t2 where a > 600;
 show status like 'Handler_read_rnd_next';
@@ -3149,10 +3159,10 @@ id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	Extra
 1	SIMPLE	t2	p0,p1,p2,p3,p4	ALL	b	NULL	NULL	NULL	910	Using where
 explain extended update t2 set a = 111 where b = 10;
 id	select_type	table	type	possible_keys	key	key_len	ref	rows	filtered	Extra
-1	SIMPLE	t2	range	b	b	5	NULL	5	100.00	Using where; Using temporary
+1	UPDATE	t2	range	b	b	5	const	5	100.00	Using where; Using temporary
 explain partitions update t2 set a = 111 where b = 10;
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	Extra
-1	SIMPLE	t2	p0,p1,p2,p3,p4	range	b	b	5	NULL	5	Using where; Using temporary
+1	UPDATE	t2	p0,p1,p2,p3,p4	range	b	b	5	const	5	Using where; Using temporary
 flush status;
 update t2 set a = 111 where b = 10;
 show status like 'Handler_read_rnd_next';
@@ -3163,7 +3173,7 @@ Variable_name	Value
 Handler_read_key	5
 explain partitions update t2 set a = 111 where b in (5,6);
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	Extra
-1	SIMPLE	t2	p0,p1,p2,p3,p4	ALL	b	NULL	NULL	NULL	910	Using where; Using temporary
+1	UPDATE	t2	p0,p1,p2,p3,p4	ALL	b	NULL	NULL	NULL	910	Using where; Using temporary
 flush status;
 update t2 set a = 111 where b in (5,6);
 show status like 'Handler_read_rnd_next';
@@ -3174,7 +3184,7 @@ Variable_name	Value
 Handler_read_key	0
 explain partitions update t2 set a = 222 where b = 7;
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	Extra
-1	SIMPLE	t2	p0,p1,p2,p3,p4	range	b	b	5	NULL	4	Using where; Using temporary
+1	UPDATE	t2	p0,p1,p2,p3,p4	range	b	b	5	const	4	Using where; Using temporary
 flush status;
 update t2 set a = 222 where b = 7;
 show status like 'Handler_read_rnd_next';
@@ -3185,10 +3195,10 @@ Variable_name	Value
 Handler_read_key	5
 explain extended delete from t2 where b = 7;
 id	select_type	table	type	possible_keys	key	key_len	ref	rows	filtered	Extra
-1	SIMPLE	t2	ALL	b	NULL	NULL	NULL	910	100.00	Using where
+1	DELETE	t2	ALL	b	NULL	NULL	NULL	910	100.00	Using where
 explain partitions delete from t2 where b = 7;
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	Extra
-1	SIMPLE	t2	p0,p1,p2,p3,p4	ALL	b	NULL	NULL	NULL	910	Using where
+1	DELETE	t2	p0,p1,p2,p3,p4	ALL	b	NULL	NULL	NULL	910	Using where
 flush status;
 delete from t2 where b = 7;
 show status like 'Handler_read_rnd_next';
@@ -3199,7 +3209,7 @@ Variable_name	Value
 Handler_read_key	0
 explain partitions delete from t2 where b > 5;
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	Extra
-1	SIMPLE	t2	p0,p1,p2,p3,p4	ALL	b	NULL	NULL	NULL	810	Using where
+1	DELETE	t2	p0,p1,p2,p3,p4	ALL	b	NULL	NULL	NULL	810	Using where
 flush status;
 delete from t2 where b > 5;
 show status like 'Handler_read_rnd_next';
@@ -3216,7 +3226,7 @@ Variable_name	Value
 Handler_read_next	0
 explain partitions delete from t2 where b < 5 or b > 3;
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	Extra
-1	SIMPLE	t2	p0,p1,p2,p3,p4	ALL	b	NULL	NULL	NULL	510	Using where
+1	DELETE	t2	p0,p1,p2,p3,p4	ALL	b	NULL	NULL	NULL	510	Using where
 flush status;
 delete from t2 where b < 5 or b > 3;
 show status like 'Handler_read_rnd_next';
@@ -3369,7 +3379,7 @@ drop table t2;
 create table t1 (s1 int);
 explain partitions select 1 from t1 union all select 2;
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	Extra
-1	PRIMARY	t1	NULL	system	NULL	NULL	NULL	NULL	0	const row not found
+1	PRIMARY	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	no matching row in const table
 2	UNION	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	No tables used
 NULL	UNION RESULT	<union1,2>	NULL	ALL	NULL	NULL	NULL	NULL	NULL	Using temporary
 drop table t1;
@@ -3402,7 +3412,7 @@ id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	Extra
 1	SIMPLE	t1	p4	ALL	NULL	NULL	NULL	NULL	2	Using where
 explain partitions select * from t1 where a = 18446744073709551614;
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	Extra
-1	SIMPLE	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	Impossible WHERE noticed after reading const tables
+1	SIMPLE	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	no matching row in const table
 drop table t1;
 create table t1 (a int)
 partition by range(a) (
@@ -3432,10 +3442,10 @@ id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	Extra
 1	SIMPLE	t2	p2	ALL	NULL	NULL	NULL	NULL	2	Using where
 explain partitions select * from t1 where a > 0xFE AND a <= 0xFF;
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	Extra
-1	SIMPLE	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	Impossible WHERE noticed after reading const tables
+1	SIMPLE	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	no matching row in const table
 explain partitions select * from t2 where a > 0xFE AND a <= 0xFF;
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	Extra
-1	SIMPLE	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	Impossible WHERE noticed after reading const tables
+1	SIMPLE	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	no matching row in const table
 explain partitions select * from t1 where a >= 0xFE AND a <= 0xFF;
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	Extra
 1	SIMPLE	t1	p2	ALL	NULL	NULL	NULL	NULL	2	Using where
@@ -3471,7 +3481,7 @@ id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	Extra
 explain partitions select * from t1 where 
 a > 0xFFFFFFFFFFFFFFEC and a < 0xFFFFFFFFFFFFFFEE;
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	Extra
-1	SIMPLE	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	Impossible WHERE noticed after reading const tables
+1	SIMPLE	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	no matching row in const table
 explain partitions select * from t1 where a>=0 and a <= 0xFFFFFFFFFFFFFFFF;
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	Extra
 1	SIMPLE	t1	p1,p2,p3,p4	ALL	NULL	NULL	NULL	NULL	8	Using where

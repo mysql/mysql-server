@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2000, 2011, 2012 Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2000, 2013 Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -1176,9 +1176,8 @@ void Field_num::prepend_zeros(String *value)
   int diff;
   if ((diff= (int) (field_length - value->length())) > 0)
   {
-    bmove_upp((uchar*) value->ptr()+field_length,
-              (uchar*) value->ptr()+value->length(),
-	      value->length());
+    memmove(const_cast<char*>(value->ptr()) + field_length - value->length(),
+            value->ptr(), value->length());
     memset(const_cast<char*>(value->ptr()), '0', diff);
     value->length(field_length);
     (void) value->c_ptr_quick();		// Avoid warnings in purify
@@ -2178,14 +2177,6 @@ type_conversion_status Field_decimal::store(const char *from_arg, uint len,
         Field_decimal::overflow(1);
         return TYPE_WARN_OUT_OF_RANGE;
       }
-      /* 
-	 Defining this will not store "+" for unsigned decimal type even if
-	 it is passed in numeric string. This will make some tests to fail
-      */	 
-#ifdef DONT_ALLOW_UNSIGNED_PLUS      
-      else 
-        sign_char=0;
-#endif 	
     }
   }
 
@@ -5285,6 +5276,36 @@ Field_temporal_with_date::store_internal_with_round(MYSQL_TIME *ltime,
 }
 
 
+/**
+  Validate date value stored in the field.
+
+  Now we check whether date value is zero or has zero in date or not and sets
+  warning/error message appropriately(depending on the sql_mode).
+*/
+type_conversion_status Field_temporal_with_date::validate_stored_val(THD *thd)
+{
+  MYSQL_TIME ltime;
+  type_conversion_status error= TYPE_OK;
+  int warnings= 0;
+
+  if (is_real_null())
+    return error;
+
+  memset(&ltime, 0, sizeof(MYSQL_TIME));
+  get_date_internal(&ltime);
+  if (check_date(&ltime, non_zero_date(&ltime), date_flags(), &warnings))
+    error= time_warning_to_type_conversion_status(warnings);
+
+  if (warnings)
+  {
+    ltime.time_type = field_type_to_timestamp_type(type());
+    set_warnings(ErrConvString(&ltime, dec), warnings);
+  }
+
+  return error;
+}
+
+
 /****************************************************************************
 ** Common code for data types with date and time: DATETIME, TIMESTAMP
 *****************************************************************************/
@@ -5590,6 +5611,20 @@ void Field_timestamp::sql_type(String &res) const
 }
 
 
+type_conversion_status Field_timestamp::validate_stored_val(THD *thd)
+{
+  /*
+    While deprecating "TIMESTAMP with implicit DEFAULT value", we can
+    remove this function implementation and depend directly on
+    "Field_temporal_with_date::validate_stored_val"
+  */
+  if (!thd->variables.explicit_defaults_for_timestamp)
+    return TYPE_OK;
+
+  return (Field_temporal_with_date::validate_stored_val(thd));
+}
+
+
 /****************************************************************************
 ** timestamp(N) type
 ** In string context: YYYY-MM-DD HH:MM:SS.FFFFFF
@@ -5702,6 +5737,20 @@ bool Field_timestampf::get_timestamp(struct timeval *tm, int *warnings)
   DBUG_ASSERT(!is_null());
   my_timestamp_from_binary(tm, ptr, dec);
   return false;
+}
+
+
+type_conversion_status Field_timestampf::validate_stored_val(THD *thd)
+{
+  /*
+    While deprecating "TIMESTAMP with implicit DEFAULT value", we can
+    remove this function implementation and depend directly on
+    "Field_temporal_with_date::validate_stored_val"
+  */
+  if (!thd->variables.explicit_defaults_for_timestamp)
+    return TYPE_OK;
+
+  return (Field_temporal_with_date::validate_stored_val(thd));
 }
 
 
@@ -6656,8 +6705,8 @@ Field_longstr::check_string_copy_error(const char *well_formed_error_pos,
     count_spaces             - Treat traling spaces as important data
 
   RETURN VALUES
-    false  - None was truncated (or we don't count cut fields)
-    true   - Some bytes were truncated
+    TYPE_OK    - None was truncated
+    != TYPE_OK - Some bytes were truncated
 
   NOTE
     Check if we lost any important data (anything in a binary string,
@@ -6670,19 +6719,26 @@ type_conversion_status
 Field_longstr::report_if_important_data(const char *pstr, const char *end,
                                         bool count_spaces)
 {
-  if ((pstr < end) && table->in_use->count_cuted_fields)
+  if (pstr < end)       // String is truncated
   {
     if (test_if_important_data(field_charset, pstr, end))
     {
-      if (table->in_use->abort_on_warning)
-        set_warning(Sql_condition::SL_WARNING, ER_DATA_TOO_LONG, 1);
-      else
-        set_warning(Sql_condition::SL_WARNING, WARN_DATA_TRUNCATED, 1);
+      // Warning should only be written when count_cuted_fields is set
+      if (table->in_use->count_cuted_fields)
+      {
+        if (table->in_use->abort_on_warning)
+          set_warning(Sql_condition::SL_WARNING, ER_DATA_TOO_LONG, 1);
+        else
+          set_warning(Sql_condition::SL_WARNING, WARN_DATA_TRUNCATED, 1);
+      }
       return TYPE_WARN_TRUNCATED;
     }
     else if (count_spaces)
     { /* If we lost only spaces then produce a NOTE, not a WARNING */
-      set_warning(Sql_condition::SL_NOTE, WARN_DATA_TRUNCATED, 1);
+      if (table->in_use->count_cuted_fields)
+      {
+        set_warning(Sql_condition::SL_NOTE, WARN_DATA_TRUNCATED, 1);
+      }
       return TYPE_NOTE_TRUNCATED;
     }
   }
@@ -8027,10 +8083,8 @@ uint Field_blob::get_key_image(uchar *buff,uint length, imagetype type_arg)
   uint32 blob_length= get_length(ptr);
   uchar *blob;
 
-#ifdef HAVE_SPATIAL
   if (type_arg == itMBR)
   {
-    const char *dummy;
     MBR mbr;
     Geometry_buffer buffer;
     Geometry *gobj;
@@ -8043,7 +8097,7 @@ uint Field_blob::get_key_image(uchar *buff,uint length, imagetype type_arg)
     }
     get_ptr(&blob);
     gobj= Geometry::construct(&buffer, (char*) blob, blob_length);
-    if (!gobj || gobj->get_mbr(&mbr, &dummy))
+    if (!gobj || gobj->get_mbr(&mbr))
       memset(buff, 0, image_length);
     else
     {
@@ -8054,7 +8108,6 @@ uint Field_blob::get_key_image(uchar *buff,uint length, imagetype type_arg)
     }
     return image_length;
   }
-#endif /*HAVE_SPATIAL*/
 
   get_ptr(&blob);
   uint local_char_length= length / field_charset->mbmaxlen;
@@ -8289,8 +8342,6 @@ uint Field_blob::is_equal(Create_field *new_field)
 }
 
 
-#ifdef HAVE_SPATIAL
-
 void Field_geom::sql_type(String &res) const
 {
   const CHARSET_INFO *cs= &my_charset_latin1;
@@ -8386,8 +8437,6 @@ uint Field_geom::is_equal(Create_field *new_field)
          new_field->pack_length == pack_length();
 }
 
-
-#endif /*HAVE_SPATIAL*/
 
 /****************************************************************************
 ** enum type.
@@ -10287,12 +10336,10 @@ Field *make_field(TABLE_SHARE *share, uchar *ptr, uint32 field_length,
 				      f_packtype(pack_flag),
 				      field_length);
 
-#ifdef HAVE_SPATIAL
     if (f_is_geom(pack_flag))
       return new Field_geom(ptr,null_pos,null_bit,
 			    unireg_check, field_name, share,
 			    pack_length, geom_type);
-#endif
     if (f_is_blob(pack_flag))
       return new Field_blob(ptr,null_pos,null_bit,
 			    unireg_check, field_name, share,
@@ -10465,11 +10512,9 @@ Create_field::Create_field(Field *old_field,Field *orig_field) :
     /* This is corrected in create_length_to_internal_length */
     length= (length+charset->mbmaxlen-1) / charset->mbmaxlen;
     break;
-#ifdef HAVE_SPATIAL
   case MYSQL_TYPE_GEOMETRY:
     geom_type= ((Field_geom*)old_field)->geom_type;
     break;
-#endif
   case MYSQL_TYPE_YEAR:
     if (length != 4)
     {
@@ -10492,10 +10537,10 @@ Create_field::Create_field(Field *old_field,Field *orig_field) :
   char_length= length;
 
   /*
-    Copy the default value from the column object orig_field, if supplied. We
-    do this if all these conditions are met:
+    Copy the default (constant/function) from the column object orig_field, if
+    supplied. We do this if all these conditions are met:
 
-    - The column has a constant default value.
+    - The column allows a default.
 
     - The column type is not a BLOB type.
 
@@ -10504,25 +10549,40 @@ Create_field::Create_field(Field *old_field,Field *orig_field) :
   */
   if (!(flags & (NO_DEFAULT_VALUE_FLAG | BLOB_FLAG)) &&
       old_field->ptr != NULL &&
-      orig_field != NULL &&
-      (!real_type_with_now_as_default(sql_type) ||
-       !old_field->has_insert_default_function()))
+      orig_field != NULL)
   {
-    char buff[MAX_FIELD_WIDTH];
-    String tmp(buff,sizeof(buff), charset);
-
-    /* Get the value from default_values */
-    my_ptrdiff_t diff= orig_field->table->default_values_offset();
-    orig_field->move_field_offset(diff);	// Points now at default_values
-    if (!orig_field->is_real_null())
+    bool default_now= false;
+    if (real_type_with_now_as_default(sql_type))
     {
-      char buff[MAX_FIELD_WIDTH], *pos;
-      String tmp(buff, sizeof(buff), charset), *res;
-      res= orig_field->val_str(&tmp);
-      pos= (char*) sql_strmake(res->ptr(), res->length());
-      def= new Item_string(pos, res->length(), charset);
+      // The SQL type of the new field allows a function default:
+      default_now= orig_field->has_insert_default_function();
+      bool update_now= orig_field->has_update_default_function();
+
+      if (default_now && update_now)
+        unireg_check= Field::TIMESTAMP_DNUN_FIELD;
+      else if (default_now)
+        unireg_check= Field::TIMESTAMP_DN_FIELD;
+      else if (update_now)
+        unireg_check= Field::TIMESTAMP_UN_FIELD;
     }
-    orig_field->move_field_offset(-diff);	// Back to record[0]
+    if (!default_now)                           // Give a constant default
+    {
+      char buff[MAX_FIELD_WIDTH];
+      String tmp(buff,sizeof(buff), charset);
+
+      /* Get the value from default_values */
+      my_ptrdiff_t diff= orig_field->table->default_values_offset();
+      orig_field->move_field_offset(diff);	// Points now at default_values
+      if (!orig_field->is_real_null())
+      {
+        char buff[MAX_FIELD_WIDTH], *pos;
+        String tmp(buff, sizeof(buff), charset), *res;
+        res= orig_field->val_str(&tmp);
+        pos= (char*) sql_strmake(res->ptr(), res->length());
+        def= new Item_string(pos, res->length(), charset);
+      }
+      orig_field->move_field_offset(-diff);	// Back to record[0]
+    }
   }
 }
 

@@ -1,4 +1,4 @@
-/* Copyright (c) 2000, 2012, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2000, 2013, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -30,21 +30,19 @@
 #ifdef	 HAVE_PWD_H
 #include <pwd.h>
 #endif
-#if !defined(__WIN__)
 #ifdef HAVE_SELECT_H
 #include <select.h>
 #endif
 #ifdef HAVE_SYS_SELECT_H
 #include <sys/select.h>
 #endif
-#endif /* !defined(__WIN__) */
 #ifdef HAVE_POLL
 #include <sys/poll.h>
 #endif
 #ifdef HAVE_SYS_UN_H
 #include <sys/un.h>
 #endif
-#if !defined(__WIN__)
+#if !defined(_WIN32)
 #include <my_pthread.h>				/* because of signal()	*/
 #endif
 #ifndef INADDR_NONE
@@ -66,13 +64,13 @@ ulong		max_allowed_packet= 1024L*1024L*1024L;
 my_bool	net_flush(NET *net);
 #endif
 
-#if defined(__WIN__)
+#if defined(_WIN32)
 /* socket_errno is defined in my_global.h for all platforms */
 #define perror(A)
 #else
 #include <errno.h>
 #define SOCKET_ERROR -1
-#endif /* __WIN__ */
+#endif /* _WIN32 */
 
 /*
   If allowed through some configuration, then this needs to
@@ -153,7 +151,7 @@ int STDCALL mysql_server_init(int argc __attribute__((unused)),
     if (!mysql_unix_port)
     {
       char *env;
-#ifdef __WIN__
+#ifdef _WIN32
       mysql_unix_port = (char*) MYSQL_NAMEDPIPE;
 #else
       mysql_unix_port = (char*) MYSQL_UNIX_ADDR;
@@ -162,7 +160,7 @@ int STDCALL mysql_server_init(int argc __attribute__((unused)),
 	mysql_unix_port = env;
     }
     mysql_debug(NullS);
-#if defined(SIGPIPE) && !defined(__WIN__)
+#if defined(SIGPIPE) && !defined(_WIN32)
     (void) signal(SIGPIPE, SIG_IGN);
 #endif
 #ifdef EMBEDDED_LIBRARY
@@ -309,32 +307,6 @@ my_pipe_sig_handler(int sig __attribute__((unused)))
 
 
 /**************************************************************************
-  Connect to sql server
-  If host == 0 then use localhost
-**************************************************************************/
-
-#ifdef USE_OLD_FUNCTIONS
-MYSQL * STDCALL
-mysql_connect(MYSQL *mysql,const char *host,
-	      const char *user, const char *passwd)
-{
-  MYSQL *res;
-  mysql=mysql_init(mysql);			/* Make it thread safe */
-  {
-    DBUG_ENTER("mysql_connect");
-    if (!(res=mysql_real_connect(mysql,host,user,passwd,NullS,0,NullS,0)))
-    {
-      if (mysql->free_me)
-	my_free(mysql);
-    }
-    mysql->reconnect= 1;
-    DBUG_RETURN(res);
-  }
-}
-#endif
-
-
-/**************************************************************************
   Change user and database
 **************************************************************************/
 
@@ -398,7 +370,7 @@ struct passwd *getpwuid(uid_t);
 char* getlogin(void);
 #endif
 
-#if !defined(__WIN__)
+#if !defined(_WIN32)
 
 void read_user_name(char *name)
 {
@@ -867,26 +839,6 @@ mysql_list_processes(MYSQL *mysql)
 }
 
 
-#ifdef USE_OLD_FUNCTIONS
-int  STDCALL
-mysql_create_db(MYSQL *mysql, const char *db)
-{
-  DBUG_ENTER("mysql_createdb");
-  DBUG_PRINT("enter",("db: %s",db));
-  DBUG_RETURN(simple_command(mysql,COM_CREATE_DB,db, (ulong) strlen(db),0));
-}
-
-
-int  STDCALL
-mysql_drop_db(MYSQL *mysql, const char *db)
-{
-  DBUG_ENTER("mysql_drop_db");
-  DBUG_PRINT("enter",("db: %s",db));
-  DBUG_RETURN(simple_command(mysql,COM_DROP_DB,db,(ulong) strlen(db),0));
-}
-#endif
-
-
 int STDCALL
 mysql_shutdown(MYSQL *mysql, enum mysql_enum_shutdown_level shutdown_level)
 {
@@ -1191,16 +1143,13 @@ void STDCALL
 myodbc_remove_escape(MYSQL *mysql,char *name)
 {
   char *to;
-#ifdef USE_MB
   my_bool use_mb_flag=use_mb(mysql->charset);
   char *UNINIT_VAR(end);
   if (use_mb_flag)
     for (end=name; *end ; end++) ;
-#endif
 
   for (to=name ; *name ; name++)
   {
-#ifdef USE_MB
     int l;
     if (use_mb_flag && (l = my_ismbchar( mysql->charset, name , end ) ) )
     {
@@ -1209,7 +1158,6 @@ myodbc_remove_escape(MYSQL *mysql,char *name)
       name--;
       continue;
     }
-#endif
     if (*name == '\\' && name[1])
       name++;
     *to++= *name;
@@ -3345,7 +3293,7 @@ static void fetch_long_with_conversion(MYSQL_BIND *param, MYSQL_FIELD *field,
     if (field->flags & ZEROFILL_FLAG && length < field->length &&
         field->length < 21)
     {
-      bmove_upp(buff+field->length,buff+length, length);
+      memmove(buff + field->length - length, buff, length);
       memset(buff, '0', field->length - length);
       length= field->length;
     }
@@ -3465,8 +3413,7 @@ static void fetch_float_with_conversion(MYSQL_BIND *param, MYSQL_FIELD *field,
     if (field->flags & ZEROFILL_FLAG && len < field->length &&
         field->length < MAX_DOUBLE_STRING_REP_LENGTH - 1)
     {
-      bmove_upp((uchar*) buff + field->length, (uchar*) buff + len,
-                len);
+      memmove(buff + field->length - len, buff, len);
       memset(buff, '0', field->length - len);
       len= field->length;
     }
@@ -4325,7 +4272,27 @@ int cli_read_binary_rows(MYSQL_STMT *stmt)
       /* end of data */
       *prev_ptr= 0;
       mysql->warning_count= uint2korr(cp+1);
-      mysql->server_status= uint2korr(cp+3);
+      /*
+        OUT parameters result sets has SERVER_PS_OUT_PARAMS and
+        SERVER_MORE_RESULTS_EXISTS flags in first EOF_Packet only.
+        Last EOF_Packet of OUT parameters result sets have no
+        SERVER_MORE_RESULTS_EXISTS flag as described here:
+        http://dev.mysql.com/doc/internals/en/stored-procedures.html#out-parameter-set
+        Following code reads last EOF_Packet of result set and can clear
+        those flags in server_status if we don't preserve them.
+        Without SERVER_MORE_RESULTS_EXISTS flag mysql_stmt_next_result fails
+        to read OK_Packet after OUT parameters result set.
+        So we need to preserve SERVER_MORE_RESULTS_EXISTS flag for OUT
+        parameters result set.
+      */
+      if (mysql->server_status & SERVER_PS_OUT_PARAMS)
+      {
+        mysql->server_status= uint2korr(cp+3)
+          | SERVER_PS_OUT_PARAMS
+          | (mysql->server_status & SERVER_MORE_RESULTS_EXISTS);
+      }
+      else
+        mysql->server_status= uint2korr(cp+3);
       DBUG_PRINT("info",("status: %u  warning_count: %u",
                          mysql->server_status, mysql->warning_count));
       DBUG_RETURN(0);

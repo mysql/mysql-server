@@ -60,7 +60,7 @@ enum enum_vio_io_event
 
 Vio* vio_new(my_socket sd, enum enum_vio_type type, uint flags);
 Vio*  mysql_socket_vio_new(MYSQL_SOCKET mysql_socket, enum enum_vio_type type, uint flags);
-#ifdef __WIN__
+#ifdef _WIN32
 Vio* vio_new_win32pipe(HANDLE hPipe);
 Vio* vio_new_win32shared_memory(HANDLE handle_file_map,
                                 HANDLE handle_map,
@@ -71,7 +71,7 @@ Vio* vio_new_win32shared_memory(HANDLE handle_file_map,
                                 HANDLE event_conn_closed);
 #else
 #define HANDLE void *
-#endif /* __WIN__ */
+#endif /* _WIN32 */
 
 void    vio_delete(Vio* vio);
 int vio_shutdown(Vio* vio);
@@ -175,6 +175,7 @@ void free_vio_ssl_acceptor_fd(struct st_VioSSLFd *fd);
 #endif /* ! EMBEDDED_LIBRARY */
 #endif /* HAVE_OPENSSL */
 
+void ssl_start(void);
 void vio_end(void);
 
 #ifdef  __cplusplus
@@ -267,7 +268,7 @@ struct st_vio
 #ifdef HAVE_OPENSSL
   void    *ssl_arg;
 #endif
-#ifdef HAVE_SMEM
+#if defined (_WIN32) && !defined (EMBEDDED_LIBRARY)
   HANDLE  handle_file_map;
   char    *handle_map;
   HANDLE  event_server_wrote;
@@ -277,6 +278,6 @@ struct st_vio
   HANDLE  event_conn_closed;
   size_t  shared_memory_remain;
   char    *shared_memory_pos;
-#endif /* HAVE_SMEM */
+#endif /* _WIN32 && !EMBEDDED_LIBRARY */
 };
 #endif /* vio_violite_h_ */

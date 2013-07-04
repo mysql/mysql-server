@@ -1,3 +1,6 @@
+#This is a myisam based testcase hence retained the following line
+--source include/force_myisam_default.inc
+
 ################################################################################
 # Author:  Serge Kozlov                                                        #
 # Date:    2005-09-21                                                          #

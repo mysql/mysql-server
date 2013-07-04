@@ -13,9 +13,11 @@ DELETE FROM t1 WHERE i=2;
 #Dropping the database db1 and creating the table in the new database db2.
 CREATE DATABASE db2;
 DROP DATABASE db1;
+RESET MASTER;
 SELECT * FROM db2.t1;
 ERROR 42S02: Table 'db2.t1' doesn't exist
 DROP DATABASE db1;
+RESET MASTER;
 [The event of table db1.t1 has been successfully applied to db2.t1]
 include/assert.inc [Assert that table db2.t1 has one row after applying the sql file.]
 CLEANUP
