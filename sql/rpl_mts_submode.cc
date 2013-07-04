@@ -463,14 +463,17 @@ Mts_submode_logical_clock::assign_group_parent_id(Relay_log_info* rli,
       /* not same as last seq number */
       commit_seq_no != mts_last_known_commit_parent) ||
       /* first event after a submode switch */
-      first_event || force_new_group)
+      first_event ||
+      /* require a fresh group to be started. */
+      force_new_group)
   {
     mts_last_known_commit_parent= commit_seq_no;
     mts_last_known_parent_group_id=
       gaq->get_job_group(rli->gaq->assigned_group_index)->parent_seqno=
       rli->mts_groups_assigned-1;
     worker_seq= 0;
-    if (ev->get_type_code() == GTID_LOG_EVENT)
+    if (ev->get_type_code() == GTID_LOG_EVENT ||
+        ev->get_type_code() == USER_VAR_EVENT )
       defer_new_group= true;
     else
       is_new_group= true;
