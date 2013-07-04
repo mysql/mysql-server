@@ -1,7 +1,7 @@
 include/master-slave.inc
 Warnings:
 Note	####	Sending passwords in plain text without SSL/TLS is extremely insecure.
-Note	####	Storing MySQL user name or password information in the master.info repository is not secure and is therefore not recommended. Please see the MySQL Manual for more about this issue and possible alternatives.
+Note	####	Storing MySQL user name or password information in the master info repository is not secure and is therefore not recommended. Please consider using the USER and PASSWORD connection options for START SLAVE; see the 'START SLAVE Syntax' in the MySQL Manual for more information.
 [connection master]
 call mtr.add_suppression("Error 'Table 'test.t' doesn't exist' on query.");
 call mtr.add_suppression("The slave coordinator and worker threads are stopped, possibly leaving data in inconsistent state.");
@@ -14,13 +14,13 @@ SET @save.slave_parallel_workers=@@global.slave_parallel_workers;
 SET @@global.slave_parallel_workers=1;
 set @save.slave_transaction_retries= @@global.slave_transaction_retries;
 include/start_slave.inc
-# Asserted this: Worker_Id should be 0
+include/assert.inc [Worker_Id should be 0]
 worker thread id extracted from SHOW PROCESSLIST and PS table match.
-# Asserted this: Service_State should be "On" on a fresh slave server.
-# Asserted this: Last_Seen_Transaction should show "ANONYMOUS" if gtid-mode=off.
-# Asserted this: Value returned by SSS and PS table for Last_Error_Number should be same.
-# Asserted this: Value returned by SSS and PS table for Last_Error_Message should be same.
-# Asserted this: Value returned by PS table for Last_Error_Timestamp should be 0000-00-00 00:00:00.
+include/assert.inc [Service_State should be "On" on a fresh slave server.]
+include/assert.inc [Last_Seen_Transaction should show "ANONYMOUS" if gtid-mode=off.]
+include/assert.inc [Value returned by SSS and PS table for Last_Error_Number should be same.]
+include/assert.inc [Value returned by SSS and PS table for Last_Error_Message should be same.]
+include/assert.inc [Value returned by PS table for Last_Error_Timestamp should be 0000-00-00 00:00:00.]
 
 # Introduce an error in the worker thread and check for the correctness
 # of error number, message and timestamp fields.
@@ -34,9 +34,9 @@ include/wait_for_slave_sql_error.inc [errno=1146]
 # Extract the error related fields from SSS and PS table and compare
 # them for correctness.
 
-# Asserted this: Value returned by SSS and PS table for Last_Error_Number should be same.
+include/assert.inc [Value returned by SSS and PS table for Last_Error_Number should be same.]
 Value returned by SSS and PS table for Last_Error_Message is same.
-# Asserted this: Value returned by SSS and PS table for Last_Error_Timestamp should be same.
+include/assert.inc [Value returned by SSS and PS table for Last_Error_Timestamp should be same.]
 
 # Verify that the error fields are preserved after STOP SLAVE.
 
@@ -44,16 +44,16 @@ Value returned by SSS and PS table for Last_Error_Message is same.
 # 1. Verify that thread_id changes to NULL and service_state to "off" on
 #    STOP SLAVE.
 
-# Asserted this: After STOP SLAVE, thread_id should be NULL
-# Asserted this: So, Service_State after STOP SLAVE should be "Off".
+include/assert.inc [After STOP SLAVE, thread_id should be NULL]
+include/assert.inc [So, Service_State after STOP SLAVE should be "Off".]
 
 # 2. Extract the worker_id and the error related fields from SSS and PS
 #    table and compare them. These fields should preserve their values.
 
-# Asserted this: Worker_Id should be 0
-# Asserted this: Value returned by SSS and PS table for Last_Error_Number should be same.
+include/assert.inc [Worker_Id should be 0]
+include/assert.inc [Value returned by SSS and PS table for Last_Error_Number should be same.]
 Value returned by SSS and PS table for Last_Error_Message is same.
-# Asserted this: Value returned by SSS and PS table for Last_Error_Timestamp should be same.
+include/assert.inc [Value returned by SSS and PS table for Last_Error_Timestamp should be same.]
 STOP SLAVE;
 RESET SLAVE;
 drop table t;
@@ -70,7 +70,7 @@ Note	1255	Slave already has been stopped
 change master to master_host='127.0.0.1',master_port=MASTER_MYPORT, master_user='root';
 Warnings:
 Note	####	Sending passwords in plain text without SSL/TLS is extremely insecure.
-Note	####	Storing MySQL user name or password information in the master.info repository is not secure and is therefore not recommended. Please see the MySQL Manual for more about this issue and possible alternatives.
+Note	####	Storing MySQL user name or password information in the master info repository is not secure and is therefore not recommended. Please consider using the USER and PASSWORD connection options for START SLAVE; see the 'START SLAVE Syntax' in the MySQL Manual for more information.
 SET @save.slave_parallel_workers=@@global.slave_parallel_workers;
 SET @@global.slave_parallel_workers=1;
 set @save.slave_transaction_retries= @@global.slave_transaction_retries;
