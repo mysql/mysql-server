@@ -85,7 +85,7 @@ class Mts_submode_logical_clock: public Mts_submode
 {
 private:
   uint worker_seq;
-  bool first_event, force_new_group, defer_new_group;
+  bool first_event, force_new_group;
   int64 mts_last_known_commit_parent;
   int64 mts_last_known_parent_group_id;
   /*
@@ -118,6 +118,7 @@ private:
   uint delegated_jobs;
 public:
   uint jobs_done;
+  bool defer_new_group;
 
 protected:
   std::pair<uint, my_thread_id> get_server_and_thread_id(TABLE* table);

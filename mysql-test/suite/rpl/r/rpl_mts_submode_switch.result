@@ -65,4 +65,6 @@ DROP DATABASE db1;
 DROP DATABASE db2;
 DROP DATABASE db3;
 DROP DATABASE db4;
+include/stop_slave.inc
+include/start_slave.inc
 include/rpl_end.inc

@@ -9142,6 +9142,7 @@ PSI_mutex_key key_LOCK_sql_rand;
 PSI_mutex_key key_gtid_ensure_index_mutex;
 PSI_mutex_key key_LOCK_thread_created;
 PSI_mutex_key key_mts_temp_table_LOCK;
+PSI_mutex_key key_state_lock;
 
 static PSI_mutex_info all_server_mutexes[]=
 {
@@ -9214,7 +9215,8 @@ static PSI_mutex_info all_server_mutexes[]=
   { &key_gtid_ensure_index_mutex, "Gtid_state", PSI_FLAG_GLOBAL},
   { &key_LOCK_thread_created, "LOCK_thread_created", PSI_FLAG_GLOBAL },
   { &key_LOCK_query_plan, "THD::LOCK_query_plan", 0},
-  { &key_mts_temp_table_LOCK, "key_mts_temp_table_LOCK",0}
+  { &key_mts_temp_table_LOCK, "key_mts_temp_table_LOCK",0},
+  { &key_state_lock, "Logical_clock::key_state_lock,", 0}
 };
 
 PSI_rwlock_key key_rwlock_LOCK_grant, key_rwlock_LOCK_logger,

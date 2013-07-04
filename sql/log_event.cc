@@ -2918,7 +2918,9 @@ Slave_worker *Log_event::get_slave_worker(Relay_log_info *rli)
       DBUG_ASSERT(gaq->get_job_group(rli->gaq->assigned_group_index)->
                   group_relay_log_name == NULL);
       DBUG_ASSERT(gaq_idx != MTS_WORKER_UNDEF);  // gaq must have room
-      DBUG_ASSERT(rli->last_assigned_worker == NULL);
+      DBUG_ASSERT(rli->last_assigned_worker == NULL ||
+                  rli->current_mts_submode->get_type() ==
+                  MTS_PARALLEL_TYPE_LOGICAL_CLOCK);
 
       if (is_s_event || is_gtid_event(this))
       {

@@ -7,6 +7,9 @@
 --source include/master-slave.inc
 --connection slave
 
+# save  MTS submode
+--let $saved_submode= `SELECT @@slave_parallel_type`
+
 # must error out since the slave is running
 --error ER_SLAVE_MUST_STOP
 SET GLOBAL slave_parallel_type=LOGICAL_CLOCK;
@@ -146,6 +149,14 @@ DROP DATABASE db2;
 DROP DATABASE db3;
 DROP DATABASE db4;
 --sync_slave_with_master
+
+--connection slave
+
+--source include/stop_slave.inc
+--disable_query_log ONCE
+--disable_result_log ONCE
+--eval SET GLOBAL slave_parallel_type= '$saved_submode'
+--source include/start_slave.inc
 
 --source include/rpl_end.inc
 
