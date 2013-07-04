@@ -132,6 +132,8 @@ public:
                                                       Query_log_event *ev);
   Slave_worker* get_least_occupied_worker(Relay_log_info* rli,
                                           DYNAMIC_ARRAY *ws, Log_event *ev);
+  /* Sets the force new group variable */
+  inline void start_new_group(){ force_new_group= true; }
   ~Mts_submode_logical_clock(){}
 };
 
