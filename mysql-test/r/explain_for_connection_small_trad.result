@@ -34,13 +34,7 @@ Diff: EXPLAIN NORMAL vs OTHER
 QUERY: SELECT * FROM t1 WHERE key1=1130 AND col1 IS NULL ORDER BY text1 
 STATUS: EQUAL
 QUERY: SELECT t1.c2   FROM t2 STRAIGHT_JOIN t1 ON t1.c1 < t2.c1 
-STATUS:NOT_EQUAL
-SYNC_POINT:before_reset_query_plan
-Diff: EXPLAIN NORMAL vs OTHER
-@@ -2,2 +2,2 @@
- 1	SIMPLE	t2	index	PRIMARY	PRIMARY	4	NULL	2	Using index
--1	SIMPLE	t1	ALL	PRIMARY	NULL	NULL	NULL	0	Range checked for each record (index map: 0x1)
-+1	SIMPLE	t1	range	PRIMARY	PRIMARY	4	NULL	1	Range checked for each record (index map: 0x1)
+STATUS: EQUAL
 QUERY: SELECT STRAIGHT_JOIN * FROM (t1 LEFT JOIN  (t2 LEFT JOIN (t3 LEFT OUTER JOIN t4 ON t3.c1 <= t4.c1_key) ON t2.c1 = t4.c3)  ON t1.c1 = t4.c2) RIGHT OUTER JOIN t5 ON t2.c2 <= t5.c1 WHERE t1.i1 = 1 
 STATUS:NOT_EQUAL
 SYNC_POINT:before_reset_query_plan
