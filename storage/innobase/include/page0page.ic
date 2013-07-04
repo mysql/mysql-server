@@ -456,6 +456,8 @@ page_rec_is_first(
 	const rec_t*	rec,	/*!< in: record */
 	const page_t*	page)	/*!< in: page */
 {
+	ut_ad(page_get_n_recs(page) > 0);
+
 	return(page_rec_get_next_const(page_get_infimum_rec(page)) == rec);
 }
 
@@ -469,6 +471,8 @@ page_rec_is_second(
 	const rec_t*	rec,	/*!< in: record */
 	const page_t*	page)	/*!< in: page */
 {
+	ut_ad(page_get_n_recs(page) > 1);
+
 	return(page_rec_get_next_const(
 		page_rec_get_next_const(page_get_infimum_rec(page))) == rec);
 }
@@ -483,7 +487,26 @@ page_rec_is_last(
 	const rec_t*	rec,	/*!< in: record */
 	const page_t*	page)	/*!< in: page */
 {
+	ut_ad(page_get_n_recs(page) > 0);
+
 	return(page_rec_get_next_const(rec) == page_get_supremum_rec(page));
+}
+
+/************************************************************//**
+true if the record is the second last user record on a page.
+@return true if the second last user record */
+UNIV_INLINE
+bool
+page_rec_is_second_last(
+/*====================*/
+	const rec_t*	rec,	/*!< in: record */
+	const page_t*	page)	/*!< in: page */
+{
+	ut_ad(page_get_n_recs(page) > 1);
+	ut_ad(!page_rec_is_last(rec, page));
+
+	return(page_rec_get_next_const(
+		page_rec_get_next_const(rec)) == page_get_supremum_rec(page));
 }
 
 /************************************************************//**
