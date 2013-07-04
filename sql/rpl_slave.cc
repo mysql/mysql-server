@@ -3416,7 +3416,13 @@ apply_event_and_update_pos(Log_event** ptr_ev, THD* thd, Relay_log_info* rli)
                                    curr_group_assigned_parts, i - 1);
           // reset the B-group and Gtid-group marker
           rli->curr_group_seen_begin= rli->curr_group_seen_gtid= false;
-          rli->last_assigned_worker= NULL;
+          if (rli->current_mts_submode->get_type() ==
+              MTS_PARALLEL_TYPE_DB_NAME ||
+              (rli->current_mts_submode->get_type() ==
+                MTS_PARALLEL_TYPE_LOGICAL_CLOCK &&
+             !static_cast<Mts_submode_logical_clock*>
+                (rli->current_mts_submode)->defer_new_group))
+            rli->last_assigned_worker= NULL;
         }
 
         bool append_item_to_jobs_error= false;

@@ -34,7 +34,6 @@ private:
   mysql_mutex_t state_LOCK;
   int64 state;
   int64 clock_step;
-  PSI_mutex_key key_state_lock;
 protected:
   virtual inline void init(){state= 0; clock_step= 1;}
 public:
