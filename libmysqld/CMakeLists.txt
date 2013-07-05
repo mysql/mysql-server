@@ -97,7 +97,7 @@ SET(LIBS
   dbug strings regex mysys mysys_ssl vio 
   ${ZLIB_LIBRARY} ${SSL_LIBRARIES} 
   ${LIBWRAP} ${LIBCRYPT} ${LIBDL}
-  ${MYSQLD_STATIC_PLUGIN_LIBS}
+  ${MYSQLD_STATIC_EMBEDDED_PLUGIN_LIBS}
   sql_embedded
 )
 
