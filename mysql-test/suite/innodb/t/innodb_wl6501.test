@@ -19,6 +19,7 @@
 # 2. Test that truncating reference table is blocked.
 # 3. Test truncate of loaded table that has blob + compression.
 # 4. Compressed table with small key-block-size.
+# 5. check truncate with lock/unlock
 #
 ################################################################################
 
@@ -273,6 +274,36 @@ select count(*) from t1;
 drop table t1;
 #
 drop procedure populate_t1;
+
+#-----------------------------------------------------------------------------
+--echo "5 check truncate with lock/unlock"
+use test;
+create table master
+        (i int, f float, c char(100),
+         primary key pk(i), index fidx(f))
+        engine = innodb;
+insert into master values
+        (1, 1.1, 'a'), (2, 2.2, 'b'), (3, 3.3, 'c'),
+        (4, 4.4, 'd'), (5, 5.5, 'e');
+select * from master;
+--echo "--In con1 connection--"
+connect (con1,localhost,root,,);
+use test;
+lock tables master write;
+--echo "--In default connection--"
+connection default;
+use test;
+--send truncate table master;
+--echo "--In con1 connection--"
+connection con1;
+select * from master;
+unlock tables;
+disconnect con1;
+--echo "--In default connection--"
+connection default;
+--reap
+select * from master;
+drop table master;
 
 #-----------------------------------------------------------------------------
 #
