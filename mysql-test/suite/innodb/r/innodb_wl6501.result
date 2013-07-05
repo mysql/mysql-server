@@ -957,5 +957,40 @@ count(*)
 200
 drop table t1;
 drop procedure populate_t1;
+"5 check truncate with lock/unlock"
+use test;
+create table master
+(i int, f float, c char(100),
+primary key pk(i), index fidx(f))
+engine = innodb;
+insert into master values
+(1, 1.1, 'a'), (2, 2.2, 'b'), (3, 3.3, 'c'),
+(4, 4.4, 'd'), (5, 5.5, 'e');
+select * from master;
+i	f	c
+1	1.1	a
+2	2.2	b
+3	3.3	c
+4	4.4	d
+5	5.5	e
+"--In con1 connection--"
+use test;
+lock tables master write;
+"--In default connection--"
+use test;
+truncate table master;;
+"--In con1 connection--"
+select * from master;
+i	f	c
+1	1.1	a
+2	2.2	b
+3	3.3	c
+4	4.4	d
+5	5.5	e
+unlock tables;
+"--In default connection--"
+select * from master;
+i	f	c
+drop table master;
 set global innodb_file_format = Antelope;
 set global innodb_file_per_table = 1;
