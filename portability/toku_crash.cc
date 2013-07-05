@@ -87,116 +87,119 @@ PATENT RIGHTS GRANT:
 
 #ident "Copyright (c) 2007-2013 Tokutek Inc.  All rights reserved."
 
-#ifndef PORTABILITY_TOKU_CRASH_H
-#define PORTABILITY_TOKU_CRASH_H
+#include <unistd.h>
+#include <sys/prctl.h>
 
-#include <stdio.h>
-#include <stdlib.h>
-#include <signal.h>
-#include "toku_assert.h"
+//#include <sys/types.h>
+#include <sys/wait.h>
+#include <toku_race_tools.h>
+#include "toku_crash.h"
+#include "toku_atomic.h"
 
-//Simulate as hard a crash as possible.
-//Choices:
-//  raise(SIGABRT)
-//  kill -SIGKILL $pid
-//  divide by 0
-//  null dereference
-//  abort()
-//  assert(false) (from <assert.h>)
-//  assert(false) (from <toku_assert.h>)
-//
-//Linux:
-//  abort() and both assert(false) cause FILE buffers to be flushed and written to disk: Unacceptable
-//Windows:
-//  None of them cause file buffers to be flushed/written to disk, however
-//  abort(), assert(false) <assert.h>, null dereference, and divide by 0 cause popups requiring user intervention during tests: Unacceptable
-//
-//kill -SIGKILL $pid is annoying (and so far untested)
-//
-//raise(SIGABRT) has the downside that perhaps it could be caught?
-//I'm choosing raise(SIGABRT), followed by divide by 0, followed by null dereference, followed by all the others just in case one gets caught.
-static void __attribute__((unused, noreturn))
-toku_hard_crash_on_purpose(void) {
-#if TOKU_WINDOWS
-    TerminateProcess(GetCurrentProcess(), 137);
-#else
-    raise(SIGKILL); //Does not flush buffers on linux; cannot be caught.
-#endif
-    {
-        int zero = 0;
-        int infinity = 1/zero;
-        fprintf(stderr, "Force use of %d\n", infinity);
-        fflush(stderr); //Make certain the string is calculated.
+enum { MAX_GDB_ARGS = 128 };
+
+static void
+run_gdb(pid_t parent_pid, const char *gdb_path) {
+    // 3 bytes per intbyte, null byte
+    char pid_buf[sizeof(pid_t) * 3 + 1];
+    char exe_buf[sizeof(pid_buf) + sizeof("/proc//exe")];
+
+    // Get pid and path to executable.
+    int n;
+    n = snprintf(pid_buf, sizeof(pid_buf), "%d", parent_pid);
+    paranoid_invariant(n >= 0 && n < (int)sizeof(pid_buf));
+    n = snprintf(exe_buf, sizeof(exe_buf), "/proc/%d/exe", parent_pid);
+    paranoid_invariant(n >= 0 && n < (int)sizeof(exe_buf));
+
+    dup2(2, 1); // redirect output to stderr
+    // Arguments are not dynamic due to possible security holes.
+    execlp(gdb_path, gdb_path, "--batch", "-n",
+           "-ex", "thread",
+           "-ex", "bt",
+           "-ex", "bt full",
+           "-ex", "thread apply all bt",
+           "-ex", "thread apply all bt full",
+           exe_buf, pid_buf,
+           NULL);
+}
+
+static void
+intermediate_process(pid_t parent_pid, const char *gdb_path) {
+    // Disable generating of core dumps
+    prctl(PR_SET_DUMPABLE, 0, 0, 0);
+    pid_t worker_pid = fork();
+    if (worker_pid < 0) {
+        perror("spawn gdb fork: ");
+        goto failure;
     }
-    {
-        void * intothevoid = NULL;
-        (*(int*)intothevoid)++;
-        fprintf(stderr, "Force use of *(%p) = %d\n", intothevoid, *(int*)intothevoid);
-        fflush(stderr);
+    if (worker_pid == 0) {
+        // Child (debugger)
+        run_gdb(parent_pid, gdb_path);
+        // Normally run_gdb will not return.
+        // In case it does, kill the process.
+        goto failure;
+    } else {
+        pid_t timeout_pid = fork();
+        if (timeout_pid < 0) {
+            perror("spawn timeout fork: ");
+            kill(worker_pid, SIGKILL);
+            goto failure;
+        }
+
+        if (timeout_pid == 0) {
+            sleep(5);  // Timeout of 5 seconds
+            goto success;
+        } else {
+            pid_t exited_pid = wait(NULL);  // Wait for first child to exit
+            if (exited_pid == worker_pid) {
+                // Kill slower child
+                kill(timeout_pid, SIGKILL);
+                goto success;
+            } else if (exited_pid == timeout_pid) {
+                // Kill slower child
+                kill(worker_pid, SIGKILL);
+                goto failure;  // Timed out.
+            } else {
+                perror("error while waiting for gdb or timer to end: ");
+                //Some failure.  Kill everything.
+                kill(timeout_pid, SIGKILL);
+                kill(worker_pid, SIGKILL);
+                goto failure;
+            }
+        }
     }
-    abort();
-    fprintf(stderr, "This line should never be printed\n");
+success:
+    _exit(EXIT_SUCCESS);
+failure:
+    _exit(EXIT_FAILURE);
+}
+
+static void
+spawn_gdb(const char *gdb_path) {
+    pid_t parent_pid = getpid();
+    // Give permission for this process and (more importantly) all its children to debug this process.
+    prctl(PR_SET_PTRACER, parent_pid, 0, 0, 0);
+    fprintf(stderr, "Attempting to use gdb @[%s] on pid[%d]\n", gdb_path, parent_pid);
     fflush(stderr);
+    int intermediate_pid = fork();
+    if (intermediate_pid < 0) {
+        perror("spawn_gdb intermediate process fork: ");
+    } else if (intermediate_pid == 0) {
+        intermediate_process(parent_pid, gdb_path);
+    } else {
+        waitpid(intermediate_pid, NULL, 0);
+    }
 }
 
-// Similar to toku_hard_crash_on_purpose, but the goal isn't to crash hard, the primary goal is to get a corefile, the secondary goal is to terminate in any way possible.
-// We don't really care if buffers get flushed etc, in fact they may as well flush since there may be useful output in stdout or stderr.
-//
-// By default, the following signals generate cores:
-//  Linux, from signal(7):
-//     SIGQUIT       3       Core
-//     SIGILL        4       Core
-//     SIGABRT       6       Core
-//     SIGFPE        8       Core
-//     SIGSEGV      11       Core
-//
-//  Darwin and FreeBSD, from signal(3):
-//     3     SIGQUIT      create core image
-//     4     SIGILL       create core image
-//     5     SIGTRAP      create core image
-//     6     SIGABRT      create core image
-//     7     SIGEMT       create core image
-//     8     SIGFPE       create core image
-//     10    SIGBUS       create core image
-//     11    SIGSEGV      create core image
-//     12    SIGSYS       create core image
-//
-// We'll raise these in some sequence (common ones first), then try emulating the things that would cause these signals to be raised, then eventually just try to die normally and then loop like abort does.
-// Start with a toku assert because that hopefully prints a stacktrace.
-static void __attribute__((unused, noreturn))
-toku_crash_and_dump_core_on_purpose(void) {
-    assert(false);
-    invariant(0);
-    raise(SIGQUIT);
-    raise(SIGILL);
-    raise(SIGABRT);
-    raise(SIGFPE);
-    raise(SIGSEGV);
-#if defined(__FreeBSD__) || defined(__APPLE__)
-    raise(SIGTRAP);
-    raise(SIGEMT);
-    raise(SIGBUS);
-    raise(SIGSYS);
-#endif
-    abort();
-    {
-        int zero = 0;
-        int infinity = 1/zero;
-        fprintf(stderr, "Force use of %d\n", infinity);
-        fflush(stderr); //Make certain the string is calculated.
-    }
-    {
-        void * intothevoid = NULL;
-        (*(int*)intothevoid)++;
-        fprintf(stderr, "Force use of *(%p) = %d\n", intothevoid, *(int*)intothevoid);
+void
+toku_try_gdb_stack_trace(const char *gdb_path) {
+    char default_gdb_path[] = "/usr/bin/gdb";
+    static bool started = false;
+    if (RUNNING_ON_VALGRIND) {
+        fprintf(stderr, "gdb stack trace skipped due to running under valgrind\n");
         fflush(stderr);
-    }
-    raise(SIGKILL);
-    while (true) {
-        // don't return
+    } else if (toku_sync_bool_compare_and_swap(&started, false, true)) {
+        spawn_gdb(gdb_path ? gdb_path : default_gdb_path);
     }
 }
 
-void toku_try_gdb_stack_trace(const char *gdb_path);
-
-#endif // PORTABILITY_TOKU_CRASH_H

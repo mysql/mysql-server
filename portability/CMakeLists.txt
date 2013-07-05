@@ -7,6 +7,7 @@ set(tokuportability_srcs
   os_malloc
   portability
   toku_assert
+  toku_crash
   toku_fair_rwlock
   toku_path
   toku_pthread

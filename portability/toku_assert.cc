@@ -134,6 +134,7 @@ void toku_assert_set_fpointers(int (*toku_maybe_get_engine_status_text_pointer)(
     engine_status_num_rows = num_rows;
 }
 
+bool toku_gdb_dump_on_assert = false;
 void (*do_assert_hook)(void) = NULL;
 
 static void toku_do_backtrace_abort(void) __attribute__((noreturn));
@@ -164,7 +165,11 @@ toku_do_backtrace_abort(void) {
         malloc_stats_f();
     }
     fflush(stderr);	    
-    
+
+    if (do_assert_hook) do_assert_hook();
+    if (toku_gdb_dump_on_assert) {
+        toku_try_gdb_stack_trace(nullptr);
+    }
 
 #if TOKU_WINDOWS
     //Following commented methods will not always end the process (could hang).
@@ -181,8 +186,6 @@ toku_do_backtrace_abort(void) {
     TerminateProcess(GetCurrentProcess(), 134); //Only way found so far to unconditionally
     //Terminate the process
 #endif
-
-    if (do_assert_hook) do_assert_hook();
 
     abort();
 }

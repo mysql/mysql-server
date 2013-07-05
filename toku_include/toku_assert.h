@@ -191,5 +191,6 @@ get_error_errno(void)
     return errno;
 }
 
+extern bool toku_gdb_dump_on_assert;
 
 #endif
