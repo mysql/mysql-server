@@ -13,7 +13,7 @@ SELECT @@global.innodb_buffer_pool_dump_pct;
 100
 # take the dump file
 SET GLOBAL innodb_buffer_pool_dump_now=ON;
-# wait until the system table got updated
+# wait until the system table get updated & dump get created
 # check the dump file exist in the DATADIR
 # move a copy of dump file
 # set the value 50
@@ -24,7 +24,7 @@ SELECT @@global.innodb_buffer_pool_dump_pct;
 50
 # take the dump file
 SET GLOBAL innodb_buffer_pool_dump_now=ON;
-# wait until the system table got updated
+# wait until the system table get updated & dump get created
 #check the dump file exist in the DATADIR
 # move a copy of dump file
 # cleanup
