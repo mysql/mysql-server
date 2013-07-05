@@ -1950,7 +1950,7 @@ fil_write_flushed_lsn_to_data_files(
 }
 
 /*******************************************************************//**
-Checks the consistency of the first data page of a data file
+Checks the consistency of the first data page of a tablespace
 at database startup.
 @retval NULL on success, or if innodb_force_recovery is set
 @return pointer to an error message string */
@@ -1958,9 +1958,7 @@ static __attribute__((warn_unused_result))
 const char*
 fil_check_first_page(
 /*=================*/
-	const page_t*	page,		/*!< in: data page */
-	ibool		first_page)	/*!< in: TRUE if this is the
-					first page of the tablespace */
+	const page_t*	page)		/*!< in: data page */
 {
 	ulint	space_id;
 	ulint	flags;
@@ -1972,11 +1970,11 @@ fil_check_first_page(
 	space_id = mach_read_from_4(FSP_HEADER_OFFSET + FSP_SPACE_ID + page);
 	flags = mach_read_from_4(FSP_HEADER_OFFSET + FSP_SPACE_FLAGS + page);
 
-	if (first_page && UNIV_PAGE_SIZE != fsp_flags_get_page_size(flags)) {
+	if (UNIV_PAGE_SIZE != fsp_flags_get_page_size(flags)) {
 		return("innodb-page-size mismatch");
 	}
 
-	if (first_page && !space_id && !flags) {
+	if (!space_id && !flags) {
 		ulint		nonzero_bytes	= UNIV_PAGE_SIZE;
 		const byte*	b		= page;
 
@@ -1994,9 +1992,8 @@ fil_check_first_page(
 		return("checksum mismatch");
 	}
 
-	if (!first_page
-	    || (page_get_space_id(page) == space_id
-		&& page_get_page_no(page) == 0)) {
+	if (page_get_space_id(page) == space_id
+	    && page_get_page_no(page) == 0) {
 		return(NULL);
 	}
 
@@ -2032,7 +2029,7 @@ fil_read_first_page(
 	byte*		buf;
 	byte*		page;
 	lsn_t		flushed_lsn;
-	const char*	check_msg;
+	const char*	check_msg = NULL;
 
 	buf = static_cast<byte*>(ut_malloc(2 * UNIV_PAGE_SIZE));
 
@@ -2048,7 +2045,9 @@ fil_read_first_page(
 
 	flushed_lsn = mach_read_from_8(page + FIL_PAGE_FILE_FLUSH_LSN);
 
-	check_msg = fil_check_first_page(page, !one_read_already);
+	if (!one_read_already) {
+		check_msg = fil_check_first_page(page);
+	}
 
 	ut_free(buf);
 
