@@ -118,6 +118,7 @@ Slave_reporting_capability::report(loglevel level, int err_code,
 
 void
 Slave_reporting_capability::va_report(loglevel level, int err_code,
+                                      const char *prefix_msg,
                                       const char *msg, va_list args) const
 {
 #if !defined(EMBEDDED_LIBRARY)
@@ -125,6 +126,7 @@ Slave_reporting_capability::va_report(loglevel level, int err_code,
   void (*report_function)(const char *, ...);
   char buff[MAX_SLAVE_ERRMSG];
   char *pbuff= buff;
+  char *curr_buff;
   uint pbuffsize= sizeof(buff);
 
   if (thd && level == ERROR_LEVEL && has_temporary_error(thd, err_code) &&
@@ -157,8 +159,10 @@ Slave_reporting_capability::va_report(loglevel level, int err_code,
     DBUG_ASSERT(0);                            // should not come here
     return;          // don't crash production builds, just do nothing
   }
-
-  my_vsnprintf(pbuff, pbuffsize, msg, args);
+  curr_buff= pbuff;
+  if (prefix_msg)
+    curr_buff += sprintf(curr_buff, "%s; ", prefix_msg);
+  my_vsnprintf(curr_buff, pbuffsize, msg, args);
 
   mysql_mutex_unlock(&err_lock);
 
@@ -166,7 +170,7 @@ Slave_reporting_capability::va_report(loglevel level, int err_code,
   if (report_function)
     report_function("Slave %s: %s%s Error_code: %d",
                     m_thread_name, pbuff,
-                    (pbuff[0] && *(strend(pbuff)-1) == '.') ? "" : ",",
+                    (curr_buff[0] && *(strend(curr_buff)-1) == '.') ? "" : ",",
                     err_code);
 #endif  
 }
