@@ -37,7 +37,7 @@
 
 
   CREATE TABLE t1 ( f1 int(11) DEFAULT NULL ) ;
-  let $point=   before_reset_query_plan;let $query=  SELECT 1 FROM ( SELECT 1, 2 FROM DUAL WHERE EXISTS  ( SELECT f1 FROM t1 )) AS tt ;
+  let $point=   after_join_optimize;let $query=  SELECT 1 FROM ( SELECT 1, 2 FROM DUAL WHERE EXISTS  ( SELECT f1 FROM t1 )) AS tt ;
   --source include/explain_for_connection.inc
   DROP TABLE t1 ;
   
@@ -101,7 +101,7 @@
   CREATE TABLE t4 ( pk int(11) NOT NULL, c1_key varchar(10) CHARACTER SET utf8 NOT NULL, c2 varchar(10) NOT NULL, c3 varchar(10) NOT NULL, PRIMARY KEY (pk), KEY k1 (c1_key) ) ;
   CREATE TABLE t5 ( pk INTEGER NOT NULL, c1 VARCHAR(10) NOT NULL, PRIMARY KEY (pk) ) ;
   INSERT INTO t5 SELECT a, 'MySQL' FROM ten ;
-  let $point=   before_reset_query_plan;let $query=  SELECT STRAIGHT_JOIN * FROM (t1 LEFT JOIN  (t2 LEFT JOIN (t3 LEFT OUTER JOIN t4 ON t3.c1 <= t4.c1_key) ON t2.c1 = t4.c3)  ON t1.c1 = t4.c2) RIGHT OUTER JOIN t5 ON t2.c2 <= t5.c1 WHERE t1.i1 = 1 ;
+  let $point=   after_join_optimize;let $query=  SELECT STRAIGHT_JOIN * FROM (t1 LEFT JOIN  (t2 LEFT JOIN (t3 LEFT OUTER JOIN t4 ON t3.c1 <= t4.c1_key) ON t2.c1 = t4.c3)  ON t1.c1 = t4.c2) RIGHT OUTER JOIN t5 ON t2.c2 <= t5.c1 WHERE t1.i1 = 1 ;
   --source include/explain_for_connection.inc
   DROP TABLE ten, t1, t2, t3, t4, t5 ;
 
@@ -344,11 +344,11 @@
   CREATE TABLE t1 ( pk int(11) NOT NULL AUTO_INCREMENT, col_int_key int(11) NOT NULL, col_varchar_key varchar(1) NOT NULL, col_varchar_nokey varchar(1) NOT NULL, PRIMARY KEY (pk), KEY col_int_key (col_int_key), KEY col_varchar_key (col_varchar_key,col_int_key) ) ;
   INSERT INTO t1 VALUES (1,0,'j','j'),(2,8,'v','v'), (3,1,'c','c'),(4,8,'m','m'),(5,9,'d','d') ;
   CREATE VIEW v1 AS SELECT * FROM t1 ;
-  let $point=   before_reset_query_plan;let $query=  SELECT alias2.col_varchar_nokey FROM v1 AS alias1 RIGHT JOIN t1 AS alias2 ON 1 WHERE alias2.col_varchar_key IN ( SELECT sq2_alias1.col_varchar_nokey FROM v1 AS sq2_alias1 LEFT JOIN t1 AS sq2_alias2 ON (sq2_alias2.col_int_key = sq2_alias1.pk) WHERE sq2_alias1.pk != alias1.col_int_key AND sq2_alias1.col_varchar_key > alias1.col_varchar_key ) ;
+  let $point=   after_join_optimize;let $query=  SELECT alias2.col_varchar_nokey FROM v1 AS alias1 RIGHT JOIN t1 AS alias2 ON 1 WHERE alias2.col_varchar_key IN ( SELECT sq2_alias1.col_varchar_nokey FROM v1 AS sq2_alias1 LEFT JOIN t1 AS sq2_alias2 ON (sq2_alias2.col_int_key = sq2_alias1.pk) WHERE sq2_alias1.pk != alias1.col_int_key AND sq2_alias1.col_varchar_key > alias1.col_varchar_key ) ;
   --source include/explain_for_connection.inc
   DROP VIEW if exists v2;
   CREATE VIEW v2 AS SELECT alias2.col_varchar_nokey FROM v1 AS alias1 RIGHT JOIN t1 AS alias2 ON 1 WHERE alias2.col_varchar_key IN ( SELECT sq2_alias1.col_varchar_nokey FROM v1 AS sq2_alias1 LEFT JOIN t1 AS sq2_alias2 ON (sq2_alias2.col_int_key = sq2_alias1.pk) WHERE sq2_alias1.pk != alias1.col_int_key AND sq2_alias1.col_varchar_key > alias1.col_varchar_key ) ;
-  let $point=   before_reset_query_plan;let $query=  SELECT alias2.col_varchar_nokey FROM t1 AS alias2 LEFT JOIN v1 AS alias1 ON 1 WHERE alias2.col_varchar_key IN ( SELECT sq2_alias1.col_varchar_nokey FROM v1 AS sq2_alias1 LEFT JOIN t1 AS sq2_alias2 ON (sq2_alias2.col_int_key = sq2_alias1.pk) WHERE sq2_alias1.pk != alias1.col_int_key AND sq2_alias1.col_varchar_key > alias1.col_varchar_key ) ;
+  let $point=   after_join_optimize;let $query=  SELECT alias2.col_varchar_nokey FROM t1 AS alias2 LEFT JOIN v1 AS alias1 ON 1 WHERE alias2.col_varchar_key IN ( SELECT sq2_alias1.col_varchar_nokey FROM v1 AS sq2_alias1 LEFT JOIN t1 AS sq2_alias2 ON (sq2_alias2.col_int_key = sq2_alias1.pk) WHERE sq2_alias1.pk != alias1.col_int_key AND sq2_alias1.col_varchar_key > alias1.col_varchar_key ) ;
   --source include/explain_for_connection.inc
   DROP TABLE t1 ;
   DROP VIEW if exists v1,v2;
