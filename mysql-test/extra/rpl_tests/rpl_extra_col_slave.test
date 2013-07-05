@@ -94,8 +94,7 @@ INSERT INTO t2 () VALUES(1,2,'Kyle, TEX'),(2,1,'JOE AUSTIN'),(3,4,'QA TESTING');
 SELECT * FROM t2 ORDER BY a;
 
 connection slave;
---let $slave_sql_errno= 1677
---let $show_slave_sql_error= 1
+--let $slave_sql_errno= convert_error(ER_SLAVE_CONVERSION_FAILED)
 --source include/wait_for_slave_sql_error.inc
 STOP SLAVE;
 
@@ -140,13 +139,12 @@ set @b1 = concat(@b1,@b1);
 
 INSERT INTO t3 () VALUES(@b1,2,'Kyle, TEX'),(@b1,1,'JOE AUSTIN'),(@b1,4,'QA TESTING');
 
---echo ********************************************
---echo *** Expect slave to fail with Error 1677 ***
---echo ********************************************
+--echo ******************************************************************
+--echo *** Expect slave to fail with Error ER_SLAVE_CONVERSION_FAILED ***
+--echo ******************************************************************
 connection slave;
---let $slave_sql_errno= 1677
 --let $slave_skip_counter= 2
---let $show_slave_sql_error= 1
+--let $slave_sql_errno= convert_error(ER_SLAVE_CONVERSION_FAILED)
 --source include/wait_for_slave_sql_error_and_skip.inc
 
 --echo *** Drop t3  ***
@@ -183,14 +181,14 @@ connection master;
 INSERT INTO t4 () VALUES(100.22,2,'Kyle, TEX'),(200.26,1,'JOE AUSTIN'),
                         (30000.22,4,'QA TESTING');
 
---echo ********************************************
---echo *** Expect slave to fail with Error 1677 ***
---echo ********************************************
+--echo ******************************************************************
+--echo *** Expect slave to fail with Error ER_SLAVE_CONVERSION_FAILED ***
+--echo ******************************************************************
 connection slave;
---let $slave_sql_errno= 1677
 --let $slave_skip_counter= 2
---let $show_slave_sql_error= 1
+--let $slave_sql_errno= convert_error(ER_SLAVE_CONVERSION_FAILED)
 --source include/wait_for_slave_sql_error_and_skip.inc
+
 
 --echo *** Drop t4  ***
 connection master;
@@ -226,14 +224,14 @@ connection master;
 INSERT INTO t5 () VALUES(1,'Kyle',200.23,1,'b1b1',23.00098),
                         (2,'JOE',300.01,0,'b2b2',1.0000009);
 
---echo ********************************************
---echo *** Expect slave to fail with Error 1677 ***
---echo ********************************************
+--echo ******************************************************************
+--echo *** Expect slave to fail with Error ER_SLAVE_CONVERSION_FAILED ***
+--echo ******************************************************************
 connection slave;
---let $slave_sql_errno= 1677
 --let $slave_skip_counter= 2
---let $show_slave_sql_error= 1
+--let $slave_sql_errno= convert_error(ER_SLAVE_CONVERSION_FAILED)
 --source include/wait_for_slave_sql_error_and_skip.inc
+
 
 --echo *** Drop t5  ***
 connection master;
@@ -270,13 +268,13 @@ connection master;
 INSERT INTO t6 () VALUES(1,'Kyle',200.23,1),
                         (2,'JOE',300.01,0);
 
---echo ********************************************
---echo *** Expect slave to fail with Error 1677 ***
---echo ********************************************
+--echo ******************************************************************
+--echo *** Expect slave to fail with Error ER_SLAVE_CONVERSION_FAILED ***
+--echo ******************************************************************
 connection slave;
---let $slave_sql_errno= 1677
---let $show_slave_sql_error= 1
---source include/wait_for_slave_sql_error.inc
+--let $slave_sql_errno= convert_error(ER_SLAVE_CONVERSION_FAILED)
+--source include/wait_for_slave_sql_error_and_skip.inc
+
 
 --echo *** Drop t6  ***
 --let $rpl_only_running_threads= 1
@@ -474,14 +472,14 @@ set @b1 = 'b1b1b1b1';
 set @b1 = concat(@b1,@b1);
 INSERT INTO t10 () VALUES(1,@b1,'Kyle'),(2,@b1,'JOE'),(3,@b1,'QA');
 
---echo ********************************************
---echo *** Expect slave to fail with Error 1677 ***
---echo ********************************************
+--echo ******************************************************************
+--echo *** Expect slave to fail with Error ER_SLAVE_CONVERSION_FAILED ***
+--echo ******************************************************************
 connection slave;
---let $slave_sql_errno= 1677
 --let $slave_skip_counter= 2
---let $show_slave_sql_error= 1
+--let $slave_sql_errno= convert_error(ER_SLAVE_CONVERSION_FAILED)
 --source include/wait_for_slave_sql_error_and_skip.inc
+
 
 --echo *** Drop t10  ***
 connection master;
@@ -516,14 +514,14 @@ set @b1 = 'b1b1b1b1';
 set @b1 = concat(@b1,@b1);
 INSERT INTO t11 () VALUES(1,@b1,'Kyle'),(2,@b1,'JOE'),(3,@b1,'QA');
 
---echo ********************************************
---echo *** Expect slave to fail with Error 1677 ***
---echo ********************************************
+--echo ******************************************************************
+--echo *** Expect slave to fail with Error ER_SLAVE_CONVERSION_FAILED ***
+--echo ******************************************************************
 connection slave;
---let $slave_sql_errno= 1677
 --let $slave_skip_counter= 2
---let $show_slave_sql_error= 1
+--let $slave_sql_errno= convert_error(ER_SLAVE_CONVERSION_FAILED)
 --source include/wait_for_slave_sql_error_and_skip.inc
+
 
 --echo *** Drop t11  ***
 connection master;
@@ -794,14 +792,14 @@ SELECT * FROM t15 ORDER BY c1;
 connection master;
 ALTER TABLE t15 ADD COLUMN c6 INT AFTER c5;
 
---echo ********************************************
---echo *** Expect slave to fail with Error 1060 ***
---echo ********************************************
+--echo ********************************************************
+--echo *** Expect slave to fail with Error ER_DUP_FIELDNAME ***
+--echo ********************************************************
 connection slave;
---let $slave_sql_errno= 1060
 --let $slave_skip_counter= 1
---let $show_slave_sql_error= 1
+--let $slave_sql_errno= convert_error(ER_DUP_FIELDNAME) # 1060
 --source include/wait_for_slave_sql_error_and_skip.inc
+
 
 --echo *** Try to insert in master ****
 connection master;
@@ -903,13 +901,12 @@ connection master;
 
 INSERT INTO t17 () VALUES(9223372036854775807,2,'Kyle, TEX');
 
---echo ********************************************
---echo *** Expect slave to fail with Error 1677 ***
---echo ********************************************
+--echo ******************************************************************
+--echo *** Expect slave to fail with Error ER_SLAVE_CONVERSION_FAILED ***
+--echo ******************************************************************
 connection slave;
---let $slave_sql_errno= 1677
 --let $slave_skip_counter= 2
---let $show_slave_sql_error= 1
+--let $slave_sql_errno= convert_error(ER_SLAVE_CONVERSION_FAILED)
 --source include/wait_for_slave_sql_error_and_skip.inc
 
 --echo ** DROP table t17 ***

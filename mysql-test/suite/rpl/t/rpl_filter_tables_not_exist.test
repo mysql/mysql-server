@@ -127,12 +127,7 @@ call mtr.add_suppression("Slave SQL.*Error .Table .test.t[47]. doesn.t exist. on
 call mtr.add_suppression("The slave coordinator and worker threads are stopped, possibly leaving data in inconsistent state");
 connection master;
 
-# Parameters for include/wait_for_slave_sql_error_and_skip.inc:
-# Ask it to show SQL error message.
-let $show_slave_sql_error= 1;
-# The expected error will always be 1146 (ER_NO_SUCH_TABLE).
-let $slave_sql_errno= 1146;
-
+--let $slave_sql_errno= convert_error(ER_NO_SUCH_TABLE) # 1146
 #
 # Only do tables are referenced for update, these statements should
 # cause error on slave
