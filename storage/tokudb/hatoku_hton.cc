@@ -316,6 +316,7 @@ static void tokudb_cleanup_log_files(void);
 static int tokudb_end(handlerton * hton, ha_panic_function type);
 static bool tokudb_flush_logs(handlerton * hton);
 static bool tokudb_show_status(handlerton * hton, THD * thd, stat_print_fn * print, enum ha_stat_type);
+static void tokudb_handle_fatal_signal(handlerton *hton, THD *thd, int sig);
 static int tokudb_close_connection(handlerton * hton, THD * thd);
 static int tokudb_commit(handlerton * hton, THD * thd, bool all);
 static int tokudb_rollback(handlerton * hton, THD * thd, bool all);
@@ -341,6 +342,9 @@ DB* metadata_db;
 HASH tokudb_open_tables;
 pthread_mutex_t tokudb_mutex;
 pthread_mutex_t tokudb_meta_mutex;
+
+static my_bool tokudb_gdb_on_fatal;
+static char *tokudb_gdb_path;
 
 static PARTITIONED_COUNTER tokudb_primary_key_bytes_inserted;
 void toku_hton_update_primary_key_bytes_inserted(uint64_t row_size) {
@@ -493,6 +497,7 @@ static int tokudb_init_func(void *p) {
     tokudb_hton->panic = tokudb_end;
     tokudb_hton->flush_logs = tokudb_flush_logs;
     tokudb_hton->show_status = tokudb_show_status;
+    tokudb_hton->handle_fatal_signal = tokudb_handle_fatal_signal;
     if (!tokudb_home)
         tokudb_home = mysql_real_data_home;
     DBUG_PRINT("info", ("tokudb_home: %s", tokudb_home));
@@ -1855,6 +1860,14 @@ static bool tokudb_show_status(handlerton * hton, THD * thd, stat_print_fn * sta
     return false;
 }
 
+static void tokudb_handle_fatal_signal(handlerton *hton __attribute__ ((__unused__)),
+                                       THD *thd __attribute__ ((__unused__)),
+                                       int sig) {
+    if (tokudb_gdb_on_fatal) {
+        db_env_try_gdb_stack_trace(tokudb_gdb_path);
+    }
+}
+
 static void tokudb_print_error(const DB_ENV * db_env, const char *db_errpfx, const char *buffer) {
     sql_print_error("%s:  %s", db_errpfx, buffer);
 }
@@ -1985,6 +1998,10 @@ static MYSQL_SYSVAR_UINT(read_status_frequency, tokudb_read_status_frequency, 0,
 static MYSQL_SYSVAR_INT(fs_reserve_percent, tokudb_fs_reserve_percent, PLUGIN_VAR_READONLY, "TokuDB file system space reserve (percent free required)", NULL, NULL, 5, 0, 100, 0);
 static MYSQL_SYSVAR_STR(tmp_dir, tokudb_tmp_dir, PLUGIN_VAR_READONLY, "Tokudb Tmp Dir", NULL, NULL, NULL);
 
+static MYSQL_SYSVAR_STR(gdb_path, tokudb_gdb_path, PLUGIN_VAR_READONLY|PLUGIN_VAR_RQCMDARG, "TokuDB path to gdb for extra debug info on fatal signal", NULL, NULL, "/usr/bin/gdb");
+
+static MYSQL_SYSVAR_BOOL(gdb_on_fatal, tokudb_gdb_on_fatal, 0, "TokuDB enable gdb debug info on fatal signal", NULL, NULL, true);
+
 static void tokudb_fsync_log_period_update(THD *thd, struct st_mysql_sys_var *sys_var, void *var, const void *save) {
     uint32 *period = (uint32 *) var;
     *period = *(const ulonglong *) save;
@@ -2031,6 +2048,8 @@ static struct st_mysql_sys_var *tokudb_system_variables[] = {
 #endif
     MYSQL_SYSVAR(analyze_time),
     MYSQL_SYSVAR(fsync_log_period),
+    MYSQL_SYSVAR(gdb_path),
+    MYSQL_SYSVAR(gdb_on_fatal),
     NULL
 };
 
