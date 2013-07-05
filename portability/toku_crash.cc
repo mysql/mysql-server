@@ -177,8 +177,11 @@ failure:
 static void
 spawn_gdb(const char *gdb_path) {
     pid_t parent_pid = getpid();
-    // Give permission for this process and (more importantly) all its children to debug this process.
+#if defined(PR_SET_PTRACER)
+    // On systems that require permission for the same user to ptrace,
+    // give permission for this process and (more importantly) all its children to debug this process.
     prctl(PR_SET_PTRACER, parent_pid, 0, 0, 0);
+#endif
     fprintf(stderr, "Attempting to use gdb @[%s] on pid[%d]\n", gdb_path, parent_pid);
     fflush(stderr);
     int intermediate_pid = fork();
