@@ -107,9 +107,9 @@ run_gdb(pid_t parent_pid, const char *gdb_path) {
     // Get pid and path to executable.
     int n;
     n = snprintf(pid_buf, sizeof(pid_buf), "%d", parent_pid);
-    paranoid_invariant(n >= 0 && n < (int)sizeof(pid_buf));
+    invariant(n >= 0 && n < (int)sizeof(pid_buf));
     n = snprintf(exe_buf, sizeof(exe_buf), "/proc/%d/exe", parent_pid);
-    paranoid_invariant(n >= 0 && n < (int)sizeof(exe_buf));
+    invariant(n >= 0 && n < (int)sizeof(exe_buf));
 
     dup2(2, 1); // redirect output to stderr
     // Arguments are not dynamic due to possible security holes.
@@ -177,7 +177,7 @@ failure:
 static void
 spawn_gdb(const char *gdb_path) {
     pid_t parent_pid = getpid();
-#if defined(PR_SET_PTRACER)
+#if defined(HAVE_PR_SET_PTRACER)
     // On systems that require permission for the same user to ptrace,
     // give permission for this process and (more importantly) all its children to debug this process.
     prctl(PR_SET_PTRACER, parent_pid, 0, 0, 0);
