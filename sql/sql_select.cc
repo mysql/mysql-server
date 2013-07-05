@@ -18941,6 +18941,9 @@ create_sort_index(THD *thd, JOIN *join, ORDER *order,
                                              MYF(MY_WME | MY_ZEROFILL));
   table->status=0;				// May be wrong if quick_select
 
+  if (!tab->preread_init_done && tab->preread_init())
+    goto err;
+
   // If table has a range, move it to select
   if (select && !select->quick && tab->ref.key >= 0)
   {
@@ -18977,8 +18980,6 @@ create_sort_index(THD *thd, JOIN *join, ORDER *order,
       get_schema_tables_result(join, PROCESSED_BY_CREATE_SORT_INDEX))
     goto err;
 
-  if (!tab->preread_init_done && tab->preread_init())
-    goto err;
   if (table->s->tmp_table)
     table->file->info(HA_STATUS_VARIABLE);	// Get record count
   table->sort.found_records=filesort(thd, table,join->sortorder, length,

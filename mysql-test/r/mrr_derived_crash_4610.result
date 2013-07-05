@@ -1,0 +1,19 @@
+create table t1 (f1 char(4) primary key) engine=innodb charset=utf8 ;
+insert into t1 values ('aaaa');
+create table t2 (f2 text, f3 char(4) not null) engine=innodb charset=utf8 ;
+create table t3 (id int not null) engine=innodb charset=utf8 ;
+create table t4 (val int not null) engine=innodb charset=utf8;
+explain select 1 from
+(select f2, f3, val, count(id) from t4 join t2 left join t3 on 0) top
+join t1 on f1 = f3 where f3 = 'aaaa' order by val;
+id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
+1	PRIMARY	t1	const	PRIMARY	PRIMARY	12	const	1	Using index; Using filesort
+1	PRIMARY	<derived2>	ref	key0	key0	13	const	0	Using where
+2	DERIVED	t4	ALL	NULL	NULL	NULL	NULL	1	
+2	DERIVED	t2	ALL	NULL	NULL	NULL	NULL	1	Using join buffer (flat, BNL join)
+2	DERIVED	t3	ALL	NULL	NULL	NULL	NULL	1	Using where; Using join buffer (incremental, BNL join)
+select 1 from
+(select f2, f3, val, count(id) from t4 join t2 left join t3 on 0) top
+join t1 on f1 = f3 where f3 = 'aaaa' order by val;
+1
+drop table t1, t2, t3, t4;
