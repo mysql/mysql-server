@@ -144,6 +144,12 @@ MACRO(MYSQL_ADD_PLUGIN)
     SET (MYSQLD_STATIC_PLUGIN_LIBS ${MYSQLD_STATIC_PLUGIN_LIBS} 
       ${target} ${ARG_LINK_LIBRARIES} CACHE INTERNAL "" FORCE)
 
+    # Update mysqld dependencies (embedded)
+    IF(NOT ARG_NOT_FOR_EMBEDDED)
+      SET (MYSQLD_STATIC_EMBEDDED_PLUGIN_LIBS ${MYSQLD_STATIC_EMBEDDED_PLUGIN_LIBS} 
+        ${target} ${ARG_LINK_LIBRARIES} CACHE INTERNAL "" FORCE)
+    ENDIF()
+
     IF(ARG_MANDATORY)
       SET(${with_var} ON CACHE INTERNAL "Link ${plugin} statically to the server" 
        FORCE)
