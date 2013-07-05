@@ -226,3 +226,7 @@ db_env_set_num_bucket_mutexes(uint32_t num_mutexes) {
     toku_pair_list_set_lock_size(num_mutexes);
 }
 
+void db_env_try_gdb_stack_trace(const char *gdb_path) {
+    toku_try_gdb_stack_trace(gdb_path);
+}
+

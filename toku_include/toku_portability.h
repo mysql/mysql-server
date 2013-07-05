@@ -224,6 +224,7 @@ typedef int64_t toku_off_t;
 #include "toku_os.h"
 #include "toku_htod.h"
 #include "toku_assert.h"
+#include "toku_crash.h"
 
 #define UU(x) x __attribute__((__unused__))
 

@@ -29,6 +29,7 @@
    db_env_set_flusher_thread_callback;
    db_env_set_num_bucket_mutexes;
    db_env_set_toku_product_name;
+   db_env_try_gdb_stack_trace;
 
    read_partitioned_counter;
 
