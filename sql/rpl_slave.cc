@@ -3432,13 +3432,18 @@ apply_event_and_update_pos(Log_event** ptr_ev, THD* thd, Relay_log_info* rli)
           rli->curr_group_seen_begin= rli->curr_group_seen_gtid= false;
           rli->last_assigned_worker= NULL;
         }
+        /* 
+           Stroring GAQ index of the group that the event belongs to
+           in the event. Deferred events are handled similarly below.
+        */
+        ev->mts_group_idx= rli->gaq->assigned_group_index;
 
         bool append_item_to_jobs_error= false;
         if (rli->curr_group_da.elements > 0)
         {
           /*
-            the current event sorted out which partion the current group belongs to.
-            It's time now to processed deferred array events.
+            the current event sorted out which partion the current group
+            belongs to. It's time now to processed deferred array events.
           */
           for (uint i= 0; i < rli->curr_group_da.elements; i++)
           { 
@@ -3446,6 +3451,8 @@ apply_event_and_update_pos(Log_event** ptr_ev, THD* thd, Relay_log_info* rli)
             get_dynamic(&rli->curr_group_da, (uchar*) &da_item.data, i);
             DBUG_PRINT("mts", ("Assigning job %llu to worker %lu",
                       ((Log_event* )da_item.data)->log_pos, w->id));
+            static_cast<Log_event*>(da_item.data)->mts_group_idx=
+              rli->gaq->assigned_group_index; // similarly to above
             if (!append_item_to_jobs_error)
               append_item_to_jobs_error= append_item_to_jobs(&da_item, w, rli);
             if (append_item_to_jobs_error)
