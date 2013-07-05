@@ -25,6 +25,7 @@ import logging
 import os.path
 import tempfile
 import contextlib
+import posixpath
 
 import clusterhost
 from clusterhost import ABClusterHost
@@ -118,10 +119,17 @@ class RemoteClusterHost(ABClusterHost):
         self.sftp.chmod(hi, stat.S_IRWXU)
         return self.exec_cmdv([self.path_module.join('.', hi)] + cmdv[1:-1])
 
+    def _sftpify(self, path):
+        """Since sftp treats all path names as relative to its root we must 
+        convert absolute paths before using them with sftp. As quick-fix we 
+        assume that the sftp root is equal to the drive letter of all absolute 
+        paths used. If it isn't the sftp operations will fail."""
+        return self.path_module.splitdrive(path)[1]
+
     def open(self, filename, mode='r'):
         """Forward to paramiko.SFTPClient.open for remote hosts. 
         Wrap in contextlib.closing so that clients can use with-statements on it."""
-        return contextlib.closing(self.sftp.open(filename, mode))
+        return contextlib.closing(self.sftp.open(self._sftpify(filename), mode))
         
     def drop(self, paths=[]):
         """Close open connections and remove files.
@@ -139,7 +147,7 @@ class RemoteClusterHost(ABClusterHost):
         path - file to check the existence of
         """
         try:
-            return self.sftp.stat(path)
+            return self.sftp.stat(self._sftpify(path))
         except IOError as ioerr:
             if ioerr.errno == errno.ENOENT:
                 return None
@@ -153,7 +161,7 @@ class RemoteClusterHost(ABClusterHost):
         correctly.
         path - directory to list
         """
-        content = self.sftp.listdir(path)
+        content = self.sftp.listdir(self._sftpify(path))
         if len(content) == 0:
             m = stat.S_IMODE(self.sftp.stat(path).st_mode)
             for role in ['USR', 'GRP', 'OTH']:
@@ -171,6 +179,7 @@ class RemoteClusterHost(ABClusterHost):
         path - directory to create on remote host
         """
         _logger.debug('mkdir_p('+path+')')
+        path = self._sftpify(path)
         pa = self.file_exists(path)
         if pa != None:
             #print str(pa)+" "+str(pa.st_mode)
@@ -196,9 +205,10 @@ class RemoteClusterHost(ABClusterHost):
         directories are removed recursively.
         path - file or directory to remove
         """
+        path = self._sftpify(path)
         if util.is_dir(self.sftp.stat(path)):
             for f in self.sftp.listdir(path):
-                self.rm_r(self.path_module.join(path,f))
+                self.rm_r(self.posixpath.join(path,f))
             self.sftp.rmdir(path)
         else:
             self.sftp.remove(path)

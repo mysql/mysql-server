@@ -361,10 +361,10 @@ class ABClusterHost(object):
         executable - basename of executable to auto-complete
         """
         for l in locations:
-            choice = self.path_module.join(basedir,l,executable)
+            choice = posixpath.join(basedir,l,executable)
             if self.file_exists(choice):
                 return choice
-        raise Exception('Cannot locate '+executable+' in '+self.path_module.join(basedir, str(locations))+' on host '+self.host)
+        raise Exception('Cannot locate '+executable+' in '+posixpath.join(basedir, str(locations))+' on host '+self.host)
    
     @abc.abstractmethod
     def exec_cmdv(self, cmdln, procCtrl, stdinFile):

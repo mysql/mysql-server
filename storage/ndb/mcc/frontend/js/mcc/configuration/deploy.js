@@ -943,6 +943,9 @@ function getStartupCommand(process) {
                     "</td></tr></table>";
 
             // We also need an init command for mysqld
+            // With FreeSSHd (native windows) we need to run install_db command
+            // inside cmd.exe for redirect of stdin (FIXME: not sure if that 
+            // will work on Cygwin
             if (mcc.util.isWin(host.getValue("uname"))) {
 
                 var basedir = getEffectiveInstalldir(host);
@@ -952,46 +955,54 @@ function getStartupCommand(process) {
                 startupCommands.push({
                     html: {
                         host: host.getValue("name"),
-                        path: basedir,
-                        name: "mysqld.exe",
+                        path: "C:\\Windows\\System32",
+                        name: "cmd.exe",
                         optionString: "<tr><td><b>Options</b></td>" +
-                                         "<td>--lc-messages-dir=" + langdir + "</td></tr>" +
+                            "<td>/C</td></tr>" +
+                            "<tr><td></td><td>"+basedir+"\\bin\\mysqld.exe</td></tr>" +
+                            "<tr><td></td><td>--lc-messages-dir=" + langdir + "</td></tr>" +
                             "<tr><td></td><td>--bootstrap" + "</td></tr>" +
                             "<tr><td></td><td>--basedir=" + basedir + "</td></tr>" +
                             "<tr><td></td><td>--datadir=" + datadir + "</td></tr>" +
                             "<tr><td></td><td>--tmpdir=" + tmpdir + "</td></tr>" +
-                            "<tr><td></td><td>--log-warnings=0" + "</td></tr>" +
-                            "<tr><td></td><td>--loose-skip-ndbcluster" + "</td></tr>" +
-                            "<tr><td></td><td>--max_allowed_packet=8M" + "</td></tr>" +
-                            "<tr><td></td><td>--default-storage-engine=myisam" + "</td></tr>" +
-                            "<tr><td></td><td>--net_buffer_length=16K" + "</td></tr>"
+                            "<tr><td></td><td>--log-warnings=0</td></tr>" +
+                            "<tr><td></td><td>--loose-skip-ndbcluster</td></tr>" +
+                            "<tr><td></td><td>--max_allowed_packet=8M</td></tr>" +
+                            "<tr><td></td><td>--default-storage-engine=myisam</td></tr>" +
+                            "<tr><td></td><td>--net_buffer_length=16K</td></tr>"+
+                            "<tr><td></td><td>&lt</td></tr>" +
+                            "<tr><td></td><td>" + tmpdir + "\\install.sql</td></tr>"
                     },
                     msg: {
                         file: {
                             hostName: host.getValue("name"),
-                            path: mcc.util.unixPath(basedir),
-                            name: "mysqld.exe",
-                            autoComplete: true,
-                            stdinFile: tmpdir + "/install.sql"
+                            path: "C:\\Windows\\System32",
+                            name: "cmd.exe",
+                            //autoComplete: false,
+                            //stdinFile: tmpdir + "/install.sql"
                         },
                         procCtrl: {
                             hup: false,
-                            getStd: false,
+                            getStd: true,
                             waitForCompletion: true
                         },
                         params: {
                             sep: " ",
                             param: [
+                                {name: "/C"},
+                                {name: basedir+"\\bin\\mysqld.exe"},
                                 {name: "--lc-messages-dir", val: mcc.util.quotePath(langdir)},
                                 {name: "--bootstrap"},
-                                {name: "--basedir", val: mcc.util.quotePath(basedir)},
-                                {name: "--datadir", val: mcc.util.quotePath(datadir)},
-                                {name: "--tmpdir", val: mcc.util.quotePath(tmpdir)},
+                                {name: "--basedir", val: mcc.util.unixPath(basedir)},
+                                {name: "--datadir", val: mcc.util.unixPath(datadir)},
+                                {name: "--tmpdir", val: mcc.util.unixPath(tmpdir)},
                                 {name: "--log-warnings", val: 0},
                                 {name: "--loose-skip-ndbcluster"},
                                 {name: "--max-allowed-packet", val: "8M"},
                                 {name: "--default-storage-engine", val: "myisam"},
-                                {name: "--net_buffer_length", val: "16K"}
+                                {name: "--net_buffer_length", val: "16K"},
+                                {name: "<"},
+                                {name: tmpdir+"\\install.sql"}
                             ]
                         }
                     }
