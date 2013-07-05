@@ -1,0 +1,6 @@
+set optimizer_switch = 'derived_merge=on';
+create table t1 (c1 char(8), c2 char(8)) engine=myisam;
+insert into t1 values ('test1','test2'),('test3','test4');
+select * from (select c1 from t1 where match (c2) against ('hello' in boolean mode)) as alias;
+drop table t1;
+
