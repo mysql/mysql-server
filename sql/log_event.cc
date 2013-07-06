@@ -6940,11 +6940,13 @@ int Rotate_log_event::do_update_pos(Relay_log_info *rli)
         goto err;
     }
     else
-      if (rli->current_mts_submode->get_type() == MTS_PARALLEL_TYPE_LOGICAL_CLOCK)
+      if (rli->current_mts_submode->get_type() ==
+            MTS_PARALLEL_TYPE_LOGICAL_CLOCK)
+      {
         // force the coordinator to start a new group.
         static_cast<Mts_submode_logical_clock*>
           (rli->current_mts_submode)->start_new_group();
-
+      }
     mysql_mutex_lock(&rli->data_lock);
     DBUG_PRINT("info", ("old group_master_log_name: '%s'  "
                         "old group_master_log_pos: %lu",

@@ -100,6 +100,7 @@ Relay_log_info::Relay_log_info(bool is_slave_recovery
    recovery_groups_inited(false), mts_recovery_group_cnt(0),
    mts_recovery_index(0), mts_recovery_group_seen_begin(0),
    mts_group_status(MTS_NOT_IN_GROUP),
+   current_mts_submode(0),
    reported_unsafe_warning(false), rli_description_event(NULL),
    sql_delay(0), sql_delay_end(0), m_flags(0), row_stmt_start_timestamp(0),
    long_find_row_note_printed(false), error_on_rli_init_info(false)
@@ -184,6 +185,8 @@ Relay_log_info::~Relay_log_info()
   mysql_cond_destroy(&log_space_cond);
   mysql_mutex_destroy(&pending_jobs_lock);
   mysql_cond_destroy(&pending_jobs_cond);
+  mysql_mutex_destroy(&mts_temp_table_LOCK);
+  delete current_mts_submode;
 
   if(!rli_fake)
   {

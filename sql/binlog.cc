@@ -9063,7 +9063,7 @@ void THD::issue_unsafe_warnings()
 
  Logical_clock:: Logical_clock()
 {
-  mysql_mutex_init(key_state_lock, &state_LOCK, NULL);
+  my_atomic_rwlock_init(&m_state_lock);
   init();
 }
 
@@ -9077,12 +9077,12 @@ int64
  Logical_clock::step()
 {
   int64 retval;
-  DBUG_ENTER(" Logical_clock::step_clock");
-  mysql_mutex_lock(&state_LOCK);
-  retval= (state+= clock_step);
+  DBUG_ENTER("Logical_clock::step_clock");
+  my_atomic_rwlock_wrlock(&m_state_lock);
+  retval= my_atomic_add64(&state, 1);
   if (retval == (INT_MAX64 - 1))
     init();
-  mysql_mutex_unlock(&state_LOCK);
+  my_atomic_rwlock_wrunlock(&m_state_lock);
   DBUG_RETURN(retval);
 }
 
@@ -9094,11 +9094,19 @@ int64
  Logical_clock::get_timestamp()
 {
   int64 retval= 0;
-  DBUG_ENTER(" Logical_clock::step_clock");
-  mysql_mutex_lock(&state_LOCK);
-  retval= state;
-  mysql_mutex_unlock(&state_LOCK);
+  DBUG_ENTER("Logical_clock::get_timestamp");
+  my_atomic_rwlock_rdlock(&m_state_lock);
+  retval= my_atomic_load64(&state);
+  my_atomic_rwlock_rdunlock(&m_state_lock);
   DBUG_RETURN(retval);
+}
+
+/**
+  Destructor for Logical clock.
+*/
+Logical_clock::~Logical_clock()
+{
+  my_atomic_rwlock_destroy(&m_state_lock);
 }
 
 /**
