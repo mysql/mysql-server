@@ -31,15 +31,15 @@ class Format_description_log_event;
 class  Logical_clock
 {
 private:
-  mysql_mutex_t state_LOCK;
+  my_atomic_rwlock_t m_state_lock;
   int64 state;
-  int64 clock_step;
 protected:
-  virtual inline void init(){state= 0; clock_step= 1;}
+  virtual inline void init(){state= 0;}
 public:
-   Logical_clock();
+  Logical_clock();
   int64 step();
   int64 get_timestamp();
+  ~Logical_clock();
 };
 
 /**

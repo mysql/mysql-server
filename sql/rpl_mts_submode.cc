@@ -200,8 +200,6 @@ Mts_submode_logical_clock::Mts_submode_logical_clock()
   force_new_group= false;
   defer_new_group= false;
   is_new_group= true;
-  delegated_jobs = 0;
-  jobs_done= 0;
 }
 
 /**
@@ -211,7 +209,8 @@ Mts_submode_logical_clock::Mts_submode_logical_clock()
           FALSE if no error
  */
 bool
-Mts_submode_logical_clock::schedule_next_event(Relay_log_info* rli, Log_event *ev)
+Mts_submode_logical_clock::schedule_next_event(Relay_log_info* rli,
+                                               Log_event *ev)
 {
   DBUG_ENTER("Mts_submode_logical_clock::schedule_next_event");
 
@@ -226,28 +225,15 @@ Mts_submode_logical_clock::schedule_next_event(Relay_log_info* rli, Log_event *e
     data locks are handled for a short duration while updating the
     log positions.
   */
-  if (!is_new_group)
-    delegated_jobs++;
-  else
+  if (is_new_group)
   {
     /*
-      We have a new group and we must check if the last group was completey applied before
-      we move on to the next group
+      We have a new group and we must check if the last group was completely
+      applied before we move on to the next group
      */
-    // we should check if the SQL thread was already killed before we schecdule
-    // the next transaction
-    if (sql_slave_killed(rli->info_thd, rli))
+    if (sql_slave_killed(rli->info_thd, rli) &&
+        wait_for_workers_to_finish(rli) == -1)
       DBUG_RETURN(true);
-    DBUG_PRINT("info",("delegated %d, jobs_done %d", delegated_jobs, jobs_done));
-    while (delegated_jobs > jobs_done)
-    {
-      if (mts_checkpoint_routine(rli, 0, true, true /*need_data_lock=true*/))
-        DBUG_RETURN(true);
-    }
-    DBUG_PRINT("info",("delegated %d, jobs_done %d, we can schedule "
-                       "the next group.", delegated_jobs, jobs_done));
-    delegated_jobs= 1;
-    jobs_done= 0;
   }
   DBUG_RETURN(false);
 }
@@ -470,7 +456,7 @@ Mts_submode_logical_clock::assign_group_parent_id(Relay_log_info* rli,
     mts_last_known_commit_parent= commit_seq_no;
     mts_last_known_parent_group_id=
       gaq->get_job_group(rli->gaq->assigned_group_index)->parent_seqno=
-      rli->mts_groups_assigned-1;
+        rli->mts_groups_assigned-1;
     worker_seq= 0;
     if (ev->get_type_code() == GTID_LOG_EVENT ||
         ev->get_type_code() == USER_VAR_EVENT )
