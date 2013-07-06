@@ -88,9 +88,10 @@ PATENT RIGHTS GRANT:
 #ident "Copyright (c) 2007-2013 Tokutek Inc.  All rights reserved."
 
 #include <unistd.h>
+#ifdef HAVE_SYS_PRCTL_H
 #include <sys/prctl.h>
+#endif
 
-//#include <sys/types.h>
 #include <sys/wait.h>
 #include <toku_race_tools.h>
 #include "toku_crash.h"
@@ -126,7 +127,9 @@ run_gdb(pid_t parent_pid, const char *gdb_path) {
 static void
 intermediate_process(pid_t parent_pid, const char *gdb_path) {
     // Disable generating of core dumps
+#if defined(HAVE_SYS_PRCTL_H) && defined(HAVE_PR_SET_PTRACER)
     prctl(PR_SET_DUMPABLE, 0, 0, 0);
+#endif
     pid_t worker_pid = fork();
     if (worker_pid < 0) {
         perror("spawn gdb fork: ");
@@ -177,7 +180,7 @@ failure:
 static void
 spawn_gdb(const char *gdb_path) {
     pid_t parent_pid = getpid();
-#if defined(HAVE_PR_SET_PTRACER)
+#if defined(HAVE_SYS_PRCTL_H) && defined(HAVE_PR_SET_PTRACER)
     // On systems that require permission for the same user to ptrace,
     // give permission for this process and (more importantly) all its children to debug this process.
     prctl(PR_SET_PTRACER, parent_pid, 0, 0, 0);
