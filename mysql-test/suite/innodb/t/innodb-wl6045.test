@@ -4,6 +4,11 @@
 # WL6045:Improve Innochecksum
 #************************************************************
 --source include/have_innodb.inc
+# Embedded server does not support crashing.
+--source include/not_embedded.inc
+
+# Avoid CrashReporter popup on Mac.
+--source include/not_crashrep.inc
 
 --echo # Set the environmental variables
 let MYSQLD_BASEDIR= `SELECT @@basedir`;
