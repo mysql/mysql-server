@@ -4966,6 +4966,18 @@ bool mts_checkpoint_routine(Relay_log_info *rli, ulonglong period,
   if (cnt == 0)
     goto end;
 
+ /*
+    The workers have completed  cnt jobs from the gaq. This means that we
+    should increment C->jobs_done by cnt.
+  */
+  if (!is_mts_worker(rli->info_thd) &&
+      rli->current_mts_submode->get_type() == MTS_PARALLEL_TYPE_LOGICAL_CLOCK)
+  {
+    DBUG_PRINT("info", ("jobs_done this itr=%ld", cnt));
+    static_cast<Mts_submode_logical_clock*>
+      (rli->current_mts_submode)->jobs_done+= cnt;
+  }
+
   /* TODO: 
      to turn the least occupied selection in terms of jobs pieces
   */
@@ -5299,8 +5311,8 @@ void slave_stop_workers(Relay_log_info *rli, bool *mts_inited)
       thd->EXIT_COND(&old_stage);
       mysql_mutex_lock(&w->jobs_lock);
     }
-    // free the current submode object
     mysql_mutex_unlock(&w->jobs_lock);
+    // Free the current submode object
     delete w->current_mts_submode;
     w->current_mts_submode= 0;
     delete_dynamic_element(&rli->workers, i);

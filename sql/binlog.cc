@@ -1229,10 +1229,6 @@ binlog_trx_cache_data::truncate(THD *thd, bool all)
 
 static int binlog_prepare(handlerton *hton, THD *thd, bool all)
 {
-  /*
-    just pretend we can do 2pc, so that MySQL won't
-    switch to 1pc. Real work will be done in MYSQL_BIN_LOG::commit()
-  */
   IO_CACHE* cache;
   DBUG_ENTER("binlog_prepare");
   if (all)
@@ -1242,7 +1238,6 @@ static int binlog_prepare(handlerton *hton, THD *thd, bool all)
     DBUG_ASSERT(cache->commit_seq_no == SEQ_UNINIT);
     cache->commit_seq_no=
       mysql_bin_log.commit_clock.get_timestamp();
-
   }
   DBUG_RETURN(0);
 }
@@ -5627,7 +5622,7 @@ void write_commit_seq_no(IO_CACHE* cache, uchar* buff)
   DBUG_ASSERT((*pc_ptr == Q_COMMIT_TS || *pc_ptr == G_COMMIT_TS));
   pc_ptr++;
 
-  //fix commit ts
+  // Fix commit ts.
   int8store(pc_ptr, cache->commit_seq_no);
   cache->commit_seq_no= SEQ_UNINIT;
   cache->commit_seq_offset= 0;
@@ -5653,7 +5648,7 @@ void write_commit_seq_no(IO_CACHE* cache, uchar* buff)
 
 int MYSQL_BIN_LOG::do_write_cache(IO_CACHE *cache)
 {
-  DBUG_ENTER("MYSQL_BIN_LOG::do_write_cache");
+  DBUG_ENTER("MYSQL_BIN_LOG::do_write_cache(IO_CACHE *)");
 
   DBUG_EXECUTE_IF("simulate_do_write_cache_failure",
                   {
@@ -6550,7 +6545,7 @@ TC_LOG::enum_result MYSQL_BIN_LOG::commit(THD *thd, bool all)
   if (!error && !cache_mngr->trx_cache.is_binlog_empty() &&
       ending_trans(thd, all))
   {
-   const bool real_trans= (all || thd->transaction.all.ha_list == 0);
+    const bool real_trans= (all || thd->transaction.all.ha_list == 0);
     /*
       We are committing an XA transaction if it is a "real" transaction
       and have an XID assigned (because some handlerton registered). A

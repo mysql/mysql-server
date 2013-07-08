@@ -482,8 +482,8 @@ PSI_mutex_key key_mutex_slave_worker_hash;
 PSI_cond_key key_cond_slave_worker_hash;
 #endif
 
-static  mysql_mutex_t slave_worker_hash_lock;
-static  mysql_cond_t slave_worker_hash_cond;
+mysql_mutex_t slave_worker_hash_lock;
+mysql_cond_t slave_worker_hash_cond;
 
 
 extern "C" uchar *get_key(const uchar *record, size_t *length,
@@ -999,6 +999,7 @@ void Slave_worker::slave_worker_ends_group(Log_event* ev, int error)
     DBUG_ASSERT(last_group_done_index != c_rli->gaq->size ||
                 ptr_g->group_relay_log_name != NULL);
     DBUG_ASSERT(ptr_g->worker_id == id);
+
     if (ev->get_type_code() != XID_EVENT)
     {
       commit_positions(ev, ptr_g, false);
@@ -1016,6 +1017,17 @@ void Slave_worker::slave_worker_ends_group(Log_event* ev, int error)
 
     last_group_done_index= gaq_idx;
     groups_done++;
+
+    /*
+      wake up the coordinator if we are waiting fot last goup to be applied.
+     */
+    if (c_rli->current_mts_submode->get_type() ==
+         MTS_PARALLEL_TYPE_LOGICAL_CLOCK)
+    {
+      mysql_mutex_lock(&slave_worker_hash_lock);
+      mysql_cond_signal(&slave_worker_hash_cond);
+      mysql_mutex_unlock(&slave_worker_hash_lock);
+    }
   }
   else
   {

@@ -196,15 +196,92 @@ Mts_submode_logical_clock::Mts_submode_logical_clock()
   type= MTS_PARALLEL_TYPE_LOGICAL_CLOCK;
   first_event= true;
   mts_last_known_commit_parent= SEQ_UNINIT;
-  mts_last_known_parent_group_id= SEQ_UNINIT;
   force_new_group= false;
   defer_new_group= false;
   is_new_group= true;
+  delegated_jobs = 0;
+  jobs_done= 0;
+}
+
+/**
+ Logic to assign the parent id to the transaction
+ @param rli Relay_log_info of the coordinator
+ @return true is error
+         false otherwise
+*/
+bool
+Mts_submode_logical_clock::assign_group_parent_id(Relay_log_info* rli,
+                                            Log_event *ev)
+{
+  int64 commit_seq_no= SEQ_UNINIT;
+  /*
+    A group id updater must satisfy the following:
+      - A query log event ("BEGIN" ) or a GTID EVENT
+      - A DDL or an implicit DML commit.
+   */
+  switch (ev->get_type_code())
+  {
+  case QUERY_EVENT:
+    commit_seq_no= static_cast<Query_log_event*>(ev)->commit_seq_no;
+    break;
+
+  case GTID_LOG_EVENT:
+    commit_seq_no= static_cast<Gtid_log_event*>(ev)->commit_seq_no;
+    break;
+  case USER_VAR_EVENT:
+    force_new_group= true;
+    break;
+
+  default:
+    // these can never be a group changer
+    commit_seq_no= SEQ_UNINIT;
+    break;
+  }
+  if (first_event && commit_seq_no == SEQ_UNINIT && !force_new_group)
+  {
+    // This is the first event and the master has not sent us the commit
+    // sequence number. The possible reason may be that the master is old and
+    // doesnot support BGC based parallelization, or someone tried to start
+    // replication from within a transaction.
+    return true;
+  }
+
+  if ((commit_seq_no != SEQ_UNINIT /* Not an internal event */ &&
+      /* not same as last seq number */
+      commit_seq_no != mts_last_known_commit_parent) ||
+      /* first event after a submode switch */
+      first_event ||
+      /* require a fresh group to be started. */
+      force_new_group)
+  {
+    mts_last_known_commit_parent= commit_seq_no;
+    worker_seq= 0;
+    if (ev->get_type_code() == GTID_LOG_EVENT ||
+        ev->get_type_code() == USER_VAR_EVENT )
+      defer_new_group= true;
+    else
+      is_new_group= true;
+    force_new_group= false;
+  }
+  else
+  {
+    if (defer_new_group)
+    {
+      is_new_group= true;
+      defer_new_group= false;
+    }
+    else
+     is_new_group= false;
+  }
+  DBUG_PRINT("info", ("MTS::slave c=%lld", commit_seq_no));
+  if (first_event) first_event= false;
+  return false;
 }
 
 /**
  Does necessary arrangement before scheduling next event.
- @param:  Relay_log_info rli
+ @param:  Relay_log_info* rli
+          Log_event *ev
  @return: TRUE  if error
           FALSE if no error
  */
@@ -225,15 +302,29 @@ Mts_submode_logical_clock::schedule_next_event(Relay_log_info* rli,
     data locks are handled for a short duration while updating the
     log positions.
   */
-  if (is_new_group)
+  if (!is_new_group)
+    delegated_jobs++;
+  else
   {
+    // we should check if the SQL thread was already killed before we schecdule
+    // the next transaction
+    if (sql_slave_killed(rli->info_thd, rli))
+      DBUG_RETURN(true);
+    DBUG_PRINT("info",("delegated %d, jobs_done %d", delegated_jobs,
+                          jobs_done));
     /*
       We have a new group and we must check if the last group was completely
       applied before we move on to the next group
-     */
-    if (sql_slave_killed(rli->info_thd, rli) &&
-        wait_for_workers_to_finish(rli) == -1)
-      DBUG_RETURN(true);
+    */
+    while (delegated_jobs > jobs_done)
+    {
+      if (mts_checkpoint_routine(rli, 0, true, true /*need_data_lock=true*/))
+        DBUG_RETURN(true);
+    }
+    DBUG_PRINT("info",("delegated %d, jobs_done %d, we can schedule "
+                       "the next group.", delegated_jobs, jobs_done));
+    delegated_jobs= 1;
+    jobs_done= 0;
   }
   DBUG_RETURN(false);
 }
@@ -382,18 +473,21 @@ Mts_submode_logical_clock::get_least_occupied_worker(Relay_log_info *rli,
     }
     else
     {
-      /* wait and get a free worker */
-      do
+      worker= get_free_worker(rli);
+      while (!worker)
       {
+        /* wait and get a free worker */
+        mysql_mutex_lock(&slave_worker_hash_lock);
+        mysql_cond_wait(&slave_worker_hash_cond, &slave_worker_hash_lock);
         worker= get_free_worker(rli);
-      } while (!worker);
+        mysql_mutex_unlock(&slave_worker_hash_lock);
+      }
     }
   }
 
   DBUG_ASSERT(ptr_group);
   // assert that we have a worker thread for this event
   DBUG_ASSERT(worker != NULL);
-
   ptr_group->worker_id= worker->id;
   /* The master my have send  db partition info. make sure we never use them*/
   if (ev->get_type_code() == QUERY_EVENT)
@@ -402,89 +496,7 @@ Mts_submode_logical_clock::get_least_occupied_worker(Relay_log_info *rli,
 }
 
 /**
- Logic to assign the parent id to the transaction
- @param rli Relay_log_info of the coordinator
- @return true is error
-         false otherwise
-*/
-bool
-Mts_submode_logical_clock::assign_group_parent_id(Relay_log_info* rli,
-                                            Log_event *ev)
-{
-  Slave_committed_queue *gaq= rli->gaq;
-  int64 commit_seq_no= SEQ_UNINIT;
-  /*
-    A group id updater must satisfy the following:
-      - A query log event ("BEGIN" ) or a GTID EVENT
-      - A DDL or an implicit DML commit.
-   */
-  switch (ev->get_type_code())
-  {
-  case QUERY_EVENT:
-    commit_seq_no= static_cast<Query_log_event*>(ev)->commit_seq_no;
-    break;
-
-  case GTID_LOG_EVENT:
-    commit_seq_no= static_cast<Gtid_log_event*>(ev)->commit_seq_no;
-    break;
-  case USER_VAR_EVENT:
-    force_new_group= true;
-    break;
-
-  default:
-    // these can never be a group changer
-    commit_seq_no= SEQ_UNINIT;
-    break;
-  }
-  if (first_event && commit_seq_no == SEQ_UNINIT && !force_new_group)
-  {
-    // This is the first event and the master has not sent us the commit
-    // sequence number. The possible reason may be that the master is old and
-    // doesnot support BGC based parallelization, or someone tried to start
-    // replication from within a transaction.
-    return true;
-  }
-
-  if ((commit_seq_no != SEQ_UNINIT /* Not an internal event */ &&
-      /* not same as last seq number */
-      commit_seq_no != mts_last_known_commit_parent) ||
-      /* first event after a submode switch */
-      first_event ||
-      /* require a fresh group to be started. */
-      force_new_group)
-  {
-    mts_last_known_commit_parent= commit_seq_no;
-    mts_last_known_parent_group_id=
-      gaq->get_job_group(rli->gaq->assigned_group_index)->parent_seqno=
-        rli->mts_groups_assigned-1;
-    worker_seq= 0;
-    if (ev->get_type_code() == GTID_LOG_EVENT ||
-        ev->get_type_code() == USER_VAR_EVENT )
-      defer_new_group= true;
-    else
-      is_new_group= true;
-    force_new_group= false;
-  }
-  else
-  {
-    gaq->get_job_group(rli->gaq->assigned_group_index)->parent_seqno=
-      mts_last_known_parent_group_id;
-    if (defer_new_group)
-    {
-      is_new_group= true;
-      defer_new_group= false;
-    }
-    else
-     is_new_group= false;
-  }
-  DBUG_PRINT("info", ("MTS::slave c=%lld, pid= %lld", commit_seq_no,
-                      mts_last_known_parent_group_id));
-  if (first_event) first_event= false;
-  return false;
-}
-
-/**
-  Protected method to fetch a free  worker. returns NULL if non are free.
+  Protected method to fetch a free  worker. returns NULL if none are free.
   It is up to caller to make sure that it polls using this function for
   any free workers.
  */

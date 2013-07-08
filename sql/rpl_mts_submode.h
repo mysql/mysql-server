@@ -87,10 +87,37 @@ private:
   uint worker_seq;
   bool first_event, force_new_group;
   int64 mts_last_known_commit_parent;
-  int64 mts_last_known_parent_group_id;
+  /*
+     The following are used to check if the last group has been applied
+     completely, Here is how this works.
+
+     if (!is_new_group)
+     {
+       delegated_jobs++;
+       // schedule this group.
+     }
+     else
+     {
+       while (delegated_jobs > jobs_done)
+         mts check_point_routine()...
+      delegated_jobs = 1;
+      jobs_done= 0;
+      //schedule next event...
+     }
+
+     in mts_checkpoint routine
+     {
+       for every job completed by a worker,
+       job_done++;
+     }
+     Also since both these are being done by the coordinator, we
+     don't need any locks.
+   */
   bool is_new_group;
+  uint delegated_jobs;
 public:
   bool defer_new_group;
+  uint jobs_done;
 
 protected:
   std::pair<uint, my_thread_id> get_server_and_thread_id(TABLE* table);
@@ -106,7 +133,7 @@ public:
   Slave_worker* get_least_occupied_worker(Relay_log_info* rli,
                                           DYNAMIC_ARRAY *ws, Log_event *ev);
   /* Sets the force new group variable */
-  inline void start_new_group(){force_new_group= true; }
+  inline void start_new_group(){force_new_group= true;}
   ~Mts_submode_logical_clock(){}
 };
 

@@ -168,7 +168,6 @@ typedef struct st_slave_job_group
   volatile uchar done;  // Flag raised by W,  read and reset by Coordinator
   ulong    shifted;     // shift the last CP bitmap at receiving a new CP
   time_t   ts;          // Group's timestampt to update Seconds_behind_master
-  longlong parent_seqno;
   /*
     Coordinator fills the struct with defaults and options at starting of 
     a group distribution.
@@ -411,5 +410,9 @@ TABLE* mts_move_temp_table_to_entry(TABLE*, THD*, db_worker_hash_entry*);
 TABLE* mts_move_temp_tables_to_thd(THD*, TABLE*);
 // Auxiliary function
 TABLE* mts_move_temp_tables_to_thd(THD*, TABLE*, enum_mts_parallel_type);
+
+extern  mysql_mutex_t slave_worker_hash_lock;
+extern  mysql_cond_t slave_worker_hash_cond;
+
 #endif // HAVE_REPLICATION
 #endif
