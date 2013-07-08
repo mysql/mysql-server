@@ -62,6 +62,7 @@ check_symbol_exists(O_DIRECT "fcntl.h" HAVE_O_DIRECT)
 check_symbol_exists(F_NOCACHE "fcntl.h" HAVE_F_NOCACHE)
 check_symbol_exists(MAP_ANONYMOUS "sys/mman.h" HAVE_MAP_ANONYMOUS)
 check_symbol_exists(PR_SET_PTRACER "sys/prctl.h" HAVE_PR_SET_PTRACER)
+check_symbol_exists(PR_SET_PTRACER_ANY "sys/prctl.h" HAVE_PR_SET_PTRACER_ANY)
 
 include(CheckFunctionExists)
 
