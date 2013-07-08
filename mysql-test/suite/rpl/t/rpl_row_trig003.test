@@ -119,7 +119,7 @@ INSERT INTO test.t1 VALUES(NULL,1,'add some more test data test.', 'and hope for
 # to do synchronization.
 
 let $wait_condition= SELECT SUM(f)= ROUND(SUM(f)) FROM t3;
---source include/wait_condition.inc
+--source include/wait_condition_or_abort.inc
 
 DELETE FROM test.t1 WHERE id = 1;
 

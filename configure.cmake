@@ -306,7 +306,10 @@ CHECK_INCLUDE_FILES (sasl/sasl.h HAVE_SASL_SASL_H)
 # For libevent
 CHECK_INCLUDE_FILES(sys/devpoll.h HAVE_DEVPOLL)
 SET(HAVE_SIGNAL_H 1)
-CHECK_INCLUDE_FILES(sys/devpoll.h HAVE_SYS_DEVPOLL_H)
+IF(HAVE_DEVPOLL)
+  # Duplicate symbols, but keep it to avoid changing libevent code.
+  SET(HAVE_SYS_DEVPOLL_H 1)
+ENDIF()
 CHECK_INCLUDE_FILES(sys/epoll.h HAVE_SYS_EPOLL_H)
 CHECK_SYMBOL_EXISTS (TAILQ_FOREACH "sys/queue.h" HAVE_TAILQFOREACH)
 

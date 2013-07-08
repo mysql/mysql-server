@@ -97,7 +97,9 @@ enum enum_rbr_exec_mode { RBR_EXEC_MODE_STRICT,
                           RBR_EXEC_MODE_IDEMPOTENT,
                           RBR_EXEC_MODE_LAST_BIT };
 enum enum_slave_type_conversions { SLAVE_TYPE_CONVERSIONS_ALL_LOSSY,
-                                   SLAVE_TYPE_CONVERSIONS_ALL_NON_LOSSY};
+                                   SLAVE_TYPE_CONVERSIONS_ALL_NON_LOSSY,
+                                   SLAVE_TYPE_CONVERSIONS_ALL_UNSIGNED,
+                                   SLAVE_TYPE_CONVERSIONS_ALL_SIGNED};
 enum enum_slave_rows_search_algorithms { SLAVE_ROWS_TABLE_SCAN = (1U << 0),
                                          SLAVE_ROWS_INDEX_SCAN = (1U << 1),
                                          SLAVE_ROWS_HASH_SCAN  = (1U << 2)};
@@ -1771,6 +1773,7 @@ my_micro_time_to_timeval(ulonglong micro_time, struct timeval *tm)
   tm->tv_usec= (long) (micro_time % 1000000);
 }
 
+class Modification_plan;
 /**
   @class THD
   For each client connection we create a separate thread with THD serving as
@@ -1854,6 +1857,19 @@ public:
   */
   mysql_mutex_t LOCK_thd_data;
 
+  /**
+    Protects query plan (SELECT/UPDATE/DELETE's) from being freed/changed
+    while another thread explains it. Following structures are protected by
+    this mutex:
+      THD::Query_plan
+      Modification_plan
+      SELECT_LEX::join
+      JOIN::plan_state
+      Tree of SELECT_LEX_UNIT after THD::Query_plan was set till
+        THD::Query_plan cleanup
+  */
+  mysql_mutex_t LOCK_query_plan;
+
   /* all prepared statements and cursors of this connection */
   Statement_map stmt_map;
   /*
@@ -1896,6 +1912,76 @@ public:
     allocated) strings, which memory won't go away over time.
   */
   const char *proc_info;
+
+  /**
+     Query plan for EXPLAINable commands, should be locked with
+     LOCK_query_plan before using.
+  */
+  class Query_plan
+  {
+  private:
+    THD *const thd;
+    /// Original sql_command;
+    enum_sql_command sql_command;
+    /// LEX of topmost statement
+    LEX *lex;
+    /// Query plan for UPDATE/DELETE/INSERT/REPLACE
+    const Modification_plan *modification_plan;
+    /// True if query is run in prepared statement
+    bool is_ps;
+
+  public:
+    Query_plan(THD *thd_arg) : thd(thd_arg), sql_command(SQLCOM_END),
+      modification_plan(NULL)
+    {}
+    explicit Query_plan(const Query_plan&); ///< not defined
+    Query_plan& operator=(const Query_plan&); ///< not defined
+    /**
+      Set query plan.
+
+      @note This function takes THD::LOCK_query_plan mutex.
+    */
+    void set_query_plan(enum_sql_command sql_cmd, LEX *lex_arg, bool ps);
+    /**
+      Change current command.
+
+      @details This function is needed for single UPDATE statement, for which
+      after opening tables we can find out that the statement have to be
+      converted multi UPDATE.
+
+      @note This function takes THD::LOCK_query_plan mutex.
+    */
+    void set_command(enum_sql_command sql_cmd);
+    /*
+      5 functions below expect THD::LOCK_query_plan to be already taken by a
+      caller.
+    */
+    enum_sql_command get_command() const
+    {
+      mysql_mutex_assert_owner(&thd->LOCK_query_plan);
+      return sql_command;
+    }
+    LEX *get_lex() const
+    {
+      mysql_mutex_assert_owner(&thd->LOCK_query_plan);
+      return lex;
+    }
+    Modification_plan const *get_plan()
+    {
+      mysql_mutex_assert_owner(&thd->LOCK_query_plan);
+      return modification_plan;
+    }
+    bool is_ps_query() const
+    {
+      mysql_mutex_assert_owner(&thd->LOCK_query_plan);
+      return is_ps;
+    }
+    void set_modification_plan(Modification_plan *plan_arg)
+    {
+      mysql_mutex_assert_owner(&thd->LOCK_query_plan);
+      modification_plan= plan_arg;
+    }
+  } query_plan;
 
 private:
   unsigned int m_current_stage_key;
@@ -4356,7 +4442,20 @@ public:
   uint  hidden_field_count;
   uint	group_parts,group_length,group_null_parts;
   uint	quick_group;
-  bool  using_indirect_summary_function;
+  /**
+    Number of outer_sum_funcs i.e the number of set functions that are
+    aggregated in a query block outer to this subquery.
+
+    @see count_field_types
+  */
+  uint  outer_sum_func_count;
+  /**
+    Enabled when we have atleast one outer_sum_func. Needed when used
+    along with distinct.
+
+    @see create_tmp_table
+  */
+  bool  using_outer_summary_function;
   CHARSET_INFO *table_charset; 
   bool schema_table;
   /*
@@ -4383,8 +4482,8 @@ public:
 
   TMP_TABLE_PARAM()
     :copy_field(0), copy_field_end(0), group_parts(0),
-     group_length(0), group_null_parts(0),
-     using_indirect_summary_function(0),
+     group_length(0), group_null_parts(0), outer_sum_func_count(0),
+     using_outer_summary_function(0),
      schema_table(0), precomputed_group_by(0), force_copy_fields(0),
      skip_create_table(FALSE), bit_fields_as_long(0)
   {}
@@ -5042,7 +5141,7 @@ void mark_transaction_to_rollback(THD *thd, bool all);
 
 inline bool add_item_to_list(THD *thd, Item *item)
 {
-  return thd->lex->current_select->add_item_to_list(thd, item);
+  return thd->lex->current_select()->add_item_to_list(thd, item);
 }
 
 inline bool add_value_to_list(THD *thd, Item *value)
@@ -5052,17 +5151,17 @@ inline bool add_value_to_list(THD *thd, Item *value)
 
 inline bool add_order_to_list(THD *thd, Item *item, bool asc)
 {
-  return thd->lex->current_select->add_order_to_list(thd, item, asc);
+  return thd->lex->current_select()->add_order_to_list(thd, item, asc);
 }
 
 inline bool add_gorder_to_list(THD *thd, Item *item, bool asc)
 {
-  return thd->lex->current_select->add_gorder_to_list(thd, item, asc);
+  return thd->lex->current_select()->add_gorder_to_list(thd, item, asc);
 }
 
 inline bool add_group_to_list(THD *thd, Item *item, bool asc)
 {
-  return thd->lex->current_select->add_group_to_list(thd, item, asc);
+  return thd->lex->current_select()->add_group_to_list(thd, item, asc);
 }
 
 /*************************************************************************/

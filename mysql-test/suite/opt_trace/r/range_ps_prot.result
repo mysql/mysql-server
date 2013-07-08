@@ -3774,7 +3774,7 @@ SET optimizer_trace_features="greedy_search=off,dynamic_range=on";
 EXPLAIN SELECT 1 FROM 
 (SELECT 1 FROM t2,t1 WHERE b < c GROUP BY 1 LIMIT 1) AS d2;
 id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
-1	PRIMARY	<derived2>	system	NULL	NULL	NULL	NULL	0	const row not found
+1	PRIMARY	NULL	NULL	NULL	NULL	NULL	NULL	NULL	no matching row in const table
 2	DERIVED	t1	ALL	NULL	NULL	NULL	NULL	2	NULL
 2	DERIVED	t2	ALL	b	NULL	NULL	NULL	3	Range checked for each record (index map: 0x1)
 
@@ -4071,21 +4071,11 @@ EXPLAIN SELECT 1 FROM
                 "empty": true
               }
             ] /* rows_estimation */
-          },
-          {
-            "attaching_conditions_to_tables": {
-              "original_condition": null,
-              "attached_conditions_computation": [
-              ] /* attached_conditions_computation */,
-              "attached_conditions_summary": [
-              ] /* attached_conditions_summary */
-            } /* attaching_conditions_to_tables */
-          },
-          {
-            "refine_plan": [
-            ] /* refine_plan */
           }
-        ] /* steps */
+        ] /* steps */,
+        "empty_result": {
+          "cause": "no matching row in const table"
+        } /* empty_result */
       } /* join_optimization */
     },
     {
@@ -4109,7 +4099,7 @@ SET optimizer_trace_features="greedy_search=off,dynamic_range=off";
 EXPLAIN SELECT 1 FROM 
 (SELECT 1 FROM t2,t1 WHERE b < c GROUP BY 1 LIMIT 1) AS d2;
 id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
-1	PRIMARY	<derived2>	system	NULL	NULL	NULL	NULL	0	const row not found
+1	PRIMARY	NULL	NULL	NULL	NULL	NULL	NULL	NULL	no matching row in const table
 2	DERIVED	t1	ALL	NULL	NULL	NULL	NULL	2	NULL
 2	DERIVED	t2	ALL	b	NULL	NULL	NULL	3	Range checked for each record (index map: 0x1)
 
@@ -4373,21 +4363,11 @@ EXPLAIN SELECT 1 FROM
                 "empty": true
               }
             ] /* rows_estimation */
-          },
-          {
-            "attaching_conditions_to_tables": {
-              "original_condition": null,
-              "attached_conditions_computation": [
-              ] /* attached_conditions_computation */,
-              "attached_conditions_summary": [
-              ] /* attached_conditions_summary */
-            } /* attaching_conditions_to_tables */
-          },
-          {
-            "refine_plan": [
-            ] /* refine_plan */
           }
-        ] /* steps */
+        ] /* steps */,
+        "empty_result": {
+          "cause": "no matching row in const table"
+        } /* empty_result */
       } /* join_optimization */
     },
     {

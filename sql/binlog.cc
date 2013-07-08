@@ -2165,7 +2165,7 @@ bool show_binlog_events(THD *thd, MYSQL_BIN_LOG *binary_log)
     mysql_mutex_t *log_lock = binary_log->get_log_lock();
     Log_event* ev;
 
-    unit->set_limit(thd->lex->current_select);
+    unit->set_limit(thd->lex->current_select());
     limit_start= unit->offset_limit_cnt;
     limit_end= unit->select_limit_cnt;
 
@@ -7171,10 +7171,10 @@ int MYSQL_BIN_LOG::ordered_commit(THD *thd, bool all, bool skip_commit)
     int error= rotate(false, &check_purge);
     mysql_mutex_unlock(&LOCK_log);
 
-    if (!error && check_purge)
-      purge();
-    else
+    if (error)
       thd->commit_error= THD::CE_COMMIT_ERROR;
+    else if (check_purge)
+      purge();
   }
   DBUG_RETURN(thd->commit_error);
 }

@@ -24,14 +24,14 @@ INSERT INTO t1 SELECT * from t1;
 [2]:# Run the innochecksum when file isn't provided.
 # It will print the innochecksum usage similar to --help option.
 innochecksum Ver #.#.#
-Copyright (c) 2000, 2013, Oracle and/or its affiliates. All rights reserved.
+Copyright (c) YEAR, YEAR , Oracle and/or its affiliates. All rights reserved.
 
 Oracle is a registered trademark of Oracle Corporation and/or its
 affiliates. Other names may be trademarks of their respective
 owners.
 
 InnoDB offline file checksum utility.
-Usage: innochecksum [-c] [-s <start page>] [-e <end page>] [-p <page>] [-v]  [-a <allow mismatches>] [-n] [-C <strict-check>] [-w <write>] [-S] [-D <page type dump>] [-d <dbug-package name>] <filename or [-]>
+Usage: innochecksum [-c] [-s <start page>] [-e <end page>] [-p <page>] [-v]  [-a <allow mismatches>] [-n] [-C <strict-check>] [-w <write>] [-S] [-D <page type dump>] [-l <log>] <filename or [-]>
   -?, --help          Displays this help and exits.
   -I, --info          Synonym for --help.
   -V, --version       Displays version information and exits.
@@ -50,6 +50,7 @@ Usage: innochecksum [-c] [-s <start page>] [-e <end page>] [-p <page>] [-v]  [-a
                       Display a count of each page type in a tablespace.
   -D, --page-type-dump=name 
                       Dump the page type info for each page in a tablespace.
+  -l, --log=name      log output.
 
 Variables (--variable-name=value)
 and boolean options {FALSE|TRUE}  Value (after reading options)
@@ -65,6 +66,7 @@ allow-mismatches                  0
 write                             crc32
 page-type-summary                 FALSE
 page-type-dump                    (No default value)
+log                               (No default value)
 [3]:# check the both short and long options for "count" and exit
 Number of pages:#
 Number of pages:#

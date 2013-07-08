@@ -29,7 +29,7 @@ connection master;
 insert into t1 values (1);
 #reasonable timeout for changes to propagate to slave
 let $wait_condition= SELECT COUNT(*) = 1 FROM t1;
-source include/wait_condition.inc;
+source include/wait_condition_or_abort.inc;
 connection slave;
 select * from t1;
 
