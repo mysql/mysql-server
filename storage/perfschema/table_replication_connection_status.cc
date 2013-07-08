@@ -135,7 +135,7 @@ int table_replication_connection_status::rnd_pos(const void *pos)
   DBUG_ASSERT(m_pos.m_index < 1);
 
   make_row();
- 
+
   return 0;
 }
 

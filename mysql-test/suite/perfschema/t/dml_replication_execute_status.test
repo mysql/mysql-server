@@ -1,5 +1,8 @@
 # Tests for PERFORMANCE_SCHEMA
 
+# This test verifies the correct behaviour in case of invalid
+# usage of DMLs on the table replication_execute_status.
+
 --source include/not_embedded.inc
 --source include/have_perfschema.inc
 --source include/master-slave.inc
@@ -7,31 +10,31 @@
 connection master;
 
 --disable_result_log
-select * from performance_schema.replication_execute_status
-  limit 1;
+SELECT * FROM performance_schema.replication_execute_status
+  LIMIT 1;
 
-select * from performance_schema.replication_execute_status
-  where service_state='YES' or remaining_delay=12;
+SELECT * FROM performance_schema.replication_execute_status
+  WHERE service_state='YES' OR remaining_delay=12;
 --enable_result_log
 
 --error ER_TABLEACCESS_DENIED_ERROR
-insert into performance_schema.replication_execute_status
-  set service_state='YES', remaining_delay=12;
+INSERT INTO performance_schema.replication_execute_status
+  SET service_state='YES', remaining_delay=12;
 
 --error ER_TABLEACCESS_DENIED_ERROR
-update performance_schema.replication_execute_status
-  set remaining_delay=12;
+UPDATE performance_schema.replication_execute_status
+  SET remaining_delay=12;
 
 --error ER_TABLEACCESS_DENIED_ERROR
-update performance_schema.replication_execute_status
-  set remaining_delay=12 where service_state='YES';
+UPDATE performance_schema.replication_execute_status
+  SET remaining_delay=12 WHERE service_state='YES';
 
 --error ER_TABLEACCESS_DENIED_ERROR
-delete from performance_schema.replication_execute_status
-  where service_state='YES';
+DELETE FROM performance_schema.replication_execute_status
+  WHERE service_state='YES';
 
 --error ER_TABLEACCESS_DENIED_ERROR
-delete from performance_schema.replication_execute_status;
+DELETE FROM performance_schema.replication_execute_status;
 
 -- error ER_TABLEACCESS_DENIED_ERROR
 LOCK TABLES performance_schema.replication_execute_status READ;
@@ -44,31 +47,31 @@ UNLOCK TABLES;
 connection slave;
 
 --disable_result_log
-select * from performance_schema.replication_execute_status
-  limit 1;
+SELECT * FROM performance_schema.replication_execute_status
+  LIMIT 1;
 
-select * from performance_schema.replication_execute_status
-  where service_state='YES' or remaining_delay=12;
+SELECT * FROM performance_schema.replication_execute_status
+  WHERE service_state='YES' OR remaining_delay=12;
 --enable_result_log
 
 --error ER_TABLEACCESS_DENIED_ERROR
-insert into performance_schema.replication_execute_status
-  set service_state='YES', remaining_delay=12;
+INSERT INTO performance_schema.replication_execute_status
+  SET service_state='YES', remaining_delay=12;
 
 --error ER_TABLEACCESS_DENIED_ERROR
-update performance_schema.replication_execute_status
-  set remaining_delay=12;
+UPDATE performance_schema.replication_execute_status
+  SET remaining_delay=12;
 
 --error ER_TABLEACCESS_DENIED_ERROR
-update performance_schema.replication_execute_status
-  set remaining_delay=12 where service_state='YES';
+UPDATE performance_schema.replication_execute_status
+  SET remaining_delay=12 where service_state='YES';
 
 --error ER_TABLEACCESS_DENIED_ERROR
-delete from performance_schema.replication_execute_status
-  where service_state='YES';
+DELETE FROM performance_schema.replication_execute_status
+  WHERE service_state='YES';
 
 --error ER_TABLEACCESS_DENIED_ERROR
-delete from performance_schema.replication_execute_status;
+DELETE FROM performance_schema.replication_execute_status;
 
 -- error ER_TABLEACCESS_DENIED_ERROR
 LOCK TABLES performance_schema.replication_execute_status READ;

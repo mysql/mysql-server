@@ -3,20 +3,20 @@ Warnings:
 Note	####	Sending passwords in plain text without SSL/TLS is extremely insecure.
 Note	####	Storing MySQL user name or password information in the master info repository is not secure and is therefore not recommended. Please consider using the USER and PASSWORD connection options for START SLAVE; see the 'START SLAVE Syntax' in the MySQL Manual for more information.
 [connection master]
-select * from performance_schema.replication_execute_configuration
-limit 1;
-select * from performance_schema.replication_execute_configuration
-where desired_delay=12;
-insert into performance_schema.replication_execute_configuration
-set desired_delay=2;
+SELECT * FROM performance_schema.replication_execute_configuration
+LIMIT 1;
+sELECT * FROM performance_schema.replication_execute_configuration
+WHERE desired_delay=12;
+INSERT INTO performance_schema.replication_execute_configuration
+SET desired_delay=2;
 ERROR 42000: INSERT command denied to user 'root'@'localhost' for table 'replication_execute_configuration'
-update performance_schema.replication_execute_configuration
-set desired_delay=12 where desired_delay=2;
+UPDATE performance_schema.replication_execute_configuration
+SET desired_delay=12 WHERE desired_delay=2;
 ERROR 42000: UPDATE command denied to user 'root'@'localhost' for table 'replication_execute_configuration'
-delete from performance_schema.replication_execute_configuration
-where desired_delay=12;
+DELETE FROM performance_schema.replication_execute_configuration
+WHERE desired_delay=12;
 ERROR 42000: DELETE command denied to user 'root'@'localhost' for table 'replication_execute_configuration'
-delete from performance_schema.replication_execute_configuration;
+DELETE FROM performance_schema.replication_execute_configuration;
 ERROR 42000: DELETE command denied to user 'root'@'localhost' for table 'replication_execute_configuration'
 LOCK TABLES performance_schema.replication_execute_configuration READ;
 ERROR 42000: SELECT, LOCK TABLES command denied to user 'root'@'localhost' for table 'replication_execute_configuration'
@@ -24,20 +24,20 @@ UNLOCK TABLES;
 LOCK TABLES performance_schema.replication_execute_configuration WRITE;
 ERROR 42000: SELECT, LOCK TABLES command denied to user 'root'@'localhost' for table 'replication_execute_configuration'
 UNLOCK TABLES;
-select * from performance_schema.replication_execute_configuration
-limit 1;
-select * from performance_schema.replication_execute_configuration
-where desired_delay=12;
-insert into performance_schema.replication_execute_configuration
-set desired_delay=2;
+SELECT * FROM performance_schema.replication_execute_configuration
+LIMIT 1;
+SELECT * FROM performance_schema.replication_execute_configuration
+WHERE desired_delay=12;
+INSERT INTO performance_schema.replication_execute_configuration
+SET desired_delay=2;
 ERROR 42000: INSERT command denied to user 'root'@'localhost' for table 'replication_execute_configuration'
-update performance_schema.replication_execute_configuration
-set desired_delay=12 where desired_delay=2;
+UPDATE performance_schema.replication_execute_configuration
+SET desired_delay=12 where desired_delay=2;
 ERROR 42000: UPDATE command denied to user 'root'@'localhost' for table 'replication_execute_configuration'
-delete from performance_schema.replication_execute_configuration
-where desired_delay=12;
+DELETE FROM performance_schema.replication_execute_configuration
+WHERE desired_delay=12;
 ERROR 42000: DELETE command denied to user 'root'@'localhost' for table 'replication_execute_configuration'
-delete from performance_schema.replication_execute_configuration;
+DELETE FROM performance_schema.replication_execute_configuration;
 ERROR 42000: DELETE command denied to user 'root'@'localhost' for table 'replication_execute_configuration'
 LOCK TABLES performance_schema.replication_execute_configuration READ;
 ERROR 42000: SELECT, LOCK TABLES command denied to user 'root'@'localhost' for table 'replication_execute_configuration'

@@ -44,7 +44,7 @@ enum enum_rpl_yes_no {
 
 /*
   A row in coordinator's table. The fields with string values have an
-   additional length field denoted by <field_name>_length.
+  additional length field denoted by <field_name>_length.
 */
 struct st_row_coordinator {
   ulonglong thread_id;

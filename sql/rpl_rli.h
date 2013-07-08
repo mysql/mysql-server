@@ -507,10 +507,10 @@ public:
   /*
     This flag is turned ON when the workers array is initialized.
     Before destroying the workers array we check this flag to make sure
-    we are not destroying an unitilized array. For the purpose of
-    reporting the worker status after STOP SLAVE command, we need to preserve
-    the workers array after worker thread was killed. So, although the THDs are
-    destroyed the workers array is preserved until init_workers().
+    we are not destroying an unitilized array. For the purpose of reporting the
+    worker status in performance schema table, we need to preserve the workers
+    array after worker thread was killed. So, although the THDs are destroyed
+    the workers array is preserved until next init_workers().
   */
   bool workers_array_initialized;
 
@@ -645,7 +645,7 @@ public:
     }
     else
       return NULL;
-  }  
+  }
 
   /* most of allocation in the coordinator rli is there */
   void init_workers(ulong);

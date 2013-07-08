@@ -49,7 +49,7 @@ enum enum_ssl_allowed {
 };
 
 /**
-  A row in worker's table. The fields with string values have an additional
+  A row in the table. The fields with string values have an additional
   length field denoted by <field_name>_length.
 */
 struct st_row_connect_config {
@@ -91,7 +91,7 @@ private:
   static THR_LOCK m_table_lock;
   /** Fields definition. */
   static TABLE_FIELD_DEF m_field_def;
-  /** True is the current row exists. */
+  /** True if the current row exists. */
   bool m_row_exists;
   /** Current row */
   st_row_connect_config m_row;

@@ -367,7 +367,7 @@ public:
     If the server is running in gtid-mode=on, this variables stores
     gtid of the currently executing transaction. This variable is set/modified
     in Gtid_log_event::do_apply_event(Relay_log_info const *rli). Since the
-    rli arguement is a const, we need to make currently_executing_gtid mutable
+    rli argument is a const, we need to make currently_executing_gtid mutable
     to allow this data member of const object to be modified.
   */
   mutable Gtid currently_executing_gtid;
