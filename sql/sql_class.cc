@@ -4062,6 +4062,11 @@ extern "C" int thd_allow_batch(MYSQL_THD thd)
   return 0;
 }
 
+enum_tx_isolation thd_get_trx_isolation(const MYSQL_THD thd)
+{
+	return thd->tx_isolation;
+}
+
 #ifdef INNODB_COMPATIBILITY_HOOKS
 extern "C" const struct charset_info_st *thd_charset(MYSQL_THD thd)
 {
