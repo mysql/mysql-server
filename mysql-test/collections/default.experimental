@@ -10,7 +10,6 @@ main.mysqlslap @windows                  # Bug#11761520 2010-08-10 alik mysqlsla
 
 main.index_merge_innodb                  # BUG#11754168 2012-05-08 jorgen Doing an attempt at reenabling tests disabled by bug. EXPLAIN's row estimates varies for innodb so marked experimental for a while
 
-innodb.innodb_monitor                    # Bug#12320827 2011-08-04 Occasional failure in PB2
 
 parts.partition_debug_innodb             # Bug#14150368 2013-03-07 anitha Failing very frequently on PB2
 
@@ -21,7 +20,6 @@ rpl.rpl_gtid_logs_without_rotate_or_stop_event @windows    # Bug#16207800 2013-0
 
 sys_vars.rpl_init_slave_func		    # Bug#12535301 2011-05-09 andrei sys_vars.rpl_init_slave_func mismatches in daily-5.5
 
-innodb.innodb_bug13867871                   # bug#14529475
 perfschema.socket_summary_by_instance_func  # bug#16274580
-innodb.innodb_bug14676111                   # bug #16371942 innodb.innodb_bug14676111 is failing on pb2 due to timeout 
+innodb.innodb_bug14676111                   # bug#17026780  2013-07-08 anitha Originally made experimental due to bug#16371942 which is now fixed. Now fails with mismatch in CLUST_INDEX_SIZE
 
