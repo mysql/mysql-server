@@ -412,7 +412,11 @@ struct sql_ex_info
  */
 #define Q_COMMIT_TS 14
 
-/* GTID log event post header */
+/*
+  G_COMMIT_TS status variable stores the logical timestamp when the transaction
+  entered the commit phase. This wll be used to apply transactions in parallel
+  on the slave.
+ */
 #define G_COMMIT_TS  1
 
 /* Intvar event post-header */
@@ -5056,6 +5060,8 @@ private:
   static const int ENCODED_SID_LENGTH= rpl_sid::BYTE_LENGTH;
   /// Length of GNO in event encoding
   static const int ENCODED_GNO_LENGTH= 8;
+  /// Length of COMMIT TIMESTAMP index in event encoding
+  static const int COMMIT_TS_INDEX_LEN= 1;
 
 public:
   /// Total length of post header
@@ -5063,7 +5069,7 @@ public:
     ENCODED_FLAG_LENGTH      +  /* flags */
     ENCODED_SID_LENGTH       +  /* SID length */
     ENCODED_GNO_LENGTH       +  /* GNO length */
-    1                        +  /* TYPECODE for G_COMMIT_TS  */
+    COMMIT_TS_INDEX_LEN      +  /* TYPECODE for G_COMMIT_TS  */
     COMMIT_SEQ_LEN;             /* COMMIT sequence length */
 
 private:
