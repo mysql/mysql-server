@@ -68,7 +68,7 @@ while ($1)
 {
   CALL test.p2();
   let $wait_condition= SELECT COUNT(*) = @wait_count FROM test.t3;
-  --source include/wait_condition.inc
+  --source include/wait_condition_or_abort.inc
   --disable_query_log
   SET @wait_count = @wait_count + 1;
   dec $1;

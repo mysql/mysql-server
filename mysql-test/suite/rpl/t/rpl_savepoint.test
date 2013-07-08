@@ -31,7 +31,7 @@ connection master;
 let $wait_condition=
   SELECT COUNT(*) = 1 FROM information_schema.processlist
   WHERE state = "Waiting for table metadata lock" AND info = "DROP TABLE tt";
---source include/wait_condition.inc
+--source include/wait_condition_or_abort.inc
 ROLLBACK TO SAVEPOINT insert_statement;
 COMMIT;
 
