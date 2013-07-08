@@ -3,23 +3,23 @@ Warnings:
 Note	####	Sending passwords in plain text without SSL/TLS is extremely insecure.
 Note	####	Storing MySQL user name or password information in the master info repository is not secure and is therefore not recommended. Please consider using the USER and PASSWORD connection options for START SLAVE; see the 'START SLAVE Syntax' in the MySQL Manual for more information.
 [connection master]
-select * from performance_schema.replication_execute_status
-limit 1;
-select * from performance_schema.replication_execute_status
-where service_state='YES' or remaining_delay=12;
-insert into performance_schema.replication_execute_status
-set service_state='YES', remaining_delay=12;
+SELECT * FROM performance_schema.replication_execute_status
+LIMIT 1;
+SELECT * FROM performance_schema.replication_execute_status
+WHERE service_state='YES' OR remaining_delay=12;
+INSERT INTO performance_schema.replication_execute_status
+SET service_state='YES', remaining_delay=12;
 ERROR 42000: INSERT command denied to user 'root'@'localhost' for table 'replication_execute_status'
-update performance_schema.replication_execute_status
-set remaining_delay=12;
+UPDATE performance_schema.replication_execute_status
+SET remaining_delay=12;
 ERROR 42000: UPDATE command denied to user 'root'@'localhost' for table 'replication_execute_status'
-update performance_schema.replication_execute_status
-set remaining_delay=12 where service_state='YES';
+UPDATE performance_schema.replication_execute_status
+SET remaining_delay=12 WHERE service_state='YES';
 ERROR 42000: UPDATE command denied to user 'root'@'localhost' for table 'replication_execute_status'
-delete from performance_schema.replication_execute_status
-where service_state='YES';
+DELETE FROM performance_schema.replication_execute_status
+WHERE service_state='YES';
 ERROR 42000: DELETE command denied to user 'root'@'localhost' for table 'replication_execute_status'
-delete from performance_schema.replication_execute_status;
+DELETE FROM performance_schema.replication_execute_status;
 ERROR 42000: DELETE command denied to user 'root'@'localhost' for table 'replication_execute_status'
 LOCK TABLES performance_schema.replication_execute_status READ;
 ERROR 42000: SELECT, LOCK TABLES command denied to user 'root'@'localhost' for table 'replication_execute_status'
@@ -27,23 +27,23 @@ UNLOCK TABLES;
 LOCK TABLES performance_schema.replication_execute_status WRITE;
 ERROR 42000: SELECT, LOCK TABLES command denied to user 'root'@'localhost' for table 'replication_execute_status'
 UNLOCK TABLES;
-select * from performance_schema.replication_execute_status
-limit 1;
-select * from performance_schema.replication_execute_status
-where service_state='YES' or remaining_delay=12;
-insert into performance_schema.replication_execute_status
-set service_state='YES', remaining_delay=12;
+SELECT * FROM performance_schema.replication_execute_status
+LIMIT 1;
+SELECT * FROM performance_schema.replication_execute_status
+WHERE service_state='YES' OR remaining_delay=12;
+INSERT INTO performance_schema.replication_execute_status
+SET service_state='YES', remaining_delay=12;
 ERROR 42000: INSERT command denied to user 'root'@'localhost' for table 'replication_execute_status'
-update performance_schema.replication_execute_status
-set remaining_delay=12;
+UPDATE performance_schema.replication_execute_status
+SET remaining_delay=12;
 ERROR 42000: UPDATE command denied to user 'root'@'localhost' for table 'replication_execute_status'
-update performance_schema.replication_execute_status
-set remaining_delay=12 where service_state='YES';
+UPDATE performance_schema.replication_execute_status
+SET remaining_delay=12 where service_state='YES';
 ERROR 42000: UPDATE command denied to user 'root'@'localhost' for table 'replication_execute_status'
-delete from performance_schema.replication_execute_status
-where service_state='YES';
+DELETE FROM performance_schema.replication_execute_status
+WHERE service_state='YES';
 ERROR 42000: DELETE command denied to user 'root'@'localhost' for table 'replication_execute_status'
-delete from performance_schema.replication_execute_status;
+DELETE FROM performance_schema.replication_execute_status;
 ERROR 42000: DELETE command denied to user 'root'@'localhost' for table 'replication_execute_status'
 LOCK TABLES performance_schema.replication_execute_status READ;
 ERROR 42000: SELECT, LOCK TABLES command denied to user 'root'@'localhost' for table 'replication_execute_status'

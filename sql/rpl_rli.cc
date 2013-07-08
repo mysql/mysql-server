@@ -176,8 +176,8 @@ void Relay_log_info::init_workers(ulong n_workers)
      deinit_workers();
      slave_parallel_workers= 0;
   }
-  workers_array_initialized= true; //set before init
   my_init_dynamic_array(&workers, sizeof(Slave_worker *), n_workers, 4);
+  workers_array_initialized= true; //set after init
 }
 
 /**

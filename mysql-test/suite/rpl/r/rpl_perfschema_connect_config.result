@@ -62,7 +62,7 @@ include/rpl_restart_server.inc [server_number=2 gtids=on]
 # 1) Test for Auto_position= 0.
 
 include/assert.inc [Value returned by SSS and PS table for Auto_Position should be same.]
-CHANGE MASTER TO
+change master to
 master_user = 'root',
 master_auto_position= 1;
 Warnings:

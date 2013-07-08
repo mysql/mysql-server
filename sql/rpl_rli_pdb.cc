@@ -1448,7 +1448,7 @@ void Slave_worker::do_report(loglevel level, int err_code, const char *msg,
 {
     va_list args_copy;
     /*
-      The arguement 'va_list args' is ued twice.
+      The argument 'va_list args' is used twice.
       1) Error reporting by the coordinator.
       2) Error reporting by the worker that errored out.
       C does not allow using the same va_list twice without making a copy.

@@ -13,7 +13,7 @@ Note	####	Storing MySQL user name or password information in the master info rep
 include/assert.inc [Value returned by SSS and PS table for Source_UUID should be same.]
 io thread id extracted from SHOW PROCESSLIST and PS table match correctly.
 # End of perl code for thread_id testing.
-include/assert.inc [SSS shows Slave_IO_Running as "Yes". So, Service_State from this PS table should be "On".]
+include/assert.inc [SSS shows Slave_IO_Running as "Yes". So, Service_State from this PS table should be "ON".]
 include/assert.inc [Value returned by SSS and PS table for Received_Transaction_Set should be same.]
 include/assert.inc [Value returned by SSS and PS table for Last_Error_Number should be same.]
 include/assert.inc [Value returned by SSS and PS table for Last_Error_Message should be same.]
@@ -48,7 +48,7 @@ include/stop_slave.inc
 #    STOP SLAVE.
 
 include/assert.inc [After STOP SLAVE, thread_id should be NULL]
-include/assert.inc [SSS shows Slave_IO_Running as "No". So, Service_State from this PS table should be "Off".]
+include/assert.inc [SSS shows Slave_IO_Running as "No". So, Service_State from this PS table should be "OFF".]
 
 # 2. Extract the source_UUID and the error related fields from SSS and PS
 #    table and compare them. These fields should preserve their values.
@@ -63,7 +63,7 @@ include/assert.inc [Value returned by SSS and PS table for Last_Error_Timestamp 
 
 include/rpl_restart_server.inc [server_number=1 gtids=on]
 include/rpl_restart_server.inc [server_number=2 gtids=on]
-CHANGE MASTER TO
+change master to
 master_user = 'root',
 master_auto_position= 1;
 Warnings:
