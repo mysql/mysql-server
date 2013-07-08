@@ -89,8 +89,11 @@ if (`SELECT @@global.binlog_format != 'ROW' OR @@global.slave_exec_mode = 'STRIC
   --echo ---- Wait until slave stops with an error ----
   # Wait until the slave tries to run the query, fails with duplicate
   # key error, and stops the SQL thread.
-  let $slave_sql_errno= convert_error(ER_DUP_ENTRY)
+
+  let $slave_sql_errno= convert_error(ER_DUP_ENTRY);
   source include/wait_for_slave_sql_error.inc;
+  --let $errno= query_get_value("SHOW SLAVE STATUS", Last_SQL_Errno, 1)
+  --eval SELECT "$errno" as 'Last_SQL_Errno'
 
   call mtr.add_suppression("Slave SQL.*Duplicate entry .1. for key .PRIMARY.* Error_code: 1062");
   call mtr.add_suppression("The slave coordinator and worker threads are stopped, possibly leaving data in inconsistent state");
@@ -139,8 +142,11 @@ connection slave;
 if (`SELECT @@global.binlog_format = 'ROW' AND @@global.slave_exec_mode = 'STRICT'`) {
   --echo ---- Wait until slave stops with an error ----
   call mtr.add_suppression("Slave SQL.*Can.t find record in .t1., Error_code: 1032");
-  let $slave_sql_errno= convert_error(ER_KEY_NOT_FOUND)
+
+  let $slave_sql_errno= convert_error(ER_KEY_NOT_FOUND);
   source include/wait_for_slave_sql_error.inc;
+  --let $errno= query_get_value("SHOW SLAVE STATUS", Last_SQL_Errno, 1)
+  --eval SELECT "$errno" as 'Last_SQL_Errno'
 
   SELECT * FROM t1;
 

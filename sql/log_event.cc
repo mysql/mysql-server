@@ -3037,23 +3037,22 @@ Slave_worker *Log_event::get_slave_worker(Relay_log_info *rli)
   DBUG_ASSERT(ret_worker);
 
   /*
-    Preparing event physical coordinates info for Worker before any event got
-    scheduled so when Worker error-stopped at the first event it would be aware of
-    where exactly in the event stream.
+    Preparing event physical coordinates info for Worker before any
+    event got scheduled so when Worker error-stopped at the first
+    event it would be aware of where exactly in the event stream.
   */
-  if (!ret_worker->checkpoint_notified)
+  if (!ret_worker->master_log_change_notified)
   {
     if (!ptr_group)
       ptr_group= gaq->get_job_group(rli->gaq->assigned_group_index);
-    ptr_group->checkpoint_log_name= 
+    ptr_group->group_master_log_name=
       my_strdup(rli->get_group_master_log_name(), MYF(MY_WME));
-    ptr_group->checkpoint_log_pos= rli->get_group_master_log_pos();
-    ptr_group->checkpoint_relay_log_name=
-      my_strdup(rli->get_group_relay_log_name(), MYF(MY_WME));
-    ptr_group->checkpoint_relay_log_pos= rli->get_group_relay_log_pos();
-    ptr_group->shifted= ret_worker->bitmap_shifted;
-    ret_worker->bitmap_shifted= 0;
-    ret_worker->checkpoint_notified= TRUE;
+    ret_worker->master_log_change_notified= true;
+
+    DBUG_ASSERT(!ptr_group->notified);
+#ifndef DBUG_OFF
+    ptr_group->notified= true;
+#endif
   }
 
   // T-event: Commit, Xid, a DDL query or dml query of B-less group.
@@ -3094,6 +3093,21 @@ Slave_worker *Log_event::get_slave_worker(Relay_log_info *rli)
       DBUG_ASSERT(ptr_group->group_relay_log_name != NULL);
 
       ret_worker->relay_log_change_notified= TRUE;
+    }
+
+    if (!ret_worker->checkpoint_notified)
+    {
+      if (!ptr_group)
+        ptr_group= gaq->get_job_group(rli->gaq->assigned_group_index);
+      ptr_group->checkpoint_log_name=
+        my_strdup(rli->get_group_master_log_name(), MYF(MY_WME));
+      ptr_group->checkpoint_log_pos= rli->get_group_master_log_pos();
+      ptr_group->checkpoint_relay_log_name=
+        my_strdup(rli->get_group_relay_log_name(), MYF(MY_WME));
+      ptr_group->checkpoint_relay_log_pos= rli->get_group_relay_log_pos();
+      ptr_group->shifted= ret_worker->bitmap_shifted;
+      ret_worker->bitmap_shifted= 0;
+      ret_worker->checkpoint_notified= TRUE;
     }
     ptr_group->checkpoint_seqno= rli->checkpoint_seqno;
     ptr_group->ts= when.tv_sec + (time_t) exec_time; // Seconds_behind_master related
