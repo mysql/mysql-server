@@ -1265,8 +1265,8 @@ row_truncate_table_for_mysql(
 	/*-----------------------------------------------------------------*/
 
 	ib_logf(IB_LOG_LEVEL_INFO,
-		"Truncating table %s (table id = %lu) residing in space %u",
-		table->name, table->id, table->space);
+		"Truncating table %s (table id = %llu) residing in space %lu",
+		table->name, (ullint) table->id, (ulong) table->space);
 
 	/* Step-1: Perform intiial sanity check to ensure table can be
 	truncated. This would include check for tablespace discard status,
