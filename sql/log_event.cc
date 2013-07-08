@@ -2845,34 +2845,33 @@ bool schedule_next_event(Log_event* ev, Relay_log_info* rli)
    g - mini-group representative event containing the partition info
       (any Table_map, a Query_log_event)
    p - a mini-group internal event that *p*receeding its g-parent
-      (int_, rand_, user_ var:s)
+      (int_, rand_, user_ var:s) 
    r - a mini-group internal "regular" event that follows its g-parent
       (Delete, Update, Write -rows)
    T - terminator of the group (XID, COMMIT, ROLLBACK, auto-commit query)
 
-   Only the first g-event computes the assigned Worker which once
+   Only the first g-event computes the assigned Worker which once 
    is determined remains to be for the rest of the group.
    That is the g-event solely carries partitioning info.
-   For B-event the assigned Worker is NULL to indicate Coordinator
+   For B-event the assigned Worker is NULL to indicate Coordinator 
    has not yet decided. The same applies to p-event.
-
+   
    Notice, these is a special group consisting of optionally multiple p-events
    terminating with a g-event.
    Such case is caused by old master binlog and a few corner-cases of
-   the current master version (todo: to fix).
+   the current master version (todo: to fix). 
 
    In case of the event accesses more than OVER_MAX_DBS the method
    has to ensure sure previously assigned groups to all other workers are
    done.
 
 
-   @note The function updates GAQ queue directly, updates APH hash
+   @note The function updates GAQ queue directly, updates APH hash 
          plus relocates some temporary tables from Coordinator's list into
          involved entries of APH through @c map_db_to_worker.
          There's few memory allocations commented where to be freed.
-
+   
    @return a pointer to the Worker struct or NULL.
-   TODO:The BGC-based parallelization still has to address lookup for temp tables.
 */
 
 Slave_worker *Log_event::get_slave_worker(Relay_log_info *rli)
@@ -2946,14 +2945,16 @@ Slave_worker *Log_event::get_slave_worker(Relay_log_info *rli)
           rli->abort_slave= 1;
           DBUG_RETURN(NULL);
         }
-        DBUG_RETURN (ret_worker);
+        DBUG_RETURN(ret_worker);
       }
     }
     else
     {
-      // The block is a result of not making GTID event as group starter.
-      // TODO: Make GITD event as B-event that is starts_group() to
-      // return true.
+      /*
+       The block is a result of not making GTID event as group starter.
+       TODO: Make GITD event as B-event that is starts_group() to
+       return true.
+      */
 
       Log_event *ptr_curr_ev= this;
       // B-event is appended to the Deferred Array associated with GCAP
@@ -3008,9 +3009,8 @@ Slave_worker *Log_event::get_slave_worker(Relay_log_info *rli)
                 (rli->mts_end_group_sets_max_dbs &&
                  ((rli->curr_group_da.elements == 3 && rli->curr_group_seen_gtid) ||
                  (rli->curr_group_da.elements == 2 && !rli->curr_group_seen_gtid)) &&
-                 ((*(Log_event **)
-                   dynamic_array_ptr(&rli->curr_group_da,
-                                     rli->curr_group_da.elements - 1))-> 
+                 ((*(Log_event **) dynamic_array_ptr(&rli->curr_group_da,
+                                     rli->curr_group_da.elements - 1))->
                                 get_type_code() == BEGIN_LOAD_QUERY_EVENT)));
 
     // partioning info is found which drops the flag
@@ -4651,6 +4651,7 @@ void Query_log_event::detach_temp_tables_worker(THD *thd,
 {
   rli->current_mts_submode->detach_temp_tables(thd, rli, this);
 }
+
 /*
   Query_log_event::do_apply_event()
 */
