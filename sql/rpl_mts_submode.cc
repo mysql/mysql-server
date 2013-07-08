@@ -289,6 +289,8 @@ bool
 Mts_submode_logical_clock::schedule_next_event(Relay_log_info* rli,
                                                Log_event *ev)
 {
+  PSI_stage_info *old_stage= 0;
+  THD *thd= rli->info_thd;
   DBUG_ENTER("Mts_submode_logical_clock::schedule_next_event");
 
   if (assign_group_parent_id(rli, ev))
@@ -316,11 +318,16 @@ Mts_submode_logical_clock::schedule_next_event(Relay_log_info* rli,
       We have a new group and we must check if the last group was completely
       applied before we move on to the next group
     */
+    // Update thd info as waiting for workers to finish.
+    thd->enter_stage(&stage_slave_waiiting_for_workers_to_finish, old_stage,
+                      __func__, __FILE__, __LINE__);
     while (delegated_jobs > jobs_done)
     {
       if (mts_checkpoint_routine(rli, 0, true, true /*need_data_lock=true*/))
         DBUG_RETURN(true);
     }
+    // Restore previous info.
+    THD_STAGE_INFO(thd, *old_stage);
     DBUG_PRINT("info",("delegated %d, jobs_done %d, we can schedule "
                        "the next group.", delegated_jobs, jobs_done));
     delegated_jobs= 1;
@@ -437,6 +444,8 @@ Mts_submode_logical_clock::get_least_occupied_worker(Relay_log_info *rli,
   Slave_committed_queue *gaq= rli->gaq;
   Slave_worker *worker= NULL;
   Slave_job_group* ptr_group;
+  PSI_stage_info *old_stage= 0;
+  THD* thd= rli->info_thd;
   DBUG_ENTER("Mts_submode_logical_clock::get_least_occupied_worker");
 #ifndef DBUG_OFF
 
@@ -474,14 +483,16 @@ Mts_submode_logical_clock::get_least_occupied_worker(Relay_log_info *rli,
     else
     {
       worker= get_free_worker(rli);
+      // Update thd info as waiting for workers to finish.
+      thd->enter_stage(&stage_slave_waiiting_for_workers_to_finish, old_stage,
+                       __func__, __FILE__, __LINE__);
       while (!worker)
       {
         /* wait and get a free worker */
-        mysql_mutex_lock(&slave_worker_hash_lock);
-        mysql_cond_wait(&slave_worker_hash_cond, &slave_worker_hash_lock);
         worker= get_free_worker(rli);
-        mysql_mutex_unlock(&slave_worker_hash_lock);
       }
+      // Restore old stage info.
+      THD_STAGE_INFO(thd, *old_stage);
     }
   }
 
