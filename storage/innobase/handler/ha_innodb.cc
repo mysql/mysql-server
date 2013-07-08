@@ -1303,7 +1303,7 @@ convert_error_code_to_mysql(
 
 	case DB_INTERRUPTED:
 		my_error(ER_QUERY_INTERRUPTED, MYF(0));
-		/* fall through */
+		return(-1);
 
 	case DB_FOREIGN_EXCEED_MAX_CASCADE:
 		ut_ad(thd);
