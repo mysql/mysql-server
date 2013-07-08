@@ -127,7 +127,7 @@ run_gdb(pid_t parent_pid, const char *gdb_path) {
 static void
 intermediate_process(pid_t parent_pid, const char *gdb_path) {
     // Disable generating of core dumps
-#if defined(HAVE_SYS_PRCTL_H) && defined(HAVE_PR_SET_PTRACER)
+#if defined(HAVE_SYS_PRCTL_H)
     prctl(PR_SET_DUMPABLE, 0, 0, 0);
 #endif
     pid_t worker_pid = fork();
@@ -180,7 +180,7 @@ failure:
 static void
 spawn_gdb(const char *gdb_path) {
     pid_t parent_pid = getpid();
-#if defined(HAVE_SYS_PRCTL_H) && defined(HAVE_PR_SET_PTRACER)
+#if defined(HAVE_SYS_PRCTL_H)
     // On systems that require permission for the same user to ptrace,
     // give permission for this process and (more importantly) all its children to debug this process.
     prctl(PR_SET_PTRACER, parent_pid, 0, 0, 0);
