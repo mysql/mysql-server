@@ -2831,7 +2831,7 @@ bool Log_event::contains_partition_info(bool end_group_sets_max_dbs)
 
 Slave_worker *Log_event::get_slave_worker(Relay_log_info *rli)
 {
-  Slave_job_group group, *ptr_group;
+  Slave_job_group group, *ptr_group= NULL;
   bool is_s_event;
   int  num_dbs= 0;
   Slave_worker *ret_worker= NULL;
@@ -3034,15 +3034,36 @@ Slave_worker *Log_event::get_slave_worker(Relay_log_info *rli)
     }
   }
 
+  DBUG_ASSERT(ret_worker);
+
+  /*
+    Preparing event physical coordinates info for Worker before any event got
+    scheduled so when Worker error-stopped at the first event it would be aware of
+    where exactly in the event stream.
+  */
+  if (!ret_worker->checkpoint_notified)
+  {
+    if (!ptr_group)
+      ptr_group= gaq->get_job_group(rli->gaq->assigned_group_index);
+    ptr_group->checkpoint_log_name= 
+      my_strdup(rli->get_group_master_log_name(), MYF(MY_WME));
+    ptr_group->checkpoint_log_pos= rli->get_group_master_log_pos();
+    ptr_group->checkpoint_relay_log_name=
+      my_strdup(rli->get_group_relay_log_name(), MYF(MY_WME));
+    ptr_group->checkpoint_relay_log_pos= rli->get_group_relay_log_pos();
+    ptr_group->shifted= ret_worker->bitmap_shifted;
+    ret_worker->bitmap_shifted= 0;
+    ret_worker->checkpoint_notified= TRUE;
+  }
+
   // T-event: Commit, Xid, a DDL query or dml query of B-less group.
   if (ends_group() || !rli->curr_group_seen_begin)
   {
-    // index of GAQ that this terminal event belongs to
-    mts_group_idx= gaq->assigned_group_index;
     rli->mts_group_status= Relay_log_info::MTS_END_GROUP;
     if (rli->curr_group_isolated)
       set_mts_isolate_group();
-    ptr_group= gaq->get_job_group(rli->gaq->assigned_group_index);
+    if (!ptr_group)
+      ptr_group= gaq->get_job_group(rli->gaq->assigned_group_index);
 
     DBUG_ASSERT(ret_worker != NULL);
     
@@ -3073,25 +3094,6 @@ Slave_worker *Log_event::get_slave_worker(Relay_log_info *rli)
       DBUG_ASSERT(ptr_group->group_relay_log_name != NULL);
 
       ret_worker->relay_log_change_notified= TRUE;
-    }
-
-    if (!ret_worker->checkpoint_notified)
-    {
-      ptr_group->checkpoint_log_name= (char *)
-        my_malloc(strlen(rli->
-                         get_group_master_log_name()) + 1, MYF(MY_WME));
-      strcpy(ptr_group->checkpoint_log_name,
-             rli->get_group_master_log_name());
-      ptr_group->checkpoint_log_pos= rli->get_group_master_log_pos();
-      ptr_group->checkpoint_relay_log_name= (char *)
-        my_malloc(strlen(rli->
-                         get_group_relay_log_name()) + 1, MYF(MY_WME));
-      strcpy(ptr_group->checkpoint_relay_log_name,
-             rli->get_group_relay_log_name());
-      ptr_group->checkpoint_relay_log_pos= rli->get_group_relay_log_pos();
-      ptr_group->shifted= ret_worker->bitmap_shifted;
-      ret_worker->bitmap_shifted= 0;
-      ret_worker->checkpoint_notified= TRUE;
     }
     ptr_group->checkpoint_seqno= rli->checkpoint_seqno;
     ptr_group->ts= when.tv_sec + (time_t) exec_time; // Seconds_behind_master related
