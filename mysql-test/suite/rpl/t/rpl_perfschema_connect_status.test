@@ -100,8 +100,8 @@ remove_file $out_file;
 
 let $sss_value= query_get_value(SHOW SLAVE STATUS, Slave_IO_Running, 1);
 let $ps_value= query_get_value(select Service_State from performance_schema.replication_connection_status, Service_State, 1);
-let $assert_text= SSS shows Slave_IO_Running as "Yes". So, Service_State from this PS table should be "On".;
-let $assert_cond= "$sss_value" = "Yes" AND "$ps_value"= "On";
+let $assert_text= SSS shows Slave_IO_Running as "Yes". So, Service_State from this PS table should be "ON".;
+let $assert_cond= "$sss_value" = "Yes" AND "$ps_value"= "ON";
 source include/assert.inc;
 
 let $sss_value= query_get_value(SHOW SLAVE STATUS, Retrieved_Gtid_Set, 1);
@@ -172,7 +172,7 @@ perl;
 use strict;
 my $ps_value= $ENV{'PS_VALUE'};
 my $sss_value= $ENV{'SSS_VALUE'};
-print "$sss_value";
+
 if ($ps_value eq $sss_value)
 {
   print "Value returned by SSS and PS table for Last_Error_Message is same.\n";
@@ -218,8 +218,8 @@ source include/assert.inc;
 
 let $sss_value= query_get_value(SHOW SLAVE STATUS, Slave_IO_Running, 1);
 let $ps_value= query_get_value(select Service_State from performance_schema.replication_connection_status, Service_State, 1);
-let $assert_text= SSS shows Slave_IO_Running as "No". So, Service_State from this PS table should be "Off".;
-let $assert_cond= "$sss_value" = "No" AND "$ps_value"= "Off";
+let $assert_text= SSS shows Slave_IO_Running as "No". So, Service_State from this PS table should be "OFF".;
+let $assert_cond= "$sss_value" = "No" AND "$ps_value"= "OFF";
 source include/assert.inc;
 
 --echo
@@ -296,7 +296,7 @@ source include/rpl_restart_server.inc;
 
 --connection slave
 replace_column 2 ####;
-CHANGE MASTER TO
+change master to
  master_user = 'root',
  master_auto_position= 1;
 source include/start_slave.inc;

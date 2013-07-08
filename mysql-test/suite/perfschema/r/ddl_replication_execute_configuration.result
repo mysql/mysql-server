@@ -3,10 +3,10 @@ Warnings:
 Note	####	Sending passwords in plain text without SSL/TLS is extremely insecure.
 Note	####	Storing MySQL user name or password information in the master info repository is not secure and is therefore not recommended. Please consider using the USER and PASSWORD connection options for START SLAVE; see the 'START SLAVE Syntax' in the MySQL Manual for more information.
 [connection master]
-alter table performance_schema.replication_execute_configuration
-add column foo integer;
+ALTER TABLE performance_schema.replication_execute_configuration
+ADD COLUMN foo integer;
 ERROR 42000: Access denied for user 'root'@'localhost' to database 'performance_schema'
-truncate table performance_schema.replication_execute_configuration;
+TRUNCATE TABLE performance_schema.replication_execute_configuration;
 ERROR HY000: Invalid performance_schema usage.
 ALTER TABLE performance_schema.replication_execute_configuration
 ADD INDEX test_index(desired_delay);
@@ -14,15 +14,15 @@ ERROR 42000: Access denied for user 'root'@'localhost' to database 'performance_
 CREATE UNIQUE INDEX test_index ON
 performance_schema.replication_execute_configuration(desired_delay);
 ERROR 42000: Access denied for user 'root'@'localhost' to database 'performance_schema'
-alter table performance_schema.replication_execute_configuration
+ALTER TABLE performance_schema.replication_execute_configuration
 add column foo integer;
 ERROR 42000: Access denied for user 'root'@'localhost' to database 'performance_schema'
-truncate table performance_schema.replication_execute_configuration;
+TRUNCATE TABLE performance_schema.replication_execute_configuration;
 ERROR HY000: Invalid performance_schema usage.
 ALTER TABLE performance_schema.replication_execute_configuration
 ADD INDEX test_index(desired_delay);
 ERROR 42000: Access denied for user 'root'@'localhost' to database 'performance_schema'
-CREATE UNIQUE INDEX test_index ON 
+CREATE UNIQUE INDEX test_index ON
 performance_schema.replication_execute_configuration(desired_delay);
 ERROR 42000: Access denied for user 'root'@'localhost' to database 'performance_schema'
 include/rpl_end.inc

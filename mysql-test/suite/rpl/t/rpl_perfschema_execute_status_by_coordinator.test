@@ -100,8 +100,8 @@ remove_file $out_file;
 
 let $sss_value= query_get_value(SHOW SLAVE STATUS, Slave_SQL_Running, 1);
 let $ps_value= query_get_value(select Service_State from performance_schema.replication_connection_status, Service_State, 1);
-let $assert_text= SSS shows Slave_IO_Running as "Yes". So, Service_State from this PS table should be "On".;
-let $assert_cond= "$sss_value" = "Yes" AND "$ps_value"= "On";
+let $assert_text= SSS shows Slave_IO_Running as "Yes". So, Service_State from this PS table should be "ON".;
+let $assert_cond= "$sss_value" = "Yes" AND "$ps_value"= "ON";
 source include/assert.inc;
 
 let $sss_value= query_get_value(SHOW SLAVE STATUS, Last_SQL_Errno, 1);
@@ -124,8 +124,8 @@ source include/assert.inc;
 
 let $sss_value= query_get_value(SHOW SLAVE STATUS, Slave_SQL_Running, 1);
 let $ps_value= query_get_value(select Service_State from performance_schema.replication_execute_status_by_coordinator, Service_State, 1);
-let $assert_text= SSS shows Slave_SQL_Running as "Yes". So, Service_State from this PS table should be "On".;
-let $assert_cond= "$sss_value" = "Yes" AND "$ps_value"= "On";
+let $assert_text= SSS shows Slave_SQL_Running as "Yes". So, Service_State from this PS table should be "ON".;
+let $assert_cond= "$sss_value" = "Yes" AND "$ps_value"= "ON";
 source include/assert.inc;
 
 --echo
@@ -219,8 +219,8 @@ source include/assert.inc;
 
 let $sss_value= query_get_value(SHOW SLAVE STATUS, Slave_SQL_Running, 1);
 let $ps_value= query_get_value(select Service_State from performance_schema.replication_execute_status_by_coordinator, Service_State, 1);
-let $assert_text= SSS shows Slave_SQL_Running as "No". So, Service_State from this PS table should be "Off".;
-let $assert_cond= "$sss_value" = "No" AND "$ps_value"= "Off";
+let $assert_text= SSS shows Slave_SQL_Running as "No". So, Service_State from this PS table should be "OFF".;
+let $assert_cond= "$sss_value" = "No" AND "$ps_value"= "OFF";
 source include/assert.inc;
 
 --echo
@@ -275,11 +275,11 @@ let $assert_text= Value returned by SSS and PS table for Last_Error_Timestamp sh
 let $assert_cond= "$sss_value" = "$ps_value_in_sss_format";
 source include/assert.inc;
 
-STOP SLAVE;
-RESET SLAVE;
+stop slave;
+reset slave;
 --connection master
 drop table t;
-RESET MASTER;
+reset master;
 
 --echo
 --echo # Restarting servers and setting up MTS now. Since, SQL thread and
@@ -350,8 +350,8 @@ remove_file $out_file;
 
 let $sss_value= query_get_value(SHOW SLAVE STATUS, Slave_SQL_Running, 1);
 let $ps_value= query_get_value(select Service_State from performance_schema.replication_connection_status, Service_State, 1);
-let $assert_text= SSS shows Slave_SQL_Running as "Yes". So, Service_State from this PS table should be "On".;
-let $assert_cond= "$sss_value" = "Yes" AND "$ps_value"= "On";
+let $assert_text= SSS shows Slave_SQL_Running as "Yes". So, Service_State from this PS table should be "ON".;
+let $assert_cond= "$sss_value" = "Yes" AND "$ps_value"= "ON";
 source include/assert.inc;
 
 let $sss_value= query_get_value(SHOW SLAVE STATUS, Last_SQL_Errno, 1);

@@ -1,5 +1,8 @@
 # Tests for PERFORMANCE_SCHEMA
 
+# This test verifies the correct behaviour in case of invalid
+# usage of DDLs on the table replication_execute_status
+
 --source include/not_embedded.inc
 --source include/have_perfschema.inc
 --source include/master-slave.inc
@@ -7,11 +10,11 @@
 connection master;
 
 -- error ER_DBACCESS_DENIED_ERROR
-alter table performance_schema.replication_execute_status
-  add column foo integer;
+ALTER TABLE performance_schema.replication_execute_status
+  ADD COLUMN foo integer;
 
 -- error ER_WRONG_PERFSCHEMA_USAGE
-truncate table performance_schema.replication_execute_status;
+TRUNCATE TABLE performance_schema.replication_execute_status;
 
 -- error ER_DBACCESS_DENIED_ERROR
 ALTER TABLE performance_schema.replication_execute_status
@@ -24,11 +27,11 @@ CREATE UNIQUE INDEX test_index ON
 connection slave;
 
 -- error ER_DBACCESS_DENIED_ERROR
-alter table performance_schema.replication_execute_status
+ALTER TABLE performance_schema.replication_execute_status
   add column foo integer;
 
 -- error ER_WRONG_PERFSCHEMA_USAGE
-truncate table performance_schema.replication_execute_status;
+TRUNCATE TABLE performance_schema.replication_execute_status;
 
 -- error ER_DBACCESS_DENIED_ERROR
 ALTER TABLE performance_schema.replication_execute_status

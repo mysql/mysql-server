@@ -45,14 +45,15 @@ enum enum_rpl_yes_no {
 };
 #endif
 
-/**
+/*
   A row in worker's table. The fields with string values have an additional
   length field denoted by <field_name>_length.
 */
 struct st_row_worker {
-  /** worker_id is added to the table because thread is killed at STOP SLAVE
-      but the status needs to show up, so worker_id is used as a permanent
-      identifier.
+  /*  
+    worker_id is added to the table because thread is killed at STOP SLAVE
+    but the status needs to show up, so worker_id is used as a permanent
+    identifier.
   */
   ulonglong worker_id;
   ulonglong thread_id;

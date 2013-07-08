@@ -12,13 +12,14 @@
 #
 # This test script does the following:
 
+#  - On master, the table returns an empty set.
+#  - We perform all other testing on connection "slave". So, the below points
+#    are checked on slave only.
 #  - Verify that SELECT works for every field in the table.
 #  - The SELECT per field produces an output similar to the corresponding field
 #    in SHOW SLAVE STATUS(SSS), if there is one.
 #  - If there is no matching field in SSS, we resort to other method of testing
 #    those fields.
-#  - We perform all the testing on connection "slave". On master, the table
-#    returns an empty set.
 #
 # The follwing scenarios are tested:
 #
@@ -238,7 +239,7 @@ let $assert_cond= "$sss_value" = "$ps_value";
 source include/assert.inc;
 
 replace_column 2 ####;
-CHANGE MASTER TO
+change master to
  master_user = 'root',
  master_auto_position= 1;
 
