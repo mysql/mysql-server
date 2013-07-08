@@ -164,7 +164,9 @@ typedef struct st_slave_job_group
   volatile uchar done;  // Flag raised by W,  read and reset by Coordinator
   ulong    shifted;     // shift the last CP bitmap at receiving a new CP
   time_t   ts;          // Group's timestampt to update Seconds_behind_master
-
+#ifndef DBUG_OFF
+  bool     notified;    // to debug group_master_log_name change notification
+#endif
   /*
     Coordinator fills the struct with defaults and options at starting of 
     a group distribution.
@@ -183,6 +185,9 @@ typedef struct st_slave_job_group
     checkpoint_relay_log_pos= 0;
     checkpoint_seqno= (uint) -1;
     done= 0;
+#ifndef DBUG_OFF
+    notified= false;
+#endif
   }
 } Slave_job_group;
 
@@ -320,6 +325,7 @@ public:
 
   volatile bool relay_log_change_notified; // Coord sets and resets, W can read
   volatile bool checkpoint_notified; // Coord sets and resets, W can read
+  volatile bool master_log_change_notified; // Coord sets and resets, W can read
   ulong bitmap_shifted;  // shift the last bitmap at receiving new CP
   // WQ current excess above the overrun level
   long wq_overrun_cnt;
