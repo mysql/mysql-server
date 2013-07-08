@@ -3514,12 +3514,6 @@ sub mysql_install_db {
   # over writing innodb_autoextend_increment to 8 for reducing the ibdata1 file size 
   mtr_add_arg($args, "--innodb_autoextend_increment=8");
 
-  if ( $opt_embedded_server )
-  {
-    # Do not create performance_schema tables for embedded
-    mtr_add_arg($args, "--loose-skip-plugin-performance-schema");
-  }
-
   if ( $opt_debug )
   {
     mtr_add_arg($args, "--debug=$debug_d:t:i:A,%s/log/bootstrap.trace",
