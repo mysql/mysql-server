@@ -7,6 +7,7 @@
 # here if the size of step 1 > size of step 2 (pass) esle Fail
 #*************************************************************
 --source include/have_innodb.inc
+-- source include/have_innodb_16k.inc
 
 --echo # set the environmental variables
 let MYSQLD_DATADIR = `SELECT @@datadir`;
@@ -66,6 +67,7 @@ AND variable_value != 'not started'
 AND variable_value like 'Buffer pool(s) dump completed at%';
 -- source include/wait_condition.inc
 
+--echo # wait some more time, for dump file getting created.
 let $wait_condition = SELECT count(*) = 1
 FROM information_schema.global_status
 WHERE variable_name = 'INNODB_BUFFER_POOL_DUMP_STATUS'
