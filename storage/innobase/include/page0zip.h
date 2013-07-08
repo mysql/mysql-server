@@ -135,13 +135,36 @@ intact on failure. */
 ibool
 page_zip_compress(
 /*==============*/
-	page_zip_des_t*	page_zip,/*!< in: size; out: data, n_blobs,
-				m_start, m_end, m_nonempty */
-	const page_t*	page,	/*!< in: uncompressed page */
-	dict_index_t*	index,	/*!< in: index of the B-tree node */
-	ulint		level,	/*!< in: compression level */
-	mtr_t*		mtr)	/*!< in: mini-transaction, or NULL */
-	__attribute__((nonnull(1,2,3)));
+	page_zip_des_t*		page_zip,	/*!< in: size; out: data,
+						n_blobs, m_start, m_end,
+						m_nonempty */
+	const page_t*		page,		/*!< in: uncompressed page */
+	dict_index_t*		index,		/*!< in: index of the B-tree
+						node */
+	ulint			level,		/*!< in: commpression level */
+	const redo_page_compress_t* page_comp_info,
+						/*!< in: used for applying
+						MLOG_FILE_TRUNCATE redo log
+						record during recovery */
+	mtr_t*			mtr);		/*!< in/out: mini-transaction,
+						or NULL */
+
+/**********************************************************************//**
+Write the index information for the compressed page.
+@return used size of buf */
+
+ulint
+page_zip_fields_encode(
+/*===================*/
+	ulint			n,	/*!< in: number of fields
+					to compress */
+	const dict_index_t*	index,	/*!< in: index comprising
+					at least n fields */
+	ulint			trx_id_pos,
+					/*!< in: position of the trx_id column
+					in the index, or ULINT_UNDEFINED if
+					this is a non-leaf page */
+	byte*			buf);	/*!< out: buffer of (n + 1) * 2 bytes */
 
 /**********************************************************************//**
 Decompress a page.  This function should tolerate errors on the compressed
