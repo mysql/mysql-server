@@ -192,10 +192,10 @@ SET GLOBAL EVENT_SCHEDULER = on;
 # Wait while events will executed
 ALTER EVENT e1 ENABLE;
 let $wait_condition= SELECT COUNT(*) = 1 FROM t1 WHERE t1.a = 10;
---source include/wait_condition.inc
+--source include/wait_condition_or_abort.inc
 ALTER EVENT e11 ENABLE;
 let $wait_condition= SELECT COUNT(*) = 1 FROM t11 WHERE t11.a = 10;
---source include/wait_condition.inc
+--source include/wait_condition_or_abort.inc
 SET GLOBAL EVENT_SCHEDULER = off;
 
 # Check original objects
