@@ -1047,7 +1047,7 @@ public:
                        Item **ref, bool skip_registered);
   virtual bool get_date(MYSQL_TIME *ltime, ulonglong fuzzydate);
   bool get_time(MYSQL_TIME *ltime)
-  { return get_date(ltime, TIME_TIME_ONLY | TIME_FUZZY_DATE); }
+  { return get_date(ltime, TIME_TIME_ONLY); }
   bool get_seconds(ulonglong *sec, ulong *sec_part);
   virtual bool get_date_result(MYSQL_TIME *ltime, ulonglong fuzzydate)
   { return get_date(ltime,fuzzydate); }

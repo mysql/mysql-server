@@ -332,7 +332,7 @@ str_to_datetime_with_warn(CHARSET_INFO *cs,
   @param nr            integer part of the number to convert
   @param sec_part      microsecond part of the number
   @param ltime         converted value will be written here
-  @param fuzzydate     conversion flags (TIME_FUZZY_DATE, etc)
+  @param fuzzydate     conversion flags (TIME_INVALID_DATE, etc)
   @param str           original number, as an ErrConv. For the warning
   @param field_name    field name or NULL if not a field. For the warning
   
@@ -349,6 +349,7 @@ static bool number_to_time_with_warn(bool neg, ulonglong nr, ulong sec_part,
 
   if (fuzzydate & TIME_TIME_ONLY)
   {
+    fuzzydate= TIME_TIME_ONLY; // clear other flags
     f_type= MYSQL_TYPE_TIME;
     res= number_to_time(neg, nr, sec_part, ltime, &was_cut);
   }
@@ -358,7 +359,7 @@ static bool number_to_time_with_warn(bool neg, ulonglong nr, ulong sec_part,
     res= neg ? -1 : number_to_datetime(nr, sec_part, ltime, fuzzydate, &was_cut);
   }
 
-  if (res < 0 || (was_cut && !(fuzzydate & TIME_FUZZY_DATE)))
+  if (res < 0 || (was_cut && (fuzzydate & TIME_NO_ZERO_IN_DATE)))
   {
     make_truncated_value_warning(current_thd,
                                  MYSQL_ERROR::WARN_LEVEL_WARN, str,

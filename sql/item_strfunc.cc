@@ -3873,10 +3873,10 @@ void Item_func_dyncol_create::prepare_arguments()
       }
       break;
     case DYN_COL_DATETIME:
-      args[valpos]->get_date(&vals[i].x.time_value, TIME_FUZZY_DATE);
+      args[valpos]->get_date(&vals[i].x.time_value, 0);
       break;
     case DYN_COL_DATE:
-      args[valpos]->get_date(&vals[i].x.time_value, TIME_FUZZY_DATE);
+      args[valpos]->get_date(&vals[i].x.time_value, 0);
       break;
     case DYN_COL_TIME:
       args[valpos]->get_time(&vals[i].x.time_value);

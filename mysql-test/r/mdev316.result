@@ -16,7 +16,7 @@ cast(convert(0x0030 using ucs2) as decimal(5.2))	cast(concat(convert(0x0030 usin
 0	0
 select cast(convert(_ucs2 0x0030 using latin1) as date), cast(concat(convert(_ucs2 0x0030 using latin1)) as date);
 cast(convert(_ucs2 0x0030 using latin1) as date)	cast(concat(convert(_ucs2 0x0030 using latin1)) as date)
-0000-00-00	0000-00-00
+NULL	NULL
 Warnings:
 Warning	1292	Incorrect datetime value: '0'
 Warning	1292	Incorrect datetime value: '0'

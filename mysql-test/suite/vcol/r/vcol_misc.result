@@ -187,7 +187,11 @@ ts TIMESTAMP,
 tsv TIMESTAMP AS (ADDDATE(ts, INTERVAL 1 DAY)) VIRTUAL
 ) ENGINE=MyISAM;
 INSERT INTO t1 (tsv) VALUES (DEFAULT);
+Warnings:
+Warning	1292	Incorrect datetime value: '0000-00-00'
 INSERT DELAYED INTO t1 (tsv) VALUES (DEFAULT);
+Warnings:
+Warning	1292	Incorrect datetime value: '0000-00-00'
 FLUSH TABLES;
 SELECT COUNT(*) FROM t1;
 COUNT(*)

@@ -699,6 +699,7 @@ a	tz
 2038-01-19 03:14:06	Moscow
 UPDATE t2 SET a = TIMESTAMPADD(SECOND, 1, a);
 Warnings:
+Warning	1292	Incorrect datetime value: '0000-00-00'
 Warning	1264	Out of range value for column 'a' at row 34
 Warning	1264	Out of range value for column 'a' at row 35
 SELECT MIN(a), MAX(a) FROM t2;
@@ -780,6 +781,10 @@ a	tz
 2038-01-19 03:14:07	UTC
 2011-10-30 00:00:02	Moscow
 UPDATE t2 SET a = TIMESTAMPADD(SECOND, -1, a);
+Warnings:
+Warning	1292	Incorrect datetime value: '0000-00-00'
+Warning	1292	Incorrect datetime value: '0000-00-00'
+Warning	1292	Incorrect datetime value: '0000-00-00'
 SELECT MIN(a), MAX(a) FROM t2;
 MIN(a)	MAX(a)
 1970-01-01 00:00:01	2038-01-19 03:14:06
@@ -1174,6 +1179,7 @@ a	tz
 2038-01-19 06:14:06	Moscow
 UPDATE t2 SET a = TIMESTAMPADD(SECOND, 1, a);
 Warnings:
+Warning	1292	Incorrect datetime value: '0000-00-00'
 Warning	1299	Invalid TIMESTAMP value in column 'a' at row 8
 Warning	1299	Invalid TIMESTAMP value in column 'a' at row 9
 Warning	1264	Out of range value for column 'a' at row 34
@@ -1258,6 +1264,9 @@ a	tz
 2011-10-30 03:00:02	Moscow
 UPDATE t2 SET a = TIMESTAMPADD(SECOND, -1, a);
 Warnings:
+Warning	1292	Incorrect datetime value: '0000-00-00'
+Warning	1292	Incorrect datetime value: '0000-00-00'
+Warning	1292	Incorrect datetime value: '0000-00-00'
 Warning	1299	Invalid TIMESTAMP value in column 'a' at row 18
 Warning	1299	Invalid TIMESTAMP value in column 'a' at row 19
 SELECT MIN(a), MAX(a) FROM t2;

@@ -65,14 +65,17 @@ typedef long my_time_t;
 #endif
 
 /* Flags to str_to_datetime */
-#define TIME_FUZZY_DATE		1
+
+/*
+  TIME_FUZZY_DATES is used for the result will only be used for comparison
+  purposes. Conversion is as relaxed as possible.
+*/
+#define TIME_FUZZY_DATES        1
 #define TIME_DATETIME_ONLY	2
 #define TIME_TIME_ONLY	        4
-/* Must be same as MODE_NO_ZERO_IN_DATE */
-#define TIME_NO_ZERO_IN_DATE    (65536L*2*2*2*2*2*2*2)
-/* Must be same as MODE_NO_ZERO_DATE */
-#define TIME_NO_ZERO_DATE	(TIME_NO_ZERO_IN_DATE*2)
-#define TIME_INVALID_DATES	(TIME_NO_ZERO_DATE*2)
+#define TIME_NO_ZERO_IN_DATE    (1UL << 23) /* == MODE_NO_ZERO_IN_DATE */
+#define TIME_NO_ZERO_DATE	(1UL << 24) /* == MODE_NO_ZERO_DATE    */
+#define TIME_INVALID_DATES	(1UL << 25) /* == MODE_INVALID_DATES   */
 
 #define MYSQL_TIME_WARN_TRUNCATED    1
 #define MYSQL_TIME_WARN_OUT_OF_RANGE 2

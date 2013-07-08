@@ -5012,10 +5012,9 @@ int Field_temporal::store(const char *from,uint len,CHARSET_INFO *cs)
   ErrConvString str(from, len, cs);
 
   func_res= str_to_datetime(cs, from, len, &ltime,
-                            (TIME_FUZZY_DATE |
                              (thd->variables.sql_mode &
                               (MODE_NO_ZERO_IN_DATE | MODE_NO_ZERO_DATE |
-                               MODE_INVALID_DATES))),
+                               MODE_INVALID_DATES)),
                             &error);
   return store_TIME_with_warning(&ltime, &str, error, func_res > MYSQL_TIMESTAMP_ERROR);
 }
@@ -5029,11 +5028,10 @@ int Field_temporal::store(double nr)
   ErrConvDouble str(nr);
 
   longlong tmp= double_to_datetime(nr, &ltime,
-                                    (TIME_FUZZY_DATE |
-                                       (thd->variables.sql_mode &
+                                    (thd->variables.sql_mode &
                                         (MODE_NO_ZERO_IN_DATE |
                                          MODE_NO_ZERO_DATE |
-                                         MODE_INVALID_DATES))), &error);
+                                         MODE_INVALID_DATES)), &error);
   return store_TIME_with_warning(&ltime, &str, error, tmp != -1);
 }
 
@@ -5046,11 +5044,10 @@ int Field_temporal::store(longlong nr, bool unsigned_val)
   THD *thd= table->in_use;
   ErrConvInteger str(nr);
 
-  tmp= number_to_datetime(nr, 0, &ltime, (TIME_FUZZY_DATE |
-                                      (thd->variables.sql_mode &
+  tmp= number_to_datetime(nr, 0, &ltime, (thd->variables.sql_mode &
                                        (MODE_NO_ZERO_IN_DATE |
                                         MODE_NO_ZERO_DATE |
-                                        MODE_INVALID_DATES))), &error);
+                                        MODE_INVALID_DATES)), &error);
 
   return store_TIME_with_warning(&ltime, &str, error, tmp != -1);
 }
@@ -5066,17 +5063,16 @@ int Field_temporal::store_time_dec(MYSQL_TIME *ltime, uint dec)
     structure always fit into DATETIME range.
   */
   have_smth_to_conv= !check_date(&l_time, pack_time(&l_time) != 0,
-                                 (TIME_FUZZY_DATE |
-                                  (current_thd->variables.sql_mode &
+                                 (current_thd->variables.sql_mode &
                                    (MODE_NO_ZERO_IN_DATE | MODE_NO_ZERO_DATE |
-                                    MODE_INVALID_DATES))), &error);
+                                    MODE_INVALID_DATES)), &error);
   return store_TIME_with_warning(&l_time, &str, error, have_smth_to_conv);
 }
 
 my_decimal *Field_temporal::val_decimal(my_decimal *d)
 {
   MYSQL_TIME ltime;
-  if (get_date(&ltime, TIME_FUZZY_DATE))
+  if (get_date(&ltime, 0))
   {
     bzero(&ltime, sizeof(ltime));
     ltime.time_type= mysql_type_to_time_type(type());
@@ -5215,7 +5211,8 @@ String *Field_time::val_str(String *val_buffer,
 bool Field_time::get_date(MYSQL_TIME *ltime, ulonglong fuzzydate)
 {
   THD *thd= table->in_use;
-  if (!(fuzzydate & (TIME_FUZZY_DATE|TIME_TIME_ONLY)))
+  if (!(fuzzydate & TIME_TIME_ONLY) &&
+      (fuzzydate & TIME_NO_ZERO_IN_DATE))
   {
     push_warning_printf(thd, MYSQL_ERROR::WARN_LEVEL_WARN,
                         ER_WARN_DATA_OUT_OF_RANGE,
@@ -5345,7 +5342,7 @@ bool Field_time_hires::get_date(MYSQL_TIME *ltime, ulonglong fuzzydate)
   ltime->time_type= MYSQL_TIMESTAMP_TIME;
   ltime->hour+= (ltime->month*32+ltime->day)*24;
   ltime->month= ltime->day= 0;
-  return fuzzydate & (TIME_FUZZY_DATE | TIME_TIME_ONLY) ? 0 : 1;
+  return !(fuzzydate & TIME_TIME_ONLY) && (fuzzydate & TIME_NO_ZERO_IN_DATE);
 }
 
 
@@ -5736,7 +5733,7 @@ void Field_datetime::store_TIME(MYSQL_TIME *ltime)
 bool Field_datetime::send_binary(Protocol *protocol)
 {
   MYSQL_TIME tm;
-  Field_datetime::get_date(&tm, TIME_FUZZY_DATE);
+  Field_datetime::get_date(&tm, 0);
   return protocol->store(&tm, 0);
 }
   
@@ -5820,7 +5817,7 @@ bool Field_datetime::get_date(MYSQL_TIME *ltime, ulonglong fuzzydate)
   if (!tmp)
     return fuzzydate & TIME_NO_ZERO_DATE;
   if (!ltime->month || !ltime->day)
-    return !(fuzzydate & TIME_FUZZY_DATE);
+    return fuzzydate & TIME_NO_ZERO_IN_DATE;
   return 0;
 }
 
@@ -5873,11 +5870,10 @@ int Field_datetime_hires::store_decimal(const my_decimal *d)
     error= 2;
   }
   else
-    tmp= number_to_datetime(nr, sec_part, &ltime, (TIME_FUZZY_DATE |
-                                          (thd->variables.sql_mode &
+    tmp= number_to_datetime(nr, sec_part, &ltime, (thd->variables.sql_mode &
                                            (MODE_NO_ZERO_IN_DATE |
                                             MODE_NO_ZERO_DATE |
-                                            MODE_INVALID_DATES))), &error);
+                                            MODE_INVALID_DATES)), &error);
 
   return store_TIME_with_warning(&ltime, &str, error, tmp != -1);
 }
@@ -5885,7 +5881,7 @@ int Field_datetime_hires::store_decimal(const my_decimal *d)
 bool Field_datetime_hires::send_binary(Protocol *protocol)
 {
   MYSQL_TIME ltime;
-  Field_datetime_hires::get_date(&ltime, TIME_FUZZY_DATE);
+  Field_datetime_hires::get_date(&ltime, 0);
   return protocol->store(&ltime, dec);
 }
 
@@ -5893,14 +5889,14 @@ bool Field_datetime_hires::send_binary(Protocol *protocol)
 double Field_datetime_hires::val_real(void)
 {
   MYSQL_TIME ltime;
-  Field_datetime_hires::get_date(&ltime, TIME_FUZZY_DATE);
+  Field_datetime_hires::get_date(&ltime, 0);
   return TIME_to_double(&ltime);
 }
 
 longlong Field_datetime_hires::val_int(void)
 {
   MYSQL_TIME ltime;
-  Field_datetime_hires::get_date(&ltime, TIME_FUZZY_DATE);
+  Field_datetime_hires::get_date(&ltime, 0);
   return TIME_to_ulonglong_datetime(&ltime);
 }
 
@@ -5909,7 +5905,7 @@ String *Field_datetime_hires::val_str(String *str,
                                       String *unused __attribute__((unused)))
 {
   MYSQL_TIME ltime;
-  Field_datetime_hires::get_date(&ltime, TIME_FUZZY_DATE);
+  Field_datetime_hires::get_date(&ltime, 0);
   str->alloc(field_length+1);
   str->length(field_length);
   my_datetime_to_str(&ltime, (char*) str->ptr(), dec);
@@ -5924,7 +5920,7 @@ bool Field_datetime_hires::get_date(MYSQL_TIME *ltime, ulonglong fuzzydate)
   if (!packed)
     return fuzzydate & TIME_NO_ZERO_DATE;
   if (!ltime->month || !ltime->day)
-    return !(fuzzydate & TIME_FUZZY_DATE);
+    return fuzzydate & TIME_NO_ZERO_IN_DATE;
   return 0;
 }
 
