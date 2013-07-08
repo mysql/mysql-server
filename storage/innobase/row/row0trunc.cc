@@ -232,7 +232,7 @@ protected:
 Creates a TRUNCATE log record with space id, table name, data directory path,
 tablespace flags, table format, index ids, index types, number of index fields
 and index field information of the table. */
-class Logger : public Callback {
+class TruncateREDOLogger : public Callback {
 
 public:
 	/**
@@ -240,7 +240,10 @@ public:
 
 	@param table	Table to truncate
 	@param flags	tablespace falgs */
-	Logger(dict_table_t* table, ulint flags, table_id_t new_table_id)
+	TruncateREDOLogger(
+		dict_table_t* table,
+		ulint flags,
+		table_id_t new_table_id)
 		:
 		Callback(table->id, false),
 		m_table(table),
@@ -276,8 +279,8 @@ public:
 
 private:
 	// Disably copying
-	Logger(const Logger&);
-	Logger& operator=(const Logger&);
+	TruncateREDOLogger(const TruncateREDOLogger&);
+	TruncateREDOLogger& operator=(const TruncateREDOLogger&);
 
 private:
 	/** Lookup the index using the index id.
@@ -415,7 +418,7 @@ private:
 @param pcur	persistent cursor used for reading
 @return DB_SUCCESS or error code */
 dberr_t
-Logger::operator()(mtr_t* mtr, btr_pcur_t* pcur)
+TruncateREDOLogger::operator()(mtr_t* mtr, btr_pcur_t* pcur)
 {
 	ulint			len;
 	const byte*		field;
@@ -1394,7 +1397,7 @@ row_truncate_table_for_mysql(
 			}
 		}
 
-		Logger logger(table, flags, new_id);
+		TruncateREDOLogger logger(table, flags, new_id);
 
 		err = SysIndexIterator().for_each(logger);
 
