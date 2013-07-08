@@ -147,7 +147,8 @@ int Slave_worker::init_worker(Relay_log_info * rli, ulong i)
   id= i;
   curr_group_exec_parts.elements= 0;
   relay_log_change_notified= FALSE; // the 1st group to contain relaylog name
-  checkpoint_notified= FALSE;
+  checkpoint_notified= FALSE;       // the same as above
+  master_log_change_notified= false;// W learns master log during 1st group exec
   bitmap_shifted= 0;
   workers= c_rli->workers; // shallow copying is sufficient
   wq_size_waits_cnt= groups_done= events_done= curr_jobs= 0;
@@ -414,6 +415,23 @@ bool Slave_worker::commit_positions(Log_event *ev, Slave_job_group* ptr_g, bool 
 {
   DBUG_ENTER("Slave_worker::checkpoint_positions");
 
+  /*
+    Initial value of checkpoint_master_log_name is learned from
+    group_master_log_name. The latter can be passed to Worker
+    at rare event of master binlog rotation.
+    This initialization is needed to provide to Worker info
+    on physical coordiates during execution of the very first group
+    after a rotation.
+  */
+  if (ptr_g->group_master_log_name != NULL)
+  {
+    strmake(group_master_log_name, ptr_g->group_master_log_name,
+            sizeof(group_master_log_name) - 1);
+    my_free(ptr_g->group_master_log_name);
+    ptr_g->group_master_log_name= NULL;
+    strmake(checkpoint_master_log_name, group_master_log_name,
+            sizeof(checkpoint_master_log_name) - 1);
+  }
   if (ptr_g->checkpoint_log_name != NULL)
   {
     strmake(checkpoint_relay_log_name, ptr_g->checkpoint_relay_log_name,
@@ -1446,6 +1464,10 @@ void Slave_committed_queue::free_dynamic_items()
     if (ptr_g->checkpoint_relay_log_name)
     {
       my_free(ptr_g->checkpoint_relay_log_name);
+    }
+    if (ptr_g->group_master_log_name)
+    {
+      my_free(ptr_g->group_master_log_name);
     }
   }
   DBUG_ASSERT((avail == size /* full */ || entry == size /* empty */) ||
