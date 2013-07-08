@@ -7848,7 +7848,6 @@ static bool operator<(const my_option &a, const my_option &b)
         return false;
     }
   }
-  DBUG_ASSERT(a.name == b.name);
   return false;
 }
 
