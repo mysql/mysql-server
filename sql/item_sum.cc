@@ -77,7 +77,7 @@ bool Item_sum::init_sum_func_check(THD *thd)
   in_sum_func= thd->lex->in_sum_func;
   /* Save a pointer to object to be used in items for nested set functions */
   thd->lex->in_sum_func= this;
-  nest_level= thd->lex->current_select->nest_level;
+  nest_level= thd->lex->current_select()->nest_level;
   ref_by= 0;
   aggr_level= -1;
   aggr_sel= NULL;
@@ -174,7 +174,7 @@ bool Item_sum::check_sum_func(THD *thd, Item **ref)
   if (!invalid && aggr_level < 0)
   {
     aggr_level= nest_level;
-    aggr_sel= thd->lex->current_select;
+    aggr_sel= thd->lex->current_select();
   }
   /*
     By this moment we either found a subquery where the set function is
@@ -313,9 +313,9 @@ bool Item_sum::register_sum_func(THD *thd, Item **ref)
 
   // Find the outer-most query block where this function can be aggregated.
 
-  for (SELECT_LEX *sl= thd->lex->current_select->outer_select();
+  for (SELECT_LEX *sl= thd->lex->current_select()->outer_select() ;
        sl && sl->nest_level >= max_arg_level;
-       sl= sl->outer_select())
+       sl= sl->outer_select() )
   {
     if (allow_sum_func & ((nesting_map)1 << sl->nest_level))
     {
@@ -353,12 +353,12 @@ bool Item_sum::register_sum_func(THD *thd, Item **ref)
       with_sum_func being set for an st_select_lex means that this query block
       has aggregate functions directly referenced (i.e. not through a subquery).
     */
-    for (SELECT_LEX *sl= thd->lex->current_select; 
+    for (SELECT_LEX *sl= thd->lex->current_select(); 
          sl && sl != aggr_sel && sl->master_unit()->item;
          sl= sl->outer_select())
       sl->master_unit()->item->with_sum_func= true;
   }
-  thd->lex->current_select->mark_as_dependent(aggr_sel);
+  thd->lex->current_select()->mark_as_dependent(aggr_sel);
   return false;
 }
 
@@ -424,7 +424,7 @@ Item_sum::Item_sum(THD *thd, Item_sum *item):
 
 void Item_sum::mark_as_sum_func()
 {
-  SELECT_LEX *cur_select= current_thd->lex->current_select;
+  SELECT_LEX *cur_select= current_thd->lex->current_select();
   cur_select->n_sum_items++;
   cur_select->with_sum_func= 1;
   with_sum_func= 1;
@@ -786,7 +786,7 @@ bool Aggregator_distinct::setup(THD *thd)
       item_sum->sum_func() == Item_sum::COUNT_DISTINCT_FUNC)
   {
     List<Item> list;
-    SELECT_LEX *select_lex= thd->lex->current_select;
+    SELECT_LEX *select_lex= thd->lex->current_select();
 
     if (!(tmp_table_param= new TMP_TABLE_PARAM))
       return TRUE;
@@ -3434,7 +3434,7 @@ Item_func_group_concat::fix_fields(THD *thd, Item **ref)
 bool Item_func_group_concat::setup(THD *thd)
 {
   List<Item> list;
-  SELECT_LEX *select_lex= thd->lex->current_select;
+  SELECT_LEX *select_lex= thd->lex->current_select();
   const bool order_or_distinct= test(arg_count_order > 0 || distinct);
   DBUG_ENTER("Item_func_group_concat::setup");
 

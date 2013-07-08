@@ -486,10 +486,8 @@ INSERT INTO t10 () VALUES(1,@b1,DEFAULT,'Kyle',DEFAULT),
 --echo ********************************************
 --echo
 connection slave;
-# 1677 = ER_SLAVE_CONVERSION_FAILED
---let $slave_sql_errno= 1677
 --let $slave_skip_counter= 2
---let $show_slave_sql_error= 1
+--let $slave_sql_errno= convert_error(ER_SLAVE_CONVERSION_FAILED)
 --source include/wait_for_slave_sql_error_and_skip.inc
 
 --echo
@@ -542,10 +540,8 @@ INSERT INTO t11 () VALUES(1,@b1,'Testing is fun','Kyle',DEFAULT),
 --echo ********************************************
 --echo
 connection slave;
-# 1677 = ER_SLAVE_CONVERSION_FAILED
---let $slave_sql_errno= 1677
 --let $slave_skip_counter= 2
---let $show_slave_sql_error= 1
+--let $slave_sql_errno= convert_error(ER_SLAVE_CONVERSION_FAILED)
 --source include/wait_for_slave_sql_error_and_skip.inc
 
 --echo
@@ -684,9 +680,7 @@ SELECT c1,c3,hex(c4),c5,c6 FROM t14 ORDER BY c1;
 # Remove below once fixed
 #***************************
 connection slave;
-# 1091 = ER_CANT_DROP_FIELD_OR_KEY
---let $slave_sql_errno= 1091
---let $show_slave_sql_error= 1
+--let $slave_sql_errno= convert_error(ER_CANT_DROP_FIELD_OR_KEY)
 --source include/wait_for_slave_sql_error.inc
 #***************************
 
@@ -751,9 +745,7 @@ SELECT c1,hex(c4),c5,c6,c7,c2 FROM t15 ORDER BY c1;
 --echo ********************************************
 --echo
 connection slave;
-# 1054 = ER_BAD_FIELD_ERROR
---let $slave_sql_errno= 1054
---let $show_slave_sql_error= 1
+--let $slave_sql_errno= convert_error(ER_BAD_FIELD_ERROR)
 --source include/wait_for_slave_sql_error.inc
 STOP SLAVE;
 
@@ -829,9 +821,7 @@ SELECT c1,hex(c4),c5,c6,c7 FROM t16 ORDER BY c1;
 --echo *****************
 --echo
 connection slave;
-# 1072 = ER_KEY_COLUMN_DOES_NOT_EXITS
---let $slave_sql_errno= 1072
---let $show_slave_sql_error= 1
+--let $slave_sql_errno= convert_error(ER_KEY_COLUMN_DOES_NOT_EXITS)
 --source include/wait_for_slave_sql_error.inc
 STOP SLAVE;
 

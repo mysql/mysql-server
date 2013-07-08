@@ -369,6 +369,9 @@ public:
   int flush_info(bool force= FALSE);
   static size_t get_number_worker_fields();
   void slave_worker_ends_group(Log_event*, int);
+  const char *get_master_log_name();
+  ulonglong get_master_log_pos() { return master_log_pos; };
+  ulonglong set_master_log_pos(ulong val) { return master_log_pos= val; };
   bool commit_positions(Log_event *evt, Slave_job_group *ptr_g, bool force);
   bool reset_recovery_info();
   /**
@@ -390,12 +393,21 @@ public:
     rli_description_event= fdle;
   }
 
+  inline void reset_gaq_index() { gaq_index= c_rli->gaq->size; };
+  inline void set_gaq_index(ulong val)
+  { 
+    if (gaq_index == c_rli->gaq->size)
+      gaq_index= val;
+  };
+
 protected:
 
   virtual void do_report(loglevel level, int err_code,
                          const char *msg, va_list v_args) const;
 
 private:
+  ulong gaq_index;          // GAQ index of the current assignment 
+  ulonglong master_log_pos; // event's cached log_pos for possibile error report
   void end_info();
   bool read_info(Rpl_info_handler *from);
   bool write_info(Rpl_info_handler *to);

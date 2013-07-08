@@ -4963,8 +4963,12 @@ page_zip_verify_checksum(
 	/* these variables are used only for innochecksum tool. */
 	,ullint		page_no,	/*!< in: page number of
 					given read_buf */
-	bool		strict_check	/*!< in: true if strict-check
+	bool		strict_check,	/*!< in: true if strict-check
 					option is enable */
+	bool		is_log_enabled,	/*!< in: true if log option is
+					enabled */
+	FILE*		log_file	/*!< in: file pointer to
+					log_file */
 #endif /* UNIV_INNOCHECKSUM */
 )
 {
@@ -4986,8 +4990,11 @@ page_zip_verify_checksum(
 				break;
 		}
 		if (i >= size) {
-			DBUG_PRINT("info", ("Page::%llu is empty and "
-				   "uncorrupted",page_no));
+			if (is_log_enabled) {
+				fprintf(log_file, "Page::%llu is empty and "
+					"uncorrupted\n", page_no);
+			}
+
 			return(TRUE);
 		}
 #else
@@ -5003,23 +5010,27 @@ page_zip_verify_checksum(
 			srv_checksum_algorithm));
 
 #ifdef UNIV_INNOCHECKSUM
-	DBUG_PRINT("info", ("page::%llu; %s checksum: calculated = %u; "
-		   "recorded = %u",page_no,
-		   buf_checksum_algorithm_name(
-			static_cast<srv_checksum_algorithm_t>(
+	if (is_log_enabled) {
+		fprintf(log_file, "page::%llu; %s checksum: calculated = %u; "
+			"recorded = %u\n", page_no,
+			buf_checksum_algorithm_name(
+				static_cast<srv_checksum_algorithm_t>(
 				srv_checksum_algorithm)),
-		   calc,stored));
+			calc,stored);
+	}
 
 	if (!strict_check) {
 
 		crc32 = page_zip_calc_checksum(data, size,
 					       SRV_CHECKSUM_ALGORITHM_CRC32);
-		DBUG_PRINT("info", ("page::%llu: crc32 checksum: "
-			   "calculated = %u; recorded = %u",
-			   page_no, crc32, stored));
-		DBUG_PRINT("info", ("page::%llu: none checksum: "
-			   "calculated = %lu; recorded = %u",
-			   page_no, BUF_NO_CHECKSUM_MAGIC, stored));
+		if (is_log_enabled) {
+			fprintf(log_file, "page::%llu: crc32 checksum: "
+				"calculated = %u; recorded = %u\n",
+				page_no, crc32, stored);
+			fprintf(log_file, "page::%llu: none checksum: "
+				"calculated = %lu; recorded = %u\n",
+				page_no, BUF_NO_CHECKSUM_MAGIC, stored);
+		}
 	}
 #endif /* UNIV_INNOCHECKSUM */
 	if (stored == calc) {

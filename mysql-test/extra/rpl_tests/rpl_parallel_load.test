@@ -184,7 +184,7 @@ start slave sql_thread;
 
 let $wait_timeout= 600;
 let $wait_condition= SELECT count(*)+sleep(1) = 5 FROM test0.benchmark;
-source include/wait_condition.inc;
+source include/wait_condition_or_abort.inc;
 
 # cleanup for files that could not be removed in the end of previous invocation.
 let $MYSQLD_DATADIR= `select @@datadir`;

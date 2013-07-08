@@ -1,4 +1,4 @@
-/* Copyright (c) 2007, 2010, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2007, 2013, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -209,7 +209,7 @@ private:
 
   PROFILING *profiling;
 
-  query_id_t profiling_query_id;        /* Session-specific id. */
+  my_thread_id profiling_query_id;        /* Session-specific id. */
   char *query_source;
 
   double m_start_time_usecs;
