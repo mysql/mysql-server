@@ -474,7 +474,7 @@ bool Slave_worker::commit_positions(Log_event *ev, Slave_job_group* ptr_g, bool 
   DBUG_RETURN(flush_info(force));
 }
 
-static HASH mapping_db_to_worker;
+HASH mapping_db_to_worker;
 static bool inited_hash_workers= FALSE;
 
 #ifdef HAVE_PSI_INTERFACE
@@ -1018,16 +1018,6 @@ void Slave_worker::slave_worker_ends_group(Log_event* ev, int error)
     last_group_done_index= gaq_idx;
     groups_done++;
 
-    /*
-      wake up the coordinator if we are waiting fot last goup to be applied.
-     */
-    if (c_rli->current_mts_submode->get_type() ==
-         MTS_PARALLEL_TYPE_LOGICAL_CLOCK)
-    {
-      mysql_mutex_lock(&slave_worker_hash_lock);
-      mysql_cond_signal(&slave_worker_hash_cond);
-      mysql_mutex_unlock(&slave_worker_hash_lock);
-    }
   }
   else
   {
@@ -1433,111 +1423,6 @@ void Slave_worker::do_report(loglevel level, int err_code, const char *msg,
                              va_list args) const
 {
   c_rli->va_report(level, err_code, msg, args);
-}
-
-/**
-   Function is called by Coordinator when it identified an event
-   requiring sequential execution.
-   Creating sequential context for the event includes waiting
-   for the assigned to Workers tasks to be completed and their
-   resources such as temporary tables be returned to Coordinator's
-   repository.
-   In case all workers are waited Coordinator changes its group status.
-
-   @param  rli     Relay_log_info instance of Coordinator
-   @param  ignore  Optional Worker instance pointer if the sequential context
-                   is established due for the ignore Worker. Its resources
-                   are to be retained.
-
-   @note   Resources that are not occupied by Workers such as
-           a list of temporary tables held in unused (zero-usage) records
-           of APH are relocated to the Coordinator placeholder.
-
-   @return non-negative number of released by Workers partitions
-           (one partition by one Worker can count multiple times)
-
-           or -1 to indicate there has been a failure on a not-ignored Worker
-           as indicated by its running_status so synchronization can't succeed.
-*/
-
-int wait_for_workers_to_finish(Relay_log_info const *rli, Slave_worker *ignore)
-{
-  uint ret= 0;
-  HASH *hash= &mapping_db_to_worker;
-  THD *thd= rli->info_thd;
-  bool cant_sync= FALSE;
-  char llbuf[22];
-
-  DBUG_ENTER("wait_for_workers_to_finish");
-
-  llstr(const_cast<Relay_log_info*>(rli)->get_event_relay_log_pos(), llbuf);
-  if (log_warnings > 1)
-    sql_print_information("Coordinator and workers enter synchronization procedure "
-                          "when scheduling event relay-log: %s pos: %s",
-                          const_cast<Relay_log_info*>(rli)->get_event_relay_log_name(),
-                          llbuf);
-
-  for (uint i= 0, ret= 0; i < hash->records; i++)
-  {
-    db_worker_hash_entry *entry;
-
-    mysql_mutex_lock(&slave_worker_hash_lock);
-
-    entry= (db_worker_hash_entry*) my_hash_element(hash, i);
-
-    DBUG_ASSERT(entry);
-
-    // the ignore Worker retains its active resources
-    if (ignore && entry->worker == ignore && entry->usage > 0)
-    {
-      mysql_mutex_unlock(&slave_worker_hash_lock);
-      continue;
-    }
-
-    if (entry->usage > 0 && !thd->killed)
-    {
-      PSI_stage_info old_stage;
-      Slave_worker *w_entry= entry->worker;
-
-      entry->worker= NULL; // mark Worker to signal when  usage drops to 0
-      thd->ENTER_COND(&slave_worker_hash_cond,
-                      &slave_worker_hash_lock,
-                      &stage_slave_waiting_worker_to_release_partition,
-                      &old_stage);
-      do
-      {
-        mysql_cond_wait(&slave_worker_hash_cond, &slave_worker_hash_lock);
-        DBUG_PRINT("info",
-                   ("Either got awakened of notified: "
-                    "entry %p, usage %lu, worker %lu",
-                    entry, entry->usage, w_entry->id));
-      } while (entry->usage != 0 && !thd->killed);
-      entry->worker= w_entry; // restoring last association, needed only for assert
-      thd->EXIT_COND(&old_stage);
-      ret++;
-    }
-    else
-    {
-      mysql_mutex_unlock(&slave_worker_hash_lock);
-    }
-    // resources relocation
-    mts_move_temp_tables_to_thd(thd, entry->temporary_tables);
-    entry->temporary_tables= NULL;
-    if (entry->worker->running_status != Slave_worker::RUNNING)
-      cant_sync= TRUE;
-  }
-
-  if (!ignore)
-  {
-    if (log_warnings > 1)
-      sql_print_information("Coordinator synchronized with Workers, "
-                            "waited entries: %d, cant_sync: %d",
-                            ret, cant_sync);
-
-    const_cast<Relay_log_info*>(rli)->mts_group_status= Relay_log_info::MTS_NOT_IN_GROUP;
-  }
-
-  DBUG_RETURN(!cant_sync ? ret : -1);
 }
 
 

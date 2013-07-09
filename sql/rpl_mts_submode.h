@@ -37,7 +37,7 @@ public:
 
   /* Logic to schedule the next event. called at the B event for each
      transaction */
-  virtual bool schedule_next_event(Relay_log_info* rli,
+  virtual int schedule_next_event(Relay_log_info* rli,
                                    Log_event *ev)= 0;
 
   /* logic to attach temp tables Should be extended in the derieved class */
@@ -52,6 +52,9 @@ public:
   virtual Slave_worker* get_least_occupied_worker(Relay_log_info* rli,
                                                   DYNAMIC_ARRAY *ws,
                                                   Log_event *ev)= 0;
+  /* wait for slave workers to finish */
+  virtual int wait_for_workers_to_finish(Relay_log_info *rli,
+                                         Slave_worker *ignore= NULL)=0;
 
   virtual ~Mts_submode(){}
 };
@@ -67,13 +70,15 @@ public:
   {
     type= MTS_PARALLEL_TYPE_DB_NAME;
   }
-  bool schedule_next_event(Relay_log_info* rli, Log_event *ev);
+  int schedule_next_event(Relay_log_info* rli, Log_event *ev);
   void attach_temp_tables(THD *thd, const Relay_log_info* rli,
                                                       Query_log_event *ev);
   void detach_temp_tables(THD *thd, const Relay_log_info* rli,
                                                       Query_log_event *ev);
   Slave_worker* get_least_occupied_worker(Relay_log_info* rli,
                                           DYNAMIC_ARRAY *ws, Log_event *ev);
+  int wait_for_workers_to_finish(Relay_log_info  *rli,
+                                 Slave_worker *ignore= NULL);
   ~Mts_submode_database(){}
 };
 
@@ -125,7 +130,7 @@ protected:
   bool assign_group_parent_id(Relay_log_info* rli, Log_event* ev);
 public:
   Mts_submode_logical_clock();
-  bool schedule_next_event(Relay_log_info* rli, Log_event *ev);
+  int schedule_next_event(Relay_log_info* rli, Log_event *ev);
   void attach_temp_tables(THD *thd, const Relay_log_info* rli,
                                                       Query_log_event *ev);
   void detach_temp_tables(THD *thd, const Relay_log_info* rli,
@@ -134,6 +139,8 @@ public:
                                           DYNAMIC_ARRAY *ws, Log_event *ev);
   /* Sets the force new group variable */
   inline void start_new_group(){force_new_group= true;}
+  int wait_for_workers_to_finish(Relay_log_info  *rli,
+                                 Slave_worker *ignore= NULL);
   ~Mts_submode_logical_clock(){}
 };
 

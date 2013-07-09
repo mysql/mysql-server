@@ -2804,18 +2804,26 @@ bool Log_event::contains_partition_info(bool end_group_sets_max_dbs)
  */
 bool schedule_next_event(Log_event* ev, Relay_log_info* rli)
 {
-  char llbuff[22];
+  int error;
   // Check if we can schedule this event
-  if (rli->current_mts_submode->schedule_next_event(rli, ev))
+  error= rli->current_mts_submode->schedule_next_event(rli, ev);
+  switch (error)
   {
+  case ER_MTS_CANT_PARALLEL:
+    char llbuff[22];
     llstr(rli->get_event_relay_log_pos(), llbuff);
     my_error(ER_MTS_CANT_PARALLEL, MYF(0),
-     ev->get_type_str(), rli->get_event_relay_log_name(), llbuff,
-     "The master does not support the selected parallelization mode. "
-     "It may be too old, or replication was started from an event internal "
-     "to a transaaction.");
+    ev->get_type_str(), rli->get_event_relay_log_name(), llbuff,
+    "The master does not support the selected parallelization mode. "
+    "It may be too old, or replication was started from an event internal "
+    "to a transaaction.");
+  case ER_MTS_INCONSISTENT_DATA:
+    /* Don't have to do anything. */
     return true;
+  default:
+    return false;
   }
+  /* Keep compiler happy */
   return false;
 }
 
@@ -2984,7 +2992,9 @@ Slave_worker *Log_event::get_slave_worker(Relay_log_info *rli)
     mts_group_idx= gaq->assigned_group_index;
     /* Get least occupied worker */
     ret_worker=
-      rli->current_mts_submode->get_least_occupied_worker(rli, &rli->workers, this);
+      rli->current_mts_submode->get_least_occupied_worker(rli, &rli->workers,
+                                                          this);
+    ptr_group->worker_id= ret_worker->id;
   }
   else if (contains_partition_info(rli->mts_end_group_sets_max_dbs))
   {
@@ -3022,7 +3032,8 @@ Slave_worker *Log_event::get_slave_worker(Relay_log_info *rli)
       if (!ret_worker)
         ret_worker= *(Slave_worker**) dynamic_array_ptr(&rli->workers, 0);
       // No need to know a possible error out of synchronization call.
-      (void) wait_for_workers_to_finish(rli, ret_worker);
+      (void)rli->current_mts_submode-> wait_for_workers_to_finish(rli,
+                                                                  ret_worker);
       /*
         this marking is transferred further into T-event of the current group.
       */
@@ -3264,7 +3275,7 @@ int Log_event::apply_event(Relay_log_info *rli)
         /*
           Marking sure the event will be executed in sequential mode.
         */
-        if (wait_for_workers_to_finish(rli) == -1)
+        if (rli->current_mts_submode->wait_for_workers_to_finish(rli) == -1)
         {
           // handle synchronization error
           rli->report(WARNING_LEVEL, 0,
@@ -3277,7 +3288,9 @@ int Log_event::apply_event(Relay_log_info *rli)
           Given not in-group mark the event handler can invoke checkpoint
           update routine in the following course.
         */
-        DBUG_ASSERT(rli->mts_group_status == Relay_log_info::MTS_NOT_IN_GROUP);
+        DBUG_ASSERT(rli->current_mts_submode->get_type() ==
+                    MTS_PARALLEL_TYPE_LOGICAL_CLOCK ||
+                    rli->mts_group_status == Relay_log_info::MTS_NOT_IN_GROUP);
 
 #ifndef DBUG_OFF
         /* all Workers are idle as done through wait_for_workers_to_finish */
@@ -6939,8 +6952,7 @@ int Rotate_log_event::do_update_pos(Relay_log_info *rli)
       if ((error= mts_checkpoint_routine(rli, 0, false,
                                          true/*need_data_lock=true*/)))
         goto err;
-    }
-    else
+
       if (rli->current_mts_submode->get_type() ==
             MTS_PARALLEL_TYPE_LOGICAL_CLOCK)
       {
@@ -6948,6 +6960,7 @@ int Rotate_log_event::do_update_pos(Relay_log_info *rli)
         static_cast<Mts_submode_logical_clock*>
           (rli->current_mts_submode)->start_new_group();
       }
+    }
     mysql_mutex_lock(&rli->data_lock);
     DBUG_PRINT("info", ("old group_master_log_name: '%s'  "
                         "old group_master_log_pos: %lu",
