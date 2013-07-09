@@ -20,14 +20,14 @@
 /**
  Does necessary arrangement before scheduling next event.
  @param:  Relay_log_info rli
- @return: TRUE  if error
-          FALSE if no error
+ @return: 1  if  error
+          0 no error
 */
-bool
+int
 Mts_submode_database::schedule_next_event(Relay_log_info *rli, Log_event *ev)
 {
   /*nothing to do here*/
-  return false;
+  return 0;
 }
 
 /**
@@ -56,6 +56,113 @@ Mts_submode_database::attach_temp_tables(THD *thd, const Relay_log_info* rli,
     ev->mts_assigned_partitions[i]->temporary_tables= NULL;
   }
   DBUG_VOID_RETURN;
+}
+
+/**
+   Function is called by Coordinator when it identified an event
+   requiring sequential execution.
+   Creating sequential context for the event includes waiting
+   for the assigned to Workers tasks to be completed and their
+   resources such as temporary tables be returned to Coordinator's
+   repository.
+   In case all workers are waited Coordinator changes its group status.
+
+   @param  rli     Relay_log_info instance of Coordinator
+   @param  ignore  Optional Worker instance pointer if the sequential context
+                   is established due for the ignore Worker. Its resources
+                   are to be retained.
+
+   @note   Resources that are not occupied by Workers such as
+           a list of temporary tables held in unused (zero-usage) records
+           of APH are relocated to the Coordinator placeholder.
+
+   @return non-negative number of released by Workers partitions
+           (one partition by one Worker can count multiple times)
+
+           or -1 to indicate there has been a failure on a not-ignored Worker
+           as indicated by its running_status so synchronization can't succeed.
+*/
+
+int
+Mts_submode_database::wait_for_workers_to_finish(Relay_log_info *rli,
+                                                 Slave_worker *ignore)
+{
+  uint ret= 0;
+  HASH *hash= &mapping_db_to_worker;
+  THD *thd= rli->info_thd;
+  bool cant_sync= FALSE;
+  char llbuf[22];
+
+  DBUG_ENTER("Mts_submode_database::wait_for_workers_to_finish");
+
+  llstr(const_cast<Relay_log_info*>(rli)->get_event_relay_log_pos(), llbuf);
+  if (log_warnings > 1)
+    sql_print_information("Coordinator and workers enter synchronization procedure "
+                          "when scheduling event relay-log: %s pos: %s",
+                          const_cast<Relay_log_info*>(rli)->get_event_relay_log_name(),
+                          llbuf);
+
+  for (uint i= 0, ret= 0; i < hash->records; i++)
+  {
+    db_worker_hash_entry *entry;
+
+    mysql_mutex_lock(&slave_worker_hash_lock);
+
+    entry= (db_worker_hash_entry*) my_hash_element(hash, i);
+
+    DBUG_ASSERT(entry);
+
+    // the ignore Worker retains its active resources
+    if (ignore && entry->worker == ignore && entry->usage > 0)
+    {
+      mysql_mutex_unlock(&slave_worker_hash_lock);
+      continue;
+    }
+
+    if (entry->usage > 0 && !thd->killed)
+    {
+      PSI_stage_info old_stage;
+      Slave_worker *w_entry= entry->worker;
+
+      entry->worker= NULL; // mark Worker to signal when  usage drops to 0
+      thd->ENTER_COND(&slave_worker_hash_cond,
+                      &slave_worker_hash_lock,
+                      &stage_slave_waiting_worker_to_release_partition,
+                      &old_stage);
+      do
+      {
+        mysql_cond_wait(&slave_worker_hash_cond, &slave_worker_hash_lock);
+        DBUG_PRINT("info",
+                   ("Either got awakened of notified: "
+                    "entry %p, usage %lu, worker %lu",
+                    entry, entry->usage, w_entry->id));
+      } while (entry->usage != 0 && !thd->killed);
+      entry->worker= w_entry; // restoring last association, needed only for assert
+      thd->EXIT_COND(&old_stage);
+      ret++;
+    }
+    else
+    {
+      mysql_mutex_unlock(&slave_worker_hash_lock);
+    }
+    // resources relocation
+    mts_move_temp_tables_to_thd(thd, entry->temporary_tables);
+    entry->temporary_tables= NULL;
+    if (entry->worker->running_status != Slave_worker::RUNNING)
+      cant_sync= TRUE;
+  }
+
+  if (!ignore)
+  {
+    if (log_warnings > 1)
+      sql_print_information("Coordinator synchronized with Workers, "
+                            "waited entries: %d, cant_sync: %d",
+                            ret, cant_sync);
+
+    const_cast<Relay_log_info*>(rli)->mts_group_status= Relay_log_info::MTS_NOT_IN_GROUP;
+  }
+
+  DBUG_RETURN(!cant_sync ? ret : -1);
 }
 
 /**
@@ -252,7 +359,7 @@ Mts_submode_logical_clock::assign_group_parent_id(Relay_log_info* rli,
       /* first event after a submode switch */
       first_event ||
       /* require a fresh group to be started. */
-      force_new_group)
+      (commit_seq_no != SEQ_UNINIT && force_new_group))
   {
     mts_last_known_commit_parent= commit_seq_no;
     worker_seq= 0;
@@ -282,22 +389,24 @@ Mts_submode_logical_clock::assign_group_parent_id(Relay_log_info* rli,
  Does necessary arrangement before scheduling next event.
  @param:  Relay_log_info* rli
           Log_event *ev
- @return: TRUE  if error
-          FALSE if no error
+ @return: ER_MTS_CANT_PARALLEL, ER_MTS_INCONSISTENT_DATA
+          0 if no error or slave has been killed gracefully
  */
-bool
+int
 Mts_submode_logical_clock::schedule_next_event(Relay_log_info* rli,
                                                Log_event *ev)
 {
-  PSI_stage_info *old_stage= 0;
-  THD *thd= rli->info_thd;
   DBUG_ENTER("Mts_submode_logical_clock::schedule_next_event");
+  // We should check if the SQL thread was already killed before we schedule
+  // the next transaction
+  if (sql_slave_killed(rli->info_thd, rli))
+    DBUG_RETURN(0);
 
   if (assign_group_parent_id(rli, ev))
-    DBUG_RETURN (true);
+    DBUG_RETURN (ER_MTS_CANT_PARALLEL);
 
   if (ev->get_type_code() == GTID_LOG_EVENT)
-    DBUG_RETURN (false);
+    DBUG_RETURN (0);
   /*
     The coordinator waits till the last group was completely applied before
     the events from the next group is scheduled for the workers.
@@ -308,32 +417,12 @@ Mts_submode_logical_clock::schedule_next_event(Relay_log_info* rli,
     delegated_jobs++;
   else
   {
-    // we should check if the SQL thread was already killed before we schecdule
-    // the next transaction
-    if (sql_slave_killed(rli->info_thd, rli))
-      DBUG_RETURN(true);
-    DBUG_PRINT("info",("delegated %d, jobs_done %d", delegated_jobs,
-                          jobs_done));
-    /*
-      We have a new group and we must check if the last group was completely
-      applied before we move on to the next group
-    */
-    // Update thd info as waiting for workers to finish.
-    thd->enter_stage(&stage_slave_waiiting_for_workers_to_finish, old_stage,
-                      __func__, __FILE__, __LINE__);
-    while (delegated_jobs > jobs_done)
-    {
-      if (mts_checkpoint_routine(rli, 0, true, true /*need_data_lock=true*/))
-        DBUG_RETURN(true);
-    }
-    // Restore previous info.
-    THD_STAGE_INFO(thd, *old_stage);
-    DBUG_PRINT("info",("delegated %d, jobs_done %d, we can schedule "
-                       "the next group.", delegated_jobs, jobs_done));
+    if (-1 == wait_for_workers_to_finish(rli))
+      DBUG_RETURN (ER_MTS_INCONSISTENT_DATA);
     delegated_jobs= 1;
     jobs_done= 0;
   }
-  DBUG_RETURN(false);
+  DBUG_RETURN(0);
 }
 
 /**
@@ -522,6 +611,44 @@ Mts_submode_logical_clock::get_free_worker(Relay_log_info *rli)
       return w_i;
   }
   return 0;
+}
+
+/**
+  Waits for slave workers to finish off the pending tasks before returning.
+  Used in this submode to make sure that the previous group has been applied
+  before a new group is scheduled.
+  @param Relay_log info *rli  coordinator rli.
+  @param Slave worker to ignore.
+  @return -1 for error.
+           0 no error.
+ */
+int
+Mts_submode_logical_clock::
+   wait_for_workers_to_finish(Relay_log_info *rli,
+                              __attribute__((unused)) Slave_worker * ignore)
+{
+  PSI_stage_info *old_stage= 0;
+  THD *thd= rli->info_thd;
+  DBUG_ENTER("Mts_submode_logical_clock::wait_for_workers_to_finish");
+  DBUG_PRINT("info",("delegated %d, jobs_done %d", delegated_jobs,
+                          jobs_done));
+  /*
+    We have a new group and we must check if the last group was completely
+    applied before we move on to the next group
+  */
+  // Update thd info as waiting for workers to finish.
+  thd->enter_stage(&stage_slave_waiiting_for_workers_to_finish, old_stage,
+                    __func__, __FILE__, __LINE__);
+  while (delegated_jobs > jobs_done && !thd->killed)
+  {
+    if (mts_checkpoint_routine(rli, 0, true, true /*need_data_lock=true*/))
+      DBUG_RETURN(-1);
+  }
+  // Restore previous info.
+  THD_STAGE_INFO(thd, *old_stage);
+  DBUG_PRINT("info",("delegated %d, jobs_done %d, we can schedule "
+                     "the next group.", delegated_jobs, jobs_done));
+  DBUG_RETURN(0);
 }
 
 /**

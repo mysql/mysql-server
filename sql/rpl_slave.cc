@@ -3471,7 +3471,7 @@ apply_event_and_update_pos(Log_event** ptr_ev, THD* thd, Relay_log_info* rli)
             after wait_() returns.
             No need to know a possible error out of synchronization call.
           */
-          (void) wait_for_workers_to_finish(rli);
+          (void)rli->current_mts_submode->wait_for_workers_to_finish(rli);
         }
 
       }
@@ -5043,10 +5043,6 @@ end:
 #endif
   set_timespec_nsec(rli->last_clock, 0);
 
-  /* if the slave sql was killed we must report */
-  if (sql_slave_killed(rli->info_thd, rli))
-    error= true;
-
   DBUG_RETURN(error);
 }
 
@@ -5261,7 +5257,7 @@ void slave_stop_workers(Relay_log_info *rli, bool *mts_inited)
     }
 #endif
     // No need to know a possible error out of synchronization call.
-    (void) wait_for_workers_to_finish(rli);
+    (void)rli->current_mts_submode->wait_for_workers_to_finish(rli);
     /*
       At this point the coordinator has been stopped and the checkpoint
       routine is executed to eliminate possible gaps.
