@@ -1573,10 +1573,10 @@ truncate_t::fixup_tables()
 		drop indexes and re-create indexes. */
 
 		ib_logf(IB_LOG_LEVEL_INFO,
-			"Completing truncate for table with id (%lu)"
+			"Completing truncate for table with id (%llu)"
 			" residing in space with id (%lu)",
-			(*it)->m_old_table_id,
-			(*it)->m_space_id);
+			(ullint) (*it)->m_old_table_id,
+			(ulong) (*it)->m_space_id);
 
 		if (!Tablespace::is_system_tablespace((*it)->m_space_id)) {
 
