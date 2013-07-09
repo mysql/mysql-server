@@ -59,6 +59,8 @@ LOCK TABLES performance_schema.replication_execute_status_by_worker WRITE;
 ERROR 42000: SELECT, LOCK TABLES command denied to user 'root'@'localhost' for table 'replication_execute_status_by_worker'
 UNLOCK TABLES;
 include/stop_slave.inc
+reset master;
+reset slave;
 set @@global.slave_parallel_workers= @save.slave_parallel_workers;
 set @@global.slave_transaction_retries= @save.slave_transaction_retries;
 include/start_slave.inc

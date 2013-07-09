@@ -50,6 +50,10 @@ CREATE UNIQUE INDEX test_index ON
 
 #Cleanup
 source include/stop_slave.inc;
+# we reset master and slave to prevent errors above affecting start_slave.inc
+# below.
+reset master;
+reset slave;
 set @@global.slave_parallel_workers= @save.slave_parallel_workers;
 set @@global.slave_transaction_retries= @save.slave_transaction_retries;
 source include/start_slave.inc;
