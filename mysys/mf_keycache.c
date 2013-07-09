@@ -651,8 +651,7 @@ err:
 
   SYNOPSIS
     prepare_resize_simple_key_cache()
-    keycache                pointer to the control block of a simple key cache
-    with_resize_queue       <=> resize queue is used		
+    keycache                pointer to the control block of a simple key cache	
     release_lock            <=> release the key cache lock before return
 
   DESCRIPTION
@@ -660,10 +659,8 @@ err:
     this it destroys the key cache calling end_simple_key_cache. The function 
     takes the parameter keycache as a pointer to the control block 
     structure of the type SIMPLE_KEY_CACHE_CB for this key cache.
-    The parameter with_resize_queue determines weather the resize queue is
-    involved (MySQL server never uses this queue). The parameter release_lock
-    says weather the key cache lock must be released before return from 
-    the function.
+    The parameter release_lock says whether the key cache lock must be 
+    released before return from the function.
 
   RETURN VALUE
     0 - on success,
@@ -677,7 +674,6 @@ err:
 
 static 
 int prepare_resize_simple_key_cache(SIMPLE_KEY_CACHE_CB *keycache,
-                                    my_bool with_resize_queue,
                                     my_bool release_lock)
 {
   int res= 0;
@@ -692,7 +688,7 @@ int prepare_resize_simple_key_cache(SIMPLE_KEY_CACHE_CB *keycache,
     one resizer only. In set_var.cc keycache->in_init is used to block
     multiple attempts.
   */
-  while (with_resize_queue && keycache->in_resize)
+  while (keycache->in_resize)
   {
     /* purecov: begin inspected */
     wait_on_queue(&keycache->resize_queue, &keycache->cache_lock);
@@ -759,8 +755,7 @@ finish:
 
   SYNOPSIS
     finish_resize_simple_key_cache()
-    keycache                pointer to the control block of a simple key cache
-    with_resize_queue       <=> resize queue is used		
+    keycache                pointer to the control block of a simple key cache		
     acquire_lock            <=> acquire the key cache lock at start
 
   DESCRIPTION
@@ -769,9 +764,7 @@ finish:
     keycache as a pointer to the control block structure of the type
     SIMPLE_KEY_CACHE_CB for this key cache. The function sets the flag
     in_resize in this structure to FALSE.
-    The parameter with_resize_queue determines weather the resize queue
-    is involved (MySQL server never uses this queue).
-    The parameter acquire_lock says weather the key cache lock must be
+    The parameter acquire_lock says whether the key cache lock must be
     acquired at the start of the function.
 
   RETURN VALUE
@@ -785,7 +778,6 @@ finish:
 
 static 
 void finish_resize_simple_key_cache(SIMPLE_KEY_CACHE_CB *keycache,
-                                    my_bool with_resize_queue,
                                     my_bool acquire_lock)
 {
   DBUG_ENTER("finish_resize_simple_key_cache");
@@ -801,11 +793,10 @@ void finish_resize_simple_key_cache(SIMPLE_KEY_CACHE_CB *keycache,
   */
   keycache->in_resize= 0;
   
-  if (with_resize_queue)
-  {
-    /* Signal waiting threads. */
-    release_whole_queue(&keycache->resize_queue);
-  }
+
+  /* Signal waiting threads. */
+  release_whole_queue(&keycache->resize_queue);
+
 
   keycache_pthread_mutex_unlock(&keycache->cache_lock);
 
@@ -872,7 +863,7 @@ int resize_simple_key_cache(SIMPLE_KEY_CACHE_CB *keycache, uint key_cache_block_
     We do not lose the cache_lock and will release it only at the end of 
     this function.
   */
-  if (prepare_resize_simple_key_cache(keycache, 1, 0))
+  if (prepare_resize_simple_key_cache(keycache, 0))
     goto finish;
 
   /* The following will work even if use_mem is 0 */ 
@@ -880,7 +871,7 @@ int resize_simple_key_cache(SIMPLE_KEY_CACHE_CB *keycache, uint key_cache_block_
 			        division_limit, age_threshold);
 
 finish:
-  finish_resize_simple_key_cache(keycache, 1, 0);
+  finish_resize_simple_key_cache(keycache, 0);
 
   DBUG_RETURN(blocks);
 }
@@ -5279,7 +5270,7 @@ int resize_partitioned_key_cache(PARTITIONED_KEY_CACHE_CB *keycache,
   }
   for (i= 0; i < partitions; i++)
   {
-    err|= prepare_resize_simple_key_cache(keycache->partition_array[i], 0, 1);
+    err|= prepare_resize_simple_key_cache(keycache->partition_array[i], 1);
   }
   if (!err) 
     blocks= init_partitioned_key_cache(keycache, key_cache_block_size,
@@ -5288,7 +5279,7 @@ int resize_partitioned_key_cache(PARTITIONED_KEY_CACHE_CB *keycache,
   {
     for (i= 0; i < partitions; i++)
     {
-      finish_resize_simple_key_cache(keycache->partition_array[i], 0, 1);
+      finish_resize_simple_key_cache(keycache->partition_array[i], 1);
     }
   }
   DBUG_RETURN(blocks);
