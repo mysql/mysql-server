@@ -98,6 +98,6 @@ reset master;
 reset slave;
 set @@global.slave_parallel_workers= @save.slave_parallel_workers;
 set @@global.slave_transaction_retries= @save.slave_transaction_retries;
-source include/start_slave.inc;
+start slave;
 
 --source include/rpl_end.inc
