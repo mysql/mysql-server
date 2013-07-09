@@ -59,8 +59,6 @@ Slave_worker *map_db_to_worker(const char *dbname, Relay_log_info *rli,
                                bool need_temp_tables, Slave_worker *w);
 Slave_worker *get_least_occupied_worker(Relay_log_info *rli,
                                         DYNAMIC_ARRAY *workers, Log_event* ev);
-int wait_for_workers_to_finish(Relay_log_info const *rli,
-                               Slave_worker *ignore= NULL);
 
 #define SLAVE_INIT_DBS_IN_GROUP 4     // initial allocation for CGEP dynarray
 
@@ -413,6 +411,6 @@ TABLE* mts_move_temp_tables_to_thd(THD*, TABLE*, enum_mts_parallel_type);
 
 extern  mysql_mutex_t slave_worker_hash_lock;
 extern  mysql_cond_t slave_worker_hash_cond;
-
+extern HASH mapping_db_to_worker;
 #endif // HAVE_REPLICATION
 #endif
