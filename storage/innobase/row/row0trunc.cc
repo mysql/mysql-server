@@ -2040,11 +2040,11 @@ truncate_t::create_index(
 		ib_logf(IB_LOG_LEVEL_INFO,
 			"innodb_force_recovery was set to %lu. "
 			"Continuing crash recovery even though "
-			"we failed to create index %lu for "
+			"we failed to create index %llu for "
 			"compressed table '%s' with tablespace "
 			"%lu during recovery",
 			srv_force_recovery,
-			index_id, table_name, space_id);
+			(ullint) index_id, table_name, (ulong) space_id);
 	}
 
 	return(root_page_no);
