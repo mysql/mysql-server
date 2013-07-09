@@ -4192,6 +4192,7 @@ bool TABLE_LIST::prep_where(THD *thd, Item **conds,
                                bool no_where_clause)
 {
   DBUG_ENTER("TABLE_LIST::prep_where");
+  bool res= FALSE;
 
   for (TABLE_LIST *tbl= merge_underlying_list; tbl; tbl= tbl->next_local)
   {
@@ -4240,10 +4241,11 @@ bool TABLE_LIST::prep_where(THD *thd, Item **conds,
       if (tbl == 0)
       {
         if (*conds && !(*conds)->fixed)
-	  (*conds)->fix_fields(thd, conds);
-        *conds= and_conds(*conds, where->copy_andor_structure(thd));
-        if (*conds && !(*conds)->fixed)
-          (*conds)->fix_fields(thd, conds);        
+          res= (*conds)->fix_fields(thd, conds);
+        if (!res)
+          *conds= and_conds(*conds, where->copy_andor_structure(thd));
+        if (*conds && !(*conds)->fixed && !res)
+          res= (*conds)->fix_fields(thd, conds);
       }
       if (arena)
         thd->restore_active_arena(arena, &backup);
@@ -4251,7 +4253,7 @@ bool TABLE_LIST::prep_where(THD *thd, Item **conds,
     }
   }
 
-  DBUG_RETURN(FALSE);
+  DBUG_RETURN(res);
 }
 
 /**

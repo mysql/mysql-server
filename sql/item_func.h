@@ -1807,7 +1807,6 @@ public:
   bool is_expensive_processor(uchar *arg) { return TRUE; }
   enum Functype functype() const { return FT_FUNC; }
   const char *func_name() const { return "match"; }
-  void update_used_tables() {}
   table_map not_null_tables() const { return 0; }
   bool fix_fields(THD *thd, Item **ref);
   bool eq(const Item *, bool binary_cmp) const;
