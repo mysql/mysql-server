@@ -5,7 +5,7 @@ Note	####	Storing MySQL user name or password information in the master info rep
 [connection master]
 SELECT * FROM performance_schema.replication_connection_configuration
 LIMIT 1;
-sELECT * FROM performance_schema.replication_connection_configuration
+SELECT * FROM performance_schema.replication_connection_configuration
 WHERE user='FOO' or host='BAR';
 INSERT INTO performance_schema.replication_connection_configuration
 SET user='FOO', host='BAR',
