@@ -2277,12 +2277,11 @@ void remove_status_vars(SHOW_VAR *list)
   {
     pthread_mutex_lock(&LOCK_status);
     SHOW_VAR *all= dynamic_element(&all_status_vars, 0, SHOW_VAR *);
-    int a= 0, b= all_status_vars.elements, c= (a+b)/2;
 
     for (; list->name; list++)
     {
-      int res= 0;
-      for (a= 0, b= all_status_vars.elements; b-a > 1; c= (a+b)/2)
+      int res= 0, a= 0, b= all_status_vars.elements, c= (a+b)/2;
+      for (; b-a > 0; c= (a+b)/2)
       {
         res= show_var_cmp(list, all+c);
         if (res < 0)
