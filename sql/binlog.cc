@@ -7171,10 +7171,10 @@ int MYSQL_BIN_LOG::ordered_commit(THD *thd, bool all, bool skip_commit)
     int error= rotate(false, &check_purge);
     mysql_mutex_unlock(&LOCK_log);
 
-    if (!error && check_purge)
-      purge();
-    else
+    if (error)
       thd->commit_error= THD::CE_COMMIT_ERROR;
+    else if (check_purge)
+      purge();
   }
   DBUG_RETURN(thd->commit_error);
 }

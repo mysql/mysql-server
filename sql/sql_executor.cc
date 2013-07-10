@@ -230,8 +230,8 @@ JOIN::create_intermediate_table(JOIN_TAB *tab, List<Item> *tmp_table_fields,
                                "");
   if (!table)
     DBUG_RETURN(true);
-  tmp_table_param.using_indirect_summary_function=
-    tab->tmp_table_param->using_indirect_summary_function;
+  tmp_table_param.using_outer_summary_function=
+    tab->tmp_table_param->using_outer_summary_function;
   tab->join= this;
   DBUG_ASSERT(tab > tab->join->join_tab);
   (tab - 1)->next_select= sub_select_op;

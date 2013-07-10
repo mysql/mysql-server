@@ -4200,7 +4200,11 @@ corrupt:
 			recv_recover_page(TRUE, (buf_block_t*) bpage);
 		}
 
-		if (uncompressed && !recv_no_ibuf_operations) {
+		/* If space is being truncated then avoid ibuf operation.
+		During re-init we have already freed ibuf entries. */
+		if (uncompressed
+		    && !recv_no_ibuf_operations
+		    && !srv_is_tablespace_truncated(bpage->space)) {
 			ibuf_merge_or_delete_for_page(
 				(buf_block_t*) bpage, bpage->space,
 				bpage->offset, buf_page_get_zip_size(bpage),
