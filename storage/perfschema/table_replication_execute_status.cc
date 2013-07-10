@@ -63,7 +63,7 @@ table_replication_execute_status::m_share=
   &table_replication_execute_status::create,
   NULL, /* write_row */
   NULL, /* delete_all_rows */
-  NULL,
+  table_replication_execute_status::get_row_count,
   1,
   sizeof(PFS_simple_index), /* ref length */
   &m_table_lock,
@@ -91,8 +91,26 @@ void table_replication_execute_status::reset_position(void)
   m_next_pos.m_index= 0;
 }
 
+ha_rows table_replication_execute_status::get_row_count()
+{
+  uint row_count= 0;
+  mysql_mutex_lock(&LOCK_active_mi);
+
+  DBUG_ASSERT(active_mi != NULL);
+  DBUG_ASSERT(active_mi->rli != NULL);
+
+  if(active_mi->host[0])
+    row_count= 1;
+
+  mysql_mutex_unlock(&LOCK_active_mi);
+  return row_count;
+}
+
 int table_replication_execute_status::rnd_next(void)
 {
+  if(get_row_count() == 0)
+    return HA_ERR_END_OF_FILE;
+
   m_pos.set_at(&m_next_pos);
 
   if (m_pos.m_index == 0)
@@ -108,6 +126,9 @@ int table_replication_execute_status::rnd_next(void)
 
 int table_replication_execute_status::rnd_pos(const void *pos)
 {
+ if(get_row_count() == 0)
+  return HA_ERR_END_OF_FILE;
+
   set_position(pos);
 
   DBUG_ASSERT(m_pos.m_index < 1);

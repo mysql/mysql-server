@@ -43,11 +43,20 @@ call mtr.add_suppression("Error 'Table 'test.t' doesn't exist' on query.");
 call mtr.add_suppression("The slave coordinator and worker threads are stopped, possibly leaving data in inconsistent state.");
 call mtr.add_suppression("Request to stop slave SQL Thread received while applying a group that has non-transactional changes;");
 
+let $assert_text= On master, the table should return an empty set.;
+let $assert_cond= [select count(*) from performance_schema.replication_execute_status_by_worker] = 0;
+source include/assert.inc;
+
 --echo
 --echo # Setup MTS and performa testing on a fresh slave.
 --echo
 
 --connection slave
+
+let $assert_text= In non-MTS mode(SQL thread), the table should return an empty set.;
+let $assert_cond= [select count(*) from performance_schema.replication_execute_status_by_worker] = 0;
+source include/assert.inc;
+
 source include/stop_slave.inc;
 SET @save.slave_parallel_workers=@@global.slave_parallel_workers;
 SET @@global.slave_parallel_workers=1;
