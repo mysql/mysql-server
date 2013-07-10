@@ -39,7 +39,11 @@ function github_clone() {
     pushd $repo
     if [ $? != 0 ] ; then exit 1; fi
     if [ -z $git_tag ] ; then
-        git checkout $tree
+        if ! git branch | grep "\<$tree\>" > /dev/null && git branch -a | grep "remotes/origin/$tree\>" > /dev/null; then
+            git checkout --track origin/$tree
+        else
+            git checkout $tree
+        fi
     else
         git checkout $git_tag
     fi
