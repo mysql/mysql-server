@@ -4363,6 +4363,7 @@ void Query_log_event::print_query_header(IO_CACHE* file,
                 error_code);
   }
 
+  bool suppress_use_flag= get_binlog_rewrite_db(db);
   if ((flags & LOG_EVENT_SUPPRESS_USE_F))
   {
     if (!is_trans_keyword())
@@ -4375,7 +4376,7 @@ void Query_log_event::print_query_header(IO_CACHE* file,
   Suppress if the --rewrite-db  option in use.
   Skip otherwise.
 */
-  else if (db && !option_rewrite_set)
+  else if (db && !suppress_use_flag)
   {
 #ifdef MYSQL_SERVER
     quoted_len= my_strmov_quoted_identifier(this->thd, (char*)quoted_id, db, 0);
