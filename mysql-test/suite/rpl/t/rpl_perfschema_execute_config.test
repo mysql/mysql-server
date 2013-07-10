@@ -26,6 +26,10 @@
 source include/master-slave.inc;
 source include/have_binlog_format_mixed.inc;
 
+let $assert_text= On master, the table should return an empty set.;
+let $assert_cond= [select count(*) from performance_schema.replication_execute_configuration] = 0;
+source include/assert.inc;
+
 --connection slave
 
 --echo

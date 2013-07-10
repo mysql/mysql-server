@@ -522,6 +522,10 @@ The following options may be given as the first argument:
  --performance-schema 
  Enable the performance schema.
  (Defaults to on; use --skip-performance-schema to disable.)
+ --performance-schema[=name] 
+ Enable or disable PERFORMANCE_SCHEMA plugin. Possible
+ values are ON, OFF, FORCE (don't start if the plugin
+ fails to load).
  --performance-schema-accounts-size=# 
  Maximum number of instrumented user@host accounts. Use 0
  to disable, -1 for automated sizing.
@@ -1150,6 +1154,7 @@ optimizer-trace-limit 1
 optimizer-trace-max-mem-size 16384
 optimizer-trace-offset -1
 performance-schema TRUE
+performance-schema ON
 performance-schema-accounts-size -1
 performance-schema-consumer-events-stages-current FALSE
 performance-schema-consumer-events-stages-history FALSE
