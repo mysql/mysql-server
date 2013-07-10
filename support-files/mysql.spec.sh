@@ -286,9 +286,6 @@ documentation and the manual for more information.
 Summary:        MySQL: a very fast and reliable SQL database server
 Group:          Applications/Databases
 Requires:       %{distro_requires}
-%if 0%{?commercial}
-Obsoletes:      MySQL-server
-%endif
 Obsoletes:      mysql-server mysql-advanced mysql-server-advanced
 Obsoletes:      MySQL-server-classic MySQL-server-community MySQL-server-enterprise
 Obsoletes:      MySQL-server-advanced-gpl MySQL-server-enterprise-gpl
@@ -321,9 +318,6 @@ package "MySQL-client%{product_suffix}" as well!
 %package -n MySQL-client%{product_suffix}
 Summary:        MySQL - Client
 Group:          Applications/Databases
-%if 0%{?commercial}
-Obsoletes:      MySQL-client
-%endif
 Obsoletes:      mysql < %{version}-%{release}
 Obsoletes:      mysql-advanced < %{version}-%{release}
 Obsoletes:      MySQL-client-classic MySQL-client-community MySQL-client-enterprise
@@ -340,7 +334,6 @@ For a description of MySQL see the base MySQL RPM or http://www.mysql.com/
 Summary:        MySQL - Test suite
 Group:          Applications/Databases
 %if 0%{?commercial}
-Obsoletes:      MySQL-test
 Requires:       MySQL-client-advanced perl
 %else
 Requires:       MySQL-client perl
@@ -359,9 +352,6 @@ For a description of MySQL see the base MySQL RPM or http://www.mysql.com/
 %package -n MySQL-devel%{product_suffix}
 Summary:        MySQL - Development header files and libraries
 Group:          Applications/Databases
-%if 0%{?commercial}
-Obsoletes:      MySQL-devel
-%endif
 Obsoletes:      mysql-devel mysql-embedded-devel mysql-devel-advanced mysql-embedded-devel-advanced
 Obsoletes:      MySQL-devel-classic MySQL-devel-community MySQL-devel-enterprise
 Obsoletes:      MySQL-devel-advanced-gpl MySQL-devel-enterprise-gpl
@@ -376,9 +366,6 @@ For a description of MySQL see the base MySQL RPM or http://www.mysql.com/
 %package -n MySQL-shared%{product_suffix}
 Summary:        MySQL - Shared libraries
 Group:          Applications/Databases
-%if 0%{?commercial}
-Obsoletes:      MySQL-shared
-%endif
 Obsoletes:      MySQL-shared-standard MySQL-shared-pro
 Obsoletes:      MySQL-shared-pro-cert MySQL-shared-pro-gpl
 Obsoletes:      MySQL-shared-pro-gpl-cert
@@ -394,7 +381,6 @@ and applications need to dynamically load and use MySQL.
 Summary:        MySQL - Embedded library
 Group:          Applications/Databases
 %if 0%{?commercial}
-Obsoletes:      MySQL-embedded
 Requires:       MySQL-devel-advanced
 %else
 Requires:       MySQL-devel
