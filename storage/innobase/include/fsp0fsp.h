@@ -705,6 +705,27 @@ xdes_calc_descriptor_index(
 				0 for uncompressed pages */
 	ulint	offset);	/*!< in: page offset */
 
+/********************************************************************//**
+Gets pointer to a the extent descriptor of a page. The page where the
+extent descriptor resides is x-locked. If the page offset is equal to
+the free limit of the space, adds new extents from above the free limit
+to the space free list, if not free limit == space size. This adding
+is necessary to make the descriptor defined, as they are uninitialized
+above the free limit.
+@return pointer to the extent descriptor, NULL if the page does not
+exist in the space or if the offset exceeds the free limit */
+
+xdes_t*
+xdes_get_descriptor(
+/*================*/
+	ulint	space,		/*!< in: space id */
+	ulint	zip_size,	/*!< in: compressed page size in bytes
+				or 0 for uncompressed pages */
+	ulint	offset,		/*!< in: page offset; if equal to the
+				free limit, we try to add new extents
+				to the space free list */
+	mtr_t*	mtr)		/*!< in/out: mini-transaction */
+	__attribute__((warn_unused_result));
 /**********************************************************************//**
 Gets a descriptor bit of a page.
 @return TRUE if free */

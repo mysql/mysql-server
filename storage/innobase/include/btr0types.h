@@ -200,4 +200,35 @@ Initially, BLOB field references are set to zero, in
 dtuple_convert_big_rec(). */
 extern const byte field_ref_zero[BTR_EXTERN_FIELD_REF_SIZE];
 
+/** The information is used for creating a new index tree when
+applying MLOG_FILE_TRUNCATE redo record during recovery */
+struct btr_create_t {
+
+	explicit btr_create_t(const byte* const ptr)
+		:
+		format_flags(),
+		n_fields(),
+		field_len(),
+		fields(ptr),
+		trx_id_pos(ULINT_UNDEFINED)
+	{
+		/* Do nothing */
+	}
+
+	/** Page format */
+	ulint			format_flags;
+
+	/** Numbr of index fields */
+	ulint			n_fields;
+
+	/** The length of the encoded meta-data */
+	ulint			field_len;
+
+	/** Field meta-data, encoded. */
+	const byte* const	fields;
+
+	/** Position of trx-id column. */
+	ulint			trx_id_pos;
+};
+
 #endif

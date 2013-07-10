@@ -18,7 +18,38 @@ Diff: EXPLAIN NORMAL vs OTHER
 QUERY: SELECT * from t1,t2,t3 where t1.a=t2.a AND t2.b=t3.a and t1.b=t3.b 
 STATUS: EQUAL
 QUERY: SELECT 1 FROM ( SELECT 1, 2 FROM DUAL WHERE EXISTS  ( SELECT f1 FROM t1 )) AS tt 
-STATUS: EQUAL
+STATUS:NOT_EQUAL
+SYNC_POINT:after_join_optimize
+Diff: EXPLAIN NORMAL vs OTHER
+@@ -1,28 +0,0 @@
+-EXPLAIN
+-{
+-  "query_block": {
+-    "select_id": 1,
+-    "message": "no matching row in const table",
+-    "table": {
+-      "materialized_from_subquery": {
+-        "using_temporary_table": true,
+-        "dependent": false,
+-        "cacheable": true,
+-        "query_block": {
+-          "select_id": 2,
+-          "message": "Impossible WHERE",
+-          "optimized_away_subqueries": [
+-            {
+-              "dependent": false,
+-              "cacheable": true,
+-              "query_block": {
+-                "select_id": 3,
+-                "message": "no matching row in const table"
+-              }
+-            }
+-          ]
+-        }
+-      }
+-    }
+-  }
+-}
 QUERY: SELECT STRAIGHT_JOIN * FROM t3  JOIN t1 ON t3.a=t1.a  JOIN t2 ON t3.a=t2.a JOIN t4 WHERE t4.a IN (t1.b, t2.b) 
 STATUS:NOT_EQUAL
 SYNC_POINT:before_reset_query_plan
@@ -102,27 +133,10 @@ Diff: EXPLAIN NORMAL vs OTHER
 +        "using_where": true
        }
 QUERY: SELECT t1.c2   FROM t2 STRAIGHT_JOIN t1 ON t1.c1 < t2.c1 
-STATUS:NOT_EQUAL
-SYNC_POINT:before_reset_query_plan
-Diff: EXPLAIN NORMAL vs OTHER
-@@ -25,3 +25,3 @@
-           "table_name": "t1",
--          "access_type": "ALL",
-+          "access_type": "range",
-           "possible_keys": [
-@@ -29,3 +29,8 @@
-           ],
--          "rows": 0,
-+          "key": "PRIMARY",
-+          "used_key_parts": [
-+            "c1"
-+          ],
-+          "key_length": "4",
-+          "rows": 1,
-           "filtered": 0,
+STATUS: EQUAL
 QUERY: SELECT STRAIGHT_JOIN * FROM (t1 LEFT JOIN  (t2 LEFT JOIN (t3 LEFT OUTER JOIN t4 ON t3.c1 <= t4.c1_key) ON t2.c1 = t4.c3)  ON t1.c1 = t4.c2) RIGHT OUTER JOIN t5 ON t2.c2 <= t5.c1 WHERE t1.i1 = 1 
 STATUS:NOT_EQUAL
-SYNC_POINT:before_reset_query_plan
+SYNC_POINT:after_join_optimize
 Diff: EXPLAIN NORMAL vs OTHER
 @@ -19,4 +19,4 @@
            "filtered": 100,
@@ -138,21 +152,6 @@ Diff: EXPLAIN NORMAL vs OTHER
 +          "using_where": true,
 +          "using_join_buffer": "Block Nested Loop"
          }
-@@ -45,3 +45,3 @@
-           "table_name": "t4",
--          "access_type": "ALL",
-+          "access_type": "range",
-           "possible_keys": [
-@@ -49,3 +49,8 @@
-           ],
--          "rows": 0,
-+          "key": "k1",
-+          "used_key_parts": [
-+            "c1_key"
-+          ],
-+          "key_length": "32",
-+          "rows": 1,
-           "filtered": 0,
 QUERY: SELECT * FROM t1 LEFT JOIN t2 ON t2.f1 = t1.f1 WHERE t1.f1 = 4 AND t2.f1 IS NOT NULL AND t2.f2 IS NOT NULL GROUP BY t2.f1, t2.f2 
 STATUS:NOT_EQUAL
 SYNC_POINT:before_reset_query_plan
@@ -446,7 +445,7 @@ Diff: EXPLAIN NORMAL vs OTHER
              }
 QUERY: SELECT alias2.col_varchar_nokey FROM v1 AS alias1 RIGHT JOIN t1 AS alias2 ON 1 WHERE alias2.col_varchar_key IN ( SELECT sq2_alias1.col_varchar_nokey FROM v1 AS sq2_alias1 LEFT JOIN t1 AS sq2_alias2 ON (sq2_alias2.col_int_key = sq2_alias1.pk) WHERE sq2_alias1.pk != alias1.col_int_key AND sq2_alias1.col_varchar_key > alias1.col_varchar_key ) 
 STATUS:NOT_EQUAL
-SYNC_POINT:before_reset_query_plan
+SYNC_POINT:after_join_optimize
 Diff: EXPLAIN NORMAL vs OTHER
 @@ -27,4 +27,4 @@
              "filtered": 80,
@@ -463,29 +462,9 @@ Diff: EXPLAIN NORMAL vs OTHER
 -            "attached_condition": "<if>(is_not_null_compl(sq2_alias2), (`test`.`sq2_alias2`.`col_int_key` = `test`.`t1`.`pk`), true)"
 +            "using_join_buffer": "Block Nested Loop"
            }
-@@ -53,3 +53,3 @@
-             "table_name": "t1",
--            "access_type": "ALL",
-+            "access_type": "range",
-             "possible_keys": [
-@@ -57,5 +57,11 @@
-             ],
--            "rows": 5,
--            "filtered": 100,
--            "range_checked_for_each_record": "index map: 0x4"
-+            "key": "col_varchar_key",
-+            "used_key_parts": [
-+              "col_varchar_key"
-+            ],
-+            "key_length": "3",
-+            "rows": 2,
-+            "filtered": 250,
-+            "range_checked_for_each_record": "index map: 0x4",
-+            "using_index": true
-           }
 QUERY: SELECT alias2.col_varchar_nokey FROM t1 AS alias2 LEFT JOIN v1 AS alias1 ON 1 WHERE alias2.col_varchar_key IN ( SELECT sq2_alias1.col_varchar_nokey FROM v1 AS sq2_alias1 LEFT JOIN t1 AS sq2_alias2 ON (sq2_alias2.col_int_key = sq2_alias1.pk) WHERE sq2_alias1.pk != alias1.col_int_key AND sq2_alias1.col_varchar_key > alias1.col_varchar_key ) 
 STATUS:NOT_EQUAL
-SYNC_POINT:before_reset_query_plan
+SYNC_POINT:after_join_optimize
 Diff: EXPLAIN NORMAL vs OTHER
 @@ -27,4 +27,4 @@
              "filtered": 80,
@@ -501,26 +480,6 @@ Diff: EXPLAIN NORMAL vs OTHER
 -            "using_join_buffer": "Block Nested Loop",
 -            "attached_condition": "<if>(is_not_null_compl(sq2_alias2), (`sq2_alias2`.`col_int_key` = `test`.`t1`.`pk`), true)"
 +            "using_join_buffer": "Block Nested Loop"
-           }
-@@ -53,3 +53,3 @@
-             "table_name": "t1",
--            "access_type": "ALL",
-+            "access_type": "range",
-             "possible_keys": [
-@@ -57,5 +57,11 @@
-             ],
--            "rows": 5,
--            "filtered": 100,
--            "range_checked_for_each_record": "index map: 0x4"
-+            "key": "col_varchar_key",
-+            "used_key_parts": [
-+              "col_varchar_key"
-+            ],
-+            "key_length": "3",
-+            "rows": 2,
-+            "filtered": 250,
-+            "range_checked_for_each_record": "index map: 0x4",
-+            "using_index": true
            }
 QUERY: SELECT d FROM (SELECT * FROM t2) AS a2 RIGHT JOIN (SELECT * FROM t1) AS a1 ON c = a WHERE d LIKE '_' ORDER BY d 
 STATUS:NOT_EQUAL
