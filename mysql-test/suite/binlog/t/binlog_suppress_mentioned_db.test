@@ -1,0 +1,46 @@
+# BUG 16914535 - MYSQLBINLOG REWRITE-DB SUPPRESSES USE STATEMENT
+#
+# The test is written to check for the fix for the problem that 
+# on using the rewrite-db option of mysqlbinlog the use '<database>'
+# command are dropped for all the databases without checking 
+# whether that database is mentioned as a part of the option used.
+#
+# The test creates a binlog file which has two use '<database>'
+# being logged. On reading it through mysqlbinlog with the rewrite-db
+# option and changing db1 to db2, only the use db1 should be suppressed
+# The other use 'test' should not be suppressed after the fix. 
+
+--source include/have_binlog_format_row.inc
+USE test;
+CREATE TABLE t1(i INT);
+
+CREATE DATABASE db1;
+USE db1;
+CREATE TABLE t1 (i INT);
+
+# create an event.
+INSERT INTO t1 VALUES(1);
+
+--let $MYSQLD_DATADIR= `select @@datadir`
+
+# Checking for the suppression of the USE DATABASE command on with rewrite-db.
+# The (use 'db') for only the database mentioned in the rewrite-db option
+# should be suppressed. Other (use 'db') commands should not be suppressed.
+
+# Reading binlog file with the rewrite-db option.
+--echo [The use <db_name> is suppressed on using rewrite-db option of mysqlbinlog]
+--exec $MYSQL_BINLOG --force-if-open --rewrite-db="db1->db2" $MYSQLD_DATADIR/master-bin.000001 > $MYSQLTEST_VARDIR/tmp/row_event_rewrite.sql
+
+--let GREP_FILE=$MYSQLTEST_VARDIR/tmp/row_event_rewrite.sql
+--let GREP_PATTERN=use `db1`
+--source ../internal/mysql-test/extra/rpl_tests/grep_pattern.inc
+
+--let GREP_FILE=$MYSQLTEST_VARDIR/tmp/row_event_rewrite.sql
+--let GREP_PATTERN=use `test`
+--source ../internal/mysql-test/extra/rpl_tests/grep_pattern.inc
+
+--echo [CLEANUP]
+--remove_file $MYSQLTEST_VARDIR/tmp/row_event_rewrite.sql
+
+DROP TABLE test.t1;
+DROP DATABASE db1;
