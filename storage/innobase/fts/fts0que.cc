@@ -3913,7 +3913,7 @@ fts_query_parse(
 	} else {
 		query->root = state.root;
 
-		if (fts_enable_diag_print) {
+		if (fts_enable_diag_print && query->root != NULL) {
 			fts_ast_node_print(query->root);
 		}
 	}
