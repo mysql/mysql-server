@@ -2,6 +2,13 @@
 --source include/have_perfschema.inc
 
 #
+# Display default value
+#
+
+select @@global.performance_schema_max_program_instances;
+
+
+#
 # Only global
 #
 
@@ -29,4 +36,24 @@ set global performance_schema_max_program_instances=1;
 
 --error ER_INCORRECT_GLOBAL_LOCAL_VAR
 set session performance_schema_max_program_instances=1;
+
+#
+# Check if the value in GLOBAL Table matches value in variable
+#
+
+SELECT @@GLOBAL.performance_schema_max_program_instances = VARIABLE_VALUE
+FROM INFORMATION_SCHEMA.GLOBAL_VARIABLES
+WHERE VARIABLE_NAME='performance_schema_max_program_instances';
+
+select @@global.performance_schema_max_program_instances;
+
+select * from information_schema.global_variables
+  where variable_name='performance_schema_max_program_instances';
+
+#
+# Check if accessing variable with and without GLOBAL point to same variable
+#
+
+SELECT @@performance_schema_max_program_instances = @@GLOBAL.performance_schema_max_program_instances;
+
 
