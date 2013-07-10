@@ -37,6 +37,75 @@ MySQLTime.prototype = {
   minute   : 0,
   second   : 0,
   microsec : 0,
+  fsp      : 0   /* Fraction seconds precision, 0 - 6 */
+};
+
+MySQLTime.prototype.initializeFromTimeString = function(jsValue) {
+  var numValue = "";
+  var decimalPart = "";
+  var decimalLength = 0;
+  var pos = 0;
+  var colons = 0;
+  var c, cc;
+  
+  /* Initial + or - */
+  c = jsValue.charAt(pos);
+  if(c == '+' || c == '-') {
+    numValue += c;
+    pos++;
+  }
+
+  /* Copy numbers but skip separators */
+  while(pos < jsValue.length) {
+    c = jsValue.charAt(pos);
+    cc = jsValue.charCodeAt(pos);
+    if(cc > 47 && cc < 58) {  // i.e. isdigit()
+      numValue += jsValue.charAt(pos);
+    }
+    else if(c === '.' && ! decimalPart) { 
+      decimalPart = jsValue.slice(pos+1);
+      pos = jsValue.length;
+    }
+    else if(c === ':') {
+      colons++;
+    }
+    pos++;
+  }
+
+  /* Convert fixed and decimal parts to numbers */
+  numValue = parseInt(numValue, 10);
+
+  if(numValue < 0) {
+    this.sign = -1;
+    numValue = -numValue;  
+  }
+
+  this.hour = Math.floor(numValue / 10000); 
+  this.minute = (Math.floor(numValue / 100)) % 100;
+  this.second = numValue % 100;
+
+  /* Expand decimal part out to microseconds */
+  if(decimalPart > 0) {
+    decimalLength = decimalPart.length;
+    this.microsec = parseInt(decimalPart, 10);
+    while(decimalLength > 6) {  
+      this.microsec = Math.floor(this.microsec / 10);
+      decimalLength--;
+    }
+    while(decimalLength < 6) {
+      this.microsec *= 10;
+      decimalLength++;
+    }
+  }
+
+  /* Special case HH:MM */
+  if(this.hour == 0 && colons == 1) {
+    this.hour = this.minute;
+    this.minute = this.second;
+    this.second = 0; 
+  }
+
+  return this;
 };
 
 MySQLTime.prototype.initializeFromJsDateUTC = function(jsdate) {
@@ -74,12 +143,44 @@ MySQLTime.prototype.toJsDateLocal = function() {
                   this.microsec / 1000);
 };
 
+MySQLTime.prototype.toTimeString = function() {
+  var strTime = "";
+  var fsec = this.microsec;
+  var fsp = this.fsp;
+  if(this.sign === -1) strTime="-";
+
+  if(this.hour < 10) strTime += "0";
+  strTime += this.hour + ":";
+  if(this.minute < 10) strTime += "0";
+  strTime += this.minute + ":";
+  if(this.second < 10) strTime += "0";
+  strTime += this.second;
+  if(fsp) {
+    strTime += ".";
+    if(fsec > 0) {
+      while(fsp < 6) {
+        fsec = Math.floor(fsec / 10);
+        fsp++;
+      }
+      fsec = fsec.toString();
+    }
+    else {
+      fsec = "";
+    }
+    while(fsec.length < this.fsp) {
+      fsec = "0" + fsec;
+    }
+    strTime += fsec;
+  }
+
+  return strTime;
+};
+
 MySQLTime.initializeFromNdb = function(dbTime) {
   dbTime.toJsDateUTC = MySQLTime.prototype.toJsDateUTC;
   dbTime.toJsDateLocal = MySQLTime.prototype.toJsDateLocal;
+  dbTime.toTimeString = MySQLTime.prototype.toTimeString;
   return dbTime;
 }
 
 module.exports = MySQLTime;
-
-
