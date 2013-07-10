@@ -40,6 +40,10 @@ source include/have_binlog_format_mixed.inc;
 
 call mtr.add_suppression("Master command COM_REGISTER_SLAVE failed.");
 
+let $assert_text= On master, the table should return an empty set.;
+let $assert_cond= [select count(*) from performance_schema.replication_connection_configuration] = 0;
+source include/assert.inc;
+
 --connection slave
 
 --echo

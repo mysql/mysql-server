@@ -5,6 +5,7 @@ Note	####	Storing MySQL user name or password information in the master info rep
 [connection master]
 call mtr.add_suppression("Error 'Table 'test.t' doesn't exist' on query.");
 call mtr.add_suppression("The slave coordinator and worker threads are stopped, possibly leaving data in inconsistent state.*");
+include/assert.inc [On master, the table should return an empty set.]
 
 # Testing on fresh slave.
 
