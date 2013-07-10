@@ -72,12 +72,11 @@ function InsertFunction(data) {
 }
 
 // Time1. Tenths of a second.
-// Mapped to a number of milliseconds.
 var t1 = new harness.ConcurrentTest("t1_time_odd");
 t1.run = function() {
   var data = new TestData(1);
-  data.Time1 = 1622;   // Milliseconds; will be rounded.
-  this.verifier = new ValueVerifier(this, "Time1", 1600);
+  data.Time1 = "1.622";   // Milliseconds; will be rounded.
+  this.verifier = new ValueVerifier(this, "Time1", "00:00:01.6");
   fail_openSession(this, InsertFunction(data));
 }
 
@@ -102,12 +101,12 @@ t3.run = function() {
   fail_openSession(this, InsertFunction(data));
 }
 
-// Time4.  SS.xxxxZZ  expressed in milliseconds
+// Time4.  S.xxxxZZZ
 var t4 = new harness.ConcurrentTest("t4_time_even");
 t4.run = function() {
   var data = new TestData(4);
-  data.Time4 = 1111.6222;
-  this.verifier = new ValueVerifier(this, "Time4", 1111.6);
+  data.Time4 = "1.1116222";
+  this.verifier = new ValueVerifier(this, "Time4", "00:00:01.1116");
   fail_openSession(this, InsertFunction(data));
 }
 
@@ -138,8 +137,8 @@ t6.run = function() {
 var t7 = new harness.ConcurrentTest("t7_time_negative");
 t7.run = function() {
   var data = new TestData(7);
-  data.Time1 = -210000;
-  this.verifier = new ValueVerifier(this, "Time1", -210000);
+  data.Time1 = "-21";
+  this.verifier = new ValueVerifier(this, "Time1", "-00:00:21.0");
   fail_openSession(this, InsertFunction(data));
 }
 
@@ -147,8 +146,8 @@ t7.run = function() {
 var t8 = new harness.ConcurrentTest("t8_time_fractional_negative");
 t8.run = function() {
   var data = new TestData(8);
-  data.Time4 = -210150;
-  this.verifier = new ValueVerifier(this, "Time4", -210150);
+  data.Time4 = "-21.0150";
+  this.verifier = new ValueVerifier(this, "Time4", "-00:00:21.0150");
   fail_openSession(this, InsertFunction(data));
 }
 

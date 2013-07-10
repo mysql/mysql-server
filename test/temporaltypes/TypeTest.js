@@ -117,11 +117,8 @@ t3.run = function() {
 var t4 = new harness.ConcurrentTest("VerifyTime");
 t4.run = function() {
   var data = new TestData(4);
-  var now = Date.now();
-  var plusTenMinutes = now + (10 * 60000);
-  var diff = now - plusTenMinutes;   // A negative number 
-  data.cTime = diff;
-  this.verifier = new ValueVerifier(this, "cTime", diff);
+  data.cTime = "-00:10:00";
+  this.verifier = new ValueVerifier(this, "cTime", "-00:10:00");
   fail_openSession(this, InsertFunction(data));
 }
 
@@ -166,4 +163,24 @@ t8.run = function() {
   fail_openSession(this, InsertFunction(data));
 }
 
-module.exports.tests = [t1, t2, t3, t4, t5, t6, t7, t8];
+// cTime: Special case 
+// "nn:nn" must be treated as "HH:MM"
+var t9 = new harness.ConcurrentTest("VerifyTime_HH:MM");
+t9.run = function() {
+  var data = new TestData(9);
+  data.cTime = "13:22";
+  this.verifier = new ValueVerifier(this, "cTime", "13:22:00");
+  fail_openSession(this, InsertFunction(data));
+}
+
+// cTime: 
+// String "nnnn" must be treated as "MM:SS"
+var t10 = new harness.ConcurrentTest("VerifyTime_MMSS");
+t10.run = function() {
+  var data = new TestData(10);
+  data.cTime = "1322";
+  this.verifier = new ValueVerifier(this, "cTime", "00:13:22");
+  fail_openSession(this, InsertFunction(data));
+}
+
+module.exports.tests = [t1, t2, t3, t4, t5, t6, t7, t8, t9, t10];
