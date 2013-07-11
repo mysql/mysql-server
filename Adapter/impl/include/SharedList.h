@@ -23,7 +23,7 @@
 #include "node.h"
 #include "uv.h"
 
-#include "legacy_uv_compat.h"
+#include "compat_uv.h"
 
 
 /* Simple LIFO sharable list.
