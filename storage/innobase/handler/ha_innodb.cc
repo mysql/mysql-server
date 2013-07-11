@@ -2117,7 +2117,7 @@ innobase_copy_frm_flags_from_create_info(
 	ibool	ps_on;
 	ibool	ps_off;
 
-	if (dict_table_is_temporary(innodb_table) || srv_read_only_mode) {
+	if (dict_table_is_temporary(innodb_table)) {
 		/* Temp tables do not use persistent stats. */
 		ps_on = FALSE;
 		ps_off = TRUE;
@@ -2153,7 +2153,7 @@ innobase_copy_frm_flags_from_table_share(
 	ibool	ps_on;
 	ibool	ps_off;
 
-	if (dict_table_is_temporary(innodb_table) || srv_read_only_mode) {
+	if (dict_table_is_temporary(innodb_table)) {
 		/* Temp tables do not use persistent stats */
 		ps_on = FALSE;
 		ps_off = TRUE;
@@ -10762,8 +10762,6 @@ ha_innobase::info_low(
 			prebuilt->trx->op_info = "updating table statistics";
 
 			if (dict_stats_is_persistent_enabled(ib_table)) {
-
-				ut_ad(!srv_read_only_mode);
 
 				if (is_analyze) {
 					opt = DICT_STATS_RECALC_PERSISTENT;
