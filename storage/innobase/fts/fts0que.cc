@@ -1802,9 +1802,14 @@ fts_query_match_phrase_add_word_for_parser(
 	mem_heap_t*		heap;
 
 	phrase_param = static_cast<fts_phrase_param_t*>(param->mysql_ftparam);
-	heap = phrase_param->heap;
-	phrase = phrase_param->phrase;
-	tokens = phrase->tokens;
+        heap = phrase_param->heap;
+        phrase = phrase_param->phrase;
+        tokens = phrase->tokens;
+
+	/* In case plugin parser doesn't check return value */
+	if (phrase_param->token_index == ib_vector_size(tokens)) {
+		return(1);
+	}
 
 	match.f_str = reinterpret_cast<byte*>(word);
 	match.f_len = word_len;
