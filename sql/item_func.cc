@@ -4605,19 +4605,22 @@ longlong Item_func_sleep::val_int()
   return test(!error); 		// Return 1 killed
 }
 
-
+/*
+  @param cs  character set; IF we are creating the user_var_entry,
+             we give it this character set.
+*/
 static user_var_entry *get_variable(HASH *hash, const Name_string &name,
-				    bool create_if_not_exists)
+                                    const CHARSET_INFO *cs)
 {
   user_var_entry *entry;
 
-  if (!(entry = (user_var_entry*) my_hash_search(hash, (uchar*) name.ptr(),
+  if (!(entry= (user_var_entry*) my_hash_search(hash, (uchar*) name.ptr(),
                                                  name.length())) &&
-      create_if_not_exists)
+        cs != NULL)
   {
     if (!my_hash_inited(hash))
       return 0;
-    if (!(entry= user_var_entry::create(name)))
+    if (!(entry= user_var_entry::create(name, cs)))
       return 0;
     if (my_hash_insert(hash,(uchar*) entry))
     {
@@ -4639,14 +4642,20 @@ void Item_func_set_user_var::cleanup()
 bool Item_func_set_user_var::set_entry(THD *thd, bool create_if_not_exists)
 {
   if (entry && thd->thread_id == entry_thread_id)
-    goto end; // update entry->update_query_id for PS
-  if (!(entry= get_variable(&thd->user_vars, name, create_if_not_exists)))
+  {} // update entry->update_query_id for PS
+  else
   {
-    entry_thread_id= 0;
-    return TRUE;
+    const CHARSET_INFO *cs=  create_if_not_exists ?
+          (args[0]->collation.derivation == DERIVATION_NUMERIC ?
+          default_charset() : args[0]->collation.collation) : NULL;
+
+    if (!(entry= get_variable(&thd->user_vars, name, cs)))
+    {
+      entry_thread_id= 0;
+      return TRUE;
+    }
+    entry_thread_id= thd->thread_id;
   }
-  entry_thread_id= thd->thread_id;
-end:
   /* 
     Remember the last query which updated it, this way a query can later know
     if this variable is a constant item in the query (it is if update_query_id
@@ -4672,27 +4681,9 @@ bool Item_func_set_user_var::fix_fields(THD *thd, Item **ref)
   /* fix_fields will call Item_func_set_user_var::fix_length_and_dec */
   if (Item_func::fix_fields(thd, ref) || set_entry(thd, TRUE))
     return TRUE;
-  /*
-    As it is wrong and confusing to associate any 
-    character set with NULL, @a should be latin2
-    after this query sequence:
 
-      SET @a=_latin2'string';
-      SET @a=NULL;
-
-    I.e. the second query should not change the charset
-    to the current default value, but should keep the 
-    original value assigned during the first query.
-    In order to do it, we don't copy charset
-    from the argument if the argument is NULL
-    and the variable has previously been initialized.
-  */
   null_item= (args[0]->type() == NULL_ITEM);
-  if (!entry->collation.collation || !null_item)
-    entry->collation.set(args[0]->collation.derivation == DERIVATION_NUMERIC ?
-                         default_charset() : args[0]->collation.collation,
-                         DERIVATION_IMPLICIT);
-  collation.set(entry->collation.collation, DERIVATION_IMPLICIT);
+
   cached_result_type= args[0]->result_type();
   return FALSE;
 }
@@ -4704,6 +4695,14 @@ Item_func_set_user_var::fix_length_and_dec()
   maybe_null=args[0]->maybe_null;
   decimals=args[0]->decimals;
   collation.set(DERIVATION_IMPLICIT);
+  /* 
+     this sets the character set of the item immediately; rules for the
+     character set of the variable ("entry" object) are different: if "entry"
+     did not exist previously, set_entry () has created it and has set its 
+     character set; but if it existed previously, it keeps its previous 
+     character set, which may change only when we are sure that the assignment
+     is to be executed, i.e. in user_var_entry::store ().
+  */
   if (args[0]->collation.derivation == DERIVATION_NUMERIC)
     fix_length_and_charset(args[0]->max_char_length(), default_charset());
   else
@@ -5424,7 +5423,7 @@ get_var_with_binlog(THD *thd, enum_sql_command sql_command,
 {
   BINLOG_USER_VAR_EVENT *user_var_event;
   user_var_entry *var_entry;
-  var_entry= get_variable(&thd->user_vars, name, 0);
+  var_entry= get_variable(&thd->user_vars, name, NULL);
 
   /*
     Any reference to user-defined variable which is done from stored
@@ -5472,7 +5471,7 @@ get_var_with_binlog(THD *thd, enum_sql_command sql_command,
       goto err;
     }
     thd->lex= sav_lex;
-    if (!(var_entry= get_variable(&thd->user_vars, name, 0)))
+    if (!(var_entry= get_variable(&thd->user_vars, name, NULL)))
       goto err;
   }
   else if (var_entry->used_query_id == thd->query_id ||
@@ -5639,18 +5638,17 @@ bool Item_user_var_as_out_param::fix_fields(THD *thd, Item **ref)
 {
   DBUG_ASSERT(fixed == 0);
   DBUG_ASSERT(thd->lex->exchange);
-  if (Item::fix_fields(thd, ref) ||
-      !(entry= get_variable(&thd->user_vars, name, 1)))
-    return TRUE;
-  entry->set_type(STRING_RESULT);
   /*
     Let us set the same collation which is used for loading
     of fields in LOAD DATA INFILE.
     (Since Item_user_var_as_out_param is used only there).
   */
-  entry->collation.set(thd->lex->exchange->cs ? 
-                       thd->lex->exchange->cs :
-                       thd->variables.collation_database);
+  const CHARSET_INFO *cs= thd->lex->exchange->cs ?
+    thd->lex->exchange->cs : thd->variables.collation_database;
+  if (Item::fix_fields(thd, ref) ||
+      !(entry= get_variable(&thd->user_vars, name, cs)))
+    return true;
+  entry->set_type(STRING_RESULT);
   entry->update_query_id= thd->query_id;
   return FALSE;
 }
