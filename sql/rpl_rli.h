@@ -267,6 +267,15 @@ public:
                          bool look_for_description_event);
 
   /*
+    Update the error number, message and timestamp fields. This function is
+    different from va_report() as va_report() also logs the error message in the
+    log apart from updating the error fields.
+  */
+  void fill_coord_err_buf(loglevel level, int err_code,
+                          const char *buff_coord) const;
+
+
+  /*
     Flag that the group_master_log_pos is invalid. This may occur
     (for example) after CHANGE MASTER TO RELAY_LOG_POS.  This will
     be unset after the first event has been executed and the
@@ -621,8 +630,6 @@ public:
   /*Returns the number of elements in workers array*/
   inline uint get_worker_count()
   {
-    mysql_mutex_assert_owner(&LOCK_active_mi);
-
     if (workers_array_initialized)
       return workers.elements;
     else
@@ -632,8 +639,6 @@ public:
   /* Returns a pointer to the worker instance at index n in workers array. */
   inline Slave_worker* get_worker(uint n)
   {
-    mysql_mutex_assert_owner(&LOCK_active_mi);
-
     if (workers_array_initialized)
     {
       if (n >= workers.elements)

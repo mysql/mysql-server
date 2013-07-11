@@ -5,9 +5,6 @@
 
 --source include/not_embedded.inc
 --source include/have_perfschema.inc
---source include/master-slave.inc
-
-connection master;
 
 -- error ER_DBACCESS_DENIED_ERROR
 ALTER TABLE performance_schema.replication_execute_status_by_worker
@@ -23,39 +20,3 @@ ALTER TABLE performance_schema.replication_execute_status_by_worker
 -- error ER_DBACCESS_DENIED_ERROR
 CREATE UNIQUE INDEX test_index ON
   performance_schema.replication_execute_status_by_worker(worker_id);
-
-connection slave;
-
-source include/stop_slave.inc;
-SET @save.slave_parallel_workers=@@global.slave_parallel_workers;
-SET @@global.slave_parallel_workers=1;
-# to avoid warnings
-set @save.slave_transaction_retries= @@global.slave_transaction_retries;
-source include/start_slave.inc;
-
--- error ER_DBACCESS_DENIED_ERROR
-ALTER TABLE performance_schema.replication_execute_status_by_worker
-  add column foo integer;
-
--- error ER_WRONG_PERFSCHEMA_USAGE
-TRUNCATE TABLE performance_schema.replication_execute_status_by_worker;
-
--- error ER_DBACCESS_DENIED_ERROR
-ALTER TABLE performance_schema.replication_execute_status_by_worker
-  ADD INDEX test_index(worker_id);
-
--- error ER_DBACCESS_DENIED_ERROR
-CREATE UNIQUE INDEX test_index ON
-  performance_schema.replication_execute_status_by_worker(worker_id);
-
-#Cleanup
-source include/stop_slave.inc;
-# we reset master and slave to prevent errors from affecting the cleanup
-# process.
-reset master;
-reset slave;
-set @@global.slave_parallel_workers= @save.slave_parallel_workers;
-set @@global.slave_transaction_retries= @save.slave_transaction_retries;
-start slave;
-
---source include/rpl_end.inc

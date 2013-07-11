@@ -116,16 +116,15 @@ void table_replication_connection_status::reset_position(void)
 
 ha_rows table_replication_connection_status::get_row_count()
 {
-  uint row_count= 0;
   mysql_mutex_lock(&LOCK_active_mi);
 
   DBUG_ASSERT(active_mi != NULL);
   DBUG_ASSERT(active_mi->rli != NULL);
 
-  if(active_mi->host[0])
-    row_count= 1;
+  uint row_count= active_mi->is_mi_on_slave();
 
   mysql_mutex_unlock(&LOCK_active_mi);
+
   return row_count;
 }
 

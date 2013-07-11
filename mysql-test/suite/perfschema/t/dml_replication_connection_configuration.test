@@ -5,9 +5,6 @@
 
 --source include/not_embedded.inc
 --source include/have_perfschema.inc
---source include/master-slave.inc
-
-connection master;
 
 --disable_result_log
 SELECT * FROM performance_schema.replication_connection_configuration
@@ -44,43 +41,3 @@ UNLOCK TABLES;
 -- error ER_TABLEACCESS_DENIED_ERROR
 LOCK TABLES performance_schema.replication_connection_configuration WRITE;
 UNLOCK TABLES;
-
-connection slave;
-
---disable_result_log
-SELECT * FROM performance_schema.replication_connection_configuration
-  LIMIT 1;
-
-sELECT * FROM performance_schema.replication_connection_configuration
-  WHERE USER='FOO' OR host='BAR';
---enable_result_log
-
---error ER_TABLEACCESS_DENIED_ERROR
-INSERT INTO performance_schema.replication_connection_configuration
-  SET user='FOO', host='BAR',
-  port=1, connection_retry_count=2;
-
---error ER_TABLEACCESS_DENIED_ERROR
-UPDATE performance_schema.replication_connection_configuration
-  SET connection_retry_interval=12;
-
---error ER_TABLEACCESS_DENIED_ERROR
-UPDATE performance_schema.replication_connection_configuration
-  SET connection_retry_interval=12 where host like "FOO";
-
---error ER_TABLEACCESS_DENIED_ERROR
-DELETE FROM performance_schema.replication_connection_configuration
-  WHERE connection_retry_count=1;
-
---error ER_TABLEACCESS_DENIED_ERROR
-DELETE FROM performance_schema.replication_connection_configuration;
-
--- error ER_TABLEACCESS_DENIED_ERROR
-LOCK TABLES performance_schema.replication_connection_configuration READ;
-UNLOCK TABLES;
-
--- error ER_TABLEACCESS_DENIED_ERROR
-LOCK TABLES performance_schema.replication_connection_configuration WRITE;
-UNLOCK TABLES;
-
---source include/rpl_end.inc
