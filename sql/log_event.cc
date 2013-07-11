@@ -416,6 +416,13 @@ static void clear_all_errors(THD *thd, Relay_log_info *rli)
   thd->is_slave_error = 0;
   thd->clear_error();
   rli->clear_error();
+  if (rli->workers_array_initialized)
+  {
+    for(uint i= 0; i<rli->get_worker_count(); i++)
+    {
+      rli->get_worker(i)->clear_error();
+    }
+  }
 }
 
 inline int idempotent_error_code(int err_code)

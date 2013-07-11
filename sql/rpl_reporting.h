@@ -140,11 +140,12 @@ protected:
     va_report(level, err_code, NULL, msg, v_args);
   }
 
-private:
   /**
      Last error produced by the I/O or SQL thread respectively.
    */
   mutable Error m_last_error;
+
+private:
 
   char const *const m_thread_name;
 

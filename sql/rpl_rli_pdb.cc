@@ -1479,6 +1479,7 @@ void Slave_worker::do_report(loglevel level, int err_code, const char *msg,
                              va_list args) const
 {
   char buff_coord[MAX_SLAVE_ERRMSG];
+  char coordinator_errmsg[MAX_SLAVE_ERRMSG];
   char buff_gtid[Gtid::MAX_TEXT_LENGTH + 1];
   const char* log_name= const_cast<Slave_worker*>(this)->get_master_log_name();
   ulonglong log_pos= const_cast<Slave_worker*>(this)->get_master_log_pos();
@@ -1495,31 +1496,35 @@ void Slave_worker::do_report(loglevel level, int err_code, const char *msg,
     buff_gtid[0]= 0;
   }
 
+  sprintf(coordinator_errmsg,
+          "Coordinator stopped because there were error(s) in the worker(s). "
+          "The most recent failure being \"Worker %lu failed executing "
+          " transaction '%s' at master log %s, end_log_pos %llu\". "
+          "See error log and/or "
+          "performance_schema.replication_execute_status_by_worker table for "
+          "more details about this failure or others, if any.",
+          id, buff_gtid, log_name, log_pos);
+
+  /*
+    We want to update the errors in coordinator as well as worker.
+    The fill_coord_err_buf() function update the error number, message and
+    timestamp fields. This function is different from va_report() as va_report()
+    also logs the error message in the log apart from updating the error fields.
+    So, the worker does the job of reporting the error in the log. We just make
+    coordinator aware of the error.
+  */
+  c_rli->fill_coord_err_buf(level, err_code, coordinator_errmsg);
+
   sprintf(buff_coord,
           "Worker %lu failed executing transaction '%s' at "
           "master log %s, end_log_pos %llu",
           id, buff_gtid, log_name, log_pos);
 
-  va_list args_copy;
-  /*
-    The argument 'va_list args' is used twice.
-    1) Error reporting by the coordinator.
-    2) Error reporting by the worker that errored out.
-    C does not allow using the same va_list twice without making a copy.
-    Hence the use of va_copy().
-    Since va_copy() macro is not defined in windows vrsions, added an explicit
-    definition for the same.
+  /* 
+    Error reporting by the worker. The worker updates its error fields as well
+    as reports the error in the log.
   */
-  #ifndef va_copy
-  #define va_copy(dst, src) memcpy(&(dst), &(src), sizeof(va_list))
-  #endif
-  va_copy(args_copy, args);
-  /* Error reporting by the coordinator. */
-  c_rli->va_report(level, err_code, buff_coord, msg, args);
-  /* Error reporting by the worker. */
-  this->va_report(level, err_code, buff_coord, msg, args_copy);
-  /* 'args' is destroyed by the caller, 'args_copy' is destroyed here. */
-  va_end(args_copy);
+  this->va_report(level, err_code, buff_coord, msg, args);
 }
 
 /**
