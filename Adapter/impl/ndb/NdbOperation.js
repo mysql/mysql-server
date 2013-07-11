@@ -341,7 +341,7 @@ function readResultRow(op) {
   
   for(i = 0 ; i < nfields ; i++) {
     offset  = record.getColumnOffset(i);
-  if(record.isNull(i, op.buffers.row)) {
+    if(record.isNull(i, op.buffers.row)) {
       value = col[i].defaultValue;
     }
     else {
