@@ -1,8 +1,3 @@
-include/master-slave.inc
-Warnings:
-Note	####	Sending passwords in plain text without SSL/TLS is extremely insecure.
-Note	####	Storing MySQL user name or password information in the master info repository is not secure and is therefore not recommended. Please consider using the USER and PASSWORD connection options for START SLAVE; see the 'START SLAVE Syntax' in the MySQL Manual for more information.
-[connection master]
 SELECT * FROM performance_schema.replication_execute_status_by_coordinator
 LIMIT 1;
 SELECT * FROM performance_schema.replication_execute_status_by_coordinator
@@ -28,63 +23,3 @@ UNLOCK TABLES;
 LOCK TABLES performance_schema.replication_execute_status_by_coordinator WRITE;
 ERROR 42000: SELECT, LOCK TABLES command denied to user 'root'@'localhost' for table 'replication_execute_status_by_coordinator'
 UNLOCK TABLES;
-SELECT * FROM performance_schema.replication_execute_status_by_coordinator
-LIMIT 1;
-SELECT * FROM performance_schema.replication_execute_status_by_coordinator
-WHERE service_state='YES' OR last_error_message='ERROR';
-INSERT INTO performance_schema.replication_execute_status_by_coordinator
-SET service_state='YES', last_error_message='ERROR', thread_id=2,
-last_error_number=1234;
-ERROR 42000: INSERT command denied to user 'root'@'localhost' for table 'replication_execute_status_by_coordinator'
-UPDATE performance_schema.replication_execute_status_by_coordinator
-SET last_error_number=1234;
-ERROR 42000: UPDATE command denied to user 'root'@'localhost' for table 'replication_execute_status_by_coordinator'
-UPDATE performance_schema.replication_execute_status_by_coordinator
-SET last_error_number=1234 where service_state like "YES";
-ERROR 42000: UPDATE command denied to user 'root'@'localhost' for table 'replication_execute_status_by_coordinator'
-DELETE FROM performance_schema.replication_execute_status_by_coordinator
-WHERE thread_id=1;
-ERROR 42000: DELETE command denied to user 'root'@'localhost' for table 'replication_execute_status_by_coordinator'
-DELETE FROM performance_schema.replication_execute_status_by_coordinator;
-ERROR 42000: DELETE command denied to user 'root'@'localhost' for table 'replication_execute_status_by_coordinator'
-LOCK TABLES performance_schema.replication_execute_status_by_coordinator READ;
-ERROR 42000: SELECT, LOCK TABLES command denied to user 'root'@'localhost' for table 'replication_execute_status_by_coordinator'
-UNLOCK TABLES;
-LOCK TABLES performance_schema.replication_execute_status_by_coordinator WRITE;
-ERROR 42000: SELECT, LOCK TABLES command denied to user 'root'@'localhost' for table 'replication_execute_status_by_coordinator'
-UNLOCK TABLES;
-include/stop_slave.inc
-SET @save.slave_parallel_workers=@@global.slave_parallel_workers;
-SET @@global.slave_parallel_workers=1;
-set @save.slave_transaction_retries= @@global.slave_transaction_retries;
-include/start_slave.inc
-SELECT * FROM performance_schema.replication_execute_status_by_coordinator
-LIMIT 1;
-SELECT * FROM performance_schema.replication_execute_status_by_coordinator
-WHERE service_state='YES' OR last_error_message='ERROR';
-INSERT INTO performance_schema.replication_execute_status_by_coordinator
-SET service_state='YES', last_error_message='ERROR', thread_id=2,
-last_error_number=1234;
-ERROR 42000: INSERT command denied to user 'root'@'localhost' for table 'replication_execute_status_by_coordinator'
-UPDATE performance_schema.replication_execute_status_by_coordinator
-SET last_error_number=1234;
-ERROR 42000: UPDATE command denied to user 'root'@'localhost' for table 'replication_execute_status_by_coordinator'
-UPDATE performance_schema.replication_execute_status_by_coordinator
-SET last_error_number=1234 where service_state like "YES";
-ERROR 42000: UPDATE command denied to user 'root'@'localhost' for table 'replication_execute_status_by_coordinator'
-DELETE FROM performance_schema.replication_execute_status_by_coordinator
-WHERE thread_id=1;
-ERROR 42000: DELETE command denied to user 'root'@'localhost' for table 'replication_execute_status_by_coordinator'
-DELETE FROM performance_schema.replication_execute_status_by_coordinator;
-ERROR 42000: DELETE command denied to user 'root'@'localhost' for table 'replication_execute_status_by_coordinator'
-LOCK TABLES performance_schema.replication_execute_status_by_coordinator READ;
-ERROR 42000: SELECT, LOCK TABLES command denied to user 'root'@'localhost' for table 'replication_execute_status_by_coordinator'
-UNLOCK TABLES;
-LOCK TABLES performance_schema.replication_execute_status_by_coordinator WRITE;
-ERROR 42000: SELECT, LOCK TABLES command denied to user 'root'@'localhost' for table 'replication_execute_status_by_coordinator'
-UNLOCK TABLES;
-include/stop_slave.inc
-set @@global.slave_parallel_workers= @save.slave_parallel_workers;
-set @@global.slave_transaction_retries= @save.slave_transaction_retries;
-include/start_slave.inc
-include/rpl_end.inc

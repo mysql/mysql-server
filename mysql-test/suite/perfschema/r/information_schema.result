@@ -224,11 +224,11 @@ hosts	1000	0
 mutex_instances	1000	0
 objects_summary_global_by_type	1000	0
 performance_timers	5	0
-replication_connection_configuration	1	0
-replication_connection_status	1	0
-replication_execute_configuration	1	0
-replication_execute_status	1	0
-replication_execute_status_by_coordinator	1	0
+replication_connection_configuration	0	0
+replication_connection_status	0	0
+replication_execute_configuration	0	0
+replication_execute_status	0	0
+replication_execute_status_by_coordinator	0	0
 replication_execute_status_by_worker	0	0
 rwlock_instances	1000	0
 session_account_connect_attrs	1000	0

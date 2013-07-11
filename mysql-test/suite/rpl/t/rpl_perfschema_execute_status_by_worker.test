@@ -53,12 +53,22 @@ source include/assert.inc;
 
 --connection slave
 
+# PB2 runs the tests with slave-parallel-worker=4 in a combination.
+# Reset it to 0 beacause the following test for empty set is valid only
+# in non-MTS slave.
+
+source include/stop_slave.inc;
+SET @save.slave_parallel_workers=@@global.slave_parallel_workers;
+SET @@global.slave_parallel_workers=0;
+# to avoid warnings
+set @save.slave_transaction_retries= @@global.slave_transaction_retries;
+source include/start_slave.inc;
+
 let $assert_text= In non-MTS mode(SQL thread), the table should return an empty set.;
 let $assert_cond= [select count(*) from performance_schema.replication_execute_status_by_worker] = 0;
 source include/assert.inc;
 
 source include/stop_slave.inc;
-SET @save.slave_parallel_workers=@@global.slave_parallel_workers;
 SET @@global.slave_parallel_workers=1;
 # to avoid warnings
 set @save.slave_transaction_retries= @@global.slave_transaction_retries;
@@ -128,7 +138,7 @@ source include/assert.inc;
 
 let $sss_value= query_get_value(SHOW SLAVE STATUS, Last_SQL_Error, 1);
 let $ps_value= query_get_value(select Last_Error_Message from performance_schema.replication_execute_status_by_worker, Last_Error_Message, 1);
-let $assert_text= Value returned by SSS and PS table for Last_Error_Message should be same.;
+let $assert_text= Value returned by SSS and PS table for Last_Error_Message should both be empty.;
 let $assert_cond= "$sss_value" = "$ps_value";
 source include/assert.inc;
 
@@ -171,32 +181,9 @@ let $assert_text= Value returned by SSS and PS table for Last_Error_Number shoul
 let $assert_cond= "$sss_value" = "$ps_value";
 source include/assert.inc;
 
-# Availability of special characters like single quote and backtick character
-# makes it difficult use the assert.inc or mysql functionstrcmp().
-# So, the equality of error messages is checked using the below perl code.
-
-let $sss_value= query_get_value(SHOW SLAVE STATUS, Last_SQL_Error, 1);
-let $ps_value= query_get_value(select Last_Error_Message from performance_schema.replication_execute_status_by_worker, Last_Error_Message, 1);
-
-let PS_VALUE= $ps_value;
-let SSS_VALUE= $sss_value;
-
-perl;
-use strict;
-my $ps_value= $ENV{'PS_VALUE'};
-my $sss_value= $ENV{'SSS_VALUE'};
-
-if ($ps_value eq $sss_value)
-{
-  print "Value returned by SSS and PS table for Last_Error_Message is same.\n";
-}
-else
-{
-  print "Value returned by SSS and PS table for Last_Error_Message is NOT same\n";
-}
-EOF
-
-# End of perl code for testing error message.
+--disable_query_log
+select Last_Error_Message from performance_schema.replication_execute_status_by_worker;
+--enable_query_log
 
 # The timestamp format is slightly different in SSS and PS.
 # SSS => YYMMDD HH:MM:SS
@@ -247,32 +234,9 @@ let $assert_text= Value returned by SSS and PS table for Last_Error_Number shoul
 let $assert_cond= "$sss_value" = "$ps_value";
 source include/assert.inc;
 
-# Availability of special characters like single quote and backtick character
-# makes it difficult use the assert.inc or mysql functionstrcmp().
-# So, the equality of error messages is checked using the below perl code.
-
-let $sss_value= query_get_value(SHOW SLAVE STATUS, Last_SQL_Error, 1);
-let $ps_value= query_get_value(select Last_Error_Message from performance_schema.replication_execute_status_by_worker, Last_Error_Message, 1);
-
-let PS_VALUE= $ps_value;
-let SSS_VALUE= $sss_value;
-
-perl;
-use strict;
-my $ps_value= $ENV{'PS_VALUE'};
-my $sss_value= $ENV{'SSS_VALUE'};
-
-if ($ps_value eq $sss_value)
-{
-  print "Value returned by SSS and PS table for Last_Error_Message is same.\n";
-}
-else
-{
-  print "Value returned by SSS and PS table for Last_Error_Message is NOT same\n";
-}
-EOF
-
-# End of perl code for testing error message.
+--disable_query_log
+select Last_Error_Message from performance_schema.replication_execute_status_by_worker;
+--enable_query_log
 
 # The timestamp format is slightly different in SSS and PS.
 # SSS => YYMMDD HH:MM:SS

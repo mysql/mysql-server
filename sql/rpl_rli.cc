@@ -621,6 +621,32 @@ err:
 }
 
 /**
+  Update the error number, message and timestamp fields. This function is
+  different from va_report() as va_report() also logs the error message in the
+  log apart from updating the error fields.
+
+  SYNOPSIS
+  @param  level           specifies the level- error, warning or information,
+  @param  err_code        error number,
+  @param  buff_coord      error message to be used.
+
+*/
+void Relay_log_info::fill_coord_err_buf(loglevel level, int err_code,
+                                      const char *buff_coord) const
+{
+  mysql_mutex_lock(&err_lock);
+
+  if(level == ERROR_LEVEL)
+  {
+    m_last_error.number = err_code;
+    strncpy(m_last_error.message, buff_coord, MAX_SLAVE_ERRMSG);
+    m_last_error.update_timestamp();
+  }
+
+  mysql_mutex_unlock(&err_lock);
+}
+
+/**
   Waits until the SQL thread reaches (has executed up to) the
   log/position or timed out.
 

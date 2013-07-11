@@ -1,1 +1,1 @@
---force-restart --disable-log-slave-updates --replicate-same-server-id
+--disable-log-slave-updates --replicate-same-server-id
