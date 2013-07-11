@@ -54,7 +54,7 @@ set session performance_schema_max_statement_stack=1;
 # Check if the value in GLOBAL Table matches value in variable
 #
 
-SELECT @@GLOBAL.performance_schema_max_statement = VARIABLE_VALUE
+SELECT @@GLOBAL.performance_schema_max_statement_stack = VARIABLE_VALUE
 FROM INFORMATION_SCHEMA.GLOBAL_VARIABLES
 WHERE VARIABLE_NAME='performance_schema_max_statement_stack';
 
