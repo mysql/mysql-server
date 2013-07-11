@@ -4139,7 +4139,8 @@ toku_ft_cursor_set_range_lock(FT_CURSOR cursor, const DBT *left, const DBT *righ
         toku_clone_dbt(&cursor->range_lock_right_key, *right);
     }
 
-    cursor->out_of_range_error = out_of_range_error;
+    // TOKUDB_FOUND_BUT_REJECTED is a DB_NOTFOUND with instructions to stop looking. (Faster)
+    cursor->out_of_range_error = out_of_range_error == DB_NOTFOUND ? TOKUDB_FOUND_BUT_REJECTED : out_of_range_error;
 }
 
 void toku_ft_cursor_close(FT_CURSOR cursor) {
