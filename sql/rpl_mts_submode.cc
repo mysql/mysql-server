@@ -345,7 +345,7 @@ Mts_submode_logical_clock::assign_group_parent_id(Relay_log_info* rli,
     commit_seq_no= SEQ_UNINIT;
     break;
   }
-  if (first_event && commit_seq_no == SEQ_UNINIT && !force_new_group)
+  if (first_event && commit_seq_no == SEQ_UNINIT)
   {
     // This is the first event and the master has not sent us the commit
     // sequence number. The possible reason may be that the master is old and
@@ -383,7 +383,8 @@ Mts_submode_logical_clock::assign_group_parent_id(Relay_log_info* rli,
      is_new_group= false;
   }
   rli->mts_group_status= Relay_log_info::MTS_IN_GROUP;
-  DBUG_PRINT("info", ("MTS::slave c=%lld", commit_seq_no));
+  DBUG_PRINT("info", ("MTS::slave c=%lld first_event=%s", commit_seq_no,
+                      YESNO(first_event)));
   if (first_event) first_event= false;
   return false;
 }
