@@ -2,8 +2,8 @@
 # Copyright (c) 2013, Oracle and/or its affiliates. All rights reserved.
 #
 
-# The motive of this test case is to test the 
-# mts submode switch between master parallel to dbname and vice-versa  
+# The motive of this test case is to test the
+# mts submode switch between master parallel to dbname and vice-versa
 --source include/master-slave.inc
 --connection slave
 
@@ -24,81 +24,62 @@ SET GLOBAL slave_parallel_type=LOGICAL_CLOCK;
 
 --echo #setup the databases and tables
 --connection m1
-send CREATE DATABASE db1;
-reap;
-send CREATE TABLE db1.t (a int) engine=innodb;
+CREATE DATABASE db1;
+--send CREATE TABLE db1.t (a int) engine=innodb
 
 --connection m2
-send CREATE DATABASE db2;
-reap;
-send CREATE TABLE db2.t (a int) engine=myisam;
+CREATE DATABASE db2;
+--send CREATE TABLE db2.t (a int) engine=myisam
 
 --connection m3
-send CREATE DATABASE db3;
-reap;
-send CREATE TABLE db3.t (a int) engine=innodb;
+CREATE DATABASE db3;
+--send CREATE TABLE db3.t (a int) engine=innodb
 
 --connection m4
-send CREATE DATABASE db4;
-reap;
-send CREATE TABLE db4.t (a int) engine=myisam;
+CREATE DATABASE db4;
+--send CREATE TABLE db4.t (a int) engine=myisam
 
 # NON TRANSACTIONAL
 --connection m4
-reap;
-send INSERT INTO db2.t values (1),(2),(3);
+--reap
+--send INSERT INTO db2.t values (1),(2),(3)
 --connection m2
-reap;
-send INSERT INTO db4.t values (1),(2),(3);
+--reap
+--send INSERT INTO db4.t values (1),(2),(3)
 
-#TRANSACTIONAL 
+#TRANSACTIONAL
 --connection m1
-reap;
-send BEGIN;
-reap;
-send INSERT INTO db1.t values (1),(2),(3);
-reap;
-send INSERT INTO db3.t values (1),(2),(3);
-reap;
-send UPDATE db1.t SET db1.t.a= 2 WHERE db1.t.a > 2;
-reap;
-send COMMIT;
+--reap;
+BEGIN;
+INSERT INTO db1.t values (1),(2),(3);
+INSERT INTO db3.t values (1),(2),(3);
+UPDATE db1.t SET db1.t.a= 2 WHERE db1.t.a > 2;
+--send COMMIT
 
 --connection m3
-reap;
-send BEGIN;
-reap;
-send INSERT INTO db1.t values (1),(2),(3);
-reap;
-send INSERT INTO db3.t values (1),(2),(3);
-reap;
-send UPDATE db1.t SET db1.t.a= 2 WHERE db1.t.a > 2;
-reap;
-send COMMIT;
+--reap
+BEGIN;
+INSERT INTO db1.t values (1),(2),(3);
+INSERT INTO db3.t values (1),(2),(3);
+UPDATE db1.t SET db1.t.a= 2 WHERE db1.t.a > 2;
+--send COMMIT
 
-#BOTH TRANSACTIONAL AND NON TRANSACTIONAL 
+#BOTH TRANSACTIONAL AND NON TRANSACTIONAL
 --connection m2
-reap;
-send BEGIN;
-reap;
-send INSERT INTO db2.t values (1),(2),(3);
-reap;
-send INSERT INTO db3.t values (1),(2),(3);
-reap;
-send UPDATE db2.t SET db2.t.a= 2 WHERE db2.t.a > 2;
-reap;
-send COMMIT;
+--reap
+BEGIN;
+INSERT INTO db2.t values (1),(2),(3);
+INSERT INTO db3.t values (1),(2),(3);
+UPDATE db2.t SET db2.t.a= 2 WHERE db2.t.a > 2;
+--send COMMIT
+
 --connection m4
-reap;
-send BEGIN;
-reap;
-send INSERT INTO db1.t values (1),(2),(3);
-reap;
-send INSERT INTO db4.t values (1),(2),(3);
-reap;
-send UPDATE db1.t SET db1.t.a= 2 WHERE db1.t.a > 2;
-reap;
-send COMMIT;
+--reap
+BEGIN;
+INSERT INTO db1.t values (1),(2),(3);
+INSERT INTO db4.t values (1),(2),(3);
+UPDATE db1.t SET db1.t.a= 2 WHERE db1.t.a > 2;
+COMMIT;
 
 --disconnect m1
 --disconnect m2
@@ -108,7 +89,7 @@ send COMMIT;
 
 --connection slave
 
-# NULL  ========> DATABASE
+# DEFAULT  ========> DATABASE
 SET GLOBAL slave_parallel_type='DATABASE';
 --source include/start_slave.inc
 --connection master
