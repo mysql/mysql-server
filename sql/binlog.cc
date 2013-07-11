@@ -55,10 +55,6 @@ using std::list;
 #define LIMIT_UNSAFE_WARNING_ACTIVATION_TIMEOUT 50
 //number of limit unsafe warnings after which the suppression will be activated
 #define LIMIT_UNSAFE_WARNING_ACTIVATION_THRESHOLD_COUNT 50
-#ifndef DBUG_OFF
-// number of flushes per group.
-static int no_flushes= 0;
-#endif
 static ulonglong limit_unsafe_suppression_start_time= 0;
 static bool unsafe_warning_suppression_is_activated= false;
 static int limit_unsafe_warning_count= 0;
@@ -614,7 +610,7 @@ private:
 
   binlog_trx_cache_data& operator=(const binlog_trx_cache_data& info);
   binlog_trx_cache_data(const binlog_trx_cache_data& info);
-  inline void reset_commit_seq_offset(){cache_log.commit_seq_offset= 0;}
+  inline void reset_commit_seq_offset(){ cache_log.commit_seq_offset= 0; }
 };
 
 class binlog_cache_mngr {
@@ -5608,7 +5604,7 @@ uint MYSQL_BIN_LOG::next_file_id()
   @param buff    Buffer which needs to be fixed to make sure that
                  commit seq_number is written at the pre-allocated space.
  */
-void write_commit_seq_no(IO_CACHE* cache, uchar* buff)
+inline void write_commit_seq_no(IO_CACHE* cache, uchar* buff)
 {
   DBUG_ENTER("write_commit_seq_no");
   uchar* pc_ptr= buff;
@@ -5830,7 +5826,7 @@ int MYSQL_BIN_LOG::do_write_cache(IO_CACHE *cache)
                to start a new group anyway. Example of strayed USER VAR
                event includes  CREATE TABLE t1 SELECT @c;
               */
-            if (ev_type != USER_VAR_EVENT || ev_type != INTVAR_EVENT ||
+            if (ev_type != USER_VAR_EVENT && ev_type != INTVAR_EVENT &&
                 ev_type != RAND_EVENT)
             {
               uchar* pc_ptr= (uchar *)cache->read_pos + pc_offset;
@@ -6664,6 +6660,10 @@ MYSQL_BIN_LOG::process_flush_stage_queue(my_off_t *total_bytes_var,
                                          bool *rotate_var,
                                          THD **out_queue_var)
 {
+  #ifndef DBUG_OFF
+  // number of flushes per group.
+  int no_flushes= 0;
+  #endif
   DBUG_ASSERT(total_bytes_var && rotate_var && out_queue_var);
   my_off_t total_bytes= 0;
   int flush_error= 1;
@@ -9057,7 +9057,7 @@ void THD::issue_unsafe_warnings()
   DBUG_VOID_RETURN;
 }
 
- Logical_clock:: Logical_clock()
+ Logical_clock::Logical_clock()
 {
   my_atomic_rwlock_init(&m_state_lock);
   init();
