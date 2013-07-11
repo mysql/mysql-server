@@ -2926,8 +2926,7 @@ Slave_worker *Log_event::get_slave_worker(Relay_log_info *rli)
                   group_relay_log_name == NULL);
       DBUG_ASSERT(gaq_idx != MTS_WORKER_UNDEF);  // gaq must have room
       DBUG_ASSERT(rli->last_assigned_worker == NULL ||
-                  rli->current_mts_submode->get_type() ==
-                  MTS_PARALLEL_TYPE_LOGICAL_CLOCK);
+                  !is_mts_db_partitioned(rli));
 
       if (is_s_event || is_gtid_event(this))
       {
@@ -2987,7 +2986,7 @@ Slave_worker *Log_event::get_slave_worker(Relay_log_info *rli)
   }
 
   ptr_group= gaq->get_job_group(rli->gaq->assigned_group_index);
-  if (rli->current_mts_submode->get_type() == MTS_PARALLEL_TYPE_LOGICAL_CLOCK)
+  if (!is_mts_db_partitioned(rli))
   {
     mts_group_idx= gaq->assigned_group_index;
     /* Get least occupied worker */
@@ -3234,7 +3233,8 @@ int Log_event::apply_event(Relay_log_info *rli)
   if (!(parallel= rli->is_parallel_exec()) ||
       ((actual_exec_mode= 
         get_mts_execution_mode(::server_id, 
-                           rli->mts_group_status == Relay_log_info::MTS_IN_GROUP))
+                           rli->mts_group_status == Relay_log_info::MTS_IN_GROUP
+                           || !is_mts_db_partitioned(rli)))
        != EVENT_EXEC_PARALLEL))
   {
     if (parallel)
@@ -3255,7 +3255,7 @@ int Log_event::apply_event(Relay_log_info *rli)
           Workers to sync.
         */
         if (rli->curr_group_da.elements > 0 &&
-            rli->current_mts_submode->get_type() == MTS_PARALLEL_TYPE_DB_NAME)
+            is_mts_db_partitioned(rli))
         {
           char llbuff[22];
           /* 
@@ -3315,8 +3315,7 @@ int Log_event::apply_event(Relay_log_info *rli)
                 This is an empty group being processed due to gtids.
               */
               (rli->curr_group_seen_begin && rli->curr_group_seen_gtid
-               && ends_group()) ||
-              rli->current_mts_submode->get_type() != MTS_PARALLEL_TYPE_LOGICAL_CLOCK ||
+              && ends_group()) || is_mts_db_partitioned(rli) ||
               rli->last_assigned_worker ||
               /*
                 Begin_load_query can be logged w/o db info and within
@@ -6951,8 +6950,7 @@ int Rotate_log_event::do_update_pos(Relay_log_info *rli)
                                          true/*need_data_lock=true*/)))
         goto err;
 
-      if (rli->current_mts_submode->get_type() ==
-            MTS_PARALLEL_TYPE_LOGICAL_CLOCK && server_id != ::server_id )
+      if (!is_mts_db_partitioned(rli) && server_id != ::server_id )
       {
         // force the coordinator to start a new group.
         static_cast<Mts_submode_logical_clock*>

@@ -743,7 +743,7 @@ Slave_worker *map_db_to_worker(const char *dbname, Relay_log_info *rli,
 
   DBUG_ASSERT(!rli->last_assigned_worker ||
               rli->last_assigned_worker == last_worker);
-  DBUG_ASSERT(rli->current_mts_submode->get_type() != MTS_PARALLEL_TYPE_LOGICAL_CLOCK);
+  DBUG_ASSERT(is_mts_db_partitioned(rli));
 
   if (!inited_hash_workers)
     DBUG_RETURN(NULL);
@@ -1729,7 +1729,7 @@ int slave_worker_exec_job(Slave_worker *worker, Relay_log_info *rli)
   }
   else if (!is_gtid_event(ev) &&
           // no need to address partioning in BGC mode
-          (rli->current_mts_submode->get_type() != MTS_PARALLEL_TYPE_LOGICAL_CLOCK))
+          is_mts_db_partitioned(rli))
   {
     if ((part_event=
          ev->contains_partition_info(worker->end_group_sets_max_dbs)))
@@ -1773,8 +1773,7 @@ int slave_worker_exec_job(Slave_worker *worker, Relay_log_info *rli)
     p-events of B/T-less {p,g} group (see legends of
     Log_event::get_slave_worker) obviously can't commit.
    */
-  (rli->current_mts_submode->get_type() == MTS_PARALLEL_TYPE_LOGICAL_CLOCK ||
-   part_event) && !is_gtid_event(ev)))
+  (!is_mts_db_partitioned(rli) ||  part_event) && !is_gtid_event(ev)))
   {
     DBUG_PRINT("slave_worker_exec_job:",
                (" commits GAQ index %lu, last committed  %lu",
