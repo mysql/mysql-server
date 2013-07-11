@@ -148,6 +148,7 @@ OBJECT_NAME, NESTING_EVENT_TYPE, NESTING_EVENT_LEVEL
 FROM performance_schema.events_statements_history_long WHERE
 CURRENT_SCHEMA='nested_sp';
 EVENT_NAME	SQL_TEXT	CURRENT_SCHEMA	OBJECT_TYPE	OBJECT_SCHEMA	OBJECT_NAME	NESTING_EVENT_TYPE	NESTING_EVENT_LEVEL
+statement/sp/jump	NULL	nested_sp	FUNCTION	nested_sp	fac	STATEMENT	3
 statement/sp/jump_if_not	NULL	nested_sp	FUNCTION	nested_sp	fac	STATEMENT	3
 statement/sp/set	NULL	nested_sp	FUNCTION	nested_sp	fac	STATEMENT	3
 statement/sp/set	NULL	nested_sp	FUNCTION	nested_sp	fac	STATEMENT	3
@@ -1147,7 +1148,6 @@ statement/sp/jump	NULL	nested_sp	FUNCTION	nested_sp	fac	STATEMENT	3
 statement/sp/jump_if_not	NULL	nested_sp	FUNCTION	nested_sp	fac	STATEMENT	3
 statement/sp/set	NULL	nested_sp	FUNCTION	nested_sp	fac	STATEMENT	3
 statement/sp/set	NULL	nested_sp	FUNCTION	nested_sp	fac	STATEMENT	3
-statement/sp/jump	NULL	nested_sp	FUNCTION	nested_sp	fac	STATEMENT	3
 SELECT OBJECT_TYPE, OBJECT_SCHEMA, OBJECT_NAME, COUNT_STAR, COUNT_STATEMENTS 
 FROM performance_schema.events_statements_summary_by_program
 WHERE OBJECT_SCHEMA='nested_sp';
