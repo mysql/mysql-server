@@ -3254,7 +3254,8 @@ int Log_event::apply_event(Relay_log_info *rli)
           a separator beetwen two master's binlog therefore requiring
           Workers to sync.
         */
-        if (rli->curr_group_da.elements > 0)
+        if (rli->curr_group_da.elements > 0 &&
+            rli->current_mts_submode->get_type() == MTS_PARALLEL_TYPE_DB_NAME)
         {
           char llbuff[22];
           /* 
@@ -3269,7 +3270,6 @@ int Log_event::apply_event(Relay_log_info *rli)
 
           /* Coordinator cant continue, it marks MTS group status accordingly */
           rli->mts_group_status= Relay_log_info::MTS_KILLED_GROUP;
-
           goto err;
         }
         /*
@@ -6952,7 +6952,7 @@ int Rotate_log_event::do_update_pos(Relay_log_info *rli)
         goto err;
 
       if (rli->current_mts_submode->get_type() ==
-            MTS_PARALLEL_TYPE_LOGICAL_CLOCK)
+            MTS_PARALLEL_TYPE_LOGICAL_CLOCK && server_id != ::server_id )
       {
         // force the coordinator to start a new group.
         static_cast<Mts_submode_logical_clock*>
