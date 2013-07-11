@@ -153,6 +153,7 @@ struct env_args {
     int checkpointing_period;
     int cleaner_period;
     int cleaner_iterations;
+    int sync_period;
     uint64_t lk_max_memory;
     uint64_t cachetable_size;
     uint32_t num_bucket_mutexes;
@@ -202,7 +203,7 @@ struct cli_args {
     bool blackhole; // all message injects are no-ops. helps measure txn/logging/locktree overhead.
     bool nolocktree; // use this flag to avoid the locktree on insertions
     bool unique_checks; // use uniqueness checking during insert. makes it slow.
-    bool nosync; // do not fsync on txn commit. useful for testing in memory performance.
+    uint32_t sync_period; // background log fsync period
     bool nolog; // do not log. useful for testing in memory performance.
     bool nocrashstatus; // do not print engine status upon crash
     bool prelock_updates; // update threads perform serial updates on a prelocked range
@@ -512,7 +513,7 @@ static int get_put_flags(struct cli_args *args) {
 
 static int get_commit_flags(struct cli_args *args) {
     int flags = 0;
-    flags |= args->nosync ? DB_TXN_NOSYNC : 0;
+    flags |= args->env_args.sync_period > 0 ? DB_TXN_NOSYNC : 0;
     return flags;
 }
 
@@ -1903,6 +1904,7 @@ static int create_tables(DB_ENV **env_res, DB **db_res, int num_DBs,
     r = env->checkpointing_set_period(env, env_args.checkpointing_period); CKERR(r);
     r = env->cleaner_set_period(env, env_args.cleaner_period); CKERR(r);
     r = env->cleaner_set_iterations(env, env_args.cleaner_iterations); CKERR(r);
+    env->change_fsync_log_period(env, env_args.sync_period);
     *env_res = env;
 
     for (int i = 0; i < num_DBs; i++) {
@@ -1996,9 +1998,8 @@ static void fill_single_table(DB_ENV *env, DB *db, struct cli_args *args, bool f
                 report_overall_fill_table_progress(args, puts_per_txn);
             }
             // begin a new txn if we're not using the loader,
-            // don't bother fsyncing to disk.
             if (loader == nullptr) {
-                r = txn->commit(txn, DB_TXN_NOSYNC); CKERR(r);
+                r = txn->commit(txn, 0); CKERR(r);
                 r = env->txn_begin(env, 0, &txn, 0); CKERR(r);
             }
         }
@@ -2101,6 +2102,7 @@ static int open_tables(DB_ENV **env_res, DB **db_res, int num_DBs,
     r = env->checkpointing_set_period(env, env_args.checkpointing_period); CKERR(r);
     r = env->cleaner_set_period(env, env_args.cleaner_period); CKERR(r);
     r = env->cleaner_set_iterations(env, env_args.cleaner_iterations); CKERR(r);
+    env->change_fsync_log_period(env, env_args.sync_period);
     *env_res = env;
 
     for (int i = 0; i < num_DBs; i++) {
@@ -2129,6 +2131,7 @@ static const struct env_args DEFAULT_ENV_ARGS = {
     .checkpointing_period = 10,
     .cleaner_period = 1,
     .cleaner_iterations = 1,
+    .sync_period = 0,
     .lk_max_memory = 1L * 1024 * 1024 * 1024,
     .cachetable_size = 300000,
     .num_bucket_mutexes = 1024,
@@ -2145,6 +2148,7 @@ static const struct env_args DEFAULT_PERF_ENV_ARGS = {
     .checkpointing_period = 60,
     .cleaner_period = 1,
     .cleaner_iterations = 5,
+    .sync_period = 0,
     .lk_max_memory = 1L * 1024 * 1024 * 1024,
     .cachetable_size = 1<<30,
     .num_bucket_mutexes = 1024 * 1024,
@@ -2188,7 +2192,7 @@ static struct cli_args UU() get_default_args(void) {
         .blackhole = false,
         .nolocktree = false,
         .unique_checks = false,
-        .nosync = false,
+        .sync_period = 0,
         .nolog = false,
         .nocrashstatus = false,
         .prelock_updates = false,
@@ -2539,6 +2543,7 @@ static inline void parse_stress_test_args (int argc, char *const argv[], struct 
         INT32_ARG_NONNEG("--checkpointing_period",    env_args.checkpointing_period, "s"),
         INT32_ARG_NONNEG("--cleaner_period",          env_args.cleaner_period,       "s"),
         INT32_ARG_NONNEG("--cleaner_iterations",      env_args.cleaner_iterations,   ""),
+        INT32_ARG_NONNEG("--sync_period",             env_args.sync_period,          "ms"),
         INT32_ARG_NONNEG("--update_broadcast_period", update_broadcast_period_ms,    "ms"),
         INT32_ARG_NONNEG("--num_ptquery_threads",     num_ptquery_threads,           " threads"),
         INT32_ARG_NONNEG("--num_put_threads",         num_put_threads,               " threads"),
@@ -2575,7 +2580,6 @@ static inline void parse_stress_test_args (int argc, char *const argv[], struct 
         BOOL_ARG("blackhole",                         blackhole),
         BOOL_ARG("nolocktree",                        nolocktree),
         BOOL_ARG("unique_checks",                     unique_checks),
-        BOOL_ARG("nosync",                            nosync),
         BOOL_ARG("nolog",                             nolog),
         BOOL_ARG("nocrashstatus",                     nocrashstatus),
         BOOL_ARG("prelock_updates",                   prelock_updates),
