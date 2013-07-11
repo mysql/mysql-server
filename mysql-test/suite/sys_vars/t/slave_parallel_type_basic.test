@@ -1,4 +1,4 @@
-# SAVE INTITIAL VALUES 
+# SAVE INTITIAL VALUES
 --let $saved_value= `SELECT @@global.slave_parallel_type`
 SELECT @@global.slave_parallel_type;
 
