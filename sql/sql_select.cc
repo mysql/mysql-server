@@ -10634,11 +10634,22 @@ void JOIN::cleanup(bool full)
         else
           clean_pre_sort_join_tab();
       }
+      /*
+        Call cleanup() on join tabs used by the join optimization
+        (join->join_tab may now be pointing to result of make_simple_join
+         reading from the temporary table)
 
-      for (tab= first_linear_tab(this, WITH_CONST_TABLES); tab; 
-           tab= next_linear_tab(this, tab, WITH_BUSH_ROOTS))
+        We also need to check table_count to handle various degenerate joins
+        w/o tables: they don't have some members initialized and
+        WALK_OPTIMIZATION_TABS may not work correctly for them.
+      */
+      if (table_count) 
       {
-	tab->cleanup();
+        for (tab= first_breadth_first_tab(this, WALK_OPTIMIZATION_TABS); tab; 
+             tab= next_breadth_first_tab(this, WALK_OPTIMIZATION_TABS, tab))
+        {
+          tab->cleanup();
+        }
       }
       cleaned= true;
     }

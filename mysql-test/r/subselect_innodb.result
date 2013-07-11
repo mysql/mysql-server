@@ -409,4 +409,48 @@ a	d2
 select distinct (1 + (select 1 from `t2` where `a`)) `d2` from `t1`;
 d2
 drop table t1,t2;
+#
+# MDEV-4042: Assertion `table->key_read == 0' fails in close_thread_table on EXPLAIN with GROUP BY and HAVING in EXISTS SQ, 
+# MDEV-4536: ...sql/sql_base.cc:1598: bool close_thread_table(THD*, TABLE**): Assertion `table->key_read == 0' failed.
+CREATE TABLE t1 (a INT) ENGINE=InnoDB;
+CREATE TABLE t2 (b INT PRIMARY KEY, c INT) ENGINE=InnoDB;
+CREATE TABLE t3 (d INT) ENGINE=InnoDB;
+EXPLAIN 
+SELECT * FROM t1 WHERE EXISTS ( SELECT b FROM t2, t3 GROUP BY b HAVING b != 3 );
+id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
+1	PRIMARY	NULL	NULL	NULL	NULL	NULL	NULL	NULL	Impossible WHERE
+2	SUBQUERY	t2	index	NULL	PRIMARY	4	NULL	1	Using index; Using temporary; Using filesort
+2	SUBQUERY	t3	ALL	NULL	NULL	NULL	NULL	1	Using join buffer (flat, BNL join)
+SELECT * FROM t1 WHERE EXISTS ( SELECT b FROM t2, t3 GROUP BY b HAVING b != 3 );
+a
+DROP TABLE t1,t2,t3;
+CREATE TABLE t1 (
+pk int auto_increment primary key, 
+col_int_key int(11),
+key col_int_key (col_int_key),col_varchar_key varchar(128), 
+key (col_varchar_key)
+) engine=innodb;
+EXPLAIN 
+SELECT 1 FROM t1 AS alias1 
+WHERE EXISTS ( SELECT SQ2_alias1 . col_int_key AS SQ2_field1 
+FROM ( t1 AS SQ2_alias1 RIGHT OUTER JOIN 
+t1 AS SQ2_alias2 ON (SQ2_alias2 . col_int_key = SQ2_alias1 . col_int_key ) 
+) 
+GROUP BY SQ2_field1 
+HAVING SQ2_alias1 . col_int_key >= 7
+);
+id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
+1	PRIMARY	NULL	NULL	NULL	NULL	NULL	NULL	NULL	Impossible WHERE
+2	SUBQUERY	SQ2_alias2	index	NULL	col_int_key	5	NULL	1	Using index; Using temporary; Using filesort
+2	SUBQUERY	SQ2_alias1	ref	col_int_key	col_int_key	5	test.SQ2_alias2.col_int_key	1	Using where; Using index
+SELECT 1 FROM t1 AS alias1 
+WHERE EXISTS ( SELECT SQ2_alias1 . col_int_key AS SQ2_field1 
+FROM ( t1 AS SQ2_alias1 RIGHT OUTER JOIN 
+t1 AS SQ2_alias2 ON (SQ2_alias2 . col_int_key = SQ2_alias1 . col_int_key ) 
+) 
+GROUP BY SQ2_field1 
+HAVING SQ2_alias1 . col_int_key >= 7
+);
+1
+drop table t1;
 set optimizer_switch=@subselect_innodb_tmp;
