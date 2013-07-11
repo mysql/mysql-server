@@ -335,6 +335,8 @@ Mts_submode_logical_clock::assign_group_parent_id(Relay_log_info* rli,
     commit_seq_no= static_cast<Gtid_log_event*>(ev)->commit_seq_no;
     break;
   case USER_VAR_EVENT:
+  case INTVAR_EVENT:
+  case RAND_EVENT:
     force_new_group= true;
     break;
 
@@ -358,7 +360,8 @@ Mts_submode_logical_clock::assign_group_parent_id(Relay_log_info* rli,
       /* first event after a submode switch */
       first_event ||
       /* require a fresh group to be started. */
-      (commit_seq_no != SEQ_UNINIT && force_new_group))
+      (rli->mts_group_status != Relay_log_info::MTS_IN_GROUP &&
+       force_new_group))
   {
     mts_last_known_commit_parent= commit_seq_no;
     worker_seq= 0;
@@ -379,6 +382,7 @@ Mts_submode_logical_clock::assign_group_parent_id(Relay_log_info* rli,
     else
      is_new_group= false;
   }
+  rli->mts_group_status= Relay_log_info::MTS_IN_GROUP;
   DBUG_PRINT("info", ("MTS::slave c=%lld", commit_seq_no));
   if (first_event) first_event= false;
   return false;
@@ -631,10 +635,6 @@ Mts_submode_logical_clock::
   DBUG_ENTER("Mts_submode_logical_clock::wait_for_workers_to_finish");
   DBUG_PRINT("info",("delegated %d, jobs_done %d", delegated_jobs,
                           jobs_done));
-  /*
-    We have a new group and we must check if the last group was completely
-    applied before we move on to the next group
-  */
   // Update thd info as waiting for workers to finish.
   thd->enter_stage(&stage_slave_waiiting_for_workers_to_finish, old_stage,
                     __func__, __FILE__, __LINE__);

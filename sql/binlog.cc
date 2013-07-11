@@ -5825,19 +5825,20 @@ int MYSQL_BIN_LOG::do_write_cache(IO_CACHE *cache)
           if (!pc_fixed)
           {
             Log_event_type ev_type= (Log_event_type)ev[EVENT_TYPE_OFFSET];
-            /* We don't have to fix the strayed user_var event outside
+            /* We don't have to fix the strayed user/int/rand_var event outside
                BEGIN;...COMMIT; boundaries, since they will force the slave
                to start a new group anyway. Example of strayed USER VAR
                event includes  CREATE TABLE t1 SELECT @c;
               */
-            if (ev_type != USER_VAR_EVENT)
+            if (ev_type != USER_VAR_EVENT || ev_type != INTVAR_EVENT ||
+                ev_type != RAND_EVENT)
             {
               uchar* pc_ptr= (uchar *)cache->read_pos + pc_offset;
               write_commit_seq_no(cache, pc_ptr);
             }
             else
-              DBUG_PRINT("info",("Skipped strayed USER_VAR event not bounded "
-                                 "by BEGIN...COMMIT while fixing commit seq"));
+              DBUG_PRINT("info",("Skipped strayed (USER/INT/RAND)_EVENT event "
+                                 "while fixing commit seq"));
             pc_fixed= true;
           }
 
