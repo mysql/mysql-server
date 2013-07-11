@@ -1011,4 +1011,8 @@ inline bool is_mts_worker(const THD *thd)
   return thd->system_thread == SYSTEM_THREAD_SLAVE_WORKER;
 }
 
+/**
+ Auxiliary function to check if we have a db partitioned MTS
+ */
+bool is_mts_db_partitioned(Relay_log_info * rli);
 #endif /* RPL_RLI_H */
