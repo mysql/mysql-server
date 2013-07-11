@@ -2369,3 +2369,9 @@ void Relay_log_info::adapt_to_master_version(Format_description_log_event *fdle)
     }
   }
 }
+
+bool is_mts_db_partitioned(Relay_log_info * rli)
+{
+  return (rli->current_mts_submode->get_type() ==
+    MTS_PARALLEL_TYPE_DB_NAME);
+}

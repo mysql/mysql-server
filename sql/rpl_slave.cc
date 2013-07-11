@@ -3416,10 +3416,8 @@ apply_event_and_update_pos(Log_event** ptr_ev, THD* thd, Relay_log_info* rli)
                                    curr_group_assigned_parts, i - 1);
           // reset the B-group and Gtid-group marker
           rli->curr_group_seen_begin= rli->curr_group_seen_gtid= false;
-          if (rli->current_mts_submode->get_type() ==
-              MTS_PARALLEL_TYPE_DB_NAME ||
-              (rli->current_mts_submode->get_type() ==
-                MTS_PARALLEL_TYPE_LOGICAL_CLOCK &&
+          if (is_mts_db_partitioned(rli)||
+              (!is_mts_db_partitioned(rli) &&
              !static_cast<Mts_submode_logical_clock*>
                 (rli->current_mts_submode)->defer_new_group))
             rli->last_assigned_worker= NULL;
@@ -4971,7 +4969,7 @@ bool mts_checkpoint_routine(Relay_log_info *rli, ulonglong period,
     should increment C->jobs_done by cnt.
   */
   if (!is_mts_worker(rli->info_thd) &&
-      rli->current_mts_submode->get_type() == MTS_PARALLEL_TYPE_LOGICAL_CLOCK)
+      !is_mts_db_partitioned(rli))
   {
     DBUG_PRINT("info", ("jobs_done this itr=%ld", cnt));
     static_cast<Mts_submode_logical_clock*>
@@ -7110,9 +7108,9 @@ static Log_event* next_event(Relay_log_info* rli)
       */
       bool force= (rli->checkpoint_seqno > (rli->checkpoint_group - 1));
       if (rli->is_parallel_exec() && (opt_mts_checkpoint_period != 0 || force) &&
-          /* We don't ned this in MTS+master parallel slave since this will
+          /* We don't need this in MTS logical clock slave since this will
              foil the scheduling logic of coordinator */
-          rli->current_mts_submode->get_type() == MTS_PARALLEL_TYPE_DB_NAME)
+          is_mts_db_partitioned(rli))
       {
         ulonglong period= static_cast<ulonglong>(opt_mts_checkpoint_period * 1000000ULL);
         mysql_mutex_unlock(&rli->data_lock);
