@@ -4291,8 +4291,8 @@ longlong Item_func_get_lock::val_int()
     null_value=1;
     DBUG_RETURN(0);
   }
-  DBUG_PRINT("info", ("lock %.*s, thd=%ld", res->length(), res->ptr(),
-                      (long) thd->real_id));
+  DBUG_PRINT("info", ("lock %.*s, thd=%lu", res->length(), res->ptr(),
+                      (ulong) thd->real_id));
   null_value=0;
 
   if (thd->ull)
