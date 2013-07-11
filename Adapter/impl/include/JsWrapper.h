@@ -118,13 +118,14 @@ TODO: Find a way to prevent wrapping a pointer as one
       type and unwrapping it as another.
 ******************************************************************/
 template <typename PTR> 
-PTR unwrapPointer(Local<Object> obj) {
+PTR unwrapPointer(Local<Object> obj, int class_id=0) {
   PTR ptr;
   DEBUG_ASSERT(obj->InternalFieldCount() == 2);
   ptr = static_cast<PTR>(obj->GetPointerFromInternalField(1));
 #ifdef UNIFIED_DEBUG
   Envelope * env = static_cast<Envelope *>(obj->GetPointerFromInternalField(0));
   assert(env->magic == 0xF00D);
+  if(class_id) assert(env->class_id == class_id);
   DEBUG_PRINT_DETAIL("Unwrapping %s: %p", env->classname, ptr);
 #endif
   return ptr;

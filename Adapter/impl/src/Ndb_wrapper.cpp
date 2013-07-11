@@ -29,6 +29,8 @@
 
 using namespace v8;
 
+#define NDB_CLASS_ID 3991 
+
 Handle<Value> startTransaction(const Arguments &);
 Handle<Value> getAutoIncValue(const Arguments &);
 Handle<Value> closeNdb(const Arguments &);
@@ -37,7 +39,7 @@ Handle<Value> getConnectionStatistics(const Arguments &);
 
 class NdbEnvelopeClass : public Envelope {
 public:
-  NdbEnvelopeClass() : Envelope("Ndb") {
+  NdbEnvelopeClass() : Envelope("Ndb", NDB_CLASS_ID) {
     DEFINE_JS_FUNCTION(Envelope::stencil, "startTransaction", startTransaction);
     DEFINE_JS_FUNCTION(Envelope::stencil, "getNdbError", getNdbError<Ndb>);
     DEFINE_JS_FUNCTION(Envelope::stencil, "close", closeNdb);
@@ -58,7 +60,6 @@ NdbEnvelopeClass NdbEnvelope;
 Handle<Value> Ndb_Wrapper(Ndb *ndb) {
   return NdbEnvelope.wrap(ndb);
 }
-
 
 /* Ndb constructor.
    create_ndb(Ndb_cluster_connection, databaseName, callback)
@@ -126,7 +127,7 @@ Handle<Value> getAutoIncValue(const Arguments &args) {
 
 Handle<Value> getStatistics(const Arguments &args) {
   HandleScope scope;
-  Ndb *ndb =  unwrapPointer<Ndb *>(args.Holder());
+  Ndb *ndb = unwrapPointer<Ndb *>(args.Holder(), NDB_CLASS_ID);
   Local<Object> stats = Object::New();
   for(int i = 0 ; i < Ndb::NumClientStatistics ; i ++) {
     stats->Set(String::NewSymbol(ndb->getClientStatName(i)),
@@ -141,7 +142,7 @@ Handle<Value> getConnectionStatistics(const Arguments &args) {
   HandleScope scope;
   Uint64 ndb_stats[Ndb::NumClientStatistics];
 
-  Ndb *ndb =  unwrapPointer<Ndb *>(args.Holder());
+  Ndb *ndb = unwrapPointer<Ndb *>(args.Holder(), NDB_CLASS_ID);
   Ndb_cluster_connection & c = ndb->get_ndb_cluster_connection();
 
   c.collect_client_stats(ndb_stats, Ndb::NumClientStatistics);
