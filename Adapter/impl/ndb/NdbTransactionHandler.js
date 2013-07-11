@@ -54,7 +54,6 @@ function DBTransactionHandler(dbsession) {
   this.executedOperations = [];  // All finished operations 
   this.execAfterOpenQueue = [];  // exec calls waiting on startTransaction()
   this.asyncContext       = dbsession.parentPool.asyncNdbContext;
-  this.canUseNdbAsynch    = dbsession.parentPool.properties.use_ndb_async_api;
   this.serial             = serial++;
   this.moniker            = "(" + this.serial + ")";
   udebug.log("NEW ", this.moniker);
@@ -85,7 +84,7 @@ function run(self, execMode, abortFlag, callback) {
     */
     var force_send = 1;
 
-    if(this.tx.canUseNdbAsynch) {
+    if(this.tx.asyncContext) {
       stats.incr(["run","async"]);
       this.tx.asyncContext.executeAsynch(this.tx.ndbtx, 
                                          this.execMode, this.abortFlag,
