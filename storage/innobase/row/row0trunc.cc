@@ -2107,16 +2107,16 @@ truncate_t::drop_indexes(
 			continue;
 		}
 
+		if (fil_index_tree_is_freed(space_id, root_page_no, zip_size)) {
+			continue;
+		}
+
 		mtr_start(&mtr);
 
 		/* Don't log the operation while fixing up table truncate
 		operation as crash at this level can still be sustained with
 		recovery restarting from last checkpoint. */
 		mtr_set_log_mode(&mtr, MTR_LOG_NO_REDO);
-
-		if (fil_index_tree_is_freed(space_id, root_page_no, zip_size)) {
-			continue;
-		}
 
 		if (root_page_no != FIL_NULL && zip_size != ULINT_UNDEFINED) {
 
