@@ -590,7 +590,7 @@ Mts_submode_logical_clock::get_least_occupied_worker(Relay_log_info *rli,
       // Update thd info as waiting for workers to finish.
       thd->enter_stage(&stage_slave_waiiting_for_workers_to_finish, old_stage,
                        __func__, __FILE__, __LINE__);
-      while (!worker)
+      while (!worker && !sql_slave_killed(rli->info_thd, rli))
       {
         /* wait and get a free worker */
         worker= get_free_worker(rli);
@@ -650,7 +650,7 @@ Mts_submode_logical_clock::
   // Update thd info as waiting for workers to finish.
   thd->enter_stage(&stage_slave_waiiting_for_workers_to_finish, old_stage,
                     __func__, __FILE__, __LINE__);
-  while (delegated_jobs > jobs_done && !thd->killed)
+  while (delegated_jobs > jobs_done && !sql_slave_killed(rli->info_thd, rli))
   {
     if (mts_checkpoint_routine(rli, 0, true, true /*need_data_lock=true*/))
       DBUG_RETURN(-1);
