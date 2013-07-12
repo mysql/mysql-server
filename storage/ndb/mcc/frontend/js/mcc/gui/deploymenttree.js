@@ -203,7 +203,7 @@ function updateDeploymentTreeView() {
             }
 
             // Update view of startup command
-            var cmds = mcc.configuration.getStartupCommand(process);
+            var cmds = mcc.configuration.getStartProcessCommands(process);
             if (!cmds || cmds.length == 0) {
                 dijit.byId("startupDetails").setContent(
                         "No startup command for this process");

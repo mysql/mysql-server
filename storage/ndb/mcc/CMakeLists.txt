@@ -160,7 +160,8 @@ add_custom_target(install_mcc
 	VERBATIM)
 
 add_custom_target(run_mcc	
-	COMMAND python "${CMAKE_INSTALL_PREFIX}/${MCC_INSTALL_BINDIR}/${MCC_SCRIPT_NAME}" -d DEBUG -o mcc_log.txt VERBATIM)
+	COMMAND ${CMAKE_COMMAND} -E remove mcc_log.txt
+        COMMAND python "${CMAKE_INSTALL_PREFIX}/${MCC_INSTALL_BINDIR}/${MCC_SCRIPT_NAME}" -N "" -d DEBUG -o mcc_log.txt VERBATIM)
 add_dependencies(run_mcc install_mcc)
 
 add_custom_target(run_mcc_in_source python "${MCC_SCRIPT_BASE}_in_source.py" -d DEBUG -o mcc_in_source_log.txt VERBATIM)
