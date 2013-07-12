@@ -1341,69 +1341,69 @@ DROP PROCEDURE IF EXISTS p1;
 CREATE TABLE t1(c1 INT);
 CREATE TRIGGER t1_bi BEFORE INSERT ON t1 FOR EACH ROW SET @a = 1;
 SHOW CREATE TRIGGER t1_bi;
-Trigger	sql_mode	SQL Original Statement	character_set_client	collation_connection	Database Collation	created
+Trigger	sql_mode	SQL Original Statement	character_set_client	collation_connection	Database Collation	Created
 t1_bi	NO_ENGINE_SUBSTITUTION	CREATE DEFINER=`root`@`localhost` TRIGGER t1_bi BEFORE INSERT ON t1 FOR EACH ROW SET @a = 1	latin1	latin1_swedish_ci	latin1_swedish_ci	#
 CREATE PROCEDURE p1() SHOW CREATE TRIGGER t1_bi;
 CALL p1();
-Trigger	sql_mode	SQL Original Statement	character_set_client	collation_connection	Database Collation	created
+Trigger	sql_mode	SQL Original Statement	character_set_client	collation_connection	Database Collation	Created
 t1_bi	NO_ENGINE_SUBSTITUTION	CREATE DEFINER=`root`@`localhost` TRIGGER t1_bi BEFORE INSERT ON t1 FOR EACH ROW SET @a = 1	latin1	latin1_swedish_ci	latin1_swedish_ci	#
 CALL p1();
-Trigger	sql_mode	SQL Original Statement	character_set_client	collation_connection	Database Collation	created
+Trigger	sql_mode	SQL Original Statement	character_set_client	collation_connection	Database Collation	Created
 t1_bi	NO_ENGINE_SUBSTITUTION	CREATE DEFINER=`root`@`localhost` TRIGGER t1_bi BEFORE INSERT ON t1 FOR EACH ROW SET @a = 1	latin1	latin1_swedish_ci	latin1_swedish_ci	#
 CALL p1();
-Trigger	sql_mode	SQL Original Statement	character_set_client	collation_connection	Database Collation	created
+Trigger	sql_mode	SQL Original Statement	character_set_client	collation_connection	Database Collation	Created
 t1_bi	NO_ENGINE_SUBSTITUTION	CREATE DEFINER=`root`@`localhost` TRIGGER t1_bi BEFORE INSERT ON t1 FOR EACH ROW SET @a = 1	latin1	latin1_swedish_ci	latin1_swedish_ci	#
 CALL p1();
-Trigger	sql_mode	SQL Original Statement	character_set_client	collation_connection	Database Collation	created
+Trigger	sql_mode	SQL Original Statement	character_set_client	collation_connection	Database Collation	Created
 t1_bi	NO_ENGINE_SUBSTITUTION	CREATE DEFINER=`root`@`localhost` TRIGGER t1_bi BEFORE INSERT ON t1 FOR EACH ROW SET @a = 1	latin1	latin1_swedish_ci	latin1_swedish_ci	#
 CALL p1();
-Trigger	sql_mode	SQL Original Statement	character_set_client	collation_connection	Database Collation	created
+Trigger	sql_mode	SQL Original Statement	character_set_client	collation_connection	Database Collation	Created
 t1_bi	NO_ENGINE_SUBSTITUTION	CREATE DEFINER=`root`@`localhost` TRIGGER t1_bi BEFORE INSERT ON t1 FOR EACH ROW SET @a = 1	latin1	latin1_swedish_ci	latin1_swedish_ci	#
 CALL p1();
-Trigger	sql_mode	SQL Original Statement	character_set_client	collation_connection	Database Collation	created
+Trigger	sql_mode	SQL Original Statement	character_set_client	collation_connection	Database Collation	Created
 t1_bi	NO_ENGINE_SUBSTITUTION	CREATE DEFINER=`root`@`localhost` TRIGGER t1_bi BEFORE INSERT ON t1 FOR EACH ROW SET @a = 1	latin1	latin1_swedish_ci	latin1_swedish_ci	#
 CALL p1();
-Trigger	sql_mode	SQL Original Statement	character_set_client	collation_connection	Database Collation	created
+Trigger	sql_mode	SQL Original Statement	character_set_client	collation_connection	Database Collation	Created
 t1_bi	NO_ENGINE_SUBSTITUTION	CREATE DEFINER=`root`@`localhost` TRIGGER t1_bi BEFORE INSERT ON t1 FOR EACH ROW SET @a = 1	latin1	latin1_swedish_ci	latin1_swedish_ci	#
 CALL p1();
-Trigger	sql_mode	SQL Original Statement	character_set_client	collation_connection	Database Collation	created
+Trigger	sql_mode	SQL Original Statement	character_set_client	collation_connection	Database Collation	Created
 t1_bi	NO_ENGINE_SUBSTITUTION	CREATE DEFINER=`root`@`localhost` TRIGGER t1_bi BEFORE INSERT ON t1 FOR EACH ROW SET @a = 1	latin1	latin1_swedish_ci	latin1_swedish_ci	#
 CALL p1();
-Trigger	sql_mode	SQL Original Statement	character_set_client	collation_connection	Database Collation	created
+Trigger	sql_mode	SQL Original Statement	character_set_client	collation_connection	Database Collation	Created
 t1_bi	NO_ENGINE_SUBSTITUTION	CREATE DEFINER=`root`@`localhost` TRIGGER t1_bi BEFORE INSERT ON t1 FOR EACH ROW SET @a = 1	latin1	latin1_swedish_ci	latin1_swedish_ci	#
 CALL p1();
-Trigger	sql_mode	SQL Original Statement	character_set_client	collation_connection	Database Collation	created
+Trigger	sql_mode	SQL Original Statement	character_set_client	collation_connection	Database Collation	Created
 t1_bi	NO_ENGINE_SUBSTITUTION	CREATE DEFINER=`root`@`localhost` TRIGGER t1_bi BEFORE INSERT ON t1 FOR EACH ROW SET @a = 1	latin1	latin1_swedish_ci	latin1_swedish_ci	#
 PREPARE stmt1 FROM 'SHOW CREATE TRIGGER t1_bi';
 EXECUTE stmt1;
-Trigger	sql_mode	SQL Original Statement	character_set_client	collation_connection	Database Collation	created
+Trigger	sql_mode	SQL Original Statement	character_set_client	collation_connection	Database Collation	Created
 t1_bi	NO_ENGINE_SUBSTITUTION	CREATE DEFINER=`root`@`localhost` TRIGGER t1_bi BEFORE INSERT ON t1 FOR EACH ROW SET @a = 1	latin1	latin1_swedish_ci	latin1_swedish_ci	#
 EXECUTE stmt1;
-Trigger	sql_mode	SQL Original Statement	character_set_client	collation_connection	Database Collation	created
+Trigger	sql_mode	SQL Original Statement	character_set_client	collation_connection	Database Collation	Created
 t1_bi	NO_ENGINE_SUBSTITUTION	CREATE DEFINER=`root`@`localhost` TRIGGER t1_bi BEFORE INSERT ON t1 FOR EACH ROW SET @a = 1	latin1	latin1_swedish_ci	latin1_swedish_ci	#
 EXECUTE stmt1;
-Trigger	sql_mode	SQL Original Statement	character_set_client	collation_connection	Database Collation	created
+Trigger	sql_mode	SQL Original Statement	character_set_client	collation_connection	Database Collation	Created
 t1_bi	NO_ENGINE_SUBSTITUTION	CREATE DEFINER=`root`@`localhost` TRIGGER t1_bi BEFORE INSERT ON t1 FOR EACH ROW SET @a = 1	latin1	latin1_swedish_ci	latin1_swedish_ci	#
 EXECUTE stmt1;
-Trigger	sql_mode	SQL Original Statement	character_set_client	collation_connection	Database Collation	created
+Trigger	sql_mode	SQL Original Statement	character_set_client	collation_connection	Database Collation	Created
 t1_bi	NO_ENGINE_SUBSTITUTION	CREATE DEFINER=`root`@`localhost` TRIGGER t1_bi BEFORE INSERT ON t1 FOR EACH ROW SET @a = 1	latin1	latin1_swedish_ci	latin1_swedish_ci	#
 EXECUTE stmt1;
-Trigger	sql_mode	SQL Original Statement	character_set_client	collation_connection	Database Collation	created
+Trigger	sql_mode	SQL Original Statement	character_set_client	collation_connection	Database Collation	Created
 t1_bi	NO_ENGINE_SUBSTITUTION	CREATE DEFINER=`root`@`localhost` TRIGGER t1_bi BEFORE INSERT ON t1 FOR EACH ROW SET @a = 1	latin1	latin1_swedish_ci	latin1_swedish_ci	#
 EXECUTE stmt1;
-Trigger	sql_mode	SQL Original Statement	character_set_client	collation_connection	Database Collation	created
+Trigger	sql_mode	SQL Original Statement	character_set_client	collation_connection	Database Collation	Created
 t1_bi	NO_ENGINE_SUBSTITUTION	CREATE DEFINER=`root`@`localhost` TRIGGER t1_bi BEFORE INSERT ON t1 FOR EACH ROW SET @a = 1	latin1	latin1_swedish_ci	latin1_swedish_ci	#
 EXECUTE stmt1;
-Trigger	sql_mode	SQL Original Statement	character_set_client	collation_connection	Database Collation	created
+Trigger	sql_mode	SQL Original Statement	character_set_client	collation_connection	Database Collation	Created
 t1_bi	NO_ENGINE_SUBSTITUTION	CREATE DEFINER=`root`@`localhost` TRIGGER t1_bi BEFORE INSERT ON t1 FOR EACH ROW SET @a = 1	latin1	latin1_swedish_ci	latin1_swedish_ci	#
 EXECUTE stmt1;
-Trigger	sql_mode	SQL Original Statement	character_set_client	collation_connection	Database Collation	created
+Trigger	sql_mode	SQL Original Statement	character_set_client	collation_connection	Database Collation	Created
 t1_bi	NO_ENGINE_SUBSTITUTION	CREATE DEFINER=`root`@`localhost` TRIGGER t1_bi BEFORE INSERT ON t1 FOR EACH ROW SET @a = 1	latin1	latin1_swedish_ci	latin1_swedish_ci	#
 EXECUTE stmt1;
-Trigger	sql_mode	SQL Original Statement	character_set_client	collation_connection	Database Collation	created
+Trigger	sql_mode	SQL Original Statement	character_set_client	collation_connection	Database Collation	Created
 t1_bi	NO_ENGINE_SUBSTITUTION	CREATE DEFINER=`root`@`localhost` TRIGGER t1_bi BEFORE INSERT ON t1 FOR EACH ROW SET @a = 1	latin1	latin1_swedish_ci	latin1_swedish_ci	#
 EXECUTE stmt1;
-Trigger	sql_mode	SQL Original Statement	character_set_client	collation_connection	Database Collation	created
+Trigger	sql_mode	SQL Original Statement	character_set_client	collation_connection	Database Collation	Created
 t1_bi	NO_ENGINE_SUBSTITUTION	CREATE DEFINER=`root`@`localhost` TRIGGER t1_bi BEFORE INSERT ON t1 FOR EACH ROW SET @a = 1	latin1	latin1_swedish_ci	latin1_swedish_ci	#
 DROP TABLE t1;
 DROP PROCEDURE p1;
@@ -1435,7 +1435,7 @@ Function	sql_mode	Create Function	character_set_client	collation_connection	Data
 f1	NO_ENGINE_SUBSTITUTION	CREATE DEFINER=`root`@`localhost` FUNCTION `f1`() RETURNS char(10) CHARSET latin1
 RETURN 'тест'	koi8r	koi8r_general_ci	latin1_swedish_ci
 SHOW CREATE TRIGGER t1_bi;
-Trigger	sql_mode	SQL Original Statement	character_set_client	collation_connection	Database Collation	created
+Trigger	sql_mode	SQL Original Statement	character_set_client	collation_connection	Database Collation	Created
 t1_bi	NO_ENGINE_SUBSTITUTION	CREATE DEFINER=`root`@`localhost` TRIGGER t1_bi BEFORE INSERT ON t1
 FOR EACH ROW
 SET NEW.c1 = 'тест'	koi8r	koi8r_general_ci	latin1_swedish_ci	#
@@ -1509,7 +1509,7 @@ CREATE TRIGGER t1_bi BEFORE INSERT ON t1 FOR EACH ROW SET new.a = 1;
 LOCK TABLE t1 WRITE;
 # Connection default
 SHOW CREATE TRIGGER t1_bi;
-Trigger	sql_mode	SQL Original Statement	character_set_client	collation_connection	Database Collation	created
+Trigger	sql_mode	SQL Original Statement	character_set_client	collation_connection	Database Collation	Created
 t1_bi	NO_ENGINE_SUBSTITUTION	CREATE DEFINER=`root`@`localhost` TRIGGER t1_bi BEFORE INSERT ON t1 FOR EACH ROW SET new.a = 1	utf8	utf8_general_ci	latin1_swedish_ci	#
 # Connection con1
 UNLOCK TABLES;
@@ -1517,7 +1517,7 @@ UNLOCK TABLES;
 # Connection default
 START TRANSACTION;
 SHOW CREATE TRIGGER t1_bi;
-Trigger	sql_mode	SQL Original Statement	character_set_client	collation_connection	Database Collation	created
+Trigger	sql_mode	SQL Original Statement	character_set_client	collation_connection	Database Collation	Created
 t1_bi	NO_ENGINE_SUBSTITUTION	CREATE DEFINER=`root`@`localhost` TRIGGER t1_bi BEFORE INSERT ON t1 FOR EACH ROW SET new.a = 1	utf8	utf8_general_ci	latin1_swedish_ci	#
 # Connection con1
 ALTER TABLE t1 CHARACTER SET = utf8;
@@ -1557,11 +1557,11 @@ DROP TABLE IF EXISTS t1;
 CREATE TABLE t1 (a INT);
 CREATE TRIGGER t1_bi BEFORE INSERT ON t1 FOR EACH ROW BEGIN END;
 SHOW CREATE TRIGGER t1_bi;
-Trigger	sql_mode	SQL Original Statement	character_set_client	collation_connection	Database Collation	created
+Trigger	sql_mode	SQL Original Statement	character_set_client	collation_connection	Database Collation	Created
 t1_bi	NO_ENGINE_SUBSTITUTION	CREATE DEFINER=`root`@`localhost` TRIGGER t1_bi BEFORE INSERT ON t1 FOR EACH ROW BEGIN END	latin1	latin1_swedish_ci	latin1_swedish_ci	#
 CREATE TEMPORARY TABLE t1 (b INT);
 SHOW CREATE TRIGGER t1_bi;
-Trigger	sql_mode	SQL Original Statement	character_set_client	collation_connection	Database Collation	created
+Trigger	sql_mode	SQL Original Statement	character_set_client	collation_connection	Database Collation	Created
 t1_bi	NO_ENGINE_SUBSTITUTION	CREATE DEFINER=`root`@`localhost` TRIGGER t1_bi BEFORE INSERT ON t1 FOR EACH ROW BEGIN END	latin1	latin1_swedish_ci	latin1_swedish_ci	#
 DROP TEMPORARY TABLE t1;
 DROP TABLE t1;
