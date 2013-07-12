@@ -8278,7 +8278,7 @@ static bool show_create_trigger_impl(THD *thd, Trigger *trigger)
                                          MY_CS_NAME_SIZE));
 
   fields.push_back(new Item_temporal(MYSQL_TYPE_TIMESTAMP,
-                                     Name_string("created",
+                                     Name_string("Created",
                                                  sizeof("created")-1),
                                      0, 0));
 

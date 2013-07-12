@@ -2788,6 +2788,22 @@ trx_start_internal_low(
 	trx_start_low(trx, true);
 }
 
+/** Starts a read-only transaction for internal processing.
+@param[in,out] trx	transaction to be started */
+void
+trx_start_internal_read_only_low(
+	trx_t*	trx)
+{
+	/* Ensure it is not flagged as an auto-commit-non-locking
+	transaction. */
+
+	trx->will_lock = 1;
+
+	trx->internal = true;
+
+	trx_start_low(trx, false);
+}
+
 /*************************************************************//**
 Starts the transaction for a DDL operation. */
 
