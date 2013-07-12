@@ -240,7 +240,7 @@ class RemoteClusterHost(ABClusterHost):
                 output = chan.makefile('rb')
                 _logger.debug('Waiting for command...')
                 exitstatus = chan.recv_exit_status()
-                if exitstatus != 0:
+                if exitstatus != 0 and exitstatus != util.get_val(procCtrl, 'noRaise'): 
                     raise RemoteExecException(self.host, cmdln, exitstatus, output)
                 return output.read()
             else:
@@ -251,7 +251,7 @@ class RemoteClusterHost(ABClusterHost):
                     output = chan.makefile('rb')
                     raise RemoteExecException(self.host, cmdln, chan.recv_exit_status(), output)
             
-    def exec_cmdv(self, cmdv, procCtrl={ 'waitForCompletion': True }, stdinFile=None):
+    def _exec_cmdv(self, cmdv, procCtrl, stdinFile):
         """Execute an OS command vector on the remote host.
         cmdv - complete command vector (argv) of the OS command
         procCtrl - procCtrl object from message which controls how the process

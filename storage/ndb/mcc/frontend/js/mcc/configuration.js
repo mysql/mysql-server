@@ -28,8 +28,8 @@ dojo.provide("mcc.configuration");
 dojo.require("mcc.configuration.deploy");
 
 mcc.configuration.setupContext = mcc.configuration.deploy.setupContext;
-mcc.configuration.getStartupCommand = 
-            mcc.configuration.deploy.getStartupCommand;
+mcc.configuration.getStartProcessCommands = 
+            mcc.configuration.deploy.getStartProcessCommands;
 mcc.configuration.getConfigurationFile = 
             mcc.configuration.deploy.getConfigurationFile;
 
