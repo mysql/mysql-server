@@ -319,6 +319,7 @@ bool
 Mts_submode_logical_clock::assign_group_parent_id(Relay_log_info* rli,
                                             Log_event *ev)
 {
+  bool var_events= false;
   int64 commit_seq_no= SEQ_UNINIT;
   /*
     A group id updater must satisfy the following:
@@ -337,6 +338,7 @@ Mts_submode_logical_clock::assign_group_parent_id(Relay_log_info* rli,
   case USER_VAR_EVENT:
   case INTVAR_EVENT:
   case RAND_EVENT:
+    var_events= true;
     force_new_group= true;
     break;
 
@@ -345,7 +347,9 @@ Mts_submode_logical_clock::assign_group_parent_id(Relay_log_info* rli,
     commit_seq_no= SEQ_UNINIT;
     break;
   }
-  if (first_event && commit_seq_no == SEQ_UNINIT)
+
+  if (first_event && commit_seq_no == SEQ_UNINIT && !var_events
+      && !defer_new_group)
   {
     // This is the first event and the master has not sent us the commit
     // sequence number. The possible reason may be that the master is old and
@@ -353,6 +357,11 @@ Mts_submode_logical_clock::assign_group_parent_id(Relay_log_info* rli,
     // replication from within a transaction.
     return true;
   }
+
+  if (commit_seq_no != SEQ_UNINIT ||
+      (first_event && !var_events && !defer_new_group))
+    first_event= false;
+
 
   if ((commit_seq_no != SEQ_UNINIT /* Not an internal event */ &&
       /* not same as last seq number */
@@ -366,7 +375,9 @@ Mts_submode_logical_clock::assign_group_parent_id(Relay_log_info* rli,
     mts_last_known_commit_parent= commit_seq_no;
     worker_seq= 0;
     if (ev->get_type_code() == GTID_LOG_EVENT ||
-        ev->get_type_code() == USER_VAR_EVENT )
+        ev->get_type_code() == USER_VAR_EVENT ||
+        ev->get_type_code() == INTVAR_EVENT   ||
+        ev->get_type_code() == RAND_EVENT )
       defer_new_group= true;
     else
       is_new_group= true;
@@ -383,9 +394,9 @@ Mts_submode_logical_clock::assign_group_parent_id(Relay_log_info* rli,
      is_new_group= false;
   }
   rli->mts_group_status= Relay_log_info::MTS_IN_GROUP;
+
   DBUG_PRINT("info", ("MTS::slave c=%lld first_event=%s", commit_seq_no,
                       YESNO(first_event)));
-  if (first_event) first_event= false;
   return false;
 }
 
