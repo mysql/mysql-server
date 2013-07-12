@@ -436,6 +436,8 @@ btr_cur_will_modify_tree(
 	the uppper level node_ptr modification. */
 
 	if (lock_intention <= BTR_INTENTION_BOTH) {
+		ulint	margin;
+
 		/* check delete will cause. (BTR_INTENTION_BOTH
 		or BTR_INTENTION_DELETE) */
 		/* first, 2nd, 2nd-last and last records are 4 records */
@@ -453,11 +455,23 @@ btr_cur_will_modify_tree(
 			return(true);
 		}
 
+		if (lock_intention == BTR_INTENTION_BOTH) {
+			/* Delete at leftmost record in a page causes delete
+			& insert at its parent page. After that, the delete
+			might cause btr_compress() and delete record at its
+			parent page. Thus we should consider max 2 deletes. */
+
+			margin = rec_size * 2;
+		} else {
+			ut_ad(lock_intention == BTR_INTENTION_DELETE);
+
+			margin = rec_size;
+		}
 		/* NOTE: call mach_read_from_4() directly to avoid assertion
 		failure. It is safe because we already have SX latch of the
 		index tree */
 		if (page_get_data_size(page)
-			< rec_size + BTR_CUR_PAGE_COMPRESS_LIMIT
+			< margin + BTR_CUR_PAGE_COMPRESS_LIMIT
 		    || (mach_read_from_4(page + FIL_PAGE_NEXT)
 				== FIL_NULL
 			&& mach_read_from_4(page + FIL_PAGE_PREV)
