@@ -2113,7 +2113,6 @@ dict_index_node_ptr_max_size(
 /*=========================*/
 	const dict_index_t*	index)	/*!< in: index */
 {
-	ulint	zip_size;
 	ulint	comp;
 	ulint	i;
 	/* maximum possible storage size of a record */
@@ -2134,19 +2133,11 @@ dict_index_node_ptr_max_size(
 	}
 
 	comp = dict_table_is_comp(index->table);
-	zip_size = dict_table_zip_size(index->table);
 
-	if (zip_size && zip_size < UNIV_PAGE_SIZE) {
-		/* On a compressed page, there is a two-byte entry in
-		the dense page directory for every record.  But there
-		is no record header. */
-		rec_max_size = REC_NODE_PTR_SIZE + 2;
-	} else {
-		/* Each record has a header. */
-		rec_max_size = comp
-			? REC_NODE_PTR_SIZE + REC_N_NEW_EXTRA_BYTES
-			: REC_NODE_PTR_SIZE + REC_N_OLD_EXTRA_BYTES;
-	}
+	/* Each record has a header. */
+	rec_max_size = comp
+		? REC_NODE_PTR_SIZE + REC_N_NEW_EXTRA_BYTES
+		: REC_NODE_PTR_SIZE + REC_N_OLD_EXTRA_BYTES;
 
 	if (comp) {
 		/* Include the "null" flags in the
