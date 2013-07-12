@@ -23,13 +23,14 @@ The database buffer buf_pool flush algorithm
 Created 11/11/1995 Heikki Tuuri
 *******************************************************/
 
+#include "ha_prototypes.h"
+#include <mysql/plugin.h>
+
 #include "buf0flu.h"
 
 #ifdef UNIV_NONINL
 #include "buf0flu.ic"
 #endif
-
-#include "ha_prototypes.h"
 
 #include "buf0buf.h"
 #include "buf0checksum.h"
@@ -38,7 +39,6 @@ Created 11/11/1995 Heikki Tuuri
 #include "page0zip.h"
 #ifndef UNIV_HOTBACKUP
 #include "ut0byte.h"
-#include "ut0lst.h"
 #include "page0page.h"
 #include "fil0fil.h"
 #include "buf0lru.h"
@@ -94,7 +94,7 @@ incr_flush_list_size_in_bytes(
 #if defined UNIV_DEBUG || defined UNIV_BUF_DEBUG
 /******************************************************************//**
 Validates the flush list.
-@return	TRUE if ok */
+@return TRUE if ok */
 static
 ibool
 buf_flush_validate_low(
@@ -103,7 +103,7 @@ buf_flush_validate_low(
 
 /******************************************************************//**
 Validates the flush list some of the time.
-@return	TRUE if ok or the check was skipped */
+@return TRUE if ok or the check was skipped */
 static
 ibool
 buf_flush_validate_skip(
@@ -188,7 +188,7 @@ buf_flush_update_hp(
 Insert a block in the flush_rbt and returns a pointer to its
 predecessor or NULL if no predecessor. The ordering is maintained
 on the basis of the <oldest_modification, space, offset> key.
-@return	pointer to the predecessor or NULL if no predecessor. */
+@return pointer to the predecessor or NULL if no predecessor. */
 static
 buf_page_t*
 buf_flush_insert_in_flush_rbt(
@@ -251,7 +251,7 @@ buf_pool->flush_rbt.
 Note that for the purpose of flush_rbt, we only need to order blocks
 on the oldest_modification. The other two fields are used to uniquely
 identify the blocks.
-@return	 < 0 if b2 < b1, 0 if b2 == b1, > 0 if b2 > b1 */
+@return < 0 if b2 < b1, 0 if b2 == b1, > 0 if b2 > b1 */
 static
 int
 buf_flush_block_cmp(
@@ -492,7 +492,7 @@ buf_flush_insert_sorted_into_flush_list(
 /********************************************************************//**
 Returns TRUE if the file page block is immediately suitable for replacement,
 i.e., the transition FILE_PAGE => NOT_USED allowed.
-@return	TRUE if can replace immediately */
+@return TRUE if can replace immediately */
 
 ibool
 buf_flush_ready_for_replace(
@@ -523,7 +523,7 @@ buf_flush_ready_for_replace(
 
 /********************************************************************//**
 Returns true if the block is modified and ready for flushing.
-@return	true if can flush immediately */
+@return true if can flush immediately */
 
 bool
 buf_flush_ready_for_flush(
@@ -1121,7 +1121,7 @@ buf_flush_page_try(
 # endif /* UNIV_DEBUG || UNIV_IBUF_DEBUG */
 /***********************************************************//**
 Check the page is in buffer pool and can be flushed.
-@return	true if the page can be flushed. */
+@return true if the page can be flushed. */
 static
 bool
 buf_flush_check_neighbor(
@@ -1171,7 +1171,7 @@ buf_flush_check_neighbor(
 
 /***********************************************************//**
 Flushes to disk all flushable pages within the flush area.
-@return	number of pages flushed */
+@return number of pages flushed */
 static
 ulint
 buf_flush_try_neighbors(
@@ -1328,7 +1328,7 @@ buf_flush_try_neighbors(
 Check if the block is modified and ready for flushing. If the the block
 is ready to flush then flush the page and try o flush its neighbors.
 
-@return	TRUE if buf_pool mutex was released during this function.
+@return TRUE if buf_pool mutex was released during this function.
 This does not guarantee that some pages were written as well.
 Number of pages written are incremented to the count. */
 static
@@ -2303,7 +2303,7 @@ page_cleaner_flush_pages_if_needed(void)
 	}
 
 	if (last_pages && cur_lsn - last_lsn > lsn_avg_rate / 2) {
-		age_factor = prev_pages / last_pages;
+		age_factor = (int) (prev_pages / last_pages);
 	}
 
 	MONITOR_SET(MONITOR_FLUSH_N_TO_FLUSH_REQUESTED, n_pages);
@@ -2518,7 +2518,7 @@ struct	Check {
 
 /******************************************************************//**
 Validates the flush list.
-@return	TRUE if ok */
+@return TRUE if ok */
 static
 ibool
 buf_flush_validate_low(
@@ -2583,7 +2583,7 @@ buf_flush_validate_low(
 
 /******************************************************************//**
 Validates the flush list.
-@return	TRUE if ok */
+@return TRUE if ok */
 
 ibool
 buf_flush_validate(
@@ -2607,7 +2607,7 @@ buf_flush_validate(
 /******************************************************************//**
 Check if there are any dirty pages that belong to a space id in the flush
 list in a particular buffer pool.
-@return	number of dirty pages present in a single buffer pool */
+@return number of dirty pages present in a single buffer pool */
 
 ulint
 buf_pool_get_dirty_pages_count(
@@ -2644,7 +2644,7 @@ buf_pool_get_dirty_pages_count(
 
 /******************************************************************//**
 Check if there are any dirty pages that belong to a space id in the flush list.
-@return	number of dirty pages present in all the buffer pools */
+@return number of dirty pages present in all the buffer pools */
 
 ulint
 buf_flush_get_dirty_pages_count(

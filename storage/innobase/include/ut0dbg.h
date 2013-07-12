@@ -32,21 +32,21 @@ Created 1/30/1994 Heikki Tuuri
 #define ut_error	assert(0)
 #else /* !UNIV_INNOCHECKSUM */
 
-#include "univ.i"
-#include <stdlib.h>
+/* Do not include univ.i because univ.i includes this. */
+
 #include "os0thread.h"
 
 #if defined(__GNUC__) && (__GNUC__ > 2)
 /** Test if an assertion fails.
-@param EXPR	assertion expression
-@return		nonzero if EXPR holds, zero if not */
+@param EXPR assertion expression
+@return nonzero if EXPR holds, zero if not */
 # define UT_DBG_FAIL(EXPR) UNIV_UNLIKELY(!((ulint)(EXPR)))
 #else
 /** This is used to eliminate compiler warnings */
 extern ulint	ut_dbg_zero;
 /** Test if an assertion fails.
-@param EXPR	assertion expression
-@return		nonzero if EXPR holds, zero if not */
+@param EXPR assertion expression
+@return nonzero if EXPR holds, zero if not */
 # define UT_DBG_FAIL(EXPR) !((ulint)(EXPR) + ut_dbg_zero)
 #endif
 
@@ -69,7 +69,7 @@ ut_dbg_assertion_failed(
 	UNIV_COLD __attribute__((nonnull(2)));
 
 /** Abort execution if EXPR does not evaluate to nonzero.
-@param EXPR	assertion expression that should hold */
+@param EXPR assertion expression that should hold */
 #define ut_a(EXPR) do {						\
 	if (UT_DBG_FAIL(EXPR)) {				\
 		ut_dbg_assertion_failed(#EXPR,			\
@@ -97,7 +97,7 @@ ut_dbg_assertion_failed(
 #endif
 
 /** Silence warnings about an unused variable by doing a null assignment.
-@param A	the unused variable */
+@param A the unused variable */
 #define UT_NOT_USED(A)	A = A
 
 #ifdef UNIV_COMPILE_TEST_FUNCS

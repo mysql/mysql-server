@@ -79,15 +79,10 @@
  *
  */
 
-/*
-  We can't have SAFE_MUTEX defined here as this will cause recursion
-  in pthread_mutex_lock
-*/
-
-#undef SAFE_MUTEX
 #include <my_global.h>
 #include <m_string.h>
 #include <errno.h>
+#include <ctype.h>
 
 #ifdef HAVE_FNMATCH_H
 #include <fnmatch.h>
@@ -176,10 +171,6 @@
 /*
  *      Externally supplied functions.
  */
-
-#ifndef HAVE_PERROR
-static void perror();          /* Fake system/library error print routine */
-#endif
 
 /*
  *      The user may specify a list of functions to trace or
@@ -287,7 +278,7 @@ static struct link *ListCopy(struct link *);
 static int InList(struct link *linkp,const char *cp);
 static uint ListFlags(struct link *linkp);
 static void FreeList(struct link *linkp);
-
+static int isseparator(const char *ptr);
         /* OpenClose debug output stream */
 static void DBUGOpenFile(CODE_STATE *,const char *, const char *, int);
 static void DBUGCloseFile(CODE_STATE *cs, FILE *fp);
@@ -1542,6 +1533,21 @@ void _db_dump_(uint _line_, const char *keyword,
 
 
 /*
+  Return true if the character pointer to by ptr is either
+  comma or a whitespace character.
+
+  @param    ptr     pointer to char
+  @return           1 if the character is whitespace or
+                    comma
+*/
+
+static inline int isseparator(const char* ptr)
+{
+  return (*ptr ==',' || isspace(*ptr));
+}
+
+
+/*
  *  FUNCTION
  *
  *      ListAddDel    modify the list according to debug control string
@@ -1577,9 +1583,12 @@ static struct link *ListAddDel(struct link *head, const char *ctlp,
 next:
   while (++ctlp < end)
   {
+    // skip whitespace or comma
+    while (isseparator(ctlp))
+      ctlp++;
     start= ctlp;
     subdir=0;
-    while (ctlp < end && *ctlp != ',')
+    while (ctlp < end && !isseparator(ctlp))
       ctlp++;
     len=ctlp-start;
     if (start[len-1] == '/')
@@ -1590,7 +1599,7 @@ next:
     if (len == 0) continue;
     for (cur=&head; *cur; cur=&((*cur)->next_link))
     {
-      if (!strncmp((*cur)->str, start, len))
+      if (len == strlen((*cur)->str) && !strncmp((*cur)->str, start, len))
       {
         if ((*cur)->flags & todo)  /* same action ? */
           (*cur)->flags|= subdir;  /* just merge the SUBDIR flag */
@@ -2328,8 +2337,6 @@ static BOOLEAN Writable(const char *pathname)
  *
  */
 
-#ifdef HAVE_LONGJMP
-
 EXPORT void _db_setjmp_()
 {
   CODE_STATE *cs;
@@ -2368,43 +2375,6 @@ EXPORT void _db_longjmp_()
   if (cs->jmpfile)
     cs->file= cs->jmpfile;
 }
-#endif
-
-/*
- *  FUNCTION
- *
- *      perror    perror simulation for systems that don't have it
- *
- *  SYNOPSIS
- *
- *      static VOID perror(s)
- *      char *s;
- *
- *  DESCRIPTION
- *
- *      Perror produces a message on the standard error stream which
- *      provides more information about the library or system error
- *      just encountered.  The argument string s is printed, followed
- *      by a ':', a blank, and then a message and a newline.
- *
- *      An undocumented feature of the unix perror is that if the string
- *      's' is a null string (NOT a NULL pointer!), then the ':' and
- *      blank are not printed.
- *
- *      This version just complains about an "unknown system error".
- *
- */
-
-#ifndef HAVE_PERROR
-static void perror(s)
-char *s;
-{
-  if (s && *s != '\0')
-    (void) fprintf(stderr, "%s: ", s);
-  (void) fprintf(stderr, "<unknown system error>\n");
-}
-#endif /* HAVE_PERROR */
-
 
         /* flush dbug-stream, free mutex lock & wait delay */
         /* This is because some systems (MSDOS!!) dosn't flush fileheader */

@@ -28,7 +28,7 @@ Created 2007/5/9 Sunny Bains
 
 #include "fts0priv.h"
 
-#ifndef UNIV_NONINL
+#ifdef UNIV_NONINL
 #include "fts0types.ic"
 #include "fts0vlc.ic"
 #endif

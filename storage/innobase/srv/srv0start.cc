@@ -38,6 +38,8 @@ Starts the InnoDB database server
 Created 2/16/1996 Heikki Tuuri
 *************************************************************************/
 
+#include "ha_prototypes.h"
+
 #include "ut0mem.h"
 #include "mem0mem.h"
 #include "data0data.h"
@@ -64,6 +66,7 @@ Created 2/16/1996 Heikki Tuuri
 #include "srv0start.h"
 #include "srv0srv.h"
 #include "srv0space.h"
+#include "row0trunc.h"
 #ifndef UNIV_HOTBACKUP
 # include "trx0rseg.h"
 # include "os0proc.h"
@@ -88,8 +91,8 @@ Created 2/16/1996 Heikki Tuuri
 # include "row0upd.h"
 # include "row0row.h"
 # include "row0mysql.h"
+# include "row0trunc.h"
 # include "btr0pcur.h"
-# include "os0sync.h"
 # include "zlib.h"
 # include "ut0crc32.h"
 
@@ -176,7 +179,7 @@ mysql_pfs_key_t	srv_purge_thread_key;
 
 /*********************************************************************//**
 Check if a file can be opened in read-write mode.
-@return	true if it doesn't exist or can be opened in rw mode. */
+@return true if it doesn't exist or can be opened in rw mode. */
 static
 bool
 srv_file_check_mode(
@@ -234,7 +237,7 @@ srv_file_check_mode(
 #ifndef UNIV_HOTBACKUP
 /********************************************************************//**
 I/o-handler thread function.
-@return	OS_THREAD_DUMMY_RETURN */
+@return OS_THREAD_DUMMY_RETURN */
 extern "C"
 os_thread_ret_t
 DECLARE_THREAD(io_handler_thread)(
@@ -314,7 +317,7 @@ srv_normalize_path_for_win(
 #ifndef UNIV_HOTBACKUP
 /*********************************************************************//**
 Creates a log file.
-@return	DB_SUCCESS or error code */
+@return DB_SUCCESS or error code */
 static __attribute__((nonnull, warn_unused_result))
 dberr_t
 create_log_file(
@@ -365,7 +368,7 @@ create_log_file(
 
 /*********************************************************************//**
 Creates all log files.
-@return	DB_SUCCESS or error code */
+@return DB_SUCCESS or error code */
 static
 dberr_t
 create_log_files(
@@ -512,7 +515,7 @@ create_log_files_rename(
 
 /*********************************************************************//**
 Opens a log file.
-@return	DB_SUCCESS or error code */
+@return DB_SUCCESS or error code */
 static __attribute__((nonnull, warn_unused_result))
 dberr_t
 open_log_file(
@@ -540,7 +543,7 @@ open_log_file(
 
 /*********************************************************************//**
 Create undo tablespace.
-@return	DB_SUCCESS or error code */
+@return DB_SUCCESS or error code */
 static
 dberr_t
 srv_undo_tablespace_create(
@@ -603,7 +606,7 @@ srv_undo_tablespace_create(
 }
 /*********************************************************************//**
 Open an undo tablespace.
-@return	DB_SUCCESS or error code */
+@return DB_SUCCESS or error code */
 static
 dberr_t
 srv_undo_tablespace_open(
@@ -675,7 +678,7 @@ srv_undo_tablespace_open(
 
 /********************************************************************
 Opens the configured number of undo tablespaces.
-@return	DB_SUCCESS or error code */
+@return DB_SUCCESS or error code */
 static
 dberr_t
 srv_undo_tablespaces_init(
@@ -1107,7 +1110,7 @@ srv_init_abort_low(
 /********************************************************************
 Starts InnoDB and creates a new database if database files
 are not found and the user wants.
-@return	DB_SUCCESS or error code */
+@return DB_SUCCESS or error code */
 
 dberr_t
 innobase_start_or_create_for_mysql(void)
@@ -1122,7 +1125,7 @@ innobase_start_or_create_for_mysql(void)
 	ulint		srv_n_log_files_found = srv_n_log_files;
 	ulint		io_limit;
 	mtr_t		mtr;
-	ib_bh_t*	ib_bh;
+	purge_pq_t*	purge_queue;
 	ulint		n_recovered_trx;
 	char		logfilename[10000];
 	char*		logfile0	= NULL;
@@ -1846,13 +1849,13 @@ files_checked:
 		after the double write buffer has been created. */
 		trx_sys_create_sys_pages();
 
-		ib_bh = trx_sys_init_at_db_start();
+		purge_queue = trx_sys_init_at_db_start();
 		n_recovered_trx = UT_LIST_GET_LEN(trx_sys->rw_trx_list);
 
 		/* The purge system needs to create the purge view and
 		therefore requires that the trx_sys is inited. */
 
-		trx_purge_sys_create(srv_n_purge_threads, ib_bh);
+		trx_purge_sys_create(srv_n_purge_threads, purge_queue);
 
 		err = dict_create();
 
@@ -1924,13 +1927,13 @@ files_checked:
 			return(srv_init_abort(err));
 		}
 
-		ib_bh = trx_sys_init_at_db_start();
+		purge_queue = trx_sys_init_at_db_start();
 		n_recovered_trx = UT_LIST_GET_LEN(trx_sys->rw_trx_list);
 
 		/* The purge system needs to create the purge view and
 		therefore requires that the trx_sys is inited. */
 
-		trx_purge_sys_create(srv_n_purge_threads, ib_bh);
+		trx_purge_sys_create(srv_n_purge_threads, purge_queue);
 
 		/* recv_recovery_from_checkpoint_finish needs trx lists which
 		are initialized in trx_sys_init_at_db_start(). */
@@ -1964,6 +1967,14 @@ files_checked:
 			}
 
 			dict_check_tablespaces_and_store_max_id(dict_check);
+		}
+
+		/* Fix-up truncate of table if server crashed while truncate
+		was active. */
+		err = truncate_t::fixup_tables();
+
+		if (err != DB_SUCCESS) {
+			return(srv_init_abort(err));
 		}
 
 		if (!srv_force_recovery
@@ -2111,7 +2122,7 @@ files_checked:
 	be set using the dynamic global variable srv_undo_logs. */
 
 	srv_available_undo_logs = trx_sys_create_rsegs(
-		srv_undo_tablespaces, srv_undo_logs);
+		srv_undo_tablespaces, srv_undo_logs, srv_tmp_undo_logs);
 
 	if (srv_available_undo_logs == ULINT_UNDEFINED) {
 		/* Can only happen if force recovery is set. */
@@ -2374,7 +2385,7 @@ srv_fts_close(void)
 
 /****************************************************************//**
 Shuts down the InnoDB database.
-@return	DB_SUCCESS or error code */
+@return DB_SUCCESS or error code */
 
 dberr_t
 innobase_shutdown_for_mysql(void)

@@ -1416,7 +1416,7 @@ public:
   void add_modified_key(KEY *old_key, KEY *new_key)
   {
     index_drop_buffer[index_drop_count++]= old_key;
-    index_add_buffer[index_add_count++]= new_key - key_info_buffer;
+    index_add_buffer[index_add_count++]= (uint) (new_key - key_info_buffer);
     DBUG_PRINT("info", ("index changed: '%s'", old_key->name));
   }
 
@@ -1430,7 +1430,7 @@ public:
   /** Add key to array of indexes to be added. */
   void add_added_key(KEY *new_key)
   {
-    index_add_buffer[index_add_count++]= new_key - key_info_buffer;
+    index_add_buffer[index_add_count++]= (uint) (new_key - key_info_buffer);
     DBUG_PRINT("info", ("index added: '%s'", new_key->name));
   }
 };
@@ -3478,7 +3478,7 @@ int ha_release_temporary_latches(THD *thd);
 /* transactions: interface to handlerton functions */
 int ha_start_consistent_snapshot(THD *thd);
 int ha_commit_or_rollback_by_xid(THD *thd, XID *xid, bool commit);
-int ha_commit_trans(THD *thd, bool all);
+int ha_commit_trans(THD *thd, bool all, bool ignore_global_read_lock= false);
 int ha_rollback_trans(THD *thd, bool all);
 int ha_prepare(THD *thd);
 int ha_recover(HASH *commit_list);

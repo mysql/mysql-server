@@ -69,7 +69,7 @@ rw_lock_remove_debug_info(
 
 /********************************************************************//**
 Check if there are threads waiting for the rw-lock.
-@return	1 if waiters, 0 otherwise */
+@return 1 if waiters, 0 otherwise */
 UNIV_INLINE
 ulint
 rw_lock_get_waiters(
@@ -116,7 +116,7 @@ rw_lock_reset_waiter_flag(
 /******************************************************************//**
 Returns the write-status of the lock - this function made more sense
 with the old rw_lock implementation.
-@return	RW_LOCK_NOT_LOCKED, RW_LOCK_EX, RW_LOCK_WAIT_EX */
+@return RW_LOCK_NOT_LOCKED, RW_LOCK_EX, RW_LOCK_WAIT_EX */
 UNIV_INLINE
 ulint
 rw_lock_get_writer(
@@ -138,7 +138,7 @@ rw_lock_get_writer(
 
 /******************************************************************//**
 Returns the number of readers.
-@return	number of readers */
+@return number of readers */
 UNIV_INLINE
 ulint
 rw_lock_get_reader_count(
@@ -170,7 +170,7 @@ rw_lock_get_mutex(
 /******************************************************************//**
 Returns the value of writer_count for the lock. Does not reserve the lock
 mutex, so the caller must be sure it is not changed during the call.
-@return	value of writer_count */
+@return value of writer_count */
 UNIV_INLINE
 ulint
 rw_lock_get_x_lock_count(
@@ -190,7 +190,7 @@ one for systems supporting atomic operations, one for others. This does
 does not support recusive x-locks: they should be handled by the caller and
 need not be atomic since they are performed by the current lock holder.
 Returns true if the decrement was made, false if not.
-@return	TRUE if decr occurs */
+@return TRUE if decr occurs */
 UNIV_INLINE
 ibool
 rw_lock_lock_word_decr(
@@ -223,7 +223,7 @@ rw_lock_lock_word_decr(
 
 /******************************************************************//**
 Increments lock_word the specified amount and returns new value.
-@return	lock->lock_word after increment */
+@return lock->lock_word after increment */
 UNIV_INLINE
 lint
 rw_lock_lock_word_incr(
@@ -295,7 +295,7 @@ rw_lock_set_writer_id_and_recursion_flag(
 /******************************************************************//**
 Low-level function which tries to lock an rw-lock in s-mode. Performs no
 spinning.
-@return	TRUE if success */
+@return TRUE if success */
 UNIV_INLINE
 ibool
 rw_lock_s_lock_low(
@@ -371,7 +371,7 @@ rw_lock_s_lock_func(
 NOTE! Use the corresponding macro, not directly this function! Lock an
 rw-lock in exclusive mode for the current thread if the lock can be
 obtained immediately.
-@return	TRUE if success */
+@return TRUE if success */
 UNIV_INLINE
 ibool
 rw_lock_x_lock_func_nowait(
@@ -582,7 +582,7 @@ pfs_rw_lock_x_lock_func(
 
 		/* Record the entry of rw x lock request in performance schema */
 		locker = PSI_RWLOCK_CALL(start_rwlock_wrwait)(
-			&state, lock->pfs_psi, PSI_RWLOCK_WRITELOCK, file_name, line);
+			&state, lock->pfs_psi, PSI_RWLOCK_WRITELOCK, file_name, (uint) line);
 
 		rw_lock_x_lock_func(lock, pass, file_name, line);
 
@@ -599,7 +599,7 @@ Performance schema instrumented wrap function for
 rw_lock_x_lock_func_nowait()
 NOTE! Please use the corresponding macro rw_lock_x_lock_func(),
 not directly this function!
-@return	TRUE if success */
+@return TRUE if success */
 UNIV_INLINE
 ibool
 pfs_rw_lock_x_lock_func_nowait(
@@ -618,12 +618,12 @@ pfs_rw_lock_x_lock_func_nowait(
 
 		/* Record the entry of rw x lock request in performance schema */
 		locker = PSI_RWLOCK_CALL(start_rwlock_wrwait)(
-			&state, lock->pfs_psi, PSI_RWLOCK_WRITELOCK, file_name, line);
+			&state, lock->pfs_psi, PSI_RWLOCK_WRITELOCK, file_name, (uint) line);
 
 		ret = rw_lock_x_lock_func_nowait(lock, file_name, line);
 
 		if (locker != NULL)
-			PSI_RWLOCK_CALL(end_rwlock_wrwait)(locker, ret);
+			PSI_RWLOCK_CALL(end_rwlock_wrwait)(locker, (int) ret);
 	}
 	else
 	{
@@ -673,7 +673,7 @@ pfs_rw_lock_s_lock_func(
 
 		/* Instrumented to inform we are aquiring a shared rwlock */
 		locker = PSI_RWLOCK_CALL(start_rwlock_rdwait)(
-			&state, lock->pfs_psi, PSI_RWLOCK_READLOCK, file_name, line);
+			&state, lock->pfs_psi, PSI_RWLOCK_READLOCK, file_name, (uint) line);
 
 		rw_lock_s_lock_func(lock, pass, file_name, line);
 
@@ -691,7 +691,7 @@ pfs_rw_lock_s_lock_func(
 Performance schema instrumented wrap function for rw_lock_s_lock_func()
 NOTE! Please use the corresponding macro rw_lock_s_lock(), not
 directly this function!
-@return	TRUE if success */
+@return TRUE if success */
 UNIV_INLINE
 ibool
 pfs_rw_lock_s_lock_low(
@@ -712,12 +712,12 @@ pfs_rw_lock_s_lock_low(
 
 		/* Instrumented to inform we are aquiring a shared rwlock */
 		locker = PSI_RWLOCK_CALL(start_rwlock_rdwait)(
-			&state, lock->pfs_psi, PSI_RWLOCK_READLOCK, file_name, line);
+			&state, lock->pfs_psi, PSI_RWLOCK_READLOCK, file_name, (uint) line);
 
 		ret = rw_lock_s_lock_low(lock, pass, file_name, line);
 
 		if (locker != NULL)
-			PSI_RWLOCK_CALL(end_rwlock_rdwait)(locker, ret);
+			PSI_RWLOCK_CALL(end_rwlock_rdwait)(locker, (int) ret);
 	}
 	else
 	{

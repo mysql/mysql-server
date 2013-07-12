@@ -206,6 +206,7 @@ extern uint  slave_net_timeout;
 extern ulong opt_mts_slave_parallel_workers;
 extern ulonglong opt_mts_pending_jobs_size_max;
 extern uint max_user_connections;
+extern ulong rpl_stop_slave_timeout;
 extern my_bool log_bin_use_v1_row_events;
 extern ulong what_to_log,flush_time;
 extern ulong max_prepared_stmt_count, prepared_stmt_count;
@@ -270,7 +271,7 @@ extern const char *load_default_groups[];
 extern struct my_option my_long_options[];
 extern struct my_option my_long_early_options[];
 int handle_early_options();
-void adjust_related_options();
+void adjust_related_options(ulong *requested_open_files);
 extern int mysqld_server_started;
 extern "C" MYSQL_PLUGIN_IMPORT int orig_argc;
 extern "C" MYSQL_PLUGIN_IMPORT char **orig_argv;
@@ -328,6 +329,7 @@ extern PSI_mutex_key key_BINLOG_LOCK_done;
 extern PSI_mutex_key key_BINLOG_LOCK_flush_queue;
 extern PSI_mutex_key key_BINLOG_LOCK_index;
 extern PSI_mutex_key key_BINLOG_LOCK_log;
+extern PSI_mutex_key key_BINLOG_LOCK_binlog_end_pos;
 extern PSI_mutex_key key_BINLOG_LOCK_sync;
 extern PSI_mutex_key key_BINLOG_LOCK_sync_queue;
 extern PSI_mutex_key key_BINLOG_LOCK_xids;
@@ -351,7 +353,7 @@ extern PSI_mutex_key
   key_mutex_slave_parallel_worker,
   key_structure_guard_mutex, key_TABLE_SHARE_LOCK_ha_data,
   key_LOCK_error_messages, key_LOCK_thread_count, key_LOCK_thread_remove,
-  key_LOCK_log_throttle_qni;
+  key_LOCK_log_throttle_qni, key_LOCK_query_plan;
 extern PSI_mutex_key key_RELAYLOG_LOCK_commit;
 extern PSI_mutex_key key_RELAYLOG_LOCK_commit_queue;
 extern PSI_mutex_key key_RELAYLOG_LOCK_done;
@@ -532,6 +534,11 @@ extern PSI_statement_info sql_statement_info[(uint) SQLCOM_END + 1];
   The last entry, at [COM_END], is for packet errors.
 */
 extern PSI_statement_info com_statement_info[(uint) COM_END + 1];
+
+/**
+  Statement instrumentation key for replication.
+*/
+extern PSI_statement_info stmt_info_rpl;
 
 void init_sql_statement_info();
 void init_com_statement_info();

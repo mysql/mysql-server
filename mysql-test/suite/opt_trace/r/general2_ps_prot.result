@@ -334,7 +334,7 @@ TRACE
                     "rows": 2,
                     "cost": 4.5034
                   } /* table_scan */,
-                  "potential_range_indices": [
+                  "potential_range_indexes": [
                     {
                       "index": "a",
                       "usable": true,
@@ -342,7 +342,7 @@ TRACE
                         "a"
                       ] /* key_parts */
                     }
-                  ] /* potential_range_indices */,
+                  ] /* potential_range_indexes */,
                   "best_covering_index_scan": {
                     "index": "a",
                     "cost": 1.4175,
@@ -688,6 +688,15 @@ INSERT INTO t2 VALUES (13,'f');
 INSERT INTO t2 VALUES (20,'f');
 CREATE TABLE t3 (f1 INT, f2 VARCHAR(1));
 INSERT INTO t3 VALUES (7,'f');
+EXPLAIN SELECT t1.f2 FROM t1
+STRAIGHT_JOIN (t2 JOIN t3 ON t3.f2  = t2.f2  ) ON t3 .f2  = t2 .f2
+HAVING ('v', 'i') NOT IN (SELECT f2, MIN(f2) FROM t1)
+ORDER BY f2;
+id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
+1	PRIMARY	t1	ALL	NULL	NULL	NULL	NULL	2	Using temporary; Using filesort
+1	PRIMARY	t3	ALL	NULL	NULL	NULL	NULL	1	Using join buffer (Block Nested Loop)
+1	PRIMARY	t2	ALL	NULL	NULL	NULL	NULL	2	Using where; Using join buffer (Block Nested Loop)
+2	SUBQUERY	t1	ALL	NULL	NULL	NULL	NULL	2	NULL
 SELECT t1.f2 FROM t1
 STRAIGHT_JOIN (t2 JOIN t3 ON t3.f2  = t2.f2  ) ON t3 .f2  = t2 .f2
 HAVING ('v', 'i') NOT IN (SELECT f2, MIN(f2) FROM t1)
@@ -980,6 +989,105 @@ TRACE
       } /* join_optimization */
     },
     {
+      "join_optimization": {
+        "select#": 2,
+        "steps": [
+          {
+            "condition_processing": {
+              "condition": "HAVING",
+              "original_condition": "(((<cache>('v') = `t1`.`f2`) or isnull(`t1`.`f2`)) and ((<cache>('i') = min(`t1`.`f2`)) or isnull(min(`t1`.`f2`))) and <is_not_null_test>(`t1`.`f2`) and <is_not_null_test>(min(`t1`.`f2`)))",
+              "steps": [
+                {
+                  "transformation": "constant_propagation",
+                  "resulting_condition": "(((<cache>('v') = `t1`.`f2`) or isnull(`t1`.`f2`)) and ((<cache>('i') = min(`t1`.`f2`)) or isnull(min(`t1`.`f2`))) and <is_not_null_test>(`t1`.`f2`) and <is_not_null_test>(min(`t1`.`f2`)))"
+                },
+                {
+                  "transformation": "trivial_condition_removal",
+                  "resulting_condition": "(((<cache>('v') = `t1`.`f2`) or isnull(`t1`.`f2`)) and ((<cache>('i') = min(`t1`.`f2`)) or isnull(min(`t1`.`f2`))) and <is_not_null_test>(`t1`.`f2`) and <is_not_null_test>(min(`t1`.`f2`)))"
+                }
+              ] /* steps */
+            } /* condition_processing */
+          },
+          {
+            "table_dependencies": [
+              {
+                "table": "`t1`",
+                "row_may_be_null": false,
+                "map_bit": 0,
+                "depends_on_map_bits": [
+                ] /* depends_on_map_bits */
+              }
+            ] /* table_dependencies */
+          },
+          {
+            "rows_estimation": [
+              {
+                "table": "`t1`",
+                "table_scan": {
+                  "rows": 2,
+                  "cost": 2
+                } /* table_scan */
+              }
+            ] /* rows_estimation */
+          },
+          {
+            "considered_execution_plans": [
+              {
+                "plan_prefix": [
+                ] /* plan_prefix */,
+                "table": "`t1`",
+                "best_access_path": {
+                  "considered_access_paths": [
+                    {
+                      "access_type": "scan",
+                      "rows": 2,
+                      "cost": 2.4098,
+                      "chosen": true
+                    }
+                  ] /* considered_access_paths */
+                } /* best_access_path */,
+                "cost_for_plan": 2.4098,
+                "rows_for_plan": 2,
+                "chosen": true
+              }
+            ] /* considered_execution_plans */
+          },
+          {
+            "transformation": {
+              "select#": 2,
+              "from": "IN (SELECT)",
+              "to": "materialization",
+              "has_nullable_expressions": true,
+              "treat_UNKNOWN_as_FALSE": false,
+              "possible": false,
+              "cause": "cannot_handle_partial_matches"
+            } /* transformation */
+          },
+          {
+            "attaching_conditions_to_tables": {
+              "original_condition": null,
+              "attached_conditions_computation": [
+              ] /* attached_conditions_computation */,
+              "attached_conditions_summary": [
+                {
+                  "table": "`t1`",
+                  "attached": null
+                }
+              ] /* attached_conditions_summary */
+            } /* attaching_conditions_to_tables */
+          },
+          {
+            "refine_plan": [
+              {
+                "table": "`t1`",
+                "access_type": "table_scan"
+              }
+            ] /* refine_plan */
+          }
+        ] /* steps */
+      } /* join_optimization */
+    },
+    {
       "join_execution": {
         "select#": 1,
         "steps": [
@@ -1013,105 +1121,6 @@ TRACE
                   "select#": 2,
                   "steps": [
                     {
-                      "join_optimization": {
-                        "select#": 2,
-                        "steps": [
-                          {
-                            "condition_processing": {
-                              "condition": "HAVING",
-                              "original_condition": "(((<cache>(<cache>('v')) = `t1`.`f2`) or isnull(`t1`.`f2`)) and ((<cache>(<cache>('i')) = min(`t1`.`f2`)) or isnull(min(`t1`.`f2`))) and <is_not_null_test>(`t1`.`f2`) and <is_not_null_test>(min(`t1`.`f2`)))",
-                              "steps": [
-                                {
-                                  "transformation": "constant_propagation",
-                                  "resulting_condition": "(((<cache>(<cache>('v')) = `t1`.`f2`) or isnull(`t1`.`f2`)) and ((<cache>(<cache>('i')) = min(`t1`.`f2`)) or isnull(min(`t1`.`f2`))) and <is_not_null_test>(`t1`.`f2`) and <is_not_null_test>(min(`t1`.`f2`)))"
-                                },
-                                {
-                                  "transformation": "trivial_condition_removal",
-                                  "resulting_condition": "(((<cache>(<cache>('v')) = `t1`.`f2`) or isnull(`t1`.`f2`)) and ((<cache>(<cache>('i')) = min(`t1`.`f2`)) or isnull(min(`t1`.`f2`))) and <is_not_null_test>(`t1`.`f2`) and <is_not_null_test>(min(`t1`.`f2`)))"
-                                }
-                              ] /* steps */
-                            } /* condition_processing */
-                          },
-                          {
-                            "table_dependencies": [
-                              {
-                                "table": "`t1`",
-                                "row_may_be_null": false,
-                                "map_bit": 0,
-                                "depends_on_map_bits": [
-                                ] /* depends_on_map_bits */
-                              }
-                            ] /* table_dependencies */
-                          },
-                          {
-                            "rows_estimation": [
-                              {
-                                "table": "`t1`",
-                                "table_scan": {
-                                  "rows": 2,
-                                  "cost": 2
-                                } /* table_scan */
-                              }
-                            ] /* rows_estimation */
-                          },
-                          {
-                            "considered_execution_plans": [
-                              {
-                                "plan_prefix": [
-                                ] /* plan_prefix */,
-                                "table": "`t1`",
-                                "best_access_path": {
-                                  "considered_access_paths": [
-                                    {
-                                      "access_type": "scan",
-                                      "rows": 2,
-                                      "cost": 2.4098,
-                                      "chosen": true
-                                    }
-                                  ] /* considered_access_paths */
-                                } /* best_access_path */,
-                                "cost_for_plan": 2.4098,
-                                "rows_for_plan": 2,
-                                "chosen": true
-                              }
-                            ] /* considered_execution_plans */
-                          },
-                          {
-                            "transformation": {
-                              "select#": 2,
-                              "from": "IN (SELECT)",
-                              "to": "materialization",
-                              "has_nullable_expressions": true,
-                              "treat_UNKNOWN_as_FALSE": false,
-                              "possible": false,
-                              "cause": "cannot_handle_partial_matches"
-                            } /* transformation */
-                          },
-                          {
-                            "attaching_conditions_to_tables": {
-                              "original_condition": null,
-                              "attached_conditions_computation": [
-                              ] /* attached_conditions_computation */,
-                              "attached_conditions_summary": [
-                                {
-                                  "table": "`t1`",
-                                  "attached": null
-                                }
-                              ] /* attached_conditions_summary */
-                            } /* attaching_conditions_to_tables */
-                          },
-                          {
-                            "refine_plan": [
-                              {
-                                "table": "`t1`",
-                                "access_type": "table_scan"
-                              }
-                            ] /* refine_plan */
-                          }
-                        ] /* steps */
-                      } /* join_optimization */
-                    },
-                    {
                       "join_execution": {
                         "select#": 2,
                         "steps": [
@@ -1125,13 +1134,6 @@ TRACE
                 "subselect_execution": {
                   "select#": 2,
                   "steps": [
-                    {
-                      "join_execution": {
-                        "select#": 2,
-                        "steps": [
-                        ] /* steps */
-                      } /* join_execution */
-                    }
                   ] /* steps */
                 } /* subselect_execution */
               },
@@ -1139,13 +1141,6 @@ TRACE
                 "subselect_execution": {
                   "select#": 2,
                   "steps": [
-                    {
-                      "join_execution": {
-                        "select#": 2,
-                        "steps": [
-                        ] /* steps */
-                      } /* join_execution */
-                    }
                   ] /* steps */
                 } /* subselect_execution */
               },
@@ -1153,13 +1148,6 @@ TRACE
                 "subselect_execution": {
                   "select#": 2,
                   "steps": [
-                    {
-                      "join_execution": {
-                        "select#": 2,
-                        "steps": [
-                        ] /* steps */
-                      } /* join_execution */
-                    }
                   ] /* steps */
                 } /* subselect_execution */
               }
@@ -2528,7 +2516,7 @@ table3.col_varchar_10_utf8_key	{
                         "rows": 1,
                         "cost": 4.3049
                       } /* table_scan */,
-                      "potential_range_indices": [
+                      "potential_range_indexes": [
                         {
                           "index": "col_varchar_10_utf8_key",
                           "usable": true,
@@ -2541,7 +2529,7 @@ table3.col_varchar_10_utf8_key	{
                           "usable": false,
                           "cause": "not_applicable"
                         }
-                      ] /* potential_range_indices */,
+                      ] /* potential_range_indexes */,
                       "best_covering_index_scan": {
                         "index": "col_varchar_10_utf8_key",
                         "cost": 1.2,
@@ -2562,7 +2550,7 @@ table3.col_varchar_10_utf8_key	{
                           "rows": 1,
                           "cost": 4.3049
                         } /* table_scan */,
-                        "potential_range_indices": [
+                        "potential_range_indexes": [
                           {
                             "index": "col_varchar_10_utf8_key",
                             "usable": true,
@@ -2575,7 +2563,7 @@ table3.col_varchar_10_utf8_key	{
                             "usable": false,
                             "cause": "not_applicable"
                           }
-                        ] /* potential_range_indices */,
+                        ] /* potential_range_indexes */,
                         "best_covering_index_scan": {
                           "index": "col_varchar_10_utf8_key",
                           "cost": 1.2,
@@ -2794,571 +2782,571 @@ from t0 where a in
       } /* join_optimization */
     },
     {
+      "join_optimization": {
+        "select#": 2,
+        "steps": [
+          {
+            "transformations_to_nested_joins": {
+              "transformations": [
+                "outer_join_to_inner_join",
+                "JOIN_condition_to_WHERE",
+                "parenthesis_removal"
+              ] /* transformations */,
+              "expanded_query": "/* select#2 */ select (`t2`.`a` + `t3`.`a`) from `t1` join `t2` join `t3` where ((<cache>(`t0`.`a`) = (`t2`.`a` + `t3`.`a`)) and (`t2`.`a` = `t1`.`a`) and (`t3`.`a` = `t1`.`a`))"
+            } /* transformations_to_nested_joins */
+          },
+          {
+            "condition_processing": {
+              "condition": "WHERE",
+              "original_condition": "((<cache>(`t0`.`a`) = (`t2`.`a` + `t3`.`a`)) and (`t2`.`a` = `t1`.`a`) and (`t3`.`a` = `t1`.`a`))",
+              "steps": [
+                {
+                  "transformation": "equality_propagation",
+                  "resulting_condition": "((<cache>(`t0`.`a`) = (`t2`.`a` + `t3`.`a`)) and multiple equal(`t2`.`a`, `t1`.`a`, `t3`.`a`))"
+                },
+                {
+                  "transformation": "constant_propagation",
+                  "resulting_condition": "((<cache>(`t0`.`a`) = (`t2`.`a` + `t3`.`a`)) and multiple equal(`t2`.`a`, `t1`.`a`, `t3`.`a`))"
+                },
+                {
+                  "transformation": "trivial_condition_removal",
+                  "resulting_condition": "((<cache>(`t0`.`a`) = (`t2`.`a` + `t3`.`a`)) and multiple equal(`t2`.`a`, `t1`.`a`, `t3`.`a`))"
+                }
+              ] /* steps */
+            } /* condition_processing */
+          },
+          {
+            "table_dependencies": [
+              {
+                "table": "`t1`",
+                "row_may_be_null": false,
+                "map_bit": 0,
+                "depends_on_map_bits": [
+                ] /* depends_on_map_bits */
+              },
+              {
+                "table": "`t2`",
+                "row_may_be_null": true,
+                "map_bit": 1,
+                "depends_on_map_bits": [
+                ] /* depends_on_map_bits */
+              },
+              {
+                "table": "`t3`",
+                "row_may_be_null": true,
+                "map_bit": 2,
+                "depends_on_map_bits": [
+                ] /* depends_on_map_bits */
+              }
+            ] /* table_dependencies */
+          },
+          {
+            "ref_optimizer_key_uses": [
+              {
+                "table": "`t1`",
+                "field": "a",
+                "equals": "`t2`.`a`",
+                "null_rejecting": true
+              },
+              {
+                "table": "`t1`",
+                "field": "a",
+                "equals": "`t3`.`a`",
+                "null_rejecting": true
+              },
+              {
+                "table": "`t2`",
+                "field": "a",
+                "equals": "`t1`.`a`",
+                "null_rejecting": true
+              },
+              {
+                "table": "`t2`",
+                "field": "a",
+                "equals": "`t3`.`a`",
+                "null_rejecting": true
+              },
+              {
+                "table": "`t3`",
+                "field": "a",
+                "equals": "`t2`.`a`",
+                "null_rejecting": true
+              },
+              {
+                "table": "`t3`",
+                "field": "a",
+                "equals": "`t1`.`a`",
+                "null_rejecting": true
+              }
+            ] /* ref_optimizer_key_uses */
+          },
+          {
+            "rows_estimation": [
+              {
+                "table": "`t1`",
+                "table_scan": {
+                  "rows": 10,
+                  "cost": 2
+                } /* table_scan */
+              },
+              {
+                "table": "`t2`",
+                "table_scan": {
+                  "rows": 10,
+                  "cost": 2
+                } /* table_scan */
+              },
+              {
+                "table": "`t3`",
+                "table_scan": {
+                  "rows": 10,
+                  "cost": 2
+                } /* table_scan */
+              }
+            ] /* rows_estimation */
+          },
+          {
+            "considered_execution_plans": [
+              {
+                "plan_prefix": [
+                ] /* plan_prefix */,
+                "table": "`t1`",
+                "best_access_path": {
+                  "considered_access_paths": [
+                    {
+                      "access_type": "ref",
+                      "index": "a",
+                      "usable": false,
+                      "chosen": false
+                    },
+                    {
+                      "access_type": "scan",
+                      "rows": 10,
+                      "cost": 4.022,
+                      "chosen": true
+                    }
+                  ] /* considered_access_paths */
+                } /* best_access_path */,
+                "cost_for_plan": 4.022,
+                "rows_for_plan": 10,
+                "rest_of_plan": [
+                  {
+                    "plan_prefix": [
+                      "`t1`"
+                    ] /* plan_prefix */,
+                    "table": "`t2`",
+                    "best_access_path": {
+                      "considered_access_paths": [
+                        {
+                          "access_type": "ref",
+                          "index": "a",
+                          "rows": 1,
+                          "cost": 10.2,
+                          "chosen": true
+                        },
+                        {
+                          "access_type": "scan",
+                          "using_join_cache": true,
+                          "rows": 8,
+                          "cost": 18.422,
+                          "chosen": false
+                        }
+                      ] /* considered_access_paths */
+                    } /* best_access_path */,
+                    "cost_for_plan": 16.022,
+                    "rows_for_plan": 10,
+                    "rest_of_plan": [
+                      {
+                        "plan_prefix": [
+                          "`t1`",
+                          "`t2`"
+                        ] /* plan_prefix */,
+                        "table": "`t3`",
+                        "best_access_path": {
+                          "considered_access_paths": [
+                            {
+                              "access_type": "ref",
+                              "index": "a",
+                              "rows": 1,
+                              "cost": 10.2,
+                              "chosen": true
+                            },
+                            {
+                              "access_type": "scan",
+                              "using_join_cache": true,
+                              "rows": 8,
+                              "cost": 18.423,
+                              "chosen": false
+                            }
+                          ] /* considered_access_paths */
+                        } /* best_access_path */,
+                        "added_to_eq_ref_extension": true,
+                        "cost_for_plan": 28.022,
+                        "rows_for_plan": 10,
+                        "chosen": true
+                      }
+                    ] /* rest_of_plan */
+                  }
+                ] /* rest_of_plan */
+              },
+              {
+                "plan_prefix": [
+                ] /* plan_prefix */,
+                "table": "`t2`",
+                "best_access_path": {
+                  "considered_access_paths": [
+                    {
+                      "access_type": "ref",
+                      "index": "a",
+                      "usable": false,
+                      "chosen": false
+                    },
+                    {
+                      "access_type": "scan",
+                      "rows": 10,
+                      "cost": 4.022,
+                      "chosen": true
+                    }
+                  ] /* considered_access_paths */
+                } /* best_access_path */,
+                "cost_for_plan": 4.022,
+                "rows_for_plan": 10,
+                "rest_of_plan": [
+                  {
+                    "plan_prefix": [
+                      "`t2`"
+                    ] /* plan_prefix */,
+                    "table": "`t1`",
+                    "best_access_path": {
+                      "considered_access_paths": [
+                        {
+                          "access_type": "ref",
+                          "index": "a",
+                          "rows": 1,
+                          "cost": 10.2,
+                          "chosen": true
+                        },
+                        {
+                          "access_type": "scan",
+                          "using_join_cache": true,
+                          "rows": 8,
+                          "cost": 18.422,
+                          "chosen": false
+                        }
+                      ] /* considered_access_paths */
+                    } /* best_access_path */,
+                    "cost_for_plan": 16.022,
+                    "rows_for_plan": 10,
+                    "rest_of_plan": [
+                      {
+                        "plan_prefix": [
+                          "`t2`",
+                          "`t1`"
+                        ] /* plan_prefix */,
+                        "table": "`t3`",
+                        "best_access_path": {
+                          "considered_access_paths": [
+                            {
+                              "access_type": "ref",
+                              "index": "a",
+                              "rows": 1,
+                              "cost": 10.2,
+                              "chosen": true
+                            },
+                            {
+                              "access_type": "scan",
+                              "using_join_cache": true,
+                              "rows": 8,
+                              "cost": 18.423,
+                              "chosen": false
+                            }
+                          ] /* considered_access_paths */
+                        } /* best_access_path */,
+                        "added_to_eq_ref_extension": true,
+                        "cost_for_plan": 28.022,
+                        "rows_for_plan": 10,
+                        "pruned_by_cost": true
+                      },
+                      {
+                        "plan_prefix": [
+                          "`t2`",
+                          "`t1`"
+                        ] /* plan_prefix */,
+                        "table": "`t3`",
+                        "best_access_path": {
+                          "considered_access_paths": [
+                            {
+                              "access_type": "ref",
+                              "index": "a",
+                              "rows": 1,
+                              "cost": 10.2,
+                              "chosen": true
+                            },
+                            {
+                              "access_type": "scan",
+                              "using_join_cache": true,
+                              "rows": 8,
+                              "cost": 18.423,
+                              "chosen": false
+                            }
+                          ] /* considered_access_paths */
+                        } /* best_access_path */,
+                        "cost_for_plan": 28.022,
+                        "rows_for_plan": 10,
+                        "pruned_by_cost": true
+                      }
+                    ] /* rest_of_plan */
+                  },
+                  {
+                    "plan_prefix": [
+                      "`t2`"
+                    ] /* plan_prefix */,
+                    "table": "`t3`",
+                    "best_access_path": {
+                      "considered_access_paths": [
+                        {
+                          "access_type": "ref",
+                          "index": "a",
+                          "rows": 1,
+                          "cost": 10.2,
+                          "chosen": true
+                        },
+                        {
+                          "access_type": "scan",
+                          "using_join_cache": true,
+                          "rows": 8,
+                          "cost": 18.422,
+                          "chosen": false
+                        }
+                      ] /* considered_access_paths */
+                    } /* best_access_path */,
+                    "cost_for_plan": 16.022,
+                    "rows_for_plan": 10,
+                    "pruned_by_heuristic": true
+                  }
+                ] /* rest_of_plan */
+              },
+              {
+                "plan_prefix": [
+                ] /* plan_prefix */,
+                "table": "`t3`",
+                "best_access_path": {
+                  "considered_access_paths": [
+                    {
+                      "access_type": "ref",
+                      "index": "a",
+                      "usable": false,
+                      "chosen": false
+                    },
+                    {
+                      "access_type": "scan",
+                      "rows": 10,
+                      "cost": 4.022,
+                      "chosen": true
+                    }
+                  ] /* considered_access_paths */
+                } /* best_access_path */,
+                "cost_for_plan": 4.022,
+                "rows_for_plan": 10,
+                "rest_of_plan": [
+                  {
+                    "plan_prefix": [
+                      "`t3`"
+                    ] /* plan_prefix */,
+                    "table": "`t1`",
+                    "best_access_path": {
+                      "considered_access_paths": [
+                        {
+                          "access_type": "ref",
+                          "index": "a",
+                          "rows": 1,
+                          "cost": 10.2,
+                          "chosen": true
+                        },
+                        {
+                          "access_type": "scan",
+                          "using_join_cache": true,
+                          "rows": 8,
+                          "cost": 18.422,
+                          "chosen": false
+                        }
+                      ] /* considered_access_paths */
+                    } /* best_access_path */,
+                    "cost_for_plan": 16.022,
+                    "rows_for_plan": 10,
+                    "rest_of_plan": [
+                      {
+                        "plan_prefix": [
+                          "`t3`",
+                          "`t1`"
+                        ] /* plan_prefix */,
+                        "table": "`t2`",
+                        "best_access_path": {
+                          "considered_access_paths": [
+                            {
+                              "access_type": "ref",
+                              "index": "a",
+                              "rows": 1,
+                              "cost": 10.2,
+                              "chosen": true
+                            },
+                            {
+                              "access_type": "scan",
+                              "using_join_cache": true,
+                              "rows": 8,
+                              "cost": 18.423,
+                              "chosen": false
+                            }
+                          ] /* considered_access_paths */
+                        } /* best_access_path */,
+                        "added_to_eq_ref_extension": true,
+                        "cost_for_plan": 28.022,
+                        "rows_for_plan": 10,
+                        "pruned_by_cost": true
+                      },
+                      {
+                        "plan_prefix": [
+                          "`t3`",
+                          "`t1`"
+                        ] /* plan_prefix */,
+                        "table": "`t2`",
+                        "best_access_path": {
+                          "considered_access_paths": [
+                            {
+                              "access_type": "ref",
+                              "index": "a",
+                              "rows": 1,
+                              "cost": 10.2,
+                              "chosen": true
+                            },
+                            {
+                              "access_type": "scan",
+                              "using_join_cache": true,
+                              "rows": 8,
+                              "cost": 18.423,
+                              "chosen": false
+                            }
+                          ] /* considered_access_paths */
+                        } /* best_access_path */,
+                        "cost_for_plan": 28.022,
+                        "rows_for_plan": 10,
+                        "pruned_by_cost": true
+                      }
+                    ] /* rest_of_plan */
+                  },
+                  {
+                    "plan_prefix": [
+                      "`t3`"
+                    ] /* plan_prefix */,
+                    "table": "`t2`",
+                    "best_access_path": {
+                      "considered_access_paths": [
+                        {
+                          "access_type": "ref",
+                          "index": "a",
+                          "rows": 1,
+                          "cost": 10.2,
+                          "chosen": true
+                        },
+                        {
+                          "access_type": "scan",
+                          "using_join_cache": true,
+                          "rows": 8,
+                          "cost": 18.422,
+                          "chosen": false
+                        }
+                      ] /* considered_access_paths */
+                    } /* best_access_path */,
+                    "cost_for_plan": 16.022,
+                    "rows_for_plan": 10,
+                    "pruned_by_heuristic": true
+                  }
+                ] /* rest_of_plan */
+              }
+            ] /* considered_execution_plans */
+          },
+          {
+            "transformation": {
+              "select#": 2,
+              "from": "IN (SELECT)",
+              "to": "EXISTS (CORRELATED SELECT)",
+              "put_1_in_SELECT_list": true
+            } /* transformation */
+          },
+          {
+            "attaching_conditions_to_tables": {
+              "original_condition": "((`t2`.`a` = `t1`.`a`) and (`t3`.`a` = `t1`.`a`) and (<cache>(`t0`.`a`) = (`t1`.`a` + `t1`.`a`)))",
+              "attached_conditions_computation": [
+                {
+                  "table": "`t1`",
+                  "rechecking_index_usage": {
+                    "recheck_reason": "not_first_table",
+                    "range_analysis": {
+                      "table_scan": {
+                        "rows": 10,
+                        "cost": 14
+                      } /* table_scan */,
+                      "potential_range_indexes": [
+                        {
+                          "index": "a",
+                          "usable": true,
+                          "key_parts": [
+                            "a"
+                          ] /* key_parts */
+                        }
+                      ] /* potential_range_indexes */,
+                      "best_covering_index_scan": {
+                        "index": "a",
+                        "cost": 3.2093,
+                        "chosen": true
+                      } /* best_covering_index_scan */,
+                      "setup_range_conditions": [
+                      ] /* setup_range_conditions */,
+                      "group_index_range": {
+                        "chosen": false,
+                        "cause": "not_single_table"
+                      } /* group_index_range */
+                    } /* range_analysis */
+                  } /* rechecking_index_usage */
+                }
+              ] /* attached_conditions_computation */,
+              "attached_conditions_summary": [
+                {
+                  "table": "`t1`",
+                  "attached": "(<cache>(`t0`.`a`) = (`t1`.`a` + `t1`.`a`))"
+                },
+                {
+                  "table": "`t2`",
+                  "attached": null
+                },
+                {
+                  "table": "`t3`",
+                  "attached": null
+                }
+              ] /* attached_conditions_summary */
+            } /* attaching_conditions_to_tables */
+          },
+          {
+            "refine_plan": [
+              {
+                "table": "`t1`",
+                "access_type": "index_scan"
+              },
+              {
+                "table": "`t2`"
+              },
+              {
+                "table": "`t3`"
+              }
+            ] /* refine_plan */
+          }
+        ] /* steps */
+      } /* join_optimization */
+    },
+    {
       "join_explain": {
         "select#": 1,
         "steps": [
-          {
-            "join_optimization": {
-              "select#": 2,
-              "steps": [
-                {
-                  "transformations_to_nested_joins": {
-                    "transformations": [
-                      "outer_join_to_inner_join",
-                      "JOIN_condition_to_WHERE",
-                      "parenthesis_removal"
-                    ] /* transformations */,
-                    "expanded_query": "/* select#2 */ select (`t2`.`a` + `t3`.`a`) from `t1` join `t2` join `t3` where ((<cache>(`t0`.`a`) = (`t2`.`a` + `t3`.`a`)) and (`t2`.`a` = `t1`.`a`) and (`t3`.`a` = `t1`.`a`))"
-                  } /* transformations_to_nested_joins */
-                },
-                {
-                  "condition_processing": {
-                    "condition": "WHERE",
-                    "original_condition": "((<cache>(`t0`.`a`) = (`t2`.`a` + `t3`.`a`)) and (`t2`.`a` = `t1`.`a`) and (`t3`.`a` = `t1`.`a`))",
-                    "steps": [
-                      {
-                        "transformation": "equality_propagation",
-                        "resulting_condition": "((<cache>(`t0`.`a`) = (`t2`.`a` + `t3`.`a`)) and multiple equal(`t2`.`a`, `t1`.`a`, `t3`.`a`))"
-                      },
-                      {
-                        "transformation": "constant_propagation",
-                        "resulting_condition": "((<cache>(`t0`.`a`) = (`t2`.`a` + `t3`.`a`)) and multiple equal(`t2`.`a`, `t1`.`a`, `t3`.`a`))"
-                      },
-                      {
-                        "transformation": "trivial_condition_removal",
-                        "resulting_condition": "((<cache>(`t0`.`a`) = (`t2`.`a` + `t3`.`a`)) and multiple equal(`t2`.`a`, `t1`.`a`, `t3`.`a`))"
-                      }
-                    ] /* steps */
-                  } /* condition_processing */
-                },
-                {
-                  "table_dependencies": [
-                    {
-                      "table": "`t1`",
-                      "row_may_be_null": false,
-                      "map_bit": 0,
-                      "depends_on_map_bits": [
-                      ] /* depends_on_map_bits */
-                    },
-                    {
-                      "table": "`t2`",
-                      "row_may_be_null": true,
-                      "map_bit": 1,
-                      "depends_on_map_bits": [
-                      ] /* depends_on_map_bits */
-                    },
-                    {
-                      "table": "`t3`",
-                      "row_may_be_null": true,
-                      "map_bit": 2,
-                      "depends_on_map_bits": [
-                      ] /* depends_on_map_bits */
-                    }
-                  ] /* table_dependencies */
-                },
-                {
-                  "ref_optimizer_key_uses": [
-                    {
-                      "table": "`t1`",
-                      "field": "a",
-                      "equals": "`t2`.`a`",
-                      "null_rejecting": true
-                    },
-                    {
-                      "table": "`t1`",
-                      "field": "a",
-                      "equals": "`t3`.`a`",
-                      "null_rejecting": true
-                    },
-                    {
-                      "table": "`t2`",
-                      "field": "a",
-                      "equals": "`t1`.`a`",
-                      "null_rejecting": true
-                    },
-                    {
-                      "table": "`t2`",
-                      "field": "a",
-                      "equals": "`t3`.`a`",
-                      "null_rejecting": true
-                    },
-                    {
-                      "table": "`t3`",
-                      "field": "a",
-                      "equals": "`t2`.`a`",
-                      "null_rejecting": true
-                    },
-                    {
-                      "table": "`t3`",
-                      "field": "a",
-                      "equals": "`t1`.`a`",
-                      "null_rejecting": true
-                    }
-                  ] /* ref_optimizer_key_uses */
-                },
-                {
-                  "rows_estimation": [
-                    {
-                      "table": "`t1`",
-                      "table_scan": {
-                        "rows": 10,
-                        "cost": 2
-                      } /* table_scan */
-                    },
-                    {
-                      "table": "`t2`",
-                      "table_scan": {
-                        "rows": 10,
-                        "cost": 2
-                      } /* table_scan */
-                    },
-                    {
-                      "table": "`t3`",
-                      "table_scan": {
-                        "rows": 10,
-                        "cost": 2
-                      } /* table_scan */
-                    }
-                  ] /* rows_estimation */
-                },
-                {
-                  "considered_execution_plans": [
-                    {
-                      "plan_prefix": [
-                      ] /* plan_prefix */,
-                      "table": "`t1`",
-                      "best_access_path": {
-                        "considered_access_paths": [
-                          {
-                            "access_type": "ref",
-                            "index": "a",
-                            "usable": false,
-                            "chosen": false
-                          },
-                          {
-                            "access_type": "scan",
-                            "rows": 10,
-                            "cost": 4.022,
-                            "chosen": true
-                          }
-                        ] /* considered_access_paths */
-                      } /* best_access_path */,
-                      "cost_for_plan": 4.022,
-                      "rows_for_plan": 10,
-                      "rest_of_plan": [
-                        {
-                          "plan_prefix": [
-                            "`t1`"
-                          ] /* plan_prefix */,
-                          "table": "`t2`",
-                          "best_access_path": {
-                            "considered_access_paths": [
-                              {
-                                "access_type": "ref",
-                                "index": "a",
-                                "rows": 1,
-                                "cost": 10.2,
-                                "chosen": true
-                              },
-                              {
-                                "access_type": "scan",
-                                "using_join_cache": true,
-                                "rows": 8,
-                                "cost": 18.422,
-                                "chosen": false
-                              }
-                            ] /* considered_access_paths */
-                          } /* best_access_path */,
-                          "cost_for_plan": 16.022,
-                          "rows_for_plan": 10,
-                          "rest_of_plan": [
-                            {
-                              "plan_prefix": [
-                                "`t1`",
-                                "`t2`"
-                              ] /* plan_prefix */,
-                              "table": "`t3`",
-                              "best_access_path": {
-                                "considered_access_paths": [
-                                  {
-                                    "access_type": "ref",
-                                    "index": "a",
-                                    "rows": 1,
-                                    "cost": 10.2,
-                                    "chosen": true
-                                  },
-                                  {
-                                    "access_type": "scan",
-                                    "using_join_cache": true,
-                                    "rows": 8,
-                                    "cost": 18.423,
-                                    "chosen": false
-                                  }
-                                ] /* considered_access_paths */
-                              } /* best_access_path */,
-                              "added_to_eq_ref_extension": true,
-                              "cost_for_plan": 28.022,
-                              "rows_for_plan": 10,
-                              "chosen": true
-                            }
-                          ] /* rest_of_plan */
-                        }
-                      ] /* rest_of_plan */
-                    },
-                    {
-                      "plan_prefix": [
-                      ] /* plan_prefix */,
-                      "table": "`t2`",
-                      "best_access_path": {
-                        "considered_access_paths": [
-                          {
-                            "access_type": "ref",
-                            "index": "a",
-                            "usable": false,
-                            "chosen": false
-                          },
-                          {
-                            "access_type": "scan",
-                            "rows": 10,
-                            "cost": 4.022,
-                            "chosen": true
-                          }
-                        ] /* considered_access_paths */
-                      } /* best_access_path */,
-                      "cost_for_plan": 4.022,
-                      "rows_for_plan": 10,
-                      "rest_of_plan": [
-                        {
-                          "plan_prefix": [
-                            "`t2`"
-                          ] /* plan_prefix */,
-                          "table": "`t1`",
-                          "best_access_path": {
-                            "considered_access_paths": [
-                              {
-                                "access_type": "ref",
-                                "index": "a",
-                                "rows": 1,
-                                "cost": 10.2,
-                                "chosen": true
-                              },
-                              {
-                                "access_type": "scan",
-                                "using_join_cache": true,
-                                "rows": 8,
-                                "cost": 18.422,
-                                "chosen": false
-                              }
-                            ] /* considered_access_paths */
-                          } /* best_access_path */,
-                          "cost_for_plan": 16.022,
-                          "rows_for_plan": 10,
-                          "rest_of_plan": [
-                            {
-                              "plan_prefix": [
-                                "`t2`",
-                                "`t1`"
-                              ] /* plan_prefix */,
-                              "table": "`t3`",
-                              "best_access_path": {
-                                "considered_access_paths": [
-                                  {
-                                    "access_type": "ref",
-                                    "index": "a",
-                                    "rows": 1,
-                                    "cost": 10.2,
-                                    "chosen": true
-                                  },
-                                  {
-                                    "access_type": "scan",
-                                    "using_join_cache": true,
-                                    "rows": 8,
-                                    "cost": 18.423,
-                                    "chosen": false
-                                  }
-                                ] /* considered_access_paths */
-                              } /* best_access_path */,
-                              "added_to_eq_ref_extension": true,
-                              "cost_for_plan": 28.022,
-                              "rows_for_plan": 10,
-                              "pruned_by_cost": true
-                            },
-                            {
-                              "plan_prefix": [
-                                "`t2`",
-                                "`t1`"
-                              ] /* plan_prefix */,
-                              "table": "`t3`",
-                              "best_access_path": {
-                                "considered_access_paths": [
-                                  {
-                                    "access_type": "ref",
-                                    "index": "a",
-                                    "rows": 1,
-                                    "cost": 10.2,
-                                    "chosen": true
-                                  },
-                                  {
-                                    "access_type": "scan",
-                                    "using_join_cache": true,
-                                    "rows": 8,
-                                    "cost": 18.423,
-                                    "chosen": false
-                                  }
-                                ] /* considered_access_paths */
-                              } /* best_access_path */,
-                              "cost_for_plan": 28.022,
-                              "rows_for_plan": 10,
-                              "pruned_by_cost": true
-                            }
-                          ] /* rest_of_plan */
-                        },
-                        {
-                          "plan_prefix": [
-                            "`t2`"
-                          ] /* plan_prefix */,
-                          "table": "`t3`",
-                          "best_access_path": {
-                            "considered_access_paths": [
-                              {
-                                "access_type": "ref",
-                                "index": "a",
-                                "rows": 1,
-                                "cost": 10.2,
-                                "chosen": true
-                              },
-                              {
-                                "access_type": "scan",
-                                "using_join_cache": true,
-                                "rows": 8,
-                                "cost": 18.422,
-                                "chosen": false
-                              }
-                            ] /* considered_access_paths */
-                          } /* best_access_path */,
-                          "cost_for_plan": 16.022,
-                          "rows_for_plan": 10,
-                          "pruned_by_heuristic": true
-                        }
-                      ] /* rest_of_plan */
-                    },
-                    {
-                      "plan_prefix": [
-                      ] /* plan_prefix */,
-                      "table": "`t3`",
-                      "best_access_path": {
-                        "considered_access_paths": [
-                          {
-                            "access_type": "ref",
-                            "index": "a",
-                            "usable": false,
-                            "chosen": false
-                          },
-                          {
-                            "access_type": "scan",
-                            "rows": 10,
-                            "cost": 4.022,
-                            "chosen": true
-                          }
-                        ] /* considered_access_paths */
-                      } /* best_access_path */,
-                      "cost_for_plan": 4.022,
-                      "rows_for_plan": 10,
-                      "rest_of_plan": [
-                        {
-                          "plan_prefix": [
-                            "`t3`"
-                          ] /* plan_prefix */,
-                          "table": "`t1`",
-                          "best_access_path": {
-                            "considered_access_paths": [
-                              {
-                                "access_type": "ref",
-                                "index": "a",
-                                "rows": 1,
-                                "cost": 10.2,
-                                "chosen": true
-                              },
-                              {
-                                "access_type": "scan",
-                                "using_join_cache": true,
-                                "rows": 8,
-                                "cost": 18.422,
-                                "chosen": false
-                              }
-                            ] /* considered_access_paths */
-                          } /* best_access_path */,
-                          "cost_for_plan": 16.022,
-                          "rows_for_plan": 10,
-                          "rest_of_plan": [
-                            {
-                              "plan_prefix": [
-                                "`t3`",
-                                "`t1`"
-                              ] /* plan_prefix */,
-                              "table": "`t2`",
-                              "best_access_path": {
-                                "considered_access_paths": [
-                                  {
-                                    "access_type": "ref",
-                                    "index": "a",
-                                    "rows": 1,
-                                    "cost": 10.2,
-                                    "chosen": true
-                                  },
-                                  {
-                                    "access_type": "scan",
-                                    "using_join_cache": true,
-                                    "rows": 8,
-                                    "cost": 18.423,
-                                    "chosen": false
-                                  }
-                                ] /* considered_access_paths */
-                              } /* best_access_path */,
-                              "added_to_eq_ref_extension": true,
-                              "cost_for_plan": 28.022,
-                              "rows_for_plan": 10,
-                              "pruned_by_cost": true
-                            },
-                            {
-                              "plan_prefix": [
-                                "`t3`",
-                                "`t1`"
-                              ] /* plan_prefix */,
-                              "table": "`t2`",
-                              "best_access_path": {
-                                "considered_access_paths": [
-                                  {
-                                    "access_type": "ref",
-                                    "index": "a",
-                                    "rows": 1,
-                                    "cost": 10.2,
-                                    "chosen": true
-                                  },
-                                  {
-                                    "access_type": "scan",
-                                    "using_join_cache": true,
-                                    "rows": 8,
-                                    "cost": 18.423,
-                                    "chosen": false
-                                  }
-                                ] /* considered_access_paths */
-                              } /* best_access_path */,
-                              "cost_for_plan": 28.022,
-                              "rows_for_plan": 10,
-                              "pruned_by_cost": true
-                            }
-                          ] /* rest_of_plan */
-                        },
-                        {
-                          "plan_prefix": [
-                            "`t3`"
-                          ] /* plan_prefix */,
-                          "table": "`t2`",
-                          "best_access_path": {
-                            "considered_access_paths": [
-                              {
-                                "access_type": "ref",
-                                "index": "a",
-                                "rows": 1,
-                                "cost": 10.2,
-                                "chosen": true
-                              },
-                              {
-                                "access_type": "scan",
-                                "using_join_cache": true,
-                                "rows": 8,
-                                "cost": 18.422,
-                                "chosen": false
-                              }
-                            ] /* considered_access_paths */
-                          } /* best_access_path */,
-                          "cost_for_plan": 16.022,
-                          "rows_for_plan": 10,
-                          "pruned_by_heuristic": true
-                        }
-                      ] /* rest_of_plan */
-                    }
-                  ] /* considered_execution_plans */
-                },
-                {
-                  "transformation": {
-                    "select#": 2,
-                    "from": "IN (SELECT)",
-                    "to": "EXISTS (CORRELATED SELECT)",
-                    "put_1_in_SELECT_list": true
-                  } /* transformation */
-                },
-                {
-                  "attaching_conditions_to_tables": {
-                    "original_condition": "((`t2`.`a` = `t1`.`a`) and (`t3`.`a` = `t1`.`a`) and (<cache>(`t0`.`a`) = (`t1`.`a` + `t1`.`a`)))",
-                    "attached_conditions_computation": [
-                      {
-                        "table": "`t1`",
-                        "rechecking_index_usage": {
-                          "recheck_reason": "not_first_table",
-                          "range_analysis": {
-                            "table_scan": {
-                              "rows": 10,
-                              "cost": 14
-                            } /* table_scan */,
-                            "potential_range_indices": [
-                              {
-                                "index": "a",
-                                "usable": true,
-                                "key_parts": [
-                                  "a"
-                                ] /* key_parts */
-                              }
-                            ] /* potential_range_indices */,
-                            "best_covering_index_scan": {
-                              "index": "a",
-                              "cost": 3.2093,
-                              "chosen": true
-                            } /* best_covering_index_scan */,
-                            "setup_range_conditions": [
-                            ] /* setup_range_conditions */,
-                            "group_index_range": {
-                              "chosen": false,
-                              "cause": "not_single_table"
-                            } /* group_index_range */
-                          } /* range_analysis */
-                        } /* rechecking_index_usage */
-                      }
-                    ] /* attached_conditions_computation */,
-                    "attached_conditions_summary": [
-                      {
-                        "table": "`t1`",
-                        "attached": "(<cache>(`t0`.`a`) = (`t1`.`a` + `t1`.`a`))"
-                      },
-                      {
-                        "table": "`t2`",
-                        "attached": null
-                      },
-                      {
-                        "table": "`t3`",
-                        "attached": null
-                      }
-                    ] /* attached_conditions_summary */
-                  } /* attaching_conditions_to_tables */
-                },
-                {
-                  "refine_plan": [
-                    {
-                      "table": "`t1`",
-                      "access_type": "index_scan"
-                    },
-                    {
-                      "table": "`t2`"
-                    },
-                    {
-                      "table": "`t3`"
-                    }
-                  ] /* refine_plan */
-                }
-              ] /* steps */
-            } /* join_optimization */
-          },
           {
             "join_explain": {
               "select#": 2,
@@ -3542,7 +3530,7 @@ select 497, tmp.ID, NULL from (select 497 as ID, MAX(t3.DATA) as DATA      from 
                           "rows": 9,
                           "cost": 5.9198
                         } /* table_scan */,
-                        "potential_range_indices": [
+                        "potential_range_indexes": [
                           {
                             "index": "t2_ID_IDX",
                             "usable": false,
@@ -3555,7 +3543,7 @@ select 497, tmp.ID, NULL from (select 497 as ID, MAX(t3.DATA) as DATA      from 
                               "PARID"
                             ] /* key_parts */
                           }
-                        ] /* potential_range_indices */,
+                        ] /* potential_range_indexes */,
                         "setup_range_conditions": [
                         ] /* setup_range_conditions */,
                         "group_index_range": {
@@ -4068,7 +4056,7 @@ select replace(t3._field_140, "\r","^M"),t3_id,min(t3._field_131), min(t3._field
                     "rows": 2,
                     "cost": 4.5083
                   } /* table_scan */,
-                  "potential_range_indices": [
+                  "potential_range_indexes": [
                     {
                       "index": "PRIMARY",
                       "usable": true,
@@ -4077,7 +4065,7 @@ select replace(t3._field_140, "\r","^M"),t3_id,min(t3._field_131), min(t3._field
                         "seq_1_id"
                       ] /* key_parts */
                     }
-                  ] /* potential_range_indices */,
+                  ] /* potential_range_indexes */,
                   "best_covering_index_scan": {
                     "index": "PRIMARY",
                     "cost": 1.4435,
@@ -4139,7 +4127,7 @@ select replace(t3._field_140, "\r","^M"),t3_id,min(t3._field_131), min(t3._field
                     "rows": 3,
                     "cost": 4.7125
                   } /* table_scan */,
-                  "potential_range_indices": [
+                  "potential_range_indexes": [
                     {
                       "index": "PRIMARY",
                       "usable": true,
@@ -4148,7 +4136,7 @@ select replace(t3._field_140, "\r","^M"),t3_id,min(t3._field_131), min(t3._field
                         "seq_1_id"
                       ] /* key_parts */
                     }
-                  ] /* potential_range_indices */,
+                  ] /* potential_range_indexes */,
                   "best_covering_index_scan": {
                     "index": "PRIMARY",
                     "cost": 1.687,
@@ -4210,7 +4198,7 @@ select replace(t3._field_140, "\r","^M"),t3_id,min(t3._field_131), min(t3._field
                     "rows": 3,
                     "cost": 4.7125
                   } /* table_scan */,
-                  "potential_range_indices": [
+                  "potential_range_indexes": [
                     {
                       "index": "PRIMARY",
                       "usable": true,
@@ -4219,7 +4207,7 @@ select replace(t3._field_140, "\r","^M"),t3_id,min(t3._field_131), min(t3._field
                         "seq_1_id"
                       ] /* key_parts */
                     }
-                  ] /* potential_range_indices */,
+                  ] /* potential_range_indexes */,
                   "best_covering_index_scan": {
                     "index": "PRIMARY",
                     "cost": 1.687,
@@ -4741,7 +4729,7 @@ GROUP BY field2 ORDER BY alias1.col_int_key,alias2.pk	{
                     "rows": 100,
                     "cost": 24.588
                   } /* table_scan */,
-                  "potential_range_indices": [
+                  "potential_range_indexes": [
                     {
                       "index": "PRIMARY",
                       "usable": true,
@@ -4749,7 +4737,7 @@ GROUP BY field2 ORDER BY alias1.col_int_key,alias2.pk	{
                         "pk"
                       ] /* key_parts */
                     }
-                  ] /* potential_range_indices */,
+                  ] /* potential_range_indexes */,
                   "setup_range_conditions": [
                   ] /* setup_range_conditions */,
                   "group_index_range": {

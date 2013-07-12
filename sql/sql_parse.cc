@@ -80,13 +80,14 @@
 #include <m_ctype.h>
 #include <myisam.h>
 #include <my_dir.h>
+#include <dur_prop.h>
 #include "rpl_handler.h"
 
 #include "sp_head.h"
 #include "sp.h"
 #include "sp_cache.h"
 #include "events.h"
-#include "sql_trigger.h"
+#include "sql_trigger.h"      // mysql_create_or_drop_trigger
 #include "transaction.h"
 #include "sql_audit.h"
 #include "sql_prepare.h"
@@ -907,7 +908,7 @@ bool do_command(THD *thd)
     indicator of uninitialized lex => normal flow of errors handling
     (see my_message_sql)
   */
-  thd->lex->current_select= 0;
+  thd->lex->set_current_select(0);
 
   /*
     This thread will do a blocking read from the client which
@@ -919,7 +920,9 @@ bool do_command(THD *thd)
 
   /*
     XXX: this code is here only to clear possible errors of init_connect. 
-    Consider moving to init_connect() instead.
+    Consider moving to prepare_new_connection_state() instead.
+    That requires making sure the DA is cleared before non-parsing statements
+    such as COM_QUIT.
   */
   thd->clear_error();				// Clear error message
   thd->get_stmt_da()->reset_diagnostics_area();
@@ -1287,12 +1290,12 @@ bool dispatch_command(enum enum_server_command command, THD *thd,
   }
   case COM_STMT_CLOSE:
   {
-    mysqld_stmt_close(thd, packet);
+    mysqld_stmt_close(thd, packet, packet_length);
     break;
   }
   case COM_STMT_RESET:
   {
-    mysqld_stmt_reset(thd, packet);
+    mysqld_stmt_reset(thd, packet, packet_length);
     break;
   }
   case COM_QUERY:
@@ -1495,7 +1498,7 @@ bool dispatch_command(enum enum_server_command command, THD *thd,
 
     mysqld_list_fields(thd,&table_list,fields);
 
-    thd->lex->unit->cleanup();
+    thd->lex->unit->cleanup(true);
     /* No need to rollback statement transaction, it's not started. */
     DBUG_ASSERT(thd->transaction.stmt.is_empty());
     close_thread_tables(thd);
@@ -1522,6 +1525,12 @@ bool dispatch_command(enum enum_server_command command, THD *thd,
   case COM_REFRESH:
   {
     int not_used;
+
+    if (packet_length < 1)
+    {
+      my_error(ER_MALFORMED_PACKET, MYF(0));
+      break;
+    }
 
     /*
       Initialize thd->lex since it's used in many base functions, such as
@@ -1571,6 +1580,11 @@ bool dispatch_command(enum enum_server_command command, THD *thd,
 #ifndef EMBEDDED_LIBRARY
   case COM_SHUTDOWN:
   {
+    if (packet_length < 1)
+    {
+      my_error(ER_MALFORMED_PACKET, MYF(0));
+      break;
+    }
     thd->status_var.com_other++;
     if (check_global_access(thd,SHUTDOWN_ACL))
       break; /* purecov: inspected */
@@ -1657,6 +1671,8 @@ bool dispatch_command(enum enum_server_command command, THD *thd,
   {
     if (thread_id & (~0xfffffffful))
       my_error(ER_DATA_OUT_OF_RANGE, MYF(0), "thread_id", "mysql_kill()");
+    else if (packet_length < 4)
+      my_error(ER_MALFORMED_PACKET, MYF(0));
     else
     {
       thd->status_var.com_stat[SQLCOM_KILL]++;
@@ -1667,6 +1683,11 @@ bool dispatch_command(enum enum_server_command command, THD *thd,
   }
   case COM_SET_OPTION:
   {
+    if (packet_length < 2)
+    {
+      my_error(ER_MALFORMED_PACKET, MYF(0));
+      break;
+    }
     thd->status_var.com_stat[SQLCOM_SET_OPTION]++;
     uint opt_command= uint2korr(packet);
 
@@ -1857,7 +1878,7 @@ int prepare_schema_table(THD *thd, LEX *lex, Table_ident *table_ident,
     break;
   }
   
-  SELECT_LEX *select_lex= lex->current_select;
+  SELECT_LEX *select_lex= lex->current_select();
   if (make_schema_select(thd, select_lex, schema_table_idx))
   {
     DBUG_RETURN(1);
@@ -2116,7 +2137,7 @@ mysql_execute_command(THD *thd)
 {
   int res= FALSE;
   int  up_result= 0;
-  LEX  *lex= thd->lex;
+  LEX  *const lex= thd->lex;
   /* first SELECT_LEX (have special meaning for many of non-SELECTcommands) */
   SELECT_LEX *select_lex= lex->select_lex;
   /* first table of first SELECT_LEX */
@@ -2124,13 +2145,15 @@ mysql_execute_command(THD *thd)
   /* list of all tables in query */
   TABLE_LIST *all_tables;
   /* most outer SELECT_LEX_UNIT of query */
-  SELECT_LEX_UNIT *unit= lex->unit;
+  SELECT_LEX_UNIT *const unit= lex->unit;
 #ifdef HAVE_REPLICATION
   /* have table map for update for multi-update statement (BUG#37051) */
   bool have_table_map_for_update= FALSE;
 #endif
   DBUG_ENTER("mysql_execute_command");
-  DBUG_ASSERT(!lex->describe || is_explainable_query(lex->sql_command));
+  /* EXPLAIN OTHER isn't explainable command, but can have describe flag. */
+  DBUG_ASSERT(!lex->describe || is_explainable_query(lex->sql_command) ||
+              lex->sql_command == SQLCOM_EXPLAIN_OTHER);
 
   if (unlikely(lex->is_broken()))
   {
@@ -2151,7 +2174,7 @@ mysql_execute_command(THD *thd)
   DBUG_ASSERT(thd->transaction.stmt.is_empty() || thd->in_sub_stmt);
   /*
     In many cases first table of main SELECT_LEX have special meaning =>
-    check that it is first table in global list and relink it first in 
+    check that it is first table in global list and relink it first in
     queries_tables list if it is necessary (we need such relinking only
     for queries with subqueries in select list, in this case tables of
     subqueries will go to global list first)
@@ -2170,16 +2193,17 @@ mysql_execute_command(THD *thd)
   /* set context for commands which do not use setup_tables */
   select_lex->context.resolve_in_table_list_only(select_lex->get_table_list());
 
-  /*
-    Reset warning count for each query that uses tables
-    A better approach would be to reset this for any commands
-    that is not a SHOW command or a select that only access local
-    variables, but for now this is probably good enough.
-  */
-  if ((sql_command_flags[lex->sql_command] & CF_DIAGNOSTIC_STMT) == 0)
+  thd->get_stmt_da()->reset_diagnostics_area();
+  if ((thd->lex->keep_diagnostics != DA_KEEP_PARSE_ERROR) &&
+      (thd->lex->keep_diagnostics != DA_KEEP_DIAGNOSTICS))
   {
-    if (all_tables)
-      thd->get_stmt_da()->opt_reset_condition_info(thd->query_id);
+    /*
+      No parse errors, and it's not a diagnostic statement:
+      remove the sql conditions from the DA!
+      For diagnostic statements we need to keep the conditions
+      around so we can inspec them.
+    */
+    thd->get_stmt_da()->reset_condition_info(thd);
   }
 
 #ifdef HAVE_REPLICATION
@@ -2191,7 +2215,8 @@ mysql_execute_command(THD *thd)
         When dropping a trigger, we need to load its table name
         before checking slave filter rules.
       */
-      add_table_for_trigger(thd, thd->lex->spname, 1, &all_tables);
+      add_table_for_trigger(thd, lex->spname->m_db,
+                            lex->spname->m_name, true, &all_tables);
       
       if (!all_tables)
       {
@@ -2408,6 +2433,11 @@ mysql_execute_command(THD *thd)
     if (open_temporary_tables(thd, all_tables))
       goto error;
   }
+
+  // Save original info for EXPLAIN FOR CONNECTION
+  if (!thd->in_sub_stmt)
+    thd->query_plan.set_query_plan(lex->sql_command, lex,
+                                   !thd->stmt_arena->is_conventional());
 
   switch (lex->sql_command) {
 
@@ -3110,15 +3140,32 @@ end_with_restore_list:
     DBUG_ASSERT(select_lex->offset_limit == 0);
     unit->set_limit(select_lex);
     MYSQL_UPDATE_START(thd->query());
-    res= (up_result= mysql_update(thd, all_tables,
-                                  select_lex->item_list,
-                                  lex->value_list,
-                                  select_lex->where,
-                                  select_lex->order_list.elements,
-                                  select_lex->order_list.first,
-                                  unit->select_limit_cnt,
-                                  lex->duplicates, lex->ignore,
-                                  &found, &updated));
+
+    // Need to open to check for multi-update
+    if (!(res= open_normal_and_derived_tables(thd, all_tables, 0)))
+    {
+      if (!all_tables->multitable_view)
+      {
+        res= mysql_update(thd, all_tables,
+                          select_lex->item_list,
+                          lex->value_list,
+                          select_lex->where,
+                          select_lex->order_list.elements,
+                          select_lex->order_list.first,
+                          unit->select_limit_cnt,
+                          lex->duplicates, lex->ignore,
+                          &found, &updated);
+      }
+      else
+      {
+        DBUG_ASSERT(all_tables->view != 0);
+        DBUG_PRINT("info", ("Switch to multi-update"));
+        if (!thd->in_sub_stmt)
+          thd->query_plan.set_query_plan(SQLCOM_UPDATE_MULTI, lex,
+                                         !thd->stmt_arena->is_conventional());
+        up_result= 2;
+      }
+    }
     MYSQL_UPDATE_DONE(res, found, updated);
     /* mysql_update return 2 if we need to switch to multi-update */
     if (up_result != 2)
@@ -3318,7 +3365,7 @@ end_with_restore_list:
                                                  lex->ignore)))
       {
         if (lex->describe)
-          res= explain_multi_table_modification(thd, sel_result);
+          res= explain_query(thd, thd->lex->unit, sel_result);
         else
           res= handle_select(thd, sel_result, OPTION_SETUP_TABLES_DONE);
         delete sel_result;
@@ -3385,7 +3432,7 @@ end_with_restore_list:
         (del_result= new multi_delete(aux_tables, del_table_count)))
     {
       if (lex->describe)
-        res= explain_multi_table_modification(thd, del_result);
+        res= explain_query(thd, thd->lex->unit, del_result) || thd->is_error();
       else
       {
         res= mysql_select(thd,
@@ -4621,6 +4668,12 @@ end_with_restore_list:
 #endif /* EMBEDDED_LIBRARY */
     break;
   }
+  case SQLCOM_EXPLAIN_OTHER:
+  {
+    /* EXPLAIN FOR CONNECTION <id> */
+    mysql_explain_other(thd);
+    break;
+  }
   case SQLCOM_ANALYZE:
   case SQLCOM_CHECK:
   case SQLCOM_OPTIMIZE:
@@ -4681,6 +4734,21 @@ error:
 
 finish:
 
+  // Cleanup EXPLAIN info
+  if (!thd->in_sub_stmt)
+  {
+    if (is_explainable_query(lex->sql_command))
+    {
+      DEBUG_SYNC(thd, "before_reset_query_plan");
+      /*
+        We want EXPLAIN CONNECTION to work until the explained statement ends,
+        thus it is only now that we may fully clean up any unit of this statement.
+      */
+      lex->unit->assert_not_fully_clean();
+    }
+    thd->query_plan.set_query_plan(SQLCOM_END, NULL, false);
+  }
+
   DBUG_ASSERT(!thd->in_active_multi_stmt_transaction() ||
                thd->in_multi_stmt_transaction_mode());
 
@@ -4705,7 +4773,7 @@ finish:
     }
   }
 
-  lex->unit->cleanup();
+  lex->unit->cleanup(true);
   /* Free tables */
   THD_STAGE_INFO(thd, stage_closing_tables);
   close_thread_tables(thd);
@@ -4785,7 +4853,7 @@ static bool execute_sqlcom_select(THD *thd, TABLE_LIST *all_tables)
   bool res;
   /* assign global limit variable if limit is not given */
   {
-    SELECT_LEX *param= lex->unit->global_parameters;
+    SELECT_LEX *param= lex->unit->global_parameters();
     if (!param->explicit_limit)
       param->select_limit=
         new Item_int((ulonglong) thd->variables.select_limit);
@@ -4800,10 +4868,7 @@ static bool execute_sqlcom_select(THD *thd, TABLE_LIST *all_tables)
         to prepend EXPLAIN to any query and receive output for it,
         even if the query itself redirects the output.
       */
-      if (!(result= new select_send()))
-        return 1;                               /* purecov: inspected */
-      res= explain_query_expression(thd, result);
-      delete result;
+      res= explain_query(thd, thd->lex->unit, NULL);
     }
     else
     {
@@ -4986,6 +5051,7 @@ void THD::reset_for_next_command()
   thd->clear_error();
   thd->get_stmt_da()->reset_diagnostics_area();
   thd->get_stmt_da()->reset_statement_cond_count();
+
   thd->rand_used= 0;
   thd->m_sent_row_count= thd->m_examined_row_count= 0;
 
@@ -5557,7 +5623,7 @@ TABLE_LIST *st_select_lex::add_table_to_list(THD *thd,
     ptr->schema_table_name= ptr->table_name;
     ptr->schema_table= schema_table;
   }
-  ptr->select_lex=  lex->current_select;
+  ptr->select_lex=  lex->current_select();
   ptr->cacheable_table= 1;
   ptr->index_hints= index_hints_arg;
   ptr->option= option ? option->str : 0;
@@ -5908,9 +5974,8 @@ bool st_select_lex_unit::add_fake_select_lex(THD *thd_arg)
       (SELECT ... LIMIT n) ORDER BY order_list [LIMIT m]
       just before the parser starts processing order_list
     */ 
-    global_parameters= fake_select_lex;
     fake_select_lex->no_table_names_allowed= 1;
-    thd_arg->lex->current_select= fake_select_lex;
+    thd_arg->lex->set_current_select(fake_select_lex);
   }
   thd->lex->pop_context();
   DBUG_RETURN(false);
@@ -5951,7 +6016,7 @@ push_new_name_resolution_context(THD *thd,
     left_op->first_leaf_for_name_resolution();
   on_context->last_name_resolution_table=
     right_op->last_leaf_for_name_resolution();
-  on_context->select_lex= thd->lex->current_select;
+  on_context->select_lex= thd->lex->current_select();
   // Save join nest's context in right_op, to find it later in view merging.
   DBUG_ASSERT(right_op->context_of_embedding == NULL);
   right_op->context_of_embedding= on_context;
@@ -6098,6 +6163,7 @@ uint kill_one_thread(THD *thd, ulong id, bool only_kill_query)
       error=ER_KILL_DENIED_ERROR;
     mysql_mutex_unlock(&tmp->LOCK_thd_data);
   }
+  DEBUG_SYNC(thd, "kill_thd_end");
   DBUG_PRINT("exit", ("%d", error));
   DBUG_RETURN(error);
 }
@@ -6167,7 +6233,7 @@ bool check_simple_select()
 {
   THD *thd= current_thd;
   LEX *lex= thd->lex;
-  if (lex->current_select != lex->select_lex)
+  if (lex->current_select() != lex->select_lex)
   {
     char command[80];
     Lex_input_stream *lip= & thd->m_parser_state->m_lip;
@@ -6391,8 +6457,8 @@ Item *negate_expression(THD *thd, Item *expr)
   {
     /* it is NOT(NOT( ... )) */
     Item *arg= ((Item_func *) expr)->arguments()[0];
-    enum_parsing_place place= thd->lex->current_select->parsing_place;
-    if (arg->is_bool_func() || place == IN_WHERE || place == IN_HAVING)
+    enum_parsing_context place= thd->lex->current_select()->parsing_place;
+    if (arg->is_bool_func() || place == CTX_WHERE || place == CTX_HAVING)
       return arg;
     /*
       if it is not boolean function then we have to emulate value of
@@ -6727,7 +6793,66 @@ bool parse_sql(THD *thd,
 
   /* Parse the query. */
 
+  /*
+    Use a temporary DA while parsing. We don't know until after parsing
+    whether the current command is a diagnostic statement, in which case
+    we'll need to have the previous DA around to answer questions about it.
+  */
+  Diagnostics_area *parser_da= thd->get_parser_da();
+  Diagnostics_area *da=        thd->get_stmt_da();
+
+  thd->push_diagnostics_area(parser_da, false);
+
+  parser_da->reset_diagnostics_area();
+  parser_da->reset_condition_info(thd);
+
   bool mysql_parse_status= MYSQLparse(thd) != 0;
+
+  /*
+    Unwind diagnostics area.
+
+    If any issues occurred during parsing, they will become
+    the sole conditions for the current statement.
+
+    Otherwise, if we have a diagnostic statement on our hands,
+    we'll preserve the previous diagnostics area here so we
+    can answer questions about it.  This specifically means
+    that repeatedly asking about a DA won't clear it.
+
+    Otherwise, it's a regular command with no issues during
+    parsing, so we'll just clear the DA in preparation for
+    the processing of this command.
+  */
+
+  if (parser_da->current_statement_cond_count() != 0)
+  {
+    /*
+      Error/warning during parsing: top DA should contain parse error(s)!
+      Any pre-existing conditions will be replaced.
+    */
+    da->reset_condition_info(thd);
+
+    /*
+      We need to put any errors in the DA as well as the condition list.
+    */
+    if (parser_da->is_error())
+    {
+      da->set_error_status(parser_da->mysql_errno(),
+                           parser_da->message_text(),
+                           parser_da->returned_sqlstate());
+    }
+
+    da->copy_sql_conditions_from_da(thd, parser_da);
+
+    /*
+      Do not clear the condition list when starting execution as it
+      now contains not the results of the previous executions, but
+      a non-zero number of errors/warnings thrown during parsing!
+    */
+    thd->lex->keep_diagnostics= DA_KEEP_PARSE_ERROR;
+  }
+
+  thd->pop_diagnostics_area();
 
   /*
     Check that if MYSQLparse() failed either thd->is_error() is set, or an

@@ -23,6 +23,8 @@ The lowest-level memory management
 Created 5/12/1997 Heikki Tuuri
 *************************************************************************/
 
+#include "ha_prototypes.h"
+
 #include "mem0pool.h"
 #ifdef UNIV_NONINL
 #include "mem0pool.ic"
@@ -31,7 +33,6 @@ Created 5/12/1997 Heikki Tuuri
 #include "srv0srv.h"
 #include "sync0sync.h"
 #include "ut0mem.h"
-#include "ut0lst.h"
 #include "ut0byte.h"
 #include "mem0mem.h"
 #include "srv0start.h"
@@ -158,7 +159,7 @@ mem_pool_mutex_exit(
 
 /********************************************************************//**
 Returns memory area size.
-@return	size */
+@return size */
 UNIV_INLINE
 ulint
 mem_area_get_size(
@@ -183,7 +184,7 @@ mem_area_set_size(
 
 /********************************************************************//**
 Returns memory area free bit.
-@return	TRUE if free */
+@return TRUE if free */
 UNIV_INLINE
 ibool
 mem_area_get_free(
@@ -214,7 +215,7 @@ mem_area_set_free(
 
 /********************************************************************//**
 Creates a memory pool.
-@return	memory pool */
+@return memory pool */
 
 mem_pool_t*
 mem_pool_create(
@@ -286,7 +287,7 @@ mem_pool_free(
 
 /********************************************************************//**
 Fills the specified free list.
-@return	TRUE if we were able to insert a block to the free list */
+@return TRUE if we were able to insert a block to the free list */
 static
 ibool
 mem_pool_fill_free_list(
@@ -357,7 +358,7 @@ mem_pool_fill_free_list(
 /********************************************************************//**
 Allocates memory from a pool. NOTE: This low-level function should only be
 used in mem0mem.*!
-@return	own: allocated memory buffer */
+@return own: allocated memory buffer */
 
 void*
 mem_area_alloc(
@@ -457,7 +458,7 @@ mem_area_alloc(
 
 /********************************************************************//**
 Gets the buddy of an area, if it exists in pool.
-@return	the buddy, NULL if no buddy in pool */
+@return the buddy, NULL if no buddy in pool */
 UNIV_INLINE
 mem_area_t*
 mem_area_get_buddy(
@@ -622,7 +623,7 @@ mem_area_free(
 
 /********************************************************************//**
 Validates a memory pool.
-@return	TRUE if ok */
+@return TRUE if ok */
 
 ibool
 mem_pool_validate(
@@ -702,7 +703,7 @@ mem_pool_print_info(
 
 /********************************************************************//**
 Returns the amount of reserved memory.
-@return	reserved memory in bytes */
+@return reserved memory in bytes */
 
 ulint
 mem_pool_get_reserved(

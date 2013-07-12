@@ -1,7 +1,7 @@
 include/master-slave.inc
 Warnings:
 Note	####	Sending passwords in plain text without SSL/TLS is extremely insecure.
-Note	####	Storing MySQL user name or password information in the master.info repository is not secure and is therefore not recommended. Please see the MySQL Manual for more about this issue and possible alternatives.
+Note	####	Storing MySQL user name or password information in the master info repository is not secure and is therefore not recommended. Please consider using the USER and PASSWORD connection options for START SLAVE; see the 'START SLAVE Syntax' in the MySQL Manual for more information.
 [connection master]
 CREATE TABLE t1 (C1 CHAR(1), C2 CHAR(1), INDEX (C1)) ENGINE = 'MYISAM'  ;
 SELECT * FROM t1;
@@ -497,14 +497,12 @@ include/diff_tables.inc [master:t4, slave:t4]
 [expecting slave to stop]
 INSERT INTO t5 VALUES (1, "", 1);
 INSERT INTO t5 VALUES (2, repeat(_utf8'a', 255), 2);
-include/wait_for_slave_sql_error.inc [errno=1677 ]
-Last_SQL_Error = 'Column 1 of table 'test.t5' cannot be converted from type 'char(255)' to type 'char(16)''
+include/wait_for_slave_sql_error.inc [errno=1677]
 include/rpl_reset.inc
 [expecting slave to stop]
 INSERT INTO t6 VALUES (1, "", 1);
 INSERT INTO t6 VALUES (2, repeat(_utf8'a', 255), 2);
-include/wait_for_slave_sql_error.inc [errno=1677 ]
-Last_SQL_Error = 'Column 1 of table 'test.t6' cannot be converted from type 'char(255)' to type 'char(128)''
+include/wait_for_slave_sql_error.inc [errno=1677]
 include/rpl_reset.inc
 [expecting slave to replicate correctly]
 INSERT INTO t7 VALUES (1, "", 1);

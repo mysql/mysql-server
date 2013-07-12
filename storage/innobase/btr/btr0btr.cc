@@ -44,7 +44,21 @@ Created 6/2/1994 Heikki Tuuri
 #include "trx0trx.h"
 #include "srv0mon.h"
 
+/**************************************************************//**
+Checks if the page in the cursor can be merged with given page.
+If necessary, re-organize the merge_page.
+@return	true if possible to merge. */
+
+bool
+btr_can_merge_with_page(
+/*====================*/
+	btr_cur_t*	cursor,		/*!< in: cursor on the page to merge */
+	ulint		page_no,	/*!< in: a sibling page */
+	buf_block_t**	merge_block,	/*!< out: the merge block */
+	mtr_t*		mtr);		/*!< in: mini-transaction */
+
 #endif /* UNIV_HOTBACKUP */
+
 /**************************************************************//**
 Report that an index page is corrupted. */
 
@@ -76,9 +90,9 @@ btr_corruption_report(
 static ibool btr_blob_dbg_msg;
 
 /** Issue a message about an operation on index->blobs.
-@param op	operation
-@param b	the entry being subjected to the operation
-@param ctx	the context of the operation */
+@param op operation
+@param b the entry being subjected to the operation
+@param ctx the context of the operation */
 #define btr_blob_dbg_msg_issue(op, b, ctx)			\
 	fprintf(stderr, op " %u:%u:%u->%u %s(%u,%u,%u)\n",	\
 		(b)->ref_page_no, (b)->ref_heap_no,		\
@@ -86,9 +100,9 @@ static ibool btr_blob_dbg_msg;
 		(b)->owner, (b)->always_owner, (b)->del)
 
 /** Insert to index->blobs a reference to an off-page column.
-@param index	the index tree
-@param b	the reference
-@param ctx	context (for logging) */
+@param index the index tree
+@param b the reference
+@param ctx context (for logging) */
 
 void
 btr_blob_dbg_rbt_insert(
@@ -106,9 +120,9 @@ btr_blob_dbg_rbt_insert(
 }
 
 /** Remove from index->blobs a reference to an off-page column.
-@param index	the index tree
-@param b	the reference
-@param ctx	context (for logging) */
+@param index the index tree
+@param b the reference
+@param ctx context (for logging) */
 
 void
 btr_blob_dbg_rbt_delete(
@@ -680,7 +694,7 @@ we allocate pages for the non-leaf levels of the tree.
 #ifdef UNIV_BTR_DEBUG
 /**************************************************************//**
 Checks a file segment header within a B-tree root page.
-@return	TRUE if valid */
+@return TRUE if valid */
 static
 ibool
 btr_root_fseg_validate(
@@ -699,7 +713,7 @@ btr_root_fseg_validate(
 
 /**************************************************************//**
 Gets the root node of a tree and x- or s-latches it.
-@return	root page, x- or s-latched */
+@return root page, x- or s-latched */
 static
 buf_block_t*
 btr_root_block_get(
@@ -736,7 +750,7 @@ btr_root_block_get(
 
 /**************************************************************//**
 Gets the root node of a tree and x-latches it.
-@return	root page, x-latched */
+@return root page, x-latched */
 
 page_t*
 btr_root_get(
@@ -752,7 +766,7 @@ btr_root_get(
 Gets the height of the B-tree (the level of the root, when the leaf
 level is assumed to be 0). The caller must hold an S or X latch on
 the index.
-@return	tree height (level of the root) */
+@return tree height (level of the root) */
 
 ulint
 btr_height_get(
@@ -786,7 +800,7 @@ btr_height_get(
 /**************************************************************//**
 Checks a file segment header within a B-tree root page and updates
 the segment header space id.
-@return	TRUE if valid */
+@return TRUE if valid */
 static
 bool
 btr_root_fseg_adjust_on_import(
@@ -903,7 +917,7 @@ btr_root_adjust_on_import(
 /*************************************************************//**
 Gets pointer to the previous user record in the tree. It is assumed that
 the caller has appropriate latches on the page and its neighbor.
-@return	previous user record, NULL if there is none */
+@return previous user record, NULL if there is none */
 
 rec_t*
 btr_get_prev_user_rec(
@@ -961,7 +975,7 @@ btr_get_prev_user_rec(
 /*************************************************************//**
 Gets pointer to the next user record in the tree. It is assumed that the
 caller has appropriate latches on the page and its neighbor.
-@return	next user record, NULL if there is none */
+@return next user record, NULL if there is none */
 
 rec_t*
 btr_get_next_user_rec(
@@ -1033,7 +1047,7 @@ btr_page_create(
 	btr_blob_dbg_assert_empty(index, buf_block_get_page_no(block));
 
 	if (page_zip) {
-		page_create_zip(block, index, level, 0, mtr);
+		page_create_zip(block, index, level, 0, NULL, mtr);
 	} else {
 		page_create(block, mtr, dict_table_is_comp(index->table));
 		/* Set the level of the new index page */
@@ -1048,7 +1062,7 @@ btr_page_create(
 /**************************************************************//**
 Allocates a new file page to be used in an ibuf tree. Takes the page from
 the free list of the tree, which must contain pages!
-@return	new allocated block, x-latched */
+@return new allocated block, x-latched */
 static
 buf_block_t*
 btr_page_alloc_for_ibuf(
@@ -1170,7 +1184,7 @@ btr_page_alloc(
 
 /**************************************************************//**
 Gets the number of pages in a B-tree.
-@return	number of pages, or ULINT_UNDEFINED if the index is unavailable */
+@return number of pages, or ULINT_UNDEFINED if the index is unavailable */
 
 ulint
 btr_get_size(
@@ -1348,7 +1362,7 @@ btr_node_ptr_set_child_page_no(
 
 /************************************************************//**
 Returns the child page of a node pointer and x-latches it.
-@return	child page, x-latched */
+@return child page, x-latched */
 static
 buf_block_t*
 btr_node_ptr_get_child(
@@ -1372,7 +1386,7 @@ btr_node_ptr_get_child(
 /************************************************************//**
 Returns the upper level node pointer to a page. It is assumed that mtr holds
 an x-latch on the tree.
-@return	rec_get_offsets() of the node pointer record */
+@return rec_get_offsets() of the node pointer record */
 static
 ulint*
 btr_page_get_father_node_ptr_func(
@@ -1462,7 +1476,7 @@ btr_page_get_father_node_ptr_func(
 /************************************************************//**
 Returns the upper level node pointer to a page. It is assumed that mtr holds
 an x-latch on the tree.
-@return	rec_get_offsets() of the node pointer record */
+@return rec_get_offsets() of the node pointer record */
 static
 ulint*
 btr_page_get_father_block(
@@ -1508,24 +1522,32 @@ btr_page_get_father(
 
 /************************************************************//**
 Creates the root node for a new index tree.
-@return	page number of the created root, FIL_NULL if did not succeed */
+@return page number of the created root, FIL_NULL if did not succeed */
 
 ulint
 btr_create(
 /*=======*/
-	ulint		type,	/*!< in: type of the index */
-	ulint		space,	/*!< in: space where created */
-	ulint		zip_size,/*!< in: compressed page size in bytes
-				or 0 for uncompressed pages */
-	index_id_t	index_id,/*!< in: index id */
-	dict_index_t*	index,	/*!< in: index */
-	mtr_t*		mtr)	/*!< in: mini-transaction handle */
+	ulint			type,		/*!< in: type of the index */
+	ulint			space,		/*!< in: space where created */
+	ulint			zip_size,	/*!< in: compressed page size
+						in bytes or 0 for uncompressed
+						pages */
+	index_id_t		index_id,	/*!< in: index id */
+	dict_index_t*		index,		/*!< in: index, or NULL when
+						applying MLOG_FILE_TRUNCATE
+						redo record during recovery */
+	const btr_create_t*	btr_redo_create_info,
+						/*!< in: used for applying
+						MLOG_FILE_TRUNCATE redo record
+						during recovery */
+	mtr_t*			mtr)		/*!< in: mini-transaction
+						handle */
 {
-	ulint		page_no;
-	buf_block_t*	block;
-	buf_frame_t*	frame;
-	page_t*		page;
-	page_zip_des_t*	page_zip;
+	ulint			page_no;
+	buf_block_t*		block;
+	buf_frame_t*		frame;
+	page_t*			page;
+	page_zip_des_t*		page_zip;
 
 	/* Create the two new segments (one, in the case of an ibuf tree) for
 	the index tree; the segment headers are put on the allocated root page
@@ -1554,7 +1576,11 @@ btr_create(
 		ut_ad(buf_block_get_page_no(block) == IBUF_TREE_ROOT_PAGE_NO);
 	} else {
 #ifdef UNIV_BLOB_DEBUG
-		if ((type & DICT_CLUSTERED) && !index->blobs) {
+		/* The BLOB pointers can only exist in user records.
+		TRUNCATE gets rid of all user records. So we don't
+		need to assign the BLOB pointers when applying
+		MLOG_FILE_TRUNCATE log record during recovery. */
+		if ((type & DICT_CLUSTERED) && index && !index->blobs) {
 			mutex_create(PFS_NOT_INSTRUMENTED,
 				     &index->blobs_mutex, SYNC_ANY_LATCH);
 			index->blobs = rbt_create(sizeof(btr_blob_dbg_t),
@@ -1603,10 +1629,42 @@ btr_create(
 	page_zip = buf_block_get_page_zip(block);
 
 	if (page_zip) {
-		page = page_create_zip(block, index, 0, 0, mtr);
+		if (index != NULL) {
+			page = page_create_zip(block, index, 0, 0, NULL, mtr);
+		} else {
+			/* Create a compressed index page when applying
+			MLOG_FILE_TRUNCATE log record during recovery */
+			ut_ad(btr_redo_create_info != NULL);
+
+			redo_page_compress_t	page_comp_info;
+
+			page_comp_info.type = type;
+
+			page_comp_info.index_id = index_id;
+
+			page_comp_info.n_fields =
+				btr_redo_create_info->n_fields;
+
+			page_comp_info.field_len =
+				btr_redo_create_info->field_len;
+
+			page_comp_info.fields = btr_redo_create_info->fields;
+
+			page_comp_info.trx_id_pos =
+				btr_redo_create_info->trx_id_pos;
+
+			page = page_create_zip(block, NULL, 0, 0,
+					       &page_comp_info, mtr);
+		}
 	} else {
-		page = page_create(block, mtr,
-				   dict_table_is_comp(index->table));
+		if (index != NULL) {
+			page = page_create(block, mtr,
+					   dict_table_is_comp(index->table));
+		} else {
+			ut_ad(btr_redo_create_info != NULL);
+			page = page_create(
+				block, mtr, btr_redo_create_info->format_flags);
+		}
 		/* Set the level of the new index page */
 		btr_page_set_level(page, NULL, 0, mtr);
 	}
@@ -1623,10 +1681,15 @@ btr_create(
 	/* We reset the free bits for the page to allow creation of several
 	trees in the same mtr, otherwise the latch on a bitmap page would
 	prevent it because of the latching order.
+
+	index will be NULL if we are recreating the table during recovery
+	on behalf of TRUNCATE.
+
 	Note: Insert Buffering is disabled for temporary tables given that
 	most temporary tables are smaller in size and short-lived. */
-	if (!dict_table_is_temporary(index->table)
-	    && !(type & DICT_CLUSTERED)) {
+	if (!(type & DICT_CLUSTERED)
+	    && (index == NULL || !dict_table_is_temporary(index->table))) {
+
 		ibuf_reset_free_bits(block);
 	}
 
@@ -1651,7 +1714,7 @@ btr_free_but_not_root(
 						in bytes or 0 for uncompressed
 						pages */
 	ulint			root_page_no,	/*!< in: root page number */
-	bool			is_temp_table)	/*!< in: true if temp-table */
+	ulint			logging_mode)	/*!< in: mtr logging mode */
 {
 	ibool	finished;
 	page_t*	root;
@@ -1659,12 +1722,11 @@ btr_free_but_not_root(
 
 leaf_loop:
 	mtr_start(&mtr);
-	if (is_temp_table) {
-		mtr_set_log_mode(&mtr, MTR_LOG_NO_REDO);
-	}
+	mtr_set_log_mode(&mtr, logging_mode);
 
 	root = btr_page_get(space, zip_size, root_page_no, RW_X_LATCH,
 			    NULL, &mtr);
+
 #ifdef UNIV_BTR_DEBUG
 	ut_a(btr_root_fseg_validate(FIL_PAGE_DATA + PAGE_BTR_SEG_LEAF
 				    + root, space));
@@ -1685,9 +1747,7 @@ leaf_loop:
 	}
 top_loop:
 	mtr_start(&mtr);
-	if (is_temp_table) {
-		mtr_set_log_mode(&mtr, MTR_LOG_NO_REDO);
-	}
+	mtr_set_log_mode(&mtr, logging_mode);
 
 	root = btr_page_get(space, zip_size, root_page_no, RW_X_LATCH,
 			    NULL, &mtr);
@@ -1851,7 +1911,7 @@ btr_page_reorganize_low(
 	}
 
 	if (page_zip
-	    && !page_zip_compress(page_zip, page, index, z_level, mtr)) {
+	    && !page_zip_compress(page_zip, page, index, z_level, NULL, mtr)) {
 
 		/* Restore the old page and exit. */
 		btr_blob_dbg_restore(page, temp_page, index,
@@ -2018,7 +2078,7 @@ btr_page_reorganize(
 
 /***********************************************************//**
 Parses a redo log record of reorganizing a page.
-@return	end of log record or NULL */
+@return end of log record or NULL */
 
 byte*
 btr_parse_page_reorganize(
@@ -2085,7 +2145,7 @@ btr_page_empty(
 	segment headers, next page-field, etc.) is preserved intact */
 
 	if (page_zip) {
-		page_create_zip(block, index, level, 0, mtr);
+		page_create_zip(block, index, level, 0, NULL, mtr);
 	} else {
 		page_create(block, mtr, dict_table_is_comp(index->table));
 		btr_page_set_level(page, NULL, level, mtr);
@@ -2100,7 +2160,7 @@ the tuple. It is assumed that mtr contains an x-latch on the tree.
 NOTE that the operation of this function must always succeed,
 we cannot reverse it: therefore enough free disk space must be
 guaranteed to be available before this function is called.
-@return	inserted record */
+@return inserted record */
 
 rec_t*
 btr_root_raise_and_insert(
@@ -2261,8 +2321,7 @@ btr_root_raise_and_insert(
 	}
 
 	/* Reposition the cursor to the child node */
-	page_cur_search(new_block, index, tuple,
-			PAGE_CUR_LE, page_cursor);
+	page_cur_search(new_block, index, tuple, page_cursor);
 
 	/* Split the child and insert tuple */
 	return(btr_page_split_and_insert(flags, cursor, offsets, heap,
@@ -2272,7 +2331,7 @@ btr_root_raise_and_insert(
 /*************************************************************//**
 Decides if the page should be split at the convergence point of inserts
 converging to the left.
-@return	TRUE if split recommended */
+@return TRUE if split recommended */
 
 ibool
 btr_page_get_split_rec_to_left(
@@ -2317,7 +2376,7 @@ btr_page_get_split_rec_to_left(
 /*************************************************************//**
 Decides if the page should be split at the convergence point of inserts
 converging to the right.
-@return	TRUE if split recommended */
+@return TRUE if split recommended */
 
 ibool
 btr_page_get_split_rec_to_right(
@@ -2494,7 +2553,7 @@ func_exit:
 /*************************************************************//**
 Returns TRUE if the insert fits on the appropriate half-page with the
 chosen split_rec.
-@return	true if fits */
+@return true if fits */
 static __attribute__((nonnull(1,3,4,6), warn_unused_result))
 bool
 btr_page_insert_fits(
@@ -3101,8 +3160,7 @@ insert_empty:
 	/* 7. Reposition the cursor for insert and try insertion */
 	page_cursor = btr_cur_get_page_cur(cursor);
 
-	page_cur_search(insert_block, cursor->index, tuple,
-			PAGE_CUR_LE, page_cursor);
+	page_cur_search(insert_block, cursor->index, tuple, page_cursor);
 
 	rec = page_cur_tuple_insert(page_cursor, tuple, cursor->index,
 				    offsets, heap, n_ext, mtr);
@@ -3189,21 +3247,21 @@ func_exit:
 #ifdef UNIV_SYNC_DEBUG
 /*************************************************************//**
 Removes a page from the level list of pages.
-@param space	in: space where removed
-@param zip_size	in: compressed page size in bytes, or 0 for uncompressed
-@param page	in/out: page to remove
-@param index	in: index tree
-@param mtr	in/out: mini-transaction */
+@param space in: space where removed
+@param zip_size in: compressed page size in bytes, or 0 for uncompressed
+@param page in/out: page to remove
+@param index in: index tree
+@param mtr in/out: mini-transaction */
 # define btr_level_list_remove(space,zip_size,page,index,mtr)		\
 	btr_level_list_remove_func(space,zip_size,page,index,mtr)
 #else /* UNIV_SYNC_DEBUG */
 /*************************************************************//**
 Removes a page from the level list of pages.
-@param space	in: space where removed
-@param zip_size	in: compressed page size in bytes, or 0 for uncompressed
-@param page	in/out: page to remove
-@param index	in: index tree
-@param mtr	in/out: mini-transaction */
+@param space in: space where removed
+@param zip_size in: compressed page size in bytes, or 0 for uncompressed
+@param page in/out: page to remove
+@param index in: index tree
+@param mtr in/out: mini-transaction */
 # define btr_level_list_remove(space,zip_size,page,index,mtr)		\
 	btr_level_list_remove_func(space,zip_size,page,mtr)
 #endif /* UNIV_SYNC_DEBUG */
@@ -3294,7 +3352,7 @@ btr_set_min_rec_mark_log(
 /****************************************************************//**
 Parses the redo log record for setting an index record as the predefined
 minimum record.
-@return	end of log record or NULL */
+@return end of log record or NULL */
 
 byte*
 btr_parse_set_min_rec_mark(
@@ -3541,7 +3599,7 @@ level lifts the records of the page to the father page, thus reducing the
 tree height. It is assumed that mtr holds an x-latch on the tree and on the
 page. If cursor is on the leaf level, mtr must also hold x-latches to the
 brothers, if they exist.
-@return	TRUE on success */
+@return TRUE on success */
 
 ibool
 btr_compress(
@@ -3560,7 +3618,7 @@ btr_compress(
 	ulint		left_page_no;
 	ulint		right_page_no;
 	buf_block_t*	merge_block;
-	page_t*		merge_page;
+	page_t*		merge_page = NULL;
 	page_zip_des_t*	merge_page_zip;
 	ibool		is_left;
 	buf_block_t*	block;
@@ -3568,11 +3626,8 @@ btr_compress(
 	btr_cur_t	father_cursor;
 	mem_heap_t*	heap;
 	ulint*		offsets;
-	ulint		data_size;
-	ulint		n_recs;
 	ulint		nth_rec = 0; /* remove bogus warning */
-	ulint		max_ins_size;
-	ulint		max_ins_size_reorg;
+	DBUG_ENTER("btr_compress");
 
 	block = btr_cur_get_block(cursor);
 	page = btr_cur_get_page(cursor);
@@ -3589,10 +3644,13 @@ btr_compress(
 	left_page_no = btr_page_get_prev(page, mtr);
 	right_page_no = btr_page_get_next(page, mtr);
 
-#if 0
-	fprintf(stderr, "Merge left page %lu right %lu \n",
-		left_page_no, right_page_no);
-#endif
+#ifdef UNIV_DEBUG
+	if (!page_is_leaf(page) && left_page_no == FIL_NULL) {
+		ut_a(REC_INFO_MIN_REC_FLAG & rec_get_info_bits(
+			page_rec_get_next(page_get_infimum_rec(page)),
+			page_is_comp(page)));
+	}
+#endif /* UNIV_DEBUG */
 
 	heap = mem_heap_create(100);
 	offsets = btr_page_get_father_block(NULL, heap, index, block, mtr,
@@ -3603,30 +3661,7 @@ btr_compress(
 		ut_ad(nth_rec > 0);
 	}
 
-	/* Decide the page to which we try to merge and which will inherit
-	the locks */
-
-	is_left = left_page_no != FIL_NULL;
-
-	if (is_left) {
-
-		merge_block = btr_block_get(space, zip_size, left_page_no,
-					    RW_X_LATCH, index, mtr);
-		merge_page = buf_block_get_frame(merge_block);
-#ifdef UNIV_BTR_DEBUG
-		ut_a(btr_page_get_next(merge_page, mtr)
-		     == buf_block_get_page_no(block));
-#endif /* UNIV_BTR_DEBUG */
-	} else if (right_page_no != FIL_NULL) {
-
-		merge_block = btr_block_get(space, zip_size, right_page_no,
-					    RW_X_LATCH, index, mtr);
-		merge_page = buf_block_get_frame(merge_block);
-#ifdef UNIV_BTR_DEBUG
-		ut_a(btr_page_get_prev(merge_page, mtr)
-		     == buf_block_get_page_no(block));
-#endif /* UNIV_BTR_DEBUG */
-	} else {
+	if (left_page_no == FIL_NULL && right_page_no == FIL_NULL) {
 		/* The page is the only one on the level, lift the records
 		to the father */
 
@@ -3634,67 +3669,33 @@ btr_compress(
 		goto func_exit;
 	}
 
-	n_recs = page_get_n_recs(page);
-	data_size = page_get_data_size(page);
-#ifdef UNIV_BTR_DEBUG
-	ut_a(page_is_comp(merge_page) == page_is_comp(page));
-#endif /* UNIV_BTR_DEBUG */
+	/* Decide the page to which we try to merge and which will inherit
+	the locks */
 
-	max_ins_size_reorg = page_get_max_insert_size_after_reorganize(
-		merge_page, n_recs);
-	if (data_size > max_ins_size_reorg) {
+	is_left = btr_can_merge_with_page(cursor, left_page_no,
+					  &merge_block, mtr);
 
-		/* No space for merge */
-err_exit:
-		/* We play it safe and reset the free bits. */
-		if (zip_size
-		    && page_is_leaf(merge_page)
-		    && !dict_index_is_clust(index)
-		    && !dict_table_is_temporary(index->table)) {
-			ibuf_reset_free_bits(merge_block);
-		}
+	DBUG_EXECUTE_IF("ib_always_merge_right", is_left = FALSE;);
 
-		mem_heap_free(heap);
-		return(FALSE);
-	}
-
-	/* If compression padding tells us that merging will result in
-	too packed up page i.e.: which is likely to cause compression
-	failure then don't merge the pages. */
-	if (zip_size && page_is_leaf(merge_page)
-	    && (page_get_data_size(merge_page) + data_size
-		>= dict_index_zip_pad_optimal_page_size(index))) {
-
+	if(!is_left
+	   && !btr_can_merge_with_page(cursor, right_page_no, &merge_block,
+				       mtr)) {
 		goto err_exit;
 	}
 
-	ut_ad(page_validate(merge_page, index));
+	merge_page = buf_block_get_frame(merge_block);
 
-	max_ins_size = page_get_max_insert_size(merge_page, n_recs);
-
-	if (data_size > max_ins_size) {
-
-		/* We have to reorganize merge_page */
-
-		if (!btr_page_reorganize_block(
-			    false, page_zip_level, merge_block, index, mtr)) {
-
-			goto err_exit;
-		}
-
-		max_ins_size = page_get_max_insert_size(merge_page, n_recs);
-
-		ut_ad(page_validate(merge_page, index));
-		ut_ad(max_ins_size == max_ins_size_reorg);
-
-		if (data_size > max_ins_size) {
-
-			/* Add fault tolerance, though this should
-			never happen */
-
-			goto err_exit;
-		}
+#ifdef UNIV_BTR_DEBUG
+	if (is_left) {
+                ut_a(btr_page_get_next(merge_page, mtr)
+                     == buf_block_get_page_no(block));
+	} else {
+               ut_a(btr_page_get_prev(merge_page, mtr)
+                     == buf_block_get_page_no(block));
 	}
+#endif /* UNIV_BTR_DEBUG */
+
+	ut_ad(page_validate(merge_page, index));
 
 	merge_page_zip = buf_block_get_page_zip(merge_block);
 #ifdef UNIV_ZIP_DEBUG
@@ -3730,11 +3731,19 @@ err_exit:
 		}
 	} else {
 		rec_t*		orig_succ;
+		ibool		compressed;
+		dberr_t		err;
+		btr_cur_t	cursor2;
+					/* father cursor pointing to node ptr
+					of the right sibling */
 #ifdef UNIV_BTR_DEBUG
 		byte		fil_page_prev[4];
 #endif /* UNIV_BTR_DEBUG */
 
-		if (merge_page_zip) {
+		btr_page_get_father(index, merge_block, mtr, &cursor2);
+
+		if (merge_page_zip && left_page_no == FIL_NULL) {
+
 			/* The function page_zip_compress(), which will be
 			invoked by page_copy_rec_list_end() below,
 			requires that FIL_PAGE_PREV be FIL_NULL.
@@ -3755,9 +3764,12 @@ err_exit:
 		if (!orig_succ) {
 			ut_a(merge_page_zip);
 #ifdef UNIV_BTR_DEBUG
-			/* FIL_PAGE_PREV was restored from merge_page_zip. */
-			ut_a(!memcmp(fil_page_prev,
-				     merge_page + FIL_PAGE_PREV, 4));
+			if (left_page_no == FIL_NULL) {
+				/* FIL_PAGE_PREV was restored from
+				merge_page_zip. */
+				ut_a(!memcmp(fil_page_prev,
+					     merge_page + FIL_PAGE_PREV, 4));
+			}
 #endif /* UNIV_BTR_DEBUG */
 			goto err_exit;
 		}
@@ -3765,7 +3777,8 @@ err_exit:
 		btr_search_drop_page_hash_index(block);
 
 #ifdef UNIV_BTR_DEBUG
-		if (merge_page_zip) {
+		if (merge_page_zip && left_page_no == FIL_NULL) {
+
 			/* Restore FIL_PAGE_PREV in order to avoid an assertion
 			failure in btr_level_list_remove(), which will set
 			the field again to FIL_NULL.  Even though this makes
@@ -3781,12 +3794,19 @@ err_exit:
 
 		/* Replace the address of the old child node (= page) with the
 		address of the merge page to the right */
-
 		btr_node_ptr_set_child_page_no(
 			btr_cur_get_rec(&father_cursor),
 			btr_cur_get_page_zip(&father_cursor),
 			offsets, right_page_no, mtr);
-		btr_node_ptr_delete(index, merge_block, mtr);
+
+		compressed = btr_cur_pessimistic_delete(&err, TRUE, &cursor2,
+							BTR_CREATE_FLAG,
+							RB_NONE, mtr);
+		ut_a(err == DB_SUCCESS);
+
+		if (!compressed) {
+			btr_cur_compress_if_useful(&cursor2, FALSE, mtr);
+		}
 
 		lock_update_merge_right(merge_block, orig_succ, block);
 	}
@@ -3856,8 +3876,19 @@ func_exit:
 			page_rec_get_nth(merge_block->frame, nth_rec),
 			merge_block, cursor);
 	}
+	DBUG_RETURN(TRUE);
 
-	return(TRUE);
+err_exit:
+	/* We play it safe and reset the free bits. */
+	if (zip_size
+	    && merge_page
+	    && page_is_leaf(merge_page)
+	    && !dict_index_is_clust(index)) {
+		ibuf_reset_free_bits(merge_block);
+	}
+
+	mem_heap_free(heap);
+	DBUG_RETURN(FALSE);
 }
 
 /*************************************************************//**
@@ -4183,7 +4214,7 @@ btr_print_index(
 #ifdef UNIV_DEBUG
 /************************************************************//**
 Checks that the node pointer to a page is appropriate.
-@return	TRUE */
+@return TRUE */
 
 ibool
 btr_check_node_ptr(
@@ -4244,7 +4275,7 @@ btr_index_rec_validate_report(
 /************************************************************//**
 Checks the size and number of fields in a record based on the definition of
 the index.
-@return	TRUE if ok */
+@return TRUE if ok */
 
 ibool
 btr_index_rec_validate(
@@ -4352,7 +4383,7 @@ btr_index_rec_validate(
 /************************************************************//**
 Checks the size and number of fields in records based on the definition of
 the index.
-@return	TRUE if ok */
+@return TRUE if ok */
 static
 ibool
 btr_index_page_validate(
@@ -4449,7 +4480,7 @@ btr_validate_report2(
 
 /************************************************************//**
 Validates index tree level.
-@return	TRUE if ok */
+@return TRUE if ok */
 static
 bool
 btr_validate_level(
@@ -4869,7 +4900,7 @@ node_ptr_fails:
 
 /**************************************************************//**
 Checks the consistency of an index tree.
-@return	TRUE if ok */
+@return TRUE if ok */
 
 bool
 btr_validate_index(
@@ -4906,6 +4937,99 @@ btr_validate_index(
 	mtr_commit(&mtr);
 
 	return(ok);
+}
+
+/**************************************************************//**
+Checks if the page in the cursor can be merged with given page.
+If necessary, re-organize the merge_page.
+@return	true if possible to merge. */
+
+bool
+btr_can_merge_with_page(
+/*====================*/
+	btr_cur_t*	cursor,		/*!< in: cursor on the page to merge */
+	ulint		page_no,	/*!< in: a sibling page */
+	buf_block_t**	merge_block,	/*!< out: the merge block */
+	mtr_t*		mtr)		/*!< in: mini-transaction */
+{
+	dict_index_t*	index;
+	page_t*		page;
+	ulint		space;
+	ulint		zip_size;
+	ulint		n_recs;
+	ulint		data_size;
+        ulint           max_ins_size_reorg;
+	ulint		max_ins_size;
+	buf_block_t*	mblock;
+	page_t*		mpage;
+	DBUG_ENTER("btr_can_merge_with_page");
+
+	if (page_no == FIL_NULL) {
+		goto error;
+	}
+
+	index = btr_cur_get_index(cursor);
+	page  = btr_cur_get_page(cursor);
+	space = dict_index_get_space(index);
+        zip_size = dict_table_zip_size(index->table);
+
+	mblock = btr_block_get(space, zip_size, page_no, RW_X_LATCH, index,
+			       mtr);
+	mpage = buf_block_get_frame(mblock);
+
+        n_recs = page_get_n_recs(page);
+        data_size = page_get_data_size(page);
+
+        max_ins_size_reorg = page_get_max_insert_size_after_reorganize(
+                mpage, n_recs);
+
+	if (data_size > max_ins_size_reorg) {
+		goto error;
+	}
+
+	/* If compression padding tells us that merging will result in
+	too packed up page i.e.: which is likely to cause compression
+	failure then don't merge the pages. */
+	if (zip_size && page_is_leaf(mpage)
+	    && (page_get_data_size(mpage) + data_size
+		>= dict_index_zip_pad_optimal_page_size(index))) {
+
+		goto error;
+	}
+
+
+	max_ins_size = page_get_max_insert_size(mpage, n_recs);
+
+	if (data_size > max_ins_size) {
+
+		/* We have to reorganize mpage */
+
+		if (!btr_page_reorganize_block(
+			    false, page_zip_level, mblock, index, mtr)) {
+
+			goto error;
+		}
+
+		max_ins_size = page_get_max_insert_size(mpage, n_recs);
+
+		ut_ad(page_validate(mpage, index));
+		ut_ad(max_ins_size == max_ins_size_reorg);
+
+		if (data_size > max_ins_size) {
+
+			/* Add fault tolerance, though this should
+			never happen */
+
+			goto error;
+		}
+	}
+
+	*merge_block = mblock;
+	DBUG_RETURN(true);
+
+error:
+	*merge_block = NULL;
+	DBUG_RETURN(false);
 }
 
 #endif /* !UNIV_HOTBACKUP */

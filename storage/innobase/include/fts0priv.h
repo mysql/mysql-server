@@ -26,6 +26,7 @@ Created 2011/09/02 Sunny Bains
 #ifndef INNOBASE_FTS0PRIV_H
 #define INNOBASE_FTS0PRIV_H
 
+#include "univ.i"
 #include "dict0dict.h"
 #include "pars0pars.h"
 #include "que0que.h"
@@ -563,7 +564,7 @@ fts_find_index_cache(
 /******************************************************************//**
 Write the table id to the given buffer (including final NUL). Buffer must be
 at least FTS_AUX_MIN_TABLE_ID_LENGTH bytes long.
-@return	number of bytes written */
+@return number of bytes written */
 UNIV_INLINE
 int
 fts_write_object_id(

@@ -391,13 +391,13 @@ int main(int argc, char *argv[])
       pos--;
     if (!error && (i-- == 0))
     {
-      bmove(record3,record,reclength);
+      memmove(record3, record, reclength);
       position=heap_position(file);
     }
   }
   if (error)
     goto err;
-  bmove(record2,record,reclength);
+  memmove(record2, record, reclength);
   if (heap_rsame(file,record,-1) || heap_rsame(file,record2,2))
     goto err;
   if (memcmp(record2,record,reclength))

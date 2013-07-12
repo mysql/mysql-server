@@ -25,6 +25,8 @@ Completed 2011/7/10 Sunny and Jimmy Yang
 
 ***********************************************************************/
 
+#include "ha_prototypes.h"
+
 #include "fts0fts.h"
 #include "row0sel.h"
 #include "que0types.h"
@@ -34,7 +36,7 @@ Completed 2011/7/10 Sunny and Jimmy Yang
 #include "srv0start.h"
 #include "zlib.h"
 
-#ifndef UNIV_NONINL
+#ifdef UNIV_NONINL
 #include "fts0types.ic"
 #include "fts0vlc.ic"
 #endif
@@ -600,7 +602,7 @@ fts_zip_read_word(
 					zip->zp->avail_in =
 						FTS_MAX_WORD_LEN;
 				} else {
-					zip->zp->avail_in = zip->block_sz;
+					zip->zp->avail_in = (uInt) zip->block_sz;
 				}
 
 				++zip->pos;
@@ -701,7 +703,7 @@ fts_fetch_index_words(
 			ib_vector_push(zip->blocks, &block);
 
 			zip->zp->next_out = block;
-			zip->zp->avail_out = zip->block_sz;
+			zip->zp->avail_out = (uInt) zip->block_sz;
 		}
 
 		switch (zip->status = deflate(zip->zp, Z_NO_FLUSH)) {
@@ -1061,7 +1063,7 @@ fts_bsearch(
 	}
 
 	/* Not found. */
-	return( (lower == 0) ? -1 : -lower);
+	return( (lower == 0) ? -1 : -(lower));
 }
 
 /**********************************************************************//**
@@ -1079,10 +1081,10 @@ fts_optimize_lookup(
 	doc_id_t	last_doc_id)	/*!< in: doc id to lookup */
 {
 	int		pos;
-	int		upper = ib_vector_size(doc_ids);
+	int		upper = (int) ib_vector_size(doc_ids);
 	fts_update_t*	array = (fts_update_t*) doc_ids->data;
 
-	pos = fts_bsearch(array, lower, upper, first_doc_id);
+	pos = fts_bsearch(array, (int) lower, upper, first_doc_id);
 
 	ut_a(abs(pos) <= upper + 1);
 

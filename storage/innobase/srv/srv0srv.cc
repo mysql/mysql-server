@@ -38,13 +38,10 @@ The database server main program
 Created 10/8/1995 Heikki Tuuri
 *******************************************************/
 
-/* Dummy comment */
-#include "srv0srv.h"
-
 #include "ha_prototypes.h"
 
+#include "srv0srv.h"
 #include "ut0mem.h"
-#include "ut0ut.h"
 #include "os0proc.h"
 #include "mem0mem.h"
 #include "mem0pool.h"
@@ -61,12 +58,12 @@ Created 10/8/1995 Heikki Tuuri
 #include "btr0sea.h"
 #include "dict0load.h"
 #include "dict0boot.h"
-#include "dict0stats_bg.h" /* dict_stats_event */
+#include "dict0stats_bg.h"
 #include "srv0space.h"
 #include "srv0start.h"
 #include "row0mysql.h"
+#include "row0trunc.h"
 #include "trx0i_s.h"
-#include "os0sync.h" /* for HAVE_ATOMIC_BUILTINS */
 #include "srv0mon.h"
 #include "ut0crc32.h"
 
@@ -107,6 +104,10 @@ ulint	srv_undo_tablespaces_open = 8;
 
 /* The number of rollback segments to use */
 ulong	srv_undo_logs = 1;
+
+/** UNDO logs that are not redo logged.
+These logs reside in the temp tablespace.*/
+const ulong		srv_tmp_undo_logs = 32;
 
 /** Set if InnoDB must operate in read-only mode. We don't do any
 recovery and open all tables in RO mode instead of RW mode. We don't
@@ -645,7 +646,7 @@ srv_slot_get_type(
 
 /*********************************************************************//**
 Reserves a slot in the thread table for the current thread.
-@return	reserved slot */
+@return reserved slot */
 static
 srv_slot_t*
 srv_reserve_slot(
@@ -1436,7 +1437,7 @@ srv_export_innodb_status(void)
 
 /*********************************************************************//**
 A thread which prints the info output by various InnoDB monitors.
-@return	a dummy parameter */
+@return a dummy parameter */
 extern "C"
 os_thread_ret_t
 DECLARE_THREAD(srv_monitor_thread)(
@@ -1611,7 +1612,7 @@ exit_func:
 /*********************************************************************//**
 A thread which prints warnings about semaphore waits which have lasted
 too long. These can be used to track bugs which cause hangs.
-@return	a dummy parameter */
+@return a dummy parameter */
 extern "C"
 os_thread_ret_t
 DECLARE_THREAD(srv_error_monitor_thread)(
@@ -2240,7 +2241,7 @@ srv_master_sleep(void)
 
 /*********************************************************************//**
 The master thread controlling the server.
-@return	a dummy parameter */
+@return a dummy parameter */
 extern "C"
 os_thread_ret_t
 DECLARE_THREAD(srv_master_thread)(
@@ -2347,7 +2348,7 @@ srv_purge_should_exit(
 
 /*********************************************************************//**
 Fetch and execute a task from the work queue.
-@return	true if a task was executed */
+@return true if a task was executed */
 static
 bool
 srv_task_execute(void)
@@ -2376,7 +2377,7 @@ srv_task_execute(void)
 		que_run_threads(thr);
 
 		os_atomic_inc_ulint(
-			&purge_sys->bh_mutex, &purge_sys->n_completed, 1);
+			&purge_sys->pq_mutex, &purge_sys->n_completed, 1);
 	}
 
 	return(thr != NULL);
@@ -2384,7 +2385,7 @@ srv_task_execute(void)
 
 /*********************************************************************//**
 Worker thread that reads tasks from the work queue and executes them.
-@return	a dummy parameter */
+@return a dummy parameter */
 extern "C"
 os_thread_ret_t
 DECLARE_THREAD(srv_worker_thread)(
@@ -2644,7 +2645,7 @@ srv_purge_coordinator_suspend(
 
 /*********************************************************************//**
 Purge coordinator thread that schedules the purge tasks.
-@return	a dummy parameter */
+@return a dummy parameter */
 extern "C"
 os_thread_ret_t
 DECLARE_THREAD(srv_purge_coordinator_thread)(
@@ -2775,7 +2776,7 @@ srv_que_task_enqueue_low(
 
 /**********************************************************************//**
 Get count of tasks in the queue.
-@return number of tasks in queue  */
+@return number of tasks in queue */
 
 ulint
 srv_get_task_queue_length(void)
@@ -2814,4 +2815,24 @@ srv_purge_wakeup(void)
 		}
 	}
 }
+
+/** Check if tablespace is being truncated.
+(Ignore system-tablespace as we don't re-create the tablespace
+and so some of the action that are suppressed by this function
+for independent tablespace are not applicable to system-tablespace).
+@param	space_id	space_id to check for truncate action
+@return true		if being truncated, false if not being
+			truncated or tablespace is system-tablespace. */
+
+bool
+srv_is_tablespace_truncated(ulint space_id)
+{
+	if (Tablespace::is_system_tablespace(space_id)) {
+		return(false);
+	}
+
+	return(truncate_t::is_tablespace_truncated(space_id));
+
+}
+
 

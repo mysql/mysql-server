@@ -35,11 +35,8 @@ Created 9/5/1995 Heikki Tuuri
 #define sync0sync_h
 
 #include "univ.i"
-#include "sync0types.h"
-#include "ut0lst.h"
 #include "ut0mem.h"
 #include "os0thread.h"
-#include "os0sync.h"
 #include "sync0arr.h"
 
 #if  defined(UNIV_DEBUG) && !defined(UNIV_HOTBACKUP)
@@ -94,10 +91,11 @@ extern mysql_pfs_key_t	mem_hash_mutex_key;
 # endif /* UNIV_MEM_DEBUG */
 extern mysql_pfs_key_t	mem_pool_mutex_key;
 extern mysql_pfs_key_t	mutex_list_mutex_key;
-extern mysql_pfs_key_t	purge_sys_bh_mutex_key;
+extern mysql_pfs_key_t	purge_sys_pq_mutex_key;
 extern mysql_pfs_key_t	recv_sys_mutex_key;
 extern mysql_pfs_key_t	recv_writer_mutex_key;
-extern mysql_pfs_key_t	rseg_mutex_key;
+extern mysql_pfs_key_t	redo_rseg_mutex_key;
+extern mysql_pfs_key_t	noredo_rseg_mutex_key;
 # ifdef UNIV_SYNC_DEBUG
 extern mysql_pfs_key_t	rw_lock_debug_mutex_key;
 # endif /* UNIV_SYNC_DEBUG */
@@ -274,7 +272,7 @@ mutex_enter_func(
 NOTE! Use the corresponding macro in the header file, not this function
 directly. Tries to lock the mutex for the current thread. If the lock is not
 acquired immediately, returns with return value 1.
-@return	0 if succeed, 1 if not */
+@return 0 if succeed, 1 if not */
 
 ulint
 mutex_enter_nowait_func(
@@ -331,7 +329,7 @@ NOTE! Please use the corresponding macro mutex_enter_nowait(), not directly
 this function!
 This is a performance schema instrumented wrapper function for
 mutex_enter_nowait_func.
-@return	0 if succeed, 1 if not */
+@return 0 if succeed, 1 if not */
 UNIV_INLINE
 ulint
 pfs_mutex_enter_nowait_func(
@@ -368,7 +366,7 @@ pfs_mutex_free_func(
 /******************************************************************//**
 Returns TRUE if no mutex or rw-lock is currently locked.
 Works only in the debug version.
-@return	TRUE if no mutexes and rw-locks reserved */
+@return TRUE if no mutexes and rw-locks reserved */
 
 ibool
 sync_all_freed(void);
@@ -393,7 +391,7 @@ sync_print(
 #ifdef UNIV_DEBUG
 /******************************************************************//**
 Checks that the mutex has been initialized.
-@return	TRUE */
+@return TRUE */
 
 ibool
 mutex_validate(
@@ -402,7 +400,7 @@ mutex_validate(
 /******************************************************************//**
 Checks that the current thread owns the mutex. Works only
 in the debug version.
-@return	TRUE if owns */
+@return TRUE if owns */
 
 ibool
 mutex_own(
@@ -437,7 +435,7 @@ sync_thread_reset_level(
 /******************************************************************//**
 Checks if the level array for the current thread contains a
 mutex or rw-latch at the specified level.
-@return	a matching latch, or NULL if not found */
+@return a matching latch, or NULL if not found */
 
 void*
 sync_thread_levels_contains(
@@ -446,7 +444,7 @@ sync_thread_levels_contains(
 					(SYNC_DICT, ...)*/
 /******************************************************************//**
 Checks that the level array for the current thread is empty.
-@return	a latch, or NULL if empty except the exceptions specified below */
+@return a latch, or NULL if empty except the exceptions specified below */
 
 void*
 sync_thread_levels_nonempty_gen(
@@ -462,7 +460,7 @@ except for data dictionary latches. */
 /******************************************************************//**
 Checks if the level array for the current thread is empty,
 except for the btr_search_latch.
-@return	a latch, or NULL if empty except the exceptions specified below */
+@return a latch, or NULL if empty except the exceptions specified below */
 
 void*
 sync_thread_levels_nonempty_trx(
@@ -485,7 +483,7 @@ mutex_get_debug_info(
 					the mutex */
 /******************************************************************//**
 Counts currently reserved mutexes. Works only in the debug version.
-@return	number of reserved mutexes */
+@return number of reserved mutexes */
 
 ulint
 mutex_n_reserved(void);
@@ -503,7 +501,7 @@ mutex_get_lock_word(
 /******************************************************************//**
 NOT to be used outside this module except in debugging! Gets the waiters
 field in a mutex.
-@return	value to set */
+@return value to set */
 UNIV_INLINE
 ulint
 mutex_get_waiters(
@@ -681,7 +679,8 @@ or row lock! */
 #define SYNC_TREE_NODE		890
 #define	SYNC_PURGE_LATCH	800
 #define	SYNC_TRX_UNDO		700
-#define SYNC_RSEG		600
+#define SYNC_REDO_RSEG		600
+#define SYNC_NOREDO_RSEG	599
 #define SYNC_RSEG_HEADER_NEW	591
 #define SYNC_RSEG_HEADER	590
 #define SYNC_TRX_UNDO_PAGE	570

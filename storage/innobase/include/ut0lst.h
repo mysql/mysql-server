@@ -1,6 +1,6 @@
 /*****************************************************************************
 
-Copyright (c) 1995, 2011, Oracle and/or its affiliates. All Rights Reserved.
+Copyright (c) 1995, 2013, Oracle and/or its affiliates. All Rights Reserved.
 
 This program is free software; you can redistribute it and/or modify it under
 the terms of the GNU General Public License as published by the Free Software
@@ -27,7 +27,9 @@ Rewritten by Sunny Bains Dec 2011.
 #ifndef ut0lst_h
 #define ut0lst_h
 
-#include "univ.i"
+/* Do not include univ.i because univ.i includes this. */
+
+#include "ut0dbg.h"
 
 /* This module implements the two-way linear list. Note that a single
 list node may belong to two or more lists, but is only on one list
@@ -35,7 +37,7 @@ at a time. */
 
 /*******************************************************************//**
 The two way list node.
-@param TYPE	the list node type name */
+@param TYPE the list node type name */
 template <typename Type>
 struct ut_list_node {
 	Type*		prev;			/*!< pointer to the previous
@@ -52,8 +54,8 @@ The two-way list base node. The base node contains pointers to both ends
 of the list and a count of nodes in the list (excluding the base node
 from the count). We also store a pointer to the member field so that it
 doesn't have to be specified when doing list operations.
-@param Type	the type of the list element
-@param NodePtr	field member pointer that points to the list node */
+@param Type the type of the list element
+@param NodePtr field member pointer that points to the list node */
 template <typename Type, typename NodePtr>
 struct ut_list_base {
 	typedef Type elem_type;
@@ -89,8 +91,8 @@ struct ut_list_base {
 Note: This is really the list constructor. We should be able to use
 placement new here.
 Initializes the base node of a two-way list.
-@param b	the list base node
-@param pmf	point to member field that will be used as the link node */
+@param b the list base node
+@param pmf point to member field that will be used as the link node */
 #define UT_LIST_INIT(b, pmf)						\
 {									\
 	(b).count = 0;							\
@@ -121,8 +123,8 @@ struct GenericGetNode {
 
 /*******************************************************************//**
 Adds the node as the first element in a two-way linked list.
-@param list	the base node (not a pointer to it)
-@param elem	the element to add */
+@param list the base node (not a pointer to it)
+@param elem the element to add */
 template <typename List>
 void
 ut_list_prepend(
@@ -156,15 +158,15 @@ ut_list_prepend(
 
 /*******************************************************************//**
 Adds the node as the first element in a two-way linked list.
-@param LIST	the base node (not a pointer to it)
-@param ELEM	the element to add */
+@param LIST the base node (not a pointer to it)
+@param ELEM the element to add */
 #define UT_LIST_ADD_FIRST(LIST, ELEM)	ut_list_prepend(LIST, ELEM)
 
 /*******************************************************************//**
 Adds the node as the last element in a two-way linked list.
-@param list	list
-@param elem	the element to add
-@param get_node	to get the list node for that element */
+@param list list
+@param elem the element to add
+@param get_node to get the list node for that element */
 template <typename List, typename Functor>
 void
 ut_list_append(
@@ -198,8 +200,8 @@ ut_list_append(
 
 /*******************************************************************//**
 Adds the node as the last element in a two-way linked list.
-@param list	list
-@param elem	the element to add */
+@param list list
+@param elem the element to add */
 template <typename List>
 void
 ut_list_append(
@@ -213,15 +215,15 @@ ut_list_append(
 
 /*******************************************************************//**
 Adds the node as the last element in a two-way linked list.
-@param LIST	list base node (not a pointer to it)
-@param ELEM	the element to add */
+@param LIST list base node (not a pointer to it)
+@param ELEM the element to add */
 #define UT_LIST_ADD_LAST(LIST, ELEM)	ut_list_append(LIST, ELEM)
 
 /*******************************************************************//**
 Inserts a ELEM2 after ELEM1 in a list.
-@param list	the base node
-@param elem1	node after which ELEM2 is inserted
-@param elem2	node being inserted after ELEM1 */
+@param list the base node
+@param elem1 node after which ELEM2 is inserted
+@param elem2 node being inserted after ELEM1 */
 template <typename List>
 void
 ut_list_insert(
@@ -256,17 +258,17 @@ ut_list_insert(
 
 /*******************************************************************//**
 Inserts a ELEM2 after ELEM1 in a list.
-@param LIST	list base node (not a pointer to it)
-@param ELEM1	node after which ELEM2 is inserted
-@param ELEM2	node being inserted after ELEM1 */
+@param LIST list base node (not a pointer to it)
+@param ELEM1 node after which ELEM2 is inserted
+@param ELEM2 node being inserted after ELEM1 */
 #define UT_LIST_INSERT_AFTER(LIST, ELEM1, ELEM2)			\
 	ut_list_insert(LIST, ELEM1, ELEM2)
 
 /*******************************************************************//**
 Removes a node from a two-way linked list.
-@param list	the base node (not a pointer to it)
-@param node	member node within list element that is to be removed
-@param get_node	functor to get the list node from elem */
+@param list the base node (not a pointer to it)
+@param node member node within list element that is to be removed
+@param get_node functor to get the list node from elem */
 template <typename List, typename Functor>
 void
 ut_list_remove(
@@ -303,9 +305,9 @@ ut_list_remove(
 
 /*******************************************************************//**
 Removes a node from a two-way linked list.
-@param list	the base node (not a pointer to it)
-@param elem	element to be removed from the list
-@param get_node	functor to get the list node from elem */
+@param list the base node (not a pointer to it)
+@param elem element to be removed from the list
+@param get_node functor to get the list node from elem */
 template <typename List, typename Functor>
 void
 ut_list_remove(
@@ -318,8 +320,8 @@ ut_list_remove(
 
 /*******************************************************************//**
 Removes a node from a two-way linked list.
-@param list	the base node (not a pointer to it)
-@param elem	element to be removed from the list */
+@param list the base node (not a pointer to it)
+@param elem element to be removed from the list */
 template <typename List>
 void
 ut_list_remove(
@@ -333,49 +335,49 @@ ut_list_remove(
 
 /*******************************************************************//**
 Removes a node from a two-way linked list.
-@param LIST	the base node (not a pointer to it)
-@param ELEM	node to be removed from the list */
+@param LIST the base node (not a pointer to it)
+@param ELEM node to be removed from the list */
 #define UT_LIST_REMOVE(LIST, ELEM)	ut_list_remove(LIST, ELEM)
 
 /********************************************************************//**
 Gets the next node in a two-way list.
-@param NAME	list name
-@param N	pointer to a node
-@return		the successor of N in NAME, or NULL */
+@param NAME list name
+@param N pointer to a node
+@return the successor of N in NAME, or NULL */
 #define UT_LIST_GET_NEXT(NAME, N)	(((N)->NAME).next)
 
 /********************************************************************//**
 Gets the previous node in a two-way list.
-@param NAME	list name
-@param N	pointer to a node
-@return		the predecessor of N in NAME, or NULL */
+@param NAME list name
+@param N pointer to a node
+@return the predecessor of N in NAME, or NULL */
 #define UT_LIST_GET_PREV(NAME, N)	(((N)->NAME).prev)
 
 /********************************************************************//**
 Alternative macro to get the number of nodes in a two-way list, i.e.,
 its length.
-@param BASE	the base node (not a pointer to it).
-@return		the number of nodes in the list */
+@param BASE the base node (not a pointer to it).
+@return the number of nodes in the list */
 #define UT_LIST_GET_LEN(BASE)		(BASE).count
 
 /********************************************************************//**
 Gets the first node in a two-way list.
-@param BASE	the base node (not a pointer to it)
-@return		first node, or NULL if the list is empty */
+@param BASE the base node (not a pointer to it)
+@return first node, or NULL if the list is empty */
 #define UT_LIST_GET_FIRST(BASE)		(BASE).start
 
 /********************************************************************//**
 Gets the last node in a two-way list.
-@param BASE	the base node (not a pointer to it)
-@return		last node, or NULL if the list is empty */
+@param BASE the base node (not a pointer to it)
+@return last node, or NULL if the list is empty */
 #define UT_LIST_GET_LAST(BASE)		(BASE).end
 
 struct	NullValidate { void operator()(const void* elem) { } };
 
 /********************************************************************//**
 Iterate over all the elements and call the functor for each element.
-@param list	base node (not a pointer to it)
-@param functor	Functor that is called for each element in the list */
+@param list base node (not a pointer to it)
+@param functor Functor that is called for each element in the list */
 template <typename List, class Functor>
 void
 ut_list_map(
@@ -398,8 +400,8 @@ ut_list_map(
 
 /********************************************************************//**
 Checks the consistency of a two-way list.
-@param list	base node (not a pointer to it)
-@param functor	Functor that is called for each element in the list */
+@param list base node (not a pointer to it)
+@param functor Functor that is called for each element in the list */
 template <typename List, class Functor>
 void
 ut_list_validate(
@@ -422,13 +424,13 @@ ut_list_validate(
 
 /********************************************************************//**
 Checks the consistency of a two-way list.
-@param LIST		base node (not a pointer to it)
-@param FUNCTOR		called for each list element */
+@param LIST base node (not a pointer to it)
+@param FUNCTOR called for each list element */
 #define UT_LIST_VALIDATE(LIST, FUNCTOR)		ut_list_validate(LIST, FUNCTOR)
 
 /********************************************************************//**
 Checks the consistency of a two-way list.
-@param LIST		base node (not a pointer to it) */
+@param LIST base node (not a pointer to it) */
 #define UT_LIST_CHECK(LIST)						\
 	ut_list_validate(LIST, NullValidate())
 

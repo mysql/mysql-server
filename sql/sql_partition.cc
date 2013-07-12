@@ -88,7 +88,7 @@ const LEX_STRING partition_keywords[]=
 {
   { C_STRING_WITH_LEN("HASH") },
   { C_STRING_WITH_LEN("RANGE") },
-  { C_STRING_WITH_LEN("LIST") }, 
+  { C_STRING_WITH_LEN("LIST") },
   { C_STRING_WITH_LEN("KEY") },
   { C_STRING_WITH_LEN("MAXVALUE") },
   { C_STRING_WITH_LEN("LINEAR ") },
@@ -138,13 +138,13 @@ int get_partition_id_with_sub(partition_info *part_info,
                               uint32 *part_id,
                               longlong *func_value);
 int get_partition_id_hash_sub(partition_info *part_info,
-                              uint32 *part_id); 
+                              uint32 *part_id);
 int get_partition_id_key_sub(partition_info *part_info,
-                             uint32 *part_id); 
+                             uint32 *part_id);
 int get_partition_id_linear_hash_sub(partition_info *part_info,
-                                     uint32 *part_id); 
+                                     uint32 *part_id);
 int get_partition_id_linear_key_sub(partition_info *part_info,
-                                    uint32 *part_id); 
+                                    uint32 *part_id);
 static uint32 get_next_partition_via_walking(PARTITION_ITERATOR*);
 static void set_up_range_analysis_info(partition_info *part_info);
 static uint32 get_next_subpartition_via_walking(PARTITION_ITERATOR*);
@@ -198,7 +198,7 @@ static int cmp_rec_and_tuple_prune(part_column_list_val *val,
 Item* convert_charset_partition_constant(Item *item, const CHARSET_INFO *cs)
 {
   THD *thd= current_thd;
-  Name_resolution_context *context= &thd->lex->current_select->context;
+  Name_resolution_context *context= &thd->lex->current_select()->context;
   TABLE_LIST *save_list= context->table_list;
   const char *save_where= thd->where;
 
@@ -242,7 +242,7 @@ static bool is_name_in_list(char *name, List<char> list_names)
 
 
 /*
-  Set-up defaults for partitions. 
+  Set-up defaults for partitions.
 
   SYNOPSIS
     partition_default_handling()
@@ -300,7 +300,7 @@ bool partition_default_handling(TABLE *table, partition_info *part_info,
     new_data                Buffer of new record
     rec0                    Reference to table->record[0]
     part_info               Reference to partition information
-    out:old_part_id         The returned partition id of old record 
+    out:old_part_id         The returned partition id of old record
     out:new_part_id         The returned partition id of new record
 
   RETURN VALUE
@@ -328,9 +328,6 @@ int get_parts_for_update(const uchar *old_data, uchar *new_data,
     DBUG_ASSERT(0);
     DBUG_RETURN(error);
   }
-#ifdef NOT_NEEDED
-  if (new_data == rec0)
-#endif
   {
     if (unlikely(error= part_info->get_partition_id(part_info,
                                                     new_part_id,
@@ -339,24 +336,6 @@ int get_parts_for_update(const uchar *old_data, uchar *new_data,
       DBUG_RETURN(error);
     }
   }
-#ifdef NOT_NEEDED
-  else
-  {
-    /*
-      This branch should never execute but it is written anyways for
-      future use. It will be tested by ensuring that the above
-      condition is false in one test situation before pushing the code.
-    */
-    set_field_ptr(part_field_array, new_data, rec0);
-    error= part_info->get_partition_id(part_info, new_part_id,
-                                       new_func_value);
-    set_field_ptr(part_field_array, rec0, new_data);
-    if (unlikely(error))
-    {
-      DBUG_RETURN(error);
-    }
-  }
-#endif
   DBUG_RETURN(0);
 }
 
@@ -469,7 +448,7 @@ static bool set_up_field_array(TABLE *table,
   DBUG_ENTER("set_up_field_array");
 
   ptr= table->field;
-  while ((field= *(ptr++))) 
+  while ((field= *(ptr++)))
   {
     if (field->flags & GET_FIXED_FIELDS_FLAG)
       num_fields++;
@@ -500,7 +479,7 @@ static bool set_up_field_array(TABLE *table,
     result= TRUE;
   }
   ptr= table->field;
-  while ((field= *(ptr++))) 
+  while ((field= *(ptr++)))
   {
     if (field->flags & GET_FIXED_FIELDS_FLAG)
     {
@@ -751,7 +730,7 @@ static void check_fields_in_PF(Field **ptr, bool *all_fields,
   {
   /* Check if the field of the PF is part of the current key investigated */
     if ((*ptr)->flags & GET_FIXED_FIELDS_FLAG)
-      *some_fields= TRUE; 
+      *some_fields= TRUE;
     else
       *all_fields= FALSE;
   } while (*(++ptr));
@@ -980,7 +959,7 @@ end_lex_with_single_table(THD *thd, TABLE *table, LEX *old_lex)
 }
 
 /*
-  The function uses a new feature in fix_fields where the flag 
+  The function uses a new feature in fix_fields where the flag
   GET_FIXED_FIELDS_FLAG is set for all fields in the item tree.
   This field must always be reset before returning from the function
   since it is used for other purposes as well.
@@ -1024,7 +1003,7 @@ static bool fix_fields_part_func(THD *thd, Item* func_expr, TABLE *table,
   int error;
   LEX *old_lex= thd->lex;
   LEX lex;
-  st_select_lex_unit unit;
+  st_select_lex_unit unit(CTX_NONE);
   st_select_lex select(NULL, NULL, NULL, NULL, NULL, NULL, 0);
   lex.new_static_query(&unit, &select);
 
@@ -1053,8 +1032,8 @@ static bool fix_fields_part_func(THD *thd, Item* func_expr, TABLE *table,
     of interesting side effects, both desirable and undesirable.
   */
   {
-    const bool save_agg_field= thd->lex->current_select->non_agg_field_used();
-    const bool save_agg_func=  thd->lex->current_select->agg_func_used();
+    const bool save_agg_field= thd->lex->current_select()->non_agg_field_used();
+    const bool save_agg_func=  thd->lex->current_select()->agg_func_used();
     const nesting_map saved_allow_sum_func= thd->lex->allow_sum_func;
     thd->lex->allow_sum_func= 0;
 
@@ -1064,8 +1043,8 @@ static bool fix_fields_part_func(THD *thd, Item* func_expr, TABLE *table,
       Restore agg_field/agg_func  and allow_sum_func,
       fix_fields should not affect mysql_select later, see Bug#46923.
     */
-    thd->lex->current_select->set_non_agg_field_used(save_agg_field);
-    thd->lex->current_select->set_agg_func_used(save_agg_func);
+    thd->lex->current_select()->set_non_agg_field_used(save_agg_field);
+    thd->lex->current_select()->set_agg_func_used(save_agg_func);
     thd->lex->allow_sum_func= saved_allow_sum_func;
   }
   if (unlikely(error))
@@ -1283,7 +1262,7 @@ void check_range_capable_PF(TABLE *table)
 static bool set_up_partition_bitmaps(THD *thd, partition_info *part_info)
 {
   uint32 *bitmap_buf;
-  uint bitmap_bits= part_info->num_subparts? 
+  uint bitmap_bits= part_info->num_subparts?
                      (part_info->num_subparts* part_info->num_parts):
                       part_info->num_parts;
   uint bitmap_bytes= bitmap_buffer_size(bitmap_bits);
@@ -1772,13 +1751,13 @@ bool fix_partition_func(THD *thd, TABLE *table,
     part_info->fixed= TRUE;
     if (part_info->part_type == RANGE_PARTITION)
     {
-      error_str= partition_keywords[PKW_RANGE].str; 
+      error_str= partition_keywords[PKW_RANGE].str;
       if (unlikely(part_info->check_range_constants(thd)))
         goto end;
     }
     else if (part_info->part_type == LIST_PARTITION)
     {
-      error_str= partition_keywords[PKW_LIST].str; 
+      error_str= partition_keywords[PKW_LIST].str;
       if (unlikely(part_info->check_list_constants(thd)))
         goto end;
     }
@@ -1849,7 +1828,7 @@ end:
 
 
 /*
-  The code below is support routines for the reverse parsing of the 
+  The code below is support routines for the reverse parsing of the
   partitioning syntax. This feature is very useful to generate syntax for
   all default values to avoid all default checking when opening the frm
   file. It is also used when altering the partitioning by use of various
@@ -2035,7 +2014,7 @@ void truncate_partition_filename(char *path)
       {
         if ((pound[1] == 'P' || pound[1] == 'p') && pound[2] == '#')
         {
-          last_slash[0] = '\0';	/* truncate the file name */
+          last_slash[0] = '\0'; /* truncate the file name */
           break;
         }
       }
@@ -2554,8 +2533,8 @@ char *generate_partition_syntax(partition_info *part_info,
   char *buf= NULL; //Return buffer
   DBUG_ENTER("generate_partition_syntax");
 
-  if (unlikely(((fptr= create_temp_file(path,mysql_tmpdir,"psy", 
-                                        O_RDWR | O_BINARY | O_TRUNC |  
+  if (unlikely(((fptr= create_temp_file(path,mysql_tmpdir,"psy",
+                                        O_RDWR | O_BINARY | O_TRUNC |
                                         O_TEMPORARY, MYF(MY_WME)))) < 0))
     DBUG_RETURN(NULL);
 #ifndef _WIN32
@@ -2630,7 +2609,7 @@ char *generate_partition_syntax(partition_info *part_info,
                            part_info->subpart_func_len);
       err+= add_end_parenthesis(fptr);
     }
-    if ((!part_info->use_default_num_subpartitions) && 
+    if ((!part_info->use_default_num_subpartitions) &&
           part_info->use_default_subpartitions)
     {
       err+= add_string(fptr, "\n");
@@ -3047,7 +3026,7 @@ static void restore_part_field_pointers(Field **ptr, uchar **restore_ptr)
     part_id                     Partition id of partition that would contain
                                 row with given values of PF-fields
     HA_ERR_NO_PARTITION_FOUND   The fields of the partition function didn't
-                                fit into any partition and thus the values of 
+                                fit into any partition and thus the values of
                                 the PF-fields are not allowed.
 
   DESCRIPTION
@@ -3055,7 +3034,7 @@ static void restore_part_field_pointers(Field **ptr, uchar **restore_ptr)
     handler supporting partitioning. It is also a support routine for
     get_partition_set used to find the set of partitions needed to scan
     for a certain index scan or full table scan.
-    
+
     It is actually 9 different variants of this function which are called
     through a function pointer.
 
@@ -3084,12 +3063,12 @@ static void restore_part_field_pointers(Field **ptr, uchar **restore_ptr)
 
   RETURN VALUE
     HA_ERR_NO_PARTITION_FOUND   The fields of the partition function didn't
-                                fit into any partition and thus the values of 
+                                fit into any partition and thus the values of
                                 the PF-fields are not allowed.
     0                           OK
 
   DESCRIPTION
-    
+
     It is actually 8 different variants of this function which are called
     through a function pointer.
 
@@ -3331,7 +3310,7 @@ uint32 get_list_array_idx_for_endpoint(partition_info *part_info,
   uint min_list_index= 0, max_list_index= part_info->num_list_values - 1;
   longlong list_value;
   /* Get the partitioning function value for the endpoint */
-  longlong part_func_value= 
+  longlong part_func_value=
     part_info->part_expr->val_int_endpoint(left_endpoint, &include_endpoint);
   bool unsigned_flag= part_info->part_expr->unsigned_flag;
   DBUG_ENTER("get_list_array_idx_for_endpoint");
@@ -3348,7 +3327,7 @@ uint32 get_list_array_idx_for_endpoint(partition_info *part_info,
     */
     enum_monotonicity_info monotonic;
     monotonic= part_info->part_expr->get_monotonicity_info();
-    if (monotonic != MONOTONIC_INCREASING_NOT_NULL && 
+    if (monotonic != MONOTONIC_INCREASING_NOT_NULL &&
         monotonic != MONOTONIC_STRICT_INCREASING_NOT_NULL)
     {
       /* F(col) can not return NULL, return index with lowest value */
@@ -3371,7 +3350,7 @@ uint32 get_list_array_idx_for_endpoint(partition_info *part_info,
         goto notfound;
       max_list_index= list_index - 1;
     }
-    else 
+    else
     {
       DBUG_RETURN(list_index + test(left_endpoint ^ include_endpoint));
     }
@@ -3468,8 +3447,8 @@ int get_partition_id_range(partition_info *part_info,
 
 /*
   Find the sub-array of part_info->range_int_array that covers given interval
- 
-  SYNOPSIS 
+
+  SYNOPSIS
     get_partition_id_range_for_endpoint()
       part_info         Partitioning info (partitioning type must be RANGE)
       left_endpoint     TRUE  - the interval is [a; +inf) or (a; +inf)
@@ -3480,29 +3459,29 @@ int get_partition_id_range(partition_info *part_info,
   DESCRIPTION
     This function finds the sub-array of part_info->range_int_array where the
     elements have non-empty intersections with the given interval.
- 
+
     A range_int_array element at index idx represents the interval
-      
+
       [range_int_array[idx-1], range_int_array[idx]),
 
     intervals are disjoint and ordered by their right bound, so
-    
+
     1. For [a; +inf) or (a; +inf)-type intervals (left_endpoint==TRUE), the
        sought sub-array starts at some index idx and continues till array end.
        The function returns first number idx, such that the interval
-       represented by range_int_array[idx] has non empty intersection with 
+       represented by range_int_array[idx] has non empty intersection with
        the passed interval.
-       
+
     2. For (-inf; a] or (-inf; a)-type intervals (left_endpoint==FALSE), the
        sought sub-array starts at array start and continues till some last
        index idx.
        The function returns first number idx, such that the interval
        represented by range_int_array[idx] has EMPTY intersection with the
        passed interval.
-       If the interval represented by the last array element has non-empty 
+       If the interval represented by the last array element has non-empty
        intersection with the passed interval, part_info->num_parts is
        returned.
-       
+
   RETURN
     The edge of corresponding part_info->range_int_array sub-array.
 */
@@ -3532,7 +3511,7 @@ uint32 get_partition_id_range_for_endpoint(partition_info *part_info,
   uint max_partition= part_info->num_parts - 1;
   uint min_part_id= 0, max_part_id= max_partition, loc_part_id;
   /* Get the partitioning function value for the endpoint */
-  longlong part_func_value= 
+  longlong part_func_value=
     part_info->part_expr->val_int_endpoint(left_endpoint, &include_endpoint);
 
   bool unsigned_flag= part_info->part_expr->unsigned_flag;
@@ -3557,7 +3536,7 @@ uint32 get_partition_id_range_for_endpoint(partition_info *part_info,
       /* F(col) can not return NULL, return partition with lowest value */
       if (!left_endpoint && include_endpoint)
         DBUG_RETURN(1);
-      DBUG_RETURN(0);               
+      DBUG_RETURN(0);
 
     }
   }
@@ -3599,7 +3578,7 @@ uint32 get_partition_id_range_for_endpoint(partition_info *part_info,
         (loc_part_id < max_partition || !part_info->defined_max_value))
       loc_part_id++;
   }
-  else 
+  else
   {
     /* if 'WHERE <= X' and partition is LESS THAN (X) include next partition */
     if (include_endpoint && loc_part_id < max_partition &&
@@ -3673,7 +3652,7 @@ int get_partition_id_with_sub(partition_info *part_info,
                                                       &sub_part_id))))
   {
     DBUG_RETURN(error);
-  } 
+  }
   *part_id= get_part_id_for_sub(loc_part_id, sub_part_id, num_subparts);
   DBUG_RETURN(0);
 }
@@ -3693,7 +3672,7 @@ int get_partition_id_with_sub(partition_info *part_info,
   DESCRIPTION
     A routine used in some SELECT's when only partial knowledge of the
     partitions is known.
-    
+
     It is actually 4 different variants of this function which are called
     through a function pointer.
 
@@ -4051,12 +4030,12 @@ err:
 
 
 /*
-  Prune the set of partitions to use in query 
+  Prune the set of partitions to use in query
 
   SYNOPSIS
     prune_partition_set()
     table         The table object
-    out:part_spec Contains start part, end part 
+    out:part_spec Contains start part, end part
 
   DESCRIPTION
     This function is called to prune the range of partitions to scan by
@@ -4094,7 +4073,7 @@ void prune_partition_set(const TABLE *table, part_id_range *part_spec)
   }
   if (last_partition == -1)
     /* No partition found in pruned bitmap */
-    part_spec->start_part= part_spec->end_part + 1;  
+    part_spec->start_part= part_spec->end_part + 1;
   else //if (last_partition != -1)
     part_spec->end_part= last_partition;
 
@@ -4140,7 +4119,7 @@ void get_partition_set(const TABLE *table, uchar *buf, const uint index,
 
   part_spec->start_part= 0;
   part_spec->end_part= num_parts - 1;
-  if ((index < MAX_KEY) && 
+  if ((index < MAX_KEY) &&
        key_spec && key_spec->flag == (uint)HA_READ_KEY_EXACT &&
        part_info->some_fields_in_PF.is_set(index))
   {
@@ -4220,7 +4199,7 @@ void get_partition_set(const TABLE *table, uchar *buf, const uint index,
             Check if range can be adjusted by looking in read_partitions
           */
           prune_partition_set(table, part_spec);
-          DBUG_VOID_RETURN; 
+          DBUG_VOID_RETURN;
         }
         else if (part_info->is_sub_partitioned())
         {
@@ -4362,7 +4341,7 @@ bool mysql_unpack_partition(THD *thd,
     thd->variables.character_set_client;
   LEX *old_lex= thd->lex;
   LEX lex;
-  st_select_lex_unit unit;
+  st_select_lex_unit unit(CTX_NONE);
   st_select_lex select(NULL, NULL, NULL, NULL, NULL, NULL, 0);
   lex.new_static_query(&unit, &select);
 
@@ -4412,7 +4391,7 @@ bool mysql_unpack_partition(THD *thd,
     MySQL Server and used in backup and restore of clusters or partitioned
     tables. It is not certain that the restore will restore exactly the
     same default partitioning.
-    
+
     The easiest manner of handling this is to simply continue using the
     part_info we already built up during mysql_create_table if we are
     in the process of creating a table. If the table already exists we
@@ -4464,7 +4443,7 @@ bool mysql_unpack_partition(THD *thd,
     not serialisable.
   */
     uint part_func_len= part_info->part_func_len;
-    uint subpart_func_len= part_info->subpart_func_len; 
+    uint subpart_func_len= part_info->subpart_func_len;
     char *part_func_string= NULL;
     char *subpart_func_string= NULL;
     if ((part_func_len &&
@@ -4758,7 +4737,7 @@ bool compare_partition_options(HA_CREATE_INFO *table_create_info,
     @retval TRUE                 Error
     @retval FALSE                Success
 
-  @note 
+  @note
     This method handles all preparations for ALTER TABLE for partitioned
     tables.
     We need to handle both partition management command such as Add Partition
@@ -5063,7 +5042,7 @@ For range and list partitions add partition is simply adding a
 new empty partition to the table. If the handler support this we
 will use the simple method of doing this. The figure below shows
 an example of this and the states involved in making this change.
-            
+
 Existing partitions                                     New added partitions
 ------       ------        ------        ------      |  ------    ------
 |    |       |    |        |    |        |    |      |  |    |    |    |
@@ -5072,7 +5051,7 @@ Existing partitions                                     New added partitions
 PART_NORMAL  PART_NORMAL   PART_NORMAL   PART_NORMAL    PART_TO_BE_ADDED*2
 PART_NORMAL  PART_NORMAL   PART_NORMAL   PART_NORMAL    PART_IS_ADDED*2
 
-The first line is the states before adding the new partitions and the 
+The first line is the states before adding the new partitions and the
 second line is after the new partitions are added. All the partitions are
 in the partitions list, no partitions are placed in the temp_partitions
 list.
@@ -5346,7 +5325,7 @@ last partition).
 Using linear hash then all remaining partitions will have a new reorganised
 part.
 
-Existing partitions                     Coalesced partition 
+Existing partitions                     Coalesced partition
 ------       ------              ------   |      ------
 |    |       |    |              |    |   |      |    |
 | p0 |       | p1 |              | p2 |   |      | p3 |
@@ -5424,7 +5403,7 @@ state of p1.
         to create a set of new partitions. So data is copied from those
         partitions into the new set of partitions. Those new partitions
         can have more values in the LIST value specifications or less both
-        are allowed. The ranges can be different but since they are 
+        are allowed. The ranges can be different but since they are
         changing a set of consecutive partitions they must cover the same
         range as those changed from.
         This command can be used on RANGE and LIST partitions.
@@ -5483,7 +5462,7 @@ The reason of this change could be to change range limits, change list
 values or for hash partitions simply reorganise the partition which could
 also involve moving them to new disks or new node groups (MySQL Cluster).
 
-Existing partitions                                  
+Existing partitions
 ------       ------        ------        ------
 |    |       |    |        |    |        |    |
 | p0 |       | p1 |        | p2 |        | p3 |
@@ -6625,7 +6604,7 @@ static void alter_partition_lock_handling(ALTER_PARTITION_PARAM_TYPE *lpt)
   if (thd->locked_tables_mode)
   {
     Diagnostics_area *stmt_da= NULL;
-    Diagnostics_area tmp_stmt_da(thd->query_id, false);
+    Diagnostics_area tmp_stmt_da(false);
 
     if (thd->is_error())
     {
@@ -6829,7 +6808,7 @@ err_exclusive_lock:
   if (thd->locked_tables_mode)
   {
     Diagnostics_area *stmt_da= NULL;
-    Diagnostics_area tmp_stmt_da(thd->query_id, false);
+    Diagnostics_area tmp_stmt_da(false);
 
     if (thd->is_error())
     {
@@ -6955,7 +6934,7 @@ uint fast_alter_partition_table(THD *thd, TABLE *table,
       in performing the change then the binlog is not written for the
       change. There is no way to solve this as long as the binlog is not
       transactional and even then it is hard to solve it completely.
- 
+
       The first approach here was to downgrade locks. Now a different approach
       is decided upon. The idea is that the handler will have access to the
       Alter_info when store_lock arrives with TL_WRITE_ALLOW_READ. So if the
@@ -6996,7 +6975,7 @@ uint fast_alter_partition_table(THD *thd, TABLE *table,
       dropped partitions was aborted for sure (thus only possible for
       transactional engines).
 
-      0) Write an entry that removes the shadow frm file if crash occurs 
+      0) Write an entry that removes the shadow frm file if crash occurs
       1) Write the new frm file as a shadow frm
       2) Get an exclusive metadata lock on the table (waits for all active
          transactions using this table). This ensures that we
@@ -7064,7 +7043,7 @@ uint fast_alter_partition_table(THD *thd, TABLE *table,
         (write_log_completed(lpt, FALSE), FALSE) ||
         ERROR_INJECT_CRASH("crash_drop_partition_9") ||
         ERROR_INJECT_ERROR("fail_drop_partition_9") ||
-        (alter_partition_lock_handling(lpt), FALSE)) 
+        (alter_partition_lock_handling(lpt), FALSE))
     {
       handle_alter_part_error(lpt, action_completed, TRUE, frm_install,
                               close_table_on_failure);
@@ -7084,7 +7063,7 @@ uint fast_alter_partition_table(THD *thd, TABLE *table,
       miss updates made by a transaction serialised before it that are
       inserted into the new partition.
 
-      0) Write an entry that removes the shadow frm file if crash occurs 
+      0) Write an entry that removes the shadow frm file if crash occurs
       1) Write the new frm file as a shadow frm file
       2) Get an exclusive metadata lock on the table (waits for all active
          transactions using this table). This ensures that we
@@ -7155,7 +7134,7 @@ uint fast_alter_partition_table(THD *thd, TABLE *table,
       COALESCE PARTITION/
       REBUILD PARTITION/
       REORGANIZE PARTITION
- 
+
       In this case all records are still around after the change although
       possibly organised into new partitions, thus by ensuring that all
       updates go to both the old and the new partitioning scheme we can
@@ -7353,7 +7332,7 @@ void set_key_field_ptr(KEY *key_info, const uchar *new_buf,
 
 void mem_alloc_error(size_t size)
 {
-  my_error(ER_OUTOFMEMORY, MYF(ME_FATALERROR), 
+  my_error(ER_OUTOFMEMORY, MYF(ME_FATALERROR),
            static_cast<int>(size));
 }
 
@@ -7366,7 +7345,7 @@ void mem_alloc_error(size_t size)
 
     Generate a list of used partitions (from bits in part_info->read_partitions
     bitmap), and store it into the provided String object.
-    
+
     @note
     The produced string must not be longer then MAX_PARTITIONS * (1 + FN_LEN).
     In case of UPDATE, only the partitions read is given, not the partitions
@@ -7447,7 +7426,7 @@ bool make_used_partitions_str(partition_info *part_info,
   IMPLEMENTATION
     There are three available interval analyzer functions:
     (1) get_part_iter_for_interval_via_mapping
-    (2) get_part_iter_for_interval_cols_via_map 
+    (2) get_part_iter_for_interval_cols_via_map
     (3) get_part_iter_for_interval_via_walking
 
     They all have limited applicability:
@@ -7456,11 +7435,11 @@ bool make_used_partitions_str(partition_info *part_info,
 
     (2) is applicable for "PARTITION BY <RANGE|LIST> COLUMNS (field_list)
 
-    (3) is applicable for 
+    (3) is applicable for
       "[SUB]PARTITION BY <any-partitioning-type>(any_func(t.integer_field))"
-      
+
     If both (1) and (3) are applicable, (1) is preferred over (3).
-    
+
     This function sets part_info::get_part_iter_for_interval according to
     this criteria, and also sets some auxilary fields that the function
     uses.
@@ -7472,8 +7451,8 @@ static void set_up_range_analysis_info(partition_info *part_info)
   part_info->get_part_iter_for_interval= NULL;
   part_info->get_subpart_iter_for_interval= NULL;
 
-  /* 
-    Check if get_part_iter_for_interval_via_mapping() can be used for 
+  /*
+    Check if get_part_iter_for_interval_via_mapping() can be used for
     partitioning
   */
   switch (part_info->part_type) {
@@ -7497,7 +7476,7 @@ static void set_up_range_analysis_info(partition_info *part_info)
   default:
     ;
   }
-   
+
   /*
     Check if get_part_iter_for_interval_via_walking() can be used for
     partitioning
@@ -7771,7 +7750,7 @@ int get_part_iter_for_interval_cols_via_map(partition_info *part_info,
                                             bool is_subpart,
                                             uint32 *store_length_array,
                                             uchar *min_value, uchar *max_value,
-                                            uint min_len, uint max_len, 
+                                            uint min_len, uint max_len,
                                             uint flags,
                                             PARTITION_ITERATOR *part_iter)
 {
@@ -7944,11 +7923,11 @@ int get_part_iter_for_interval_via_mapping(partition_info *part_info,
     }
   }
 
-  /* 
+  /*
     Find minimum: Do special handling if the interval has left bound in form
      " NULL <= X ":
   */
-  if (field->real_maybe_null() && part_info->has_null_value && 
+  if (field->real_maybe_null() && part_info->has_null_value &&
       !(flags & (NO_MIN_RANGE | NEAR_MIN)) && *min_value)
   {
     part_iter->ret_null_part= part_iter->ret_null_part_orig= TRUE;
@@ -7969,7 +7948,7 @@ int get_part_iter_for_interval_via_mapping(partition_info *part_info,
       /*
         Store the interval edge in the record buffer, and call the
         function that maps the edge in table-field space to an edge
-        in ordered-set-of-partitions (for RANGE partitioning) or 
+        in ordered-set-of-partitions (for RANGE partitioning) or
         index-in-ordered-array-of-list-constants (for LIST) space.
       */
       store_key_image_to_rec(field, min_value, field_len);
@@ -8061,7 +8040,7 @@ int get_part_iter_for_interval_via_mapping(partition_info *part_info,
 
   DESCRIPTION
     Initialize partition set iterator to walk over interval in integer field
-    space. That is, for "const1 <=? t.field <=? const2" interval, initialize 
+    space. That is, for "const1 <=? t.field <=? const2" interval, initialize
     the iterator to return a set of [sub]partitions obtained with the
     following procedure:
       get partition id for t.field = const1,   return it
@@ -8072,9 +8051,9 @@ int get_part_iter_for_interval_via_mapping(partition_info *part_info,
 
   IMPLEMENTATION
     See get_partitions_in_range_iter for general description of interval
-    analysis. We support walking over the following intervals: 
-      "t.field IS NULL" 
-      "c1 <=? t.field <=? c2", where c1 and c2 are finite. 
+    analysis. We support walking over the following intervals:
+      "t.field IS NULL"
+      "c1 <=? t.field <=? c2", where c1 and c2 are finite.
     Intervals with +inf/-inf, and [NULL, c1] interval can be processed but
     that is more tricky and I don't have time to do it right now.
 
@@ -8118,9 +8097,9 @@ int get_part_iter_for_interval_via_walking(partition_info *part_info,
   if (field->real_maybe_null() && !(flags & (NO_MIN_RANGE | NO_MAX_RANGE)) &&
       *min_value && *max_value)
   {
-    /* 
+    /*
       We don't have a part_iter->get_next() function that would find which
-      partition "t.field IS NULL" belongs to, so find partition that contains 
+      partition "t.field IS NULL" belongs to, so find partition that contains
       NULL right here, and return an iterator over singleton set.
     */
     uint32 part_id;
@@ -8149,28 +8128,28 @@ int get_part_iter_for_interval_via_walking(partition_info *part_info,
     DBUG_RETURN(0); /* No partitions match */
   }
 
-  if ((field->real_maybe_null() && 
+  if ((field->real_maybe_null() &&
        ((!(flags & NO_MIN_RANGE) && *min_value) ||  // NULL <? X
         (!(flags & NO_MAX_RANGE) && *max_value))) ||  // X <? NULL
       (flags & (NO_MIN_RANGE | NO_MAX_RANGE)))    // -inf at any bound
   {
     DBUG_RETURN(-1); /* Can't handle this interval, have to use all partitions */
   }
-  
+
   /* Get integers for left and right interval bound */
   longlong a, b;
   uint len= field->pack_length_in_rec();
   store_key_image_to_rec(field, min_value, len);
   a= field->val_int();
-  
+
   store_key_image_to_rec(field, max_value, len);
   b= field->val_int();
-  
-  /* 
-    Handle a special case where the distance between interval bounds is 
+
+  /*
+    Handle a special case where the distance between interval bounds is
     exactly 4G-1. This interval is too big for range walking, and if it is an
-    (x,y]-type interval then the following "b +=..." code will convert it to 
-    an empty interval by "wrapping around" a + 4G-1 + 1 = a. 
+    (x,y]-type interval then the following "b +=..." code will convert it to
+    an empty interval by "wrapping around" a + 4G-1 + 1 = a.
   */
   if ((ulonglong)b - (ulonglong)a == ~0ULL)
     DBUG_RETURN(-1);
@@ -8181,8 +8160,8 @@ int get_part_iter_for_interval_via_walking(partition_info *part_info,
 
   /*
     Will it pay off to enumerate all values in the [a..b] range and evaluate
-    the partitioning function for every value? It depends on 
-     1. whether we'll be able to infer that some partitions are not used 
+    the partitioning function for every value? It depends on
+     1. whether we'll be able to infer that some partitions are not used
      2. if time savings from not scanning these partitions will be greater
         than time spent in enumeration.
     We will assume that the cost of accessing one extra partition is greater
@@ -8249,13 +8228,13 @@ uint32 get_next_partition_id_range(PARTITION_ITERATOR* part_iter)
       part_iter  Partition set iterator structure
 
   DESCRIPTION
-    This implementation of PARTITION_ITERATOR::get_next() is special for 
+    This implementation of PARTITION_ITERATOR::get_next() is special for
     LIST partitioning: it enumerates partition ids in
     part_info->list_array[i] (list_col_array[i*cols] for COLUMNS LIST
     partitioning) where i runs over [min_idx, max_idx] interval.
     The function conforms to partition_iter_func type.
 
-  RETURN 
+  RETURN
     partition id
     NOT_A_PARTITION_ID if there are no more partitions
 */
@@ -8300,7 +8279,7 @@ uint32 get_next_partition_id_list(PARTITION_ITERATOR *part_iter)
     [start_val, end_val] interval.
     The function conforms to partition_iter_func type.
 
-  RETURN 
+  RETURN
     partition id
     NOT_A_PARTITION_ID if there are no more partitioning.
 */

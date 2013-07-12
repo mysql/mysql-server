@@ -24,6 +24,11 @@ Data dictionary memory object creation
 Created 1/8/1996 Heikki Tuuri
 ***********************************************************************/
 
+#ifndef UNIV_HOTBACKUP
+#include "ha_prototypes.h"
+#include <mysql_com.h>
+#endif /* !UNIV_HOTBACKUP */
+
 #include "dict0mem.h"
 
 #ifdef UNIV_NONINL
@@ -35,11 +40,11 @@ Created 1/8/1996 Heikki Tuuri
 #include "mach0data.h"
 #include "dict0dict.h"
 #include "fts0priv.h"
+
 #ifndef UNIV_HOTBACKUP
-# include "ha_prototypes.h"	/* innobase_casedn_str(),
-				innobase_get_lower_case_table_names */
 # include "lock0lock.h"
 #endif /* !UNIV_HOTBACKUP */
+
 #ifdef UNIV_BLOB_DEBUG
 # include "ut0rbt.h"
 #endif /* UNIV_BLOB_DEBUG */
@@ -54,7 +59,7 @@ mysql_pfs_key_t	autoinc_mutex_key;
 
 /**********************************************************************//**
 Creates a table memory object.
-@return	own: table object */
+@return own: table object */
 
 dict_table_t*
 dict_mem_table_create(
@@ -158,7 +163,7 @@ dict_mem_table_free(
 
 /****************************************************************//**
 Append 'name' to 'col_names'.  @see dict_table_t::col_names
-@return	new column names array */
+@return new column names array */
 static
 const char*
 dict_add_col_name(
@@ -431,7 +436,7 @@ dict_mem_fill_column_struct(
 
 /**********************************************************************//**
 Creates an index memory object.
-@return	own: index object */
+@return own: index object */
 
 dict_index_t*
 dict_mem_index_create(
@@ -466,7 +471,7 @@ dict_mem_index_create(
 #ifndef UNIV_HOTBACKUP
 /**********************************************************************//**
 Creates and initializes a foreign constraint memory object.
-@return	own: foreign constraint struct */
+@return own: foreign constraint struct */
 
 dict_foreign_t*
 dict_mem_foreign_create(void)

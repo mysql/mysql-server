@@ -152,7 +152,7 @@ static enum enum_set_gtid_purged_mode {
   SET_GTID_PURGED_ON=2
 } opt_set_gtid_purged_mode= SET_GTID_PURGED_AUTO;
 
-#ifdef HAVE_SMEM
+#if defined (_WIN32) && !defined (EMBEDDED_LIBRARY)
 static char *shared_memory_base_name=0;
 #endif
 static uint opt_protocol= 0;
@@ -480,7 +480,7 @@ static struct my_option my_long_options[] =
     "If GTIDs are disabled, AUTO does nothing. Default is AUTO.",
     0, 0, 0, GET_STR, OPT_ARG,
     0, 0, 0, 0, 0, 0},
-#ifdef HAVE_SMEM
+#if defined (_WIN32) && !defined (EMBEDDED_LIBRARY)
   {"shared-memory-base-name", OPT_SHARED_MEMORY_BASE_NAME,
    "Base name of shared memory.", &shared_memory_base_name, &shared_memory_base_name,
    0, GET_STR_ALLOC, REQUIRED_ARG, 0, 0, 0, 0, 0, 0},
@@ -1604,7 +1604,7 @@ static int connect_to_db(char *host, char *user,char *passwd)
     mysql_options(&mysql_connection,MYSQL_OPT_PROTOCOL,(char*)&opt_protocol);
   if (opt_bind_addr)
     mysql_options(&mysql_connection,MYSQL_OPT_BIND,opt_bind_addr);
-#ifdef HAVE_SMEM
+#if defined (_WIN32) && !defined (EMBEDDED_LIBRARY)
   if (shared_memory_base_name)
     mysql_options(&mysql_connection,MYSQL_SHARED_MEMORY_BASE_NAME,shared_memory_base_name);
 #endif
@@ -2997,10 +2997,6 @@ static uint get_table_structure(char *table, char *db, char *table_type,
         if (atoi(row[3]) == 1)
         {
           keynr++;
-#ifdef FORCE_PRIMARY_KEY
-          if (atoi(row[1]) == 0 && primary_key == INT_MAX)
-            primary_key=keynr;
-#endif
           if (!strcmp(row[2],"PRIMARY"))
           {
             primary_key=keynr;
@@ -5535,11 +5531,6 @@ static my_bool get_view_structure(char *table, char* db)
 
   verbose_msg("-- Retrieving view structure for table %s...\n", table);
 
-#ifdef NOT_REALLY_USED_YET
-  sprintf(insert_pat,"SET SQL_QUOTE_SHOW_CREATE=%d",
-          (opt_quoted || opt_keywords));
-#endif
-
   result_table=     quote_name(table, table_buff, 1);
   opt_quoted_table= quote_name(table, table_buff2, 0);
 
@@ -5897,7 +5888,7 @@ int main(int argc, char **argv)
   if (opt_delete_master_logs && purge_bin_logs_to(mysql, bin_log_name))
     goto err;
 
-#ifdef HAVE_SMEM
+#if defined (_WIN32) && !defined (EMBEDDED_LIBRARY)
   my_free(shared_memory_base_name);
 #endif
   /*

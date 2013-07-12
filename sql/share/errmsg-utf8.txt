@@ -5967,6 +5967,7 @@ ER_CANT_LOCK_LOG_TABLE
         ger "Log-Tabellen können nicht gesperrt werden."
 ER_FOREIGN_DUPLICATE_KEY_OLD_UNUSED 23000 S1009
         eng "Upholding foreign key constraints for table '%.192s', entry '%-.192s', key %d would lead to a duplicate entry"
+# OBSOLETE, USE ER_COL_COUNT_DOESNT_MATCH_PLEASE_UPDATE_V2
 ER_COL_COUNT_DOESNT_MATCH_PLEASE_UPDATE
         eng "Column count of mysql.%s is wrong. Expected %d, found %d. Created with MySQL %d, now running %d. Please use mysql_upgrade to fix this error."
         ger "Spaltenanzahl von mysql.%s falsch. %d erwartet, aber %d erhalten. Erzeugt mit MySQL %d, jetzt unter %d. Bitte benutzen Sie mysql_upgrade, um den Fehler zu beheben"
@@ -6640,7 +6641,7 @@ ER_INSECURE_PLAIN_TEXT
   eng "Sending passwords in plain text without SSL/TLS is extremely insecure."
 
 ER_INSECURE_CHANGE_MASTER
-  eng "Storing MySQL user name or password information in the master.info repository is not secure and is therefore not recommended. Please see the MySQL Manual for more about this issue and possible alternatives."
+  eng "Storing MySQL user name or password information in the master info repository is not secure and is therefore not recommended. Please consider using the USER and PASSWORD connection options for START SLAVE; see the 'START SLAVE Syntax' in the MySQL Manual for more information."
 
 ER_FOREIGN_DUPLICATE_KEY_WITH_CHILD_INFO 23000 S1009
         eng "Foreign key constraint for table '%.192s', record '%-.192s' would lead to a duplicate entry in table '%.192s', key '%.192s'"
@@ -6668,7 +6669,7 @@ ER_GTID_NEXT_IS_NOT_IN_GTID_NEXT_LIST
   eng "The system variable @@SESSION.GTID_NEXT has the value %.200s, which is not listed in @@SESSION.GTID_NEXT_LIST."
 
 ER_CANT_CHANGE_GTID_NEXT_IN_TRANSACTION_WHEN_GTID_NEXT_LIST_IS_NULL
-  eng "When @@SESSION.GTID_NEXT_LIST == NULL, the system variable @@SESSION.GTID_NEXT cannot change inside a transaction."
+  eng "The system variable @@SESSION.GTID_NEXT cannot change inside a transaction."
 
 ER_SET_STATEMENT_CANNOT_INVOKE_FUNCTION
   eng "The statement 'SET %.200s' cannot invoke a stored function."
@@ -6698,7 +6699,7 @@ ER_AUTO_POSITION_REQUIRES_GTID_MODE_ON
   eng "CHANGE MASTER TO MASTER_AUTO_POSITION = 1 can only be executed when @@GLOBAL.GTID_MODE = ON."
 
 ER_CANT_DO_IMPLICIT_COMMIT_IN_TRX_WHEN_GTID_NEXT_IS_SET
-  eng "Cannot execute statements with implicit commit inside a transaction when @@SESSION.GTID_NEXT != AUTOMATIC or @@SESSION.GTID_NEXT_LIST != NULL."
+  eng "Cannot execute statements with implicit commit inside a transaction when @@SESSION.GTID_NEXT != AUTOMATIC."
 
 ER_GTID_MODE_2_OR_3_REQUIRES_ENFORCE_GTID_CONSISTENCY_ON
   eng "@@GLOBAL.GTID_MODE = ON or UPGRADE_STEP_2 requires @@GLOBAL.ENFORCE_GTID_CONSISTENCY = 1."
@@ -7017,6 +7018,14 @@ ER_ACCESS_DENIED_CHANGE_USER_ERROR 28000
         eng "Access denied trying to change to user '%-.48s'@'%-.64s' (using password: %s). Disconnecting."
         bgn "Отказан достъп при опит за смяна към потребител %-.48s'@'%-.64s' (използвана парола: %s). Затваряне на връзката."
 
+ER_INNODB_READ_ONLY
+  eng "InnoDB is in read only mode."
+
+ER_STOP_SLAVE_SQL_THREAD_TIMEOUT
+  eng "STOP SLAVE command execution is incomplete: Slave SQL thread got the stop signal, thread is busy, SQL thread will stop once the current task is complete."
+
+ER_STOP_SLAVE_IO_THREAD_TIMEOUT
+  eng "STOP SLAVE command execution is incomplete: Slave IO thread got the stop signal, thread is busy, IO thread will stop once the current task is complete."
 
 #
 #  End of 5.6 error messages.
@@ -7049,6 +7058,18 @@ ER_CANNOT_DISCARD_TEMPORARY_TABLE
 ER_FK_DEPTH_EXCEEDED
   eng "Foreign key cascade delete/update exceeds max depth of %d."
 
+ER_COL_COUNT_DOESNT_MATCH_PLEASE_UPDATE_V2
+        eng "Column count of %s.%s is wrong. Expected %d, found %d. Created with MySQL %d, now running %d. Please use mysql_upgrade to fix this error."
+        ger "Spaltenanzahl von %s.%s falsch. %d erwartet, aber %d erhalten. Erzeugt mit MySQL %d, jetzt unter %d. Bitte benutzen Sie mysql_upgrade, um den Fehler zu beheben"
+
+ER_WARN_TRIGGER_DOESNT_HAVE_CREATED
+  eng "Trigger %s.%s.%s does not have CREATED attribute."
+
+ER_REFERENCED_TRG_DOES_NOT_EXIST
+  eng "Referenced trigger '%s' for the given action time and event type does not exist."
+
+ER_EXPLAIN_NOT_SUPPORTED
+        eng "EXPLAIN FOR CONNECTION command is supported only for SELECT/UPDATE/INSERT/DELETE/REPLACE"
 #
 #  End of 5.7 error messages.
 #

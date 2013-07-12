@@ -30,17 +30,16 @@ The wait array used in synchronization primitives
 Created 9/5/1995 Heikki Tuuri
 *******************************************************/
 
+#include "ha_prototypes.h"
+
 #include "sync0arr.h"
 #ifdef UNIV_NONINL
 #include "sync0arr.ic"
 #endif
 
-#include "ha_prototypes.h"
-
 #include "sync0sync.h"
 #include "lock0lock.h"
 #include "sync0rw.h"
-#include "os0sync.h"
 #include "os0file.h"
 #include "srv0srv.h"
 
@@ -154,7 +153,7 @@ static ulint		sg_count;
 /******************************************************************//**
 This function is called only in the debug version. Detects a deadlock
 of one or more threads because of waits of semaphores.
-@return	TRUE if deadlock detected */
+@return TRUE if deadlock detected */
 static
 ibool
 sync_array_detect_deadlock(
@@ -168,7 +167,7 @@ sync_array_detect_deadlock(
 
 /*****************************************************************//**
 Gets the nth cell in array.
-@return	cell */
+@return cell */
 static
 sync_cell_t*
 sync_array_get_nth_cell(
@@ -208,7 +207,7 @@ sync_array_exit(
 Creates a synchronization wait array. It is protected by a mutex
 which is automatically reserved when the functions operating on it
 are called.
-@return	own: created wait array */
+@return own: created wait array */
 static
 sync_array_t*
 sync_array_create(
@@ -519,7 +518,7 @@ sync_array_cell_print(
 #ifdef UNIV_SYNC_DEBUG
 /******************************************************************//**
 Looks for a cell with the given thread id.
-@return	pointer to cell or NULL if not found */
+@return pointer to cell or NULL if not found */
 static
 sync_cell_t*
 sync_array_find_thread(
@@ -546,7 +545,7 @@ sync_array_find_thread(
 
 /******************************************************************//**
 Recursion step for deadlock detection.
-@return	TRUE if deadlock detected */
+@return TRUE if deadlock detected */
 static
 ibool
 sync_array_deadlock_step(
@@ -588,7 +587,7 @@ sync_array_deadlock_step(
 /******************************************************************//**
 This function is called only in the debug version. Detects a deadlock
 of one or more threads because of waits of semaphores.
-@return	TRUE if deadlock detected */
+@return TRUE if deadlock detected */
 static
 ibool
 sync_array_detect_deadlock(
@@ -886,7 +885,7 @@ sync_arr_wake_threads_if_sema_free(void)
 
 /**********************************************************************//**
 Prints warnings of long semaphore waits to stderr.
-@return	TRUE if fatal semaphore wait threshold was exceeded */
+@return TRUE if fatal semaphore wait threshold was exceeded */
 static
 ibool
 sync_array_print_long_waits_low(
@@ -960,7 +959,7 @@ sync_array_print_long_waits_low(
 
 /**********************************************************************//**
 Prints warnings of long semaphore waits to stderr.
-@return	TRUE if fatal semaphore wait threshold was exceeded */
+@return TRUE if fatal semaphore wait threshold was exceeded */
 
 ibool
 sync_array_print_long_waits(

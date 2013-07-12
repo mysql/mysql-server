@@ -100,6 +100,7 @@ SET(INNOBASE_SOURCES
 	row/row0purge.cc
 	row/row0row.cc
 	row/row0sel.cc
+	row/row0trunc.cc
 	row/row0uins.cc
 	row/row0umod.cc
 	row/row0undo.cc
@@ -144,3 +145,7 @@ MYSQL_ADD_PLUGIN(innobase ${INNOBASE_SOURCES} STORAGE_ENGINE
   DEFAULT
   MODULE_OUTPUT_NAME ha_innodb
   LINK_LIBRARIES ${ZLIB_LIBRARY})
+
+IF(WITH_INNOBASE_STORAGE_ENGINE)
+  ADD_DEPENDENCIES(innobase GenError)
+ENDIF()

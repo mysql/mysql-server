@@ -167,8 +167,13 @@ SET(SQL_SHARED_SOURCES
   sys_vars.cc
   table.cc
   table_cache.cc
+  table_trigger_dispatcher.cc
   thr_malloc.cc 
   transaction.cc
+  trigger.cc
+  trigger_creation_ctx.cc
+  trigger_loader.cc
+  trigger_chain.cc
   tztime.cc
   uniques.cc
   unireg.cc
@@ -239,7 +244,7 @@ ADD_LIBRARY(binlog ${BINLOG_SOURCE})
 SET (RPL_SOURCE rpl_handler.cc rpl_tblmap.cc)
 ADD_DEPENDENCIES(binlog GenError)
 ADD_LIBRARY(rpl ${RPL_SOURCE})
-SET (MASTER_SOURCE rpl_master.cc)
+SET (MASTER_SOURCE rpl_master.cc rpl_binlog_sender.cc)
 ADD_DEPENDENCIES(rpl GenError)
 ADD_LIBRARY(master ${MASTER_SOURCE})
 ADD_DEPENDENCIES(master GenError)

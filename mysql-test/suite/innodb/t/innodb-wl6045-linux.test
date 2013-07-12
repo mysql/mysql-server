@@ -4,16 +4,14 @@
 # WL6045:Improve Innochecksum
 # Test Case [1] Check the innochecksum tool when read from stdin and without any rewrite of checksum.
 # Test Case [2] Check the innochecksum tool when read from stdin and rewrite to "crc32" checksum.
-# Test Case [3] Check the innochecksum tool when read from stdin and rewrite to "none" checksum.
+# Test Case [3] Check the innochecksum tool when read from stdin and rewrite to "none" checksum 
+#               and page-type-summary output.
 # Test Case [4] Check the innochecksum tool when read from stdin and rewrite to "innodb" checksum.
-# Test Case [5] Check the innochecksum tool when read from stdin for page-type-summary
+# Test Case [5] Test for lock: As mysqld is running, & then start the innochecksum which must fail.
 #************************************************************
 
 --source include/have_innodb.inc
 --source include/not_windows.inc
-
-# Must have debug code to use debug option for innochecksum tool.
---source include/have_debug.inc
 
 # Valgrind would complain about memory leaks when we crash on purpose.
 --source include/not_valgrind.inc
@@ -24,14 +22,9 @@
 # Avoid CrashReporter popup on Mac.
 --source include/not_crashrep.inc
 
-call mtr.add_suppression("InnoDB: Unable to lock");
-
 let MYSQLD_BASEDIR= `SELECT @@basedir`;
 let MYSQLD_DATADIR= `SELECT @@datadir`;
 let SEARCH_FILE= $MYSQLTEST_VARDIR/log/my_restart.err;
-
---disable_warnings
-DROP TABLE IF EXISTS t1;
 
 SET GLOBAL innodb_file_per_table=on;
 SET GLOBAL innodb_file_format='barracuda';
@@ -42,19 +35,17 @@ INSERT INTO t1 VALUES(1, 'Innochecksum InnoDB');
 INSERT INTO t1 VALUES(2, 'Innochecksum CRC32');
 
 --echo # Shutdown the Server
---exec echo "wait" > $MYSQLTEST_VARDIR/tmp/mysqld.1.expect
---shutdown_server
---source include/wait_until_disconnected.inc
+--source include/shutdown_mysqld.inc
 
 # Test cases for read from standard input for innochecksum tool
---echo # Test[1(a)]: for read from standard input for innochecksum tool without rewrite of checksum with debug option.
+--echo # Test[1(a)]: for read from standard input for innochecksum tool without rewrite of checksum with log option.
 perl;
 use strict;
 use warnings;
 my $innochecksum = $ENV{'INNOCHECKSUM'};
 my $mysqltest_vardir= $ENV{'MYSQLTEST_VARDIR'};
 my $mysqld_datadir= $ENV{'MYSQLD_DATADIR'};
-exec("cat $mysqld_datadir/test/t1.ibd | $innochecksum --debug='d:o,$mysqltest_vardir/tmp/mtrchecksum.trace' -");
+exec("cat $mysqld_datadir/test/t1.ibd | $innochecksum --log='$mysqltest_vardir/tmp/mtrchecksum.log' -");
 EOF
 
 perl;
@@ -62,7 +53,7 @@ use strict;
 use warnings;
 use File::Copy;
 my $dir = $ENV{'MYSQLTEST_VARDIR'};
-my $file= 'mtrchecksum.trace';
+my $file= 'mtrchecksum.log';
 # open file in write mode
 open IN_FILE,"<", "$dir/tmp/$file" or die $! ;
 open OUT_FILE, ">", "$dir/tmp/tmpfile" or die $! ;
@@ -71,8 +62,6 @@ while(<IN_FILE>) {
  $_=~ s/\d+/#/g;
  $_=~ s/crc#/crc32/g;
  $_=~ s/Filename =.+/Filename = -/g;
- $_=~ s/file .+ =/file - =/g;
- $_=~ s/find_type:.+$//g;
  print OUT_FILE $_;
 }
 close(IN_FILE);
@@ -81,9 +70,9 @@ close(OUT_FILE);
 move ("$dir/tmp/tmpfile", "$dir/tmp/$file");
 EOF
 
-# Print the information for debug option.
-cat_file $MYSQLTEST_VARDIR/tmp/mtrchecksum.trace;
---remove_file $MYSQLTEST_VARDIR/tmp/mtrchecksum.trace
+# Print the information for log option.
+cat_file $MYSQLTEST_VARDIR/tmp/mtrchecksum.log;
+--remove_file $MYSQLTEST_VARDIR/tmp/mtrchecksum.log
 
 --echo # Test[1(b)]: for read from standard input for innochecksum tool Test checking for page: 3 to page:5
 perl;
@@ -92,7 +81,7 @@ use warnings;
 my $innochecksum = $ENV{'INNOCHECKSUM'};
 my $mysqltest_vardir= $ENV{'MYSQLTEST_VARDIR'};
 my $mysqld_datadir= $ENV{'MYSQLD_DATADIR'};
-exec("cat $mysqld_datadir/test/t1.ibd | $innochecksum --debug='d:o,$mysqltest_vardir/tmp/mtrchecksum.trace' -s 3 -e 5 -");
+exec("cat $mysqld_datadir/test/t1.ibd | $innochecksum --log='$mysqltest_vardir/tmp/mtrchecksum.log' -s 3 -e 5 -");
 EOF
 
 perl;
@@ -100,7 +89,7 @@ use strict;
 use warnings;
 use File::Copy;
 my $dir = $ENV{'MYSQLTEST_VARDIR'};
-my $file= 'mtrchecksum.trace';
+my $file= 'mtrchecksum.log';
 # open file in write mode
 open IN_FILE,"<", "$dir/tmp/$file" or die $! ;
 open OUT_FILE, ">", "$dir/tmp/tmpfile" or die $! ;
@@ -110,7 +99,6 @@ while(<IN_FILE>) {
  $_=~ s/crc#/crc32/g;
  $_=~ s/Filename =.+/Filename = -/g;
  $_=~ s/file .+ =/file - =/g;
- $_=~ s/find_type:.+$//g;
  print OUT_FILE $_;
 }
 close(IN_FILE);
@@ -119,9 +107,9 @@ close(OUT_FILE);
 move ("$dir/tmp/tmpfile", "$dir/tmp/$file");
 EOF
 
-# Print the information for debug option.
-cat_file $MYSQLTEST_VARDIR/tmp/mtrchecksum.trace;
---remove_file $MYSQLTEST_VARDIR/tmp/mtrchecksum.trace
+# Print the information for log option.
+cat_file $MYSQLTEST_VARDIR/tmp/mtrchecksum.log;
+--remove_file $MYSQLTEST_VARDIR/tmp/mtrchecksum.log
 
 --echo # Test[1] End
 --echo # Test [2] for read from standard input for innochecksum tool with rewrite of crc32 checksum.
@@ -135,7 +123,7 @@ use warnings;
 my $innochecksum = $ENV{'INNOCHECKSUM'};
 my $mysqltest_vardir= $ENV{'MYSQLTEST_VARDIR'};
 my $mysqld_datadir= $ENV{'MYSQLD_DATADIR'};
-exec("cat $mysqld_datadir/test/t1.ibd | $innochecksum --debug='d:o,$mysqltest_vardir/tmp/mtrchecksum.trace' --write=crc32 - > $mysqltest_vardir/tmp/a.ibd");
+exec("cat $mysqld_datadir/test/t1.ibd | $innochecksum --log='$mysqltest_vardir/tmp/mtrchecksum.log' --write=crc32 - > $mysqltest_vardir/tmp/a.ibd");
 EOF
 
 perl;
@@ -143,7 +131,7 @@ use strict;
 use warnings;
 use File::Copy;
 my $dir = $ENV{'MYSQLTEST_VARDIR'};
-my $file= 'mtrchecksum.trace';
+my $file= 'mtrchecksum.log';
 # open file in write mode
 open IN_FILE,"<", "$dir/tmp/$file" or die $!;
 open OUT_FILE, ">", "$dir/tmp/tmpfile" or die $!;
@@ -152,8 +140,7 @@ while(<IN_FILE>) {
  $_=~ s/\d+/#/g;
  $_=~ s/crc#/crc32/g;
  $_=~ s/Filename =.+/Filename = -/g;
- $_=~ s/file .+ =/file - =/g;
- $_=~ s/find_type:.+$//g;
+ $_=~ s/file .+ =/file t1.ibd =/g;
  print OUT_FILE $_;
 }
 close(IN_FILE);
@@ -161,19 +148,19 @@ close(OUT_FILE);
 # move the new content from tmp file to the orginal file.
 move ("$dir/tmp/tmpfile", "$dir/tmp/$file");
 EOF
---echo # Print the information for debug option.
-cat_file $MYSQLTEST_VARDIR/tmp/mtrchecksum.trace;
---remove_file $MYSQLTEST_VARDIR/tmp/mtrchecksum.trace
+--echo # Print the information for log option.
+cat_file $MYSQLTEST_VARDIR/tmp/mtrchecksum.log;
+--remove_file $MYSQLTEST_VARDIR/tmp/mtrchecksum.log
 
 --echo # Recheck the a.ibd created file having crc32 checksum with the --strict-check=crc32 for innochecksum tool.
---exec $INNOCHECKSUM --debug="d:o,$MYSQLTEST_VARDIR/tmp/mtrchecksum.trace" --strict-check=crc32 $MYSQLTEST_VARDIR/tmp/a.ibd
+--exec $INNOCHECKSUM --log="$MYSQLTEST_VARDIR/tmp/mtrchecksum.log" --strict-check=crc32 $MYSQLTEST_VARDIR/tmp/a.ibd
 
 perl;
 use strict;
 use warnings;
 use File::Copy;
 my $dir = $ENV{'MYSQLTEST_VARDIR'};
-my $file= 'mtrchecksum.trace';
+my $file= 'mtrchecksum.log';
 # open file in write mode
 open IN_FILE,"<", "$dir/tmp/$file" or die $!;
 open OUT_FILE, ">", "$dir/tmp/tmpfile" or die $!;
@@ -183,7 +170,6 @@ while(<IN_FILE>) {
  $_=~ s/crc#/crc32/g;
  $_=~ s/Filename =.+/Filename = a.ibd/g;
  $_=~ s/file .+ =/file t1.ibd =/g;
- $_=~ s/find_type:.+$//g;
  print OUT_FILE $_;
 }
 close(IN_FILE);
@@ -192,9 +178,9 @@ close(OUT_FILE);
 move ("$dir/tmp/tmpfile", "$dir/tmp/$file");
 EOF
 
-# Print the information for debug option.
-cat_file $MYSQLTEST_VARDIR/tmp/mtrchecksum.trace;
---remove_file $MYSQLTEST_VARDIR/tmp/mtrchecksum.trace
+# Print the information for log option.
+cat_file $MYSQLTEST_VARDIR/tmp/mtrchecksum.log;
+--remove_file $MYSQLTEST_VARDIR/tmp/mtrchecksum.log
 
 --echo #Replace the t.ibd with the newly created a.ibd having crc32 checksum.
 --remove_file $MYSQLD_DATADIR/test/t1.ibd
@@ -202,16 +188,12 @@ cat_file $MYSQLTEST_VARDIR/tmp/mtrchecksum.trace;
 --remove_file $MYSQLTEST_VARDIR/tmp/a.ibd
 
 --echo # Start the server to validate the t1.ibd having crc32 checksum.
---exec echo "restart" > $MYSQLTEST_VARDIR/tmp/mysqld.1.expect
---echo # Server Started normally
---enable_reconnect
---source include/wait_until_connected_again.inc
---disable_reconnect
+--source include/start_mysqld.inc
+
+select * from t1;
 
 --echo # Shutdown the server
---exec echo "wait:" >$MYSQLTEST_VARDIR/tmp/mysqld.1.expect
---shutdown_server
---source include/wait_until_disconnected.inc
+--source include/shutdown_mysqld.inc
 
 --echo # Test[2] End
 --echo # Test[3] for read from standard input for innochecksum tool with rewrite of "none" checksum.
@@ -228,7 +210,7 @@ use warnings;
 my $innochecksum = $ENV{'INNOCHECKSUM'};
 my $vardir= $ENV{'MYSQLTEST_VARDIR'};
 my $mysqld_datadir= $ENV{'MYSQLD_DATADIR'};
-exec("cat $mysqld_datadir/test/t1.ibd | $innochecksum -v -S --debug='d:o,$vardir/tmp/mtrchecksum.trace' --write=none - > $vardir/tmp/a.ibd 2>$vardir/tmp/veroutput");
+exec("cat $mysqld_datadir/test/t1.ibd | $innochecksum -v -S --log='$vardir/tmp/mtrchecksum.log' --write=none - > $vardir/tmp/a.ibd 2>$vardir/tmp/veroutput");
 EOF
 
 perl;
@@ -236,7 +218,7 @@ use strict;
 use warnings;
 use File::Copy;
 my $dir = $ENV{'MYSQLTEST_VARDIR'};
-my $file= 'mtrchecksum.trace';
+my $file= 'mtrchecksum.log';
 # open file in write mode
 open IN_FILE,"<", "$dir/tmp/$file" or die $!;
 open OUT_FILE, ">", "$dir/tmp/tmpfile" or die $!;
@@ -245,8 +227,7 @@ while(<IN_FILE>) {
  $_=~ s/\d+/#/g;
  $_=~ s/crc#/crc32/g;
  $_=~ s/Filename =.+/Filename = -/g;
- $_=~ s/file .+ =/file - =/g;
- $_=~ s/find_type:.+$//g;
+ $_=~ s/file .+ =/file - =/g;;
  print OUT_FILE $_;
 }
 close(IN_FILE);
@@ -259,11 +240,12 @@ $file= 'veroutput';
 open IN_FILE,"<", "$dir/tmp/$file" or die $!;
 open OUT_FILE, ">", "$dir/tmp/tmpfile" or die $!;
 while(<IN_FILE>) {
- # Replace all intergers to #
- $_=~ s/\d+/#/g;
- $_=~ s/crc#/crc32/g;
- $_=~ s/d:o,.*trace/d:o,mtrchecksum.trace/g;
- print OUT_FILE $_;
+  unless ($_=~ /^debug.*$/) {
+    # Replace all intergers to #
+    $_=~ s/\d+/#/g;
+    $_=~ s/log(\s+)(.*log)/log$1mtrchecksum.log/g;
+    print OUT_FILE $_;
+  }
 }
 close(IN_FILE);
 close(OUT_FILE);
@@ -274,19 +256,19 @@ EOF
 cat_file $MYSQLTEST_VARDIR/tmp/veroutput;
 --remove_file $MYSQLTEST_VARDIR/tmp/veroutput
 
---echo # Print the information for debug option.
-cat_file $MYSQLTEST_VARDIR/tmp/mtrchecksum.trace;
---remove_file $MYSQLTEST_VARDIR/tmp/mtrchecksum.trace
+--echo # Print the information for log option.
+cat_file $MYSQLTEST_VARDIR/tmp/mtrchecksum.log;
+--remove_file $MYSQLTEST_VARDIR/tmp/mtrchecksum.log
 
 --echo # Recheck the a.ibd created file having crc32 checksum with the --strict-check=none for innochecksum tool.
---exec $INNOCHECKSUM --debug="d:o,$MYSQLTEST_VARDIR/tmp/mtrchecksum.trace" --strict-check=none $MYSQLTEST_VARDIR/tmp/a.ibd
+--exec $INNOCHECKSUM --log="$MYSQLTEST_VARDIR/tmp/mtrchecksum.log" --strict-check=none $MYSQLTEST_VARDIR/tmp/a.ibd
 
 perl;
 use strict;
 use warnings;
 use File::Copy;
 my $dir = $ENV{'MYSQLTEST_VARDIR'};
-my $file= 'mtrchecksum.trace';
+my $file= 'mtrchecksum.log';
 # open file in write mode
 open IN_FILE,"<", "$dir/tmp/$file" or die $!;
 open OUT_FILE, ">", "$dir/tmp/tmpfile" or die $!;
@@ -296,7 +278,6 @@ while(<IN_FILE>) {
  $_=~ s/crc#/crc32/g;
  $_=~ s/Filename =.+/Filename = a.ibd/g;
  $_=~ s/file .+ =/file t1.ibd =/g;
- $_=~ s/find_type:.+$//g;
  print OUT_FILE $_;
 }
 close(IN_FILE);
@@ -305,9 +286,9 @@ close(OUT_FILE);
 move ("$dir/tmp/tmpfile", "$dir/tmp/$file");
 EOF
 
-# Print the information for debug option.
-cat_file $MYSQLTEST_VARDIR/tmp/mtrchecksum.trace;
---remove_file $MYSQLTEST_VARDIR/tmp/mtrchecksum.trace
+# Print the information for log option.
+cat_file $MYSQLTEST_VARDIR/tmp/mtrchecksum.log;
+--remove_file $MYSQLTEST_VARDIR/tmp/mtrchecksum.log
 
 # Replace the t.ibd with the newly created a.ibd having "none" checksum.
 --remove_file $MYSQLD_DATADIR/test/t1.ibd
@@ -315,16 +296,13 @@ cat_file $MYSQLTEST_VARDIR/tmp/mtrchecksum.trace;
 --remove_file $MYSQLTEST_VARDIR/tmp/a.ibd
 
 --echo # Start the server to validate the t1.ibd having "none" checksum.
---exec echo "restart" > $MYSQLTEST_VARDIR/tmp/mysqld.1.expect
---echo # Server Started normally
---enable_reconnect
---source include/wait_until_connected_again.inc
---disable_reconnect
+--source include/start_mysqld.inc
+
+select * from t1;
 
 --echo # Shutdown the server
---exec echo "wait:" >$MYSQLTEST_VARDIR/tmp/mysqld.1.expect
---shutdown_server
---source include/wait_until_disconnected.inc
+--source include/shutdown_mysqld.inc
+
 --echo # Test[3] End
 
 --echo # Test[4] for read from standard input for innochecksum tool with rewrite of "innodb" checksum.
@@ -332,14 +310,14 @@ cat_file $MYSQLTEST_VARDIR/tmp/mtrchecksum.trace;
 --remove_file $t1_IBD
 --copy_file $MYSQLD_DATADIR/test/t1.ibd.backup $t1_IBD
 
---echo # Command for innochecksum too to read from stdin and rewrite the checksum to "innodb"
+--echo # Command for innochecksum tool to read from stdin and rewrite the checksum to "innodb"
 perl;
 use strict;
 use warnings;
 my $innochecksum = $ENV{'INNOCHECKSUM'};
 my $mysqltest_vardir= $ENV{'MYSQLTEST_VARDIR'};
 my $mysqld_datadir= $ENV{'MYSQLD_DATADIR'};
-exec("cat $mysqld_datadir/test/t1.ibd | $innochecksum --debug='d:o,$mysqltest_vardir/tmp/mtrchecksum.trace' --write=innodb - > $mysqltest_vardir/tmp/a.ibd");
+exec("cat $mysqld_datadir/test/t1.ibd | $innochecksum --log='$mysqltest_vardir/tmp/mtrchecksum.log' --write=innodb - > $mysqltest_vardir/tmp/a.ibd");
 EOF
 
 perl;
@@ -347,7 +325,7 @@ use strict;
 use warnings;
 use File::Copy;
 my $dir = $ENV{'MYSQLTEST_VARDIR'};
-my $file= 'mtrchecksum.trace';
+my $file= 'mtrchecksum.log';
 # open file in write mode
 open IN_FILE,"<", "$dir/tmp/$file" or die $!;
 open OUT_FILE, ">", "$dir/tmp/tmpfile" or die $!;
@@ -357,7 +335,6 @@ while(<IN_FILE>) {
  $_=~ s/crc#/crc32/g;
  $_=~ s/Filename =.+/Filename = -/g;
  $_=~ s/file .+ =/file - =/g;
- $_=~ s/find_type:.+$//g;
  print OUT_FILE $_;
 }
 close(IN_FILE);
@@ -365,19 +342,19 @@ close(OUT_FILE);
 # move the new content from tmp file to the orginal file.
 move ("$dir/tmp/tmpfile", "$dir/tmp/$file");
 EOF
---echo # Print the information for debug option.
-cat_file $MYSQLTEST_VARDIR/tmp/mtrchecksum.trace;
---remove_file $MYSQLTEST_VARDIR/tmp/mtrchecksum.trace
+--echo # Print the information for log option.
+cat_file $MYSQLTEST_VARDIR/tmp/mtrchecksum.log;
+--remove_file $MYSQLTEST_VARDIR/tmp/mtrchecksum.log
 
 --echo # Recheck the a.ibd created file having crc32 checksum with the --strict-check=innodb for innochecksum tool.
---exec $INNOCHECKSUM --debug="d:o,$MYSQLTEST_VARDIR/tmp/mtrchecksum.trace" --strict-check=innodb $MYSQLTEST_VARDIR/tmp/a.ibd
+--exec $INNOCHECKSUM --log="$MYSQLTEST_VARDIR/tmp/mtrchecksum.log" --strict-check=innodb $MYSQLTEST_VARDIR/tmp/a.ibd
 
 perl;
 use strict;
 use warnings;
 use File::Copy;
 my $dir = $ENV{'MYSQLTEST_VARDIR'};
-my $file= 'mtrchecksum.trace';
+my $file= 'mtrchecksum.log';
 # open file in write mode
 open IN_FILE,"<", "$dir/tmp/$file" or die $!;
 open OUT_FILE, ">", "$dir/tmp/tmpfile" or die $!;
@@ -387,7 +364,6 @@ while(<IN_FILE>) {
  $_=~ s/crc#/crc32/g;
  $_=~ s/Filename =.+/Filename = a.ibd/g;
  $_=~ s/file .+ =/file t1.ibd =/g;
- $_=~ s/find_type:.+$//g;
  print OUT_FILE $_;
 }
 close(IN_FILE);
@@ -396,9 +372,9 @@ close(OUT_FILE);
 move ("$dir/tmp/tmpfile", "$dir/tmp/$file");
 EOF
 
-# Print the information for debug option.
-cat_file $MYSQLTEST_VARDIR/tmp/mtrchecksum.trace;
---remove_file $MYSQLTEST_VARDIR/tmp/mtrchecksum.trace
+# Print the information for log option.
+cat_file $MYSQLTEST_VARDIR/tmp/mtrchecksum.log;
+--remove_file $MYSQLTEST_VARDIR/tmp/mtrchecksum.log
 
 --echo # Replace the t.ibd with the newly created a.ibd having "innodb" checksum.
 --remove_file $MYSQLD_DATADIR/test/t1.ibd
@@ -406,21 +382,16 @@ cat_file $MYSQLTEST_VARDIR/tmp/mtrchecksum.trace;
 --remove_file $MYSQLTEST_VARDIR/tmp/a.ibd
 
 --echo # Start the server to validate the t1.ibd having "innodb" checksum.
---exec echo "restart" > $MYSQLTEST_VARDIR/tmp/mysqld.1.expect
---echo # Server Started normally
---enable_reconnect
---source include/wait_until_connected_again.inc
---disable_reconnect
---echo # Test[4] End
+--source include/start_mysqld.inc
 
+select * from t1;
+
+--echo # Test[4] End
 --remove_file $MYSQLD_DATADIR/test/t1.ibd.backup
 
 --echo # Test[5] for lock.
 --echo # Test Scenario: As mysqld is running, & then start the innochecksum which must fail.
 
-select * from t1;
-
---echo # INNOCHECKSUM MYSQLD_DATADIR/test/t1.ibd
 --error 1
 --exec $INNOCHECKSUM $MYSQLD_DATADIR/test/t1.ibd 2> $SEARCH_FILE
 let SEARCH_PATTERN=Error: Unable to lock file:: $MYSQLD_DATADIR/test/t1.ibd;
@@ -430,58 +401,7 @@ let SEARCH_PATTERN=fcntl: Resource temporarily unavailable;
 --source include/search_pattern_in_file.inc
 --remove_file $SEARCH_FILE
 
---echo # create a base table,Index & insert a record
-CREATE TABLE tab1(c1 INT PRIMARY KEY,c2 VARCHAR(20)) ENGINE=InnoDB;
-CREATE INDEX idx1 ON tab1(c2(10));
-INSERT INTO tab1 VALUES(1, 'Innochecksum InnoDB1');
-
---exec echo "wait" > $MYSQLTEST_VARDIR/tmp/mysqld.1.expect
---shutdown_server
---source include/wait_until_disconnected.inc
---echo shutdown over
---echo # Test[a] end
---echo # Test[b] Scenario: Innochecksum is running state(had acquire lock on tab1.ibd file)
---echo # and then start the mysqld server, which must crash when it do any DDL/DML query on tab1.ibd.
---echo # Testing done by the usage of DBUG_EXECUTE_IF(), which will pool over the --page-type-dump file
---echo # passed as argument. Then start the server which will crash as explained before. Delete the
---echo # --page-type-dump file, to resume the innochecksum tool.
-
-perl;
-use strict;
-use warnings;
-my $innochecksum = $ENV{'INNOCHECKSUM'};
-my $mysqltest_vardir = $ENV{'MYSQLTEST_VARDIR'};
-my $mysqld_datadir = $ENV{'MYSQLD_DATADIR'};
-my $pid = fork();
-open(STDOUT, ">", "$mysqltest_vardir/tmp/out.txt") or die "Err: $!";
-open(STDERR, ">&STDOUT");
-die "fork failed" unless defined $pid;
-if ($pid == 0)
-{
-  exec("$innochecksum  --debug='d,innochecksum_cause_mysqld_crash' --page-type-dump=$mysqltest_vardir/tmp/dummy_file $mysqld_datadir/test/tab1.ibd");
-}
-EOF
-
---echo # Restart the DB server with innodb_checksum_algorithm=InnoDB
---exec echo "restart" > $MYSQLTEST_VARDIR/tmp/mysqld.1.expect
---enable_reconnect
---source include/wait_until_connected_again.inc
---disable_reconnect
-
---exec echo "wait" > $MYSQLTEST_VARDIR/tmp/mysqld.1.expect
---error 2013
-select * from tab1;
---remove_file $MYSQLTEST_VARDIR/tmp/dummy_file
---remove_file $MYSQLTEST_VARDIR/tmp/out.txt
---source include/wait_until_disconnected.inc
-
---echo # Restart the DB server with innodb_checksum_algorithm=InnoDB
---exec echo "restart" > $MYSQLTEST_VARDIR/tmp/mysqld.1.expect
---enable_reconnect
---source include/wait_until_connected_again.inc
---disable_reconnect
-
+--echo # Test[5] end
 # cleanup
 DROP TABLE t1;
-DROP TABLE tab1;
 SET GLOBAL innodb_file_format=default;

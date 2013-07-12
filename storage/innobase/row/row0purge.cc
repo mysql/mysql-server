@@ -59,7 +59,7 @@ introduced where a call to log_free_check() is bypassed. */
 
 /********************************************************************//**
 Creates a purge node to a query graph.
-@return	own: purge node */
+@return own: purge node */
 
 purge_node_t*
 row_purge_node_create(
@@ -85,7 +85,7 @@ row_purge_node_create(
 /***********************************************************//**
 Repositions the pcur in the purge node on the clustered index record,
 if found.
-@return	TRUE if the record was found */
+@return TRUE if the record was found */
 static
 ibool
 row_purge_reposition_pcur(
@@ -233,7 +233,7 @@ inserts a record that the secondary index entry would refer to.
 However, in that case, the user transaction would also re-insert the
 secondary index entry after purge has removed it and released the leaf
 page latch.
-@return	true if the secondary index record can be purged */
+@return true if the secondary index record can be purged */
 
 bool
 row_purge_poss_sec(
@@ -261,7 +261,7 @@ row_purge_poss_sec(
 /***************************************************************
 Removes a secondary index entry if possible, by modifying the
 index tree.  Does not try to buffer the delete.
-@return	TRUE if success or if not found */
+@return TRUE if success or if not found */
 static __attribute__((nonnull, warn_unused_result))
 ibool
 row_purge_remove_sec_if_poss_tree(
@@ -367,8 +367,8 @@ func_exit_no_pcur:
 /***************************************************************
 Removes a secondary index entry without modifying the index tree,
 if possible.
-@retval	true if success or if not found
-@retval	false if row_purge_remove_sec_if_poss_tree() should be invoked */
+@retval true if success or if not found
+@retval false if row_purge_remove_sec_if_poss_tree() should be invoked */
 static __attribute__((nonnull, warn_unused_result))
 bool
 row_purge_remove_sec_if_poss_leaf(
@@ -925,7 +925,7 @@ row_purge_end(
 /***********************************************************//**
 Does the purge operation for a single undo log record. This is a high-level
 function used in an SQL execution graph.
-@return	query thread to run next or NULL */
+@return query thread to run next or NULL */
 
 que_thr_t*
 row_purge_step(

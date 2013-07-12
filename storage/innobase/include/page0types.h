@@ -26,13 +26,11 @@ Created 2/2/1994 Heikki Tuuri
 #ifndef page0types_h
 #define page0types_h
 
-using namespace std;
-
-#include <map>
-
 #include "univ.i"
 #include "dict0types.h"
 #include "mtr0types.h"
+
+#include <map>
 
 /** Eliminates a name collision on HP-UX */
 #define page_t	   ib_page_t
@@ -61,6 +59,17 @@ ssize, which is the number of shifts from 512. */
 #if PAGE_ZIP_SSIZE_MAX >= (1 << PAGE_ZIP_SSIZE_BITS)
 # error "PAGE_ZIP_SSIZE_MAX >= (1 << PAGE_ZIP_SSIZE_BITS)"
 #endif
+
+/** The information used for compressing a page when applying
+MLOG_FILE_TRUNCATE redo record during recovery */
+struct redo_page_compress_t {
+	ulint		type;		/*!< index type */
+	index_id_t	index_id;	/*!< index id */
+	ulint		n_fields;	/*!< number of index fields */
+	ulint		field_len;	/*!< the length of index field */
+	const byte*	fields;		/*!< index field information */
+	ulint		trx_id_pos;	/*!< position of trx-id column. */
+};
 
 /** Compressed page descriptor */
 struct page_zip_des_t
@@ -109,7 +118,7 @@ struct page_zip_stat_t {
 };
 
 /** Compression statistics types */
-typedef map<index_id_t, page_zip_stat_t>	page_zip_stat_per_index_t;
+typedef std::map<index_id_t, page_zip_stat_t>	page_zip_stat_per_index_t;
 
 /** Statistics on compression, indexed by page_zip_des_t::ssize - 1 */
 extern page_zip_stat_t				page_zip_stat[PAGE_ZIP_SSIZE_MAX];

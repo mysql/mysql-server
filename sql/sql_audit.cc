@@ -421,7 +421,7 @@ int finalize_audit_plugin(st_plugin_int *plugin)
                  &event_class_mask);
 
   /* Set the global audit mask */
-  bmove(mysql_global_audit_mask, event_class_mask, sizeof(event_class_mask));
+  memmove(mysql_global_audit_mask, event_class_mask, sizeof(event_class_mask));
   mysql_mutex_unlock(&LOCK_audit_mask);
 
   return 0;

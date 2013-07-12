@@ -24,12 +24,6 @@ InnoDB Native API
 3/20/2011 Jimmy Yang extracted from Embedded InnoDB
 *******************************************************/
 
-#include <errno.h>
-
-#ifdef HAVE_UNISTD_H
-#include <unistd.h>
-#endif /* HAVE_UNISTD_H */
-
 #include "ha_prototypes.h"
 
 #include "api0misc.h"
@@ -43,7 +37,7 @@ InnoDB Native API
 
 /*********************************************************************//**
 Sets a lock on a table.
-@return	error code or DB_SUCCESS */
+@return error code or DB_SUCCESS */
 
 dberr_t
 ib_trx_lock_table_with_retry(

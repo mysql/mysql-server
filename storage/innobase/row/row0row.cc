@@ -23,13 +23,13 @@ General row routines
 Created 4/20/1996 Heikki Tuuri
 *******************************************************/
 
+#include "ha_prototypes.h"
+
 #include "row0row.h"
 
 #ifdef UNIV_NONINL
 #include "row0row.ic"
 #endif
-
-#include "ha_prototypes.h"
 
 #include "data0type.h"
 #include "dict0dict.h"
@@ -187,7 +187,7 @@ row_build_index_entry_low(
 /*******************************************************************//**
 An inverse function to row_build_index_entry. Builds a row from a
 record in a clustered index.
-@return	own: row built; see the NOTE below! */
+@return own: row built; see the NOTE below! */
 
 dtuple_t*
 row_build(
@@ -448,7 +448,7 @@ row_rec_to_index_entry_low(
 /*******************************************************************//**
 Converts an index record to a typed data tuple. NOTE that externally
 stored (often big) fields are NOT copied to heap.
-@return	own: index entry built */
+@return own: index entry built */
 
 dtuple_t*
 row_rec_to_index_entry(
@@ -488,7 +488,7 @@ row_rec_to_index_entry(
 /*******************************************************************//**
 Builds from a secondary index record a row reference with which we can
 search the clustered index record.
-@return	own: row reference built; see the NOTE below! */
+@return own: row reference built; see the NOTE below! */
 
 dtuple_t*
 row_build_row_ref(
@@ -710,7 +710,7 @@ notfound:
 
 /***************************************************************//**
 Searches the clustered index record for a row, if we have the row reference.
-@return	TRUE if found */
+@return TRUE if found */
 
 ibool
 row_search_on_row_ref(
@@ -754,7 +754,7 @@ row_search_on_row_ref(
 /*********************************************************************//**
 Fetches the clustered index record for a secondary index record. The latches
 on the secondary index record are preserved.
-@return	record or NULL, if no record found */
+@return record or NULL, if no record found */
 
 rec_t*
 row_get_clust_rec(
@@ -795,7 +795,7 @@ row_get_clust_rec(
 
 /***************************************************************//**
 Searches an index record.
-@return	whether the record was found or buffered */
+@return whether the record was found or buffered */
 
 enum row_search_result
 row_search_index_entry(
@@ -858,7 +858,7 @@ Not more than "buf_size" bytes are written to "buf".
 The result is always '\0'-terminated (provided buf_size > 0) and the
 number of bytes that were written to "buf" is returned (including the
 terminating '\0').
-@return	number of bytes that were written */
+@return number of bytes that were written */
 static
 ulint
 row_raw_format_int(
@@ -906,7 +906,7 @@ Not more than "buf_size" bytes are written to "buf".
 The result is always '\0'-terminated (provided buf_size > 0) and the
 number of bytes that were written to "buf" is returned (including the
 terminating '\0').
-@return	number of bytes that were written */
+@return number of bytes that were written */
 static
 ulint
 row_raw_format_str(
@@ -956,7 +956,7 @@ Not more than "buf_size" bytes are written to "buf".
 The result is always NUL-terminated (provided buf_size is positive) and the
 number of bytes that were written to "buf" is returned (including the
 terminating NUL).
-@return	number of bytes that were written */
+@return number of bytes that were written */
 
 ulint
 row_raw_format(
@@ -1036,8 +1036,6 @@ row_raw_format(
 }
 
 #ifdef UNIV_COMPILE_TEST_FUNCS
-
-#include "ut0dbg.h"
 
 void
 test_row_raw_format_int()

@@ -24,6 +24,7 @@ Created 11/5/1995 Heikki Tuuri
 *******************************************************/
 
 #include "ha_prototypes.h"
+#include <mysql/plugin.h>
 
 #include "buf0rea.h"
 #include "fil0fil.h"
@@ -102,9 +103,12 @@ static
 ulint
 buf_read_page_low(
 /*==============*/
-	dberr_t*	err,	/*!< out: DB_SUCCESS or DB_TABLESPACE_DELETED if we are
-			trying to read from a non-existent tablespace, or a
-			tablespace which is just now being dropped */
+	dberr_t*	err,
+			/*!< out: DB_SUCCESS, DB_TABLESPACE_DELETED
+			or DB_TABLESPACE_TRUNCATED if we are trying to read
+			from a non-existent tablespace, a tablespace which
+			is just now being dropped, or a tablespace which is
+			truncated */
 	bool	sync,	/*!< in: true if synchronous aio is desired */
 	ulint	mode,	/*!< in: BUF_READ_IBUF_PAGES_ONLY, ...,
 			ORed to OS_AIO_SIMULATED_WAKE_LATER (see below
@@ -191,11 +195,24 @@ buf_read_page_low(
 	}
 
 	if (*err != DB_SUCCESS) {
-		if (ignore_nonexistent_pages || *err == DB_TABLESPACE_DELETED) {
+		if (*err == DB_TABLESPACE_TRUNCATED) {
+			/* Remove the page which is outside the
+			truncated tablespace bounds when recovering
+			from a crash happened during a truncation */
+			buf_read_page_handle_error(bpage);
+			if (recv_recovery_on) {
+				mutex_enter(&recv_sys->mutex);
+				ut_ad(recv_sys->n_addrs > 0);
+				recv_sys->n_addrs--;
+				mutex_exit(&recv_sys->mutex);
+			}
+			return(0);
+		} else if (ignore_nonexistent_pages
+			   || *err == DB_TABLESPACE_DELETED) {
 			buf_read_page_handle_error(bpage);
 			return(0);
 		}
-		/* else */
+
 		ut_error;
 	}
 
@@ -223,7 +240,7 @@ the OS does not support asynchronous i/o.
 @return number of page read requests issued; NOTE that if we read ibuf
 pages, it may happen that the page at the given page number does not
 get read even if we return a positive value!
-@return	number of page read requests issued */
+@return number of page read requests issued */
 
 ulint
 buf_read_ahead_random(
@@ -476,7 +493,7 @@ latches!
 NOTE 3: the calling thread must want access to the page given: this rule is
 set to prevent unintended read-aheads performed by ibuf routines, a situation
 which could result in a deadlock if the OS does not support asynchronous io.
-@return	number of page read requests issued */
+@return number of page read requests issued */
 
 ulint
 buf_read_ahead_linear(

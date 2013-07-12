@@ -35,7 +35,7 @@ Created 2/23/1996 Heikki Tuuri
 
 /**************************************************************//**
 Allocates memory for a persistent cursor object and initializes the cursor.
-@return	own: persistent cursor */
+@return own: persistent cursor */
 
 btr_pcur_t*
 btr_pcur_create_for_mysql(void)
@@ -451,7 +451,7 @@ btr_pcur_move_to_next_page(
 
 	page_cur_set_before_first(next_block, btr_pcur_get_page_cur(cursor));
 
-	page_check_dir(next_page);
+	ut_d(page_check_dir(next_page));
 }
 
 /*********************************************************//**
@@ -537,7 +537,7 @@ btr_pcur_move_backward_from_page(
 /*********************************************************//**
 Moves the persistent cursor to the previous record in the tree. If no records
 are left, the cursor stays 'before first in tree'.
-@return	TRUE if the cursor was not before first in tree */
+@return TRUE if the cursor was not before first in tree */
 
 ibool
 btr_pcur_move_to_prev(

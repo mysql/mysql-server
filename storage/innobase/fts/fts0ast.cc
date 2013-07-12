@@ -23,7 +23,8 @@ Full Text Search parser helper file.
 Created 2007/3/16 Sunny Bains.
 ***********************************************************************/
 
-#include "mem0mem.h"
+#include "ha_prototypes.h"
+
 #include "fts0ast.h"
 #include "fts0pars.h"
 #include "fts0fts.h"
@@ -530,9 +531,9 @@ fts_ast_visit(
 			if (oper == FTS_IGNORE_SKIP) {
 				/* This must be the second pass, now we process
 				the FTS_IGNORE operator */
-				visitor(FTS_IGNORE, node, arg);
+				error = visitor(FTS_IGNORE, node, arg);
 			} else {
-				visitor(oper, node, arg);
+				error = visitor(oper, node, arg);
 			}
 
 			node->visited = true;

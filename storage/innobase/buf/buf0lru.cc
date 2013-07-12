@@ -24,21 +24,16 @@ Created 11/5/1995 Heikki Tuuri
 *******************************************************/
 
 #include "buf0lru.h"
-
-#ifndef UNIV_HOTBACKUP
 #ifdef UNIV_NONINL
 #include "buf0lru.ic"
 #endif
 
-#include "ha_prototypes.h"
-
+#ifndef UNIV_HOTBACKUP
 #include "ut0byte.h"
-#include "ut0lst.h"
 #include "ut0rnd.h"
 #include "sync0sync.h"
 #include "sync0rw.h"
 #include "hash0hash.h"
-#include "os0sync.h"
 #include "fil0fil.h"
 #include "btr0btr.h"
 #include "buf0buddy.h"
@@ -179,7 +174,7 @@ incr_LRU_size_in_bytes(
 /******************************************************************//**
 Determines if the unzip_LRU list should be used for evicting a victim
 instead of the general LRU list.
-@return	TRUE if should use unzip_LRU */
+@return TRUE if should use unzip_LRU */
 
 ibool
 buf_LRU_evict_from_unzip_LRU(
@@ -887,10 +882,14 @@ buf_LRU_flush_or_remove_pages(
 
 		switch (buf_remove) {
 		case BUF_REMOVE_ALL_NO_WRITE:
-		case BUF_REMOVE_FLUSH_NO_WRITE:
 			buf_LRU_drop_page_hash_for_tablespace(buf_pool, id);
 			break;
 
+		case BUF_REMOVE_FLUSH_NO_WRITE:
+			/* It is a DROP TABLE for a single table
+			tablespace. No AHI entries exist because
+			we already dealt with them when freeing up
+			extents. */
 		case BUF_REMOVE_FLUSH_WRITE:
 			/* We allow read-only queries against the
 			table, there is no need to drop the AHI entries. */
@@ -939,7 +938,7 @@ buf_LRU_insert_zip_clean(
 /******************************************************************//**
 Try to free an uncompressed page of a compressed block from the unzip
 LRU list.  The compressed page is preserved, and it need not be clean.
-@return	TRUE if freed */
+@return TRUE if freed */
 UNIV_INLINE
 ibool
 buf_LRU_free_from_unzip_LRU_list(
@@ -987,7 +986,7 @@ buf_LRU_free_from_unzip_LRU_list(
 
 /******************************************************************//**
 Try to free a clean page from the common LRU list.
-@return	TRUE if freed */
+@return TRUE if freed */
 UNIV_INLINE
 ibool
 buf_LRU_free_from_common_LRU_list(
@@ -1039,7 +1038,7 @@ buf_LRU_free_from_common_LRU_list(
 
 /******************************************************************//**
 Try to free a replaceable block.
-@return	TRUE if found and freed */
+@return TRUE if found and freed */
 
 ibool
 buf_LRU_scan_and_free_block(
@@ -1060,7 +1059,7 @@ buf_LRU_scan_and_free_block(
 Returns TRUE if less than 25 % of the buffer pool in any instance is
 available. This can be used in heuristics to prevent huge transactions
 eating up the whole buffer pool for their locks.
-@return	TRUE if less than 25 % of buffer pool left */
+@return TRUE if less than 25 % of buffer pool left */
 
 ibool
 buf_LRU_buf_pool_running_out(void)
@@ -1093,7 +1092,7 @@ buf_LRU_buf_pool_running_out(void)
 /******************************************************************//**
 Returns a free block from the buf_pool.  The block is taken off the
 free list.  If it is empty, returns NULL.
-@return	a free control block, or NULL if the buf_block->free list is empty */
+@return a free control block, or NULL if the buf_block->free list is empty */
 
 buf_block_t*
 buf_LRU_get_free_only(
@@ -1143,7 +1142,6 @@ buf_LRU_check_size_of_non_data_objects(
 
 	if (!recv_recovery_on && UT_LIST_GET_LEN(buf_pool->free)
 	    + UT_LIST_GET_LEN(buf_pool->LRU) < buf_pool->curr_size / 20) {
-		ut_print_timestamp(stderr);
 		ib_logf(IB_LOG_LEVEL_FATAL,
 			"Over 95 percent of the buffer pool is occupied by"
 			" lock heaps or the adaptive hash index!"
@@ -1224,7 +1222,7 @@ we put it to free list to be used.
     * scan LRU list even if buf_pool->try_LRU_scan is not set
 * iteration > 1:
   * same as iteration 1 but sleep 100ms
-@return	the free control block, in state BUF_BLOCK_READY_FOR_USE */
+@return the free control block, in state BUF_BLOCK_READY_FOR_USE */
 
 buf_block_t*
 buf_LRU_get_free_block(
@@ -2424,7 +2422,7 @@ buf_LRU_free_one_page(
 
 /**********************************************************************//**
 Updates buf_pool->LRU_old_ratio for one buffer pool instance.
-@return	updated old_pct */
+@return updated old_pct */
 static
 uint
 buf_LRU_old_ratio_update_instance(
@@ -2469,9 +2467,9 @@ buf_LRU_old_ratio_update_instance(
 
 /**********************************************************************//**
 Updates buf_pool->LRU_old_ratio.
-@return	updated old_pct */
+@return updated old_pct */
 
-ulint
+uint
 buf_LRU_old_ratio_update(
 /*=====================*/
 	uint	old_pct,/*!< in: Reserve this percentage of
@@ -2481,7 +2479,7 @@ buf_LRU_old_ratio_update(
 			during the initialization of InnoDB */
 {
 	ulint	i;
-	ulint	new_ratio = 0;
+	uint	new_ratio = 0;
 
 	for (i = 0; i < srv_buf_pool_instances; i++) {
 		buf_pool_t*	buf_pool;
@@ -2646,7 +2644,7 @@ buf_LRU_validate_instance(
 
 /**********************************************************************//**
 Validates the LRU list.
-@return	TRUE */
+@return TRUE */
 
 ibool
 buf_LRU_validate(void)

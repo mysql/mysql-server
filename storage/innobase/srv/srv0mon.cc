@@ -25,16 +25,16 @@ Created 12/9/2009 Jimmy Yang
 *******************************************************/
 
 #ifndef UNIV_HOTBACKUP
-#include "os0file.h"
+#include "buf0buf.h"
+#include "dict0mem.h"
+#include "ibuf0ibuf.h"
+#include "lock0lock.h"
 #include "mach0data.h"
+#include "os0file.h"
 #include "srv0mon.h"
 #include "srv0srv.h"
-#include "buf0buf.h"
-#include "trx0sys.h"
 #include "trx0rseg.h"
-#include "dict0mem.h"
-#include "lock0lock.h"
-#include "ibuf0ibuf.h"
+#include "trx0sys.h"
 #ifdef UNIV_NONINL
 #include "srv0mon.ic"
 #endif
@@ -1211,8 +1211,10 @@ ulint		monitor_set_tbl[(NUM_MONITOR + NUM_BITS_ULINT
 built-in operations for atomic memory access */
 ib_mutex_t	monitor_mutex;
 
+#ifdef HAVE_PSI_INTERFACE
 /** Key to register monitor_mutex with performance schema */
 mysql_pfs_key_t	monitor_mutex_key;
+#endif
 
 /****************************************************************//**
 Initialize the monitor subsystem. */
@@ -1237,7 +1239,7 @@ srv_mon_free(void)
 /****************************************************************//**
 Get a monitor's "monitor_info" by its monitor id (index into the
 innodb_counter_info array.
-@return	Point to corresponding monitor_info_t, or NULL if no such
+@return Point to corresponding monitor_info_t, or NULL if no such
 monitor */
 
 monitor_info_t*
@@ -1256,7 +1258,7 @@ srv_mon_get_info(
 /****************************************************************//**
 Get monitor's name by its monitor id (indexing into the
 innodb_counter_info array.
-@return	corresponding monitor name, or NULL if no such
+@return corresponding monitor name, or NULL if no such
 monitor */
 
 const char*

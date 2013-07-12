@@ -109,7 +109,7 @@ buf_buddy_mem_invalid(
 
 /**********************************************************************//**
 Check if a buddy is stamped free.
-@return	whether the buddy is free */
+@return whether the buddy is free */
 UNIV_INLINE __attribute__((warn_unused_result))
 bool
 buf_buddy_stamp_is_free(
@@ -129,7 +129,7 @@ buf_buddy_stamp_free(
 	buf_buddy_free_t*	buf,	/*!< in/out: block to stamp */
 	ulint			i)	/*!< in: block size */
 {
-	ut_d(memset(buf, i, BUF_BUDDY_LOW << i));
+	ut_d(memset(buf, (int) i, BUF_BUDDY_LOW << i));
 	buf_buddy_mem_invalid(buf, i);
 	mach_write_to_4(buf->stamp.bytes + BUF_BUDDY_STAMP_OFFSET,
 			BUF_BUDDY_STAMP_FREE);
@@ -138,8 +138,8 @@ buf_buddy_stamp_free(
 
 /**********************************************************************//**
 Stamps a buddy nonfree.
-@param[in/out]	buf	block to stamp
-@param[in]	i	block size */
+@param[in/out] buf block to stamp
+@param[in] i block size */
 #define buf_buddy_stamp_nonfree(buf, i) do {				\
 	buf_buddy_mem_invalid(buf, i);					\
 	memset(buf->stamp.bytes + BUF_BUDDY_STAMP_OFFSET, 0xff, 4);	\
@@ -150,7 +150,7 @@ Stamps a buddy nonfree.
 
 /**********************************************************************//**
 Get the offset of the buddy of a compressed page frame.
-@return	the buddy relative of page */
+@return the buddy relative of page */
 UNIV_INLINE
 void*
 buf_buddy_get(
@@ -305,7 +305,7 @@ buf_buddy_remove_from_free(
 
 /**********************************************************************//**
 Try to allocate a block from buf_pool->zip_free[].
-@return	allocated block, or NULL if buf_pool->zip_free[] was empty */
+@return allocated block, or NULL if buf_pool->zip_free[] was empty */
 static
 buf_buddy_free_t*
 buf_buddy_alloc_zip(
@@ -424,7 +424,7 @@ buf_buddy_block_register(
 
 /**********************************************************************//**
 Allocate a block from a bigger object.
-@return	allocated block */
+@return allocated block */
 static
 void*
 buf_buddy_alloc_from(
@@ -462,7 +462,7 @@ buf_buddy_alloc_from(
 Allocate a block.  The thread calling this function must hold
 buf_pool->mutex and must not hold buf_pool->zip_mutex or any block->mutex.
 The buf_pool_mutex may be released and reacquired.
-@return	allocated block, never NULL */
+@return allocated block, never NULL */
 
 void*
 buf_buddy_alloc_low(
@@ -519,7 +519,7 @@ func_exit:
 
 /**********************************************************************//**
 Try to relocate a block.
-@return	true if relocated */
+@return true if relocated */
 static
 bool
 buf_buddy_relocate(

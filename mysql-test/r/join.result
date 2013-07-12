@@ -66,7 +66,7 @@ id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
 1	SIMPLE	t2	ALL	NULL	NULL	NULL	NULL	3	Using where
 explain select t1.id, t2.id from t1, t2 where t2.id = t1.id and t1.id <0 and t1.id > 0;
 id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
-1	SIMPLE	NULL	NULL	NULL	NULL	NULL	NULL	NULL	Impossible WHERE noticed after reading const tables
+1	SIMPLE	NULL	NULL	NULL	NULL	NULL	NULL	NULL	no matching row in const table
 drop table t1,t2;
 CREATE TABLE t1 (
 id int(11) NOT NULL auto_increment,
@@ -1145,7 +1145,7 @@ EXPLAIN SELECT 1 FROM t1 LEFT JOIN t1 a ON 1
 WHERE ROW(t1.a, 1111.11) = ROW(1111.11, 1111.11) AND
 ROW(t1.b, 1111.11) <=> ROW('','');
 id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
-1	SIMPLE	NULL	NULL	NULL	NULL	NULL	NULL	NULL	Impossible WHERE noticed after reading const tables
+1	SIMPLE	NULL	NULL	NULL	NULL	NULL	NULL	NULL	no matching row in const table
 DROP TABLE t1;
 #
 # Bug #50335: Assertion `!(order->used & map)' in eq_ref_table

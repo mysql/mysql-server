@@ -5,10 +5,8 @@
 #************************************************************
 --source include/have_innodb.inc
 
-# Must have debug code to use debug option for innochecksum tool.
---source include/have_debug.inc
 --source include/not_embedded.inc
---echo # Set the environmental variables
+
 let MYSQLD_BASEDIR= `SELECT @@basedir`;
 let MYSQLD_DATADIR= `SELECT @@datadir`;
 let SEARCH_FILE= $MYSQLTEST_VARDIR/log/my_restart.err;
@@ -28,9 +26,7 @@ while ($i > 0) {
 }
 
 --echo # stop the server
---exec echo "wait" > $MYSQLTEST_VARDIR/tmp/mysqld.1.expect
---shutdown_server
---source include/wait_until_disconnected.inc
+--source include/shutdown_mysqld.inc
 
 # Page_type_dump for t1
 --exec $INNOCHECKSUM -v --page-type-dump $MYSQLTEST_VARDIR/tmp/dump.txt $MYSQLD_DATADIR/test/t1.ibd
@@ -46,7 +42,7 @@ while ($i > 0) {
 --echo # It will print the innochecksum usage similar to --help option.
 --error 1
 --exec $INNOCHECKSUM > $MYSQLTEST_VARDIR/tmp/usage.txt
---diff_files $MYSQLTEST_VARDIR/tmp/help_output_long.txt $MYSQLTEST_VARDIR/tmp/usage.txt 
+--diff_files $MYSQLTEST_VARDIR/tmp/help_output_long.txt $MYSQLTEST_VARDIR/tmp/usage.txt
 --remove_file $MYSQLTEST_VARDIR/tmp/usage.txt
 
 perl;
@@ -59,11 +55,12 @@ my $file= 'help_output_long.txt';
 open IN_FILE,"<", "$dir/tmp/$file" or die $!;
 open OUT_FILE, ">", "$dir/tmp/tmpfile" or die $!;
 while(<IN_FILE>) {
-  $_=~ s/^\S*innochecksum.+Ver.+[0-9]*\.[0-9]*\.[0-9]*.+$/innochecksum Ver #.#.#/g;
-  $_=~ s/http:.*html/REFMAN/g;
-  $_=~ s/Usage:.*\[-c/Usage: innochecksum [-c/g;
-  $_=~ s/d:.*trace/d:o,mtrchecksum.trace/g;
-  print OUT_FILE $_;
+ unless ($_=~ /^debug.*$/ || $_=~ /\-#, \-\-debug.*$/ || $_=~ /http:.*html/) {
+    $_=~ s/^\S*innochecksum.+Ver.+[0-9]*\.[0-9]*\.[0-9]*.+$/innochecksum Ver #.#.#/g;
+    $_=~ s/(Copyright\s\(c\))\s([0-9]*),\s([0-9]*)(.*)/$1 YEAR, YEAR $4/g;
+    $_=~ s/Usage:.*\[-c/Usage: innochecksum [-c/g;
+    print OUT_FILE $_;
+ }
 }
 close(IN_FILE);
 close(OUT_FILE);
@@ -86,10 +83,8 @@ EOF
 --exec $INNOCHECKSUM -V $MYSQLD_DATADIR/test/t1.ibd
 
 --echo # Restart the DB server
---exec echo "restart" > $MYSQLTEST_VARDIR/tmp/mysqld.1.expect
---enable_reconnect
---source include/wait_until_connected_again.inc
---disable_reconnect
+--source include/start_mysqld.inc
+
 DROP TABLE t1;
 
 --echo [5]:# Check the innochecksum for compressed table t1 with different key_block_size
@@ -112,12 +107,10 @@ DROP TABLE t1;
 --echo # Test for KEY_BLOCK_SIZE=16
 --let $size=16
 --source ../include/innodb-wl6045.inc
---echo # Test[38] completed
+--echo # Test[5] completed
 
 --echo # Restart the server
---exec echo "restart" > $MYSQLTEST_VARDIR/tmp/mysqld.1.expect
---enable_reconnect
---source include/wait_until_connected_again.inc
+--source include/start_mysqld.inc
 
 SET GLOBAL innodb_file_per_table=default;
 SET GLOBAL innodb_file_format=default;

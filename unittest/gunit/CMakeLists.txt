@@ -263,6 +263,7 @@ ENDIF()
 SET(SERVER_TESTS
   copy_info
   create_field
+  debug_sync
   explain_filename
   field
   get_diagnostics

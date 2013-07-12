@@ -23,6 +23,8 @@ Data dictionary creation and booting
 Created 4/18/1996 Heikki Tuuri
 *******************************************************/
 
+#include "ha_prototypes.h"
+
 #include "dict0boot.h"
 
 #ifdef UNIV_NONINL
@@ -41,7 +43,7 @@ Created 4/18/1996 Heikki Tuuri
 
 /**********************************************************************//**
 Gets a pointer to the dictionary header and x-latches its page.
-@return	pointer to the dictionary header, page x-latched */
+@return pointer to the dictionary header, page x-latched */
 
 dict_hdr_t*
 dict_hdr_get(
@@ -163,7 +165,7 @@ dict_hdr_flush_row_id(void)
 /*****************************************************************//**
 Creates the file page for the dictionary header. This function is
 called only at the database creation.
-@return	TRUE if succeed */
+@return TRUE if succeed */
 static
 ibool
 dict_hdr_create(
@@ -209,7 +211,7 @@ dict_hdr_create(
 	/*--------------------------*/
 	root_page_no = btr_create(DICT_CLUSTERED | DICT_UNIQUE,
 				  DICT_HDR_SPACE, 0, DICT_TABLES_ID,
-				  dict_ind_redundant, mtr);
+				  dict_ind_redundant, NULL, mtr);
 	if (root_page_no == FIL_NULL) {
 
 		return(FALSE);
@@ -220,7 +222,7 @@ dict_hdr_create(
 	/*--------------------------*/
 	root_page_no = btr_create(DICT_UNIQUE, DICT_HDR_SPACE, 0,
 				  DICT_TABLE_IDS_ID,
-				  dict_ind_redundant, mtr);
+				  dict_ind_redundant, NULL, mtr);
 	if (root_page_no == FIL_NULL) {
 
 		return(FALSE);
@@ -231,7 +233,7 @@ dict_hdr_create(
 	/*--------------------------*/
 	root_page_no = btr_create(DICT_CLUSTERED | DICT_UNIQUE,
 				  DICT_HDR_SPACE, 0, DICT_COLUMNS_ID,
-				  dict_ind_redundant, mtr);
+				  dict_ind_redundant, NULL, mtr);
 	if (root_page_no == FIL_NULL) {
 
 		return(FALSE);
@@ -242,7 +244,7 @@ dict_hdr_create(
 	/*--------------------------*/
 	root_page_no = btr_create(DICT_CLUSTERED | DICT_UNIQUE,
 				  DICT_HDR_SPACE, 0, DICT_INDEXES_ID,
-				  dict_ind_redundant, mtr);
+				  dict_ind_redundant, NULL, mtr);
 	if (root_page_no == FIL_NULL) {
 
 		return(FALSE);
@@ -253,7 +255,7 @@ dict_hdr_create(
 	/*--------------------------*/
 	root_page_no = btr_create(DICT_CLUSTERED | DICT_UNIQUE,
 				  DICT_HDR_SPACE, 0, DICT_FIELDS_ID,
-				  dict_ind_redundant, mtr);
+				  dict_ind_redundant, NULL, mtr);
 	if (root_page_no == FIL_NULL) {
 
 		return(FALSE);

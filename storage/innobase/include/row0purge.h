@@ -34,12 +34,11 @@ Created 3/14/1997 Heikki Tuuri
 #include "trx0types.h"
 #include "que0types.h"
 #include "row0types.h"
-#include "row0purge.h"
 #include "ut0vec.h"
 
 /********************************************************************//**
 Creates a purge node to a query graph.
-@return	own: purge node */
+@return own: purge node */
 
 purge_node_t*
 row_purge_node_create(
@@ -62,7 +61,7 @@ inserts a record that the secondary index entry would refer to.
 However, in that case, the user transaction would also re-insert the
 secondary index entry after purge has removed it and released the leaf
 page latch.
-@return	true if the secondary index record can be purged */
+@return true if the secondary index record can be purged */
 
 bool
 row_purge_poss_sec(
@@ -74,7 +73,7 @@ row_purge_poss_sec(
 /***************************************************************
 Does the purge operation for a single undo log record. This is a high-level
 function used in an SQL execution graph.
-@return	query thread to run next or NULL */
+@return query thread to run next or NULL */
 
 que_thr_t*
 row_purge_step(

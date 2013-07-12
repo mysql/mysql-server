@@ -80,13 +80,21 @@ the virtual method table (vtable) in GCC 3. */
 
 /* The defines used with MySQL */
 
-/* Include two header files from MySQL to make the Unix flavor used
-in compiling more Posix-compatible. */
-
 #ifndef UNIV_HOTBACKUP
+
+/* Include a minimum number of SQL header files so that few changes
+made in SQL code cause a complete InnoDB rebuild.  These headers are
+used throughout InnoDB but do not include too much themselves.  They
+support cross-platform development and expose comonly used SQL names. */
+
 # include <my_global.h>
 # include <my_pthread.h>
-#endif /* UNIV_HOTBACKUP */
+
+# ifndef UNIV_INNOCHECKSUM
+#  include <m_string.h>
+#  include <mysqld_error.h>
+# endif /* !UNIV_INNOCHECKSUM */
+#endif /* !UNIV_HOTBACKUP  */
 
 /* Include <sys/stat.h> to get S_I... macros defined for os0file.cc */
 # include <sys/stat.h>
@@ -120,7 +128,7 @@ Sun Studio */
 /* Following defines are to enable performance schema
 instrumentation in each of four InnoDB modules if
 HAVE_PSI_INTERFACE is defined. */
-#if defined HAVE_PSI_INTERFACE && !defined UNIV_HOTBACKUP
+#if defined(HAVE_PSI_INTERFACE) && !defined(UNIV_HOTBACKUP)
 # define UNIV_PFS_MUTEX
 # define UNIV_PFS_RWLOCK
 /* For I/O instrumentation, performance schema rely
@@ -420,7 +428,6 @@ the word size of the machine, that is on a 32-bit platform 32 bits, and on a
 64-bit platform 64 bits. We also give the printf format for the type as a
 macro ULINTPF. */
 
-
 #ifdef _WIN32
 /* Use the integer types and formatting strings defined in Visual Studio. */
 # define UINT32PF	"%lu"
@@ -517,7 +524,7 @@ contains the sum of the following flag and the locally stored len. */
 
 #define UNIV_EXTERN_STORAGE_FIELD (UNIV_SQL_NULL - UNIV_PAGE_SIZE_MAX)
 
-#if defined(__GNUC__) && (__GNUC__ > 2) && ! defined(__INTEL_COMPILER)
+#if defined(__GNUC__) && (__GNUC__ > 2)
 #define HAVE_GCC_GT_2
 /* Tell the compiler that variable/function is unused. */
 # define UNIV_UNUSED    __attribute__ ((unused))
@@ -593,9 +600,15 @@ typedef void* os_thread_ret_t;
 #endif
 
 #include <stdio.h>
-#include "ut0dbg.h"
-#include "ut0ut.h"
 #include "db0err.h"
+#ifndef UNIV_HOTBACKUP
+# include "os0sync.h"
+#endif /* UNIV_HOTBACKUP */
+#include "sync0types.h"
+#include "ut0dbg.h"
+#include "ut0lst.h"
+#include "ut0ut.h"
+
 #ifdef UNIV_DEBUG_VALGRIND
 # include <valgrind/memcheck.h>
 # define UNIV_MEM_VALID(addr, size) VALGRIND_MAKE_MEM_DEFINED(addr, size)

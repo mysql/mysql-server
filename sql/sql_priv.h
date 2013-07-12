@@ -55,6 +55,33 @@
                         (Old), (New));                                      \
   } while(0)
 
+/*
+  Generates a warning that a feature is deprecated. 
+
+  Using it as
+
+  WARN_DEPRECATED(thd, "old");
+
+  Will result in a warning
+ 
+  "The syntax 'old' is deprecated and will be removed in a
+   future release.
+
+   Note that in macro arguments BAD is not quoted.
+*/
+#define WARN_DEPRECARED_NO_REPLACEMENT(Thd,Old)                             \
+  do {                                                                      \
+    if (((THD *) Thd) != NULL)                                              \
+      push_warning_printf(((THD *) Thd), Sql_condition::SL_WARNING,         \
+                        ER_WARN_DEPRECATED_SYNTAX_NO_REPLACEMENT,           \
+                        ER(ER_WARN_DEPRECATED_SYNTAX_NO_REPLACEMENT),       \
+                        (Old));                                             \
+    else                                                                    \
+      sql_print_warning("The syntax '%s' is deprecated and will be removed " \
+                        "in a future release",                              \
+                        (Old));                                             \
+  } while(0) 
+
 /*************************************************************************/
 
 #endif
@@ -269,11 +296,9 @@ template <class T> bool valid_buffer_range(T jump,
 #define UNCACHEABLE_DEPENDENT   1
 #define UNCACHEABLE_RAND        2
 #define UNCACHEABLE_SIDEEFFECT	4
-/// forcing to save JOIN for explain
-#define UNCACHEABLE_EXPLAIN     8
 /* For uncorrelated SELECT in an UNION with some correlated SELECTs */
-#define UNCACHEABLE_UNITED     16
-#define UNCACHEABLE_CHECKOPTION 32
+#define UNCACHEABLE_UNITED      8
+#define UNCACHEABLE_CHECKOPTION 16
 
 /*
   Some defines for exit codes for ::is_equal class functions.
@@ -282,13 +307,38 @@ template <class T> bool valid_buffer_range(T jump,
 #define IS_EQUAL_YES 1
 #define IS_EQUAL_PACK_LENGTH 2
 
-enum enum_parsing_place
+/**
+  Names for different query parse tree parts
+*/
+
+enum enum_parsing_context
 {
-  NO_MATTER,
-  IN_HAVING,
-  SELECT_LIST,
-  IN_WHERE,
-  IN_ON
+  CTX_NONE= 0, ///< Empty value
+  CTX_MESSAGE, ///< "No tables used" messages etc.
+  CTX_TABLE, ///< for single-table UPDATE/DELETE/INSERT/REPLACE
+  CTX_SELECT_LIST, ///< SELECT (subquery), (subquery)...
+  CTX_UPDATE_VALUE_LIST, ///< UPDATE ... SET field=(subquery)...
+  CTX_JOIN,
+  CTX_JOIN_TAB,
+  CTX_MATERIALIZATION,
+  CTX_DUPLICATES_WEEDOUT,
+  CTX_DERIVED, ///< "Derived" subquery
+  CTX_WHERE, ///< Subquery in WHERE clause item tree
+  CTX_ON,    ///< ON clause context
+  CTX_HAVING, ///< Subquery in HAVING clause item tree
+  CTX_ORDER_BY, ///< ORDER BY clause execution context
+  CTX_GROUP_BY, ///< GROUP BY clause execution context
+  CTX_SIMPLE_ORDER_BY, ///< ORDER BY clause execution context
+  CTX_SIMPLE_GROUP_BY, ///< GROUP BY clause execution context
+  CTX_DISTINCT, ///< DISTINCT clause execution context
+  CTX_SIMPLE_DISTINCT, ///< DISTINCT clause execution context
+  CTX_BUFFER_RESULT, ///< see SQL_BUFFER_RESULT in the manual
+  CTX_ORDER_BY_SQ, ///< Subquery in ORDER BY clause item tree
+  CTX_GROUP_BY_SQ, ///< Subquery in GROUP BY clause item tree
+  CTX_OPTIMIZED_AWAY_SUBQUERY, ///< Subquery executed once during optimization
+  CTX_UNION,
+  CTX_UNION_RESULT, ///< Pseudo-table context for UNION result
+  CTX_QUERY_SPEC ///< Inner SELECTs of UNION expression
 };
 
 

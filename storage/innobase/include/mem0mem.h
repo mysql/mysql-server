@@ -33,7 +33,6 @@ Created 6/9/1994 Heikki Tuuri
 #ifndef UNIV_HOTBACKUP
 # include "sync0sync.h"
 #endif /* UNIV_HOTBACKUP */
-#include "ut0lst.h"
 #include "mach0data.h"
 
 /* -------------------- MEMORY HEAPS ----------------------------- */
@@ -140,7 +139,7 @@ mem_heap_free_func(
 	ulint		line);		/*!< in: line where freed */
 /***************************************************************//**
 Allocates and zero-fills n bytes of memory from a memory heap.
-@return	allocated, zero-filled storage */
+@return allocated, zero-filled storage */
 UNIV_INLINE
 void*
 mem_heap_zalloc(
@@ -163,7 +162,7 @@ mem_heap_alloc(
 				<= MEM_MAX_ALLOC_IN_BUF */
 /*****************************************************************//**
 Returns a pointer to the heap top.
-@return	pointer to the heap top */
+@return pointer to the heap top */
 UNIV_INLINE
 byte*
 mem_heap_get_heap_top(
@@ -189,7 +188,7 @@ mem_heap_empty(
 /*****************************************************************//**
 Returns a pointer to the topmost element in a memory heap.
 The size of the element must be given.
-@return	pointer to the topmost element */
+@return pointer to the topmost element */
 UNIV_INLINE
 void*
 mem_heap_get_top(
@@ -200,7 +199,7 @@ mem_heap_get_top(
 Checks if a given chunk of memory is the topmost element stored in the
 heap. If this is the case, then calling mem_heap_free_top() would free
 that element from the heap.
-@return	true if topmost */
+@return true if topmost */
 UNIV_INLINE
 bool
 mem_heap_is_top(
@@ -287,7 +286,7 @@ NOTE: Use the corresponding macro instead of this function.
 Allocates a single buffer of memory from the dynamic memory of
 the C compiler. Is like malloc of C. The buffer must be freed
 with mem_free.
-@return	own: free storage */
+@return own: free storage */
 UNIV_INLINE
 void*
 mem_alloc_func(
@@ -317,7 +316,7 @@ mem_free_func(
 
 /**********************************************************************//**
 Duplicates a NUL-terminated string.
-@return	own: a copy of the string, must be deallocated with mem_free */
+@return own: a copy of the string, must be deallocated with mem_free */
 UNIV_INLINE
 char*
 mem_strdup(
@@ -325,7 +324,7 @@ mem_strdup(
 	const char*	str);	/*!< in: string to be copied */
 /**********************************************************************//**
 Makes a NUL-terminated copy of a nonterminated string.
-@return	own: a copy of the string, must be deallocated with mem_free */
+@return own: a copy of the string, must be deallocated with mem_free */
 UNIV_INLINE
 char*
 mem_strdupl(
@@ -335,7 +334,7 @@ mem_strdupl(
 
 /**********************************************************************//**
 Duplicates a NUL-terminated string, allocated from a memory heap.
-@return	own: a copy of the string */
+@return own: a copy of the string */
 
 char*
 mem_heap_strdup(
@@ -345,7 +344,7 @@ mem_heap_strdup(
 /**********************************************************************//**
 Makes a NUL-terminated copy of a nonterminated string,
 allocated from a memory heap.
-@return	own: a copy of the string */
+@return own: a copy of the string */
 UNIV_INLINE
 char*
 mem_heap_strdupl(
@@ -356,7 +355,7 @@ mem_heap_strdupl(
 
 /**********************************************************************//**
 Concatenate two strings and return the result, using a memory heap.
-@return	own: the result */
+@return own: the result */
 
 char*
 mem_heap_strcat(
@@ -367,7 +366,7 @@ mem_heap_strcat(
 
 /**********************************************************************//**
 Duplicate a block of data, allocated from a memory heap.
-@return	own: a copy of the data */
+@return own: a copy of the data */
 
 void*
 mem_heap_dup(
@@ -381,7 +380,7 @@ A simple sprintf replacement that dynamically allocates the space for the
 formatted string from the given heap. This supports a very limited set of
 the printf syntax: types 's' and 'u' and length modifier 'l' (which is
 required for the 'u' type).
-@return	heap-allocated formatted string */
+@return heap-allocated formatted string */
 
 char*
 mem_heap_printf(

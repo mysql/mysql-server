@@ -23,7 +23,7 @@
 #include "key.h"                                // find_ref_key
 #include "sql_table.h"                          // build_table_filename,
                                                 // primary_key_name
-#include "sql_trigger.h"
+#include "table_trigger_dispatcher.h"           // Table_trigger_dispatcher
 #include "sql_parse.h"                          // free_items
 #include "strfunc.h"                            // unhex_type2
 #include "sql_partition.h"       // mysql_unpack_partition,
@@ -318,7 +318,7 @@ TABLE_SHARE *alloc_table_share(TABLE_LIST *table_list, const char *key,
                                uint key_length)
 {
   MEM_ROOT mem_root;
-  TABLE_SHARE *share;
+  TABLE_SHARE *share= NULL;
   char *key_buff, *path_buff;
   char path[FN_REFLEN + 1];
   uint path_length;
@@ -1580,7 +1580,6 @@ static int open_binary_frm(THD *thd, TABLE_SHARE *share, uchar *head,
     */
     share->null_bytes= (share->null_fields + null_bit_pos + 7) / 8;
   }
-#ifndef WE_WANT_TO_SUPPORT_VERY_OLD_FRM_FILES
   else
   {
     share->null_bytes= (share->null_fields+7)/8;
@@ -1588,7 +1587,6 @@ static int open_binary_frm(THD *thd, TABLE_SHARE *share, uchar *head,
                                     share->null_bytes);
     null_bit_pos= 0;
   }
-#endif
 
   use_hash= share->fields >= MAX_FIELDS_BEFORE_HASH;
   if (use_hash)
@@ -1686,8 +1684,7 @@ static int open_binary_frm(THD *thd, TABLE_SHARE *share, uchar *head,
       TYPELIB *interval= share->intervals + interval_nr - 1;
       unhex_type2(interval);
     }
-    
-#ifndef TO_BE_DELETED_ON_PRODUCTION
+
     if (field_type == MYSQL_TYPE_NEWDECIMAL && !share->mysql_version)
     {
       /*
@@ -1712,7 +1709,6 @@ static int open_binary_frm(THD *thd, TABLE_SHARE *share, uchar *head,
                           share->table_name.str);
       share->crashed= 1;                        // Marker for CHECK TABLE
     }
-#endif
 
     *field_ptr= reg_field=
       make_field(share, record+recpos,
@@ -1806,13 +1802,25 @@ static int open_binary_frm(THD *thd, TABLE_SHARE *share, uchar *head,
 	primary_key=key;
 	for (i=0 ; i < keyinfo->user_defined_key_parts ;i++)
 	{
-	  uint fieldnr= key_part[i].fieldnr;
-	  if (!fieldnr ||
-	      share->field[fieldnr-1]->real_maybe_null() ||
-	      share->field[fieldnr-1]->key_length() !=
-	      key_part[i].length)
-	  {
-	    primary_key=MAX_KEY;		// Can't be used
+          DBUG_ASSERT(key_part[i].fieldnr > 0);
+          // Table field corresponding to the i'th key part.
+          Field *table_field= share->field[key_part[i].fieldnr - 1];
+
+          /*
+            If the key column is of NOT NULL BLOB type, then it
+            will definitly have key prefix. And if key part prefix size
+            is equal to the BLOB column max size, then we can promote
+            it to primary key.
+          */
+          if (!table_field->real_maybe_null() &&
+              table_field->type() == MYSQL_TYPE_BLOB &&
+              table_field->field_length == key_part[i].length)
+            continue;
+
+	  if (table_field->real_maybe_null() ||
+	      table_field->key_length() != key_part[i].length)
+ 	  {
+	    primary_key= MAX_KEY;		// Can't be used
 	    break;
 	  }
 	}
@@ -1873,7 +1881,6 @@ static int open_binary_frm(THD *thd, TABLE_SHARE *share, uchar *head,
         }
         if (field->key_length() != key_part->length)
         {
-#ifndef TO_BE_DELETED_ON_PRODUCTION
           if (field->type() == MYSQL_TYPE_NEWDECIMAL)
           {
             /*
@@ -1901,7 +1908,6 @@ static int open_binary_frm(THD *thd, TABLE_SHARE *share, uchar *head,
             share->crashed= 1;                // Marker for CHECK TABLE
             continue;
           }
-#endif
           key_part->key_part_flag|= HA_PART_KEY_SEG;
         }
       }
@@ -3304,9 +3310,10 @@ Table_check_intact::check(TABLE *table, const TABLE_FIELD_DEF *table_def)
     /* previous MySQL version */
     if (MYSQL_VERSION_ID > table->s->mysql_version)
     {
-      report_error(ER_COL_COUNT_DOESNT_MATCH_PLEASE_UPDATE,
-                   ER(ER_COL_COUNT_DOESNT_MATCH_PLEASE_UPDATE),
-                   table->alias, table_def->count, table->s->fields,
+      report_error(ER_COL_COUNT_DOESNT_MATCH_PLEASE_UPDATE_V2,
+                   ER(ER_COL_COUNT_DOESNT_MATCH_PLEASE_UPDATE_V2),
+                   table->s->db.str, table->alias,
+                   table_def->count, table->s->fields,
                    static_cast<int>(table->s->mysql_version),
                    MYSQL_VERSION_ID);
       DBUG_RETURN(TRUE);
@@ -3912,7 +3919,7 @@ bool TABLE_LIST::setup_underlying(THD *thd)
     if (view->select_lex->ftfunc_list->elements)
     {
       Item_func_match *ifm;
-      SELECT_LEX *current_select= thd->lex->current_select;
+      SELECT_LEX *current_select= thd->lex->current_select();
       List_iterator_fast<Item_func_match>
         li(*(view->select_lex->ftfunc_list));
       while ((ifm= li++))
@@ -3966,7 +3973,7 @@ bool TABLE_LIST::prep_where(THD *thd, Item **conds,
         evaluation of check_option when we insert/update/delete a row.
         So we must forbid semijoin transformation in fix_fields():
       */
-      Switch_resolve_place SRP(&thd->lex->current_select->resolve_place,
+      Switch_resolve_place SRP(&thd->lex->current_select()->resolve_place,
                                st_select_lex::RESOLVE_NONE,
                                effective_with_check != VIEW_CHECK_NONE);
 
@@ -4686,7 +4693,7 @@ Item *Natural_join_column::create_item(THD *thd)
   if (view_field)
   {
     DBUG_ASSERT(table_field == NULL);
-    SELECT_LEX *select= thd->lex->current_select;
+    SELECT_LEX *select= thd->lex->current_select();
     return create_view_field(thd, table_ref, &view_field->item,
                              view_field->name, &select->context);
   }
@@ -4756,7 +4763,7 @@ const char *Field_iterator_table::name()
 
 Item *Field_iterator_table::create_item(THD *thd)
 {
-  SELECT_LEX *select= thd->lex->current_select;
+  SELECT_LEX *select= thd->lex->current_select();
 
   Item_field *item= new Item_field(thd, &select->context, *ptr);
   /*
@@ -4771,8 +4778,8 @@ Item *Field_iterator_table::create_item(THD *thd)
       item->push_to_non_agg_fields(select);
       select->set_non_agg_field_used(true);
     }
-    if (thd->lex->current_select->with_sum_func &&
-        !thd->lex->current_select->group_list.elements)
+    if (thd->lex->current_select()->with_sum_func &&
+        !thd->lex->current_select()->group_list.elements)
       item->maybe_null= true;
   }
   return item;
@@ -4787,7 +4794,7 @@ const char *Field_iterator_view::name()
 
 Item *Field_iterator_view::create_item(THD *thd)
 {
-  SELECT_LEX *select= thd->lex->current_select;
+  SELECT_LEX *select= thd->lex->current_select();
   return create_view_field(thd, view, &ptr->item, ptr->name,
                            &select->context);
 }
@@ -4812,17 +4819,17 @@ static Item *create_view_field(THD *thd, TABLE_LIST *view, Item **field_ref,
   }
 
   DBUG_ASSERT(field);
-  thd->lex->current_select->no_wrap_view_item= TRUE;
+  thd->lex->current_select()->no_wrap_view_item= TRUE;
   if (!field->fixed)
   {
     if (field->fix_fields(thd, field_ref))
     {
-      thd->lex->current_select->no_wrap_view_item= save_wrapper;
+      thd->lex->current_select()->no_wrap_view_item= save_wrapper;
       DBUG_RETURN(0);
     }
     field= *field_ref;
   }
-  thd->lex->current_select->no_wrap_view_item= save_wrapper;
+  thd->lex->current_select()->no_wrap_view_item= save_wrapper;
   if (save_wrapper)
   {
     DBUG_RETURN(field);
@@ -5025,7 +5032,7 @@ Field_iterator_table_ref::get_or_create_column_ref(THD *thd, TABLE_LIST *parent_
     /* The field belongs to a stored table. */
     Field *tmp_field= table_field_it.field();
     Item_field *tmp_item=
-      new Item_field(thd, &thd->lex->current_select->context, tmp_field);
+      new Item_field(thd, &thd->lex->current_select()->context, tmp_field);
     if (!tmp_item)
       return NULL;
     nj_col= new Natural_join_column(tmp_item, table_ref);
@@ -5252,7 +5259,7 @@ void TABLE::mark_columns_needed_for_delete()
   mark_columns_per_binlog_row_image();
 
   if (triggers)
-    triggers->mark_fields_used(TRG_EVENT_DELETE);
+    triggers->mark_fields(TRG_EVENT_DELETE);
   if (file->ha_table_flags() & HA_REQUIRES_KEY_COLUMNS_FOR_DELETE)
   {
     Field **reg_field;
@@ -5310,7 +5317,7 @@ void TABLE::mark_columns_needed_for_delete()
     
     Unlike other similar methods, it doesn't mark fields used by triggers,
     that is the responsibility of the caller to do, by using
-    Table_triggers_list::mark_used_fields(TRG_EVENT_UPDATE)!
+    Table_trigger_dispatcher::mark_used_fields(TRG_EVENT_UPDATE)!
 */
 
 void TABLE::mark_columns_needed_for_update()
@@ -5672,7 +5679,7 @@ void TABLE::mark_columns_needed_for_insert()
       row replacement or update write_record() will mark all table
       fields as used.
     */
-    triggers->mark_fields_used(TRG_EVENT_INSERT);
+    triggers->mark_fields(TRG_EVENT_INSERT);
   }
   if (found_next_number_field)
     mark_auto_increment_column();

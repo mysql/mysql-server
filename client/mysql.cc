@@ -204,7 +204,7 @@ static char delimiter[16]= DEFAULT_DELIMITER;
 static uint delimiter_length= 1;
 unsigned short terminal_width= 80;
 
-#ifdef HAVE_SMEM
+#if defined (_WIN32) && !defined (EMBEDDED_LIBRARY)
 static char *shared_memory_base_name=0;
 #endif
 static uint opt_protocol=0;
@@ -1449,7 +1449,7 @@ sig_handler mysql_end(int sig)
   my_free(full_username);
   my_free(part_username);
   my_free(default_prompt);
-#ifdef HAVE_SMEM
+#if defined (_WIN32) && !defined (EMBEDDED_LIBRARY)
   my_free(shared_memory_base_name);
 #endif
   my_free(current_prompt);
@@ -1738,7 +1738,7 @@ static struct my_option my_long_options[] =
    &opt_reconnect, &opt_reconnect, 0, GET_BOOL, NO_ARG, 1, 0, 0, 0, 0, 0},
   {"silent", 's', "Be more silent. Print results with a tab as separator, "
    "each row on new line.", 0, 0, 0, GET_NO_ARG, NO_ARG, 0, 0, 0, 0, 0, 0},
-#ifdef HAVE_SMEM
+#if defined (_WIN32) && !defined (EMBEDDED_LIBRARY)
   {"shared-memory-base-name", OPT_SHARED_MEMORY_BASE_NAME,
    "Base name of shared memory.", &shared_memory_base_name,
    &shared_memory_base_name, 0, GET_STR_ALLOC, REQUIRED_ARG, 0, 0, 0, 0, 0, 0},
@@ -3511,6 +3511,8 @@ com_go(String *buffer,char *line __attribute__((unused)))
   do
   {
     char *pos;
+    bool batchmode= (status.batch && verbose <= 1) ? TRUE : FALSE;
+    buff[0]= 0;
 
     if (quick)
     {
@@ -3563,9 +3565,10 @@ com_go(String *buffer,char *line __attribute__((unused)))
 	  print_tab_data(result);
 	else
 	  print_table_data(result);
-	sprintf(buff,"%ld %s in set",
-		(long) mysql_num_rows(result),
-		(long) mysql_num_rows(result) == 1 ? "row" : "rows");
+        if( !batchmode )
+	  sprintf(buff,"%lld %s in set",
+	          mysql_num_rows(result),
+		  mysql_num_rows(result) == 1LL ? "row" : "rows");
 	end_pager();
         if (mysql_errno(&mysql))
           error= put_error(&mysql);
@@ -3573,13 +3576,13 @@ com_go(String *buffer,char *line __attribute__((unused)))
     }
     else if (mysql_affected_rows(&mysql) == ~(ulonglong) 0)
       strmov(buff,"Query OK");
-    else
-      sprintf(buff,"Query OK, %ld %s affected",
-	      (long) mysql_affected_rows(&mysql),
-	      (long) mysql_affected_rows(&mysql) == 1 ? "row" : "rows");
+    else if( !batchmode )
+      sprintf(buff,"Query OK, %lld %s affected",
+	      mysql_affected_rows(&mysql),
+	      mysql_affected_rows(&mysql) == 1LL ? "row" : "rows");
 
     pos=strend(buff);
-    if ((warnings= mysql_warning_count(&mysql)))
+    if ((warnings= mysql_warning_count(&mysql)) && !batchmode)
     {
       *pos++= ',';
       *pos++= ' ';
@@ -4943,7 +4946,7 @@ init_connection_options(MYSQL *mysql)
   if (opt_protocol)
     mysql_options(mysql, MYSQL_OPT_PROTOCOL, (char*) &opt_protocol);
 
-#ifdef HAVE_SMEM
+#if defined (_WIN32) && !defined (EMBEDDED_LIBRARY)
   if (shared_memory_base_name)
     mysql_options(mysql, MYSQL_SHARED_MEMORY_BASE_NAME, shared_memory_base_name);
 #endif
@@ -5291,9 +5294,14 @@ void tee_write(FILE *file, const char *s, size_t slen, int flags)
           my_win_console_write(charset_info, s, mblen);
         else
 #endif
-        fwrite(s, 1, mblen, file);
-        if (opt_outfile)
-          fwrite(s, 1, mblen, OUTFILE);
+        if (fwrite(s, 1, mblen, file) != (size_t) mblen) {
+          perror("fwrite");
+        }
+        if (opt_outfile) {
+          if (fwrite(s, 1, mblen, OUTFILE) != (size_t) mblen) {
+            perror("fwrite");
+          }
+        }
         s+= mblen - 1;
         continue;
       }

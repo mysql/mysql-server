@@ -30,14 +30,13 @@ Created 2/16/1997 Heikki Tuuri
 
 
 #include "ut0byte.h"
-#include "ut0lst.h"
 #include "trx0trx.h"
 #include "read0types.h"
 
 /*********************************************************************//**
 Opens a read view where exactly the transactions serialized before this
 point in time are seen in the view.
-@return	own: read view struct */
+@return own: read view struct */
 
 read_view_t*
 read_view_open_now(
@@ -49,7 +48,7 @@ read_view_open_now(
 /*********************************************************************//**
 Makes a copy of the oldest existing read view, or opens a new. The view
 must be closed with ..._close.
-@return	own: read view struct */
+@return own: read view struct */
 
 read_view_t*
 read_view_purge_open(
@@ -75,7 +74,7 @@ read_view_close_for_mysql(
 	trx_t*	trx);	/*!< in: trx which has a read view */
 /*********************************************************************//**
 Checks if a read view sees the specified transaction.
-@return	true if sees */
+@return true if sees */
 UNIV_INLINE
 bool
 read_view_sees_trx_id(

@@ -23,6 +23,8 @@ Row undo
 Created 1/8/1997 Heikki Tuuri
 *******************************************************/
 
+#include "ha_prototypes.h"
+
 #include "row0undo.h"
 
 #ifdef UNIV_NONINL
@@ -122,7 +124,7 @@ or if the roll ptr is NULL, i.e., it was a fresh insert. */
 
 /********************************************************************//**
 Creates a row undo node to a query graph.
-@return	own: undo node */
+@return own: undo node */
 
 undo_node_t*
 row_undo_node_create(
@@ -242,7 +244,7 @@ func_exit:
 Fetches an undo log record and does the undo for the recorded operation.
 If none left, or a partial rollback completed, returns control to the
 parent node, which is always a query thread node.
-@return	DB_SUCCESS if operation successfully completed, else error code */
+@return DB_SUCCESS if operation successfully completed, else error code */
 static __attribute__((nonnull, warn_unused_result))
 dberr_t
 row_undo(
@@ -262,10 +264,9 @@ row_undo(
 
 	if (node->state == UNDO_NODE_FETCH_NEXT) {
 
-		node->undo_rec = trx_roll_pop_top_rec_of_trx(trx,
-							     trx->roll_limit,
-							     &roll_ptr,
-							     node->heap);
+		node->undo_rec = trx_roll_pop_top_rec_of_trx(
+			trx, trx->roll_limit, &roll_ptr, node->heap);
+
 		if (!node->undo_rec) {
 			/* Rollback completed for this query thread */
 
@@ -333,7 +334,7 @@ row_undo(
 /***********************************************************//**
 Undoes a row operation in a table. This is a high-level function used
 in SQL execution graphs.
-@return	query thread to run next or NULL */
+@return query thread to run next or NULL */
 
 que_thr_t*
 row_undo_step(

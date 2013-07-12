@@ -1373,6 +1373,16 @@ static my_bool acl_load(THD *thd, TABLE_LIST *tables)
     /* Reading record from mysql.user */
     ACL_USER user;
     memset(&user, 0, sizeof(user));
+
+    /*
+      All accounts can authenticate per default. This will change when
+      we add a new field to the user table.
+
+      Currently this flag is only set to false when authentication is attempted
+      using an unknown user name.
+    */
+    user.can_authenticate= true;
+
     user.host.update_hostname(get_field(&global_acl_memory,
                                         table->field[MYSQL_USER_FIELD_HOST]));
     user.user= get_field(&global_acl_memory,
@@ -2382,6 +2392,14 @@ void acl_insert_user(const char *user, const char *host,
   int hash_not_ok;
 
   mysql_mutex_assert_owner(&acl_cache->lock);
+  /*
+     All accounts can authenticate per default. This will change when
+     we add a new field to the user table.
+
+     Currently this flag is only set to false when authentication is attempted
+     using an unknown user name.
+  */
+  acl_user.can_authenticate= true;
 
   acl_user.user= *user ? strdup_root(&global_acl_memory,user) : 0;
   acl_user.host.update_hostname(*host ? strdup_root(&global_acl_memory, host) : 0);

@@ -30,7 +30,7 @@ Created 2007-03-27 Sunny Bains
 #include "fts0types.h"
 #include "fts0priv.h"
 
-#ifndef UNIV_NONINL
+#ifdef UNIV_NONINL
 #include "fts0types.ic"
 #include "fts0vlc.ic"
 #endif
@@ -110,7 +110,7 @@ fts_get_table_name_prefix(
 
 	if (slash) {
 		/* Print up to and including the separator. */
-		dbname_len = (slash - fts_table->parent) + 1;
+		dbname_len = (int) (slash - fts_table->parent) + 1;
 	}
 
 	len = fts_get_table_id(fts_table, table_id);
@@ -145,7 +145,8 @@ fts_get_table_name(
 
 	prefix_name = fts_get_table_name_prefix(fts_table);
 
-	name_len = strlen(prefix_name) + 1 + strlen(fts_table->suffix) + 1;
+	name_len = (int) strlen(prefix_name) + 1
+		 + (int) strlen(fts_table->suffix) + 1;
 
 	name = static_cast<char*>(mem_alloc(name_len));
 

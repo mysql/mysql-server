@@ -28,9 +28,8 @@ Created Apr 26, 2012 Vasil Dimov
 
 #include "univ.i"
 
-#include "dict0types.h" /* dict_table_t, table_id_t */
-#include "os0sync.h" /* os_event_t */
-#include "os0thread.h" /* DECLARE_THREAD */
+#include "dict0types.h"
+#include "os0thread.h"
 
 /** Event to wake up the stats thread */
 extern os_event_t	dict_stats_event;
@@ -62,7 +61,7 @@ dict_stats_recalc_pool_del(
 
 /** Yield the data dictionary latch when waiting
 for the background thread to stop accessing a table.
-@param trx	transaction holding the data dictionary locks */
+@param trx transaction holding the data dictionary locks */
 #define DICT_STATS_BG_YIELD(trx)	do {	\
 	row_mysql_unlock_data_dictionary(trx);	\
 	os_thread_sleep(250000);		\

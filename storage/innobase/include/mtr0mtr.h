@@ -188,7 +188,13 @@ For 1 - 8 bytes, the flag value must give the length also! @{ */
 						without logging it's image */
 #define MLOG_ZIP_PAGE_REORGANIZE ((byte)53)	/*!< reorganize a compressed
 						page */
-#define MLOG_BIGGEST_TYPE	((byte)53)	/*!< biggest value (used in
+#define MLOG_FILE_TRUNCATE	((byte)54)	/*!< log record about an .ibd
+						file truncation. The type can
+						not be known by ibbackup when
+						it relies on an older versions.
+						ibbackup should be fixed to
+						flexibly handle unknown types */
+#define MLOG_BIGGEST_TYPE	((byte)54)	/*!< biggest value (used in
 						assertions) */
 /* @} */
 
@@ -220,7 +226,7 @@ mtr_commit(
 	__attribute__((nonnull));
 /**********************************************************//**
 Sets and returns a savepoint in mtr.
-@return	savepoint */
+@return savepoint */
 UNIV_INLINE
 ulint
 mtr_set_savepoint(
@@ -242,7 +248,7 @@ mtr_release_s_latch_at_savepoint(
 #endif /* !UNIV_HOTBACKUP */
 /***************************************************************//**
 Gets the logging mode of a mini-transaction.
-@return	logging mode: MTR_LOG_NONE, ... */
+@return logging mode: MTR_LOG_NONE, ... */
 UNIV_INLINE
 ulint
 mtr_get_log_mode(
@@ -250,7 +256,7 @@ mtr_get_log_mode(
 	mtr_t*	mtr);	/*!< in: mtr */
 /***************************************************************//**
 Changes the logging mode of a mini-transaction.
-@return	old mode */
+@return old mode */
 UNIV_INLINE
 ulint
 mtr_set_log_mode(
@@ -259,13 +265,23 @@ mtr_set_log_mode(
 	ulint	mode);	/*!< in: logging mode: MTR_LOG_NONE, ... */
 /********************************************************//**
 Reads 1 - 4 bytes from a file page buffered in the buffer pool.
-@return	value read */
-
+@return value read */
+UNIV_INLINE
 ulint
 mtr_read_ulint(
 /*===========*/
 	const byte*	ptr,	/*!< in: pointer from where to read */
 	ulint		type,	/*!< in: MLOG_1BYTE, MLOG_2BYTES, MLOG_4BYTES */
+	mtr_t*		mtr);	/*!< in: mini-transaction handle */
+/********************************************************//**
+Reads 8 bytes from a file page buffered in the buffer pool.
+@return	value read */
+UNIV_INLINE
+ib_id_t
+mtr_read_ull(
+/*=========*/
+	const byte*	ptr,	/*!< in: pointer from where to read */
+	ulint		type,	/*!< in: MLOG_8BYTES */
 	mtr_t*		mtr);	/*!< in: mini-transaction handle */
 #ifndef UNIV_HOTBACKUP
 /*********************************************************************//**
@@ -315,7 +331,7 @@ mtr_memo_release(
 # ifndef UNIV_HOTBACKUP
 /**********************************************************//**
 Checks if memo contains the given item.
-@return	TRUE if contains */
+@return TRUE if contains */
 UNIV_INLINE
 ibool
 mtr_memo_contains(
@@ -327,7 +343,7 @@ mtr_memo_contains(
 
 /**********************************************************//**
 Checks if memo contains the given page.
-@return	TRUE if contains */
+@return TRUE if contains */
 
 ibool
 mtr_memo_contains_page(
@@ -353,7 +369,7 @@ mtr_print(
 
 /***************************************************************//**
 Returns the log object of a mini-transaction buffer.
-@return	log */
+@return log */
 UNIV_INLINE
 dyn_array_t*
 mtr_get_log(

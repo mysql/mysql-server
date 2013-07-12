@@ -23,6 +23,8 @@ Database object creation
 Created 1/8/1996 Heikki Tuuri
 *******************************************************/
 
+#include "ha_prototypes.h"
+
 #include "mem0mem.h"
 
 /*********************************************************************//**

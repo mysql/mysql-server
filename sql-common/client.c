@@ -108,7 +108,7 @@ char		*mysql_unix_port= 0;
 const char	*unknown_sqlstate= "HY000";
 const char	*not_error_sqlstate= "00000";
 const char	*cant_connect_sqlstate= "08001";
-#ifdef HAVE_SMEM
+#if defined (_WIN32) && !defined (EMBEDDED_LIBRARY)
 char		 *shared_memory_base_name= 0;
 const char 	*def_shared_memory_base_name= default_shared_memory_base_name;
 #endif
@@ -221,6 +221,16 @@ void set_mysql_error(MYSQL *mysql, int errcode, const char *sqlstate)
     strmov(mysql_server_last_error, ER(errcode));
   }
   DBUG_VOID_RETURN;
+}
+
+/**
+  Is this NET instance initialized?
+  @c my_net_init() and net_end()
+ */
+
+my_bool my_net_is_inited(NET *net)
+{
+  return net->buff != NULL;
 }
 
 /**
@@ -356,7 +366,7 @@ static HANDLE create_named_pipe(MYSQL *mysql, DWORD connect_timeout,
   @return HANDLE to the shared memory area.
 */
 
-#ifdef HAVE_SMEM
+#if defined (_WIN32) && !defined (EMBEDDED_LIBRARY)
 static HANDLE create_shared_memory(MYSQL *mysql, NET *net,
                                    DWORD connect_timeout)
 {
@@ -1270,7 +1280,7 @@ void mysql_read_default_options(struct st_mysql_options *options,
           }
           break;
         case OPT_shared_memory_base_name:
-#ifdef HAVE_SMEM
+#if defined (_WIN32) && !defined (EMBEDDED_LIBRARY)
           if (options->shared_memory_base_name != def_shared_memory_base_name)
             my_free(options->shared_memory_base_name);
           options->shared_memory_base_name=my_strdup(opt_arg,MYF(MY_WME));
@@ -1661,7 +1671,7 @@ mysql_init(MYSQL *mysql)
   mysql->options.client_flag|= CLIENT_LOCAL_FILES;
 #endif
 
-#ifdef HAVE_SMEM
+#if defined (_WIN32) && !defined (EMBEDDED_LIBRARY)
   mysql->options.shared_memory_base_name= (char*) def_shared_memory_base_name;
 #endif
 
@@ -2129,7 +2139,7 @@ mysql_autodetect_character_set(MYSQL *mysql)
     my_snprintf(cpbuf, sizeof(cpbuf), "cp%d", (int) GetConsoleCP());
     csname= my_os_charset_to_mysql_charset(cpbuf);
   }
-#elif defined(HAVE_SETLOCALE) && defined(HAVE_NL_LANGINFO)
+#elif defined(HAVE_NL_LANGINFO)
   {
     if (setlocale(LC_CTYPE, "") && (csname= nl_langinfo(CODESET)))
       csname= my_os_charset_to_mysql_charset(csname);
@@ -2875,7 +2885,7 @@ void mpvio_info(Vio *vio, MYSQL_PLUGIN_VIO_INFO *info)
     info->protocol= MYSQL_VIO_PIPE;
     info->handle= vio->hPipe;
     return;
-#ifdef HAVE_SMEM
+#if defined (_WIN32) && !defined (EMBEDDED_LIBRARY)
   case VIO_TYPE_SHARED_MEMORY:
     info->protocol= MYSQL_VIO_MEMORY;
     info->handle= vio->handle_file_map; /* or what ? */
@@ -2990,7 +3000,12 @@ int run_plugin_auth(MYSQL *mysql, char *data, uint data_len,
 
   compile_time_assert(CR_OK == -1);
   compile_time_assert(CR_ERROR == 0);
-  if (res > CR_OK && mysql->net.read_pos[0] != 254)
+
+  /*
+    The connection may be closed. If so: do not try to read from the buffer.
+  */
+  if (res > CR_OK && 
+      (!my_net_is_inited(&mysql->net) || mysql->net.read_pos[0] != 254))
   {
     /*
       the plugin returned an error. write it down in mysql,
@@ -3220,7 +3235,7 @@ CLI_MYSQL_REAL_CONNECT(MYSQL *mysql,const char *host, const char *user,
   /*
     Part 0: Grab a socket and connect it to the server
   */
-#if defined(HAVE_SMEM)
+#if defined (_WIN32) && !defined (EMBEDDED_LIBRARY)
   if ((!mysql->options.protocol ||
        mysql->options.protocol == MYSQL_PROTOCOL_MEMORY) &&
       (!host || !strcmp(host,LOCAL_HOST)))
@@ -3258,7 +3273,7 @@ CLI_MYSQL_REAL_CONNECT(MYSQL *mysql,const char *host, const char *user,
                   ER(CR_SHARED_MEMORY_CONNECTION), host);
     }
   }
-#endif /* HAVE_SMEM */
+#endif /* _WIN32 && !EMBEDDED_LIBRARY */
 #if defined(HAVE_SYS_UN_H)
   if (!net->vio &&
       (!mysql->options.protocol ||
@@ -3896,10 +3911,10 @@ static void mysql_close_free_options(MYSQL *mysql)
 #if defined(HAVE_OPENSSL) && !defined(EMBEDDED_LIBRARY)
   mysql_ssl_free(mysql);
 #endif /* HAVE_OPENSSL && !EMBEDDED_LIBRARY */
-#ifdef HAVE_SMEM
+#if defined (_WIN32) && !defined (EMBEDDED_LIBRARY)
   if (mysql->options.shared_memory_base_name != def_shared_memory_base_name)
     my_free(mysql->options.shared_memory_base_name);
-#endif /* HAVE_SMEM */
+#endif /* _WIN32 && !EMBEDDED_LIBRARY */
   if (mysql->options.extension)
   {
     my_free(mysql->options.extension->plugin_dir);
@@ -4353,7 +4368,7 @@ mysql_options(MYSQL *mysql,enum mysql_option option, const void *arg)
     mysql->options.protocol= *(uint*) arg;
     break;
   case MYSQL_SHARED_MEMORY_BASE_NAME:
-#ifdef HAVE_SMEM
+#if defined (_WIN32) && !defined (EMBEDDED_LIBRARY)
     if (mysql->options.shared_memory_base_name != def_shared_memory_base_name)
       my_free(mysql->options.shared_memory_base_name);
     mysql->options.shared_memory_base_name=my_strdup(arg,MYF(MY_WME));

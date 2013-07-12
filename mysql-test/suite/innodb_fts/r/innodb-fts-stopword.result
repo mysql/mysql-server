@@ -170,6 +170,7 @@ SELECT * FROM articles WHERE MATCH(title,body) AGAINST("+from" IN BOOLEAN MODE);
 id	title	body
 SELECT * FROM articles WHERE MATCH(title,body) AGAINST("+where +(show what)" IN BOOLEAN MODE);
 id	title	body
+3	where will Optimizing MySQL	In what tutorial we will show ...
 SELECT * FROM articles WHERE MATCH (title,body) AGAINST ('"where will"@6' IN BOOLEAN MODE);
 id	title	body
 SELECT * FROM articles WHERE MATCH (title,body) AGAINST ('"where will"@9' IN BOOLEAN MODE);
@@ -210,6 +211,7 @@ SELECT * FROM articles WHERE MATCH(title,body) AGAINST("+from" IN BOOLEAN MODE);
 id	title	body
 SELECT * FROM articles WHERE MATCH(title,body) AGAINST("+where +(show what)" IN BOOLEAN MODE);
 id	title	body
+3	where will Optimizing MySQL	In what tutorial we will show ...
 SELECT * FROM articles WHERE MATCH (title,body) AGAINST ('"where will"@6' IN BOOLEAN MODE);
 id	title	body
 SELECT * FROM articles WHERE MATCH (title,body) AGAINST ('"where will"@9' IN BOOLEAN MODE);
@@ -625,6 +627,7 @@ SELECT * FROM articles WHERE MATCH(title,body) AGAINST("+from" IN BOOLEAN MODE);
 id	title	body
 SELECT * FROM articles WHERE MATCH(title,body) AGAINST("+where +(show what)" IN BOOLEAN MODE);
 id	title	body
+3	where will Optimizing MySQL	In what tutorial we will show ...
 SELECT * FROM articles WHERE MATCH (title,body) AGAINST ('"where will"@6' IN BOOLEAN MODE);
 id	title	body
 SELECT * FROM articles WHERE MATCH (title,body) AGAINST ('"where will"@9' IN BOOLEAN MODE);
@@ -647,6 +650,7 @@ SELECT * FROM articles WHERE MATCH(title,body) AGAINST("+from" IN BOOLEAN MODE);
 id	title	body
 SELECT * FROM articles WHERE MATCH(title,body) AGAINST("+where +(show what)" IN BOOLEAN MODE);
 id	title	body
+3	where will Optimizing MySQL	In what tutorial we will show ...
 SELECT * FROM articles WHERE MATCH (title,body) AGAINST ('"where will"@6' IN BOOLEAN MODE);
 id	title	body
 SELECT * FROM articles WHERE MATCH (title,body) AGAINST ('"where will"@9' IN BOOLEAN MODE);

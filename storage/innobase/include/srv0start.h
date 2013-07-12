@@ -36,6 +36,19 @@ Created 10/10/1995 Heikki Tuuri
 #define SRV_PATH_SEPARATOR	'/'
 #endif
 
+#ifdef DBUG_OFF
+# define RECOVERY_CRASH(x) do {} while(0)
+#else
+# define RECOVERY_CRASH(x) do {						\
+	if (srv_force_recovery_crash == x) {				\
+		fprintf(stderr, "innodb_force_recovery_crash=%lu\n",	\
+			srv_force_recovery_crash);			\
+		fflush(stderr);						\
+		exit(3);						\
+	}								\
+} while (0)
+#endif
+
 /*********************************************************************//**
 Normalizes a directory path for Windows: converts slashes to backslashes. */
 
@@ -45,7 +58,7 @@ srv_normalize_path_for_win(
 	char*	str);	/*!< in/out: null-terminated character string */
 /*********************************************************************//**
 Parse temporary tablespace configuration.
-@return	true if ok, false on parse error */
+@return true if ok, false on parse error */
 
 bool
 srv_parse_temp_data_file_paths_and_sizes(
@@ -61,7 +74,7 @@ srv_free_paths_and_sizes(void);
 /*********************************************************************//**
 Adds a slash or a backslash to the end of a string if it is missing
 and the string is not empty.
-@return	string which has the separator if the string is not empty */
+@return string which has the separator if the string is not empty */
 
 char*
 srv_add_path_separator_if_needed(
@@ -71,14 +84,14 @@ srv_add_path_separator_if_needed(
 /****************************************************************//**
 Starts Innobase and creates a new database if database files
 are not found and the user wants.
-@return	DB_SUCCESS or error code */
+@return DB_SUCCESS or error code */
 
 dberr_t
 innobase_start_or_create_for_mysql(void);
 /*====================================*/
 /****************************************************************//**
 Shuts down the Innobase database.
-@return	DB_SUCCESS or error code */
+@return DB_SUCCESS or error code */
 
 dberr_t
 innobase_shutdown_for_mysql(void);

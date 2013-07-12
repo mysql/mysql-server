@@ -34,9 +34,9 @@ Created 9/6/1995 Heikki Tuuri
 #ifndef os0sync_h
 #define os0sync_h
 
-#include "univ.i"
+/* Do not include univ.i because univ.i includes this. */
+#include "ut0dbg.h"
 #include "ut0lst.h"
-#include "sync0types.h"
 
 #ifdef _WIN32
 /** Native event (slow)*/
@@ -122,7 +122,7 @@ os_sync_free(void);
 Creates an event semaphore, i.e., a semaphore which may just have two states:
 signaled and nonsignaled. The created event is manual reset: it must be reset
 explicitly by calling sync_os_reset_event.
-@return	the event handle */
+@return the event handle */
 
 os_event_t
 os_event_create(void);
@@ -202,7 +202,7 @@ os_event_wait_time_low(
 /*********************************************************//**
 Creates an operating system mutex semaphore. Because these are slow, the
 mutex semaphore of InnoDB itself (ib_mutex_t) should be used where possible.
-@return	the mutex handle */
+@return the mutex handle */
 
 os_ib_mutex_t
 os_mutex_create(void);
@@ -231,7 +231,7 @@ os_mutex_free(
 /**********************************************************//**
 Acquires ownership of a fast mutex. Currently in Windows this is the same
 as os_fast_mutex_lock!
-@return	0 if success, != 0 if was reserved by another thread */
+@return 0 if success, != 0 if was reserved by another thread */
 UNIV_INLINE
 ulint
 os_fast_mutex_trylock(

@@ -25,21 +25,17 @@ Created April 08, 2011 Vasil Dimov
 
 #include "univ.i"
 
-#include <algorithm>
-#include <stdarg.h> /* va_* */
-#include <string.h> /* strerror() */
-
-#include "buf0buf.h" /* buf_pool_mutex_enter(), srv_buf_pool_instances */
+#include "buf0buf.h"
 #include "buf0dump.h"
-#include "db0err.h"
-#include "dict0dict.h" /* dict_operation_lock */
-#include "os0file.h" /* OS_FILE_MAX_PATH */
-#include "os0sync.h" /* os_event* */
-#include "os0thread.h" /* os_thread_* */
-#include "srv0srv.h" /* srv_fast_shutdown, srv_buf_dump* */
-#include "srv0start.h" /* srv_shutdown_state */
-#include "sync0rw.h" /* rw_lock_s_lock() */
-#include "ut0byte.h" /* ut_ull_create() */
+#include "dict0dict.h"
+#include "os0file.h"
+#include "os0thread.h"
+#include "srv0srv.h"
+#include "srv0start.h"
+#include "sync0rw.h"
+#include "ut0byte.h"
+
+#include <algorithm>
 
 enum status_severity {
 	STATUS_INFO,

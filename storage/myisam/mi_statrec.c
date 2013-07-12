@@ -233,7 +233,6 @@ int _mi_read_rnd_static_record(MI_INFO *info, uchar *buf,
     }
     else
     {						/* We don't nead new info */
-#ifndef UNSAFE_LOCKING
       if ((! cache_read || share->base.reclength > cache_length) &&
 	  share->tot_locks == 0)
       {						/* record not in cache */
@@ -242,9 +241,6 @@ int _mi_read_rnd_static_record(MI_INFO *info, uchar *buf,
 	  DBUG_RETURN(my_errno);
 	locked=1;
       }
-#else
-      info->tmp_lock_type=F_RDLCK;
-#endif
     }
   }
   if (filepos >= info->state->data_file_length)

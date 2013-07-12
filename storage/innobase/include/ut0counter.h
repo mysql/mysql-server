@@ -24,11 +24,10 @@ Counter utility class
 Created 2012/04/12 by Sunny Bains
 *******************************************************/
 
-#ifndef UT0COUNTER_H
-#define UT0COUNTER_H
+#ifndef ut0counter_h
+#define ut0counter_h
 
 #include "univ.i"
-#include <string.h>
 #include "os0thread.h"
 
 /** CPU cache line size */
@@ -172,7 +171,7 @@ public:
 	void inc() UNIV_NOTHROW { add(1); }
 
 	/** If you can't use a good index id.
-	@param n  - is the amount to increment */
+	@param n is the amount to increment */
 	void add(Type n) UNIV_NOTHROW {
 		size_t	i = m_policy.offset(m_policy.get_rnd_index());
 
@@ -183,8 +182,8 @@ public:
 
 	/** Use this if you can use a unique identifier, saves a
 	call to get_rnd_index().
-	@param i - index into a slot
-	@param n - amount to increment */
+	@param i index into a slot
+	@param n amount to increment */
 	void add(size_t index, Type n) UNIV_NOTHROW {
 		size_t	i = m_policy.offset(index);
 
@@ -197,7 +196,7 @@ public:
 	void dec() UNIV_NOTHROW { sub(1); }
 
 	/** If you can't use a good index id.
-	@param - n is the amount to decrement */
+	@param n the amount to decrement */
 	void sub(Type n) UNIV_NOTHROW {
 		size_t	i = m_policy.offset(m_policy.get_rnd_index());
 
@@ -208,8 +207,8 @@ public:
 
 	/** Use this if you can use a unique identifier, saves a
 	call to get_rnd_index().
-	@param i - index into a slot
-	@param n - amount to decrement */
+	@param i index into a slot
+	@param n amount to decrement */
 	void sub(size_t index, Type n) UNIV_NOTHROW {
 		size_t	i = m_policy.offset(index);
 
@@ -237,4 +236,4 @@ private:
 	Type		m_counter[(N + 1) * (CACHE_LINE_SIZE / sizeof(Type))];
 };
 
-#endif /* UT0COUNTER_H */
+#endif /* ut0counter_h */

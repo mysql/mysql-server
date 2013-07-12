@@ -28,7 +28,6 @@ Created Jan 06, 2010 Vasil Dimov
 
 #include "univ.i"
 
-#include "db0err.h"
 #include "dict0types.h"
 #include "trx0types.h"
 

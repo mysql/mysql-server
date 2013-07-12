@@ -27,7 +27,6 @@ Created 2012-02-08 by Sunny Bains
 #define row0import_h
 
 #include "univ.i"
-#include "db0err.h"
 #include "dict0types.h"
 
 // Forward declarations
@@ -38,7 +37,7 @@ struct row_prebuilt_t;
 /*****************************************************************//**
 Imports a tablespace. The space id in the .ibd file must match the space id
 of the table in the data dictionary.
-@return	error code or DB_SUCCESS */
+@return error code or DB_SUCCESS */
 
 dberr_t
 row_import_for_mysql(

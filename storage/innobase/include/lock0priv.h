@@ -37,7 +37,6 @@ those functions in lock/ */
 #include "dict0types.h"
 #include "hash0hash.h"
 #include "trx0types.h"
-#include "ut0lst.h"
 
 /** A table lock */
 struct lock_table_t {
@@ -80,7 +79,7 @@ struct lock_t {
 
 /*********************************************************************//**
 Gets the type of a lock.
-@return	LOCK_TABLE or LOCK_REC */
+@return LOCK_TABLE or LOCK_REC */
 UNIV_INLINE
 ulint
 lock_get_type_low(
@@ -89,7 +88,7 @@ lock_get_type_low(
 
 /*********************************************************************//**
 Gets the previous record lock set on a record.
-@return	previous lock on the same record, NULL if none exists */
+@return previous lock on the same record, NULL if none exists */
 
 const lock_t*
 lock_rec_get_prev(
@@ -109,7 +108,7 @@ lock_cancel_waiting_and_release(
 /*********************************************************************//**
 Checks if some transaction has an implicit x-lock on a record in a clustered
 index.
-@return	transaction id of the transaction which has the x-lock, or 0 */
+@return transaction id of the transaction which has the x-lock, or 0 */
 UNIV_INLINE
 trx_id_t
 lock_clust_rec_some_has_impl(

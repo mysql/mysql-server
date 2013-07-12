@@ -71,9 +71,9 @@ extern char	btr_search_enabled;
 struct btr_blob_dbg_t;
 
 /** Insert to index->blobs a reference to an off-page column.
-@param index	the index tree
-@param b	the reference
-@param ctx	context (for logging) */
+@param index the index tree
+@param b the reference
+@param ctx context (for logging) */
 
 void
 btr_blob_dbg_rbt_insert(
@@ -84,9 +84,9 @@ btr_blob_dbg_rbt_insert(
 	__attribute__((nonnull));
 
 /** Remove from index->blobs a reference to an off-page column.
-@param index	the index tree
-@param b	the reference
-@param ctx	context (for logging) */
+@param index the index tree
+@param b the reference
+@param ctx context (for logging) */
 
 void
 btr_blob_dbg_rbt_delete(
@@ -159,11 +159,11 @@ btr_blob_dbg_restore(
 	__attribute__((nonnull));
 
 /** Operation that processes the BLOB references of an index record
-@param[in]	rec	record on index page
-@param[in/out]	index	the index tree of the record
-@param[in]	offsets	rec_get_offsets(rec,index)
-@param[in]	ctx	context (for logging)
-@return			number of BLOB references processed */
+@param[in] rec record on index page
+@param[in/out] index the index tree of the record
+@param[in] offsets rec_get_offsets(rec,index)
+@param[in] ctx context (for logging)
+@return number of BLOB references processed */
 typedef ulint (*btr_blob_dbg_op_f)
 (const rec_t* rec,dict_index_t* index,const ulint* offsets,const char* ctx);
 
@@ -199,5 +199,36 @@ in the index record. */
 Initially, BLOB field references are set to zero, in
 dtuple_convert_big_rec(). */
 extern const byte field_ref_zero[BTR_EXTERN_FIELD_REF_SIZE];
+
+/** The information is used for creating a new index tree when
+applying MLOG_FILE_TRUNCATE redo record during recovery */
+struct btr_create_t {
+
+	explicit btr_create_t(const byte* const ptr)
+		:
+		format_flags(),
+		n_fields(),
+		field_len(),
+		fields(ptr),
+		trx_id_pos(ULINT_UNDEFINED)
+	{
+		/* Do nothing */
+	}
+
+	/** Page format */
+	ulint			format_flags;
+
+	/** Numbr of index fields */
+	ulint			n_fields;
+
+	/** The length of the encoded meta-data */
+	ulint			field_len;
+
+	/** Field meta-data, encoded. */
+	const byte* const	fields;
+
+	/** Position of trx-id column. */
+	ulint			trx_id_pos;
+};
 
 #endif

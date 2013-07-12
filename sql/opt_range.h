@@ -408,6 +408,8 @@ protected:
   handler *file;
   /* Members to deal with case when this quick select is a ROR-merged scan */
   bool in_ror_merged_scan;
+
+  // TODO: pre-allocate space to avoid malloc/free for small number of columns.
   MY_BITMAP column_bitmap;
 
   friend class TRP_ROR_INTERSECT;
@@ -821,7 +823,7 @@ private:
   uint min_max_arg_len;  /* The length of the MIN/MAX argument field */
   uchar *key_infix;       /* Infix of constants from equality predicates. */
   uint key_infix_len;
-  DYNAMIC_ARRAY min_max_ranges; /* Array of range ptrs for the MIN/MAX field. */
+  Quick_ranges min_max_ranges; /* Array of range ptrs for the MIN/MAX field. */
   uint real_prefix_len; /* Length of key prefix extended with key_infix. */
   uint real_key_parts;  /* A number of keyparts in the above value.      */
   List<Item_sum> *min_functions;
@@ -957,7 +959,12 @@ public:
   FT_SELECT(THD *thd, TABLE *table, uint key, bool *error) :
       QUICK_RANGE_SELECT (thd, table, key, 1, NULL, error) { (void) init(); }
   ~FT_SELECT() { file->ft_end(); }
-  int init() { return file->ft_init(); }
+  int init()
+  {
+    // No estimation is done for FTS, return 1 for compatibility.
+    records= 1;
+    return file->ft_init();
+  }
   int reset() { return 0; }
   int get_next() { return file->ft_read(record); }
   int get_type() { return QS_TYPE_FULLTEXT; }

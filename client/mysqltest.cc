@@ -359,6 +359,7 @@ enum enum_commands {
   Q_SEND_SHUTDOWN, Q_SHUTDOWN_SERVER,
   Q_RESULT_FORMAT_VERSION,
   Q_MOVE_FILE, Q_REMOVE_FILES_WILDCARD, Q_SEND_EVAL,
+  Q_OUTPUT,                            /* redirect output to a file */
   Q_UNKNOWN,			       /* Unknown command.   */
   Q_COMMENT,			       /* Comments, ignored. */
   Q_COMMENT_WITH_COMMAND,
@@ -460,6 +461,7 @@ const char *command_names[]=
   "move_file",
   "remove_files_wildcard",
   "send_eval",
+  "output",
 
   0
 };
@@ -504,6 +506,7 @@ struct st_command
   my_bool abort_on_error, used_replace;
   struct st_expected_errors expected_errors;
   char require_file[FN_REFLEN];
+  char output_file[FN_REFLEN];
   enum enum_commands type;
 };
 
@@ -594,6 +597,9 @@ void free_replace_regex();
 
 /* Used by sleep */
 void check_eol_junk_line(const char *eol);
+
+static void var_set(const char *var_name, const char *var_name_end,
+                    const char *var_val, const char *var_val_end);
 
 void free_all_replace(){
   free_replace();
@@ -757,8 +763,11 @@ public:
       }
     }
 
-    while ((bytes= fread(buf, 1, sizeof(buf), m_file)) > 0)
-      fwrite(buf, 1, bytes, stderr);
+    while ((bytes= fread(buf, 1, sizeof(buf), m_file)) > 0) {
+      if (fwrite(buf, 1, bytes, stderr) != bytes) {
+        perror("fwrite");
+      }
+    }
 
     if (!lines)
     {
@@ -1255,8 +1264,7 @@ void handle_command_error(struct st_command *command, uint error)
     {
       DBUG_PRINT("info", ("command \"%.*s\" failed with expected error: %d",
                           command->first_word_len, command->query, error));
-      revert_properties();
-      DBUG_VOID_RETURN;
+      goto end;
     }
     if (command->expected_errors.count > 0)
       die("command \"%.*s\" failed with wrong error: %d. my_errno=%d",
@@ -1270,6 +1278,16 @@ void handle_command_error(struct st_command *command, uint error)
         command->first_word_len, command->query,
         command->expected_errors.err[0].code.errnum);
   }
+end:
+  // Save error code
+  {
+    const char var_name[]= "__error";
+    char buf[10];
+    int err_len= snprintf(buf, 10, "%u", error);
+    buf[err_len > 9 ? 9 : err_len]= '0';
+    var_set(var_name, var_name + 7, buf, buf + err_len);
+  }
+
   revert_properties();
   DBUG_VOID_RETURN;
 }
@@ -3193,6 +3211,14 @@ void do_exec(struct st_command *command)
     dynstr_free(&ds_cmd);
     die("command \"%s\" succeeded - should have failed with errno %d...",
         command->first_argument, command->expected_errors.err[0].code.errnum);
+  }
+  // Save error code
+  {
+    const char var_name[]= "__error";
+    char buf[10];
+    int err_len= snprintf(buf, 10, "%u", error);
+    buf[err_len > 9 ? 9 : err_len]= '0';
+    var_set(var_name, var_name + 7, buf, buf + err_len);
   }
 
   dynstr_free(&ds_cmd);
@@ -5469,7 +5495,7 @@ void do_connect(struct st_command *command)
   static DYNAMIC_STRING ds_sock;
   static DYNAMIC_STRING ds_options;
   static DYNAMIC_STRING ds_default_auth;
-#ifdef HAVE_SMEM
+#if defined (_WIN32) && !defined (EMBEDDED_LIBRARY)
   static DYNAMIC_STRING ds_shm;
 #endif
   const struct command_arg connect_args[] = {
@@ -5500,7 +5526,7 @@ void do_connect(struct st_command *command)
       die("Illegal argument for port: '%s'", ds_port.str);
   }
 
-#ifdef HAVE_SMEM
+#if defined (_WIN32) && !defined (EMBEDDED_LIBRARY)
   /* Shared memory */
   init_dynamic_string(&ds_shm, ds_sock.str, 0, 0);
 #endif
@@ -5625,7 +5651,7 @@ void do_connect(struct st_command *command)
 
   if (con_shm)
   {
-#ifdef HAVE_SMEM
+#if defined (_WIN32) && !defined (EMBEDDED_LIBRARY)
     uint protocol= MYSQL_PROTOCOL_MEMORY;
     if (!ds_shm.length)
       die("Missing shared memory base name");
@@ -5633,7 +5659,7 @@ void do_connect(struct st_command *command)
     mysql_options(&con_slot->mysql, MYSQL_OPT_PROTOCOL, &protocol);
 #endif
   }
-#ifdef HAVE_SMEM
+#if defined (_WIN32) && !defined (EMBEDDED_LIBRARY)
   else if (shared_memory_base_name)
   {
     mysql_options(&con_slot->mysql, MYSQL_SHARED_MEMORY_BASE_NAME,
@@ -5695,7 +5721,7 @@ void do_connect(struct st_command *command)
   dynstr_free(&ds_sock);
   dynstr_free(&ds_options);
   dynstr_free(&ds_default_auth);
-#ifdef HAVE_SMEM
+#if defined (_WIN32) && !defined (EMBEDDED_LIBRARY)
   dynstr_free(&ds_shm);
 #endif
   DBUG_VOID_RETURN;
@@ -7938,7 +7964,7 @@ void run_query(struct st_connection *cn, struct st_command *command, int flags)
     Create a temporary dynamic string to contain the output from
     this query.
   */
-  if (command->require_file[0])
+  if (command->require_file[0] || command->output_file[0])
   {
     init_dynamic_string(&ds_result, "", 1024, 1024);
     ds= &ds_result;
@@ -8105,6 +8131,13 @@ void run_query(struct st_connection *cn, struct st_command *command, int flags)
        existing file which has been specified using --require or --result
     */
     check_require(ds, command->require_file);
+  }
+
+  if (command->output_file[0])
+  {
+    /* An output file was specified for _this_ query */
+    str_to_file2(command->output_file, ds_result.str, ds_result.length, false);
+    command->output_file[0]= 0;
   }
 
   if (ds == &ds_result)
@@ -8522,9 +8555,11 @@ int main(int argc, char **argv)
   my_bool q_send_flag= 0, abort_flag= 0;
   uint command_executed= 0, last_command_executed= 0;
   char save_file[FN_REFLEN];
+  char output_file[FN_REFLEN];
   MY_INIT(argv[0]);
 
   save_file[0]= 0;
+  output_file[0]= 0;
   TMPDIR[0]= 0;
 
   init_signal_handling();
@@ -8687,7 +8722,7 @@ int main(int argc, char **argv)
   }
 #endif
 
-#ifdef HAVE_SMEM
+#if defined (_WIN32) && !defined (EMBEDDED_LIBRARY)
   if (shared_memory_base_name)
     mysql_options(&con->mysql,MYSQL_SHARED_MEMORY_BASE_NAME,shared_memory_base_name);
 #endif
@@ -8923,6 +8958,11 @@ int main(int argc, char **argv)
 	  strmake(command->require_file, save_file, sizeof(save_file) - 1);
 	  *save_file= 0;
 	}
+	if (*output_file)
+	{
+	  strmake(command->output_file, output_file, sizeof(output_file) - 1);
+	  *output_file= 0;
+	}
 	run_query(cur_con, command, flags);
 	display_opt_trace(cur_con, command, flags);
 	command_executed++;
@@ -9092,6 +9132,18 @@ int main(int argc, char **argv)
       case Q_RESULT:
         die("result, deprecated command");
         break;
+
+      case Q_OUTPUT:
+        {
+          static DYNAMIC_STRING ds_to_file;
+          const struct command_arg output_file_args[] = 
+            {{ "to_file", ARG_STRING, TRUE, &ds_to_file, "Output filename" }};
+          check_command_args(command, command->first_argument,
+                             output_file_args, 1, ' ');
+          strmake(output_file, ds_to_file.str, FN_REFLEN);
+          dynstr_free(&ds_to_file);
+          break;
+        }
 
       default:
         processed= 0;

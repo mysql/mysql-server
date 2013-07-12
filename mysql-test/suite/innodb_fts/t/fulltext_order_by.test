@@ -95,7 +95,7 @@ CREATE TABLE t3 (
   FULLTEXT KEY betreff (betreff)
 ) ENGINE = InnoDB DEFAULT CHARSET=utf8 AUTO_INCREMENT=996 ;
 
---error ER_CANT_USE_OPTION_HERE
+--error ER_TABLENAME_NOT_ALLOWED_HERE
 select a.text, b.id, b.betreff
 from 
   t2 a inner join t3 b on a.id = b.forum inner join
@@ -115,7 +115,7 @@ group by
 order by 
   match(b.betreff) against ('+abc' in boolean mode) desc;
   
---error ER_CANT_USE_OPTION_HERE
+--error ER_TABLENAME_NOT_ALLOWED_HERE
 select a.text, b.id, b.betreff
 from 
   t2 a inner join t3 b on a.id = b.forum inner join
@@ -132,7 +132,6 @@ where
 order by 
   match(b.betreff) against ('+abc' in boolean mode) desc;
 
---error ER_CANT_USE_OPTION_HERE
 select a.text, b.id, b.betreff
 from 
   t2 a inner join t3 b on a.id = b.forum inner join
@@ -154,7 +153,7 @@ order by
 (select b.id, b.betreff from t3 b) 
 order by match(betreff) against ('+abc' in boolean mode) desc;
 
---error 1191
+--error ER_FT_MATCHING_KEY_NOT_FOUND
 (select b.id, b.betreff from t3 b) union 
 (select b.id, b.betreff from t3 b) 
 order by match(betreff) against ('+abc') desc;

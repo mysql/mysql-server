@@ -1,5 +1,4 @@
 /***********************************************************************
-
 Copyright (c) 2011, 2013, Oracle and/or its affiliates. All Rights Reserved.
 
 This program is free software; you can redistribute it and/or modify it
@@ -36,6 +35,8 @@ Created 04/12/2011 Jimmy Yang
 
 /** Whether to update all columns' value or a specific column value */
 #define UPDATE_ALL_VAL_COL	-1
+
+extern option_t config_option_names[];
 
 /** InnoDB API callback functions */
 static ib_cb_t* innodb_memcached_api[] = {
@@ -511,6 +512,10 @@ innodb_api_search(
 	ib_tpl_t	key_tpl;
 	ib_crsr_t	srch_crsr;
 
+	if (item) {
+		memset(item, 0, sizeof(*item));
+	}
+
 	/* If srch_use_idx is set to META_USE_SECONDARY, we will use the
 	secondary index to find the record first */
 	if (meta_index->srch_use_idx == META_USE_SECONDARY) {
@@ -560,8 +565,6 @@ innodb_api_search(
 		ib_tpl_t	read_tpl;
 		int		n_cols;
 		int		i;
-
-		memset(item, 0, sizeof(*item));
 
 		read_tpl = ib_cb_read_tuple_create(
 				sel_only ? cursor_data->read_crsr
@@ -845,7 +848,6 @@ ib_err_t
 innodb_api_set_tpl(
 /*===============*/
 	ib_tpl_t	tpl,		/*!< in/out: tuple for insert */
-	ib_tpl_t	old_tpl,	/*!< in: old tuple */
 	meta_cfg_info_t* meta_info,	/*!< in: metadata info */
 	meta_column_t*	col_info,	/*!< in: insert col info */
 	const char*	key,		/*!< in: key */
@@ -859,10 +861,6 @@ innodb_api_set_tpl(
 	void*		table)		/*!< in: MySQL TABLE* */
 {
 	ib_err_t	err = DB_ERROR;
-
-	if (old_tpl) {
-		ib_cb_tuple_copy(tpl, old_tpl);
-	}
 
 	err = ib_cb_col_set_value(tpl, col_info[CONTAINER_KEY].field_id,
 				  key, key_len);
@@ -975,7 +973,7 @@ innodb_api_insert(
 	assert(!cursor_data->mysql_tbl || engine->enable_binlog
 	       || engine->enable_mdl);
 
-	err = innodb_api_set_tpl(tpl, NULL, meta_info, col_info, key, len,
+	err = innodb_api_set_tpl(tpl, meta_info, col_info, key, len,
 				 key + len, val_len,
 				 new_cas, exp, flags, UPDATE_ALL_VAL_COL,
 				 engine->enable_binlog
@@ -1046,7 +1044,7 @@ innodb_api_update(
 	assert(!cursor_data->mysql_tbl || engine->enable_binlog
 	       || engine->enable_mdl);
 
-	err = innodb_api_set_tpl(new_tpl, old_tpl, meta_info, col_info, key,
+	err = innodb_api_set_tpl(new_tpl, meta_info, col_info, key,
 				 len, key + len, val_len,
 				 new_cas, exp, flags, UPDATE_ALL_VAL_COL,
 				 engine->enable_binlog
@@ -1211,7 +1209,7 @@ innodb_api_link(
 	assert(!cursor_data->mysql_tbl || engine->enable_binlog
 	       || engine->enable_mdl);
 
-	err = innodb_api_set_tpl(new_tpl, old_tpl, meta_info, col_info,
+	err = innodb_api_set_tpl(new_tpl, meta_info, col_info,
 				 key, len, append_buf, total_len,
 				 new_cas, exp, flags, column_used,
 				 engine->enable_binlog
@@ -1294,7 +1292,8 @@ innodb_api_arithmetic(
 
 		/* If create is true, insert a new row */
 		if (create) {
-			snprintf(value_buf, sizeof(value_buf), "%llu", initial);
+			snprintf(value_buf, sizeof(value_buf),
+				 "%" PRIu64, initial);
 			create_new = true;
 			goto create_new_value;
 		} else {
@@ -1360,8 +1359,7 @@ innodb_api_arithmetic(
 		}
 	}
 
-
-	snprintf(value_buf, sizeof(value_buf), "%llu", value);
+	snprintf(value_buf, sizeof(value_buf), "%" PRIu64, value);
 create_new_value:
 	*cas = mci_get_cas(engine);
 
@@ -1372,7 +1370,7 @@ create_new_value:
 
 	/* The cas, exp and flags field are not changing, so use the
 	data from result */
-	err = innodb_api_set_tpl(new_tpl, old_tpl, meta_info, col_info,
+	err = innodb_api_set_tpl(new_tpl, meta_info, col_info,
 				 key, len, value_buf, strlen(value_buf),
 				 *cas,
 				 result.col_value[MCI_COL_EXP].value_int,
@@ -1409,6 +1407,15 @@ create_new_value:
 	ib_cb_tuple_delete(old_tpl);
 
 func_exit:
+	/* Free memory of result. */
+	if (result.extra_col_value) {
+		free(result.extra_col_value);
+	} else {
+		if (result.col_value[MCI_COL_VALUE].allocated) {
+			free(result.col_value[MCI_COL_VALUE].value_str);
+			result.col_value[MCI_COL_VALUE].allocated = false;
+		}
+	}
 
 	if (ret == ENGINE_SUCCESS) {
 		ret = (err == DB_SUCCESS) ? ENGINE_SUCCESS : ENGINE_NOT_STORED;
@@ -1514,6 +1521,16 @@ innodb_api_store(
 			stored = ENGINE_KEY_EEXISTS;
 		}
 		break;
+	}
+
+	/* Free memory of result. */
+	if (result.extra_col_value) {
+		free(result.extra_col_value);
+	} else {
+		if (result.col_value[MCI_COL_VALUE].allocated) {
+			free(result.col_value[MCI_COL_VALUE].value_str);
+			result.col_value[MCI_COL_VALUE].allocated = false;
+		}
 	}
 
 func_exit:

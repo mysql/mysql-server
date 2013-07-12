@@ -7423,6 +7423,9 @@ delimiter //;
 CREATE PROCEDURE sp1( )
 BEGIN
     declare x, y, z tinyint zerofill default -1;
+    GET DIAGNOSTICS @n = NUMBER;
+    GET DIAGNOSTICS CONDITION @n @err_no = MYSQL_ERRNO, @err_txt = MESSAGE_TEXT;
+    SELECT @err_no, @err_txt;
     SELECT x, y, z;
 END//
 delimiter ;//
@@ -7475,6 +7478,9 @@ delimiter //;
 CREATE PROCEDURE sp1( )
 BEGIN
     declare x, y, z smallint zerofill default -1;
+    GET DIAGNOSTICS @n = NUMBER;
+    GET DIAGNOSTICS CONDITION @n @err_no = MYSQL_ERRNO, @err_txt = MESSAGE_TEXT;
+    SELECT @err_no, @err_txt;
     SELECT x, y, z;
 END//
 delimiter ;//
@@ -7527,6 +7533,9 @@ delimiter //;
 CREATE PROCEDURE sp1( )
 BEGIN
     declare x, y, z mediumint zerofill default -1;
+    GET DIAGNOSTICS @n = NUMBER;
+    GET DIAGNOSTICS CONDITION @n @err_no = MYSQL_ERRNO, @err_txt = MESSAGE_TEXT;
+    SELECT @err_no, @err_txt;
     SELECT x, y, z;
 END//
 delimiter ;//
@@ -7579,6 +7588,9 @@ delimiter //;
 CREATE PROCEDURE sp1( )
 BEGIN
     declare x, y, z int zerofill default -1;
+    GET DIAGNOSTICS @n = NUMBER;
+    GET DIAGNOSTICS CONDITION @n @err_no = MYSQL_ERRNO, @err_txt = MESSAGE_TEXT;
+    SELECT @err_no, @err_txt;
     SELECT x, y, z;
 END//
 delimiter ;//
@@ -7631,6 +7643,9 @@ delimiter //;
 CREATE PROCEDURE sp1( )
 BEGIN
     declare x, y, z bigint zerofill default -1;
+    GET DIAGNOSTICS @n = NUMBER;
+    GET DIAGNOSTICS CONDITION @n @err_no = MYSQL_ERRNO, @err_txt = MESSAGE_TEXT;
+    SELECT @err_no, @err_txt;
     SELECT x, y, z;
 END//
 delimiter ;//
@@ -7660,6 +7675,9 @@ delimiter //;
 eval CREATE PROCEDURE sp1( )
 BEGIN
     declare x, y, z decimal default $default_minus38;
+    GET DIAGNOSTICS @n = NUMBER;
+    GET DIAGNOSTICS CONDITION @n @err_no = MYSQL_ERRNO, @err_txt = MESSAGE_TEXT;
+    SELECT @err_no, @err_txt;
     SELECT x, y, z;
 END//
 delimiter ;//
@@ -7673,6 +7691,9 @@ delimiter //;
 CREATE PROCEDURE sp1( )
 BEGIN
     declare x, y, z decimal unsigned default 1.175494351e-38;
+    GET DIAGNOSTICS @n = NUMBER;
+    GET DIAGNOSTICS CONDITION @n @err_no = MYSQL_ERRNO, @err_txt = MESSAGE_TEXT;
+    SELECT @err_no, @err_txt;
     SELECT x, y, z;
 END//
 delimiter ;//
@@ -7687,6 +7708,9 @@ delimiter //;
 eval CREATE PROCEDURE sp1( )
 BEGIN
     declare x, y, z decimal zerofill default $default_minus38;
+    GET DIAGNOSTICS @n = NUMBER;
+    GET DIAGNOSTICS CONDITION @n @err_no = MYSQL_ERRNO, @err_txt = MESSAGE_TEXT;
+    SELECT @err_no, @err_txt;
     SELECT x, y, z;
 END//
 delimiter ;//
@@ -7700,6 +7724,9 @@ delimiter //;
 CREATE PROCEDURE sp1( )
 BEGIN
     declare x, y, z decimal unsigned zerofill default 1.175494351e-38;
+    GET DIAGNOSTICS @n = NUMBER;
+    GET DIAGNOSTICS CONDITION @n @err_no = MYSQL_ERRNO, @err_txt = MESSAGE_TEXT;
+    SELECT @err_no, @err_txt;
     SELECT x, y, z;
 END//
 delimiter ;//
@@ -7713,6 +7740,9 @@ delimiter //;
 CREATE PROCEDURE sp1( )
 BEGIN
     declare x, y, z numeric default 1.175494351e-38;
+    GET DIAGNOSTICS @n = NUMBER;
+    GET DIAGNOSTICS CONDITION @n @err_no = MYSQL_ERRNO, @err_txt = MESSAGE_TEXT;
+    SELECT @err_no, @err_txt;
     SELECT x, y, z;
 END//
 delimiter ;//
@@ -7726,6 +7756,9 @@ delimiter //;
 CREATE PROCEDURE sp1( )
 BEGIN
     declare x, y, z numeric unsigned default 1.175494351e-38;
+    GET DIAGNOSTICS @n = NUMBER;
+    GET DIAGNOSTICS CONDITION @n @err_no = MYSQL_ERRNO, @err_txt = MESSAGE_TEXT;
+    SELECT @err_no, @err_txt;
     SELECT x, y, z;
 END//
 delimiter ;//
@@ -7739,6 +7772,9 @@ delimiter //;
 CREATE PROCEDURE sp1( )
 BEGIN
     declare x, y, z numeric zerofill default 1.175494351e-38;
+    GET DIAGNOSTICS @n = NUMBER;
+    GET DIAGNOSTICS CONDITION @n @err_no = MYSQL_ERRNO, @err_txt = MESSAGE_TEXT;
+    SELECT @err_no, @err_txt;
     SELECT x, y, z;
 END//
 delimiter ;//
@@ -7752,6 +7788,9 @@ delimiter //;
 CREATE PROCEDURE sp1( )
 BEGIN
     declare x, y, z numeric unsigned zerofill default 1.175494351e-38;
+    GET DIAGNOSTICS @n = NUMBER;
+    GET DIAGNOSTICS CONDITION @n @err_no = MYSQL_ERRNO, @err_txt = MESSAGE_TEXT;
+    SELECT @err_no, @err_txt;
     SELECT x, y, z;
 END//
 delimiter ;//
@@ -15584,6 +15623,9 @@ CREATE PROCEDURE sp1()
 BEGIN
     declare xx int;
     set xx = 'asd';
+    GET DIAGNOSTICS @n = NUMBER;
+    GET DIAGNOSTICS CONDITION @n @err_no = MYSQL_ERRNO, @err_txt = MESSAGE_TEXT;
+    SELECT @err_no, @err_txt;
     set @xx = xx;
     SELECT @xx;
 END//
@@ -15624,6 +15666,9 @@ CREATE PROCEDURE sp1()
 BEGIN
     declare xx char;
     set xx = 'temp';
+    GET DIAGNOSTICS @n = NUMBER;
+    GET DIAGNOSTICS CONDITION @n @err_no = MYSQL_ERRNO, @err_txt = MESSAGE_TEXT;
+    SELECT @err_no, @err_txt;
     set @xx = xx;
 END//
 delimiter ;//
@@ -15649,6 +15694,9 @@ CREATE PROCEDURE sp1()
 BEGIN
     declare xx float;
     set xx = 'asd';
+    GET DIAGNOSTICS @n = NUMBER;
+    GET DIAGNOSTICS CONDITION @n @err_no = MYSQL_ERRNO, @err_txt = MESSAGE_TEXT;
+    SELECT @err_no, @err_txt;
     SELECT xx;
 END//
 delimiter ;//
@@ -15686,6 +15734,9 @@ CREATE PROCEDURE sp1()
 BEGIN
     declare xx datetime;
     set xx = 'asd';
+    GET DIAGNOSTICS @n = NUMBER;
+    GET DIAGNOSTICS CONDITION @n @err_no = MYSQL_ERRNO, @err_txt = MESSAGE_TEXT;
+    SELECT @err_no, @err_txt;
     SELECT xx;
 END//
 delimiter ;//
@@ -15745,6 +15796,9 @@ CREATE PROCEDURE sp1()
 BEGIN
     declare xx tinyint;
     set xx = 'asd';
+    GET DIAGNOSTICS @n = NUMBER;
+    GET DIAGNOSTICS CONDITION @n @err_no = MYSQL_ERRNO, @err_txt = MESSAGE_TEXT;
+    SELECT @err_no, @err_txt;
     SELECT xx;
 END//
 delimiter ;//
@@ -17828,6 +17882,8 @@ BEGIN
             BEGIN
                insert into res_t3_itisalongname_1381742_itsaverylongname_1381742
                   values('xxxxxxxxxxxxxxxxxxx', '1231230981(*&(*&)(*&(', count);
+               GET DIAGNOSTICS @n = NUMBER;
+               GET DIAGNOSTICS CONDITION @n @err_no = MYSQL_ERRNO, @err_txt = MESSAGE_TEXT;
                set count = count + 1;
                if count= 10 then
                   set done=1;
@@ -17843,6 +17899,7 @@ BEGIN
       END if;
    END loop label1;
    SELECT count, done;
+   SELECT @err_no, @err_txt;
 END//
 delimiter ;//
 

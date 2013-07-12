@@ -38,7 +38,7 @@ struct trx_t;
 Returns TRUE if less than 25 % of the buffer pool is available. This can be
 used in heuristics to prevent huge transactions eating up the whole buffer
 pool for their locks.
-@return	TRUE if less than 25 % of buffer pool left */
+@return TRUE if less than 25 % of buffer pool left */
 
 ibool
 buf_LRU_buf_pool_running_out(void);
@@ -96,7 +96,7 @@ buf_LRU_free_page(
 	__attribute__((nonnull));
 /******************************************************************//**
 Try to free a replaceable block.
-@return	TRUE if found and freed */
+@return TRUE if found and freed */
 
 ibool
 buf_LRU_scan_and_free_block(
@@ -109,7 +109,7 @@ buf_LRU_scan_and_free_block(
 /******************************************************************//**
 Returns a free block from the buf_pool.  The block is taken off the
 free list.  If it is empty, returns NULL.
-@return	a free control block, or NULL if the buf_block->free list is empty */
+@return a free control block, or NULL if the buf_block->free list is empty */
 
 buf_block_t*
 buf_LRU_get_free_only(
@@ -140,7 +140,7 @@ we put it to free list to be used.
     * scan LRU list even if buf_pool->try_LRU_scan is not set
 * iteration > 1:
   * same as iteration 1 but sleep 100ms
-@return	the free control block, in state BUF_BLOCK_READY_FOR_USE */
+@return the free control block, in state BUF_BLOCK_READY_FOR_USE */
 
 buf_block_t*
 buf_LRU_get_free_block(
@@ -150,7 +150,7 @@ buf_LRU_get_free_block(
 /******************************************************************//**
 Determines if the unzip_LRU list should be used for evicting a victim
 instead of the general LRU list.
-@return	TRUE if should use unzip_LRU */
+@return TRUE if should use unzip_LRU */
 
 ibool
 buf_LRU_evict_from_unzip_LRU(
@@ -202,9 +202,9 @@ buf_LRU_make_block_old(
 	buf_page_t*	bpage);	/*!< in: control block */
 /**********************************************************************//**
 Updates buf_pool->LRU_old_ratio.
-@return	updated old_pct */
+@return updated old_pct */
 
-ulint
+uint
 buf_LRU_old_ratio_update(
 /*=====================*/
 	uint	old_pct,/*!< in: Reserve this percentage of
@@ -234,7 +234,7 @@ buf_LRU_free_one_page(
 #if defined UNIV_DEBUG || defined UNIV_BUF_DEBUG
 /**********************************************************************//**
 Validates the LRU list.
-@return	TRUE */
+@return TRUE */
 
 ibool
 buf_LRU_validate(void);

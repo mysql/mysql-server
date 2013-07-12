@@ -765,6 +765,7 @@ SHOW COLUMNS FROM t1;
 
 --echo ----------------------------------------------------------------
 
+--replace_column 6 #
 SHOW TRIGGERS LIKE 't1';
 
 --echo ----------------------------------------------------------------
@@ -1079,33 +1080,55 @@ CREATE TRIGGER t1_bi BEFORE INSERT ON t1 FOR EACH ROW SET @a = 1;
 
 # Test.
 
+--replace_column 7 #
 SHOW CREATE TRIGGER t1_bi;
 
 CREATE PROCEDURE p1() SHOW CREATE TRIGGER t1_bi;
 
+--replace_column 7 #
 CALL p1();
+--replace_column 7 #
 CALL p1();
+--replace_column 7 #
 CALL p1();
+--replace_column 7 #
 CALL p1();
+--replace_column 7 #
 CALL p1();
+--replace_column 7 #
 CALL p1();
+--replace_column 7 #
 CALL p1();
+--replace_column 7 #
 CALL p1();
+--replace_column 7 #
 CALL p1();
+--replace_column 7 #
 CALL p1();
 
 PREPARE stmt1 FROM 'SHOW CREATE TRIGGER t1_bi';
 
+--replace_column 7 #
 EXECUTE stmt1;
+--replace_column 7 #
 EXECUTE stmt1;
+--replace_column 7 #
 EXECUTE stmt1;
+--replace_column 7 #
 EXECUTE stmt1;
+--replace_column 7 #
 EXECUTE stmt1;
+--replace_column 7 #
 EXECUTE stmt1;
+--replace_column 7 #
 EXECUTE stmt1;
+--replace_column 7 #
 EXECUTE stmt1;
+--replace_column 7 #
 EXECUTE stmt1;
+--replace_column 7 #
 EXECUTE stmt1;
+--replace_column 7 #
 
 # Cleanup.
 
@@ -1165,6 +1188,7 @@ SHOW CREATE PROCEDURE p1;
 
 SHOW CREATE FUNCTION f1;
 
+--replace_column 7 #
 SHOW CREATE TRIGGER t1_bi;
 
 SHOW CREATE EVENT ev1;
@@ -1316,6 +1340,7 @@ LOCK TABLE t1 WRITE;
 --echo # Connection default
 connection default;
 # Should not block.
+--replace_column 7 #
 SHOW CREATE TRIGGER t1_bi;
 
 --echo # Connection con1
@@ -1327,6 +1352,7 @@ UNLOCK TABLES;
 --echo # Connection default
 connection default;
 START TRANSACTION;
+--replace_column 7 #
 SHOW CREATE TRIGGER t1_bi;
 
 --echo # Connection con1
@@ -1386,10 +1412,12 @@ DROP TABLE IF EXISTS t1;
 
 CREATE TABLE t1 (a INT);
 CREATE TRIGGER t1_bi BEFORE INSERT ON t1 FOR EACH ROW BEGIN END;
+--replace_column 7 #
 SHOW CREATE TRIGGER t1_bi;
 
 CREATE TEMPORARY TABLE t1 (b INT);
 # Should still work
+--replace_column 7 #
 SHOW CREATE TRIGGER t1_bi;
 
 DROP TEMPORARY TABLE t1;

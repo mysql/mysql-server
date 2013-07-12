@@ -29,6 +29,7 @@
 #include "sql_show.h"
 #include "sql_parse.h"
 #include "rpl_mi.h"
+#include "dur_prop.h"
 #include <list>
 #include <string>
 #include <m_ctype.h>				// For is_number
@@ -2164,7 +2165,7 @@ bool show_binlog_events(THD *thd, MYSQL_BIN_LOG *binary_log)
     mysql_mutex_t *log_lock = binary_log->get_log_lock();
     Log_event* ev;
 
-    unit->set_limit(thd->lex->current_select);
+    unit->set_limit(thd->lex->current_select());
     limit_start= unit->offset_limit_cnt;
     limit_end= unit->select_limit_cnt;
 
@@ -2369,6 +2370,7 @@ void MYSQL_BIN_LOG::cleanup()
     mysql_mutex_destroy(&LOCK_index);
     mysql_mutex_destroy(&LOCK_commit);
     mysql_mutex_destroy(&LOCK_sync);
+    mysql_mutex_destroy(&LOCK_binlog_end_pos);
     mysql_mutex_destroy(&LOCK_xids);
     mysql_cond_destroy(&update_cond);
     my_atomic_rwlock_destroy(&m_prep_xids_lock);
@@ -2387,6 +2389,8 @@ void MYSQL_BIN_LOG::init_pthread_objects()
   mysql_mutex_init(m_key_LOCK_index, &LOCK_index, MY_MUTEX_INIT_SLOW);
   mysql_mutex_init(m_key_LOCK_commit, &LOCK_commit, MY_MUTEX_INIT_FAST);
   mysql_mutex_init(m_key_LOCK_sync, &LOCK_sync, MY_MUTEX_INIT_FAST);
+  mysql_mutex_init(m_key_LOCK_binlog_end_pos, &LOCK_binlog_end_pos,
+                   MY_MUTEX_INIT_FAST);
   mysql_mutex_init(m_key_LOCK_xids, &LOCK_xids, MY_MUTEX_INIT_FAST);
   mysql_cond_init(m_key_update_cond, &update_cond, 0);
   my_atomic_rwlock_init(&m_prep_xids_lock);
@@ -3238,6 +3242,8 @@ bool MYSQL_BIN_LOG::open_binlog(const char *log_name,
     DBUG_RETURN(1);
   }
 
+  DEBUG_SYNC(current_thd, "after_log_file_name_initialized");
+
 #ifdef HAVE_REPLICATION
   if (open_purge_index_file(TRUE) ||
       register_create_index_entry(log_file_name) ||
@@ -3416,6 +3422,7 @@ bool MYSQL_BIN_LOG::open_binlog(const char *log_name,
   close_purge_index_file();
 #endif
 
+  update_binlog_end_pos();
   DBUG_RETURN(0);
 
 err:
@@ -4979,12 +4986,8 @@ int MYSQL_BIN_LOG::new_file_impl(bool need_lock_log, Format_description_log_even
     }
     bytes_written += r.data_written;
   }
-  /*
-    Update needs to be signalled even if there is no rotate event
-    log rotation should give the waiting thread a signal to
-    discover EOF and move on to the next log.
-  */
-  signal_update();
+  flush_io_cache(&log_file);
+  DEBUG_SYNC(current_thd, "after_rotate_event_appended");
 
   old_name=name;
   name=0;				// Don't free name
@@ -5854,7 +5857,7 @@ bool MYSQL_BIN_LOG::write_incident(Incident_log_event *ev, bool need_lock_log,
     if (!error && !(error= flush_and_sync()))
     {
       bool check_purge= false;
-      signal_update();
+      update_binlog_end_pos();
       error= rotate(true, &check_purge);
       if (!error && check_purge)
         purge();
@@ -6050,9 +6053,9 @@ int MYSQL_BIN_LOG::wait_for_update_bin_log(THD* thd,
   DBUG_ENTER("wait_for_update_bin_log");
 
   if (!timeout)
-    mysql_cond_wait(&update_cond, &LOCK_log);
+    mysql_cond_wait(&update_cond, &LOCK_binlog_end_pos);
   else
-    ret= mysql_cond_timedwait(&update_cond, &LOCK_log,
+    ret= mysql_cond_timedwait(&update_cond, &LOCK_binlog_end_pos,
                               const_cast<struct timespec *>(timeout));
   DBUG_RETURN(ret);
 }
@@ -6089,7 +6092,8 @@ void MYSQL_BIN_LOG::close(uint exiting)
                   relay_log_checksum_alg != BINLOG_CHECKSUM_ALG_UNDEF);
       s.write(&log_file);
       bytes_written+= s.data_written;
-      signal_update();
+      flush_io_cache(&log_file);
+      update_binlog_end_pos();
     }
 #endif /* HAVE_REPLICATION */
 
@@ -6173,15 +6177,6 @@ void MYSQL_BIN_LOG::set_max_size(ulong max_size_arg)
   if (is_open())
     max_size= max_size_arg;
   mysql_mutex_unlock(&LOCK_log);
-  DBUG_VOID_RETURN;
-}
-
-
-void MYSQL_BIN_LOG::signal_update()
-{
-  DBUG_ENTER("MYSQL_BIN_LOG::signal_update");
-  signal_cnt++;
-  mysql_cond_broadcast(&update_cond);
   DBUG_VOID_RETURN;
 }
 
@@ -6941,7 +6936,7 @@ static inline int call_after_sync_hook(THD *queue_head)
   DBUG_ASSERT(queue_head != NULL);
   for (THD *thd= queue_head; thd != NULL; thd= thd->next_to_commit)
     if (likely(thd->commit_error == THD::CE_NONE))
-      thd->get_trans_pos(&log_file, &pos);
+      thd->get_trans_fixed_pos(&log_file, &pos);
 
   if (DBUG_EVALUATE_IF("simulate_after_sync_hook_error", 1, 0) ||
       RUN_HOOK(binlog_storage, after_sync, (queue_head, log_file, pos)))
@@ -7084,7 +7079,7 @@ int MYSQL_BIN_LOG::ordered_commit(THD *thd, bool all, bool skip_commit)
       flush_error= ER_ERROR_ON_WRITE;
     }
 
-    signal_update();
+    update_binlog_end_pos();
     DBUG_EXECUTE_IF("crash_commit_after_log", DBUG_SUICIDE(););
   }
 
@@ -7176,10 +7171,10 @@ int MYSQL_BIN_LOG::ordered_commit(THD *thd, bool all, bool skip_commit)
     int error= rotate(false, &check_purge);
     mysql_mutex_unlock(&LOCK_log);
 
-    if (!error && check_purge)
-      purge();
-    else
+    if (error)
       thd->commit_error= THD::CE_COMMIT_ERROR;
+    else if (check_purge)
+      purge();
   }
   DBUG_RETURN(thd->commit_error);
 }

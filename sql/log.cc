@@ -1531,16 +1531,6 @@ Slow_log_throttle log_throttle_qni(&opt_log_throttle_queries_not_using_indexes,
 #endif // MYSQL_SERVER
 
 
-void sql_perror(const char *message)
-{
-#ifdef HAVE_STRERROR
-  sql_print_error("%s: %s", message, strerror(errno));
-#else
-  perror(message);
-#endif
-}
-
-
 bool reopen_fstreams(const char *filename,
                      FILE *outstream, FILE *errstream)
 {

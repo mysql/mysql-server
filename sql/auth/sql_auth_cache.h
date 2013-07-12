@@ -95,6 +95,7 @@ public:
   LEX_STRING plugin;
   LEX_STRING auth_string;
   bool password_expired;
+  bool can_authenticate;
 
   ACL_USER *copy(MEM_ROOT *root);
 };

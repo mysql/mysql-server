@@ -24,6 +24,8 @@ Recovery
 Created 9/20/1997 Heikki Tuuri
 *******************************************************/
 
+#include "ha_prototypes.h"
+
 #include "log0recv.h"
 
 #ifdef UNIV_NONINL
@@ -524,7 +526,7 @@ recv_synchronize_groups(void)
 
 /***********************************************************************//**
 Checks the consistency of the checkpoint info
-@return	TRUE if ok */
+@return TRUE if ok */
 static
 ibool
 recv_check_cp_is_consistent(
@@ -554,7 +556,7 @@ recv_check_cp_is_consistent(
 #ifndef UNIV_HOTBACKUP
 /********************************************************//**
 Looks for the maximum consistent checkpoint from the log groups.
-@return	error code or DB_SUCCESS */
+@return error code or DB_SUCCESS */
 static __attribute__((nonnull, warn_unused_result))
 dberr_t
 recv_find_max_checkpoint(
@@ -642,7 +644,7 @@ recv_find_max_checkpoint(
 #else /* !UNIV_HOTBACKUP */
 /*******************************************************************//**
 Reads the checkpoint info needed in hot backup.
-@return	TRUE if success */
+@return TRUE if success */
 
 ibool
 recv_read_checkpoint_info_for_backup(
@@ -826,7 +828,7 @@ recv_scan_log_seg_for_backup(
 /*******************************************************************//**
 Tries to parse a single log record body and also applies it to a page if
 specified. File ops are parsed, but not applied in this function.
-@return	log record end, NULL if not a complete record */
+@return log record end, NULL if not a complete record */
 static
 byte*
 recv_parse_or_apply_log_rec_body(
@@ -840,9 +842,12 @@ recv_parse_or_apply_log_rec_body(
 				record should be complete then */
 	mtr_t*		mtr,	/*!< in: mtr or NULL; should be non-NULL
 				if and only if block is non-NULL */
-	ulint		space_id)
+	ulint		space_id,
 				/*!< in: tablespace id obtained by
-				parsing initial log record */
+				parsing initial log record. */
+	ulint		page_no)
+				/*!< in: page-number obtained by
+				parsing initial log record. */
 {
 	dict_index_t*	index	= NULL;
 	page_t*		page;
@@ -1119,13 +1124,18 @@ recv_parse_or_apply_log_rec_body(
 		ptr = mlog_parse_string(ptr, end_ptr, page, page_zip);
 		break;
 	case MLOG_FILE_RENAME:
-		ptr = fil_op_log_parse_or_replay(ptr, end_ptr, type,
-						 space_id, 0);
+		ptr = fil_op_log_parse_or_replay(
+			ptr, end_ptr, type, space_id, page_no, 0, false);
+		break;
+	case MLOG_FILE_TRUNCATE:
+		ptr = fil_op_log_parse_or_replay(
+			ptr, end_ptr, type, space_id, page_no, 0, true);
 		break;
 	case MLOG_FILE_CREATE:
 	case MLOG_FILE_DELETE:
 	case MLOG_FILE_CREATE2:
-		ptr = fil_op_log_parse_or_replay(ptr, end_ptr, type, 0, 0);
+		ptr = fil_op_log_parse_or_replay(
+			ptr, end_ptr, type, ULINT_UNDEFINED, page_no, 0, true);
 		break;
 	case MLOG_ZIP_WRITE_NODE_PTR:
 		ut_ad(!page || page_type == FIL_PAGE_INDEX);
@@ -1175,7 +1185,7 @@ recv_parse_or_apply_log_rec_body(
 /*********************************************************************//**
 Calculates the fold value of a page file address: used in inserting or
 searching for a log record in the hash table.
-@return	folded value */
+@return folded value */
 UNIV_INLINE
 ulint
 recv_fold(
@@ -1189,7 +1199,7 @@ recv_fold(
 /*********************************************************************//**
 Calculates the hash value of a page file address: used in inserting or
 searching for a log record in the hash table.
-@return	folded value */
+@return folded value */
 UNIV_INLINE
 ulint
 recv_hash(
@@ -1202,7 +1212,7 @@ recv_hash(
 
 /*********************************************************************//**
 Gets the hashed file address struct for a page.
-@return	file address struct, NULL if not found from the hash table */
+@return file address struct, NULL if not found from the hash table */
 static
 recv_addr_t*
 recv_get_fil_addr_struct(
@@ -1487,7 +1497,15 @@ recv_recover_page_func(
 			}
 		}
 
-		if (recv->start_lsn >= page_lsn) {
+		/* Ignore applying the redo logs for tablespace that is
+		truncated. Post recovery there is fixup action that will
+		restore the tablespace back to normal state.
+		Applying redo at this stage can result in error given that
+		redo will have action recorded on page before tablespace
+		was re-inited and that would lead to an error while applying
+		such action. */
+		if (recv->start_lsn >= page_lsn
+		    && !srv_is_tablespace_truncated(recv_addr->space)) {
 
 			lsn_t	end_lsn;
 
@@ -1508,7 +1526,8 @@ recv_recover_page_func(
 			recv_parse_or_apply_log_rec_body(recv->type, buf,
 							 buf + recv->len,
 							 block, &mtr,
-							 recv_addr->space);
+							 recv_addr->space,
+							 recv_addr->page_no);
 
 			end_lsn = recv->start_lsn + recv->len;
 			mach_write_to_8(FIL_PAGE_LSN + page, end_lsn);
@@ -1574,7 +1593,7 @@ recv_recover_page_func(
 /*******************************************************************//**
 Reads in pages which have hashed log records, from an area around a given
 page number.
-@return	number of pages found */
+@return number of pages found */
 static
 ulint
 recv_read_in_area(
@@ -1923,7 +1942,7 @@ skip_this_recv_addr:
 
 /*******************************************************************//**
 Tries to parse a single log record and returns its length.
-@return	length of the record, or 0 if the record was not complete */
+@return length of the record, or 0 if the record was not complete */
 static
 ulint
 recv_parse_log_rec(
@@ -1979,8 +1998,9 @@ recv_parse_log_rec(
 	}
 #endif /* UNIV_LOG_LSN_DEBUG */
 
-	new_ptr = recv_parse_or_apply_log_rec_body(*type, new_ptr, end_ptr,
-						   NULL, NULL, *space);
+	new_ptr = recv_parse_or_apply_log_rec_body(
+			*type, new_ptr, end_ptr, NULL, NULL, *space, *page_no);
+
 	if (UNIV_UNLIKELY(new_ptr == NULL)) {
 
 		return(0);
@@ -2107,7 +2127,7 @@ recv_report_corrupt_log(
 /*******************************************************//**
 Parses log records from a buffer and stores them to a hash table to wait
 merging to file pages.
-@return	currently always returns FALSE */
+@return currently always returns FALSE */
 static
 ibool
 recv_parse_log_recs(
@@ -2198,6 +2218,10 @@ loop:
 			recv_check_incomplete_log_recs(ptr, len);
 #endif/* UNIV_LOG_DEBUG */
 
+		} else if (type == MLOG_FILE_TRUNCATE) {
+			fil_op_log_parse_or_replay(
+				body, end_ptr, type, space, page_no,
+				recv_sys->recovered_lsn, false);
 		} else if (type == MLOG_FILE_CREATE
 			   || type == MLOG_FILE_CREATE2
 			   || type == MLOG_FILE_RENAME
@@ -2213,7 +2237,8 @@ loop:
 
 				if (NULL == fil_op_log_parse_or_replay(
 					    body, end_ptr, type,
-					    space, page_no)) {
+					    space, page_no, 0, false)) {
+
 					ib_logf(IB_LOG_LEVEL_FATAL,
 						"File op log record of type"
 						" %lu space %lu not complete"
@@ -2348,7 +2373,7 @@ loop:
 /*******************************************************//**
 Adds data from a new log block to the parsing buffer of recv_sys if
 recv_sys->parse_start_lsn is non-zero.
-@return	TRUE if more data added */
+@return TRUE if more data added */
 static
 ibool
 recv_sys_add_to_parsing_buf(
@@ -2765,7 +2790,7 @@ Recovers from a checkpoint. When this function returns, the database is able
 to start processing of new user transactions, but the function
 recv_recovery_from_checkpoint_finish should be called later to complete
 the recovery and free the resources used in it.
-@return	error code or DB_SUCCESS */
+@return error code or DB_SUCCESS */
 
 dberr_t
 recv_recovery_from_checkpoint_start(

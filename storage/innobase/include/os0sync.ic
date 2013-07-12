@@ -23,13 +23,9 @@ The interface to the operating system synchronization primitives.
 Created 9/6/1995 Heikki Tuuri
 *******************************************************/
 
-#ifdef _WIN32
-#include <winbase.h>
-#endif
-
 /**********************************************************//**
 Acquires ownership of a fast mutex.
-@return	0 if success, != 0 if was reserved by another thread */
+@return 0 if success, != 0 if was reserved by another thread */
 UNIV_INLINE
 ulint
 os_fast_mutex_trylock(
@@ -109,11 +105,11 @@ pfs_os_fast_mutex_lock(
 #ifdef HAVE_PSI_MUTEX_INTERFACE
 	if (fast_mutex->pfs_psi != NULL)
 	{
-		PSI_mutex_locker* 	locker;
+		PSI_mutex_locker*	locker;
 		PSI_mutex_locker_state	state;
 
 		locker = PSI_MUTEX_CALL(start_mutex_wait)(&state, fast_mutex->pfs_psi,
-			PSI_MUTEX_LOCK, file_name, line);
+			PSI_MUTEX_LOCK, file_name, (uint) line);
 
 		os_fast_mutex_lock_func(&fast_mutex->mutex);
 

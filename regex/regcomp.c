@@ -1417,14 +1417,10 @@ sopno pos;
 	}
 	{
           int length=(HERE()-pos-1)*sizeof(sop);
-          bmove_upp((uchar *) &p->strip[pos+1]+length,
-                    (uchar *) &p->strip[pos]+length,
-                    length);
+          memmove((uchar *) &p->strip[pos+1],
+                  (uchar *) &p->strip[pos],
+                  length);
         }
-#ifdef OLD_CODE
-        memmove((char *)&p->strip[pos+1], (char *)&p->strip[pos],
-                                                (HERE()-pos-1)*sizeof(sop));
-#endif
 	p->strip[pos] = s;
 }
 

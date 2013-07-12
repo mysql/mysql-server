@@ -45,12 +45,12 @@ Created 10/10/1995 Heikki Tuuri
 #ifndef UNIV_HOTBACKUP
 #include "log0log.h"
 #include "sync0sync.h"
-#include "os0sync.h"
 #include "que0types.h"
 #include "trx0types.h"
 #include "srv0conc.h"
 #include "buf0checksum.h"
 #include "ut0counter.h"
+#include "fil0fil.h"
 
 /* Global counters used inside InnoDB. */
 struct srv_stats_t {
@@ -226,8 +226,11 @@ extern ulong	srv_undo_tablespaces;
 /** The number of UNDO tablespaces that are open and ready to use. */
 extern ulint	srv_undo_tablespaces_open;
 
-/* The number of undo segments to use */
+/** The number of undo segments to use */
 extern ulong	srv_undo_logs;
+
+/** UNDO logs not redo logged, these logs reside in the temp tablespace.*/
+extern const ulong	srv_tmp_undo_logs;
 
 extern char*	srv_log_group_home_dir;
 
@@ -659,7 +662,7 @@ extern "C" {
 
 /*********************************************************************//**
 A thread which prints the info output by various InnoDB monitors.
-@return	a dummy parameter */
+@return a dummy parameter */
 
 os_thread_ret_t
 DECLARE_THREAD(srv_monitor_thread)(
@@ -669,7 +672,7 @@ DECLARE_THREAD(srv_monitor_thread)(
 
 /*********************************************************************//**
 The master thread controlling the server.
-@return	a dummy parameter */
+@return a dummy parameter */
 
 os_thread_ret_t
 DECLARE_THREAD(srv_master_thread)(
@@ -680,7 +683,7 @@ DECLARE_THREAD(srv_master_thread)(
 /*************************************************************************
 A thread which prints warnings about semaphore waits which have lasted
 too long. These can be used to track bugs which cause hangs.
-@return	a dummy parameter */
+@return a dummy parameter */
 
 os_thread_ret_t
 DECLARE_THREAD(srv_error_monitor_thread)(
@@ -690,7 +693,7 @@ DECLARE_THREAD(srv_error_monitor_thread)(
 
 /*********************************************************************//**
 Purge coordinator thread that schedules the purge tasks.
-@return	a dummy parameter */
+@return a dummy parameter */
 
 os_thread_ret_t
 DECLARE_THREAD(srv_purge_coordinator_thread)(
@@ -700,7 +703,7 @@ DECLARE_THREAD(srv_purge_coordinator_thread)(
 
 /*********************************************************************//**
 Worker thread that reads tasks from the work queue and executes them.
-@return	a dummy parameter */
+@return a dummy parameter */
 
 os_thread_ret_t
 DECLARE_THREAD(srv_worker_thread)(
@@ -711,7 +714,7 @@ DECLARE_THREAD(srv_worker_thread)(
 
 /**********************************************************************//**
 Get count of tasks in the queue.
-@return number of tasks in queue  */
+@return number of tasks in queue */
 
 ulint
 srv_get_task_queue_length(void);
@@ -744,6 +747,17 @@ Wakeup the purge threads. */
 void
 srv_purge_wakeup(void);
 /*==================*/
+
+/** Check if tablespace is being truncated.
+(Ignore system-tablespace as we don't re-create the tablespace
+and so some of the action that are suppressed by this function
+for independent tablespace are not applicable to system-tablespace).
+@param	space_id	space_id to check for truncate action
+@return true		if being truncated, false if not being
+			truncated or tablespace is system-tablespace. */
+
+bool
+srv_is_tablespace_truncated(ulint space_id);
 
 /** Status variables to be passed to MySQL */
 struct export_var_t{

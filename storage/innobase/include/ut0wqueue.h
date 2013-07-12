@@ -34,14 +34,12 @@ processing.
 
 #include "ut0list.h"
 #include "mem0mem.h"
-#include "os0sync.h"
-#include "sync0types.h"
 
 struct ib_wqueue_t;
 
 /****************************************************************//**
 Create a new work queue.
-@return	work queue */
+@return work queue */
 
 ib_wqueue_t*
 ib_wqueue_create(void);
@@ -78,7 +76,7 @@ ib_wqueue_is_empty(
 
 /****************************************************************//**
 Wait for a work item to appear in the queue.
-@return	work item */
+@return work item */
 
 void*
 ib_wqueue_wait(

@@ -490,7 +490,7 @@ int mi_create(const char *name,uint keys,MI_KEYDEF *keydefs,
     goto err_no_lock;
   }
 
-  bmove(share.state.header.file_version,(uchar*) myisam_file_magic,4);
+  memmove(share.state.header.file_version, (uchar*) myisam_file_magic, 4);
   ci->old_options=options| (ci->old_options & HA_OPTION_TEMP_COMPRESS_RECORD ?
 			HA_OPTION_COMPRESS_RECORD |
 			HA_OPTION_TEMP_COMPRESS_RECORD: 0);
@@ -793,11 +793,6 @@ int mi_create(const char *name,uint keys,MI_KEYDEF *keydefs,
 
   if (! (flags & HA_DONT_TOUCH_DATA))
   {
-#ifdef USE_RELOC
-    if (mysql_file_chsize(dfile, share.base.min_pack_length*ci->reloc_rows,
-                          0, MYF(0)))
-      goto err;
-#endif
     errpos=2;
     if (mysql_file_close(dfile, MYF(0)))
       goto err;
@@ -845,11 +840,6 @@ uint mi_get_pointer_length(ulonglong file_length, uint def)
   DBUG_ASSERT(def >= 2 && def <= 7);
   if (file_length)				/* If not default */
   {
-#ifdef NOT_YET_READY_FOR_8_BYTE_POINTERS
-    if (file_length >= ULL(1) << 56)
-      def=8;
-    else
-#endif
     if (file_length >= ULL(1) << 48)
       def=7;
     else if (file_length >= ULL(1) << 40)

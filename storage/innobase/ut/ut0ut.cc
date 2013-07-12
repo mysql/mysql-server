@@ -23,24 +23,24 @@ Various utilities for Innobase.
 Created 5/11/1994 Heikki Tuuri
 ********************************************************************/
 
-#include "ut0ut.h"
+#include "ha_prototypes.h"
 
 #ifndef UNIV_INNOCHECKSUM
 
-#include "os0thread.h" /* thread-ID */
+#ifndef UNIV_HOTBACKUP
+# include <mysql_com.h>
+#endif /* !UNIV_HOTBACKUP */
+
+#include "os0thread.h"
+#include "ut0ut.h"
 
 #ifdef UNIV_NONINL
 #include "ut0ut.ic"
 #endif
 
-#include <stdarg.h>
-#include <string.h>
-#include <ctype.h>
-
 #ifndef UNIV_HOTBACKUP
 # include "trx0trx.h"
-# include "ha_prototypes.h"
-#endif /* UNIV_HOTBACKUP */
+#endif /* !UNIV_HOTBACKUP */
 
 /** A constant to prevent the compiler from optimizing ut_delay() away. */
 ibool	ut_always_false	= FALSE;
@@ -55,7 +55,7 @@ http://support.microsoft.com/kb/167296/ */
 
 /*****************************************************************//**
 This is the Windows version of gettimeofday(2).
-@return	0 if all OK else -1 */
+@return 0 if all OK else -1 */
 static
 int
 ut_gettimeofday(
@@ -99,7 +99,7 @@ reimplement this function. */
 /**********************************************************//**
 Returns system time. We do not specify the format of the time returned:
 the only way to manipulate it is to use the function ut_difftime.
-@return	system time */
+@return system time */
 
 ib_time_t
 ut_time(void)
@@ -114,7 +114,7 @@ Returns system time.
 Upon successful completion, the value 0 is returned; otherwise the
 value -1 is returned and the global variable errno is set to indicate the
 error.
-@return	0 on success, -1 otherwise */
+@return 0 on success, -1 otherwise */
 
 int
 ut_usectime(
@@ -155,7 +155,7 @@ ut_usectime(
 Returns the number of microseconds since epoch. Similar to
 time(3), the return value is also stored in *tloc, provided
 that tloc is non-NULL.
-@return	us since epoch */
+@return us since epoch */
 
 ullint
 ut_time_us(
@@ -180,7 +180,7 @@ ut_time_us(
 Returns the number of milliseconds since some epoch.  The
 value may wrap around.  It should only be used for heuristic
 purposes.
-@return	ms since epoch */
+@return ms since epoch */
 
 ulint
 ut_time_ms(void)
@@ -196,7 +196,7 @@ ut_time_ms(void)
 
 /**********************************************************//**
 Returns the difference of two times in seconds.
-@return	time2 - time1 expressed in seconds */
+@return time2 - time1 expressed in seconds */
 
 double
 ut_difftime(
@@ -221,7 +221,7 @@ ut_print_timestamp(
 
 #ifndef UNIV_INNOCHECKSUM
 	thread_id = os_thread_pf(os_thread_get_curr_id());
-#endif
+#endif /* !UNIV_INNOCHECKSUM */
 
 #ifdef _WIN32
 	SYSTEMTIME cal_tm;
@@ -386,13 +386,13 @@ ut_get_year_month_day(
 	*day = (ulint) cal_tm_ptr->tm_mday;
 #endif
 }
-#endif /* UNIV_HOTBACKUP */
 
-#ifndef UNIV_HOTBACKUP
+#else /* UNIV_HOTBACKUP */
+
 /*************************************************************//**
 Runs an idle loop on CPU. The argument gives the desired delay
 in microseconds on 100 MHz Pentium + Visual C++.
-@return	dummy value */
+@return dummy value */
 
 ulint
 ut_delay(
@@ -414,7 +414,7 @@ ut_delay(
 
 	return(j);
 }
-#endif /* !UNIV_HOTBACKUP */
+#endif /* UNIV_HOTBACKUP */
 
 /*************************************************************//**
 Prints the contents of a memory buffer in hex and ascii. */
@@ -473,7 +473,7 @@ ut_print_buf_hex(
 
 	for (data = static_cast<const byte*>(buf), i = 0; i < len; i++) {
 		byte	b = *data++;
-		o << hexdigit[b >> 16] << hexdigit[b & 15];
+		o << hexdigit[(int) b >> 16] << hexdigit[b & 15];
 	}
 
 	o << ")";
@@ -505,7 +505,7 @@ ut_print_buf(
 
 /*************************************************************//**
 Calculates fast the number rounded up to the nearest power of 2.
-@return	first power of 2 which is >= n */
+@return first power of 2 which is >= n */
 
 ulint
 ut_2_power_up(
@@ -595,7 +595,9 @@ ut_print_namel(
 				       trx ? trx->mysql_thd : NULL,
 				       table_id);
 
-	fwrite(buf, 1, bufend - buf, f);
+	if (fwrite(buf, 1, bufend - buf, f) != (size_t) (bufend - buf)) {
+		perror("fwrite");
+	}
 }
 
 /**********************************************************************//**
@@ -660,7 +662,9 @@ ut_copy_file(
 			? (size_t) len
 			: sizeof buf;
 		size_t	size = fread(buf, 1, maxs, src);
-		fwrite(buf, 1, size, dest);
+		if (fwrite(buf, 1, size, dest) != size) {
+			perror("fwrite");
+		}
 		len -= (long) size;
 		if (size < maxs) {
 			break;
@@ -733,7 +737,7 @@ ut_snprintf(
 /*************************************************************//**
 Convert an error number to a human readable text message. The
 returned string is static and should not be freed or modified.
-@return	string, describing the error */
+@return string, describing the error */
 
 const char*
 ut_strerr(
@@ -797,6 +801,8 @@ ut_strerr(
 		return("Tablespace already exists");
 	case DB_TABLESPACE_DELETED:
 		return("Tablespace deleted or being deleted");
+	case DB_TABLESPACE_TRUNCATED:
+		return("Tablespace was truncated");
 	case DB_TABLESPACE_NOT_FOUND:
 		return("Tablespace not found");
 	case DB_LOCK_TABLE_FULL:
@@ -853,6 +859,8 @@ ut_strerr(
 		return("Table dictionary has changed");
 	case DB_IDENTIFIER_TOO_LONG:
 		return("Identifier name is too long");
+	case DB_FTS_EXCEED_RESULT_CACHE_LIMIT:
+		return("FTS query exceeds result cache limit");
 
 	/* do not add default: in order to produce a warning if new code
 	is added to the enum but not added here */

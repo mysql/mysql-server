@@ -26,6 +26,7 @@ Created 25/5/2010 Sunny Bains
 #define LOCK_MODULE_IMPLEMENTATION
 
 #include "ha_prototypes.h"
+#include <mysql/plugin.h>
 
 #include "srv0mon.h"
 #include "que0que.h"
@@ -125,7 +126,7 @@ lock_wait_table_release_slot(
 
 /*********************************************************************//**
 Reserves a slot in the thread table for the current user OS thread.
-@return	reserved slot */
+@return reserved slot */
 static
 srv_slot_t*
 lock_wait_table_reserve_slot(
@@ -168,8 +169,6 @@ lock_wait_table_reserve_slot(
 			return(slot);
 		}
 	}
-
-	ut_print_timestamp(stderr);
 
 	ib_logf(IB_LOG_LEVEL_ERROR,
 		"There appear to be %lu user threads currently waiting"
@@ -474,7 +473,7 @@ lock_wait_check_and_cancel(
 
 /*********************************************************************//**
 A thread which wakes up threads whose lock wait may have lasted too long.
-@return	a dummy parameter */
+@return a dummy parameter */
 extern "C"
 os_thread_ret_t
 DECLARE_THREAD(lock_wait_timeout_thread)(

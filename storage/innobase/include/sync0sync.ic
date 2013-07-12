@@ -72,7 +72,7 @@ mutex_signal_object(
 /******************************************************************//**
 Performs an atomic test-and-set instruction to the lock_word field of a
 mutex.
-@return	the previous value of lock_word: 0 or 1 */
+@return the previous value of lock_word: 0 or 1 */
 UNIV_INLINE
 byte
 ib_mutex_test_and_set(
@@ -134,7 +134,7 @@ mutex_get_lock_word(
 
 /******************************************************************//**
 Gets the waiters field in a mutex.
-@return	value to set */
+@return value to set */
 UNIV_INLINE
 ulint
 mutex_get_waiters(
@@ -240,7 +240,7 @@ pfs_mutex_enter_func(
 
 		locker = PSI_MUTEX_CALL(start_mutex_wait)(
 			&state, mutex->pfs_psi,
-			PSI_MUTEX_LOCK, file_name, line);
+			PSI_MUTEX_LOCK, file_name, (uint) line);
 
 		mutex_enter_func(mutex, file_name, line);
 
@@ -275,7 +275,7 @@ pfs_mutex_enter_nowait_func(
 
 		locker = PSI_MUTEX_CALL(start_mutex_wait)(
 			&state, mutex->pfs_psi,
-			PSI_MUTEX_TRYLOCK, file_name, line);
+			PSI_MUTEX_TRYLOCK, file_name, (uint) line);
 
 		ret = mutex_enter_nowait_func(mutex, file_name, line);
 

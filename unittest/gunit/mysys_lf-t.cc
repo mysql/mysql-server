@@ -1,4 +1,4 @@
-/* Copyright (c) 2008, 2012, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2008, 2013, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -25,7 +25,6 @@
 
 #include <my_global.h>
 #include <my_sys.h>
-#include <my_atomic.h>
 
 
 namespace mysys_lf_unittest {
@@ -178,9 +177,6 @@ void do_tests()
   lf_alloc_init(&lf_allocator, sizeof(TLA), offsetof(TLA, not_used));
   lf_hash_init(&lf_hash, sizeof(int), LF_HASH_UNIQUE, 0, sizeof(int), 0,
                &my_charset_bin);
-
-  bad= my_atomic_initialize();
-  EXPECT_FALSE(bad) << "my_atomic_initialize() returned " << bad;
 
   with_my_thread_init= 1;
   test_concurrently("lf_pinbox (with my_thread_init)",

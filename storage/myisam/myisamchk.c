@@ -1006,7 +1006,6 @@ static int myisamchk(MI_CHECK *param, char * filename)
 	  The data file is nowadays reopened in the repair code so we should
 	  soon remove the following reopen-code
 	*/
-#ifndef TO_BE_REMOVED
 	if (param->out_flag & O_NEW_DATA)
 	{			/* Change temp file to org file */
 	  (void) my_close(info->dfile,MYF(MY_WME)); /* Close new file */
@@ -1016,7 +1015,6 @@ static int myisamchk(MI_CHECK *param, char * filename)
 	  param->out_flag&= ~O_NEW_DATA; /* We are using new datafile */
 	  param->read_cache.file=info->dfile;
 	}
-#endif
 	if (! error)
 	{
 	  uint key;
@@ -1027,7 +1025,10 @@ static int myisamchk(MI_CHECK *param, char * filename)
 	  my_bool update_index=1;
 	  for (key=0 ; key < share->base.keys; key++)
 	    if (share->keyinfo[key].flag & (HA_BINARY_PACK_KEY|HA_FULLTEXT))
-	      update_index=0;
+            {
+              update_index=0;
+              break;
+            }
 
 	  error=mi_sort_records(param,info,filename,param->opt_sort_key,
                              /* what is the following parameter for ? */
@@ -1254,9 +1255,6 @@ static void descript(MI_CHECK *param, MI_INFO *info, char * name)
 
   if (param->testflag & T_VERBOSE)
   {
-#ifdef USE_RELOC
-    printf("Init-relocation:     %13s\n",llstr(share->base.reloc,llbuff));
-#endif
     printf("Datafile parts:      %13s  Deleted data:       %13s\n",
 	   llstr(share->state.split,llbuff),
 	   llstr(info->state->empty,llbuff2));

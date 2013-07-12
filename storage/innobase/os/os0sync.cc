@@ -24,13 +24,11 @@ synchronization primitives.
 Created 9/6/1995 Heikki Tuuri
 *******************************************************/
 
+#include "ha_prototypes.h"
+
 #include "os0sync.h"
 #ifdef UNIV_NONINL
 #include "os0sync.ic"
-#endif
-
-#ifdef _WIN32
-#include <windows.h>
 #endif
 
 #include "ut0mem.h"
@@ -363,7 +361,7 @@ os_sync_free(void)
 Creates an event semaphore, i.e., a semaphore which may just have two
 states: signaled and nonsignaled. The created event is manual reset: it
 must be reset explicitly by calling sync_os_reset_event.
-@return	the event handle */
+@return the event handle */
 
 os_event_t
 os_event_create(void)
@@ -464,7 +462,7 @@ The return value should be passed to os_even_wait_low() if it is desired
 that this thread should not wait in case of an intervening call to
 os_event_set() between this os_event_reset() and the
 os_event_wait_low() call. See comments for os_event_wait_low().
-@return	current signal_count. */
+@return current signal_count. */
 
 ib_int64_t
 os_event_reset(
@@ -621,7 +619,7 @@ os_event_wait_low(
 /**********************************************************//**
 Waits for an event object until it is in the signaled state or
 a timeout is exceeded.
-@return	0 if success, OS_SYNC_TIME_EXCEEDED if timeout was exceeded */
+@return 0 if success, OS_SYNC_TIME_EXCEEDED if timeout was exceeded */
 
 ulint
 os_event_wait_time_low(
@@ -645,7 +643,7 @@ os_event_wait_time_low(
 		ut_a(event);
 
 		if (time_in_usec != OS_SYNC_INFINITE_TIME) {
-			time_in_ms = time_in_usec / 1000;
+			time_in_ms = (DWORD) time_in_usec / 1000;
 			err = WaitForSingleObject(event->handle, time_in_ms);
 		} else {
 			err = WaitForSingleObject(event->handle, INFINITE);
@@ -664,7 +662,7 @@ os_event_wait_time_low(
 		ut_a(sleep_condition_variable != NULL);
 
 		if (time_in_usec != OS_SYNC_INFINITE_TIME) {
-			time_in_ms = time_in_usec / 1000;
+			time_in_ms = (DWORD) time_in_usec / 1000;
 		} else {
 			time_in_ms = INFINITE;
 		}
@@ -733,7 +731,7 @@ os_event_wait_time_low(
 /*********************************************************//**
 Creates an operating system mutex semaphore. Because these are slow, the
 mutex semaphore of InnoDB itself (ib_mutex_t) should be used where possible.
-@return	the mutex handle */
+@return the mutex handle */
 
 os_ib_mutex_t
 os_mutex_create(void)

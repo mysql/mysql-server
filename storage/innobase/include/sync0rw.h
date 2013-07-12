@@ -35,10 +35,8 @@ Created 9/11/1995 Heikki Tuuri
 
 #include "univ.i"
 #ifndef UNIV_HOTBACKUP
-#include "ut0lst.h"
 #include "ut0counter.h"
 #include "sync0sync.h"
-#include "os0sync.h"
 
 /* The following undef is to prevent a name conflict with a macro
 in MySQL: */
@@ -308,7 +306,7 @@ rw_lock_free_func(
 /******************************************************************//**
 Checks that the rw-lock has been initialized and that there are no
 simultaneous shared and exclusive locks.
-@return	TRUE */
+@return TRUE */
 
 ibool
 rw_lock_validate(
@@ -318,7 +316,7 @@ rw_lock_validate(
 /******************************************************************//**
 Low-level function which tries to lock an rw-lock in s-mode. Performs no
 spinning.
-@return	TRUE if success */
+@return TRUE if success */
 UNIV_INLINE
 ibool
 rw_lock_s_lock_low(
@@ -349,7 +347,7 @@ rw_lock_s_lock_func(
 NOTE! Use the corresponding macro, not directly this function! Lock an
 rw-lock in exclusive mode for the current thread if the lock can be
 obtained immediately.
-@return	TRUE if success */
+@return TRUE if success */
 UNIV_INLINE
 ibool
 rw_lock_x_lock_func_nowait(
@@ -415,7 +413,7 @@ rw_lock_x_lock_move_ownership(
 /******************************************************************//**
 Returns the value of writer_count for the lock. Does not reserve the lock
 mutex, so the caller must be sure it is not changed during the call.
-@return	value of writer_count */
+@return value of writer_count */
 UNIV_INLINE
 ulint
 rw_lock_get_x_lock_count(
@@ -423,7 +421,7 @@ rw_lock_get_x_lock_count(
 	const rw_lock_t*	lock);	/*!< in: rw-lock */
 /********************************************************************//**
 Check if there are threads waiting for the rw-lock.
-@return	1 if waiters, 0 otherwise */
+@return 1 if waiters, 0 otherwise */
 UNIV_INLINE
 ulint
 rw_lock_get_waiters(
@@ -432,7 +430,7 @@ rw_lock_get_waiters(
 /******************************************************************//**
 Returns the write-status of the lock - this function made more sense
 with the old rw_lock implementation.
-@return	RW_LOCK_NOT_LOCKED, RW_LOCK_EX, RW_LOCK_WAIT_EX */
+@return RW_LOCK_NOT_LOCKED, RW_LOCK_EX, RW_LOCK_WAIT_EX */
 UNIV_INLINE
 ulint
 rw_lock_get_writer(
@@ -440,7 +438,7 @@ rw_lock_get_writer(
 	const rw_lock_t*	lock);	/*!< in: rw-lock */
 /******************************************************************//**
 Returns the number of readers.
-@return	number of readers */
+@return number of readers */
 UNIV_INLINE
 ulint
 rw_lock_get_reader_count(
@@ -449,7 +447,7 @@ rw_lock_get_reader_count(
 /******************************************************************//**
 Decrements lock_word the specified amount if it is greater than 0.
 This is used by both s_lock and x_lock operations.
-@return	TRUE if decr occurs */
+@return TRUE if decr occurs */
 UNIV_INLINE
 ibool
 rw_lock_lock_word_decr(
@@ -458,7 +456,7 @@ rw_lock_lock_word_decr(
 	ulint		amount);	/*!< in: amount to decrement */
 /******************************************************************//**
 Increments lock_word the specified amount and returns new value.
-@return	lock->lock_word after increment */
+@return lock->lock_word after increment */
 UNIV_INLINE
 lint
 rw_lock_lock_word_incr(
@@ -521,7 +519,7 @@ rw_lock_list_print_info(
 /***************************************************************//**
 Returns the number of currently locked rw-locks.
 Works only in the debug version.
-@return	number of locked rw-locks */
+@return number of locked rw-locks */
 
 ulint
 rw_lock_n_locked(void);

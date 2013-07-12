@@ -35,6 +35,7 @@
                                      THR_LOCK_INFO */
 #include "opt_trace_context.h"    /* Opt_trace_context */
 #include "rpl_gtid.h"
+#include "dur_prop.h"
 
 #include <pfs_stage_provider.h>
 #include <mysql/psi/mysql_stage.h>
@@ -96,7 +97,9 @@ enum enum_rbr_exec_mode { RBR_EXEC_MODE_STRICT,
                           RBR_EXEC_MODE_IDEMPOTENT,
                           RBR_EXEC_MODE_LAST_BIT };
 enum enum_slave_type_conversions { SLAVE_TYPE_CONVERSIONS_ALL_LOSSY,
-                                   SLAVE_TYPE_CONVERSIONS_ALL_NON_LOSSY};
+                                   SLAVE_TYPE_CONVERSIONS_ALL_NON_LOSSY,
+                                   SLAVE_TYPE_CONVERSIONS_ALL_UNSIGNED,
+                                   SLAVE_TYPE_CONVERSIONS_ALL_SIGNED};
 enum enum_slave_rows_search_algorithms { SLAVE_ROWS_TABLE_SCAN = (1U << 0),
                                          SLAVE_ROWS_INDEX_SCAN = (1U << 1),
                                          SLAVE_ROWS_HASH_SCAN  = (1U << 2)};
@@ -902,7 +905,7 @@ public:
     survive COMMIT or ROLLBACK. Currently all but MyISAM cursors are closed.
     CURRENTLY NOT IMPLEMENTED!
   */
-  void close_transient_cursors();
+  void close_transient_cursors() { }
   void erase(Statement *statement);
   /* Erase all statements (calls Statement destructor) */
   void reset();
@@ -1770,6 +1773,7 @@ my_micro_time_to_timeval(ulonglong micro_time, struct timeval *tm)
   tm->tv_usec= (long) (micro_time % 1000000);
 }
 
+class Modification_plan;
 /**
   @class THD
   For each client connection we create a separate thread with THD serving as
@@ -1853,6 +1857,19 @@ public:
   */
   mysql_mutex_t LOCK_thd_data;
 
+  /**
+    Protects query plan (SELECT/UPDATE/DELETE's) from being freed/changed
+    while another thread explains it. Following structures are protected by
+    this mutex:
+      THD::Query_plan
+      Modification_plan
+      SELECT_LEX::join
+      JOIN::plan_state
+      Tree of SELECT_LEX_UNIT after THD::Query_plan was set till
+        THD::Query_plan cleanup
+  */
+  mysql_mutex_t LOCK_query_plan;
+
   /* all prepared statements and cursors of this connection */
   Statement_map stmt_map;
   /*
@@ -1895,6 +1912,76 @@ public:
     allocated) strings, which memory won't go away over time.
   */
   const char *proc_info;
+
+  /**
+     Query plan for EXPLAINable commands, should be locked with
+     LOCK_query_plan before using.
+  */
+  class Query_plan
+  {
+  private:
+    THD *const thd;
+    /// Original sql_command;
+    enum_sql_command sql_command;
+    /// LEX of topmost statement
+    LEX *lex;
+    /// Query plan for UPDATE/DELETE/INSERT/REPLACE
+    const Modification_plan *modification_plan;
+    /// True if query is run in prepared statement
+    bool is_ps;
+
+  public:
+    Query_plan(THD *thd_arg) : thd(thd_arg), sql_command(SQLCOM_END),
+      modification_plan(NULL)
+    {}
+    explicit Query_plan(const Query_plan&); ///< not defined
+    Query_plan& operator=(const Query_plan&); ///< not defined
+    /**
+      Set query plan.
+
+      @note This function takes THD::LOCK_query_plan mutex.
+    */
+    void set_query_plan(enum_sql_command sql_cmd, LEX *lex_arg, bool ps);
+    /**
+      Change current command.
+
+      @details This function is needed for single UPDATE statement, for which
+      after opening tables we can find out that the statement have to be
+      converted multi UPDATE.
+
+      @note This function takes THD::LOCK_query_plan mutex.
+    */
+    void set_command(enum_sql_command sql_cmd);
+    /*
+      5 functions below expect THD::LOCK_query_plan to be already taken by a
+      caller.
+    */
+    enum_sql_command get_command() const
+    {
+      mysql_mutex_assert_owner(&thd->LOCK_query_plan);
+      return sql_command;
+    }
+    LEX *get_lex() const
+    {
+      mysql_mutex_assert_owner(&thd->LOCK_query_plan);
+      return lex;
+    }
+    Modification_plan const *get_plan()
+    {
+      mysql_mutex_assert_owner(&thd->LOCK_query_plan);
+      return modification_plan;
+    }
+    bool is_ps_query() const
+    {
+      mysql_mutex_assert_owner(&thd->LOCK_query_plan);
+      return is_ps;
+    }
+    void set_modification_plan(Modification_plan *plan_arg)
+    {
+      mysql_mutex_assert_owner(&thd->LOCK_query_plan);
+      modification_plan= plan_arg;
+    }
+  } query_plan;
 
 private:
   unsigned int m_current_stage_key;
@@ -3269,16 +3356,31 @@ public:
   { return get_stmt_da()->stacked_da(); }
 
   /**
+    Returns thread-local Diagnostics Area for parsing.
+    We need to have a clean DA in case errors or warnings are thrown
+    during parsing, but we can't just reset the main DA in case we
+    have a diagnostic statement on our hand that needs the old DA
+    to answer questions about the previous execution.
+    Keeping a static per-thread DA for parsing is less costly than
+    allocating a temporary one for each statement we parse.
+  */
+  Diagnostics_area *get_parser_da()
+  { return &m_parser_da; }
+
+  /**
     Push the given Diagnostics Area on top of the stack, making
     it the new first Diagnostics Area. Conditions in the new second
     Diagnostics Area will be copied to the new first Diagnostics Area.
 
     @param da   Diagnostics Area to be come the top of
                 the Diagnostics Area stack.
+    @param copy_conditions
+                Copy the conditions from the new second Diagnostics Area
+                to the new first Diagnostics Area, as per SQL standard.
   */
-  void push_diagnostics_area(Diagnostics_area *da)
+  void push_diagnostics_area(Diagnostics_area *da, bool copy_conditions= true)
   {
-    get_stmt_da()->push_diagnostics_area(this, da);
+    get_stmt_da()->push_diagnostics_area(this, da, copy_conditions);
     m_stmt_da= da;
   }
 
@@ -3810,6 +3912,7 @@ private:
   */
   MEM_ROOT main_mem_root;
   Diagnostics_area main_da;
+  Diagnostics_area m_parser_da;              /**< cf. get_parser_da() */
   Diagnostics_area *m_stmt_da;
 
   /**
@@ -3912,11 +4015,28 @@ my_eof(THD *thd)
 
 #define reenable_binlog(A)   (A)->variables.option_bits= tmp_disable_binlog__save_options;}
 
-
 LEX_STRING *
 make_lex_string_root(MEM_ROOT *mem_root,
                      LEX_STRING *lex_str, const char* str, uint length,
                      bool allocate_lex_string);
+
+inline LEX_STRING *lex_string_copy(MEM_ROOT *root, LEX_STRING *dst,
+                                   const char *src, uint src_len)
+{
+  return make_lex_string_root(root, dst, src, src_len, false);
+}
+
+inline LEX_STRING *lex_string_copy(MEM_ROOT *root, LEX_STRING *dst,
+                                   const LEX_STRING &src)
+{
+  return make_lex_string_root(root, dst, src.str, src.length, false);
+}
+
+inline LEX_STRING *lex_string_copy(MEM_ROOT *root, LEX_STRING *dst,
+                                   const char *src)
+{
+  return make_lex_string_root(root, dst, src, strlen(src), false);
+}
 
 /*
   Used to hold information about file and file structure in exchange
@@ -4322,7 +4442,20 @@ public:
   uint  hidden_field_count;
   uint	group_parts,group_length,group_null_parts;
   uint	quick_group;
-  bool  using_indirect_summary_function;
+  /**
+    Number of outer_sum_funcs i.e the number of set functions that are
+    aggregated in a query block outer to this subquery.
+
+    @see count_field_types
+  */
+  uint  outer_sum_func_count;
+  /**
+    Enabled when we have atleast one outer_sum_func. Needed when used
+    along with distinct.
+
+    @see create_tmp_table
+  */
+  bool  using_outer_summary_function;
   CHARSET_INFO *table_charset; 
   bool schema_table;
   /*
@@ -4349,8 +4482,8 @@ public:
 
   TMP_TABLE_PARAM()
     :copy_field(0), copy_field_end(0), group_parts(0),
-     group_length(0), group_null_parts(0),
-     using_indirect_summary_function(0),
+     group_length(0), group_null_parts(0), outer_sum_func_count(0),
+     using_outer_summary_function(0),
      schema_table(0), precomputed_group_by(0), force_copy_fields(0),
      skip_create_table(FALSE), bit_fields_as_long(0)
   {}
@@ -4577,13 +4710,14 @@ class user_var_entry
   /**
     Initialize all members
     @param name - Name of the user_var_entry instance.
+    @cs         - charset information of the user_var_entry instance.
   */
-  void init(const Simple_cstring &name)
+  void init(const Simple_cstring &name, const CHARSET_INFO *cs)
   {
     copy_name(name);
     reset_value();
     update_query_id= 0;
-    collation.set(NULL, DERIVATION_IMPLICIT, 0);
+    collation.set(cs, DERIVATION_IMPLICIT, 0);
     unsigned_flag= 0;
     /*
       If we are here, we were called from a SET or a query which sets a
@@ -4653,11 +4787,12 @@ public:
   /**
     Allocate and initialize a user variable instance.
     @param namec  Name of the variable.
+    @param cs     Charset of the variable.
     @return
     @retval  Address of the allocated and initialized user_var_entry instance.
     @retval  NULL on allocation error.
   */
-  static user_var_entry *create(const Name_string &name)
+  static user_var_entry *create(const Name_string &name, const CHARSET_INFO *cs)
   {
     user_var_entry *entry;
     uint size= ALIGN_SIZE(sizeof(user_var_entry)) +
@@ -4665,7 +4800,7 @@ public:
     if (!(entry= (user_var_entry*) my_malloc(size, MYF(MY_WME |
                                                        ME_FATALERROR))))
       return NULL;
-    entry->init(name);
+    entry->init(name, cs);
     return entry;
   }
 
@@ -5008,7 +5143,7 @@ void mark_transaction_to_rollback(THD *thd, bool all);
 
 inline bool add_item_to_list(THD *thd, Item *item)
 {
-  return thd->lex->current_select->add_item_to_list(thd, item);
+  return thd->lex->current_select()->add_item_to_list(thd, item);
 }
 
 inline bool add_value_to_list(THD *thd, Item *value)
@@ -5018,18 +5153,20 @@ inline bool add_value_to_list(THD *thd, Item *value)
 
 inline bool add_order_to_list(THD *thd, Item *item, bool asc)
 {
-  return thd->lex->current_select->add_order_to_list(thd, item, asc);
+  return thd->lex->current_select()->add_order_to_list(thd, item, asc);
 }
 
 inline bool add_gorder_to_list(THD *thd, Item *item, bool asc)
 {
-  return thd->lex->current_select->add_gorder_to_list(thd, item, asc);
+  return thd->lex->current_select()->add_gorder_to_list(thd, item, asc);
 }
 
 inline bool add_group_to_list(THD *thd, Item *item, bool asc)
 {
-  return thd->lex->current_select->add_group_to_list(thd, item, asc);
+  return thd->lex->current_select()->add_group_to_list(thd, item, asc);
 }
+
+/*************************************************************************/
 
 #endif /* MYSQL_SERVER */
 

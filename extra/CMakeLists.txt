@@ -1,4 +1,4 @@
-# Copyright (c) 2006, 2012, Oracle and/or its affiliates. All rights reserved.
+# Copyright (c) 2006, 2013, Oracle and/or its affiliates. All rights reserved.
 # 
 # This program is free software; you can redistribute it and/or modify
 # it under the terms of the GNU General Public License as published by
@@ -85,7 +85,7 @@ TARGET_LINK_LIBRARIES(replace mysys)
 
 IF(WITH_INNOBASE_STORAGE_ENGINE)
   # Add path to the InnoDB headers
-  INCLUDE_DIRECTORIES(${CMAKE_SOURCE_DIR}/storage/innobase/include)
+  INCLUDE_DIRECTORIES(${CMAKE_SOURCE_DIR}/storage/innobase/include ${CMAKE_SOURCE_DIR}/sql)
   # We use the InnoDB code directly in case the code changes.
   ADD_DEFINITIONS("-DUNIV_INNOCHECKSUM")
   SET(INNOBASE_SOURCES
@@ -96,16 +96,9 @@ IF(WITH_INNOBASE_STORAGE_ENGINE)
       ../storage/innobase/page/page0zip.cc
      )
 
-  ADD_VERSION_INFO(innochecksum EXECUTABLE INNOBASE_SOURCES)
-  ADD_EXECUTABLE(innochecksum innochecksum.cc ${INNOBASE_SOURCES})
+  MYSQL_ADD_EXECUTABLE(innochecksum innochecksum.cc ${INNOBASE_SOURCES})
   TARGET_LINK_LIBRARIES(innochecksum mysys mysys_ssl)
-
-  IF(WITH_VALGRIND)
-    MYSQL_INSTALL_TARGETS(innochecksum DESTINATION ${INSTALL_BINDIR})
-  ENDIF()
-  # Note that this will overwrite the non debug "innochecksum" with the
-  # debug one
-  INSTALL_DEBUG_TARGET(innochecksum DESTINATION ${INSTALL_BINDIR})
+  ADD_DEPENDENCIES(innochecksum GenError)
 ENDIF()
 
 IF(UNIX)

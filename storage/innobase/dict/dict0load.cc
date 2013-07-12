@@ -24,15 +24,14 @@ from dictionary tables
 Created 4/24/1996 Heikki Tuuri
 *******************************************************/
 
-#include "dict0load.h"
-#include "mysql_version.h"
+#include "ha_prototypes.h"
 
+#include "dict0load.h"
 #ifdef UNIV_NONINL
 #include "dict0load.ic"
 #endif
 
-#include "ha_prototypes.h" /* innobase_casedn_str() */
-
+#include "mysql_version.h"
 #include "btr0pcur.h"
 #include "btr0btr.h"
 #include "page0page.h"
@@ -99,7 +98,7 @@ my_bool     srv_load_corrupted = FALSE;
 #ifdef UNIV_DEBUG
 /****************************************************************//**
 Compare the name of an index column.
-@return	TRUE if the i'th column of index is 'name'. */
+@return TRUE if the i'th column of index is 'name'. */
 static
 ibool
 name_of_col_is(
@@ -263,7 +262,7 @@ dict_print(void)
 
 /********************************************************************//**
 This function gets the next system table record as it scans the table.
-@return	the next record if found, NULL if end of scan */
+@return the next record if found, NULL if end of scan */
 static
 const rec_t*
 dict_getnext_system_low(
@@ -295,7 +294,7 @@ dict_getnext_system_low(
 
 /********************************************************************//**
 This function opens a system table, and returns the first record.
-@return	first record of the system table */
+@return first record of the system table */
 
 const rec_t*
 dict_startscan_system(
@@ -325,7 +324,7 @@ dict_startscan_system(
 
 /********************************************************************//**
 This function gets the next system table record as it scans the table.
-@return	the next record if found, NULL if end of scan */
+@return the next record if found, NULL if end of scan */
 
 const rec_t*
 dict_getnext_system(
@@ -763,7 +762,7 @@ err_len:
 
 /********************************************************************//**
 Determine the flags of a table as stored in SYS_TABLES.TYPE and N_COLS.
-@return  ULINT_UNDEFINED if error, else a valid dict_table_t::flags. */
+@return ULINT_UNDEFINED if error, else a valid dict_table_t::flags. */
 static
 ulint
 dict_sys_tables_get_flags(
@@ -812,7 +811,7 @@ We use a temporary heap here for the table lookup, but not for the path
 returned which the caller must free.
 This function can return NULL if the space ID is not found in SYS_DATAFILES,
 then the caller will assume that the ibd file is in the normal datadir.
-@return	own: A copy of the first datafile found in SYS_DATAFILES.PATH for
+@return own: A copy of the first datafile found in SYS_DATAFILES.PATH for
 the given space ID. NULL if space ID is zero or not found. */
 
 char*
@@ -883,7 +882,7 @@ dict_get_first_path(
 
 /********************************************************************//**
 Update the record for space_id in SYS_TABLESPACES to this filepath.
-@return	DB_SUCCESS if OK, dberr_t if the insert failed */
+@return DB_SUCCESS if OK, dberr_t if the insert failed */
 
 dberr_t
 dict_update_filepath(
@@ -940,7 +939,7 @@ dict_update_filepath(
 
 /********************************************************************//**
 Insert records into SYS_TABLESPACES and SYS_DATAFILES.
-@return	DB_SUCCESS if OK, dberr_t if the insert failed */
+@return DB_SUCCESS if OK, dberr_t if the insert failed */
 
 dberr_t
 dict_insert_tablespace_and_filepath(
@@ -1103,7 +1102,7 @@ loop:
 
 		bool		is_temp = false;
 		bool		discarded = false;
-		ib_uint32_t	flags2 = mach_read_from_4(field);
+		ib_uint32_t	flags2 = (ib_uint32_t) mach_read_from_4(field);
 
 		/* Check that the tablespace (the .ibd file) really
 		exists; print a warning to the .err log if not.
@@ -1178,7 +1177,7 @@ loop:
 
 			if (err != DB_SUCCESS) {
 				ib_logf(IB_LOG_LEVEL_ERROR,
-					"Tablespace open failed for '%s', "
+					"Tablespace open failed for %s, "
 					"ignored.", table_name);
 			}
 
@@ -2433,7 +2432,7 @@ err_exit:
 	} else if (table->flags2 & DICT_TF2_DISCARDED) {
 
 		ib_logf(IB_LOG_LEVEL_WARN,
-			"Table '%s' tablespace is set as discarded.",
+			"Table %s tablespace is set as discarded.",
 			table_name);
 
 		table->ibd_file_missing = TRUE;
@@ -2449,7 +2448,7 @@ err_exit:
 			if (!(ignore_err & DICT_ERR_IGNORE_RECOVER_LOCK)) {
 				ib_logf(IB_LOG_LEVEL_ERROR,
 					"Failed to find tablespace for "
-					"table '%s' in the cache. "
+					"table %s in the cache. "
 					"Attempting to load the tablespace "
 					"with space id %lu.",
 					table_name, (ulong) table->space);
@@ -2611,7 +2610,7 @@ func_exit:
 
 /***********************************************************************//**
 Loads a table object based on the table id.
-@return	table; NULL if table does not exist */
+@return table; NULL if table does not exist */
 
 dict_table_t*
 dict_load_table_on_id(
@@ -2852,7 +2851,7 @@ dict_load_foreign_cols(
 /***********************************************************************//**
 Loads a foreign key constraint to the dictionary cache. If the referenced
 table is not yet loaded, it is added in the output parameter (fk_tables).
-@return	DB_SUCCESS or error code */
+@return DB_SUCCESS or error code */
 static __attribute__((nonnull(1), warn_unused_result))
 dberr_t
 dict_load_foreign(
@@ -3027,7 +3026,7 @@ The foreign key constraint is loaded only if the referenced table is also
 in the dictionary cache.  If the referenced table is not in dictionary
 cache, then it is added to the output parameter (fk_tables).
 
-@return	DB_SUCCESS or error code */
+@return DB_SUCCESS or error code */
 
 dberr_t
 dict_load_foreigns(

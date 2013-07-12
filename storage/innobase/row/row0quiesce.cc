@@ -23,13 +23,14 @@ Quiesce a tablespace.
 Created 2012-02-08 by Sunny Bains.
 *******************************************************/
 
-#include "row0quiesce.h"
-#include "row0mysql.h"
+#include "ha_prototypes.h"
 
+#include "row0quiesce.h"
 #ifdef UNIV_NONINL
 #include "row0quiesce.ic"
 #endif
 
+#include "row0mysql.h"
 #include "ibuf0ibuf.h"
 #include "srv0start.h"
 #include "trx0purge.h"
@@ -72,7 +73,7 @@ row_quiesce_write_index_fields(
 		}
 
 		/* Include the NUL byte in the length. */
-		ib_uint32_t	len = strlen(field->name) + 1;
+		ib_uint32_t len = (ib_uint32_t) strlen(field->name) + 1;
 		ut_a(len > 1);
 
 		mach_write_to_4(row, len);
@@ -181,7 +182,7 @@ row_quiesce_write_indexes(
 
 		/* Write the length of the index name.
 		NUL byte is included in the length. */
-		ib_uint32_t	len = strlen(index->name) + 1;
+		ib_uint32_t len = (ib_uint32_t) strlen(index->name) + 1;
 		ut_a(len > 1);
 
 		mach_write_to_4(row, len);
@@ -268,7 +269,7 @@ row_quiesce_write_table(
 		col_name = dict_table_get_col_name(table, dict_col_get_no(col));
 
 		/* Include the NUL byte in the length. */
-		len = strlen(col_name) + 1;
+		len = (ib_uint32_t) strlen(col_name) + 1;
 		ut_a(len > 1);
 
 		mach_write_to_4(row, len);
@@ -334,7 +335,7 @@ row_quiesce_write_header(
 	}
 
 	/* The server hostname includes the NUL byte. */
-	len = strlen(hostname) + 1;
+	len = (ib_uint32_t) strlen(hostname) + 1;
 	mach_write_to_4(value, len);
 
 	DBUG_EXECUTE_IF("ib_export_io_write_failure_5", close(fileno(file)););
@@ -352,7 +353,7 @@ row_quiesce_write_header(
 
 	/* The table name includes the NUL byte. */
 	ut_a(table->name != 0);
-	len = strlen(table->name) + 1;
+	len = (ib_uint32_t) strlen(table->name) + 1;
 
 	/* Write the table name. */
 	mach_write_to_4(value, len);

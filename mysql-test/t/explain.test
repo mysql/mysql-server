@@ -122,6 +122,11 @@ prepare s1 from
 execute s1;
 
 prepare s1 from 
+'EXPLAIN FORMAT=JSON SELECT 1  
+ FROM (SELECT COUNT(DISTINCT t1.a) FROM t1,t2 GROUP BY t1.a) AS s1';
+execute s1;
+
+prepare s1 from 
 'EXPLAIN EXTENDED SELECT 1  
  FROM (SELECT COUNT(DISTINCT t1.a) FROM t1,t2 GROUP BY t1.a) AS s1';
 execute s1;
@@ -148,6 +153,10 @@ CREATE TABLE t1(a LONGTEXT);
 INSERT INTO t1 VALUES (repeat('a',@@global.max_allowed_packet));
 INSERT INTO t1 VALUES (repeat('b',@@global.max_allowed_packet));
 --error ER_BAD_FIELD_ERROR
+EXPLAIN SELECT DISTINCT 1 FROM t1,
+        (SELECT a AS away FROM t1 GROUP BY a WITH ROLLUP) as d1
+         WHERE t1.a = d1.a;
+--error ER_WRONG_USAGE
 EXPLAIN SELECT DISTINCT 1 FROM t1,
         (SELECT DISTINCTROW a AS away FROM t1 GROUP BY a WITH ROLLUP) as d1
          WHERE t1.a = d1.a;
@@ -395,6 +404,9 @@ INSERT INTO t2 VALUES (3),(4),(5);
 # LIMIT <offset> is for SELECT, not for EXPLAIN OUTPUT:
 --echo # EXPLAIN must return 3 rows:
 EXPLAIN SELECT SQL_CALC_FOUND_ROWS * FROM t1 UNION SELECT * FROM t2 LIMIT 2,2;
+
+EXPLAIN REPLACE INTO t1 VALUES (10);
+EXPLAIN REPLACE INTO t1 SELECT * FROM t2;
 
 DROP TABLE t1, t2;
 

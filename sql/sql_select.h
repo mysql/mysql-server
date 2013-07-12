@@ -77,7 +77,7 @@ public:
   key(key_arg), keypart(keypart_arg), optimize(optimize_arg),
   keypart_map(keypart_map_arg), ref_table_rows(ref_table_rows_arg),
   null_rejecting(null_rejecting_arg), cond_guard(cond_guard_arg),
-  sj_pred_no(sj_pred_no_arg)
+  sj_pred_no(sj_pred_no_arg), bound_keyparts(0), rowcount(0), cost(0)
   {}
   TABLE *table;            ///< table owning the index
   Item	*val;              ///< other side of the equality, or value if no field
@@ -114,8 +114,35 @@ public:
 
      Not used if the index is fulltext (such index cannot be used for
      semijoin).
+
+     @see get_semi_join_select_list_index()
   */
   uint         sj_pred_no;
+
+  /*
+    The three members below are different from the rest of Key_use: they are
+    set only by Optimize_table_order, and they change with the currently
+    considered join prefix.
+  */
+
+  /**
+     The key columns which are equal to expressions depending only of earlier
+     tables of the current join prefix.
+     This information is stored only in the first Key_use of the index.
+  */
+  key_part_map bound_keyparts;
+  /**
+     Fanout of the ref access path for this index, in the current join
+     prefix.
+     This information is stored only in the first Key_use of the index.
+  */
+  double rowcount;
+  /**
+     Cost of the ref access path for this index, in the current join
+     prefix.
+     This information is stored only in the first Key_use of the index.
+  */
+  double cost;
 };
 
 
@@ -652,12 +679,10 @@ public:
   enum quick_type use_quick;
   enum join_type type;
   bool          not_used_in_distinct;
-  /* 
-    If it's not 0 the number stored this field indicates that the index
-    scan has been chosen to access the table data and we expect to scan 
-    this number of rows for the table.
-  */ 
-  ha_rows       limit; 
+  /**
+     Estimated number of rows read from the table per nested-loop iteration.
+  */
+  ha_rows       rowcount;
   TABLE_REF	ref;
   /**
     Join buffering strategy.
@@ -768,6 +793,9 @@ public:
 
   /** TRUE <=> remove duplicates on this table. */
   bool distinct;
+
+  /** TRUE <=> only index is going to be read for this table */
+  bool use_keyread;
 
   /** Clean up associated table after query execution, including resources */
   void cleanup();
@@ -938,7 +966,7 @@ st_join_table::st_join_table()
     type(JT_UNKNOWN),
     not_used_in_distinct(false),
 
-    limit(0),
+    rowcount(0),
     ref(),
     use_join_cache(0),
     op(NULL),
@@ -969,7 +997,8 @@ st_join_table::st_join_table()
     ref_array(NULL),
     send_records(0),
     having(NULL),
-    distinct(false)
+    distinct(false),
+    use_keyread(false)
 {
   /**
     @todo Add constructor to READ_RECORD.
@@ -1294,7 +1323,8 @@ public:
                     null_ptr_arg, length, item_arg), inited(0)
   {
   }
-  const char *name() const { return "const"; }
+  static const char static_name[]; ///< used out of this class
+  const char *name() const { return static_name; }
 
 protected:  
   enum store_key_result copy_inner()
@@ -1313,6 +1343,13 @@ protected:
 bool error_if_full_join(JOIN *join);
 bool handle_select(THD *thd, select_result *result,
                    ulong setup_tables_done_option);
+bool mysql_prepare_and_optimize_select(THD *thd,
+                  TABLE_LIST *tables, uint wild_num,  List<Item> &list,
+                  Item *conds, SQL_I_List<ORDER> *order,
+                  SQL_I_List<ORDER> *group,
+                  Item *having, ulonglong select_type, 
+                  select_result *result, SELECT_LEX_UNIT *unit, 
+                  SELECT_LEX *select_lex, bool *free_join);
 bool mysql_select(THD *thd,
                   TABLE_LIST *tables, uint wild_num,  List<Item> &list,
                   Item *conds, SQL_I_List<ORDER> *order,
@@ -1355,5 +1392,8 @@ static inline Item * and_items(Item* cond, Item *item)
 
 uint actual_key_parts(KEY *key_info);
 uint actual_key_flags(KEY *key_info);
+
+int test_if_order_by_key(ORDER *order, TABLE *table, uint idx,
+                         uint *used_key_parts= NULL);
 
 #endif /* SQL_SELECT_INCLUDED */

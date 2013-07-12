@@ -23,13 +23,13 @@ Insert into a table
 Created 4/20/1996 Heikki Tuuri
 *******************************************************/
 
+#include "ha_prototypes.h"
+
 #include "row0ins.h"
 
 #ifdef UNIV_NONINL
 #include "row0ins.ic"
 #endif
-
-#include "ha_prototypes.h"
 
 #include "dict0dict.h"
 #include "dict0boot.h"
@@ -65,7 +65,7 @@ introduced where a call to log_free_check() is bypassed. */
 
 /*********************************************************************//**
 Creates an insert node struct.
-@return	own: insert node struct */
+@return own: insert node struct */
 
 ins_node_t*
 ins_node_create(
@@ -221,7 +221,7 @@ ins_node_set_new_row(
 Does an insert operation by updating a delete-marked existing record
 in the index. This situation can occur if the delete-marked record is
 kept in the index for consistent reads.
-@return	DB_SUCCESS or error code */
+@return DB_SUCCESS or error code */
 static __attribute__((nonnull, warn_unused_result))
 dberr_t
 row_ins_sec_index_entry_by_modify(
@@ -316,7 +316,7 @@ row_ins_sec_index_entry_by_modify(
 Does an insert operation by delete unmarking and updating a delete marked
 existing record in the index. This situation can occur if the delete marked
 record is kept in the index for consistent reads.
-@return	DB_SUCCESS, DB_FAIL, or error code */
+@return DB_SUCCESS, DB_FAIL, or error code */
 static __attribute__((nonnull, warn_unused_result))
 dberr_t
 row_ins_clust_index_entry_by_modify(
@@ -394,7 +394,7 @@ row_ins_clust_index_entry_by_modify(
 /*********************************************************************//**
 Returns TRUE if in a cascaded update/delete an ancestor node of node
 updates (not DELETE, but UPDATE) table.
-@return	TRUE if an ancestor updates table */
+@return TRUE if an ancestor updates table */
 static
 ibool
 row_ins_cascade_ancestor_updates_table(
@@ -424,7 +424,7 @@ row_ins_cascade_ancestor_updates_table(
 /*********************************************************************//**
 Returns the number of ancestor UPDATE or DELETE nodes of a
 cascaded update/delete node.
-@return	number of ancestors */
+@return number of ancestors */
 static __attribute__((nonnull, warn_unused_result))
 ulint
 row_ins_cascade_n_ancestors(
@@ -924,7 +924,7 @@ row_ins_invalidate_query_cache(
 Perform referential actions or checks when a parent row is deleted or updated
 and the constraint had an ON DELETE or ON UPDATE condition which was not
 RESTRICT.
-@return	DB_SUCCESS, DB_LOCK_WAIT, or error code */
+@return DB_SUCCESS, DB_LOCK_WAIT, or error code */
 static __attribute__((nonnull, warn_unused_result))
 dberr_t
 row_ins_foreign_check_on_constraint(
@@ -1313,7 +1313,7 @@ nonstandard_exit_func:
 /*********************************************************************//**
 Sets a shared lock on a record. Used in locking possible duplicate key
 records and also in checking foreign key constraints.
-@return	DB_SUCCESS, DB_SUCCESS_LOCKED_REC, or error code */
+@return DB_SUCCESS, DB_SUCCESS_LOCKED_REC, or error code */
 static
 dberr_t
 row_ins_set_shared_rec_lock(
@@ -1344,7 +1344,7 @@ row_ins_set_shared_rec_lock(
 /*********************************************************************//**
 Sets a exclusive lock on a record. Used in locking possible duplicate key
 records
-@return	DB_SUCCESS, DB_SUCCESS_LOCKED_REC, or error code */
+@return DB_SUCCESS, DB_SUCCESS_LOCKED_REC, or error code */
 static
 dberr_t
 row_ins_set_exclusive_rec_lock(
@@ -1388,7 +1388,7 @@ private:
 Checks if foreign key constraint fails for an index entry. Sets shared locks
 which lock either the success or the failure of the constraint. NOTE that
 the caller must have a shared latch on dict_operation_lock.
-@return	DB_SUCCESS, DB_NO_REFERENCED_ROW, or DB_ROW_IS_REFERENCED */
+@return DB_SUCCESS, DB_NO_REFERENCED_ROW, or DB_ROW_IS_REFERENCED */
 
 dberr_t
 row_ins_check_foreign_constraint(
@@ -1754,7 +1754,7 @@ is not mentioned in any constraint, this function does nothing,
 Otherwise does searches to the indexes of referenced tables and
 sets shared locks which lock either the success or the failure of
 a constraint.
-@return	DB_SUCCESS or error code */
+@return DB_SUCCESS or error code */
 static __attribute__((nonnull, warn_unused_result))
 dberr_t
 row_ins_check_foreign_constraints(
@@ -1829,7 +1829,7 @@ row_ins_check_foreign_constraints(
 /***************************************************************//**
 Checks if a unique key violation to rec would occur at the index entry
 insert.
-@return	TRUE if error */
+@return TRUE if error */
 static
 ibool
 row_ins_dupl_error_with_rec(
@@ -1842,7 +1842,6 @@ row_ins_dupl_error_with_rec(
 	const ulint*	offsets)/*!< in: rec_get_offsets(rec, index) */
 {
 	ulint	matched_fields;
-	ulint	matched_bytes;
 	ulint	n_unique;
 	ulint	i;
 
@@ -1851,10 +1850,8 @@ row_ins_dupl_error_with_rec(
 	n_unique = dict_index_get_n_unique(index);
 
 	matched_fields = 0;
-	matched_bytes = 0;
 
-	cmp_dtuple_rec_with_match(entry, rec, offsets,
-				  &matched_fields, &matched_bytes);
+	cmp_dtuple_rec_with_match(entry, rec, offsets, &matched_fields);
 
 	if (matched_fields < n_unique) {
 
@@ -1881,7 +1878,7 @@ row_ins_dupl_error_with_rec(
 Scans a unique non-clustered index at a given index entry to determine
 whether a uniqueness violation has occurred for the key value of the entry.
 Set shared locks on possible duplicate records.
-@return	DB_SUCCESS, DB_DUPLICATE_KEY, or DB_LOCK_WAIT */
+@return DB_SUCCESS, DB_DUPLICATE_KEY, or DB_LOCK_WAIT */
 static __attribute__((nonnull, warn_unused_result))
 dberr_t
 row_ins_scan_sec_index_for_duplicate(
@@ -2030,10 +2027,10 @@ end_scan:
 }
 
 /** Checks for a duplicate when the table is being rebuilt online.
-@retval DB_SUCCESS		when no duplicate is detected
-@retval DB_SUCCESS_LOCKED_REC	when rec is an exact match of entry or
+@retval DB_SUCCESS when no duplicate is detected
+@retval DB_SUCCESS_LOCKED_REC when rec is an exact match of entry or
 a newer version of entry (the entry should not be inserted)
-@retval DB_DUPLICATE_KEY	when entry is a duplicate of rec */
+@retval DB_DUPLICATE_KEY when entry is a duplicate of rec */
 static __attribute__((nonnull, warn_unused_result))
 dberr_t
 row_ins_duplicate_online(
@@ -2044,7 +2041,6 @@ row_ins_duplicate_online(
 	ulint*		offsets)/*!< in/out: rec_get_offsets(rec) */
 {
 	ulint	fields	= 0;
-	ulint	bytes	= 0;
 
 	/* During rebuild, there should not be any delete-marked rows
 	in the new table. */
@@ -2054,7 +2050,7 @@ row_ins_duplicate_online(
 	/* Compare the PRIMARY KEY fields and the
 	DB_TRX_ID, DB_ROLL_PTR. */
 	cmp_dtuple_rec_with_match_low(
-		entry, rec, offsets, n_uniq + 2, &fields, &bytes);
+		entry, rec, offsets, n_uniq + 2, &fields);
 
 	if (fields < n_uniq) {
 		/* Not a duplicate. */
@@ -2063,7 +2059,6 @@ row_ins_duplicate_online(
 
 	if (fields == n_uniq + 2) {
 		/* rec is an exact match of entry. */
-		ut_ad(bytes == 0);
 		return(DB_SUCCESS_LOCKED_REC);
 	}
 
@@ -2071,10 +2066,10 @@ row_ins_duplicate_online(
 }
 
 /** Checks for a duplicate when the table is being rebuilt online.
-@retval DB_SUCCESS		when no duplicate is detected
-@retval DB_SUCCESS_LOCKED_REC	when rec is an exact match of entry or
+@retval DB_SUCCESS when no duplicate is detected
+@retval DB_SUCCESS_LOCKED_REC when rec is an exact match of entry or
 a newer version of entry (the entry should not be inserted)
-@retval DB_DUPLICATE_KEY	when entry is a duplicate of rec */
+@retval DB_DUPLICATE_KEY when entry is a duplicate of rec */
 static __attribute__((nonnull, warn_unused_result))
 dberr_t
 row_ins_duplicate_error_in_clust_online(
@@ -2872,7 +2867,7 @@ Inserts an entry into a clustered index. Tries first optimistic,
 then pessimistic descent down the tree. If the entry matches enough
 to a delete marked record, performs the insert by updating or delete
 unmarking the delete marked record.
-@return	DB_SUCCESS, DB_LOCK_WAIT, DB_DUPLICATE_KEY, or some other error code */
+@return DB_SUCCESS, DB_LOCK_WAIT, DB_DUPLICATE_KEY, or some other error code */
 
 dberr_t
 row_ins_clust_index_entry(
@@ -2926,7 +2921,7 @@ Inserts an entry into a secondary index. Tries first optimistic,
 then pessimistic descent down the tree. If the entry matches enough
 to a delete marked record, performs the insert by updating or delete
 unmarking the delete marked record.
-@return	DB_SUCCESS, DB_LOCK_WAIT, DB_DUPLICATE_KEY, or some other error code */
+@return DB_SUCCESS, DB_LOCK_WAIT, DB_DUPLICATE_KEY, or some other error code */
 
 dberr_t
 row_ins_sec_index_entry(
@@ -2981,7 +2976,7 @@ Inserts an index entry to index. Tries first optimistic, then pessimistic
 descent down the tree. If the entry matches enough to a delete marked record,
 performs the insert by updating or delete unmarking the delete marked
 record.
-@return	DB_SUCCESS, DB_LOCK_WAIT, DB_DUPLICATE_KEY, or some other error code */
+@return DB_SUCCESS, DB_LOCK_WAIT, DB_DUPLICATE_KEY, or some other error code */
 static
 dberr_t
 row_ins_index_entry(
@@ -3243,7 +3238,7 @@ row_ins(
 /***********************************************************//**
 Inserts a row to a table. This is a high-level function used in SQL execution
 graphs.
-@return	query thread to run next or NULL */
+@return query thread to run next or NULL */
 
 que_thr_t*
 row_ins_step(

@@ -131,7 +131,7 @@ INSERT INTO t1(b,c) VALUES('D',2);
 --connection server_2
 let $wait_condition= SELECT COUNT(*)=3 FROM t1 WHERE a > 4;
 --let $server_connection= server_1
---source include/wait_condition.inc
+--source include/wait_condition_or_abort.inc
 
 --echo
 --echo * Data on servers (C failed) *

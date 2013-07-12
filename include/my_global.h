@@ -104,42 +104,9 @@
 #define F_TO_EOF 0x3FFFFFFF
 
 /* Shared memory and named pipe connections are supported. */
-#define HAVE_SMEM 1
-#define HAVE_NAMED_PIPE 1
 #define shared_memory_buffer_length 16000
 #define default_shared_memory_base_name "MYSQL"
 #endif /* _WIN32*/
-
-/*
-  The macros below are used to allow build of Universal/fat binaries of
-  MySQL and MySQL applications under darwin. 
-*/
-#if defined(__APPLE__) && defined(__MACH__)
-#  undef SIZEOF_CHARP 
-#  undef SIZEOF_SHORT 
-#  undef SIZEOF_INT 
-#  undef SIZEOF_LONG 
-#  undef SIZEOF_LONG_LONG 
-#  undef SIZEOF_OFF_T 
-#  undef WORDS_BIGENDIAN
-#  define SIZEOF_SHORT 2
-#  define SIZEOF_INT 4
-#  define SIZEOF_LONG_LONG 8
-#  define SIZEOF_OFF_T 8
-#  if defined(__i386__) || defined(__ppc__)
-#    define SIZEOF_CHARP 4
-#    define SIZEOF_LONG 4
-#  elif defined(__x86_64__) || defined(__ppc64__)
-#    define SIZEOF_CHARP 8
-#    define SIZEOF_LONG 8
-#  else
-#    error Building FAT binary for an unknown architecture.
-#  endif
-#  if defined(__ppc__) || defined(__ppc64__)
-#    define WORDS_BIGENDIAN
-#  endif
-#endif /* defined(__APPLE__) && defined(__MACH__) */
-
 
 /*
   The macros below are borrowed from include/linux/compiler.h in the
@@ -172,9 +139,6 @@
 #endif
 
 #define __EXTENSIONS__ 1	/* We want some extension */
-#ifndef __STDC_EXT__
-#define __STDC_EXT__ 1          /* To get large file support on hpux */
-#endif
 
 /*
   Solaris 9 include file <sys/feature_tests.h> refers to X/Open document
@@ -569,9 +533,6 @@ inline unsigned long long my_double2ulonglong(double d)
 #define double2ulonglong(A) ((ulonglong) (double) (A))
 #endif
 
-#ifndef offsetof
-#define offsetof(TYPE, MEMBER) ((size_t) &((TYPE *)0)->MEMBER)
-#endif
 #define ulong_to_double(X) ((double) (ulong) (X))
 
 #ifndef STACK_DIRECTION
@@ -644,9 +605,6 @@ inline unsigned long long my_double2ulonglong(double d)
 #endif /* isfinite */
 
 #include <math.h>
-#ifndef HAVE_ISNAN
-#define isnan(x) ((x) != (x))
-#endif
 C_MODE_START
 extern double my_double_isnan(double x);
 C_MODE_END
@@ -715,33 +673,16 @@ typedef long long	my_ptrdiff_t;
 /* Typdefs for easyier portability */
 
 typedef unsigned char	uchar;	/* Short for unsigned char */
-
-#ifndef HAVE_INT8
 typedef signed char int8;       /* Signed integer >= 8  bits */
-#endif
-#ifndef HAVE_UINT8
 typedef unsigned char uint8;    /* Unsigned integer >= 8  bits */
-#endif
-#ifndef HAVE_INT16
 typedef short int16;
-#endif
-#ifndef HAVE_UINT16
 typedef unsigned short uint16;
-#endif
 #if SIZEOF_INT == 4
-#ifndef HAVE_INT32
 typedef int int32;
-#endif
-#ifndef HAVE_UINT32
 typedef unsigned int uint32;
-#endif
 #elif SIZEOF_LONG == 4
-#ifndef HAVE_INT32
 typedef long int32;
-#endif
-#ifndef HAVE_UINT32
 typedef unsigned long uint32;
-#endif
 #else
 #error Neither int or long is of 4 bytes width
 #endif
@@ -763,12 +704,8 @@ typedef unsigned long	ulonglong;	  /* ulong or unsigned long long */
 typedef long		longlong;
 #endif
 #endif
-#ifndef HAVE_INT64
 typedef longlong int64;
-#endif
-#ifndef HAVE_UINT64
 typedef ulonglong uint64;
-#endif
 
 #if defined (_WIN32)
 typedef unsigned __int64 my_ulonglong;
@@ -805,7 +742,7 @@ typedef unsigned long my_off_t;
   TODO Convert these to use Bitmap class.
  */
 typedef ulonglong table_map;          /* Used for table bits in join */
-typedef ulong nesting_map;  /* Used for flags of nesting constructs */
+typedef ulonglong nesting_map;  /* Used for flags of nesting constructs */
 
 #if defined(_WIN32)
 #define socket_errno	WSAGetLastError()
@@ -1019,7 +956,6 @@ static inline double rint(double x)
 /* TODO HF add #undef HAVE_VIO if we don't want client in embedded library */
 
 #undef HAVE_OPENSSL
-#undef HAVE_SMEM				/* No shared memory */
 
 #endif /* EMBEDDED_LIBRARY */
 

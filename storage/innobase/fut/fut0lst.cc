@@ -23,6 +23,7 @@ File-based list utilities
 Created 11/28/1995 Heikki Tuuri
 ***********************************************************************/
 
+#include "univ.i"
 #include "fut0lst.h"
 
 #ifdef UNIV_NONINL
@@ -438,7 +439,7 @@ flst_truncate_end(
 
 /********************************************************************//**
 Validates a file-based list.
-@return	TRUE if ok */
+@return TRUE if ok */
 
 ibool
 flst_validate(

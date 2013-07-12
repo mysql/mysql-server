@@ -39,6 +39,7 @@
 #include <pfs_table_provider.h>
 #include <mysql/psi/mysql_table.h>
 #include "debug_sync.h"         // DEBUG_SYNC
+#include "sql_trigger.h"        // TRG_EXT, TRN_EXT
 #include <my_bit.h>
 #include <list>
 
@@ -555,6 +556,7 @@ int ha_init_errors(void)
   SETMSG(HA_FTS_INVALID_DOCID,          "Invalid InnoDB FTS Doc ID");
   SETMSG(HA_ERR_TABLE_IN_FK_CHECK,	ER_DEFAULT(ER_TABLE_IN_FK_CHECK));
   SETMSG(HA_ERR_TABLESPACE_EXISTS,      "Tablespace already exists");
+  SETMSG(HA_ERR_FTS_EXCEED_RESULT_CACHE_LIMIT,  "FTS query exceeds result cache limit");
 
   /* Register the error messages for use with my_error(). */
   return my_error_register(get_handler_errmsgs, HA_ERR_FIRST, HA_ERR_LAST);
@@ -1297,6 +1299,11 @@ ha_check_and_coalesce_trx_read_only(THD *thd, Ha_trx_info *ha_list,
 
 
 /**
+  @param[in] ignore_global_read_lock   Allow commit to complete even if a
+                                       global read lock is active. This can be
+                                       used to allow changes to internal tables
+                                       (e.g. slave status tables).
+
   @retval
     0   ok
   @retval
@@ -1310,7 +1317,8 @@ ha_check_and_coalesce_trx_read_only(THD *thd, Ha_trx_info *ha_list,
     stored functions or triggers. So we simply do nothing now.
     TODO: This should be fixed in later ( >= 5.1) releases.
 */
-int ha_commit_trans(THD *thd, bool all)
+
+int ha_commit_trans(THD *thd, bool all, bool ignore_global_read_lock)
 {
   int error= 0;
   /*
@@ -1380,7 +1388,7 @@ int ha_commit_trans(THD *thd, bool all)
     /* rw_trans is TRUE when we in a transaction changing data */
     rw_trans= is_real_trans && (rw_ha_count > 0);
 
-    if (rw_trans)
+    if (rw_trans && !ignore_global_read_lock)
     {
       /*
         Acquire a metadata lock which will ensure that COMMIT is blocked
@@ -3783,6 +3791,9 @@ void handler::print_error(int error, myf errflag)
     break;
   case HA_ERR_TOO_MANY_FIELDS:
     textno= ER_TOO_MANY_FIELDS;
+    break;
+  case HA_ERR_INNODB_READ_ONLY:
+    textno= ER_INNODB_READ_ONLY;
     break;
   default:
     {

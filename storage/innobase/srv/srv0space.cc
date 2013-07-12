@@ -23,6 +23,8 @@ Multi file shared tablespace implementation.
 Created 2012-11-16 by Sunny Bains.
 *******************************************************/
 
+#include "ha_prototypes.h"
+
 #include "srv0space.h"
 #include "srv0start.h"
 #include "fil0fil.h"
@@ -34,11 +36,10 @@ Tablespace srv_sys_space;
 /** The control info of a temporary table shared tablespace. */
 Tablespace srv_tmp_space;
 
-/**
-Convert a numeric string that optionally ends in G or M, to a number
+/** Convert a numeric string that optionally ends in G or M, to a number
 containing megabytes.
-@param str - string with a quantity in bytes
-@param megs - out the number in megabytes
+@param str string with a quantity in bytes
+@param megs out the number in megabytes
 @return next character in string */
 
 char*
@@ -68,9 +69,8 @@ Tablespace::parse_units(
 	return(ptr);
 }
 
-/**
-Parse the input params and populate member variables.
-@param filepath - path to data files
+/** Parse the input params and populate member variables.
+@param filepath path to data files
 @return true on success parse */
 
 bool
@@ -272,10 +272,9 @@ Tablespace::parse(
 	return(true);
 }
 
-/**
-Check if two shared tablespaces have common data file names.
-@param space1 - space to check
-@param space2 - space to check
+/** Check if two shared tablespaces have common data file names.
+@param space1 space to check
+@param space2 space to check
 @return true if they have the same data filenames and paths */
 
 bool
@@ -299,9 +298,8 @@ Tablespace::intersection(
 	return(false);
 }
 
-/**
-Get the file name only
-@param filepath - filepath as specified by user (can be relative too).
+/** Get the file name only
+@param filepath filepath as specified by user (can be relative too).
 @return filename extract filepath */
 
 char*
@@ -313,8 +311,7 @@ Tablespace::get_file_name(
 	return(last_slash ? last_slash + 1 : (char*) filepath);
 }
 
-/**
-Frees the memory allocated by the parse method. */
+/** Frees the memory allocated by the parse method. */
 
 void
 Tablespace::shutdown()
@@ -368,9 +365,8 @@ Tablespace::get_sum_of_sizes() const
 	return(sum);
 }
 
-/**
-Create/open a data file.
-@param file - data file spec
+/** Create/open a data file.
+@param file data file spec
 @return DB_SUCCESS or error code */
 
 dberr_t
@@ -397,9 +393,8 @@ Tablespace::open_data_file(
 	return(DB_SUCCESS);
 }
 
-/**
-Verify the size of the physical file.
-@param file - data file spec
+/** Verify the size of the physical file.
+@param file data file spec
 @return DB_SUCCESS if OK else error code. */
 
 dberr_t
@@ -454,10 +449,9 @@ Tablespace::check_size(
 	return(DB_SUCCESS);
 }
 
-/**
-Make physical filename from control info.
-@param file - data file spec
-@param tablespace_path - path where tablespace file will reside */
+/** Make physical filename from control info.
+@param file data file spec
+@param tablespace_path path where tablespace file will reside */
 
 void
 Tablespace::make_name(
@@ -492,9 +486,8 @@ Tablespace::make_name(
 	file.m_filename = strdup(name);
 }
 
-/**
-Set the size of the file.
-@param file - data file spec
+/** Set the size of the file.
+@param file data file spec
 @return DB_SUCCESS or error code */
 
 dberr_t
@@ -529,9 +522,8 @@ Tablespace::set_size(
 	return(DB_SUCCESS);
 }
 
-/**
-Create a data file.
-@param file - data file spec
+/** Create a data file.
+@param file data file spec
 @return DB_SUCCESS or error code */
 
 dberr_t
@@ -572,9 +564,8 @@ Tablespace::create_file(
 	return(err);
 }
 
-/**
-Open a data file.
-@param file - data file spec
+/** Open a data file.
+@param file data file spec
 @return DB_SUCCESS or error code */
 
 dberr_t
@@ -626,11 +617,10 @@ Tablespace::open_file(
 	return(err);
 }
 
-/**
-Read the flush lsn values and check the header flags.
+/** Read the flush lsn values and check the header flags.
 
-@param min_flushed_lsn - min of flushed lsn values in data files
-@param max_flushed_lsn - max of flushed lsn values in data files
+@param min_flushed_lsn min of flushed lsn values in data files
+@param max_flushed_lsn max of flushed lsn values in data files
 @return DB_SUCCESS or error code */
 
 dberr_t
@@ -709,10 +699,9 @@ Tablespace::read_lsn_and_check_flags(
 	return(DB_SUCCESS);
 }
 
-/**
-Check if a file can be opened in the correct mode.
-@param file 	- data file spec
-@param reason_if_failed - exact reason if file_status check failed.
+/** Check if a file can be opened in the correct mode.
+@param file data file spec
+@param reason_if_failed exact reason if file_status check failed.
 @return DB_SUCCESS or error code. */
 
 dberr_t
@@ -781,10 +770,9 @@ Tablespace::check_file_status(
 	return(err);
 }
 
-/**
-Note that the data file was not found.
-@param file - data file spec
-@param create_new_db - [out] true if a new instance to be created
+/** Note that the data file was not found.
+@param file data file spec
+@param[out] create_new_db true if a new instance to be created
 @return DB_SUCESS or error code */
 
 dberr_t
@@ -861,9 +849,8 @@ Tablespace::file_not_found(
 	return(DB_SUCCESS);
 }
 
-/**
-Note that the data file was found.
-@param file - data file spec */
+/** Note that the data file was found.
+@param file data file spec */
 
 void
 Tablespace::file_found(
@@ -889,10 +876,9 @@ Tablespace::file_found(
 	}
 }
 
-/**
-Check the data file specification.
-@param create_new_db - [out] true if a new database is to be created
-@param min_expected_tablespace_size - [in] expected tablespace size in bytes
+/** Check the data file specification.
+@param[out] create_new_db true if a new database is to be created
+@param[in] min_expected_tablespace_size expected tablespace size in bytes
 @return DB_SUCCESS if all OK else error code */
 
 dberr_t
@@ -988,11 +974,10 @@ Tablespace::check_file_spec(
 	return(err);
 }
 
-/**
-Opens/Creates the data files if they don't exist.
+/** Opens/Creates the data files if they don't exist.
 
-@param sum_of_new_sizes - sum of sizes of the new files added
-@return	DB_SUCCESS or error code */
+@param sum_of_new_sizes sum of sizes of the new files added
+@return DB_SUCCESS or error code */
 
 dberr_t
 Tablespace::open(
@@ -1069,8 +1054,7 @@ Tablespace::open(
 	return(err);
 }
 
-/**
-Normalize the file size, convert to extents. */
+/** Normalize the file size, convert to extents. */
 
 void
 Tablespace::normalize()
@@ -1157,8 +1141,7 @@ Tablespace::find(const char* filename) const
 }
 
 
-/**
-Delete all the data files. */
+/** Delete all the data files. */
 
 void
 Tablespace::delete_files()
@@ -1194,4 +1177,15 @@ Tablespace::is_system_tablespace(
 	       || id == srv_tmp_space.space_id());
 }
 
+/** Check if shared-system or undo tablespace.
+@return true if shared-system or undo tablespace */
+
+bool
+Tablespace::is_system_or_undo_tablespace(
+/*=====================================*/
+	ulint   id)
+{
+	return(id == srv_sys_space.space_id()
+	       || id <= srv_undo_tablespaces_open);
+}
 
