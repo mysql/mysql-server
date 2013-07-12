@@ -784,6 +784,12 @@ static sp_head *sp_compile(THD *thd, String *defstr, sql_mode_t sql_mode,
   thd->sp_runtime_ctx= sp_runtime_ctx_saved;
   thd->variables.sql_mode= old_sql_mode;
   thd->variables.select_limit= old_select_limit;
+#ifdef HAVE_PSI_SP_INTERFACE
+  sp->m_sp_share= MYSQL_GET_SP_SHARE(sp->m_type == SP_TYPE_PROCEDURE ?
+                                     SP_OBJECT_TYPE_PROCEDURE : SP_OBJECT_TYPE_FUNCTION,
+                                     sp->m_db.str, sp->m_db.length,
+                                     sp->m_name.str, sp->m_name.length);
+#endif
   return sp;
 }
 

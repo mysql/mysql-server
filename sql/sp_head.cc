@@ -321,32 +321,6 @@ void sp_head::init_sp_name(THD *thd, sp_name *spname)
   m_qname.str= (char*) memdup_root(thd->mem_root,
                                    spname->m_qname.str,
                                    spname->m_qname.length + 1);
-#ifdef HAVE_PSI_SP_INTERFACE
-  enum_sp_object_type sp_object_type;
-  switch(m_type)
-  {
-    case SP_TYPE_EVENT:
-        sp_object_type= SP_OBJECT_TYPE_EVENT;
-      break;
-    case SP_TYPE_FUNCTION:
-        sp_object_type= SP_OBJECT_TYPE_FUNCTION;
-      break;
-    case SP_TYPE_PROCEDURE:
-        sp_object_type= SP_OBJECT_TYPE_PROCEDURE;
-      break;
-    case SP_TYPE_TRIGGER:
-        sp_object_type= SP_OBJECT_TYPE_TRIGGER;
-      break;
-    default:
-        DBUG_ASSERT(0);
-      break;
-  }
-
-  m_sp_share= MYSQL_GET_SP_SHARE(sp_object_type,
-                                 m_db.str, m_db.length,
-                                 m_name.str, m_name.length);
-#endif
-
 }
 
 

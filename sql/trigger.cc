@@ -25,6 +25,7 @@
 #include "sql_show.h"             // append_identifier
 #include "sql_db.h"               // get_default_db_collation
 
+#include "mysql/psi/mysql_sp.h"
 ///////////////////////////////////////////////////////////////////////////
 
 /**
@@ -667,6 +668,12 @@ bool Trigger::parse(THD *thd)
   }
 
   m_sp->set_definer(m_definer.str, m_definer.length);
+
+#ifdef HAVE_PSI_SP_INTERFACE
+  m_sp->m_sp_share= MYSQL_GET_SP_SHARE(SP_OBJECT_TYPE_TRIGGER,
+                                       m_sp->m_db.str, m_sp->m_db.length,
+                                       m_sp->m_name.str, m_sp->m_name.length);
+#endif
 
 #ifndef DBUG_OFF
   /*
