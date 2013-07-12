@@ -29,9 +29,7 @@ EXPLAIN
 {
   "query_block": {
     "select_id": 1,
-    "table": {
-      "message": "No tables used"
-    } /* table */
+    "message": "No tables used"
   } /* query_block */
 }
 Warnings:
@@ -50,13 +48,7 @@ EXPLAIN
 {
   "query_block": {
     "select_id": 1,
-    "table": {
-      "table_name": "t1",
-      "access_type": "system",
-      "rows": 0,
-      "filtered": 0,
-      "const_row_not_found": true
-    }
+    "message": "no matching row in const table"
   }
 }
 Warnings:
@@ -64,33 +56,29 @@ Note	1003	/* select#1 */ select NULL AS `i` from `test`.`t1`
 set end_markers_in_json=on;
 EXPLAIN             INSERT INTO t1 VALUES (10);
 id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
-1	SIMPLE	NULL	NULL	NULL	NULL	NULL	NULL	NULL	No tables used
+1	INSERT	t1	ALL	NULL	NULL	NULL	NULL	NULL	NULL
 EXPLAIN FORMAT=JSON INSERT INTO t1 VALUES (10);
 EXPLAIN
 {
   "query_block": {
     "select_id": 1,
     "table": {
-      "message": "No tables used"
+      "insert": true,
+      "table_name": "t1",
+      "access_type": "ALL"
     } /* table */
   } /* query_block */
 }
 EXPLAIN             SELECT * FROM t1;
 id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
-1	SIMPLE	t1	system	NULL	NULL	NULL	NULL	0	const row not found
+1	SIMPLE	NULL	NULL	NULL	NULL	NULL	NULL	NULL	no matching row in const table
 PREPARE stmt FROM 'EXPLAIN FORMAT=JSON SELECT * FROM t1';
 EXECUTE stmt;
 EXPLAIN
 {
   "query_block": {
     "select_id": 1,
-    "table": {
-      "table_name": "t1",
-      "access_type": "system",
-      "rows": 0,
-      "filtered": 0,
-      "const_row_not_found": true
-    } /* table */
+    "message": "no matching row in const table"
   } /* query_block */
 }
 Warnings:
@@ -100,13 +88,7 @@ EXPLAIN
 {
   "query_block": {
     "select_id": 1,
-    "table": {
-      "table_name": "t1",
-      "access_type": "system",
-      "rows": 0,
-      "filtered": 0,
-      "const_row_not_found": true
-    } /* table */
+    "message": "no matching row in const table"
   } /* query_block */
 }
 Warnings:
@@ -252,7 +234,7 @@ WHERE i IN (SELECT i FROM t2 WHERE t1.i = 10 ORDER BY RAND())
 OR i IN (SELECT i FROM t4 ORDER BY RAND());
 id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
 1	PRIMARY	t1	ALL	NULL	NULL	NULL	NULL	7	Using where
-3	UNCACHEABLE SUBQUERY	t4	system	NULL	NULL	NULL	NULL	0	const row not found
+3	UNCACHEABLE SUBQUERY	NULL	NULL	NULL	NULL	NULL	NULL	NULL	no matching row in const table
 2	DEPENDENT SUBQUERY	t2	ALL	NULL	NULL	NULL	NULL	2	Using where
 EXPLAIN FORMAT=JSON SELECT * FROM t1
 WHERE i IN (SELECT i FROM t2 WHERE t1.i = 10 ORDER BY RAND())
@@ -281,16 +263,7 @@ EXPLAIN
               "cacheable": false,
               "query_block": {
                 "select_id": 3,
-                "ordering_operation": {
-                  "using_filesort": false,
-                  "table": {
-                    "table_name": "t4",
-                    "access_type": "system",
-                    "rows": 0,
-                    "filtered": 0,
-                    "const_row_not_found": true
-                  } /* table */
-                } /* ordering_operation */
+                "message": "no matching row in const table"
               } /* query_block */
             } /* materialized_from_subquery */
           } /* table */
@@ -324,7 +297,7 @@ EXPLAIN             SELECT * FROM t1 UNION SELECT * FROM t2 UNION SELECT * FROM 
 id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
 1	PRIMARY	t1	ALL	NULL	NULL	NULL	NULL	7	NULL
 2	UNION	t2	ALL	NULL	NULL	NULL	NULL	2	NULL
-3	UNION	t3	system	NULL	NULL	NULL	NULL	0	const row not found
+3	UNION	NULL	NULL	NULL	NULL	NULL	NULL	NULL	no matching row in const table
 NULL	UNION RESULT	<union1,2,3>	ALL	NULL	NULL	NULL	NULL	NULL	Using temporary
 EXPLAIN FORMAT=JSON SELECT * FROM t1 UNION SELECT * FROM t2 UNION SELECT * FROM t3;
 EXPLAIN
@@ -366,13 +339,7 @@ EXPLAIN
           "cacheable": true,
           "query_block": {
             "select_id": 3,
-            "table": {
-              "table_name": "t3",
-              "access_type": "system",
-              "rows": 0,
-              "filtered": 0,
-              "const_row_not_found": true
-            } /* table */
+            "message": "no matching row in const table"
           } /* query_block */
         }
       ] /* query_specifications */
@@ -386,7 +353,7 @@ EXPLAIN             (SELECT t1.i FROM t1 JOIN t2) UNION ALL (SELECT * FROM t3 WH
 id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
 1	PRIMARY	t2	ALL	NULL	NULL	NULL	NULL	2	NULL
 1	PRIMARY	t1	ALL	NULL	NULL	NULL	NULL	7	Using join buffer (Block Nested Loop)
-2	UNION	NULL	NULL	NULL	NULL	NULL	NULL	NULL	Impossible WHERE noticed after reading const tables
+2	UNION	NULL	NULL	NULL	NULL	NULL	NULL	NULL	no matching row in const table
 NULL	UNION RESULT	<union1,2>	ALL	NULL	NULL	NULL	NULL	NULL	Using temporary
 EXPLAIN FORMAT=JSON (SELECT t1.i FROM t1 JOIN t2) UNION ALL (SELECT * FROM t3 WHERE i IN (SELECT i FROM t4 ORDER BY RAND()));
 EXPLAIN
@@ -428,9 +395,7 @@ EXPLAIN
           "cacheable": true,
           "query_block": {
             "select_id": 2,
-            "table": {
-              "message": "Impossible WHERE noticed after reading const tables"
-            } /* table */
+            "message": "no matching row in const table"
           } /* query_block */
         }
       ] /* query_specifications */
@@ -438,7 +403,7 @@ EXPLAIN
   } /* query_block */
 }
 Warnings:
-Note	1003	(/* select#1 */ select `test`.`t1`.`i` AS `i` from `test`.`t1` join `test`.`t2`) union all (/* select#2 */ select NULL AS `i` from `test`.`t3` semi join (`test`.`t4`) where 0)
+Note	1003	(/* select#1 */ select `test`.`t1`.`i` AS `i` from `test`.`t1` join `test`.`t2`) union all (/* select#2 */ select NULL AS `i` from `test`.`t3` semi join (`test`.`t4`) where multiple equal(NULL, `test`.`t4`.`i`))
 # UNION with subquery in outer ORDER BY
 EXPLAIN             (SELECT * FROM t1) UNION (SELECT * FROM t2) ORDER BY (SELECT i LIMIT 1);
 id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
@@ -491,9 +456,7 @@ EXPLAIN
           "cacheable": false,
           "query_block": {
             "select_id": 3,
-            "table": {
-              "message": "No tables used"
-            } /* table */
+            "message": "No tables used"
           } /* query_block */
         }
       ] /* order_by_subqueries */
@@ -501,7 +464,7 @@ EXPLAIN
   } /* query_block */
 }
 Warnings:
-Note	1276	Field or reference 'i' of SELECT #3 was resolved in SELECT #-1
+Note	1276	Field or reference 'i' of SELECT #3 was resolved in SELECT #1
 Note	1003	(/* select#1 */ select `test`.`t1`.`i` AS `i` from `test`.`t1`) union (/* select#2 */ select `test`.`t2`.`i` AS `i` from `test`.`t2`) order by (/* select#3 */ select `i` limit 1)
 # optimizer-time subquery
 EXPLAIN SELECT * FROM t1 ORDER BY (SELECT LENGTH(1) FROM t2 LIMIT 1);
@@ -689,31 +652,29 @@ DROP TABLE t1, t2, t3, t4;
 CREATE TABLE t1 (i INT);
 EXPLAIN SELECT 1 FROM (SELECT 1 AS x FROM t1) tt WHERE x;
 id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
-1	PRIMARY	NULL	NULL	NULL	NULL	NULL	NULL	NULL	Impossible WHERE noticed after reading const tables
+1	PRIMARY	NULL	NULL	NULL	NULL	NULL	NULL	NULL	no matching row in const table
 2	DERIVED	NULL	NULL	NULL	NULL	NULL	NULL	NULL	no matching row in const table
 EXPLAIN FORMAT= JSON SELECT 1 FROM (SELECT 1 AS x FROM t1) tt WHERE x;
 EXPLAIN
 {
   "query_block": {
     "select_id": 1,
+    "message": "no matching row in const table",
     "table": {
-      "message": "Impossible WHERE noticed after reading const tables",
       "materialized_from_subquery": {
         "using_temporary_table": true,
         "dependent": false,
         "cacheable": true,
         "query_block": {
           "select_id": 2,
-          "table": {
-            "message": "no matching row in const table"
-          } /* table */
+          "message": "no matching row in const table"
         } /* query_block */
       } /* materialized_from_subquery */
     } /* table */
   } /* query_block */
 }
 Warnings:
-Note	1003	/* select#1 */ select 1 AS `1` from (/* select#2 */ select 1 AS `x` from `test`.`t1`) `tt` where 0
+Note	1003	/* select#1 */ select 1 AS `1` from (/* select#2 */ select 1 AS `x` from `test`.`t1`) `tt` where NULL
 DROP TABLE t1;
 # complex subqueries
 CREATE TABLE t1 (a INT, b INT);
@@ -1133,7 +1094,7 @@ INSERT INTO t3 VALUES (1);
 # Subqueries in UPDATE values list
 EXPLAIN UPDATE t1 SET i=(SELECT i FROM t2);
 id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
-1	PRIMARY	t1	ALL	NULL	NULL	NULL	NULL	1	NULL
+1	UPDATE	t1	ALL	NULL	NULL	NULL	NULL	1	NULL
 2	SUBQUERY	t2	system	NULL	NULL	NULL	NULL	1	NULL
 EXPLAIN FORMAT=JSON UPDATE t1 SET i=(SELECT i FROM t2);
 EXPLAIN
@@ -1166,7 +1127,7 @@ EXPLAIN
 }
 EXPLAIN UPDATE t1, t2 SET t1.i=(SELECT i FROM t3);
 id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
-1	PRIMARY	t1	system	NULL	NULL	NULL	NULL	1	NULL
+1	UPDATE	t1	system	NULL	NULL	NULL	NULL	1	NULL
 1	PRIMARY	t2	system	NULL	NULL	NULL	NULL	1	NULL
 2	SUBQUERY	t3	system	NULL	NULL	NULL	NULL	1	NULL
 EXPLAIN FORMAT=JSON UPDATE t1, t2 SET t1.i=(SELECT i FROM t3);
@@ -1214,6 +1175,7 @@ EXPLAIN
 EXPLAIN INSERT INTO t1 (i)
 SELECT i FROM t2 ON DUPLICATE KEY UPDATE i=(SELECT i FROM t2);
 id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
+1	INSERT	t1	ALL	NULL	NULL	NULL	NULL	NULL	NULL
 1	PRIMARY	t2	system	NULL	NULL	NULL	NULL	1	NULL
 2	SUBQUERY	t2	system	NULL	NULL	NULL	NULL	1	NULL
 EXPLAIN FORMAT=JSON INSERT INTO t1 (i)
@@ -1223,11 +1185,18 @@ EXPLAIN
   "query_block": {
     "select_id": 1,
     "table": {
-      "table_name": "t2",
-      "access_type": "system",
-      "rows": 1,
-      "filtered": 100
+      "insert": true,
+      "table_name": "t1",
+      "access_type": "ALL"
     } /* table */,
+    "insert_from": {
+      "table": {
+        "table_name": "t2",
+        "access_type": "system",
+        "rows": 1,
+        "filtered": 100
+      } /* table */
+    } /* insert_from */,
     "update_value_subqueries": [
       {
         "dependent": false,
@@ -1248,7 +1217,7 @@ EXPLAIN
 EXPLAIN INSERT INTO t1 VALUES (1)
 ON DUPLICATE KEY UPDATE i = (SELECT i FROM t2);
 id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
-1	PRIMARY	NULL	NULL	NULL	NULL	NULL	NULL	NULL	No tables used
+1	INSERT	t1	ALL	NULL	NULL	NULL	NULL	NULL	NULL
 2	SUBQUERY	t2	system	NULL	NULL	NULL	NULL	1	NULL
 EXPLAIN FORMAT=JSON INSERT INTO t1 VALUES (1)
 ON DUPLICATE KEY UPDATE i = (SELECT i FROM t2);
@@ -1257,7 +1226,9 @@ EXPLAIN
   "query_block": {
     "select_id": 1,
     "table": {
-      "message": "No tables used"
+      "insert": true,
+      "table_name": "t1",
+      "access_type": "ALL"
     } /* table */,
     "update_value_subqueries": [
       {
@@ -1279,7 +1250,7 @@ EXPLAIN
 # Subqueries in INSERT VALUES tuples:
 EXPLAIN INSERT INTO t3 VALUES((SELECT i FROM t1)), ((SELECT i FROM t2));
 id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
-1	PRIMARY	NULL	NULL	NULL	NULL	NULL	NULL	NULL	No tables used
+1	INSERT	t3	ALL	NULL	NULL	NULL	NULL	NULL	NULL
 3	SUBQUERY	t2	system	NULL	NULL	NULL	NULL	1	NULL
 2	SUBQUERY	t1	system	NULL	NULL	NULL	NULL	1	NULL
 EXPLAIN FORMAT=JSON INSERT INTO t3 VALUES((SELECT i FROM t1)), ((SELECT i FROM t2));
@@ -1288,7 +1259,9 @@ EXPLAIN
   "query_block": {
     "select_id": 1,
     "table": {
-      "message": "No tables used"
+      "insert": true,
+      "table_name": "t3",
+      "access_type": "ALL"
     } /* table */,
     "optimized_away_subqueries": [
       {
@@ -1368,9 +1341,7 @@ EXPLAIN
                     "cacheable": true,
                     "query_block": {
                       "select_id": 2,
-                      "table": {
-                        "message": "No tables used"
-                      } /* table */
+                      "message": "No tables used"
                     } /* query_block */
                   },
                   {
@@ -1378,9 +1349,7 @@ EXPLAIN
                     "cacheable": true,
                     "query_block": {
                       "select_id": 3,
-                      "table": {
-                        "message": "No tables used"
-                      } /* table */
+                      "message": "No tables used"
                     } /* query_block */
                   }
                 ] /* query_specifications */

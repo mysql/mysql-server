@@ -37,7 +37,7 @@
 #define YYINITDEPTH 100
 #define YYMAXDEPTH 3200                        /* Because of 64K stack */
 #define Lex (YYTHD->lex)
-#define Select Lex->current_select
+#define Select Lex->current_select()
 #include "sql_priv.h"
 #include "unireg.h"                    // REQUIRED: for other includes
 #include "sql_parse.h"                        /* comp_*_creator */
@@ -606,7 +606,6 @@ Item* handle_sql2003_note184_exception(THD *thd, Item* left, bool equal,
   DBUG_RETURN(result);
 }
 
-
 /**
    @brief Initializes a SELECT_LEX for a query within parentheses (aka
    braces).
@@ -616,12 +615,8 @@ Item* handle_sql2003_note184_exception(THD *thd, Item* left, bool equal,
  */
 bool setup_select_in_parentheses(LEX *lex) 
 {
-  SELECT_LEX * sel= lex->current_select;
-  if (sel->set_braces(1))
-  {
-    my_parse_error(ER(ER_SYNTAX_ERROR));
-    return TRUE;
-  }
+  SELECT_LEX * sel= lex->current_select();
+  DBUG_ASSERT(sel->braces);
   if (sel->linkage == UNION_TYPE &&
       !sel->master_unit()->first_select()->braces &&
       sel->master_unit()->first_select()->linkage ==
@@ -637,17 +632,13 @@ bool setup_select_in_parentheses(LEX *lex)
     my_error(ER_WRONG_USAGE, MYF(0), "CUBE/ROLLUP", "ORDER BY");
     return TRUE;
   }
-  /* select in braces, can't contain global parameters */
-  if (sel->master_unit()->fake_select_lex)
-    sel->master_unit()->global_parameters=
-      sel->master_unit()->fake_select_lex;
   return FALSE;
 }
 
 static bool add_create_index_prepare (LEX *lex, Table_ident *table)
 {
   lex->sql_command= SQLCOM_CREATE_INDEX;
-  if (!lex->current_select->add_table_to_list(lex->thd, table, NULL,
+  if (!lex->current_select()->add_table_to_list(lex->thd, table, NULL,
                                               TL_OPTION_UPDATING,
                                               TL_READ_NO_INSERT,
                                               MDL_SHARED_UPGRADABLE))
@@ -2337,7 +2328,7 @@ create:
           {
             THD *thd= YYTHD;
             LEX *lex= thd->lex;
-            lex->current_select= lex->select_lex; 
+            lex->set_current_select(lex->select_lex);
             if ((lex->create_info.used_fields & HA_CREATE_USED_ENGINE) &&
                 !lex->create_info.db_type)
             {
@@ -5824,12 +5815,14 @@ create_select:
               The following work only with the local list, the global list
               is created correctly in this case
             */
-            lex->current_select->table_list.save_and_clear(&lex->save_list);
-            lex->current_select->parsing_place= SELECT_LIST;
+            lex->current_select()->table_list.save_and_clear(&lex->save_list);
+            lex->current_select()->parsing_place= CTX_SELECT_LIST;
           }
           select_options select_item_list
           {
-            Select->parsing_place= NO_MATTER;
+            // Ensure we're resetting parsing context of the right select
+            DBUG_ASSERT(Select->parsing_place == CTX_SELECT_LIST);
+            Select->parsing_place= CTX_NONE;
           }
           opt_select_from
           {
@@ -5837,7 +5830,7 @@ create_select:
               The following work only with the local list, the global list
               is created correctly in this case
             */
-            Lex->current_select->table_list.push_front(&Lex->save_list);
+            Lex->current_select()->table_list.push_front(&Lex->save_list);
           }
         ;
 
@@ -8380,7 +8373,7 @@ table_to_table:
           table_ident TO_SYM table_ident
           {
             LEX *lex=Lex;
-            SELECT_LEX *sl= lex->current_select;
+            SELECT_LEX *sl= Select;
             if (!sl->add_table_to_list(lex->thd, $1,NULL,TL_OPTION_UPDATING,
                                        TL_IGNORE, MDL_EXCLUSIVE) ||
                 !sl->add_table_to_list(lex->thd, $3,NULL,TL_OPTION_UPDATING,
@@ -8528,6 +8521,13 @@ select_init:
         ;
 
 select_paren:
+          {
+            /*
+              In order to correctly parse UNION's global ORDER BY we need to
+              set braces before parsing the clause.
+            */
+            Lex->current_select()->set_braces(true);
+          }
           SELECT_SYM select_part2
           {
             if (setup_select_in_parentheses(Lex))
@@ -8538,6 +8538,9 @@ select_paren:
 
 /* The equivalent of select_paren for nested queries. */
 select_paren_derived:
+          {
+            Lex->current_select()->set_braces(true);
+          }
           SELECT_SYM select_part2_derived
           {
             if (setup_select_in_parentheses(Lex))
@@ -8551,7 +8554,7 @@ select_init2:
           {
             LEX *lex= Lex;
             // Parentheses carry no meaning here.
-            lex->current_select->set_braces(false);
+            lex->current_select()->set_braces(false);
           }
           union_clause
         ;
@@ -8559,11 +8562,13 @@ select_init2:
 select_part2:
           {
             LEX *lex= Lex;
-            lex->current_select->parsing_place= SELECT_LIST;
+            lex->current_select()->parsing_place= CTX_SELECT_LIST;
           }
           select_options select_item_list
           {
-            Select->parsing_place= NO_MATTER;
+            // Ensure we're resetting parsing context of the right select
+            DBUG_ASSERT(Select->parsing_place == CTX_SELECT_LIST);
+            Select->parsing_place= CTX_NONE;
           }
           select_into select_lock_type
         ;
@@ -8577,13 +8582,14 @@ select_into:
         ;
 
 select_from:
-          FROM join_table_list where_clause group_clause having_clause
-          opt_order_clause opt_limit_clause procedure_analyse_clause
+          FROM join_table_list
           {
             Select->context.table_list=
               Select->context.first_name_resolution_table=
                 Select->table_list.first;
           }
+          where_clause group_clause having_clause
+          opt_order_clause opt_limit_clause procedure_analyse_clause
         | FROM DUAL_SYM where_clause opt_limit_clause
           /* oracle compatibility: oracle always requires FROM clause,
              and DUAL is system table without fields.
@@ -8616,7 +8622,7 @@ select_option:
               Allow this flag only on the first top-level SELECT statement, if
               SQL_CACHE wasn't specified, and only once per query.
              */
-            if (Lex->current_select != Lex->select_lex)
+            if (Lex->current_select() != Lex->select_lex)
             {
               my_error(ER_CANT_USE_OPTION_HERE, MYF(0), "SQL_NO_CACHE");
               MYSQL_YYABORT;
@@ -8644,7 +8650,7 @@ select_option:
               Allow this flag only on the first top-level SELECT statement, if
               SQL_NO_CACHE wasn't specified, and only once per query.
              */
-            if (Lex->current_select != Lex->select_lex)
+            if (Lex->current_select() != Lex->select_lex)
             {
               my_error(ER_CANT_USE_OPTION_HERE, MYF(0), "SQL_CACHE");
               MYSQL_YYABORT;
@@ -8673,13 +8679,13 @@ select_lock_type:
         | FOR_SYM UPDATE_SYM
           {
             LEX *lex=Lex;
-            lex->current_select->set_lock_for_tables(TL_WRITE);
+            lex->current_select()->set_lock_for_tables(TL_WRITE);
             lex->safe_to_cache_query=0;
           }
         | LOCK_SYM IN_SYM SHARE_SYM MODE_SYM
           {
             LEX *lex=Lex;
-            lex->current_select->
+            lex->current_select()->
               set_lock_for_tables(TL_READ_WITH_SHARED_LOCKS);
             lex->safe_to_cache_query=0;
           }
@@ -8692,13 +8698,13 @@ select_item_list:
           {
             THD *thd= YYTHD;
             Item *item= new (thd->mem_root)
-                          Item_field(&thd->lex->current_select->context,
+                          Item_field(&thd->lex->current_select()->context,
                                      NULL, NULL, "*");
             if (item == NULL)
               MYSQL_YYABORT;
             if (add_item_to_list(thd, item))
               MYSQL_YYABORT;
-            (thd->lex->current_select->with_wild)++;
+            (thd->lex->current_select()->with_wild)++;
           }
         ;
 
@@ -9963,7 +9969,7 @@ function_call_generic:
                 (udf= find_udf($1.str, $1.length)) &&
                 udf->type == UDFTYPE_AGGREGATE)
             {
-              if (lex->current_select->inc_in_sum_expr())
+              if (lex->current_select()->inc_in_sum_expr())
               {
                 my_parse_error(ER(ER_SYNTAX_ERROR));
                 MYSQL_YYABORT;
@@ -10349,7 +10355,7 @@ opt_gorder_clause:
         | ORDER_SYM BY
           {
             LEX *lex= Lex;
-            SELECT_LEX *sel= lex->current_select;
+            SELECT_LEX *sel= lex->current_select();
             if (sel->linkage != GLOBAL_OPTIONS_TYPE &&
                 sel->olap != UNSPECIFIED_OLAP_TYPE &&
                 (sel->linkage != UNION_TYPE || sel->braces))
@@ -10373,7 +10379,7 @@ in_sum_expr:
           opt_all
           {
             LEX *lex= Lex;
-            if (lex->current_select->inc_in_sum_expr())
+            if (lex->current_select()->inc_in_sum_expr())
             {
               my_parse_error(ER(ER_SYNTAX_ERROR));
               MYSQL_YYABORT;
@@ -10485,7 +10491,7 @@ table_ref:
         | join_table
           {
             LEX *lex= Lex;
-            if (!($$= lex->current_select->nest_last_join(lex->thd)))
+            if (!($$= lex->current_select()->nest_last_join(lex->thd)))
               MYSQL_YYABORT;
           }
         ;
@@ -10541,13 +10547,15 @@ join_table:
             /* Change the current name resolution context to a local context. */
             if (push_new_name_resolution_context(YYTHD, $1, $3))
               MYSQL_YYABORT;
-            Select->parsing_place= IN_ON;
+            Select->parsing_place= CTX_ON;
           }
           expr
           {
             add_join_on($3,$6);
             Lex->pop_context();
-            Select->parsing_place= NO_MATTER;
+            // Ensure we're resetting parsing context of the right select
+            DBUG_ASSERT(Select->parsing_place == CTX_ON);
+            Select->parsing_place= CTX_NONE;
           }
         | table_ref STRAIGHT_JOIN table_factor
           ON
@@ -10556,14 +10564,16 @@ join_table:
             /* Change the current name resolution context to a local context. */
             if (push_new_name_resolution_context(YYTHD, $1, $3))
               MYSQL_YYABORT;
-            Select->parsing_place= IN_ON;
+            Select->parsing_place= CTX_ON;
           }
           expr
           {
             $3->straight=1;
             add_join_on($3,$6);
             Lex->pop_context();
-            Select->parsing_place= NO_MATTER;
+            // Ensure we're resetting parsing context of the right select
+            DBUG_ASSERT(Select->parsing_place == CTX_ON);
+            Select->parsing_place= CTX_NONE;
           }
         | table_ref normal_join table_ref
           USING
@@ -10586,7 +10596,7 @@ join_table:
             /* Change the current name resolution context to a local context. */
             if (push_new_name_resolution_context(YYTHD, $1, $5))
               MYSQL_YYABORT;
-            Select->parsing_place= IN_ON;
+            Select->parsing_place= CTX_ON;
           }
           expr
           {
@@ -10594,7 +10604,9 @@ join_table:
             Lex->pop_context();
             $5->outer_join|=JOIN_TYPE_LEFT;
             $$=$5;
-            Select->parsing_place= NO_MATTER;
+            // Ensure we're resetting parsing context of the right select
+            DBUG_ASSERT(Select->parsing_place == CTX_ON);
+            Select->parsing_place= CTX_NONE;
           }
         | table_ref LEFT opt_outer JOIN_SYM table_factor
           {
@@ -10622,16 +10634,18 @@ join_table:
             /* Change the current name resolution context to a local context. */
             if (push_new_name_resolution_context(YYTHD, $1, $5))
               MYSQL_YYABORT;
-            Select->parsing_place= IN_ON;
+            Select->parsing_place= CTX_ON;
           }
           expr
           {
             LEX *lex= Lex;
-            if (!($$= lex->current_select->convert_right_join()))
+            if (!($$= lex->current_select()->convert_right_join()))
               MYSQL_YYABORT;
             add_join_on($$, $8);
             Lex->pop_context();
-            Select->parsing_place= NO_MATTER;
+            // Ensure we're resetting parsing context of the right select
+            DBUG_ASSERT(Select->parsing_place == CTX_ON);
+            Select->parsing_place= CTX_NONE;
           }
         | table_ref RIGHT opt_outer JOIN_SYM table_factor
           {
@@ -10640,7 +10654,7 @@ join_table:
           USING '(' using_list ')'
           {
             LEX *lex= Lex;
-            if (!($$= lex->current_select->convert_right_join()))
+            if (!($$= lex->current_select()->convert_right_join()))
               MYSQL_YYABORT;
             add_join_natural($$,$5,$9,Select);
           }
@@ -10649,7 +10663,7 @@ join_table:
             MYSQL_YYABORT_UNLESS($1 && $6);
             add_join_natural($6,$1,NULL,Select);
             LEX *lex= Lex;
-            if (!($$= lex->current_select->convert_right_join()))
+            if (!($$= lex->current_select()->convert_right_join()))
               MYSQL_YYABORT;
           }
         ;
@@ -10703,7 +10717,7 @@ table_factor:
         | select_derived_init get_select_lex select_derived2
           {
             LEX *lex= Lex;
-            SELECT_LEX *sel= lex->current_select;
+            SELECT_LEX *sel= Select;
             if ($1)
             {
               if (sel->set_braces(1))
@@ -10711,10 +10725,6 @@ table_factor:
                 my_parse_error(ER(ER_SYNTAX_ERROR));
                 MYSQL_YYABORT;
               }
-              /* select in braces, can't contain global parameters */
-              if (sel->master_unit()->fake_select_lex)
-                sel->master_unit()->global_parameters=
-                   sel->master_unit()->fake_select_lex;
             }
             if ($2->init_nested_join(lex->thd))
               MYSQL_YYABORT;
@@ -10759,9 +10769,9 @@ table_factor:
                  are no outer parentheses, add_table_to_list() will throw
                  error in this case */
               LEX *lex=Lex;
-              SELECT_LEX *sel= lex->current_select;
+              SELECT_LEX *sel= Select;
               SELECT_LEX_UNIT *unit= sel->master_unit();
-              lex->current_select= sel= unit->outer_select();
+              lex->set_current_select(sel= unit->outer_select());
               Table_ident *ti= new Table_ident(unit);
               if (ti == NULL)
                 MYSQL_YYABORT;
@@ -10850,7 +10860,7 @@ select_init2_derived:
           {
             LEX *lex= Lex;
             // Parentheses carry no meaning here.
-            lex->current_select->set_braces(false);
+            lex->current_select()->set_braces(false);
           }
         ;
 
@@ -10858,11 +10868,13 @@ select_init2_derived:
 select_part2_derived:
           {
             LEX *lex= Lex;
-            lex->current_select->parsing_place= SELECT_LIST;
+            lex->current_select()->parsing_place= CTX_SELECT_LIST;
           }
           opt_query_expression_options select_item_list
           {
-            Select->parsing_place= NO_MATTER;
+            // Ensure we're resetting parsing context of the right select
+            DBUG_ASSERT(Select->parsing_place == CTX_SELECT_LIST);
+            Select->parsing_place= CTX_NONE;
           }
           opt_select_from select_lock_type
         ;
@@ -10901,15 +10913,21 @@ select_derived2:
               my_parse_error(ER(ER_SYNTAX_ERROR));
               MYSQL_YYABORT;
             }
-            if (lex->current_select->linkage == GLOBAL_OPTIONS_TYPE ||
+            SELECT_LEX *outer_select= Select;
+            outer_select->parsing_place= CTX_DERIVED;
+            if (lex->current_select()->linkage == GLOBAL_OPTIONS_TYPE ||
                 lex->new_query())
               MYSQL_YYABORT;
-            lex->current_select->linkage= DERIVED_TABLE_TYPE;
-            lex->current_select->parsing_place= SELECT_LIST;
+            // Note that this current select is different from the one above
+            lex->current_select()->linkage= DERIVED_TABLE_TYPE;
+            lex->current_select()->parsing_place= CTX_SELECT_LIST;
+            outer_select->parsing_place= CTX_NONE;
           }
           select_options select_item_list
           {
-            Select->parsing_place= NO_MATTER;
+            // Ensure we're resetting parsing context of the right select
+            DBUG_ASSERT(Select->parsing_place == CTX_SELECT_LIST);
+            Select->parsing_place= CTX_NONE;
           }
           opt_select_from
         ;
@@ -10929,7 +10947,7 @@ select_derived_init:
               MYSQL_YYABORT;
             }
 
-            SELECT_LEX *sel= lex->current_select;
+            SELECT_LEX *sel= Select;
             TABLE_LIST *embedding;
             if (!sel->embedding || sel->end_nested_join(lex->thd))
             {
@@ -11092,13 +11110,15 @@ where_clause:
           /* empty */  { Select->where= 0; }
         | WHERE
           {
-            Select->parsing_place= IN_WHERE;
+            Select->parsing_place= CTX_WHERE;
           }
           expr
           {
             SELECT_LEX *select= Select;
             select->where= $3;
-            select->parsing_place= NO_MATTER;
+            // Ensure we're resetting parsing context of the right select
+            DBUG_ASSERT(Select->parsing_place == CTX_WHERE);
+            select->parsing_place= CTX_NONE;
             if ($3)
               $3->top_level_item();
           }
@@ -11108,13 +11128,15 @@ having_clause:
           /* empty */
         | HAVING
           {
-            Select->parsing_place= IN_HAVING;
+            Select->parsing_place= CTX_HAVING;
           }
           expr
           {
             SELECT_LEX *sel= Select;
             sel->having= $3;
-            sel->parsing_place= NO_MATTER;
+            // Ensure we're resetting parsing context of the right select
+            DBUG_ASSERT(Select->parsing_place == CTX_HAVING);
+            sel->parsing_place= CTX_NONE;
             if ($3)
               $3->top_level_item();
           }
@@ -11144,7 +11166,17 @@ opt_escape:
 
 group_clause:
           /* empty */
-        | GROUP_SYM BY group_list olap_opt
+        | GROUP_SYM BY
+          {
+            Select->parsing_place= CTX_GROUP_BY;
+          }
+          group_list
+          {
+            // Ensure we're resetting parsing context of the right select
+            DBUG_ASSERT(Select->parsing_place == CTX_GROUP_BY);
+            Select->parsing_place= CTX_NONE;
+          }
+          olap_opt
         ;
 
 group_list:
@@ -11166,13 +11198,13 @@ olap_opt:
               SQL-2003: GROUP BY ... CUBE(col1, col2, col3)
             */
             LEX *lex=Lex;
-            if (lex->current_select->linkage == GLOBAL_OPTIONS_TYPE)
+            if (lex->current_select()->linkage == GLOBAL_OPTIONS_TYPE)
             {
               my_error(ER_WRONG_USAGE, MYF(0), "WITH CUBE",
                        "global union parameters");
               MYSQL_YYABORT;
             }
-            lex->current_select->olap= CUBE_TYPE;
+            lex->current_select()->olap= CUBE_TYPE;
             my_error(ER_NOT_SUPPORTED_YET, MYF(0), "CUBE");
             MYSQL_YYABORT;
           }
@@ -11186,19 +11218,19 @@ olap_opt:
               SQL-2003: GROUP BY ... ROLLUP(col1, col2, col3)
             */
             LEX *lex= Lex;
-            if (lex->current_select->linkage == GLOBAL_OPTIONS_TYPE)
+            if (lex->current_select()->linkage == GLOBAL_OPTIONS_TYPE)
             {
               my_error(ER_WRONG_USAGE, MYF(0), "WITH ROLLUP",
                        "global union parameters");
               MYSQL_YYABORT;
             }
-            if (lex->current_select->options & SELECT_DISTINCT)
+            if (lex->current_select()->options & SELECT_DISTINCT)
             {
               // DISTINCT+ROLLUP does not work
               my_error(ER_WRONG_USAGE, MYF(0), "WITH ROLLUP", "DISTINCT");
               MYSQL_YYABORT;
             }
-            lex->current_select->olap= ROLLUP_TYPE;
+            lex->current_select()->olap= ROLLUP_TYPE;
           }
         ;
 
@@ -11238,7 +11270,7 @@ order_clause:
           ORDER_SYM BY
           {
             LEX *lex=Lex;
-            SELECT_LEX *sel= lex->current_select;
+            SELECT_LEX *sel= Select;
             SELECT_LEX_UNIT *unit= sel-> master_unit();
             if (sel->linkage != GLOBAL_OPTIONS_TYPE &&
                 sel->olap != UNSPECIFIED_OLAP_TYPE &&
@@ -11265,8 +11297,33 @@ order_clause:
                   unit->add_fake_select_lex(lex->thd))
                 MYSQL_YYABORT;
             }
+            if (Select->parsing_place == CTX_NONE)
+            {
+              if (sel->master_unit()->is_union() && !sel->braces)
+              {
+                /*
+                  At this point we don't know yet whether this is the last
+                  select in union or not, but we move ORDER BY to
+                  fake_select_lex anyway. If there would be one more select
+                  in union mysql_new_select will correctly throw error.
+                */
+                lex->set_current_select(sel->master_unit()->fake_select_lex);
+                lex->push_context(&lex->current_select()->context);
+              }
+              /*
+                To preserve correct markup for the case 
+                 SELECT group_concat(... ORDER BY (subquery))
+                we do not change parsing_place if it's not NONE.
+              */
+              Select->parsing_place= CTX_ORDER_BY;
+            }
           }
           order_list
+          {
+            // Reset parsing place only for ORDER BY
+            if (Select->parsing_place == CTX_ORDER_BY)
+              Select->parsing_place= CTX_NONE;
+          }
         ;
 
 order_list:
@@ -11283,13 +11340,7 @@ order_dir:
         ;
 
 opt_limit_clause_init:
-          /* empty */
-          {
-            LEX *lex= Lex;
-            SELECT_LEX *sel= lex->current_select;
-            sel->offset_limit= 0;
-            sel->select_limit= 0;
-          }
+          /* empty */ {}
         | limit_clause {}
         ;
 
@@ -11299,7 +11350,17 @@ opt_limit_clause:
         ;
 
 limit_clause:
-          LIMIT limit_options
+          LIMIT
+          {
+            SELECT_LEX *sel= Select;
+            if (sel->master_unit()->is_union() && !sel->braces)
+            {
+              /* Move LIMIT that belongs to UNION to fake_select_lex */
+              Lex->set_current_select(sel->master_unit()->fake_select_lex);
+              DBUG_ASSERT(Select);
+            }
+          }
+          limit_options
           {
             Lex->set_stmt_unsafe(LEX::BINLOG_STMT_UNSAFE_LIMIT);
           }
@@ -11384,7 +11445,7 @@ delete_limit_clause:
           /* empty */
           {
             LEX *lex=Lex;
-            lex->current_select->select_limit= 0;
+            lex->current_select()->select_limit= 0;
           }
         | LIMIT limit_option
           {
@@ -11449,7 +11510,7 @@ procedure_analyse_clause:
               MYSQL_YYABORT;
             }
 
-            if (lex->select_lex != lex->current_select)
+            if (lex->select_lex != lex->current_select())
             {
               my_error(ER_WRONG_USAGE, MYF(0), "PROCEDURE", "subquery");
               MYSQL_YYABORT;
@@ -11656,7 +11717,7 @@ drop:
             lex->alter_info.reset();
             lex->alter_info.flags= Alter_info::ALTER_DROP_INDEX;
             lex->alter_info.drop_list.push_back(ad);
-            if (!lex->current_select->add_table_to_list(lex->thd, $5, NULL,
+            if (!lex->current_select()->add_table_to_list(lex->thd, $5, NULL,
                                                         TL_OPTION_UPDATING,
                                                         TL_READ_NO_INSERT,
                                                         MDL_SHARED_UPGRADABLE))
@@ -11853,7 +11914,7 @@ insert:
           opt_ignore insert2
           {
             Select->set_lock_for_tables($3);
-            Lex->current_select= Lex->select_lex;
+            Lex->set_current_select(Lex->select_lex);
           }
           insert_field_spec opt_insert_update
           {}
@@ -11869,7 +11930,7 @@ replace:
           replace_lock_option insert2
           {
             Select->set_lock_for_tables($3);
-            Lex->current_select= Lex->select_lex;
+            Lex->set_current_select(Lex->select_lex);
           }
           insert_field_spec
           {}
@@ -12029,7 +12090,16 @@ opt_insert_update:
             if (first_table->lock_type == TL_WRITE_CONCURRENT_DEFAULT)
               first_table->lock_type= TL_WRITE_DEFAULT;
           }
-          KEY_SYM UPDATE_SYM insert_update_list
+          KEY_SYM UPDATE_SYM
+          {
+            Select->parsing_place= CTX_UPDATE_VALUE_LIST;
+          }
+          insert_update_list
+          {
+            // Ensure we're resetting parsing context of the right select
+            DBUG_ASSERT(Select->parsing_place == CTX_UPDATE_VALUE_LIST);
+            Select->parsing_place= CTX_NONE;
+          }
         ;
 
 /* Update rows in a table */
@@ -12042,9 +12112,16 @@ update:
             lex->duplicates= DUP_ERROR; 
           }
           opt_low_priority opt_ignore join_table_list
-          SET update_list
+          SET
+          {
+            Select->parsing_place= CTX_UPDATE_VALUE_LIST;
+          }
+          update_list
           {
             LEX *lex= Lex;
+            // Ensure we're resetting parsing context of the right select
+            DBUG_ASSERT(Select->parsing_place == CTX_UPDATE_VALUE_LIST);
+            Select->parsing_place= CTX_NONE;
             if (lex->select_lex->table_list.elements > 1)
               lex->sql_command= SQLCOM_UPDATE_MULTI;
             else if (lex->select_lex->get_table_list()->derived)
@@ -12276,11 +12353,14 @@ profile_def:
 opt_profile_args:
   /* empty */
     {
-      Lex->profile_query_id= 0;
+      Lex->query_id= 0;
     }
   | FOR_SYM QUERY_SYM NUM
     {
-      Lex->profile_query_id= atoi($3.str);
+      int error;
+      Lex->query_id= my_strtoll10($3.str, NULL, &error);
+      if (error != 0)
+        MYSQL_YYABORT;
     }
   ;
 
@@ -12290,13 +12370,9 @@ show:
           SHOW
           {
             LEX *lex=Lex;
-            lex->current_select->parsing_place= SELECT_LIST;
             memset(&lex->create_info, 0, sizeof(lex->create_info));
           }
           show_param
-          {
-            Select->parsing_place= NO_MATTER;
-          }
         ;
 
 show_param:
@@ -12642,7 +12718,7 @@ describe:
           describe_command table_ident
           {
             LEX *lex= Lex;
-            lex->current_select->parsing_place= SELECT_LIST;
+            lex->current_select()->parsing_place= CTX_SELECT_LIST;
             lex->sql_command= SQLCOM_SHOW_FIELDS;
             lex->select_lex->db= NULL;
             lex->verbose= 0;
@@ -12651,12 +12727,15 @@ describe:
           }
           opt_describe_column
           {
-            Select->parsing_place= NO_MATTER;
+            // Ensure we're resetting parsing context of the right select
+            DBUG_ASSERT(Select->parsing_place == CTX_SELECT_LIST);
+            Select->parsing_place= CTX_NONE;
           }
         | describe_command opt_extended_describe
-          { Lex->describe|= DESCRIBE_NORMAL; }
+          {
+            Lex->describe|= DESCRIBE_NORMAL;
+          }
           explanable_command
-          { Lex->select_lex->options|= SELECT_DESCRIBE; }
         ;
 
 explanable_command:
@@ -12665,6 +12744,20 @@ explanable_command:
         | replace
         | update
         | delete
+        | FOR_SYM CONNECTION_SYM NUM
+          {
+            int error;
+            Lex->sql_command= SQLCOM_EXPLAIN_OTHER;
+            if (Lex->sphead)
+            {
+              my_error(ER_NOT_SUPPORTED_YET, MYF(0),
+                       "non-standalone EXPLAIN FOR CONNECTION");
+              MYSQL_YYABORT;
+            }
+            Lex->query_id= my_strtoll10($3.str, NULL, &error);
+            if (error != 0)
+              MYSQL_YYABORT;
+          }
         ;
 
 describe_command:
@@ -13485,7 +13578,7 @@ simple_ident:
             else
             {
               SELECT_LEX *sel=Select;
-              if ((sel->parsing_place != IN_HAVING) ||
+              if ((sel->parsing_place != CTX_HAVING) ||
                   (sel->get_in_sum_expr() > 0))
               {
                 $$= new (thd->mem_root) Item_field(Lex->current_context(),
@@ -13508,7 +13601,7 @@ simple_ident_nospvar:
           {
             THD *thd= YYTHD;
             SELECT_LEX *sel=Select;
-            if ((sel->parsing_place != IN_HAVING) ||
+            if ((sel->parsing_place != CTX_HAVING) ||
                 (sel->get_in_sum_expr() > 0))
             {
               $$= new (thd->mem_root) Item_field(Lex->current_context(),
@@ -13583,13 +13676,13 @@ simple_ident_q:
             }
             else
             {
-              SELECT_LEX *sel= lex->current_select;
+              SELECT_LEX *sel= lex->current_select();
               if (sel->no_table_names_allowed)
               {
                 my_error(ER_TABLENAME_NOT_ALLOWED_HERE,
                          MYF(0), $1.str, thd->where);
               }
-              if ((sel->parsing_place != IN_HAVING) ||
+              if ((sel->parsing_place != CTX_HAVING) ||
                   (sel->get_in_sum_expr() > 0))
               {
                 $$= new (thd->mem_root) Item_field(Lex->current_context(),
@@ -13607,14 +13700,14 @@ simple_ident_q:
         | '.' ident '.' ident
           {
             THD *thd= YYTHD;
-            LEX *lex= thd->lex;
-            SELECT_LEX *sel= lex->current_select;
+//            LEX *lex= thd->lex;
+            SELECT_LEX *sel= Select;
             if (sel->no_table_names_allowed)
             {
               my_error(ER_TABLENAME_NOT_ALLOWED_HERE,
                        MYF(0), $2.str, thd->where);
             }
-            if ((sel->parsing_place != IN_HAVING) ||
+            if ((sel->parsing_place != CTX_HAVING) ||
                 (sel->get_in_sum_expr() > 0))
             {
               $$= new (thd->mem_root) Item_field(Lex->current_context(),
@@ -13632,8 +13725,8 @@ simple_ident_q:
         | ident '.' ident '.' ident
           {
             THD *thd= YYTHD;
-            LEX *lex= thd->lex;
-            SELECT_LEX *sel= lex->current_select;
+//            LEX *lex= thd->lex;
+            SELECT_LEX *sel= Select;
             const char* schema= (thd->client_capabilities & CLIENT_NO_SCHEMA ?
                                  NullS : $1.str);
             if (sel->no_table_names_allowed)
@@ -13641,7 +13734,7 @@ simple_ident_q:
               my_error(ER_TABLENAME_NOT_ALLOWED_HERE,
                        MYF(0), $3.str, thd->where);
             }
-            if ((sel->parsing_place != IN_HAVING) ||
+            if ((sel->parsing_place != CTX_HAVING) ||
                 (sel->get_in_sum_expr() > 0))
             {
               $$= new (thd->mem_root) Item_field(Lex->current_context(),
@@ -14961,7 +15054,7 @@ handler:
               MYSQL_YYABORT;
             }
             lex->sql_command = SQLCOM_HA_OPEN;
-            if (!lex->current_select->add_table_to_list(thd, $2, $4, 0))
+            if (!lex->current_select()->add_table_to_list(thd, $2, $4, 0))
               MYSQL_YYABORT;
             lex->m_sql_cmd= new (thd->mem_root) Sql_cmd_handler_open();
             if (lex->m_sql_cmd == NULL)
@@ -14977,7 +15070,7 @@ handler:
               MYSQL_YYABORT;
             }
             lex->sql_command = SQLCOM_HA_CLOSE;
-            if (!lex->current_select->add_table_to_list(thd, $2, 0, 0))
+            if (!lex->current_select()->add_table_to_list(thd, $2, 0, 0))
               MYSQL_YYABORT;
             lex->m_sql_cmd= new (thd->mem_root) Sql_cmd_handler_close();
             if (lex->m_sql_cmd == NULL)
@@ -14996,9 +15089,9 @@ handler:
             Item *one= new (YYTHD->mem_root) Item_int((int32) 1);
             if (one == NULL)
               MYSQL_YYABORT;
-            lex->current_select->select_limit= one;
-            lex->current_select->offset_limit= 0;
-            if (!lex->current_select->add_table_to_list(lex->thd, $2, 0, 0))
+            lex->current_select()->select_limit= one;
+            lex->current_select()->offset_limit= 0;
+            if (!lex->current_select()->add_table_to_list(lex->thd, $2, 0, 0))
               MYSQL_YYABORT;
           }
           handler_read_or_scan where_clause opt_limit_clause
@@ -15263,7 +15356,7 @@ grant_ident:
           {
             LEX *lex= Lex;
             size_t dummy;
-            if (lex->copy_db_to(&lex->current_select->db, &dummy))
+            if (lex->copy_db_to(&lex->current_select()->db, &dummy))
               MYSQL_YYABORT;
             if (lex->grant == GLOBAL_ACLS)
               lex->grant = DB_ACLS & ~GRANT_ACL;
@@ -15277,7 +15370,7 @@ grant_ident:
         | ident '.' '*'
           {
             LEX *lex= Lex;
-            lex->current_select->db = $1.str;
+            lex->current_select()->db = $1.str;
             if (lex->grant == GLOBAL_ACLS)
               lex->grant = DB_ACLS & ~GRANT_ACL;
             else if (lex->columns.elements)
@@ -15290,7 +15383,7 @@ grant_ident:
         | '*' '.' '*'
           {
             LEX *lex= Lex;
-            lex->current_select->db = NULL;
+            lex->current_select()->db = NULL;
             if (lex->grant == GLOBAL_ACLS)
               lex->grant= GLOBAL_ACLS & ~GRANT_ACL;
             else if (lex->columns.elements)
@@ -15303,7 +15396,7 @@ grant_ident:
         | table_ident
           {
             LEX *lex=Lex;
-            if (!lex->current_select->add_table_to_list(lex->thd, $1,NULL,
+            if (!lex->current_select()->add_table_to_list(lex->thd, $1,NULL,
                                                         TL_OPTION_UPDATING))
               MYSQL_YYABORT;
             if (lex->grant == GLOBAL_ACLS)
@@ -15610,11 +15703,6 @@ union_clause:
 union_list:
           UNION_SYM union_option
           {
-            if (Lex->current_select->linkage == GLOBAL_OPTIONS_TYPE)
-            {
-              my_parse_error(ER(ER_SYNTAX_ERROR));
-              MYSQL_YYABORT;
-            }
             if (Lex->new_union_query((bool)$2))
               MYSQL_YYABORT;
           }
@@ -15643,22 +15731,21 @@ union_order_or_limit:
           {
             THD *thd= YYTHD;
             LEX *lex= thd->lex;
-            DBUG_ASSERT(lex->current_select->linkage != GLOBAL_OPTIONS_TYPE);
-            SELECT_LEX *sel= lex->current_select;
+            DBUG_ASSERT(lex->current_select()->linkage != GLOBAL_OPTIONS_TYPE);
+            SELECT_LEX *sel= lex->current_select();
             SELECT_LEX_UNIT *unit= sel->master_unit();
             SELECT_LEX *fake= unit->fake_select_lex;
             if (fake)
             {
-              unit->global_parameters= fake;
               fake->no_table_names_allowed= 1;
-              lex->current_select= fake;
+              lex->set_current_select(fake);
             }
             thd->where= "global ORDER clause";
           }
           order_or_limit
           {
             THD *thd= YYTHD;
-            thd->lex->current_select->no_table_names_allowed= 0;
+            thd->lex->current_select()->no_table_names_allowed= 0;
             thd->where= "";
           }
         ;
@@ -15677,11 +15764,11 @@ union_option:
 query_specification:
           SELECT_SYM select_init2_derived
           { 
-            $$= Lex->current_select->master_unit()->first_select();
+            $$= Lex->current_select()->master_unit()->first_select();
           }
         | '(' select_paren_derived ')'
           {
-            $$= Lex->current_select->master_unit()->first_select();
+            $$= Lex->current_select()->master_unit()->first_select();
           }
         ;
 
@@ -15690,7 +15777,7 @@ query_expression_body:
         | query_expression_body
           UNION_SYM union_option 
           {
-            if (Lex->current_select->linkage == GLOBAL_OPTIONS_TYPE)
+            if (Lex->current_select()->linkage == GLOBAL_OPTIONS_TYPE)
             {
               my_parse_error(ER(ER_SYNTAX_ERROR));
               MYSQL_YYABORT;
@@ -15740,15 +15827,15 @@ subselect_end:
             LEX *lex=Lex;
 
             lex->pop_context();
-            SELECT_LEX *child= lex->current_select;
-            lex->current_select = lex->current_select->outer_select();
-            lex->current_select->n_child_sum_items += child->n_sum_items;
+            SELECT_LEX *child= lex->current_select();
+            lex->set_current_select(lex->current_select()->outer_select());
+            lex->current_select()->n_child_sum_items += child->n_sum_items;
             /*
               A subselect can add fields to an outer select. Reserve space for
               them.
             */
-            lex->current_select->select_n_where_fields+=
-            child->select_n_where_fields;
+            lex->current_select()->select_n_where_fields+=
+              child->select_n_where_fields;
           }
         ;
 
@@ -15957,7 +16044,7 @@ view_select:
 view_select_aux:
           create_view_select
           {
-            if (Lex->current_select->set_braces(0))
+            if (Lex->current_select()->set_braces(0))
             {
               my_parse_error(ER(ER_SYNTAX_ERROR));
               MYSQL_YYABORT;
@@ -15966,7 +16053,7 @@ view_select_aux:
               For statment as "CREATE VIEW v1 AS SELECT1 UNION SELECT2",
               parsing of Select query (SELECT1) is completed and UNION_CLAUSE
               is not yet parsed. So check for
-              Lex->current_select->master_unit()->first_select()->braces
+              Lex->current_select()->master_unit()->first_select()->braces
               (as its done in "select_init2" for "select_part2" rule) is not
               done here.
             */
@@ -15976,6 +16063,9 @@ view_select_aux:
         ;
 
 create_view_select_paren:
+          {
+            Lex->current_select()->set_braces(true);
+          }
           create_view_select 
           {
             if (setup_select_in_parentheses(Lex))
@@ -15987,11 +16077,11 @@ create_view_select_paren:
 create_view_select:
           SELECT_SYM
           {
-            Lex->current_select->table_list.save_and_clear(&Lex->save_list);
+            Lex->current_select()->table_list.save_and_clear(&Lex->save_list);
           }
           select_part2
           {
-            Lex->current_select->table_list.push_front(&Lex->save_list);
+            Lex->current_select()->table_list.push_front(&Lex->save_list);
           }
         ;
 

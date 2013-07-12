@@ -77,7 +77,7 @@ bool Item_sum::init_sum_func_check(THD *thd)
   in_sum_func= thd->lex->in_sum_func;
   /* Save a pointer to object to be used in items for nested set functions */
   thd->lex->in_sum_func= this;
-  nest_level= thd->lex->current_select->nest_level;
+  nest_level= thd->lex->current_select()->nest_level;
   ref_by= 0;
   aggr_level= -1;
   aggr_sel= NULL;
@@ -146,7 +146,7 @@ bool Item_sum::check_sum_func(THD *thd, Item **ref)
     greater than the current value of max_arg_level.
     max_arg_level cannot be greater than nest level.
     nest level is always >= 0  
-  */ 
+  */
   if (nest_level == max_arg_level)
   {
     /*
@@ -174,7 +174,7 @@ bool Item_sum::check_sum_func(THD *thd, Item **ref)
   if (!invalid && aggr_level < 0)
   {
     aggr_level= nest_level;
-    aggr_sel= thd->lex->current_select;
+    aggr_sel= thd->lex->current_select();
   }
   /*
     By this moment we either found a subquery where the set function is
@@ -309,31 +309,21 @@ bool Item_sum::check_sum_func(THD *thd, Item **ref)
 
 bool Item_sum::register_sum_func(THD *thd, Item **ref)
 {
-  SELECT_LEX *sl;
   nesting_map allow_sum_func= thd->lex->allow_sum_func;
-  for (sl= thd->lex->current_select->master_unit()->outer_select() ;
-       sl && sl->nest_level > max_arg_level;
-       sl= sl->master_unit()->outer_select() )
+
+  // Find the outer-most query block where this function can be aggregated.
+
+  for (SELECT_LEX *sl= thd->lex->current_select()->outer_select() ;
+       sl && sl->nest_level >= max_arg_level;
+       sl= sl->outer_select() )
   {
-    if (aggr_level < 0 &&
-        (allow_sum_func & ((nesting_map)1 << sl->nest_level)))
+    if (allow_sum_func & ((nesting_map)1 << sl->nest_level))
     {
-      /* Found the most nested subquery where the function can be aggregated */
       aggr_level= sl->nest_level;
       aggr_sel= sl;
     }
   }
-  if (sl && (allow_sum_func & ((nesting_map)1 << sl->nest_level)))
-  {
-    /* 
-      We reached the subquery of level max_arg_level and checked
-      that the function can be aggregated here. 
-      The set function will be aggregated in this subquery.
-    */   
-    aggr_level= sl->nest_level;
-    aggr_sel= sl;
 
-  }
   if (aggr_level >= 0)
   {
     ref_by= ref;
@@ -346,7 +336,7 @@ bool Item_sum::register_sum_func(THD *thd, Item **ref)
       aggr_sel->inner_sum_func_list->next= this;
     }
     aggr_sel->inner_sum_func_list= this;
-    aggr_sel->with_sum_func= 1;
+    aggr_sel->with_sum_func= true;
 
     /* 
       Mark Item_subselect(s) as containing aggregate function all the way up
@@ -360,16 +350,16 @@ bool Item_sum::register_sum_func(THD *thd, Item **ref)
       or through intermediate items to an aggregate function that is calculated
       in a context "outside" of the Item (e.g. in the current or outer select).
 
-      with_sum_func being set for an st_select_lex means that this st_select_lex
-      has aggregate functions directly referenced (i.e. not through a sub-select).
+      with_sum_func being set for an st_select_lex means that this query block
+      has aggregate functions directly referenced (i.e. not through a subquery).
     */
-    for (sl= thd->lex->current_select; 
+    for (SELECT_LEX *sl= thd->lex->current_select(); 
          sl && sl != aggr_sel && sl->master_unit()->item;
-         sl= sl->master_unit()->outer_select() )
-      sl->master_unit()->item->with_sum_func= 1;
+         sl= sl->outer_select())
+      sl->master_unit()->item->with_sum_func= true;
   }
-  thd->lex->current_select->mark_as_dependent(aggr_sel);
-  return FALSE;
+  thd->lex->current_select()->mark_as_dependent(aggr_sel);
+  return false;
 }
 
 
@@ -434,7 +424,7 @@ Item_sum::Item_sum(THD *thd, Item_sum *item):
 
 void Item_sum::mark_as_sum_func()
 {
-  SELECT_LEX *cur_select= current_thd->lex->current_select;
+  SELECT_LEX *cur_select= current_thd->lex->current_select();
   cur_select->n_sum_items++;
   cur_select->with_sum_func= 1;
   with_sum_func= 1;
@@ -596,8 +586,17 @@ void Item_sum::update_used_tables ()
 
     used_tables_cache&= PSEUDO_TABLE_BITS;
 
-    /* the aggregate function is aggregated into its local context */
-    used_tables_cache|= ((table_map)1 << aggr_sel->join->tables) - 1;
+    /*
+     if the function is aggregated into its local context, it can
+     be calculated only after evaluating the full join, thus it
+     depends on all tables of this join. Otherwise, it depends on
+     outer tables, even if its arguments args[] do not explicitly
+     reference an outer table, like COUNT (*) or COUNT(123).
+    */
+    used_tables_cache|= aggr_level == nest_level ?
+      ((table_map)1 << aggr_sel->join->tables) - 1 :
+      OUTER_REF_TABLE_BIT;
+
   }
 }
 
@@ -787,7 +786,7 @@ bool Aggregator_distinct::setup(THD *thd)
       item_sum->sum_func() == Item_sum::COUNT_DISTINCT_FUNC)
   {
     List<Item> list;
-    SELECT_LEX *select_lex= thd->lex->current_select;
+    SELECT_LEX *select_lex= thd->lex->current_select();
 
     if (!(tmp_table_param= new TMP_TABLE_PARAM))
       return TRUE;
@@ -3435,7 +3434,7 @@ Item_func_group_concat::fix_fields(THD *thd, Item **ref)
 bool Item_func_group_concat::setup(THD *thd)
 {
   List<Item> list;
-  SELECT_LEX *select_lex= thd->lex->current_select;
+  SELECT_LEX *select_lex= thd->lex->current_select();
   const bool order_or_distinct= test(arg_count_order > 0 || distinct);
   DBUG_ENTER("Item_func_group_concat::setup");
 

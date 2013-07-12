@@ -311,18 +311,12 @@ arg_cmp_func Arg_comparator::comparator_matrix[5][2] =
 /* static variables */
 
 #ifdef HAVE_PSI_INTERFACE
-#if (defined(_WIN32) || defined(HAVE_SMEM)) && !defined(EMBEDDED_LIBRARY)
+#if defined(_WIN32) && !defined(EMBEDDED_LIBRARY)
 static PSI_thread_key key_thread_handle_con_namedpipes;
 static PSI_cond_key key_COND_handler_count;
-#endif /* _WIN32 || HAVE_SMEM && !EMBEDDED_LIBRARY */
-
-#if defined(HAVE_SMEM) && !defined(EMBEDDED_LIBRARY)
 static PSI_thread_key key_thread_handle_con_sharedmem;
-#endif /* HAVE_SMEM && !EMBEDDED_LIBRARY */
-
-#if (defined(_WIN32) || defined(HAVE_SMEM)) && !defined(EMBEDDED_LIBRARY)
 static PSI_thread_key key_thread_handle_con_sockets;
-#endif /* _WIN32 || HAVE_SMEM && !EMBEDDED_LIBRARY */
+#endif /* _WIN32 && !EMBEDDED_LIBRARY */
 
 #ifdef _WIN32
 static PSI_thread_key key_thread_handle_shutdown;
@@ -333,8 +327,11 @@ static PSI_rwlock_key key_rwlock_openssl;
 #endif
 #endif /* HAVE_PSI_INTERFACE */
 
-#ifdef HAVE_NPTL
-volatile sig_atomic_t ld_assume_kernel_is_set= 0;
+/**
+  Statement instrumentation key for replication.
+*/
+#ifdef HAVE_PSI_STATEMENT_INTERFACE
+PSI_statement_info stmt_info_rpl;
 #endif
 
 /* the default log output is log tables */
@@ -523,6 +520,7 @@ ulong specialflag=0;
 ulong binlog_cache_use= 0, binlog_cache_disk_use= 0;
 ulong binlog_stmt_cache_use= 0, binlog_stmt_cache_disk_use= 0;
 ulong max_connections, max_connect_errors;
+ulong rpl_stop_slave_timeout= LONG_TIMEOUT;
 my_bool log_bin_use_v1_row_events= 0;
 bool thread_cache_size_specified= false;
 bool host_cache_size_specified= false;
@@ -1192,7 +1190,7 @@ int deny_severity = LOG_WARNING;
 #endif /* HAVE_LIBWRAP */
 ulong query_cache_min_res_unit= QUERY_CACHE_MIN_RESULT_DATA_SIZE;
 Query_cache query_cache;
-#ifdef HAVE_SMEM
+#if defined (_WIN32) && !defined (EMBEDDED_LIBRARY)
 char *shared_memory_base_name= default_shared_memory_base_name;
 my_bool opt_enable_shared_memory;
 HANDLE smem_event_connect_request= 0;
@@ -1251,7 +1249,7 @@ static bool read_init_file(char *file_name);
 #ifdef _WIN32
 pthread_handler_t handle_connections_namedpipes(void *arg);
 #endif
-#ifdef HAVE_SMEM
+#if defined (_WIN32) && !defined (EMBEDDED_LIBRARY)
 pthread_handler_t handle_connections_shared_memory(void *arg);
 #endif
 pthread_handler_t handle_slave(void *arg);
@@ -1510,13 +1508,11 @@ void kill_mysql(void)
     */
   }
 #endif
-#elif defined(HAVE_PTHREAD_KILL)
+#else
   if (pthread_kill(signal_thread, MYSQL_KILL_SIGNAL))
   {
     DBUG_PRINT("error",("Got error %d from pthread_kill",errno)); /* purecov: inspected */
   }
-#else 
-  kill(current_pid, MYSQL_KILL_SIGNAL);
 #endif
   DBUG_PRINT("quit",("After pthread_kill"));
   shutdown_in_progress=1;     // Safety if kill didn't work
@@ -1560,7 +1556,7 @@ static void __cdecl kill_server(int sig_ptr)
   else
     sql_print_error(ER_DEFAULT(ER_GOT_SIGNAL),my_progname,sig); /* purecov: inspected */
 
-#if defined(HAVE_SMEM) && defined(_WIN32)
+#if defined (_WIN32) && !defined (EMBEDDED_LIBRARY)
   /*
    Send event to smem_event_connect_request for aborting
    */
@@ -1599,7 +1595,6 @@ static void __cdecl kill_server(int sig_ptr)
 }
 
 
-#if defined(USE_ONE_SIGNAL_HAND)
 pthread_handler_t kill_server_thread(void *arg __attribute__((unused)))
 {
   my_thread_init();       // Initialize new thread
@@ -1610,7 +1605,6 @@ pthread_handler_t kill_server_thread(void *arg __attribute__((unused)))
   return 0;
   /* purecov: end */
 }
-#endif
 
 
 extern "C" sig_handler print_signal_warning(int sig)
@@ -2863,7 +2857,7 @@ void my_init_signals(void)
   struct sigaction sa;
   DBUG_ENTER("my_init_signals");
 
-  my_sigset(THR_SERVER_ALARM,print_signal_warning); // Should never be called!
+  my_sigset(thr_server_alarm,print_signal_warning); // Should never be called!
 
   if (!(test_flags & TEST_NO_STACKTRACE) || (test_flags & TEST_CORE_ON_SIGNAL))
   {
@@ -2912,8 +2906,7 @@ void my_init_signals(void)
 #ifdef SIGTSTP
   sigaddset(&set,SIGTSTP);
 #endif
-  if (thd_lib_detected != THD_LIB_LT)
-    sigaddset(&set,THR_SERVER_ALARM);
+  sigaddset(&set,thr_server_alarm);
   if (test_flags & TEST_SIGINT)
   {
     my_sigset(thr_kill_signal, end_thread_signal);
@@ -2978,16 +2971,14 @@ pthread_handler_t signal_hand(void *arg __attribute__((unused)))
     but the +10 should be quite safe.
   */
   init_thr_alarm(thread_scheduler->max_threads + 10);
-  if (thd_lib_detected != THD_LIB_LT && (test_flags & TEST_SIGINT))
+  if (test_flags & TEST_SIGINT)
   {
     (void) sigemptyset(&set);     // Setup up SIGINT for debug
     (void) sigaddset(&set,SIGINT);    // For debugging
     (void) pthread_sigmask(SIG_UNBLOCK,&set,NULL);
   }
   (void) sigemptyset(&set);     // Setup up SIGINT for debug
-#ifdef USE_ONE_SIGNAL_HAND
-  (void) sigaddset(&set,THR_SERVER_ALARM);  // For alarms
-#endif
+  (void) sigaddset(&set,thr_server_alarm);  // For alarms
   (void) sigaddset(&set,SIGQUIT);
   (void) sigaddset(&set,SIGHUP);
   (void) sigaddset(&set,SIGTERM);
@@ -3029,7 +3020,7 @@ pthread_handler_t signal_hand(void *arg __attribute__((unused)))
       error=0;
     }
     else
-      while ((error=my_sigwait(&set,&sig)) == EINTR) ;
+      while ((error=sigwait(&set,&sig)) == EINTR) ;
     if (cleanup_done)
     {
       my_thread_end();
@@ -3055,16 +3046,12 @@ pthread_handler_t signal_hand(void *arg __attribute__((unused)))
         /* Delete the instrumentation for the signal thread */
         PSI_THREAD_CALL(delete_current_thread)();
 #endif
-#ifdef USE_ONE_SIGNAL_HAND
         pthread_t tmp;
         if ((error= mysql_thread_create(0, /* Not instrumented */
                                         &tmp, &connection_attrib,
                                         kill_server_thread, (void*) &sig)))
           sql_print_error("Can't create thread to kill server (errno= %d)",
                           error);
-#else
-        kill_server((void*) sig); // MIT THREAD has a alarm thread
-#endif
       }
       break;
     case SIGHUP:
@@ -3081,11 +3068,9 @@ pthread_handler_t signal_hand(void *arg __attribute__((unused)))
       /* reenable query logs after the options were reloaded */
       query_logger.set_handlers(log_output_options);
       break;
-#ifdef USE_ONE_SIGNAL_HAND
-    case THR_SERVER_ALARM:
+    case thr_server_alarm:
       process_alarm(sig);     // Trigger alarms.
       break;
-#endif
     default:
 #ifdef EXTRA_DEBUG
       sql_print_warning("Got signal: %d  error: %d",sig,error); /* purecov: tested */
@@ -3308,6 +3293,8 @@ SHOW_VAR com_status_vars[]= {
   {"drop_view",            (char*) offsetof(STATUS_VAR, com_stat[(uint) SQLCOM_DROP_VIEW]), SHOW_LONG_STATUS},
   {"empty_query",          (char*) offsetof(STATUS_VAR, com_stat[(uint) SQLCOM_EMPTY_QUERY]), SHOW_LONG_STATUS},
   {"execute_sql",          (char*) offsetof(STATUS_VAR, com_stat[(uint) SQLCOM_EXECUTE]), SHOW_LONG_STATUS},
+  {"explain_other",        (char*) offsetof(STATUS_VAR, com_stat[(uint)
+  SQLCOM_EXPLAIN_OTHER]), SHOW_LONG_STATUS},
   {"flush",                (char*) offsetof(STATUS_VAR, com_stat[(uint) SQLCOM_FLUSH]), SHOW_LONG_STATUS},
   {"get_diagnostics",      (char*) offsetof(STATUS_VAR, com_stat[(uint) SQLCOM_GET_DIAGNOSTICS]), SHOW_LONG_STATUS},
   {"grant",                (char*) offsetof(STATUS_VAR, com_stat[(uint) SQLCOM_GRANT]), SHOW_LONG_STATUS},
@@ -4910,7 +4897,7 @@ static void create_shutdown_thread()
 #endif /* EMBEDDED_LIBRARY */
 
 
-#if (defined(_WIN32) || defined(HAVE_SMEM)) && !defined(EMBEDDED_LIBRARY)
+#if defined (_WIN32) && !defined (EMBEDDED_LIBRARY)
 static void handle_connections_methods()
 {
   pthread_t hThread;
@@ -4951,7 +4938,7 @@ static void handle_connections_methods()
       handler_count--;
     }
   }
-#ifdef HAVE_SMEM
+#if defined (_WIN32) && !defined (EMBEDDED_LIBRARY)
   if (opt_enable_shared_memory)
   {
     handler_count++;
@@ -4982,7 +4969,7 @@ void decrement_handler_count()
 }
 #else
 #define decrement_handler_count()
-#endif /* defined(_WIN32) || defined(HAVE_SMEM) */
+#endif /* defined(_WIN32) && !defined(EMBEDDED_LIBRARY) */
 
 
 #ifndef EMBEDDED_LIBRARY
@@ -5034,9 +5021,6 @@ int mysqld_main(int argc, char **argv)
     to be able to read defaults files and parse options.
   */
   my_progname= argv[0];
-#ifdef HAVE_NPTL
-  ld_assume_kernel_is_set= (getenv("LD_ASSUME_KERNEL") != 0);
-#endif
 
 #ifndef _WIN32
 #ifdef WITH_PERFSCHEMA_STORAGE_ENGINE
@@ -5148,7 +5132,7 @@ int mysqld_main(int argc, char **argv)
 
   /* Set signal used to kill MySQL */
 #if defined(SIGUSR2)
-  thr_kill_signal= thd_lib_detected == THD_LIB_LT ? SIGINT : SIGUSR2;
+  thr_kill_signal= SIGUSR2;
 #else
   thr_kill_signal= SIGINT;
 #endif
@@ -5489,11 +5473,11 @@ int mysqld_main(int argc, char **argv)
   }
 #endif
 
-#if defined(_WIN32) || defined(HAVE_SMEM)
+#if defined(_WIN32)
   handle_connections_methods();
 #else
   handle_connections_sockets();
-#endif /* _WIN32 || HAVE_SMEM */
+#endif /* _WIN32 */
 
   /* (void) pthread_attr_destroy(&connection_attrib); */
 
@@ -5606,7 +5590,7 @@ default_service_handling(char **argv,
 
   /* We have to quote filename if it contains spaces */
   pos= add_quoted_string(path_and_service, file_path, end);
-  if (*extra_opt)
+  if (extra_opt && *extra_opt)
   {
     /*
      Add option after file_path. There will be zero or one extra option.  It's
@@ -6351,10 +6335,7 @@ pthread_handler_t handle_connections_namedpipes(void *arg)
   decrement_handler_count();
   return 0;
 }
-#endif /* _WIN32 */
 
-
-#ifdef HAVE_SMEM
 
 /**
   Thread of shared memory's service.
@@ -6586,8 +6567,8 @@ error:
   decrement_handler_count();
   return 0;
 }
-#endif /* HAVE_SMEM */
-#endif /* EMBEDDED_LIBRARY */
+#endif /* _WIN32 */
+#endif /* !EMBEDDED_LIBRARY */
 
 
 /****************************************************************************
@@ -8118,7 +8099,7 @@ static int mysql_init_variables(void)
   ssl_acceptor_fd= 0;
 #endif /* ! EMBEDDED_LIBRARY */
 #endif /* HAVE_OPENSSL */
-#ifdef HAVE_SMEM
+#if defined (_WIN32) && !defined (EMBEDDED_LIBRARY)
   shared_memory_base_name= default_shared_memory_base_name;
 #endif
 
@@ -9147,7 +9128,7 @@ PSI_mutex_key
   key_mutex_slave_parallel_worker,
   key_structure_guard_mutex, key_TABLE_SHARE_LOCK_ha_data,
   key_LOCK_error_messages, key_LOG_INFO_lock, key_LOCK_thread_count,
-  key_LOCK_log_throttle_qni;
+  key_LOCK_log_throttle_qni, key_LOCK_query_plan;
 PSI_mutex_key key_LOCK_thread_remove;
 PSI_mutex_key key_RELAYLOG_LOCK_commit;
 PSI_mutex_key key_RELAYLOG_LOCK_commit_queue;
@@ -9231,7 +9212,8 @@ static PSI_mutex_info all_server_mutexes[]=
   { &key_LOCK_thread_remove, "LOCK_thread_remove", PSI_FLAG_GLOBAL},
   { &key_LOCK_log_throttle_qni, "LOCK_log_throttle_qni", PSI_FLAG_GLOBAL},
   { &key_gtid_ensure_index_mutex, "Gtid_state", PSI_FLAG_GLOBAL},
-  { &key_LOCK_thread_created, "LOCK_thread_created", PSI_FLAG_GLOBAL }
+  { &key_LOCK_thread_created, "LOCK_thread_created", PSI_FLAG_GLOBAL },
+  { &key_LOCK_query_plan, "THD::LOCK_query_plan", 0}
 };
 
 PSI_rwlock_key key_rwlock_LOCK_grant, key_rwlock_LOCK_logger,
@@ -9279,9 +9261,9 @@ PSI_cond_key key_gtid_ensure_index_cond;
 
 static PSI_cond_info all_server_conds[]=
 {
-#if (defined(_WIN32) || defined(HAVE_SMEM)) && !defined(EMBEDDED_LIBRARY)
+#if defined(_WIN32) && !defined(EMBEDDED_LIBRARY)
   { &key_COND_handler_count, "COND_handler_count", PSI_FLAG_GLOBAL},
-#endif /* _WIN32 || HAVE_SMEM && !EMBEDDED_LIBRARY */
+#endif /* _WIN32 && !EMBEDDED_LIBRARY */
 #ifdef HAVE_MMAP
   { &key_PAGE_cond, "PAGE::cond", 0},
   { &key_COND_active, "TC_LOG_MMAP::COND_active", 0},
@@ -9321,17 +9303,11 @@ PSI_thread_key key_thread_bootstrap, key_thread_handle_manager, key_thread_main,
 
 static PSI_thread_info all_server_threads[]=
 {
-#if (defined(_WIN32) || defined(HAVE_SMEM)) && !defined(EMBEDDED_LIBRARY)
+#if defined (_WIN32) && !defined (EMBEDDED_LIBRARY)
   { &key_thread_handle_con_namedpipes, "con_named_pipes", PSI_FLAG_GLOBAL},
-#endif /* _WIN32 || HAVE_SMEM && !EMBEDDED_LIBRARY */
-
-#if defined(HAVE_SMEM) && !defined(EMBEDDED_LIBRARY)
   { &key_thread_handle_con_sharedmem, "con_shared_mem", PSI_FLAG_GLOBAL},
-#endif /* HAVE_SMEM && !EMBEDDED_LIBRARY */
-
-#if (defined(_WIN32) || defined(HAVE_SMEM)) && !defined(EMBEDDED_LIBRARY)
   { &key_thread_handle_con_sockets, "con_sockets", PSI_FLAG_GLOBAL},
-#endif /* _WIN32 || HAVE_SMEM && !EMBEDDED_LIBRARY */
+#endif /* _WIN32 && !EMBEDDED_LIBRARY */
 
 #ifdef _WIN32
   { &key_thread_handle_shutdown, "shutdown", PSI_FLAG_GLOBAL},
@@ -9649,7 +9625,7 @@ void init_server_psi_keys(void)
 
   /*
     When a new packet is received,
-    it is instrumented as "statement/com/".
+    it is instrumented as "statement/com/new_packet".
     Based on the packet type found, it later mutates to the
     proper narrow type, for example
     "statement/com/query" or "statement/com/ping".
@@ -9658,9 +9634,21 @@ void init_server_psi_keys(void)
     narrow classification, for example "statement/sql/select".
   */
   stmt_info_new_packet.m_key= 0;
-  stmt_info_new_packet.m_name= "";
+  stmt_info_new_packet.m_name= "new_packet";
   stmt_info_new_packet.m_flags= PSI_FLAG_MUTABLE;
-  mysql_statement_register(category, & stmt_info_new_packet, 1);
+  mysql_statement_register(category, &stmt_info_new_packet, 1);
+
+  /*
+    Statements processed from the relay log are initially instrumented as
+    "statement/rpl/relay_log". The parser will mutate the statement type to
+    a more specific classification, for example "statement/sql/insert".
+  */
+  category= "rpl";
+  stmt_info_rpl.m_key= 0;
+  stmt_info_rpl.m_name= "relay_log";
+  stmt_info_rpl.m_flags= PSI_FLAG_MUTABLE;
+  mysql_statement_register(category, &stmt_info_rpl, 1);
+
 #endif
 }
 

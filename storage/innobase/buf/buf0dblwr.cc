@@ -470,12 +470,17 @@ buf_dblwr_init_or_restore_pages(
 
 		} else if (!fil_check_adress_in_tablespace(space_id,
 							   page_no)) {
-			ib_logf(IB_LOG_LEVEL_WARN,
-				"A page in the doublewrite buffer is not "
-				"within space bounds; space id %lu "
-				"page number %lu, page %lu in "
-				"doublewrite buf.",
-				(ulong) space_id, (ulong) page_no, (ulong) i);
+			/* Do not report the warning if the tablespace is
+			truncated as it's reasonable */
+			if (!srv_is_tablespace_truncated(space_id)) {
+				ib_logf(IB_LOG_LEVEL_WARN,
+					"A page in the doublewrite buffer is "
+					"not within space bounds; space id %lu "
+					"page number %lu, page %lu in "
+					"doublewrite buf.",
+					(ulong) space_id, (ulong) page_no,
+					(ulong) i);
+			}
 
 		} else if (space_id == TRX_SYS_SPACE
 			   && ((page_no >= block1
@@ -690,7 +695,6 @@ buf_dblwr_assert_on_corrupt_block(
 {
 	buf_page_print(block->frame, 0, BUF_PAGE_PRINT_NO_CRASH);
 
-	ut_print_timestamp(stderr);
 	ib_logf(IB_LOG_LEVEL_FATAL,
 		"Apparent corruption of an index page n:o %lu in space"
 		" %lu to be written to data file. We intentionally crash"

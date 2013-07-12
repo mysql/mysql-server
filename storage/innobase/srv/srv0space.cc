@@ -1188,3 +1188,4 @@ Tablespace::is_system_or_undo_tablespace(
 	return(id == srv_sys_space.space_id()
 	       || id <= srv_undo_tablespaces_open);
 }
+

@@ -188,9 +188,9 @@ static void mysql_rewrite_grant(THD *thd, String *rlb)
   }
   else
   {
-    if (lex->current_select->db)
-      append_identifier(thd, rlb, lex->current_select->db,
-                        strlen(lex->current_select->db));
+    if (lex->current_select()->db)
+      append_identifier(thd, rlb, lex->current_select()->db,
+                        strlen(lex->current_select()->db));
     else
       rlb->append("*");
     rlb->append(STRING_WITH_LEN(".*"));

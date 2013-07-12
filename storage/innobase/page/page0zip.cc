@@ -36,6 +36,7 @@ Created June 2005 by Marko Makela
 #include "btr0cur.h"
 #include "page0types.h"
 #include "log0recv.h"
+#include "row0trunc.h"
 #include "zlib.h"
 #ifndef UNIV_HOTBACKUP
 # include "buf0buf.h"
@@ -472,16 +473,19 @@ page_zip_fixed_field_encode(
 /**********************************************************************//**
 Write the index information for the compressed page.
 @return used size of buf */
-static
+
 ulint
 page_zip_fields_encode(
 /*===================*/
-	ulint		n,	/*!< in: number of fields to compress */
-	dict_index_t*	index,	/*!< in: index comprising at least n fields */
-	ulint		trx_id_pos,/*!< in: position of the trx_id column
-				in the index, or ULINT_UNDEFINED if
-				this is a non-leaf page */
-	byte*		buf)	/*!< out: buffer of (n + 1) * 2 bytes */
+	ulint			n,	/*!< in: number of fields
+					to compress */
+	const dict_index_t*	index,	/*!< in: index comprising
+					at least n fields */
+	ulint			trx_id_pos,
+					/*!< in: position of the trx_id column
+					in the index, or ULINT_UNDEFINED if
+					this is a non-leaf page */
+	byte*			buf)	/*!< out: buffer of (n + 1) * 2 bytes */
 {
 	const byte*	buf_start	= buf;
 	ulint		i;
@@ -1192,8 +1196,7 @@ page_zip_compress_clust(
 	} while (--n_dense);
 
 func_exit:
-	return(err);
-}
+	return(err);}
 
 /**********************************************************************//**
 Compress a page.
@@ -1203,43 +1206,59 @@ intact on failure. */
 ibool
 page_zip_compress(
 /*==============*/
-	page_zip_des_t*	page_zip,/*!< in: size; out: data, n_blobs,
-				m_start, m_end, m_nonempty */
-	const page_t*	page,	/*!< in: uncompressed page */
-	dict_index_t*	index,	/*!< in: index of the B-tree node */
-	ulint		level,	/*!< in: compression level */
-	mtr_t*		mtr)	/*!< in: mini-transaction, or NULL */
+	page_zip_des_t*		page_zip,	/*!< in: size; out: data,
+						n_blobs, m_start, m_end,
+						m_nonempty */
+	const page_t*		page,		/*!< in: uncompressed page */
+	dict_index_t*		index,		/*!< in: index of the B-tree
+						node */
+	ulint			level,		/*!< in: commpression level */
+	const redo_page_compress_t* page_comp_info,
+						/*!< in: used for applying
+						MLOG_FILE_TRUNCATE redo log
+						record during recovery */
+	mtr_t*			mtr)		/*!< in/out: mini-transaction,
+						or NULL */
 {
-	z_stream	c_stream;
-	int		err;
-	ulint		n_fields;/* number of index fields needed */
-	byte*		fields;	/*!< index field information */
-	byte*		buf;	/*!< compressed payload of the page */
-	byte*		buf_end;/* end of buf */
-	ulint		n_dense;
-	ulint		slot_size;/* amount of uncompressed bytes per record */
-	const rec_t**	recs;	/*!< dense page directory, sorted by address */
-	mem_heap_t*	heap;
-	ulint		trx_id_col;
-	ulint		n_blobs	= 0;
-	byte*		storage;/* storage of uncompressed columns */
+	z_stream		c_stream;
+	int			err;
+	ulint			n_fields;	/* number of index fields
+						needed */
+	byte*			fields;		/*!< index field information */
+	byte*			buf;		/*!< compressed payload of the
+						page */
+	byte*			buf_end;	/* end of buf */
+	ulint			n_dense;
+	ulint			slot_size;	/* amount of uncompressed bytes
+						per record */
+	const rec_t**		recs;		/*!< dense page directory,
+						sorted by address */
+	mem_heap_t*		heap;
+	ulint			trx_id_col = ULINT_UNDEFINED;
+	ulint			n_blobs	= 0;
+	byte*			storage;	/* storage of uncompressed
+						columns */
+	ulint			ind_id;
 #ifndef UNIV_HOTBACKUP
-	ullint		usec = ut_time_us(NULL);
+	ullint			usec = ut_time_us(NULL);
 #endif /* !UNIV_HOTBACKUP */
 #ifdef PAGE_ZIP_COMPRESS_DBG
-	FILE*		logfile = NULL;
+	FILE*			logfile = NULL;
 #endif
 	/* A local copy of srv_cmp_per_index_enabled to avoid reading that
 	variable multiple times in this function since it can be changed at
 	anytime. */
-	my_bool		cmp_per_index_enabled = srv_cmp_per_index_enabled;
+	my_bool			cmp_per_index_enabled;
+	cmp_per_index_enabled	= srv_cmp_per_index_enabled;
 
 	ut_a(page_is_comp(page));
 	ut_a(fil_page_get_type(page) == FIL_PAGE_INDEX);
 	ut_ad(page_simple_validate_new((page_t*) page));
 	ut_ad(page_zip_simple_validate(page_zip));
-	ut_ad(dict_table_is_comp(index->table));
-	ut_ad(!dict_index_is_ibuf(index));
+	ut_ad(!index
+	      || (index
+		  && dict_table_is_comp(index->table)
+		  && !dict_index_is_ibuf(index)));
 
 	UNIV_MEM_ASSERT_RW(page, UNIV_PAGE_SIZE);
 
@@ -1259,10 +1278,17 @@ page_zip_compress(
 		     == PAGE_NEW_SUPREMUM);
 	}
 
-	if (page_is_leaf(page)) {
-		n_fields = dict_index_get_n_fields(index);
+	if (truncate_t::s_fix_up_active) {
+		ut_ad(page_comp_info != NULL);
+		n_fields = page_comp_info->n_fields;
+		ind_id = page_comp_info->index_id;
 	} else {
-		n_fields = dict_index_get_n_unique_in_tree(index);
+		if (page_is_leaf(page)) {
+			n_fields = dict_index_get_n_fields(index);
+		} else {
+			n_fields = dict_index_get_n_unique_in_tree(index);
+		}
+		ind_id = index->id;
 	}
 
 	/* The dense directory excludes the infimum and supremum records. */
@@ -1300,7 +1326,7 @@ page_zip_compress(
 	page_zip_stat[page_zip->ssize - 1].compressed++;
 	if (cmp_per_index_enabled) {
 		mutex_enter(&page_zip_stat_per_index_mutex);
-		page_zip_stat_per_index[index->id].compressed++;
+		page_zip_stat_per_index[ind_id].compressed++;
 		mutex_exit(&page_zip_stat_per_index_mutex);
 	}
 #endif /* !UNIV_HOTBACKUP */
@@ -1340,24 +1366,38 @@ page_zip_compress(
 	ut_a(err == Z_OK);
 
 	c_stream.next_out = buf;
+
 	/* Subtract the space reserved for uncompressed data. */
 	/* Page header and the end marker of the modification log */
 	c_stream.avail_out = (uInt) (buf_end - buf - 1);
+
 	/* Dense page directory and uncompressed columns, if any */
 	if (page_is_leaf(page)) {
-		if (dict_index_is_clust(index)) {
-			trx_id_col = dict_index_get_sys_col_pos(
-				index, DATA_TRX_ID);
-			ut_ad(trx_id_col > 0);
-			ut_ad(trx_id_col != ULINT_UNDEFINED);
+		if ((index && dict_index_is_clust(index))
+		    || (page_comp_info
+			&& (page_comp_info->type & DICT_CLUSTERED))) {
+
+			if (index) {
+				trx_id_col = dict_index_get_sys_col_pos(
+					index, DATA_TRX_ID);
+				ut_ad(trx_id_col > 0);
+				ut_ad(trx_id_col != ULINT_UNDEFINED);
+			} else if (page_comp_info
+				   && (page_comp_info->type
+				       & DICT_CLUSTERED)) {
+				trx_id_col = page_comp_info->trx_id_pos;
+			}
 
 			slot_size = PAGE_ZIP_DIR_SLOT_SIZE
 				+ DATA_TRX_ID_LEN + DATA_ROLL_PTR_LEN;
+
 		} else {
 			/* Signal the absence of trx_id
 			in page_zip_fields_encode() */
-			ut_ad(dict_index_get_sys_col_pos(index, DATA_TRX_ID)
-			      == ULINT_UNDEFINED);
+			if (index) {
+				ut_ad(dict_index_get_sys_col_pos(
+					index, DATA_TRX_ID) == ULINT_UNDEFINED);
+			}
 			trx_id_col = 0;
 			slot_size = PAGE_ZIP_DIR_SLOT_SIZE;
 		}
@@ -1372,9 +1412,18 @@ page_zip_compress(
 	}
 
 	c_stream.avail_out -= (uInt) (n_dense * slot_size);
-	c_stream.avail_in = (uInt) page_zip_fields_encode(
-		n_fields, index, trx_id_col, fields);
+	if (truncate_t::s_fix_up_active) {
+		ut_ad(page_comp_info != NULL);
+		c_stream.avail_in = (uInt) page_comp_info->field_len;
+		for (ulint i = 0; i < page_comp_info->field_len; i++) {
+			fields[i] = page_comp_info->fields[i];
+		}
+	} else {
+		c_stream.avail_in = (uInt) page_zip_fields_encode(
+			n_fields, index, trx_id_col, fields);
+	}
 	c_stream.next_in = fields;
+
 	if (UNIV_LIKELY(!trx_id_col)) {
 		trx_id_col = ULINT_UNDEFINED;
 	}
@@ -1447,7 +1496,7 @@ err_exit:
 		}
 #endif /* PAGE_ZIP_COMPRESS_DBG */
 #ifndef UNIV_HOTBACKUP
-		if (page_is_leaf(page)) {
+		if (page_is_leaf(page) && index) {
 			dict_index_zip_failure(index);
 		}
 
@@ -1456,7 +1505,7 @@ err_exit:
 			+= time_diff;
 		if (cmp_per_index_enabled) {
 			mutex_enter(&page_zip_stat_per_index_mutex);
-			page_zip_stat_per_index[index->id].compressed_usec
+			page_zip_stat_per_index[ind_id].compressed_usec
 				+= time_diff;
 			mutex_exit(&page_zip_stat_per_index_mutex);
 		}
@@ -1526,12 +1575,12 @@ err_exit:
 	page_zip_stat[page_zip->ssize - 1].compressed_usec += time_diff;
 	if (cmp_per_index_enabled) {
 		mutex_enter(&page_zip_stat_per_index_mutex);
-		page_zip_stat_per_index[index->id].compressed_ok++;
-		page_zip_stat_per_index[index->id].compressed_usec += time_diff;
+		page_zip_stat_per_index[ind_id].compressed_ok++;
+		page_zip_stat_per_index[ind_id].compressed_usec += time_diff;
 		mutex_exit(&page_zip_stat_per_index_mutex);
 	}
 
-	if (page_is_leaf(page)) {
+	if (page_is_leaf(page) && !truncate_t::s_fix_up_active) {
 		dict_index_zip_success(index);
 	}
 #endif /* !UNIV_HOTBACKUP */
@@ -4671,7 +4720,8 @@ page_zip_reorganize(
 	/* Restore logging. */
 	mtr_set_log_mode(mtr, log_mode);
 
-	if (!page_zip_compress(page_zip, page, index, page_zip_level, mtr)) {
+	if (!page_zip_compress(page_zip, page, index,
+			       page_zip_level, NULL, mtr)) {
 
 #ifndef UNIV_HOTBACKUP
 		buf_block_free(temp_block);
@@ -4913,8 +4963,12 @@ page_zip_verify_checksum(
 	/* these variables are used only for innochecksum tool. */
 	,ullint		page_no,	/*!< in: page number of
 					given read_buf */
-	bool		strict_check	/*!< in: true if strict-check
+	bool		strict_check,	/*!< in: true if strict-check
 					option is enable */
+	bool		is_log_enabled,	/*!< in: true if log option is
+					enabled */
+	FILE*		log_file	/*!< in: file pointer to
+					log_file */
 #endif /* UNIV_INNOCHECKSUM */
 )
 {
@@ -4936,8 +4990,11 @@ page_zip_verify_checksum(
 				break;
 		}
 		if (i >= size) {
-			DBUG_PRINT("info", ("Page::%llu is empty and "
-				   "uncorrupted",page_no));
+			if (is_log_enabled) {
+				fprintf(log_file, "Page::%llu is empty and "
+					"uncorrupted\n", page_no);
+			}
+
 			return(TRUE);
 		}
 #else
@@ -4953,23 +5010,27 @@ page_zip_verify_checksum(
 			srv_checksum_algorithm));
 
 #ifdef UNIV_INNOCHECKSUM
-	DBUG_PRINT("info", ("page::%llu; %s checksum: calculated = %u; "
-		   "recorded = %u",page_no,
-		   buf_checksum_algorithm_name(
-			static_cast<srv_checksum_algorithm_t>(
+	if (is_log_enabled) {
+		fprintf(log_file, "page::%llu; %s checksum: calculated = %u; "
+			"recorded = %u\n", page_no,
+			buf_checksum_algorithm_name(
+				static_cast<srv_checksum_algorithm_t>(
 				srv_checksum_algorithm)),
-		   calc,stored));
+			calc,stored);
+	}
 
 	if (!strict_check) {
 
 		crc32 = page_zip_calc_checksum(data, size,
 					       SRV_CHECKSUM_ALGORITHM_CRC32);
-		DBUG_PRINT("info", ("page::%llu: crc32 checksum: "
-			   "calculated = %u; recorded = %u",
-			   page_no, crc32, stored));
-		DBUG_PRINT("info", ("page::%llu: none checksum: "
-			   "calculated = %lu; recorded = %u",
-			   page_no, BUF_NO_CHECKSUM_MAGIC, stored));
+		if (is_log_enabled) {
+			fprintf(log_file, "page::%llu: crc32 checksum: "
+				"calculated = %u; recorded = %u\n",
+				page_no, crc32, stored);
+			fprintf(log_file, "page::%llu: none checksum: "
+				"calculated = %lu; recorded = %u\n",
+				page_no, BUF_NO_CHECKSUM_MAGIC, stored);
+		}
 	}
 #endif /* UNIV_INNOCHECKSUM */
 	if (stored == calc) {

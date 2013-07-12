@@ -849,7 +849,8 @@ db_load_routine(THD *thd, enum_sp_type type, sp_name *name, sp_head **sphp,
   int ret= 0;
 
   thd->lex= &newlex;
-  newlex.current_select= NULL;
+  newlex.thd= thd;
+  newlex.set_current_select(NULL);
 
   parse_user(definer, strlen(definer),
              definer_user_name.str, &definer_user_name.length,
@@ -2293,7 +2294,8 @@ sp_load_for_information_schema(THD *thd, TABLE *proc_table, String *db,
     return 0;
 
   thd->lex= &newlex;
-  newlex.current_select= NULL; 
+  newlex.thd= thd;
+  newlex.set_current_select(NULL); 
   sp= sp_compile(thd, &defstr, sql_mode, creation_ctx);
   *free_sp_head= 1;
   thd->lex->sphead= NULL;
@@ -2619,7 +2621,7 @@ TABLE_LIST *sp_add_to_query_tables(THD *thd, LEX *lex,
   table->table_name= thd->strmake(name, table->table_name_length);
   table->alias= thd->strdup(name);
   table->lock_type= locktype;
-  table->select_lex= lex->current_select;
+  table->select_lex= lex->current_select();
   table->cacheable_table= 1;
   table->mdl_request.init(MDL_key::TABLE, table->db, table->table_name,
                           mdl_type, MDL_TRANSACTION);
