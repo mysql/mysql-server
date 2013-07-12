@@ -122,8 +122,11 @@ int table_replication_execute_status_by_worker::rnd_next(void)
 
   mysql_mutex_lock(&LOCK_active_mi);
 
-  DBUG_ASSERT(active_mi != NULL);
-  DBUG_ASSERT(active_mi->rli != NULL);
+  if (!active_mi || !active_mi->rli || !active_mi->host[0])
+  {
+    mysql_mutex_unlock(&LOCK_active_mi);
+    return HA_ERR_END_OF_FILE;
+  }
 
   for (m_pos.set_at(&m_next_pos);
        m_pos.m_index < active_mi->rli->get_worker_count();
@@ -150,13 +153,11 @@ ha_rows table_replication_execute_status_by_worker::get_row_count()
 
   mysql_mutex_lock(&LOCK_active_mi);
 
-  DBUG_ASSERT(active_mi != NULL);
-  DBUG_ASSERT(active_mi->rli != NULL);
-
-  if (active_mi->is_mi_on_slave()) 
+  if (active_mi && active_mi->rli && active_mi->host[0])
     row_count= active_mi->rli->get_worker_count();
 
   mysql_mutex_unlock(&LOCK_active_mi);
+
   return row_count;
 }
 
@@ -167,8 +168,12 @@ int table_replication_execute_status_by_worker::rnd_pos(const void *pos)
 
   mysql_mutex_lock(&LOCK_active_mi);
 
-  DBUG_ASSERT(active_mi != NULL);
-  DBUG_ASSERT(active_mi->rli != NULL);
+  if (!active_mi || !active_mi->rli || !active_mi->host[0])
+  {
+    mysql_mutex_unlock(&LOCK_active_mi);
+    return HA_ERR_END_OF_FILE;
+  }
+
   DBUG_ASSERT(m_pos.m_index < active_mi->rli->get_worker_count());
 
   worker= active_mi->rli->get_worker(m_pos.m_index);

@@ -324,20 +324,6 @@ public:
     auto_position= auto_position_param;
   }
 
-  /**
-    Used in perfschema tables to decide if the Master_info instance being used
-    corresponds to a master or slave. If master, we return empty set on
-    select from perfschema tables.
-  */
-  inline bool is_mi_on_slave()
-  {
-    mysql_mutex_assert_owner(&LOCK_active_mi);
-
-    if(host[0]) return 1;
-    else
-      return 0;
-  }
-
 private:
   /**
     Format_description_log_event for events received from the master

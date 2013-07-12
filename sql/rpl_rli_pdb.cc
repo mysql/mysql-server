@@ -1520,7 +1520,7 @@ void Slave_worker::do_report(loglevel level, int err_code, const char *msg,
           "master log %s, end_log_pos %llu",
           id, buff_gtid, log_name, log_pos);
 
-  /* 
+  /*
     Error reporting by the worker. The worker updates its error fields as well
     as reports the error in the log.
   */
