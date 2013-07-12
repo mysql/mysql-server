@@ -35,9 +35,6 @@
 static volatile sig_atomic_t segfaulted= 0;
 extern ulong max_used_connections;
 extern volatile sig_atomic_t calling_initgroups;
-#ifdef HAVE_NPTL
-extern volatile sig_atomic_t ld_assume_kernel_is_set;
-#endif
 
 /**
  * Handler for fatal signals
@@ -196,21 +193,6 @@ extern "C" sig_handler handle_fatal_signal(int sig)
   }
 #endif
 
-#ifdef HAVE_NPTL
-  if (thd_lib_detected == THD_LIB_LT && !ld_assume_kernel_is_set)
-  {
-    my_safe_printf_stderr("%s",
-      "You are running a statically-linked LinuxThreads binary on an NPTL\n"
-      "system. This can result in crashes on some distributions due to "
-      "LT/NPTL conflicts.\n"
-      "You should either build a dynamically-linked binary, "
-      "or force LinuxThreads\n"
-      "to be used with the LD_ASSUME_KERNEL environment variable.\n"
-      "Please consult the documentation for your distribution "
-      "on how to do that.\n");
-  }
-#endif
-
   if (locked_in_memory)
   {
     my_safe_printf_stderr("%s", "\n"
@@ -224,13 +206,11 @@ extern "C" sig_handler handle_fatal_signal(int sig)
       "\"mlockall\" bugs.\n");
   }
 
-#ifdef HAVE_WRITE_CORE
   if (test_flags & TEST_CORE_ON_SIGNAL)
   {
     my_safe_printf_stderr("%s", "Writing a core file\n");
     my_write_core(sig);
   }
-#endif
 
 #ifndef _WIN32
   /*

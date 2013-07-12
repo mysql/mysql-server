@@ -1667,7 +1667,7 @@ bool mysql_upgrade_db(THD *thd, LEX_STRING *old_db)
   HA_CREATE_INFO create_info;
   MY_DIR *dirp;
   TABLE_LIST *table_list;
-  SELECT_LEX *sl= thd->lex->current_select;
+  SELECT_LEX *sl= thd->lex->current_select();
   LEX_STRING new_db;
   DBUG_ENTER("mysql_upgrade_db");
 

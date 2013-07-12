@@ -7927,6 +7927,14 @@ func_exit:
     if (settings.inter)
       free(settings.inter);
 
+#ifdef INNODB_MEMCACHED
+    /* free event base */
+    if (main_base) {
+        event_base_free(main_base);
+        main_base = NULL;
+    }
+#endif
+
     memcached_shutdown = 2;
 
     return EXIT_SUCCESS;

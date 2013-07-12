@@ -465,14 +465,14 @@ bool Trigger::execute(THD *thd)
     restore it after return from one. This way error is set
     in case of failure during trigger execution.
   */
-  save_current_select= thd->lex->current_select;
-  thd->lex->current_select= NULL;
+  save_current_select= thd->lex->current_select();
+  thd->lex->set_current_select(NULL);
   err_status=
     m_sp->execute_trigger(thd,
                           &m_db_name,
                           &m_subject_table_name,
                           &m_subject_table_grant);
-  thd->lex->current_select= save_current_select;
+  thd->lex->set_current_select(save_current_select);
 
   thd->restore_sub_statement_state(&statement_state);
 

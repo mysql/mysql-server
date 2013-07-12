@@ -268,7 +268,7 @@ struct st_vio
 #ifdef HAVE_OPENSSL
   void    *ssl_arg;
 #endif
-#ifdef HAVE_SMEM
+#if defined (_WIN32) && !defined (EMBEDDED_LIBRARY)
   HANDLE  handle_file_map;
   char    *handle_map;
   HANDLE  event_server_wrote;
@@ -278,6 +278,6 @@ struct st_vio
   HANDLE  event_conn_closed;
   size_t  shared_memory_remain;
   char    *shared_memory_pos;
-#endif /* HAVE_SMEM */
+#endif /* _WIN32 && !EMBEDDED_LIBRARY */
 };
 #endif /* vio_violite_h_ */

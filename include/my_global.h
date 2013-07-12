@@ -104,8 +104,6 @@
 #define F_TO_EOF 0x3FFFFFFF
 
 /* Shared memory and named pipe connections are supported. */
-#define HAVE_SMEM 1
-#define HAVE_NAMED_PIPE 1
 #define shared_memory_buffer_length 16000
 #define default_shared_memory_base_name "MYSQL"
 #endif /* _WIN32*/
@@ -535,9 +533,6 @@ inline unsigned long long my_double2ulonglong(double d)
 #define double2ulonglong(A) ((ulonglong) (double) (A))
 #endif
 
-#ifndef offsetof
-#define offsetof(TYPE, MEMBER) ((size_t) &((TYPE *)0)->MEMBER)
-#endif
 #define ulong_to_double(X) ((double) (ulong) (X))
 
 #ifndef STACK_DIRECTION
@@ -747,7 +742,7 @@ typedef unsigned long my_off_t;
   TODO Convert these to use Bitmap class.
  */
 typedef ulonglong table_map;          /* Used for table bits in join */
-typedef ulong nesting_map;  /* Used for flags of nesting constructs */
+typedef ulonglong nesting_map;  /* Used for flags of nesting constructs */
 
 #if defined(_WIN32)
 #define socket_errno	WSAGetLastError()
@@ -961,7 +956,6 @@ static inline double rint(double x)
 /* TODO HF add #undef HAVE_VIO if we don't want client in embedded library */
 
 #undef HAVE_OPENSSL
-#undef HAVE_SMEM				/* No shared memory */
 
 #endif /* EMBEDDED_LIBRARY */
 
