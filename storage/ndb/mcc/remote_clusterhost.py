@@ -53,41 +53,58 @@ class RemoteClusterHost(ABClusterHost):
         self.host = host
         self.user = username
         self.pwd = password
-        self.__client = None
-        self.__sftp = None
-    
-    @property
-    def client(self):
-        """"A freshly connected SSHClient object."""
-        if self.__client != None:
-            if self.__sftp != None:
-                self.__sftp.close()
-                self.__sftp = None
-            self.__client.close()
-
         c = paramiko.SSHClient()
         c.load_system_host_keys()
-
-        # TODO - we need user acceptance for this by button in the frontend
         c.set_missing_host_key_policy(paramiko.AutoAddPolicy())
-        ak = 'H:\\.ssh\\known_hosts'
-        if os.path.exists(ak):
-            _logger.debug('Loading additional host keys from %s', ak)
-            c.load_host_keys(filename=ak)
-        else:
-            _logger.debug('File %s does not exist here', ak)
-
         c.connect(hostname=self.host, username=self.user, password=self.pwd)
         self.__client = c
-        return c
+        self.__sftp = c.open_sftp()
+
+    def close(self):
+        self.drop()
+
+    @property
+    def client(self):
+        return self.__client
 
     @property
     def sftp(self):
-        """"An SFTPClient object to this host. It and its SSHClient 
-        object will be created on demand."""
-        if self.__sftp == None:
-            self.__sftp = self.client.open_sftp()
         return self.__sftp
+    
+#     @property
+#     def client(self):
+#         """"A freshly connected SSHClient object."""
+#         if self.__client != None:
+#             if self.__sftp != None:
+#                 self.__sftp.close()
+#                 self.__sftp = None
+#             self.__client.close()
+
+#         c = paramiko.SSHClient()
+#         c.load_system_host_keys()
+
+#         # TODO - we need user acceptance for this by button in the frontend
+#         c.set_missing_host_key_policy(paramiko.AutoAddPolicy())
+#         ak = 'H:\\.ssh\\known_hosts'
+#         if os.path.exists(ak):
+#             _logger.debug('Loading additional host keys from %s', ak)
+#             c.load_host_keys(filename=ak)
+#         else:
+#             _logger.debug('File %s does not exist here', ak)
+
+#         c.connect(hostname=self.host, username=self.user, password=self.pwd)
+#         self.__client = c
+#         return c
+
+#     @property
+#     def sftp(self):
+#         """"An SFTPClient object to this host. It and its SSHClient 
+#         object will be created on demand."""
+#         if self.__sftp != None:
+#             self.__sftp.close()
+
+#         self.__sftp = self.client.open_sftp()
+#         return self.__sftp
 
     def _get_system_tuple(self):
         preamble = None
@@ -127,8 +144,9 @@ class RemoteClusterHost(ABClusterHost):
         return self.path_module.splitdrive(path)[1]
 
     def open(self, filename, mode='r'):
-        """Forward to paramiko.SFTPClient.open for remote hosts. 
-        Wrap in contextlib.closing so that clients can use with-statements on it."""
+        """Forward to paramiko.SFTPClient.open for remote hosts.
+        Wrap in contextlib.closing so that clients can use 
+        with-statements on it."""
         return contextlib.closing(self.sftp.open(self._sftpify(filename), mode))
         
     def drop(self, paths=[]):
@@ -138,8 +156,10 @@ class RemoteClusterHost(ABClusterHost):
         map(self.rm_r, paths)
         if self.__sftp:
             self.__sftp.close()
+            self.__sftp = None
         if self.__client:
             self.__client.close()
+            self.__client = None
         
     def file_exists(self, path):
         """Test for the existence of a file on the remote host. If the file actually exists,
