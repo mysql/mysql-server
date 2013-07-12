@@ -97,6 +97,9 @@ this program; if not, write to the Free Software Foundation, Inc.,
 #endif /* UNIV_DEBUG */
 #include "fts0priv.h"
 #include "page0zip.h"
+#include "row0trunc.h"
+
+enum_tx_isolation thd_get_trx_isolation(const THD* thd);
 
 #include "ha_innodb.h"
 #include "i_s.h"
@@ -491,6 +494,15 @@ innodb_stopword_table_validate(
 /** "GEN_CLUST_INDEX" is the name reserved for InnoDB default
 system clustered index when there is no primary key. */
 const char innobase_index_reserve_name[] = "GEN_CLUST_INDEX";
+
+/******************************************************************//**
+Maps a MySQL trx isolation level code to the InnoDB isolation level code
+@return	InnoDB isolation level */
+static inline
+ulint
+innobase_map_isolation_level(
+/*=========================*/
+	enum_tx_isolation	iso);	/*!< in: MySQL isolation level code */
 
 static const char innobase_hton_name[]= "InnoDB";
 
@@ -1302,7 +1314,7 @@ convert_error_code_to_mysql(
 
 	case DB_INTERRUPTED:
 		my_error(ER_QUERY_INTERRUPTED, MYF(0));
-		/* fall through */
+		return(-1);
 
 	case DB_FOREIGN_EXCEED_MAX_CASCADE:
 		ut_ad(thd);
@@ -1340,7 +1352,7 @@ convert_error_code_to_mysql(
 		cached binlog for this transaction */
 
 		if (thd) {
-			thd_mark_transaction_to_rollback(thd, TRUE);
+			thd_mark_transaction_to_rollback(thd, true);
 		}
 
 		return(HA_ERR_LOCK_DEADLOCK);
@@ -1424,7 +1436,7 @@ convert_error_code_to_mysql(
 		cached binlog for this transaction */
 
 		if (thd) {
-			thd_mark_transaction_to_rollback(thd, TRUE);
+			thd_mark_transaction_to_rollback(thd, true);
 		}
 
 		return(HA_ERR_LOCK_TABLE_FULL);
@@ -2060,7 +2072,7 @@ innobase_copy_frm_flags_from_create_info(
 	ibool	ps_on;
 	ibool	ps_off;
 
-	if (dict_table_is_temporary(innodb_table) || srv_read_only_mode) {
+	if (dict_table_is_temporary(innodb_table)) {
 		/* Temp tables do not use persistent stats. */
 		ps_on = FALSE;
 		ps_off = TRUE;
@@ -2096,7 +2108,7 @@ innobase_copy_frm_flags_from_table_share(
 	ibool	ps_on;
 	ibool	ps_off;
 
-	if (dict_table_is_temporary(innodb_table) || srv_read_only_mode) {
+	if (dict_table_is_temporary(innodb_table)) {
 		/* Temp tables do not use persistent stats */
 		ps_on = FALSE;
 		ps_off = TRUE;
@@ -2790,7 +2802,7 @@ innobase_init(
 	if (sizeof(ulint) == 4) {
 		if (innobase_buffer_pool_size > UINT_MAX32) {
 			sql_print_error(
-				"innobase_buffer_pool_size can't be over 4GB"
+				"innodb_buffer_pool_size can't be over 4GB"
 				" on 32-bit systems");
 
 			DBUG_RETURN(innobase_init_abort());
@@ -3320,9 +3332,22 @@ innobase_start_trx_and_assign_read_view(
 
 	trx_start_if_not_started_xa(trx, false);
 
-	/* Assign a read view if the transaction does not have it yet */
+	/* Assign a read view if the transaction does not have it yet.
+	Do this only if transaction is using REPEATABLE READ isolation
+	level. */
+	trx->isolation_level = innobase_map_isolation_level(
+		thd_get_trx_isolation(thd));
 
-	trx_assign_read_view(trx);
+	if (trx->isolation_level == TRX_ISO_REPEATABLE_READ) {
+		trx_assign_read_view(trx);
+	} else {
+		push_warning_printf(thd, Sql_condition::SL_WARNING,
+				    HA_ERR_UNSUPPORTED,
+				    "InnoDB: WITH CONSISTENT SNAPSHOT "
+				    "was ignored because this phrase "
+				    "can only be used with "
+				    "REPEATABLE READ isolation level.");
+	}
 
 	/* Set the MySQL flag to mark that there is an active transaction */
 
@@ -10070,8 +10095,9 @@ ha_innobase::rename_table(
 
 /*********************************************************************//**
 Returns the exact number of records that this client can see using this
-handler object
-@return Number of rows. HA_POS_ERROR on error */
+handler object.
+@return Number of rows. HA_POS_ERROR is returned for any other error since
+the server will always fall back to counting records if this fails. */
 
 ha_rows
 ha_innobase::records()
@@ -10103,7 +10129,6 @@ ha_innobase::records()
 		DBUG_RETURN(HA_POS_ERROR);
 
 	} else if (prebuilt->table->corrupted) {
-err_table_corrupted:
 		ib_errf(user_thd, IB_LOG_LEVEL_WARN,
 			ER_INNODB_INDEX_CORRUPT,
 			"Table '%s' is corrupt.",
@@ -10136,19 +10161,19 @@ err_table_corrupted:
 	switch (ret) {
 	case DB_SUCCESS:
 		break;
+	case DB_DEADLOCK:
+	case DB_LOCK_TABLE_FULL:
 	case DB_LOCK_WAIT_TIMEOUT:
-		my_error(ER_LOCK_WAIT_TIMEOUT, MYF(0));
+		thd_mark_transaction_to_rollback(user_thd, true);
 		DBUG_RETURN(HA_POS_ERROR);
 	case DB_INTERRUPTED:
 		my_error(ER_QUERY_INTERRUPTED, MYF(0));
 		DBUG_RETURN(HA_POS_ERROR);
 	default:
-		ut_ad(0);  /* Catch any unkown error here during debug */
-		ib_logf(IB_LOG_LEVEL_ERROR,
-			"Unknown error %u from row_scan_index_for_mysql()"
-			" in handler::records()", ret);
-	case DB_CORRUPTION:
-		goto err_table_corrupted;
+		/* No other error besides the three below is returned from
+		row_scan_index_for_mysql(). Make a debug catch. */
+		ut_ad(0);
+		DBUG_RETURN(HA_POS_ERROR);
 	}
 
 	prebuilt->trx->op_info = "";
@@ -10634,8 +10659,6 @@ ha_innobase::info_low(
 
 			if (dict_stats_is_persistent_enabled(ib_table)) {
 
-				ut_ad(!srv_read_only_mode);
-
 				if (is_analyze) {
 					opt = DICT_STATS_RECALC_PERSISTENT;
 				} else {
@@ -10671,7 +10694,7 @@ ha_innobase::info_low(
 			stats.create_time = (ulong) stat_info.ctime;
 		}
 
-		stats.update_time = ib_table->update_time;
+		stats.update_time = (ulong) ib_table->update_time;
 	}
 
 	if (flag & HA_STATUS_VARIABLE) {

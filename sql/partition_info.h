@@ -29,7 +29,7 @@ typedef int (*get_part_id_func)(partition_info *part_info,
                                  longlong *func_value);
 typedef int (*get_subpart_id_func)(partition_info *part_info,
                                    uint32 *part_id);
- 
+
 struct st_ddl_log_memory_entry;
 
 class partition_info : public Sql_alloc
@@ -44,7 +44,7 @@ public:
   List<char> part_field_list;
   List<char> subpart_field_list;
 
-  /* 
+  /*
     If there is no subpartitioning, use only this func to get partition ids.
     If there is subpartitioning, use the this func to get partition id when
     you have both partition and subpartition fields.
@@ -54,10 +54,10 @@ public:
   /* Get partition id when we don't have subpartition fields */
   get_part_id_func get_part_partition_id;
 
-  /* 
+  /*
     Get subpartition id when we have don't have partition fields by we do
     have subpartition ids.
-    Mikael said that for given constant tuple 
+    Mikael said that for given constant tuple
     {subpart_field1, ..., subpart_fieldN} the subpartition id will be the
     same in all subpartitions
   */
@@ -77,7 +77,7 @@ public:
   Field **subpart_field_array;
   Field **part_charset_field_array;
   Field **subpart_charset_field_array;
-  /* 
+  /*
     Array of all fields used in partition and subpartition expression,
     without duplicates, NULL-terminated.
   */
@@ -109,8 +109,8 @@ public:
   struct st_ddl_log_memory_entry *exec_log_entry;
   struct st_ddl_log_memory_entry *frm_log_entry;
 
-  /* 
-    Bitmaps of partitions used by the current query. 
+  /*
+    Bitmaps of partitions used by the current query.
     * read_partitions  - partitions to be used for reading.
     * lock_partitions  - partitions that must be locked (read or write).
     Usually read_partitions is the same set as lock_partitions, but
@@ -141,12 +141,12 @@ public:
     part_column_list_val *range_col_array;
     part_column_list_val *list_col_array;
   };
-  
+
   /********************************************
    * INTERVAL ANALYSIS
    ********************************************/
   /*
-    Partitioning interval analysis function for partitioning, or NULL if 
+    Partitioning interval analysis function for partitioning, or NULL if
     interval analysis is not supported for this kind of partitioning.
   */
   get_partitions_in_range_iter get_part_iter_for_interval;
@@ -155,9 +155,9 @@ public:
     interval analysis is not supported for this kind of partitioning.
   */
   get_partitions_in_range_iter get_subpart_iter_for_interval;
-  
+
   /********************************************
-   * INTERVAL ANALYSIS ENDS 
+   * INTERVAL ANALYSIS ENDS
    ********************************************/
 
   longlong err_value;

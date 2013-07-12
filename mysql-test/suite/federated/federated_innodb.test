@@ -3,7 +3,6 @@
 # that can cause other tests to fail.
 # See Bug #40645 Test main.federated_innodb does not always clean up after itself
 
-source include/have_innodb.inc;
 source suite/federated/include/federated.inc;
 
 #

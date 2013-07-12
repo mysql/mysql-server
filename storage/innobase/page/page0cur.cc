@@ -1216,7 +1216,7 @@ page_cur_insert_rec_zip(
 			get rid of the modification log. */
 			page_create_zip(page_cur_get_block(cursor), index,
 					page_header_get_field(page, PAGE_LEVEL),
-					0, mtr);
+					0, NULL, mtr);
 			ut_ad(!page_header_get_ptr(page, PAGE_FREE));
 
 			if (page_zip_available(
@@ -1289,7 +1289,7 @@ page_cur_insert_rec_zip(
 			if (!log_compressed) {
 				if (page_zip_compress(
 					    page_zip, page, index,
-					    level, NULL)) {
+					    level, NULL, NULL)) {
 					page_cur_insert_rec_write_log(
 						insert_rec, rec_size,
 						cursor->rec, index, mtr);
