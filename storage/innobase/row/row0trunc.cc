@@ -1573,10 +1573,10 @@ truncate_t::fixup_tables()
 		drop indexes and re-create indexes. */
 
 		ib_logf(IB_LOG_LEVEL_INFO,
-			"Completing truncate for table with id (%lu)"
+			"Completing truncate for table with id (%llu)"
 			" residing in space with id (%lu)",
-			(*it)->m_old_table_id,
-			(*it)->m_space_id);
+			(ullint) (*it)->m_old_table_id,
+			(ulong) (*it)->m_space_id);
 
 		if (!Tablespace::is_system_tablespace((*it)->m_space_id)) {
 
@@ -2040,11 +2040,11 @@ truncate_t::create_index(
 		ib_logf(IB_LOG_LEVEL_INFO,
 			"innodb_force_recovery was set to %lu. "
 			"Continuing crash recovery even though "
-			"we failed to create index %lu for "
+			"we failed to create index %llu for "
 			"compressed table '%s' with tablespace "
 			"%lu during recovery",
 			srv_force_recovery,
-			index_id, table_name, space_id);
+			(ullint) index_id, table_name, (ulong) space_id);
 	}
 
 	return(root_page_no);
@@ -2107,16 +2107,16 @@ truncate_t::drop_indexes(
 			continue;
 		}
 
+		if (fil_index_tree_is_freed(space_id, root_page_no, zip_size)) {
+			continue;
+		}
+
 		mtr_start(&mtr);
 
 		/* Don't log the operation while fixing up table truncate
 		operation as crash at this level can still be sustained with
 		recovery restarting from last checkpoint. */
 		mtr_set_log_mode(&mtr, MTR_LOG_NO_REDO);
-
-		if (fil_index_tree_is_freed(space_id, root_page_no, zip_size)) {
-			continue;
-		}
 
 		if (root_page_no != FIL_NULL && zip_size != ULINT_UNDEFINED) {
 
