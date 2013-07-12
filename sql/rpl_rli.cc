@@ -626,9 +626,9 @@ err:
   log apart from updating the error fields.
 
   SYNOPSIS
-  @param  level           specifies the level- error, warning or information,
-  @param  err_code        error number,
-  @param  buff_coord      error message to be used.
+  @param[in]  level          specifies the level- error, warning or information,
+  @param[in]  err_code       error number,
+  @param[in]  buff_coord     error message to be used.
 
 */
 void Relay_log_info::fill_coord_err_buf(loglevel level, int err_code,
