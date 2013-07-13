@@ -2134,10 +2134,10 @@ dict_index_node_ptr_max_size(
 
 	comp = dict_table_is_comp(index->table);
 
-	/* Each record has a header. */
+	/* Each record has page_no, length of page_no and header. */
 	rec_max_size = comp
-		? REC_NODE_PTR_SIZE + REC_N_NEW_EXTRA_BYTES
-		: REC_NODE_PTR_SIZE + REC_N_OLD_EXTRA_BYTES;
+		? REC_NODE_PTR_SIZE + 1 + REC_N_NEW_EXTRA_BYTES
+		: REC_NODE_PTR_SIZE + 2 + REC_N_OLD_EXTRA_BYTES;
 
 	if (comp) {
 		/* Include the "null" flags in the
