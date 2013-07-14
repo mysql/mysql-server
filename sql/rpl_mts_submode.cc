@@ -650,15 +650,15 @@ Mts_submode_logical_clock::
   // Update thd info as waiting for workers to finish.
   thd->enter_stage(&stage_slave_waiiting_for_workers_to_finish, old_stage,
                     __func__, __FILE__, __LINE__);
-  while (delegated_jobs > jobs_done && !sql_slave_killed(rli->info_thd, rli))
+  while (delegated_jobs > jobs_done && !thd->killed)
   {
     if (mts_checkpoint_routine(rli, 0, true, true /*need_data_lock=true*/))
       DBUG_RETURN(-1);
   }
   // Restore previous info.
   THD_STAGE_INFO(thd, *old_stage);
-  DBUG_PRINT("info",("delegated %d, jobs_done %d, we can schedule "
-                     "the next group.", delegated_jobs, jobs_done));
+  DBUG_PRINT("info",("delegated %d, jobs_done %d, Workers have finished their"
+                     " jobs", delegated_jobs, jobs_done));
   rli->mts_group_status= Relay_log_info::MTS_NOT_IN_GROUP;
   DBUG_RETURN(0);
 }
