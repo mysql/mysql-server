@@ -29,7 +29,7 @@ Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA  02110-1301 USA
  *
  *  External interface: 
  *      mcc.configuration.deploy.setupContext: Get all cluster items
- *      mcc.configuration.deploy.getStartProcessCommands: Get command for process
+ *      mcc.configuration.deploy.getStartrProcessCommands: Get command for process
  *      mcc.configuration.deploy.getConfigurationFile: Get config.ini
  *      mcc.configuration.deploy.deployCluster: Create dirs, distribute files
  *      mcc.configuration.deploy.startCluster: Deploy configuration, start procs
@@ -886,8 +886,12 @@ function ProcessCommand(h, p, n) {
         this.msg.params.param.push(pa);
         this.html.optionString += (!firstOpt?"<tr><td></td>":"")+"<td>"+opt.replace(/</g, "&lt").replace(/>/g, "&gt")+"</td>";
         firstOpt = false;
-    }
+    };
+    this.isDone = function () { return true; };
 }
+
+var lastNdbdCmd = null;
+var ndbdids = [];
 
 // Generate the (array of) startup command(s) for the given process
 function getStartProcessCommands(process) {
@@ -924,9 +928,9 @@ function getStartProcessCommands(process) {
         if (ptype == "mysqld") {
             // Need special handling of mysqld
             sc.addopt("--install");
-            sc.addopt("N"+process.getValue("NodeId"));
+            sc.addopt("N"+nodeid);
         } else {
-            sc.addopt("--install", "N"+process.getValue("NodeId"));
+            sc.addopt("--install", "N"+nodeid);
         }
         sc.msg.procCtrl.noRaise = 1; // --install returns 1 on success
         sc.progTitle = "Installing node "+nodeid+" ("+ptype+
@@ -937,6 +941,14 @@ function getStartProcessCommands(process) {
         ss.addopt("start");
         ss.addopt("N"+nodeid);
         ss.progTitle = "Starting service N"+nodeid;
+	
+	if (ptype == "mysqld" || ptype == "ndb_mgmd") {
+	  ss.isDone = function () 
+	    { return mcc.gui.getStatii(nodeid) == "CONNECTED"; };
+	} else {
+	  ss.isDone = function () 
+	    { return mcc.gui.getStatii(nodeid) == "STARTED"; };
+	}
         scmds.push(ss);
     } else {
         sc.progTitle = "Starting node "+nodeid+" ("+ptype+")";
@@ -949,16 +961,40 @@ function getStartProcessCommands(process) {
         sc.addopt("--config-dir", mcc.util.unixPath(datadir));
         sc.addopt("--config-file", mcc.util.unixPath(datadir) + 
                   "config.ini");
+	if (!isWin) {
+	  sc.isDone = function () 
+	    { 
+	      return mcc.gui.getStatii(nodeid) == "CONNECTED";
+	    };
+	}
         return scmds;
     } 
     
     if (ptype == "ndbd" || ptype == "ndbmtd") {
-        sc.addopt("--ndb-nodeid", process.getValue("NodeId"));
-        sc.addopt("--ndb-connectstring", connectString);
-        return scmds;
+      sc.addopt("--ndb-nodeid", nodeid);
+      sc.addopt("--ndb-connectstring", connectString);
+      if (!isWin) {
+	sc.isDone = function () 
+	  { return mcc.gui.getStatii(nodeid) == "STARTING"; };
+      }
+      lastNdbdCmd = sc;
+      ndbdids.push(nodeid);
+      return scmds;
     }
     
     if (ptype == "mysqld") {
+      // Change isDone for the last data node to make it wait for all
+      // ndbds to become STARTED
+      lastNdbdCmd.isDone = function () {
+	for (var i in ndbdids) {
+	  if (mcc.gui.getStatii(ndbdids[i]) != "STARTED") { 
+	    mcc.util.dbg("Still waiting for node "+ndbdids[i]);
+	    return false; 
+	  }
+	}
+	return true;
+      };
+      
         sc.addopt("--defaults-file", datadir+"my.cnf");
 
         // We also need an init command for mysqld
@@ -986,7 +1022,6 @@ function getStartProcessCommands(process) {
             ic.addopt("--default-storage-engine","myisam");
             ic.addopt("--net_buffer_length","16K");
 
-
             ic.addopt("<");
             ic.addopt(tmpdir + "\\install.sql");
             ic.progTitle = "Running mysqld --bootstrap for node "+nodeid;
@@ -998,6 +1033,9 @@ function getStartProcessCommands(process) {
             sc.msg.procCtrl.getStd = false;
             sc.msg.procCtrl.daemonWait = 10;
             sc.progTitle = "Starting node "+nodeid+" ("+ptype+")";
+	   
+	    sc.isDone = function () 
+	      { return mcc.gui.getStatii(nodeid) == "CONNECTED"; };
             
             ic = new ProcessCommand(host, basedir, "mysql_install_db");
             ic.addopt("--no-defaults");
@@ -1012,53 +1050,6 @@ function getStartProcessCommands(process) {
     return null;
 }
 
-// Start cluster processes - build array of process groups
-// function getStartClusterCommands(ptype) {
-
-//     // Array of process groups to return
-//     var pgroups = [];
-
-//     // Append start commands for a set of processes
-//     function appendStartupCommands(procs) {
-//         var startAt = pgroups.length;
-//         for (var i in procs) {
-//             var cmds = getStartProcessCommands(procs[i]);
-//             for (var c in cmds) {
-//                 var index = startAt + +c;
-//                 if (!pgroups[index]) {
-//                     pgroups[index] = {
-//                         plist: [],
-//                         syncPolicy: {
-//                             type: "wait",
-//                             length: (cmds[0].msg.file.name == "ndbd" ||
-//                                         cmds[0].msg.file.name == "ndbmtd" ?
-//                                         5 : 2)
-//                         },
-//                         progTitle: ""
-//                     };
-//                 }    
-//                 pgroups[index].plist.push(cmds[c].msg);
-//                 pgroups[index].progTitle += cmds[c].progTitle;
-//             }
-//         }
-//     }
-
-//     if (ptype) {
-//         // Restrict commands to submitted process type only
-//         appendStartupCommands(processFamilyInstances(ptype));
-//     } else {
-//         // Generate start commands for all ndb_mgmds
-//         appendStartupCommands(processFamilyInstances("management"));
-
-//         // Generate start commands for all ndbXds
-//         appendStartupCommands(processFamilyInstances("data"));
-
-//         // Generate start commands for all mysqlds
-//         appendStartupCommands(processFamilyInstances("sql"));
-//     }
-
-//     return pgroups;
-// }
 
 // Generate the stop command for the given process
 function getStopProcessCommands(process) {
@@ -1079,6 +1070,11 @@ function getStopProcessCommands(process) {
         sc.addopt("--ndb-connectstring", getConnectstring());
         sc.addopt("--execute", "shutdown");
         sc.progTitle = "Running ndb_mgm -e shutdown to take down cluster";
+
+	if(!isWin) {
+	  sc.isDone = function () 
+	    { return mcc.gui.getStatii(nodeid) =="UNKNOWN" };
+	}
         stopCommands.push(sc);
     }
 
@@ -1091,6 +1087,11 @@ function getStopProcessCommands(process) {
         sc.addopt("--socket", mcc.util.quotePath(
             getEffectiveInstanceValue(process, "Socket")));
         sc.progTitle = "mysqldadmin shutdown on node "+nodeid;
+        sc.nodeid = nodeid;
+	if (!isWin) {
+	  sc.isDone = function () 
+	    { return mcc.gui.getStatii(nodeid) == "NO_CONTACT" };
+	}
         stopCommands.push(sc);
     }
  
@@ -1102,7 +1103,7 @@ function getStopProcessCommands(process) {
         ssc.progTitle = "Stopping service N"+nodeid;
 
         //ssc.msg.procCtrl.noRaise = 1; // --remove returns 1 on success
-        //stopCommands.push(ssc);
+        //stopCommands.push(ssc); 2 -> already stopped
 
         rsc = new ProcessCommand(host, basedir, 
                                  ptypeItem.getValue("name")+(isWin?".exe":""));
@@ -1120,43 +1121,6 @@ function getStopProcessCommands(process) {
     return stopCommands;
 }
 
-// Get stop commands for all mysqlds and for management (including ndbd)
-// function getStopClusterCommands() {
-
-//     // Array of process groups to return
-//     var pgroups = [];
-
-//     // Append stop commands for a set of processes
-//     function appendStopCommands(procs) {
-//         pgroups.push({
-//             plist: [],
-//             syncPolicy: {
-//                 type: "wait",
-//                 length: 2
-//             },
-//             progTitle: ""
-//         });
-
-//         var procsAdded = false;
-//         for (var i in procs) {
-//             var commands = getStopProcessCommands(procs[i]);
-//             for (var cx in commands) {
-//                 procsAdded = true;
-//                 pgroups[pgroups.length-1].plist.push(commands[cx].msg);
-//                 pgroups[pgroups.length-1].progTitle += commands[cx].progTitle;
-//             }
-//         }
-//         if (!procsAdded) { pgroups.pop(); }
-//     }
-
-//     appendStopCommands(processFamilyInstances("sql"));
-//     appendStopCommands(processFamilyInstances("management"));
-    
-//     // This is really just to remove the services on Windows
-//     appendStopCommands(processFamilyInstances("data"));
-
-//     return pgroups;
-// }
 
 function _getClusterCommands(procCommandFunc, families) {
     var procItems = getProcessItemsByFamilies(families);
@@ -1167,7 +1131,6 @@ function _getClusterCommands(procCommandFunc, families) {
     }
     return commands;
 }
-
 
 
 // Send a create- or append command to the back end
@@ -1297,117 +1260,80 @@ function deployCluster(silent, fraction) {
 
 // Start cluster: Deploy configuration, start processes
 function startCluster() {
+  // External wait condition
+  var waitCondition = new dojo.Deferred();
+  var timeout = null;
     
-    // External wait condition
-    var waitCondition = new dojo.Deferred();
-    
-    deployCluster(true, 10).then(function (deployed) {
-        if (deployed) {
-            mcc.util.dbg("Starting cluster...");
+  deployCluster(true, 10).
+    then(function (deployed) {
+	if (!deployed) {
+	  mcc.util.dbg("Not starting cluster due to previous error");
+	  return;
+	}
+	
+	mcc.util.dbg("Starting cluster...");
+	var commands = _getClusterCommands(getStartProcessCommands, 
+					   ["management", "data", "sql"]);
+	var currseq = 0;
 
-            // Get the start cluster commands
-            //var commands = getStartClusterCommands();
-            var commands = _getClusterCommands(getStartProcessCommands, 
-                                               ["management", "data", "sql"]);
+	function onTimeout() {
+	  if (commands[currseq].isDone()) {
+	    ++currseq;
+	    updateProgressAndStartNext();
+	  } else {
+	    console.log(commands[currseq].isDone);
+	    mcc.util.dbg("returned false for "+commands[currseq].progTitle)
+	    timeout = setTimeout(onTimeout, 2000);
+	  }	    
+	}
+	  
+	function onError(errMsg) {
+	  alert(errMsg);
+	  removeProgressDialog();
+	  waitCondition.resolve();
+	}
 
-            var layers = ["Management layer", "Data layer", "SQL layer", "SQL layer"];
-            var currseq = 0;
-
-            function onError(errMsg) {
-                alert(errMsg);
-                removeProgressDialog();
-                waitCondition.resolve();
-            }
-
-            function updateProgressAndStartNext() {
-                if (currseq < commands.length) {
-                    mcc.util.dbg("commands["+currseq+"].progTitle: " + 
-                                 commands[currseq].progTitle);
-                    updateProgressDialog("Starting cluster",
-                                         commands[currseq].progTitle,
-                                         {maximum: commands.length, progress: currseq});
-
-                    mcc.server.doReq("executeCommandReq", 
-                                     {command: commands[currseq].msg}, cluster,
-                                     _onReply, onError);
-                    // Start status polling timer after mgmd has been started				
-                    if (currseq == 0) { mcc.gui.startStatusPoll(false); } // Ignore errors since it may not be available right away               
-                    currseq++;        
-                } else {
-                    mcc.util.dbg("Cluster started");
-                    updateProgressDialog("Starting cluster", 
-                            "Cluster started", 
-                            {progress: "100%"});
-                    alert("Cluster started");
-                    removeProgressDialog();
-                    waitCondition.resolve();
-                }
-            }
-            
-            function onReply() {
-                // Wait for processes at previous start level to be started
-                var timer = null;
-                if (commands[currseq-1].plist[0].procCtrl.waiForCompletion == false) {
-                    mcc.util.dbg("Wait for `"+commands[currseq-1].progTitle+
-                                 "'");  
-                    mcc.storage.processTreeStorage().getItems({name: layers[currseq-1]}).then(function (pfam) {
-                        var procs = pfam[0].getValues("processes");
-                        for (var i in procs) {
-                            var stat = mcc.storage.processTreeStorage().store().getValue(procs[i], "status");
-                            if (stat && stat != "STARTED" && stat != "CONNECTED" && !timer) {
-                                // Not all started, wait and call onReply again
-                                mcc.util.dbg("'" + commands[currseq-1].progTitle + "' not done, continue waiting");
-                                timer = setTimeout(onReply, 2000);
-                                break;
-                            }
-                        }
-                    });
-                }
-                if (!timer) {
-                    mcc.util.dbg("`" + commands[currseq-1].progTitle + "' is finished");
-                    updateProgressAndStartNext();
-                }
-            }
-
-            function _onReply(rep) {
-                mcc.util.dbg("Got reply for: "+commands[currseq-1].progTitle);
-                if (rep.body.out && rep.body.out != "") {
-                    mcc.util.dbg(rep.head.cmd+": "+"out: `"+rep.body.out+
-                          "', err: `"+rep.body.err+"' exitcode: "+rep.body.exitcode);
-                }
-                // Wait for processes at previous start level to be started
-                var timer = null;
-                if (commands[currseq-1].msg.procCtrl.waiForCompletion == false) {
-                    mcc.util.dbg("Wait for `"+commands[currseq-1].progTitle+
-                                 "'");  
-                    mcc.storage.processTreeStorage().getItems({name: layers[currseq-1]}).then(function (pfam) {
-                        var procs = pfam[0].getValues("processes");
-                        for (var i in procs) {
-                            var stat = mcc.storage.processTreeStorage().store().getValue(procs[i], "status");
-                            if (stat && stat != "STARTED" && stat != "CONNECTED" && !timer) {
-                                // Not all started, wait and call onReply again
-                                mcc.util.dbg("'" + commands[currseq-1].progTitle + "' not done, continue waiting");
-                                timer = setTimeout(onReply, 2000);
-                                break;
-                            }
-                        }
-                    });
-                }
-                if (!timer) {
-                    mcc.util.dbg("`" + commands[currseq-1].progTitle + "' is finished");
-                    updateProgressAndStartNext();
-                }
-            }
-
-            // Initiate startup sequence by calling onReply
-            updateProgressAndStartNext();            
-
-        } else {
-            mcc.util.dbg("Not starting cluster due to previous error");
-        }
-    });
-
-    return waitCondition;
+	function onReply(rep) {
+	  mcc.util.dbg("Got reply for: "+commands[currseq].progTitle);
+	  if (rep.body.out && rep.body.out != "") {
+	    mcc.util.dbg(rep.head.cmd+": "+"out: `"+rep.body.out+
+			 "', err: `"+rep.body.err+"' exitcode: "+
+			 rep.body.exitcode);
+	  }
+	  // Start status polling timer after mgmd has been started
+	  // Ignore errors since it may not be available right away           
+	  if (currseq == 0) { mcc.gui.startStatusPoll(false); } 
+	  onTimeout();
+	}
+        
+	function updateProgressAndStartNext() {
+	  if (currseq >= commands.length) {
+	    mcc.util.dbg("Cluster started");
+	    updateProgressDialog("Starting cluster", 
+				 "Cluster started", 
+				 {progress: "100%"});
+	    alert("Cluster started");
+	    removeProgressDialog();
+	    waitCondition.resolve();
+	    return;
+	  }
+	  mcc.util.dbg("commands["+currseq+"].progTitle: " + 
+		       commands[currseq].progTitle);
+	  updateProgressDialog("Starting cluster",
+			       commands[currseq].progTitle,
+			       {maximum: commands.length, 
+				   progress: currseq});
+	  
+	  mcc.server.doReq("executeCommandReq", 
+			   {command: commands[currseq].msg}, cluster,
+			   onReply, onError);
+	  
+	} 
+	// Initiate startup sequence by calling onReply
+	updateProgressAndStartNext();            
+      });
+  
+  return waitCondition;
 }
 
 // Stop cluster
@@ -1416,86 +1342,71 @@ function stopCluster() {
     var waitCondition = new dojo.Deferred();
     mcc.util.dbg("Stopping cluster...");
 
-    // Get the start cluster commands
-    //var commands = getStopClusterCommands();
     var commands = _getClusterCommands(getStopProcessCommands, 
                                        ["sql", "management", "data"]);
-    var layers = ["SQL layer", "Management layer"];
     var currseq = 0;
     var errorReplies = 0;
+    var timeout;
+
+    function onTimeout() {
+      if (commands[currseq].isDone()) {
+	++currseq;
+	updateProgressAndStopNext();
+      } else {
+	timeout = setTimeout(onTimeout, 2000);
+      }	    
+    }
 
     function onError(errMsg, errReply) {
         mcc.util.dbg("stopCluster failed: "+errMsg);
-        alert("Error occured while stopping cluster: `"+errMsg+"' (Press OK to continue)");
+        alert("Error occured while stopping cluster: `"+errMsg+
+	      "' (Press OK to continue)");
         ++errorReplies;
 
         var cwpb = dijit.byId("configWizardProgressBar");
         var visualTile = dojo.query(".dijitProgressBarTile", cwpb.domNode)[0];
         visualTile.style.backgroundColor = "#FF3366";
-
+	++currseq;
         updateProgressAndStopNext();
     }
 
-    function _onReply(rep) {
-        mcc.util.dbg(rep.head.cmd+": "+"out: `"+rep.body.out+
-              "', err: `"+rep.body.err+"' exitcode: "+rep.body.exitcode);
-        updateProgressAndStopNext();
+    function onReply(rep) {
+      mcc.util.dbg("Got reply for: "+commands[currseq].progTitle);
+      mcc.util.dbg(rep.head.cmd+": "+"out: `"+rep.body.out+
+		   "', err: `"+rep.body.err+"' exitcode: "+rep.body.exitcode);
+      onTimeout();
     }
-
-    function onReply() {
-        mcc.util.dbg("Wait for `" + commands[currseq-1].progTitle + "' to finish");  
-        mcc.storage.processTreeStorage().getItems({name: layers[currseq-1]}).then(function (pfam) {
-            logIt(pfam);
-            var procs = pfam[0].getValues("processes");
-            var timer = null;
-            for (var i in procs) {
-                var stat = mcc.storage.processTreeStorage().store().getValue(procs[i], "status");
-                if (stat && stat != "STOPPED" && stat != "UNKNOWN" && stat != "NO_CONTACT" && !timer) {
-                    // Not all stopped, wait and call onReply again
-                    mcc.util.dbg("`" + commands[currseq-1].progTitle + "' not finished (stat: `"+stat+"'), continue waiting");
-                    timer = setTimeout(onReply, 2000);
-                    break;
-                }
-            }
-
-            if (!timer) {
-                mcc.util.dbg("`" + commands[currseq-1].progTitle + "' is finished");
-                updateProgressAndStopNext();
-            }
-        });
-    }
-
+    
     function updateProgressAndStopNext() {
-        if (currseq < commands.length) {
-            mcc.util.dbg("Stopping cluster: `" + commands[currseq].progTitle + 
-                         "'");
-            updateProgressDialog("Stopping cluster" + 
-                                 (errorReplies ? 
-                                  " (" + errorReplies + " failed command(s))":
-                                  ""), 
-                                 commands[currseq].progTitle, 
-                                 {maximum: commands.length, progress: currseq });
-            mcc.server.doReq("executeCommandReq", {command: commands[currseq].msg}, cluster, _onReply, onError);
-            currseq++;        
-        } else {
-            var message = errorReplies ? 
-                "Stop procedure has completed, but " + errorReplies + " out of " + 
-                commands.length + " commands failed" : 
-                "Cluster stopped successfully";
-            mcc.util.dbg(message);
-            updateProgressDialog(message, 
-                    "", 
-                    {progress: "100%"});
-            alert(message);
-            removeProgressDialog();
-            mcc.gui.stopStatusPoll();
-            waitCondition.resolve();
-        }
+      if (currseq >= commands.length) {
+	var message = errorReplies ? 
+	  "Stop procedure has completed, but " + errorReplies + " out of " + 
+	  commands.length + " commands failed" : 
+	  "Cluster stopped successfully";
+
+	mcc.util.dbg(message);
+	updateProgressDialog(message, "", {progress: "100%"});
+	alert(message);
+	removeProgressDialog();
+	mcc.gui.stopStatusPoll();
+	waitCondition.resolve();
+	return;
+      }
+
+      mcc.util.dbg("Stopping cluster: `" + commands[currseq].progTitle + "'");
+      updateProgressDialog("Stopping cluster" + 
+			   (errorReplies ? 
+			    " (" + errorReplies + " failed command(s))":
+			    ""), 
+			   commands[currseq].progTitle, 
+			   {maximum: commands.length, progress: currseq });
+      mcc.server.doReq("executeCommandReq", 
+		       {command: commands[currseq].msg}, cluster, 
+		       onReply, onError);
     }
 
     // Initiate stop sequence
     updateProgressAndStopNext();            
-
     return waitCondition; 
 }
 

@@ -281,3 +281,30 @@ class RemoteClusterHost(ABClusterHost):
         assert isinstance(cmdv, list)
         return self._exec_cmdln(' '.join([a.replace(' ', '\\ ') for a in cmdv]), procCtrl, stdinFile)
 
+
+    def execute_command(self, cmdv, inFile=None):
+        """Execute an OS command blocking on the local host, using 
+        subprocess module. Returns dict contaning output from process. 
+        cmdv - complete command vector (argv) of the OS command.
+        inFile - File-like object providing stdin to the command.
+        """
+        cmdln = ' '.join([a.replace(' ', '\\ ') for a in cmdv])
+        _logger.debug('cmdln='+cmdln)
+
+        with contextlib.closing(self.client.get_transport().open_session()) as chan:
+            chan.exec_command(cmdln)
+            if inFile:
+                chan.sendall(inFile.read())
+                chan.shutdown_write()     
+
+            result = {
+                'exitstatus': chan.recv_exit_status()
+                }
+            with contextlib.closing(chan.makefile('rb')) as outFile:
+                result['out'] = outFile.read()
+
+            with contextlib.closing(chan.makefile_stderr('rb')) as errFile:
+                result['err'] = errFile.read(),
+
+            return result
+

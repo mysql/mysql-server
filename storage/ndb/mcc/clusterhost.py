@@ -505,12 +505,29 @@ class LocalClusterHost(ABClusterHost):
             if (stdin != output):
                 stdin.close()
             output.close()
-            
+
+    def execute_command(self, cmdv, inFile=None):
+        """Execute an OS command blocking on the local host, using 
+        subprocess module. Returns dict contaning output from process. 
+        cmdv - complete command vector (argv) of the OS command.
+        """
+        outFile = tempfile.TemporaryFile()
+        errFile = tempfile.TemporaryFile()
+        result = {
+            'exitstatus': subprocess.call(args=cmdv, stdin=inFile, 
+                                          stdout=outFile, stderr=errFile) 
+            }
+        result['out'] = outFile.read()
+        result['err'] = errFile.read()
+        return result
 
 def produce_ABClusterHost(hostname='localhost', user=None, pwd=None):
     """Factory method which returns RemoteClusterHost or LocalClusterHost depending 
     on the value of hostname.."""
 
+    if hostname == 'localhost' or hostname == '127.0.0.1' or hostname == socket.gethostname():
+        return LocalClusterHost(hostname)
+    
     hostname_fqdn = socket.getfqdn(hostname)
     if hostname_fqdn == socket.getfqdn('localhost') or hostname_fqdn == socket.getfqdn(socket.gethostname()):
         return LocalClusterHost(hostname)
