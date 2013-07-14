@@ -103,7 +103,6 @@ CREATE TRIGGER trg4 BEFORE DELETE ON t1 FOR EACH ROW
 SET @del:= @del + old.j|
 CREATE TRIGGER trg5 AFTER DELETE ON t1 FOR EACH ROW 
 SET @del:= 1|
-# Events 
 #####################
 # Executing queries #
 #####################
@@ -144,25 +143,36 @@ fac(5)
 SELECT append("Bolly", "wood");
 append("Bolly", "wood")
 Bollywood
+# Events
+CREATE EVENT e1 ON SCHEDULE EVERY 2 SECOND DO
+BEGIN
+CREATE TABLE table_t(a INT);
+INSERT INTO table_t VALUES(1);
+END|
+SET GLOBAL event_scheduler=ON;
+CREATE EVENT e2 ON SCHEDULE EVERY 1 SECOND DO
+DROP TABLE table_t;
+SET GLOBAL event_scheduler=OFF;
 SELECT EVENT_NAME, OBJECT_NAME, NESTING_EVENT_TYPE, NESTING_EVENT_LEVEL
 FROM performance_schema.events_statements_current WHERE
 CURRENT_SCHEMA='stored_programs';
 EVENT_NAME	OBJECT_NAME	NESTING_EVENT_TYPE	NESTING_EVENT_LEVEL
 statement/sql/select	NULL	NULL	0
+statement/sp/stmt	e2	NULL	0
 SELECT EVENT_NAME, OBJECT_NAME, NESTING_EVENT_TYPE, NESTING_EVENT_LEVEL
 FROM performance_schema.events_statements_history WHERE
 CURRENT_SCHEMA='stored_programs';
 EVENT_NAME	OBJECT_NAME	NESTING_EVENT_TYPE	NESTING_EVENT_LEVEL
-statement/sp/set	fac	STATEMENT	1
-statement/sp/jump	fac	STATEMENT	1
-statement/sp/jump_if_not	fac	STATEMENT	1
+statement/sql/select	NULL	NULL	0
+statement/sql/set_option	NULL	NULL	0
+statement/sql/select	NULL	NULL	0
 statement/sp/freturn	fac	STATEMENT	1
 statement/sql/select	NULL	NULL	0
 statement/sp/freturn	append	STATEMENT	1
 statement/sql/select	NULL	NULL	0
-statement/sql/select	NULL	NULL	0
-statement/sp/jump_if_not	fac	STATEMENT	1
-statement/sp/set	fac	STATEMENT	1
+statement/sql/create_event	NULL	NULL	0
+statement/sql/set_option	NULL	NULL	0
+statement/sql/create_event	NULL	NULL	0
 SELECT EVENT_NAME, OBJECT_NAME, NESTING_EVENT_TYPE, NESTING_EVENT_LEVEL
 FROM performance_schema.events_statements_history_long WHERE
 CURRENT_SCHEMA='stored_programs';
@@ -258,6 +268,14 @@ statement/sp/freturn	fac	STATEMENT	1
 statement/sql/select	NULL	NULL	0
 statement/sp/freturn	append	STATEMENT	1
 statement/sql/select	NULL	NULL	0
+statement/sql/create_event	NULL	NULL	0
+statement/sql/set_option	NULL	NULL	0
+statement/sp/stmt	e1	NULL	0
+statement/sp/stmt	e1	NULL	0
+statement/sp/stmt	e1	NULL	0
+statement/sql/create_event	NULL	NULL	0
+statement/sql/select	NULL	NULL	0
+statement/sql/set_option	NULL	NULL	0
 statement/sql/select	NULL	NULL	0
 statement/sql/select	NULL	NULL	0
 TRUNCATE TABLE performance_schema.events_statements_history;
@@ -275,6 +293,9 @@ DROP TRIGGER trg2;
 DROP TRIGGER trg3;
 DROP TRIGGER trg4;
 DROP TRIGGER trg5;
+DROP EVENT IF EXISTS e1;
+DROP EVENT IF EXISTS e2;
+SET GLOBAL EVENT_SCHEDULER=OFF;
 DROP TABLE t1;
 DROP TABLE t2;
 DROP TABLE t3;
@@ -416,6 +437,9 @@ SELECT EVENT_NAME, OBJECT_NAME, NESTING_EVENT_TYPE, NESTING_EVENT_LEVEL
 FROM performance_schema.events_statements_history WHERE
 CURRENT_SCHEMA='nested_sp';
 EVENT_NAME	OBJECT_NAME	NESTING_EVENT_TYPE	NESTING_EVENT_LEVEL
+statement/sp/stmt	ifac	STATEMENT	2
+statement/sp/set	ifac	STATEMENT	2
+statement/sp/jump	ifac	STATEMENT	2
 statement/sp/jump_if_not	ifac	STATEMENT	2
 statement/sp/stmt	trg	STATEMENT	1
 statement/sql/insert	NULL	NULL	0
@@ -423,13 +447,14 @@ statement/sql/select	NULL	NULL	0
 statement/sql/select	NULL	NULL	0
 statement/sp/jump_if_not	fac	STATEMENT	3
 statement/sp/freturn	fac	STATEMENT	3
-statement/sp/stmt	ifac	STATEMENT	2
-statement/sp/set	ifac	STATEMENT	2
-statement/sp/jump	ifac	STATEMENT	2
 SELECT EVENT_NAME, OBJECT_NAME, NESTING_EVENT_TYPE, NESTING_EVENT_LEVEL
 FROM performance_schema.events_statements_history_long WHERE
 CURRENT_SCHEMA='nested_sp';
 EVENT_NAME	OBJECT_NAME	NESTING_EVENT_TYPE	NESTING_EVENT_LEVEL
+statement/sp/set	fac	STATEMENT	3
+statement/sp/jump	fac	STATEMENT	3
+statement/sp/jump_if_not	fac	STATEMENT	3
+statement/sp/set	fac	STATEMENT	3
 statement/sp/set	fac	STATEMENT	3
 statement/sp/jump	fac	STATEMENT	3
 statement/sp/jump_if_not	fac	STATEMENT	3
@@ -1424,10 +1449,6 @@ statement/sp/set	ifac	STATEMENT	2
 statement/sp/jump	ifac	STATEMENT	2
 statement/sp/jump_if_not	ifac	STATEMENT	2
 statement/sp/set	fac	STATEMENT	3
-statement/sp/jump_if_not	fac	STATEMENT	3
-statement/sp/set	fac	STATEMENT	3
-statement/sp/set	fac	STATEMENT	3
-statement/sp/jump	fac	STATEMENT	3
 statement/sp/jump_if_not	fac	STATEMENT	3
 statement/sp/set	fac	STATEMENT	3
 TRUNCATE TABLE performance_schema.events_statements_history;

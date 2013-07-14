@@ -102,18 +102,10 @@ CREATE TRIGGER trg4 BEFORE DELETE ON t1 FOR EACH ROW
 SET @del:= @del + old.j|
 CREATE TRIGGER trg5 AFTER DELETE ON t1 FOR EACH ROW 
 SET @del:= 1|
-# Events 
 SELECT OBJECT_TYPE, OBJECT_SCHEMA, OBJECT_NAME, COUNT_STAR, COUNT_STATEMENTS 
 FROM performance_schema.events_statements_summary_by_program
 WHERE OBJECT_SCHEMA='stored_programs';
 OBJECT_TYPE	OBJECT_SCHEMA	OBJECT_NAME	COUNT_STAR	COUNT_STATEMENTS
-PROCEDURE	stored_programs	SampleProc1	0	0
-PROCEDURE	stored_programs	SampleProc2	0	0
-PROCEDURE	stored_programs	SampleProc3	0	0
-PROCEDURE	stored_programs	SampleProc4	0	0
-FUNCTION	stored_programs	append	0	0
-FUNCTION	stored_programs	wt_avg	0	0
-FUNCTION	stored_programs	fac	0	0
 TRIGGER	stored_programs	trg2	0	0
 TRIGGER	stored_programs	trg1	0	0
 TRIGGER	stored_programs	trg4	0	0
@@ -157,22 +149,34 @@ fac(5)
 SELECT append("Bolly", "wood");
 append("Bolly", "wood")
 Bollywood
+# Events
+CREATE EVENT e1 ON SCHEDULE EVERY 2 SECOND DO
+BEGIN
+CREATE TABLE table_t(a INT);
+INSERT INTO table_t VALUES(1);
+END|
+SET GLOBAL event_scheduler=ON;
+CREATE EVENT e2 ON SCHEDULE EVERY 1 SECOND DO
+DROP TABLE table_t;
+SET GLOBAL event_scheduler=OFF;
 SELECT OBJECT_TYPE, OBJECT_SCHEMA, OBJECT_NAME, COUNT_STAR, COUNT_STATEMENTS 
 FROM performance_schema.events_statements_summary_by_program
 WHERE OBJECT_SCHEMA='stored_programs';
 OBJECT_TYPE	OBJECT_SCHEMA	OBJECT_NAME	COUNT_STAR	COUNT_STATEMENTS
-PROCEDURE	stored_programs	SampleProc1	1	2
-PROCEDURE	stored_programs	SampleProc2	1	5
-PROCEDURE	stored_programs	SampleProc3	1	10
-PROCEDURE	stored_programs	SampleProc4	1	11
-FUNCTION	stored_programs	append	1	1
-FUNCTION	stored_programs	wt_avg	1	3
-FUNCTION	stored_programs	fac	1	19
 TRIGGER	stored_programs	trg2	1	1
 TRIGGER	stored_programs	trg1	3	3
 TRIGGER	stored_programs	trg4	0	0
 TRIGGER	stored_programs	trg5	0	0
+PROCEDURE	stored_programs	SampleProc1	1	2
+PROCEDURE	stored_programs	SampleProc2	1	5
 TRIGGER	stored_programs	trg3	1	1
+PROCEDURE	stored_programs	SampleProc3	1	10
+PROCEDURE	stored_programs	SampleProc4	1	11
+FUNCTION	stored_programs	wt_avg	1	3
+FUNCTION	stored_programs	fac	1	19
+FUNCTION	stored_programs	append	1	1
+EVENT	stored_programs	e1	2	3
+EVENT	stored_programs	e2	0	0
 SELECT EVENT_NAME, SQL_TEXT, CURRENT_SCHEMA, OBJECT_TYPE, OBJECT_SCHEMA,
 OBJECT_NAME, NESTING_EVENT_TYPE, NESTING_EVENT_LEVEL FROM
 performance_schema.events_statements_history_long WHERE
@@ -352,25 +356,23 @@ statement/sp/freturn	NULL	stored_programs	FUNCTION	stored_programs	fac	STATEMENT
 statement/sql/select	SELECT fac(5)	stored_programs	NULL	NULL	NULL	NULL	0
 statement/sp/freturn	NULL	stored_programs	FUNCTION	stored_programs	append	STATEMENT	1
 statement/sql/select	SELECT append("Bolly", "wood")	stored_programs	NULL	NULL	NULL	NULL	0
+statement/sql/create_event	CREATE EVENT e1 ON SCHEDULE EVERY 2 SECOND DO
+BEGIN
+CREATE TABLE table_t(a INT);
+INSERT INTO table_t VALUES(1);
+END	stored_programs	NULL	NULL	NULL	NULL	0
+statement/sql/set_option	SET GLOBAL event_scheduler=ON	stored_programs	NULL	NULL	NULL	NULL	0
+statement/sp/stmt	CREATE TABLE table_t(a INT)	stored_programs	EVENT	stored_programs	e1	NULL	0
+statement/sp/stmt	INSERT INTO table_t VALUES(1)	stored_programs	EVENT	stored_programs	e1	NULL	0
+statement/sp/stmt	CREATE TABLE table_t(a INT)	stored_programs	EVENT	stored_programs	e1	NULL	0
+statement/sql/create_event	CREATE EVENT e2 ON SCHEDULE EVERY 1 SECOND DO
+DROP TABLE table_t	stored_programs	NULL	NULL	NULL	NULL	0
+statement/sql/select	SELECT count(*)= 1 FROM INFORMATION_SCHEMA.TABLES 
+WHERE TABLE_NAME LIKE 'table_t'	stored_programs	NULL	NULL	NULL	NULL	0
+statement/sql/set_option	SET GLOBAL event_scheduler=OFF	stored_programs	NULL	NULL	NULL	NULL	0
 statement/sql/select	SELECT OBJECT_TYPE, OBJECT_SCHEMA, OBJECT_NAME, COUNT_STAR, COUNT_STATEMENTS 
 FROM performance_schema.events_statements_summary_by_program
 WHERE OBJECT_SCHEMA='stored_programs'	stored_programs	NULL	NULL	NULL	NULL	0
-SELECT OBJECT_TYPE, OBJECT_SCHEMA, SUM_NO_GOOD_INDEX_USED
-FROM performance_schema.events_statements_summary_by_program
-WHERE OBJECT_SCHEMA='stored_programs';
-OBJECT_TYPE	OBJECT_SCHEMA	SUM_NO_GOOD_INDEX_USED
-PROCEDURE	stored_programs	0
-PROCEDURE	stored_programs	0
-PROCEDURE	stored_programs	0
-PROCEDURE	stored_programs	0
-FUNCTION	stored_programs	0
-FUNCTION	stored_programs	0
-FUNCTION	stored_programs	0
-TRIGGER	stored_programs	0
-TRIGGER	stored_programs	0
-TRIGGER	stored_programs	0
-TRIGGER	stored_programs	0
-TRIGGER	stored_programs	0
 # clean -up
 TRUNCATE TABLE performance_schema.events_statements_summary_by_program;
 TRUNCATE TABLE performance_schema.events_statements_history_long;
@@ -378,18 +380,20 @@ SELECT OBJECT_TYPE, OBJECT_SCHEMA, OBJECT_NAME, COUNT_STAR, COUNT_STATEMENTS
 FROM performance_schema.events_statements_summary_by_program
 WHERE OBJECT_SCHEMA='stored_programs';
 OBJECT_TYPE	OBJECT_SCHEMA	OBJECT_NAME	COUNT_STAR	COUNT_STATEMENTS
-PROCEDURE	stored_programs	SampleProc1	0	0
-PROCEDURE	stored_programs	SampleProc2	0	0
-PROCEDURE	stored_programs	SampleProc3	0	0
-PROCEDURE	stored_programs	SampleProc4	0	0
-FUNCTION	stored_programs	append	0	0
-FUNCTION	stored_programs	wt_avg	0	0
-FUNCTION	stored_programs	fac	0	0
 TRIGGER	stored_programs	trg2	0	0
 TRIGGER	stored_programs	trg1	0	0
 TRIGGER	stored_programs	trg4	0	0
 TRIGGER	stored_programs	trg5	0	0
+PROCEDURE	stored_programs	SampleProc1	0	0
+PROCEDURE	stored_programs	SampleProc2	0	0
 TRIGGER	stored_programs	trg3	0	0
+PROCEDURE	stored_programs	SampleProc3	0	0
+PROCEDURE	stored_programs	SampleProc4	0	0
+FUNCTION	stored_programs	wt_avg	0	0
+FUNCTION	stored_programs	fac	0	0
+FUNCTION	stored_programs	append	0	0
+EVENT	stored_programs	e1	0	0
+EVENT	stored_programs	e2	0	0
 DROP PROCEDURE SampleProc1;
 DROP PROCEDURE SampleProc2;
 DROP PROCEDURE SampleProc3;
@@ -402,6 +406,9 @@ DROP TRIGGER trg2;
 DROP TRIGGER trg3;
 DROP TRIGGER trg4;
 DROP TRIGGER trg5;
+DROP EVENT IF EXISTS e1;
+DROP EVENT IF EXISTS e2;
+SET GLOBAL EVENT_SCHEDULER=OFF;
 DROP TABLE t1;
 DROP TABLE t2;
 DROP TABLE t3;
@@ -411,31 +418,40 @@ SELECT OBJECT_TYPE, OBJECT_SCHEMA, OBJECT_NAME, COUNT_STAR, COUNT_STATEMENTS
 FROM performance_schema.events_statements_summary_by_program
 WHERE OBJECT_SCHEMA='stored_programs';
 OBJECT_TYPE	OBJECT_SCHEMA	OBJECT_NAME	COUNT_STAR	COUNT_STATEMENTS
-CREATE TABLE test.t1(
+# set-up
+CREATE DATABASE sp;
+USE sp;
+CREATE TABLE t1(
 a INT,
 b INT
 );
-CREATE PROCEDURE test.p(x1 INT, x2 INT)
+# create few stored programs 
+CREATE PROCEDURE p(x1 INT, x2 INT)
 BEGIN
 INSERT INTO t1 VALUES (x1, x2);
 END|
-CREATE FUNCTION test.f(y1 INT, y2 INT) RETURNS INT
+CREATE FUNCTION f(y1 INT, y2 INT) RETURNS INT
 RETURN y1+y2;
-CREATE TRIGGER test.trg AFTER INSERT ON test.t1 FOR EACH ROW
+CREATE TRIGGER trg AFTER INSERT ON t1 FOR EACH ROW
 SET @neg=-1;
-CALL test.p(7);
-ERROR 42000: Incorrect number of arguments for PROCEDURE test.p; expected 2, got 1
-SELECT test.f("add",1,3);
-ERROR 42000: Incorrect number of arguments for FUNCTION test.f; expected 2, got 3
-INSERT INTO test.t1;
+# execute the created stored programs such that they fail.
+CALL p(7);
+ERROR 42000: Incorrect number of arguments for PROCEDURE sp.p; expected 2, got 1
+SELECT f("add",1,3);
+ERROR 42000: Incorrect number of arguments for FUNCTION sp.f; expected 2, got 3
+INSERT INTO t1;
 ERROR 42000: You have an error in your SQL syntax; check the manual that corresponds to your MySQL server version for the right syntax to use near '' at line 1
+# the below query on PS table doesn't expose any statistics as 
+# execution of the created stored porgrams failed.
 SELECT OBJECT_TYPE, OBJECT_SCHEMA, OBJECT_NAME, COUNT_STAR, COUNT_STATEMENTS
 FROM performance_schema.events_statements_summary_by_program
-WHERE OBJECT_SCHEMA='test';
+WHERE OBJECT_SCHEMA='sp';
 OBJECT_TYPE	OBJECT_SCHEMA	OBJECT_NAME	COUNT_STAR	COUNT_STATEMENTS
-PROCEDURE	test	p	0	0
-FUNCTION	test	f	0	0
-DROP PROCEDURE test.p;
-DROP FUNCTION test.f;
-DROP TRIGGER test.trg;
-DROP TABLE test.t1;
+PROCEDURE	sp	p	0	0
+FUNCTION	sp	f	0	0
+#clean-up
+DROP PROCEDURE p;
+DROP FUNCTION f;
+DROP TRIGGER trg;
+DROP TABLE t1;
+DROP DATABASE sp;

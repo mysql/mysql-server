@@ -3,6 +3,7 @@
 # suite/perfschema/include/program_setup.inc
 #
 
+--disable_warnings
 DROP PROCEDURE SampleProc1;
 DROP PROCEDURE SampleProc2;
 DROP PROCEDURE SampleProc3;
@@ -18,9 +19,14 @@ DROP TRIGGER trg3;
 DROP TRIGGER trg4;
 DROP TRIGGER trg5;
 
+DROP EVENT IF EXISTS e1;
+DROP EVENT IF EXISTS e2;
+SET GLOBAL EVENT_SCHEDULER=OFF;
+
 DROP TABLE t1;
 DROP TABLE t2;
 DROP TABLE t3;
 DROP TABLE t4;
 
 DROP DATABASE stored_programs;
+--enable_warnings
