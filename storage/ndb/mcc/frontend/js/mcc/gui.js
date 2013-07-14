@@ -92,6 +92,7 @@ mcc.gui.stopStatusPoll = mcc.gui.deploymenttree.stopStatusPoll;
 mcc.gui.getCurrentDeploymentTreeItem = 
         mcc.gui.deploymenttree.getCurrentDeploymentTreeItem;
 mcc.gui.resetDeploymentTreeItem = mcc.gui.deploymenttree.resetDeploymentTreeItem;
+mcc.gui.getStatii = mcc.gui.deploymenttree.getStatii;
 
 /******************************** Initialize  *********************************/
 

@@ -33,6 +33,7 @@ Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA  02110-1301 USA
  *      mcc.gui.deploymenttree.stopStatusPoll: Stop status polling
  *      mcc.gui.deploymenttree.getCurrentDeploymentTreeItem: Get selection
  *      mcc.gui.deploymenttree.resetDeploymentTreeItem: Reset the selected item
+ *      mcc.gui.deploymenttree.getStatii: Return current status vector
  *
  *  External data: 
  *      None
@@ -49,7 +50,7 @@ Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA  02110-1301 USA
  *      deploymentTree: The deployment tree
  *      treeExpanded: Keep track of initial expansion of entire tree
  *      deploymentTreeItem: Selected tree node with related storage items
- *      
+ *      _statii: current status vector
  *  Unit test interface: 
  *      None
  *
@@ -84,6 +85,7 @@ mcc.gui.deploymenttree.startStatusPoll = startStatusPoll;
 mcc.gui.deploymenttree.stopStatusPoll = stopStatusPoll;
 mcc.gui.deploymenttree.getCurrentDeploymentTreeItem = getCurrentDeploymentTreeItem;
 mcc.gui.deploymenttree.resetDeploymentTreeItem = resetDeploymentTreeItem;
+mcc.gui.deploymenttree.getStatii = getStatii;
 
 /******************************* Internal data ********************************/
 
@@ -465,12 +467,19 @@ function deploymentTreeSetup() {
     updateDeploymentTreeView();
 }
 
+var _statii = {};
+function getStatii(nodeid) {
+  console.log(_statii[nodeid]);
+  return _statii[nodeid] ? _statii[nodeid].status : "UNKNOWN"; 
+}
+ 
 // Receive status reply
 function receiveStatusReply(reply) {
     if (reply && reply.body && reply.body.reply_properties) {
-        for (var i in reply.body.reply_properties) {
-            var curr = reply.body.reply_properties[i];
-            mcc.storage.processStorage().getItems({NodeId: i}).then(function (processes) {
+      _statii = reply.body.reply_properties;
+      for (var i in reply.body.reply_properties) {
+	var curr = reply.body.reply_properties[i];
+	mcc.storage.processStorage().getItems({NodeId: i}).then(function (processes) {
                 if (processes && processes[0]) {
                     mcc.storage.processTreeStorage().getItem(processes[0].getId()).then(function (proc) {
                         proc.setValue("status", curr.status);
@@ -498,6 +507,7 @@ function receiveStatusError(errMsg, reply) {
     }
     // None of the mgmds returned status    
     // Reset all status information in the process tree
+    _statii = {};
     mcc.storage.processStorage().getItems().then(function (processes) {
         for (var p in processes) {
             mcc.storage.processTreeStorage().getItem(processes[p].getId()).then(function (proc) {
