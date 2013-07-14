@@ -39,7 +39,7 @@ SET GLOBAL DEBUG ='+d,set_commit_parent_150';
 BEGIN;
 INSERT INTO db2.t values (1),(2),(3);
 INSERT INTO db3.t values (1),(2),(3);
-UPDATE db2.t SET db2.t.a= 2 WHERE db2.t.a > 2;
+UPDATE db3.t SET db3.t.a= 2 WHERE db3.t.a > 2;
 COMMIT;
 BEGIN;
 INSERT INTO db1.t values (1),(2),(3);
