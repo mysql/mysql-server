@@ -947,7 +947,19 @@ Log_event::Log_event(const char* buf,
 #ifndef MYSQL_CLIENT
 #ifdef HAVE_REPLICATION
 inline int Log_event::do_apply_event_worker(Slave_worker *w)
-{ 
+{
+  DBUG_EXECUTE_IF("crash_in_a_worker",
+                  {
+                    /* we will crash a worker after waiting for
+                    2 seconds to make sure that other transactions are
+                    scheduled and completed */
+                    if (w->id == 2)
+                    {
+                      DBUG_SET("-d,crash_in_a_worker");
+                      my_sleep((w->id)*2000000);
+                      DBUG_SUICIDE();
+                    }
+                  });
   return do_apply_event(w);
 }
 
