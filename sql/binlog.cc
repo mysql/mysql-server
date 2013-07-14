@@ -5617,6 +5617,10 @@ inline void write_commit_seq_no(IO_CACHE* cache, uchar* buff)
   DBUG_ASSERT(cache->commit_seq_no != SEQ_UNINIT);
   DBUG_ASSERT((*pc_ptr == Q_COMMIT_TS || *pc_ptr == G_COMMIT_TS));
   pc_ptr++;
+  DBUG_EXECUTE_IF("set_commit_parent_100",
+                  { cache->commit_seq_no=100; });
+  DBUG_EXECUTE_IF("set_commit_parent_150",
+                  { cache->commit_seq_no=150; });
 
   // Fix commit ts.
   int8store(pc_ptr, cache->commit_seq_no);

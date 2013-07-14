@@ -5,6 +5,9 @@
 # The motive of this test case is to test the
 # mts submode switch between master parallel to dbname and vice-versa
 --source include/master-slave.inc
+call mtr.add_suppression("Statement is unsafe because it uses a system function that may return a different value on the slave");
+--let $saved_debug=`SELECT @@global.DEBUG`
+SET GLOBAL DEBUG ='+d,set_commit_parent_100';
 --connection slave
 
 # save  MTS submode
@@ -25,56 +28,64 @@ SET GLOBAL slave_parallel_type=LOGICAL_CLOCK;
 --echo #setup the databases and tables
 --connection m1
 CREATE DATABASE db1;
---send CREATE TABLE db1.t (a int) engine=innodb
+CREATE TABLE db1.t (a int) engine=innodb;
 
 --connection m2
 CREATE DATABASE db2;
---send CREATE TABLE db2.t (a int) engine=myisam
+CREATE TABLE db2.t (a int) engine=myisam;
 
 --connection m3
 CREATE DATABASE db3;
---send CREATE TABLE db3.t (a int) engine=innodb
+--disable_warnings ONCE
+CREATE TABLE db3.t engine=myisam select 100*RAND() as a;
 
 --connection m4
 CREATE DATABASE db4;
---send CREATE TABLE db4.t (a int) engine=myisam
+SET @VAR=100;
+CREATE TABLE db4.t engine=myisam select @VAR as a;
+
+--connection master
+SET GLOBAL DEBUG ='-d,set_commit_parent_100';
+SET GLOBAL DEBUG ='+d,set_commit_parent_150';
 
 # NON TRANSACTIONAL
 --connection m4
---reap
---send INSERT INTO db2.t values (1),(2),(3)
+ INSERT INTO db2.t values (1),(2),(3);
 --connection m2
---reap
---send INSERT INTO db4.t values (1),(2),(3)
+ INSERT INTO db4.t values (1),(2),(3);
+
+--connection master
+SET GLOBAL DEBUG ='-d,set_commit_parent_150';
+SET GLOBAL DEBUG ='+d,set_commit_parent_100';
 
 #TRANSACTIONAL
 --connection m1
---reap;
 BEGIN;
 INSERT INTO db1.t values (1),(2),(3);
-INSERT INTO db3.t values (1),(2),(3);
+INSERT INTO db1.t values (1),(2),(3);
 UPDATE db1.t SET db1.t.a= 2 WHERE db1.t.a > 2;
---send COMMIT
+COMMIT;
 
 --connection m3
---reap
 BEGIN;
-INSERT INTO db1.t values (1),(2),(3);
 INSERT INTO db3.t values (1),(2),(3);
-UPDATE db1.t SET db1.t.a= 2 WHERE db1.t.a > 2;
---send COMMIT
+INSERT INTO db3.t values (1),(2),(3);
+UPDATE db3.t SET db3.t.a= 2 WHERE db3.t.a > 2;
+COMMIT;
+
+--connection master
+SET GLOBAL DEBUG ='-d,set_commit_parent_100';
+SET GLOBAL DEBUG ='+d,set_commit_parent_150';
 
 #BOTH TRANSACTIONAL AND NON TRANSACTIONAL
 --connection m2
---reap
 BEGIN;
 INSERT INTO db2.t values (1),(2),(3);
 INSERT INTO db3.t values (1),(2),(3);
 UPDATE db2.t SET db2.t.a= 2 WHERE db2.t.a > 2;
---send COMMIT
+COMMIT;
 
 --connection m4
---reap
 BEGIN;
 INSERT INTO db1.t values (1),(2),(3);
 INSERT INTO db4.t values (1),(2),(3);
@@ -86,7 +97,6 @@ COMMIT;
 --disconnect m3
 --disconnect m4
 
-
 --connection slave
 
 # DEFAULT  ========> DATABASE
@@ -94,6 +104,14 @@ SET GLOBAL slave_parallel_type='DATABASE';
 --source include/start_slave.inc
 --connection master
 --source include/sync_slave_sql_with_master.inc
+--let diff_tables= master:db1.t,slave:db1.t
+--source include/diff_tables.inc
+--let diff_tables= master:db2.t, slave:db2.t
+--source include/diff_tables.inc
+--let diff_tables= master:db3.t, slave:db3.t
+--source include/diff_tables.inc
+--let diff_tables= master:db4.t, slave:db4.t
+--source include/diff_tables.inc
 --source include/stop_slave.inc
 RESET SLAVE;
 DROP DATABASE db1;
@@ -106,6 +124,14 @@ SET GLOBAL slave_parallel_type='LOGICAL_CLOCK';
 --source include/start_slave.inc
 --connection master
 --source include/sync_slave_sql_with_master.inc
+--let diff_tables= master:db1.t, slave:db1.t
+--source include/diff_tables.inc
+--let diff_tables= master:db2.t, slave:db2.t
+--source include/diff_tables.inc
+--let diff_tables= master:db3.t, slave:db3.t
+--source include/diff_tables.inc
+--let diff_tables= master:db4.t, slave:db4.t
+--source include/diff_tables.inc
 --source include/stop_slave.inc
 RESET SLAVE;
 DROP DATABASE db1;
@@ -118,6 +144,14 @@ SET GLOBAL slave_parallel_type='DATABASE';
 --source include/start_slave.inc
 --connection master
 --source include/sync_slave_sql_with_master.inc
+--let diff_tables= master:db1.t, slave:db1.t
+--source include/diff_tables.inc
+--let diff_tables= master:db2.t, slave:db2.t
+--source include/diff_tables.inc
+--let diff_tables= master:db3.t, slave:db3.t
+--source include/diff_tables.inc
+--let diff_tables= master:db4.t, slave:db4.t
+--source include/diff_tables.inc
 
 --source include/stop_slave.inc
 SET GLOBAL SLAVE_PARALLEL_TYPE=DEFAULT;
@@ -134,10 +168,13 @@ DROP DATABASE db4;
 --connection slave
 
 --source include/stop_slave.inc
---disable_query_log ONCE
---disable_result_log ONCE
+--disable_query_log
+--disable_result_log
 --eval SET GLOBAL slave_parallel_type= '$saved_submode'
 --source include/start_slave.inc
-
+--connection master
+--eval SET GLOBAL DEBUG='$saved_debug'
+--enable_query_log
+--enable_result_log
 --source include/rpl_end.inc
 
