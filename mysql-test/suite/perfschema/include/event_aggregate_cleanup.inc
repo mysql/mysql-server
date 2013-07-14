@@ -49,6 +49,7 @@ insert into performance_schema.setup_actors
   select * from test.setup_actors;
 drop table test.setup_actors;
 drop table test.t1;
+drop function test.f;
 
 update performance_schema.threads set instrumented='YES';
 update performance_schema.setup_instruments set enabled='YES', timed='YES';

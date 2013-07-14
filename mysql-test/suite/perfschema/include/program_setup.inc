@@ -132,7 +132,4 @@ CREATE TRIGGER trg4 BEFORE DELETE ON t1 FOR EACH ROW
 CREATE TRIGGER trg5 AFTER DELETE ON t1 FOR EACH ROW 
   SET @del:= 1|
 
---echo # Events 
-# add events here - will be added by mayank
-
 DELIMITER ;|

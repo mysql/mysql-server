@@ -25,3 +25,21 @@ SELECT @del;
 SELECT wt_avg(1, 12, 1990, 1121990);
 SELECT fac(5);
 SELECT append("Bolly", "wood");
+
+--echo # Events
+DELIMITER |;
+CREATE EVENT e1 ON SCHEDULE EVERY 2 SECOND DO
+BEGIN
+  CREATE TABLE table_t(a INT);
+  INSERT INTO table_t VALUES(1);
+END|
+DELIMITER ;|
+
+SET GLOBAL event_scheduler=ON;
+--sleep 2
+CREATE EVENT e2 ON SCHEDULE EVERY 1 SECOND DO
+  DROP TABLE table_t;
+let $wait_condition= SELECT count(*)= 1 FROM INFORMATION_SCHEMA.TABLES 
+                     WHERE TABLE_NAME LIKE 'table_t';
+--source include/wait_condition.inc
+SET GLOBAL event_scheduler=OFF;
