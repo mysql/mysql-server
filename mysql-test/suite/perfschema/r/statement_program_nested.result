@@ -71,18 +71,6 @@ SELECT OBJECT_TYPE, OBJECT_SCHEMA, OBJECT_NAME, COUNT_STAR, COUNT_STATEMENTS
 FROM performance_schema.events_statements_summary_by_program
 WHERE OBJECT_SCHEMA='nested_sp';
 OBJECT_TYPE	OBJECT_SCHEMA	OBJECT_NAME	COUNT_STAR	COUNT_STATEMENTS
-PROCEDURE	nested_sp	c1	0	0
-PROCEDURE	nested_sp	c2	0	0
-PROCEDURE	nested_sp	c3	0	0
-PROCEDURE	nested_sp	c4	0	0
-PROCEDURE	nested_sp	iotest	0	0
-PROCEDURE	nested_sp	inc2	0	0
-PROCEDURE	nested_sp	inc	0	0
-FUNCTION	nested_sp	mul	0	0
-FUNCTION	nested_sp	inc	0	0
-FUNCTION	nested_sp	fac	0	0
-FUNCTION	nested_sp	fun	0	0
-PROCEDURE	nested_sp	ifac	0	0
 #####################
 # Executing queries #
 #####################
@@ -1156,15 +1144,15 @@ PROCEDURE	nested_sp	c1	1	1
 PROCEDURE	nested_sp	c2	1	1
 PROCEDURE	nested_sp	c3	1	1
 PROCEDURE	nested_sp	c4	1	1
+TRIGGER	nested_sp	trg	4	4
+PROCEDURE	nested_sp	ifac	4	172
+FUNCTION	nested_sp	fac	41	879
 PROCEDURE	nested_sp	iotest	1	2
 PROCEDURE	nested_sp	inc2	1	2
 PROCEDURE	nested_sp	inc	1	1
+FUNCTION	nested_sp	fun	1	1
 FUNCTION	nested_sp	mul	1	1
 FUNCTION	nested_sp	inc	1	1
-FUNCTION	nested_sp	fac	41	879
-FUNCTION	nested_sp	fun	1	1
-PROCEDURE	nested_sp	ifac	4	172
-TRIGGER	nested_sp	trg	4	4
 # clean-up
 TRUNCATE TABLE performance_schema.events_statements_summary_by_program;
 TRUNCATE TABLE performance_schema.events_statements_history_long;
@@ -1176,15 +1164,15 @@ PROCEDURE	nested_sp	c1	0	0
 PROCEDURE	nested_sp	c2	0	0
 PROCEDURE	nested_sp	c3	0	0
 PROCEDURE	nested_sp	c4	0	0
+TRIGGER	nested_sp	trg	0	0
+PROCEDURE	nested_sp	ifac	0	0
+FUNCTION	nested_sp	fac	0	0
 PROCEDURE	nested_sp	iotest	0	0
 PROCEDURE	nested_sp	inc2	0	0
 PROCEDURE	nested_sp	inc	0	0
+FUNCTION	nested_sp	fun	0	0
 FUNCTION	nested_sp	mul	0	0
 FUNCTION	nested_sp	inc	0	0
-FUNCTION	nested_sp	fac	0	0
-FUNCTION	nested_sp	fun	0	0
-PROCEDURE	nested_sp	ifac	0	0
-TRIGGER	nested_sp	trg	0	0
 DROP PROCEDURE c4;
 DROP PROCEDURE c3;
 DROP PROCEDURE c2;
