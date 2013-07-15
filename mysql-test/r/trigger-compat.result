@@ -125,12 +125,12 @@ INSERT INTO t2 VALUES (1), (2), (3);
 # Next we try to execute SHOW CREATE TRGGIR command for broken trigger and then try to drop one.
 FLUSH TABLE t1;
 SHOW CREATE TRIGGER tr12;
-Trigger	sql_mode	SQL Original Statement	character_set_client	collation_connection	Database Collation	created
+Trigger	sql_mode	SQL Original Statement	character_set_client	collation_connection	Database Collation	Created
 tr12		CREATE DEFINER=`root`@`localhost` TRIGGER tr12 BEFORE INSERT ON t1 FOR EACH ROW DELETE FROM t2	latin1	latin1_swedish_ci	latin1_swedish_ci	NULL
 Warnings:
 Warning	1603	Triggers for table `test`.`t1` have no creation context
 SHOW CREATE TRIGGER tr11;
-Trigger	sql_mode	SQL Original Statement	character_set_client	collation_connection	Database Collation	created
+Trigger	sql_mode	SQL Original Statement	character_set_client	collation_connection	Database Collation	Created
 tr11		CREATE DEFINER=`root`@`localhost` TRIGGER tr11 BEFORE DELETE ON t1 FOR EACH ROW DELETE FROM t1 a USING t1 a	latin1	latin1_swedish_ci	latin1_swedish_ci	NULL
 DROP TRIGGER tr12;
 DROP TRIGGER tr11;

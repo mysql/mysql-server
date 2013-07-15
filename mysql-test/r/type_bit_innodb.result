@@ -38,12 +38,7 @@ drop table if exists t1;
 create table t1 (a bit(65)) engine=innodb;
 ERROR 42000: Display width out of range for column 'a' (max = 64)
 create table t1 (a bit(0)) engine=innodb;
-show create table t1;
-Table	Create Table
-t1	CREATE TABLE `t1` (
-  `a` bit(1) DEFAULT NULL
-) ENGINE=InnoDB DEFAULT CHARSET=latin1
-drop table t1;
+ERROR HY000: Invalid size for column 'a'.
 create table t1 (a bit(64)) engine=innodb;
 insert into t1 values 
 (b'1111111111111111111111111111111111111111111111111111111111111111'),

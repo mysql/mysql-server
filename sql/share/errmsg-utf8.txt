@@ -7070,6 +7070,10 @@ ER_REFERENCED_TRG_DOES_NOT_EXIST
 
 ER_EXPLAIN_NOT_SUPPORTED
         eng "EXPLAIN FOR CONNECTION command is supported only for SELECT/UPDATE/INSERT/DELETE/REPLACE"
+
+ER_INVALID_FIELD_SIZE
+        eng "Invalid size for column '%-.192s'."
+
 #
 #  End of 5.7 error messages.
 #
