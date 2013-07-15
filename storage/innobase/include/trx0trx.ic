@@ -23,6 +23,8 @@ The transaction
 Created 3/26/1996 Heikki Tuuri
 *******************************************************/
 
+#include "read0read.h"
+
 /**********************************************************************//**
 Determines if a transaction is in the given state.
 The caller must hold trx_sys->mutex, or it must be the thread
@@ -270,3 +272,15 @@ trx_release_reference(
 
 	trx_mutex_exit(trx);
 }
+
+
+/**
+@return the transaction's read view or NULL if one not assigned. */
+UNIV_INLINE
+ReadView*
+trx_get_read_view(
+	trx_t*		trx)
+{
+	return(!MVCC::is_view_active(trx->read_view) ? NULL : trx->read_view);
+}
+

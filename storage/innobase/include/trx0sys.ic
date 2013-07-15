@@ -56,18 +56,13 @@ trx_sys_flush_max_trx_id(void);
 Checks if a page address is the trx sys header page.
 @return TRUE if trx sys header page */
 UNIV_INLINE
-ibool
+bool
 trx_sys_hdr_page(
 /*=============*/
 	ulint	space,	/*!< in: space */
 	ulint	page_no)/*!< in: page number */
 {
-	if ((space == TRX_SYS_SPACE) && (page_no == TRX_SYS_PAGE_NO)) {
-
-		return(TRUE);
-	}
-
-	return(FALSE);
+	return(space == TRX_SYS_SPACE && page_no == TRX_SYS_PAGE_NO);
 }
 
 /***************************************************************//**
@@ -254,57 +249,18 @@ trx_get_rw_trx_by_id(
 /*=================*/
 	trx_id_t	trx_id)	/*!< in: trx id to search for */
 {
-	trx_t*		trx;
-	ulint		len;
-	trx_t*		first;
-
+	ut_ad(trx_id > 0);
 	ut_ad(mutex_own(&trx_sys->mutex));
 
-	len = UT_LIST_GET_LEN(trx_sys->rw_trx_list);
-
-	if (len == 0) {
+	if (trx_sys->rw_trx_set.empty()) {
 		return(NULL);
 	}
 
-	/* Because the list is ordered on trx id in descending order,
-	we try to speed things up a bit. */
+	TrxIdSet::iterator	it;
 
-	trx = UT_LIST_GET_FIRST(trx_sys->rw_trx_list);
-	assert_trx_in_rw_list(trx);
+	it = trx_sys->rw_trx_set.find(TrxTrack(trx_id));
 
-	if (trx_id == trx->id) {
-		return(trx);
-	} else if (len == 1 || trx_id > trx->id) {
-		return(NULL);
-	}
-
-	first = trx;
-
-	trx = UT_LIST_GET_LAST(trx_sys->rw_trx_list);
-	assert_trx_in_rw_list(trx);
-
-	if (trx_id == trx->id) {
-		return(trx);
-	} else if (len == 2 || trx_id < trx->id) {
-		return(NULL);
-	}
-
-	/* Search the list from the lower end (tail). */
-	if (trx_id < (first->id + trx->id) >> 1) {
-		for (trx = UT_LIST_GET_PREV(trx_list, trx);
-		     trx != NULL && trx_id > trx->id;
-		     trx = UT_LIST_GET_PREV(trx_list, trx)) {
-			assert_trx_in_rw_list(trx);
-		}
-	} else {
-		for (trx = UT_LIST_GET_NEXT(trx_list, first);
-		     trx != NULL && trx_id < trx->id;
-		     trx = UT_LIST_GET_NEXT(trx_list, trx)) {
-			assert_trx_in_rw_list(trx);
-		}
-	}
-
-	return((trx != NULL && trx->id == trx_id) ? trx : NULL);
+	return(it == trx_sys->rw_trx_set.end() ? NULL : it->m_trx);
 }
 
 /****************************************************************//**
@@ -319,11 +275,10 @@ trx_rw_min_trx_id_low(void)
 /*=======================*/
 {
 	trx_id_t	id;
-	const trx_t*	trx;
 
 	ut_ad(mutex_own(&trx_sys->mutex));
 
-	trx = UT_LIST_GET_LAST(trx_sys->rw_trx_list);
+	const trx_t*	trx = UT_LIST_GET_LAST(trx_sys->rw_trx_list);
 
 	if (trx == NULL) {
 		id = trx_sys->max_trx_id;
@@ -369,11 +324,9 @@ trx_id_t
 trx_rw_min_trx_id(void)
 /*===================*/
 {
-	trx_id_t	id;
-
 	mutex_enter(&trx_sys->mutex);
 
-	id = trx_rw_min_trx_id_low();
+	trx_id_t	id = trx_rw_min_trx_id_low();
 
 	mutex_exit(&trx_sys->mutex);
 

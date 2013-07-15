@@ -468,22 +468,27 @@ public:
 	typedef		T&		reference;
 	typedef		const T&	const_reference;
 
-	mem_heap_allocator(mem_heap_t* h): heap(h) {
-	}
+	explicit mem_heap_allocator(mem_heap_t* heap) : m_heap(heap) { }
 
-	~mem_heap_allocator() {
-		heap = 0;
-	}
-
-	mem_heap_allocator(const mem_heap_allocator& that): heap (that.heap) {
+	explicit mem_heap_allocator(const mem_heap_allocator& other)
+		:
+		m_heap (other.m_heap)
+	{
+		// Do nothing
 	}
 
 	template <typename U>
-	mem_heap_allocator (const mem_heap_allocator<U> &other)
-	: heap (other.heap) {
+	mem_heap_allocator (const mem_heap_allocator<U>& other)
+		:
+		m_heap(other.m_heap)
+	{
+		// Do nothing
 	}
 
-	size_type max_size() const {
+	~mem_heap_allocator() { m_heap = 0; }
+
+	size_type max_size() const
+	{
 		return(ULONG_MAX / sizeof(T));
 	}
 
@@ -494,32 +499,29 @@ public:
 	allocated by mem_heap_allocator) can be used as a hint to the
 	implementation about where the new memory should be allocated in
 	order to improve locality. */
-	pointer	allocate(size_type n, const_pointer hint = 0) {
-		DBUG_ENTER("mem_heap_allocator::allocate");
-
+	pointer	allocate(size_type n, const_pointer hint = 0)
+	{
 #ifdef UNIV_DEBUG
-		DBUG_ASSERT(mem_heap_check(heap));
+		DBUG_ASSERT(::mem_heap_check(m_heap));
 #endif /* UNIV_DEBUG */
 
-		DBUG_RETURN((pointer) mem_heap_alloc(heap, n*sizeof(T)));
+		return(reinterpret_cast<pointer>(
+			mem_heap_alloc(m_heap, n * sizeof(T))));
 	}
 
-	void deallocate(pointer p, size_type n) {
-	}
+	void deallocate(pointer p, size_type n) { }
 
-	pointer address (reference r) const {
-		return(&r);
-	}
+	pointer address (reference r) const { return(&r); }
 
-	const_pointer address (const_reference r) const {
-		return(&r);
-	}
+	const_pointer address (const_reference r) const { return(&r); }
 
-	void construct(pointer p, const_reference t) {
+	void construct(pointer p, const_reference t)
+	{
 		new (reinterpret_cast<void*>(p)) T(t);
 	}
 
-	void destroy(pointer p) {
+	void destroy(pointer p)
+	{
 		(reinterpret_cast<T*>(p))->~T();
 	}
 
@@ -532,11 +534,11 @@ public:
 	template <typename U>
 	struct rebind
 	{
-		typedef mem_heap_allocator<U> other ;
+		typedef mem_heap_allocator<U> other;
 	};
 
 private:
-	mem_heap_t*	heap;
+	mem_heap_t*	m_heap;
 	template <typename U> friend class mem_heap_allocator;
 };
 

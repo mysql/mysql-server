@@ -12110,12 +12110,13 @@ ha_innobase::external_lock(
 			}
 
 		} else if (trx->isolation_level <= TRX_ISO_READ_COMMITTED
-			   && trx->read_view) {
+			   && MVCC::is_view_active(trx->read_view)) {
 
-			/* At low transaction isolation levels we let
-			each consistent read set its own snapshot */
+			mutex_enter(&trx_sys->mutex);
 
-			read_view_close_for_mysql(trx);
+			trx_sys->mvcc->view_close(trx->read_view, true);
+
+			mutex_exit(&trx_sys->mutex);
 		}
 	}
 
@@ -12662,12 +12663,16 @@ ha_innobase::store_lock(
 			(enum_tx_isolation) thd_tx_isolation(thd));
 
 		if (trx->isolation_level <= TRX_ISO_READ_COMMITTED
-		    && trx->read_view) {
+		    && MVCC::is_view_active(trx->read_view)) {
 
 			/* At low transaction isolation levels we let
 			each consistent read set its own snapshot */
 
-			read_view_close_for_mysql(trx);
+			mutex_enter(&trx_sys->mutex);
+
+			trx_sys->mvcc->view_close(trx->read_view, true);
+
+			mutex_exit(&trx_sys->mutex);
 		}
 	}
 
