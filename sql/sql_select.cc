@@ -10643,10 +10643,15 @@ void JOIN::cleanup(bool full)
         w/o tables: they don't have some members initialized and
         WALK_OPTIMIZATION_TABS may not work correctly for them.
       */
-      if (table_count) 
+      enum enum_exec_or_opt tabs_kind;
+      if (first_breadth_first_tab(this, WALK_OPTIMIZATION_TABS))
+        tabs_kind= WALK_OPTIMIZATION_TABS;
+      else
+        tabs_kind= WALK_EXECUTION_TABS;
+      if (table_count)
       {
-        for (tab= first_breadth_first_tab(this, WALK_OPTIMIZATION_TABS); tab; 
-             tab= next_breadth_first_tab(this, WALK_OPTIMIZATION_TABS, tab))
+        for (tab= first_breadth_first_tab(this, tabs_kind); tab; 
+             tab= next_breadth_first_tab(this, tabs_kind, tab))
         {
           tab->cleanup();
         }

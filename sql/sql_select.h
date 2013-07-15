@@ -1308,6 +1308,12 @@ public:
     pre_sort_join_tab= NULL;
     emb_sjm_nest= NULL;
     sjm_lookup_tables= 0;
+    /* 
+      The following is needed because JOIN::cleanup(true) may be called for 
+      joins for which JOIN::optimize was aborted with an error before a proper
+      query plan was produced
+    */
+    table_access_tabs= NULL; 
   }
 
   int prepare(Item ***rref_pointer_array, TABLE_LIST *tables, uint wind_num,
