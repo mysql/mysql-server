@@ -4,29 +4,33 @@ Note	####	Sending passwords in plain text without SSL/TLS is extremely insecure.
 Note	####	Storing MySQL user name or password information in the master info repository is not secure and is therefore not recommended. Please consider using the USER and PASSWORD connection options for START SLAVE; see the 'START SLAVE Syntax' in the MySQL Manual for more information.
 [connection master]
 call mtr.add_suppression("Statement is unsafe because it uses a system function that may return a different value on the slave");
-SET GLOBAL DEBUG ='+d,set_commit_parent_150';
+SET GLOBAL DEBUG ='+d,set_commit_parent_100';
 SET GLOBAL slave_parallel_type=LOGICAL_CLOCK;
 ERROR HY000: This operation cannot be performed with a running slave; run STOP SLAVE first
 include/stop_slave.inc
-#setup the databases and tables
-CREATE DATABASE db1;
-CREATE TABLE db1.t (a int) engine=innodb;
-CREATE DATABASE db2;
-CREATE TABLE db2.t (a int) engine=myisam;
-CREATE DATABASE db3;
-CREATE TABLE db3.t engine=innodb select 100*RAND() as a;
-CREATE DATABASE db4;
-SET @VAR=100;
-CREATE TABLE db4.t engine=myisam select @VAR as a;
-SET GLOBAL DEBUG ='-d,set_commit_parent_150';
-SET GLOBAL DEBUG ='+d,set_commit_parent_100';
-TRUNCATE db3.t;
 SET GLOBAL DEBUG ='-d,set_commit_parent_100';
 SET GLOBAL DEBUG ='+d,set_commit_parent_150';
-INSERT INTO db2.t values (1),(2),(3);
-INSERT INTO db4.t values (1),(2),(3);
+create database db1;
+create database db2;
+create database db3;
+create database db4;
 SET GLOBAL DEBUG ='-d,set_commit_parent_150';
 SET GLOBAL DEBUG ='+d,set_commit_parent_100';
+#setup the databases and tables
+CREATE TABLE db1.t (a int) engine=innodb;
+CREATE TABLE db2.t (a int) engine=myisam;
+CREATE TABLE db3.t engine=innodb select 100*RAND() as a;
+SET @VAR=100;
+CREATE TABLE db4.t engine=myisam select @VAR as a;
+SET GLOBAL DEBUG ='-d,set_commit_parent_100';
+SET GLOBAL DEBUG ='+d,set_commit_parent_150';
+TRUNCATE db3.t;
+SET GLOBAL DEBUG ='-d,set_commit_parent_150';
+SET GLOBAL DEBUG ='+d,set_commit_parent_100';
+INSERT INTO db2.t values (1),(2),(3);
+INSERT INTO db4.t values (1),(2),(3);
+SET GLOBAL DEBUG ='-d,set_commit_parent_100';
+SET GLOBAL DEBUG ='+d,set_commit_parent_150';
 BEGIN;
 INSERT INTO db1.t values (1),(2),(3);
 INSERT INTO db1.t values (1),(2),(3);
@@ -37,8 +41,8 @@ INSERT INTO db3.t values (1),(2),(3);
 INSERT INTO db3.t values (1),(2),(3);
 UPDATE db3.t SET db3.t.a= 2 WHERE db3.t.a > 2;
 COMMIT;
-SET GLOBAL DEBUG ='-d,set_commit_parent_100';
-SET GLOBAL DEBUG ='+d,set_commit_parent_150';
+SET GLOBAL DEBUG ='-d,set_commit_parent_150';
+SET GLOBAL DEBUG ='+d,set_commit_parent_100';
 BEGIN;
 INSERT INTO db2.t values (1),(2),(3);
 INSERT INTO db3.t values (1),(2),(3);
