@@ -1,4 +1,4 @@
-/* Copyright (c) 2000, 2011, 2012 Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2000, 2013 Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -2457,7 +2457,10 @@ int TC_LOG_MMAP::open(const char *opt_name)
   DBUG_ASSERT(opt_name && opt_name[0]);
 
   tc_log_page_size= my_getpagesize();
-  DBUG_ASSERT(TC_LOG_PAGE_SIZE % tc_log_page_size == 0);
+  if (TC_LOG_PAGE_SIZE > tc_log_page_size)
+  {
+    DBUG_ASSERT(TC_LOG_PAGE_SIZE % tc_log_page_size == 0);
+  }
 
   fn_format(logname,opt_name,mysql_data_home,"",MY_UNPACK_FILENAME);
   if ((fd= mysql_file_open(key_file_tclog, logname, O_RDWR, MYF(0))) < 0)
