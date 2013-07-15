@@ -7,7 +7,7 @@
 --source include/master-slave.inc
 call mtr.add_suppression("Statement is unsafe because it uses a system function that may return a different value on the slave");
 --let $saved_debug=`SELECT @@global.DEBUG`
-SET GLOBAL DEBUG ='+d,set_commit_parent_150';
+SET GLOBAL DEBUG ='+d,set_commit_parent_100';
 --connection slave
 
 # save  MTS submode
@@ -25,36 +25,43 @@ SET GLOBAL slave_parallel_type=LOGICAL_CLOCK;
 --connect(m3, localhost,root,,,$MASTER_MYPORT)
 --connect(m4, localhost,root,,,$MASTER_MYPORT)
 
---echo #setup the databases and tables
---connection m1
-CREATE DATABASE db1;
-CREATE TABLE db1.t (a int) engine=innodb;
-
---connection m2
-CREATE DATABASE db2;
-CREATE TABLE db2.t (a int) engine=myisam;
-
---connection m3
-CREATE DATABASE db3;
---disable_warnings ONCE
-CREATE TABLE db3.t engine=innodb select 100*RAND() as a;
-
-
---connection m4
-CREATE DATABASE db4;
-SET @VAR=100;
-CREATE TABLE db4.t engine=myisam select @VAR as a;
+--connection master
+SET GLOBAL DEBUG ='-d,set_commit_parent_100';
+SET GLOBAL DEBUG ='+d,set_commit_parent_150';
+create database db1;
+create database db2;
+create database db3;
+create database db4;
 
 --connection master
 SET GLOBAL DEBUG ='-d,set_commit_parent_150';
 SET GLOBAL DEBUG ='+d,set_commit_parent_100';
+
+--echo #setup the databases and tables
+--connection m1
+CREATE TABLE db1.t (a int) engine=innodb;
+
+--connection m2
+CREATE TABLE db2.t (a int) engine=myisam;
+
+--connection m3
+--disable_warnings ONCE
+CREATE TABLE db3.t engine=innodb select 100*RAND() as a;
+
+--connection m4
+SET @VAR=100;
+CREATE TABLE db4.t engine=myisam select @VAR as a;
+
+--connection master
+SET GLOBAL DEBUG ='-d,set_commit_parent_100';
+SET GLOBAL DEBUG ='+d,set_commit_parent_150';
 #this is just to make sure that the slave does not error out due to this
 #random value.
 TRUNCATE db3.t;
 
 --connection master
-SET GLOBAL DEBUG ='-d,set_commit_parent_100';
-SET GLOBAL DEBUG ='+d,set_commit_parent_150';
+SET GLOBAL DEBUG ='-d,set_commit_parent_150';
+SET GLOBAL DEBUG ='+d,set_commit_parent_100';
 
 # NON TRANSACTIONAL
 --connection m4
@@ -63,8 +70,8 @@ SET GLOBAL DEBUG ='+d,set_commit_parent_150';
  INSERT INTO db4.t values (1),(2),(3);
 
 --connection master
-SET GLOBAL DEBUG ='-d,set_commit_parent_150';
-SET GLOBAL DEBUG ='+d,set_commit_parent_100';
+SET GLOBAL DEBUG ='-d,set_commit_parent_100';
+SET GLOBAL DEBUG ='+d,set_commit_parent_150';
 
 #TRANSACTIONAL
 --connection m1
@@ -82,8 +89,8 @@ UPDATE db3.t SET db3.t.a= 2 WHERE db3.t.a > 2;
 COMMIT;
 
 --connection master
-SET GLOBAL DEBUG ='-d,set_commit_parent_100';
-SET GLOBAL DEBUG ='+d,set_commit_parent_150';
+SET GLOBAL DEBUG ='-d,set_commit_parent_150';
+SET GLOBAL DEBUG ='+d,set_commit_parent_100';
 
 #BOTH TRANSACTIONAL AND NON TRANSACTIONAL
 --connection m2
