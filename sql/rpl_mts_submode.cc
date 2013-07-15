@@ -593,19 +593,21 @@ Mts_submode_logical_clock::get_least_occupied_worker(Relay_log_info *rli,
       // Update thd info as waiting for workers to finish.
       thd->enter_stage(&stage_slave_waiiting_for_workers_to_finish, old_stage,
                        __func__, __FILE__, __LINE__);
-      while (!worker && !sql_slave_killed(rli->info_thd, rli))
+      do
       {
         /* wait and get a free worker */
         worker= get_free_worker(rli);
-      }
+      } while (!worker && !thd->killed &&
+               (my_sleep(rli->mts_coordinator_basic_nap), 1));
       // Restore old stage info.
       THD_STAGE_INFO(thd, *old_stage);
     }
   }
 
   DBUG_ASSERT(ptr_group);
-  // assert that we have a worker thread for this event
-  DBUG_ASSERT(worker != NULL);
+  // assert that we have a worker thread for this event or the slave has
+  // stopped.
+  DBUG_ASSERT(worker != NULL || thd->killed);
   ptr_group->worker_id= worker->id;
   /* The master my have send  db partition info. make sure we never use them*/
   if (ev->get_type_code() == QUERY_EVENT)
