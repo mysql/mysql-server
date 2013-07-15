@@ -7,7 +7,7 @@
 --source include/master-slave.inc
 call mtr.add_suppression("Statement is unsafe because it uses a system function that may return a different value on the slave");
 --let $saved_debug=`SELECT @@global.DEBUG`
-SET GLOBAL DEBUG ='+d,set_commit_parent_100';
+SET GLOBAL DEBUG ='+d,set_commit_parent_150';
 --connection slave
 
 # save  MTS submode
@@ -37,12 +37,20 @@ CREATE TABLE db2.t (a int) engine=myisam;
 --connection m3
 CREATE DATABASE db3;
 --disable_warnings ONCE
-CREATE TABLE db3.t engine=myisam select 100*RAND() as a;
+CREATE TABLE db3.t engine=innodb select 100*RAND() as a;
+
 
 --connection m4
 CREATE DATABASE db4;
 SET @VAR=100;
 CREATE TABLE db4.t engine=myisam select @VAR as a;
+
+--connection master
+SET GLOBAL DEBUG ='-d,set_commit_parent_150';
+SET GLOBAL DEBUG ='+d,set_commit_parent_100';
+#this is just to make sure that the slave does not error out due to this
+#random value.
+TRUNCATE db3.t;
 
 --connection master
 SET GLOBAL DEBUG ='-d,set_commit_parent_100';
