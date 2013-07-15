@@ -785,6 +785,7 @@ static sp_head *sp_compile(THD *thd, String *defstr, sql_mode_t sql_mode,
   thd->variables.sql_mode= old_sql_mode;
   thd->variables.select_limit= old_select_limit;
 #ifdef HAVE_PSI_SP_INTERFACE
+  if (sp != NULL)
   sp->m_sp_share= MYSQL_GET_SP_SHARE(sp->m_type == SP_TYPE_PROCEDURE ?
                                      SP_OBJECT_TYPE_PROCEDURE : SP_OBJECT_TYPE_FUNCTION,
                                      sp->m_db.str, sp->m_db.length,
