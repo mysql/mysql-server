@@ -4689,7 +4689,7 @@ CREATE VIEW v2 AS SELECT * FROM t2;
 	</row>
 	</table_data>
 	<triggers name="t2">
-		<trigger Trigger="trig1" sql_mode="" character_set_client="latin1" collation_connection="latin1_swedish_ci" Database_Collation="latin1_swedish_ci" created="--TIMESTAMP--">
+		<trigger Trigger="trig1" sql_mode="" character_set_client="latin1" collation_connection="latin1_swedish_ci" Database_Collation="latin1_swedish_ci" Created="--TIMESTAMP--">
 <![CDATA[
 CREATE DEFINER=`root`@`localhost` TRIGGER trig1 BEFORE INSERT ON t2
 FOR EACH ROW BEGIN
@@ -4697,7 +4697,7 @@ INSERT INTO t2 VALUES(1);
 END
 ]]>
 		</trigger>
-		<trigger Trigger="trig2" sql_mode="" character_set_client="latin1" collation_connection="latin1_swedish_ci" Database_Collation="latin1_swedish_ci" created="--TIMESTAMP--">
+		<trigger Trigger="trig2" sql_mode="" character_set_client="latin1" collation_connection="latin1_swedish_ci" Database_Collation="latin1_swedish_ci" Created="--TIMESTAMP--">
 <![CDATA[
 CREATE DEFINER=`root`@`localhost` TRIGGER trig2 AFTER INSERT ON t2
 FOR EACH ROW BEGIN
@@ -4828,7 +4828,7 @@ END
 	</row>
 	</table_data>
 	<triggers name="t2">
-		<trigger Trigger="trig1" sql_mode="" character_set_client="latin1" collation_connection="latin1_swedish_ci" Database_Collation="latin1_swedish_ci" created="--TIMESTAMP--">
+		<trigger Trigger="trig1" sql_mode="" character_set_client="latin1" collation_connection="latin1_swedish_ci" Database_Collation="latin1_swedish_ci" Created="--TIMESTAMP--">
 <![CDATA[
 CREATE DEFINER=`root`@`localhost` TRIGGER trig1 BEFORE INSERT ON t2
 FOR EACH ROW BEGIN
@@ -4836,7 +4836,7 @@ INSERT INTO t2 VALUES(1);
 END
 ]]>
 		</trigger>
-		<trigger Trigger="trig2" sql_mode="" character_set_client="latin1" collation_connection="latin1_swedish_ci" Database_Collation="latin1_swedish_ci" created="--TIMESTAMP--">
+		<trigger Trigger="trig2" sql_mode="" character_set_client="latin1" collation_connection="latin1_swedish_ci" Database_Collation="latin1_swedish_ci" Created="--TIMESTAMP--">
 <![CDATA[
 CREATE DEFINER=`root`@`localhost` TRIGGER trig2 AFTER INSERT ON t2
 FOR EACH ROW BEGIN
@@ -4968,7 +4968,7 @@ GRANT ALL PRIVILEGES ON BUG52792.* TO user1;
 	</row>
 	</table_data>
 	<triggers name="t2">
-		<trigger Trigger="trig1" sql_mode="" character_set_client="latin1" collation_connection="latin1_swedish_ci" Database_Collation="latin1_swedish_ci" created="--TIMESTAMP--">
+		<trigger Trigger="trig1" sql_mode="" character_set_client="latin1" collation_connection="latin1_swedish_ci" Database_Collation="latin1_swedish_ci" Created="--TIMESTAMP--">
 <![CDATA[
 CREATE DEFINER=`root`@`localhost` TRIGGER trig1 BEFORE INSERT ON t2
 FOR EACH ROW BEGIN
@@ -4976,7 +4976,7 @@ INSERT INTO t2 VALUES(1);
 END
 ]]>
 		</trigger>
-		<trigger Trigger="trig2" sql_mode="" character_set_client="latin1" collation_connection="latin1_swedish_ci" Database_Collation="latin1_swedish_ci" created="--TIMESTAMP--">
+		<trigger Trigger="trig2" sql_mode="" character_set_client="latin1" collation_connection="latin1_swedish_ci" Database_Collation="latin1_swedish_ci" Created="--TIMESTAMP--">
 <![CDATA[
 CREATE DEFINER=`root`@`localhost` TRIGGER trig2 AFTER INSERT ON t2
 FOR EACH ROW BEGIN
