@@ -4509,8 +4509,53 @@ bnc_apply_messages_to_basement_node(
     }
 }
 
+static void
+apply_ancestors_messages_to_bn(
+    FT_HANDLE t,
+    FTNODE node,
+    int childnum,
+    ANCESTORS ancestors,
+    struct pivot_bounds const * const bounds, 
+    TXNID oldest_referenced_xid,
+    bool* msgs_applied
+    )
+{
+    BASEMENTNODE curr_bn = BLB(node, childnum);
+    struct pivot_bounds curr_bounds = next_pivot_keys(node, childnum, bounds);
+    for (ANCESTORS curr_ancestors = ancestors; curr_ancestors; curr_ancestors = curr_ancestors->next) {
+        if (curr_ancestors->node->max_msn_applied_to_node_on_disk.msn > curr_bn->max_msn_applied.msn) {
+            paranoid_invariant(BP_STATE(curr_ancestors->node, curr_ancestors->childnum) == PT_AVAIL);
+            bnc_apply_messages_to_basement_node(
+                t,
+                curr_bn,
+                curr_ancestors->node,
+                curr_ancestors->childnum,
+                &curr_bounds,
+                oldest_referenced_xid,
+                msgs_applied
+                );
+            // We don't want to check this ancestor node again if the
+            // next time we query it, the msn hasn't changed.
+            curr_bn->max_msn_applied = curr_ancestors->node->max_msn_applied_to_node_on_disk;
+        }
+    }
+    // At this point, we know all the stale messages above this
+    // basement node have been applied, and any new messages will be
+    // fresh, so we don't need to look at stale messages for this
+    // basement node, unless it gets evicted (and this field becomes
+    // false when it's read in again).
+    curr_bn->stale_ancestor_messages_applied = true;
+}
+
 void
-toku_apply_ancestors_messages_to_node (FT_HANDLE t, FTNODE node, ANCESTORS ancestors, struct pivot_bounds const * const bounds, bool* msgs_applied)
+toku_apply_ancestors_messages_to_node (
+    FT_HANDLE t, 
+    FTNODE node, 
+    ANCESTORS ancestors, 
+    struct pivot_bounds const * const bounds, 
+    bool* msgs_applied, 
+    int child_to_read
+    )
 // Effect:
 //   Bring a leaf node up-to-date according to all the messages in the ancestors.
 //   If the leaf node is already up-to-date then do nothing.
@@ -4521,7 +4566,7 @@ toku_apply_ancestors_messages_to_node (FT_HANDLE t, FTNODE node, ANCESTORS ances
 //   The entire root-to-leaf path is pinned and appears in the ancestors list.
 {
     VERIFY_NODE(t, node);
-    invariant(node->height == 0);
+    paranoid_invariant(node->height == 0);
 
     TXNID oldest_referenced_xid = ancestors->node->oldest_referenced_xid_known;
     for (ANCESTORS curr_ancestors = ancestors; curr_ancestors; curr_ancestors = curr_ancestors->next) {
@@ -4530,44 +4575,104 @@ toku_apply_ancestors_messages_to_node (FT_HANDLE t, FTNODE node, ANCESTORS ances
         }
     }
 
-    // know we are a leaf node
-    // An important invariant:
-    // We MUST bring every available basement node up to date.
-    // flushing on the cleaner thread depends on this. This invariant
-    // allows the cleaner thread to just pick an internal node and flush it
-    // as opposed to being forced to start from the root.
-    for (int i = 0; i < node->n_children; i++) {
-        if (BP_STATE(node, i) != PT_AVAIL) { continue; }
-        BASEMENTNODE curr_bn = BLB(node, i);
-        struct pivot_bounds curr_bounds = next_pivot_keys(node, i, bounds);
-        for (ANCESTORS curr_ancestors = ancestors; curr_ancestors; curr_ancestors = curr_ancestors->next) {
-            if (curr_ancestors->node->max_msn_applied_to_node_on_disk.msn > curr_bn->max_msn_applied.msn) {
-                paranoid_invariant(BP_STATE(curr_ancestors->node, curr_ancestors->childnum) == PT_AVAIL);
-                bnc_apply_messages_to_basement_node(
-                    t,
-                    curr_bn,
-                    curr_ancestors->node,
-                    curr_ancestors->childnum,
-                    &curr_bounds,
-                    oldest_referenced_xid,
-                    msgs_applied
-                    );
-                // We don't want to check this ancestor node again if the
-                // next time we query it, the msn hasn't changed.
-                curr_bn->max_msn_applied = curr_ancestors->node->max_msn_applied_to_node_on_disk;
-            }
+    if (!node->dirty && child_to_read >= 0) {
+        paranoid_invariant(BP_STATE(node, child_to_read) == PT_AVAIL);
+        apply_ancestors_messages_to_bn(
+            t,
+            node,
+            child_to_read,
+            ancestors,
+            bounds,
+            oldest_referenced_xid,
+            msgs_applied
+            );
+    }
+    else {
+        // know we are a leaf node
+        // An important invariant:
+        // We MUST bring every available basement node for a dirty node up to date.
+        // flushing on the cleaner thread depends on this. This invariant
+        // allows the cleaner thread to just pick an internal node and flush it
+        // as opposed to being forced to start from the root.
+        for (int i = 0; i < node->n_children; i++) {
+            if (BP_STATE(node, i) != PT_AVAIL) { continue; }
+            apply_ancestors_messages_to_bn(
+                t,
+                node,
+                i,
+                ancestors,
+                bounds,
+                oldest_referenced_xid,
+                msgs_applied
+                );
         }
-        // At this point, we know all the stale messages above this
-        // basement node have been applied, and any new messages will be
-        // fresh, so we don't need to look at stale messages for this
-        // basement node, unless it gets evicted (and this field becomes
-        // false when it's read in again).
-        curr_bn->stale_ancestor_messages_applied = true;
     }
     VERIFY_NODE(t, node);
 }
 
-bool toku_ft_leaf_needs_ancestors_messages(FT ft, FTNODE node, ANCESTORS ancestors, struct pivot_bounds const * const bounds, MSN *const max_msn_in_path)
+static bool bn_needs_ancestors_messages(
+    FT ft,
+    FTNODE node,
+    int childnum,
+    struct pivot_bounds const * const bounds,
+    ANCESTORS ancestors, 
+    MSN* max_msn_applied
+    ) 
+{
+    BASEMENTNODE bn = BLB(node, childnum);
+    struct pivot_bounds curr_bounds = next_pivot_keys(node, childnum, bounds);
+    bool needs_ancestors_messages = false;
+    for (ANCESTORS curr_ancestors = ancestors; curr_ancestors; curr_ancestors = curr_ancestors->next) {
+        if (curr_ancestors->node->max_msn_applied_to_node_on_disk.msn > bn->max_msn_applied.msn) {
+            paranoid_invariant(BP_STATE(curr_ancestors->node, curr_ancestors->childnum) == PT_AVAIL);
+            NONLEAF_CHILDINFO bnc = BNC(curr_ancestors->node, curr_ancestors->childnum);
+            if (bnc->broadcast_list.size() > 0) {
+                needs_ancestors_messages = true;
+                goto cleanup;
+            }
+            if (!bn->stale_ancestor_messages_applied) {
+                uint32_t stale_lbi, stale_ube;
+                find_bounds_within_message_tree(&ft->cmp_descriptor,
+                                                ft->compare_fun,
+                                                bnc->stale_message_tree,
+                                                bnc->buffer,
+                                                &curr_bounds,
+                                                &stale_lbi,
+                                                &stale_ube);
+                if (stale_lbi < stale_ube) {
+                    needs_ancestors_messages = true;
+                    goto cleanup;
+                }
+            }
+            uint32_t fresh_lbi, fresh_ube;
+            find_bounds_within_message_tree(&ft->cmp_descriptor,
+                                            ft->compare_fun,
+                                            bnc->fresh_message_tree,
+                                            bnc->buffer,
+                                            &curr_bounds,
+                                            &fresh_lbi,
+                                            &fresh_ube);
+            if (fresh_lbi < fresh_ube) {
+                needs_ancestors_messages = true;
+                goto cleanup;
+            }
+            if (curr_ancestors->node->max_msn_applied_to_node_on_disk.msn > max_msn_applied->msn) {
+                max_msn_applied->msn = curr_ancestors->node->max_msn_applied_to_node_on_disk.msn;
+            }
+        }
+    }
+cleanup:
+    return needs_ancestors_messages;
+}
+
+bool toku_ft_leaf_needs_ancestors_messages(
+    FT ft, 
+    FTNODE node, 
+    ANCESTORS ancestors, 
+    struct pivot_bounds const * const bounds, 
+    MSN *const max_msn_in_path, 
+    int child_to_read
+    )
 // Effect: Determine whether there are messages in a node's ancestors
 //  which must be applied to it.  These messages are in the correct
 //  keyrange for any available basement nodes, and are in nodes with the
@@ -4586,70 +4691,62 @@ bool toku_ft_leaf_needs_ancestors_messages(FT ft, FTNODE node, ANCESTORS ancesto
 //  we should exchange it for a write lock in preparation for applying
 //  messages.  If there are no messages, we don't need the write lock.
 {
-    invariant(node->height == 0);
-    MSN max_msn_applied = ZERO_MSN;
+    paranoid_invariant(node->height == 0);
     bool needs_ancestors_messages = false;
-    for (int i = 0; i < node->n_children; ++i) {
-        if (BP_STATE(node, i) != PT_AVAIL) { continue; }
-        BASEMENTNODE bn = BLB(node, i);
-        struct pivot_bounds curr_bounds = next_pivot_keys(node, i, bounds);
-        for (ANCESTORS curr_ancestors = ancestors; curr_ancestors; curr_ancestors = curr_ancestors->next) {
-            if (curr_ancestors->node->max_msn_applied_to_node_on_disk.msn > bn->max_msn_applied.msn) {
-                paranoid_invariant(BP_STATE(curr_ancestors->node, curr_ancestors->childnum) == PT_AVAIL);
-                NONLEAF_CHILDINFO bnc = BNC(curr_ancestors->node, curr_ancestors->childnum);
-                if (bnc->broadcast_list.size() > 0) {
-                    needs_ancestors_messages = true;
-                    goto cleanup;
-                }
-                if (!bn->stale_ancestor_messages_applied) {
-                    uint32_t stale_lbi, stale_ube;
-                    find_bounds_within_message_tree(&ft->cmp_descriptor,
-                                                    ft->compare_fun,
-                                                    bnc->stale_message_tree,
-                                                    bnc->buffer,
-                                                    &curr_bounds,
-                                                    &stale_lbi,
-                                                    &stale_ube);
-                    if (stale_lbi < stale_ube) {
-                        needs_ancestors_messages = true;
-                        goto cleanup;
-                    }
-                }
-                uint32_t fresh_lbi, fresh_ube;
-                find_bounds_within_message_tree(&ft->cmp_descriptor,
-                                                ft->compare_fun,
-                                                bnc->fresh_message_tree,
-                                                bnc->buffer,
-                                                &curr_bounds,
-                                                &fresh_lbi,
-                                                &fresh_ube);
-                if (fresh_lbi < fresh_ube) {
-                    needs_ancestors_messages = true;
-                    goto cleanup;
-                }
-                if (curr_ancestors->node->max_msn_applied_to_node_on_disk.msn > max_msn_applied.msn) {
-                    max_msn_applied = curr_ancestors->node->max_msn_applied_to_node_on_disk;
-                }
+    // child_to_read may be -1 in test cases
+    if (!node->dirty && child_to_read >= 0) {
+        paranoid_invariant(BP_STATE(node, child_to_read) == PT_AVAIL);
+        needs_ancestors_messages = bn_needs_ancestors_messages(
+            ft,
+            node,
+            child_to_read,
+            bounds,
+            ancestors,
+            max_msn_in_path
+            );
+    }
+    else {
+        for (int i = 0; i < node->n_children; ++i) {
+            if (BP_STATE(node, i) != PT_AVAIL) { continue; }
+            needs_ancestors_messages = bn_needs_ancestors_messages(
+                ft,
+                node,
+                i,
+                bounds,
+                ancestors,
+                max_msn_in_path
+                );
+            if (needs_ancestors_messages) {
+                goto cleanup;
             }
         }
     }
-    *max_msn_in_path = max_msn_applied;
 cleanup:
     return needs_ancestors_messages;
 }
 
-void toku_ft_bn_update_max_msn(FTNODE node, MSN max_msn_applied) {
+void toku_ft_bn_update_max_msn(FTNODE node, MSN max_msn_applied, int child_to_read) {
     invariant(node->height == 0);
-    for (int i = 0; i < node->n_children; ++i) {
-        if (BP_STATE(node, i) != PT_AVAIL) { continue; }
-        BASEMENTNODE bn = BLB(node, i);
+    if (!node->dirty && child_to_read >= 0) {
+        paranoid_invariant(BP_STATE(node, child_to_read) == PT_AVAIL);
+        BASEMENTNODE bn = BLB(node, child_to_read);
         if (max_msn_applied.msn > bn->max_msn_applied.msn) {
-            // This function runs in a shared access context, so to silence tools
-            // like DRD, we use a CAS and ignore the result.
-            // Any threads trying to update these basement nodes should be
-            // updating them to the same thing (since they all have a read lock on
-            // the same root-to-leaf path) so this is safe.
+            // see comment below
             (void) toku_sync_val_compare_and_swap(&bn->max_msn_applied.msn, bn->max_msn_applied.msn, max_msn_applied.msn);
+        }
+    }
+    else {
+        for (int i = 0; i < node->n_children; ++i) {
+            if (BP_STATE(node, i) != PT_AVAIL) { continue; }
+            BASEMENTNODE bn = BLB(node, i);
+            if (max_msn_applied.msn > bn->max_msn_applied.msn) {
+                // This function runs in a shared access context, so to silence tools
+                // like DRD, we use a CAS and ignore the result.
+                // Any threads trying to update these basement nodes should be
+                // updating them to the same thing (since they all have a read lock on
+                // the same root-to-leaf path) so this is safe.
+                (void) toku_sync_val_compare_and_swap(&bn->max_msn_applied.msn, bn->max_msn_applied.msn, max_msn_applied.msn);
+            }
         }
     }
 }
@@ -4779,6 +4876,11 @@ got_a_good_value:
             ftcursor->leaf_info.to_be.omt   = bn->buffer;
             ftcursor->leaf_info.to_be.index = idx;
 
+            // 
+            // IMPORTANT: bulk fetch CANNOT go past the current basement node,
+            // because there is no guarantee that messages have been applied
+            // to other basement nodes, as part of #5770
+            //
             if (r == TOKUDB_CURSOR_CONTINUE && can_bulk_fetch) {
                 r = ft_cursor_shortcut(
                     ftcursor,
@@ -4908,7 +5010,7 @@ ft_search_child(FT_HANDLE brt, FTNODE node, int childnum, ft_search_t *search, F
 
     BLOCKNUM childblocknum = BP_BLOCKNUM(node,childnum);
     uint32_t fullhash = compute_child_fullhash(brt->ft->cf, node, childnum);
-    FTNODE childnode;
+    FTNODE childnode = nullptr;
 
     // If the current node's height is greater than 1, then its child is an internal node.
     // Therefore, to warm the cache better (#5798), we want to read all the partitions off disk in one shot.
@@ -4931,7 +5033,6 @@ ft_search_child(FT_HANDLE brt, FTNODE node, int childnum, ft_search_t *search, F
                                          unlockers,
                                          &next_ancestors, bounds,
                                          &bfe,
-                                         PL_READ, // we try to get a read lock, but we may upgrade to a write lock on a leaf for message application.
                                          true,
                                          &childnode,
                                          &msgs_applied);
@@ -5090,87 +5191,78 @@ ft_search_node(
     // At this point, we must have the necessary partition available to continue the search
     //
     assert(BP_STATE(node,child_to_search) == PT_AVAIL);
-    while (child_to_search >= 0 && child_to_search < node->n_children) {
-        //
-        // Normally, the child we want to use is available, as we checked
-        // before entering this while loop. However, if we pass through
-        // the loop once, getting DB_NOTFOUND for this first value
-        // of child_to_search, we enter the while loop again with a
-        // child_to_search that may not be in memory. If it is not,
-        // we need to return TOKUDB_TRY_AGAIN so the query can
-        // read the appropriate partition into memory
-        //
-        if (BP_STATE(node,child_to_search) != PT_AVAIL) {
-            return TOKUDB_TRY_AGAIN;
-        }
-        const struct pivot_bounds next_bounds = next_pivot_keys(node, child_to_search, bounds);
-        if (node->height > 0) {
-            r = ft_search_child(
-                brt,
-                node,
-                child_to_search,
-                search,
-                getf,
-                getf_v,
-                doprefetch,
-                ftcursor,
-                unlockers,
-                ancestors,
-                &next_bounds,
-                can_bulk_fetch
-                );
-        }
-        else {
-            r = ft_search_basement_node(
-                BLB(node, child_to_search),
-                search,
-                getf,
-                getf_v,
-                doprefetch,
-                ftcursor,
-                can_bulk_fetch
-                );
-        }
-        if (r == 0) return r; //Success
+    const struct pivot_bounds next_bounds = next_pivot_keys(node, child_to_search, bounds);
+    if (node->height > 0) {
+        r = ft_search_child(
+            brt,
+            node,
+            child_to_search,
+            search,
+            getf,
+            getf_v,
+            doprefetch,
+            ftcursor,
+            unlockers,
+            ancestors,
+            &next_bounds,
+            can_bulk_fetch
+            );
+    }
+    else {
+        r = ft_search_basement_node(
+            BLB(node, child_to_search),
+            search,
+            getf,
+            getf_v,
+            doprefetch,
+            ftcursor,
+            can_bulk_fetch
+            );
+    }
+    if (r == 0) {
+        return r; //Success
+    }
 
-        if (r != DB_NOTFOUND) {
-            return r; //Error (or message to quit early, such as TOKUDB_FOUND_BUT_REJECTED or TOKUDB_TRY_AGAIN)
+    if (r != DB_NOTFOUND) {
+        return r; //Error (or message to quit early, such as TOKUDB_FOUND_BUT_REJECTED or TOKUDB_TRY_AGAIN)
+    }
+    // not really necessary, just put this here so that reading the
+    // code becomes simpler. The point is at this point in the code,
+    // we know that we got DB_NOTFOUND and we have to continue
+    assert(r == DB_NOTFOUND);
+    // we have a new pivotkey
+    if (node->height == 0) {
+        // when we run off the end of a basement, try to lock the range up to the pivot. solves #3529
+        const DBT *pivot = nullptr;
+        if (search->direction == FT_SEARCH_LEFT) {
+            pivot = next_bounds.upper_bound_inclusive; // left -> right
+        } else {
+            pivot = next_bounds.lower_bound_exclusive; // right -> left
         }
-        // not really necessary, just put this here so that reading the
-        // code becomes simpler. The point is at this point in the code,
-        // we know that we got DB_NOTFOUND and we have to continue
-        assert(r == DB_NOTFOUND);
-        // we have a new pivotkey
-        if (node->height == 0) {
-            // when we run off the end of a basement, try to lock the range up to the pivot. solves #3529
-            const DBT *pivot = NULL;
-            if (search->direction == FT_SEARCH_LEFT)
-                pivot = next_bounds.upper_bound_inclusive; // left -> right
-            else
-                pivot = next_bounds.lower_bound_exclusive; // right -> left
-            if (pivot) {
-                int rr = getf(pivot->size, pivot->data, 0, NULL, getf_v, true);
-                if (rr != 0)
-                    return rr; // lock was not granted
+        if (pivot != nullptr) {
+            int rr = getf(pivot->size, pivot->data, 0, nullptr, getf_v, true);
+            if (rr != 0) {
+                return rr; // lock was not granted
             }
         }
-
-        // If we got a DB_NOTFOUND then we have to search the next record.        Possibly everything present is not visible.
-        // This way of doing DB_NOTFOUND is a kludge, and ought to be simplified.  Something like this is needed for DB_NEXT, but
-        //        for point queries, it's overkill.  If we got a DB_NOTFOUND on a point query then we should just stop looking.
-        // When releasing locks on I/O we must not search the same subtree again, or we won't be guaranteed to make forward progress.
-        // If we got a DB_NOTFOUND, then the pivot is too small if searching from left to right (too large if searching from right to left).
-        // So save the pivot key in the search object.
-        maybe_search_save_bound(node, child_to_search, search);
-
-        // We're about to pin some more nodes, but we thought we were done before.
-        if (search->direction == FT_SEARCH_LEFT) {
-            child_to_search++;
-        }
-        else {
-            child_to_search--;
-        }
     }
+
+    // If we got a DB_NOTFOUND then we have to search the next record.        Possibly everything present is not visible.
+    // This way of doing DB_NOTFOUND is a kludge, and ought to be simplified.  Something like this is needed for DB_NEXT, but
+    //        for point queries, it's overkill.  If we got a DB_NOTFOUND on a point query then we should just stop looking.
+    // When releasing locks on I/O we must not search the same subtree again, or we won't be guaranteed to make forward progress.
+    // If we got a DB_NOTFOUND, then the pivot is too small if searching from left to right (too large if searching from right to left).
+    // So save the pivot key in the search object.
+    maybe_search_save_bound(node, child_to_search, search);
+    // as part of #5770, if we can continue searching,
+    // we MUST return TOKUDB_TRY_AGAIN,
+    // because there is no guarantee that messages have been applied
+    // on any other path.
+    if ((search->direction == FT_SEARCH_LEFT && child_to_search < node->n_children-1) ||
+        (search->direction == FT_SEARCH_RIGHT && child_to_search > 0)) {
+        r = TOKUDB_TRY_AGAIN;
+    }
+
     return r;
 }
 
@@ -5775,7 +5867,6 @@ toku_ft_keysrange_internal (FT_HANDLE brt, FTNODE node,
             &next_ancestors,
             bounds,
             child_may_find_right ? match_bfe : min_bfe,
-            PL_READ, // may_modify_node is false, because node guaranteed to not change
             false,
             &childnode,
             &msgs_applied
@@ -5986,7 +6077,7 @@ static int get_key_after_bytes_in_child(FT_HANDLE ft_h, FT ft, FTNODE node, UNLO
     uint32_t fullhash = compute_child_fullhash(ft->cf, node, childnum);
     FTNODE child;
     bool msgs_applied = false;
-    r = toku_pin_ftnode_batched(ft_h, childblocknum, fullhash, unlockers, &next_ancestors, bounds, bfe, PL_READ, false, &child, &msgs_applied);
+    r = toku_pin_ftnode_batched(ft_h, childblocknum, fullhash, unlockers, &next_ancestors, bounds, bfe, false, &child, &msgs_applied);
     paranoid_invariant(!msgs_applied);
     if (r == TOKUDB_TRY_AGAIN) {
         return r;
