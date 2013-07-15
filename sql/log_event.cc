@@ -6951,6 +6951,12 @@ int Rotate_log_event::do_update_pos(Relay_log_info *rli)
       ((!rli->is_parallel_exec() && !rli->is_in_group()) ||
        rli->mts_group_status != Relay_log_info::MTS_IN_GROUP))
   {
+    if (!is_mts_db_partitioned(rli) && server_id != ::server_id )
+    {
+      // force the coordinator to start a new group.
+      static_cast<Mts_submode_logical_clock*>
+        (rli->current_mts_submode)->start_new_group();
+    }
     if (rli->is_parallel_exec())
     {
       /*
@@ -6961,13 +6967,6 @@ int Rotate_log_event::do_update_pos(Relay_log_info *rli)
       if ((error= mts_checkpoint_routine(rli, 0, false,
                                          true/*need_data_lock=true*/)))
         goto err;
-
-      if (!is_mts_db_partitioned(rli) && server_id != ::server_id )
-      {
-        // force the coordinator to start a new group.
-        static_cast<Mts_submode_logical_clock*>
-          (rli->current_mts_submode)->start_new_group();
-      }
     }
     mysql_mutex_lock(&rli->data_lock);
     DBUG_PRINT("info", ("old group_master_log_name: '%s'  "

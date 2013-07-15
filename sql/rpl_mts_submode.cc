@@ -393,7 +393,6 @@ Mts_submode_logical_clock::assign_group_parent_id(Relay_log_info* rli,
     else
      is_new_group= false;
   }
-  rli->mts_group_status= Relay_log_info::MTS_IN_GROUP;
 
   DBUG_PRINT("info", ("MTS::slave c=%lld first_event=%s", commit_seq_no,
                       YESNO(first_event)));
@@ -421,7 +420,10 @@ Mts_submode_logical_clock::schedule_next_event(Relay_log_info* rli,
     DBUG_RETURN (ER_MTS_CANT_PARALLEL);
 
   if (ev->get_type_code() == GTID_LOG_EVENT)
+  {
+    rli->mts_group_status= Relay_log_info::MTS_IN_GROUP;
     DBUG_RETURN (0);
+  }
   /*
     The coordinator waits till the last group was completely applied before
     the events from the next group is scheduled for the workers.
@@ -437,6 +439,7 @@ Mts_submode_logical_clock::schedule_next_event(Relay_log_info* rli,
     delegated_jobs= 1;
     jobs_done= 0;
   }
+  rli->mts_group_status= Relay_log_info::MTS_IN_GROUP;
   DBUG_RETURN(0);
 }
 
@@ -659,6 +662,7 @@ Mts_submode_logical_clock::
   THD_STAGE_INFO(thd, *old_stage);
   DBUG_PRINT("info",("delegated %d, jobs_done %d, Workers have finished their"
                      " jobs", delegated_jobs, jobs_done));
+  rli->mts_group_status= Relay_log_info::MTS_NOT_IN_GROUP;
   DBUG_RETURN(0);
 }
 
