@@ -164,7 +164,7 @@ test_main(int argc, char *const argv[]) {
     // we expect to get lock_notgranted op failures, and we
     // don't want the overhead of fsync on small txns
     args.crash_on_operation_failure = false;
-    args.nosync = true;
+    args.env_args.sync_period = 100; // speed up the test by not fsyncing very often
     stress_test_main(&args);
     return 0;
 }
