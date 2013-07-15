@@ -3245,8 +3245,7 @@ int Log_event::apply_event(Relay_log_info *rli)
   if (!(parallel= rli->is_parallel_exec()) ||
       ((actual_exec_mode= 
         get_mts_execution_mode(::server_id, 
-                           rli->mts_group_status == Relay_log_info::MTS_IN_GROUP
-                           || !is_mts_db_partitioned(rli)))
+                           rli->mts_group_status == Relay_log_info::MTS_IN_GROUP))
        != EVENT_EXEC_PARALLEL))
   {
     if (parallel)
@@ -3300,7 +3299,8 @@ int Log_event::apply_event(Relay_log_info *rli)
           Given not in-group mark the event handler can invoke checkpoint
           update routine in the following course.
         */
-        DBUG_ASSERT(rli->mts_group_status == Relay_log_info::MTS_NOT_IN_GROUP);
+        DBUG_ASSERT(rli->mts_group_status == Relay_log_info::MTS_NOT_IN_GROUP
+                    || !is_mts_db_partitioned(rli));
 
 #ifndef DBUG_OFF
         /* all Workers are idle as done through wait_for_workers_to_finish */

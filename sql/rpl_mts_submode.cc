@@ -659,7 +659,6 @@ Mts_submode_logical_clock::
   THD_STAGE_INFO(thd, *old_stage);
   DBUG_PRINT("info",("delegated %d, jobs_done %d, Workers have finished their"
                      " jobs", delegated_jobs, jobs_done));
-  rli->mts_group_status= Relay_log_info::MTS_NOT_IN_GROUP;
   DBUG_RETURN(0);
 }
 
