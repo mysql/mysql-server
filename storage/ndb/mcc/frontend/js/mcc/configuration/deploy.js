@@ -920,93 +920,89 @@ function getStartProcessCommands(process) {
         host,
         mcc.util.unixPath(basedir), // Always use unix basedir unless running under cmd.exe
         ptypeItem.getValue("name")+(isWin?".exe":""));
-
-    var scmds = [sc];
     
-    // On Windows, install as service instead of actually starting
-    if (isWin) {
-        if (ptype == "mysqld") {
-            // Need special handling of mysqld
-            sc.addopt("--install");
-            sc.addopt("N"+nodeid);
-        } else {
-            sc.addopt("--install", "N"+nodeid);
-        }
-        sc.msg.procCtrl.noRaise = 1; // --install returns 1 on success
-        sc.progTitle = "Installing node "+nodeid+" ("+ptype+
-            ") as service N"+nodeid;
+    sc.progTitle = "Starting node "+nodeid+" ("+ptype+")";
+    var scmds = [sc];
 
-        var ss = new ProcessCommand(host, "", "net");
-        delete ss.msg.file.autoComplete; // Don't want ac for net cmd
-        ss.addopt("start");
-        ss.addopt("N"+nodeid);
-        ss.progTitle = "Starting service N"+nodeid;
-	
-	if (ptype == "mysqld" || ptype == "ndb_mgmd") {
-	  ss.isDone = function () 
-	    { return mcc.gui.getStatii(nodeid) == "CONNECTED"; };
-	} else {
-	  ss.isDone = function () 
-	    { return mcc.gui.getStatii(nodeid) == "STARTED"; };
-	}
-        scmds.push(ss);
-    } else {
-        sc.progTitle = "Starting node "+nodeid+" ("+ptype+")";
-    }
     // Add process specific options
-
     if (ptype == "ndb_mgmd") {
+        var isDoneFunction = function () { return mcc.gui.getStatii(nodeid) == "CONNECTED"; };
+        if (isWin) {
+            sc.addopt("--install", "N"+nodeid);            
+            sc.progTitle = "Installing node "+nodeid+" ("+ptype+
+                ") as service N"+nodeid;
+            sc.msg.procCtrl.noRaise = 1; // --install returns 1 on success
+            
+            var ss = new ProcessCommand(host, "", "net");
+            delete ss.msg.file.autoComplete; // Don't want ac for net cmd
+            ss.addopt("start");
+            ss.addopt("N"+nodeid);
+            ss.progTitle = "Starting service N"+nodeid;
+	    ss.isDone = isDoneFunction;
+            scmds.push(ss);
+        } else {
+	    sc.isDone = isDoneFunction;
+        }
+        
         sc.addopt("--initial");
         sc.addopt("--ndb-nodeid", process.getValue("NodeId"));
         sc.addopt("--config-dir", mcc.util.unixPath(datadir));
         sc.addopt("--config-file", mcc.util.unixPath(datadir) + 
                   "config.ini");
-	if (!isWin) {
-	  sc.isDone = function () 
-	    { 
-	      return mcc.gui.getStatii(nodeid) == "CONNECTED";
-	    };
-	}
+
         return scmds;
     } 
     
     if (ptype == "ndbd" || ptype == "ndbmtd") {
-      sc.addopt("--ndb-nodeid", nodeid);
-      sc.addopt("--ndb-connectstring", connectString);
-      if (!isWin) {
-	sc.isDone = function () 
-	  { return mcc.gui.getStatii(nodeid) == "STARTING"; };
-      }
-      lastNdbdCmd = sc;
-      ndbdids.push(nodeid);
-      return scmds;
+        var isDoneFunction = function () { return mcc.gui.getStatii(nodeid) == "STARTING"; };
+        if (isWin) {
+            sc.addopt("--install", "N"+nodeid);            
+            sc.progTitle = "Installing node "+nodeid+" ("+ptype+
+                ") as service N"+nodeid;
+            sc.msg.procCtrl.noRaise = 1; // --install returns 1 on success
+            
+            var ss = new ProcessCommand(host, "", "net");
+            delete ss.msg.file.autoComplete; // Don't want ac for net cmd
+            ss.addopt("start");
+            ss.addopt("N"+nodeid);
+            ss.progTitle = "Starting service N"+nodeid;
+
+            ss.isDone = isDoneFunction;
+            lastNdbdCmd = ss;
+            scmds.push(ss);
+        } else {
+	    sc.isDone = isDoneFunction; 
+            lastNdbdCmd = sc;
+        }
+        
+        sc.addopt("--ndb-nodeid", nodeid);
+        sc.addopt("--ndb-connectstring", connectString);
+        ndbdids.push(nodeid);
+        return scmds;
     }
     
     if (ptype == "mysqld") {
-      // Change isDone for the last data node to make it wait for all
-      // ndbds to become STARTED
-      lastNdbdCmd.isDone = function () {
-	for (var i in ndbdids) {
-	  if (mcc.gui.getStatii(ndbdids[i]) != "STARTED") { 
-	    mcc.util.dbg("Still waiting for node "+ndbdids[i]);
-	    return false; 
-	  }
-	}
-	return true;
-      };
-      
-        sc.addopt("--defaults-file", datadir+"my.cnf");
+        // Change isDone for the last data node to make it wait for all
+        // ndbds to become STARTED
+        lastNdbdCmd.isDone = function () {
+	    for (var i in ndbdids) {
+	        if (mcc.gui.getStatii(ndbdids[i]) != "STARTED") { 
+	            mcc.util.dbg("Still waiting for node "+ndbdids[i]);
+	            return false; 
+	        }
+	    }
+	    return true;
+        };
 
-        // We also need an init command for mysqld
-        var ic = null;
-        
+        var isDoneFunction = function () { return mcc.gui.getStatii(nodeid) == "CONNECTED"; };
+      
         // With FreeSSHd (native windows) we need to run install_db command
         // inside cmd.exe for redirect of stdin (FIXME: not sure if that 
         // will work on Cygwin
         if (isWin) {
             var langdir = basedir + "share";
             var tmpdir = datadir_ + "tmp";
-            ic = new ProcessCommand(host, "C:\\Windows\\System32", "cmd.exe");
+            var ic = new ProcessCommand(host, "C:\\Windows\\System32", "cmd.exe");
             delete ic.msg.file.autoComplete; // Don't want ac for cmd.exe
             ic.addopt("/C");
             ic.addopt(basedir+"bin\\mysqld.exe");
@@ -1025,7 +1021,33 @@ function getStartProcessCommands(process) {
             ic.addopt("<");
             ic.addopt(tmpdir + "\\install.sql");
             ic.progTitle = "Running mysqld --bootstrap for node "+nodeid;
-        } else {
+            scmds.unshift(ic);
+
+            sc.addopt("--install");
+            sc.addopt("N"+nodeid);
+            sc.addopt("--defaults-file", datadir+"my.cnf");
+            sc.msg.procCtrl.noRaise = 1; // --install returns 1 on success
+            sc.progTitle = "Installing node "+nodeid+" ("+ptype+
+            ") as service N"+nodeid;
+
+            var ss = new ProcessCommand(host, "", "net");
+            delete ss.msg.file.autoComplete; // Don't want ac for net cmd
+            ss.addopt("start");
+            ss.addopt("N"+nodeid);
+            ss.progTitle = "Starting service N"+nodeid;
+            ss.isDone = isDoneFunction;
+            scmds.push(ss);
+        } 
+        else {
+            // Non-windows uses install_db script
+            var ic = new ProcessCommand(host, basedir, "mysql_install_db");
+            ic.addopt("--no-defaults");
+            ic.addopt("--datadir", datadir);
+            ic.addopt("--basedir", basedir);
+            ic.progTitle = "Running mysql_install_db for node "+nodeid;
+            scmds.unshift(ic);
+
+            sc.addopt("--defaults-file", datadir+"my.cnf");
             // Invoking mysqld does not return
             sc.msg.procCtrl.waitForCompletion = false;
             // Use nohup on it so python server won't hang in shutdown
@@ -1033,17 +1055,9 @@ function getStartProcessCommands(process) {
             sc.msg.procCtrl.getStd = false;
             sc.msg.procCtrl.daemonWait = 10;
             sc.progTitle = "Starting node "+nodeid+" ("+ptype+")";
-	   
-	    sc.isDone = function () 
-	      { return mcc.gui.getStatii(nodeid) == "CONNECTED"; };
-            
-            ic = new ProcessCommand(host, basedir, "mysql_install_db");
-            ic.addopt("--no-defaults");
-            ic.addopt("--datadir", datadir);
-            ic.addopt("--basedir", basedir);
-            ic.progTitle = "Running mysql_install_db for node "+nodeid;
+	    sc.isDone = isDoneFunction;            
         }
-        scmds.unshift(ic);
+
         return scmds;
     }
     alert("Not supposed to happen!");
