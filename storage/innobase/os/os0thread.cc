@@ -241,11 +241,11 @@ os_thread_sleep(
 #ifdef _WIN32
 	Sleep((DWORD) tm / 1000);
 #else
-	struct timeval	t;
+	struct timespec	t;
 
 	t.tv_sec = tm / 1000000;
-	t.tv_usec = tm % 1000000;
+	t.tv_nsec = (tm % 1000000) * 1000;
 
-	select(0, NULL, NULL, NULL, &t);
-#endif
+	nanosleep(&t, NULL);
+#endif /* _WIN32 */
 }
