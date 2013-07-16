@@ -568,8 +568,13 @@ function UpdateOperation(sql, keys, values, callback) {
   };
 }
 
-function createInsertSQL(dbTableHandler) {
-  // create the insert SQL statement from the table metadata
+/** Create the INSERT and INSERT... DUPLICATE SQL statements corresponding to the fieldValueDefinedKey.
+ * If fieldValueDefinedKey is undefined, include all columns in the statements.
+ * If fieldValueDefinedKey contains a string, e.g. 'DUUUD', include only those
+ * columns that have a 'D' in the corresponding position.
+ */
+function createInsertSQL(dbTableHandler, fieldValueDefinedKey) {
+  // create the insert SQL statement from the table metadata and field values defined key
   var insertSQL = 'INSERT INTO ' + dbTableHandler.dbTable.database + '.' + dbTableHandler.dbTable.name + ' (';
   var valuesSQL = ' VALUES (';
   var duplicateSQL = ' ON DUPLICATE KEY UPDATE ';
@@ -580,22 +585,62 @@ function createInsertSQL(dbTableHandler) {
   var duplicateSeparator = '';
   var i, column;  
   for (i = 0; i < columns.length; ++i) {
-    column = columns[i];
-    insertSQL += columnSeparator + column.name;
-    valuesSQL += columnSeparator + '?';
-    columnSeparator = ', ';
-    if (!column.isInPrimaryKey) {
-      duplicateSQL += duplicateSeparator + column.name + ' = VALUES (' + column.name + ') ';
-      duplicateSeparator = ', ';
+    if ((!fieldValueDefinedKey) || fieldValueDefinedKey[i] === 'D') {
+      column = columns[i];
+      insertSQL += columnSeparator + column.name;
+      valuesSQL += columnSeparator + '?';
+      columnSeparator = ', ';
+      if (!column.isInPrimaryKey) {
+        duplicateSQL += duplicateSeparator + column.name + ' = VALUES (' + column.name + ') ';
+        duplicateSeparator = ', ';
+      }
     }
   }
   valuesSQL += ')';
   insertSQL += ')' + valuesSQL;
-  dbTableHandler.mysql.insertSQL = insertSQL;
-  dbTableHandler.mysql.duplicateSQL = insertSQL + duplicateSQL;
-  udebug.log_detail('getMetadata insertSQL:', dbTableHandler.mysql.insertSQL);
-  udebug.log_detail('getMetadata duplicateSQL:', dbTableHandler.mysql.duplicateSQL);
-  return insertSQL;
+  if (typeof(fieldValueDefinedKey) === 'undefined') {
+    dbTableHandler.mysql.insertSQL = insertSQL;
+    dbTableHandler.mysql.duplicateSQL = insertSQL + duplicateSQL;
+    udebug.log_detail('insertSQL:', insertSQL);
+    udebug.log_detail('duplicateSQL:', insertSQL + duplicateSQL);
+  } else {
+    dbTableHandler.mysql.insertPartialSQL[fieldValueDefinedKey] = insertSQL;
+    dbTableHandler.mysql.duplicatePartialSQL[fieldValueDefinedKey] = insertSQL + duplicateSQL;
+    udebug.log_detail('insertPartialSQL[', fieldValueDefinedKey, ']:', insertSQL);
+    udebug.log_detail('duplicatePartialSQL[', fieldValueDefinedKey, ']:', insertSQL + duplicateSQL);
+  }
+}
+
+/** Get the INSERT SQL corresponding to the fieldValueDefinedKey which is a string
+ * with a 'D' for each defined value and 'U' for each undefined value.
+ * For example, for a table with 5 columns, if the first and last columns have values
+ * the value of fieldValueDefinedKey is 'DUUUD'.
+ */
+function getInsertSQL(dbTableHandler, fieldValueDefinedKey) {
+  var insertSQL = dbTableHandler.mysql.insertPartialSQL[fieldValueDefinedKey];
+  if (insertSQL) {
+    // insert all columns
+    return insertSQL;
+  }
+  // create the partial SQL for fieldValueDefinedKey
+  createInsertSQL(dbTableHandler, fieldValueDefinedKey);
+  return dbTableHandler.mysql.insertPartialSQL[fieldValueDefinedKey];
+}
+
+/** Get the INSERT... DUPLICATE SQL corresponding to the fieldValueDefinedKey which is a string
+ * with a 'D' for each defined value and 'U' for each undefined value.
+ * For example, for a table with 5 columns, if the first and last columns have values
+ * the value of fieldValueDefinedKey is 'DUUUD'.
+ */
+function getDuplicateSQL(dbTableHandler, fieldValueDefinedKey) {
+  var duplicateSQL = dbTableHandler.mysql.duplicatePartialSQL[fieldValueDefinedKey];
+  if (duplicateSQL) {
+    // insert all columns on duplicate key update
+    return duplicateSQL;
+  }
+  // create the duplicate partial SQL for fieldValueDefinedKey
+  createInsertSQL(dbTableHandler, fieldValueDefinedKey);
+  return dbTableHandler.mysql.duplicatePartialSQL[fieldValueDefinedKey];
 }
 
 function createDeleteSQL(dbTableHandler, index) {
@@ -685,6 +730,8 @@ function getMetadata(dbTableHandler) {
   dbTableHandler.mysql.deleteTableScanSQL= createDeleteSQL(dbTableHandler);
   dbTableHandler.mysql.selectSQL = {};
   dbTableHandler.mysql.selectTableScanSQL = createSelectSQL(dbTableHandler);
+  dbTableHandler.mysql.insertPartialSQL = {};
+  dbTableHandler.mysql.duplicatePartialSQL = {};
   
   createInsertSQL(dbTableHandler);
   var i, indexes, index;
@@ -697,13 +744,63 @@ function getMetadata(dbTableHandler) {
   }
 }
 
+/** Track field values defined. An instance of this is passed to DBTableHandler.getFields.
+ * It constructs a key that indicates which field values are defined in the object.
+ * After getFields returns, the value of key is either undefined, meaning that
+ * all fields had values, or a string that indicates which fields had defined values
+ * and which did not. For example, if fields 0, 1, and 3 were defined and field 2 was not,
+ * the key would be 'DDUD'.
+ */
+function FieldValueDefinedListener() {
+}
+
+FieldValueDefinedListener.prototype.setDefined = function(fieldNumber) {
+  if (typeof(this.key) !== 'undefined') {
+    this.key += 'D';
+  }
+};
+
+FieldValueDefinedListener.prototype.setUndefined = function(fieldNumber) {
+  if (typeof(this.key) === 'undefined') {
+    // first undefined value; create the key for all previous defined values e.g. 'DDDDDDDDD'
+    this.key = '';
+    var i; 
+    for (i = 0; i < fieldNumber; ++i) {
+      this.key += 'D';
+    }
+  }
+  this.key += 'U';
+};
+
+function extractValues(fieldValues, fieldValueDefinedKey) {
+  var statementValues = [];
+  var fieldIndex;
+  for (fieldIndex = 0; fieldIndex < fieldValueDefinedKey.length; ++fieldIndex) {
+    if (fieldValueDefinedKey.charAt(fieldIndex) === 'D') {
+      // field is defined
+      statementValues.push(fieldValues[fieldIndex]);
+    }
+  }
+  return statementValues;
+}
+
 exports.DBSession.prototype.buildInsertOperation = function(dbTableHandler, object, transaction, callback) {
   udebug.log_detail('dbSession.buildInsertOperation with tableHandler:', 
                     dbTableHandler.dbTable.name, 'object:', object);
   getMetadata(dbTableHandler);
-  var fields = dbTableHandler.getFields(object, true, 'mysql');
-  var insertSQL = dbTableHandler.mysql.insertSQL;
-  return new InsertOperation(insertSQL, fields, callback);
+  var fieldValueDefinedListener = new FieldValueDefinedListener();
+  var fieldValues = dbTableHandler.getFields(object, false, 'mysql', fieldValueDefinedListener);
+  var fieldValueDefinedKey = fieldValueDefinedListener.key;
+  udebug.log_detail('MySQLConnection.buildWriteOperation', fieldValueDefinedKey);
+  if (typeof(fieldValueDefinedKey) === 'undefined') {
+    // all fields are defined; use the standard generated INSERT... DUPLICATE SQL statement
+    return new InsertOperation(dbTableHandler.mysql.insertSQL, fieldValues, callback);
+  }
+  var insertSQL = getInsertSQL(dbTableHandler, fieldValueDefinedKey);
+  // extract the field values that were defined
+  var statementValues = extractValues(fieldValues, fieldValueDefinedKey);
+  
+  return new InsertOperation(insertSQL, statementValues, callback);
 };
 
 
@@ -713,6 +810,7 @@ exports.DBSession.prototype.buildDeleteOperation = function(dbIndexHandler, keys
   var dbTableHandler = dbIndexHandler.tableHandler;
   getMetadata(dbTableHandler);
   var deleteSQL = dbTableHandler.mysql.deleteSQL[dbIndexHandler.dbIndex.name];
+
   return new DeleteOperation(deleteSQL, keysArray, callback);
 };
 
@@ -815,45 +913,20 @@ return new UpdateOperation(updateSetSQL, keysArray, updateFields, callback);
 exports.DBSession.prototype.buildWriteOperation = function(dbIndexHandler, values, transaction, callback) {
   udebug.log_detail('buildWriteOperation with indexHandler:', dbIndexHandler, values);
   var dbTableHandler = dbIndexHandler.tableHandler;
-  var fieldValues = dbTableHandler.getFields(values);
   getMetadata(dbTableHandler);
-  // get the field metadata object for each value in field metadata order
-  var fieldIndexes = dbTableHandler.allFieldsIncluded(fieldValues);
-  udebug.log_detail('buildWriteOperation fieldValues: ', fieldValues, ' fieldIndexes: ', fieldIndexes);
-  // if the values include all mapped fields, use the pre-built dbTableHandler.mysql.duplicateSQL
-  if (fieldValues.length === fieldIndexes.length) {
+  var fieldValueDefinedListener = new FieldValueDefinedListener();
+  var fieldValues = dbTableHandler.getFields(values, false, 'mysql', fieldValueDefinedListener);
+  var fieldValueDefinedKey = fieldValueDefinedListener.key;
+  if (typeof(fieldValueDefinedKey) === 'undefined') {
+    // all fields are defined; use the standard generated INSERT... DUPLICATE SQL statement
     return new WriteOperation(dbTableHandler.mysql.duplicateSQL, fieldValues, callback);
   }
-  // build the SQL insert statement along with the data values
-  var writeSQL = 'INSERT INTO ' + dbTableHandler.dbTable.database + '.' + dbTableHandler.dbTable.name + ' (';
-  var valuesSQL = ') VALUES (';
-  var duplicateSQL = ' ON DUPLICATE KEY UPDATE ';
-  var duplicateClause = '';
-  var separator = ' ';
-  var statementValues = [];
-  var i;
-  var fieldIndex;
-  var f;
-  
-  for (i = 0; i < fieldIndexes.length; ++i) {
-    fieldIndex = fieldIndexes[i];
-    f = dbTableHandler.fieldNumberToFieldMap[fieldIndex];
-    // add the column name to the write SQL
-    writeSQL += separator + f.columnName;
-    // add the column name to the duplicate SQL
-    // add the value to the values SQL
-    duplicateClause = separator + f.columnName + ' = VALUES (' + f.columnName + ')';
-    duplicateSQL += duplicateClause;
-    valuesSQL += separator + '?';
-    separator = ', ';
-    statementValues.push(fieldValues[fieldIndex]);
-  }
-  
-  valuesSQL += ')';
-  writeSQL += valuesSQL;
-  writeSQL += duplicateSQL;
 
-  udebug.log_detail('dbSession.buildWriteOperation SQL:', writeSQL);
+  var writeSQL = getDuplicateSQL(dbTableHandler, fieldValueDefinedKey);
+  // extract the field values that were defined
+  var statementValues = extractValues(fieldValues, fieldValueDefinedKey);
+  udebug.log_detail('dbSession.buildWriteOperation SQL:', writeSQL, 'using values', statementValues);
+
   return new WriteOperation(writeSQL, statementValues, callback);
 };
 
