@@ -97,7 +97,9 @@ enum enum_rbr_exec_mode { RBR_EXEC_MODE_STRICT,
                           RBR_EXEC_MODE_IDEMPOTENT,
                           RBR_EXEC_MODE_LAST_BIT };
 enum enum_slave_type_conversions { SLAVE_TYPE_CONVERSIONS_ALL_LOSSY,
-                                   SLAVE_TYPE_CONVERSIONS_ALL_NON_LOSSY};
+                                   SLAVE_TYPE_CONVERSIONS_ALL_NON_LOSSY,
+                                   SLAVE_TYPE_CONVERSIONS_ALL_UNSIGNED,
+                                   SLAVE_TYPE_CONVERSIONS_ALL_SIGNED};
 enum enum_slave_rows_search_algorithms { SLAVE_ROWS_TABLE_SCAN = (1U << 0),
                                          SLAVE_ROWS_INDEX_SCAN = (1U << 1),
                                          SLAVE_ROWS_HASH_SCAN  = (1U << 2)};
@@ -4440,7 +4442,20 @@ public:
   uint  hidden_field_count;
   uint	group_parts,group_length,group_null_parts;
   uint	quick_group;
-  bool  using_indirect_summary_function;
+  /**
+    Number of outer_sum_funcs i.e the number of set functions that are
+    aggregated in a query block outer to this subquery.
+
+    @see count_field_types
+  */
+  uint  outer_sum_func_count;
+  /**
+    Enabled when we have atleast one outer_sum_func. Needed when used
+    along with distinct.
+
+    @see create_tmp_table
+  */
+  bool  using_outer_summary_function;
   CHARSET_INFO *table_charset; 
   bool schema_table;
   /*
@@ -4467,8 +4482,8 @@ public:
 
   TMP_TABLE_PARAM()
     :copy_field(0), copy_field_end(0), group_parts(0),
-     group_length(0), group_null_parts(0),
-     using_indirect_summary_function(0),
+     group_length(0), group_null_parts(0), outer_sum_func_count(0),
+     using_outer_summary_function(0),
      schema_table(0), precomputed_group_by(0), force_copy_fields(0),
      skip_create_table(FALSE), bit_fields_as_long(0)
   {}
@@ -4695,13 +4710,14 @@ class user_var_entry
   /**
     Initialize all members
     @param name - Name of the user_var_entry instance.
+    @cs         - charset information of the user_var_entry instance.
   */
-  void init(const Simple_cstring &name)
+  void init(const Simple_cstring &name, const CHARSET_INFO *cs)
   {
     copy_name(name);
     reset_value();
     update_query_id= 0;
-    collation.set(NULL, DERIVATION_IMPLICIT, 0);
+    collation.set(cs, DERIVATION_IMPLICIT, 0);
     unsigned_flag= 0;
     /*
       If we are here, we were called from a SET or a query which sets a
@@ -4771,11 +4787,12 @@ public:
   /**
     Allocate and initialize a user variable instance.
     @param namec  Name of the variable.
+    @param cs     Charset of the variable.
     @return
     @retval  Address of the allocated and initialized user_var_entry instance.
     @retval  NULL on allocation error.
   */
-  static user_var_entry *create(const Name_string &name)
+  static user_var_entry *create(const Name_string &name, const CHARSET_INFO *cs)
   {
     user_var_entry *entry;
     uint size= ALIGN_SIZE(sizeof(user_var_entry)) +
@@ -4783,7 +4800,7 @@ public:
     if (!(entry= (user_var_entry*) my_malloc(size, MYF(MY_WME |
                                                        ME_FATALERROR))))
       return NULL;
-    entry->init(name);
+    entry->init(name, cs);
     return entry;
   }
 

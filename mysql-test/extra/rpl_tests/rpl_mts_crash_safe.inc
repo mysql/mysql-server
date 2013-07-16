@@ -95,7 +95,7 @@ if ($commands == recovery)
   --source include/start_slave_io.inc
   let $wait_condition=SELECT Master_log_pos = $m_before_master_pos AND Master_log_name = "$m_before_master_file" FROM mysql.slave_master_info;
   let $show_rpl_debug_info= 1;
-  --source include/wait_condition.inc
+  --source include/wait_condition_or_abort.inc
 
   #### Crashing server after assigning and processing jobs ######
   --connection slave
@@ -142,12 +142,12 @@ if ($commands == recovery)
   --connection slave
   --source include/start_slave_io.inc
   let $wait_condition=SELECT Master_log_pos = $m_before_master_pos AND Master_log_name = "$m_before_master_file" FROM mysql.slave_master_info;
-  --source include/wait_condition.inc
+  --source include/wait_condition_or_abort.inc
   --enable_query_log
 
   --source include/start_slave_sql.inc
   let $wait_condition=SELECT Master_log_pos = $m_before_master_pos AND Master_log_name = "$m_before_master_file" FROM mysql.slave_relay_log_info;
-  --source include/wait_condition.inc
+  --source include/wait_condition_or_abort.inc
 
   --source include/stop_slave.inc
   eval SET @@global.slave_parallel_workers= $saved_current_workers;

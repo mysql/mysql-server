@@ -98,6 +98,10 @@ int my_copy(const char *from, const char *to, myf MyFlags)
     if (my_close(from_file,MyFlags) | my_close(to_file,MyFlags))
       DBUG_RETURN(-1);				/* Error on close */
 
+    /* Reinitialize closed fd, so they won't be closed again. */
+    from_file= -1;
+    to_file= -1;
+
     /* Copy modes if possible */
 
     if (MyFlags & MY_HOLD_ORIGINAL_MODES && !new_file_stat)
