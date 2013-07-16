@@ -16326,7 +16326,7 @@ sub_select(JOIN *join,JOIN_TAB *join_tab,bool end_of_records)
   if (rc != NESTED_LOOP_NO_MORE_ROWS)
   {
     error= (*join_tab->read_first_record)(join_tab);
-    if (join_tab->keep_current_rowid)
+    if (!error && join_tab->keep_current_rowid)
       join_tab->table->file->position(join_tab->table->record[0]);    
     rc= evaluate_join_record(join, join_tab, error);
   }
