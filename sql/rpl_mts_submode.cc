@@ -316,7 +316,7 @@ Mts_submode_logical_clock::Mts_submode_logical_clock()
          false otherwise
 */
 bool
-Mts_submode_logical_clock::assign_group_parent_id(Relay_log_info* rli,
+Mts_submode_logical_clock::assign_group(Relay_log_info* rli,
                                             Log_event *ev)
 {
   bool var_events= false;
@@ -362,15 +362,14 @@ Mts_submode_logical_clock::assign_group_parent_id(Relay_log_info* rli,
       (first_event && !var_events && !defer_new_group))
     first_event= false;
 
-
-  if ((commit_seq_no != SEQ_UNINIT /* Not an internal event */ &&
-      /* not same as last seq number */
-      commit_seq_no != mts_last_known_commit_parent) ||
-      /* first event after a submode switch */
+  if (/* Rewritten event without commit seq_number. */
+      commit_seq_no == SEQ_UNINIT ||
+      /* Not same as last seq number. */
+      commit_seq_no != mts_last_known_commit_parent ||
+      /* First event after a submode switch. */
       first_event ||
-      /* require a fresh group to be started. */
-      (rli->mts_group_status != Relay_log_info::MTS_IN_GROUP &&
-       force_new_group))
+      /* Require a fresh group to be started. */
+      force_new_group)
   {
     mts_last_known_commit_parent= commit_seq_no;
     worker_seq= 0;
@@ -416,7 +415,7 @@ Mts_submode_logical_clock::schedule_next_event(Relay_log_info* rli,
   if (sql_slave_killed(rli->info_thd, rli))
     DBUG_RETURN(0);
 
-  if (assign_group_parent_id(rli, ev))
+  if (assign_group(rli, ev))
     DBUG_RETURN (ER_MTS_CANT_PARALLEL);
 
   if (ev->get_type_code() == GTID_LOG_EVENT)

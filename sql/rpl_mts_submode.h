@@ -127,7 +127,7 @@ public:
 protected:
   std::pair<uint, my_thread_id> get_server_and_thread_id(TABLE* table);
   Slave_worker* get_free_worker(Relay_log_info *rli);
-  bool assign_group_parent_id(Relay_log_info* rli, Log_event* ev);
+  bool assign_group(Relay_log_info* rli, Log_event* ev);
 public:
   Mts_submode_logical_clock();
   int schedule_next_event(Relay_log_info* rli, Log_event *ev);
