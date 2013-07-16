@@ -892,3 +892,24 @@ insert into t1 values ('',1);
 select 1 from t1 where b <= 1 and a <> '';
 drop table t1;
 
+--echo #
+--echo # MDEV-4778: Incorrect results from Aria/MyISAM SELECT using index with prefix length on TEXT column
+--echo # 
+CREATE TABLE t1 (
+  c1 TEXT       ,
+  c2 VARCHAR(2) ,
+  INDEX idx1 (c2,c1(2)),
+  INDEX idx2 (c2,c1(1))
+);
+
+INSERT INTO t1 (c1,c2) VALUES ('aa','x'), ('a' ,'y');
+ 
+SELECT * FROM t1 IGNORE INDEX(idx1,idx2) WHERE (c1='aa' AND c2='x') OR (c1='a'  AND c2='y');
+
+EXPLAIN
+SELECT * FROM t1 FORCE INDEX(idx1)       WHERE (c1='aa' AND c2='x') OR (c1='a'  AND c2='y');
+SELECT * FROM t1 FORCE INDEX(idx1)       WHERE (c1='aa' AND c2='x') OR (c1='a'  AND c2='y');
+
+SELECT * FROM t1 FORCE INDEX(idx2)       WHERE (c1='aa' AND c2='x') OR (c1='a'  AND c2='y');
+
+DROP TABLE t1;

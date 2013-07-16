@@ -213,7 +213,7 @@ c-1006=w
 EXPLAIN
 SELECT c1 FROM t3 WHERE c1 >= 'c-1004=w' and c1 <= 'c-1006=w' and i1 > 2;
 id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
-1	SIMPLE	t3	range	c1	c1	12	NULL	2	Using index condition; Using where
+1	SIMPLE	t3	range	c1	c1	12	NULL	2	Using where
 SELECT c1 FROM t3 WHERE c1 >= 'c-1004=w' and c1 <= 'c-1006=w' and i1 > 2;
 c1
 EXPLAIN
@@ -857,5 +857,32 @@ insert into t1 values ('',1);
 select 1 from t1 where b <= 1 and a <> '';
 1
 drop table t1;
+#
+# MDEV-4778: Incorrect results from Aria/MyISAM SELECT using index with prefix length on TEXT column
+# 
+CREATE TABLE t1 (
+c1 TEXT       ,
+c2 VARCHAR(2) ,
+INDEX idx1 (c2,c1(2)),
+INDEX idx2 (c2,c1(1))
+);
+INSERT INTO t1 (c1,c2) VALUES ('aa','x'), ('a' ,'y');
+SELECT * FROM t1 IGNORE INDEX(idx1,idx2) WHERE (c1='aa' AND c2='x') OR (c1='a'  AND c2='y');
+c1	c2
+aa	x
+a	y
+EXPLAIN
+SELECT * FROM t1 FORCE INDEX(idx1)       WHERE (c1='aa' AND c2='x') OR (c1='a'  AND c2='y');
+id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
+1	SIMPLE	t1	range	idx1	idx1	10	NULL	2	Using where
+SELECT * FROM t1 FORCE INDEX(idx1)       WHERE (c1='aa' AND c2='x') OR (c1='a'  AND c2='y');
+c1	c2
+aa	x
+a	y
+SELECT * FROM t1 FORCE INDEX(idx2)       WHERE (c1='aa' AND c2='x') OR (c1='a'  AND c2='y');
+c1	c2
+aa	x
+a	y
+DROP TABLE t1;
 set storage_engine= @save_storage_engine;
 set optimizer_switch=@maria_icp_tmp;
