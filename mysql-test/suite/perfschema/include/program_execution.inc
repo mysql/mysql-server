@@ -27,19 +27,15 @@ SELECT fac(5);
 SELECT append("Bolly", "wood");
 
 --echo # Events
+CREATE TABLE table_t(a INT);
 DELIMITER |;
-CREATE EVENT e1 ON SCHEDULE EVERY 2 SECOND DO
+CREATE EVENT e1 ON SCHEDULE EVERY 3 SECOND DO
 BEGIN
-  CREATE TABLE table_t(a INT);
   INSERT INTO table_t VALUES(1);
 END|
 DELIMITER ;|
-
 SET GLOBAL event_scheduler=ON;
---sleep 2
-CREATE EVENT e2 ON SCHEDULE EVERY 1 SECOND DO
-  DROP TABLE table_t;
-let $wait_condition= SELECT count(*)= 1 FROM INFORMATION_SCHEMA.TABLES 
-                     WHERE TABLE_NAME LIKE 'table_t';
+# Let e1 insert 2 records into the table table_t
+let $wait_condition=select count(*) = 1 from table_t;
 --source include/wait_condition.inc
 SET GLOBAL event_scheduler=OFF;
