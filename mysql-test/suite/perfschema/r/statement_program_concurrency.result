@@ -166,9 +166,10 @@ BEGIN
 INSERT INTO t SELECT * FROM t;
 END|
 CALL proc();;
+CREATE TABLE table_p(p INT);
 CREATE FUNCTION addition(x INT, y INT) RETURNS INT
 BEGIN
-INSERT INTO t SELECT * FROM t;
+INSERT INTO table_p SELECT * FROM t;
 RETURN x+y;
 END|
 SELECT addition(1234,9876);;
@@ -176,102 +177,113 @@ CREATE TABLE t1(
 i INT NOT NULL,
 j INT
 );
+CREATE TABLE table_q(q INT);
+LOAD DATA INFILE '../../std_data/wl5766_data.txt' INTO TABLE table_q;
 INSERT INTO t1 VALUES ( 10,1000 );
 CREATE TRIGGER trg BEFORE INSERT ON t1 FOR EACH ROW
-INSERT INTO t SELECT * FROM t;
+INSERT INTO table_q SELECT * FROM table_q;
 INSERT INTO t1 VALUES ( 20,2000);;
 addition(1234,9876)
 11110
 SELECT OBJECT_TYPE, OBJECT_SCHEMA, OBJECT_NAME, COUNT_STAR, COUNT_STATEMENTS
 FROM performance_schema.events_statements_summary_by_program
-WHERE OBJECT_SCHEMA='db';
+WHERE OBJECT_SCHEMA='db' ORDER BY OBJECT_NAME;
 OBJECT_TYPE	OBJECT_SCHEMA	OBJECT_NAME	COUNT_STAR	COUNT_STATEMENTS
-PROCEDURE	db	proc	1	1
 FUNCTION	db	addition	1	2
+PROCEDURE	db	proc	1	1
 TRIGGER	db	trg	1	1
 SELECT EVENT_NAME, SQL_TEXT, CURRENT_SCHEMA, OBJECT_TYPE, OBJECT_SCHEMA,
 OBJECT_NAME, NESTING_EVENT_TYPE, NESTING_EVENT_LEVEL FROM
-performance_schema.events_statements_history WHERE CURRENT_SCHEMA='db';
+performance_schema.events_statements_history WHERE CURRENT_SCHEMA='db'
+       ORDER BY OBJECT_NAME, SQL_TEXT;
 EVENT_NAME	SQL_TEXT	CURRENT_SCHEMA	OBJECT_TYPE	OBJECT_SCHEMA	OBJECT_NAME	NESTING_EVENT_TYPE	NESTING_EVENT_LEVEL
-statement/sql/grant	grant ALL on *.* to user1@127.0.0.1 identified by "user"	db	NULL	NULL	NULL	NULL	0
-statement/sql/grant	grant ALL on *.* to user2@localhost identified by "user"	db	NULL	NULL	NULL	NULL	0
-statement/sql/grant	grant ALL on *.* to user2@127.0.0.1 identified by "user"	db	NULL	NULL	NULL	NULL	0
-statement/sql/grant	grant ALL on *.* to user3@localhost identified by "user"	db	NULL	NULL	NULL	NULL	0
-statement/sql/grant	grant ALL on *.* to user3@127.0.0.1 identified by "user"	db	NULL	NULL	NULL	NULL	0
-statement/sql/select	SELECT OBJECT_TYPE, OBJECT_SCHEMA, OBJECT_NAME, COUNT_STAR, COUNT_STATEMENTS
-FROM performance_schema.events_statements_summary_by_program
-WHERE OBJECT_SCHEMA='db'	db	NULL	NULL	NULL	NULL	0
-statement/sql/create_table	CREATE TABLE t(
-i INT NOT NULL
-)	db	NULL	NULL	NULL	NULL	0
-statement/sql/load	LOAD DATA INFILE '../../std_data/wl5766_data.txt' INTO TABLE t	db	NULL	NULL	NULL	NULL	0
-statement/sql/grant	grant ALL on *.* to user1@localhost identified by "user"	db	NULL	NULL	NULL	NULL	0
+statement/sql/call_procedure	CALL proc()	db	NULL	NULL	NULL	NULL	0
+statement/sql/create_function	CREATE FUNCTION addition(x INT, y INT) RETURNS INT
+BEGIN
+INSERT INTO table_p SELECT * FROM t;
+RETURN x+y;
+END	db	NULL	NULL	NULL	NULL	0
 statement/sql/create_procedure	CREATE PROCEDURE proc()
 BEGIN
 INSERT INTO t SELECT * FROM t;
 END	db	NULL	NULL	NULL	NULL	0
-statement/sp/stmt	INSERT INTO t SELECT * FROM t	db	PROCEDURE	db	proc	STATEMENT	1
-statement/sql/call_procedure	CALL proc()	db	NULL	NULL	NULL	NULL	0
-statement/sql/create_function	CREATE FUNCTION addition(x INT, y INT) RETURNS INT
-BEGIN
-INSERT INTO t SELECT * FROM t;
-RETURN x+y;
-END	db	NULL	NULL	NULL	NULL	0
-statement/sp/stmt	INSERT INTO t SELECT * FROM t	db	FUNCTION	db	addition	STATEMENT	1
-statement/sp/freturn	NULL	db	FUNCTION	db	addition	STATEMENT	1
-statement/sql/select	SELECT addition(1234,9876)	db	NULL	NULL	NULL	NULL	0
+statement/sql/create_table	CREATE TABLE t(
+i INT NOT NULL
+)	db	NULL	NULL	NULL	NULL	0
 statement/sql/create_table	CREATE TABLE t1(
 i INT NOT NULL,
 j INT
 )	db	NULL	NULL	NULL	NULL	0
-statement/sql/insert	INSERT INTO t1 VALUES ( 10,1000 )	db	NULL	NULL	NULL	NULL	0
+statement/sql/create_table	CREATE TABLE table_p(p INT)	db	NULL	NULL	NULL	NULL	0
+statement/sql/create_table	CREATE TABLE table_q(q INT)	db	NULL	NULL	NULL	NULL	0
 statement/sql/create_trigger	CREATE TRIGGER trg BEFORE INSERT ON t1 FOR EACH ROW
-INSERT INTO t SELECT * FROM t	db	NULL	NULL	NULL	NULL	0
-statement/sp/stmt	INSERT INTO t SELECT * FROM t	db	TRIGGER	db	trg	STATEMENT	1
+INSERT INTO table_q SELECT * FROM table_q	db	NULL	NULL	NULL	NULL	0
+statement/sql/grant	grant ALL on *.* to user1@127.0.0.1 identified by "user"	db	NULL	NULL	NULL	NULL	0
+statement/sql/grant	grant ALL on *.* to user1@localhost identified by "user"	db	NULL	NULL	NULL	NULL	0
+statement/sql/grant	grant ALL on *.* to user2@127.0.0.1 identified by "user"	db	NULL	NULL	NULL	NULL	0
+statement/sql/grant	grant ALL on *.* to user2@localhost identified by "user"	db	NULL	NULL	NULL	NULL	0
+statement/sql/grant	grant ALL on *.* to user3@127.0.0.1 identified by "user"	db	NULL	NULL	NULL	NULL	0
+statement/sql/grant	grant ALL on *.* to user3@localhost identified by "user"	db	NULL	NULL	NULL	NULL	0
+statement/sql/insert	INSERT INTO t1 VALUES ( 10,1000 )	db	NULL	NULL	NULL	NULL	0
 statement/sql/insert	INSERT INTO t1 VALUES ( 20,2000)	db	NULL	NULL	NULL	NULL	0
+statement/sql/load	LOAD DATA INFILE '../../std_data/wl5766_data.txt' INTO TABLE t	db	NULL	NULL	NULL	NULL	0
+statement/sql/load	LOAD DATA INFILE '../../std_data/wl5766_data.txt' INTO TABLE table_q	db	NULL	NULL	NULL	NULL	0
+statement/sql/select	SELECT addition(1234,9876)	db	NULL	NULL	NULL	NULL	0
+statement/sql/select	SELECT OBJECT_TYPE, OBJECT_SCHEMA, OBJECT_NAME, COUNT_STAR, COUNT_STATEMENTS
+FROM performance_schema.events_statements_summary_by_program
+WHERE OBJECT_SCHEMA='db' ORDER BY OBJECT_NAME	db	NULL	NULL	NULL	NULL	0
+statement/sp/freturn	NULL	db	FUNCTION	db	addition	STATEMENT	1
+statement/sp/stmt	INSERT INTO table_p SELECT * FROM t	db	FUNCTION	db	addition	STATEMENT	1
+statement/sp/stmt	INSERT INTO t SELECT * FROM t	db	PROCEDURE	db	proc	STATEMENT	1
+statement/sp/stmt	INSERT INTO table_q SELECT * FROM table_q	db	TRIGGER	db	trg	STATEMENT	1
 SELECT EVENT_NAME, SQL_TEXT, CURRENT_SCHEMA, OBJECT_TYPE, OBJECT_SCHEMA,
 OBJECT_NAME, NESTING_EVENT_TYPE, NESTING_EVENT_LEVEL FROM
-performance_schema.events_statements_history_long WHERE CURRENT_SCHEMA='db';
+performance_schema.events_statements_history_long WHERE CURRENT_SCHEMA='db'
+       ORDER BY OBJECT_NAME, SQL_TEXT;
 EVENT_NAME	SQL_TEXT	CURRENT_SCHEMA	OBJECT_TYPE	OBJECT_SCHEMA	OBJECT_NAME	NESTING_EVENT_TYPE	NESTING_EVENT_LEVEL
-statement/sql/create_table	CREATE TABLE t(
-i INT NOT NULL
-)	db	NULL	NULL	NULL	NULL	0
-statement/sql/load	LOAD DATA INFILE '../../std_data/wl5766_data.txt' INTO TABLE t	db	NULL	NULL	NULL	NULL	0
-statement/sql/grant	grant ALL on *.* to user1@localhost identified by "user"	db	NULL	NULL	NULL	NULL	0
-statement/sql/grant	grant ALL on *.* to user1@127.0.0.1 identified by "user"	db	NULL	NULL	NULL	NULL	0
-statement/sql/grant	grant ALL on *.* to user2@localhost identified by "user"	db	NULL	NULL	NULL	NULL	0
-statement/sql/grant	grant ALL on *.* to user2@127.0.0.1 identified by "user"	db	NULL	NULL	NULL	NULL	0
-statement/sql/grant	grant ALL on *.* to user3@localhost identified by "user"	db	NULL	NULL	NULL	NULL	0
-statement/sql/grant	grant ALL on *.* to user3@127.0.0.1 identified by "user"	db	NULL	NULL	NULL	NULL	0
+statement/sql/call_procedure	CALL proc()	db	NULL	NULL	NULL	NULL	0
+statement/sql/create_function	CREATE FUNCTION addition(x INT, y INT) RETURNS INT
+BEGIN
+INSERT INTO table_p SELECT * FROM t;
+RETURN x+y;
+END	db	NULL	NULL	NULL	NULL	0
 statement/sql/create_procedure	CREATE PROCEDURE proc()
 BEGIN
 INSERT INTO t SELECT * FROM t;
 END	db	NULL	NULL	NULL	NULL	0
-statement/sql/create_function	CREATE FUNCTION addition(x INT, y INT) RETURNS INT
-BEGIN
-INSERT INTO t SELECT * FROM t;
-RETURN x+y;
-END	db	NULL	NULL	NULL	NULL	0
+statement/sql/create_table	CREATE TABLE t(
+i INT NOT NULL
+)	db	NULL	NULL	NULL	NULL	0
 statement/sql/create_table	CREATE TABLE t1(
 i INT NOT NULL,
 j INT
 )	db	NULL	NULL	NULL	NULL	0
-statement/sql/insert	INSERT INTO t1 VALUES ( 10,1000 )	db	NULL	NULL	NULL	NULL	0
+statement/sql/create_table	CREATE TABLE table_p(p INT)	db	NULL	NULL	NULL	NULL	0
+statement/sql/create_table	CREATE TABLE table_q(q INT)	db	NULL	NULL	NULL	NULL	0
 statement/sql/create_trigger	CREATE TRIGGER trg BEFORE INSERT ON t1 FOR EACH ROW
-INSERT INTO t SELECT * FROM t	db	NULL	NULL	NULL	NULL	0
-statement/sp/stmt	INSERT INTO t SELECT * FROM t	db	PROCEDURE	db	proc	STATEMENT	1
-statement/sql/call_procedure	CALL proc()	db	NULL	NULL	NULL	NULL	0
-statement/sp/stmt	INSERT INTO t SELECT * FROM t	db	FUNCTION	db	addition	STATEMENT	1
-statement/sp/freturn	NULL	db	FUNCTION	db	addition	STATEMENT	1
-statement/sql/select	SELECT addition(1234,9876)	db	NULL	NULL	NULL	NULL	0
-statement/sp/stmt	INSERT INTO t SELECT * FROM t	db	TRIGGER	db	trg	STATEMENT	1
+INSERT INTO table_q SELECT * FROM table_q	db	NULL	NULL	NULL	NULL	0
+statement/sql/grant	grant ALL on *.* to user1@127.0.0.1 identified by "user"	db	NULL	NULL	NULL	NULL	0
+statement/sql/grant	grant ALL on *.* to user1@localhost identified by "user"	db	NULL	NULL	NULL	NULL	0
+statement/sql/grant	grant ALL on *.* to user2@127.0.0.1 identified by "user"	db	NULL	NULL	NULL	NULL	0
+statement/sql/grant	grant ALL on *.* to user2@localhost identified by "user"	db	NULL	NULL	NULL	NULL	0
+statement/sql/grant	grant ALL on *.* to user3@127.0.0.1 identified by "user"	db	NULL	NULL	NULL	NULL	0
+statement/sql/grant	grant ALL on *.* to user3@localhost identified by "user"	db	NULL	NULL	NULL	NULL	0
+statement/sql/insert	INSERT INTO t1 VALUES ( 10,1000 )	db	NULL	NULL	NULL	NULL	0
 statement/sql/insert	INSERT INTO t1 VALUES ( 20,2000)	db	NULL	NULL	NULL	NULL	0
-statement/sql/select	SELECT OBJECT_TYPE, OBJECT_SCHEMA, OBJECT_NAME, COUNT_STAR, COUNT_STATEMENTS
-FROM performance_schema.events_statements_summary_by_program
-WHERE OBJECT_SCHEMA='db'	db	NULL	NULL	NULL	NULL	0
+statement/sql/load	LOAD DATA INFILE '../../std_data/wl5766_data.txt' INTO TABLE t	db	NULL	NULL	NULL	NULL	0
+statement/sql/load	LOAD DATA INFILE '../../std_data/wl5766_data.txt' INTO TABLE table_q	db	NULL	NULL	NULL	NULL	0
+statement/sql/select	SELECT addition(1234,9876)	db	NULL	NULL	NULL	NULL	0
 statement/sql/select	SELECT EVENT_NAME, SQL_TEXT, CURRENT_SCHEMA, OBJECT_TYPE, OBJECT_SCHEMA,
 OBJECT_NAME, NESTING_EVENT_TYPE, NESTING_EVENT_LEVEL FROM
-performance_schema.events_statements_history WHERE CURRENT_SCHEMA='db'	db	NULL	NULL	NULL	NULL	0
+performance_schema.events_statements_history WHERE CURRENT_SCHEMA='db'
+       ORDER BY OBJECT_NAME, SQL_TEXT	db	NULL	NULL	NULL	NULL	0
+statement/sql/select	SELECT OBJECT_TYPE, OBJECT_SCHEMA, OBJECT_NAME, COUNT_STAR, COUNT_STATEMENTS
+FROM performance_schema.events_statements_summary_by_program
+WHERE OBJECT_SCHEMA='db' ORDER BY OBJECT_NAME	db	NULL	NULL	NULL	NULL	0
+statement/sp/freturn	NULL	db	FUNCTION	db	addition	STATEMENT	1
+statement/sp/stmt	INSERT INTO table_p SELECT * FROM t	db	FUNCTION	db	addition	STATEMENT	1
+statement/sp/stmt	INSERT INTO t SELECT * FROM t	db	PROCEDURE	db	proc	STATEMENT	1
+statement/sp/stmt	INSERT INTO table_q SELECT * FROM table_q	db	TRIGGER	db	trg	STATEMENT	1
 TRUNCATE TABLE performance_schema.events_statements_summary_by_program;
 TRUNCATE TABLE performance_schema.events_statements_history;
 TRUNCATE TABLE performance_schema.events_statements_history_long;
@@ -279,7 +291,9 @@ TRUNCATE TABLE performance_schema.events_statements_history_long;
 DROP PROCEDURE db.proc;
 DROP FUNCTION db.addition;
 DROP TRIGGER db.trg;
+DROP TABLE db.table_p;
 DROP TABLE db.t1;
+DROP TABLE db.table_q;
 DROP TABLE db.t;
 DROP DATABASE db;
 DELETE FROM mysql.user WHERE user=_binary"user1";
