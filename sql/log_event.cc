@@ -2928,6 +2928,7 @@ Slave_worker *Log_event::get_slave_worker(Relay_log_info *rli)
     {
       ulong gaq_idx;
       rli->mts_groups_assigned++;
+
       rli->curr_group_isolated= FALSE;
       group.reset(log_pos, rli->mts_groups_assigned);
       // the last occupied GAQ's array index
@@ -3128,7 +3129,7 @@ Slave_worker *Log_event::get_slave_worker(Relay_log_info *rli)
       DBUG_RETURN (ret_worker);
     }
   }
-//  rli->current_mts_submode->assign_group_parent_id(rli, this);
+
   // T-event: Commit, Xid, a DDL query or dml query of B-less group.4
   if (ends_group() || !rli->curr_group_seen_begin)
   {
@@ -3281,6 +3282,7 @@ int Log_event::apply_event(Relay_log_info *rli)
 
           /* Coordinator cant continue, it marks MTS group status accordingly */
           rli->mts_group_status= Relay_log_info::MTS_KILLED_GROUP;
+
           goto err;
         }
         /*
@@ -6968,6 +6970,7 @@ int Rotate_log_event::do_update_pos(Relay_log_info *rli)
                                          true/*need_data_lock=true*/)))
         goto err;
     }
+
     mysql_mutex_lock(&rli->data_lock);
     DBUG_PRINT("info", ("old group_master_log_name: '%s'  "
                         "old group_master_log_pos: %lu",

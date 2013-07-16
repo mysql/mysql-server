@@ -2,7 +2,6 @@
 #be ported to run with InnoDB,
 #but needs to be kept for tests that would need MyISAM in future.
 --source include/force_myisam_default.inc
-#--source include/have_slave_parallel_type_database.inc
 
 #
 # WL#5569 MTS
