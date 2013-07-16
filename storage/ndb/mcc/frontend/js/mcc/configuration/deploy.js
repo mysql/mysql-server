@@ -1012,6 +1012,10 @@ function getStartProcessCommands(process) {
         if (isWin) {
             var langdir = basedir + "share";
             var tmpdir = datadir_ + "tmp";
+			var midb = new ProcessCommand(host, tmpdir, "mysql_install_db.bat");
+			midb.progTitle = "Running mysql_install_db.bat for node "+nodeid;
+			scmds.unshift(midb);
+			
             var ic = new ProcessCommand(host, "C:\\Windows\\System32", "cmd.exe");
             delete ic.msg.file.autoComplete; // Don't want ac for cmd.exe
             ic.addopt("/C");
@@ -1031,7 +1035,7 @@ function getStartProcessCommands(process) {
             ic.addopt("<");
             ic.addopt(tmpdir + "\\install.sql");
             ic.progTitle = "Running mysqld --bootstrap for node "+nodeid;
-            scmds.unshift(ic);
+            //scmds.unshift(ic);
 
             sc.addopt("--install");
             sc.addopt("N"+nodeid);
