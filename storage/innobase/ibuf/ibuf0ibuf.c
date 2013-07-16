@@ -4271,7 +4271,7 @@ Deletes from ibuf the record on which pcur is positioned. If we have to
 resort to a pessimistic delete, this function commits mtr and closes
 the cursor.
 @return	TRUE if mtr was committed and pcur closed in this operation */
-static
+static __attribute__((warn_unused_result))
 ibool
 ibuf_delete_rec(
 /*============*/
@@ -4577,6 +4577,12 @@ ibuf_merge_or_delete_for_page(
 loop:
 	ibuf_mtr_start(&mtr);
 
+	/* Position pcur in the insert buffer at the first entry for this
+	index page */
+	btr_pcur_open_on_user_rec(
+		ibuf->index, search_tuple, PAGE_CUR_GE, BTR_MODIFY_LEAF,
+		&pcur, &mtr);
+
 	if (block) {
 		ibool success;
 
@@ -4594,12 +4600,6 @@ loop:
 		latch an io-fixed block. */
 		buf_block_dbg_add_level(block, SYNC_IBUF_TREE_NODE);
 	}
-
-	/* Position pcur in the insert buffer at the first entry for this
-	index page */
-	btr_pcur_open_on_user_rec(
-		ibuf->index, search_tuple, PAGE_CUR_GE, BTR_MODIFY_LEAF,
-		&pcur, &mtr);
 
 	if (!btr_pcur_is_on_user_rec(&pcur)) {
 		ut_ad(btr_pcur_is_after_last_in_tree(&pcur, &mtr));
@@ -4743,6 +4743,7 @@ loop:
 			/* Deletion was pessimistic and mtr was committed:
 			we start from the beginning again */
 
+			ut_ad(mtr.state == MTR_COMMITTED);
 			goto loop;
 		} else if (btr_pcur_is_after_last_on_page(&pcur)) {
 			ibuf_mtr_commit(&mtr);
@@ -4873,6 +4874,7 @@ loop:
 			/* Deletion was pessimistic and mtr was committed:
 			we start from the beginning again */
 
+			ut_ad(mtr.state == MTR_COMMITTED);
 			goto loop;
 		}
 

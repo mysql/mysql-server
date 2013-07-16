@@ -1,6 +1,6 @@
 /*****************************************************************************
 
-Copyright (c) 1996, 2010, Innobase Oy. All Rights Reserved.
+Copyright (c) 1996, 2013, Oracle and/or its affiliates. All rights reserved.
 Copyright (c) 2008, Google Inc.
 Copyright (c) 2009, Percona Inc.
 
@@ -818,6 +818,7 @@ open_or_create_data_files(
 		}
 
 		if (ret == FALSE) {
+			const char* check_msg;
 			/* We open the data file */
 
 			if (one_created) {
@@ -915,12 +916,19 @@ open_or_create_data_files(
 				return(DB_ERROR);
 			}
 skip_size_check:
-			fil_read_first_page(
+			check_msg = fil_read_first_page(
 				files[i], one_opened, &flags,
 #ifdef UNIV_LOG_ARCHIVE
 				min_arch_log_no, max_arch_log_no,
 #endif /* UNIV_LOG_ARCHIVE */
 				min_flushed_lsn, max_flushed_lsn);
+
+			if (check_msg) {
+				fprintf(stderr,
+					"InnoDB: Error: %s in data file %s\n",
+					check_msg, name);
+				return(DB_ERROR);
+			}
 
 			if (!one_opened
 			    && UNIV_PAGE_SIZE

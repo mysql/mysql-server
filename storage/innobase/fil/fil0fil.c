@@ -1,6 +1,6 @@
 /*****************************************************************************
 
-Copyright (c) 1995, 2010, Innobase Oy. All Rights Reserved.
+Copyright (c) 1995, 2013, Oracle and/or its affiliates. All Rights Reserved.
 
 This program is free software; you can redistribute it and/or modify it under
 the terms of the GNU General Public License as published by the Free Software
@@ -1860,10 +1860,62 @@ fil_write_flushed_lsn_to_data_files(
 }
 
 /*******************************************************************//**
+Checks the consistency of the first data page of a data file
+at database startup.
+@retval NULL on success, or if innodb_force_recovery is set
+@return pointer to an error message string */
+static __attribute__((warn_unused_result))
+const char*
+fil_check_first_page(
+/*=================*/
+	const page_t*	page,		/*!< in: data page */
+	ibool		first_page)	/*!< in: TRUE if this is the
+					first page of the tablespace */
+{
+	ulint	space_id;
+	ulint	flags;
+
+	if (srv_force_recovery >= SRV_FORCE_IGNORE_CORRUPT) {
+		return(NULL);
+	}
+
+	space_id = mach_read_from_4(FSP_HEADER_OFFSET + FSP_SPACE_ID + page);
+	flags = mach_read_from_4(FSP_HEADER_OFFSET + FSP_SPACE_FLAGS + page);
+
+	if (first_page && !space_id && !flags) {
+		ulint		nonzero_bytes	= UNIV_PAGE_SIZE;
+		const byte*	b		= page;
+
+		while (!*b && --nonzero_bytes) {
+			b++;
+		}
+
+		if (!nonzero_bytes) {
+			return("space header page consists of zero bytes");
+		}
+	}
+
+	if (buf_page_is_corrupted(
+		    FALSE, page, dict_table_flags_to_zip_size(flags))) {
+		return("checksum mismatch");
+	}
+
+	if (!first_page
+	    || (page_get_space_id(page) == space_id
+		&& page_get_page_no(page) == 0)) {
+		return(NULL);
+	}
+
+	return("inconsistent data in space header");
+}
+
+/*******************************************************************//**
 Reads the flushed lsn, arch no, and tablespace flag fields from a data
-file at database startup. */
+file at database startup.
+@retval NULL on success, or if innodb_force_recovery is set
+@return pointer to an error message string */
 UNIV_INTERN
-void
+const char*
 fil_read_first_page(
 /*================*/
 	os_file_t	data_file,		/*!< in: open data file */
@@ -1885,6 +1937,7 @@ fil_read_first_page(
 	byte*		buf;
 	page_t*		page;
 	ib_uint64_t	flushed_lsn;
+	const char*	check_msg;
 
 	buf = ut_malloc(2 * UNIV_PAGE_SIZE);
 	/* Align the memory for a possible read from a raw device */
@@ -1892,12 +1945,17 @@ fil_read_first_page(
 
 	os_file_read(data_file, page, 0, 0, UNIV_PAGE_SIZE);
 
-	*flags = mach_read_from_4(page +
-		FSP_HEADER_OFFSET + FSP_SPACE_FLAGS);
+	*flags = mach_read_from_4(FSP_HEADER_OFFSET + FSP_SPACE_FLAGS + page);
 
 	flushed_lsn = mach_read_from_8(page + FIL_PAGE_FILE_FLUSH_LSN);
 
+	check_msg = fil_check_first_page(page, !one_read_already);
+
 	ut_free(buf);
+
+	if (check_msg) {
+		return(check_msg);
+	}
 
 	if (!one_read_already) {
 		*min_flushed_lsn = flushed_lsn;
@@ -1906,7 +1964,7 @@ fil_read_first_page(
 		*min_arch_log_no = arch_log_no;
 		*max_arch_log_no = arch_log_no;
 #endif /* UNIV_LOG_ARCHIVE */
-		return;
+		return(NULL);
 	}
 
 	if (*min_flushed_lsn > flushed_lsn) {
@@ -1923,6 +1981,8 @@ fil_read_first_page(
 		*max_arch_log_no = arch_log_no;
 	}
 #endif /* UNIV_LOG_ARCHIVE */
+
+	return(NULL);
 }
 
 /*================ SINGLE-TABLE TABLESPACES ==========================*/
@@ -3151,6 +3211,7 @@ fil_open_single_table_tablespace(
 	os_file_t	file;
 	char*		filepath;
 	ibool		success;
+	const char*	check_msg;
 	byte*		buf2;
 	byte*		page;
 	ulint		space_id;
@@ -3211,6 +3272,8 @@ fil_open_single_table_tablespace(
 
 	success = os_file_read(file, page, 0, 0, UNIV_PAGE_SIZE);
 
+	check_msg = fil_check_first_page(page, TRUE);
+
 	/* We have to read the tablespace id and flags from the file. */
 
 	space_id = fsp_header_get_space_id(page);
@@ -3218,8 +3281,20 @@ fil_open_single_table_tablespace(
 
 	ut_free(buf2);
 
-	if (UNIV_UNLIKELY(space_id != id
-			  || space_flags != (flags & ~(~0 << DICT_TF_BITS)))) {
+	if (check_msg) {
+		ut_print_timestamp(stderr);
+		fprintf(stderr, "  InnoDB: Error: %s in file ", check_msg);
+		ut_print_filename(stderr, filepath);
+		fprintf(stderr, " (tablespace id=%lu, flags=%lu)\n"
+			"InnoDB: Please refer to " REFMAN
+			"innodb-troubleshooting-datadict.html\n",
+			(ulong) id, (ulong) flags);
+		success = FALSE;
+		goto func_exit;
+	}
+
+	if (space_id != id
+	    || space_flags != (flags & ~(~0 << DICT_TF_BITS))) {
 		ut_print_timestamp(stderr);
 
 		fputs("  InnoDB: Error: tablespace id and flags in file ",
@@ -3447,9 +3522,20 @@ fil_load_single_table_tablespace(
 	page = ut_align(buf2, UNIV_PAGE_SIZE);
 
 	if (size >= FIL_IBD_FILE_INITIAL_SIZE * UNIV_PAGE_SIZE) {
+		const char*	check_msg;
+
 		success = os_file_read(file, page, 0, 0, UNIV_PAGE_SIZE);
 
 		/* We have to read the tablespace id from the file */
+
+		check_msg = fil_check_first_page(page, TRUE);
+
+		if (check_msg) {
+			fprintf(stderr,
+				"InnoDB: Error: %s in file %s",
+				check_msg, filepath);
+			goto func_exit;
+		}
 
 		space_id = fsp_header_get_space_id(page);
 		flags = fsp_header_get_flags(page);

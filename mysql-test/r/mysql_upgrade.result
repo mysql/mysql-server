@@ -109,7 +109,6 @@ Phase 3/3: Running 'mysql_fix_privilege_tables'...
 OK
 DROP USER mysqltest1@'%';
 Run mysql_upgrade with a non existing server socket
-Phase 1/3: Fixing table and database names
 mysqlcheck: Got error: 2005: Unknown MySQL server host 'not_existing_host' (errno) when trying to connect
 FATAL ERROR: Upgrade failed
 set GLOBAL sql_mode='STRICT_ALL_TABLES,ANSI_QUOTES,NO_ZERO_DATE';

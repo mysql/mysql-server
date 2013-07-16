@@ -1,6 +1,6 @@
 /*
-   Copyright (c) 2000, 2012, Oracle and/or its affiliates.
-   Copyright (c) 2009, 2012, Monty Program Ab
+   Copyright (c) 2000, 2013, Oracle and/or its affiliates.
+   Copyright (c) 2009, 2013, Monty Program Ab.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -856,7 +856,11 @@ static bool print_row_event(PRINT_EVENT_INFO *print_event_info, Log_event *ev,
   /* 
      end of statement check:
        i) destroy/free ignored maps
-      ii) if skip event, flush cache now
+      ii) if skip event
+            a) since we are skipping the last event,
+               append END-MARKER(') to body cache (if required)
+
+            b) flush cache now
    */
   if (is_stmt_end)
   {
@@ -884,6 +888,12 @@ static bool print_row_event(PRINT_EVENT_INFO *print_event_info, Log_event *ev,
     */
     if (skip_event)
     {
+      // append END-MARKER(') with delimiter
+      IO_CACHE *const body_cache= &print_event_info->body_cache;
+      if (my_b_tell(body_cache))
+        my_b_printf(body_cache, "'%s\n", print_event_info->delimiter);
+
+      // flush cache
       if ((copy_event_cache_to_file_and_reinit(&print_event_info->head_cache, result_file) ||
           copy_event_cache_to_file_and_reinit(&print_event_info->body_cache, result_file)))
         return 1;

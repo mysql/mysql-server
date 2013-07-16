@@ -1,5 +1,5 @@
-/* Copyright (c) 2003, 2012, Oracle and/or its affiliates.
-   Copyright (c) 2009, 2012, Monty Program Ab
+/* Copyright (c) 2003, 2013, Oracle and/or its affiliates.
+   Copyright (c) 2009, 2013, Monty Program Ab
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -12,7 +12,7 @@
 
    You should have received a copy of the GNU General Public License
    along with this program; if not, write to the Free Software
-   Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA */
+   Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA  02110-1301, USA */
 
 /*
   This file is included by both libmysql.c (the MySQL client C API)
@@ -1390,7 +1390,7 @@ void mysql_read_default_options(struct st_mysql_options *options,
                                     opt_arg));
               break;
             }
-            convert_dirname(buff, buff2, NULL);
+            convert_dirname(buff2, buff, NULL);
             EXTENSION_SET_STRING(options, plugin_dir, buff2);
           }
           break;
@@ -2215,7 +2215,8 @@ mysql_autodetect_character_set(MYSQL *mysql)
   }
 #endif
 
-  my_free(mysql->options.charset_name);
+  if (mysql->options.charset_name)
+    my_free(mysql->options.charset_name);
   if (!(mysql->options.charset_name= my_strdup(csname, MYF(MY_WME))))
     return 1;
   return 0;

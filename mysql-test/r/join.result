@@ -1476,5 +1476,5 @@ DROP TABLE t1,t2,t3,t4,t5;
 # MDEV-4752: Segfault during parsing of illegal query
 #
 SELECT * FROM t5 JOIN (t1 JOIN t2 UNION SELECT * FROM t3 JOIN t4);
-ERROR 42000: You have an error in your SQL syntax; check the manual that corresponds to your MariaDB server version for the right syntax to use near '' at line 1
+ERROR 42000: You have an error in your SQL syntax; check the manual that corresponds to your MariaDB server version for the right syntax to use near ')' at line 1
 SET optimizer_switch=@save_optimizer_switch;

@@ -1,6 +1,6 @@
 /*
-   Copyright (c) 2002, 2012, Oracle and/or its affiliates.
-   Copyright (c) 2011, 2012, Monty Program Ab
+   Copyright (c) 2002, 2013, Oracle and/or its affiliates.
+   Copyright (c) 2011, 2013, Monty Program Ab.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -818,7 +818,6 @@ int Gis_line_string::store_shapes(Gcalc_shape_transporter *trn) const
   return trn->complete_line();
 }
 
-
 const Geometry::Class_info *Gis_line_string::get_class_info() const
 {
   return &linestring_class;
@@ -939,7 +938,9 @@ uint Gis_polygon::init_from_wkb(const char *wkb, uint len, wkbByteOrder bo,
   if (len < 4)
     return 0;
 
-  n_linear_rings= wkb_get_uint(wkb, bo);
+  if (!(n_linear_rings= wkb_get_uint(wkb, bo)))
+    return 0;
+
   if (res->reserve(4, 512))
     return 0;
   wkb+= 4;

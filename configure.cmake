@@ -1,5 +1,4 @@
-
-# Copyright (c) 2009, 2012, Oracle and/or its affiliates. All rights reserved.
+# Copyright (c) 2009, 2013, Oracle and/or its affiliates. All rights reserved.
 # 
 # This program is free software; you can redistribute it and/or modify
 # it under the terms of the GNU General Public License as published by
@@ -624,6 +623,7 @@ ENDIF()
 
 # check whether time_t is unsigned
 CHECK_C_SOURCE_COMPILES("
+#include <time.h>
 int main()
 {
   int array[(((time_t)-1) > 0) ? 1 : -1];

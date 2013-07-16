@@ -1,6 +1,6 @@
 /*
-   Copyright (c) 2006, 2012, Oracle and/or its affiliates.
-   Copyright (C) 2010, 2012, Monty Program Ab.
+   Copyright (c) 2006, 2013, Oracle and/or its affiliates.
+   Copyright (c) 2010, 2013, Monty Program Ab.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -40,7 +40,7 @@ static char mysql_path[FN_REFLEN];
 static char mysqlcheck_path[FN_REFLEN];
 
 static my_bool opt_force, opt_verbose, debug_info_flag, debug_check_flag,
-               opt_systables_only;
+               opt_systables_only, opt_version_check;
 static my_bool opt_not_used, opt_silent;
 static uint my_end_arg= 0;
 static char *opt_user= (char*)"root";
@@ -150,6 +150,12 @@ static struct my_option my_long_options[]=
    &opt_not_used, &opt_not_used, 0, GET_BOOL, NO_ARG, 1, 0, 0, 0, 0, 0},
   {"version", 'V', "Output version information and exit.", 0, 0, 0,
    GET_NO_ARG, NO_ARG, 0, 0, 0, 0, 0, 0},
+  {"version-check", 'k', "Run this program only if its \'server version\' "
+   "matches the version of the server to which it's connecting, (enabled by "
+   "default); use --skip-version-check to avoid this check. Note: the \'server "
+   "version\' of the program is the version of the MySQL server with which it "
+   "was built/distributed.", &opt_version_check, &opt_version_check, 0,
+   GET_BOOL, NO_ARG, 1, 0, 0, 0, 0, 0},
   {"write-binlog", OPT_WRITE_BINLOG,
    "All commands including mysqlcheck are binlogged. Enabled by default;"
    "use --skip-write-binlog when commands should not be sent to replication slaves.",
@@ -291,6 +297,7 @@ get_one_option(int optid, const struct my_option *opt,
             my_progname, optid == 'b' ? "basedir" : "datadir");
     /* FALLTHROUGH */
 
+  case 'k':                                     /* --version-check */
   case 'v': /* --verbose   */
     opt_verbose++;
     if (argument == disabled_my_option)
@@ -564,6 +571,8 @@ static int run_query(const char *query, DYNAMIC_STRING *ds_res,
 static int extract_variable_from_show(DYNAMIC_STRING* ds, char* value)
 {
   char *value_start, *value_end;
+  size_t len;
+
   /*
     The query returns "datadir\t<datadir>\n", skip past
     the tab
@@ -576,7 +585,9 @@ static int extract_variable_from_show(DYNAMIC_STRING* ds, char* value)
   if ((value_end= strchr(value_start, '\n')) == NULL)
     return 1; /* Unexpected result */
 
-  strncpy(value, value_start, min(FN_REFLEN, value_end-value_start));
+  len= (size_t) min(FN_REFLEN, value_end-value_start);
+  strncpy(value, value_start, len);
+  value[len]= '\0';
   return 0;
 }
 
@@ -855,6 +866,55 @@ static const char *load_default_groups[]=
 };
 
 
+/* Convert the specified version string into the numeric format. */
+static ulong STDCALL calc_server_version(char *some_version)
+{
+  uint major, minor, version;
+  char *point= some_version, *end_point;
+  major=   (uint) strtoul(point, &end_point, 10);   point=end_point+1;
+  minor=   (uint) strtoul(point, &end_point, 10);   point=end_point+1;
+  version= (uint) strtoul(point, &end_point, 10);
+  return (ulong) major * 10000L + (ulong)(minor * 100 + version);
+}
+
+/**
+  Check if the server version matches with the server version mysql_upgrade
+  was compiled with.
+
+  @return 0 match successful
+          1 failed
+*/
+static int check_version_match(void)
+{
+  DYNAMIC_STRING ds_version;
+  char version_str[NAME_CHAR_LEN + 1];
+
+  if (init_dynamic_string(&ds_version, NULL, NAME_CHAR_LEN, NAME_CHAR_LEN))
+    die("Out of memory");
+
+  if (run_query("show variables like 'version'",
+                &ds_version, FALSE) ||
+      extract_variable_from_show(&ds_version, version_str))
+  {
+    dynstr_free(&ds_version);
+    return 1;                                   /* Query failed */
+  }
+
+  dynstr_free(&ds_version);
+
+  if (calc_server_version((char *) version_str) != MYSQL_VERSION_ID)
+  {
+    fprintf(stderr, "Error: Server version (%s) does not match with the "
+            "version of\nthe server (%s) with which this program was built/"
+            "distributed. You can\nuse --skip-version-check to skip this "
+            "check.\n", version_str, MYSQL_SERVER_VERSION);
+    return 1;
+  }
+  else
+    return 0;
+}
+
+
 int main(int argc, char **argv)
 {
   char self_name[FN_REFLEN];
@@ -918,6 +978,9 @@ int main(int argc, char **argv)
            MYSQL_SERVER_VERSION);
     die(NULL);
   }
+
+  if (opt_version_check && check_version_match())
+    die("Upgrade failed");
 
   /*
     Run "mysqlcheck" and "mysql_fix_privilege_tables.sql"

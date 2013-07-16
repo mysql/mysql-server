@@ -306,7 +306,7 @@ CREATE TABLE `t``1` ( `a``` INT PRIMARY KEY) ENGINE=innodb;
 CREATE TABLE `t``2` ( `b``` INT PRIMARY KEY, `c``` INT NOT NULL,
 FOREIGN KEY fk (`c```) REFERENCES `t``1`(`a```)) ENGINE=innodb;
 TRUNCATE `t``1`;
-ERROR 42000: Cannot truncate a table referenced in a foreign key constraint (`db1``; select 'oops!'`.`t``2`, CONSTRAINT `INNODB_FOREIGN_KEY_NAME` FOREIGN KEY (`c```) REFERENCES `db1``; select 'oops!'`.`t``1` (`a```))
+ERROR 42000: Cannot truncate a table referenced in a foreign key constraint (`db1``; select 'oops!'`.`t``2`, CONSTRAINT `t``2_ibfk_1` FOREIGN KEY (`c```) REFERENCES `db1``; select 'oops!'`.`t``1` (`a```))
 DROP TABLE `t``2`;
 DROP TABLE `t``1`;
 *** Test correct quoting of DELETE FROM statement binlogged for HEAP table that is emptied due to server restart

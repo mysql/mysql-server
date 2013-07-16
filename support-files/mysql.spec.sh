@@ -1,4 +1,4 @@
-# Copyright (c) 2000, 2012, Oracle and/or its affiliates. All rights reserved.
+# Copyright (c) 2000, 2013, Oracle and/or its affiliates. All rights reserved.
 #
 # This program is free software; you can redistribute it and/or modify
 # it under the terms of the GNU General Public License as published by
@@ -300,7 +300,6 @@ Obsoletes:      mysql mysql-server mysql-advanced mysql-server-advanced
 Obsoletes:      MySQL-server-classic MySQL-server-community MySQL-server-enterprise
 Obsoletes:      MySQL-server-advanced-gpl MySQL-server-enterprise-gpl
 Provides:       msqlormysql MySQL MySQL-server MySQL-server-advanced
-Provides:       mysql
 %endif
 
 %description -n MySQL-server%{product_suffix}

@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2000, 2012, Oracle and/or its affiliates.
+   Copyright (c) 2000, 2013, Oracle and/or its affiliates.
    Copyright (c) 2009, 2013, Monty Program Ab.
 
    This program is free software; you can redistribute it and/or modify
@@ -1923,7 +1923,7 @@ static int read_and_execute(bool interactive)
   String buffer;
 #endif
 
-  char	*line= 0;
+  char	*line= NULL;
   char	in_string=0;
   ulong line_number=0;
   bool ml_comment= 0;  
@@ -2022,6 +2022,13 @@ static int read_and_execute(bool interactive)
 #else
       if (opt_outfile)
 	fputs(prompt, OUTFILE);
+      /*
+        free the previous entered line.
+        Note: my_free() cannot be used here as the memory was allocated under
+        the readline/libedit library.
+      */
+      if (line)
+        free(line);
       line= readline(prompt);
 #endif /* defined(__WIN__) */
 
@@ -2081,6 +2088,14 @@ static int read_and_execute(bool interactive)
 #if defined(__WIN__)
   buffer.free();
   tmpbuf.free();
+#else
+  if (interactive)
+    /*
+      free the last entered line.
+      Note: my_free() cannot be used here as the memory was allocated under
+      the readline/libedit library.
+    */
+    free(line);
 #endif
 
   /*
@@ -2089,6 +2104,7 @@ static int read_and_execute(bool interactive)
     program, it is safe to set real_binary_mode to FALSE.
   */
   real_binary_mode= FALSE;
+
   return status.exit_status;
 }
 

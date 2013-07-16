@@ -1,4 +1,4 @@
-/* Copyright (c) 2000, 2012, Oracle and/or its affiliates.
+/* Copyright (c) 2000, 2013, Oracle and/or its affiliates.
    Copyright (c) 2009, 2013, Monty Program Ab.
 
    This program is free software; you can redistribute it and/or modify
@@ -1863,8 +1863,10 @@ void st_select_lex::init_query()
   cond_count= between_count= with_wild= 0;
   max_equal_elems= 0;
   ref_pointer_array= 0;
+  ref_pointer_array_size= 0;
   select_n_where_fields= 0;
   select_n_having_items= 0;
+  n_sum_items= 0;
   n_child_sum_items= 0;
   subquery_in_having= explicit_limit= 0;
   is_item_list_lookup= 0;
@@ -2224,6 +2226,11 @@ bool st_select_lex::add_order_to_list(THD *thd, Item *item, bool asc)
 }
 
 
+bool st_select_lex::add_gorder_to_list(THD *thd, Item *item, bool asc)
+{
+  return add_to_list(thd, gorder_list, item, asc);
+}
+
 bool st_select_lex::add_item_to_list(THD *thd, Item *item)
 {
   DBUG_ENTER("st_select_lex::add_item_to_list");
@@ -2294,11 +2301,6 @@ ulong st_select_lex::get_table_join_options()
 
 bool st_select_lex::setup_ref_array(THD *thd, uint order_group_num)
 {
-  DBUG_ENTER("st_select_lex::setup_ref_array");
-
-  if (ref_pointer_array)
-    DBUG_RETURN(0);
-
   // find_order_in_list() may need some extra space, so multiply by two.
   order_group_num*= 2;
 
@@ -2306,13 +2308,30 @@ bool st_select_lex::setup_ref_array(THD *thd, uint order_group_num)
     We have to create array in prepared statement memory if it is a
     prepared statement
   */
-  ref_pointer_array=
-    (Item **)thd->stmt_arena->alloc(sizeof(Item*) * (n_child_sum_items +
-                                                     item_list.elements +
-                                                     select_n_having_items +
-                                                     select_n_where_fields +
-                                                     order_group_num)*5);
-  DBUG_RETURN(ref_pointer_array == 0);
+  Query_arena *arena= thd->stmt_arena;
+  const uint n_elems= (n_sum_items +
+                       n_child_sum_items +
+                       item_list.elements +
+                       select_n_having_items +
+                       select_n_where_fields +
+                       order_group_num) * 5;
+  if (ref_pointer_array != NULL)
+  {
+    /*
+      We need to take 'n_sum_items' into account when allocating the array,
+      and this may actually increase during the optimization phase due to
+      MIN/MAX rewrite in Item_in_subselect::single_value_transformer.
+      In the usual case we can reuse the array from the prepare phase.
+      If we need a bigger array, we must allocate a new one.
+    */
+    if (ref_pointer_array_size >= n_elems)
+      return false;
+  }
+  ref_pointer_array= static_cast<Item**>(arena->alloc(sizeof(Item*) * n_elems));
+  if (ref_pointer_array != NULL)
+    ref_pointer_array_size= n_elems;
+
+  return ref_pointer_array == NULL;
 }
 
 

@@ -520,6 +520,8 @@ UNIV_INTERN
 ibool
 buf_page_is_corrupted(
 /*==================*/
+	ibool		check_lsn,	/*!< in: TRUE if we need to check
+					and complain about the LSN */
 	const byte*	read_buf,	/*!< in: a database page */
 	ulint		zip_size)	/*!< in: size of compressed page;
 					0 for uncompressed pages */
@@ -539,7 +541,7 @@ buf_page_is_corrupted(
 	}
 
 #ifndef UNIV_HOTBACKUP
-	if (recv_lsn_checks_on) {
+	if (check_lsn && recv_lsn_checks_on) {
 		ib_uint64_t	current_lsn;
 
 		if (log_peek_lsn(&current_lsn)
@@ -1834,7 +1836,7 @@ lookup:
 		buf_read_page(space, zip_size, offset);
 
 #if defined UNIV_DEBUG || defined UNIV_BUF_DEBUG
-		ut_a(++buf_dbg_counter % 37 || buf_validate());
+		ut_a(++buf_dbg_counter % 5771 || buf_validate());
 #endif /* UNIV_DEBUG || UNIV_BUF_DEBUG */
 	}
 
@@ -2347,7 +2349,7 @@ loop2:
 		}
 
 #if defined UNIV_DEBUG || defined UNIV_BUF_DEBUG
-		ut_a(++buf_dbg_counter % 37 || buf_validate());
+		ut_a(++buf_dbg_counter % 5771 || buf_validate());
 #endif /* UNIV_DEBUG || UNIV_BUF_DEBUG */
 		goto loop;
 	}
@@ -3432,7 +3434,7 @@ buf_page_create(
 	memset(frame + FIL_PAGE_FILE_FLUSH_LSN, 0, 8);
 
 #if defined UNIV_DEBUG || defined UNIV_BUF_DEBUG
-	ut_a(++buf_dbg_counter % 357 || buf_validate());
+	ut_a(++buf_dbg_counter % 5771 || buf_validate());
 #endif /* UNIV_DEBUG || UNIV_BUF_DEBUG */
 #ifdef UNIV_IBUF_COUNT_DEBUG
 	ut_a(ibuf_count_get(buf_block_get_space(block),
@@ -3575,7 +3577,7 @@ buf_page_io_complete(
 		/* From version 3.23.38 up we store the page checksum
 		to the 4 first bytes of the page end lsn field */
 
-		if (buf_page_is_corrupted(frame,
+		if (buf_page_is_corrupted(TRUE, frame,
 					  buf_page_get_zip_size(bpage))) {
 corrupt:
 			fprintf(stderr,
