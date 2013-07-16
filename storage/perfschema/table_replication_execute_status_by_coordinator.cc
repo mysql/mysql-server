@@ -191,7 +191,7 @@ void table_replication_execute_status_by_coordinator::make_row()
            m_row.last_error_message_length);
 
     /** time in millisecond since epoch */
-    m_row.last_error_timestamp= active_mi->rli->last_error().skr*1000000;
+    m_row.last_error_timestamp= (ulonglong)active_mi->rli->last_error().skr*1000000;
   }
 
   mysql_mutex_unlock(&active_mi->rli->err_lock);

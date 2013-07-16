@@ -164,7 +164,7 @@ void table_replication_connection_configuration::reset_position(void)
 ha_rows table_replication_connection_configuration::get_row_count()
 {
   uint row_count= 0;
- 
+
   mysql_mutex_lock(&LOCK_active_mi);
 
   if (active_mi && active_mi->host[0])
