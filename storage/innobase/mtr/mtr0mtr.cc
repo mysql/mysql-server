@@ -384,25 +384,6 @@ mtr_memo_release(
 }
 #endif /* !UNIV_HOTBACKUP */
 
-/********************************************************//**
-Reads 1 - 4 bytes from a file page buffered in the buffer pool.
-@return value read */
-
-ulint
-mtr_read_ulint(
-/*===========*/
-	const byte*	ptr,	/*!< in: pointer from where to read */
-	ulint		type,	/*!< in: MLOG_1BYTE, MLOG_2BYTES, MLOG_4BYTES */
-	mtr_t*		mtr __attribute__((unused)))
-				/*!< in: mini-transaction handle */
-{
-	ut_ad(mtr->state == MTR_ACTIVE);
-	ut_ad(mtr_memo_contains_page(mtr, ptr, MTR_MEMO_PAGE_S_FIX)
-	      || mtr_memo_contains_page(mtr, ptr, MTR_MEMO_PAGE_X_FIX));
-
-	return(mach_read_ulint(ptr, type));
-}
-
 #ifdef UNIV_DEBUG
 # ifndef UNIV_HOTBACKUP
 /**********************************************************//**

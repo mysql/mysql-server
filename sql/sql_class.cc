@@ -759,7 +759,7 @@ char *thd_security_context(THD *thd, char *buffer, unsigned int length,
   const char *proc_info= thd->proc_info;
 
   len= my_snprintf(header, sizeof(header),
-                   "MySQL thread id %lu, OS thread handle 0x%lx, query id %lu",
+                   "MySQL thread id %lu, OS thread handle %lu, query id %lu",
                    thd->thread_id, (ulong) thd->real_id, (ulong) thd->query_id);
   str.length(0);
   str.append(header, len);
@@ -3936,6 +3936,11 @@ extern "C" int thd_allow_batch(MYSQL_THD thd)
       (thd->slave_thread && opt_slave_allow_batching))
     return 1;
   return 0;
+}
+
+enum_tx_isolation thd_get_trx_isolation(const MYSQL_THD thd)
+{
+	return thd->tx_isolation;
 }
 
 #ifdef INNODB_COMPATIBILITY_HOOKS

@@ -31,8 +31,6 @@
 #define HAVE_STACKTRACE 1
 #endif
 
-#define HAVE_WRITE_CORE
-
 #if HAVE_BACKTRACE && HAVE_BACKTRACE_SYMBOLS && \
     HAVE_CXXABI_H && HAVE_ABI_CXA_DEMANGLE && \
     HAVE_WEAK_SYMBOL
@@ -54,9 +52,7 @@ void my_set_exception_pointers(EXCEPTION_POINTERS *ep);
 #endif
 #endif
 
-#ifdef HAVE_WRITE_CORE
 void my_write_core(int sig);
-#endif
 
 
 
