@@ -55,8 +55,6 @@ if ($small_test)
   # test may be slow on Valgrind or on MTS SUBMODE = LOGICAL CLOCK
   let $i=50;
 }
-
-
 if (`select @@binlog_format like "STATEMENT"`) {
    # relax mtr to scan unsafe warnings
    let $i=50;

@@ -6951,7 +6951,7 @@ int Rotate_log_event::do_update_pos(Relay_log_info *rli)
       ((!rli->is_parallel_exec() && !rli->is_in_group()) ||
        rli->mts_group_status != Relay_log_info::MTS_IN_GROUP))
   {
-    if (!is_mts_db_partitioned(rli) && server_id != ::server_id )
+    if (!is_mts_db_partitioned(rli) && server_id != ::server_id && log_pos )
     {
       // force the coordinator to start a new group.
       static_cast<Mts_submode_logical_clock*>
