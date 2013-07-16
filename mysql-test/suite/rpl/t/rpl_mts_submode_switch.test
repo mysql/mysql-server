@@ -4,28 +4,28 @@
 
 # The motive of this test case is to test the
 # mts submode switch between master parallel to dbname and vice-versa
---source include/master-slave.inc
+-- source include/master-slave.inc
 call mtr.add_suppression("Statement is unsafe because it uses a system function that may return a different value on the slave");
---let $saved_debug=`SELECT @@global.DEBUG`
+-- let $saved_debug=`SELECT @@global.DEBUG`
 SET GLOBAL DEBUG ='+d,set_commit_parent_100';
---connection slave
+-- connection slave
 
-# save  MTS submode
---let $saved_submode= `SELECT @@slave_parallel_type`
+# Save  MTS submode
+-- let $saved_submode= `SELECT @@slave_parallel_type`
 
 # must error out since the slave is running
---error ER_SLAVE_MUST_STOP
+-- error ER_SLAVE_MUST_STOP
 SET GLOBAL slave_parallel_type=LOGICAL_CLOCK;
 
---source include/stop_slave.inc
+-- source include/stop_slave.inc
 
-#setup 4 connections to master
---connect(m1, localhost,root,,,$MASTER_MYPORT)
---connect(m2, localhost,root,,,$MASTER_MYPORT)
---connect(m3, localhost,root,,,$MASTER_MYPORT)
---connect(m4, localhost,root,,,$MASTER_MYPORT)
+# Setup 4 connections to master
+-- connect(m1, localhost,root,,,$MASTER_MYPORT)
+-- connect(m2, localhost,root,,,$MASTER_MYPORT)
+-- connect(m3, localhost,root,,,$MASTER_MYPORT)
+-- connect(m4, localhost,root,,,$MASTER_MYPORT)
 
---connection master
+-- connection master
 SET GLOBAL DEBUG ='-d,set_commit_parent_100';
 SET GLOBAL DEBUG ='+d,set_commit_parent_150';
 create database db1;
@@ -33,26 +33,26 @@ create database db2;
 create database db3;
 create database db4;
 
---connection master
+-- connection master
 SET GLOBAL DEBUG ='-d,set_commit_parent_150';
 SET GLOBAL DEBUG ='+d,set_commit_parent_100';
 
---echo #setup the databases and tables
---connection m1
+-- echo #setup the databases and tables
+-- connection m1
 CREATE TABLE db1.t (a int) engine=innodb;
 
---connection m2
+-- connection m2
 CREATE TABLE db2.t (a int) engine=myisam;
 
---connection m3
---disable_warnings ONCE
+-- connection m3
+-- disable_warnings ONCE
 CREATE TABLE db3.t engine=innodb select 100*RAND() as a;
 
---connection m4
+-- connection m4
 SET @VAR=100;
 CREATE TABLE db4.t engine=myisam select @VAR as a;
 
---connection master
+-- connection master
 SET GLOBAL DEBUG ='-d,set_commit_parent_100';
 SET GLOBAL DEBUG ='+d,set_commit_parent_150';
 #this is just to make sure that the slave does not error out due to this
