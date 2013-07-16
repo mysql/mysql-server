@@ -17,18 +17,18 @@ TRUNCATE TABLE performance_schema.events_statements_history_long;
 # They do only after successful execution.  
 SELECT OBJECT_TYPE, OBJECT_SCHEMA, OBJECT_NAME, COUNT_STAR, COUNT_STATEMENTS 
        FROM performance_schema.events_statements_summary_by_program
-       WHERE OBJECT_SCHEMA='stored_programs';
+       WHERE OBJECT_SCHEMA='stored_programs' ORDER BY OBJECT_NAME;
 
 --source suite/perfschema/include/program_execution.inc
 
 SELECT OBJECT_TYPE, OBJECT_SCHEMA, OBJECT_NAME, COUNT_STAR, COUNT_STATEMENTS 
        FROM performance_schema.events_statements_summary_by_program
-       WHERE OBJECT_SCHEMA='stored_programs';
+       WHERE OBJECT_SCHEMA='stored_programs' ORDER BY OBJECT_NAME;
 
 SELECT EVENT_NAME, SQL_TEXT, CURRENT_SCHEMA, OBJECT_TYPE, OBJECT_SCHEMA,
        OBJECT_NAME, NESTING_EVENT_TYPE, NESTING_EVENT_LEVEL FROM
        performance_schema.events_statements_history_long WHERE
-       CURRENT_SCHEMA='stored_programs';
+       CURRENT_SCHEMA='stored_programs' ORDER BY OBJECT_NAME;
 
 --echo # clean -up
 
@@ -38,7 +38,7 @@ TRUNCATE TABLE performance_schema.events_statements_history_long;
 # After truncate the statictics collected will are reset
 SELECT OBJECT_TYPE, OBJECT_SCHEMA, OBJECT_NAME, COUNT_STAR, COUNT_STATEMENTS 
        FROM performance_schema.events_statements_summary_by_program
-       WHERE OBJECT_SCHEMA='stored_programs';
+       WHERE OBJECT_SCHEMA='stored_programs' ORDER BY OBJECT_NAME;
 
 --source suite/perfschema/include/program_cleanup.inc 
 
@@ -46,7 +46,7 @@ SELECT OBJECT_TYPE, OBJECT_SCHEMA, OBJECT_NAME, COUNT_STAR, COUNT_STATEMENTS
 
 SELECT OBJECT_TYPE, OBJECT_SCHEMA, OBJECT_NAME, COUNT_STAR, COUNT_STATEMENTS 
        FROM performance_schema.events_statements_summary_by_program
-       WHERE OBJECT_SCHEMA='stored_programs';
+       WHERE OBJECT_SCHEMA='stored_programs' ORDER BY OBJECT_NAME;
 
 #----------------------------------------------------------------
 # The statistics of a stored program are not collected 

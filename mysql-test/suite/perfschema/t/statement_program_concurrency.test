@@ -4,6 +4,7 @@
 
 --source include/not_embedded.inc
 --source include/have_perfschema.inc
+--source suite/perfschema/include/no_protocol.inc
 
 TRUNCATE TABLE performance_schema.events_statements_summary_by_program;
 TRUNCATE TABLE performance_schema.events_statements_history;
@@ -137,6 +138,7 @@ disconnect con3;
 
 CREATE DATABASE db;
 USE db;
+
 CREATE TABLE t(
   i INT NOT NULL
 );
@@ -165,10 +167,11 @@ DELIMITER ;|
 # connection 2
 connect (con2,localhost,user2,user,db);
 
+CREATE TABLE table_p(p INT);
 DELIMITER |;
 CREATE FUNCTION addition(x INT, y INT) RETURNS INT
 BEGIN
-  INSERT INTO t SELECT * FROM t;
+  INSERT INTO table_p SELECT * FROM t;
   RETURN x+y;
 END|
 DELIMITER ;|
@@ -182,10 +185,11 @@ CREATE TABLE t1(
    i INT NOT NULL,
    j INT
 );
-
+CREATE TABLE table_q(q INT);
+LOAD DATA INFILE '../../std_data/wl5766_data.txt' INTO TABLE table_q;
 INSERT INTO t1 VALUES ( 10,1000 );
 CREATE TRIGGER trg BEFORE INSERT ON t1 FOR EACH ROW
-   INSERT INTO t SELECT * FROM t;
+   INSERT INTO table_q SELECT * FROM table_q;
 
 --send INSERT INTO t1 VALUES ( 20,2000);
 
@@ -204,15 +208,17 @@ connection default;
 
 SELECT OBJECT_TYPE, OBJECT_SCHEMA, OBJECT_NAME, COUNT_STAR, COUNT_STATEMENTS
        FROM performance_schema.events_statements_summary_by_program
-       WHERE OBJECT_SCHEMA='db';
+       WHERE OBJECT_SCHEMA='db' ORDER BY OBJECT_NAME;
 
 SELECT EVENT_NAME, SQL_TEXT, CURRENT_SCHEMA, OBJECT_TYPE, OBJECT_SCHEMA,
        OBJECT_NAME, NESTING_EVENT_TYPE, NESTING_EVENT_LEVEL FROM
-       performance_schema.events_statements_history WHERE CURRENT_SCHEMA='db';
+       performance_schema.events_statements_history WHERE CURRENT_SCHEMA='db'
+       ORDER BY OBJECT_NAME, SQL_TEXT;
 
 SELECT EVENT_NAME, SQL_TEXT, CURRENT_SCHEMA, OBJECT_TYPE, OBJECT_SCHEMA,
        OBJECT_NAME, NESTING_EVENT_TYPE, NESTING_EVENT_LEVEL FROM
-       performance_schema.events_statements_history_long WHERE CURRENT_SCHEMA='db';
+       performance_schema.events_statements_history_long WHERE CURRENT_SCHEMA='db'
+       ORDER BY OBJECT_NAME, SQL_TEXT;
 
 TRUNCATE TABLE performance_schema.events_statements_summary_by_program;
 TRUNCATE TABLE performance_schema.events_statements_history;
@@ -223,7 +229,9 @@ TRUNCATE TABLE performance_schema.events_statements_history_long;
 DROP PROCEDURE db.proc;
 DROP FUNCTION db.addition;
 DROP TRIGGER db.trg;
+DROP TABLE db.table_p;
 DROP TABLE db.t1;
+DROP TABLE db.table_q;
 DROP TABLE db.t;
 DROP DATABASE db;
 
@@ -241,5 +249,4 @@ disconnect con3;
 
 # Wait till all disconnects are completed
 --source include/wait_until_count_sessions.inc
-
 
