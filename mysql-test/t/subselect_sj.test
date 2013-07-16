@@ -2584,5 +2584,43 @@ ORDER BY sm;
 
 DROP TABLE t1,t2;
 
+--echo # 
+--echo # mdev-4173 ignored duplicate value when converting heap to temp table
+--echo # could lead to extra rows in semijoin queries or missing row in union queries
+--echo #
+CREATE TABLE t1 (i1 INT) engine=myisam;
+INSERT INTO t1 VALUES
+(4),(8),(0),(0),(0),(7),(7),(5),(3),(4),(9),(6),(1),(5),(6),(2),(4),(4);
+
+CREATE TABLE t2 (i2 INT, j2 INT) engine=myisam;
+INSERT INTO t2 VALUES
+(7,1),(0,7),(9,4),(3,7),(4,0),(2,2),(5,9),(3,4),
+(1,0),(3,9),(5,8),(1,8),(204,18),(224,84),(9,6);
+
+CREATE TABLE t3 (i3 INT, KEY(i3)) engine=myisam;
+INSERT INTO t3 VALUES
+(0),(8),(1),(8),(9),(24),(6),(1),(6),(2),(4),(2),(1);
+
+select @@max_heap_table_size into @tmp_max_heap_table_size;
+select @@join_buffer_size into @tmp_join_buffer_size;
+set max_heap_table_size=16*1024;
+
+--disable_query_log
+let $n = 8;
+while ($n) {
+  eval set join_buffer_size= 128 + 128*$n;
+  SELECT COUNT(*) FROM t1 outer_t1, t2 outer_t2, t3
+  WHERE outer_t1.i1 IN (
+    SELECT j2 FROM t2 LEFT JOIN t3 ON ( i3 = j2 )
+    WHERE i2 <> outer_t2.j2
+  );
+  dec $n;
+}
+--enable_query_log
+
+DROP TABLE t1, t2, t3;
+set join_buffer_size = @tmp_join_buffer_size;
+set max_heap_table_size = @tmp_max_heap_table_size;
+
 # The following command must be the last one the file 
 set optimizer_switch=@subselect_sj_tmp;

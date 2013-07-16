@@ -1819,7 +1819,8 @@ void free_tmp_table(THD *thd, TABLE *entry);
 bool create_internal_tmp_table_from_heap(THD *thd, TABLE *table,
                                          ENGINE_COLUMNDEF *start_recinfo,
                                          ENGINE_COLUMNDEF **recinfo, 
-                                         int error, bool ignore_last_dupp_key_error);
+                                         int error, bool ignore_last_dupp_key_error,
+                                         bool *is_duplicate);
 bool create_internal_tmp_table(TABLE *table, KEY *keyinfo, 
                                ENGINE_COLUMNDEF *start_recinfo,
                                ENGINE_COLUMNDEF **recinfo, 

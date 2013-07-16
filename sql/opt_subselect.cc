@@ -4227,9 +4227,13 @@ int SJ_TMP_TABLE::sj_weedout_check_row(THD *thd)
     /* create_internal_tmp_table_from_heap will generate error if needed */
     if (!tmp_table->file->is_fatal_error(error, HA_CHECK_DUP))
       DBUG_RETURN(1); /* Duplicate */
+
+    bool is_duplicate;
     if (create_internal_tmp_table_from_heap(thd, tmp_table, start_recinfo,
-                                            &recinfo, error, 1))
+                                            &recinfo, error, 1, &is_duplicate))
       DBUG_RETURN(-1);
+    if (is_duplicate)
+      DBUG_RETURN(1);
   }
   DBUG_RETURN(0);
 }

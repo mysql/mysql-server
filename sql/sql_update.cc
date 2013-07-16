@@ -2008,7 +2008,7 @@ int multi_update::send_data(List<Item> &not_used_values)
             create_internal_tmp_table_from_heap(thd, tmp_table,
                                          tmp_table_param[offset].start_recinfo,
                                          &tmp_table_param[offset].recinfo,
-                                         error, 1))
+                                         error, 1, NULL))
         {
           do_update= 0;
           DBUG_RETURN(1);			// Not a table_is_full error

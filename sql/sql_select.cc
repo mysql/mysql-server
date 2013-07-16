@@ -154,7 +154,7 @@ static COND *optimize_cond(JOIN *join, COND *conds,
 bool const_expression_in_where(COND *conds,Item *item, Item **comp_item);
 static bool create_internal_tmp_table_from_heap2(THD *, TABLE *,
                                      ENGINE_COLUMNDEF *, ENGINE_COLUMNDEF **, 
-                                     int, bool, handlerton *, const char *);
+                                     int, bool, handlerton *, const char *, bool *);
 static int do_select(JOIN *join,List<Item> *fields,TABLE *tmp_table,
 		     Procedure *proc);
 
@@ -9458,7 +9458,7 @@ end_sj_materialize(JOIN *join, JOIN_TAB *join_tab, bool end_of_records)
       if (table->file->is_fatal_error(error, HA_CHECK_DUP) &&
           create_internal_tmp_table_from_heap(thd, table,
                                               sjm->sjm_table_param.start_recinfo, 
-                                              &sjm->sjm_table_param.recinfo, error, 1))
+                                              &sjm->sjm_table_param.recinfo, error, 1, NULL))
         DBUG_RETURN(NESTED_LOOP_ERROR); /* purecov: inspected */
     }
   }
@@ -15471,13 +15471,15 @@ bool create_internal_tmp_table_from_heap(THD *thd, TABLE *table,
                                          ENGINE_COLUMNDEF *start_recinfo,
                                          ENGINE_COLUMNDEF **recinfo, 
                                          int error,
-                                         bool ignore_last_dupp_key_error)
+                                         bool ignore_last_dupp_key_error,
+                                         bool *is_duplicate)
 {
   return create_internal_tmp_table_from_heap2(thd, table, 
                                               start_recinfo, recinfo, error,
                                               ignore_last_dupp_key_error,
                                               maria_hton,
-                                              "converting HEAP to Aria");
+                                              "converting HEAP to Aria",
+                                              is_duplicate);
 }
 
 #else
@@ -15636,13 +15638,15 @@ bool create_internal_tmp_table_from_heap(THD *thd, TABLE *table,
                                          ENGINE_COLUMNDEF *start_recinfo,
                                          ENGINE_COLUMNDEF **recinfo, 
                                          int error,
-                                         bool ignore_last_dupp_key_error)
+                                         bool ignore_last_dupp_key_error,
+                                         bool *is_duplicate)
 {
   return create_internal_tmp_table_from_heap2(thd, table, 
                                               start_recinfo, recinfo, error,
                                               ignore_last_dupp_key_error,
                                               myisam_hton,
-                                              "converting HEAP to MyISAM");
+                                              "converting HEAP to MyISAM",
+                                              is_duplicate);
 }
 
 #endif /* WITH_MARIA_STORAGE_ENGINE */
@@ -15661,7 +15665,8 @@ create_internal_tmp_table_from_heap2(THD *thd, TABLE *table,
                                      int error,
                                      bool ignore_last_dupp_key_error,
                                      handlerton *hton,
-                                     const char *proc_info)
+                                     const char *proc_info,
+                                     bool *is_duplicate)
 {
   TABLE new_table;
   TABLE_SHARE share;
@@ -15738,6 +15743,13 @@ create_internal_tmp_table_from_heap2(THD *thd, TABLE *table,
     if (new_table.file->is_fatal_error(write_err, HA_CHECK_DUP) ||
 	!ignore_last_dupp_key_error)
       goto err;
+    if (is_duplicate)
+      *is_duplicate= TRUE;
+  }
+  else
+  {
+    if (is_duplicate)
+      *is_duplicate= FALSE;
   }
 
   /* remove heap table and change to use myisam table */
@@ -17614,11 +17626,14 @@ end_write(JOIN *join, JOIN_TAB *join_tab __attribute__((unused)),
       {
         if (!table->file->is_fatal_error(error, HA_CHECK_DUP))
 	  goto end;
+        bool is_duplicate;
 	if (create_internal_tmp_table_from_heap(join->thd, table, 
                                                 join->tmp_table_param.start_recinfo,
                                                 &join->tmp_table_param.recinfo,
-                                                error,1))
+                                                error, 1, &is_duplicate))
 	  DBUG_RETURN(NESTED_LOOP_ERROR);        // Not a table_is_full error
+        if (is_duplicate)
+          goto end;
 	table->s->uniques=0;			// To ensure rows are the same
       }
       if (++join->send_records >= join->tmp_table_param.end_write_records &&
@@ -17703,7 +17718,7 @@ end_update(JOIN *join, JOIN_TAB *join_tab __attribute__((unused)),
     if (create_internal_tmp_table_from_heap(join->thd, table,
                                             join->tmp_table_param.start_recinfo,
                                             &join->tmp_table_param.recinfo,
-                                            error, 0))
+                                            error, 0, NULL))
       DBUG_RETURN(NESTED_LOOP_ERROR);            // Not a table_is_full error
     /* Change method to update rows */
     if ((error= table->file->ha_index_init(0, 0)))
@@ -17808,7 +17823,7 @@ end_write_group(JOIN *join, JOIN_TAB *join_tab __attribute__((unused)),
               create_internal_tmp_table_from_heap(join->thd, table,
                                                   join->tmp_table_param.start_recinfo,
                                                   &join->tmp_table_param.recinfo,
-                                                  error, 0))
+                                                  error, 0, NULL))
 	    DBUG_RETURN(NESTED_LOOP_ERROR);
         }
         if (join->rollup.state != ROLLUP::STATE_NONE)
@@ -21638,7 +21653,7 @@ int JOIN::rollup_write_data(uint idx, TABLE *table_arg)
 	if (create_internal_tmp_table_from_heap(thd, table_arg, 
                                                 tmp_table_param.start_recinfo,
                                                 &tmp_table_param.recinfo,
-                                                write_error, 0))
+                                                write_error, 0, NULL))
 	  return 1;		     
       }
     }

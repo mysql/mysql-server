@@ -288,7 +288,7 @@ my_bool Expression_cache_tmptable::put_value(Item *value)
         if (create_internal_tmp_table_from_heap(table_thd, cache_table,
                                                 cache_table_param.start_recinfo,
                                                 &cache_table_param.recinfo,
-                                                error, 1))
+                                                error, 1, NULL))
           goto err;
       }
     }
