@@ -1890,6 +1890,9 @@ trx_commit_low(
 	}
 
 	if (trx->id > 0) {
+
+		DEBUG_SYNC_C("before_trx_state_committed_in_memory");
+
 		mutex_enter(&trx_sys->mutex);
 
 		if (serialised) {
