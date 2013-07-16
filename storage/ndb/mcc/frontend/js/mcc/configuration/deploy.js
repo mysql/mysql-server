@@ -833,6 +833,16 @@ function getCreateCommands() {
                         destinationPath: datadir + "tmp" + dirSep,
                         destinationName: "install.sql"
                     });
+					createDirCommands.push({
+                        host: host.getValue("name"),
+                        path: datadir + "tmp" + dirSep,
+                        name: "mysql_install_db.bat",
+                        msg: "\""+installDir+installSep+"bin"+installSep+"mysqld.exe\" --lc-messages-dir=\""+installDir+installSep+"share\" --bootstrap --basedir=\""+
+                            installDir+"\" --datadir=\""+datadir+
+                            "\" --loose-skip-ndbcluster --max_allowed_packet=8M --default-storage-engine=myisam --net_buffer_length=16K < \""+
+                            datadir+dirSep+"tmp"+dirSep+"install.sql\"\n",
+                        overwrite: true
+                    });
                 } else {
                     // Non-win mysqlds also need data/tmp
                     createDirCommands.push({
