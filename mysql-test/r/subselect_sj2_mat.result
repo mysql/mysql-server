@@ -1096,6 +1096,28 @@ COUNT(*)
 3724
 set optimizer_prune_level=@tmp_951283;
 DROP TABLE t1,t2;
+DROP TABLE IF EXISTS t1,t2,t3,t4;
+#
+# MDEV-4782: Valgrind warnings (Conditional jump or move depends on uninitialised value) with InnoDB, semijoin
+#
+CREATE TABLE t1 ( t1_pk1 varchar(3), t1_pk2 varchar(52), PRIMARY KEY (t1_pk1,t1_pk2)) ENGINE=InnoDB;
+INSERT INTO t1 VALUES ('CHN','Chinese'),('USA','English');
+CREATE TABLE t2 ( t2_i int(11), t2_c varchar(52)) ENGINE=InnoDB;
+INSERT INTO t2 VALUES (86,'English');
+CREATE TABLE t3 ( t3_i int(11), t3_c varchar(35)) ENGINE=InnoDB;
+INSERT INTO t3 VALUES (3989,'Abilene'),(3873,'Akron');
+create table t4 like t1;
+insert into t4 select * from t1;
+SELECT * FROM t1, t3 WHERE t3_c IN ( SELECT t1_pk2 FROM t4, t2 WHERE t2_c = t1_pk2 AND t2_i >= t3_i ) AND ( t1_pk1 = 'POL' );
+t1_pk1	t1_pk2	t3_i	t3_c
+explain
+SELECT * FROM t1, t3 WHERE t3_c IN ( SELECT t1_pk2 FROM t4, t2 WHERE t2_c = t1_pk2 AND t2_i >= t3_i ) AND ( t1_pk1 = 'POL' );
+id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
+1	PRIMARY	t1	ref	PRIMARY	PRIMARY	5	const	1	Using where; Using index
+1	PRIMARY	t2	ALL	NULL	NULL	NULL	NULL	1	Start temporary
+1	PRIMARY	t3	ALL	NULL	NULL	NULL	NULL	2	Using where; Using join buffer (flat, BNL join)
+1	PRIMARY	t4	index	NULL	PRIMARY	59	NULL	2	Using where; Using index; End temporary
+DROP TABLE t1,t2,t3,t4;
 # This must be the last in the file:
 set optimizer_switch=@subselect_sj2_tmp;
 set optimizer_switch=default;
