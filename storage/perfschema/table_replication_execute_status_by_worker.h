@@ -50,7 +50,7 @@ enum enum_rpl_yes_no {
   length field denoted by <field_name>_length.
 */
 struct st_row_worker {
-  /*  
+  /*
     worker_id is added to the table because thread is killed at STOP SLAVE
     but the status needs to show up, so worker_id is used as a permanent
     identifier.

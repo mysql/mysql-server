@@ -57,6 +57,10 @@ source include/assert.inc;
 
 --connection slave
 
+--let $slave_param= Slave_SQL_Running_State
+--let $slave_param_value= Slave has read all relay log; waiting for the slave I/O thread to update it
+source include/wait_for_slave_param.inc;
+
 --echo
 --echo # Testing on fresh slave.
 --echo
@@ -279,11 +283,13 @@ let $assert_text= Value returned by SSS and PS table for Last_Error_Timestamp sh
 let $assert_cond= "$sss_value" = "$ps_value_in_sss_format";
 source include/assert.inc;
 
-stop slave;
-reset slave;
+source include/stop_slave.inc;
 --connection master
 drop table t;
 reset master;
+
+--connection slave
+reset slave;
 
 --echo
 --echo # Restarting servers and setting up MTS now. Since, SQL thread and
@@ -310,6 +316,10 @@ SET @@global.slave_parallel_workers=1;
 # to avoid warnings
 set @save.slave_transaction_retries= @@global.slave_transaction_retries;
 source include/start_slave.inc;
+
+--let $slave_param= Slave_SQL_Running_State
+--let $slave_param_value= Slave has read all relay log; waiting for the slave I/O thread to update it
+source include/wait_for_slave_param.inc;
 
 # To verify that the coordinator's thread_id is correctly shown by PS table,
 # find the row in SHOW PROCESSLIST that corresponds to SQL thread and extract

@@ -241,7 +241,7 @@ void table_replication_execute_status_by_worker::make_row(Slave_worker *w)
            m_row.last_error_message_length);
 
     /** time in millisecond since epoch */
-    m_row.last_error_timestamp= w->last_error().skr*1000000;
+    m_row.last_error_timestamp= (ulonglong)w->last_error().skr*1000000;
   }
   mysql_mutex_unlock(&w->jobs_lock);
 
