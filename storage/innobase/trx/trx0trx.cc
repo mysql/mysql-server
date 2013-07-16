@@ -1655,11 +1655,10 @@ void
 trx_commit_in_memory(
 /*=================*/
 	trx_t*	trx,		/*!< in/out: transaction */
-	lsn_t	lsn,		/*!< in: log sequence number of the
+	lsn_t	lsn)		/*!< in: log sequence number of the
 				mini-transaction commit of
 				trx_write_serialisation_history(), or 0
 				if the transaction did not modify anything */
-	bool	serialised)
 {
 	trx->must_flush_log_later = false;
 
@@ -1913,7 +1912,7 @@ trx_commit_low(
 		mutex_exit(&trx_sys->mutex);
 	}
 
-	trx_commit_in_memory(trx, lsn, false);
+	trx_commit_in_memory(trx, lsn);
 }
 
 /****************************************************************//**
