@@ -1,9 +1,0 @@
-show global variables like 'log_slow_verbosity';
-Variable_name	Value
-log_slow_verbosity	microtime,query_plan,innodb
-show variables like 'log_slow_verbosity';
-Variable_name	Value
-log_slow_verbosity	microtime,query_plan,innodb
-select @@log_slow_verbosity;
-@@log_slow_verbosity
-microtime,query_plan,innodb

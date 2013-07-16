@@ -2005,6 +2005,8 @@ lock_rec_lock_fast(
 	      || mode - (LOCK_MODE_MASK & mode) == 0
 	      || mode - (LOCK_MODE_MASK & mode) == LOCK_REC_NOT_GAP);
 
+	DBUG_EXECUTE_IF("innodb_report_deadlock", return(LOCK_REC_FAIL););
+
 	lock = lock_rec_get_first_on_page(block);
 
 	trx = thr_get_trx(thr);
@@ -2081,6 +2083,8 @@ lock_rec_lock_slow(
 	      || mode - (LOCK_MODE_MASK & mode) == LOCK_REC_NOT_GAP);
 
 	trx = thr_get_trx(thr);
+
+	DBUG_EXECUTE_IF("innodb_report_deadlock", return(DB_DEADLOCK););
 
 	lock = lock_rec_has_expl(mode, block, heap_no, trx);
 	if (lock) {
@@ -4145,6 +4149,7 @@ lock_rec_unlock(
 
 	ut_ad(trx && rec);
 	ut_ad(block->frame == page_align(rec));
+	ut_ad(trx->state == TRX_ACTIVE);
 
 	heap_no = page_rec_get_heap_no(rec);
 
@@ -5002,6 +5007,7 @@ lock_rec_validate_page(
 {
 	const lock_t*	lock;
 	const rec_t*	rec;
+	dict_index_t*	index;
 	ulint		nth_lock	= 0;
 	ulint		nth_bit		= 0;
 	ulint		i;
@@ -5051,6 +5057,7 @@ loop:
 
 		if (i == 1 || lock_rec_get_nth_bit(lock, i)) {
 
+			index = lock->index;
 			rec = page_find_rec_with_heap_no(block->frame, i);
 			ut_a(rec);
 			offsets = rec_get_offsets(rec, lock->index, offsets,
@@ -5067,7 +5074,7 @@ loop:
 			check WILL break the latching order and may
 			cause a deadlock of threads. */
 
-			lock_rec_queue_validate(block, rec, lock->index,
+			lock_rec_queue_validate(block, rec, index,
 						offsets);
 
 			lock_mutex_enter_kernel();

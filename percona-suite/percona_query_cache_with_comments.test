@@ -1,5 +1,0 @@
---disable_ps_protocol
-set global query_cache_strip_comments=ON;
--- source include/percona_query_cache_with_comments_begin.inc
--- source include/percona_query_cache_with_comments.inc
--- source include/percona_query_cache_with_comments_end.inc

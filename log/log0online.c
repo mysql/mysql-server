@@ -43,8 +43,8 @@ UNIV_INTERN mysql_pfs_key_t	log_bmp_sys_mutex_key;
 
 /** Log parsing and bitmap output data structure */
 struct log_bitmap_struct {
-	byte		read_buf[FOLLOW_SCAN_SIZE];
-					/*!< log read buffer */
+	byte*		read_buf_ptr;	/*!< Unaligned log read buffer */
+	byte*		read_buf;	/*!< log read buffer */
 	byte		parse_buf[RECV_PARSING_BUF_SIZE];
 					/*!< log parse buffer */
 	byte*		parse_buf_end;  /*!< parse buffer position where the
@@ -53,6 +53,8 @@ struct log_bitmap_struct {
 					parsed, it points to the start,
 					otherwise points immediatelly past the
 					end of the incomplete log record. */
+	char		bmp_file_home[FN_REFLEN];
+					/*!< directory for bitmap files */
 	log_online_bitmap_file_t out;	/*!< The current bitmap file */
 	ulint		out_seq_num;	/*!< the bitmap file sequence number */
 	ib_uint64_t	start_lsn;	/*!< the LSN of the next unparsed
@@ -490,9 +492,8 @@ log_online_make_bitmap_name(
 	ib_uint64_t	start_lsn)	/*!< in: the start LSN name part */
 {
 	ut_snprintf(log_bmp_sys->out.name, FN_REFLEN, bmp_file_name_template,
-		    srv_data_home, bmp_file_name_stem,
+		    log_bmp_sys->bmp_file_home, bmp_file_name_stem,
 		    log_bmp_sys->out_seq_num, start_lsn);
-
 }
 
 /*********************************************************************//**
@@ -509,7 +510,8 @@ log_online_should_overwrite(
 
 	/* Currently, it's OK to overwrite 0-sized files only */
 	success = os_file_get_status(path, &file_info);
-	return success && file_info.size == 0LL;
+	return success && file_info.type == OS_FILE_TYPE_FILE
+		&& file_info.size == 0LL;
 }
 
 /*********************************************************************//**
@@ -525,7 +527,7 @@ log_online_start_bitmap_file(void)
 
 	/* Check for an old file that should be deleted first */
 	if (log_online_should_overwrite(log_bmp_sys->out.name)) {
-		success = os_file_delete(log_bmp_sys->out.name);
+		success = os_file_delete_if_exists(log_bmp_sys->out.name);
 	}
 
 	if (UNIV_LIKELY(success)) {
@@ -544,7 +546,6 @@ log_online_start_bitmap_file(void)
 		fprintf(stderr,
 			"InnoDB: Error: Cannot create \'%s\'\n",
 			log_bmp_sys->out.name);
-		log_bmp_sys->out.file = -1;
 		return FALSE;
 	}
 
@@ -563,9 +564,9 @@ log_online_rotate_bitmap_file(
 	ib_uint64_t	next_file_start_lsn)	/*!<in: the start LSN name
 						part */
 {
-	if (log_bmp_sys->out.file != -1) {
+	if (log_bmp_sys->out.file != os_file_invalid) {
 		os_file_close(log_bmp_sys->out.file);
-		log_bmp_sys->out.file = -1;
+		log_bmp_sys->out.file = os_file_invalid;
 	}
 	log_bmp_sys->out_seq_num++;
 	log_online_make_bitmap_name(next_file_start_lsn);
@@ -613,6 +614,7 @@ log_online_read_init(void)
 	os_file_dir_t	bitmap_dir;
 	os_file_stat_t	bitmap_dir_file_info;
 	ib_uint64_t	last_file_start_lsn	= MIN_TRACKED_LSN;
+	size_t		srv_data_home_len;
 
 	/* Bitmap data start and end in a bitmap block must be 8-byte
 	aligned. */
@@ -620,9 +622,28 @@ log_online_read_init(void)
 	compile_time_assert(MODIFIED_PAGE_BLOCK_BITMAP_LEN % 8 == 0);
 
 	log_bmp_sys = ut_malloc(sizeof(*log_bmp_sys));
+	log_bmp_sys->read_buf_ptr = ut_malloc(FOLLOW_SCAN_SIZE
+					      + OS_FILE_LOG_BLOCK_SIZE);
+	log_bmp_sys->read_buf = ut_align(log_bmp_sys->read_buf_ptr,
+					 OS_FILE_LOG_BLOCK_SIZE);
 
 	mutex_create(log_bmp_sys_mutex_key, &log_bmp_sys->mutex,
 		     SYNC_LOG_ONLINE);
+
+	/* Initialize bitmap file directory from srv_data_home and add a path
+	separator if needed.  */
+	srv_data_home_len = strlen(srv_data_home);
+	ut_a (srv_data_home_len < FN_REFLEN);
+	strcpy(log_bmp_sys->bmp_file_home, srv_data_home);
+	if (srv_data_home_len
+	    && log_bmp_sys->bmp_file_home[srv_data_home_len - 1]
+	    != SRV_PATH_SEPARATOR) {
+
+		ut_a (srv_data_home_len < FN_REFLEN - 1);
+		log_bmp_sys->bmp_file_home[srv_data_home_len]
+			= SRV_PATH_SEPARATOR;
+		log_bmp_sys->bmp_file_home[srv_data_home_len + 1] = '\0';
+	}
 
 	/* Enumerate existing bitmap files to either open the last one to get
 	the last tracked LSN either to find that there are none and start
@@ -630,10 +651,10 @@ log_online_read_init(void)
 	log_bmp_sys->out.name[0] = '\0';
 	log_bmp_sys->out_seq_num = 0;
 
-	bitmap_dir = os_file_opendir(srv_data_home, TRUE);
+	bitmap_dir = os_file_opendir(log_bmp_sys->bmp_file_home, TRUE);
 	ut_a(bitmap_dir);
-	while (!os_file_readdir_next_file(srv_data_home, bitmap_dir,
-					  &bitmap_dir_file_info)) {
+	while (!os_file_readdir_next_file(log_bmp_sys->bmp_file_home,
+					  bitmap_dir, &bitmap_dir_file_info)) {
 
 		ulong		file_seq_num;
 		ib_uint64_t	file_start_lsn;
@@ -648,8 +669,8 @@ log_online_read_init(void)
 		    && bitmap_dir_file_info.size > 0) {
 			log_bmp_sys->out_seq_num = file_seq_num;
 			last_file_start_lsn = file_start_lsn;
-			/* No dir component (srv_data_home) here, because
-			that's the cwd */
+			/* No dir component (log_bmp_sys->bmp_file_home) here,
+			because	that's the cwd */
 			strncpy(log_bmp_sys->out.name,
 				bitmap_dir_file_info.name, FN_REFLEN - 1);
 			log_bmp_sys->out.name[FN_REFLEN - 1] = '\0';
@@ -659,7 +680,7 @@ log_online_read_init(void)
 	if (os_file_closedir(bitmap_dir)) {
 		os_file_get_last_error(TRUE);
 		fprintf(stderr, "InnoDB: Error: cannot close \'%s\'\n",
-			srv_data_home);
+			log_bmp_sys->bmp_file_home);
 		exit(1);
 	}
 
@@ -762,9 +783,9 @@ log_online_read_shutdown(void)
 {
 	ib_rbt_node_t *free_list_node = log_bmp_sys->page_free_list;
 
-	if (log_bmp_sys->out.file != -1) {
+	if (log_bmp_sys->out.file != os_file_invalid) {
 		os_file_close(log_bmp_sys->out.file);
-		log_bmp_sys->out.file = -1;
+		log_bmp_sys->out.file = os_file_invalid;
 	}
 
 	rbt_free(log_bmp_sys->modified_pages);
@@ -777,6 +798,7 @@ log_online_read_shutdown(void)
 
 	mutex_free(&log_bmp_sys->mutex);
 
+	ut_free(log_bmp_sys->read_buf_ptr);
 	ut_free(log_bmp_sys);
 }
 
@@ -978,8 +1000,8 @@ log_online_follow_log_seg(
 
 	mutex_enter(&log_sys->mutex);
 	log_group_read_log_seg(LOG_RECOVER, log_bmp_sys->read_buf,
-			       group, block_start_lsn, block_end_lsn);
-	mutex_exit(&log_sys->mutex);
+			       group, block_start_lsn, block_end_lsn, TRUE);
+	/* log_group_read_log_seg will release the log_sys->mutex for us */
 
 	while (log_block < log_block_end
 	       && log_bmp_sys->next_parse_lsn < log_bmp_sys->end_lsn) {
@@ -1256,7 +1278,10 @@ log_online_setup_bitmap_file_range(
 	os_file_dir_t	bitmap_dir;
 	os_file_stat_t	bitmap_dir_file_info;
 	ulong		first_file_seq_num	= ULONG_MAX;
+	ulong		last_file_seq_num	= 0;
 	ib_uint64_t	first_file_start_lsn	= IB_ULONGLONG_MAX;
+
+	ut_ad(range_end >= range_start);
 
 	bitmap_files->count = 0;
 	bitmap_files->files = NULL;
@@ -1264,7 +1289,7 @@ log_online_setup_bitmap_file_range(
 	/* 1st pass: size the info array */
 
 	bitmap_dir = os_file_opendir(srv_data_home, FALSE);
-	if (!bitmap_dir) {
+	if (UNIV_UNLIKELY(!bitmap_dir)) {
 		fprintf(stderr,
 			"InnoDB: Error: "
 			"failed to open bitmap directory \'%s\'\n",
@@ -1286,12 +1311,17 @@ log_online_setup_bitmap_file_range(
 			continue;
 		}
 
+		if (file_seq_num > last_file_seq_num) {
+
+			last_file_seq_num = file_seq_num;
+		}
+
 		if (file_start_lsn >= range_start
 		    || file_start_lsn == first_file_start_lsn
 		    || first_file_start_lsn > range_start) {
 
 			/* A file that falls into the range */
-			bitmap_files->count++;
+
 			if (file_start_lsn < first_file_start_lsn) {
 
 				first_file_start_lsn = file_start_lsn;
@@ -1309,23 +1339,27 @@ log_online_setup_bitmap_file_range(
 		}
 	}
 
-	ut_a(first_file_seq_num != ULONG_MAX || bitmap_files->count == 0);
+	if (UNIV_UNLIKELY(os_file_closedir(bitmap_dir))) {
 
-	if (os_file_closedir(bitmap_dir)) {
 		os_file_get_last_error(TRUE);
 		fprintf(stderr, "InnoDB: Error: cannot close \'%s\'\n",
 			srv_data_home);
 		return FALSE;
 	}
 
-	if (!bitmap_files->count) {
+	if (first_file_seq_num == ULONG_MAX && last_file_seq_num == 0) {
+
+		bitmap_files->count = 0;
 		return TRUE;
 	}
+
+	bitmap_files->count = last_file_seq_num - first_file_seq_num + 1;
 
 	/* 2nd pass: get the file names in the file_seq_num order */
 
 	bitmap_dir = os_file_opendir(srv_data_home, FALSE);
-	if (!bitmap_dir) {
+	if (UNIV_UNLIKELY(!bitmap_dir)) {
+
 		fprintf(stderr, "InnoDB: Error: "
 			"failed to open bitmap directory \'%s\'\n",
 			srv_data_home);
@@ -1349,11 +1383,25 @@ log_online_setup_bitmap_file_range(
 					       &file_start_lsn)
 		    || file_start_lsn >= range_end
 		    || file_start_lsn < first_file_start_lsn) {
+
 			continue;
 		}
 
 		array_pos = file_seq_num - first_file_seq_num;
+		if (UNIV_UNLIKELY(array_pos >= bitmap_files->count)) {
+
+			fprintf(stderr,
+				"InnoDB: Error: inconsistent bitmap file "
+				"directory for a "
+				"INFORMATION_SCHEMA.INNODB_CHANGED_PAGES query"
+				"\n");
+			free(bitmap_files->files);
+			return FALSE;
+		}
+
+
 		if (file_seq_num > bitmap_files->files[array_pos].seq_num) {
+
 			bitmap_files->files[array_pos].seq_num = file_seq_num;
 			strncpy(bitmap_files->files[array_pos].name,
 				bitmap_dir_file_info.name, FN_REFLEN);
@@ -1364,7 +1412,8 @@ log_online_setup_bitmap_file_range(
 		}
 	}
 
-	if (os_file_closedir(bitmap_dir)) {
+	if (UNIV_UNLIKELY(os_file_closedir(bitmap_dir))) {
+
 		os_file_get_last_error(TRUE);
 		fprintf(stderr, "InnoDB: Error: cannot close \'%s\'\n",
 			srv_data_home);
@@ -1411,6 +1460,8 @@ log_online_open_bitmap_file_read_only(
 	ulint	size_low;
 	ulint	size_high;
 
+	ut_ad(name[0] != '\0');
+
 	ut_snprintf(bitmap_file->name, FN_REFLEN, "%s%s", srv_data_home, name);
 	bitmap_file->file
 		= os_file_create_simple_no_error_handling(innodb_file_bmp_key,
@@ -1418,7 +1469,8 @@ log_online_open_bitmap_file_read_only(
 							  OS_FILE_OPEN,
 							  OS_FILE_READ_ONLY,
 							  &success);
-	if (!success) {
+	if (UNIV_UNLIKELY(!success)) {
+
 		/* Here and below assume that bitmap file names do not
 		contain apostrophes, thus no need for ut_print_filename(). */
 		fprintf(stderr,
@@ -1461,7 +1513,8 @@ log_online_diagnose_bitmap_eof(
 	    || (bitmap_file->offset
 		> bitmap_file->size - MODIFIED_PAGE_BLOCK_SIZE)) {
 
-		if (bitmap_file->offset != bitmap_file->size) {
+		if (UNIV_UNLIKELY(bitmap_file->offset != bitmap_file->size)) {
+
 			/* If we are not at EOF and we have less than one page
 			to read, it's junk.  This error is not fatal in
 			itself. */
@@ -1472,7 +1525,8 @@ log_online_diagnose_bitmap_eof(
 				bitmap_file->name);
 		}
 
-		if (!last_page_in_run) {
+		if (UNIV_UNLIKELY(!last_page_in_run)) {
+
 			/* We are at EOF but the last read page did not finish
 			a run */
 			/* It's a "Warning" here because it's not a fatal error
@@ -1512,18 +1566,29 @@ log_online_bitmap_iterator_init(
 	if (!log_online_setup_bitmap_file_range(&i->in_files, min_lsn,
 		max_lsn)) {
 
+		i->failed = TRUE;
 		return FALSE;
 	}
 
-	ut_a(i->in_files.count > 0);
+	i->in_i = 0;
+
+	if (i->in_files.count == 0) {
+
+		/* Empty range */
+		i->in.file = os_file_invalid;
+		i->page = NULL;
+		i->failed = FALSE;
+		return TRUE;
+	}
 
 	/* Open the 1st bitmap file */
-	i->in_i = 0;
-	if (!log_online_open_bitmap_file_read_only(i->in_files.files[i->in_i].
-						   name,
-						   &i->in)) {
+	if (UNIV_UNLIKELY(!log_online_open_bitmap_file_read_only(
+				i->in_files.files[i->in_i].name,
+				&i->in))) {
+
 		i->in_i = i->in_files.count;
 		free(i->in_files.files);
+		i->failed = TRUE;
 		return FALSE;
 	}
 
@@ -1534,6 +1599,7 @@ log_online_bitmap_iterator_init(
 	i->first_page_id = 0;
 	i->last_page_in_run = TRUE;
 	i->changed = FALSE;
+	i->failed = FALSE;
 
 	return TRUE;
 }
@@ -1548,11 +1614,20 @@ log_online_bitmap_iterator_release(
 {
 	ut_a(i);
 
-	if (i->in_i < i->in_files.count) {
+	if (i->in.file != os_file_invalid) {
+
 		os_file_close(i->in.file);
+		i->in.file = os_file_invalid;
 	}
-	ut_free(i->in_files.files);
-	ut_free(i->page);
+	if (i->in_files.files) {
+
+		ut_free(i->in_files.files);
+	}
+	if (i->page) {
+
+		ut_free(i->page);
+	}
+	i->failed = TRUE;
 }
 
 /*********************************************************************//**
@@ -1567,10 +1642,16 @@ log_online_bitmap_iterator_next(
 	log_bitmap_iterator_t *i) /*!<in/out: iterator */
 {
 	ibool	checksum_ok = FALSE;
+	ibool	success;
 
 	ut_a(i);
 
-	if (i->bit_offset < MODIFIED_PAGE_BLOCK_BITMAP_LEN)
+	if (UNIV_UNLIKELY(i->in_files.count == 0)) {
+
+		return FALSE;
+	}
+
+	if (UNIV_LIKELY(i->bit_offset < MODIFIED_PAGE_BLOCK_BITMAP_LEN))
 	{
 		++i->bit_offset;
 		i->changed =
@@ -1587,29 +1668,56 @@ log_online_bitmap_iterator_next(
 
 			/* Advance file */
 			i->in_i++;
-			os_file_close(i->in.file);
-			log_online_diagnose_bitmap_eof(&i->in,
-						       i->last_page_in_run);
-			if (i->in_i == i->in_files.count
-			    || i->in_files.files[i->in_i].seq_num == 0) {
+			success = os_file_close_no_error_handling(i->in.file);
+			i->in.file = os_file_invalid;
+			if (UNIV_UNLIKELY(!success)) {
+
+				os_file_get_last_error(TRUE);
+				i->failed = TRUE;
+				return FALSE;
+			}
+
+			success = log_online_diagnose_bitmap_eof(
+					&i->in, i->last_page_in_run);
+			if (UNIV_UNLIKELY(!success)) {
+
+				i->failed = TRUE;
+				return FALSE;
+
+			}
+
+			if (i->in_i == i->in_files.count) {
 
 				return FALSE;
 			}
 
-			if (!log_online_open_bitmap_file_read_only(
+			if (UNIV_UNLIKELY(i->in_files.files[i->in_i].seq_num
+					  == 0)) {
+
+				i->failed = TRUE;
+				return FALSE;
+			}
+
+			success = log_online_open_bitmap_file_read_only(
 					i->in_files.files[i->in_i].name,
-					&i->in)) {
+					&i->in);
+			if (UNIV_UNLIKELY(!success)) {
+
+				i->failed = TRUE;
 				return FALSE;
 			}
 		}
 
-		if (!log_online_read_bitmap_page(&i->in, i->page,
-						 &checksum_ok)) {
+		success = log_online_read_bitmap_page(&i->in, i->page,
+						      &checksum_ok);
+		if (UNIV_UNLIKELY(!success)) {
+
 			os_file_get_last_error(TRUE);
 			fprintf(stderr,
 				"InnoDB: Warning: failed reading "
 				"changed page bitmap file \'%s\'\n",
 				i->in_files.files[i->in_i].name);
+			i->failed = TRUE;
 			return FALSE;
 		}
 	}
@@ -1666,7 +1774,7 @@ log_online_purge_changed_page_bitmaps(
 		/* If we have to delete the current output file, close it
 		first. */
 		os_file_close(log_bmp_sys->out.file);
-		log_bmp_sys->out.file = -1;
+		log_bmp_sys->out.file = os_file_invalid;
 	}
 
 	for (i = 0; i < bitmap_files.count; i++) {

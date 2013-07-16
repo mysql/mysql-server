@@ -246,6 +246,11 @@ extern ulong	srv_sys_stats_root_page;
 #endif
 
 extern ibool	srv_use_doublewrite_buf;
+extern ibool	srv_use_atomic_writes;
+#ifdef HAVE_POSIX_FALLOCATE
+extern ibool	srv_use_posix_fallocate;
+#endif
+
 extern ibool	srv_use_checksums;
 extern ibool	srv_fast_checksum;
 
@@ -288,6 +293,9 @@ extern ulint	srv_n_rows_inserted;
 extern ulint	srv_n_rows_updated;
 extern ulint	srv_n_rows_deleted;
 extern ulint	srv_n_rows_read;
+
+extern ulint	srv_read_views_memory;
+extern ulint	srv_descriptors_memory;
 
 extern ibool	srv_print_innodb_monitor;
 extern ibool	srv_print_innodb_lock_monitor;
@@ -893,6 +901,8 @@ struct export_var_struct{
 	ulint innodb_rows_updated;		/*!< srv_n_rows_updated */
 	ulint innodb_rows_deleted;		/*!< srv_n_rows_deleted */
 	ulint innodb_truncated_status_writes;	/*!< srv_truncated_status_writes */
+	ulint innodb_read_views_memory;		/*!< srv_read_views_memory */
+	ulint innodb_descriptors_memory;	/*!< srv_descriptors_memory */
 	ib_int64_t innodb_s_lock_os_waits;
 	ib_int64_t innodb_s_lock_spin_rounds;
 	ib_int64_t innodb_s_lock_spin_waits;

@@ -1,3 +1,0 @@
---source include/have_innodb.inc
-select * from information_schema.XTRADB_ADMIN_COMMAND;
-select * from information_schema.XTRADB_ADMIN_COMMAND /*!XTRA_HELLO*/;

@@ -21,7 +21,7 @@ Public License for more details.
 
 You should have received a copy of the GNU General Public License along
 with this program; if not, write to the Free Software Foundation, Inc.,
-59 Temple Place, Suite 330, Boston, MA 02111-1307 USA
+51 Franklin Street, Fifth Floor, Boston, MA  02110-1301, USA
 
 ***********************************************************************/
 
@@ -76,15 +76,19 @@ extern ulint	os_n_pending_writes;
 #endif
 
 #ifdef __WIN__
+#define SRV_PATH_SEPARATOR	'\\'
 /** File handle */
 # define os_file_t	HANDLE
+# define os_file_invalid	INVALID_HANDLE_VALUE
 /** Convert a C file descriptor to a native file handle
 @param fd	file descriptor
 @return		native file handle */
 # define OS_FILE_FROM_FD(fd) (HANDLE) _get_osfhandle(fd)
 #else
+#define SRV_PATH_SEPARATOR	'/'
 /** File handle */
 typedef int	os_file_t;
+# define os_file_invalid	(-1)
 /** Convert a C file descriptor to a native file handle
 @param fd	file descriptor
 @return		native file handle */
@@ -819,7 +823,6 @@ pfs_os_file_rename_func(
 	ulint		src_line);/*!< in: line where the func invoked */
 #endif	/* UNIV_PFS_IO */
 
-#ifdef UNIV_HOTBACKUP
 /***********************************************************************//**
 Closes a file handle.
 @return	TRUE if success */
@@ -828,7 +831,6 @@ ibool
 os_file_close_no_error_handling(
 /*============================*/
 	os_file_t	file);	/*!< in, own: handle to a file */
-#endif /* UNIV_HOTBACKUP */
 /***********************************************************************//**
 Gets a file size.
 @return	TRUE if success */

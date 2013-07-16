@@ -1,3 +1,0 @@
-show variables like 'innodb_use_sys_stats%';
-Variable_name	Value
-innodb_use_sys_stats_table	ON

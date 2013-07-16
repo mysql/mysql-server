@@ -400,7 +400,9 @@ log_group_read_log_seg(
 	byte*		buf,		/*!< in: buffer where to read */
 	log_group_t*	group,		/*!< in: log group */
 	ib_uint64_t	start_lsn,	/*!< in: read area start */
-	ib_uint64_t	end_lsn);	/*!< in: read area end */
+	ib_uint64_t	end_lsn,	/*!< in: read area end */
+	ibool		release_mutex);	/*!< in: whether the log_sys->mutex
+				        should be released before the read */
 /******************************************************//**
 Writes a buffer to a log file group. */
 UNIV_INTERN

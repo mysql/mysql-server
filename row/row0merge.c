@@ -2857,7 +2857,7 @@ row_merge_build_indexes(
 	}
 
 	if (trx->mysql_thd && thd_expand_fast_index_creation(trx->mysql_thd))
-	    dict_update_statistics(new_table, FALSE, TRUE);
+		dict_update_statistics(new_table, FALSE, TRUE, FALSE);
 
 func_exit:
 	row_merge_file_destroy_low(tmpfd);

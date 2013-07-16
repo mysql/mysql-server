@@ -1,9 +1,0 @@
-SELECT sleep(2);
-sleep(2)
-0
-set log_slow_verbosity=innodb;
-SELECT sleep(2);
-sleep(2)
-0
-FLUSH LOGS;
-1

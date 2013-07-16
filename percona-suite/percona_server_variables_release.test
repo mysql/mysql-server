@@ -1,2 +1,0 @@
---source include/have_nodebug.inc
---source include/percona_server_variables.inc
