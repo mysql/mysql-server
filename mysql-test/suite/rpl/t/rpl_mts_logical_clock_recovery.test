@@ -51,7 +51,7 @@ SET GLOBAL DEBUG ='$saved_debug';
 START SLAVE;
 -- source include/wait_until_disconnected.inc
 -- let $rpl_server_number= 2
--- source include/rpl_start_server.inc 
+-- source include/rpl_start_server.inc
 -- enable_reconnect
 -- echo # Reconnecting to the slave server
 -- source include/wait_until_connected_again.inc
@@ -66,7 +66,7 @@ START SLAVE UNTIL SQL_AFTER_MTS_GAPS;
 
 # we need to send an additional event since the UNTIL CONDITION
 # needs an aditional event after the failed group to stop the slave
-# due to buf in until conditions 
+# due to buf in until conditions
 -- connection master
 CREATE TABLE t5 (a int);
 
