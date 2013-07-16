@@ -150,6 +150,7 @@ read_view_create_low(
 {
 	if (view == NULL) {
 		view = ut_malloc(sizeof(read_view_t));
+		srv_read_views_memory += sizeof(read_view_t);
 		view->max_descr = 0;
 		view->descriptors = NULL;
 	}
@@ -159,6 +160,8 @@ read_view_create_low(
 		/* avoid frequent re-allocations by extending the array to the
 		desired size + 10% */
 
+		srv_read_views_memory += (n + n / 10 - view->max_descr) *
+			sizeof(trx_id_t);
 		view->max_descr = n + n / 10;
 		view->descriptors = ut_realloc(view->descriptors,
 					       view->max_descr *
@@ -369,6 +372,9 @@ read_view_free(
 	read_view_t*	view)	/*< in: read view */
 {
 	ut_ad(mutex_own(&kernel_mutex));
+
+	srv_read_views_memory -= sizeof(read_view_t) +
+		view->max_descr * sizeof(trx_id_t);
 
 	if (view->descriptors != NULL) {
 		ut_free(view->descriptors);

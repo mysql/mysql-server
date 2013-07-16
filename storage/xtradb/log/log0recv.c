@@ -553,7 +553,8 @@ recv_copy_group(
 		}
 
 		log_group_read_log_seg(LOG_RECOVER, log_sys->buf,
-				       up_to_date_group, start_lsn, end_lsn);
+				       up_to_date_group, start_lsn, end_lsn,
+				       FALSE);
 
 		len = (ulint) (end_lsn - start_lsn);
 
@@ -597,7 +598,7 @@ recv_synchronize_groups(
 	ut_a(start_lsn != end_lsn);
 
 	log_group_read_log_seg(LOG_RECOVER, recv_sys->last_block,
-			       up_to_date_group, start_lsn, end_lsn);
+			       up_to_date_group, start_lsn, end_lsn, FALSE);
 
 	group = UT_LIST_GET_FIRST(log_sys->log_groups);
 
@@ -1716,19 +1717,6 @@ recv_recover_page_func(
 	}
 #endif /* UNIV_ZIP_DEBUG */
 
-	mutex_enter(&(recv_sys->mutex));
-
-	if (recv_max_page_lsn < page_lsn) {
-		recv_max_page_lsn = page_lsn;
-	}
-
-	recv_addr->state = RECV_PROCESSED;
-
-	ut_a(recv_sys->n_addrs);
-	recv_sys->n_addrs--;
-
-	mutex_exit(&(recv_sys->mutex));
-
 #ifndef UNIV_HOTBACKUP
 	if (modification_to_page) {
 		ut_a(block);
@@ -1745,6 +1733,20 @@ recv_recover_page_func(
 	mtr.modifications = FALSE;
 
 	mtr_commit(&mtr);
+
+	mutex_enter(&(recv_sys->mutex));
+
+	if (recv_max_page_lsn < page_lsn) {
+		recv_max_page_lsn = page_lsn;
+	}
+
+	recv_addr->state = RECV_PROCESSED;
+
+	ut_a(recv_sys->n_addrs);
+	recv_sys->n_addrs--;
+
+	mutex_exit(&(recv_sys->mutex));
+
 }
 
 #ifndef UNIV_HOTBACKUP
@@ -2894,7 +2896,7 @@ recv_group_scan_log_recs(
 		end_lsn = start_lsn + RECV_SCAN_SIZE;
 
 		log_group_read_log_seg(LOG_RECOVER, log_sys->buf,
-				       group, start_lsn, end_lsn);
+				       group, start_lsn, end_lsn, FALSE);
 
 		finished = recv_scan_log_recs(
 			(buf_pool_get_n_pages()

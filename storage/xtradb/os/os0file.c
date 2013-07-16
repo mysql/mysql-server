@@ -21,7 +21,7 @@ Public License for more details.
 
 You should have received a copy of the GNU General Public License along
 with this program; if not, write to the Free Software Foundation, Inc.,
-59 Temple Place, Suite 330, Boston, MA 02111-1307 USA
+51 Franklin Street, Fifth Floor, Boston, MA  02110-1301, USA
 
 ***********************************************************************/
 
@@ -64,6 +64,13 @@ Created 10/21/1995 Heikki Tuuri
 
 #ifdef _WIN32
 #define IOCP_SHUTDOWN_KEY (ULONG_PTR)-1
+#endif
+
+#if defined(UNIV_LINUX) && defined(HAVE_SYS_IOCTL_H)
+# include <sys/ioctl.h>
+# ifndef DFS_IOCTL_ATOMIC_WRITE_SET
+#  define DFS_IOCTL_ATOMIC_WRITE_SET _IOW(0x95, 2, uint)
+# endif
 #endif
 
 /* This specifies the file permissions InnoDB uses when it creates files in
@@ -1455,40 +1462,37 @@ os_file_set_nocache(
 }
 
 
-#ifdef __linux__
-#include <sys/ioctl.h>
-#ifndef DFS_IOCTL_ATOMIC_WRITE_SET 
-#define DFS_IOCTL_ATOMIC_WRITE_SET _IOW(0x95, 2, uint)
-#endif
-static int os_file_set_atomic_writes(os_file_t file, const char *name) 
+/****************************************************************//**
+Tries to enable the atomic write feature, if available, for the specified file
+handle.
+@return TRUE if success */
+static __attribute__((warn_unused_result))
+ibool
+os_file_set_atomic_writes(
+/*======================*/
+	const char*	name	/*!< in: name of the file */
+	__attribute__((unused)),
+	os_file_t	file	/*!< in: handle to the file */
+	__attribute__((unused)))
+
 {
-	int atomic_option = 1;
+#ifdef DFS_IOCTL_ATOMIC_WRITE_SET
+	int	atomic_option	= 1;
 
-	int ret = ioctl (file, DFS_IOCTL_ATOMIC_WRITE_SET, &atomic_option);
+	if (ioctl(file, DFS_IOCTL_ATOMIC_WRITE_SET, &atomic_option)) {
 
-	if (ret) {
-		fprintf(stderr, 
-		"InnoDB : can't use atomic write on %s, errno %d\n",
-		name, errno);
-		return ret;
+		os_file_handle_error_no_exit(name, "ioctl");
+		return(FALSE);
 	}
-	return ret;
-}
-#else 
-static int os_file_set_atomic_writes(os_file_t file, const char *name) 
-{
-	fprintf(stderr,
-	"InnoDB : can't use atomic writes on %s - not implemented on this platform."
-	"innodb_use_atomic_writes needs to be 0.\n", 
-	name);
-#ifdef _WIN32
-	SetLastError(ERROR_INVALID_FUNCTION);
+
+	return(TRUE);
 #else
-	errno = EINVAL;
+	fprintf(stderr, "InnoDB: Error: trying to enable atomic writes on "
+		"non-supported platform! Please restart with "
+		"innodb_use_atomic_writes disabled.\n");
+	return(FALSE);
 #endif
-	return -1;
 }
-#endif
 
 /****************************************************************//**
 NOTE! Use the corresponding macro os_file_create(), not directly
@@ -1780,11 +1784,13 @@ try_again:
 		file = -1;
 	}
 #endif /* USE_FILE_LOCK */
-	if (srv_use_atomic_writes && type == OS_DATA_FILE 
-		&& os_file_set_atomic_writes(file, name)) {
-			close(file);
-			*success = FALSE;
-			file = -1;
+
+	if (srv_use_atomic_writes && type == OS_DATA_FILE
+	    && os_file_set_atomic_writes(name, file)) {
+
+		*success = FALSE;
+		close(file);
+		file = -1;
 	}
 
 	return(file);
@@ -1996,7 +2002,6 @@ os_file_close_func(
 #endif
 }
 
-#ifdef UNIV_HOTBACKUP
 /***********************************************************************//**
 Closes a file handle.
 @return	TRUE if success */
@@ -2031,7 +2036,6 @@ os_file_close_no_error_handling(
 	return(TRUE);
 #endif
 }
-#endif /* UNIV_HOTBACKUP */
 
 /***********************************************************************//**
 Gets a file size.
@@ -2131,24 +2135,18 @@ os_file_set_size(
 	desired_size = (ib_int64_t)size + (((ib_int64_t)size_high) << 32);
 
 #ifdef HAVE_POSIX_FALLOCATE
-        if (srv_use_posix_fallocate) {
-		if (posix_fallocate(file, current_size, desired_size) == -1) {
-			fprintf(stderr,
-		 	"InnoDB: Error: preallocating data for"
-			" file %s failed at\n"
-			"InnoDB: offset 0 size %lld %lld. Operating system"
-			" error number %d.\n"
-			"InnoDB: Check that the disk is not full"
-			" or a disk quota exceeded.\n"
-			"InnoDB: Some operating system error numbers"
-			" are described at\n"
-			"InnoDB: "
-			REFMAN "operating-system-error-codes.html\n",
-			name,  (long long)size_high,  (long long)size, errno);
+	if (srv_use_posix_fallocate) {
 
-			return (FALSE);
+		if (posix_fallocate(file, current_size, desired_size) == -1) {
+
+			fprintf(stderr, "InnoDB: Error: preallocating file "
+				"space for file \'%s\' failed.  Current size "
+				"%lld, desired size %lld\n",
+				name, current_size, desired_size);
+			os_file_handle_error_no_exit(name, "posix_fallocate");
+			return(FALSE);
 		}
-		return (TRUE);
+		return(TRUE);
 	}
 #endif
 

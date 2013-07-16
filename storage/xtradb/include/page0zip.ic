@@ -1,6 +1,6 @@
 /*****************************************************************************
 
-Copyright (c) 2005, 2009, Innobase Oy. All Rights Reserved.
+Copyright (c) 2005, 2013, Oracle and/or its affiliates. All Rights Reserved.
 
 This program is free software; you can redistribute it and/or modify it under
 the terms of the GNU General Public License as published by the Free Software
@@ -188,8 +188,8 @@ page_zip_rec_needs_ext(
 		one record on an empty leaf page.  Subtract 1 byte for
 		the encoded heap number.  Check also the available space
 		on the uncompressed page. */
-		return(rec_size - (REC_N_NEW_EXTRA_BYTES - 2)
-		       >= (page_zip_empty_size(n_fields, zip_size) - 1)
+		return(rec_size - (REC_N_NEW_EXTRA_BYTES - 2 - 1)
+		       >= page_zip_empty_size(n_fields, zip_size)
 		       || rec_size >= page_get_free_space_of_empty(TRUE) / 2);
 	}
 
@@ -229,9 +229,7 @@ ibool
 page_zip_get_trailer_len(
 /*=====================*/
 	const page_zip_des_t*	page_zip,/*!< in: compressed page */
-	ibool			is_clust,/*!< in: TRUE if clustered index */
-	ulint*			entry_size)/*!< out: size of the uncompressed
-					portion of a user record */
+	ibool			is_clust)/*!< in: TRUE if clustered index */
 {
 	ulint	uncompressed_size;
 
@@ -250,10 +248,6 @@ page_zip_get_trailer_len(
 		ut_ad(!page_zip->n_blobs);
 	}
 
-	if (entry_size) {
-		*entry_size = uncompressed_size;
-	}
-
 	return((page_dir_get_n_heap(page_zip->data) - 2)
 	       * uncompressed_size
 	       + page_zip->n_blobs * BTR_EXTERN_FIELD_REF_SIZE);
@@ -270,11 +264,9 @@ page_zip_max_ins_size(
 	const page_zip_des_t*	page_zip,/*!< in: compressed page */
 	ibool			is_clust)/*!< in: TRUE if clustered index */
 {
-	ulint	uncompressed_size;
 	ulint	trailer_len;
 
-	trailer_len = page_zip_get_trailer_len(page_zip, is_clust,
-					       &uncompressed_size);
+	trailer_len = page_zip_get_trailer_len(page_zip, is_clust);
 
 	/* When a record is created, a pointer may be added to
 	the dense directory.
@@ -283,7 +275,7 @@ page_zip_max_ins_size(
 	Also the BLOB pointers will be allocated from there, but
 	we may as well count them in the length of the record. */
 
-	trailer_len += uncompressed_size;
+	trailer_len += PAGE_ZIP_DIR_SLOT_SIZE;
 
 	return((lint) page_zip_get_size(page_zip)
 	       - trailer_len - page_zip->m_end
@@ -303,13 +295,11 @@ page_zip_available(
 	ulint			create)	/*!< in: nonzero=add the record to
 					the heap */
 {
-	ulint	uncompressed_size;
 	ulint	trailer_len;
 
 	ut_ad(length > REC_N_NEW_EXTRA_BYTES);
 
-	trailer_len = page_zip_get_trailer_len(page_zip, is_clust,
-					       &uncompressed_size);
+	trailer_len = page_zip_get_trailer_len(page_zip, is_clust);
 
 	/* Subtract the fixed extra bytes and add the maximum
 	space needed for identifying the record (encoded heap_no). */
@@ -323,7 +313,7 @@ page_zip_available(
 		Also the BLOB pointers will be allocated from there, but
 		we may as well count them in the length of the record. */
 
-		trailer_len += uncompressed_size;
+		trailer_len += PAGE_ZIP_DIR_SLOT_SIZE;
 	}
 
 	return(UNIV_LIKELY(length

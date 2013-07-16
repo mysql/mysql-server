@@ -55,49 +55,8 @@ ut_dbg_assertion_failed(
 	ulint		line)	/*!< in: line number of the assertion */
 	UNIV_COLD __attribute__((nonnull(2)));
 
-
-#define UT_DBG_USE_ABORT
-
-
-#ifndef UT_DBG_USE_ABORT
-/** A null pointer that will be dereferenced to trigger a memory trap */
-extern ulint*	ut_dbg_null_ptr;
-#endif
-
-#if defined(UNIV_SYNC_DEBUG) || !defined(UT_DBG_USE_ABORT)
-/** If this is set to TRUE by ut_dbg_assertion_failed(), all threads
-will stop at the next ut_a() or ut_ad(). */
-extern ibool	ut_dbg_stop_threads;
-
-/*************************************************************//**
-Stop a thread after assertion failure. */
-UNIV_INTERN
-void
-ut_dbg_stop_thread(
-/*===============*/
-	const char*	file,
-	ulint		line);
-#endif
-
-#ifdef UT_DBG_USE_ABORT
 /** Abort the execution. */
-#ifdef _WIN32
-# define UT_DBG_PANIC __debugbreak()
-#else
 # define UT_DBG_PANIC abort()
-#endif
-/** Stop threads (null operation) */
-# define UT_DBG_STOP do {} while (0)
-#else /* UT_DBG_USE_ABORT */
-/** Abort the execution. */
-# define UT_DBG_PANIC					\
-	if (*(ut_dbg_null_ptr)) ut_dbg_null_ptr = NULL
-/** Stop threads in ut_a(). */
-# define UT_DBG_STOP do						\
-	if (UNIV_UNLIKELY(ut_dbg_stop_threads)) {		\
-		ut_dbg_stop_thread(__FILE__, (ulint) __LINE__);	\
-	} while (0)
-#endif /* UT_DBG_USE_ABORT */
 
 /** Abort execution if EXPR does not evaluate to nonzero.
 @param EXPR	assertion expression that should hold */
@@ -107,7 +66,6 @@ ut_dbg_stop_thread(
 				__FILE__, (ulint) __LINE__);	\
 		UT_DBG_PANIC;					\
 	}							\
-	UT_DBG_STOP;						\
 } while (0)
 
 /** Abort execution. */

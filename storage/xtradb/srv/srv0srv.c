@@ -1,6 +1,6 @@
 /*****************************************************************************
 
-Copyright (c) 1995, 2012, Oracle and/or its affiliates. All Rights Reserved.
+Copyright (c) 1995, 2013, Oracle and/or its affiliates. All Rights Reserved.
 Copyright (c) 2008, 2009 Google Inc.
 Copyright (c) 2009, Percona Inc.
 
@@ -317,7 +317,7 @@ UNIV_INTERN ulong srv_rollback_segments = TRX_SYS_N_RSEGS;
 /* Internal setting for "innodb_stats_method". Decides how InnoDB treats
 NULL value when collecting statistics. By default, it is set to
 SRV_STATS_NULLS_EQUAL(0), ie. all NULL value are treated equal */
-ulong srv_innodb_stats_method = SRV_STATS_NULLS_EQUAL;
+UNIV_INTERN ulong srv_innodb_stats_method = SRV_STATS_NULLS_EQUAL;
 
 /** Time in seconds between automatic buffer pool dumps */
 UNIV_INTERN uint srv_auto_lru_dump = 0;
@@ -409,10 +409,11 @@ UNIV_INTERN ulong	srv_sys_stats_root_page = 0;
 #endif
 
 UNIV_INTERN ibool	srv_use_doublewrite_buf	= TRUE;
-UNIV_INTERN ibool	srv_use_atomic_writes = FALSE;
+UNIV_INTERN ibool       srv_use_atomic_writes = FALSE;
 #ifdef HAVE_POSIX_FALLOCATE
-UNIV_INTERN ibool	srv_use_posix_fallocate = TRUE;
+UNIV_INTERN ibool       srv_use_posix_fallocate = FALSE;
 #endif
+
 UNIV_INTERN ibool	srv_use_checksums = TRUE;
 UNIV_INTERN ibool	srv_fast_checksum = FALSE;
 
@@ -466,6 +467,9 @@ UNIV_INTERN ulint		srv_n_rows_inserted CACHE_ALIGNED	= 0;
 UNIV_INTERN ulint		srv_n_rows_updated CACHE_ALIGNED	= 0;
 UNIV_INTERN ulint		srv_n_rows_deleted CACHE_ALIGNED	= 0;
 UNIV_INTERN ulint		srv_n_rows_read CACHE_ALIGNED		= 0;
+
+UNIV_INTERN ulint		srv_read_views_memory CACHE_ALIGNED	= 0;
+UNIV_INTERN ulint		srv_descriptors_memory CACHE_ALIGNED	= 0;
 
 UNIV_INTERN ulint		srv_n_lock_deadlock_count CACHE_ALIGNED	= 0;
 UNIV_INTERN ulint		srv_n_lock_wait_count CACHE_ALIGNED	= 0;
@@ -1925,7 +1929,8 @@ srv_suspend_mysql_thread(
 			finish_time = (ib_int64_t) sec * 1000000 + ms;
 		}
 
-		diff_time = (ulint) (finish_time - start_time);
+		diff_time = (finish_time > start_time) ?
+			    (ulint) (finish_time - start_time) : 0;
 
 		srv_n_lock_wait_current_count--;
 		srv_n_lock_wait_time = srv_n_lock_wait_time + diff_time;
@@ -2136,6 +2141,9 @@ srv_printf_innodb_monitor(
 			"; in additional pool allocated " ULINTPF "\n",
 			ut_total_allocated_memory,
 			mem_pool_get_reserved(mem_comm_pool));
+	fprintf(file,
+		"Total memory allocated by read views " ULINTPF "\n",
+		srv_read_views_memory);
 	/* Calcurate reserved memories */
 	if (btr_search_sys && btr_search_sys->hash_index[0]->heap) {
 		btr_search_sys_subtotal = mem_heap_get_size(btr_search_sys->hash_index[0]->heap);
@@ -2221,6 +2229,12 @@ srv_printf_innodb_monitor(
 
 	fprintf(file, "%lu read views open inside InnoDB\n",
 		UT_LIST_GET_LEN(trx_sys->view_list));
+
+	fprintf(file, "%lu transactions active inside InnoDB\n",
+		UT_LIST_GET_LEN(trx_sys->trx_list));
+
+	fprintf(file, "%lu out of %lu descriptors used\n",
+		trx_sys->descr_n_used, trx_sys->descr_n_max);
 
 	if (UT_LIST_GET_LEN(trx_sys->view_list)) {
 		read_view_t*	view = UT_LIST_GET_LAST(trx_sys->view_list);
@@ -2531,21 +2545,35 @@ srv_export_innodb_status(void)
 	export_vars.innodb_rows_updated = srv_n_rows_updated;
 	export_vars.innodb_rows_deleted = srv_n_rows_deleted;
 	export_vars.innodb_truncated_status_writes = srv_truncated_status_writes;
+	export_vars.innodb_read_views_memory = srv_read_views_memory;
+	export_vars.innodb_descriptors_memory = srv_descriptors_memory;
 
 #ifdef UNIV_DEBUG
-	if (trx_sys->max_trx_id < purge_sys->done_trx_no) {
-		export_vars.innodb_purge_trx_id_age = 0;
-	} else {
-		export_vars.innodb_purge_trx_id_age =
-		  trx_sys->max_trx_id - purge_sys->done_trx_no;
-	}
+	{
+		trx_id_t	done_trx_no;
+		trx_id_t	up_limit_id;
 
-	if (!purge_sys->view
-	    || trx_sys->max_trx_id < purge_sys->view->up_limit_id) {
-		export_vars.innodb_purge_view_trx_id_age = 0;
-	} else {
-		export_vars.innodb_purge_view_trx_id_age =
-		  trx_sys->max_trx_id - purge_sys->view->up_limit_id;
+		rw_lock_s_lock(&purge_sys->latch);
+		done_trx_no	= purge_sys->done_trx_no;
+		up_limit_id	= purge_sys->view
+			? purge_sys->view->up_limit_id
+			: 0;
+		rw_lock_s_unlock(&purge_sys->latch);
+
+		if (trx_sys->max_trx_id < done_trx_no) {
+			export_vars.innodb_purge_trx_id_age = 0;
+		} else {
+			export_vars.innodb_purge_trx_id_age =
+				trx_sys->max_trx_id - done_trx_no;
+		}
+
+		if (!up_limit_id
+		    || trx_sys->max_trx_id < up_limit_id) {
+			export_vars.innodb_purge_view_trx_id_age = 0;
+		} else {
+			export_vars.innodb_purge_view_trx_id_age =
+				trx_sys->max_trx_id - up_limit_id;
+		}
 	}
 #endif /* UNIV_DEBUG */
 

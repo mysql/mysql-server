@@ -730,6 +730,8 @@ ut_strerr(
                 return("Operation was interrupted by end user");
 	case DB_TABLE_IN_FK_CHECK:
 		return("Table is being used in foreign key check");
+	case DB_IDENTIFIER_TOO_LONG:
+		return("Identifier name is too long");
 	/* do not add default: in order to produce a warning if new code
 	is added to the enum but not added here */
 	}

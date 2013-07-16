@@ -220,7 +220,7 @@ not_to_recover:
 
 	ut_ad(buf_page_in_file(bpage));
 
-	if(sync) {
+	if (sync) {
 		thd_wait_begin(NULL, THD_WAIT_DISKIO);
 	}
 

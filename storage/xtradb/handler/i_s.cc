@@ -53,7 +53,7 @@ extern "C" {
 #include "dict0mem.h"
 #include "dict0types.h"
 #include "ha_prototypes.h" /* for innobase_convert_name() */
-#include "srv0srv.h" /* for srv_track_changed_pages */
+#include "srv0srv.h" /* for srv_max_changed_pages */
 #include "srv0start.h" /* for srv_was_started */
 #include "trx0i_s.h"
 #include "trx0trx.h" /* for TRX_QUE_STATE_STR_MAX_LEN */
@@ -2273,6 +2273,7 @@ i_s_innodb_buffer_stats_fill_table(
 	buf_pool_info_t*	pool_info;
 
 	DBUG_ENTER("i_s_innodb_buffer_fill_general");
+	RETURN_IF_INNODB_NOT_STARTED(tables->schema_table_name);
 
 	/* Only allow the PROCESS privilege holder to access the stats */
         if (check_global_access(thd, PROCESS_ACL, true)) {
@@ -2883,6 +2884,7 @@ i_s_innodb_fill_buffer_pool(
 	mem_heap_t*		heap;
 
 	DBUG_ENTER("i_s_innodb_fill_buffer_pool");
+	RETURN_IF_INNODB_NOT_STARTED(tables->schema_table_name);
 
 	heap = mem_heap_create(10000);
 
@@ -2923,7 +2925,8 @@ i_s_innodb_fill_buffer_pool(
 				i_s_innodb_buffer_page_get_info(
 					&block->page, pool_id, block_id,
 					info_buffer + num_page);
-				mutex_exit(block_mutex);
+				if (block_mutex)
+					mutex_exit(block_mutex);
 				block_id++;
 				num_page++;
 			}
@@ -3443,7 +3446,6 @@ i_s_innodb_fill_buffer_lru(
 	mutex_t*		block_mutex;
 
 	DBUG_ENTER("i_s_innodb_fill_buffer_lru");
-
 	RETURN_IF_INNODB_NOT_STARTED(tables->schema_table_name);
 
 	/* Obtain buf_pool mutex before allocate info_buffer, since
@@ -7332,6 +7334,7 @@ i_s_innodb_changed_pages_fill(
 	ib_uint64_t		output_rows_num = 0UL;
 	ib_uint64_t		max_lsn = IB_ULONGLONG_MAX;
 	ib_uint64_t		min_lsn = 0ULL;
+	int			ret = 0;
 
 	DBUG_ENTER("i_s_innodb_changed_pages_fill");
 
@@ -7342,10 +7345,6 @@ i_s_innodb_changed_pages_fill(
 	}
 
 	RETURN_IF_INNODB_NOT_STARTED(tables->schema_table_name);
-
-	if (!srv_track_changed_pages) {
-		DBUG_RETURN(0);
-	}
 
 	if (cond) {
 		limit_lsn_range_from_condition(table, cond, &min_lsn,
@@ -7422,8 +7421,13 @@ i_s_innodb_changed_pages_fill(
 		++output_rows_num;
 	}
 
+	if (i.failed) {
+		my_error(ER_CANT_FIND_SYSTEM_REC, MYF(0));
+		ret = 1;
+	}
+
 	log_online_bitmap_iterator_release(&i);
-	DBUG_RETURN(0);
+	DBUG_RETURN(ret);
 }
 
 static

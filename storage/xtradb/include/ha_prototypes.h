@@ -1,6 +1,6 @@
 /*****************************************************************************
 
-Copyright (c) 2006, 2010, Innobase Oy. All Rights Reserved.
+Copyright (c) 2000, 2013, Oracle and/or its affiliates. All Rights Reserved.
 
 This program is free software; you can redistribute it and/or modify it under
 the terms of the GNU General Public License as published by the Free Software
@@ -322,5 +322,36 @@ thd_merge_sort_block_size(
 /*======================*/
 	void* thd); /*!< in: thread handle (THD*), or NULL to query
 			the global merge_sort_block_size */
+
+/**********************************************************************
+Check if the length of the identifier exceeds the maximum allowed.
+The input to this function is an identifier in charset my_charset_filename.
+return true when length of identifier is too long. */
+UNIV_INTERN
+my_bool
+innobase_check_identifier_length(
+/*=============================*/
+	const char*	id);	/* in: identifier to check.  it must belong
+				to charset my_charset_filename */
+
+/**********************************************************************
+Converts an identifier from my_charset_filename to UTF-8 charset. */
+uint
+innobase_convert_to_system_charset(
+/*===============================*/
+	char*           to,		/* out: converted identifier */
+	const char*     from,		/* in: identifier to convert */
+	ulint           len,		/* in: length of 'to', in bytes */
+	uint*		errors);	/* out: error return */
+
+/**********************************************************************
+Converts an identifier from my_charset_filename to UTF-8 charset. */
+uint
+innobase_convert_to_filename_charset(
+/*=================================*/
+	char*           to,     /* out: converted identifier */
+	const char*     from,   /* in: identifier to convert */
+	ulint           len);   /* in: length of 'to', in bytes */
+
 
 #endif

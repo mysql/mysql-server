@@ -135,6 +135,7 @@ trx_reserve_descriptor(
 				   n_max * sizeof(trx_id_t));
 
 		trx_sys->descr_n_max = n_max;
+		srv_descriptors_memory = n_max * sizeof(trx_id_t);
 	}
 
 	descr = trx_sys->descriptors + n_used - 1;
@@ -219,7 +220,7 @@ trx_create(
 	ut_ad(mutex_own(&kernel_mutex));
 	ut_ad(sess);
 
-	trx = mem_alloc(sizeof(trx_t));
+	trx = ut_malloc(sizeof(trx_t));
 
 	trx->magic_n = TRX_MAGIC_N;
 
@@ -487,7 +488,7 @@ trx_free(
 
 	trx_release_descriptor(trx);
 
-	mem_free(trx);
+	ut_free(trx);
 }
 
 /********************************************************************//**
@@ -545,7 +546,7 @@ trx_free_prepared(
 
 	ut_ad(trx_sys->descr_n_used <= UT_LIST_GET_LEN(trx_sys->trx_list));
 
-	mem_free(trx);
+	ut_free(trx);
 }
 
 /********************************************************************//**
@@ -1090,6 +1091,18 @@ trx_write_serialisation_history(
 			trx->mysql_master_log_file_name,
 			trx->mysql_master_log_pos,
 			TRX_SYS_COMMIT_MASTER_LOG_INFO, &mtr);
+
+		trx_sys_update_mysql_binlog_offset(
+			sys_header,
+			trx->mysql_relay_log_file_name,
+			trx->mysql_relay_log_pos,
+			TRX_SYS_MYSQL_RELAY_LOG_INFO, &mtr);
+
+		trx_sys_update_mysql_binlog_offset(
+			sys_header,
+			trx->mysql_master_log_file_name,
+			trx->mysql_master_log_pos,
+			TRX_SYS_MYSQL_MASTER_LOG_INFO, &mtr);
 
 		trx->mysql_master_log_file_name = "";
 	}
