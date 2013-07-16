@@ -10147,7 +10147,10 @@ bool Create_field::init(THD *thd, char *fld_name, enum_field_types fld_type,
   case MYSQL_TYPE_BIT:
     {
       if (!fld_length)
-        length= 1;
+      {
+        my_error(ER_INVALID_FIELD_SIZE, MYF(0), fld_name);
+        DBUG_RETURN(TRUE);
+      }
       if (length > MAX_BIT_FIELD_LENGTH)
       {
         my_error(ER_TOO_BIG_DISPLAYWIDTH, MYF(0), fld_name,

@@ -3,28 +3,12 @@ drop table if exists t1;
 create table t1 (a bit(65), primary key (a)) engine='MyISAM' partition by key (a);
 ERROR 42000: Display width out of range for column 'a' (max = 64)
 create table t1 (a bit(0), primary key (a)) engine='MyISAM' partition by key (a);
-show create table t1;
-Table	Create Table
-t1	CREATE TABLE `t1` (
-  `a` bit(1) NOT NULL DEFAULT b'0',
-  PRIMARY KEY (`a`)
-) ENGINE=MyISAM DEFAULT CHARSET=latin1
-/*!50100 PARTITION BY KEY (a) */
-drop table t1;
+ERROR HY000: Invalid size for column 'a'.
 create table t1 (a bit(0), primary key (a)) engine='MyISAM' 
 partition by key (a) (
 partition pa1,
 partition pa2);
-show create table t1;
-Table	Create Table
-t1	CREATE TABLE `t1` (
-  `a` bit(1) NOT NULL DEFAULT b'0',
-  PRIMARY KEY (`a`)
-) ENGINE=MyISAM DEFAULT CHARSET=latin1
-/*!50100 PARTITION BY KEY (a)
-(PARTITION pa1 ENGINE = MyISAM,
- PARTITION pa2 ENGINE = MyISAM) */
-drop table t1;
+ERROR HY000: Invalid size for column 'a'.
 create table t1 (a bit(64), primary key (a)) engine='MyISAM' 
 partition by key (a) partitions 2;
 show create table t1;
