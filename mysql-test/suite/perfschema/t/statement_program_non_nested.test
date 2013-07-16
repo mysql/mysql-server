@@ -8,9 +8,9 @@
 TRUNCATE TABLE performance_schema.events_statements_summary_by_program;
 TRUNCATE TABLE performance_schema.events_statements_history_long;
 
---echo ###########################################
---echo # Quering PS statement summary and history #
---echo ########################################### 
+--echo ################################################
+--echo # Quering PS statement summary and history_long#
+--echo ################################################ 
 
 --source suite/perfschema/include/program_setup.inc
 # Stored programs donot get into PS tables just after creation. 

@@ -1,7 +1,9 @@
-#--------------------------------------------------------------------
+#-------------------------------------------------------------
+# Tests for PERFORMANCE_SCHEMA stored programs instrumentation  
+#-------------------------------------------------------------
+
 # Test to check the values populated in NESTING_EVENT_TYPE 
 # columns of events_statements_current/history/history_long PS tables. 
-#--------------------------------------------------------------------
 
 --source include/not_embedded.inc
 --source include/have_perfschema.inc
@@ -22,11 +24,11 @@ SELECT EVENT_NAME, OBJECT_NAME, NESTING_EVENT_TYPE, NESTING_EVENT_LEVEL
 
 SELECT EVENT_NAME, OBJECT_NAME, NESTING_EVENT_TYPE, NESTING_EVENT_LEVEL
        FROM performance_schema.events_statements_history WHERE
-       CURRENT_SCHEMA='stored_programs' ORDER BY OBJECT_NAME;
+       CURRENT_SCHEMA='stored_programs' ORDER BY OBJECT_NAME,NESTING_EVENT_LEVEL;
 
 SELECT EVENT_NAME, OBJECT_NAME, NESTING_EVENT_TYPE, NESTING_EVENT_LEVEL
        FROM performance_schema.events_statements_history_long WHERE
-       CURRENT_SCHEMA='stored_programs' ORDER BY OBJECT_NAME;
+       CURRENT_SCHEMA='stored_programs' ORDER BY OBJECT_NAME,NESTING_EVENT_LEVEL;
 
 TRUNCATE TABLE performance_schema.events_statements_history;
 TRUNCATE TABLE performance_schema.events_statements_history_long;
@@ -47,11 +49,11 @@ SELECT EVENT_NAME, OBJECT_NAME, NESTING_EVENT_TYPE, NESTING_EVENT_LEVEL
 
 SELECT EVENT_NAME, OBJECT_NAME, NESTING_EVENT_TYPE, NESTING_EVENT_LEVEL
        FROM performance_schema.events_statements_history WHERE
-       CURRENT_SCHEMA='nested_sp' ORDER BY OBJECT_NAME;
+       CURRENT_SCHEMA='nested_sp' ORDER BY OBJECT_NAME,NESTING_EVENT_LEVEL;
 
 SELECT EVENT_NAME, OBJECT_NAME, NESTING_EVENT_TYPE, NESTING_EVENT_LEVEL
        FROM performance_schema.events_statements_history_long WHERE
-       CURRENT_SCHEMA='nested_sp' ORDER BY OBJECT_NAME;
+       CURRENT_SCHEMA='nested_sp' ORDER BY OBJECT_NAME,NESTING_EVENT_LEVEL;
 
 TRUNCATE TABLE performance_schema.events_statements_history;
 TRUNCATE TABLE performance_schema.events_statements_history_long;

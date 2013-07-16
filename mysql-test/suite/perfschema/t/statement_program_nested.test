@@ -8,9 +8,9 @@
 TRUNCATE TABLE performance_schema.events_statements_summary_by_program;
 TRUNCATE TABLE performance_schema.events_statements_history_long;
 
---echo ###########################################
---echo # Quering PS statement summary and history #
---echo ###########################################
+--echo #################################################
+--echo # Quering PS statement summary and history_long #
+--echo #################################################
 
 --source suite/perfschema/include/program_nested_setup.inc
 # Stored programs donot get into PS tables just after creation. 
@@ -24,7 +24,7 @@ SELECT OBJECT_TYPE, OBJECT_SCHEMA, OBJECT_NAME, COUNT_STAR, COUNT_STATEMENTS
 SELECT EVENT_NAME, SQL_TEXT, CURRENT_SCHEMA, OBJECT_TYPE, OBJECT_SCHEMA,
        OBJECT_NAME, NESTING_EVENT_TYPE, NESTING_EVENT_LEVEL 
        FROM performance_schema.events_statements_history_long WHERE
-       CURRENT_SCHEMA='nested_sp' ORDER BY OBJECT_NAME;
+       CURRENT_SCHEMA='nested_sp' ORDER BY OBJECT_NAME,NESTING_EVENT_LEVEL;
 
 SELECT OBJECT_TYPE, OBJECT_SCHEMA, OBJECT_NAME, COUNT_STAR, COUNT_STATEMENTS 
        FROM performance_schema.events_statements_summary_by_program
