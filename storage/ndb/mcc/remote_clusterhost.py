@@ -32,6 +32,11 @@ from clusterhost import ABClusterHost
 
 _logger = logging.getLogger(__name__)
 
+def quote_if_contains_space(s):
+    if ' ' in s:
+        return '"'+s+'"'
+    return s
+
 class RemoteExecException(clusterhost.ExecException):
     """Exception type thrown whenever os-command execution fails on 
     a remote host. """
@@ -279,7 +284,7 @@ class RemoteClusterHost(ABClusterHost):
         """
 
         assert isinstance(cmdv, list)
-        return self._exec_cmdln(' '.join([a.replace(' ', '\\ ') for a in cmdv]), procCtrl, stdinFile)
+        return self._exec_cmdln(' '.join([quote_if_contains_space(a) for a in cmdv]), procCtrl, stdinFile)
 
 
     def execute_command(self, cmdv, inFile=None):
@@ -288,7 +293,7 @@ class RemoteClusterHost(ABClusterHost):
         cmdv - complete command vector (argv) of the OS command.
         inFile - File-like object providing stdin to the command.
         """
-        cmdln = ' '.join([a.replace(' ', '\\ ') for a in cmdv])
+        cmdln = ' '.join([quote_if_contains_space(a) for a in cmdv])
         _logger.debug('cmdln='+cmdln)
 
         with contextlib.closing(self.client.get_transport().open_session()) as chan:
