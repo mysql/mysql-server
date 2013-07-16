@@ -74,6 +74,7 @@ bool use_slave_mask = 0;
 MY_BITMAP slave_error_mask;
 char slave_skip_error_names[SHOW_VAR_FUNC_BUFF_SIZE];
 
+static unsigned long stop_wait_timeout;
 char* slave_load_tmpdir = 0;
 Master_info *active_mi= 0;
 my_bool replicate_same_server_id;
@@ -211,6 +212,7 @@ static int get_master_uuid(MYSQL *mysql, Master_info *mi);
 int io_thread_init_commands(MYSQL *mysql, Master_info *mi);
 static Log_event* next_event(Relay_log_info* rli);
 static int queue_event(Master_info* mi,const char* buf,ulong event_len);
+static void set_stop_slave_wait_timeout(unsigned long wait_timeout);
 static int terminate_slave_thread(THD *thd,
                                   mysql_mutex_t *term_lock,
                                   mysql_cond_t *term_cond,
@@ -685,6 +687,10 @@ static void print_slave_skip_errors(void)
   DBUG_VOID_RETURN;
 }
 
+static void set_stop_slave_wait_timeout(unsigned long wait_timeout) {
+  stop_wait_timeout = wait_timeout;
+}
+
 /**
  Change arg to the string with the nice, human-readable skip error values.
    @param slave_skip_errors_ptr
@@ -834,6 +840,7 @@ int terminate_slave_threads(Master_info* mi,int thread_mask,bool need_lock_term)
   int error,force_all = (thread_mask & SLAVE_FORCE_ALL);
   mysql_mutex_t *sql_lock = &mi->rli->run_lock, *io_lock = &mi->run_lock;
   mysql_mutex_t *log_lock= mi->rli->relay_log.get_log_lock();
+  set_stop_slave_wait_timeout(rpl_stop_slave_timeout);
 
   if (thread_mask & (SLAVE_SQL|SLAVE_FORCE_ALL))
   {
@@ -847,6 +854,10 @@ int terminate_slave_threads(Master_info* mi,int thread_mask,bool need_lock_term)
     {
       delete mi->rli->current_mts_submode;
       mi->rli->current_mts_submode= 0;
+      if (error == 1)
+      {
+        DBUG_RETURN(ER_STOP_SLAVE_SQL_THREAD_TIMEOUT);
+      }
       DBUG_RETURN(error);
     }
     delete mi->rli->current_mts_submode;
@@ -877,8 +888,13 @@ int terminate_slave_threads(Master_info* mi,int thread_mask,bool need_lock_term)
                                       &mi->slave_running,
                                       need_lock_term)) &&
         !force_all)
+    {
+      if (error == 1)
+      {
+        DBUG_RETURN(ER_STOP_SLAVE_IO_THREAD_TIMEOUT);
+      }
       DBUG_RETURN(error);
-
+    }
     mysql_mutex_lock(log_lock);
 
     DBUG_PRINT("info",("Flushing relay log and master info repository."));
@@ -937,7 +953,7 @@ int terminate_slave_threads(Master_info* mi,int thread_mask,bool need_lock_term)
           the condition. In this case, it is assumed that the calling
           function acquires the lock before calling this function.
 
-   @retval 0 All OK ER_SLAVE_NOT_RUNNING otherwise.
+   @retval 0 All OK, 1 on "STOP SLAVE" command timeout, ER_SLAVE_NOT_RUNNING otherwise.
 
    @note  If the executing thread has to acquire term_lock
           (need_lock_term is true, the negative running status does not
@@ -1007,6 +1023,14 @@ terminate_slave_thread(THD *thd,
     struct timespec abstime;
     set_timespec(abstime,2);
     error= mysql_cond_timedwait(term_cond, term_lock, &abstime);
+    if (stop_wait_timeout >= 2)
+      stop_wait_timeout= stop_wait_timeout - 2;
+    else if (*slave_running)
+    {
+      if (need_lock_term)
+        mysql_mutex_unlock(term_lock);
+      DBUG_RETURN (1);
+    }
     DBUG_ASSERT(error == ETIMEDOUT || error == 0);
   }
 
@@ -3422,13 +3446,18 @@ apply_event_and_update_pos(Log_event** ptr_ev, THD* thd, Relay_log_info* rli)
                 (rli->current_mts_submode)->defer_new_group))
             rli->last_assigned_worker= NULL;
         }
+        /* 
+           Stroring GAQ index of the group that the event belongs to
+           in the event. Deferred events are handled similarly below.
+        */
+        ev->mts_group_idx= rli->gaq->assigned_group_index;
 
         bool append_item_to_jobs_error= false;
         if (rli->curr_group_da.elements > 0)
         {
           /*
-            the current event sorted out which partion the current group belongs to.
-            It's time now to processed deferred array events.
+            the current event sorted out which partion the current group
+            belongs to. It's time now to processed deferred array events.
           */
           for (uint i= 0; i < rli->curr_group_da.elements; i++)
           { 
@@ -3436,6 +3465,8 @@ apply_event_and_update_pos(Log_event** ptr_ev, THD* thd, Relay_log_info* rli)
             get_dynamic(&rli->curr_group_da, (uchar*) &da_item.data, i);
             DBUG_PRINT("mts", ("Assigning job %llu to worker %lu",
                       ((Log_event* )da_item.data)->log_pos, w->id));
+            static_cast<Log_event*>(da_item.data)->mts_group_idx=
+              rli->gaq->assigned_group_index; // similarly to above
             if (!append_item_to_jobs_error)
               append_item_to_jobs_error= append_item_to_jobs(&da_item, w, rli);
             if (append_item_to_jobs_error)
@@ -5226,8 +5257,6 @@ void slave_stop_workers(Relay_log_info *rli, bool *mts_inited)
   int i;
   THD *thd= rli->info_thd;
 
-  mysql_mutex_assert_owner(&rli->run_lock);
-
   if (!*mts_inited) 
     return;
   else if (rli->slave_parallel_workers == 0)
@@ -5681,7 +5710,6 @@ llstr(rli->get_group_master_log_pos(), llbuff));
 
  err:
 
-  mysql_mutex_lock(&rli->run_lock);
   slave_stop_workers(rli, &mts_inited); // stopping worker pool
   if (rli->recovery_groups_inited)
   {
@@ -5708,6 +5736,7 @@ llstr(rli->get_group_master_log_pos(), llbuff));
   thd->reset_db(NULL, 0);
 
   THD_STAGE_INFO(thd, stage_waiting_for_slave_mutex_on_exit);
+  mysql_mutex_lock(&rli->run_lock);
   /* We need data_lock, at least to wake up any waiting master_pos_wait() */
   mysql_mutex_lock(&rli->data_lock);
   DBUG_ASSERT(rli->slave_running == 1); // tracking buffer overrun
@@ -7998,6 +8027,13 @@ int stop_slave(THD* thd, Master_info* mi, bool net_report )
 
   if (slave_errno)
   {
+    if ((slave_errno == ER_STOP_SLAVE_SQL_THREAD_TIMEOUT) ||
+        (slave_errno == ER_STOP_SLAVE_IO_THREAD_TIMEOUT))
+    {
+      push_warning(thd, Sql_condition::SL_NOTE, slave_errno,
+                   ER(slave_errno));
+      sql_print_warning("%s",ER(slave_errno));
+    }
     if (net_report)
       my_message(slave_errno, ER(slave_errno), MYF(0));
     DBUG_RETURN(1);

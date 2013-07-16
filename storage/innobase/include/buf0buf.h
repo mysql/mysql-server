@@ -637,8 +637,12 @@ buf_page_is_corrupted(
 	/* these variables are used only for innochecksum tool. */
 	,ullint		page_no,	/*!< in: page number of
 					given read_buf */
-	bool		strict_check	/*!< in: true if strict-check
+	bool		strict_check,	/*!< in: true if strict-check
 					option is enable */
+	bool		is_log_enabled, /*!< in: true if log option is
+					enable */
+	FILE*		log_file	/*!< in: file pointer to
+					log_file*/
 #endif /* UNIV_INNOCHECKSUM */
 )
 	__attribute__((nonnull, warn_unused_result));
