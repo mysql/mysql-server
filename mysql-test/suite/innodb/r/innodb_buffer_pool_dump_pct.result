@@ -1,40 +1,44 @@
-# set the environmental variables
-# create a table
+# Set the environmental variables
+# Create a table
 CREATE TABLE tab5 (col1 int auto_increment primary key,
 col2 VARCHAR(25), col3 varchar(25)) ENGINE=InnoDB;
-# create indexes
+# Create indexes
 CREATE INDEX idx1 ON tab5(col2(10));
 CREATE INDEX idx2 ON tab5(col3(10));
-# insert a sample record
+# Insert a sample record
 INSERT INTO tab5(col2,col3) VALUES('Test for wl6504','Test for dump pct');
-# set the dump file name
+# Set the dump file name
 SET GLOBAL innodb_buffer_pool_filename=ib_buffer_pool100;
-# check the dump %age is default
+# Check the dump percentage is default
 SELECT @@global.innodb_buffer_pool_dump_pct;
 @@global.innodb_buffer_pool_dump_pct
 100
-# take the dump file
+SELECT variable_value INTO @IBPDS
+FROM information_schema.global_status
+WHERE variable_name = 'INNODB_BUFFER_POOL_DUMP_STATUS';
+# Take the dump file
 SET GLOBAL innodb_buffer_pool_dump_now=ON;
-# wait until the system table get updated & dump get created
-# check the dump file exist in the DATADIR
-# restart the server to reset the value of
-# innodb_buffer_pool_dump_status
-# set the dump file name
+# Wait until the system table get updated & dump get created
+# Check the dump file exist in the DATADIR
+# Set the dump file name
 SET GLOBAL innodb_buffer_pool_filename=ib_buffer_pool50;
-# set the value 50
+# Set the value 50
 SET GLOBAL innodb_buffer_pool_dump_pct=50;
-# check the value is 50
+# Check the value is 50
 SELECT @@global.innodb_buffer_pool_dump_pct;
 @@global.innodb_buffer_pool_dump_pct
 50
-# take the dump file
+SELECT variable_value INTO @IBPDS
+FROM information_schema.global_status
+WHERE variable_name = 'INNODB_BUFFER_POOL_DUMP_STATUS';
+# Take the dump file
 SET GLOBAL innodb_buffer_pool_dump_now=ON;
-# wait until the system table get updated & dump get created
-#check the dump file exist in the DATADIR
-# get the size of the dump files & compare
+# Wait until the system table get updated & dump get created
+# Check the dump file exist in the DATADIR
+# Get the size of the dump files & compare
 wl6504 test PASS
-# reset the default value
+# Reset the default value
 SET GLOBAL innodb_buffer_pool_dump_pct=Default;
 SET GLOBAL innodb_buffer_pool_filename=Default;
-#cleanup
+# Cleanup
 DROP TABLE tab5;
