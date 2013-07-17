@@ -77,7 +77,7 @@ mutex.
 UNIV_INLINE
 byte
 ib_mutex_test_and_set(
-/*===============*/
+/*==================*/
 	ib_mutex_t*	mutex)	/*!< in: mutex */
 {
 #if defined(HAVE_ATOMIC_BUILTINS)

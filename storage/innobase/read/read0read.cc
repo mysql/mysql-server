@@ -434,15 +434,23 @@ MVCC::view_open(ReadView*& view, trx_t* trx)
 		ut_ad(view->m_closed);
 
 		/* NOTE: This can be optimised further, for now we only
-		resuse the view iff there are no active RW transactions. */
+		resuse the view iff there are no active RW transactions.
+
+		There is an inherent race here between purge and this
+		thread. Purge will skip views that are marked as closed.
+		Therefore we must set the low limit id after we reset the
+		closed status after the check. */
 
 		if (trx_is_autocommit_non_locking(trx)
-		    && view->m_trx_ids_size == 0
-		    && view->m_low_limit_id == trx_sys->max_trx_id) {
+		    && view->m_trx_ids_size == 0) {
 
 			view->m_closed = false;
 
-			return;
+		    	if (view->m_low_limit_id == trx_sys_get_max_trx_id()) {
+				return;
+			} else {
+				view->m_closed = true;
+			}
 		}
 
 		mutex_enter(&trx_sys->mutex);
@@ -490,8 +498,6 @@ MVCC::get_oldest_view()
 		}
 	}
 
-	ut_a(view == NULL || !view->is_closed());
-
 	return(view);
 }
 
@@ -502,7 +508,7 @@ Copy state from another view. Must call copy_complete() to finish.
 void
 ReadView::copy_prepare(const ReadView& other)
 {
-	if (m_trx_ids_size > 0) {
+	if (other.m_trx_ids_size > 0) {
 		m_trx_ids.assign(
 			&other.m_trx_ids[0],
 			&other.m_trx_ids[0] + other.m_trx_ids_size);
@@ -526,6 +532,8 @@ m_trx_ids too and adjust the m_up_limit_id *, if required */
 void
 ReadView::copy_complete()
 {
+	ut_ad(!mutex_own(&trx_sys->mutex));
+
 	if (m_creator_trx_id > 0) {
 		m_trx_ids.push_back(m_creator_trx_id);
 		std::sort(m_trx_ids.begin(), m_trx_ids.end());
@@ -564,15 +572,17 @@ MVCC::clone_oldest_view(ReadView* view)
 
 		view->prepare(0);
 
+		mutex_exit(&trx_sys->mutex);
+
 		view->complete();
 
 	} else {
 		view->copy_prepare(*oldest_view);
 
+		mutex_exit(&trx_sys->mutex);
+
 		view->copy_complete();
 	}
-
-	mutex_exit(&trx_sys->mutex);
 }
 
 /**

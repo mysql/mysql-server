@@ -443,24 +443,23 @@ trx_id_t
 trx_sys_get_max_trx_id(void)
 /*========================*/
 {
-#if UNIV_WORD_SIZE < DATA_TRX_ID_LEN
-	trx_id_t	max_trx_id;
-#endif
-
 	ut_ad(!mutex_own(&trx_sys->mutex));
 
 #if UNIV_WORD_SIZE < DATA_TRX_ID_LEN
 	/* Avoid torn reads. */
 	mutex_enter(&trx_sys->mutex);
-	max_trx_id = trx_sys->max_trx_id;
+
+	trx_id_t	max_trx_id = trx_sys->max_trx_id;
+
 	mutex_exit(&trx_sys->mutex);
+
 	return(max_trx_id);
 #else
 	/* Perform a dirty read. Callers should be prepared for stale
 	values, and we know that the value fits in a machine word, so
 	that it will be read and written atomically. */
 	return(trx_sys->max_trx_id);
-#endif
+#endif /* UNIV_WORD_SIZE < DATA_TRX_ID_LEN */
 }
 
 /*****************************************************************//**

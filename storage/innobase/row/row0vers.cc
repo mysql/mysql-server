@@ -512,15 +512,21 @@ row_vers_build_for_consistent_read(
 	version = rec;
 
 	for (;;) {
-		mem_heap_t*	heap2	= heap;
+		mem_heap_t*	prev_heap = heap;
+		
 		heap = mem_heap_create(1024);
 
-		err = trx_undo_prev_version_build(rec, mtr, version, index,
-						  *offsets, heap,
-						  &prev_version)
-			? DB_SUCCESS : DB_MISSING_HISTORY;
-		if (heap2) {
-			mem_heap_free(heap2); /* free version */
+		/* If purge can't see the record then we can't rely on
+		the UNDO log record. */
+
+		bool	purge_sees = trx_undo_prev_version_build(
+			rec, mtr, version, index, *offsets, heap,
+			&prev_version);
+
+		err  = (purge_sees) ? DB_SUCCESS : DB_MISSING_HISTORY;
+
+		if (prev_heap != NULL) {
+			mem_heap_free(prev_heap);
 		}
 
 		if (prev_version == NULL) {
@@ -529,8 +535,9 @@ row_vers_build_for_consistent_read(
 			break;
 		}
 
-		*offsets = rec_get_offsets(prev_version, index, *offsets,
-					   ULINT_UNDEFINED, offset_heap);
+		*offsets = rec_get_offsets(
+			prev_version, index, *offsets, ULINT_UNDEFINED,
+			offset_heap);
 
 #if defined UNIV_DEBUG || defined UNIV_BLOB_LIGHT_DEBUG
 		ut_a(!rec_offs_any_null_extern(prev_version, *offsets));
@@ -553,7 +560,7 @@ row_vers_build_for_consistent_read(
 		}
 
 		version = prev_version;
-	}/* for (;;) */
+	}
 
 	mem_heap_free(heap);
 
