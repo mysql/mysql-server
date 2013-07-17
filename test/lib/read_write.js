@@ -262,7 +262,7 @@ ReadWrite.prototype.checkResult = function(err, result, rw, index) {
   udebug.log('checkResult', err, rw.data, result, index);
   var rw = rw;
   if (err) {
-    rw.testCase.appendErrorMessage(err);
+    rw.testCase.appendErrorMessage('checkResult err on read: ', err);
   } else {
     if (typeof(rw.tableNameOrConstructor) === 'string') {
       // table name; check properties in data against properties in result
@@ -304,7 +304,7 @@ ReadWrite.prototype.writeSQL = function(callback) {
 
 ReadWrite.prototype.readAdapter = function(err, rw, index) {
   if (err) {
-    rw.testCase.appendErrorMessage('readAdapter err:' + err);
+    rw.testCase.appendErrorMessage('readAdapter err on write: ' + err);
     rw.incrementCheckCountAndExit();    
   } else {
     rw.session.find(rw.tableNameOrConstructor, rw.data[index],
@@ -314,7 +314,7 @@ ReadWrite.prototype.readAdapter = function(err, rw, index) {
 
 ReadWrite.prototype.readSQL = function(err, rw, index) {
   if (err) {
-    rw.testCase.appendErrorMessage('readSQL err:' + err);
+    rw.testCase.appendErrorMessage('readSQL err on write: ' + err);
     rw.incrementCheckCountAndExit();    
   } else {
     rw.sqlDriver.select(rw.tableMapping, rw.data[index],
