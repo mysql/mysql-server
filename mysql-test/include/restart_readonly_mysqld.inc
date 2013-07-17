@@ -5,8 +5,8 @@
 --exec echo "wait" > $_expect_file_name
 
 # Send shutdown to the connected server and give
-# it 10 seconds to die before zapping it
-shutdown_server 10;
+# it 60 seconds to die before zapping it
+shutdown_server 60;
 
 # Write file to make mysql-test-run.pl start up the server again
 --exec echo "restart: --innodb-read-only " > $_expect_file_name

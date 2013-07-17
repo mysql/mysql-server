@@ -34,7 +34,6 @@ Created 3/14/1997 Heikki Tuuri
 #include "trx0types.h"
 #include "que0types.h"
 #include "row0types.h"
-#include "row0purge.h"
 #include "ut0vec.h"
 
 /********************************************************************//**

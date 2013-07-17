@@ -2918,9 +2918,11 @@ int SQL_SELECT::test_quick_select(THD *thd, key_map keys_to_use,
     /* If we got a read plan, create a quick select from it. */
     if (best_trp)
     {
+      mysql_mutex_lock(&thd->LOCK_query_plan);
       records= best_trp->records;
       if (!(quick= best_trp->make_quick(&param, TRUE)) || quick->init())
         set_quick(NULL);
+      mysql_mutex_unlock(&thd->LOCK_query_plan);
     }
 
 free_mem:
@@ -6268,7 +6270,10 @@ static SEL_TREE *get_mm_tree(RANGE_OPT_PARAM *param,Item *cond)
     Here when simple cond 
     There are limits on what kinds of const items we can evaluate.
     At this stage a subquery in 'cond' might not be fully transformed yet
-    (example: semijoin) thus cannot be evaluated.
+    (example: semijoin) thus cannot be evaluated. Another reason is that we
+    may be called by test_if_quick_select (), which holds LOCK_query_plan,
+    thus we must not acquire this Mutex here, thus we can neither prepare nor
+    optimize any subquery here.
   */
   if (cond->const_item() && !cond->is_expensive() && !cond->has_subquery())
   {
@@ -9281,6 +9286,11 @@ uint sel_arg_range_seq_next(range_seq_t rseq, KEY_MULTI_RANGE *range)
     range->start_key.length= min_key_length;
     range->start_key.keypart_map= make_prev_keypart_map(cur->min_key_parts);
     range->start_key.flag=  (ha_rkey_function) (cur->min_key_flag ^ GEOM_FLAG);
+    /*
+      Spatial operators are only allowed on spatial indexes, and no
+      spatial index can at the moment return rows in ROWID order
+    */
+    DBUG_ASSERT(!param->is_ror_scan);
   }
   else
   {
@@ -11360,7 +11370,7 @@ static TRP_GROUP_MIN_MAX *
 get_best_group_min_max(PARAM *param, SEL_TREE *tree, double read_time)
 {
   THD *thd= param->thd;
-  JOIN *join= thd->lex->current_select->join;
+  JOIN *join= thd->lex->current_select()->join;
   TABLE *table= param->table;
   bool have_min= FALSE;              /* TRUE if there is a MIN function. */
   bool have_max= FALSE;              /* TRUE if there is a MAX function. */
@@ -12473,7 +12483,7 @@ TRP_GROUP_MIN_MAX::make_quick(PARAM *param, bool retrieve_full_rows,
   DBUG_ENTER("TRP_GROUP_MIN_MAX::make_quick");
 
   quick= new QUICK_GROUP_MIN_MAX_SELECT(param->table,
-                                        param->thd->lex->current_select->join,
+                                        param->thd->lex->current_select()->join,
                                         have_min, have_max, 
                                         have_agg_distinct, min_max_arg_part,
                                         group_prefix_len, group_key_parts,

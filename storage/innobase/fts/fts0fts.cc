@@ -6128,8 +6128,6 @@ fts_drop_orphaned_tables(void)
 
 			fts_sql_rollback(trx);
 
-			ut_print_timestamp(stderr);
-
 			if (error == DB_LOCK_WAIT_TIMEOUT) {
 				ib_logf(IB_LOG_LEVEL_WARN,
 					"lock wait timeout reading SYS_TABLES. "

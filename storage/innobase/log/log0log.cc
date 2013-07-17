@@ -344,7 +344,6 @@ log_close(void)
 			log_has_printed_chkp_warning = TRUE;
 			log_last_warning_time = time(NULL);
 
-			ut_print_timestamp(stderr);
 			ib_logf(IB_LOG_LEVEL_ERROR,
 				"The age of the last checkpoint is "
 				LSN_PF ", which exceeds the log group"

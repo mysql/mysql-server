@@ -120,13 +120,13 @@ row_undo_ins_remove_clust_rec(
 	}
 
 	if (node->table->id == DICT_INDEXES_ID) {
+
 		ut_ad(!online);
 		ut_ad(node->trx->dict_operation_lock_mode == RW_X_LATCH);
 
-		/* Drop the index tree associated with the row in
-		SYS_INDEXES table: */
-
-		dict_drop_index_tree_step(btr_pcur_get_rec(&node->pcur), &mtr);
+		dict_drop_index_tree(
+			btr_pcur_get_rec(&node->pcur), &(node->pcur),
+			true, &mtr);
 
 		mtr_commit(&mtr);
 

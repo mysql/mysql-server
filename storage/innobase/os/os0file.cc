@@ -2188,6 +2188,48 @@ os_file_set_eof(
 #endif /* _WIN32 */
 }
 
+/***********************************************************************//**
+Truncates a file to a specified size in bytes. Do nothing if the size
+preserved is smaller or equal than current size of file.
+@return true if success */
+
+bool
+os_file_truncate(
+/*=============*/
+	const char*     pathname,	/*!< in: file path */
+	os_file_t       file,		/*!< in: file to be truncated */
+	os_offset_t	size)		/*!< in: size preserved in bytes */
+{
+	int		res;
+	os_offset_t	size_bytes;
+
+	size_bytes = os_file_get_size(file);
+
+	/* Do nothing if the size preserved is larger than or equal with
+	current size of file */
+	if (size >= size_bytes) {
+		return(TRUE);
+	}
+
+#ifdef _WIN32
+        int fd;
+	/* Get the file descriptor from the handle */
+	fd = _open_osfhandle((long)file, _O_TEXT);
+	/* Truncate the file */
+	res = _chsize(fd, size);
+	if (res == -1) {
+		os_file_handle_error_no_exit(pathname, "chsize", FALSE);
+	}
+#else /* _WIN32 */
+	res = ftruncate(file, size);
+	if (res == -1) {
+		os_file_handle_error_no_exit(pathname, "truncate", FALSE);
+	}
+#endif /* _WIN32 */
+
+	return(res == 0);
+}
+
 #ifndef _WIN32
 /***********************************************************************//**
 Wrapper to fsync(2) that retries the call on some errors.

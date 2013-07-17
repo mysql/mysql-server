@@ -28,7 +28,7 @@ save_master_pos;
 connection slave;
 start slave;
 let $wait_condition= SELECT COUNT(*) > 0 FROM t1;
-source include/wait_condition.inc;
+source include/wait_condition_or_abort.inc;
 stop slave io_thread;
 start slave io_thread;
 source include/wait_for_slave_to_start.inc;
@@ -150,7 +150,7 @@ let $wait_condition=
   SELECT COUNT(*) = 1 FROM INFORMATION_SCHEMA.PROCESSLIST
   WHERE STATE = "Waiting for table metadata lock"
   AND INFO = "INSERT INTO t1 SELECT SLEEP(4)";
---source include/wait_condition.inc
+--source include/wait_condition_or_abort.inc
 
 --echo # Slave: send slave stop
 --send STOP SLAVE
@@ -160,7 +160,7 @@ let $wait_condition=
 let $wait_condition=
   SELECT COUNT(*) = 1 FROM INFORMATION_SCHEMA.PROCESSLIST
   WHERE INFO = "STOP SLAVE";
---source include/wait_condition.inc
+--source include/wait_condition_or_abort.inc
 
 --echo # Slave1: unlock the table
 UNLOCK TABLES;

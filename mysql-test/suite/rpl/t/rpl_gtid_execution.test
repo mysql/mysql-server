@@ -444,7 +444,7 @@ while ($id <= $max_id)
     eval $stmt;
     --connection master
     --let $wait_condition= SELECT Info = '$last_send_stmt' FROM INFORMATION_SCHEMA.PROCESSLIST WHERE Id = $last_send_id
-    --source include/wait_condition.inc
+    --source include/wait_condition_or_abort.inc
   }
   if ($send_reap == 'reap')
   {
@@ -491,7 +491,7 @@ while ($id <= $max_id)
       if (`SELECT '$stmt' REGEXP '^(COMMIT|ROLLBACK)\$'`)
       {
         --let $wait_condition= SELECT COUNT(*) = 0 FROM INFORMATION_SCHEMA.PROCESSLIST WHERE State LIKE 'waiting for GTID %'
-        --source include/wait_condition.inc
+        --source include/wait_condition_or_abort.inc
       }
                                               
       --let $text_0= @@GLOBAL.GTID_EXECUTED
