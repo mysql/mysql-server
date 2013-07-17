@@ -88,6 +88,11 @@ char*				page_dump_filename = 0;
 /* skip the checksum verification & rewrite if page is doublewrite buffer. */
 static bool			skip_page = 0;
 const char			*dbug_setting = "FALSE";
+char*				log_filename = NULL;
+/* User defined filename for logging. */
+FILE*				log_file = NULL;
+/* Enabled for log write option. */
+static bool			is_log_enabled = false;
 
 #ifndef _WIN32
 /* advisory lock for non-window system. */
@@ -338,25 +343,29 @@ is_page_corrupted(
 				buf + logical_page_size -
 				FIL_PAGE_END_LSN_OLD_CHKSUM + 4);
 
-		DBUG_PRINT("info", ("page::%llu;"
-			   " log sequence number:first = %lu; "
-			   "second = %lu",
-			   cur_page_num, logseq, logseqfield));
-
-		if (logseq != logseqfield) {
-			DBUG_PRINT("info", ("Fail; page %llu invalid "
-				   "(fails log sequence number check)",
-				   cur_page_num));
+		if (is_log_enabled) {
+			fprintf(log_file,
+				"page::%llu; log sequence number:first = %lu;"
+				" second = %lu\n",
+				cur_page_num, logseq, logseqfield);
+			if (logseq != logseqfield) {
+				fprintf(log_file,
+					"Fail; page %llu invalid (fails log "
+					"sequence number check)\n",
+					cur_page_num);
+			}
 		}
 
 		is_corrupted = buf_page_is_corrupted(true, buf, 0,
 						     cur_page_num,
-						     strict_verify);
+						     strict_verify,
+						     is_log_enabled, log_file);
 	} else {
 		is_corrupted = buf_page_is_corrupted(true, buf,
 						     physical_page_size,
 						     cur_page_num,
-						     strict_verify);
+						     strict_verify,
+						     is_log_enabled, log_file);
 	}
 
 	return (is_corrupted);
@@ -452,8 +461,11 @@ update_checksum(
 						  static_cast<srv_checksum_algorithm_t>(write_check));
 
 		mach_write_to_4(page + FIL_PAGE_SPACE_OR_CHKSUM, checksum);
-		DBUG_PRINT("info", ("page %llu: Updated checksum = %u;\n",
-			   cur_page_num, checksum));
+		if (is_log_enabled) {
+			fprintf(log_file, "page::%llu; Updated checksum ="
+				" %u\n", cur_page_num, checksum);
+		}
+
 	} else {
 		/* page is uncompressed. */
 
@@ -480,9 +492,10 @@ update_checksum(
 		}
 
 		mach_write_to_4(page + FIL_PAGE_SPACE_OR_CHKSUM, checksum);
-
-		DBUG_PRINT("info", ("page %llu: Updated checksum field1"
-			   " = %u;", cur_page_num, checksum));
+		if (is_log_enabled) {
+			fprintf(log_file, "page::%llu; Updated checksum field1"
+				" = %u\n", cur_page_num, checksum);
+		}
 
 		if (write_check == SRV_CHECKSUM_ALGORITHM_STRICT_INNODB
 		    || write_check == SRV_CHECKSUM_ALGORITHM_INNODB) {
@@ -493,8 +506,10 @@ update_checksum(
 		mach_write_to_4(page + physical_page_size -
 				FIL_PAGE_END_LSN_OLD_CHKSUM,checksum);
 
-		DBUG_PRINT("info", ("page %llu: Updated checksum field2"
-			   " = %u;", cur_page_num, checksum));
+		if (is_log_enabled) {
+			fprintf(log_file, "page::%llu; Updated checksum "
+				"field2 = %u\n", cur_page_num, checksum);
+		}
 
 	}
 
@@ -792,6 +807,48 @@ parse_page(
 		break;
 	}
 }
+/**
+@param [in/out] file_name	name of the filename
+
+@retval FILE pointer if successfully created else NULL when error occured.
+*/
+FILE*
+create_file(
+	char*	file_name)
+{
+	FILE*	file = NULL;
+
+#ifndef _WIN32
+	file = fopen(file_name, "wb");
+	if (file == NULL) {
+		fprintf(stderr, "Failed to create file: %s: %s\n",
+			file_name, strerror(errno));
+		return(NULL);
+	}
+#else
+	HANDLE		hFile;		/* handle to open file. */
+	int fd = 0;
+	hFile = CreateFile((LPCTSTR) file_name,
+			  GENERIC_READ | GENERIC_WRITE,
+			  FILE_SHARE_READ | FILE_SHARE_DELETE,
+			  NULL, CREATE_NEW, NULL, NULL);
+
+	if (hFile == INVALID_HANDLE_VALUE) {
+		/* print the error message. */
+		fprintf(stderr, "Filename::%s %s\n",
+			file_name,
+			error_message(GetLastError()));
+
+			return(NULL);
+		}
+
+	/* get the file descriptor. */
+	fd= _open_osfhandle((intptr_t)hFile, _O_RDWR | _O_BINARY);
+	file = fdopen(fd, "wb");
+#endif /* _WIN32 */
+
+	return(file);
+}
 
 /*
  Print the page type count of a tablespace.
@@ -888,6 +945,9 @@ static struct my_option innochecksum_options[] = {
   {"page-type-dump", 'D', "Dump the page type info for each page in a "
    "tablespace.", &page_dump_filename, &page_dump_filename, 0,
    GET_STR, REQUIRED_ARG, 0, 0, 0, 0, 0, 0},
+   {"log", 'l', "log output.",
+     &log_filename, &log_filename, 0,
+      GET_STR, REQUIRED_ARG, 0, 0, 0, 0, 0, 0},
 
   {0, 0, 0, 0, 0, 0, GET_NO_ARG, NO_ARG, 0, 0, 0, 0, 0, 0}
 };
@@ -914,7 +974,7 @@ static void usage(void)
 	printf("Usage: %s [-c] [-s <start page>] [-e <end page>] "
 		"[-p <page>] [-v]  [-a <allow mismatches>] [-n] "
 		"[-C <strict-check>] [-w <write>] [-S] [-D <page type dump>] "
-		"[-d <dbug-package name>] <filename or [-]>\n", my_progname);
+		"[-l <log>] <filename or [-]>\n", my_progname);
 	printf("See " REFMAN "innochecksum.html for usage hints.\n");
 	my_print_help(innochecksum_options);
 	my_print_variables(innochecksum_options);
@@ -984,6 +1044,9 @@ innochecksum_get_one_option(
 		break;
 	case 'D':
 		page_type_dump = true;
+		break;
+	case 'l':
+		is_log_enabled = true;
 		break;
 	case 'I':
 	case '?':
@@ -1066,10 +1129,8 @@ int main(
 
 	ut_crc32_init();
 	MY_INIT(argv[0]);
-
 	DBUG_ENTER("main");
 	DBUG_PROCESS(argv[0]);
-	DBUG_PRINT("info", ("InnoDB File Checksum Utility."));
 
 	if (get_options(&argc,&argv)) {
 		DBUG_RETURN(1);
@@ -1088,29 +1149,18 @@ int main(
 	}
 
 	if (page_type_dump) {
-#ifndef _WIN32
-		fil_page_type = fopen(page_dump_filename, "wb");
-#else
-	HANDLE		hFile;		/* handle to open file. */
-	int fd = 0;
-	hFile = CreateFile((LPCTSTR) page_dump_filename,
-			  GENERIC_READ | GENERIC_WRITE,
-			  FILE_SHARE_READ | FILE_SHARE_DELETE,
-			  NULL, CREATE_NEW, NULL, NULL);
-
-	if (hFile == INVALID_HANDLE_VALUE) {
-		/* print the error message. */
-		fprintf(stderr, "Filename::%s %s\n",
-			page_dump_filename,
-			error_message(GetLastError()));
-
-			DBUG_RETURN (1);
+		fil_page_type = create_file(page_dump_filename);
+		if (!fil_page_type) {
+			DBUG_RETURN(1);
 		}
+	}
 
-	/* get the file descriptor. */
-	fd= _open_osfhandle((intptr_t)hFile, _O_RDWR | _O_BINARY);
-	fil_page_type = fdopen(fd, "wb");
-#endif /* _WIN32 */
+	if (is_log_enabled) {
+		log_file = create_file(log_filename);
+		if (!log_file) {
+			DBUG_RETURN(1);
+		}
+		fprintf(log_file, "InnoDB File Checksum Utility.\n");
 	}
 
 	if (verbose) {
@@ -1126,11 +1176,15 @@ int main(
 		partial_page_read = false;
 		skip_page = false;
 
-		DBUG_PRINT("info", ("Filename = %s", filename));
+		if (is_log_enabled) {
+			fprintf(log_file, "Filename = %s\n", filename);
+		}
+
 		if (*filename == '-') {
 			/* read from stdin. */
 			fil_in = stdin;
 			read_from_stdin = true;
+
 		}
 
 		/* stat the file to get size and page count. */
@@ -1201,24 +1255,28 @@ int main(
 		pages = (ulint)(size / physical_page_size);
 
 		if (just_count) {
-			DBUG_PRINT("info", ("Number of pages:%lu", pages));
-			if(read_from_stdin) {
+			if (read_from_stdin) {
 				fprintf(stderr, "Number of pages:%lu\n", pages);
 			} else {
 				printf("Number of pages:%lu\n", pages);
 			}
 			continue;
 		} else if (verbose && !read_from_stdin) {
-			DBUG_PRINT("info", ("file %s = %llu bytes (%lu pages)",
-				   filename, size, pages));
-			if (do_one_page) {
-				DBUG_PRINT("info", ("InnoChecksum: checking "
-					   "page %llu", do_page));
-			} else {
-				DBUG_PRINT("info", ("InnoChecksum: checking "
-					   "pages in range %llu to %llu",
-					   start_page, use_end_page ?
-					   end_page : (pages - 1)));
+			if (is_log_enabled) {
+				fprintf(log_file, "file %s = %llu bytes "
+					"(%lu pages)\n", filename, size, pages);
+				if (do_one_page) {
+					fprintf(log_file, "Innochecksum: "
+						"checking page %llu\n",
+						do_page);
+				}
+			}
+		} else {
+			if (is_log_enabled) {
+				fprintf(log_file, "Innochecksum: checking "
+					"pages in range %llu to %llu\n",
+					start_page, use_end_page ?
+					end_page : (pages - 1));
 			}
 		}
 
@@ -1387,11 +1445,12 @@ int main(
 					if (!lastt) {
 						lastt= now;
 					}
-					if (now - lastt >= 1) {
-						DBUG_PRINT("info",("page %llu "
-							   "okay: %.3f%% done",
-							   (cur_page_num - 1),
-							   (float) cur_page_num / pages * 100));
+					if (now - lastt >= 1
+					    && is_log_enabled) {
+						fprintf(log_file, "page %llu "
+							"okay: %.3f%% done\n",
+							(cur_page_num - 1),
+							(float) cur_page_num / pages * 100);
 						lastt = now;
 					}
 				}
@@ -1406,13 +1465,17 @@ int main(
 
 		/* Enabled for page type summary. */
 		if (page_type_summary) {
-			if(!read_from_stdin) {
+			if (!read_from_stdin) {
 				fprintf(stdout, "\nFile::%s",filename);
 				print_summary(stdout);
 			} else {
 				print_summary(stderr);
 			}
 		}
+	}
+
+	if (is_log_enabled) {
+		fclose(log_file);
 	}
 
 	DBUG_RETURN(0);

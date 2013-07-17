@@ -1046,7 +1046,7 @@ btr_page_create(
 	btr_blob_dbg_assert_empty(index, buf_block_get_page_no(block));
 
 	if (page_zip) {
-		page_create_zip(block, index, level, 0, mtr);
+		page_create_zip(block, index, level, 0, NULL, mtr);
 	} else {
 		page_create(block, mtr, dict_table_is_comp(index->table));
 		/* Set the level of the new index page */
@@ -1526,19 +1526,27 @@ Creates the root node for a new index tree.
 ulint
 btr_create(
 /*=======*/
-	ulint		type,	/*!< in: type of the index */
-	ulint		space,	/*!< in: space where created */
-	ulint		zip_size,/*!< in: compressed page size in bytes
-				or 0 for uncompressed pages */
-	index_id_t	index_id,/*!< in: index id */
-	dict_index_t*	index,	/*!< in: index */
-	mtr_t*		mtr)	/*!< in: mini-transaction handle */
+	ulint			type,		/*!< in: type of the index */
+	ulint			space,		/*!< in: space where created */
+	ulint			zip_size,	/*!< in: compressed page size
+						in bytes or 0 for uncompressed
+						pages */
+	index_id_t		index_id,	/*!< in: index id */
+	dict_index_t*		index,		/*!< in: index, or NULL when
+						applying MLOG_FILE_TRUNCATE
+						redo record during recovery */
+	const btr_create_t*	btr_redo_create_info,
+						/*!< in: used for applying
+						MLOG_FILE_TRUNCATE redo record
+						during recovery */
+	mtr_t*			mtr)		/*!< in: mini-transaction
+						handle */
 {
-	ulint		page_no;
-	buf_block_t*	block;
-	buf_frame_t*	frame;
-	page_t*		page;
-	page_zip_des_t*	page_zip;
+	ulint			page_no;
+	buf_block_t*		block;
+	buf_frame_t*		frame;
+	page_t*			page;
+	page_zip_des_t*		page_zip;
 
 	/* Create the two new segments (one, in the case of an ibuf tree) for
 	the index tree; the segment headers are put on the allocated root page
@@ -1567,7 +1575,11 @@ btr_create(
 		ut_ad(buf_block_get_page_no(block) == IBUF_TREE_ROOT_PAGE_NO);
 	} else {
 #ifdef UNIV_BLOB_DEBUG
-		if ((type & DICT_CLUSTERED) && !index->blobs) {
+		/* The BLOB pointers can only exist in user records.
+		TRUNCATE gets rid of all user records. So we don't
+		need to assign the BLOB pointers when applying
+		MLOG_FILE_TRUNCATE log record during recovery. */
+		if ((type & DICT_CLUSTERED) && index && !index->blobs) {
 			mutex_create(PFS_NOT_INSTRUMENTED,
 				     &index->blobs_mutex, SYNC_ANY_LATCH);
 			index->blobs = rbt_create(sizeof(btr_blob_dbg_t),
@@ -1616,10 +1628,42 @@ btr_create(
 	page_zip = buf_block_get_page_zip(block);
 
 	if (page_zip) {
-		page = page_create_zip(block, index, 0, 0, mtr);
+		if (index != NULL) {
+			page = page_create_zip(block, index, 0, 0, NULL, mtr);
+		} else {
+			/* Create a compressed index page when applying
+			MLOG_FILE_TRUNCATE log record during recovery */
+			ut_ad(btr_redo_create_info != NULL);
+
+			redo_page_compress_t	page_comp_info;
+
+			page_comp_info.type = type;
+
+			page_comp_info.index_id = index_id;
+
+			page_comp_info.n_fields =
+				btr_redo_create_info->n_fields;
+
+			page_comp_info.field_len =
+				btr_redo_create_info->field_len;
+
+			page_comp_info.fields = btr_redo_create_info->fields;
+
+			page_comp_info.trx_id_pos =
+				btr_redo_create_info->trx_id_pos;
+
+			page = page_create_zip(block, NULL, 0, 0,
+					       &page_comp_info, mtr);
+		}
 	} else {
-		page = page_create(block, mtr,
-				   dict_table_is_comp(index->table));
+		if (index != NULL) {
+			page = page_create(block, mtr,
+					   dict_table_is_comp(index->table));
+		} else {
+			ut_ad(btr_redo_create_info != NULL);
+			page = page_create(
+				block, mtr, btr_redo_create_info->format_flags);
+		}
 		/* Set the level of the new index page */
 		btr_page_set_level(page, NULL, 0, mtr);
 	}
@@ -1636,10 +1680,15 @@ btr_create(
 	/* We reset the free bits for the page to allow creation of several
 	trees in the same mtr, otherwise the latch on a bitmap page would
 	prevent it because of the latching order.
+
+	index will be NULL if we are recreating the table during recovery
+	on behalf of TRUNCATE.
+
 	Note: Insert Buffering is disabled for temporary tables given that
 	most temporary tables are smaller in size and short-lived. */
-	if (!dict_table_is_temporary(index->table)
-	    && !(type & DICT_CLUSTERED)) {
+	if (!(type & DICT_CLUSTERED)
+	    && (index == NULL || !dict_table_is_temporary(index->table))) {
+
 		ibuf_reset_free_bits(block);
 	}
 
@@ -1664,7 +1713,7 @@ btr_free_but_not_root(
 						in bytes or 0 for uncompressed
 						pages */
 	ulint			root_page_no,	/*!< in: root page number */
-	bool			is_temp_table)	/*!< in: true if temp-table */
+	ulint			logging_mode)	/*!< in: mtr logging mode */
 {
 	ibool	finished;
 	page_t*	root;
@@ -1672,12 +1721,11 @@ btr_free_but_not_root(
 
 leaf_loop:
 	mtr_start(&mtr);
-	if (is_temp_table) {
-		mtr_set_log_mode(&mtr, MTR_LOG_NO_REDO);
-	}
+	mtr_set_log_mode(&mtr, logging_mode);
 
 	root = btr_page_get(space, zip_size, root_page_no, RW_X_LATCH,
 			    NULL, &mtr);
+
 #ifdef UNIV_BTR_DEBUG
 	ut_a(btr_root_fseg_validate(FIL_PAGE_DATA + PAGE_BTR_SEG_LEAF
 				    + root, space));
@@ -1698,9 +1746,7 @@ leaf_loop:
 	}
 top_loop:
 	mtr_start(&mtr);
-	if (is_temp_table) {
-		mtr_set_log_mode(&mtr, MTR_LOG_NO_REDO);
-	}
+	mtr_set_log_mode(&mtr, logging_mode);
 
 	root = btr_page_get(space, zip_size, root_page_no, RW_X_LATCH,
 			    NULL, &mtr);
@@ -1864,7 +1910,7 @@ btr_page_reorganize_low(
 	}
 
 	if (page_zip
-	    && !page_zip_compress(page_zip, page, index, z_level, mtr)) {
+	    && !page_zip_compress(page_zip, page, index, z_level, NULL, mtr)) {
 
 		/* Restore the old page and exit. */
 		btr_blob_dbg_restore(page, temp_page, index,
@@ -2098,7 +2144,7 @@ btr_page_empty(
 	segment headers, next page-field, etc.) is preserved intact */
 
 	if (page_zip) {
-		page_create_zip(block, index, level, 0, mtr);
+		page_create_zip(block, index, level, 0, NULL, mtr);
 	} else {
 		page_create(block, mtr, dict_table_is_comp(index->table));
 		btr_page_set_level(page, NULL, level, mtr);

@@ -16,7 +16,6 @@ a	b
 call mtr.add_suppression("The slave coordinator and worker threads are stopped, possibly leaving data in inconsistent state");
 call mtr.add_suppression("Slave SQL.*suffer.*http:..bugs.mysql.com.bug.php.id=24432");
 include/wait_for_slave_sql_error.inc [errno=1105]
-Last_SQL_Error = 'Error 'master may suffer from http://bugs.mysql.com/bug.php?id=24432 so slave stops; check error log on slave for more info' on query. Default database: 'test'. Query: 'INSERT INTO t1(b) VALUES(1),(1),(2) ON DUPLICATE KEY UPDATE t1.b=10''
 SELECT * FROM t1;
 a	b
 include/rpl_reset.inc
@@ -65,11 +64,6 @@ id	field_1	field_2	field_3
 5	5	e	5e
 6	6	f	6f
 include/wait_for_slave_sql_error.inc [errno=1105]
-Last_SQL_Error = 'Error 'master may suffer from http://bugs.mysql.com/bug.php?id=24432 so slave stops; check error log on slave for more info' on query. Default database: 'test'. Query: 'INSERT INTO t1 (field_1, field_2, field_3)
-SELECT t2.field_a, t2.field_b, t2.field_c
-FROM t2
-ON DUPLICATE KEY UPDATE
-t1.field_3 = t2.field_c''
 SELECT * FROM t1;
 id	field_1	field_2	field_3
 drop table t1, t2;

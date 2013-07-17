@@ -10,12 +10,12 @@ INSERT INTO t1 VALUES (1), (2), (3);
 #
 EXPLAIN UPDATE t1 SET a = 10 WHERE a < 10;
 id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
-1	SIMPLE	t1	ALL	NULL	NULL	NULL	NULL	3	Using where
+1	UPDATE	t1	ALL	NULL	NULL	NULL	NULL	3	Using where
 FLUSH STATUS;
 FLUSH TABLES;
 EXPLAIN EXTENDED UPDATE t1 SET a = 10 WHERE a < 10;
 id	select_type	table	type	possible_keys	key	key_len	ref	rows	filtered	Extra
-1	SIMPLE	t1	ALL	NULL	NULL	NULL	NULL	3	100.00	Using where
+1	UPDATE	t1	ALL	NULL	NULL	NULL	NULL	3	100.00	Using where
 # Status of EXPLAIN EXTENDED query
 Variable_name	Value
 FLUSH STATUS;
@@ -49,12 +49,12 @@ INSERT INTO t1 VALUES (1), (2), (3);
 #
 EXPLAIN DELETE   FROM t1 WHERE a < 10;
 id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
-1	SIMPLE	t1	ALL	NULL	NULL	NULL	NULL	3	Using where
+1	DELETE	t1	ALL	NULL	NULL	NULL	NULL	3	Using where
 FLUSH STATUS;
 FLUSH TABLES;
 EXPLAIN EXTENDED DELETE   FROM t1 WHERE a < 10;
 id	select_type	table	type	possible_keys	key	key_len	ref	rows	filtered	Extra
-1	SIMPLE	t1	ALL	NULL	NULL	NULL	NULL	3	100.00	Using where
+1	DELETE	t1	ALL	NULL	NULL	NULL	NULL	3	100.00	Using where
 # Status of EXPLAIN EXTENDED query
 Variable_name	Value
 FLUSH STATUS;
@@ -88,12 +88,12 @@ INSERT INTO t1 VALUES (1), (2), (3);
 #
 EXPLAIN DELETE   FROM t1 USING t1 WHERE a = 1;
 id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
-1	SIMPLE	t1	ALL	NULL	NULL	NULL	NULL	3	Using where
+1	DELETE	t1	ALL	NULL	NULL	NULL	NULL	3	Using where
 FLUSH STATUS;
 FLUSH TABLES;
 EXPLAIN EXTENDED DELETE   FROM t1 USING t1 WHERE a = 1;
 id	select_type	table	type	possible_keys	key	key_len	ref	rows	filtered	Extra
-1	SIMPLE	t1	ALL	NULL	NULL	NULL	NULL	3	100.00	Using where
+1	DELETE	t1	ALL	NULL	NULL	NULL	NULL	3	100.00	Using where
 # Status of EXPLAIN EXTENDED query
 Variable_name	Value
 FLUSH STATUS;
@@ -129,13 +129,13 @@ INSERT INTO t2 VALUES (1), (2), (3);
 #
 EXPLAIN UPDATE        t1, t2 SET t1.a = 10 WHERE t1.a = 1;
 id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
-1	SIMPLE	t1	ALL	NULL	NULL	NULL	NULL	3	Using where
+1	UPDATE	t1	ALL	NULL	NULL	NULL	NULL	3	Using where
 1	SIMPLE	t2	ALL	NULL	NULL	NULL	NULL	3	Using join buffer (Block Nested Loop)
 FLUSH STATUS;
 FLUSH TABLES;
 EXPLAIN EXTENDED UPDATE        t1, t2 SET t1.a = 10 WHERE t1.a = 1;
 id	select_type	table	type	possible_keys	key	key_len	ref	rows	filtered	Extra
-1	SIMPLE	t1	ALL	NULL	NULL	NULL	NULL	3	100.00	Using where
+1	UPDATE	t1	ALL	NULL	NULL	NULL	NULL	3	100.00	Using where
 1	SIMPLE	t2	ALL	NULL	NULL	NULL	NULL	3	100.00	Using join buffer (Block Nested Loop)
 # Status of EXPLAIN EXTENDED query
 Variable_name	Value
@@ -173,14 +173,14 @@ INSERT INTO t2 VALUES (1), (2), (3);
 #
 EXPLAIN UPDATE        t1 t11, (SELECT * FROM t2) t12 SET t11.a = 10 WHERE t11.a = 1;
 id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
-1	PRIMARY	t11	ALL	NULL	NULL	NULL	NULL	3	Using where
+1	UPDATE	t11	ALL	NULL	NULL	NULL	NULL	3	Using where
 1	PRIMARY	<derived2>	ALL	NULL	NULL	NULL	NULL	3	Using join buffer (Block Nested Loop)
 2	DERIVED	t2	ALL	NULL	NULL	NULL	NULL	3	NULL
 FLUSH STATUS;
 FLUSH TABLES;
 EXPLAIN EXTENDED UPDATE        t1 t11, (SELECT * FROM t2) t12 SET t11.a = 10 WHERE t11.a = 1;
 id	select_type	table	type	possible_keys	key	key_len	ref	rows	filtered	Extra
-1	PRIMARY	t11	ALL	NULL	NULL	NULL	NULL	3	100.00	Using where
+1	UPDATE	t11	ALL	NULL	NULL	NULL	NULL	3	100.00	Using where
 1	PRIMARY	<derived2>	ALL	NULL	NULL	NULL	NULL	3	100.00	Using join buffer (Block Nested Loop)
 2	DERIVED	t2	ALL	NULL	NULL	NULL	NULL	3	100.00	NULL
 # Status of EXPLAIN EXTENDED query
@@ -222,24 +222,27 @@ INSERT INTO t2 VALUES (1), (2), (3);
 #
 EXPLAIN UPDATE        t1 SET a = 10 WHERE 1 IN (SELECT 1 FROM t2 WHERE t2.b < 3);
 id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
-1	PRIMARY	t1	ALL	NULL	NULL	NULL	NULL	3	Using where
-2	DEPENDENT SUBQUERY	t2	ALL	NULL	NULL	NULL	NULL	3	Using where
+1	UPDATE	t1	ALL	NULL	NULL	NULL	NULL	3	NULL
+2	SUBQUERY	t2	ALL	NULL	NULL	NULL	NULL	3	Using where
 FLUSH STATUS;
 FLUSH TABLES;
 EXPLAIN EXTENDED UPDATE        t1 SET a = 10 WHERE 1 IN (SELECT 1 FROM t2 WHERE t2.b < 3);
 id	select_type	table	type	possible_keys	key	key_len	ref	rows	filtered	Extra
-1	PRIMARY	t1	ALL	NULL	NULL	NULL	NULL	3	100.00	Using where
-2	DEPENDENT SUBQUERY	t2	ALL	NULL	NULL	NULL	NULL	3	100.00	Using where
+1	UPDATE	t1	ALL	NULL	NULL	NULL	NULL	3	100.00	NULL
+2	SUBQUERY	t2	ALL	NULL	NULL	NULL	NULL	3	100.00	Using where
 # Status of EXPLAIN EXTENDED query
 Variable_name	Value
+Handler_read_first	1
+Handler_read_key	1
+Handler_read_rnd_next	1
 FLUSH STATUS;
 FLUSH TABLES;
 EXPLAIN EXTENDED SELECT * FROM t1            WHERE 1 IN (SELECT 1 FROM t2 WHERE t2.b < 3);
 id	select_type	table	type	possible_keys	key	key_len	ref	rows	filtered	Extra
 1	PRIMARY	t1	ALL	NULL	NULL	NULL	NULL	3	100.00	NULL
-2	DEPENDENT SUBQUERY	t2	ALL	NULL	NULL	NULL	NULL	3	100.00	Using where
+2	SUBQUERY	t2	ALL	NULL	NULL	NULL	NULL	3	100.00	Using where
 Warnings:
-Note	1003	/* select#1 */ select `test`.`t1`.`a` AS `a` from `test`.`t1` where <in_optimizer>(1,<exists>(/* select#2 */ select 1 from `test`.`t2` where (`test`.`t2`.`b` < 3)))
+Note	1003	/* select#1 */ select `test`.`t1`.`a` AS `a` from `test`.`t1` where 1
 # Status of EXPLAIN EXTENDED "equivalent" SELECT query execution
 Variable_name	Value
 Handler_read_first	1
@@ -252,9 +255,9 @@ Handler_read_key	2
 Handler_read_rnd_next	5
 # Status of testing query execution:
 Variable_name	Value
-Handler_read_first	4
-Handler_read_key	4
-Handler_read_rnd_next	7
+Handler_read_first	2
+Handler_read_key	2
+Handler_read_rnd_next	5
 Handler_update	3
 
 DROP TABLE t1, t2;
@@ -269,13 +272,13 @@ INSERT INTO t2 VALUES (1), (2), (3);
 #
 EXPLAIN UPDATE        t1 SET a = 10 WHERE a IN (SELECT b FROM t2 WHERE t1.a < 3);
 id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
-1	PRIMARY	t1	ALL	NULL	NULL	NULL	NULL	3	Using where
+1	UPDATE	t1	ALL	NULL	NULL	NULL	NULL	3	Using where
 2	DEPENDENT SUBQUERY	t2	ALL	NULL	NULL	NULL	NULL	3	Using where
 FLUSH STATUS;
 FLUSH TABLES;
 EXPLAIN EXTENDED UPDATE        t1 SET a = 10 WHERE a IN (SELECT b FROM t2 WHERE t1.a < 3);
 id	select_type	table	type	possible_keys	key	key_len	ref	rows	filtered	Extra
-1	PRIMARY	t1	ALL	NULL	NULL	NULL	NULL	3	100.00	Using where
+1	UPDATE	t1	ALL	NULL	NULL	NULL	NULL	3	100.00	Using where
 2	DEPENDENT SUBQUERY	t2	ALL	NULL	NULL	NULL	NULL	3	100.00	Using where
 Warnings:
 Note	1276	Field or reference 'test.t1.a' of SELECT #2 was resolved in SELECT #1
@@ -316,14 +319,14 @@ INSERT INTO t2 VALUES (1), (2), (3);
 #
 EXPLAIN UPDATE        t1, t2 SET a = 10 WHERE a IN (SELECT b FROM t2 WHERE t2.b < 3);
 id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
-1	PRIMARY	t1	ALL	NULL	NULL	NULL	NULL	3	Using where
+1	UPDATE	t1	ALL	NULL	NULL	NULL	NULL	3	Using where
 1	PRIMARY	t2	ALL	NULL	NULL	NULL	NULL	3	Using join buffer (Block Nested Loop)
 2	DEPENDENT SUBQUERY	t2	ALL	NULL	NULL	NULL	NULL	3	Using where
 FLUSH STATUS;
 FLUSH TABLES;
 EXPLAIN EXTENDED UPDATE        t1, t2 SET a = 10 WHERE a IN (SELECT b FROM t2 WHERE t2.b < 3);
 id	select_type	table	type	possible_keys	key	key_len	ref	rows	filtered	Extra
-1	PRIMARY	t1	ALL	NULL	NULL	NULL	NULL	3	100.00	Using where
+1	UPDATE	t1	ALL	NULL	NULL	NULL	NULL	3	100.00	Using where
 1	PRIMARY	t2	ALL	NULL	NULL	NULL	NULL	3	100.00	Using join buffer (Block Nested Loop)
 2	DEPENDENT SUBQUERY	t2	ALL	NULL	NULL	NULL	NULL	3	100.00	Using where
 # Status of EXPLAIN EXTENDED query
@@ -363,14 +366,14 @@ INSERT INTO t2 VALUES (1), (2), (3);
 #
 EXPLAIN UPDATE        t1 t11, (SELECT * FROM t2) t12 SET t11.a = t11.a + 10;
 id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
-1	PRIMARY	t11	ALL	NULL	NULL	NULL	NULL	3	NULL
+1	UPDATE	t11	ALL	NULL	NULL	NULL	NULL	3	NULL
 1	PRIMARY	<derived2>	ALL	NULL	NULL	NULL	NULL	3	Using join buffer (Block Nested Loop)
 2	DERIVED	t2	ALL	NULL	NULL	NULL	NULL	3	NULL
 FLUSH STATUS;
 FLUSH TABLES;
 EXPLAIN EXTENDED UPDATE        t1 t11, (SELECT * FROM t2) t12 SET t11.a = t11.a + 10;
 id	select_type	table	type	possible_keys	key	key_len	ref	rows	filtered	Extra
-1	PRIMARY	t11	ALL	NULL	NULL	NULL	NULL	3	100.00	NULL
+1	UPDATE	t11	ALL	NULL	NULL	NULL	NULL	3	100.00	NULL
 1	PRIMARY	<derived2>	ALL	NULL	NULL	NULL	NULL	3	100.00	Using join buffer (Block Nested Loop)
 2	DERIVED	t2	ALL	NULL	NULL	NULL	NULL	3	100.00	NULL
 # Status of EXPLAIN EXTENDED query
@@ -414,14 +417,14 @@ INSERT INTO t2 VALUES (1), (2), (3);
 EXPLAIN UPDATE        t1 t11, (SELECT 1 FROM DUAL) t12 SET t11.a = t11.a + 10;
 id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
 1	PRIMARY	<derived2>	system	NULL	NULL	NULL	NULL	1	NULL
-1	PRIMARY	t11	ALL	NULL	NULL	NULL	NULL	3	NULL
+1	UPDATE	t11	ALL	NULL	NULL	NULL	NULL	3	NULL
 2	DERIVED	NULL	NULL	NULL	NULL	NULL	NULL	NULL	No tables used
 FLUSH STATUS;
 FLUSH TABLES;
 EXPLAIN EXTENDED UPDATE        t1 t11, (SELECT 1 FROM DUAL) t12 SET t11.a = t11.a + 10;
 id	select_type	table	type	possible_keys	key	key_len	ref	rows	filtered	Extra
 1	PRIMARY	<derived2>	system	NULL	NULL	NULL	NULL	1	100.00	NULL
-1	PRIMARY	t11	ALL	NULL	NULL	NULL	NULL	3	100.00	NULL
+1	UPDATE	t11	ALL	NULL	NULL	NULL	NULL	3	100.00	NULL
 2	DERIVED	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	No tables used
 # Status of EXPLAIN EXTENDED query
 Variable_name	Value
@@ -469,14 +472,14 @@ INSERT INTO t2 VALUES (1), (2), (3);
 #
 EXPLAIN UPDATE        t1 t11, (SELECT * FROM t2) t12 SET t11.a = 10 WHERE t11.a > 1;
 id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
-1	PRIMARY	t11	ALL	NULL	NULL	NULL	NULL	3	Using where
+1	UPDATE	t11	ALL	NULL	NULL	NULL	NULL	3	Using where
 1	PRIMARY	<derived2>	ALL	NULL	NULL	NULL	NULL	3	Using join buffer (Block Nested Loop)
 2	DERIVED	t2	ALL	NULL	NULL	NULL	NULL	3	NULL
 FLUSH STATUS;
 FLUSH TABLES;
 EXPLAIN EXTENDED UPDATE        t1 t11, (SELECT * FROM t2) t12 SET t11.a = 10 WHERE t11.a > 1;
 id	select_type	table	type	possible_keys	key	key_len	ref	rows	filtered	Extra
-1	PRIMARY	t11	ALL	NULL	NULL	NULL	NULL	3	100.00	Using where
+1	UPDATE	t11	ALL	NULL	NULL	NULL	NULL	3	100.00	Using where
 1	PRIMARY	<derived2>	ALL	NULL	NULL	NULL	NULL	3	100.00	Using join buffer (Block Nested Loop)
 2	DERIVED	t2	ALL	NULL	NULL	NULL	NULL	3	100.00	NULL
 # Status of EXPLAIN EXTENDED query
@@ -516,12 +519,12 @@ INSERT INTO t1 VALUES (1), (2), (3);
 #
 EXPLAIN DELETE   FROM t1 WHERE a > 1 LIMIT 1;
 id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
-1	SIMPLE	t1	ALL	NULL	NULL	NULL	NULL	3	Using where
+1	DELETE	t1	ALL	NULL	NULL	NULL	NULL	3	Using where
 FLUSH STATUS;
 FLUSH TABLES;
 EXPLAIN EXTENDED DELETE   FROM t1 WHERE a > 1 LIMIT 1;
 id	select_type	table	type	possible_keys	key	key_len	ref	rows	filtered	Extra
-1	SIMPLE	t1	ALL	NULL	NULL	NULL	NULL	3	100.00	Using where
+1	DELETE	t1	ALL	NULL	NULL	NULL	NULL	3	100.00	Using where
 # Status of EXPLAIN EXTENDED query
 Variable_name	Value
 FLUSH STATUS;
@@ -555,12 +558,12 @@ INSERT INTO t1 VALUES (1), (2), (3);
 #
 EXPLAIN DELETE   FROM t1 WHERE 0;
 id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
-1	SIMPLE	NULL	NULL	NULL	NULL	NULL	NULL	NULL	Impossible WHERE
+1	DELETE	NULL	NULL	NULL	NULL	NULL	NULL	NULL	Impossible WHERE
 FLUSH STATUS;
 FLUSH TABLES;
 EXPLAIN EXTENDED DELETE   FROM t1 WHERE 0;
 id	select_type	table	type	possible_keys	key	key_len	ref	rows	filtered	Extra
-1	SIMPLE	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	Impossible WHERE
+1	DELETE	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	Impossible WHERE
 # Status of EXPLAIN EXTENDED query
 Variable_name	Value
 FLUSH STATUS;
@@ -587,12 +590,12 @@ INSERT INTO t1 VALUES (1), (2), (3);
 #
 EXPLAIN DELETE   FROM t1 USING t1 WHERE 0;
 id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
-1	SIMPLE	NULL	NULL	NULL	NULL	NULL	NULL	NULL	Impossible WHERE
+1	DELETE	NULL	NULL	NULL	NULL	NULL	NULL	NULL	Impossible WHERE
 FLUSH STATUS;
 FLUSH TABLES;
 EXPLAIN EXTENDED DELETE   FROM t1 USING t1 WHERE 0;
 id	select_type	table	type	possible_keys	key	key_len	ref	rows	filtered	Extra
-1	SIMPLE	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	Impossible WHERE
+1	DELETE	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	Impossible WHERE
 # Status of EXPLAIN EXTENDED query
 Variable_name	Value
 FLUSH STATUS;
@@ -619,12 +622,12 @@ INSERT INTO t1 VALUES (3, 3), (7, 7);
 #
 EXPLAIN DELETE   FROM t1 WHERE a = 3;
 id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
-1	SIMPLE	t1	range	a	a	5	const	1	Using where
+1	DELETE	t1	range	a	a	5	const	1	Using where
 FLUSH STATUS;
 FLUSH TABLES;
 EXPLAIN EXTENDED DELETE   FROM t1 WHERE a = 3;
 id	select_type	table	type	possible_keys	key	key_len	ref	rows	filtered	Extra
-1	SIMPLE	t1	range	a	a	5	const	1	100.00	Using where
+1	DELETE	t1	range	a	a	5	const	1	100.00	Using where
 # Status of EXPLAIN EXTENDED query
 Variable_name	Value
 FLUSH STATUS;
@@ -655,12 +658,12 @@ INSERT INTO t1 VALUES (3, 3), (7, 7);
 #
 EXPLAIN DELETE   FROM t1 WHERE a < 3;
 id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
-1	SIMPLE	t1	range	a	a	5	const	1	Using where
+1	DELETE	t1	range	a	a	5	const	1	Using where
 FLUSH STATUS;
 FLUSH TABLES;
 EXPLAIN EXTENDED DELETE   FROM t1 WHERE a < 3;
 id	select_type	table	type	possible_keys	key	key_len	ref	rows	filtered	Extra
-1	SIMPLE	t1	range	a	a	5	const	1	100.00	Using where
+1	DELETE	t1	range	a	a	5	const	1	100.00	Using where
 # Status of EXPLAIN EXTENDED query
 Variable_name	Value
 FLUSH STATUS;
@@ -688,12 +691,12 @@ CREATE TABLE t1 ( a int PRIMARY KEY );
 #
 EXPLAIN DELETE   FROM t1 WHERE t1.a > 0 ORDER BY t1.a;
 id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
-1	SIMPLE	t1	range	PRIMARY	PRIMARY	4	const	1	Using where
+1	DELETE	t1	range	PRIMARY	PRIMARY	4	const	1	Using where
 FLUSH STATUS;
 FLUSH TABLES;
 EXPLAIN EXTENDED DELETE   FROM t1 WHERE t1.a > 0 ORDER BY t1.a;
 id	select_type	table	type	possible_keys	key	key_len	ref	rows	filtered	Extra
-1	SIMPLE	t1	range	PRIMARY	PRIMARY	4	const	1	100.00	Using where
+1	DELETE	t1	range	PRIMARY	PRIMARY	4	const	1	100.00	Using where
 # Status of EXPLAIN EXTENDED query
 Variable_name	Value
 FLUSH STATUS;
@@ -720,12 +723,12 @@ INSERT INTO t1 VALUES (1), (2), (3);
 #
 EXPLAIN DELETE   FROM t1 WHERE t1.a > 0 ORDER BY t1.a;
 id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
-1	SIMPLE	t1	range	PRIMARY	PRIMARY	4	const	3	Using where
+1	DELETE	t1	range	PRIMARY	PRIMARY	4	const	3	Using where
 FLUSH STATUS;
 FLUSH TABLES;
 EXPLAIN EXTENDED DELETE   FROM t1 WHERE t1.a > 0 ORDER BY t1.a;
 id	select_type	table	type	possible_keys	key	key_len	ref	rows	filtered	Extra
-1	SIMPLE	t1	range	PRIMARY	PRIMARY	4	const	3	100.00	Using where
+1	DELETE	t1	range	PRIMARY	PRIMARY	4	const	3	100.00	Using where
 # Status of EXPLAIN EXTENDED query
 Variable_name	Value
 FLUSH STATUS;
@@ -758,12 +761,12 @@ INSERT INTO t1 VALUES (4),(3),(1),(2);
 #
 EXPLAIN DELETE   FROM t1 WHERE (@a:= a) ORDER BY a LIMIT 1;
 id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
-1	SIMPLE	t1	index	NULL	PRIMARY	4	NULL	4	Using where
+1	DELETE	t1	index	NULL	PRIMARY	4	NULL	4	Using where
 FLUSH STATUS;
 FLUSH TABLES;
 EXPLAIN EXTENDED DELETE   FROM t1 WHERE (@a:= a) ORDER BY a LIMIT 1;
 id	select_type	table	type	possible_keys	key	key_len	ref	rows	filtered	Extra
-1	SIMPLE	t1	index	NULL	PRIMARY	4	NULL	4	100.00	Using where
+1	DELETE	t1	index	NULL	PRIMARY	4	NULL	4	100.00	Using where
 # Status of EXPLAIN EXTENDED query
 Variable_name	Value
 FLUSH STATUS;
@@ -796,12 +799,12 @@ UPDATE t1 SET a = c, b = c;
 #
 EXPLAIN DELETE   FROM t1 ORDER BY a ASC, b ASC LIMIT 1;
 id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
-1	SIMPLE	t1	ALL	NULL	NULL	NULL	NULL	10	Using filesort
+1	DELETE	t1	ALL	NULL	NULL	NULL	NULL	10	Using filesort
 FLUSH STATUS;
 FLUSH TABLES;
 EXPLAIN EXTENDED DELETE   FROM t1 ORDER BY a ASC, b ASC LIMIT 1;
 id	select_type	table	type	possible_keys	key	key_len	ref	rows	filtered	Extra
-1	SIMPLE	t1	ALL	NULL	NULL	NULL	NULL	10	100.00	Using filesort
+1	DELETE	t1	ALL	NULL	NULL	NULL	NULL	10	100.00	Using filesort
 # Status of EXPLAIN EXTENDED query
 Variable_name	Value
 FLUSH STATUS;
@@ -844,16 +847,16 @@ INSERT INTO t3 VALUES (1,1), (2,1), (1,3);
 #
 EXPLAIN DELETE t1,t2,t3 FROM t1,t2,t3 WHERE a1=a2 AND b2=a3 AND b1=b3;
 id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
-1	SIMPLE	t1	ALL	NULL	NULL	NULL	NULL	3	NULL
-1	SIMPLE	t2	ref	PRIMARY	PRIMARY	4	test.t1.a1	1	NULL
-1	SIMPLE	t3	eq_ref	PRIMARY	PRIMARY	8	test.t2.b2,test.t1.b1	1	NULL
+1	DELETE	t1	ALL	NULL	NULL	NULL	NULL	3	NULL
+1	DELETE	t2	ref	PRIMARY	PRIMARY	4	test.t1.a1	1	NULL
+1	DELETE	t3	eq_ref	PRIMARY	PRIMARY	8	test.t2.b2,test.t1.b1	1	NULL
 FLUSH STATUS;
 FLUSH TABLES;
 EXPLAIN EXTENDED DELETE t1,t2,t3 FROM t1,t2,t3 WHERE a1=a2 AND b2=a3 AND b1=b3;
 id	select_type	table	type	possible_keys	key	key_len	ref	rows	filtered	Extra
-1	SIMPLE	t1	ALL	NULL	NULL	NULL	NULL	3	100.00	NULL
-1	SIMPLE	t2	ref	PRIMARY	PRIMARY	4	test.t1.a1	1	100.00	NULL
-1	SIMPLE	t3	eq_ref	PRIMARY	PRIMARY	8	test.t2.b2,test.t1.b1	1	100.00	NULL
+1	DELETE	t1	ALL	NULL	NULL	NULL	NULL	3	100.00	NULL
+1	DELETE	t2	ref	PRIMARY	PRIMARY	4	test.t1.a1	1	100.00	NULL
+1	DELETE	t3	eq_ref	PRIMARY	PRIMARY	8	test.t2.b2,test.t1.b1	1	100.00	NULL
 # Status of EXPLAIN EXTENDED query
 Variable_name	Value
 FLUSH STATUS;
@@ -894,13 +897,13 @@ INSERT INTO t2 VALUES (1), (2), (3);
 #
 EXPLAIN UPDATE t1 SET a = 10 WHERE a IN (SELECT a FROM t2);
 id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
-1	PRIMARY	t1	ALL	NULL	NULL	NULL	NULL	3	Using where
+1	UPDATE	t1	ALL	NULL	NULL	NULL	NULL	3	Using where
 2	DEPENDENT SUBQUERY	t2	ALL	NULL	NULL	NULL	NULL	3	Using where
 FLUSH STATUS;
 FLUSH TABLES;
 EXPLAIN EXTENDED UPDATE t1 SET a = 10 WHERE a IN (SELECT a FROM t2);
 id	select_type	table	type	possible_keys	key	key_len	ref	rows	filtered	Extra
-1	PRIMARY	t1	ALL	NULL	NULL	NULL	NULL	3	100.00	Using where
+1	UPDATE	t1	ALL	NULL	NULL	NULL	NULL	3	100.00	Using where
 2	DEPENDENT SUBQUERY	t2	ALL	NULL	NULL	NULL	NULL	3	100.00	Using where
 # Status of EXPLAIN EXTENDED query
 Variable_name	Value
@@ -939,13 +942,13 @@ SET @save_optimizer_switch= @@optimizer_switch;
 #
 EXPLAIN DELETE   FROM t1 WHERE a1 IN (SELECT a2 FROM t2 WHERE a2 > 2);
 id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
-1	PRIMARY	t1	ALL	NULL	NULL	NULL	NULL	5	Using where
+1	DELETE	t1	ALL	NULL	NULL	NULL	NULL	5	Using where
 2	DEPENDENT SUBQUERY	t2	ALL	NULL	NULL	NULL	NULL	5	Using where
 FLUSH STATUS;
 FLUSH TABLES;
 EXPLAIN EXTENDED DELETE   FROM t1 WHERE a1 IN (SELECT a2 FROM t2 WHERE a2 > 2);
 id	select_type	table	type	possible_keys	key	key_len	ref	rows	filtered	Extra
-1	PRIMARY	t1	ALL	NULL	NULL	NULL	NULL	5	100.00	Using where
+1	DELETE	t1	ALL	NULL	NULL	NULL	NULL	5	100.00	Using where
 2	DEPENDENT SUBQUERY	t2	ALL	NULL	NULL	NULL	NULL	5	100.00	Using where
 # Status of EXPLAIN EXTENDED query
 Variable_name	Value
@@ -980,13 +983,13 @@ INSERT INTO t1 VALUES (1), (2), (3), (4), (5);
 #
 EXPLAIN DELETE   FROM t1 WHERE a1 IN (SELECT a2 FROM t2 WHERE a2 > 2);
 id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
-1	PRIMARY	t1	ALL	NULL	NULL	NULL	NULL	5	Using where
+1	DELETE	t1	ALL	NULL	NULL	NULL	NULL	5	Using where
 2	DEPENDENT SUBQUERY	t2	ALL	NULL	NULL	NULL	NULL	5	Using where
 FLUSH STATUS;
 FLUSH TABLES;
 EXPLAIN EXTENDED DELETE   FROM t1 WHERE a1 IN (SELECT a2 FROM t2 WHERE a2 > 2);
 id	select_type	table	type	possible_keys	key	key_len	ref	rows	filtered	Extra
-1	PRIMARY	t1	ALL	NULL	NULL	NULL	NULL	5	100.00	Using where
+1	DELETE	t1	ALL	NULL	NULL	NULL	NULL	5	100.00	Using where
 2	DEPENDENT SUBQUERY	t2	ALL	NULL	NULL	NULL	NULL	5	100.00	Using where
 # Status of EXPLAIN EXTENDED query
 Variable_name	Value
@@ -1022,12 +1025,12 @@ INSERT INTO t1 VALUES (1, 1), (2, 2), (3, 3), (4, 4), (5, 5);
 #
 EXPLAIN UPDATE t1 SET i = 10;
 id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
-1	SIMPLE	t1	ALL	NULL	NULL	NULL	NULL	5	NULL
+1	UPDATE	t1	ALL	NULL	NULL	NULL	NULL	5	NULL
 FLUSH STATUS;
 FLUSH TABLES;
 EXPLAIN EXTENDED UPDATE t1 SET i = 10;
 id	select_type	table	type	possible_keys	key	key_len	ref	rows	filtered	Extra
-1	SIMPLE	t1	ALL	NULL	NULL	NULL	NULL	5	100.00	NULL
+1	UPDATE	t1	ALL	NULL	NULL	NULL	NULL	5	100.00	NULL
 # Status of EXPLAIN EXTENDED query
 Variable_name	Value
 FLUSH STATUS;
@@ -1061,12 +1064,12 @@ INSERT INTO t1 VALUES (1, 1), (2, 2), (3, 3), (4, 4), (5, 5);
 #
 EXPLAIN DELETE FROM t1;
 id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
-1	SIMPLE	NULL	NULL	NULL	NULL	NULL	NULL	5	Deleting all rows
+1	DELETE	t1	ALL	NULL	NULL	NULL	NULL	5	Deleting all rows
 FLUSH STATUS;
 FLUSH TABLES;
 EXPLAIN EXTENDED DELETE FROM t1;
 id	select_type	table	type	possible_keys	key	key_len	ref	rows	filtered	Extra
-1	SIMPLE	NULL	NULL	NULL	NULL	NULL	NULL	5	NULL	Deleting all rows
+1	DELETE	t1	ALL	NULL	NULL	NULL	NULL	5	100.00	Deleting all rows
 # Status of EXPLAIN EXTENDED query
 Variable_name	Value
 FLUSH STATUS;
@@ -1105,12 +1108,12 @@ INSERT INTO t2 (a, b, c) SELECT t1.i, t1.i, t1.i FROM t1, t1 x1, t1 x2;
 #
 EXPLAIN DELETE   FROM t2 WHERE b = 10 ORDER BY a, c LIMIT 5;
 id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
-1	SIMPLE	t2	index	NULL	a	15	NULL	X	Using where
+1	DELETE	t2	index	NULL	a	15	NULL	X	Using where
 FLUSH STATUS;
 FLUSH TABLES;
 EXPLAIN EXTENDED DELETE   FROM t2 WHERE b = 10 ORDER BY a, c LIMIT 5;
 id	select_type	table	type	possible_keys	key	key_len	ref	rows	filtered	Extra
-1	SIMPLE	t2	index	NULL	a	15	NULL	X	X	Using where
+1	DELETE	t2	index	NULL	a	15	NULL	X	X	Using where
 # Status of EXPLAIN EXTENDED query
 Variable_name	Value
 FLUSH STATUS;
@@ -1145,11 +1148,13 @@ CREATE TABLE t2 (i INT);
 #
 EXPLAIN INSERT INTO t2 SELECT * FROM t1;
 id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
+1	INSERT	t2	ALL	NULL	NULL	NULL	NULL	NULL	NULL
 1	SIMPLE	t1	ALL	NULL	NULL	NULL	NULL	3	NULL
 FLUSH STATUS;
 FLUSH TABLES;
 EXPLAIN EXTENDED INSERT INTO t2 SELECT * FROM t1;
 id	select_type	table	type	possible_keys	key	key_len	ref	rows	filtered	Extra
+1	INSERT	t2	ALL	NULL	NULL	NULL	NULL	NULL	NULL	NULL
 1	SIMPLE	t1	ALL	NULL	NULL	NULL	NULL	3	100.00	NULL
 # Status of EXPLAIN EXTENDED query
 Variable_name	Value
@@ -1174,6 +1179,46 @@ Handler_read_key	1
 Handler_read_rnd_next	4
 Handler_write	3
 
+#
+# query:  INSERT INTO t2 SELECT * FROM t1 JOIN t1 AS tt USING(i)
+# select: SELECT * FROM t1 JOIN t1 AS tt USING(i)
+#
+EXPLAIN INSERT INTO t2 SELECT * FROM t1 JOIN t1 AS tt USING(i);
+id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
+1	INSERT	t2	ALL	NULL	NULL	NULL	NULL	NULL	NULL
+1	SIMPLE	t1	ALL	NULL	NULL	NULL	NULL	3	NULL
+1	SIMPLE	tt	ALL	NULL	NULL	NULL	NULL	3	Using where; Using join buffer (Block Nested Loop)
+FLUSH STATUS;
+FLUSH TABLES;
+EXPLAIN EXTENDED INSERT INTO t2 SELECT * FROM t1 JOIN t1 AS tt USING(i);
+id	select_type	table	type	possible_keys	key	key_len	ref	rows	filtered	Extra
+1	INSERT	t2	ALL	NULL	NULL	NULL	NULL	NULL	NULL	NULL
+1	SIMPLE	t1	ALL	NULL	NULL	NULL	NULL	3	100.00	NULL
+1	SIMPLE	tt	ALL	NULL	NULL	NULL	NULL	3	100.00	Using where; Using join buffer (Block Nested Loop)
+# Status of EXPLAIN EXTENDED query
+Variable_name	Value
+FLUSH STATUS;
+FLUSH TABLES;
+EXPLAIN EXTENDED SELECT * FROM t1 JOIN t1 AS tt USING(i);
+id	select_type	table	type	possible_keys	key	key_len	ref	rows	filtered	Extra
+1	SIMPLE	t1	ALL	NULL	NULL	NULL	NULL	3	100.00	NULL
+1	SIMPLE	tt	ALL	NULL	NULL	NULL	NULL	3	100.00	Using where; Using join buffer (Block Nested Loop)
+Warnings:
+Note	1003	/* select#1 */ select `test`.`t1`.`i` AS `i` from `test`.`t1` join `test`.`t1` `tt` where (`test`.`tt`.`i` = `test`.`t1`.`i`)
+# Status of EXPLAIN EXTENDED "equivalent" SELECT query execution
+Variable_name	Value
+# Status of "equivalent" SELECT query execution:
+Variable_name	Value
+Handler_read_first	2
+Handler_read_key	2
+Handler_read_rnd_next	8
+# Status of testing query execution:
+Variable_name	Value
+Handler_read_first	2
+Handler_read_key	2
+Handler_read_rnd_next	8
+Handler_write	3
+
 DROP TABLE t1, t2;
 #26
 CREATE TABLE t1 (i INT);
@@ -1185,11 +1230,13 @@ CREATE TABLE t2 (i INT);
 #
 EXPLAIN REPLACE INTO t2 SELECT * FROM t1;
 id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
+1	REPLACE	t2	ALL	NULL	NULL	NULL	NULL	NULL	NULL
 1	SIMPLE	t1	ALL	NULL	NULL	NULL	NULL	3	NULL
 FLUSH STATUS;
 FLUSH TABLES;
 EXPLAIN EXTENDED REPLACE INTO t2 SELECT * FROM t1;
 id	select_type	table	type	possible_keys	key	key_len	ref	rows	filtered	Extra
+1	REPLACE	t2	ALL	NULL	NULL	NULL	NULL	NULL	NULL	NULL
 1	SIMPLE	t1	ALL	NULL	NULL	NULL	NULL	3	100.00	NULL
 # Status of EXPLAIN EXTENDED query
 Variable_name	Value
@@ -1223,12 +1270,12 @@ CREATE TABLE t1 (i INT);
 #
 EXPLAIN INSERT INTO t1 SET i = 10;
 id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
-1	SIMPLE	NULL	NULL	NULL	NULL	NULL	NULL	NULL	No tables used
+1	INSERT	t1	ALL	NULL	NULL	NULL	NULL	NULL	NULL
 FLUSH STATUS;
 FLUSH TABLES;
 EXPLAIN EXTENDED INSERT INTO t1 SET i = 10;
 id	select_type	table	type	possible_keys	key	key_len	ref	rows	filtered	Extra
-1	SIMPLE	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	No tables used
+1	INSERT	t1	ALL	NULL	NULL	NULL	NULL	NULL	NULL	NULL
 # Status of EXPLAIN EXTENDED query
 Variable_name	Value
 # Status of testing query execution:
@@ -1244,12 +1291,12 @@ CREATE TABLE t1 (i INT);
 #
 EXPLAIN REPLACE INTO t1 SET i = 10;
 id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
-1	SIMPLE	NULL	NULL	NULL	NULL	NULL	NULL	NULL	No tables used
+1	REPLACE	t1	ALL	NULL	NULL	NULL	NULL	NULL	NULL
 FLUSH STATUS;
 FLUSH TABLES;
 EXPLAIN EXTENDED REPLACE INTO t1 SET i = 10;
 id	select_type	table	type	possible_keys	key	key_len	ref	rows	filtered	Extra
-1	SIMPLE	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	No tables used
+1	REPLACE	t1	ALL	NULL	NULL	NULL	NULL	NULL	NULL	NULL
 # Status of EXPLAIN EXTENDED query
 Variable_name	Value
 # Status of testing query execution:
@@ -1268,12 +1315,12 @@ INSERT INTO t1 (i) VALUES (10),(11),(12),(13),(14),(15),(16),(17),(18),(19),
 #
 EXPLAIN DELETE   FROM t1 WHERE i > 10 AND i <= 18 ORDER BY i LIMIT 5;
 id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
-1	SIMPLE	t1	range	PRIMARY	PRIMARY	4	const	8	Using where
+1	DELETE	t1	range	PRIMARY	PRIMARY	4	const	8	Using where
 FLUSH STATUS;
 FLUSH TABLES;
 EXPLAIN EXTENDED DELETE   FROM t1 WHERE i > 10 AND i <= 18 ORDER BY i LIMIT 5;
 id	select_type	table	type	possible_keys	key	key_len	ref	rows	filtered	Extra
-1	SIMPLE	t1	range	PRIMARY	PRIMARY	4	const	8	100.00	Using where
+1	DELETE	t1	range	PRIMARY	PRIMARY	4	const	8	100.00	Using where
 # Status of EXPLAIN EXTENDED query
 Variable_name	Value
 FLUSH STATUS;
@@ -1307,12 +1354,12 @@ INSERT INTO t1 (i) VALUES (10),(11),(12),(13),(14),(15),(16),(17),(18),(19),
 #
 EXPLAIN DELETE   FROM t1 WHERE i > 10 AND i <= 18 ORDER BY i LIMIT 5;
 id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
-1	SIMPLE	t1	ALL	NULL	NULL	NULL	NULL	26	Using where; Using filesort
+1	DELETE	t1	ALL	NULL	NULL	NULL	NULL	26	Using where; Using filesort
 FLUSH STATUS;
 FLUSH TABLES;
 EXPLAIN EXTENDED DELETE   FROM t1 WHERE i > 10 AND i <= 18 ORDER BY i LIMIT 5;
 id	select_type	table	type	possible_keys	key	key_len	ref	rows	filtered	Extra
-1	SIMPLE	t1	ALL	NULL	NULL	NULL	NULL	26	100.00	Using where; Using filesort
+1	DELETE	t1	ALL	NULL	NULL	NULL	NULL	26	100.00	Using where; Using filesort
 Warnings:
 Warning	1739	Cannot use range access on index 'i' due to type or collation conversion on field 'i'
 Warning	1739	Cannot use range access on index 'i' due to type or collation conversion on field 'i'
@@ -1360,12 +1407,12 @@ INSERT INTO t2 (a, b, c) SELECT i, i, i FROM t1;
 #
 EXPLAIN DELETE   FROM t2 WHERE b = 10 ORDER BY a, c LIMIT 5;
 id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
-1	SIMPLE	t2	ALL	NULL	NULL	NULL	NULL	26	Using where; Using filesort
+1	DELETE	t2	ALL	NULL	NULL	NULL	NULL	26	Using where; Using filesort
 FLUSH STATUS;
 FLUSH TABLES;
 EXPLAIN EXTENDED DELETE   FROM t2 WHERE b = 10 ORDER BY a, c LIMIT 5;
 id	select_type	table	type	possible_keys	key	key_len	ref	rows	filtered	Extra
-1	SIMPLE	t2	ALL	NULL	NULL	NULL	NULL	26	100.00	Using where; Using filesort
+1	DELETE	t2	ALL	NULL	NULL	NULL	NULL	26	100.00	Using where; Using filesort
 # Status of EXPLAIN EXTENDED query
 Variable_name	Value
 FLUSH STATUS;
@@ -1409,12 +1456,12 @@ INSERT INTO t2 (a, b, c) SELECT t1.i, t1.i, t1.i FROM t1, t1 x1, t1 x2;
 #
 EXPLAIN DELETE   FROM t2 WHERE b = 10 ORDER BY a, c LIMIT 5;
 id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
-1	SIMPLE	t2	index	NULL	a	15	NULL	X	Using where
+1	DELETE	t2	index	NULL	a	15	NULL	X	Using where
 FLUSH STATUS;
 FLUSH TABLES;
 EXPLAIN EXTENDED DELETE   FROM t2 WHERE b = 10 ORDER BY a, c LIMIT 5;
 id	select_type	table	type	possible_keys	key	key_len	ref	rows	filtered	Extra
-1	SIMPLE	t2	index	NULL	a	15	NULL	X	X	Using where
+1	DELETE	t2	index	NULL	a	15	NULL	X	X	Using where
 # Status of EXPLAIN EXTENDED query
 Variable_name	Value
 FLUSH STATUS;
@@ -1452,12 +1499,12 @@ INSERT INTO t2 SELECT i, i, i, i FROM t1;
 #
 EXPLAIN DELETE   FROM t2 WHERE b = 10 ORDER BY a, c LIMIT 5;
 id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
-1	SIMPLE	t2	ALL	NULL	NULL	NULL	NULL	26	Using where; Using filesort
+1	DELETE	t2	ALL	NULL	NULL	NULL	NULL	26	Using where; Using filesort
 FLUSH STATUS;
 FLUSH TABLES;
 EXPLAIN EXTENDED DELETE   FROM t2 WHERE b = 10 ORDER BY a, c LIMIT 5;
 id	select_type	table	type	possible_keys	key	key_len	ref	rows	filtered	Extra
-1	SIMPLE	t2	ALL	NULL	NULL	NULL	NULL	26	100.00	Using where; Using filesort
+1	DELETE	t2	ALL	NULL	NULL	NULL	NULL	26	100.00	Using where; Using filesort
 Warnings:
 Warning	1739	Cannot use range access on index 'a' due to type or collation conversion on field 'b'
 # Status of EXPLAIN EXTENDED query
@@ -1503,12 +1550,12 @@ INSERT INTO t2 SELECT i, i, i, i FROM t1;
 #
 EXPLAIN DELETE   FROM t2 WHERE b = 10 ORDER BY a, c LIMIT 5;
 id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
-1	SIMPLE	t2	ALL	NULL	NULL	NULL	NULL	26	Using where; Using filesort
+1	DELETE	t2	ALL	NULL	NULL	NULL	NULL	26	Using where; Using filesort
 FLUSH STATUS;
 FLUSH TABLES;
 EXPLAIN EXTENDED DELETE   FROM t2 WHERE b = 10 ORDER BY a, c LIMIT 5;
 id	select_type	table	type	possible_keys	key	key_len	ref	rows	filtered	Extra
-1	SIMPLE	t2	ALL	NULL	NULL	NULL	NULL	26	100.00	Using where; Using filesort
+1	DELETE	t2	ALL	NULL	NULL	NULL	NULL	26	100.00	Using where; Using filesort
 Warnings:
 Warning	1739	Cannot use range access on index 'a' due to type or collation conversion on field 'b'
 # Status of EXPLAIN EXTENDED query
@@ -1551,12 +1598,12 @@ INSERT INTO t2 (key1, key2) SELECT i, i FROM t1;
 #
 EXPLAIN DELETE   FROM t2 WHERE key1 < 13 or key2 < 14 ORDER BY key1;
 id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
-1	SIMPLE	t2	index_merge	key1,key2	key1,key2	5,5	NULL	5	Using sort_union(key1,key2); Using where; Using filesort
+1	DELETE	t2	index_merge	key1,key2	key1,key2	5,5	NULL	5	Using sort_union(key1,key2); Using where; Using filesort
 FLUSH STATUS;
 FLUSH TABLES;
 EXPLAIN EXTENDED DELETE   FROM t2 WHERE key1 < 13 or key2 < 14 ORDER BY key1;
 id	select_type	table	type	possible_keys	key	key_len	ref	rows	filtered	Extra
-1	SIMPLE	t2	index_merge	key1,key2	key1,key2	5,5	NULL	5	100.00	Using sort_union(key1,key2); Using where; Using filesort
+1	DELETE	t2	index_merge	key1,key2	key1,key2	5,5	NULL	5	100.00	Using sort_union(key1,key2); Using where; Using filesort
 # Status of EXPLAIN EXTENDED query
 Variable_name	Value
 FLUSH STATUS;
@@ -1598,12 +1645,12 @@ INSERT INTO t2 (i) SELECT i FROM t1;
 #
 EXPLAIN DELETE   FROM t2 WHERE i > 10 AND i <= 18 ORDER BY i DESC LIMIT 5;
 id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
-1	SIMPLE	t2	range	PRIMARY	PRIMARY	4	const	8	Using where
+1	DELETE	t2	range	PRIMARY	PRIMARY	4	const	8	Using where
 FLUSH STATUS;
 FLUSH TABLES;
 EXPLAIN EXTENDED DELETE   FROM t2 WHERE i > 10 AND i <= 18 ORDER BY i DESC LIMIT 5;
 id	select_type	table	type	possible_keys	key	key_len	ref	rows	filtered	Extra
-1	SIMPLE	t2	range	PRIMARY	PRIMARY	4	const	8	100.00	Using where
+1	DELETE	t2	range	PRIMARY	PRIMARY	4	const	8	100.00	Using where
 # Status of EXPLAIN EXTENDED query
 Variable_name	Value
 FLUSH STATUS;
@@ -1639,12 +1686,12 @@ INSERT INTO t2 SELECT i, i, i FROM t1;
 #
 EXPLAIN DELETE   FROM t2 ORDER BY a, b DESC LIMIT 5;
 id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
-1	SIMPLE	t2	ALL	NULL	NULL	NULL	NULL	26	Using filesort
+1	DELETE	t2	ALL	NULL	NULL	NULL	NULL	26	Using filesort
 FLUSH STATUS;
 FLUSH TABLES;
 EXPLAIN EXTENDED DELETE   FROM t2 ORDER BY a, b DESC LIMIT 5;
 id	select_type	table	type	possible_keys	key	key_len	ref	rows	filtered	Extra
-1	SIMPLE	t2	ALL	NULL	NULL	NULL	NULL	26	100.00	Using filesort
+1	DELETE	t2	ALL	NULL	NULL	NULL	NULL	26	100.00	Using filesort
 # Status of EXPLAIN EXTENDED query
 Variable_name	Value
 FLUSH STATUS;
@@ -1688,12 +1735,12 @@ INSERT INTO t2 (a, b) SELECT t1.i, t1.i FROM t1, t1 x1, t1 x2;
 #
 EXPLAIN DELETE   FROM t2 ORDER BY a DESC, b DESC LIMIT 5;
 id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
-1	SIMPLE	t2	index	NULL	a	6	NULL	X	NULL
+1	DELETE	t2	index	NULL	a	6	NULL	X	NULL
 FLUSH STATUS;
 FLUSH TABLES;
 EXPLAIN EXTENDED DELETE   FROM t2 ORDER BY a DESC, b DESC LIMIT 5;
 id	select_type	table	type	possible_keys	key	key_len	ref	rows	filtered	Extra
-1	SIMPLE	t2	index	NULL	a	6	NULL	X	X	NULL
+1	DELETE	t2	index	NULL	a	6	NULL	X	X	NULL
 # Status of EXPLAIN EXTENDED query
 Variable_name	Value
 FLUSH STATUS;
@@ -1731,12 +1778,12 @@ INSERT INTO t2 (i) SELECT i FROM t1;
 #
 EXPLAIN UPDATE t2 SET a = 10 WHERE i > 10 AND i <= 18 ORDER BY i LIMIT 5;
 id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
-1	SIMPLE	t2	range	PRIMARY	PRIMARY	4	const	X	Using where; Using temporary
+1	UPDATE	t2	range	PRIMARY	PRIMARY	4	const	X	Using where; Using temporary
 FLUSH STATUS;
 FLUSH TABLES;
 EXPLAIN EXTENDED UPDATE t2 SET a = 10 WHERE i > 10 AND i <= 18 ORDER BY i LIMIT 5;
 id	select_type	table	type	possible_keys	key	key_len	ref	rows	filtered	Extra
-1	SIMPLE	t2	range	PRIMARY	PRIMARY	4	const	X	X	Using where; Using temporary
+1	UPDATE	t2	range	PRIMARY	PRIMARY	4	const	X	X	Using where; Using temporary
 # Status of EXPLAIN EXTENDED query
 Variable_name	Value
 FLUSH STATUS;
@@ -1773,12 +1820,12 @@ INSERT INTO t2 (i) SELECT i FROM t1;
 #
 EXPLAIN UPDATE t2 SET a = 10 WHERE i > 10 AND i <= 18 ORDER BY i LIMIT 5;
 id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
-1	SIMPLE	t2	ALL	NULL	NULL	NULL	NULL	26	Using where; Using filesort
+1	UPDATE	t2	ALL	NULL	NULL	NULL	NULL	26	Using where; Using filesort
 FLUSH STATUS;
 FLUSH TABLES;
 EXPLAIN EXTENDED UPDATE t2 SET a = 10 WHERE i > 10 AND i <= 18 ORDER BY i LIMIT 5;
 id	select_type	table	type	possible_keys	key	key_len	ref	rows	filtered	Extra
-1	SIMPLE	t2	ALL	NULL	NULL	NULL	NULL	26	100.00	Using where; Using filesort
+1	UPDATE	t2	ALL	NULL	NULL	NULL	NULL	26	100.00	Using where; Using filesort
 Warnings:
 Warning	1739	Cannot use range access on index 'i' due to type or collation conversion on field 'i'
 Warning	1739	Cannot use range access on index 'i' due to type or collation conversion on field 'i'
@@ -1826,12 +1873,12 @@ INSERT INTO t2 (a, b, c) SELECT i, i, i FROM t1;
 #
 EXPLAIN UPDATE t2 SET d = 10 WHERE b = 10 ORDER BY a, c LIMIT 5;
 id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
-1	SIMPLE	t2	ALL	NULL	NULL	NULL	NULL	26	Using where; Using filesort
+1	UPDATE	t2	ALL	NULL	NULL	NULL	NULL	26	Using where; Using filesort
 FLUSH STATUS;
 FLUSH TABLES;
 EXPLAIN EXTENDED UPDATE t2 SET d = 10 WHERE b = 10 ORDER BY a, c LIMIT 5;
 id	select_type	table	type	possible_keys	key	key_len	ref	rows	filtered	Extra
-1	SIMPLE	t2	ALL	NULL	NULL	NULL	NULL	26	100.00	Using where; Using filesort
+1	UPDATE	t2	ALL	NULL	NULL	NULL	NULL	26	100.00	Using where; Using filesort
 # Status of EXPLAIN EXTENDED query
 Variable_name	Value
 FLUSH STATUS;
@@ -1875,12 +1922,12 @@ INSERT INTO t2 (a, b, c) SELECT t1.i, t1.i, t1.i FROM t1, t1 x1, t1 x2;
 #
 EXPLAIN UPDATE t2 SET d = 10 WHERE b = 10 ORDER BY a, c LIMIT 5;
 id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
-1	SIMPLE	t2	index	NULL	a	15	NULL	X	Using where; Using temporary
+1	UPDATE	t2	index	NULL	a	15	NULL	X	Using where; Using temporary
 FLUSH STATUS;
 FLUSH TABLES;
 EXPLAIN EXTENDED UPDATE t2 SET d = 10 WHERE b = 10 ORDER BY a, c LIMIT 5;
 id	select_type	table	type	possible_keys	key	key_len	ref	rows	filtered	Extra
-1	SIMPLE	t2	index	NULL	a	15	NULL	X	X	Using where; Using temporary
+1	UPDATE	t2	index	NULL	a	15	NULL	X	X	Using where; Using temporary
 # Status of EXPLAIN EXTENDED query
 Variable_name	Value
 FLUSH STATUS;
@@ -1919,12 +1966,12 @@ INSERT INTO t2 SELECT i, i, i, i FROM t1;
 #
 EXPLAIN UPDATE t2 SET d = 10 WHERE b = 10 ORDER BY a, c LIMIT 5;
 id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
-1	SIMPLE	t2	ALL	NULL	NULL	NULL	NULL	26	Using where; Using filesort
+1	UPDATE	t2	ALL	NULL	NULL	NULL	NULL	26	Using where; Using filesort
 FLUSH STATUS;
 FLUSH TABLES;
 EXPLAIN EXTENDED UPDATE t2 SET d = 10 WHERE b = 10 ORDER BY a, c LIMIT 5;
 id	select_type	table	type	possible_keys	key	key_len	ref	rows	filtered	Extra
-1	SIMPLE	t2	ALL	NULL	NULL	NULL	NULL	26	100.00	Using where; Using filesort
+1	UPDATE	t2	ALL	NULL	NULL	NULL	NULL	26	100.00	Using where; Using filesort
 Warnings:
 Warning	1739	Cannot use range access on index 'a' due to type or collation conversion on field 'b'
 # Status of EXPLAIN EXTENDED query
@@ -1970,12 +2017,12 @@ INSERT INTO t2 SELECT i, i, i, i FROM t1;
 #
 EXPLAIN UPDATE t2 SET d = 10 WHERE b = 10 ORDER BY a, c LIMIT 5;
 id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
-1	SIMPLE	t2	ALL	NULL	NULL	NULL	NULL	26	Using where; Using filesort
+1	UPDATE	t2	ALL	NULL	NULL	NULL	NULL	26	Using where; Using filesort
 FLUSH STATUS;
 FLUSH TABLES;
 EXPLAIN EXTENDED UPDATE t2 SET d = 10 WHERE b = 10 ORDER BY a, c LIMIT 5;
 id	select_type	table	type	possible_keys	key	key_len	ref	rows	filtered	Extra
-1	SIMPLE	t2	ALL	NULL	NULL	NULL	NULL	26	100.00	Using where; Using filesort
+1	UPDATE	t2	ALL	NULL	NULL	NULL	NULL	26	100.00	Using where; Using filesort
 Warnings:
 Warning	1739	Cannot use range access on index 'a' due to type or collation conversion on field 'b'
 # Status of EXPLAIN EXTENDED query
@@ -2017,12 +2064,12 @@ INSERT INTO t2 (key1, key2) SELECT i, i FROM t1;
 #
 EXPLAIN UPDATE t2 SET i = 123 WHERE key1 < 13 or key2 < 14 ORDER BY key1;
 id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
-1	SIMPLE	t2	index_merge	key1,key2	key1,key2	5,5	NULL	5	Using sort_union(key1,key2); Using where; Using filesort
+1	UPDATE	t2	index_merge	key1,key2	key1,key2	5,5	NULL	5	Using sort_union(key1,key2); Using where; Using filesort
 FLUSH STATUS;
 FLUSH TABLES;
 EXPLAIN EXTENDED UPDATE t2 SET i = 123 WHERE key1 < 13 or key2 < 14 ORDER BY key1;
 id	select_type	table	type	possible_keys	key	key_len	ref	rows	filtered	Extra
-1	SIMPLE	t2	index_merge	key1,key2	key1,key2	5,5	NULL	5	100.00	Using sort_union(key1,key2); Using where; Using filesort
+1	UPDATE	t2	index_merge	key1,key2	key1,key2	5,5	NULL	5	100.00	Using sort_union(key1,key2); Using where; Using filesort
 # Status of EXPLAIN EXTENDED query
 Variable_name	Value
 FLUSH STATUS;
@@ -2064,12 +2111,12 @@ INSERT INTO t2 (i) SELECT i FROM t1;
 #
 EXPLAIN UPDATE t2 SET a = 10 WHERE i > 10 AND i <= 18 ORDER BY i DESC LIMIT 5;
 id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
-1	SIMPLE	t2	range	PRIMARY	PRIMARY	4	const	8	Using where; Using temporary
+1	UPDATE	t2	range	PRIMARY	PRIMARY	4	const	8	Using where; Using temporary
 FLUSH STATUS;
 FLUSH TABLES;
 EXPLAIN EXTENDED UPDATE t2 SET a = 10 WHERE i > 10 AND i <= 18 ORDER BY i DESC LIMIT 5;
 id	select_type	table	type	possible_keys	key	key_len	ref	rows	filtered	Extra
-1	SIMPLE	t2	range	PRIMARY	PRIMARY	4	const	8	100.00	Using where; Using temporary
+1	UPDATE	t2	range	PRIMARY	PRIMARY	4	const	8	100.00	Using where; Using temporary
 # Status of EXPLAIN EXTENDED query
 Variable_name	Value
 FLUSH STATUS;
@@ -2106,12 +2153,12 @@ INSERT INTO t2 SELECT i, i, i FROM t1;
 #
 EXPLAIN UPDATE t2 SET c = 10 ORDER BY a, b DESC LIMIT 5;
 id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
-1	SIMPLE	t2	ALL	NULL	NULL	NULL	NULL	26	Using filesort
+1	UPDATE	t2	ALL	NULL	NULL	NULL	NULL	26	Using filesort
 FLUSH STATUS;
 FLUSH TABLES;
 EXPLAIN EXTENDED UPDATE t2 SET c = 10 ORDER BY a, b DESC LIMIT 5;
 id	select_type	table	type	possible_keys	key	key_len	ref	rows	filtered	Extra
-1	SIMPLE	t2	ALL	NULL	NULL	NULL	NULL	26	100.00	Using filesort
+1	UPDATE	t2	ALL	NULL	NULL	NULL	NULL	26	100.00	Using filesort
 # Status of EXPLAIN EXTENDED query
 Variable_name	Value
 FLUSH STATUS;
@@ -2155,12 +2202,12 @@ INSERT INTO t2 (a, b) SELECT t1.i, t1.i FROM t1, t1 x1, t1 x2;
 #
 EXPLAIN UPDATE t2 SET c = 10 ORDER BY a DESC, b DESC LIMIT 5;
 id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
-1	SIMPLE	t2	index	NULL	a	6	NULL	X	Using temporary
+1	UPDATE	t2	index	NULL	a	6	NULL	X	Using temporary
 FLUSH STATUS;
 FLUSH TABLES;
 EXPLAIN EXTENDED UPDATE t2 SET c = 10 ORDER BY a DESC, b DESC LIMIT 5;
 id	select_type	table	type	possible_keys	key	key_len	ref	rows	filtered	Extra
-1	SIMPLE	t2	index	NULL	a	6	NULL	X	X	Using temporary
+1	UPDATE	t2	index	NULL	a	6	NULL	X	X	Using temporary
 # Status of EXPLAIN EXTENDED query
 Variable_name	Value
 FLUSH STATUS;
@@ -2201,12 +2248,12 @@ INSERT INTO t1 VALUES (1,'y',1), (2,'n',2), (3,'y',3), (4,'n',4);
 #
 EXPLAIN UPDATE t1 SET c2 = 0 WHERE c1_idx = 'y' ORDER BY pk DESC LIMIT 2;
 id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
-1	SIMPLE	t1	range	c1_idx	c1_idx	2	const	2	Using where; Using temporary
+1	UPDATE	t1	range	c1_idx	c1_idx	2	const	2	Using where; Using temporary
 FLUSH STATUS;
 FLUSH TABLES;
 EXPLAIN EXTENDED UPDATE t1 SET c2 = 0 WHERE c1_idx = 'y' ORDER BY pk DESC LIMIT 2;
 id	select_type	table	type	possible_keys	key	key_len	ref	rows	filtered	Extra
-1	SIMPLE	t1	range	c1_idx	c1_idx	2	const	2	100.00	Using where; Using temporary
+1	UPDATE	t1	range	c1_idx	c1_idx	2	const	2	100.00	Using where; Using temporary
 # Status of EXPLAIN EXTENDED query
 Variable_name	Value
 FLUSH STATUS;
@@ -2235,12 +2282,12 @@ Handler_update	2
 #
 EXPLAIN DELETE   FROM t1 WHERE c1_idx = 'y' ORDER BY pk DESC LIMIT 2;
 id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
-1	SIMPLE	t1	range	c1_idx	c1_idx	2	const	2	Using where
+1	DELETE	t1	range	c1_idx	c1_idx	2	const	2	Using where
 FLUSH STATUS;
 FLUSH TABLES;
 EXPLAIN EXTENDED DELETE   FROM t1 WHERE c1_idx = 'y' ORDER BY pk DESC LIMIT 2;
 id	select_type	table	type	possible_keys	key	key_len	ref	rows	filtered	Extra
-1	SIMPLE	t1	range	c1_idx	c1_idx	2	const	2	100.00	Using where
+1	DELETE	t1	range	c1_idx	c1_idx	2	const	2	100.00	Using where
 # Status of EXPLAIN EXTENDED query
 Variable_name	Value
 FLUSH STATUS;
@@ -2272,12 +2319,12 @@ INSERT INTO t1 VALUES (),(),(),(),(),(),(),(),(),(),(),(),(),(),(),(),(),(),(),(
 #
 EXPLAIN UPDATE t1 SET a=a+10 WHERE a > 34;
 id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
-1	SIMPLE	t1	range	PRIMARY	PRIMARY	4	const	2	Using where; Using temporary
+1	UPDATE	t1	range	PRIMARY	PRIMARY	4	const	2	Using where; Using temporary
 FLUSH STATUS;
 FLUSH TABLES;
 EXPLAIN EXTENDED UPDATE t1 SET a=a+10 WHERE a > 34;
 id	select_type	table	type	possible_keys	key	key_len	ref	rows	filtered	Extra
-1	SIMPLE	t1	range	PRIMARY	PRIMARY	4	const	2	100.00	Using where; Using temporary
+1	UPDATE	t1	range	PRIMARY	PRIMARY	4	const	2	100.00	Using where; Using temporary
 # Status of EXPLAIN EXTENDED query
 Variable_name	Value
 FLUSH STATUS;
@@ -2312,13 +2359,13 @@ INSERT INTO t1 VALUES (1, 1, 10), (2, 2, 20);
 EXPLAIN UPDATE        t1 LEFT JOIN t2 ON t1.c1 = t2.c1 SET t2.c2 = 10;
 id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
 1	SIMPLE	t1	ALL	NULL	NULL	NULL	NULL	2	NULL
-1	SIMPLE	t2	ALL	NULL	NULL	NULL	NULL	1	Using where; Using join buffer (Block Nested Loop)
+1	UPDATE	t2	ALL	NULL	NULL	NULL	NULL	1	Using where; Using join buffer (Block Nested Loop)
 FLUSH STATUS;
 FLUSH TABLES;
 EXPLAIN EXTENDED UPDATE        t1 LEFT JOIN t2 ON t1.c1 = t2.c1 SET t2.c2 = 10;
 id	select_type	table	type	possible_keys	key	key_len	ref	rows	filtered	Extra
 1	SIMPLE	t1	ALL	NULL	NULL	NULL	NULL	2	100.00	NULL
-1	SIMPLE	t2	ALL	NULL	NULL	NULL	NULL	1	100.00	Using where; Using join buffer (Block Nested Loop)
+1	UPDATE	t2	ALL	NULL	NULL	NULL	NULL	1	100.00	Using where; Using join buffer (Block Nested Loop)
 # Status of EXPLAIN EXTENDED query
 Variable_name	Value
 FLUSH STATUS;
@@ -2349,13 +2396,13 @@ Handler_read_rnd_next	5
 EXPLAIN UPDATE        t1 LEFT JOIN t2 ON t1.c1 = t2.c1 SET t2.c2 = 10 WHERE t1.c3 = 10;
 id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
 1	SIMPLE	t1	ALL	NULL	NULL	NULL	NULL	2	Using where
-1	SIMPLE	t2	ALL	NULL	NULL	NULL	NULL	1	Using where; Using join buffer (Block Nested Loop)
+1	UPDATE	t2	ALL	NULL	NULL	NULL	NULL	1	Using where; Using join buffer (Block Nested Loop)
 FLUSH STATUS;
 FLUSH TABLES;
 EXPLAIN EXTENDED UPDATE        t1 LEFT JOIN t2 ON t1.c1 = t2.c1 SET t2.c2 = 10 WHERE t1.c3 = 10;
 id	select_type	table	type	possible_keys	key	key_len	ref	rows	filtered	Extra
 1	SIMPLE	t1	ALL	NULL	NULL	NULL	NULL	2	100.00	Using where
-1	SIMPLE	t2	ALL	NULL	NULL	NULL	NULL	1	100.00	Using where; Using join buffer (Block Nested Loop)
+1	UPDATE	t2	ALL	NULL	NULL	NULL	NULL	1	100.00	Using where; Using join buffer (Block Nested Loop)
 # Status of EXPLAIN EXTENDED query
 Variable_name	Value
 FLUSH STATUS;
@@ -2392,13 +2439,13 @@ INSERT INTO t2 VALUES(1,1),(2,2);
 #
 EXPLAIN UPDATE t1 SET t1.f2=(SELECT MAX(t2.f4) FROM t2 WHERE t2.f3=t1.f1);
 id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
-1	PRIMARY	t1	ALL	NULL	NULL	NULL	NULL	2	NULL
+1	UPDATE	t1	ALL	NULL	NULL	NULL	NULL	2	NULL
 2	DEPENDENT SUBQUERY	t2	ref	IDX	IDX	5	test.t1.f1	1	NULL
 FLUSH STATUS;
 FLUSH TABLES;
 EXPLAIN EXTENDED UPDATE t1 SET t1.f2=(SELECT MAX(t2.f4) FROM t2 WHERE t2.f3=t1.f1);
 id	select_type	table	type	possible_keys	key	key_len	ref	rows	filtered	Extra
-1	PRIMARY	t1	ALL	NULL	NULL	NULL	NULL	2	100.00	NULL
+1	UPDATE	t1	ALL	NULL	NULL	NULL	NULL	2	100.00	NULL
 2	DEPENDENT SUBQUERY	t2	ref	IDX	IDX	5	test.t1.f1	1	100.00	NULL
 Warnings:
 Note	1276	Field or reference 'test.t1.f1' of SELECT #2 was resolved in SELECT #1
@@ -2436,7 +2483,7 @@ INSERT INTO t1 VALUES (1);
 SET @a = NULL;
 EXPLAIN DELETE FROM t1 WHERE (@a:= a);
 id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
-1	SIMPLE	t1	ALL	NULL	NULL	NULL	NULL	1	Using where
+1	DELETE	t1	ALL	NULL	NULL	NULL	NULL	1	Using where
 DROP TABLE t1;
 #56
 CREATE TABLE t1 (a INT);
@@ -2475,13 +2522,13 @@ CREATE VIEW v1 AS SELECT t11.a, t12.a AS b FROM t1 t11, t1 t12;
 #
 EXPLAIN UPDATE        v1 SET a = 1 WHERE a > 0;
 id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
-1	SIMPLE	t11	ALL	NULL	NULL	NULL	NULL	2	Using where
+1	UPDATE	t11	ALL	NULL	NULL	NULL	NULL	2	Using where
 1	SIMPLE	t12	ALL	NULL	NULL	NULL	NULL	2	Using join buffer (Block Nested Loop)
 FLUSH STATUS;
 FLUSH TABLES;
 EXPLAIN EXTENDED UPDATE        v1 SET a = 1 WHERE a > 0;
 id	select_type	table	type	possible_keys	key	key_len	ref	rows	filtered	Extra
-1	SIMPLE	t11	ALL	NULL	NULL	NULL	NULL	2	100.00	Using where
+1	UPDATE	t11	ALL	NULL	NULL	NULL	NULL	2	100.00	Using where
 1	SIMPLE	t12	ALL	NULL	NULL	NULL	NULL	2	100.00	Using join buffer (Block Nested Loop)
 # Status of EXPLAIN EXTENDED query
 Variable_name	Value
@@ -2515,14 +2562,14 @@ Handler_write	2
 EXPLAIN UPDATE        t1, v1 SET v1.a = 1 WHERE t1.a = v1.a;
 id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
 1	SIMPLE	t1	ALL	NULL	NULL	NULL	NULL	2	NULL
-1	SIMPLE	t11	ALL	NULL	NULL	NULL	NULL	2	Using where; Using join buffer (Block Nested Loop)
+1	UPDATE	t11	ALL	NULL	NULL	NULL	NULL	2	Using where; Using join buffer (Block Nested Loop)
 1	SIMPLE	t12	ALL	NULL	NULL	NULL	NULL	2	Using join buffer (Block Nested Loop)
 FLUSH STATUS;
 FLUSH TABLES;
 EXPLAIN EXTENDED UPDATE        t1, v1 SET v1.a = 1 WHERE t1.a = v1.a;
 id	select_type	table	type	possible_keys	key	key_len	ref	rows	filtered	Extra
 1	SIMPLE	t1	ALL	NULL	NULL	NULL	NULL	2	100.00	NULL
-1	SIMPLE	t11	ALL	NULL	NULL	NULL	NULL	2	100.00	Using where; Using join buffer (Block Nested Loop)
+1	UPDATE	t11	ALL	NULL	NULL	NULL	NULL	2	100.00	Using where; Using join buffer (Block Nested Loop)
 1	SIMPLE	t12	ALL	NULL	NULL	NULL	NULL	2	100.00	Using join buffer (Block Nested Loop)
 # Status of EXPLAIN EXTENDED query
 Variable_name	Value
@@ -2563,12 +2610,12 @@ CREATE VIEW v1 (a) AS SELECT a FROM t1;
 #
 EXPLAIN DELETE   FROM v1 WHERE a < 4;
 id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
-1	SIMPLE	t1	range	PRIMARY	PRIMARY	4	const	3	Using where
+1	DELETE	t1	range	PRIMARY	PRIMARY	4	const	3	Using where
 FLUSH STATUS;
 FLUSH TABLES;
 EXPLAIN EXTENDED DELETE   FROM v1 WHERE a < 4;
 id	select_type	table	type	possible_keys	key	key_len	ref	rows	filtered	Extra
-1	SIMPLE	t1	range	PRIMARY	PRIMARY	4	const	3	100.00	Using where
+1	DELETE	t1	range	PRIMARY	PRIMARY	4	const	3	100.00	Using where
 # Status of EXPLAIN EXTENDED query
 Variable_name	Value
 FLUSH STATUS;
@@ -2607,13 +2654,13 @@ CREATE VIEW v1 (a,c) AS SELECT a, b+1 FROM t1;
 EXPLAIN DELETE v1 FROM t2, v1 WHERE t2.x = v1.a;
 id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
 1	SIMPLE	t2	ALL	NULL	NULL	NULL	NULL	4	Using where
-1	SIMPLE	t1	eq_ref	PRIMARY	PRIMARY	4	test.t2.x	1	NULL
+1	DELETE	t1	eq_ref	PRIMARY	PRIMARY	4	test.t2.x	1	NULL
 FLUSH STATUS;
 FLUSH TABLES;
 EXPLAIN EXTENDED DELETE v1 FROM t2, v1 WHERE t2.x = v1.a;
 id	select_type	table	type	possible_keys	key	key_len	ref	rows	filtered	Extra
 1	SIMPLE	t2	ALL	NULL	NULL	NULL	NULL	4	100.00	Using where
-1	SIMPLE	t1	eq_ref	PRIMARY	PRIMARY	4	test.t2.x	1	100.00	NULL
+1	DELETE	t1	eq_ref	PRIMARY	PRIMARY	4	test.t2.x	1	100.00	NULL
 # Status of EXPLAIN EXTENDED query
 Variable_name	Value
 FLUSH STATUS;
@@ -2654,13 +2701,13 @@ CREATE VIEW v1 (a,c) AS SELECT a, b+1 FROM t1;
 EXPLAIN DELETE v1 FROM t2, v1 WHERE t2.x = v1.a;
 id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
 1	SIMPLE	t2	ALL	NULL	NULL	NULL	NULL	4	Using where
-1	SIMPLE	t1	eq_ref	PRIMARY	PRIMARY	4	test.t2.x	1	NULL
+1	DELETE	t1	eq_ref	PRIMARY	PRIMARY	4	test.t2.x	1	NULL
 FLUSH STATUS;
 FLUSH TABLES;
 EXPLAIN EXTENDED DELETE v1 FROM t2, v1 WHERE t2.x = v1.a;
 id	select_type	table	type	possible_keys	key	key_len	ref	rows	filtered	Extra
 1	SIMPLE	t2	ALL	NULL	NULL	NULL	NULL	4	100.00	Using where
-1	SIMPLE	t1	eq_ref	PRIMARY	PRIMARY	4	test.t2.x	1	100.00	NULL
+1	DELETE	t1	eq_ref	PRIMARY	PRIMARY	4	test.t2.x	1	100.00	NULL
 # Status of EXPLAIN EXTENDED query
 Variable_name	Value
 FLUSH STATUS;
@@ -2697,12 +2744,12 @@ CREATE VIEW v1 (x) AS SELECT a FROM t1;
 #
 EXPLAIN INSERT INTO v1 VALUES (10);
 id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
-1	SIMPLE	NULL	NULL	NULL	NULL	NULL	NULL	NULL	No tables used
+1	INSERT	t1	ALL	NULL	NULL	NULL	NULL	NULL	NULL
 FLUSH STATUS;
 FLUSH TABLES;
 EXPLAIN EXTENDED INSERT INTO v1 VALUES (10);
 id	select_type	table	type	possible_keys	key	key_len	ref	rows	filtered	Extra
-1	SIMPLE	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	No tables used
+1	INSERT	t1	ALL	NULL	NULL	NULL	NULL	NULL	NULL	NULL
 # Status of EXPLAIN EXTENDED query
 Variable_name	Value
 FLUSH STATUS;
@@ -2733,11 +2780,13 @@ CREATE VIEW v1 (x) AS SELECT b FROM t2;
 #
 EXPLAIN INSERT INTO v1 SELECT * FROM t1;
 id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
+1	INSERT	t2	ALL	NULL	NULL	NULL	NULL	NULL	NULL
 1	SIMPLE	t1	ALL	NULL	NULL	NULL	NULL	1	NULL
 FLUSH STATUS;
 FLUSH TABLES;
 EXPLAIN EXTENDED INSERT INTO v1 SELECT * FROM t1;
 id	select_type	table	type	possible_keys	key	key_len	ref	rows	filtered	Extra
+1	INSERT	t2	ALL	NULL	NULL	NULL	NULL	NULL	NULL	NULL
 1	SIMPLE	t1	ALL	NULL	NULL	NULL	NULL	1	100.00	NULL
 # Status of EXPLAIN EXTENDED query
 Variable_name	Value
@@ -2774,14 +2823,14 @@ INSERT INTO t2 VALUES (1), (2), (3);
 #
 EXPLAIN UPDATE        t1 SET a = 10 WHERE a IN (SELECT * FROM (SELECT b FROM t2 ORDER BY b LIMIT 2,2) x);
 id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
-1	PRIMARY	t1	ALL	NULL	NULL	NULL	NULL	3	Using where
+1	UPDATE	t1	ALL	NULL	NULL	NULL	NULL	3	Using where
 2	DEPENDENT SUBQUERY	<derived3>	index_subquery	<auto_key0>	<auto_key0>	5	func	2	Using index
 3	DERIVED	t2	ALL	NULL	NULL	NULL	NULL	3	Using filesort
 FLUSH STATUS;
 FLUSH TABLES;
 EXPLAIN EXTENDED UPDATE        t1 SET a = 10 WHERE a IN (SELECT * FROM (SELECT b FROM t2 ORDER BY b LIMIT 2,2) x);
 id	select_type	table	type	possible_keys	key	key_len	ref	rows	filtered	Extra
-1	PRIMARY	t1	ALL	NULL	NULL	NULL	NULL	3	100.00	Using where
+1	UPDATE	t1	ALL	NULL	NULL	NULL	NULL	3	100.00	Using where
 2	DEPENDENT SUBQUERY	<derived3>	index_subquery	<auto_key0>	<auto_key0>	5	func	2	100.00	Using index
 3	DERIVED	t2	ALL	NULL	NULL	NULL	NULL	3	100.00	Using filesort
 # Status of EXPLAIN EXTENDED query
@@ -2821,7 +2870,7 @@ Sort_scan	1
 #
 EXPLAIN UPDATE        t1, t2 SET a = 10 WHERE a IN (SELECT * FROM (SELECT b FROM t2 ORDER BY b LIMIT 2,2) x);
 id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
-1	PRIMARY	t1	ALL	NULL	NULL	NULL	NULL	3	Using where
+1	UPDATE	t1	ALL	NULL	NULL	NULL	NULL	3	Using where
 1	PRIMARY	t2	ALL	NULL	NULL	NULL	NULL	3	Using join buffer (Block Nested Loop)
 2	DEPENDENT SUBQUERY	<derived3>	index_subquery	<auto_key0>	<auto_key0>	5	func	2	Using index
 3	DERIVED	t2	ALL	NULL	NULL	NULL	NULL	3	Using filesort
@@ -2829,7 +2878,7 @@ FLUSH STATUS;
 FLUSH TABLES;
 EXPLAIN EXTENDED UPDATE        t1, t2 SET a = 10 WHERE a IN (SELECT * FROM (SELECT b FROM t2 ORDER BY b LIMIT 2,2) x);
 id	select_type	table	type	possible_keys	key	key_len	ref	rows	filtered	Extra
-1	PRIMARY	t1	ALL	NULL	NULL	NULL	NULL	3	100.00	Using where
+1	UPDATE	t1	ALL	NULL	NULL	NULL	NULL	3	100.00	Using where
 1	PRIMARY	t2	ALL	NULL	NULL	NULL	NULL	3	100.00	Using join buffer (Block Nested Loop)
 2	DEPENDENT SUBQUERY	<derived3>	index_subquery	<auto_key0>	<auto_key0>	5	func	2	100.00	Using index
 3	DERIVED	t2	ALL	NULL	NULL	NULL	NULL	3	100.00	Using filesort
@@ -2870,7 +2919,7 @@ Sort_scan	1
 #
 EXPLAIN UPDATE        t1, (SELECT * FROM t2) y SET a = 10 WHERE a IN (SELECT * FROM (SELECT b FROM t2 ORDER BY b LIMIT 2,2) x);
 id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
-1	PRIMARY	t1	ALL	NULL	NULL	NULL	NULL	3	Using where
+1	UPDATE	t1	ALL	NULL	NULL	NULL	NULL	3	Using where
 1	PRIMARY	<derived2>	ALL	NULL	NULL	NULL	NULL	3	Using join buffer (Block Nested Loop)
 3	DEPENDENT SUBQUERY	<derived4>	index_subquery	<auto_key0>	<auto_key0>	5	func	2	Using index
 4	DERIVED	t2	ALL	NULL	NULL	NULL	NULL	3	Using filesort
@@ -2879,7 +2928,7 @@ FLUSH STATUS;
 FLUSH TABLES;
 EXPLAIN EXTENDED UPDATE        t1, (SELECT * FROM t2) y SET a = 10 WHERE a IN (SELECT * FROM (SELECT b FROM t2 ORDER BY b LIMIT 2,2) x);
 id	select_type	table	type	possible_keys	key	key_len	ref	rows	filtered	Extra
-1	PRIMARY	t1	ALL	NULL	NULL	NULL	NULL	3	100.00	Using where
+1	UPDATE	t1	ALL	NULL	NULL	NULL	NULL	3	100.00	Using where
 1	PRIMARY	<derived2>	ALL	NULL	NULL	NULL	NULL	3	100.00	Using join buffer (Block Nested Loop)
 3	DEPENDENT SUBQUERY	<derived4>	index_subquery	<auto_key0>	<auto_key0>	5	func	2	100.00	Using index
 4	DERIVED	t2	ALL	NULL	NULL	NULL	NULL	3	100.00	Using filesort
@@ -2930,7 +2979,7 @@ JOIN t1 AS a12 ON a12.c1 = a11.c1
 ) d1
 );
 id	select_type	table	type	possible_keys	key	key_len	ref	rows	filtered	Extra
-1	PRIMARY	t3	ALL	NULL	NULL	NULL	NULL	1	100.00	NULL
+1	UPDATE	t3	ALL	NULL	NULL	NULL	NULL	1	100.00	NULL
 2	SUBQUERY	<derived3>	ALL	NULL	NULL	NULL	NULL	2	100.00	NULL
 3	DERIVED	a11	index	PRIMARY	PRIMARY	4	NULL	1	100.00	Using index
 3	DERIVED	a21	ALL	NULL	NULL	NULL	NULL	1	100.00	Using where; Using join buffer (Block Nested Loop)
@@ -2942,6 +2991,7 @@ INSERT INTO t1 VALUES (1,0),(2,0),(3,0),(4,0),(5,0),(6,0),(7,0),(8,0);
 CREATE TABLE t2 LIKE t1;
 EXPLAIN INSERT INTO t2 SELECT * FROM t1;
 id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
+1	INSERT	t2	ALL	NULL	NULL	NULL	NULL	X	NULL
 1	SIMPLE	t1	ALL	NULL	NULL	NULL	NULL	X	NULL
 INSERT INTO t2 SELECT * FROM t1;
 SELECT * FROM t1 LEFT JOIN t2 ON t1.c1 = t2.c1;
@@ -2965,12 +3015,12 @@ INSERT INTO t1 VALUES (1), (2), (3), (4), (5);
 #
 EXPLAIN UPDATE t1 SET a=a+1 WHERE a>10;
 id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
-1	SIMPLE	t1	range	PRIMARY	PRIMARY	4	const	1	Using where; Using temporary
+1	UPDATE	t1	range	PRIMARY	PRIMARY	4	const	1	Using where; Using temporary
 FLUSH STATUS;
 FLUSH TABLES;
 EXPLAIN EXTENDED UPDATE t1 SET a=a+1 WHERE a>10;
 id	select_type	table	type	possible_keys	key	key_len	ref	rows	filtered	Extra
-1	SIMPLE	t1	range	PRIMARY	PRIMARY	4	const	1	100.00	Using where; Using temporary
+1	UPDATE	t1	range	PRIMARY	PRIMARY	4	const	1	100.00	Using where; Using temporary
 # Status of EXPLAIN EXTENDED query
 Variable_name	Value
 FLUSH STATUS;
@@ -2996,12 +3046,12 @@ Handler_read_key	1
 #
 EXPLAIN UPDATE t1 SET a=a+1 WHERE a>10 ORDER BY a+20;
 id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
-1	SIMPLE	t1	range	PRIMARY	PRIMARY	4	const	1	Using where; Using filesort
+1	UPDATE	t1	range	PRIMARY	PRIMARY	4	const	1	Using where; Using filesort
 FLUSH STATUS;
 FLUSH TABLES;
 EXPLAIN EXTENDED UPDATE t1 SET a=a+1 WHERE a>10 ORDER BY a+20;
 id	select_type	table	type	possible_keys	key	key_len	ref	rows	filtered	Extra
-1	SIMPLE	t1	range	PRIMARY	PRIMARY	4	const	1	100.00	Using where; Using filesort
+1	UPDATE	t1	range	PRIMARY	PRIMARY	4	const	1	100.00	Using where; Using filesort
 # Status of EXPLAIN EXTENDED query
 Variable_name	Value
 FLUSH STATUS;
@@ -3049,50 +3099,50 @@ CALL p16();
 DROP PROCEDURE p16;
 CALL p15();
 id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
-1	SIMPLE	t1	ALL	NULL	NULL	NULL	NULL	1	NULL
+1	DELETE	t1	ALL	NULL	NULL	NULL	NULL	1	NULL
 DROP PROCEDURE p15;
 CALL p14();
 DROP PROCEDURE p14;
 CALL p13();
 id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
-1	SIMPLE	NULL	NULL	NULL	NULL	NULL	NULL	1	Deleting all rows
+1	DELETE	t1	ALL	NULL	NULL	NULL	NULL	1	Deleting all rows
 DROP PROCEDURE p13;
 CALL p12();
 DROP PROCEDURE p12;
 CALL p11();
 id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
-1	SIMPLE	t1	ALL	NULL	NULL	NULL	NULL	1	NULL
+1	UPDATE	t1	ALL	NULL	NULL	NULL	NULL	1	NULL
 1	SIMPLE	t2	ALL	NULL	NULL	NULL	NULL	1	Using where; Using join buffer (Block Nested Loop)
 DROP PROCEDURE p11;
 CALL p10();
 DROP PROCEDURE p10;
 CALL p9();
 id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
-1	SIMPLE	t1	ALL	NULL	NULL	NULL	NULL	1	NULL
+1	UPDATE	t1	ALL	NULL	NULL	NULL	NULL	1	NULL
 DROP PROCEDURE p9;
 CALL p8();
 DROP PROCEDURE p8;
 CALL p7();
 id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
-1	SIMPLE	NULL	NULL	NULL	NULL	NULL	NULL	NULL	No tables used
+1	REPLACE	t1	ALL	NULL	NULL	NULL	NULL	NULL	NULL
 DROP PROCEDURE p7;
 CALL p6();
 DROP PROCEDURE p6;
 CALL p5();
 id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
-1	SIMPLE	NULL	NULL	NULL	NULL	NULL	NULL	NULL	No tables used
+1	REPLACE	t1	ALL	NULL	NULL	NULL	NULL	NULL	NULL
 DROP PROCEDURE p5;
 CALL p4();
 DROP PROCEDURE p4;
 CALL p3();
 id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
-1	SIMPLE	NULL	NULL	NULL	NULL	NULL	NULL	NULL	No tables used
+1	INSERT	t1	ALL	NULL	NULL	NULL	NULL	NULL	NULL
 DROP PROCEDURE p3;
 CALL p2();
 DROP PROCEDURE p2;
 CALL p1();
 id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
-1	SIMPLE	NULL	NULL	NULL	NULL	NULL	NULL	NULL	No tables used
+1	INSERT	t1	ALL	NULL	NULL	NULL	NULL	NULL	NULL
 DROP PROCEDURE p1;
 DROP TABLE t1, t2;
 #

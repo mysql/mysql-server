@@ -679,12 +679,10 @@ public:
   enum quick_type use_quick;
   enum join_type type;
   bool          not_used_in_distinct;
-  /* 
-    If it's not 0 the number stored this field indicates that the index
-    scan has been chosen to access the table data and we expect to scan 
-    this number of rows for the table.
-  */ 
-  ha_rows       limit; 
+  /**
+     Estimated number of rows read from the table per nested-loop iteration.
+  */
+  ha_rows       rowcount;
   TABLE_REF	ref;
   /**
     Join buffering strategy.
@@ -795,6 +793,9 @@ public:
 
   /** TRUE <=> remove duplicates on this table. */
   bool distinct;
+
+  /** TRUE <=> only index is going to be read for this table */
+  bool use_keyread;
 
   /** Clean up associated table after query execution, including resources */
   void cleanup();
@@ -965,7 +966,7 @@ st_join_table::st_join_table()
     type(JT_UNKNOWN),
     not_used_in_distinct(false),
 
-    limit(0),
+    rowcount(0),
     ref(),
     use_join_cache(0),
     op(NULL),
@@ -996,7 +997,8 @@ st_join_table::st_join_table()
     ref_array(NULL),
     send_records(0),
     having(NULL),
-    distinct(false)
+    distinct(false),
+    use_keyread(false)
 {
   /**
     @todo Add constructor to READ_RECORD.
@@ -1321,7 +1323,8 @@ public:
                     null_ptr_arg, length, item_arg), inited(0)
   {
   }
-  const char *name() const { return "const"; }
+  static const char static_name[]; ///< used out of this class
+  const char *name() const { return static_name; }
 
 protected:  
   enum store_key_result copy_inner()
@@ -1340,6 +1343,13 @@ protected:
 bool error_if_full_join(JOIN *join);
 bool handle_select(THD *thd, select_result *result,
                    ulong setup_tables_done_option);
+bool mysql_prepare_and_optimize_select(THD *thd,
+                  TABLE_LIST *tables, uint wild_num,  List<Item> &list,
+                  Item *conds, SQL_I_List<ORDER> *order,
+                  SQL_I_List<ORDER> *group,
+                  Item *having, ulonglong select_type, 
+                  select_result *result, SELECT_LEX_UNIT *unit, 
+                  SELECT_LEX *select_lex, bool *free_join);
 bool mysql_select(THD *thd,
                   TABLE_LIST *tables, uint wild_num,  List<Item> &list,
                   Item *conds, SQL_I_List<ORDER> *order,

@@ -862,7 +862,6 @@ CREATE TABLE g1
 (a geometry NOT NULL, UNIQUE KEY i (a(151))) engine=InnoDB;
 
 INSERT INTO g1 VALUES (geomfromtext('point(1 1)'));
---error 1062
 INSERT INTO g1 VALUES (geomfromtext('point(1 2)'));
 
 FLUSH TABLES;

@@ -2700,8 +2700,7 @@ row_sel_field_store_in_mysql_format_func(
 
 	case DATA_GEOMETRY:
 		/* We store geometry data as BLOB data. */
-		row_mysql_store_geometry(dest, templ->mysql_col_len, data,
-					 len);
+		row_mysql_store_geometry(dest, templ->mysql_col_len, data, len);
 		break;
 
 	case DATA_MYSQL:

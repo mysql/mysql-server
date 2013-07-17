@@ -53,7 +53,7 @@
 #define LOCAL_HOST_NAMEDPIPE "."
 
 
-#if defined(_WIN32) && !defined( _CUSTOMCONFIG_)
+#if defined(_WIN32)
 #define MYSQL_NAMEDPIPE "MySQL"
 #define MYSQL_SERVICENAME "MySQL"
 #endif /* _WIN32 */

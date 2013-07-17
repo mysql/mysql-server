@@ -1340,7 +1340,7 @@ bool sp_head::execute_procedure(THD *thd, List<Item> *args)
       arguments evaluation. If arguments evaluation required prelocking mode,
       we'll leave it here.
     */
-    thd->lex->unit->cleanup();
+    thd->lex->unit->cleanup(true);
 
     if (!thd->in_sub_stmt)
     {

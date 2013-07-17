@@ -154,6 +154,24 @@ TEST(DebugSetTest, DebugKeywordsTest)
   DBUG_EXPLAIN(buf,sizeof(buf));
   EXPECT_STREQ("",buf);
   DBUG_SET("");
+
+  // Add two keywords, the second keyword being a prefix of the first keyword.
+  DBUG_SET("+d,simulate_file_error_once,simulate_file_error");
+  DBUG_EXPLAIN(buf,sizeof(buf));
+  EXPECT_STREQ("d,simulate_file_error_once,simulate_file_error",buf);
+  DBUG_SET("");
+
+  // Add same keyword thrice, keyword should show up once in debug list.
+  DBUG_SET("+d,keyword,keyword,keyword");
+  DBUG_EXPLAIN(buf,sizeof(buf));
+  EXPECT_STREQ("d,keyword",buf);
+  DBUG_SET("");
+
+  // Add some combination of keywords with whitespace and duplicates.
+  DBUG_SET("+d, keyword1,  keyword2,   keyword1,keyword3   ");
+  DBUG_EXPLAIN(buf,sizeof(buf));
+  EXPECT_STREQ("d,keyword1,keyword2,keyword3",buf);
+  DBUG_SET("");
 }
 #endif /* DBUG_OFF */
 }
