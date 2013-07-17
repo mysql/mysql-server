@@ -33,7 +33,6 @@ CREATE TABLE t1 (
   a04 char(255) not null default 'a',
   a05 char(255) not null default 'a',
   a06 char(255) not null default 'a',
-  a07 char(255) not null default 'a',
   b int not null default 0
 ) engine=InnoDB;
 
@@ -44,8 +43,7 @@ ALTER TABLE t1 ADD CONSTRAINT pkey PRIMARY KEY(
   a03,
   a04,
   a05,
-  a06,
-  a07
+  a06
 );
 
 #
@@ -58,7 +56,10 @@ select CLUST_INDEX_SIZE from information_schema.INNODB_SYS_TABLESTATS where NAME
 
 # make the first records sparse artificially,
 # not to cause modify_tree by single node_ptr insert operation.
-set global innodb_limit_optimistic_insert_debug = 5;
+# * (7 - 2) records should be larger than a half of the page size
+# * (7 + 2) records should be fit to the page
+# (above t1 definition is already adjusted)
+set global innodb_limit_optimistic_insert_debug = 7;
 
 insert into t1 (a00) values ('aa');
 insert into t1 (a00) values ('ab');
@@ -66,96 +67,93 @@ insert into t1 (a00) values ('ac');
 insert into t1 (a00) values ('ad');
 insert into t1 (a00) values ('ae');
 insert into t1 (a00) values ('af');
-# raise root (1-2)
-# (aa,ac)
-# (aa,ab)(ac,ad,ae,af)
-analyze table t1;
-select CLUST_INDEX_SIZE from information_schema.INNODB_SYS_TABLESTATS where NAME = 'test/t1';
-
-
 insert into t1 (a00) values ('ag');
 insert into t1 (a00) values ('ah');
-# split leaf (1-3)
-# (aa,ac,ah)
-# (aa,ab)(ac,ad,ae,af,ag)(ah)
+# raise root (1-2)
+# (aa,ad)
+# (aa,ab,ac)(ad,ae,af,ag,ah)
 analyze table t1;
 select CLUST_INDEX_SIZE from information_schema.INNODB_SYS_TABLESTATS where NAME = 'test/t1';
-
 
 insert into t1 (a00) values ('ai');
 insert into t1 (a00) values ('aj');
 insert into t1 (a00) values ('ak');
-insert into t1 (a00) values ('al');
-insert into t1 (a00) values ('am');
-# split leaf (1-4)
-# (aa,ac,ah,am)
-# (aa,ab)(ac,ad,ae,af,ag)(ah,ai,aj,ak,al)(am)
+# split leaf (1-3)
+# (aa,ad,ak)
+# (aa,ab,ac)(ad,ae,af,ag,ah,ai,aj)(ak)
 analyze table t1;
 select CLUST_INDEX_SIZE from information_schema.INNODB_SYS_TABLESTATS where NAME = 'test/t1';
 
-
+insert into t1 (a00) values ('al');
+insert into t1 (a00) values ('am');
 insert into t1 (a00) values ('an');
 insert into t1 (a00) values ('ao');
 insert into t1 (a00) values ('ap');
 insert into t1 (a00) values ('aq');
 insert into t1 (a00) values ('ar');
-# split leaf (1-5)
-# (aa,ac,ah,am,ar)
-# (aa,ab)(ac,ad,ae,af,ag)(ah,ai,aj,ak,al)(am,an,ao,ap,aq)(ar)
+# split leaf (1-4)
+# (aa,ad,ak,ar)
+# (aa,ab,ac)(ad,ae,af,ag,ah,ai,aj)(ak,al,am,an,ao,ap,aq)(ar)
 analyze table t1;
 select CLUST_INDEX_SIZE from information_schema.INNODB_SYS_TABLESTATS where NAME = 'test/t1';
-
 
 insert into t1 (a00) values ('as');
 insert into t1 (a00) values ('at');
 insert into t1 (a00) values ('au');
 insert into t1 (a00) values ('av');
 insert into t1 (a00) values ('aw');
-# raise root (1-2-6)
-# (aa,ah)
-# (aa,ac)      (ah,am,ar,aw)
-# (aa,ab)(ac..)(ah..)(am..)(ar..)(aw)
+insert into t1 (a00) values ('ax');
+insert into t1 (a00) values ('ay');
+# split leaf (1-5)
+# (aa,ad,ak,ar,ay)
+# (aa,ab,ac)(ad,ae,af,ag,ah,ai,aj)(ak,al,am,an,ao,ap,aq)(ar,as,at,au,av,aw,ax)(ay)
 analyze table t1;
 select CLUST_INDEX_SIZE from information_schema.INNODB_SYS_TABLESTATS where NAME = 'test/t1';
 
-
-insert into t1 (a00) values ('ax');
-insert into t1 (a00) values ('ay');
 insert into t1 (a00) values ('az');
 insert into t1 (a00) values ('ba');
 insert into t1 (a00) values ('bb');
-
 insert into t1 (a00) values ('bc');
 insert into t1 (a00) values ('bd');
 insert into t1 (a00) values ('be');
 insert into t1 (a00) values ('bf');
-insert into t1 (a00) values ('bg');
-# split also at level 1 (1-3-8)
-# (aa,ah,bg)
-# (aa,ac)      (ah,am,ar,aw,bb)              (bg)
-# (aa,ab)(ac..)(ah..)(am..)(ar..)(aw..)(bb..)(bg)
+# split leaf (1-6)
+# (aa,ad,ak,ar,ay,bf)
+# (aa,ab,ac)(ad..)(ak..)(ar,as,at,au,av,aw,ax)(ay,az,ba,bb,bc,bd,be)(bf)
 analyze table t1;
 select CLUST_INDEX_SIZE from information_schema.INNODB_SYS_TABLESTATS where NAME = 'test/t1';
 
 
+insert into t1 (a00) values ('bg');
 insert into t1 (a00) values ('bh');
 insert into t1 (a00) values ('bi');
 insert into t1 (a00) values ('bj');
 insert into t1 (a00) values ('bk');
 insert into t1 (a00) values ('bl');
-
 insert into t1 (a00) values ('bm');
+# split leaf (1-7)
+# (aa,ad,ak,ar,ay,bf,bm)
+# (aa,ab,ac)(ad..)(ak..)(ar..)(ay,az,ba,bb,bc,bd,be)(bf,bg,bh,bi,bj,bk,bl)(bm)
+analyze table t1;
+select CLUST_INDEX_SIZE from information_schema.INNODB_SYS_TABLESTATS where NAME = 'test/t1';
+
 insert into t1 (a00) values ('bn');
 insert into t1 (a00) values ('bo');
 insert into t1 (a00) values ('bp');
 insert into t1 (a00) values ('bq');
-
 insert into t1 (a00) values ('br');
 insert into t1 (a00) values ('bs');
 insert into t1 (a00) values ('bt');
+# raise root (1-2-8)
+# (aa,ar)
+# (aa,ad,ak)            (ar,ay,bf,bm,bt)
+# (aa,ab,ac)(ad..)(ak..)(ar..)(ay..)(bf..)(bm..)(bt)
+analyze table t1;
+select CLUST_INDEX_SIZE from information_schema.INNODB_SYS_TABLESTATS where NAME = 'test/t1';
+
+
 insert into t1 (a00) values ('bu');
 insert into t1 (a00) values ('bv');
-
 insert into t1 (a00) values ('bw');
 insert into t1 (a00) values ('bx');
 insert into t1 (a00) values ('by');
@@ -167,49 +165,149 @@ insert into t1 (a00) values ('cc');
 insert into t1 (a00) values ('cd');
 insert into t1 (a00) values ('ce');
 insert into t1 (a00) values ('cf');
-# current tree form (1-4-13)
-# (aa,ah,bg,cf)
-# (aa,ac)      (ah,am,ar,aw,bb)              (bg,bl,bq,bv,ca)              (cf)
-# (aa,ab)(ac..)(ah..)(am..)(ar..)(aw..)(bb..)(bg..)(bl..)(bq..)(bv..)(ca..)(cf)
-analyze table t1;
-select CLUST_INDEX_SIZE from information_schema.INNODB_SYS_TABLESTATS where NAME = 'test/t1';
-
-
 insert into t1 (a00) values ('cg');
 insert into t1 (a00) values ('ch');
+
 insert into t1 (a00) values ('ci');
 insert into t1 (a00) values ('cj');
 insert into t1 (a00) values ('ck');
-
 insert into t1 (a00) values ('cl');
 insert into t1 (a00) values ('cm');
 insert into t1 (a00) values ('cn');
 insert into t1 (a00) values ('co');
-insert into t1 (a00) values ('cp');
+# split also at level 1 (1-3-11)
+# (aa,ar,co)
+# (aa,ad,ak)            (ar,ay,bf,bm,bt,ca,ch)                    (co)
+# (aa,ab,ac)(ad..)(ak..)(ar..)(ay..)(bf..)(bm..)(bt..)(ca..)(ch..)(co)
+analyze table t1;
+select CLUST_INDEX_SIZE from information_schema.INNODB_SYS_TABLESTATS where NAME = 'test/t1';
 
+
+insert into t1 (a00) values ('cp');
 insert into t1 (a00) values ('cq');
 insert into t1 (a00) values ('cr');
 insert into t1 (a00) values ('cs');
 insert into t1 (a00) values ('ct');
 insert into t1 (a00) values ('cu');
-
 insert into t1 (a00) values ('cv');
+
 insert into t1 (a00) values ('cw');
 insert into t1 (a00) values ('cx');
 insert into t1 (a00) values ('cy');
 insert into t1 (a00) values ('cz');
-
 insert into t1 (a00) values ('da');
 insert into t1 (a00) values ('db');
 insert into t1 (a00) values ('dc');
-insert into t1 (a00) values ('dd');
 
-# current tree form (1-4-17)
-# (aa,ah,bg,cf)
-# (aa,ac)      (ah,am,ar,aw,bb)              (bg,bl,bq,bv,ca)              (cf,ck,cp,cu,cz)
-# (aa,ab)(ac..)(ah..)(am..)(ar..)(aw..)(bb..)(bg..)(bl..)(bq..)(bv..)(ca..)(cf..)...(cz..)
+insert into t1 (a00) values ('dd');
+insert into t1 (a00) values ('de');
+insert into t1 (a00) values ('df');
+insert into t1 (a00) values ('dg');
+insert into t1 (a00) values ('dh');
+insert into t1 (a00) values ('di');
+insert into t1 (a00) values ('dj');
+
+insert into t1 (a00) values ('dk');
+insert into t1 (a00) values ('dl');
+insert into t1 (a00) values ('dm');
+insert into t1 (a00) values ('dn');
+insert into t1 (a00) values ('do');
+insert into t1 (a00) values ('dp');
+insert into t1 (a00) values ('dq');
+
+insert into t1 (a00) values ('dr');
+insert into t1 (a00) values ('ds');
+insert into t1 (a00) values ('dt');
+insert into t1 (a00) values ('du');
+insert into t1 (a00) values ('dv');
+insert into t1 (a00) values ('dw');
+insert into t1 (a00) values ('dx');
+
+insert into t1 (a00) values ('dy');
+insert into t1 (a00) values ('dz');
+insert into t1 (a00) values ('ea');
+insert into t1 (a00) values ('eb');
+insert into t1 (a00) values ('ec');
+insert into t1 (a00) values ('ed');
+insert into t1 (a00) values ('ee');
+
+insert into t1 (a00) values ('ef');
+insert into t1 (a00) values ('eg');
+insert into t1 (a00) values ('eh');
+insert into t1 (a00) values ('ei');
+insert into t1 (a00) values ('ej');
+insert into t1 (a00) values ('ek');
+insert into t1 (a00) values ('el');
+# split also at level 1 (1-4-18)
+# (aa,ar,co,el)
+# (aa,ad,ak)            (ar,ay,bf,bm,bt,ca,ch)                    (co,cv,dc,dj,dq,dx,ee)                    (el)
+# (aa,ab,ac)(ad..)(ak..)(ar..)(ay..)(bf..)(bm..)(bt..)(ca..)(ch..)(co..)(cv..)(dc..)(dj..)(dq..)(dx..)(ee..)(el)
 analyze table t1;
 select CLUST_INDEX_SIZE from information_schema.INNODB_SYS_TABLESTATS where NAME = 'test/t1';
+
+insert into t1 (a00) values ('em');
+insert into t1 (a00) values ('en');
+insert into t1 (a00) values ('eo');
+insert into t1 (a00) values ('ep');
+insert into t1 (a00) values ('eq');
+insert into t1 (a00) values ('er');
+insert into t1 (a00) values ('es');
+
+insert into t1 (a00) values ('et');
+insert into t1 (a00) values ('eu');
+insert into t1 (a00) values ('ev');
+insert into t1 (a00) values ('ew');
+insert into t1 (a00) values ('ex');
+insert into t1 (a00) values ('ey');
+insert into t1 (a00) values ('ez');
+
+insert into t1 (a00) values ('fa');
+insert into t1 (a00) values ('fb');
+insert into t1 (a00) values ('fc');
+insert into t1 (a00) values ('fd');
+insert into t1 (a00) values ('fe');
+insert into t1 (a00) values ('ff');
+insert into t1 (a00) values ('fg');
+
+insert into t1 (a00) values ('fh');
+insert into t1 (a00) values ('fi');
+insert into t1 (a00) values ('fj');
+insert into t1 (a00) values ('fk');
+insert into t1 (a00) values ('fl');
+insert into t1 (a00) values ('fm');
+insert into t1 (a00) values ('fn');
+
+insert into t1 (a00) values ('fo');
+insert into t1 (a00) values ('fp');
+insert into t1 (a00) values ('fq');
+insert into t1 (a00) values ('fr');
+insert into t1 (a00) values ('fs');
+insert into t1 (a00) values ('ft');
+insert into t1 (a00) values ('fu');
+
+insert into t1 (a00) values ('fv');
+insert into t1 (a00) values ('fw');
+insert into t1 (a00) values ('fx');
+insert into t1 (a00) values ('fy');
+insert into t1 (a00) values ('fz');
+insert into t1 (a00) values ('ga');
+insert into t1 (a00) values ('gb');
+
+insert into t1 (a00) values ('gc');
+insert into t1 (a00) values ('gd');
+insert into t1 (a00) values ('ge');
+insert into t1 (a00) values ('gf');
+insert into t1 (a00) values ('gg');
+insert into t1 (a00) values ('gh');
+
+
+# current tree form (1-4-24)
+# (aa,ar,co,el)
+# (aa,ad,ak)            (ar,ay,bf,bm,bt,ca,ch)                    (co,cv,dc,dj,dq,dx,ee)                    (el..,gb)
+# (aa,ab,ac)(ad..)(ak..)(ar..)(ay..)(bf..)(bm..)(bt..)(ca..)(ch..)(co..)(cv..)(dc..)(dj..)(dq..)(dx..)(ee..)(el..)..(gb..)
+analyze table t1;
+select CLUST_INDEX_SIZE from information_schema.INNODB_SYS_TABLESTATS where NAME = 'test/t1';
+
 
 
 # insert the rest of records normally
@@ -218,38 +316,37 @@ set global innodb_limit_optimistic_insert_debug = 0;
 
 echo TEST START;
 
-# (1) Insert records to leaf page (ar..) and cause modify_page.
+# (1) Insert records to leaf page (bf..) and cause modify_page.
 #     - root page is not X latched
-#     - latched from level 1 page (ah,am,ar,aw,bb)
+#     - latched from level 1 page (ar,ay,bf,bm,bt,ca,ch)
 
 set DEBUG_SYNC='RESET';
 
-# filling leaf page (ar..)
-insert into t1 (a00) values ('ara');
-insert into t1 (a00) values ('arb');
+# filling leaf page (bf..)
+insert into t1 (a00) values ('bfa');
 
 connection con1;
 set DEBUG_SYNC='before_insert_pessimitic_row_ins_clust SIGNAL reached WAIT_FOR continue';
 # cause modify_tree
---send insert into t1 (a00) values ('arc')
+--send insert into t1 (a00) values ('bfb')
 
 connection con2;
 set DEBUG_SYNC='now WAIT_FOR reached';
 # not blocked searches
 select a00,a01 from t1 where a00 = 'aa';
-select a00,a01 from t1 where a00 = 'ag';
-# "where a00 = 'bg'" is blocked because searching from smaller ('bg','a','a',..).
-select a00,a01 from t1 where a00 = 'bh';
-select a00,a01 from t1 where a00 = 'cf';
+select a00,a01 from t1 where a00 = 'aq';
+# "where a00 = 'co'" is blocked because searching from smaller ('co','a','a',..).
+select a00,a01 from t1 where a00 = 'cp';
+select a00,a01 from t1 where a00 = 'el';
 
 set DEBUG_SYNC='rw_s_lock_waiting SIGNAL lockwait1';
 # blocked
---send select a00,a01 from t1 where a00 = 'ah'
+--send select a00,a01 from t1 where a00 = 'ar'
 
 connection con3;
 set DEBUG_SYNC='rw_s_lock_waiting SIGNAL lockwait2';
 # blocked
---send select a00,a01 from t1 where a00 = 'bf'
+--send select a00,a01 from t1 where a00 = 'cn'
 
 connection default;
 set DEBUG_SYNC='now WAIT_FOR lockwait1';
@@ -272,23 +369,22 @@ select CLUST_INDEX_SIZE from information_schema.INNODB_SYS_TABLESTATS where NAME
 
 
 
-# (2) Insert records to leaf page (bl..) and cause modify_page
-#     - root page is X latched, because node_ptr for 'bl'
-#       is 2nd record for (bg,bl,bq,bv,ca)
+# (2) Insert records to leaf page (cv..) and cause modify_page
+#     - root page is X latched, because node_ptr for 'cv'
+#       is 2nd record for (co,cv,dc,dj,dq,dx,ee)
 #
 # * ordinary pessimitic insert might be done by pessistic update
 #   and we should consider possibility node_ptr to be deleted.
 
 set DEBUG_SYNC='RESET';
 
-# filling leaf page (bl..)
-insert into t1 (a00) values ('bla');
-insert into t1 (a00) values ('blb');
+# filling leaf page (cv..)
+insert into t1 (a00) values ('cva');
 
 connection con1;
 set DEBUG_SYNC='before_insert_pessimitic_row_ins_clust SIGNAL reached WAIT_FOR continue';
 # cause modify_tree
---send insert into t1 (a00) values ('blc')
+--send insert into t1 (a00) values ('cvb')
 
 connection con2;
 set DEBUG_SYNC='now WAIT_FOR reached';
@@ -301,7 +397,7 @@ set DEBUG_SYNC='rw_s_lock_waiting SIGNAL lockwait1';
 connection con3;
 set DEBUG_SYNC='rw_s_lock_waiting SIGNAL lockwait2';
 # blocked
---send select a00,a01 from t1 where a00 = 'cf'
+--send select a00,a01 from t1 where a00 = 'el'
 
 connection default;
 set DEBUG_SYNC='now WAIT_FOR lockwait1';
@@ -324,36 +420,35 @@ select CLUST_INDEX_SIZE from information_schema.INNODB_SYS_TABLESTATS where NAME
 
 
 
-# (3) Insert records to rightmost leaf page (cz..) and cause modify_page
-#     - root page is not X latched, because node_ptr for 'cz' is the last record
+# (3) Insert records to rightmost leaf page (gb..) and cause modify_page
+#     - root page is not X latched, because node_ptr for 'gb' is the last record
 #       of the level 1 though it is last record in the page.
-#     - lathed from level 1 page (cf,ck,cp,cu,cz)
+#     - lathed from level 1 page (el..,gb)
 
 set DEBUG_SYNC='RESET';
 
-# filling leaf page (cz..)
-insert into t1 (a00) values ('cza');
-insert into t1 (a00) values ('czb');
+# filling leaf page (gb..)
+insert into t1 (a00) values ('gba');
 
 connection con1;
 set DEBUG_SYNC='before_insert_pessimitic_row_ins_clust SIGNAL reached WAIT_FOR continue';
 # cause modify_tree
---send insert into t1 (a00) values ('czc')
+--send insert into t1 (a00) values ('gbb')
 
 connection con2;
 set DEBUG_SYNC='now WAIT_FOR reached';
 # not blocked searches
 select a00,a01 from t1 where a00 = 'aa';
-select a00,a01 from t1 where a00 = 'ce';
+select a00,a01 from t1 where a00 = 'ek';
 
 set DEBUG_SYNC='rw_s_lock_waiting SIGNAL lockwait1';
 # blocked
---send select a00,a01 from t1 where a00 = 'cf'
+--send select a00,a01 from t1 where a00 = 'el'
 
 connection con3;
 set DEBUG_SYNC='rw_s_lock_waiting SIGNAL lockwait2';
 # blocked
---send select a00,a01 from t1 where a00 = 'cz'
+--send select a00,a01 from t1 where a00 = 'gb'
 
 connection default;
 set DEBUG_SYNC='now WAIT_FOR lockwait1';
