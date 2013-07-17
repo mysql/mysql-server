@@ -26,16 +26,22 @@ SELECT wt_avg(1, 12, 1990, 1121990);
 SELECT fac(5);
 SELECT append("Bolly", "wood");
 
---echo # Events
+--echo # Event
+
+SET GLOBAL event_scheduler=ON;
 CREATE TABLE table_t(a INT);
 DELIMITER |;
-CREATE EVENT e1 ON SCHEDULE EVERY 3 SECOND DO
+CREATE EVENT e1 ON SCHEDULE EVERY 2 SECOND DO
 BEGIN
   INSERT INTO table_t VALUES(1);
 END|
 DELIMITER ;|
-SET GLOBAL event_scheduler=ON;
+
 # Let e1 insert 2 records into the table table_t
-let $wait_condition=select count(*) = 1 from table_t;
+
+--let $wait_condition= select count(*) = 2 from table_t
 --source include/wait_condition.inc
+SELECT * FROM table_t;
 SET GLOBAL event_scheduler=OFF;
+--source include/no_running_event_scheduler.inc
+
