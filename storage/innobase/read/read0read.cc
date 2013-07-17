@@ -549,9 +549,8 @@ ReadView::copy_complete()
 
 /** Clones the oldest view and stores it in view. No need to
 call view_close(). The caller owns the view that is passed in.
-It will also move the closed views from the m_views list to the
-m_free list. This function is called by Purge to determine whether
-it should purge the delete marked record or not.
+This function is called by Purge to determine whether it should
+purge the delete marked record or not.
 @param view		Preallocated view, owned by the caller */
 
 void

@@ -73,7 +73,7 @@ public:
 	@return true if view sees transaction id */
 	bool sees(trx_id_t id) const
 	{
-	 	return(id < m_up_limit_id);
+		return(id < m_up_limit_id);
 	}
 
 	/**
@@ -93,7 +93,7 @@ public:
 
 	/**
 	Write the limits to the file.
-	@param file 		file to write to */
+	@param file		file to write to */
 	void print_limits(FILE* file) const
 	{
 		fprintf(file,
@@ -139,7 +139,7 @@ private:
 
 	/**
 	Opens a read view where exactly the transactions serialized before this
-	point in time are seen in the view. 
+	point in time are seen in the view.
 	@param id		Creator transaction id */
 	inline void prepare(trx_id_t id);
 
