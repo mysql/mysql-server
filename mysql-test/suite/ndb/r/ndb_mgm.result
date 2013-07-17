@@ -178,3 +178,7 @@ Invalid command: BACKUP 201303271430 WAIT COMPLETED
 Backup ID out of range [1 - 4294967294]
 Type HELP for help.
 
+# Test 1/2 for Bug#16585497: abort backup with backup ID > 2^31
+Abort of backup 2147483648 ordered
+# Test 2/2 for Bug#16585497: abort backup with backup ID out of range
+Invalid arguments: <BackupId> out of range [1-4294967294]
