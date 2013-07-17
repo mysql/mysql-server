@@ -852,8 +852,6 @@ int terminate_slave_threads(Master_info* mi,int thread_mask,bool need_lock_term)
                                       need_lock_term)) &&
         !force_all)
     {
-      delete mi->rli->current_mts_submode;
-      mi->rli->current_mts_submode= 0;
       if (error == 1)
       {
         DBUG_RETURN(ER_STOP_SLAVE_SQL_THREAD_TIMEOUT);
@@ -5415,12 +5413,19 @@ pthread_handler_t handle_slave_sql(void *arg)
   mysql_mutex_lock(&rli->info_thd_lock);
   rli->info_thd= thd;
 
-  /* create mts submode */
+ /*
+  Create Mts Submode.
+  It is possible that we may not have deleted the last MTS submode in case
+  terminate_slave_threads() returned with ER_STOP_SLAVE_SQL_THREAD_TIMEOUT
+  while stopping the slave in the previous slave session.
+ */
+ if (rli->current_mts_submode)
+   delete rli->current_mts_submode;
 
-   if (mts_parallel_option != MTS_PARALLEL_TYPE_DB_NAME)
-     rli->current_mts_submode= new Mts_submode_logical_clock();
-   else
-     rli->current_mts_submode= new Mts_submode_database();
+ if (mts_parallel_option != MTS_PARALLEL_TYPE_DB_NAME)
+   rli->current_mts_submode= new Mts_submode_logical_clock();
+ else
+   rli->current_mts_submode= new Mts_submode_database();
 
   mysql_mutex_unlock(&rli->info_thd_lock);
 
