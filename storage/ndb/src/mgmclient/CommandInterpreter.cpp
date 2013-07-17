@@ -3116,7 +3116,8 @@ CommandInterpreter::executeStartBackup(char* parameters, bool interactive)
 int
 CommandInterpreter::executeAbortBackup(char* parameters) 
 {
-  int bid = -1;
+  unsigned int bid = 0;
+  unsigned long long int tmp_bid = 0;
   struct ndb_mgm_reply reply;
   if (emptyString(parameters))
     goto executeAbortBackupError1;
@@ -3124,8 +3125,17 @@ CommandInterpreter::executeAbortBackup(char* parameters)
   {
     strtok(parameters, " ");
     char* id = strtok(NULL, "\0");
-    if(id == 0 || sscanf(id, "%d", &bid) != 1)
+    if(id == 0 || sscanf(id, "%llu", &tmp_bid) != 1) 
       goto executeAbortBackupError1;
+
+    // to detect wraparound due to overflow, check if number of digits in 
+    // input backup ID > number of digits in max backup ID
+    char out[1024];
+    BaseString::snprintf(out, sizeof(out), "%u", MAX_BACKUPS);
+    if(tmp_bid <= 0 || tmp_bid >= MAX_BACKUPS || strlen(id) > strlen(out))
+      goto executeAbortBackupError2;
+    else 
+      bid = static_cast<unsigned>(tmp_bid);
   }
   {
     int result= ndb_mgm_abort_backup(m_mgmsrv, bid, &reply);
@@ -3140,6 +3150,9 @@ CommandInterpreter::executeAbortBackup(char* parameters)
   return 0;
  executeAbortBackupError1:
   ndbout << "Invalid arguments: expected <BackupId>" << endl;
+  return -1;
+ executeAbortBackupError2:
+  ndbout << "Invalid arguments: <BackupId> out of range [1-" << MAX_BACKUPS-1 << "]" << endl;
   return -1;
 }
 
