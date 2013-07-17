@@ -17404,7 +17404,13 @@ end_send(JOIN *join, JOIN_TAB *join_tab __attribute__((unused)),
   if (!end_of_records)
   {
     if (join->table_count &&
-        join->join_tab->is_using_loose_index_scan())
+        (join->join_tab->is_using_loose_index_scan() ||
+         /*
+           When order by used a loose scan as its input, the quick select may
+           be attached to pre_sort_join_tab.
+         */
+         (join->pre_sort_join_tab &&
+          join->pre_sort_join_tab->is_using_loose_index_scan())))
     {
       /* Copy non-aggregated fields when loose index scan is used. */
       copy_fields(&join->tmp_table_param);

@@ -13217,7 +13217,11 @@ QUICK_GROUP_MIN_MAX_SELECT::~QUICK_GROUP_MIN_MAX_SELECT()
     DBUG_ASSERT(file == head->file);
     if (doing_key_read)
       head->disable_keyread();
-    file->ha_index_end();
+    /*
+      There may be a code path when the same table was first accessed by index,
+      then the index is closed, and the table is scanned (order by + loose scan).
+    */
+    file->ha_index_or_rnd_end();
   }
   if (min_max_arg_part)
     delete_dynamic(&min_max_ranges);

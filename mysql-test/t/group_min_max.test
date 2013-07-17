@@ -1400,3 +1400,50 @@ explain SELECT f1, COUNT(DISTINCT f2) FROM t1 GROUP BY f1;
  
 drop table t1;
 --echo # End of test#50539.
+
+--echo #
+--echo # MDEV-4219 A simple select query returns random data (upstream bug#68473)
+--echo #
+
+--disable_warnings
+drop table if exists faulty;
+--enable_warnings
+
+# MySQL's test case
+
+CREATE TABLE faulty (
+a int(11) unsigned NOT NULL AUTO_INCREMENT,
+b int(11) unsigned NOT NULL,
+c datetime NOT NULL,
+PRIMARY KEY (a),
+UNIQUE KEY b_and_c (b,c)
+);
+
+INSERT INTO faulty (b, c) VALUES
+(1801, '2013-02-15 09:00:00'),
+(1802, '2013-02-28 09:00:00'),
+(1802, '2013-03-01 09:00:00'),
+(5,    '1990-02-15 09:00:00'),
+(5,    '2013-02-15 09:00:00'),
+(5,    '2009-02-15 17:00:00');
+
+EXPLAIN
+SELECT DISTINCT b, c FROM faulty WHERE b='1802' ORDER BY c;
+SELECT DISTINCT b, c FROM faulty WHERE b='1802' ORDER BY c;
+
+drop table faulty;
+
+# MariaDB test case
+
+CREATE TABLE t1 (a INT, b INT);
+INSERT INTO t1 (a, b) VALUES (1,1), (1,2), (1,3);
+INSERT INTO t1 SELECT a + 1, b FROM t1;
+INSERT INTO t1 SELECT a + 2, b FROM t1;
+
+CREATE INDEX break_it ON t1 (a, b);
+
+EXPLAIN
+SELECT distinct a, b FROM t1 where a = '3' ORDER BY b; 
+SELECT distinct a, b FROM t1 where a = '3' ORDER BY b; 
+
+drop table t1;
