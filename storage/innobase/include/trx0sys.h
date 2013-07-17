@@ -650,7 +650,7 @@ struct trx_sys_t {
 					memory read-write transactions, sorted
 					on trx id, biggest first. Recovered
 					transactions are always on this list. */
-	
+
 	char		pad2[64];
 	trx_list_t	mysql_trx_list;	/*!< List of transactions created
 					for MySQL. All transactions on
