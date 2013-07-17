@@ -94,7 +94,7 @@ PATENT RIGHTS GRANT:
 static int prelock_range(DBC *cursor, int left, int right) {
     DBT key_left; dbt_init(&key_left, &left, sizeof left);
     DBT key_right; dbt_init(&key_right, &right, sizeof right);
-    int r = cursor->c_pre_acquire_range_lock(cursor, &key_left, &key_right);
+    int r = cursor->c_set_bounds(cursor, &key_left, &key_right, true, 0);
     return r;
 }
 

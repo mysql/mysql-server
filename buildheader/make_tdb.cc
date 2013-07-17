@@ -592,8 +592,7 @@ static void print_dbc_struct (void) {
 	"int (*c_getf_set)(DBC *, uint32_t, DBT *, YDB_CALLBACK_FUNCTION, void *)",
 	"int (*c_getf_set_range)(DBC *, uint32_t, DBT *, YDB_CALLBACK_FUNCTION, void *)",
 	"int (*c_getf_set_range_reverse)(DBC *, uint32_t, DBT *, YDB_CALLBACK_FUNCTION, void *)",
-	"int (*c_pre_acquire_range_lock)(DBC*, const DBT*, const DBT*)",
-	"int (*c_restrict_to_range)(DBC*, const DBT*, const DBT*, bool pre_acquire, int out_of_range_error)",
+	"int (*c_set_bounds)(DBC*, const DBT*, const DBT*, bool pre_acquire, int out_of_range_error)",
 	"void (*c_remove_restriction)(DBC*)",
 	NULL};
     sort_and_dump_fields("dbc", false, extra);

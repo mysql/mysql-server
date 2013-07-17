@@ -145,7 +145,7 @@ test_restrict (int64_t n, int error_to_expect) {
     dbt_init(&dbt_left, &keys[int_left], sizeof keys[int_left]);
     dbt_init(&dbt_right, &keys[int_right], sizeof keys[int_right]);
 
-    r = cursor->c_restrict_to_range(
+    r = cursor->c_set_bounds(
         cursor,
         &dbt_left,
         &dbt_right,

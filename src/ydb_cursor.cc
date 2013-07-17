@@ -700,15 +700,16 @@ toku_c_close(DBC * c) {
 }
 
 static int
-c_restrict_to_range(DBC *dbc, const DBT *left_key, const DBT *right_key, bool pre_acquire, int out_of_range_error) {
+c_set_bounds(DBC *dbc, const DBT *left_key, const DBT *right_key, bool pre_acquire, int out_of_range_error) {
     if (out_of_range_error != DB_NOTFOUND &&
         out_of_range_error != TOKUDB_OUT_OF_RANGE &&
         out_of_range_error != 0) {
         return toku_ydb_do_error(
             dbc->dbp->dbenv,
             EINVAL,
-            "Invalid out_of_range_error [%d] for c_restrict_to_range\n",
-            out_of_range_error
+            "Invalid out_of_range_error [%d] for %s\n",
+            out_of_range_error,
+            __FUNCTION__ 
             );
     }
     if (left_key == toku_dbt_negative_infinity() && right_key == toku_dbt_positive_infinity()) {
@@ -731,11 +732,6 @@ c_restrict_to_range(DBC *dbc, const DBT *left_key, const DBT *right_key, bool pr
         toku::lock_request::type::WRITE : toku::lock_request::type::READ;
     int r = toku_db_get_range_lock(db, txn, left_key, right_key, lock_type);
     return r;
-}
-
-static int
-c_pre_acquire_range_lock(DBC *dbc, const DBT *left_key, const DBT *right_key) {
-    return c_restrict_to_range(dbc, left_key, right_key, true, 0);
 }
 
 static void
@@ -834,8 +830,7 @@ toku_db_cursor_internal(DB * db, DB_TXN * txn, DBC ** c, uint32_t flags, int is_
     SCRS(c_getf_current);
     SCRS(c_getf_set_range);
     SCRS(c_getf_set_range_reverse);
-    SCRS(c_pre_acquire_range_lock);
-    SCRS(c_restrict_to_range);
+    SCRS(c_set_bounds);
     SCRS(c_remove_restriction);
 #undef SCRS
 

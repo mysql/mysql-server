@@ -666,7 +666,7 @@ static int scan_op_and_maybe_check_sum(
 
     { int chk_r = db->cursor(db, txn, &cursor, 0); CKERR(chk_r); }
     if (sce->prefetch) {
-        r = cursor->c_pre_acquire_range_lock(cursor, db->dbt_neg_infty(), db->dbt_pos_infty());
+        r = cursor->c_set_bounds(cursor, db->dbt_neg_infty(), db->dbt_pos_infty(), true, 0);
         assert(r == 0);
     }
     while (r != DB_NOTFOUND) {
@@ -1153,7 +1153,7 @@ static void rangequery_db(DB *db, DB_TXN *txn, ARG arg, rangequery_row_cb cb, vo
     fill_key_buf(start_k + limit, end_keybuf, arg->cli);
 
     r = db->cursor(db, txn, &cursor, 0); CKERR(r);
-    r = cursor->c_pre_acquire_range_lock(cursor, &start_key, &end_key); CKERR(r);
+    r = cursor->c_set_bounds(cursor, &start_key, &end_key, true, 0); CKERR(r);
 
     struct rangequery_cb_extra extra = {
         .rows_read = 0,
@@ -1322,7 +1322,7 @@ static int pre_acquire_write_lock(DB *db, DB_TXN *txn,
 
     r = db->cursor(db, txn, &cursor, DB_RMW);
     CKERR(r);
-    int cursor_r = cursor->c_pre_acquire_range_lock(cursor, left_key, right_key);
+    int cursor_r = cursor->c_set_bounds(cursor, left_key, right_key, true, 0);
     r = cursor->c_close(cursor);
     CKERR(r);
 

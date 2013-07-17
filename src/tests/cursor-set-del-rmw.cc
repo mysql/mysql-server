@@ -119,7 +119,7 @@ static void test_del_rmw(DB_ENV *env, DB *db, uint32_t t1_flags, uint32_t t2_fla
         DBC *c2 = NULL;
         r = db->cursor(db, txn2, &c2, c2_flags); assert_zero(r);
 
-        r = c1->c_pre_acquire_range_lock(c1, db->dbt_neg_infty(), db->dbt_pos_infty()); assert_zero(r);
+        r = c1->c_set_bounds(c1, db->dbt_neg_infty(), db->dbt_pos_infty(), true, 0); assert_zero(r);
 
         int k = htonl(2);
         DBT key; dbt_init(&key, &k, sizeof k);
