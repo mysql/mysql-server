@@ -524,7 +524,7 @@ contains the sum of the following flag and the locally stored len. */
 
 #define UNIV_EXTERN_STORAGE_FIELD (UNIV_SQL_NULL - UNIV_PAGE_SIZE_MAX)
 
-#if defined(__GNUC__) && (__GNUC__ > 2) && ! defined(__INTEL_COMPILER)
+#if defined(__GNUC__) && (__GNUC__ > 2)
 #define HAVE_GCC_GT_2
 /* Tell the compiler that variable/function is unused. */
 # define UNIV_UNUSED    __attribute__ ((unused))

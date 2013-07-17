@@ -62,6 +62,7 @@ Created 10/8/1995 Heikki Tuuri
 #include "srv0space.h"
 #include "srv0start.h"
 #include "row0mysql.h"
+#include "row0trunc.h"
 #include "trx0i_s.h"
 #include "srv0mon.h"
 #include "ut0crc32.h"
@@ -2818,4 +2819,24 @@ srv_purge_wakeup(void)
 		}
 	}
 }
+
+/** Check if tablespace is being truncated.
+(Ignore system-tablespace as we don't re-create the tablespace
+and so some of the action that are suppressed by this function
+for independent tablespace are not applicable to system-tablespace).
+@param	space_id	space_id to check for truncate action
+@return true		if being truncated, false if not being
+			truncated or tablespace is system-tablespace. */
+
+bool
+srv_is_tablespace_truncated(ulint space_id)
+{
+	if (Tablespace::is_system_tablespace(space_id)) {
+		return(false);
+	}
+
+	return(truncate_t::is_tablespace_truncated(space_id));
+
+}
+
 

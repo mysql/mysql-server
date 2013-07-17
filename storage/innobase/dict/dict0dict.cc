@@ -1428,7 +1428,6 @@ dict_table_rename_in_cache(
 	if (strlen(table->name) + 1 <= sizeof(old_name)) {
 		memcpy(old_name, table->name, strlen(table->name) + 1);
 	} else {
-		ut_print_timestamp(stderr);
 		ib_logf(IB_LOG_LEVEL_FATAL,
 			"Too long table name: '%s', max length is %d",
 			table->name, MAX_FULL_NAME_LEN);

@@ -157,6 +157,12 @@ trx_start_internal_low(
 /*===================*/
 	trx_t*	trx);		/*!< in/out: transaction */
 
+/** Starts a read-only transaction for internal processing.
+@param[in,out] trx	transaction to be started */
+void
+trx_start_internal_read_only_low(
+	trx_t*	trx);
+
 #ifdef UNIV_DEBUG
 #define trx_start_if_not_started_xa(t, rw)			\
 	do {							\
@@ -178,12 +184,22 @@ trx_start_internal_low(
 	(t)->start_file = __FILE__;				\
 	trx_start_internal_low((t));				\
 	} while (false)
+
+#define trx_start_internal_read_only(t)				\
+	do {							\
+	(t)->start_line = __LINE__;				\
+	(t)->start_file = __FILE__;				\
+	trx_start_internal_read_only_low(t);			\
+	} while (false)
 #else
 #define trx_start_if_not_started(t, rw)				\
 	trx_start_if_not_started_low((t), rw)
 
 #define trx_start_internal(t)					\
 	trx_start_internal_low((t))
+
+#define trx_start_internal_read_only(t)				\
+	trx_start_internal_read_only_low(t)
 
 #define trx_start_if_not_started_xa(t, rw)			\
 	trx_start_if_not_started_xa_low((t), (rw))

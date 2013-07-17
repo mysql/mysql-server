@@ -838,9 +838,12 @@ recv_parse_or_apply_log_rec_body(
 				record should be complete then */
 	mtr_t*		mtr,	/*!< in: mtr or NULL; should be non-NULL
 				if and only if block is non-NULL */
-	ulint		space_id)
+	ulint		space_id,
 				/*!< in: tablespace id obtained by
-				parsing initial log record */
+				parsing initial log record. */
+	ulint		page_no)
+				/*!< in: page-number obtained by
+				parsing initial log record. */
 {
 	dict_index_t*	index	= NULL;
 	page_t*		page;
@@ -1117,13 +1120,18 @@ recv_parse_or_apply_log_rec_body(
 		ptr = mlog_parse_string(ptr, end_ptr, page, page_zip);
 		break;
 	case MLOG_FILE_RENAME:
-		ptr = fil_op_log_parse_or_replay(ptr, end_ptr, type,
-						 space_id, 0);
+		ptr = fil_op_log_parse_or_replay(
+			ptr, end_ptr, type, space_id, page_no, 0, false);
+		break;
+	case MLOG_FILE_TRUNCATE:
+		ptr = fil_op_log_parse_or_replay(
+			ptr, end_ptr, type, space_id, page_no, 0, true);
 		break;
 	case MLOG_FILE_CREATE:
 	case MLOG_FILE_DELETE:
 	case MLOG_FILE_CREATE2:
-		ptr = fil_op_log_parse_or_replay(ptr, end_ptr, type, 0, 0);
+		ptr = fil_op_log_parse_or_replay(
+			ptr, end_ptr, type, ULINT_UNDEFINED, page_no, 0, true);
 		break;
 	case MLOG_ZIP_WRITE_NODE_PTR:
 		ut_ad(!page || page_type == FIL_PAGE_INDEX);
@@ -1485,7 +1493,15 @@ recv_recover_page_func(
 			}
 		}
 
-		if (recv->start_lsn >= page_lsn) {
+		/* Ignore applying the redo logs for tablespace that is
+		truncated. Post recovery there is fixup action that will
+		restore the tablespace back to normal state.
+		Applying redo at this stage can result in error given that
+		redo will have action recorded on page before tablespace
+		was re-inited and that would lead to an error while applying
+		such action. */
+		if (recv->start_lsn >= page_lsn
+		    && !srv_is_tablespace_truncated(recv_addr->space)) {
 
 			lsn_t	end_lsn;
 
@@ -1506,7 +1522,8 @@ recv_recover_page_func(
 			recv_parse_or_apply_log_rec_body(recv->type, buf,
 							 buf + recv->len,
 							 block, &mtr,
-							 recv_addr->space);
+							 recv_addr->space,
+							 recv_addr->page_no);
 
 			end_lsn = recv->start_lsn + recv->len;
 			mach_write_to_8(FIL_PAGE_LSN + page, end_lsn);
@@ -1977,8 +1994,9 @@ recv_parse_log_rec(
 	}
 #endif /* UNIV_LOG_LSN_DEBUG */
 
-	new_ptr = recv_parse_or_apply_log_rec_body(*type, new_ptr, end_ptr,
-						   NULL, NULL, *space);
+	new_ptr = recv_parse_or_apply_log_rec_body(
+			*type, new_ptr, end_ptr, NULL, NULL, *space, *page_no);
+
 	if (UNIV_UNLIKELY(new_ptr == NULL)) {
 
 		return(0);
@@ -2196,6 +2214,10 @@ loop:
 			recv_check_incomplete_log_recs(ptr, len);
 #endif/* UNIV_LOG_DEBUG */
 
+		} else if (type == MLOG_FILE_TRUNCATE) {
+			fil_op_log_parse_or_replay(
+				body, end_ptr, type, space, page_no,
+				recv_sys->recovered_lsn, false);
 		} else if (type == MLOG_FILE_CREATE
 			   || type == MLOG_FILE_CREATE2
 			   || type == MLOG_FILE_RENAME
@@ -2211,7 +2233,8 @@ loop:
 
 				if (NULL == fil_op_log_parse_or_replay(
 					    body, end_ptr, type,
-					    space, page_no)) {
+					    space, page_no, 0, false)) {
+
 					ib_logf(IB_LOG_LEVEL_FATAL,
 						"File op log record of type"
 						" %lu space %lu not complete"

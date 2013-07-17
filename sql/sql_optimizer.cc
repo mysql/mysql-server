@@ -372,6 +372,8 @@ JOIN::optimize()
     if (make_tmp_tables_info())
       DBUG_RETURN(1);
     count_field_types(select_lex, &tmp_table_param, all_fields, false, false);
+    // Make plan visible for EXPLAIN
+    set_plan_state(NO_TABLES);
     DBUG_RETURN(0);
   }
   error= -1;					// Error is sent to client
@@ -407,14 +409,13 @@ JOIN::optimize()
     select_distinct&= !plan_is_const();
   }
 
-  if (const_table_map != found_const_table_map &&
-      !(select_options & SELECT_DESCRIBE))
+  if (const_table_map != found_const_table_map)
   {
     // There is at least one empty const table
     zero_result_cause= "no matching row in const table";
-    DBUG_PRINT("error",("Error: %s", zero_result_cause));
     goto setup_subq_exit;
   }
+
   if (!(thd->variables.option_bits & OPTION_BIG_SELECTS) &&
       best_read > (double) thd->variables.max_join_size &&
       !(select_options & SELECT_DESCRIBE))
@@ -484,12 +485,6 @@ JOIN::optimize()
       }
       (*tab->on_expr_ref)->update_used_tables();
     }
-  }
-
-  if (conds && const_table_map != found_const_table_map &&
-      (select_options & SELECT_DESCRIBE))
-  {
-    conds=new Item_int((longlong) 0,1);	// Always false
   }
 
   drop_unused_derived_keys();
@@ -764,11 +759,8 @@ JOIN::optimize()
              (rollup.state != ROLLUP::STATE_NONE && select_distinct));
 
   /* Perform FULLTEXT search before all regular searches */
-  if (!(select_options & SELECT_DESCRIBE))
-  {
-    init_ftfuncs(thd, select_lex, test(order));
-    optimize_fts_query();
-  }
+  init_ftfuncs(thd, select_lex, test(order));
+  optimize_fts_query();
 
   /*
     By setting child_subquery_can_materialize so late we gain the following:
@@ -798,6 +790,7 @@ JOIN::optimize()
     {
       having= having_for_explain= new Item_int((longlong) 0,1);
       zero_result_cause= "Impossible HAVING noticed after reading const tables";
+      set_plan_state(ZERO_RESULT);
       error= 0;
       DBUG_RETURN(0);
     }
@@ -868,12 +861,14 @@ JOIN::optimize()
     }
     if (changed)
     {
+      const bool res= unit->item->change_engine(engine);
+      set_plan_state(PLAN_READY);
       /*
         We leave optimize() because the rest of it is only about order/group
         which those subqueries don't have.
         @todo: let execution flow down instead, to be future-proof.
       */
-      DBUG_RETURN(unit->item->change_engine(engine));
+      DBUG_RETURN(res);
     }
   }
   /*
@@ -1035,6 +1030,10 @@ JOIN::optimize()
   if (make_tmp_tables_info())
     DBUG_RETURN(1);
   count_field_types(select_lex, &tmp_table_param, all_fields, false, false);
+  // Make plan visible for EXPLAIN
+  set_plan_state(PLAN_READY);
+
+  DEBUG_SYNC(thd, "after_join_optimize");
 
   error= 0;
   DBUG_RETURN(0);
@@ -1056,7 +1055,18 @@ setup_subq_exit:
 
   having_for_explain= having;
   error= 0;
+  set_plan_state(ZERO_RESULT);
   DBUG_RETURN(0);
+}
+
+
+void JOIN::set_plan_state(enum_plan_state plan_state_arg)
+{
+  DEBUG_SYNC(thd, "before_set_plan");
+  mysql_mutex_lock(&thd->LOCK_query_plan);
+  DBUG_ASSERT(plan_state_arg == NO_PLAN || plan_state == NO_PLAN);
+  plan_state= plan_state_arg;
+  mysql_mutex_unlock(&thd->LOCK_query_plan);
 }
 
 
@@ -1473,12 +1483,12 @@ static bool check_row_equality(THD *thd, Item *left_row, Item_row *right_row,
                                        (Item_row *) right_item,
 			               cond_equal, eq_list);
       if (!is_converted)
-        thd->lex->current_select->cond_count++;      
+        thd->lex->current_select()->cond_count++;      
     }
     else
     { 
       is_converted= check_simple_equality(left_item, right_item, 0, cond_equal);
-      thd->lex->current_select->cond_count++;
+      thd->lex->current_select()->cond_count++;
     }  
  
     if (!is_converted)
@@ -1550,7 +1560,7 @@ static bool check_equality(THD *thd, Item *item, COND_EQUAL *cond_equal,
     if (left_item->type() == Item::ROW_ITEM &&
         right_item->type() == Item::ROW_ITEM)
     {
-      thd->lex->current_select->cond_count--;
+      thd->lex->current_select()->cond_count--;
       return check_row_equality(thd,
                                 (Item_row *) left_item,
                                 (Item_row *) right_item,
@@ -1583,7 +1593,7 @@ static bool check_equality(THD *thd, Item *item, COND_EQUAL *cond_equal,
     just an argument of a comparison predicate.
     The function also determines the maximum number of members in 
     equality lists of each Item_cond_and object assigning it to
-    thd->lex->current_select->max_equal_elems.
+    thd->lex->current_select()->max_equal_elems.
 
   @note
     Multiple equality predicate =(f1,..fn) is equivalent to the conjuction of
@@ -1681,7 +1691,7 @@ static Item *build_equal_items_for_cond(THD *thd, Item *cond,
       {
         item_equal->fix_length_and_dec();
         item_equal->update_used_tables();
-        set_if_bigger(thd->lex->current_select->max_equal_elems,
+        set_if_bigger(thd->lex->current_select()->max_equal_elems,
                       item_equal->members());  
       }
 
@@ -1738,7 +1748,7 @@ static Item *build_equal_items_for_cond(THD *thd, Item *cond,
         {
           item_equal->fix_length_and_dec();
           item_equal->update_used_tables();
-          set_if_bigger(thd->lex->current_select->max_equal_elems,
+          set_if_bigger(thd->lex->current_select()->max_equal_elems,
                         item_equal->members());  
           return item_equal;
 	}
@@ -1759,7 +1769,7 @@ static Item *build_equal_items_for_cond(THD *thd, Item *cond,
         {
           item_equal->fix_length_and_dec();
           item_equal->update_used_tables();
-          set_if_bigger(thd->lex->current_select->max_equal_elems,
+          set_if_bigger(thd->lex->current_select()->max_equal_elems,
                         item_equal->members());  
         }
         and_cond->cond_equal= cond_equal;
@@ -7032,12 +7042,12 @@ bool JOIN::flatten_subqueries()
     (*subq)->changed= 0;
     (*subq)->fixed= 0;
 
-    SELECT_LEX *save_select_lex= thd->lex->current_select;
-    thd->lex->current_select= (*subq)->unit->first_select();
+    SELECT_LEX *save_select_lex= thd->lex->current_select();
+    thd->lex->set_current_select((*subq)->unit->first_select());
 
     res= (*subq)->select_transformer(child_join);
 
-    thd->lex->current_select= save_select_lex;
+    thd->lex->set_current_select(save_select_lex);
 
     if (res == Item_subselect::RES_ERROR)
       DBUG_RETURN(TRUE);
@@ -8267,11 +8277,14 @@ remove_const(JOIN *join,ORDER *first_order, Item *cond,
       *simple_order=0;				// Must do a temp table to sort
     else if (!(order_tables & not_const_tables))
     {
-      if (order->item[0]->has_subquery() && 
-          !(join->select_lex->options & SELECT_DESCRIBE))
+      if (order->item[0]->has_subquery())
       {
-        Opt_trace_array trace_subselect(trace, "subselect_evaluation");
-        order->item[0]->val_str(&order->item[0]->str_value);
+        if (!(join->select_lex->options & SELECT_DESCRIBE))
+        {
+          Opt_trace_array trace_subselect(trace, "subselect_evaluation");
+          order->item[0]->val_str(&order->item[0]->str_value);
+        }
+        order->item[0]->mark_subqueries_optimized_away();
       }
       trace_one_item.add("uses_only_constant_tables", true);
       continue;					// skip const item
@@ -9752,12 +9765,15 @@ void JOIN::refine_best_rowcount()
     return;
 
   /*
-    Setting estimate to 1 row would mark a derived table as const.
+    If a derived table, or a member of a UNION which itself forms a derived
+    table:
+    setting estimate to 0 or 1 row would mark the derived table as const.
     The row count is bumped to the nearest higher value, so that the
     query block will not be evaluated during optimization.
   */
-  if (select_lex->linkage == DERIVED_TABLE_TYPE &&
-      best_rowcount <= 1)
+  if (best_rowcount <= 1 &&
+      select_lex->master_unit()->first_select()->linkage ==
+      DERIVED_TABLE_TYPE)
     best_rowcount= 2;
 
   /*

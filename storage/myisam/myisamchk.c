@@ -1025,7 +1025,10 @@ static int myisamchk(MI_CHECK *param, char * filename)
 	  my_bool update_index=1;
 	  for (key=0 ; key < share->base.keys; key++)
 	    if (share->keyinfo[key].flag & (HA_BINARY_PACK_KEY|HA_FULLTEXT))
-	      update_index=0;
+            {
+              update_index=0;
+              break;
+            }
 
 	  error=mi_sort_records(param,info,filename,param->opt_sort_key,
                              /* what is the following parameter for ? */
