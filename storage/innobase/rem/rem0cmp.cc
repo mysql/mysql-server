@@ -283,6 +283,7 @@ cmp_whole_field(
 			       &my_charset_latin1,
 			       a, a_length, b, b_length, 0));
 	case DATA_BLOB:
+	case DATA_GEOMETRY:
 		if (prtype & DATA_BINARY_TYPE) {
 			ib_logf(IB_LOG_LEVEL_ERROR,
 				"comparing a binary BLOB"
@@ -294,8 +295,6 @@ cmp_whole_field(
 	case DATA_MYSQL:
 		return(innobase_mysql_cmp(prtype,
 					  a, a_length, b, b_length));
-	case DATA_GEOMETRY:
-		return(0);
 	default:
 		ib_logf(IB_LOG_LEVEL_FATAL,
 			"unknown data type number %lu",
@@ -353,6 +352,7 @@ cmp_data(
 		pad = ULINT_UNDEFINED;
 		break;
 	case DATA_BLOB:
+	case DATA_GEOMETRY:
 		if (prtype & DATA_BINARY_TYPE) {
 			pad = ULINT_UNDEFINED;
 			break;
