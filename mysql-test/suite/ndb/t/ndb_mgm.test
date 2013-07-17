@@ -246,3 +246,11 @@ exec $mgm_cmd -e "CLUSTERLOG INFO";
 echo # Bug 16585455: start backup with backup ID out of range;
 --error 255
 exec $mgm_cmd -e "START BACKUP 201303271430 WAIT COMPLETED";
+
+echo # Test 1/2 for Bug#16585497: abort backup with backup ID > 2^31;
+exec $mgm_cmd -e "ABORT BACKUP 2147483648";
+
+echo # Test 2/2 for Bug#16585497: abort backup with backup ID out of range;
+--error 255
+exec $mgm_cmd -e "ABORT BACKUP 1000000000000000000";
+
