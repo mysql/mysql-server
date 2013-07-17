@@ -143,100 +143,128 @@ fac(5)
 SELECT append("Bolly", "wood");
 append("Bolly", "wood")
 Bollywood
-# Events
+# Event
+SET GLOBAL event_scheduler=ON;
 CREATE TABLE table_t(a INT);
-CREATE EVENT e1 ON SCHEDULE EVERY 1 SECOND DO
+CREATE EVENT e1 ON SCHEDULE EVERY 2 SECOND DO
 BEGIN
 INSERT INTO table_t VALUES(1);
 END|
-SET GLOBAL event_scheduler=ON;
+SELECT * FROM table_t;
+a
+1
+1
 SET GLOBAL event_scheduler=OFF;
 SELECT EVENT_NAME, OBJECT_NAME, NESTING_EVENT_TYPE, NESTING_EVENT_LEVEL
 FROM performance_schema.events_statements_current WHERE
 CURRENT_SCHEMA='stored_programs' ORDER BY OBJECT_NAME;
 EVENT_NAME	OBJECT_NAME	NESTING_EVENT_TYPE	NESTING_EVENT_LEVEL
 statement/sql/select	NULL	NULL	0
+statement/sp/stmt	e1	NULL	0
 SELECT EVENT_NAME, OBJECT_NAME, NESTING_EVENT_TYPE, NESTING_EVENT_LEVEL
 FROM performance_schema.events_statements_history WHERE
 CURRENT_SCHEMA='stored_programs' ORDER BY OBJECT_NAME,NESTING_EVENT_LEVEL;
 EVENT_NAME	OBJECT_NAME	NESTING_EVENT_TYPE	NESTING_EVENT_LEVEL
 statement/sql/select	NULL	NULL	0
-statement/sql/create_event	NULL	NULL	0
-statement/sql/create_table	NULL	NULL	0
+statement/sql/select	NULL	NULL	0
+statement/sql/select	NULL	NULL	0
+statement/sql/select	NULL	NULL	0
+statement/sql/select	NULL	NULL	0
+statement/sql/select	NULL	NULL	0
 statement/sql/select	NULL	NULL	0
 statement/sql/set_option	NULL	NULL	0
 statement/sql/select	NULL	NULL	0
 statement/sql/select	NULL	NULL	0
-statement/sql/set_option	NULL	NULL	0
-statement/sp/freturn	append	STATEMENT	1
-statement/sp/freturn	fac	STATEMENT	1
 SELECT EVENT_NAME, OBJECT_NAME, NESTING_EVENT_TYPE, NESTING_EVENT_LEVEL
 FROM performance_schema.events_statements_history_long WHERE
 CURRENT_SCHEMA='stored_programs' ORDER BY OBJECT_NAME,NESTING_EVENT_LEVEL;
 EVENT_NAME	OBJECT_NAME	NESTING_EVENT_TYPE	NESTING_EVENT_LEVEL
-statement/sql/select	NULL	NULL	0
-statement/sql/select	NULL	NULL	0
-statement/sql/call_procedure	NULL	NULL	0
-statement/sql/select	NULL	NULL	0
-statement/sql/select	NULL	NULL	0
 statement/sql/create_table	NULL	NULL	0
-statement/sql/create_event	NULL	NULL	0
+statement/sql/create_table	NULL	NULL	0
+statement/sql/create_table	NULL	NULL	0
+statement/sql/create_table	NULL	NULL	0
+statement/sql/create_procedure	NULL	NULL	0
+statement/sql/create_procedure	NULL	NULL	0
+statement/sql/create_procedure	NULL	NULL	0
+statement/sql/create_procedure	NULL	NULL	0
+statement/sql/create_function	NULL	NULL	0
+statement/sql/create_function	NULL	NULL	0
+statement/sql/create_function	NULL	NULL	0
+statement/sql/create_trigger	NULL	NULL	0
+statement/sql/create_trigger	NULL	NULL	0
+statement/sql/create_trigger	NULL	NULL	0
+statement/sql/create_trigger	NULL	NULL	0
+statement/sql/create_trigger	NULL	NULL	0
+statement/sql/insert	NULL	NULL	0
+statement/sql/call_procedure	NULL	NULL	0
 statement/sql/set_option	NULL	NULL	0
 statement/sql/select	NULL	NULL	0
-statement/sql/set_option	NULL	NULL	0
-statement/sql/set_option	NULL	NULL	0
 statement/sql/call_procedure	NULL	NULL	0
+statement/sql/select	NULL	NULL	0
+statement/sql/call_procedure	NULL	NULL	0
+statement/sql/call_procedure	NULL	NULL	0
+statement/sql/set_option	NULL	NULL	0
 statement/sql/select	NULL	NULL	0
 statement/sql/update	NULL	NULL	0
+statement/sql/select	NULL	NULL	0
+statement/sql/set_option	NULL	NULL	0
+statement/sql/select	NULL	NULL	0
 statement/sql/delete	NULL	NULL	0
 statement/sql/select	NULL	NULL	0
-statement/sql/set_option	NULL	NULL	0
-statement/sql/call_procedure	NULL	NULL	0
 statement/sql/select	NULL	NULL	0
 statement/sql/select	NULL	NULL	0
-statement/sql/select	NULL	NULL	0
-statement/sql/call_procedure	NULL	NULL	0
-statement/sql/create_table	NULL	NULL	0
-statement/sql/create_table	NULL	NULL	0
-statement/sql/create_procedure	NULL	NULL	0
-statement/sql/create_procedure	NULL	NULL	0
-statement/sql/create_trigger	NULL	NULL	0
-statement/sql/create_procedure	NULL	NULL	0
-statement/sql/create_procedure	NULL	NULL	0
-statement/sql/create_function	NULL	NULL	0
-statement/sql/create_function	NULL	NULL	0
-statement/sql/create_table	NULL	NULL	0
-statement/sql/create_trigger	NULL	NULL	0
-statement/sql/create_trigger	NULL	NULL	0
 statement/sql/select	NULL	NULL	0
 statement/sql/set_option	NULL	NULL	0
-statement/sql/select	NULL	NULL	0
-statement/sql/insert	NULL	NULL	0
 statement/sql/create_table	NULL	NULL	0
-statement/sql/create_trigger	NULL	NULL	0
-statement/sql/create_trigger	NULL	NULL	0
-statement/sql/create_function	NULL	NULL	0
+statement/sql/create_event	NULL	NULL	0
+statement/sql/select	NULL	NULL	0
+statement/sql/select	NULL	NULL	0
+statement/sql/select	NULL	NULL	0
+statement/sql/select	NULL	NULL	0
+statement/sql/select	NULL	NULL	0
+statement/sql/select	NULL	NULL	0
+statement/sql/select	NULL	NULL	0
+statement/sql/select	NULL	NULL	0
+statement/sql/select	NULL	NULL	0
+statement/sql/select	NULL	NULL	0
+statement/sql/select	NULL	NULL	0
+statement/sql/select	NULL	NULL	0
+statement/sql/select	NULL	NULL	0
+statement/sql/select	NULL	NULL	0
+statement/sql/select	NULL	NULL	0
+statement/sql/select	NULL	NULL	0
+statement/sql/select	NULL	NULL	0
+statement/sql/select	NULL	NULL	0
+statement/sql/select	NULL	NULL	0
+statement/sql/select	NULL	NULL	0
+statement/sql/select	NULL	NULL	0
+statement/sql/select	NULL	NULL	0
+statement/sql/set_option	NULL	NULL	0
+statement/sql/select	NULL	NULL	0
+statement/sql/select	NULL	NULL	0
+statement/sql/select	NULL	NULL	0
+statement/sql/select	NULL	NULL	0
 statement/sp/freturn	append	STATEMENT	1
 statement/sp/stmt	e1	NULL	0
+statement/sp/set	fac	STATEMENT	1
+statement/sp/jump_if_not	fac	STATEMENT	1
+statement/sp/set	fac	STATEMENT	1
+statement/sp/set	fac	STATEMENT	1
+statement/sp/jump	fac	STATEMENT	1
+statement/sp/jump_if_not	fac	STATEMENT	1
+statement/sp/set	fac	STATEMENT	1
+statement/sp/set	fac	STATEMENT	1
+statement/sp/jump	fac	STATEMENT	1
+statement/sp/jump_if_not	fac	STATEMENT	1
+statement/sp/set	fac	STATEMENT	1
+statement/sp/set	fac	STATEMENT	1
+statement/sp/jump	fac	STATEMENT	1
+statement/sp/jump_if_not	fac	STATEMENT	1
+statement/sp/set	fac	STATEMENT	1
+statement/sp/set	fac	STATEMENT	1
+statement/sp/jump	fac	STATEMENT	1
 statement/sp/jump_if_not	fac	STATEMENT	1
 statement/sp/freturn	fac	STATEMENT	1
-statement/sp/jump	fac	STATEMENT	1
-statement/sp/set	fac	STATEMENT	1
-statement/sp/set	fac	STATEMENT	1
-statement/sp/jump_if_not	fac	STATEMENT	1
-statement/sp/jump	fac	STATEMENT	1
-statement/sp/set	fac	STATEMENT	1
-statement/sp/set	fac	STATEMENT	1
-statement/sp/jump_if_not	fac	STATEMENT	1
-statement/sp/set	fac	STATEMENT	1
-statement/sp/set	fac	STATEMENT	1
-statement/sp/jump	fac	STATEMENT	1
-statement/sp/set	fac	STATEMENT	1
-statement/sp/set	fac	STATEMENT	1
-statement/sp/set	fac	STATEMENT	1
-statement/sp/jump	fac	STATEMENT	1
-statement/sp/jump_if_not	fac	STATEMENT	1
-statement/sp/jump_if_not	fac	STATEMENT	1
 statement/sp/stmt	SampleProc1	STATEMENT	1
 statement/sp/stmt	SampleProc1	STATEMENT	1
 statement/sp/set	SampleProc2	STATEMENT	1
@@ -246,7 +274,6 @@ statement/sp/set	SampleProc2	STATEMENT	1
 statement/sp/stmt	SampleProc2	STATEMENT	1
 statement/sp/set	SampleProc3	STATEMENT	1
 statement/sp/set	SampleProc3	STATEMENT	1
-statement/sp/stmt	SampleProc3	STATEMENT	1
 statement/sp/set	SampleProc3	STATEMENT	1
 statement/sp/set	SampleProc3	STATEMENT	1
 statement/sp/set	SampleProc3	STATEMENT	1
@@ -254,16 +281,17 @@ statement/sp/set	SampleProc3	STATEMENT	1
 statement/sp/set	SampleProc3	STATEMENT	1
 statement/sp/set	SampleProc3	STATEMENT	1
 statement/sp/stmt	SampleProc3	STATEMENT	1
-statement/sp/jump	SampleProc4	STATEMENT	1
+statement/sp/stmt	SampleProc3	STATEMENT	1
+statement/sp/set	SampleProc4	STATEMENT	1
 statement/sp/set	SampleProc4	STATEMENT	1
 statement/sp/jump_if_not	SampleProc4	STATEMENT	1
+statement/sp/stmt	SampleProc4	STATEMENT	1
+statement/sp/set	SampleProc4	STATEMENT	1
 statement/sp/jump	SampleProc4	STATEMENT	1
-statement/sp/set	SampleProc4	STATEMENT	1
-statement/sp/stmt	SampleProc4	STATEMENT	1
 statement/sp/jump_if_not	SampleProc4	STATEMENT	1
-statement/sp/set	SampleProc4	STATEMENT	1
 statement/sp/stmt	SampleProc4	STATEMENT	1
 statement/sp/set	SampleProc4	STATEMENT	1
+statement/sp/jump	SampleProc4	STATEMENT	1
 statement/sp/jump_if_not	SampleProc4	STATEMENT	1
 statement/sp/jump_if_not	trg1	STATEMENT	1
 statement/sp/jump_if_not	trg1	STATEMENT	2
@@ -271,8 +299,8 @@ statement/sp/jump_if_not	trg1	STATEMENT	2
 statement/sp/stmt	trg2	STATEMENT	2
 statement/sp/stmt	trg3	STATEMENT	1
 statement/sp/set	wt_avg	STATEMENT	1
-statement/sp/freturn	wt_avg	STATEMENT	1
 statement/sp/set	wt_avg	STATEMENT	1
+statement/sp/freturn	wt_avg	STATEMENT	1
 TRUNCATE TABLE performance_schema.events_statements_history;
 TRUNCATE TABLE performance_schema.events_statements_history_long;
 TRUNCATE TABLE performance_schema.events_statements_current;
@@ -1129,28 +1157,6 @@ statement/sp/set	fac	STATEMENT	5
 statement/sp/jump	fac	STATEMENT	5
 statement/sp/jump_if_not	fac	STATEMENT	5
 statement/sp/freturn	fac	STATEMENT	5
-statement/sp/set	fac	STATEMENT	7
-statement/sp/set	fac	STATEMENT	7
-statement/sp/jump	fac	STATEMENT	7
-statement/sp/jump_if_not	fac	STATEMENT	7
-statement/sp/freturn	fac	STATEMENT	7
-statement/sp/set	fac	STATEMENT	7
-statement/sp/jump_if_not	fac	STATEMENT	7
-statement/sp/set	fac	STATEMENT	7
-statement/sp/set	fac	STATEMENT	7
-statement/sp/jump	fac	STATEMENT	7
-statement/sp/jump_if_not	fac	STATEMENT	7
-statement/sp/set	fac	STATEMENT	7
-statement/sp/set	fac	STATEMENT	7
-statement/sp/jump	fac	STATEMENT	7
-statement/sp/jump_if_not	fac	STATEMENT	7
-statement/sp/set	fac	STATEMENT	7
-statement/sp/set	fac	STATEMENT	7
-statement/sp/jump	fac	STATEMENT	7
-statement/sp/jump_if_not	fac	STATEMENT	7
-statement/sp/set	fac	STATEMENT	7
-statement/sp/set	fac	STATEMENT	7
-statement/sp/jump	fac	STATEMENT	7
 statement/sp/jump_if_not	fac	STATEMENT	7
 statement/sp/set	fac	STATEMENT	7
 statement/sp/set	fac	STATEMENT	7
@@ -1158,10 +1164,6 @@ statement/sp/jump	fac	STATEMENT	7
 statement/sp/jump_if_not	fac	STATEMENT	7
 statement/sp/freturn	fac	STATEMENT	7
 statement/sp/set	fac	STATEMENT	7
-statement/sp/jump_if_not	fac	STATEMENT	7
-statement/sp/set	fac	STATEMENT	7
-statement/sp/set	fac	STATEMENT	7
-statement/sp/jump	fac	STATEMENT	7
 statement/sp/jump_if_not	fac	STATEMENT	7
 statement/sp/set	fac	STATEMENT	7
 statement/sp/set	fac	STATEMENT	7
@@ -1210,16 +1212,8 @@ statement/sp/set	fac	STATEMENT	7
 statement/sp/set	fac	STATEMENT	7
 statement/sp/jump	fac	STATEMENT	7
 statement/sp/jump_if_not	fac	STATEMENT	7
-statement/sp/set	fac	STATEMENT	7
-statement/sp/set	fac	STATEMENT	7
-statement/sp/jump	fac	STATEMENT	7
-statement/sp/jump_if_not	fac	STATEMENT	7
 statement/sp/freturn	fac	STATEMENT	7
 statement/sp/set	fac	STATEMENT	7
-statement/sp/jump_if_not	fac	STATEMENT	7
-statement/sp/set	fac	STATEMENT	7
-statement/sp/set	fac	STATEMENT	7
-statement/sp/jump	fac	STATEMENT	7
 statement/sp/jump_if_not	fac	STATEMENT	7
 statement/sp/set	fac	STATEMENT	7
 statement/sp/set	fac	STATEMENT	7
@@ -1284,6 +1278,40 @@ statement/sp/set	fac	STATEMENT	7
 statement/sp/set	fac	STATEMENT	7
 statement/sp/jump	fac	STATEMENT	7
 statement/sp/jump_if_not	fac	STATEMENT	7
+statement/sp/freturn	fac	STATEMENT	7
+statement/sp/set	fac	STATEMENT	7
+statement/sp/jump_if_not	fac	STATEMENT	7
+statement/sp/set	fac	STATEMENT	7
+statement/sp/set	fac	STATEMENT	7
+statement/sp/jump	fac	STATEMENT	7
+statement/sp/jump_if_not	fac	STATEMENT	7
+statement/sp/set	fac	STATEMENT	7
+statement/sp/set	fac	STATEMENT	7
+statement/sp/jump	fac	STATEMENT	7
+statement/sp/jump_if_not	fac	STATEMENT	7
+statement/sp/set	fac	STATEMENT	7
+statement/sp/set	fac	STATEMENT	7
+statement/sp/jump	fac	STATEMENT	7
+statement/sp/jump_if_not	fac	STATEMENT	7
+statement/sp/set	fac	STATEMENT	7
+statement/sp/set	fac	STATEMENT	7
+statement/sp/jump	fac	STATEMENT	7
+statement/sp/jump_if_not	fac	STATEMENT	7
+statement/sp/set	fac	STATEMENT	7
+statement/sp/set	fac	STATEMENT	7
+statement/sp/jump	fac	STATEMENT	7
+statement/sp/jump_if_not	fac	STATEMENT	7
+statement/sp/set	fac	STATEMENT	7
+statement/sp/set	fac	STATEMENT	7
+statement/sp/jump	fac	STATEMENT	7
+statement/sp/jump_if_not	fac	STATEMENT	7
+statement/sp/set	fac	STATEMENT	7
+statement/sp/set	fac	STATEMENT	7
+statement/sp/jump	fac	STATEMENT	7
+statement/sp/jump_if_not	fac	STATEMENT	7
+statement/sp/set	fac	STATEMENT	7
+statement/sp/set	fac	STATEMENT	7
+statement/sp/jump	fac	STATEMENT	7
 statement/sp/freturn	fun	STATEMENT	1
 statement/sp/set	ifac	STATEMENT	2
 statement/sp/jump_if_not	ifac	STATEMENT	2

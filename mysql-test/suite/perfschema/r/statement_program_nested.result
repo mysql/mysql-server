@@ -134,17 +134,18 @@ n	f
 SELECT EVENT_NAME, SQL_TEXT, CURRENT_SCHEMA, OBJECT_TYPE, OBJECT_SCHEMA,
 OBJECT_NAME, NESTING_EVENT_TYPE, NESTING_EVENT_LEVEL 
 FROM performance_schema.events_statements_history_long WHERE
-CURRENT_SCHEMA='nested_sp' ORDER BY OBJECT_NAME,NESTING_EVENT_LEVEL;
+CURRENT_SCHEMA='nested_sp' ORDER BY 
+OBJECT_NAME,NESTING_EVENT_LEVEL,SQL_TEXT;
 EVENT_NAME	SQL_TEXT	CURRENT_SCHEMA	OBJECT_TYPE	OBJECT_SCHEMA	OBJECT_NAME	NESTING_EVENT_TYPE	NESTING_EVENT_LEVEL
 statement/sql/call_procedure	CALL c1(42)	nested_sp	NULL	NULL	NULL	NULL	0
-statement/sql/select	SELECT * FROM t1	nested_sp	NULL	NULL	NULL	NULL	0
-statement/sql/delete	DELETE FROM t1	nested_sp	NULL	NULL	NULL	NULL	0
 statement/sql/call_procedure	CALL iotest("io1", "io2", 1)	nested_sp	NULL	NULL	NULL	NULL	0
-statement/sql/select	SELECT * FROM t1 ORDER BY data DESC	nested_sp	NULL	NULL	NULL	NULL	0
 statement/sql/delete	DELETE FROM t1	nested_sp	NULL	NULL	NULL	NULL	0
-statement/sql/select	SELECT fun(6,10)	nested_sp	NULL	NULL	NULL	NULL	0
+statement/sql/delete	DELETE FROM t1	nested_sp	NULL	NULL	NULL	NULL	0
 statement/sql/insert	INSERT INTO t1 VALUES (20,13)	nested_sp	NULL	NULL	NULL	NULL	0
+statement/sql/select	SELECT * FROM t1	nested_sp	NULL	NULL	NULL	NULL	0
+statement/sql/select	SELECT * FROM t1 ORDER BY data DESC	nested_sp	NULL	NULL	NULL	NULL	0
 statement/sql/select	SELECT * FROM t2	nested_sp	NULL	NULL	NULL	NULL	0
+statement/sql/select	SELECT fun(6,10)	nested_sp	NULL	NULL	NULL	NULL	0
 statement/sp/stmt	CALL c2("c", x)	nested_sp	PROCEDURE	nested_sp	c1	STATEMENT	1
 statement/sp/stmt	CALL c3(x, s)	nested_sp	PROCEDURE	nested_sp	c2	STATEMENT	2
 statement/sp/stmt	CALL c4("level", x, s)	nested_sp	PROCEDURE	nested_sp	c3	STATEMENT	3
@@ -974,163 +975,163 @@ statement/sp/set	NULL	nested_sp	FUNCTION	nested_sp	fac	STATEMENT	7
 statement/sp/jump	NULL	nested_sp	FUNCTION	nested_sp	fac	STATEMENT	7
 statement/sp/jump_if_not	NULL	nested_sp	FUNCTION	nested_sp	fac	STATEMENT	7
 statement/sp/freturn	NULL	nested_sp	FUNCTION	nested_sp	fun	STATEMENT	1
-statement/sp/stmt	INSERT INTO t2 VALUES (i, fac(i))	nested_sp	PROCEDURE	nested_sp	ifac	STATEMENT	2
-statement/sp/set	NULL	nested_sp	PROCEDURE	nested_sp	ifac	STATEMENT	2
-statement/sp/jump	NULL	nested_sp	PROCEDURE	nested_sp	ifac	STATEMENT	2
-statement/sp/jump_if_not	NULL	nested_sp	PROCEDURE	nested_sp	ifac	STATEMENT	2
-statement/sp/stmt	INSERT INTO t2 VALUES (i, fac(i))	nested_sp	PROCEDURE	nested_sp	ifac	STATEMENT	2
 statement/sp/set	NULL	nested_sp	PROCEDURE	nested_sp	ifac	STATEMENT	2
 statement/sp/jump	NULL	nested_sp	PROCEDURE	nested_sp	ifac	STATEMENT	2
 statement/sp/jump_if_not	NULL	nested_sp	PROCEDURE	nested_sp	ifac	STATEMENT	2
 statement/sp/set	NULL	nested_sp	PROCEDURE	nested_sp	ifac	STATEMENT	2
+statement/sp/jump	NULL	nested_sp	PROCEDURE	nested_sp	ifac	STATEMENT	2
+statement/sp/jump_if_not	NULL	nested_sp	PROCEDURE	nested_sp	ifac	STATEMENT	2
+statement/sp/set	NULL	nested_sp	PROCEDURE	nested_sp	ifac	STATEMENT	2
 statement/sp/jump_if_not	NULL	nested_sp	PROCEDURE	nested_sp	ifac	STATEMENT	2
 statement/sp/jump_if_not	NULL	nested_sp	PROCEDURE	nested_sp	ifac	STATEMENT	2
-statement/sp/stmt	INSERT INTO t2 VALUES (i, fac(i))	nested_sp	PROCEDURE	nested_sp	ifac	STATEMENT	2
 statement/sp/set	NULL	nested_sp	PROCEDURE	nested_sp	ifac	STATEMENT	2
 statement/sp/jump	NULL	nested_sp	PROCEDURE	nested_sp	ifac	STATEMENT	2
 statement/sp/jump_if_not	NULL	nested_sp	PROCEDURE	nested_sp	ifac	STATEMENT	2
-statement/sp/stmt	INSERT INTO t2 VALUES (i, fac(i))	nested_sp	PROCEDURE	nested_sp	ifac	STATEMENT	2
-statement/sp/stmt	INSERT INTO t2 VALUES (i, fac(i))	nested_sp	PROCEDURE	nested_sp	ifac	STATEMENT	2
 statement/sp/set	NULL	nested_sp	PROCEDURE	nested_sp	ifac	STATEMENT	2
 statement/sp/set	NULL	nested_sp	PROCEDURE	nested_sp	ifac	STATEMENT	2
 statement/sp/jump	NULL	nested_sp	PROCEDURE	nested_sp	ifac	STATEMENT	2
 statement/sp/jump	NULL	nested_sp	PROCEDURE	nested_sp	ifac	STATEMENT	2
 statement/sp/jump_if_not	NULL	nested_sp	PROCEDURE	nested_sp	ifac	STATEMENT	2
 statement/sp/jump_if_not	NULL	nested_sp	PROCEDURE	nested_sp	ifac	STATEMENT	2
-statement/sp/stmt	INSERT INTO t2 VALUES (i, fac(i))	nested_sp	PROCEDURE	nested_sp	ifac	STATEMENT	2
+statement/sp/set	NULL	nested_sp	PROCEDURE	nested_sp	ifac	STATEMENT	2
+statement/sp/jump	NULL	nested_sp	PROCEDURE	nested_sp	ifac	STATEMENT	2
+statement/sp/jump_if_not	NULL	nested_sp	PROCEDURE	nested_sp	ifac	STATEMENT	2
+statement/sp/set	NULL	nested_sp	PROCEDURE	nested_sp	ifac	STATEMENT	2
+statement/sp/jump	NULL	nested_sp	PROCEDURE	nested_sp	ifac	STATEMENT	2
+statement/sp/jump_if_not	NULL	nested_sp	PROCEDURE	nested_sp	ifac	STATEMENT	2
+statement/sp/set	NULL	nested_sp	PROCEDURE	nested_sp	ifac	STATEMENT	2
+statement/sp/jump	NULL	nested_sp	PROCEDURE	nested_sp	ifac	STATEMENT	2
+statement/sp/jump_if_not	NULL	nested_sp	PROCEDURE	nested_sp	ifac	STATEMENT	2
+statement/sp/set	NULL	nested_sp	PROCEDURE	nested_sp	ifac	STATEMENT	2
+statement/sp/jump	NULL	nested_sp	PROCEDURE	nested_sp	ifac	STATEMENT	2
+statement/sp/jump_if_not	NULL	nested_sp	PROCEDURE	nested_sp	ifac	STATEMENT	2
 statement/sp/set	NULL	nested_sp	PROCEDURE	nested_sp	ifac	STATEMENT	2
 statement/sp/jump	NULL	nested_sp	PROCEDURE	nested_sp	ifac	STATEMENT	2
 statement/sp/jump_if_not	NULL	nested_sp	PROCEDURE	nested_sp	ifac	STATEMENT	2
 statement/sp/stmt	INSERT INTO t2 VALUES (i, fac(i))	nested_sp	PROCEDURE	nested_sp	ifac	STATEMENT	2
-statement/sp/set	NULL	nested_sp	PROCEDURE	nested_sp	ifac	STATEMENT	2
-statement/sp/jump	NULL	nested_sp	PROCEDURE	nested_sp	ifac	STATEMENT	2
-statement/sp/jump_if_not	NULL	nested_sp	PROCEDURE	nested_sp	ifac	STATEMENT	2
 statement/sp/stmt	INSERT INTO t2 VALUES (i, fac(i))	nested_sp	PROCEDURE	nested_sp	ifac	STATEMENT	2
-statement/sp/set	NULL	nested_sp	PROCEDURE	nested_sp	ifac	STATEMENT	2
-statement/sp/jump	NULL	nested_sp	PROCEDURE	nested_sp	ifac	STATEMENT	2
-statement/sp/jump_if_not	NULL	nested_sp	PROCEDURE	nested_sp	ifac	STATEMENT	2
 statement/sp/stmt	INSERT INTO t2 VALUES (i, fac(i))	nested_sp	PROCEDURE	nested_sp	ifac	STATEMENT	2
-statement/sp/set	NULL	nested_sp	PROCEDURE	nested_sp	ifac	STATEMENT	2
-statement/sp/jump	NULL	nested_sp	PROCEDURE	nested_sp	ifac	STATEMENT	2
-statement/sp/jump_if_not	NULL	nested_sp	PROCEDURE	nested_sp	ifac	STATEMENT	2
 statement/sp/stmt	INSERT INTO t2 VALUES (i, fac(i))	nested_sp	PROCEDURE	nested_sp	ifac	STATEMENT	2
-statement/sp/set	NULL	nested_sp	PROCEDURE	nested_sp	ifac	STATEMENT	2
-statement/sp/jump	NULL	nested_sp	PROCEDURE	nested_sp	ifac	STATEMENT	2
-statement/sp/jump_if_not	NULL	nested_sp	PROCEDURE	nested_sp	ifac	STATEMENT	2
-statement/sp/stmt	INSERT INTO t2 VALUES (i, fac(i))	nested_sp	PROCEDURE	nested_sp	ifac	STATEMENT	3
+statement/sp/stmt	INSERT INTO t2 VALUES (i, fac(i))	nested_sp	PROCEDURE	nested_sp	ifac	STATEMENT	2
+statement/sp/stmt	INSERT INTO t2 VALUES (i, fac(i))	nested_sp	PROCEDURE	nested_sp	ifac	STATEMENT	2
+statement/sp/stmt	INSERT INTO t2 VALUES (i, fac(i))	nested_sp	PROCEDURE	nested_sp	ifac	STATEMENT	2
+statement/sp/stmt	INSERT INTO t2 VALUES (i, fac(i))	nested_sp	PROCEDURE	nested_sp	ifac	STATEMENT	2
+statement/sp/stmt	INSERT INTO t2 VALUES (i, fac(i))	nested_sp	PROCEDURE	nested_sp	ifac	STATEMENT	2
+statement/sp/stmt	INSERT INTO t2 VALUES (i, fac(i))	nested_sp	PROCEDURE	nested_sp	ifac	STATEMENT	2
 statement/sp/set	NULL	nested_sp	PROCEDURE	nested_sp	ifac	STATEMENT	3
 statement/sp/jump	NULL	nested_sp	PROCEDURE	nested_sp	ifac	STATEMENT	3
 statement/sp/jump_if_not	NULL	nested_sp	PROCEDURE	nested_sp	ifac	STATEMENT	3
 statement/sp/set	NULL	nested_sp	PROCEDURE	nested_sp	ifac	STATEMENT	3
 statement/sp/jump_if_not	NULL	nested_sp	PROCEDURE	nested_sp	ifac	STATEMENT	3
 statement/sp/jump_if_not	NULL	nested_sp	PROCEDURE	nested_sp	ifac	STATEMENT	3
-statement/sp/stmt	INSERT INTO t2 VALUES (i, fac(i))	nested_sp	PROCEDURE	nested_sp	ifac	STATEMENT	3
+statement/sp/set	NULL	nested_sp	PROCEDURE	nested_sp	ifac	STATEMENT	3
+statement/sp/jump	NULL	nested_sp	PROCEDURE	nested_sp	ifac	STATEMENT	3
+statement/sp/jump_if_not	NULL	nested_sp	PROCEDURE	nested_sp	ifac	STATEMENT	3
+statement/sp/set	NULL	nested_sp	PROCEDURE	nested_sp	ifac	STATEMENT	3
+statement/sp/jump	NULL	nested_sp	PROCEDURE	nested_sp	ifac	STATEMENT	3
+statement/sp/jump_if_not	NULL	nested_sp	PROCEDURE	nested_sp	ifac	STATEMENT	3
+statement/sp/set	NULL	nested_sp	PROCEDURE	nested_sp	ifac	STATEMENT	3
+statement/sp/jump	NULL	nested_sp	PROCEDURE	nested_sp	ifac	STATEMENT	3
+statement/sp/jump_if_not	NULL	nested_sp	PROCEDURE	nested_sp	ifac	STATEMENT	3
+statement/sp/set	NULL	nested_sp	PROCEDURE	nested_sp	ifac	STATEMENT	3
+statement/sp/jump	NULL	nested_sp	PROCEDURE	nested_sp	ifac	STATEMENT	3
+statement/sp/jump_if_not	NULL	nested_sp	PROCEDURE	nested_sp	ifac	STATEMENT	3
+statement/sp/set	NULL	nested_sp	PROCEDURE	nested_sp	ifac	STATEMENT	3
+statement/sp/jump	NULL	nested_sp	PROCEDURE	nested_sp	ifac	STATEMENT	3
+statement/sp/jump_if_not	NULL	nested_sp	PROCEDURE	nested_sp	ifac	STATEMENT	3
+statement/sp/set	NULL	nested_sp	PROCEDURE	nested_sp	ifac	STATEMENT	3
+statement/sp/jump	NULL	nested_sp	PROCEDURE	nested_sp	ifac	STATEMENT	3
+statement/sp/jump_if_not	NULL	nested_sp	PROCEDURE	nested_sp	ifac	STATEMENT	3
+statement/sp/set	NULL	nested_sp	PROCEDURE	nested_sp	ifac	STATEMENT	3
+statement/sp/jump	NULL	nested_sp	PROCEDURE	nested_sp	ifac	STATEMENT	3
+statement/sp/jump_if_not	NULL	nested_sp	PROCEDURE	nested_sp	ifac	STATEMENT	3
+statement/sp/set	NULL	nested_sp	PROCEDURE	nested_sp	ifac	STATEMENT	3
+statement/sp/jump	NULL	nested_sp	PROCEDURE	nested_sp	ifac	STATEMENT	3
+statement/sp/jump_if_not	NULL	nested_sp	PROCEDURE	nested_sp	ifac	STATEMENT	3
 statement/sp/set	NULL	nested_sp	PROCEDURE	nested_sp	ifac	STATEMENT	3
 statement/sp/jump	NULL	nested_sp	PROCEDURE	nested_sp	ifac	STATEMENT	3
 statement/sp/jump_if_not	NULL	nested_sp	PROCEDURE	nested_sp	ifac	STATEMENT	3
 statement/sp/stmt	INSERT INTO t2 VALUES (i, fac(i))	nested_sp	PROCEDURE	nested_sp	ifac	STATEMENT	3
-statement/sp/set	NULL	nested_sp	PROCEDURE	nested_sp	ifac	STATEMENT	3
-statement/sp/jump	NULL	nested_sp	PROCEDURE	nested_sp	ifac	STATEMENT	3
-statement/sp/jump_if_not	NULL	nested_sp	PROCEDURE	nested_sp	ifac	STATEMENT	3
 statement/sp/stmt	INSERT INTO t2 VALUES (i, fac(i))	nested_sp	PROCEDURE	nested_sp	ifac	STATEMENT	3
-statement/sp/set	NULL	nested_sp	PROCEDURE	nested_sp	ifac	STATEMENT	3
-statement/sp/jump	NULL	nested_sp	PROCEDURE	nested_sp	ifac	STATEMENT	3
-statement/sp/jump_if_not	NULL	nested_sp	PROCEDURE	nested_sp	ifac	STATEMENT	3
 statement/sp/stmt	INSERT INTO t2 VALUES (i, fac(i))	nested_sp	PROCEDURE	nested_sp	ifac	STATEMENT	3
-statement/sp/set	NULL	nested_sp	PROCEDURE	nested_sp	ifac	STATEMENT	3
-statement/sp/jump	NULL	nested_sp	PROCEDURE	nested_sp	ifac	STATEMENT	3
-statement/sp/jump_if_not	NULL	nested_sp	PROCEDURE	nested_sp	ifac	STATEMENT	3
 statement/sp/stmt	INSERT INTO t2 VALUES (i, fac(i))	nested_sp	PROCEDURE	nested_sp	ifac	STATEMENT	3
-statement/sp/set	NULL	nested_sp	PROCEDURE	nested_sp	ifac	STATEMENT	3
-statement/sp/jump	NULL	nested_sp	PROCEDURE	nested_sp	ifac	STATEMENT	3
-statement/sp/jump_if_not	NULL	nested_sp	PROCEDURE	nested_sp	ifac	STATEMENT	3
 statement/sp/stmt	INSERT INTO t2 VALUES (i, fac(i))	nested_sp	PROCEDURE	nested_sp	ifac	STATEMENT	3
-statement/sp/set	NULL	nested_sp	PROCEDURE	nested_sp	ifac	STATEMENT	3
-statement/sp/jump	NULL	nested_sp	PROCEDURE	nested_sp	ifac	STATEMENT	3
-statement/sp/jump_if_not	NULL	nested_sp	PROCEDURE	nested_sp	ifac	STATEMENT	3
 statement/sp/stmt	INSERT INTO t2 VALUES (i, fac(i))	nested_sp	PROCEDURE	nested_sp	ifac	STATEMENT	3
-statement/sp/set	NULL	nested_sp	PROCEDURE	nested_sp	ifac	STATEMENT	3
-statement/sp/jump	NULL	nested_sp	PROCEDURE	nested_sp	ifac	STATEMENT	3
-statement/sp/jump_if_not	NULL	nested_sp	PROCEDURE	nested_sp	ifac	STATEMENT	3
 statement/sp/stmt	INSERT INTO t2 VALUES (i, fac(i))	nested_sp	PROCEDURE	nested_sp	ifac	STATEMENT	3
-statement/sp/set	NULL	nested_sp	PROCEDURE	nested_sp	ifac	STATEMENT	3
-statement/sp/jump	NULL	nested_sp	PROCEDURE	nested_sp	ifac	STATEMENT	3
-statement/sp/jump_if_not	NULL	nested_sp	PROCEDURE	nested_sp	ifac	STATEMENT	3
 statement/sp/stmt	INSERT INTO t2 VALUES (i, fac(i))	nested_sp	PROCEDURE	nested_sp	ifac	STATEMENT	3
-statement/sp/set	NULL	nested_sp	PROCEDURE	nested_sp	ifac	STATEMENT	3
-statement/sp/jump	NULL	nested_sp	PROCEDURE	nested_sp	ifac	STATEMENT	3
-statement/sp/jump_if_not	NULL	nested_sp	PROCEDURE	nested_sp	ifac	STATEMENT	3
-statement/sp/stmt	INSERT INTO t2 VALUES (i, fac(i))	nested_sp	PROCEDURE	nested_sp	ifac	STATEMENT	4
+statement/sp/stmt	INSERT INTO t2 VALUES (i, fac(i))	nested_sp	PROCEDURE	nested_sp	ifac	STATEMENT	3
+statement/sp/stmt	INSERT INTO t2 VALUES (i, fac(i))	nested_sp	PROCEDURE	nested_sp	ifac	STATEMENT	3
 statement/sp/set	NULL	nested_sp	PROCEDURE	nested_sp	ifac	STATEMENT	4
 statement/sp/jump	NULL	nested_sp	PROCEDURE	nested_sp	ifac	STATEMENT	4
 statement/sp/jump_if_not	NULL	nested_sp	PROCEDURE	nested_sp	ifac	STATEMENT	4
 statement/sp/set	NULL	nested_sp	PROCEDURE	nested_sp	ifac	STATEMENT	4
 statement/sp/jump_if_not	NULL	nested_sp	PROCEDURE	nested_sp	ifac	STATEMENT	4
 statement/sp/jump_if_not	NULL	nested_sp	PROCEDURE	nested_sp	ifac	STATEMENT	4
-statement/sp/stmt	INSERT INTO t2 VALUES (i, fac(i))	nested_sp	PROCEDURE	nested_sp	ifac	STATEMENT	4
+statement/sp/set	NULL	nested_sp	PROCEDURE	nested_sp	ifac	STATEMENT	4
+statement/sp/jump	NULL	nested_sp	PROCEDURE	nested_sp	ifac	STATEMENT	4
+statement/sp/jump_if_not	NULL	nested_sp	PROCEDURE	nested_sp	ifac	STATEMENT	4
+statement/sp/set	NULL	nested_sp	PROCEDURE	nested_sp	ifac	STATEMENT	4
+statement/sp/jump	NULL	nested_sp	PROCEDURE	nested_sp	ifac	STATEMENT	4
+statement/sp/jump_if_not	NULL	nested_sp	PROCEDURE	nested_sp	ifac	STATEMENT	4
+statement/sp/set	NULL	nested_sp	PROCEDURE	nested_sp	ifac	STATEMENT	4
+statement/sp/jump	NULL	nested_sp	PROCEDURE	nested_sp	ifac	STATEMENT	4
+statement/sp/jump_if_not	NULL	nested_sp	PROCEDURE	nested_sp	ifac	STATEMENT	4
+statement/sp/set	NULL	nested_sp	PROCEDURE	nested_sp	ifac	STATEMENT	4
+statement/sp/jump	NULL	nested_sp	PROCEDURE	nested_sp	ifac	STATEMENT	4
+statement/sp/jump_if_not	NULL	nested_sp	PROCEDURE	nested_sp	ifac	STATEMENT	4
+statement/sp/set	NULL	nested_sp	PROCEDURE	nested_sp	ifac	STATEMENT	4
+statement/sp/jump	NULL	nested_sp	PROCEDURE	nested_sp	ifac	STATEMENT	4
+statement/sp/jump_if_not	NULL	nested_sp	PROCEDURE	nested_sp	ifac	STATEMENT	4
+statement/sp/set	NULL	nested_sp	PROCEDURE	nested_sp	ifac	STATEMENT	4
+statement/sp/jump	NULL	nested_sp	PROCEDURE	nested_sp	ifac	STATEMENT	4
+statement/sp/jump_if_not	NULL	nested_sp	PROCEDURE	nested_sp	ifac	STATEMENT	4
+statement/sp/set	NULL	nested_sp	PROCEDURE	nested_sp	ifac	STATEMENT	4
+statement/sp/jump	NULL	nested_sp	PROCEDURE	nested_sp	ifac	STATEMENT	4
+statement/sp/jump_if_not	NULL	nested_sp	PROCEDURE	nested_sp	ifac	STATEMENT	4
+statement/sp/set	NULL	nested_sp	PROCEDURE	nested_sp	ifac	STATEMENT	4
+statement/sp/jump	NULL	nested_sp	PROCEDURE	nested_sp	ifac	STATEMENT	4
+statement/sp/jump_if_not	NULL	nested_sp	PROCEDURE	nested_sp	ifac	STATEMENT	4
 statement/sp/set	NULL	nested_sp	PROCEDURE	nested_sp	ifac	STATEMENT	4
 statement/sp/jump	NULL	nested_sp	PROCEDURE	nested_sp	ifac	STATEMENT	4
 statement/sp/jump_if_not	NULL	nested_sp	PROCEDURE	nested_sp	ifac	STATEMENT	4
 statement/sp/stmt	INSERT INTO t2 VALUES (i, fac(i))	nested_sp	PROCEDURE	nested_sp	ifac	STATEMENT	4
-statement/sp/set	NULL	nested_sp	PROCEDURE	nested_sp	ifac	STATEMENT	4
-statement/sp/jump	NULL	nested_sp	PROCEDURE	nested_sp	ifac	STATEMENT	4
-statement/sp/jump_if_not	NULL	nested_sp	PROCEDURE	nested_sp	ifac	STATEMENT	4
 statement/sp/stmt	INSERT INTO t2 VALUES (i, fac(i))	nested_sp	PROCEDURE	nested_sp	ifac	STATEMENT	4
-statement/sp/set	NULL	nested_sp	PROCEDURE	nested_sp	ifac	STATEMENT	4
-statement/sp/jump	NULL	nested_sp	PROCEDURE	nested_sp	ifac	STATEMENT	4
-statement/sp/jump_if_not	NULL	nested_sp	PROCEDURE	nested_sp	ifac	STATEMENT	4
 statement/sp/stmt	INSERT INTO t2 VALUES (i, fac(i))	nested_sp	PROCEDURE	nested_sp	ifac	STATEMENT	4
-statement/sp/set	NULL	nested_sp	PROCEDURE	nested_sp	ifac	STATEMENT	4
-statement/sp/jump	NULL	nested_sp	PROCEDURE	nested_sp	ifac	STATEMENT	4
-statement/sp/jump_if_not	NULL	nested_sp	PROCEDURE	nested_sp	ifac	STATEMENT	4
 statement/sp/stmt	INSERT INTO t2 VALUES (i, fac(i))	nested_sp	PROCEDURE	nested_sp	ifac	STATEMENT	4
-statement/sp/set	NULL	nested_sp	PROCEDURE	nested_sp	ifac	STATEMENT	4
-statement/sp/jump	NULL	nested_sp	PROCEDURE	nested_sp	ifac	STATEMENT	4
-statement/sp/jump_if_not	NULL	nested_sp	PROCEDURE	nested_sp	ifac	STATEMENT	4
 statement/sp/stmt	INSERT INTO t2 VALUES (i, fac(i))	nested_sp	PROCEDURE	nested_sp	ifac	STATEMENT	4
-statement/sp/set	NULL	nested_sp	PROCEDURE	nested_sp	ifac	STATEMENT	4
-statement/sp/jump	NULL	nested_sp	PROCEDURE	nested_sp	ifac	STATEMENT	4
-statement/sp/jump_if_not	NULL	nested_sp	PROCEDURE	nested_sp	ifac	STATEMENT	4
 statement/sp/stmt	INSERT INTO t2 VALUES (i, fac(i))	nested_sp	PROCEDURE	nested_sp	ifac	STATEMENT	4
-statement/sp/set	NULL	nested_sp	PROCEDURE	nested_sp	ifac	STATEMENT	4
-statement/sp/jump	NULL	nested_sp	PROCEDURE	nested_sp	ifac	STATEMENT	4
-statement/sp/jump_if_not	NULL	nested_sp	PROCEDURE	nested_sp	ifac	STATEMENT	4
 statement/sp/stmt	INSERT INTO t2 VALUES (i, fac(i))	nested_sp	PROCEDURE	nested_sp	ifac	STATEMENT	4
-statement/sp/set	NULL	nested_sp	PROCEDURE	nested_sp	ifac	STATEMENT	4
-statement/sp/jump	NULL	nested_sp	PROCEDURE	nested_sp	ifac	STATEMENT	4
-statement/sp/jump_if_not	NULL	nested_sp	PROCEDURE	nested_sp	ifac	STATEMENT	4
 statement/sp/stmt	INSERT INTO t2 VALUES (i, fac(i))	nested_sp	PROCEDURE	nested_sp	ifac	STATEMENT	4
-statement/sp/set	NULL	nested_sp	PROCEDURE	nested_sp	ifac	STATEMENT	4
-statement/sp/jump	NULL	nested_sp	PROCEDURE	nested_sp	ifac	STATEMENT	4
-statement/sp/jump_if_not	NULL	nested_sp	PROCEDURE	nested_sp	ifac	STATEMENT	4
-statement/sp/stmt	INSERT INTO t2 VALUES (i, fac(i))	nested_sp	PROCEDURE	nested_sp	ifac	STATEMENT	6
+statement/sp/stmt	INSERT INTO t2 VALUES (i, fac(i))	nested_sp	PROCEDURE	nested_sp	ifac	STATEMENT	4
+statement/sp/stmt	INSERT INTO t2 VALUES (i, fac(i))	nested_sp	PROCEDURE	nested_sp	ifac	STATEMENT	4
 statement/sp/set	NULL	nested_sp	PROCEDURE	nested_sp	ifac	STATEMENT	6
 statement/sp/jump	NULL	nested_sp	PROCEDURE	nested_sp	ifac	STATEMENT	6
 statement/sp/jump_if_not	NULL	nested_sp	PROCEDURE	nested_sp	ifac	STATEMENT	6
 statement/sp/jump	NULL	nested_sp	PROCEDURE	nested_sp	ifac	STATEMENT	6
 statement/sp/jump_if_not	NULL	nested_sp	PROCEDURE	nested_sp	ifac	STATEMENT	6
-statement/sp/stmt	INSERT INTO t2 VALUES (i, fac(i))	nested_sp	PROCEDURE	nested_sp	ifac	STATEMENT	6
+statement/sp/set	NULL	nested_sp	PROCEDURE	nested_sp	ifac	STATEMENT	6
+statement/sp/jump	NULL	nested_sp	PROCEDURE	nested_sp	ifac	STATEMENT	6
+statement/sp/jump_if_not	NULL	nested_sp	PROCEDURE	nested_sp	ifac	STATEMENT	6
+statement/sp/set	NULL	nested_sp	PROCEDURE	nested_sp	ifac	STATEMENT	6
+statement/sp/jump	NULL	nested_sp	PROCEDURE	nested_sp	ifac	STATEMENT	6
+statement/sp/jump_if_not	NULL	nested_sp	PROCEDURE	nested_sp	ifac	STATEMENT	6
+statement/sp/set	NULL	nested_sp	PROCEDURE	nested_sp	ifac	STATEMENT	6
+statement/sp/jump	NULL	nested_sp	PROCEDURE	nested_sp	ifac	STATEMENT	6
+statement/sp/jump_if_not	NULL	nested_sp	PROCEDURE	nested_sp	ifac	STATEMENT	6
 statement/sp/set	NULL	nested_sp	PROCEDURE	nested_sp	ifac	STATEMENT	6
 statement/sp/jump	NULL	nested_sp	PROCEDURE	nested_sp	ifac	STATEMENT	6
 statement/sp/jump_if_not	NULL	nested_sp	PROCEDURE	nested_sp	ifac	STATEMENT	6
 statement/sp/stmt	INSERT INTO t2 VALUES (i, fac(i))	nested_sp	PROCEDURE	nested_sp	ifac	STATEMENT	6
-statement/sp/set	NULL	nested_sp	PROCEDURE	nested_sp	ifac	STATEMENT	6
-statement/sp/jump	NULL	nested_sp	PROCEDURE	nested_sp	ifac	STATEMENT	6
-statement/sp/jump_if_not	NULL	nested_sp	PROCEDURE	nested_sp	ifac	STATEMENT	6
 statement/sp/stmt	INSERT INTO t2 VALUES (i, fac(i))	nested_sp	PROCEDURE	nested_sp	ifac	STATEMENT	6
-statement/sp/set	NULL	nested_sp	PROCEDURE	nested_sp	ifac	STATEMENT	6
-statement/sp/jump	NULL	nested_sp	PROCEDURE	nested_sp	ifac	STATEMENT	6
-statement/sp/jump_if_not	NULL	nested_sp	PROCEDURE	nested_sp	ifac	STATEMENT	6
 statement/sp/stmt	INSERT INTO t2 VALUES (i, fac(i))	nested_sp	PROCEDURE	nested_sp	ifac	STATEMENT	6
-statement/sp/set	NULL	nested_sp	PROCEDURE	nested_sp	ifac	STATEMENT	6
-statement/sp/jump	NULL	nested_sp	PROCEDURE	nested_sp	ifac	STATEMENT	6
-statement/sp/jump_if_not	NULL	nested_sp	PROCEDURE	nested_sp	ifac	STATEMENT	6
+statement/sp/stmt	INSERT INTO t2 VALUES (i, fac(i))	nested_sp	PROCEDURE	nested_sp	ifac	STATEMENT	6
+statement/sp/stmt	INSERT INTO t2 VALUES (i, fac(i))	nested_sp	PROCEDURE	nested_sp	ifac	STATEMENT	6
 statement/sp/freturn	NULL	nested_sp	FUNCTION	nested_sp	inc	STATEMENT	2
 statement/sp/set	NULL	nested_sp	PROCEDURE	nested_sp	inc	STATEMENT	3
-statement/sp/stmt	INSERT INTO t1 VALUES (x, y)	nested_sp	PROCEDURE	nested_sp	inc2	STATEMENT	2
 statement/sp/stmt	CALL inc(y)	nested_sp	PROCEDURE	nested_sp	inc2	STATEMENT	2
-statement/sp/stmt	INSERT INTO t1 VALUES (x1, y)	nested_sp	PROCEDURE	nested_sp	iotest	STATEMENT	1
+statement/sp/stmt	INSERT INTO t1 VALUES (x, y)	nested_sp	PROCEDURE	nested_sp	inc2	STATEMENT	2
 statement/sp/stmt	CALL inc2(x2, y)	nested_sp	PROCEDURE	nested_sp	iotest	STATEMENT	1
+statement/sp/stmt	INSERT INTO t1 VALUES (x1, y)	nested_sp	PROCEDURE	nested_sp	iotest	STATEMENT	1
 statement/sp/freturn	NULL	nested_sp	FUNCTION	nested_sp	mul	STATEMENT	2
 statement/sp/stmt	CALL ifac(10)	nested_sp	TRIGGER	nested_sp	trg	STATEMENT	1
 statement/sp/stmt	CALL ifac(10)	nested_sp	TRIGGER	nested_sp	trg	STATEMENT	2
