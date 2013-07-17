@@ -1,3 +1,5 @@
+--source include/not_embedded.inc
+
 # SAVE INTITIAL VALUES
 --let $saved_value= `SELECT @@global.slave_parallel_type`
 SELECT @@global.slave_parallel_type;
@@ -30,7 +32,7 @@ SELECT @@global.slave_parallel_type;
 SET GLOBAL slave_parallel_type= 'GARBAGE';
 SELECT @@global.slave_parallel_type;
 
-# THIS IS NOT A SESSION VARIABLES
+# THIS IS NOT A SESSION VARIABLE
 --error ER_GLOBAL_VARIABLE
 SET SESSION slave_parallel_type= 'LOGICAL_CLOCK';
 SELECT @@global.slave_parallel_type;

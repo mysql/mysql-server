@@ -18,10 +18,15 @@ SET GLOBAL DEBUG ='-d,set_commit_parent_150';
 SET GLOBAL DEBUG ='+d,set_commit_parent_100';
 #setup the databases and tables
 CREATE TABLE db1.t (a int) engine=innodb;
+CREATE TEMPORARY TABLE db1.t_temp (a int) engine=innodb;
 CREATE TABLE db2.t (a int) engine=myisam;
+CREATE TEMPORARY TABLE db2.t_temp (a int) engine=innodb;
 CREATE TABLE db3.t engine=innodb select 100*RAND() as a;
+CREATE TEMPORARY TABLE db3.t_temp (a int) engine=innodb;
 SET @VAR=100;
 CREATE TABLE db4.t engine=myisam select @VAR as a;
+CREATE TEMPORARY TABLE db4.t_temp (a int) engine=innodb;
+CREATE TABLE db4.t_additional (a int) engine=myisam;
 SET GLOBAL DEBUG ='-d,set_commit_parent_100';
 SET GLOBAL DEBUG ='+d,set_commit_parent_150';
 TRUNCATE db3.t;
@@ -29,6 +34,11 @@ SET GLOBAL DEBUG ='-d,set_commit_parent_150';
 SET GLOBAL DEBUG ='+d,set_commit_parent_100';
 INSERT INTO db2.t values (1),(2),(3);
 INSERT INTO db4.t values (1),(2),(3);
+FLUSH LOGS;
+INSERT INTO db1.t_temp values (1),(2),(3);
+INSERT INTO db2.t_temp values (1),(2),(3);
+INSERT INTO db3.t_temp values (1),(2),(3);
+INSERT INTO db4.t_temp values (1),(2),(3);
 SET GLOBAL DEBUG ='-d,set_commit_parent_100';
 SET GLOBAL DEBUG ='+d,set_commit_parent_150';
 BEGIN;
@@ -53,6 +63,10 @@ INSERT INTO db1.t values (1),(2),(3);
 INSERT INTO db4.t values (1),(2),(3);
 UPDATE db1.t SET db1.t.a= 2 WHERE db1.t.a > 2;
 COMMIT;
+DROP TABLE db1.t_temp;
+DROP TABLE db2.t_temp;
+DROP TABLE db3.t_temp;
+DROP TABLE db4.t_temp;
 SET GLOBAL slave_parallel_type='DATABASE';
 include/start_slave.inc
 include/sync_slave_sql_with_master.inc
