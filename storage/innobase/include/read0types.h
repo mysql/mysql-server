@@ -204,9 +204,9 @@ private:
 	char		pad1[64 - sizeof(node_t)];
 	node_t		view_list;
 
-	/** AC-NL-RO transaction view that has been "closed" */
+	/** AC-NL-RO transaction view that has been "closed". */
 	char		pad2[64 - sizeof(bool)];
-	bool		m_closed;
+	volatile bool	m_closed;
 };
 
 #endif
