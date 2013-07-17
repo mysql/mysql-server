@@ -93,73 +93,125 @@ PATENT RIGHTS GRANT:
 
 #include <unistd.h>
 #include <memory.h>
-#include <errno.h>
 #include <sys/stat.h>
 #include <db.h>
 
-
 static void
-test_cursor (void) {
-    if (verbose) printf("test_cursor\n");
-
-    DB_ENV * env;
-    DB *db;
+test_restrict (int64_t n, int error_to_expect) {
+    assert(n > 30);
     DB_TXN * const null_txn = 0;
-    const char * const fname = "test.cursor.brt";
     int r;
 
+
+    toku_os_recursive_delete(TOKU_TEST_FILENAME);
+    r=toku_os_mkdir(TOKU_TEST_FILENAME, S_IRWXU+S_IRWXG+S_IRWXO); assert(r==0);
+
     /* create the dup database file */
-    r = db_env_create(&env, 0);        assert(r == 0);
-    env->set_errfile(env, stderr);
-    r = env->open(env, TOKU_TEST_FILENAME, DB_INIT_TXN | DB_INIT_LOCK |DB_CREATE|DB_INIT_MPOOL|DB_THREAD|DB_PRIVATE, S_IRWXU+S_IRWXG+S_IRWXO); CKERR(r);
-    r = db_create(&db, env, 0); CKERR(r);
-    db->set_errfile(db,stderr); // Turn off those annoying errors
-    r = db->open(db, null_txn, fname, "main", DB_BTREE, DB_CREATE, 0666); assert(r == 0);
+    DB_ENV *env;
+    r = db_env_create(&env, 0); assert(r == 0);
+    r=env->set_default_bt_compare(env, int64_dbt_cmp); CKERR(r);
+    r = env->open(env, TOKU_TEST_FILENAME, DB_CREATE+DB_PRIVATE+DB_INIT_MPOOL, 0); assert(r == 0);
+
+    DB *db;
+    r = db_create(&db, env, 0);
+    assert(r == 0);
+    r = db->set_flags(db, 0);
+    assert(r == 0);
+    r = db->open(db, null_txn, "restrict.db", NULL, DB_BTREE, DB_CREATE, 0666);
+    assert(r == 0);
+
+    int64_t keys[n];
+    int64_t i;
+    for (i=0; i<n; i++) {
+        keys[i] = i;
+    }
+
+    DBT key, val;
+    for (i=0; i<n; i++) {
+        r = db->put(db, null_txn, dbt_init(&key, &keys[i], sizeof keys[i]), dbt_init(&val, &i, sizeof i), 0);
+        assert(r == 0);
+    }
 
     DBC* cursor;
-    DBT k0; memset(&k0, 0, sizeof k0);
-    DBT v0; memset(&v0, 0, sizeof v0);
-    DB_TXN* txn = NULL;
-    r = env->txn_begin(env, NULL, &txn, DB_SERIALIZABLE); CKERR(r);
-    r = db->cursor(db, txn, &cursor, 0); CKERR(r);
+
+    r = db->cursor(db, NULL, &cursor, 0);
+    CKERR(r);
+
+    DBT dbt_left, dbt_right;
+    int64_t int_left, int_right;
+    int_left = n / 3;
+    int_right = 2 * n / 3;
+
+    dbt_init(&dbt_left, &keys[int_left], sizeof keys[int_left]);
+    dbt_init(&dbt_right, &keys[int_right], sizeof keys[int_right]);
+
     r = cursor->c_set_bounds(
-        cursor, 
-        db->dbt_neg_infty(), 
-        db->dbt_pos_infty(),
+        cursor,
+        &dbt_left,
+        &dbt_right,
         true,
-        0
-        );
+        error_to_expect);
+    CKERR(r);
+
+
+    for (i=0; i<n; i++) {
+        r = cursor->c_get(cursor, dbt_init(&key, &keys[i], sizeof keys[i]), dbt_init(&val, NULL, 0), DB_SET);
+        if (i < int_left || i > int_right) {
+            CKERR2(r, error_to_expect);
+        } else {
+            CKERR(r);
+            assert(val.size == 8);
+            assert(*(int64_t*)val.data == i);
+        }
+    }
+    // Forwards
+
+    r = cursor->c_get(cursor, dbt_init(&key, &keys[int_left], sizeof keys[int_left]), dbt_init(&val, NULL, 0), DB_SET);
+    CKERR(r);
+    assert(val.size == 8);
+    assert(*(int64_t*)val.data == int_left);
+
+    for (i=int_left+1; i < n; i++) {
+        r = cursor->c_get(cursor, dbt_init(&key, &keys[i], sizeof keys[i]), dbt_init(&val, NULL, 0), DB_NEXT);
+        if (i >= int_left && i <= int_right) {
+            CKERR(r);
+            assert(val.size == 8);
+            assert(*(int64_t*)val.data == i);
+        } else {
+            CKERR2(r, error_to_expect);
+            break;
+        }
+    }
+
+    r = cursor->c_get(cursor, dbt_init(&key, &keys[int_right], sizeof keys[int_right]), dbt_init(&val, NULL, 0), DB_SET);
+    CKERR(r);
+    assert(val.size == 8);
+    assert(*(int64_t*)val.data == int_right);
+
+    for (i=int_right-1; i >= 0; i--) {
+        r = cursor->c_get(cursor, dbt_init(&key, &keys[i], sizeof keys[i]), dbt_init(&val, NULL, 0), DB_PREV);
+        if (i >= int_left && i <= int_right) {
+            CKERR(r);
+            assert(val.size == 8);
+            assert(*(int64_t*)val.data == i);
+        } else {
+            CKERR2(r, error_to_expect);
+            break;
+        }
+    }
+
     r = cursor->c_close(cursor); CKERR(r);
     r = db->close(db, 0); CKERR(r);
-
-    r = db_create(&db, env, 0); CKERR(r);
-    r = db->open(db, null_txn, fname, "main", DB_BTREE, DB_THREAD, 0666); assert(r == 0);
-    DB_TXN* txn2 = NULL;
-    env->txn_begin(env, NULL, &txn2, DB_SERIALIZABLE);
-    int k = htonl(1);
-    int v = htonl(1);
-    DBT key, val;
-    // #4838 will improperly allow this put to succeed, whereas we should
-    // be returning DB_LOCK_NOTGRANTED
-    r = db->put(db, txn2, dbt_init(&key, &k, sizeof k), dbt_init(&val, &v, sizeof v), 0);
-    CKERR2(r, DB_LOCK_NOTGRANTED); 
-
-    r = txn->commit(txn, 0);
-    r = txn2->commit(txn2, 0);
-
-    r = db->close(db, 0); CKERR(r);
-    r = env->close(env, 0); assert(r == 0);
+    r = env->close(env, 0); CKERR(r);
 }
 
 int
 test_main(int argc, char *const argv[]) {
-
     parse_args(argc, argv);
-  
-    toku_os_recursive_delete(TOKU_TEST_FILENAME);
-    toku_os_mkdir(TOKU_TEST_FILENAME, S_IRWXU+S_IRWXG+S_IRWXO);
-    
-    test_cursor();
-
+    for (int i = 3*64; i < 3*1024; i *= 2) {
+        test_restrict(i, DB_NOTFOUND);
+        test_restrict(i, TOKUDB_OUT_OF_RANGE);
+        test_restrict(i, 0);
+    }
     return 0;
 }

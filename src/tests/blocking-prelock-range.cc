@@ -104,7 +104,7 @@ static void blocking_range_lock(DB_ENV *db_env, DB *db, uint64_t nrows, long sle
 
         uint64_t k = 0;
         DBT key = { .data = &k, .size = sizeof k};
-        r = cursor->c_pre_acquire_range_lock(cursor, &key, &key); assert(r == 0);
+        r = cursor->c_set_bounds(cursor, &key, &key, true, 0); assert(r == 0);
 
         usleep(sleeptime);
 

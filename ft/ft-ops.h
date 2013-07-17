@@ -256,8 +256,9 @@ void toku_ft_cursor_set_leaf_mode(FT_CURSOR);
 // Sets a boolean on the brt cursor that prevents uncessary copying of
 // the cursor duing a one query.
 void toku_ft_cursor_set_temporary(FT_CURSOR);
+void toku_ft_cursor_remove_restriction(FT_CURSOR);
 int toku_ft_cursor_is_leaf_mode(FT_CURSOR);
-void toku_ft_cursor_set_range_lock(FT_CURSOR, const DBT *, const DBT *, bool, bool);
+void toku_ft_cursor_set_range_lock(FT_CURSOR, const DBT *, const DBT *, bool, bool, int);
 
 // get is deprecated in favor of the individual functions below
 int toku_ft_cursor_get (FT_CURSOR cursor, DBT *key, FT_GET_CALLBACK_FUNCTION getf, void *getf_v, int get_flags)  __attribute__ ((warn_unused_result));

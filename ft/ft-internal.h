@@ -788,14 +788,16 @@ struct ft_cursor_leaf_info {
 struct ft_cursor {
     struct toku_list cursors_link;
     FT_HANDLE ft_handle;
-    bool prefetching;
     DBT key, val;             // The key-value pair that the cursor currently points to
     DBT range_lock_left_key, range_lock_right_key;
+    bool prefetching;
     bool left_is_neg_infty, right_is_pos_infty;
     bool is_snapshot_read; // true if query is read_committed, false otherwise
     bool is_leaf_mode;
     bool disable_prefetching;
     bool is_temporary;
+    int out_of_range_error;
+    int direction;
     TOKUTXN ttxn;
     struct ft_cursor_leaf_info  leaf_info;
 };
