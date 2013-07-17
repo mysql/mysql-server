@@ -34,7 +34,7 @@ private:
   my_atomic_rwlock_t m_state_lock;
   int64 state;
 protected:
-  virtual void init(){ state= 0; }
+  void init(){ state= 0; }
 public:
   Logical_clock();
   int64 step();
