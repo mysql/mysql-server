@@ -804,6 +804,7 @@ struct ft_cursor {
     bool disable_prefetching;
     bool is_temporary;
     int out_of_range_error;
+    int direction;
     TOKUTXN ttxn;
     struct ft_cursor_leaf_info  leaf_info;
 };
