@@ -149,7 +149,7 @@ test_main (int argc __attribute__((__unused__)), const char *argv[] __attribute_
         snprintf(rkey, 100, "hello%d", i + 100);
         toku_ft_cursor_set_range_lock(c, toku_fill_dbt(&lk, lkey, 1+strlen(lkey)),
                                        toku_fill_dbt(&rk, rkey, 1+strlen(rkey)),
-                                       false, false);
+                                       false, false, 0);
         r = toku_ft_cursor_set(c, &lk, found, NULL); assert(r == 0);
         for (int j = 0; j < 100; ++j) {
             r = toku_ft_cursor_next(c, found, NULL); assert(r == 0);
