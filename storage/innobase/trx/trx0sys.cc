@@ -1234,7 +1234,7 @@ trx_sys_close(void)
 	ut_ad(trx_sys != NULL);
 	ut_ad(srv_shutdown_state == SRV_SHUTDOWN_EXIT_THREADS);
 
-	/* Check that all read views are closed. */ 
+	/* Check that all read views are closed. */
 
 	ulint	size = trx_sys->mvcc->size();
 
