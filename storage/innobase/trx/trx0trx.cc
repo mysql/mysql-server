@@ -1567,13 +1567,13 @@ trx_flush_log_if_needed_low(
 	case 1:
 		/* Write the log and optionally flush it to disk */
 		redo_log->write_up_to(
-			lsn, redo_log_t::WAIT_MODE_ONE_GROUP,
+			lsn, RedoLog::WAIT_MODE_ONE_GROUP,
 			srv_unix_file_flush_method != SRV_UNIX_NOSYNC);
 		break;
 	case 2:
 		/* Write the log but do not flush it to disk */
 		redo_log->write_up_to(
-			lsn, redo_log_t::WAIT_MODE_ONE_GROUP, false);
+			lsn, RedoLog::WAIT_MODE_ONE_GROUP, false);
 
 		break;
 	default:

@@ -435,14 +435,14 @@ create_log_files(
 	sprintf(logfilename + dirnamelen, "ib_logfile%u", INIT_LOG_FILE0);
 
 	fil_space_create(
-		logfilename, redo_log_t::SPACE_FIRST_ID,
+		logfilename, RedoLog::SPACE_FIRST_ID,
 		fsp_flags_set_page_size(0, UNIV_PAGE_SIZE),
 		FIL_LOG);
 	ut_a(fil_validate());
 
 	logfile0 = fil_node_create(
 		logfilename, (ulint) srv_log_file_size,
-		redo_log_t::SPACE_FIRST_ID, FALSE);
+		RedoLog::SPACE_FIRST_ID, FALSE);
 	ut_a(logfile0);
 
 	for (ulint i = 1; i < srv_n_log_files; i++) {
@@ -451,7 +451,7 @@ create_log_files(
 
 		if (!fil_node_create(logfilename,
 				     (ulint) srv_log_file_size,
-				     redo_log_t::SPACE_FIRST_ID, FALSE)) {
+				     RedoLog::SPACE_FIRST_ID, FALSE)) {
 			ib_logf(IB_LOG_LEVEL_ERROR,
 				"Cannot create file node for log file %s",
 				logfilename);
@@ -479,7 +479,7 @@ create_log_files_rename(
 {
 	/* If innodb_flush_method=O_DSYNC,
 	we need to explicitly flush the log buffers. */
-	fil_flush(redo_log_t::SPACE_FIRST_ID);
+	fil_flush(RedoLog::SPACE_FIRST_ID);
 	/* Close the log files, so that we can rename
 	the first one. */
 	fil_close_log_files(false);
@@ -1394,7 +1394,7 @@ innobase_start_or_create_for_mysql(void)
 
 	srv_boot();
 
-	redo_log = new(std::nothrow) redo_log_t(
+	redo_log = new(std::nothrow) RedoLog(
 		srv_n_log_files,
 		srv_log_file_size * UNIV_PAGE_SIZE,
 		buf_pool_get_curr_size());
@@ -1574,10 +1574,10 @@ innobase_start_or_create_for_mysql(void)
 
 	if (srv_n_log_files * srv_log_file_size * UNIV_PAGE_SIZE
 	    >= 512ULL * 1024ULL * 1024ULL * 1024ULL) {
-		/* redo_log_t::block_convert_lsn_to_no() limits the returned
+		/* RedoLog::block_convert_lsn_to_no() limits the returned
 		block number to 1G and given that OS_FILE_LOG_BLOCK_SIZE is 512
 		bytes, then we have a limit of 512 GB. If that limit is to
-		be raised, then redo_log_t::block_convert_lsn_to_no() must be
+		be raised, then RedoLog::block_convert_lsn_to_no() must be
 		modified. */
 		ib_logf(IB_LOG_LEVEL_ERROR,
 			"Combined size of log files must be < 512 GB");
@@ -1779,7 +1779,7 @@ innobase_start_or_create_for_mysql(void)
 		sprintf(logfilename + dirnamelen, "ib_logfile%u", 0);
 
 		fil_space_create(logfilename,
-				 redo_log_t::SPACE_FIRST_ID,
+				 RedoLog::SPACE_FIRST_ID,
 				 fsp_flags_set_page_size(0, UNIV_PAGE_SIZE),
 				 FIL_LOG);
 
@@ -1794,7 +1794,7 @@ innobase_start_or_create_for_mysql(void)
 
 			if (!fil_node_create(logfilename,
 					     (ulint) srv_log_file_size,
-					     redo_log_t::SPACE_FIRST_ID,
+					     RedoLog::SPACE_FIRST_ID,
 					     FALSE)) {
 
 				return(srv_init_abort(DB_ERROR));
@@ -2035,7 +2035,7 @@ files_checked:
 
 			/* If innodb_flush_method=O_DSYNC,
 			we need to explicitly flush the log buffers. */
-			fil_flush(redo_log_t::SPACE_FIRST_ID);
+			fil_flush(RedoLog::SPACE_FIRST_ID);
 
 			ut_ad(max_flushed_lsn == redo_log->get_lsn());
 
@@ -2810,12 +2810,12 @@ srv_start_shutdown()
 			}
 		}
 
-		redo_log_t::state_t	state;
+		RedoLog::state_t	state;
 		bool	notify = srv_print_verbose_log && count > 600;
 
 		state = redo_log->start_shutdown(notify);
 
-		if (state != redo_log_t::STATE_SHUTDOWN) {
+		if (state != RedoLog::STATE_SHUTDOWN) {
 			count = 0;
 			continue;
 		}
@@ -2884,7 +2884,7 @@ srv_start_shutdown()
 
 		state = redo_log->start_shutdown(notify);
 
-		if (state != redo_log_t::STATE_SHUTDOWN) {
+		if (state != RedoLog::STATE_SHUTDOWN) {
 			continue;
 		}
 
@@ -2934,7 +2934,7 @@ srv_start_shutdown()
 
 		state = redo_log->start_shutdown(true);
 	       
-		if (state != redo_log_t::STATE_SHUTDOWN) {
+		if (state != RedoLog::STATE_SHUTDOWN) {
 			continue;
 		}
 
@@ -2957,6 +2957,6 @@ srv_start_shutdown()
 		break;
 	}
 
-	ut_ad(redo_log->start_shutdown(true) == redo_log_t::STATE_SHUTDOWN);
+	ut_ad(redo_log->start_shutdown(true) == RedoLog::STATE_SHUTDOWN);
 	ut_ad((lsn == 0 && srv_read_only_mode) || lsn == redo_log->get_lsn());
 }
