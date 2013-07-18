@@ -728,7 +728,7 @@ lock_sec_rec_cons_read_sees(
 	/* NOTE that we might call this function while holding the search
 	system latch. */
 
-	if (recv_recovery_is_on()) {
+	if (redo_log->is_recovery_on()) {
 
 		return(false);
 	}
@@ -1817,7 +1817,7 @@ lock_sec_rec_some_has_impl(
 	max trx id to the log, and therefore during recovery, this value
 	for a page may be incorrect. */
 
-	if (max_trx_id < trx_rw_min_trx_id() && !recv_recovery_is_on()) {
+	if (max_trx_id < trx_rw_min_trx_id() && !redo_log->is_recovery_on()) {
 
 		trx = 0;
 
@@ -6143,7 +6143,7 @@ lock_sec_rec_read_check_and_lock(
 	database recovery is running. */
 
 	if ((page_get_max_trx_id(block->frame) >= trx_rw_min_trx_id()
-	     || recv_recovery_is_on())
+	     || redo_log->is_recovery_on())
 	    && !page_rec_is_supremum(rec)) {
 
 		lock_rec_convert_impl_to_expl(block, rec, index, offsets);

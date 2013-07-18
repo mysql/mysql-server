@@ -36,6 +36,7 @@ Created 2011-05-26 Marko Makela
 #include "row0ext.h"
 #include "data0data.h"
 #include "que0que.h"
+#include "srv0mon.h"
 #include "handler0alter.h"
 
 #include<map>
@@ -1700,7 +1701,7 @@ row_log_table_apply_update(
 	    || btr_pcur_get_low_match(&pcur) < index->n_uniq) {
 		mtr_commit(&mtr);
 insert:
-		ut_ad(mtr.state == MTR_COMMITTED);
+		ut_ad(mtr.has_committed());
 		/* The row was not found. Insert it. */
 		error = row_log_table_apply_insert_low(
 			thr, row, trx_id, offsets_heap, heap, dup);
@@ -1741,7 +1742,7 @@ err_exit:
 delete_insert:
 		error = row_log_table_apply_delete_low(
 			&pcur, cur_offsets, NULL, heap, &mtr);
-		ut_ad(mtr.state == MTR_COMMITTED);
+		ut_ad(mtr.has_committed());
 
 		if (error != DB_SUCCESS) {
 			goto err_exit;
@@ -2322,7 +2323,7 @@ all_done:
 		has_index_lock = false;
 		rw_lock_x_unlock(dict_index_get_lock(index));
 
-		log_free_check();
+		redo_log->free_check();
 
 		ut_ad(dict_index_is_online_ddl(index));
 
@@ -2454,7 +2455,7 @@ all_done:
 
 			/* Take the opportunity to do a redo log
 			checkpoint if needed. */
-			log_free_check();
+			redo_log->free_check();
 		} else {
 			/* We are applying operations from the last block.
 			Do not allow other threads to buffer anything,
@@ -3113,7 +3114,7 @@ all_done:
 		has_index_lock = false;
 		rw_lock_x_unlock(dict_index_get_lock(index));
 
-		log_free_check();
+		redo_log->free_check();
 
 		success = os_file_read_no_error_handling(
 			OS_FILE_FROM_FD(index->online_log->fd),
@@ -3233,7 +3234,7 @@ all_done:
 
 			/* Take the opportunity to do a redo log
 			checkpoint if needed. */
-			log_free_check();
+			redo_log->free_check();
 		} else {
 			/* We are applying operations from the last block.
 			Do not allow other threads to buffer anything,
@@ -3340,7 +3341,7 @@ row_log_apply(
 	ut_ad(dict_index_is_online_ddl(index));
 	ut_ad(!dict_index_is_clust(index));
 
-	log_free_check();
+	redo_log->free_check();
 
 	rw_lock_x_lock(dict_index_get_lock(index));
 

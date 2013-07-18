@@ -24,7 +24,6 @@ Created 2011/12/19
 *******************************************************/
 
 #include "ha_prototypes.h"
-
 #include "buf0dblwr.h"
 
 #ifdef UNIV_NONINL
@@ -37,6 +36,8 @@ Created 2011/12/19
 #include "srv0srv.h"
 #include "page0zip.h"
 #include "trx0sys.h"
+
+#include "buf0dblwr.h"
 
 #ifndef UNIV_HOTBACKUP
 
@@ -339,7 +340,7 @@ start_again:
 	mtr_commit(&mtr);
 
 	/* Flush the modified pages to disk and make a checkpoint */
-	log_make_checkpoint_at(LSN_MAX, TRUE);
+	redo_log->checkpoint_at(LSN_MAX, true);
 
 	/* Remove doublewrite pages from LRU */
 	buf_pool_invalidate();

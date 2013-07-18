@@ -1151,7 +1151,7 @@ que_run_threads_low(
 		touch more than about 4 pages, checks must be made also within
 		the query step! */
 
-		log_free_check();
+		redo_log->free_check();
 
 		/* Perform the actual query step: note that the query thread
 		may change if, e.g., a subprocedure call is made */

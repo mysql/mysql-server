@@ -496,19 +496,19 @@ DropIndex::operator()(mtr_t* mtr, btr_pcur_t* pcur) const
 		if (index_type & DICT_CLUSTERED) {
 			/* Clustered index */
 			DBUG_EXECUTE_IF("ib_trunc_crash_on_drop_of_clust_index",
-					log_buffer_flush_to_disk();
+					redo_log->sync_flush();
 					os_thread_sleep(2000000);
 					DBUG_SUICIDE(););
 		} else if (index_type & DICT_UNIQUE) {
 			/* Unique index */
 			DBUG_EXECUTE_IF("ib_trunc_crash_on_drop_of_uniq_index",
-					log_buffer_flush_to_disk();
+					redo_log->sync_flush();
 					os_thread_sleep(2000000);
 					DBUG_SUICIDE(););
 		} else if (index_type == 0) {
 			/* Secondary index */
 			DBUG_EXECUTE_IF("ib_trunc_crash_on_drop_of_sec_index",
-					log_buffer_flush_to_disk();
+					redo_log->sync_flush();
 					os_thread_sleep(2000000);
 					DBUG_SUICIDE(););
 		}
@@ -578,21 +578,21 @@ CreateIndex::operator()(mtr_t* mtr, btr_pcur_t* pcur) const
 			/* Clustered index */
 			DBUG_EXECUTE_IF(
 				"ib_trunc_crash_on_create_of_clust_index",
-				log_buffer_flush_to_disk();
+				redo_log->sync_flush();
 				os_thread_sleep(2000000);
 				DBUG_SUICIDE(););
 		} else if (index_type & DICT_UNIQUE) {
 			/* Unique index */
 			DBUG_EXECUTE_IF(
 				"ib_trunc_crash_on_create_of_uniq_index",
-				log_buffer_flush_to_disk();
+				redo_log->sync_flush();
 				os_thread_sleep(2000000);
 				DBUG_SUICIDE(););
 		} else if (index_type == 0) {
 			/* Secondary index */
 			DBUG_EXECUTE_IF(
 				"ib_trunc_crash_on_create_of_sec_index",
-				log_buffer_flush_to_disk();
+				redo_log->sync_flush();
 				os_thread_sleep(2000000);
 				DBUG_SUICIDE(););
 		}
@@ -763,11 +763,11 @@ row_truncate_complete(
 		/* Waiting for MLOG_FILE_TRUNCATE record is written into
 		redo log before the crash. */
 		DBUG_EXECUTE_IF("ib_trunc_crash_before_log_checkpoint",
-				log_buffer_flush_to_disk();
+				redo_log->sync_flush();
 				os_thread_sleep(500000);
 				DBUG_SUICIDE(););
 
-		log_make_checkpoint_at(LSN_MAX, TRUE);
+		redo_log->checkpoint_at(LSN_MAX, TRUE);
 
 		DBUG_EXECUTE_IF("ib_trunc_crash_after_log_checkpoint",
 				DBUG_SUICIDE(););
@@ -1019,7 +1019,7 @@ row_truncate_update_system_tables(
 		}
 
 		DBUG_EXECUTE_IF("ib_trunc_crash_after_fts_drop",
-				log_buffer_flush_to_disk();
+				redo_log->sync_flush();
 				os_thread_sleep(2000000);
 				DBUG_SUICIDE(););
 
@@ -1275,7 +1275,7 @@ row_truncate_table_for_mysql(
 
 	}
 
-	log_make_checkpoint_at(LSN_MAX, TRUE);
+	redo_log->checkpoint_at(LSN_MAX, TRUE);
 
 	/* Step-2: Start transaction (only for non-temp table as temp-table
 	don't modify any data on disk doesn't need transaction object). */
@@ -1411,7 +1411,7 @@ row_truncate_table_for_mysql(
 	}
 
 	DBUG_EXECUTE_IF("ib_trunc_crash_after_redo_log_write_complete",
-			log_buffer_flush_to_disk();
+			redo_log->sync_flush();
 			os_thread_sleep(3000000);
 			DBUG_SUICIDE(););
 
@@ -1450,7 +1450,7 @@ row_truncate_table_for_mysql(
 
 			DBUG_EXECUTE_IF(
 				"ib_trunc_crash_during_drop_index_temp_table",
-				log_buffer_flush_to_disk();
+				redo_log->sync_flush();
 				os_thread_sleep(2000000);
 				DBUG_SUICIDE(););
 		}
@@ -1466,7 +1466,7 @@ row_truncate_table_for_mysql(
 	}
 
 	DBUG_EXECUTE_IF("ib_trunc_crash_drop_reinit_done_create_to_start",
-			log_buffer_flush_to_disk();
+			redo_log->sync_flush();
 			os_thread_sleep(2000000);
 			DBUG_SUICIDE(););
 
@@ -1529,7 +1529,7 @@ row_truncate_table_for_mysql(
 	}
 
 	DBUG_EXECUTE_IF("ib_trunc_crash_on_updating_dict_sys_info",
-			log_buffer_flush_to_disk();
+			redo_log->sync_flush();
 			os_thread_sleep(2000000);
 			DBUG_SUICIDE(););
 
@@ -1611,7 +1611,7 @@ truncate_t::fixup_tables()
 				(*it)->m_format_flags,
 				(*it)->m_tablespace_flags,
 				(*it)->m_tablename,
-				**it, log_get_lsn());
+				**it, redo_log->get_lsn());
 
 		} else if (Tablespace::is_system_tablespace(
 				(*it)->m_space_id)) {
@@ -1647,7 +1647,7 @@ truncate_t::fixup_tables()
 
 	if (err == DB_SUCCESS && s_tables.size() > 0) {
 
-		log_make_checkpoint_at(LSN_MAX, TRUE);
+		redo_log->checkpoint_at(LSN_MAX, TRUE);
 	}
 
 	for (ulint i = 0; i < s_tables.size(); ++i) {

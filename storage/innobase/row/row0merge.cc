@@ -40,6 +40,7 @@ Completed by Sunny Bains and Marko Makela
 #include "row0import.h"
 #include "handler0alter.h"
 #include "srv0space.h"
+#include "srv0mon.h"
 
 /* Ignore posix_fadvise() on those platforms where it does not exist */
 #if defined _WIN32
@@ -2224,7 +2225,7 @@ row_merge_insert_index_tuples(
 			}
 
 			ut_ad(dtuple_validate(dtuple));
-			log_free_check();
+			redo_log->free_check();
 
 			mtr_start(&mtr);
 			/* Insert after the last user record. */

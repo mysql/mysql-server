@@ -34,889 +34,860 @@ Created 12/9/1995 Heikki Tuuri
 #define log0log_h
 
 #include "univ.i"
-#include "ut0byte.h"
+
 #ifndef UNIV_HOTBACKUP
-#include "sync0sync.h"
-#include "sync0rw.h"
+# include "sync0sync.h"
+# include "sync0rw.h"
 #endif /* !UNIV_HOTBACKUP */
 
-/* Type used for all log sequence number storage and arithmetics */
-typedef	ib_uint64_t		lsn_t;
-#define LSN_MAX			IB_UINT64_MAX
+#include "log0types.h"
+#include "os0file.h"
 
-#define LSN_PF			UINT64PF
+/** Redo log implementation */
+struct redo_log_t {
 
-/** Redo log buffer */
-struct log_t;
-/** Redo log group */
-struct log_group_t;
+	struct Command {
+		Command();
+		virtual ~Command();
+		virtual void execute(redo_log_t* redo_log) = 0;
+
+	private:
+		// Disable copying
+		Command(const Command&);
+		Command& operator=(const Command&);
+	};
+
+	// Forward declaration
+	struct CommandQueue;
+
+	/** Wait modes for write_up_to */
+	enum wait_mode_t {
+		WAIT_MODE_NO_WAIT = 91,
+		WAIT_MODE_ONE_GROUP = 92,
+		WAIT_MODE_ALL_GROUPS = 93
+	};
+
+	/** Redo states */
+	enum state_t {
+		/** Active and doing IO */
+		STATE_RUNNING,
+
+		/** IO done, needs to do the last checkpoint */
+		STATE_CHECKPOINT,
+
+		/** Last checkpoint done, needs to update the system LSN */
+		STATE_FINISHED,
+
+		/** Shutdown successful */
+		STATE_SHUTDOWN
+	};
+
+	/** Constants */
+	enum {
+		/** Trailer size in bytes */
+		TRAILER_SIZE = 4,
+
+		/** Size of the log block header in bytes */
+		BLOCK_HDR_SIZE = 12,
+
+		/** Log 'spaces' have id's >= this */
+		SPACE_FIRST_ID = 0xFFFFFFF0UL
+	};
+
+	// Forward declaration
+	struct Scan;
+	struct Group;
+	struct LogBuffer;
+
+	/** Constructor
+	@param n_files		number of log files
+	@param size		log file size in bytes
+	@param mem_avail	Memory available in the buffer pool, in bytes */
+	redo_log_t(ulint n_files, os_offset_t size, ulint mem_avail);
+
+	~redo_log_t();
+
+#ifndef UNIV_HOTBACKUP
+	/**
+	Acquires the log mutex. */
+	void mutex_acquire() const
+	{
+		mutex_enter(&m_mutex);
+	}
+
+	/**
+	Releases the log mutex. */
+	void mutex_release() const
+	{
+		mutex_exit(&m_mutex);
+	}
 
 #ifdef UNIV_DEBUG
-/** Flag: write to log file? */
-extern	ibool	log_do_write;
-#else /* UNIV_DEBUG */
-/** Write to log */
-# define log_do_write TRUE
+	/**
+	@return true if the mutex is owned */
+	bool is_mutex_owned() const
+	{
+		return(mutex_own(&m_mutex));
+	}
+
+#endif /* UNIV_DEBUG */
+	/**
+	Acquires the log mutex. */
+	void flush_order_mutex_enter() const
+	{
+		mutex_enter(&m_flush_order_mutex);
+	}
+
+	/**
+	Releases the log mutex. */
+	void flush_order_mutex_exit() const
+	{
+		mutex_exit(&m_flush_order_mutex);
+	}
+
+#ifdef UNIV_DEBUG
+	/**
+	@return true if the flush order mutex is owned. */
+	bool is_flush_order_mutex_owned() const
+	{
+		return(mutex_own(&m_flush_order_mutex));
+	}
 #endif /* UNIV_DEBUG */
 
-/** Wait modes for log_write_up_to @{ */
-#define LOG_NO_WAIT		91
-#define LOG_WAIT_ONE_GROUP	92
-#define	LOG_WAIT_ALL_GROUPS	93
-/* @} */
-/** Maximum number of log groups in log_group_t::checkpoint_buf */
-#define LOG_MAX_N_GROUPS	32
+	/**
+	Checks if there is need for a log buffer flush or a new checkpoint,
+	and does this if yes. Any database operation should call this when
+	it has modified more than about 4 pages. NOTE that this function
+	may only be called when the OS thread owns no synchronization objects
+	except the dictionary mutex. */
+	void free_check()
+	{
+#ifdef UNIV_SYNC_DEBUG
+		ut_ad(sync_thread_levels_empty_except_dict());
+#endif /* UNIV_SYNC_DEBUG */
 
-/*******************************************************************//**
-Calculates where in log files we find a specified lsn.
-@return log file number */
+		if (m_check_flush_or_checkpoint) {
 
-ulint
-log_calc_where_lsn_is(
-/*==================*/
-	ib_int64_t*	log_file_offset,	/*!< out: offset in that file
-						(including the header) */
-	ib_uint64_t	first_header_lsn,	/*!< in: first log file start
-						lsn */
-	ib_uint64_t	lsn,			/*!< in: lsn whose position to
-						determine */
-	ulint		n_log_files,		/*!< in: total number of log
-						files */
-	ib_int64_t	log_file_size);		/*!< in: log file size
-						(including the header) */
-#ifndef UNIV_HOTBACKUP
-/************************************************************//**
-Writes to the log the string given. The log must be released with
-log_release.
-@return end lsn of the log record, zero if did not succeed */
-UNIV_INLINE
-lsn_t
-log_reserve_and_write_fast(
-/*=======================*/
-	const void*	str,	/*!< in: string */
-	ulint		len,	/*!< in: string length */
-	lsn_t*		start_lsn);/*!< out: start lsn of the log record */
-/***********************************************************************//**
-Releases the log mutex. */
-UNIV_INLINE
-void
-log_release(void);
-/*=============*/
-/***********************************************************************//**
-Checks if there is need for a log buffer flush or a new checkpoint, and does
-this if yes. Any database operation should call this when it has modified
-more than about 4 pages. NOTE that this function may only be called when the
-OS thread owns no synchronization objects except the dictionary mutex. */
-UNIV_INLINE
-void
-log_free_check(void);
-/*================*/
-/************************************************************//**
-Opens the log for log_write_low. The log must be closed with log_close and
-released with log_release.
-@return start lsn of the log record */
+			check_margins();
+		}
+	}
 
-lsn_t
-log_reserve_and_open(
-/*=================*/
-	ulint	len);	/*!< in: length of data to be catenated */
-/************************************************************//**
-Writes to the log the string given. It is assumed that the caller holds the
-log mutex. */
+	/**
+	Submit a request to the command queue. */
+	void submit(Command* command);
 
-void
-log_write_low(
-/*==========*/
-	byte*	str,		/*!< in: string */
-	ulint	str_len);	/*!< in: string length */
-/************************************************************//**
-Closes the log.
-@return lsn */
+	/**
+	Opens the log for log_write_low. The log must be closed with log_close
+	and released with release().
+	@param len		length of data to be catenated
+	@param own_mutex	true if caller owns the mutex
+	@return	start lsn of the log record */
+	lsn_t open(ulint len, bool own_mutex);
 
-lsn_t
-log_close(void);
-/*===========*/
-/************************************************************//**
-Gets the current lsn.
-@return current lsn */
-UNIV_INLINE
-lsn_t
-log_get_lsn(void);
-/*=============*/
-/****************************************************************
-Gets the log group capacity. It is OK to read the value without
-holding log_sys->mutex because it is constant.
-@return log group capacity */
-UNIV_INLINE
-lsn_t
-log_get_capacity(void);
-/*==================*/
-/****************************************************************
-Get log_sys::max_modified_age_async. It is OK to read the value without
-holding log_sys::mutex because it is constant.
-@return max_modified_age_async */
-UNIV_INLINE
-lsn_t
-log_get_max_modified_age_async(void);
-/*================================*/
-/******************************************************//**
-Initializes the log. */
+	/**
+	Writes to the log the string given. The log must be released with
+	redo_log->release.
+	@param str,		string
+	@param len,		string length
+	@param start_lsn	start lsn of the log recor
+	@return	end lsn of the log record, zero if did not succeed */
+	lsn_t open(const void* ptr, ulint len, lsn_t* start_lsn);
 
-void
-log_init(void);
-/*==========*/
-/******************************************************************//**
-Inits a log group to the log system.
-@return true if success, false if not */
-__attribute__((warn_unused_result))
-bool
-log_group_init(
-/*===========*/
-	ulint	id,			/*!< in: group id */
-	ulint	n_files,		/*!< in: number of log files */
-	lsn_t	file_size,		/*!< in: log file size in bytes */
-	ulint	space_id,		/*!< in: space id of the file space
-					which contains the log files of this
-					group */
-	ulint	archive_space_id);	/*!< in: space id of the file space
-					which contains some archived log
-					files for this group; currently, only
-					for the first log group this is
-					used */
-/******************************************************//**
-Completes an i/o to a log file. */
+	/**
+	Closes the log.
+	@return	lsn */
+	lsn_t close();
 
-void
-log_io_complete(
-/*============*/
-	log_group_t*	group);	/*!< in: log group */
-/******************************************************//**
-This function is called, e.g., when a transaction wants to commit. It checks
-that the log has been written to the log file up to the last log entry written
-by the transaction. If there is a flush running, it waits and checks if the
-flush flushed enough. If not, starts a new flush. */
+	/**
+	Gets the current lsn.
+	@return	current lsn */
+	lsn_t get_lsn()
+	{
+		mutex_acquire();
 
-void
-log_write_up_to(
-/*============*/
-	lsn_t	lsn,	/*!< in: log sequence number up to which
-			the log should be written, LSN_MAX if not specified */
-	ulint	wait,	/*!< in: LOG_NO_WAIT, LOG_WAIT_ONE_GROUP,
-			or LOG_WAIT_ALL_GROUPS */
-	ibool	flush_to_disk);
-			/*!< in: TRUE if we want the written log
-			also to be flushed to disk */
-/****************************************************************//**
-Does a syncronous flush of the log buffer to disk. */
+		lsn_t	lsn = m_lsn;
 
-void
-log_buffer_flush_to_disk(void);
-/*==========================*/
-/****************************************************************//**
-This functions writes the log buffer to the log file and if 'flush'
-is set it forces a flush of the log file as well. This is meant to be
-called from background master thread only as it does not wait for
-the write (+ possible flush) to finish. */
+		mutex_release();
 
-void
-log_buffer_sync_in_background(
-/*==========================*/
-	ibool	flush);	/*<! in: flush the logs to disk */
-/******************************************************//**
-Makes a checkpoint. Note that this function does not flush dirty
-blocks from the buffer pool: it only checks what is lsn of the oldest
-modification in the pool, and writes information about the lsn in
-log files. Use log_make_checkpoint_at to flush also the pool.
-@return TRUE if success, FALSE if a checkpoint write was already running */
+		return(lsn);
+	}
 
-ibool
-log_checkpoint(
-/*===========*/
-	ibool	sync,		/*!< in: TRUE if synchronous operation is
-				desired */
-	ibool	write_always);	/*!< in: the function normally checks if the
+	/**
+	Gets the log group capacity. It is OK to read the value without
+	holding mutex because it is constant.
+	@return	log group capacity */
+	lsn_t get_capacity() const
+	{
+		return(m_log_group_capacity);
+	}
+
+	/**
+	Get m_max_modified_age_async. It is OK to read the value without
+	holding m_mutex because it is constant.
+	@return	max_modified_age_async */
+	lsn_t get_max_modified_age_async() const
+	{
+		return(m_max_modified_age_async);
+	}
+
+#ifdef UNIV_DEBUG
+	bool is_write_allowed() const
+	{
+		return(m_write_allowed);
+	}
+
+	void enable_log_write()
+	{
+		m_write_allowed = true;
+	}
+
+	void disable_log_write()
+	{
+		m_write_allowed = false;
+	}
+
+	lsn_t checkpoint_lsn() const;
+#endif /* UNIV_DEBUG */
+
+	/**
+	@return true if writes to the change buffer are allowed */
+	bool is_ibuf_allowed() const
+	{
+		return(m_ibuf_allowed);
+	}
+
+	/**
+	@return the free frames in the buffer pool */
+	ulint get_free_frames() const
+	{
+		return(m_n_free_frames);
+	}
+
+	/**
+	Returns true if recovery is currently running.
+	@return	recv_recovery_on */
+	bool is_recovery_on() const
+	{
+		return(m_recover != NULL);
+	}
+
+	/**
+	@return true if there are pending reads or writes. */
+	bool is_busy() const;
+
+	/**
+	Print busy status. */
+	void print_busy_status();
+
+	/**
+	Initializes the log.
+	@return true if success, false if not */
+	bool init();
+
+	/**
+	Resize the log.
+	@param n_files		The number of physical files
+	@param size		Size in bytes
+	@return true on success */
+	bool resize(ulint n_files, os_offset_t size);
+
+	/**
+	This function is called, e.g., when a transaction wants to commit. It
+	checks that the log has been written to the log file up to the last
+	log entry written by the transaction. If there is a flush running,
+	it waits and checks if the flush flushed enough. If not, starts a
+	new flush.
+	@param lsn		log sequence number up to which the log should
+				be written, LSN_MAX if not specified
+	@param mode		wait mode
+	@param flush_to_disk	true if we want the written log also to be
+				flushed to disk */
+	void write_up_to(lsn_t lsn, wait_mode_t wait, bool flush_to_disk);
+
+	/**
+	Makes a checkpoint. Note that this function does not flush dirty
+	blocks from the buffer pool: it only checks what is lsn of the oldest
+	modification in the pool, and writes information about the lsn in
+	log files. Use log_checkpoint_at to flush also the pool.
+	@param sync		true if synchronous operation is desired
+	@param write_always	the function normally checks if the
 				the new checkpoint would have a greater
 				lsn than the previous one: if not, then no
 				physical write is done; by setting this
 				parameter TRUE, a physical write will always be
-				made to log files */
-/****************************************************************//**
-Makes a checkpoint at a given lsn or later. */
+				made to log files
+	@return	true if success, false if a checkpoint write was already
+		running */
+	bool checkpoint(bool sync, bool write_always);
 
-void
-log_make_checkpoint_at(
-/*===================*/
-	lsn_t	lsn,		/*!< in: make a checkpoint at this or a
+	/***
+	Writes to the log the string given. It is assumed that the caller
+	holds the log mutex.
+	@param ptr		buffer to write
+	@param len 		length of buffer to write */
+	void write(const byte* ptr, ulint ptr_len);
+
+	/**
+	This functions writes the log buffer to the log file and if 'flush'
+	is set it forces a flush of the log file as well. This is meant to be
+	called from background master thread only as it does not wait for
+	the write (+ possible flush) to finish.
+	@param flush		flush the logs to disk */
+	void async_flush(bool flush);
+
+	/**
+	Does a syncronous flush of the log buffer to disk. */
+	void sync_flush();
+
+	/**
+	Makes a checkpoint at a given lsn or later.
+	@param lsn,		make a checkpoint at this or a
 				later lsn, if LSN_MAX, makes
-				a checkpoint at the latest lsn */
-	ibool	write_always);	/*!< in: the function normally checks if
+				a checkpoint at the latest lsn
+	@param write_always	the function normally checks if
 				the new checkpoint would have a
 				greater lsn than the previous one: if
 				not, then no physical write is done;
 				by setting this parameter TRUE, a
 				physical write will always be made to
 				log files */
-/****************************************************************//**
-Makes a checkpoint at the latest lsn and writes it to first page of each
-data file in the database, so that we know that the file spaces contain
-all modifications up to that lsn. This can only be called at database
-shutdown. This function also writes all log in log files to the log archive. */
+	void checkpoint_at(lsn_t lsn, bool write_always);
 
-void
-logs_empty_and_mark_files_at_shutdown(void);
-/*=======================================*/
-/******************************************************//**
-Reads a checkpoint info from a log group header to log_sys->checkpoint_buf. */
+	/**
+	Makes a checkpoint at the latest lsn and writes it to first page of each
+	data file in the database, so that we know that the file spaces contain
+	all modifications up to that lsn.
+	@param notify		if true then write to the error log
+	@return current state */
+	state_t start_shutdown(bool notify);
 
-void
-log_group_read_checkpoint_info(
-/*===========================*/
-	log_group_t*	group,	/*!< in: log group */
-	ulint		field);	/*!< in: LOG_CHECKPOINT_1 or LOG_CHECKPOINT_2 */
-/*******************************************************************//**
-Gets info from a checkpoint about a log group. */
-
-void
-log_checkpoint_get_nth_group_info(
-/*==============================*/
-	const byte*	buf,	/*!< in: buffer containing checkpoint info */
-	ulint		n,	/*!< in: nth slot */
-	ulint*		file_no,/*!< out: archived file number */
-	ulint*		offset);/*!< out: archived file offset */
-/******************************************************//**
-Writes checkpoint info to groups. */
-
-void
-log_groups_write_checkpoint_info(void);
-/*==================================*/
-/********************************************************************//**
-Starts an archiving operation.
-@return TRUE if succeed, FALSE if an archiving operation was already running */
-
-ibool
-log_archive_do(
-/*===========*/
-	ibool	sync,	/*!< in: TRUE if synchronous operation is desired */
-	ulint*	n_bytes);/*!< out: archive log buffer size, 0 if nothing to
-			archive */
-/****************************************************************//**
-Writes the log contents to the archive up to the lsn when this function was
-called, and stops the archiving. When archiving is started again, the archived
-log file numbers start from a number one higher, so that the archiving will
-not write again to the archived log files which exist when this function
-returns.
-@return DB_SUCCESS or DB_ERROR */
-
-ulint
-log_archive_stop(void);
-/*==================*/
-/****************************************************************//**
-Starts again archiving which has been stopped.
-@return DB_SUCCESS or DB_ERROR */
-
-ulint
-log_archive_start(void);
-/*===================*/
-/****************************************************************//**
-Stop archiving the log so that a gap may occur in the archived log files.
-@return DB_SUCCESS or DB_ERROR */
-
-ulint
-log_archive_noarchivelog(void);
-/*==========================*/
-/****************************************************************//**
-Start archiving the log so that a gap may occur in the archived log files.
-@return DB_SUCCESS or DB_ERROR */
-
-ulint
-log_archive_archivelog(void);
-/*========================*/
-/******************************************************//**
-Generates an archived log file name. */
-
-void
-log_archived_file_name_gen(
-/*=======================*/
-	char*	buf,	/*!< in: buffer where to write */
-	ulint	id,	/*!< in: group id */
-	ulint	file_no);/*!< in: file number */
 #else /* !UNIV_HOTBACKUP */
-/******************************************************//**
-Writes info to a buffer of a log group when log files are created in
-backup restoration. */
-
-void
-log_reset_first_header_and_checkpoint(
-/*==================================*/
-	byte*		hdr_buf,/*!< in: buffer which will be written to the
-				start of the first log file */
-	ib_uint64_t	start);	/*!< in: lsn of the start of the first log file;
+	/**
+	Writes info to a buffer of a log group when log files are created in
+	backup restoration.
+	@param ptr		buffer which will be written to the
+				start of the first log file
+	@param start		lsn of the start of the first log file;
 				we pretend that there is a checkpoint at
 				start + LOG_BLOCK_HDR_SIZE */
+	void reset_first_header_and_checkpoint(byte* ptr, ib_uint64_t start);
 #endif /* !UNIV_HOTBACKUP */
-/********************************************************************//**
-Checks that there is enough free space in the log to start a new query step.
-Flushes the log buffer or makes a new checkpoint if necessary. NOTE: this
-function may only be called if the calling thread owns no synchronization
-objects! */
 
-void
-log_check_margins(void);
-/*===================*/
-#ifndef UNIV_HOTBACKUP
-/******************************************************//**
-Reads a specified log segment to a buffer. */
+	/**
+	Checks that there is enough free space in the log to start a
+	new query step. Flushes the log buffer or makes a new checkpoint
+	if necessary. NOTE: this function may only be called if the calling
+	thread owns no synchronization objects! */
+	void check_margins();
 
-void
-log_group_read_log_seg(
-/*===================*/
-	ulint		type,		/*!< in: LOG_ARCHIVE or LOG_RECOVER */
-	byte*		buf,		/*!< in: buffer where to read */
-	log_group_t*	group,		/*!< in: log group */
-	lsn_t		start_lsn,	/*!< in: read area start */
-	lsn_t		end_lsn);	/*!< in: read area end */
-/******************************************************//**
-Writes a buffer to a log file group. */
+	/**
+	Tries to establish a big enough margin of free space in
+	the log buffer, such that a new log entry can be catenated
+	without an immediate need for a flush. */
+	void flush_margin();
 
-void
-log_group_write_buf(
-/*================*/
-	log_group_t*	group,		/*!< in: log group */
-	byte*		buf,		/*!< in: buffer */
-	ulint		len,		/*!< in: buffer len; must be divisible
-					by OS_FILE_LOG_BLOCK_SIZE */
-	lsn_t		start_lsn,	/*!< in: start lsn of the buffer; must
-					be divisible by
-					OS_FILE_LOG_BLOCK_SIZE */
-	ulint		new_data_offset);/*!< in: start offset of new data in
-					buf: this parameter is used to decide
-					if we have to write a new log file
-					header */
-/********************************************************//**
-Sets the field values in group to correspond to a given lsn. For this function
-to work, the values must already be correctly initialized to correspond to
-some lsn, for instance, a checkpoint lsn. */
+	/**
+	Prints info of the log.
+	@param file	stream where to print */
+	void print(FILE* file);
 
-void
-log_group_set_fields(
-/*=================*/
-	log_group_t*	group,	/*!< in/out: group */
-	lsn_t		lsn);	/*!< in: lsn for which the values should be
-				set */
-/******************************************************//**
-Calculates the data capacity of a log group, when the log file headers are not
-included.
-@return capacity in bytes */
+	/**
+	Peeks the current lsn.
+	@param lsn	if function returns true the the returned value is valid
+	@return	true if success, false if could not get the log system mutex */
+	bool peek_lsn(lsn_t* lsn);
 
-lsn_t
-log_group_get_capacity(
-/*===================*/
-	const log_group_t*	group);	/*!< in: log group */
-#endif /* !UNIV_HOTBACKUP */
-/************************************************************//**
-Gets a log block flush bit.
-@return TRUE if this block was the first to be written in a log flush */
-UNIV_INLINE
-ibool
-log_block_get_flush_bit(
-/*====================*/
-	const byte*	log_block);	/*!< in: log block */
-/************************************************************//**
-Gets a log block number stored in the header.
-@return log block number stored in the block header */
-UNIV_INLINE
-ulint
-log_block_get_hdr_no(
-/*=================*/
-	const byte*	log_block);	/*!< in: log block */
-/************************************************************//**
-Gets a log block data length.
-@return log block data length measured as a byte offset from the block start */
-UNIV_INLINE
-ulint
-log_block_get_data_len(
-/*===================*/
-	const byte*	log_block);	/*!< in: log block */
-/************************************************************//**
-Sets the log block data length. */
-UNIV_INLINE
-void
-log_block_set_data_len(
-/*===================*/
-	byte*	log_block,	/*!< in/out: log block */
-	ulint	len);		/*!< in: data length */
-/************************************************************//**
-Calculates the checksum for a log block.
-@return checksum */
-UNIV_INLINE
-ulint
-log_block_calc_checksum(
-/*====================*/
-	const byte*	block);	/*!< in: log block */
-/************************************************************//**
-Gets a log block checksum field value.
-@return checksum */
-UNIV_INLINE
-ulint
-log_block_get_checksum(
-/*===================*/
-	const byte*	log_block);	/*!< in: log block */
-/************************************************************//**
-Sets a log block checksum field value. */
-UNIV_INLINE
-void
-log_block_set_checksum(
-/*===================*/
-	byte*	log_block,	/*!< in/out: log block */
-	ulint	checksum);	/*!< in: checksum */
-/************************************************************//**
-Gets a log block first mtr log record group offset.
-@return first mtr log record group byte offset from the block start, 0
-if none */
-UNIV_INLINE
-ulint
-log_block_get_first_rec_group(
-/*==========================*/
-	const byte*	log_block);	/*!< in: log block */
-/************************************************************//**
-Sets the log block first mtr log record group offset. */
-UNIV_INLINE
-void
-log_block_set_first_rec_group(
-/*==========================*/
-	byte*	log_block,	/*!< in/out: log block */
-	ulint	offset);	/*!< in: offset, 0 if none */
-/************************************************************//**
-Gets a log block checkpoint number field (4 lowest bytes).
-@return checkpoint no (4 lowest bytes) */
-UNIV_INLINE
-ulint
-log_block_get_checkpoint_no(
-/*========================*/
-	const byte*	log_block);	/*!< in: log block */
-/************************************************************//**
-Initializes a log block in the log buffer. */
-UNIV_INLINE
-void
-log_block_init(
-/*===========*/
-	byte*	log_block,	/*!< in: pointer to the log buffer */
-	lsn_t	lsn);		/*!< in: lsn within the log block */
-/************************************************************//**
-Initializes a log block in the log buffer in the old, < 3.23.52 format, where
-there was no checksum yet. */
-UNIV_INLINE
-void
-log_block_init_in_old_format(
-/*=========================*/
-	byte*	log_block,	/*!< in: pointer to the log buffer */
-	lsn_t	lsn);		/*!< in: lsn within the log block */
-/************************************************************//**
-Converts a lsn to a log block number.
-@return log block number, it is > 0 and <= 1G */
-UNIV_INLINE
-ulint
-log_block_convert_lsn_to_no(
-/*========================*/
-	lsn_t	lsn);	/*!< in: lsn of a byte within the block */
-/******************************************************//**
-Prints info of the log. */
+	/**
+	Refreshes the statistics used to print per-second averages. */
+	void refresh_stats();
 
-void
-log_print(
-/*======*/
-	FILE*	file);	/*!< in: file where to print */
-/******************************************************//**
-Peeks the current lsn.
-@return TRUE if success, FALSE if could not get the log system mutex */
+	/**
+	Shutdown the log system but do not release all the memory. */
+	void shutdown();
 
-ibool
-log_peek_lsn(
-/*=========*/
-	lsn_t*	lsn);	/*!< out: if returns TRUE, current lsn is here */
-/**********************************************************************//**
-Refreshes the statistics used to print per-second averages. */
+	/**
+	Completes an i/o to a log file.
+	@param group		log group */
+	void io_complete(Group* group);
 
-void
-log_refresh_stats(void);
-/*===================*/
-/********************************************************//**
-Closes all log groups. */
+	/**
+	Returns the oldest modified block lsn in the pool, or m_lsn if
+	none exists.
+	@return	LSN of oldest modification */
+	lsn_t buf_pool_get_oldest_modification();
 
-void
-log_group_close_all(void);
-/*=====================*/
-/********************************************************//**
-Shutdown the log system but do not release all the memory. */
+	/**
+	Free the log system data structures. */
+	void release_resources();
 
-void
-log_shutdown(void);
-/*==============*/
-/********************************************************//**
-Free the log system data structures. */
+	/**
+	Recovers from a checkpoint. When this function returns, the database
+	is able to start processing of new user transactions, but the
+	function recovery_from_checkpoint_finish should be called later to
+	complete the recovery and free the resources used in it.
+	@return	error code or DB_SUCCESS */
+	dberr_t recovery_start(
+		lsn_t		min_flushed_lsn,
+		lsn_t		max_flushed_lsn,
+		redo_recover_t* recover);
 
-void
-log_mem_free(void);
-/*==============*/
+	/**
+	Resets the logs. The contents of log files will be lost!
+	@param lsn 		reset to this lsn rounded up to be divisible by
+				OS_FILE_LOG_BLOCK_SIZE, after which we add
+				LOG_BLOCK_HDR_SIZE */
+	void reset_logs(lsn_t lsn);
 
-extern log_t*	log_sys;
+#ifndef UNIV_HOTBACK
+	/**
+	Completes recovery from a checkpoint. */
+	void recovery_finish();
+#else
+	/**
+	Scans the log segment and n_bytes_scanned is set to the length of valid
+	log scanned.
+	@param buf,		buffer containing log data
+	@param buf_len		data length in that buffer
+	@param scanned_lsn	lsn of buffer start, we return scanned lsn
+	@param scanned_checkpoint_no 4 lowest bytes of the highest scanned
+				checkpoint number so far
+	@param n_bytes_scanned	how much we were able to scan, smaller than
+				buf_len if log data ended here */
+	void scan_log_seg_for_backup(
+		byte*		buf,
+		ulint		buf_len,
+		lsn_t*		scanned_lsn,
+		ulint*		scanned_checkpoint_no,
+		ulint*		n_bytes_scanned);
+#endif /* UNIV_HOTBACKUP */
 
-/* Values used as flags */
-#define LOG_FLUSH	7652559
-#define LOG_CHECKPOINT	78656949
-#define LOG_RECOVER	98887331
+	/**
+	Gets a log block data length.
+	@param block		log block
+	@return	log block data length measured as a byte offset from the
+		block start */
+	static ulint block_get_data_len(const byte* block);
 
-/* The counting of lsn's starts from this value: this must be non-zero */
-#define LOG_START_LSN		((lsn_t) (16 * OS_FILE_LOG_BLOCK_SIZE))
+	void handle_truncate();
 
-#define LOG_BUFFER_SIZE		(srv_log_buffer_size * UNIV_PAGE_SIZE)
-#define LOG_ARCHIVE_BUF_SIZE	(srv_log_buffer_size * UNIV_PAGE_SIZE / 4)
+private:
+	/**
+	Wait for IO to complete.
+	@param mode		Wait mode */
+	void wait_for_io(wait_mode_t mode);
 
-/* Offsets of a log block header */
-#define	LOG_BLOCK_HDR_NO	0	/* block number which must be > 0 and
-					is allowed to wrap around at 2G; the
-					highest bit is set to 1 if this is the
-					first log block in a log flush write
-					segment */
-#define LOG_BLOCK_FLUSH_BIT_MASK 0x80000000UL
-					/* mask used to get the highest bit in
-					the preceding field */
-#define	LOG_BLOCK_HDR_DATA_LEN	4	/* number of bytes of log written to
-					this block */
-#define	LOG_BLOCK_FIRST_REC_GROUP 6	/* offset of the first start of an
-					mtr log record group in this log block,
-					0 if none; if the value is the same
-					as LOG_BLOCK_HDR_DATA_LEN, it means
-					that the first rec group has not yet
-					been catenated to this log block, but
-					if it will, it will start at this
-					offset; an archive recovery can
-					start parsing the log records starting
-					from this offset in this log block,
-					if value not 0 */
-#define LOG_BLOCK_CHECKPOINT_NO	8	/* 4 lower bytes of the value of
-					log_sys->next_checkpoint_no when the
-					log block was last written to: if the
-					block has not yet been written full,
-					this value is only updated before a
-					log buffer flush */
-#define LOG_BLOCK_HDR_SIZE	12	/* size of the log block header in
-					bytes */
+	/**
+	Inits a log group to the log system.
+	@return true if success, false if not */
+	bool group_init()
+		__attribute__((warn_unused_result));
 
-/* Offsets of a log block trailer from the end of the block */
-#define	LOG_BLOCK_CHECKSUM	4	/* 4 byte checksum of the log block
-					contents; in InnoDB versions
-					< 3.23.52 this did not contain the
-					checksum but the same value as
-					.._HDR_NO */
-#define	LOG_BLOCK_TRL_SIZE	4	/* trailer size in bytes */
+	/**
+	Tries to establish a big enough margin of free space in the log
+	groups, such that a new log entry can be catenated without an
+	immediate need for a checkpoint. NOTE: this function may only
+	be called if the calling thread owns no synchronization objects! */
+	void checkpoint_margin();
 
-/* Offsets for a checkpoint field */
-#define LOG_CHECKPOINT_NO		0
-#define LOG_CHECKPOINT_LSN		8
-#define LOG_CHECKPOINT_OFFSET_LOW32	16
-#define LOG_CHECKPOINT_LOG_BUF_SIZE	20
-#define	LOG_CHECKPOINT_ARCHIVED_LSN	24
-#define	LOG_CHECKPOINT_GROUP_ARRAY	32
+	/**
+	Advances the smallest lsn for which there are unflushed dirty blocks
+	in the buffer pool. NOTE: this function may only be called if the
+	calling thread owns no synchronization objects!
 
-/* For each value smaller than LOG_MAX_N_GROUPS the following 8 bytes: */
+	@param new_oldest	try to advance oldest_modified_lsn at least
+				to this lsn
 
-#define LOG_CHECKPOINT_ARCHIVED_FILE_NO	0
-#define LOG_CHECKPOINT_ARCHIVED_OFFSET	4
+	@return false if there was a flush batch of the same type running,
+		which means that we could not start this flush batch */
+	bool preflush_pool_modified_pages(lsn_t new_oldest);
 
-#define	LOG_CHECKPOINT_ARRAY_END	(LOG_CHECKPOINT_GROUP_ARRAY\
-							+ LOG_MAX_N_GROUPS * 8)
-#define LOG_CHECKPOINT_CHECKSUM_1	LOG_CHECKPOINT_ARRAY_END
-#define LOG_CHECKPOINT_CHECKSUM_2	(4 + LOG_CHECKPOINT_ARRAY_END)
-#if 0
-#define LOG_CHECKPOINT_FSP_FREE_LIMIT	(8 + LOG_CHECKPOINT_ARRAY_END)
-					/*!< Not used (0);
-					This used to contain the
-					current fsp free limit in
-					tablespace 0, in units of one
-					megabyte.
+	/**
+	Calculates where in log files we find a specified lsn.
 
-					This information might have been used
-					since ibbackup version 0.35 but
-					before 1.41 to decide if unused ends of
-					non-auto-extending data files
-					in space 0 can be truncated.
+	@param log_file_offset	offset in that file (including the header)
+	@param first_header_lsn	first log file start lsn
+	@param lsn		lsn whose position to determine
+	@param n_log_files	total number of log files
+	@param log_file_size	log file size (including the header)
 
-					This information was made obsolete
-					by ibbackup --compress. */
-#define LOG_CHECKPOINT_FSP_MAGIC_N	(12 + LOG_CHECKPOINT_ARRAY_END)
-					/*!< Not used (0);
-					This magic number tells if the
-					checkpoint contains the above field:
-					the field was added to
-					InnoDB-3.23.50 and
-					removed from MySQL 5.6 */
-#define LOG_CHECKPOINT_FSP_MAGIC_N_VAL	1441231243
-					/*!< if LOG_CHECKPOINT_FSP_MAGIC_N
-					contains this value, then
-					LOG_CHECKPOINT_FSP_FREE_LIMIT
-					is valid */
-#endif
-#define LOG_CHECKPOINT_OFFSET_HIGH32	(16 + LOG_CHECKPOINT_ARRAY_END)
-#define LOG_CHECKPOINT_SIZE		(20 + LOG_CHECKPOINT_ARRAY_END)
+	@return	log file number */
+	static ulint seek_to_lsn(
+		os_offset_t*	log_file_offset,
+		lsn_t		first_header_lsn,
+		lsn_t		lsn,
+		ulint		n_log_files,
+		os_offset_t	log_file_size);
 
+	/**
+	Completes an asynchronous checkpoint info write i/o to a log file. */
+	void checkpoint_complete();
 
-/* Offsets of a log file header */
-#define LOG_GROUP_ID		0	/* log group number */
-#define LOG_FILE_START_LSN	4	/* lsn of the start of data in this
-					log file */
-#define LOG_FILE_NO		12	/* 4-byte archived log file number;
-					this field is only defined in an
-					archived log file */
-#define LOG_FILE_WAS_CREATED_BY_HOT_BACKUP 16
-					/* a 32-byte field which contains
-					the string 'ibbackup' and the
-					creation time if the log file was
-					created by ibbackup --restore;
-					when mysqld is first time started
-					on the restored database, it can
-					print helpful info for the user */
-#define	LOG_FILE_ARCH_COMPLETED	OS_FILE_LOG_BLOCK_SIZE
-					/* this 4-byte field is TRUE when
-					the writing of an archived log file
-					has been completed; this field is
-					only defined in an archived log file */
-#define LOG_FILE_END_LSN	(OS_FILE_LOG_BLOCK_SIZE + 4)
-					/* lsn where the archived log file
-					at least extends: actually the
-					archived log file may extend to a
-					later lsn, as long as it is within the
-					same log block as this lsn; this field
-					is defined only when an archived log
-					file has been completely written */
-#define LOG_CHECKPOINT_1	OS_FILE_LOG_BLOCK_SIZE
-					/* first checkpoint field in the log
-					header; we write alternately to the
-					checkpoint fields when we make new
-					checkpoints; this field is only defined
-					in the first log file of a log group */
-#define LOG_CHECKPOINT_2	(3 * OS_FILE_LOG_BLOCK_SIZE)
-					/* second checkpoint field in the log
-					header */
-#define LOG_FILE_HDR_SIZE	(4 * OS_FILE_LOG_BLOCK_SIZE)
+	/**
+	Calculates the recommended highest values for lsn - last_checkpoint_lsn,
+	lsn - buf_get_oldest_modification(), and lsn - max_archive_lsn_age.
 
-#define LOG_GROUP_OK		301
-#define LOG_GROUP_CORRUPTED	302
+	@retval true on success
+	@retval false if the smallest log group is too small to accommodate
+			the number of OS threads in the database server */
+	bool calc_max_ages();
 
-/** Log group consists of a number of log files, each of the same size; a log
-group is implemented as a space in the sense of the module fil0fil. */
-struct log_group_t{
-	/* The following fields are protected by log_sys->mutex */
-	ulint		id;		/*!< log group id */
-	ulint		n_files;	/*!< number of files in the group */
-	lsn_t		file_size;	/*!< individual log file size in bytes,
-					including the log file header */
-	ulint		space_id;	/*!< file space which implements the log
-					group */
-	ulint		state;		/*!< LOG_GROUP_OK or
-					LOG_GROUP_CORRUPTED */
-	lsn_t		lsn;		/*!< lsn used to fix coordinates within
-					the log group */
-	lsn_t		lsn_offset;	/*!< the offset of the above lsn */
-	ulint		n_pending_writes;/*!< number of currently pending flush
-					writes for this log group */
-	byte**		file_header_bufs_ptr;/*!< unaligned buffers */
-	byte**		file_header_bufs;/*!< buffers for each file
-					header in the group */
-	/*-----------------------------*/
-	lsn_t		scanned_lsn;	/*!< used only in recovery: recovery scan
-					succeeded up to this lsn in this log
-					group */
-	byte*		checkpoint_buf_ptr;/*!< unaligned checkpoint header */
-	byte*		checkpoint_buf;	/*!< checkpoint header is written from
-					this buffer to the group */
-	UT_LIST_NODE_T(log_group_t)
-			log_groups;	/*!< list of log groups */
-};
+	/**
+	Checks if a flush is completed and does the completion routine if yes.
+	@return	LOG_UNLOCK_FLUSH_LOCK or 0 */
+	ulint check_flush_completion();
 
-/** Redo log buffer */
-struct log_t{
-	byte		pad[64];	/*!< padding to prevent other memory
-					update hotspots from residing on the
-					same memory cache line */
-	lsn_t		lsn;		/*!< log sequence number */
-	ulint		buf_free;	/*!< first free offset within the log
-					buffer */
-#ifndef UNIV_HOTBACKUP
-	ib_mutex_t		mutex;		/*!< mutex protecting the log */
+	/**
+	Does the unlockings needed in flush i/o completion.
+	@param code		any ORed combination of LOG_UNLOCK_FLUSH_LOCK
+				and LOG_UNLOCK_NONE_FLUSHED_LOCK */
+	void flush_do_unlocks(ulint code);
 
-	ib_mutex_t		log_flush_order_mutex;/*!< mutex to serialize access to
-					the flush list when we are putting
-					dirty blocks in the list. The idea
-					behind this mutex is to be able
-					to release log_sys->mutex during
-					mtr_commit and still ensure that
-					insertions in the flush_list happen
-					in the LSN order. */
-#endif /* !UNIV_HOTBACKUP */
-	byte*		buf_ptr;	/* unaligned log buffer */
-	byte*		buf;		/*!< log buffer */
-	ulint		buf_size;	/*!< log buffer size in bytes */
-	ulint		max_buf_free;	/*!< recommended maximum value of
-					buf_free, after which the buffer is
-					flushed */
-	ulint		old_buf_free;	/*!< value of buf free when log was
-					last time opened; only in the debug
-					version */
-	ib_uint64_t	old_lsn;	/*!< value of lsn when log was
-					last time opened; only in the
-					debug version */
-	ibool		check_flush_or_checkpoint;
-					/*!< this is set to TRUE when there may
-					be need to flush the log buffer, or
-					preflush buffer pool pages, or make
-					a checkpoint; this MUST be TRUE when
-					lsn - last_checkpoint_lsn >
-					max_checkpoint_age; this flag is
-					peeked at by log_free_check(), which
-					does not reserve the log mutex */
-	UT_LIST_BASE_NODE_T(log_group_t)
-			log_groups;	/*!< log groups */
+	/**
+	Calculates the data capacity of a log group, when the log file
+	headers are not included.
+	@return	capacity in bytes */
+	lsn_t group_get_capacity() const;
+
+	/**
+	Reads a checkpoint info from a log group header to m_checkpoint_buf.
+	@param field		LOG_CHECKPOINT_1 or LOG_CHECKPOINT_2
+	@param field		LOG_CHECKPOINT_1 or LOG_CHECKPOINT_2
+	@param space_id		Space id to read from */
+	void checkpoint_read(ulint field, ulint space_id);
 
 #ifndef UNIV_HOTBACKUP
+
+	/**
+	Writes a buffer to a log file group.
+	@param ptr		buffer
+	@param len		buffer len; must be divisible
+				by OS_FILE_LOG_BLOCK_SIZE
+	@param start_lsn	start lsn of the buffer; must be divisible by
+				OS_FILE_LOG_BLOCK_SIZE
+	@param offset		start offset of new data in buf: this
+				parameter is used to decide if we have to
+				write a new log file header */
+	void group_write(
+		byte*		ptr,
+		ulint		len,	
+		lsn_t		start_lsn,
+		ulint		new_data_offset);
+
+	/**
+	Sets the field values in group to correspond to a given lsn. For
+	this function to work, the values must already be correctly
+	initialized to correspond to some lsn, for instance, a checkpoint
+	lsn.
+	@param lsn		lsn for which the values should be set */
+	void group_set_fields(lsn_t lsn);
+
+	/**
+	Writes a log file header to a log file space.
+	@param nth_file		header to the nth file in the log file space
+	@param start_lsn	log file data starts at this lsn */
+	void group_file_header_flush(
+		ulint		nth_file,
+		lsn_t		start_lsn);
+
+	/**
+	Initializes a log block in the log buffer in the old, < 3.23.52
+	format, where there was no checksum yet.
+	@param log_block	pointer to the log buffer
+	@param lsn		lsn within the log block */
+	static void block_init_v1(byte* block, lsn_t lsn);
+
+	/**
+	Converts a lsn to a log block number.
+	@param lsn		lsn of a byte within the block
+	@return	log block number, it is > 0 and <= 1G */
+	static ulint convert_lsn_to_no(lsn_t lsn);
+
+	/**
+	Checks the 4-byte checksum to the trailer checksum field of a log
+	block.  We also accept a log block in the old format before
+	InnoDB-3.23.52 where the checksum field contains the log block number.
+	@param block		pointer to a log block
+	@return true if ok, or if the log block may be in the format of InnoDB
+	version predating 3.23.52 */
+	static bool log_block_checksum_is_ok_or_old_format(const byte* block);
+
+	/**
+	Calculates the offset of an lsn within a log group.
+	@param lsn		lsn
+	@return	offset within the log group */
+	lsn_t group_calc_lsn_offset(lsn_t lsn);
+
+	/**
+	Calculates the offset within a log group, when the log file headers
+	are not included.
+	@param offset		real offset within the log group
+	@return	size offset (<= offset) */
+	lsn_t group_calc_size_offset(lsn_t offset);
+
+	/**
+	Calculates the offset within a log group, when the log file headers are
+	included.
+	@param offset           size offset within the log group
+	@return real offset (>= offset) */
+	lsn_t group_calc_real_offset(lsn_t offse);
+
+	/**
+	Writes the checkpoint info to a log group header. */
+	void group_checkpoint();
+
+	/**
+	Closes a log group.
+	@param group	log group to close */
+	void group_close();
+
+	/**
+	Completes a checkpoint. */
+	void complete_checkpoint();
+
+	/**
+	Copies a log segment from the most up-to-date log group to the
+	other log groups, so that they all contain the latest log data.
+	Also writes the info about the latest checkpoint to the groups,
+	and inits the fields in the group memory structs to up-to-date
+	values. */
+	void synchronize_groups(lsn_t recovered_lsn);
+
+	/**
+	Checks if a flush is completed for a log group and does the completion
+	routine if yes.
+	@return	LOG_UNLOCK_NONE_FLUSHED_LOCK or 0 */
+	ulint group_check_flush_completion();
+
+	/**
+	Scans log from a buffer and stores new log data to the parsing
+	buffer. Parses and hashes the log records if new data found.
+	@param contiguous_lsn	it is known that all log groups contain
+				contiguous log data up to this lsn
+	@param recover		The recovery manager */
+	void group_scan_log_recs(
+		lsn_t*		contiguous_lsn,
+		redo_recover_t*	recover);	
+	/**
+	Scans log from a buffer and stores new log data to the parsing buffer.
+	Parses and hashes the log records if new data found.  Unless
+	UNIV_HOTBACKUP is defined, this function will apply log records
+	automatically when the hash table becomes full.
+
+	@param available_memory	we let the hash table of recs to grow to
+				this size, at the maximum
+	@param store_to_hash	true if the records should be stored to the
+				hash table; this is set to false if just
+				debug checking is needed
+	@param lsn		buffer start lsn
+	@param contiguous_lsn	it is known that all log groups contain
+				contiguous log data up to this lsn
+	@param	recover		recovery manager to use
+
+	@return true if limit_lsn has been reached, or not able to scan any
+	more in this log group */
+	bool scan_log_recs(
+		ulint		available_memory,
+		bool		store_to_hash,
+		lsn_t		start_lsn,
+		lsn_t*		contiguous_lsn,
+		redo_recover_t*	recover);
+
+	/** Read the first log file header to print a note if this is
+	a recovery from a restored InnoDB Hot Backup. Rest if it is.
+	@return DB_SUCCESS or error code. */
+	dberr_t check_ibbackup();
+
+	/**
+	Prepare for recovery, check the the flushed LSN.
+	@return DB_SUCCESS or error code */
+	dberr_t prepare_for_recovery(
+		lsn_t		min_flushed_lsn,
+		lsn_t		max_flushed_lsn);
+
+	/**
+	Check a block and verify that it is a valid block. Update scan state.
+	@return DB_SUCCESS or error code */
+	dberr_t check_block(Scan& scan, const byte* block);
+
+#endif /* !UNIV_HOTBACKUP */
+
+private:
+	/** Log group, currently only one group is used */
+	Group*			m_group;
+
+	/** true when applying redo log records during crash recovery; FALSE
+	otherwise.  Note that this is FALSE while a background thread is
+	rolling back incomplete transactions. */
+	redo_recover_t*		m_recover;
+
+	/** End lsn for the current running write */
+	lsn_t			m_write_lsn;
+
+	/** Number of log i/os initiated thus far */
+	ulint			m_n_log_ios;
+
+	/** Number of log i/o's at the previous printout */
+	ulint			m_n_log_ios_old;
+
+	/** Size of a file in bytes, in the group */
+	os_offset_t		m_file_size;
+
+	/** For printing percentages */
+	ulint			m_print_counter;
+
+	/** Number of files in a group */
+	ulint			m_n_files;
+
+	/** number of currently pending flushes or writes */
+	ulint			m_n_pending_writes;
+
+	/** End lsn for the current running write + flush operation */
+	lsn_t			m_current_flush_lsn;
+
+	/** System states */
+	state_t			m_state;
+
+ 	/** How far we have written the log AND flushed to disk */
+	lsn_t			m_flushed_to_disk_lsn;
+
+#ifndef UNIV_HOTBACKUP
+
+	struct Checkpoint;
+
+	/** Mutex protecting the log */
+	mutable	ib_mutex_t	m_mutex;
+
+	/** Mutex to serialize access to the flush list when we are putting
+	dirty blocks in the list. The idea behind this mutex is to be able to
+	release log_t::mutex during mtr_commit and still ensure that insertions
+	in the flush_list happen in the LSN order. */
+	mutable	ib_mutex_t	m_flush_order_mutex;
+
+#endif /* !UNIV_HOTBACKUP */
+
+	/** Log sequence number */
+	lsn_t			m_lsn;
+
+	/** log buffer */
+	LogBuffer*		m_buf;
+
+	/** This is set to true when there may be need to flush the log
+	buffer, or preflush buffer pool pages, or make a checkpoint; this
+	MUST be true when lsn - last_checkpoint_lsn > max_checkpoint_age;
+	this flag is peeked at by redo_log->free_check(), which does
+	not reserve the log mutex */
+	bool			m_check_flush_or_checkpoint;
+
+#ifndef UNIV_HOTBACKUP
+
 	/** The fields involved in the log buffer flush @{ */
 
-	ulint		buf_next_to_write;/*!< first offset in the log buffer
-					where the byte content may not exist
-					written to file, e.g., the start
-					offset of a log record catenated
-					later; this is advanced when a flush
-					operation is completed to all the log
-					groups */
-	lsn_t		written_to_some_lsn;
-					/*!< first log sequence number not yet
-					written to any log group; for this to
-					be advanced, it is enough that the
-					write i/o has been completed for any
-					one log group */
-	lsn_t		written_to_all_lsn;
-					/*!< first log sequence number not yet
-					written to some log group; for this to
-					be advanced, it is enough that the
-					write i/o has been completed for all
-					log groups.
-					Note that since InnoDB currently
-					has only one log group therefore
-					this value is redundant. Also it
-					is possible that this value
-					falls behind the
-					flushed_to_disk_lsn transiently.
-					It is appropriate to use either
-					flushed_to_disk_lsn or
-					write_lsn which are always
-					up-to-date and accurate. */
-	lsn_t		write_lsn;	/*!< end lsn for the current running
-					write */
-	ulint		write_end_offset;/*!< the data in buffer has
-					been written up to this offset
-					when the current write ends:
-					this field will then be copied
-					to buf_next_to_write */
-	lsn_t		current_flush_lsn;/*!< end lsn for the current running
-					write + flush operation */
-	lsn_t		flushed_to_disk_lsn;
-					/*!< how far we have written the log
-					AND flushed to disk */
-	ulint		n_pending_writes;/*!< number of currently
-					pending flushes or writes */
+	/** First log sequence number not yet written to any log group; for
+	this to be advanced, it is enough that the write i/o has been completed
+	for any one log group */
+	lsn_t			m_written_to_some_lsn;
+
+	/** First log sequence number not yet written to some log group; for
+	this to be advanced, it is enough that the write i/o has been completed
+	for all log groups.  Note that since InnoDB currently has only one log
+	group therefore this value is redundant. Also it is possible that this
+	value falls behind the flushed_to_disk_lsn transiently.  It is
+	appropriate to use either flushed_to_disk_lsn or write_lsn which are
+	always up-to-date and accurate. */
+	lsn_t			m_written_to_all_lsn;
+
 	/* NOTE on the 'flush' in names of the fields below: starting from
 	4.0.14, we separate the write of the log file and the actual fsync()
 	or other method to flush it to disk. The names below shhould really
 	be 'flush_or_write'! */
-	os_event_t	no_flush_event;	/*!< this event is in the reset state
-					when a flush or a write is running;
-					a thread should wait for this without
-					owning the log mutex, but NOTE that
-					to set or reset this event, the
-					thread MUST own the log mutex! */
-	ibool		one_flushed;	/*!< during a flush, this is
-					first FALSE and becomes TRUE
-					when one log group has been
-					written or flushed */
-	os_event_t	one_flushed_event;/*!< this event is reset when the
-					flush or write has not yet completed
-					for any log group; e.g., this means
-					that a transaction has been committed
-					when this is set; a thread should wait
-					for this without owning the log mutex,
-					but NOTE that to set or reset this
-					event, the thread MUST own the log
-					mutex! */
-	ulint		n_log_ios;	/*!< number of log i/os initiated thus
-					far */
-	ulint		n_log_ios_old;	/*!< number of log i/o's at the
-					previous printout */
-	time_t		last_printout_time;/*!< when log_print was last time
-					called */
-	/* @} */
 
-	/** Fields involved in checkpoints @{ */
-	lsn_t		log_group_capacity; /*!< capacity of the log group; if
-					the checkpoint age exceeds this, it is
-					a serious error because it is possible
-					we will then overwrite log and spoil
-					crash recovery */
-	lsn_t		max_modified_age_async;
-					/*!< when this recommended
-					value for lsn -
-					buf_pool_get_oldest_modification()
-					is exceeded, we start an
-					asynchronous preflush of pool pages */
-	lsn_t		max_modified_age_sync;
-					/*!< when this recommended
-					value for lsn -
-					buf_pool_get_oldest_modification()
-					is exceeded, we start a
-					synchronous preflush of pool pages */
-	lsn_t		max_checkpoint_age_async;
-					/*!< when this checkpoint age
-					is exceeded we start an
-					asynchronous writing of a new
-					checkpoint */
-	lsn_t		max_checkpoint_age;
-					/*!< this is the maximum allowed value
-					for lsn - last_checkpoint_lsn when a
-					new query step is started */
-	ib_uint64_t	next_checkpoint_no;
-					/*!< next checkpoint number */
-	lsn_t		last_checkpoint_lsn;
-					/*!< latest checkpoint lsn */
-	lsn_t		next_checkpoint_lsn;
-					/*!< next checkpoint lsn */
-	ulint		n_pending_checkpoint_writes;
-					/*!< number of currently pending
-					checkpoint writes */
-	rw_lock_t	checkpoint_lock;/*!< this latch is x-locked when a
-					checkpoint write is running; a thread
-					should wait for this without owning
-					the log mutex */
+	/** this event is in the reset state when a flush or a write is
+	running; a thread should wait for this without owning the log mutex,
+	but NOTE that to set or reset this event, the thread MUST own the log
+	mutex! */
+	os_event_t		m_no_flush_event;
+
+	/** During a flush, this is first false and becomes true when one log
+	group has been written or flushed */
+	bool			m_one_flushed;
+
+	/** This event is reset when the flush or write has not yet completed
+	for any log group; e.g., this means that a transaction has been
+	committed when this is set; a thread should wait for this without
+	owning the log mutex, but NOTE that to set or reset this event, the
+	thread MUST own the log mutex! */
+	os_event_t		m_one_flushed_event;
+
+	/** When log_print was last time called */
+	time_t			m_last_printout_time;
+
+	/** Capacity of the log group; if the checkpoint age exceeds this,
+	it is a serious error because it is possible we will then overwrite
+	log and spoil crash recovery */
+	lsn_t			m_log_group_capacity;
+
+ 	/** When this recommended value for lsn -
+	buf_pool_get_oldest_modification() is exceeded, we start an
+	asynchronous preflush of pool pages */
+	lsn_t			m_max_modified_age_async;
+
+	/** When this recommended value for lsn -
+	buf_pool_get_oldest_modification() is exceeded, we start a
+	synchronous preflush of pool pages */
+	lsn_t			m_max_modified_age_sync;
+
+	Checkpoint*		m_checkpoint;
 #endif /* !UNIV_HOTBACKUP */
-	byte*		checkpoint_buf_ptr;/* unaligned checkpoint header */
-	byte*		checkpoint_buf;	/*!< checkpoint header is read to this
-					buffer */
-	/* @} */
+
+#ifdef UNIV_DEBUG
+	/** false if writing to the redo log (mtr_commit) is forbidden.
+	Protected by log_sys->mutex. */
+	bool			m_write_allowed;
+#endif /* UNIV_DEBUG */
+
+	/** If the following is true, the buffer pool file pages must
+	be invalidated after recovery and no ibuf operations are allowed;
+	this becomes true if the log record hash table becomes too full,
+	and log records must be merged to file pages already before the
+	recovery is finished: in this case no ibuf operations are allowed,
+	as they could modify the pages read in the buffer pool before the
+	pages have been recovered to the up-to-date state.
+
+	true means that recovery is running and no operations on the log files
+	are allowed yet: the variable name is misleading. */
+	bool			m_ibuf_allowed;
+
+	/** This many frames must be left free in the buffer pool when we scan
+	the log and store the scanned log records in the buffer pool: we will
+	use these free frames to read in pages when we start applying the
+	log records to the database.
+	This is the default value. If the actual size of the buffer pool is
+	larger than 10 MB we'll set this value to 512. */
+	ulint			m_n_free_frames;
+
+	/**
+	Command queue for redo requests. */
+	CommandQueue*		m_cmdq;
 };
 
+extern redo_log_t*		redo_log;
+
 /** Test if flush order mutex is owned. */
-#define log_flush_order_mutex_own()	\
-	mutex_own(&log_sys->log_flush_order_mutex)
+#define log_flush_order_mutex_own()					\
+	redo_log->is_flush_order_mutex_owned()
 
 /** Acquire the flush order mutex. */
-#define log_flush_order_mutex_enter() do {		\
-	mutex_enter(&log_sys->log_flush_order_mutex);	\
-} while (0)
+#define log_flush_order_mutex_enter()	redo_log->flush_order_mutex_enter()
+
 /** Release the flush order mutex. */
-# define log_flush_order_mutex_exit() do {		\
-	mutex_exit(&log_sys->log_flush_order_mutex);	\
-} while (0)
+# define log_flush_order_mutex_exit()	redo_log->flush_order_mutex_exit();
 
-#ifndef UNIV_NONINL
-#include "log0log.ic"
-#endif
+/**
+Redo log writer thread.
+@param	arg		a dummy parameter required by os_thread_create
+@return a dummy parameter */
+extern "C"
+os_thread_ret_t
+DECLARE_THREAD(log_writer_thread)(void* arg __attribute__((unused)));
 
-#endif
+#endif /* log0log_h */

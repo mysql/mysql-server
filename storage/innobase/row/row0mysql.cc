@@ -60,6 +60,8 @@ Created 9/17/2000 Heikki Tuuri
 #include "ibuf0ibuf.h"
 #include "fts0fts.h"
 #include "fts0types.h"
+#include "row0import.h"
+#include "srv0mon.h"
 #include "srv0space.h"
 #include "row0import.h"
 #include <deque>
@@ -2768,7 +2770,7 @@ row_drop_table_for_mysql_in_background(
 	the InnoDB data dictionary get out-of-sync if the user runs
 	with innodb_flush_log_at_trx_commit = 0 */
 
-	log_buffer_flush_to_disk();
+	redo_log->sync_flush();
 
 	trx_commit_for_mysql(trx);
 
@@ -3064,13 +3066,13 @@ row_discard_tablespace_end(
 	}
 
 	DBUG_EXECUTE_IF("ib_discard_before_commit_crash",
-			log_make_checkpoint_at(LSN_MAX, TRUE);
+			redo_log->checkpoint_at(LSN_MAX, true);
 			DBUG_SUICIDE(););
 
 	trx_commit_for_mysql(trx);
 
 	DBUG_EXECUTE_IF("ib_discard_after_commit_crash",
-			log_make_checkpoint_at(LSN_MAX, TRUE);
+			redo_log->checkpoint_at(LSN_MAX, true);
 			DBUG_SUICIDE(););
 
 	row_mysql_unlock_data_dictionary(trx);

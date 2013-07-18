@@ -27,25 +27,15 @@ Created Jan 06, 2010 Vasil Dimov
 
 #include "univ.i"
 
+#include "ut0ut.h"
+#include "ut0rnd.h"
+#include "dyn0buf.h"
+#include "row0sel.h"
+#include "trx0trx.h"
+#include "pars0pars.h"
+#include "dict0stats.h"
 #include "ha_prototypes.h"
 #include <mysql_com.h>
-
-#include "btr0btr.h"
-#include "btr0cur.h"
-#include "dict0dict.h"
-#include "dict0mem.h"
-#include "dict0stats.h"
-#include "data0type.h"
-#include "page0page.h"
-#include "pars0pars.h"
-#include "pars0types.h"
-#include "que0que.h"
-#include "rem0cmp.h"
-#include "row0sel.h"
-#include "row0types.h"
-#include "trx0trx.h"
-#include "trx0roll.h"
-#include "ut0rnd.h"
 
 #include <vector>
 

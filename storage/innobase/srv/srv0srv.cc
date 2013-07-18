@@ -972,7 +972,8 @@ srv_general_init(void)
 {
 	ut_mem_init();
 	/* Reset the system variables in the recovery module. */
-	recv_sys_var_init();
+	// FIXME: HACK
+	recover_ptr->var_init();
 	os_sync_init();
 	sync_init();
 	mem_init(srv_mem_pool_size);
@@ -1038,7 +1039,7 @@ srv_refresh_innodb_monitor_stats(void)
 	btr_cur_n_sea_old = btr_cur_n_sea;
 	btr_cur_n_non_sea_old = btr_cur_n_non_sea;
 
-	log_refresh_stats();
+	redo_log->refresh_stats();
 
 	buf_refresh_io_stats_all();
 
@@ -1175,7 +1176,8 @@ srv_printf_innodb_monitor(
 	fputs("---\n"
 	      "LOG\n"
 	      "---\n", file);
-	log_print(file);
+
+	redo_log->print(file);
 
 	fputs("----------------------\n"
 	      "BUFFER POOL AND MEMORY\n"
@@ -1651,7 +1653,7 @@ loop:
 	/* Try to track a strange bug reported by Harald Fuchs and others,
 	where the lsn seems to decrease at times */
 
-	new_lsn = log_get_lsn();
+	new_lsn = redo_log->get_lsn();
 
 	if (new_lsn < old_lsn) {
 		ut_print_timestamp(stderr);
@@ -1773,14 +1775,13 @@ srv_get_active_thread_type(void)
 	return(ret);
 }
 
-/**********************************************************************//**
+/**
 Check whether any background thread are active. If so print which thread
 is active. Send the threads wakeup signal.
 @return name of thread that is active or NULL */
 
 const char*
-srv_any_background_threads_are_active(void)
-/*=======================================*/
+srv_get_active_sys_threads()
 {
 	const char*	thread_active = NULL;
 
@@ -1922,7 +1923,7 @@ srv_sync_log_buffer_in_background(void)
 	srv_main_thread_op_info = "flushing log";
 	if (difftime(current_time, srv_last_log_flush_time)
 	    >= srv_flush_log_at_timeout) {
-		log_buffer_sync_in_background(TRUE);
+		redo_log->async_flush(true);
 		srv_last_log_flush_time = current_time;
 		srv_log_writes_and_flush++;
 	}
@@ -2033,7 +2034,7 @@ srv_master_do_active_tasks(void)
 	/* make sure that there is enough reusable space in the redo
 	log files */
 	srv_main_thread_op_info = "checking free log space";
-	log_free_check();
+	redo_log->free_check();
 
 	/* Do an ibuf merge */
 	srv_main_thread_op_info = "doing insert buffer merge";
@@ -2081,8 +2082,11 @@ srv_master_do_active_tasks(void)
 
 	/* Make a new checkpoint */
 	if (cur_time % SRV_MASTER_CHECKPOINT_INTERVAL == 0) {
+
 		srv_main_thread_op_info = "making checkpoint";
-		log_checkpoint(TRUE, FALSE);
+
+		redo_log->checkpoint(TRUE, false);
+
 		MONITOR_INC_TIME_IN_MICRO_SECS(
 			MONITOR_SRV_CHECKPOINT_MICROSECOND, counter_time);
 	}
@@ -2125,7 +2129,7 @@ srv_master_do_idle_tasks(void)
 	/* make sure that there is enough reusable space in the redo
 	log files */
 	srv_main_thread_op_info = "checking free log space";
-	log_free_check();
+	redo_log->free_check();
 
 	/* Do an ibuf merge */
 	counter_time = ut_time_us(NULL);
@@ -2154,9 +2158,11 @@ srv_master_do_idle_tasks(void)
 
 	/* Make a new checkpoint */
 	srv_main_thread_op_info = "making checkpoint";
-	log_checkpoint(TRUE, FALSE);
-	MONITOR_INC_TIME_IN_MICRO_SECS(MONITOR_SRV_CHECKPOINT_MICROSECOND,
-				       counter_time);
+
+	redo_log->checkpoint(TRUE, false);
+
+	MONITOR_INC_TIME_IN_MICRO_SECS(
+		MONITOR_SRV_CHECKPOINT_MICROSECOND, counter_time);
 }
 
 /*********************************************************************//**
@@ -2197,7 +2203,7 @@ srv_master_do_shutdown_tasks(
 	/* make sure that there is enough reusable space in the redo
 	log files */
 	srv_main_thread_op_info = "checking free log space";
-	log_free_check();
+	redo_log->free_check();
 
 	/* In case of normal shutdown we don't do ibuf merge or purge */
 	if (srv_fast_shutdown == 1) {
@@ -2214,7 +2220,8 @@ srv_master_do_shutdown_tasks(
 func_exit:
 	/* Make a new checkpoint about once in 10 seconds */
 	srv_main_thread_op_info = "making checkpoint";
-	log_checkpoint(TRUE, FALSE);
+
+	redo_log->checkpoint(TRUE, false);
 
 	/* Print progress message every 60 seconds during shutdown */
 	if (srv_shutdown_state > 0 && srv_print_verbose_log) {
@@ -2834,5 +2841,4 @@ srv_is_tablespace_truncated(ulint space_id)
 	return(truncate_t::is_tablespace_truncated(space_id));
 
 }
-
 

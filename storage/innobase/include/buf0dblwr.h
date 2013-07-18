@@ -29,6 +29,7 @@ Created 2011/12/19 Inaam Rana
 #include "univ.i"
 #include "ut0byte.h"
 #include "log0log.h"
+#include "buf0types.h"
 
 #ifndef UNIV_HOTBACKUP
 

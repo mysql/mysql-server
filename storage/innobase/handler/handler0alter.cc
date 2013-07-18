@@ -5889,7 +5889,7 @@ ha_innobase::commit_inplace_alter_table(
 		the data dictionary transaction should be
 		rolled back, restoring the old table. */
 		DBUG_EXECUTE_IF("innodb_alter_commit_crash_before_commit",
-				log_buffer_flush_to_disk();
+				redo_log->sync_flush();
 				DBUG_SUICIDE(););
 		ut_ad(trx_state_eq(trx, TRX_STATE_ACTIVE));
 		ut_ad(!trx->fts_trx);
@@ -5899,7 +5899,7 @@ ha_innobase::commit_inplace_alter_table(
 		mini-transaction, making the data dictionary
 		transaction committed at mtr.end_lsn. The
 		transaction becomes 'durable' by the time when
-		log_buffer_flush_to_disk() returns. In the
+		redo_log->sync_flush() returns. In the
 		logical sense the commit in the file-based
 		data structures happens here. */
 		trx_commit_low(trx, &mtr);
@@ -5909,7 +5909,7 @@ ha_innobase::commit_inplace_alter_table(
 		and the .frm files must be swapped manually by
 		the administrator. No loss of data. */
 		DBUG_EXECUTE_IF("innodb_alter_commit_crash_after_commit",
-				log_buffer_flush_to_disk();
+				redo_log->sync_flush();
 				DBUG_SUICIDE(););
 	}
 
@@ -5917,7 +5917,7 @@ ha_innobase::commit_inplace_alter_table(
 	the InnoDB data dictionary get out-of-sync if the user runs
 	with innodb_flush_log_at_trx_commit = 0 */
 
-	log_buffer_flush_to_disk();
+	redo_log->sync_flush();
 
 	/* At this point, the changes to the persistent storage have
 	been committed or rolled back. What remains to be done is to

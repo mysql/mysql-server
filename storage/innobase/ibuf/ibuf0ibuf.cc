@@ -341,8 +341,8 @@ ibuf_enter(
 /*=======*/
 	mtr_t*	mtr)	/*!< in/out: mini-transaction */
 {
-	ut_ad(!mtr->inside_ibuf);
-	mtr->inside_ibuf = TRUE;
+	ut_ad(!mtr->is_inside_ibuf());
+	mtr->enter_ibuf();
 }
 
 /******************************************************************//**
@@ -354,8 +354,8 @@ ibuf_exit(
 /*======*/
 	mtr_t*	mtr)	/*!< in/out: mini-transaction */
 {
-	ut_ad(mtr->inside_ibuf);
-	mtr->inside_ibuf = FALSE;
+	ut_ad(mtr->is_inside_ibuf());
+	mtr->exit_ibuf();
 }
 
 /**************************************************************//**
@@ -1177,7 +1177,7 @@ ibuf_page_low(
 	mtr_t	local_mtr;
 	page_t*	bitmap_page;
 
-	ut_ad(!recv_no_ibuf_operations);
+	ut_ad(redo_log->is_ibuf_allowed());
 	ut_ad(x_latch || mtr == NULL);
 
 	if (ibuf_fixed_addr_page(space, zip_size, page_no)) {
@@ -4443,8 +4443,12 @@ ibuf_delete_rec(
 		an assertion failure after crash recovery. */
 		btr_cur_set_deleted_flag_for_ibuf(
 			btr_pcur_get_rec(pcur), NULL, TRUE, mtr);
+
 		ibuf_mtr_commit(mtr);
-		log_write_up_to(LSN_MAX, LOG_WAIT_ALL_GROUPS, TRUE);
+
+		redo_log->write_up_to(
+			LSN_MAX, redo_log_t::WAIT_MODE_ALL_GROUPS, TRUE);
+
 		DBUG_SUICIDE();
 	}
 #endif /* UNIV_DEBUG || UNIV_IBUF_DEBUG */
@@ -4502,7 +4506,7 @@ ibuf_delete_rec(
 
 		mutex_exit(&ibuf_mutex);
 		ut_ad(!ibuf_inside(mtr));
-		ut_ad(mtr->state == MTR_COMMITTED);
+		ut_ad(mtr->has_committed());
 		goto func_exit;
 	}
 
@@ -4523,7 +4527,7 @@ ibuf_delete_rec(
 
 func_exit:
 	ut_ad(!ibuf_inside(mtr));
-	ut_ad(mtr->state == MTR_COMMITTED);
+	ut_ad(mtr->has_committed());
 	btr_pcur_close(pcur);
 
 	return(TRUE);
@@ -4855,7 +4859,7 @@ loop:
 						      &pcur, &mtr)) {
 
 					ut_ad(!ibuf_inside(&mtr));
-					ut_ad(mtr.state == MTR_COMMITTED);
+					ut_ad(mtr.has_committed());
 					mops[op]++;
 					ibuf_dummy_index_free(dummy_index);
 					goto loop;
@@ -4879,7 +4883,7 @@ loop:
 			/* Deletion was pessimistic and mtr was committed:
 			we start from the beginning again */
 
-			ut_ad(mtr.state == MTR_COMMITTED);
+			ut_ad(mtr.has_committed());
 			goto loop;
 		} else if (btr_pcur_is_after_last_on_page(&pcur)) {
 			ibuf_mtr_commit(&mtr);
@@ -5010,7 +5014,7 @@ loop:
 			/* Deletion was pessimistic and mtr was committed:
 			we start from the beginning again */
 
-			ut_ad(mtr.state == MTR_COMMITTED);
+			ut_ad(mtr.has_committed());
 			goto loop;
 		}
 

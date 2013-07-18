@@ -917,7 +917,9 @@ buf_flush_write_block_low(
 	}
 #else
 	/* Force the log to the disk before writing the modified block */
-	log_write_up_to(bpage->newest_modification, LOG_WAIT_ALL_GROUPS, TRUE);
+	redo_log->write_up_to(
+		bpage->newest_modification,
+		redo_log_t::WAIT_MODE_ALL_GROUPS, true);
 #endif
 	switch (buf_page_get_state(bpage)) {
 	case BUF_BLOCK_POOL_WATCH:
@@ -2195,14 +2197,14 @@ af_get_pct_for_lsn(
 	lsn_t	max_async_age;
 	lsn_t	lsn_age_factor;
 	lsn_t	af_lwm = (srv_adaptive_flushing_lwm
-			  * log_get_capacity()) / 100;
+			  * redo_log->get_capacity()) / 100;
 
 	if (age < af_lwm) {
 		/* No adaptive flushing. */
 		return(0);
 	}
 
-	max_async_age = log_get_max_modified_age_async();
+	max_async_age = redo_log->get_max_modified_age_async();
 
 	if (age < max_async_age && !srv_adaptive_flushing) {
 		/* We have still not reached the max_async point and
@@ -2252,7 +2254,7 @@ page_cleaner_flush_pages_if_needed(void)
 	ulint			pct_total = 0;
 	int			age_factor = 0;
 
-	cur_lsn = log_get_lsn();
+	cur_lsn = redo_log->get_lsn();
 
 	if (prev_lsn == 0) {
 		/* First time around. */
