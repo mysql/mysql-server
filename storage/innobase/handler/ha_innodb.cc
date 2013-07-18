@@ -3276,7 +3276,7 @@ innobase_flush_logs(
 	DBUG_ASSERT(hton == innodb_hton_ptr);
 
 	if (!srv_read_only_mode) {
-		log_buffer_flush_to_disk();
+		redo_log->sync_flush();
 	}
 
 	DBUG_RETURN(result);
@@ -9430,7 +9430,7 @@ ha_innobase::create(
 	the InnoDB data dictionary get out-of-sync if the user runs
 	with innodb_flush_log_at_trx_commit = 0 */
 
-	log_buffer_flush_to_disk();
+	redo_log->sync_flush();
 
 	innobase_table = dict_table_open_on_name(
 		norm_name, FALSE, FALSE, DICT_ERR_IGNORE_NONE);
@@ -9792,7 +9792,7 @@ ha_innobase::delete_table(
 	the InnoDB data dictionary get out-of-sync if the user runs
 	with innodb_flush_log_at_trx_commit = 0 */
 
-	log_buffer_flush_to_disk();
+	redo_log->sync_flush();
 
 	/* Tell the InnoDB server that there might be work for
 	utility threads: */
@@ -9878,7 +9878,7 @@ innobase_drop_database(
 	the InnoDB data dictionary get out-of-sync if the user runs
 	with innodb_flush_log_at_trx_commit = 0 */
 
-	log_buffer_flush_to_disk();
+	redo_log->sync_flush();
 
 	/* Tell the InnoDB server that there might be work for
 	utility threads: */
@@ -9996,7 +9996,7 @@ innobase_rename_table(
 	files and the InnoDB data dictionary get out-of-sync
 	if the user runs with innodb_flush_log_at_trx_commit = 0 */
 
-	log_buffer_flush_to_disk();
+	redo_log->sync_flush();
 
 	DBUG_RETURN(error);
 }
@@ -15146,11 +15146,13 @@ checkpoint_now_set(
 						check function */
 {
 	if (*(my_bool*) save) {
-		while (log_sys->last_checkpoint_lsn < log_sys->lsn) {
-			log_make_checkpoint_at(LSN_MAX, TRUE);
+
+		while (redo_log->checkpoint_lsn() < redo_log->get_lsn()) {
+			redo_log->checkpoint(LSN_MAX, TRUE);
 			fil_flush_file_spaces(FIL_LOG);
 		}
-		fil_write_flushed_lsn_to_data_files(log_sys->lsn, 0);
+
+		fil_write_flushed_lsn_to_data_files(redo_log->get_lsn());
 		fil_flush_file_spaces(FIL_TABLESPACE);
 	}
 }

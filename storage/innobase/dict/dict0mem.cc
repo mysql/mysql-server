@@ -629,7 +629,10 @@ dict_mem_create_temporary_tablename(
 		dblen + (sizeof(TEMP_FILE_PREFIX) + 3 + 20 + 1 + 20);
 
 	lsn_t		cur_lsn;
-	while (!log_peek_lsn(&cur_lsn)) {}
+
+	while (!redo_log->peek_lsn(&cur_lsn)) {
+		/* Do nothing. */
+	}
 
 	char*	name = static_cast<char*>(mem_heap_alloc(heap, size));
 	memcpy(name, dbtab, dblen);

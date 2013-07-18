@@ -732,14 +732,13 @@ srv_release_threads(
 	enum srv_thread_type	type,	/*!< in: thread type */
 	ulint			n);	/*!< in: number of threads to release */
 
-/**********************************************************************//**
+/**
 Check whether any background thread are active. If so print which thread
 is active. Send the threads wakeup signal.
 @return name of thread that is active or NULL */
 
 const char*
-srv_any_background_threads_are_active(void);
-/*=======================================*/
+srv_get_active_sys_threads();
 
 /**********************************************************************//**
 Wakeup the purge threads. */

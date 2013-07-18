@@ -56,12 +56,12 @@ Created 4/20/1996 Heikki Tuuri
 /*************************************************************************
 IMPORTANT NOTE: Any operation that generates redo MUST check that there
 is enough space in the redo log before for that operation. This is
-done by calling log_free_check(). The reason for checking the
+done by calling redo_log->free_check(). The reason for checking the
 availability of the redo log space before the start of the operation is
 that we MUST not hold any synchonization objects when performing the
 check.
 If you make a change in this module make sure that no codepath is
-introduced where a call to log_free_check() is bypassed. */
+introduced where a call to redo_log->free_check() is bypassed. */
 
 /*********************************************************************//**
 Creates an insert node struct.
@@ -2517,8 +2517,8 @@ err_exit:
 
 			DBUG_EXECUTE_IF(
 				"row_ins_extern_checkpoint",
-				log_make_checkpoint_at(
-					LSN_MAX, TRUE););
+				redo_log->checkpoint_at(
+					LSN_MAX, true););
 			err = row_ins_index_entry_big_rec(
 				entry, big_rec, offsets, &offsets_heap, index,
 				thr_get_trx(thr)->mysql_thd,
@@ -2895,7 +2895,7 @@ row_ins_clust_index_entry(
 
 	/* Try first optimistic descent to the B-tree */
 
-	log_free_check();
+	redo_log->free_check();
 
 	err = row_ins_clust_index_entry_low(
 		0, BTR_MODIFY_LEAF, index, n_uniq, entry, n_ext, thr);
@@ -2910,7 +2910,7 @@ row_ins_clust_index_entry(
 
 	/* Try then pessimistic descent to the B-tree */
 
-	log_free_check();
+	redo_log->free_check();
 
 	DBUG_RETURN(row_ins_clust_index_entry_low(
 		       0, BTR_MODIFY_TREE, index, n_uniq, entry, n_ext, thr));
@@ -2950,7 +2950,7 @@ row_ins_sec_index_entry(
 
 	/* Try first optimistic descent to the B-tree */
 
-	log_free_check();
+	redo_log->free_check();
 
 	err = row_ins_sec_index_entry_low(
 		0, BTR_MODIFY_LEAF, index, offsets_heap, heap, entry, 0, thr);
@@ -2959,7 +2959,7 @@ row_ins_sec_index_entry(
 
 		/* Try then pessimistic descent to the B-tree */
 
-		log_free_check();
+		redo_log->free_check();
 
 		err = row_ins_sec_index_entry_low(
 			0, BTR_MODIFY_TREE, index,

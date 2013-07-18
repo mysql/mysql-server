@@ -196,16 +196,15 @@ buf_read_page_low(
 
 	if (*err != DB_SUCCESS) {
 		if (*err == DB_TABLESPACE_TRUNCATED) {
+
 			/* Remove the page which is outside the
 			truncated tablespace bounds when recovering
 			from a crash happened during a truncation */
+
 			buf_read_page_handle_error(bpage);
-			if (recv_recovery_on) {
-				mutex_enter(&recv_sys->mutex);
-				ut_ad(recv_sys->n_addrs > 0);
-				recv_sys->n_addrs--;
-				mutex_exit(&recv_sys->mutex);
-			}
+
+			redo_log->handle_truncate();
+
 			return(0);
 		} else if (ignore_nonexistent_pages
 			   || *err == DB_TABLESPACE_DELETED) {
@@ -851,7 +850,7 @@ buf_read_recv_pages(
 
 	zip_size = fil_space_get_zip_size(space);
 
-	if (UNIV_UNLIKELY(zip_size == ULINT_UNDEFINED)) {
+	if (zip_size == ULINT_UNDEFINED) {
 		/* It is a single table tablespace and the .ibd file is
 		missing: do nothing */
 
@@ -866,7 +865,9 @@ buf_read_recv_pages(
 		count = 0;
 
 		buf_pool = buf_pool_get(space, page_nos[i]);
-		while (buf_pool->n_pend_reads >= recv_n_pool_free_frames / 2) {
+
+		while (buf_pool->n_pend_reads
+		       >= redo_log->get_free_frames() / 2) {
 
 			os_aio_simulated_wake_handler_threads();
 			os_thread_sleep(10000);

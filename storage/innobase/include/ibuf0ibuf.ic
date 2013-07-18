@@ -43,7 +43,7 @@ ibuf_mtr_start(
 	mtr_t*	mtr)	/*!< out: mini-transaction */
 {
 	mtr_start(mtr);
-	mtr->inside_ibuf = TRUE;
+	mtr->enter_ibuf();
 }
 /***************************************************************//**
 Commits an insert buffer mini-transaction. */
@@ -53,8 +53,9 @@ ibuf_mtr_commit(
 /*============*/
 	mtr_t*	mtr)	/*!< in/out: mini-transaction */
 {
-	ut_ad(mtr->inside_ibuf);
-	ut_d(mtr->inside_ibuf = FALSE);
+	ut_ad(mtr->is_inside_ibuf());
+	ut_d(mtr->exit_ibuf());
+
 	mtr_commit(mtr);
 }
 
@@ -144,7 +145,7 @@ ibuf_inside(
 /*========*/
 	const mtr_t*	mtr)	/*!< in: mini-transaction */
 {
-	return(mtr->inside_ibuf);
+	return(mtr->is_inside_ibuf());
 }
 
 /***********************************************************************//**

@@ -33,6 +33,7 @@ Created 3/26/1996 Heikki Tuuri
 #include "dict0types.h"
 #include "data0data.h"
 #include "rem0types.h"
+#include "page0types.h"
 
 #ifndef UNIV_HOTBACKUP
 # include "que0types.h"

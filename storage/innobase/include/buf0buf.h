@@ -466,12 +466,11 @@ buf_page_release_zip(
 /*=================*/
 	buf_page_t*	bpage);		/*!< in: buffer block */
 /********************************************************************//**
-Decrements the bufferfix count of a buffer control block and releases
-a latch, if specified. */
+Releases a latch, if specified. */
 UNIV_INLINE
 void
-buf_page_release(
-/*=============*/
+buf_page_release_latches(
+/*=====================*/
 	buf_block_t*	block,		/*!< in: buffer block */
 	ulint		rw_latch);	/*!< in: RW_S_LATCH, RW_X_LATCH,
 					RW_NO_LATCH */

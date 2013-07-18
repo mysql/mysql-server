@@ -26,6 +26,8 @@ Created 3/26/1996 Heikki Tuuri
 #ifndef trx0trx_h
 #define trx0trx_h
 
+#include <set>
+
 #include "ha_prototypes.h"
 
 #include "dict0types.h"
@@ -42,7 +44,8 @@ Created 3/26/1996 Heikki Tuuri
 #include "ut0vec.h"
 #include "fts0fts.h"
 
-#include <set>
+// Forward declaration
+struct mtr_t;
 
 /** Dummy session used currently in MySQL interface */
 extern sess_t*	trx_dummy_sess;
