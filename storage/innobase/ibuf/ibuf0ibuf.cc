@@ -4447,7 +4447,7 @@ ibuf_delete_rec(
 		ibuf_mtr_commit(mtr);
 
 		redo_log->write_up_to(
-			LSN_MAX, RedoLog::WAIT_MODE_ALL_GROUPS, TRUE);
+			LSN_MAX, RedoLog::WAIT_MODE_ONE_GROUP, TRUE);
 
 		DBUG_SUICIDE();
 	}
