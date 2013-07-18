@@ -1,6 +1,4 @@
-TRUNCATE TABLE performance_schema.events_statements_history;
 TRUNCATE TABLE performance_schema.events_statements_history_long;
-TRUNCATE TABLE performance_schema.events_statements_current;
 #----------------------------
 # Non-nested Stored programs.
 #----------------------------
@@ -156,26 +154,6 @@ a
 1
 SET GLOBAL event_scheduler=OFF;
 SELECT EVENT_NAME, OBJECT_NAME, NESTING_EVENT_TYPE, NESTING_EVENT_LEVEL
-FROM performance_schema.events_statements_current WHERE
-CURRENT_SCHEMA='stored_programs' ORDER BY OBJECT_NAME;
-EVENT_NAME	OBJECT_NAME	NESTING_EVENT_TYPE	NESTING_EVENT_LEVEL
-statement/sql/select	NULL	NULL	0
-statement/sp/stmt	e1	NULL	0
-SELECT EVENT_NAME, OBJECT_NAME, NESTING_EVENT_TYPE, NESTING_EVENT_LEVEL
-FROM performance_schema.events_statements_history WHERE
-CURRENT_SCHEMA='stored_programs' ORDER BY OBJECT_NAME,NESTING_EVENT_LEVEL;
-EVENT_NAME	OBJECT_NAME	NESTING_EVENT_TYPE	NESTING_EVENT_LEVEL
-statement/sql/select	NULL	NULL	0
-statement/sql/select	NULL	NULL	0
-statement/sql/select	NULL	NULL	0
-statement/sql/select	NULL	NULL	0
-statement/sql/select	NULL	NULL	0
-statement/sql/select	NULL	NULL	0
-statement/sql/select	NULL	NULL	0
-statement/sql/set_option	NULL	NULL	0
-statement/sql/select	NULL	NULL	0
-statement/sql/select	NULL	NULL	0
-SELECT EVENT_NAME, OBJECT_NAME, NESTING_EVENT_TYPE, NESTING_EVENT_LEVEL
 FROM performance_schema.events_statements_history_long WHERE
 CURRENT_SCHEMA='stored_programs' ORDER BY OBJECT_NAME,NESTING_EVENT_LEVEL;
 EVENT_NAME	OBJECT_NAME	NESTING_EVENT_TYPE	NESTING_EVENT_LEVEL
@@ -242,9 +220,8 @@ statement/sql/select	NULL	NULL	0
 statement/sql/set_option	NULL	NULL	0
 statement/sql/select	NULL	NULL	0
 statement/sql/select	NULL	NULL	0
-statement/sql/select	NULL	NULL	0
-statement/sql/select	NULL	NULL	0
 statement/sp/freturn	append	STATEMENT	1
+statement/sp/stmt	e1	NULL	0
 statement/sp/stmt	e1	NULL	0
 statement/sp/set	fac	STATEMENT	1
 statement/sp/jump_if_not	fac	STATEMENT	1
@@ -301,9 +278,7 @@ statement/sp/stmt	trg3	STATEMENT	1
 statement/sp/set	wt_avg	STATEMENT	1
 statement/sp/set	wt_avg	STATEMENT	1
 statement/sp/freturn	wt_avg	STATEMENT	1
-TRUNCATE TABLE performance_schema.events_statements_history;
 TRUNCATE TABLE performance_schema.events_statements_history_long;
-TRUNCATE TABLE performance_schema.events_statements_current;
 DROP PROCEDURE SampleProc1;
 DROP PROCEDURE SampleProc2;
 DROP PROCEDURE SampleProc3;
@@ -451,31 +426,10 @@ n	f
 9	362880
 10	3628800
 SELECT EVENT_NAME, OBJECT_NAME, NESTING_EVENT_TYPE, NESTING_EVENT_LEVEL
-FROM performance_schema.events_statements_current WHERE
-CURRENT_SCHEMA='nested_sp' ORDER BY OBJECT_NAME;
-EVENT_NAME	OBJECT_NAME	NESTING_EVENT_TYPE	NESTING_EVENT_LEVEL
-statement/sql/select	NULL	NULL	0
-SELECT EVENT_NAME, OBJECT_NAME, NESTING_EVENT_TYPE, NESTING_EVENT_LEVEL
-FROM performance_schema.events_statements_history WHERE
-CURRENT_SCHEMA='nested_sp' ORDER BY OBJECT_NAME,NESTING_EVENT_LEVEL;
-EVENT_NAME	OBJECT_NAME	NESTING_EVENT_TYPE	NESTING_EVENT_LEVEL
-statement/sql/select	NULL	NULL	0
-statement/sql/select	NULL	NULL	0
-statement/sql/insert	NULL	NULL	0
-statement/sp/freturn	fac	STATEMENT	3
-statement/sp/jump_if_not	fac	STATEMENT	3
-statement/sp/set	ifac	STATEMENT	2
-statement/sp/jump_if_not	ifac	STATEMENT	2
-statement/sp/jump	ifac	STATEMENT	2
-statement/sp/stmt	ifac	STATEMENT	2
-statement/sp/stmt	trg	STATEMENT	1
-SELECT EVENT_NAME, OBJECT_NAME, NESTING_EVENT_TYPE, NESTING_EVENT_LEVEL
 FROM performance_schema.events_statements_history_long WHERE
 CURRENT_SCHEMA='nested_sp' ORDER BY OBJECT_NAME,NESTING_EVENT_LEVEL;
 EVENT_NAME	OBJECT_NAME	NESTING_EVENT_TYPE	NESTING_EVENT_LEVEL
 statement/sql/insert	NULL	NULL	0
-statement/sql/select	NULL	NULL	0
-statement/sql/select	NULL	NULL	0
 statement/sql/select	NULL	NULL	0
 statement/sql/call_procedure	NULL	NULL	0
 statement/sql/select	NULL	NULL	0
@@ -1157,8 +1111,6 @@ statement/sp/set	fac	STATEMENT	5
 statement/sp/jump	fac	STATEMENT	5
 statement/sp/jump_if_not	fac	STATEMENT	5
 statement/sp/freturn	fac	STATEMENT	5
-statement/sp/jump_if_not	fac	STATEMENT	7
-statement/sp/set	fac	STATEMENT	7
 statement/sp/set	fac	STATEMENT	7
 statement/sp/jump	fac	STATEMENT	7
 statement/sp/jump_if_not	fac	STATEMENT	7
@@ -1312,6 +1264,8 @@ statement/sp/jump_if_not	fac	STATEMENT	7
 statement/sp/set	fac	STATEMENT	7
 statement/sp/set	fac	STATEMENT	7
 statement/sp/jump	fac	STATEMENT	7
+statement/sp/jump_if_not	fac	STATEMENT	7
+statement/sp/set	fac	STATEMENT	7
 statement/sp/freturn	fun	STATEMENT	1
 statement/sp/set	ifac	STATEMENT	2
 statement/sp/jump_if_not	ifac	STATEMENT	2
@@ -1446,6 +1400,8 @@ statement/sp/stmt	ifac	STATEMENT	6
 statement/sp/set	ifac	STATEMENT	6
 statement/sp/jump	ifac	STATEMENT	6
 statement/sp/jump_if_not	ifac	STATEMENT	6
+statement/sp/jump	ifac	STATEMENT	6
+statement/sp/jump_if_not	ifac	STATEMENT	6
 statement/sp/stmt	ifac	STATEMENT	6
 statement/sp/set	ifac	STATEMENT	6
 statement/sp/jump	ifac	STATEMENT	6
@@ -1473,9 +1429,7 @@ statement/sp/stmt	trg	STATEMENT	1
 statement/sp/stmt	trg	STATEMENT	2
 statement/sp/stmt	trg	STATEMENT	3
 statement/sp/stmt	trg	STATEMENT	5
-TRUNCATE TABLE performance_schema.events_statements_history;
 TRUNCATE TABLE performance_schema.events_statements_history_long;
-TRUNCATE TABLE performance_schema.events_statements_current;
 DROP PROCEDURE c4;
 DROP PROCEDURE c3;
 DROP PROCEDURE c2;

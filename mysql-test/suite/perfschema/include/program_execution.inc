@@ -29,6 +29,7 @@ SELECT append("Bolly", "wood");
 --echo # Event
 
 SET GLOBAL event_scheduler=ON;
+
 CREATE TABLE table_t(a INT);
 DELIMITER |;
 CREATE EVENT e1 ON SCHEDULE EVERY 2 SECOND DO
@@ -42,6 +43,6 @@ DELIMITER ;|
 --let $wait_condition= select count(*) = 2 from table_t
 --source include/wait_condition.inc
 SELECT * FROM table_t;
+
 SET GLOBAL event_scheduler=OFF;
 --source include/no_running_event_scheduler.inc
-
