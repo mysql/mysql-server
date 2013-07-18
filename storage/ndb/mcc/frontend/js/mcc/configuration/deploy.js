@@ -624,16 +624,16 @@ function getConfigurationFile(process) {
         addln(configFile, "#");
         addln(configFile, "[mysqld]");
         addln(configFile, "log-error=mysqld."+process.getValue("NodeId")+".err")
-        addln(configFile, "datadir="+configFile.path);
-        addln(configFile, "tmpdir="+configFile.path+"tmp");
-        addln(configFile, "basedir="+mcc.util.unixPath(getEffectiveInstalldir(hostItem)));
+        addln(configFile, "datadir=\""+configFile.path+"\"");
+        addln(configFile, "tmpdir=\""+configFile.path+"tmp"+"\"");
+        addln(configFile, "basedir=\""+mcc.util.unixPath(getEffectiveInstalldir(hostItem))+"\"");
         addln(configFile, "port="+getEffectiveInstanceValue(process, "Port"));
         addln(configFile, "ndbcluster=on");
         addln(configFile, "ndb-nodeid="+process.getValue("NodeId"));
         addln(configFile, "ndb-connectstring="+getConnectstring());
         if (!mcc.util.isWin(hostItem.getValue("uname"))) {
-            addln(configFile, "socket="+
-                  getEffectiveInstanceValue(process, "Socket"));            
+            addln(configFile, "socket=\""+
+                  getEffectiveInstanceValue(process, "Socket")+"\"");            
         }
     } else {
         return null;
@@ -956,9 +956,16 @@ function getStartProcessCommands(process) {
         
         sc.addopt("--initial");
         sc.addopt("--ndb-nodeid", process.getValue("NodeId"));
-        sc.addopt("--config-dir", mcc.util.unixPath(datadir));
-        sc.addopt("--config-file", mcc.util.unixPath(datadir) + 
-                  "config.ini");
+
+	if (isWin) {
+            sc.addopt("\\\"--config-dir", mcc.util.unixPath(datadir)+"\\\"");
+            sc.addopt("\\\"--config-file", mcc.util.unixPath(datadir) + 
+                      "config.ini\\\"");
+	} else {
+            sc.addopt("--config-dir", mcc.util.unixPath(datadir));
+            sc.addopt("--config-file", mcc.util.unixPath(datadir) + 
+                      "config.ini");
+	}
 
         return scmds;
     } 
@@ -1039,7 +1046,7 @@ function getStartProcessCommands(process) {
 
             sc.addopt("--install");
             sc.addopt("N"+nodeid);
-            sc.addopt("--defaults-file", datadir+"my.cnf");
+            sc.addopt("\\\"--defaults-file", datadir+"my.cnf\\\"");
             sc.msg.procCtrl.noRaise = 1; // --install returns 1 on success
             sc.progTitle = "Installing node "+nodeid+" ("+ptype+
             ") as service N"+nodeid;
