@@ -5561,9 +5561,14 @@ ft_cursor_shortcut (
 
             cursor->direction = direction;
             r = cursor_check_restricted_range(cursor, *key, *keylen);
-            if (r==0) {
-                r = getf(*keylen, *key, *vallen, *val, getf_v, false);
+            if (r!=0) {
+                paranoid_invariant(r == cursor->out_of_range_error);
+                // We already got at least one entry from the bulk fetch.
+                // Return 0 (instead of out of range error).
+                r = 0;
+                break;
             }
+            r = getf(*keylen, *key, *vallen, *val, getf_v, false);
             if (r == 0 || r == TOKUDB_CURSOR_CONTINUE) {
                 //Update cursor.
                 cursor->leaf_info.to_be.index = index;
