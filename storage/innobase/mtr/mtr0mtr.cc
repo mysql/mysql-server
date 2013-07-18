@@ -43,7 +43,7 @@ template <typename Functor>
 struct Iterate {
 
 	/** Release specific object */
-	Iterate(Functor& functor)
+	explicit Iterate(Functor& functor)
 		:
 		m_functor(functor)
 	{
@@ -323,7 +323,7 @@ struct ReleaseBlocks {
 	lsn_t		m_start_lsn;
 };
 
-struct mtr_t::Command : public redo_log_t::Command {
+struct mtr_t::Command : public RedoLog::Command {
 
 	/**
 	Command takes ownership of the m_impl member of mtr and is responsible
@@ -352,7 +352,7 @@ struct mtr_t::Command : public redo_log_t::Command {
 	/**
 	Write the redo log record, add dirty pages to the flush list and
 	release the resources. */
-	virtual void execute(redo_log_t* redo_log);
+	virtual void execute(RedoLog* redo_log);
 
 	/**
 	Release the blocks used in this mini-transaction. */
@@ -373,7 +373,7 @@ struct mtr_t::Command : public redo_log_t::Command {
 private:
 	/**
 	Write the redo log record */
-	void write(redo_log_t* redo_log);
+	void write(RedoLog* redo_log);
 
 private:
 	/** true if it is a sync mini-transaction. */
@@ -556,7 +556,7 @@ mtr_t::memo_release(const void* object, ulint type)
 Write the redo log record */
 
 void
-mtr_t::Command::write(redo_log_t* redo_log)
+mtr_t::Command::write(RedoLog* redo_log)
 {
 	byte*	data = m_impl->m_log.front()->begin();
 
@@ -649,7 +649,7 @@ Write the redo log record, add dirty pages to the flush list and release
 the resources. */
 
 void
-mtr_t::Command::execute(redo_log_t* redo_log)
+mtr_t::Command::execute(RedoLog* redo_log)
 {
 	write(redo_log);
 
