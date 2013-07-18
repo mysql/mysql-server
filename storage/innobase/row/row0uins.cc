@@ -50,12 +50,12 @@ Created 2/25/1997 Heikki Tuuri
 /*************************************************************************
 IMPORTANT NOTE: Any operation that generates redo MUST check that there
 is enough space in the redo log before for that operation. This is
-done by calling log_free_check(). The reason for checking the
+done by calling redo_log->free_check(). The reason for checking the
 availability of the redo log space before the start of the operation is
 that we MUST not hold any synchonization objects when performing the
 check.
 If you make a change in this module make sure that no codepath is
-introduced where a call to log_free_check() is bypassed. */
+introduced where a call to redo_log->free_check() is bypassed. */
 
 /***************************************************************//**
 Removes a clustered index record. The pcur in node was positioned on the
@@ -198,7 +198,7 @@ row_undo_ins_remove_sec_low(
 	mtr_t			mtr;
 	enum row_search_result	search_result;
 
-	log_free_check();
+	redo_log->free_check();
 
 	mtr_start(&mtr);
 	dict_disable_redo_if_temporary(index->table, &mtr);
@@ -453,7 +453,7 @@ row_undo_ins(
 
 	if (err == DB_SUCCESS) {
 
-		log_free_check();
+		redo_log->free_check();
 
 		if (node->table->id == DICT_INDEXES_ID) {
 

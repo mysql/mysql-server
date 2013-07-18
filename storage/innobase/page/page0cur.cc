@@ -527,14 +527,13 @@ page_cur_insert_rec_write_log(
 	ulint	extra_size;
 	ulint	cur_extra_size;
 	const byte* ins_ptr;
-	byte*	log_ptr;
 	const byte* log_end;
 	ulint	i;
 
 	/* Avoid REDO logging to save on costly IO because
 	temporary tables are not recovered during crash recovery. */
 	if (dict_table_is_temporary(index->table)) {
-		log_ptr = mlog_open(mtr, 0);
+		byte*	log_ptr = mlog_open(mtr, 0);
 		if (log_ptr == NULL) {
 			return;
 		}
@@ -602,6 +601,8 @@ page_cur_insert_rec_write_log(
 			}
 		} while (i < min_rec_size);
 	}
+
+	byte*	log_ptr;
 
 	if (mtr_get_log_mode(mtr) != MTR_LOG_SHORT_INSERTS) {
 
@@ -754,9 +755,9 @@ page_cur_parse_insert_rec(
 
 		cursor_rec = page + offset;
 
-		if (UNIV_UNLIKELY(offset >= UNIV_PAGE_SIZE)) {
+		if (offset >= UNIV_PAGE_SIZE) {
 
-			recv_sys->found_corrupt_log = TRUE;
+			recover_ptr->set_log_corrupt();
 
 			return(NULL);
 		}
@@ -769,8 +770,8 @@ page_cur_parse_insert_rec(
 		return(NULL);
 	}
 
-	if (UNIV_UNLIKELY(end_seg_len >= UNIV_PAGE_SIZE << 1)) {
-		recv_sys->found_corrupt_log = TRUE;
+	if (end_seg_len >= UNIV_PAGE_SIZE << 1) {
+		recover_ptr->set_log_corrupt();
 
 		return(NULL);
 	}
@@ -805,7 +806,7 @@ page_cur_parse_insert_rec(
 		ut_a(mismatch_index < UNIV_PAGE_SIZE);
 	}
 
-	if (UNIV_UNLIKELY(end_ptr < ptr + (end_seg_len >> 1))) {
+	if (end_ptr < ptr + (end_seg_len >> 1)) {
 
 		return(NULL);
 	}
@@ -930,8 +931,10 @@ page_cur_insert_rec_low(
 	ut_ad(dict_table_is_comp(index->table)
 	      == (ibool) !!page_is_comp(page));
 	ut_ad(fil_page_get_type(page) == FIL_PAGE_INDEX);
-	ut_ad(mach_read_from_8(page + PAGE_HEADER + PAGE_INDEX_ID)
-	      == index->id || recv_recovery_is_on() || mtr->inside_ibuf);
+	ut_ad(mach_read_from_8(page + PAGE_HEADER + PAGE_INDEX_ID) == index->id
+	      || redo_log->is_recovery_on()
+	      || mtr->is_inside_ibuf());
+
 
 	ut_ad(!page_rec_is_supremum(current_rec));
 
@@ -1157,8 +1160,9 @@ page_cur_insert_rec_zip(
 	ut_ad(dict_table_is_comp(index->table));
 	ut_ad(page_is_comp(page));
 	ut_ad(fil_page_get_type(page) == FIL_PAGE_INDEX);
-	ut_ad(mach_read_from_8(page + PAGE_HEADER + PAGE_INDEX_ID)
-	      == index->id || mtr->inside_ibuf || recv_recovery_is_on());
+	ut_ad(mach_read_from_8(page + PAGE_HEADER + PAGE_INDEX_ID) == index->id
+	      || mtr->is_inside_ibuf()
+	      || redo_log->is_recovery_on());
 
 	ut_ad(!page_cur_is_after_last(cursor));
 #ifdef UNIV_ZIP_DEBUG
@@ -1204,7 +1208,7 @@ page_cur_insert_rec_zip(
 		/* If we are not writing compressed page images, we
 		must reorganize the page before attempting the
 		insert. */
-		if (recv_recovery_is_on()) {
+		if (redo_log->is_recovery_on()) {
 			/* Insert into the uncompressed page only.
 			The page reorganization or creation that we
 			would attempt outside crash recovery would
@@ -1234,7 +1238,7 @@ page_cur_insert_rec_zip(
 			/* Insert into uncompressed page only, and
 			try page_zip_reorganize() afterwards. */
 		} else if (btr_page_reorganize_low(
-				   recv_recovery_is_on(), level,
+				   redo_log->is_recovery_on(), level,
 				   cursor, index, mtr)) {
 			ut_ad(!page_header_get_ptr(page, PAGE_FREE));
 
@@ -1276,8 +1280,8 @@ page_cur_insert_rec_zip(
 			This should never occur during crash recovery,
 			because the MLOG_COMP_REC_INSERT should only
 			be logged after a successful operation. */
-			ut_ad(!recv_recovery_is_on());
-		} else if (recv_recovery_is_on()) {
+			ut_ad(!redo_log->is_recovery_on());
+		} else if (redo_log->is_recovery_on()) {
 			/* This should be followed by
 			MLOG_ZIP_PAGE_COMPRESS_NO_DATA,
 			which should succeed. */
@@ -1681,7 +1685,6 @@ page_copy_rec_list_end_to_created_page(
 	ulint	n_recs;
 	ulint	slot_index;
 	ulint	rec_size;
-	ulint	log_mode;
 	byte*	log_ptr;
 	ulint	log_data_len;
 	mem_heap_t*	heap		= NULL;
@@ -1714,9 +1717,12 @@ page_copy_rec_list_end_to_created_page(
 	log_ptr = page_copy_rec_list_to_created_page_write_log(new_page,
 							       index, mtr);
 
-	log_data_len = dyn_array_get_data_size(&(mtr->log));
+	log_data_len = mtr->get_log()->size();
 
 	/* Individual inserts are logged in a shorter form */
+
+	mtr_log_t	log_mode;
+
 	if (!dict_table_is_temporary(index->table)) {
 		log_mode = mtr_set_log_mode(mtr, MTR_LOG_SHORT_INSERTS);
 	} else {
@@ -1806,11 +1812,11 @@ page_copy_rec_list_end_to_created_page(
 		mem_heap_free(heap);
 	}
 
-	log_data_len = dyn_array_get_data_size(&(mtr->log)) - log_data_len;
+	log_data_len = mtr->get_log()->size() - log_data_len;
 
 	ut_a(log_data_len < 100 * UNIV_PAGE_SIZE);
 
-	if (UNIV_LIKELY(log_ptr != NULL)) {
+	if (log_ptr != NULL) {
 		mach_write_to_4(log_ptr, log_data_len);
 	}
 
@@ -1962,8 +1968,9 @@ page_cur_delete_rec(
 	ut_ad(rec_offs_validate(current_rec, index, offsets));
 	ut_ad(!!page_is_comp(page) == dict_table_is_comp(index->table));
 	ut_ad(fil_page_get_type(page) == FIL_PAGE_INDEX);
-	ut_ad(mach_read_from_8(page + PAGE_HEADER + PAGE_INDEX_ID)
-	      == index->id || mtr->inside_ibuf || recv_recovery_is_on());
+	ut_ad(mach_read_from_8(page + PAGE_HEADER + PAGE_INDEX_ID) == index->id
+	      || mtr->is_inside_ibuf()
+	      || redo_log->is_recovery_on());
 
 	/* The record must not be the supremum or infimum record. */
 	ut_ad(page_rec_is_user_rec(current_rec));

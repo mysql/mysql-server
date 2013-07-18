@@ -1327,34 +1327,26 @@ buf_page_release_zip(
 }
 
 /********************************************************************//**
-Decrements the bufferfix count of a buffer control block and releases
-a latch, if specified. */
+Releases a latch, if specified. */
 UNIV_INLINE
 void
-buf_page_release(
-/*=============*/
+buf_page_release_latches(
+/*=====================*/
 	buf_block_t*	block,		/*!< in: buffer block */
 	ulint		rw_latch)	/*!< in: RW_S_LATCH, RW_X_LATCH,
 					RW_NO_LATCH */
 {
-	ut_ad(block);
-
-	ut_a(buf_block_get_state(block) == BUF_BLOCK_FILE_PAGE);
-	ut_a(block->page.buf_fix_count > 0);
-
-	mutex_enter(&block->mutex);
+	ut_ad(buf_block_get_state(block) == BUF_BLOCK_FILE_PAGE
+	      || buf_block_get_state(block) == BUF_BLOCK_REMOVE_HASH);
 
 #ifdef UNIV_SYNC_DEBUG
-	rw_lock_s_unlock(&(block->debug_latch));
-#endif
-	block->page.buf_fix_count--;
-
-	mutex_exit(&block->mutex);
+	rw_lock_s_unlock(&block->debug_latch);
+#endif /* UNIV_SYNC_DEBUG */
 
 	if (rw_latch == RW_S_LATCH) {
-		rw_lock_s_unlock(&(block->lock));
+		rw_lock_s_unlock(&block->lock);
 	} else if (rw_latch == RW_X_LATCH) {
-		rw_lock_x_unlock(&(block->lock));
+		rw_lock_x_unlock(&block->lock);
 	}
 }
 

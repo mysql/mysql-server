@@ -98,12 +98,12 @@ steps of query graph execution. */
 /*************************************************************************
 IMPORTANT NOTE: Any operation that generates redo MUST check that there
 is enough space in the redo log before for that operation. This is
-done by calling log_free_check(). The reason for checking the
+done by calling redo_log->free_check(). The reason for checking the
 availability of the redo log space before the start of the operation is
 that we MUST not hold any synchonization objects when performing the
 check.
 If you make a change in this module make sure that no codepath is
-introduced where a call to log_free_check() is bypassed. */
+introduced where a call to redo_log->free_check() is bypassed. */
 
 /***********************************************************//**
 Checks if an update vector changes some of the first ordering fields of an
@@ -1660,7 +1660,7 @@ row_upd_sec_index_entry(
 	entry = row_build_index_entry(node->row, node->ext, index, heap);
 	ut_a(entry);
 
-	log_free_check();
+	redo_log->free_check();
 
 	DEBUG_SYNC_C_IF_THD(trx->mysql_thd,
 			    "before_row_upd_sec_index_entry");
@@ -2570,7 +2570,7 @@ row_upd(
 	case UPD_NODE_UPDATE_CLUSTERED:
 	case UPD_NODE_INSERT_CLUSTERED:
 	case UPD_NODE_INSERT_BLOB:
-		log_free_check();
+		redo_log->free_check();
 		err = row_upd_clust_step(node, thr);
 
 		if (err != DB_SUCCESS) {

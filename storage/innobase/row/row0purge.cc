@@ -50,12 +50,12 @@ Created 3/14/1997 Heikki Tuuri
 /*************************************************************************
 IMPORTANT NOTE: Any operation that generates redo MUST check that there
 is enough space in the redo log before for that operation. This is
-done by calling log_free_check(). The reason for checking the
+done by calling redo_log->free_check(). The reason for checking the
 availability of the redo log space before the start of the operation is
 that we MUST not hold any synchonization objects when performing the
 check.
 If you make a change in this module make sure that no codepath is
-introduced where a call to log_free_check() is bypassed. */
+introduced where a call to redo_log->free_check() is bypassed. */
 
 /********************************************************************//**
 Creates a purge node to a query graph.
@@ -138,7 +138,7 @@ row_purge_remove_clust_if_poss_low(
 
 	index = dict_table_get_first_index(node->table);
 
-	log_free_check();
+	redo_log->free_check();
 	mtr_start(&mtr);
 
 	if (!row_purge_reposition_pcur(mode, node, &mtr)) {
@@ -277,7 +277,7 @@ row_purge_remove_sec_if_poss_tree(
 	mtr_t			mtr;
 	enum row_search_result	search_result;
 
-	log_free_check();
+	redo_log->free_check();
 	mtr_start(&mtr);
 
 	if (*index->name == TEMP_INDEX_PREFIX) {
@@ -383,7 +383,7 @@ row_purge_remove_sec_if_poss_leaf(
 	enum row_search_result	search_result;
 	bool			success	= true;
 
-	log_free_check();
+	redo_log->free_check();
 
 	mtr_start(&mtr);
 

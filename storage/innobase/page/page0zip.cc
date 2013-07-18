@@ -3845,18 +3845,18 @@ page_zip_parse_write_blob_ptr(
 	offset = mach_read_from_2(ptr);
 	z_offset = mach_read_from_2(ptr + 2);
 
-	if (UNIV_UNLIKELY(offset < PAGE_ZIP_START)
-	    || UNIV_UNLIKELY(offset >= UNIV_PAGE_SIZE)
-	    || UNIV_UNLIKELY(z_offset >= UNIV_PAGE_SIZE)) {
+	if (offset < PAGE_ZIP_START
+	    || offset >= UNIV_PAGE_SIZE
+	    || z_offset >= UNIV_PAGE_SIZE) {
 corrupt:
-		recv_sys->found_corrupt_log = TRUE;
+		recover_ptr->set_log_corrupt();
 
 		return(NULL);
 	}
 
 	if (page) {
-		if (UNIV_UNLIKELY(!page_zip)
-		    || UNIV_UNLIKELY(!page_is_leaf(page))) {
+
+		if (!page_zip || !page_is_leaf(page)) {
 
 			goto corrupt;
 		}
@@ -3987,11 +3987,11 @@ page_zip_parse_write_node_ptr(
 	offset = mach_read_from_2(ptr);
 	z_offset = mach_read_from_2(ptr + 2);
 
-	if (UNIV_UNLIKELY(offset < PAGE_ZIP_START)
-	    || UNIV_UNLIKELY(offset >= UNIV_PAGE_SIZE)
-	    || UNIV_UNLIKELY(z_offset >= UNIV_PAGE_SIZE)) {
+	if (offset < PAGE_ZIP_START
+	    || offset >= UNIV_PAGE_SIZE
+	    || z_offset >= UNIV_PAGE_SIZE) {
 corrupt:
-		recv_sys->found_corrupt_log = TRUE;
+		recover_ptr->set_log_corrupt();
 
 		return(NULL);
 	}
@@ -4002,8 +4002,7 @@ corrupt:
 		byte*	storage;
 		ulint	heap_no;
 
-		if (UNIV_UNLIKELY(!page_zip)
-		    || UNIV_UNLIKELY(page_is_leaf(page))) {
+		if (!page_zip || page_is_leaf(page)) {
 
 			goto corrupt;
 		}
@@ -4566,20 +4565,20 @@ page_zip_parse_write_header(
 	offset = (ulint) *ptr++;
 	len = (ulint) *ptr++;
 
-	if (UNIV_UNLIKELY(!len) || UNIV_UNLIKELY(offset + len >= PAGE_DATA)) {
+	if (len == 0 || offset + len >= PAGE_DATA) {
 corrupt:
-		recv_sys->found_corrupt_log = TRUE;
+		recover_ptr->set_log_corrupt();
 
 		return(NULL);
 	}
 
-	if (UNIV_UNLIKELY(end_ptr < ptr + len)) {
+	if (end_ptr < ptr + len) {
 
 		return(NULL);
 	}
 
 	if (page) {
-		if (UNIV_UNLIKELY(!page_zip)) {
+		if (!page_zip) {
 
 			goto corrupt;
 		}
@@ -4664,7 +4663,6 @@ page_zip_reorganize(
 	page_t*		page		= buf_block_get_frame(block);
 	buf_block_t*	temp_block;
 	page_t*		temp_page;
-	ulint		log_mode;
 
 	ut_ad(mtr_memo_contains(mtr, block, MTR_MEMO_PAGE_X_FIX));
 	ut_ad(page_is_comp(page));
@@ -4674,7 +4672,7 @@ page_zip_reorganize(
 	UNIV_MEM_ASSERT_RW(page_zip->data, page_zip_get_size(page_zip));
 
 	/* Disable logging */
-	log_mode = mtr_set_log_mode(mtr, MTR_LOG_NONE);
+	mtr_log_t	log_mode = mtr_set_log_mode(mtr, MTR_LOG_NONE);
 
 #ifndef UNIV_HOTBACKUP
 	temp_block = buf_block_alloc(buf_pool);
@@ -4868,10 +4866,9 @@ page_zip_parse_compress(
 	}
 
 	if (page) {
-		if (UNIV_UNLIKELY(!page_zip)
-		    || UNIV_UNLIKELY(page_zip_get_size(page_zip) < size)) {
+		if (!page_zip || page_zip_get_size(page_zip) < size) {
 corrupt:
-			recv_sys->found_corrupt_log = TRUE;
+			recover_ptr->set_log_corrupt();
 
 			return(NULL);
 		}

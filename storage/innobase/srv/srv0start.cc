@@ -95,6 +95,7 @@ Created 2/16/1996 Heikki Tuuri
 # include "btr0pcur.h"
 # include "zlib.h"
 # include "ut0crc32.h"
+# include "srv0mon.h"
 
 /** Log sequence number immediately after startup */
 lsn_t	srv_start_lsn;
@@ -176,6 +177,12 @@ mysql_pfs_key_t	srv_monitor_thread_key;
 mysql_pfs_key_t	srv_master_thread_key;
 mysql_pfs_key_t	srv_purge_thread_key;
 #endif /* UNIV_PFS_THREAD */
+
+/**
+Start the shutdown. Wait for all threads to exit and do a checkpoint. */
+static
+void
+srv_start_shutdown();
 
 /*********************************************************************//**
 Check if a file can be opened in read-write mode.
@@ -397,7 +404,7 @@ create_log_files(
 		DeleteFile((LPCTSTR) logfilename);
 #else
 		unlink(logfilename);
-#endif
+#endif /* __WIN__ */
 		/* Crashing after deleting the first
 		file should be recoverable. The buffer
 		pool was clean, and we can simply create
@@ -409,9 +416,9 @@ create_log_files(
 
 	RECOVERY_CRASH(7);
 
-	for (unsigned i = 0; i < srv_n_log_files; i++) {
+	for (ulint i = 0; i < srv_n_log_files; i++) {
 		sprintf(logfilename + dirnamelen,
-			"ib_logfile%u", i ? i : INIT_LOG_FILE0);
+			"ib_logfile%lu", i ? i : INIT_LOG_FILE0);
 
 		err = create_log_file(&files[i], logfilename);
 
@@ -428,22 +435,23 @@ create_log_files(
 	sprintf(logfilename + dirnamelen, "ib_logfile%u", INIT_LOG_FILE0);
 
 	fil_space_create(
-		logfilename, SRV_LOG_SPACE_FIRST_ID,
+		logfilename, redo_log_t::SPACE_FIRST_ID,
 		fsp_flags_set_page_size(0, UNIV_PAGE_SIZE),
 		FIL_LOG);
 	ut_a(fil_validate());
 
 	logfile0 = fil_node_create(
 		logfilename, (ulint) srv_log_file_size,
-		SRV_LOG_SPACE_FIRST_ID, FALSE);
+		redo_log_t::SPACE_FIRST_ID, FALSE);
 	ut_a(logfile0);
 
-	for (unsigned i = 1; i < srv_n_log_files; i++) {
-		sprintf(logfilename + dirnamelen, "ib_logfile%u", i);
+	for (ulint i = 1; i < srv_n_log_files; i++) {
+
+		sprintf(logfilename + dirnamelen, "ib_logfile%lu", i);
 
 		if (!fil_node_create(logfilename,
 				     (ulint) srv_log_file_size,
-				     SRV_LOG_SPACE_FIRST_ID, FALSE)) {
+				     redo_log_t::SPACE_FIRST_ID, FALSE)) {
 			ib_logf(IB_LOG_LEVEL_ERROR,
 				"Cannot create file node for log file %s",
 				logfilename);
@@ -451,20 +459,9 @@ create_log_files(
 		}
 	}
 
-	if (!log_group_init(0, srv_n_log_files,
-			    srv_log_file_size * UNIV_PAGE_SIZE,
-			    SRV_LOG_SPACE_FIRST_ID,
-			    SRV_LOG_SPACE_FIRST_ID + 1)) {
-		return(DB_ERROR);
-	}
-
 	fil_open_log_and_system_tablespace_files();
 
-	/* Create a log checkpoint. */
-	mutex_enter(&log_sys->mutex);
-	ut_d(recv_no_log_write = FALSE);
-	recv_reset_logs(lsn);
-	mutex_exit(&log_sys->mutex);
+	redo_log->reset_logs(lsn);
 
 	return(DB_SUCCESS);
 }
@@ -482,7 +479,7 @@ create_log_files_rename(
 {
 	/* If innodb_flush_method=O_DSYNC,
 	we need to explicitly flush the log buffers. */
-	fil_flush(SRV_LOG_SPACE_FIRST_ID);
+	fil_flush(redo_log_t::SPACE_FIRST_ID);
 	/* Close the log files, so that we can rename
 	the first one. */
 	fil_close_log_files(false);
@@ -496,7 +493,8 @@ create_log_files_rename(
 	ib_logf(IB_LOG_LEVEL_INFO,
 		"Renaming log file %s to %s", logfile0, logfilename);
 
-	mutex_enter(&log_sys->mutex);
+	// FIXME
+	redo_log->mutex_acquire();
 	ut_ad(strlen(logfile0) == 2 + strlen(logfilename));
 	ibool success = os_file_rename(
 		innodb_log_file_key, logfile0, logfilename);
@@ -506,7 +504,8 @@ create_log_files_rename(
 
 	/* Replace the first file with ib_logfile0. */
 	strcpy(logfile0, logfilename);
-	mutex_exit(&log_sys->mutex);
+
+	redo_log->mutex_release();
 
 	fil_open_log_and_system_tablespace_files();
 
@@ -1250,11 +1249,6 @@ innobase_start_or_create_for_mysql(void)
 
 	srv_start_has_been_called = TRUE;
 
-#ifdef UNIV_DEBUG
-	log_do_write = TRUE;
-#endif /* UNIV_DEBUG */
-	/*	yydebug = TRUE; */
-
 	srv_is_being_started = TRUE;
 	srv_startup_is_before_trx_rollback_phase = TRUE;
 
@@ -1399,6 +1393,16 @@ innobase_start_or_create_for_mysql(void)
 	}
 
 	srv_boot();
+
+	redo_log = new(std::nothrow) redo_log_t(
+		srv_n_log_files,
+		srv_log_file_size * UNIV_PAGE_SIZE,
+		buf_pool_get_curr_size());
+
+	if (redo_log == NULL) {
+		ib_logf(IB_LOG_LEVEL_ERROR, "Out of memory");
+		return(srv_init_abort(DB_ERROR));
+	}
 
 	ib_logf(IB_LOG_LEVEL_INFO,
 		"%s CPU crc32 instructions",
@@ -1552,9 +1556,9 @@ innobase_start_or_create_for_mysql(void)
 #endif /* UNIV_DEBUG */
 
 	fsp_init();
-	log_init();
 
 	lock_sys_create(srv_lock_table_size);
+
 	srv_start_state_set(SRV_START_STATE_LOCK_SYS);
 
 	/* Create i/o-handler threads: */
@@ -1570,10 +1574,10 @@ innobase_start_or_create_for_mysql(void)
 
 	if (srv_n_log_files * srv_log_file_size * UNIV_PAGE_SIZE
 	    >= 512ULL * 1024ULL * 1024ULL * 1024ULL) {
-		/* log_block_convert_lsn_to_no() limits the returned block
-		number to 1G and given that OS_FILE_LOG_BLOCK_SIZE is 512
+		/* redo_log_t::block_convert_lsn_to_no() limits the returned
+		block number to 1G and given that OS_FILE_LOG_BLOCK_SIZE is 512
 		bytes, then we have a limit of 512 GB. If that limit is to
-		be raised, then log_block_convert_lsn_to_no() must be
+		be raised, then redo_log_t::block_convert_lsn_to_no() must be
 		modified. */
 		ib_logf(IB_LOG_LEVEL_ERROR,
 			"Combined size of log files must be < 512 GB");
@@ -1653,7 +1657,7 @@ innobase_start_or_create_for_mysql(void)
 
 		buf_flush_sync_all_buf_pools();
 
-		min_flushed_lsn = max_flushed_lsn = log_get_lsn();
+		min_flushed_lsn = max_flushed_lsn = redo_log->get_lsn();
 
 		err = create_log_files(
 			logfilename, dirnamelen, max_flushed_lsn, logfile0);
@@ -1716,7 +1720,7 @@ innobase_start_or_create_for_mysql(void)
 					/* Suppress the message about
 					crash recovery. */
 					max_flushed_lsn = min_flushed_lsn
-						= log_get_lsn();
+						= redo_log->get_lsn();
 					goto files_checked;
 				} else if (i < 2) {
 					/* must have at least 2 log files */
@@ -1775,7 +1779,7 @@ innobase_start_or_create_for_mysql(void)
 		sprintf(logfilename + dirnamelen, "ib_logfile%u", 0);
 
 		fil_space_create(logfilename,
-				 SRV_LOG_SPACE_FIRST_ID,
+				 redo_log_t::SPACE_FIRST_ID,
 				 fsp_flags_set_page_size(0, UNIV_PAGE_SIZE),
 				 FIL_LOG);
 
@@ -1790,14 +1794,17 @@ innobase_start_or_create_for_mysql(void)
 
 			if (!fil_node_create(logfilename,
 					     (ulint) srv_log_file_size,
-					     SRV_LOG_SPACE_FIRST_ID, FALSE)) {
+					     redo_log_t::SPACE_FIRST_ID,
+					     FALSE)) {
+
 				return(srv_init_abort(DB_ERROR));
 			}
 		}
 
-		if (!log_group_init(0, i, srv_log_file_size * UNIV_PAGE_SIZE,
-				    SRV_LOG_SPACE_FIRST_ID,
-				    SRV_LOG_SPACE_FIRST_ID + 1)) {
+		os_offset_t	size = srv_log_file_size * UNIV_PAGE_SIZE;
+
+		if (!redo_log->resize(i, size)) {
+
 			return(srv_init_abort(DB_ERROR));
 		}
 	}
@@ -1867,10 +1874,10 @@ files_checked:
 
 		buf_flush_sync_all_buf_pools();
 
-		min_flushed_lsn = max_flushed_lsn = log_get_lsn();
+		min_flushed_lsn = max_flushed_lsn = redo_log->get_lsn();
 
 		/* Stamp the LSN to the data files. */
-		fil_write_flushed_lsn_to_data_files(max_flushed_lsn, 0);
+		fil_write_flushed_lsn_to_data_files(max_flushed_lsn);
 
 		fil_flush_file_spaces(FIL_TABLESPACE);
 
@@ -1907,12 +1914,27 @@ files_checked:
 		/* We always try to do a recovery, even if the database had
 		been shut down normally: this is the normal startup path */
 
-		err = recv_recovery_from_checkpoint_start(
-			min_flushed_lsn, max_flushed_lsn);
+		err = recover_ptr->create(buf_pool_get_curr_size());
+	       
+		if (err	!= DB_FAIL) {
 
-		if (err != DB_SUCCESS) {
+			ut_ad(err == DB_SUCCESS);
 
-			return(srv_init_abort(DB_ERROR));
+			err = redo_log->recovery_start(
+				min_flushed_lsn, max_flushed_lsn,
+				recover_ptr);
+
+			if (err != DB_SUCCESS) {
+
+				return(srv_init_abort(DB_ERROR));
+			}
+		} else {
+
+			ib_logf(IB_LOG_LEVEL_INFO,
+				"The user has disabled REDO recovery, "
+				"skipping log redo");
+
+			err = DB_SUCCESS;
 		}
 
 		/* Since the insert buffer init is in dict_boot, and the
@@ -1938,7 +1960,7 @@ files_checked:
 		/* recv_recovery_from_checkpoint_finish needs trx lists which
 		are initialized in trx_sys_init_at_db_start(). */
 
-		recv_recovery_from_checkpoint_finish();
+		redo_log->recovery_finish();
 
 		if (srv_force_recovery < SRV_FORCE_NO_IBUF_MERGE) {
 			/* The following call is necessary for the insert
@@ -1956,9 +1978,10 @@ files_checked:
 			an .ibd file.
 
 			We also determine the maximum tablespace id used. */
+
 			dict_check_t	dict_check;
 
-			if (recv_needed_recovery) {
+			if (recover_ptr->requires_recovery()) {
 				dict_check = DICT_CHECK_ALL_LOADED;
 			} else if (n_recovered_trx) {
 				dict_check = DICT_CHECK_SOME_LOADED;
@@ -1978,7 +2001,7 @@ files_checked:
 		}
 
 		if (!srv_force_recovery
-		    && !recv_sys->found_corrupt_log
+		    && !recover_ptr->is_log_corrupt()
 		    && (srv_log_file_size_requested != srv_log_file_size
 			|| srv_n_log_files_found != srv_n_log_files)) {
 			/* Prepare to replace the redo log files. */
@@ -1995,7 +2018,8 @@ files_checked:
 
 			RECOVERY_CRASH(1);
 
-			min_flushed_lsn = max_flushed_lsn = log_get_lsn();
+			min_flushed_lsn = max_flushed_lsn
+				= redo_log->get_lsn();
 
 			ib_logf(IB_LOG_LEVEL_WARN,
 				"Resizing redo log from %u*%u to %u*%u pages"
@@ -2007,24 +2031,24 @@ files_checked:
 				max_flushed_lsn);
 
 			/* Flush the old log files. */
-			log_buffer_flush_to_disk();
+			redo_log->sync_flush();
+
 			/* If innodb_flush_method=O_DSYNC,
 			we need to explicitly flush the log buffers. */
-			fil_flush(SRV_LOG_SPACE_FIRST_ID);
+			fil_flush(redo_log_t::SPACE_FIRST_ID);
 
-			ut_ad(max_flushed_lsn == log_get_lsn());
+			ut_ad(max_flushed_lsn == redo_log->get_lsn());
 
 			/* Prohibit redo log writes from any other
 			threads until creating a log checkpoint at the
 			end of create_log_files(). */
-			ut_d(recv_no_log_write = TRUE);
+			ut_d(redo_log->disable_log_write());
 			ut_ad(!buf_pool_check_no_pending_io());
 
 			RECOVERY_CRASH(3);
 
 			/* Stamp the LSN to the data files. */
-			fil_write_flushed_lsn_to_data_files(
-				max_flushed_lsn, 0);
+			fil_write_flushed_lsn_to_data_files(max_flushed_lsn);
 
 			fil_flush_file_spaces(FIL_TABLESPACE);
 
@@ -2035,9 +2059,6 @@ files_checked:
 			fil_close_log_files(true);
 
 			RECOVERY_CRASH(5);
-
-			/* Free the old log file space. */
-			log_group_close_all();
 
 			ib_logf(IB_LOG_LEVEL_WARN,
 				"Starting to delete and rewrite log files.");
@@ -2056,7 +2077,7 @@ files_checked:
 		}
 
 		srv_startup_is_before_trx_rollback_phase = FALSE;
-		recv_recovery_rollback_active();
+		recover_ptr->recovery_rollback_active();
 
 		/* It is possible that file_format tag has never
 		been set. In this case we initialize it to minimum
@@ -2078,7 +2099,7 @@ files_checked:
 		size to disk, so that it is durable even if mysqld would crash
 		quickly */
 
-		log_buffer_flush_to_disk();
+		redo_log->sync_flush();
 	}
 
 	err = srv_open_tmp_tablespace(&srv_tmp_space);
@@ -2087,18 +2108,13 @@ files_checked:
 		return(srv_init_abort(err));
 	}
 
-	/* Will open temp-tablespace and will keep it open till server lifetime */
+	/* Will open temp-tablespace and will keep it open for the
+	server lifetime */
 	fil_open_log_and_system_tablespace_files();
 
-	/* fprintf(stderr, "Max allowed record size %lu\n",
-	page_get_free_space_of_empty() / 2); */
-
-	if (buf_dblwr == NULL) {
-		/* Create the doublewrite buffer to a new tablespace */
-		if (!buf_dblwr_create()) {
-			return(srv_init_abort(DB_ERROR));
-		}
-
+	/* Create the doublewrite buffer to a new tablespace */
+	if (buf_dblwr == NULL && !buf_dblwr_create()) {
+		return(srv_init_abort(DB_ERROR));
 	}
 
 	/* Here the double write buffer has already been created and so
@@ -2204,6 +2220,7 @@ files_checked:
 	}
 
 	if (!srv_read_only_mode) {
+		os_thread_create(log_writer_thread, NULL, NULL);
 		os_thread_create(buf_flush_page_cleaner_thread, NULL, NULL);
 	}
 
@@ -2409,11 +2426,12 @@ innobase_shutdown_for_mysql(void)
 	}
 
 	/* 1. Flush the buffer pool to disk, write the current lsn to
-	the tablespace header(s), and copy all log data to archive.
+	the tablespace header(s).
+
 	The step 1 is the real InnoDB shutdown. The remaining steps 2 - ...
 	just free data structures after the shutdown. */
 
-	logs_empty_and_mark_files_at_shutdown();
+	srv_start_shutdown();
 
 	if (srv_conc_get_active_threads() != 0) {
 		ib_logf(IB_LOG_LEVEL_WARN,
@@ -2454,7 +2472,13 @@ innobase_shutdown_for_mysql(void)
 	btr_search_disable();
 
 	ibuf_close();
-	log_shutdown();
+	redo_log->shutdown();
+
+#ifdef UNIV_LOG_DEBUG
+	recover_ptr->debug_free();
+#endif /* UNIV_LOG_DEBUG */
+	recover_ptr->destroy();
+
 	lock_sys_close();
 	trx_sys_file_format_close();
 	trx_sys_close();
@@ -2489,7 +2513,15 @@ innobase_shutdown_for_mysql(void)
 	/* 5. Free all allocated memory */
 
 	pars_lexer_close();
-	log_mem_free();
+
+	redo_log->release_resources();
+
+	// TODO: Delete this too
+	recover_ptr->release_resources();
+
+	delete redo_log;
+	redo_log = NULL;
+
 	buf_pool_free(srv_buf_pool_instances);
 
 	mem_close();
@@ -2503,6 +2535,7 @@ innobase_shutdown_for_mysql(void)
 	    || os_event_count != 0
 	    || os_mutex_count != 0
 	    || os_fast_mutex_count != 0) {
+
 		ib_logf(IB_LOG_LEVEL_WARN,
 			"Some resources were not cleaned up in shutdown: "
 			"threads %lu, events %lu, os_mutexes %lu, "
@@ -2649,4 +2682,281 @@ srv_get_meta_data_filename(
 	mem_free(path);
 
 	srv_normalize_path_for_win(filename);
+}
+
+/**
+Start the shutdown. Wait for all threads to exit and do a checkpoint. */
+static
+void
+srv_start_shutdown()
+{
+	lsn_t	lsn = 0;
+	ulint	count = 0;
+
+	ib_logf(IB_LOG_LEVEL_INFO, "Starting shutdown...");
+
+	/* Wait until the master thread and all other operations are idle: our
+	algorithm only works if the server is idle at shutdown */
+
+	srv_shutdown_state = SRV_SHUTDOWN_CLEANUP;
+
+	for (;;) {
+		os_thread_sleep(100000);
+
+		++count;
+
+		/* We need the monitor threads to stop before we proceed with
+		a shutdown. */
+
+		const char* thread_name;
+
+		thread_name = srv_get_active_sys_threads();
+
+		if (thread_name != NULL) {
+			/* Print a message every 60 seconds if we are waiting
+			for the monitor thread to exit. Master and worker
+			threads check will be done later. */
+
+			if (srv_print_verbose_log && count > 600) {
+				ib_logf(IB_LOG_LEVEL_INFO,
+					"Waiting for %s to exit", thread_name);
+				count = 0;
+			}
+
+			continue;
+		}
+
+		/* Check that there are no longer transactions, except for
+		PREPARED ones. We need this wait even for the 'very fast'
+		shutdown, because the InnoDB layer may have committed or
+		prepared transactions and we don't want to lose them. */
+
+		ulint	total_trx = trx_sys_any_active_transactions();
+
+		if (total_trx > 0) {
+
+			if (srv_print_verbose_log && count > 600) {
+
+				ib_logf(IB_LOG_LEVEL_INFO,
+					"Waiting for %lu active transactions "
+					"to finish", (ulong) total_trx);
+
+				count = 0;
+			}
+
+			continue;
+		}
+
+		/* Check that the background threads are suspended */
+
+		srv_thread_type	active_thd = srv_get_active_thread_type();
+
+		if (active_thd != SRV_NONE) {
+
+			if (active_thd == SRV_PURGE) {
+				srv_purge_wakeup();
+			}
+
+			/* The srv_lock_timeout_thread, srv_error_monitor_thread
+			and srv_monitor_thread should already exit by now. The
+			only threads to be suspended are the master threads
+			and worker threads (purge threads). Print the thread
+			type if any of such threads not in suspended mode */
+			if (srv_print_verbose_log && count > 600) {
+				const char*	thread_type = "<null>";
+
+				switch (active_thd) {
+				case SRV_NONE:
+					/* This shouldn't happen because we've
+					already checked for this case before
+					entering the if(). We handle it here
+					to avoid a compiler warning. */
+					ut_error;
+				case SRV_WORKER:
+					thread_type = "worker threads";
+					break;
+				case SRV_MASTER:
+					thread_type = "master thread";
+					break;
+				case SRV_PURGE:
+					thread_type = "purge thread";
+					break;
+				}
+
+				ib_logf(IB_LOG_LEVEL_INFO,
+					"Waiting for %s to be suspended",
+					thread_type);
+				count = 0;
+			}
+
+			continue;
+		}
+
+		/* At this point only page_cleaner should be active. We wait
+		here to let it complete the flushing of the buffer pools
+		before proceeding further. */
+		srv_shutdown_state = SRV_SHUTDOWN_FLUSH_PHASE;
+		count = 0;
+
+		while (buf_page_cleaner_is_active) {
+			++count;
+			os_thread_sleep(100000);
+
+			if (srv_print_verbose_log && count > 600) {
+				ib_logf(IB_LOG_LEVEL_INFO,
+					"Waiting for page_cleaner to "
+					"finish flushing of buffer pool");
+				count = 0;
+			}
+		}
+
+		redo_log_t::state_t	state;
+		bool	notify = srv_print_verbose_log && count > 600;
+
+		state = redo_log->start_shutdown(notify);
+
+		if (state != redo_log_t::STATE_SHUTDOWN) {
+			count = 0;
+			continue;
+		}
+
+		ulint	pending_io = buf_pool_check_no_pending_io();
+
+		if (pending_io > 0) {
+
+			if (notify) {
+				ib_logf(IB_LOG_LEVEL_INFO,
+					"Waiting for %lu buffer page I/Os "
+					"to complete", pending_io);
+
+				count = 0;
+			}
+
+			continue;
+		}
+
+		if (srv_fast_shutdown == 2) {
+
+			if (!srv_read_only_mode) {
+				ib_logf(IB_LOG_LEVEL_INFO,
+					"MySQL has requested a very fast "
+					"shutdown without flushing the "
+					"InnoDB buffer pool to data files. "
+					"At the next mysqld startup "
+					"InnoDB will do a crash recovery!");
+
+				/* In this fastest shutdown we do not flush the
+				buffer pool:
+
+				it is essentially a 'crash' of the InnoDB
+				server.  Make sure that the log is all
+				flushed to disk, so that we can recover
+				all committed transactions in a crash recovery.
+				We must not write the lsn stamps to the data
+				files, since at a startup InnoDB deduces from
+				the stamps if the previous shutdown was
+				clean. */
+
+				redo_log->sync_flush();
+
+				/* Check that the background threads
+				stay suspended */
+				thread_name = srv_get_active_sys_threads();
+
+				if (thread_name != NULL) {
+					ib_logf(IB_LOG_LEVEL_WARN,
+						"Background thread %s woke up "
+						"during shutdown", thread_name);
+					continue;
+				}
+			}
+
+			srv_shutdown_state = SRV_SHUTDOWN_LAST_PHASE;
+
+			fil_close_all_files();
+
+			thread_name = srv_get_active_sys_threads();
+
+			ut_a(!thread_name);
+
+			return;
+		}
+
+		state = redo_log->start_shutdown(notify);
+
+		if (state != redo_log_t::STATE_SHUTDOWN) {
+			continue;
+		}
+
+		/* Check that the background threads stay suspended */
+		thread_name = srv_get_active_sys_threads();
+
+		if (thread_name != NULL) {
+
+			ib_logf(IB_LOG_LEVEL_WARN,
+				"Background thread %s woke up during shutdown",
+				thread_name);
+
+			continue;
+		}
+
+		if (!srv_read_only_mode) {
+			fil_flush_file_spaces(FIL_TABLESPACE);
+			fil_flush_file_spaces(FIL_LOG);
+		}
+
+		/* The call fil_write_flushed_lsn_to_data_files() will
+		pass the buffer pool: therefore it is essential that the
+		buffer pool has been completely flushed to disk! (We do
+		not call fil_write... if the 'very fast' shutdown
+		is enabled.) */
+
+		if (!buf_all_freed()) {
+
+			if (srv_print_verbose_log && count > 600) {
+				ib_logf(IB_LOG_LEVEL_INFO,
+					"Waiting for dirty buffer pages to "
+					"be flushed");
+				count = 0;
+			}
+
+			continue;
+		}
+
+		srv_shutdown_state = SRV_SHUTDOWN_LAST_PHASE;
+
+		/* Make some checks that the server really is quiet */
+		srv_thread_type	type = srv_get_active_thread_type();
+		ut_a(type == SRV_NONE);
+
+		bool	freed = buf_all_freed();
+		ut_a(freed);
+
+		state = redo_log->start_shutdown(true);
+	       
+		if (state != redo_log_t::STATE_SHUTDOWN) {
+			continue;
+		}
+
+		if (!srv_read_only_mode) {
+			lsn = redo_log->get_lsn();
+
+			fil_write_flushed_lsn_to_data_files(lsn);
+
+			fil_flush_file_spaces(FIL_TABLESPACE);
+		}
+
+		fil_close_all_files();
+
+		/* Make some checks that the server really is quiet */
+		type = srv_get_active_thread_type();
+		ut_a(type == SRV_NONE);
+
+		freed = buf_all_freed();
+		ut_a(freed);
+		break;
+	}
+
+	ut_ad(redo_log->start_shutdown(true) == redo_log_t::STATE_SHUTDOWN);
+	ut_ad((lsn == 0 && srv_read_only_mode) || lsn == redo_log->get_lsn());
 }

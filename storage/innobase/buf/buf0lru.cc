@@ -1075,7 +1075,7 @@ buf_LRU_buf_pool_running_out(void)
 
 		buf_pool_mutex_enter(buf_pool);
 
-		if (!recv_recovery_on
+		if (!redo_log->is_recovery_on()
 		    && UT_LIST_GET_LEN(buf_pool->free)
 		       + UT_LIST_GET_LEN(buf_pool->LRU)
 		       < buf_pool->curr_size / 4) {
@@ -1140,8 +1140,10 @@ buf_LRU_check_size_of_non_data_objects(
 {
 	ut_ad(buf_pool_mutex_own(buf_pool));
 
-	if (!recv_recovery_on && UT_LIST_GET_LEN(buf_pool->free)
+	if (!redo_log->is_recovery_on()
+	    && UT_LIST_GET_LEN(buf_pool->free)
 	    + UT_LIST_GET_LEN(buf_pool->LRU) < buf_pool->curr_size / 20) {
+
 		ib_logf(IB_LOG_LEVEL_FATAL,
 			"Over 95 percent of the buffer pool is occupied by"
 			" lock heaps or the adaptive hash index!"
@@ -1153,7 +1155,7 @@ buf_LRU_check_size_of_non_data_objects(
 			(ulong) (buf_pool->curr_size
 				 / (1024 * 1024 / UNIV_PAGE_SIZE)));
 
-	} else if (!recv_recovery_on
+	} else if (!redo_log->is_recovery_on()
 		   && (UT_LIST_GET_LEN(buf_pool->free)
 		       + UT_LIST_GET_LEN(buf_pool->LRU))
 		   < buf_pool->curr_size / 3) {

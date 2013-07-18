@@ -64,12 +64,12 @@ version has become obsolete at the time the undo is started. */
 /*************************************************************************
 IMPORTANT NOTE: Any operation that generates redo MUST check that there
 is enough space in the redo log before for that operation. This is
-done by calling log_free_check(). The reason for checking the
+done by calling redo_log->free_check(). The reason for checking the
 availability of the redo log space before the start of the operation is
 that we MUST not hold any synchonization objects when performing the
 check.
 If you make a change in this module make sure that no codepath is
-introduced where a call to log_free_check() is bypassed. */
+introduced where a call to redo_log->free_check() is bypassed. */
 
 /***********************************************************//**
 Undoes a modify in a clustered index record.
@@ -234,7 +234,7 @@ row_undo_mod_clust(
 	      || rw_lock_own(&dict_operation_lock, RW_LOCK_EX));
 #endif /* UNIV_SYNC_DEBUG */
 
-	log_free_check();
+	redo_log->free_check();
 	pcur = &node->pcur;
 	index = btr_cur_get_index(btr_pcur_get_btr_cur(pcur));
 
@@ -369,7 +369,7 @@ row_undo_mod_del_mark_or_remove_sec_low(
 	mtr_t			mtr_vers;
 	row_search_result	search_result;
 
-	log_free_check();
+	redo_log->free_check();
 	mtr_start(&mtr);
 	dict_disable_redo_if_temporary(index->table, &mtr);
 
@@ -543,7 +543,7 @@ row_undo_mod_del_unmark_sec_and_undo_update(
 
 	ut_ad(trx->id > 0);
 
-	log_free_check();
+	redo_log->free_check();
 	mtr_start(&mtr);
 	dict_disable_redo_if_temporary(index->table, &mtr);
 

@@ -684,7 +684,8 @@ fil_node_create(
 
 	UT_LIST_ADD_LAST(space->chain, node);
 
-	if (id < SRV_LOG_SPACE_FIRST_ID && fil_system->max_assigned_id < id) {
+	if (id < redo_log_t::SPACE_FIRST_ID
+	    && fil_system->max_assigned_id < id) {
 
 		fil_system->max_assigned_id = id;
 	}
@@ -706,7 +707,6 @@ fil_node_open_file(
 	fil_space_t*	space)	/*!< in: space */
 {
 	os_offset_t	size_bytes;
-	ibool		ret;
 	ibool		success;
 	byte*		buf2;
 	byte*		page;
@@ -792,23 +792,21 @@ fil_node_open_file(
 			ut_error;
 		}
 
-		if (UNIV_UNLIKELY(space_id != space->id)) {
+		if (space_id != space->id) {
 			ib_logf(IB_LOG_LEVEL_FATAL,
 				"Tablespace id is %lu in the data"
 				" dictionary but in file %s it is %lu!",
 				space->id, node->name, space_id);
 		}
 
-		if (UNIV_UNLIKELY(space_id == ULINT_UNDEFINED
-				  || space_id == 0)) {
+		if (space_id == ULINT_UNDEFINED || space_id == 0) {
 			ib_logf(IB_LOG_LEVEL_FATAL,
 				"Tablespace id %lu in file %s"
 				" is not sensible",
 				(ulong) space_id, node->name);
 		}
 
-		if (UNIV_UNLIKELY(fsp_flags_get_page_size(space->flags)
-				  != page_size)) {
+		if (fsp_flags_get_page_size(space->flags) != page_size) {
 			ib_logf(IB_LOG_LEVEL_FATAL,
 				"Error: Tablespace file %s has page size"
 				" 0x%lx but the data dictionary expects"
@@ -817,7 +815,7 @@ fil_node_open_file(
 				fsp_flags_get_page_size(space->flags));
 		}
 
-		if (UNIV_UNLIKELY(space->flags != flags)) {
+		if (space->flags != flags) {
 			ib_logf(IB_LOG_LEVEL_FATAL,
 				"Error: table flags are 0x%lx in the"
 				" data dictionary but the flags in file"
@@ -850,22 +848,24 @@ add_size:
 	unbuffered async I/O mode, though global variables may make
 	os_file_create() to fall back to the normal file I/O mode. */
 
+	ibool		ret;
+
 	if (space->purpose == FIL_LOG) {
-		node->handle = os_file_create(innodb_log_file_key,
-					      node->name, OS_FILE_OPEN,
-					      OS_FILE_AIO, OS_LOG_FILE,
-					      &ret);
+
+		node->handle = os_file_create(
+			innodb_log_file_key, node->name, OS_FILE_OPEN,
+			OS_FILE_AIO, OS_LOG_FILE, &ret);
+
 	} else if (node->is_raw_disk) {
-		node->handle = os_file_create(innodb_data_file_key,
-					      node->name,
-					      OS_FILE_OPEN_RAW,
-					      OS_FILE_AIO, OS_DATA_FILE,
-						     &ret);
+
+		node->handle = os_file_create(
+			innodb_data_file_key, node->name, OS_FILE_OPEN_RAW,
+			OS_FILE_AIO, OS_DATA_FILE, &ret);
+
 	} else {
-		node->handle = os_file_create(innodb_data_file_key,
-					      node->name, OS_FILE_OPEN,
-					      OS_FILE_AIO, OS_DATA_FILE,
-					      &ret);
+		node->handle = os_file_create(
+			innodb_data_file_key, node->name, OS_FILE_OPEN,
+			OS_FILE_AIO, OS_DATA_FILE, &ret);
 	}
 
 	ut_a(ret);
@@ -1011,7 +1011,7 @@ fil_mutex_enter_and_prepare_for_io(
 retry:
 	mutex_enter(&fil_system->mutex);
 
-	if (space_id == 0 || space_id >= SRV_LOG_SPACE_FIRST_ID) {
+	if (space_id == 0 || space_id >= redo_log_t::SPACE_FIRST_ID) {
 		/* We keep log files and system tablespace files always open;
 		this is important in preventing deadlocks in this module, as
 		a page read completion often performs another read from the
@@ -1256,7 +1256,7 @@ fil_space_create(
 	space->tablespace_version = fil_system->tablespace_version;
 
 	if (purpose == FIL_TABLESPACE
-	    && !recv_recovery_on
+	    && !redo_log->is_recovery_on()
 	    && id > fil_system->max_assigned_id) {
 
 		if (!fil_system->space_id_reuse_warned) {
@@ -1317,7 +1317,7 @@ fil_assign_new_space_id(
 
 	id++;
 
-	if (id > (SRV_LOG_SPACE_FIRST_ID / 2) && (id % 1000000UL == 0)) {
+	if (id > (redo_log_t::SPACE_FIRST_ID / 2) && !(id % 1000000UL)) {
 		ut_print_timestamp(stderr);
 		fprintf(stderr,
 			"InnoDB: Warning: you are running out of new"
@@ -1328,10 +1328,10 @@ fil_assign_new_space_id(
 			" you have to dump all your tables and\n"
 			"InnoDB: recreate the whole InnoDB installation.\n",
 			(ulong) id,
-			(ulong) SRV_LOG_SPACE_FIRST_ID);
+			(ulong) redo_log_t::SPACE_FIRST_ID);
 	}
 
-	success = (id < SRV_LOG_SPACE_FIRST_ID);
+	success = (id < redo_log_t::SPACE_FIRST_ID);
 
 	if (success) {
 		*space_id = fil_system->max_assigned_id = id;
@@ -1802,7 +1802,7 @@ fil_set_max_space_id_if_bigger(
 /*===========================*/
 	ulint	max_id)	/*!< in: maximum known id */
 {
-	if (max_id >= SRV_LOG_SPACE_FIRST_ID) {
+	if (max_id >= redo_log_t::SPACE_FIRST_ID) {
 		ib_logf(IB_LOG_LEVEL_FATAL,
 			"Fatal error: max tablespace id"
 			" is too high, %lu", (ulong) max_id);
@@ -1829,9 +1829,7 @@ fil_write_lsn_and_arch_no_to_file(
 	ulint	space,		/*!< in: space to write to */
 	ulint	sum_of_sizes,	/*!< in: combined size of previous files
 				in space, in database pages */
-	lsn_t	lsn,		/*!< in: lsn to write */
-	ulint	arch_log_no __attribute__((unused)))
-				/*!< in: archived log number to write */
+	lsn_t	lsn)		/*!< in: lsn to write */
 {
 	byte*	buf1;
 	byte*	buf;
@@ -1862,8 +1860,7 @@ header of the first page of each data file in the system tablespace.
 dberr_t
 fil_write_flushed_lsn_to_data_files(
 /*================================*/
-	lsn_t	lsn,		/*!< in: lsn to write */
-	ulint	arch_log_no)	/*!< in: latest archived log file number */
+	lsn_t	lsn)		/*!< in: lsn to write */
 {
 	fil_space_t*	space;
 	fil_node_t*	node;
@@ -1892,8 +1889,7 @@ fil_write_flushed_lsn_to_data_files(
 				mutex_exit(&fil_system->mutex);
 
 				err = fil_write_lsn_and_arch_no_to_file(
-					space->id, sum_of_sizes, lsn,
-					arch_log_no);
+					space->id, sum_of_sizes, lsn);
 
 				if (err != DB_SUCCESS) {
 
@@ -2132,7 +2128,7 @@ static
 void
 fil_op_write_log(
 /*=============*/
-	ulint		type,		/*!< in: MLOG_FILE_CREATE,
+	mlog_id_t	type,		/*!< in: MLOG_FILE_CREATE,
 					MLOG_FILE_CREATE2,
 					MLOG_FILE_DELETE, or
 					MLOG_FILE_RENAME */
@@ -3478,7 +3474,7 @@ skip_second_rename:
 	mutex_exit(&fil_system->mutex);
 
 #ifndef UNIV_HOTBACKUP
-	if (success && !recv_recovery_on) {
+	if (success && !redo_log->is_recovery_on()) {
 		mtr_t		mtr;
 
 		mtr_start(&mtr);
@@ -3711,7 +3707,7 @@ fil_create_new_single_table_tablespace(
 
 	ut_ad(!Tablespace::is_system_tablespace(space_id));
 	ut_ad(!srv_read_only_mode);
-	ut_a(space_id < SRV_LOG_SPACE_FIRST_ID);
+	ut_a(space_id < redo_log_t::SPACE_FIRST_ID);
 	ut_a(size >= FIL_IBD_FILE_INITIAL_SIZE);
 	ut_a(fsp_flags_is_valid(flags));
 
@@ -5654,7 +5650,7 @@ fil_io(
 #ifndef UNIV_HOTBACKUP
 # ifndef UNIV_LOG_DEBUG
 	/* ibuf bitmap pages must be read in the sync aio mode: */
-	ut_ad(recv_no_ibuf_operations
+	ut_ad(!redo_log->is_ibuf_allowed()
 	      || type == OS_FILE_WRITE
 	      || !ibuf_bitmap_page(zip_size, block_offset)
 	      || sync
@@ -5665,7 +5661,7 @@ fil_io(
 	} else if (is_log) {
 		mode = OS_AIO_LOG;
 	} else if (type == OS_FILE_READ
-		   && !recv_no_ibuf_operations
+		   && redo_log->is_ibuf_allowed()
 		   && ibuf_page(space_id, zip_size, block_offset, NULL)) {
 		mode = OS_AIO_IBUF;
 	} else {
@@ -5756,8 +5752,9 @@ fil_io(
 
 	/* Check that at least the start offset is within the bounds of a
 	single-table tablespace, including rollback tablespaces. */
-	if (UNIV_UNLIKELY(node->size <= block_offset)
-	    && space->id != 0 && space->purpose == FIL_TABLESPACE) {
+	if (node->size <= block_offset
+	    && space->id != 0
+	    && space->purpose == FIL_TABLESPACE) {
 
 		fil_report_invalid_page_access(
 			block_offset, space_id, space->name, byte_offset,
@@ -5805,13 +5802,15 @@ fil_io(
 		ret = os_file_read(node->handle, buf, offset, len);
 	} else {
 		ut_ad(!srv_read_only_mode);
-		ret = os_file_write(node->name, node->handle, buf,
-				    offset, len);
+
+		ret = os_file_write(
+			node->name, node->handle, buf, offset, len);
 	}
 #else
 	/* Queue the aio request */
-	ret = os_aio(type, mode | wake_later, node->name, node->handle, buf,
-		     offset, len, node, message);
+	ret = os_aio(
+		type, mode | wake_later, node->name, node->handle,
+		buf, offset, len, node, message);
 #endif /* UNIV_HOTBACKUP */
 	ut_a(ret);
 
@@ -5897,7 +5896,9 @@ fil_aio_wait(
 		buf_page_io_complete(static_cast<buf_page_t*>(message));
 	} else {
 		srv_set_io_thread_op_info(segment, "complete io for log");
-		log_io_complete(static_cast<log_group_t*>(message));
+
+		redo_log->io_complete(
+			static_cast<redo_log_t::Group*>(message));
 	}
 }
 #endif /* UNIV_HOTBACKUP */

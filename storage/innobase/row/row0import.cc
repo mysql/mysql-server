@@ -1620,7 +1620,7 @@ PageConverter::PageConverter(
 {
 	m_index = m_cfg->m_indexes;
 
-	m_current_lsn = log_get_lsn();
+	m_current_lsn = redo_log->get_lsn();
 	ut_a(m_current_lsn > 0);
 
 	m_offsets = m_offsets_;
@@ -2217,7 +2217,7 @@ row_import_cleanup(
 
 	DBUG_EXECUTE_IF("ib_import_before_checkpoint_crash", DBUG_SUICIDE(););
 
-	log_make_checkpoint_at(LSN_MAX, TRUE);
+	redo_log->checkpoint_at(LSN_MAX, true);
 
 	return(err);
 }

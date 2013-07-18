@@ -510,13 +510,13 @@ buf_page_is_corrupted(
 	}
 
 #if !defined(UNIV_HOTBACKUP) && !defined(UNIV_INNOCHECKSUM)
-	if (check_lsn && recv_lsn_checks_on) {
+	if (check_lsn && recover_ptr->is_lsn_check_on()) {
 		lsn_t	current_lsn;
 
 		/* Since we are going to reset the page LSN during the import
 		phase it makes no sense to spam the log with error messages. */
 
-		if (log_peek_lsn(&current_lsn)
+		if (redo_log->peek_lsn(&current_lsn)
 		    && current_lsn
 		    < mach_read_from_8(read_buf + FIL_PAGE_LSN)) {
 			ut_print_timestamp(stderr);
@@ -2576,7 +2576,6 @@ buf_page_get_gen(
 	buf_block_t*	block;
 	ulint		fold;
 	unsigned	access_time;
-	ulint		fix_type;
 	ibool		must_read;
 	rw_lock_t*	hash_lock;
 	ib_mutex_t*	block_mutex;
@@ -2584,8 +2583,7 @@ buf_page_get_gen(
 	ulint		retries = 0;
 	buf_pool_t*	buf_pool = buf_pool_get(space, offset);
 
-	ut_ad(mtr);
-	ut_ad(mtr->state == MTR_ACTIVE);
+	ut_ad(mtr->is_active());
 	ut_ad((rw_latch == RW_S_LATCH)
 	      || (rw_latch == RW_X_LATCH)
 	      || (rw_latch == RW_NO_LATCH));
@@ -2865,7 +2863,7 @@ wait_until_unfixed:
 		verification is not necessary when decompressing the page. */
 		ut_a(buf_zip_decompress(block, FALSE));
 
-		if (UNIV_LIKELY(!recv_no_ibuf_operations)) {
+		if (redo_log->is_ibuf_allowed()) {
 			if (access_time) {
 #ifdef UNIV_IBUF_COUNT_DEBUG
 				ut_a(ibuf_count_get(space, offset) == 0);
@@ -3003,6 +3001,8 @@ wait_until_unfixed:
 	ut_a(buf_block_get_state(block) == BUF_BLOCK_FILE_PAGE);
 #endif /* UNIV_DEBUG || UNIV_BUF_DEBUG */
 
+	mtr_memo_type_t	fix_type;
+
 	switch (rw_latch) {
 	case RW_NO_LATCH:
 		if (must_read) {
@@ -3082,11 +3082,10 @@ buf_page_optimistic_get(
 	buf_pool_t*	buf_pool;
 	unsigned	access_time;
 	ibool		success;
-	ulint		fix_type;
 
 	ut_ad(block);
 	ut_ad(mtr);
-	ut_ad(mtr->state == MTR_ACTIVE);
+	ut_ad(mtr->is_active());
 	ut_ad((rw_latch == RW_S_LATCH) || (rw_latch == RW_X_LATCH));
 
 	mutex_enter(&block->mutex);
@@ -3112,6 +3111,8 @@ buf_page_optimistic_get(
 	      || ibuf_page(buf_block_get_space(block),
 			   buf_block_get_zip_size(block),
 			   buf_block_get_page_no(block), NULL));
+
+	mtr_memo_type_t	fix_type;
 
 	if (rw_latch == RW_S_LATCH) {
 		success = rw_lock_s_lock_nowait(&(block->lock),
@@ -3199,10 +3200,8 @@ buf_page_get_known_nowait(
 {
 	buf_pool_t*	buf_pool;
 	ibool		success;
-	ulint		fix_type;
 
-	ut_ad(mtr);
-	ut_ad(mtr->state == MTR_ACTIVE);
+	ut_ad(mtr->is_active());
 	ut_ad((rw_latch == RW_S_LATCH) || (rw_latch == RW_X_LATCH));
 
 	mutex_enter(&block->mutex);
@@ -3235,6 +3234,8 @@ buf_page_get_known_nowait(
 	}
 
 	ut_ad(!ibuf_inside(mtr) || mode == BUF_KEEP_OLD);
+
+	mtr_memo_type_t	fix_type;
 
 	if (rw_latch == RW_S_LATCH) {
 		success = rw_lock_s_lock_nowait(&(block->lock),
@@ -3303,12 +3304,11 @@ buf_page_try_get_func(
 {
 	buf_block_t*	block;
 	ibool		success;
-	ulint		fix_type;
 	buf_pool_t*	buf_pool = buf_pool_get(space_id, page_no);
 	rw_lock_t*	hash_lock;
 
 	ut_ad(mtr);
-	ut_ad(mtr->state == MTR_ACTIVE);
+	ut_ad(mtr->is_active());
 
 	block = buf_block_hash_get_s_locked(buf_pool, space_id,
 					    page_no, &hash_lock);
@@ -3334,7 +3334,7 @@ buf_page_try_get_func(
 	buf_block_buf_fix_inc(block, file, line);
 	mutex_exit(&block->mutex);
 
-	fix_type = MTR_MEMO_PAGE_S_FIX;
+	mtr_memo_type_t	fix_type = MTR_MEMO_PAGE_S_FIX;
 	success = rw_lock_s_lock_nowait(&block->lock, file, line);
 
 	if (!success) {
@@ -3530,7 +3530,7 @@ buf_page_init_for_read(
 
 		ibuf_mtr_start(&mtr);
 
-		if (!recv_no_ibuf_operations
+		if (redo_log->is_ibuf_allowed()
 		    && !ibuf_page(space, zip_size, offset, &mtr)) {
 
 			ibuf_mtr_commit(&mtr);
@@ -3541,7 +3541,7 @@ buf_page_init_for_read(
 		ut_ad(mode == BUF_READ_ANY_PAGE);
 	}
 
-	if (zip_size && !unzip && !recv_recovery_is_on()) {
+	if (zip_size && !unzip && !redo_log->is_recovery_on()) {
 		block = NULL;
 	} else {
 		block = buf_LRU_get_free_block(buf_pool);
@@ -3760,8 +3760,7 @@ buf_page_create(
 	buf_pool_t*	buf_pool	= buf_pool_get(space, offset);
 	rw_lock_t*	hash_lock;
 
-	ut_ad(mtr);
-	ut_ad(mtr->state == MTR_ACTIVE);
+	ut_ad(mtr->is_active());
 	ut_ad(space || !zip_size);
 
 	free_block = buf_LRU_get_free_block(buf_pool);
@@ -4194,17 +4193,18 @@ corrupt:
 		DBUG_EXECUTE_IF("buf_page_is_corrupt_failure",
 				page_not_corrupt:  bpage = bpage; );
 
-		if (recv_recovery_is_on()) {
+		if (redo_log->is_recovery_on()) {
 			/* Pages must be uncompressed for crash recovery. */
 			ut_a(uncompressed);
-			recv_recover_page(TRUE, (buf_block_t*) bpage);
+			recover_ptr->recover_page(TRUE, (buf_block_t*) bpage);
 		}
 
 		/* If space is being truncated then avoid ibuf operation.
 		During re-init we have already freed ibuf entries. */
 		if (uncompressed
-		    && !recv_no_ibuf_operations
+		    && redo_log->is_ibuf_allowed()
 		    && !srv_is_tablespace_truncated(bpage->space)) {
+
 			ibuf_merge_or_delete_for_page(
 				(buf_block_t*) bpage, bpage->space,
 				bpage->offset, buf_page_get_zip_size(bpage),

@@ -961,11 +961,13 @@ trx_sys_create_rsegs(
 	/* Do not create additional rollback segments if innodb_force_recovery
 	has been set and the database was not shutdown cleanly. */
 
-	if (!srv_force_recovery && !recv_needed_recovery && n_used < n_rsegs) {
-		ulint	i;
+	if (!srv_force_recovery
+	    && !recover_ptr->requires_recovery()
+	    && n_used < n_rsegs) {
+
 		ulint	new_rsegs = n_rsegs - n_used;
 
-		for (i = 0; i < new_rsegs; ++i) {
+		for (ulint i = 0; i < new_rsegs; ++i) {
 			ulint	space;
 
 			/* Tablespace 0 is the system tablespace. All UNDO

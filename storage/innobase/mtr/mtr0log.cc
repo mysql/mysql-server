@@ -27,12 +27,13 @@ Created 12/7/1995 Heikki Tuuri
 
 #ifdef UNIV_NONINL
 #include "mtr0log.ic"
-#endif
+#endif /* UNIV_NOINL */
 
 #include "buf0buf.h"
 #include "dict0dict.h"
 #include "log0recv.h"
 #include "page0page.h"
+#include "buf0dblwr.h"
 
 #ifndef UNIV_HOTBACKUP
 # include "dict0boot.h"
@@ -47,16 +48,12 @@ mlog_catenate_string(
 	const byte*	str,	/*!< in: string to write */
 	ulint		len)	/*!< in: string length */
 {
-	dyn_array_t*	mlog;
-
 	if (mtr_get_log_mode(mtr) == MTR_LOG_NONE) {
 
 		return;
 	}
 
-	mlog = &(mtr->log);
-
-	dyn_push_string(mlog, str, len);
+	mtr->get_log()->push(str, len);
 }
 
 /********************************************************//**
@@ -70,7 +67,7 @@ mlog_write_initial_log_record(
 	const byte*	ptr,	/*!< in: pointer to (inside) a buffer
 				frame holding the file page where
 				modification is made */
-	byte		type,	/*!< in: log item type: MLOG_1BYTE, ... */
+	mlog_id_t	type,	/*!< in: log item type: MLOG_1BYTE, ... */
 	mtr_t*		mtr)	/*!< in: mini-transaction handle */
 {
 	byte*	log_ptr;
@@ -99,18 +96,18 @@ Parses an initial log record written by mlog_write_initial_log_record.
 byte*
 mlog_parse_initial_log_record(
 /*==========================*/
-	byte*	ptr,	/*!< in: buffer */
-	byte*	end_ptr,/*!< in: buffer end */
-	byte*	type,	/*!< out: log record type: MLOG_1BYTE, ... */
-	ulint*	space,	/*!< out: space id */
-	ulint*	page_no)/*!< out: page number */
+	byte*		ptr,	/*!< in: buffer */
+	byte*		end_ptr,/*!< in: buffer end */
+	mlog_id_t*	type,	/*!< out: log record type: MLOG_1BYTE, ... */
+	ulint*		space,	/*!< out: space id */
+	ulint*		page_no)/*!< out: page number */
 {
 	if (end_ptr < ptr + 1) {
 
 		return(NULL);
 	}
 
-	*type = (byte)((ulint)*ptr & ~MLOG_SINGLE_REC_FLAG);
+	*type = (mlog_id_t)((ulint)*ptr & ~MLOG_SINGLE_REC_FLAG);
 	ut_ad(*type <= MLOG_BIGGEST_TYPE);
 
 	ptr++;
@@ -139,11 +136,12 @@ Parses a log record written by mlog_write_ulint or mlog_write_ull.
 byte*
 mlog_parse_nbytes(
 /*==============*/
-	ulint	type,	/*!< in: log record type: MLOG_1BYTE, ... */
-	byte*	ptr,	/*!< in: buffer */
-	byte*	end_ptr,/*!< in: buffer end */
-	byte*	page,	/*!< in: page where to apply the log record, or NULL */
-	void*	page_zip)/*!< in/out: compressed page, or NULL */
+	mlog_id_t	type,	/*!< in: log record type: MLOG_1BYTE, ... */
+	byte*		ptr,	/*!< in: buffer */
+	byte*		end_ptr,/*!< in: buffer end */
+	byte*		page,	/*!< in: page where to apply the log
+				record, or NULL */
+	void*		page_zip)/*!< in/out: compressed page, or NULL */
 {
 	ulint		offset;
 	ulint		val;
@@ -161,7 +159,7 @@ mlog_parse_nbytes(
 	ptr += 2;
 
 	if (offset >= UNIV_PAGE_SIZE) {
-		recv_sys->found_corrupt_log = TRUE;
+		recover_ptr->set_log_corrupt();
 
 		return(NULL);
 	}
@@ -232,7 +230,7 @@ mlog_parse_nbytes(
 		break;
 	default:
 	corrupt:
-		recv_sys->found_corrupt_log = TRUE;
+		recover_ptr->set_log_corrupt();
 		ptr = NULL;
 	}
 
@@ -246,10 +244,10 @@ record to the mini-transaction log if mtr is not NULL. */
 void
 mlog_write_ulint(
 /*=============*/
-	byte*	ptr,	/*!< in: pointer where to write */
-	ulint	val,	/*!< in: value to write */
-	byte	type,	/*!< in: MLOG_1BYTE, MLOG_2BYTES, MLOG_4BYTES */
-	mtr_t*	mtr)	/*!< in: mini-transaction handle */
+	byte*		ptr,	/*!< in: pointer where to write */
+	ulint		val,	/*!< in: value to write */
+	mlog_id_t	type,	/*!< in: MLOG_1BYTE, MLOG_2BYTES, MLOG_4BYTES */
+	mtr_t*		mtr)	/*!< in: mini-transaction handle */
 {
 	switch (type) {
 	case MLOG_1BYTE:
@@ -403,9 +401,8 @@ mlog_parse_string(
 	len = mach_read_from_2(ptr);
 	ptr += 2;
 
-	if (UNIV_UNLIKELY(offset >= UNIV_PAGE_SIZE)
-	    || UNIV_UNLIKELY(len + offset > UNIV_PAGE_SIZE)) {
-		recv_sys->found_corrupt_log = TRUE;
+	if (offset >= UNIV_PAGE_SIZE || len + offset > UNIV_PAGE_SIZE) {
+		recover_ptr->set_log_corrupt();
 
 		return(NULL);
 	}
@@ -438,7 +435,7 @@ mlog_open_and_write_index(
 	mtr_t*			mtr,	/*!< in: mtr */
 	const byte*		rec,	/*!< in: index record or page */
 	const dict_index_t*	index,	/*!< in: record descriptor */
-	byte			type,	/*!< in: log item type */
+	mlog_id_t		type,	/*!< in: log item type */
 	ulint			size)	/*!< in: requested buffer size in bytes
 					(if 0, calls mlog_close() and
 					returns NULL) */
@@ -460,25 +457,32 @@ mlog_open_and_write_index(
 	} else {
 		ulint	i;
 		ulint	n	= dict_index_get_n_fields(index);
-		/* total size needed */
 		ulint	total	= 11 + size + (n + 2) * 2;
 		ulint	alloc	= total;
-		/* allocate at most DYN_ARRAY_DATA_SIZE at a time */
-		if (alloc > DYN_ARRAY_DATA_SIZE) {
-			alloc = DYN_ARRAY_DATA_SIZE;
+
+		if (alloc > mtr_buf_t::MAX_DATA_SIZE) {
+			alloc = mtr_buf_t::MAX_DATA_SIZE;
 		}
+
 		log_start = log_ptr = mlog_open(mtr, alloc);
+
 		if (!log_ptr) {
 			return(NULL); /* logging is disabled */
 		}
+
 		log_end = log_ptr + alloc;
-		log_ptr = mlog_write_initial_log_record_fast(rec, type,
-							     log_ptr, mtr);
+
+		log_ptr = mlog_write_initial_log_record_fast(
+			rec, type, log_ptr, mtr);
+
 		mach_write_to_2(log_ptr, n);
 		log_ptr += 2;
-		mach_write_to_2(log_ptr,
-				dict_index_get_n_unique_in_tree(index));
+
+		mach_write_to_2(
+			log_ptr, dict_index_get_n_unique_in_tree(index));
+
 		log_ptr += 2;
+
 		for (i = 0; i < n; i++) {
 			dict_field_t*		field;
 			const dict_col_t*	col;
@@ -502,10 +506,13 @@ mlog_open_and_write_index(
 				ut_a(total > (ulint) (log_ptr - log_start));
 				total -= log_ptr - log_start;
 				alloc = total;
-				if (alloc > DYN_ARRAY_DATA_SIZE) {
-					alloc = DYN_ARRAY_DATA_SIZE;
+
+				if (alloc > mtr_buf_t::MAX_DATA_SIZE) {
+					alloc = mtr_buf_t::MAX_DATA_SIZE;
 				}
+
 				log_start = log_ptr = mlog_open(mtr, alloc);
+
 				if (!log_ptr) {
 					return(NULL); /* logging is disabled */
 				}
