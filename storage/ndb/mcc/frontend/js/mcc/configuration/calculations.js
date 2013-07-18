@@ -485,7 +485,7 @@ function typeSetup(processTypeItem) {
 // ndb_mgmd process specific parameter assignments
 function ndb_mgmd_setup(processItem, processFamilyItem, host, waitCondition) {
     var id = processItem.getId();
-    var datadir = host.getValue("datadir");
+    var datadir = mcc.util.unixPath(host.getValue("datadir"));
     var dirSep = mcc.util.dirSep(datadir);
     var processFamilyName = processFamilyItem.getValue("family");
 
@@ -517,7 +517,7 @@ function ndb_mgmd_setup(processItem, processFamilyItem, host, waitCondition) {
 // ndbXd process specific parameter assignments
 function ndbd_setup(processItem, processFamilyItem, host, waitCondition) {
     var id = processItem.getId();
-    var datadir = host.getValue("datadir");
+    var datadir = mcc.util.unixPath(host.getValue("datadir"));
     var dirSep = mcc.util.dirSep(datadir);
     var processFamilyName = processFamilyItem.getValue("family");
         
