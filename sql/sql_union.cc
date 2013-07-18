@@ -83,7 +83,7 @@ int select_union::send_data(List<Item> &values)
       */
       return -1;
     }
-    bool is_duplicate;
+    bool is_duplicate= FALSE;
     /* create_internal_tmp_table_from_heap will generate error if needed */
     if (table->file->is_fatal_error(write_err, HA_CHECK_DUP) &&
         create_internal_tmp_table_from_heap(thd, table,
