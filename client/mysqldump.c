@@ -2481,7 +2481,7 @@ static uint get_table_structure(char *table, char *db, char *table_type,
   verbose_msg("-- Retrieving table structure for table %s...\n", table);
 
   len= my_snprintf(query_buff, sizeof(query_buff),
-                   "SET OPTION SQL_QUOTE_SHOW_CREATE=%d",
+                   "SET SQL_QUOTE_SHOW_CREATE=%d",
                    (opt_quoted || opt_keywords));
   if (!create_options)
     strmov(query_buff+len,
@@ -5224,7 +5224,7 @@ static my_bool get_view_structure(char *table, char* db)
   verbose_msg("-- Retrieving view structure for table %s...\n", table);
 
 #ifdef NOT_REALLY_USED_YET
-  sprintf(insert_pat,"SET OPTION SQL_QUOTE_SHOW_CREATE=%d",
+  sprintf(insert_pat, "SET SQL_QUOTE_SHOW_CREATE=%d",
           (opt_quoted || opt_keywords));
 #endif
 
