@@ -108,6 +108,14 @@ MySQLTime.prototype.initializeFromTimeString = function(jsValue) {
   return this;
 };
 
+MySQLTime.prototype.initializeFromDateString = function(jsValue) {
+  var parts = jsValue.split(/[\W_]/);   // split on a non-word or an underscore
+  this.year = parts[0];
+  this.month = parts[1];
+  this.day = parts[2];
+  return this;
+};
+
 MySQLTime.prototype.initializeFromJsDateUTC = function(jsdate) {
   this.year     = jsdate.getUTCFullYear();
   this.month    = jsdate.getUTCMonth() + 1;
@@ -176,10 +184,19 @@ MySQLTime.prototype.toTimeString = function() {
   return strTime;
 };
 
+MySQLTime.prototype.toDateString = function() {
+  var month = this.month;
+  var day = this.day;
+  if(month < 10) month = "0" + month;
+  if(day < 10) day = "0" + day;
+  return this.year + "-" + month + "-" + day;
+};
+
 MySQLTime.initializeFromNdb = function(dbTime) {
   dbTime.toJsDateUTC = MySQLTime.prototype.toJsDateUTC;
   dbTime.toJsDateLocal = MySQLTime.prototype.toJsDateLocal;
   dbTime.toTimeString = MySQLTime.prototype.toTimeString;
+  dbTime.toDateString = MySQLTime.prototype.toDateString;
   return dbTime;
 }
 
