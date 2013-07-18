@@ -24,6 +24,8 @@
 #include "AsyncNdbContext.h"
 #include "AsyncMethodCall.h"
 
+char * NDB_MAGIC_TICKET = "NDB Magic Ticket";
+
 /* Thread starter, for pthread_create()
 */
 PTHREAD_RETURN_TYPE run_ndb_listener_thread(void *v) {
@@ -45,9 +47,11 @@ void ioCompleted(uv_async_t *ndbWaitLoop, int) {
    Cast the void pointer back to AsyncAsyncCall and set its return value.
 */
 void ndbTxCompleted(int status, NdbTransaction *tx, void *v) {
+  DEBUG_PRINT("ndbTxCompleted: %d %p %p", status, tx, v);
   typedef AsyncAsyncCall<int, NdbTransaction> MCALL;
   MCALL * mcallptr = (MCALL *) v;
   mcallptr->return_val = status;
+  mcallptr->handleErrors();
   tx->getNdb()->setCustomData(mcallptr);  
 }
 
@@ -95,15 +99,18 @@ int AsyncNdbContext::executeAsynch(NdbTransaction *tx,
                                    int abortOption,
                                    int forceSend,
                                    v8::Persistent<v8::Function> jsCallback) {
-
-  DEBUG_MARKER(UDEB_DEBUG);
   
   /* Create a container to help pass return values up the JS callback stack */
   typedef AsyncAsyncCall<int, NdbTransaction> MCALL;
   MCALL * mcallptr = new MCALL(tx, jsCallback,
                                getNdbErrorIfLessThanZero<int, NdbTransaction>);
   
+  Ndb * ndb = tx->getNdb();
+  DEBUG_PRINT("NdbTransaction:%p:executeAsynch(%d,%d) -- Push: %p", 
+              mcallptr->native_obj, execType, abortOption, ndb);
+
   /* send the transaction to NDB */
+  ndb->setCustomData(NDB_MAGIC_TICKET);
   tx->executeAsynch((NdbTransaction::ExecType) execType,
                     ndbTxCompleted,
                     mcallptr,
@@ -111,9 +118,9 @@ int AsyncNdbContext::executeAsynch(NdbTransaction *tx,
                     forceSend);
 
 #ifdef USE_OLD_MULTIWAIT_API
-  sent_queue.produce(new ListNode<Ndb>(tx->getNdb()));
+  sent_queue.produce(new ListNode<Ndb>(ndb));
 #else
-  waitgroup->push(tx->getNdb());
+  waitgroup->push(ndb);
 #endif
 
   /* Notify the waitgroup that there is a new Ndb to wait on */
@@ -137,6 +144,7 @@ void * AsyncNdbContext::runListenerThread() {
   while(running) {
     uv_rwlock_rdlock(& shutdown_lock);
     if(shutdown_flag) {
+      DEBUG_PRINT("MULTIWAIT LISTENER GOT SHUTDOWN.");
       pct_ready = 100;    /* One final read of all outstanding items */
       wait_timeout_millisec = 500;
       running = false;
@@ -145,7 +153,7 @@ void * AsyncNdbContext::runListenerThread() {
 
     /* Wait for ready Ndbs */
     if(waitgroup->wait(wait_timeout_millisec, pct_ready) > 0) {
-      uv_async_send(& async_handle);
+      uv_async_send(& async_handle);  // => ioCompleted() => completeCallbacks()
     }
   }
 
@@ -167,7 +175,9 @@ void AsyncNdbContext::completeCallbacks() {
   Ndb * ndb = waitgroup->pop();
   
   while(ndb) {
-    ndb->pollNdb(0, 1);
+    DEBUG_PRINT("                                           -- Pop:  %p", ndb);
+    assert(ndb->getCustomData() == NDB_MAGIC_TICKET);
+    ndb->pollNdb(0, 1);  /* runs ndbTxCompleted() */
     mcallptr = (MCALL *) ndb->getCustomData();
     ndb->setCustomData(0);
     main_thd_complete_async_call(mcallptr);
