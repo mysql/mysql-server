@@ -157,9 +157,9 @@ t7.run = function() {
 var t8 = new harness.ConcurrentTest("Date");
 t8.run = function() {
   var data = new TestData(8);
-  var now = new Date(Date.UTC(1989, 10, 9));
-  data.cDate = now;
-  this.verifier = new ValueVerifier(this, "cDate", now);
+  var test_date = "1989-11-09";
+  data.cDate = test_date;
+  this.verifier = new ValueVerifier(this, "cDate", test_date);
   fail_openSession(this, InsertFunction(data));
 }
 
