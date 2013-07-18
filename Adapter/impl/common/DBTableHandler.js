@@ -454,10 +454,15 @@ function chooseIndex(self, keys, uniqueOnly) {
  * If resolveDefault is true, replace undefined with the default column value.
  * ResolveDefault is used only for persist, not for write or update.
  * If a column converter is defined, convert the value here.
+ * If a fieldValueDefinedListener is passed, notify it via setDefined or setUndefined for each column.
+ * Call setDefined if a column value is defined in the object and setUndefined if not.
  */
-DBTableHandler.prototype.get = function(obj, fieldNumber, resolveDefault, adapter) { 
+DBTableHandler.prototype.get = function(obj, fieldNumber, resolveDefault, adapter, fieldValueDefinedListener) { 
   udebug.log_detail("get", fieldNumber);
   if (typeof(obj) === 'string' || typeof(obj) === 'number') {
+    if (fieldValueDefinedListener) {
+      fieldValueDefinedListener.setDefined(fieldNumber);
+    }
     return obj;
   }
   var f = this.fieldNumberToFieldMap[fieldNumber];
@@ -479,15 +484,22 @@ DBTableHandler.prototype.get = function(obj, fieldNumber, resolveDefault, adapte
   if (typeConverter && result !== undefined) {
     result = typeConverter.toDB(result);
   }
+  if (fieldValueDefinedListener) {
+    if (typeof(result) === 'undefined') {
+      fieldValueDefinedListener.setUndefined(fieldNumber);
+    } else {
+      fieldValueDefinedListener.setDefined(fieldNumber);
+    }
+  }
   return result;
 };
 
 
 /* Return an array of values in field order */
-DBTableHandler.prototype.getFields = function(obj, resolveDefault, adapter) {
+DBTableHandler.prototype.getFields = function(obj, resolveDefault, adapter, fieldValueDefinedListener) {
   var i, fields = [];
   for( i = 0 ; i < this.getMappedFieldCount() ; i ++) {
-    fields[i] = this.get(obj, i, resolveDefault, adapter);
+    fields[i] = this.get(obj, i, resolveDefault, adapter, fieldValueDefinedListener);
   }
   return fields;
 };
