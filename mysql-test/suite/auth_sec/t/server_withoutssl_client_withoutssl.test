@@ -15,8 +15,8 @@
 ###############################################################################
 
 --source include/not_embedded.inc
---source include/not_ssl.inc
---source include/not_openssl.inc
+#--source include/not_ssl.inc
+#--source include/not_openssl.inc
 --source include/not_sha256_rsa_auth.inc
 
 # This test will intentionally generate errors in the server error log
@@ -456,6 +456,7 @@ set @@global.secure_auth=0;
 
 
 --echo **** connecting client using the ssl credentials
+--error 1
 --exec $MYSQL -uTanjotuser1 -hlocalhost -pabc --skip-secure-auth --default_auth=sha256_password -e "select @@Global.old_passwords;select @@session.old_passwords"
 --echo 2 for GLOBAL Expected
 --echo 1 for SESSION Expected
@@ -536,6 +537,7 @@ select @@global.secure_auth;
 
 
 --echo **** connecting client using the ssl credentials
+--error 1
 --exec $MYSQL -uTanjotuser1 -hlocalhost -pabc --default_auth=sha256_password -e "select @@Global.old_passwords;select @@session.old_passwords"
 --echo 2 for GLOBAL Expected
 --echo 0 for SESSION Expected
@@ -568,6 +570,7 @@ set @@global.secure_auth=0;
 
 
 --echo **** connecting client using the ssl credentials
+--error 1
 --exec $MYSQL -uTanjotuser1 -hlocalhost -pabc --default_auth=sha256_password -e "select @@Global.old_passwords;select @@session.old_passwords"
 --echo 2 for GLOBAL Expected
 --echo 0 for SESSION Expected
@@ -600,6 +603,7 @@ select @@global.secure_auth;
 
 
 --echo **** connecting client using the ssl credentials
+--error 1
 --exec $MYSQL -uTanjotuser1 -hlocalhost -pabc --secure_auth --default_auth=sha256_password -e "select @@Global.old_passwords;select @@session.old_passwords"
 --echo 2 for GLOBAL Expected
 --echo 0 for SESSION Expected
