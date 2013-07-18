@@ -8,7 +8,6 @@
 
 TRUNCATE TABLE performance_schema.events_statements_summary_by_program;
 TRUNCATE TABLE performance_schema.events_statements_history;
-TRUNCATE TABLE performance_schema.events_statements_history_long;
 
 --echo # concurrency check through multi connections
 
@@ -90,6 +89,7 @@ connection con3;
 --reap;
 
 connection default;
+--source include/wait_until_connected_again.inc
 
 SELECT OBJECT_TYPE, OBJECT_SCHEMA, OBJECT_NAME, COUNT_STAR, COUNT_STATEMENTS
        FROM performance_schema.events_statements_summary_by_program
@@ -102,15 +102,8 @@ SELECT EVENT_NAME, SQL_TEXT, CURRENT_SCHEMA, OBJECT_TYPE, OBJECT_SCHEMA,
        OR CURRENT_SCHEMA='db2' OR CURRENT_SCHEMA='db3' 
        ORDER BY CURRENT_SCHEMA, OBJECT_NAME;
 
-SELECT EVENT_NAME, SQL_TEXT, CURRENT_SCHEMA, OBJECT_TYPE, OBJECT_SCHEMA,
-       OBJECT_NAME, NESTING_EVENT_TYPE, NESTING_EVENT_LEVEL FROM
-       performance_schema.events_statements_history_long WHERE CURRENT_SCHEMA='db1'
-       OR CURRENT_SCHEMA='db2' OR CURRENT_SCHEMA='db3'  
-       ORDER BY  CURRENT_SCHEMA, OBJECT_NAME;
-
 TRUNCATE TABLE performance_schema.events_statements_summary_by_program;
 TRUNCATE TABLE performance_schema.events_statements_history;
-TRUNCATE TABLE performance_schema.events_statements_history_long;
 
 --echo # Clean-up
 
@@ -206,6 +199,7 @@ connection con3;
 --reap;
 
 connection default;
+--source include/wait_until_connected_again.inc
 
 # check the instrumentation 
 
@@ -218,14 +212,8 @@ SELECT EVENT_NAME, SQL_TEXT, CURRENT_SCHEMA, OBJECT_TYPE, OBJECT_SCHEMA,
        performance_schema.events_statements_history WHERE CURRENT_SCHEMA='db'
        ORDER BY OBJECT_NAME, SQL_TEXT;
 
-SELECT EVENT_NAME, SQL_TEXT, CURRENT_SCHEMA, OBJECT_TYPE, OBJECT_SCHEMA,
-       OBJECT_NAME, NESTING_EVENT_TYPE, NESTING_EVENT_LEVEL FROM
-       performance_schema.events_statements_history_long WHERE CURRENT_SCHEMA='db'
-       ORDER BY OBJECT_NAME, SQL_TEXT;
-
 TRUNCATE TABLE performance_schema.events_statements_summary_by_program;
 TRUNCATE TABLE performance_schema.events_statements_history;
-TRUNCATE TABLE performance_schema.events_statements_history_long;
 
 --echo # clean-up
 
