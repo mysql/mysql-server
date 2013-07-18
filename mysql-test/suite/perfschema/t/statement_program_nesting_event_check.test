@@ -8,9 +8,7 @@
 --source include/not_embedded.inc
 --source include/have_perfschema.inc
 
-TRUNCATE TABLE performance_schema.events_statements_history;
 TRUNCATE TABLE performance_schema.events_statements_history_long;
-TRUNCATE TABLE performance_schema.events_statements_current;
 
 --echo #----------------------------
 --echo # Non-nested Stored programs.
@@ -19,20 +17,10 @@ TRUNCATE TABLE performance_schema.events_statements_current;
 --source suite/perfschema/include/program_execution.inc
 
 SELECT EVENT_NAME, OBJECT_NAME, NESTING_EVENT_TYPE, NESTING_EVENT_LEVEL
-       FROM performance_schema.events_statements_current WHERE
-       CURRENT_SCHEMA='stored_programs' ORDER BY OBJECT_NAME;
-
-SELECT EVENT_NAME, OBJECT_NAME, NESTING_EVENT_TYPE, NESTING_EVENT_LEVEL
-       FROM performance_schema.events_statements_history WHERE
-       CURRENT_SCHEMA='stored_programs' ORDER BY OBJECT_NAME,NESTING_EVENT_LEVEL;
-
-SELECT EVENT_NAME, OBJECT_NAME, NESTING_EVENT_TYPE, NESTING_EVENT_LEVEL
        FROM performance_schema.events_statements_history_long WHERE
        CURRENT_SCHEMA='stored_programs' ORDER BY OBJECT_NAME,NESTING_EVENT_LEVEL;
 
-TRUNCATE TABLE performance_schema.events_statements_history;
 TRUNCATE TABLE performance_schema.events_statements_history_long;
-TRUNCATE TABLE performance_schema.events_statements_current;
 
 # Clean-up
 --source suite/perfschema/include/program_cleanup.inc
@@ -44,20 +32,10 @@ TRUNCATE TABLE performance_schema.events_statements_current;
 --source suite/perfschema/include/program_nested_execution.inc
 
 SELECT EVENT_NAME, OBJECT_NAME, NESTING_EVENT_TYPE, NESTING_EVENT_LEVEL
-       FROM performance_schema.events_statements_current WHERE
-       CURRENT_SCHEMA='nested_sp' ORDER BY OBJECT_NAME;
-
-SELECT EVENT_NAME, OBJECT_NAME, NESTING_EVENT_TYPE, NESTING_EVENT_LEVEL
-       FROM performance_schema.events_statements_history WHERE
-       CURRENT_SCHEMA='nested_sp' ORDER BY OBJECT_NAME,NESTING_EVENT_LEVEL;
-
-SELECT EVENT_NAME, OBJECT_NAME, NESTING_EVENT_TYPE, NESTING_EVENT_LEVEL
        FROM performance_schema.events_statements_history_long WHERE
        CURRENT_SCHEMA='nested_sp' ORDER BY OBJECT_NAME,NESTING_EVENT_LEVEL;
 
-TRUNCATE TABLE performance_schema.events_statements_history;
 TRUNCATE TABLE performance_schema.events_statements_history_long;
-TRUNCATE TABLE performance_schema.events_statements_current;
 
 # Clean-up
 --source suite/perfschema/include/program_nested_cleanup.inc

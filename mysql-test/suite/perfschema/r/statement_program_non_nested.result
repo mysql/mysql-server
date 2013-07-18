@@ -166,7 +166,7 @@ FROM performance_schema.events_statements_summary_by_program
 WHERE OBJECT_SCHEMA='stored_programs' ORDER BY OBJECT_NAME;
 OBJECT_TYPE	OBJECT_SCHEMA	OBJECT_NAME	COUNT_STAR	COUNT_STATEMENTS
 FUNCTION	stored_programs	append	1	1
-EVENT	stored_programs	e1	1	1
+EVENT	stored_programs	e1	2	2
 FUNCTION	stored_programs	fac	1	19
 PROCEDURE	stored_programs	SampleProc1	1	2
 PROCEDURE	stored_programs	SampleProc2	1	5
@@ -332,6 +332,7 @@ statement/sql/select	SELECT OBJECT_TYPE, OBJECT_SCHEMA, OBJECT_NAME, COUNT_STAR,
 FROM performance_schema.events_statements_summary_by_program
 WHERE OBJECT_SCHEMA='stored_programs' ORDER BY OBJECT_NAME	stored_programs	NULL	NULL	NULL	NULL	0
 statement/sp/freturn	NULL	stored_programs	FUNCTION	stored_programs	append	STATEMENT	1
+statement/sp/stmt	INSERT INTO table_t VALUES(1)	stored_programs	EVENT	stored_programs	e1	NULL	0
 statement/sp/stmt	INSERT INTO table_t VALUES(1)	stored_programs	EVENT	stored_programs	e1	NULL	0
 statement/sp/set	NULL	stored_programs	FUNCTION	stored_programs	fac	STATEMENT	1
 statement/sp/jump_if_not	NULL	stored_programs	FUNCTION	stored_programs	fac	STATEMENT	1
