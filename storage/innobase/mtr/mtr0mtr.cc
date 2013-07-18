@@ -128,7 +128,11 @@ memo_slot_release(mtr_memo_slot_t* slot)
 	       	block = reinterpret_cast<buf_block_t*>(slot->object);
 
 		mutex_enter(&block->mutex);
+
+		ut_a(block->page.buf_fix_count > 0);
+
 		--block->page.buf_fix_count;
+
 		mutex_exit(&block->mutex);
 
 		buf_page_release_latches(block, slot->type);
@@ -329,7 +333,7 @@ struct mtr_t::Command : public RedoLog::Command {
 	Command takes ownership of the m_impl member of mtr and is responsible
 	for deleting it.
 	@param mtr	mini-transaction instance */
-	Command(mtr_t* mtr)
+	explicit Command(mtr_t* mtr)
 		:
        		m_locks_released()
 	{
