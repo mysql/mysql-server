@@ -1,4 +1,4 @@
-/* Copyright (c) 2011, 2012, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2011, 2013, Oracle and/or its affiliates. All rights reserved.
 
   This program is free software; you can redistribute it and/or modify
   it under the terms of the GNU General Public License as published by
@@ -123,10 +123,10 @@ static inline void digest_copy(PSI_digest_storage *to, const PSI_digest_storage 
 inline int read_token(PSI_digest_storage *digest_storage,
                       int index, uint *tok)
 {
-  DBUG_ASSERT(index <= digest_storage->m_byte_count);
-  DBUG_ASSERT(digest_storage->m_byte_count <= PSI_MAX_DIGEST_STORAGE_SIZE);
+  int safe_byte_count= digest_storage->m_byte_count;
 
-  if (index + PFS_SIZE_OF_A_TOKEN <= digest_storage->m_byte_count)
+  if (index + PFS_SIZE_OF_A_TOKEN <= safe_byte_count &&
+      safe_byte_count <= PSI_MAX_DIGEST_STORAGE_SIZE)
   {
     unsigned char *src= & digest_storage->m_token_array[index];
     *tok= src[0] | (src[1] << 8);
