@@ -1951,10 +1951,6 @@ RedoLog::wait_for_io(wait_mode_t mode)
 		os_event_wait(m_one_flushed_event);
 		break;
 
-	case WAIT_MODE_ALL_GROUPS:
-		os_event_wait(m_no_flush_event);
-		break;
-
 	case WAIT_MODE_NO_WAIT:
 		break;
 	}
@@ -1996,8 +1992,7 @@ RedoLog::write_up_to(lsn_t lsn, wait_mode_t mode, bool flush_to_disk)
 
 		if (!flush_to_disk
 		    && (m_written_to_all_lsn >= lsn
-			|| (m_written_to_some_lsn >= lsn
-			    && mode != WAIT_MODE_ALL_GROUPS))) {
+			|| m_written_to_some_lsn >= lsn)) {
 
 			mutex_release();
 
@@ -2113,7 +2108,7 @@ RedoLog::sync_flush()
 
 	mutex_release();
 
-	write_up_to(lsn, WAIT_MODE_ALL_GROUPS, true);
+	write_up_to(lsn, WAIT_MODE_ONE_GROUP, true);
 }
 
 /**
@@ -2375,7 +2370,7 @@ RedoLog::checkpoint(bool sync, bool write_always)
 	write-ahead-logging algorithm ensures that the log has been flushed
 	up to oldest_lsn. */
 
-	write_up_to(oldest_lsn, WAIT_MODE_ALL_GROUPS, true);
+	write_up_to(oldest_lsn, WAIT_MODE_ONE_GROUP, true);
 
 	mutex_acquire();
 

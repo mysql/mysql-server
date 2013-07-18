@@ -63,8 +63,7 @@ struct RedoLog {
 	/** Wait modes for write_up_to */
 	enum wait_mode_t {
 		WAIT_MODE_NO_WAIT = 91,
-		WAIT_MODE_ONE_GROUP = 92,
-		WAIT_MODE_ALL_GROUPS = 93
+		WAIT_MODE_ONE_GROUP = 92
 	};
 
 	/** Redo states */

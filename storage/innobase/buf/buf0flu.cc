@@ -918,9 +918,8 @@ buf_flush_write_block_low(
 #else
 	/* Force the log to the disk before writing the modified block */
 	redo_log->write_up_to(
-		bpage->newest_modification,
-		RedoLog::WAIT_MODE_ALL_GROUPS, true);
-#endif
+		bpage->newest_modification, RedoLog::WAIT_MODE_ONE_GROUP, true);
+#endif /* UNIV_LOG_DEBUG */
 	switch (buf_page_get_state(bpage)) {
 	case BUF_BLOCK_POOL_WATCH:
 	case BUF_BLOCK_ZIP_PAGE: /* The page should be dirty. */
