@@ -526,7 +526,7 @@ private:
 	bool		m_inited;
 
 	/** The redo log manager */
-	redo_log_t*	m_redo;
+	RedoLog*	m_redo;
 
 	/** The type of the previous parsed redo log record */
 	ulint		m_previous_parsed_rec_type;
@@ -546,7 +546,7 @@ private:
 	static const ulint	s_parsing_buf_size;
 
 	// FIXME: Temporary hack
-	friend class redo_log_t;
+	friend class RedoLog;
 };
 
 extern redo_recover_t*	recover_ptr;

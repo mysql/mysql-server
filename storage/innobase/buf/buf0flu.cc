@@ -919,7 +919,7 @@ buf_flush_write_block_low(
 	/* Force the log to the disk before writing the modified block */
 	redo_log->write_up_to(
 		bpage->newest_modification,
-		redo_log_t::WAIT_MODE_ALL_GROUPS, true);
+		RedoLog::WAIT_MODE_ALL_GROUPS, true);
 #endif
 	switch (buf_page_get_state(bpage)) {
 	case BUF_BLOCK_POOL_WATCH:

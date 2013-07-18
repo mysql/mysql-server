@@ -44,12 +44,12 @@ Created 12/9/1995 Heikki Tuuri
 #include "os0file.h"
 
 /** Redo log implementation */
-struct redo_log_t {
+struct RedoLog {
 
 	struct Command {
 		Command();
 		virtual ~Command();
-		virtual void execute(redo_log_t* redo_log) = 0;
+		virtual void execute(RedoLog* redo_log) = 0;
 
 	private:
 		// Disable copying
@@ -103,9 +103,9 @@ struct redo_log_t {
 	@param n_files		number of log files
 	@param size		log file size in bytes
 	@param mem_avail	Memory available in the buffer pool, in bytes */
-	redo_log_t(ulint n_files, os_offset_t size, ulint mem_avail);
+	RedoLog(ulint n_files, os_offset_t size, ulint mem_avail);
 
-	~redo_log_t();
+	~RedoLog();
 
 #ifndef UNIV_HOTBACKUP
 	/**
@@ -870,7 +870,7 @@ private:
 	CommandQueue*		m_cmdq;
 };
 
-extern redo_log_t*		redo_log;
+extern RedoLog*		redo_log;
 
 /** Test if flush order mutex is owned. */
 #define log_flush_order_mutex_own()					\

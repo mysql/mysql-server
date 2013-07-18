@@ -96,7 +96,7 @@ bool	log_has_printed_chkp_warning = false;
 time_t	log_last_warning_time;
 
 /** FIXME: Testing only */
-redo_log_t*		redo_log;
+RedoLog*		redo_log;
 
 /** Values used as flags */
 static const ulint RECOVER = 98887331;
@@ -160,7 +160,7 @@ struct Block {
 
 	static ulint capacity()
 	{
-		return(SIZE - redo_log_t::TRAILER_SIZE);
+		return(SIZE - RedoLog::TRAILER_SIZE);
 	}
 
 	/**
@@ -170,7 +170,7 @@ struct Block {
 	@param block_no		block number */
 	static void init_v1(byte* ptr, ulint block_no)
 	{
-		ulint	header_size = redo_log_t::BLOCK_HDR_SIZE;
+		ulint	header_size = RedoLog::BLOCK_HDR_SIZE;
 
 		ut_ad(block_no > 0);
 		ut_ad(block_no < FLUSH_BIT_MASK);
@@ -483,7 +483,7 @@ private:
 };
 
 /** The logical buffer that is used to control the physical buffer. */
-struct redo_log_t::LogBuffer {
+struct RedoLog::LogBuffer {
 	/**
 	@param size		Size of the buffer */
 	LogBuffer(ulint size)
@@ -582,7 +582,7 @@ struct redo_log_t::LogBuffer {
 
 	/** Write the buffer to the log
 	@param redo_log		the redo log to write to */
-	void group_write(redo_log_t* redo_log)
+	void group_write(RedoLog* redo_log)
 	{
 		ulint	end;
 		ulint	start;
@@ -825,7 +825,7 @@ private:
 /** Log group consists of a number of log files, each of
 the same size; a log group is implemented as a space in
 the sense of the module fil0fil. */
-struct redo_log_t::Group {
+struct RedoLog::Group {
 	/**
 	Constructor
 	@param n_files		number of log files
@@ -932,7 +932,7 @@ public:
 	buffers_t	m_file_headers;
 };
 
-struct redo_log_t::Checkpoint {
+struct RedoLog::Checkpoint {
 public:
 	Checkpoint(lsn_t last_lsn)
 		:
@@ -1010,11 +1010,11 @@ public:
 
 	/**
 	Completes an asynchronous checkpoint info write i/o to a log file. */
-	void complete(redo_log_t* redo_log);
+	void complete(RedoLog* redo_log);
 
 	/**
 	Writes the checkpoint info to a log group header. */
-	void flush(redo_log_t* redo_log);
+	void flush(RedoLog* redo_log);
 
 	/**
 	Check and set the latest checkpoint
@@ -1111,7 +1111,7 @@ public:
 /**
 Redo command queue implementation, Start with an unbounded queue to keep
 things simple. */
-struct redo_log_t::CommandQueue {
+struct RedoLog::CommandQueue {
 	CommandQueue()
 	{
 		// FIXME: Should have proper sync ordering
@@ -1153,8 +1153,8 @@ struct redo_log_t::CommandQueue {
 	ib_mutex_t		m_mutex;
 };
 
-const ulint redo_log_t::Checkpoint::FIRST = IOBlock::SIZE;
-const ulint redo_log_t::Checkpoint::SECOND = 3 * IOBlock::SIZE;
+const ulint RedoLog::Checkpoint::FIRST = IOBlock::SIZE;
+const ulint RedoLog::Checkpoint::SECOND = 3 * IOBlock::SIZE;
 
 #if 0
 // TODO: Make it proper pretty print
@@ -1183,7 +1183,7 @@ checkpoint_print(const char* msg, byte* ptr)
 Constructor
 @param n_files		number of log files
 @param size		log file size in bytes */
-redo_log_t::Group::Group(ulint n_files, os_offset_t size)
+RedoLog::Group::Group(ulint n_files, os_offset_t size)
 	:
 	m_id(),
 	m_n_files(n_files),
@@ -1211,7 +1211,7 @@ redo_log_t::Group::Group(ulint n_files, os_offset_t size)
 }
 
 /** Destructor */
-redo_log_t::Group::~Group()
+RedoLog::Group::~Group()
 {
 	buffers_t::iterator end = m_file_headers.end();
 
@@ -1225,7 +1225,7 @@ Calculates the data capacity of a log group, when the log file headers
 are not included.
 @return	capacity in bytes */
 lsn_t
-redo_log_t::Group::capacity() const
+RedoLog::Group::capacity() const
 {
 	return((m_file_size - LOG_FILE_HDR_SIZE) * m_n_files);
 }
@@ -1235,7 +1235,7 @@ Calculates the offset within a log group, when the log file
 headers are not included.
 @return	size offset (<= offset) */
 lsn_t
-redo_log_t::Group::size_offset()
+RedoLog::Group::size_offset()
 {
 	return(m_lsn_offset - LOG_FILE_HDR_SIZE
 		* (1 + m_lsn_offset / m_file_size));
@@ -1247,7 +1247,7 @@ included.
 @param offset		size offset within the log group
 @return	real offset (>= offset) */
 lsn_t
-redo_log_t::Group::real_offset(lsn_t offset)
+RedoLog::Group::real_offset(lsn_t offset)
 {
 	return(offset + LOG_FILE_HDR_SIZE
 		* (1 + offset / (m_file_size - LOG_FILE_HDR_SIZE)));
@@ -1258,7 +1258,7 @@ Calculates the offset of an lsn within a log group.
 @param lsn		lsn
 @return	offset within the log group */
 lsn_t
-redo_log_t::Group::lsn_offset(lsn_t lsn)
+RedoLog::Group::lsn_offset(lsn_t lsn)
 {
 	lsn_t	difference;
 	lsn_t	group_size = capacity();
@@ -1286,7 +1286,7 @@ initialized to correspond to some lsn, for instance, a checkpoint lsn.
 
 @param lsn 		lsn for which the values should be set */
 void
-redo_log_t::Group::set_fields(lsn_t lsn)
+RedoLog::Group::set_fields(lsn_t lsn)
 {
 	m_lsn_offset = lsn_offset(lsn);
 	m_lsn = lsn;
@@ -1296,7 +1296,7 @@ redo_log_t::Group::set_fields(lsn_t lsn)
 @param n_files		number of log files
 @param size		log file size in bytes
 @param mem_avail	Memory available in the buffer pool, in bytes */
-redo_log_t::redo_log_t(ulint n_files, os_offset_t size, ulint mem_avail)
+RedoLog::RedoLog(ulint n_files, os_offset_t size, ulint mem_avail)
 	:
 	m_group(),
 	m_recover(),
@@ -1370,7 +1370,7 @@ redo_log_t::redo_log_t(ulint n_files, os_offset_t size, ulint mem_avail)
 	m_cmdq = new CommandQueue();
 }
 
-redo_log_t::~redo_log_t()
+RedoLog::~RedoLog()
 {
 	ut_a(m_cmdq == NULL);
 }
@@ -1380,7 +1380,7 @@ Converts a lsn to a log block number.
 @param lsn		lsn of a byte within the block
 @return	log block number, it is > 0 and <= 1G */
 ulint
-redo_log_t::convert_lsn_to_no(lsn_t lsn)
+RedoLog::convert_lsn_to_no(lsn_t lsn)
 {
 	return(((ulint) (lsn / IOBlock::SIZE) & 0x3FFFFFFFUL) + 1);
 }
@@ -1390,7 +1390,7 @@ Returns the oldest modified block lsn in the pool, or m_lsn if none
 exists.
 @return	LSN of oldest modification */
 lsn_t
-redo_log_t::buf_pool_get_oldest_modification()
+RedoLog::buf_pool_get_oldest_modification()
 {
 
 	ut_ad(is_mutex_owned());
@@ -1412,7 +1412,7 @@ Writes to the log the string given. The log must be released with close().
 @param start_lsn	start lsn of the log record
 @return	end lsn of the log record, zero if did not succeed */
 lsn_t
-redo_log_t::open(const void* ptr, ulint	 len, lsn_t* start_lsn)
+RedoLog::open(const void* ptr, ulint	 len, lsn_t* start_lsn)
 {
 	mutex_acquire();
 
@@ -1439,7 +1439,7 @@ Write the buffer to the log.
 @param ptr		buffer to write
 @param len 		length of buffer to write */
 void
-redo_log_t::write(const byte* ptr, ulint len)
+RedoLog::write(const byte* ptr, ulint len)
 {
 	ut_ad(is_mutex_owned());
 
@@ -1479,7 +1479,7 @@ released with close().
 @return	start lsn of the log record */
 
 lsn_t
-redo_log_t::open(ulint len, bool own_mutex)
+RedoLog::open(ulint len, bool own_mutex)
 {
 #ifdef UNIV_DEBUG
 	ulint	count	= 0;
@@ -1526,7 +1526,7 @@ Closes the log.
 @return	lsn */
 
 lsn_t
-redo_log_t::close()
+RedoLog::close()
 {
 	ut_ad(is_mutex_owned());
 	ut_ad(is_write_allowed());
@@ -1596,7 +1596,7 @@ lsn - buf_get_oldest_modification(), and lsn - max_archive_lsn_age.
 @retval false if the smallest log group is too small to
 accommodate the number of OS threads in the database server */
 bool
-redo_log_t::calc_max_ages()
+RedoLog::calc_max_ages()
 {
 	mutex_acquire();
 
@@ -1666,7 +1666,7 @@ redo_log_t::calc_max_ages()
 Initializes the log.
 @return true if success, false if not */
 bool
-redo_log_t::init()
+RedoLog::init()
 {
 	ut_ad(m_group == NULL);
 
@@ -1695,7 +1695,7 @@ Resize the log.
 @param size		Size in bytes
 @return true on success */
 bool
-redo_log_t::resize(ulint n_files, os_offset_t size)
+RedoLog::resize(ulint n_files, os_offset_t size)
 {
 	if (m_group != NULL) {
 		delete m_group;
@@ -1713,7 +1713,7 @@ Does the unlockings needed in flush i/o completion.
 @param code		any ORed combination of UNLOCK_FLUSH_LOCK
 			and UNLOCK_NONE_FLUSHED_LOCK */
 void
-redo_log_t::flush_do_unlocks(ulint code)
+RedoLog::flush_do_unlocks(ulint code)
 {
 	ut_ad(is_mutex_owned());
 
@@ -1742,7 +1742,7 @@ Checks if a flush is completed for a log group and does the completion
 routine if yes.
 @return	UNLOCK_NONE_FLUSHED_LOCK or 0 */
 ulint
-redo_log_t::group_check_flush_completion()
+RedoLog::group_check_flush_completion()
 {
 	ut_ad(is_mutex_owned());
 
@@ -1761,7 +1761,7 @@ redo_log_t::group_check_flush_completion()
 Checks if a flush is completed and does the completion routine if yes.
 @return	UNLOCK_FLUSH_LOCK or 0 */
 ulint
-redo_log_t::check_flush_completion()
+RedoLog::check_flush_completion()
 {
 	ut_ad(is_mutex_owned());
 
@@ -1781,7 +1781,7 @@ redo_log_t::check_flush_completion()
 Completes an i/o to a log file.
 @param group	log group or NULL */
 void
-redo_log_t::io_complete(Group* ptr)
+RedoLog::io_complete(Group* ptr)
 {
 	if ((ulint) ptr & 0x1UL) {
 		/* It was a checkpoint write */
@@ -1800,7 +1800,7 @@ Writes a log file header to a log file space.
 @param nth_file		header to the nth file in the log file space
 @param start_lsn	log file data starts at this lsn */
 void
-redo_log_t::group_file_header_flush(
+RedoLog::group_file_header_flush(
 	ulint		nth_file,
 	lsn_t		start_lsn)
 {
@@ -1849,7 +1849,7 @@ Writes a buffer to a log file group
 			used to decide if we have to write a new log file
 			header */
 void
-redo_log_t::group_write(
+RedoLog::group_write(
 	byte*		buf,
 	ulint		len,
 	lsn_t		start_lsn,
@@ -1944,7 +1944,7 @@ redo_log_t::group_write(
 Wait for IO to complete.
 @param mode		Wait mode */
 void
-redo_log_t::wait_for_io(wait_mode_t mode)
+RedoLog::wait_for_io(wait_mode_t mode)
 {
 	switch (mode) {
 	case WAIT_MODE_ONE_GROUP:
@@ -1971,7 +1971,7 @@ flush flushed enough. If not, starts a new flush.
 @param flush_to_disk	true if we want the written log also to be flushed
 			to disk */
 void
-redo_log_t::write_up_to(lsn_t lsn, wait_mode_t mode, bool flush_to_disk)
+RedoLog::write_up_to(lsn_t lsn, wait_mode_t mode, bool flush_to_disk)
 {
 	ut_ad(!srv_read_only_mode);
 
@@ -2104,7 +2104,7 @@ redo_log_t::write_up_to(lsn_t lsn, wait_mode_t mode, bool flush_to_disk)
 /**
 Does a syncronous flush of the log buffer to disk. */
 void
-redo_log_t::sync_flush()
+RedoLog::sync_flush()
 {
 	ut_ad(!srv_read_only_mode);
 	mutex_acquire();
@@ -2123,7 +2123,7 @@ called from background master thread only as it does not wait for
 the write (+ possible flush) to finish.
 @param flush		flush the logs to disk */
 void
-redo_log_t::async_flush(bool flush)
+RedoLog::async_flush(bool flush)
 {
 	mutex_acquire();
 
@@ -2138,7 +2138,7 @@ redo_log_t::async_flush(bool flush)
 Tries to establish a big enough margin of free space in the log buffer, such
 that a new log entry can be catenated without an immediate need for a flush. */
 void
-redo_log_t::flush_margin()
+RedoLog::flush_margin()
 {
 	lsn_t	lsn	= 0;
 
@@ -2172,7 +2172,7 @@ no synchronization objects!
 @return false if there was a flush batch of the same type running,
 which means that we could not start this flush batch */
 bool
-redo_log_t::preflush_pool_modified_pages(
+RedoLog::preflush_pool_modified_pages(
 	lsn_t		new_oldest)
 {
 	bool		success;
@@ -2211,7 +2211,7 @@ redo_log_t::preflush_pool_modified_pages(
 /**
 Completes an asynchronous checkpoint info write i/o to a log file. */
 void
-redo_log_t::Checkpoint::complete(redo_log_t* redo_log)
+RedoLog::Checkpoint::complete(RedoLog* redo_log)
 {
 	redo_log->mutex_acquire();
 
@@ -2238,13 +2238,13 @@ redo_log_t::Checkpoint::complete(redo_log_t* redo_log)
 /**
 Writes the checkpoint info to a log group header. */
 void
-redo_log_t::Checkpoint::flush(redo_log_t* redo_log)
+RedoLog::Checkpoint::flush(RedoLog* redo_log)
 {
 	ut_ad(!srv_read_only_mode);
 	ut_ad(redo_log->is_mutex_owned());
 
 	byte*	ptr = m_buf->ptr();
-	redo_log_t::LogBuffer*	log_buf = redo_log->m_buf;
+	RedoLog::LogBuffer*	log_buf = redo_log->m_buf;
 
 	ut_ad(SIZE <= IOBlock::SIZE);
 
@@ -2316,7 +2316,7 @@ Reads a checkpoint info from a log group header to m_checkpoint.m_buf.
 @param read_offset	FIRST or SECOND 
 @param space_id		Space id to read from */
 void
-redo_log_t::Checkpoint::read(ulint read_offset, ulint space_id)
+RedoLog::Checkpoint::read(ulint read_offset, ulint space_id)
 {
 	ut_ad(read_offset == FIRST || read_offset == SECOND);
 
@@ -2346,7 +2346,7 @@ log files. Use log_checkpoint_at to flush also the pool.
 
 @return	true if success, false if a checkpoint write was already running */
 bool
-redo_log_t::checkpoint(bool sync, bool write_always)
+RedoLog::checkpoint(bool sync, bool write_always)
 {
 	lsn_t	oldest_lsn;
 
@@ -2431,7 +2431,7 @@ Makes a checkpoint at a given lsn or later.
 			parameter TRUE, a physical write will always be made
 			to log files */
 void
-redo_log_t::checkpoint_at(lsn_t lsn, bool write_always)
+RedoLog::checkpoint_at(lsn_t lsn, bool write_always)
 {
 	/* Preflush pages synchronously */
 
@@ -2451,7 +2451,7 @@ checkpoint. NOTE: this function may only be called if the calling thread
 owns no synchronization objects!
 @param recover		The recovery manager */
 void
-redo_log_t::checkpoint_margin()
+RedoLog::checkpoint_margin()
 {
 	for (;;) {
 		lsn_t	advance = 0;
@@ -2539,7 +2539,7 @@ Reads a specified log segment to a buffer.
 @param start_lsn	read area start
 @param end_lsn		read area end */
 void
-redo_log_t::Group::read(LogBuffer* log_buffer, lsn_t start_lsn, lsn_t end_lsn)
+RedoLog::Group::read(LogBuffer* log_buffer, lsn_t start_lsn, lsn_t end_lsn)
 {
 	byte*	buf = log_buffer->ptr();
 
@@ -2592,7 +2592,7 @@ Flushes the log buffer or makes a new checkpoint if necessary. NOTE: this
 function may only be called if the calling thread owns no synchronization
 objects! */
 void
-redo_log_t::check_margins()
+RedoLog::check_margins()
 {
 	for (;;) {
 		flush_margin();
@@ -2619,7 +2619,7 @@ Peeks the current lsn.
 @param lsn	if returns true, current lsn returned valid
 @return	true if success, false if could not get the log system mutex */
 bool
-redo_log_t::peek_lsn(lsn_t* lsn)
+RedoLog::peek_lsn(lsn_t* lsn)
 {
 	if (mutex_enter_nowait(&m_mutex) == 0) {
 
@@ -2637,7 +2637,7 @@ redo_log_t::peek_lsn(lsn_t* lsn)
 Prints info of the log.
 @param file	Stream for output */
 void
-redo_log_t::print(FILE* file)
+RedoLog::print(FILE* file)
 {
 	double	time_elapsed;
 	time_t	current_time;
@@ -2680,7 +2680,7 @@ redo_log_t::print(FILE* file)
 /**
 Refreshes the statistics used to print per-second averages. */
 void
-redo_log_t::refresh_stats()
+RedoLog::refresh_stats()
 {
 	m_last_printout_time = ut_time();
 	m_n_log_ios_old = m_n_log_ios;
@@ -2689,7 +2689,7 @@ redo_log_t::refresh_stats()
 /**
 Shutdown the sub-system */
 void
-redo_log_t::shutdown()
+RedoLog::shutdown()
 {
 	delete m_group;
 	m_group = NULL;
@@ -2720,7 +2720,7 @@ backup restoration.
 			that there is a checkpoint at
 			start + BLOCK_HDR_SIZE */
 void
-redo_log_t::reset_first_header_and_checkpoint(byte* hdr_buf, ib_uint64_t start)
+RedoLog::reset_first_header_and_checkpoint(byte* hdr_buf, ib_uint64_t start)
 {
 	byte*		buf;
 	ib_uint64_t	lsn;
@@ -2769,7 +2769,7 @@ redo_log_t::reset_first_header_and_checkpoint(byte* hdr_buf, ib_uint64_t start)
 #endif /* !UNIV_HOTBACKUP */
 
 /** Redo log recovery scan state */
-struct redo_log_t::Scan {
+struct RedoLog::Scan {
 
 	Scan(bool store_to_hash, lsn_t start_lsn, lsn_t contiguous_lsn)
 		:
@@ -2788,7 +2788,7 @@ struct redo_log_t::Scan {
 Check a block and verify that it is a valid block. Update scan state.
 @return DB_SUCCESS or error code */
 dberr_t
-redo_log_t::check_block(Scan& scan, const byte* block)
+RedoLog::check_block(Scan& scan, const byte* block)
 {
 	ulint	no = IOBlock::get_hdr_no(block);
 
@@ -2943,7 +2943,7 @@ automatically when the hash table becomes full.
 @return true if limit_lsn has been reached, or not able to scan any
 more in this log group */
 bool
-redo_log_t::scan_log_recs(
+RedoLog::scan_log_recs(
 	ulint		available_memory,
 	bool		store_to_hash,
 	lsn_t		start_lsn,
@@ -3038,7 +3038,7 @@ log scanned.
 @param n_bytes_scanned	how much we were able to scan, smaller than buf_len if
 			log data ended here */
 void
-redo_log_t::scan_log_seg_for_backup(
+RedoLog::scan_log_seg_for_backup(
 	byte*		buf,
 	ulint		buf_len,
 	lsn_t*		scanned_lsn,
@@ -3096,7 +3096,7 @@ redo_log_t::scan_log_seg_for_backup(
 /**
 Completes recovery from a checkpoint. */
 void
-redo_log_t::recovery_finish()
+RedoLog::recovery_finish()
 {
 	/* Apply the hashed log records to the respective file pages */
 
@@ -3120,7 +3120,7 @@ redo_log_t::recovery_finish()
 /**
 Free the log system data structures. */
 void
-redo_log_t::release_resources()
+RedoLog::release_resources()
 {
 
 }
@@ -3132,7 +3132,7 @@ Also writes the info about the latest checkpoint to the groups,
 and inits the fields in the group memory structs to up-to-date
 values. */
 void
-redo_log_t::synchronize_groups(lsn_t recovered_lsn)
+RedoLog::synchronize_groups(lsn_t recovered_lsn)
 {
 	/* Read the last recovered log block to the recovery system buffer:
 	the block is always incomplete */
@@ -3171,7 +3171,7 @@ Checks the consistency of the checkpoint info
 @param buf	buffer containing checkpoint info
 @return	true if ok */
 bool
-redo_log_t::Checkpoint::is_consistent() const
+RedoLog::Checkpoint::is_consistent() const
 {
 	const byte*	ptr =  m_buf->ptr();
 
@@ -3191,7 +3191,7 @@ Read the checkpoint and validate it.
 @param space_id		space id to read from
 @return true if a valid checkpoint found */
 bool
-redo_log_t::Checkpoint::find(os_offset_t offset, ulint space_id)
+RedoLog::Checkpoint::find(os_offset_t offset, ulint space_id)
 {
 	read(offset, space_id);
 
@@ -3203,7 +3203,7 @@ Check and set the latest checkpoint
 @param max_no		the number of the latest checkpoint
 @return true if value was updated */
 bool
-redo_log_t::Checkpoint::check_latest(ib_uint64_t& max_no) const
+RedoLog::Checkpoint::check_latest(ib_uint64_t& max_no) const
 {
 	ib_uint64_t	checkpoint_no = get_no();
 
@@ -3220,7 +3220,7 @@ Looks for the maximum consistent checkpoint from the log groups.
 @param max_field		FIRST or SECOND 
 @return	true if valid checkpoint found */
 bool
-redo_log_t::Checkpoint::find_latest(os_offset_t& max_offset, ulint space_id)
+RedoLog::Checkpoint::find_latest(os_offset_t& max_offset, ulint space_id)
 {
 	ib_uint64_t	max_no = 0;
 	bool		found = false;
@@ -3253,7 +3253,7 @@ and hashes the log records if new data found.
 			data up to this lsn
 @param recover		The recovery manager */
 void
-redo_log_t::group_scan_log_recs(lsn_t* contiguous_lsn, redo_recover_t*	recover)
+RedoLog::group_scan_log_recs(lsn_t* contiguous_lsn, redo_recover_t*	recover)
 {
 	bool	finished = false;
 
@@ -3276,7 +3276,7 @@ redo_log_t::group_scan_log_recs(lsn_t* contiguous_lsn, redo_recover_t*	recover)
 a recovery from a restored InnoDB Hot Backup. Rest if it is.
 @return DB_SUCCESS or error code. */
 dberr_t
-redo_log_t::check_ibbackup()
+RedoLog::check_ibbackup()
 {
 	byte	log_hdr_buf[LOG_FILE_HDR_SIZE];
 
@@ -3334,7 +3334,7 @@ redo_log_t::check_ibbackup()
 Prepare for recovery, check the the flushed LSN.
 @return DB_SUCCESS or error code */
 dberr_t
-redo_log_t::prepare_for_recovery(lsn_t min_flushed_lsn, lsn_t max_flushed_lsn)
+RedoLog::prepare_for_recovery(lsn_t min_flushed_lsn, lsn_t max_flushed_lsn)
 {
 	if (m_checkpoint->get_lsn() != max_flushed_lsn
 	    || m_checkpoint->get_lsn() != min_flushed_lsn) {
@@ -3403,7 +3403,7 @@ complete the recovery and free the resources used in it.
 @param recover		The recovery manager
 @return	error code or DB_SUCCESS */
 dberr_t
-redo_log_t::recovery_start(
+RedoLog::recovery_start(
 	lsn_t		min_flushed_lsn,
 	lsn_t		max_flushed_lsn,
 	redo_recover_t* recover)
@@ -3557,7 +3557,7 @@ Resets the logs. The contents of log files will be lost!
 			IOBlock::SIZE, after which we add
 			BLOCK_HDR_SIZE */
 void
-redo_log_t::reset_logs(lsn_t lsn)
+RedoLog::reset_logs(lsn_t lsn)
 {
 	if (m_group != NULL) {
 		delete m_group;
@@ -3601,7 +3601,7 @@ redo_log_t::reset_logs(lsn_t lsn)
 /**
 @return true if there are pending reads or writes. */
 bool
-redo_log_t::is_busy() const
+RedoLog::is_busy() const
 {
 	mutex_acquire();
 
@@ -3615,7 +3615,7 @@ redo_log_t::is_busy() const
 /**
 Print busy status. */
 void
-redo_log_t::print_busy_status()
+RedoLog::print_busy_status()
 {
 	ib_logf(IB_LOG_LEVEL_INFO,
 		"Pending checkpoint_writes: %lu. "
@@ -3629,8 +3629,8 @@ data file in the database, so that we know that the file spaces contain
 all modifications up to that lsn.
 @param notify		if true then write notifications to the error log
 @return current state */
-redo_log_t::state_t
-redo_log_t::start_shutdown(bool notify)
+RedoLog::state_t
+RedoLog::start_shutdown(bool notify)
 {
 	switch (is_busy() ? STATE_RUNNING : m_state) {
 	case STATE_RUNNING:
@@ -3695,7 +3695,7 @@ redo_log_t::start_shutdown(bool notify)
 }
 
 void
-redo_log_t::handle_truncate()
+RedoLog::handle_truncate()
 {
 	if (is_recovery_on()) {
 		m_recover->handle_truncate();
@@ -3706,7 +3706,7 @@ redo_log_t::handle_truncate()
 /**
 @return the last checkpoint LSN */
 lsn_t
-redo_log_t::checkpoint_lsn() const
+RedoLog::checkpoint_lsn() const
 {
 	return(m_checkpoint->m_last_lsn);
 }
@@ -3718,7 +3718,7 @@ Gets a log block data length.
 @return	log block data length measured as a byte offset from the
 	block start */
 ulint
-redo_log_t::block_get_data_len(const byte* block)
+RedoLog::block_get_data_len(const byte* block)
 {
 	return(IOBlock::get_data_len(block));
 }
@@ -3729,21 +3729,21 @@ format, where there was no checksum yet.
 @param block		pointer to the log buffer
 @param lsn		lsn within the log block */
 void
-redo_log_t::block_init_v1(byte* block, lsn_t lsn)
+RedoLog::block_init_v1(byte* block, lsn_t lsn)
 {
 	IOBlock::init_v1(block, convert_lsn_to_no(lsn));
 }
 
 /**
 Default constructor */
-redo_log_t::Command::Command()
+RedoLog::Command::Command()
 {
 	/* Do nothing */
 }
 
 /**
 Destructor */
-redo_log_t::Command::~Command()
+RedoLog::Command::~Command()
 {
 	/* Do nothing */
 }
@@ -3751,7 +3751,7 @@ redo_log_t::Command::~Command()
 /**
 The redo log command queue */
 void
-redo_log_t::submit(Command* cmd)
+RedoLog::submit(Command* cmd)
 {
 	cmd->execute(this);
 }

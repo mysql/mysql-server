@@ -1548,17 +1548,17 @@ redo_recover_t::calc_lsn_on_data_add(lsn_t lsn, ib_uint64_t len)
 	ulint		frag_len;
 	ib_uint64_t	lsn_len;
 
-	frag_len = (lsn % OS_FILE_LOG_BLOCK_SIZE) - redo_log_t::BLOCK_HDR_SIZE;
+	frag_len = (lsn % OS_FILE_LOG_BLOCK_SIZE) - RedoLog::BLOCK_HDR_SIZE;
 
-	ut_ad(frag_len < OS_FILE_LOG_BLOCK_SIZE - redo_log_t::BLOCK_HDR_SIZE
-	      - redo_log_t::TRAILER_SIZE);
+	ut_ad(frag_len < OS_FILE_LOG_BLOCK_SIZE - RedoLog::BLOCK_HDR_SIZE
+	      - RedoLog::TRAILER_SIZE);
 
 	lsn_len = len;
 
 	lsn_len += (lsn_len + frag_len)
-		/ (OS_FILE_LOG_BLOCK_SIZE - redo_log_t::BLOCK_HDR_SIZE
-		   - redo_log_t::TRAILER_SIZE)
-		* (redo_log_t::BLOCK_HDR_SIZE + redo_log_t::TRAILER_SIZE);
+		/ (OS_FILE_LOG_BLOCK_SIZE - RedoLog::BLOCK_HDR_SIZE
+		   - RedoLog::TRAILER_SIZE)
+		* (RedoLog::BLOCK_HDR_SIZE + RedoLog::TRAILER_SIZE);
 
 	return(lsn + lsn_len);
 }
@@ -1894,7 +1894,7 @@ redo_recover_t::add_to_parsing_buf(const byte* log_block, lsn_t scanned_lsn)
 		return(false);
 	}
 
-	data_len = redo_log_t::block_get_data_len(log_block);
+	data_len = RedoLog::block_get_data_len(log_block);
 
 	if (m_parse_start_lsn >= scanned_lsn) {
 
@@ -1921,14 +1921,14 @@ redo_recover_t::add_to_parsing_buf(const byte* log_block, lsn_t scanned_lsn)
 
 	start_offset = data_len - more_len;
 
-	if (start_offset < redo_log_t::BLOCK_HDR_SIZE) {
-		start_offset = redo_log_t::BLOCK_HDR_SIZE;
+	if (start_offset < RedoLog::BLOCK_HDR_SIZE) {
+		start_offset = RedoLog::BLOCK_HDR_SIZE;
 	}
 
 	end_offset = data_len;
 
-	if (end_offset > OS_FILE_LOG_BLOCK_SIZE - redo_log_t::TRAILER_SIZE) {
-		end_offset = OS_FILE_LOG_BLOCK_SIZE - redo_log_t::TRAILER_SIZE;
+	if (end_offset > OS_FILE_LOG_BLOCK_SIZE - RedoLog::TRAILER_SIZE) {
+		end_offset = OS_FILE_LOG_BLOCK_SIZE - RedoLog::TRAILER_SIZE;
 	}
 
 	ut_ad(start_offset <= end_offset);
@@ -2179,14 +2179,14 @@ redo_recover_t::reset_log_files_for_backup(
 	}
 
 	/* We pretend there is a checkpoint at
-	lsn + redo_log_t::BLOCK_HDR_SIZE */
+	lsn + RedoLog::BLOCK_HDR_SIZE */
 
 	log_reset_first_header_and_checkpoint(buf, lsn);
 
-	redo_log_t::block_init_v1(buf + LOG_FILE_HDR_SIZE, lsn);
+	RedoLog::block_init_v1(buf + LOG_FILE_HDR_SIZE, lsn);
 
-	redo_log_t::block_set_first_rec_group(
-		buf + LOG_FILE_HDR_SIZE, redo_log_t::BLOCK_HDR_SIZE);
+	RedoLog::block_set_first_rec_group(
+		buf + LOG_FILE_HDR_SIZE, RedoLog::BLOCK_HDR_SIZE);
 
 	sprintf(name, "%s%s%lu", log_dir, ib_logfile_basename, (ulong)0);
 

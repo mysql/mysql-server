@@ -684,7 +684,7 @@ fil_node_create(
 
 	UT_LIST_ADD_LAST(space->chain, node);
 
-	if (id < redo_log_t::SPACE_FIRST_ID
+	if (id < RedoLog::SPACE_FIRST_ID
 	    && fil_system->max_assigned_id < id) {
 
 		fil_system->max_assigned_id = id;
@@ -1011,7 +1011,7 @@ fil_mutex_enter_and_prepare_for_io(
 retry:
 	mutex_enter(&fil_system->mutex);
 
-	if (space_id == 0 || space_id >= redo_log_t::SPACE_FIRST_ID) {
+	if (space_id == 0 || space_id >= RedoLog::SPACE_FIRST_ID) {
 		/* We keep log files and system tablespace files always open;
 		this is important in preventing deadlocks in this module, as
 		a page read completion often performs another read from the
@@ -1317,7 +1317,7 @@ fil_assign_new_space_id(
 
 	id++;
 
-	if (id > (redo_log_t::SPACE_FIRST_ID / 2) && !(id % 1000000UL)) {
+	if (id > (RedoLog::SPACE_FIRST_ID / 2) && !(id % 1000000UL)) {
 		ut_print_timestamp(stderr);
 		fprintf(stderr,
 			"InnoDB: Warning: you are running out of new"
@@ -1328,10 +1328,10 @@ fil_assign_new_space_id(
 			" you have to dump all your tables and\n"
 			"InnoDB: recreate the whole InnoDB installation.\n",
 			(ulong) id,
-			(ulong) redo_log_t::SPACE_FIRST_ID);
+			(ulong) RedoLog::SPACE_FIRST_ID);
 	}
 
-	success = (id < redo_log_t::SPACE_FIRST_ID);
+	success = (id < RedoLog::SPACE_FIRST_ID);
 
 	if (success) {
 		*space_id = fil_system->max_assigned_id = id;
@@ -1802,7 +1802,7 @@ fil_set_max_space_id_if_bigger(
 /*===========================*/
 	ulint	max_id)	/*!< in: maximum known id */
 {
-	if (max_id >= redo_log_t::SPACE_FIRST_ID) {
+	if (max_id >= RedoLog::SPACE_FIRST_ID) {
 		ib_logf(IB_LOG_LEVEL_FATAL,
 			"Fatal error: max tablespace id"
 			" is too high, %lu", (ulong) max_id);
@@ -3707,7 +3707,7 @@ fil_create_new_single_table_tablespace(
 
 	ut_ad(!Tablespace::is_system_tablespace(space_id));
 	ut_ad(!srv_read_only_mode);
-	ut_a(space_id < redo_log_t::SPACE_FIRST_ID);
+	ut_a(space_id < RedoLog::SPACE_FIRST_ID);
 	ut_a(size >= FIL_IBD_FILE_INITIAL_SIZE);
 	ut_a(fsp_flags_is_valid(flags));
 
@@ -5898,7 +5898,7 @@ fil_aio_wait(
 		srv_set_io_thread_op_info(segment, "complete io for log");
 
 		redo_log->io_complete(
-			static_cast<redo_log_t::Group*>(message));
+			static_cast<RedoLog::Group*>(message));
 	}
 }
 #endif /* UNIV_HOTBACKUP */
