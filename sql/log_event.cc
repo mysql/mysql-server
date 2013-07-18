@@ -129,6 +129,32 @@ template bool valid_buffer_range<unsigned int>(unsigned int,
 
 #if defined(MYSQL_CLIENT)
 
+/*
+  Function to check whether the database name provided as an input
+  parameter is a part of the list of database that needs to be
+  rewritten.
+
+  @param[in] db   The database that needs to be checked in the list.
+
+  @retval   true  The database mentioned as input is in the list of
+                  database that needs to be rewriten.
+  @retval   false The database mentioned as input is not in the list
+                  of databases the needs to be rewritten.
+*/
+bool is_binlog_rewrite_db(const char* db)
+{
+  if (binlog_rewrite_db.is_empty () || !db)
+    return false;
+  I_List_iterator<i_string_pair> it(binlog_rewrite_db);
+  i_string_pair* tmp;
+  while ((tmp=it++))
+  {
+    if (!strncmp(tmp->key, db, NAME_LEN+1))
+      return true;
+  }
+  return false;
+}
+
 /**
   Function to extract the to_db name from the list of the
   from_db and to_db pairs.
@@ -4363,6 +4389,7 @@ void Query_log_event::print_query_header(IO_CACHE* file,
                 error_code);
   }
 
+  bool suppress_use_flag= is_binlog_rewrite_db(db);
   if ((flags & LOG_EVENT_SUPPRESS_USE_F))
   {
     if (!is_trans_keyword())
@@ -4372,10 +4399,10 @@ void Query_log_event::print_query_header(IO_CACHE* file,
 /*
   option_rewrite_set is used to check whether the USE DATABASE command needs
   to be suppressed or not.
-  Suppress if the --rewrite-db  option in use.
-  Skip otherwise.
+  Suppress if the database being processed is in the list of database that
+  needs to be rewritten. Skip otherwise.
 */
-  else if (db && !option_rewrite_set)
+  else if (db && !suppress_use_flag)
   {
 #ifdef MYSQL_SERVER
     quoted_len= my_strmov_quoted_identifier(this->thd, (char*)quoted_id, db, 0);
