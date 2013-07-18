@@ -96,8 +96,44 @@ PATENT RIGHTS GRANT:
 #include <sys/stat.h>
 #include <db.h>
 
+typedef struct {
+    int64_t left;
+    int64_t right;
+    int64_t last;
+    int found;
+    int direction;
+    int error_to_expect;
+} cont_extra;
+
+static int
+getf_continue(DBT const* key, DBT const* val, void* context) {
+    assert(key); // prob wrong?
+    assert(val); // prob wrong? make ifs if this fails
+    cont_extra *CAST_FROM_VOIDP(c, context);
+
+    assert(c->found >= 0);
+    assert(c->found < 3);
+    c->found++;
+    assert(key->size == 8);
+    assert(val->size == 8);
+    int64_t k = *(int64_t*)key->data;
+    int64_t v = *(int64_t*)val->data;
+    assert(k==v);
+    assert(k==c->last+c->direction);
+    c->last = k;
+    if (c->error_to_expect) {
+        assert(c->left <= k);
+        assert(k <= c->right);
+    }
+    if (c->found < 3) {
+        return TOKUDB_CURSOR_CONTINUE;
+    } else {
+        return 0;
+    }
+}
+
 static void
-test_restrict (int64_t n, int error_to_expect) {
+test_restrict (int64_t n, int offset, int error_to_expect) {
     assert(n > 30);
     DB_TXN * const null_txn = 0;
     int r;
@@ -139,8 +175,8 @@ test_restrict (int64_t n, int error_to_expect) {
 
     DBT dbt_left, dbt_right;
     int64_t int_left, int_right;
-    int_left = n / 3;
-    int_right = 2 * n / 3;
+    int_left = n / 3 + offset;
+    int_right = 2 * n / 3 + offset;
 
     dbt_init(&dbt_left, &keys[int_left], sizeof keys[int_left]);
     dbt_init(&dbt_right, &keys[int_right], sizeof keys[int_right]);
@@ -172,9 +208,11 @@ test_restrict (int64_t n, int error_to_expect) {
     assert(*(int64_t*)val.data == int_left);
 
     for (i=int_left+1; i < n; i++) {
-        r = cursor->c_get(cursor, dbt_init(&key, &keys[i], sizeof keys[i]), dbt_init(&val, NULL, 0), DB_NEXT);
+        r = cursor->c_get(cursor, dbt_init(&key, NULL, 0), dbt_init(&val, NULL, 0), DB_NEXT);
         if (i >= int_left && i <= int_right) {
             CKERR(r);
+            assert(key.size == 8);
+            assert(*(int64_t*)key.data == i);
             assert(val.size == 8);
             assert(*(int64_t*)val.data == i);
         } else {
@@ -189,12 +227,110 @@ test_restrict (int64_t n, int error_to_expect) {
     assert(*(int64_t*)val.data == int_right);
 
     for (i=int_right-1; i >= 0; i--) {
-        r = cursor->c_get(cursor, dbt_init(&key, &keys[i], sizeof keys[i]), dbt_init(&val, NULL, 0), DB_PREV);
+        r = cursor->c_get(cursor, dbt_init(&key, NULL, 0), dbt_init(&val, NULL, 0), DB_PREV);
         if (i >= int_left && i <= int_right) {
             CKERR(r);
+            assert(key.size == 8);
+            assert(*(int64_t*)key.data == i);
             assert(val.size == 8);
             assert(*(int64_t*)val.data == i);
         } else {
+            CKERR2(r, error_to_expect);
+            break;
+        }
+    }
+
+    // Forwards
+
+    r = cursor->c_get(cursor, dbt_init(&key, &keys[int_left], sizeof keys[int_left]), dbt_init(&val, NULL, 0), DB_SET);
+    CKERR(r);
+    assert(val.size == 8);
+    assert(*(int64_t*)val.data == int_left);
+
+    cont_extra c;
+    c.left = int_left;
+    c.right = int_right;
+    c.error_to_expect = error_to_expect;
+    c.direction = 1;
+    c.last = int_left;
+    for (i=int_left+1; i < n; i+=3) {
+        c.found = 0;
+
+        r = cursor->c_getf_next(cursor, 0, getf_continue, &c);
+        if (i >= int_left && i <= int_right) {
+            CKERR(r);
+            if (!error_to_expect) {
+                assert(c.found == 3);
+                assert(c.last == i+2);
+            } else if (i+2 >= int_left && i+2 <= int_right) {
+                assert(c.found == 3);
+                assert(c.last == i+2);
+            } else if (i+1 >= int_left && i+1 <= int_right) {
+                assert(c.found == 2);
+                assert(c.last == i+1);
+                r = cursor->c_get(cursor, dbt_init(&key, NULL, 0), dbt_init(&val, NULL, 0), DB_CURRENT);
+                CKERR2(r, error_to_expect);
+                break;
+            } else {
+                assert(c.found == 1);
+                assert(c.last == i);
+                r = cursor->c_get(cursor, dbt_init(&key, NULL, 0), dbt_init(&val, NULL, 0), DB_CURRENT);
+                CKERR2(r, error_to_expect);
+                break;
+            }
+        } else {
+            if (error_to_expect == 0) {
+                assert(c.found == 3);
+                assert(c.last == i+2);
+            } else {
+                assert(c.found == 0);
+                assert(c.last == i-1);
+            }
+            CKERR2(r, error_to_expect);
+            break;
+        }
+    }
+
+    r = cursor->c_get(cursor, dbt_init(&key, &keys[int_right], sizeof keys[int_right]), dbt_init(&val, NULL, 0), DB_SET);
+    CKERR(r);
+    assert(val.size == 8);
+    assert(*(int64_t*)val.data == int_right);
+
+    c.direction = -1;
+    c.last = int_right;
+    for (i=int_right-1; i >= 0; i -= 3) {
+        c.found = 0;
+
+        r = cursor->c_getf_prev(cursor, 0, getf_continue, &c);
+        if (i >= int_left && i <= int_right) {
+            CKERR(r);
+            if (!error_to_expect) {
+                assert(c.found == 3);
+                assert(c.last == i-2);
+            } else if (i-2 >= int_left && i-2 <= int_right) {
+                assert(c.found == 3);
+                assert(c.last == i-2);
+            } else if (i-1 >= int_left && i-1 <= int_right) {
+                assert(c.found == 2);
+                assert(c.last == i-1);
+                r = cursor->c_get(cursor, dbt_init(&key, NULL, 0), dbt_init(&val, NULL, 0), DB_CURRENT);
+                CKERR2(r, error_to_expect);
+                break;
+            } else {
+                assert(c.found == 1);
+                assert(c.last == i);
+                r = cursor->c_get(cursor, dbt_init(&key, NULL, 0), dbt_init(&val, NULL, 0), DB_CURRENT);
+                CKERR2(r, error_to_expect);
+                break;
+            }
+        } else {
+            if (error_to_expect == 0) {
+                assert(c.found == 3);
+                assert(c.last == i-2);
+            } else {
+                assert(c.found == 0);
+                assert(c.last == i+1);
+            }
             CKERR2(r, error_to_expect);
             break;
         }
@@ -209,9 +345,11 @@ int
 test_main(int argc, char *const argv[]) {
     parse_args(argc, argv);
     for (int i = 3*64; i < 3*1024; i *= 2) {
-        test_restrict(i, DB_NOTFOUND);
-        test_restrict(i, TOKUDB_OUT_OF_RANGE);
-        test_restrict(i, 0);
+        for (int offset = -2; offset <= 2; offset++) {
+            test_restrict(i, offset, DB_NOTFOUND);
+            test_restrict(i, offset, TOKUDB_OUT_OF_RANGE);
+            test_restrict(i, offset, 0);
+        }
     }
     return 0;
 }
