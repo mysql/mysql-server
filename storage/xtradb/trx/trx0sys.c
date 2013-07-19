@@ -1,6 +1,6 @@
 /*****************************************************************************
 
-Copyright (c) 1996, 2012, Oracle and/or its affiliates. All Rights Reserved.
+Copyright (c) 1996, 2013, Oracle and/or its affiliates. All Rights Reserved.
 
 This program is free software; you can redistribute it and/or modify it under
 the terms of the GNU General Public License as published by the Free Software
@@ -726,7 +726,8 @@ trx_sys_doublewrite_init_or_restore_pages(
 			/* Check if the page is corrupt */
 
 			if (UNIV_UNLIKELY
-			    (buf_page_is_corrupted(read_buf, zip_size))) {
+			    (buf_page_is_corrupted(
+				    TRUE, read_buf, zip_size))) {
 
 				fprintf(stderr,
 					"InnoDB: Warning: database page"
@@ -737,7 +738,8 @@ trx_sys_doublewrite_init_or_restore_pages(
 					" the doublewrite buffer.\n",
 					(ulong) space_id, (ulong) page_no);
 
-				if (buf_page_is_corrupted(page, zip_size)) {
+				if (buf_page_is_corrupted(
+					    TRUE, page, zip_size)) {
 					fprintf(stderr,
 						"InnoDB: Dump of the page:\n");
 					buf_page_print(
