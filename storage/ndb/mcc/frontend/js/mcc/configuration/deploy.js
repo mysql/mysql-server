@@ -958,9 +958,9 @@ function getStartProcessCommands(process) {
         sc.addopt("--ndb-nodeid", process.getValue("NodeId"));
 
 	if (isWin) {
-            sc.addopt("\\\"--config-dir", mcc.util.unixPath(datadir)+"\\\"");
-            sc.addopt("\\\"--config-file", mcc.util.unixPath(datadir) + 
-                      "config.ini\\\"");
+            sc.addopt("--config-dir", mcc.util.unixPath(datadir));
+            sc.addopt("--config-file", mcc.util.unixPath(datadir) + 
+                      "config.ini");
 	} else {
             sc.addopt("--config-dir", mcc.util.unixPath(datadir));
             sc.addopt("--config-file", mcc.util.unixPath(datadir) + 
@@ -1046,7 +1046,7 @@ function getStartProcessCommands(process) {
 
             sc.addopt("--install");
             sc.addopt("N"+nodeid);
-            sc.addopt("\\\"--defaults-file", datadir+"my.cnf\\\"");
+            sc.addopt("--defaults-file", datadir+"my.cnf");
             sc.msg.procCtrl.noRaise = 1; // --install returns 1 on success
             sc.progTitle = "Installing node "+nodeid+" ("+ptype+
             ") as service N"+nodeid;
