@@ -24,8 +24,8 @@ endif ()
 
 ## add TOKU_PTHREAD_DEBUG for debug builds
 set_property(DIRECTORY APPEND PROPERTY COMPILE_DEFINITIONS_DEBUG TOKU_PTHREAD_DEBUG=1)
-set_property(DIRECTORY APPEND PROPERTY COMPILE_DEFINITIONS_RELWITHDEBINFO TOKU_PTHREAD_DEBUG=1)
-set_property(DIRECTORY APPEND PROPERTY COMPILE_DEFINITIONS_RELWITHDEBINFO _FORTIFY_SOURCE=2)
+set_property(DIRECTORY APPEND PROPERTY COMPILE_DEFINITIONS_DRD TOKU_PTHREAD_DEBUG=1)
+set_property(DIRECTORY APPEND PROPERTY COMPILE_DEFINITIONS_DRD _FORTIFY_SOURCE=2)
 
 ## coverage
 option(USE_GCOV "Use gcov for test coverage." OFF)
@@ -120,18 +120,24 @@ set_ldflags_if_supported(
 set(CMAKE_C_FLAGS_DEBUG "-g3 -O0 ${CMAKE_C_FLAGS_DEBUG}")
 set(CMAKE_CXX_FLAGS_DEBUG "-g3 -O0 ${CMAKE_CXX_FLAGS_DEBUG}")
 
-## The default for this is -g -O2 -DNDEBUG.
-## Since we want none of those for drd, we just overwrite it.
-set(CMAKE_C_FLAGS_RELWITHDEBINFO "-g3 -O1")
-set(CMAKE_CXX_FLAGS_RELWITHDEBINFO "-g3 -O1")
+## flags to use when we want to run DRD on the resulting binaries
+## DRD needs debugging symbols.
+## -O0 makes it too slow, and -O2 inlines too much for our suppressions to work.  -O1 is just right.
+set(CMAKE_C_FLAGS_DRD "-g3 -O1 ${CMAKE_C_FLAGS_DRD}")
+set(CMAKE_CXX_FLAGS_DRD "-g3 -O1 ${CMAKE_CXX_FLAGS_DRD}")
 
 ## set extra release flags
+## need to set flags for RelWithDebInfo as well because we want the MySQL/MariaDB builds to use them
 if (APPLE AND CMAKE_CXX_COMPILER_ID STREQUAL Clang)
   # have tried -flto and -O4, both make our statically linked executables break apple's linker
+  set(CMAKE_C_FLAGS_RELWITHDEBINFO "${CMAKE_C_FLAGS_RELWITHDEBINFO} -g -O3 -UNDEBUG")
+  set(CMAKE_CXX_FLAGS_RELWITHDEBINFO "${CMAKE_CXX_FLAGS_RELWITHDEBINFO} -g -O3 -UNDEBUG")
   set(CMAKE_C_FLAGS_RELEASE "-g -O3 ${CMAKE_C_FLAGS_RELEASE} -UNDEBUG")
   set(CMAKE_CXX_FLAGS_RELEASE "-g -O3 ${CMAKE_CXX_FLAGS_RELEASE} -UNDEBUG")
 else ()
   # we overwrite this because the default passes -DNDEBUG and we don't want that
+  set(CMAKE_C_FLAGS_RELWITHDEBINFO "-flto -fuse-linker-plugin ${CMAKE_C_FLAGS_RELWITHDEBINFO} -g -O3 -UNDEBUG")
+  set(CMAKE_CXX_FLAGS_RELWITHDEBINFO "-flto -fuse-linker-plugin ${CMAKE_CXX_FLAGS_RELWITHDEBINFO} -g -O3 -UNDEBUG")
   set(CMAKE_C_FLAGS_RELEASE "-g -O3 -flto -fuse-linker-plugin ${CMAKE_C_FLAGS_RELEASE} -UNDEBUG")
   set(CMAKE_CXX_FLAGS_RELEASE "-g -O3 -flto -fuse-linker-plugin ${CMAKE_CXX_FLAGS_RELEASE} -UNDEBUG")
   set(CMAKE_EXE_LINKER_FLAGS "-g -fuse-linker-plugin ${CMAKE_EXE_LINKER_FLAGS}")
