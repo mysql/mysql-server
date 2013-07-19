@@ -1,3 +1,4 @@
+  --source include/have_debug.inc
   --source include/have_debug_sync.inc
   --source include/not_embedded.inc
   --source include/not_windows.inc

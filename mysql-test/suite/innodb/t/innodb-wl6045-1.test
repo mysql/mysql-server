@@ -84,7 +84,7 @@ EOF
 --echo # on the disk are corrupted
 --error 2013
 SELECT * FROM t1;
-
+--source include/wait_until_disconnected.inc
 --echo [1(a)]: Repair the ibd file with innochecksum with --write=innodb
 --exec $INNOCHECKSUM --no-check --write=innodb  $MYSQLD_DATADIR/test/t1.ibd
 # Verify the t1.ibd for --strict-check=innodb
