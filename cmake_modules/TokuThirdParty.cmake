@@ -43,7 +43,7 @@ if (APPLE)
 endif ()
 
 list(APPEND xz_configure_opts CC=${CMAKE_C_COMPILER})
-if (NOT CMAKE_BUILD_TYPE MATCHES Release)
+if (CMAKE_BUILD_TYPE STREQUAL Debug OR CMAKE_BUILD_TYPE STREQUAL drd)
   list(APPEND xz_configure_opts --enable-debug)
 endif ()
 
