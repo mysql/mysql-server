@@ -517,6 +517,8 @@ class LocalClusterHost(ABClusterHost):
             'exitstatus': subprocess.call(args=cmdv, stdin=inFile, 
                                           stdout=outFile, stderr=errFile) 
             }
+        outFile.seek(0)
+        errFile.seek(0)
         result['out'] = outFile.read()
         result['err'] = errFile.read()
         return result

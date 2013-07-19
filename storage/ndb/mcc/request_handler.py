@@ -154,14 +154,21 @@ def start_proc(proc, body):
 
         _logger.debug('Attempting to launch '+executable+' on '+ch.host+
                       ' with pc='+str(pc))
-        return ch.exec_cmdv(util.params_to_cmdv(executable, params), pc, stdinFile)
+
+        cmdv = util.params_to_cmdv(executable, params)
+	if proc.has_key('isCommand'):
+            return ch.execute_command(cmdv, stdinFile)
+		
+        return ch.exec_cmdv(cmdv, pc, stdinFile)
    
 
 def handle_executeCommandReq(req, body):
-        """Handler function for execCommandReq messages. Runs the process specified in by the command property."""
-        rep = make_rep(req, {'out': '', 'err': '', 'exitcode': ''})
-        rep['body']['out'] = start_proc(body['command'], body)
-        return rep 
+    """Handler function for execCommandReq messages. Runs the process specified in by the command property."""
+    if body['command'].has_key('isCommand'):
+        return make_rep(req, start_proc(body['command'], body))
+
+    return make_rep(req, {'out': start_proc(body['command'], body) })	
+
     
 def handle_createFileReq(req, body):
     """Handler function for createFileReq commands. Creates a file on the remote

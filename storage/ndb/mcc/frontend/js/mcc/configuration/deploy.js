@@ -1142,14 +1142,25 @@ function getStopProcessCommands(process) {
 
         rsc = new ProcessCommand(host, basedir, 
                                  ptypeItem.getValue("name")+(isWin?".exe":""));
-        if (ptype == "mysqld") {
+       
+		rsc.check_result = function (rep) { 
+			if (rep.body.out.search(/Service successfully removed/) != -1 ||
+				rep.body.out.search(/The service doesn't exist/) != -1) {
+				return "ok";
+			}
+			if (rep.body.out.search(/Failed to remove the service/) != -1) {
+				return "retry";
+			}
+			return "error";
+		};
+		if(ptype == "mysqld") {
             rsc.addopt("--remove");
             rsc.addopt("N"+nodeid);
         } else {
             rsc.addopt("--remove", "N"+nodeid);
         }
         rsc.progTitle = "Removing service N"+nodeid;
-        rsc.msg.procCtrl.noRaise = 1; // --remove returns 1 on success
+		rsc.msg.isCommand = true;
         stopCommands.push(rsc);
     }
 
@@ -1330,11 +1341,7 @@ function startCluster() {
 
 	function onReply(rep) {
 	  mcc.util.dbg("Got reply for: "+commands[currseq].progTitle);
-	  if (rep.body.out && rep.body.out != "") {
-	    mcc.util.dbg(rep.head.cmd+": "+"out: `"+rep.body.out+
-			 "', err: `"+rep.body.err+"' exitcode: "+
-			 rep.body.exitcode);
-	  }
+	  console.log(rep.body);
 	  // Start status polling timer after mgmd has been started
 	  // Ignore errors since it may not be available right away           
 	  if (currseq == 0) { mcc.gui.startStatusPoll(false); } 
@@ -1407,8 +1414,20 @@ function stopCluster() {
 
     function onReply(rep) {
       mcc.util.dbg("Got reply for: "+commands[currseq].progTitle);
-      mcc.util.dbg(rep.head.cmd+": "+"out: `"+rep.body.out+
-		   "', err: `"+rep.body.err+"' exitcode: "+rep.body.exitcode);
+	  var cc = commands[currseq];
+	  console.log(rep.body, cc)
+	  if (cc.msg.isCommand) {
+		result = cc.check_result(rep);
+		if (result == "retry") {
+			alert("check_status returned 'retry', retry in 2 sec...");
+			setTimeout(updateProgressAndStopNext, 2000);
+			return;
+		}
+		if (result == "error") {
+			onError(rep.body.out, rep);
+			return;
+		}
+	  }
       onTimeout();
     }
     
