@@ -5092,7 +5092,7 @@ int slave_start_single_worker(Relay_log_info *rli, ulong i)
     goto err;
   }
   set_dynamic(&rli->workers, (uchar*) &w, i);
-
+  w->currently_executing_gtid.clear();
   if (DBUG_EVALUATE_IF("mts_worker_thread_fails", i == 1, 0) ||
       (error= mysql_thread_create(key_thread_slave_worker, &th,
                                   &connection_attrib, handle_slave_worker,

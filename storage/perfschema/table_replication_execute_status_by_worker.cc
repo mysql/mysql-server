@@ -227,6 +227,11 @@ void table_replication_execute_status_by_worker::make_row(Slave_worker *w)
                                           m_row.last_seen_transaction);
     global_sid_lock->unlock();
   }
+  else
+  {
+    m_row.last_seen_transaction_length= 0;
+    memcpy(m_row.last_seen_transaction, "", m_row.last_seen_transaction_length);
+  }
 
   m_row.last_error_number= (unsigned int) w->last_error().number;
   m_row.last_error_message_length= 0;
