@@ -271,6 +271,7 @@ if(BUILD_TESTING OR BUILD_SRC_TESTS)
       test_query
       test_read_txn_invalid_ops
       test_redirect_func
+      test_restrict
       test_row_size_supported
       test_simple_read_txn
       test_stress0
