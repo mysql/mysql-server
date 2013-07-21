@@ -197,11 +197,6 @@ struct Geometry_buffer;
 class Geometry
 {
 public:
-  // Maximum number of points in feature that can fit into String
-  static const uint32 max_n_points=
-    (uint32) (INT_MAX32 - WKB_HEADER_SIZE - 4 /* n_points */) /
-    POINT_DATA_SIZE;
-public:
   Geometry() {}                               /* Remove gcc warning */
   virtual ~Geometry() {}                        /* Remove gcc warning */
   static void *operator new(size_t size, void *buffer)
@@ -325,6 +320,25 @@ protected:
   inline bool no_data(const char *cur_data, uint32 data_amount) const
   {
     return (cur_data + data_amount > m_data_end);
+  }
+
+  /**
+     Check if there're enough points remaining as requested
+
+     Need to perform the calculation in logical units, since multiplication
+     can overflow the size data type.
+
+     @arg data              pointer to the begining of the points array
+     @arg expected_points   number of points expected
+     @arg extra_point_space extra space for each point element in the array
+     @return               true if there are not enough points
+  */
+  inline bool not_enough_points(const char *data, uint32 expected_points,
+                                uint32 extra_point_space = 0) const
+  {
+    return (m_data_end < data ||
+            (expected_points > ((m_data_end - data) /
+                                (POINT_DATA_SIZE + extra_point_space))));
   }
   const char *m_data;
   const char *m_data_end;
