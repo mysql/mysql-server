@@ -1,7 +1,7 @@
 #ifndef MYSQL_EMBED_INCLUDED
 #define MYSQL_EMBED_INCLUDED
 
-/* Copyright (c) 2000, 2011, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2000, 2013, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -24,7 +24,6 @@
 /* TODO HF add #undef HAVE_VIO if we don't want client in embedded library */
 
 #undef HAVE_DLOPEN				/* No udf functions */
-#undef HAVE_SMEM				/* No shared memory */
 
 #endif /* EMBEDDED_LIBRARY */
 #endif /* MYSQL_EMBED_INCLUDED */

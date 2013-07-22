@@ -565,13 +565,13 @@ Item::Item():
     command => we should check thd->lex->current_select on zero (thd->lex
     can be uninitialised)
   */
-  if (thd->lex->current_select)
+  if (thd->lex->current_select())
   {
-    enum_parsing_place place= 
-      thd->lex->current_select->parsing_place;
-    if (place == SELECT_LIST ||
-	place == IN_HAVING)
-      thd->lex->current_select->select_n_having_items++;
+    enum_parsing_context place= 
+      thd->lex->current_select()->parsing_place;
+    if (place == CTX_SELECT_LIST ||
+	place == CTX_HAVING)
+      thd->lex->current_select()->select_n_having_items++;
   }
 }
 
@@ -1969,7 +1969,7 @@ void Item::split_sum_func2(THD *thd, Ref_ptr_array ref_pointer_array,
     Item *real_itm= real_item();
 
     ref_pointer_array[el]= real_itm;
-    if (!(item_ref= new Item_aggregate_ref(&thd->lex->current_select->context,
+    if (!(item_ref= new Item_aggregate_ref(&thd->lex->current_select()->context,
                                            &ref_pointer_array[el], 0,
                                            item_name.ptr())))
       return;                                   // fatal_error is set
@@ -2449,9 +2449,9 @@ Item_field::Item_field(Name_resolution_context *context_arg,
    field(0), result_field(0), item_equal(0), no_const_subst(0),
    have_privileges(0), any_privileges(0)
 {
-  SELECT_LEX *select= current_thd->lex->current_select;
+  SELECT_LEX *select= current_thd->lex->current_select();
   collation.set(DERIVATION_IMPLICIT);
-  if (select && select->parsing_place != IN_HAVING)
+  if (select && select->parsing_place != CTX_HAVING)
       select->select_n_where_fields++;
 }
 
@@ -4596,12 +4596,20 @@ static void mark_as_dependent(THD *thd, SELECT_LEX *last, SELECT_LEX *current,
   current->mark_as_dependent(last);
   if (thd->lex->describe & DESCRIBE_EXTENDED)
   {
+    /*
+      UNION's result has select_number == INT_MAX which is printed as -1 and
+      this is confusing. Instead, the number of the first SELECT in the UNION
+      is printed as names in ORDER BY are resolved against select list of the
+      first SELECT.
+    */
+    uint sel_nr= (last->select_number < INT_MAX) ? last->select_number :
+                  last->master_unit()->first_select()->select_number;
     push_warning_printf(thd, Sql_condition::SL_NOTE,
 		 ER_WARN_FIELD_RESOLVED, ER(ER_WARN_FIELD_RESOLVED),
                  db_name, (db_name[0] ? "." : ""),
                  table_name, (table_name [0] ? "." : ""),
                  resolved_item->field_name,
-                 current->select_number, last->select_number);
+                 current->select_number, sel_nr);
   }
 }
 
@@ -4984,7 +4992,7 @@ resolve_ref_in_select_and_group(THD *thd, Item_ident *ref, SELECT_LEX *select)
 int
 Item_field::fix_outer_field(THD *thd, Field **from_field, Item **reference)
 {
-  enum_parsing_place place= NO_MATTER;
+  enum_parsing_context place= CTX_NONE;
   bool field_found= (*from_field != not_found_field);
   bool upward_lookup= FALSE;
 
@@ -4999,7 +5007,7 @@ Item_field::fix_outer_field(THD *thd, Field **from_field, Item **reference)
   */
   Name_resolution_context *last_checked_context= context;
   Item **ref= (Item **) not_found_item;
-  SELECT_LEX *current_sel= thd->lex->current_select;
+  SELECT_LEX *current_sel= (SELECT_LEX *) thd->lex->current_select();
   Name_resolution_context *outer_context= NULL;
   SELECT_LEX *select= NULL;
   /* Currently derived tables cannot be correlated */
@@ -5057,7 +5065,7 @@ Item_field::fix_outer_field(THD *thd, Field **from_field, Item **reference)
           set_field(*from_field);
           if (!last_checked_context->select_lex->having_fix_field &&
               select->group_list.elements &&
-              (place == SELECT_LIST || place == IN_HAVING))
+              (place == CTX_SELECT_LIST || place == CTX_HAVING))
           {
             Item_outer_ref *rf;
             /*
@@ -5122,7 +5130,7 @@ Item_field::fix_outer_field(THD *thd, Field **from_field, Item **reference)
     }
 
     /* Search in SELECT and GROUP lists of the outer select. */
-    if (place != IN_WHERE && place != IN_ON &&
+    if (place != CTX_WHERE && place != CTX_ON &&
         outer_context->resolve_in_select_list)
     {
       if (!(ref= resolve_ref_in_select_and_group(thd, this, select)))
@@ -5185,7 +5193,7 @@ Item_field::fix_outer_field(THD *thd, Field **from_field, Item **reference)
     */
     save= *ref;
     *ref= NULL;                             // Don't call set_properties()
-    rf= (place == IN_HAVING ?
+    rf= (place == CTX_HAVING ?
          new Item_ref(context, ref, (char*) table_name,
                       (char*) field_name, alias_name_used) :
          (!select->group_list.elements ?
@@ -5197,7 +5205,7 @@ Item_field::fix_outer_field(THD *thd, Field **from_field, Item **reference)
     if (!rf)
       return -1;
 
-    if (place != IN_HAVING && select->group_list.elements)
+    if (place != CTX_HAVING && select->group_list.elements)
     {
       outer_context->select_lex->inner_refs_list.push_back((Item_outer_ref*)rf);
       ((Item_outer_ref*)rf)->in_sum_func= thd->lex->in_sum_func;
@@ -5331,11 +5339,11 @@ bool Item_field::fix_fields(THD *thd, Item **reference)
     {
       int ret;
       /* Look up in current select's item_list to find aliased fields */
-      if (thd->lex->current_select->is_item_list_lookup)
+      if (thd->lex->current_select()->is_item_list_lookup)
       {
         uint counter;
         enum_resolution_type resolution;
-        Item** res= find_item_in_list(this, thd->lex->current_select->item_list,
+        Item** res= find_item_in_list(this, thd->lex->current_select()->item_list,
                                       &counter, REPORT_EXCEPT_NOT_FOUND,
                                       &resolution);
         if (!res)
@@ -5382,14 +5390,14 @@ bool Item_field::fix_fields(THD *thd, Item **reference)
             if (!rf)
               return 1;
 
-            bool save_group_fix_field= thd->lex->current_select->group_fix_field;
+            bool save_group_fix_field= thd->lex->current_select()->group_fix_field;
             /*
               No need for recursive resolving of aliases.
             */
-            thd->lex->current_select->group_fix_field= 0;
+            thd->lex->current_select()->group_fix_field= 0;
 
             bool ret= rf->fix_fields(thd, (Item **) &rf) || rf->check_cols(1);
-            thd->lex->current_select->group_fix_field= save_group_fix_field;
+            thd->lex->current_select()->group_fix_field= save_group_fix_field;
             if (ret)
               return TRUE;
 
@@ -5448,9 +5456,9 @@ bool Item_field::fix_fields(THD *thd, Item **reference)
     set_field(from_field);
     if (thd->lex->in_sum_func &&
         thd->lex->in_sum_func->nest_level == 
-        thd->lex->current_select->nest_level)
+        thd->lex->current_select()->nest_level)
       set_if_bigger(thd->lex->in_sum_func->max_arg_level,
-                    thd->lex->current_select->nest_level);
+                    thd->lex->current_select()->nest_level);
   }
   else if (thd->mark_used_columns != MARK_COLUMNS_NONE)
   {
@@ -5497,20 +5505,20 @@ bool Item_field::fix_fields(THD *thd, Item **reference)
 #endif
   fixed= 1;
   if (!outer_fixed && !thd->lex->in_sum_func &&
-      thd->lex->current_select->cur_pos_in_all_fields !=
+      thd->lex->current_select()->cur_pos_in_all_fields !=
       SELECT_LEX::ALL_FIELDS_UNDEF_POS)
   {
     // See same code in Field_iterator_table::create_item()
     if (thd->variables.sql_mode & MODE_ONLY_FULL_GROUP_BY)
-      push_to_non_agg_fields(thd->lex->current_select);
+      push_to_non_agg_fields(thd->lex->current_select());
     /*
       If (1) aggregation (2) without grouping, we may have to return a result
       row even if the nested loop finds nothing; in this result row,
       non-aggregated table columns present in the SELECT list will show a NULL
       value even if the table column itself is not nullable.
     */
-    if (thd->lex->current_select->with_sum_func && // (1)
-        !thd->lex->current_select->group_list.elements) // (2)
+    if (thd->lex->current_select()->with_sum_func && // (1)
+        !thd->lex->current_select()->group_list.elements) // (2)
       maybe_null= true;
   }
 
@@ -5536,7 +5544,7 @@ mark_non_agg_field:
       if (outer_fixed)
         thd->lex->in_sum_func->outer_fields.push_back(this);
       else if (thd->lex->in_sum_func->nest_level !=
-          thd->lex->current_select->nest_level)
+          thd->lex->current_select()->nest_level)
         select_lex->set_non_agg_field_used(true);
     }
   }
@@ -6932,6 +6940,11 @@ Item* Item::cache_const_expr_transformer(uchar *arg)
       return NULL;
     cache->setup(this);
     cache->store(this);
+    /*
+      This item is cached - for subqueries this effectively means that they
+      are optimized away.
+    */
+    mark_subqueries_optimized_away();
     return cache;
   }
   return this;
@@ -7127,9 +7140,9 @@ Item_ref::Item_ref(Name_resolution_context *context_arg,
 
 bool Item_ref::fix_fields(THD *thd, Item **reference)
 {
-  enum_parsing_place place= NO_MATTER;
+  enum_parsing_context place= CTX_NONE;
   DBUG_ASSERT(fixed == 0);
-  SELECT_LEX *current_sel= thd->lex->current_select;
+  SELECT_LEX *current_sel= thd->lex->current_select();
 
   if (!ref || ref == not_found_item)
   {
@@ -7201,7 +7214,7 @@ bool Item_ref::fix_fields(THD *thd, Item **reference)
           ER_WRONG_FIELD_WITH_GROUP, instead of the less informative
           ER_BAD_FIELD_ERROR which we produce now.
         */
-        if ((place != IN_HAVING ||
+        if ((place != CTX_HAVING ||
              (!select->with_sum_func &&
               select->group_list.elements == 0)))
         {
@@ -7290,7 +7303,7 @@ bool Item_ref::fix_fields(THD *thd, Item **reference)
 
         thd->change_item_tree(reference, fld);
         mark_as_dependent(thd, last_checked_context->select_lex,
-                          thd->lex->current_select, this, fld);
+                          thd->lex->current_select(), this, fld);
         /*
           A reference is resolved to a nest level that's outer or the same as
           the nest level of the enclosing set function : adjust the value of
@@ -9066,6 +9079,8 @@ bool Item_cache_row::setup(Item * item)
     if (!(tmp= values[i]= Item_cache::get_cache(el)))
       return 1;
     tmp->setup(el);
+    with_subselect|= tmp->has_subquery();
+    with_stored_program|= tmp->has_stored_program();
   }
   return 0;
 }

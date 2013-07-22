@@ -198,9 +198,6 @@ ha_rows filesort(THD *thd, TABLE *table, Filesort *filesort,
   Opt_trace_object trace_wrapper(trace);
   trace_filesort_information(trace, filesort->sortorder, s_length);
 
-#ifdef SKIP_DBUG_IN_FILESORT
-  DBUG_PUSH("");		/* No DBUG here */
-#endif
   Item_subselect *subselect= table->reginfo.join_tab ?
      table->reginfo.join_tab->join->select_lex->master_unit()->item :
      NULL;
@@ -457,9 +454,6 @@ ha_rows filesort(THD *thd, TABLE *table, Filesort *filesort,
   else
     thd->inc_status_sort_rows(num_rows);
   *examined_rows= param.examined_rows;
-#ifdef SKIP_DBUG_IN_FILESORT
-  DBUG_POP();			/* Ok to DBUG */
-#endif
 
   // Assign the copy back!
   table->sort= table_sort;

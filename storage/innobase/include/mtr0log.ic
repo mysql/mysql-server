@@ -251,8 +251,8 @@ mlog_write_initial_log_record_fast(
 }
 
 /********************************************************//**
-Writes a log record about an .ibd file create/delete/rename.
-@return new value of log_ptr */
+Writes a log record about an .ibd file create/delete/rename/truncate.
+@return	new value of log_ptr */
 UNIV_INLINE
 byte*
 mlog_write_initial_log_record_for_file_op(

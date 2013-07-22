@@ -300,6 +300,49 @@ mtr_set_log_mode(
 	return(old_mode);
 }
 
+/********************************************************//**
+Reads 1 - 4 bytes from a file page buffered in the buffer pool.
+@return value read */
+UNIV_INLINE
+ulint
+mtr_read_ulint(
+/*===========*/
+	const byte*	ptr,	/*!< in: pointer from where to read */
+	ulint		type,	/*!< in: MLOG_1BYTE, MLOG_2BYTES, MLOG_4BYTES */
+	mtr_t*		mtr __attribute__((unused)))
+				/*!< in: mini-transaction handle */
+{
+	ut_ad(mtr->state == MTR_ACTIVE);
+	ut_ad(mtr_memo_contains_page_flagged(mtr, ptr,
+					     MTR_MEMO_PAGE_S_FIX
+					     | MTR_MEMO_PAGE_X_FIX
+					     | MTR_MEMO_PAGE_SX_FIX));
+
+	return(mach_read_ulint(ptr, type));
+}
+
+/********************************************************//**
+Reads 8 bytes from a file page buffered in the buffer pool.
+@return	value read */
+UNIV_INLINE
+ib_id_t
+mtr_read_ull(
+/*=========*/
+	const byte*	ptr,	/*!< in: pointer from where to read */
+	ulint		type,	/*!< in: MLOG_8BYTES */
+	mtr_t*		mtr __attribute__((unused)))
+				/*!< in: mini-transaction handle */
+{
+	ut_ad(mtr->state == MTR_ACTIVE);
+	ut_ad(type == MLOG_8BYTES);
+	ut_ad(mtr_memo_contains_page_flagged(mtr, ptr,
+					     MTR_MEMO_PAGE_S_FIX
+					     | MTR_MEMO_PAGE_X_FIX
+					     | MTR_MEMO_PAGE_SX_FIX));
+
+	return(mach_read_from_8(ptr));
+}
+
 #ifndef UNIV_HOTBACKUP
 /*********************************************************************//**
 Locks a lock in s-mode. */

@@ -47,7 +47,7 @@ connection con1;
 let $wait_condition=
   select count(*) = 1 from information_schema.processlist
   where info like "%insert into t2 values%" and state like 'User lock';
---source include/wait_condition.inc
+--source include/wait_condition_or_abort.inc
 
 --replace_regex /[0-9]+/ID/
 eval kill query $ID;
@@ -272,7 +272,7 @@ send update t4 set b=b + bug27563(b);
 
 connection con1;
 let $wait_condition= select count(*) = 1 FROM INFORMATION_SCHEMA.PROCESSLIST where state='User lock';
-source include/wait_condition.inc;
+source include/wait_condition_or_abort.inc;
 select count(*) FROM INFORMATION_SCHEMA.PROCESSLIST where state='User lock';
 
 --replace_result $ID ID
@@ -330,7 +330,7 @@ send delete from t4 where b=bug27563(1) or b=bug27563(2);
 
 connection con1;
 let $wait_condition= select count(*) = 1 FROM INFORMATION_SCHEMA.PROCESSLIST where state='User lock';
-source include/wait_condition.inc;
+source include/wait_condition_or_abort.inc;
 select count(*) FROM INFORMATION_SCHEMA.PROCESSLIST where state='User lock';
 --replace_result $ID ID
 eval kill query $ID;

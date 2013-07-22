@@ -519,16 +519,17 @@ is necessary to make the descriptor defined, as they are uninitialized
 above the free limit.
 @return pointer to the extent descriptor, NULL if the page does not
 exist in the space or if the offset exceeds the free limit */
-static __attribute__((nonnull, warn_unused_result))
+
 xdes_t*
 xdes_get_descriptor(
 /*================*/
-	ulint	space,	/*!< in: space id */
-	ulint	zip_size,/*!< in: compressed page size in bytes
-			or 0 for uncompressed pages */
-	ulint	offset,	/*!< in: page offset; if equal to the free limit,
-			we try to add new extents to the space free list */
-	mtr_t*	mtr)	/*!< in/out: mini-transaction */
+	ulint	space,		/*!< in: space id */
+	ulint	zip_size,	/*!< in: compressed page size in bytes
+				or 0 for uncompressed pages */
+	ulint	offset,		/*!< in: page offset; if equal to the
+				free limit, we try to add new extents
+				to the space free list */
+	mtr_t*	mtr)		/*!< in/out: mini-transaction */
 {
 	buf_block_t*	block;
 	fsp_header_t*	sp_header;
@@ -756,7 +757,7 @@ fsp_header_init(
 		fsp_fill_free_list(FALSE, space, header, mtr);
 		btr_create(DICT_CLUSTERED | DICT_UNIVERSAL | DICT_IBUF,
 			   0, 0, DICT_IBUF_ID_MIN + space,
-			   dict_ind_redundant, mtr);
+			   dict_ind_redundant, NULL, mtr);
 	} else if (space == srv_tmp_space.space_id()) {
 		fsp_fill_free_list(FALSE, space, header, mtr);
 	} else {
@@ -1142,7 +1143,7 @@ fsp_fill_free_list(
 		mlog_write_ulint(header + FSP_FREE_LIMIT, i + FSP_EXTENT_SIZE,
 				 MLOG_4BYTES, mtr);
 
-		if (UNIV_UNLIKELY(init_xdes)) {
+		if (init_xdes) {
 
 			buf_block_t*	block;
 
@@ -1167,12 +1168,18 @@ fsp_fill_free_list(
 
 			/* Initialize the ibuf bitmap page in a separate
 			mini-transaction because it is low in the latching
-			order, and we must be able to release its latch
-			before returning from the fsp routine
-			Insert-Buffering disabled for object residing
-			in temp-tablespace. */
+			order, and we must be able to release its latch.
+			Note: Insert-Buffering is disabled for tables that
+			reside in the temp-tablespace. */
 			if (space != srv_tmp_space.space_id()) {
 				mtr_start(&ibuf_mtr);
+
+				/* Avoid logging while truncate table
+				fix-up is active. */
+				if (srv_is_tablespace_truncated(space)) {
+					mtr_set_log_mode(
+						&ibuf_mtr, MTR_LOG_NO_REDO);
+				}
 
 				block = buf_page_create(
 						space,

@@ -152,7 +152,7 @@ static enum enum_set_gtid_purged_mode {
   SET_GTID_PURGED_ON=2
 } opt_set_gtid_purged_mode= SET_GTID_PURGED_AUTO;
 
-#ifdef HAVE_SMEM
+#if defined (_WIN32) && !defined (EMBEDDED_LIBRARY)
 static char *shared_memory_base_name=0;
 #endif
 static uint opt_protocol= 0;
@@ -480,7 +480,7 @@ static struct my_option my_long_options[] =
     "If GTIDs are disabled, AUTO does nothing. Default is AUTO.",
     0, 0, 0, GET_STR, OPT_ARG,
     0, 0, 0, 0, 0, 0},
-#ifdef HAVE_SMEM
+#if defined (_WIN32) && !defined (EMBEDDED_LIBRARY)
   {"shared-memory-base-name", OPT_SHARED_MEMORY_BASE_NAME,
    "Base name of shared memory.", &shared_memory_base_name, &shared_memory_base_name,
    0, GET_STR_ALLOC, REQUIRED_ARG, 0, 0, 0, 0, 0, 0},
@@ -1604,7 +1604,7 @@ static int connect_to_db(char *host, char *user,char *passwd)
     mysql_options(&mysql_connection,MYSQL_OPT_PROTOCOL,(char*)&opt_protocol);
   if (opt_bind_addr)
     mysql_options(&mysql_connection,MYSQL_OPT_BIND,opt_bind_addr);
-#ifdef HAVE_SMEM
+#if defined (_WIN32) && !defined (EMBEDDED_LIBRARY)
   if (shared_memory_base_name)
     mysql_options(&mysql_connection,MYSQL_SHARED_MEMORY_BASE_NAME,shared_memory_base_name);
 #endif
@@ -5888,7 +5888,7 @@ int main(int argc, char **argv)
   if (opt_delete_master_logs && purge_bin_logs_to(mysql, bin_log_name))
     goto err;
 
-#ifdef HAVE_SMEM
+#if defined (_WIN32) && !defined (EMBEDDED_LIBRARY)
   my_free(shared_memory_base_name);
 #endif
   /*

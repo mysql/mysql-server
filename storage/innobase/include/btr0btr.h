@@ -412,14 +412,21 @@ Creates the root node for a new index tree.
 ulint
 btr_create(
 /*=======*/
-	ulint		type,	/*!< in: type of the index */
-	ulint		space,	/*!< in: space where created */
-	ulint		zip_size,/*!< in: compressed page size in bytes
-				or 0 for uncompressed pages */
-	index_id_t	index_id,/*!< in: index id */
-	dict_index_t*	index,	/*!< in: index */
-	mtr_t*		mtr)	/*!< in: mini-transaction handle */
-	__attribute__((nonnull));
+	ulint			type,		/*!< in: type of the index */
+	ulint			space,		/*!< in: space where created */
+	ulint			zip_size,	/*!< in: compressed page size
+						in bytes or 0 for uncompressed
+						pages */
+	index_id_t		index_id,	/*!< in: index id */
+	dict_index_t*		index,		/*!< in: index, or NULL when
+						applying MLOG_FILE_TRUNCATE
+						redo record during recovery */
+	const btr_create_t*	btr_redo_create_info,
+						/*!< in: used for applying
+						MLOG_FILE_TRUNCATE redo record
+						during recovery */
+	mtr_t*			mtr);		/*!< in: mini-transaction
+						handle */
 /************************************************************//**
 Frees a B-tree except the root page, which MUST be freed after this
 by calling btr_free_root. */
@@ -432,7 +439,7 @@ btr_free_but_not_root(
 						size in bytes or 0 for
 						uncompressed pages */
 	ulint			root_page_no,	/*!< in: root page number */
-	bool			is_temp_table);	/*!< in: true if temp-table */
+	ulint			logging_mode);	/*!< in: mtr logging mode */
 /************************************************************//**
 Frees the B-tree root page. Other tree MUST already have been freed. */
 

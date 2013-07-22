@@ -35,7 +35,6 @@
 #cmakedefine HAVE_FNMATCH_H 1
 #cmakedefine HAVE_FPU_CONTROL_H 1
 #cmakedefine HAVE_GRP_H 1
-#cmakedefine HAVE_IA64INTRIN_H 1
 #cmakedefine HAVE_IEEEFP_H 1
 #cmakedefine HAVE_INTTYPES_H 1
 #cmakedefine HAVE_MALLOC_H 1
@@ -166,6 +165,7 @@
 #cmakedefine HAVE_PAUSE_INSTRUCTION 1
 #cmakedefine HAVE_FAKE_PAUSE_INSTRUCTION 1
 #cmakedefine HAVE_RDTSCLL 1
+#cmakedefine HAVE_PTHREAD_ATTR_GETGUARDSIZE 1
 #cmakedefine HAVE_PTHREAD_ATTR_GETSTACKSIZE 1
 #cmakedefine HAVE_PTHREAD_ATTR_SETSTACKSIZE 1
 #cmakedefine HAVE_PTHREAD_CONDATTR_SETCLOCK 1
