@@ -2930,15 +2930,19 @@ static void start_signal_handler(void)
   (void) pthread_attr_init(&thr_attr);
   pthread_attr_setscope(&thr_attr,PTHREAD_SCOPE_SYSTEM);
   (void) pthread_attr_setdetachstate(&thr_attr,PTHREAD_CREATE_DETACHED);
+
+  size_t guardize= 0;
+  pthread_attr_getguardsize(&thr_attr, &guardize);
+
 #if defined(__ia64__) || defined(__ia64)
   /*
     Peculiar things with ia64 platforms - it seems we only have half the
     stack size in reality, so we have to double it here
   */
-  pthread_attr_setstacksize(&thr_attr,my_thread_stack_size*2);
-#else
-  pthread_attr_setstacksize(&thr_attr,my_thread_stack_size);
+  guardize= my_thread_stack_size;
 #endif
+
+  pthread_attr_setstacksize(&thr_attr, my_thread_stack_size + guardize);
 
   mysql_mutex_lock(&LOCK_thread_count);
   if ((error= mysql_thread_create(key_thread_signal_hand,
@@ -5170,33 +5174,40 @@ int mysqld_main(int argc, char **argv)
     unireg_abort(1);        // Will do exit
 
   my_init_signals();
+
+  size_t guardize= 0;
+  int retval= pthread_attr_getguardsize(&connection_attrib, &guardize);
+  DBUG_ASSERT(retval == 0);
+  if (retval != 0)
+    guardize= my_thread_stack_size;
+
 #if defined(__ia64__) || defined(__ia64)
   /*
     Peculiar things with ia64 platforms - it seems we only have half the
     stack size in reality, so we have to double it here
   */
-  pthread_attr_setstacksize(&connection_attrib,my_thread_stack_size*2);
-#else
-  pthread_attr_setstacksize(&connection_attrib,my_thread_stack_size);
+  guardize= my_thread_stack_size;
 #endif
+
+  pthread_attr_setstacksize(&connection_attrib,
+                            my_thread_stack_size + guardize);
+
 #ifdef HAVE_PTHREAD_ATTR_GETSTACKSIZE
   {
     /* Retrieve used stack size;  Needed for checking stack overflows */
     size_t stack_size= 0;
     pthread_attr_getstacksize(&connection_attrib, &stack_size);
-#if defined(__ia64__) || defined(__ia64)
-    stack_size/= 2;
-#endif
+
     /* We must check if stack_size = 0 as Solaris 2.9 can return 0 here */
-    if (stack_size && stack_size < my_thread_stack_size)
+    if (stack_size && stack_size < (my_thread_stack_size + guardize))
     {
       if (log_warnings)
-  sql_print_warning("Asked for %lu thread stack, but got %ld",
-        my_thread_stack_size, (long) stack_size);
+        sql_print_warning("Asked for %lu thread stack, but got %ld",
+                          my_thread_stack_size + guardize, (long) stack_size);
 #if defined(__ia64__) || defined(__ia64)
-      my_thread_stack_size= stack_size*2;
+      my_thread_stack_size= stack_size / 2;
 #else
-      my_thread_stack_size= stack_size;
+      my_thread_stack_size= stack_size - guardize;
 #endif
     }
   }
