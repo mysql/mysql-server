@@ -1,4 +1,4 @@
-/* Copyright (c) 2011, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2011, 2013, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -911,9 +911,9 @@ Opt_trace_context::~Opt_trace_context()
     /* There may well be some few ended traces left: */
     purge_stmts(true);
     /* All should have moved to 'del' list: */
-    DBUG_ASSERT(pimpl->all_stmts_for_I_S.elements() == 0);
+    DBUG_ASSERT(pimpl->all_stmts_for_I_S.size() == 0);
     /* All of 'del' list should have been deleted: */
-    DBUG_ASSERT(pimpl->all_stmts_to_del.elements() == 0);
+    DBUG_ASSERT(pimpl->all_stmts_to_del.size() == 0);
     delete pimpl;
   }
 }
@@ -1040,8 +1040,8 @@ bool Opt_trace_context::start(bool support_I_S_arg,
 
     if (unlikely(stmt == NULL ||
                  pimpl->stack_of_current_stmts
-                 .append(pimpl->current_stmt_in_gen)))
-      goto err;                            // append() above called my_error()
+                 .push_back(pimpl->current_stmt_in_gen)))
+      goto err;                 // push_back() above called my_error()
 
     /*
       If sending only to DBUG, don't show to the user.
@@ -1049,7 +1049,7 @@ bool Opt_trace_context::start(bool support_I_S_arg,
       Opt_trace_disable_I_S.
       So we just link it to the 'del' list for purging when ended.
     */
-    Dynamic_array<Opt_trace_stmt *> *list;
+    Opt_trace_stmt_array *list;
     if (support_I_S_arg)
       list= &pimpl->all_stmts_for_I_S;
     else
@@ -1058,7 +1058,7 @@ bool Opt_trace_context::start(bool support_I_S_arg,
       list= &pimpl->all_stmts_to_del;
     }
 
-    if (unlikely(list->append(stmt)))
+    if (unlikely(list->push_back(stmt)))
         goto err;
 
     pimpl->current_stmt_in_gen= stmt;
@@ -1088,8 +1088,8 @@ void Opt_trace_context::end()
       pimpl was constructed with current_stmt_in_gen=NULL which was pushed in
       'start()'. So this NULL is in the array, back() is safe.
     */
-    Opt_trace_stmt * const parent= *(pimpl->stack_of_current_stmts.back());
-    pimpl->stack_of_current_stmts.pop();
+    Opt_trace_stmt * const parent= pimpl->stack_of_current_stmts.back();
+    pimpl->stack_of_current_stmts.pop_back();
     pimpl->current_stmt_in_gen= parent;
     if (parent != NULL)
     {
@@ -1120,7 +1120,7 @@ void Opt_trace_context::end()
     purge_stmts(false);
   }
   else
-    DBUG_ASSERT(pimpl->stack_of_current_stmts.elements() == 0);
+    DBUG_ASSERT(pimpl->stack_of_current_stmts.size() == 0);
 }
 
 
@@ -1140,6 +1140,8 @@ void Opt_trace_context::purge_stmts(bool purge_all)
     DBUG_VOID_RETURN;
   }
   long idx;
+  compile_time_assert(
+    static_cast<long>(static_cast<size_t>(LONG_MAX)) == LONG_MAX);
   /*
     Start from the newest traces (array's end), scroll back in time. This
     direction is necessary, as we may delete elements from the array (assume
@@ -1148,10 +1150,12 @@ void Opt_trace_context::purge_stmts(bool purge_all)
     incremented to 1, which is past the array's end, so break out of the loop:
     cell 0 (old cell 1) was not deleted, wrong).
   */
-  for (idx= (pimpl->all_stmts_for_I_S.elements() - 1) ; idx >= 0 ; idx--)
+  for (idx= (pimpl->all_stmts_for_I_S.size() - 1) ; idx >= 0 ; idx--)
   {
+    // offset can be negative, so cast size() to signed!
     if (!purge_all &&
-        ((pimpl->all_stmts_for_I_S.elements() + pimpl->offset) <= idx))
+        ((static_cast<long>(pimpl->all_stmts_for_I_S.size()) + pimpl->offset)
+         <= idx))
     {
       /* OFFSET mandates that this trace should be kept; move to previous */
     }
@@ -1164,8 +1168,8 @@ void Opt_trace_context::purge_stmts(bool purge_all)
       DBUG_EXECUTE_IF("opt_trace_oom_in_purge",
                       DBUG_SET("+d,simulate_out_of_memory"););
       if (likely(!pimpl->all_stmts_to_del
-                 .append(pimpl->all_stmts_for_I_S.at(idx))))
-        pimpl->all_stmts_for_I_S.del(idx);
+                 .push_back(pimpl->all_stmts_for_I_S.at(idx))))
+        pimpl->all_stmts_for_I_S.erase(idx);
       else
       {
         /*
@@ -1179,7 +1183,7 @@ void Opt_trace_context::purge_stmts(bool purge_all)
     }
   }
   /* Examine list of "to be freed" traces and free what can be */
-  for (idx= (pimpl->all_stmts_to_del.elements() - 1) ; idx >= 0 ; idx--)
+  for (idx= (pimpl->all_stmts_to_del.size() - 1) ; idx >= 0 ; idx--)
   {
     Opt_trace_stmt *stmt= pimpl->all_stmts_to_del.at(idx);
 #ifndef DBUG_OFF
@@ -1216,7 +1220,7 @@ void Opt_trace_context::purge_stmts(bool purge_all)
     }
     else
     {
-      pimpl->all_stmts_to_del.del(idx);
+      pimpl->all_stmts_to_del.erase(idx);
       delete stmt;
     }
   }
@@ -1228,13 +1232,13 @@ size_t Opt_trace_context::allowed_mem_size_for_current_stmt() const
 {
   size_t mem_size= 0;
   int idx;
-  for (idx= (pimpl->all_stmts_for_I_S.elements() - 1) ; idx >= 0 ; idx--)
+  for (idx= (pimpl->all_stmts_for_I_S.size() - 1) ; idx >= 0 ; idx--)
   {
     const Opt_trace_stmt *stmt= pimpl->all_stmts_for_I_S.at(idx);
     mem_size+= stmt->alloced_length();
   }
   // Even to-be-deleted traces use memory, so consider them in sum
-  for (idx= (pimpl->all_stmts_to_del.elements() - 1) ; idx >= 0 ; idx--)
+  for (idx= (pimpl->all_stmts_to_del.size() - 1) ; idx >= 0 ; idx--)
   {
     const Opt_trace_stmt *stmt= pimpl->all_stmts_to_del.at(idx);
     mem_size+= stmt->alloced_length();
@@ -1304,7 +1308,7 @@ const Opt_trace_stmt
   const Opt_trace_stmt *p;
   if ((pimpl == NULL) ||
       (*got_so_far >= pimpl->limit) ||
-      (*got_so_far >= pimpl->all_stmts_for_I_S.elements()))
+      (*got_so_far >= static_cast<long>(pimpl->all_stmts_for_I_S.size())))
     p= NULL;
   else
   {
