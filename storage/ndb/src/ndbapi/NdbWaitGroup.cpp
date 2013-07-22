@@ -91,19 +91,27 @@ NdbWaitGroup::~NdbWaitGroup()
 }
 
 
+void NdbWaitGroup::wakeup()
+{
+  m_conn->m_impl.m_transporter_facade->requestWakeup();
+}
+
+
+/*  Old-API addNdb() 
+*/
 bool NdbWaitGroup::addNdb(Ndb *ndb)
 {
-  if (unlikely(ndb->theNode != Uint32(m_nodeId)))
+  if(unlikely(ndb->theNode != Uint32(m_nodeId)))
   {
     return false; // Ndb belongs to wrong ndb_cluster_connection
   }
 
-  if (unlikely(m_pos == 0))
+  if(unlikely(m_pos == 0))
   {
     return false; // array is full
   }
 
-  if (unlikely(m_multiWaitHandler->ndbIsRegistered(ndb)))
+  if(unlikely(m_multiWaitHandler->ndbIsRegistered(ndb)))
   {
     return false; // duplicate of item already in group
   }
@@ -113,12 +121,9 @@ bool NdbWaitGroup::addNdb(Ndb *ndb)
 }
 
 
-void NdbWaitGroup::wakeup()
-{
-  m_conn->m_impl.m_transporter_facade->requestWakeup();
-}
-
-
+/*  Old-API version of wait().
+    It is single-threaded without any concurrent push().
+*/
 int NdbWaitGroup::wait(Ndb ** & arrayHead    /* out */,
                        Uint32 timeout_millis,
                        int min_ndbs)
