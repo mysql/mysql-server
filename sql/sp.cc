@@ -1622,7 +1622,29 @@ sp_drop_db_routines(THD *thd, char *db)
     do
     {
       if (! table->file->ha_delete_row(table->record[0]))
+      {
 	deleted= TRUE;		/* We deleted something */
+#ifdef HAVE_PSI_SP_INTERFACE
+      char* sp_name= (char*)table->field[MYSQL_PROC_FIELD_NAME]->ptr;
+      char* sp_name_end= strstr(sp_name," ");
+      uint sp_name_length= sp_name_end - sp_name;
+      uint db_name_length= strlen(db);
+
+      enum_sp_object_type sp_type;
+      if (table->field[MYSQL_PROC_MYSQL_TYPE]->ptr[0] == '2')
+      {
+        sp_type= SP_OBJECT_TYPE_FUNCTION;
+      }
+      else
+      {
+        sp_type= SP_OBJECT_TYPE_PROCEDURE;
+      }
+      /* Drop statistics for this stored program from performance schema. */
+      MYSQL_DROP_SP(sp_type,
+                    db, db_name_length,
+                    sp_name, sp_name_length);
+#endif
+      }
       else
       {
 	ret= SP_DELETE_ROW_FAILED;
