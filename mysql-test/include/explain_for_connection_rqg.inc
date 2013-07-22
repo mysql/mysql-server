@@ -23,6 +23,7 @@
 #   Checking if the build is Debug build else skip the test because debug sync points are avilable in Debug build  #
 ####################################################################################################################
 
+--source include/have_debug.inc
 --source include/have_debug_sync.inc
 --source include/not_embedded.inc
 --source include/not_windows.inc
