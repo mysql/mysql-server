@@ -846,13 +846,21 @@ Create a compressed B-tree index page.
 page_t*
 page_create_zip(
 /*============*/
-	buf_block_t*	block,		/*!< in/out: a buffer frame where the
-					page is created */
-	dict_index_t*	index,		/*!< in: the index of the page */
-	ulint		level,		/*!< in: the B-tree level of the page */
-	trx_id_t	max_trx_id,	/*!< in: PAGE_MAX_TRX_ID */
-	mtr_t*		mtr)		/*!< in/out: mini-transaction */
-	__attribute__((nonnull));
+	buf_block_t*		block,		/*!< in/out: a buffer frame
+						where the page is created */
+	dict_index_t*		index,		/*!< in: the index of the
+						page, or NULL when applying
+						MLOG_FILE_TRUNCATE redo
+						record during recovery */
+	ulint			level,		/*!< in: the B-tree level of
+						the page */
+	trx_id_t		max_trx_id,	/*!< in: PAGE_MAX_TRX_ID */
+	const redo_page_compress_t* page_comp_info,
+						/*!< in: used for applying
+						MLOG_FILE_TRUNCATE redo log
+						record during recovery */
+	mtr_t*			mtr);		/*!< in/out: mini-transaction
+						handle */
 /**********************************************************//**
 Empty a previously created B-tree index page. */
 

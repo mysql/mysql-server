@@ -191,7 +191,13 @@ For 1 - 8 bytes, the flag value must give the length also! @{ */
 						without logging it's image */
 #define MLOG_ZIP_PAGE_REORGANIZE ((byte)53)	/*!< reorganize a compressed
 						page */
-#define MLOG_BIGGEST_TYPE	((byte)53)	/*!< biggest value (used in
+#define MLOG_FILE_TRUNCATE	((byte)54)	/*!< log record about an .ibd
+						file truncation. The type can
+						not be known by ibbackup when
+						it relies on an older versions.
+						ibbackup should be fixed to
+						flexibly handle unknown types */
+#define MLOG_BIGGEST_TYPE	((byte)54)	/*!< biggest value (used in
 						assertions) */
 /* @} */
 
@@ -292,12 +298,22 @@ mtr_set_log_mode(
 /********************************************************//**
 Reads 1 - 4 bytes from a file page buffered in the buffer pool.
 @return value read */
-
+UNIV_INLINE
 ulint
 mtr_read_ulint(
 /*===========*/
 	const byte*	ptr,	/*!< in: pointer from where to read */
 	ulint		type,	/*!< in: MLOG_1BYTE, MLOG_2BYTES, MLOG_4BYTES */
+	mtr_t*		mtr);	/*!< in: mini-transaction handle */
+/********************************************************//**
+Reads 8 bytes from a file page buffered in the buffer pool.
+@return	value read */
+UNIV_INLINE
+ib_id_t
+mtr_read_ull(
+/*=========*/
+	const byte*	ptr,	/*!< in: pointer from where to read */
+	ulint		type,	/*!< in: MLOG_8BYTES */
 	mtr_t*		mtr);	/*!< in: mini-transaction handle */
 #ifndef UNIV_HOTBACKUP
 /*********************************************************************//**

@@ -2036,7 +2036,7 @@ void pfs_set_thread_user_v1(const char *user, int user_len)
   if (unlikely(pfs == NULL))
     return;
 
-  aggregate_thread(pfs);
+  aggregate_thread(pfs, pfs->m_account, pfs->m_user, pfs->m_host);
 
   pfs->m_session_lock.allocated_to_dirty();
 
@@ -2238,7 +2238,7 @@ void pfs_delete_current_thread_v1(void)
   PFS_thread *thread= my_pthread_get_THR_PFS();
   if (thread != NULL)
   {
-    aggregate_thread(thread);
+    aggregate_thread(thread, thread->m_account, thread->m_user, thread->m_host);
     my_pthread_setspecific_ptr(THR_PFS, NULL);
     destroy_thread(thread);
   }
@@ -2254,7 +2254,7 @@ void pfs_delete_thread_v1(PSI_thread *thread)
 
   if (pfs != NULL)
   {
-    aggregate_thread(pfs);
+    aggregate_thread(pfs, pfs->m_account, pfs->m_user, pfs->m_host);
     destroy_thread(pfs);
   }
 }
@@ -3403,6 +3403,8 @@ pfs_start_idle_wait_v1(PSI_idle_locker_state* state, const char *src_file, uint 
       return NULL;
     state->m_thread= reinterpret_cast<PSI_thread *> (pfs_thread);
     flags= STATE_FLAG_THREAD;
+
+    DBUG_ASSERT(pfs_thread->m_events_statements_count == 0);
 
     if (global_idle_class.m_timed)
     {
@@ -4601,20 +4603,23 @@ pfs_refine_statement_v1(PSI_statement_locker *locker,
   klass= reinterpret_cast<PFS_statement_class*> (state->m_class);
   DBUG_ASSERT(klass->m_flags & PSI_FLAG_MUTABLE);
   klass= find_statement_class(key);
-  if (unlikely(klass == NULL))
-  {
-    /* FIXME : pop statement stack */
-    state->m_discarded= true;
-    return NULL;
-  }
-  if (! klass->m_enabled)
-  {
-    /* FIXME : pop statement stack */
-    state->m_discarded= true;
-    return NULL;
-  }
 
   uint flags= state->m_flags;
+
+  if (unlikely(klass == NULL) || !klass->m_enabled)
+  {
+    /* pop statement stack */
+    if (flags & STATE_FLAG_THREAD)
+    {
+      PFS_thread *pfs_thread= reinterpret_cast<PFS_thread *> (state->m_thread);
+      DBUG_ASSERT(pfs_thread != NULL);
+      if (pfs_thread->m_events_statements_count > 0)
+        pfs_thread->m_events_statements_count--;
+    }
+
+    state->m_discarded= true;
+    return NULL;
+  }
 
   if ((flags & STATE_FLAG_TIMED) && ! klass->m_timed)
     flags= flags & ~STATE_FLAG_TIMED;

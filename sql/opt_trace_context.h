@@ -17,7 +17,7 @@
 #define OPT_TRACE_CONTEXT_INCLUDED
 
 #include "my_config.h"  // OPTIMIZER_TRACE
-#include "sql_array.h"  // Dynamic_array
+#include "prealloced_array.h"
 
 /**
    @file
@@ -29,6 +29,8 @@
 #ifdef OPTIMIZER_TRACE
 
 class Opt_trace_stmt;           // implementation detail local to opt_trace.cc
+
+typedef Prealloced_array<Opt_trace_stmt*, 16> Opt_trace_stmt_array;
 
 
 /**
@@ -329,7 +331,7 @@ private:
        substatement's trace; when leaving the substatement we pop from the
        stack and set current_stmt_in_gen to the popped value.
     */
-    Dynamic_array<Opt_trace_stmt *> stack_of_current_stmts;
+    Opt_trace_stmt_array stack_of_current_stmts;
 
     /**
        List of remembered traces for putting into the OPTIMIZER_TRACE
@@ -340,12 +342,12 @@ private:
        - to delete a trace in the middle of the list when it is permanently
        out of the offset/limit showable window.
     */
-    Dynamic_array<Opt_trace_stmt *> all_stmts_for_I_S;
+    Opt_trace_stmt_array all_stmts_for_I_S;
     /**
        List of traces which are unneeded because of OFFSET/LIMIT, and
        scheduled for deletion from memory.
     */
-    Dynamic_array<Opt_trace_stmt *> all_stmts_to_del;
+    Opt_trace_stmt_array all_stmts_to_del;
 
     bool end_marker;        ///< copy of parameter of Opt_trace_context::start
     bool one_line;

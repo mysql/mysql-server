@@ -919,7 +919,7 @@ HAVING ('m') IN (
 SELECT v
 FROM t2);
 id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
-1	PRIMARY	NULL	NULL	NULL	NULL	NULL	NULL	NULL	Impossible WHERE noticed after reading const tables
+1	PRIMARY	NULL	NULL	NULL	NULL	NULL	NULL	NULL	no matching row in const table
 2	SUBQUERY	t2	ALL	NULL	NULL	NULL	NULL	2	Using where
 
 #
@@ -942,7 +942,7 @@ HAVING ('m') IN (
 SELECT v
 FROM t2);
 id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
-1	PRIMARY	<derived2>	system	NULL	NULL	NULL	NULL	0	const row not found
+1	PRIMARY	NULL	NULL	NULL	NULL	NULL	NULL	NULL	no matching row in const table
 3	SUBQUERY	t2	ALL	NULL	NULL	NULL	NULL	2	Using where
 2	DERIVED	NULL	NULL	NULL	NULL	NULL	NULL	NULL	no matching row in const table
 
@@ -1105,7 +1105,7 @@ explain SELECT a FROM (
 SELECT t1.* FROM t1 LEFT JOIN t2 ON t1.a > 3 OR t2.b IN (SELECT a FROM t1)
 ) table1;
 id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
-1	PRIMARY	<derived2>	system	NULL	NULL	NULL	NULL	0	const row not found
+1	PRIMARY	NULL	NULL	NULL	NULL	NULL	NULL	NULL	no matching row in const table
 2	DERIVED	NULL	NULL	NULL	NULL	NULL	NULL	NULL	no matching row in const table
 3	DEPENDENT SUBQUERY	NULL	NULL	NULL	NULL	NULL	NULL	NULL	no matching row in const table
 SELECT a FROM (
@@ -1583,6 +1583,7 @@ a
 CREATE TABLE t3 SELECT * FROM t1;
 EXPLAIN INSERT INTO t3 SELECT * FROM t1 WHERE a IN (SELECT * FROM t2 WHERE a <> 2);
 id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
+1	INSERT	t3	ALL	NULL	NULL	NULL	NULL	NULL	NULL
 1	SIMPLE	t1	ALL	NULL	NULL	NULL	NULL	3	Using where
 1	SIMPLE	t2	ALL	NULL	NULL	NULL	NULL	3	Using where; FirstMatch(t1); Using join buffer (Block Nested Loop)
 INSERT INTO t3 SELECT * FROM t1 WHERE a IN (SELECT * FROM t2 WHERE a <> 2);
@@ -1594,6 +1595,7 @@ a
 3
 EXPLAIN INSERT INTO t2 SELECT * FROM t1 WHERE a IN (SELECT * FROM t2 WHERE a <> 2);
 id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
+1	INSERT	t2	ALL	NULL	NULL	NULL	NULL	NULL	NULL
 1	SIMPLE	t1	ALL	NULL	NULL	NULL	NULL	3	Using where; Using temporary
 1	SIMPLE	t2	ALL	NULL	NULL	NULL	NULL	3	Using where; FirstMatch(t1); Using join buffer (Block Nested Loop)
 INSERT INTO t2 SELECT * FROM t1 WHERE a IN (SELECT * FROM t2 WHERE a <> 2);
@@ -1605,6 +1607,7 @@ a
 4
 EXPLAIN INSERT INTO t2 SELECT * FROM t2 WHERE a IN (SELECT * FROM t2 WHERE a <> 2);
 id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
+1	INSERT	t2	ALL	NULL	NULL	NULL	NULL	NULL	NULL
 1	SIMPLE	t2	ALL	NULL	NULL	NULL	NULL	4	Using where; Using temporary
 1	SIMPLE	t2	ALL	NULL	NULL	NULL	NULL	4	Using where; FirstMatch(t2); Using join buffer (Block Nested Loop)
 INSERT INTO t2 SELECT * FROM t2 WHERE a IN (SELECT * FROM t2 WHERE a <> 2);
@@ -1625,7 +1628,7 @@ id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
 2	MATERIALIZED	t1	ALL	NULL	NULL	NULL	NULL	3	NULL
 EXPLAIN UPDATE t2 SET a=a-1 WHERE a IN (SELECT * FROM t1);
 id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
-1	PRIMARY	t2	ALL	NULL	NULL	NULL	NULL	7	Using where
+1	UPDATE	t2	ALL	NULL	NULL	NULL	NULL	7	Using where
 2	DEPENDENT SUBQUERY	t1	ALL	NULL	NULL	NULL	NULL	3	Using where
 UPDATE t2 SET a=a-1 WHERE a IN (SELECT * FROM t1);
 SELECT * FROM t2;
@@ -1639,7 +1642,7 @@ a
 4
 EXPLAIN DELETE FROM t2 WHERE a IN (SELECT * FROM t1);
 id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
-1	PRIMARY	t2	ALL	NULL	NULL	NULL	NULL	7	Using where
+1	DELETE	t2	ALL	NULL	NULL	NULL	NULL	7	Using where
 2	DEPENDENT SUBQUERY	t1	ALL	NULL	NULL	NULL	NULL	3	Using where
 DELETE FROM t2 WHERE a IN (SELECT * FROM t1);
 SELECT * FROM t2;
@@ -1665,7 +1668,7 @@ id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
 EXPLAIN UPDATE t2,t3 SET t2.a=t2.a-2 WHERE t2.a IN (SELECT * FROM t1 WHERE a <> 2);
 id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
 1	SIMPLE	<subquery2>	ALL	NULL	NULL	NULL	NULL	NULL	NULL
-1	SIMPLE	t2	ALL	NULL	NULL	NULL	NULL	6	Using where; Using join buffer (Block Nested Loop)
+1	UPDATE	t2	ALL	NULL	NULL	NULL	NULL	6	Using where; Using join buffer (Block Nested Loop)
 1	SIMPLE	t3	ALL	NULL	NULL	NULL	NULL	4	Using join buffer (Block Nested Loop)
 2	MATERIALIZED	t1	ALL	NULL	NULL	NULL	NULL	3	Using where
 UPDATE t2,t3 SET t2.a=t2.a-2 WHERE t2.a IN (SELECT * FROM t1 WHERE a <> 2);
@@ -1680,7 +1683,7 @@ a
 EXPLAIN DELETE t2.* FROM t2,t3 WHERE t2.a IN (SELECT * FROM t1 WHERE a <> 2);
 id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
 1	SIMPLE	<subquery2>	ALL	NULL	NULL	NULL	NULL	NULL	NULL
-1	SIMPLE	t2	ALL	NULL	NULL	NULL	NULL	6	Using where; Using join buffer (Block Nested Loop)
+1	DELETE	t2	ALL	NULL	NULL	NULL	NULL	6	Using where; Using join buffer (Block Nested Loop)
 1	SIMPLE	t3	ALL	NULL	NULL	NULL	NULL	4	Using join buffer (Block Nested Loop)
 2	MATERIALIZED	t1	ALL	NULL	NULL	NULL	NULL	3	Using where
 DELETE t2.* FROM t2,t3 WHERE t2.a IN (SELECT * FROM t1 WHERE a <> 2);

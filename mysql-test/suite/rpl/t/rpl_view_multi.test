@@ -54,7 +54,7 @@ connection master2;
 let $wait_condition=
   select count(*) = 1 from information_schema.processlist
   where state = "User lock" and info like "insert into v1 %lock_bg25144%";
---source include/wait_condition.inc
+--source include/wait_condition_or_abort.inc
 --send drop view v1
 
 --echo # Switching to connection 'master'
@@ -62,7 +62,7 @@ connection master;
 let $wait_condition=
   select count(*) = 1 from information_schema.processlist
   where state = "Waiting for table metadata lock" and info = "drop view v1";
---source include/wait_condition.inc
+--source include/wait_condition_or_abort.inc
 
 select release_lock("lock_bg25144");
 
@@ -104,7 +104,7 @@ connection master2;
 let $wait_condition=
   select count(*) = 1 from information_schema.processlist
   where state = "User lock" and info like "insert into v1 %lock_bg25144%";
---source include/wait_condition.inc
+--source include/wait_condition_or_abort.inc
 --send alter view v1 as select * from t2
 
 --echo # Switching to connection 'master'
@@ -113,7 +113,7 @@ let $wait_condition=
   select count(*) = 1 from information_schema.processlist
   where state = "Waiting for table metadata lock" and
   info = "alter view v1 as select * from t2";
---source include/wait_condition.inc
+--source include/wait_condition_or_abort.inc
 
 select release_lock("lock_bg25144");
 

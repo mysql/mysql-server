@@ -46,6 +46,7 @@ Table	Op	Msg_type	Msg_text
 test.t2	analyze	status	OK
 EXPLAIN REPLACE INTO t2 SELECT * FROM t1 WHERE key3=1025 OR key5 IS NULL;
 id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
+1	REPLACE	t2	ALL	NULL	NULL	NULL	NULL	#	NULL
 1	SIMPLE	t1	index_merge	i3,i5	i3,i5	4,5	NULL	#	Using union(i3,i5); Using where
 SELECT COUNT(*) FROM t2;
 COUNT(*)
@@ -56,6 +57,7 @@ COUNT(*)
 20
 EXPLAIN REPLACE INTO t2 SELECT * FROM t1 WHERE key1=48 OR key4=2 OR key6=3;
 id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
+1	REPLACE	t2	ALL	NULL	NULL	NULL	NULL	#	NULL
 1	SIMPLE	t1	index_merge	i1,i4,i6	i1,i4,i6	4,4,5	NULL	#	Using union(i1,i4,i6); Using where
 SELECT COUNT(*) FROM t2;
 COUNT(*)
@@ -66,6 +68,7 @@ COUNT(*)
 24
 EXPLAIN REPLACE INTO t2 SELECT * FROM t1 WHERE key1<2 OR key2<3;
 id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
+1	REPLACE	t2	ALL	NULL	NULL	NULL	NULL	#	NULL
 1	SIMPLE	t1	index_merge	i1,i2	i1,i2	4,4	NULL	#	Using sort_union(i1,i2); Using where
 SELECT COUNT(*) FROM t2;
 COUNT(*)
@@ -76,6 +79,7 @@ COUNT(*)
 26
 EXPLAIN REPLACE INTO t2 SELECT * FROM t1 WHERE (key1>30 AND key1<35) OR (key2>32 AND key2<40);
 id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
+1	REPLACE	t2	ALL	NULL	NULL	NULL	NULL	#	NULL
 1	SIMPLE	t1	index_merge	i1,i2	i1,i2	4,4	NULL	#	Using sort_union(i1,i2); Using where
 SELECT COUNT(*) FROM t2;
 COUNT(*)
@@ -86,6 +90,7 @@ COUNT(*)
 35
 EXPLAIN REPLACE INTO t2 SELECT * FROM t1 IGNORE INDEX(i2) WHERE key1<2 OR key2<3;
 id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
+1	REPLACE	t2	ALL	NULL	NULL	NULL	NULL	#	NULL
 1	SIMPLE	t1	ALL	i1	NULL	NULL	NULL	#	Using where
 SELECT COUNT(*) FROM t2;
 COUNT(*)
@@ -97,6 +102,7 @@ COUNT(*)
 INSERT INTO t1 VALUES (42,42,42,42,3,3,3,3),(4,4,6,6,6,6,4,4);
 EXPLAIN  REPLACE INTO t2 SELECT * FROM t1 USE INDEX(i6,i3) WHERE (key4=42 AND key6=3) OR (key1=4 AND key3=6);
 id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
+1	REPLACE	t2	ALL	NULL	NULL	NULL	NULL	#	NULL
 1	SIMPLE	t1	index_merge	i3,i6	i6,i3	5,4	NULL	#	Using union(i6,i3); Using where
 SELECT COUNT(*) FROM t2;
 COUNT(*)
@@ -107,6 +113,7 @@ COUNT(*)
 39
 EXPLAIN REPLACE INTO t2 SELECT * FROM t1 FORCE INDEX(i1,i2) WHERE (key1>1 OR key2>2);
 id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
+1	REPLACE	t2	ALL	NULL	NULL	NULL	NULL	#	NULL
 1	SIMPLE	t1	index_merge	i1,i2	i1,i2	4,4	NULL	#	Using sort_union(i1,i2); Using where
 SELECT COUNT(*) FROM t2;
 COUNT(*)
@@ -118,6 +125,7 @@ COUNT(*)
 INSERT INTO t1 VALUES (42,42,42,42,3,3,3,3),(4,4,6,6,6,6,4,4);
 EXPLAIN INSERT INTO t2 SELECT * FROM t1 WHERE (key4=42 AND key6=3) OR (key1=4 AND key3=6) AND key5<>50;
 id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
+1	INSERT	t2	ALL	NULL	NULL	NULL	NULL	#	NULL
 1	SIMPLE	t1	index_merge	i1,i3,i4,i5,i6	i4,i6,i1,i3	4,5,4,4	NULL	#	Using union(intersect(i4,i6),intersect(i1,i3)); Using where
 SELECT COUNT(*) FROM t2;
 COUNT(*)
@@ -128,6 +136,7 @@ COUNT(*)
 2101
 EXPLAIN INSERT INTO t2 SELECT * FROM t1 WHERE key2=10 OR key3=3 OR key4 <=> null;
 id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
+1	INSERT	t2	ALL	NULL	NULL	NULL	NULL	#	NULL
 1	SIMPLE	t1	index_merge	i2,i3,i4	i2,i3	4,4	NULL	#	Using union(i2,i3); Using where
 SELECT COUNT(*) FROM t2;
 COUNT(*)
@@ -138,6 +147,7 @@ COUNT(*)
 2104
 EXPLAIN INSERT INTO t2 SELECT * FROM t1 IGNORE INDEX(i1) WHERE key1<2 OR key2<3;
 id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
+1	INSERT	t2	ALL	NULL	NULL	NULL	NULL	#	NULL
 1	SIMPLE	t1	ALL	i2	NULL	NULL	NULL	#	Using where
 SELECT COUNT(*) FROM t2;
 COUNT(*)
@@ -148,6 +158,7 @@ COUNT(*)
 2106
 EXPLAIN INSERT INTO t2 SELECT * FROM t1 USE INDEX(i5,i6) WHERE (key1<2 OR key2<2) AND (key3<3 OR key4<3) AND (key5<5 OR key6<5);;
 id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
+1	INSERT	t2	ALL	NULL	NULL	NULL	NULL	#	NULL
 1	SIMPLE	t1	index_merge	i5,i6	i5,i6	5,5	NULL	#	Using sort_union(i5,i6); Using where
 SELECT COUNT(*) FROM t2;
 COUNT(*)
@@ -158,6 +169,7 @@ COUNT(*)
 2107
 EXPLAIN INSERT INTO t2 SELECT * FROM t1 FORCE INDEX(i4,i5) WHERE (key4>3 OR key5>5);
 id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
+1	INSERT	t2	ALL	NULL	NULL	NULL	NULL	#	NULL
 1	SIMPLE	t1	index_merge	i4,i5	i4,i5	4,5	NULL	#	Using sort_union(i4,i5); Using where
 SELECT COUNT(*) FROM t2;
 COUNT(*)
@@ -216,6 +228,7 @@ Table	Op	Msg_type	Msg_text
 test.t2	analyze	status	OK
 EXPLAIN REPLACE INTO t2 SELECT * FROM t1 WHERE key3=1025 OR key5 IS NULL;
 id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
+1	REPLACE	t2	ALL	NULL	NULL	NULL	NULL	#	NULL
 1	SIMPLE	t1	index_merge	i3,i5	i3,i5	4,5	NULL	#	Using sort_union(i3,i5); Using where
 SELECT COUNT(*) FROM t2;
 COUNT(*)
@@ -226,6 +239,7 @@ COUNT(*)
 20
 EXPLAIN REPLACE INTO t2 SELECT * FROM t1 WHERE key1=48 OR key4=2 OR key6=3;
 id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
+1	REPLACE	t2	ALL	NULL	NULL	NULL	NULL	#	NULL
 1	SIMPLE	t1	index_merge	i1,i4,i6	i1,i4,i6	4,4,5	NULL	#	Using sort_union(i1,i4,i6); Using where
 SELECT COUNT(*) FROM t2;
 COUNT(*)
@@ -236,6 +250,7 @@ COUNT(*)
 24
 EXPLAIN REPLACE INTO t2 SELECT * FROM t1 WHERE key1<2 OR key2<3;
 id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
+1	REPLACE	t2	ALL	NULL	NULL	NULL	NULL	#	NULL
 1	SIMPLE	t1	index_merge	i1,i2	i1,i2	4,4	NULL	#	Using sort_union(i1,i2); Using where
 SELECT COUNT(*) FROM t2;
 COUNT(*)
@@ -246,6 +261,7 @@ COUNT(*)
 26
 EXPLAIN REPLACE INTO t2 SELECT * FROM t1 WHERE (key1>30 AND key1<35) OR (key2>32 AND key2<40);
 id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
+1	REPLACE	t2	ALL	NULL	NULL	NULL	NULL	#	NULL
 1	SIMPLE	t1	index_merge	i1,i2	i1,i2	4,4	NULL	#	Using sort_union(i1,i2); Using where
 SELECT COUNT(*) FROM t2;
 COUNT(*)
@@ -256,6 +272,7 @@ COUNT(*)
 35
 EXPLAIN REPLACE INTO t2 SELECT * FROM t1 IGNORE INDEX(i2) WHERE key1<2 OR key2<3;
 id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
+1	REPLACE	t2	ALL	NULL	NULL	NULL	NULL	#	NULL
 1	SIMPLE	t1	ALL	i1	NULL	NULL	NULL	#	Using where
 SELECT COUNT(*) FROM t2;
 COUNT(*)
@@ -267,6 +284,7 @@ COUNT(*)
 INSERT INTO t1 VALUES (42,42,42,42,3,3,3,3),(4,4,6,6,6,6,4,4);
 EXPLAIN  REPLACE INTO t2 SELECT * FROM t1 USE INDEX(i6,i3) WHERE (key4=42 AND key6=3) OR (key1=4 AND key3=6);
 id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
+1	REPLACE	t2	ALL	NULL	NULL	NULL	NULL	#	NULL
 1	SIMPLE	t1	index_merge	i3,i6	i6,i3	5,4	NULL	#	Using sort_union(i6,i3); Using where
 SELECT COUNT(*) FROM t2;
 COUNT(*)
@@ -277,6 +295,7 @@ COUNT(*)
 39
 EXPLAIN REPLACE INTO t2 SELECT * FROM t1 FORCE INDEX(i1,i2) WHERE (key1>1 OR key2>2);
 id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
+1	REPLACE	t2	ALL	NULL	NULL	NULL	NULL	#	NULL
 1	SIMPLE	t1	index_merge	i1,i2	i1,i2	4,4	NULL	#	Using sort_union(i1,i2); Using where
 SELECT COUNT(*) FROM t2;
 COUNT(*)
@@ -288,6 +307,7 @@ COUNT(*)
 INSERT INTO t1 VALUES (42,42,42,42,3,3,3,3),(4,4,6,6,6,6,4,4);
 EXPLAIN INSERT INTO t2 SELECT * FROM t1 WHERE (key4=42 AND key6=3) OR (key1=4 AND key3=6) AND key5<>50;
 id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
+1	INSERT	t2	ALL	NULL	NULL	NULL	NULL	#	NULL
 1	SIMPLE	t1	index_merge	i1,i3,i4,i5,i6	i4,i1	4,4	NULL	#	Using sort_union(i4,i1); Using where
 SELECT COUNT(*) FROM t2;
 COUNT(*)
@@ -298,6 +318,7 @@ COUNT(*)
 2101
 EXPLAIN INSERT INTO t2 SELECT * FROM t1 WHERE key2=10 OR key3=3 OR key4 <=> null;
 id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
+1	INSERT	t2	ALL	NULL	NULL	NULL	NULL	#	NULL
 1	SIMPLE	t1	index_merge	i2,i3,i4	i2,i3	4,4	NULL	#	Using sort_union(i2,i3); Using where
 SELECT COUNT(*) FROM t2;
 COUNT(*)
@@ -308,6 +329,7 @@ COUNT(*)
 2104
 EXPLAIN INSERT INTO t2 SELECT * FROM t1 IGNORE INDEX(i1) WHERE key1<2 OR key2<3;
 id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
+1	INSERT	t2	ALL	NULL	NULL	NULL	NULL	#	NULL
 1	SIMPLE	t1	ALL	i2	NULL	NULL	NULL	#	Using where
 SELECT COUNT(*) FROM t2;
 COUNT(*)
@@ -318,6 +340,7 @@ COUNT(*)
 2106
 EXPLAIN INSERT INTO t2 SELECT * FROM t1 USE INDEX(i5,i6) WHERE (key1<2 OR key2<2) AND (key3<3 OR key4<3) AND (key5<5 OR key6<5);;
 id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
+1	INSERT	t2	ALL	NULL	NULL	NULL	NULL	#	NULL
 1	SIMPLE	t1	index_merge	i5,i6	i5,i6	5,5	NULL	#	Using sort_union(i5,i6); Using where
 SELECT COUNT(*) FROM t2;
 COUNT(*)
@@ -328,6 +351,7 @@ COUNT(*)
 2107
 EXPLAIN INSERT INTO t2 SELECT * FROM t1 FORCE INDEX(i4,i5) WHERE (key4>3 OR key5>5);
 id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
+1	INSERT	t2	ALL	NULL	NULL	NULL	NULL	#	NULL
 1	SIMPLE	t1	index_merge	i4,i5	i4,i5	4,5	NULL	#	Using sort_union(i4,i5); Using where
 SELECT COUNT(*) FROM t2;
 COUNT(*)

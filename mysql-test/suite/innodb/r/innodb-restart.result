@@ -458,12 +458,12 @@ SELECT path FROM information_schema.innodb_sys_datafiles
 WHERE path LIKE '%test%' ORDER BY space;
 path
 MYSQL_DATA_DIR/test/t4.ibd
+MYSQL_TMP_DIR/alt_dir/test/t5.ibd
 MYSQL_TMP_DIR/alt_dir/test/t6#p#p0.ibd
 MYSQL_TMP_DIR/alt_dir/test/t6#p#p1.ibd
+MYSQL_TMP_DIR/alt_dir/test/t6#p#p2.ibd
 MYSQL_TMP_DIR/alt_dir/test/t7#p#p0#sp#s0.ibd
 MYSQL_TMP_DIR/alt_dir/test/t7#p#p0#sp#s1.ibd
-MYSQL_TMP_DIR/alt_dir/test/t5.ibd
-MYSQL_TMP_DIR/alt_dir/test/t6#p#p2.ibd
 MYSQL_TMP_DIR/alt_dir/test/t7#p#p1#sp#s2.ibd
 MYSQL_TMP_DIR/alt_dir/test/t7#p#p1#sp#s3.ibd
 INSERT INTO t5 VALUES (1000000000, 'MySQL', 'InnoDB', '2011-11-11', 'Read this after reboot');
@@ -562,12 +562,12 @@ SELECT path FROM information_schema.innodb_sys_datafiles
 WHERE path LIKE '%test%' ORDER BY space;
 path
 MYSQL_DATA_DIR/test/t4.ibd
+MYSQL_TMP_DIR/alt_dir/test/t5.ibd
 MYSQL_TMP_DIR/alt_dir/test/t6#p#p0.ibd
 MYSQL_TMP_DIR/alt_dir/test/t6#p#p1.ibd
+MYSQL_TMP_DIR/alt_dir/test/t6#p#p2.ibd
 MYSQL_TMP_DIR/alt_dir/test/t7#p#p0#sp#s0.ibd
 MYSQL_TMP_DIR/alt_dir/test/t7#p#p0#sp#s1.ibd
-MYSQL_TMP_DIR/alt_dir/test/t5.ibd
-MYSQL_TMP_DIR/alt_dir/test/t6#p#p2.ibd
 MYSQL_TMP_DIR/alt_dir/test/t7#p#p1#sp#s2.ibd
 MYSQL_TMP_DIR/alt_dir/test/t7#p#p1#sp#s3.ibd
 SELECT count(*) FROM t5;
@@ -663,12 +663,12 @@ SELECT path FROM information_schema.innodb_sys_datafiles
 WHERE path LIKE '%test%' ORDER BY space;
 path
 MYSQL_DATA_DIR/test/t4.ibd
+MYSQL_TMP_DIR/alt_dir/test/t55.ibd
 MYSQL_TMP_DIR/alt_dir/test/t66#p#p0.ibd
 MYSQL_TMP_DIR/alt_dir/test/t66#p#p1.ibd
+MYSQL_TMP_DIR/alt_dir/test/t66#p#p2.ibd
 MYSQL_TMP_DIR/alt_dir/test/t77#p#p0#sp#s0.ibd
 MYSQL_TMP_DIR/alt_dir/test/t77#p#p0#sp#s1.ibd
-MYSQL_TMP_DIR/alt_dir/test/t55.ibd
-MYSQL_TMP_DIR/alt_dir/test/t66#p#p2.ibd
 MYSQL_TMP_DIR/alt_dir/test/t77#p#p1#sp#s2.ibd
 MYSQL_TMP_DIR/alt_dir/test/t77#p#p1#sp#s3.ibd
 INSERT INTO t55 (SELECT 0, c2, c3, c4, c5 FROM t55);
@@ -760,12 +760,12 @@ SELECT path FROM information_schema.innodb_sys_datafiles
 WHERE path LIKE '%test%' ORDER BY space;
 path
 MYSQL_DATA_DIR/test/t4.ibd
+MYSQL_TMP_DIR/alt_dir/test/t55.ibd
 MYSQL_TMP_DIR/alt_dir/test/t66#p#p0.ibd
 MYSQL_TMP_DIR/alt_dir/test/t66#p#p1.ibd
+MYSQL_TMP_DIR/alt_dir/test/t66#p#p2.ibd
 MYSQL_TMP_DIR/alt_dir/test/t77#p#p0#sp#s0.ibd
 MYSQL_TMP_DIR/alt_dir/test/t77#p#p0#sp#s1.ibd
-MYSQL_TMP_DIR/alt_dir/test/t55.ibd
-MYSQL_TMP_DIR/alt_dir/test/t66#p#p2.ibd
 MYSQL_TMP_DIR/alt_dir/test/t77#p#p1#sp#s2.ibd
 MYSQL_TMP_DIR/alt_dir/test/t77#p#p1#sp#s3.ibd
 INSERT INTO t55 (SELECT 0, c2, c3, c4, c5 FROM t55);
@@ -892,12 +892,12 @@ SELECT path FROM information_schema.innodb_sys_datafiles
 WHERE path LIKE '%test%' ORDER BY space;
 path
 MYSQL_DATA_DIR/test/t4.ibd
+MYSQL_TMP_DIR/new_dir/test/t55.ibd
 MYSQL_TMP_DIR/new_dir/test/t66#p#p0.ibd
 MYSQL_TMP_DIR/new_dir/test/t66#p#p1.ibd
+MYSQL_TMP_DIR/new_dir/test/t66#p#p2.ibd
 MYSQL_TMP_DIR/new_dir/test/t77#p#p0#sp#s0.ibd
 MYSQL_TMP_DIR/new_dir/test/t77#p#p0#sp#s1.ibd
-MYSQL_TMP_DIR/new_dir/test/t55.ibd
-MYSQL_TMP_DIR/new_dir/test/t66#p#p2.ibd
 MYSQL_TMP_DIR/new_dir/test/t77#p#p1#sp#s2.ibd
 MYSQL_TMP_DIR/new_dir/test/t77#p#p1#sp#s3.ibd
 INSERT INTO t4 (SELECT 0, c2, c3, c4, c5 FROM t4);
@@ -1028,12 +1028,12 @@ SELECT path FROM information_schema.innodb_sys_datafiles
 WHERE path LIKE '%test%' ORDER BY space;
 path
 MYSQL_DATA_DIR/test/t4.ibd
+MYSQL_DATA_DIR/test/t55.ibd
 MYSQL_DATA_DIR/test/t66#p#p0.ibd
 MYSQL_DATA_DIR/test/t66#p#p1.ibd
+MYSQL_DATA_DIR/test/t66#p#p2.ibd
 MYSQL_DATA_DIR/test/t77#p#p0#sp#s0.ibd
 MYSQL_DATA_DIR/test/t77#p#p0#sp#s1.ibd
-MYSQL_DATA_DIR/test/t55.ibd
-MYSQL_DATA_DIR/test/t66#p#p2.ibd
 MYSQL_DATA_DIR/test/t77#p#p1#sp#s2.ibd
 MYSQL_DATA_DIR/test/t77#p#p1#sp#s3.ibd
 INSERT INTO t4 (SELECT 0, c2, c3, c4, c5 FROM t4);
