@@ -92,6 +92,17 @@ enum btr_intention_t {
 #error "BTR_INTENTION_BOTH > BTR_INTENTION_INSERT"
 #endif
 
+/** For the index->lock scalability improvement, only possibility of clear
+performance regression observed was caused by grown huge history list length.
+That is because the exclusive use of index->lock also worked as reserving
+free blocks and read IO bandwidth with priority. To avoid huge glowing history
+list as same level with previous implementation, prioritizes pessimistic tree
+operations by purge as the previous, when it seems to be growing huge.
+
+ Experimentally, the history list length starts to affect to performance
+throughput clearly from about 100000. */
+#define BTR_CUR_FINE_HISTORY_LENGTH	100000
+
 /** Number of searches down the B-tree in btr_cur_search_to_nth_level(). */
 ulint	btr_cur_n_non_sea	= 0;
 /** Number of successful adaptive hash index lookups in
@@ -366,6 +377,34 @@ btr_cur_latch_leaves(
 	}
 
 	ut_error;
+}
+
+/**
+Gets intention in btr_intention_t from latch_mode, and cleares the intention
+at the latch_mode.
+@param latch_mode	in/out: pointer to latch_mode
+@return intention for latching tree */
+static
+btr_intention_t
+btr_cur_get_and_clear_intention(
+	ulint	*latch_mode)
+{
+	btr_intention_t	intention;
+
+	switch (*latch_mode & (BTR_LATCH_FOR_INSERT | BTR_LATCH_FOR_DELETE)) {
+	case BTR_LATCH_FOR_INSERT:
+		intention = BTR_INTENTION_INSERT;
+		break;
+	case BTR_LATCH_FOR_DELETE:
+		intention = BTR_INTENTION_DELETE;
+		break;
+	default:
+		/* both or unknown */
+		intention = BTR_INTENTION_BOTH;
+	}
+	*latch_mode &= ~(BTR_LATCH_FOR_INSERT | BTR_LATCH_FOR_DELETE);
+
+	return(intention);
 }
 
 /**
@@ -667,17 +706,7 @@ btr_cur_search_to_nth_level(
 
 	estimate = latch_mode & BTR_ESTIMATE;
 
-	switch (latch_mode & (BTR_LATCH_FOR_INSERT | BTR_LATCH_FOR_DELETE)) {
-	case BTR_LATCH_FOR_INSERT:
-		lock_intention = BTR_INTENTION_INSERT;
-		break;
-	case BTR_LATCH_FOR_DELETE:
-		lock_intention = BTR_INTENTION_DELETE;
-		break;
-	default:
-		/* both or unknown */
-		lock_intention = BTR_INTENTION_BOTH;
-	}
+	lock_intention = btr_cur_get_and_clear_intention(&latch_mode);
 
 	/* Turn the flags unrelated to the latch mode off. */
 	latch_mode = BTR_LATCH_MODE_WITHOUT_FLAGS(latch_mode);
@@ -748,11 +777,11 @@ btr_cur_search_to_nth_level(
 
 	switch (latch_mode) {
 	case BTR_MODIFY_TREE:
-		/* Most of delete-intended operations are not by users.
-		Especially for purge operation, free blocks and read IO
-		bandwidth should be prior for them. */
+		/* Most of delete-intended operations are purging.
+		Free blocks and read IO bandwidth should be prior
+		for them, when the history list is glowing huge. */
 		if (lock_intention == BTR_INTENTION_DELETE
-		    && trx_sys->rseg_history_len > 100000
+		    && trx_sys->rseg_history_len > BTR_CUR_FINE_HISTORY_LENGTH
 		    && buf_get_n_pending_read_ios()) {
 			mtr_x_lock(dict_index_get_lock(index), mtr);
 		} else {
@@ -1442,18 +1471,7 @@ btr_cur_open_at_index_side_func(
 	s_latch_by_caller = latch_mode & BTR_ALREADY_S_LATCHED;
 	latch_mode &= ~BTR_ALREADY_S_LATCHED;
 
-	switch (latch_mode & (BTR_LATCH_FOR_INSERT | BTR_LATCH_FOR_DELETE)) {
-	case BTR_LATCH_FOR_INSERT:
-		lock_intention = BTR_INTENTION_INSERT;
-		break;
-	case BTR_LATCH_FOR_DELETE:
-		lock_intention = BTR_INTENTION_DELETE;
-		break;
-	default:
-		/* both or unknown */
-		lock_intention = BTR_INTENTION_BOTH;
-	}
-	latch_mode &= ~(BTR_LATCH_FOR_INSERT | BTR_LATCH_FOR_DELETE);
+	lock_intention = btr_cur_get_and_clear_intention(&latch_mode);
 
 	/* This function doesn't need to lock left page of the leaf page */
 	if (latch_mode == BTR_SEARCH_PREV) {
@@ -1473,11 +1491,11 @@ btr_cur_open_at_index_side_func(
 		upper_rw_latch = RW_NO_LATCH;
 		break;
 	case BTR_MODIFY_TREE:
-		/* Most of delete-intended operations are not by users.
-		Especially for purge operation, free blocks and read IO
-		bandwidth should be prior for them. */
+		/* Most of delete-intended operations are purging.
+		Free blocks and read IO bandwidth should be prior
+		for them, when the history list is glowing huge. */
 		if (lock_intention == BTR_INTENTION_DELETE
-		    && trx_sys->rseg_history_len > 100000
+		    && trx_sys->rseg_history_len > BTR_CUR_FINE_HISTORY_LENGTH
 		    && buf_get_n_pending_read_ios()) {
 			mtr_x_lock(dict_index_get_lock(index), mtr);
 		} else {
@@ -1796,28 +1814,17 @@ btr_cur_open_at_rnd_pos_func(
 	ulint*		offsets		= offsets_;
 	rec_offs_init(offsets_);
 
-	switch (latch_mode & (BTR_LATCH_FOR_INSERT | BTR_LATCH_FOR_DELETE)) {
-	case BTR_LATCH_FOR_INSERT:
-		lock_intention = BTR_INTENTION_INSERT;
-		break;
-	case BTR_LATCH_FOR_DELETE:
-		lock_intention = BTR_INTENTION_DELETE;
-		break;
-	default:
-		/* both or unknown */
-		lock_intention = BTR_INTENTION_BOTH;
-	}
-	latch_mode &= ~(BTR_LATCH_FOR_INSERT | BTR_LATCH_FOR_DELETE);
+	lock_intention = btr_cur_get_and_clear_intention(&latch_mode);
 
 	savepoint = mtr_set_savepoint(mtr);
 
 	switch (latch_mode) {
 	case BTR_MODIFY_TREE:
-		/* Most of delete-intended operations are not by users.
-		Especially for purge operation, free blocks and read IO
-		bandwidth should be prior for them. */
+		/* Most of delete-intended operations are purging.
+		Free blocks and read IO bandwidth should be prior
+		for them, when the history list is glowing huge. */
 		if (lock_intention == BTR_INTENTION_DELETE
-		    && trx_sys->rseg_history_len > 100000
+		    && trx_sys->rseg_history_len > BTR_CUR_FINE_HISTORY_LENGTH
 		    && buf_get_n_pending_read_ios()) {
 			mtr_x_lock(dict_index_get_lock(index), mtr);
 		} else {
@@ -5852,7 +5859,6 @@ btr_check_blob_fil_page_type(
 		}
 #endif /* !UNIV_DEBUG */
 
-		ut_print_timestamp(stderr);
 		ib_logf(IB_LOG_LEVEL_FATAL,
 			"FIL_PAGE_TYPE=%lu on BLOB %s space %lu"
 			" page %lu flags %lx",

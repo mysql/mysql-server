@@ -1871,7 +1871,7 @@ static int mysql_multi_delete_prepare_tester(THD *thd)
 static bool mysql_test_multidelete(Prepared_statement *stmt,
                                   TABLE_LIST *tables)
 {
-  stmt->thd->lex->current_select= stmt->thd->lex->select_lex;
+  stmt->thd->lex->set_current_select(stmt->thd->lex->select_lex);
   if (add_item_to_list(stmt->thd, new Item_null()))
   {
     my_error(ER_OUTOFMEMORY, MYF(ME_FATALERROR), 0);
@@ -2466,9 +2466,6 @@ void reinit_stmt_before_use(THD *thd, LEX *lex)
   {
     if (!sl->first_execution)
     {
-      /* remove option which was put by mysql_explain_unit() */
-      sl->options&= ~SELECT_DESCRIBE;
-
       /* see unique_table() */
       sl->exclude_from_table_unique_test= FALSE;
 
@@ -2562,7 +2559,7 @@ void reinit_stmt_before_use(THD *thd, LEX *lex)
   {
     tables->reinit_before_use(thd);
   }
-  lex->current_select= lex->select_lex;
+  lex->set_current_select(lex->select_lex);
 
   /* restore original list used in INSERT ... SELECT */
   if (lex->leaf_tables_insert)
@@ -3416,7 +3413,7 @@ bool Prepared_statement::prepare(const char *packet, uint packet_len)
   */
   DBUG_ASSERT(lex->sphead == NULL || error != 0);
   /* The order is important */
-  lex->unit->cleanup();
+  lex->unit->cleanup(true);
 
   /* No need to commit statement transaction, it's not started. */
   DBUG_ASSERT(thd->transaction.stmt.is_empty());

@@ -2165,7 +2165,7 @@ bool show_binlog_events(THD *thd, MYSQL_BIN_LOG *binary_log)
     mysql_mutex_t *log_lock = binary_log->get_log_lock();
     Log_event* ev;
 
-    unit->set_limit(thd->lex->current_select);
+    unit->set_limit(thd->lex->current_select());
     limit_start= unit->offset_limit_cnt;
     limit_end= unit->select_limit_cnt;
 
@@ -3241,6 +3241,8 @@ bool MYSQL_BIN_LOG::open_binlog(const char *log_name,
     sql_print_error("MYSQL_BIN_LOG::open failed to generate new file name.");
     DBUG_RETURN(1);
   }
+
+  DEBUG_SYNC(current_thd, "after_log_file_name_initialized");
 
 #ifdef HAVE_REPLICATION
   if (open_purge_index_file(TRUE) ||
@@ -4984,13 +4986,8 @@ int MYSQL_BIN_LOG::new_file_impl(bool need_lock_log, Format_description_log_even
     }
     bytes_written += r.data_written;
   }
-  /*
-    Update needs to be signalled even if there is no rotate event
-    log rotation should give the waiting thread a signal to
-    discover EOF and move on to the next log.
-  */
   flush_io_cache(&log_file);
-  update_binlog_end_pos();
+  DEBUG_SYNC(current_thd, "after_rotate_event_appended");
 
   old_name=name;
   name=0;				// Don't free name
@@ -7174,10 +7171,10 @@ int MYSQL_BIN_LOG::ordered_commit(THD *thd, bool all, bool skip_commit)
     int error= rotate(false, &check_purge);
     mysql_mutex_unlock(&LOCK_log);
 
-    if (!error && check_purge)
-      purge();
-    else
+    if (error)
       thd->commit_error= THD::CE_COMMIT_ERROR;
+    else if (check_purge)
+      purge();
   }
   DBUG_RETURN(thd->commit_error);
 }
