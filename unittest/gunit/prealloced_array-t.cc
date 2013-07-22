@@ -68,7 +68,7 @@ TEST_F(PreallocedArrayDeathTest, EmptyPopBack)
 {
   ::testing::FLAGS_gtest_death_test_style = "threadsafe";
   EXPECT_DEATH_IF_SUPPORTED(int_10.pop_back(),
-                            ".*Assertion .!empty().*");
+                            ".*Assertion .*!empty.*");
 }
 
 TEST_F(PreallocedArrayDeathTest, EmptyErase)
