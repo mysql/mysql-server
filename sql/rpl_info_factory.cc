@@ -1,4 +1,4 @@
-/* Copyright (c) 2010, 2011, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2010, 2013, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -437,12 +437,32 @@ err:
   DBUG_RETURN(NULL);
 }
 
+static void build_worker_info_name(char* to,
+                                   const char* path,
+                                   const char* fname)
+{
+  DBUG_ASSERT(to);
+  char* pos= to;
+  if (path[0])
+    pos= strmov(pos, path);
+  pos= strmov(pos, "worker-");
+  pos= strmov(pos, fname);
+  strmov(pos, ".");
+}
+
 /**
   Initializes startup information on diferent repositories.
 */
 void Rpl_info_factory::init_repository_metadata()
 {
-  char* pos= NULL;
+  /* Needed for the file names and paths for worker info files. */
+  size_t len;
+  char* relay_log_info_file_name;
+  char relay_log_info_file_dirpart[FN_REFLEN];
+
+  /* Extract the directory name from relay_log_info_file */
+  dirname_part(relay_log_info_file_dirpart, relay_log_info_file, &len);
+  relay_log_info_file_name= relay_log_info_file + len;
 
   rli_table_data.n_fields= Relay_log_info::get_number_info_rli_fields();
   rli_table_data.schema= MYSQL_SCHEMA_NAME.str;
@@ -464,12 +484,12 @@ void Rpl_info_factory::init_repository_metadata()
   worker_table_data.schema= MYSQL_SCHEMA_NAME.str;
   worker_table_data.name= WORKER_INFO_NAME.str;
   worker_file_data.n_fields= Slave_worker::get_number_worker_fields();
-  pos= strmov(worker_file_data.name, "worker-");
-  pos= strmov(pos, relay_log_info_file);
-  strmov(pos, ".");
-  pos= strmov(worker_file_data.pattern, "worker-");
-  pos= strmov(pos, relay_log_info_file);
-  strmov(pos, ".");
+  build_worker_info_name(worker_file_data.name,
+                         relay_log_info_file_dirpart,
+                         relay_log_info_file_name);
+  build_worker_info_name(worker_file_data.pattern,
+                         relay_log_info_file_dirpart,
+                         relay_log_info_file_name);
   worker_file_data.name_indexed= true;
 }
 
