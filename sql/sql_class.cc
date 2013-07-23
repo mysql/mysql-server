@@ -1720,12 +1720,19 @@ void THD::awake(THD::killed_state state_to_set)
   mysql_mutex_assert_owner(&LOCK_thd_data);
 
   /*
-    If there is no command executing on the server, we should not set the
-    killed flag so that it does not affect the next command incorrectly.
+    Set killed flag if the connection is being killed (state_to_set
+    is KILL_CONNECTION) or the connection is processing a query
+    (state_to_set is KILL_QUERY and m_server_idle flag is not set).
+    If the connection is idle and state_to_set is KILL QUERY, the
+    the killed flag is not set so that it doesn't affect the next
+    command incorrectly.
   */
-  if (!this->m_server_idle)
-    /* Set the 'killed' flag of 'this', which is the target THD object. */
+  if (this->m_server_idle && state_to_set == KILL_QUERY)
+  { /* nothing */ }
+  else
+  {
     killed= state_to_set;
+  }
 
   if (state_to_set != THD::KILL_QUERY)
   {
