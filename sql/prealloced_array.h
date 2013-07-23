@@ -117,6 +117,9 @@ public:
   Element_type &operator[](size_t n) { return at(n); }
   const Element_type &operator[](size_t n) const { return at(n); }
 
+  Element_type &back() { return at(size() - 1); }
+  const Element_type &back() const { return at(size() - 1); }
+
   typedef Element_type *iterator;
   typedef const Element_type *const_iterator;
 
@@ -150,10 +153,10 @@ public:
     for (size_t ix= 0; ix < m_size; ++ix)
     {
       Element_type *new_p= &new_array[ix];
-      Element_type *old_p= &m_array_ptr[ix];
-      ::new (new_p) Element_type(*old_p);   // Copy into new location.
+      const Element_type &old_p= m_array_ptr[ix];
+      ::new (new_p) Element_type(old_p);    // Copy into new location.
       if (!Has_trivial_destructor)
-        old_p->~Element_type();             // Destroy the old element.
+        old_p.~Element_type();              // Destroy the old element.
     }
 
     if (m_array_ptr != cast_rawbuff())
@@ -178,6 +181,42 @@ public:
     Element_type *p= &m_array_ptr[m_size++];
     ::new (p) Element_type(element);
     return false;
+  }
+
+  /**
+    Removes the last element in the array, effectively reducing the
+    container size by one. This destroys the removed element.
+   */
+  void pop_back()
+  {
+    DBUG_ASSERT(!empty());
+    if (!Has_trivial_destructor)
+      back().~Element_type();
+    m_size-= 1;
+  }
+
+  /**
+    Removes a single element from the array.
+    The removed element is destroyed.
+    This effectively reduces the container size by one.
+
+    This is generally an inefficient operation, since we need to copy
+    elements to fill the "hole" in the array.
+   */
+  void erase(size_t ix)
+  {
+    if (!Has_trivial_destructor)
+      at(ix).~Element_type();
+
+    for (; ix < size() - 1; ++ix)
+    {
+      Element_type *to= &at(ix);
+      const Element_type &from= at(ix + 1);
+      ::new (to) Element_type(from);
+      if (!Has_trivial_destructor)
+        from.~Element_type();
+    }
+    m_size-= 1;
   }
 
 private:
