@@ -370,6 +370,8 @@ lock_wait_suspend_thread(
 		/* Record the lock wait time for this thread */
 		thd_set_lock_wait_time(trx->mysql_thd, diff_time);
 
+		DBUG_EXECUTE_IF("lock_instrument_slow_query_log",
+			os_thread_sleep(1000););
 	}
 
 	if (lock_wait_timeout < 100000000
