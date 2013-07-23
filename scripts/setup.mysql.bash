@@ -71,8 +71,10 @@ if [ ! -f $mysqltarball.md5 ] ; then
     if [ $? -ne 0 ] ; then exit 1; fi
 fi
 
+# check the md5 sum
 md5sum --check $mysqltarball.md5
 if [ $? -ne 0 ] ; then
+    # support jacksum md5 output which is almost the same as md5sum
     diff -b <(cat $mysqltarball.md5) <(md5sum $mysqltarball)
     if [ $? -ne 0 ] ; then exit 1; fi
 fi
