@@ -42,6 +42,8 @@ while [ $# -gt 0 ] ; do
     fi
 done
 
+if [ -d /data/mysql/tmp ] ; then mysqld_args="$mysqld_args --tmpdir=/data/mysql/tmp"; fi
+
 if [[ $mysqlbuild =~ (.*)-(tokudb\-.*)-(linux)-(x86_64) ]] ; then
     mysql=${BASH_REMATCH[1]}
     tokudb=${BASH_REMATCH[2]}
@@ -70,7 +72,10 @@ if [ ! -f $mysqltarball.md5 ] ; then
 fi
 
 md5sum --check $mysqltarball.md5
-if [ $? -ne 0 ] ; then exit 1; fi
+if [ $? -ne 0 ] ; then
+    diff -b <(cat $mysqltarball.md5) <(md5sum $mysqltarball)
+    if [ $? -ne 0 ] ; then exit 1; fi
+fi
 
 # shutdown mysql
 if [ $shutdown -ne 0 ] ; then
