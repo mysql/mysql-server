@@ -103,12 +103,16 @@ uint64_t eight_byte_desc = 0x12345678ffffffff;
 static int generate_row_for_put(
     DB *UU(dest_db), 
     DB *UU(src_db), 
-    DBT *dest_key, 
-    DBT *dest_val, 
+    DBT_ARRAY *dest_key_arrays, 
+    DBT_ARRAY *dest_val_arrays, 
     const DBT *src_key, 
     const DBT *src_val
     ) 
 {    
+    toku_dbt_array_resize(dest_key_arrays, 1);
+    toku_dbt_array_resize(dest_val_arrays, 1);
+    DBT *dest_key = &dest_key_arrays->dbts[0];
+    DBT *dest_val = &dest_val_arrays->dbts[0];
     dest_key->data = src_key->data;
     dest_key->size = src_key->size;
     dest_key->flags = 0;

@@ -1250,6 +1250,12 @@ static int process_primary_rows_internal (FTLOADER bl, struct rowset *primary_ro
     int error_count = 0;
     int *XMALLOC_N(bl->N, error_codes);
 
+    // If we parallelize the first for loop, dest_keys/dest_vals init&cleanup need to move inside
+    DBT_ARRAY dest_keys;
+    DBT_ARRAY dest_vals;
+    toku_dbt_array_init(&dest_keys, 1);
+    toku_dbt_array_init(&dest_vals, 1);
+
     for (int i = 0; i < bl->N; i++) {
         unsigned int klimit,vlimit; // maximum row sizes.
         toku_ft_get_maximum_advised_key_value_lengths(&klimit, &vlimit);
@@ -1259,12 +1265,8 @@ static int process_primary_rows_internal (FTLOADER bl, struct rowset *primary_ro
         struct merge_fileset *fs = &(bl->fs[i]);
         ft_compare_func compare = bl->bt_compare_funs[i];
 
-        DBT skey = zero_dbt;
-        skey.flags = DB_DBT_REALLOC;
-        DBT sval=skey;
-
         // Don't parallelize this loop, or we have to lock access to add_row() which would be a lot of overehad.
-        // Also this way we can reuse the DB_DBT_REALLOC'd value inside skey and sval without a race.
+        // Also this way we can reuse the DB_DBT_REALLOC'd values inside dest_keys/dest_vals without a race.
         for (size_t prownum=0; prownum<primary_rowset->n_rows; prownum++) {
             if (error_count) break;
 
@@ -1276,23 +1278,32 @@ static int process_primary_rows_internal (FTLOADER bl, struct rowset *primary_ro
             pval.data = primary_rowset->data + prow->off + prow->klen;
             pval.size = prow->vlen;
 
-            DBT *dest_key = &skey;
-            DBT *dest_val = &sval;
 
-            {
-                int r;
-
-                if (bl->dbs[i] != bl->src_db) {
-                    r = bl->generate_row_for_put(bl->dbs[i], bl->src_db, dest_key, dest_val, &pkey, &pval);
-                    if (r != 0) {
-                        error_codes[i] = r;
-                        inc_error_count();
-                        break;
-                    }
-                } else {
-                    dest_key = &pkey;
-                    dest_val = &pval;
+            DBT_ARRAY key_array;
+            DBT_ARRAY val_array;
+            if (bl->dbs[i] != bl->src_db) {
+                int r = bl->generate_row_for_put(bl->dbs[i], bl->src_db, &dest_keys, &dest_vals, &pkey, &pval);
+                if (r != 0) {
+                    error_codes[i] = r;
+                    inc_error_count();
+                    break;
                 }
+                paranoid_invariant(dest_keys.size <= dest_keys.capacity);
+                paranoid_invariant(dest_vals.size <= dest_vals.capacity);
+                paranoid_invariant(dest_keys.size == dest_vals.size);
+
+                key_array = dest_keys;
+                val_array = dest_vals;
+            } else {
+                key_array.size = key_array.capacity = 1;
+                key_array.dbts = &pkey;
+
+                val_array.size = val_array.capacity = 1;
+                val_array.dbts = &pval;
+            }
+            for (uint32_t row = 0; row < key_array.size; row++) {
+                DBT *dest_key = &key_array.dbts[row];
+                DBT *dest_val = &val_array.dbts[row];
                 if (dest_key->size > klimit) {
                     error_codes[i] = EINVAL;
                     fprintf(stderr, "Key too big (keysize=%d bytes, limit=%d bytes)\n", dest_key->size, klimit);
@@ -1305,51 +1316,31 @@ static int process_primary_rows_internal (FTLOADER bl, struct rowset *primary_ro
                     inc_error_count();
                     break;
                 }
-            }
 
-            bl->extracted_datasizes[i] += ft_loader_leafentry_size(dest_key->size, dest_val->size, leafentry_xid(bl, i));
+                bl->extracted_datasizes[i] += ft_loader_leafentry_size(dest_key->size, dest_val->size, leafentry_xid(bl, i));
 
-            if (row_wont_fit(rows, dest_key->size + dest_val->size)) {
-                //printf("%s:%d rows.n_rows=%ld rows.n_bytes=%ld\n", __FILE__, __LINE__, rows->n_rows, rows->n_bytes);
-                int r = sort_and_write_rows(*rows, fs, bl, i, bl->dbs[i], compare); // cannot spawn this because of the race on rows.  If we were to create a new rows, and if sort_and_write_rows were to destroy the rows it is passed, we could spawn it, however.
-                // If we do spawn this, then we must account for the additional storage in the memory_per_rowset() function.
-                init_rowset(rows, memory_per_rowset_during_extract(bl)); // we passed the contents of rows to sort_and_write_rows.
+                if (row_wont_fit(rows, dest_key->size + dest_val->size)) {
+                    //printf("%s:%d rows.n_rows=%ld rows.n_bytes=%ld\n", __FILE__, __LINE__, rows->n_rows, rows->n_bytes);
+                    int r = sort_and_write_rows(*rows, fs, bl, i, bl->dbs[i], compare); // cannot spawn this because of the race on rows.  If we were to create a new rows, and if sort_and_write_rows were to destroy the rows it is passed, we could spawn it, however.
+                    // If we do spawn this, then we must account for the additional storage in the memory_per_rowset() function.
+                    init_rowset(rows, memory_per_rowset_during_extract(bl)); // we passed the contents of rows to sort_and_write_rows.
+                    if (r != 0) {
+                        error_codes[i] = r;
+                        inc_error_count();
+                        break;
+                    }
+                }
+                int r = add_row(rows, dest_key, dest_val);
                 if (r != 0) {
                     error_codes[i] = r;
                     inc_error_count();
                     break;
                 }
             }
-            int r = add_row(rows, dest_key, dest_val);
-            if (r != 0) {
-                error_codes[i] = r;
-                inc_error_count();
-                break;
-            }
-
-            //flags==0 means generate_row_for_put callback changed it
-            //(and freed any memory necessary to do so) so that values are now stored
-            //in temporary memory that does not need to be freed.  We need to continue
-            //using DB_DBT_REALLOC however.
-            if (skey.flags == 0) {
-                toku_init_dbt(&skey);
-                skey.flags = DB_DBT_REALLOC;
-            }
-            if (sval.flags == 0) {
-                toku_init_dbt(&sval);
-                sval.flags = DB_DBT_REALLOC;
-            }
-        }
-
-        if (bl->dbs[i] != bl->src_db) {
-            if (skey.flags) {
-                toku_free(skey.data); skey.data = NULL;
-            }
-            if (sval.flags) {
-                toku_free(sval.data); sval.data = NULL;
-            }
         }
     }
+    toku_dbt_array_destroy(&dest_keys);
+    toku_dbt_array_destroy(&dest_vals);
     
     destroy_rowset(primary_rowset);
     toku_free(primary_rowset);

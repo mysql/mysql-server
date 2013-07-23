@@ -349,6 +349,14 @@ public:
     }
 };
 
+UU()
+static void copy_dbt(DBT *dest, const DBT *src) {
+    assert(dest->flags & DB_DBT_REALLOC);
+    dest->data = toku_realloc(dest->data, src->size);
+    dest->size = src->size;
+    memcpy(dest->data, src->data, src->size);
+}
+
 int verbose=0;
 
 static inline void

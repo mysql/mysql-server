@@ -161,7 +161,7 @@ static void * client(void *arg)
         dbt_init(&key, &k, sizeof(k));
         dbt_init(&val, &v, sizeof(v));
 
-        rr = env->put_multiple(env,
+        rr = env_put_multiple_test_no_array(env,
                                cs->dbs[0],
                                txn,
                                &key, 

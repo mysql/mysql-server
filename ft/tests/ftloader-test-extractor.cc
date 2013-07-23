@@ -330,14 +330,11 @@ static void verify(int inkey[], int nkeys, const char *testdir) {
     free_temp_files(tempfiles);
 }
 
-static void copy_dbt(DBT *dest, const DBT *src) {
-    assert(dest->flags & DB_DBT_REALLOC);
-    dest->data = toku_realloc(dest->data, src->size);
-    dest->size = src->size;
-    memcpy(dest->data, src->data, src->size);
-}
-
-static int generate(DB *dest_db, DB *src_db, DBT *dest_key, DBT *dest_val, const DBT *src_key, const DBT *src_val) {
+static int generate(DB *dest_db, DB *src_db, DBT_ARRAY *dest_keys, DBT_ARRAY *dest_vals, const DBT *src_key, const DBT *src_val) {
+    toku_dbt_array_resize(dest_keys, 1);
+    toku_dbt_array_resize(dest_vals, 1);
+    DBT *dest_key = &dest_keys->dbts[0];
+    DBT *dest_val = &dest_vals->dbts[0];
     assert(dest_db == NULL); assert(src_db == NULL);
 
     copy_dbt(dest_key, src_key);

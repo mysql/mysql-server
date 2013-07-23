@@ -87,6 +87,11 @@
    toku_patent_string;
    toku_copyright_string;
 
+   toku_dbt_array_init;
+   toku_dbt_array_destroy;
+   toku_dbt_array_destroy_shallow;
+   toku_dbt_array_resize;
+
  local: *;
 };
 
