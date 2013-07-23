@@ -514,6 +514,23 @@ int global_init_info(Master_info* mi, bool ignore_if_no_info, int thread_mask)
   mysql_mutex_lock(&mi->rli->data_lock);
 
   /*
+     Remove workers that had been preserved for P_S reasons,
+     before continuing with slave startup.
+   */
+  if (mi->rli->workers_array_initialized)
+  {
+    for (int i= mi->rli->workers.elements - 1; i >= 0; i--)
+    {
+      Slave_worker *w= NULL;
+      get_dynamic((DYNAMIC_ARRAY*)&mi->rli->workers, (uchar*) &w, i);
+      delete_dynamic_element(&mi->rli->workers, i);
+      delete w;
+    }
+    mi->rli->deinit_workers();
+    mi->rli->slave_parallel_workers= 0;
+    mi->rli->workers_array_initialized= false;
+  } 
+  /*
     This takes care of the startup dependency between the master_info
     and relay_info. It initializes the master info if the SLAVE_IO
     thread is being started and the relay log info if either the
@@ -4651,6 +4668,8 @@ int mts_recovery_groups(Relay_log_info *rli)
   MY_BITMAP *groups= &rli->recovery_groups;
 
   DBUG_ENTER("mts_recovery_groups");
+
+  DBUG_ASSERT(rli->slave_parallel_workers == 0); 
 
   /* 
      Although mts_recovery_groups() is reentrant it returns
