@@ -1281,12 +1281,98 @@ public:
   bool user_matches(Security_context *);
 };
 
+
 /**
   @class Log_throttle
-  @brief Used for rate-limiting a log (slow query log etc.)
+  @brief Base class for rate-limiting a log (slow query log etc.)
 */
 
 class Log_throttle
+{
+  /**
+    When will/did current window end?
+  */
+  ulonglong window_end;
+
+  /**
+    Log no more than rate lines of a given type per window_size
+    (e.g. per minute, usually LOG_THROTTLE_WINDOW_SIZE).
+  */
+  const ulong window_size;
+
+  /**
+   There have been this many lines of this type in this window,
+   including those that we suppressed. (We don't simply stop
+   counting once we reach the threshold as we'll write a summary
+   of the suppressed lines later.)
+  */
+  ulong count;
+
+protected:
+  /**
+    Template for the summary line. Should contain %lu as the only
+    conversion specification.
+  */
+  const char *summary_template;
+
+  /**
+    Start a new window.
+  */
+  void new_window(ulonglong now);
+
+  /**
+    Increase count of logs we're handling.
+
+    @param rate  Limit on records to be logged during the throttling window.
+
+    @retval true -  log rate limit is exceeded, so record should be supressed.
+    @retval false - log rate limit is not exceeded, record should be logged.
+  */
+  bool inc_log_count(ulong rate) { return (++count > rate); }
+
+  /**
+    Check whether we're still in the current window. (If not, the caller
+    will want to print a summary (if the logging of any lines was suppressed),
+    and start a new window.)
+  */
+  bool in_window(ulonglong now) const { return (now < window_end); };
+
+  /**
+    Prepare a summary of suppressed lines for logging.
+    This function returns the number of queries that were qualified for
+    inclusion in the log, but were not printed because of the rate-limiting.
+    The summary will contain this count as well as the respective totals for
+    lock and execution time.
+    This function assumes that the caller already holds the necessary locks.
+
+    @param rate  Limit on records logged during the throttling window.
+  */
+  ulong prepare_summary(ulong rate);
+
+  /**
+    @param window_usecs  ... in this many micro-seconds
+    @param msg           use this template containing %lu as only non-literal
+  */
+  Log_throttle(ulong window_usecs, const char *msg)
+              : window_end(0), window_size(window_usecs),
+                count(0), summary_template(msg)
+  {}
+
+public:
+  /**
+    We're rate-limiting messages per minute; 60,000,000 microsecs = 60s
+    Debugging is less tedious with a window in the region of 5000000
+  */
+  static const ulong LOG_THROTTLE_WINDOW_SIZE= 60000000;
+};
+
+
+/**
+  @class Slow_log_throttle
+  @brief Used for rate-limiting the slow query log.
+*/
+
+class Slow_log_throttle : public Log_throttle
 {
 private:
   /**
@@ -1296,11 +1382,13 @@ private:
     after the time-window closes), as that would be misleading.
   */
   Security_context aggregate_sctx;
+
   /**
     Total of the execution times of queries in this time-window for which
     we suppressed logging. For use in summary printing.
   */
   ulonglong total_exec_time;
+
   /**
     Total of the lock times of queries in this time-window for which
     we suppressed logging. For use in summary printing.
@@ -1308,35 +1396,11 @@ private:
   ulonglong total_lock_time;
 
   /**
-    When will/did current window end?
-  */
-  ulonglong window_end;
-  /**
     A reference to the threshold ("no more than n log lines per ...").
     References a (system-?) variable in the server.
   */
   ulong *rate;
-  /**
-    Log no more than rate lines of a given type per window_size
-    (e.g. per minute, usually LOG_THROTTLE_WINDOW_SIZE).
-  */
-  const ulong window_size;
-  /**
-   There have been this many lines of this type in this window,
-   including those that we suppressed. (We don't simply stop
-   counting once we reach the threshold as we'll write a summary
-   of the suppressed lines later.)
-  */
-  ulong count;
-  /**
-    Template for the summary line. Should contain %lu as the only
-    conversion specification.
-  */
-  const char *summary_template;
-  /**
-    Log_throttle is shared between THDs.
-  */
-  mysql_mutex_t *LOCK_log_throttle;
+
   /**
     The routine we call to actually log a line (i.e. our summary).
     The signature miraculously coincides with slow_log_print().
@@ -1344,38 +1408,15 @@ private:
   bool (*log_summary)(THD *, const char *, uint);
 
   /**
-    Lock this object as it's shared between THDs.
+    Slow_log_throttle is shared between THDs.
   */
-  void lock_exclusive() { mysql_mutex_lock(LOCK_log_throttle); }
-  /**
-    Unlock this object.
-  */
-  void unlock() { mysql_mutex_unlock(LOCK_log_throttle); }
+  mysql_mutex_t *LOCK_log_throttle;
+
   /**
     Start a new window.
   */
   void new_window(ulonglong now);
-  /**
-    Increase count of queries of the type we're handling.
-    Returns the new value for the caller to compare against their limit.
-  */
-  ulong inc_queries() { return ++count; }
-  /**
-    Check whether we're still in the current window. (If not, the caller
-    will want to print a summary (if the logging of any lines was suppressed),
-    and start a new window.)
-  */
-  bool in_window(ulonglong now) const { return (now < window_end); };
-  /**
-    Prepare a summary of suppressed lines for logging.
-    (For now, to slow query log.)
-    This function returns the number of queries that were qualified for
-    inclusion in the log, but were not printed because of the rate-limiting.
-    The summary will contain this count as well as the respective totals for
-    lock and execution time.
-    This function assumes that the caller already holds the necessary locks.
-  */
-  ulong prepare_summary(THD *thd);
+
   /**
     Actually print the prepared summary to log.
   */
@@ -1384,11 +1425,6 @@ private:
                      ulonglong print_exec_time);
 
 public:
-  /**
-    We're rate-limiting messages per minute; 60,000,000 microsecs = 60s
-    Debugging is less tedious with a window in the region of 5000000
-  */
-  static const ulong LOG_THROTTLE_WINDOW_SIZE= 60000000;
 
   /**
     @param threshold     suppress after this many queries ...
@@ -1396,9 +1432,9 @@ public:
     @param logger        call this function to log a single line (our summary)
     @param msg           use this template containing %lu as only non-literal
   */
-  Log_throttle(ulong *threshold, mysql_mutex_t *lock, ulong window_usecs,
-               bool (*logger)(THD *, const char *, uint),
-               const char *msg);
+  Slow_log_throttle(ulong *threshold, mysql_mutex_t *lock, ulong window_usecs,
+                    bool (*logger)(THD *, const char *, uint),
+                    const char *msg);
 
   /**
     Prepare and print a summary of suppressed lines to log.
@@ -1410,8 +1446,8 @@ public:
     locking/unlocking.
 
     @param thd                 The THD that tries to log the statement.
-    @retval 0                  Logging was not supressed, no summary needed.
-    @retval false              Logging was supressed; a summary was printed.
+    @retval false              Logging was not supressed, no summary needed.
+    @retval true               Logging was supressed; a summary was printed.
   */
   bool flush(THD *thd);
 
@@ -1425,7 +1461,63 @@ public:
   bool log(THD *thd, bool eligible);
 };
 
-extern Log_throttle log_throttle_qni;
+
+/**
+  @class Slow_log_throttle
+  @brief Used for rate-limiting a error logs.
+*/
+
+class Error_log_throttle : public Log_throttle
+{
+private:
+  /**
+    The routine we call to actually log a line (i.e. our summary).
+  */
+  void (*log_summary)(const char *, ...);
+
+  /**
+    Actually print the prepared summary to log.
+  */
+  void print_summary(ulong suppressed)
+  {
+    (*log_summary)(summary_template, suppressed);
+  }
+
+public:
+  /**
+    @param window_usecs  ... in this many micro-seconds
+    @param logger        call this function to log a single line (our summary)
+    @param msg           use this template containing %lu as only non-literal
+  */
+  Error_log_throttle(ulong window_usecs,
+                     void (*logger)(const char*, ...),
+                     const char *msg)
+  : Log_throttle(window_usecs, msg), log_summary(logger)
+  {}
+
+  /**
+    Prepare and print a summary of suppressed lines to log.
+    (For now, slow query log.)
+    The summary states the number of queries that were qualified for
+    inclusion in the log, but were not printed because of the rate-limiting.
+
+    @param thd                 The THD that tries to log the statement.
+    @retval false              Logging was not supressed, no summary needed.
+    @retval true               Logging was supressed; a summary was printed.
+  */
+  bool flush(THD *thd);
+
+  /**
+    Top-level function.
+    @param thd                 The THD that tries to log the statement.
+    @retval true               Logging should be supressed.
+    @retval false              Logging should not be supressed.
+  */
+  bool log(THD *thd);
+};
+
+
+extern Slow_log_throttle log_throttle_qni;
 
 
 /**
