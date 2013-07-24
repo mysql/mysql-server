@@ -3839,44 +3839,49 @@ bool Security_context::user_matches(Security_context *them)
 void Log_throttle::new_window(ulonglong now)
 {
   count= 0;
-  total_exec_time= 0;
-  total_lock_time= 0;
   window_end= now + window_size;
 }
 
 
-Log_throttle::Log_throttle(ulong *threshold, mysql_mutex_t *lock,
-                           ulong window_usecs,
-                           bool (*logger)(THD *, const char *, uint),
-                           const char *msg)
-  :total_exec_time(0), total_lock_time(0), window_end(0),
-   rate(threshold),
-   window_size(window_usecs), count(0),
-   summary_template(msg), LOCK_log_throttle(lock), log_summary(logger)
+void Slow_log_throttle::new_window(ulonglong now)
+{
+  Log_throttle::new_window(now);
+  total_exec_time= 0;
+  total_lock_time= 0;
+}
+
+
+Slow_log_throttle::Slow_log_throttle(ulong *threshold, mysql_mutex_t *lock,
+                                     ulong window_usecs,
+                                     bool (*logger)(THD *, const char *, uint),
+                                     const char *msg)
+  : Log_throttle(window_usecs, msg), total_exec_time(0), total_lock_time(0),
+    rate(threshold), log_summary(logger), LOCK_log_throttle(lock)
 {
   aggregate_sctx.init();
 }
 
 
-ulong Log_throttle::prepare_summary(THD *thd)
+ulong Log_throttle::prepare_summary(ulong rate)
 {
   ulong ret= 0;
   /*
     Previous throttling window is over or rate changed.
     Return the number of lines we throttled.
   */
-  if (count > *rate)
+  if (count > rate)
   {
-    ret= count - *rate;
+    ret= count - rate;
     count= 0;                                 // prevent writing it again.
   }
+
   return ret;
 }
 
 
-void Log_throttle::print_summary(THD *thd, ulong suppressed,
-                                 ulonglong print_lock_time,
-                                 ulonglong print_exec_time)
+void Slow_log_throttle::print_summary(THD *thd, ulong suppressed,
+                                      ulonglong print_lock_time,
+                                      ulonglong print_exec_time)
 {
   /*
     We synthesize these values so the totals in the log will be
@@ -3908,14 +3913,14 @@ void Log_throttle::print_summary(THD *thd, ulong suppressed,
 }
 
 
-bool Log_throttle::flush(THD *thd)
+bool Slow_log_throttle::flush(THD *thd)
 {
   // Write summary if we throttled.
-  lock_exclusive();
+  mysql_mutex_lock(LOCK_log_throttle);
   ulonglong print_lock_time=  total_lock_time;
   ulonglong print_exec_time=  total_exec_time;
-  ulong     suppressed_count= prepare_summary(thd);
-  unlock();
+  ulong     suppressed_count= prepare_summary(*rate);
+  mysql_mutex_unlock(LOCK_log_throttle);
   if (suppressed_count > 0)
   {
     print_summary(thd, suppressed_count, print_lock_time, print_exec_time);
@@ -3925,7 +3930,7 @@ bool Log_throttle::flush(THD *thd)
 }
 
 
-bool Log_throttle::log(THD *thd, bool eligible)
+bool Slow_log_throttle::log(THD *thd, bool eligible)
 {
   bool  suppress_current= false;
 
@@ -3935,7 +3940,7 @@ bool Log_throttle::log(THD *thd, bool eligible)
   */
   if (*rate > 0)
   {
-    lock_exclusive();
+    mysql_mutex_lock(LOCK_log_throttle);
 
     ulong     suppressed_count=   0;
     ulonglong print_lock_time=    total_lock_time;
@@ -3948,12 +3953,12 @@ bool Log_throttle::log(THD *thd, bool eligible)
     */
     if (!in_window(end_utime_of_query))
     {
-      suppressed_count= prepare_summary(thd);
+      suppressed_count= prepare_summary(*rate);
       // start new window only if this is the statement type we handle
       if (eligible)
         new_window(end_utime_of_query);
     }
-    if (eligible && (inc_queries() > *rate))
+    if (eligible && inc_log_count(*rate))
     {
       /*
         Current query's logging should be suppressed.
@@ -3964,7 +3969,7 @@ bool Log_throttle::log(THD *thd, bool eligible)
       suppress_current= true;
     }
 
-    unlock();
+    mysql_mutex_unlock(LOCK_log_throttle);
 
     /*
       print_summary() is deferred until after we release the locks to
@@ -3987,6 +3992,44 @@ bool Log_throttle::log(THD *thd, bool eligible)
   }
 
   return suppress_current;
+}
+
+
+bool Error_log_throttle::log(THD *thd)
+{
+  ulonglong end_utime_of_query= thd->current_utime();
+
+  /*
+    If the window has expired, we'll try to write a summary line.
+    The subroutine will know whether we actually need to.
+  */
+  if (!in_window(end_utime_of_query))
+  {
+    ulong suppressed_count= prepare_summary(1);
+
+    new_window(end_utime_of_query);
+
+    if (suppressed_count > 0)
+      print_summary(suppressed_count);
+  }
+
+  /*
+    If this is a first error in the current window then do not suppress it.
+  */
+  return inc_log_count(1);
+}
+
+
+bool Error_log_throttle::flush(THD *thd)
+{
+  // Write summary if we throttled.
+  ulong     suppressed_count= prepare_summary(1);
+  if (suppressed_count > 0)
+  {
+    print_summary(suppressed_count);
+    return true;
+  }
+  return false;
 }
 
 

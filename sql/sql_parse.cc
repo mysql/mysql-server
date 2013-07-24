@@ -169,12 +169,12 @@ const char *xa_state_names[]={
 };
 
 
-Log_throttle log_throttle_qni(&opt_log_throttle_queries_not_using_indexes,
-                              &LOCK_log_throttle_qni,
-                              Log_throttle::LOG_THROTTLE_WINDOW_SIZE,
-                              slow_log_print,
-                              "throttle: %10lu 'index "
-                              "not used' warning(s) suppressed.");
+Slow_log_throttle log_throttle_qni(&opt_log_throttle_queries_not_using_indexes,
+                                   &LOCK_log_throttle_qni,
+                                   Log_throttle::LOG_THROTTLE_WINDOW_SIZE,
+                                   slow_log_print,
+                                   "throttle: %10lu 'index "
+                                   "not used' warning(s) suppressed.");
 
 
 #ifdef HAVE_REPLICATION
