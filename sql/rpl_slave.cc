@@ -4397,13 +4397,24 @@ err:
   if (thd_added)
     remove_global_thread(thd);
   mysql_mutex_unlock(&LOCK_thread_count);
-  delete thd;
 
   mi->abort_slave= 0;
   mi->slave_running= 0;
   mysql_mutex_lock(&mi->info_thd_lock);
-  mi->info_thd= 0;
+  mi->info_thd= NULL;
   mysql_mutex_unlock(&mi->info_thd_lock);
+
+  /*
+    The thd can only be destructed after indirect references
+    through mi->info_thd are cleared: mi->info_thd= NULL.
+
+    For instance, user thread might be issuing show_slave_status
+    and attempting to read mi->info_thd->get_proc_info().
+    Therefore thd must only be deleted after info_thd is set
+    to NULL.
+  */
+  delete thd;
+
   /*
     Note: the order of the two following calls (first broadcast, then unlock)
     is important. Otherwise a killer_thread can execute between the calls and
@@ -5734,7 +5745,7 @@ llstr(rli->get_group_master_log_pos(), llbuff));
   DBUG_ASSERT(rli->info_thd == thd);
   THD_CHECK_SENTRY(thd);
   mysql_mutex_lock(&rli->info_thd_lock);
-  rli->info_thd= 0;
+  rli->info_thd= NULL;
   mysql_mutex_unlock(&rli->info_thd_lock);
   set_thd_in_use_temporary_tables(rli);  // (re)set info_thd in use for saved temp tables
 
@@ -5744,7 +5755,18 @@ llstr(rli->get_group_master_log_pos(), llbuff));
   if (thd_added)
     remove_global_thread(thd);
   mysql_mutex_unlock(&LOCK_thread_count);
+
+  /*
+    The thd can only be destructed after indirect references
+    through mi->rli->info_thd are cleared: mi->rli->info_thd= NULL.
+
+    For instance, user thread might be issuing show_slave_status
+    and attempting to read mi->rli->info_thd->get_proc_info().
+    Therefore thd must only be deleted after info_thd is set
+    to NULL.
+  */
   delete thd;
+
  /*
   Note: the order of the broadcast and unlock calls below (first broadcast, then unlock)
   is important. Otherwise a killer_thread can execute between the calls and
