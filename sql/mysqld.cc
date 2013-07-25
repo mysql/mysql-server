@@ -2496,6 +2496,15 @@ void dec_connection_count()
   mysql_mutex_unlock(&LOCK_connection_count);
 }
 
+/**
+  Reset the context associated from THD with the thread.
+
+  @param    THD   pointer to THD object.
+*/
+void restore_globals(THD *thd)
+{
+  thd->restore_globals();
+}
 
 /**
   Delete the THD object.
@@ -2636,6 +2645,7 @@ bool one_thread_per_connection_end(THD *thd, bool block_pthread)
     the mutex here: the server may be shutting down.
    */
   mysql_mutex_unlock(&LOCK_thread_count);
+  thd->restore_globals();
   delete thd;
 
   if (block_pthread)
