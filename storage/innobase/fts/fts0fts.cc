@@ -155,34 +155,34 @@ struct fts_aux_table_t {
 static const char* fts_create_common_tables_sql = {
 	"BEGIN\n"
 	""
-	"CREATE TABLE %s_DELETED (\n"
+	"CREATE TABLE \"%s_DELETED\" (\n"
 	"  doc_id BIGINT UNSIGNED\n"
 	") COMPACT;\n"
-	"CREATE UNIQUE CLUSTERED INDEX IND ON %s_DELETED(doc_id);\n"
+	"CREATE UNIQUE CLUSTERED INDEX IND ON \"%s_DELETED\"(doc_id);\n"
 	""
-	"CREATE TABLE %s_DELETED_CACHE (\n"
-	"  doc_id BIGINT UNSIGNED\n"
-	") COMPACT;\n"
-	"CREATE UNIQUE CLUSTERED INDEX IND "
-		"ON %s_DELETED_CACHE(doc_id);\n"
-	""
-	"CREATE TABLE %s_BEING_DELETED (\n"
+	"CREATE TABLE \"%s_DELETED_CACHE\" (\n"
 	"  doc_id BIGINT UNSIGNED\n"
 	") COMPACT;\n"
 	"CREATE UNIQUE CLUSTERED INDEX IND "
-		"ON %s_BEING_DELETED(doc_id);\n"
+		"ON \"%s_DELETED_CACHE\"(doc_id);\n"
 	""
-	"CREATE TABLE %s_BEING_DELETED_CACHE (\n"
+	"CREATE TABLE \"%s_BEING_DELETED\" (\n"
 	"  doc_id BIGINT UNSIGNED\n"
 	") COMPACT;\n"
 	"CREATE UNIQUE CLUSTERED INDEX IND "
-		"ON %s_BEING_DELETED_CACHE(doc_id);\n"
+		"ON \"%s_BEING_DELETED\"(doc_id);\n"
 	""
-	"CREATE TABLE %s_CONFIG (\n"
+	"CREATE TABLE \"%s_BEING_DELETED_CACHE\" (\n"
+	"  doc_id BIGINT UNSIGNED\n"
+	") COMPACT;\n"
+	"CREATE UNIQUE CLUSTERED INDEX IND "
+		"ON \"%s_BEING_DELETED_CACHE\"(doc_id);\n"
+	""
+	"CREATE TABLE \"%s_CONFIG\" (\n"
 	"  key CHAR(50),\n"
 	"  value CHAR(50) NOT NULL\n"
 	") COMPACT;\n"
-	"CREATE UNIQUE CLUSTERED INDEX IND ON %s_CONFIG(key);\n"
+	"CREATE UNIQUE CLUSTERED INDEX IND ON \"%s_CONFIG\"(key);\n"
 };
 
 #ifdef FTS_DOC_STATS_DEBUG
@@ -191,11 +191,11 @@ mainly designed for the statistics work in the future */
 static const char* fts_create_index_tables_sql = {
 	"BEGIN\n"
 	""
-	"CREATE TABLE %s_DOC_ID (\n"
+	"CREATE TABLE \"%s_DOC_ID\" (\n"
 	"   doc_id BIGINT UNSIGNED,\n"
 	"   word_count INTEGER UNSIGNED NOT NULL\n"
 	") COMPACT;\n"
-	"CREATE UNIQUE CLUSTERED INDEX IND ON %s_DOC_ID(doc_id);\n"
+	"CREATE UNIQUE CLUSTERED INDEX IND ON \"%s_DOC_ID\"(doc_id);\n"
 };
 #endif
 
@@ -204,7 +204,7 @@ static const char* fts_create_index_sql = {
 	"BEGIN\n"
 	""
 	"CREATE UNIQUE CLUSTERED INDEX FTS_INDEX_TABLE_IND "
-		"ON %s(word, first_doc_id);\n"
+		"ON \"%s\"(word, first_doc_id);\n"
 };
 
 /** FTS auxiliary table suffixes that are common to all FT indexes. */
@@ -232,19 +232,19 @@ const  fts_index_selector_t fts_index_selector[] = {
 static const char* fts_config_table_insert_values_sql =
 	"BEGIN\n"
 	"\n"
-	"INSERT INTO %s VALUES('"
+	"INSERT INTO \"%s\" VALUES('"
 		FTS_MAX_CACHE_SIZE_IN_MB "', '256');\n"
 	""
-	"INSERT INTO %s VALUES('"
+	"INSERT INTO \"%s\" VALUES('"
 		FTS_OPTIMIZE_LIMIT_IN_SECS  "', '180');\n"
 	""
-	"INSERT INTO %s VALUES ('"
+	"INSERT INTO \"%s\" VALUES ('"
 		FTS_SYNCED_DOC_ID "', '0');\n"
 	""
-	"INSERT INTO %s VALUES ('"
+	"INSERT INTO \"%s\" VALUES ('"
 		FTS_TOTAL_DELETED_COUNT "', '0');\n"
 	"" /* Note: 0 == FTS_TABLE_STATE_RUNNING */
-	"INSERT INTO %s VALUES ('"
+	"INSERT INTO \"%s\" VALUES ('"
 		FTS_TABLE_STATE "', '0');\n";
 
 /****************************************************************//**
@@ -2724,7 +2724,7 @@ retry:
 	graph = fts_parse_sql(
 		&fts_table, info,
 		"DECLARE FUNCTION my_func;\n"
-		"DECLARE CURSOR c IS SELECT value FROM %s"
+		"DECLARE CURSOR c IS SELECT value FROM \"%s\""
 		" WHERE key = 'synced_doc_id' FOR UPDATE;\n"
 		"BEGIN\n"
 		""
@@ -3010,7 +3010,7 @@ fts_delete(
 		graph = fts_parse_sql(
 			&fts_table,
 			info,
-			"BEGIN INSERT INTO %s VALUES (:doc_id);");
+			"BEGIN INSERT INTO \"%s\" VALUES (:doc_id);");
 
 		error = fts_eval_sql(trx, graph);
 
@@ -3879,7 +3879,7 @@ fts_write_node(
 			fts_table,
 			info,
 			"BEGIN\n"
-			"INSERT INTO %s VALUES "
+			"INSERT INTO \"%s\" VALUES "
 			"(:token, :first_doc_id,"
 			" :last_doc_id, :doc_count, :ilist);");
 	}
@@ -3924,7 +3924,7 @@ fts_sync_add_deleted_cache(
 	graph = fts_parse_sql(
 		&fts_table,
 		info,
-		"BEGIN INSERT INTO %s VALUES (:doc_id);");
+		"BEGIN INSERT INTO \"%s\" VALUES (:doc_id);");
 
 	for (i = 0; i < n_elems && error == DB_SUCCESS; ++i) {
 		fts_update_t*	update;
@@ -4105,7 +4105,7 @@ fts_sync_write_doc_stat(
 		*graph = fts_parse_sql(
 			&fts_table,
 			info,
-			"BEGIN INSERT INTO %s VALUES (:doc_id, :count);");
+			"BEGIN INSERT INTO \"%s\" VALUES (:doc_id, :count);");
 	}
 
 	for (;;) {
@@ -4828,7 +4828,7 @@ fts_get_rows_count(
 		"DECLARE FUNCTION my_func;\n"
 		"DECLARE CURSOR c IS"
 		" SELECT COUNT(*) "
-		" FROM %s;\n"
+		" FROM \"%s\";\n"
 		"BEGIN\n"
 		"\n"
 		"OPEN c;\n"
