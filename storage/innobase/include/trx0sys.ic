@@ -480,4 +480,18 @@ trx_sys_get_n_rw_trx(void)
 
 	return(n_trx);
 }
+
+/**
+Add the transaction to the RW transaction set
+@param trx		transaction instance to add */
+UNIV_INLINE
+void
+trx_sys_rw_trx_add(trx_t* trx)
+{
+	ut_ad(trx->id > 0);
+
+	trx_sys->rw_trx_set.insert(TrxTrack(trx->id, trx));
+	ut_d(trx->in_rw_trx_list = true);
+}
+
 #endif /* !UNIV_HOTBACKUP */

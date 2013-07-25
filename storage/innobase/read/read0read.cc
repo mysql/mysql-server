@@ -282,7 +282,8 @@ ReadView::copy_trx_ids(const trx_ids_t& trx_ids)
 		overhead or not. We should test this extensively and
 		if the vector to vector copy is fast enough then get
 		rid of this code and replace it with more readable
-		and obvious code. */
+		and obvious code. The code below does exactly one copy,
+		and filters out the creator's trx id. */
 
 		trx_ids_t::const_iterator	it = std::lower_bound(
 			trx_ids.begin(), trx_ids.end(), m_creator_trx_id);
@@ -356,9 +357,8 @@ ReadView::complete()
 }
 
 /**
-Find a free view from the active list, if none found then allocate a new
-view. This function will also attempt to move delete marked views from the
-active list to the freed list.
+Find a free view from the active list, if none found then allocate
+a new view.
 @return a view to use */
 
 ReadView*
@@ -446,7 +446,7 @@ MVCC::view_open(ReadView*& view, trx_t* trx)
 
 			view->m_closed = false;
 
-		    	if (view->m_low_limit_id == trx_sys_get_max_trx_id()) {
+			if (view->m_low_limit_id == trx_sys_get_max_trx_id()) {
 				return;
 			} else {
 				view->m_closed = true;
@@ -472,6 +472,8 @@ MVCC::view_open(ReadView*& view, trx_t* trx)
 		UT_LIST_ADD_FIRST(m_views, view);
 
 		ut_ad(!view->is_closed());
+
+		ut_ad(validate());
 	}
 
 	mutex_exit(&trx_sys->mutex);
@@ -636,13 +638,17 @@ MVCC::view_close(ReadView*& view, bool own_mutex)
 		UT_LIST_REMOVE(m_views, view);
 		UT_LIST_ADD_LAST(m_free, view);
 
+		ut_ad(validate());
+
 		view = NULL;
 	}
 }
 
 /**
 Set the view creator transaction id. Note: This shouldbe set only
-for views created by RW transactions. */
+for views created by RW transactions.
+@param view		Set the creator trx id for this view
+@param id		Transaction id to set */
 
 void
 MVCC::set_view_creator_trx_id(ReadView* view, trx_id_t id)

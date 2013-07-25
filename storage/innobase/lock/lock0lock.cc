@@ -7473,13 +7473,18 @@ DeadlockChecker::check_and_resolve(const lock_t* lock, const trx_t* trx)
 }
 
 /**
-Allocate cached locks for the transaction. */
+Allocate cached locks for the transaction.
+@param trx		allocate cached record locks for this transaction */
 
 void
 lock_trx_alloc_locks(trx_t* trx)
 {
 	ulint	sz = REC_LOCK_SIZE * REC_LOCK_CACHE;
 	byte*	ptr = reinterpret_cast<byte*>(mem_alloc(sz));
+
+	/* We allocate one big chunk and then distribute it among
+	the rest of the elements. The allocated chunk pointer is always
+	at index 0. */
 
 	for (ulint i = 0; i < REC_LOCK_CACHE; ++i, ptr += REC_LOCK_SIZE) {
 		trx->lock.pool.push_back(

@@ -466,6 +466,13 @@ trx_sys_file_format_id_to_name(
 /*===========================*/
 	const ulint	id);	/*!< in: id of the file format */
 
+/**
+Add the transaction to the RW transaction set
+@param trx		transaction instance to add */
+UNIV_INLINE
+void
+trx_sys_rw_trx_add(trx_t* trx);
+
 #ifdef UNIV_DEBUG
 /*************************************************************//**
 Validate the trx_sys_t::rw_trx_list.
@@ -629,7 +636,10 @@ struct trx_sys_t {
 	volatile trx_id_t
 			max_trx_id;	/*!< The smallest number not yet
 					assigned as a transaction id or
-					transaction number */
+					transaction number. This is declared
+					volatile because it can be accessed
+					without holding any mutex during
+					AC-NL-RO view creation. */
 	trx_list_t	serialisation_list;
 					/*!< Ordered on trx_t::no of all the
 					currenrtly active RW transactions */
@@ -645,13 +655,13 @@ struct trx_sys_t {
 					is not necessary. We should exploit
 					this and increase concurrency during
 					add/remove. */
-	char		pad1[64];
+	char		pad1[64];	/*!< To avoid false sharing */
 	trx_list_t	rw_trx_list;	/*!< List of active and committed in
 					memory read-write transactions, sorted
 					on trx id, biggest first. Recovered
 					transactions are always on this list. */
 
-	char		pad2[64];
+	char		pad2[64];	/*!< To avoid false sharing */
 	trx_list_t	mysql_trx_list;	/*!< List of transactions created
 					for MySQL. All transactions on
 					ro_trx_list are on mysql_trx_list. The
@@ -667,7 +677,7 @@ struct trx_sys_t {
 
 	trx_ids_t	rw_trx_ids;	/*!< Read write transaction IDs */
 
-	char		pad3[64];
+	char		pad3[64];	/*!< To avoid false sharing */
 	trx_rseg_t*	rseg_array[TRX_SYS_N_RSEGS];
 					/*!< Pointer array to rollback
 					segments; NULL if slot not in use;

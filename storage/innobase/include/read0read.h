@@ -47,7 +47,7 @@ public:
 	Allocate and create a view.
 	@param view		view owned by this class created for the
 				caller. Must be freed by calling close()
-	@param id		transaction creating the view */
+	@param trx		transaction creating the view */
 	void view_open(ReadView*& view, trx_t* trx);
 
 	/**
