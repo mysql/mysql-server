@@ -144,6 +144,10 @@ static ha_rows _ma_record_pos(MARIA_HA *info, const uchar *key_data,
 		       (HA_KEYSEG**) 0);
   DBUG_EXECUTE("key", _ma_print_key(DBUG_FILE, &key););
   nextflag=maria_read_vec[search_flag];
+  
+  /* Indicate if we're doing a search on a key prefix */
+  if (((((key_part_map)1) << key.keyinfo->keysegs) - 1) != keypart_map)
+    nextflag |= SEARCH_PART_KEY;
 
   /*
     my_handler.c:ha_compare_text() has a flag 'skip_end_space'.
