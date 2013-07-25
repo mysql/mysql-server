@@ -29,6 +29,35 @@ extern const char	*unknown_sqlstate;
 extern const char	*cant_connect_sqlstate;
 extern const char	*not_error_sqlstate;
 
+/*
+  Access to MYSQL::extension member.
+
+  Note: functions mysql_extension_{init,free}() are defined
+  in client.c.
+*/
+
+struct st_mysql_trace_info;
+
+struct st_mysql_extension {
+  struct st_mysql_trace_info *trace_data;
+};
+
+/* "Constructor/destructor" for MYSQL extension structure. */
+struct st_mysql_extension* mysql_extension_init(struct st_mysql*);
+void mysql_extension_free(struct st_mysql_extension*);
+
+/*
+  Note: Allocated extension structure is freed in mysql_close().
+*/
+#define MYSQL_EXTENSION(H)                                        \
+(                                                                 \
+ (struct st_mysql_extension*)                                     \
+ ( (H)->extension ?                                               \
+   (H)->extension : ((H)->extension= mysql_extension_init(H))     \
+ )                                                                \
+)
+
+
 struct st_mysql_options_extention {
   char *plugin_dir;
   char *default_auth;
