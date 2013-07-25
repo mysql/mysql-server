@@ -62,6 +62,16 @@ static struct mysql_string_service_st mysql_string_handler= {
   mysql_string_iterator_free,
 };
 
+static struct mysql_malloc_service_st mysql_malloc_handler=
+{
+  my_malloc,
+  my_realloc,
+  my_free,
+  my_memdup,
+  my_strdup,
+  my_strndup
+};
+
 static struct st_service_ref list_of_services[]=
 {
   { "my_snprintf_service", VERSION_my_snprintf, &my_snprintf_handler },
@@ -72,5 +82,6 @@ static struct st_service_ref list_of_services[]=
   { "my_plugin_log_service", VERSION_my_plugin_log, &my_plugin_log_handler },
   { "mysql_string_service",
     VERSION_mysql_string, &mysql_string_handler },
+  { "mysql_malloc_service", VERSION_mysql_malloc, &mysql_malloc_handler }
 };
 

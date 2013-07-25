@@ -24,6 +24,8 @@
 #include <pfs_stage_provider.h>
 #include <mysql/psi/mysql_stage.h>
 
+static PSI_memory_key key_memory_MDL_context_acquire_locks;
+
 #ifdef HAVE_PSI_INTERFACE
 static PSI_mutex_key key_MDL_map_mutex;
 static PSI_mutex_key key_MDL_wait_LOCK_wait_status;
@@ -50,6 +52,11 @@ static PSI_cond_info all_mdl_conds[]=
   { &key_MDL_wait_COND_wait_status, "MDL_context::COND_wait_status", 0}
 };
 
+static PSI_memory_info all_mdl_memory[]=
+{
+  { &key_memory_MDL_context_acquire_locks, "MDL_context::acquire_locks", 0}
+};
+
 /**
   Initialise all the performance schema instrumentation points
   used by the MDL subsystem.
@@ -66,6 +73,9 @@ static void init_mdl_psi_keys(void)
 
   count= array_elements(all_mdl_conds);
   mysql_cond_register("sql", all_mdl_conds, count);
+
+  count= array_elements(all_mdl_memory);
+  mysql_memory_register("sql", all_mdl_memory, count);
 
   MDL_key::init_psi_keys();
 }
@@ -2321,7 +2331,8 @@ bool MDL_context::acquire_locks(MDL_request_list *mdl_requests,
     return FALSE;
 
   /* Sort requests according to MDL_key. */
-  if (! (sort_buf= (MDL_request **)my_malloc(req_count *
+  if (! (sort_buf= (MDL_request **)my_malloc(key_memory_MDL_context_acquire_locks,
+                                             req_count *
                                              sizeof(MDL_request*),
                                              MYF(MY_WME))))
     return TRUE;

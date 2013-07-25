@@ -177,7 +177,8 @@ bool read_texts(const char *file_name, const char *language,
   // Free old language and allocate for the new one
   my_free(errmsgs);
   if (!(errmsgs= (const char**)
-	my_malloc((size_t) (length+no_of_errmsgs*sizeof(char*)), MYF(0))))
+	my_malloc(key_memory_errmsgs,
+                  (size_t) (length+no_of_errmsgs*sizeof(char*)), MYF(0))))
   {
     sql_print_error("Not enough memory for messagefile '%s'", name);
     (void) mysql_file_close(file, MYF(MY_WME));
@@ -223,7 +224,8 @@ open_err:
       Allocate and initialize errmsgs to empty string in order to avoid access
       to errmsgs during another failure in abort operation
     */
-    if ((errmsgs= (const char**) my_malloc((ER_ERROR_LAST-ER_ERROR_FIRST+1)*
+    if ((errmsgs= (const char**) my_malloc(key_memory_errmsgs,
+                                           (ER_ERROR_LAST-ER_ERROR_FIRST+1)*
                                             sizeof(char*), MYF(0))))
     {
       for (uint i= 0; i <= ER_ERROR_LAST - ER_ERROR_FIRST; ++i)

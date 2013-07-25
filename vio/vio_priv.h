@@ -25,6 +25,16 @@
 #include <m_string.h>
 #include <violite.h>
 
+#include "mysql/psi/psi_memory.h"
+
+extern PSI_memory_key key_memory_vio;
+extern PSI_memory_key key_memory_vio_read_buffer;
+
+#ifdef HAVE_OPENSSL
+extern PSI_memory_key key_memory_vio_ssl_fd;
+#endif
+
+
 #ifdef _WIN32
 size_t vio_read_pipe(Vio *vio, uchar * buf, size_t size);
 size_t vio_write_pipe(Vio *vio, const uchar * buf, size_t size);
