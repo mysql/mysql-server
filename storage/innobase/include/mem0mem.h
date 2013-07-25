@@ -468,11 +468,11 @@ public:
 	typedef		T&		reference;
 	typedef		const T&	const_reference;
 
-	explicit mem_heap_allocator(mem_heap_t* heap) : m_heap(heap) { }
+	mem_heap_allocator(mem_heap_t* heap) : m_heap(heap) { }
 
-	explicit mem_heap_allocator(const mem_heap_allocator& other)
+	mem_heap_allocator(const mem_heap_allocator& other)
 		:
-		m_heap (other.m_heap)
+		m_heap(other.m_heap)
 	{
 		// Do nothing
 	}
