@@ -16,9 +16,11 @@ TRUNCATE TABLE performance_schema.events_statements_history_long;
 --source suite/perfschema/include/program_setup.inc
 --source suite/perfschema/include/program_execution.inc
 
-SELECT EVENT_NAME, OBJECT_NAME, NESTING_EVENT_TYPE, NESTING_EVENT_LEVEL
-       FROM performance_schema.events_statements_history_long WHERE
-       CURRENT_SCHEMA='stored_programs' ORDER BY OBJECT_NAME,NESTING_EVENT_LEVEL;
+SELECT EVENT_NAME, SQL_TEXT, OBJECT_NAME, NESTING_EVENT_TYPE, NESTING_EVENT_LEVEL
+       FROM performance_schema.events_statements_history_long 
+       WHERE CURRENT_SCHEMA='stored_programs' AND
+       (SQL_TEXT not like '%count(*) = 1%' OR SQL_TEXT IS NULL)
+       ORDER BY OBJECT_NAME,NESTING_EVENT_LEVEL,SQL_TEXT;
 
 TRUNCATE TABLE performance_schema.events_statements_history_long;
 
@@ -31,9 +33,10 @@ TRUNCATE TABLE performance_schema.events_statements_history_long;
 --source suite/perfschema/include/program_nested_setup.inc
 --source suite/perfschema/include/program_nested_execution.inc
 
-SELECT EVENT_NAME, OBJECT_NAME, NESTING_EVENT_TYPE, NESTING_EVENT_LEVEL
-       FROM performance_schema.events_statements_history_long WHERE
-       CURRENT_SCHEMA='nested_sp' ORDER BY OBJECT_NAME,NESTING_EVENT_LEVEL;
+SELECT EVENT_NAME, SQL_TEXT, OBJECT_NAME, NESTING_EVENT_TYPE, NESTING_EVENT_LEVEL
+       FROM performance_schema.events_statements_history_long 
+       WHERE CURRENT_SCHEMA='nested_sp' 
+       ORDER BY OBJECT_NAME, NESTING_EVENT_LEVEL, SQL_TEXT;
 
 TRUNCATE TABLE performance_schema.events_statements_history_long;
 
