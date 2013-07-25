@@ -22,14 +22,14 @@
 
 "use strict";
 
-var commonDBTableHandler = require("./DBTableHandler.js"),
-    apiSession = require("../../api/Session.js"),
-    sessionFactory = require("../../api/SessionFactory.js"),
-    mynode     = require("../../api/mynode.js"),
-    query      = require("../../api/Query.js"),
-    spi        = require("../SPI"),
+var commonDBTableHandler = require(path.join(spi_dir,"common","DBTableHandler.js")),
+    apiSession = require("./Session.js"),
+    sessionFactory = require("./SessionFactory.js"),
+    mynode     = require("./mynode.js"),
+    query      = require("./Query.js"),
+    spi        = require(path.join(spi_dir,"SPI")),
     udebug     = unified_debug.getLogger("UserContext.js"),
-    stats_module = require(path.join(api_dir, "stats.js")),
+    stats_module = require(path.join(api_dir, "./stats.js")),
     stats      = stats_module.getWriter(["api", "UserContext"]),
     util       = require("util");
 

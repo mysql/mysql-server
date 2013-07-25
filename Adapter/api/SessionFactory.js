@@ -24,7 +24,7 @@
 
 var session     = require("./Session.js"),
     udebug      = unified_debug.getLogger("SessionFactory.js"),  
-    userContext = require('../impl/common/UserContext.js'),
+    userContext = require("./UserContext.js"),
     util        = require("util");
 
 var SessionFactory = function(key, dbConnectionPool, properties, mappings, delete_callback) {

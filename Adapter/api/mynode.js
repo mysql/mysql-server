@@ -24,7 +24,7 @@ var spi            = require("../impl/SPI"),
     TableMapping   = require("./TableMapping").TableMapping,
     unified_debug  = require("./unified_debug"),
     udebug         = unified_debug.getLogger("mynode.js"),
-    userContext    = require('../impl/common/UserContext.js');
+    userContext    = require("./UserContext.js");
 
 /** make TableMapping public */
 exports.TableMapping = TableMapping;
