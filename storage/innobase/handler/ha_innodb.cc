@@ -16889,7 +16889,8 @@ ib_logf(
 }
 
 /**********************************************************************
-Converts an identifier from my_charset_filename to UTF-8 charset. */
+Converts an identifier from my_charset_filename to UTF-8 charset.
+@return result string length, as returned by strconvert() */
 uint
 innobase_convert_to_filename_charset(
 /*=================================*/
@@ -16905,7 +16906,8 @@ innobase_convert_to_filename_charset(
 }
 
 /**********************************************************************
-Converts an identifier from my_charset_filename to UTF-8 charset. */
+Converts an identifier from my_charset_filename to UTF-8 charset.
+@return result string length, as returned by strconvert() */
 uint
 innobase_convert_to_system_charset(
 /*===============================*/
