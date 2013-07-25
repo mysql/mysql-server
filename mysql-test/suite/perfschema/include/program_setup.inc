@@ -127,9 +127,9 @@ CREATE TRIGGER trg3 AFTER UPDATE ON t2 FOR EACH ROW
 
 # DELETE triggers
 CREATE TRIGGER trg4 BEFORE DELETE ON t1 FOR EACH ROW
-  SET @del:= @del + old.j|
+  SET @del:= @del + 1|
 
 CREATE TRIGGER trg5 AFTER DELETE ON t1 FOR EACH ROW 
-  SET @del:= 1|
+  SET @del:= @del + 8 + old.j|
 
 DELIMITER ;|

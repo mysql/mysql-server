@@ -28,7 +28,10 @@ SELECT OBJECT_TYPE, OBJECT_SCHEMA, OBJECT_NAME, COUNT_STAR, COUNT_STATEMENTS
 SELECT EVENT_NAME, SQL_TEXT, CURRENT_SCHEMA, OBJECT_TYPE, OBJECT_SCHEMA,
        OBJECT_NAME, NESTING_EVENT_TYPE, NESTING_EVENT_LEVEL FROM
        performance_schema.events_statements_history_long WHERE
-       CURRENT_SCHEMA='stored_programs' ORDER BY OBJECT_NAME;
+       CURRENT_SCHEMA='stored_programs' AND 
+       (SQL_TEXT not like '%count(*) = 1%' OR SQL_TEXT IS NULL)
+       ORDER BY OBJECT_NAME, NESTING_EVENT_LEVEL, SQL_TEXT;
+
 
 --echo # clean -up
 
@@ -62,6 +65,25 @@ CREATE TABLE t1(
   b INT
 );
 
+--echo # let the creation of the following stored programs fail 
+--error 1064
+CREATE PROCEDURE fail1(IN a INT  OUT x CHAR(16)) 
+  SET a=1;
+
+--error 1064
+CREATE FUNCTION fail2(a INT , b INT) RETURNS INT
+  x=SELECT COUNT(*) FROM t; 
+
+--error 1064
+CREATE EVENT fail3 SCHEDULE EVERY MICROSECOND DO
+  DROP TABLE t;
+
+--echo # the below query on PS table doesn't show any rows 
+--echo # as the creation of stored programs failed 
+SELECT OBJECT_TYPE, OBJECT_SCHEMA, OBJECT_NAME, COUNT_STAR, COUNT_STATEMENTS
+       FROM performance_schema.events_statements_summary_by_program
+       WHERE OBJECT_SCHEMA='sp'; 
+  
 --echo # create few stored programs 
 DELIMITER |;
 CREATE PROCEDURE p(x1 INT, x2 INT)

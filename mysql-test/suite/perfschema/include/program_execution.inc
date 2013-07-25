@@ -20,7 +20,7 @@ UPDATE t2 SET id=22 WHERE name="Jwalamukhi";
 SELECT @change;
 SET @del=1;
 SELECT @del;
-DELETE FROM t1 WHERE i=40;
+DELETE FROM t1 WHERE i=76;
 SELECT @del;
 SELECT wt_avg(1, 12, 1990, 1121990);
 SELECT fac(5);
@@ -38,11 +38,17 @@ BEGIN
 END|
 DELIMITER ;|
 
-# Let e1 insert 2 records into the table table_t
+# Let e1 insert 1 record into the table table_t
 
---let $wait_condition= select count(*) = 2 from table_t
+--let $wait_condition= select count(*) = 1 from table_t
 --source include/wait_condition.inc
 SELECT * FROM table_t;
 
+# Wait till the  above one execution of event is instrumented.
+
+--let $wait_condition= select count(*) = 1 from performance_schema.events_statements_history_long where object_type='EVENT' 
+--source include/wait_condition.inc 
+
 SET GLOBAL event_scheduler=OFF;
 --source include/no_running_event_scheduler.inc
+
