@@ -238,6 +238,10 @@ struct TrxFactory {
 		ut_ad(trx->read_view == NULL);
 
 		if (!trx->lock.pool.empty()) {
+
+			/* See lock_trx_alloc_locks() why we only free
+			the first element. */
+
 			mem_free(trx->lock.pool[0]);
 		}
 
@@ -890,9 +894,7 @@ trx_lists_init_at_db_start(void)
 
 			trx = trx_resurrect_insert(undo, rseg);
 
-			trx_sys->rw_trx_set.insert(TrxTrack(trx->id, trx));
-
-			ut_d(trx->in_rw_trx_list = true);
+			trx_sys_rw_trx_add(trx);
 
 			trx_resurrect_table_locks(
 				trx, &trx->rsegs.m_redo, undo);
@@ -919,8 +921,7 @@ trx_lists_init_at_db_start(void)
 
 			trx_resurrect_update(trx, undo, rseg);
 
-			trx_sys->rw_trx_set.insert(TrxTrack(trx->id, trx));
-			ut_d(trx->in_rw_trx_list = true);
+			trx_sys_rw_trx_add(trx);
 
 			trx_resurrect_table_locks(
 				trx, &trx->rsegs.m_redo, undo);
@@ -1223,7 +1224,7 @@ trx_start_low(
 
 		trx_sys->rw_trx_ids.push_back(trx->id);
 
-		trx_sys->rw_trx_set.insert(TrxTrack(trx->id, trx));
+		trx_sys_rw_trx_add(trx);
 
 		ut_ad(trx->rsegs.m_redo.rseg != 0
 		      || srv_read_only_mode
@@ -1231,7 +1232,6 @@ trx_start_low(
 
 		UT_LIST_ADD_FIRST(trx_sys->rw_trx_list, trx);
 
-		ut_d(trx->in_rw_trx_list = true);
 		ut_d(trx_sys->rw_max_trx_id = trx->id);
 
 		trx->state = TRX_STATE_ACTIVE;

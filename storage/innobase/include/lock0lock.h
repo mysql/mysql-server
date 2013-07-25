@@ -871,7 +871,8 @@ lock_trx_has_rec_x_lock(
 #endif /* UNIV_DEBUG */
 
 /**
-Allocate cached locks for the transaction. */
+Allocate cached locks for the transaction.
+@param trx		allocate cached record locks for this transaction */
 
 void
 lock_trx_alloc_locks(trx_t* trx);
