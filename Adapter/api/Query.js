@@ -23,7 +23,7 @@
 "use strict";
 
 var     udebug     = unified_debug.getLogger("Query.js");
-var userContext    = require('../impl/common/UserContext.js');
+var userContext    = require("./UserContext.js");
 
 var keywords = ['param', 'where', 'field', 'execute'];
 
