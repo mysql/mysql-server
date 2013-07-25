@@ -264,6 +264,18 @@ isnull(const char * str)
   return str == 0;
 }
 
+// copied from unused table_case_convert() in mysqld.h
+static void
+ndb_fk_casedn(char *name)
+{
+  DBUG_ASSERT(name != 0);
+  uint length = strlen(name);
+  DBUG_ASSERT(files_charset_info != 0 &&
+              files_charset_info->casedn_multiply == 1);
+  files_charset_info->cset->casedn(files_charset_info,
+                                   name, length, name, length);
+}
+
 extern bool ndb_show_foreign_key_mock_tables(THD* thd);
 
 class Fk_util
@@ -1266,6 +1278,11 @@ ha_ndbcluster::create_fks(THD *thd, Ndb *ndb)
     {
       parent_name[0]= 0;
     }
+    if (lower_case_table_names)
+    {
+      ndb_fk_casedn(parent_db);
+      ndb_fk_casedn(parent_name);
+    }
     setDbName(ndb, parent_db);
     Ndb_table_guard parent_tab(dict, parent_name);
     if (parent_tab.get_table() == 0)
@@ -1390,18 +1407,16 @@ ha_ndbcluster::create_fks(THD *thd, Ndb *ndb)
     }
 
     NdbDictionary::ForeignKey ndbfk;
+    char fk_name[FN_REFLEN];
     if (!isnull(fk->name))
     {
-      char fk_name[FN_REFLEN];
       my_snprintf(fk_name, sizeof(fk_name), "%u/%u/%s",
                   parent_tab.get_table()->getObjectId(),
                   child_tab.get_table()->getObjectId(),
                   lex2str(fk->name, tmpbuf, sizeof(tmpbuf)));
-      ndbfk.setName(fk_name);
     }
     else
     {
-      char fk_name[FN_REFLEN];
       my_snprintf(fk_name, sizeof(fk_name), "%u/%u/FK_%u_%u",
                   parent_tab.get_table()->getObjectId(),
                   child_tab.get_table()->getObjectId(),
@@ -1411,8 +1426,10 @@ ha_ndbcluster::create_fks(THD *thd, Ndb *ndb)
                   child_index ?
                   child_index->getObjectId() :
                   child_tab.get_table()->getObjectId());
-      ndbfk.setName(fk_name);
     }
+    if (lower_case_table_names)
+      ndb_fk_casedn(fk_name);
+    ndbfk.setName(fk_name);
     ndbfk.setParent(* parent_tab.get_table(), parent_index, parentcols);
     ndbfk.setChild(* child_tab.get_table(), child_index, childcols);
 
