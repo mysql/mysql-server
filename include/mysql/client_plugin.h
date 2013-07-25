@@ -1,5 +1,5 @@
 #ifndef MYSQL_CLIENT_PLUGIN_INCLUDED
-/* Copyright (c) 2010, 2011, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2010, 2012, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -32,10 +32,12 @@
 #define MYSQL_CLIENT_reserved1               0
 #define MYSQL_CLIENT_reserved2               1
 #define MYSQL_CLIENT_AUTHENTICATION_PLUGIN   2
+#define MYSQL_CLIENT_TRACE_PLUGIN            3
 
 #define MYSQL_CLIENT_AUTHENTICATION_PLUGIN_INTERFACE_VERSION  0x0100
+#define MYSQL_CLIENT_TRACE_PLUGIN_INTERFACE_VERSION           0x0100
 
-#define MYSQL_CLIENT_MAX_PLUGINS             3
+#define MYSQL_CLIENT_MAX_PLUGINS             4
 
 #define mysql_declare_client_plugin(X)          \
      MYSQL_PLUGIN_EXPORT struct st_mysql_client_plugin_ ## X        \
