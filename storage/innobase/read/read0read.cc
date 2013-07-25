@@ -417,7 +417,7 @@ MVCC::view_release(ReadView*& view)
 Allocate and create a view.
 @param view		view owned by this class created for the
 			caller. Must be freed by calling view_close()
-@param id		transaction id of caller */
+@param trx		transaction instance of caller */
 void
 MVCC::view_open(ReadView*& view, trx_t* trx)
 {
