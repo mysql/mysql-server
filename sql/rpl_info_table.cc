@@ -26,21 +26,24 @@ Rpl_info_table::Rpl_info_table(uint nparam,
   str_schema.length= str_table.length= 0;
 
   uint schema_length= strlen(param_schema);
-  if ((str_schema.str= (char *) my_malloc(schema_length + 1, MYF(0))))
+  if ((str_schema.str= (char *) my_malloc(key_memory_Rpl_info_table,
+                                          schema_length + 1, MYF(0))))
   {
     str_schema.length= schema_length;
     strmake(str_schema.str, param_schema, schema_length);
   }
   
   uint table_length= strlen(param_table);
-  if ((str_table.str= (char *) my_malloc(table_length + 1, MYF(0))))
+  if ((str_table.str= (char *) my_malloc(key_memory_Rpl_info_table,
+                                         table_length + 1, MYF(0))))
   {
     str_table.length= table_length;
     strmake(str_table.str, param_table, table_length);
   }
 
   if ((description= (char *)
-      my_malloc(str_schema.length + str_table.length + 2, MYF(0))))
+      my_malloc(key_memory_Rpl_info_table,
+                str_schema.length + str_table.length + 2, MYF(0))))
   {
     char *pos= strmov(description, param_schema);
     pos= strmov(pos, ".");

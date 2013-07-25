@@ -530,7 +530,8 @@ Exit_status Load_log_processor::process_first_event(const char *bname,
   File_name_record rec;
   DBUG_ENTER("Load_log_processor::process_first_event");
 
-  if (!(fname= (char*) my_malloc(full_len,MYF(MY_WME))))
+  if (!(fname= (char*) my_malloc(PSI_NOT_INSTRUMENTED,
+                                 full_len,MYF(MY_WME))))
   {
     error("Out of memory.");
     delete ce;
@@ -1794,7 +1795,8 @@ get_one_option(int optid, const struct my_option *opt __attribute__((unused)),
     {
       my_free(pass);
       char *start=argument;
-      pass= my_strdup(argument,MYF(MY_FAE));
+      pass= my_strdup(PSI_NOT_INSTRUMENTED,
+                      argument,MYF(MY_FAE));
       while (*argument) *argument++= 'x';		/* Destroy argument */
       if (*start)
         start[1]=0;				/* Cut length of argument */
@@ -2136,7 +2138,8 @@ static Exit_status dump_remote_log_entries(PRINT_EVENT_INFO *print_event_info,
     size_t allocation_size= ::BINLOG_POS_OLD_INFO_SIZE +
       BINLOG_NAME_INFO_SIZE + ::BINLOG_FLAGS_INFO_SIZE +
       ::BINLOG_SERVER_ID_INFO_SIZE + 1;
-    if (!(command_buffer= (uchar *) my_malloc(allocation_size, MYF(MY_WME))))
+    if (!(command_buffer= (uchar *) my_malloc(PSI_NOT_INSTRUMENTED,
+                                              allocation_size, MYF(MY_WME))))
     {
       error("Got fatal error allocating memory.");
       DBUG_RETURN(ERROR_STOP);
@@ -2172,7 +2175,8 @@ static Exit_status dump_remote_log_entries(PRINT_EVENT_INFO *print_event_info,
       ::BINLOG_NAME_SIZE_INFO_SIZE + BINLOG_NAME_INFO_SIZE +
       ::BINLOG_POS_INFO_SIZE + ::BINLOG_DATA_SIZE_INFO_SIZE +
       encoded_data_size + 1;
-    if (!(command_buffer= (uchar *) my_malloc(allocation_size, MYF(MY_WME))))
+    if (!(command_buffer= (uchar *) my_malloc(PSI_NOT_INSTRUMENTED,
+                                              allocation_size, MYF(MY_WME))))
     {
       error("Got fatal error allocating memory.");
       global_sid_lock->unlock();
@@ -2922,7 +2926,8 @@ int main(int argc, char** argv)
   {
     if (init_tmpdir(&tmpdir, 0))
       exit(1);
-    dirname_for_local_load= my_strdup(my_tmpdir(&tmpdir), MY_WME);
+    dirname_for_local_load= my_strdup(PSI_NOT_INSTRUMENTED,
+                                      my_tmpdir(&tmpdir), MY_WME);
   }
 
   if (load_processor.init())

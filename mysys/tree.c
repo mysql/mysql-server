@@ -1,4 +1,4 @@
-/* Copyright (c) 2000, 2011, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2000, 2013, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -59,6 +59,8 @@
 #include <m_string.h>
 #include <my_tree.h>
 #include "my_base.h"
+
+PSI_memory_key key_memory_TREE;
 
 #define BLACK		1
 #define RED		0
@@ -127,7 +129,8 @@ void init_tree(TREE *tree, ulong default_alloc_size, ulong memory_limit,
   }
   if (!(tree->with_delete=with_delete))
   {
-    init_alloc_root(&tree->mem_root, (uint) default_alloc_size, 0);
+    init_alloc_root(key_memory_TREE,
+                    &tree->mem_root, (uint) default_alloc_size, 0);
     tree->mem_root.min_malloc=(sizeof(TREE_ELEMENT)+tree->size_of_element);
   }
   DBUG_VOID_RETURN;
@@ -233,7 +236,8 @@ TREE_ELEMENT *tree_insert(TREE *tree, void *key, uint key_size,
 
     key_size+=tree->size_of_element;
     if (tree->with_delete)
-      element=(TREE_ELEMENT *) my_malloc(alloc_size, MYF(MY_WME));
+      element=(TREE_ELEMENT *) my_malloc(key_memory_TREE,
+                                         alloc_size, MYF(MY_WME));
     else
       element=(TREE_ELEMENT *) alloc_root(&tree->mem_root,alloc_size);
     if (!element)

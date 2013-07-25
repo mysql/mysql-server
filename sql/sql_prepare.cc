@@ -3148,8 +3148,9 @@ Prepared_statement::Prepared_statement(THD *thd_arg)
   last_errno(0),
   flags((uint) IS_IN_USE)
 {
-  init_sql_alloc(&main_mem_root, thd_arg->variables.query_alloc_block_size,
-                  thd_arg->variables.query_prealloc_size);
+  init_sql_alloc(key_memory_prepared_statement_main_mem_root,
+                 &main_mem_root, thd_arg->variables.query_alloc_block_size,
+                 thd_arg->variables.query_prealloc_size);
   *last_error= '\0';
 }
 
@@ -4507,7 +4508,8 @@ bool Protocol_local::send_result_set_metadata(List<Item> *columns, uint)
 {
   DBUG_ASSERT(m_rset == 0 && !alloc_root_inited(&m_rset_root));
 
-  init_sql_alloc(&m_rset_root, MEM_ROOT_BLOCK_SIZE, 0);
+  init_sql_alloc(key_memory_protocol_rset_root,
+                 &m_rset_root, MEM_ROOT_BLOCK_SIZE, 0);
 
   if (! (m_rset= new (&m_rset_root) List<Ed_row>))
     return TRUE;

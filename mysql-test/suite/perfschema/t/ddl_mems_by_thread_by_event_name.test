@@ -1,0 +1,19 @@
+# Tests for PERFORMANCE_SCHEMA
+
+--source include/not_embedded.inc
+--source include/have_perfschema.inc
+
+-- error ER_DBACCESS_DENIED_ERROR
+alter table performance_schema.memory_summary_by_thread_by_event_name
+  add column foo integer;
+
+truncate table performance_schema.memory_summary_by_thread_by_event_name;
+
+-- error ER_DBACCESS_DENIED_ERROR
+ALTER TABLE performance_schema.memory_summary_by_thread_by_event_name
+  ADD INDEX test_index(USERNAME);
+
+-- error ER_DBACCESS_DENIED_ERROR
+CREATE UNIQUE INDEX test_index
+  ON performance_schema.memory_summary_by_thread_by_event_name(USERNAME);
+

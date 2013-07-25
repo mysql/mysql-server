@@ -358,7 +358,8 @@ bool mysql_delete(THD *thd, TABLE_LIST *table_list, Item *conds,
       {
         Filesort fsort(order, HA_POS_ERROR, select);
         DBUG_ASSERT(usable_index == MAX_KEY);
-        table->sort.io_cache= (IO_CACHE *) my_malloc(sizeof(IO_CACHE),
+        table->sort.io_cache= (IO_CACHE *) my_malloc(key_memory_TABLE_sort_io_cache,
+                                                     sizeof(IO_CACHE),
                                                      MYF(MY_FAE | MY_ZEROFILL));
 
         if ((table->sort.found_records= filesort(thd, table, &fsort, true,

@@ -1,4 +1,4 @@
-/* Copyright (c) 2008, 2011, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2008, 2013, Oracle and/or its affiliates. All rights reserved.
 
   This program is free software; you can redistribute it and/or modify
   it under the terms of the GNU General Public License as published by
@@ -50,7 +50,8 @@ struct pos_setup_instruments : public PFS_double_index
   static const uint VIEW_STATEMENT= 8;
   static const uint VIEW_SOCKET= 9;
   static const uint VIEW_IDLE= 10;
-  static const uint LAST_VIEW= 10;
+  static const uint VIEW_MEMORY= 11;
+  static const uint LAST_VIEW= 11;
 
   pos_setup_instruments()
     : PFS_double_index(FIRST_VIEW, 1)

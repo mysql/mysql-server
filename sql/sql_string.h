@@ -22,6 +22,7 @@
 #include "my_sys.h"              /* alloc_root, my_free, my_realloc */
 #include "m_string.h"                           /* TRASH */
 
+extern PSI_memory_key key_memory_String_value;
 
 /**
   A wrapper class for null-terminated constant strings.
@@ -333,7 +334,8 @@ public:
     if (arg_length < Alloced_length)
     {
       char *new_ptr;
-      if (!(new_ptr=(char*) my_realloc(Ptr,arg_length,MYF(0))))
+      if (!(new_ptr=(char*) my_realloc(key_memory_String_value,
+                                       Ptr,arg_length,MYF(0))))
       {
 	Alloced_length = 0;
 	real_alloc(arg_length);
