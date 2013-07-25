@@ -3958,12 +3958,28 @@ row_rename_table_for_mysql(
 	} else if (!new_is_tmp) {
 		/* Rename all constraints. */
 		char	new_table_name[MAX_TABLE_NAME_LEN] = "";
+		char	old_table_utf8[MAX_TABLE_NAME_LEN] = "";
 		uint	errors = 0;
+
+		strncpy(old_table_utf8, old_name, MAX_TABLE_NAME_LEN);
+		innobase_convert_to_system_charset(
+			strchr(old_table_utf8, '/') + 1,
+			strchr(old_name, '/') +1,
+			MAX_TABLE_NAME_LEN, &errors);
+
+		if (errors) {
+			/* Table name could not be converted from charset
+			my_charset_filename to UTF-8. This means that the
+			table name is already in UTF-8 (#mysql#50). */
+			strncpy(old_table_utf8, old_name, MAX_TABLE_NAME_LEN);
+		}
 
 		info = pars_info_create();
 
 		pars_info_add_str_literal(info, "new_table_name", new_name);
 		pars_info_add_str_literal(info, "old_table_name", old_name);
+		pars_info_add_str_literal(info, "old_table_name_utf8",
+					  old_table_utf8);
 
 		strncpy(new_table_name, new_name, MAX_TABLE_NAME_LEN);
 		innobase_convert_to_system_charset(
@@ -4000,6 +4016,8 @@ row_rename_table_for_mysql(
 			"new_db_name := SUBSTR(:new_table_name, 0,\n"
 			"                      new_db_name_len);\n"
 			"old_t_name_len := LENGTH(:old_table_name);\n"
+			"gen_constr_prefix := CONCAT(:old_table_name_utf8,\n"
+			"			     '_ibfk_');\n"
 			"WHILE found = 1 LOOP\n"
 			"       SELECT ID INTO foreign_id\n"
 			"        FROM SYS_FOREIGN\n"
@@ -4016,7 +4034,7 @@ row_rename_table_for_mysql(
 			"        id_len := LENGTH(foreign_id);\n"
 			"        IF (INSTR(foreign_id, '/') > 0) THEN\n"
 			"               IF (INSTR(foreign_id,\n"
-			"                         '_ibfk_') > 0)\n"
+			"                         gen_constr_prefix) > 0)\n"
 			"               THEN\n"
                         "                offset := INSTR(foreign_id, '_ibfk_') - 1;\n"
 			"                new_foreign_id :=\n"
