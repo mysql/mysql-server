@@ -25,6 +25,15 @@
 #include <openssl/aes.h>
 #include <openssl/evp.h>
 #include <openssl/err.h>
+/*
+  EVP_aes_xxx() function name generator.
+
+  The following two macros accept
+    len  - key length (AES_KEY_LENGTH) &
+    mode - aes mode of operation, always ecb;
+*/
+#define EVP_AES_TYPE_FN(len, mode) EVP_aes_ ## len ## _ ## mode()
+#define EVP_AES_TYPE(len, mode) EVP_AES_TYPE_FN(len, mode)
 #endif
 
 enum encrypt_dir { MY_AES_ENCRYPT, MY_AES_DECRYPT };
@@ -132,7 +141,7 @@ int my_aes_encrypt(const char* source, int source_length, char* dest,
     return rc;
 
 #if defined(HAVE_YASSL)
-  enc.SetKey((const TaoCrypt::byte *) rkey, MY_AES_BLOCK_SIZE);
+  enc.SetKey((const TaoCrypt::byte *) rkey, AES_KEY_LENGTH / 8);
 
   num_blocks = source_length / MY_AES_BLOCK_SIZE;
 
@@ -158,8 +167,8 @@ int my_aes_encrypt(const char* source, int source_length, char* dest,
 
   EVP_CIPHER_CTX_init(&ctx);
 
-  if (! EVP_EncryptInit_ex(&ctx, EVP_aes_128_ecb(), NULL,
-                        (const unsigned char *) rkey, NULL))
+  if (! EVP_EncryptInit_ex(&ctx, EVP_AES_TYPE(AES_KEY_LENGTH, ecb), NULL,
+                           (const unsigned char *) rkey, NULL))
     goto aes_error;                             /* Error */
   if (! EVP_EncryptUpdate(&ctx, (unsigned char *) dest, &u_len,
                           (unsigned const char *) source, source_length))
@@ -218,7 +227,7 @@ int my_aes_decrypt(const char *source, int source_length, char *dest,
     return rc;
 
 #if defined(HAVE_YASSL)
-  dec.SetKey((const TaoCrypt::byte *) rkey, MY_AES_BLOCK_SIZE);
+  dec.SetKey((const TaoCrypt::byte *) rkey, AES_KEY_LENGTH / 8);
 
   num_blocks = source_length / MY_AES_BLOCK_SIZE;
 
@@ -251,8 +260,8 @@ int my_aes_decrypt(const char *source, int source_length, char *dest,
 
   EVP_CIPHER_CTX_init(&ctx);
 
-  if (! EVP_DecryptInit_ex(&ctx, EVP_aes_128_ecb(),
-                        NULL, (const unsigned char *) rkey, NULL))
+  if (! EVP_DecryptInit_ex(&ctx, EVP_AES_TYPE(AES_KEY_LENGTH, ecb), NULL,
+                           (const unsigned char *) rkey, NULL))
     goto aes_error;                             /* Error */
   if (! EVP_DecryptUpdate(&ctx, (unsigned char *) dest, &u_len,
                           (unsigned const char *) source, source_length))
