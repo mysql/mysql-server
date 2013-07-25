@@ -501,9 +501,7 @@ public:
 	order to improve locality. */
 	pointer	allocate(size_type n, const_pointer hint = 0)
 	{
-#ifdef UNIV_DEBUG
-		DBUG_ASSERT(::mem_heap_check(m_heap));
-#endif /* UNIV_DEBUG */
+		ut_d(DBUG_ASSERT(::mem_heap_check(m_heap)));
 
 		return(reinterpret_cast<pointer>(
 			mem_heap_alloc(m_heap, n * sizeof(T))));

@@ -513,7 +513,7 @@ row_vers_build_for_consistent_read(
 
 	for (;;) {
 		mem_heap_t*	prev_heap = heap;
-		
+
 		heap = mem_heap_create(1024);
 
 		/* If purge can't see the record then we can't rely on

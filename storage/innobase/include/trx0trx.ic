@@ -275,6 +275,7 @@ trx_release_reference(
 
 
 /**
+@param trx		Get the active view for this transaction, if one exists
 @return the transaction's read view or NULL if one not assigned. */
 UNIV_INLINE
 ReadView*
