@@ -339,7 +339,8 @@ Diagnostics_area::Diagnostics_area(bool allow_unlimited_conditions)
   m_saved_warn_count(0)
 {
   /* Initialize sub structures */
-  init_sql_alloc(&m_condition_root, WARN_ALLOC_BLOCK_SIZE,
+  init_sql_alloc(PSI_INSTRUMENT_ME,
+                 &m_condition_root, WARN_ALLOC_BLOCK_SIZE,
                  WARN_ALLOC_PREALLOC_SIZE);
   m_conditions_list.empty();
   memset(m_current_statement_cond_count_by_sl, 0,

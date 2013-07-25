@@ -212,7 +212,8 @@ protected:
   virtual void SetUp()
   {
     initializer.SetUp();
-    init_sql_alloc(&m_alloc, thd()->variables.range_alloc_block_size, 0);
+    init_sql_alloc(PSI_NOT_INSTRUMENTED,
+                   &m_alloc, thd()->variables.range_alloc_block_size, 0);
   }
 
   virtual void TearDown()

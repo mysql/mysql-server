@@ -127,7 +127,8 @@ int register_slave(THD* thd, uchar* packet, uint packet_length)
 
   if (check_access(thd, REPL_SLAVE_ACL, any_db, NULL, NULL, 0, 0))
     return 1;
-  if (!(si = (SLAVE_INFO*)my_malloc(sizeof(SLAVE_INFO), MYF(MY_WME))))
+  if (!(si = (SLAVE_INFO*)my_malloc(key_memory_SLAVE_INFO,
+                                    sizeof(SLAVE_INFO), MYF(MY_WME))))
     goto err2;
 
   /* 4 bytes for the server id */

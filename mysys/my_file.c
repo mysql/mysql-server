@@ -17,6 +17,8 @@
 #include "my_static.h"
 #include <m_string.h>
 
+PSI_memory_key key_memory_my_file_info;
+
 /*
   set how many open files we want to be able to handle
 
@@ -107,7 +109,8 @@ uint my_set_max_open_files(uint files)
   if (files <= MY_NFILE)
     DBUG_RETURN(files);
 
-  if (!(tmp= (struct st_my_file_info*) my_malloc(sizeof(*tmp) * files,
+  if (!(tmp= (struct st_my_file_info*) my_malloc(key_memory_my_file_info,
+                                                 sizeof(*tmp) * files,
 						 MYF(MY_WME))))
     DBUG_RETURN(MY_NFILE);
 

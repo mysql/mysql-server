@@ -133,7 +133,8 @@ static int daemon_memcached_plugin_init(void *p)
 	pthread_attr_t			attr;
 	struct st_plugin_int*		plugin = (struct st_plugin_int *)p;
 
-	con = (mysql_memcached_context*) my_malloc(sizeof(*con), MYF(0));
+	con = (mysql_memcached_context*) my_malloc(PSI_INSTRUMENT_ME,
+                                                   sizeof(*con), MYF(0));
 
 	if (mci_engine_library) {
 		char*	lib_path = (mci_eng_lib_path)
@@ -143,6 +144,7 @@ static int daemon_memcached_plugin_init(void *p)
 				  + strlen(FN_DIRSEP) + 1;
 
 		con->memcached_conf.m_engine_library = (char*) my_malloc(
+                        PSI_INSTRUMENT_ME,
 			lib_len, MYF(0));
 
 		strxmov(con->memcached_conf.m_engine_library, lib_path,

@@ -20,6 +20,7 @@
 #include "pfs_instr.h"
 #include "pfs_account.h"
 #include "pfs_visitor.h"
+#include "pfs_memory.h"
 
 THR_LOCK table_accounts::m_table_lock;
 
@@ -81,6 +82,8 @@ table_accounts::delete_all_rows(void)
   reset_events_stages_by_account();
   reset_events_statements_by_thread();
   reset_events_statements_by_account();
+  reset_memory_by_thread();
+  reset_memory_by_account();
   purge_all_account();
   return 0;
 }

@@ -73,7 +73,8 @@ void mysql_trace_start(struct st_mysql *m)
 {
   struct st_mysql_trace_info *trace_info;
  
-  trace_info= my_malloc(sizeof(struct st_mysql_trace_info), 
+  trace_info= my_malloc(PSI_NOT_INSTRUMENTED,
+                        sizeof(struct st_mysql_trace_info), 
                         MYF(MY_ZEROFILL));
   if (!trace_info)
   {

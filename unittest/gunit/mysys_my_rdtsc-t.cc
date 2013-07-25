@@ -62,40 +62,37 @@ protected:
   MY_TIMER_INFO myt;
 };
 
-
 void RDTimeStampCounter::test_init()
 {
   my_timer_init(&myt);
 
-/*
-  diag("----- Routine ---------------");
-  diag("myt.cycles.routine          : %13llu", myt.cycles.routine);
-  diag("myt.nanoseconds.routine     : %13llu", myt.nanoseconds.routine);
-  diag("myt.microseconds.routine    : %13llu", myt.microseconds.routine);
-  diag("myt.milliseconds.routine    : %13llu", myt.milliseconds.routine);
-  diag("myt.ticks.routine           : %13llu", myt.ticks.routine);
+  fprintf(stdout, "----- Routine ---------------\n");
+  fprintf(stdout, "myt.cycles.routine          : %13llu\n", myt.cycles.routine);
+  fprintf(stdout, "myt.nanoseconds.routine     : %13llu\n", myt.nanoseconds.routine);
+  fprintf(stdout, "myt.microseconds.routine    : %13llu\n", myt.microseconds.routine);
+  fprintf(stdout, "myt.milliseconds.routine    : %13llu\n", myt.milliseconds.routine);
+  fprintf(stdout, "myt.ticks.routine           : %13llu\n", myt.ticks.routine);
 
-  diag("----- Frequency -------------");
-  diag("myt.cycles.frequency        : %13llu", myt.cycles.frequency);
-  diag("myt.nanoseconds.frequency   : %13llu", myt.nanoseconds.frequency);
-  diag("myt.microseconds.frequency  : %13llu", myt.microseconds.frequency);
-  diag("myt.milliseconds.frequency  : %13llu", myt.milliseconds.frequency);
-  diag("myt.ticks.frequency         : %13llu", myt.ticks.frequency);
+  fprintf(stdout, "----- Frequency -------------\n");
+  fprintf(stdout, "myt.cycles.frequency        : %13llu\n", myt.cycles.frequency);
+  fprintf(stdout, "myt.nanoseconds.frequency   : %13llu\n", myt.nanoseconds.frequency);
+  fprintf(stdout, "myt.microseconds.frequency  : %13llu\n", myt.microseconds.frequency);
+  fprintf(stdout, "myt.milliseconds.frequency  : %13llu\n", myt.milliseconds.frequency);
+  fprintf(stdout, "myt.ticks.frequency         : %13llu\n", myt.ticks.frequency);
 
-  diag("----- Resolution ------------");
-  diag("myt.cycles.resolution       : %13llu", myt.cycles.resolution);
-  diag("myt.nanoseconds.resolution  : %13llu", myt.nanoseconds.resolution);
-  diag("myt.microseconds.resolution : %13llu", myt.microseconds.resolution);
-  diag("myt.milliseconds.resolution : %13llu", myt.milliseconds.resolution);
-  diag("myt.ticks.resolution        : %13llu", myt.ticks.resolution);
+  fprintf(stdout, "----- Resolution ------------\n");
+  fprintf(stdout, "myt.cycles.resolution       : %13llu\n", myt.cycles.resolution);
+  fprintf(stdout, "myt.nanoseconds.resolution  : %13llu\n", myt.nanoseconds.resolution);
+  fprintf(stdout, "myt.microseconds.resolution : %13llu\n", myt.microseconds.resolution);
+  fprintf(stdout, "myt.milliseconds.resolution : %13llu\n", myt.milliseconds.resolution);
+  fprintf(stdout, "myt.ticks.resolution        : %13llu\n", myt.ticks.resolution);
 
-  diag("----- Overhead --------------");
-  diag("myt.cycles.overhead         : %13llu", myt.cycles.overhead);
-  diag("myt.nanoseconds.overhead    : %13llu", myt.nanoseconds.overhead);
-  diag("myt.microseconds.overhead   : %13llu", myt.microseconds.overhead);
-  diag("myt.milliseconds.overhead   : %13llu", myt.milliseconds.overhead);
-  diag("myt.ticks.overhead          : %13llu", myt.ticks.overhead);
-*/
+  fprintf(stdout, "----- Overhead --------------\n");
+  fprintf(stdout, "myt.cycles.overhead         : %13llu\n", myt.cycles.overhead);
+  fprintf(stdout, "myt.nanoseconds.overhead    : %13llu\n", myt.nanoseconds.overhead);
+  fprintf(stdout, "myt.microseconds.overhead   : %13llu\n", myt.microseconds.overhead);
+  fprintf(stdout, "myt.milliseconds.overhead   : %13llu\n", myt.milliseconds.overhead);
+  fprintf(stdout, "myt.ticks.overhead          : %13llu\n", myt.ticks.overhead);
 }
 
 

@@ -317,6 +317,8 @@ void unlock_slave_threads(Master_info* mi)
   DBUG_VOID_RETURN;
 }
 
+static PSI_memory_key key_memory_rli_mts_coor;
+
 #ifdef HAVE_PSI_INTERFACE
 static PSI_thread_key key_thread_slave_io, key_thread_slave_sql, key_thread_slave_worker;
 
@@ -327,6 +329,11 @@ static PSI_thread_info all_slave_threads[]=
   { &key_thread_slave_worker, "slave_worker", PSI_FLAG_GLOBAL}
 };
 
+static PSI_memory_info all_slave_memory[]=
+{
+  { &key_memory_rli_mts_coor, "Relay_log_info::mts_coor", 0}
+};
+
 static void init_slave_psi_keys(void)
 {
   const char* category= "sql";
@@ -334,6 +341,9 @@ static void init_slave_psi_keys(void)
 
   count= array_elements(all_slave_threads);
   mysql_thread_register(category, all_slave_threads, count);
+
+  count= array_elements(all_slave_memory);
+  mysql_memory_register(category, all_slave_memory, count);
 }
 #endif /* HAVE_PSI_INTERFACE */
 
@@ -3052,7 +3062,8 @@ static int request_dump(THD *thd, MYSQL* mysql, Master_info* mi,
       ::BINLOG_NAME_SIZE_INFO_SIZE + BINLOG_NAME_INFO_SIZE +
       ::BINLOG_POS_INFO_SIZE + ::BINLOG_DATA_SIZE_INFO_SIZE +
       encoded_data_size + 1;
-    if (!(command_buffer= (uchar *) my_malloc(allocation_size, MYF(MY_WME))))
+    if (!(command_buffer= (uchar *) my_malloc(key_memory_rpl_slave_command_buffer,
+                                              allocation_size, MYF(MY_WME))))
       goto err;
     uchar* ptr_buffer= command_buffer;
 
@@ -3090,7 +3101,8 @@ static int request_dump(THD *thd, MYSQL* mysql, Master_info* mi,
     size_t allocation_size= ::BINLOG_POS_OLD_INFO_SIZE +
       BINLOG_NAME_INFO_SIZE + ::BINLOG_FLAGS_INFO_SIZE +
       ::BINLOG_SERVER_ID_INFO_SIZE + 1;
-    if (!(command_buffer= (uchar *) my_malloc(allocation_size, MYF(MY_WME))))
+    if (!(command_buffer= (uchar *) my_malloc(key_memory_rpl_slave_command_buffer,
+                                              allocation_size, MYF(MY_WME))))
       goto err;
     uchar* ptr_buffer= command_buffer;
   
@@ -4460,7 +4472,8 @@ int check_temp_dir(char* tmp_file)
     Check permissions to create a file.
    */
   //append the server UUID to the temp file name.
-  char *unique_tmp_file_name= (char*)my_malloc((FN_REFLEN+TEMP_FILE_MAX_LEN)*sizeof(char), MYF(0));
+  char *unique_tmp_file_name= (char*)my_malloc(key_memory_rpl_slave_check_temp_dir,
+                                               (FN_REFLEN+TEMP_FILE_MAX_LEN)*sizeof(char), MYF(0));
   sprintf(unique_tmp_file_name, "%s%s", tmp_file, server_uuid);
   if ((fd= mysql_file_create(key_file_misc,
                              unique_tmp_file_name, CREATE_MODE,
@@ -5203,7 +5216,8 @@ int slave_start_workers(Relay_log_info *rli, ulong n, bool *mts_inited)
   /*
     dyn memory to consume by Coordinator per event
   */
-  init_alloc_root(&rli->mts_coor_mem_root, NAME_LEN,
+  init_alloc_root(key_memory_rli_mts_coor,
+                  &rli->mts_coor_mem_root, NAME_LEN,
                   (MAX_DBS_IN_EVENT_MTS / 2) * NAME_LEN);
 
   if (init_hash_workers(n))  // MTS: mapping_db_to_worker
@@ -5983,7 +5997,8 @@ static int queue_binlog_ver_1_event(Master_info *mi, const char *buf,
   */
   if (buf[EVENT_TYPE_OFFSET] == LOAD_EVENT)
   {
-    if (unlikely(!(tmp_buf=(char*)my_malloc(event_len+1,MYF(MY_WME)))))
+    if (unlikely(!(tmp_buf=(char*)my_malloc(key_memory_binlog_ver_1_event,
+                                            event_len+1,MYF(MY_WME)))))
     {
       mi->report(ERROR_LEVEL, ER_SLAVE_FATAL_ERROR,
                  ER(ER_SLAVE_FATAL_ERROR), "Memory allocation failed");
