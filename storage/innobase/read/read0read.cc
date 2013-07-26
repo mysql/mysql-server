@@ -171,6 +171,9 @@ RW transaction can commit or rollback (or free views). AC-NL-RO transactions
 will mark their views as closed but not actually free their views.
 */
 
+/** Minimum number of elements to reserve in ReadView::ids_t */
+static const ulint MIN_TRX_IDS = 32;
+
 #ifdef UNIV_DEBUG
 /** Functor to validate the view list. */
 struct	ViewCheck {
@@ -204,17 +207,94 @@ MVCC::validate() const
 #endif /* UNIV_DEBUG */
 
 /**
+Try and increase the size of the array. Old elements are
+copied across.
+@param n 		Make space for n elements */
+
+void
+ReadView::ids_t::reserve(ulint n)
+{
+	if (n < capacity()) {
+		return;
+	}
+
+	/** Keep a minimum threshold */
+	if (n < MIN_TRX_IDS) {
+		n = MIN_TRX_IDS;
+	}
+
+	value_type*	p = m_ptr;
+
+	m_ptr = new(std::nothrow) value_type[n];
+
+	if (m_ptr == NULL) {
+		ib_logf(IB_LOG_LEVEL_FATAL,
+			"Out of memory: read0read.cc:%d", __LINE__);
+	}
+
+	m_reserved = n;
+
+	ut_ad(size() < capacity());
+
+	if (p != NULL) {
+
+		::memmove(m_ptr, p, size() * sizeof(value_type));
+
+		delete[] p;
+	}
+}
+
+/**
+Copy and overwrite this array contents
+@param start		Source array
+@paran end		Pointer to end of array */
+
+void
+ReadView::ids_t::assign(const value_type* start, const value_type* end)
+{
+	ut_ad(end >= start);
+
+	ulint	n = end - start;
+
+	/* No need to copy the old contents across during reserve(). */
+	clear();
+
+	/* Create extra space if required. */
+	reserve(n);
+
+	resize(n);
+
+	ut_ad(size() == n);
+
+	::memmove(m_ptr, start, size() * sizeof(value_type));
+}
+
+/**
+Append a value to the array.
+@param value		the value to append */
+
+void
+ReadView::ids_t::push_back(value_type value)
+{
+	if (capacity() <= size()) {
+		reserve(size() * 2);
+	}
+
+	m_ptr[m_size++] = value;
+	ut_ad(size() <= capacity());
+}
+
+/**
 ReadView constructor */
 ReadView::ReadView()
 	:
 	m_low_limit_id(),
 	m_up_limit_id(),
 	m_creator_trx_id(),
-	m_trx_ids_size(),
-	m_trx_ids(),
+	m_ids(),
 	m_low_limit_no()
 {
-	ut_d(::memset(&view_list, 0x0, sizeof(view_list)));
+	ut_d(::memset(&m_view_list, 0x0, sizeof(m_view_list)));
 }
 
 /**
@@ -228,18 +308,19 @@ ReadView::~ReadView()
 @param size		Number of views to pre-allocate */
 MVCC::MVCC(ulint size)
 {
-	UT_LIST_INIT(m_free, &ReadView::view_list);
-	UT_LIST_INIT(m_views, &ReadView::view_list);
+	UT_LIST_INIT(m_free, &ReadView::m_view_list);
+	UT_LIST_INIT(m_views, &ReadView::m_view_list);
 
 	for (ulint i = 0; i < size; ++i) {
 		ReadView*	view = new(std::nothrow) ReadView();
 
 		if (view == NULL) {
 			ib_logf(IB_LOG_LEVEL_FATAL,
-				"Failed to allocate MVCC view");
+				"Failed to allocate MVCC view: "
+				"read0read.cc:%d", __LINE__);
 		}
 
-		UT_LIST_ADD_LAST(m_free, view);
+		UT_LIST_ADD_FIRST(m_free, view);
 	}
 }
 
@@ -266,12 +347,19 @@ ReadView::copy_trx_ids(const trx_ids_t& trx_ids)
 	ulint	size = trx_ids.size();
 
 	if (m_creator_trx_id > 0) {
+		ut_ad(size > 0);
 		--size;
 	}
 
-	if (m_trx_ids.capacity() < size) {
-		m_trx_ids.reserve(size);
+	if (size == 0) {
+		m_ids.clear();
+		return;
 	}
+
+	m_ids.reserve(size);
+	m_ids.resize(size);
+
+	ids_t::value_type*	p = m_ids.data();
 
 	/* Copy all the trx_ids except the creator trx id */
 
@@ -293,18 +381,18 @@ ReadView::copy_trx_ids(const trx_ids_t& trx_ids)
 		ulint	i = it - trx_ids.begin();
 		ulint	n = i * sizeof(trx_ids_t::value_type);
 
-		::memmove(&m_trx_ids[0], &trx_ids[0], n);
+		::memmove(p, &trx_ids[0], n);
 
 		n = (trx_ids.size() - i - 1) * sizeof(trx_ids_t::value_type);
 
-		::memmove(&m_trx_ids[i], &trx_ids[i + 1], n);
+		ut_ad(i + (n / sizeof(trx_ids_t::value_type)) == m_ids.size());
+
+		::memmove(p + i, &trx_ids[i + 1], n);
 	} else {
 		ulint	n = size * sizeof(trx_ids_t::value_type);
 
-		::memmove(&m_trx_ids[0], &trx_ids[0], n);
+		::memmove(p, &trx_ids[0], n);
 	}
-
-	m_trx_ids_size = size;
 }
 
 /**
@@ -324,7 +412,7 @@ ReadView::prepare(trx_id_t id)
 	if (!trx_sys->rw_trx_ids.empty()) {
 		copy_trx_ids(trx_sys->rw_trx_ids);
 	} else {
-		m_trx_ids_size = 0;
+		m_ids.clear();
 	}
 
 	if (UT_LIST_GET_LEN(trx_sys->serialisation_list) > 0) {
@@ -344,9 +432,9 @@ Complete the read view creation */
 void
 ReadView::complete()
 {
-	if (m_trx_ids_size > 0) {
+	if (!m_ids.empty()) {
 		/* The last active transaction has the smallest id: */
-		::memmove(&m_up_limit_id, &m_trx_ids[0], sizeof(m_up_limit_id));
+		::memmove(&m_up_limit_id, m_ids.data(), sizeof(m_up_limit_id));
 	} else {
 		m_up_limit_id = m_low_limit_id;
 	}
@@ -441,8 +529,7 @@ MVCC::view_open(ReadView*& view, trx_t* trx)
 		Therefore we must set the low limit id after we reset the
 		closed status after the check. */
 
-		if (trx_is_autocommit_non_locking(trx)
-		    && view->m_trx_ids_size == 0) {
+		if (trx_is_autocommit_non_locking(trx) && view->empty()) {
 
 			view->m_closed = false;
 
@@ -480,12 +567,11 @@ MVCC::view_open(ReadView*& view, trx_t* trx)
 }
 
 /**
-Get the oldest view in the system. It will also move the delete marked
-read views from the views list to the freed list.
+Get the oldest (active) view in the system. 
 @return oldest view if found or NULL */
 
 ReadView*
-MVCC::get_oldest_view()
+MVCC::get_oldest_view() const
 {
 	ReadView*	view;
 
@@ -493,7 +579,7 @@ MVCC::get_oldest_view()
 
 	for (view = UT_LIST_GET_LAST(m_views);
 	     view != NULL;
-	     view = UT_LIST_GET_PREV(view_list, view)) {
+	     view = UT_LIST_GET_PREV(m_view_list, view)) {
 
 		if (!view->is_closed()) {
 			break;
@@ -510,12 +596,14 @@ Copy state from another view. Must call copy_complete() to finish.
 void
 ReadView::copy_prepare(const ReadView& other)
 {
-	if (other.m_trx_ids_size > 0) {
-		m_trx_ids.assign(
-			&other.m_trx_ids[0],
-			&other.m_trx_ids[0] + other.m_trx_ids_size);
+	ut_ad(&other != this);
+
+	if (!other.m_ids.empty()) {
+		const ids_t::value_type* 	p = other.m_ids.data();
+
+		m_ids.assign(p, p + other.m_ids.size());
 	} else {
-		m_trx_ids.clear();
+		m_ids.clear();
 	}
 
 	m_up_limit_id = other.m_up_limit_id;
@@ -529,7 +617,7 @@ ReadView::copy_prepare(const ReadView& other)
 
 /**
 Complete the copy, insert the creator transaction id into the
-m_trx_ids too and adjust the m_up_limit_id *, if required */
+m_ids too and adjust the m_up_limit_id, if required */
 
 void
 ReadView::copy_complete()
@@ -537,23 +625,21 @@ ReadView::copy_complete()
 	ut_ad(!mutex_own(&trx_sys->mutex));
 
 	if (m_creator_trx_id > 0) {
-		m_trx_ids.push_back(m_creator_trx_id);
-		std::sort(m_trx_ids.begin(), m_trx_ids.end());
+		m_ids.push_back(m_creator_trx_id);
+		std::sort(m_ids.data(), m_ids.data() + m_ids.size());
 	}
 
-	m_trx_ids_size = m_trx_ids.size();
-
-	if (m_trx_ids_size > 0) {
+	if (!m_ids.empty()) {
 
 		using std::min;
 
 		/* The last active transaction has the smallest id. */
-		m_up_limit_id = min(m_trx_ids.front(), m_up_limit_id);
+		m_up_limit_id = min(m_ids.front(), m_up_limit_id);
 	}
 
 	ut_ad(m_up_limit_id <= m_low_limit_id);
 
-	/* We added the creator transaction ID to the m_trx_ids. */
+	/* We added the creator transaction ID to the m_ids. */
 	m_creator_trx_id = 0;
 }
 
@@ -599,7 +685,7 @@ MVCC::size() const
 
 	for (const ReadView* view = UT_LIST_GET_FIRST(m_views);
 	     view != NULL;
-	     view = UT_LIST_GET_NEXT(view_list, view)) {
+	     view = UT_LIST_GET_NEXT(m_view_list, view)) {
 
 		if (!view->is_closed()) {
 			++size;

@@ -37,6 +37,98 @@ class MVCC;
 read should not see the modifications to the database. */
 
 class ReadView {
+	/** This is similar to a std::vector but it is not a drop
+	in replacement. It is specific to ReadView. */
+	class ids_t {
+		typedef trx_ids_t::value_type value_type;
+
+		/**
+		Constructor */
+		ids_t() : m_ptr(), m_size(), m_reserved() { }
+
+		/**
+		Destructor */
+		~ids_t() { delete[] m_ptr; }
+
+		/**
+		Try and increase the size of the array. Old elements are
+		copied across. It is a no-op if n is < current size.
+
+		@param n 		Make space for n elements */
+		void reserve(ulint n);
+
+		/**
+		Resize the array, sets the current element count.
+		@param n		new size of the array, in elements */
+		void resize(ulint n)
+		{
+			ut_ad(n <= capacity());
+
+			m_size = n;
+		}
+
+		/**
+		Reset the size to 0 */
+		void clear() { resize(0); }
+
+		/**
+		@return the capacity of the array in elements */
+		ulint capacity() const { return(m_reserved); }
+
+		/**
+		Copy and overwrite the current array contents
+
+		@param start		Source array
+		@paran end		Pointer to end of array */
+		void assign(const value_type* start, const value_type* end);
+
+		/**
+		@return the first value in the array */
+		value_type front() const
+		{
+			ut_ad(!empty());
+
+			return(m_ptr[0]);
+		}
+
+		/**
+		Append a value to the array.
+		@param value		the value to append */
+		void push_back(value_type value);
+
+		/**
+		@return a pointer to the start of the array */
+		trx_id_t* data() { return(m_ptr); };
+
+		/**
+		@return a const pointer to the start of the array */
+		const trx_id_t* data() const { return(m_ptr); };
+
+		/**
+		@return the number of elements in the array */
+		ulint size() const { return(m_size); }
+
+		/**
+		@return true if size() == 0 */
+		bool empty() const { return(size() == 0); }
+
+	private:
+		// Prevent copying
+		ids_t(const ids_t&);
+		ids_t& operator=(const ids_t&);
+
+	private:
+		/** Memory for the array */
+		value_type*	m_ptr;
+
+		/** Number of active elements in the array */
+		ulint		m_size;
+
+		/** Size of m_ptr in elements */
+		ulint		m_reserved;
+
+		friend class ReadView;
+	};
 public:
 	ReadView();
 	~ReadView();
@@ -58,14 +150,14 @@ public:
 
 			return(false);
 
-		} else if (m_trx_ids_size == 0) {
+		} else if (m_ids.empty()) {
 
 			return(true);
 		}
 
-		return(!std::binary_search(
-			m_trx_ids.begin(), m_trx_ids.begin() + m_trx_ids_size,
-			id));
+		const ids_t::value_type*	p = m_ids.data();
+
+		return(!std::binary_search(p, p + m_ids.size(), id));
 	}
 
 	/**
@@ -114,6 +206,13 @@ public:
 	trx_id_t low_limit_id() const
 	{
 		return(m_low_limit_id);
+	}
+
+	/**
+	@return true if there are no transaction ids in the snapshot */
+	bool empty() const
+	{
+		return(m_ids.empty());
 	}
 
 #ifdef UNIV_DEBUG
@@ -186,27 +285,23 @@ private:
 	views. */
 	trx_id_t	m_creator_trx_id;
 
-	/** Number of elements in trx_ids */
-	ulint		m_trx_ids_size;
-
 	/** Set of RW transactions that was active when this snapshot
 	was taken */
-	trx_ids_t	m_trx_ids;
+	ids_t		m_ids;
 
 	/** The view does not need to see the undo logs for transactions
 	whose transaction number is strictly smaller (<) than this value:
 	they can be removed in purge if not needed by other views */
 	trx_id_t	m_low_limit_no;
 
+	/** AC-NL-RO transaction view that has been "closed". */
+	bool		m_closed;
+
 	typedef UT_LIST_NODE_T(ReadView) node_t;
 
 	/** List of read views in trx_sys */
-	char		pad1[64 - sizeof(node_t)];
-	node_t		view_list;
-
-	/** AC-NL-RO transaction view that has been "closed". */
-	char		pad2[64 - sizeof(bool)];
-	volatile bool	m_closed;
+	byte		pad1[64 - sizeof(node_t)];
+	node_t		m_view_list;
 };
 
 #endif
