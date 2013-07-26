@@ -13,7 +13,7 @@ if [ ! -d build ] ; then
     mkdir build
     pushd build
     CC=gcc47 CXX=g++47 cmake \
-        -D CMAKE_BUILD_TYPE=RelWithDebInfo \
+        -D CMAKE_BUILD_TYPE=drd \
         -D USE_VALGRIND=ON \
         -D TOKU_DEBUG_PARANOID=ON \
         -D USE_CTAGS=OFF \
