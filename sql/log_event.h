@@ -57,6 +57,10 @@ extern I_List<i_string_pair> binlog_rewrite_db;
 #include "rpl_filter.h"
 #endif
 
+extern PSI_memory_key key_memory_log_event;
+extern PSI_memory_key key_memory_Incident_log_event_message;
+extern PSI_memory_key key_memory_Rows_query_log_event_rows_query;
+
 /* Forward declarations */
 class String;
 typedef ulonglong sql_mode_t;
@@ -1268,7 +1272,8 @@ public:
 
   static void *operator new(size_t size)
   {
-    return (void*) my_malloc((uint)size, MYF(MY_WME|MY_FAE));
+    return (void*) my_malloc(key_memory_log_event,
+                             (uint)size, MYF(MY_WME|MY_FAE));
   }
 
   static void operator delete(void *ptr, size_t)
@@ -4700,7 +4705,8 @@ public:
     DBUG_PRINT("enter", ("m_incident: %d", m_incident));
     m_message.str= NULL;
     m_message.length= 0;
-    if (!(m_message.str= (char*) my_malloc(msg.length+1, MYF(MY_WME))))
+    if (!(m_message.str= (char*) my_malloc(key_memory_Incident_log_event_message,
+                                           msg.length+1, MYF(MY_WME))))
     {
       /* Mark this event invalid */
       m_incident= INCIDENT_NONE;
@@ -4807,7 +4813,8 @@ public:
     : Ignorable_log_event(thd_arg)
   {
     DBUG_ENTER("Rows_query_log_event::Rows_query_log_event");
-    if (!(m_rows_query= (char*) my_malloc(query_len + 1, MYF(MY_WME))))
+    if (!(m_rows_query= (char*) my_malloc(key_memory_Rows_query_log_event_rows_query,
+                                          query_len + 1, MYF(MY_WME))))
       return;
     my_snprintf(m_rows_query, query_len + 1, "%s", query);
     DBUG_PRINT("enter", ("%s", m_rows_query));

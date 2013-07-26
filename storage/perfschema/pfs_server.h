@@ -54,6 +54,9 @@
 #ifndef PFS_STATEMENTS_STACK_SIZE
   #define PFS_STATEMENTS_STACK_SIZE 10
 #endif
+#ifndef PFS_MAX_MEMORY_CLASS
+  #define PFS_MAX_MEMORY_CLASS 250
+#endif
 
 /** Sizing hints, from the server configuration. */
 struct PFS_sizing_hints
@@ -201,7 +204,11 @@ struct PFS_global_param
   long m_digest_sizing;
   /** Maximum number of session attribute strings per thread */
   long m_session_connect_attrs_sizing;
-
+  /**
+    Maximum number of instrumented memory classes.
+    @sa memory_class_lost.
+  */
+  ulong m_memory_class_sizing;
   /** Sizing hints, for auto tuning. */
   PFS_sizing_hints m_hints;
 };

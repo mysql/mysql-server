@@ -55,6 +55,10 @@
 #include "sql_list.h"                           /* I_List */
 #include "hash.h"
 
+PSI_memory_key key_memory_log_event;
+PSI_memory_key key_memory_Incident_log_event_message;
+PSI_memory_key key_memory_Rows_query_log_event_rows_query;
+
 using std::min;
 using std::max;
 
@@ -129,6 +133,32 @@ template bool valid_buffer_range<unsigned int>(unsigned int,
 
 #if defined(MYSQL_CLIENT)
 
+/*
+  Function to check whether the database name provided as an input
+  parameter is a part of the list of database that needs to be
+  rewritten.
+
+  @param[in] db   The database that needs to be checked in the list.
+
+  @retval   true  The database mentioned as input is in the list of
+                  database that needs to be rewriten.
+  @retval   false The database mentioned as input is not in the list
+                  of databases the needs to be rewritten.
+*/
+bool is_binlog_rewrite_db(const char* db)
+{
+  if (binlog_rewrite_db.is_empty() || !db)
+    return false;
+  I_List_iterator<i_string_pair> it(binlog_rewrite_db);
+  i_string_pair* tmp;
+  while ((tmp= it++))
+  {
+    if (!strncmp(tmp->key, db, NAME_LEN+1))
+      return true;
+  }
+  return false;
+}
+
 /**
   Function to extract the to_db name from the list of the
   from_db and to_db pairs.
@@ -158,7 +188,8 @@ bool get_binlog_rewrite_db(const char* db)
   {
     if (!strncmp(tmp->key, db, NAME_LEN+1))
     {
-      rewrite_to_db= (const char*) my_malloc(strlen(tmp->val)+1, MYF(MY_WME));
+      rewrite_to_db= (const char*) my_malloc(PSI_NOT_INSTRUMENTED,
+                                             strlen(tmp->val)+1, MYF(MY_WME));
       strncpy(const_cast<char*>(rewrite_to_db), tmp->val, strlen(tmp->val)+1);
       return true;
     }
@@ -211,7 +242,8 @@ int rewrite_buffer(char **buf, int event_len,
 
   uchar const *const ptr_tbllen= ptr_dblen + old_db_len + 2;
   int replace_segment= rewrite_db_len - old_db_len;
-  if (!(temp_rewrite_buf= (char*) my_malloc(event_len + replace_segment,
+  if (!(temp_rewrite_buf= (char*) my_malloc(PSI_NOT_INSTRUMENTED,
+                                            event_len + replace_segment,
                                             MYF(MY_WME))))
     return -1;
 
@@ -1474,7 +1506,8 @@ Log_event* Log_event::read_log_event(IO_CACHE* file,
   }
 
   // some events use the extra byte to null-terminate strings
-  if (!(buf = (char*) my_malloc(data_len+1, MYF(MY_WME))))
+  if (!(buf = (char*) my_malloc(key_memory_log_event,
+                                data_len+1, MYF(MY_WME))))
   {
     error = "Out of memory";
     goto err;
@@ -2625,7 +2658,8 @@ void Log_event::print_base64(IO_CACHE* file,
   DBUG_ENTER("Log_event::print_base64");
 
   size_t const tmp_str_sz= base64_needed_encoded_length((int) size);
-  char *const tmp_str= (char *) my_malloc(tmp_str_sz, MYF(MY_WME));
+  char *const tmp_str= (char *) my_malloc(key_memory_log_event,
+                                          tmp_str_sz, MYF(MY_WME));
   if (!tmp_str) {
     fprintf(stderr, "\nError: Out of memory. "
             "Could not print correct binlog event.\n");
@@ -3046,7 +3080,7 @@ Slave_worker *Log_event::get_slave_worker(Relay_log_info *rli)
     if (!ptr_group)
       ptr_group= gaq->get_job_group(rli->gaq->assigned_group_index);
     ptr_group->group_master_log_name=
-      my_strdup(rli->get_group_master_log_name(), MYF(MY_WME));
+      my_strdup(key_memory_log_event, rli->get_group_master_log_name(), MYF(MY_WME));
     ret_worker->master_log_change_notified= true;
 
     DBUG_ASSERT(!ptr_group->notified);
@@ -3085,7 +3119,8 @@ Slave_worker *Log_event::get_slave_worker(Relay_log_info *rli)
       DBUG_ASSERT(ptr_group->group_relay_log_name == NULL);
 
       ptr_group->group_relay_log_name= (char *)
-        my_malloc(strlen(rli->
+        my_malloc(key_memory_log_event,
+                  strlen(rli->
                          get_group_relay_log_name()) + 1, MYF(MY_WME));
       strcpy(ptr_group->group_relay_log_name,
              rli->get_event_relay_log_name());
@@ -3100,10 +3135,10 @@ Slave_worker *Log_event::get_slave_worker(Relay_log_info *rli)
       if (!ptr_group)
         ptr_group= gaq->get_job_group(rli->gaq->assigned_group_index);
       ptr_group->checkpoint_log_name=
-        my_strdup(rli->get_group_master_log_name(), MYF(MY_WME));
+        my_strdup(key_memory_log_event, rli->get_group_master_log_name(), MYF(MY_WME));
       ptr_group->checkpoint_log_pos= rli->get_group_master_log_pos();
       ptr_group->checkpoint_relay_log_name=
-        my_strdup(rli->get_group_relay_log_name(), MYF(MY_WME));
+        my_strdup(key_memory_log_event, rli->get_group_relay_log_name(), MYF(MY_WME));
       ptr_group->checkpoint_relay_log_pos= rli->get_group_relay_log_pos();
       ptr_group->shifted= ret_worker->bitmap_shifted;
       ret_worker->bitmap_shifted= 0;
@@ -4271,7 +4306,8 @@ Query_log_event::Query_log_event(const char* buf, uint event_len,
     */
 
 #if !defined(MYSQL_CLIENT)
-  if (!(start= data_buf = (Log_event::Byte*) my_malloc(catalog_len + 1
+  if (!(start= data_buf = (Log_event::Byte*) my_malloc(key_memory_log_event,
+                                                       catalog_len + 1
                                                     +  time_zone_len + 1
                                                     +  user.length + 1
                                                     +  host.length + 1
@@ -4281,7 +4317,8 @@ Query_log_event::Query_log_event(const char* buf, uint event_len,
                                                     +  QUERY_CACHE_FLAGS_SIZE,
                                                        MYF(MY_WME))))
 #else
-  if (!(start= data_buf = (Log_event::Byte*) my_malloc(catalog_len + 1
+  if (!(start= data_buf = (Log_event::Byte*) my_malloc(key_memory_log_event,
+                                                       catalog_len + 1
                                                     +  time_zone_len + 1
                                                     +  user.length + 1
                                                     +  host.length + 1
@@ -4363,6 +4400,7 @@ void Query_log_event::print_query_header(IO_CACHE* file,
                 error_code);
   }
 
+  bool suppress_use_flag= is_binlog_rewrite_db(db);
   if ((flags & LOG_EVENT_SUPPRESS_USE_F))
   {
     if (!is_trans_keyword())
@@ -4372,10 +4410,10 @@ void Query_log_event::print_query_header(IO_CACHE* file,
 /*
   option_rewrite_set is used to check whether the USE DATABASE command needs
   to be suppressed or not.
-  Suppress if the --rewrite-db  option in use.
-  Skip otherwise.
+  Suppress if the database being processed is in the list of database that
+  needs to be rewritten. Skip otherwise.
 */
-  else if (db && !option_rewrite_set)
+  else if (db && !suppress_use_flag)
   {
 #ifdef MYSQL_SERVER
     quoted_len= my_strmov_quoted_identifier(this->thd, (char*)quoted_id, db, 0);
@@ -5440,7 +5478,8 @@ Format_description_log_event(uint8 binlog_ver, const char* server_ver)
     common_header_len= LOG_EVENT_HEADER_LEN;
     number_of_event_types= LOG_EVENT_TYPES;
     /* we'll catch my_malloc() error in is_valid() */
-    post_header_len=(uint8*) my_malloc(number_of_event_types*sizeof(uint8)
+    post_header_len=(uint8*) my_malloc(key_memory_log_event,
+                                       number_of_event_types*sizeof(uint8)
                                        + BINLOG_CHECKSUM_ALG_DESC_LEN,
                                        MYF(0));
     /*
@@ -5543,7 +5582,8 @@ Format_description_log_event(uint8 binlog_ver, const char* server_ver)
       make the slave detect less corruptions).
     */
     number_of_event_types= FORMAT_DESCRIPTION_EVENT - 1;
-    post_header_len=(uint8*) my_malloc(number_of_event_types*sizeof(uint8),
+    post_header_len=(uint8*) my_malloc(key_memory_log_event,
+                                       number_of_event_types*sizeof(uint8),
                                        MYF(0));
     if (post_header_len)
     {
@@ -5609,7 +5649,8 @@ Format_description_log_event(const char* buf,
                       common_header_len, number_of_event_types));
   /* If alloc fails, we'll detect it in is_valid() */
 
-  post_header_len= (uint8*) my_memdup((uchar*)buf+ST_COMMON_HEADER_LEN_OFFSET+1,
+  post_header_len= (uint8*) my_memdup(key_memory_log_event,
+                                      (uchar*)buf+ST_COMMON_HEADER_LEN_OFFSET+1,
                                       number_of_event_types*
                                       sizeof(*post_header_len),
                                       MYF(0));
@@ -6100,7 +6141,8 @@ int Load_log_event::pack_info(Protocol *protocol)
 {
   char *buf, *end;
 
-  if (!(buf= (char*) my_malloc(get_query_buffer_length(), MYF(MY_WME))))
+  if (!(buf= (char*) my_malloc(key_memory_log_event,
+                               get_query_buffer_length(), MYF(MY_WME))))
     return 1;
   print_query(TRUE, NULL, buf, &end, 0, 0);
   protocol->store(buf, end-buf, &my_charset_bin);
@@ -6838,7 +6880,8 @@ Rotate_log_event::Rotate_log_event(const char* new_log_ident_arg,
                       llstr(pos_arg, buff), (ulong) flags));
 #endif
   if (flags & DUP_NAME)
-    new_log_ident= my_strndup(new_log_ident_arg, ident_len, MYF(MY_WME));
+    new_log_ident= my_strndup(key_memory_log_event,
+                              new_log_ident_arg, ident_len, MYF(MY_WME));
   if (flags & RELAY_LOG)
     set_relay_log_event();
   DBUG_VOID_RETURN;
@@ -6863,7 +6906,8 @@ Rotate_log_event::Rotate_log_event(const char* buf, uint event_len,
                      (header_size+post_header_len)); 
   ident_offset = post_header_len; 
   set_if_smaller(ident_len,FN_REFLEN-1);
-  new_log_ident= my_strndup(buf + ident_offset, (uint) ident_len, MYF(MY_WME));
+  new_log_ident= my_strndup(key_memory_log_event,
+                            buf + ident_offset, (uint) ident_len, MYF(MY_WME));
   DBUG_PRINT("debug", ("new_log_ident: '%s'", new_log_ident));
   DBUG_VOID_RETURN;
 }
@@ -7555,7 +7599,8 @@ int User_var_log_event::pack_info(Protocol* protocol)
 
   if (is_null)
   {
-    if (!(buf= (char*) my_malloc(val_offset + 5, MYF(MY_WME))))
+    if (!(buf= (char*) my_malloc(key_memory_log_event,
+                                 val_offset + 5, MYF(MY_WME))))
       return 1;
     strmov(buf + val_offset, "NULL");
     event_len= val_offset + 4;
@@ -7566,14 +7611,16 @@ int User_var_log_event::pack_info(Protocol* protocol)
     case REAL_RESULT:
       double real_val;
       float8get(real_val, val);
-      if (!(buf= (char*) my_malloc(val_offset + MY_GCVT_MAX_FIELD_WIDTH + 1,
+      if (!(buf= (char*) my_malloc(key_memory_log_event,
+                                   val_offset + MY_GCVT_MAX_FIELD_WIDTH + 1,
                                    MYF(MY_WME))))
         return 1;
       event_len+= my_gcvt(real_val, MY_GCVT_ARG_DOUBLE, MY_GCVT_MAX_FIELD_WIDTH,
                           buf + val_offset, NULL);
       break;
     case INT_RESULT:
-      if (!(buf= (char*) my_malloc(val_offset + 22, MYF(MY_WME))))
+      if (!(buf= (char*) my_malloc(key_memory_log_event,
+                                   val_offset + 22, MYF(MY_WME))))
         return 1;
       event_len= longlong10_to_str(uint8korr(val), buf + val_offset, 
                                    ((flags & User_var_log_event::UNSIGNED_F) ? 
@@ -7581,7 +7628,8 @@ int User_var_log_event::pack_info(Protocol* protocol)
       break;
     case DECIMAL_RESULT:
     {
-      if (!(buf= (char*) my_malloc(val_offset + DECIMAL_MAX_STR_LENGTH + 1,
+      if (!(buf= (char*) my_malloc(key_memory_log_event,
+                                   val_offset + DECIMAL_MAX_STR_LENGTH + 1,
                                    MYF(MY_WME))))
         return 1;
       String str(buf+val_offset, DECIMAL_MAX_STR_LENGTH + 1, &my_charset_bin);
@@ -7594,7 +7642,8 @@ int User_var_log_event::pack_info(Protocol* protocol)
     } 
     case STRING_RESULT:
       /* 15 is for 'COLLATE' and other chars */
-      buf= (char*) my_malloc(event_len+val_len*2+1+2*MY_CS_NAME_SIZE+15,
+      buf= (char*) my_malloc(key_memory_log_event,
+                             event_len+val_len*2+1+2*MY_CS_NAME_SIZE+15,
                              MYF(MY_WME));
       CHARSET_INFO *cs;
       if (!buf)
@@ -7878,7 +7927,8 @@ void User_var_log_event::print(FILE* file, PRINT_EVENT_INFO* print_event_info)
       char *hex_str;
       CHARSET_INFO *cs;
 
-      hex_str= (char *)my_malloc(2*val_len+1+2,MYF(MY_WME)); // 2 hex digits / byte
+      hex_str= (char *)my_malloc(key_memory_log_event,
+                                 2*val_len+1+2,MYF(MY_WME)); // 2 hex digits / byte
       if (!hex_str)
         return;
       str_to_hex(hex_str, val, val_len);
@@ -8198,7 +8248,8 @@ Create_file_log_event::Create_file_log_event(const char* buf, uint len,
   uint header_len= description_event->common_header_len;
   uint8 load_header_len= description_event->post_header_len[LOAD_EVENT-1];
   uint8 create_file_header_len= description_event->post_header_len[CREATE_FILE_EVENT-1];
-  if (!(event_buf= (char*) my_memdup(buf, len, MYF(MY_WME))) ||
+  if (!(event_buf= (char*) my_memdup(key_memory_log_event,
+                                     buf, len, MYF(MY_WME))) ||
       copy_log_event(event_buf,len,
                      ((buf[EVENT_TYPE_OFFSET] == LOAD_EVENT) ?
                       load_header_len + header_len :
@@ -8858,7 +8909,8 @@ int Execute_load_log_event::do_apply_event(Relay_log_info const *rli)
       don't want to overwrite it with the filename.
       What we want instead is add the filename to the current error message.
     */
-    char *tmp= my_strdup(rli->last_error().message, MYF(MY_WME));
+    char *tmp= my_strdup(key_memory_log_event,
+                         rli->last_error().message, MYF(MY_WME));
     if (tmp)
     {
       rli->report(ERROR_LEVEL, rli->last_error().number,
@@ -9062,7 +9114,8 @@ void Execute_load_query_log_event::print(FILE* file,
 int Execute_load_query_log_event::pack_info(Protocol *protocol)
 {
   char *buf, *pos;
-  if (!(buf= (char*) my_malloc(9 + (db_len * 2) + 2 + q_len + 10 + 21,
+  if (!(buf= (char*) my_malloc(key_memory_log_event,
+                               9 + (db_len * 2) + 2 + q_len + 10 + 21,
                                MYF(MY_WME))))
     return 1;
   pos= buf;
@@ -9102,7 +9155,8 @@ Execute_load_query_log_event::do_apply_event(Relay_log_info const *rli)
   char *fname_end;
   int error;
 
-  buf= (char*) my_malloc(q_len + 1 - (fn_pos_end - fn_pos_start) +
+  buf= (char*) my_malloc(key_memory_log_event,
+                         q_len + 1 - (fn_pos_end - fn_pos_start) +
                          (FN_REFLEN + TEMP_FILE_MAX_LEN) + 10 + 8 + 5, MYF(MY_WME));
 
   DBUG_EXECUTE_IF("LOAD_DATA_INFILE_has_fatal_error", my_free(buf); buf= NULL;);
@@ -9337,7 +9391,8 @@ Rows_log_event::Rows_log_event(THD *thd_arg, TABLE *tbl_arg, const Table_id& tid
     uint8 extra_data_len= extra_row_info[EXTRA_ROW_INFO_LEN_OFFSET];
     assert(extra_data_len >= EXTRA_ROW_INFO_HDR_BYTES);
 
-    m_extra_row_data= (uchar*) my_malloc(extra_data_len, MYF(MY_WME));
+    m_extra_row_data= (uchar*) my_malloc(key_memory_log_event,
+                                         extra_data_len, MYF(MY_WME));
 
     if (likely(m_extra_row_data != NULL))
     {
@@ -9444,7 +9499,8 @@ Rows_log_event::Rows_log_event(const char *buf, uint event_len,
         /* Just store/use the first tag of this type, skip others */
         if (likely(!m_extra_row_data))
         {
-          m_extra_row_data= (uchar*) my_malloc(infoLen,
+          m_extra_row_data= (uchar*) my_malloc(key_memory_log_event,
+                                               infoLen,
                                                MYF(MY_WME));
           if (likely(m_extra_row_data != NULL))
           {
@@ -9525,7 +9581,8 @@ Rows_log_event::Rows_log_event(const char *buf, uint event_len,
                      m_table_id.id(), m_flags, m_width, (ulong) data_size));
 
   // Allocate one extra byte, in case we have to do uint3korr!
-  m_rows_buf= (uchar*) my_malloc(data_size + 1, MYF(MY_WME)); // didrik
+  m_rows_buf= (uchar*) my_malloc(key_memory_log_event,
+                                 data_size + 1, MYF(MY_WME)); // didrik
   if (likely((bool)m_rows_buf))
   {
 #if !defined(MYSQL_CLIENT) && defined(HAVE_REPLICATION)
@@ -9633,7 +9690,8 @@ int Rows_log_event::do_add_row_data(uchar *row_data, size_t length)
 
     // Allocate one extra byte, in case we have to do uint3korr!
     uchar* const new_buf=
-      (uchar*)my_realloc((uchar*)m_rows_buf, (uint) new_alloc + 1,
+      (uchar*)my_realloc(key_memory_log_event,
+                         (uchar*)m_rows_buf, (uint) new_alloc + 1,
                          MYF(MY_ALLOW_ZERO_PTR|MY_WME));
     if (unlikely(!new_buf))
       DBUG_RETURN(HA_ERR_OUT_OF_MEM);
@@ -9999,7 +10057,8 @@ Rows_log_event::row_operations_scan_and_key_setup()
     {
       DBUG_ASSERT (m_key_index < MAX_KEY);
       // Allocate buffer for key searches
-      m_key= (uchar*)my_malloc(MAX_KEY_LENGTH, MYF(MY_WME));
+      m_key= (uchar*)my_malloc(key_memory_log_event,
+                               MAX_KEY_LENGTH, MYF(MY_WME));
       if (!m_key)
         error= HA_ERR_OUT_OF_MEM;
       goto err;
@@ -10458,7 +10517,8 @@ Rows_log_event::add_key_to_distinct_keyset()
 
   if (distinct)
   {
-    uchar *cur_key= (uchar *)my_malloc(cur_key_info->key_length,
+    uchar *cur_key= (uchar *)my_malloc(key_memory_log_event,
+                                       cur_key_info->key_length,
                                        MYF(MY_WME));
     if (!cur_key )
     {
@@ -11821,7 +11881,8 @@ Table_map_log_event::Table_map_log_event(THD *thd, TABLE *tbl,
   m_data_size+= (cbuf_end - cbuf) + m_colcnt;	// COLCNT and column types
 
   /* If malloc fails, caught in is_valid() */
-  if ((m_memory= (uchar*) my_malloc(m_colcnt, MYF(MY_WME))))
+  if ((m_memory= (uchar*) my_malloc(key_memory_log_event,
+                                    m_colcnt, MYF(MY_WME))))
   {
     m_coltype= reinterpret_cast<uchar*>(m_memory);
     for (unsigned int i= 0 ; i < m_table->s->fields ; ++i)
@@ -11836,7 +11897,8 @@ Table_map_log_event::Table_map_log_event(THD *thd, TABLE *tbl,
   */
   uint num_null_bytes= (m_table->s->fields + 7) / 8;
   m_data_size+= num_null_bytes;
-  m_meta_memory= (uchar *)my_multi_malloc(MYF(MY_WME),
+  m_meta_memory= (uchar *)my_multi_malloc(key_memory_log_event,
+                                          MYF(MY_WME),
                                  &m_null_bits, num_null_bytes,
                                  &m_field_metadata, (m_colcnt * 2),
                                  NULL);
@@ -11955,7 +12017,8 @@ Table_map_log_event::Table_map_log_event(const char *buf, uint event_len,
                      m_colcnt, (long) (ptr_colcnt-(const uchar*)vpart)));
 
   /* Allocate mem for all fields in one go. If fails, caught in is_valid() */
-  m_memory= (uchar*) my_multi_malloc(MYF(MY_WME),
+  m_memory= (uchar*) my_multi_malloc(key_memory_log_event,
+                                     MYF(MY_WME),
                                      &m_dbnam, (uint) m_dblen + 1,
                                      &m_tblnam, (uint) m_tbllen + 1,
                                      &m_coltype, (uint) m_colcnt,
@@ -11977,7 +12040,8 @@ Table_map_log_event::Table_map_log_event(const char *buf, uint event_len,
       if (m_field_metadata_size > (m_colcnt * 2))
         DBUG_VOID_RETURN;
       uint num_null_bytes= (m_colcnt + 7) / 8;
-      m_meta_memory= (uchar *)my_multi_malloc(MYF(MY_WME),
+      m_meta_memory= (uchar *)my_multi_malloc(key_memory_log_event,
+                                              MYF(MY_WME),
                                      &m_null_bits, num_null_bytes,
                                      &m_field_metadata, m_field_metadata_size,
                                      NULL);
@@ -12114,7 +12178,8 @@ int Table_map_log_event::do_apply_event(Relay_log_info const *rli)
   /* Step the query id to mark what columns that are actually used. */
   thd->set_query_id(next_query_id());
 
-  if (!(memory= my_multi_malloc(MYF(MY_WME),
+  if (!(memory= my_multi_malloc(key_memory_log_event,
+                                MYF(MY_WME),
                                 &table_list, (uint) sizeof(RPL_TABLE_LIST),
                                 &db_mem, (uint) NAME_LEN + 1,
                                 &tname_mem, (uint) NAME_LEN + 1,
@@ -13074,7 +13139,8 @@ Incident_log_event::Incident_log_event(const char *buf, uint event_len,
   uint8 len= 0;                   // Assignment to keep compiler happy
   const char *str= NULL;          // Assignment to keep compiler happy
   read_str_at_most_255_bytes(&ptr, str_end, &str, &len);
-  if (!(m_message.str= (char*) my_malloc(len+1, MYF(MY_WME))))
+  if (!(m_message.str= (char*) my_malloc(key_memory_log_event,
+                                         len+1, MYF(MY_WME))))
   {
     /* Mark this event invalid */
     m_incident= INCIDENT_NONE;
@@ -13250,7 +13316,8 @@ Rows_query_log_event::Rows_query_log_event(const char *buf, uint event_len,
   */
   int offset= common_header_len + post_header_len + 1;
   int len= event_len - offset;
-  if (!(m_rows_query= (char*) my_malloc(len+1, MYF(MY_WME))))
+  if (!(m_rows_query= (char*) my_malloc(key_memory_log_event,
+                                        len+1, MYF(MY_WME))))
     return;
   strmake(m_rows_query, buf + offset, len);
   DBUG_PRINT("info", ("m_rows_query: %s", m_rows_query));
@@ -13268,7 +13335,8 @@ int Rows_query_log_event::pack_info(Protocol *protocol)
   char *buf;
   size_t bytes;
   ulong len= sizeof("# ") + (ulong) strlen(m_rows_query);
-  if (!(buf= (char*) my_malloc(len, MYF(MY_WME))))
+  if (!(buf= (char*) my_malloc(key_memory_log_event,
+                               len, MYF(MY_WME))))
     return 1;
   bytes= my_snprintf(buf, len, "# %s", m_rows_query);
   protocol->store(buf, bytes, &my_charset_bin);
@@ -13288,7 +13356,8 @@ Rows_query_log_event::print(FILE *file,
     IO_CACHE *const body= &print_event_info->body_cache;
     char *token= NULL, *saveptr= NULL;
     char *rows_query_copy= NULL;
-    if (!(rows_query_copy= my_strdup(m_rows_query, MYF(MY_WME))))
+    if (!(rows_query_copy= my_strdup(key_memory_log_event,
+                                     m_rows_query, MYF(MY_WME))))
       return;
 
     print_header(head, print_event_info, FALSE);
@@ -13539,7 +13608,8 @@ Previous_gtids_log_event::Previous_gtids_log_event(const Gtid_set *set)
   DBUG_ENTER("Previous_gtids_log_event::Previous_gtids_log_event(THD *, const Gtid_set *)");
   global_sid_lock->assert_some_lock();
   buf_size= set->get_encoded_length();
-  uchar *buffer= (uchar *) my_malloc(buf_size, MYF(MY_WME));
+  uchar *buffer= (uchar *) my_malloc(key_memory_log_event,
+                                     buf_size, MYF(MY_WME));
   if (buffer != NULL)
   {
     set->encode(buffer);
@@ -13613,7 +13683,8 @@ char *Previous_gtids_log_event::get_str(
   set.dbug_print("set");
   size_t length= set.get_string_length(string_format);
   DBUG_PRINT("info", ("string length= %lu", (ulong) length));
-  char* str= (char *)my_malloc(length + 1, MYF(MY_WME));
+  char* str= (char *)my_malloc(key_memory_log_event,
+                               length + 1, MYF(MY_WME));
   if (str != NULL)
   {
     set.to_string(str, string_format);
