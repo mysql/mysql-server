@@ -3230,40 +3230,11 @@ int NdbDictionaryImpl::alterTableGlobal(NdbTableImpl &old_impl,
     if (ret != 0)
       m_error.code = 723;
 
-    if (ret == 0 && AlterTableReq::getNameFlag(changeMask) != 0)
+    if (ret == 0)
     {
-      char db0[MAX_TAB_NAME_SIZE];
-      char db1[MAX_TAB_NAME_SIZE];
-      if (old_impl.getDbName(db0, sizeof(db0)) != 0)
+      if (alterBlobTables(old_impl, impl, changeMask) != 0)
       {
-        m_error.code = 705;
         DBUG_RETURN(-1);
-      }
-      if (impl.getDbName(db1, sizeof(db0)) != 0)
-      {
-        m_error.code = 705;
-        DBUG_RETURN(-1);
-      }
-
-      bool db_change = strcmp(db0, db1) != 0;
-      if (old_impl.getSchemaName(db0, sizeof(db0)) != 0)
-      {
-        m_error.code = 705;
-        DBUG_RETURN(-1);
-      }
-      if (impl.getSchemaName(db1, sizeof(db0)) != 0)
-      {
-        m_error.code = 705;
-        DBUG_RETURN(-1);
-      }
-
-      bool schema_change = strcmp(db0, db1) != 0;
-      if (db_change || schema_change)
-      {
-        if (renameBlobTables(old_impl, impl) != 0)
-        {
-          DBUG_RETURN(-1);
-        }
       }
     }
     DBUG_RETURN(ret);
@@ -3272,16 +3243,40 @@ int NdbDictionaryImpl::alterTableGlobal(NdbTableImpl &old_impl,
 }
 
 int
-NdbDictionaryImpl::renameBlobTables(const NdbTableImpl & old_tab,
-                                    const NdbTableImpl & new_tab)
+NdbDictionaryImpl::alterBlobTables(const NdbTableImpl & old_tab,
+                                   const NdbTableImpl & new_tab,
+                                   Uint32 tabChangeMask)
 {
+  DBUG_ENTER("NdbDictionaryImpl::alterBlobTables");
   if (old_tab.m_noOfBlobs == 0)
-    return 0;
+    DBUG_RETURN(0);
 
   char db[MAX_TAB_NAME_SIZE];
   char schema[MAX_TAB_NAME_SIZE];
   new_tab.getDbName(db, sizeof(db));
   new_tab.getSchemaName(schema, sizeof(schema));
+
+  bool name_change = false;
+  if (AlterTableReq::getNameFlag(tabChangeMask))
+  {
+    char old_db[MAX_TAB_NAME_SIZE];
+    char old_schema[MAX_TAB_NAME_SIZE];
+    if (old_tab.getDbName(old_db, sizeof(old_db)) != 0)
+    {
+      m_error.code = 705;
+      DBUG_RETURN(-1);
+    }
+    if (old_tab.getSchemaName(old_schema, sizeof(old_schema)) != 0)
+    {
+      m_error.code = 705;
+      DBUG_RETURN(-1);
+    }
+    bool db_change = strcmp(old_db, db) != 0;
+    bool schema_change = strcmp(old_schema, schema) != 0;
+    name_change = db_change || schema_change;
+   }
+
+  bool tab_frag_change = AlterTableReq::getAddFragFlag(tabChangeMask) != 0;
 
   for (unsigned i = 0; i < old_tab.m_columns.size(); i++)
   {
@@ -3296,17 +3291,47 @@ NdbDictionaryImpl::renameBlobTables(const NdbTableImpl & old_tab,
 
     NdbDictionary::Table& bt = * _bt->m_facade;
     NdbDictionary::Table new_bt(bt);
-    new_bt.m_impl.setDbSchema(db, schema);
+
+    if (name_change)
+    {
+      new_bt.m_impl.setDbSchema(db, schema);
+    }
+
+    bool frag_change = false;
+    if (tab_frag_change)
+    {
+      frag_change =
+        new_bt.getFragmentType() == old_tab.getFragmentType() &&
+        new_bt.getFragmentCount() == old_tab.getFragmentCount() &&
+        new_bt.getFragmentCount() != new_tab.getFragmentCount();
+
+    }
+    if (frag_change)
+    {
+      new_bt.setFragmentType(new_tab.getFragmentType());
+      new_bt.setDefaultNoPartitionsFlag(new_tab.getDefaultNoPartitionsFlag());
+      new_bt.setFragmentCount(new_tab.getFragmentCount());
+      new_bt.setFragmentData(new_tab.getFragmentData(), new_tab.getFragmentDataLen());
+      NdbDictionary::HashMap hm;
+      if (getHashMap(hm, &new_tab) != -1)
+      {
+        new_bt.setHashMap(hm);
+      }
+    }
 
     Uint32 changeMask = 0;
-    int ret = m_receiver.alterTable(m_ndb, bt.m_impl, new_bt.m_impl,changeMask);
-    if (ret != 0)
+    if (name_change || frag_change)
     {
-      return ret;
+      int ret = m_receiver.alterTable(m_ndb, bt.m_impl, new_bt.m_impl, changeMask);
+      if (ret != 0)
+      {
+        DBUG_RETURN(ret);
+      }
+      assert(!name_change || AlterTableReq::getNameFlag(changeMask));
+      assert(!frag_change || AlterTableReq::getAddFragFlag(changeMask));
     }
-    assert(AlterTableReq::getNameFlag(changeMask) != 0);
   }
-  return 0;
+  DBUG_RETURN(0);
 }
 
 int
