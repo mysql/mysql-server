@@ -354,6 +354,24 @@ bool Slave_worker::read_info(Rpl_info_handler *from)
   DBUG_RETURN(FALSE);
 }
 
+/*
+  This function is used to make a copy of the worker object before we
+  destroy it while STOP SLAVE. This new object is then used to report the
+  worker status until next START SLAVE following which the new worker objetcs
+  will be used.  
+*/
+void Slave_worker::copy_values_for_PFS(ulong worker_id,
+                                       en_running_state thd_running_status,
+                                       THD *worker_thd, Error last_error,
+                                       Gtid gtid)
+{
+  id= worker_id;
+  running_status= thd_running_status;
+  info_thd= worker_thd;
+  m_last_error= last_error;
+  currently_executing_gtid= gtid;
+}
+
 bool Slave_worker::write_info(Rpl_info_handler *to)
 {
   DBUG_ENTER("Master_info::write_info");

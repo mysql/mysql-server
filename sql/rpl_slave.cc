@@ -514,23 +514,6 @@ int global_init_info(Master_info* mi, bool ignore_if_no_info, int thread_mask)
   mysql_mutex_lock(&mi->rli->data_lock);
 
   /*
-     Remove workers that had been preserved for P_S reasons,
-     before continuing with slave startup.
-   */
-  if (mi->rli->workers_array_initialized)
-  {
-    for (int i= mi->rli->workers.elements - 1; i >= 0; i--)
-    {
-      Slave_worker *w= NULL;
-      get_dynamic((DYNAMIC_ARRAY*)&mi->rli->workers, (uchar*) &w, i);
-      delete_dynamic_element(&mi->rli->workers, i);
-      delete w;
-    }
-    mi->rli->deinit_workers();
-    mi->rli->slave_parallel_workers= 0;
-    mi->rli->workers_array_initialized= false;
-  } 
-  /*
     This takes care of the startup dependency between the master_info
     and relay_info. It initializes the master info if the SLAVE_IO
     thread is being started and the relay log info if either the
@@ -5321,6 +5304,34 @@ void slave_stop_workers(Relay_log_info *rli, bool *mts_inited)
 
   thd_proc_info(thd, "Waiting for workers to exit");
 
+  for (uint i= 0; i < rli->workers.elements; i++)
+  {
+    Slave_worker *w= NULL;
+    get_dynamic((DYNAMIC_ARRAY*)&rli->workers, (uchar*) &w, i);
+
+    /*
+      Make copies for reporting through the perfschema tables.
+      This is preserved until next time the slave is started. 
+    */
+    Slave_worker *worker_copy=new Slave_worker(NULL
+    #ifdef HAVE_PSI_INTERFACE
+                                               ,&key_relay_log_info_run_lock,
+                                               &key_relay_log_info_data_lock,
+                                               &key_relay_log_info_sleep_lock,
+                                               &key_relay_log_info_thd_lock,
+                                               &key_relay_log_info_data_cond,
+                                               &key_relay_log_info_start_cond,
+                                               &key_relay_log_info_stop_cond,
+                                               &key_relay_log_info_sleep_cond
+    #endif
+                                               , 0);
+    worker_copy->copy_values_for_PFS(w->id, w->running_status, w->info_thd,
+                                     w->last_error(),
+                                     w->currently_executing_gtid);
+
+    rli->workers_copy_pfs.push_back(worker_copy);
+  }
+
   for (i= rli->workers.elements - 1; i >= 0; i--)
   {
     Slave_worker *w= NULL;
@@ -5340,6 +5351,10 @@ void slave_stop_workers(Relay_log_info *rli, bool *mts_inited)
       mysql_mutex_lock(&w->jobs_lock);
     }
     mysql_mutex_unlock(&w->jobs_lock);
+
+
+    delete_dynamic_element(&rli->workers, i);
+    delete w;
   }
 
   if (log_warnings > 1)
@@ -5368,6 +5383,9 @@ end:
   delete_dynamic(&rli->curr_group_da);             // GCDA
 
   delete_dynamic(&rli->curr_group_assigned_parts); // GCAP
+  rli->deinit_workers();
+  rli->workers_array_initialized= false;
+  rli->slave_parallel_workers= 0;
   free_root(&rli->mts_coor_mem_root, MYF(0));
   *mts_inited= false;
 }
