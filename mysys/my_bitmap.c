@@ -38,8 +38,6 @@
 #include <m_string.h>
 #include <my_bit.h>
 
-PSI_memory_key key_memory_MY_BITMAP_bitmap;
-
 void create_last_word_mask(MY_BITMAP *map)
 {
   /* Get the number of used bits (1..8) in the last byte */

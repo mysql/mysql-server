@@ -101,9 +101,8 @@
 */
 #include <my_global.h>
 #include <my_sys.h>
+#include <mysys_priv.h>
 #include <lf.h>
-
-PSI_memory_key key_memory_lf_node;
 
 #define LF_PINBOX_MAX_PINS 65536
 
