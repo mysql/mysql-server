@@ -20,8 +20,6 @@
 #include "mysys_priv.h"
 #include <my_list.h>
 
-PSI_memory_key key_memory_LIST;
-
 	/* Add a element to start of list */
 
 LIST *list_add(LIST *root, LIST *element)

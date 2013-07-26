@@ -20,8 +20,6 @@
 #include "my_static.h"
 #include "mysys_err.h"
 
-PSI_memory_key key_memory_IO_CACHE;
-
 	/*
 	  Remove an open tempfile so that it doesn't survive
 	  if we crash.
