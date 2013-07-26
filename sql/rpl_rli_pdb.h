@@ -300,6 +300,7 @@ public:
 #endif
                , uint param_id
               );
+
   virtual ~Slave_worker();
 
   Slave_jobs_queue jobs;   // assignment queue containing events to execute
@@ -364,6 +365,17 @@ public:
     ERROR_LEAVING,         // is set by Worker
     KILLED                 // is set by Coordinator
   };
+
+  /*
+    This function is used to make a copy of the worker object before we
+    destroy it while STOP SLAVE. This new object is then used to report the
+    worker status until next START SLAVE following which the new worker objetcs
+    will be used. 
+  */
+  void copy_values_for_PFS(ulong worker_id, enum en_running_state running_status,
+                      THD *worker_thd, Error last_error,
+                      Gtid currently_executing_gtid);
+
   /*
     The running status is guarded by jobs_lock mutex that a writer
     Coordinator or Worker itself needs to hold when write a new value.
