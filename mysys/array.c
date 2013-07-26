@@ -18,8 +18,6 @@
 #include "mysys_priv.h"
 #include "m_string.h"
 
-PSI_memory_key key_memory_array_buffer;
-
 /*
   Initiate dynamic array
 

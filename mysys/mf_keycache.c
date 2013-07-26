@@ -114,8 +114,6 @@
 #include <stdarg.h>
 #include "probes_mysql.h"
 
-PSI_memory_key key_memory_KEY_CACHE;
-
 /*
   Some compilation flags have been added specifically for this module
   to control the following:

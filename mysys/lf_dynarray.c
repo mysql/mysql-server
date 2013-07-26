@@ -38,9 +38,8 @@
 #include <my_global.h>
 #include <m_string.h>
 #include <my_sys.h>
+#include <mysys_priv.h>
 #include <lf.h>
-
-PSI_memory_key key_memory_lf_dynarray;
 
 void lf_dynarray_init(LF_DYNARRAY *array, uint element_size)
 {

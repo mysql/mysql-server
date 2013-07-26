@@ -22,8 +22,6 @@
 #include "mysys_priv.h"
 #include <m_string.h>
 
-PSI_memory_key key_memory_DYNAMIC_STRING;
-
 my_bool init_dynamic_string(DYNAMIC_STRING *str, const char *init_str,
 			    size_t init_alloc, size_t alloc_increment)
 {

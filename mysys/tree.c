@@ -60,8 +60,6 @@
 #include <my_tree.h>
 #include "my_base.h"
 
-PSI_memory_key key_memory_TREE;
-
 #define BLACK		1
 #define RED		0
 #define DEFAULT_ALLOC_SIZE 8192
