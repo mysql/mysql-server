@@ -1724,6 +1724,7 @@ void do_all_tests()
   test_locker_disabled();
   test_file_instrumentation_leak();
   test_event_name_index();
+  test_memory_instruments();
 }
 
 int main(int, char **)
