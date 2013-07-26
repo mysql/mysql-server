@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2011, Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2011, 2013, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -70,7 +70,8 @@ NDB_SCHEMA_OBJECT *ndb_get_schema_object(const char *key,
       break;
     }
     if (!(ndb_schema_object=
-          (NDB_SCHEMA_OBJECT*) my_malloc(sizeof(*ndb_schema_object) + length + 1,
+          (NDB_SCHEMA_OBJECT*) my_malloc(PSI_INSTRUMENT_ME,
+                                         sizeof(*ndb_schema_object) + length + 1,
                                          MYF(MY_WME | MY_ZEROFILL))))
     {
       DBUG_PRINT("info", ("malloc error"));
