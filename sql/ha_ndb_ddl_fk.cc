@@ -269,7 +269,7 @@ static void
 ndb_fk_casedn(char *name)
 {
   DBUG_ASSERT(name != 0);
-  uint length = strlen(name);
+  uint length = (uint)strlen(name);
   DBUG_ASSERT(files_charset_info != 0 &&
               files_charset_info->casedn_multiply == 1);
   files_charset_info->cset->casedn(files_charset_info,
