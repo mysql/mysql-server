@@ -111,6 +111,7 @@ void test_bootstrap()
   param.m_events_statements_history_long_sizing= 0;
   param.m_digest_sizing= 0;
   param.m_session_connect_attrs_sizing= 0;
+  param.m_program_sizing= 0;
   param.m_statement_stack_sizing= 0;
   param.m_memory_class_sizing= 0;
 
@@ -172,6 +173,7 @@ PSI * load_perfschema()
   param.m_events_statements_history_long_sizing= 0;
   param.m_digest_sizing= 0;
   param.m_session_connect_attrs_sizing= 0;
+  param.m_program_sizing= 0;
   param.m_statement_stack_sizing= 10;
   param.m_memory_class_sizing= 10;
 
@@ -1518,6 +1520,7 @@ void test_event_name_index()
   param.m_events_statements_history_long_sizing= 0;
   param.m_digest_sizing= 0;
   param.m_session_connect_attrs_sizing= 0;
+  param.m_program_sizing= 0;
   param.m_statement_stack_sizing= 10;
   param.m_memory_class_sizing= 12;
 
