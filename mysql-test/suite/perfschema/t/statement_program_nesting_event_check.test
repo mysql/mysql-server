@@ -36,7 +36,7 @@ TRUNCATE TABLE performance_schema.events_statements_history_long;
 SELECT EVENT_NAME, SQL_TEXT, OBJECT_NAME, NESTING_EVENT_TYPE, NESTING_EVENT_LEVEL
        FROM performance_schema.events_statements_history_long 
        WHERE CURRENT_SCHEMA='nested_sp' 
-       ORDER BY OBJECT_NAME, NESTING_EVENT_LEVEL, SQL_TEXT;
+       ORDER BY OBJECT_NAME, NESTING_EVENT_LEVEL, SQL_TEXT, EVENT_NAME;
 
 TRUNCATE TABLE performance_schema.events_statements_history_long;
 

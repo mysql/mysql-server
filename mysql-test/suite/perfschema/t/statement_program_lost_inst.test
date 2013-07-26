@@ -10,11 +10,16 @@
 #  performance_schema_program_lost & performance_schema_nested_statement_lost
 #  
 
+# Restarting the server at the begining of the test.
+# This is to avoid the instrumentation of extra SPs called by MTR 
+# These additional stored programs which will be added might cause 
+# result content mismatch failure. 
+
 let $restart_file= $MYSQLTEST_VARDIR/tmp/mysqld.1.expect;
 --exec echo "wait" > $restart_file
 --shutdown_server 10
 --source include/wait_until_disconnected.inc
---exec echo "restart:--performance_schema_max_program_instances=7 --performance_schema_max_statement_stack=2 --thread_stack=655360" >$MYSQLTEST_VARDIR/tmp/mysqld.1.expect
+--exec echo "restart:--performance_schema_max_program_instances=7 --performance_schema_max_statement_stack=2 --thread_stack=655360">$restart_file
 --enable_reconnect
 --source include/wait_until_connected_again.inc
 
