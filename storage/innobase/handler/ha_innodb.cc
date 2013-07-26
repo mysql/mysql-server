@@ -1086,6 +1086,21 @@ thd_trx_is_auto_commit(
 	       && thd_is_select(thd));
 }
 
+extern "C" time_t thd_start_time(const THD* thd);
+
+/******************************************************************//**
+Get the thread start time.
+@return the thread start time in seconds since the epoch. */
+
+ulint
+thd_start_time_in_secs(
+/*===================*/
+	THD*	thd)	/*!< in: thread handle, or NULL */
+{
+
+	return(thd_start_time(thd));
+}
+
 /******************************************************************//**
 Save some CPU by testing the value of srv_thread_concurrency in inline
 functions. */
@@ -3401,6 +3416,8 @@ innobase_commit(
 				"but transaction is active");
 	}
 
+	bool	read_only = trx->read_only || trx->id == 0;
+
 	if (commit_trx
 	    || (!thd_test_options(thd, OPTION_NOT_AUTOCOMMIT | OPTION_BEGIN))) {
 
@@ -3408,55 +3425,72 @@ innobase_commit(
 		this is an SQL statement end and autocommit is on */
 
 		/* We need current binlog position for ibbackup to work. */
-retry:
-		if (innobase_commit_concurrency > 0) {
-			mysql_mutex_lock(&commit_cond_m);
-			commit_threads++;
 
-			if (commit_threads > innobase_commit_concurrency) {
-				commit_threads--;
-				mysql_cond_wait(&commit_cond,
-					&commit_cond_m);
-				mysql_mutex_unlock(&commit_cond_m);
-				goto retry;
+		while (!read_only && innobase_commit_concurrency > 0) {
+
+			mysql_mutex_lock(&commit_cond_m);
+
+			++commit_threads;
+
+			if (commit_threads <= innobase_commit_concurrency) {
+
+				break;
 			}
-			else {
-				mysql_mutex_unlock(&commit_cond_m);
-			}
+
+			--commit_threads;
+
+			mysql_cond_wait(&commit_cond, &commit_cond_m);
+
+			mysql_mutex_unlock(&commit_cond_m);
 		}
 
-		/* The following call read the binary log position of
-		the transaction being committed.
+		if (!read_only) {
+			/* The following call read the binary log position of
+			the transaction being committed.
 
-		Binary logging of other engines is not relevant to
-		InnoDB as all InnoDB requires is that committing
-		InnoDB transactions appear in the same order in the
-		MySQL binary log as they appear in InnoDB logs, which
-		is guaranteed by the server.
+			Binary logging of other engines is not relevant to
+			InnoDB as all InnoDB requires is that committing
+			InnoDB transactions appear in the same order in the
+			MySQL binary log as they appear in InnoDB logs, which
+			is guaranteed by the server.
 
-		If the binary log is not enabled, or the transaction
-		is not written to the binary log, the file name will
-		be a NULL pointer. */
-		unsigned long long pos;
-		thd_binlog_pos(thd, &trx->mysql_log_file_name, &pos);
-		trx->mysql_log_offset= static_cast<ib_int64_t>(pos);
-		/* Don't do write + flush right now. For group commit
-		to work we want to do the flush later. */
-		trx->flush_log_later = true;
+			If the binary log is not enabled, or the transaction
+			is not written to the binary log, the file name will
+			be a NULL pointer. */
+			unsigned long long pos;
+
+			thd_binlog_pos(thd, &trx->mysql_log_file_name, &pos);
+
+			trx->mysql_log_offset = static_cast<ib_int64_t>(pos);
+
+			/* Don't do write + flush right now. For group commit
+			to work we want to do the flush later. */
+			trx->flush_log_later = true;
+		}
+
 		innobase_commit_low(trx);
-		trx->flush_log_later = false;
 
-		if (innobase_commit_concurrency > 0) {
-			mysql_mutex_lock(&commit_cond_m);
-			commit_threads--;
-			mysql_cond_signal(&commit_cond);
-			mysql_mutex_unlock(&commit_cond_m);
+		if (!read_only) {
+			trx->flush_log_later = false;
+
+			if (innobase_commit_concurrency > 0) {
+
+				mysql_mutex_lock(&commit_cond_m);
+
+				--commit_threads;
+
+				mysql_cond_signal(&commit_cond);
+
+				mysql_mutex_unlock(&commit_cond_m);
+			}
 		}
 
 		trx_deregister_from_2pc(trx);
 
 		/* Now do a write + flush of logs. */
-		trx_commit_complete_for_mysql(trx);
+		if (!read_only) {
+			trx_commit_complete_for_mysql(trx);
+		}
 	} else {
 		/* We just mark the SQL statement ended and do not do a
 		transaction commit */
@@ -3464,7 +3498,9 @@ retry:
 		/* If we had reserved the auto-inc lock for some
 		table in this SQL statement we release it now */
 
-		lock_unlock_table_autoinc(trx);
+		if (!read_only) {
+			lock_unlock_table_autoinc(trx);
+		}
 
 		/* Store the current undo_no of the transaction so that we
 		know where to roll back if we have to roll back the next
@@ -3482,7 +3518,9 @@ retry:
 
 	/* Tell the InnoDB server that there might be work for utility
 	threads: */
-	srv_active_wake_master_thread();
+	if (!read_only) {
+		srv_active_wake_master_thread();
+	}
 
 	DBUG_RETURN(0);
 }
@@ -13369,6 +13407,8 @@ innobase_xa_prepare(
 		return(0);
 	}
 
+	bool	read_only = trx->read_only || trx->id == 0;
+
 	thd_get_xid(thd, (MYSQL_XID*) trx->xid);
 
 	/* Release a possible FIFO ticket and search latch. Since we will
@@ -13415,7 +13455,9 @@ innobase_xa_prepare(
 	/* Tell the InnoDB server that there might be work for utility
 	threads: */
 
-	srv_active_wake_master_thread();
+	if (!read_only) {
+		srv_active_wake_master_thread();
+	}
 
 	if (thd_sql_command(thd) != SQLCOM_XA_PREPARE
 	    && (prepare_trx

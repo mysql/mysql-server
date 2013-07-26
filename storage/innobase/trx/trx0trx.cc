@@ -1277,7 +1277,11 @@ trx_start_low(
 		}
 	}
 
-	trx->start_time = ut_time();
+	if (trx->mysql_thd != NULL) {
+		trx->start_time = thd_start_time_in_secs(trx->mysql_thd);
+	} else {
+		trx->start_time = ut_time();
+	}
 
 	MONITOR_INC(MONITOR_TRX_ACTIVE);
 }
@@ -1625,9 +1629,13 @@ trx_update_mod_tables_timestamp(
 /*============================*/
 	trx_t*	trx)	/*!< in: transaction */
 {
+
+	ut_ad(trx->id > 0);
+
 	/* consider using trx->start_time if calling time() is too
 	expensive here */
 	time_t	now = ut_time();
+
 	trx_mod_tables_t::const_iterator	end = trx->mod_tables.end();
 
 	for (trx_mod_tables_t::const_iterator it = trx->mod_tables.begin();
@@ -2149,9 +2157,15 @@ trx_commit_for_mysql(
 		/* fall through */
 	case TRX_STATE_ACTIVE:
 	case TRX_STATE_PREPARED:
+
 		trx->op_info = "committing";
-		trx_update_mod_tables_timestamp(trx);
+
+		if (trx->id > 0) {
+			trx_update_mod_tables_timestamp(trx);
+		}
+
 		trx_commit(trx);
+
 		MONITOR_DEC(MONITOR_TRX_ACTIVE);
 		trx->op_info = "";
 		return(DB_SUCCESS);
@@ -2171,9 +2185,11 @@ trx_commit_complete_for_mysql(
 /*==========================*/
 	trx_t*	trx)	/*!< in/out: transaction */
 {
-	if (!trx->must_flush_log_later
+	if (trx->id > 0
+	    || !trx->must_flush_log_later
 	    || thd_requested_durability(trx->mysql_thd)
 	       == HA_IGNORE_DURABILITY) {
+
 		return;
 	}
 
