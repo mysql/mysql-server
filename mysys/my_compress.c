@@ -16,13 +16,11 @@
 /* Written by Sinisa Milivojevic <sinisa@mysql.com> */
 
 #include <my_global.h>
+#include <mysys_priv.h>
 #ifdef HAVE_COMPRESS
 #include <my_sys.h>
 #include <m_string.h>
 #include <zlib.h>
-
-PSI_memory_key key_memory_my_compress_alloc;
-PSI_memory_key key_memory_pack_frm;
 
 /*
    This replaces the packet with a compressed packet

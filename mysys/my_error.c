@@ -21,8 +21,6 @@
 #include "my_base.h"
 #include "my_handler_errors.h"
 
-PSI_memory_key key_memory_my_err_head;
-
 /* Max length of a error message. Should be kept in sync with MYSQL_ERRMSG_SIZE. */
 #define ERRMSGSIZE      (512)
 

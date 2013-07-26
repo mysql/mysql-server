@@ -26,8 +26,6 @@
 #include "mysys_err.h"
 #include <queues.h>
 
-PSI_memory_key key_memory_QUEUE;
-
 /*
   Init queue
 

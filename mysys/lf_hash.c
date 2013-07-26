@@ -24,10 +24,9 @@
 #include <my_global.h>
 #include <m_string.h>
 #include <my_sys.h>
+#include <mysys_priv.h>
 #include <my_bit.h>
 #include <lf.h>
-
-PSI_memory_key key_memory_lf_slist;
 
 LF_REQUIRE_PINS(3)
 
