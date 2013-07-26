@@ -225,20 +225,13 @@ performance_schema	(setup_actor_hash).count	1
 performance_schema	(setup_actor_hash).size	100
 performance_schema	(setup_object_hash).count	20
 performance_schema	(setup_object_hash).size	100
-<<<<<<< TREE
-performance_schema	(table_share_hash).count	81
-=======
-performance_schema	(table_share_hash).count	85
->>>>>>> MERGE-SOURCE
+performance_schema	(table_share_hash).count	86
 performance_schema	(table_share_hash).size	556
 performance_schema	(user_hash).count	2
 performance_schema	(user_hash).size	100
 performance_schema	(program_hash).count	2
 performance_schema	(program_hash).size	5000
 performance_schema	host_cache.size	336
-<<<<<<< TREE
-performance_schema	performance_schema.memory	86763552
-=======
 performance_schema	(pfs_memory_class).row_size	192
 performance_schema	(pfs_memory_class).row_count	250
 performance_schema	(pfs_memory_class).memory	48000
@@ -257,5 +250,4 @@ performance_schema	memory_summary_by_user_by_event_name.memory	1600000
 performance_schema	memory_summary_by_host_by_event_name.row_size	64
 performance_schema	memory_summary_by_host_by_event_name.row_count	25000
 performance_schema	memory_summary_by_host_by_event_name.memory	1600000
-performance_schema	performance_schema.memory	80420496
->>>>>>> MERGE-SOURCE
+performance_schema	performance_schema.memory	96257952
