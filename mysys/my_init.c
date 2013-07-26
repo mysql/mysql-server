@@ -455,6 +455,15 @@ static my_bool win32_init_tcp_ip()
 PSI_stage_info stage_waiting_for_table_level_lock=
 {0, "Waiting for table level lock", 0};
 
+PSI_memory_key key_memory_max_alloca;
+PSI_memory_key key_memory_radix_sort;
+
+#ifdef _WIN32
+PSI_memory_key key_memory_win_SECURITY_ATTRIBUTES;
+PSI_memory_key key_memory_win_PACL;
+PSI_memory_key key_memory_win_IP_ADAPTER_ADDRESSES;
+#endif
+
 #ifdef HAVE_PSI_INTERFACE
 
 #if !defined(HAVE_PREAD) && !defined(_WIN32)
@@ -532,6 +541,40 @@ PSI_stage_info *all_mysys_stages[]=
   & stage_waiting_for_table_level_lock
 };
 
+static PSI_memory_info all_mysys_memory[]=
+{
+#ifdef _WIN32
+  { &key_memory_win_SECURITY_ATTRIBUTES, "win_SECURITY_ATTRIBUTES", 0},
+  { &key_memory_win_PACL, "win_PACL", 0},
+  { &key_memory_win_IP_ADAPTER_ADDRESSES, "win_IP_ADAPTER_ADDRESSES", 0},
+#endif
+
+  { &key_memory_max_alloca, "max_alloca", 0},
+  { &key_memory_array_buffer, "array_buffer", 0},
+  { &key_memory_charset_file, "charset_file", 0},
+  { &key_memory_charset_loader, "charset_loader", 0},
+  { &key_memory_lf_node, "lf_node", 0},
+  { &key_memory_lf_dynarray, "lf_dynarray", 0},
+  { &key_memory_lf_slist, "lf_slist", 0},
+  { &key_memory_LIST, "LIST", 0},
+  { &key_memory_IO_CACHE, "IO_CACHE", 0},
+  { &key_memory_KEY_CACHE, "KEY_CACHE", 0},
+  { &key_memory_SAFE_HASH_ENTRY, "SAFE_HASH_ENTRY", 0},
+  { &key_memory_MY_TMPDIR_full_list, "MY_TMPDIR::full_list", 0},
+  { &key_memory_MY_BITMAP_bitmap, "MY_BITMAP::bitmap", 0},
+  { &key_memory_my_compress_alloc, "my_compress_alloc", 0},
+  { &key_memory_pack_frm, "pack_frm", 0},
+  { &key_memory_my_err_head, "my_err_head", 0},
+  { &key_memory_my_file_info, "my_file_info", 0},
+  { &key_memory_MY_DIR, "MY_DIR", 0},
+  { &key_memory_MY_STAT, "MY_STAT", 0},
+  { &key_memory_QUEUE, "QUEUE", 0},
+  { &key_memory_DYNAMIC_STRING, "DYNAMIC_STRING", 0},
+  { &key_memory_ALARM, "ALARM", 0},
+  { &key_memory_TREE, "TREE", 0},
+  { &key_memory_radix_sort, "radix_sort", 0}
+};
+
 void my_init_mysys_psi_keys()
 {
   const char* category= "mysys";
@@ -548,6 +591,9 @@ void my_init_mysys_psi_keys()
 
   count= array_elements(all_mysys_stages);
   mysql_stage_register(category, all_mysys_stages, count);
+
+  count= array_elements(all_mysys_memory);
+  mysql_memory_register(category, all_mysys_memory, count);
 }
 #endif /* HAVE_PSI_INTERFACE */
 

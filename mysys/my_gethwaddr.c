@@ -155,7 +155,8 @@ my_bool my_gethwaddr(uchar *to)
   if (fnGetAdaptersAddresses(AF_UNSPEC, 0, 0, &adapterAddresses, &address_len)
       == ERROR_BUFFER_OVERFLOW)
   {
-    pAdapterAddresses= my_malloc(address_len, 0);
+    pAdapterAddresses= my_malloc(key_memory_win_IP_ADAPTER_ADDRESSES,
+                                 address_len, 0);
     if (!pAdapterAddresses)
       return 1;                                   /* error, alloc failed */
   }

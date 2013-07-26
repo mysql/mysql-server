@@ -20,6 +20,8 @@
 #include "my_static.h"
 #include "mysys_err.h"
 
+PSI_memory_key key_memory_IO_CACHE;
+
 	/*
 	  Remove an open tempfile so that it doesn't survive
 	  if we crash.
@@ -47,8 +49,10 @@ my_bool open_cached_file(IO_CACHE *cache, const char* dir, const char *prefix,
                          size_t cache_size, myf cache_myflags)
 {
   DBUG_ENTER("open_cached_file");
-  cache->dir=	 dir ? my_strdup(dir,MYF(cache_myflags & MY_WME)) : (char*) 0;
-  cache->prefix= (prefix ? my_strdup(prefix,MYF(cache_myflags & MY_WME)) :
+  cache->dir=	 dir ? my_strdup(key_memory_IO_CACHE,
+                                 dir,MYF(cache_myflags & MY_WME)) : (char*) 0;
+  cache->prefix= (prefix ? my_strdup(key_memory_IO_CACHE,
+                                     prefix,MYF(cache_myflags & MY_WME)) :
 		 (char*) 0);
   cache->file_name=0;
   cache->buffer=0;				/* Mark that not open */

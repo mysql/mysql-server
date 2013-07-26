@@ -21,6 +21,8 @@
 
 #include "semisync.h"
 
+extern PSI_memory_key key_ss_memory_TranxNodeAllocator_block;
+
 #ifdef HAVE_PSI_INTERFACE
 extern PSI_mutex_key key_ss_mutex_LOCK_binlog_;
 extern PSI_cond_key key_ss_cond_COND_binlog_send_;
@@ -231,7 +233,8 @@ private:
   */
   int allocate_block()
   {
-    Block *block= (Block *)my_malloc(sizeof(Block), MYF(0));
+    Block *block= (Block *)my_malloc(key_ss_memory_TranxNodeAllocator_block,
+                                     sizeof(Block), MYF(0));
     if (block)
     {
       block->next= NULL;

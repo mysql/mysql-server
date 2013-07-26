@@ -74,6 +74,12 @@
 #include "table_session_connect_attrs.h"
 #include "table_session_account_connect_attrs.h"
 
+#include "table_mems_global_by_event_name.h"
+#include "table_mems_by_account_by_event_name.h"
+#include "table_mems_by_host_by_event_name.h"
+#include "table_mems_by_thread_by_event_name.h"
+#include "table_mems_by_user_by_event_name.h"
+
 /* For show status */
 #include "pfs_column_values.h"
 #include "pfs_instr_class.h"
@@ -149,8 +155,16 @@ static PFS_engine_table_share *all_shares[]=
   &table_socket_instances::m_share,
   &table_socket_summary_by_instance::m_share,
   &table_socket_summary_by_event_name::m_share,
+
   &table_session_connect_attrs::m_share,
   &table_session_account_connect_attrs::m_share,
+
+  &table_mems_global_by_event_name::m_share,
+  &table_mems_by_account_by_event_name::m_share,
+  &table_mems_by_host_by_event_name::m_share,
+  &table_mems_by_thread_by_event_name::m_share,
+  &table_mems_by_user_by_event_name::m_share,
+
   NULL
 };
 
@@ -473,11 +487,25 @@ void PFS_engine_table::get_normalizer(PFS_instr_class *instr_class)
   }
 }
 
+void PFS_engine_table::set_field_long(Field *f, long value)
+{
+  DBUG_ASSERT(f->real_type() == MYSQL_TYPE_LONG);
+  Field_long *f2= (Field_long*) f;
+  f2->store(value, false);
+}
+
 void PFS_engine_table::set_field_ulong(Field *f, ulong value)
 {
   DBUG_ASSERT(f->real_type() == MYSQL_TYPE_LONG);
   Field_long *f2= (Field_long*) f;
   f2->store(value, true);
+}
+
+void PFS_engine_table::set_field_longlong(Field *f, longlong value)
+{
+  DBUG_ASSERT(f->real_type() == MYSQL_TYPE_LONGLONG);
+  Field_longlong *f2= (Field_longlong*) f;
+  f2->store(value, false);
 }
 
 void PFS_engine_table::set_field_ulonglong(Field *f, ulonglong value)
@@ -1440,11 +1468,90 @@ bool pfs_show_status(handlerton *hton, THD *thd,
       size= sizeof(Host_entry);
       break;
 
+    case 159:
+      name= "(pfs_memory_class).row_size";
+      size= sizeof(PFS_memory_class);
+      break;
+    case 160:
+      name= "(pfs_memory_class).row_count";
+      size= memory_class_max;
+      break;
+    case 161:
+      name= "(pfs_memory_class).memory";
+      size= memory_class_max * sizeof(PFS_memory_class);
+      total_memory+= size;
+      break;
+
+    case 162:
+      name= "memory_summary_by_thread_by_event_name.row_size";
+      size= sizeof(PFS_memory_stat);
+      break;
+    case 163:
+      name= "memory_summary_by_thread_by_event_name.row_count";
+      size= thread_max * memory_class_max;
+      break;
+    case 164:
+      name= "memory_summary_by_thread_by_event_name.memory";
+      size= thread_max * memory_class_max * sizeof(PFS_memory_stat);
+      total_memory+= size;
+      break;
+    case 165:
+      name= "memory_summary_global_by_event_name.row_size";
+      size= sizeof(PFS_memory_stat);
+      break;
+    case 166:
+      name= "memory_summary_global_by_event_name.row_count";
+      size= memory_class_max;
+      break;
+    case 167:
+      name= "memory_summary_global_by_event_name.memory";
+      size= memory_class_max * sizeof(PFS_memory_stat);
+      total_memory+= size;
+      break;
+    case 168:
+      name= "memory_summary_by_account_by_event_name.row_size";
+      size= sizeof(PFS_memory_stat);
+      break;
+    case 169:
+      name= "memory_summary_by_account_by_event_name.row_count";
+      size= account_max * memory_class_max;
+      break;
+    case 170:
+      name= "memory_summary_by_account_by_event_name.memory";
+      size= account_max * memory_class_max * sizeof(PFS_memory_stat);
+      total_memory+= size;
+      break;
+    case 171:
+      name= "memory_summary_by_user_by_event_name.row_size";
+      size= sizeof(PFS_memory_stat);
+      break;
+    case 172:
+      name= "memory_summary_by_user_by_event_name.row_count";
+      size= user_max * memory_class_max;
+      break;
+    case 173:
+      name= "memory_summary_by_user_by_event_name.memory";
+      size= user_max * memory_class_max * sizeof(PFS_memory_stat);
+      total_memory+= size;
+      break;
+    case 174:
+      name= "memory_summary_by_host_by_event_name.row_size";
+      size= sizeof(PFS_memory_stat);
+      break;
+    case 175:
+      name= "memory_summary_by_host_by_event_name.row_count";
+      size= host_max * memory_class_max;
+      break;
+    case 176:
+      name= "memory_summary_by_host_by_event_name.memory";
+      size= host_max * memory_class_max * sizeof(PFS_memory_stat);
+      total_memory+= size;
+      break;
     /*
       This case must be last,
       for aggregation in total_memory.
     */
-    case 159:
+    case 177:
       name= "performance_schema.memory";
       size= total_memory;
       /* This will fail if something is not advertised here */

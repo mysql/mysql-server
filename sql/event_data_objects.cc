@@ -174,9 +174,11 @@ Event_creation_ctx::load_from_db(THD *thd,
 bool
 Event_queue_element_for_exec::init(LEX_STRING db, LEX_STRING n)
 {
-  if (!(dbname.str= my_strndup(db.str, dbname.length= db.length, MYF(MY_WME))))
+  if (!(dbname.str= my_strndup(key_memory_Event_queue_element_for_exec_names,
+                               db.str, dbname.length= db.length, MYF(MY_WME))))
     return TRUE;
-  if (!(name.str= my_strndup(n.str, name.length= n.length, MYF(MY_WME))))
+  if (!(name.str= my_strndup(key_memory_Event_queue_element_for_exec_names,
+                             n.str, name.length= n.length, MYF(MY_WME))))
   {
     my_free(dbname.str);
     return TRUE;
@@ -210,7 +212,7 @@ Event_basic::Event_basic()
 {
   DBUG_ENTER("Event_basic::Event_basic");
   /* init memory root */
-  init_sql_alloc(&mem_root, 256, 512);
+  init_sql_alloc(key_memory_event_basic_root, &mem_root, 256, 512);
   dbname.str= name.str= NULL;
   dbname.length= name.length= 0;
   time_zone= NULL;

@@ -44,11 +44,16 @@
 #include <signal.h>
 #include <errno.h>
 #include "probes_mysql.h"
+/* key_memory_NET_buff */
+#include "mysqld.h"
 
 #include <algorithm>
 
 using std::min;
 using std::max;
+
+PSI_memory_key key_memory_NET_buff;
+PSI_memory_key key_memory_NET_compress_packet;
 
 #ifdef EMBEDDED_LIBRARY
 #undef MYSQL_SERVER
@@ -97,7 +102,8 @@ my_bool my_net_init(NET *net, Vio* vio)
   DBUG_ENTER("my_net_init");
   net->vio = vio;
   my_net_local_init(net);			/* Set some limits */
-  if (!(net->buff=(uchar*) my_malloc((size_t) net->max_packet+
+  if (!(net->buff=(uchar*) my_malloc(key_memory_NET_buff,
+                                     (size_t) net->max_packet+
              NET_HEADER_SIZE + COMP_HEADER_SIZE,
              MYF(MY_WME))))
     DBUG_RETURN(1);
@@ -161,7 +167,8 @@ my_bool net_realloc(NET *net, size_t length)
     net_read_packet() may actually read 4 bytes depending on build flags and
     platform.
   */
-  if (!(buff= (uchar*) my_realloc((char*) net->buff, pkt_length +
+  if (!(buff= (uchar*) my_realloc(key_memory_NET_buff,
+                                  (char*) net->buff, pkt_length +
                                   NET_HEADER_SIZE + COMP_HEADER_SIZE + 1,
                                   MYF(MY_WME))))
   {
@@ -538,7 +545,8 @@ compress_packet(NET *net, const uchar *packet, size_t *length)
   size_t compr_length;
   const uint header_length= NET_HEADER_SIZE + COMP_HEADER_SIZE;
 
-  compr_packet= (uchar *) my_malloc(*length + header_length, MYF(MY_WME));
+  compr_packet= (uchar *) my_malloc(key_memory_NET_compress_packet,
+                                    *length + header_length, MYF(MY_WME));
 
   if (compr_packet == NULL)
     return NULL;
