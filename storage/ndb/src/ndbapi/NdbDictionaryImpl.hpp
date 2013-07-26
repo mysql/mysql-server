@@ -900,7 +900,7 @@ public:
   int dropTable(const char * name);
   int dropTable(NdbTableImpl &);
   int dropBlobTables(NdbTableImpl &);
-  int renameBlobTables(const NdbTableImpl &old_impl, const NdbTableImpl &impl);
+  int alterBlobTables(const NdbTableImpl &old_impl, const NdbTableImpl &impl, Uint32 tabChangeMask);
   int invalidateObject(NdbTableImpl &);
   int removeCachedObject(NdbTableImpl &);
 
