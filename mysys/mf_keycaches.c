@@ -26,8 +26,6 @@
 #include <hash.h>
 #include <m_string.h>
 
-PSI_memory_key key_memory_SAFE_HASH_ENTRY;
-
 /*****************************************************************************
   General functions to handle SAFE_HASH objects.
 

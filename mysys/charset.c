@@ -20,9 +20,6 @@
 #include <my_dir.h>
 #include <my_xml.h>
 
-PSI_memory_key key_memory_charset_file;
-PSI_memory_key key_memory_charset_loader;
-
 /*
   The code below implements this functionality:
   

@@ -52,9 +52,6 @@
 #define ENTRIES_INCREMENT  (65536/sizeof(FILEINFO))
 #define NAMES_START_SIZE   32768
 
-PSI_memory_key key_memory_MY_DIR;
-PSI_memory_key key_memory_MY_STAT;
-
 static int	comp_names(struct fileinfo *a,struct fileinfo *b);
 
 

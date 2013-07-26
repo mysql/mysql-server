@@ -1490,9 +1490,6 @@ static int mysql_test_select(Prepared_statement *stmt,
     goto error;
   if (!lex->describe && !stmt->is_sql_prepare())
   {
-    /* Make copy of item list, as change_columns may change it */
-    List<Item> fields(lex->select_lex->item_list);
-
     select_result *result= lex->result;
     select_result *analyse_result= NULL;
     if (lex->proc_analyse)
@@ -1509,8 +1506,9 @@ static int mysql_test_select(Prepared_statement *stmt,
       We can use "result" as it should've been prepared in
       unit->prepare call above.
     */
-    bool rc= (send_prep_stmt(stmt, result->field_count(fields)) ||
-              result->send_result_set_metadata(fields, Protocol::SEND_EOF) ||
+    bool rc= (send_prep_stmt(stmt, result->field_count(unit->types)) ||
+              result->send_result_set_metadata(unit->types,
+                                               Protocol::SEND_EOF) ||
               thd->protocol->flush());
     delete analyse_result;
     if (rc)
