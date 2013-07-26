@@ -696,7 +696,7 @@ set @@ndb_show_foreign_key_mock_tables= 0;
 
 # Rename table referenced by foreign key -> t1 references t3
 alter table t2 rename t3;
---replace_regex /FK_[0-9]+_[0-9]+/FK_<child_id>_<id>/
+--replace_regex /(FK|fk)_[0-9]+_[0-9]+/FK_<child_id>_<id>/
 show create table t1;
 
 drop table t3;
