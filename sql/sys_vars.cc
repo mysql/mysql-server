@@ -529,6 +529,14 @@ static Sys_var_ulong Sys_pfs_statement_stack_size(
        DEFAULT(PFS_STATEMENTS_STACK_SIZE),
        BLOCK_SIZE(1), PFS_TRAILING_PROPERTIES);
 
+static Sys_var_ulong Sys_pfs_max_memory_classes(
+       "performance_schema_max_memory_classes",
+       "Maximum number of memory pool instruments.",
+       READ_ONLY GLOBAL_VAR(pfs_param.m_memory_class_sizing),
+       CMD_LINE(REQUIRED_ARG), VALID_RANGE(0, 256),
+       DEFAULT(PFS_MAX_MEMORY_CLASS),
+       BLOCK_SIZE(1), PFS_TRAILING_PROPERTIES);
+
 static Sys_var_long Sys_pfs_digest_size(
        "performance_schema_digests_size",
        "Size of the statement digest."
@@ -3705,7 +3713,8 @@ static bool fix_general_log_file(sys_var *self, THD *thd, enum_var_type type)
   if (!opt_general_logname) // SET ... = DEFAULT
   {
     char buff[FN_REFLEN];
-    opt_general_logname= my_strdup(make_query_log_name(buff, QUERY_LOG_GENERAL),
+    opt_general_logname= my_strdup(key_memory_LOG_name,
+                                   make_query_log_name(buff, QUERY_LOG_GENERAL),
                                    MYF(MY_FAE+MY_WME));
     if (!opt_general_logname)
       return true;
@@ -3732,7 +3741,8 @@ static bool fix_slow_log_file(sys_var *self, THD *thd, enum_var_type type)
   if (!opt_slow_logname) // SET ... = DEFAULT
   {
     char buff[FN_REFLEN];
-    opt_slow_logname= my_strdup(make_query_log_name(buff, QUERY_LOG_SLOW),
+    opt_slow_logname= my_strdup(key_memory_LOG_name,
+                                make_query_log_name(buff, QUERY_LOG_SLOW),
                                 MYF(MY_FAE+MY_WME));
     if (!opt_slow_logname)
       return true;

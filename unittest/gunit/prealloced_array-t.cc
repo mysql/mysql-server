@@ -25,6 +25,11 @@ namespace prealloced_array_unittest {
 
 class PreallocedArrayTest : public ::testing::Test
 {
+public:
+  PreallocedArrayTest()
+    : int_10(PSI_NOT_INSTRUMENTED)
+  {}
+
 protected:
   Prealloced_array<int, 10> int_10;
   int some_integer;
@@ -68,7 +73,7 @@ TEST_F(PreallocedArrayDeathTest, EmptyPopBack)
 {
   ::testing::FLAGS_gtest_death_test_style = "threadsafe";
   EXPECT_DEATH_IF_SUPPORTED(int_10.pop_back(),
-                            ".*Assertion .!empty().*");
+                            ".*Assertion .*!empty.*");
 }
 
 TEST_F(PreallocedArrayDeathTest, EmptyErase)
@@ -203,7 +208,7 @@ private:
 */
 TEST_F(PreallocedArrayTest, NoMemLeaksPushing)
 {
-  Prealloced_array<IntWrap, 1, false> array;
+  Prealloced_array<IntWrap, 1, false> array(PSI_NOT_INSTRUMENTED);
   for (int ix= 0; ix < 42; ++ix)
     array.push_back(IntWrap(ix));
   for (int ix= 0; ix < 42; ++ix)
@@ -212,7 +217,7 @@ TEST_F(PreallocedArrayTest, NoMemLeaksPushing)
 
 TEST_F(PreallocedArrayTest, NoMemLeaksPopping)
 {
-  Prealloced_array<IntWrap, 1, false> array;
+  Prealloced_array<IntWrap, 1, false> array(PSI_NOT_INSTRUMENTED);
   for (int ix= 0; ix < 42; ++ix)
     array.push_back(IntWrap(ix));
   while (!array.empty())
@@ -221,7 +226,7 @@ TEST_F(PreallocedArrayTest, NoMemLeaksPopping)
 
 TEST_F(PreallocedArrayTest, NoMemLeaksErasing)
 {
-  Prealloced_array<IntWrap, 1, false> array;
+  Prealloced_array<IntWrap, 1, false> array(PSI_NOT_INSTRUMENTED);
   for (int ix= 0; ix < 42; ++ix)
     array.push_back(IntWrap(ix));
   for (int ix= 0; !array.empty(); ++ix)
@@ -255,7 +260,7 @@ private:
  */
 TEST_F(PreallocedArrayTest, SqlAlloc)
 {
-  Prealloced_array<TestAlloc, 1, false> array;
+  Prealloced_array<TestAlloc, 1, false> array(PSI_NOT_INSTRUMENTED);
   for (int ix= 0; ix < 42; ++ix)
     array.push_back(TestAlloc(ix));
   for (int ix= 0; ix < 42; ++ix)

@@ -555,10 +555,15 @@ struct PFS_ALIGNED PFS_thread : PFS_connection_slice
     Protected by @c m_session_lock.
   */
   const CHARSET_INFO *m_session_connect_attrs_cs;
+
+  void carry_memory_stat_delta(PFS_memory_stat_delta *delta, uint index);
 };
+
+void carry_global_memory_stat_delta(PFS_memory_stat_delta *delta, uint index);
 
 extern PFS_stage_stat *global_instr_class_stages_array;
 extern PFS_statement_stat *global_instr_class_statements_array;
+extern PFS_memory_stat *global_instr_class_memory_array;
 
 PFS_mutex *sanitize_mutex(PFS_mutex *unsafe);
 PFS_rwlock *sanitize_rwlock(PFS_rwlock *unsafe);
@@ -657,6 +662,14 @@ void aggregate_all_statements(PFS_statement_stat *from_array,
                               PFS_statement_stat *to_array_1,
                               PFS_statement_stat *to_array_2);
 
+void aggregate_all_memory(bool alive,
+                          PFS_memory_stat *from_array,
+                          PFS_memory_stat *to_array);
+void aggregate_all_memory(bool alive,
+                          PFS_memory_stat *from_array,
+                          PFS_memory_stat *to_array_1,
+                          PFS_memory_stat *to_array_2);
+
 void aggregate_thread(PFS_thread *thread,
                       PFS_account *safe_account,
                       PFS_user *safe_user,
@@ -673,6 +686,10 @@ void aggregate_thread_statements(PFS_thread *thread,
                                  PFS_account *safe_account,
                                  PFS_user *safe_user,
                                  PFS_host *safe_host);
+void aggregate_thread_memory(bool alive, PFS_thread *thread,
+                             PFS_account *safe_account,
+                             PFS_user *safe_user,
+                             PFS_host *safe_host);
 void clear_thread_account(PFS_thread *thread);
 void set_thread_account(PFS_thread *thread);
 

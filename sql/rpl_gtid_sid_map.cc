@@ -1,4 +1,4 @@
-/* Copyright (c) 2012, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2012, 2013, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or
    modify it under the terms of the GNU General Public License as
@@ -20,6 +20,7 @@
 #include "hash.h"
 #include "mysqld_error.h"
 
+PSI_memory_key key_memory_Sid_map_Node;
 
 Sid_map::Sid_map(Checkable_rwlock *_sid_lock)
   : sid_lock(_sid_lock)
@@ -122,7 +123,8 @@ enum_return_status Sid_map::add_node(rpl_sidno sidno, const rpl_sid &sid)
   DBUG_ENTER("Sid_map::add_node(rpl_sidno, const rpl_sid *)");
   if (sid_lock)
     sid_lock->assert_some_wrlock();
-  Node *node= (Node *)my_malloc(sizeof(Node), MYF(MY_WME));
+  Node *node= (Node *)my_malloc(key_memory_Sid_map_Node,
+                                sizeof(Node), MYF(MY_WME));
   if (node == NULL)
     RETURN_REPORTED_ERROR;
 

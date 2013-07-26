@@ -1,4 +1,4 @@
-/* Copyright (c) 2001, 2011, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2001, 2013, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -294,7 +294,8 @@ FT_INFO *ft_init_nlq_search(MI_INFO *info, uint keynr, uchar *query,
     If ndocs == 0, this will not allocate RAM for FT_INFO.doc[],
     so if ndocs == 0, FT_INFO.doc[] must not be accessed.
    */
-  dlist=(FT_INFO *)my_malloc(sizeof(FT_INFO)+
+  dlist=(FT_INFO *)my_malloc(mi_key_memory_FT_INFO,
+                             sizeof(FT_INFO)+
 			     sizeof(FT_DOC)*
 			     (int)(aio.dtree.elements_in_tree-1),
 			     MYF(0));

@@ -1655,7 +1655,8 @@ public:
     m_reopen_array(NULL),
     m_locked_tables_count(0)
   {
-    init_sql_alloc(&m_locked_tables_root, MEM_ROOT_BLOCK_SIZE, 0);
+    init_sql_alloc(key_memory_locked_table_list,
+                   &m_locked_tables_root, MEM_ROOT_BLOCK_SIZE, 0);
   }
   void unlock_locked_tables(THD *thd);
   ~Locked_tables_list()
@@ -2312,7 +2313,7 @@ public:
     {
       memset(this, 0, sizeof(*this));
       xid_state.xid.null();
-      init_sql_alloc(&mem_root, ALLOC_ROOT_MIN_BLOCK_SIZE, 0);
+      init_sql_alloc(key_memory_thd_transactions, &mem_root, ALLOC_ROOT_MIN_BLOCK_SIZE, 0);
     }
     void push_unsafe_rollback_warnings(THD *thd)
     {
@@ -3621,7 +3622,8 @@ public:
     {
       my_free(db);
       if (new_db)
-        db= my_strndup(new_db, new_db_len, MYF(MY_WME | ME_FATALERROR));
+        db= my_strndup(key_memory_THD_db,
+                       new_db, new_db_len, MYF(MY_WME | ME_FATALERROR));
       else
         db= NULL;
     }
@@ -4797,7 +4799,8 @@ public:
     user_var_entry *entry;
     uint size= ALIGN_SIZE(sizeof(user_var_entry)) +
                (name.length() + 1) + extra_size;
-    if (!(entry= (user_var_entry*) my_malloc(size, MYF(MY_WME |
+    if (!(entry= (user_var_entry*) my_malloc(key_memory_user_var_entry,
+                                             size, MYF(MY_WME |
                                                        ME_FATALERROR))))
       return NULL;
     entry->init(name, cs);

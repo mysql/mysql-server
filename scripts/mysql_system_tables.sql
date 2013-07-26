@@ -1608,6 +1608,126 @@ EXECUTE stmt;
 DROP PREPARE stmt;
 
 --
+-- TABLE MEMORY_SUMMARY_GLOBAL_BY_EVENT_NAME
+--
+
+SET @cmd="CREATE TABLE performance_schema.memory_summary_global_by_event_name("
+  "EVENT_NAME VARCHAR(128) not null,"
+  "COUNT_ALLOC BIGINT unsigned not null,"
+  "COUNT_FREE BIGINT unsigned not null,"
+  "SUM_NUMBER_OF_BYTES_ALLOC BIGINT unsigned not null,"
+  "SUM_NUMBER_OF_BYTES_FREE BIGINT unsigned not null,"
+  "LOW_COUNT_USED BIGINT not null,"
+  "CURRENT_COUNT_USED BIGINT not null,"
+  "HIGH_COUNT_USED BIGINT not null,"
+  "LOW_NUMBER_OF_BYTES_USED BIGINT not null,"
+  "CURRENT_NUMBER_OF_BYTES_USED BIGINT not null,"
+  "HIGH_NUMBER_OF_BYTES_USED BIGINT not null"
+  ")ENGINE=PERFORMANCE_SCHEMA;";
+
+SET @str = IF(@have_pfs = 1, @cmd, 'SET @dummy = 0');
+PREPARE stmt FROM @str;
+EXECUTE stmt;
+DROP PREPARE stmt;
+
+--
+-- TABLE MEMORY_SUMMARY_BY_THREAD_BY_EVENT_NAME
+--
+
+SET @cmd="CREATE TABLE performance_schema.memory_summary_by_thread_by_event_name("
+  "THREAD_ID BIGINT unsigned not null,"
+  "EVENT_NAME VARCHAR(128) not null,"
+  "COUNT_ALLOC BIGINT unsigned not null,"
+  "COUNT_FREE BIGINT unsigned not null,"
+  "SUM_NUMBER_OF_BYTES_ALLOC BIGINT unsigned not null,"
+  "SUM_NUMBER_OF_BYTES_FREE BIGINT unsigned not null,"
+  "LOW_COUNT_USED BIGINT not null,"
+  "CURRENT_COUNT_USED BIGINT not null,"
+  "HIGH_COUNT_USED BIGINT not null,"
+  "LOW_NUMBER_OF_BYTES_USED BIGINT not null,"
+  "CURRENT_NUMBER_OF_BYTES_USED BIGINT not null,"
+  "HIGH_NUMBER_OF_BYTES_USED BIGINT not null"
+  ")ENGINE=PERFORMANCE_SCHEMA;";
+
+SET @str = IF(@have_pfs = 1, @cmd, 'SET @dummy = 0');
+PREPARE stmt FROM @str;
+EXECUTE stmt;
+DROP PREPARE stmt;
+
+--
+-- TABLE MEMORY_SUMMARY_BY_ACCOUNT_BY_EVENT_NAME
+--
+
+SET @cmd="CREATE TABLE performance_schema.memory_summary_by_account_by_event_name("
+  "USER CHAR(16) collate utf8_bin default null,"
+  "HOST CHAR(60) collate utf8_bin default null,"
+  "EVENT_NAME VARCHAR(128) not null,"
+  "COUNT_ALLOC BIGINT unsigned not null,"
+  "COUNT_FREE BIGINT unsigned not null,"
+  "SUM_NUMBER_OF_BYTES_ALLOC BIGINT unsigned not null,"
+  "SUM_NUMBER_OF_BYTES_FREE BIGINT unsigned not null,"
+  "LOW_COUNT_USED BIGINT not null,"
+  "CURRENT_COUNT_USED BIGINT not null,"
+  "HIGH_COUNT_USED BIGINT not null,"
+  "LOW_NUMBER_OF_BYTES_USED BIGINT not null,"
+  "CURRENT_NUMBER_OF_BYTES_USED BIGINT not null,"
+  "HIGH_NUMBER_OF_BYTES_USED BIGINT not null"
+  ")ENGINE=PERFORMANCE_SCHEMA;";
+
+SET @str = IF(@have_pfs = 1, @cmd, 'SET @dummy = 0');
+PREPARE stmt FROM @str;
+EXECUTE stmt;
+DROP PREPARE stmt;
+
+--
+-- TABLE MEMORY_SUMMARY_BY_HOST_BY_EVENT_NAME
+--
+
+SET @cmd="CREATE TABLE performance_schema.memory_summary_by_host_by_event_name("
+  "HOST CHAR(60) collate utf8_bin default null,"
+  "EVENT_NAME VARCHAR(128) not null,"
+  "COUNT_ALLOC BIGINT unsigned not null,"
+  "COUNT_FREE BIGINT unsigned not null,"
+  "SUM_NUMBER_OF_BYTES_ALLOC BIGINT unsigned not null,"
+  "SUM_NUMBER_OF_BYTES_FREE BIGINT unsigned not null,"
+  "LOW_COUNT_USED BIGINT not null,"
+  "CURRENT_COUNT_USED BIGINT not null,"
+  "HIGH_COUNT_USED BIGINT not null,"
+  "LOW_NUMBER_OF_BYTES_USED BIGINT not null,"
+  "CURRENT_NUMBER_OF_BYTES_USED BIGINT not null,"
+  "HIGH_NUMBER_OF_BYTES_USED BIGINT not null"
+  ")ENGINE=PERFORMANCE_SCHEMA;";
+
+SET @str = IF(@have_pfs = 1, @cmd, 'SET @dummy = 0');
+PREPARE stmt FROM @str;
+EXECUTE stmt;
+DROP PREPARE stmt;
+
+--
+-- TABLE MEMORY_SUMMARY_BY_USER_BY_EVENT_NAME
+--
+
+SET @cmd="CREATE TABLE performance_schema.memory_summary_by_user_by_event_name("
+  "USER CHAR(16) collate utf8_bin default null,"
+  "EVENT_NAME VARCHAR(128) not null,"
+  "COUNT_ALLOC BIGINT unsigned not null,"
+  "COUNT_FREE BIGINT unsigned not null,"
+  "SUM_NUMBER_OF_BYTES_ALLOC BIGINT unsigned not null,"
+  "SUM_NUMBER_OF_BYTES_FREE BIGINT unsigned not null,"
+  "LOW_COUNT_USED BIGINT not null,"
+  "CURRENT_COUNT_USED BIGINT not null,"
+  "HIGH_COUNT_USED BIGINT not null,"
+  "LOW_NUMBER_OF_BYTES_USED BIGINT not null,"
+  "CURRENT_NUMBER_OF_BYTES_USED BIGINT not null,"
+  "HIGH_NUMBER_OF_BYTES_USED BIGINT not null"
+  ")ENGINE=PERFORMANCE_SCHEMA;";
+
+SET @str = IF(@have_pfs = 1, @cmd, 'SET @dummy = 0');
+PREPARE stmt FROM @str;
+EXECUTE stmt;
+DROP PREPARE stmt;
+
+--
 -- TABLE EVENTS_STATEMENTS_SUMMARY_BY_DIGEST
 --
 

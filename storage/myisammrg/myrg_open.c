@@ -1,4 +1,4 @@
-/* Copyright (c) 2000, 2011, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2000, 2013, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -104,7 +104,8 @@ MYRG_INFO *myrg_open(const char *name, int mode, int handle_locking)
     if (!m_info)                                /* First file */
     {
       key_parts=isam->s->base.key_parts;
-      if (!(m_info= (MYRG_INFO*) my_malloc(sizeof(MYRG_INFO) +
+      if (!(m_info= (MYRG_INFO*) my_malloc(rg_key_memory_MYRG_INFO,
+                                           sizeof(MYRG_INFO) +
                                            files*sizeof(MYRG_TABLE) +
                                            key_parts*sizeof(long),
                                            MYF(MY_WME|MY_ZEROFILL))))
@@ -145,7 +146,8 @@ MYRG_INFO *myrg_open(const char *name, int mode, int handle_locking)
 
   if (bad_children)
     goto bad_children;
-  if (!m_info && !(m_info= (MYRG_INFO*) my_malloc(sizeof(MYRG_INFO),
+  if (!m_info && !(m_info= (MYRG_INFO*) my_malloc(rg_key_memory_MYRG_INFO,
+                                                  sizeof(MYRG_INFO),
                                                   MYF(MY_WME | MY_ZEROFILL))))
     goto err;
   /* Don't mark table readonly, for ALTER TABLE ... UNION=(...) to work */
@@ -281,7 +283,8 @@ MYRG_INFO *myrg_parent_open(const char *parent_name,
   }
 
   /* Allocate MERGE parent table structure. */
-  if (!(m_info= (MYRG_INFO*) my_malloc(sizeof(MYRG_INFO) +
+  if (!(m_info= (MYRG_INFO*) my_malloc(rg_key_memory_MYRG_INFO,
+                                       sizeof(MYRG_INFO) +
                                        child_count * sizeof(MYRG_TABLE),
                                        MYF(MY_WME | MY_ZEROFILL))))
     goto err; /* purecov: inspected */
@@ -431,7 +434,8 @@ int myrg_attach_children(MYRG_INFO *m_info, int handle_locking,
       if (!m_info->rec_per_key_part)
       {
         if(!(m_info->rec_per_key_part= (ulong*)
-             my_malloc(key_parts * sizeof(long), MYF(MY_WME))))
+             my_malloc(rg_key_memory_MYRG_INFO,
+                       key_parts * sizeof(long), MYF(MY_WME))))
           goto err; /* purecov: inspected */
         errpos= 1;
       }

@@ -43,7 +43,8 @@ LINE_BUFFER *batch_readline_init(ulong max_size,FILE *file)
 #endif
 
   if (!(line_buff=(LINE_BUFFER*)
-        my_malloc(sizeof(*line_buff),MYF(MY_WME | MY_ZEROFILL))))
+        my_malloc(PSI_NOT_INSTRUMENTED,
+                  sizeof(*line_buff),MYF(MY_WME | MY_ZEROFILL))))
     return 0;
   if (init_line_buffer(line_buff,my_fileno(file),IO_SIZE,max_size))
   {
@@ -106,7 +107,8 @@ LINE_BUFFER *batch_readline_command(LINE_BUFFER *line_buff, char * str)
 {
   if (!line_buff)
     if (!(line_buff=(LINE_BUFFER*)
-          my_malloc(sizeof(*line_buff),MYF(MY_WME | MY_ZEROFILL))))
+          my_malloc(PSI_NOT_INSTRUMENTED,
+                    sizeof(*line_buff),MYF(MY_WME | MY_ZEROFILL))))
       return 0;
   if (init_line_buffer_from_string(line_buff,str))
   {
@@ -127,7 +129,8 @@ init_line_buffer(LINE_BUFFER *buffer,File file,ulong size,ulong max_buffer)
   buffer->file=file;
   buffer->bufread=size;
   buffer->max_size=max_buffer;
-  if (!(buffer->buffer = (char*) my_malloc(buffer->bufread+1,
+  if (!(buffer->buffer = (char*) my_malloc(PSI_NOT_INSTRUMENTED,
+                                           buffer->bufread+1,
 					   MYF(MY_WME | MY_FAE))))
     return 1;
   buffer->end_of_line=buffer->end=buffer->buffer;
@@ -145,7 +148,8 @@ static bool init_line_buffer_from_string(LINE_BUFFER *buffer,char * str)
   uint old_length=(uint)(buffer->end - buffer->buffer);
   uint length= (uint) strlen(str);
   if (!(buffer->buffer= buffer->start_of_line= buffer->end_of_line=
-	(char*) my_realloc((uchar*) buffer->buffer, old_length+length+2,
+	(char*) my_realloc(PSI_NOT_INSTRUMENTED,
+                           (uchar*) buffer->buffer, old_length+length+2,
                            MYF(MY_FAE|MY_ALLOW_ZERO_PTR))))
     return 1;
   buffer->end= buffer->buffer + old_length;
@@ -192,7 +196,8 @@ static size_t fill_buffer(LINE_BUFFER *buffer)
       return 0;
     }
     buffer->bufread *= 2;
-    if (!(buffer->buffer = (char*) my_realloc(buffer->buffer,
+    if (!(buffer->buffer = (char*) my_realloc(PSI_NOT_INSTRUMENTED,
+                                              buffer->buffer,
 					      buffer->bufread+1,
 					      MYF(MY_WME | MY_FAE))))
     {

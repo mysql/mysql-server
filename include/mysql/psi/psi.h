@@ -31,6 +31,9 @@
 #error "You must include my_global.h in the code for the build to be correct."
 #endif
 
+#include "psi_base.h"
+#include "psi_memory.h"
+
 /*
   MAINTAINER:
   The following pattern:
@@ -322,6 +325,16 @@ typedef struct PSI_bootstrap PSI_bootstrap;
 #endif
 
 /**
+  @def DISABLE_PSI_MEMORY
+  Compiling option to disable the memory instrumentation.
+  @sa DISABLE_PSI_MUTEX
+*/
+
+#ifndef DISABLE_PSI_MEMORY
+#define HAVE_PSI_MEMORY_INTERFACE
+#endif
+
+/**
   @def DISABLE_PSI_IDLE
   Compiling option to disable the idle instrumentation.
   @sa DISABLE_PSI_MUTEX
@@ -601,44 +614,6 @@ typedef unsigned int PSI_statement_key;
   Using a zero key always disable the instrumentation.
 */
 typedef unsigned int PSI_socket_key;
-
-/**
-  @def USE_PSI_1
-  Define USE_PSI_1 to use the interface version 1.
-*/
-
-/**
-  @def USE_PSI_2
-  Define USE_PSI_2 to use the interface version 2.
-*/
-
-/**
-  @def HAVE_PSI_1
-  Define HAVE_PSI_1 if the interface version 1 needs to be compiled in.
-*/
-
-/**
-  @def HAVE_PSI_2
-  Define HAVE_PSI_2 if the interface version 2 needs to be compiled in.
-*/
-
-/**
-  Global flag.
-  This flag indicate that an instrumentation point is a global variable,
-  or a singleton.
-*/
-#define PSI_FLAG_GLOBAL (1 << 0)
-
-/**
-  Mutable flag.
-  This flag indicate that an instrumentation point is a general placeholder,
-  that can mutate into a more specific instrumentation point.
-*/
-#define PSI_FLAG_MUTABLE (1 << 1)
-
-#ifdef USE_PSI_1
-#define HAVE_PSI_1
-#endif
 
 #ifdef HAVE_PSI_1
 
@@ -2260,6 +2235,14 @@ struct PSI_v1
   get_sp_share_v1_t get_sp_share;
   /** @sa release_sp_share_v1_t. */
   release_sp_share_v1_t release_sp_share;
+  /** @sa register_memory_v1_t. */
+  register_memory_v1_t register_memory;
+  /** @sa memory_alloc_v1_t. */
+  memory_alloc_v1_t memory_alloc;
+  /** @sa memory_realloc_v1_t. */
+  memory_realloc_v1_t memory_realloc;
+  /** @sa memory_free_v1_t. */
+  memory_free_v1_t memory_free;
 };
 
 /** @} (end of group Group_PSI_v1) */

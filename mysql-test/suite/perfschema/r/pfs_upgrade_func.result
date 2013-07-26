@@ -55,11 +55,16 @@ ERROR 1050 (42S01) at line 1171: Table 'events_statements_summary_global_by_even
 ERROR 1050 (42S01) at line 1180: Table 'hosts' already exists
 ERROR 1050 (42S01) at line 1189: Table 'users' already exists
 ERROR 1050 (42S01) at line 1199: Table 'accounts' already exists
-ERROR 1050 (42S01) at line 1234: Table 'events_statements_summary_by_digest' already exists
-ERROR 1050 (42S01) at line 1272: Table 'events_statements_summary_by_program' already exists
-ERROR 1050 (42S01) at line 1282: Table 'session_connect_attrs' already exists
-ERROR 1050 (42S01) at line 1288: Table 'session_account_connect_attrs' already exists
-ERROR 1644 (HY000) at line 2025: Unexpected content found in the performance_schema database.
+ERROR 1050 (42S01) at line 1216: Table 'memory_summary_global_by_event_name' already exists
+ERROR 1050 (42S01) at line 1234: Table 'memory_summary_by_thread_by_event_name' already exists
+ERROR 1050 (42S01) at line 1253: Table 'memory_summary_by_account_by_event_name' already exists
+ERROR 1050 (42S01) at line 1271: Table 'memory_summary_by_host_by_event_name' already exists
+ERROR 1050 (42S01) at line 1289: Table 'memory_summary_by_user_by_event_name' already exists
+ERROR 1050 (42S01) at line 1324: Table 'events_statements_summary_by_digest' already exists
+ERROR 1050 (42S01) at line 1362: Table 'events_statements_summary_by_program' already exists
+ERROR 1050 (42S01) at line 1372: Table 'session_connect_attrs' already exists
+ERROR 1050 (42S01) at line 1378: Table 'session_account_connect_attrs' already exists
+ERROR 1644 (HY000) at line 2115: Unexpected content found in the performance_schema database.
 FATAL ERROR: Upgrade failed
 select name from mysql.proc where db='performance_schema';
 name

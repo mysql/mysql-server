@@ -679,6 +679,28 @@ pfs_release_sp_share_noop(PSI_sp_share *sp_share NNN)
   return;
 }
 
+static void register_memory_noop(const char *category NNN,
+                                 PSI_memory_info *info NNN,
+                                 int count NNN)
+{
+  return;
+}
+
+static PSI_memory_key memory_alloc_noop(PSI_memory_key key NNN, size_t size NNN)
+{
+  return PSI_NOT_INSTRUMENTED;
+}
+
+static PSI_memory_key memory_realloc_noop(PSI_memory_key key NNN, size_t old_size NNN, size_t new_size NNN)
+{
+  return PSI_NOT_INSTRUMENTED;
+}
+
+static void memory_free_noop(PSI_memory_key key NNN, size_t size NNN)
+{
+  return;
+}
+
 static PSI PSI_noop=
 {
   register_mutex_noop,
@@ -782,7 +804,11 @@ static PSI PSI_noop=
   pfs_end_sp_noop,
   pfs_drop_sp_noop,
   pfs_get_sp_share_noop,
-  pfs_release_sp_share_noop
+  pfs_release_sp_share_noop,
+  register_memory_noop,
+  memory_alloc_noop,
+  memory_realloc_noop,
+  memory_free_noop
 };
 
 /**
