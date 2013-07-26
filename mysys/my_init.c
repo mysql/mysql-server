@@ -455,15 +455,6 @@ static my_bool win32_init_tcp_ip()
 PSI_stage_info stage_waiting_for_table_level_lock=
 {0, "Waiting for table level lock", 0};
 
-PSI_memory_key key_memory_max_alloca;
-PSI_memory_key key_memory_radix_sort;
-
-#ifdef _WIN32
-PSI_memory_key key_memory_win_SECURITY_ATTRIBUTES;
-PSI_memory_key key_memory_win_PACL;
-PSI_memory_key key_memory_win_IP_ADAPTER_ADDRESSES;
-#endif
-
 #ifdef HAVE_PSI_INTERFACE
 
 #if !defined(HAVE_PREAD) && !defined(_WIN32)

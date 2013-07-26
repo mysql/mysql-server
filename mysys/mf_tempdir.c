@@ -22,8 +22,6 @@
 #define DELIM ':'
 #endif
 
-PSI_memory_key key_memory_MY_TMPDIR_full_list;
-
 my_bool init_tmpdir(MY_TMPDIR *tmpdir, const char *pathlist)
 {
   char *end, *copy;

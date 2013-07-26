@@ -29,8 +29,6 @@
 #define ETIME ETIMEDOUT
 #endif
 
-PSI_memory_key key_memory_ALARM;
-
 static int alarm_aborted=1;			/* No alarm thread */
 my_bool thr_alarm_inited= 0;
 volatile my_bool alarm_thread_running= 0;
