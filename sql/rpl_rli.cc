@@ -163,19 +163,15 @@ void Relay_log_info::init_workers(ulong n_workers)
   mts_wq_excess_cnt= mts_wq_no_underrun_cnt= mts_wq_overfill_cnt= 0;
   mts_last_online_stat= 0;
 
-  //check for initialization before destroying memory.
-  if (workers_array_initialized)
-  {
-    for (int i= this->workers.elements - 1; i >= 0; i--)
-    {
-      Slave_worker *w= NULL;
-      get_dynamic((DYNAMIC_ARRAY*)&this->workers, (uchar*) &w, i);
-      delete_dynamic_element(&this->workers, i);
-      delete w;
-    }
-     deinit_workers();
-  }
-  slave_parallel_workers= 0;
+  /*
+    Free the buffer that was being used to report worker's status through
+    the table performance_schema.table_replication_execute_status_by_worker
+    between stop slave and next start slave.
+  */
+  for (int i= this->workers_copy_pfs.size() - 1; i >= 0; i--)
+    free(workers_copy_pfs[i]);
+  workers_copy_pfs.clear();
+
   my_init_dynamic_array(&workers, sizeof(Slave_worker *), n_workers, 4);
   workers_array_initialized= true; //set after init
 }

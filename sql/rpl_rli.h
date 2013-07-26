@@ -24,6 +24,7 @@
 #include "rpl_utility.h"
 #include "binlog.h"                      /* MYSQL_BIN_LOG */
 #include "sql_class.h"                   /* THD */
+#include<vector>
 
 struct RPL_TABLE_LIST;
 class Master_info;
@@ -513,13 +514,24 @@ public:
     WQ - Worker Queue containing event assignments
   */
   DYNAMIC_ARRAY workers; // number's is determined by global slave_parallel_workers
+
+  /*
+    For the purpose of reporting the worker status in performance schema table,
+    we need to preserve the workers array after worker thread was killed. So, we
+    copy this array into ithe below vector which is used for reporting
+    until next init_workers(). Note that we only copy those attributes that
+    would be useful in reporting worker status.
+  */
+
+  std::vector<Slave_worker*> workers_copy_pfs;
+
   /*
     This flag is turned ON when the workers array is initialized.
     Before destroying the workers array we check this flag to make sure
     we are not destroying an unitilized array. For the purpose of reporting the
     worker status in performance schema table, we need to preserve the workers
-    array after worker thread was killed. So, although the THDs are destroyed
-    the workers array is preserved until next init_workers().
+    array after worker thread was killed. So, we copy this array into
+    workers_copy_pfs array which is used for reporting until next init_workers().
   */
   bool workers_array_initialized;
 
@@ -633,11 +645,11 @@ public:
     if (workers_array_initialized)
       return workers.elements;
     else
-      return 0;
+      return workers_copy_pfs.size();
   }
 
   /* Returns a pointer to the worker instance at index n in workers array. */
-  inline Slave_worker* get_worker(uint n)
+  Slave_worker* get_worker(uint n)
   {
     if (workers_array_initialized)
     {
@@ -647,6 +659,13 @@ public:
       Slave_worker *ret_worker;
       get_dynamic(&workers, (uchar *) &ret_worker, n);
       return ret_worker;
+    }
+    else if (workers_copy_pfs.size())
+    {
+      if (n >= workers_copy_pfs.size())
+        return NULL;
+
+      return workers_copy_pfs[n];
     }
     else
       return NULL;
