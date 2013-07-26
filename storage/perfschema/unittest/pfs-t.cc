@@ -112,6 +112,7 @@ void test_bootstrap()
   param.m_digest_sizing= 0;
   param.m_session_connect_attrs_sizing= 0;
   param.m_statement_stack_sizing= 0;
+  param.m_memory_class_sizing= 0;
 
   pre_initialize_performance_schema();
   boot= initialize_performance_schema(& param);
@@ -172,6 +173,7 @@ PSI * load_perfschema()
   param.m_digest_sizing= 0;
   param.m_session_connect_attrs_sizing= 0;
   param.m_statement_stack_sizing= 10;
+  param.m_memory_class_sizing= 10;
 
   /* test_bootstrap() covered this, assuming it just works */
   boot= initialize_performance_schema(& param);
@@ -1517,6 +1519,7 @@ void test_event_name_index()
   param.m_digest_sizing= 0;
   param.m_session_connect_attrs_sizing= 0;
   param.m_statement_stack_sizing= 10;
+  param.m_memory_class_sizing= 12;
 
   param.m_mutex_sizing= 0;
   param.m_rwlock_sizing= 0;
@@ -1626,6 +1629,91 @@ void test_event_name_index()
   ok(wait_class_max= 313, "313 event names"); // 3 global classes
 }
 
+void test_memory_instruments()
+{
+  PSI *psi;
+
+  diag("test_memory_instruments");
+
+  psi= load_perfschema();
+
+  PSI_memory_key memory_key_A;
+  PSI_memory_info all_memory[]=
+  {
+    { & memory_key_A, "M-A", 0}
+  };
+
+  PSI_thread_key thread_key_1;
+  PSI_thread_info all_thread[]=
+  {
+    { & thread_key_1, "T-1", 0}
+  };
+
+  psi->register_memory("test", all_memory, 1);
+  psi->register_thread("test", all_thread, 1);
+
+  PFS_memory_class *memory_class_A;
+  PSI_thread *thread_1;
+  PSI_memory_key key;
+
+  /* Preparation */
+
+  thread_1= psi->new_thread(thread_key_1, NULL, 0);
+  ok(thread_1 != NULL, "T-1");
+  psi->set_thread_id(thread_1, 1);
+
+  memory_class_A= find_memory_class(memory_key_A);
+  ok(memory_class_A != NULL, "memory info A");
+
+  /* Pretend thread T-1 is running, and enabled */
+  /* ------------------------------------------ */
+
+  psi->set_thread(thread_1);
+  setup_thread(thread_1, true);
+
+  /* Enable all instruments */
+
+  memory_class_A->m_enabled= true;
+
+  /* for coverage, need to print stats collected. */
+
+  key= psi->memory_alloc(memory_key_A, 100);
+  ok(key == memory_key_A, "alloc memory info A");
+  key= psi->memory_realloc(memory_key_A, 100, 200);
+  ok(key == memory_key_A, "realloc memory info A");
+  key= psi->memory_realloc(memory_key_A, 200, 300);
+  ok(key == memory_key_A, "realloc up memory info A");
+  key= psi->memory_realloc(memory_key_A, 300, 50);
+  ok(key == memory_key_A, "realloc down memory info A");
+  psi->memory_free(memory_key_A, 50);
+
+  /* Use global instrumentation only */
+  /* ------------------------------- */
+
+  flag_thread_instrumentation= false;
+
+  key= psi->memory_alloc(memory_key_A, 100);
+  ok(key == memory_key_A, "alloc memory info A");
+  key= psi->memory_realloc(memory_key_A, 100, 200);
+  ok(key == memory_key_A, "realloc memory info A");
+  key= psi->memory_realloc(memory_key_A, 200, 300);
+  ok(key == memory_key_A, "realloc up memory info A");
+  key= psi->memory_realloc(memory_key_A, 300, 50);
+  ok(key == memory_key_A, "realloc down memory info A");
+  psi->memory_free(memory_key_A, 50);
+
+  /* Garbage, for robustness */
+  /* ----------------------- */
+
+  key= psi->memory_alloc(9999, 100);
+  ok(key == PSI_NOT_INSTRUMENTED, "alloc with unknown key");
+  key= psi->memory_realloc(PSI_NOT_INSTRUMENTED, 100, 200);
+  ok(key == PSI_NOT_INSTRUMENTED, "realloc with unknown key");
+  psi->memory_free(PSI_NOT_INSTRUMENTED, 200);
+
+  shutdown_performance_schema();
+}
+
 void do_all_tests()
 {
   /* Using initialize_performance_schema(), no partial init needed. */
@@ -1640,7 +1728,8 @@ void do_all_tests()
 
 int main(int, char **)
 {
-  plan(216);
+  plan(228);
+
   MY_INIT("pfs-t");
   do_all_tests();
   return 0;

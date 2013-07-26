@@ -1,4 +1,4 @@
-/* Copyright (c) 2006, 2011, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2006, 2013, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -39,6 +39,8 @@
 #include <m_string.h>
 #include <my_sys.h>
 #include <lf.h>
+
+PSI_memory_key key_memory_lf_dynarray;
 
 void lf_dynarray_init(LF_DYNARRAY *array, uint element_size)
 {
@@ -108,7 +110,8 @@ void *_lf_dynarray_lvalue(LF_DYNARRAY *array, uint idx)
   {
     if (!(ptr= *ptr_ptr))
     {
-      void *alloc= my_malloc(LF_DYNARRAY_LEVEL_LENGTH * sizeof(void *),
+      void *alloc= my_malloc(key_memory_lf_dynarray,
+                             LF_DYNARRAY_LEVEL_LENGTH * sizeof(void *),
                              MYF(MY_WME|MY_ZEROFILL));
       if (unlikely(!alloc))
         return(NULL);
@@ -123,7 +126,8 @@ void *_lf_dynarray_lvalue(LF_DYNARRAY *array, uint idx)
   if (!(ptr= *ptr_ptr))
   {
     uchar *alloc, *data;
-    alloc= my_malloc(LF_DYNARRAY_LEVEL_LENGTH * array->size_of_element +
+    alloc= my_malloc(key_memory_lf_dynarray,
+                     LF_DYNARRAY_LEVEL_LENGTH * array->size_of_element +
                      MY_MAX(array->size_of_element, sizeof(void *)),
                      MYF(MY_WME|MY_ZEROFILL));
     if (unlikely(!alloc))

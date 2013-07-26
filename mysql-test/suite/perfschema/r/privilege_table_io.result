@@ -39,6 +39,7 @@ performance_schema_max_cond_instances	1000
 performance_schema_max_file_classes	50
 performance_schema_max_file_handles	32768
 performance_schema_max_file_instances	10000
+performance_schema_max_memory_classes	250
 performance_schema_max_mutex_classes	200
 performance_schema_max_mutex_instances	5000
 performance_schema_max_program_instances	5000
@@ -68,6 +69,7 @@ Performance_schema_file_handles_lost	0
 Performance_schema_file_instances_lost	0
 Performance_schema_hosts_lost	0
 Performance_schema_locker_lost	0
+Performance_schema_memory_classes_lost	0
 Performance_schema_mutex_classes_lost	0
 Performance_schema_mutex_instances_lost	0
 Performance_schema_nested_statement_lost	0
@@ -124,6 +126,7 @@ Performance_schema_file_handles_lost	0
 Performance_schema_file_instances_lost	0
 Performance_schema_hosts_lost	0
 Performance_schema_locker_lost	0
+Performance_schema_memory_classes_lost	0
 Performance_schema_mutex_classes_lost	0
 Performance_schema_mutex_instances_lost	0
 Performance_schema_nested_statement_lost	0

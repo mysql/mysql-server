@@ -1,4 +1,8 @@
 #include "mysql/psi/psi.h"
+#include "psi_base.h"
+#include "psi_memory.h"
+#include "psi_base.h"
+typedef unsigned int PSI_memory_key;
 C_MODE_START
 struct TABLE_SHARE;
 struct OPAQUE_LEX_YYSTYPE;

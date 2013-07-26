@@ -68,6 +68,7 @@ pfs_host.h
 pfs_instr.h
 pfs_instr_class.h
 pfs_lock.h
+pfs_memory.h
 pfs_server.h
 pfs_setup_actor.h
 pfs_setup_object.h
@@ -99,6 +100,11 @@ table_ews_by_thread_by_event_name.h
 table_ews_by_user_by_event_name.h
 table_ews_global_by_event_name.h
 table_file_instances.h
+table_mems_global_by_event_name.h
+table_mems_by_account_by_event_name.h
+table_mems_by_host_by_event_name.h
+table_mems_by_thread_by_event_name.h
+table_mems_by_user_by_event_name.h
 table_file_summary_by_instance.h
 table_file_summary_by_event_name.h
 table_socket_instances.h
@@ -147,6 +153,7 @@ pfs_global.cc
 pfs_host.cc
 pfs_instr.cc
 pfs_instr_class.cc
+pfs_memory.cc
 pfs_server.cc
 pfs_setup_actor.cc
 pfs_setup_object.cc
@@ -177,6 +184,11 @@ table_ews_by_thread_by_event_name.cc
 table_ews_by_user_by_event_name.cc
 table_ews_global_by_event_name.cc
 table_file_instances.cc
+table_mems_global_by_event_name.cc
+table_mems_by_account_by_event_name.cc
+table_mems_by_host_by_event_name.cc
+table_mems_by_thread_by_event_name.cc
+table_mems_by_user_by_event_name.cc
 table_file_summary_by_instance.cc
 table_file_summary_by_event_name.cc
 table_socket_instances.cc

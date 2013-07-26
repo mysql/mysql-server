@@ -33,6 +33,10 @@
 extern "C" {
 #endif /* __cplusplus */
 
+#ifdef HAVE_PSI_INTERFACE
+void init_vio_psi_keys();
+#endif
+
 #ifdef __cplusplus
 typedef struct st_vio Vio;
 #endif /* __cplusplus */

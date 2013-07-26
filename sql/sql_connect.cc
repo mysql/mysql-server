@@ -87,7 +87,8 @@ int get_or_create_user_conn(THD *thd, const char *user,
   {
     /* First connection for user; Create a user connection object */
     if (!(uc= ((struct user_conn*)
-         my_malloc(sizeof(struct user_conn) + temp_len+1,
+         my_malloc(key_memory_user_conn,
+                   sizeof(struct user_conn) + temp_len+1,
        MYF(MY_WME)))))
     {
       /* MY_WME ensures an error is set in THD. */
@@ -594,7 +595,8 @@ static int check_connection(THD *thd)
       my_error(ER_BAD_HOST_ERROR, MYF(0));
       return 1;
     }
-    thd->main_security_ctx.set_ip(my_strdup(ip, MYF(MY_WME)));
+    thd->main_security_ctx.set_ip(my_strdup(key_memory_Security_context,
+                                            ip, MYF(MY_WME)));
     if (!(thd->main_security_ctx.get_ip()->length()))
     {
       /*

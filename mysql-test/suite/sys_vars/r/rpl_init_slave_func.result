@@ -21,19 +21,13 @@ SELECT @@global.init_slave = 'SET @@global.max_connections = @@global.max_connec
 @@global.init_slave = 'SET @@global.max_connections = @@global.max_connections + 1 -- комментарий'
 1
 Expect 1
-SELECT @@global.max_connections= @start_max_connections;
-@@global.max_connections= @start_max_connections
-1
-Expect 1
+include/assert.inc [@@global.max_connections = @start_max_connections]
 STOP SLAVE;
 RESET MASTER;
 RESET SLAVE;
 START SLAVE;
 include/wait_for_slave_to_start.inc
-SELECT @@global.max_connections = @start_max_connections + 1;
-@@global.max_connections = @start_max_connections + 1
-1
-Expect 1
+include/assert.inc [@@global.max_connections = @start_max_connections + 1]
 SET @@global.init_slave = "SET @a=5";
 STOP SLAVE;
 RESET MASTER;

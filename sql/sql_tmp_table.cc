@@ -545,7 +545,7 @@ create_tmp_table(THD *thd,TMP_TABLE_PARAM *param,List<Item> &fields,
   if (param->precomputed_group_by)
     copy_func_count+= param->sum_func_count;
   
-  init_sql_alloc(&own_root, TABLE_ALLOC_BLOCK_SIZE, 0);
+  init_sql_alloc(key_memory_TABLE, &own_root, TABLE_ALLOC_BLOCK_SIZE, 0);
 
   void *rawmem= alloc_root(&own_root, sizeof(Func_ptr_array));
   if (!rawmem)
@@ -1241,7 +1241,7 @@ TABLE *create_duplicate_weedout_tmp_table(THD *thd,
     using_unique_constraint= true;
 
   /* STEP 3: Allocate memory for temptable description */
-  init_sql_alloc(&own_root, TABLE_ALLOC_BLOCK_SIZE, 0);
+  init_sql_alloc(key_memory_TABLE, &own_root, TABLE_ALLOC_BLOCK_SIZE, 0);
   if (!multi_alloc_root(&own_root,
                         &table, sizeof(*table),
                         &share, sizeof(*share),

@@ -1,4 +1,24 @@
 #include "mysql/psi/psi.h"
+#include "psi_base.h"
+#include "psi_memory.h"
+#include "psi_base.h"
+typedef unsigned int PSI_memory_key;
+struct PSI_memory_info_v1
+{
+  PSI_memory_key *m_key;
+  const char *m_name;
+  int m_flags;
+};
+typedef struct PSI_memory_info_v1 PSI_memory_info_v1;
+typedef void (*register_memory_v1_t)
+  (const char *category, struct PSI_memory_info_v1 *info, int count);
+typedef PSI_memory_key (*memory_alloc_v1_t)
+  (PSI_memory_key key, size_t size);
+typedef PSI_memory_key (*memory_realloc_v1_t)
+  (PSI_memory_key key, size_t old_size, size_t new_size);
+typedef void (*memory_free_v1_t)
+  (PSI_memory_key key, size_t size);
+typedef struct PSI_memory_info_v1 PSI_memory_info;
 C_MODE_START
 struct TABLE_SHARE;
 struct OPAQUE_LEX_YYSTYPE;
@@ -660,6 +680,10 @@ struct PSI_v1
   drop_sp_v1_t drop_sp;
   get_sp_share_v1_t get_sp_share;
   release_sp_share_v1_t release_sp_share;
+  register_memory_v1_t register_memory;
+  memory_alloc_v1_t memory_alloc;
+  memory_realloc_v1_t memory_realloc;
+  memory_free_v1_t memory_free;
 };
 typedef struct PSI_v1 PSI;
 typedef struct PSI_mutex_info_v1 PSI_mutex_info;

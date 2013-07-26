@@ -417,7 +417,8 @@ push_ignored_db_dir(char *path)
     return true;
 
   // No need to normalize, it's only a directory name, not a path.
-  if (!my_multi_malloc(0,
+  if (!my_multi_malloc(key_memory_ignored_db,
+                       0,
                        &new_elt, sizeof(LEX_STRING),
                        &new_elt_buffer, path_len + 1,
                        NullS))
@@ -510,7 +511,8 @@ ignore_db_dirs_process_additions()
     len--;
 
   /* +1 the terminating zero */
-  ptr= opt_ignore_db_dirs= (char *) my_malloc(len + 1, MYF(0));
+  ptr= opt_ignore_db_dirs= (char *) my_malloc(key_memory_ignored_db,
+                                              len + 1, MYF(0));
   if (!ptr)
     return true;
 
@@ -3777,7 +3779,8 @@ static int fill_schema_table_from_frm(THD *thd, TABLE_LIST *tables,
       TABLE tbl;
 
       memset(&tbl, 0, sizeof(TABLE));
-      init_sql_alloc(&tbl.mem_root, TABLE_ALLOC_BLOCK_SIZE, 0);
+      init_sql_alloc(key_memory_table_triggers_list,
+                     &tbl.mem_root, TABLE_ALLOC_BLOCK_SIZE, 0);
 
       tbl.triggers= &d;
       table_list.table= &tbl;
@@ -3835,7 +3838,8 @@ static int fill_schema_table_from_frm(THD *thd, TABLE_LIST *tables,
   {
     TABLE tbl;
     memset(&tbl, 0, sizeof(TABLE));
-    init_sql_alloc(&tbl.mem_root, TABLE_ALLOC_BLOCK_SIZE, 0);
+    init_sql_alloc(key_memory_table_triggers_list,
+                   &tbl.mem_root, TABLE_ALLOC_BLOCK_SIZE, 0);
 
     if (!open_table_from_share(thd, share, table_name->str, 0,
                                (EXTRA_RECORD | OPEN_FRM_FILE_ONLY),
@@ -8173,7 +8177,8 @@ int initialize_schema_table(st_plugin_int *plugin)
   ST_SCHEMA_TABLE *schema_table;
   DBUG_ENTER("initialize_schema_table");
 
-  if (!(schema_table= (ST_SCHEMA_TABLE *)my_malloc(sizeof(ST_SCHEMA_TABLE),
+  if (!(schema_table= (ST_SCHEMA_TABLE *)my_malloc(key_memory_ST_SCHEMA_TABLE,
+                                                   sizeof(ST_SCHEMA_TABLE),
                                 MYF(MY_WME | MY_ZEROFILL))))
       DBUG_RETURN(1);
   /* Historical Requirement */

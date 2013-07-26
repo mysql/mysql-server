@@ -568,6 +568,66 @@ def	performance_schema	host_cache	FIRST_SEEN	26	0000-00-00 00:00:00	NO	timestamp
 def	performance_schema	host_cache	LAST_SEEN	27	0000-00-00 00:00:00	NO	timestamp	NULL	NULL	NULL	NULL	0	NULL	NULL	timestamp			select,insert,update,references	
 def	performance_schema	host_cache	FIRST_ERROR_SEEN	28	0000-00-00 00:00:00	YES	timestamp	NULL	NULL	NULL	NULL	0	NULL	NULL	timestamp			select,insert,update,references	
 def	performance_schema	host_cache	LAST_ERROR_SEEN	29	0000-00-00 00:00:00	YES	timestamp	NULL	NULL	NULL	NULL	0	NULL	NULL	timestamp			select,insert,update,references	
+def	performance_schema	memory_summary_by_account_by_event_name	USER	1	NULL	YES	char	16	48	NULL	NULL	NULL	utf8	utf8_bin	char(16)			select,insert,update,references	
+def	performance_schema	memory_summary_by_account_by_event_name	HOST	2	NULL	YES	char	60	180	NULL	NULL	NULL	utf8	utf8_bin	char(60)			select,insert,update,references	
+def	performance_schema	memory_summary_by_account_by_event_name	EVENT_NAME	3	NULL	NO	varchar	128	384	NULL	NULL	NULL	utf8	utf8_general_ci	varchar(128)			select,insert,update,references	
+def	performance_schema	memory_summary_by_account_by_event_name	COUNT_ALLOC	4	NULL	NO	bigint	NULL	NULL	20	0	NULL	NULL	NULL	bigint(20) unsigned			select,insert,update,references	
+def	performance_schema	memory_summary_by_account_by_event_name	COUNT_FREE	5	NULL	NO	bigint	NULL	NULL	20	0	NULL	NULL	NULL	bigint(20) unsigned			select,insert,update,references	
+def	performance_schema	memory_summary_by_account_by_event_name	SUM_NUMBER_OF_BYTES_ALLOC	6	NULL	NO	bigint	NULL	NULL	20	0	NULL	NULL	NULL	bigint(20) unsigned			select,insert,update,references	
+def	performance_schema	memory_summary_by_account_by_event_name	SUM_NUMBER_OF_BYTES_FREE	7	NULL	NO	bigint	NULL	NULL	20	0	NULL	NULL	NULL	bigint(20) unsigned			select,insert,update,references	
+def	performance_schema	memory_summary_by_account_by_event_name	LOW_COUNT_USED	8	NULL	NO	bigint	NULL	NULL	19	0	NULL	NULL	NULL	bigint(20)			select,insert,update,references	
+def	performance_schema	memory_summary_by_account_by_event_name	CURRENT_COUNT_USED	9	NULL	NO	bigint	NULL	NULL	19	0	NULL	NULL	NULL	bigint(20)			select,insert,update,references	
+def	performance_schema	memory_summary_by_account_by_event_name	HIGH_COUNT_USED	10	NULL	NO	bigint	NULL	NULL	19	0	NULL	NULL	NULL	bigint(20)			select,insert,update,references	
+def	performance_schema	memory_summary_by_account_by_event_name	LOW_NUMBER_OF_BYTES_USED	11	NULL	NO	bigint	NULL	NULL	19	0	NULL	NULL	NULL	bigint(20)			select,insert,update,references	
+def	performance_schema	memory_summary_by_account_by_event_name	CURRENT_NUMBER_OF_BYTES_USED	12	NULL	NO	bigint	NULL	NULL	19	0	NULL	NULL	NULL	bigint(20)			select,insert,update,references	
+def	performance_schema	memory_summary_by_account_by_event_name	HIGH_NUMBER_OF_BYTES_USED	13	NULL	NO	bigint	NULL	NULL	19	0	NULL	NULL	NULL	bigint(20)			select,insert,update,references	
+def	performance_schema	memory_summary_by_host_by_event_name	HOST	1	NULL	YES	char	60	180	NULL	NULL	NULL	utf8	utf8_bin	char(60)			select,insert,update,references	
+def	performance_schema	memory_summary_by_host_by_event_name	EVENT_NAME	2	NULL	NO	varchar	128	384	NULL	NULL	NULL	utf8	utf8_general_ci	varchar(128)			select,insert,update,references	
+def	performance_schema	memory_summary_by_host_by_event_name	COUNT_ALLOC	3	NULL	NO	bigint	NULL	NULL	20	0	NULL	NULL	NULL	bigint(20) unsigned			select,insert,update,references	
+def	performance_schema	memory_summary_by_host_by_event_name	COUNT_FREE	4	NULL	NO	bigint	NULL	NULL	20	0	NULL	NULL	NULL	bigint(20) unsigned			select,insert,update,references	
+def	performance_schema	memory_summary_by_host_by_event_name	SUM_NUMBER_OF_BYTES_ALLOC	5	NULL	NO	bigint	NULL	NULL	20	0	NULL	NULL	NULL	bigint(20) unsigned			select,insert,update,references	
+def	performance_schema	memory_summary_by_host_by_event_name	SUM_NUMBER_OF_BYTES_FREE	6	NULL	NO	bigint	NULL	NULL	20	0	NULL	NULL	NULL	bigint(20) unsigned			select,insert,update,references	
+def	performance_schema	memory_summary_by_host_by_event_name	LOW_COUNT_USED	7	NULL	NO	bigint	NULL	NULL	19	0	NULL	NULL	NULL	bigint(20)			select,insert,update,references	
+def	performance_schema	memory_summary_by_host_by_event_name	CURRENT_COUNT_USED	8	NULL	NO	bigint	NULL	NULL	19	0	NULL	NULL	NULL	bigint(20)			select,insert,update,references	
+def	performance_schema	memory_summary_by_host_by_event_name	HIGH_COUNT_USED	9	NULL	NO	bigint	NULL	NULL	19	0	NULL	NULL	NULL	bigint(20)			select,insert,update,references	
+def	performance_schema	memory_summary_by_host_by_event_name	LOW_NUMBER_OF_BYTES_USED	10	NULL	NO	bigint	NULL	NULL	19	0	NULL	NULL	NULL	bigint(20)			select,insert,update,references	
+def	performance_schema	memory_summary_by_host_by_event_name	CURRENT_NUMBER_OF_BYTES_USED	11	NULL	NO	bigint	NULL	NULL	19	0	NULL	NULL	NULL	bigint(20)			select,insert,update,references	
+def	performance_schema	memory_summary_by_host_by_event_name	HIGH_NUMBER_OF_BYTES_USED	12	NULL	NO	bigint	NULL	NULL	19	0	NULL	NULL	NULL	bigint(20)			select,insert,update,references	
+def	performance_schema	memory_summary_by_thread_by_event_name	THREAD_ID	1	NULL	NO	bigint	NULL	NULL	20	0	NULL	NULL	NULL	bigint(20) unsigned			select,insert,update,references	
+def	performance_schema	memory_summary_by_thread_by_event_name	EVENT_NAME	2	NULL	NO	varchar	128	384	NULL	NULL	NULL	utf8	utf8_general_ci	varchar(128)			select,insert,update,references	
+def	performance_schema	memory_summary_by_thread_by_event_name	COUNT_ALLOC	3	NULL	NO	bigint	NULL	NULL	20	0	NULL	NULL	NULL	bigint(20) unsigned			select,insert,update,references	
+def	performance_schema	memory_summary_by_thread_by_event_name	COUNT_FREE	4	NULL	NO	bigint	NULL	NULL	20	0	NULL	NULL	NULL	bigint(20) unsigned			select,insert,update,references	
+def	performance_schema	memory_summary_by_thread_by_event_name	SUM_NUMBER_OF_BYTES_ALLOC	5	NULL	NO	bigint	NULL	NULL	20	0	NULL	NULL	NULL	bigint(20) unsigned			select,insert,update,references	
+def	performance_schema	memory_summary_by_thread_by_event_name	SUM_NUMBER_OF_BYTES_FREE	6	NULL	NO	bigint	NULL	NULL	20	0	NULL	NULL	NULL	bigint(20) unsigned			select,insert,update,references	
+def	performance_schema	memory_summary_by_thread_by_event_name	LOW_COUNT_USED	7	NULL	NO	bigint	NULL	NULL	19	0	NULL	NULL	NULL	bigint(20)			select,insert,update,references	
+def	performance_schema	memory_summary_by_thread_by_event_name	CURRENT_COUNT_USED	8	NULL	NO	bigint	NULL	NULL	19	0	NULL	NULL	NULL	bigint(20)			select,insert,update,references	
+def	performance_schema	memory_summary_by_thread_by_event_name	HIGH_COUNT_USED	9	NULL	NO	bigint	NULL	NULL	19	0	NULL	NULL	NULL	bigint(20)			select,insert,update,references	
+def	performance_schema	memory_summary_by_thread_by_event_name	LOW_NUMBER_OF_BYTES_USED	10	NULL	NO	bigint	NULL	NULL	19	0	NULL	NULL	NULL	bigint(20)			select,insert,update,references	
+def	performance_schema	memory_summary_by_thread_by_event_name	CURRENT_NUMBER_OF_BYTES_USED	11	NULL	NO	bigint	NULL	NULL	19	0	NULL	NULL	NULL	bigint(20)			select,insert,update,references	
+def	performance_schema	memory_summary_by_thread_by_event_name	HIGH_NUMBER_OF_BYTES_USED	12	NULL	NO	bigint	NULL	NULL	19	0	NULL	NULL	NULL	bigint(20)			select,insert,update,references	
+def	performance_schema	memory_summary_by_user_by_event_name	USER	1	NULL	YES	char	16	48	NULL	NULL	NULL	utf8	utf8_bin	char(16)			select,insert,update,references	
+def	performance_schema	memory_summary_by_user_by_event_name	EVENT_NAME	2	NULL	NO	varchar	128	384	NULL	NULL	NULL	utf8	utf8_general_ci	varchar(128)			select,insert,update,references	
+def	performance_schema	memory_summary_by_user_by_event_name	COUNT_ALLOC	3	NULL	NO	bigint	NULL	NULL	20	0	NULL	NULL	NULL	bigint(20) unsigned			select,insert,update,references	
+def	performance_schema	memory_summary_by_user_by_event_name	COUNT_FREE	4	NULL	NO	bigint	NULL	NULL	20	0	NULL	NULL	NULL	bigint(20) unsigned			select,insert,update,references	
+def	performance_schema	memory_summary_by_user_by_event_name	SUM_NUMBER_OF_BYTES_ALLOC	5	NULL	NO	bigint	NULL	NULL	20	0	NULL	NULL	NULL	bigint(20) unsigned			select,insert,update,references	
+def	performance_schema	memory_summary_by_user_by_event_name	SUM_NUMBER_OF_BYTES_FREE	6	NULL	NO	bigint	NULL	NULL	20	0	NULL	NULL	NULL	bigint(20) unsigned			select,insert,update,references	
+def	performance_schema	memory_summary_by_user_by_event_name	LOW_COUNT_USED	7	NULL	NO	bigint	NULL	NULL	19	0	NULL	NULL	NULL	bigint(20)			select,insert,update,references	
+def	performance_schema	memory_summary_by_user_by_event_name	CURRENT_COUNT_USED	8	NULL	NO	bigint	NULL	NULL	19	0	NULL	NULL	NULL	bigint(20)			select,insert,update,references	
+def	performance_schema	memory_summary_by_user_by_event_name	HIGH_COUNT_USED	9	NULL	NO	bigint	NULL	NULL	19	0	NULL	NULL	NULL	bigint(20)			select,insert,update,references	
+def	performance_schema	memory_summary_by_user_by_event_name	LOW_NUMBER_OF_BYTES_USED	10	NULL	NO	bigint	NULL	NULL	19	0	NULL	NULL	NULL	bigint(20)			select,insert,update,references	
+def	performance_schema	memory_summary_by_user_by_event_name	CURRENT_NUMBER_OF_BYTES_USED	11	NULL	NO	bigint	NULL	NULL	19	0	NULL	NULL	NULL	bigint(20)			select,insert,update,references	
+def	performance_schema	memory_summary_by_user_by_event_name	HIGH_NUMBER_OF_BYTES_USED	12	NULL	NO	bigint	NULL	NULL	19	0	NULL	NULL	NULL	bigint(20)			select,insert,update,references	
+def	performance_schema	memory_summary_global_by_event_name	EVENT_NAME	1	NULL	NO	varchar	128	384	NULL	NULL	NULL	utf8	utf8_general_ci	varchar(128)			select,insert,update,references	
+def	performance_schema	memory_summary_global_by_event_name	COUNT_ALLOC	2	NULL	NO	bigint	NULL	NULL	20	0	NULL	NULL	NULL	bigint(20) unsigned			select,insert,update,references	
+def	performance_schema	memory_summary_global_by_event_name	COUNT_FREE	3	NULL	NO	bigint	NULL	NULL	20	0	NULL	NULL	NULL	bigint(20) unsigned			select,insert,update,references	
+def	performance_schema	memory_summary_global_by_event_name	SUM_NUMBER_OF_BYTES_ALLOC	4	NULL	NO	bigint	NULL	NULL	20	0	NULL	NULL	NULL	bigint(20) unsigned			select,insert,update,references	
+def	performance_schema	memory_summary_global_by_event_name	SUM_NUMBER_OF_BYTES_FREE	5	NULL	NO	bigint	NULL	NULL	20	0	NULL	NULL	NULL	bigint(20) unsigned			select,insert,update,references	
+def	performance_schema	memory_summary_global_by_event_name	LOW_COUNT_USED	6	NULL	NO	bigint	NULL	NULL	19	0	NULL	NULL	NULL	bigint(20)			select,insert,update,references	
+def	performance_schema	memory_summary_global_by_event_name	CURRENT_COUNT_USED	7	NULL	NO	bigint	NULL	NULL	19	0	NULL	NULL	NULL	bigint(20)			select,insert,update,references	
+def	performance_schema	memory_summary_global_by_event_name	HIGH_COUNT_USED	8	NULL	NO	bigint	NULL	NULL	19	0	NULL	NULL	NULL	bigint(20)			select,insert,update,references	
+def	performance_schema	memory_summary_global_by_event_name	LOW_NUMBER_OF_BYTES_USED	9	NULL	NO	bigint	NULL	NULL	19	0	NULL	NULL	NULL	bigint(20)			select,insert,update,references	
+def	performance_schema	memory_summary_global_by_event_name	CURRENT_NUMBER_OF_BYTES_USED	10	NULL	NO	bigint	NULL	NULL	19	0	NULL	NULL	NULL	bigint(20)			select,insert,update,references	
+def	performance_schema	memory_summary_global_by_event_name	HIGH_NUMBER_OF_BYTES_USED	11	NULL	NO	bigint	NULL	NULL	19	0	NULL	NULL	NULL	bigint(20)			select,insert,update,references	
 def	performance_schema	mutex_instances	NAME	1	NULL	NO	varchar	128	384	NULL	NULL	NULL	utf8	utf8_general_ci	varchar(128)			select,insert,update,references	
 def	performance_schema	mutex_instances	OBJECT_INSTANCE_BEGIN	2	NULL	NO	bigint	NULL	NULL	20	0	NULL	NULL	NULL	bigint(20) unsigned			select,insert,update,references	
 def	performance_schema	mutex_instances	LOCKED_BY_THREAD_ID	3	NULL	YES	bigint	NULL	NULL	20	0	NULL	NULL	NULL	bigint(20) unsigned			select,insert,update,references	

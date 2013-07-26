@@ -22,6 +22,8 @@
 #define DELIM ':'
 #endif
 
+PSI_memory_key key_memory_MY_TMPDIR_full_list;
+
 my_bool init_tmpdir(MY_TMPDIR *tmpdir, const char *pathlist)
 {
   char *end, *copy;
@@ -51,7 +53,8 @@ my_bool init_tmpdir(MY_TMPDIR *tmpdir, const char *pathlist)
     end=strcend(pathlist, DELIM);
     strmake(buff, pathlist, (uint) (end-pathlist));
     length= cleanup_dirname(buff, buff);
-    if (!(copy= my_strndup(buff, length, MYF(MY_WME))) ||
+    if (!(copy= my_strndup(key_memory_MY_TMPDIR_full_list,
+                           buff, length, MYF(MY_WME))) ||
         insert_dynamic(&tmpdir->full_list, &copy))
       DBUG_RETURN(TRUE);
     pathlist=end+1;

@@ -1152,6 +1152,61 @@ static inline int mysql_mutex_lock(...)
         @c table_events_statements_common::make_row()
   - [I] EVENTS_STATEMENTS_SUMMARY_BY_DIGEST
         @c table_esms_by_digest::make_row()
+
+@section IMPL_MEMORY Implementation for memory instruments
+
+  For memory, there are no tables that contains individual event data.
+
+  For memory, the tables that contains aggregated data are:
+  - MEMORY_SUMMARY_BY_ACCOUNT_BY_EVENT_NAME
+  - MEMORY_SUMMARY_BY_HOST_BY_EVENT_NAME
+  - MEMORY_SUMMARY_BY_THREAD_BY_EVENT_NAME
+  - MEMORY_SUMMARY_BY_USER_BY_EVENT_NAME
+  - MEMORY_SUMMARY_GLOBAL_BY_EVENT_NAME
+
+@verbatim
+  memory_event(T, S)
+   |
+   | [1]
+   |
+1a |-> pfs_thread(T).event_name(S)            =====>> [A], [B], [C], [D], [E]
+   |    |
+   |    | [2]
+   |    |
+1+ | 2a |-> pfs_account(U, H).event_name(S)   =====>> [B], [C], [D], [E]
+   |    .    |
+   |    .    | [3-RESET]
+   |    .    |
+1+ | 2b .....+-> pfs_user(U).event_name(S)    =====>> [C]
+   |    .    |
+1+ | 2c .....+-> pfs_host(H).event_name(S)    =====>> [D], [E]
+   |    .    .    |
+   |    .    .    | [4-RESET]
+   | 2d .    .    |
+1b |----+----+----+-> global.event_name(S)    =====>> [E]
+
+@endverbatim
+
+  Implemented as:
+  - [1] @c memory_alloc_v1(),
+        @c memory_realloc_v1(),
+        @c memory_free_v1().
+  - [1+] are overflows that can happen during [1a],
+        implemented with @c carry_memory_stat_delta()
+  - [2] @c delete_thread_v1(), @c aggregate_thread_memory()
+  - [3] @c PFS_account::aggregate_memory()
+  - [4] @c PFS_host::aggregate_memory()
+  - [A] EVENTS_STATEMENTS_SUMMARY_BY_THREAD_BY_EVENT_NAME,
+        @c table_mems_by_thread_by_event_name::make_row()
+  - [B] EVENTS_STATEMENTS_SUMMARY_BY_ACCOUNT_BY_EVENT_NAME,
+        @c table_mems_by_account_by_event_name::make_row()
+  - [C] EVENTS_STATEMENTS_SUMMARY_BY_USER_BY_EVENT_NAME,
+        @c table_mems_by_user_by_event_name::make_row()
+  - [D] EVENTS_STATEMENTS_SUMMARY_BY_HOST_BY_EVENT_NAME,
+        @c table_mems_by_host_by_event_name::make_row()
+  - [E] EVENTS_STATEMENTS_SUMMARY_GLOBAL_BY_EVENT_NAME,
+        @c table_mems_global_by_event_name::make_row()
+
 */
 
 /**
@@ -1942,7 +1997,8 @@ int pfs_spawn_thread_v1(PSI_thread_key key,
   PFS_thread *parent;
 
   /* psi_arg can not be global, and can not be a local variable. */
-  psi_arg= (PFS_spawn_thread_arg*) my_malloc(sizeof(PFS_spawn_thread_arg),
+  psi_arg= (PFS_spawn_thread_arg*) my_malloc(PSI_NOT_INSTRUMENTED,
+                                             sizeof(PFS_spawn_thread_arg),
                                              MYF(MY_WME));
   if (unlikely(psi_arg == NULL))
     return EAGAIN;
@@ -4909,7 +4965,6 @@ void pfs_end_statement_v1(PSI_statement_locker *locker, void *stmt_da)
                                          state->m_schema_name_length);
     }
 
-
     if (flags & STATE_FLAG_EVENT)
     {
       PFS_events_statements *pfs= reinterpret_cast<PFS_events_statements*> (state->m_statement);
@@ -5375,7 +5430,6 @@ void pfs_set_socket_thread_owner_v1(PSI_socket *socket)
   pfs_socket->m_thread_owner= my_pthread_get_THR_PFS();
 }
 
-
 /**
   Implementation of the thread attribute connection interface
   @sa PSI_v1::set_thread_connect_attr.
@@ -5407,6 +5461,143 @@ int pfs_set_thread_connect_attrs_v1(const char *buffer, uint length,
   return 0;
 }
 
+void pfs_register_memory_v1(const char *category,
+                               PSI_memory_info_v1 *info,
+                               int count)
+{
+  REGISTER_BODY_V1(PSI_memory_key,
+                   memory_instrument_prefix,
+                   register_memory_class)
+}
+
+static PSI_memory_key memory_alloc_v1(PSI_memory_key key, size_t size)
+{
+  PFS_memory_class *klass= find_memory_class(key);
+  if (klass == NULL)
+    return PSI_NOT_INSTRUMENTED;
+  if (! klass->m_enabled)
+    return PSI_NOT_INSTRUMENTED;
+
+  PFS_memory_stat *event_name_array;
+  PFS_memory_stat *stat;
+  uint index= klass->m_event_name_index;
+  PFS_memory_stat_delta delta_buffer;
+  PFS_memory_stat_delta *delta;
+
+  if (flag_thread_instrumentation)
+  {
+    PFS_thread *pfs_thread= my_pthread_getspecific_ptr(PFS_thread*, THR_PFS);
+    if (unlikely(pfs_thread == NULL))
+      return PSI_NOT_INSTRUMENTED;
+    if (! pfs_thread->m_enabled)
+      return PSI_NOT_INSTRUMENTED;
+
+    /* Aggregate to MEMORY_SUMMARY_BY_THREAD_BY_EVENT_NAME */
+    event_name_array= pfs_thread->m_instr_class_memory_stats;
+    stat= & event_name_array[index];
+    delta= stat->count_alloc(size, &delta_buffer);
+
+    if (delta != NULL)
+    {
+      pfs_thread->carry_memory_stat_delta(delta, index);
+    }
+  }
+  else
+  {
+    /* Aggregate to MEMORY_SUMMARY_GLOBAL_BY_EVENT_NAME */
+    event_name_array= global_instr_class_memory_array;
+    stat= & event_name_array[index];
+    (void) stat->count_alloc(size, &delta_buffer);
+  }
+
+  return key;
+}
+
+static PSI_memory_key memory_realloc_v1(PSI_memory_key key, size_t old_size, size_t new_size)
+{
+  PFS_memory_class *klass= find_memory_class(key);
+  if (klass == NULL)
+    return PSI_NOT_INSTRUMENTED;
+  if (! klass->m_enabled)
+    return PSI_NOT_INSTRUMENTED;
+
+  PFS_memory_stat *event_name_array;
+  PFS_memory_stat *stat;
+  uint index= klass->m_event_name_index;
+  PFS_memory_stat_delta delta_buffer;
+  PFS_memory_stat_delta *delta;
+
+  if (flag_thread_instrumentation)
+  {
+    PFS_thread *pfs_thread= my_pthread_getspecific_ptr(PFS_thread*, THR_PFS);
+    if (unlikely(pfs_thread == NULL))
+      return PSI_NOT_INSTRUMENTED;
+    if (! pfs_thread->m_enabled)
+      return PSI_NOT_INSTRUMENTED;
+
+    /* Aggregate to MEMORY_SUMMARY_BY_THREAD_BY_EVENT_NAME */
+    event_name_array= pfs_thread->m_instr_class_memory_stats;
+    stat= & event_name_array[index];
+    delta= stat->count_realloc(old_size, new_size, &delta_buffer);
+
+    if (delta != NULL)
+    {
+      pfs_thread->carry_memory_stat_delta(delta, index);
+    }
+  }
+  else
+  {
+    /* Aggregate to MEMORY_SUMMARY_GLOBAL_BY_EVENT_NAME */
+    event_name_array= global_instr_class_memory_array;
+    stat= & event_name_array[index];
+    (void) stat->count_realloc(old_size, new_size, &delta_buffer);
+  }
+
+  return key;
+}
+
+static void memory_free_v1(PSI_memory_key key, size_t size)
+{
+  PFS_memory_class *klass= find_memory_class(key);
+  if (klass == NULL)
+    return;
+  if (! klass->m_enabled)
+    return;
+
+  PFS_memory_stat *event_name_array;
+  PFS_memory_stat *stat;
+  uint index= klass->m_event_name_index;
+  PFS_memory_stat_delta delta_buffer;
+  PFS_memory_stat_delta *delta;
+
+  if (flag_thread_instrumentation)
+  {
+    PFS_thread *pfs_thread= my_pthread_getspecific_ptr(PFS_thread*, THR_PFS);
+    if (unlikely(pfs_thread == NULL))
+      return;
+    if (! pfs_thread->m_enabled)
+      return;
+
+    /* Aggregate to MEMORY_SUMMARY_BY_THREAD_BY_EVENT_NAME */
+    event_name_array= pfs_thread->m_instr_class_memory_stats;
+    stat= & event_name_array[index];
+    delta= stat->count_free(size, &delta_buffer);
+
+    if (delta != NULL)
+    {
+      pfs_thread->carry_memory_stat_delta(delta, index);
+    }
+  }
+  else
+  {
+    /* Aggregate to MEMORY_SUMMARY_GLOBAL_BY_EVENT_NAME */
+    event_name_array= global_instr_class_memory_array;
+    stat= & event_name_array[index];
+    (void) stat->count_free(size, &delta_buffer);
+  }
+
+  return;
+}
 
 /**
   Implementation of the instrumentation interface.
@@ -5515,7 +5706,11 @@ PSI_v1 PFS_v1=
   pfs_end_sp_v1,
   pfs_drop_sp_v1,
   pfs_get_sp_share_v1,
-  pfs_release_sp_share_v1
+  pfs_release_sp_share_v1,
+  pfs_register_memory_v1,
+  memory_alloc_v1,
+  memory_realloc_v1,
+  memory_free_v1
 };
 
 static void* get_interface(int version)
