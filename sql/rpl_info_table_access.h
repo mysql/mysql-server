@@ -1,4 +1,4 @@
-/* Copyright (c) 2010, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2010, 2013, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -35,7 +35,7 @@ public:
                   uint max_num_field, enum thr_lock_type lock_type,
                   TABLE** table, Open_tables_backup* backup);
   bool close_table(THD* thd, TABLE* table, Open_tables_backup* backup,
-                   bool error);
+                   bool error, bool force_commit= false);
   enum enum_return_id find_info(Rpl_info_values *field_values, TABLE *table);
   enum enum_return_id scan_info(TABLE *table, uint instance);
   bool count_info(TABLE *table, uint* counter);
