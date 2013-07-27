@@ -621,8 +621,28 @@ ReadView::copy_complete()
 	ut_ad(!mutex_own(&trx_sys->mutex));
 
 	if (m_creator_trx_id > 0) {
-		m_ids.push_back(m_creator_trx_id);
-		std::sort(m_ids.data(), m_ids.data() + m_ids.size());
+
+		m_ids.reserve(m_ids.size() + 1);
+		m_ids.resize(m_ids.size() + 1);
+
+		ids_t::value_type*	end = m_ids.data() + m_ids.size();
+
+		ids_t::value_type*	it = std::upper_bound(
+			m_ids.data(), end, m_creator_trx_id);
+
+		if (it == end) {
+			m_ids.push_back(m_creator_trx_id);
+		} else {
+			ut_ad(it < end);
+
+
+			ulint	n_elems = end - it;
+			ulint	n = n_elems * sizeof(ids_t::value_type);
+
+			::memmove(it + 1, it, n);
+
+			*it = m_creator_trx_id;
+		}
 	}
 
 	if (!m_ids.empty()) {
