@@ -1,5 +1,5 @@
 #ifndef MYSQL_SERVICES_INCLUDED
-/* Copyright (c) 2009, 2012, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2009, 2013, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -24,6 +24,7 @@ extern "C" {
 #include <mysql/service_thread_scheduler.h>
 #include <mysql/service_my_plugin_log.h>
 #include <mysql/service_mysql_string.h>
+#include <mysql/service_mysql_alloc.h>
 
 #ifdef __cplusplus
 }

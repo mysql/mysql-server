@@ -2972,7 +2972,8 @@ innobase_init(
 	/* Remember stopword table name supplied at startup */
 	if (innobase_server_stopword_table) {
 		fts_server_stopword_table =
-			my_strdup(innobase_server_stopword_table,  MYF(0));
+			my_strdup(PSI_INSTRUMENT_ME,
+                                  innobase_server_stopword_table,  MYF(0));
 	}
 
 	if (innobase_change_buffering) {
@@ -4327,7 +4328,8 @@ innobase_build_index_translation(
 
 	/* The number of index increased, rebuild the mapping table */
 	if (mysql_num_index > share->idx_trans_tbl.array_size) {
-		index_mapping = (dict_index_t**) my_realloc(index_mapping,
+		index_mapping = (dict_index_t**) my_realloc(PSI_INSTRUMENT_ME,
+                                                            index_mapping,
 							mysql_num_index *
 							sizeof(*index_mapping),
 							MYF(MY_ALLOW_ZERO_PTR));
@@ -6755,7 +6757,8 @@ ha_innobase::update_row(
 
 		upd_buf_size = table->s->reclength + table->s->max_key_length
 			+ MAX_REF_PARTS * 3;
-		upd_buf = (uchar*) my_malloc(upd_buf_size, MYF(MY_WME));
+		upd_buf = (uchar*) my_malloc(PSI_INSTRUMENT_ME,
+                                             upd_buf_size, MYF(MY_WME));
 		if (upd_buf == NULL) {
 			upd_buf_size = 0;
 			DBUG_RETURN(HA_ERR_OUT_OF_MEM);
@@ -7837,7 +7840,8 @@ ha_innobase::ft_init_ext(
 	}
 
 	/* Allocate FTS handler, and instantiate it before return */
-	fts_hdl = static_cast<NEW_FT_INFO*>(my_malloc(sizeof(NEW_FT_INFO),
+	fts_hdl = static_cast<NEW_FT_INFO*>(my_malloc(PSI_INSTRUMENT_ME,
+                                   sizeof(NEW_FT_INFO),
 				   MYF(0)));
 
 	fts_hdl->please = const_cast<_ft_vft*>(&ft_vft_result);
@@ -8464,7 +8468,7 @@ create_index(
 		ind_type |= DICT_UNIQUE;
 	}
 
-	field_lengths = (ulint*) my_malloc(
+	field_lengths = (ulint*) my_malloc(PSI_INSTRUMENT_ME,
 		key->user_defined_key_parts * sizeof *
 				field_lengths, MYF(MY_FAE));
 
@@ -9891,7 +9895,8 @@ innobase_drop_database(
 	}
 
 	ptr++;
-	namebuf = (char*) my_malloc((uint) len + 2, MYF(0));
+	namebuf = (char*) my_malloc(PSI_INSTRUMENT_ME,
+                                    (uint) len + 2, MYF(0));
 
 	memcpy(namebuf, ptr, len);
 	namebuf[len] = '/';
@@ -11398,7 +11403,8 @@ ha_innobase::update_table_comment(
 		/* allocate buffer for the full string, and
 		read the contents of the temporary file */
 
-		str = (char*) my_malloc(length + flen + 3, MYF(0));
+		str = (char*) my_malloc(PSI_INSTRUMENT_ME,
+                                        length + flen + 3, MYF(0));
 
 		if (str) {
 			char* pos	= str + length;
@@ -11469,7 +11475,8 @@ ha_innobase::get_foreign_key_create_info(void)
 		/* Allocate buffer for the string, and
 		read the contents of the temporary file */
 
-		str = (char*) my_malloc(flen + 1, MYF(0));
+		str = (char*) my_malloc(PSI_INSTRUMENT_ME,
+                                        flen + 1, MYF(0));
 
 		if (str) {
 			rewind(srv_dict_tmpfile);
@@ -12337,7 +12344,8 @@ innodb_show_status(
 	/* allocate buffer for the string, and
 	read the contents of the temporary file */
 
-	if (!(str = (char*) my_malloc(usable_len + 1, MYF(0)))) {
+	if (!(str = (char*) my_malloc(PSI_INSTRUMENT_ME,
+                                      usable_len + 1, MYF(0)))) {
 		mutex_exit(&srv_monitor_file_mutex);
 		DBUG_RETURN(1);
 	}
@@ -12594,7 +12602,8 @@ get_share(
 		/* TODO: invoke HASH_MIGRATE if innobase_open_tables
 		grows too big */
 
-		share = (INNOBASE_SHARE*) my_malloc(sizeof(*share)+length+1,
+		share = (INNOBASE_SHARE*) my_malloc(PSI_INSTRUMENT_ME,
+                                                    sizeof(*share)+length+1,
 			MYF(MY_FAE | MY_ZEROFILL));
 
 		share->table_name = (char*) memcpy(share + 1,
@@ -14044,7 +14053,8 @@ innodb_stopword_table_update(
 	old = *(char**) var_ptr;
 
 	if (stopword_table_name) {
-		*(char**) var_ptr =  my_strdup(stopword_table_name,  MYF(0));
+		*(char**) var_ptr =  my_strdup(PSI_INSTRUMENT_ME,
+                                               stopword_table_name, MYF(0));
 	} else {
 		*(char**) var_ptr = NULL;
 	}
@@ -14128,7 +14138,8 @@ innodb_internal_table_update(
 	old = *(char**) var_ptr;
 
 	if (table_name) {
-		*(char**) var_ptr =  my_strdup(table_name,  MYF(0));
+		*(char**) var_ptr =  my_strdup(PSI_INSTRUMENT_ME,
+                                               table_name, MYF(0));
 	} else {
 		*(char**) var_ptr = NULL;
 	}
@@ -14625,7 +14636,8 @@ innodb_monitor_validate(
 	by InnoDB, so we can access it in another callback
 	function innodb_monitor_update() and free it appropriately */
 	if (name) {
-		monitor_name = my_strdup(name, MYF(0));
+		monitor_name = my_strdup(PSI_INSTRUMENT_ME,
+                                         name, MYF(0));
 	} else {
 		return(1);
 	}
@@ -16664,7 +16676,8 @@ ib_logf(
 }
 
 /**********************************************************************
-Converts an identifier from my_charset_filename to UTF-8 charset. */
+Converts an identifier from my_charset_filename to UTF-8 charset.
+@return result string length, as returned by strconvert() */
 uint
 innobase_convert_to_filename_charset(
 /*=================================*/
@@ -16680,7 +16693,8 @@ innobase_convert_to_filename_charset(
 }
 
 /**********************************************************************
-Converts an identifier from my_charset_filename to UTF-8 charset. */
+Converts an identifier from my_charset_filename to UTF-8 charset.
+@return result string length, as returned by strconvert() */
 uint
 innobase_convert_to_system_charset(
 /*===============================*/

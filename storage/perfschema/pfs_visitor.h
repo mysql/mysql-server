@@ -1,4 +1,4 @@
-/* Copyright (c) 2010, 2011, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2010, 2013, Oracle and/or its affiliates. All rights reserved.
 
   This program is free software; you can redistribute it and/or modify
   it under the terms of the GNU General Public License as published by
@@ -38,6 +38,7 @@ struct PFS_rwlock_class;
 struct PFS_cond_class;
 struct PFS_file_class;
 struct PFS_socket_class;
+struct PFS_memory_class;
 struct PFS_table_share;
 struct PFS_mutex;
 struct PFS_rwlock;
@@ -406,6 +407,28 @@ public:
 
   /** Connection statistic collected. */
   PFS_connection_stat m_stat;
+};
+
+/**
+  A concrete connection visitor that aggregates
+  memory statistics for a given event_name.
+*/
+class PFS_connection_memory_visitor : public PFS_connection_visitor
+{
+public:
+  /** Constructor. */
+  PFS_connection_memory_visitor(PFS_memory_class *klass);
+  virtual ~PFS_connection_memory_visitor();
+  virtual void visit_global();
+  virtual void visit_host(PFS_host *pfs);
+  virtual void visit_account(PFS_account *pfs);
+  virtual void visit_user(PFS_user *pfs);
+  virtual void visit_thread(PFS_thread *pfs);
+
+  /** EVENT_NAME instrument index. */
+  uint m_index;
+  /** Statement statistic collected. */
+  PFS_memory_stat m_stat;
 };
 
 /**
