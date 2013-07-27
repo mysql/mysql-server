@@ -63,8 +63,8 @@ class Prealloced_array
     return static_cast<Element_type*>(static_cast<void*>(&m_buff[0]));
   }
 public:
-  Prealloced_array()
-    : m_size(0), m_capacity(Prealloc), m_array_ptr(cast_rawbuff())
+  Prealloced_array(PSI_memory_key psi_key)
+    : m_psi_key(psi_key), m_size(0), m_capacity(Prealloc), m_array_ptr(cast_rawbuff())
   {
     // We do not want a zero-size array.
     compile_time_assert(Prealloc != 0);
@@ -144,7 +144,7 @@ public:
     if (n <= m_capacity)
       return false;
 
-    void *mem= my_malloc(n * element_size(), MYF(MY_WME));
+    void *mem= my_malloc(m_psi_key, n * element_size(), MYF(MY_WME));
     if (!mem)
       return true;
     Element_type *new_array= static_cast<Element_type*>(mem);
@@ -220,6 +220,7 @@ public:
   }
 
 private:
+  PSI_memory_key m_psi_key;
   size_t        m_size;
   size_t        m_capacity;
   char          m_buff[Prealloc * sizeof(Element_type)];

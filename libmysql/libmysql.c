@@ -353,9 +353,12 @@ my_bool	STDCALL mysql_change_user(MYSQL *mysql, const char *user,
     my_free(saved_db);
 
     /* alloc new connect information */
-    mysql->user= my_strdup(mysql->user, MYF(MY_WME));
-    mysql->passwd= my_strdup(mysql->passwd, MYF(MY_WME));
-    mysql->db= db ? my_strdup(db, MYF(MY_WME)) : 0;
+    mysql->user= my_strdup(PSI_NOT_INSTRUMENTED,
+                           mysql->user, MYF(MY_WME));
+    mysql->passwd= my_strdup(PSI_NOT_INSTRUMENTED,
+                             mysql->passwd, MYF(MY_WME));
+    mysql->db= db ? my_strdup(PSI_NOT_INSTRUMENTED,
+                              db, MYF(MY_WME)) : 0;
   }
   else
   {
@@ -435,7 +438,8 @@ my_bool handle_local_infile(MYSQL *mysql, const char *net_filename)
   }
 
   /* copy filename into local memory and allocate read buffer */
-  if (!(buf=my_malloc(packet_length, MYF(0))))
+  if (!(buf=my_malloc(PSI_NOT_INSTRUMENTED,
+                      packet_length, MYF(0))))
   {
     set_mysql_error(mysql, CR_OUT_OF_MEMORY, unknown_sqlstate);
     DBUG_RETURN(1);
@@ -541,7 +545,8 @@ static int default_local_infile_init(void **ptr, const char *filename,
   char tmp_name[FN_REFLEN];
 
   if (!(*ptr= data= ((default_local_infile_data *)
-		     my_malloc(sizeof(default_local_infile_data),  MYF(0)))))
+		     my_malloc(PSI_NOT_INSTRUMENTED,
+                               sizeof(default_local_infile_data),  MYF(0)))))
     return 1; /* out of memory */
 
   data->error_msg[0]= 0;
@@ -814,7 +819,8 @@ mysql_list_fields(MYSQL *mysql, const char *table, const char *wild)
       !(fields= (*mysql->methods->list_fields)(mysql)))
     DBUG_RETURN(NULL);
 
-  if (!(result = (MYSQL_RES *) my_malloc(sizeof(MYSQL_RES),
+  if (!(result = (MYSQL_RES *) my_malloc(PSI_NOT_INSTRUMENTED,
+                                         sizeof(MYSQL_RES),
 					 MYF(MY_WME | MY_ZEROFILL))))
     DBUG_RETURN(NULL);
 
@@ -1482,10 +1488,12 @@ mysql_stmt_init(MYSQL *mysql)
   DBUG_ENTER("mysql_stmt_init");
 
   if (!(stmt=
-          (MYSQL_STMT *) my_malloc(sizeof (MYSQL_STMT),
+          (MYSQL_STMT *) my_malloc(PSI_NOT_INSTRUMENTED,
+                                   sizeof (MYSQL_STMT),
                                    MYF(MY_WME | MY_ZEROFILL))) ||
       !(stmt->extension=
-          (MYSQL_STMT_EXT *) my_malloc(sizeof (MYSQL_STMT_EXT),
+          (MYSQL_STMT_EXT *) my_malloc(PSI_NOT_INSTRUMENTED,
+                                       sizeof (MYSQL_STMT_EXT),
                                        MYF(MY_WME | MY_ZEROFILL))))
   {
     set_mysql_error(mysql, CR_OUT_OF_MEMORY, unknown_sqlstate);
@@ -1493,8 +1501,8 @@ mysql_stmt_init(MYSQL *mysql)
     DBUG_RETURN(NULL);
   }
 
-  init_alloc_root(&stmt->mem_root, 2048, 2048);
-  init_alloc_root(&stmt->result.alloc, 4096, 4096);
+  init_alloc_root(PSI_NOT_INSTRUMENTED, &stmt->mem_root, 2048, 2048);
+  init_alloc_root(PSI_NOT_INSTRUMENTED, &stmt->result.alloc, 4096, 4096);
   stmt->result.alloc.min_malloc= sizeof(MYSQL_ROWS);
   mysql->stmts= list_add(mysql->stmts, &stmt->list);
   stmt->list.data= stmt;
@@ -1505,7 +1513,7 @@ mysql_stmt_init(MYSQL *mysql)
   strmov(stmt->sqlstate, not_error_sqlstate);
   /* The rest of statement members was zeroed inside malloc */
 
-  init_alloc_root(&stmt->extension->fields_mem_root, 2048, 0);
+  init_alloc_root(PSI_NOT_INSTRUMENTED, &stmt->extension->fields_mem_root, 2048, 0);
 
   DBUG_RETURN(stmt);
 }
@@ -1791,7 +1799,8 @@ mysql_stmt_result_metadata(MYSQL_STMT *stmt)
   if (!stmt->field_count)
      DBUG_RETURN(0);
 
-  if (!(result=(MYSQL_RES*) my_malloc(sizeof(*result),
+  if (!(result=(MYSQL_RES*) my_malloc(PSI_NOT_INSTRUMENTED,
+                                      sizeof(*result),
                                       MYF(MY_WME | MY_ZEROFILL))))
   {
     set_stmt_error(stmt, CR_OUT_OF_MEMORY, unknown_sqlstate, NULL);
@@ -2149,7 +2158,8 @@ int cli_stmt_execute(MYSQL_STMT *stmt)
     }
     length= (ulong) (net->write_pos - net->buff);
     /* TODO: Look into avoding the following memdup */
-    if (!(param_data= my_memdup(net->buff, length, MYF(0))))
+    if (!(param_data= my_memdup(PSI_NOT_INSTRUMENTED,
+                                net->buff, length, MYF(0))))
     {
       set_stmt_error(stmt, CR_OUT_OF_MEMORY, unknown_sqlstate, NULL);
       DBUG_RETURN(1);

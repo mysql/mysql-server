@@ -246,7 +246,7 @@ bool File_query_log::open()
 
   write_error= false;
 
-  if (!(name= my_strdup(log_name, MYF(MY_WME))))
+  if (!(name= my_strdup(key_memory_File_query_log_name, log_name, MYF(MY_WME))))
   {
     name= const_cast<char *>(log_name); // for the error message
     goto err;
@@ -1857,7 +1857,8 @@ int TC_LOG_MMAP::open(const char *opt_name)
 
   npages=(uint)file_length/tc_log_page_size;
   DBUG_ASSERT(npages >= 3);             // to guarantee non-empty pool
-  if (!(pages=(PAGE *)my_malloc(npages*sizeof(PAGE), MYF(MY_WME|MY_ZEROFILL))))
+  if (!(pages=(PAGE *)my_malloc(key_memory_TC_LOG_MMAP_pages,
+                                npages*sizeof(PAGE), MYF(MY_WME|MY_ZEROFILL))))
     goto err;
   inited=3;
   for (pg=pages, i=0; i < npages; i++, pg++)

@@ -44,7 +44,8 @@ bool String::real_alloc(uint32 length)
   if (Alloced_length < arg_length)
   {
     free();
-    if (!(Ptr=(char*) my_malloc(arg_length,MYF(MY_WME))))
+    if (!(Ptr=(char*) my_malloc(PSI_NOT_INSTRUMENTED,
+                                arg_length,MYF(MY_WME))))
       return TRUE;
     Alloced_length=arg_length;
     alloced=1;
@@ -70,10 +71,12 @@ bool String::realloc(uint32 alloc_length)
     char *new_ptr;
     if (alloced)
     {
-      if (!(new_ptr= (char*) my_realloc(Ptr,len,MYF(MY_WME))))
+      if (!(new_ptr= (char*) my_realloc(PSI_NOT_INSTRUMENTED,
+                                        Ptr,len,MYF(MY_WME))))
         return TRUE;				// Signal error
     }
-    else if ((new_ptr= (char*) my_malloc(len,MYF(MY_WME))))
+    else if ((new_ptr= (char*) my_malloc(PSI_NOT_INSTRUMENTED,
+                                         len,MYF(MY_WME))))
     {
       if (str_length > len - 1)
         str_length= 0;

@@ -178,7 +178,8 @@ int main(int argc, char **argv)
   arguments[count]= 0;
 
   /* Check out the args */
-  if (!(load_default_groups=(char**) my_malloc((argc+1)*sizeof(char*),
+  if (!(load_default_groups=(char**) my_malloc(PSI_NOT_INSTRUMENTED,
+                                               (argc+1)*sizeof(char*),
 					       MYF(MY_WME))))
     exit(1);
   if (get_options(&argc,&argv))

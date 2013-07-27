@@ -24,6 +24,8 @@
 
 #ifdef HAVE_PSI_INTERFACE
 
+C_MODE_START
+
 #if !defined(HAVE_PREAD) && !defined(_WIN32)
 extern PSI_mutex_key key_my_file_info_mutex;
 #endif /* !defined(HAVE_PREAD) && !defined(_WIN32) */
@@ -59,7 +61,47 @@ extern mysql_mutex_t THR_LOCK_charset;
 extern PSI_file_key key_file_proc_meminfo;
 #endif /* HUGETLB_USE_PROC_MEMINFO */
 extern PSI_file_key key_file_charset;
+
+C_MODE_END
+
 #endif /* HAVE_PSI_INTERFACE */
+
+/* These keys are always defined. */
+
+C_MODE_START
+
+extern PSI_memory_key key_memory_array_buffer;
+extern PSI_memory_key key_memory_charset_file;
+extern PSI_memory_key key_memory_charset_loader;
+extern PSI_memory_key key_memory_lf_node;
+extern PSI_memory_key key_memory_lf_dynarray;
+extern PSI_memory_key key_memory_lf_slist;
+extern PSI_memory_key key_memory_LIST;
+extern PSI_memory_key key_memory_IO_CACHE;
+extern PSI_memory_key key_memory_KEY_CACHE;
+extern PSI_memory_key key_memory_SAFE_HASH_ENTRY;
+extern PSI_memory_key key_memory_MY_TMPDIR_full_list;
+extern PSI_memory_key key_memory_MY_BITMAP_bitmap;
+extern PSI_memory_key key_memory_my_compress_alloc;
+extern PSI_memory_key key_memory_pack_frm;
+extern PSI_memory_key key_memory_my_err_head;
+extern PSI_memory_key key_memory_my_file_info;
+extern PSI_memory_key key_memory_MY_DIR;
+extern PSI_memory_key key_memory_MY_STAT;
+extern PSI_memory_key key_memory_QUEUE;
+extern PSI_memory_key key_memory_DYNAMIC_STRING;
+extern PSI_memory_key key_memory_ALARM;
+extern PSI_memory_key key_memory_TREE;
+extern PSI_memory_key key_memory_defaults;
+extern PSI_memory_key key_memory_radix_sort;
+
+#ifdef _WIN32
+extern PSI_memory_key key_memory_win_SECURITY_ATTRIBUTES;
+extern PSI_memory_key key_memory_win_PACL;
+extern PSI_memory_key key_memory_win_IP_ADAPTER_ADDRESSES;
+#endif
+
+C_MODE_END
 
 /*
   EDQUOT is used only in 3 C files only in mysys/. If it does not exist on
