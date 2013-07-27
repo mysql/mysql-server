@@ -715,12 +715,6 @@ int thd_tx_is_read_only(const THD *thd)
 }
 
 extern "C"
-time_t thd_start_time(const THD *thd)
-{
-  return (time_t) thd->start_utime;
-}
-
-extern "C"
 void thd_inc_row_count(THD *thd)
 {
   thd->get_stmt_da()->inc_current_row_for_condition();
