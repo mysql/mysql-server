@@ -1097,8 +1097,9 @@ thd_start_time_in_secs(
 /*===================*/
 	THD*	thd)	/*!< in: thread handle, or NULL */
 {
-
-	return(thd_start_time(thd));
+	// FIXME: This function should be added to the server code.
+	//return(thd_start_time(thd));
+	return(ut_time());
 }
 
 /******************************************************************//**
