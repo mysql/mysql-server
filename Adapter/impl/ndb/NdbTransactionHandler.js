@@ -62,7 +62,7 @@ function DBTransactionHandler(dbsession) {
 DBTransactionHandler.prototype = proto;
 
 function onAsyncSent(a,b) {
-  // udebug.log("execute onAsyncSent");
+  udebug.log("execute onAsyncSent");
 }
 
 /* NdbTransactionHandler internal run():
@@ -70,7 +70,7 @@ function onAsyncSent(a,b) {
 */
 function run(self, execMode, abortFlag, callback) {
   var qpos;
-  var apiCall = new QueuedAsyncCall(self.dbSession.execQueue, callback, null);
+  var apiCall = new QueuedAsyncCall(self.dbSession.execQueue, callback);
   apiCall.tx = self;
   apiCall.execMode = execMode;
   apiCall.abortFlag = abortFlag;
@@ -155,31 +155,48 @@ function attachErrorToTransaction(dbTxHandler, err) {
 /* Common callback for execute, commit, and rollback 
 */
 function onExecute(dbTxHandler, execMode, err, execId, userCallback) {
+  var apiCall;
   /* Update our own success and error objects */
   attachErrorToTransaction(dbTxHandler, err);
   udebug.log("onExecute", modeNames[execMode], dbTxHandler.moniker,
              "success:", dbTxHandler.success);
+
+  function continueAfterExecute() {
+    /* send the next exec call on its way */
+    runExecAfterOpenQueue(dbTxHandler);
+
+    /* Attach results to their operations */
+    ndboperation.completeExecutedOps(dbTxHandler, execMode, 
+                                     dbTxHandler.pendingOpsLists[execId]);
+
+    /* Next callback */
+    if(typeof userCallback === 'function') {
+      userCallback(dbTxHandler.error, dbTxHandler);
+    }
+  }
   
   /* If we just executed with Commit or Rollback, close the NdbTransaction 
      and register the DBTransactionHandler as closed with DBSession
   */
+  function onNdbTransactionClosed() {
+    ndbsession.closeNdbTransaction(dbTxHandler, dbTxHandler.nTxRecords);
+    continueAfterExecute();
+  }
+    
   if(execMode === COMMIT || execMode === ROLLBACK) {
     if(dbTxHandler.ndbtx) {       // May not exist on "stub" commit/rollback
-      dbTxHandler.ndbtx.close();
-      ndbsession.closeNdbTransaction(dbTxHandler, dbTxHandler.nTxRecords);
+      apiCall = new QueuedAsyncCall(dbTxHandler.dbSession.execQueue, 
+                                    onNdbTransactionClosed);
+      apiCall.ndbTransaction = dbTxHandler.ndbtx;
+      apiCall.description = "close " + dbTxHandler.moniker;
+      apiCall.run = function closeNdbTransaction() {
+        this.ndbTransaction.close(this.callback);
+      }
+      apiCall.enqueue();
     }
   }
-
-  /* send the next exec call on its way */
-  runExecAfterOpenQueue(dbTxHandler);
-
-  /* Attach results to their operations */
-  ndboperation.completeExecutedOps(dbTxHandler, execMode, 
-                                   dbTxHandler.pendingOpsLists[execId]);
-
-  /* Next callback */
-  if(typeof userCallback === 'function') {
-    userCallback(dbTxHandler.error, dbTxHandler);
+  else {
+    continueAfterExecute();
   }
 }
 
