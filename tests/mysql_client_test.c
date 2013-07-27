@@ -18793,7 +18793,8 @@ static void test_bug56976()
   rc= mysql_stmt_bind_param(stmt, bind);
   check_execute(stmt, rc);
 
-  long_buffer= (char*) my_malloc(packet_len, MYF(0));
+  long_buffer= (char*) my_malloc(PSI_NOT_INSTRUMENTED,
+                                 packet_len, MYF(0));
   DIE_UNLESS(long_buffer);
 
   memset(long_buffer, 'a', packet_len);

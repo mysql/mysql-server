@@ -130,6 +130,8 @@ bool Rpl_info_table_access::open_table(THD* thd, const LEX_STRING dbstr,
   @param[in] backup Restore the lock info from here
   @param[in] error  If there was an error while updating
                     the table
+  @param[in] force_commit force "real" commit (with ha_commit_trans()
+                          all parameter set to TRUE)
 
   If there is an error, rolls back the current statement. Otherwise,
   commits it. However, if a new thread was created and there is an
@@ -144,7 +146,7 @@ bool Rpl_info_table_access::open_table(THD* thd, const LEX_STRING dbstr,
 */
 bool Rpl_info_table_access::close_table(THD *thd, TABLE* table,
                                         Open_tables_backup *backup,
-                                        bool error)
+                                        bool error, bool force_commit)
 {
   Query_tables_list query_tables_list_backup;
 
@@ -162,7 +164,7 @@ bool Rpl_info_table_access::close_table(THD *thd, TABLE* table,
        */
       ha_commit_trans(thd, FALSE, TRUE);
     }
-    if (saved_current_thd != current_thd)
+    if (saved_current_thd != current_thd || force_commit)
     {
       if (error)
         ha_rollback_trans(thd, TRUE);

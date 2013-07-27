@@ -1,4 +1,4 @@
-/* Copyright (c) 2000, 2011, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2000, 2013, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -41,7 +41,8 @@ uint hashpjw(const char *arKey, uint nKeyLength)
 
 int completion_hash_init(HashTable *ht, uint nSize)
 {
-  ht->arBuckets = (Bucket **) my_malloc(nSize* sizeof(Bucket *),
+  ht->arBuckets = (Bucket **) my_malloc(PSI_NOT_INSTRUMENTED,
+                                        nSize* sizeof(Bucket *),
 					MYF(MY_ZEROFILL | MY_WME));
 
   if (!ht->arBuckets)
@@ -49,7 +50,7 @@ int completion_hash_init(HashTable *ht, uint nSize)
     ht->initialized = 0;
     return FAILURE;
   }
-  init_alloc_root(&ht->mem_root, 8192, 0);
+  init_alloc_root(PSI_NOT_INSTRUMENTED, &ht->mem_root, 8192, 0);
   ht->pHashFunction = hashpjw;
   ht->nTableSize = nSize;
   ht->initialized = 1;

@@ -139,7 +139,8 @@ my_bool thr_alarm(thr_alarm_t *alrm, uint sec, ALARM *alarm_data)
   reschedule= (ulong) next_alarm_expire_time > (ulong) now + sec;
   if (!alarm_data)
   {
-    if (!(alarm_data=(ALARM*) my_malloc(sizeof(ALARM),MYF(MY_WME))))
+    if (!(alarm_data=(ALARM*) my_malloc(key_memory_ALARM,
+                                        sizeof(ALARM),MYF(MY_WME))))
     {
       DBUG_PRINT("info", ("failed my_malloc()"));
       *alrm= 0;					/* No alarm */
