@@ -1,4 +1,4 @@
-/* Copyright (c) 2000, 2011, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2000, 2013, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -69,7 +69,8 @@ FILE *my_fopen(const char *filename, int flags, myf MyFlags)
     }
     mysql_mutex_lock(&THR_LOCK_open);
     if ((my_file_info[filedesc].name= (char*)
-	 my_strdup(filename,MyFlags)))
+	 my_strdup(key_memory_my_file_info,
+                   filename,MyFlags)))
     {
       my_stream_opened++;
       my_file_total_opened++;
@@ -302,7 +303,8 @@ FILE *my_fdopen(File Filedes, const char *name, int Flags, myf MyFlags)
       }
       else
       {
-        my_file_info[Filedes].name=  my_strdup(name,MyFlags);
+        my_file_info[Filedes].name= my_strdup(key_memory_my_file_info,
+                                              name,MyFlags);
       }
       my_file_info[Filedes].type = STREAM_BY_FDOPEN;
     }

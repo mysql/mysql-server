@@ -628,8 +628,6 @@ static inline int pthread_attr_getguardsize(pthread_attr_t *attr,
 #include <pfs_thread_provider.h>
 #include <mysql/psi/mysql_thread.h>
 
-#define INSTRUMENT_ME 0
-
 struct st_my_thread_var
 {
   int thr_errno;

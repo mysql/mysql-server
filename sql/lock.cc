@@ -593,7 +593,8 @@ MYSQL_LOCK *mysql_lock_merge(MYSQL_LOCK *a,MYSQL_LOCK *b)
   DBUG_ENTER("mysql_lock_merge");
 
   if (!(sql_lock= (MYSQL_LOCK*)
-	my_malloc(sizeof(*sql_lock)+
+	my_malloc(key_memory_MYSQL_LOCK,
+                  sizeof(*sql_lock)+
 		  sizeof(THR_LOCK_DATA*)*(a->lock_count+b->lock_count)+
 		  sizeof(TABLE*)*(a->table_count+b->table_count),MYF(MY_WME))))
     DBUG_RETURN(0);				// Fatal error
@@ -695,7 +696,8 @@ static MYSQL_LOCK *get_lock_data(THD *thd, TABLE **table_ptr, uint count,
     from the first part immediately before calling thr_multi_lock().
   */
   if (!(sql_lock= (MYSQL_LOCK*)
-	my_malloc(sizeof(*sql_lock) +
+	my_malloc(key_memory_MYSQL_LOCK,
+                  sizeof(*sql_lock) +
 		  sizeof(THR_LOCK_DATA*) * tables * 2 +
                   sizeof(table_ptr) * lock_count,
 		  MYF(0))))

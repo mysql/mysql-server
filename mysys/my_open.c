@@ -1,4 +1,4 @@
-/* Copyright (c) 2000, 2011, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2000, 2013, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -139,7 +139,8 @@ File my_register_filename(File fd, const char *FileName, enum file_type
     else
     {
       mysql_mutex_lock(&THR_LOCK_open);
-      if ((my_file_info[fd].name = (char*) my_strdup(FileName,MyFlags)))
+      if ((my_file_info[fd].name = (char*) my_strdup(key_memory_my_file_info,
+                                                     FileName,MyFlags)))
       {
         my_file_opened++;
         my_file_total_opened++;

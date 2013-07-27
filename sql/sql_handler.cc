@@ -223,7 +223,8 @@ bool Sql_cmd_handler_open::execute(THD *thd)
   dblen= strlen(tables->db) + 1;
   namelen= strlen(tables->table_name) + 1;
   aliaslen= strlen(tables->alias) + 1;
-  if (!(my_multi_malloc(MYF(MY_WME),
+  if (!(my_multi_malloc(key_memory_THD_handler_tables_hash,
+                        MYF(MY_WME),
                         &hash_tables, (uint) sizeof(*hash_tables),
                         &db, (uint) dblen,
                         &name, (uint) namelen,

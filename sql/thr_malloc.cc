@@ -28,12 +28,12 @@ using std::max;
 
 extern "C" void sql_alloc_error_handler(void);
 
-void init_sql_alloc(MEM_ROOT *mem_root, uint block_size, uint pre_alloc)
+void init_sql_alloc(PSI_memory_key key,
+                    MEM_ROOT *mem_root, uint block_size, uint pre_alloc)
 {
-  init_alloc_root(mem_root, block_size, pre_alloc);
+  init_alloc_root(key, mem_root, block_size, pre_alloc);
   mem_root->error_handler=sql_alloc_error_handler;
 }
-
 
 void *sql_alloc(size_t Size)
 {

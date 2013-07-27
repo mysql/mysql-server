@@ -1018,6 +1018,8 @@ TABLE *table_def::create_conversion_table(THD *thd, Relay_log_info *rli, TABLE *
 
 #endif /* MYSQL_CLIENT */
 
+PSI_memory_key key_memory_table_def_memory;
+
 table_def::table_def(unsigned char *types, ulong size,
                      uchar *field_metadata, int metadata_size,
                      uchar *null_bitmap, uint16 flags)
@@ -1025,7 +1027,8 @@ table_def::table_def(unsigned char *types, ulong size,
     m_field_metadata(0), m_null_bits(0), m_flags(flags),
     m_memory(NULL)
 {
-  m_memory= (uchar *)my_multi_malloc(MYF(MY_WME),
+  m_memory= (uchar *)my_multi_malloc(key_memory_table_def_memory,
+                                     MYF(MY_WME),
                                      &m_type, size,
                                      &m_field_metadata,
                                      size * sizeof(uint16),
@@ -1262,9 +1265,12 @@ HASH_ROW_ENTRY* Hash_slave_rows::make_entry(const uchar* bi_start, const uchar* 
 {
   DBUG_ENTER("Hash_slave_rows::make_entry");
 
-  HASH_ROW_ENTRY *entry= (HASH_ROW_ENTRY*) my_malloc(sizeof(HASH_ROW_ENTRY), MYF(0));
-  HASH_ROW_PREAMBLE *preamble= (HASH_ROW_PREAMBLE *) my_malloc(sizeof(HASH_ROW_PREAMBLE), MYF(0));
-  HASH_ROW_POS *pos= (HASH_ROW_POS *) my_malloc(sizeof(HASH_ROW_POS), MYF(0));
+  HASH_ROW_ENTRY *entry= (HASH_ROW_ENTRY*) my_malloc(key_memory_HASH_ROW_ENTRY,
+                                                     sizeof(HASH_ROW_ENTRY), MYF(0));
+  HASH_ROW_PREAMBLE *preamble= (HASH_ROW_PREAMBLE *) my_malloc(key_memory_HASH_ROW_ENTRY,
+                                                               sizeof(HASH_ROW_PREAMBLE), MYF(0));
+  HASH_ROW_POS *pos= (HASH_ROW_POS *) my_malloc(key_memory_HASH_ROW_ENTRY,
+                                                sizeof(HASH_ROW_POS), MYF(0));
 
   if (!entry || !preamble || !pos)
     goto err;

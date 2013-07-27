@@ -103,6 +103,47 @@ my_bool	net_flush(NET *net);
 #define native_password_plugin_name "mysql_native_password"
 #define old_password_plugin_name    "mysql_old_password"
 
+PSI_memory_key key_memory_mysql_options;
+PSI_memory_key key_memory_MYSQL_DATA;
+PSI_memory_key key_memory_MYSQL;
+PSI_memory_key key_memory_MYSQL_RES;
+PSI_memory_key key_memory_MYSQL_ROW;
+
+#ifdef HAVE_PSI_INTERFACE
+/*
+  This code is common to the client and server,
+  and also used in the server when server A connects to server B,
+  for example with replication.
+  Therefore, the code is also instrumented.
+*/
+
+#if defined (_WIN32) && !defined (EMBEDDED_LIBRARY)
+PSI_memory_key key_memory_create_shared_memory;
+#endif /* _WIN32 && ! EMBEDDED_LIBRARY */
+
+static PSI_memory_info all_client_memory[]=
+{
+#if defined (_WIN32) && !defined (EMBEDDED_LIBRARY)
+  { &key_memory_create_shared_memory, "create_shared_memory", 0},
+#endif /* _WIN32 && ! EMBEDDED_LIBRARY */
+
+  { &key_memory_mysql_options, "mysql_options", 0},
+  { &key_memory_MYSQL_DATA, "MYSQL_DATA", 0},
+  { &key_memory_MYSQL, "MYSQL", 0},
+  { &key_memory_MYSQL_RES, "MYSQL_RES", 0},
+  { &key_memory_MYSQL_ROW, "MYSQL_ROW", 0}
+};
+
+void init_client_psi_keys(void)
+{
+  const char *category= "client";
+  int count;
+
+  count= array_elements(all_client_memory);
+  mysql_memory_register(category, all_client_memory, count);
+}
+
+#endif /* HAVE_PSI_INTERFACE */
 
 uint		mysql_port=0;
 char		*mysql_unix_port= 0;
@@ -425,7 +466,8 @@ static HANDLE create_shared_memory(MYSQL *mysql, NET *net,
   /*
      get enough space base-name + '_' + longest suffix we might ever send
    */
-  if (!(tmp= (char *)my_malloc(strlen(shared_memory_base_name) + 32L, MYF(MY_FAE))))
+  if (!(tmp= (char *)my_malloc(key_memory_create_shared_memory,
+                               strlen(shared_memory_base_name) + 32L, MYF(MY_FAE))))
     goto err;
 
   /*
@@ -845,7 +887,8 @@ void free_old_query(MYSQL *mysql)
   DBUG_ENTER("free_old_query");
   if (mysql->fields)
     free_root(&mysql->field_alloc,MYF(0));
-  init_alloc_root(&mysql->field_alloc,8192,0); /* Assume rowlength < 8192 */
+  init_alloc_root(PSI_NOT_INSTRUMENTED,
+                  &mysql->field_alloc, 8192, 0); /* Assume rowlength < 8192 */
   mysql->fields= 0;
   mysql->field_count= 0;			/* For API */
   mysql->warning_count= 0;
@@ -1160,12 +1203,14 @@ static int add_init_command(struct st_mysql_options *options, const char *cmd)
 
   if (!options->init_commands)
   {
-    options->init_commands= (DYNAMIC_ARRAY*)my_malloc(sizeof(DYNAMIC_ARRAY),
+    options->init_commands= (DYNAMIC_ARRAY*)my_malloc(key_memory_mysql_options,
+                                                      sizeof(DYNAMIC_ARRAY),
 						      MYF(MY_WME));
     init_dynamic_array(options->init_commands,sizeof(char*),0,5);
   }
 
-  if (!(tmp= my_strdup(cmd,MYF(MY_WME))) ||
+  if (!(tmp= my_strdup(key_memory_mysql_options,
+                       cmd,MYF(MY_WME))) ||
       insert_dynamic(options->init_commands, &tmp))
   {
     my_free(tmp);
@@ -1177,7 +1222,8 @@ static int add_init_command(struct st_mysql_options *options, const char *cmd)
 
 #define ALLOCATE_EXTENSIONS(OPTS)                                \
       (OPTS)->extension= (struct st_mysql_options_extention *)   \
-        my_malloc(sizeof(struct st_mysql_options_extention),     \
+        my_malloc(key_memory_mysql_options,                      \
+                  sizeof(struct st_mysql_options_extention),     \
                   MYF(MY_WME | MY_ZEROFILL))                     \
 
 #define ENSURE_EXTENSIONS_PRESENT(OPTS)                          \
@@ -1194,14 +1240,15 @@ static int add_init_command(struct st_mysql_options *options, const char *cmd)
       else                                                       \
         ALLOCATE_EXTENSIONS(OPTS);                               \
       (OPTS)->extension->X= ((STR) != NULL) ?                    \
-        my_strdup((STR), MYF(MY_WME)) : NULL;                    \
+        my_strdup(key_memory_mysql_options,                      \
+                  (STR), MYF(MY_WME)) : NULL;                    \
     } while (0)
 
 #if defined(HAVE_OPENSSL) && !defined(EMBEDDED_LIBRARY)
 #define SET_SSL_OPTION(opt_var,arg) \
     if (mysql->options.opt_var) \
       my_free(mysql->options.opt_var); \
-    mysql->options.opt_var= arg ? my_strdup(arg, MYF(MY_WME)) : NULL; \
+    mysql->options.opt_var= arg ? my_strdup(key_memory_mysql_options, arg, MYF(MY_WME)) : NULL; \
     if (mysql->options.opt_var) \
       mysql->options.use_ssl= 1
 #define EXTENSION_SET_SSL_STRING(OPTS, X, STR) \
@@ -1266,7 +1313,8 @@ void mysql_read_default_options(struct st_mysql_options *options,
 	  if (opt_arg)
 	  {
 	    my_free(options->unix_socket);
-	    options->unix_socket=my_strdup(opt_arg,MYF(MY_WME));
+	    options->unix_socket=my_strdup(key_memory_mysql_options,
+                                           opt_arg,MYF(MY_WME));
 	  }
 	  break;
 	case OPT_compress:
@@ -1277,7 +1325,8 @@ void mysql_read_default_options(struct st_mysql_options *options,
 	  if (opt_arg)
 	  {
 	    my_free(options->password);
-	    options->password=my_strdup(opt_arg,MYF(MY_WME));
+	    options->password=my_strdup(key_memory_mysql_options,
+                                        opt_arg,MYF(MY_WME));
 	  }
 	  break;
         case OPT_pipe:
@@ -1291,7 +1340,8 @@ void mysql_read_default_options(struct st_mysql_options *options,
 	  if (opt_arg)
 	  {
 	    my_free(options->user);
-	    options->user=my_strdup(opt_arg,MYF(MY_WME));
+	    options->user=my_strdup(key_memory_mysql_options,
+                                    opt_arg,MYF(MY_WME));
 	  }
 	  break;
 	case OPT_init_command:
@@ -1301,14 +1351,16 @@ void mysql_read_default_options(struct st_mysql_options *options,
 	  if (opt_arg)
 	  {
 	    my_free(options->host);
-	    options->host=my_strdup(opt_arg,MYF(MY_WME));
+	    options->host=my_strdup(key_memory_mysql_options,
+                                    opt_arg,MYF(MY_WME));
 	  }
 	  break;
 	case OPT_database:
 	  if (opt_arg)
 	  {
 	    my_free(options->db);
-	    options->db=my_strdup(opt_arg,MYF(MY_WME));
+	    options->db=my_strdup(key_memory_mysql_options,
+                                  opt_arg,MYF(MY_WME));
 	  }
 	  break;
 	case OPT_debug:
@@ -1322,23 +1374,28 @@ void mysql_read_default_options(struct st_mysql_options *options,
 #if defined(HAVE_OPENSSL) && !defined(EMBEDDED_LIBRARY)
 	case OPT_ssl_key:
 	  my_free(options->ssl_key);
-          options->ssl_key = my_strdup(opt_arg, MYF(MY_WME));
+          options->ssl_key = my_strdup(key_memory_mysql_options,
+                                       opt_arg, MYF(MY_WME));
           break;
 	case OPT_ssl_cert:
 	  my_free(options->ssl_cert);
-          options->ssl_cert = my_strdup(opt_arg, MYF(MY_WME));
+          options->ssl_cert = my_strdup(key_memory_mysql_options,
+                                        opt_arg, MYF(MY_WME));
           break;
 	case OPT_ssl_ca:
 	  my_free(options->ssl_ca);
-          options->ssl_ca = my_strdup(opt_arg, MYF(MY_WME));
+          options->ssl_ca = my_strdup(key_memory_mysql_options,
+                                      opt_arg, MYF(MY_WME));
           break;
 	case OPT_ssl_capath:
 	  my_free(options->ssl_capath);
-          options->ssl_capath = my_strdup(opt_arg, MYF(MY_WME));
+          options->ssl_capath = my_strdup(key_memory_mysql_options,
+                                          opt_arg, MYF(MY_WME));
           break;
         case OPT_ssl_cipher:
           my_free(options->ssl_cipher);
-          options->ssl_cipher= my_strdup(opt_arg, MYF(MY_WME));
+          options->ssl_cipher= my_strdup(key_memory_mysql_options,
+                                         opt_arg, MYF(MY_WME));
           break;
 	case OPT_ssl_crl:
           EXTENSION_SET_SSL_STRING(options, ssl_crl, opt_arg);
@@ -1358,11 +1415,13 @@ void mysql_read_default_options(struct st_mysql_options *options,
 #endif /* HAVE_OPENSSL && !EMBEDDED_LIBRARY */
 	case OPT_character_sets_dir:
 	  my_free(options->charset_dir);
-          options->charset_dir = my_strdup(opt_arg, MYF(MY_WME));
+          options->charset_dir = my_strdup(key_memory_mysql_options,
+                                           opt_arg, MYF(MY_WME));
 	  break;
 	case OPT_default_character_set:
 	  my_free(options->charset_name);
-          options->charset_name = my_strdup(opt_arg, MYF(MY_WME));
+          options->charset_name = my_strdup(key_memory_mysql_options,
+                                            opt_arg, MYF(MY_WME));
 	  break;
 	case OPT_interactive_timeout:
 	  options->client_flag|= CLIENT_INTERACTIVE;
@@ -1392,7 +1451,8 @@ void mysql_read_default_options(struct st_mysql_options *options,
 #if defined (_WIN32) && !defined (EMBEDDED_LIBRARY)
           if (options->shared_memory_base_name != def_shared_memory_base_name)
             my_free(options->shared_memory_base_name);
-          options->shared_memory_base_name=my_strdup(opt_arg,MYF(MY_WME));
+          options->shared_memory_base_name=my_strdup(key_memory_mysql_options,
+                                                     opt_arg,MYF(MY_WME));
 #endif
           break;
 	case OPT_multi_results:
@@ -1428,7 +1488,8 @@ void mysql_read_default_options(struct st_mysql_options *options,
           break;
 	case OPT_bind_address:
           my_free(options->ci.bind_address);
-          options->ci.bind_address= my_strdup(opt_arg, MYF(MY_WME));
+          options->ci.bind_address= my_strdup(key_memory_mysql_options,
+                                              opt_arg, MYF(MY_WME));
           break;
         case OPT_enable_cleartext_plugin:
           ENSURE_EXTENSIONS_PRESENT(options);
@@ -1611,13 +1672,15 @@ MYSQL_DATA *cli_read_rows(MYSQL *mysql,MYSQL_FIELD *mysql_fields,
 
   if ((pkt_len= cli_safe_read(mysql)) == packet_error)
     DBUG_RETURN(0);
-  if (!(result=(MYSQL_DATA*) my_malloc(sizeof(MYSQL_DATA),
+  if (!(result=(MYSQL_DATA*) my_malloc(key_memory_MYSQL_DATA,
+                                       sizeof(MYSQL_DATA),
 				       MYF(MY_WME | MY_ZEROFILL))))
   {
     set_mysql_error(mysql, CR_OUT_OF_MEMORY, unknown_sqlstate);
     DBUG_RETURN(0);
   }
-  init_alloc_root(&result->alloc,8192,0);	/* Assume rowlength < 8192 */
+  init_alloc_root(PSI_NOT_INSTRUMENTED,
+                  &result->alloc, 8192, 0); /* Assume rowlength < 8192 */
   result->alloc.min_malloc=sizeof(MYSQL_ROWS);
   prev_ptr= &result->data;
   result->rows=0;
@@ -1772,7 +1835,8 @@ mysql_init(MYSQL *mysql)
     return 0;
   if (!mysql)
   {
-    if (!(mysql=(MYSQL*) my_malloc(sizeof(*mysql),MYF(MY_WME | MY_ZEROFILL))))
+    if (!(mysql=(MYSQL*) my_malloc(key_memory_MYSQL,
+                                   sizeof(*mysql),MYF(MY_WME | MY_ZEROFILL))))
     {
       set_mysql_error(NULL, CR_OUT_OF_MEMORY, unknown_sqlstate);
       return 0;
@@ -1832,7 +1896,8 @@ struct st_mysql_extension* mysql_extension_init(struct st_mysql *mysql __attribu
 {
   struct st_mysql_extension *ext;
 
-  ext= my_malloc(sizeof(struct st_mysql_extension), MYF(MY_WME | MY_ZEROFILL));
+  ext= my_malloc(PSI_NOT_INSTRUMENTED,
+                 sizeof(struct st_mysql_extension), MYF(MY_WME | MY_ZEROFILL));
   return ext;
 }
 
@@ -1851,8 +1916,6 @@ void mysql_extension_free(struct st_mysql_extension *ext)
   Fill in SSL part of MYSQL structure and set 'use_ssl' flag.
   NB! Errors are not reported until you do mysql_real_connect.
 */
-
-#define strdup_if_not_null(A) (A) == 0 ? 0 : my_strdup((A),MYF(MY_WME))
 
 my_bool STDCALL
 mysql_ssl_set(MYSQL *mysql __attribute__((unused)) ,
@@ -2294,7 +2357,8 @@ mysql_autodetect_character_set(MYSQL *mysql)
 
   if (mysql->options.charset_name)
     my_free(mysql->options.charset_name);
-  if (!(mysql->options.charset_name= my_strdup(csname, MYF(MY_WME))))
+  if (!(mysql->options.charset_name= my_strdup(key_memory_mysql_options,
+                                               csname, MYF(MY_WME))))
     return 1;
   return 0;
 }
@@ -2338,7 +2402,8 @@ int mysql_init_character_set(MYSQL *mysql)
   if (!mysql->options.charset_name)
   {
     if (!(mysql->options.charset_name= 
-       my_strdup(MYSQL_DEFAULT_CHARSET_NAME,MYF(MY_WME))))
+       my_strdup(key_memory_mysql_options,
+                 MYSQL_DEFAULT_CHARSET_NAME,MYF(MY_WME))))
       return 1;
   }
   else if (!strcmp(mysql->options.charset_name,
@@ -2900,7 +2965,8 @@ static int send_client_reply_packet(MCPVIO_EXT *mpvio,
   if (mpvio->db && (mysql->server_capabilities & CLIENT_CONNECT_WITH_DB))
   {
     end= strmake(end, mpvio->db, NAME_LEN) + 1;
-    mysql->db= my_strdup(mpvio->db, MYF(MY_WME));
+    mysql->db= my_strdup(key_memory_MYSQL,
+                         mpvio->db, MYF(MY_WME));
   }
 
   if (mysql->server_capabilities & CLIENT_PLUGIN_AUTH)
@@ -3853,7 +3919,8 @@ CLI_MYSQL_REAL_CONNECT(MYSQL *mysql,const char *host, const char *user,
     goto error;
 
   /* Save connection information */
-  if (!my_multi_malloc(MYF(0),
+  if (!my_multi_malloc(key_memory_MYSQL,
+                       MYF(0),
 		       &mysql->host_info, (uint) strlen(host_info)+1,
 		       &mysql->host,      (uint) strlen(host)+1,
 		       &mysql->unix_socket,unix_socket ?
@@ -3861,8 +3928,10 @@ CLI_MYSQL_REAL_CONNECT(MYSQL *mysql,const char *host, const char *user,
 		       &mysql->server_version,
 		       (uint) (server_version_end - (char*) net->read_pos + 1),
 		       NullS) ||
-      !(mysql->user=my_strdup(user,MYF(0))) ||
-      !(mysql->passwd=my_strdup(passwd,MYF(0))))
+      !(mysql->user=my_strdup(key_memory_MYSQL,
+                              user,MYF(0))) ||
+      !(mysql->passwd=my_strdup(key_memory_MYSQL,
+                                passwd,MYF(0))))
   {
     set_mysql_error(mysql, CR_OUT_OF_MEMORY, unknown_sqlstate);
     goto error;
@@ -4070,7 +4139,8 @@ mysql_select_db(MYSQL *mysql, const char *db)
                             (ulong) strlen(db),0)))
     DBUG_RETURN(error);
   my_free(mysql->db);
-  mysql->db=my_strdup(db,MYF(MY_WME));
+  mysql->db=my_strdup(key_memory_MYSQL,
+                      db,MYF(MY_WME));
   DBUG_RETURN(0);
 }
 
@@ -4383,7 +4453,8 @@ MYSQL_RES * STDCALL mysql_store_result(MYSQL *mysql)
     DBUG_RETURN(0);
   }
   mysql->status=MYSQL_STATUS_READY;		/* server is ready */
-  if (!(result=(MYSQL_RES*) my_malloc((uint) (sizeof(MYSQL_RES)+
+  if (!(result=(MYSQL_RES*) my_malloc(key_memory_MYSQL_RES,
+                                      (uint) (sizeof(MYSQL_RES)+
 					      sizeof(ulong) *
 					      mysql->field_count),
 				      MYF(MY_WME | MY_ZEROFILL))))
@@ -4403,7 +4474,7 @@ MYSQL_RES * STDCALL mysql_store_result(MYSQL *mysql)
   mysql->affected_rows= result->row_count= result->data->rows;
   result->data_cursor=	result->data->data;
   result->fields=	mysql->fields;
-  result->field_alloc=	mysql->field_alloc;
+  result->field_alloc= mysql->field_alloc;
   result->field_count=	mysql->field_count;
   /* The rest of result members is zerofilled in my_malloc */
   mysql->fields=0;				/* fields is now in result */
@@ -4436,20 +4507,22 @@ static MYSQL_RES * cli_use_result(MYSQL *mysql)
     set_mysql_error(mysql, CR_COMMANDS_OUT_OF_SYNC, unknown_sqlstate);
     DBUG_RETURN(0);
   }
-  if (!(result=(MYSQL_RES*) my_malloc(sizeof(*result)+
+  if (!(result=(MYSQL_RES*) my_malloc(key_memory_MYSQL_RES,
+                                      sizeof(*result)+
 				      sizeof(ulong)*mysql->field_count,
 				      MYF(MY_WME | MY_ZEROFILL))))
     DBUG_RETURN(0);
   result->lengths=(ulong*) (result+1);
   result->methods= mysql->methods;
   if (!(result->row=(MYSQL_ROW)
-	my_malloc(sizeof(result->row[0])*(mysql->field_count+1), MYF(MY_WME))))
+	my_malloc(key_memory_MYSQL_ROW,
+                  sizeof(result->row[0])*(mysql->field_count+1), MYF(MY_WME))))
   {					/* Ptrs: to one row */
     my_free(result);
     DBUG_RETURN(0);
   }
   result->fields=	mysql->fields;
-  result->field_alloc=	mysql->field_alloc;
+  result->field_alloc= mysql->field_alloc;
   result->field_count=	mysql->field_count;
   result->current_field=0;
   result->handle=	mysql;
@@ -4566,19 +4639,23 @@ mysql_options(MYSQL *mysql,enum mysql_option option, const void *arg)
     break;
   case MYSQL_READ_DEFAULT_FILE:
     my_free(mysql->options.my_cnf_file);
-    mysql->options.my_cnf_file=my_strdup(arg,MYF(MY_WME));
+    mysql->options.my_cnf_file=my_strdup(key_memory_mysql_options,
+                                         arg,MYF(MY_WME));
     break;
   case MYSQL_READ_DEFAULT_GROUP:
     my_free(mysql->options.my_cnf_group);
-    mysql->options.my_cnf_group=my_strdup(arg,MYF(MY_WME));
+    mysql->options.my_cnf_group=my_strdup(key_memory_mysql_options,
+                                          arg,MYF(MY_WME));
     break;
   case MYSQL_SET_CHARSET_DIR:
     my_free(mysql->options.charset_dir);
-    mysql->options.charset_dir=my_strdup(arg,MYF(MY_WME));
+    mysql->options.charset_dir=my_strdup(key_memory_mysql_options,
+                                         arg,MYF(MY_WME));
     break;
   case MYSQL_SET_CHARSET_NAME:
     my_free(mysql->options.charset_name);
-    mysql->options.charset_name=my_strdup(arg,MYF(MY_WME));
+    mysql->options.charset_name=my_strdup(key_memory_mysql_options,
+                                          arg,MYF(MY_WME));
     break;
   case MYSQL_OPT_PROTOCOL:
     mysql->options.protocol= *(uint*) arg;
@@ -4587,7 +4664,8 @@ mysql_options(MYSQL *mysql,enum mysql_option option, const void *arg)
 #if defined (_WIN32) && !defined (EMBEDDED_LIBRARY)
     if (mysql->options.shared_memory_base_name != def_shared_memory_base_name)
       my_free(mysql->options.shared_memory_base_name);
-    mysql->options.shared_memory_base_name=my_strdup(arg,MYF(MY_WME));
+    mysql->options.shared_memory_base_name=my_strdup(key_memory_mysql_options,
+                                                     arg,MYF(MY_WME));
 #endif
     break;
   case MYSQL_OPT_USE_REMOTE_CONNECTION:
@@ -4596,7 +4674,8 @@ mysql_options(MYSQL *mysql,enum mysql_option option, const void *arg)
     mysql->options.methods_to_use= option;
     break;
   case MYSQL_SET_CLIENT_IP:
-    mysql->options.ci.client_ip= my_strdup(arg, MYF(MY_WME));
+    mysql->options.ci.client_ip= my_strdup(key_memory_mysql_options,
+                                           arg, MYF(MY_WME));
     break;
   case MYSQL_SECURE_AUTH:
     mysql->options.secure_auth= *(my_bool *) arg;
@@ -4609,7 +4688,8 @@ mysql_options(MYSQL *mysql,enum mysql_option option, const void *arg)
     break;
   case MYSQL_OPT_BIND:
     my_free(mysql->options.ci.bind_address);
-    mysql->options.ci.bind_address= my_strdup(arg, MYF(MY_WME));
+    mysql->options.ci.bind_address= my_strdup(key_memory_mysql_options,
+                                              arg, MYF(MY_WME));
     break;
   case MYSQL_OPT_SSL_VERIFY_SERVER_CERT:
     if (*(my_bool*) arg)
@@ -4757,7 +4837,8 @@ mysql_options4(MYSQL *mysql,enum mysql_option option,
           DBUG_RETURN(1);
         }
       }
-      if (!my_multi_malloc(MY_WME,
+      if (!my_multi_malloc(key_memory_mysql_options,
+                           MY_WME,
                            &elt, 2 * sizeof(LEX_STRING),
                            &key, key_len + 1,
                            &value, value_len + 1,
