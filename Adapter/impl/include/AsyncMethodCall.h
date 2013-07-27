@@ -235,10 +235,10 @@ public:
   C * native_obj;
   
   /* Constructor */
-  NativeVoidMethodCall<C>(const Arguments &args, int callback_idx, int class_id = 0) :
+  NativeVoidMethodCall<C>(const Arguments &args, int callback_idx) :
     AsyncCall_Returning<int>(args[callback_idx], 1)  /*callback*/
   {
-    native_obj = unwrapPointer<C *>(args.Holder(), class_id);
+    native_obj = unwrapPointer<C *>(args.Holder());
     DEBUG_ASSERT(native_obj != NULL);
   }
 };

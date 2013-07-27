@@ -34,8 +34,8 @@ template <typename C>
 class NativeDestructorCall : public NativeVoidMethodCall<C> {
 public:
   /* Constructor */
-  NativeDestructorCall<C>(const Arguments &args, int class_id = 0) :
-    NativeVoidMethodCall<C>(args, 0, class_id)
+  NativeDestructorCall<C>(const Arguments &args) :
+    NativeVoidMethodCall<C>(args, 0)
   { }
 
   /* Method */
