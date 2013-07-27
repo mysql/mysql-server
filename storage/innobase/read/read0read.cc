@@ -432,12 +432,8 @@ Complete the read view creation */
 void
 ReadView::complete()
 {
-	if (!m_ids.empty()) {
-		/* The last active transaction has the smallest id: */
-		::memmove(&m_up_limit_id, m_ids.data(), sizeof(m_up_limit_id));
-	} else {
-		m_up_limit_id = m_low_limit_id;
-	}
+	/* The first active transaction has the smallest id. */
+	m_up_limit_id = !m_ids.empty() ? m_ids.front() : m_low_limit_id;
 
 	ut_ad(m_up_limit_id <= m_low_limit_id);
 
