@@ -1,5 +1,5 @@
 /*
- Copyright (c) 2012, Oracle and/or its affiliates. All rights
+ Copyright (c) 2013, Oracle and/or its affiliates. All rights
  reserved.
 
  This program is free software; you can redistribute it and/or
@@ -34,8 +34,8 @@ template <typename C>
 class NativeDestructorCall : public NativeVoidMethodCall<C> {
 public:
   /* Constructor */
-  NativeDestructorCall<C>(const Arguments &args) :
-    NativeVoidMethodCall<C>(args, 0)
+  NativeDestructorCall<C>(const Arguments &args, int class_id = 0) :
+    NativeVoidMethodCall<C>(args, 0, class_id)
   { }
 
   /* Method */
