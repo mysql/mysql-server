@@ -83,12 +83,21 @@ class ReadView {
 		void assign(const value_type* start, const value_type* end);
 
 		/**
-		@return the first value in the array */
+		@return the value of the first element in the array */
 		value_type front() const
 		{
 			ut_ad(!empty());
 
 			return(m_ptr[0]);
+		}
+
+		/**
+		@return the value of the last element in the array */
+		value_type back() const
+		{
+			ut_ad(!empty());
+
+			return(m_ptr[m_size - 1]);
 		}
 
 		/**
