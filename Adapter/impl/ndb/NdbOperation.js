@@ -273,9 +273,11 @@ DBOperation.prototype.prepare = function(ndbTransaction) {
 
 /* Prepare a scan operation.
    This produces the scan filter and index bounds, which are stored in op.scan 
-   to protect them from garbage collecteion before their use in the async call.
+   to protect them from garbage collection before their use in the async call.
    A ScanHelperSpec is used to build a scan helper, which will run an async
-   prepareScan call.    
+   prepareScan call.  prepareScan() simply calls scan_table or scan_index
+   and returns an NdbScanOperation (the equivalent call for key operations 
+   can run synchronously, but this one is async).
 */
 DBOperation.prototype.prepareScan = function(ndbTransaction, callback) {
   var opcode = 33;  // How to tell from operation?
@@ -408,6 +410,7 @@ function getScanResults(scanop, userCallback) {
     arg0: null,
     arg1: null  
   };
+  var i = 0;
 
   if(ResultConstructor == null) {
     storeNativeConstructorInMapping(scanop.tableHandler);
@@ -421,12 +424,13 @@ function getScanResults(scanop, userCallback) {
     var force_send = true;
     apiCall.preCallback = gather;
     apiCall.ndb_scan_op = ndb_scan_op;
-    apiCall.description = "fetchResults";
+    apiCall.description = "fetchResults" + scanop.transaction.moniker + i;
     apiCall.buffer = buffer;
     apiCall.run = function runFetchResults() {
       this.ndb_scan_op.fetchResults(this.buffer, force_send, this.callback);
     };
     apiCall.enqueue();
+    i++;
   }
 
   function fetch() {
