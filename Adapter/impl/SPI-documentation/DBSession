@@ -1,17 +1,5 @@
 /* DBSession
    Represents a single user's session (e.g., a single HTTP request).
-   METHODS:
-      getConnectionPool()
-      read(table, keys)
-      insert(table, row)
-      update(table, keys, row)
-      write(table, row)
-      delete(table, keys)
-      setLockMode()
-      close()
-      begin()
-      commit()
-      rollback()
 */
 
 /*  getConnectionPool() 
