@@ -76,14 +76,14 @@ DBScanHelper::DBScanHelper(const Arguments &args) :
   v = spec->Get(SCAN_TABLE_RECORD);
   if(! v->IsNull()) {
     Local<Object> o = v->ToObject();
-    row_record = unwrapPointer<Record *>(o);
+    row_record = unwrapPointer<const Record *>(o);
   }
 
   v = spec->Get(SCAN_INDEX_RECORD);
   if(! v->IsNull()) {
     Local<Object> o = v->ToObject();
     isIndexScan = true;
-    key_record = unwrapPointer<Record *>(o);
+    key_record = unwrapPointer<const Record *>(o);
   }
   
   v = spec->Get(SCAN_LOCK_MODE);

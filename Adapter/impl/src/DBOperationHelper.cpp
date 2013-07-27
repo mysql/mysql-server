@@ -1,5 +1,5 @@
 /*
- Copyright (c) 2012, Oracle and/or its affiliates. All rights
+ Copyright (c) 2013, Oracle and/or its affiliates. All rights
  reserved.
  
  This program is free software; you can redistribute it and/or
@@ -77,7 +77,7 @@ void setKeysInOp(Handle<Object> spec, Operation & op) {
   v = spec->Get(HELPER_KEY_RECORD);
   if(! v->IsNull()) {
     o = v->ToObject();
-    op.key_record = unwrapPointer<Record *>(o);
+    op.key_record = unwrapPointer<const Record *>(o);
   }
 }
 
@@ -129,7 +129,7 @@ Handle<Value> DBOperationHelper_NonVO(const Arguments &args) {
   v = spec->Get(HELPER_ROW_RECORD);
   if(! v->IsNull()) {
     o = v->ToObject();
-    op.row_record = unwrapPointer<Record *>(o);
+    op.row_record = unwrapPointer<const Record *>(o);
   }
   
   v = spec->Get(HELPER_LOCK_MODE);
@@ -217,7 +217,6 @@ void DBOperationHelper_initOnLoad(Handle<Object> target) {
   target->Set(Persistent<String>(String::NewSymbol("LockModes")), LockModes);
   DEFINE_JS_INT(LockModes, "EXCLUSIVE", NdbOperation::LM_Exclusive);
   DEFINE_JS_INT(LockModes, "SHARED", NdbOperation::LM_Read);
-  DEFINE_JS_INT(LockModes, "SHARED_RELEASED", NdbOperation::LM_SimpleRead);
   DEFINE_JS_INT(LockModes, "COMMITTED", NdbOperation::LM_CommittedRead);
 }
 
