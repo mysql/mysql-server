@@ -1,6 +1,6 @@
 
 /*
- Copyright (c) 2012, Oracle and/or its affiliates. All rights
+ Copyright (c) 2013, Oracle and/or its affiliates. All rights
  reserved.
 
  This program is free software; you can redistribute it and/or
@@ -235,10 +235,10 @@ public:
   C * native_obj;
   
   /* Constructor */
-  NativeVoidMethodCall<C>(const Arguments &args, int callback_idx) :
+  NativeVoidMethodCall<C>(const Arguments &args, int callback_idx, int class_id = 0) :
     AsyncCall_Returning<int>(args[callback_idx], 1)  /*callback*/
   {
-    native_obj = unwrapPointer<C *>(args.Holder());
+    native_obj = unwrapPointer<C *>(args.Holder(), class_id);
     DEBUG_ASSERT(native_obj != NULL);
   }
 };
