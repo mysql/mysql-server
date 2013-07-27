@@ -474,7 +474,8 @@ int ip_to_hostname(struct sockaddr_storage *ip_storage,
       if (entry->m_host_validated)
       {
         if (entry->m_hostname_length)
-          *hostname= my_strdup(entry->m_hostname, MYF(0));
+          *hostname= my_strdup(key_memory_host_cache_hostname,
+                               entry->m_hostname, MYF(0));
 
         DBUG_PRINT("info",("IP (%s) has been found in the cache. "
                            "Hostname: '%s'",
@@ -955,7 +956,8 @@ int ip_to_hostname(struct sockaddr_storage *ip_storage,
     {
       /* Copy host name string to be stored in the cache. */
 
-      *hostname= my_strdup(hostname_buffer, MYF(0));
+      *hostname= my_strdup(key_memory_host_cache_hostname,
+                           hostname_buffer, MYF(0));
 
       if (!*hostname)
       {

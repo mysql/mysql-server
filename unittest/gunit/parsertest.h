@@ -67,7 +67,7 @@ protected:
     if (thd()->db == NULL)
     {
       // The THD DTOR will do my_free() on this.
-      char *db= static_cast<char*>(my_malloc(3, MYF(0)));
+      char *db= static_cast<char*>(my_malloc(PSI_NOT_INSTRUMENTED, 3, MYF(0)));
       sprintf(db, "db");
       thd()->db= db;
     }

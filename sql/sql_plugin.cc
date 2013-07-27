@@ -44,6 +44,13 @@ using std::max;
 #define REPORT_TO_LOG  1
 #define REPORT_TO_USER 2
 
+static PSI_memory_key key_memory_plugin_mem_root;
+static PSI_memory_key key_memory_plugin_init_tmp;
+static PSI_memory_key key_memory_plugin_int_mem_root;
+static PSI_memory_key key_memory_plugin_ref;
+static PSI_memory_key key_memory_mysql_plugin;
+static PSI_memory_key key_memory_mysql_plugin_dl;
+
 extern struct st_mysql_plugin *mysql_optional_plugins[];
 extern struct st_mysql_plugin *mysql_mandatory_plugins[];
 
@@ -572,7 +579,8 @@ static st_plugin_dl *plugin_dl_add(const LEX_STRING *dl, int report)
       /* no op */;
 
     cur= (struct st_mysql_plugin*)
-      my_malloc((i+1)*sizeof(struct st_mysql_plugin), MYF(MY_ZEROFILL|MY_WME));
+      my_malloc(key_memory_mysql_plugin,
+                (i+1)*sizeof(struct st_mysql_plugin), MYF(MY_ZEROFILL|MY_WME));
     if (!cur)
     {
       free_plugin_mem(&plugin_dl);
@@ -613,7 +621,8 @@ static st_plugin_dl *plugin_dl_add(const LEX_STRING *dl, int report)
 
   /* Duplicate and convert dll name */
   plugin_dl.dl.length= dl->length * files_charset_info->mbmaxlen + 1;
-  if (! (plugin_dl.dl.str= (char*) my_malloc(plugin_dl.dl.length, MYF(0))))
+  if (! (plugin_dl.dl.str= (char*) my_malloc(key_memory_mysql_plugin_dl,
+                                             plugin_dl.dl.length, MYF(0))))
   {
     free_plugin_mem(&plugin_dl);
     report_error(report, ER_OUTOFMEMORY,
@@ -754,7 +763,8 @@ static plugin_ref intern_plugin_lock(LEX *lex, plugin_ref rc)
       memory manager and/or valgrind to track locked references and
       double unlocks to aid resolving reference counting problems.
     */
-    if (!(plugin= (plugin_ref) my_malloc(sizeof(pi), MYF(MY_WME))))
+    if (!(plugin= (plugin_ref) my_malloc(key_memory_plugin_ref,
+                                         sizeof(pi), MYF(MY_WME))))
       DBUG_RETURN(NULL);
 
     *plugin= pi;
@@ -877,7 +887,8 @@ static bool plugin_add(MEM_ROOT *tmp_root,
         plugin_array_version++;
         if (!my_hash_insert(&plugin_hash[plugin->type], (uchar*)tmp_plugin_ptr))
         {
-          init_alloc_root(&tmp_plugin_ptr->mem_root, 4096, 4096);
+          init_alloc_root(key_memory_plugin_int_mem_root,
+                          &tmp_plugin_ptr->mem_root, 4096, 4096);
           DBUG_RETURN(FALSE);
         }
         tmp_plugin_ptr->state= PLUGIN_IS_FREED;
@@ -1206,6 +1217,17 @@ static PSI_mutex_info all_plugin_mutexes[]=
   { &key_LOCK_plugin, "LOCK_plugin", PSI_FLAG_GLOBAL}
 };
 
+
+static PSI_memory_info all_plugin_memory[]=
+{
+  { &key_memory_plugin_mem_root, "plugin_mem_root", PSI_FLAG_GLOBAL},
+  { &key_memory_plugin_init_tmp, "plugin_init_tmp", 0},
+  { &key_memory_plugin_int_mem_root, "plugin_int_mem_root", 0},
+  { &key_memory_plugin_ref, "plugin_ref", 0},
+  { &key_memory_mysql_plugin_dl, "mysql_plugin_dl", 0},
+  { &key_memory_mysql_plugin, "mysql_plugin", 0}
+};
+
 static void init_plugin_psi_keys(void)
 {
   const char* category= "sql";
@@ -1213,6 +1235,9 @@ static void init_plugin_psi_keys(void)
 
   count= array_elements(all_plugin_mutexes);
   mysql_mutex_register(category, all_plugin_mutexes, count);
+
+  count= array_elements(all_plugin_memory);
+  mysql_memory_register(category, all_plugin_memory, count);
 }
 #endif /* HAVE_PSI_INTERFACE */
 
@@ -1242,8 +1267,8 @@ int plugin_init(int *argc, char **argv, int flags)
   init_plugin_psi_keys();
 #endif
 
-  init_alloc_root(&plugin_mem_root, 4096, 4096);
-  init_alloc_root(&tmp_root, 4096, 4096);
+  init_alloc_root(key_memory_plugin_mem_root, &plugin_mem_root, 4096, 4096);
+  init_alloc_root(key_memory_plugin_init_tmp, &tmp_root, 4096, 4096);
 
   if (my_hash_init(&bookmark_hash, &my_charset_bin, 16, 0, 0,
                    get_bookmark_hash_key, NULL, HASH_UNIQUE))
@@ -1460,7 +1485,8 @@ static void plugin_load(MEM_ROOT *tmp_root, int *argc, char **argv)
 
   new_thd->thread_stack= (char*) &tables;
   new_thd->store_globals();
-  new_thd->db= my_strdup("mysql", MYF(0));
+  new_thd->db= my_strdup(key_memory_THD_db,
+                         "mysql", MYF(0));
   new_thd->db_length= 5;
   memset(&thd.net, 0, sizeof(thd.net));
   tables.init_one_table("mysql", 5, "plugin", 6, "plugin", TL_READ);
@@ -2512,10 +2538,12 @@ static st_bookmark *register_var(const char *plugin, const char *name,
     if (new_size > global_variables_dynamic_size)
     {
       global_system_variables.dynamic_variables_ptr= (char*)
-        my_realloc(global_system_variables.dynamic_variables_ptr, new_size,
+        my_realloc(key_memory_global_system_variables,
+                   global_system_variables.dynamic_variables_ptr, new_size,
                    MYF(MY_WME | MY_FAE | MY_ALLOW_ZERO_PTR));
       max_system_variables.dynamic_variables_ptr= (char*)
-        my_realloc(max_system_variables.dynamic_variables_ptr, new_size,
+        my_realloc(key_memory_global_system_variables,
+                   max_system_variables.dynamic_variables_ptr, new_size,
                    MYF(MY_WME | MY_FAE | MY_ALLOW_ZERO_PTR));
       /*
         Clear the new variable value space. This is required for string
@@ -2586,7 +2614,8 @@ static uchar *intern_sys_var_ptr(THD* thd, int offset, bool global_lock)
     mysql_rwlock_rdlock(&LOCK_system_variables_hash);
 
     thd->variables.dynamic_variables_ptr= (char*)
-      my_realloc(thd->variables.dynamic_variables_ptr,
+      my_realloc(key_memory_THD_variables,
+                 thd->variables.dynamic_variables_ptr,
                  global_variables_dynamic_size,
                  MYF(MY_WME | MY_FAE | MY_ALLOW_ZERO_PTR));
 
@@ -2900,7 +2929,8 @@ static bool plugin_var_memalloc_session_update(THD *thd,
   {
     size_t length= strlen(value) + 1;
     LIST *element;
-    if (!(element= (LIST *) my_malloc(sizeof(LIST) + length, MYF(MY_WME))))
+    if (!(element= (LIST *) my_malloc(key_memory_THD_variables,
+                                      sizeof(LIST) + length, MYF(MY_WME))))
       DBUG_RETURN(true);
     memcpy(element + 1, value, length);
     value= (const char *) (element + 1);
@@ -2968,7 +2998,8 @@ static bool plugin_var_memalloc_global_update(THD *thd,
   char *old_value= *dest;
   DBUG_ENTER("plugin_var_memalloc_global_update");
 
-  if (value && !(value= my_strdup(value, MYF(MY_WME))))
+  if (value && !(value= my_strdup(key_memory_global_system_variables,
+                                  value, MYF(MY_WME))))
     DBUG_RETURN(true);
 
   var->update(thd, var, (void **) dest, (const void *) &value);
