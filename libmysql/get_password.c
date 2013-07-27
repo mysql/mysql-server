@@ -87,7 +87,8 @@ char *get_tty_password(const char *opt_message)
     pos--;					/* Allow dummy space at end */
   *pos=0;
   _cputs("\n");
-  DBUG_RETURN(my_strdup(to,MYF(MY_FAE)));
+  DBUG_RETURN(my_strdup(PSI_NOT_INSTRUMENTED,
+                        to,MYF(MY_FAE)));
 }
 
 #else
@@ -196,6 +197,7 @@ char *get_tty_password(const char *opt_message)
     fputc('\n',stdout);
 #endif /* HAVE_GETPASS */
 
-  DBUG_RETURN(my_strdup(buff,MYF(MY_FAE)));
+  DBUG_RETURN(my_strdup(PSI_NOT_INSTRUMENTED,
+                        buff,MYF(MY_FAE)));
 }
 #endif /* _WIN32 */

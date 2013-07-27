@@ -1490,9 +1490,6 @@ static int mysql_test_select(Prepared_statement *stmt,
     goto error;
   if (!lex->describe && !stmt->is_sql_prepare())
   {
-    /* Make copy of item list, as change_columns may change it */
-    List<Item> fields(lex->select_lex->item_list);
-
     select_result *result= lex->result;
     select_result *analyse_result= NULL;
     if (lex->proc_analyse)
@@ -1509,8 +1506,9 @@ static int mysql_test_select(Prepared_statement *stmt,
       We can use "result" as it should've been prepared in
       unit->prepare call above.
     */
-    bool rc= (send_prep_stmt(stmt, result->field_count(fields)) ||
-              result->send_result_set_metadata(fields, Protocol::SEND_EOF) ||
+    bool rc= (send_prep_stmt(stmt, result->field_count(unit->types)) ||
+              result->send_result_set_metadata(unit->types,
+                                               Protocol::SEND_EOF) ||
               thd->protocol->flush());
     delete analyse_result;
     if (rc)
@@ -3148,8 +3146,9 @@ Prepared_statement::Prepared_statement(THD *thd_arg)
   last_errno(0),
   flags((uint) IS_IN_USE)
 {
-  init_sql_alloc(&main_mem_root, thd_arg->variables.query_alloc_block_size,
-                  thd_arg->variables.query_prealloc_size);
+  init_sql_alloc(key_memory_prepared_statement_main_mem_root,
+                 &main_mem_root, thd_arg->variables.query_alloc_block_size,
+                 thd_arg->variables.query_prealloc_size);
   *last_error= '\0';
 }
 
@@ -4507,7 +4506,8 @@ bool Protocol_local::send_result_set_metadata(List<Item> *columns, uint)
 {
   DBUG_ASSERT(m_rset == 0 && !alloc_root_inited(&m_rset_root));
 
-  init_sql_alloc(&m_rset_root, MEM_ROOT_BLOCK_SIZE, 0);
+  init_sql_alloc(key_memory_protocol_rset_root,
+                 &m_rset_root, MEM_ROOT_BLOCK_SIZE, 0);
 
   if (! (m_rset= new (&m_rset_root) List<Ed_row>))
     return TRUE;

@@ -71,12 +71,15 @@ public:
     PFS_atomic::add_32(& m_refcount, -1);
   }
 
-  void aggregate(PFS_user *safe_user, PFS_host *safe_host);
+  void aggregate(bool alive, PFS_user *safe_user, PFS_host *safe_host);
   void aggregate_waits(PFS_user *safe_user, PFS_host *safe_host);
   void aggregate_stages(PFS_user *safe_user, PFS_host *safe_host);
   void aggregate_statements(PFS_user *safe_user, PFS_host *safe_host);
+  void aggregate_memory(bool alive, PFS_user *safe_user, PFS_host *safe_host);
   void aggregate_stats(PFS_user *safe_user, PFS_host *safe_host);
   void release(void);
+
+  void carry_memory_stat_delta(PFS_memory_stat_delta *delta, uint index);
 
   /** Internal lock. */
   pfs_lock m_lock;

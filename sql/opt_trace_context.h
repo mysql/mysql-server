@@ -286,6 +286,9 @@ private:
   {
   public:
     Opt_trace_context_impl() : current_stmt_in_gen(NULL),
+      stack_of_current_stmts(PSI_INSTRUMENT_ME),
+      all_stmts_for_I_S(PSI_INSTRUMENT_ME),
+      all_stmts_to_del(PSI_INSTRUMENT_ME),
       features(feature_value(0)), offset(0), limit(0), since_offset_0(0)
     {}
 

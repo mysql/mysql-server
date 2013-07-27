@@ -1433,7 +1433,8 @@ READ_INFO::READ_INFO(File file_par, uint tot_length, const CHARSET_INFO *cs,
   set_if_bigger(length,line_start.length());
   stack=stack_pos=(int*) sql_alloc(sizeof(int)*length);
 
-  if (!(buffer=(uchar*) my_malloc(buff_length+1,MYF(0))))
+  if (!(buffer=(uchar*) my_malloc(key_memory_READ_INFO,
+                                  buff_length+1,MYF(0))))
     error=1; /* purecov: inspected */
   else
   {
@@ -1661,7 +1662,8 @@ int READ_INFO::read_field()
     /*
     ** We come here if buffer is too small. Enlarge it and continue
     */
-    if (!(new_buffer=(uchar*) my_realloc((char*) buffer,buff_length+1+IO_SIZE,
+    if (!(new_buffer=(uchar*) my_realloc(key_memory_READ_INFO,
+                                         (char*) buffer,buff_length+1+IO_SIZE,
 					MYF(MY_WME))))
       return (error=1);
     to=new_buffer + (to-buffer);

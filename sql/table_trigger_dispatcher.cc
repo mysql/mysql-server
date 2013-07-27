@@ -84,7 +84,8 @@ Table_trigger_dispatcher::Table_trigger_dispatcher(const char *db_name,
   memset(m_trigger_map, 0, sizeof(m_trigger_map));
   m_parse_error_message[0]= 0;
 
-  init_sql_alloc(&m_mem_root, 8192, 0);
+  init_sql_alloc(key_memory_Table_trigger_dispatcher,
+                 &m_mem_root, 8192, 0);
 
   lex_string_copy(get_mem_root(), &m_db_name, db_name);
   lex_string_copy(get_mem_root(), &m_subject_table_name, table_name);

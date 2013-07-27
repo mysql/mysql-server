@@ -1,0 +1,42 @@
+# Tests for PERFORMANCE_SCHEMA
+
+--source include/not_embedded.inc
+--source include/have_perfschema.inc
+
+--disable_result_log 
+select * from performance_schema.memory_summary_by_host_by_event_name
+  where event_name like 'memory/%' limit 1;
+
+select * from performance_schema.memory_summary_by_host_by_event_name
+  where event_name='FOO';
+--enable_result_log
+
+--error ER_TABLEACCESS_DENIED_ERROR
+insert into performance_schema.memory_summary_by_host_by_event_name
+  set event_name='FOO', host='BAZ',
+  count_alloc=1, count_free=2, sum_number_of_bytes_alloc=3,
+  sum_number_of_bytes_free=4, low_count_used=5;
+
+--error ER_TABLEACCESS_DENIED_ERROR
+update performance_schema.memory_summary_by_host_by_event_name
+  set count_alloc=12;
+
+--error ER_TABLEACCESS_DENIED_ERROR
+update performance_schema.memory_summary_by_host_by_event_name
+  set count_alloc=12 where event_name like "FOO";
+
+--error ER_TABLEACCESS_DENIED_ERROR
+delete from performance_schema.memory_summary_by_host_by_event_name
+  where count_alloc=1;
+
+--error ER_TABLEACCESS_DENIED_ERROR
+delete from performance_schema.memory_summary_by_host_by_event_name;
+
+-- error ER_TABLEACCESS_DENIED_ERROR
+LOCK TABLES performance_schema.memory_summary_by_host_by_event_name READ;
+UNLOCK TABLES;
+
+-- error ER_TABLEACCESS_DENIED_ERROR
+LOCK TABLES performance_schema.memory_summary_by_host_by_event_name WRITE;
+UNLOCK TABLES;
+
