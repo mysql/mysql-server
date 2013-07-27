@@ -39,6 +39,8 @@ static bool no_threads_end(THD *thd, bool put_in_cache)
   mysql_mutex_lock(&LOCK_thread_count);
   remove_global_thread(thd);
   mysql_mutex_unlock(&LOCK_thread_count);
+  // Remove all context associated with thread as thd is undergoing free.
+  restore_globals(thd);
   destroy_thd(thd);
 
   return 1;                                     // Abort handle_one_connection

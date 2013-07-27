@@ -3978,7 +3978,8 @@ public:
   User_level_lock(const uchar *key_arg,uint length, ulong id) 
     :key_length(length),count(1),locked(1), thread_id(id)
   {
-    key= (uchar*) my_memdup(key_arg,length,MYF(0));
+    key= (uchar*) my_memdup(key_memory_User_level_lock_key,
+                            key_arg, length, MYF(0));
     mysql_cond_init(key_user_level_lock_cond, &cond, NULL);
     if (key)
     {
@@ -4749,7 +4750,8 @@ bool user_var_entry::realloc(uint length)
     {
       if (m_ptr == internal_buffer_ptr())
         m_ptr= 0;
-      if (!(m_ptr= (char*) my_realloc(m_ptr, length,
+      if (!(m_ptr= (char*) my_realloc(key_memory_user_var_entry_value,
+                                      m_ptr, length,
                                       MYF(MY_ALLOW_ZERO_PTR | MY_WME |
                                       ME_FATALERROR))))
         return true;

@@ -645,6 +645,28 @@ set_thread_connect_attrs_noop(const char *buffer __attribute__((unused)),
   return 0;
 }
 
+static void register_memory_noop(const char *category NNN,
+                                 PSI_memory_info *info NNN,
+                                 int count NNN)
+{
+  return;
+}
+
+static PSI_memory_key memory_alloc_noop(PSI_memory_key key NNN, size_t size NNN)
+{
+  return PSI_NOT_INSTRUMENTED;
+}
+
+static PSI_memory_key memory_realloc_noop(PSI_memory_key key NNN, size_t old_size NNN, size_t new_size NNN)
+{
+  return PSI_NOT_INSTRUMENTED;
+}
+
+static void memory_free_noop(PSI_memory_key key NNN, size_t size NNN)
+{
+  return;
+}
+
 static PSI PSI_noop=
 {
   register_mutex_noop,
@@ -743,7 +765,12 @@ static PSI PSI_noop=
   set_socket_thread_owner_noop,
   digest_start_noop,
   digest_add_token_noop,
-  set_thread_connect_attrs_noop
+  set_thread_connect_attrs_noop,
+
+  register_memory_noop,
+  memory_alloc_noop,
+  memory_realloc_noop,
+  memory_free_noop
 };
 
 /**

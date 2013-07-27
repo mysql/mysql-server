@@ -287,7 +287,8 @@ MI_INFO *mi_open(const char *name, int mode, uint open_flags)
     /* Add space for node pointer */
     share->base.max_key_length+= share->base.key_reflength;
 
-    if (!my_multi_malloc(MY_WME,
+    if (!my_multi_malloc(mi_key_memory_MYISAM_SHARE,
+                         MY_WME,
 			 &share,sizeof(*share),
 			 &share->state.rec_per_key_part,sizeof(long)*key_parts,
 			 &share->keyinfo,keys*sizeof(MI_KEYDEF),
@@ -568,7 +569,8 @@ MI_INFO *mi_open(const char *name, int mode, uint open_flags)
   }
 
   /* alloc and set up private structure parts */
-  if (!my_multi_malloc(MY_WME,
+  if (!my_multi_malloc(mi_key_memory_MI_INFO,
+                       MY_WME,
 		       &m_info,sizeof(MI_INFO),
 		       &info.blobs,sizeof(MI_BLOB)*share->base.blobs,
 		       &info.buff,(share->base.max_key_block_length*2+
@@ -725,7 +727,8 @@ uchar *mi_alloc_rec_buff(MI_INFO *info, ulong length, uchar **buf)
 	    MI_REC_BUFF_OFFSET : 0);
     if (extra && newptr)
       newptr-= MI_REC_BUFF_OFFSET;
-    if (!(newptr=(uchar*) my_realloc((uchar*)newptr, length+extra+8,
+    if (!(newptr=(uchar*) my_realloc(mi_key_memory_record_buffer,
+                                     (uchar*)newptr, length+extra+8,
                                      MYF(MY_ALLOW_ZERO_PTR))))
       return newptr;
     *((uint32 *) newptr)= (uint32) length;

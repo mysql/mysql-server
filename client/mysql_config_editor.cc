@@ -404,7 +404,8 @@ static int do_handle_options(int argc, char *argv[])
     exit(1);
   }
 
-  if (!(ptr= (char *) my_malloc((argc + 2) * sizeof(char *),
+  if (!(ptr= (char *) my_malloc(PSI_NOT_INSTRUMENTED,
+                                (argc + 2) * sizeof(char *),
                                 MYF(MY_WME))))
     goto error;
 
@@ -456,7 +457,8 @@ static int do_handle_options(int argc, char *argv[])
 
   /* If NULL, set it to 'client' (default) */
   if (!opt_login_path)
-    opt_login_path= my_strdup("client", MYF(MY_WME));
+    opt_login_path= my_strdup(PSI_NOT_INSTRUMENTED,
+                              "client", MYF(MY_WME));
 
 done:
   my_free(ptr);
@@ -980,7 +982,8 @@ static void remove_option(DYNAMIC_STRING *file_buf, const char *path_name,
   int search_len, shift_len;
   bool option_found= FALSE;
 
-  search_str= (char *) my_malloc((uint) strlen(option_name) + 2, MYF(MY_WME));
+  search_str= (char *) my_malloc(PSI_NOT_INSTRUMENTED,
+                                 (uint) strlen(option_name) + 2, MYF(MY_WME));
   sprintf(search_str, "\n%s", option_name);
 
   if ((start= locate_login_path(file_buf, path_name)) == NULL)

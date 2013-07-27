@@ -69,12 +69,15 @@ public:
     PFS_atomic::add_32(& m_refcount, -1);
   }
 
-  void aggregate(void);
+  void aggregate(bool alive);
   void aggregate_waits(void);
   void aggregate_stages(void);
   void aggregate_statements(void);
+  void aggregate_memory(bool alive);
   void aggregate_stats(void);
   void release(void);
+
+  void carry_memory_stat_delta(PFS_memory_stat_delta *delta, uint index);
 
   /* Internal lock. */
   pfs_lock m_lock;
