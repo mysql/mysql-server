@@ -84,38 +84,29 @@ Handle<Value> commitStatus(const Arguments &args) {
   return scope.Close(ncall.jsReturnVal());
 }
 
-/* IMMEDIATE SYNC CLOSE ONLY.
-   NdbTransaction::close() would require I/O if the transaction had not 
-   previously been executed with either commit or rollback.
-   But we want to require that it be in a state such that it can close 
-   immediately.
-*/
-Handle<Value> close(const Arguments &args) {
-  DEBUG_MARKER(UDEB_DEBUG);
-  HandleScope scope;
-  
-  REQUIRE_ARGS_LENGTH(0);
-  
+
+// ASYNC CLOSE
+Handle<Value> close(const Arguments &args) {    
+  REQUIRE_ARGS_LENGTH(1);
   typedef NativeVoidMethodCall_0_<NdbTransaction> NCALL;
-  NCALL ncall(& NdbTransaction::close, args);
-  ncall.run();
-  
-  return scope.Close(ncall.jsReturnVal());
+  NCALL * ncallptr = new NCALL(& NdbTransaction::close, args);
+  DEBUG_PRINT("NdbTransaction:%p:close()", ncallptr->native_obj);
+  ncallptr->runAsync();
+  return Undefined();
 }
 
 
 //////////// ASYNC METHOD WRAPPERS
 
 Handle<Value> execute(const Arguments &args) {
-  DEBUG_MARKER(UDEB_DEBUG);  
   REQUIRE_ARGS_LENGTH(4);
 
   typedef NativeMethodCall_3_<int, NdbTransaction, NdbTransaction::ExecType,
                               NdbOperation::AbortOption, int> NCALL;
   NCALL * ncallptr = new NCALL(& NdbTransaction::execute, args);
   ncallptr->errorHandler = getNdbErrorIfLessThanZero<int, NdbTransaction>;
+  DEBUG_PRINT("NdbTransaction:%p:execute(%d)", ncallptr->native_obj, ncallptr->arg0);
   ncallptr->runAsync();
-
   return Undefined();
 }
 
