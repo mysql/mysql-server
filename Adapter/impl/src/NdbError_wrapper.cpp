@@ -1,5 +1,5 @@
 /*
- Copyright (c) 2012, Oracle and/or its affiliates. All rights
+ Copyright (c) 2013, Oracle and/or its affiliates. All rights
  reserved.
  
  This program is free software; you can redistribute it and/or
@@ -47,10 +47,10 @@ public:
     DEFINE_JS_ACCESSOR(Envelope::stencil, "message", get_message);
 }
 
-  Local<Object> wrap(const NdbError &err) {
+  Local<Object> wrap(const NdbError * err) {
     HandleScope scope;    
     Local<Object> wrapper = Envelope::stencil->NewInstance();
-    wrapPointerInObject(&err, *this, wrapper);
+    wrapPointerInObject(err, *this, wrapper);
     return scope.Close(wrapper);
   }
 };
@@ -59,7 +59,7 @@ NdbErrorEnvelopeClass NdbErrorEnvelope;
 
 
 Handle<Value> NdbError_Wrapper(const NdbError &err) {
-  return NdbErrorEnvelope.wrap(err);
+  return NdbErrorEnvelope.wrap(& err);
 }
 
 #define MAP_CODE(CODE) \
@@ -68,7 +68,7 @@ Handle<Value> NdbError_Wrapper(const NdbError &err) {
 
 
 Handle<Value> get_status(Local<String> property, const AccessorInfo &info) {
-  NdbError *err = unwrapPointer<NdbError *>(info.Holder());
+  const NdbError *err = unwrapPointer<const NdbError *>(info.Holder());
   
   switch(err->status) {
     MAP_CODE(Success);
@@ -81,7 +81,7 @@ Handle<Value> get_status(Local<String> property, const AccessorInfo &info) {
 
 
 Handle<Value> get_classification(Local<String> property, const AccessorInfo &info) {
-  NdbError *err = unwrapPointer<NdbError *>(info.Holder());
+  const NdbError *err = unwrapPointer<const NdbError *>(info.Holder());
 
   switch(err->classification) {
     MAP_CODE(NoError);
@@ -109,21 +109,21 @@ Handle<Value> get_classification(Local<String> property, const AccessorInfo &inf
 
 
 Handle<Value> get_code(Local<String> property, const AccessorInfo &info) {
-  NdbError *err = unwrapPointer<NdbError *>(info.Holder());
+  const NdbError *err = unwrapPointer<const NdbError *>(info.Holder());
   
   return Integer::New(err->code);  
 }
 
 
 Handle<Value> get_mysql_code(Local<String> property, const AccessorInfo &info) {
-  NdbError *err = unwrapPointer<NdbError *>(info.Holder());
+  const NdbError *err = unwrapPointer<const NdbError *>(info.Holder());
   
   return Integer::New(err->mysql_code);
 }
 
 
 Handle<Value> get_message(Local<String> property, const AccessorInfo &info) {
-  NdbError *err = unwrapPointer<NdbError *>(info.Holder());
+  const NdbError *err = unwrapPointer<const NdbError *>(info.Holder());
   
   return String::New(err->message);
 }
