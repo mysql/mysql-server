@@ -1,12 +1,4 @@
 /* DBTransactionHandler represents a database transaction.
-   METHODS:
-     setPartitionKey(tableHandler, partitionKey)
-     execute(execMode, callback)
-     close()
-        
-  OBJECT DEFINITIONS:
-     DBTransactionHandler
-     DBTransactionStates
 */
 
 var DBTransactionHandler; // Standard members of DBTransactionHandler object
