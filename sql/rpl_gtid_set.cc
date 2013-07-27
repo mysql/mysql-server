@@ -1,4 +1,4 @@
-/* Copyright (c) 2012, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2012, 2013, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or
    modify it under the terms of the GNU General Public License as
@@ -22,6 +22,9 @@
 #include "my_dbug.h"
 #include "mysqld_error.h"
 #include <algorithm>
+
+PSI_memory_key key_memory_Gtid_set_to_string;
+PSI_memory_key key_memory_Gtid_set_Interval_chunk;
 
 using std::min;
 using std::max;
@@ -88,7 +91,7 @@ Gtid_set::~Gtid_set()
   while (chunk != NULL)
   {
     Interval_chunk *next_chunk= chunk->next;
-    free(chunk);
+    my_free(chunk);
     chunk= next_chunk;
 #ifndef DBUG_OFF
     n_chunks--;
@@ -185,7 +188,8 @@ enum_return_status Gtid_set::create_new_chunk(int size)
   // we only add size-1 elements to the size of the struct.
   assert_free_intervals_locked();
   Interval_chunk *new_chunk=
-    (Interval_chunk *)my_malloc(sizeof(Interval_chunk) +
+    (Interval_chunk *)my_malloc(key_memory_Gtid_set_Interval_chunk,
+                                sizeof(Interval_chunk) +
                                 sizeof(Interval) * (size - 1),
                                 MYF(MY_WME));
   if (new_chunk == NULL)
@@ -759,7 +763,8 @@ int Gtid_set::to_string(char **buf_arg, const Gtid_set::String_format *sf_arg) c
 {
   DBUG_ENTER("Gtid_set::to_string");
   int len= get_string_length(sf_arg);
-  *buf_arg= (char *)my_malloc(len + 1, MYF(MY_WME));
+  *buf_arg= (char *)my_malloc(key_memory_Gtid_set_to_string,
+                              len + 1, MYF(MY_WME));
   if (*buf_arg == NULL)
     DBUG_RETURN(-1);
   to_string(*buf_arg, sf_arg);

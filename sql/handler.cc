@@ -504,7 +504,8 @@ int ha_init_errors(void)
 
   /* Allocate a pointer array for the error message strings. */
   /* Zerofill it to avoid uninitialized gaps. */
-  if (! (handler_errmsgs= (const char**) my_malloc(HA_ERR_ERRORS * sizeof(char*),
+  if (! (handler_errmsgs= (const char**) my_malloc(key_memory_handler_errmsgs,
+                                                   HA_ERR_ERRORS * sizeof(char*),
                                                    MYF(MY_WME | MY_ZEROFILL))))
     return 1;
 
@@ -646,7 +647,8 @@ int ha_initialize_handlerton(st_plugin_int *plugin)
   DBUG_ENTER("ha_initialize_handlerton");
   DBUG_PRINT("plugin", ("initialize plugin: '%s'", plugin->name.str));
 
-  hton= (handlerton *)my_malloc(sizeof(handlerton),
+  hton= (handlerton *)my_malloc(key_memory_handlerton,
+                                sizeof(handlerton),
                                 MYF(MY_WME | MY_ZEROFILL));
 
   if (hton == NULL)
@@ -1882,7 +1884,8 @@ int ha_recover(HASH *commit_list)
   for (info.len= MAX_XID_LIST_SIZE ; 
        info.list==0 && info.len > MIN_XID_LIST_SIZE; info.len/=2)
   {
-    info.list=(XID *)my_malloc(info.len*sizeof(XID), MYF(0));
+    info.list=(XID *)my_malloc(key_memory_XID,
+                               info.len*sizeof(XID), MYF(0));
   }
   if (!info.list)
   {
@@ -7571,7 +7574,8 @@ fl_log_iterator_buffer_init(struct handler_iterator *iterator)
   {
     return HA_ITERATOR_ERROR;
   }
-  if ((ptr= (uchar*)my_malloc(ALIGN_SIZE(sizeof(fl_buff)) +
+  if ((ptr= (uchar*)my_malloc(INSTRUMENT_ME,
+                              ALIGN_SIZE(sizeof(fl_buff)) +
                              ((ALIGN_SIZE(sizeof(LEX_STRING)) +
                                sizeof(enum log_status) +
                                + FN_REFLEN + 1) *

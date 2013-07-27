@@ -1,4 +1,4 @@
-/* Copyright (c) 2012, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2012, 2013, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -73,7 +73,8 @@ void mysql_trace_start(struct st_mysql *m)
 {
   struct st_mysql_trace_info *trace_info;
  
-  trace_info= my_malloc(sizeof(struct st_mysql_trace_info), 
+  trace_info= my_malloc(PSI_NOT_INSTRUMENTED,
+                        sizeof(struct st_mysql_trace_info), 
                         MYF(MY_ZEROFILL));
   if (!trace_info)
   {

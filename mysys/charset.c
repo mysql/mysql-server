@@ -20,7 +20,6 @@
 #include <my_dir.h>
 #include <my_xml.h>
 
-
 /*
   The code below implements this functionality:
   
@@ -374,13 +373,19 @@ my_once_alloc_c(size_t size)
 
 static void *
 my_malloc_c(size_t size)
-{ return my_malloc(size, MYF(MY_WME)); }
+{ return my_malloc(key_memory_charset_loader, size, MYF(MY_WME)); }
 
 
 static void *
 my_realloc_c(void *old, size_t size)
-{ return my_realloc(old, size, MYF(MY_WME)); }
+{ return my_realloc(key_memory_charset_loader,
+                    old, size, MYF(MY_WME)); }
 
+static void
+my_free_c(void *ptr)
+{
+  my_free(ptr);
+}
 
 /**
   Initialize character set loader to use mysys memory management functions.
@@ -393,7 +398,7 @@ my_charset_loader_init_mysys(MY_CHARSET_LOADER *loader)
   loader->once_alloc= my_once_alloc_c;
   loader->malloc= my_malloc_c;
   loader->realloc= my_realloc_c;
-  loader->free= my_free;
+  loader->free= my_free_c;
   loader->reporter= my_charset_error_reporter;
   loader->add_collation= add_collation;
 }
@@ -417,7 +422,8 @@ my_read_charset_file(MY_CHARSET_LOADER *loader,
   
   if (!my_stat(filename, &stat_info, MYF(myflags)) ||
        ((len= (uint)stat_info.st_size) > MY_MAX_ALLOWED_BUF) ||
-       !(buf= (uchar*) my_malloc(len,myflags)))
+       !(buf= (uchar*) my_malloc(key_memory_charset_file,
+                                 len,myflags)))
     return TRUE;
   
   if ((fd= mysql_file_open(key_file_charset, filename, O_RDONLY, myflags)) < 0)

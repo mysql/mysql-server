@@ -41,6 +41,36 @@
 #include <mysql/plugin_trace.h>
 #endif
 
+PSI_memory_key key_memory_root;
+PSI_memory_key key_memory_load_env_plugins;
+
+#ifdef HAVE_PSI_INTERFACE
+PSI_mutex_key key_mutex_LOCK_load_client_plugin;
+
+static PSI_mutex_info all_client_plugin_mutexes[]=
+{
+  {&key_mutex_LOCK_load_client_plugin, "LOCK_load_client_plugin", PSI_FLAG_GLOBAL}
+};
+
+static PSI_memory_info all_client_plugin_memory[]=
+{
+  {&key_memory_root, "root", PSI_FLAG_GLOBAL},
+  {&key_memory_load_env_plugins, "load_env_plugins", PSI_FLAG_GLOBAL}
+};
+
+static void init_client_plugin_psi_keys()
+{
+  const char* category= "sql";
+  int count;
+
+  count= array_elements(all_client_plugin_mutexes);
+  mysql_mutex_register(category, all_client_plugin_mutexes, count);
+
+  count= array_elements(all_client_plugin_memory);
+  mysql_memory_register(category, all_client_plugin_memory, count);
+}
+#endif /* HAVE_PSI_INTERFACE */
+
 struct st_client_plugin_int {
   struct st_client_plugin_int *next;
   void   *dlhandle;
@@ -264,7 +294,8 @@ static void load_env_plugins(MYSQL *mysql)
   if(!s)
     return;
 
-  free_env= plugs= my_strdup(s, MYF(MY_WME));
+  free_env= plugs= my_strdup(key_memory_load_env_plugins,
+                             s, MYF(MY_WME));
 
   do {
     if ((s= strchr(plugs, ';')))
@@ -296,10 +327,15 @@ int mysql_client_plugin_init()
   if (initialized)
     return 0;
 
+#ifdef HAVE_PSI_INTERFACE
+  init_client_plugin_psi_keys();
+#endif /* HAVE_PSI_INTERFACE */
+
   memset(&mysql, 0, sizeof(mysql)); /* dummy mysql for set_mysql_extended_error */
 
-  mysql_mutex_init(0, &LOCK_load_client_plugin, MY_MUTEX_INIT_SLOW);
-  init_alloc_root(&mem_root, 128, 128);
+  mysql_mutex_init(key_mutex_LOCK_load_client_plugin,
+                   &LOCK_load_client_plugin, MY_MUTEX_INIT_SLOW);
+  init_alloc_root(key_memory_root, &mem_root, 128, 128);
 
   memset(&plugin_list, 0, sizeof(plugin_list));
 

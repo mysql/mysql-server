@@ -81,11 +81,23 @@ public:
   {}
 
   /**
+    Helper, assign a value to a long field.
+    @param f the field to set
+    @param value the value to assign
+  */
+  static void set_field_long(Field *f, long value);
+  /**
     Helper, assign a value to a ulong field.
     @param f the field to set
     @param value the value to assign
   */
   static void set_field_ulong(Field *f, ulong value);
+  /**
+    Helper, assign a value to a longlong field.
+    @param f the field to set
+    @param value the value to assign
+  */
+  static void set_field_longlong(Field *f, longlong value);
   /**
     Helper, assign a value to a ulonglong field.
     @param f the field to set
