@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2012, Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2012, 2013, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -220,7 +220,8 @@ st_ndb_slave_state::st_ndb_slave_state()
 
   /* Init conflict handling state memroot */
   const size_t CONFLICT_MEMROOT_BLOCK_SIZE = 32768;
-  init_alloc_root(&conflict_mem_root, CONFLICT_MEMROOT_BLOCK_SIZE, 0);
+  init_alloc_root(PSI_INSTRUMENT_ME,
+                  &conflict_mem_root, CONFLICT_MEMROOT_BLOCK_SIZE, 0);
 };
 
 /**
