@@ -233,7 +233,7 @@ Source999: filter-requires-mysql.sh
 # Patch2: mysql-5.5-errno.patch              Fixed in trunk
 Patch4: mysql-5.5-testing.patch
 Patch5: mysql-install-test.patch
-Patch6: mysql-5.6-stack-guard.patch
+# Patch6: mysql-5.6-stack-guard.patch        Fixed in 5.6
 # Patch7: mysql-disable-test.patch           Already fixed in current 5.1
 # Patch8: mysql-setschedparam.patch          Will not work in 5.5 (cmake)
 # Patch9: mysql-no-docs.patch                Will not work in 5.5 (cmake)
@@ -400,7 +400,7 @@ cd %{src_dir} # read about "%setup -n"
 # %patch2 -p1
 # %patch4 -p1  TODO / FIXME: if wanted, needs to be adapted to new mysql-test-run setup
 %patch5 -p1
-%patch6 -p1
+# %patch6 -p1
 # %patch8 -p1
 # %patch9 -p1
 # %patch10 -p1
@@ -986,6 +986,11 @@ fi
 %{_mandir}/man1/mysql_client_test.1*
 
 %changelog
+* Mon Jul  8 2013 Tor Didriksen <tor.didriksen@oracle.com>
+- Fix Bug#35019 Use pthread_attr_getguardsize for better robustness
+  of stack thread sizes
+- Remove Patch6: mysql-5.6-stack-guard.patch
+
 * Mon Dec 10 2012 Joerg Bruehe <joerg.bruehe@oracle.com>
 - Replace old my-*.cnf config file examples with template my-default.cnf
 - Handle several files for packaging which are new in 5.6 (compared to 5.5).

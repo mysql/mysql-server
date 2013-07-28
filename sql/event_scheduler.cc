@@ -437,7 +437,8 @@ Event_scheduler::start(int *err_no)
   new_thd->tx_read_only= false;
 
   scheduler_param_value=
-    (struct scheduler_param *)my_malloc(sizeof(struct scheduler_param), MYF(0));
+    (struct scheduler_param *)my_malloc(key_memory_Event_scheduler_scheduler_param,
+                                        sizeof(struct scheduler_param), MYF(0));
   scheduler_param_value->thd= new_thd;
   scheduler_param_value->scheduler= this;
 

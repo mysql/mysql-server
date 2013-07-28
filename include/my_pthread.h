@@ -601,6 +601,15 @@ extern const char *my_thread_name(void);
 extern my_thread_id my_thread_dbug_id(void);
 extern int pthread_dummy(int);
 
+#ifndef HAVE_PTHREAD_ATTR_GETGUARDSIZE
+static inline int pthread_attr_getguardsize(pthread_attr_t *attr,
+                                            size_t *guardsize)
+{
+  *guardsize= 0;
+  return 0;
+}
+#endif
+
 /* All thread specific variables are in the following struct */
 
 #define THREAD_NAME_SIZE 10
@@ -618,8 +627,6 @@ extern int pthread_dummy(int);
 
 #include <pfs_thread_provider.h>
 #include <mysql/psi/mysql_thread.h>
-
-#define INSTRUMENT_ME 0
 
 struct st_my_thread_var
 {

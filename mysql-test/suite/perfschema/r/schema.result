@@ -40,6 +40,11 @@ file_summary_by_event_name
 file_summary_by_instance
 host_cache
 hosts
+memory_summary_by_account_by_event_name
+memory_summary_by_host_by_event_name
+memory_summary_by_thread_by_event_name
+memory_summary_by_user_by_event_name
+memory_summary_global_by_event_name
 mutex_instances
 objects_summary_global_by_type
 performance_timers
@@ -625,6 +630,86 @@ events_waits_summary_global_by_event_name	CREATE TABLE `events_waits_summary_glo
   `MIN_TIMER_WAIT` bigint(20) unsigned NOT NULL,
   `AVG_TIMER_WAIT` bigint(20) unsigned NOT NULL,
   `MAX_TIMER_WAIT` bigint(20) unsigned NOT NULL
+) ENGINE=PERFORMANCE_SCHEMA DEFAULT CHARSET=utf8
+show create table memory_summary_by_host_by_event_name;
+Table	Create Table
+memory_summary_by_host_by_event_name	CREATE TABLE `memory_summary_by_host_by_event_name` (
+  `HOST` char(60) CHARACTER SET utf8 COLLATE utf8_bin DEFAULT NULL,
+  `EVENT_NAME` varchar(128) NOT NULL,
+  `COUNT_ALLOC` bigint(20) unsigned NOT NULL,
+  `COUNT_FREE` bigint(20) unsigned NOT NULL,
+  `SUM_NUMBER_OF_BYTES_ALLOC` bigint(20) unsigned NOT NULL,
+  `SUM_NUMBER_OF_BYTES_FREE` bigint(20) unsigned NOT NULL,
+  `LOW_COUNT_USED` bigint(20) NOT NULL,
+  `CURRENT_COUNT_USED` bigint(20) NOT NULL,
+  `HIGH_COUNT_USED` bigint(20) NOT NULL,
+  `LOW_NUMBER_OF_BYTES_USED` bigint(20) NOT NULL,
+  `CURRENT_NUMBER_OF_BYTES_USED` bigint(20) NOT NULL,
+  `HIGH_NUMBER_OF_BYTES_USED` bigint(20) NOT NULL
+) ENGINE=PERFORMANCE_SCHEMA DEFAULT CHARSET=utf8
+show create table memory_summary_by_thread_by_event_name;
+Table	Create Table
+memory_summary_by_thread_by_event_name	CREATE TABLE `memory_summary_by_thread_by_event_name` (
+  `THREAD_ID` bigint(20) unsigned NOT NULL,
+  `EVENT_NAME` varchar(128) NOT NULL,
+  `COUNT_ALLOC` bigint(20) unsigned NOT NULL,
+  `COUNT_FREE` bigint(20) unsigned NOT NULL,
+  `SUM_NUMBER_OF_BYTES_ALLOC` bigint(20) unsigned NOT NULL,
+  `SUM_NUMBER_OF_BYTES_FREE` bigint(20) unsigned NOT NULL,
+  `LOW_COUNT_USED` bigint(20) NOT NULL,
+  `CURRENT_COUNT_USED` bigint(20) NOT NULL,
+  `HIGH_COUNT_USED` bigint(20) NOT NULL,
+  `LOW_NUMBER_OF_BYTES_USED` bigint(20) NOT NULL,
+  `CURRENT_NUMBER_OF_BYTES_USED` bigint(20) NOT NULL,
+  `HIGH_NUMBER_OF_BYTES_USED` bigint(20) NOT NULL
+) ENGINE=PERFORMANCE_SCHEMA DEFAULT CHARSET=utf8
+show create table memory_summary_by_user_by_event_name;
+Table	Create Table
+memory_summary_by_user_by_event_name	CREATE TABLE `memory_summary_by_user_by_event_name` (
+  `USER` char(16) CHARACTER SET utf8 COLLATE utf8_bin DEFAULT NULL,
+  `EVENT_NAME` varchar(128) NOT NULL,
+  `COUNT_ALLOC` bigint(20) unsigned NOT NULL,
+  `COUNT_FREE` bigint(20) unsigned NOT NULL,
+  `SUM_NUMBER_OF_BYTES_ALLOC` bigint(20) unsigned NOT NULL,
+  `SUM_NUMBER_OF_BYTES_FREE` bigint(20) unsigned NOT NULL,
+  `LOW_COUNT_USED` bigint(20) NOT NULL,
+  `CURRENT_COUNT_USED` bigint(20) NOT NULL,
+  `HIGH_COUNT_USED` bigint(20) NOT NULL,
+  `LOW_NUMBER_OF_BYTES_USED` bigint(20) NOT NULL,
+  `CURRENT_NUMBER_OF_BYTES_USED` bigint(20) NOT NULL,
+  `HIGH_NUMBER_OF_BYTES_USED` bigint(20) NOT NULL
+) ENGINE=PERFORMANCE_SCHEMA DEFAULT CHARSET=utf8
+show create table memory_summary_by_account_by_event_name;
+Table	Create Table
+memory_summary_by_account_by_event_name	CREATE TABLE `memory_summary_by_account_by_event_name` (
+  `USER` char(16) CHARACTER SET utf8 COLLATE utf8_bin DEFAULT NULL,
+  `HOST` char(60) CHARACTER SET utf8 COLLATE utf8_bin DEFAULT NULL,
+  `EVENT_NAME` varchar(128) NOT NULL,
+  `COUNT_ALLOC` bigint(20) unsigned NOT NULL,
+  `COUNT_FREE` bigint(20) unsigned NOT NULL,
+  `SUM_NUMBER_OF_BYTES_ALLOC` bigint(20) unsigned NOT NULL,
+  `SUM_NUMBER_OF_BYTES_FREE` bigint(20) unsigned NOT NULL,
+  `LOW_COUNT_USED` bigint(20) NOT NULL,
+  `CURRENT_COUNT_USED` bigint(20) NOT NULL,
+  `HIGH_COUNT_USED` bigint(20) NOT NULL,
+  `LOW_NUMBER_OF_BYTES_USED` bigint(20) NOT NULL,
+  `CURRENT_NUMBER_OF_BYTES_USED` bigint(20) NOT NULL,
+  `HIGH_NUMBER_OF_BYTES_USED` bigint(20) NOT NULL
+) ENGINE=PERFORMANCE_SCHEMA DEFAULT CHARSET=utf8
+show create table memory_summary_global_by_event_name;
+Table	Create Table
+memory_summary_global_by_event_name	CREATE TABLE `memory_summary_global_by_event_name` (
+  `EVENT_NAME` varchar(128) NOT NULL,
+  `COUNT_ALLOC` bigint(20) unsigned NOT NULL,
+  `COUNT_FREE` bigint(20) unsigned NOT NULL,
+  `SUM_NUMBER_OF_BYTES_ALLOC` bigint(20) unsigned NOT NULL,
+  `SUM_NUMBER_OF_BYTES_FREE` bigint(20) unsigned NOT NULL,
+  `LOW_COUNT_USED` bigint(20) NOT NULL,
+  `CURRENT_COUNT_USED` bigint(20) NOT NULL,
+  `HIGH_COUNT_USED` bigint(20) NOT NULL,
+  `LOW_NUMBER_OF_BYTES_USED` bigint(20) NOT NULL,
+  `CURRENT_NUMBER_OF_BYTES_USED` bigint(20) NOT NULL,
+  `HIGH_NUMBER_OF_BYTES_USED` bigint(20) NOT NULL
 ) ENGINE=PERFORMANCE_SCHEMA DEFAULT CHARSET=utf8
 show create table file_instances;
 Table	Create Table

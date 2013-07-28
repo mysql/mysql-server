@@ -1267,7 +1267,8 @@ char *argument)
  {
    char *start=argument;
    my_free(opt_password);
-   opt_password= my_strdup(argument, MYF(MY_FAE));
+   opt_password= my_strdup(PSI_NOT_INSTRUMENTED,
+                           argument, MYF(MY_FAE));
    while (*argument) *argument++= 'x';               /* Destroy argument */
    if (*start)
    start[1]=0;
@@ -1298,7 +1299,8 @@ char *argument)
  }
  if (embedded_server_arg_count == MAX_SERVER_ARGS-1 ||
  !(embedded_server_args[embedded_server_arg_count++]=
- my_strdup(argument, MYF(MY_FAE))))
+ my_strdup(PSI_NOT_INSTRUMENTED,
+           argument, MYF(MY_FAE))))
  {
    DIE("Can't use server argument");
  }
