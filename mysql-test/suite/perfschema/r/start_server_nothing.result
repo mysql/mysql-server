@@ -45,6 +45,11 @@ select * from performance_schema.events_waits_summary_by_instance;
 select * from performance_schema.events_waits_summary_by_thread_by_event_name;
 select * from performance_schema.events_waits_summary_by_user_by_event_name;
 select * from performance_schema.events_waits_summary_global_by_event_name;
+select * from performance_schema.memory_summary_by_account_by_event_name;
+select * from performance_schema.memory_summary_by_host_by_event_name;
+select * from performance_schema.memory_summary_by_thread_by_event_name;
+select * from performance_schema.memory_summary_by_user_by_event_name;
+select * from performance_schema.memory_summary_global_by_event_name;
 select * from performance_schema.file_instances;
 select * from performance_schema.file_summary_by_event_name;
 select * from performance_schema.file_summary_by_instance;
@@ -92,6 +97,7 @@ performance_schema_max_cond_instances	0
 performance_schema_max_file_classes	0
 performance_schema_max_file_handles	0
 performance_schema_max_file_instances	0
+performance_schema_max_memory_classes	0
 performance_schema_max_mutex_classes	0
 performance_schema_max_mutex_instances	0
 performance_schema_max_rwlock_classes	0
@@ -127,6 +133,7 @@ performance_schema_max_cond_instances	0
 performance_schema_max_file_classes	0
 performance_schema_max_file_handles	0
 performance_schema_max_file_instances	0
+performance_schema_max_memory_classes	0
 performance_schema_max_mutex_classes	0
 performance_schema_max_mutex_instances	0
 performance_schema_max_rwlock_classes	0

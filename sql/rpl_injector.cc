@@ -1,4 +1,4 @@
-/* Copyright (c) 2006, 2011, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2006, 2013, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -38,7 +38,8 @@ injector::transaction::transaction(MYSQL_BIN_LOG *log, THD *thd)
   LOG_INFO log_info;
   log->get_current_log(&log_info);
   /* !!! binlog_pos does not follow RAII !!! */
-  m_start_pos.m_file_name= my_strdup(log_info.log_file_name, MYF(0));
+  m_start_pos.m_file_name= my_strdup(key_memory_binlog_pos,
+                                     log_info.log_file_name, MYF(0));
   m_start_pos.m_file_pos= log_info.pos;
 
   if (unlikely(m_start_pos.m_file_name == NULL))
@@ -124,7 +125,8 @@ int injector::transaction::commit()
    if ((error == 0) &&
        (m_thd->binlog_next_event_pos.file_name != NULL) &&
        ((m_next_pos.m_file_name=
-         my_strdup(m_thd->binlog_next_event_pos.file_name, MYF(0))) != NULL))
+         my_strdup(key_memory_binlog_pos,
+                   m_thd->binlog_next_event_pos.file_name, MYF(0))) != NULL))
    {
      m_next_pos.m_file_pos= m_thd->binlog_next_event_pos.pos;
    }

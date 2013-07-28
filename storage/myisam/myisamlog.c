@@ -1,4 +1,4 @@
-/* Copyright (c) 2000, 2011, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2000, 2013, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -421,7 +421,8 @@ static int examine_log(char * file_name, char **table_names)
        * The additional space is needed for the sprintf commands two lines
        * below.
        */ 
-      file_info.show_name=my_memdup(isam_file_name,
+      file_info.show_name=my_memdup(PSI_NOT_INSTRUMENTED,
+                                    isam_file_name,
 				    (uint) strlen(isam_file_name)+10,
 				    MYF(MY_WME));
       if (file_info.id > 1)
@@ -450,7 +451,8 @@ static int examine_log(char * file_name, char **table_names)
 	if (!(file_info.isam= mi_open(isam_file_name,O_RDWR,
 				      HA_OPEN_WAIT_IF_LOCKED)))
 	  goto com_err;
-	if (!(file_info.record=my_malloc(file_info.isam->s->base.reclength,
+	if (!(file_info.record=my_malloc(PSI_NOT_INSTRUMENTED,
+                                         file_info.isam->s->base.reclength,
 					 MYF(MY_WME))))
 	  goto end;
 	files_open++;
@@ -682,7 +684,8 @@ static int read_string(IO_CACHE *file, uchar* *to, uint length)
 
   if (*to)
     my_free(*to);
-  if (!(*to= (uchar*) my_malloc(length+1,MYF(MY_WME))) ||
+  if (!(*to= (uchar*) my_malloc(PSI_NOT_INSTRUMENTED,
+                                length+1,MYF(MY_WME))) ||
       my_b_read(file,(uchar*) *to,length))
   {
     if (*to)

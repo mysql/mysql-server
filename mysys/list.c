@@ -1,4 +1,4 @@
-/* Copyright (c) 2000, 2010, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2000, 2013, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -19,8 +19,6 @@
 
 #include "mysys_priv.h"
 #include <my_list.h>
-
-
 
 	/* Add a element to start of list */
 
@@ -70,7 +68,8 @@ void list_free(LIST *root, uint free_data)
 
 LIST *list_cons(void *data, LIST *list)
 {
-  LIST *new_charset=(LIST*) my_malloc(sizeof(LIST),MYF(MY_FAE));
+  LIST *new_charset=(LIST*) my_malloc(key_memory_LIST,
+                                      sizeof(LIST),MYF(MY_FAE));
   if (!new_charset)
     return 0;
   new_charset->data=data;

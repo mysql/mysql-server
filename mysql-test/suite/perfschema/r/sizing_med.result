@@ -24,6 +24,7 @@ performance_schema_max_cond_instances	1079
 performance_schema_max_file_classes	50
 performance_schema_max_file_handles	32768
 performance_schema_max_file_instances	1754
+performance_schema_max_memory_classes	250
 performance_schema_max_mutex_classes	200
 performance_schema_max_mutex_instances	4230
 performance_schema_max_rwlock_classes	30
@@ -51,6 +52,7 @@ Performance_schema_file_handles_lost	0
 Performance_schema_file_instances_lost	0
 Performance_schema_hosts_lost	0
 Performance_schema_locker_lost	0
+Performance_schema_memory_classes_lost	0
 Performance_schema_mutex_classes_lost	0
 Performance_schema_mutex_instances_lost	0
 Performance_schema_rwlock_classes_lost	0
@@ -138,9 +140,9 @@ performance_schema	events_waits_summary_by_host_by_event_name.memory	1193600
 performance_schema	(pfs_user).size	128
 performance_schema	(pfs_user).count	100
 performance_schema	(pfs_user).memory	12800
-performance_schema	(pfs_host).size	128
+performance_schema	(pfs_host).size	192
 performance_schema	(pfs_host).count	100
-performance_schema	(pfs_host).memory	12800
+performance_schema	(pfs_host).memory	19200
 performance_schema	(pfs_stage_class).size	256
 performance_schema	(pfs_stage_class).count	150
 performance_schema	(pfs_stage_class).memory	38400
@@ -216,9 +218,27 @@ performance_schema	(setup_actor_hash).count	1
 performance_schema	(setup_actor_hash).size	100
 performance_schema	(setup_object_hash).count	4
 performance_schema	(setup_object_hash).size	100
-performance_schema	(table_share_hash).count	86
+performance_schema	(table_share_hash).count	91
 performance_schema	(table_share_hash).size	556
 performance_schema	(user_hash).count	2
 performance_schema	(user_hash).size	100
 performance_schema	host_cache.size	336
-performance_schema	performance_schema.memory	70926096
+performance_schema	(pfs_memory_class).row_size	192
+performance_schema	(pfs_memory_class).row_count	250
+performance_schema	(pfs_memory_class).memory	48000
+performance_schema	memory_summary_by_thread_by_event_name.row_size	64
+performance_schema	memory_summary_by_thread_by_event_name.row_count	72250
+performance_schema	memory_summary_by_thread_by_event_name.memory	4624000
+performance_schema	memory_summary_global_by_event_name.row_size	64
+performance_schema	memory_summary_global_by_event_name.row_count	250
+performance_schema	memory_summary_global_by_event_name.memory	16000
+performance_schema	memory_summary_by_account_by_event_name.row_size	64
+performance_schema	memory_summary_by_account_by_event_name.row_count	25000
+performance_schema	memory_summary_by_account_by_event_name.memory	1600000
+performance_schema	memory_summary_by_user_by_event_name.row_size	64
+performance_schema	memory_summary_by_user_by_event_name.row_count	25000
+performance_schema	memory_summary_by_user_by_event_name.memory	1600000
+performance_schema	memory_summary_by_host_by_event_name.row_size	64
+performance_schema	memory_summary_by_host_by_event_name.row_count	25000
+performance_schema	memory_summary_by_host_by_event_name.memory	1600000
+performance_schema	performance_schema.memory	80420496

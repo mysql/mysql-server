@@ -1,4 +1,4 @@
-/* Copyright (c) 2010, 2011, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2010, 2013, Oracle and/or its affiliates. All rights reserved.
 
   This program is free software; you can redistribute it and/or modify
   it under the terms of the GNU General Public License as published by
@@ -876,6 +876,51 @@ void PFS_connection_stat_visitor::visit_thread(PFS_thread *)
   m_stat.aggregate_active(1);
 }
 
+PFS_connection_memory_visitor
+::PFS_connection_memory_visitor(PFS_memory_class *klass)
+{
+  m_index= klass->m_event_name_index;
+  m_stat.reset();
+}
+
+PFS_connection_memory_visitor::~PFS_connection_memory_visitor()
+{}
+
+void PFS_connection_memory_visitor::visit_global()
+{
+  PFS_memory_stat *stat;
+  stat= & global_instr_class_memory_array[m_index];
+  stat->full_aggregate_to(& m_stat);
+}
+
+void PFS_connection_memory_visitor::visit_host(PFS_host *pfs)
+{
+  PFS_memory_stat *stat;
+  stat= & pfs->m_instr_class_memory_stats[m_index];
+  stat->full_aggregate_to(& m_stat);
+}
+
+void PFS_connection_memory_visitor::visit_user(PFS_user *pfs)
+{
+  PFS_memory_stat *stat;
+  stat= & pfs->m_instr_class_memory_stats[m_index];
+  stat->full_aggregate_to(& m_stat);
+}
+
+void PFS_connection_memory_visitor::visit_account(PFS_account *pfs)
+{
+  PFS_memory_stat *stat;
+  stat= & pfs->m_instr_class_memory_stats[m_index];
+  stat->full_aggregate_to(& m_stat);
+}
+
+void PFS_connection_memory_visitor::visit_thread(PFS_thread *pfs)
+{
+  PFS_memory_stat *stat;
+  stat= & pfs->m_instr_class_memory_stats[m_index];
+  stat->full_aggregate_to(& m_stat);
+}
+
 PFS_instance_wait_visitor::PFS_instance_wait_visitor()
 {
 }
@@ -1132,7 +1177,6 @@ void PFS_instance_socket_io_stat_visitor::visit_socket(PFS_socket *pfs)
   /* Aggregate wait times, event counts and byte counts */
   m_socket_io_stat.aggregate(&pfs->m_socket_stat.m_io_stat);
 }
-
 
 PFS_instance_file_io_stat_visitor::PFS_instance_file_io_stat_visitor()
 {}
