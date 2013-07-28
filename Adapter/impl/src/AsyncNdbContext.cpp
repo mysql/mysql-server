@@ -146,7 +146,7 @@ void * AsyncNdbContext::runListenerThread() {
     if(shutdown_flag) {
       DEBUG_PRINT("MULTIWAIT LISTENER GOT SHUTDOWN.");
       pct_ready = 100;    /* One final read of all outstanding items */
-      wait_timeout_millisec = 500;
+      wait_timeout_millisec = 200;
       running = false;
     }
     uv_rwlock_rdunlock(& shutdown_lock);
@@ -221,7 +221,7 @@ void * AsyncNdbContext::runListenerThread() {
     /* What's the minimum number of ready Ndb's to wake up for? */
     if(! running) {
       min_ready = npending;  // Wait one final time for all outstanding Ndbs
-      wait_timeout_millisec = 500;
+      wait_timeout_millisec = 200;
     }
     else {
       int n = npending / 4;

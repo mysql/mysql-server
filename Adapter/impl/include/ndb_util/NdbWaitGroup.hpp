@@ -39,7 +39,7 @@ public:
 
 #else 
 
-  bool push(Ndb *ndb);
+  int push(Ndb *ndb);
   int wait(Uint32 timeout_millis, int pct_ready = 50); 
   Ndb * pop();
 
