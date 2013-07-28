@@ -83,6 +83,11 @@ class ReadView {
 		void assign(const value_type* start, const value_type* end);
 
 		/**
+		Insert the value in the correct slot, preserving the order.
+		Doesn't check for duplicates. */
+		void insert(value_type value);
+
+		/**
 		@return the value of the first element in the array */
 		value_type front() const
 		{
