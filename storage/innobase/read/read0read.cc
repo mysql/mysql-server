@@ -285,6 +285,42 @@ ReadView::ids_t::push_back(value_type value)
 }
 
 /**
+Insert the value in the correct slot, preserving the order. Doesn't
+check for duplicates. */
+
+void
+ReadView::ids_t::insert(value_type value)
+{
+	reserve(size() + 1);
+
+	if (back() < value) {
+		push_back(value);
+		return;
+	}
+
+	value_type*	end = data() + size();
+	value_type*	ub = std::upper_bound(data(), end, value);
+
+	if (ub == end) {
+		push_back(value);
+	} else {
+		ut_ad(ub < end);
+
+		ulint	n_elems = std::distance(ub, end);
+		ulint	n = n_elems * sizeof(value_type);
+
+		fprintf(stderr, "n_elems: %lu, n: %lu\n", n_elems, n);
+
+		/* Note: Copying overlapped memory locations. */
+		::memmove(ub + 1, ub, n);
+
+		*ub = value;
+
+		resize(size() + 1);
+	}
+}
+
+/**
 ReadView constructor */
 ReadView::ReadView()
 	:
@@ -378,7 +414,7 @@ ReadView::copy_trx_ids(const trx_ids_t& trx_ids)
 
 		ut_ad(it != trx_ids.end() && *it == m_creator_trx_id);
 
-		ulint	i = it - trx_ids.begin();
+		ulint	i = std::distance(trx_ids.begin(), it);
 		ulint	n = i * sizeof(trx_ids_t::value_type);
 
 		::memmove(p, &trx_ids[0], n);
@@ -621,28 +657,7 @@ ReadView::copy_complete()
 	ut_ad(!mutex_own(&trx_sys->mutex));
 
 	if (m_creator_trx_id > 0) {
-
-		m_ids.reserve(m_ids.size() + 1);
-		m_ids.resize(m_ids.size() + 1);
-
-		ids_t::value_type*	end = m_ids.data() + m_ids.size();
-
-		ids_t::value_type*	it = std::upper_bound(
-			m_ids.data(), end, m_creator_trx_id);
-
-		if (it == end) {
-			m_ids.push_back(m_creator_trx_id);
-		} else {
-			ut_ad(it < end);
-
-
-			ulint	n_elems = end - it;
-			ulint	n = n_elems * sizeof(ids_t::value_type);
-
-			::memmove(it + 1, it, n);
-
-			*it = m_creator_trx_id;
-		}
+		m_ids.insert(m_creator_trx_id);
 	}
 
 	if (!m_ids.empty()) {
