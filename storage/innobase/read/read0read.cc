@@ -291,6 +291,8 @@ check for duplicates. */
 void
 ReadView::ids_t::insert(value_type value)
 {
+	ut_ad(value > 0);
+
 	reserve(size() + 1);
 
 	if (empty() || back() < value) {
