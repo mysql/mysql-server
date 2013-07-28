@@ -4161,12 +4161,10 @@ lock_table_dequeue(
 			behind will get their lock requests granted, if
 			they are now qualified to it */
 {
-	lock_t*	lock;
-
 	ut_ad(lock_mutex_own());
 	ut_a(lock_get_type_low(in_lock) == LOCK_TABLE);
 
-	lock = UT_LIST_GET_NEXT(un_member.tab_lock.locks, in_lock);
+	lock_t*	lock = UT_LIST_GET_NEXT(un_member.tab_lock.locks, in_lock);
 
 	lock_table_remove_low(in_lock);
 
@@ -5140,7 +5138,7 @@ lock_trx_print_locks(
 
 				fprintf(file,
 					"RECORD LOCKS on non-existing "
-					"space %lu\n",
+					"space %u\n",
 					lock->un_member.rec_lock.space);
 			}
 
