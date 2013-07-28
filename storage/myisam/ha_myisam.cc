@@ -232,7 +232,8 @@ int table2myisam(TABLE *table_arg, MI_KEYDEF **keydef_out,
   TABLE_SHARE *share= table_arg->s;
   uint options= share->db_options_in_use;
   DBUG_ENTER("table2myisam");
-  if (!(my_multi_malloc(MYF(MY_WME),
+  if (!(my_multi_malloc(PSI_INSTRUMENT_ME,
+                        MYF(MY_WME),
           recinfo_out, (share->fields * 2 + 2) * sizeof(MI_COLUMNDEF),
           keydef_out, share->keys * sizeof(MI_KEYDEF),
           &keyseg,

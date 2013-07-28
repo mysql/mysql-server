@@ -230,7 +230,8 @@ public:
     my_init_dynamic_array(&last_done, sizeof(lwm.total_seqno), n, 0);
     for (k= 0; k < n; k++)
       insert_dynamic(&last_done, (uchar*) &l);  // empty for each Worker
-    lwm.group_relay_log_name= (char *) my_malloc(FN_REFLEN + 1, MYF(0));
+    lwm.group_relay_log_name= (char *) my_malloc(key_memory_Slave_job_group_group_relay_log_name,
+                                                 FN_REFLEN + 1, MYF(0));
     lwm.group_relay_log_name[0]= 0;
   }
 

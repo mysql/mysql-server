@@ -1,4 +1,4 @@
-/* Copyright (c) 2000, 2010, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2000, 2013, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -441,7 +441,8 @@ Rpl_filter::add_table_rule_to_hash(HASH* h, const char* table_spec, uint len)
   const char* dot = strchr(table_spec, '.');
   if (!dot) return 1;
   // len is always > 0 because we know the there exists a '.'
-  TABLE_RULE_ENT* e = (TABLE_RULE_ENT*)my_malloc(sizeof(TABLE_RULE_ENT)
+  TABLE_RULE_ENT* e = (TABLE_RULE_ENT*)my_malloc(key_memory_TABLE_RULE_ENT,
+                                                 sizeof(TABLE_RULE_ENT)
                                                  + len, MYF(MY_WME));
   if (!e) return 1;
   e->db= (char*)e + sizeof(TABLE_RULE_ENT);
@@ -468,7 +469,8 @@ Rpl_filter::add_table_rule_to_array(DYNAMIC_ARRAY* a, const char* table_spec)
   const char* dot = strchr(table_spec, '.');
   if (!dot) return 1;
   uint len = (uint)strlen(table_spec);
-  TABLE_RULE_ENT* e = (TABLE_RULE_ENT*)my_malloc(sizeof(TABLE_RULE_ENT)
+  TABLE_RULE_ENT* e = (TABLE_RULE_ENT*)my_malloc(key_memory_TABLE_RULE_ENT,
+                                                 sizeof(TABLE_RULE_ENT)
 						 + len, MYF(MY_WME));
   if (!e) return 1;
   e->db= (char*)e + sizeof(TABLE_RULE_ENT);

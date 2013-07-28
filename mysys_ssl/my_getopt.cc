@@ -22,6 +22,7 @@
 #include <m_string.h>
 #include "my_default.h"
 #include <m_ctype.h>
+#include "../mysys/mysys_priv.h"
 
 typedef void (*init_func_p)(const struct my_option *option, void *variable,
                             longlong value);
@@ -780,7 +781,8 @@ static int setval(const struct my_option *opts, void *value, char *argument,
       if (argument == enabled_my_option)
         break; /* string options don't use this default of "1" */
       my_free(*((char**) value));
-      if (!(*((char**) value)= my_strdup(argument, MYF(MY_WME))))
+      if (!(*((char**) value)= my_strdup(key_memory_defaults,
+                                         argument, MYF(MY_WME))))
       {
         res= EXIT_OUT_OF_MEMORY;
         goto ret;
@@ -1292,7 +1294,8 @@ static void init_one_value(const struct my_option *option, void *variable,
     {
       char **pstr= (char **) variable;
       my_free(*pstr);
-      *pstr= my_strdup((char*) (intptr) value, MYF(MY_WME));
+      *pstr= my_strdup(key_memory_defaults,
+                       (char*) (intptr) value, MYF(MY_WME));
     }
     break;
   default: /* dummy default to avoid compiler warnings */

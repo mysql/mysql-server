@@ -48,6 +48,12 @@
 #include "lf.h"
 #include "my_atomic.h"
 
+extern PSI_memory_key key_memory_Gtid_set_to_string;
+extern PSI_memory_key key_memory_Owned_gtids_to_string;
+extern PSI_memory_key key_memory_Gtid_state_to_string;
+extern PSI_memory_key key_memory_Group_cache_to_string;
+extern PSI_memory_key key_memory_Gtid_set_Interval_chunk;
+
 /**
   This macro is used to check that the given character, pointed to by the
   character pointer, is a space or not.
@@ -1064,7 +1070,8 @@ public:
   */
   char *to_string() const
   {
-    char *str= (char *)my_malloc(get_string_length() + 1, MYF(MY_WME));
+    char *str= (char *)my_malloc(key_memory_Gtid_set_to_string,
+                                 get_string_length() + 1, MYF(MY_WME));
     if (str != NULL)
       to_string(str);
     return str;
@@ -1888,7 +1895,8 @@ public:
   */
   char *to_string() const
   {
-    char *str= (char *)my_malloc(get_max_string_length(), MYF(MY_WME));
+    char *str= (char *)my_malloc(key_memory_Owned_gtids_to_string,
+                                 get_max_string_length(), MYF(MY_WME));
     DBUG_ASSERT(str != NULL);
     to_string(str);
     return str;
@@ -2280,7 +2288,8 @@ public:
   /// Debug only: return a newly allocated string, or NULL on out-of-memory.
   char *to_string() const
   {
-    char *str= (char *)my_malloc(get_max_string_length(), MYF(MY_WME));
+    char *str= (char *)my_malloc(key_memory_Gtid_state_to_string,
+                                 get_max_string_length(), MYF(MY_WME));
     to_string(str);
     return str;
   }
@@ -2619,7 +2628,8 @@ public:
   */
   char *to_string(const Sid_map *sm) const
   {
-    char *str= (char *)my_malloc(get_max_string_length(), MYF(MY_WME));
+    char *str= (char *)my_malloc(key_memory_Group_cache_to_string,
+                                 get_max_string_length(), MYF(MY_WME));
     if (str)
       to_string(sm, str);
     return str;

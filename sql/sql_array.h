@@ -1,7 +1,7 @@
 #ifndef SQL_ARRAY_INCLUDED
 #define SQL_ARRAY_INCLUDED
 
-/* Copyright (c) 2005, 2012, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2005, 2013, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -167,7 +167,7 @@ public:
     return insert_dynamic(&array, &el);
   }
 
-  /// Pops the last element. Does nothing if array is empty.
+  /// Pops the last element; undefined behaviour if array is empty.
   Elem& pop()
   {
     return *((Elem*)pop_dynamic(&array));

@@ -1113,7 +1113,8 @@ DATE_TIME_FORMAT *date_time_format_copy(THD *thd, DATE_TIME_FORMAT *format)
   if (thd)
     new_format= (DATE_TIME_FORMAT *) thd->alloc(length);
   else
-    new_format=  (DATE_TIME_FORMAT *) my_malloc(length, MYF(MY_WME));
+    new_format=  (DATE_TIME_FORMAT *) my_malloc(key_memory_DATE_TIME_FORMAT,
+                                                length, MYF(MY_WME));
   if (new_format)
   {
     /* Put format string after current pos */

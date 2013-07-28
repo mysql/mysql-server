@@ -52,7 +52,6 @@
 #define ENTRIES_INCREMENT  (65536/sizeof(FILEINFO))
 #define NAMES_START_SIZE   32768
 
-
 static int	comp_names(struct fileinfo *a,struct fileinfo *b);
 
 
@@ -104,7 +103,8 @@ MY_DIR	*my_dir(const char *path, myf MyFlags)
 
   dirp = opendir(directory_file_name(tmp_path,(char *) path));
   if (dirp == NULL || 
-      ! (buffer= my_malloc(ALIGN_SIZE(sizeof(MY_DIR)) + 
+      ! (buffer= my_malloc(key_memory_MY_DIR,
+                           ALIGN_SIZE(sizeof(MY_DIR)) + 
                            ALIGN_SIZE(sizeof(DYNAMIC_ARRAY)) +
                            sizeof(MEM_ROOT), MyFlags)))
     goto error;
@@ -119,7 +119,7 @@ MY_DIR	*my_dir(const char *path, myf MyFlags)
     my_free(buffer);
     goto error;
   }
-  init_alloc_root(names_storage, NAMES_START_SIZE, NAMES_START_SIZE);
+  init_alloc_root(key_memory_MY_DIR, names_storage, NAMES_START_SIZE, NAMES_START_SIZE);
   
   /* MY_DIR structure is allocated and completly initialized at this point */
   result= (MY_DIR*)buffer;
@@ -246,7 +246,8 @@ MY_DIR	*my_dir(const char *path, myf MyFlags)
   tmp_file[2]='*';
   tmp_file[3]='\0';
 
-  if (!(buffer= my_malloc(ALIGN_SIZE(sizeof(MY_DIR)) + 
+  if (!(buffer= my_malloc(key_memory_MY_DIR,
+                          ALIGN_SIZE(sizeof(MY_DIR)) + 
                           ALIGN_SIZE(sizeof(DYNAMIC_ARRAY)) +
                           sizeof(MEM_ROOT), MyFlags)))
     goto error;
@@ -261,7 +262,7 @@ MY_DIR	*my_dir(const char *path, myf MyFlags)
     my_free(buffer);
     goto error;
   }
-  init_alloc_root(names_storage, NAMES_START_SIZE, NAMES_START_SIZE);
+  init_alloc_root(key_memory_MY_DIR, names_storage, NAMES_START_SIZE, NAMES_START_SIZE);
   
   /* MY_DIR structure is allocated and completly initialized at this point */
   result= (MY_DIR*)buffer;
@@ -370,7 +371,8 @@ MY_STAT *my_stat(const char *path, MY_STAT *stat_area, myf my_flags)
                     (long) stat_area, my_flags));
 
   if (m_used)
-    if (!(stat_area= (MY_STAT *) my_malloc(sizeof(MY_STAT), my_flags)))
+    if (!(stat_area= (MY_STAT *) my_malloc(key_memory_MY_STAT,
+                                           sizeof(MY_STAT), my_flags)))
       goto error;
 #ifndef _WIN32
     if (! stat((char *) path, (struct stat *) stat_area) )

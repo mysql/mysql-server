@@ -205,7 +205,12 @@ char *get_tty_password_ext(const char *opt_message,
 
 #endif /* _WIN32 */
 
+static char * my_strdup_fct(const char *str, myf flags)
+{
+  return my_strdup(PSI_NOT_INSTRUMENTED, str, flags);
+}
+
 char *get_tty_password(const char *opt_message)
 {
-  return get_tty_password_ext(opt_message, my_strdup);
+  return get_tty_password_ext(opt_message, my_strdup_fct);
 }

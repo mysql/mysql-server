@@ -457,6 +457,9 @@ static void debug_sync_C_callback(const char *sync_point_name,
     debug_sync(current_thd, sync_point_name, name_len);
 }
 
+static PSI_memory_key key_debug_THD_debug_sync_control;
+static PSI_memory_key key_debug_sync_action;
+
 #ifdef HAVE_PSI_INTERFACE
 static PSI_mutex_key key_debug_sync_globals_ds_mutex;
 
@@ -472,6 +475,12 @@ static PSI_cond_info all_debug_sync_conds[]=
   { &key_debug_sync_globals_ds_cond, "DEBUG_SYNC::cond", PSI_FLAG_GLOBAL}
 };
 
+static PSI_memory_info all_debug_sync_memory[]=
+{
+  { &key_debug_THD_debug_sync_control, "THD::debug_sync_control", 0},
+  { &key_debug_sync_action, "debug_sync_control::debug_sync_action", 0}
+};
+
 static void init_debug_sync_psi_keys(void)
 {
   const char* category= "sql";
@@ -482,6 +491,9 @@ static void init_debug_sync_psi_keys(void)
 
   count= array_elements(all_debug_sync_conds);
   mysql_cond_register(category, all_debug_sync_conds, count);
+
+  count= array_elements(all_debug_sync_memory);
+  mysql_memory_register(category, all_debug_sync_memory, count);
 }
 #endif /* HAVE_PSI_INTERFACE */
 
@@ -600,7 +612,8 @@ void debug_sync_init_thread(THD *thd)
   if (opt_debug_sync_timeout)
   {
     thd->debug_sync_control= (st_debug_sync_control*)
-      my_malloc(sizeof(st_debug_sync_control), MYF(MY_WME | MY_ZEROFILL));
+      my_malloc(key_debug_THD_debug_sync_control,
+                sizeof(st_debug_sync_control), MYF(MY_WME | MY_ZEROFILL));
     if (!thd->debug_sync_control)
     {
       /*
@@ -1020,7 +1033,8 @@ static st_debug_sync_action *debug_sync_get_action(THD *thd,
     if (ds_control->ds_active > ds_control->ds_allocated)
     {
       uint new_alloc= ds_control->ds_active + 3;
-      void *new_action= my_realloc(ds_control->ds_action,
+      void *new_action= my_realloc(key_debug_sync_action,
+                                   ds_control->ds_action,
                                    new_alloc * sizeof(st_debug_sync_action),
                                    MYF(MY_WME | MY_ALLOW_ZERO_PTR));
       if (!new_action)
