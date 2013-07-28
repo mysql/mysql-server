@@ -293,7 +293,7 @@ ReadView::ids_t::insert(value_type value)
 {
 	reserve(size() + 1);
 
-	if (back() < value) {
+	if (empty() || back() < value) {
 		push_back(value);
 		return;
 	}
