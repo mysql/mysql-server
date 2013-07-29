@@ -1,0 +1,39 @@
+# This test should work in embedded server after we fix mysqltest
+-- source include/not_embedded.inc
+
+let $REPLICATION_LISTENER="/home/nirbhay/Project/mysql/repo/worklogs/3283/sys-vars/tests/replay_sys_vars";
+
+DROP DATABASE IF EXISTS `sys_var`;
+CREATE DATABASE `sys_var`;
+USE `sys_var`;
+
+CREATE TABLE t1 (c1 CHAR(3), c2 CHAR(1) DEFAULT 'a');
+INSERT INTO t1 (c1) VALUES ('a'),('bb'),('ccc');
+UPDATE t1 SET c1='aaaa' WHERE c1='a';
+DELETE FROM t1;
+DROP TABLE t1;
+
+SET @@auto_increment_increment=19;
+SET @@auto_increment_offset=4;
+SET @@character_set_client='latin2';
+SET @@collation_connection='latin2_bin';
+SET @@collation_server='geostd8_general_ci';
+SET @@time_zone='Japan';
+SET @@lc_time_names='sv_SE';
+SET @@collation_database='geostd8_bin';
+
+CREATE TABLE t1 (c1 DATE);
+INSERT INTO t1 VALUES ('2006-01-01');
+SELECT c1 FROM t1;
+DROP TABLE t1;
+
+CREATE TABLE t1 (c1 INT AUTO_INCREMENT PRIMARY KEY, c2 TEXT);
+INSERT INTO t1 (c1) VALUES ('a'),('bb'),('ccc');
+SELECT * FROM t1;
+DROP TABLE t1;
+
+DROP DATABASE `sys_var`;
+
+--exec $REPLICATION_LISTENER
+
+--echo "#End of binary log"

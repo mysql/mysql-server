@@ -1,0 +1,27 @@
+############################
+ChangeLog for Binary Log API
+############################
+
+
+Release 0.1.0 (released April 20, 2013)
+---------------------------------------
+
+* BAPI-1: In the binlog-replication-listener library,
+          mysql::Binary_log::connect function does not abort when
+          non-existent file name or server is provided
+* BAPI 2: Disconnect Method to be made public, and to be called after
+          all events are read from the binlog file
+* BAPI-9: Remove any dependency on the boost AIO library
+* BAPI-10: Remove dependency on Boost
+* BAPI-13: Unit test for connections
+* BAPI-19: Binlog Browser
+* BAPI 34: Allow multiple files to be read by the binlog browser
+* BAPI-37: Inserting data into a file in HDFS when a WRITE_ROWS_EVENT occurs
+* BAPI 39: Improving the usability experience for Hadoop Applier
+* BAPI 40: Improving Usability Experience for the Binary log Browser
+* BAPI 45: Ensuring compatibility with MySQL 5.6 master binary log.
+* BAPI 49: Ensuring support for MySQL5.6- Decoding version2 row events
+* BAPI 53: binlog-browser wrong values for fake FDE
+* BAPI 56: Bug: Row_event_iterator runs into infinite loop
+* BAPI 57: Bug: 'make test' reports test failure for Binlog Tests
+* BAPI 57: Bug: Flag for row_events not printed correctly if more than one
