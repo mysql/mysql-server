@@ -427,7 +427,10 @@ public:
   void cleanup()
   {
     if (flags & ALLOCATED)
+    {
       my_free(global_var(char*));
+      global_var(char *)= NULL;
+    }
     flags&= ~ALLOCATED;
   }
   static bool do_string_check(THD *thd, set_var *var, CHARSET_INFO *charset)

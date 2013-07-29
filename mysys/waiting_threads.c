@@ -475,6 +475,7 @@ void wt_end()
   my_atomic_rwlock_destroy(&cycle_stats_lock);
   my_atomic_rwlock_destroy(&success_stats_lock);
   my_atomic_rwlock_destroy(&wait_stats_lock);
+  reshash.alloc.constructor= NULL;
   wt_init_done= 0;
   DBUG_VOID_RETURN;
 }

@@ -1642,6 +1642,7 @@ void _db_end_()
 
   cs->stack= &init_settings;
   FreeState(cs, 0);
+  init_done= 0;
 }
 
 
