@@ -4570,6 +4570,14 @@ void Dbtc::execLQHKEYCONF(Signal* signal)
     SET_ERROR_INSERT_VALUE(8024);
     return;
   }//if
+  if (ERROR_INSERTED(8101))
+  {
+    jam();
+    ndbout_c("Error 8101, timing out transaction");
+    timeOutFoundLab(signal, apiConnectptr.i, ZTIME_OUT_ERROR);
+    return;
+  }
+      
 #endif
   UintR TtcTimer = ctcTimer;
   regTcPtr->lastLqhCon = tlastLqhConnect;
