@@ -4718,7 +4718,7 @@ int mts_recovery_groups(Relay_log_info *rli)
 
   DBUG_ENTER("mts_recovery_groups");
 
-  DBUG_ASSERT(rli->slave_parallel_workers == 0); 
+  DBUG_ASSERT(rli->slave_parallel_workers == 0);
 
   /* 
      Although mts_recovery_groups() is reentrant it returns
@@ -5386,8 +5386,8 @@ void slave_stop_workers(Relay_log_info *rli, bool *mts_inited)
     get_dynamic((DYNAMIC_ARRAY*)&rli->workers, (uchar*) &w, i);
 
     /*
-      Make copies for reporting through the perfschema tables.
-      This is preserved until next time the slave is started. 
+      Make copies for reporting through the performance schema tables.
+      This is preserved until the next START SLAVE.
     */
     Slave_worker *worker_copy=new Slave_worker(NULL
     #ifdef HAVE_PSI_INTERFACE
@@ -5404,7 +5404,6 @@ void slave_stop_workers(Relay_log_info *rli, bool *mts_inited)
     worker_copy->copy_values_for_PFS(w->id, w->running_status, w->info_thd,
                                      w->last_error(),
                                      w->currently_executing_gtid);
-
     rli->workers_copy_pfs.push_back(worker_copy);
   }
 

@@ -369,9 +369,9 @@ public:
 
   /*
     This function is used to make a copy of the worker object before we
-    destroy it while STOP SLAVE. This new object is then used to report the
+    destroy it on STOP SLAVE. This new object is then used to report the
     worker status until next START SLAVE following which the new worker objetcs
-    will be used. 
+    will be used.
   */
   void copy_values_for_PFS(ulong worker_id, enum en_running_state running_status,
                       THD *worker_thd, Error last_error,
