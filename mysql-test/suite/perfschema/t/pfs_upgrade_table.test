@@ -40,4 +40,3 @@ use test;
 
 --remove_file $MYSQLD_DATADIR/performance_schema/user_table.frm
 drop table test.user_table;
-
