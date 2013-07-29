@@ -3428,26 +3428,29 @@ innobase_commit(
 
 		/* We need current binlog position for ibbackup to work. */
 
-		while (!read_only && innobase_commit_concurrency > 0) {
+		if (!read_only) {
 
-			mysql_mutex_lock(&commit_cond_m);
+			while (innobase_commit_concurrency > 0) {
 
-			++commit_threads;
+				mysql_mutex_lock(&commit_cond_m);
 
-			if (commit_threads <= innobase_commit_concurrency) {
+				++commit_threads;
 
-				break;
+				if (commit_threads
+				    <= innobase_commit_concurrency) {
+
+					mysql_mutex_unlock(&commit_cond_m);
+					break;
+				}
+
+				--commit_threads;
+
+				mysql_cond_wait(&commit_cond, &commit_cond_m);
+
+				mysql_mutex_unlock(&commit_cond_m);
 			}
 
-			--commit_threads;
-
-			mysql_cond_wait(&commit_cond, &commit_cond_m);
-
-			mysql_mutex_unlock(&commit_cond_m);
-		}
-
-		if (!read_only) {
-			/* The following call read the binary log position of
+			/* The following call reads the binary log position of
 			the transaction being committed.
 
 			Binary logging of other engines is not relevant to
@@ -3479,6 +3482,7 @@ innobase_commit(
 
 				mysql_mutex_lock(&commit_cond_m);
 
+				ut_ad(commit_threads > 0);
 				--commit_threads;
 
 				mysql_cond_signal(&commit_cond);
@@ -3511,7 +3515,8 @@ innobase_commit(
 		trx_mark_sql_stat_end(trx);
 	}
 
-	trx->n_autoinc_rows = 0; /* Reset the number AUTO-INC rows required */
+	/* Reset the number AUTO-INC rows required */
+	trx->n_autoinc_rows = 0;
 
 	/* This is a statement level variable. */
 	trx->fts_next_doc_id = 0;
