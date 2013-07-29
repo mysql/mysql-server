@@ -214,7 +214,7 @@ copied across.
 void
 ReadView::ids_t::reserve(ulint n)
 {
-	if (n < capacity()) {
+	if (n <= capacity()) {
 		return;
 	}
 
