@@ -89,13 +89,10 @@ HashMap DEFAULT-HASHMAP-3840-2
 
 
 ## Create nodegroup for "new" nodes
-Connected to Management Server at: localhost:13000
 Nodegroup 1 created
 ## Drop
-Connected to Management Server at: localhost:13000
 Drop Node Group 1 done
 ## and create
-Connected to Management Server at: localhost:13000
 Nodegroup 1 created
 create table t3(id int NOT NULL PRIMARY KEY, data char(8)) engine=ndb;
 create table t4(id int NOT NULL PRIMARY KEY, data char(8))
@@ -187,7 +184,6 @@ drop procedure updateload;
 
 connection ddl;
 ## Drop nodegroup with "new" nodes
-Connected to Management Server at: localhost:13000
 Drop Node Group 1 done
 ALTER TABLESPACE ts_1 DROP DATAFILE 'data_1.dat' ENGINE NDB;
 DROP TABLESPACE ts_1 ENGINE NDB;
