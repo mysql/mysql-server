@@ -27,6 +27,7 @@ CREATE TABLE t (a TINYBLOB NULL);
 ALTER TABLE t CHANGE COLUMN a a TEXT NULL;
 ERROR 42000: Table 't' uses an extension that doesn't exist in this XYZ version
 ALTER TABLE t CHANGE COLUMN a a BLOB NULL;
+ERROR 42000: Table 't' uses an extension that doesn't exist in this MySQL version
 DROP TABLE t;
 CREATE TABLE t (a TINYBLOB NULL);
 ALTER TABLE t CHANGE COLUMN a a TEXT NOT NULL;
@@ -44,11 +45,13 @@ CREATE TABLE t (a TINYBLOB NOT NULL);
 ALTER TABLE t CHANGE COLUMN a a TEXT NOT NULL;
 ERROR 42000: Table 't' uses an extension that doesn't exist in this XYZ version
 ALTER TABLE t CHANGE COLUMN a a BLOB NOT NULL;
+ERROR 42000: Table 't' uses an extension that doesn't exist in this MySQL version
 DROP TABLE t;
 CREATE TABLE t (a TINYBLOB NULL);
 ALTER TABLE t CHANGE COLUMN a a MEDIUMTEXT NULL;
 ERROR 42000: Table 't' uses an extension that doesn't exist in this XYZ version
 ALTER TABLE t CHANGE COLUMN a a MEDIUMBLOB NULL;
+ERROR 42000: Table 't' uses an extension that doesn't exist in this MySQL version
 DROP TABLE t;
 CREATE TABLE t (a TINYBLOB NULL);
 ALTER TABLE t CHANGE COLUMN a a MEDIUMTEXT NOT NULL;
@@ -66,11 +69,13 @@ CREATE TABLE t (a TINYBLOB NOT NULL);
 ALTER TABLE t CHANGE COLUMN a a MEDIUMTEXT NOT NULL;
 ERROR 42000: Table 't' uses an extension that doesn't exist in this XYZ version
 ALTER TABLE t CHANGE COLUMN a a MEDIUMBLOB NOT NULL;
+ERROR 42000: Table 't' uses an extension that doesn't exist in this MySQL version
 DROP TABLE t;
 CREATE TABLE t (a TINYBLOB NULL);
 ALTER TABLE t CHANGE COLUMN a a LONGTEXT NULL;
 ERROR 42000: Table 't' uses an extension that doesn't exist in this XYZ version
 ALTER TABLE t CHANGE COLUMN a a LONGBLOB NULL;
+ERROR 42000: Table 't' uses an extension that doesn't exist in this MySQL version
 DROP TABLE t;
 CREATE TABLE t (a TINYBLOB NULL);
 ALTER TABLE t CHANGE COLUMN a a LONGTEXT NOT NULL;
@@ -88,6 +93,7 @@ CREATE TABLE t (a TINYBLOB NOT NULL);
 ALTER TABLE t CHANGE COLUMN a a LONGTEXT NOT NULL;
 ERROR 42000: Table 't' uses an extension that doesn't exist in this XYZ version
 ALTER TABLE t CHANGE COLUMN a a LONGBLOB NOT NULL;
+ERROR 42000: Table 't' uses an extension that doesn't exist in this MySQL version
 DROP TABLE t;
 CREATE TABLE t (a BLOB NULL);
 ALTER TABLE t CHANGE COLUMN a a TINYTEXT NULL;
@@ -139,6 +145,7 @@ CREATE TABLE t (a BLOB NULL);
 ALTER TABLE t CHANGE COLUMN a a MEDIUMTEXT NULL;
 ERROR 42000: Table 't' uses an extension that doesn't exist in this XYZ version
 ALTER TABLE t CHANGE COLUMN a a MEDIUMBLOB NULL;
+ERROR 42000: Table 't' uses an extension that doesn't exist in this MySQL version
 DROP TABLE t;
 CREATE TABLE t (a BLOB NULL);
 ALTER TABLE t CHANGE COLUMN a a MEDIUMTEXT NOT NULL;
@@ -156,11 +163,13 @@ CREATE TABLE t (a BLOB NOT NULL);
 ALTER TABLE t CHANGE COLUMN a a MEDIUMTEXT NOT NULL;
 ERROR 42000: Table 't' uses an extension that doesn't exist in this XYZ version
 ALTER TABLE t CHANGE COLUMN a a MEDIUMBLOB NOT NULL;
+ERROR 42000: Table 't' uses an extension that doesn't exist in this MySQL version
 DROP TABLE t;
 CREATE TABLE t (a BLOB NULL);
 ALTER TABLE t CHANGE COLUMN a a LONGTEXT NULL;
 ERROR 42000: Table 't' uses an extension that doesn't exist in this XYZ version
 ALTER TABLE t CHANGE COLUMN a a LONGBLOB NULL;
+ERROR 42000: Table 't' uses an extension that doesn't exist in this MySQL version
 DROP TABLE t;
 CREATE TABLE t (a BLOB NULL);
 ALTER TABLE t CHANGE COLUMN a a LONGTEXT NOT NULL;
@@ -178,6 +187,7 @@ CREATE TABLE t (a BLOB NOT NULL);
 ALTER TABLE t CHANGE COLUMN a a LONGTEXT NOT NULL;
 ERROR 42000: Table 't' uses an extension that doesn't exist in this XYZ version
 ALTER TABLE t CHANGE COLUMN a a LONGBLOB NOT NULL;
+ERROR 42000: Table 't' uses an extension that doesn't exist in this MySQL version
 DROP TABLE t;
 CREATE TABLE t (a MEDIUMBLOB NULL);
 ALTER TABLE t CHANGE COLUMN a a TINYTEXT NULL;
@@ -253,6 +263,7 @@ CREATE TABLE t (a MEDIUMBLOB NULL);
 ALTER TABLE t CHANGE COLUMN a a LONGTEXT NULL;
 ERROR 42000: Table 't' uses an extension that doesn't exist in this XYZ version
 ALTER TABLE t CHANGE COLUMN a a LONGBLOB NULL;
+ERROR 42000: Table 't' uses an extension that doesn't exist in this MySQL version
 DROP TABLE t;
 CREATE TABLE t (a MEDIUMBLOB NULL);
 ALTER TABLE t CHANGE COLUMN a a LONGTEXT NOT NULL;
@@ -270,6 +281,7 @@ CREATE TABLE t (a MEDIUMBLOB NOT NULL);
 ALTER TABLE t CHANGE COLUMN a a LONGTEXT NOT NULL;
 ERROR 42000: Table 't' uses an extension that doesn't exist in this XYZ version
 ALTER TABLE t CHANGE COLUMN a a LONGBLOB NOT NULL;
+ERROR 42000: Table 't' uses an extension that doesn't exist in this MySQL version
 DROP TABLE t;
 CREATE TABLE t (a LONGBLOB NULL);
 ALTER TABLE t CHANGE COLUMN a a TINYTEXT NULL;
