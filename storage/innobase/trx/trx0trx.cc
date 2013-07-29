@@ -159,7 +159,9 @@ trx_init(
 
 	ut_ad(!MVCC::is_view_active(trx->read_view));
 
-	trx->lock.cached = 0;
+	trx->lock.rec_cached = 0;
+
+	trx->lock.table_cached = 0;
 }
 
 /** For managing the life-cycle of the trx_t instance that we get
@@ -199,7 +201,9 @@ struct TrxFactory {
 		the constructors of the trx_t members. */
 		new(&trx->mod_tables) trx_mod_tables_t();
 
-		new(&trx->lock.pool) lock_pool_t();
+		new(&trx->lock.rec_pool) lock_pool_t();
+
+		new(&trx->lock.table_pool) lock_pool_t();
 
 		lock_trx_alloc_locks(trx);
 	}
@@ -237,15 +241,25 @@ struct TrxFactory {
 
 		ut_ad(trx->read_view == NULL);
 
-		if (!trx->lock.pool.empty()) {
+		if (!trx->lock.rec_pool.empty()) {
 
 			/* See lock_trx_alloc_locks() why we only free
 			the first element. */
 
-			mem_free(trx->lock.pool[0]);
+			mem_free(trx->lock.rec_pool[0]);
 		}
 
-		trx->lock.pool.~lock_pool_t();
+		if (!trx->lock.rec_pool.empty()) {
+
+			/* See lock_trx_alloc_locks() why we only free
+			the first element. */
+
+			mem_free(trx->lock.table_pool[0]);
+		}
+
+		trx->lock.rec_pool.~lock_pool_t();
+
+		trx->lock.table_pool.~lock_pool_t();
 	}
 
 	/** Enforce any invariants here, this is called before the transaction
