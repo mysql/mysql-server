@@ -814,10 +814,12 @@ Slave_worker *map_db_to_worker(const char *dbname, Relay_log_info *rli,
       Allocate an entry to be inserted and if the operation fails
       an error is returned.
     */
-    if (!(db= (char *) my_malloc((size_t) dblength + 1, MYF(0))))
+    if (!(db= (char *) my_malloc(key_memory_db_worker_hash_entry,
+                                 (size_t) dblength + 1, MYF(0))))
       goto err;
     if (!(entry= (db_worker_hash_entry *)
-          my_malloc(sizeof(db_worker_hash_entry), MYF(0))))
+          my_malloc(key_memory_db_worker_hash_entry,
+                    sizeof(db_worker_hash_entry), MYF(0))))
     {
       my_free(db);
       goto err;

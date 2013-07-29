@@ -514,6 +514,21 @@ struct PFS_file_io_stat_row
   }
 };
 
+/** Row fragment for memory statistics columns. */
+struct PFS_memory_stat_row
+{
+  PFS_memory_stat m_stat;
+
+  /** Build a row from a memory buffer. */
+  inline void set(const PFS_memory_stat *stat)
+  {
+    m_stat= *stat;
+  }
+
+  /** Set a table field from the row. */
+  void set_field(uint index, Field *f);
+};
+
 /** @} */
 
 #endif

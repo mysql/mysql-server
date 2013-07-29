@@ -608,7 +608,8 @@ static int init_rr_cache(THD *thd, READ_RECORD *info)
 
   // We have to allocate one more byte to use uint3korr (see comments for it)
   if (info->cache_records <= 2 ||
-      !(info->cache=(uchar*) my_malloc(rec_cache_size+info->cache_records*
+      !(info->cache=(uchar*) my_malloc(key_memory_READ_RECORD_cache,
+                                       rec_cache_size+info->cache_records*
                                        info->struct_length+1,
                                        MYF(0))))
     DBUG_RETURN(1);
