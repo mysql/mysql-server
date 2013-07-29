@@ -2518,7 +2518,7 @@ loop:
 			by x100 (1purge/100msec), to speed up debug scripts
 			which should wait for purged. */
 
-			if (!skip_sleep) {
+			if (!skip_sleep && !srv_shutdown_state) {
 				os_thread_sleep(100000);
 				srv_main_sleeps++;
 			}
@@ -2535,7 +2535,7 @@ loop:
 			} while (n_pages_purged);
 		} else
 #endif /* UNIV_DEBUG */
-		if (!skip_sleep) {
+		if (!skip_sleep && !srv_shutdown_state) {
 
 			os_thread_sleep(1000000);
 			srv_main_sleeps++;
