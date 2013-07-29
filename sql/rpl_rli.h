@@ -518,9 +518,12 @@ public:
   /*
     For the purpose of reporting the worker status in performance schema table,
     we need to preserve the workers array after worker thread was killed. So, we
-    copy this array into ithe below vector which is used for reporting
+    copy this array into the below vector which is used for reporting
     until next init_workers(). Note that we only copy those attributes that
-    would be useful in reporting worker status.
+    would be useful in reporting worker status. We only use a few attributes in
+    this object as of now but still save the whole object. The idea is
+    to be future proof. We will extend performance schema tables in future
+    and then we would use a good number of attributes from this object.
   */
 
   std::vector<Slave_worker*> workers_copy_pfs;
@@ -639,7 +642,7 @@ public:
   time_t mts_last_online_stat;
   /* end of MTS statistics */
 
-  /*Returns the number of elements in workers array*/
+  /* Returns the number of elements in workers array/vector. */
   inline uint get_worker_count()
   {
     if (workers_array_initialized)
@@ -648,7 +651,10 @@ public:
       return workers_copy_pfs.size();
   }
 
-  /* Returns a pointer to the worker instance at index n in workers array. */
+  /*
+    Returns a pointer to the worker instance at index n in workers
+    array/vector.
+  */
   Slave_worker* get_worker(uint n)
   {
     if (workers_array_initialized)
