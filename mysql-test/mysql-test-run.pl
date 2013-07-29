@@ -3517,7 +3517,7 @@ sub mysql_install_db {
   if ( $opt_embedded_server )
   {
     # Do not create performance_schema tables for embedded
-    mtr_add_arg($args, "--loose-skip-plugin-performance_schema");
+    mtr_add_arg($args, "--loose-performance_schema=OFF");
   }
 
   if ( $opt_debug )
