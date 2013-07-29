@@ -149,6 +149,7 @@ DbUtil::releaseTransaction(TransactionPtr transPtr){
     opPtr.p->attrInfo.release();
     opPtr.p->keyInfo.release();
     opPtr.p->rs.release();
+    opPtr.p->transPtrI = RNIL;
     if (opPtr.p->prepOp != 0 && opPtr.p->prepOp_i != RNIL) {
       if (opPtr.p->prepOp->releaseFlag) {
 	PreparedOperationPtr prepOpPtr;
@@ -1807,7 +1808,7 @@ DbUtil::execUTIL_SEQUENCE_REQ(Signal* signal){
   
   OperationPtr opPtr;
   ndbrequire(transPtr.p->operations.seizeFirst(opPtr));
-  
+  ndbrequire(opPtr.p->transPtrI == RNIL);
   ndbrequire(opPtr.p->keyInfo.seize(1));
 
   transPtr.p->gci_hi = 0;
@@ -2080,6 +2081,7 @@ DbUtil::execUTIL_EXECUTE_REQ(Signal* signal)
   transPtr.p->clientRef  = clientRef;
   transPtr.p->clientData = clientData;
   ndbrequire(transPtr.p->operations.seizeFirst(opPtr));
+  ndbrequire(opPtr.p->transPtrI == RNIL);
   opPtr.p->prepOp   = prepOpPtr.p;
   opPtr.p->prepOp_i = prepOpPtr.i;
   opPtr.p->m_scanTakeOver = scanTakeOver;
@@ -2417,12 +2419,55 @@ DbUtil::execTRANSID_AI(Signal* signal){
     dataLen = signal->length() - 3;
   }
 
-  Operation * opP = c_operationPool.getPtr(opI);
+  bool validSignal = false;
+  Operation * opP;
   TransactionPtr transPtr;
-  c_runningTransactions.getPtr(transPtr, opP->transPtrI);
+  do
+  {
+    /* Lookup op record carefully, it may have been released if the
+     * transaction was aborted and the TRANSID_AI was delayed
+     */
+    OperationPtr opPtr;
+    opPtr.i = opI;
+    c_operationPool.getPtrIgnoreAlloc(opPtr);
+    opP = opPtr.p;
+    
+    /* Use transPtrI == RNIL as test of op record validity */
+    if (opP->transPtrI == RNIL)
+    {
+      jam();
+      break;
+    }
+    
+#ifdef ARRAY_GUARD
+    /* Op was valid, do normal debug-only allocation double-check */
+    ndbrequire(c_operationPool.isSeized(opI));
+#endif
 
-  ndbrequire(transId1 == transPtr.p->transId[0] && 
-	     transId2 == transPtr.p->transId[1]);
+    /* Valid op record must always point to allocated transaction record */
+    c_runningTransactions.getPtr(transPtr, opP->transPtrI);
+
+    /* Transaction may have different transid since this op was
+     * executed - e.g. if it is retried due to a temp error.
+     */
+    validSignal = (transId1 == transPtr.p->transId[0] && 
+                   transId2 == transPtr.p->transId[1]);
+  } while(0);
+  
+  if (unlikely(!validSignal))
+  {
+    /* Can get strays as TRANSID_AI takes a different path
+     * to LQHKEYCONF/TCKEYCONF/LQHKEYREF/TCKEYREF/TCROLLBACKREP
+     * and we may have retried (with different transid), or
+     * given up since then
+     */
+    jam();
+    releaseSections(handle);
+    return;
+  }
+
+  jam();
+
   opP->rsRecv += dataLen;
   
   /**
