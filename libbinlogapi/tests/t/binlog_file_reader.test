@@ -1,0 +1,12 @@
+-- source include/not_embedded.inc
+let $REPLICATION_LISTENER="<path-to-replaybinlog>";
+let $SAMPLE_BINLOG_FILES_DIR="<path-to-std-data>";
+
+--echo #
+--echo # Reading binlogs files.
+--echo #
+--exec $REPLICATION_LISTENER file://$SAMPLE_BINLOG_FILES_DIR/searchbin.000001
+--exec $REPLICATION_LISTENER file://$SAMPLE_BINLOG_FILES_DIR/binlog_transaction.000001
+--exec $REPLICATION_LISTENER file://$SAMPLE_BINLOG_FILES_DIR/binlog_savepoint.000001
+
+--echo # End of test

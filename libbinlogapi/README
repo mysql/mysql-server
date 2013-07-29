@@ -1,0 +1,123 @@
+The MySQL Replicant Library is a C++ library for reading MySQL
+replication events, either by connecting to a server or by reading
+from a file. To handle reading from a server, it includes a very
+simple client.
+
+
+Dependencies
+------------
+
+You need to have CMake version 2.8 or later and libmysqlclient
+latest version.
+
+To be able to run the unit tests, you have to have Google Test
+installed. Google Test will be automatically installed if cmake is
+called as:
+
+   cmake . -DENABLE_DOWNLOADS=1
+
+
+Directory structure
+-------------------
+
+    .
+    |-- doc                 Documentation
+    |-- examples            Examples
+    |   |-- mysql2hdfs      Example application replicating rows to HDFS
+    |   `-- mysql2lucene    Example application replicating rows to SOLR
+    |-- include             Include files
+    |-- src                 Source files for library
+    `-- tests               Unit test files and directories
+
+
+Building
+--------
+
+To build the entire package, it is first necessary to run CMake to build 
+all the makefiles. Before running CMake set this environment variable MYSQL_DIR
+to point to the libmysql library or the MySQL directory and then you can figure 
+out where to find the right files in the cmake code.
+
+If you have libmysql installed on your system you can skip this step.
+       
+        export MYSQL_DIR=<path of mysql directory or libmysql> 
+        cmake .
+        make -j4
+
+Some of the examples are using third-party software, which can require
+extra parameters to be given to CMake.
+
+If you want to perform an out-of-source build, you can just create a
+build directory and execute CMake there.
+
+      mkdir build
+      cd build
+      cmake <source directory>
+      make -j4
+
+
+Building the mysql2hdfs Example
+-------------------------------
+
+To build the mysql2hdfs example, it is necessary to ensure that the
+'FindHDFS.cmake' is in the CMAKE_MODULE_PATH, for example:
+
+    cmake . -DCMAKE_MODULE_PATH:String=/usr/share/cmake-2.8/Modules
+
+In addition, CMake doesn't come with a 'find' module for libhdfs. But
+you can find one on the internet(in a file FindHDFS.cmake); and put
+the file in CMake module path.
+
+It is also required to set the Environment variable $HADOOP_HOME, which
+points to the Hadoop installation directory.
+
+For hadoop version 1.x, the path for libhdfs library and include files
+requires to be modified in the file FindHDFS.cmake. The following
+patch will fix the FindHDFS.cmake file:
+
+    --- a/cmake_modules/FindHDFS.cmake
+    +++ b/cmake_modules/FindHDFS.cmake
+    @@ -11,6 +11,7 @@ exec_program(hadoop ARGS version OUTPUT_VARIABLE Hadoop_VERSION
+     # currently only looking in HADOOP_HOME
+     find_path(HDFS_INCLUDE_DIR hdfs.h PATHS
+       $ENV{HADOOP_HOME}/include/
+    +  $ENV{HADOOP_HOME}/src/c++/libhdfs/
+       # make sure we don't accidentally pick up a different version
+       NO_DEFAULT_PATH
+     )
+    @@ -26,9 +27,9 @@ endif()
+     message(STATUS "Architecture: ${arch_hint}")
+
+     if ("${arch_hint}" STREQUAL "x64")
+    -  set(HDFS_LIB_PATHS $ENV{HADOOP_HOME}/lib/native)
+    +  set(HDFS_LIB_PATHS $ENV{HADOOP_HOME}/c++/Linux-amd64-64/lib)
+     else ()
+    -  set(HDFS_LIB_PATHS $ENV{HADOOP_HOME}/lib/native)
+    +  set(HDFS_LIB_PATHS $ENV{HADOOP_HOME}/c++/Linux-i386-32/lib)
+     endif ()
+
+     message(STATUS "HDFS_LIB_PATHS: ${HDFS_LIB_PATHS}")
+
+The environment variable $HADOOP_HOME must be set, pointing to the hadoop
+installation directory on your machine.
+
+Since libhdfs is JNI based API, it requires JNI header files and libraries to
+build. If there exists a module FindJNI.cmake in the CMAKE_MODULE_PATH and
+JAVA_HOME is set; the headers will be included, and the libraries would be
+linked to. If not, it will be required to include the headers and load the
+libraries separately (modify LD_LIBRARY_PATH).
+
+Building the mysql2lucene Example
+---------------------------------
+
+To build the mysql2lucene example, it is necessary to ensure that the
+'FindCLucene.cmake' is in the CMAKE_MODULE_PATH, which on my machine
+require me to write:
+
+    cmake . -DCMAKE_MODULE_PATH:String=/usr/share/kde4/apps/cmake/modules
+
+In addition, there is a bug in the packaging of CLucene on Ubuntu in
+that the 'clucene-config.h' file is placed in '/usr/lib/CLucene' but
+not in '/usr/include/CLucene', causing compiler failure when
+attempting to use CLucene. The 'CMakeLists.txt' file hacks around this
+by adding the libraries explicitly, but it seems unnecessary.
