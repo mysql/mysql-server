@@ -70,6 +70,12 @@ static const ulint	REC_LOCK_CACHE = 8;
 /** Maximum record lock size in bytes */
 static const ulint	REC_LOCK_SIZE = sizeof(ib_lock_t) + 256;
 
+/** Total number of cached table locks */
+static const ulint	TABLE_LOCK_CACHE = 8;
+
+/** Size in bytes, of the table lock instance */
+static const ulint	TABLE_LOCK_SIZE = sizeof(ib_lock_t);
+
 /* An explicit record lock affects both the record and the gap before it.
 An implicit x-lock does not affect the gap, it only locks the index
 record from read or update.
@@ -1967,14 +1973,14 @@ lock_rec_create(
 	n_bits = page_dir_get_n_heap(page) + LOCK_PAGE_BITMAP_MARGIN;
 	n_bytes = 1 + n_bits / 8;
 
-	if (trx->lock.cached >= trx->lock.pool.size()
+	if (trx->lock.rec_cached >= trx->lock.rec_pool.size()
 	    || sizeof(lock_t) + n_bytes > REC_LOCK_SIZE) {
 
 		lock = static_cast<lock_t*>(
 			mem_heap_alloc(trx->lock.lock_heap,
 				       sizeof(lock_t) + n_bytes));
 	} else {
-		lock = trx->lock.pool[trx->lock.cached++];
+		lock = trx->lock.rec_pool[trx->lock.rec_cached++];
 	}
 
 	lock->trx = trx;
@@ -3709,9 +3715,14 @@ lock_table_create(
 		table->autoinc_trx = trx;
 
 		ib_vector_push(trx->autoinc_locks, &lock);
+
+	} else if (trx->lock.table_cached < trx->lock.table_pool.size()) {
+		lock = trx->lock.table_pool[trx->lock.table_cached++];
 	} else {
+
 		lock = static_cast<lock_t*>(
 			mem_heap_alloc(trx->lock.lock_heap, sizeof(*lock)));
+
 	}
 
 	lock->type_mode = type_mode | LOCK_TABLE;
@@ -4123,7 +4134,7 @@ lock_table_ix_resurrect(
 Checks if a waiting table lock request still has to wait in a queue.
 @return TRUE if still has to wait */
 static
-ibool
+bool
 lock_table_has_to_wait_in_queue(
 /*============================*/
 	const lock_t*	wait_lock)	/*!< in: waiting table lock */
@@ -4142,11 +4153,11 @@ lock_table_has_to_wait_in_queue(
 
 		if (lock_has_to_wait(wait_lock, lock)) {
 
-			return(TRUE);
+			return(true);
 		}
 	}
 
-	return(FALSE);
+	return(false);
 }
 
 /*************************************************************//**
@@ -7485,7 +7496,16 @@ lock_trx_alloc_locks(trx_t* trx)
 	at index 0. */
 
 	for (ulint i = 0; i < REC_LOCK_CACHE; ++i, ptr += REC_LOCK_SIZE) {
-		trx->lock.pool.push_back(
+		trx->lock.rec_pool.push_back(
 			reinterpret_cast<ib_lock_t*>(ptr));
 	}
+
+	sz = TABLE_LOCK_SIZE * TABLE_LOCK_CACHE;
+	ptr = reinterpret_cast<byte*>(mem_alloc(sz));
+
+	for (ulint i = 0; i < TABLE_LOCK_CACHE; ++i, ptr += TABLE_LOCK_SIZE) {
+		trx->lock.table_pool.push_back(
+			reinterpret_cast<ib_lock_t*>(ptr));
+	}
+
 }
