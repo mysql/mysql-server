@@ -315,6 +315,8 @@ my_pthread_set_THR_MALLOC(MEM_ROOT ** hdl)
   return my_pthread_setspecific_ptr(THR_MALLOC, hdl);
 }
 
+extern bool load_perfschema_engine;
+
 #ifdef HAVE_PSI_INTERFACE
 
 C_MODE_START

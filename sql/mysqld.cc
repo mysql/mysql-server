@@ -764,6 +764,8 @@ static int remaining_argc;
 /** Remaining command line arguments (arguments), filtered by handle_options().*/
 static char **remaining_argv;
 
+bool load_perfschema_engine= false;
+
 int orig_argc;
 char **orig_argv;
 
@@ -5087,6 +5089,9 @@ int mysqld_main(int argc, char **argv)
   ulong requested_open_files;
   adjust_related_options(&requested_open_files);
 
+  if (pfs_param.m_enabled)
+    load_perfschema_engine= true;
+
 #ifdef WITH_PERFSCHEMA_STORAGE_ENGINE
   if (ho_error == 0)
   {
@@ -7883,6 +7888,7 @@ static bool operator<(const my_option &a, const my_option &b)
         return false;
     }
   }
+  DBUG_ASSERT(a.name == b.name);
   return false;
 }
 
