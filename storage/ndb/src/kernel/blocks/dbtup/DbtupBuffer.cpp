@@ -296,7 +296,19 @@ void Dbtup::sendReadAttrinfo(Signal* signal,
       LinearSectionPtr ptr[3];
       ptr[0].p= &signal->theData[3];
       ptr[0].sz= ToutBufIndex;
-      sendSignal(recBlockref, GSN_TRANSID_AI, signal, 3, JBB, ptr, 1);
+      if (ERROR_INSERTED(4035))
+      {
+        /* Copy data to Seg-section for delayed send */
+        Uint32 sectionIVal = RNIL;
+        ndbrequire(appendToSection(sectionIVal, ptr[0].p, ptr[0].sz));
+        SectionHandle sh(this, sectionIVal);
+        
+        sendSignalWithDelay(recBlockref, GSN_TRANSID_AI, signal, 10, 3, &sh);
+      }
+      else
+      {
+        sendSignal(recBlockref, GSN_TRANSID_AI, signal, 3, JBB, ptr, 1);
+      }
     }
     return;
   }
