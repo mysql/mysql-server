@@ -5449,7 +5449,7 @@ int mysqld_main(int argc, char **argv)
     - the tables are not supposed to exist yet, bootstrap will create them
     - a check would print spurious error messages
   */
-  if (! opt_bootstrap)
+  if (! opt_bootstrap && load_perfschema_engine)
     check_performance_schema();
 #endif
 
