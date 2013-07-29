@@ -716,9 +716,13 @@ struct trx_lock_t {
 					only be modified by the thread that is
 					serving the running transaction. */
 
-	lock_pool_t	pool;		/*!< Pre-allocated record locks */
+	lock_pool_t	rec_pool;	/*!< Pre-allocated record locks */
 
-	ulint		cached;		/*!< Next free lock in pool */
+	lock_pool_t	table_pool;	/*!< Pre-allocated table locks */
+
+	ulint		rec_cached;	/*!< Next free rec lock in pool */
+
+	ulint		table_cached;	/*!< Next free table lock in pool */
 
 	mem_heap_t*	lock_heap;	/*!< memory heap for trx_locks;
 					protected by lock_sys->mutex */
