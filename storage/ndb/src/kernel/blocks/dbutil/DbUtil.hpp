@@ -288,7 +288,7 @@ public:
     Operation(KeyInfoBuffer::DataBufferPool & ki, 
 	      AttrInfoBuffer::DataBufferPool & ai,
 	      ResultSetBuffer::DataBufferPool & _rs) :
-      prepOp_i(RNIL), keyInfo(ki), attrInfo(ai), rs(_rs) {}
+      prepOp_i(RNIL), keyInfo(ki), attrInfo(ai), rs(_rs), transPtrI(RNIL) {}
     
     PreparedOperation *            prepOp;
     Uint32                         prepOp_i;
