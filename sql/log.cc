@@ -1,4 +1,4 @@
-/* Copyright (c) 2000, 2011, 2013 Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2000, 2013 Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -246,7 +246,7 @@ bool File_query_log::open()
 
   write_error= false;
 
-  if (!(name= my_strdup(log_name, MYF(MY_WME))))
+  if (!(name= my_strdup(key_memory_File_query_log_name, log_name, MYF(MY_WME))))
   {
     name= const_cast<char *>(log_name); // for the error message
     goto err;
@@ -1810,7 +1810,10 @@ int TC_LOG_MMAP::open(const char *opt_name)
   DBUG_ASSERT(opt_name && opt_name[0]);
 
   tc_log_page_size= my_getpagesize();
-  DBUG_ASSERT(TC_LOG_PAGE_SIZE % tc_log_page_size == 0);
+  if (TC_LOG_PAGE_SIZE > tc_log_page_size)
+  {
+    DBUG_ASSERT(TC_LOG_PAGE_SIZE % tc_log_page_size == 0);
+  }
 
   fn_format(logname,opt_name,mysql_data_home,"",MY_UNPACK_FILENAME);
   if ((fd= mysql_file_open(key_file_tclog, logname, O_RDWR, MYF(0))) < 0)
@@ -1854,7 +1857,8 @@ int TC_LOG_MMAP::open(const char *opt_name)
 
   npages=(uint)file_length/tc_log_page_size;
   DBUG_ASSERT(npages >= 3);             // to guarantee non-empty pool
-  if (!(pages=(PAGE *)my_malloc(npages*sizeof(PAGE), MYF(MY_WME|MY_ZEROFILL))))
+  if (!(pages=(PAGE *)my_malloc(key_memory_TC_LOG_MMAP_pages,
+                                npages*sizeof(PAGE), MYF(MY_WME|MY_ZEROFILL))))
     goto err;
   inited=3;
   for (pg=pages, i=0; i < npages; i++, pg++)

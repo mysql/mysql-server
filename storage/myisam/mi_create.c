@@ -92,7 +92,8 @@ int mi_create(const char *name,uint keys,MI_KEYDEF *keydefs,
     ci->reloc_rows=ci->max_rows;		/* Check if wrong parameter */
 
   if (!(rec_per_key_part=
-	(ulong*) my_malloc((keys + uniques)*MI_MAX_KEY_SEG*sizeof(long),
+	(ulong*) my_malloc(mi_key_memory_MYISAM_SHARE,
+                           (keys + uniques)*MI_MAX_KEY_SEG*sizeof(long),
 			   MYF(MY_WME | MY_ZEROFILL))))
     DBUG_RETURN(my_errno);
 

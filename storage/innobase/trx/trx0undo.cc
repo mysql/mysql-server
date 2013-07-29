@@ -553,7 +553,6 @@ trx_undo_header_create(
 	trx_upagef_t*	page_hdr;
 	trx_usegf_t*	seg_hdr;
 	trx_ulogf_t*	log_hdr;
-	trx_ulogf_t*	prev_log_hdr;
 	ulint		prev_log;
 	ulint		free;
 	ulint		new_free;
@@ -580,6 +579,8 @@ trx_undo_header_create(
 	prev_log = mach_read_from_2(seg_hdr + TRX_UNDO_LAST_LOG);
 
 	if (prev_log != 0) {
+		trx_ulogf_t*	prev_log_hdr;
+
 		prev_log_hdr = undo_page + prev_log;
 
 		mach_write_to_2(prev_log_hdr + TRX_UNDO_NEXT_LOG, free);

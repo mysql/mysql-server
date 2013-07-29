@@ -57,10 +57,15 @@ ERROR 1050 (42S01) at line 1168: Table 'events_statements_summary_global_by_even
 ERROR 1050 (42S01) at line 1177: Table 'hosts' already exists
 ERROR 1050 (42S01) at line 1186: Table 'users' already exists
 ERROR 1050 (42S01) at line 1196: Table 'accounts' already exists
-ERROR 1050 (42S01) at line 1231: Table 'events_statements_summary_by_digest' already exists
-ERROR 1050 (42S01) at line 1241: Table 'session_connect_attrs' already exists
-ERROR 1050 (42S01) at line 1247: Table 'session_account_connect_attrs' already exists
-ERROR 1644 (HY000) at line 1984: Unexpected content found in the performance_schema database.
+ERROR 1050 (42S01) at line 1213: Table 'memory_summary_global_by_event_name' already exists
+ERROR 1050 (42S01) at line 1231: Table 'memory_summary_by_thread_by_event_name' already exists
+ERROR 1050 (42S01) at line 1250: Table 'memory_summary_by_account_by_event_name' already exists
+ERROR 1050 (42S01) at line 1268: Table 'memory_summary_by_host_by_event_name' already exists
+ERROR 1050 (42S01) at line 1286: Table 'memory_summary_by_user_by_event_name' already exists
+ERROR 1050 (42S01) at line 1321: Table 'events_statements_summary_by_digest' already exists
+ERROR 1050 (42S01) at line 1331: Table 'session_connect_attrs' already exists
+ERROR 1050 (42S01) at line 1337: Table 'session_account_connect_attrs' already exists
+ERROR 1644 (HY000) at line 2074: Unexpected content found in the performance_schema database.
 FATAL ERROR: Upgrade failed
 show tables like "user_view";
 Tables_in_performance_schema (user_view)
