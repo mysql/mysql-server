@@ -39,6 +39,18 @@
   @{
 */
 
+#ifdef HAVE_PSI_INTERFACE
+void init_scheduler_psi_keys()
+{
+  const char *category= "scheduler";
+
+  PSI_server->register_statement(category, & Event_queue_element_for_exec::psi_info, 1);
+}
+#endif
+
+PSI_statement_info Event_queue_element_for_exec::psi_info=
+{ 0, "event", 0};
+
 /*************************************************************************/
 
 /**

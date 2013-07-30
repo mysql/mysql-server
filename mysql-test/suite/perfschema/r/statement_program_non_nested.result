@@ -184,6 +184,7 @@ CURRENT_SCHEMA='stored_programs' AND
 (SQL_TEXT not like '%count(*) = 1%' OR SQL_TEXT IS NULL)
 ORDER BY OBJECT_NAME, NESTING_EVENT_LEVEL, SQL_TEXT;
 EVENT_NAME	SQL_TEXT	CURRENT_SCHEMA	OBJECT_TYPE	OBJECT_SCHEMA	OBJECT_NAME	NESTING_EVENT_TYPE	NESTING_EVENT_LEVEL
+statement/scheduler/event	NULL	stored_programs	NULL	NULL	NULL	NULL	0
 statement/sql/call_procedure	CALL SampleProc1(30,40,50)	stored_programs	NULL	NULL	NULL	NULL	0
 statement/sql/call_procedure	CALL SampleProc2("Jwalamukhi",34)	stored_programs	NULL	NULL	NULL	NULL	0
 statement/sql/call_procedure	CALL SampleProc3()	stored_programs	NULL	NULL	NULL	NULL	0
@@ -312,7 +313,7 @@ statement/sql/set_option	SET GLOBAL event_scheduler=OFF	stored_programs	NULL	NUL
 statement/sql/set_option	SET GLOBAL event_scheduler=ON	stored_programs	NULL	NULL	NULL	NULL	0
 statement/sql/update	UPDATE t2 SET id=22 WHERE name="Jwalamukhi"	stored_programs	NULL	NULL	NULL	NULL	0
 statement/sp/freturn	NULL	stored_programs	FUNCTION	stored_programs	append	STATEMENT	1
-statement/sp/stmt	INSERT INTO table_t VALUES(1)	stored_programs	EVENT	stored_programs	e1	NULL	0
+statement/sp/stmt	INSERT INTO table_t VALUES(1)	stored_programs	EVENT	stored_programs	e1	STATEMENT	1
 statement/sp/set	NULL	stored_programs	FUNCTION	stored_programs	fac	STATEMENT	1
 statement/sp/jump_if_not	NULL	stored_programs	FUNCTION	stored_programs	fac	STATEMENT	1
 statement/sp/set	NULL	stored_programs	FUNCTION	stored_programs	fac	STATEMENT	1

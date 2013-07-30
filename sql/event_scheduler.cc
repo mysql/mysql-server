@@ -287,10 +287,22 @@ event_worker_thread(void *arg)
 
   thd= event->thd;
 
+#ifdef HAVE_PSI_STATEMENT_INTERFACE
+    PSI_statement_locker_state state;
+    thd->m_statement_psi= MYSQL_START_STATEMENT(& state, event->get_psi_info()->m_key,
+                                                event->dbname.str, event->dbname.length,
+                                                thd->charset(),
+                                                NULL);
+#endif
+
   mysql_thread_set_psi_id(thd->thread_id);
 
   Event_worker_thread worker_thread;
   worker_thread.run(thd, event);
+
+#ifdef HAVE_PSI_STATEMENT_INTERFACE
+    MYSQL_END_STATEMENT(thd->m_statement_psi, thd->get_stmt_da());
+#endif
 
   my_thread_end();
   return 0;                                     // Can't return anything here
