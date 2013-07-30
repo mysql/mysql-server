@@ -1,6 +1,6 @@
 /*****************************************************************************
 
-Copyright (c) 1995, 2012, Oracle and/or its affiliates. All Rights Reserved.
+Copyright (c) 1995, 2013, Oracle and/or its affiliates. All Rights Reserved.
 
 This program is free software; you can redistribute it and/or modify it under
 the terms of the GNU General Public License as published by the Free Software
@@ -235,15 +235,15 @@ enum latch_level_t {
 	SYNC_LOCK_WAIT_SYS,
 
 	SYNC_INDEX_ONLINE_LOG,
-	
+
 	SYNC_IBUF_BITMAP,
 	SYNC_IBUF_BITMAP_MUTEX,
 	SYNC_IBUF_TREE_NODE,
 	SYNC_IBUF_TREE_NODE_NEW,
 	SYNC_IBUF_INDEX_TREE,
-	
+
 	SYNC_IBUF_MUTEX,
-	
+
 	SYNC_FSP_PAGE,
 	SYNC_FSP,
 	SYNC_EXTERN_STORAGE,
@@ -258,7 +258,7 @@ enum latch_level_t {
 	SYNC_TREE_NODE_FROM_HASH,
 	SYNC_TREE_NODE_NEW,
 	SYNC_INDEX_TREE,
-	
+
 	SYNC_IBUF_PESS_INSERT_MUTEX,
 	SYNC_IBUF_HEADER,
 	SYNC_DICT_HEADER,
@@ -266,13 +266,13 @@ enum latch_level_t {
 	SYNC_DICT_AUTOINC_MUTEX,
 	SYNC_DICT,
 	SYNC_FTS_CACHE,
-	
+
 	SYNC_DICT_OPERATION,
-	
+
 	SYNC_FILE_FORMAT_TAG,
-	
+
 	SYNC_TRX_I_S_LAST_READ,
-	
+
 	SYNC_TRX_I_S_RWLOCK,
 
 	/** Level is varying. Only used with buffer pool page locks, which
@@ -292,15 +292,12 @@ enum latch_level_t {
 	SYNC_USER_TRX_LOCK,
 };
 
-/* Forward declraration. */
-//struct Writer;
-
 /** All (ordered) latches, used in debugging, must derive from this class. */
 struct latch_t {
 	latch_t(latch_level_t level = SYNC_UNKNOWN)
 		:
 		m_level(level),
-       		m_rw_lock(false) { }
+		m_rw_lock(false) { }
 
 	virtual ~latch_t() { }
 
@@ -339,7 +336,8 @@ struct btrsea_sync_check : public sync_check_functor_t {
 	{
 		// FIXME: This condition doesn't look right
 		if (!m_has_search_latch || latch.m_level != SYNC_SEARCH_SYS) {
-			return(m_result = true);
+			m_result = true;
+			return(m_result);
 		}
 
 		return(false);

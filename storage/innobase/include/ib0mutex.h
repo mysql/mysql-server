@@ -31,8 +31,6 @@ Created 2013-03-26 Sunny Bains.
 #include "ut0ut.h"
 #include "ut0rnd.h"
 
-extern ulong 	srv_force_recovery_crash;
-
 /** OS event mutex. We can't track the locking because this mutex is used
 by the events code. The mutex can be released by the condition variable
 and therefore we lose the tracking information. */
@@ -41,19 +39,14 @@ struct OSBasicMutex {
 
 	typedef Policy<OSBasicMutex> MutexPolicy;
 
-	OSBasicMutex(bool track = false) 
+	OSBasicMutex(bool track = false)
 		:
 		m_policy(track) UNIV_NOTHROW
 	{
 		ut_d(m_freed = true);
 	}
 
-	~OSBasicMutex() UNIV_NOTHROW
-	{
-		// FIXME: This invariant doesn't hold if we exit
-		// without invoking the shutdown code.
-		//ut_ad((m_freed);
-	}
+	~OSBasicMutex() UNIV_NOTHROW { }
 
 	/** Required for os_event_t */
 	operator sys_mutex_t*() UNIV_NOTHROW
@@ -112,7 +105,7 @@ struct OSBasicMutex {
 		ut_d(m_freed = true);
 	}
 
-	/** Release the muytex. */
+	/** Release the mutex. */
 	void exit() UNIV_NOTHROW
 	{
 		ut_ad(!m_freed);
@@ -201,7 +194,7 @@ struct OSTrackMutex : public OSBasicMutex<Policy> {
 
 	typedef typename OSBasicMutex<Policy>::MutexPolicy MutexPolicy;
 
-	OSTrackMutex() 
+	OSTrackMutex()
 		:
 		OSBasicMutex<Policy>(true) UNIV_NOTHROW
 	{
@@ -230,7 +223,7 @@ struct OSTrackMutex : public OSBasicMutex<Policy> {
 		OSBasicMutex<Policy>::destroy();
 	}
 
-	/** Release the muytex. */
+	/** Release the mutex. */
 	void exit() UNIV_NOTHROW
 	{
 		ut_ad(m_locked);
@@ -402,7 +395,7 @@ struct TTASFutexMutex {
 	/** Try and lock the mutex.
 	@return the old state of the mutex */
 	lock_word_t trylock() UNIV_NOTHROW
-	{	
+	{
 		return(CAS(&m_lock_word,
 			    MUTEX_STATE_UNLOCKED, MUTEX_STATE_LOCKED));
 	}
@@ -541,12 +534,12 @@ struct TTASMutex {
 		/* Check that lock_word is aligned. */
 		ut_ad(!((ulint) &m_lock_word % sizeof(ulint)));
 	}
- 
+
 	~TTASMutex()
 	{
 		ut_ad(m_lock_word == MUTEX_STATE_UNLOCKED);
 	}
- 
+
 	/** Initialise the mutex. */
 	void init(
 		const char*	name,
@@ -590,14 +583,14 @@ struct TTASMutex {
 		ut_ad(lock == MUTEX_STATE_LOCKED);
 	}
 
- 	/** Try and lock the mutex.
+	/** Try and lock the mutex.
 	@return true on success */
 	bool try_lock() UNIV_NOTHROW
 	{
 		return(tas_lock());
 	}
- 
- 	/** Release the mutex. */
+
+	/** Release the mutex. */
 	void exit() UNIV_NOTHROW
 	{
 		tas_unlock();
@@ -702,15 +695,12 @@ struct TTASEventMutex {
 		/* Check that lock_word is aligned. */
 		ut_ad(!((ulint) &m_lock_word % sizeof(ulint)));
 	}
- 
+
 	~TTASEventMutex()
 	{
-		// FIXME: This invariant doesn't hold if we exit
-		// without invoking the shutdown code.
-		//ut_ad(m_event == 0 || srv_force_recovery_crash);
 		ut_ad(m_lock_word == MUTEX_STATE_UNLOCKED);
 	}
- 
+
 	/** Initialise the mutex. */
 	void init(
 		const char*	name,
@@ -740,14 +730,14 @@ struct TTASEventMutex {
 		m_policy.destroy();
 	}
 
- 	/** Try and lock the mutex. Note: POSIX returns 0 on success.
+	/** Try and lock the mutex. Note: POSIX returns 0 on success.
 	@return true on success */
 	bool try_lock() UNIV_NOTHROW
 	{
 		return(tas_lock());
 	}
- 
- 	/** Release the mutex. */
+
+	/** Release the mutex. */
 	void exit() UNIV_NOTHROW
 	{
 		/* A problem: we assume that mutex_reset_lock word
@@ -799,7 +789,7 @@ struct TTASEventMutex {
 		return(*(lock_word_t*) p);
 	}
 
-	/** The event that the mutex will wait in sync0arr.cc 
+	/** The event that the mutex will wait in sync0arr.cc
 	@return even instance */
 	os_event_t event() UNIV_NOTHROW
 	{
@@ -837,7 +827,7 @@ private:
 	Spin and wait for the mutex to become free.
 	@param max_spins	max spins
 	@param max_delay	max delay per spin
-	@param i 		spin start index
+	@param i		spin start index
 	@return number of spins */
 	ulint ttas(ulint max_spins, ulint max_delay, ulint i) const UNIV_NOTHROW
 	{
@@ -910,7 +900,7 @@ private:
 		/* Declared volatile in the hope that the value is
 		read from memory */
 
-		volatile ulint*   ptr;
+		volatile ulint*	ptr;
 
 		ptr = &m_waiters;
 
@@ -962,7 +952,7 @@ private:
 
 	/** Set to 0 or 1. 1 if there are (or may be) threads waiting
 	in the global wait array for this mutex to be released. */
-	ulint   		m_waiters;
+	ulint			m_waiters;
 
 	/** Policy data */
 	MutexPolicy		m_policy;
@@ -1005,7 +995,7 @@ struct PolicyMutex
 	void exit() UNIV_NOTHROW
 	{
 #ifdef UNIV_PFS_MUTEX
-		pfs_exit(); 
+		pfs_exit();
 #endif /* UNIV_PFS_MUTEX */
 
 		policy().release(m_impl);
@@ -1039,7 +1029,7 @@ struct PolicyMutex
 		policy().locked(m_impl);
 
 #ifdef UNIV_PFS_MUTEX
-		pfs_end(locker, 0); 
+		pfs_end(locker, 0);
 #endif /* UNIV_PFS_MUTEX */
 	}
 
@@ -1063,7 +1053,7 @@ struct PolicyMutex
 		}
 
 #ifdef UNIV_PFS_MUTEX
-		pfs_end(locker, 0); 
+		pfs_end(locker, 0);
 #endif /* UNIV_PFS_MUTEX */
 
 		return(ret);
@@ -1102,7 +1092,7 @@ struct PolicyMutex
 		pfs_del();
 #endif /* UNIV_PFS_MUTEX */
 		m_impl.destroy();
-	}	
+	}
 
 	/** Required for os_event_t */
 	operator sys_mutex_t*() UNIV_NOTHROW
