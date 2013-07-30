@@ -27,6 +27,7 @@ CREATE TABLE t (a TINYTEXT NULL);
 ALTER TABLE t CHANGE COLUMN a a BLOB NULL;
 ERROR 42000: Table 't' uses an extension that doesn't exist in this XYZ version
 ALTER TABLE t CHANGE COLUMN a a TEXT NULL;
+ERROR 42000: Table 't' uses an extension that doesn't exist in this XYZ version
 DROP TABLE t;
 CREATE TABLE t (a TINYTEXT NULL);
 ALTER TABLE t CHANGE COLUMN a a BLOB NOT NULL;
@@ -44,11 +45,13 @@ CREATE TABLE t (a TINYTEXT NOT NULL);
 ALTER TABLE t CHANGE COLUMN a a BLOB NOT NULL;
 ERROR 42000: Table 't' uses an extension that doesn't exist in this XYZ version
 ALTER TABLE t CHANGE COLUMN a a TEXT NOT NULL;
+ERROR 42000: Table 't' uses an extension that doesn't exist in this XYZ version
 DROP TABLE t;
 CREATE TABLE t (a TINYTEXT NULL);
 ALTER TABLE t CHANGE COLUMN a a MEDIUMBLOB NULL;
 ERROR 42000: Table 't' uses an extension that doesn't exist in this XYZ version
 ALTER TABLE t CHANGE COLUMN a a MEDIUMTEXT NULL;
+ERROR 42000: Table 't' uses an extension that doesn't exist in this XYZ version
 DROP TABLE t;
 CREATE TABLE t (a TINYTEXT NULL);
 ALTER TABLE t CHANGE COLUMN a a MEDIUMBLOB NOT NULL;
@@ -66,11 +69,13 @@ CREATE TABLE t (a TINYTEXT NOT NULL);
 ALTER TABLE t CHANGE COLUMN a a MEDIUMBLOB NOT NULL;
 ERROR 42000: Table 't' uses an extension that doesn't exist in this XYZ version
 ALTER TABLE t CHANGE COLUMN a a MEDIUMTEXT NOT NULL;
+ERROR 42000: Table 't' uses an extension that doesn't exist in this XYZ version
 DROP TABLE t;
 CREATE TABLE t (a TINYTEXT NULL);
 ALTER TABLE t CHANGE COLUMN a a LONGBLOB NULL;
 ERROR 42000: Table 't' uses an extension that doesn't exist in this XYZ version
 ALTER TABLE t CHANGE COLUMN a a LONGTEXT NULL;
+ERROR 42000: Table 't' uses an extension that doesn't exist in this XYZ version
 DROP TABLE t;
 CREATE TABLE t (a TINYTEXT NULL);
 ALTER TABLE t CHANGE COLUMN a a LONGBLOB NOT NULL;
@@ -88,6 +93,7 @@ CREATE TABLE t (a TINYTEXT NOT NULL);
 ALTER TABLE t CHANGE COLUMN a a LONGBLOB NOT NULL;
 ERROR 42000: Table 't' uses an extension that doesn't exist in this XYZ version
 ALTER TABLE t CHANGE COLUMN a a LONGTEXT NOT NULL;
+ERROR 42000: Table 't' uses an extension that doesn't exist in this XYZ version
 DROP TABLE t;
 CREATE TABLE t (a TEXT NULL);
 ALTER TABLE t CHANGE COLUMN a a TINYBLOB NULL;
@@ -139,6 +145,7 @@ CREATE TABLE t (a TEXT NULL);
 ALTER TABLE t CHANGE COLUMN a a MEDIUMBLOB NULL;
 ERROR 42000: Table 't' uses an extension that doesn't exist in this XYZ version
 ALTER TABLE t CHANGE COLUMN a a MEDIUMTEXT NULL;
+ERROR 42000: Table 't' uses an extension that doesn't exist in this XYZ version
 DROP TABLE t;
 CREATE TABLE t (a TEXT NULL);
 ALTER TABLE t CHANGE COLUMN a a MEDIUMBLOB NOT NULL;
@@ -156,11 +163,13 @@ CREATE TABLE t (a TEXT NOT NULL);
 ALTER TABLE t CHANGE COLUMN a a MEDIUMBLOB NOT NULL;
 ERROR 42000: Table 't' uses an extension that doesn't exist in this XYZ version
 ALTER TABLE t CHANGE COLUMN a a MEDIUMTEXT NOT NULL;
+ERROR 42000: Table 't' uses an extension that doesn't exist in this XYZ version
 DROP TABLE t;
 CREATE TABLE t (a TEXT NULL);
 ALTER TABLE t CHANGE COLUMN a a LONGBLOB NULL;
 ERROR 42000: Table 't' uses an extension that doesn't exist in this XYZ version
 ALTER TABLE t CHANGE COLUMN a a LONGTEXT NULL;
+ERROR 42000: Table 't' uses an extension that doesn't exist in this XYZ version
 DROP TABLE t;
 CREATE TABLE t (a TEXT NULL);
 ALTER TABLE t CHANGE COLUMN a a LONGBLOB NOT NULL;
@@ -178,6 +187,7 @@ CREATE TABLE t (a TEXT NOT NULL);
 ALTER TABLE t CHANGE COLUMN a a LONGBLOB NOT NULL;
 ERROR 42000: Table 't' uses an extension that doesn't exist in this XYZ version
 ALTER TABLE t CHANGE COLUMN a a LONGTEXT NOT NULL;
+ERROR 42000: Table 't' uses an extension that doesn't exist in this XYZ version
 DROP TABLE t;
 CREATE TABLE t (a MEDIUMTEXT NULL);
 ALTER TABLE t CHANGE COLUMN a a TINYBLOB NULL;
@@ -253,6 +263,7 @@ CREATE TABLE t (a MEDIUMTEXT NULL);
 ALTER TABLE t CHANGE COLUMN a a LONGBLOB NULL;
 ERROR 42000: Table 't' uses an extension that doesn't exist in this XYZ version
 ALTER TABLE t CHANGE COLUMN a a LONGTEXT NULL;
+ERROR 42000: Table 't' uses an extension that doesn't exist in this XYZ version
 DROP TABLE t;
 CREATE TABLE t (a MEDIUMTEXT NULL);
 ALTER TABLE t CHANGE COLUMN a a LONGBLOB NOT NULL;
@@ -270,6 +281,7 @@ CREATE TABLE t (a MEDIUMTEXT NOT NULL);
 ALTER TABLE t CHANGE COLUMN a a LONGBLOB NOT NULL;
 ERROR 42000: Table 't' uses an extension that doesn't exist in this XYZ version
 ALTER TABLE t CHANGE COLUMN a a LONGTEXT NOT NULL;
+ERROR 42000: Table 't' uses an extension that doesn't exist in this XYZ version
 DROP TABLE t;
 CREATE TABLE t (a LONGTEXT NULL);
 ALTER TABLE t CHANGE COLUMN a a TINYBLOB NULL;
