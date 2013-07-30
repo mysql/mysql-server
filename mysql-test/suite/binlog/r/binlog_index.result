@@ -4,6 +4,9 @@ call mtr.add_suppression('MYSQL_BIN_LOG::open failed to sync the index file');
 call mtr.add_suppression('Turning logging off for the whole duration of the MySQL server process.');
 call mtr.add_suppression('Could not open .*');
 call mtr.add_suppression('MYSQL_BIN_LOG::purge_logs failed to clean registers before purging logs.');
+call mtr.add_suppression("The server was unable to create a new log file. "
+                         "An incident event has been written to the binary "
+                         "log which will stop the slaves.");
 RESET MASTER;
 flush logs;
 flush logs;
