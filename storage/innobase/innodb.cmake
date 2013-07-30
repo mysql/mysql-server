@@ -190,18 +190,18 @@ IF(NOT CMAKE_CROSSCOMPILING)
    int futex_signal(int* futex) {
 	return(syscall(SYS_futex, futex, FUTEX_WAKE, 1, NULL, NULL, 0));
    }
-	
+
   int main() {
-    int ret;
-    int	m = 1;
+	int	ret;
+	int	m = 1;
 
-    /* It is setup to fail and return EWOULDBLOCK. */
-    ret = futex_wait(&m, 0);
-    assert(ret == -1 && errno == EWOULDBLOCK);
-    /* Shouldn't wake up any threads. */
-    assert(futex_signal(&m) == 0);
+	/* It is setup to fail and return EWOULDBLOCK. */
+	ret = futex_wait(&m, 0);
+	assert(ret == -1 && errno == EWOULDBLOCK);
+	/* Shouldn't wake up any threads. */
+	assert(futex_signal(&m) == 0);
 
-    return(0);
+	return(0);
   }"
   HAVE_IB_LINUX_FUTEX)
 ENDIF()

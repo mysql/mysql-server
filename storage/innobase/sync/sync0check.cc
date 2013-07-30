@@ -1,6 +1,6 @@
 /*****************************************************************************
 
-Copyright (c) 2012, Oracle and/or its affiliates. All Rights Reserved.
+Copyright (c) 2013, Oracle and/or its affiliates. All Rights Reserved.
 
 Portions of this file contain modifications contributed and copyrighted by
 Google, Inc. Those modifications are gratefully acknowledged and are described
@@ -99,7 +99,7 @@ struct latch_meta_t {
 		:
 		m_name(name),
 		m_level(level),
-       		m_level_name(level_name) { }
+		m_level_name(level_name) { }
 
 #endif /* UNIV_PFS_MUTEX */
 
@@ -179,7 +179,7 @@ struct SyncCheck {
 	Check that all the latches already owned by a thread have a lower
 	level than limit.
 	@param levels - the thread's existing (acquired) latches
-	@param limit - to check against 
+	@param limit - to check against
 	@return latch if there is one with a level <= limit . */
 	const latch_t* less(
 		const Latches*	latches,
@@ -389,7 +389,7 @@ SyncCheck::thread_latches(bool add) UNIV_NOTHROW
 Check that all the latches already owned by a thread have a lower
 level than limit.
 @param levels - the thread's existing (acquired) latches
-@param limit - to check against 
+@param limit - to check against
 @return latch if there is one with a level <= limit . */
 const latch_t*
 SyncCheck::less(
@@ -453,7 +453,7 @@ for the array if called first time for this OS thread. Makes the checks
 against other latch levels stored in the array for this thread.
 
 @param latch - pointer to a mutex or an rw-lock
-@param level - level in the latching order 
+@param level - level in the latching order
 @return the thread's latches */
 Latches*
 SyncCheck::check_order(const latch_t* latch)
@@ -1147,7 +1147,7 @@ sync_latch_get_pfs_key(
 #endif /* UNIV_PFS_MUTEX */
 
 /**
-Check if it is OK to acquire the latch. 
+Check if it is OK to acquire the latch.
 @param latch - latch type */
 
 void
@@ -1157,7 +1157,7 @@ sync_check_lock(const latch_t* latch)
 }
 
 /**
-Check if it is OK to acquire the latch. 
+Check if it is OK to acquire the latch.
 @param latch - latch type
 @param level - latch order */
 

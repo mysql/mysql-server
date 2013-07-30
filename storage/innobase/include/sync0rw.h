@@ -546,7 +546,6 @@ new readers will be let in while the thread waits for readers to
 exit. */
 struct rw_lock_t
 #ifdef UNIV_DEBUG
-	// FIXME: Get rid of this inheritance 
 	: public latch_t
 #endif /* UNIV_DEBUG */
 {

@@ -1,6 +1,6 @@
 /*****************************************************************************
 
-Copyright (c) 2012, Oracle and/or its affiliates. All Rights Reserved.
+Copyright (c) 2013, Oracle and/or its affiliates. All Rights Reserved.
 
 This program is free software; you can redistribute it and/or modify it under
 the terms of the GNU General Public License as published by the Free Software
@@ -27,7 +27,7 @@ Created 2012-09-23 Sunny Bains
 #include "ut0mutex.h"
 #include "ha_prototypes.h"
 
-#ifdef _WIN32  
+#ifdef _WIN32
 #include <windows.h>
 #endif /* _WIN32 */
 
@@ -348,7 +348,7 @@ Do a timed wait on condition variable.
 bool
 os_event::timed_wait(
 #ifndef _WIN32
-	const timespec*	abstime	
+	const timespec*	abstime
 #else
 	DWORD		time_in_ms
 #endif /* !_WIN32 */

@@ -1479,7 +1479,7 @@ buf_flush_LRU_list_batch(
 	       && free_len < srv_LRU_scan_depth
 	       && lru_len > BUF_LRU_MIN_LEN) {
 
-		ibool	 	evict;
+		ibool		evict;
 		BPageMutex*	block_mutex = buf_page_get_mutex(bpage);
 
 		mutex_enter(block_mutex);
@@ -1687,7 +1687,7 @@ buf_flush_batch(
 	{
 		dict_sync_check	check(true);
 
-        	ut_ad(flush_type != BUF_FLUSH_LIST
+		ut_ad(flush_type != BUF_FLUSH_LIST
 		      || !sync_check_iterate(check));
 	}
 

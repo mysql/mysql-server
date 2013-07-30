@@ -970,7 +970,7 @@ row_ins_foreign_check_on_constraint(
 	the MySQL query cache for table. A deadlock of threads is not possible
 	here because the caller of this function does not hold any latches with
 	the sync0mutex.h rank above the lock_sys_t::mutex. The query cache mutex
-       	has a rank just above the lock_sys_t::mutex. */
+	has a rank just above the lock_sys_t::mutex. */
 
 	row_ins_invalidate_query_cache(thr, table->name);
 
