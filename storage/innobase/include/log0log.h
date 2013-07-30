@@ -1,6 +1,6 @@
 /*****************************************************************************
 
-Copyright (c) 1995, 2012, Oracle and/or its affiliates. All rights reserved.
+Copyright (c) 1995, 2013, Oracle and/or its affiliates. All rights reserved.
 Copyright (c) 2009, Google Inc.
 
 Portions of this file contain modifications contributed and copyrighted by
@@ -787,12 +787,14 @@ struct log_t{
 	ulint		max_buf_free;	/*!< recommended maximum value of
 					buf_free, after which the buffer is
 					flushed */
+ #ifdef UNIV_LOG_DEBUG
 	ulint		old_buf_free;	/*!< value of buf free when log was
 					last time opened; only in the debug
 					version */
 	ib_uint64_t	old_lsn;	/*!< value of lsn when log was
 					last time opened; only in the
 					debug version */
+#endif /* UNIV_LOG_DEBUG */
 	ibool		check_flush_or_checkpoint;
 					/*!< this is set to TRUE when there may
 					be need to flush the log buffer, or
