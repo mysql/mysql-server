@@ -936,7 +936,12 @@ struct RedoLog::Checkpoint {
 public:
 	Checkpoint(lsn_t last_lsn)
 		:
-		m_last_lsn(last_lsn)
+		m_max_age_async(),
+		m_max_age(),
+		m_next_no(),
+		m_last_lsn(last_lsn),
+		m_next_lsn(),
+		m_n_pending_writes()
 	{
 		ulint	size = 2 * IOBlock::SIZE;
 
