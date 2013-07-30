@@ -1586,6 +1586,16 @@ public:
   /* <> 0 if we are inside of trigger or stored function. */
   uint in_sub_stmt;
 
+  /** 
+    Used by fill_status() to avoid acquiring LOCK_status mutex twice
+    when this function is called recursively (e.g. queries 
+    that contains SELECT on I_S.GLOBAL_STATUS with subquery on the 
+    same I_S table).
+    Incremented each time fill_status() function is entered and 
+    decremented each time before it returns from the function.
+  */
+  uint fill_status_recursion_level;
+
   /* container for handler's private per-connection data */
   Ha_data ha_data[MAX_HA];
 
