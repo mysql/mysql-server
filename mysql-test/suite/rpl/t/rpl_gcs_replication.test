@@ -1,0 +1,54 @@
+# WL#7660 - GCS PLUGIN IMPLEMENTATION
+
+# This test checks the basic functionality of the GCS replication
+# plugin: the installation, uninstallation of the plugin and the
+# update of the plugin status variables.
+
+--source include/have_gcs_replication_plugin.inc
+--source include/install_gcs_replication.inc
+
+call mtr.add_suppression("The group name *.*");
+--let $gcs_group_name="GCS_CLUSTER"
+--echo [ON THE NODE]
+
+--error ER_WRONG_VALUE_FOR_VAR
+SET GLOBAL gcs_replication_plugin_group_name= "abcdefabcdefabcdefabcdefabcdefabcdefabcdefabcdefabcdefabcdefabcdefabcdefabcdefabcdefabcdefabcdefabcdefabcdefabcdefabcdefabcdefabcdefabcdefabcdefabcdefabcdefabcdef";
+
+# This is a valid name being given to the group name
+
+--eval SET GLOBAL gcs_replication_plugin_group_name= $gcs_group_name
+--eval SET GLOBAL gcs_replication_plugin_start_on_boot= 1
+
+--let $group_name= `SELECT @@gcs_replication_plugin_group_name`
+--let $gcs_boot= `SELECT @@gcs_replication_plugin_start_on_boot`
+
+--let $assert_text= The value of group name should be GCS_CLUSTER
+--let $assert_cond= STRCMP("$group_name", "GCS_CLUSTER") = 0
+--source include/assert.inc
+
+--let $assert_text= The value of gcs_boot should be 1
+--let $assert_cond= $gcs_boot = 1
+--source include/assert.inc
+
+# This restart tests that the plugin is still loaded on the server restart
+# Also it checks the shutdown hook that is provided as a part of WL#6821.
+--source include/restart_mysqld.inc
+
+# After the server restart the group name is again set to NULL which will
+# cause an error due to wrong configuration.
+--error ER_GCS_REPLICATION_CONFIGURATION
+START GCS_REPLICATION;
+
+--eval SET GLOBAL gcs_replication_plugin_group_name= $gcs_group_name
+
+# TODO:This command and the START one need a similar include like start_slave.inc,
+# which will only possible with WL#6841
+START GCS_REPLICATION;
+
+# This start command will error out since the cluster is already running.
+--error ER_GCS_REPLICATION_RUNNING
+START GCS_REPLICATION;
+
+STOP GCS_REPLICATION;
+
+--source include/uninstall_gcs_replication.inc

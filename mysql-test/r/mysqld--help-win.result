@@ -1187,7 +1187,7 @@ performance-schema-max-rwlock-instances -1
 performance-schema-max-socket-classes 10
 performance-schema-max-socket-instances -1
 performance-schema-max-stage-classes 150
-performance-schema-max-statement-classes 170
+performance-schema-max-statement-classes 172
 performance-schema-max-table-handles -1
 performance-schema-max-table-instances -1
 performance-schema-max-thread-classes 50

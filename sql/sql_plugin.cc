@@ -34,6 +34,7 @@
 #include <mysql/plugin_auth.h>
 #include "lock.h"                               // MYSQL_LOCK_IGNORE_TIMEOUT
 #include <mysql/plugin_validate_password.h>
+#include <mysql/plugin_gcs_rpl.h>
 #include "my_default.h"
 
 #include <algorithm>
@@ -82,7 +83,8 @@ const LEX_STRING plugin_type_names[MYSQL_MAX_PLUGIN_TYPE_NUM]=
   { C_STRING_WITH_LEN("AUDIT") },
   { C_STRING_WITH_LEN("REPLICATION") },
   { C_STRING_WITH_LEN("AUTHENTICATION") },
-  { C_STRING_WITH_LEN("VALIDATE PASSWORD") }
+  { C_STRING_WITH_LEN("VALIDATE PASSWORD") },
+  { C_STRING_WITH_LEN("GCS REPLICATION") }
 };
 
 extern int initialize_schema_table(st_plugin_int *plugin);
@@ -132,7 +134,8 @@ static int min_plugin_info_interface_version[MYSQL_MAX_PLUGIN_TYPE_NUM]=
   MYSQL_AUDIT_INTERFACE_VERSION,
   MYSQL_REPLICATION_INTERFACE_VERSION,
   MYSQL_AUTHENTICATION_INTERFACE_VERSION,
-  MYSQL_VALIDATE_PASSWORD_INTERFACE_VERSION
+  MYSQL_VALIDATE_PASSWORD_INTERFACE_VERSION,
+  MYSQL_GCS_REPLICATION_INTERFACE_VERSION
 };
 static int cur_plugin_info_interface_version[MYSQL_MAX_PLUGIN_TYPE_NUM]=
 {
@@ -144,7 +147,8 @@ static int cur_plugin_info_interface_version[MYSQL_MAX_PLUGIN_TYPE_NUM]=
   MYSQL_AUDIT_INTERFACE_VERSION,
   MYSQL_REPLICATION_INTERFACE_VERSION,
   MYSQL_AUTHENTICATION_INTERFACE_VERSION,
-  MYSQL_VALIDATE_PASSWORD_INTERFACE_VERSION
+  MYSQL_VALIDATE_PASSWORD_INTERFACE_VERSION,
+  MYSQL_GCS_REPLICATION_INTERFACE_VERSION
 };
 
 /* support for Services */

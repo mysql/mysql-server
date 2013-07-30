@@ -7074,6 +7074,12 @@ ER_EXPLAIN_NOT_SUPPORTED
 ER_INVALID_FIELD_SIZE
         eng "Invalid size for column '%-.192s'."
 
+ER_GCS_REPLICATION_CONFIGURATION
+  eng "The server is not configured properly to be an active member of the GCS CLUSTER."
+
+ER_GCS_REPLICATION_RUNNING
+  eng "The START GCS_REPLICATION failed since the cluster is already running."
+
 #
 #  End of 5.7 error messages.
 #

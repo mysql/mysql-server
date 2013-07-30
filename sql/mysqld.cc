@@ -1744,6 +1744,7 @@ void clean_up(bool print_message)
 #ifdef HAVE_REPLICATION
   if (use_slave_mask)
     bitmap_free(&slave_error_mask);
+
 #endif
   my_tz_free();
   my_dboptions_cache_free();
@@ -3391,6 +3392,8 @@ SHOW_VAR com_status_vars[]= {
   {"show_warnings",        (char*) offsetof(STATUS_VAR, com_stat[(uint) SQLCOM_SHOW_WARNS]), SHOW_LONG_STATUS},
   {"slave_start",          (char*) offsetof(STATUS_VAR, com_stat[(uint) SQLCOM_SLAVE_START]), SHOW_LONG_STATUS},
   {"slave_stop",           (char*) offsetof(STATUS_VAR, com_stat[(uint) SQLCOM_SLAVE_STOP]), SHOW_LONG_STATUS},
+  {"gcs_rpl_start",       (char*) offsetof(STATUS_VAR, com_stat[(uint) SQLCOM_START_GCS_REPLICATION]), SHOW_LONG_STATUS},
+  {"gcs_rpl_stop",        (char*) offsetof(STATUS_VAR, com_stat[(uint) SQLCOM_STOP_GCS_REPLICATION]), SHOW_LONG_STATUS},
   {"stmt_close",           (char*) offsetof(STATUS_VAR, com_stmt_close), SHOW_LONG_STATUS},
   {"stmt_execute",         (char*) offsetof(STATUS_VAR, com_stmt_execute), SHOW_LONG_STATUS},
   {"stmt_fetch",           (char*) offsetof(STATUS_VAR, com_stmt_fetch), SHOW_LONG_STATUS},

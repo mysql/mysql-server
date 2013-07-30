@@ -1,0 +1,26 @@
+# WL#7660 - GCS PLUGIN IMPLEMENTATION
+#
+# This test checks the basic functionality of the GCS replication
+# plugin which should work with the .opt file in which the GCS
+# replication options are passed as options.
+# Synchronous replication will work only for RBR mode of replication so this
+# test is restricted to this mode only.
+
+--source include/force_restart.inc
+--source include/have_binlog_format_row.inc
+
+SELECT @@gcs_replication_plugin_group_name;
+SELECT @@gcs_replication_plugin_start_on_boot;
+
+--error ER_GCS_REPLICATION_RUNNING
+START GCS_REPLICATION;
+
+# Even after the server restart the command for starting the GCS_REPLICATION
+# should not fail.
+
+--source include/restart_mysqld.inc
+
+--error ER_GCS_REPLICATION_RUNNING
+START GCS_REPLICATION;
+
+STOP GCS_REPLICATION;

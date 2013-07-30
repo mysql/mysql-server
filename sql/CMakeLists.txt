@@ -56,6 +56,7 @@ SET(SQL_SHARED_SOURCES
   filesort_utils.cc
   gcalc_slicescan.cc
   gcalc_tools.cc
+  gcs_replication.cc
   gstream.cc
   handler.cc
   hostname.cc

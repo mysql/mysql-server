@@ -103,6 +103,7 @@
 #include "sql_analyse.h"
 #include "table_cache.h" // table_cache_manager
 
+#include "gcs_replication.h"
 #include <algorithm>
 using std::max;
 using std::min;
@@ -484,6 +485,8 @@ void init_update_queries(void)
   sql_command_flags[SQLCOM_CHANGE_MASTER]=      CF_AUTO_COMMIT_TRANS;
   sql_command_flags[SQLCOM_SLAVE_START]=        CF_AUTO_COMMIT_TRANS;
   sql_command_flags[SQLCOM_SLAVE_STOP]=         CF_AUTO_COMMIT_TRANS;
+  sql_command_flags[SQLCOM_START_GCS_REPLICATION]=      CF_AUTO_COMMIT_TRANS;
+  sql_command_flags[SQLCOM_STOP_GCS_REPLICATION]=       CF_AUTO_COMMIT_TRANS;
 
   /*
     The following statements can deal with temporary tables,
@@ -2964,6 +2967,40 @@ end_with_restore_list:
     break;
   }
 #ifdef HAVE_REPLICATION
+  case SQLCOM_START_GCS_REPLICATION:
+  {
+    res= start_gcs_rpl();
+    if (res == 2)
+    {
+       my_message(ER_GCS_REPLICATION_RUNNING,
+                  ER(ER_GCS_REPLICATION_RUNNING), MYF(0));
+       goto error;
+    }
+    if (res == 1)
+    {
+      my_message(ER_GCS_REPLICATION_CONFIGURATION,
+                 ER(ER_GCS_REPLICATION_CONFIGURATION), MYF(0));
+      goto error;
+    }
+    my_ok(thd);
+    res= 0;
+    break;
+  }
+
+  case SQLCOM_STOP_GCS_REPLICATION:
+  {
+    res= stop_gcs_rpl();
+    if (res)
+    {
+      my_message(ER_GCS_REPLICATION_CONFIGURATION,
+                 ER(ER_GCS_REPLICATION_CONFIGURATION), MYF(0));
+      goto error;
+    }
+    my_ok(thd);
+    res= 0;
+    break;
+  }
+
   case SQLCOM_SLAVE_START:
   {
     mysql_mutex_lock(&LOCK_active_mi);

@@ -22,6 +22,7 @@
 #include <my_dir.h>
 #include "rpl_handler.h"
 #include "debug_sync.h"
+#include "gcs_replication.h"
 
 Trans_delegate *transaction_delegate;
 Binlog_storage_delegate *binlog_storage_delegate;
