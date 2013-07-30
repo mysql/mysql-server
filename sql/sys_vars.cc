@@ -494,13 +494,14 @@ static Sys_var_long Sys_pfs_events_stages_history_size(
   - 1 for "statement/sql/error", for invalid enum_sql_command.
   - SP_PSI_STATEMENT_INFO_COUNT for "statement/sp/...". 
   - 1 for "statement/rpl/relay_log", for replicated statements.
+  - 1 for "statement/scheduler/event", for scheduled events.
 */
 static Sys_var_ulong Sys_pfs_max_statement_classes(
        "performance_schema_max_statement_classes",
        "Maximum number of statement instruments.",
        READ_ONLY GLOBAL_VAR(pfs_param.m_statement_class_sizing),
        CMD_LINE(REQUIRED_ARG), VALID_RANGE(0, 256),
-       DEFAULT((ulong) SQLCOM_END + (ulong) COM_END + 4 + SP_PSI_STATEMENT_INFO_COUNT),
+       DEFAULT((ulong) SQLCOM_END + (ulong) COM_END + 5 + SP_PSI_STATEMENT_INFO_COUNT),
        BLOCK_SIZE(1), PFS_TRAILING_PROPERTIES);
 
 static Sys_var_long Sys_pfs_events_statements_history_long_size(
