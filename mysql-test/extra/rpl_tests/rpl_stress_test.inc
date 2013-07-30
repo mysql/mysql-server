@@ -4,7 +4,6 @@
 #
 # ################################################################################
 --connection master
-call mtr.add_suppression("Out of memory while attaching to session thread during the group commit phase");
 --disable_query_log
 --disable_result_log
 --let $n= $connections
@@ -28,18 +27,11 @@ while ($i < $n)
   --connect(con$i,127.0.0.1,root,,test,$MASTER_MYPORT,)
   --inc $i
 }
---let $i= $flush_error_session_start
-while ($i < $flush_error_session_end)
+--let $i= 1
+while ($i < $connections)
 {
   --connection con$i
   set session debug="+d,simulate_binlog_flush_error";
-  --inc $i
-}
---let $i= $attach_error_session_start
-while ($i < $attach_error_session_end)
-{
-  --connection con$i
-  set session debug="+d,simulate_session_attach_error";
   --inc $i
 }
 --enable_result_log
@@ -72,19 +64,11 @@ while ($j < $m)
   --inc $j
 }
 
---let $i= $flush_error_session_start
-while ($i < $flush_error_session_end)
+--let $i= 1
+while ($i < $connections)
 {
   --connection con$i
   set session debug="-d,simulate_binlog_flush_error";
-  --inc $i
-}
-
---let $i= $attach_error_session_start
-while ($i < $attach_error_session_end)
-{
-  --connection con$i
-  set session debug="-d,simulate_session_attach_error";
   --inc $i
 }
 --enable_result_log
