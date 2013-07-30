@@ -2460,12 +2460,23 @@ int ha_tokudb::unpack_blobs(
             false;
         Field* field = table->field[curr_field_index];
         uint32_t len_bytes = field->row_pack_length();
-        buff = unpack_toku_field_blob(
+        const uchar* end_buff = unpack_toku_field_blob(
             record + field_offset(field, table),
             buff,
             len_bytes,
             skip
             );
+        // verify that the pointers to the blobs are all contained within the blob_buff
+        if (!(blob_buff <= buff && end_buff <= blob_buff + num_bytes)) {
+            error = -3000000;
+            goto exit;
+        }
+        buff = end_buff;
+    }
+    // verify that the entire blob buffer was parsed
+    if (share->kc_info.num_blobs > 0 && !(num_bytes > 0 && buff == blob_buff + num_bytes)) {
+        error = -4000000;
+        goto exit;
     }
 
     error = 0;
