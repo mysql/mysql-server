@@ -5569,14 +5569,20 @@ int fill_status(THD *thd, TABLE_LIST *tables, COND *cond)
     tmp1= &thd->status_var;
   }
 
-  pthread_mutex_lock(&LOCK_status);
+  /*
+    Avoid recursive acquisition of LOCK_status in cases when WHERE clause
+    represented by "cond" contains subquery on I_S.SESSION/GLOBAL_STATUS.
+  */
+  if (thd->fill_status_recursion_level++ == 0) 
+    pthread_mutex_lock(&LOCK_status);
   if (option_type == OPT_GLOBAL)
     calc_sum_of_all_status(&tmp);
   res= show_status_array(thd, wild,
                          (SHOW_VAR *)all_status_vars.buffer,
                          option_type, tmp1, "", tables->table,
                          upper_case_names, cond);
-  pthread_mutex_unlock(&LOCK_status);
+  if (thd->fill_status_recursion_level-- == 1) 
+    pthread_mutex_unlock(&LOCK_status);
   DBUG_RETURN(res);
 }
 
