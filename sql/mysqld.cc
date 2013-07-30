@@ -5089,10 +5089,10 @@ int mysqld_main(int argc, char **argv)
   ulong requested_open_files;
   adjust_related_options(&requested_open_files);
 
+#ifdef WITH_PERFSCHEMA_STORAGE_ENGINE
   if (pfs_param.m_enabled)
     load_perfschema_engine= true;
 
-#ifdef WITH_PERFSCHEMA_STORAGE_ENGINE
   if (ho_error == 0)
   {
     if (pfs_param.m_enabled && !opt_help && !opt_bootstrap)
