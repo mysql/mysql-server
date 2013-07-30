@@ -41,9 +41,10 @@ class MultiNdbWakeupHandler;
 */
 
 /* Hard upper limit on the number of Ndb objects in an NdbWaitGroup.
-   A client trying to grow beyond this will hit an assert.
+   A client trying to grow beyond this would hit an assert, but we expect
+   to hit MAX_NO_THREADS in TransporterFacade first (error 4105).
 */   
-#define NDBWAITGROUP_MAX_SIZE 2097152 
+#define NDBWAITGROUP_MAX_SIZE 262144 
 
 class NdbWaitGroup : private NdbLockable {
 friend class Ndb_cluster_connection;
@@ -65,21 +66,36 @@ public:
 
   /****** VERSION 2 API *******/
 
-  /** Add an Ndb object to the group.
+  /** Push an Ndb object onto the wait queue.
       This is thread-safe: multiple threads can call push().
-      It returns true on success.
-      False if the Ndb was created from the wrong Ndb_cluster_connection.
+      Returns 0 on success, non-zero on error.
+      
+      Error return codes:
+        -1: ndb does not belong to this Ndb_cluster_connection.
   */
-  bool push(Ndb *ndb);
+  int push(Ndb *ndb);
 
-  /** Wait for at least pct_ready % of Ndbs to be ready, with timeout.
-      Returns the number of Ndbs that are ready for polling and can 
-      be obtained using pop().
+  /** Wait for Ndbs to be ready for polling and report the number that are 
+      ready. 
+      wait() will return when:
+        (a) at least pct_ready % of pushed Ndbs are ready for polling, or
+        (b) at least timeout_millis milliseconds have expired, or
+        (c) the NdbWaitGroup receives a wakeup() call. 
+      pct_ready must be a value between 0 and 100. 
+      If pct_ready is 0, wait() will return immediately. 
+      If pct_ready is > 0 but no Ndbs have pushed, wait() will sleep until 
+      a wakeup or timeout occurs.
+
+      Only a single thread may use wait(). 
+
+      Returns the number of Ndbs ready for polling.
   */
   int wait(Uint32 timeout_millis, int pct_ready = 50); 
 
-  /** Return an Ndb ready for polling.
-      If NULL, user should wait() again.
+  /** Returns an Ndb ready for polling.
+      This is thread-safe: multiple threads can call pop().      
+
+      Returns NULL if no Ndbs are ready.
   */
   Ndb * pop();
 
