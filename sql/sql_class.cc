@@ -886,6 +886,7 @@ THD::THD(bool enable_plugins)
    rli_fake(0), rli_slave(NULL),
    query_plan(this),
    in_sub_stmt(0),
+   fill_status_recursion_level(0),
    binlog_row_event_extra_data(NULL),
    binlog_unsafe_warning_flags(0),
    binlog_table_maps(0),
@@ -1446,9 +1447,9 @@ void THD::init_for_queries(Relay_log_info *rli)
 
 void THD::change_user(void)
 {
-  mysql_rwlock_wrlock(&LOCK_status);
+  mysql_mutex_lock(&LOCK_status);
   add_to_status(&global_status_var, &status_var);
-  mysql_rwlock_unlock(&LOCK_status);
+  mysql_mutex_unlock(&LOCK_status);
 
   cleanup();
   killed= NOT_KILLED;
@@ -1546,9 +1547,9 @@ void THD::release_resources()
   mysql_mutex_assert_not_owner(&LOCK_thread_count);
   DBUG_ASSERT(m_release_resources_done == false);
 
-  mysql_rwlock_wrlock(&LOCK_status);
+  mysql_mutex_lock(&LOCK_status);
   add_to_status(&global_status_var, &status_var);
-  mysql_rwlock_unlock(&LOCK_status);
+  mysql_mutex_unlock(&LOCK_status);
 
   /* Ensure that no one is using THD */
   mysql_mutex_lock(&LOCK_thd_data);

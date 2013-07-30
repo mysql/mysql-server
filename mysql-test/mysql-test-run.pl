@@ -3513,6 +3513,8 @@ sub mysql_install_db {
   mtr_add_arg($args, "--core-file");
   # over writing innodb_autoextend_increment to 8 for reducing the ibdata1 file size 
   mtr_add_arg($args, "--innodb_autoextend_increment=8");
+  # over writing the buffer size to 16M for certain tests to pass       
+  mtr_add_arg($args, "--innodb_buffer_pool_size=16M");
 
   if ( $opt_embedded_server )
   {
