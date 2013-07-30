@@ -1,6 +1,6 @@
 /*****************************************************************************
 
-Copyright (c) 2012, Oracle and/or its affiliates. All Rights Reserved.
+Copyright (c) 2013, Oracle and/or its affiliates. All Rights Reserved.
 
 This program is free software; you can redistribute it and/or modify it under
 the terms of the GNU General Public License as published by the Free Software
@@ -98,7 +98,7 @@ struct DebugPolicy : public TrackPolicy<Mutex> {
 
 	struct DebugLatch : public latch_t {
 
-		DebugLatch() : m_mutex(0) { } 
+		DebugLatch() : m_mutex(0) { }
 
 		virtual void print(FILE* stream) const
 		{
@@ -119,13 +119,7 @@ struct DebugPolicy : public TrackPolicy<Mutex> {
 	}
 
 	/** Destructor */
-	virtual ~DebugPolicy() UNIV_NOTHROW
-	{
-		// FIXME: This invariant doesn't hold if we exit
-		// without invoking the shutdown code.
-		//ut_a(m_magic_n == 0 || srv_force_recovery_crash);
-		//ut_ad(m_thread_id == 0 || srv_force_recovery_crash);
-	}
+	virtual ~DebugPolicy() UNIV_NOTHROW { }
 
 	/** Mutex is being destroyed. */
 	void destroy() UNIV_NOTHROW
@@ -183,7 +177,7 @@ struct DebugPolicy : public TrackPolicy<Mutex> {
 	any type even a pointer. */
 	os_thread_id_t		m_thread_id;
 
-       	/** File where the mutex was locked */
+	/** File where the mutex was locked */
 	const char*		m_file_name;
 
 	/** Line where the mutex was locked */

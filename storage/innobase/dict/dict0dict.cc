@@ -5600,9 +5600,9 @@ dict_set_corrupted(
 	ut_ad(!dict_table_is_comp(dict_sys->sys_indexes));
 
 	{
-        	dict_sync_check	check(true);
+		dict_sync_check	check(true);
 
-        	ut_ad(!sync_check_iterate(check));
+		ut_ad(!sync_check_iterate(check));
 	}
 
 	/* Mark the table as corrupted only if the clustered index

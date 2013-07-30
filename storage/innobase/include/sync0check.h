@@ -1,5 +1,5 @@
 /*****************************************************************************
-Copyright (c) 2012, Oracle and/or its affiliates. All Rights Reserved.
+Copyright (c) 2013, Oracle and/or its affiliates. All Rights Reserved.
 
 Portions of this file contain modifications contributed and copyrighted by
 Google, Inc. Those modifications are gratefully acknowledged and are described
@@ -53,20 +53,14 @@ void
 sync_check_close();
 
 /**
-Prints info of the sync system.
-@param file - where to print */
-//
-//void sync_check_print(Writer* writer);
-
-/**
-Check if it is OK to acquire the latch. 
+Check if it is OK to acquire the latch.
 @param latch - latch type */
 
 void
 sync_check_lock(const latch_t* latch);
 
 /**
-Check if it is OK to acquire the latch. 
+Check if it is OK to acquire the latch.
 @param latch - latch type
 @param level - the level of the mutex */
 
