@@ -158,6 +158,7 @@ WHERE CURRENT_SCHEMA='stored_programs' AND
 (SQL_TEXT not like '%count(*) = 1%' OR SQL_TEXT IS NULL)
 ORDER BY OBJECT_NAME,NESTING_EVENT_LEVEL,SQL_TEXT;
 EVENT_NAME	SQL_TEXT	OBJECT_NAME	NESTING_EVENT_TYPE	NESTING_EVENT_LEVEL
+statement/scheduler/event	NULL	NULL	NULL	0
 statement/sql/call_procedure	CALL SampleProc1(30,40,50)	NULL	NULL	0
 statement/sql/call_procedure	CALL SampleProc2("Jwalamukhi",34)	NULL	NULL	0
 statement/sql/call_procedure	CALL SampleProc3()	NULL	NULL	0
@@ -280,7 +281,7 @@ statement/sql/set_option	SET GLOBAL event_scheduler=OFF	NULL	NULL	0
 statement/sql/set_option	SET GLOBAL event_scheduler=ON	NULL	NULL	0
 statement/sql/update	UPDATE t2 SET id=22 WHERE name="Jwalamukhi"	NULL	NULL	0
 statement/sp/freturn	NULL	append	STATEMENT	1
-statement/sp/stmt	INSERT INTO table_t VALUES(1)	e1	NULL	0
+statement/sp/stmt	INSERT INTO table_t VALUES(1)	e1	STATEMENT	1
 statement/sp/set	NULL	fac	STATEMENT	1
 statement/sp/jump_if_not	NULL	fac	STATEMENT	1
 statement/sp/set	NULL	fac	STATEMENT	1
