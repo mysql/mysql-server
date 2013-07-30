@@ -5550,7 +5550,17 @@ int MYSQL_BIN_LOG::rotate(bool force_rotate, bool* check_purge)
       */
       if (!write_incident(current_thd, false/*need_lock_log=false*/,
                           false/*do_flush_and_sync==false*/))
+      {
+        /*
+          Write an error to log. So that user might have a chance
+          to be alerted and explore incident details before its
+          slave servers would stop.
+        */
+        sql_print_error("The server was unable to create a new log file. "
+                        "An incident event has been written to the binary "
+                        "log which will stop the slaves.");
         flush_and_sync(0);
+      }
 
     *check_purge= true;
   }
