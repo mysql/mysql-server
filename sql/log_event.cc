@@ -11975,6 +11975,9 @@ Table_map_log_event::Table_map_log_event(const char *buf, uint event_len,
   DBUG_PRINT("info",("event_len: %u  common_header_len: %d  post_header_len: %d",
                      event_len, common_header_len, post_header_len));
 
+  /* Set the event data size = post header + body */
+  m_data_size= event_len - common_header_len;
+
   /*
     Don't print debug messages when running valgrind since they can
     trigger false warnings.
