@@ -244,6 +244,7 @@ SET(TESTS
   sql_plist
   sql_string
   stdcxx
+  strtoll
   thread_utils
   )
 
