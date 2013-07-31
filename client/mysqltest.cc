@@ -1561,6 +1561,7 @@ int cat_file(DYNAMIC_STRING* ds, const char* filename)
   int fd;
   size_t len;
   char buff[512];
+  bool dangling_cr= 0;
 
   if ((fd= my_open(filename, O_RDONLY, MYF(0))) < 0)
     return 1;
@@ -1568,6 +1569,12 @@ int cat_file(DYNAMIC_STRING* ds, const char* filename)
                       sizeof(buff), MYF(0))) > 0)
   {
     char *p= buff, *start= buff;
+    if (dangling_cr && *p != '\n')
+    {
+     /*dynstr_append_mem(ds, "\r", size_t(sizeof(char)));*/
+     dynstr_append_mem(ds, "\r", 1);
+     dangling_cr= 0;
+    }
     while (p < buff+len)
     {
       /* Convert cr/lf to lf */
@@ -1583,8 +1590,14 @@ int cat_file(DYNAMIC_STRING* ds, const char* filename)
       else
         p++;
     }
+    if (*--p == '\r' && len == 512)
+      dangling_cr=1;
+
     /* Output any chars that migh be left */
-    dynstr_append_mem(ds, start, p-start);
+    if (dangling_cr)
+     dynstr_append_mem(ds, start, p-start-1);
+    else
+     dynstr_append_mem(ds, start, p-start);
   }
   my_close(fd, MYF(0));
   return 0;
