@@ -1601,14 +1601,13 @@ int cat_file(DYNAMIC_STRING* ds, const char* filename)
       else
         p++;
     }
-    if (*--p == '\r' && len == 512)
+    if (*(p-1) == '\r' && len == 512)
       dangling_cr=1;
-
     /* Output any chars that migh be left */
     if (dangling_cr)
-     dynstr_append_mem(ds, start, p-start-1);
+      dynstr_append_mem(ds, start, p-start-1);
     else
-     dynstr_append_mem(ds, start, p-start);
+      dynstr_append_mem(ds, start, p-start);
   }
   my_close(fd, MYF(0));
   return 0;
