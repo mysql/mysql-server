@@ -33,6 +33,7 @@ Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA  02110-1301 USA
  *      mcc.server.api.appendFileReq: Append a file to another
  *      mcc.server.api.startClusterReq: Start cluster processes
  *      mcc.server.api.runMgmdCommandReq: Send command to an mgmd
+ *      mcc.server.api.doReq: Send request
  *
  *  External data: 
  *      None
@@ -68,8 +69,8 @@ dojo.require("mcc.storage");
 mcc.server.api.hostInfoReq = hostInfoReq;
 mcc.server.api.createFileReq = createFileReq;
 mcc.server.api.appendFileReq = appendFileReq;
-mcc.server.api.startClusterReq = startClusterReq;
 mcc.server.api.runMgmdCommandReq = runMgmdCommandReq;
+mcc.server.api.doReq = doReq;
 
 /******************************* Internal data ********************************/
 
@@ -239,27 +240,6 @@ function appendFileReq(hostname, srcPath, srcName, destPath, destName,
     });
 }
 
-// Send startCluster
-function startClusterReq(pgroups, onReply, onError) {
-    // Get SSH info from cluster storage
-    mcc.storage.clusterStorage().getItem(0).then(function (cluster) {
-        // Create message
-        var msg = {
-            head: getHead("startClusterReq"),
-            body: {
-                ssh: getSSH(cluster.getValue("ssh_keybased"), 
-                        cluster.getValue("ssh_user"),
-                        mcc.gui.getSSHPwd()),
-                pgroups: pgroups
-            }
-        };
-
-        // Call do_post, provide callbacks
-        do_post(msg).then(replyHandler(onReply, onError), 
-                errorHandler(msg.head, onError));
-    });
-}
-
 // Send mgmd command
 function runMgmdCommandReq(hostname, port, cmd, onReply, onError) {
     // Get SSH info from cluster storage
@@ -281,6 +261,23 @@ function runMgmdCommandReq(hostname, port, cmd, onReply, onError) {
         do_post(msg).then(replyHandler(onReply, onError), 
                 errorHandler(msg.head, onError));
     });
+}
+
+// Send reqName with body ssh: prop is injected into body
+function doReq(reqName, body, cluster, onReply, onError) {
+    // Create message
+    var msg = {
+        head: getHead(reqName),
+        body: body
+    };
+    
+    msg.body.ssh = getSSH(cluster.getValue("ssh_keybased"), 
+                          cluster.getValue("ssh_user"),
+                          mcc.gui.getSSHPwd());
+
+    // Call do_post, provide callbacks
+    do_post(msg).then(replyHandler(onReply, onError), 
+                      errorHandler(msg.head, onError));
 }
 
 /******************************** Initialize  *********************************/

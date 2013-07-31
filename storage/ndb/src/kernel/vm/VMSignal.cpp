@@ -20,7 +20,7 @@
 
 Signal::Signal(int)
 {
-
+  header.m_noOfSections = 0;
 }
 
 Signal::Signal(){

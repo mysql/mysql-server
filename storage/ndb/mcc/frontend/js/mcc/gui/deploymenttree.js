@@ -33,6 +33,7 @@ Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA  02110-1301 USA
  *      mcc.gui.deploymenttree.stopStatusPoll: Stop status polling
  *      mcc.gui.deploymenttree.getCurrentDeploymentTreeItem: Get selection
  *      mcc.gui.deploymenttree.resetDeploymentTreeItem: Reset the selected item
+ *      mcc.gui.deploymenttree.getStatii: Return current status vector
  *
  *  External data: 
  *      None
@@ -49,7 +50,7 @@ Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA  02110-1301 USA
  *      deploymentTree: The deployment tree
  *      treeExpanded: Keep track of initial expansion of entire tree
  *      deploymentTreeItem: Selected tree node with related storage items
- *      
+ *      _statii: current status vector
  *  Unit test interface: 
  *      None
  *
@@ -84,13 +85,20 @@ mcc.gui.deploymenttree.startStatusPoll = startStatusPoll;
 mcc.gui.deploymenttree.stopStatusPoll = stopStatusPoll;
 mcc.gui.deploymenttree.getCurrentDeploymentTreeItem = getCurrentDeploymentTreeItem;
 mcc.gui.deploymenttree.resetDeploymentTreeItem = resetDeploymentTreeItem;
+mcc.gui.deploymenttree.getStatii = getStatii;
 
 /******************************* Internal data ********************************/
 
 var deploymentTree = null;
-var treeExpanded = false; 
-var statusPoller = null;
-var pollMgmdId = null;
+var treeExpanded = false;
+ 
+var timeoutPending = false;
+var NO_POLLING = 0;
+var POLL_UNTIL_ERROR = 1;
+var POLL_UNCONDITIONALLY = 2;
+var pollMode = NO_POLLING;
+var mgmdArray = null;
+var pollMgmdIx = 0; 
 
 // Keep track of the selected item in the tree
 var deploymentTreeItem= {
@@ -101,6 +109,19 @@ var deploymentTreeItem= {
 };
 
 /****************************** Implementation ********************************/
+
+// Schedule a status poll
+function schedulePoll(timeout) {
+    mcc.util.dbg("schedule status poll in "+timeout+" ms");
+    if (timeoutPending) { 
+        mcc.util.dbg("Skipping since another poll is already scheduled"); 
+        return; 
+    }
+    
+    timeoutPending = true;
+    setTimeout(doPoll, timeout);
+}
+
 
 // Wrap a tree or store item into a storage item for convenience
 function getStorageItem(item) {
@@ -184,7 +205,7 @@ function updateDeploymentTreeView() {
             }
 
             // Update view of startup command
-            var cmds = mcc.configuration.getStartupCommand(process);
+            var cmds = mcc.configuration.getStartProcessCommands(process);
             if (!cmds || cmds.length == 0) {
                 dijit.byId("startupDetails").setContent(
                         "No startup command for this process");
@@ -446,12 +467,19 @@ function deploymentTreeSetup() {
     updateDeploymentTreeView();
 }
 
+var _statii = {};
+function getStatii(nodeid) {
+  console.log(_statii[nodeid]);
+  return _statii[nodeid] ? _statii[nodeid].status : "UNKNOWN"; 
+}
+ 
 // Receive status reply
 function receiveStatusReply(reply) {
     if (reply && reply.body && reply.body.reply_properties) {
-        for (var i in reply.body.reply_properties) {
-            var curr = reply.body.reply_properties[i];
-            mcc.storage.processStorage().getItems({NodeId: i}).then(function (processes) {
+      _statii = reply.body.reply_properties;
+      for (var i in reply.body.reply_properties) {
+	var curr = reply.body.reply_properties[i];
+	mcc.storage.processStorage().getItems({NodeId: i}).then(function (processes) {
                 if (processes && processes[0]) {
                     mcc.storage.processTreeStorage().getItem(processes[0].getId()).then(function (proc) {
                         proc.setValue("status", curr.status);
@@ -459,34 +487,27 @@ function receiveStatusReply(reply) {
                 }
             });
         }
+        if (pollMode > NO_POLLING) {
+            schedulePoll(2000);
+        }
     } else {
         receiveStatusError("No mgmd reply", null);
     }
 }
 
+
 // Receive error reply
 function receiveStatusError(errMsg, reply) {
     mcc.util.dbg("Error while retrieving status: " + errMsg);
-    
-    // Select another mgmd to poll
-    mcc.storage.processTypeStorage().getItems({name: "ndb_mgmd"}).then(function (mgmdType) {
-        mcc.storage.processStorage().getItems({processtype: mgmdType[0].getId()}).then(function (mgmds) {
-            if (!pollMgmdId) {
-                pollMgmdId = mgmds[0].getId();
-                mcc.util.dbg("Select mgmd to poll: " + pollMgmdId);
-            } else if (mgmds.length > 1) {
-                for (var i in mgmds) {
-                    if (mgmds[i].getId() == pollMgmdId) {
-                        pollMgmdId = mgmds[(+i + 1) % mgmds.length].getId();
-                        break;
-                    }
-                }
-                mcc.util.dbg("Select new mgmd to poll: " + pollMgmdId);
-            }
-        });
-    });
-    
+
+    ++pollMgmdIx;
+    if (pollMode > NO_POLLING && pollMgmdIx < mgmdArray.length) {
+        doPoll();
+        return;  // Try another mgmd
+    }
+    // None of the mgmds returned status    
     // Reset all status information in the process tree
+    _statii = {};
     mcc.storage.processStorage().getItems().then(function (processes) {
         for (var p in processes) {
             mcc.storage.processTreeStorage().getItem(processes[p].getId()).then(function (proc) {
@@ -494,44 +515,59 @@ function receiveStatusError(errMsg, reply) {
             });
         }
     });
+
+    pollMgmdIx = 0; 
+    if (pollMode == POLL_UNCONDITIONALLY) {
+        // try again in 2 sek
+        schedulePoll(2000);
+    }
 }
 
 // Poll the mgmd for status
 function doPoll() {
-    // Pick an mgmd, get hostname and port, send status command
-    mcc.storage.processStorage().getItem(pollMgmdId).then(function (mgmd) {
-        if (mgmd) {
-            // Get the appropriate hostname and port number
-            var host = mgmd.getValue("HostName");
-            var port = mgmd.getValue("Portnumber");
+    timeoutPending = false;
+    var mgmd = mgmdArray[pollMgmdIx];
+
+    // Get the appropriate hostname and port number
+    var host = mgmd.getValue("HostName");
+    var port = mgmd.getValue("Portnumber");
             
-            // If not overridden, get predefined host
-            if (!host) {
-                host = mcc.configuration.getPara("management", 
-                    mgmd.getId(), "HostName", "defaultValueInstance");
-            }
-            // If not overridden, get predefined port
-            if (!port) {
-                port = mcc.configuration.getPara("management", 
-                    mgmd.getId(), "Portnumber", "defaultValueInstance");
-            }
-            mcc.server.runMgmdCommandReq(host, port, "get status", 
-                receiveStatusReply, receiveStatusError);
-        } else {
-            pollMgmdId = null;
-            receiveStatusError("No mgmd selected yet");
-        }
-    });
+    // If not overridden, get predefined host
+    if (!host) {
+        host = mcc.configuration.getPara("management", 
+                                         mgmd.getId(), "HostName", "defaultValueInstance");
+    }
+    // If not overridden, get predefined port
+    if (!port) {
+        port = mcc.configuration.getPara("management", 
+                                         mgmd.getId(), "Portnumber", "defaultValueInstance");
+    }
+    mcc.server.runMgmdCommandReq(host, port, "get status", 
+                                 receiveStatusReply, receiveStatusError);
 }
 
+
+// Get list of mgmds from store. 
+function getMgmdArray() {
+    return mcc.storage.processTypeStorage().getItems({name: "ndb_mgmd"}).then(
+        function (mgmdType) {
+            mcc.storage.processStorage().getItems({processtype: mgmdType[0].getId()}).then(
+                function(mgmds) { mgmdArray = mgmds; });
+        });
+}
+
+
 // Start polling the mgmd for status
-function startStatusPoll() {
-    statusPoller = setInterval(doPoll, 2000);
+function startStatusPoll(stopOnError) {
+    pollMode = stopOnError ? POLL_UNTIL_ERROR : POLL_UNCONDITIONALLY;
+    mcc.util.dbg("startStatusPoll("+stopOnError+") -> pollmode: "+pollMode);
+    getMgmdArray().then(function() { if (!timeoutPending) { pollMgmdIx = 0; doPoll(); }});
 }
 
 // Stop status polling
 function stopStatusPoll() {
-    clearInterval(statusPoller);
+    pollMode = 0;
+    mcc.util.dbg("stopStatusPoll()");
 }
 
 /******************************** Initialize  *********************************/

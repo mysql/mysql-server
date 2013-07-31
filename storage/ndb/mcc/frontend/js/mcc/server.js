@@ -30,8 +30,8 @@ dojo.require("mcc.server.api");
 mcc.server.hostInfoReq = mcc.server.api.hostInfoReq;
 mcc.server.createFileReq = mcc.server.api.createFileReq;
 mcc.server.appendFileReq = mcc.server.api.appendFileReq;
-mcc.server.startClusterReq = mcc.server.api.startClusterReq;
 mcc.server.runMgmdCommandReq = mcc.server.api.runMgmdCommandReq;
+mcc.server.doReq = mcc.server.api.doReq;
 
 /******************************** Initialize  *********************************/
 

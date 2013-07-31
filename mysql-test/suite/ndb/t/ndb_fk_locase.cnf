@@ -1,0 +1,4 @@
+!include suite/ndb/my.cnf
+
+[mysqld]
+lower-case-table-names = 1

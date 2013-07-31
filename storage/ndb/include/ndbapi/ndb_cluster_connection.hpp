@@ -240,6 +240,11 @@ public:
   NdbWaitGroup * create_ndb_wait_group(int size);
   bool release_ndb_wait_group(NdbWaitGroup *);
 
+  /**
+   * wait for nodes in list to get connected...
+   * @return #nodes connected, or -1 on error
+   */
+  int wait_until_ready(const int * nodes, int cnt, int timeout);
 #endif
 
 private:
