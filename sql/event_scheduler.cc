@@ -287,6 +287,8 @@ event_worker_thread(void *arg)
 
   thd= event->thd;
 
+  mysql_thread_set_psi_id(thd->thread_id);
+
 #ifdef HAVE_PSI_STATEMENT_INTERFACE
     PSI_statement_locker_state state;
     thd->m_statement_psi= MYSQL_START_STATEMENT(& state, event->get_psi_info()->m_key,
@@ -294,8 +296,6 @@ event_worker_thread(void *arg)
                                                 thd->charset(),
                                                 NULL);
 #endif
-
-  mysql_thread_set_psi_id(thd->thread_id);
 
   Event_worker_thread worker_thread;
   worker_thread.run(thd, event);
