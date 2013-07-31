@@ -51,7 +51,7 @@ private:
   Event_queue_element_for_exec(const Event_queue_element_for_exec &);
   void operator=(Event_queue_element_for_exec &);
 public:
-  virtual PSI_statement_info* get_psi_info()
+  PSI_statement_info* get_psi_info()
   {
     return & psi_info;
   }
