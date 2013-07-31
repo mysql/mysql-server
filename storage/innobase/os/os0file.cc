@@ -2073,21 +2073,23 @@ os_file_get_size(
 	os_file_t	file)	/*!< in: handle to a file */
 {
 #ifdef _WIN32
-	os_offset_t	offset;
 	DWORD		high;
-	DWORD		low;
+	DWORD		low = GetFileSize(file, &high);
 
-	low = GetFileSize(file, &high);
-
-	if ((low == 0xFFFFFFFF) && (GetLastError() != NO_ERROR)) {
+	if (low == 0xFFFFFFFF && GetLastError() != NO_ERROR) {
 		return((os_offset_t) -1);
 	}
 
-	offset = (os_offset_t) low | ((os_offset_t) high << 32);
-
-	return(offset);
+	return(os_offset_t(low | (os_offset_t(high) << 32));
 #else
-	return((os_offset_t) lseek(file, 0, SEEK_END));
+	/* Store current position */
+	os_offset_t	pos = lseek(file, 0, SEEK_CUR);
+	os_offset_t	file_size = lseek(file, 0, SEEK_END);
+
+	/* Restore current position as the function should not change it */
+	lseek(file, pos, SEEK_SET);
+
+	return(file_size);
 #endif /* _WIN32 */
 }
 
@@ -2216,7 +2218,7 @@ os_file_truncate(
 	/* Get the file descriptor from the handle */
 	fd = _open_osfhandle((long)file, _O_TEXT);
 	/* Truncate the file */
-	res = _chsize(fd, size);
+	res = _chsize(fd, (long) size);
 	if (res == -1) {
 		os_file_handle_error_no_exit(pathname, "chsize", FALSE);
 	}
