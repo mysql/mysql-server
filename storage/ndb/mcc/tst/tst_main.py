@@ -21,14 +21,6 @@ assert pymajor == 2
 
 import sys
 
-def set_cmake_var(var, val, default):
-    if val == '@'+var+'@':
-        globals()[var] = default
-    else:
-        globals()[var] = val
-
-set_cmake_var('CMAKE_CURRENT_SOURCE_DIR', '@CMAKE_CURRENT_SOURCE_DIR@', '.')
-
 import os
 import os.path
 
@@ -61,7 +53,6 @@ import contextlib
 
 import request_handler
 import config_parser
-#import clumodel
 import util
 
 from util import mock_msg, is_set
@@ -351,69 +342,6 @@ class Test6RequestHandler(utmod.TestCase):
           except:
             pass
         
-
-    @utmod.skip('Too heavy - need to mock the execution')      
-    def test_startClusterReq(self):
-        json_str = mock_msg_as_json('startClusterReq', 
-            {'ssh': self.ssh,
-             'procs': [
-                       {'file': {'autoComplete': True, 'hostName': 'localhost', 'path': cfg()['local_installdir'], 'name': 'ndb_mgmd'}, 
-                                                                        'procCtrl': {'hup':True, 'getStd': False},
-                                                                        'params': { 'param':  [ util.Param({'name':'Dummy1', 'sep':'=', 'val':42}) ], 'sep': ' ' }}]})
-        print json_str
-        print request_handler.handle_req(json.loads(json_str))
-    
-
-
-class Test7ConfiguratorServer(utmod.TestCase):
-    def setUp(self):
-        # TODO Start server
-        #self.cluster = clumodel.create_cluster_from_config_ini('example_config.ini')
-        pass
-
-    def tearDown(self):
-        
-        #self.cluster.drop()
-        #time.sleep(5.0) # To allow the cluster to really disappear
-        # TODO Shutdown server
-        pass
- 
-    @utmod.skip('Deprecated')
-    def test_deploy_config(self):
-        map(request_handler.handle_req, self.cluster.get_deploy_config_msgs())
-
-    @utmod.skip('Deprecated')            
-    def test_start_mgmds(self):
-        self.cluster.deploy_config('example_config.ini', '/example_config.ini')
-        self.cluster.start_nodes(clumodel.MgmdNode)
-        time.sleep(1.0) # So the mgmds know about each other before calling tearDown
-
-    @utmod.skip('Deprecated')  
-    def test_start_ndbds(self):
-        self.cluster.deploy_config('example_config.ini', '/example_config.ini')
-        self.cluster.start_nodes(clumodel.MgmdNode)
-        self.cluster.start_nodes(clumodel.NdbdNode)
-        #time.sleep(2.0)
-        
-    @utmod.skip('Deprecated')  
-    def test_start_mysqlds(self):
-        self.cluster.deploy_config('example_config.ini', '/example_config.ini')
-        self.cluster.start_nodes(clumodel.MgmdNode)
-        self.cluster.start_nodes(clumodel.NdbdNode)
-        time.sleep(30.0)
-        self.cluster.start_nodes(clumodel.MysqldNode)
-        time.sleep(30.0)
-
-    @utmod.skip('For now')
-    def test_start_cluster(self):
-        map(request_handler.handle_req, self.cluster.get_deploy_config_msgs())
-        request_handler.handle_req(self.cluster.get_start_msg())
-        
-        # Just so that tearDown actually will clean things up
-        for n in self.cluster.nodes:
-            n.is_started = True
-    
-
 if __name__ == '__main__':
     if cfg()['debuglevel'] is not None:
         import logging

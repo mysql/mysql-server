@@ -5652,7 +5652,6 @@ int ha_ndbcluster::ndb_update_row(const uchar *old_data, uchar *new_data,
 {
   THD *thd= table->in_use;
   Thd_ndb *thd_ndb= m_thd_ndb;
-  NdbTransaction *trans= thd_ndb->trans;
   NdbScanOperation* cursor= m_active_cursor;
   const NdbOperation *op;
   uint32 old_part_id= ~uint32(0), new_part_id= ~uint32(0);
@@ -5670,6 +5669,18 @@ int ha_ndbcluster::ndb_update_row(const uchar *old_data, uchar *new_data,
   Uint32 num_sets= 0;
 
   DBUG_ENTER("ndb_update_row");
+
+  /* Start a transaction now if none available
+   * (Manual Binlog application...)
+   */
+  /* TODO : Consider hinting */
+  if (unlikely((!m_thd_ndb->trans) && 
+               !get_transaction(error)))
+  {
+    DBUG_RETURN(error);
+  }
+
+  NdbTransaction *trans= m_thd_ndb->trans;
   DBUG_ASSERT(trans);
 
   error = check_slave_state(thd);
@@ -6037,8 +6048,7 @@ int ha_ndbcluster::ndb_delete_row(const uchar *record,
                                   bool primary_key_update)
 {
   THD *thd= table->in_use;
-  Thd_ndb *thd_ndb= get_thd_ndb(thd);
-  NdbTransaction *trans= m_thd_ndb->trans;
+  Thd_ndb *thd_ndb= m_thd_ndb;
   NdbScanOperation* cursor= m_active_cursor;
   const NdbOperation *op;
   uint32 part_id= ~uint32(0);
@@ -6047,6 +6057,18 @@ int ha_ndbcluster::ndb_delete_row(const uchar *record,
     (m_is_bulk_delete || thd_allow_batch(thd));
 
   DBUG_ENTER("ndb_delete_row");
+
+  /* Start a transaction now if none available
+   * (Manual Binlog application...)
+   */
+  /* TODO : Consider hinting */
+  if (unlikely((!m_thd_ndb->trans) && 
+               !get_transaction(error)))
+  {
+    DBUG_RETURN(error);
+  }
+    
+  NdbTransaction *trans= m_thd_ndb->trans;
   DBUG_ASSERT(trans);
 
   error = check_slave_state(thd);

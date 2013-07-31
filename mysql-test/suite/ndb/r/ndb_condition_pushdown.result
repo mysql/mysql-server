@@ -2420,6 +2420,20 @@ select * from escapetest where emailaddress like "test|_%" escape '|';
 emailaddress	id
 test_data@test.org	1
 drop table escapetest;
+create table a(a varchar(7)) engine=ndb charset=utf8;
+insert into a values ('abcdefg');
+select * from a;
+a
+abcdefg
+explain extended select * from a where a like 'abcdefg%';
+id	select_type	table	type	possible_keys	key	key_len	ref	rows	filtered	Extra
+1	SIMPLE	a	ALL	NULL	NULL	NULL	NULL	2	100.00	Using where with pushed condition (`test`.`a`.`a` like 'abcdefg%')
+Warnings:
+Note	1003	/* select#1 */ select `test`.`a`.`a` AS `a` from `test`.`a` where (`test`.`a`.`a` like 'abcdefg%')
+select * from a where a like 'abcdefg%';
+a
+abcdefg
+drop table a;
 set @@session.optimizer_switch = @old_ecpd;
 DROP TABLE t1,t2,t3,t4,t5;
 #

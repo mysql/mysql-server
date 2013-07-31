@@ -3495,6 +3495,65 @@ runBug12598496(NDBT_Context* ctx, NDBT_Step* step)
   return NDBT_OK;
 }
 
+int runTryGetEvent(NDBT_Context* ctx, NDBT_Step* step)
+{
+  char eventName[1024];
+  sprintf(eventName, "%s_EVENT", ctx->getTab()->getName());
+  
+  NdbDictionary::Dictionary *myDict = GETNDB(step)->getDictionary();
+  NdbRestarter restarter;
+  
+  Uint32 iterations = 10;
+  bool odd = true;
+
+  while (iterations--)
+  {
+    g_err << "Attempting to get the event, expect "
+          << ((odd?"success":"failure")) << endl;
+    const NdbDictionary::Event* ev = myDict->getEvent(eventName);
+    
+    if (odd)
+    {
+      if (ev == NULL)
+      {
+        g_err << "Failed to get event on odd cycle with error "
+              << myDict->getNdbError().code << " " 
+              << myDict->getNdbError().message << endl;
+        return NDBT_FAILED;
+      }
+      g_err << "Got event successfully" << endl;
+      g_err << "Inserting errors 8101 + 4035" << endl;
+      restarter.insertErrorInAllNodes(8101);
+      restarter.insertErrorInAllNodes(4035);      
+    }
+    else
+    {
+      if (ev != NULL)
+      {
+        g_err << "Got event on even cycle!" << endl;
+        restarter.insertErrorInAllNodes(0);
+        return NDBT_FAILED;
+      }
+      if (myDict->getNdbError().code != 266)
+      {
+        g_err << "Did not get expected error.  Expected 266, got "
+              << myDict->getNdbError().code << " " 
+              << myDict->getNdbError().message << endl;
+        return NDBT_FAILED;
+      }
+
+      g_err << "Failed to get event, clearing error insertion" << endl;
+      restarter.insertErrorInAllNodes(0);
+    }
+
+    odd = !odd;
+  }
+
+  restarter.insertErrorInAllNodes(0);
+  
+  return NDBT_OK;
+}
+
 NDBT_TESTSUITE(test_event);
 TESTCASE("BasicEventOperation", 
 	 "Verify that we can listen to Events"
@@ -3731,6 +3790,13 @@ TESTCASE("Bug57886", "")
 TESTCASE("Bug12598496", "")
 {
   INITIALIZER(runBug12598496);
+}
+TESTCASE("DbUtilRace",
+         "Test DbUtil handling of TC result race")
+{
+  INITIALIZER(runCreateEvent);
+  STEP(runTryGetEvent);
+  FINALIZER(runDropEvent);
 }
 NDBT_TESTSUITE_END(test_event);
 

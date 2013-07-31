@@ -361,14 +361,19 @@ class ABClusterHost(object):
         executable - basename of executable to auto-complete
         """
         for l in locations:
-            choice = self.path_module.join(basedir,l,executable)
+            choice = posixpath.join(basedir,l,executable)
             if self.file_exists(choice):
                 return choice
-        raise Exception('Cannot locate '+executable+' in '+self.path_module.join(basedir, str(locations))+' on host '+self.host)
+        raise Exception('Cannot locate '+executable+' in '+posixpath.join(basedir, str(locations))+' on host '+self.host)
    
     @abc.abstractmethod
-    def exec_cmdv(self, cmdln, procCtrl, stdinFile):
+    def _exec_cmdv(self, cmdv, procCtrl, stdinFile):
         pass
+
+    def exec_cmdv(self, cmdv, procCtrl={ 'waitForCompletion': True }, 
+                  stdinFile=None):
+        """Forwards to virtual."""
+        return self._exec_cmdv(cmdv, procCtrl, stdinFile)
                 
     def exec_blocking(self, cmdv):
         """Convenience method."""
@@ -459,12 +464,17 @@ class LocalClusterHost(ABClusterHost):
         """
         shutil.rmtree(path)
                
-    def exec_cmdv(self, cmdv, procCtrl={ 'waitForCompletion': True }, stdinFile=None):
+    def _exec_cmdv(self, cmdv, procCtrl, stdinFile):
         """Execute an OS command on the local host, using subprocess module.
         cmdv - complete command vector (argv) of the OS command
         procCtrl - procCtrl object from message which controls how the process
         is started (blocking vs non-blocking and output reporting)
         """
+        
+        # Add nohup when running locally to prevent server from
+        # waiting on the children
+        if util.get_val(procCtrl, 'nohup'):
+            cmdv[:0] = ['nohup']
         output = tempfile.TemporaryFile()
         stdin = output
         if (stdinFile != None):
@@ -474,10 +484,11 @@ class LocalClusterHost(ABClusterHost):
             if util.get_val(procCtrl, 'waitForCompletion'):
                 try:
                     subprocess.check_call(cmdv, stdin=stdin, stdout=output, stderr=output)
-                except:
-                    output.seek(0)
-                    _logger.error('output='+output.read())
-                    raise
+                except subprocess.CalledProcessError as cpe:
+                    if cpe.returncode != util.get_val(procCtrl, 'noRaise', 0):
+                        output.seek(0)
+                        _logger.error('output='+output.read())
+                        raise
                 output.seek(0)
                 return output.read()
             
@@ -494,12 +505,31 @@ class LocalClusterHost(ABClusterHost):
             if (stdin != output):
                 stdin.close()
             output.close()
-            
+
+    def execute_command(self, cmdv, inFile=None):
+        """Execute an OS command blocking on the local host, using 
+        subprocess module. Returns dict contaning output from process. 
+        cmdv - complete command vector (argv) of the OS command.
+        """
+        outFile = tempfile.TemporaryFile()
+        errFile = tempfile.TemporaryFile()
+        result = {
+            'exitstatus': subprocess.call(args=cmdv, stdin=inFile, 
+                                          stdout=outFile, stderr=errFile) 
+            }
+        outFile.seek(0)
+        errFile.seek(0)
+        result['out'] = outFile.read()
+        result['err'] = errFile.read()
+        return result
 
 def produce_ABClusterHost(hostname='localhost', user=None, pwd=None):
     """Factory method which returns RemoteClusterHost or LocalClusterHost depending 
     on the value of hostname.."""
 
+    if hostname == 'localhost' or hostname == '127.0.0.1' or hostname == socket.gethostname():
+        return LocalClusterHost(hostname)
+    
     hostname_fqdn = socket.getfqdn(hostname)
     if hostname_fqdn == socket.getfqdn('localhost') or hostname_fqdn == socket.getfqdn(socket.gethostname()):
         return LocalClusterHost(hostname)

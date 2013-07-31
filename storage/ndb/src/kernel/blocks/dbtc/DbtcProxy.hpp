@@ -92,6 +92,7 @@ protected:
   // GSN_GCP_NOMORETRANS
   struct Ss_GCP_NOMORETRANS : SsParallel {
     GCPNoMoreTrans m_req;
+    Uint32 m_minTcFailNo;
     Ss_GCP_NOMORETRANS() {
       m_sendREQ = (SsFUNCREQ)&DbtcProxy::sendGCP_NOMORETRANS;
       m_sendCONF = (SsFUNCREP)&DbtcProxy::sendGCP_TCFINISHED;

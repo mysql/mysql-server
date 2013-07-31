@@ -1600,6 +1600,7 @@ private:
                                     THIS NUMBER IS INCREMENTED. AT THE START OF
                                     THE SYSTEM THIS NUMBER MUST BE INITIATED TO
                                     ZERO */
+  Uint32 cMinTcFailNo;            /* Minimum TC handled failNo allowed to close GCP */
 
   BlockReference clocallqhblockref;
   BlockReference clocaltcblockref;

@@ -1829,6 +1829,10 @@ max-time: 500
 cmd: testAsynchMultiwait
 args: -n AsynchMultiwaitWakeup T1
 
+max-time: 500
+cmd: testAsyncMultiwait
+args: -n AsynchMultiwait_Version2 T1
+
 # alloc node id
 max-time: 500
 cmd: testNdbApi
@@ -1974,4 +1978,8 @@ args: -n Cascade10 T1
 max-time : 300
 cmd: testFK
 args: -n CascadeError T1
+
+max-time : 600
+cmd: testNodeRestart
+args: -n Bug16007980 T1
 
