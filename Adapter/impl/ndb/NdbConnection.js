@@ -153,7 +153,7 @@ NdbConnection.prototype.getAsyncContext = function() {
   }
   else if(this.asyncNdbContext == null) {
     udebug.log_notice("NDB Async API support is disabled at build-time for " +
-                      "MySQL Cluster 7.3.1 - 7.3.3.  Async API will not be used."
+                      "MySQL Cluster 7.3.1 - 7.3.2.  Async API will not be used."
                      );
     this.asyncNdbContext = false;
   }
