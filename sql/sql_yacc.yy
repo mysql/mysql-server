@@ -2224,8 +2224,11 @@ master_def:
           {
             if ($3 > MASTER_DELAY_MAX)
             {
+              Lex_input_stream *lip= YYLIP;
+              const char *start= lip->get_tok_start();
+              const char *msg= YYTHD->strmake(start, lip->get_ptr() - start);
               my_error(ER_MASTER_DELAY_VALUE_OUT_OF_RANGE, MYF(0),
-                       static_cast<uint>($3), MASTER_DELAY_MAX);
+                       msg, MASTER_DELAY_MAX);
             }
             else
               Lex->mi.sql_delay = $3;
