@@ -595,7 +595,7 @@ var configWizardPages = {
             mcc.util.dbg("Enter configWizardDeployConfig");
             mcc.configuration.setupContext().then(function () {
                 mcc.gui.deploymentTreeSetup();
-                mcc.gui.startStatusPoll();
+                mcc.gui.startStatusPoll(true);
             });
         },
         exit: function () {

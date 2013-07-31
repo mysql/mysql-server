@@ -1121,5 +1121,76 @@ Ndb_cluster_connection::release_ndb_wait_group(NdbWaitGroup *group)
   }
 }
 
-
 template class Vector<Ndb_cluster_connection_impl::Node>;
+
+int
+Ndb_cluster_connection::wait_until_ready(const int * nodes, int cnt,
+                                         int timeout)
+{
+  DBUG_ENTER("Ndb_cluster_connection::wait_until_ready(nodelist)");
+
+  NodeBitmask mask;
+  for (int i = 0; i < cnt; i++)
+  {
+    if (nodes[i] <= 0 || nodes[i] > (int)mask.max_size())
+    {
+      DBUG_RETURN(-1);
+    }
+    mask.set(nodes[i]);
+  }
+
+  TransporterFacade *tp = m_impl.m_transporter_facade;
+  if (tp == 0)
+  {
+    DBUG_RETURN(-1);
+  }
+  if (tp->ownId() == 0)
+  {
+    DBUG_RETURN(-1);
+  }
+
+  timeout *= 10; // try each 100ms
+
+  NodeBitmask dead;
+  NodeBitmask alive;
+  do
+  {
+    dead.clear();
+    alive.clear();
+    tp->lock_poll_mutex();
+    for(unsigned i= 0; i < no_db_nodes(); i++)
+    {
+      //************************************************
+      // If any node is answering, ndb is answering
+      //************************************************
+      if (tp->get_node_alive(m_impl.m_all_nodes[i].id) != 0)
+        alive.set(m_impl.m_all_nodes[i].id);
+      else
+        dead.set(m_impl.m_all_nodes[i].id);
+    }
+    tp->unlock_poll_mutex();
+
+    if (alive.contains(mask))
+    {
+      DBUG_RETURN(mask.count());
+    }
+
+    NodeBitmask all;
+    all.bitOR(alive);
+    all.bitOR(dead);
+    if (!all.contains(mask))
+    {
+      DBUG_RETURN(-1);
+    }
+
+    if (timeout == 0)
+      break;
+
+    timeout--;
+    NdbSleep_MilliSleep(100);
+  } while (true);
+
+  mask.bitAND(alive);
+  DBUG_RETURN(mask.count());
+}
+

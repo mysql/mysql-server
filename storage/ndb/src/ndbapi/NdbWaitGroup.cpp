@@ -168,11 +168,11 @@ int NdbWaitGroup::wait(Ndb ** & arrayHead    /* out */,
     Many threads can push and pop; only one thread can use wait.
 */
 
-bool NdbWaitGroup::push(Ndb *ndb) 
+int NdbWaitGroup::push(Ndb *ndb) 
 {
   if(unlikely(ndb->theNode != Uint32(m_nodeId)))
   {
-    return false;
+    return -1;
   }
 
   lock();
@@ -192,7 +192,7 @@ bool NdbWaitGroup::push(Ndb *ndb)
   }
   unlock();
 
-  return true;
+  return 0;
 }
 
 
@@ -234,6 +234,7 @@ int NdbWaitGroup::wait(Uint32 timeout_millis, int pct_ready)
 
   /********** ENTER WAIT **********/
   int min_ndbs = nwait * pct_ready / 100 ;
+  if(min_ndbs == 0 && pct_ready > 0) min_ndbs = 1;
   Ndb ** arrayHead = m_array + m_pos_wait;
   m_multiWaitHandler->waitForInput(arrayHead,
                                    nwait,

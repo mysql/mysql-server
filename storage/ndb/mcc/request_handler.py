@@ -55,14 +55,6 @@ from clusterhost import produce_ABClusterHost
 
 _logger = logging.getLogger(__name__)
 
-@contextlib.contextmanager
-def seq_acting(seq, action):
-	try:
-		yield seq
-	finally:
-		for e in seq:
-			getattr(e, action)()
-
 class ShutdownException(Exception):
     """Exception thrown when shutdown command arrives"""
     pass
@@ -160,39 +152,23 @@ def start_proc(proc, body):
             assert (ch.file_exists(f['stdinFile'])), 'File ' + f['stdinFile'] + " does not exist on host " + ch.host
             stdinFile = f['stdinFile']
 
-        _logger.debug('Attempting to launch '+executable+' on '+ch.host)
+        _logger.debug('Attempting to launch '+executable+' on '+ch.host+
+                      ' with pc='+str(pc))
 
-        ch.exec_cmdv(util.params_to_cmdv(executable, params), pc, stdinFile)
-        _logger.debug('pc='+str(pc))
+        cmdv = util.params_to_cmdv(executable, params)
+	if proc.has_key('isCommand'):
+            return ch.execute_command(cmdv, stdinFile)
+		
+        return ch.exec_cmdv(cmdv, pc, stdinFile)
    
 
-def start_pgroup(pgroup, body):
-    """Start a process group specified in a startClusterReq command. Starts all 
-    processes in the group and then waits until those processes have started, 
-    (currently it just waits the specified number of seconds). 
-    pgroup - process group object in message
-    body - whole message (except top-level headers)
-    """
-    
-    _logger.debug('pgroup: '+str(pgroup))
-    map(lambda p: start_proc(p,body), pgroup['plist'])
-    if pgroup.has_key('syncPolicy') and pgroup['syncPolicy'] and pgroup['syncPolicy']['type'] == 'wait':
-        _logger.debug('Need to sleep ' + str(pgroup['syncPolicy']['length']) + ' seconds...')
-        time.sleep(pgroup['syncPolicy']['length'])
+def handle_executeCommandReq(req, body):
+    """Handler function for execCommandReq messages. Runs the process specified in by the command property."""
+    if body['command'].has_key('isCommand'):
+        return make_rep(req, start_proc(body['command'], body))
 
-def handle_startClusterReq(req, body):
-    """Handler function for startClusterReq commands. Starts all processes in the
-    cluster.
-    req - top level message object
-    body - shortcut to the body part of the message
-    """
-    
-    if body.has_key('pgroups'):
-        map(lambda pg: start_pgroup(pg, body), body['pgroups'])
-    else:
-        map(lambda p: start_proc(p, body), body['procs'])
-    
-    return  make_rep(req)
+    return make_rep(req, {'out': start_proc(body['command'], body) })	
+
     
 def handle_createFileReq(req, body):
     """Handler function for createFileReq commands. Creates a file on the remote
@@ -242,26 +218,16 @@ def handle_appendFileReq(req, body):
         dp = ch.path_module.join(df['path'], df['name'])
 
         assert (ch.file_exists(dp)), 'File ' + dp + ' does not exist on host ' + ch.host
-        assert (ch.file_exists(sp)), 'File ' + sp + ' does not exist on host ' + ch.host
+        content = None
+        with ch.open(sp) as sourceFile:
+                content = sourceFile.read()
 
-        with seq_acting((ch.open(sp), ch.open(dp, 'a+')), 'close') as (sourceFile, destinationFile):
-            destinationFile.write(sourceFile.read())
+        assert (ch.file_exists(sp)), 'File ' + sp + ' does not exist on host ' + ch.host        
+        with ch.open(dp, 'a+') as destinationFile:
+            destinationFile.write(content)
 
     return make_rep(req)
 
-
-def stop_pgroup(req, body):
-    """Not implemeneted yet."""
-    pass
-
-def handle_stopClusterReq(req, body):
-    """Handler function for stopClusterReq commands. Stops"""
-    map(lambda pg: stop_pgroup(pg, body), body['pgroups'])
-
-def handle_removeClusterReq(req, body):
-    """Handler function for removeClusterReq commands. Deletes all files and 
-    directories belonging to the cluster."""
-    pass
 
 def handle_shutdownServerReq(req, body):
     """x"""

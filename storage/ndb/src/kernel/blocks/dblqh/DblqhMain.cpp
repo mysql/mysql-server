@@ -1253,14 +1253,17 @@ void Dblqh::execREAD_CONFIG_REQ(Signal* signal)
   }
 
   if (globalData.ndbLogParts != 4 &&
+      globalData.ndbLogParts != 6 &&
       globalData.ndbLogParts != 8 &&
       globalData.ndbLogParts != 12 &&
-      globalData.ndbLogParts != 16)
+      globalData.ndbLogParts != 16 &&
+      globalData.ndbLogParts != 24 &&
+      globalData.ndbLogParts != 32)
   {
     char buf[255];
     BaseString::snprintf(buf, sizeof(buf),
       "Trying to start with %d log parts, number of log parts can"
-      " only be set to 4, 8, 12 or 16.",
+      " only be set to 4, 6, 8, 12, 16, 24 or 32.",
       globalData.ndbLogParts);
     progError(__LINE__, NDBD_EXIT_INVALID_CONFIG, buf);
   }

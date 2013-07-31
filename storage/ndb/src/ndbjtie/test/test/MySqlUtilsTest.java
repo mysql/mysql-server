@@ -35,6 +35,81 @@ import com.mysql.ndbjtie.mysql.CharsetMapConst;
  */
 public class MySqlUtilsTest extends JTieTestBase {
 
+    public void testDbugUtils() {
+        out.println("--> MySqlUtilsTest.testDbugUtils()");
+
+        // load native library
+        loadSystemLibrary("ndbclient");
+
+/*
+        static native void dbugPush(String state);
+        static native void dbugPop();
+        static native void dbugSet(String state);
+        static native String dbugExplain(ByteBuffer buffer, int length);
+        static native void dbugPrint(String keyword, String message);
+*/
+
+        final int len = 1024;
+        final ByteBuffer bb = ByteBuffer.allocateDirect(len);
+
+        String s;
+        final String s0 = "";
+        s = Utils.dbugExplain(bb, len);
+        assert (s == null || s.equals(s0));
+
+        s = Utils.dbugExplain(null, len);
+        assert s == null;
+
+        s = Utils.dbugExplain(bb, 0);
+        assert s == null;
+
+        final String s1 = "t";
+        Utils.dbugSet(s1);
+        s = Utils.dbugExplain(bb, len);
+        assert (s == null || s.equals(s1));
+
+        Utils.dbugSet(null);
+        s = Utils.dbugExplain(bb, len);
+        assert (s == null || s.equals(s1));
+
+        final String s2 = "d,somename:o,/tmp/somepath";
+        Utils.dbugPush(s2);
+        s = Utils.dbugExplain(bb, len);
+        assert (s == null || s.equals(s2));
+
+        Utils.dbugPush(null);
+        s = Utils.dbugExplain(bb, len);
+        assert (s == null || s.equals(s2));
+
+        final String s3 = "d,a,b,c,x,y,z";
+        Utils.dbugPush(s3);
+        s = Utils.dbugExplain(bb, len);
+        // allow for different order
+        assert (s == null
+                || (s.length() == s3.length() && s.matches("[" + s3 + "]+")));
+
+        Utils.dbugPop();
+        s = Utils.dbugExplain(bb, len);
+        assert (s == null || s.equals(s2));
+
+        Utils.dbugPop();
+        s = Utils.dbugExplain(bb, len);
+        assert (s == null || s.equals(s1));
+
+        Utils.dbugPush(null);
+        s = Utils.dbugExplain(bb, len);
+        assert (s == null || s.equals(s1));
+
+        Utils.dbugPop();
+        s = Utils.dbugExplain(bb, len);
+        assert (s == null || s.equals(s0));
+
+        out.println();
+        out.println("<-- MySqlUtilsTest.testDbugUtils()");
+    };
+
+    // ----------------------------------------------------------------------
+
     static public ByteBuffer char2bb(char[] c) {
         int len = c.length;
         ByteBuffer bb = ByteBuffer.allocateDirect(len);
@@ -44,7 +119,7 @@ public class MySqlUtilsTest extends JTieTestBase {
         return bb;
     }
 
-    static String bbdump (ByteBuffer sbb) {
+    static String bbdump(ByteBuffer sbb) {
         ByteBuffer bb = sbb.asReadOnlyBuffer();
         byte[] bytes = new byte[bb.capacity()];
         bb.get(bytes);
@@ -81,8 +156,6 @@ public class MySqlUtilsTest extends JTieTestBase {
         return 0;
     }
 
-    // ----------------------------------------------------------------------
-
     public void printRecodeResult(int rcode, int lengths[], ByteBuffer b1,
                                   ByteBuffer b2)
     {
@@ -106,14 +179,15 @@ public class MySqlUtilsTest extends JTieTestBase {
         utf16_num = csmap.getUTF16CharsetNumber();
         out.println("      UTF-8 charset num: " +  utf8_num +
                     "    UTF-16 or UCS-2 charset num: " +  utf16_num);
-        assert( ! ((utf8_num == 0) || (utf16_num == 0)));
+        assert (utf8_num != 0);
+        assert (utf16_num != 0);
         out.println("<-- Test that mysql includes UTF-8 and 16-bit Unicode");
 
 
         out.println("--> Test CharsetMap::getName()");
         String utf8_name = csmap.getName(utf8_num);
         String utf16 = csmap.getMysqlName(csmap.getUTF16CharsetNumber());
-        assert(utf8_name.compareTo("UTF-8") == 0);
+        assert (utf8_name.compareTo("UTF-8") == 0);
         /* MySQL 5.1 and earlier will have UCS-2 but later versions may have true
          UTF-16.  For information, print whether UTF-16 or UCS-2 is being used. */
         out.println("      Using mysql \"" + utf16 + "\" for UTF-16.");
@@ -141,8 +215,8 @@ public class MySqlUtilsTest extends JTieTestBase {
             latin1_num = csmap.getCharsetNumber("latin1");
             out.println("    latin1 charset number: " + latin1_num +
                         " standard name: " + csmap.getName(latin1_num));
-            assert(latin1_num != 0);
-            assert(csmap.getName(latin1_num).compareTo("windows-1252") == 0);
+            assert (latin1_num != 0);
+            assert (csmap.getName(latin1_num).compareTo("windows-1252") == 0);
             out.println("    Latin1 source string: " + bbdump(my_word_latin1) + "\n" +
                         "    UTF8 source string:   " + bbdump(my_word_utf8));
             out.println("<-- Test that latin1 is available.");
@@ -157,10 +231,10 @@ public class MySqlUtilsTest extends JTieTestBase {
             int rr1 = csmap.recode(lengths, utf8_num, latin1_num,
                                    my_word_utf8, result_buff);
             printRecodeResult(rr1, lengths, my_word_utf8, result_buff);
-            assert(rr1 == CharsetMapConst.RecodeStatus.RECODE_OK);
-            assert(lengths[0] == 7);
-            assert(lengths[1] == 6);
-            assert(bbcmp(char2bb(cmy_word_latin1), result_buff) == 0);
+            assert (rr1 == CharsetMapConst.RecodeStatus.RECODE_OK);
+            assert (lengths[0] == 7);
+            assert (lengths[1] == 6);
+            assert (bbcmp(char2bb(cmy_word_latin1), result_buff) == 0);
             out.println("<-- RECODE TEST 1");
         }
 
@@ -173,10 +247,10 @@ public class MySqlUtilsTest extends JTieTestBase {
             int rr2 = csmap.recode(lengths, latin1_num, utf8_num,
                                    my_word_latin1, result_buff);
             printRecodeResult(rr2, lengths, my_word_latin1, result_buff);
-            assert(rr2 == CharsetMapConst.RecodeStatus.RECODE_OK);
-            assert(lengths[0] == 6);
-            assert(lengths[1] == 7);
-            assert(bbcmp(result_buff, char2bb(cmy_word_utf8)) == 0);
+            assert (rr2 == CharsetMapConst.RecodeStatus.RECODE_OK);
+            assert (lengths[0] == 6);
+            assert (lengths[1] == 7);
+            assert (bbcmp(result_buff, char2bb(cmy_word_utf8)) == 0);
             out.println("<-- RECODE TEST 2");
         }
 
@@ -190,11 +264,11 @@ public class MySqlUtilsTest extends JTieTestBase {
             int rr3 = csmap.recode(lengths, latin1_num, utf8_num,
                                my_word_latin1, result_buff);
             printRecodeResult(rr3, lengths, my_word_latin1, result_buff);
-            assert(rr3 == CharsetMapConst.RecodeStatus.RECODE_BUFF_TOO_SMALL);
-            assert(lengths[0] == 3);
-            assert(lengths[1] == 4);
+            assert (rr3 == CharsetMapConst.RecodeStatus.RECODE_BUFF_TOO_SMALL);
+            assert (lengths[0] == 3);
+            assert (lengths[1] == 4);
             /* Confirm that the first four characters were indeed recoded: */
-            assert(bbncmp(result_buff, char2bb(cmy_word_truncated), 4) == 0);
+            assert (bbncmp(result_buff, char2bb(cmy_word_truncated), 4) == 0);
             out.println("<-- RECODE TEST 3");
         }
 
@@ -205,7 +279,7 @@ public class MySqlUtilsTest extends JTieTestBase {
             int[] lengths = new int[]  { 6 , 16 };
             int rr4 = csmap.recode(lengths, 0, 999, my_word_latin1, result_buff);
             out.println("    Return code: " + rr4);
-            assert(rr4 == CharsetMapConst.RecodeStatus.RECODE_BAD_CHARSET);
+            assert (rr4 == CharsetMapConst.RecodeStatus.RECODE_BAD_CHARSET);
             out.println("<-- RECODE TEST 4");
         }
 
@@ -217,7 +291,7 @@ public class MySqlUtilsTest extends JTieTestBase {
             int rr5 = csmap.recode(lengths, utf8_num, latin1_num,
                                    my_bad_utf8, result_buff);
             out.println("    Return code: " + rr5);
-            assert(rr5 == CharsetMapConst.RecodeStatus.RECODE_BAD_SRC);
+            assert (rr5 == CharsetMapConst.RecodeStatus.RECODE_BAD_SRC);
             out.println("<-- RECODE TEST 5");
         }
 
@@ -234,9 +308,9 @@ public class MySqlUtilsTest extends JTieTestBase {
             int rr6 = csmap.recode(lengths, utf16_num, utf8_num,
                                    str_bb, result_buff);
             printRecodeResult(rr6, lengths, str_bb, result_buff);
-            assert(lengths[0]) == 12;
-            assert(lengths[1]) == 7;
-            assert(bbncmp(result_buff, char2bb(cmy_word_utf8), 6) == 0);
+            assert (lengths[0]) == 12;
+            assert (lengths[1]) == 7;
+            assert (bbncmp(result_buff, char2bb(cmy_word_utf8), 6) == 0);
             out.println("<-- RECODE TEST 6");
         }
 
@@ -245,11 +319,11 @@ public class MySqlUtilsTest extends JTieTestBase {
         {
             out.println("--> IS MULTIBYTE TEST");
             boolean[] result = csmap.isMultibyte(latin1_num);
-            assert(!result[0]);
+            assert (!result[0]);
             result = csmap.isMultibyte(utf16_num);
-            assert(result[0]);
+            assert (result[0]);
             result = csmap.isMultibyte(utf8_num);
-            assert(result[0]);
+            assert (result[0]);
             int nNull = 0, nSingle = 0, nMulti = 0;
             for(int i = 0; i < 256 ; i++) {
               result = csmap.isMultibyte(i);
@@ -262,9 +336,9 @@ public class MySqlUtilsTest extends JTieTestBase {
             out.println("    Unused: " + nNull +
                         " single-byte: " +nSingle + " multi-byte: " + nMulti  );
 
-            assert(nNull > 0);
-            assert(nSingle > 0);
-            assert(nMulti > 0);
+            assert (nNull > 0);
+            assert (nSingle > 0);
+            assert (nMulti > 0);
             out.println("<-- IS MULTIBYTE TEST");
         }
         out.println("<-- MySqlUtilsTest.testCharsetMap()");
@@ -356,6 +430,7 @@ public class MySqlUtilsTest extends JTieTestBase {
     public void test() {
         out.println("--> MySqlUtilsTest.test()");
 
+        testDbugUtils();
         testCharsetMap();
         testDecimalConv();
 
