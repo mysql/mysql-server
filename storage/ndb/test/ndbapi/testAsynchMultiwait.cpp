@@ -1,5 +1,5 @@
 /*
- Copyright (c) 2011 Oracle and/or its affiliates. All rights reserved.
+ Copyright (c) 2013 Oracle and/or its affiliates. All rights reserved.
 
  This program is free software; you can redistribute it and/or modify
  it under the terms of the GNU General Public License as published by
@@ -24,14 +24,66 @@
 #include "random.h"
 #include "../../src/ndbapi/NdbWaitGroup.hpp"
 
+
+class NdbPool : private NdbLockable {
+  public:
+    NdbPool(Ndb_cluster_connection *_conn) : conn(_conn), list(0), size(0), 
+                                             created(0) {};
+    Ndb * getNdb();
+    void recycleNdb(Ndb *n);
+    void closeAll();
+    
+  private:
+    Ndb_cluster_connection *conn;
+    Ndb * list;
+    int size, created;
+};
+
+Ndb * NdbPool::getNdb() {
+  Ndb * n;
+  lock();
+  if(list) {
+    n = list;
+    list = (Ndb *) n->getCustomData();
+    size--;
+  }
+  else {
+    n = new Ndb(conn);
+    n->init();
+    created++;
+  }
+  unlock();
+  return n;
+}
+
+void NdbPool::recycleNdb(Ndb *n) {
+  lock();
+  n->setCustomData(list);
+  list = n;
+  size++;
+  unlock();
+}
+  
+void NdbPool::closeAll() {
+  lock();
+  while(list) {
+    Ndb *n = list;
+    list = (Ndb *) n->getCustomData();
+    delete n;
+  }
+  size = 0;
+  unlock();
+}
+
 NdbWaitGroup * global_poll_group;
+NdbPool * global_ndb_pool;
 
 #define check(b, e) \
   if (!(b)) { g_err << "ERR: " << step->getName() << " failed on line " \
   << __LINE__ << ": " << e.getNdbError() << endl; return NDBT_FAILED; }
 
 
-int runSetup(NDBT_Context* ctx, NDBT_Step* step){
+int runSetup(NDBT_Context* ctx, NDBT_Step* step, int waitGroupSize){
 
   int records = ctx->getNumRecords();
   int batchSize = ctx->getProperty("BatchSize", 1);
@@ -48,17 +100,34 @@ int runSetup(NDBT_Context* ctx, NDBT_Step* step){
   Ndb_cluster_connection* conn = &pNdb->get_ndb_cluster_connection();
 
   /* The first call to create_multi_ndb_wait_group() should succeed ... */
-  global_poll_group = conn->create_ndb_wait_group(1000);
+  global_poll_group = conn->create_ndb_wait_group(waitGroupSize);
   if(global_poll_group == 0) {
     return NDBT_FAILED;
   }
 
   /* and subsequent calls should fail */
-  if(conn->create_ndb_wait_group(1000) != 0) {
+  if(conn->create_ndb_wait_group(waitGroupSize) != 0) {
     return NDBT_FAILED;
   }
 
   return NDBT_OK;
+}
+
+/* NdbWaitGroup version 1 API uses a fixed-size wait group.
+   It cannot grow.  We size it at 1000 Ndbs.
+*/
+int runSetup_v1(NDBT_Context* ctx, NDBT_Step* step) {
+  return runSetup(ctx, step, 1000);
+}
+
+/* Version 2 of the API will allow the wait group to grow on 
+   demand, so we start small.
+*/
+int runSetup_v2(NDBT_Context* ctx, NDBT_Step* step) {
+  Ndb* pNdb = GETNDB(step);
+  Ndb_cluster_connection* conn = &pNdb->get_ndb_cluster_connection();
+  global_ndb_pool = new NdbPool(conn);
+  return runSetup(ctx, step, 7);
 }
 
 int runCleanup(NDBT_Context* ctx, NDBT_Step* step){
@@ -279,19 +348,181 @@ int runPkReadMultiWakeupT2(NDBT_Context* ctx, NDBT_Step* step)
   return (wait_rc == 1 ? NDBT_OK : NDBT_FAILED);
 }
 
+/* Version 2 API tests */
+#define V2_NLOOPS 32
+
+/* Producer thread */
+int runV2MultiWait_Producer(NDBT_Context* ctx, NDBT_Step* step,
+                           int thd_id, int nthreads)
+{
+  int records = ctx->getNumRecords();
+  HugoOperations hugoOps(*ctx->getTab());
+
+  /* For three threads (2 producers + 1 consumer) we loop 0-7.
+     producer 0 is slow if (loop & 1)  
+     producer 1 is slow if (loop & 2)
+     consumer is slow if (loop & 4)
+  */
+  for (int loop = 0; loop < V2_NLOOPS; loop++) 
+  {
+    ctx->getPropertyWait("LOOP", loop+1);
+    bool slow = loop & (thd_id+1);
+    for (int j=0; j < records; j++)
+    {
+      if(j % nthreads == thd_id) 
+      {
+        Ndb* ndb = global_ndb_pool->getNdb();
+        NdbTransaction* trans = ndb->startTransaction();
+        check(trans != NULL, (*ndb));
+        ndb->setCustomData(trans);
+
+        NdbOperation* readOp = trans->getNdbOperation(ctx->getTab());
+        check(readOp != NULL, (*trans));
+        check(readOp->readTuple() == 0, (*readOp));
+        check(hugoOps.equalForRow(readOp, j) == 0, hugoOps);
+
+        /* Read all other cols */
+        for (int k=0; k < ctx->getTab()->getNoOfColumns(); k++)
+        {
+          check(readOp->getValue(ctx->getTab()->getColumn(k)) != NULL,
+                (*readOp));
+        }
+
+        trans->executeAsynchPrepare(NdbTransaction::Commit,
+                                    NULL,
+                                    NULL,
+                                    NdbOperation::AbortOnError);
+        ndb->sendPreparedTransactions();
+        global_poll_group->push(ndb);
+        if(slow) 
+        {
+          int tm = myRandom48(3) * myRandom48(3);
+          if(tm) NdbSleep_MilliSleep(tm);
+        }
+      }
+    }
+  } 
+  return NDBT_OK;
+}
+
+int runV2MultiWait_Push_Thd0(NDBT_Context* ctx, NDBT_Step* step)
+{
+  return runV2MultiWait_Producer(ctx, step, 0, 2);
+}
+
+int runV2MultiWait_Push_Thd1(NDBT_Context* ctx, NDBT_Step* step)
+{
+  return runV2MultiWait_Producer(ctx, step, 1, 2);
+}
+
+
+/* Consumer */
+int runV2MultiWait_WaitPop_Thread(NDBT_Context* ctx, NDBT_Step* step)
+{
+  static int iter = 0;  // keeps incrementing when test case is repeated
+  int records = ctx->getNumRecords();
+  const char * d[5] = { " fast"," slow"," slow",""," slow" };
+  const int timeout[3] = { 100, 1, 0 };
+  const int pct_wait[9] = { 0,0,0,50,50,50,100,100,100 };
+  for (int loop = 0; loop < V2_NLOOPS; loop++, iter++) 
+  {
+    ctx->incProperty("LOOP");
+    ndbout << "V2 test: " << d[loop&1] << d[loop&2] << d[loop&4];
+    ndbout << " " << timeout[iter%3] << "/" << pct_wait[iter%9] << endl;
+    bool slow = loop & 4; 
+    int nrec = 0;
+    while(nrec < records) 
+    {
+      /* Occasionally check with no timeout */
+      global_poll_group->wait(timeout[iter%3], pct_wait[iter%9]);
+      Ndb * ndb = global_poll_group->pop();
+      while(ndb) 
+      {
+        check(ndb->pollNdb(0, 1) != 0, (*ndb));
+        nrec++;
+        NdbTransaction *tx = (NdbTransaction *) ndb->getCustomData();
+        tx->close();
+        global_ndb_pool->recycleNdb(ndb);
+        ndb = global_poll_group->pop();
+      }
+      if(slow) 
+      {
+         NdbSleep_MilliSleep(myRandom48(6));
+      }  
+    }
+  }
+  ctx->stopTest();
+  global_ndb_pool->closeAll();
+  return NDBT_OK;
+}
+
+int runMiscUntilStopped(NDBT_Context* ctx, NDBT_Step* step){
+  int records = ctx->getNumRecords();
+  int i = 0;
+  Ndb * ndb = GETNDB(step);
+  HugoTransactions hugoTrans(*ctx->getTab());
+  while (ctx->isTestStopped() == false) {
+    int r = 0;
+    switch(i % 5) {
+      case 0:  // batch size = 2, random = 1
+        r = hugoTrans.pkReadRecords(ndb, records / 20, 2, 
+                                    NdbOperation::LM_Read, 1);
+        break;
+      case 1:
+        r = hugoTrans.pkUpdateRecords(ndb, records / 20);
+        break;
+      case 2:
+        r = hugoTrans.scanReadRecords(ndb, records);
+        break;
+      case 3:
+        r = hugoTrans.scanUpdateRecords(ndb, records / 10);
+        break;
+      case 4:
+        NdbSleep_MilliSleep(records);
+        break;
+    }
+    if(r != 0) return NDBT_FAILED;
+    i++;
+  }
+  ndbout << "V2 Test misc thread: " << i << " transactions" << endl;
+  return NDBT_OK;
+}
+
+int sleepAndStop(NDBT_Context* ctx, NDBT_Step* step){
+  sleep(20);
+  ctx->stopTest();
+  return NDBT_OK;
+}  
+
 NDBT_TESTSUITE(testAsynchMultiwait);
 TESTCASE("AsynchMultiwaitPkRead",
          "Verify NdbWaitGroup API (1 thread)") {
-  INITIALIZER(runSetup);
+  INITIALIZER(runSetup_v1);
   STEP(runPkReadMultiBasic);
   FINALIZER(runCleanup);
 }
 TESTCASE("AsynchMultiwaitWakeup",
          "Verify wait-multi-ndb wakeup Api code") {
-  INITIALIZER(runSetup);
+  INITIALIZER(runSetup_v1);
   TC_PROPERTY("PHASE", Uint32(0));
   STEP(runPkReadMultiWakeupT1);
   STEP(runPkReadMultiWakeupT2);
+  FINALIZER(runCleanup);
+}
+TESTCASE("AsynchMultiwait_Version2",
+         "Verify NdbWaitGroup API version 2") {
+  INITIALIZER(runSetup_v2);
+  TC_PROPERTY("LOOP", Uint32(0));
+  STEP(runV2MultiWait_Push_Thd0);
+  STEP(runV2MultiWait_Push_Thd1);  
+  STEP(runV2MultiWait_WaitPop_Thread);
+  STEP(runMiscUntilStopped);
+  FINALIZER(runCleanup);
+}
+TESTCASE("JustMisc", "Just run the Scan test") {
+  INITIALIZER(runSetup_v2);
+  STEP(runMiscUntilStopped);
+  STEP(sleepAndStop);
   FINALIZER(runCleanup);
 }
 NDBT_TESTSUITE_END(testAsynchMultiwait);
