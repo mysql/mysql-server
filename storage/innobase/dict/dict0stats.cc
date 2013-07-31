@@ -1579,7 +1579,7 @@ dict_stats_analyze_index_for_n_prefix(
 	     == !(REC_INFO_MIN_REC_FLAG & rec_get_info_bits(
 			  btr_pcur_get_rec(&pcur), page_is_comp(page))));
 
-	last_idx_on_level = boundaries->at(n_diff_for_this_prefix - 1);
+	last_idx_on_level = boundaries->at((unsigned int) (n_diff_for_this_prefix - 1));
 
 	rec_idx = 0;
 
@@ -1634,7 +1634,7 @@ dict_stats_analyze_index_for_n_prefix(
 		ib_uint64_t could be bigger than ulint */
 		rnd = (ib_uint64_t) ut_rnd_interval(0, (ulint) (right - left));
 
-		dive_below_idx = boundaries->at(left + rnd);
+		dive_below_idx = boundaries->at((unsigned int) (left + rnd));
 
 #if 0
 		DEBUG_PRINTF("    %s(): dive below record with index="

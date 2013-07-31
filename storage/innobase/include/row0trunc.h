@@ -42,8 +42,8 @@ public:
 				after truncate
 	@param dir_path		directory path */
 	truncate_t(
-		ulint		old_table_id,
-		ulint		new_table_id,
+		table_id_t		old_table_id,
+		table_id_t		new_table_id,
 		const char*	dir_path);
 
 	/**
