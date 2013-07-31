@@ -876,10 +876,10 @@ Update system table to reflect new table id.
 static __attribute__((warn_unused_result))
 dberr_t
 row_truncate_update_table_id(
-	ulint	old_table_id,
-	ulint	new_table_id,
-	ibool	reserve_dict_mutex,
-	trx_t*	trx)
+	table_id_t	old_table_id,
+	table_id_t	new_table_id,
+	ibool		reserve_dict_mutex,
+	trx_t*		trx)
 {
 	pars_info_t*	info	= NULL;
 	dberr_t		err	= DB_SUCCESS;
@@ -936,7 +936,7 @@ static __attribute__((warn_unused_result))
 dberr_t
 row_truncate_update_sys_tables_during_fix_up(
 	const truncate_t&	truncate,
-	ulint			new_table_id,
+	table_id_t		new_table_id,
 	ibool			reserve_dict_mutex,
 	bool			mark_index_corrupted)
 {
@@ -1669,8 +1669,8 @@ Constructor
 @param dir_path		directory path */
 
 truncate_t::truncate_t(
-	ulint		old_table_id,
-	ulint		new_table_id,
+	table_id_t	old_table_id,
+	table_id_t	new_table_id,
 	const char*	dir_path)
 	:
 	m_space_id(),

@@ -1238,7 +1238,7 @@ page_zip_compress(
 	ulint			n_blobs	= 0;
 	byte*			storage;	/* storage of uncompressed
 						columns */
-	ulint			ind_id;
+	index_id_t		ind_id;
 #ifndef UNIV_HOTBACKUP
 	ullint			usec = ut_time_us(NULL);
 #endif /* !UNIV_HOTBACKUP */
