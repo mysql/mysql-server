@@ -663,8 +663,9 @@ Warning	1365	Division by 0
 Warning	1048	Column 'data' cannot be null
 update t1 set data='envelope' where 1/0 or 1;
 affected rows: 2
-info: Rows matched: 2  Changed: 2  Warnings: 3
+info: Rows matched: 2  Changed: 2  Warnings: 4
 Warnings:
+Warning	1365	Division by 0
 Warning	1365	Division by 0
 Warning	1265	Data truncated for column 'data' at row 1
 Warning	1265	Data truncated for column 'data' at row 2

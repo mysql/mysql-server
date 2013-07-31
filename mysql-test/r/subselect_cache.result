@@ -3129,6 +3129,7 @@ WHERE table1 .`col_varchar_key` )	field10
 1	NULL	f
 Warnings:
 Warning	1292	Truncated incorrect DOUBLE value: 'f'
+Warning	1292	Truncated incorrect DOUBLE value: 'f'
 SET @@optimizer_switch = 'subquery_cache=on';
 /* cache is on */ SELECT COUNT( DISTINCT table2 .`col_int_key` ) , (
 SELECT SUBQUERY2_t1 .`col_int_key`
@@ -3143,6 +3144,7 @@ WHERE table1 .`col_varchar_key` )	field10
 1	NULL	d
 1	NULL	f
 Warnings:
+Warning	1292	Truncated incorrect DOUBLE value: 'f'
 Warning	1292	Truncated incorrect DOUBLE value: 'f'
 drop table t1,t2,t3,t4;
 set @@optimizer_switch= default;

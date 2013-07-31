@@ -4301,12 +4301,40 @@ Item_cond::fix_fields(THD *thd, Item **ref)
       return TRUE; /* purecov: inspected */
     used_tables_cache|=     item->used_tables();
     if (item->const_item())
-      and_tables_cache= (table_map) 0;
+    {
+      if (!item->is_expensive() && item->val_int() == 0)
+      {
+        /* 
+          This is "... OR false_cond OR ..." 
+          In this case, false_cond has no effect on cond_or->not_null_tables()
+        */
+      }
+      else
+      {
+        /* 
+          This is  "... OR const_cond OR ..."
+          In this case, cond_or->not_null_tables()=0, because the condition
+          some_cond_or might be true regardless of what tables are 
+          NULL-complemented.
+        */
+        and_tables_cache= (table_map) 0;
+      }
+    }
     else
     {
-      table_map tmp_table_map= item->not_null_tables();
-      not_null_tables_cache|= tmp_table_map;
-      and_tables_cache&= tmp_table_map;
+      /*
+        If an item is a 
+         - constant
+         - inexpensive 
+         - its value is 0
+        then we don't need to account it in not_null_tables_cache
+      */
+      //if (!(item->const_item() && !item->is_expensive() ))
+      {
+        table_map tmp_table_map= item->not_null_tables();
+        not_null_tables_cache|= tmp_table_map;
+        and_tables_cache&= tmp_table_map;
+      }
       const_item_cache= FALSE;
     } 
   
@@ -4334,7 +4362,25 @@ Item_cond::eval_not_null_tables(uchar *opt_arg)
   {
     table_map tmp_table_map;
     if (item->const_item())
-      and_tables_cache= (table_map) 0;
+    {
+      if (!item->is_expensive() && item->val_int() == 0)
+      {
+        /* 
+          This is "... OR false_cond OR ..." 
+          In this case, false_cond has no effect on cond_or->not_null_tables()
+        */
+      }
+      else
+      {
+        /* 
+          This is  "... OR const_cond OR ..."
+          In this case, cond_or->not_null_tables()=0, because the condition
+          some_cond_or might be true regardless of what tables are 
+          NULL-complemented.
+        */
+        and_tables_cache= (table_map) 0;
+      }
+    }
     else
     {
       tmp_table_map= item->not_null_tables();

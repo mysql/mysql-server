@@ -1592,6 +1592,8 @@ NULL
 Warnings:
 Warning	1411	Incorrect datetime value: '2007-20-00' for function str_to_date
 Warning	1411	Incorrect datetime value: '2007-20-00' for function str_to_date
+Warning	1411	Incorrect datetime value: '2007-20-00' for function str_to_date
+Warning	1411	Incorrect datetime value: '2007-20-00' for function str_to_date
 SELECT str_to_date('2007-10-00', '%Y-%m-%d') BETWEEN '' AND '2007/10/20';
 str_to_date('2007-10-00', '%Y-%m-%d') BETWEEN '' AND '2007/10/20'
 1

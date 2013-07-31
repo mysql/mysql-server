@@ -1670,4 +1670,21 @@ SELECT a.* FROM t1 a LEFT JOIN t1 b ON a.id = b.id
 
 DROP TABLE t1;
 
+--echo #
+--echo # MDEV-4817: Optimizer fails to optimize expression of the form 'FOO' IS NULL
+--echo #
+create table t0 (a int not null);
+insert into t0 values (0),(1),(2),(3),(4),(5),(6),(7),(8),(9);
+
+alter table t0 add person_id varchar(255) not null;
+create table t1 (pk int not null primary key);
+insert into t1 select A.a + 10*B.a from t0 A, t0 B;
+
+explain select * from t1 left join t0 on t0.a=t1.pk where t0.person_id='fooo' or 'xyz' IS NULL;
+explain select * from t1 left join t0 on t0.a=t1.pk where t0.person_id='fooo';
+explain select * from t1 left join t0 on t0.a=t1.pk where t0.person_id='fooo' or t0.person_id='bar';
+
+drop table t0, t1;
+
+
 SET optimizer_switch=@save_optimizer_switch;

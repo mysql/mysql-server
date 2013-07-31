@@ -1971,6 +1971,7 @@ MIN(t2.pk)
 NULL
 Warnings:
 Warning	1292	Truncated incorrect INTEGER value: 'j'
+Warning	1292	Truncated incorrect INTEGER value: 'j'
 
 EXPLAIN
 SELECT MIN(t2.pk)
@@ -1983,6 +1984,7 @@ id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
 1	PRIMARY	NULL	NULL	NULL	NULL	NULL	NULL	NULL	Impossible WHERE
 2	MATERIALIZED	t2	ALL	NULL	NULL	NULL	NULL	2	
 Warnings:
+Warning	1292	Truncated incorrect INTEGER value: 'j'
 Warning	1292	Truncated incorrect INTEGER value: 'j'
 
 #
