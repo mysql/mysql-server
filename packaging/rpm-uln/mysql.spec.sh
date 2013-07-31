@@ -664,6 +664,7 @@ rm -f ${RPM_BUILD_ROOT}%{_datadir}/mysql/mysql-log-rotate
 rm -f ${RPM_BUILD_ROOT}%{_datadir}/mysql/ChangeLog
 rm -f ${RPM_BUILD_ROOT}%{_mandir}/man1/mysql-stress-test.pl.1*
 rm -f ${RPM_BUILD_ROOT}%{_mandir}/man1/mysql-test-run.pl.1*
+rm -rf ${RPM_BUILD_ROOT}%{_datadir}/mysql/solaris
 
 mkdir -p $RPM_BUILD_ROOT/etc/ld.so.conf.d
 echo "%{_libdir}/mysql" > $RPM_BUILD_ROOT/etc/ld.so.conf.d/%{name}-%{_arch}.conf
@@ -980,6 +981,10 @@ fi
 %{_mandir}/man1/mysql_client_test.1*
 
 %changelog
+* Wed Jul 10 2013 Balasubramanian Kandasamy <balasubramanian.kandasamy@oracle.com>
+- Removed directory  /usr/share/mysql/solaris/postinstall-solaris to resolve build
+  error
+ 
 * Thu Dec  7 2012 Joerg Bruehe <joerg.bruehe@oracle.com>
 - Change the way in which "libmysqld.so" is created: Using all object modules
   was wrong, gcc / ld can resolve the dependencies from "libmysqld.a".
