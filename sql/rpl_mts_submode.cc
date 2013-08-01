@@ -320,7 +320,7 @@ Mts_submode_logical_clock::assign_group(Relay_log_info* rli,
                                             Log_event *ev)
 {
   bool var_events= false;
-  int64 commit_seq_no= SEQ_UNINIT;
+  commit_seq_no= SEQ_UNINIT;
   /*
     A group id updater must satisfy the following:
       - A query log event ("BEGIN" ) or a GTID EVENT
@@ -418,7 +418,7 @@ Mts_submode_logical_clock::schedule_next_event(Relay_log_info* rli,
   if (assign_group(rli, ev))
     DBUG_RETURN (ER_MTS_CANT_PARALLEL);
 
-  if (ev->get_type_code() == GTID_LOG_EVENT)
+  if (commit_seq_no == SEQ_UNINIT)
   {
     rli->mts_group_status= Relay_log_info::MTS_IN_GROUP;
     DBUG_RETURN (0);
