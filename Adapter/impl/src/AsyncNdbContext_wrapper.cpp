@@ -114,5 +114,7 @@ void AsyncNdbContext_initOnLoad(Handle<Object> target) {
   DEFINE_JS_METHOD(JsAsyncNdbContext, "delete", destroy);
   DEFINE_JS_CONSTRUCTOR(target, "AsyncNdbContext", JsAsyncNdbContext);
   DEFINE_JS_CONSTANT(target, MULTIWAIT_ENABLED);
+#ifdef USE_OLD_MULTIWAIT_API
   DEFINE_JS_CONSTANT(target, USE_OLD_MULTIWAIT_API);
+#endif
 }
