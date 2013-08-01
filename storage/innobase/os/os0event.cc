@@ -184,7 +184,7 @@ struct os_event {
 		ib_int64_t	reset_sig_count) UNIV_NOTHROW;
 
 	/** @return true if the event is in the signalled state. */
-	const bool is_set() const UNIV_NOTHROW
+	bool is_set() const UNIV_NOTHROW
 	{
 		return(m_set);
 	}

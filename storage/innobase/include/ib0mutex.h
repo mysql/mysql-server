@@ -831,7 +831,7 @@ private:
 	@return number of spins */
 	ulint ttas(ulint max_spins, ulint max_delay, ulint i) const UNIV_NOTHROW
 	{
-		ut_ad(i >= 0 && i < max_spins);
+		ut_ad(i < max_spins);
 
 		/* Spin waiting for the lock word to become zero. Note
 		that we do not have to assume that the read access to
