@@ -198,3 +198,11 @@ SELECT COUNT(*) FROM t1;
 
 DROP TABLE t1;
 
+--echo #
+--echo # MDEV-4823 Server crashes in Item_func_not::fix_fields on
+--echo # creating a table with a virtual column using NOT
+--echo #
+CREATE TABLE t1 ( f1 INT, v4 INT AS ( NOT f1 ) VIRTUAL );
+drop table t1;
+
+--echo # end of 5.2 tests
