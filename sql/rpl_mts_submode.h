@@ -120,6 +120,7 @@ private:
    */
   bool is_new_group;
   uint delegated_jobs;
+  int64 commit_seq_no;
 public:
   bool defer_new_group;
   uint jobs_done;
