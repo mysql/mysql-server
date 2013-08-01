@@ -158,6 +158,8 @@ struct SyncCheck {
 	typedef std::map<os_thread_id_t, Latches*, os_thread_id_less> ThreadMap;
 
 	SyncCheck()
+		:
+		m_enabled()
 	{
 		new (&m_mutex) SyncMutex();
 	}
@@ -473,6 +475,8 @@ SyncCheck::check_order(const latch_t* latch)
 			upgrading in innobase_start_or_create_for_mysql(). */
 			break;
 		}
+
+		/* Fall through */
 
 	case SYNC_MEM_POOL:
 	case SYNC_MEM_HASH:
