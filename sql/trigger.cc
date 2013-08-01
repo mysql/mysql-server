@@ -314,11 +314,13 @@ Trigger *Trigger::create_from_parser(THD *thd,
                        dd_create_trigger_stmt.length()))
     return NULL;
 
-  // Calculate timestamp as milliseconds elapsed from 1 Jan 1970 00:00:00.
-
+  /*
+    Calculate time stamp up to tenths of milliseconds elapsed
+    from 1 Jan 1970 00:00:00.
+  */
   struct timeval cur_time= thd->query_start_timeval_trunc(2);
-  longlong created_timestamp= static_cast<longlong>(cur_time.tv_sec) * 1000 +
-                              cur_time.tv_usec / 1000;
+  longlong created_timestamp= static_cast<longlong>(cur_time.tv_sec) * 100 +
+                              (cur_time.tv_usec / 10000);
 
   // Create a new Trigger instance.
 
