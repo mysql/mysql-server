@@ -96,25 +96,3 @@ TTASEventMutex<Policy>::signal() UNIV_NOTHROW
 
 	sync_array_object_signalled();
 }
-
-#if 0
-#include "sync0sync.h"
-
-/**
-Initialise the mutex.
-
-@param name - mutex name
-@param filename - file where created
-@param line - line number in file where created */
-
-template <typename MutexImpl>
-void PolicyMutex<MutexImpl>::init(
-	const char*	name,
-	const char*	filename,
-	ulint		line)
-{
-	// FIXME: Call the impl, which should call the policy.
-	m_impl.init(name);
-	m_impl.m_policy.init(m_impl, name, filename, line);
-}
-#endif

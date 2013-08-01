@@ -96,8 +96,4 @@ void mutex_destroy(
 	mutex->destroy();
 }
 
-#ifndef UNIV_NONINL
-#include "sync0mutex.ic"
-#endif /* !UNIV_NOINL */
-
 #endif /* !sync0mutex_h */

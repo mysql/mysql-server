@@ -112,7 +112,8 @@ Get the latch name from a sync level.
 @return 0 if not found. */
 
 const char*
-sync_latch_get_name(latch_level_t level) __attribute__((warn_unused_result));
+sync_latch_get_name(latch_level_t level)
+	__attribute__((warn_unused_result));
 
 #ifdef UNIV_PFS_MUTEX
 /**
