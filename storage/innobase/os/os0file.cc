@@ -2355,7 +2355,7 @@ Does a syncronous read or write depending upon the type specified
 In case of partial reads/writes the function tries
 NUM_RETRIES_ON_PARTIAL_IO times to read/write the complete data.
 @return number of bytes read/written, -1 if error */
-static __attribute__((nonnull, warn_unused_result))
+static __attribute__((warn_unused_result))
 ssize_t
 os_file_io(
 /*==========*/
@@ -2437,7 +2437,7 @@ os_file_io(
 /*******************************************************************//**
 Does a synchronous read operation in Posix.
 @return number of bytes read, -1 if error */
-static __attribute__((nonnull, warn_unused_result))
+static __attribute__((warn_unused_result))
 ssize_t
 os_file_pread(
 /*==========*/
@@ -2533,7 +2533,7 @@ os_file_pread(
 /*******************************************************************//**
 Does a synchronous write operation in Posix.
 @return number of bytes written, -1 if error */
-static __attribute__((nonnull, warn_unused_result))
+static __attribute__((warn_unused_result))
 ssize_t
 os_file_pwrite(
 /*===========*/
@@ -2552,18 +2552,40 @@ os_file_pwrite(
 	64-bit address */
 	offs = (off_t) offset;
 
-	if (sizeof(off_t) <= 4) {
-		if (offset != (os_offset_t) offs) {
-			ib_logf(IB_LOG_LEVEL_ERROR,
-				"file write at offset > 4 GB.");
-		}
+	if (sizeof(off_t) <= 4 && offset != (os_offset_t) offs) {
+		ib_logf(IB_LOG_LEVEL_ERROR, "file write at offset > 4 GB.");
 	}
 
 	os_n_file_writes++;
 
 #if defined(HAVE_PWRITE)
 
-	written_bytes = os_file_io(file, (void*) buf, n, offs, OS_FILE_WRITE);
+#ifdef HAVE_ATOMIC_BUILTINS
+	(void) os_atomic_increment_ulint(&os_n_pending_writes, 1);
+	(void) os_atomic_increment_ulint(&os_file_n_pending_pwrites, 1);
+	MONITOR_ATOMIC_INC(MONITOR_OS_PENDING_WRITES);
+#else
+	mutex_enter(&os_file_count_mutex);
+	os_file_n_pending_pwrites++;
+	os_n_pending_writes++;
+	MONITOR_INC(MONITOR_OS_PENDING_WRITES);
+	mutex_exit(&os_file_count_mutex);
+#endif /* HAVE_ATOMIC_BUILTINS */
+
+	written_bytes = os_file_io(
+		file, (void*) buf, n, offs, OS_FILE_WRITE);
+
+#ifdef HAVE_ATOMIC_BUILTINS
+	(void) os_atomic_decrement_ulint(&os_n_pending_writes, 1);
+	(void) os_atomic_decrement_ulint(&os_file_n_pending_pwrites, 1);
+	MONITOR_ATOMIC_DEC(MONITOR_OS_PENDING_WRITES);
+#else
+	mutex_enter(&os_file_count_mutex);
+	os_file_n_pending_pwrites--;
+	os_n_pending_writes--;
+	MONITOR_DEC(MONITOR_OS_PENDING_WRITES);
+	mutex_exit(&os_file_count_mutex);
+#endif /* HAVE_ATOMIC_BUILTINS */
 
 	return(written_bytes);
 #else /* HAVE_PWRITE */
@@ -2571,6 +2593,11 @@ os_file_pwrite(
 # ifndef UNIV_HOTBACKUP
 		ulint	i;
 # endif /* !UNIV_HOTBACKUP */
+
+		mutex_enter(&os_file_count_mutex);
+		os_n_pending_writes++;
+		MONITOR_INC(MONITOR_OS_PENDING_WRITES);
+		mutex_exit(&os_file_count_mutex);
 
 # ifndef UNIV_HOTBACKUP
 		/* Protect the seek / write operation with a mutex */
@@ -2585,6 +2612,11 @@ os_file_pwrite(
 # ifndef UNIV_HOTBACKUP
 		mutex_exit(os_file_seek_mutexes[i]);
 # endif /* !UNIV_HOTBACKUP */
+
+		mutex_enter(&os_file_count_mutex);
+		os_n_pending_writes--;
+		MONITOR_DEC(MONITOR_OS_PENDING_WRITES);
+		mutex_exit(&os_file_count_mutex);
 
 		return(written_bytes);
 	}
