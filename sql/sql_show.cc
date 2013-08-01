@@ -5711,10 +5711,7 @@ static bool store_trigger(THD *thd, TABLE *table, Trigger *trigger)
 
   if (!trigger->is_created_timestamp_null())
   {
-    timeval epoche_timestamp;
-    ulonglong created_timestamp= trigger->get_created_timestamp();
-    epoche_timestamp.tv_sec= created_timestamp / 1000;
-    epoche_timestamp.tv_usec= (created_timestamp % 1000) * 1000;
+    timeval epoche_timestamp= trigger->get_created_timestamp();
 
     table->field[16]->set_notnull();
     table->field[16]->store_timestamp(&epoche_timestamp);
@@ -8316,12 +8313,9 @@ static bool show_create_trigger_impl(THD *thd, Trigger *trigger)
 
   if (!trigger->is_created_timestamp_null())
   {
-    timeval epoche_timestamp;
-    longlong created_timestamp= trigger->get_created_timestamp();
-    epoche_timestamp.tv_sec= created_timestamp / 1000;
-    epoche_timestamp.tv_usec= (created_timestamp % 1000) * 1000;
     MYSQL_TIME timestamp;
-    my_tz_SYSTEM->gmt_sec_to_TIME(&timestamp, epoche_timestamp);
+    my_tz_SYSTEM->gmt_sec_to_TIME(&timestamp,
+                                  trigger->get_created_timestamp());
     p->store(&timestamp, 2);
   }
   else
