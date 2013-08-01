@@ -225,7 +225,7 @@ private:
 	}
 
 	/**
-	Wakes all threads  waiting for condition variable */
+	Wakes all threads waiting for condition variable */
 	void broadcast() UNIV_NOTHROW
 	{
 		m_set = true;

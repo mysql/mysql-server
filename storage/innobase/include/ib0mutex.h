@@ -501,7 +501,7 @@ private:
 
 			if (!is_locked()) {
 				lock_word_t	lock = trylock();
-				
+
 				if (lock == MUTEX_STATE_UNLOCKED) {
 					/* Lock successful */
 					return(lock);

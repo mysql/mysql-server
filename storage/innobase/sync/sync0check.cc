@@ -33,7 +33,7 @@ Created 2012-08-21 Sunny Bains
 
 #ifdef UNIV_NONINL
 #include "sync0check.ic"
-#endif
+#endif /* UNIV_NONINL */
 
 #include "sync0rw.h"
 #include "sync0mutex.h"
@@ -317,8 +317,6 @@ void
 SyncCheck::crash(const latch_t* latch, latch_level_t level)
 	const UNIV_NOTHROW
 {
-	//mutex_own(&m_mutex);
-
 	ib_logf(IB_LOG_LEVEL_ERROR,
 		"Thread already owns a latch (\"%s\" : %lu), "
 		"with a lower level than (\"%s\" : %lu).",
@@ -339,8 +337,6 @@ SyncCheck::basic_check(const Latches* latches, ulint lvl)
 {
 	latch_level_t	level = latch_level_t(lvl);
 
-	//ut_ad(mutex_own(&m_mutex));
-
 	const latch_t*	latch = less(latches, level);
 
 	if (latch != 0) {
@@ -357,8 +353,6 @@ Create a new instance if one doesn't exist else return the existing one.
 Latches*
 SyncCheck::thread_latches(bool add) UNIV_NOTHROW
 {
-	//ut_ad(mutex_own(&m_mutex));
-
 	os_thread_id_t	thread_id = os_thread_get_curr_id();
 
 	ThreadMap::iterator lb = m_threads.lower_bound(thread_id);
@@ -396,8 +390,6 @@ SyncCheck::less(
 	const Latches*	latches,
 	latch_level_t	limit) const UNIV_NOTHROW
 {
-	//ut_ad(mutex_own(&m_mutex));
-
 	Latches::const_iterator	end = latches->end();
 
 	for (Latches::const_iterator it = latches->begin(); it != end; ++it) {
@@ -420,8 +412,6 @@ SyncCheck::find(
 	const Latches*	latches,
 	latch_level_t	level) const UNIV_NOTHROW
 {
-	//ut_ad(mutex_own(&m_mutex));
-
 	Latches::const_iterator	end = latches->end();
 
 	for (Latches::const_iterator it = latches->begin(); it != end; ++it) {
@@ -442,7 +432,6 @@ const latch_t*
 SyncCheck::find(latch_level_t level) UNIV_NOTHROW
 {
 	ut_ad(m_enabled);
-	//ut_ad(mutex_own(&m_mutex));
 
 	return(find(thread_latches(), level));
 }
@@ -1045,10 +1034,9 @@ sync_check_init()
 
 	ut_a(SrvLatches == 0);
 	SrvLatches = new(std::nothrow) LatchMap();
+	ut_ad(SrvLatches != NULL);
 
 	sync_latch_meta_init();
-
-	/* Init the mutex list and create the mutex to protect it. */
 
 	/* Init the rw-lock list and create the mutex to protect it. */
 

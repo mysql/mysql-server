@@ -41,7 +41,6 @@ The event of the cell is reset to nonsignalled state. */
 
 sync_cell_t*
 sync_array_reserve_cell(
-/*====================*/
 	sync_array_t*	arr,	/*!< in: wait array */
 	void*		object, /*!< in: pointer to the object to wait for */
 	ulint		type,	/*!< in: lock request type */
@@ -56,7 +55,6 @@ case prints info and asserts. */
 
 void
 sync_array_wait_event(
-/*==================*/
 	sync_array_t*	arr,	/*!< in: wait array */
 	sync_cell_t*&	cell);	/*!< in: the reserved cell */
 
@@ -66,7 +64,6 @@ automatically! */
 
 void
 sync_array_free_cell(
-/*=================*/
 	sync_array_t*	arr,	/*!< in: wait array */
 	sync_cell_t*&	cell);	/*!< in: the reserved cell */
 
@@ -75,7 +72,6 @@ Note that one of the wait objects was signalled. */
 
 void
 sync_array_object_signalled();
-/*=========================*/
 
 /**********************************************************************//**
 If the wakeup algorithm does not work perfectly at semaphore relases,
@@ -84,7 +80,6 @@ function should be called about every 1 second in the server. */
 
 void
 sync_arr_wake_threads_if_sema_free();
-/*====================================*/
 
 /**********************************************************************//**
 Prints warnings of long semaphore waits to stderr.
@@ -92,10 +87,8 @@ Prints warnings of long semaphore waits to stderr.
 
 ibool
 sync_array_print_long_waits(
-/*========================*/
 	os_thread_id_t*	waiter,	/*!< out: longest waiting thread */
-	const void**	sema)	/*!< out: longest-waited-for semaphore */
-	__attribute__((nonnull));
+	const void**	sema);	/*!< out: longest-waited-for semaphore */
 
 /********************************************************************//**
 Validates the integrity of the wait array. Checks
@@ -103,7 +96,6 @@ that the number of reserved cells equals the count variable. */
 
 void
 sync_array_validate(
-/*================*/
 	sync_array_t*	arr);	/*!< in: sync wait array */
 
 /**********************************************************************//**
@@ -111,7 +103,6 @@ Prints info of the wait array. */
 
 void
 sync_array_print(
-/*=============*/
 	FILE*		file);	/*!< in: file where to print */
 
 /**********************************************************************//**
@@ -119,7 +110,6 @@ Create the primary system wait array(s), they are protected by an OS mutex */
 
 void
 sync_array_init(
-/*============*/
 	ulint		n_threads);	/*!< in: Number of slots to create */
 
 /**********************************************************************//**
@@ -127,14 +117,12 @@ Close sync array wait sub-system. */
 
 void
 sync_array_close();
-/*==============*/
 
 /**********************************************************************//**
 Get an instance of the sync wait array. */
 UNIV_INLINE
 sync_array_t*
 sync_array_get();
-/*=============*/
 
 #ifndef UNIV_NONINL
 #include "sync0arr.ic"
