@@ -1,5 +1,5 @@
 /*****************************************************************************
-Copyright (c) 1995, 2012, Oracle and/or its affiliates. All Rights Reserved.
+Copyright (c) 1995, 2013, Oracle and/or its affiliates. All Rights Reserved.
 Copyright (c) 2008, Google Inc.
 
 Portions of this file contain modifications contributed and copyrighted by
@@ -26,7 +26,7 @@ this program; if not, write to the Free Software Foundation, Inc.,
 @file include/os0atomic.h
 Macros for using atomics
 
-Created 2012-09-23 Sunny Bains (Split from os0event.h)
+Created 2012-09-23 Sunny Bains (Split from os0sync.h)
 *******************************************************/
 
 #ifndef os0atomic_h

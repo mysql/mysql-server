@@ -1,5 +1,5 @@
 /*****************************************************************************
-Copyright (c) 1995, 2012, Oracle and/or its affiliates. All Rights Reserved.
+Copyright (c) 1995, 2013, Oracle and/or its affiliates. All Rights Reserved.
 
 This program is free software; you can redistribute it and/or modify it under
 the terms of the GNU General Public License as published by the Free Software
@@ -19,7 +19,7 @@ this program; if not, write to the Free Software Foundation, Inc.,
 @file include/os0event.h
 The interface to the operating system condition variables
 
-Created 2012-09-23 Sunny bains (split from os0event.h)
+Created 2012-09-23 Sunny Bains (split from os0sync.h)
 *******************************************************/
 
 #ifndef os0event_h
