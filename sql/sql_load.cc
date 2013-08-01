@@ -930,6 +930,33 @@ continue_loop:;
 }
 
 
+class Field_tmp_nullability_guard
+{
+public:
+  explicit Field_tmp_nullability_guard(Item *item)
+   :m_field(NULL)
+  {
+    if (item->type() == Item::FIELD_ITEM)
+    {
+      m_field= ((Item_field *) item)->field;
+      /*
+        Enable temporary nullability for items that corresponds
+        to table fields.
+      */
+      m_field->set_tmp_nullable();
+    }
+  }
+
+  ~Field_tmp_nullability_guard()
+  {
+    if (m_field)
+      m_field->reset_tmp_nullable();
+  }
+
+private:
+  Field *m_field;
+};
+
 
 static int
 read_sep_field(THD *thd, COPY_INFO &info, TABLE_LIST *table_list,
@@ -984,12 +1011,7 @@ read_sep_field(THD *thd, COPY_INFO &info, TABLE_LIST *table_list,
 
       real_item= item->real_item();
 
-      /*
-        Enable temporary nullability for items that corresponds
-        to table fields.
-      */
-      if (real_item->type() == Item::FIELD_ITEM)
-        ((Item_field *)real_item)->field->set_tmp_nullable();
+      Field_tmp_nullability_guard fld_tmp_nullability_guard(real_item);
 
       if ((!read_info.enclosed &&
 	  (enclosed_length && length == 4 &&
@@ -1113,16 +1135,6 @@ read_sep_field(THD *thd, COPY_INFO &info, TABLE_LIST *table_list,
           DBUG_RETURN(1);
         }
       }
-    }
-
-    // Clear temporary nullability flags for every field in the table.
-
-    it.rewind();
-    while ((item= it++))
-    {
-      Item *real_item= item->real_item();
-      if (real_item->type() == Item::FIELD_ITEM)
-        ((Item_field *)real_item)->field->reset_tmp_nullable();
     }
 
     if (thd->killed ||
