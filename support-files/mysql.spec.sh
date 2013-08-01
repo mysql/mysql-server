@@ -288,6 +288,8 @@ Group:          Applications/Databases
 Requires:       %{distro_requires}
 %if 0%{?commercial}
 Obsoletes:      MySQL-server
+%else
+Obsoletes:      MySQL-server-advanced
 %endif
 Obsoletes:      mysql-server mysql-advanced mysql-server-advanced
 Obsoletes:      MySQL-server-classic MySQL-server-community MySQL-server-enterprise
@@ -323,6 +325,8 @@ Summary:        MySQL - Client
 Group:          Applications/Databases
 %if 0%{?commercial}
 Obsoletes:      MySQL-client
+%else
+Obsoletes:      MySQL-client-advanced
 %endif
 Obsoletes:      mysql < %{version}-%{release}
 Obsoletes:      mysql-advanced < %{version}-%{release}
@@ -340,10 +344,11 @@ For a description of MySQL see the base MySQL RPM or http://www.mysql.com/
 Summary:        MySQL - Test suite
 Group:          Applications/Databases
 %if 0%{?commercial}
-Obsoletes:      MySQL-test
 Requires:       MySQL-client-advanced perl
+Obsoletes:      MySQL-test
 %else
 Requires:       MySQL-client perl
+Obsoletes:      MySQL-test-advanced
 %endif
 Obsoletes:      mysql-test mysql-test-advanced
 Obsoletes:      MySQL-test-classic MySQL-test-community MySQL-test-enterprise
@@ -361,6 +366,8 @@ Summary:        MySQL - Development header files and libraries
 Group:          Applications/Databases
 %if 0%{?commercial}
 Obsoletes:      MySQL-devel
+%else
+Obsoletes:      MySQL-devel-advanced
 %endif
 Obsoletes:      mysql-devel mysql-embedded-devel mysql-devel-advanced mysql-embedded-devel-advanced
 Obsoletes:      MySQL-devel-classic MySQL-devel-community MySQL-devel-enterprise
@@ -378,6 +385,8 @@ Summary:        MySQL - Shared libraries
 Group:          Applications/Databases
 %if 0%{?commercial}
 Obsoletes:      MySQL-shared
+%else
+Obsoletes:      MySQL-shared-advanced
 %endif
 Obsoletes:      MySQL-shared-standard MySQL-shared-pro
 Obsoletes:      MySQL-shared-pro-cert MySQL-shared-pro-gpl
@@ -394,10 +403,11 @@ and applications need to dynamically load and use MySQL.
 Summary:        MySQL - Embedded library
 Group:          Applications/Databases
 %if 0%{?commercial}
-Obsoletes:      MySQL-embedded
 Requires:       MySQL-devel-advanced
+Obsoletes:      MySQL-embedded
 %else
 Requires:       MySQL-devel
+Obsoletes:      MySQL-embedded-advanced
 %endif
 Obsoletes:      mysql-embedded mysql-embedded-advanced
 Obsoletes:      MySQL-embedded-pro

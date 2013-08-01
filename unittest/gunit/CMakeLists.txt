@@ -252,6 +252,7 @@ SET(TESTS
   sql_string
   stdcxx
   strings_skip_trailing
+  strtoll
   thread_utils
   )
   
