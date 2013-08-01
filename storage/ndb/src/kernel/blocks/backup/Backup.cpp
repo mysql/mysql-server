@@ -4447,6 +4447,7 @@ Backup::OperationRecord::scanConf(Uint32 noOfOps, Uint32 total_len)
   dataBuffer.updateWritePtr(len);
   noOfBytes += (len << 2);
   m_bytes_total += (len << 2);
+  m_records_total += noOfOps;
   return true;
 }
 
