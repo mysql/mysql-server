@@ -539,7 +539,9 @@ pfs_rw_lock_create_func(
 					performance schema */
 	rw_lock_t*	lock,		/*!< in: pointer to memory */
 # ifdef UNIV_DEBUG
+# ifdef UNIV_SYNC_DEBUG
 	latch_level_t	level,		/*!< in: level */
+# endif /* UNIV_SYNC_DEBUG */
 	const char*	cmutex_name,	/*!< in: mutex name */
 # endif /* UNIV_DEBUG */
 	const char*	cfile_name,	/*!< in: file name where created */

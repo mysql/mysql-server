@@ -113,6 +113,8 @@ struct DebugPolicy : public TrackPolicy<Mutex> {
 		:
 		m_track(track),
 		m_thread_id(),
+		m_file_name(),
+		m_line(),
 		m_magic_n() UNIV_NOTHROW
 	{
 		/* No op */
