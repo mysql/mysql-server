@@ -76,6 +76,7 @@ function registerDefaultTypeConverters(dbConnectionPool) {
   dbConnectionPool.registerTypeConverter("DATETIME", DatetimeConverter);
   dbConnectionPool.registerTypeConverter("TIME", TimeConverter);
   dbConnectionPool.registerTypeConverter("DATE", DateConverter);
+  // TODO: converter for Timestamp microseconds <==> JS Date 
 }
 
 
