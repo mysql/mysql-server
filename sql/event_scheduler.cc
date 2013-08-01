@@ -317,7 +317,7 @@ Event_worker_thread::run(THD *thd, Event_queue_element_for_exec *event)
 
 #ifdef HAVE_PSI_STATEMENT_INTERFACE
   PSI_statement_locker_state state;
-  DBUG_ASSERT(thd->m_statement_psi);
+  DBUG_ASSERT(thd->m_statement_psi == NULL);
   thd->m_statement_psi= MYSQL_START_STATEMENT(& state,
                                               event->get_psi_info()->m_key,
                                               event->dbname.str,
