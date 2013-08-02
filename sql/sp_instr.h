@@ -86,7 +86,9 @@ public:
     @return Error status.
   */
   virtual bool execute(THD *thd, uint *nextp) = 0;
+#ifdef HAVE_PSI_INTERFACE
   virtual PSI_statement_info* get_psi_info() = 0;
+#endif
 
   uint get_ip() const
   { return m_ip; }
@@ -450,6 +452,7 @@ private:
   /// Specify if the stored LEX-object is up-to-date.
   bool m_valid;
 
+#ifdef HAVE_PSI_INTERFACE
 public:
   virtual PSI_statement_info* get_psi_info()
   {
@@ -457,6 +460,7 @@ public:
   }
 
   static PSI_statement_info psi_info;
+#endif
 };
 
 ///////////////////////////////////////////////////////////////////////////
@@ -519,12 +523,14 @@ private:
   /// SQL-query corresponding to the value expression.
   LEX_STRING m_value_query;
 
+#ifdef HAVE_PSI_INTERFACE
 public:
   static PSI_statement_info psi_info;
   virtual PSI_statement_info* get_psi_info()
   {
     return & psi_info;
   }
+#endif
 };
 
 ///////////////////////////////////////////////////////////////////////////
@@ -587,6 +593,7 @@ private:
   /// SQL-query corresponding to the value expression.
   LEX_STRING m_value_query;
 
+#ifdef HAVE_PSI_INTERFACE
 public:
   virtual PSI_statement_info* get_psi_info()
   {
@@ -594,6 +601,7 @@ public:
   }
 
   static PSI_statement_info psi_info;
+#endif
 };
 
 ///////////////////////////////////////////////////////////////////////////
@@ -668,6 +676,7 @@ private:
   /// RETURN-field type code.
   enum enum_field_types m_return_field_type;
 
+#ifdef HAVE_PSI_INTERFACE
 public:
   virtual PSI_statement_info* get_psi_info()
   {
@@ -675,6 +684,7 @@ public:
   }
 
   static PSI_statement_info psi_info;
+#endif
 };
 
 ///////////////////////////////////////////////////////////////////////////
@@ -751,6 +761,7 @@ protected:
   // The following attribute is used by SP-optimizer.
   sp_instr *m_optdest;
 
+#ifdef HAVE_PSI_INTERFACE
 public:
   virtual PSI_statement_info* get_psi_info()
   {
@@ -758,6 +769,7 @@ public:
   }
 
   static PSI_statement_info psi_info;
+#endif
 };
 
 ///////////////////////////////////////////////////////////////////////////
@@ -906,6 +918,7 @@ public:
     return false;
   }
 
+#ifdef HAVE_PSI_INTERFACE
 public:
   virtual PSI_statement_info* get_psi_info()
   {
@@ -913,6 +926,7 @@ public:
   }
 
   static PSI_statement_info psi_info;
+#endif
 };
 
 ///////////////////////////////////////////////////////////////////////////
@@ -995,6 +1009,7 @@ private:
   /// Identifier (index) of the CASE-expression in the runtime context.
   uint m_case_expr_id;
 
+#ifdef HAVE_PSI_INTERFACE
 public:
   virtual PSI_statement_info* get_psi_info()
   {
@@ -1002,6 +1017,7 @@ public:
   }
 
   static PSI_statement_info psi_info;
+#endif
 };
 
 ///////////////////////////////////////////////////////////////////////////
@@ -1086,6 +1102,7 @@ private:
   */
   Item *m_eq_item;
 
+#ifdef HAVE_PSI_INTERFACE
 public:
   virtual PSI_statement_info* get_psi_info()
   {
@@ -1093,6 +1110,7 @@ public:
   }
 
   static PSI_statement_info psi_info;
+#endif
 };
 
 ///////////////////////////////////////////////////////////////////////////
@@ -1167,6 +1185,7 @@ private:
   // debug version only). It's used in print().
   uint m_frame;
 
+#ifdef HAVE_PSI_INTERFACE
 public:
   virtual PSI_statement_info* get_psi_info()
   {
@@ -1174,6 +1193,7 @@ public:
   }
 
   static PSI_statement_info psi_info;
+#endif
 };
 
 ///////////////////////////////////////////////////////////////////////////
@@ -1198,6 +1218,7 @@ public:
 
   virtual bool execute(THD *thd, uint *nextp);
 
+#ifdef HAVE_PSI_INTERFACE
 public:
   virtual PSI_statement_info* get_psi_info()
   {
@@ -1205,6 +1226,7 @@ public:
   }
 
   static PSI_statement_info psi_info;
+#endif
 };
 
 ///////////////////////////////////////////////////////////////////////////
@@ -1240,6 +1262,7 @@ private:
   // debug version only). It's used in print().
   uint m_frame;
 
+#ifdef HAVE_PSI_INTERFACE
 public:
   virtual PSI_statement_info* get_psi_info()
   {
@@ -1247,6 +1270,7 @@ public:
   }
 
   static PSI_statement_info psi_info;
+#endif
 };
 
 ///////////////////////////////////////////////////////////////////////////
@@ -1345,6 +1369,7 @@ private:
   /// Used to identify the cursor in the sp_rcontext.
   int m_cursor_idx;
 
+#ifdef HAVE_PSI_INTERFACE
 public:
   virtual PSI_statement_info* get_psi_info()
   {
@@ -1352,6 +1377,7 @@ public:
   }
 
   static PSI_statement_info psi_info;
+#endif
 };
 
 ///////////////////////////////////////////////////////////////////////////
@@ -1383,6 +1409,7 @@ public:
 private:
   uint m_count;
 
+#ifdef HAVE_PSI_INTERFACE
 public:
   virtual PSI_statement_info* get_psi_info()
   {
@@ -1390,6 +1417,7 @@ public:
   }
 
   static PSI_statement_info psi_info;
+#endif
 };
 
 ///////////////////////////////////////////////////////////////////////////
@@ -1422,6 +1450,7 @@ private:
   /// Used to identify the cursor in the sp_rcontext.
   int m_cursor_idx;
 
+#ifdef HAVE_PSI_INTERFACE
 public:
   virtual PSI_statement_info* get_psi_info()
   {
@@ -1429,6 +1458,7 @@ public:
   }
 
   static PSI_statement_info psi_info;
+#endif
 };
 
 ///////////////////////////////////////////////////////////////////////////
@@ -1462,6 +1492,7 @@ private:
   /// Used to identify the cursor in the sp_rcontext.
   int m_cursor_idx;
 
+#ifdef HAVE_PSI_INTERFACE
 public:
   virtual PSI_statement_info* get_psi_info()
   {
@@ -1469,6 +1500,7 @@ public:
   }
 
   static PSI_statement_info psi_info;
+#endif
 };
 
 ///////////////////////////////////////////////////////////////////////////
@@ -1508,6 +1540,7 @@ private:
   /// Used to identify the cursor in the sp_rcontext.
   int m_cursor_idx;
 
+#ifdef HAVE_PSI_INTERFACE
 public:
   virtual PSI_statement_info* get_psi_info()
   {
@@ -1515,6 +1548,7 @@ public:
   }
 
   static PSI_statement_info psi_info;
+#endif
 };
 
 ///////////////////////////////////////////////////////////////////////////
@@ -1560,6 +1594,7 @@ private:
   /// The error code, which should be raised by this instruction.
   int m_errcode;
 
+#ifdef HAVE_PSI_INTERFACE
 public:
   virtual PSI_statement_info* get_psi_info()
   {
@@ -1567,6 +1602,7 @@ public:
   }
 
   static PSI_statement_info psi_info;
+#endif
 };
 
 ///////////////////////////////////////////////////////////////////////////
