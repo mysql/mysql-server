@@ -60,6 +60,7 @@
     NULL
 #endif
 
+#ifdef HAVE_PSI_SP_INTERFACE
 /**
   Enum values for the various OBJECT_TYPE.
 */
@@ -105,4 +106,6 @@ inline_mysql_get_sp_share(uint object_type,
                                    schema_name, shcema_name_length,
                                    object_name, object_name_length);
 }
+#endif
+
 #endif
