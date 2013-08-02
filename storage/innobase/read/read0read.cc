@@ -311,8 +311,6 @@ ReadView::ids_t::insert(value_type value)
 		ulint	n_elems = std::distance(ub, end);
 		ulint	n = n_elems * sizeof(value_type);
 
-		fprintf(stderr, "n_elems: %lu, n: %lu\n", n_elems, n);
-
 		/* Note: Copying overlapped memory locations. */
 		::memmove(ub + 1, ub, n);
 
