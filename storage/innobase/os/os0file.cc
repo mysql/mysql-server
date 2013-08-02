@@ -285,7 +285,7 @@ time_t	os_last_printout;
 
 ibool	os_has_said_disk_full	= FALSE;
 
-#if !defined(UNIV_HOTBACKUP) && !defined(HAVE_ATOMIC_BUILTINS)
+#if !defined(HAVE_ATOMIC_BUILTINS)
 /** The mutex protecting the following counts of pending I/O operations */
 static SysMutex		os_file_count_mutex;
 #endif /* !UNIV_HOTBACKUP && !HAVE_ATOMIC_BUILTINS */
@@ -4094,9 +4094,9 @@ os_aio_free(void)
 		os_event_destroy(os_aio_segment_wait_events[i]);
 	}
 
-#if !defined(HAVE_ATOMIC_BUILTINS) || UNIV_WORD_SIZE < 8
+#if !defined(HAVE_ATOMIC_BUILTINS)
 	mutex_free(&os_file_count_mutex);
-#endif /* !HAVE_ATOMIC_BUILTINS || UNIV_WORD_SIZE < 8 */
+#endif /* !HAVE_ATOMIC_BUILTINS */
 
 	ut_free(os_aio_segment_wait_events);
 	os_aio_segment_wait_events = 0;
@@ -4113,9 +4113,7 @@ os_aio_array_wake_win_aio_at_shutdown(
 /*==================================*/
 	os_aio_array_t*	array)	/*!< in: aio array */
 {
-	ulint	i;
-
-	for (i = 0; i < array->n_slots; i++) {
+	for (ulint i = 0; i < array->n_slots; i++) {
 
 		SetEvent((array->slots + i)->handle);
 	}
