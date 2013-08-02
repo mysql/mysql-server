@@ -1631,7 +1631,7 @@ sp_drop_db_routines(THD *thd, char *db)
       uint db_name_length= strlen(db);
 
       enum_sp_object_type sp_type;
-      if (table->field[MYSQL_PROC_MYSQL_TYPE]->ptr[0] == '2')
+      if ((int)table->field[MYSQL_PROC_MYSQL_TYPE]->ptr[0] == (int)SP_TYPE_FUNCTION)
       {
         sp_type= SP_OBJECT_TYPE_FUNCTION;
       }

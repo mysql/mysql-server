@@ -50,6 +50,7 @@ private:
   /* Prevent use of these */
   Event_queue_element_for_exec(const Event_queue_element_for_exec &);
   void operator=(Event_queue_element_for_exec &);
+#ifdef HAVE_PSI_INTERFACE
 public:
   PSI_statement_info* get_psi_info()
   {
@@ -57,6 +58,7 @@ public:
   }
 
   static PSI_statement_info psi_info;
+#endif
 };
 
 
