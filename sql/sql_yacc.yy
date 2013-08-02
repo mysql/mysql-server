@@ -2152,8 +2152,9 @@ master_def:
           {
             if ($3 > MASTER_DELAY_MAX)
             {
+              const char *msg= YYTHD->strmake(@3.start, @3.end - @3.start);
               my_error(ER_MASTER_DELAY_VALUE_OUT_OF_RANGE, MYF(0),
-                       static_cast<uint>($3), MASTER_DELAY_MAX);
+                       msg, MASTER_DELAY_MAX);
             }
             else
               Lex->mi.sql_delay = $3;

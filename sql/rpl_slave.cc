@@ -515,6 +515,7 @@ int global_init_info(Master_info* mi, bool ignore_if_no_info, int thread_mask)
   DBUG_ASSERT(mi != NULL && mi->rli != NULL);
   int init_error= 0;
   enum_return_check check_return= ERROR_CHECKING_REPOSITORY;
+  THD *thd= current_thd;
 
   /*
     We need a mutex while we are changing master info parameters to
@@ -522,6 +523,20 @@ int global_init_info(Master_info* mi, bool ignore_if_no_info, int thread_mask)
   */
   mysql_mutex_lock(&mi->data_lock);
   mysql_mutex_lock(&mi->rli->data_lock);
+
+  /*
+    When info tables are used and autocommit= 0 we force a new
+    transaction start to avoid table access deadlocks when START SLAVE
+    is executed after RESET SLAVE.
+  */
+  if (thd && thd->in_multi_stmt_transaction_mode() &&
+      (opt_mi_repository_id == INFO_REPOSITORY_TABLE ||
+       opt_rli_repository_id == INFO_REPOSITORY_TABLE))
+    if (trans_begin(thd))
+    {
+      init_error= 1;
+      goto end;
+    }
 
   /*
     This takes care of the startup dependency between the master_info
@@ -551,6 +566,17 @@ int global_init_info(Master_info* mi, bool ignore_if_no_info, int thread_mask)
   }
 
 end:
+  /*
+    When info tables are used and autocommit= 0 we force transaction
+    commit to avoid table access deadlocks when START SLAVE is executed
+    after RESET SLAVE.
+  */
+  if (thd && thd->in_multi_stmt_transaction_mode() &&
+      (opt_mi_repository_id == INFO_REPOSITORY_TABLE ||
+       opt_rli_repository_id == INFO_REPOSITORY_TABLE))
+    if (trans_commit(thd))
+      init_error= 1;
+
   mysql_mutex_unlock(&mi->rli->data_lock);
   mysql_mutex_unlock(&mi->data_lock);
   DBUG_RETURN(check_return == ERROR_CHECKING_REPOSITORY || init_error);
@@ -1610,6 +1636,13 @@ static int get_master_uuid(MYSQL *mysql, Master_info *mi)
                                                        STRING_WITH_LEN(act)));
                   };);
 
+  DBUG_EXECUTE_IF("dbug.simulate_busy_io",
+                  {
+                    const char act[]= "now signal Reached wait_for signal.got_stop_slave";
+                    DBUG_ASSERT(opt_debug_sync_timeout > 0);
+                    DBUG_ASSERT(!debug_sync_set_action(current_thd,
+                                                       STRING_WITH_LEN(act)));
+                  };);
   if (!mysql_real_query(mysql,
                         STRING_WITH_LEN("SHOW VARIABLES LIKE 'SERVER_UUID'")) &&
       (master_res= mysql_store_result(mysql)) &&
@@ -2906,6 +2939,22 @@ void set_slave_thread_options(THD* thd)
     options&= ~OPTION_BIN_LOG;
   thd->variables.option_bits= options;
   thd->variables.completion_type= 0;
+
+  /*
+    Set autocommit= 1 when info tables are used and autocommit == 0 to
+    avoid trigger asserts on mysql_execute_command(THD *thd) caused by
+    info tables updates which do not commit, like Rotate, Stop and
+    skipped events handling.
+  */
+  if ((thd->variables.option_bits & OPTION_NOT_AUTOCOMMIT) &&
+      (opt_mi_repository_id == INFO_REPOSITORY_TABLE ||
+       opt_rli_repository_id == INFO_REPOSITORY_TABLE))
+  {
+    thd->variables.option_bits|= OPTION_AUTOCOMMIT;
+    thd->variables.option_bits&= ~OPTION_NOT_AUTOCOMMIT;
+    thd->server_status|= SERVER_STATUS_AUTOCOMMIT;
+  }
+
   DBUG_VOID_RETURN;
 }
 

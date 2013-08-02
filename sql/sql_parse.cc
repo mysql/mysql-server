@@ -2460,11 +2460,11 @@ mysql_execute_command(THD *thd)
       restore status variables, as we don't want 'show status' to cause
       changes
     */
-    mysql_rwlock_wrlock(&LOCK_status);
+    mysql_mutex_lock(&LOCK_status);
     add_diff_to_status(&global_status_var, &thd->status_var,
                        &old_status_var);
     thd->status_var= old_status_var;
-    mysql_rwlock_unlock(&LOCK_status);
+    mysql_mutex_unlock(&LOCK_status);
     break;
   }
   case SQLCOM_SHOW_EVENTS:
