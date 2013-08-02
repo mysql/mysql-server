@@ -2080,7 +2080,7 @@ os_file_get_size(
 		return((os_offset_t) -1);
 	}
 
-	return(os_offset_t(low | (os_offset_t(high) << 32));
+	return(os_offset_t(low | (os_offset_t(high) << 32)));
 #else
 	/* Store current position */
 	os_offset_t	pos = lseek(file, 0, SEEK_CUR);
