@@ -102,13 +102,6 @@ CREATE TRIGGER trg4 BEFORE DELETE ON t1 FOR EACH ROW
 SET @del:= @del + 1|
 CREATE TRIGGER trg5 AFTER DELETE ON t1 FOR EACH ROW 
 SET @del:= @del + 8 + old.j|
-SELECT OBJECT_TYPE, OBJECT_SCHEMA, OBJECT_NAME, COUNT_STAR, COUNT_STATEMENTS 
-FROM performance_schema.events_statements_summary_by_program
-WHERE OBJECT_SCHEMA='stored_programs' ORDER BY OBJECT_NAME;
-OBJECT_TYPE	OBJECT_SCHEMA	OBJECT_NAME	COUNT_STAR	COUNT_STATEMENTS
-TRIGGER	stored_programs	trg1	0	0
-TRIGGER	stored_programs	trg2	0	0
-TRIGGER	stored_programs	trg4	0	0
 #####################
 # Executing queries #
 #####################
@@ -299,9 +292,6 @@ statement/sql/select	SELECT append("Bolly", "wood")	stored_programs	NULL	NULL	NU
 statement/sql/select	SELECT COUNT(*) = 0 FROM information_schema.processlist
 WHERE user = 'event_scheduler'	stored_programs	NULL	NULL	NULL	NULL	0
 statement/sql/select	SELECT fac(5)	stored_programs	NULL	NULL	NULL	NULL	0
-statement/sql/select	SELECT OBJECT_TYPE, OBJECT_SCHEMA, OBJECT_NAME, COUNT_STAR, COUNT_STATEMENTS 
-FROM performance_schema.events_statements_summary_by_program
-WHERE OBJECT_SCHEMA='stored_programs' ORDER BY OBJECT_NAME	stored_programs	NULL	NULL	NULL	NULL	0
 statement/sql/select	SELECT OBJECT_TYPE, OBJECT_SCHEMA, OBJECT_NAME, COUNT_STAR, COUNT_STATEMENTS 
 FROM performance_schema.events_statements_summary_by_program
 WHERE OBJECT_SCHEMA='stored_programs' ORDER BY OBJECT_NAME	stored_programs	NULL	NULL	NULL	NULL	0
