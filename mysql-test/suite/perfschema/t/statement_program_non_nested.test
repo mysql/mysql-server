@@ -13,12 +13,6 @@ TRUNCATE TABLE performance_schema.events_statements_history_long;
 --echo ################################################ 
 
 --source suite/perfschema/include/program_setup.inc
-# Stored programs donot get into PS tables just after creation. 
-# They do only after successful execution.  
-SELECT OBJECT_TYPE, OBJECT_SCHEMA, OBJECT_NAME, COUNT_STAR, COUNT_STATEMENTS 
-       FROM performance_schema.events_statements_summary_by_program
-       WHERE OBJECT_SCHEMA='stored_programs' ORDER BY OBJECT_NAME;
-
 --source suite/perfschema/include/program_execution.inc
 
 SELECT OBJECT_TYPE, OBJECT_SCHEMA, OBJECT_NAME, COUNT_STAR, COUNT_STATEMENTS 
