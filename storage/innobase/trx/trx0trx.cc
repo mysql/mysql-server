@@ -949,6 +949,11 @@ trx_lists_init_at_db_start(void)
 	     ++it) {
 
 		ut_ad(it->m_trx->in_rw_trx_list);
+#ifdef UNIV_DEBUG
+		if (it->m_trx->id > trx_sys->rw_max_trx_id) {
+			trx_sys->rw_max_trx_id = it->m_trx->id;
+		}
+#endif /* UNIV_DEBUG */
 
 		if (it->m_trx->state == TRX_STATE_ACTIVE
 		    || it->m_trx->state == TRX_STATE_PREPARED) {
@@ -1246,7 +1251,12 @@ trx_start_low(
 
 		UT_LIST_ADD_FIRST(trx_sys->rw_trx_list, trx);
 
-		ut_d(trx_sys->rw_max_trx_id = trx->id);
+		ut_d(trx->in_rw_trx_list = true);
+#ifdef UNIV_DEBUG
+		if (trx->id > trx_sys->rw_max_trx_id) {
+			trx_sys->rw_max_trx_id = trx->id;
+		}
+#endif /* UNIV_DEBUG */
 
 		trx->state = TRX_STATE_ACTIVE;
 
@@ -2990,6 +3000,12 @@ trx_set_rw_mode(
 	}
 
 	ut_ad(trx->in_ro_trx_list == true);
+
+#ifdef UNIV_DEBUG
+	if (trx->id > trx_sys->rw_max_trx_id) {
+		trx_sys->rw_max_trx_id = trx->id;
+	}
+#endif /* UNIV_DEBUG */
 
 	if (!trx->read_only) {
 		UT_LIST_REMOVE(trx_sys->ro_trx_list, trx);
