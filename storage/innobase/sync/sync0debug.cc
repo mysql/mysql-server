@@ -728,7 +728,7 @@ SyncDebug::check_order(const latch_t* latch)
 	case SYNC_IBUF_PESS_INSERT_MUTEX:
 
 		basic_check(latches, SYNC_FSP - 1);
-		ut_a(find(latches, SYNC_IBUF_MUTEX) != 0);
+		ut_a(find(latches, SYNC_IBUF_MUTEX) == 0);
 		break;
 
 	case SYNC_IBUF_HEADER:
@@ -776,19 +776,18 @@ SyncDebug::unlock(const latch_t* latch)
 	} else if (*latch->m_name == '.') {
 		/* Ignore diagnost latches, starting with '.' */
 	} else {
-		// FIXME: We should scan in reverse
-		Latches*		latches = thread_latches();
-		Latches::iterator	end = latches->end();
+		Latches*			latches = thread_latches();
+		Latches::reverse_iterator	rend = latches->rend();
 
-		for (Latches::iterator it = latches->begin();
-		     it != end;
+		for (Latches::reverse_iterator it = latches->rbegin();
+		     it != rend;
 		     ++it) {
 
 			if ((*it)->m_level != latch->m_level) {
 				continue;
 			}
 
-			latches->erase(it);
+			latches->erase(--it.base());
 
 			/* If this thread doesn't own any more
 			latches remove from the map.
