@@ -283,13 +283,6 @@ enum latch_level_t {
 
 	/** This can be used to suppress order checking. */
 	SYNC_NO_ORDER_CHECK,
-
-
-	/** User transaction locks are higher than any of the latch levels
-	below: no latches are allowed when a thread goes to wait for a
-	normal table or row lock! */
-
-	SYNC_USER_TRX_LOCK,
 };
 
 /** All (ordered) latches, used in debugging, must derive from this class. */
