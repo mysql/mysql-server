@@ -56,7 +56,7 @@ static bool sync_check_initialised = false;
 by this module. */
 typedef TTASMutex<TrackPolicy> SyncMutex;
 
-/** Thread specific latches. */
+/** Thread specific latches. This is ordered on level in descending order. */
 typedef std::vector<const latch_t*> Latches;
 
 /** Latch meta-data */
@@ -192,7 +192,7 @@ struct SyncDebug {
 			const os_thread_id_t& t1,
 			const os_thread_id_t& t2) const
 		{
-			return(t1 < t2);
+			return(os_thread_pf(t1) < os_thread_pf(t2));
 		}
 	};
 
@@ -276,6 +276,13 @@ struct SyncDebug {
 
 			Latches*	latches = check_order(latch);
 		
+			ut_a(latches->empty()
+			     || latch->m_level == SYNC_LEVEL_VARYING
+			     || latch->m_level == SYNC_NO_ORDER_CHECK
+			     || latches->back()->m_level == SYNC_NO_ORDER_CHECK
+			     || latches->back()->m_level == SYNC_LEVEL_VARYING
+			     || latches->back()->m_level >= latch->m_level);
+
 			latches->push_back(latch);
 		}
 	}
@@ -293,6 +300,13 @@ struct SyncDebug {
 		    && latch->m_level != SYNC_LEVEL_VARYING) {
 
 			Latches*	latches = thread_latches(true);
+
+			ut_a(latches->empty()
+			     || latch->m_level == SYNC_LEVEL_VARYING
+			     || latch->m_level == SYNC_NO_ORDER_CHECK
+			     || latches->back()->m_level == SYNC_LEVEL_VARYING
+			     || latches->back()->m_level == SYNC_NO_ORDER_CHECK
+			     || latches->back()->m_level >= latch->m_level);
 
 			latches->push_back(latch);
 		}
@@ -361,7 +375,7 @@ public:
 	ThreadMap		m_threads;
 };
 
-static SyncDebug syncCheck;
+static SyncDebug syncDebug;
 
 /** Report error and abort. */
 
@@ -456,12 +470,20 @@ SyncDebug::less(
 	const Latches*	latches,
 	latch_level_t	limit) const UNIV_NOTHROW
 {
-	Latches::const_iterator	end = latches->end();
+	Latches::const_reverse_iterator	rend = latches->rend();
 
-	for (Latches::const_iterator it = latches->begin(); it != end; ++it) {
+	for (Latches::const_reverse_iterator it = latches->rbegin();
+	     it != rend;
+	     ++it) {
 
 		if ((*it)->m_level <= limit) {
+
 			return(*it);
+
+		} else if ((*it)->m_level != SYNC_LEVEL_VARYING
+			   && (*it)->m_level != SYNC_NO_ORDER_CHECK) {
+
+			break;
 		}
 	}
 
@@ -749,7 +771,6 @@ SyncDebug::check_order(const latch_t* latch)
 	case RW_LOCK_X_WAIT:
 	case RW_LOCK_S:
 	case RW_LOCK_NOT_LOCKED:
-	case SYNC_USER_TRX_LOCK:
 		/* These levels should never be set for a latch. */
 		ut_error;
 		break;
@@ -1291,7 +1312,7 @@ Check if it is OK to acquire the latch.
 void
 sync_check_lock(const latch_t* latch)
 {
-	syncCheck.lock(latch);
+	syncDebug.lock(latch);
 }
 
 /**
@@ -1302,7 +1323,7 @@ Check if it is OK to acquire the latch.
 void
 sync_check_lock(const latch_t* latch, latch_level_t level)
 {
-	syncCheck.lock(latch);
+	syncDebug.lock(latch);
 }
 
 /**
@@ -1311,7 +1332,7 @@ Check if it is OK to re-acquire the lock. */
 void
 sync_check_relock(const latch_t* latch)
 {
-	syncCheck.relock(latch);
+	syncDebug.relock(latch);
 }
 
 /**
@@ -1321,7 +1342,7 @@ Removes a latch from the thread level array if it is found there.
 void
 sync_check_unlock(const latch_t* latch)
 {
-	syncCheck.unlock(latch);
+	syncDebug.unlock(latch);
 }
 
 /**
@@ -1333,7 +1354,7 @@ mutex or rw-latch at the specified level.
 const latch_t*
 sync_check_find(latch_level_t level)
 {
-	return(syncCheck.find(level));
+	return(syncDebug.find(level));
 }
 
 /**
@@ -1343,7 +1364,7 @@ Iterate over the thread's latches.
 bool
 sync_check_iterate(sync_check_functor_t& functor)
 {
-	return(syncCheck.for_each(functor));
+	return(syncDebug.for_each(functor));
 }
 
 /**
@@ -1352,5 +1373,5 @@ Enable sync order checking. */
 void
 sync_check_enable()
 {
-	syncCheck.enable();
+	syncDebug.enable();
 }
