@@ -3129,7 +3129,7 @@ recv_recovery_rollback_active(void)
 	themselves before we switch the latching order checks on */
 	os_thread_sleep(1000000);
 
-	/* Switch latching order checks on in sync0check.cc */
+	/* Switch latching order checks on in sync0debug.cc */
 	sync_check_enable();
 #endif /* UNIV_SYNC_DEBUG */
 

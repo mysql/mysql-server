@@ -41,7 +41,7 @@ Created 9/11/1995 Heikki Tuuri
 #include "mem0mem.h"
 #include "srv0srv.h"
 #include "os0event.h"
-#include "sync0check.h"
+#include "sync0debug.h"
 #include "ha_prototypes.h"
 
 /*
@@ -216,7 +216,7 @@ rw_lock_create_func(
 # ifdef UNIV_SYNC_DEBUG
 	latch_level_t	level,		/*!< in: level */
 # endif /* UNIV_SYNC_DEBUG */
-	const char*	cmutex_name,	/*!< in: mutex name */
+	const char*	cmutex_name,	/*!< in: rw-lock name */
 #endif /* UNIV_DEBUG */
 	const char*	cfile_name,	/*!< in: file name where created */
 	ulint		cline)		/*!< in: file line where created */
@@ -257,7 +257,8 @@ rw_lock_create_func(
 #ifdef UNIV_SYNC_DEBUG
 	UT_LIST_INIT(lock->debug_list, &rw_lock_debug_t::list);
 
-	lock->level = level;
+	lock->m_name = cmutex_name;
+	lock->m_level = lock->level = level;
 #endif /* UNIV_SYNC_DEBUG */
 
 	ut_d(lock->magic_n = RW_LOCK_MAGIC_N);

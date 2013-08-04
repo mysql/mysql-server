@@ -30,7 +30,7 @@ Created 2012/08/21 Sunny Bains
 *******************************************************/
 
 #include "sync0arr.h"
-#include "sync0check.h"
+#include "sync0debug.h"
 
 /**
 Wait in the sync array.
