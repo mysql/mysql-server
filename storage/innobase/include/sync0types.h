@@ -294,10 +294,11 @@ enum latch_level_t {
 
 /** All (ordered) latches, used in debugging, must derive from this class. */
 struct latch_t {
-	latch_t(latch_level_t level = SYNC_UNKNOWN)
+	explicit latch_t(latch_level_t level = SYNC_UNKNOWN)
 		:
+		m_name(),
 		m_level(level),
-		m_rw_lock(false) { }
+		m_rw_lock() { }
 
 	virtual ~latch_t() { }
 
@@ -308,10 +309,13 @@ struct latch_t {
 
 	virtual void print(FILE* stream) const = 0;
 
+	/** Name of the latch */
+	const char*	m_name;
+
 	/** The order or level of the latch */
 	latch_level_t	m_level;
 
-	/* true if it is a rw-lock */
+	/** true if it is a rw-lock */
 	bool		m_rw_lock;
 };
 
@@ -325,9 +329,9 @@ struct sync_check_functor_t {
 /** Functor to check whether the calling thread owns the btr search mutex. */
 struct btrsea_sync_check : public sync_check_functor_t {
 
-	btrsea_sync_check(bool has_search_latch = true)
+	explicit btrsea_sync_check(bool has_search_latch)
 		:
-		m_result(false),
+		m_result(),
 		m_has_search_latch(has_search_latch) { }
 
 	virtual ~btrsea_sync_check() { }
@@ -355,21 +359,23 @@ struct btrsea_sync_check : public sync_check_functor_t {
 /** Functor to check for dictionay latching constraints. */
 struct dict_sync_check : public sync_check_functor_t {
 
-	dict_sync_check(bool dict_mutex_allowed = true)
+	explicit dict_sync_check(bool dict_mutex_allowed)
 		:
-		m_result(false),
+		m_result(),
 		m_dict_mutex_allowed(dict_mutex_allowed) { }
 
 	virtual ~dict_sync_check() { }
 
 	virtual bool operator()(const latch_t& latch)
 	{
-		if ((!m_dict_mutex_allowed
-		     || (latch.m_level != SYNC_DICT
-			 && latch.m_level != SYNC_DICT_OPERATION
-			 && latch.m_level != SYNC_FTS_CACHE))) {
+		if (!m_dict_mutex_allowed
+		    || (latch.m_level != SYNC_DICT
+			&& latch.m_level != SYNC_DICT_OPERATION
+			&& latch.m_level != SYNC_FTS_CACHE)) {
 
-			return(m_result = true);
+			m_result = true;
+
+			return(true);
 		}
 
 		return(false);

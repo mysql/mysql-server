@@ -22,14 +22,14 @@ this program; if not, write to the Free Software Foundation, Inc.,
 *****************************************************************************/
 
 /**************************************************//**
-@file include/sync0check.h
+@file include/sync0debug.h
 Debug checks for latches, header file
 
 Created 2012-08-21 Sunny Bains
 *******************************************************/
 
-#ifndef sync0check_h
-#define sync0check_h
+#ifndef sync0debug_h
+#define sync0debug_h
 
 #include "univ.i"
 #include "sync0types.h"
@@ -125,4 +125,4 @@ mysql_pfs_key_t
 sync_latch_get_pfs_key(const char* name);
 #endif /* UNIV_PFS_MUTEX */
 
-#endif /* !sync0check_h */
+#endif /* !sync0debug_h */
