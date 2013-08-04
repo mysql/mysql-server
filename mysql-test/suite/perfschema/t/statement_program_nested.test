@@ -40,3 +40,34 @@ SELECT OBJECT_TYPE, OBJECT_SCHEMA, OBJECT_NAME, COUNT_STAR, COUNT_STATEMENTS
 SELECT OBJECT_TYPE, OBJECT_SCHEMA, OBJECT_NAME, COUNT_STAR, COUNT_STATEMENTS 
        FROM performance_schema.events_statements_summary_by_program
        WHERE OBJECT_SCHEMA='nested_sp' ORDER BY OBJECT_NAME;
+
+
+# Check the intrumentation of stored programs 
+# when statement/sp/% instruments not timed
+
+--source suite/perfschema/include/program_nested_setup.inc
+
+update performance_schema.setup_instruments set enabled='YES', timed='NO'
+  where name like "statement/sp/%" order by name;
+
+TRUNCATE TABLE performance_schema.events_statements_summary_by_program;
+TRUNCATE TABLE performance_schema.events_statements_history_long;
+
+--source suite/perfschema/include/program_nested_execution.inc
+
+# check instrumentation 
+
+SELECT EVENT_NAME, TIMER_START, TIMER_END, TIMER_WAIT FROM 
+       performance_schema.events_statements_history_long WHERE
+       CURRENT_SCHEMA='nested_sp' AND EVENT_NAME like "statement/sp/%";
+
+# clean-up
+
+# Restore the setup
+update performance_schema.setup_instruments set enabled='YES', timed='YES'
+  where name like "statement/sp/%" order by name;
+
+TRUNCATE TABLE performance_schema.events_statements_summary_by_program;
+TRUNCATE TABLE performance_schema.events_statements_history_long;
+
+--source suite/perfschema/include/program_nested_cleanup.inc
