@@ -606,13 +606,18 @@ trx_list_rw_insert_ordered(
 
 		if (trx2 == NULL) {
 			UT_LIST_ADD_FIRST(trx_sys->rw_trx_list, trx);
-			ut_d(trx_sys->rw_max_trx_id = trx->id);
 		} else {
 			UT_LIST_INSERT_AFTER(trx_sys->rw_trx_list, trx2, trx);
 		}
 	} else {
 		UT_LIST_ADD_LAST(trx_sys->rw_trx_list, trx);
 	}
+
+#ifdef UNIV_DEBUG
+	if (trx->id > trx_sys->rw_max_trx_id) {
+		trx_sys->rw_max_trx_id = trx->id;
+	}
+#endif /* UNIV_DEBUG */
 
 	ut_ad(!trx->in_rw_trx_list);
 	ut_d(trx->in_rw_trx_list = TRUE);
@@ -1237,7 +1242,11 @@ trx_start_low(
 		UT_LIST_ADD_FIRST(trx_sys->rw_trx_list, trx);
 
 		ut_d(trx->in_rw_trx_list = true);
-		ut_d(trx_sys->rw_max_trx_id = trx->id);
+#ifdef UNIV_DEBUG
+		if (trx->id > trx_sys->rw_max_trx_id) {
+			trx_sys->rw_max_trx_id = trx->id;
+		}
+#endif /* UNIV_DEBUG */
 
 		trx->state = TRX_STATE_ACTIVE;
 
