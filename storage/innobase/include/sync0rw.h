@@ -547,9 +547,9 @@ readers, a writer may queue for x-lock by decrementing lock_word: no
 new readers will be let in while the thread waits for readers to
 exit. */
 struct rw_lock_t
-#ifdef UNIV_DEBUG
+#ifdef UNIV_SYNC_DEBUG
 	: public latch_t
-#endif /* UNIV_DEBUG */
+#endif /* UNIV_SYNC_DEBUG */
 {
 	volatile lint	lock_word;
 				/*!< Holds the state of the lock. */

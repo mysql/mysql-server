@@ -98,10 +98,15 @@ struct DebugPolicy : public TrackPolicy<Mutex> {
 
 	struct DebugLatch : public latch_t {
 
-		DebugLatch() : m_mutex(0) { }
+		DebugLatch()
+			:
+			latch_t(SYNC_UNKNOWN),
+			m_mutex(0) { }
 
 		virtual void print(FILE* stream) const
 		{
+			fprintf(stream, "%p\n", m_mutex);
+
 			m_mutex->policy().print(stream);
 		}
 
@@ -109,7 +114,7 @@ struct DebugPolicy : public TrackPolicy<Mutex> {
 	};
 
 	/** Default constructor. */
-	DebugPolicy(bool track = true)
+	explicit DebugPolicy(bool track = true)
 		:
 		m_track(track),
 		m_thread_id(),

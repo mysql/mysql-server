@@ -24,7 +24,7 @@ Created 2012-08-21 Sunny Bains.
 ***********************************************************************/
 
 #include "sync0mutex.h"
-#include "sync0check.h"
+#include "sync0debug.h"
 
 template <typename Mutex>
 void TrackPolicy<Mutex>::print(FILE* stream) const
@@ -54,7 +54,9 @@ void DebugPolicy<Mutex>::init(
 	m_magic_n = MUTEX_MAGIC_N;
 	m_thread_id = os_thread_id_t(ULINT_UNDEFINED);
 
+	m_latch.m_name = name;
 	m_latch.m_level = sync_latch_get_level(name);
+
 	ut_ad(m_latch.m_level != SYNC_UNKNOWN);
 
 	m_file_name = 0;

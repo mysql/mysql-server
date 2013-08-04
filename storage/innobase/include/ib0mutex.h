@@ -1033,7 +1033,7 @@ struct PolicyMutex
 #endif /* UNIV_PFS_MUTEX */
 	}
 
-	/** Try and lock the mutex, return 0 on SUCCESS and -1 on error. */
+	/** Try and lock the mutex, return 0 on SUCCESS and 1 otherwise. */
 	int trylock(const char* name = 0, ulint line = 0) UNIV_NOTHROW
 	{
 #ifdef UNIV_PFS_MUTEX
@@ -1044,11 +1044,16 @@ struct PolicyMutex
 		PSI_mutex_locker* locker = pfs_begin(&state, name, line);
 #endif /* UNIV_PFS_MUTEX */
 
-		policy().enter(m_impl);
+		/* There is a subtlety here, we check the mutex ordering
+		after locking here. This is only done to avoid add and
+		then remove if the trylock was unsuccesful. */
 
-		int ret = !m_impl.try_lock();
+		int ret = m_impl.try_lock() ? 0 : 1;
 
 		if (ret == 0) {
+
+			policy().enter(m_impl);
+
 			policy().locked(m_impl);
 		}
 
