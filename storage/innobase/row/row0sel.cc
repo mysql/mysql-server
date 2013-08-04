@@ -2019,7 +2019,7 @@ lock_wait_or_error:
 	mtr_commit(&mtr);
 
 	{
-		btrsea_sync_check	check(true);
+		dict_sync_check	check(true);
 
 		ut_ad(!sync_check_iterate(check));
 	}
@@ -2028,7 +2028,8 @@ func_exit:
 	if (search_latch_locked) {
 		rw_lock_s_unlock(&btr_search_latch);
 	}
-	if (UNIV_LIKELY_NULL(heap)) {
+
+	if (heap != NULL) {
 		mem_heap_free(heap);
 	}
 	return(err);
