@@ -3545,7 +3545,7 @@ ibuf_insert_low(
 			mutex_exit(&ibuf_mutex);
 			mutex_exit(&ibuf_pessimistic_insert_mutex);
 
-			if (UNIV_UNLIKELY(!ibuf_add_free_page())) {
+			if (!ibuf_add_free_page()) {
 
 				mem_heap_free(heap);
 				return(DB_STRONG_FAIL);
