@@ -422,7 +422,7 @@ function DeleteOperation(sql, keys, callback) {
   };
 }
 
-function ReadOperation(dbTableHandler, sql, keys, callback) {
+function ReadOperation(dbSession, dbTableHandler, sql, keys, callback) {
   udebug.log('dbSession.ReadOperation with', sql, keys);
   var op = this;
   this.type = 'read';
@@ -430,6 +430,7 @@ function ReadOperation(dbTableHandler, sql, keys, callback) {
   this.keys = keys;
   this.callback = callback;
   this.result = {};
+  this.typeCast = dbSession.connectionPool.driverTypeConverter;
   op_stats.incr( [ "created","read" ]);
 
   function onRead(err, rows) {
@@ -478,11 +479,16 @@ function ReadOperation(dbTableHandler, sql, keys, callback) {
 
   this.execute = function(connection, operationCompleteCallback) {
     op.operationCompleteCallback = operationCompleteCallback;
-    connection.query(this.sql, this.keys, onRead);
+    connection.query(
+        {sql: this.sql, 
+          values: this.keys,
+          typeCast: this.typeCast
+        }, 
+        onRead);
   };
 }
 
-function ScanOperation(dbTableHandler, sql, parameters, callback) {
+function ScanOperation(dbSession, dbTableHandler, sql, parameters, callback) {
   udebug.log_detail('dbSession.ScanOperation with sql', sql, '\nparameters', parameters);
   var op = this;
   this.type = 'scan';
@@ -490,6 +496,7 @@ function ScanOperation(dbTableHandler, sql, parameters, callback) {
   this.parameters = parameters;
   this.callback = callback;
   this.result = {};
+  this.typeCast = dbSession.connectionPool.driverTypeConverter;
   op_stats.incr( [ "created","scan" ]);
 
   function onScan(err, rows) {
@@ -518,7 +525,12 @@ function ScanOperation(dbTableHandler, sql, parameters, callback) {
 
   this.execute = function(connection, operationCompleteCallback) {
     op.operationCompleteCallback = operationCompleteCallback;
-    connection.query(this.sql, this.parameters, onScan);
+    connection.query(
+        {sql: this.sql, 
+          values: this.parameters,
+          typeCase: this.typeCase
+        },
+        onScan);
   };
 }
 
@@ -827,7 +839,7 @@ exports.DBSession.prototype.buildReadOperation = function(dbIndexHandler, keys, 
   var dbTableHandler = dbIndexHandler.tableHandler;
   getMetadata(dbTableHandler);
   var selectSQL = dbTableHandler.mysql.selectSQL[dbIndexHandler.dbIndex.name];
-  return new ReadOperation(dbTableHandler, selectSQL, keysArray, callback);
+  return new ReadOperation(this, dbTableHandler, selectSQL, keysArray, callback);
 };
 
 
@@ -851,7 +863,7 @@ exports.DBSession.prototype.buildScanOperation = function(queryDomainType, param
     var value = parameterValues[parameterName];
     sqlParameters.push(value);
   }
-  return new ScanOperation(dbTableHandler, scanSQL, sqlParameters, callback);
+  return new ScanOperation(this, dbTableHandler, scanSQL, sqlParameters, callback);
 };
 
 

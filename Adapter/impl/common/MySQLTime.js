@@ -25,8 +25,10 @@
    For a Converter that uses MySQLTime, see NdbDatetimeConverter.js    
 */
 
+"use strict";
+
 function MySQLTime() {
-};
+}
 
 MySQLTime.prototype = {
   sign     : +1,
@@ -108,6 +110,14 @@ MySQLTime.prototype.initializeFromTimeString = function(jsValue) {
   return this;
 };
 
+MySQLTime.prototype.initializeFromDateTimeString = function(jsValue) {
+  // split date from time separated by blank
+  var parts = jsValue.split(' ');
+  this.initializeFromDateString(parts[0]);
+  this.initializeFromTimeString(parts[1]);
+  return this;
+};
+
 MySQLTime.prototype.initializeFromDateString = function(jsValue) {
   var parts = jsValue.split(/[\W_]/);   // split on a non-word or an underscore
   this.year = parts[0];
@@ -149,6 +159,10 @@ MySQLTime.prototype.toJsDateLocal = function() {
   return new Date(this.year, this.month - 1, this.day,
                   this.hour, this.minute, this.second,
                   this.microsec / 1000);
+};
+
+MySQLTime.prototype.toDateTimeString = function() {
+  return this.toDateString() + ' ' + this.toTimeString();
 };
 
 MySQLTime.prototype.toTimeString = function() {
@@ -198,6 +212,6 @@ MySQLTime.initializeFromNdb = function(dbTime) {
   dbTime.toTimeString = MySQLTime.prototype.toTimeString;
   dbTime.toDateString = MySQLTime.prototype.toDateString;
   return dbTime;
-}
+};
 
 module.exports = MySQLTime;
