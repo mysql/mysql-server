@@ -259,13 +259,25 @@ exports.DataDictionary.prototype.getTableMetadata = function(databaseName, table
         case 'blob':
           column.isBinary = true;
           break;
+        case 'bit':
+          column.length = parseInt(columnSize, 10);
+          column.isIntegral = true;
+          break;
+        default:
         }
         
-        // check if there is a type converter for the column type
-        var typeConverter = dbConnectionPool.getTypeConverter(columnType);
-        if (typeConverter) {
-          column.typeConverter = {};
-          column.typeConverter.mysql = typeConverter;
+        // set the a database type converter for the column type
+        var databaseTypeConverter = dbConnectionPool.getDatabaseTypeConverter(column.columnType);
+        if (databaseTypeConverter) {
+          column.databaseTypeConverter = {};
+          column.databaseTypeConverter.mysql = databaseTypeConverter;
+        }
+
+        // set the default domain type converter for the column type
+        // this may be overridden by the user's domain type converter
+        var domainTypeConverter = dbConnectionPool.getDomainTypeConverter(column.columnType);
+        if (domainTypeConverter) {
+          column.domainTypeConverter = domainTypeConverter;
         }
 
         // continue parsing the rest of the column definition line
