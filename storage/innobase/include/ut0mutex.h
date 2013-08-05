@@ -53,7 +53,6 @@ typedef PolicyMutex<OSTrackMutex<TrackPolicy> > SyncArrayMutex;
 typedef PolicyMutex<OSTrackMutex<NoPolicy> > SysMutex;
 typedef PolicyMutex<OSBasicMutex<NoPolicy> > EventMutex;
 
-
 #else /* !UNIV_DEBUG */
 
 #ifdef HAVE_ATOMIC_BUILTINS
@@ -65,7 +64,7 @@ typedef PolicyMutex<TTASFutexMutex<DebugPolicy> > FutexMutex;
 typedef PolicyMutex<TTASMutex<DebugPolicy> > SpinMutex;
 typedef PolicyMutex<TTASEventMutex<DebugPolicy> > SyncArrayMutex;
 # else
-typedef PolicyMutex<OSTrackMutex<TrackPolicy> > SyncArrayMutex;
+typedef PolicyMutex<OSTrackMutex<DebugPolicy> > SyncArrayMutex;
 #endif /* HAVE_ATOMIC_BUILTINS */
 
 typedef PolicyMutex<OSTrackMutex<DebugPolicy> > SysMutex;
