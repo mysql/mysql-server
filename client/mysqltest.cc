@@ -1580,11 +1580,11 @@ int cat_file(DYNAMIC_STRING* ds, const char* filename)
                       sizeof(buff), MYF(0))) > 0)
   {
     char *p= buff, *start= buff;
-    if (dangling_cr && *p != '\n')
+    if (dangling_cr)
     {
-     /*dynstr_append_mem(ds, "\r", size_t(sizeof(char)));*/
-     dynstr_append_mem(ds, "\r", 1);
-     dangling_cr= 0;
+      if (*p != '\n')
+       dynstr_append_mem(ds, "\r", 1);
+      dangling_cr= 0;
     }
     while (p < buff+len)
     {
