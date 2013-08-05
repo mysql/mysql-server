@@ -256,7 +256,8 @@ dump_node (int f, BLOCKNUM blocknum, FT h) {
     for (int i=0; i<n->n_children-1; i++) {
         const DBT *piv = &n->childkeys[i];
         printf("  pivot %2d:", i);
-        assert(n->flags == 0);
+        if (n->flags)
+            printf(" flags=%x ", n->flags);
         print_item(piv->data, piv->size);
         printf("\n");
     }
