@@ -1,4 +1,4 @@
-/* Copyright (c) 2000, 2011, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2000, 2013, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -28,6 +28,9 @@ static const char *merge_insert_methods[] =
 TYPELIB merge_insert_method= { array_elements(merge_insert_methods)-1,"",
 			       merge_insert_methods, 0};
 
+PSI_memory_key rg_key_memory_MYRG_INFO;
+PSI_memory_key rg_key_memory_children;
+
 #ifdef HAVE_PSI_INTERFACE
 PSI_mutex_key rg_key_mutex_MYRG_INFO_mutex;
 
@@ -43,6 +46,12 @@ static PSI_file_info all_myisammrg_files[]=
   { &rg_key_file_MRG, "MRG", 0}
 };
 
+static PSI_memory_info all_myisammrg_memory[]=
+{
+  { &rg_key_memory_MYRG_INFO, "MYRG_INFO", 0},
+  { &rg_key_memory_children, "children", 0}
+};
+
 void init_myisammrg_psi_keys()
 {
   const char* category= "myisammrg";
@@ -53,6 +62,9 @@ void init_myisammrg_psi_keys()
 
   count= array_elements(all_myisammrg_files);
   mysql_file_register(category, all_myisammrg_files, count);
+
+  count= array_elements(all_myisammrg_memory);
+  mysql_memory_register(category, all_myisammrg_memory, count);
 }
 #endif /* HAVE_PSI_INTERFACE */
 

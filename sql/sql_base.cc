@@ -2969,7 +2969,8 @@ share_found:
   mysql_mutex_unlock(&LOCK_open);
 
   /* make a new table */
-  if (!(table= (TABLE*) my_malloc(sizeof(*table), MYF(MY_WME))))
+  if (!(table= (TABLE*) my_malloc(key_memory_TABLE,
+                                  sizeof(*table), MYF(MY_WME))))
     goto err_lock;
 
   error= open_table_from_share(thd, share, alias,
@@ -3823,7 +3824,8 @@ static bool auto_repair_table(THD *thd, TABLE_LIST *table_list)
     goto end_unlock;
   }
 
-  if (!(entry= (TABLE*)my_malloc(sizeof(TABLE), MYF(MY_WME))))
+  if (!(entry= (TABLE*)my_malloc(key_memory_TABLE,
+                                 sizeof(TABLE), MYF(MY_WME))))
   {
     release_table_share(share);
     goto end_unlock;
@@ -6000,7 +6002,8 @@ TABLE *open_table_uncached(THD *thd, const char *path, const char *db,
   /* Create the cache_key for temporary tables */
   key_length= create_table_def_key(thd, cache_key, db, table_name, 1);
 
-  if (!(tmp_table= (TABLE*) my_malloc(sizeof(*tmp_table) + sizeof(*share) +
+  if (!(tmp_table= (TABLE*) my_malloc(key_memory_TABLE,
+                                      sizeof(*tmp_table) + sizeof(*share) +
                                       strlen(path)+1 + key_length,
                                       MYF(MY_WME))))
     DBUG_RETURN(0);				/* purecov: inspected */

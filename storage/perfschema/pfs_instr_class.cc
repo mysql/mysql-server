@@ -111,6 +111,10 @@ ulong table_share_lost= 0;
 ulong socket_class_max= 0;
 /** Number of socket class lost. @sa socket_class_array */
 ulong socket_class_lost= 0;
+/** Size of the memory class array. @sa memory_class_array */
+ulong memory_class_max= 0;
+/** Number of memory class lost. @sa memory_class_array */
+ulong memory_class_lost= 0;
 
 PFS_mutex_class *mutex_class_array= NULL;
 PFS_rwlock_class *rwlock_class_array= NULL;
@@ -155,7 +159,9 @@ enum_timer_name *class_timers[] =
  &wait_timer,      /* PFS_CLASS_SOCKET */
  &wait_timer,      /* PFS_CLASS_TABLE_IO */
  &wait_timer,      /* PFS_CLASS_TABLE_LOCK */
- &idle_timer       /* PFS_CLASS_IDLE */
+ &idle_timer,      /* PFS_CLASS_IDLE */
+ &wait_timer,      /* PFS_CLASS_METADATA */
+ &wait_timer       /* PFS_CLASS_MEMORY */
 };
 
 /**
@@ -192,6 +198,11 @@ static volatile uint32 socket_class_allocated_count= 0;
 
 static PFS_socket_class *socket_class_array= NULL;
 
+static volatile uint32 memory_class_dirty_count= 0;
+static volatile uint32 memory_class_allocated_count= 0;
+
+static PFS_memory_class *memory_class_array= NULL;
+
 uint mutex_class_start= 0;
 uint rwlock_class_start= 0;
 uint cond_class_start= 0;
@@ -201,7 +212,8 @@ uint socket_class_start= 0;
 
 void init_event_name_sizing(const PFS_global_param *param)
 {
-  mutex_class_start= 3; /* global table io, table lock, idle */
+  /* global table io, table lock, idle, metadata */
+  mutex_class_start= COUNT_GLOBAL_EVENT_INDEX;
   rwlock_class_start= mutex_class_start + param->m_mutex_class_sizing;
   cond_class_start= rwlock_class_start + param->m_rwlock_class_sizing;
   file_class_start= cond_class_start + param->m_cond_class_sizing;
@@ -603,6 +615,40 @@ void cleanup_socket_class(void)
   socket_class_max= 0;
 }
 
+/**
+  Initialize the memory class buffer.
+  @param memory_class_sizing            max number of memory class
+  @return 0 on success
+*/
+int init_memory_class(uint memory_class_sizing)
+{
+  int result= 0;
+  memory_class_dirty_count= memory_class_allocated_count= 0;
+  memory_class_max= memory_class_sizing;
+  memory_class_lost= 0;
+
+  if (memory_class_max > 0)
+  {
+    memory_class_array= PFS_MALLOC_ARRAY(memory_class_max, PFS_memory_class,
+                                         MYF(MY_ZEROFILL));
+    if (unlikely(memory_class_array == NULL))
+      return 1;
+  }
+  else
+    memory_class_array= NULL;
+
+  return result;
+}
+
+/** Cleanup the memory class buffers. */
+void cleanup_memory_class(void)
+{
+  pfs_free(memory_class_array);
+  memory_class_array= NULL;
+  memory_class_dirty_count= memory_class_allocated_count= 0;
+  memory_class_max= 0;
+}
+
 static void init_instr_class(PFS_instr_class *klass,
                              const char *name,
                              uint name_length,
@@ -970,6 +1016,7 @@ PFS_file_key register_file_class(const char *name, uint name_length,
     /* Set user-defined configuration options for this instrument */
     configure_instr_class(entry);
     PFS_atomic::add_u32(&file_class_allocated_count, 1);
+
     return (index + 1);
   }
 
@@ -1152,6 +1199,57 @@ PFS_socket_class *sanitize_socket_class(PFS_socket_class *unsafe)
   SANITIZE_ARRAY_BODY(PFS_socket_class, socket_class_array, socket_class_max, unsafe);
 }
 
+/**
+  Register a memory instrumentation metadata.
+  @param name                         the instrumented name
+  @param name_length                  length in bytes of name
+  @param flags                        the instrumentation flags
+  @return a memory instrumentation key
+*/
+PFS_memory_key register_memory_class(const char *name, uint name_length,
+                                     int flags)
+{
+  /* See comments in register_mutex_class */
+  uint32 index;
+  PFS_memory_class *entry;
+
+  REGISTER_CLASS_BODY_PART(index, memory_class_array, memory_class_max,
+                           name, name_length)
+
+  index= PFS_atomic::add_u32(&memory_class_dirty_count, 1);
+
+  if (index < memory_class_max)
+  {
+    entry= &memory_class_array[index];
+    init_instr_class(entry, name, name_length, flags, PFS_CLASS_MEMORY);
+    entry->m_event_name_index= index;
+    entry->m_enabled= true; /* enabled by default */
+    /* Set user-defined configuration options for this instrument */
+    configure_instr_class(entry);
+    entry->m_timed= false; /* unused anyway */
+    PFS_atomic::add_u32(&memory_class_allocated_count, 1);
+    return (index + 1);
+  }
+
+  memory_class_lost++;
+  return 0;
+}
+
+/**
+  Find a memory instrumentation class by key.
+  @param key                          the instrument key
+  @return the instrument class, or NULL
+*/
+PFS_memory_class *find_memory_class(PFS_memory_key key)
+{
+  FIND_CLASS_BODY(key, memory_class_allocated_count, memory_class_array);
+}
+
+PFS_memory_class *sanitize_memory_class(PFS_memory_class *unsafe)
+{
+  SANITIZE_ARRAY_BODY(PFS_memory_class, memory_class_array, memory_class_max, unsafe);
+}
+
 PFS_instr_class *find_table_class(uint index)
 {
   if (index == 1)
@@ -1225,6 +1323,7 @@ static int compare_keys(PFS_table_share *pfs, const TABLE_SHARE *share)
 
   return 0;
 }
+
 
 /**
   Find or create a table share instrumentation.

@@ -685,7 +685,8 @@ static void handle_bootstrap_impl(THD *thd)
   thd->thread_stack= (char*) &thd;
 #endif /* EMBEDDED_LIBRARY */
 
-  thd->security_ctx->user= (char*) my_strdup("boot", MYF(MY_WME));
+  thd->security_ctx->user= (char*) my_strdup(key_memory_Security_context,
+                                             "boot", MYF(MY_WME));
   thd->security_ctx->priv_user[0]= thd->security_ctx->priv_host[0]=0;
   /*
     Make the "client" handle multiple results. This is necessary
@@ -2456,11 +2457,11 @@ mysql_execute_command(THD *thd)
       restore status variables, as we don't want 'show status' to cause
       changes
     */
-    mysql_rwlock_wrlock(&LOCK_status);
+    mysql_mutex_lock(&LOCK_status);
     add_diff_to_status(&global_status_var, &thd->status_var,
                        &old_status_var);
     thd->status_var= old_status_var;
-    mysql_rwlock_unlock(&LOCK_status);
+    mysql_mutex_unlock(&LOCK_status);
     break;
   }
   case SQLCOM_SHOW_EVENTS:
@@ -4956,15 +4957,18 @@ bool my_yyoverflow(short **yyss, YYSTYPE **yyvs, YYLTYPE **yyls, ulong *yystacks
     old_info= *yystacksize;
   *yystacksize= set_zone((*yystacksize)*2,MY_YACC_INIT,MY_YACC_MAX);
   if (!(state->yacc_yyvs= (uchar*)
-        my_realloc(state->yacc_yyvs,
+        my_realloc(key_memory_bison_stack,
+                   state->yacc_yyvs,
                    *yystacksize*sizeof(**yyvs),
                    MYF(MY_ALLOW_ZERO_PTR | MY_FREE_ON_ERROR))) ||
       !(state->yacc_yyss= (uchar*)
-        my_realloc(state->yacc_yyss,
+        my_realloc(key_memory_bison_stack,
+                   state->yacc_yyss,
                    *yystacksize*sizeof(**yyss),
                    MYF(MY_ALLOW_ZERO_PTR | MY_FREE_ON_ERROR))) ||
       !(state->yacc_yyls= (uchar*)
-        my_realloc(state->yacc_yyls,
+        my_realloc(key_memory_bison_stack,
+                   state->yacc_yyls,
                    *yystacksize*sizeof(**yyls),
                    MYF(MY_ALLOW_ZERO_PTR | MY_FREE_ON_ERROR))))
     return 1;

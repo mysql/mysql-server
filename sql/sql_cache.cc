@@ -2247,7 +2247,7 @@ ulong Query_cache::init_cache()
 
   DBUG_ENTER("Query_cache::init_cache");
 
-  approx_additional_data_size = (sizeof(Query_cache) +
+  approx_additional_data_size = (/* FIXME: WHAT FOR ? sizeof(Query_cache) + */
 				 sizeof(uchar*)*(def_query_hash_size+
 					       def_table_hash_size));
   if (query_cache_size < approx_additional_data_size)
@@ -2305,7 +2305,8 @@ ulong Query_cache::init_cache()
   query_cache_size -= additional_data_size;
 
   if (!(cache= (uchar *)
-        my_malloc(query_cache_size+additional_data_size, MYF(0))))
+        my_malloc(key_memory_Query_cache,
+                  query_cache_size+additional_data_size, MYF(0))))
     goto err;
 
   DBUG_PRINT("qcache", ("cache length %lu, min unit %lu, %u bins",

@@ -498,7 +498,8 @@ public:
     size_t len=var->save_result.string_value.length;
     if (ptr)
     {
-      new_val= (char*)my_memdup(ptr, len+1, MYF(MY_WME));
+      new_val= (char*)my_memdup(key_memory_Sys_var_charptr_value,
+                                ptr, len+1, MYF(MY_WME));
       if (!new_val) return true;
       new_val[len]=0;
     }

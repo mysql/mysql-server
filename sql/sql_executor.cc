@@ -3295,7 +3295,8 @@ create_sort_index(THD *thd, JOIN *join, JOIN_TAB *tab)
   table=  tab->table;
   select= fsort->select;
 
-  table->sort.io_cache=(IO_CACHE*) my_malloc(sizeof(IO_CACHE),
+  table->sort.io_cache=(IO_CACHE*) my_malloc(key_memory_TABLE_sort_io_cache,
+                                             sizeof(IO_CACHE),
                                              MYF(MY_WME | MY_ZEROFILL));
   table->status=0;				// May be wrong if quick_select
 
@@ -3538,7 +3539,8 @@ static bool remove_dup_with_hash_index(THD *thd, TABLE *table,
   HASH hash;
   DBUG_ENTER("remove_dup_with_hash_index");
 
-  if (!my_multi_malloc(MYF(MY_WME),
+  if (!my_multi_malloc(key_memory_hash_index_key_buffer,
+                       MYF(MY_WME),
 		       &key_buffer,
 		       (uint) ((key_length + extra_length) *
 			       (long) file->stats.records),

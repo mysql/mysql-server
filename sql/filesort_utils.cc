@@ -22,6 +22,8 @@
 #include <functional>
 #include <vector>
 
+PSI_memory_key key_memory_Filesort_buffer_sort_keys;
+
 namespace {
 /**
   A local helper function. See comments for get_merge_buffers_cost().
@@ -96,7 +98,8 @@ uchar **Filesort_buffer::alloc_sort_buffer(uint num_records, uint record_length)
   if (m_idx_array.is_null())
   {
     uchar **sort_keys=
-      (uchar**) my_malloc(num_records * (record_length + sizeof(uchar*)),
+      (uchar**) my_malloc(key_memory_Filesort_buffer_sort_keys,
+                          num_records * (record_length + sizeof(uchar*)),
                           MYF(0));
     m_idx_array= Idx_array(sort_keys, num_records);
     m_record_length= record_length;
