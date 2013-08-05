@@ -319,7 +319,7 @@ clobbered */
 	InterlockedExchange(ptr, new_val)
 #else
 # define IB_ATOMICS_STARTUP_MSG \
-	"Mutexes and rw_locks use InnoDB's own implementation"
+	"Mutexes uses sys mutexes and rw_locks use InnoDB's own implementation"
 #endif
 
 #ifdef HAVE_ATOMIC_BUILTINS
