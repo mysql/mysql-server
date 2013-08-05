@@ -132,8 +132,13 @@ public:
   bool is_created_timestamp_null() const
   { return m_created_timestamp == 0; }
 
-  longlong get_created_timestamp() const
-  { return m_created_timestamp; }
+  timeval get_created_timestamp() const
+  {
+    timeval timestamp_value;
+    timestamp_value.tv_sec= m_created_timestamp / 100;
+    timestamp_value.tv_usec= (m_created_timestamp % 100) * 10000;
+    return timestamp_value;
+  }
 
   ulonglong get_action_order() const
   { return m_action_order; }
