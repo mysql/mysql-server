@@ -81,14 +81,19 @@ SQLDriver.prototype.insert = function(tableMapping, element, callback, rw, index
   var insertClause = 'insert into ' + tableMapping.table + ' (';
   var valueClause = ') values (';
   var values = [];
+  var value;
   var separator = '';
   tableMapping.fields.forEach(function(field) {
-    insertClause += separator;
-    insertClause += field.columnName;
-    valueClause += separator;
-    valueClause += '? ';
-    separator = ', ';
-    values.push(element[field.fieldName]);
+    value = element[field.fieldName];
+    // only send defined values (including explicit nulls)
+    if (typeof(value) !== 'undefined') {
+      insertClause += separator;
+      insertClause += field.columnName;
+      valueClause += separator;
+      valueClause += '? ';
+      separator = ', ';
+      values.push(value);
+    }
   });
   insertClause += valueClause;
   insertClause += ')';
