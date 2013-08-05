@@ -233,7 +233,7 @@ protected:
 
   virtual void SetUp()
   {
-    init_sql_alloc(&m_mem_root, 1024, 0);
+    init_sql_alloc(PSI_NOT_INSTRUMENTED, &m_mem_root, 1024, 0);
     ASSERT_EQ(0, my_pthread_setspecific_ptr(THR_MALLOC, &m_mem_root_p));
     MEM_ROOT *root= *my_pthread_getspecific_ptr(MEM_ROOT**, THR_MALLOC);
     ASSERT_EQ(root, m_mem_root_p);

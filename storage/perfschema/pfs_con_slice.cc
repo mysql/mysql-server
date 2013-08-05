@@ -1,4 +1,4 @@
-/* Copyright (c) 2010, 2011, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2010, 2013, Oracle and/or its affiliates. All rights reserved.
 
   This program is free software; you can redistribute it and/or modify
   it under the terms of the GNU General Public License as published by
@@ -88,6 +88,25 @@ PFS_connection_slice::alloc_statements_slice(uint sizing)
   return slice;
 }
 
+PFS_memory_stat *
+PFS_connection_slice::alloc_memory_slice(uint sizing)
+{
+  PFS_memory_stat *slice= NULL;
+  uint index;
+
+  if (sizing > 0)
+  {
+    slice= PFS_MALLOC_ARRAY(sizing, PFS_memory_stat, MYF(MY_ZEROFILL));
+    if (unlikely(slice == NULL))
+      return NULL;
+
+    for (index= 0; index < sizing; index++)
+      slice[index].reset();
+  }
+
+  return slice;
+}
+
 void PFS_connection_slice::reset_waits_stats()
 {
   PFS_single_stat *stat= m_instr_class_waits_stats;
@@ -108,6 +127,14 @@ void PFS_connection_slice::reset_statements_stats()
 {
   PFS_statement_stat *stat= m_instr_class_statements_stats;
   PFS_statement_stat *stat_last= stat + statement_class_max;
+  for ( ; stat < stat_last; stat++)
+    stat->reset();
+}
+
+void PFS_connection_slice::rebase_memory_stats()
+{
+  PFS_memory_stat *stat= m_instr_class_memory_stats;
+  PFS_memory_stat *stat_last= stat + memory_class_max;
   for ( ; stat < stat_last; stat++)
     stat->reset();
 }

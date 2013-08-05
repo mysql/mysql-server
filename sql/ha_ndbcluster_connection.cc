@@ -111,7 +111,8 @@ ndbcluster_connect(int (*connect_callback)(void),
   {
     g_pool_alloc= connection_pool_size;
     g_pool= (Ndb_cluster_connection**)
-      my_malloc(g_pool_alloc * sizeof(Ndb_cluster_connection*),
+      my_malloc(PSI_INSTRUMENT_ME,
+                g_pool_alloc * sizeof(Ndb_cluster_connection*),
                 MYF(MY_WME | MY_ZEROFILL));
     pthread_mutex_init(&g_pool_mutex,
                        MY_MUTEX_INIT_FAST);

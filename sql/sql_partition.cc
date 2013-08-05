@@ -2691,7 +2691,8 @@ char *generate_partition_syntax(partition_info *part_info,
   if (use_sql_alloc)
     buf= (char*) sql_alloc(*buf_length+1);
   else
-    buf= (char*) my_malloc(*buf_length+1, MYF(MY_WME));
+    buf= (char*) my_malloc(key_memory_partition_syntax_buffer,
+                           *buf_length+1, MYF(MY_WME));
   if (!buf)
     goto close_file;
 

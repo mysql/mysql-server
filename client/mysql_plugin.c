@@ -193,7 +193,8 @@ static char *get_value(char *line, const char *item)
     char *s= 0;
 
     s = line + item_len + 1;
-    destination= my_strndup(s, line_len - start, MYF(MY_FAE));
+    destination= my_strndup(PSI_NOT_INSTRUMENTED,
+                            s, line_len - start, MYF(MY_FAE));
     destination[line_len - item_len - 2]= 0;
   }
   return destination;
@@ -261,7 +262,8 @@ static int has_spaces(const char *path)
 static char *convert_path(const char *argument)
 {
   /* Convert / to \\ to make Windows paths */
-  char *winfilename= my_strdup(argument, MYF(MY_FAE));
+  char *winfilename= my_strdup(PSI_NOT_INSTRUMENTED,
+                               argument, MYF(MY_FAE));
   char *pos, *end;
   int length= strlen(argument);
 
@@ -293,7 +295,8 @@ static char *add_quotes(const char *path)
   else
     snprintf(windows_cmd_friendly, sizeof(windows_cmd_friendly),
              "%s", path);
-  return my_strdup(windows_cmd_friendly, MYF(MY_FAE));
+  return my_strdup(PSI_NOT_INSTRUMENTED,
+                   windows_cmd_friendly, MYF(MY_FAE));
 }
 #endif
 
@@ -372,19 +375,23 @@ static int get_default_values()
 
       if ((opt_datadir == 0) && ((value= get_value(line, "--datadir"))))
       {
-        opt_datadir= my_strdup(value, MYF(MY_FAE));
+        opt_datadir= my_strdup(PSI_NOT_INSTRUMENTED,
+                               value, MYF(MY_FAE));
       }
       if ((opt_basedir == 0) && ((value= get_value(line, "--basedir"))))
       {
-        opt_basedir= my_strdup(value, MYF(MY_FAE));
+        opt_basedir= my_strdup(PSI_NOT_INSTRUMENTED,
+                               value, MYF(MY_FAE));
       }
       if ((opt_plugin_dir == 0) && ((value= get_value(line, "--plugin_dir"))))
       {
-        opt_plugin_dir= my_strdup(value, MYF(MY_FAE));
+        opt_plugin_dir= my_strdup(PSI_NOT_INSTRUMENTED,
+                                  value, MYF(MY_FAE));
       }
       if ((opt_plugin_ini == 0) && ((value= get_value(line, "--plugin_ini"))))
       {
-        opt_plugin_ini= my_strdup(value, MYF(MY_FAE));
+        opt_plugin_ini= my_strdup(PSI_NOT_INSTRUMENTED,
+                                  value, MYF(MY_FAE));
       }
     }
   }
@@ -406,7 +413,7 @@ exit:
 static void usage(void)
 {
   PRINT_VERSION;
-  puts("Copyright (c) 2011, Oracle and/or its affiliates. "
+  puts("Copyright (c) 2011, 2013, Oracle and/or its affiliates. "
        "All rights reserved.\n");
   puts("Enable or disable plugins.");
   printf("\nUsage: %s [options] <plugin> ENABLE|DISABLE\n\nOptions:\n",
@@ -494,22 +501,28 @@ get_one_option(int optid,
     usage();
     exit(0);
   case 'd':
-    opt_datadir= my_strdup(argument, MYF(MY_FAE));
+    opt_datadir= my_strdup(PSI_NOT_INSTRUMENTED,
+                           argument, MYF(MY_FAE));
     break;
   case 'b':
-    opt_basedir= my_strdup(argument, MYF(MY_FAE));
+    opt_basedir= my_strdup(PSI_NOT_INSTRUMENTED,
+                           argument, MYF(MY_FAE));
     break;
   case 'p':
-    opt_plugin_dir= my_strdup(argument, MYF(MY_FAE));
+    opt_plugin_dir= my_strdup(PSI_NOT_INSTRUMENTED,
+                              argument, MYF(MY_FAE));
     break;
   case 'i':
-    opt_plugin_ini= my_strdup(argument, MYF(MY_FAE));
+    opt_plugin_ini= my_strdup(PSI_NOT_INSTRUMENTED,
+                              argument, MYF(MY_FAE));
     break;
   case 'm':
-    opt_mysqld= my_strdup(argument, MYF(MY_FAE));
+    opt_mysqld= my_strdup(PSI_NOT_INSTRUMENTED,
+                          argument, MYF(MY_FAE));
     break;
   case 'f':
-    opt_my_print_defaults= my_strdup(argument, MYF(MY_FAE));
+    opt_my_print_defaults= my_strdup(PSI_NOT_INSTRUMENTED,
+                                     argument, MYF(MY_FAE));
     break;
   }
   return 0;
@@ -653,7 +666,8 @@ static int load_plugin_data(char *plugin_name, char *config_file)
   if (opt_plugin_ini == 0)
   {
     fn_format(path, config_file, opt_plugin_dir, "", MYF(0));
-    opt_plugin_ini= my_strdup(path, MYF(MY_FAE));
+    opt_plugin_ini= my_strdup(PSI_NOT_INSTRUMENTED,
+                              path, MYF(MY_FAE));
   }
   if (!file_exists(opt_plugin_ini))
   {
@@ -669,7 +683,8 @@ static int load_plugin_data(char *plugin_name, char *config_file)
   }
 
   /* save name */
-  plugin_data.name= my_strdup(plugin_name, MYF(MY_WME));
+  plugin_data.name= my_strdup(PSI_NOT_INSTRUMENTED,
+                              plugin_name, MYF(MY_WME));
 
   /* Read plugin components */
   while (i < 16)
@@ -699,14 +714,16 @@ static int load_plugin_data(char *plugin_name, char *config_file)
       /* Add proper file extension for soname */
       strcat(line, FN_SOEXT);
       /* save so_name */
-      plugin_data.so_name= my_strdup(line, MYF(MY_WME|MY_ZEROFILL));
+      plugin_data.so_name= my_strdup(PSI_NOT_INSTRUMENTED,
+                                     line, MYF(MY_WME|MY_ZEROFILL));
       i++;
     }
     else
     {
       if (strlen(line) > 0)
       {
-        plugin_data.components[i]= my_strdup(line, MYF(MY_WME));
+        plugin_data.components[i]= my_strdup(PSI_NOT_INSTRUMENTED,
+                                             line, MYF(MY_WME));
         i++;
       }
       else
@@ -772,21 +789,24 @@ static int check_options(int argc, char **argv, char *operation)
     else if ((strncasecmp(argv[i], basedir_prefix, basedir_len) == 0) &&
              !opt_basedir)
     {
-      opt_basedir= my_strndup(argv[i]+basedir_len,
+      opt_basedir= my_strndup(PSI_NOT_INSTRUMENTED,
+                              argv[i]+basedir_len,
                               strlen(argv[i])-basedir_len, MYF(MY_FAE));
       num_found++;
     }
     else if ((strncasecmp(argv[i], datadir_prefix, datadir_len) == 0) &&
              !opt_datadir)
     {
-      opt_datadir= my_strndup(argv[i]+datadir_len,
+      opt_datadir= my_strndup(PSI_NOT_INSTRUMENTED,
+                              argv[i]+datadir_len,
                               strlen(argv[i])-datadir_len, MYF(MY_FAE));
       num_found++;
     }
     else if ((strncasecmp(argv[i], plugin_dir_prefix, plugin_dir_len) == 0) &&
              !opt_plugin_dir)
     {
-      opt_plugin_dir= my_strndup(argv[i]+plugin_dir_len,
+      opt_plugin_dir= my_strndup(PSI_NOT_INSTRUMENTED,
+                                 argv[i]+plugin_dir_len,
                                  strlen(argv[i])-plugin_dir_len, MYF(MY_FAE));
       num_found++;
     }
@@ -893,7 +913,8 @@ static int process_options(int argc, char *argv[], char *operation)
 #endif
       buff[sizeof(buff) - 1]= 0;
       my_delete(opt_basedir, MYF(0));
-      opt_basedir= my_strdup(buff, MYF(MY_FAE));
+      opt_basedir= my_strdup(PSI_NOT_INSTRUMENTED,
+                             buff, MYF(MY_FAE));
     }
   }
   

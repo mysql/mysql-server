@@ -300,7 +300,8 @@ get_one_option(int optid, const struct my_option *opt __attribute__((unused)),
     {
       char *start = argument;
       my_free(opt_password);
-      opt_password = my_strdup(argument, MYF(MY_FAE));
+      opt_password = my_strdup(PSI_NOT_INSTRUMENTED,
+                               argument, MYF(MY_FAE));
       while (*argument) *argument++= 'x';		/* Destroy argument */
       if (*start)
 	start[1] = 0;                             /* Cut length of argument */
@@ -477,7 +478,8 @@ static int process_selected_tables(char *db, char **table_names, int tables)
       tot_length+= fixed_name_length(*(table_names + i)) + 2;
 
     if (!(table_names_comma_sep = (char *)
-	  my_malloc((sizeof(char) * tot_length) + 4, MYF(MY_WME))))
+	  my_malloc(PSI_NOT_INSTRUMENTED,
+                    (sizeof(char) * tot_length) + 4, MYF(MY_WME))))
       return 1;
 
     for (end = table_names_comma_sep + 1; tables > 0;
@@ -571,7 +573,8 @@ static int process_all_tables_in_db(char *database)
       tot_length+= fixed_name_length(row[0]) + 2;
     mysql_data_seek(res, 0);
 
-    if (!(tables=(char *) my_malloc(sizeof(char)*tot_length+4, MYF(MY_WME))))
+    if (!(tables=(char *) my_malloc(PSI_NOT_INSTRUMENTED,
+                                    sizeof(char)*tot_length+4, MYF(MY_WME))))
     {
       mysql_free_result(res);
       return 1;
@@ -647,7 +650,8 @@ static int rebuild_table(char *name)
 {
   char *query, *ptr;
   int rc= 0;
-  query= (char*)my_malloc(sizeof(char) * (12 + fixed_name_length(name) + 6 + 1),
+  query= (char*)my_malloc(PSI_NOT_INSTRUMENTED,
+                          sizeof(char) * (12 + fixed_name_length(name) + 6 + 1),
                           MYF(MY_WME));
   if (!query)
     return 1;
@@ -741,7 +745,8 @@ static int handle_request_for_tables(char *tables, uint length)
     return fix_table_storage_name(tables);
   }
 
-  if (!(query =(char *) my_malloc((sizeof(char)*(length+110)), MYF(MY_WME))))
+  if (!(query =(char *) my_malloc(PSI_NOT_INSTRUMENTED,
+                                  (sizeof(char)*(length+110)), MYF(MY_WME))))
     return 1;
   if (opt_all_in_1)
   {
