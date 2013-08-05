@@ -1,26 +1,6 @@
---- suite/storage_engine/parts/repair_table.result	2013-01-23 01:35:44.388267080 +0400
-+++ suite/storage_engine/parts/repair_table.reject	2013-01-23 01:44:40.337529283 +0400
-@@ -9,27 +9,27 @@
- INSERT INTO t2 (a,b) SELECT a, b FROM t1;
- ALTER TABLE t1 REPAIR PARTITION p0;
- Table	Op	Msg_type	Msg_text
--test.t1	repair	status	OK
-+test.t1	repair	note	The storage engine for the table doesn't support repair
- INSERT INTO t1 (a,b) VALUES (3,'c');
- ALTER TABLE t1 REPAIR PARTITION NO_WRITE_TO_BINLOG p0, p1;
- Table	Op	Msg_type	Msg_text
--test.t1	repair	status	OK
-+test.t1	repair	note	The storage engine for the table doesn't support repair
- INSERT INTO t2 (a,b) VALUES (5,'e'),(6,'f');
- ALTER TABLE t2 REPAIR PARTITION LOCAL p1;
- Table	Op	Msg_type	Msg_text
--test.t2	repair	status	OK
-+test.t2	repair	note	The storage engine for the table doesn't support repair
- INSERT INTO t1 (a,b) VALUES (7,'g'),(8,'h');
- ALTER TABLE t1 REPAIR PARTITION LOCAL ALL EXTENDED;
- Table	Op	Msg_type	Msg_text
--test.t1	repair	status	OK
-+test.t1	repair	note	The storage engine for the table doesn't support repair
+--- suite/storage_engine/parts/repair_table.result	2013-07-18 22:55:38.000000000 +0400
++++ suite/storage_engine/parts/repair_table.reject	2013-08-05 19:54:09.000000000 +0400
+@@ -25,7 +25,7 @@
  INSERT INTO t1 (a,b) VALUES (10,'j');
  ALTER TABLE t1 REPAIR PARTITION p1 QUICK USE_FRM;
  Table	Op	Msg_type	Msg_text
@@ -29,39 +9,7 @@
  INSERT INTO t2 (a,b) VALUES (12,'l');
  ALTER TABLE t2 REPAIR PARTITION NO_WRITE_TO_BINLOG ALL QUICK EXTENDED USE_FRM;
  Table	Op	Msg_type	Msg_text
--test.t2	repair	status	OK
-+test.t2	repair	note	The storage engine for the table doesn't support repair
- DROP TABLE t1, t2;
- DROP TABLE IF EXISTS t1,t2;
- CREATE TABLE t1 (a <INT_COLUMN>, b <CHAR_COLUMN>) ENGINE=<STORAGE_ENGINE> <CUSTOM_TABLE_OPTIONS> PARTITION BY HASH(a) PARTITIONS 2;
-@@ -37,35 +37,35 @@
- CREATE TABLE t2 (a <INT_COLUMN>, b <CHAR_COLUMN>) ENGINE=<STORAGE_ENGINE> <CUSTOM_TABLE_OPTIONS> PARTITION BY HASH(a) PARTITIONS 2;
- REPAIR TABLE t1;
- Table	Op	Msg_type	Msg_text
--test.t1	repair	status	OK
-+test.t1	repair	note	The storage engine for the table doesn't support repair
- INSERT INTO t1 (a,b) VALUES (3,'c');
- INSERT INTO t2 (a,b) VALUES (4,'d');
- REPAIR NO_WRITE_TO_BINLOG TABLE t1, t2;
- Table	Op	Msg_type	Msg_text
--test.t1	repair	status	OK
--test.t2	repair	status	OK
-+test.t1	repair	note	The storage engine for the table doesn't support repair
-+test.t2	repair	note	The storage engine for the table doesn't support repair
- INSERT INTO t2 (a,b) VALUES (5,'e'),(6,'f');
- REPAIR LOCAL TABLE t2;
- Table	Op	Msg_type	Msg_text
--test.t2	repair	status	OK
-+test.t2	repair	note	The storage engine for the table doesn't support repair
- INSERT INTO t1 (a,b) VALUES (7,'g'),(8,'h');
- INSERT INTO t2 (a,b) VALUES (9,'i');
- REPAIR LOCAL TABLE t2, t1 EXTENDED;
- Table	Op	Msg_type	Msg_text
--test.t2	repair	status	OK
--test.t1	repair	status	OK
-+test.t2	repair	note	The storage engine for the table doesn't support repair
-+test.t1	repair	note	The storage engine for the table doesn't support repair
- INSERT INTO t1 (a,b) VALUES (10,'j');
+@@ -58,8 +58,8 @@
  INSERT INTO t2 (a,b) VALUES (11,'k');
  REPAIR TABLE t1, t2 QUICK USE_FRM;
  Table	Op	Msg_type	Msg_text
@@ -72,25 +20,7 @@
  INSERT INTO t1 (a,b) VALUES (12,'l');
  INSERT INTO t2 (a,b) VALUES (13,'m');
  REPAIR NO_WRITE_TO_BINLOG TABLE t1, t2 QUICK EXTENDED USE_FRM;
- Table	Op	Msg_type	Msg_text
--test.t1	repair	status	OK
--test.t2	repair	status	OK
-+test.t1	repair	note	The storage engine for the table doesn't support repair
-+test.t2	repair	note	The storage engine for the table doesn't support repair
- FLUSH TABLE t1;
- INSERT INTO t1 (a,b) VALUES (14,'n');
- ERROR HY000: Failed to read from the .par file
-@@ -93,127 +93,21 @@
- CREATE TABLE t1 (a <INT_COLUMN>, b <CHAR_COLUMN>, <CUSTOM_INDEX> (a)) ENGINE=<STORAGE_ENGINE> <CUSTOM_TABLE_OPTIONS> PARTITION BY HASH(a) PARTITIONS 2;
- REPAIR TABLE t1;
- Table	Op	Msg_type	Msg_text
--test.t1	repair	status	OK
-+test.t1	repair	note	The storage engine for the table doesn't support repair
- INSERT INTO t1 (a,b) VALUES (7,'g'),(8,'h');
- REPAIR TABLE t1 EXTENDED;
- Table	Op	Msg_type	Msg_text
--test.t1	repair	status	OK
-+test.t1	repair	note	The storage engine for the table doesn't support repair
+@@ -101,119 +101,13 @@
  INSERT INTO t1 (a,b) VALUES (10,'j');
  REPAIR TABLE t1 USE_FRM;
  Table	Op	Msg_type	Msg_text
