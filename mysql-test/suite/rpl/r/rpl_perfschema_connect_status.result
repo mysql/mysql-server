@@ -12,6 +12,7 @@ include/assert.inc [On master, the table should return an empty set.]
 # from SHOW PROCESSLIST.
 
 include/assert.inc [Value returned by SSS and PS table for Source_UUID should be same.]
+include/wait_for_slave_param.inc [Slave_IO_State]
 io thread id extracted from SHOW PROCESSLIST and PS table match correctly.
 # End of perl code for thread_id testing.
 include/assert.inc [SSS shows Slave_IO_Running as "Yes". So, Service_State from this PS table should be "ON".]
