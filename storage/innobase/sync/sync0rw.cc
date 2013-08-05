@@ -250,11 +250,9 @@ rw_lock_create_func(
 	memset((void*) &lock->writer_thread, 0, sizeof lock->writer_thread);
 	UNIV_MEM_INVALID(&lock->writer_thread, sizeof lock->writer_thread);
 
-#ifdef UNIV_DEBUG
-	lock->m_rw_lock = true;
-#endif /* UNIV_DEBUG */
-
 #ifdef UNIV_SYNC_DEBUG
+	lock->m_rw_lock = true;
+
 	UT_LIST_INIT(lock->debug_list, &rw_lock_debug_t::list);
 
 	lock->m_name = cmutex_name;
