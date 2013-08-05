@@ -186,16 +186,35 @@ Test.prototype.run = function() {
   };
 };
 
+function getType(obj) {
+  var type = typeof(obj);
+  console.log(util.inspect(obj));
+  if (type === 'object') return obj.constructor.name;
+  return type;
+}
+
+function compare(o1, o2) {
+  if (o1 == o2) return true;
+  if (o1 == null && o2 == null) return true;
+  if (typeof(o1) === 'undefined' && typeof(o2) === 'undefined') return true;
+  if (o1.toString() === o2.toString()) return true;
+  return false;
+}
+
 Test.prototype.errorIfNotEqual = function(message, o1, o2) {
-	if (o1 != o2) {
-    message += ': expected ' + o1 + '; actual ' + o2 + '\n';
+	if (!compare(o1, o2)) {
+	  var o1type = getType(o1);
+	  var o2type = getType(o2);
+    message += ': expected (' + o1type + ') ' + o1 + '; actual (' + o2type + ') ' + o2 + '\n';
 		this.errorMessages += message;
 	}
 };
 
 Test.prototype.errorIfNotStrictEqual = function(message, o1, o2) {
   if(o1 !== o2) {
-    message += ': expected ' + o1 + '; actual ' + o2 + '\n';
+    var o1type = getType(o1);
+    var o2type = getType(o2);
+    message += ': expected (' + o1type + ') ' + o1 + '; actual (' + o2type + ') ' + o2 + '\n';
 		this.errorMessages += message;
 	}
 };
