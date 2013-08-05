@@ -12343,113 +12343,6 @@ innodb_show_status(
 }
 
 /************************************************************************//**
-Implements the SHOW MUTEX STATUS command.
-@return 0 on success. */
-static
-int
-innodb_mutex_show_status(
-/*=====================*/
-	handlerton*	hton,		/*!< in: the innodb handlerton */
-	THD*		thd,		/*!< in: the MySQL query thread of the
-					caller */
-	stat_print_fn*	stat_print)	/*!< in: function for printing
-					statistics */
-{
-	char		buf1[IO_SIZE];
-	char		buf2[IO_SIZE];
-	rw_lock_t*	lock;
-	ulint		block_lock_oswait_count = 0;
-	rw_lock_t*	block_lock = NULL;
-#ifdef UNIV_DEBUG
-	ulint		rw_lock_count= 0;
-	ulint		rw_lock_count_spin_loop= 0;
-	ulint		rw_lock_count_spin_rounds= 0;
-	ulint		rw_lock_count_os_wait= 0;
-	ulint		rw_lock_count_os_yield= 0;
-	ulonglong	rw_lock_wait_time= 0;
-#endif /* UNIV_DEBUG */
-	uint		buf1len;
-	uint		buf2len;
-	uint		hton_name_len;
-
-	hton_name_len = (uint) strlen(innobase_hton_name);
-
-	DBUG_ENTER("innodb_mutex_show_status");
-	DBUG_ASSERT(hton == innodb_hton_ptr);
-
-	mutex_enter(&rw_lock_list_mutex);
-
-	for (lock = UT_LIST_GET_FIRST(rw_lock_list); lock != NULL;
-	     lock = UT_LIST_GET_NEXT(list, lock)) {
-		if (lock->count_os_wait == 0) {
-			continue;
-		}
-
-		if (buf_pool_is_block_lock(lock)) {
-			block_lock = lock;
-			block_lock_oswait_count += lock->count_os_wait;
-			continue;
-		}
-
-		buf1len = (uint) my_snprintf(
-			buf1, sizeof buf1, "%s:%lu",
-			innobase_basename(lock->cfile_name),
-			(ulong) lock->cline);
-		buf2len = (uint) my_snprintf(
-			buf2, sizeof buf2, "os_waits=%lu",
-			(ulong) lock->count_os_wait);
-
-		if (stat_print(thd, innobase_hton_name,
-			       hton_name_len, buf1, buf1len,
-			       buf2, buf2len)) {
-			mutex_exit(&rw_lock_list_mutex);
-			DBUG_RETURN(1);
-		}
-	}
-
-	if (block_lock) {
-		buf1len = (uint) my_snprintf(buf1, sizeof buf1,
-					     "combined %s:%lu",
-					     innobase_basename(
-						block_lock->cfile_name),
-					     (ulong) block_lock->cline);
-		buf2len = (uint) my_snprintf(buf2, sizeof buf2,
-					     "os_waits=%lu",
-					     (ulong) block_lock_oswait_count);
-
-		if (stat_print(thd, innobase_hton_name,
-			       hton_name_len, buf1, buf1len,
-			       buf2, buf2len)) {
-			mutex_exit(&rw_lock_list_mutex);
-			DBUG_RETURN(1);
-		}
-	}
-
-	mutex_exit(&rw_lock_list_mutex);
-
-#ifdef UNIV_DEBUG
-	buf2len = (uint) my_snprintf(
-		buf2, sizeof buf2,
-		"count=%lu, spin_waits=%lu, spin_rounds=%lu, "
-		"os_waits=%lu, os_yields=%lu, os_wait_times=%lu",
-		(ulong) rw_lock_count,
-		(ulong) rw_lock_count_spin_loop,
-		(ulong) rw_lock_count_spin_rounds,
-		(ulong) rw_lock_count_os_wait,
-		(ulong) rw_lock_count_os_yield,
-		(ulong) (rw_lock_wait_time / 1000));
-
-	if (stat_print(thd, innobase_hton_name, hton_name_len,
-			STRING_WITH_LEN("rw_lock_mutexes"), buf2, buf2len)) {
-		DBUG_RETURN(1);
-	}
-#endif /* UNIV_DEBUG */
-
-	/* Success */
-	DBUG_RETURN(0);
-}
-
-/************************************************************************//**
 Return 0 on success and non-zero on failure. Note: the bool return type
 seems to be abused here, should be an int. */
 static
@@ -12470,8 +12363,11 @@ innobase_show_status(
 		return(innodb_show_status(hton, thd, stat_print) != 0);
 
 	case HA_ENGINE_MUTEX:
-		/* Non-zero return value means there was an error. */
-		return(innodb_mutex_show_status(hton, thd, stat_print) != 0);
+		/* After WL#6044 we no longer support reporting of mutex
+		statistics via this interface. All mutex related counters
+		should be accessed via the Performance Schema Engine. */
+		/* Not handled */
+		break;
 
 	case HA_ENGINE_LOGS:
 		/* Not handled */
