@@ -1269,7 +1269,7 @@ trx_purge(
 	if (srv_purge_view_update_only_debug) {
 		return(0);
 	}
-#endif
+#endif /* UNIV_DEBUG */
 
 	/* Fetch the UNDO recs that need to be purged. */
 	n_pages_handled = trx_purge_attach_undo_recs(
@@ -1306,8 +1306,14 @@ run_synchronously:
 
 		que_run_threads(thr);
 
+#ifdef HAVE_ATOMIC_BUILTINS
 		os_atomic_inc_ulint(
 			&purge_sys->pq_mutex, &purge_sys->n_completed, 1);
+#else
+		mutex_enter(&purge_sys->pq_mutex);
+		++purge_sys->n_completed;
+		mutex_exit(&purge_sys->pq_mutex);
+#endif /* HAVE_ATOMIC_BUILTINS */
 
 		if (n_purge_threads > 1) {
 			trx_purge_wait_for_workers_to_complete(purge_sys);

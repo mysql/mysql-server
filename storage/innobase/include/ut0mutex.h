@@ -46,10 +46,13 @@ typedef PolicyMutex<TTASFutexMutex<NoPolicy> >  FutexMutex;
 
 typedef PolicyMutex<TTASMutex<NoPolicy> > SpinMutex;
 typedef PolicyMutex<TTASEventMutex<TrackPolicy> > SyncArrayMutex;
+# else
+typedef PolicyMutex<OSTrackMutex<TrackPolicy> > SyncArrayMutex;
 # endif /* HAVE_ATOMIC_BUILTINS */
 
 typedef PolicyMutex<OSTrackMutex<NoPolicy> > SysMutex;
 typedef PolicyMutex<OSBasicMutex<NoPolicy> > EventMutex;
+
 
 #else /* !UNIV_DEBUG */
 
@@ -61,6 +64,8 @@ typedef PolicyMutex<TTASFutexMutex<DebugPolicy> > FutexMutex;
 
 typedef PolicyMutex<TTASMutex<DebugPolicy> > SpinMutex;
 typedef PolicyMutex<TTASEventMutex<DebugPolicy> > SyncArrayMutex;
+# else
+typedef PolicyMutex<OSTrackMutex<TrackPolicy> > SyncArrayMutex;
 #endif /* HAVE_ATOMIC_BUILTINS */
 
 typedef PolicyMutex<OSTrackMutex<DebugPolicy> > SysMutex;

@@ -278,10 +278,14 @@ sync_cell_get_event(
 /*================*/
 	sync_cell_t*	cell) /*!< in: non-empty sync array cell */
 {
-	ulint type = cell->request_type;
+	ulint	type = cell->request_type;
 
 	if (type == SYNC_MUTEX) {
+#ifdef HAVE_ATOMIC_BUILTINS
 		return(cell->latch.mutex->event());
+#else
+		ut_error;
+#endif /* HAVE_ATOMIC_BUILTINS */
 	} else if (type == RW_LOCK_X_WAIT) {
 		return(cell->latch.lock->wait_ex_event);
 	} else { /* RW_LOCK_S and RW_LOCK_X wait on the same event */
@@ -477,6 +481,7 @@ sync_array_cell_print(
 		difftime(time(NULL), cell->reservation_time));
 
 	if (type == SYNC_MUTEX) {
+#ifdef HAVE_ATOMIC_BUILTINS
 		WaitMutex*	mutex = cell->latch.mutex;
 		const WaitMutex::MutexPolicy&	policy = mutex->policy();
 
@@ -495,6 +500,9 @@ sync_array_cell_print(
 			(ulong) policy.m_line
 #endif /* UNIV_DEBUG */
 		       );
+#else
+		ut_error;
+#endif /* HAVE_ATOMIC_BUILTINS */
 	} else if (type == RW_LOCK_X
 		   || type == RW_LOCK_X_WAIT
 		   || type == RW_LOCK_S) {
@@ -762,6 +770,7 @@ sync_arr_cell_can_wake_up(
 	sync_cell_t*	cell)	/*!< in: cell to search */
 {
 	if (cell->request_type == SYNC_MUTEX) {
+#ifdef HAVE_ATOMIC_BUILTINS
 		WaitMutex*	mutex;
 
 		mutex = cell->latch.mutex;
@@ -770,6 +779,9 @@ sync_arr_cell_can_wake_up(
 
 			return(true);
 		}
+#else
+		ut_error;
+#endif /* HAVE_ATOMIC_BUILTINS */
 
 	} else if (cell->request_type == RW_LOCK_X) {
 		rw_lock_t*	lock;

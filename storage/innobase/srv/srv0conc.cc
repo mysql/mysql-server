@@ -134,7 +134,7 @@ srv_conc_init(void)
 
 	/* Init the server concurrency restriction data structures */
 
-	os_fast_mutex_init(srv_conc_mutex_key, &srv_conc_mutex);
+	mutex_create("conc_mutex", &srv_conc_mutex);
 
 	UT_LIST_INIT(srv_conc_queue, &srv_conc_slot_t::srv_conc_queue);
 
@@ -144,7 +144,7 @@ srv_conc_init(void)
 	for (i = 0; i < OS_THREAD_MAX_N; i++) {
 		srv_conc_slot_t*	conc_slot = &srv_conc_slots[i];
 
-		conc_slot->event = os_event_create();
+		conc_slot->event = os_event_create("conc_event");
 		ut_a(conc_slot->event);
 	}
 #endif /* !HAVE_ATOMIC_BUILTINS */
@@ -157,7 +157,7 @@ srv_conc_free(void)
 /*===============*/
 {
 #ifndef HAVE_ATOMIC_BUILTINS
-	os_fast_mutex_free(&srv_conc_mutex);
+	mutex_free(&srv_conc_mutex);
 	mem_free(srv_conc_slots);
 	srv_conc_slots = NULL;
 #endif /* !HAVE_ATOMIC_BUILTINS */
@@ -310,7 +310,7 @@ srv_conc_exit_innodb_without_atomics(
 {
 	srv_conc_slot_t*	slot;
 
-	os_fast_mutex_lock(&srv_conc_mutex);
+	mutex_enter(&srv_conc_mutex);
 
 	ut_ad(srv_conc.n_active > 0);
 	srv_conc.n_active--;
@@ -340,7 +340,7 @@ srv_conc_exit_innodb_without_atomics(
 		}
 	}
 
-	os_fast_mutex_unlock(&srv_conc_mutex);
+	mutex_exit(&srv_conc_mutex);
 
 	if (slot != NULL) {
 		os_event_set(slot->event);
@@ -360,10 +360,10 @@ srv_conc_enter_innodb_without_atomics(
 	srv_conc_slot_t*	slot = NULL;
 	ibool			has_slept = FALSE;
 
-	os_fast_mutex_lock(&srv_conc_mutex);
+	mutex_enter(&srv_conc_mutex);
 retry:
-	if (UNIV_UNLIKELY(trx->declared_to_be_inside_innodb)) {
-		os_fast_mutex_unlock(&srv_conc_mutex);
+	if (trx->declared_to_be_inside_innodb) {
+		mutex_exit(&srv_conc_mutex);
 		ut_print_timestamp(stderr);
 		fputs("  InnoDB: Error: trying to declare trx"
 		      " to enter InnoDB, but\n"
@@ -381,7 +381,7 @@ retry:
 		trx->declared_to_be_inside_innodb = TRUE;
 		trx->n_tickets_to_enter_innodb = srv_n_free_tickets_to_enter;
 
-		os_fast_mutex_unlock(&srv_conc_mutex);
+		mutex_exit(&srv_conc_mutex);
 
 		return;
 	}
@@ -397,7 +397,7 @@ retry:
 
 		srv_conc.n_waiting++;
 
-		os_fast_mutex_unlock(&srv_conc_mutex);
+		mutex_exit(&srv_conc_mutex);
 
 		trx->op_info = "sleeping before joining InnoDB queue";
 
@@ -412,7 +412,7 @@ retry:
 
 		trx->op_info = "";
 
-		os_fast_mutex_lock(&srv_conc_mutex);
+		mutex_exit(&srv_conc_mutex);
 
 		srv_conc.n_waiting--;
 
@@ -438,7 +438,7 @@ retry:
 		trx->declared_to_be_inside_innodb = TRUE;
 		trx->n_tickets_to_enter_innodb = 0;
 
-		os_fast_mutex_unlock(&srv_conc_mutex);
+		mutex_exit(&srv_conc_mutex);
 
 		return;
 	}
@@ -458,7 +458,7 @@ retry:
 
 	srv_conc.n_waiting++;
 
-	os_fast_mutex_unlock(&srv_conc_mutex);
+	mutex_exit(&srv_conc_mutex);
 
 	/* Go to wait for the event; when a thread leaves InnoDB it will
 	release this thread */
@@ -480,7 +480,7 @@ retry:
 
 	trx->op_info = "";
 
-	os_fast_mutex_lock(&srv_conc_mutex);
+	mutex_enter(&srv_conc_mutex);
 
 	srv_conc.n_waiting--;
 
@@ -494,7 +494,7 @@ retry:
 	trx->declared_to_be_inside_innodb = TRUE;
 	trx->n_tickets_to_enter_innodb = srv_n_free_tickets_to_enter;
 
-	os_fast_mutex_unlock(&srv_conc_mutex);
+	 mutex_exit(&srv_conc_mutex);
 }
 #endif /* HAVE_ATOMIC_BUILTINS */
 
@@ -547,9 +547,9 @@ srv_conc_force_enter_innodb(
 #ifdef HAVE_ATOMIC_BUILTINS
 	(void) os_atomic_increment_lint(&srv_conc.n_active, 1);
 #else
-	os_fast_mutex_lock(&srv_conc_mutex);
+	mutex_enter(&srv_conc_mutex);
 	++srv_conc.n_active;
-	os_fast_mutex_unlock(&srv_conc_mutex);
+	mutex_exit(&srv_conc_mutex);
 #endif /* HAVE_ATOMIC_BUILTINS */
 
 	trx->n_tickets_to_enter_innodb = 1;
