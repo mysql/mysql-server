@@ -38,23 +38,31 @@ extern ulong	srv_force_recovery_crash;
 
 #ifndef UNIV_DEBUG
 
-# ifdef HAVE_IB_LINUX_FUTEX
-typedef PolicyMutex<TTASFutexMutex<NoPolicy> >  FutexMutex;
-# endif /* HAVE_IB_LINUX_FUTEX */
+# ifdef HAVE_ATOMIC_BUILTINS
 
-typedef PolicyMutex<TTASEventMutex<TrackPolicy> > SyncArrayMutex;
+#  ifdef HAVE_IB_LINUX_FUTEX
+typedef PolicyMutex<TTASFutexMutex<NoPolicy> >  FutexMutex;
+#  endif /* HAVE_IB_LINUX_FUTEX */
+
 typedef PolicyMutex<TTASMutex<NoPolicy> > SpinMutex;
+typedef PolicyMutex<TTASEventMutex<TrackPolicy> > SyncArrayMutex;
+# endif /* HAVE_ATOMIC_BUILTINS */
+
 typedef PolicyMutex<OSTrackMutex<NoPolicy> > SysMutex;
 typedef PolicyMutex<OSBasicMutex<NoPolicy> > EventMutex;
 
 #else /* !UNIV_DEBUG */
 
-# ifdef HAVE_IB_LINUX_FUTEX
-typedef PolicyMutex<TTASFutexMutex<DebugPolicy> > FutexMutex;
-# endif /* HAVE_IB_LINUX_FUTEX */
+#ifdef HAVE_ATOMIC_BUILTINS
 
-typedef PolicyMutex<TTASEventMutex<DebugPolicy> > SyncArrayMutex;
+#  ifdef HAVE_IB_LINUX_FUTEX
+typedef PolicyMutex<TTASFutexMutex<DebugPolicy> > FutexMutex;
+#  endif /* HAVE_IB_LINUX_FUTEX */
+
 typedef PolicyMutex<TTASMutex<DebugPolicy> > SpinMutex;
+typedef PolicyMutex<TTASEventMutex<DebugPolicy> > SyncArrayMutex;
+#endif /* HAVE_ATOMIC_BUILTINS */
+
 typedef PolicyMutex<OSTrackMutex<DebugPolicy> > SysMutex;
 typedef PolicyMutex<OSBasicMutex<DebugPolicy> > EventMutex;
 
