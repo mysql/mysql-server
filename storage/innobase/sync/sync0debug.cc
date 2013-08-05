@@ -54,7 +54,7 @@ static bool sync_check_initialised = false;
 
 /** Debug mutex for control structures, should not be tracked
 by this module. */
-typedef TTASMutex<TrackPolicy> SyncMutex;
+typedef OSTrackMutex<TrackPolicy> SyncMutex;
 
 /** Thread specific latches. This is ordered on level in descending order. */
 typedef std::vector<const latch_t*> Latches;
@@ -164,6 +164,9 @@ latch_add(
 	LatchMap::iterator	lb = latches->lower_bound(n);
 
 	if (lb != latches->end() && !(latches->key_comp()(n, lb->first))) {
+
+		ib_logf(IB_LOG_LEVEL_FATAL,
+			"Duplicate mutex found: %s(%s)", name, lname);
 
 		/* There should never be a duplicate */
 		ut_error;
@@ -938,6 +941,10 @@ sync_latch_meta_init()
 	LATCH_ADD(SrvLatches, "server",
 		  SYNC_THREADS,
 		  server_mutex_key);
+
+	LATCH_ADD(SrvLatches, "conc_mutex",
+		  SYNC_NO_ORDER_CHECK,
+		  srv_conc_mutex_key);
 #endif /* !HAVE_ATOMIC_BUILTINS */
 
 #ifdef UNIV_MEM_DEBUG
@@ -1259,9 +1266,11 @@ latch_level_t
 sync_latch_get_level(
 	const char*	name)			/*!< in: Latch name */
 {
-	LatchMap::iterator it  = SrvLatches->find(name);
+	LatchMap::iterator	it  = SrvLatches->find(name);
 
-	ut_a(it != SrvLatches->end());
+	if (it == SrvLatches->end()) {
+		ib_logf(IB_LOG_LEVEL_FATAL, "Mutex not found: %s\n", name);
+	}
 
 	return(it->second.m_level);
 }
@@ -1298,10 +1307,14 @@ mysql_pfs_key_t
 sync_latch_get_pfs_key(
 	const char*	name)			/*!< Latch name */
 {
-	LatchMap::iterator it  = SrvLatches->find(name);
+	LatchMap::iterator	it  = SrvLatches->find(name);
 
 	/* Must find th the PFS key, even if it is not instrumented. */
-	ut_a(it != SrvLatches->end());
+	if (it == SrvLatches->end()) {
+
+		ib_logf(IB_LOG_LEVEL_FATAL, "Mutex not found: %s", name);
+		ut_error;
+	}
 
 	return(it->second.m_pfs_key);
 }

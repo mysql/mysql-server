@@ -225,11 +225,7 @@ rw_lock_create_func(
 	created, then the following call initializes the sync system. */
 
 #ifndef INNODB_RW_LOCKS_USE_ATOMICS
-	mutex_create(rw_lock_mutex_key, rw_lock_get_mutex(lock),
-		     SYNC_NO_ORDER_CHECK);
-
-	lock->mutex.cfile_name = cfile_name;
-	lock->mutex.cline = cline;
+	mutex_create("rw_lock_mutex", rw_lock_get_mutex(lock));
 
 	ut_d(lock->mutex.cmutex_name = cmutex_name);
 	ut_d(lock->mutex.ib_mutex_type = 1);

@@ -32,6 +32,8 @@ Created 2012/08/21 Sunny Bains
 #include "sync0arr.h"
 #include "sync0debug.h"
 
+#ifdef HAVE_ATOMIC_BUILTINS
+
 /**
 Wait in the sync array.
 @return true if the mutex acquisition was successful. */
@@ -96,3 +98,5 @@ TTASEventMutex<Policy>::signal() UNIV_NOTHROW
 
 	sync_array_object_signalled();
 }
+
+#endif /* HAVE_ATOMIC_BUILTINS */
