@@ -417,6 +417,13 @@ PSI_stage_info *all_semisync_stages[]=
   & stage_waiting_for_semi_sync_ack_from_slave
 };
 
+PSI_memory_key key_ss_memory_TranxNodeAllocator_block;
+
+PSI_memory_info all_semisync_memory[]=
+{
+  {&key_ss_memory_TranxNodeAllocator_block, "TranxNodeAllocator::block", 0}
+};
+
 static void init_semisync_psi_keys(void)
 {
   const char* category= "semisync";
@@ -430,6 +437,9 @@ static void init_semisync_psi_keys(void)
 
   count= array_elements(all_semisync_stages);
   mysql_stage_register(category, all_semisync_stages, count);
+
+  count= array_elements(all_semisync_memory);
+  mysql_memory_register(category, all_semisync_memory, count);
 }
 #endif /* HAVE_PSI_INTERFACE */
 

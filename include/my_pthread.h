@@ -601,6 +601,15 @@ extern const char *my_thread_name(void);
 extern my_thread_id my_thread_dbug_id(void);
 extern int pthread_dummy(int);
 
+#ifndef HAVE_PTHREAD_ATTR_GETGUARDSIZE
+static inline int pthread_attr_getguardsize(pthread_attr_t *attr,
+                                            size_t *guardsize)
+{
+  *guardsize= 0;
+  return 0;
+}
+#endif
+
 /* All thread specific variables are in the following struct */
 
 #define THREAD_NAME_SIZE 10
@@ -618,8 +627,6 @@ extern int pthread_dummy(int);
 
 #include <pfs_thread_provider.h>
 #include <mysql/psi/mysql_thread.h>
-
-#define INSTRUMENT_ME 0
 
 struct st_my_thread_var
 {
@@ -673,17 +680,11 @@ extern uint my_thread_end_wait_time;
 #ifdef _WIN32
 #define thread_safe_increment(V,L) InterlockedIncrement((long*) &(V))
 #define thread_safe_decrement(V,L) InterlockedDecrement((long*) &(V))
-#define thread_safe_increment_rwlock(V,L) InterlockedIncrement((long*) &(V))
-#define thread_safe_decrement_rwlock(V,L) InterlockedDecrement((long*) &(V))
 #else
 #define thread_safe_increment(V,L) \
         (mysql_mutex_lock((L)), (V)++, mysql_mutex_unlock((L)))
 #define thread_safe_decrement(V,L) \
         (mysql_mutex_lock((L)), (V)--, mysql_mutex_unlock((L)))
-#define thread_safe_increment_rwlock(V,L) \
-        (mysql_rwlock_wrlock((L)), (V)++, mysql_rwlock_unlock((L)))
-#define thread_safe_decrement_rwlock(V,L) \
-        (mysql_rwlock_wrlock((L)), (V)--, mysql_rwlock_unlock((L)))
 #endif
 #endif
 
@@ -691,17 +692,11 @@ extern uint my_thread_end_wait_time;
 #ifdef _WIN32
 #define thread_safe_add(V,C,L) InterlockedExchangeAdd((long*) &(V),(C))
 #define thread_safe_sub(V,C,L) InterlockedExchangeAdd((long*) &(V),-(long) (C))
-#define thread_safe_add_rwlock(V,C,L) InterlockedExchangeAdd((long*) &(V),(C))
-#define thread_safe_sub_rwlock(V,C,L) InterlockedExchangeAdd((long*) &(V),-(long) (C))
 #else
 #define thread_safe_add(V,C,L) \
         (mysql_mutex_lock((L)), (V)+=(C), mysql_mutex_unlock((L)))
 #define thread_safe_sub(V,C,L) \
         (mysql_mutex_lock((L)), (V)-=(C), mysql_mutex_unlock((L)))
-#define thread_safe_add_rwlock(V,C,L) \
-        (mysql_rwlock_wrlock((L)), (V)+=(C), mysql_rwlock_unlock((L)))
-#define thread_safe_sub_rwlock(V,C,L) \
-        (mysql_rwlock_wrlock((L)), (V)-=(C), mysql_rwlock_unlock((L)))
 #endif
 #endif
 

@@ -1,4 +1,4 @@
-/* Copyright (c) 2001, 2011, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2001, 2013, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -561,7 +561,8 @@ bool Unique::walk(tree_walk_action action, void *walk_action_arg)
     return 1;
   if (flush_io_cache(&file) || reinit_io_cache(&file, READ_CACHE, 0L, 0, 0))
     return 1;
-  if (!(merge_buffer= (uchar *) my_malloc((ulong) max_in_memory_size, MYF(0))))
+  if (!(merge_buffer= (uchar *) my_malloc(key_memory_Unique_merge_buffer,
+                                          (ulong) max_in_memory_size, MYF(0))))
     return 1;
   res= merge_walk(merge_buffer, (ulong) max_in_memory_size, size,
                   (BUFFPEK *) file_ptrs.buffer,
@@ -586,7 +587,8 @@ bool Unique::get(TABLE *table)
     /* Whole tree is in memory;  Don't use disk if you don't need to */
     DBUG_ASSERT(table->sort.record_pointers == NULL);
     if ((record_pointers=table->sort.record_pointers= (uchar*)
-	 my_malloc(size * tree.elements_in_tree, MYF(0))))
+	 my_malloc(key_memory_Filesort_info_record_pointers,
+                   size * tree.elements_in_tree, MYF(0))))
     {
       (void) tree_walk(&tree, (tree_walk_action) unique_write_to_ptrs,
 		       this, left_root_right);
@@ -606,7 +608,8 @@ bool Unique::get(TABLE *table)
 
       /* Open cached file if it isn't open */
   DBUG_ASSERT(table->sort.io_cache == NULL);
-  outfile=table->sort.io_cache=(IO_CACHE*) my_malloc(sizeof(IO_CACHE),
+  outfile=table->sort.io_cache=(IO_CACHE*) my_malloc(key_memory_TABLE_sort_io_cache,
+                                                     sizeof(IO_CACHE),
                                 MYF(MY_ZEROFILL));
 
   if (!outfile || (! my_b_inited(outfile) &&
@@ -623,7 +626,8 @@ bool Unique::get(TABLE *table)
     (uint) (max_in_memory_size / sort_param.sort_length);
   sort_param.not_killable=1;
 
-  if (!(sort_buffer=(uchar*) my_malloc((sort_param.max_keys_per_buffer + 1) *
+  if (!(sort_buffer=(uchar*) my_malloc(key_memory_Unique_sort_buffer,
+                                       (sort_param.max_keys_per_buffer + 1) *
                                        sort_param.sort_length,
                                        MYF(0))))
     return 1;

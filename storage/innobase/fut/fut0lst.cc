@@ -83,7 +83,6 @@ flst_add_last(
 	fil_addr_t	node_addr;
 	ulint		len;
 	fil_addr_t	last_addr;
-	flst_node_t*	last_node;
 
 	ut_ad(mtr && base && node);
 	ut_ad(base != node);
@@ -96,6 +95,8 @@ flst_add_last(
 
 	/* If the list is not empty, call flst_insert_after */
 	if (len != 0) {
+		flst_node_t*	last_node;
+
 		if (last_addr.page == node_addr.page) {
 			last_node = page_align(node) + last_addr.boffset;
 		} else {

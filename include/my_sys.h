@@ -21,12 +21,19 @@
 C_MODE_START
 
 #ifdef HAVE_VALGRIND
+# include <valgrind/valgrind.h>
+# define MEM_MALLOCLIKE_BLOCK(p1, p2, p3, p4) VALGRIND_MALLOCLIKE_BLOCK(p1, p2, p3, p4)
+# define MEM_RESIZEINPLACE_BLOCK(p1, p2, p3, p4) VALGRIND_RESIZEINPLACE_BLOCK(p1, p2, p3, p4)
+# define MEM_FREELIKE_BLOCK(p1, p2) VALGRIND_FREELIKE_BLOCK(p1, p2)
 # include <valgrind/memcheck.h>
 # define MEM_UNDEFINED(a,len) VALGRIND_MAKE_MEM_UNDEFINED(a,len)
 # define MEM_NOACCESS(a,len) VALGRIND_MAKE_MEM_NOACCESS(a,len)
 # define MEM_CHECK_ADDRESSABLE(a,len) VALGRIND_CHECK_MEM_IS_ADDRESSABLE(a,len)
 # define MEM_CHECK_DEFINED(a,len) VALGRIND_CHECK_MEM_IS_DEFINED(a,len)
 #else /* HAVE_VALGRIND */
+# define MEM_MALLOCLIKE_BLOCK(p1, p2, p3, p4) do {} while (0)
+# define MEM_RESIZEINPLACE_BLOCK(p1, p2, p3, p4) do {} while (0)
+# define MEM_FREELIKE_BLOCK(p1, p2) do {} while (0)
 # define MEM_UNDEFINED(a,len) ((void) 0)
 # define MEM_NOACCESS(a,len) ((void) 0)
 # define MEM_CHECK_ADDRESSABLE(a,len) ((void) 0)
@@ -143,22 +150,27 @@ C_MODE_START
 #define GETDATE_FIXEDLENGTH	16
 
 	/* defines when allocating data */
-extern void *my_malloc(size_t Size,myf MyFlags);
-extern void *my_multi_malloc(myf MyFlags, ...);
-extern void *my_realloc(void *oldpoint, size_t Size, myf MyFlags);
-extern void my_free(void *ptr);
-extern void *my_memdup(const void *from,size_t length,myf MyFlags);
-extern char *my_strdup(const char *from,myf MyFlags);
-extern char *my_strndup(const char *from, size_t length,
-				   myf MyFlags);
+extern void *my_raw_malloc(size_t size, myf flags);
+extern void *my_raw_realloc(void *oldpoint, size_t size, myf flags);
+extern void my_raw_free(void *ptr);
+extern void *my_raw_memdup(const void *from, size_t length, myf flags);
+extern char *my_raw_strdup(const char *from, myf flags);
+extern char *my_raw_strndup(const char *from, size_t length, myf flags);
+
+extern void *my_multi_malloc(PSI_memory_key key, myf flags, ...);
+
+#include <mysql/psi/psi.h>
+#include <mysql/service_mysql_alloc.h>
+#include <mysql/psi/mysql_memory.h>
 
 /*
   Switch to my_malloc() if the memory block to be allocated is bigger than
   max_alloca_sz.
 */
+extern PSI_memory_key key_memory_max_alloca;
 #define my_safe_alloca(size, max_alloca_sz) ((size <= max_alloca_sz) ? \
                                              my_alloca(size) : \
-                                             my_malloc(size, MYF(0)))
+                                             my_malloc(key_memory_max_alloca, size, MYF(0)))
 #define my_safe_afree(ptr, size, max_alloca_sz) if (size > max_alloca_sz) \
                                                my_free(ptr)
 
@@ -195,11 +207,11 @@ extern void (*debug_sync_C_callback_ptr)(const char *, size_t);
 
 #ifdef HAVE_LARGE_PAGES
 extern uint my_get_large_page_size(void);
-extern uchar * my_large_malloc(size_t size, myf my_flags);
+extern uchar * my_large_malloc(PSI_memory_key key, size_t size, myf my_flags);
 extern void my_large_free(uchar *ptr);
 #else
 #define my_get_large_page_size() (0)
-#define my_large_malloc(A,B) my_malloc((A),(B))
+#define my_large_malloc(A,B,C) my_malloc((A),(B),(C))
 #define my_large_free(A) my_free((A))
 #endif /* HAVE_LARGE_PAGES */
 
@@ -803,7 +815,8 @@ extern void dynstr_free(DYNAMIC_STRING *str);
 #define alloc_root_inited(A) ((A)->min_malloc != 0)
 #define ALLOC_ROOT_MIN_BLOCK_SIZE (MALLOC_OVERHEAD + sizeof(USED_MEM) + 8)
 #define clear_alloc_root(A) do { (A)->free= (A)->used= (A)->pre_alloc= 0; (A)->min_malloc=0;} while(0)
-extern void init_alloc_root(MEM_ROOT *mem_root, size_t block_size,
+extern void init_alloc_root(PSI_memory_key key,
+                            MEM_ROOT *mem_root, size_t block_size,
 			    size_t pre_alloc_size);
 extern void *alloc_root(MEM_ROOT *mem_root, size_t Size);
 extern void *multi_alloc_root(MEM_ROOT *mem_root, ...);

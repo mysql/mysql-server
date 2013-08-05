@@ -253,7 +253,8 @@ get_one_option(int optid, const struct my_option *opt __attribute__((unused)),
     {
       char *start=argument;
       my_free(opt_password);
-      opt_password=my_strdup(argument,MYF(MY_FAE));
+      opt_password=my_strdup(PSI_NOT_INSTRUMENTED,
+                             argument,MYF(MY_FAE));
       while (*argument) *argument++= 'x';		/* Destroy argument */
       if (*start)
 	start[1]=0;				/* Cut length of argument */

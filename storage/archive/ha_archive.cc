@@ -149,6 +149,8 @@ static handler *archive_create_handler(handlerton *hton,
   return new (mem_root) ha_archive(hton, table);
 }
 
+PSI_memory_key az_key_memory_frm;
+PSI_memory_key az_key_memory_record_buffer;
 
 #ifdef HAVE_PSI_INTERFACE
 PSI_mutex_key az_key_mutex_Archive_share_mutex;
@@ -161,10 +163,17 @@ static PSI_mutex_info all_archive_mutexes[]=
 PSI_file_key arch_key_file_metadata, arch_key_file_data, arch_key_file_frm;
 static PSI_file_info all_archive_files[]=
 {
-    { &arch_key_file_metadata, "metadata", 0},
-    { &arch_key_file_data, "data", 0},
-    { &arch_key_file_frm, "FRM", 0}
+  { &arch_key_file_metadata, "metadata", 0},
+  { &arch_key_file_data, "data", 0},
+  { &arch_key_file_frm, "FRM", 0}
 };
+
+static PSI_memory_info all_archive_memory[]=
+{
+  { &az_key_memory_frm, "FRM", 0},
+  { &az_key_memory_record_buffer, "record_buffer", 0},
+};
+
 
 static void init_archive_psi_keys(void)
 {
@@ -176,6 +185,9 @@ static void init_archive_psi_keys(void)
 
   count= array_elements(all_archive_files);
   mysql_file_register(category, all_archive_files, count);
+
+  count= array_elements(all_archive_memory);
+  mysql_memory_register(category, all_archive_memory, count);
 }
 
 
@@ -268,7 +280,8 @@ int archive_discover(handlerton *hton, THD* thd, const char *db,
   if (frm_stream.frm_length == 0)
     goto err;
 
-  frm_ptr= (char *)my_malloc(sizeof(char) * frm_stream.frm_length, MYF(0));
+  frm_ptr= (char *)my_malloc(az_key_memory_frm,
+                             sizeof(char) * frm_stream.frm_length, MYF(0));
   azread_frm(&frm_stream, frm_ptr);
   azclose(&frm_stream);
 
@@ -676,7 +689,8 @@ void ha_archive::frm_load(const char *name, azio_stream *dst)
   {
     if (!mysql_file_fstat(frm_file, &file_stat, MYF(MY_WME)))
     {
-      frm_ptr= (uchar *) my_malloc(sizeof(uchar) * (size_t) file_stat.st_size, MYF(0));
+      frm_ptr= (uchar *) my_malloc(az_key_memory_frm,
+                                   sizeof(uchar) * (size_t) file_stat.st_size, MYF(0));
       if (frm_ptr)
       {
         if (mysql_file_read(frm_file, frm_ptr, (size_t) file_stat.st_size, MYF(0)) ==
@@ -712,7 +726,8 @@ int ha_archive::frm_copy(azio_stream *src, azio_stream *dst)
     return 0;
   }
 
-  if (!(frm_ptr= (char *) my_malloc(src->frm_length, MYF(0))))
+  if (!(frm_ptr= (char *) my_malloc(az_key_memory_frm,
+                                    src->frm_length, MYF(0))))
     return HA_ERR_OUT_OF_MEM;
 
   /* Write file offset is set to the end of the file. */
@@ -1168,7 +1183,8 @@ bool ha_archive::fix_rec_buff(unsigned int length)
   if (length > record_buffer->length)
   {
     uchar *newptr;
-    if (!(newptr=(uchar*) my_realloc((uchar*) record_buffer->buffer, 
+    if (!(newptr=(uchar*) my_realloc(az_key_memory_record_buffer,
+                                     (uchar*) record_buffer->buffer,
                                     length,
 				    MYF(MY_ALLOW_ZERO_PTR))))
       DBUG_RETURN(1);
@@ -1865,14 +1881,16 @@ archive_record_buffer *ha_archive::create_record_buffer(unsigned int length)
   DBUG_ENTER("ha_archive::create_record_buffer");
   archive_record_buffer *r;
   if (!(r= 
-        (archive_record_buffer*) my_malloc(sizeof(archive_record_buffer),
+        (archive_record_buffer*) my_malloc(az_key_memory_record_buffer,
+                                           sizeof(archive_record_buffer),
                                            MYF(MY_WME))))
   {
     DBUG_RETURN(NULL); /* purecov: inspected */
   }
   r->length= (int)length;
 
-  if (!(r->buffer= (uchar*) my_malloc(r->length,
+  if (!(r->buffer= (uchar*) my_malloc(az_key_memory_record_buffer,
+                                      r->length,
                                     MYF(MY_WME))))
   {
     my_free(r);
