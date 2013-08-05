@@ -808,7 +808,9 @@ SyncDebug::unlock(const latch_t* latch)
 				continue;
 			}
 
-			latches->erase(--it.base());
+			Latches::iterator	i = it.base();
+
+			latches->erase(--i);
 
 			/* If this thread doesn't own any more
 			latches remove from the map.

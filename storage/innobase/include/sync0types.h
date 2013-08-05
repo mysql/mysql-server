@@ -282,7 +282,7 @@ enum latch_level_t {
 	SYNC_LEVEL_VARYING,
 
 	/** This can be used to suppress order checking. */
-	SYNC_NO_ORDER_CHECK,
+	SYNC_NO_ORDER_CHECK
 };
 
 /** All (ordered) latches, used in debugging, must derive from this class. */
