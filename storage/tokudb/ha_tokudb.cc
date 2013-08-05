@@ -6803,10 +6803,7 @@ int ha_tokudb::create_secondary_dictionary(
         );
     assert(row_descriptor.size <= max_row_desc_buff_size);
 
-    block_size = key_info->block_size << 10;
-    if (block_size == 0) {
-        block_size = get_tokudb_block_size(thd);
-    }
+    block_size = get_tokudb_block_size(thd);
     read_block_size = get_tokudb_read_block_size(thd);
 
     error = create_sub_table(newname, &row_descriptor, txn, block_size, read_block_size, row_type_to_compression_method(row_type), is_hot_index);
@@ -6896,12 +6893,7 @@ int ha_tokudb::create_main_dictionary(const char* name, TABLE* form, DB_TXN* txn
         );
     assert(row_descriptor.size <= max_row_desc_buff_size);
 
-    block_size = 0;
-    if (prim_key)
-        block_size = prim_key->block_size << 10;
-    if (block_size == 0) {
-        block_size = get_tokudb_block_size(thd);
-    }
+    block_size = get_tokudb_block_size(thd);
     read_block_size = get_tokudb_read_block_size(thd);
 
     /* Create the main table that will hold the real rows */
