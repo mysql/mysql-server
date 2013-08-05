@@ -112,7 +112,7 @@ if ($mysql_errname!=ER_CANT_DO_ONLINE)
 --let $alter_definition = MODIFY b BIGINT $default_col_opts
 --source alter_table.inc
 
---let $alternative_engine = `SELECT engine FROM information_schema.engines WHERE engine != '$storage_engine' AND support IN ('YES','DEFAULT')`
+--let $alternative_engine = `SELECT engine FROM information_schema.engines WHERE engine IN ('MEMORY','MyISAM') AND engine != '$storage_engine' ORDER BY engine LIMIT 1`
 
 --let $error_codes = ER_CANT_DO_ONLINE
 --let $online = 1
