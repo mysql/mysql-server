@@ -1312,17 +1312,17 @@ ulong Query_cache::resize(ulong query_cache_size_arg)
     {
       BLOCK_LOCK_WR(block);
       Query_cache_query *query= block->query();
-      if (query && query->writer())
+      if (query->writer())
       {
         /*
-           Drop the writer; this will cancel any attempts to store 
+           Drop the writer; this will cancel any attempts to store
            the processed statement associated with this writer.
          */
         query->writer()->first_query_block= NULL;
         query->writer(0);
         refused++;
       }
-      BLOCK_UNLOCK_WR(block);
+      query->unlock_n_destroy();
       block= block->next;
     } while (block != queries_blocks);
   }
@@ -4247,11 +4247,11 @@ my_bool Query_cache::move_by_type(uchar **border,
     size_t key_length;
     key=query_cache_query_get_key((uchar*) block, &key_length, 0);
     my_hash_first(&queries, (uchar*) key, key_length, &record_idx);
-    // Move table of used tables 
-    memmove((char*) new_block->table(0), (char*) block->table(0),
-	   ALIGN_SIZE(n_tables*sizeof(Query_cache_block_table)));
     block->query()->unlock_n_destroy();
     block->destroy();
+    // Move table of used tables
+    memmove((char*) new_block->table(0), (char*) block->table(0),
+	   ALIGN_SIZE(n_tables*sizeof(Query_cache_block_table)));
     new_block->init(len);
     new_block->type=Query_cache_block::QUERY;
     new_block->used=used;
