@@ -126,7 +126,7 @@ t4.run = function() {
 var t5 = new harness.ConcurrentTest("TimestampZero");
 t5.run = function() {
   var data = new TestData(5);
-  var dateZero = new Date(0);
+  var dateZero = new Date(60*60*1000);
   data.cNullableTimestamp = dateZero;
   this.verifier = new ValueVerifier(this, "cNullableTimestamp", dateZero);
   fail_openSession(this, InsertFunction(data));
