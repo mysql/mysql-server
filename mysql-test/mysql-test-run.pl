@@ -3516,6 +3516,12 @@ sub mysql_install_db {
   # over writing the buffer size to 16M for certain tests to pass       
   mtr_add_arg($args, "--innodb_buffer_pool_size=16M");
 
+  if ( $opt_embedded_server )
+  {
+    # Do not create performance_schema tables for embedded
+    mtr_add_arg($args, "--loose-performance_schema=OFF");
+  }
+
   if ( $opt_debug )
   {
     mtr_add_arg($args, "--debug=$debug_d:t:i:A,%s/log/bootstrap.trace",

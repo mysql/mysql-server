@@ -1332,7 +1332,15 @@ int plugin_init(int *argc, char **argv, int flags)
           to work, by using '--skip-performance-schema' (the plugin)
       */
       if (!my_strcasecmp(&my_charset_latin1, plugin->name, "PERFORMANCE_SCHEMA"))
-        tmp.load_option= PLUGIN_FORCE;
+      {
+        if (load_perfschema_engine)
+          tmp.load_option= PLUGIN_FORCE;
+        else
+        {
+          tmp.load_option= PLUGIN_OFF;
+          continue;
+        }
+      }
 
       free_root(&tmp_root, MYF(MY_MARK_BLOCKS_FREE));
       if (test_plugin_options(&tmp_root, &tmp, argc, argv))
