@@ -613,6 +613,13 @@ int remove_info(Master_info* mi)
   */
   mi->clear_error();
   mi->rli->clear_error();
+  if (mi->rli->workers_array_initialized)
+  {
+    for(uint i= 0; i < mi->rli->get_worker_count(); i++)
+    {
+      mi->rli->get_worker(i)->clear_error();
+    }
+  }
   mi->rli->clear_until_condition();
   mi->rli->clear_sql_delay();
 
@@ -5160,7 +5167,7 @@ int slave_start_single_worker(Relay_log_info *rli, ulong i)
     goto err;
   }
   set_dynamic(&rli->workers, (uchar*) &w, i);
-
+  w->currently_executing_gtid.clear();
   if (DBUG_EVALUATE_IF("mts_worker_thread_fails", i == 1, 0) ||
       (error= mysql_thread_create(key_thread_slave_worker, &th,
                                   &connection_attrib, handle_slave_worker,
@@ -5283,6 +5290,15 @@ int slave_start_workers(Relay_log_info *rli, ulong n, bool *mts_inited)
   }
 
 end:
+  /*
+    Free the buffer that was being used to report worker's status through
+    the table performance_schema.table_replication_execute_status_by_worker
+    between stop slave and next start slave.
+  */
+  for (int i= rli->workers_copy_pfs.size() - 1; i >= 0; i--)
+    delete rli->workers_copy_pfs[i];
+  rli->workers_copy_pfs.clear();
+
   rli->slave_parallel_workers= n;
   // Effective end of the recovery right now when there is no gaps
   if (!error && rli->mts_recovery_group_cnt == 0)
@@ -5371,6 +5387,33 @@ void slave_stop_workers(Relay_log_info *rli, bool *mts_inited)
 
   thd_proc_info(thd, "Waiting for workers to exit");
 
+  for (uint i= 0; i < rli->workers.elements; i++)
+  {
+    Slave_worker *w= NULL;
+    get_dynamic((DYNAMIC_ARRAY*)&rli->workers, (uchar*) &w, i);
+
+    /*
+      Make copies for reporting through the performance schema tables.
+      This is preserved until the next START SLAVE.
+    */
+    Slave_worker *worker_copy=new Slave_worker(NULL
+    #ifdef HAVE_PSI_INTERFACE
+                                               ,&key_relay_log_info_run_lock,
+                                               &key_relay_log_info_data_lock,
+                                               &key_relay_log_info_sleep_lock,
+                                               &key_relay_log_info_thd_lock,
+                                               &key_relay_log_info_data_cond,
+                                               &key_relay_log_info_start_cond,
+                                               &key_relay_log_info_stop_cond,
+                                               &key_relay_log_info_sleep_cond
+    #endif
+                                               , 0);
+    worker_copy->copy_values_for_PFS(w->id, w->running_status, w->info_thd,
+                                     w->last_error(),
+                                     w->currently_executing_gtid);
+    rli->workers_copy_pfs.push_back(worker_copy);
+  }
+
   for (i= rli->workers.elements - 1; i >= 0; i--)
   {
     Slave_worker *w= NULL;
@@ -5390,6 +5433,7 @@ void slave_stop_workers(Relay_log_info *rli, bool *mts_inited)
       mysql_mutex_lock(&w->jobs_lock);
     }
     mysql_mutex_unlock(&w->jobs_lock);
+
 
     delete_dynamic_element(&rli->workers, i);
     delete w;
@@ -5422,6 +5466,7 @@ end:
 
   delete_dynamic(&rli->curr_group_assigned_parts); // GCAP
   rli->deinit_workers();
+  rli->workers_array_initialized= false;
   rli->slave_parallel_workers= 0;
   free_root(&rli->mts_coor_mem_root, MYF(0));
   *mts_inited= false;
@@ -5526,6 +5571,13 @@ pthread_handler_t handle_slave_sql(void *arg)
     But the master timestamp is reset by RESET SLAVE & CHANGE MASTER.
   */
   rli->clear_error();
+  if (rli->workers_array_initialized)
+  {
+    for(uint i= 0; i<rli->get_worker_count(); i++)
+    {
+      rli->get_worker(i)->clear_error();
+    }
+  }
 
   if (rli->update_is_transactional())
   {
@@ -8570,6 +8622,14 @@ bool change_master(THD* thd, Master_info* mi)
   mi->rli->abort_pos_wait++; /* for MASTER_POS_WAIT() to abort */
   /* Clear the errors, for a clean start */
   mi->rli->clear_error();
+  if (mi->rli->workers_array_initialized)
+  {
+    for(uint i= 0; i < mi->rli->get_worker_count(); i++)
+    {
+      mi->rli->get_worker(i)->clear_error();
+    }
+  }
+
   mi->rli->clear_until_condition();
 
   sql_print_information("'CHANGE MASTER TO executed'. "

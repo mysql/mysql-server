@@ -301,6 +301,7 @@ public:
 #endif
                , uint param_id
               );
+
   virtual ~Slave_worker();
 
   Slave_jobs_queue jobs;   // assignment queue containing events to execute
@@ -365,11 +366,30 @@ public:
     ERROR_LEAVING,         // is set by Worker
     KILLED                 // is set by Coordinator
   };
+
+  /*
+    This function is used to make a copy of the worker object before we
+    destroy it on STOP SLAVE. This new object is then used to report the
+    worker status until next START SLAVE following which the new worker objetcs
+    will be used.
+  */
+  void copy_values_for_PFS(ulong worker_id, enum en_running_state running_status,
+                      THD *worker_thd, Error last_error,
+                      Gtid currently_executing_gtid);
+
   /*
     The running status is guarded by jobs_lock mutex that a writer
     Coordinator or Worker itself needs to hold when write a new value.
   */
   en_running_state volatile running_status;
+  /*
+    If the server is running in gtid-mode=on, this variables stores
+    gtid of the currently executing transaction. This variable is set/modified
+    in Gtid_log_event::do_apply_event(Relay_log_info const *rli). Since the
+    rli argument is a const, we need to make currently_executing_gtid mutable
+    to allow this data member of const object to be modified.
+  */
+  mutable Gtid currently_executing_gtid;
 
   int init_worker(Relay_log_info*, ulong);
   int rli_init_info(bool);

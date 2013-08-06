@@ -1123,10 +1123,6 @@ recv_parse_or_apply_log_rec_body(
 		ptr = fil_op_log_parse_or_replay(
 			ptr, end_ptr, type, space_id, page_no, 0, false);
 		break;
-	case MLOG_FILE_TRUNCATE:
-		ptr = fil_op_log_parse_or_replay(
-			ptr, end_ptr, type, space_id, page_no, 0, true);
-		break;
 	case MLOG_FILE_CREATE:
 	case MLOG_FILE_DELETE:
 	case MLOG_FILE_CREATE2:
@@ -2214,10 +2210,6 @@ loop:
 			recv_check_incomplete_log_recs(ptr, len);
 #endif/* UNIV_LOG_DEBUG */
 
-		} else if (type == MLOG_FILE_TRUNCATE) {
-			fil_op_log_parse_or_replay(
-				body, end_ptr, type, space, page_no,
-				recv_sys->recovered_lsn, false);
 		} else if (type == MLOG_FILE_CREATE
 			   || type == MLOG_FILE_CREATE2
 			   || type == MLOG_FILE_RENAME
