@@ -201,7 +201,7 @@ dtuple_convert_big_rec(). */
 extern const byte field_ref_zero[BTR_EXTERN_FIELD_REF_SIZE];
 
 /** The information is used for creating a new index tree when
-applying MLOG_FILE_TRUNCATE redo record during recovery */
+applying TRUNCATE log record during recovery */
 struct btr_create_t {
 
 	explicit btr_create_t(const byte* const ptr)

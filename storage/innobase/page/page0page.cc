@@ -495,14 +495,14 @@ page_create_zip(
 						where the page is created */
 	dict_index_t*		index,		/*!< in: the index of the
 						page, or NULL when applying
-						MLOG_FILE_TRUNCATE redo
+						TRUNCATE log 
 						record during recovery */
 	ulint			level,		/*!< in: the B-tree level
 						of the page */
 	trx_id_t		max_trx_id,	/*!< in: PAGE_MAX_TRX_ID */
 	const redo_page_compress_t* page_comp_info,
 						/*!< in: used for applying
-						MLOG_FILE_TRUNCATE redo log
+						TRUNCATE log
 						record during recovery */
 	mtr_t*			mtr)		/*!< in/out: mini-transaction
 						handle */
@@ -520,7 +520,7 @@ page_create_zip(
 
 	if (truncate_t::s_fix_up_active) {
 		/* Compress the index page created when applying
-                MLOG_FILE_TRUNCATE log record during recovery */
+                TRUNCATE log during recovery */
 		if (!page_zip_compress(page_zip, page, index, page_zip_level,
 				       page_comp_info, NULL)) {
 			/* The compression of a newly created
