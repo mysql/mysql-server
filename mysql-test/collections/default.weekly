@@ -54,13 +54,10 @@ perl mysql-test-run.pl --force --debug-server --timer   --parallel=auto --experi
 # Multi-Thread Slave
 perl mysql-test-run.pl --timer --force --big-test --testcase-timeout=60 --debug-server --parallel=auto --comment=MTS-debug-big --vardir=var-MTS-debug-big --suite=rpl  --experimental=collections/default.experimental --skip-test-list=collections/disabled-per-push.list --mysqld=--slave-parallel-workers=4 --mysqld=--slave-transaction-retries=0 --skip-test-list=collection/disabled-weekly.list
 
-# Run all default suites with 4K page size
-perl mysql-test-run.pl --debug-server --timer --force --parallel=auto --comment=all_4k_size --vardir=var_all_4k_size --experimental=collections/default.experimental --skip-test-list=collections/disabled-per-push.list --mysqld=--innodb-page-size=4k 
 
-# Run all default suites with 8K page size
-perl mysql-test-run.pl --debug-server  --timer --force --parallel=auto --comment=all_8k_size --vardir=var-all_8k_size --experimental=collections/default.experimental --skip-test-list=collections/disabled-per-push.list --mysqld=--innodb-page-size=8k
-
-
+# Run innodb suite including big-test with innodb-page-size=4k and 8k
+perl mysql-test-run.pl --timer --force --big-test --debug-server --parallel=auto --comment=n_mix_4k_size --vardir=var-n_mix --mysqld=--binlog-format=mixed --experimental=collections/default.experimental --skip-test-list=collections/disabled-per-push.list --mysqld=--innodb-page-size=4k --skip-test=innodb_ignore_builtin --suite=innodb
+perl mysql-test-run.pl --timer --force --big-test --debug-server --parallel=auto --comment=n_mix_8k_size --vardir=var-n_mix --mysqld=--binlog-format=mixed --experimental=collections/default.experimental --skip-test-list=collections/disabled-per-push.list --mysqld=--innodb-page-size=8k --skip-test=innodb_ignore_builtin --suite=innodb
 
 # Additional run to test rpl HASH_SCAN & INDEX_SCAN
 perl mysql-test-run.pl --force --debug-server --timer --parallel=auto --experimental=collections/default.experimental --comment=binlog_rpl_row_hash_scan --vardir=var-binlog_rpl_row_hash_scan --mysqld=--binlog-format=row --suite=binlog,rpl --mysqld=--slave-rows-search-algorithms=HASH_SCAN,INDEX_SCAN --big-test --testcase-timeout=60 --skip-test-list=collection/disabled-weekly.list
