@@ -429,10 +429,10 @@ create table t (i int, j int, primary key pk(i), index idx(j)) engine=innodb;
 insert into t values (1,1), (2,2), (3,3);
 select * from t;
 set session debug="+d,ib_trunc_crash_after_updating_magic_no";
+--exec echo "restart" > $MYSQLTEST_VARDIR/tmp/mysqld.1.expect
 --error 2013
 truncate table t;
 #
---exec echo "restart" > $MYSQLTEST_VARDIR/tmp/mysqld.1.expect
 --enable_reconnect
 --echo # Restart the MySQL server
 --source include/wait_until_connected_again.inc
@@ -441,10 +441,6 @@ truncate table t;
 # truncate action should be complete as magic_number if already written
 select * from t;
 drop table t;
-
-
-
-
 
 #-----------------------------------------------------------------------------
 #
