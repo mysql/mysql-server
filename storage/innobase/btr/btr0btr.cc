@@ -1534,11 +1534,11 @@ btr_create(
 						pages */
 	index_id_t		index_id,	/*!< in: index id */
 	dict_index_t*		index,		/*!< in: index, or NULL when
-						applying MLOG_FILE_TRUNCATE
-						redo record during recovery */
+						applying TRUNCATE log 
+						record during recovery */
 	const btr_create_t*	btr_redo_create_info,
 						/*!< in: used for applying
-						MLOG_FILE_TRUNCATE redo record
+						TRUNCATE log record
 						during recovery */
 	mtr_t*			mtr)		/*!< in: mini-transaction
 						handle */
@@ -1579,7 +1579,7 @@ btr_create(
 		/* The BLOB pointers can only exist in user records.
 		TRUNCATE gets rid of all user records. So we don't
 		need to assign the BLOB pointers when applying
-		MLOG_FILE_TRUNCATE log record during recovery. */
+		TRUNCATE log record during recovery. */
 		if ((type & DICT_CLUSTERED) && index && !index->blobs) {
 			mutex_create(PFS_NOT_INSTRUMENTED,
 				     &index->blobs_mutex, SYNC_ANY_LATCH);
@@ -1633,7 +1633,7 @@ btr_create(
 			page = page_create_zip(block, index, 0, 0, NULL, mtr);
 		} else {
 			/* Create a compressed index page when applying
-			MLOG_FILE_TRUNCATE log record during recovery */
+			TRUNCATE log record during recovery */
 			ut_ad(btr_redo_create_info != NULL);
 
 			redo_page_compress_t	page_comp_info;

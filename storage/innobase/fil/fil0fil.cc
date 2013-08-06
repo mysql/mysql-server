@@ -2190,7 +2190,7 @@ fil_op_write_log(
 
 /********************************************************//**
 Recreates table indexes by applying
-MLOG_FILE_TRUNCATE redo record during recovery.
+TRUNCATE log record during recovery.
 @return DB_SUCCESS or error code */
 
 dberr_t
@@ -2201,7 +2201,7 @@ fil_recreate_table(
 	ulint		flags,		/*!< in: tablespace flags */
 	const char*	name,		/*!< in: table name */
 	truncate_t&	truncate)	/*!< in: The information of
-					MLOG_FILE_TRUNCATE record */
+					TRUNCATE log record */
 {
 	ulint		zip_size;
 	dberr_t		err = DB_SUCCESS;
@@ -2242,7 +2242,7 @@ fil_recreate_table(
 
 /********************************************************//**
 Recreates the tablespace and table indexes by applying
-MLOG_FILE_TRUNCATE redo record during recovery.
+TRUNCATE log record during recovery.
 @return DB_SUCCESS or error code */
 
 dberr_t
@@ -2253,7 +2253,7 @@ fil_recreate_tablespace(
 	ulint		flags,		/*!< in: tablespace flags */
 	const char*	name,		/*!< in: table name */
 	truncate_t&	truncate,	/*!< in: The information of
-					MLOG_FILE_TRUNCATE record */
+					TRUNCATE log record */
 	lsn_t		recv_lsn)	/*!< in: the end LSN of
 						the log record */
 {
@@ -2473,7 +2473,7 @@ fil_op_log_parse_or_replay(
 	/* Step-1a: Parse flags and name of table.
 	Other fields (type, space-id, page-no) are parsed before
 	invocation of this function */
-	if (type == MLOG_FILE_CREATE2 || type == MLOG_FILE_TRUNCATE) {
+	if (type == MLOG_FILE_CREATE2) {
 		if (end_ptr < ptr + 4) {
 
 			return(NULL);
@@ -2498,31 +2498,7 @@ fil_op_log_parse_or_replay(
 	ut_ad(strlen(name) == name_len - 1);
 
 	/* Step-1b: Parse remaining field in type specific form. */
-	if (type == MLOG_FILE_TRUNCATE) {
-
-		truncate_t*	truncate;
-
-		truncate = new(std::nothrow) truncate_t(
-			space_id, name, tablespace_flags, log_flags, recv_lsn);
-
-		if (truncate == NULL) {
-			return(NULL);
-		}
-
-		/* old/new table-id, dir-path, indexes array is populated
-		by parse */
-		if (!truncate->parse(&ptr, &end_ptr, tablespace_flags)) {
-			delete truncate;
-			return(NULL);
-		}
-
-		if (parse_only) {
-			delete truncate;
-		} else {
-			truncate_t::add(truncate);
-		}
-
-	} else if (type == MLOG_FILE_RENAME) {
+	if (type == MLOG_FILE_RENAME) {
 
 		if (end_ptr < ptr + 2) {
 			return(NULL);
@@ -2547,10 +2523,8 @@ fil_op_log_parse_or_replay(
 
 	/* Step-2: Replay log records. */
 
-	/* MLOG_FILE_XXXX ops are not carried out on system tablespaces
-	except for MLOG_FILE_TRUNCATE. */
-	ut_ad(!Tablespace::is_system_tablespace(space_id)
-	      || type == MLOG_FILE_TRUNCATE);
+	/* MLOG_FILE_XXXX ops are not carried out on system tablespaces. */
+	ut_ad(!Tablespace::is_system_tablespace(space_id));
 
 	/* Let us try to perform the file operation, if sensible. Note that
 	ibbackup has at this stage already read in all space id info to the
@@ -2568,12 +2542,6 @@ fil_op_log_parse_or_replay(
 			ut_a(err == DB_SUCCESS);
 		}
 
-		break;
-
-	case MLOG_FILE_TRUNCATE:
-		/* Do nothing if replay is demanded.
-		Replay of REDO log is done post recovery in truncate table
-		fix-up state. */
 		break;
 
 	case MLOG_FILE_RENAME:
@@ -4713,7 +4681,7 @@ directory. We retry 100 times if os_file_readdir_next_file() returns -1. The
 idea is to read as much good data as we can and jump over bad data.
 @return 0 if ok, -1 if error even after the retries, 1 if at the end
 of the directory */
-static
+
 int
 fil_file_readdir_next_file(
 /*=======================*/

@@ -208,13 +208,8 @@ enum mlog_id_t {
 	/** reorganize a compressed page */
 	MLOG_ZIP_PAGE_REORGANIZE = 53,
 
-	/** log record about an .ibd file truncation. NOTE: The type can not
-	be known by ibbackup when it relies on an older versions. 
-	ibbackup should be fixed to flexibly handle unknown types */
-	MLOG_FILE_TRUNCATE = 54,
-
 	/** biggest value (used in assertions) */
-	MLOG_BIGGEST_TYPE = 54
+	MLOG_BIGGEST_TYPE = 53
 };
 
 /* @} */
