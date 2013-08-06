@@ -874,7 +874,7 @@ rw_lock_list_print_info(
 		count++;
 
 #ifndef INNODB_RW_LOCKS_USE_ATOMICS
-		mutex_enter(&(lock->mutex));
+		mutex_enter(&lock->mutex);
 #endif /* INNODB_RW_LOCKS_USE_ATOMICS */
 
 		if (lock->lock_word != X_LOCK_DECR) {
@@ -902,7 +902,7 @@ rw_lock_list_print_info(
 		}
 
 #ifndef INNODB_RW_LOCKS_USE_ATOMICS
-		mutex_exit(&(lock->mutex));
+		mutex_exit(&lock->mutex);
 #endif /* INNODB_RW_LOCKS_USE_ATOMICS */
 	}
 
