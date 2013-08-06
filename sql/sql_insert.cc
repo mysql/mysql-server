@@ -783,11 +783,14 @@ bool mysql_insert(THD *thd,TABLE_LIST *table_list,
   */
   {
     table->file->ha_release_auto_increment();
-    if (thd->locked_tables_mode <= LTM_LOCK_TABLES &&
-        table->file->ha_end_bulk_insert() && !error)
+    if (thd->locked_tables_mode <= LTM_LOCK_TABLES && !error &&
+        (error= table->file->ha_end_bulk_insert()))
     {
-      table->file->print_error(my_errno,MYF(0));
-      error=1;
+      myf error_flags= MYF(0);
+      if (table->file->is_fatal_error(error, HA_CHECK_DUP_KEY))
+        error_flags|= ME_FATALERROR;
+
+      table->file->print_error(error, error_flags);
     }
     if (duplic != DUP_ERROR || ignore)
       table->file->extra(HA_EXTRA_NO_IGNORE_DUP_KEY);
@@ -1613,11 +1616,17 @@ ok_or_after_trg_err:
   DBUG_RETURN(trg_error);
 
 err:
-  info->last_errno= error;
-  DBUG_ASSERT(thd->lex->current_select() != NULL);
+  {
+    myf error_flags= MYF(0);                      /**< Flag for fatal errors */
+    info->last_errno= error;
+    DBUG_ASSERT(thd->lex->current_select() != NULL);
     thd->lex->current_select()->no_error= 0;        // Give error
-  table->file->print_error(error,MYF(0));
-  
+    if (table->file->is_fatal_error(error, HA_CHECK_DUP_KEY))
+      error_flags|= ME_FATALERROR;
+
+    table->file->print_error(error, error_flags);
+  }
+
 before_trg_err:
   table->file->restore_auto_increment(prev_insert_id);
   if (key)
@@ -2089,7 +2098,11 @@ bool select_insert::send_eof()
 
   if (error)
   {
-    table->file->print_error(error,MYF(0));
+    myf error_flags= MYF(0);
+    if (table->file->is_fatal_error(my_errno, HA_CHECK_DUP_KEY))
+      error_flags|= ME_FATALERROR;
+
+    table->file->print_error(my_errno, error_flags);
     DBUG_RETURN(1);
   }
 
