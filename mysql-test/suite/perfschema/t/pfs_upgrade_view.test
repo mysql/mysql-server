@@ -40,4 +40,3 @@ use test;
 
 --remove_file $MYSQLD_DATADIR/performance_schema/user_view.frm
 drop view test.user_view;
-

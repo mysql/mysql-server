@@ -94,7 +94,7 @@ Relay_log_info::Relay_log_info(bool is_slave_recovery
    retried_trans(0),
    tables_to_lock(0), tables_to_lock_count(0),
    rows_query_ev(NULL), last_event_start_time(0), deferred_events(NULL),
-   slave_parallel_workers(0),
+   workers_array_initialized(false), slave_parallel_workers(0),
    recovery_parallel_workers(0), checkpoint_seqno(0),
    checkpoint_group(opt_mts_checkpoint_group), 
    recovery_groups_inited(false), mts_recovery_group_cnt(0),
@@ -162,7 +162,9 @@ void Relay_log_info::init_workers(ulong n_workers)
   mts_groups_assigned= mts_events_assigned= pending_jobs= wq_size_waits_cnt= 0;
   mts_wq_excess_cnt= mts_wq_no_underrun_cnt= mts_wq_overfill_cnt= 0;
   mts_last_online_stat= 0;
+
   my_init_dynamic_array(&workers, sizeof(Slave_worker *), n_workers, 4);
+  workers_array_initialized= true; //set after init
 }
 
 /**
@@ -603,6 +605,32 @@ err:
     *errmsg= "Invalid Format_description log event; could be out of memory";
 
   DBUG_RETURN ((*errmsg) ? 1 : 0);
+}
+
+/**
+  Update the error number, message and timestamp fields. This function is
+  different from va_report() as va_report() also logs the error message in the
+  log apart from updating the error fields.
+
+  SYNOPSIS
+  @param[in]  level          specifies the level- error, warning or information,
+  @param[in]  err_code       error number,
+  @param[in]  buff_coord     error message to be used.
+
+*/
+void Relay_log_info::fill_coord_err_buf(loglevel level, int err_code,
+                                      const char *buff_coord) const
+{
+  mysql_mutex_lock(&err_lock);
+
+  if(level == ERROR_LEVEL)
+  {
+    m_last_error.number = err_code;
+    strncpy(m_last_error.message, buff_coord, MAX_SLAVE_ERRMSG);
+    m_last_error.update_timestamp();
+  }
+
+  mysql_mutex_unlock(&err_lock);
 }
 
 /**
