@@ -33,7 +33,6 @@ Created 4/20/1996 Heikki Tuuri
 #include "que0types.h"
 #include "mtr0mtr.h"
 #include "rem0types.h"
-#include "read0types.h"
 #include "row0types.h"
 #include "btr0types.h"
 
