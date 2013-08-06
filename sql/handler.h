@@ -2193,24 +2193,26 @@ public:
   virtual uint extra_rec_buf_length() const { return 0; }
 
   /**
-    This method is used to analyse the error to see whether the error
-    is ignorable or not, certain handlers can have more error that are
-    ignorable than others. E.g. the partition handler can get inserts
-    into a range where there is no partition and this is an ignorable
-    error.
+    @brief Determine whether an error is fatal or not. 
+    
+    @details This method is used to analyze the error to see whether the 
+    error is fatal or not. Handlers can have different sets of fatal errors, 
+    e.g. the partition handler can get inserts into a range where there 
+    is no partition, and this is an ignorable error.
+    
     HA_ERR_FOUND_DUP_UNIQUE is a special case in MyISAM that means the
-    same thing as HA_ERR_FOUND_DUP_KEY but can in some cases lead to
+    same thing as HA_ERR_FOUND_DUP_KEY, but can in some cases lead to
     a slightly different error message.
+     
+    @param error  error code received from the handler interface (HA_ERR_...)
+    @param flags  indicate whether duplicate key errors should be ignorable
+    
+    @return   whether the error is fatal or not
+      @retval true  the error is fatal
+      @retval false the error is not fatal
   */
-  virtual bool is_fatal_error(int error, uint flags)
-  {
-    if (!error ||
-        ((flags & HA_CHECK_DUP_KEY) &&
-         (error == HA_ERR_FOUND_DUPP_KEY ||
-          error == HA_ERR_FOUND_DUPP_UNIQUE)))
-      return FALSE;
-    return TRUE;
-  }
+  
+  virtual bool is_fatal_error(int error, uint flags);
 
   /**
     Number of rows in table. It will only be called if

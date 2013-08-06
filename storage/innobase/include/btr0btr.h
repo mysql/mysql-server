@@ -401,11 +401,11 @@ btr_create(
 						pages */
 	index_id_t		index_id,	/*!< in: index id */
 	dict_index_t*		index,		/*!< in: index, or NULL when
-						applying MLOG_FILE_TRUNCATE
-						redo record during recovery */
+						applying TRNCATE log 
+						record during recovery */
 	const btr_create_t*	btr_redo_create_info,
 						/*!< in: used for applying
-						MLOG_FILE_TRUNCATE redo record
+						TRUNCATE log record
 						during recovery */
 	mtr_t*			mtr);		/*!< in: mini-transaction
 						handle */

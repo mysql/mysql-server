@@ -1858,7 +1858,7 @@ row_update_for_mysql(
 	thr->fk_cascade_depth = 0;
 
 run_again:
-	if (thr->fk_cascade_depth == 1) {
+	if (thr->fk_cascade_depth == 1 && trx->dict_operation_lock_mode == 0) {
 		got_s_lock = true;
 		row_mysql_freeze_data_dictionary(trx);
 	}

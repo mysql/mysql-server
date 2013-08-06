@@ -398,7 +398,7 @@ fil_create_directory_for_tablename(
 				'databasename/tablename' format */
 /********************************************************//**
 Recreates table indexes by applying
-MLOG_FILE_TRUNCATE redo record during recovery.
+TRUNCATE log record during recovery.
 @return DB_SUCCESS or error code */
 
 dberr_t
@@ -409,10 +409,10 @@ fil_recreate_table(
 	ulint			flags,		/*!< in: tablespace flags */
 	const char*		name,		/*!< in: table name */
 	truncate_t&		truncate);	/*!< in/out: The information of
-						MLOG_FILE_TRUNCATE record */
+						TRUNCATE log record */
 /********************************************************//**
 Recreates the tablespace and table indexes by applying
-MLOG_FILE_TRUNCATE redo record during recovery.
+TRUNCATE log record during recovery.
 @return DB_SUCCESS or error code */
 
 dberr_t
@@ -423,7 +423,7 @@ fil_recreate_tablespace(
 	ulint			flags,		/*!< in: tablespace flags */
 	const char*		name,		/*!< in: table name */
 	truncate_t&		truncate,	/*!< in/out: The information of
-						MLOG_FILE_TRUNCATE record */
+						TRUNCATE log record */
 	lsn_t			recv_lsn);	/*!< in: the end LSN of
 						the log record */
 /*******************************************************************//**
@@ -660,6 +660,22 @@ fil_open_single_table_tablespace(
 	__attribute__((nonnull(5), warn_unused_result));
 
 #endif /* !UNIV_HOTBACKUP */
+/***********************************************************************//**
+A fault-tolerant function that tries to read the next file name in the
+directory. We retry 100 times if os_file_readdir_next_file() returns -1. The
+idea is to read as much good data as we can and jump over bad data.
+@return 0 if ok, -1 if error even after the retries, 1 if at the end
+of the directory */
+
+int
+fil_file_readdir_next_file(
+/*=======================*/
+	dberr_t*	err,	/*!< out: this is set to DB_ERROR if an error
+				was encountered, otherwise not changed */
+	const char*	dirname,/*!< in: directory name or path */
+	os_file_dir_t	dir,	/*!< in: directory stream */
+	os_file_stat_t*	info);	/*!< in/out: buffer where the
+				info is returned */
 /********************************************************************//**
 At the server startup, if we need crash recovery, scans the database
 directories under the MySQL datadir, looking for .ibd files. Those files are
