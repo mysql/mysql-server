@@ -2011,8 +2011,11 @@ page_cur_delete_rec(
 	/* The record must not be the supremum or infimum record. */
 	ut_ad(page_rec_is_user_rec(current_rec));
 
-	if (page_get_n_recs(page) == 1) {
-		/* Empty the page. */
+	if (page_get_n_recs(page) == 1 && !recv_recovery_is_on()) {
+		/* Empty the page, unless we are applying the redo log
+		during crash recovery. During normal operation, the
+		page_create_empty() gets logged as one of MLOG_PAGE_CREATE,
+		MLOG_COMP_PAGE_CREATE, MLOG_ZIP_PAGE_COMPRESS. */
 		ut_ad(page_is_leaf(page));
 		/* Usually, this should be the root page,
 		and the whole index tree should become empty.
