@@ -199,16 +199,17 @@ sync_array_create(
 	ulint	n_cells)	/*!< in: number of cells in the array
 				to create */
 {
-	sync_array_t*	arr;
-
 	ut_a(n_cells > 0);
 
 	/* Allocate memory for the data structures */
-	arr = static_cast<sync_array_t*>(ut_malloc(sizeof(*arr)));
+	sync_array_t*	arr = new(std::nothrow) sync_array_t;
+
 	memset(arr, 0x0, sizeof(*arr));
 
+	arr->array = new(std::nothrow) sync_cell_t[n_cells];
+
 	ulint	sz = sizeof(sync_cell_t) * n_cells;
-	arr->array = static_cast<sync_cell_t*>(ut_malloc(sz));
+
 	memset(arr->array, 0x0, sz);
 
 	arr->n_cells = n_cells;
@@ -237,8 +238,8 @@ sync_array_free(
 
 	mutex_free(&arr->mutex);
 
-	ut_free(arr->array);
-	ut_free(arr);
+	delete[] arr->array;
+	delete arr;
 }
 
 /********************************************************************//**
@@ -1089,8 +1090,7 @@ sync_array_init(
 	hasn't been initialised yet. It is required by mem_alloc() and
 	the heap functions. */
 
-	sync_wait_array = static_cast<sync_array_t**>(
-		ut_malloc(sizeof(*sync_wait_array) * sync_array_size));
+	sync_wait_array = new(std::nothrow) sync_array_t*[sync_array_size];
 
 	ulint	n_slots = 1 + (n_threads - 1) / sync_array_size;
 
@@ -1111,7 +1111,7 @@ sync_array_close(void)
 		sync_array_free(sync_wait_array[i]);
 	}
 
-	ut_free(sync_wait_array);
+	delete[] sync_wait_array;
 	sync_wait_array = NULL;
 }
 
