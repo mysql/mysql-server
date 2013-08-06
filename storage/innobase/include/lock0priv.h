@@ -49,9 +49,9 @@ struct lock_table_t {
 
 /** Record lock for a page */
 struct lock_rec_t {
-	ulint	space;			/*!< space id */
-	ulint	page_no;		/*!< page number */
-	ulint	n_bits;			/*!< number of bits in the lock
+	ib_uint32_t	space;		/*!< space id */
+	ib_uint32_t	page_no;	/*!< page number */
+	ib_uint32_t	n_bits;		/*!< number of bits in the lock
 					bitmap; NOTE: the lock bitmap is
 					placed immediately after the
 					lock struct */
@@ -64,17 +64,22 @@ struct lock_t {
 	UT_LIST_NODE_T(lock_t)
 			trx_locks;	/*!< list of the locks of the
 					transaction */
-	ulint		type_mode;	/*!< lock type, mode, LOCK_GAP or
-					LOCK_REC_NOT_GAP,
-					LOCK_INSERT_INTENTION,
-					wait flag, ORed */
+
+	dict_index_t*	index;		/*!< index for a record lock */
+
 	hash_node_t	hash;		/*!< hash chain node for a record
 					lock */
-	dict_index_t*	index;		/*!< index for a record lock */
+
 	union {
 		lock_table_t	tab_lock;/*!< table lock */
 		lock_rec_t	rec_lock;/*!< record lock */
 	} un_member;			/*!< lock details */
+
+	ib_uint32_t	type_mode;	/*!< lock type, mode, LOCK_GAP or
+					LOCK_REC_NOT_GAP,
+					LOCK_INSERT_INTENTION,
+					wait flag, ORed */
+
 };
 
 /*********************************************************************//**
