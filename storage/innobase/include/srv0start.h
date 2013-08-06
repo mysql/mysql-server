@@ -136,7 +136,7 @@ extern	lsn_t	srv_shutdown_lsn;
 extern	lsn_t	srv_start_lsn;
 
 /** TRUE if the server is being started */
-extern	ibool	srv_is_being_started;
+extern	bool	srv_is_being_started;
 /** TRUE if the server was successfully started */
 extern	ibool	srv_was_started;
 /** TRUE if the server is being started, before rolling back any
