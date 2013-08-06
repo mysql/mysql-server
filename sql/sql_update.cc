@@ -219,6 +219,7 @@ bool mysql_update(THD *thd,
                   enum enum_duplicates handle_duplicates, bool ignore,
                   ha_rows *found_return, ha_rows *updated_return)
 {
+  myf           error_flags= MYF(0);            /**< Flag for fatal errors */
   bool		using_limit= limit != HA_POS_ERROR;
   bool		safe_update= test(thd->variables.option_bits & OPTION_SAFE_UPDATES);
   bool          used_key_is_modified= FALSE, transactional_table, will_batch;
@@ -616,7 +617,10 @@ bool mysql_update(THD *thd,
         if (select && select->quick && (error= select->quick->reset()))
         {
           close_cached_file(&tempfile);
-          table->file->print_error(error, MYF(0));
+          if (table->file->is_fatal_error(error, HA_CHECK_DUP_KEY))
+            error_flags|= ME_FATALERROR;
+
+          table->file->print_error(error, error_flags);
           goto exit_without_my_ok;
         }
         table->file->try_semi_consistent_read(1);
@@ -708,7 +712,10 @@ bool mysql_update(THD *thd,
   
     if (select && select->quick && (error= select->quick->reset()))
     {
-      table->file->print_error(error, MYF(0));  /* purecov: inspected */
+      if (table->file->is_fatal_error(error, HA_CHECK_DUP_KEY))
+        error_flags|= ME_FATALERROR;
+
+      table->file->print_error(error, error_flags);
       goto exit_without_my_ok;
     }
 
@@ -755,6 +762,7 @@ bool mysql_update(THD *thd,
       bool skip_record;
       if (!select || (!select->skip_record(thd, &skip_record) && !skip_record))
       {
+        bool is_fatal= false;
         if (table->file->was_semi_consistent_read())
           continue;  /* repeat the read of the same row if it still exists */
 
@@ -835,19 +843,18 @@ bool mysql_update(THD *thd,
             else
               error= 0;
           }
-          else if (!ignore ||
-                   table->file->is_fatal_error(error, HA_CHECK_DUP_KEY))
+          else if ((is_fatal= 
+                  table->file->is_fatal_error(error, HA_CHECK_DUP_KEY)) || 
+                  !ignore)
           {
             /*
               If (ignore && error is ignorable) we don't have to
               do anything; otherwise...
             */
-            myf flags= 0;
+            if (is_fatal)
+              error_flags|= ME_FATALERROR;
 
-            if (table->file->is_fatal_error(error, HA_CHECK_DUP_KEY))
-              flags|= ME_FATALERROR; /* Other handler errors are fatal */
-
-            table->file->print_error(error,MYF(flags));
+            table->file->print_error(error, error_flags);
             error= 1;
             break;
           }
@@ -876,14 +883,17 @@ bool mysql_update(THD *thd,
               ((error= table->file->exec_bulk_update(&dup_key_found)) ||
                dup_key_found))
           {
-            if (error)
+ 	    if (error)
             {
               /* purecov: begin inspected */
               /*
                 The handler should not report error of duplicate keys if they
                 are ignored. This is a requirement on batching handlers.
               */
-              table->file->print_error(error,MYF(0));
+              if (table->file->is_fatal_error(error, HA_CHECK_DUP_KEY))
+                error_flags|= ME_FATALERROR;
+               
+              table->file->print_error(error, error_flags);
               error= 1;
               break;
               /* purecov: end */
@@ -952,7 +962,11 @@ bool mysql_update(THD *thd,
       */
     {
       /* purecov: begin inspected */
-      table->file->print_error(loc_error,MYF(ME_FATALERROR));
+      error_flags= MYF(0);
+      if (table->file->is_fatal_error(loc_error, HA_CHECK_DUP_KEY))
+        error_flags|= ME_FATALERROR;
+
+      table->file->print_error(loc_error, error_flags);
       error= 1;
       /* purecov: end */
     }
@@ -2087,20 +2101,20 @@ bool multi_update::send_data(List<Item> &not_used_values)
                                               table->record[0])) &&
             error != HA_ERR_RECORD_IS_THE_SAME)
         {
+          bool is_fatal= false;
           updated--;
-          if (!ignore ||
-              table->file->is_fatal_error(error, HA_CHECK_DUP_KEY))
+          if ((is_fatal= table->file->is_fatal_error(error, HA_CHECK_DUP_KEY)) 
+                  || !ignore)
           {
             /*
               If (ignore && error == is ignorable) we don't have to
               do anything; otherwise...
             */
-            myf flags= 0;
+            myf error_flags= MYF(0);
+            if (is_fatal)
+              error_flags|= ME_FATALERROR;
 
-            if (table->file->is_fatal_error(error, HA_CHECK_DUP_KEY))
-              flags|= ME_FATALERROR; /* Other handler errors are fatal */
-
-            table->file->print_error(error,MYF(flags));
+            table->file->print_error(error, error_flags);
             DBUG_RETURN(1);
           }
         }
@@ -2254,6 +2268,8 @@ int multi_update::do_updates()
   ha_rows org_updated;
   TABLE *table, *tmp_table;
   List_iterator_fast<TABLE> check_opt_it(unupdated_check_opt_tables);
+  myf error_flags= MYF(0);                      /**< Flag for fatal errors */
+
   DBUG_ENTER("multi_update::do_updates");
 
   do_update= 0;					// Don't retry this function
@@ -2270,13 +2286,21 @@ int multi_update::do_updates()
     tmp_table= tmp_tables[cur_table->shared];
     tmp_table->file->extra(HA_EXTRA_CACHE);	// Change to read cache
     if ((local_error= table->file->ha_rnd_init(0)))
+    {
+      if (table->file->is_fatal_error(local_error, HA_CHECK_DUP_KEY))
+        error_flags|= ME_FATALERROR;
+
+      table->file->print_error(local_error, error_flags);
       goto err;
+    }
+
     table->file->extra(HA_EXTRA_NO_CACHE);
 
     check_opt_it.rewind();
     while(TABLE *tbl= check_opt_it++)
     {
       if (tbl->file->ha_rnd_init(1))
+        // No known handler error code present, print_error makes no sense
         goto err;
       tbl->file->extra(HA_EXTRA_CACHE);
     }
@@ -2296,19 +2320,30 @@ int multi_update::do_updates()
     copy_field_end=copy_field_ptr;
 
     if ((local_error = tmp_table->file->ha_rnd_init(1)))
+    {
+      if (table->file->is_fatal_error(local_error, HA_CHECK_DUP_KEY))
+        error_flags|= ME_FATALERROR;
+
+      table->file->print_error(local_error, error_flags);
       goto err;
+    }
 
     for (;;)
     {
       if (thd->killed && trans_safe)
-	goto err;
+        // No known handler error code present, print_error makes no sense
+        goto err;
       if ((local_error=tmp_table->file->ha_rnd_next(tmp_table->record[0])))
       {
-	if (local_error == HA_ERR_END_OF_FILE)
-	  break;
-	if (local_error == HA_ERR_RECORD_DELETED)
-	  continue;				// May happen on dup key
-	goto err;
+        if (local_error == HA_ERR_END_OF_FILE)
+          break;
+        if (local_error == HA_ERR_RECORD_DELETED)
+          continue;                             // May happen on dup key
+        if (table->file->is_fatal_error(local_error, HA_CHECK_DUP_KEY))
+          error_flags|= ME_FATALERROR;
+
+        table->file->print_error(local_error, error_flags);
+        goto err;
       }
 
       /* call ha_rnd_pos() using rowids from temporary table */
@@ -2320,7 +2355,13 @@ int multi_update::do_updates()
         if((local_error=
               tbl->file->ha_rnd_pos(tbl->record[0],
                                     (uchar *) tmp_table->field[field_num]->ptr)))
+        {
+          if (table->file->is_fatal_error(local_error, HA_CHECK_DUP_KEY))
+            error_flags|= ME_FATALERROR;
+
+          table->file->print_error(local_error, error_flags);
           goto err;
+        }
         field_num++;
       } while((tbl= check_opt_it++));
 
@@ -2336,10 +2377,11 @@ int multi_update::do_updates()
       if (table->triggers &&
           table->triggers->process_triggers(thd, TRG_EVENT_UPDATE,
                                             TRG_ACTION_BEFORE, TRUE))
-        goto err2;
+        goto err;
 
       if (!records_are_comparable(table) || compare_records(table))
       {
+        bool is_fatal= false;
         update_operations[offset]->set_function_defaults(table);
         int error;
         if ((error= cur_table->view_check_option(thd, ignore)) !=
@@ -2348,6 +2390,7 @@ int multi_update::do_updates()
           if (error == VIEW_CHECK_SKIP)
             continue;
           else if (error == VIEW_CHECK_ERROR)
+            // No known handler error code present, print_error makes no sense
             goto err;
         }
         local_error= table->file->ha_update_row(table->record[1],
@@ -2356,9 +2399,16 @@ int multi_update::do_updates()
           updated++;
         else if (local_error == HA_ERR_RECORD_IS_THE_SAME)
           local_error= 0;
-        else if (!ignore ||
-                 table->file->is_fatal_error(local_error, HA_CHECK_DUP_KEY))
+        else if ((is_fatal= 
+                table->file->is_fatal_error(local_error, HA_CHECK_DUP_KEY)) || 
+                !ignore)
+	{
+          if (is_fatal)
+            error_flags|= ME_FATALERROR;
+
+          table->file->print_error(local_error, error_flags);
           goto err;
+	}
         else
           local_error= 0;
       }
@@ -2366,7 +2416,7 @@ int multi_update::do_updates()
       if (table->triggers &&
           table->triggers->process_triggers(thd, TRG_EVENT_UPDATE,
                                             TRG_ACTION_AFTER, TRUE))
-        goto err2;
+        goto err;
     }
 
     if (updated != org_updated)
@@ -2389,11 +2439,6 @@ int multi_update::do_updates()
   DBUG_RETURN(0);
 
 err:
-  {
-    table->file->print_error(local_error,MYF(ME_FATALERROR));
-  }
-
-err2:
   if (table->file->inited)
     (void) table->file->ha_rnd_end();
   if (tmp_table->file->inited)
