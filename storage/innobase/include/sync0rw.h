@@ -575,7 +575,8 @@ struct rw_lock_t
 				/*!< Event for next-writer to wait on. A thread
 				must decrement lock_word before waiting. */
 #ifndef INNODB_RW_LOCKS_USE_ATOMICS
-	ib_mutex_t	mutex;	/*!< The mutex protecting rw_lock_t */
+	mutable ib_mutex_t
+			mutex;	/*!< The mutex protecting rw_lock_t */
 #endif /* INNODB_RW_LOCKS_USE_ATOMICS */
 
 	UT_LIST_NODE_T(rw_lock_t) list;
