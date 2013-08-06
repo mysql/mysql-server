@@ -226,9 +226,6 @@ rw_lock_create_func(
 
 #ifndef INNODB_RW_LOCKS_USE_ATOMICS
 	mutex_create("rw_lock_mutex", rw_lock_get_mutex(lock));
-
-	ut_d(lock->mutex.cmutex_name = cmutex_name);
-	ut_d(lock->mutex.ib_mutex_type = 1);
 #else /* INNODB_RW_LOCKS_USE_ATOMICS */
 # ifdef UNIV_DEBUG
 	UT_NOT_USED(cmutex_name);
