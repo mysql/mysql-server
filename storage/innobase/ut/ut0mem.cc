@@ -65,7 +65,7 @@ with malloc.  Protected by ut_list_mutex. */
 static UT_LIST_BASE_NODE_T(ut_mem_block_t)   ut_mem_block_list;
 
 /** Flag: has ut_mem_block_list been initialized? */
-static ibool  ut_mem_block_list_inited = FALSE;
+static bool  ut_mem_block_list_inited = false;
 
 /** A dummy pointer for generating a null pointer exception in
 ut_malloc_low() */
@@ -83,7 +83,7 @@ ut_mem_init(void)
 
 	UT_LIST_INIT(ut_mem_block_list, &ut_mem_block_t::mem_block_list);
 
-	ut_mem_block_list_inited = TRUE;
+	ut_mem_block_list_inited = true;
 }
 #endif /* !UNIV_HOTBACKUP */
 
@@ -109,7 +109,8 @@ ut_malloc_low(
 		return(ret);
 	}
 
-	ut_ad((sizeof(ut_mem_block_t) % 8) == 0); /* check alignment ok */
+	/* check alignment ok */
+	ut_ad((sizeof(ut_mem_block_t) % 8) == 0);
 	ut_a(ut_mem_block_list_inited);
 
 	retry_count = 0;
@@ -122,31 +123,25 @@ retry:
 		if (retry_count == 0) {
 			ut_print_timestamp(stderr);
 
-			fprintf(stderr,
-				"  InnoDB: Error: cannot allocate"
-				" %lu bytes of\n"
-				"InnoDB: memory with malloc!"
-				" Total allocated memory\n"
-				"InnoDB: by InnoDB %lu bytes."
-				" Operating system errno: %lu\n"
-				"InnoDB: Check if you should"
-				" increase the swap file or\n"
-				"InnoDB: ulimits of your operating system.\n"
-				"InnoDB: On FreeBSD check you"
-				" have compiled the OS with\n"
-				"InnoDB: a big enough maximum process size.\n"
-				"InnoDB: Note that in most 32-bit"
-				" computers the process\n"
-				"InnoDB: memory space is limited"
-				" to 2 GB or 4 GB.\n"
-				"InnoDB: We keep retrying"
-				" the allocation for 60 seconds...\n",
-				(ulong) n, (ulong) ut_total_allocated_memory,
+			ib_logf(IB_LOG_LEVEL_ERROR,
+				"Cannot allocate %lu bytes of memory with "
+				"malloc! Total allocated memory by InnoDB "
+				"is %lu bytes. Operating system errno: %lu "
+				"Check if you should increase the swap file "
+				"or ulimits of your operating system. "
+				"On FreeBSD check that you have compiled the "
+				"OS with a big enough maximum process size. "
+				"Note that on most 32-bit computers the "
+				"process memory space is limited to 2 GB "
+				"or 4 GB. We keep retrying the allocation "
+				"for 60 seconds...",
+				(ulong) n,
+				(ulong) ut_total_allocated_memory,
 #ifdef _WIN32
 				(ulong) GetLastError()
 #else
 				(ulong) errno
-#endif
+#endif /* _WIN32 */
 				);
 		}
 
@@ -176,12 +171,13 @@ retry:
 		if (assert_on_error) {
 			ut_print_timestamp(stderr);
 
-			fprintf(stderr,
-				"  InnoDB: We now intentionally"
-				" generate a seg fault so that\n"
-				"InnoDB: on Linux we get a stack trace.\n");
+			ib_logf(IB_LOG_LEVEL_ERROR,
+				"We now intentionally generate a seg fault "
+				"so that on Linux we get a stack trace.");
 
-			if (*ut_mem_null_ptr) ut_mem_null_ptr = 0;
+			if (*ut_mem_null_ptr) {
+				ut_mem_null_ptr = 0;
+			}
 		} else {
 			return(NULL);
 		}
@@ -335,7 +331,9 @@ ut_free_all_mem(void)
 	ut_mem_block_t* block;
 
 	ut_a(ut_mem_block_list_inited);
-	ut_mem_block_list_inited = FALSE;
+
+	ut_mem_block_list_inited = false;
+
 	mutex_free(&ut_list_mutex);
 
 	while ((block = UT_LIST_GET_FIRST(ut_mem_block_list))) {
@@ -347,17 +345,16 @@ ut_free_all_mem(void)
 
 		UT_LIST_REMOVE(ut_mem_block_list, block);
 
-		free(block);
+		::free(block);
 	}
 
 	if (ut_total_allocated_memory != 0) {
-		fprintf(stderr,
-			"InnoDB: Warning: after shutdown"
-			" total allocated memory is %lu\n",
+		ib_logf(IB_LOG_LEVEL_WARN,
+			"after shutdown total allocated memory is %lu",
 			(ulong) ut_total_allocated_memory);
 	}
 
-	ut_mem_block_list_inited = FALSE;
+	ut_mem_block_list_inited = false;
 }
 #endif /* !UNIV_HOTBACKUP */
 
