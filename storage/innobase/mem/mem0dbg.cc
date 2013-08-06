@@ -155,7 +155,7 @@ mem_init(
 	/* Initialize the hash table */
 	ut_a(FALSE == mem_hash_initialized);
 
-	mutex_create(mem_hash_mutex_key, &mem_hash_mutex, SYNC_MEM_HASH);
+	mutex_create("mem_hash", &mem_hash_mutex);
 
 	for (i = 0; i < MEM_HASH_SIZE; i++) {
 		UT_LIST_INIT(*mem_hash_get_nth_cell(i), &mem_hash_node_t::list);
@@ -164,7 +164,7 @@ mem_init(
 	UT_LIST_INIT(mem_all_list_base, &mem_hash_node_t::all_list);
 
 	mem_hash_initialized = TRUE;
-#endif
+#endif /* UNIV_MEM_DEBUG */
 
 	if (UNIV_LIKELY(srv_use_sys_malloc)) {
 		/* When innodb_use_sys_malloc is set, the
