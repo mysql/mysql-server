@@ -1999,11 +1999,13 @@ commit_mtr_for_a_while:
 
 	mtr_has_extra_clust_latch = FALSE;
 
+#ifdef UNIV_SYNC_DEBUG
 	{
-		btrsea_sync_check	check(true);
+		dict_sync_check	check(true);
 
 		ut_ad(!sync_check_iterate(check));
 	}
+#endif /* UNIV_SYNC_DEBUG */
 
 	goto table_loop;
 
@@ -2018,11 +2020,13 @@ lock_wait_or_error:
 
 	mtr_commit(&mtr);
 
+#ifdef UNIV_SYNC_DEBUG
 	{
 		dict_sync_check	check(true);
 
 		ut_ad(!sync_check_iterate(check));
 	}
+#endif /* UNIV_SYNC_DEBUG */
 
 func_exit:
 	if (search_latch_locked) {
