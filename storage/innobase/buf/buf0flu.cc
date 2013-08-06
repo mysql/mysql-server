@@ -2286,7 +2286,7 @@ page_cleaner_flush_pages_if_needed(void)
 
 	oldest_lsn = buf_pool_get_oldest_modification();
 
-	ut_ad(oldest_lsn <= log_get_lsn());
+	ut_ad(oldest_lsn <= redo_log->get_lsn());
 
 	age = cur_lsn > oldest_lsn ? cur_lsn - oldest_lsn : 0;
 
