@@ -274,13 +274,14 @@ public:
 		}
 		memset(m_log_file_name, 0, log_file_name_buf_sz);
 
-		ulint	log_file_name_len = strlen(m_log_file_name);
 		strcpy(m_log_file_name, srv_log_group_home_dir);
+		ulint	log_file_name_len = strlen(m_log_file_name);
 		if (m_log_file_name[log_file_name_len - 1]
 			!= SRV_PATH_SEPARATOR) {
 
 			m_log_file_name[log_file_name_len]
 				= SRV_PATH_SEPARATOR;
+			log_file_name_len = strlen(m_log_file_name);
 		}
 
 		ut_snprintf(m_log_file_name + log_file_name_len,
@@ -550,6 +551,7 @@ TruncateLogParser::scan(
 
 				log_file_name[log_file_name_len]
 					= SRV_PATH_SEPARATOR;
+				log_file_name_len = strlen(log_file_name);
 			}
 			strcat(log_file_name, fileinfo.name);
 			log_files.push_back(log_file_name);
