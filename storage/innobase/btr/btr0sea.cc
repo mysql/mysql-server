@@ -779,6 +779,23 @@ exit_func:
 	return(success);
 }
 
+static
+void
+btr_search_failure(btr_search_t* info, btr_cur_t* cursor)
+{
+	cursor->flag = BTR_CUR_HASH_FAIL;
+
+#ifdef UNIV_SEARCH_PERF_STAT
+	++info->n_hash_fail;
+
+	if (info->n_hash_succ > 0) {
+		--info->n_hash_succ
+	}
+#endif /* UNIV_SEARCH_PERF_STAT */
+
+	info->last_hash_succ = FALSE;
+}
+
 /******************************************************************//**
 Tries to guess the right search position based on the hash search info
 of the index. Note that if mode is PAGE_CUR_LE, which is used in inserts,
@@ -805,8 +822,6 @@ btr_search_guess_on_hash(
 					RW_S_LATCH, RW_X_LATCH, or 0 */
 	mtr_t*		mtr)		/*!< in: mtr */
 {
-	buf_pool_t*	buf_pool;
-	buf_block_t*	block;
 	const rec_t*	rec;
 	ulint		fold;
 	index_id_t	index_id;
@@ -822,14 +837,14 @@ btr_search_guess_on_hash(
 	/* Note that, for efficiency, the struct info may not be protected by
 	any latch here! */
 
-	if (UNIV_UNLIKELY(info->n_hash_potential == 0)) {
+	if (info->n_hash_potential == 0) {
 
 		return(FALSE);
 	}
 
 	cursor->n_fields = info->n_fields;
 
-	if (UNIV_UNLIKELY(dtuple_get_n_fields(tuple) < cursor->n_fields)) {
+	if (dtuple_get_n_fields(tuple) < cursor->n_fields) {
 
 		return(FALSE);
 	}
@@ -844,12 +859,15 @@ btr_search_guess_on_hash(
 	cursor->fold = fold;
 	cursor->flag = BTR_CUR_HASH;
 
-	if (UNIV_LIKELY(!has_search_latch)) {
-		rw_lock_s_lock(&btr_search_latch);
+	if (!has_search_latch) {
 
-		if (UNIV_UNLIKELY(!btr_search_enabled)) {
-			goto failure_unlock;
+		if (!btr_search_enabled) {
+			btr_search_failure(info, cursor);
+
+			return(FALSE);
 		}
+
+		rw_lock_s_lock(&btr_search_latch);
 	}
 
 	ut_ad(rw_lock_get_writer(&btr_search_latch) != RW_LOCK_EX);
@@ -857,20 +875,32 @@ btr_search_guess_on_hash(
 
 	rec = (rec_t*) ha_search_and_get_data(btr_search_sys->hash_index, fold);
 
-	if (UNIV_UNLIKELY(!rec)) {
-		goto failure_unlock;
+	if (rec == NULL) {
+
+		if (!has_search_latch) {
+			rw_lock_s_unlock(&btr_search_latch);
+		}
+
+		btr_search_failure(info, cursor);
+
+		return(FALSE);
 	}
 
-	block = buf_block_align(rec);
+	buf_block_t*	block = buf_block_align(rec);
 
-	if (UNIV_LIKELY(!has_search_latch)) {
+	if (!has_search_latch) {
 
-		if (UNIV_UNLIKELY(
-			    !buf_page_get_known_nowait(latch_mode, block,
-						       BUF_MAKE_YOUNG,
-						       __FILE__, __LINE__,
-						       mtr))) {
-			goto failure_unlock;
+		if (!buf_page_get_known_nowait(
+			latch_mode, block, BUF_MAKE_YOUNG,
+			__FILE__, __LINE__, mtr)) {
+
+			if (!has_search_latch) {
+				rw_lock_s_unlock(&btr_search_latch);
+			}
+
+			btr_search_failure(info, cursor);
+
+			return(FALSE);
 		}
 
 		rw_lock_s_unlock(&btr_search_latch);
@@ -878,15 +908,18 @@ btr_search_guess_on_hash(
 		buf_block_dbg_add_level(block, SYNC_TREE_NODE_FROM_HASH);
 	}
 
-	if (UNIV_UNLIKELY(buf_block_get_state(block) != BUF_BLOCK_FILE_PAGE)) {
+	if (buf_block_get_state(block) != BUF_BLOCK_FILE_PAGE) {
+
 		ut_ad(buf_block_get_state(block) == BUF_BLOCK_REMOVE_HASH);
 
-		if (UNIV_LIKELY(!has_search_latch)) {
+		if (!has_search_latch) {
 
 			btr_leaf_page_release(block, latch_mode, mtr);
 		}
 
-		goto failure;
+		btr_search_failure(info, cursor);
+
+		return(FALSE);
 	}
 
 	ut_ad(page_rec_is_user_rec(rec));
@@ -900,18 +933,21 @@ btr_search_guess_on_hash(
 	is positioned on. We cannot look at the next of the previous
 	record to determine if our guess for the cursor position is
 	right. */
-	if (UNIV_UNLIKELY(index_id != btr_page_get_index_id(block->frame))
+	if (index_id != btr_page_get_index_id(block->frame)
 	    || !btr_search_check_guess(cursor,
 				       has_search_latch,
 				       tuple, mode, mtr)) {
-		if (UNIV_LIKELY(!has_search_latch)) {
+
+		if (!has_search_latch) {
 			btr_leaf_page_release(block, latch_mode, mtr);
 		}
 
-		goto failure;
+		btr_search_failure(info, cursor);
+
+		return(FALSE);
 	}
 
-	if (UNIV_LIKELY(info->n_hash_potential < BTR_SEARCH_BUILD_LIMIT + 5)) {
+	if (info->n_hash_potential < BTR_SEARCH_BUILD_LIMIT + 5) {
 
 		info->n_hash_potential++;
 	}
@@ -927,8 +963,9 @@ btr_search_guess_on_hash(
 
 	btr_leaf_page_release(block, latch_mode, mtr);
 
-	btr_cur_search_to_nth_level(index, 0, tuple, mode, latch_mode,
-				    &cursor2, 0, mtr);
+	btr_cur_search_to_nth_level(
+		index, 0, tuple, mode, latch_mode, &cursor2, 0, mtr);
+
 	if (mode == PAGE_CUR_GE
 	    && page_rec_is_supremum(btr_cur_get_rec(&cursor2))) {
 
@@ -938,8 +975,9 @@ btr_search_guess_on_hash(
 
 		info->last_hash_succ = FALSE;
 
-		btr_pcur_open_on_user_rec(index, tuple, mode, latch_mode,
-					  &pcur, mtr);
+		btr_pcur_open_on_user_rec(
+			index, tuple, mode, latch_mode, &pcur, mtr);
+
 		ut_ad(btr_pcur_get_rec(&pcur) == btr_cur_get_rec(cursor));
 	} else {
 		ut_ad(btr_cur_get_rec(&cursor2) == btr_cur_get_rec(cursor));
@@ -954,37 +992,21 @@ btr_search_guess_on_hash(
 #ifdef UNIV_SEARCH_PERF_STAT
 	btr_search_n_succ++;
 #endif
-	if (UNIV_LIKELY(!has_search_latch)
-	    && buf_page_peek_if_too_old(&block->page)) {
+	if (!has_search_latch && buf_page_peek_if_too_old(&block->page)) {
 
 		buf_page_make_young(&block->page);
 	}
 
 	/* Increment the page get statistics though we did not really
 	fix the page: for user info only */
-	buf_pool = buf_pool_from_bpage(&block->page);
-	buf_pool->stat.n_page_gets++;
+
+	{
+		buf_pool_t*	buf_pool = buf_pool_from_bpage(&block->page);
+
+		++buf_pool->stat.n_page_gets;
+	}
 
 	return(TRUE);
-
-	/*-------------------------------------------*/
-failure_unlock:
-	if (UNIV_LIKELY(!has_search_latch)) {
-		rw_lock_s_unlock(&btr_search_latch);
-	}
-failure:
-	cursor->flag = BTR_CUR_HASH_FAIL;
-
-#ifdef UNIV_SEARCH_PERF_STAT
-	info->n_hash_fail++;
-
-	if (info->n_hash_succ > 0) {
-		info->n_hash_succ--;
-	}
-#endif
-	info->last_hash_succ = FALSE;
-
-	return(FALSE);
 }
 
 /********************************************************************//**
