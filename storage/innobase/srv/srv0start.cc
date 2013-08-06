@@ -1904,6 +1904,16 @@ files_checked:
 		and there must be no page in the buf_flush list. */
 		buf_pool_invalidate();
 
+		/* Scan and locate truncate log files. Parsed located files
+		and add table to truncate information to central vector for
+		truncate fix-up action post recovery. */
+		err = TruncateLogParser::scan_and_parse(srv_log_group_home_dir);
+		if (err != DB_SUCCESS) {
+
+			return(srv_init_abort(DB_ERROR));
+		}
+
+
 		/* We always try to do a recovery, even if the database had
 		been shut down normally: this is the normal startup path */
 

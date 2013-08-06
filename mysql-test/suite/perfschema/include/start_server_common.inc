@@ -70,6 +70,12 @@ select * from performance_schema.table_io_waits_summary_by_table;
 select * from performance_schema.table_lock_waits_summary_by_table;
 select * from performance_schema.threads;
 select * from performance_schema.users;
+select * from performance_schema.replication_connection_configuration;
+select * from performance_schema.replication_connection_status;
+select * from performance_schema.replication_execute_configuration;
+select * from performance_schema.replication_execute_status;
+select * from performance_schema.replication_execute_status_by_coordinator;
+select * from performance_schema.replication_execute_status_by_worker;
 --enable_result_log
 
 # This has a stable output, printing the result:
