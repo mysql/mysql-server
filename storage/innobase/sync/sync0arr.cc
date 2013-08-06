@@ -343,7 +343,11 @@ sync_array_reserve_cell(
 	cell->request_type = type;
 
 	if (cell->request_type == SYNC_MUTEX) {
+#ifdef HAVE_ATOMIC_BUILTINS
 		cell->latch.mutex = reinterpret_cast<WaitMutex*>(object);
+#else
+		ut_error;
+#endif /* HAVE_ATOMIC_BUILTINS */
 	} else {
 		cell->latch.lock = reinterpret_cast<rw_lock_t*>(object);
 	}
@@ -653,6 +657,7 @@ sync_array_detect_deadlock(
 
 		return(false); /* No deadlock here */
 	} else if (cell->request_type == SYNC_MUTEX) {
+#ifdef HAVE_ATOMIC_BUILTINS
 		WaitMutex*	mutex = cell->latch.mutex;
 		const WaitMutex::MutexPolicy&	policy = mutex->policy();
 
@@ -685,6 +690,9 @@ sync_array_detect_deadlock(
 		}
 
 		return(false); /* No deadlock */
+#else
+		ut_error;
+#endif /* HAVE_ATOMIC_BUILTINS */
 
 	} else if (cell->request_type == RW_LOCK_X
 		   || cell->request_type == RW_LOCK_X_WAIT) {
