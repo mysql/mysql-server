@@ -34,10 +34,12 @@ Created 5/7/1996 Heikki Tuuri
 #include "dict0types.h"
 #include "que0types.h"
 #include "lock0types.h"
-#include "read0types.h"
 #include "hash0hash.h"
 #include "srv0srv.h"
 #include "ut0vec.h"
+
+// Forward declaration
+class ReadView;
 
 /*********************************************************************//**
 Gets the size of a lock struct.
@@ -427,7 +429,7 @@ lock_clust_rec_cons_read_sees(
 				passed over by a read cursor */
 	dict_index_t*	index,	/*!< in: clustered index */
 	const ulint*	offsets,/*!< in: rec_get_offsets(rec, index) */
-	read_view_t*	view);	/*!< in: consistent read view */
+	ReadView*	view);	/*!< in: consistent read view */
 /*********************************************************************//**
 Checks that a non-clustered index record is seen in a consistent read.
 
@@ -446,7 +448,7 @@ lock_sec_rec_cons_read_sees(
 					should be read or passed over
 					by a read cursor */
 	const dict_index_t*     index,  /*!< in: index */
-	const read_view_t*	view)	/*!< in: consistent read view */
+	const ReadView*	view)	/*!< in: consistent read view */
 	__attribute__((nonnull, warn_unused_result));
 /*********************************************************************//**
 Locks the specified database table in the mode given. If the lock cannot
@@ -842,7 +844,7 @@ lock_check_trx_id_sanity(
 	const rec_t*	rec,		/*!< in: user record */
 	dict_index_t*	index,		/*!< in: index */
 	const ulint*	offsets)	/*!< in: rec_get_offsets(rec, index) */
-	__attribute__((nonnull, warn_unused_result));
+	__attribute__((warn_unused_result));
 /*******************************************************************//**
 Check if the transaction holds any locks on the sys tables
 or its records.
@@ -865,8 +867,15 @@ lock_trx_has_rec_x_lock(
 	const dict_table_t*	table,	/*!< in: table to check */
 	const buf_block_t*	block,	/*!< in: buffer block of the record */
 	ulint			heap_no)/*!< in: record heap number */
-	__attribute__((nonnull, warn_unused_result));
+	__attribute__((warn_unused_result));
 #endif /* UNIV_DEBUG */
+
+/**
+Allocate cached locks for the transaction.
+@param trx		allocate cached record locks for this transaction */
+
+void
+lock_trx_alloc_locks(trx_t* trx);
 
 /** Lock modes and types */
 /* @{ */

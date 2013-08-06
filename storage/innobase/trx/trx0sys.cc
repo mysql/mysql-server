@@ -526,7 +526,8 @@ trx_sys_init_at_db_start(void)
 	/* We create the min binary heap here and pass ownership to
 	purge when we init the purge sub-system. Purge is responsible
 	for freeing the binary heap. */
-	purge_queue = new purge_pq_t(0);
+	purge_queue = new(std::nothrow) purge_pq_t();
+	ut_a(purge_queue != NULL);
 
 	mtr_start(&mtr);
 
@@ -613,10 +614,16 @@ trx_sys_create(void)
 
 	mutex_create("trx_sys", &trx_sys->mutex);
 
+	UT_LIST_INIT(trx_sys->serialisation_list, &trx_t::no_list);
 	UT_LIST_INIT(trx_sys->ro_trx_list, &trx_t::trx_list);
 	UT_LIST_INIT(trx_sys->rw_trx_list, &trx_t::trx_list);
 	UT_LIST_INIT(trx_sys->mysql_trx_list, &trx_t::mysql_trx_list);
-	UT_LIST_INIT(trx_sys->view_list, &read_view_t::view_list);
+
+	trx_sys->mvcc = new(std::nothrow) MVCC(1024);
+
+	new(&trx_sys->rw_trx_ids) trx_ids_t();
+
+	new(&trx_sys->rw_trx_set) TrxIdSet();
 }
 
 /*****************************************************************//**
@@ -1226,20 +1233,14 @@ trx_sys_close(void)
 	ut_ad(trx_sys != NULL);
 	ut_ad(srv_shutdown_state == SRV_SHUTDOWN_EXIT_THREADS);
 
-	/* Check that all read views are closed except read view owned
-	by a purge. */
+	ulint	size = trx_sys->mvcc->size();
 
-	trx_sys_mutex_enter();
-
-	if (UT_LIST_GET_LEN(trx_sys->view_list) > 1) {
-		fprintf(stderr,
-			"InnoDB: Error: all read views were not closed"
-			" before shutdown:\n"
-			"InnoDB: %lu read views open \n",
-			UT_LIST_GET_LEN(trx_sys->view_list) - 1);
+	if (size > 0) {
+		ib_logf(IB_LOG_LEVEL_ERROR,
+			"All read views were not closed before shutdown: "
+			"%lu read views open", size);
 	}
 
-	trx_sys_mutex_exit();
 
 	sess_close(trx_dummy_sess);
 	trx_dummy_sess = NULL;
@@ -1266,8 +1267,9 @@ trx_sys_close(void)
 	}
 
 	/* There can't be any active transactions. */
-	trx_rseg_t** rseg_array =
-		static_cast<trx_rseg_t**>(trx_sys->rseg_array);
+	trx_rseg_t** rseg_array = static_cast<trx_rseg_t**>(
+		trx_sys->rseg_array);
+
 	for (ulint i = 0; i < TRX_SYS_N_RSEGS; ++i) {
 		trx_rseg_t*	rseg;
 
@@ -1278,8 +1280,8 @@ trx_sys_close(void)
 		}
 	}
 
-	rseg_array =
-		((trx_rseg_t**) trx_sys->pending_purge_rseg_array);
+	rseg_array = ((trx_rseg_t**) trx_sys->pending_purge_rseg_array);
+
 	for (ulint i = 0; i < TRX_SYS_N_RSEGS; ++i) {
 		trx_rseg_t*	rseg;
 
@@ -1290,24 +1292,21 @@ trx_sys_close(void)
 		}
 	}
 
-	for (read_view_t* view = UT_LIST_GET_FIRST(trx_sys->view_list);
-	     view != NULL;
-	     view = UT_LIST_GET_FIRST(trx_sys->view_list)) {
+	delete trx_sys->mvcc;
 
-		/* Views are allocated from the trx->read_view_heap.
-		So, we simply remove the element here. */
-		UT_LIST_REMOVE(trx_sys->view_list, view);
-	}
-
-	ut_a(UT_LIST_GET_LEN(trx_sys->view_list) == 0);
 	ut_a(UT_LIST_GET_LEN(trx_sys->ro_trx_list) == 0);
 	ut_a(UT_LIST_GET_LEN(trx_sys->rw_trx_list) == 0);
 	ut_a(UT_LIST_GET_LEN(trx_sys->mysql_trx_list) == 0);
+	ut_a(UT_LIST_GET_LEN(trx_sys->serialisation_list) == 0);
 
-	mutex_exit(&trx_sys->mutex);
+	trx_sys_mutex_exit();
 
 	/* We used placement new to create this mutex. Call the destructor. */
 	mutex_free(&trx_sys->mutex);
+
+	trx_sys->rw_trx_ids.~trx_ids_t();
+
+	trx_sys->rw_trx_set.~TrxIdSet();
 
 	mem_free(trx_sys);
 
