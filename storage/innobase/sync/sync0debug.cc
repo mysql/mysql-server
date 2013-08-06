@@ -209,6 +209,8 @@ struct SyncDebug {
 		m_enabled()
 	{
 		new (&m_mutex) SyncMutex();
+
+		m_mutex.init(".sync_debug_mutex", __FILE__, __LINE__);
 	}
 
 	/**
