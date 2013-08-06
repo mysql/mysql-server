@@ -109,7 +109,7 @@ ibool	srv_start_raw_disk_in_use = FALSE;
 incomplete transactions */
 ibool	srv_startup_is_before_trx_rollback_phase = FALSE;
 /** TRUE if the server is being started */
-ibool	srv_is_being_started = FALSE;
+bool	srv_is_being_started = false;
 /** TRUE if the server was successfully started */
 ibool	srv_was_started = FALSE;
 /** TRUE if innobase_start_or_create_for_mysql() has been called */
@@ -1238,7 +1238,7 @@ innobase_start_or_create_for_mysql(void)
 #endif /* UNIV_DEBUG */
 	/*	yydebug = TRUE; */
 
-	srv_is_being_started = TRUE;
+	srv_is_being_started = true;
 	srv_startup_is_before_trx_rollback_phase = TRUE;
 
 #ifdef _WIN32
@@ -2152,7 +2152,7 @@ files_checked:
 		return(srv_init_abort(err));
 	}
 
-	srv_is_being_started = FALSE;
+	srv_is_being_started = false;
 
 	ut_a(trx_purge_state() == PURGE_STATE_INIT);
 

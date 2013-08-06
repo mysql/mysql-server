@@ -1017,8 +1017,7 @@ Initialise the table lock list. */
 void
 lock_table_lock_list_init(
 /*======================*/
-	table_lock_list_t*	locks)		/*!< List to initialise */
-	__attribute__((nonnull));
+	table_lock_list_t*	locks);		/*!< List to initialise */
 
 #ifndef UNIV_NONINL
 #include "dict0mem.ic"

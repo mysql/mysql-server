@@ -200,12 +200,12 @@ ha_print_info(
 
 /** The hash table external chain node */
 struct ha_node_t {
+	ulint		fold;	/*!< fold value for the data */
 	ha_node_t*	next;	/*!< next chain node or NULL if none */
 #if defined UNIV_AHI_DEBUG || defined UNIV_DEBUG
 	buf_block_t*	block;	/*!< buffer block containing the data, or NULL */
 #endif /* UNIV_AHI_DEBUG || UNIV_DEBUG */
 	const rec_t*	data;	/*!< pointer to the data */
-	ulint		fold;	/*!< fold value for the data */
 };
 
 #ifdef UNIV_DEBUG

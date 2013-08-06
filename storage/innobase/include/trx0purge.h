@@ -34,6 +34,10 @@ Created 3/26/1996 Heikki Tuuri
 #include "page0page.h"
 #include "usr0sess.h"
 #include "fil0fil.h"
+#include "read0types.h"
+
+// Forward declaration
+struct ib_bh_t;
 
 /** The global data structure coordinating a purge */
 extern trx_purge_t*	purge_sys;
@@ -174,8 +178,9 @@ struct trx_purge_t{
 					without holding the latch. */
 	que_t*		query;		/*!< The query graph which will do the
 					parallelized purge operation */
-	read_view_t*	view;		/*!< The purge will not remove undo logs
+	ReadView	view;		/*!< The purge will not remove undo logs
 					which are >= this view (purge view) */
+	bool		view_active;	/*!< true if view is active */
 	volatile ulint	n_submitted;	/*!< Count of total tasks submitted
 					to the task queue */
 	volatile ulint	n_completed;	/*!< Count of total tasks completed */
@@ -220,9 +225,6 @@ struct trx_purge_t{
 			rseg_iter;	/*!< Iterator to get the next rseg
 					to process */
 
-	mem_heap_t*	heap;		/*!< Temporary storage used during a
-					purge: can be emptied after purge
-					completes */
 	/*-----------------------------*/
 	ib_bh_t*	ib_bh;		/*!< Binary min-heap, ordered on
 					rseg_queue_t::trx_no. It is protected

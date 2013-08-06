@@ -87,7 +87,7 @@ UNIV_INLINE
 ha_node_t*
 ha_chain_get_next(
 /*==============*/
-	ha_node_t*	node)	/*!< in: hash chain node */
+	const ha_node_t*	node)	/*!< in: hash chain node */
 {
 	return(node->next);
 }
@@ -167,20 +167,17 @@ ha_search_and_get_data(
 	hash_table_t*	table,	/*!< in: hash table */
 	ulint		fold)	/*!< in: folded value of the searched data */
 {
-	ha_node_t*	node;
-
 	hash_assert_can_search(table, fold);
 	ut_ad(btr_search_enabled);
 
-	node = ha_chain_get_first(table, fold);
+	for (const ha_node_t* node = ha_chain_get_first(table, fold);
+	     node != NULL;
+	     node = ha_chain_get_next(node)) {
 
-	while (node) {
 		if (node->fold == fold) {
 
 			return(node->data);
 		}
-
-		node = ha_chain_get_next(node);
 	}
 
 	return(NULL);
