@@ -410,6 +410,7 @@ public:
 			innodb_log_file_key, m_log_file_name,
 			OS_FILE_OPEN, OS_FILE_READ_WRITE, &ret);
 		DBUG_EXECUTE_IF("ib_err_trunc_writing_magic_number",
+				os_file_close(handle);
 				ret = 0;);
 		if (!ret) {
 			ib_logf(IB_LOG_LEVEL_ERROR,
