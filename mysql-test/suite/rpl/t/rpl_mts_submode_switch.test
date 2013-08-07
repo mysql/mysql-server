@@ -55,7 +55,6 @@ CREATE TEMPORARY TABLE db3.t_temp (a int) engine=innodb;
 SET @VAR=100;
 CREATE TABLE db4.t engine=myisam select @VAR as a;
 CREATE TEMPORARY TABLE db4.t_temp (a int) engine=innodb;
-CREATE TABLE db4.t_additional (a int) engine=myisam;
 
 -- connection master
 SET GLOBAL DEBUG ='-d,set_commit_parent_100';
@@ -69,9 +68,9 @@ SET GLOBAL DEBUG ='-d,set_commit_parent_150';
 SET GLOBAL DEBUG ='+d,set_commit_parent_100';
 
 # NON TRANSACTIONAL
--- connection m4
- INSERT INTO db2.t values (1),(2),(3);
 -- connection m2
+ INSERT INTO db2.t values (1),(2),(3);
+-- connection m4
  INSERT INTO db4.t values (1),(2),(3);
 
 # Start a new group.
