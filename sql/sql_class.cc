@@ -61,6 +61,7 @@
 #include "lock.h"
 #include "global_threads.h"
 #include "mysqld.h"
+#include "connection_handler_manager.h"   // Connection_handler_manager
 
 #include <mysql/psi/mysql_statement.h>
 
@@ -384,14 +385,14 @@ void thd_new_connection_setup(THD *thd, char *stack_start)
 {
   DBUG_ENTER("thd_new_connection_setup");
   mysql_mutex_assert_owner(&LOCK_thread_count);
+  thd->thread_id= thd->variables.pseudo_thread_id= thread_id++;
 #ifdef HAVE_PSI_INTERFACE
   thd_set_psi(thd,
               PSI_THREAD_CALL(new_thread)
                 (key_thread_one_connection, thd, thd->thread_id));
 #endif
   thd->set_time();
-  thd->prior_thr_create_utime= thd->thr_create_utime= thd->start_utime=
-    my_micro_time();
+  thd->thr_create_utime= thd->start_utime= my_micro_time();
 
   add_global_thread(thd);
   mysql_mutex_unlock(&LOCK_thread_count);
@@ -960,7 +961,7 @@ THD::THD(bool enable_plugins)
   user_time.tv_usec= 0;
   start_time.tv_sec= 0;
   start_time.tv_usec= 0;
-  start_utime= prior_thr_create_utime= 0L;
+  start_utime= 0L;
   utime_after_lock= 0L;
   current_linfo =  0;
   slave_thread = 0;
@@ -1774,7 +1775,8 @@ void THD::awake(THD::killed_state state_to_set)
 
     /* Send an event to the scheduler that a thread should be killed. */
     if (!slave_thread)
-      MYSQL_CALLBACK(thread_scheduler, post_kill_notification, (this));
+      MYSQL_CALLBACK(Connection_handler_manager::callback,
+                     post_kill_notification, (this));
   }
 
   /* Broadcast a condition to kick the target if it is waiting on it. */
@@ -4075,7 +4077,8 @@ extern "C" void thd_pool_wait_end(MYSQL_THD thd);
 */
 extern "C" void thd_wait_begin(MYSQL_THD thd, int wait_type)
 {
-  MYSQL_CALLBACK(thread_scheduler, thd_wait_begin, (thd, wait_type));
+  MYSQL_CALLBACK(Connection_handler_manager::callback,
+                 thd_wait_begin, (thd, wait_type));
 }
 
 /**
@@ -4086,7 +4089,8 @@ extern "C" void thd_wait_begin(MYSQL_THD thd, int wait_type)
 */
 extern "C" void thd_wait_end(MYSQL_THD thd)
 {
-  MYSQL_CALLBACK(thread_scheduler, thd_wait_end, (thd));
+  MYSQL_CALLBACK(Connection_handler_manager::callback,
+                 thd_wait_end, (thd));
 }
 #else
 extern "C" void thd_wait_begin(MYSQL_THD thd, int wait_type)
