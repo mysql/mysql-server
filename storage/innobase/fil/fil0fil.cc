@@ -2834,7 +2834,8 @@ fil_close_tablespace(
 	fil_flush() from being applied to this tablespace. */
 
 	buf_LRU_flush_or_remove_pages(id, BUF_REMOVE_FLUSH_WRITE, trx);
-#endif
+#endif /* UNIV_HOTBACKUP */
+
 	mutex_enter(&fil_system->mutex);
 
 	/* If the free is successful, the X lock will be released before
@@ -2990,7 +2991,8 @@ fil_delete_tablespace(
 
 		fil_op_write_log(MLOG_FILE_DELETE, id, 0, 0, path, NULL, &mtr);
 		mtr_commit(&mtr);
-#endif
+#endif /* UNIV_HOTBACKUP */
+
 		err = DB_SUCCESS;
 	}
 

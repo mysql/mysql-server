@@ -408,7 +408,6 @@ bool
 SyncDebug::basic_check(const Latches* latches, ulint lvl) const UNIV_NOTHROW
 {
 	latch_level_t	level = latch_level_t(lvl);
-
 	const latch_t*	latch = less(latches, level);
 
 	if (latch != NULL) {
@@ -475,10 +474,10 @@ SyncDebug::less(
 	const Latches*	latches,
 	latch_level_t	limit) const UNIV_NOTHROW
 {
-	Latches::const_reverse_iterator	rend = latches->rend();
+	Latches::const_iterator	end = latches->end();
 
-	for (Latches::const_reverse_iterator it = latches->rbegin();
-	     it != rend;
+	for (Latches::const_iterator it = latches->begin();
+	     it != end;
 	     ++it) {
 
 		if ((*it)->m_level <= limit) {
