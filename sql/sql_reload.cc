@@ -28,6 +28,7 @@
 #include "rpl_rli.h"     // rotate_relay_log
 #include "rpl_mi.h"
 #include "debug_sync.h"
+#include "connection_handler_impl.h"
 
 
 /**
@@ -289,8 +290,10 @@ bool reload_acl_and_cache(THD *thd, unsigned long options,
     hostname_cache_refresh();
   if (thd && (options & REFRESH_STATUS))
     refresh_status(thd);
+#ifndef EMBEDDED_LIBRARY
   if (options & REFRESH_THREADS)
-    kill_blocked_pthreads();
+    Per_thread_connection_handler::kill_blocked_pthreads();
+#endif
 #ifdef HAVE_REPLICATION
   if (options & REFRESH_MASTER)
   {

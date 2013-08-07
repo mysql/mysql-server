@@ -19,6 +19,7 @@
 #include "sys_vars.h"
 #include "my_stacktrace.h"
 #include "global_threads.h"
+#include "connection_handler_manager.h"  // Connection_handler_manager
 
 #ifdef _WIN32
 #include <crtdbg.h>
@@ -33,7 +34,6 @@
   to guarantee that we read some consistent value.
  */
 static volatile sig_atomic_t segfaulted= 0;
-extern ulong max_used_connections;
 extern volatile sig_atomic_t calling_initgroups;
 
 /**
@@ -106,14 +106,18 @@ extern "C" sig_handler handle_fatal_signal(int sig)
                         (long) global_system_variables.read_buff_size);
 
   my_safe_printf_stderr("max_used_connections=%lu\n",
-                        (ulong) max_used_connections);
+                        Connection_handler_manager::max_used_connections);
 
-  my_safe_printf_stderr("max_threads=%u\n",
-                        (uint) thread_scheduler->max_threads);
+  uint max_threads= 1;
+#ifndef EMBEDDED_LIBRARY
+  max_threads= Connection_handler_manager::get_instance()->get_max_threads();
+#endif
+  my_safe_printf_stderr("max_threads=%u\n", max_threads);
 
   my_safe_printf_stderr("thread_count=%u\n", get_thread_count());
 
-  my_safe_printf_stderr("connection_count=%u\n", (uint) connection_count);
+  my_safe_printf_stderr("connection_count=%u\n",
+                        Connection_handler_manager::connection_count);
 
   my_safe_printf_stderr("It is possible that mysqld could use up to \n"
                         "key_buffer_size + "
@@ -121,8 +125,8 @@ extern "C" sig_handler handle_fatal_signal(int sig)
                         "%lu K  bytes of memory\n",
                         ((ulong) dflt_key_cache->key_cache_mem_size +
                          (global_system_variables.read_buff_size +
-                          global_system_variables.sortbuff_size) *
-                         thread_scheduler->max_threads +
+                         global_system_variables.sortbuff_size) *
+                         max_threads +
                          max_connections * sizeof(THD)) / 1024);
 
   my_safe_printf_stderr("%s",
