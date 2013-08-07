@@ -1123,23 +1123,16 @@ innobase_start_or_create_for_mysql(void)
 	}
 
 	if (sizeof(ulint) != sizeof(void*)) {
-		ut_print_timestamp(stderr);
-		fprintf(stderr,
-			" InnoDB: Error: size of InnoDB's ulint is %lu, "
-			"but size of void*\n", (ulong) sizeof(ulint));
-		ut_print_timestamp(stderr);
-		fprintf(stderr,
-			" InnoDB: is %lu. The sizes should be the same "
-			"so that on a 64-bit\n",
+		ib_logf(IB_LOG_LEVEL_ERROR,
+			"Size of InnoDB's ulint is %lu, but size of void* "
+			"is %lu. The sizes should be the same so that on "
+			"a 64-bit platforms you can allocate more than 4 GB "
+			"of memory.",
+			(ulong) sizeof(ulint),
 			(ulong) sizeof(void*));
-		ut_print_timestamp(stderr);
-		fprintf(stderr,
-			" InnoDB: platforms you can allocate more than 4 GB "
-			"of memory.\n");
 	}
 
 #ifdef UNIV_DEBUG
-	ut_print_timestamp(stderr);
 	fprintf(stderr,
 		" InnoDB: !!!!!!!! UNIV_DEBUG switched on !!!!!!!!!\n");
 #endif
@@ -1200,6 +1193,9 @@ innobase_start_or_create_for_mysql(void)
 
 	ib_logf(IB_LOG_LEVEL_INFO,
 		"" IB_ATOMICS_STARTUP_MSG "");
+
+	ib_logf(IB_LOG_LEVEL_INFO,
+		"" MUTEX_TYPE"");
 
 	ib_logf(IB_LOG_LEVEL_INFO,
 		"Compressed tables use zlib " ZLIB_VERSION
