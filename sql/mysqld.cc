@@ -8593,7 +8593,7 @@ void init_server_psi_keys(void)
 
   /*
     When a new packet is received,
-    it is instrumented as "statement/com/new_packet".
+    it is instrumented as "statement/com/".
     Based on the packet type found, it later mutates to the
     proper narrow type, for example
     "statement/com/query" or "statement/com/ping".
@@ -8602,7 +8602,7 @@ void init_server_psi_keys(void)
     narrow classification, for example "statement/sql/select".
   */
   stmt_info_new_packet.m_key= 0;
-  stmt_info_new_packet.m_name= "new_packet";
+  stmt_info_new_packet.m_name= "";
   stmt_info_new_packet.m_flags= PSI_FLAG_MUTABLE;
   mysql_statement_register(category, &stmt_info_new_packet, 1);
 
