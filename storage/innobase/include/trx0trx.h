@@ -324,6 +324,14 @@ trx_get_read_view(
 	trx_t*	trx);
 
 /****************************************************************//**
+@return the transaction's read view or NULL if one not assigned. */
+UNIV_INLINE
+const ReadView*
+trx_get_read_view(
+/*==============*/
+	const trx_t*	trx);
+
+/****************************************************************//**
 Prepares a transaction for commit/rollback. */
 
 void
