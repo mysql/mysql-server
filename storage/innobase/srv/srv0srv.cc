@@ -1201,7 +1201,7 @@ srv_printf_innodb_monitor(
 
 	/* This is a dirty read, without holding trx_sys->mutex. */
 	fprintf(file, "%lu read views open inside InnoDB\n",
-		UT_LIST_GET_LEN(trx_sys->view_list));
+		trx_sys->mvcc->size());
 
 	n_reserved = fil_space_get_n_reserved_extents(0);
 	if (n_reserved > 0) {
@@ -1408,10 +1408,12 @@ srv_export_innodb_status(void)
 
 #ifdef UNIV_DEBUG
 	rw_lock_s_lock(&purge_sys->latch);
+	trx_id_t	up_limit_id;
 	trx_id_t	done_trx_no	= purge_sys->done.trx_no;
-	trx_id_t	up_limit_id	= purge_sys->view
-		? purge_sys->view->up_limit_id
-		: 0;
+
+	up_limit_id	= purge_sys->view_active
+		? purge_sys->view.up_limit_id() : 0;
+
 	rw_lock_s_unlock(&purge_sys->latch);
 
 	mutex_enter(&trx_sys->mutex);
