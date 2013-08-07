@@ -26,7 +26,6 @@ CREATE TEMPORARY TABLE db3.t_temp (a int) engine=innodb;
 SET @VAR=100;
 CREATE TABLE db4.t engine=myisam select @VAR as a;
 CREATE TEMPORARY TABLE db4.t_temp (a int) engine=innodb;
-CREATE TABLE db4.t_additional (a int) engine=myisam;
 SET GLOBAL DEBUG ='-d,set_commit_parent_100';
 SET GLOBAL DEBUG ='+d,set_commit_parent_150';
 TRUNCATE db3.t;

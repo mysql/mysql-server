@@ -418,7 +418,7 @@ Mts_submode_logical_clock::schedule_next_event(Relay_log_info* rli,
   if (assign_group(rli, ev))
     DBUG_RETURN (ER_MTS_CANT_PARALLEL);
 
-  if (commit_seq_no == SEQ_UNINIT)
+  if (commit_seq_no == SEQ_UNINIT && gtid_mode == 3)
   {
     rli->mts_group_status= Relay_log_info::MTS_IN_GROUP;
     DBUG_RETURN (0);
