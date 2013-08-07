@@ -285,3 +285,13 @@ trx_get_read_view(
 	return(!MVCC::is_view_active(trx->read_view) ? NULL : trx->read_view);
 }
 
+/**
+@param trx		Get the active view for this transaction, if one exists
+@return the transaction's read view or NULL if one not assigned. */
+UNIV_INLINE
+const ReadView*
+trx_get_read_view(
+	const trx_t*	trx)
+{
+	return(!MVCC::is_view_active(trx->read_view) ? NULL : trx->read_view);
+}
