@@ -42,8 +42,8 @@ static struct thd_wait_service_st thd_wait_handler= {
 };
 
 static struct my_thread_scheduler_service my_thread_scheduler_handler= {
-  my_thread_scheduler_set,
-  my_thread_scheduler_reset,
+  my_connection_handler_set,
+  my_connection_handler_reset
 };
 
 static struct my_plugin_log_service my_plugin_log_handler= {

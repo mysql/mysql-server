@@ -63,9 +63,15 @@ ERROR 1050 (42S01) at line 1250: Table 'memory_summary_by_account_by_event_name'
 ERROR 1050 (42S01) at line 1268: Table 'memory_summary_by_host_by_event_name' already exists
 ERROR 1050 (42S01) at line 1286: Table 'memory_summary_by_user_by_event_name' already exists
 ERROR 1050 (42S01) at line 1321: Table 'events_statements_summary_by_digest' already exists
-ERROR 1050 (42S01) at line 1331: Table 'session_connect_attrs' already exists
-ERROR 1050 (42S01) at line 1337: Table 'session_account_connect_attrs' already exists
-ERROR 1644 (HY000) at line 2074: Unexpected content found in the performance_schema database.
+ERROR 1050 (42S01) at line 1343: Table 'replication_connection_configuration' already exists
+ERROR 1050 (42S01) at line 1356: Table 'replication_connection_status' already exists
+ERROR 1050 (42S01) at line 1363: Table 'replication_execute_configuration' already exists
+ERROR 1050 (42S01) at line 1371: Table 'replication_execute_status' already exists
+ERROR 1050 (42S01) at line 1382: Table 'replication_execute_status_by_coordinator' already exists
+ERROR 1050 (42S01) at line 1395: Table 'replication_execute_status_by_worker' already exists
+ERROR 1050 (42S01) at line 1405: Table 'session_connect_attrs' already exists
+ERROR 1050 (42S01) at line 1411: Table 'session_account_connect_attrs' already exists
+ERROR 1644 (HY000) at line 2148: Unexpected content found in the performance_schema database.
 FATAL ERROR: Upgrade failed
 show tables like "user_view";
 Tables_in_performance_schema (user_view)
