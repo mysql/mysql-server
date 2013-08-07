@@ -30,10 +30,10 @@ class THD;
 struct handlerton;
 class Time_zone;
 
-struct scheduler_functions;
 
 typedef struct st_mysql_const_lex_string LEX_CSTRING;
 typedef struct st_mysql_show_var SHOW_VAR;
+typedef struct st_mysql_socket MYSQL_SOCKET;
 
 /*
   This forward declaration is used from C files where the real
@@ -57,7 +57,12 @@ typedef Bitmap<((MAX_INDEXES+7)/8*8)> key_map; /* Used for finding keys */
 #define TEST_PRINT_CACHED_TABLES 1
 #define TEST_NO_KEY_GROUP	 2
 #define TEST_MIT_THREAD		4
-#define TEST_BLOCKING		8
+/*
+  TEST_BLOCKING is made obsolete and is not used any
+  where in the code base and is retained here so that
+  the other bit flag values are not changed.
+*/
+#define OBSOLETE_TEST_BLOCKING	8
 #define TEST_KEEP_TMP_TABLES	16
 #define TEST_READCHECK		64	/**< Force use of readcheck */
 #define TEST_NO_EXTRA		128
@@ -71,16 +76,10 @@ typedef Bitmap<((MAX_INDEXES+7)/8*8)> key_map; /* Used for finding keys */
 
 /* Function prototypes */
 void kill_mysql(void);
-void close_connection(THD *thd, uint sql_errno= 0);
-void handle_connection_in_main_thread(THD *thd);
-void create_thread_to_handle_connection(THD *thd);
 void restore_globals(THD *thd);
 void destroy_thd(THD *thd);
-bool one_thread_per_connection_end(THD *thd, bool block_pthread);
-void kill_blocked_pthreads();
 void refresh_status(THD *thd);
 bool is_secure_file_path(char *path);
-void dec_connection_count();
 
 // These are needed for unit testing.
 void set_remaining_args(int argc, char **argv);
@@ -118,7 +117,6 @@ extern my_bool opt_character_set_client_handshake;
 extern bool volatile abort_loop;
 extern bool in_bootstrap;
 extern my_bool opt_bootstrap;
-extern uint connection_count;
 extern my_bool opt_safe_user_create;
 extern my_bool opt_safe_show_db, opt_local_infile, opt_myisam_use_mmap;
 extern my_bool opt_slave_compressed_protocol, use_temp_pool;
@@ -188,14 +186,14 @@ extern ulonglong thd_startup_options;
 extern ulong thread_id;
 extern ulong binlog_cache_use, binlog_cache_disk_use;
 extern ulong binlog_stmt_cache_use, binlog_stmt_cache_disk_use;
-extern ulong aborted_threads,aborted_connects;
+extern ulong aborted_threads;
 extern ulong delayed_insert_timeout;
 extern ulong delayed_insert_limit, delayed_queue_size;
 extern ulong delayed_insert_threads, delayed_insert_writes;
 extern ulong delayed_rows_in_use,delayed_insert_errors;
 extern int32 slave_open_temp_tables;
 extern ulong query_cache_size, query_cache_min_res_unit;
-extern ulong slow_launch_threads, slow_launch_time;
+extern ulong slow_launch_time;
 extern ulong table_cache_size, table_def_size;
 extern ulong table_cache_size_per_instance, table_cache_instances;
 extern MYSQL_PLUGIN_IMPORT ulong max_connections;
@@ -239,7 +237,6 @@ extern ulong gtid_mode;
 extern const char *gtid_mode_names[];
 extern TYPELIB gtid_mode_typelib;
 
-extern ulong max_blocked_pthreads;
 extern ulong stored_program_cache_size;
 extern ulong back_log;
 extern char language[FN_REFLEN];
@@ -283,7 +280,6 @@ extern my_bool old_mode;
 extern LEX_STRING opt_init_connect, opt_init_slave;
 extern int bootstrap_error;
 extern char err_shared_dir[];
-extern TYPELIB thread_handling_typelib;
 extern my_decimal decimal_zero;
 extern ulong connection_errors_select;
 extern ulong connection_errors_accept;
@@ -293,6 +289,11 @@ extern ulong connection_errors_max_connection;
 extern ulong connection_errors_peer_addr;
 extern ulong log_warnings;
 extern LEX_CSTRING sql_statement_names[(uint) SQLCOM_END + 1];
+extern mysql_cond_t COND_thread_cache, COND_flush_thread_cache;
+#if defined(_WIN32) && !defined(EMBEDDED_LIBRARY)
+extern mysql_cond_t COND_handler_count;
+#endif
+
 void init_sql_statement_names();
 
 /*
@@ -315,6 +316,8 @@ my_pthread_set_THR_MALLOC(MEM_ROOT ** hdl)
   DBUG_ASSERT(THR_MALLOC_initialized);
   return my_pthread_setspecific_ptr(THR_MALLOC, hdl);
 }
+
+extern bool load_perfschema_engine;
 
 #ifdef HAVE_PSI_INTERFACE
 
@@ -419,6 +422,13 @@ extern PSI_file_key key_file_binlog, key_file_binlog_index, key_file_casetest,
 extern PSI_file_key key_file_general_log, key_file_slow_log;
 extern PSI_file_key key_file_relaylog, key_file_relaylog_index;
 extern PSI_socket_key key_socket_tcpip, key_socket_unix, key_socket_client_connection;
+
+#if defined(_WIN32) && !defined(EMBEDDED_LIBRARY)
+extern PSI_thread_key key_thread_handle_con_namedpipes;
+extern PSI_cond_key key_COND_handler_count;
+extern PSI_thread_key key_thread_handle_con_sharedmem;
+extern PSI_thread_key key_thread_handle_con_sockets;
+#endif /* _WIN32 && !EMBEDDED_LIBRARY */
 
 void init_server_psi_keys();
 
@@ -705,7 +715,6 @@ extern ulong specialflag;
 extern uint mysql_data_home_len;
 extern uint mysql_real_data_home_len;
 extern const char *mysql_real_data_home_ptr;
-extern ulong thread_handling;
 extern MYSQL_PLUGIN_IMPORT char  *mysql_data_home;
 extern "C" MYSQL_PLUGIN_IMPORT char server_version[SERVER_VERSION_LENGTH];
 extern MYSQL_PLUGIN_IMPORT char mysql_real_data_home[];
@@ -733,6 +742,7 @@ extern mysql_mutex_t
 extern mysql_mutex_t LOCK_des_key_file;
 #endif
 extern mysql_mutex_t LOCK_server_started;
+extern mysql_mutex_t LOCK_thread_created;
 extern mysql_cond_t COND_server_started;
 extern mysql_rwlock_t LOCK_grant, LOCK_sys_init_connect, LOCK_sys_init_slave;
 extern mysql_rwlock_t LOCK_system_variables_hash;
@@ -923,7 +933,5 @@ inline THD *_current_thd(void)
 }
 #endif
 #define current_thd _current_thd()
-
-extern const char *MY_BIND_ALL_ADDRESSES;
 
 #endif /* MYSQLD_INCLUDED */

@@ -805,14 +805,14 @@ page_create_zip(
 						where the page is created */
 	dict_index_t*		index,		/*!< in: the index of the
 						page, or NULL when applying
-						MLOG_FILE_TRUNCATE redo
+						TRUNCATE log 
 						record during recovery */
 	ulint			level,		/*!< in: the B-tree level of
 						the page */
 	trx_id_t		max_trx_id,	/*!< in: PAGE_MAX_TRX_ID */
 	const redo_page_compress_t* page_comp_info,
 						/*!< in: used for applying
-						MLOG_FILE_TRUNCATE redo log
+						TRUNCATE log
 						record during recovery */
 	mtr_t*			mtr);		/*!< in/out: mini-transaction
 						handle */
