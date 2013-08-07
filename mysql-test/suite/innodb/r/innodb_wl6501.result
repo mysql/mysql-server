@@ -1,5 +1,6 @@
 set global innodb_file_per_table = on;
 call mtr.add_suppression("Have you deleted or moved.*");
+call mtr.add_suppression("Failed to open truncate log file");
 "1. Test some basic dml action involving truncate of table."
 use test;
 set global innodb_file_per_table = 0;
@@ -958,9 +959,9 @@ count(*)
 200
 drop table t1;
 drop procedure populate_t1;
-set global innodb_file_per_table = on;
 "5 check truncate with lock/unlock"
 use test;
+set global innodb_file_per_table = 1;
 create table master
 (i int, f float, c char(100),
 primary key pk(i), index fidx(f))
@@ -994,5 +995,137 @@ unlock tables;
 select * from master;
 i	f	c
 drop table master;
+use test;
+set global innodb_file_per_table = 1;
+create table t1
+(i int, f float, c char(100),
+primary key pk(i), index fidx(f))
+engine = innodb;
+insert into t1 values
+(1, 1.1, 'a'), (2, 2.2, 'b'), (3, 3.3, 'c'),
+(4, 4.4, 'd'), (5, 5.5, 'e');
+select * from t1;
+i	f	c
+1	1.1	a
+2	2.2	b
+3	3.3	c
+4	4.4	d
+5	5.5	e
+set session debug = "+d,ib_trunc_crash_after_logging_complete";
+truncate table t1;
+ERROR HY000: Lost connection to MySQL server during query
+# Restart the MySQL server
+check table t1;
+Table	Op	Msg_type	Msg_text
+test.t1	check	status	OK
+select * from t1;
+i	f	c
+insert into t1 values
+(1, 1.1, 'a'), (2, 2.2, 'b'), (3, 3.3, 'c');
+select * from t1;
+i	f	c
+1	1.1	a
+2	2.2	b
+3	3.3	c
+drop table t1;
+use test;
+set global innodb_file_per_table = 1;
+create table t1
+(i int, f float, c char(100),
+primary key pk(i), index fidx(f))
+engine = innodb;
+create table t2
+(i int, f float, c char(100),
+primary key pk(i), index fidx(f))
+engine = innodb;
+insert into t1 values
+(1, 1.1, 'a'), (2, 2.2, 'b'), (3, 3.3, 'c'),
+(4, 4.4, 'd'), (5, 5.5, 'e');
+select * from t1;
+i	f	c
+1	1.1	a
+2	2.2	b
+3	3.3	c
+4	4.4	d
+5	5.5	e
+set session debug = "+d,ib_trunc_crash_with_intermediate_log_checkpoint";
+truncate table t1;;
+insert into t2 values
+(1, 1.1, 'a'), (2, 2.2, 'b'), (3, 3.3, 'c'),
+(4, 4.4, 'd'), (5, 5.5, 'e');
+select * from t2;
+i	f	c
+1	1.1	a
+2	2.2	b
+3	3.3	c
+4	4.4	d
+5	5.5	e
+ERROR HY000: Lost connection to MySQL server during query
+# Restart the MySQL server
+select * from t1;
+i	f	c
+select * from t2;
+i	f	c
+1	1.1	a
+2	2.2	b
+3	3.3	c
+4	4.4	d
+5	5.5	e
+drop table t1;
+drop table t2;
+use test;
+create table t (i int, j int) engine=innodb;
+insert into t values (1,1), (2,2), (3,3);
+select * from t;
+i	j
+1	1
+2	2
+3	3
+set session debug="+d,ib_err_trunc_oom_logging";
+truncate table t;
+ERROR HY000: Got error -1 from storage engine
+set session debug="-d,ib_err_trunc_oom_logging";
+select * from t;
+i	j
+1	1
+2	2
+3	3
+select * from t;
+i	j
+1	1
+2	2
+3	3
+set session debug="+d,ib_err_trunc_writing_magic_number";
+truncate table t;
+select * from t;
+i	j
+insert into t values (1,1), (2,2), (3,3);
+select * from t;
+i	j
+1	1
+2	2
+3	3
+# Restart the MySQL server
+select * from t;
+i	j
+1	1
+2	2
+3	3
+drop table t;
+use test;
+create table t (i int, j int, primary key pk(i), index idx(j)) engine=innodb;
+insert into t values (1,1), (2,2), (3,3);
+select * from t;
+i	j
+1	1
+2	2
+3	3
+set session debug="+d,ib_trunc_crash_after_updating_magic_no";
+truncate table t;
+ERROR HY000: Lost connection to MySQL server during query
+# Restart the MySQL server
+select * from t;
+i	j
+drop table t;
 set global innodb_file_format = Antelope;
 set global innodb_file_per_table = 1;

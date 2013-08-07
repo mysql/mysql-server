@@ -61,7 +61,7 @@ ssize, which is the number of shifts from 512. */
 #endif
 
 /** The information used for compressing a page when applying
-MLOG_FILE_TRUNCATE redo record during recovery */
+TRUNCATE log record during recovery */
 struct redo_page_compress_t {
 	ulint		type;		/*!< index type */
 	index_id_t	index_id;	/*!< index id */

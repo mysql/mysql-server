@@ -392,6 +392,25 @@ public:
   {
     compute_statistics();
     truncate(0);
+
+    /*
+      If IOCACHE has a file associated, change its size to 0.
+      It is safer to do it here, since we are certain that one
+      asked the cache to go to position 0 with truncate.
+    */
+    if(cache_log.file != -1)
+    {
+        int error= 0;
+        if((error= my_chsize(cache_log.file, 0, 0, MYF(MY_WME))))
+            sql_print_error("Unable to resize binlog IOCACHE auxilary file");
+
+        /*
+          my_chsize places the file cursor at the end of the file
+          and returns 0 (OK) if the operation has suceeded.
+        */
+        DBUG_ASSERT( error == 0 );
+    }
+
     flags.incident= false;
     flags.with_xid= false;
     flags.immediate= false;

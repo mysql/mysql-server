@@ -3203,8 +3203,6 @@ innobase_check_foreign_key_index(
 {
 	dict_foreign_t*	foreign;
 
-	ut_ad(!index->to_be_dropped);
-
 	/* Check if the index is referenced. */
 	foreign = dict_table_get_referenced_constraint(indexed_table, index);
 
@@ -3815,6 +3813,16 @@ check_if_can_drop_indexes:
 		CREATE TABLE adding FOREIGN KEY constraints. */
 		row_mysql_lock_data_dictionary(prebuilt->trx);
 
+		if (!n_drop_index) {
+			drop_index = NULL;
+		} else {
+			/* Flag all indexes that are to be dropped. */
+			for (ulint i = 0; i < n_drop_index; i++) {
+				ut_ad(!drop_index[i]->to_be_dropped);
+				drop_index[i]->to_be_dropped = 1;
+			}
+		}
+
 		if (prebuilt->trx->check_foreigns) {
 			for (uint i = 0; i < n_drop_index; i++) {
 			     dict_index_t*	index = drop_index[i];
@@ -3842,16 +3850,6 @@ check_if_can_drop_indexes:
 				row_mysql_unlock_data_dictionary(prebuilt->trx);
 				print_error(HA_ERR_DROP_INDEX_FK, MYF(0));
 				goto err_exit;
-			}
-		}
-
-		if (!n_drop_index) {
-			drop_index = NULL;
-		} else {
-			/* Flag all indexes that are to be dropped. */
-			for (ulint i = 0; i < n_drop_index; i++) {
-				ut_ad(!drop_index[i]->to_be_dropped);
-				drop_index[i]->to_be_dropped = 1;
 			}
 		}
 

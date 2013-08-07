@@ -100,7 +100,6 @@ public:
 
     void update_timestamp()
     {
-      time_t skr;
       struct tm tm_tmp;
       struct tm *start;
 
@@ -124,6 +123,8 @@ public:
     char message[MAX_SLAVE_ERRMSG];
     /** Error timestamp as string */
     char timestamp[16];
+    /** Error timestamp as time_t variable. Used in performance_schema */
+    time_t skr;
   };
 
   Error const& last_error() const { return m_last_error; }
@@ -139,11 +140,12 @@ protected:
     va_report(level, err_code, NULL, msg, v_args);
   }
 
-private:
   /**
      Last error produced by the I/O or SQL thread respectively.
    */
   mutable Error m_last_error;
+
+private:
 
   char const *const m_thread_name;
 
