@@ -983,7 +983,8 @@ struct lock_sys_t{
 extern lock_sys_t*	lock_sys;
 
 /** Test if lock_sys->mutex can be acquired without waiting. */
-#define lock_mutex_enter_nowait() (lock_sys->mutex.trylock())
+#define lock_mutex_enter_nowait() 		\
+	(lock_sys->mutex.trylock(__FILE__, __LINE__))
 
 /** Test if lock_sys->mutex is owned. */
 #define lock_mutex_own() (lock_sys->mutex.is_owned())
