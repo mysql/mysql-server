@@ -1183,7 +1183,9 @@ the buffer pool.
 bool
 buf_page_io_complete(
 /*=================*/
-	buf_page_t*	bpage);	/*!< in: pointer to the block in question */
+	buf_page_t*	bpage,	/*!< in: pointer to the block in question */
+	bool		evict = false);/*!< in: whether or not to evict
+				the page from LRU list. */
 /********************************************************************//**
 Calculates a folded value of a file page address to use in the page hash
 table.
@@ -1733,6 +1735,133 @@ Compute the hash fold value for blocks in buf_pool->zip_hash. */
 #define BUF_POOL_ZIP_FOLD_BPAGE(b) BUF_POOL_ZIP_FOLD((buf_block_t*) (b))
 /* @} */
 
+/** A "Hazard Pointer" class used to iterate over page lists
+inside the buffer pool. A hazard pointer is a buf_page_t pointer
+which we intend to iterate over next and we want it remain valid
+even after we release the buffer pool mutex. */
+class HazardPointer {
+
+public:
+	/** Constructor
+	@param buf_pool buffer pool instance
+	@param mutex	mutex that is protecting the hp. */
+	HazardPointer(const buf_pool_t* buf_pool, const ib_mutex_t* mutex)
+		:
+		m_buf_pool(buf_pool)
+#ifdef UNIV_DEBUG
+		, m_mutex(mutex)
+#endif /* UNIV_DEBUG */
+		, m_hp() {}
+
+	/** Destructor */
+	virtual ~HazardPointer() {}
+
+	/** Get current value */
+	buf_page_t* get()
+	{
+		ut_ad(mutex_own(m_mutex));
+		return(m_hp);
+	}
+
+	/** Set current value
+	@param bpage	buffer block to be set as hp */
+	void set(buf_page_t* bpage);
+
+	/** Checks if a bpage is the hp
+	@param bpage	buffer block to be compared
+	@return true if it is hp */
+	bool is_hp(const buf_page_t* bpage);
+
+	/** Adjust the value of hp. This happens when some
+	other thread working on the same list attempts to
+	remove the hp from the list. Must be implemented
+	by the derived classes.
+	@param bpage	buffer block to be compared */
+	virtual void adjust(const buf_page_t*) = 0;
+
+protected:
+	/** Disable copying */
+	HazardPointer(const HazardPointer&);
+	HazardPointer& operator=(const HazardPointer&);
+
+	/** Buffer pool instance */
+	const buf_pool_t*	m_buf_pool;
+
+#if UNIV_DEBUG
+	/** mutex that protects access to the m_hp. */
+	const ib_mutex_t*	m_mutex;
+#endif /* UNIV_DEBUG */
+
+	/** hazard pointer. */
+	buf_page_t*		m_hp;
+};
+
+/** Class implementing buf_pool->flush_list hazard pointer */
+class FlushHp: public HazardPointer {
+
+public:
+	/** Constructor
+	@param buf_pool buffer pool instance
+	@param mutex	mutex that is protecting the hp. */
+	FlushHp(const buf_pool_t* buf_pool, const ib_mutex_t* mutex)
+		:
+		HazardPointer(buf_pool, mutex) {}
+
+	/** Destructor */
+	virtual ~FlushHp() {}
+
+	/** Adjust the value of hp. This happens when some
+	other thread working on the same list attempts to
+	remove the hp from the list.
+	@param bpage	buffer block to be compared */
+	void adjust(const buf_page_t* bpage);
+};
+
+/** Class implementing buf_pool->LRU hazard pointer */
+class LRUHp: public HazardPointer {
+
+public:
+	/** Constructor
+	@param buf_pool buffer pool instance
+	@param mutex	mutex that is protecting the hp. */
+	LRUHp(const buf_pool_t* buf_pool, const ib_mutex_t* mutex)
+		:
+		HazardPointer(buf_pool, mutex) {}
+
+	/** Destructor */
+	virtual ~LRUHp() {}
+
+	/** Adjust the value of hp. This happens when some
+	other thread working on the same list attempts to
+	remove the hp from the list.
+	@param bpage	buffer block to be compared */
+	void adjust(const buf_page_t* bpage);
+};
+
+/** Special purpose iterators to be used when scanning the LRU list.
+The idea is that when one thread finishes the scan it leaves the
+itr in that position and the other thread can start scan from
+there */
+class LRUItr: public LRUHp {
+
+public:
+	/** Constructor
+	@param buf_pool buffer pool instance
+	@param mutex	mutex that is protecting the hp. */
+	LRUItr(const buf_pool_t* buf_pool, const ib_mutex_t* mutex)
+		:
+		LRUHp(buf_pool, mutex) {}
+
+	/** Destructor */
+	virtual ~LRUItr() {}
+
+	/** Selects from where to start a scan. If we have scanned
+	too deep into the LRU list it resets the value to the tail
+	of the LRU list.
+	@return buf_page_t from where to start scan. */
+	buf_page_t* start();
+};
+
 /** Struct that is embedded in the free zip blocks */
 struct buf_buddy_free_t {
 	union {
@@ -1864,7 +1993,7 @@ struct buf_pool_t{
 					also protects writes to
 					bpage::oldest_modification and
 					flush_list_hp */
-	const buf_page_t*	flush_list_hp;/*!< "hazard pointer"
+	FlushHp			flush_hp;/*!< "hazard pointer"
 					used during scan of flush_list
 					while doing flush list batch.
 					Protected by flush_list_mutex */
@@ -1922,8 +2051,22 @@ struct buf_pool_t{
 	UT_LIST_BASE_NODE_T(buf_page_t) free;
 					/*!< base node of the free
 					block list */
+
+	/** "hazard pointer" used during scan of LRU while doing
+	LRU list batch.  Protected by buf_pool::mutex */
+	LRUHp		lru_hp;
+
+	/** Iterator used to scan the LRU list when searching for
+	replacable victim. Protected by buf_pool::mutex. */
+	LRUItr		lru_scan_itr;
+
+	/** Iterator used to scan the LRU list when searching for
+	single page flushing victim.  Protected by buf_pool::mutex. */
+	LRUItr		single_scan_itr;
+
 	UT_LIST_BASE_NODE_T(buf_page_t) LRU;
 					/*!< base node of the LRU list */
+
 	buf_page_t*	LRU_old;	/*!< pointer to the about
 					LRU_old_ratio/BUF_LRU_OLD_RATIO_DIV
 					oldest blocks in the LRU list;
