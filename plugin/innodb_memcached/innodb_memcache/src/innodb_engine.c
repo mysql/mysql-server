@@ -1348,6 +1348,20 @@ search_done:
 		time = mci_get_time();
 
 		if (time > result.col_value[MCI_COL_EXP].value_int) {
+			/* Free allocated memory. */
+			if (result.extra_col_value) {
+				for (int i = 0; i < result.n_extra_col; i++) {
+					free(result.extra_col_value[i].value_str);
+				}
+
+				free(result.extra_col_value);
+			}
+			if (result.col_value[MCI_COL_VALUE].allocated) {
+				free(result.col_value[MCI_COL_VALUE].value_str);
+				result.col_value[MCI_COL_VALUE].allocated =
+					false;
+			}
+
 			err_ret = ENGINE_KEY_ENOENT;
 			goto func_exit;
 		}

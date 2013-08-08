@@ -728,7 +728,9 @@ ib_col_set_value(
 	ib_tpl_t	ib_tpl,		/*!< in: tuple instance */
 	ib_ulint_t	col_no,		/*!< in: column index in tuple */
 	const void*	src,		/*!< in: data value */
-	ib_ulint_t	len);		/*!< in: data value len */
+	ib_ulint_t	len,		/*!< in: data value len */
+	ib_bool_t	need_cpy);	/*!< in: if need memcpy */
+
 
 /*****************************************************************//**
 Get the size of the data available in the column the tuple.
