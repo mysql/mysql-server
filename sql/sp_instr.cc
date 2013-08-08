@@ -728,6 +728,10 @@ void sp_lex_instr::get_query(String *sql_query) const
 // sp_instr_stmt implementation.
 ///////////////////////////////////////////////////////////////////////////
 
+#ifdef HAVE_PSI_INTERFACE
+PSI_statement_info sp_instr_stmt::psi_info=                                    
+{ 0, "stmt", 0};
+#endif
 
 bool sp_instr_stmt::execute(THD *thd, uint *nextp)
 {
@@ -735,6 +739,8 @@ bool sp_instr_stmt::execute(THD *thd, uint *nextp)
   bool rc= false;
 
   DBUG_PRINT("info", ("query: '%.*s'", (int) m_query.length, m_query.str));
+
+  MYSQL_SET_STATEMENT_TEXT(thd->m_statement_psi, m_query.str, m_query.length);
 
   const CSET_STRING query_backup= thd->query_string;
 
@@ -904,6 +910,10 @@ bool sp_instr_stmt::exec_core(THD *thd, uint *nextp)
 // sp_instr_set implementation.
 ///////////////////////////////////////////////////////////////////////////
 
+#ifdef HAVE_PSI_INTERFACE
+PSI_statement_info sp_instr_set::psi_info=                                     
+{ 0, "set", 0};
+#endif
 
 bool sp_instr_set::exec_core(THD *thd, uint *nextp)
 {
@@ -951,6 +961,10 @@ void sp_instr_set::print(String *str)
 // sp_instr_set_trigger_field implementation.
 ///////////////////////////////////////////////////////////////////////////
 
+#ifdef HAVE_PSI_INTERFACE
+PSI_statement_info sp_instr_set_trigger_field::psi_info=                       
+{ 0, "set_trigger_field", 0};
+#endif
 
 bool sp_instr_set_trigger_field::exec_core(THD *thd, uint *nextp)
 {
@@ -1000,6 +1014,10 @@ void sp_instr_set_trigger_field::cleanup_before_parsing(THD *thd)
 // sp_instr_jump implementation.
 ///////////////////////////////////////////////////////////////////////////
 
+#ifdef HAVE_PSI_INTERFACE
+PSI_statement_info sp_instr_jump::psi_info=                                    
+{ 0, "jump", 0};
+#endif
 
 void sp_instr_jump::print(String *str)
 {
@@ -1055,6 +1073,10 @@ void sp_instr_jump::opt_move(uint dst, List<sp_branch_instr> *bp)
 // sp_instr_jump_if_not class implementation
 ///////////////////////////////////////////////////////////////////////////
 
+#ifdef HAVE_PSI_INTERFACE
+PSI_statement_info sp_instr_jump_if_not::psi_info=                             
+{ 0, "jump_if_not", 0};
+#endif
 
 bool sp_instr_jump_if_not::exec_core(THD *thd, uint *nextp)
 {
@@ -1147,6 +1169,10 @@ void sp_lex_branch_instr::opt_move(uint dst, List<sp_branch_instr> *bp)
 // sp_instr_jump_case_when implementation.
 ///////////////////////////////////////////////////////////////////////////
 
+#ifdef HAVE_PSI_INTERFACE
+PSI_statement_info sp_instr_jump_case_when::psi_info=                          
+{ 0, "jump_case_when", 0};
+#endif
 
 bool sp_instr_jump_case_when::exec_core(THD *thd, uint *nextp)
 {
@@ -1224,6 +1250,10 @@ bool sp_instr_jump_case_when::build_expr_items(THD *thd)
 // sp_instr_freturn implementation.
 ///////////////////////////////////////////////////////////////////////////
 
+#ifdef HAVE_PSI_INTERFACE
+PSI_statement_info sp_instr_freturn::psi_info=                                 
+{ 0, "freturn", 0};
+#endif
 
 bool sp_instr_freturn::exec_core(THD *thd, uint *nextp)
 {
@@ -1262,6 +1292,10 @@ void sp_instr_freturn::print(String *str)
 // sp_instr_hpush_jump implementation.
 ///////////////////////////////////////////////////////////////////////////
 
+#ifdef HAVE_PSI_INTERFACE
+PSI_statement_info sp_instr_hpush_jump::psi_info=                              
+{ 0, "hpush_jump", 0};
+#endif
 
 bool sp_instr_hpush_jump::execute(THD *thd, uint *nextp)
 {
@@ -1324,6 +1358,10 @@ uint sp_instr_hpush_jump::opt_mark(sp_head *sp, List<sp_instr> *leads)
 // sp_instr_hpop implementation.
 ///////////////////////////////////////////////////////////////////////////
 
+#ifdef HAVE_PSI_INTERFACE
+PSI_statement_info sp_instr_hpop::psi_info=                                    
+{ 0, "hpop", 0};
+#endif
 
 bool sp_instr_hpop::execute(THD *thd, uint *nextp)
 {
@@ -1337,6 +1375,10 @@ bool sp_instr_hpop::execute(THD *thd, uint *nextp)
 // sp_instr_hreturn implementation.
 ///////////////////////////////////////////////////////////////////////////
 
+#ifdef HAVE_PSI_INTERFACE
+PSI_statement_info sp_instr_hreturn::psi_info=                                 
+{ 0, "hreturn", 0};
+#endif
 
 bool sp_instr_hreturn::execute(THD *thd, uint *nextp)
 {
@@ -1405,6 +1447,10 @@ uint sp_instr_hreturn::opt_mark(sp_head *sp, List<sp_instr> *leads)
 // sp_instr_cpush implementation.
 ///////////////////////////////////////////////////////////////////////////
 
+#ifdef HAVE_PSI_INTERFACE
+PSI_statement_info sp_instr_cpush::psi_info=                                   
+{ 0, "cpush", 0};
+#endif
 
 bool sp_instr_cpush::execute(THD *thd, uint *nextp)
 {
@@ -1454,6 +1500,10 @@ void sp_instr_cpush::print(String *str)
 // sp_instr_cpop implementation.
 ///////////////////////////////////////////////////////////////////////////
 
+#ifdef HAVE_PSI_INTERFACE
+PSI_statement_info sp_instr_cpop::psi_info=                                    
+{ 0, "cpop", 0};
+#endif
 
 bool sp_instr_cpop::execute(THD *thd, uint *nextp)
 {
@@ -1478,6 +1528,10 @@ void sp_instr_cpop::print(String *str)
 // sp_instr_copen implementation.
 ///////////////////////////////////////////////////////////////////////////
 
+#ifdef HAVE_PSI_INTERFACE
+PSI_statement_info sp_instr_copen::psi_info=                                   
+{ 0, "copen", 0};
+#endif
 
 bool sp_instr_copen::execute(THD *thd, uint *nextp)
 {
@@ -1549,6 +1603,10 @@ void sp_instr_copen::print(String *str)
 // sp_instr_cclose implementation.
 ///////////////////////////////////////////////////////////////////////////
 
+#ifdef HAVE_PSI_INTERFACE
+PSI_statement_info sp_instr_cclose::psi_info=                                  
+{ 0, "cclose", 0};
+#endif
 
 bool sp_instr_cclose::execute(THD *thd, uint *nextp)
 {
@@ -1588,6 +1646,10 @@ void sp_instr_cclose::print(String *str)
 // sp_instr_cfetch implementation.
 ///////////////////////////////////////////////////////////////////////////
 
+#ifdef HAVE_PSI_INTERFACE
+PSI_statement_info sp_instr_cfetch::psi_info=                                  
+{ 0, "cfetch", 0};
+#endif
 
 bool sp_instr_cfetch::execute(THD *thd, uint *nextp)
 {
@@ -1638,6 +1700,10 @@ void sp_instr_cfetch::print(String *str)
 // sp_instr_error implementation.
 ///////////////////////////////////////////////////////////////////////////
 
+#ifdef HAVE_PSI_INTERFACE
+PSI_statement_info sp_instr_error::psi_info=                                   
+{ 0, "error", 0};
+#endif
 
 void sp_instr_error::print(String *str)
 {
@@ -1653,6 +1719,10 @@ void sp_instr_error::print(String *str)
 // sp_instr_set_case_expr implementation.
 ///////////////////////////////////////////////////////////////////////////
 
+#ifdef HAVE_PSI_INTERFACE
+PSI_statement_info sp_instr_set_case_expr::psi_info=                           
+{ 0, "set_case_expr", 0};
+#endif
 
 bool sp_instr_set_case_expr::exec_core(THD *thd, uint *nextp)
 {
