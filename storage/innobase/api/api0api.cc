@@ -1630,6 +1630,8 @@ ib_cursor_insert_row(
 			src_tuple->index->table, q_proc->grph.ins, node->ins);
 	}
 
+	srv_active_wake_master_thread();
+
 	return(err);
 }
 
@@ -1914,6 +1916,8 @@ ib_cursor_update_row(
 		err = ib_execute_update_query_graph(cursor, pcur);
 	}
 
+	srv_active_wake_master_thread();
+
 	return(err);
 }
 
@@ -2038,6 +2042,8 @@ ib_cursor_delete_row(
 	} else {
 		err = DB_RECORD_NOT_FOUND;
 	}
+
+	srv_active_wake_master_thread();
 
 	return(err);
 }
@@ -2296,7 +2302,8 @@ ib_col_set_value(
 	ib_tpl_t	ib_tpl,		/*!< in: tuple instance */
 	ib_ulint_t	col_no,		/*!< in: column index in tuple */
 	const void*	src,		/*!< in: data value */
-	ib_ulint_t	len)		/*!< in: data value len */
+	ib_ulint_t	len,		/*!< in: data value len */
+	ib_bool_t	need_cpy)	/*!< in: if need memcpy */
 {
 	const dtype_t*  dtype;
 	dfield_t*	dfield;
@@ -2401,7 +2408,12 @@ ib_col_set_value(
 	case DATA_DECIMAL:
 	case DATA_VARCHAR:
 	case DATA_FIXBINARY:
-		memcpy(dst, src, len);
+		if (need_cpy) {
+			memcpy(dst, src, len);
+		} else {
+			dfield_set_data(dfield, src, len);
+			dst = dfield_get_data(dfield);
+		}
 		break;
 
 	case DATA_MYSQL:
@@ -3521,7 +3533,7 @@ ib_tuple_write_int(
 		return(DB_DATA_MISMATCH);
 	}
 
-	return(ib_col_set_value(ib_tpl, col_no, value, type_len));
+	return(ib_col_set_value(ib_tpl, col_no, value, type_len, true));
 }
 
 /*****************************************************************//**
@@ -3536,7 +3548,7 @@ ib_tuple_write_i8(
 	int		col_no,		/*!< in: column number */
 	ib_i8_t		val)		/*!< in: value to write */
 {
-	return(ib_col_set_value(ib_tpl, col_no, &val, sizeof(val)));
+	return(ib_col_set_value(ib_tpl, col_no, &val, sizeof(val), true));
 }
 
 /*****************************************************************//**
@@ -3551,7 +3563,7 @@ ib_tuple_write_i16(
 	int		col_no,		/*!< in: column number */
 	ib_i16_t	val)		/*!< in: value to write */
 {
-	return(ib_col_set_value(ib_tpl, col_no, &val, sizeof(val)));
+	return(ib_col_set_value(ib_tpl, col_no, &val, sizeof(val), true));
 }
 
 /*****************************************************************//**
@@ -3566,7 +3578,7 @@ ib_tuple_write_i32(
 	int		col_no,		/*!< in: column number */
 	ib_i32_t	val)		/*!< in: value to write */
 {
-	return(ib_col_set_value(ib_tpl, col_no, &val, sizeof(val)));
+	return(ib_col_set_value(ib_tpl, col_no, &val, sizeof(val), true));
 }
 
 /*****************************************************************//**
@@ -3581,7 +3593,7 @@ ib_tuple_write_i64(
 	int		col_no,		/*!< in: column number */
 	ib_i64_t	val)		/*!< in: value to write */
 {
-	return(ib_col_set_value(ib_tpl, col_no, &val, sizeof(val)));
+	return(ib_col_set_value(ib_tpl, col_no, &val, sizeof(val), true));
 }
 
 /*****************************************************************//**
@@ -3596,7 +3608,7 @@ ib_tuple_write_u8(
 	int		col_no,		/*!< in: column number */
 	ib_u8_t		val)		/*!< in: value to write */
 {
-	return(ib_col_set_value(ib_tpl, col_no, &val, sizeof(val)));
+	return(ib_col_set_value(ib_tpl, col_no, &val, sizeof(val), true));
 }
 
 /*****************************************************************//**
@@ -3611,7 +3623,7 @@ ib_tuple_write_u16(
 	int		col_no,		/*!< in: column number */
 	ib_u16_t	val)		/*!< in: value to write */
 {
-	return(ib_col_set_value(ib_tpl, col_no, &val, sizeof(val)));
+	return(ib_col_set_value(ib_tpl, col_no, &val, sizeof(val), true));
 }
 
 /*****************************************************************//**
@@ -3626,7 +3638,7 @@ ib_tuple_write_u32(
 	int		col_no,		/*!< in: column number */
 	ib_u32_t	val)		/*!< in: value to write */
 {
-	return(ib_col_set_value(ib_tpl, col_no, &val, sizeof(val)));
+	return(ib_col_set_value(ib_tpl, col_no, &val, sizeof(val), true));
 }
 
 /*****************************************************************//**
@@ -3641,7 +3653,7 @@ ib_tuple_write_u64(
 	int		col_no,		/*!< in: column number */
 	ib_u64_t	val)		/*!< in: value to write */
 {
-	return(ib_col_set_value(ib_tpl, col_no, &val, sizeof(val)));
+	return(ib_col_set_value(ib_tpl, col_no, &val, sizeof(val), true));
 }
 
 /*****************************************************************//**
@@ -3674,7 +3686,8 @@ ib_tuple_write_double(
 	dfield = ib_col_get_dfield(tuple, col_no);
 
 	if (dtype_get_mtype(dfield_get_type(dfield)) == DATA_DOUBLE) {
-		return(ib_col_set_value(ib_tpl, col_no, &val, sizeof(val)));
+		return(ib_col_set_value(ib_tpl, col_no,
+					&val, sizeof(val), true));
 	} else {
 		return(DB_DATA_MISMATCH);
 	}
@@ -3724,7 +3737,8 @@ ib_tuple_write_float(
 	dfield = ib_col_get_dfield(tuple, col_no);
 
 	if (dtype_get_mtype(dfield_get_type(dfield)) == DATA_FLOAT) {
-		return(ib_col_set_value(ib_tpl, col_no, &val, sizeof(val)));
+		return(ib_col_set_value(ib_tpl, col_no,
+					&val, sizeof(val), true));
 	} else {
 		return(DB_DATA_MISMATCH);
 	}
