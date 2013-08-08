@@ -2032,7 +2032,9 @@ bool Item_date_add_interval::get_date(MYSQL_TIME *ltime, ulonglong fuzzy_date)
 {
   INTERVAL interval;
 
-  if (args[0]->get_date(ltime, 0) ||
+  if (args[0]->get_date(ltime,
+                        cached_field_type == MYSQL_TYPE_TIME ?
+                        TIME_TIME_ONLY : 0) ||
       get_interval_value(args[1], int_type, &interval))
     return (null_value=1);
 
@@ -2423,7 +2425,9 @@ bool Item_time_typecast::get_date(MYSQL_TIME *ltime, ulonglong fuzzy_date)
   if (ltime->time_type != MYSQL_TIMESTAMP_TIME)
     ltime->year= ltime->month= ltime->day= 0;
   ltime->time_type= MYSQL_TIMESTAMP_TIME;
-  return 0;
+  return (fuzzy_date & TIME_TIME_ONLY) ? 0 :
+         (null_value= check_date_with_warn(ltime, fuzzy_date,
+                                           MYSQL_TIMESTAMP_ERROR)); 
 }
 
 

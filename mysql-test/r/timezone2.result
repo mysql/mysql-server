@@ -309,3 +309,22 @@ CONVERT_TZ(1, 1, a)
 NULL
 DROP TABLE t1;
 End of 5.1 tests
+#
+# Start of 5.3 tests
+#
+#
+# MDEV-4653 Wrong result for CONVERT_TZ(TIME('00:00:00'),'+00:00','+7:5')
+#
+SELECT CONVERT_TZ(TIME('00:00:00'),'+00:00','+7:5');
+CONVERT_TZ(TIME('00:00:00'),'+00:00','+7:5')
+NULL
+Warnings:
+Warning	1292	Incorrect datetime value: '00:00:00'
+SELECT CONVERT_TZ(TIME('2010-01-01 00:00:00'),'+00:00','+7:5');
+CONVERT_TZ(TIME('2010-01-01 00:00:00'),'+00:00','+7:5')
+NULL
+Warnings:
+Warning	1292	Incorrect datetime value: '00:00:00'
+#
+# End of 5.3 tests
+#
