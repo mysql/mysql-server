@@ -58,6 +58,9 @@
 #include "hostname.h"                           // host_cache_size
 #include "sql_show.h"                           // opt_ignore_db_dirs
 #include "table_cache.h"                        // Table_cache_manager
+#include "connection_handler_impl.h"            // Per_thread_connection_handler
+#include "connection_handler_manager.h"         // Connection_handler_manager
+#include "socket_connection.h"                  // MY_BIND_ALL_ADDRESSES
 #include "sp_head.h" // SP_PSI_STATEMENT_INFO_COUNT 
 
 #include "log_event.h"
@@ -595,10 +598,12 @@ static Sys_var_charptr Sys_basedir(
        READ_ONLY GLOBAL_VAR(mysql_home_ptr), CMD_LINE(REQUIRED_ARG, 'b'),
        IN_FS_CHARSET, DEFAULT(0));
 
+#ifndef EMBEDDED_LIBRARY
 static Sys_var_charptr Sys_my_bind_addr(
        "bind_address", "IP address to bind to.",
        READ_ONLY GLOBAL_VAR(my_bind_addr_str), CMD_LINE(REQUIRED_ARG),
        IN_FS_CHARSET, DEFAULT(MY_BIND_ALL_ADDRESSES));
+#endif
 
 static bool fix_binlog_cache_size(sys_var *self, THD *thd, enum_var_type type)
 {
@@ -2493,6 +2498,7 @@ static Sys_var_ulong Sys_trans_prealloc_size(
        BLOCK_SIZE(1024), NO_MUTEX_GUARD, NOT_IN_BINLOG, ON_CHECK(0),
        ON_UPDATE(fix_trans_mem_root));
 
+#ifndef EMBEDDED_LIBRARY
 static const char *thread_handling_names[]=
 {
   "one-thread-per-connection", "no-threads", "loaded-dynamically",
@@ -2502,8 +2508,9 @@ static Sys_var_enum Sys_thread_handling(
        "thread_handling",
        "Define threads usage for handling queries, one of "
        "one-thread-per-connection, no-threads, loaded-dynamically"
-       , READ_ONLY GLOBAL_VAR(thread_handling), CMD_LINE(REQUIRED_ARG),
-       thread_handling_names, DEFAULT(0));
+       , READ_ONLY GLOBAL_VAR(Connection_handler_manager::thread_handling),
+       CMD_LINE(REQUIRED_ARG), thread_handling_names, DEFAULT(0));
+#endif // !EMBEDDED_LIBRARY
 
 static bool fix_query_cache_size(sys_var *self, THD *thd, enum_var_type type)
 {
@@ -2991,12 +2998,14 @@ static Sys_var_ulong Sys_table_cache_instances(
        */
        sys_var::PARSE_EARLY);
 
+#ifndef EMBEDDED_LIBRARY
 static Sys_var_ulong Sys_thread_cache_size(
        "thread_cache_size",
        "How many threads we should keep in a cache for reuse",
-       GLOBAL_VAR(max_blocked_pthreads),
+       GLOBAL_VAR(Per_thread_connection_handler::max_blocked_pthreads),
        CMD_LINE(REQUIRED_ARG, OPT_THREAD_CACHE_SIZE),
        VALID_RANGE(0, 16384), DEFAULT(0), BLOCK_SIZE(1));
+#endif // !EMBEDDED_LIBRARY
 
 /**
   Can't change the 'next' tx_isolation if we are already in a

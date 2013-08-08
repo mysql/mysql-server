@@ -35,7 +35,6 @@ Created 12/19/1997 Heikki Tuuri
 #include "que0types.h"
 #include "pars0sym.h"
 #include "btr0pcur.h"
-#include "read0read.h"
 #include "row0mysql.h"
 
 /*********************************************************************//**
@@ -312,7 +311,7 @@ struct sel_node_t{
 					containing the search plan and the
 					search data structures */
 	que_node_t*	search_cond;	/*!< search condition */
-	read_view_t*	read_view;	/*!< if the query is a non-locking
+	ReadView*	read_view;	/*!< if the query is a non-locking
 					consistent read, its read view is
 					placed here, otherwise NULL */
 	ibool		consistent_read;/*!< TRUE if the select is a consistent,

@@ -6767,9 +6767,13 @@ get_mm_leaf(RANGE_OPT_PARAM *param, Item *conf_func, Field *field,
   param->thd->mem_root= param->old_root;
   if (!value)					// IS NULL or IS NOT NULL
   {
-    if (field->table->maybe_null)		// Can't use a key on this
+    if (field->table->pos_in_table_list->outer_join)
+      /*
+        Range scan cannot be used to scan the inner table of an outer
+        join if the predicate is IS NULL.
+      */
       goto end;
-    if (!maybe_null)				// Not null field
+    if (!maybe_null)                            // NOT NULL column
     {
       if (type == Item_func::ISNULL_FUNC)
         tree= &null_element;
