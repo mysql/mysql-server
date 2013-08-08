@@ -2608,7 +2608,7 @@ ev_sql_stmt:
             }
 
             sp_head *sp= sp_start_parsing(thd,
-                                          SP_TYPE_PROCEDURE,
+                                          SP_TYPE_EVENT,
                                           lex->event_parse_data->identifier);
 
             if (!sp)

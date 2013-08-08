@@ -60,6 +60,8 @@ void test_no_instruments()
   param.m_events_statements_history_long_sizing= 0;
   param.m_digest_sizing= 0;
   param.m_session_connect_attrs_sizing= 0;
+  param.m_program_sizing= 0;
+  param.m_statement_stack_sizing= 0;
   param.m_memory_class_sizing= 0;
 
   init_event_name_sizing(& param);
@@ -120,6 +122,8 @@ void test_no_instances()
   param.m_events_statements_history_long_sizing= 0;
   param.m_digest_sizing= 0;
   param.m_session_connect_attrs_sizing= 0;
+  param.m_program_sizing= 0;
+  param.m_statement_stack_sizing= 0;
   param.m_memory_class_sizing= 1;
 
   init_event_name_sizing(& param);
@@ -261,6 +265,8 @@ void test_with_instances()
   param.m_events_statements_history_long_sizing= 0;
   param.m_digest_sizing= 0;
   param.m_session_connect_attrs_sizing= 0;
+  param.m_program_sizing= 0;
+  param.m_statement_stack_sizing= 0;
   param.m_memory_class_sizing= 1;
 
   init_event_name_sizing(& param);

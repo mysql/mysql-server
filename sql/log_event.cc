@@ -448,6 +448,13 @@ static void clear_all_errors(THD *thd, Relay_log_info *rli)
   thd->is_slave_error = 0;
   thd->clear_error();
   rli->clear_error();
+  if (rli->workers_array_initialized)
+  {
+    for(uint i= 0; i<rli->get_worker_count(); i++)
+    {
+      rli->get_worker(i)->clear_error();
+    }
+  }
 }
 
 inline int idempotent_error_code(int err_code)
@@ -4972,7 +4979,7 @@ int Query_log_event::do_apply_event(Relay_log_info const *rli,
         thd->m_statement_psi= MYSQL_START_STATEMENT(&thd->m_statement_state,
                                                     stmt_info_rpl.m_key,
                                                     thd->db, thd->db_length,
-                                                    thd->charset());
+                                                    thd->charset(), NULL);
         THD_STAGE_INFO(thd, stage_init);
         MYSQL_SET_STATEMENT_TEXT(thd->m_statement_psi, thd->query(), thd->query_length());
 
@@ -13559,6 +13566,17 @@ int Gtid_log_event::do_apply_event(Relay_log_info const *rli)
     gtid_rollback(thd);
   }
   thd->variables.gtid_next.set(sidno, spec.gtid.gno);
+
+  /*
+    The variable 'currently_executing_gtid' is used to fill
+    last_seen_transaction column of the table
+    performance_schema.replication_execute_status_by_worker
+    to show the GTID of last transaction picked up by this worker thread.
+  */
+  const Slave_worker* worker;
+  worker= dynamic_cast<const Slave_worker* >(rli);
+  if (is_mts_worker(thd))
+    worker->currently_executing_gtid= thd->variables.gtid_next.gtid;
   DBUG_PRINT("info", ("setting gtid_next=%d:%lld",
                       sidno, spec.gtid.gno));
 

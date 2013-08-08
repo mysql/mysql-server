@@ -46,6 +46,10 @@ struct PSI_idle_locker;
 typedef struct PSI_idle_locker PSI_idle_locker;
 struct PSI_digest_locker;
 typedef struct PSI_digest_locker PSI_digest_locker;
+struct PSI_sp_share;
+typedef struct PSI_sp_share PSI_sp_share;
+struct PSI_sp_locker;
+typedef struct PSI_sp_locker PSI_sp_locker;
 struct PSI_bootstrap
 {
   void* (*get_interface)(int version);
@@ -317,6 +321,7 @@ struct PSI_statement_locker_state_v1
   PSI_digest_locker_state m_digest_state;
   char m_schema_name[(64 * 3)];
   uint m_schema_name_length;
+  PSI_sp_share *m_parent_sp_share;
 };
 typedef struct PSI_statement_locker_state_v1 PSI_statement_locker_state_v1;
 struct PSI_socket_locker_state_v1
@@ -333,6 +338,15 @@ struct PSI_socket_locker_state_v1
   void *m_wait;
 };
 typedef struct PSI_socket_locker_state_v1 PSI_socket_locker_state_v1;
+struct PSI_sp_locker_state_v1
+{
+  uint m_flags;
+  struct PSI_thread *m_thread;
+  ulonglong m_timer_start;
+  ulonglong (*m_timer)(void);
+  PSI_sp_share* m_sp_share;
+};
+typedef struct PSI_sp_locker_state_v1 PSI_sp_locker_state_v1;
 typedef void (*register_mutex_v1_t)
   (const char *category, struct PSI_mutex_info_v1 *info, int count);
 typedef void (*register_rwlock_v1_t)
@@ -482,7 +496,7 @@ typedef void (*start_stage_v1_t)
 typedef void (*end_stage_v1_t) (void);
 typedef struct PSI_statement_locker* (*get_thread_statement_locker_v1_t)
   (struct PSI_statement_locker_state_v1 *state,
-   PSI_statement_key key, const void *charset);
+   PSI_statement_key key, const void *charset, PSI_sp_share *sp_share);
 typedef struct PSI_statement_locker* (*refine_statement_v1_t)
   (struct PSI_statement_locker *locker,
    PSI_statement_key key);
@@ -546,6 +560,19 @@ typedef struct PSI_digest_locker * (*digest_start_v1_t)
   (struct PSI_statement_locker *locker);
 typedef struct PSI_digest_locker* (*digest_add_token_v1_t)
   (struct PSI_digest_locker *locker, uint token, struct OPAQUE_LEX_YYSTYPE *yylval);
+typedef PSI_sp_locker* (*start_sp_v1_t)
+  (struct PSI_sp_locker_state_v1 *state, struct PSI_sp_share* sp_share);
+typedef void (*end_sp_v1_t)
+  (struct PSI_sp_locker *locker);
+typedef void (*drop_sp_v1_t)
+   (uint object_type,
+   const char *schema_name, uint schema_name_length,
+   const char *object_name, uint object_name_length);
+typedef struct PSI_sp_share* (*get_sp_share_v1_t)
+   (uint object_type,
+   const char *schema_name, uint schema_name_length,
+   const char *object_name, uint object_name_length);
+typedef void (*release_sp_share_v1_t)(struct PSI_sp_share *share);
 typedef int (*set_thread_connect_attrs_v1_t)(const char *buffer, uint length,
                                              const void *from_cs);
 struct PSI_v1
@@ -648,6 +675,11 @@ struct PSI_v1
   digest_start_v1_t digest_start;
   digest_add_token_v1_t digest_add_token;
   set_thread_connect_attrs_v1_t set_thread_connect_attrs;
+  start_sp_v1_t start_sp;
+  end_sp_v1_t end_sp;
+  drop_sp_v1_t drop_sp;
+  get_sp_share_v1_t get_sp_share;
+  release_sp_share_v1_t release_sp_share;
   register_memory_v1_t register_memory;
   memory_alloc_v1_t memory_alloc;
   memory_realloc_v1_t memory_realloc;
@@ -670,5 +702,6 @@ typedef struct PSI_file_locker_state_v1 PSI_file_locker_state;
 typedef struct PSI_table_locker_state_v1 PSI_table_locker_state;
 typedef struct PSI_statement_locker_state_v1 PSI_statement_locker_state;
 typedef struct PSI_socket_locker_state_v1 PSI_socket_locker_state;
+typedef struct PSI_sp_locker_state_v1 PSI_sp_locker_state;
 extern MYSQL_PLUGIN_IMPORT PSI *PSI_server;
 C_MODE_END

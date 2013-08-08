@@ -1086,6 +1086,22 @@ thd_trx_is_auto_commit(
 	       && thd_is_select(thd));
 }
 
+extern "C" time_t thd_start_time(const THD* thd);
+
+/******************************************************************//**
+Get the thread start time.
+@return the thread start time in seconds since the epoch. */
+
+ulint
+thd_start_time_in_secs(
+/*===================*/
+	THD*	thd)	/*!< in: thread handle, or NULL */
+{
+	// FIXME: This function should be added to the server code.
+	//return(thd_start_time(thd));
+	return(ut_time());
+}
+
 /******************************************************************//**
 Save some CPU by testing the value of srv_thread_concurrency in inline
 functions. */
@@ -3402,6 +3418,8 @@ innobase_commit(
 				"but transaction is active");
 	}
 
+	bool	read_only = trx->read_only || trx->id == 0;
+
 	if (commit_trx
 	    || (!thd_test_options(thd, OPTION_NOT_AUTOCOMMIT | OPTION_BEGIN))) {
 
@@ -3409,55 +3427,76 @@ innobase_commit(
 		this is an SQL statement end and autocommit is on */
 
 		/* We need current binlog position for ibbackup to work. */
-retry:
-		if (innobase_commit_concurrency > 0) {
-			mysql_mutex_lock(&commit_cond_m);
-			commit_threads++;
 
-			if (commit_threads > innobase_commit_concurrency) {
-				commit_threads--;
-				mysql_cond_wait(&commit_cond,
-					&commit_cond_m);
+		if (!read_only) {
+
+			while (innobase_commit_concurrency > 0) {
+
+				mysql_mutex_lock(&commit_cond_m);
+
+				++commit_threads;
+
+				if (commit_threads
+				    <= innobase_commit_concurrency) {
+
+					mysql_mutex_unlock(&commit_cond_m);
+					break;
+				}
+
+				--commit_threads;
+
+				mysql_cond_wait(&commit_cond, &commit_cond_m);
+
 				mysql_mutex_unlock(&commit_cond_m);
-				goto retry;
 			}
-			else {
-				mysql_mutex_unlock(&commit_cond_m);
-			}
+
+			/* The following call reads the binary log position of
+			the transaction being committed.
+
+			Binary logging of other engines is not relevant to
+			InnoDB as all InnoDB requires is that committing
+			InnoDB transactions appear in the same order in the
+			MySQL binary log as they appear in InnoDB logs, which
+			is guaranteed by the server.
+
+			If the binary log is not enabled, or the transaction
+			is not written to the binary log, the file name will
+			be a NULL pointer. */
+			unsigned long long pos;
+
+			thd_binlog_pos(thd, &trx->mysql_log_file_name, &pos);
+
+			trx->mysql_log_offset = static_cast<ib_int64_t>(pos);
+
+			/* Don't do write + flush right now. For group commit
+			to work we want to do the flush later. */
+			trx->flush_log_later = true;
 		}
 
-		/* The following call read the binary log position of
-		the transaction being committed.
-
-		Binary logging of other engines is not relevant to
-		InnoDB as all InnoDB requires is that committing
-		InnoDB transactions appear in the same order in the
-		MySQL binary log as they appear in InnoDB logs, which
-		is guaranteed by the server.
-
-		If the binary log is not enabled, or the transaction
-		is not written to the binary log, the file name will
-		be a NULL pointer. */
-		unsigned long long pos;
-		thd_binlog_pos(thd, &trx->mysql_log_file_name, &pos);
-		trx->mysql_log_offset= static_cast<ib_int64_t>(pos);
-		/* Don't do write + flush right now. For group commit
-		to work we want to do the flush later. */
-		trx->flush_log_later = true;
 		innobase_commit_low(trx);
-		trx->flush_log_later = false;
 
-		if (innobase_commit_concurrency > 0) {
-			mysql_mutex_lock(&commit_cond_m);
-			commit_threads--;
-			mysql_cond_signal(&commit_cond);
-			mysql_mutex_unlock(&commit_cond_m);
+		if (!read_only) {
+			trx->flush_log_later = false;
+
+			if (innobase_commit_concurrency > 0) {
+
+				mysql_mutex_lock(&commit_cond_m);
+
+				ut_ad(commit_threads > 0);
+				--commit_threads;
+
+				mysql_cond_signal(&commit_cond);
+
+				mysql_mutex_unlock(&commit_cond_m);
+			}
 		}
 
 		trx_deregister_from_2pc(trx);
 
 		/* Now do a write + flush of logs. */
-		trx_commit_complete_for_mysql(trx);
+		if (!read_only) {
+			trx_commit_complete_for_mysql(trx);
+		}
 	} else {
 		/* We just mark the SQL statement ended and do not do a
 		transaction commit */
@@ -3465,7 +3504,9 @@ retry:
 		/* If we had reserved the auto-inc lock for some
 		table in this SQL statement we release it now */
 
-		lock_unlock_table_autoinc(trx);
+		if (!read_only) {
+			lock_unlock_table_autoinc(trx);
+		}
 
 		/* Store the current undo_no of the transaction so that we
 		know where to roll back if we have to roll back the next
@@ -3474,7 +3515,8 @@ retry:
 		trx_mark_sql_stat_end(trx);
 	}
 
-	trx->n_autoinc_rows = 0; /* Reset the number AUTO-INC rows required */
+	/* Reset the number AUTO-INC rows required */
+	trx->n_autoinc_rows = 0;
 
 	/* This is a statement level variable. */
 	trx->fts_next_doc_id = 0;
@@ -3483,7 +3525,9 @@ retry:
 
 	/* Tell the InnoDB server that there might be work for utility
 	threads: */
-	srv_active_wake_master_thread();
+	if (!read_only) {
+		srv_active_wake_master_thread();
+	}
 
 	DBUG_RETURN(0);
 }
@@ -12117,12 +12161,13 @@ ha_innobase::external_lock(
 			}
 
 		} else if (trx->isolation_level <= TRX_ISO_READ_COMMITTED
-			   && trx->read_view) {
+			   && MVCC::is_view_active(trx->read_view)) {
 
-			/* At low transaction isolation levels we let
-			each consistent read set its own snapshot */
+			mutex_enter(&trx_sys->mutex);
 
-			read_view_close_for_mysql(trx);
+			trx_sys->mvcc->view_close(trx->read_view, true);
+
+			mutex_exit(&trx_sys->mutex);
 		}
 	}
 
@@ -12671,12 +12716,16 @@ ha_innobase::store_lock(
 			(enum_tx_isolation) thd_tx_isolation(thd));
 
 		if (trx->isolation_level <= TRX_ISO_READ_COMMITTED
-		    && trx->read_view) {
+		    && MVCC::is_view_active(trx->read_view)) {
 
 			/* At low transaction isolation levels we let
 			each consistent read set its own snapshot */
 
-			read_view_close_for_mysql(trx);
+			mutex_enter(&trx_sys->mutex);
+
+			trx_sys->mvcc->view_close(trx->read_view, true);
+
+			mutex_exit(&trx_sys->mutex);
 		}
 	}
 
@@ -13373,6 +13422,8 @@ innobase_xa_prepare(
 		return(0);
 	}
 
+	bool	read_only = trx->read_only || trx->id == 0;
+
 	thd_get_xid(thd, (MYSQL_XID*) trx->xid);
 
 	/* Release a possible FIFO ticket and search latch. Since we will
@@ -13419,7 +13470,9 @@ innobase_xa_prepare(
 	/* Tell the InnoDB server that there might be work for utility
 	threads: */
 
-	srv_active_wake_master_thread();
+	if (!read_only) {
+		srv_active_wake_master_thread();
+	}
 
 	if (thd_sql_command(thd) != SQLCOM_XA_PREPARE
 	    && (prepare_trx
@@ -14062,45 +14115,6 @@ innodb_internal_table_validate(
 	}
 
 	return(ret);
-}
-
-/****************************************************************//**
-Update global variable "fts_internal_tbl_name" with the "saved"
-stopword table name value. This function is registered as a callback
-with MySQL. */
-static
-void
-innodb_internal_table_update(
-/*=========================*/
-	THD*				thd,	/*!< in: thread handle */
-	struct st_mysql_sys_var*	var,	/*!< in: pointer to
-						system variable */
-	void*				var_ptr,/*!< out: where the
-						formal string goes */
-	const void*			save)	/*!< in: immediate result
-						from check function */
-{
-	const char*	table_name;
-	char*		old;
-
-	ut_a(save != NULL);
-	ut_a(var_ptr != NULL);
-
-	table_name = *static_cast<const char*const*>(save);
-	old = *(char**) var_ptr;
-
-	if (table_name) {
-		*(char**) var_ptr =  my_strdup(PSI_INSTRUMENT_ME,
-                                               table_name, MYF(0));
-	} else {
-		*(char**) var_ptr = NULL;
-	}
-
-	if (old) {
-		my_free(old);
-	}
-
-	fts_internal_tbl_name = *(char**) var_ptr;
 }
 
 /****************************************************************//**
@@ -15738,10 +15752,10 @@ static MYSQL_SYSVAR_BOOL(disable_sort_file_cache, srv_disable_sort_file_cache,
   NULL, NULL, FALSE);
 
 static MYSQL_SYSVAR_STR(ft_aux_table, fts_internal_tbl_name,
-  PLUGIN_VAR_NOCMDARG,
+  PLUGIN_VAR_RQCMDARG | PLUGIN_VAR_MEMALLOC,
   "FTS internal auxiliary table to be checked",
   innodb_internal_table_validate,
-  innodb_internal_table_update, NULL);
+  NULL, NULL);
 
 static MYSQL_SYSVAR_ULONG(ft_cache_size, fts_max_cache_size,
   PLUGIN_VAR_RQCMDARG | PLUGIN_VAR_READONLY,

@@ -40,6 +40,7 @@
 #include "sql_error.h"
 #include "sp_head.h"
 #include "pfs_digest.h"
+#include "pfs_program.h"
 
 /**
   @page PAGE_PERFORMANCE_SCHEMA The Performance Schema main page
@@ -4516,7 +4517,7 @@ void pfs_end_stage_v1()
 PSI_statement_locker*
 pfs_get_thread_statement_locker_v1(PSI_statement_locker_state *state,
                                    PSI_statement_key key,
-                                   const void *charset)
+                                   const void *charset, PSI_sp_share *sp_share)
 {
   DBUG_ASSERT(state != NULL);
   if (! flag_global_instrumentation)
@@ -4548,6 +4549,7 @@ pfs_get_thread_statement_locker_v1(PSI_statement_locker_state *state,
 
       if (pfs_thread->m_events_statements_count >= statement_stack_max)
       {
+        nested_statement_lost++;
         return NULL;
       }
 
@@ -4597,6 +4599,33 @@ pfs_get_thread_statement_locker_v1(PSI_statement_locker_state *state,
       child_wait->m_nesting_event_id= event_id;
       child_wait->m_nesting_event_type= EVENT_TYPE_STATEMENT;
 
+      if(pfs_thread->m_events_statements_count > 0)
+      {
+          PFS_events_statements *parent= pfs - 1;
+          pfs->m_nesting_event_id= parent->m_event_id;
+          pfs->m_nesting_event_type= parent->m_event_type;
+          pfs->m_nesting_event_level= parent->m_nesting_event_level + 1;
+      }
+
+      /* Set parent Stored Procedure information for this statement. */
+      if(sp_share)
+      {
+        PFS_program *parent_sp= reinterpret_cast<PFS_program*>(sp_share);
+        pfs->m_sp_type= parent_sp->m_type;
+        memcpy(pfs->m_schema_name, parent_sp->m_schema_name,
+               parent_sp->m_schema_name_length);
+        pfs->m_schema_name_length= parent_sp->m_schema_name_length;
+        memcpy(pfs->m_object_name, parent_sp->m_object_name,
+               parent_sp->m_object_name_length);
+        pfs->m_object_name_length= parent_sp->m_object_name_length;
+      }
+      else
+      {
+        pfs->m_sp_type= OBJECT_TYPE_NONE;
+        pfs->m_schema_name_length= 0;
+        pfs->m_object_name_length= 0;
+      }
+
       state->m_statement= pfs;
       flags|= STATE_FLAG_EVENT;
 
@@ -4642,6 +4671,7 @@ pfs_get_thread_statement_locker_v1(PSI_statement_locker_state *state,
   state->m_no_good_index_used= 0;
 
   state->m_schema_name_length= 0;
+  state->m_parent_sp_share= sp_share;
 
   return reinterpret_cast<PSI_statement_locker*> (state);
 }
@@ -4916,6 +4946,7 @@ void pfs_end_statement_v1(PSI_statement_locker *locker, void *stmt_da)
   */
   PSI_digest_storage *digest_storage= NULL;
   PFS_statement_stat *digest_stat= NULL;
+  PFS_program *pfs_program= NULL;
 
   if (flags & STATE_FLAG_THREAD)
   {
@@ -4978,6 +5009,8 @@ void pfs_end_statement_v1(PSI_statement_locker *locker, void *stmt_da)
         */
         digest_copy(& pfs->m_digest_storage, digest_storage);
       }
+    
+      pfs_program= reinterpret_cast<PFS_program*>(state->m_parent_sp_share); 
 
       if (flag_events_statements_history)
         insert_events_statements_history(thread, pfs);
@@ -5068,6 +5101,45 @@ void pfs_end_statement_v1(PSI_statement_locker *locker, void *stmt_da)
     digest_stat->m_no_good_index_used+= state->m_no_good_index_used;
   }
 
+  if(pfs_program != NULL)
+  {
+    PFS_statement_stat *sub_stmt_stat= NULL;
+    sub_stmt_stat= &pfs_program->m_stmt_stat;
+    if(sub_stmt_stat != NULL)
+    {
+      if (flags & STATE_FLAG_TIMED)
+      {
+        sub_stmt_stat->aggregate_value(wait_time);
+      }
+      else
+      {
+        sub_stmt_stat->aggregate_counted();
+      }
+    
+      sub_stmt_stat->m_lock_time+= state->m_lock_time;
+      sub_stmt_stat->m_rows_sent+= state->m_rows_sent;
+      sub_stmt_stat->m_rows_examined+= state->m_rows_examined;
+      sub_stmt_stat->m_created_tmp_disk_tables+= state->m_created_tmp_disk_tables;
+      sub_stmt_stat->m_created_tmp_tables+= state->m_created_tmp_tables;
+      sub_stmt_stat->m_select_full_join+= state->m_select_full_join;
+      sub_stmt_stat->m_select_full_range_join+= state->m_select_full_range_join;
+      sub_stmt_stat->m_select_range+= state->m_select_range;
+      sub_stmt_stat->m_select_range_check+= state->m_select_range_check;
+      sub_stmt_stat->m_select_scan+= state->m_select_scan;
+      sub_stmt_stat->m_sort_merge_passes+= state->m_sort_merge_passes;
+      sub_stmt_stat->m_sort_range+= state->m_sort_range;
+      sub_stmt_stat->m_sort_rows+= state->m_sort_rows;
+      sub_stmt_stat->m_sort_scan+= state->m_sort_scan;
+      sub_stmt_stat->m_no_index_used+= state->m_no_index_used;
+      sub_stmt_stat->m_no_good_index_used+= state->m_no_good_index_used;
+    }
+  }
+
+  PFS_statement_stat *sub_stmt_stat= NULL;
+  if(pfs_program != NULL)
+  {
+    sub_stmt_stat= &pfs_program->m_stmt_stat;
+  }
   switch (da->status())
   {
     case Diagnostics_area::DA_EMPTY:
@@ -5080,12 +5152,21 @@ void pfs_end_statement_v1(PSI_statement_locker *locker, void *stmt_da)
         digest_stat->m_rows_affected+= da->affected_rows();
         digest_stat->m_warning_count+= da->last_statement_cond_count();
       }
+      if(sub_stmt_stat != NULL)
+      {
+        sub_stmt_stat->m_rows_affected+= da->affected_rows();
+        sub_stmt_stat->m_warning_count+= da->last_statement_cond_count();
+      }
       break;
     case Diagnostics_area::DA_EOF:
       stat->m_warning_count+= da->last_statement_cond_count();
       if (digest_stat != NULL)
       {
         digest_stat->m_warning_count+= da->last_statement_cond_count();
+      }
+      if(sub_stmt_stat != NULL)
+      {
+        sub_stmt_stat->m_warning_count+= da->last_statement_cond_count();
       }
       break;
     case Diagnostics_area::DA_ERROR:
@@ -5094,10 +5175,125 @@ void pfs_end_statement_v1(PSI_statement_locker *locker, void *stmt_da)
       {
         digest_stat->m_error_count++;
       }
+      if(sub_stmt_stat != NULL)
+      {
+        sub_stmt_stat->m_error_count++;
+      }
       break;
     case Diagnostics_area::DA_DISABLED:
       break;
   }
+}
+
+/**                                                                             
+  Implementation of the stored program instrumentation interface.                         
+  @sa PSI_v1::get_sp_share.                                      
+*/                                                                              
+PSI_sp_share *pfs_get_sp_share_v1(uint object_type,
+                                  const char* schema_name,
+                                  uint schema_name_length,
+                                  const char* object_name,
+                                  uint object_name_length)
+{
+
+  PFS_thread *pfs_thread= my_pthread_get_THR_PFS();                             
+  if (unlikely(pfs_thread == NULL))                                             
+    return NULL;
+
+  PFS_program *pfs_program;
+  pfs_program= find_or_create_program(pfs_thread,
+                                      (enum_object_type)object_type,
+                                      object_name,
+                                      object_name_length,
+                                      schema_name,
+                                      schema_name_length);
+
+  return reinterpret_cast<PSI_sp_share *>(pfs_program);
+}
+
+void pfs_release_sp_share_v1(PSI_sp_share* sp_share)
+{
+  /* Unused */
+  return;
+}
+
+PSI_sp_locker* pfs_start_sp_v1(PSI_sp_locker_state *state,
+                               PSI_sp_share *sp_share)
+{
+  DBUG_ASSERT(state != NULL);
+  if (! flag_global_instrumentation)
+    return NULL;
+
+  if (flag_thread_instrumentation)
+  {
+    PFS_thread *pfs_thread= my_pthread_get_THR_PFS();
+    if (unlikely(pfs_thread == NULL))
+      return NULL;
+    if (! pfs_thread->m_enabled)
+      return NULL;
+  }
+
+  /* 
+    sp share might be null in case when stat array is full and no new
+    stored program stats are being inserted into it.
+  */
+  PFS_program *pfs_program= reinterpret_cast<PFS_program*>(sp_share);
+  if (pfs_program == NULL || !pfs_program->m_enabled)
+    return NULL;
+
+  state->m_flags= 0;
+
+  if(pfs_program->m_timed)
+  {
+    state->m_flags|= STATE_FLAG_TIMED;
+    state->m_timer_start= get_timer_raw_value_and_function(statement_timer, 
+                                                  & state->m_timer);
+  }
+
+  state->m_sp_share= sp_share;
+
+  return reinterpret_cast<PSI_sp_locker*> (state);
+}
+
+void pfs_end_sp_v1(PSI_sp_locker *locker)
+{
+  PSI_sp_locker_state *state= reinterpret_cast<PSI_sp_locker_state*> (locker);
+  DBUG_ASSERT(state != NULL);
+
+  ulonglong timer_end;
+  ulonglong wait_time;
+
+  PFS_program *pfs_program= reinterpret_cast<PFS_program *>(state->m_sp_share);
+  PFS_sp_stat *stat= &pfs_program->m_sp_stat;
+
+  if (state->m_flags & STATE_FLAG_TIMED)
+  {
+    timer_end= state->m_timer();
+    wait_time= timer_end - state->m_timer_start;
+
+    /* Now use this timer_end and wait_time for timing information. */
+    stat->aggregate_value(wait_time);
+  }
+  else
+  {
+    stat->aggregate_counted();
+  }
+}
+
+void pfs_drop_sp_v1(uint object_type,
+                    const char* schema_name,
+                    uint schema_name_length,
+                    const char* object_name,
+                    uint object_name_length)
+{
+  PFS_thread *pfs_thread= my_pthread_get_THR_PFS();                             
+  if (unlikely(pfs_thread == NULL))                                             
+    return;
+
+  drop_program(pfs_thread,
+               (enum_object_type)object_type,
+               object_name, object_name_length,
+               schema_name, schema_name_length);
 }
 
 /**
@@ -5506,6 +5702,11 @@ PSI_v1 PFS_v1=
   pfs_digest_start_v1,
   pfs_digest_add_token_v1,
   pfs_set_thread_connect_attrs_v1,
+  pfs_start_sp_v1,
+  pfs_end_sp_v1,
+  pfs_drop_sp_v1,
+  pfs_get_sp_share_v1,
+  pfs_release_sp_share_v1,
   pfs_register_memory_v1,
   memory_alloc_v1,
   memory_realloc_v1,

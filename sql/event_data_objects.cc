@@ -32,10 +32,24 @@
 #include "sp_head.h"
 #include "sql_show.h"                // append_definer, append_identifier
 
+#include "mysql/psi/mysql_sp.h"
+
 /**
   @addtogroup Event_Scheduler
   @{
 */
+
+#ifdef HAVE_PSI_INTERFACE
+void init_scheduler_psi_keys()
+{
+  const char *category= "scheduler";
+
+  PSI_server->register_statement(category, & Event_queue_element_for_exec::psi_info, 1);
+}
+
+PSI_statement_info Event_queue_element_for_exec::psi_info=
+{ 0, "event", 0};
+#endif
 
 /*************************************************************************/
 
@@ -1437,6 +1451,13 @@ Event_job_data::execute(THD *thd, bool drop)
     sphead->set_info(0, 0, &thd->lex->sp_chistics, sql_mode);
     sphead->set_creation_ctx(creation_ctx);
     sphead->optimize();
+
+    sphead->m_type= SP_TYPE_EVENT;
+#ifdef HAVE_PSI_SP_INTERFACE
+    sphead->m_sp_share= MYSQL_GET_SP_SHARE(SP_OBJECT_TYPE_EVENT,
+                                           dbname.str, dbname.length,
+                                           name.str, name.length);
+#endif
 
     ret= sphead->execute_procedure(thd, &empty_item_list);
     /*
