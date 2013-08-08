@@ -318,7 +318,8 @@ log_reserve_and_write_fast(
 	ulint		lsn_len;
 #endif /* UNIV_LOG_LSN_DEBUG */
 
-	mutex_enter(&log_sys->mutex);
+	log_mutex_enter();
+
 #ifdef UNIV_LOG_LSN_DEBUG
 	lsn_len = 1
 		+ mach_get_compressed_size(log_sys->lsn >> 32)
@@ -336,7 +337,7 @@ log_reserve_and_write_fast(
 		/* The string does not fit within the current log block
 		or the log block would become full */
 
-		mutex_exit(&log_sys->mutex);
+		log_mutex_exit();
 
 		return(0);
 	}
@@ -393,7 +394,7 @@ void
 log_release(void)
 /*=============*/
 {
-	mutex_exit(&(log_sys->mutex));
+	log_mutex_exit();
 }
 
 /************************************************************//**
@@ -406,11 +407,11 @@ log_get_lsn(void)
 {
 	lsn_t	lsn;
 
-	mutex_enter(&log_sys->mutex);
+	log_mutex_enter();
 
 	lsn = log_sys->lsn;
 
-	mutex_exit(&log_sys->mutex);
+	log_mutex_exit();
 
 	return(lsn);
 }

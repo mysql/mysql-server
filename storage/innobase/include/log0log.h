@@ -910,7 +910,7 @@ struct log_t{
 };
 
 /** Test if flush order mutex is owned. */
-#define log_flush_order_mutex_own()	\
+#define log_flush_order_mutex_own()			\
 	mutex_own(&log_sys->log_flush_order_mutex)
 
 /** Acquire the flush order mutex. */
@@ -920,6 +920,20 @@ struct log_t{
 /** Release the flush order mutex. */
 # define log_flush_order_mutex_exit() do {		\
 	mutex_exit(&log_sys->log_flush_order_mutex);	\
+} while (0)
+
+/** Test if log sys mutex is owned. */
+#define log_mutex_own()					\
+	mutex_own(&log_sys->mutex)
+
+/** Acquire the log sys mutex. */
+#define log_mutex_enter() do {				\
+	log_sys->mutex.enter(1, srv_spin_wait_delay/2, __FILE__, __LINE__); \
+} while (0)
+
+/** Release the log sys mutex. */
+# define log_mutex_exit() do {				\
+	mutex_exit(&log_sys->mutex);			\
 } while (0)
 
 #ifndef UNIV_NONINL
