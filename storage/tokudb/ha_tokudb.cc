@@ -1263,11 +1263,12 @@ cleanup:
 static int generate_row_for_del(
     DB *dest_db, 
     DB *src_db,
-    DBT *dest_key,
+    DBT_ARRAY *dest_key_arrays,
     const DBT *src_key, 
     const DBT *src_val
     )
 {
+    DBT* dest_key = &dest_key_arrays->dbts[0];
     return tokudb_generate_row(
         dest_db,
         src_db,
@@ -1282,12 +1283,14 @@ static int generate_row_for_del(
 static int generate_row_for_put(
     DB *dest_db, 
     DB *src_db,
-    DBT *dest_key, 
-    DBT *dest_val,
+    DBT_ARRAY *dest_key_arrays,
+    DBT_ARRAY *dest_val_arrays,
     const DBT *src_key, 
     const DBT *src_val
     ) 
 {
+    DBT* dest_key = &dest_key_arrays->dbts[0];
+    DBT *dest_val = (dest_val_arrays == NULL) ? NULL : &dest_val_arrays->dbts[0];
     return tokudb_generate_row(
         dest_db,
         src_db,
@@ -1327,8 +1330,14 @@ ha_tokudb::ha_tokudb(handlerton * hton, TABLE_SHARE * table_arg):handler(hton, t
     num_blob_bytes = 0;
     delay_updating_ai_metadata = false;
     ai_metadata_update_required = false;
-    memset(mult_key_dbt, 0, sizeof(mult_key_dbt));
-    memset(mult_rec_dbt, 0, sizeof(mult_rec_dbt));
+    memset(mult_key_dbt_array, 0, sizeof(mult_key_dbt_array));
+    memset(mult_rec_dbt_array, 0, sizeof(mult_rec_dbt_array));
+    for (uint32_t i = 0; i < sizeof(mult_key_dbt_array)/sizeof(mult_key_dbt_array[0]); i++) {
+        toku_dbt_array_init(&mult_key_dbt_array[i], 1);
+    }
+    for (uint32_t i = 0; i < sizeof(mult_rec_dbt_array)/sizeof(mult_rec_dbt_array[0]); i++) {
+        toku_dbt_array_init(&mult_rec_dbt_array[i], 1);
+    }
     loader = NULL;
     abort_loader = false;
     memset(&lc, 0, sizeof(lc));
@@ -1857,7 +1866,6 @@ int ha_tokudb::open(const char *name, int mode, uint test_if_locked) {
 
     int error = 0;
     int ret_val = 0;
-    uint curr_num_DBs = 0;
 
     transaction = NULL;
     cursor = NULL;
@@ -1875,7 +1883,6 @@ int ha_tokudb::open(const char *name, int mode, uint test_if_locked) {
     else {
         key_used_on_scan = primary_key;
     }
-    curr_num_DBs = table_share->keys + test(hidden_primary_key);
 
     /* Need some extra memory in case of packed keys */
     // the "+ 1" is for the first byte that states +/- infinity
@@ -1916,14 +1923,6 @@ int ha_tokudb::open(const char *name, int mode, uint test_if_locked) {
     if (rec_update_buff == NULL) {
         ret_val = 1;
         goto exit;
-    }
-
-    for (uint32_t i = 0; i < sizeof(mult_key_dbt)/sizeof(mult_key_dbt[0]); i++) {
-        mult_key_dbt[i].flags = DB_DBT_REALLOC;
-    }
-
-    for (uint32_t i = 0; i < curr_num_DBs; i++) {
-        mult_rec_dbt[i].flags = DB_DBT_REALLOC;
     }
 
     /* Init shared structure */
@@ -2256,17 +2255,11 @@ int ha_tokudb::__close() {
     my_free(blob_buff, MYF(MY_ALLOW_ZERO_PTR));
     my_free(alloc_ptr, MYF(MY_ALLOW_ZERO_PTR));
     my_free(range_query_buff, MYF(MY_ALLOW_ZERO_PTR));
-    for (uint32_t i = 0; i < sizeof(mult_rec_dbt)/sizeof(mult_rec_dbt[0]); i++) {
-        if (mult_rec_dbt[i].flags == DB_DBT_REALLOC &&
-                mult_rec_dbt[i].data != NULL) {
-            free(mult_rec_dbt[i].data);
-        }
+    for (uint32_t i = 0; i < sizeof(mult_key_dbt_array)/sizeof(mult_key_dbt_array[0]); i++) {
+        toku_dbt_array_destroy(&mult_key_dbt_array[i]);
     }
-    for (uint32_t i = 0; i < sizeof(mult_key_dbt)/sizeof(mult_key_dbt[0]); i++) {
-        if (mult_key_dbt[i].flags == DB_DBT_REALLOC &&
-                mult_key_dbt[i].data != NULL) {
-            free(mult_key_dbt[i].data);
-        }
+    for (uint32_t i = 0; i < sizeof(mult_rec_dbt_array)/sizeof(mult_rec_dbt_array[0]); i++) {
+        toku_dbt_array_destroy(&mult_rec_dbt_array[i]);
     }
     rec_buff = NULL;
     rec_update_buff = NULL;
@@ -3937,13 +3930,13 @@ int ha_tokudb::insert_rows_to_dictionaries_mult(DBT* pk_key, DBT* pk_val, DB_TXN
                 // env->put_multiple(), except that
                 // we will just do a put() right away.
                 error = tokudb_generate_row(db, src_db,
-                        &mult_key_dbt[i], &mult_rec_dbt[i], 
+                        &mult_key_dbt_array[i].dbts[0], &mult_rec_dbt_array[i].dbts[0], 
                         pk_key, pk_val);
                 if (error != 0) {
                     goto out;
                 }
-                error = db->put(db, txn, &mult_key_dbt[i], 
-                        &mult_rec_dbt[i], flags);
+                error = db->put(db, txn, &mult_key_dbt_array[i].dbts[0], 
+                        &mult_rec_dbt_array[i].dbts[0], flags);
             }
             if (error != 0) {
                 goto out;
@@ -3959,8 +3952,8 @@ int ha_tokudb::insert_rows_to_dictionaries_mult(DBT* pk_key, DBT* pk_val, DB_TXN
             pk_val,
             curr_num_DBs, 
             share->key_file, 
-            mult_key_dbt,
-            mult_rec_dbt,
+            mult_key_dbt_array,
+            mult_rec_dbt_array,
             mult_put_flags
             );
     }
@@ -4314,9 +4307,9 @@ int ha_tokudb::update_row(const uchar * old_row, uchar * new_row) {
         share->key_file,
         mult_put_flags,
         2*curr_num_DBs, 
-        mult_key_dbt,
+        mult_key_dbt_array,
         curr_num_DBs, 
-        mult_rec_dbt
+        mult_rec_dbt_array
         );
     
     if (error == DB_KEYEXIST) {
@@ -4391,7 +4384,7 @@ int ha_tokudb::delete_row(const uchar * record) {
         &row,
         curr_num_DBs, 
         share->key_file, 
-        mult_key_dbt,
+        mult_key_dbt_array,
         mult_del_flags
         );
 
