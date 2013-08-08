@@ -1034,10 +1034,6 @@ create table t1
 (i int, f float, c char(100),
 primary key pk(i), index fidx(f))
 engine = innodb;
-create table t2
-(i int, f float, c char(100),
-primary key pk(i), index fidx(f))
-engine = innodb;
 insert into t1 values
 (1, 1.1, 'a'), (2, 2.2, 'b'), (3, 3.3, 'c'),
 (4, 4.4, 'd'), (5, 5.5, 'e');
@@ -1049,30 +1045,12 @@ i	f	c
 4	4.4	d
 5	5.5	e
 set session debug = "+d,ib_trunc_crash_with_intermediate_log_checkpoint";
-truncate table t1;;
-insert into t2 values
-(1, 1.1, 'a'), (2, 2.2, 'b'), (3, 3.3, 'c'),
-(4, 4.4, 'd'), (5, 5.5, 'e');
-select * from t2;
-i	f	c
-1	1.1	a
-2	2.2	b
-3	3.3	c
-4	4.4	d
-5	5.5	e
+truncate table t1;
 ERROR HY000: Lost connection to MySQL server during query
 # Restart the MySQL server
 select * from t1;
 i	f	c
-select * from t2;
-i	f	c
-1	1.1	a
-2	2.2	b
-3	3.3	c
-4	4.4	d
-5	5.5	e
 drop table t1;
-drop table t2;
 use test;
 create table t (i int, j int) engine=innodb;
 insert into t values (1,1), (2,2), (3,3);
