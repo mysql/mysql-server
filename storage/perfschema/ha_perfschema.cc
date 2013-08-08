@@ -31,6 +31,7 @@
 #include "pfs_account.h"
 #include "pfs_host.h"
 #include "pfs_user.h"
+#include "pfs_program.h"
 
 #ifdef MY_ATOMIC_MODE_DUMMY
 /*
@@ -169,6 +170,10 @@ static struct st_mysql_show_var pfs_status_vars[]=
     (char*) &digest_lost, SHOW_LONG},
   {"Performance_schema_session_connect_attrs_lost",
     (char*) &session_connect_attrs_lost, SHOW_LONG},
+  {"Performance_schema_program_lost",
+    (char*) &program_lost, SHOW_LONG},
+  {"Performance_schema_nested_statement_lost",
+    (char*) &nested_statement_lost, SHOW_LONG},
   {NullS, NullS, SHOW_LONG}
 };
 

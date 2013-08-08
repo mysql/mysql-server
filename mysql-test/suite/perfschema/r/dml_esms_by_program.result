@@ -1,0 +1,27 @@
+select * from performance_schema.events_statements_summary_by_program
+where object_name like 'XXYYZZ%' limit 1;
+OBJECT_TYPE	OBJECT_SCHEMA	OBJECT_NAME	COUNT_STAR	SUM_TIMER_WAIT	MIN_TIMER_WAIT	AVG_TIMER_WAIT	MAX_TIMER_WAIT	COUNT_STATEMENTS	SUM_STATEMENTS_WAIT	MIN_STATEMENTS_WAIT	AVG_STATEMENTS_WAIT	MAX_STATEMENTS_WAIT	SUM_LOCK_TIME	SUM_ERRORS	SUM_WARNINGS	SUM_ROWS_AFFECTED	SUM_ROWS_SENT	SUM_ROWS_EXAMINED	SUM_CREATED_TMP_DISK_TABLES	SUM_CREATED_TMP_TABLES	SUM_SELECT_FULL_JOIN	SUM_SELECT_FULL_RANGE_JOIN	SUM_SELECT_RANGE	SUM_SELECT_RANGE_CHECK	SUM_SELECT_SCAN	SUM_SORT_MERGE_PASSES	SUM_SORT_RANGE	SUM_SORT_ROWS	SUM_SORT_SCAN	SUM_NO_INDEX_USED	SUM_NO_GOOD_INDEX_USED
+select * from performance_schema.events_statements_summary_by_program
+where object_name='XXYYZZ';
+OBJECT_TYPE	OBJECT_SCHEMA	OBJECT_NAME	COUNT_STAR	SUM_TIMER_WAIT	MIN_TIMER_WAIT	AVG_TIMER_WAIT	MAX_TIMER_WAIT	COUNT_STATEMENTS	SUM_STATEMENTS_WAIT	MIN_STATEMENTS_WAIT	AVG_STATEMENTS_WAIT	MAX_STATEMENTS_WAIT	SUM_LOCK_TIME	SUM_ERRORS	SUM_WARNINGS	SUM_ROWS_AFFECTED	SUM_ROWS_SENT	SUM_ROWS_EXAMINED	SUM_CREATED_TMP_DISK_TABLES	SUM_CREATED_TMP_TABLES	SUM_SELECT_FULL_JOIN	SUM_SELECT_FULL_RANGE_JOIN	SUM_SELECT_RANGE	SUM_SELECT_RANGE_CHECK	SUM_SELECT_SCAN	SUM_SORT_MERGE_PASSES	SUM_SORT_RANGE	SUM_SORT_ROWS	SUM_SORT_SCAN	SUM_NO_INDEX_USED	SUM_NO_GOOD_INDEX_USED
+insert into performance_schema.events_statements_summary_by_program
+set object_name='XXYYZZ', count_star=1, sum_timer_wait=2, min_timer_wait=3,
+avg_timer_wait=4, max_timer_wait=5;
+ERROR 42000: INSERT command denied to user 'root'@'localhost' for table 'events_statements_summary_by_program'
+update performance_schema.events_statements_summary_by_program
+set count_star=12;
+ERROR 42000: UPDATE command denied to user 'root'@'localhost' for table 'events_statements_summary_by_program'
+update performance_schema.events_statements_summary_by_program
+set count_star=12 where object_name like "XXYYZZ";
+ERROR 42000: UPDATE command denied to user 'root'@'localhost' for table 'events_statements_summary_by_program'
+delete from performance_schema.events_statements_summary_by_program
+where count_star=1;
+ERROR 42000: DELETE command denied to user 'root'@'localhost' for table 'events_statements_summary_by_program'
+delete from performance_schema.events_statements_summary_by_program;
+ERROR 42000: DELETE command denied to user 'root'@'localhost' for table 'events_statements_summary_by_program'
+LOCK TABLES performance_schema.events_statements_summary_by_program READ;
+ERROR 42000: SELECT, LOCK TABLES command denied to user 'root'@'localhost' for table 'events_statements_summary_by_program'
+UNLOCK TABLES;
+LOCK TABLES performance_schema.events_statements_summary_by_program WRITE;
+ERROR 42000: SELECT, LOCK TABLES command denied to user 'root'@'localhost' for table 'events_statements_summary_by_program'
+UNLOCK TABLES;
