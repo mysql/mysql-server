@@ -99,6 +99,23 @@ SELECT CONVERT( a USING latin1 ) FROM t2;
 DROP TABLE t1, t2;
 
 --echo #
+--echo # Start of 5.3 tests
+--echo #
+
+--echo #
+--echo # MDEV-4512 Valgrind warnings in my_long10_to_str_8bit on INTERVAL and DATE_ADD with incorrect types
+--echo #
+CREATE TABLE t1 (pk INT PRIMARY KEY);
+INSERT INTO t1 VALUES (10),(11);
+SELECT INTERVAL( 9, 1, DATE_ADD( pk, INTERVAL pk MINUTE_SECOND ), 9, 8, 3, 5, 2, 1 ) FROM t1;
+DROP TABLE t1;
+
+--echo #
+--echo # End of 5.3 tests
+--echo #
+
+
+--echo #
 --echo # BUG#59405: FIND_IN_SET won't work normaly after upgrade from 5.1 to 5.5
 --echo #
 

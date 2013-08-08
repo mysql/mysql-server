@@ -1966,7 +1966,7 @@ void Item_func_interval::fix_length_and_dec()
     for (uint i= 1; not_null_consts && i < rows; i++)
     {
       Item *el= row->element_index(i);
-      not_null_consts&= el->const_item() & !el->is_null();
+      not_null_consts&= el->const_item() && !el->is_null();
     }
 
     if (not_null_consts &&

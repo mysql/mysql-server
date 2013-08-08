@@ -160,6 +160,25 @@ CONVERT( a USING latin1 )
 
 DROP TABLE t1, t2;
 #
+# Start of 5.3 tests
+#
+#
+# MDEV-4512 Valgrind warnings in my_long10_to_str_8bit on INTERVAL and DATE_ADD with incorrect types
+#
+CREATE TABLE t1 (pk INT PRIMARY KEY);
+INSERT INTO t1 VALUES (10),(11);
+SELECT INTERVAL( 9, 1, DATE_ADD( pk, INTERVAL pk MINUTE_SECOND ), 9, 8, 3, 5, 2, 1 ) FROM t1;
+INTERVAL( 9, 1, DATE_ADD( pk, INTERVAL pk MINUTE_SECOND ), 9, 8, 3, 5, 2, 1 )
+8
+8
+Warnings:
+Warning	1292	Incorrect datetime value: '10'
+Warning	1292	Incorrect datetime value: '11'
+DROP TABLE t1;
+#
+# End of 5.3 tests
+#
+#
 # BUG#59405: FIND_IN_SET won't work normaly after upgrade from 5.1 to 5.5
 #
 CREATE TABLE t1(days set('1','2','3','4','5','6','7'));
