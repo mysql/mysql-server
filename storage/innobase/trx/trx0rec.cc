@@ -1476,7 +1476,7 @@ NOTE: the caller must have latches on the clustered index page.
 @retval true if the undo log has been
 truncated and we cannot fetch the old version
 @retval false if the undo log record is available */
-static __attribute__((nonnull, warn_unused_result))
+static __attribute__((warn_unused_result))
 bool
 trx_undo_get_undo_rec(
 /*==================*/
@@ -1490,7 +1490,8 @@ trx_undo_get_undo_rec(
 	bool		missing_history;
 
 	rw_lock_s_lock(&purge_sys->latch);
-	missing_history = read_view_sees_trx_id(purge_sys->view, trx_id);
+
+	missing_history = purge_sys->view.changes_visible(trx_id);
 
 	if (!missing_history) {
 		*undo_rec = trx_undo_get_undo_rec_low(roll_ptr, heap);
@@ -1645,8 +1646,10 @@ trx_undo_prev_version_build(
 			bool	missing_extern;
 
 			rw_lock_s_lock(&purge_sys->latch);
-			missing_extern = read_view_sees_trx_id(purge_sys->view,
-							       trx_id);
+
+			missing_extern = purge_sys->view.changes_visible(
+				trx_id);
+
 			rw_lock_s_unlock(&purge_sys->latch);
 
 			if (missing_extern) {

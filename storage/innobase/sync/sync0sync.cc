@@ -473,12 +473,17 @@ mutex_spin_wait(
 	ib_mutex_t*	mutex,		/*!< in: pointer to mutex */
 	const char*	file_name,	/*!< in: file name where mutex
 					requested */
-	ulint		line)		/*!< in: line where requested */
+	ulint		line,		/*!< in: line where requested */
+	ulint		delay)		/*!< in: delay or 0 for default */
 {
 	ulint		i;		/* spin round count */
 	ulint		index;		/* index of the reserved wait cell */
 	sync_array_t*	sync_arr;
 	size_t		counter_index;
+
+	if (delay == 0) {
+		delay = srv_spin_wait_delay;
+	}
 
 	counter_index = (size_t) os_thread_get_curr_id();
 
@@ -504,7 +509,7 @@ spin_loop:
 
 	while (mutex_get_lock_word(mutex) != 0 && i < SYNC_SPIN_ROUNDS) {
 		if (srv_spin_wait_delay) {
-			ut_delay(ut_rnd_interval(0, srv_spin_wait_delay));
+			ut_delay(ut_rnd_interval(0, delay));
 		}
 
 		i++;

@@ -43,6 +43,7 @@ Created 5/7/1996 Heikki Tuuri
 #include "ut0vec.h"
 #include "btr0btr.h"
 #include "dict0boot.h"
+
 #include <set>
 
 /** Restricts the length of search we will do in the waits-for
@@ -57,11 +58,23 @@ static const ulint	LOCK_MAX_DEPTH_IN_DEADLOCK_CHECK = 200;
 the lock mutex for a moment to give also others access to it */
 static const ulint	LOCK_RELEASE_INTERVAL = 1000;
 
-/* Safety margin when creating a new record lock: this many extra records
+/** Safety margin when creating a new record lock: this many extra records
 can be inserted to the page without need to create a lock with a bigger
 bitmap */
 
 static const ulint	LOCK_PAGE_BITMAP_MARGIN = 64;
+
+/** Total number of cached record locks */
+static const ulint	REC_LOCK_CACHE = 8;
+
+/** Maximum record lock size in bytes */
+static const ulint	REC_LOCK_SIZE = sizeof(ib_lock_t) + 256;
+
+/** Total number of cached table locks */
+static const ulint	TABLE_LOCK_CACHE = 8;
+
+/** Size in bytes, of the table lock instance */
+static const ulint	TABLE_LOCK_SIZE = sizeof(ib_lock_t);
 
 /* An explicit record lock affects both the record and the gap before it.
 An implicit x-lock does not affect the gap, it only locks the index
@@ -678,7 +691,7 @@ lock_clust_rec_cons_read_sees(
 				passed over by a read cursor */
 	dict_index_t*	index,	/*!< in: clustered index */
 	const ulint*	offsets,/*!< in: rec_get_offsets(rec, index) */
-	read_view_t*	view)	/*!< in: consistent read view */
+	ReadView*	view)	/*!< in: consistent read view */
 {
 	ut_ad(dict_index_is_clust(index));
 	ut_ad(page_rec_is_user_rec(rec));
@@ -698,7 +711,7 @@ lock_clust_rec_cons_read_sees(
 
 	trx_id_t	trx_id = row_get_rec_trx_id(rec, index, offsets);
 
-	return(read_view_sees_trx_id(view, trx_id));
+	return(view->changes_visible(trx_id));
 }
 
 /*********************************************************************//**
@@ -719,7 +732,7 @@ lock_sec_rec_cons_read_sees(
 					should be read or passed over
 					by a read cursor */
 	const dict_index_t*	index,	/*!< in: index */
-	const read_view_t*	view)	/*!< in: consistent read view */
+	const ReadView*	view)	/*!< in: consistent read view */
 {
 	trx_id_t	max_trx_id;
 
@@ -744,7 +757,7 @@ lock_sec_rec_cons_read_sees(
 	max_trx_id = page_get_max_trx_id(page_align(rec));
 	ut_ad(max_trx_id);
 
-	return(max_trx_id < view->up_limit_id);
+	return(view->sees(max_trx_id));
 }
 
 /*********************************************************************//**
@@ -1960,8 +1973,15 @@ lock_rec_create(
 	n_bits = page_dir_get_n_heap(page) + LOCK_PAGE_BITMAP_MARGIN;
 	n_bytes = 1 + n_bits / 8;
 
-	lock = static_cast<lock_t*>(
-		mem_heap_alloc(trx->lock.lock_heap, sizeof(lock_t) + n_bytes));
+	if (trx->lock.rec_cached >= trx->lock.rec_pool.size()
+	    || sizeof(lock_t) + n_bytes > REC_LOCK_SIZE) {
+
+		lock = static_cast<lock_t*>(
+			mem_heap_alloc(trx->lock.lock_heap,
+				       sizeof(lock_t) + n_bytes));
+	} else {
+		lock = trx->lock.rec_pool[trx->lock.rec_cached++];
+	}
 
 	lock->trx = trx;
 
@@ -3672,15 +3692,13 @@ lock_table_create(
 				LOCK_WAIT */
 	trx_t*		trx)	/*!< in: trx */
 {
-	lock_t*	lock;
+	lock_t*		lock;
 
 	ut_ad(table && trx);
 	ut_ad(lock_mutex_own());
 	ut_ad(trx_mutex_own(trx));
 	ut_ad(!(type_mode & LOCK_CONV_BY_OTHER));
 
-	/* Non-locking autocommit read-only transactions should not set
-	any locks. */
 	assert_trx_in_list(trx);
 
 	if ((type_mode & LOCK_MODE_MASK) == LOCK_AUTO_INC) {
@@ -3697,9 +3715,14 @@ lock_table_create(
 		table->autoinc_trx = trx;
 
 		ib_vector_push(trx->autoinc_locks, &lock);
+
+	} else if (trx->lock.table_cached < trx->lock.table_pool.size()) {
+		lock = trx->lock.table_pool[trx->lock.table_cached++];
 	} else {
+
 		lock = static_cast<lock_t*>(
 			mem_heap_alloc(trx->lock.lock_heap, sizeof(*lock)));
+
 	}
 
 	lock->type_mode = type_mode | LOCK_TABLE;
@@ -4111,7 +4134,7 @@ lock_table_ix_resurrect(
 Checks if a waiting table lock request still has to wait in a queue.
 @return TRUE if still has to wait */
 static
-ibool
+bool
 lock_table_has_to_wait_in_queue(
 /*============================*/
 	const lock_t*	wait_lock)	/*!< in: waiting table lock */
@@ -4130,11 +4153,11 @@ lock_table_has_to_wait_in_queue(
 
 		if (lock_has_to_wait(wait_lock, lock)) {
 
-			return(TRUE);
+			return(true);
 		}
 	}
 
-	return(FALSE);
+	return(false);
 }
 
 /*************************************************************//**
@@ -4149,12 +4172,10 @@ lock_table_dequeue(
 			behind will get their lock requests granted, if
 			they are now qualified to it */
 {
-	lock_t*	lock;
-
 	ut_ad(lock_mutex_own());
 	ut_a(lock_get_type_low(in_lock) == LOCK_TABLE);
 
-	lock = UT_LIST_GET_NEXT(un_member.tab_lock.locks, in_lock);
+	lock_t*	lock = UT_LIST_GET_NEXT(un_member.tab_lock.locks, in_lock);
 
 	lock_table_remove_low(in_lock);
 
@@ -5025,13 +5046,10 @@ lock_trx_print_wait_and_mvcc_state(
 
 	trx_print_latched(file, trx, 600);
 
-	if (trx->read_view != 0) {
-		fprintf(file,
-			"Trx read view will not see trx with"
-			" id >= " TRX_ID_FMT
-			", sees < " TRX_ID_FMT "\n",
-			trx->read_view->low_limit_id,
-			trx->read_view->up_limit_id);
+	const ReadView*	read_view = trx_get_read_view(trx);
+
+	if (read_view != NULL) {
+		read_view->print_limits(file);
 	}
 
 	if (trx->lock.que_state == TRX_QUE_LOCK_WAIT) {
@@ -5133,7 +5151,7 @@ lock_trx_print_locks(
 
 				fprintf(file,
 					"RECORD LOCKS on non-existing "
-					"space %lu\n",
+					"space %u\n",
 					lock->un_member.rec_lock.space);
 			}
 
@@ -6666,19 +6684,21 @@ lock_trx_release_locks(
 	assert_trx_in_list(trx);
 
 	if (trx_state_eq(trx, TRX_STATE_PREPARED)) {
+
 		mutex_enter(&trx_sys->mutex);
+
 		ut_a(trx_sys->n_prepared_trx > 0);
-		trx_sys->n_prepared_trx--;
+		--trx_sys->n_prepared_trx;
+
 		if (trx->is_recovered) {
 			ut_a(trx_sys->n_prepared_recovered_trx > 0);
 			trx_sys->n_prepared_recovered_trx--;
 		}
+
 		mutex_exit(&trx_sys->mutex);
 	} else {
 		ut_ad(trx_state_eq(trx, TRX_STATE_ACTIVE));
 	}
-
-	DEBUG_SYNC_C("before_trx_state_committed_in_memory");
 
 	/* The transition of trx->state to TRX_STATE_COMMITTED_IN_MEMORY
 	is protected by both the lock_sys->mutex and the trx->mutex. */
@@ -7461,4 +7481,33 @@ DeadlockChecker::check_and_resolve(const lock_t* lock, const trx_t* trx)
 	}
 
 	return(victim_trx);
+}
+
+/**
+Allocate cached locks for the transaction.
+@param trx		allocate cached record locks for this transaction */
+
+void
+lock_trx_alloc_locks(trx_t* trx)
+{
+	ulint	sz = REC_LOCK_SIZE * REC_LOCK_CACHE;
+	byte*	ptr = reinterpret_cast<byte*>(mem_alloc(sz));
+
+	/* We allocate one big chunk and then distribute it among
+	the rest of the elements. The allocated chunk pointer is always
+	at index 0. */
+
+	for (ulint i = 0; i < REC_LOCK_CACHE; ++i, ptr += REC_LOCK_SIZE) {
+		trx->lock.rec_pool.push_back(
+			reinterpret_cast<ib_lock_t*>(ptr));
+	}
+
+	sz = TABLE_LOCK_SIZE * TABLE_LOCK_CACHE;
+	ptr = reinterpret_cast<byte*>(mem_alloc(sz));
+
+	for (ulint i = 0; i < TABLE_LOCK_CACHE; ++i, ptr += TABLE_LOCK_SIZE) {
+		trx->lock.table_pool.push_back(
+			reinterpret_cast<ib_lock_t*>(ptr));
+	}
+
 }

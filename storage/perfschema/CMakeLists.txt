@@ -17,9 +17,13 @@ INCLUDE_DIRECTORIES(${CMAKE_SOURCE_DIR}
                     ${CMAKE_SOURCE_DIR}/include
                     ${CMAKE_SOURCE_DIR}/sql
                     ${CMAKE_SOURCE_DIR}/regex
-                    ${CMAKE_SOURCE_DIR}/extra/yassl/include)
+                    ${CMAKE_SOURCE_DIR}/extra/yassl/include
+                    ${SSL_INCLUDE_DIRS})
 
 ADD_DEFINITIONS(-DMYSQL_SERVER)
+IF (SSL_DEFINES)
+  ADD_DEFINITIONS(${SSL_DEFINES})
+ENDIF()
 
 # Gen_pfs_lex_token
 ADD_EXECUTABLE(gen_pfs_lex_token gen_pfs_lex_token.cc)
@@ -130,6 +134,12 @@ cursor_by_thread_connect_attr.h
 table_session_connect.h
 table_session_connect_attrs.h
 table_session_account_connect_attrs.h
+table_replication_connection_configuration.h
+table_replication_connection_status.h
+table_replication_execute_configuration.h
+table_replication_execute_status.h
+table_replication_execute_status_by_coordinator.h
+table_replication_execute_status_by_worker.h
 cursor_by_account.cc
 cursor_by_host.cc
 cursor_by_thread.cc
@@ -214,9 +224,15 @@ cursor_by_thread_connect_attr.cc
 table_session_connect.cc
 table_session_connect_attrs.cc
 table_session_account_connect_attrs.cc
+table_replication_connection_configuration.cc
+table_replication_connection_status.cc
+table_replication_execute_configuration.cc
+table_replication_execute_status.cc
+table_replication_execute_status_by_coordinator.cc
+table_replication_execute_status_by_worker.cc
 )
 
-MYSQL_ADD_PLUGIN(perfschema ${PERFSCHEMA_SOURCES} STORAGE_ENGINE DEFAULT STATIC_ONLY)
+MYSQL_ADD_PLUGIN(perfschema ${PERFSCHEMA_SOURCES} STORAGE_ENGINE DEFAULT STATIC_ONLY NOT_FOR_EMBEDDED)
 IF(WITH_PERFSCHEMA_STORAGE_ENGINE AND WITH_UNIT_TESTS)
   ENABLE_TESTING()
   ADD_SUBDIRECTORY(unittest)

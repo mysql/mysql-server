@@ -49,7 +49,8 @@ mutex_spin_wait(
 	ib_mutex_t*	mutex,		/*!< in: pointer to mutex */
 	const char*	file_name,	/*!< in: file name where mutex
 					requested */
-	ulint		line);		/*!< in: line where requested */
+	ulint		line,		/*!< in: line where requested */
+	ulint		delay);		/*!< in: delay or 0 for default */
 #ifdef UNIV_SYNC_DEBUG
 /******************************************************************//**
 Sets the debug information for a reserved mutex. */
@@ -76,7 +77,7 @@ mutex.
 UNIV_INLINE
 byte
 ib_mutex_test_and_set(
-/*===============*/
+/*==================*/
 	ib_mutex_t*	mutex)	/*!< in: mutex */
 {
 #if defined(HAVE_ATOMIC_BUILTINS)
@@ -201,7 +202,8 @@ mutex_enter_func(
 /*=============*/
 	ib_mutex_t*	mutex,		/*!< in: pointer to mutex */
 	const char*	file_name,	/*!< in: file name where locked */
-	ulint		line)		/*!< in: line where locked */
+	ulint		line,		/*!< in: line where locked */
+	ulint		delay)		/*!< in: delay or 0 for default */
 {
 	ut_ad(mutex_validate(mutex));
 	ut_ad(!mutex_own(mutex));
@@ -217,7 +219,7 @@ mutex_enter_func(
 		return;	/* Succeeded! */
 	}
 
-	mutex_spin_wait(mutex, file_name, line);
+	mutex_spin_wait(mutex, file_name, line, delay);
 }
 
 #ifdef UNIV_PFS_MUTEX
@@ -230,9 +232,10 @@ UNIV_INLINE
 void
 pfs_mutex_enter_func(
 /*=================*/
-	ib_mutex_t*	mutex,	/*!< in: pointer to mutex */
+	ib_mutex_t*	mutex,		/*!< in: pointer to mutex */
 	const char*	file_name,	/*!< in: file name where locked */
-	ulint		line)		/*!< in: line where locked */
+	ulint		line,		/*!< in: line where locked */
+	ulint		delay)		/*!< in: delay or 0 for default */
 {
 	if (mutex->pfs_psi != NULL) {
 		PSI_mutex_locker*	locker;
@@ -242,13 +245,13 @@ pfs_mutex_enter_func(
 			&state, mutex->pfs_psi,
 			PSI_MUTEX_LOCK, file_name, (uint) line);
 
-		mutex_enter_func(mutex, file_name, line);
+		mutex_enter_func(mutex, file_name, line, delay);
 
 		if (locker != NULL) {
 			PSI_MUTEX_CALL(end_mutex_wait)(locker, 0);
 		}
 	} else {
-		mutex_enter_func(mutex, file_name, line);
+		mutex_enter_func(mutex, file_name, line, delay);
 	}
 }
 
