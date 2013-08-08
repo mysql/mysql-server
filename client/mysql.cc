@@ -3510,6 +3510,7 @@ print_table_data(MYSQL_RES *result)
     if (length < 4 && !IS_NOT_NULL(field->flags))
       length=4;					// Room for "NULL"
     field->max_length=length;
+    num_flag[mysql_field_tell(result) - 1]= IS_NUM(field->type);
     separator.fill(separator.length()+length+2,'-');
     separator.append('+');
   }
@@ -3529,7 +3530,6 @@ print_table_data(MYSQL_RES *result)
       tee_fprintf(PAGER, " %-*s |",(int) min(display_length,
                                             MAX_COLUMN_LENGTH),
                   field->name);
-      num_flag[off]= IS_NUM(field->type);
     }
     (void) tee_fputs("\n", PAGER);
     tee_puts((char*) separator.ptr(), PAGER);

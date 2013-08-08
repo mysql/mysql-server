@@ -515,5 +515,9 @@ aa`bb``cc
 drop database `aa``bb````cc`;
 a
 >>\ndelimiter\n<<
++-------------------+
+| a                 |
+| aaaaaaaaaaaaaaaaa |
++-------------------+
 
 End of tests

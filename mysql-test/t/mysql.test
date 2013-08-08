@@ -603,5 +603,10 @@ delimiter
 EOF
 --exec $MYSQL < $MYSQLTEST_VARDIR/tmp/13639125.sql
 
+#
+# --skip-column-names and alignment
+#
+--exec $MYSQL -t -N -e "SELECT 'a' union select 'aaaaaaaaaaaaaaaaa'"
+
 --echo
 --echo End of tests
