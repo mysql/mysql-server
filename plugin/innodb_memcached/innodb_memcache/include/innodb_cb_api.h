@@ -170,7 +170,8 @@ ib_err_t
 	ib_tpl_t	ib_tpl,
 	ib_ulint_t	col_no,
 	const void*	src,
-	ib_ulint_t	len) ;
+	ib_ulint_t	len,
+	bool		need_cpy) ;
 
 typedef
 const void*

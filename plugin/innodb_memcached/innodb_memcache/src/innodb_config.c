@@ -653,7 +653,7 @@ innodb_config_container(
 		/* User supplied a config option name, find it */
 		tpl = ib_cb_search_tuple_create(crsr);
 
-		err = ib_cb_col_set_value(tpl, 0, name, name_len);
+		err = ib_cb_col_set_value(tpl, 0, name, name_len, true);
 
 		ib_cb_cursor_set_match_mode(crsr, IB_EXACT_MATCH);
 		err = ib_cb_moveto(crsr, tpl, IB_CUR_GE);
