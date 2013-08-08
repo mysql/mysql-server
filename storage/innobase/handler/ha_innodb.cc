@@ -14118,45 +14118,6 @@ innodb_internal_table_validate(
 }
 
 /****************************************************************//**
-Update global variable "fts_internal_tbl_name" with the "saved"
-stopword table name value. This function is registered as a callback
-with MySQL. */
-static
-void
-innodb_internal_table_update(
-/*=========================*/
-	THD*				thd,	/*!< in: thread handle */
-	struct st_mysql_sys_var*	var,	/*!< in: pointer to
-						system variable */
-	void*				var_ptr,/*!< out: where the
-						formal string goes */
-	const void*			save)	/*!< in: immediate result
-						from check function */
-{
-	const char*	table_name;
-	char*		old;
-
-	ut_a(save != NULL);
-	ut_a(var_ptr != NULL);
-
-	table_name = *static_cast<const char*const*>(save);
-	old = *(char**) var_ptr;
-
-	if (table_name) {
-		*(char**) var_ptr =  my_strdup(PSI_INSTRUMENT_ME,
-                                               table_name, MYF(0));
-	} else {
-		*(char**) var_ptr = NULL;
-	}
-
-	if (old) {
-		my_free(old);
-	}
-
-	fts_internal_tbl_name = *(char**) var_ptr;
-}
-
-/****************************************************************//**
 Update the system variable innodb_adaptive_hash_index using the "saved"
 value. This function is registered as a callback with MySQL. */
 static
@@ -15791,10 +15752,10 @@ static MYSQL_SYSVAR_BOOL(disable_sort_file_cache, srv_disable_sort_file_cache,
   NULL, NULL, FALSE);
 
 static MYSQL_SYSVAR_STR(ft_aux_table, fts_internal_tbl_name,
-  PLUGIN_VAR_NOCMDARG,
+  PLUGIN_VAR_RQCMDARG | PLUGIN_VAR_MEMALLOC,
   "FTS internal auxiliary table to be checked",
   innodb_internal_table_validate,
-  innodb_internal_table_update, NULL);
+  NULL, NULL);
 
 static MYSQL_SYSVAR_ULONG(ft_cache_size, fts_max_cache_size,
   PLUGIN_VAR_RQCMDARG | PLUGIN_VAR_READONLY,
