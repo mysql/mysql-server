@@ -73,14 +73,20 @@
 #include "table_socket_summary_by_event_name.h"
 #include "table_session_connect_attrs.h"
 #include "table_session_account_connect_attrs.h"
-
 #include "table_mems_global_by_event_name.h"
 #include "table_mems_by_account_by_event_name.h"
 #include "table_mems_by_host_by_event_name.h"
 #include "table_mems_by_thread_by_event_name.h"
 #include "table_mems_by_user_by_event_name.h"
 
-/* For show status */
+/* For replication related perfschema tables. */
+#include "table_replication_connection_configuration.h"
+#include "table_replication_connection_status.h"
+#include "table_replication_execute_configuration.h"
+#include "table_replication_execute_status.h"
+#include "table_replication_execute_status_by_coordinator.h"
+#include "table_replication_execute_status_by_worker.h"
+
 #include "pfs_column_values.h"
 #include "pfs_instr_class.h"
 #include "pfs_instr.h"
@@ -165,6 +171,12 @@ static PFS_engine_table_share *all_shares[]=
   &table_mems_by_thread_by_event_name::m_share,
   &table_mems_by_user_by_event_name::m_share,
 
+  &table_replication_connection_configuration::m_share,
+  &table_replication_connection_status::m_share,
+  &table_replication_execute_configuration::m_share,
+  &table_replication_execute_status::m_share,
+  &table_replication_execute_status_by_coordinator::m_share,
+  &table_replication_execute_status_by_worker::m_share,
   NULL
 };
 

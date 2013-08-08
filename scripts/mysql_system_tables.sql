@@ -1814,6 +1814,116 @@ EXECUTE stmt;
 DROP PREPARE stmt;
 
 --
+-- TABLE replication_connection_configuration
+--
+
+SET @cmd="CREATE TABLE performance_schema.replication_connection_configuration("
+  "HOST CHAR(60) collate utf8_bin not null,"
+  "PORT INTEGER not null,"
+  "USER CHAR(16) collate utf8_bin not null,"
+  "NETWORK_INTERFACE CHAR(60) collate utf8_bin not null,"
+  "AUTO_POSITION ENUM('1','0') not null,"
+  "SSL_ALLOWED ENUM('YES','NO','IGNORED') not null,"
+  "SSL_CA_FILE VARCHAR(512) not null,"
+  "SSL_CA_PATH VARCHAR(512) not null,"
+  "SSL_CERTIFICATE VARCHAR(512) not null,"
+  "SSL_CIPHER VARCHAR(512) not null,"
+  "SSL_KEY VARCHAR(512) not null,"
+  "SSL_VERIFY_SERVER_CERTIFICATE ENUM('YES','NO') not null,"
+  "SSL_CRL_FILE VARCHAR(255) not null,"
+  "SSL_CRL_PATH VARCHAR(255) not null,"
+  "CONNECTION_RETRY_INTERVAL INTEGER not null,"
+  "CONNECTION_RETRY_COUNT BIGINT unsigned NOT NULL"
+  ") ENGINE=PERFORMANCE_SCHEMA;";
+
+SET @str = IF(@have_pfs = 1, @cmd, 'SET @dummy = 0');
+PREPARE stmt FROM @str;
+EXECUTE stmt;
+DROP PREPARE stmt;
+
+--
+-- TABLE replication_connection_status
+--
+
+SET @cmd="CREATE TABLE performance_schema.replication_connection_status("
+  "SOURCE_UUID CHAR(36) collate utf8_bin not null,"
+  "THREAD_ID BIGINT unsigned,"
+  "SERVICE_STATE ENUM('ON','OFF','CONNECTING') not null,"
+  "RECEIVED_TRANSACTION_SET TEXT not null,"
+  "LAST_ERROR_NUMBER INTEGER not null,"
+  "LAST_ERROR_MESSAGE VARCHAR(1024) not null,"
+  "LAST_ERROR_TIMESTAMP TIMESTAMP(0) not null"
+  ") ENGINE=PERFORMANCE_SCHEMA;";
+
+SET @str = IF(@have_pfs = 1, @cmd, 'SET @dummy = 0');
+PREPARE stmt FROM @str;
+EXECUTE stmt;
+DROP PREPARE stmt;
+
+--
+-- TABLE replication_execute_configuration
+--
+
+SET @cmd="CREATE TABLE performance_schema.replication_execute_configuration("
+  "DESIRED_DELAY INTEGER not null"
+  ") ENGINE=PERFORMANCE_SCHEMA;";
+
+SET @str = IF(@have_pfs = 1, @cmd, 'SET @dummy = 0');
+PREPARE stmt FROM @str;
+EXECUTE stmt;
+DROP PREPARE stmt;
+
+--
+-- TABLE replication_execute_status
+--
+
+SET @cmd="CREATE TABLE performance_schema.replication_execute_status("
+  "SERVICE_STATE ENUM('ON','OFF') not null,"
+  "REMAINING_DELAY INTEGER unsigned"
+  ") ENGINE=PERFORMANCE_SCHEMA;";
+
+SET @str = IF(@have_pfs = 1, @cmd, 'SET @dummy = 0');
+PREPARE stmt FROM @str;
+EXECUTE stmt;
+DROP PREPARE stmt;
+
+--
+-- TABLE replication_execute_status_by_coordinator
+--
+
+SET @cmd="CREATE TABLE performance_schema.replication_execute_status_by_coordinator("
+  "THREAD_ID BIGINT UNSIGNED,"
+  "SERVICE_STATE ENUM('ON','OFF') not null,"
+  "LAST_ERROR_NUMBER INTEGER not null,"
+  "LAST_ERROR_MESSAGE VARCHAR(1024) not null,"
+  "LAST_ERROR_TIMESTAMP TIMESTAMP(0) not null"
+  ") ENGINE=PERFORMANCE_SCHEMA;";
+
+SET @str = IF(@have_pfs = 1, @cmd, 'SET @dummy = 0');
+PREPARE stmt FROM @str;
+EXECUTE stmt;
+DROP PREPARE stmt;
+
+--
+-- TABLE replication_execute_status_by_worker
+--
+
+SET @cmd="CREATE TABLE performance_schema.replication_execute_status_by_worker("
+  "WORKER_ID BIGINT UNSIGNED not null,"
+  "THREAD_ID BIGINT UNSIGNED,"
+  "SERVICE_STATE ENUM('ON','OFF') not null,"
+  "LAST_SEEN_TRANSACTION CHAR(57) not null,"
+  "LAST_ERROR_NUMBER INTEGER not null,"
+  "LAST_ERROR_MESSAGE VARCHAR(1024) not null,"
+  "LAST_ERROR_TIMESTAMP TIMESTAMP(0) not null"
+  ") ENGINE=PERFORMANCE_SCHEMA;";
+
+SET @str = IF(@have_pfs = 1, @cmd, 'SET @dummy = 0');
+PREPARE stmt FROM @str;
+EXECUTE stmt;
+DROP PREPARE stmt;
+
+--
 -- TABLE SESSION_CONNECT_ATTRS
 --
 

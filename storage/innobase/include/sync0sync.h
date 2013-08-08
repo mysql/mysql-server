@@ -183,7 +183,10 @@ necessary only if the memory block containing it is freed. */
 # endif	/* UNIV_DEBUG */
 
 # define mutex_enter(M)						\
-	pfs_mutex_enter_func((M), __FILE__, __LINE__)
+	pfs_mutex_enter_func((M), __FILE__, __LINE__, 0)
+
+# define mutex_enter_delay(M, D)				\
+	pfs_mutex_enter_func((M), __FILE__, __LINE__, (D))
 
 # define mutex_enter_nowait(M)					\
 	pfs_mutex_enter_nowait_func((M), __FILE__, __LINE__)
@@ -209,7 +212,10 @@ original non-instrumented functions */
 	mutex_create_func((M), __FILE__, __LINE__)
 # endif	/* UNIV_DEBUG */
 
-# define mutex_enter(M)	mutex_enter_func((M), __FILE__, __LINE__)
+# define mutex_enter(M)	mutex_enter_func((M), __FILE__, __LINE__, 0)
+
+# define mutex_enter_delay(M, D)				\
+	mutex_enter_func((M),  __FILE__, __LINE__, (D))
 
 # define mutex_enter_nowait(M)	\
 	mutex_enter_nowait_func((M), __FILE__, __LINE__)
@@ -255,7 +261,7 @@ corresponding function. */
 
 /* NOTE! currently same as mutex_enter! */
 
-#define mutex_enter_fast(M)	mutex_enter_func((M), __FILE__, __LINE__)
+#define mutex_enter_fast(M)	mutex_enter_func((M), __FILE__, __LINE__, 0)
 /******************************************************************//**
 NOTE! Use the corresponding macro in the header file, not this function
 directly. Locks a mutex for the current thread. If the mutex is reserved
@@ -267,7 +273,8 @@ mutex_enter_func(
 /*=============*/
 	ib_mutex_t*	mutex,		/*!< in: pointer to mutex */
 	const char*	file_name,	/*!< in: file name where locked */
-	ulint		line);		/*!< in: line where locked */
+	ulint		line,		/*!< in: line where locked */
+	ulint		delay = 0);	/*!< in: delay for this call */
 /********************************************************************//**
 NOTE! Use the corresponding macro in the header file, not this function
 directly. Tries to lock the mutex for the current thread. If the lock is not
@@ -323,7 +330,8 @@ pfs_mutex_enter_func(
 /*=================*/
 	ib_mutex_t*	mutex,		/*!< in: pointer to mutex */
 	const char*	file_name,	/*!< in: file name where locked */
-	ulint		line);		/*!< in: line where locked */
+	ulint		line,		/*!< in: line where locked */
+	ulint		delay = 0);	/*!< in: delay or 0 for default  */
 /********************************************************************//**
 NOTE! Please use the corresponding macro mutex_enter_nowait(), not directly
 this function!
