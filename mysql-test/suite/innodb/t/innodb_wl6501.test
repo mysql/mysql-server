@@ -355,43 +355,22 @@ create table t1
         (i int, f float, c char(100),
          primary key pk(i), index fidx(f))
         engine = innodb;
-create table t2
-        (i int, f float, c char(100),
-         primary key pk(i), index fidx(f))
-        engine = innodb;
 #
-connect (con1,localhost,root,,);
-connect (con2,localhost,root,,);
-#
-connection con1;
 insert into t1 values
         (1, 1.1, 'a'), (2, 2.2, 'b'), (3, 3.3, 'c'),
         (4, 4.4, 'd'), (5, 5.5, 'e');
 select * from t1;
 set session debug = "+d,ib_trunc_crash_with_intermediate_log_checkpoint";
 --exec echo "restart" > $MYSQLTEST_VARDIR/tmp/mysqld.1.expect
---send truncate table t1;
-#
-connection con2;
-insert into t2 values
-        (1, 1.1, 'a'), (2, 2.2, 'b'), (3, 3.3, 'c'),
-        (4, 4.4, 'd'), (5, 5.5, 'e');
-select * from t2;
-#
-connection con1;
 --error 2013
---reap
-#
-# MySQL server is restarted and so all old connection are already closed.
+truncate table t1;
 #
 --enable_reconnect
 --echo # Restart the MySQL server
 --source include/wait_until_connected_again.inc
 --disable_reconnect
 select * from t1;
-select * from t2;
 drop table t1;
-drop table t2;
 
 #-----------------------------------------------------------------------------
 #
