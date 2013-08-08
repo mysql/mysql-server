@@ -186,6 +186,13 @@ Relay_log_info::~Relay_log_info()
   mysql_mutex_destroy(&pending_jobs_lock);
   mysql_cond_destroy(&pending_jobs_cond);
 
+  if(workers_copy_pfs.size())
+  {
+    for (int i= workers_copy_pfs.size() - 1; i >= 0; i--)
+      delete workers_copy_pfs[i];
+    workers_copy_pfs.clear();
+  }
+
   if(!rli_fake)
   {
     my_atomic_rwlock_destroy(&slave_open_temp_tables_lock);

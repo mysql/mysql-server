@@ -3550,8 +3550,14 @@ sub mysql_install_db {
     if ($extra_opt =~ /--innodb/) {
       mtr_add_arg($args, $extra_opt);
     }
+  # Plugin arguments need to be given to the bootstrap 
+  # process as well as the server process.
+    if ($extra_opt =~ /--default-authentication-plugin/) {
+      mtr_add_arg($args, $extra_opt);
+    }
   }
 
+  # Arguments to bootstrap process.
   foreach my $extra_opt ( @opt_extra_bootstrap_opt ) {
       mtr_add_arg($args, $extra_opt);
   }
