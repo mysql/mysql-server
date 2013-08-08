@@ -326,11 +326,6 @@ static monitor_info_t	innodb_counter_info[] =
 	 MONITOR_SET_MEMBER, MONITOR_FLUSH_BATCH_SCANNED,
 	 MONITOR_FLUSH_BATCH_SCANNED_PER_CALL},
 
-	{"buffer_flush_batch_rescan", "buffer",
-	 "Number of times rescan of flush list forced",
-	 MONITOR_NONE,
-	 MONITOR_DEFAULT_START, MONITOR_FLUSH_HP_RESCAN},
-
 	/* Cumulative counter for pages flushed in flush batches */
 	{"buffer_flush_batch_total_pages", "buffer",
 	 "Total pages flushed as part of flush batch",
@@ -458,20 +453,36 @@ static monitor_info_t	innodb_counter_info[] =
 	 MONITOR_LRU_BATCH_SCANNED_PER_CALL},
 
 	/* Cumulative counter for LRU batch pages flushed */
-	{"buffer_LRU_batch_total_pages", "buffer",
+	{"buffer_LRU_batch_flush_total_pages", "buffer",
 	 "Total pages flushed as part of LRU batches",
-	 MONITOR_SET_OWNER, MONITOR_LRU_BATCH_COUNT,
-	 MONITOR_LRU_BATCH_TOTAL_PAGE},
+	 MONITOR_SET_OWNER, MONITOR_LRU_BATCH_FLUSH_COUNT,
+	 MONITOR_LRU_BATCH_FLUSH_TOTAL_PAGE},
 
-	{"buffer_LRU_batches", "buffer",
+	{"buffer_LRU_batches_flush", "buffer",
 	 "Number of LRU batches",
-	 MONITOR_SET_MEMBER, MONITOR_LRU_BATCH_TOTAL_PAGE,
-	 MONITOR_LRU_BATCH_COUNT},
+	 MONITOR_SET_MEMBER, MONITOR_LRU_BATCH_FLUSH_TOTAL_PAGE,
+	 MONITOR_LRU_BATCH_FLUSH_COUNT},
 
-	{"buffer_LRU_batch_pages", "buffer",
+	{"buffer_LRU_batch_flush_pages", "buffer",
 	 "Pages queued as an LRU batch",
-	 MONITOR_SET_MEMBER, MONITOR_LRU_BATCH_TOTAL_PAGE,
-	 MONITOR_LRU_BATCH_PAGES},
+	 MONITOR_SET_MEMBER, MONITOR_LRU_BATCH_FLUSH_TOTAL_PAGE,
+	 MONITOR_LRU_BATCH_FLUSH_PAGES},
+
+	/* Cumulative counter for LRU batch pages flushed */
+	{"buffer_LRU_batch_evict_total_pages", "buffer",
+	 "Total pages evicted as part of LRU batches",
+	 MONITOR_SET_OWNER, MONITOR_LRU_BATCH_EVICT_COUNT,
+	 MONITOR_LRU_BATCH_EVICT_TOTAL_PAGE},
+
+	{"buffer_LRU_batches_evict", "buffer",
+	 "Number of LRU batches",
+	 MONITOR_SET_MEMBER, MONITOR_LRU_BATCH_EVICT_TOTAL_PAGE,
+	 MONITOR_LRU_BATCH_EVICT_COUNT},
+
+	{"buffer_LRU_batch_evict_pages", "buffer",
+	 "Pages queued as an LRU batch",
+	 MONITOR_SET_MEMBER, MONITOR_LRU_BATCH_EVICT_TOTAL_PAGE,
+	 MONITOR_LRU_BATCH_EVICT_PAGES},
 
 	/* Cumulative counter for single page LRU scans */
 	{"buffer_LRU_single_flush_scanned", "buffer",
