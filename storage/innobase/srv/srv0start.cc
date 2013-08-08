@@ -1849,8 +1849,13 @@ files_checked:
 
 		fil_flush_file_spaces(FIL_TABLESPACE);
 
-		create_log_files_rename(logfilename, dirnamelen,
-					max_flushed_lsn, logfile0);
+		create_log_files_rename(
+			logfilename, dirnamelen, max_flushed_lsn, logfile0);
+#ifdef UNIV_SYNC_DEBUG
+		/* Switch latching order checks on in sync0debug.cc. */
+		sync_check_enable();
+#endif /* UNIV_SYNC_DEBUG */
+
 	} else {
 
 		/* Check if we support the max format that is stamped
@@ -1887,7 +1892,6 @@ files_checked:
 
 			return(srv_init_abort(DB_ERROR));
 		}
-
 
 		/* We always try to do a recovery, even if the database had
 		been shut down normally: this is the normal startup path */
@@ -1966,6 +1970,7 @@ files_checked:
 		    && !recv_sys->found_corrupt_log
 		    && (srv_log_file_size_requested != srv_log_file_size
 			|| srv_n_log_files_found != srv_n_log_files)) {
+
 			/* Prepare to replace the redo log files. */
 
 			if (srv_read_only_mode) {
@@ -1993,6 +1998,7 @@ files_checked:
 
 			/* Flush the old log files. */
 			log_buffer_flush_to_disk();
+
 			/* If innodb_flush_method=O_DSYNC,
 			we need to explicitly flush the log buffers. */
 			fil_flush(SRV_LOG_SPACE_FIRST_ID);
@@ -2008,8 +2014,7 @@ files_checked:
 			RECOVERY_CRASH(3);
 
 			/* Stamp the LSN to the data files. */
-			fil_write_flushed_lsn_to_data_files(
-				max_flushed_lsn, 0);
+			fil_write_flushed_lsn_to_data_files(max_flushed_lsn, 0);
 
 			fil_flush_file_spaces(FIL_TABLESPACE);
 
@@ -2029,18 +2034,26 @@ files_checked:
 
 			srv_log_file_size = srv_log_file_size_requested;
 
-			err = create_log_files(logfilename, dirnamelen,
-					       max_flushed_lsn, logfile0);
+			err = create_log_files(
+				logfilename, dirnamelen, max_flushed_lsn,
+				logfile0);
 
 			if (err != DB_SUCCESS) {
 				return(srv_init_abort(err));
 			}
 
-			create_log_files_rename(logfilename, dirnamelen,
-						max_flushed_lsn, logfile0);
+			create_log_files_rename(
+				logfilename, dirnamelen, max_flushed_lsn,
+				logfile0);
 		}
 
 		srv_startup_is_before_trx_rollback_phase = FALSE;
+
+#ifdef UNIV_SYNC_DEBUG
+		/* Switch latching order checks on in sync0debug.cc */
+		sync_check_enable();
+#endif /* UNIV_SYNC_DEBUG */
+
 		recv_recovery_rollback_active();
 
 		/* It is possible that file_format tag has never
@@ -2072,18 +2085,15 @@ files_checked:
 		return(srv_init_abort(err));
 	}
 
-	/* Will open temp-tablespace and will keep it open till server lifetime */
+	/* Open temp-tablespace and keep it open until shutdown. */
 	fil_open_log_and_system_tablespace_files();
 
 	/* fprintf(stderr, "Max allowed record size %lu\n",
 	page_get_free_space_of_empty() / 2); */
 
-	if (buf_dblwr == NULL) {
-		/* Create the doublewrite buffer to a new tablespace */
-		if (!buf_dblwr_create()) {
-			return(srv_init_abort(DB_ERROR));
-		}
-
+	/* Create the doublewrite buffer to a new tablespace */
+	if (buf_dblwr == NULL && !buf_dblwr_create()) {
+		return(srv_init_abort(DB_ERROR));
 	}
 
 	/* Here the double write buffer has already been created and so

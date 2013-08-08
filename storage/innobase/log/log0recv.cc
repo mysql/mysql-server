@@ -3116,15 +3116,6 @@ void
 recv_recovery_rollback_active(void)
 /*===============================*/
 {
-#ifdef UNIV_SYNC_DEBUG
-	/* Wait for a while so that created threads have time to suspend
-	themselves before we switch the latching order checks on */
-	os_thread_sleep(1000000);
-
-	/* Switch latching order checks on in sync0debug.cc */
-	sync_check_enable();
-#endif /* UNIV_SYNC_DEBUG */
-
 	ut_ad(!recv_writer_thread_active);
 
 	/* We can't start any (DDL) transactions if UNDO logging

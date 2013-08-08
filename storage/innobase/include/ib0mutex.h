@@ -834,7 +834,7 @@ private:
 	@return number of spins */
 	ulint ttas(ulint max_spins, ulint max_delay, ulint i) const UNIV_NOTHROW
 	{
-		ut_ad(i < max_spins);
+		ut_ad(i <= max_spins);
 
 		/* Spin waiting for the lock word to become zero. Note
 		that we do not have to assume that the read access to
@@ -1027,7 +1027,7 @@ struct PolicyMutex
 		PSI_mutex_locker* locker = pfs_begin(&state, name, line);
 #endif /* UNIV_PFS_MUTEX */
 
-		policy().enter(m_impl);
+		policy().enter(m_impl, name, line);
 
 		m_impl.enter(n_spins, n_delay, name, line);
 
@@ -1038,8 +1038,10 @@ struct PolicyMutex
 #endif /* UNIV_PFS_MUTEX */
 	}
 
-	/** Try and lock the mutex, return 0 on SUCCESS and 1 otherwise. */
-	int trylock(const char* name = 0, ulint line = 0) UNIV_NOTHROW
+	/** Try and lock the mutex, return 0 on SUCCESS and 1 otherwise.
+	@param name	filename where locked
+	@param line	line number where locked */
+	int trylock(const char* name, ulint line) UNIV_NOTHROW
 	{
 #ifdef UNIV_PFS_MUTEX
 		/* Note: locker is really an alias for state. That's why
@@ -1057,7 +1059,7 @@ struct PolicyMutex
 
 		if (ret == 0) {
 
-			policy().enter(m_impl);
+			policy().enter(m_impl, name, line);
 
 			policy().locked(m_impl);
 		}

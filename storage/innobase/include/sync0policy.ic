@@ -37,7 +37,8 @@ void TrackPolicy<Mutex>::print(FILE* stream) const
 
 	++ptr;
 
-	fprintf(stream, "Mutex \"%s\" created at %s %lu", m_name, ptr, m_cline);
+	fprintf(stream, "Mutex \"%s\" created at %s:%lu ",
+		m_name, ptr, m_cline);
 }
 
 #ifdef UNIV_DEBUG
@@ -65,7 +66,10 @@ void DebugPolicy<Mutex>::init(
 }
 
 template <typename Mutex>
-void DebugPolicy<Mutex>::enter(const Mutex& mutex) UNIV_NOTHROW
+void DebugPolicy<Mutex>::enter(
+	const Mutex&		mutex,
+	const char*		name,
+	ulint			line) UNIV_NOTHROW
 {
 	if (!m_track) {
 		return;
@@ -77,6 +81,9 @@ void DebugPolicy<Mutex>::enter(const Mutex& mutex) UNIV_NOTHROW
 	if (m_latch.m_mutex == 0) {
 		m_latch.m_mutex = &mutex;
 	}
+
+	m_line = line;
+	m_file_name = name;
 
 	/* Check latch order violation. */
 	sync_check_lock(&m_latch);
@@ -105,6 +112,9 @@ void DebugPolicy<Mutex>::release(const Mutex& mutex) UNIV_NOTHROW
 	ut_ad(is_owned());
 
 	m_thread_id = os_thread_id_t(ULINT_UNDEFINED);
+
+	m_file_name = NULL;
+	m_line = ULINT_UNDEFINED;
 
 	sync_check_unlock(&m_latch);
 }
