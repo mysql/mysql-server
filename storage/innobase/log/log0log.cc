@@ -186,7 +186,7 @@ log_reserve_and_open(
 
 	ut_a(len < log->buf_size / 2);
 loop:
-	mutex_enter(&(log->mutex));
+	log_mutex_enter();
 	ut_ad(!recv_no_log_write);
 
 	/* Calculate an upper limit for the space the string may take in the
@@ -196,7 +196,7 @@ loop:
 
 	if (log->buf_free + len_upper_limit > log->buf_size) {
 
-		mutex_exit(&(log->mutex));
+		log_mutex_exit();
 
 		/* Not enough free space, do a syncronous flush of the log
 		buffer */
@@ -552,7 +552,7 @@ log_calc_max_ages(void)
 	lsn_t		archive_margin;
 	lsn_t		smallest_archive_margin;
 
-	mutex_enter(&(log_sys->mutex));
+	log_mutex_enter();
 
 	group = UT_LIST_GET_FIRST(log_sys->log_groups);
 
@@ -611,7 +611,7 @@ log_calc_max_ages(void)
 	log_sys->max_checkpoint_age = margin;
 
 failure:
-	mutex_exit(&(log_sys->mutex));
+	log_mutex_exit();
 
 	if (!success) {
 		ib_logf(IB_LOG_LEVEL_ERROR,
@@ -643,7 +643,7 @@ log_init(void)
 
 	mutex_create("log_flush_order", &log_sys->log_flush_order_mutex);
 
-	mutex_enter(&(log_sys->mutex));
+	log_mutex_enter();
 
 	/* Start the lsn from one log block from zero: this way every
 	log record has a start lsn != zero, a fact which we will use */
@@ -718,7 +718,7 @@ log_init(void)
 	MONITOR_SET(MONITOR_LSN_CHECKPOINT_AGE,
 		    log_sys->lsn - log_sys->last_checkpoint_lsn);
 
-	mutex_exit(&(log_sys->mutex));
+	log_mutex_exit();
 
 #ifdef UNIV_LOG_DEBUG
 	recv_sys_create();
@@ -930,7 +930,7 @@ log_io_complete(
 		fil_flush(group->space_id);
 	}
 
-	mutex_enter(&(log_sys->mutex));
+	log_mutex_enter();
 	ut_ad(!recv_no_log_write);
 
 	ut_a(group->n_pending_writes > 0);
@@ -945,7 +945,7 @@ log_io_complete(
 
 	log_flush_do_unlocks(unlock);
 
-	mutex_exit(&(log_sys->mutex));
+	log_mutex_exit();
 }
 
 /******************************************************//**
@@ -1170,22 +1170,16 @@ loop:
 #ifdef UNIV_DEBUG
 	loop_count++;
 
-	ut_ad(loop_count < 5);
+	ut_ad(loop_count < 128);
+#endif /* UNUV_DEBUG */
 
-# if 0
-	if (loop_count > 2) {
-		fprintf(stderr, "Log loop count %lu\n", loop_count);
-	}
-# endif
-#endif
-
-	mutex_enter(&(log_sys->mutex));
+	log_mutex_enter();
 	ut_ad(!recv_no_log_write);
 
 	if (flush_to_disk
 	    && log_sys->flushed_to_disk_lsn >= lsn) {
 
-		mutex_exit(&(log_sys->mutex));
+		log_mutex_exit();
 
 		return;
 	}
@@ -1195,7 +1189,7 @@ loop:
 		|| (log_sys->written_to_some_lsn >= lsn
 		    && wait != LOG_WAIT_ALL_GROUPS))) {
 
-		mutex_exit(&(log_sys->mutex));
+		log_mutex_exit();
 
 		return;
 	}
@@ -1219,7 +1213,7 @@ loop:
 			goto do_waits;
 		}
 
-		mutex_exit(&(log_sys->mutex));
+		log_mutex_exit();
 
 		/* Wait for the write to complete and try to start a new
 		write */
@@ -1233,7 +1227,7 @@ loop:
 	    && log_sys->buf_free == log_sys->buf_next_to_write) {
 		/* Nothing to write and no flush to disk requested */
 
-		mutex_exit(&(log_sys->mutex));
+		log_mutex_exit();
 
 		return;
 	}
@@ -1300,7 +1294,7 @@ loop:
 		group = UT_LIST_GET_NEXT(log_groups, group);
 	}
 
-	mutex_exit(&(log_sys->mutex));
+	log_mutex_exit();
 
 	if (srv_unix_file_flush_method == SRV_UNIX_O_DSYNC) {
 		/* O_DSYNC means the OS did not buffer the log file at all:
@@ -1316,7 +1310,7 @@ loop:
 		log_sys->flushed_to_disk_lsn = log_sys->write_lsn;
 	}
 
-	mutex_enter(&(log_sys->mutex));
+	log_mutex_enter();
 
 	group = UT_LIST_GET_FIRST(log_sys->log_groups);
 
@@ -1332,12 +1326,12 @@ loop:
 
 	log_flush_do_unlocks(unlock);
 
-	mutex_exit(&(log_sys->mutex));
+	log_mutex_exit();
 
 	return;
 
 do_waits:
-	mutex_exit(&(log_sys->mutex));
+	log_mutex_exit();
 
 	switch (wait) {
 	case LOG_WAIT_ONE_GROUP:
@@ -1365,11 +1359,11 @@ log_buffer_flush_to_disk(void)
 	lsn_t	lsn;
 
 	ut_ad(!srv_read_only_mode);
-	mutex_enter(&(log_sys->mutex));
+	log_mutex_enter();
 
 	lsn = log_sys->lsn;
 
-	mutex_exit(&(log_sys->mutex));
+	log_mutex_exit();
 
 	log_write_up_to(lsn, LOG_WAIT_ALL_GROUPS, TRUE);
 }
@@ -1387,11 +1381,11 @@ log_buffer_sync_in_background(
 {
 	lsn_t	lsn;
 
-	mutex_enter(&(log_sys->mutex));
+	log_mutex_enter();
 
 	lsn = log_sys->lsn;
 
-	mutex_exit(&(log_sys->mutex));
+	log_mutex_exit();
 
 	log_write_up_to(lsn, LOG_NO_WAIT, flush);
 }
@@ -1408,7 +1402,7 @@ log_flush_margin(void)
 	log_t*	log	= log_sys;
 	lsn_t	lsn	= 0;
 
-	mutex_enter(&(log->mutex));
+	log_mutex_enter();
 
 	if (log->buf_free > log->max_buf_free) {
 
@@ -1420,7 +1414,7 @@ log_flush_margin(void)
 		}
 	}
 
-	mutex_exit(&(log->mutex));
+	log_mutex_exit();
 
 	if (lsn) {
 		log_write_up_to(lsn, LOG_NO_WAIT, FALSE);
@@ -1499,7 +1493,7 @@ void
 log_io_complete_checkpoint(void)
 /*============================*/
 {
-	mutex_enter(&(log_sys->mutex));
+	log_mutex_enter();
 
 	ut_ad(log_sys->n_pending_checkpoint_writes > 0);
 
@@ -1510,7 +1504,7 @@ log_io_complete_checkpoint(void)
 		log_complete_checkpoint();
 	}
 
-	mutex_exit(&(log_sys->mutex));
+	log_mutex_exit();
 }
 
 /*******************************************************************//**
@@ -1773,12 +1767,12 @@ log_checkpoint(
 		fil_flush_file_spaces(FIL_TABLESPACE);
 	}
 
-	mutex_enter(&(log_sys->mutex));
+	log_mutex_enter();
 
 	ut_ad(!recv_no_log_write);
 	oldest_lsn = log_buf_pool_get_oldest_modification();
 
-	mutex_exit(&(log_sys->mutex));
+	log_mutex_exit();
 
 	/* Because log also contains headers and dummy log records,
 	if the buffer pool contains no dirty buffers, oldest_lsn
@@ -1790,12 +1784,12 @@ log_checkpoint(
 
 	log_write_up_to(oldest_lsn, LOG_WAIT_ALL_GROUPS, TRUE);
 
-	mutex_enter(&(log_sys->mutex));
+	log_mutex_enter();
 
 	if (!write_always
 	    && log_sys->last_checkpoint_lsn >= oldest_lsn) {
 
-		mutex_exit(&(log_sys->mutex));
+		log_mutex_exit();
 
 		return(TRUE);
 	}
@@ -1805,7 +1799,7 @@ log_checkpoint(
 	if (log_sys->n_pending_checkpoint_writes > 0) {
 		/* A checkpoint write is running */
 
-		mutex_exit(&(log_sys->mutex));
+		log_mutex_exit();
 
 		if (sync) {
 			/* Wait for the checkpoint write to complete */
@@ -1826,7 +1820,7 @@ log_checkpoint(
 
 	MONITOR_INC(MONITOR_NUM_CHECKPOINT);
 
-	mutex_exit(&(log_sys->mutex));
+	log_mutex_exit();
 
 	if (sync) {
 		/* Wait for the checkpoint write to complete */
@@ -1888,11 +1882,11 @@ loop:
 	do_checkpoint = FALSE;
 	advance = 0;
 
-	mutex_enter(&(log->mutex));
+	log_mutex_enter();
 	ut_ad(!recv_no_log_write);
 
 	if (log->check_flush_or_checkpoint == FALSE) {
-		mutex_exit(&(log->mutex));
+		log_mutex_exit();
 
 		return;
 	}
@@ -1926,7 +1920,7 @@ loop:
 		log->check_flush_or_checkpoint = FALSE;
 	}
 
-	mutex_exit(&(log->mutex));
+	log_mutex_exit();
 
 	if (advance) {
 		lsn_t	new_oldest = oldest_lsn + advance;
@@ -1937,11 +1931,11 @@ loop:
 		and can proceed. If it did not succeed, there was another
 		thread doing a flush at the same time. */
 		if (!success) {
-			mutex_enter(&(log->mutex));
+			log_mutex_enter();
 
 			log->check_flush_or_checkpoint = TRUE;
 
-			mutex_exit(&(log->mutex));
+			log_mutex_exit();
 			goto loop;
 		}
 	}
@@ -2026,17 +2020,17 @@ loop:
 
 	log_checkpoint_margin();
 
-	mutex_enter(&(log_sys->mutex));
+	log_mutex_enter();
 	ut_ad(!recv_no_log_write);
 
 	if (log_sys->check_flush_or_checkpoint) {
 
-		mutex_exit(&(log_sys->mutex));
+		log_mutex_exit();
 
 		goto loop;
 	}
 
-	mutex_exit(&(log_sys->mutex));
+	log_mutex_exit();
 }
 
 /****************************************************************//**
@@ -2169,10 +2163,10 @@ loop:
 		}
 	}
 
-	mutex_enter(&log_sys->mutex);
+	log_mutex_enter();
 	server_busy = log_sys->n_pending_checkpoint_writes
 		      || log_sys->n_pending_writes;
-	mutex_exit(&log_sys->mutex);
+	log_mutex_exit();
 
 	if (server_busy) {
 		if (srv_print_verbose_log && count > 600) {
@@ -2245,21 +2239,21 @@ loop:
 		log_make_checkpoint_at(LSN_MAX, TRUE);
 	}
 
-	mutex_enter(&log_sys->mutex);
+	log_mutex_enter();
 
 	lsn = log_sys->lsn;
 
 	if (lsn != log_sys->last_checkpoint_lsn
 	    ) {
 
-		mutex_exit(&log_sys->mutex);
+		log_mutex_exit();
 
 		goto loop;
 	}
 
 	arch_log_no = 0;
 
-	mutex_exit(&log_sys->mutex);
+	log_mutex_exit();
 
 	/* Check that the background threads stay suspended */
 	thread_name = srv_any_background_threads_are_active();
@@ -2394,7 +2388,7 @@ log_peek_lsn(
 	if (0 == mutex_enter_nowait(&(log_sys->mutex))) {
 		*lsn = log_sys->lsn;
 
-		mutex_exit(&(log_sys->mutex));
+		log_mutex_exit();
 
 		return(TRUE);
 	}
@@ -2413,7 +2407,7 @@ log_print(
 	double	time_elapsed;
 	time_t	current_time;
 
-	mutex_enter(&(log_sys->mutex));
+	log_mutex_enter();
 
 	fprintf(file,
 		"Log sequence number " LSN_PF "\n"
@@ -2446,7 +2440,7 @@ log_print(
 	log_sys->n_log_ios_old = log_sys->n_log_ios;
 	log_sys->last_printout_time = current_time;
 
-	mutex_exit(&(log_sys->mutex));
+	log_mutex_exit();
 }
 
 /**********************************************************************//**
