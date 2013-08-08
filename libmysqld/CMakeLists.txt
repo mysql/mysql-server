@@ -22,6 +22,7 @@ INCLUDE_DIRECTORIES(
   ${CMAKE_SOURCE_DIR}/libmysqld
   ${CMAKE_SOURCE_DIR}/sql
   ${CMAKE_SOURCE_DIR}/sql/auth
+  ${CMAKE_SOURCE_DIR}/sql/conn_handler
   ${CMAKE_BINARY_DIR}/sql 
   ${CMAKE_SOURCE_DIR}/regex
   ${ZLIB_INCLUDE_DIR}
