@@ -62,6 +62,8 @@ Created 11/5/1995 Heikki Tuuri
 #include "page0zip.h"
 #include "buf0checksum.h"
 
+#include <new>
+
 /*
 		IMPLEMENTATION OF THE BUFFER POOL
 		=================================
@@ -1447,6 +1449,19 @@ buf_pool_init_instance(
 
 	buf_pool->try_LRU_scan = TRUE;
 
+	/* Initialize the hazard pointer for flush_list batches */
+	new(&buf_pool->flush_hp)
+		FlushHp(buf_pool, &buf_pool->flush_list_mutex);
+
+	/* Initialize the hazard pointer for LRU batches */
+	new(&buf_pool->lru_hp) LRUHp(buf_pool, &buf_pool->mutex);
+
+	/* Initialize the iterator for LRU scan search */
+	new(&buf_pool->lru_scan_itr) LRUItr(buf_pool, &buf_pool->mutex);
+
+	/* Initialize the iterator for single page scan search */
+	new(&buf_pool->single_scan_itr) LRUItr(buf_pool, &buf_pool->mutex);
+
 	buf_pool_mutex_exit(buf_pool);
 
 	return(DB_SUCCESS);
@@ -1653,6 +1668,10 @@ buf_relocate(
 
 	memcpy(dpage, bpage, sizeof *dpage);
 
+	/* Important that we adjust the hazard pointer before
+	removing bpage from LRU list. */
+	buf_LRU_adjust_hp(buf_pool, bpage);
+
 	ut_d(bpage->in_LRU_list = FALSE);
 	ut_d(bpage->in_page_hash = FALSE);
 
@@ -1660,7 +1679,7 @@ buf_relocate(
 	b = UT_LIST_GET_PREV(LRU, bpage);
 	UT_LIST_REMOVE(buf_pool->LRU, bpage);
 
-	if (b) {
+	if (b != NULL) {
 		UT_LIST_INSERT_AFTER(buf_pool->LRU, b, dpage);
 	} else {
 		UT_LIST_ADD_FIRST(buf_pool->LRU, dpage);
@@ -1688,6 +1707,84 @@ buf_relocate(
 	/* relocate buf_pool->page_hash */
 	HASH_DELETE(buf_page_t, hash, buf_pool->page_hash, fold, bpage);
 	HASH_INSERT(buf_page_t, hash, buf_pool->page_hash, fold, dpage);
+}
+
+/** Hazard Pointer implementation. */
+
+/** Set current value
+@param bpage	buffer block to be set as hp */
+void
+HazardPointer::set(buf_page_t* bpage)
+{
+	ut_ad(mutex_own(m_mutex));
+	ut_ad(!bpage || buf_pool_from_bpage(bpage) == m_buf_pool);
+	ut_ad(!bpage || buf_page_in_file(bpage));
+
+	m_hp = bpage;
+}
+
+/** Checks if a bpage is the hp
+@param bpage    buffer block to be compared
+@return true if it is hp */
+
+bool
+HazardPointer::is_hp(const buf_page_t* bpage)
+{
+	ut_ad(mutex_own(m_mutex));
+	ut_ad(!m_hp || buf_pool_from_bpage(m_hp) == m_buf_pool);
+	ut_ad(!bpage || buf_pool_from_bpage(bpage) == m_buf_pool);
+
+	return(bpage == m_hp);
+}
+
+/** Adjust the value of hp. This happens when some other thread working
+on the same list attempts to remove the hp from the list.
+@param bpage	buffer block to be compared */
+
+void
+FlushHp::adjust(const buf_page_t* bpage)
+{
+	ut_ad(bpage != NULL);
+
+	/** We only support reverse traversal for now. */
+	if (is_hp(bpage)) {
+		m_hp = UT_LIST_GET_PREV(list, m_hp);
+	}
+
+	ut_ad(!m_hp || m_hp->in_flush_list);
+}
+
+/** Adjust the value of hp. This happens when some other thread working
+on the same list attempts to remove the hp from the list.
+@param bpage	buffer block to be compared */
+
+void
+LRUHp::adjust(const buf_page_t* bpage)
+{
+	ut_ad(bpage);
+
+	/** We only support reverse traversal for now. */
+	if (is_hp(bpage)) {
+		m_hp = UT_LIST_GET_PREV(LRU, m_hp);
+	}
+
+	ut_ad(!m_hp || m_hp->in_LRU_list);
+}
+
+/** Selects from where to start a scan. If we have scanned too deep into
+the LRU list it resets the value to the tail of the LRU list.
+@return buf_page_t from where to start scan. */
+
+buf_page_t*
+LRUItr::start()
+{
+	ut_ad(mutex_own(m_mutex));
+
+	if (!m_hp || m_hp->old) {
+		m_hp = UT_LIST_GET_LAST(m_buf_pool->LRU);
+	}
+
+	return(m_hp);
 }
 
 /********************************************************************//**
@@ -4045,7 +4142,10 @@ the buffer pool.
 bool
 buf_page_io_complete(
 /*=================*/
-	buf_page_t*	bpage)	/*!< in: pointer to the block in question */
+	buf_page_t*	bpage,	/*!< in: pointer to the block in question */
+	bool		evict)	/*!< in: whether or not to evict the page
+				from LRU list. */
+
 {
 	enum buf_io_fix	io_type;
 	buf_pool_t*	buf_pool = buf_pool_from_bpage(bpage);
@@ -4229,6 +4329,7 @@ corrupt:
 	id. */
 
 	buf_page_set_io_fix(bpage, BUF_IO_NONE);
+	buf_page_monitor(bpage, io_type);
 
 	switch (io_type) {
 	case BUF_IO_READ:
@@ -4245,6 +4346,8 @@ corrupt:
 					     BUF_IO_READ);
 		}
 
+		mutex_exit(buf_page_get_mutex(bpage));
+
 		break;
 
 	case BUF_IO_WRITE:
@@ -4260,19 +4363,34 @@ corrupt:
 
 		buf_pool->stat.n_pages_written++;
 
+		/* We decide whether or not to evict the page from the
+		LRU list based on the flush_type.
+		* BUF_FLUSH_LIST: don't evict
+		* BUF_FLUSH_LRU: always evict
+		* BUF_FLUSH_SINGLE_PAGE: eviction preference is passed
+		by the caller explicitly. */
+		if (buf_page_get_flush_type(bpage) == BUF_FLUSH_LRU) {
+			evict = true;
+		}
+
+		if (evict) {
+			mutex_exit(buf_page_get_mutex(bpage));
+			buf_LRU_free_page(bpage, true);
+		} else {
+			mutex_exit(buf_page_get_mutex(bpage));
+		}
+
 		break;
 
 	default:
 		ut_error;
 	}
 
-	buf_page_monitor(bpage, io_type);
 
 	DBUG_PRINT("ib_buf", ("%s page %u:%u",
 			      io_type == BUF_IO_READ ? "read" : "wrote",
 			      bpage->space, bpage->offset));
 
-	mutex_exit(buf_page_get_mutex(bpage));
 	buf_pool_mutex_exit(buf_pool);
 
 	return(true);
@@ -4353,7 +4471,7 @@ buf_pool_invalidate_instance(
 
 	buf_pool_mutex_enter(buf_pool);
 
-	while (buf_LRU_scan_and_free_block(buf_pool, TRUE)) {
+	while (buf_LRU_scan_and_free_block(buf_pool, true)) {
 	}
 
 	ut_ad(UT_LIST_GET_LEN(buf_pool->LRU) == 0);
@@ -4915,10 +5033,9 @@ ulint
 buf_get_n_pending_read_ios(void)
 /*============================*/
 {
-	ulint	i;
 	ulint	pend_ios = 0;
 
-	for (i = 0; i < srv_buf_pool_instances; i++) {
+	for (ulint i = 0; i < srv_buf_pool_instances; i++) {
 		pend_ios += buf_pool_from_array(i)->n_pend_reads;
 	}
 
