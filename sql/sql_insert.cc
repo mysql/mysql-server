@@ -783,14 +783,23 @@ bool mysql_insert(THD *thd,TABLE_LIST *table_list,
   */
   {
     table->file->ha_release_auto_increment();
-    if (thd->locked_tables_mode <= LTM_LOCK_TABLES && !error &&
-        (error= table->file->ha_end_bulk_insert()))
+    /*
+      Make sure 'end_bulk_insert()' is called regardless of current error
+    */
+    int loc_error= 0;
+    if (thd->locked_tables_mode <= LTM_LOCK_TABLES)
+      loc_error= table->file->ha_end_bulk_insert();
+    /*
+      Report error if 'end_bulk_insert()' failed, and set 'error' to 1
+    */
+    if (loc_error && !error)
     {
       myf error_flags= MYF(0);
-      if (table->file->is_fatal_error(error, HA_CHECK_DUP_KEY))
+      if (table->file->is_fatal_error(loc_error, HA_CHECK_DUP_KEY))
         error_flags|= ME_FATALERROR;
 
-      table->file->print_error(error, error_flags);
+      table->file->print_error(loc_error, error_flags);
+      error= 1;
     }
     if (duplic != DUP_ERROR || ignore)
       table->file->extra(HA_EXTRA_NO_IGNORE_DUP_KEY);
