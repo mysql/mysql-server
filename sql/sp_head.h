@@ -36,6 +36,17 @@ class sp_instr;
 class sp_branch_instr;
 class sp_lex_branch_instr;
 
+/**
+  Number of PSI_statement_info instruments
+  for internal stored programs statements.
+*/
+#define SP_PSI_STATEMENT_INFO_COUNT 16
+
+#ifdef HAVE_PSI_INTERFACE
+void init_sp_psi_keys(void);
+#endif
+
+
 ///////////////////////////////////////////////////////////////////////////
 
 /**
@@ -481,6 +492,11 @@ public:
 
   /// Stored program flags.
   uint m_flags;
+
+  /**
+    Instrumentation interface for SP.
+  */
+  PSI_sp_share *m_sp_share;
 
   /**
     Definition of the RETURN-field (from the RETURNS-clause).
