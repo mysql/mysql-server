@@ -352,7 +352,6 @@ struct SyncDebug {
 	/** Enable checking */
 	void enable() UNIV_NOTHROW
 	{
-		ut_a(!m_enabled);
 		m_enabled = true;
 	}
 
@@ -1389,5 +1388,9 @@ Enable sync order checking. */
 void
 sync_check_enable()
 {
+	/* Wait for a while so that created threads have time to suspend
+	themselves before we switch the latching order checks on */
+	os_thread_sleep(1000000);
+
 	syncDebug.enable();
 }

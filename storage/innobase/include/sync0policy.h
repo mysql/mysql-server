@@ -40,7 +40,7 @@ struct NoPolicy {
 
 	void init(const Mutex&, const char*, const char*, int) UNIV_NOTHROW { }
 	void destroy() UNIV_NOTHROW { }
-	void enter(const Mutex&) UNIV_NOTHROW { }
+	void enter(const Mutex&, const char*, ulint lineno) UNIV_NOTHROW { }
 	void locked(const Mutex&) UNIV_NOTHROW { }
 	void release(const Mutex&) UNIV_NOTHROW { }
 	void print(FILE* stream) const { };
@@ -72,7 +72,7 @@ struct TrackPolicy {
 	/** Called when the mutex is destroyed. */
 	void destroy() UNIV_NOTHROW { }
 
-	void enter(const Mutex&) UNIV_NOTHROW { }
+	void enter(const Mutex&, const char*, ulint lineno) UNIV_NOTHROW { }
 	void locked(const Mutex&) UNIV_NOTHROW { }
 	void release(const Mutex&) UNIV_NOTHROW { }
 
@@ -151,7 +151,8 @@ struct DebugPolicy : public TrackPolicy<Mutex> {
 		const char*	filename,
 		ulint		line) UNIV_NOTHROW;
 
-	virtual void enter(const Mutex&) UNIV_NOTHROW;
+	virtual void enter(const Mutex&, const char*, ulint lineno)
+		UNIV_NOTHROW;
 
 	virtual void locked(const Mutex&) UNIV_NOTHROW;
 
