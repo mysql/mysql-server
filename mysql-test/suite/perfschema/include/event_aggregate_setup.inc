@@ -87,6 +87,8 @@ drop table if exists test.t1;
 --enable_warnings
 
 create table test.t1(a varchar(64));
+create function test.f(a int, b int) returns int
+return a+b;
 
 create table test.setup_actors as
   select * from performance_schema.setup_actors;
@@ -126,7 +128,8 @@ update performance_schema.setup_instruments set enabled='YES', timed='YES'
                  'statement/com/',
                  'statement/com/Query',
                  'statement/com/Quit',
-                 'statement/com/error');
+                 'statement/com/error',
+                 'statement/sp/freturn');
 
 # Start from a known clean state, to avoid noise from previous tests
 flush tables;
@@ -295,7 +298,8 @@ prepare dump_statements_account from
   and event_name in ('statement/sql/select',
                      'statement/sql/insert',
                      'statement/com/Quit',
-                     'statement/com/error')
+                     'statement/com/error',
+                     'statement/sp/freturn')
   order by user, host, event_name;";
 
 prepare dump_statements_user from
@@ -305,7 +309,8 @@ prepare dump_statements_user from
   and event_name in ('statement/sql/select',
                      'statement/sql/insert',
                      'statement/com/Quit',
-                     'statement/com/error')
+                     'statement/com/error',
+                     'statement/sp/freturn')
   order by user, event_name;";
 
 prepare dump_statements_host from
@@ -315,7 +320,8 @@ prepare dump_statements_host from
   and event_name in ('statement/sql/select',
                      'statement/sql/insert',
                      'statement/com/Quit',
-                     'statement/com/error')
+                     'statement/com/error',
+                     'statement/sp/freturn')
   order by host, event_name;";
 
 prepare dump_statements_global from
@@ -324,7 +330,8 @@ prepare dump_statements_global from
   where event_name in ('statement/sql/select',
                        'statement/sql/insert',
                        'statement/com/Quit',
-                       'statement/com/error')
+                       'statement/com/error',
+                       'statement/sp/freturn')
   order by event_name;";
 
 prepare dump_statements_history from
@@ -333,7 +340,8 @@ prepare dump_statements_history from
   where event_name in ('statement/sql/select',
                        'statement/sql/insert',
                        'statement/com/Quit',
-                       'statement/com/error')
+                       'statement/com/error',
+                       'statement/sp/freturn')
   group by event_name order by event_name;";
 
 prepare dump_users from

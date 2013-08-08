@@ -41,6 +41,32 @@
 #include "global_threads.h"
 
 #include <my_user.h>           // parse_user
+#include "mysql/psi/mysql_statement.h"
+#include "mysql/psi/mysql_sp.h"
+
+#ifdef HAVE_PSI_INTERFACE
+void init_sp_psi_keys()
+{
+  const char *category= "sp";
+
+  PSI_server->register_statement(category, & sp_instr_stmt::psi_info, 1);
+  PSI_server->register_statement(category, & sp_instr_set::psi_info, 1);
+  PSI_server->register_statement(category, & sp_instr_set_trigger_field::psi_info, 1);
+  PSI_server->register_statement(category, & sp_instr_jump::psi_info, 1);
+  PSI_server->register_statement(category, & sp_instr_jump_if_not::psi_info, 1);
+  PSI_server->register_statement(category, & sp_instr_freturn::psi_info, 1);
+  PSI_server->register_statement(category, & sp_instr_hpush_jump::psi_info, 1);
+  PSI_server->register_statement(category, & sp_instr_hpop::psi_info, 1);
+  PSI_server->register_statement(category, & sp_instr_hreturn::psi_info, 1);
+  PSI_server->register_statement(category, & sp_instr_cpush::psi_info, 1);
+  PSI_server->register_statement(category, & sp_instr_cpop::psi_info, 1);
+  PSI_server->register_statement(category, & sp_instr_copen::psi_info, 1);
+  PSI_server->register_statement(category, & sp_instr_cclose::psi_info, 1);
+  PSI_server->register_statement(category, & sp_instr_cfetch::psi_info, 1);
+  PSI_server->register_statement(category, & sp_instr_error::psi_info, 1);
+  PSI_server->register_statement(category, & sp_instr_set_case_expr::psi_info, 1);
+}
+#endif
 
 /**
   SP_TABLE represents all instances of one table in an optimized multi-set of
@@ -710,7 +736,24 @@ bool sp_head::execute(THD *thd, bool merge_da_on_success)
     if (thd->locked_tables_mode <= LTM_LOCK_TABLES)
       thd->user_var_events_alloc= thd->mem_root;
 
+#ifdef HAVE_PSI_STATEMENT_INTERFACE
+    PSI_statement_locker_state state;
+    PSI_statement_locker *parent_locker;
+    PSI_statement_info *psi_info = i->get_psi_info();
+
+    parent_locker= thd->m_statement_psi;
+    thd->m_statement_psi= MYSQL_START_STATEMENT(& state, psi_info->m_key,
+                                                thd->db, thd->db_length,
+                                                thd->charset(),
+                                                this->m_sp_share);
+#endif
+
     err_status= i->execute(thd, &ip);
+
+#ifdef HAVE_PSI_STATEMENT_INTERFACE
+    MYSQL_END_STATEMENT(thd->m_statement_psi, thd->get_stmt_da());
+    thd->m_statement_psi= parent_locker;
+#endif
 
     if (i->free_list)
       cleanup_items(i->free_list);
@@ -973,7 +1016,16 @@ bool sp_head::execute_trigger(THD *thd,
   trigger_runtime_ctx->sp= this;
   thd->sp_runtime_ctx= trigger_runtime_ctx;
 
+#ifdef HAVE_PSI_SP_INTERFACE
+  PSI_sp_locker_state state;
+  PSI_sp_locker *locker;
+
+  locker= MYSQL_START_SP(&state, m_sp_share);
+#endif
   err_status= execute(thd, FALSE);
+#ifdef HAVE_PSI_SP_INTERFACE
+  MYSQL_END_SP(locker);
+#endif
 
 err_with_cleanup:
   thd->restore_active_arena(&call_arena, &backup_arena);
@@ -1173,7 +1225,16 @@ bool sp_head::execute_function(THD *thd, Item **argp, uint argcount,
   */
   thd->set_n_backup_active_arena(&call_arena, &backup_arena);
 
+#ifdef HAVE_PSI_SP_INTERFACE
+  PSI_sp_locker_state state;
+  PSI_sp_locker *locker;
+
+  locker= MYSQL_START_SP(&state, m_sp_share);
+#endif
   err_status= execute(thd, TRUE);
+#ifdef HAVE_PSI_SP_INTERFACE
+  MYSQL_END_SP(locker);
+#endif
 
   thd->restore_active_arena(&call_arena, &backup_arena);
 
@@ -1390,8 +1451,17 @@ bool sp_head::execute_procedure(THD *thd, List<Item> *args)
 
   opt_trace_disable_if_no_stored_proc_func_access(thd, this);
 
+#ifdef HAVE_PSI_SP_INTERFACE
+  PSI_sp_locker_state state;
+  PSI_sp_locker *locker;
+
+  locker= MYSQL_START_SP(&state, m_sp_share);
+#endif
   if (!err_status)
     err_status= execute(thd, TRUE);
+#ifdef HAVE_PSI_SP_INTERFACE
+  MYSQL_END_SP(locker);
+#endif
 
   if (save_log_general)
     thd->variables.option_bits &= ~OPTION_LOG_OFF;

@@ -513,7 +513,7 @@ MVCC::view_release(ReadView*& view)
 	ut_ad(!srv_read_only_mode);
 	ut_ad(trx_sys_mutex_own());
 
-	intptr_t	p = reinterpret_cast<intptr_t>(view);
+	uintptr_t	p = reinterpret_cast<uintptr_t>(view);
 
 	ut_a(p & 0x1);
 
@@ -547,7 +547,7 @@ MVCC::view_open(ReadView*& view, trx_t* trx)
 	was created then reuse the the existing view. */
 	if (view != NULL) {
 
-		intptr_t	p = reinterpret_cast<intptr_t>(view);
+		uintptr_t	p = reinterpret_cast<uintptr_t>(view);
 
 		view = reinterpret_cast<ReadView*>(p & ~1);
 
@@ -736,16 +736,21 @@ Close a view created by the above function.
 void
 MVCC::view_close(ReadView*& view, bool own_mutex)
 {
-	intptr_t	p = reinterpret_cast<intptr_t>(view);
+	uintptr_t	p = reinterpret_cast<uintptr_t>(view);
 
 	/* Note: The assumption here is that AC-NL-RO transactions will
 	call this function with own_mutex == false. */
 	if (!own_mutex) {
-		ut_ad(view->m_creator_trx_id == 0);
+		/* Sanitise the pointer first. */
+		ReadView*	ptr = reinterpret_cast<ReadView*>(p & ~1);
+
+		ut_ad(ptr->m_creator_trx_id == 0);
 
 		/* Note this can be called for a read view that
 		was already closed. */
-		view->m_closed = true;
+		ptr->m_closed = true;
+
+		/* Set the view as closed. */
 		view = reinterpret_cast<ReadView*>(p | 0x1);
 	} else {
 		view = reinterpret_cast<ReadView*>(p & ~1);
