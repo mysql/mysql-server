@@ -1108,6 +1108,12 @@ static monitor_info_t	innodb_counter_info[] =
 	 MONITOR_EXISTING | MONITOR_DEFAULT_ON),
 	 MONITOR_DEFAULT_START, MONITOR_OVLD_RWLOCK_X_SPIN_WAITS},
 
+	{"innodb_rwlock_sx_spin_waits", "server",
+	 "Number of rwlock spin waits due to sx latch request",
+	 static_cast<monitor_type_t>(
+	 MONITOR_EXISTING | MONITOR_DEFAULT_ON),
+	 MONITOR_DEFAULT_START, MONITOR_OVLD_RWLOCK_SX_SPIN_WAITS},
+
 	{"innodb_rwlock_s_spin_rounds", "server",
 	 "Number of rwlock spin loop rounds due to shared latch request",
 	 static_cast<monitor_type_t>(
@@ -1120,6 +1126,12 @@ static monitor_info_t	innodb_counter_info[] =
 	 MONITOR_EXISTING | MONITOR_DEFAULT_ON),
 	 MONITOR_DEFAULT_START, MONITOR_OVLD_RWLOCK_X_SPIN_ROUNDS},
 
+	{"innodb_rwlock_sx_spin_rounds", "server",
+	 "Number of rwlock spin loop rounds due to sx latch request",
+	 static_cast<monitor_type_t>(
+	 MONITOR_EXISTING | MONITOR_DEFAULT_ON),
+	 MONITOR_DEFAULT_START, MONITOR_OVLD_RWLOCK_SX_SPIN_ROUNDS},
+
 	{"innodb_rwlock_s_os_waits", "server",
 	 "Number of OS waits due to shared latch request",
 	 static_cast<monitor_type_t>(
@@ -1131,6 +1143,12 @@ static monitor_info_t	innodb_counter_info[] =
 	 static_cast<monitor_type_t>(
 	 MONITOR_EXISTING | MONITOR_DEFAULT_ON),
 	 MONITOR_DEFAULT_START, MONITOR_OVLD_RWLOCK_X_OS_WAITS},
+
+	{"innodb_rwlock_sx_os_waits", "server",
+	 "Number of OS waits due to sx latch request",
+	 static_cast<monitor_type_t>(
+	 MONITOR_EXISTING | MONITOR_DEFAULT_ON),
+	 MONITOR_DEFAULT_START, MONITOR_OVLD_RWLOCK_SX_OS_WAITS},
 
 	/* ========== Counters for DML operations ========== */
 	{"module_dml", "dml", "Statistics for DMLs",
@@ -1636,6 +1654,10 @@ srv_mon_process_existing_counter(
 		value = rw_lock_stats.rw_x_spin_wait_count;
 		break;
 
+	case MONITOR_OVLD_RWLOCK_SX_SPIN_WAITS:
+		value = rw_lock_stats.rw_sx_spin_wait_count;
+		break;
+
 	case MONITOR_OVLD_RWLOCK_S_SPIN_ROUNDS:
 		value = rw_lock_stats.rw_s_spin_round_count;
 		break;
@@ -1644,12 +1666,20 @@ srv_mon_process_existing_counter(
 		value = rw_lock_stats.rw_x_spin_round_count;
 		break;
 
+	case MONITOR_OVLD_RWLOCK_SX_SPIN_ROUNDS:
+		value = rw_lock_stats.rw_sx_spin_round_count;
+		break;
+
 	case MONITOR_OVLD_RWLOCK_S_OS_WAITS:
 		value = rw_lock_stats.rw_s_os_wait_count;
 		break;
 
 	case MONITOR_OVLD_RWLOCK_X_OS_WAITS:
 		value = rw_lock_stats.rw_x_os_wait_count;
+		break;
+
+	case MONITOR_OVLD_RWLOCK_SX_OS_WAITS:
+		value = rw_lock_stats.rw_sx_os_wait_count;
 		break;
 
 	case MONITOR_OVLD_BUFFER_POOL_SIZE:

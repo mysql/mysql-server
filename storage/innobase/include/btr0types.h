@@ -195,6 +195,10 @@ The reference is stored at the end of the prefix of the field
 in the index record. */
 #define BTR_EXTERN_FIELD_REF_SIZE	20
 
+/** If the data don't exceed the size, the data are stored locally. */
+#define BTR_EXTERN_LOCAL_STORED_MAX_SIZE	\
+	(BTR_EXTERN_FIELD_REF_SIZE * 2)
+
 /** A BLOB field reference full of zero, for use in assertions and tests.
 Initially, BLOB field references are set to zero, in
 dtuple_convert_big_rec(). */

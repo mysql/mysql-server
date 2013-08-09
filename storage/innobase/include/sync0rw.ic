@@ -116,7 +116,7 @@ rw_lock_reset_waiter_flag(
 /******************************************************************//**
 Returns the write-status of the lock - this function made more sense
 with the old rw_lock implementation.
-@return RW_LOCK_NOT_LOCKED, RW_LOCK_EX, RW_LOCK_WAIT_EX */
+@return RW_LOCK_NOT_LOCKED, RW_LOCK_EX, RW_LOCK_WAIT_EX, RW_LOCK_SX */
 UNIV_INLINE
 ulint
 rw_lock_get_writer(
@@ -124,20 +124,30 @@ rw_lock_get_writer(
 	const rw_lock_t*	lock)	/*!< in: rw-lock */
 {
 	lint lock_word = lock->lock_word;
-	if (lock_word > 0) {
+
+	ut_ad(lock_word <= X_LOCK_DECR);
+	if (lock_word > X_LOCK_HALF_DECR) {
 		/* return NOT_LOCKED in s-lock state, like the writer
 		member of the old lock implementation. */
 		return(RW_LOCK_NOT_LOCKED);
-	} else if ((lock_word == 0) || (lock_word <= -X_LOCK_DECR)) {
+	} else if (lock_word > 0) {
+		/* sx-locked, no x-locks */
+		return(RW_LOCK_SX);
+	} else if ((lock_word == 0)
+		   || (lock_word == -X_LOCK_HALF_DECR)
+		   || (lock_word <= -X_LOCK_DECR)) {
+		/* x-lock with sx-lock is also treated as RW_LOCK_EX */
 		return(RW_LOCK_EX);
 	} else {
-		ut_ad(lock_word > -X_LOCK_DECR);
+		/* x-waiter with sx-lock is also treated as RW_LOCK_WAIT_EX
+		e.g. -X_LOCK_HALF_DECR < lock_word < 0 : without sx
+		     -X_LOCK_DECR < lock_word < -X_LOCK_HALF_DECR : with sx */
 		return(RW_LOCK_WAIT_EX);
 	}
 }
 
 /******************************************************************//**
-Returns the number of readers.
+Returns the number of readers (s-locks).
 @return number of readers */
 UNIV_INLINE
 ulint
@@ -146,13 +156,28 @@ rw_lock_get_reader_count(
 	const rw_lock_t*	lock)	/*!< in: rw-lock */
 {
 	lint lock_word = lock->lock_word;
-	if (lock_word > 0) {
-		/* s-locked, no x-waiters */
+	ut_ad(lock_word <= X_LOCK_DECR);
+
+	if (lock_word > X_LOCK_HALF_DECR) {
+		/* s-locked, no x-waiter */
 		return(X_LOCK_DECR - lock_word);
-	} else if (lock_word < 0 && lock_word > -X_LOCK_DECR) {
-		/* s-locked, with x-waiters */
+	} else if (lock_word > 0) {
+		/* s-locked, with sx-locks only */
+		return(X_LOCK_HALF_DECR - lock_word);
+	} else if (lock_word == 0) {
+		/* x-locked */
+		return(0);
+	} else if (lock_word > -X_LOCK_HALF_DECR) {
+		/* s-locked, with x-waiter */
 		return((ulint)(-lock_word));
+	} else if (lock_word == -X_LOCK_HALF_DECR) {
+		/* x-locked with sx-locks */
+		return(0);
+	} else if (lock_word > -X_LOCK_DECR) {
+		/* s-locked, with x-waiter and sx-lock */
+		return((ulint)(-(lock_word + X_LOCK_HALF_DECR)));
 	}
+	/* no s-locks */
 	return(0);
 }
 
@@ -178,10 +203,55 @@ rw_lock_get_x_lock_count(
 	const rw_lock_t*	lock)	/*!< in: rw-lock */
 {
 	lint lock_copy = lock->lock_word;
-	if ((lock_copy != 0) && (lock_copy > -X_LOCK_DECR)) {
+	ut_ad(lock_copy <= X_LOCK_DECR);
+
+	if (lock_copy == 0 || lock_copy == -X_LOCK_HALF_DECR) {
+		/* "1 x-lock" or "1 x-lock + sx-locks" */
+		return(1);
+	} else if (lock_copy > -X_LOCK_DECR) {
+		/* s-locks, one or more sx-locks if > 0, or x-waiter if < 0 */
 		return(0);
+	} else if (lock_copy > -(X_LOCK_DECR + X_LOCK_HALF_DECR)) {
+		/* no s-lock, no sx-lock, 2 or more x-locks.
+		First 2 x-locks are set with -X_LOCK_DECR,
+		all other recursive x-locks are set with -1 */
+		return(2 - (lock_copy + X_LOCK_DECR));
+	} else {
+		/* no s-lock, 1 or more sx-lock, 2 or more x-locks.
+		First 2 x-locks are set with -(X_LOCK_DECR + X_LOCK_HALF_DECR),
+		all other recursive x-locks are set with -1 */
+		return(2 - (lock_copy + X_LOCK_DECR + X_LOCK_HALF_DECR));
 	}
-	return((lock_copy == 0) ? 1 : (2 - (lock_copy + X_LOCK_DECR)));
+}
+
+/******************************************************************//**
+Returns the number of sx-lock for the lock. Does not reserve the lock
+mutex, so the caller must be sure it is not changed during the call.
+@return value of sx-lock count */
+UNIV_INLINE
+ulint
+rw_lock_get_sx_lock_count(
+/*======================*/
+	const rw_lock_t*	lock)	/*!< in: rw-lock */
+{
+#ifdef UNIV_DEBUG
+	lint lock_copy = lock->lock_word;
+
+	ut_ad(lock_copy <= X_LOCK_DECR);
+
+	while (lock_copy < 0) {
+		lock_copy += X_LOCK_DECR;
+	}
+
+	if (lock_copy > 0
+	    && lock_copy <= X_LOCK_HALF_DECR) {
+		return(lock->sx_recursive);
+	}
+
+	return(0);
+#else /* UNIV_DEBUG */
+	return(lock->sx_recursive);
+#endif /* UNIV_DEBUG */
 }
 
 /******************************************************************//**
@@ -190,31 +260,32 @@ one for systems supporting atomic operations, one for others. This does
 does not support recusive x-locks: they should be handled by the caller and
 need not be atomic since they are performed by the current lock holder.
 Returns true if the decrement was made, false if not.
-@return TRUE if decr occurs */
+@return true if decr occurs */
 UNIV_INLINE
-ibool
+bool
 rw_lock_lock_word_decr(
 /*===================*/
 	rw_lock_t*	lock,		/*!< in/out: rw-lock */
-	ulint		amount)		/*!< in: amount to decrement */
+	ulint		amount,		/*!< in: amount to decrement */
+	lint		threshold)	/*!< in: threshold of judgement */
 {
 #ifdef INNODB_RW_LOCKS_USE_ATOMICS
 	lint local_lock_word = lock->lock_word;
-	while (local_lock_word > 0) {
+	while (local_lock_word > threshold) {
 		if (os_compare_and_swap_lint(&lock->lock_word,
 					     local_lock_word,
 					     local_lock_word - amount)) {
-			return(TRUE);
+			return(true);
 		}
 		local_lock_word = lock->lock_word;
 	}
-	return(FALSE);
+	return(false);
 #else /* INNODB_RW_LOCKS_USE_ATOMICS */
-	ibool success = FALSE;
+	bool success = false;
 	mutex_enter(&(lock->mutex));
-	if (lock->lock_word > 0) {
+	if (lock->lock_word > threshold) {
 		lock->lock_word -= amount;
-		success = TRUE;
+		success = true;
 	}
 	mutex_exit(&(lock->mutex));
 	return(success);
@@ -261,7 +332,7 @@ void
 rw_lock_set_writer_id_and_recursion_flag(
 /*=====================================*/
 	rw_lock_t*	lock,		/*!< in/out: lock to work on */
-	ibool		recursive)	/*!< in: TRUE if recursion
+	bool		recursive)	/*!< in: true if recursion
 					allowed */
 {
 	os_thread_id_t	curr_thread	= os_thread_get_curr_id();
@@ -307,7 +378,7 @@ rw_lock_s_lock_low(
 	const char*	file_name, /*!< in: file name where lock requested */
 	ulint		line)	/*!< in: line where requested */
 {
-	if (!rw_lock_lock_word_decr(lock, 1)) {
+	if (!rw_lock_lock_word_decr(lock, 1, 0)) {
 		/* Locking did not succeed */
 		return(FALSE);
 	}
@@ -398,16 +469,19 @@ rw_lock_x_lock_func_nowait(
 
 #endif
 	if (success) {
-		rw_lock_set_writer_id_and_recursion_flag(lock, TRUE);
+		rw_lock_set_writer_id_and_recursion_flag(lock, true);
 
 	} else if (lock->recursive
 		   && os_thread_eq(lock->writer_thread, curr_thread)) {
 		/* Relock: this lock_word modification is safe since no other
 		threads can modify (lock, unlock, or reserve) lock_word while
 		there is an exclusive writer and this is the writer thread. */
-		if (lock->lock_word == 0) {
-			lock->lock_word = -X_LOCK_DECR;
+		if (lock->lock_word == 0 || lock->lock_word == -X_LOCK_HALF_DECR) {
+			/* There are 1 x-locks */
+			lock->lock_word -= X_LOCK_DECR;
 		} else {
+			ut_ad(lock->lock_word <= -X_LOCK_DECR);
+			/* There are 2 or more x-locks */
 			lock->lock_word--;
 		}
 
@@ -451,7 +525,8 @@ rw_lock_s_unlock_func(
 #endif
 
 	/* Increment lock_word to indicate 1 less reader */
-	if (rw_lock_lock_word_incr(lock, 1) == 0) {
+	lint	lock_word = rw_lock_lock_word_incr(lock, 1);
+	if (lock_word == 0 || lock_word == -X_LOCK_HALF_DECR) {
 
 		/* wait_ex waiter exists. It may not be asleep, but we signal
 		anyway. We do not wake other waiters, because they can't
@@ -480,7 +555,8 @@ rw_lock_x_unlock_func(
 #endif
 	rw_lock_t*	lock)	/*!< in/out: rw-lock */
 {
-	ut_ad(lock->lock_word == 0 || lock->lock_word <= -X_LOCK_DECR);
+	ut_ad(lock->lock_word == 0 || lock->lock_word == -X_LOCK_HALF_DECR
+	      || lock->lock_word <= -X_LOCK_DECR);
 
 	/* lock->recursive flag also indicates if lock->writer_thread is
 	valid or stale. If we are the last of the recursive callers
@@ -497,18 +573,16 @@ rw_lock_x_unlock_func(
 	rw_lock_remove_debug_info(lock, pass, RW_LOCK_EX);
 #endif
 
-	ulint x_lock_incr;
-	if (lock->lock_word == 0) {
-		x_lock_incr = X_LOCK_DECR;
-	} else if (lock->lock_word == -X_LOCK_DECR) {
-		x_lock_incr = X_LOCK_DECR;
-	} else {
-		ut_ad(lock->lock_word < -X_LOCK_DECR);
-		x_lock_incr = 1;
-	}
+	if (lock->lock_word == 0 || lock->lock_word == -X_LOCK_HALF_DECR) {
+		/* There is 1 x-lock */
+		/* atomic increment is needed, because it is last */
+		if (rw_lock_lock_word_incr(lock, X_LOCK_DECR) <= 0) {
+			ut_error;
+		}
 
-	if (rw_lock_lock_word_incr(lock, x_lock_incr) == X_LOCK_DECR) {
-		/* Lock is now free. May have to signal read/write waiters.
+		/* This no longer has an X-lock but it may still have
+		an SX-lock. So it is now free for S-locks by other threads.
+		We need to signal read/write waiters.
 		We do not need to signal wait_ex waiters, since they cannot
 		exist when there is a writer. */
 		if (lock->waiters) {
@@ -516,6 +590,14 @@ rw_lock_x_unlock_func(
 			os_event_set(lock->event);
 			sync_array_object_signalled();
 		}
+	} else if (lock->lock_word == -X_LOCK_DECR
+		   || lock->lock_word == -(X_LOCK_DECR + X_LOCK_HALF_DECR)) {
+		/* There are 2 x-locks */
+		lock->lock_word += X_LOCK_DECR;
+	} else {
+		/* There are more than 2 x-locks. */
+		ut_ad(lock->lock_word < -X_LOCK_DECR);
+		lock->lock_word += 1;
 	}
 
 	ut_ad(rw_lock_validate(lock));
@@ -523,6 +605,63 @@ rw_lock_x_unlock_func(
 #ifdef UNIV_SYNC_PERF_STAT
 	rw_x_exit_count++;
 #endif
+}
+
+/******************************************************************//**
+Releases a sx mode lock. */
+UNIV_INLINE
+void
+rw_lock_sx_unlock_func(
+/*===================*/
+#ifdef UNIV_SYNC_DEBUG
+	ulint		pass,	/*!< in: pass value; != 0, if the lock may have
+				been passed to another thread to unlock */
+#endif /* UNIV_SYNC_DEBUG */
+	rw_lock_t*	lock)	/*!< in/out: rw-lock */
+{
+	ut_ad(rw_lock_get_sx_lock_count(lock));
+	ut_a(lock->sx_recursive > 0);
+
+	lock->sx_recursive -= 1;
+
+#ifdef UNIV_SYNC_DEBUG
+	rw_lock_remove_debug_info(lock, pass, RW_LOCK_SX);
+#endif /* UNIV_SYNC_DEBUG */
+
+	if (lock->sx_recursive == 0) {
+		/* Last caller in a possible recursive chain. */
+		if (lock->lock_word > 0) {
+			lock->recursive = FALSE;
+			UNIV_MEM_INVALID(&lock->writer_thread,
+					 sizeof lock->writer_thread);
+
+			if (rw_lock_lock_word_incr(lock, X_LOCK_HALF_DECR)
+			    <= X_LOCK_HALF_DECR) {
+				ut_error;
+			}
+			/* Lock is now free. May have to signal read/write
+			waiters. We do not need to signal wait_ex waiters,
+			since they cannot exist when there is an sx-lock
+			holder. */
+			if (lock->waiters) {
+				rw_lock_reset_waiter_flag(lock);
+				os_event_set(lock->event);
+				sync_array_object_signalled();
+			}
+		} else {
+			/* still has x-lock */
+			ut_ad(lock->lock_word == -X_LOCK_HALF_DECR
+			      || lock->lock_word <= -(X_LOCK_DECR
+						      + X_LOCK_HALF_DECR));
+			lock->lock_word += X_LOCK_HALF_DECR;
+		}
+	}
+
+	ut_ad(rw_lock_validate(lock));
+
+#ifdef UNIV_SYNC_PERF_STAT
+	rw_sx_exit_count++;
+#endif /* UNIV_SYNC_PERF_STAT */
 }
 
 #ifdef UNIV_PFS_RWLOCK

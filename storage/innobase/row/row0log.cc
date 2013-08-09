@@ -449,8 +449,10 @@ row_log_table_delete(
 	ut_ad(rec_offs_n_fields(offsets) == dict_index_get_n_fields(index));
 	ut_ad(rec_offs_size(offsets) <= sizeof index->online_log->tail.buf);
 #ifdef UNIV_SYNC_DEBUG
-	ut_ad(rw_lock_own(&index->lock, RW_LOCK_SHARED)
-	      || rw_lock_own(&index->lock, RW_LOCK_EX));
+	ut_ad(rw_lock_own_flagged(&index->lock,
+				  RW_LOCK_FLAG_S
+				  | RW_LOCK_FLAG_X
+				  | RW_LOCK_FLAG_SX));
 #endif /* UNIV_SYNC_DEBUG */
 
 	if (dict_index_is_corrupted(index)
@@ -757,8 +759,10 @@ row_log_table_low(
 	ut_ad(rec_offs_n_fields(offsets) == dict_index_get_n_fields(index));
 	ut_ad(rec_offs_size(offsets) <= sizeof index->online_log->tail.buf);
 #ifdef UNIV_SYNC_DEBUG
-	ut_ad(rw_lock_own(&index->lock, RW_LOCK_SHARED)
-	      || rw_lock_own(&index->lock, RW_LOCK_EX));
+	ut_ad(rw_lock_own_flagged(&index->lock,
+				  RW_LOCK_FLAG_S
+				  | RW_LOCK_FLAG_X
+				  | RW_LOCK_FLAG_SX));
 #endif /* UNIV_SYNC_DEBUG */
 	ut_ad(fil_page_get_type(page_align(rec)) == FIL_PAGE_INDEX);
 	ut_ad(page_is_leaf(page_align(rec)));
@@ -963,8 +967,10 @@ row_log_table_get_pk(
 	ut_ad(dict_index_is_online_ddl(index));
 	ut_ad(!offsets || rec_offs_validate(rec, index, offsets));
 #ifdef UNIV_SYNC_DEBUG
-	ut_ad(rw_lock_own(&index->lock, RW_LOCK_SHARED)
-	      || rw_lock_own(&index->lock, RW_LOCK_EX));
+	ut_ad(rw_lock_own_flagged(&index->lock,
+				  RW_LOCK_FLAG_S
+				  | RW_LOCK_FLAG_X
+				  | RW_LOCK_FLAG_SX));
 #endif /* UNIV_SYNC_DEBUG */
 
 	ut_ad(log);
@@ -1120,7 +1126,8 @@ row_log_table_blob_free(
 	ut_ad(dict_index_is_clust(index));
 	ut_ad(dict_index_is_online_ddl(index));
 #ifdef UNIV_SYNC_DEBUG
-	ut_ad(rw_lock_own(&index->lock, RW_LOCK_EX));
+	ut_ad(rw_lock_own_flagged(&index->lock,
+				  RW_LOCK_FLAG_X | RW_LOCK_FLAG_SX));
 #endif /* UNIV_SYNC_DEBUG */
 	ut_ad(page_no != FIL_NULL);
 
@@ -1165,7 +1172,8 @@ row_log_table_blob_alloc(
 	ut_ad(dict_index_is_clust(index));
 	ut_ad(dict_index_is_online_ddl(index));
 #ifdef UNIV_SYNC_DEBUG
-	ut_ad(rw_lock_own(&index->lock, RW_LOCK_EX));
+	ut_ad(rw_lock_own_flagged(&index->lock,
+				  RW_LOCK_FLAG_X | RW_LOCK_FLAG_SX));
 #endif /* UNIV_SYNC_DEBUG */
 	ut_ad(page_no != FIL_NULL);
 
@@ -1491,7 +1499,8 @@ row_log_table_apply_delete_low(
 			row, save_ext, index, heap);
 		mtr_start(mtr);
 		btr_pcur_open(index, entry, PAGE_CUR_LE,
-			      BTR_MODIFY_TREE, pcur, mtr);
+			      BTR_MODIFY_TREE | BTR_LATCH_FOR_DELETE,
+			      pcur, mtr);
 #ifdef UNIV_DEBUG
 		switch (btr_pcur_get_btr_cur(pcur)->flag) {
 		case BTR_CUR_DELETE_REF:
@@ -1574,7 +1583,8 @@ row_log_table_apply_delete(
 
 	mtr_start(&mtr);
 	btr_pcur_open(index, old_pk, PAGE_CUR_LE,
-		      BTR_MODIFY_TREE, &pcur, &mtr);
+		      BTR_MODIFY_TREE | BTR_LATCH_FOR_DELETE,
+		      &pcur, &mtr);
 #ifdef UNIV_DEBUG
 	switch (btr_pcur_get_btr_cur(&pcur)->flag) {
 	case BTR_CUR_DELETE_REF:

@@ -50,15 +50,18 @@ Created 11/26/1995 Heikki Tuuri
 						a shorter form */
 
 /* Types for the mlock objects to store in the mtr memo; NOTE that the
-first 3 values must be RW_S_LATCH, RW_X_LATCH, RW_NO_LATCH */
+first 4 values must be RW_S_LATCH, RW_X_LATCH, RW_SX_LATCH, RW_NO_LATCH
+and they should be 2pow value to be used also as ORed combination of flag. */
 #define	MTR_MEMO_PAGE_S_FIX	RW_S_LATCH
 #define	MTR_MEMO_PAGE_X_FIX	RW_X_LATCH
+#define	MTR_MEMO_PAGE_SX_FIX	RW_SX_LATCH
 #define	MTR_MEMO_BUF_FIX	RW_NO_LATCH
 #ifdef UNIV_DEBUG
-# define MTR_MEMO_MODIFY	54
+# define MTR_MEMO_MODIFY	32
 #endif /* UNIV_DEBUG */
-#define	MTR_MEMO_S_LOCK		55
-#define	MTR_MEMO_X_LOCK		56
+#define	MTR_MEMO_S_LOCK		64
+#define	MTR_MEMO_X_LOCK		128
+#define	MTR_MEMO_SX_LOCK	256
 
 /** @name Log item types
 The log items are declared 'byte' so that the compiler can warn if val
@@ -237,8 +240,37 @@ mtr_release_s_latch_at_savepoint(
 	mtr_t*		mtr,		/*!< in: mtr */
 	ulint		savepoint,	/*!< in: savepoint */
 	rw_lock_t*	lock);		/*!< in: latch to release */
+/**********************************************************//**
+Releases the block in an mtr memo after a savepoint. */
+
+void
+mtr_release_block_at_savepoint(
+/*===========================*/
+	mtr_t*		mtr,		/*!< in: mtr */
+	ulint		savepoint,	/*!< in: savepoint */
+	buf_block_t*	block);		/*!< in: block to release */
+/**********************************************************//**
+X-latches the not yet latched block after a savepoint. */
+
+void
+mtr_block_x_latch_at_savepoint(
+/*===========================*/
+	mtr_t*		mtr,		/*!< in: mtr */
+	ulint		savepoint,	/*!< in: savepoint */
+	buf_block_t*	block);		/*!< in: block to X latch */
+/**********************************************************//**
+SX-latches the not yet latched block after a savepoint. */
+
+void
+mtr_block_sx_latch_at_savepoint(
+/*============================*/
+	mtr_t*		mtr,		/*!< in: mtr */
+	ulint		savepoint,	/*!< in: savepoint */
+	buf_block_t*	block);		/*!< in: block to SX latch */
 #else /* !UNIV_HOTBACKUP */
 # define mtr_release_s_latch_at_savepoint(mtr,savepoint,lock) ((void) 0)
+# define mtr_release_block_at_savepoint(mtr,savepoint,lock) ((void) 0)
+# define mtr_block_latch_at_savepoint(mtr,savepoint,lock,type) ((void) 0)
 #endif /* !UNIV_HOTBACKUP */
 /***************************************************************//**
 Gets the logging mode of a mini-transaction.
@@ -287,6 +319,10 @@ This macro locks an rw-lock in x-mode. */
 #define mtr_x_lock(B, MTR)	mtr_x_lock_func((B), __FILE__, __LINE__,\
 						(MTR))
 /*********************************************************************//**
+This macro locks an rw-lock in sx-mode. */
+#define mtr_sx_lock(B, MTR)	mtr_sx_lock_func((B), __FILE__, __LINE__,\
+						(MTR))
+/*********************************************************************//**
 NOTE! Use the macro above!
 Locks a lock in s-mode. */
 UNIV_INLINE
@@ -308,6 +344,17 @@ mtr_x_lock_func(
 	const char*	file,	/*!< in: file name */
 	ulint		line,	/*!< in: line number */
 	mtr_t*		mtr);	/*!< in: mtr */
+/*********************************************************************//**
+NOTE! Use the macro mtr_sx_lock()!
+Locks a lock in sx-mode. */
+UNIV_INLINE
+void
+mtr_sx_lock_func(
+/*=============*/
+	rw_lock_t*	lock,	/*!< in/out: rw-lock */
+	const char*	file,	/*!< in: file name */
+	ulint		line,	/*!< in: line number */
+	mtr_t*		mtr);	/*!< in/out: mtr */
 #endif /* !UNIV_HOTBACKUP */
 
 /***************************************************//**
@@ -325,14 +372,27 @@ mtr_memo_release(
 # ifndef UNIV_HOTBACKUP
 /**********************************************************//**
 Checks if memo contains the given item.
-@return TRUE if contains */
+@return true if contains */
 UNIV_INLINE
-ibool
+bool
 mtr_memo_contains(
 /*==============*/
-	mtr_t*		mtr,	/*!< in: mtr */
+	const mtr_t*	mtr,	/*!< in: mtr */
 	const void*	object,	/*!< in: object to search */
 	ulint		type)	/*!< in: type of object */
+	__attribute__((warn_unused_result, nonnull));
+
+/**********************************************************//**
+Checks if memo contains the given item.
+@return true if contains */
+UNIV_INLINE
+bool
+mtr_memo_contains_flagged(
+/*======================*/
+	const mtr_t*	mtr,	/*!< in: mtr */
+	const void*	object,	/*!< in: object to search */
+	ulint		flags)	/*!< in: specify types of object with
+				OR of MTR_MEMO_PAGE_S_FIX... values */
 	__attribute__((warn_unused_result, nonnull));
 
 /**********************************************************//**
@@ -344,7 +404,20 @@ mtr_memo_contains_page(
 /*===================*/
 	mtr_t*		mtr,	/*!< in: mtr */
 	const byte*	ptr,	/*!< in: pointer to buffer frame */
-	ulint		type);	/*!< in: type of object */
+	ulint		type)	/*!< in: type of object */
+	__attribute__((warn_unused_result, nonnull));
+/**********************************************************//**
+Checks if memo contains the given page.
+@return true if contains */
+
+bool
+mtr_memo_contains_page_flagged(
+/*===========================*/
+	const mtr_t*	mtr,	/*!< in: mtr */
+	const byte*	ptr,	/*!< in: pointer to buffer frame */
+	ulint		flags)	/*!< in: specify types of object with
+				OR of MTR_MEMO_PAGE_S_FIX... values */
+	__attribute__((warn_unused_result, nonnull));
 /*********************************************************//**
 Prints info of an mtr handle. */
 
