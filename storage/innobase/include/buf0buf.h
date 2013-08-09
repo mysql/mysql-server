@@ -1757,7 +1757,7 @@ public:
 	virtual ~HazardPointer() {}
 
 	/** Get current value */
-	buf_page_t* get()
+	buf_page_t* get() const
 	{
 		ut_ad(mutex_own(m_mutex));
 		return(m_hp);
@@ -1787,7 +1787,7 @@ protected:
 	/** Buffer pool instance */
 	const buf_pool_t*	m_buf_pool;
 
-#if UNIV_DEBUG
+#ifdef UNIV_DEBUG
 	/** mutex that protects access to the m_hp. */
 	const ib_mutex_t*	m_mutex;
 #endif /* UNIV_DEBUG */
