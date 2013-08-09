@@ -266,6 +266,8 @@ extern ulong	srv_flush_neighbors;	/*!< whether or not to flush
 					neighbors of a block */
 extern ulint	srv_buf_pool_old_size;	/*!< previously requested size */
 extern ulint	srv_buf_pool_curr_size;	/*!< current size in bytes */
+extern ulong	srv_buf_pool_dump_pct;	/*!< dump that may % of each buffer
+					pool during BP dump */
 extern ulint	srv_mem_pool_size;
 extern ulint	srv_lock_table_size;
 
