@@ -27,6 +27,7 @@ drop table t2;
 #
 let $format = `select @@innodb_file_format`;
 set global innodb_file_format = 'Barracuda';
+--disable_warnings
 create temporary table t1
 	(keyc int, c1 char(100), c2 char(100),
 	 primary key(keyc), index sec_index(c1)
@@ -35,6 +36,7 @@ create temporary table t2
 	(keyc int, c1 char(100), c2 char(100),
 	 primary key(keyc), index sec_index(c1)
 	) engine = innodb key_block_size = 8;
+--enable_warnings
 --source suite/innodb/include/innodb_dml_ops.inc
 drop table t1;
 drop table t2;

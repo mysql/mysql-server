@@ -87,7 +87,8 @@ int get_or_create_user_conn(THD *thd, const char *user,
   {
     /* First connection for user; Create a user connection object */
     if (!(uc= ((struct user_conn*)
-         my_malloc(sizeof(struct user_conn) + temp_len+1,
+         my_malloc(key_memory_user_conn,
+                   sizeof(struct user_conn) + temp_len+1,
        MYF(MY_WME)))))
     {
       /* MY_WME ensures an error is set in THD. */
@@ -594,7 +595,8 @@ static int check_connection(THD *thd)
       my_error(ER_BAD_HOST_ERROR, MYF(0));
       return 1;
     }
-    thd->main_security_ctx.set_ip(my_strdup(ip, MYF(MY_WME)));
+    thd->main_security_ctx.set_ip(my_strdup(key_memory_Security_context,
+                                            ip, MYF(MY_WME)));
     if (!(thd->main_security_ctx.get_ip()->length()))
     {
       /*
@@ -691,32 +693,6 @@ static int check_connection(THD *thd)
 
 
 /*
-  Setup thread to be used with the current thread
-
-  SYNOPSIS
-    bool setup_connection_thread_globals()
-    thd    Thread/connection handler
-
-  RETURN
-    0   ok
-    1   Error (out of memory)
-        In this case we will close the connection and increment status
-*/
-
-bool setup_connection_thread_globals(THD *thd)
-{
-  if (thd->store_globals())
-  {
-    close_connection(thd, ER_OUT_OF_RESOURCES);
-    aborted_connects++;
-    MYSQL_CALLBACK(thread_scheduler, end_thread, (thd, 0));
-    return 1;                                   // Error
-  }
-  return 0;
-}
-
-
-/*
   Autenticate user, with error reporting
 
   SYNOPSIS
@@ -753,7 +729,6 @@ bool login_connection(THD *thd)
     if (vio_type(net->vio) == VIO_TYPE_NAMEDPIPE)
       my_sleep(1000);       /* must wait after eof() */
 #endif
-    aborted_connects++;
     DBUG_RETURN(1);
   }
   /* Connect completed, set read/write timeouts back to default */
@@ -873,33 +848,6 @@ void prepare_new_connection_state(THD* thd)
 }
 
 
-/*
-  Thread handler for a connection
-
-  SYNOPSIS
-    handle_one_connection()
-    arg   Connection object (THD)
-
-  IMPLEMENTATION
-    This function (normally) does the following:
-    - Initialize thread
-    - Initialize THD to be used with this thread
-    - Authenticate user
-    - Execute all queries sent on the connection
-    - Take connection down
-    - End thread  / Handle next connection using thread from thread cache
-*/
-
-pthread_handler_t handle_one_connection(void *arg)
-{
-  THD *thd= (THD*) arg;
-
-  mysql_thread_set_psi_id(thd->thread_id);
-
-  do_handle_one_connection(thd);
-  return 0;
-}
-
 bool thd_prepare_connection(THD *thd)
 {
   bool rc;
@@ -916,6 +864,37 @@ bool thd_prepare_connection(THD *thd)
   return FALSE;
 }
 
+
+/**
+  Close a connection.
+
+  @param thd        Thread handle.
+  @param sql_errno  The error code to send before disconnect.
+
+  @note
+    For the connection that is doing shutdown, this is called twice
+*/
+
+void close_connection(THD *thd, uint sql_errno)
+{
+  DBUG_ENTER("close_connection");
+
+  if (sql_errno)
+    net_send_error(thd, sql_errno, ER_DEFAULT(sql_errno));
+
+  thd->disconnect();
+
+  MYSQL_CONNECTION_DONE((int) sql_errno, thd->thread_id);
+
+  if (MYSQL_CONNECTION_DONE_ENABLED())
+  {
+    sleep(0); /* Workaround to avoid tailcall optimisation */
+  }
+  MYSQL_AUDIT_NOTIFY_CONNECTION_DISCONNECT(thd, sql_errno);
+  DBUG_VOID_RETURN;
+}
+
+
 bool thd_is_connection_alive(THD *thd)
 {
   NET *net= &thd->net;
@@ -926,77 +905,4 @@ bool thd_is_connection_alive(THD *thd)
   return FALSE;
 }
 
-void do_handle_one_connection(THD *thd_arg)
-{
-  THD *thd= thd_arg;
-
-  thd->thr_create_utime= my_micro_time();
-
-  if (MYSQL_CALLBACK_ELSE(thread_scheduler, init_new_connection_thread, (), 0))
-  {
-    close_connection(thd, ER_OUT_OF_RESOURCES);
-    aborted_connects++;
-    MYSQL_CALLBACK(thread_scheduler, end_thread, (thd, 0));
-    return;
-  }
-
-  /*
-    If a thread was created to handle this connection:
-    increment slow_launch_threads counter if it took more than
-    slow_launch_time seconds to create the thread.
-  */
-  if (thd->prior_thr_create_utime)
-  {
-    ulong launch_time= (ulong) (thd->thr_create_utime -
-                                thd->prior_thr_create_utime);
-    if (launch_time >= slow_launch_time*1000000L)
-      slow_launch_threads++;
-    thd->prior_thr_create_utime= 0;
-  }
-
-  /*
-    handle_one_connection() is normally the only way a thread would
-    start and would always be on the very high end of the stack ,
-    therefore, the thread stack always starts at the address of the
-    first local variable of handle_one_connection, which is thd. We
-    need to know the start of the stack so that we could check for
-    stack overruns.
-  */
-  thd->thread_stack= (char*) &thd;
-  if (setup_connection_thread_globals(thd))
-    return;
-
-  for (;;)
-  {
-	bool rc;
-
-    NET *net= &thd->net;
-    mysql_socket_set_thread_owner(net->vio->mysql_socket);
-
-    rc= thd_prepare_connection(thd);
-    if (rc)
-      goto end_thread;
-
-    while (thd_is_connection_alive(thd))
-    {
-      mysql_audit_release(thd);
-      if (do_command(thd))
-  break;
-    }
-    end_connection(thd);
-
-end_thread:
-    close_connection(thd);
-    if (MYSQL_CALLBACK_ELSE(thread_scheduler, end_thread, (thd, 1), 0))
-      return;                                 // Probably no-threads
-
-    /*
-      If end_thread() returns, we are either running with
-      thread-handler=no-threads or this thread has been schedule to
-      handle the next connection.
-    */
-    thd= current_thd;
-    thd->thread_stack= (char*) &thd;
-  }
-}
 #endif /* EMBEDDED_LIBRARY */

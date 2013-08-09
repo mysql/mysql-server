@@ -25,6 +25,7 @@
 #include "sql_show.h"             // append_identifier
 #include "sql_db.h"               // get_default_db_collation
 
+#include "mysql/psi/mysql_sp.h"
 ///////////////////////////////////////////////////////////////////////////
 
 /**
@@ -314,11 +315,13 @@ Trigger *Trigger::create_from_parser(THD *thd,
                        dd_create_trigger_stmt.length()))
     return NULL;
 
-  // Calculate timestamp as milliseconds elapsed from 1 Jan 1970 00:00:00.
-
+  /*
+    Calculate time stamp up to tenths of milliseconds elapsed
+    from 1 Jan 1970 00:00:00.
+  */
   struct timeval cur_time= thd->query_start_timeval_trunc(2);
-  longlong created_timestamp= static_cast<longlong>(cur_time.tv_sec) * 1000 +
-                              cur_time.tv_usec / 1000;
+  longlong created_timestamp= static_cast<longlong>(cur_time.tv_sec) * 100 +
+                              (cur_time.tv_usec / 10000);
 
   // Create a new Trigger instance.
 
@@ -667,6 +670,12 @@ bool Trigger::parse(THD *thd)
   }
 
   m_sp->set_definer(m_definer.str, m_definer.length);
+
+#ifdef HAVE_PSI_SP_INTERFACE
+  m_sp->m_sp_share= MYSQL_GET_SP_SHARE(SP_OBJECT_TYPE_TRIGGER,
+                                       m_sp->m_db.str, m_sp->m_db.length,
+                                       m_sp->m_name.str, m_sp->m_name.length);
+#endif
 
 #ifndef DBUG_OFF
   /*

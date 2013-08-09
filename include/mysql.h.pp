@@ -202,6 +202,9 @@ typedef unsigned int MYSQL_FIELD_OFFSET;
 typedef unsigned long long my_ulonglong;
 #include "typelib.h"
 #include "my_alloc.h"
+#include <mysql/psi/psi_memory.h>
+#include "psi_base.h"
+typedef unsigned int PSI_memory_key;
 typedef struct st_used_mem
 {
   struct st_used_mem *next;
@@ -218,6 +221,7 @@ typedef struct st_mem_root
   unsigned int block_num;
   unsigned int first_block_usage;
   void (*error_handler)(void);
+  PSI_memory_key m_psi_key;
 } MEM_ROOT;
 typedef struct st_typelib {
   unsigned int count;

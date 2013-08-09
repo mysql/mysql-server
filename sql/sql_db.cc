@@ -255,7 +255,8 @@ static my_bool put_dbopt(const char *dbname, HA_CREATE_INFO *create)
   { 
     /* Options are not in the hash, insert them */
     char *tmp_name;
-    if (!my_multi_malloc(MYF(MY_WME | MY_ZEROFILL),
+    if (!my_multi_malloc(key_memory_dboptions_hash,
+                         MYF(MY_WME | MY_ZEROFILL),
                          &opt, (uint) sizeof(*opt), &tmp_name, (uint) length+1,
                          NullS))
     {
@@ -1505,7 +1506,8 @@ bool mysql_change_db(THD *thd, const LEX_STRING *new_db_name, bool force_switch)
     TODO: fix check_db_name().
   */
 
-  new_db_file_name.str= my_strndup(new_db_name->str, new_db_name->length,
+  new_db_file_name.str= my_strndup(key_memory_THD_db,
+                                   new_db_name->str, new_db_name->length,
                                    MYF(MY_WME));
   new_db_file_name.length= new_db_name->length;
 

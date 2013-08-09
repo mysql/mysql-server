@@ -1,4 +1,4 @@
-/* Copyright © 2012, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2012, 2013, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -22,6 +22,11 @@
 
 #include <my_sys.h>
 #include "string_service.h"
+/* key_memory_string_iterator */
+#include "mysqld.h"
+
+PSI_memory_key key_memory_string_iterator;
+
 /*  
   This service function converts the mysql_string to the character set
   specified by charset_name parameter.
@@ -67,7 +72,8 @@ mysql_string_iterator_handle mysql_string_get_iterator(mysql_string_handle
                                                        string_handle)
 {
   String *str= (String *) string_handle;
-  string_iterator *iterator= (string_iterator *) my_malloc(sizeof
+  string_iterator *iterator= (string_iterator *) my_malloc(key_memory_string_iterator,
+                                                           sizeof
                                            (struct st_string_iterator), MYF(0));
   iterator->iterator_str= str;
   iterator->iterator_ptr= str->ptr();

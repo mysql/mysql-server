@@ -1,4 +1,8 @@
 #include "mysql/psi/psi.h"
+#include "psi_base.h"
+#include "psi_memory.h"
+#include "psi_base.h"
+typedef unsigned int PSI_memory_key;
 C_MODE_START
 struct TABLE_SHARE;
 struct OPAQUE_LEX_YYSTYPE;
@@ -26,6 +30,10 @@ struct PSI_idle_locker;
 typedef struct PSI_idle_locker PSI_idle_locker;
 struct PSI_digest_locker;
 typedef struct PSI_digest_locker PSI_digest_locker;
+struct PSI_sp_share;
+typedef struct PSI_sp_share PSI_sp_share;
+struct PSI_sp_locker;
+typedef struct PSI_sp_locker PSI_sp_locker;
 struct PSI_bootstrap
 {
   void* (*get_interface)(int version);

@@ -1142,7 +1142,7 @@ static int execute_ddl_log_action(THD *thd, DDL_LOG_ENTRY *ddl_log_entry)
              ddl_log_entry->tmp_name));
   handler_name.str= (char*)ddl_log_entry->handler_name;
   handler_name.length= strlen(ddl_log_entry->handler_name);
-  init_sql_alloc(&mem_root, TABLE_ALLOC_BLOCK_SIZE, 0); 
+  init_sql_alloc(key_memory_gdl, &mem_root, TABLE_ALLOC_BLOCK_SIZE, 0);
   if (!strcmp(ddl_log_entry->handler_name, reg_ext))
     frm_action= TRUE;
   else
@@ -1312,7 +1312,7 @@ static bool get_free_ddl_log_entry(DDL_LOG_MEMORY_ENTRY **active_entry,
 
   if (global_ddl_log.first_free == NULL)
   {
-    if (!(used_entry= (DDL_LOG_MEMORY_ENTRY*)my_malloc(
+    if (!(used_entry= (DDL_LOG_MEMORY_ENTRY*)my_malloc(key_memory_DDL_LOG_MEMORY_ENTRY,
                               sizeof(DDL_LOG_MEMORY_ENTRY), MYF(MY_WME))))
     {
       sql_print_error("Failed to allocate memory for ddl log free list");
@@ -2182,6 +2182,7 @@ int mysql_rm_table_no_locks(THD *thd, TABLE_LIST *tables, bool if_exists,
   bool non_tmp_error= 0;
   bool trans_tmp_table_deleted= 0, non_trans_tmp_table_deleted= 0;
   bool non_tmp_table_deleted= 0;
+  bool is_drop_tmp_if_exists_added= 0;
   String built_query;
   String built_trans_tmp_query, built_non_trans_tmp_query;
   DBUG_ENTER("mysql_rm_table_no_locks");
@@ -2210,6 +2211,15 @@ int mysql_rm_table_no_locks(THD *thd, TABLE_LIST *tables, bool if_exists,
     table stems from the fact that such drop does not commit an ongoing
     transaction and changes to non-transactional tables must be written
     ahead of the transaction in some circumstances.
+
+    6- Slave SQL thread ignores all replicate-* filter rules
+    for temporary tables with 'IF EXISTS' clause. (See sql/sql_parse.cc:
+    mysql_execute_command() for details). These commands will be binlogged
+    as they are, even if the default database (from USE `db`) is not present
+    on the Slave. This can cause point in time recovery failures later
+    when user uses the slave's binlog to re-apply. Hence at the time of binary
+    logging, these commands will be written with fully qualified table names
+    and use `db` will be suppressed.
   */
   if (!dont_log_query)
   {
@@ -2224,6 +2234,7 @@ int mysql_rm_table_no_locks(THD *thd, TABLE_LIST *tables, bool if_exists,
 
     if (thd->is_current_stmt_binlog_format_row() || if_exists)
     {
+      is_drop_tmp_if_exists_added= true;
       built_trans_tmp_query.set_charset(system_charset_info);
       built_trans_tmp_query.append("DROP TEMPORARY TABLE IF EXISTS ");
       built_non_trans_tmp_query.set_charset(system_charset_info);
@@ -2303,10 +2314,12 @@ int mysql_rm_table_no_locks(THD *thd, TABLE_LIST *tables, bool if_exists,
         String *built_ptr_query=
           (is_trans ? &built_trans_tmp_query : &built_non_trans_tmp_query);
         /*
-          Don't write the database name if it is the current one (or if
-          thd->db is NULL).
+          Write the database name if it is not the current one or if
+          thd->db is NULL or 'IF EXISTS' clause is present in 'DROP TEMPORARY'
+          query.
         */
-        if (thd->db == NULL || strcmp(db,thd->db) != 0)
+        if (thd->db == NULL || strcmp(db,thd->db) != 0
+            || is_drop_tmp_if_exists_added )
         {
           append_identifier(thd, built_ptr_query, db, db_len,
                             system_charset_info, thd->charset());
@@ -2533,7 +2546,9 @@ err:
           error |= thd->binlog_query(THD::STMT_QUERY_TYPE,
                                      built_non_trans_tmp_query.ptr(),
                                      built_non_trans_tmp_query.length(),
-                                     FALSE, FALSE, FALSE, 0);
+                                     FALSE, FALSE,
+                                     is_drop_tmp_if_exists_added,
+                                     0);
           /*
             When temporary and regular tables or temporary tables with
             different storage engines are dropped on a single
@@ -2554,7 +2569,9 @@ err:
           error |= thd->binlog_query(THD::STMT_QUERY_TYPE,
                                      built_trans_tmp_query.ptr(),
                                      built_trans_tmp_query.length(),
-                                     TRUE, FALSE, FALSE, 0);
+                                     TRUE, FALSE,
+                                     is_drop_tmp_if_exists_added,
+                                     0);
           /*
             When temporary and regular tables are dropped on a single
             statement, the original statement is split in two.
@@ -8830,7 +8847,8 @@ copy_data_between_tables(TABLE *from,TABLE *to,
     }
     else
     {
-      from->sort.io_cache=(IO_CACHE*) my_malloc(sizeof(IO_CACHE),
+      from->sort.io_cache=(IO_CACHE*) my_malloc(key_memory_TABLE_sort_io_cache,
+                                                sizeof(IO_CACHE),
                                                 MYF(MY_FAE | MY_ZEROFILL));
       memset(&tables, 0, sizeof(tables));
       tables.table= from;

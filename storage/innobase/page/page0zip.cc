@@ -1215,7 +1215,7 @@ page_zip_compress(
 	ulint			level,		/*!< in: commpression level */
 	const redo_page_compress_t* page_comp_info,
 						/*!< in: used for applying
-						MLOG_FILE_TRUNCATE redo log
+						TRUNCATE log
 						record during recovery */
 	mtr_t*			mtr)		/*!< in/out: mini-transaction,
 						or NULL */
@@ -1238,7 +1238,7 @@ page_zip_compress(
 	ulint			n_blobs	= 0;
 	byte*			storage;	/* storage of uncompressed
 						columns */
-	ulint			ind_id;
+	index_id_t		ind_id;
 #ifndef UNIV_HOTBACKUP
 	ullint			usec = ut_time_us(NULL);
 #endif /* !UNIV_HOTBACKUP */

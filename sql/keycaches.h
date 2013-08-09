@@ -1,7 +1,7 @@
 #ifndef KEYCACHES_INCLUDED
 #define KEYCACHES_INCLUDED
 
-/* Copyright (c) 2002, 2012, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2002, 2013, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -18,6 +18,8 @@
 
 #include "sql_list.h"
 #include <keycache.h>
+
+extern PSI_memory_key key_memory_NAMED_ILINK_name;
 
 extern "C"
 {
@@ -38,7 +40,8 @@ public:
              uint name_length_arg, uchar* data_arg)
     :name_length(name_length_arg), data(data_arg)
   {
-    name= my_strndup(name_arg, name_length, MYF(MY_WME));
+    name= my_strndup(key_memory_NAMED_ILINK_name,
+                     name_arg, name_length, MYF(MY_WME));
     links->push_back(this);
   }
 

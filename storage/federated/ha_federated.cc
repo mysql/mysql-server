@@ -1,4 +1,4 @@
-/* Copyright (c) 2004, 2011, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2004, 2013, Oracle and/or its affiliates. All rights reserved.
 
   This program is free software; you can redistribute it and/or modify
   it under the terms of the GNU General Public License as published by
@@ -432,6 +432,8 @@ static uchar *federated_get_key(FEDERATED_SHARE *share, size_t *length,
   return (uchar*) share->share_key;
 }
 
+static PSI_memory_key fe_key_memory_federated_share;
+
 #ifdef HAVE_PSI_INTERFACE
 static PSI_mutex_key fe_key_mutex_federated, fe_key_mutex_FEDERATED_SHARE_mutex;
 
@@ -441,6 +443,11 @@ static PSI_mutex_info all_federated_mutexes[]=
   { &fe_key_mutex_FEDERATED_SHARE_mutex, "FEDERATED_SHARE::mutex", 0}
 };
 
+static PSI_memory_info all_federated_memory[]=
+{
+  { &fe_key_memory_federated_share, "FEDERATED_SHARE", 0}
+};
+
 static void init_federated_psi_keys(void)
 {
   const char* category= "federated";
@@ -448,6 +455,9 @@ static void init_federated_psi_keys(void)
 
   count= array_elements(all_federated_mutexes);
   mysql_mutex_register(category, all_federated_mutexes, count);
+
+  count= array_elements(all_federated_memory);
+  mysql_memory_register(category, all_federated_memory, count);
 }
 #endif /* HAVE_PSI_INTERFACE */
 
@@ -1507,7 +1517,7 @@ static FEDERATED_SHARE *get_share(const char *table_name, TABLE *table)
   */
   query.length(0);
 
-  init_alloc_root(&mem_root, 256, 0);
+  init_alloc_root(fe_key_memory_federated_share, &mem_root, 256, 0);
 
   mysql_mutex_lock(&federated_mutex);
 

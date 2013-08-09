@@ -28,8 +28,11 @@ Created 2013-04-25 Krunal Bauskar
 
 #include "row0mysql.h"
 #include "dict0boot.h"
+#include "fil0fil.h"
+#include "srv0start.h"
+#include <vector>
 
-/** The information of MLOG_FILE_TRUNCATE redo record.
+/** The information of TRUNCATE log record.
 This class handles the recovery stage of TRUNCATE table. */
 class truncate_t {
 
@@ -42,9 +45,16 @@ public:
 				after truncate
 	@param dir_path		directory path */
 	truncate_t(
-		ulint		old_table_id,
-		ulint		new_table_id,
+		table_id_t	old_table_id,
+		table_id_t	new_table_id,
 		const char*	dir_path);
+
+	/**
+	Constructor
+
+	@param log_file_name	parse the log file during recovery to populate
+				information related to table to truncate */
+	truncate_t(const char*	log_file_name);
 
 	/**
 	Consturctor
@@ -72,7 +82,7 @@ public:
 		index_t();
 
 		/**
-		Set the truncate redo log values for a compressed table.
+		Set the truncate log values for a compressed table.
 		@return DB_CORRUPTION or error code */
 		dberr_t set(const dict_index_t* index);
 
@@ -88,8 +98,8 @@ public:
 		ulint		m_root_page_no;
 
 		/** New Root Page Number.
-		Note: This field is not persisted to REDO log but used during
-		truncate table fix-up for updating SYS_XXXX tables. */
+		Note: This field is not persisted to TRUNCATE log but used
+		during truncate table fix-up for updating SYS_XXXX tables. */
 		ulint		m_new_root_page_no;
 
 		/** Number of index fields */
@@ -114,7 +124,7 @@ public:
 	/**
 	Register index information
 
-	@param index	index information logged as part of truncate redo. */
+	@param index	index information logged as part of truncate log. */
 	void add(index_t& index)
 	{
 		m_indexes.push_back(index);
@@ -204,45 +214,51 @@ public:
 		ulint		flags,
 		ulint		format_flags);
 
-	/** Check if index has been modified since REDO log snapshot
+	/** Check if index has been modified since TRUNCATE log snapshot
 	was recorded.
 	@param space_id	space_id where table/indexes resides.
 	@return true if modified else false */
-	bool is_index_modified_since_redologged(
+	bool is_index_modified_since_logged(
 		ulint		space_id,
 		ulint		root_page_no) const;
 
 	/** Drop indexes for a table.
 	@param space_id		space_id where table/indexes resides.
 	@return DB_SUCCESS or error code. */
-	void drop_indexes(ulint space_id) const;
+	void drop_indexes(ulint	space_id) const;
 
 	/**
-	Parses MLOG_FILE_TRUNCATE redo record during recovery
-	@param ptr		buffer containing the main body of
-				MLOG_FILE_TRUNCATE record
+	Parses log record during recovery
+	@param start_ptr	buffer containing log body to parse
 	@param end_ptr		buffer end
-	@param flags		tablespace flags
 
-	@return true if successfully parsed the MLOG_FILE_TRUNCATE record */
-	bool parse(byte** ptr, const byte** end_ptr, ulint flags);
+	@return DB_SUCCESS or error code */
+	dberr_t parse(
+		byte*		start_ptr,
+		const byte*	end_ptr);
 
 	/**
-	Write a redo log record for truncating a single-table tablespace.
+	Write a log record for truncating a single-table tablespace.
 
+	@param start_ptr	buffer to write log record
+	@param end_ptr		buffer end
 	@param space_id		space id
 	@param tablename	the table name in the usual
 				databasename/tablename format of InnoDB
 	@param flags		tablespace flags
-	@param format_flags	page format */
-	void write(
+	@param format_flags	page format
+	@param lsn		lsn while logging */
+	dberr_t write(
+		byte*		start_ptr,
+		byte*		end_ptr,
 		ulint		space_id,
 		const char*	tablename,
 		ulint		flags,
-		ulint		format_flags) const;
+		ulint		format_flags,
+		lsn_t		lsn) const;
 
 	/**
-	@return number of indexes parsed from the redo log record */
+	@return number of indexes parsed from the truncate log record */
 	size_t indexes() const;
 
 	/**
@@ -268,8 +284,8 @@ public:
 		bool		default_size);
 
 	/**
-	Fix the table truncate by applying information cached while REDO log
-	scan phase. Fix-up includes re-creating table (drop and re-create
+	Fix the table truncate by applying information parsed from TRUNCATE log.
+	Fix-up includes re-creating table (drop and re-create
 	indexes) and for single-tablespace re-creating tablespace.
 	@return	error code or DB_SUCCESS */
 	static dberr_t fixup_tables();
@@ -279,8 +295,9 @@ public:
 	@param space_id		tablespace id to check
 	@return true if the tablespace was truncated */
 	static bool is_tablespace_truncated(ulint space_id);
+
 private:
-	typedef std::vector<index_t> indexes_t;
+	typedef std::vector<index_t>	indexes_t;
 
 	/** Space ID of tablespace */
 	ulint			m_space_id;
@@ -300,14 +317,17 @@ private:
 	/** Tablespace Flags */
 	ulint			m_tablespace_flags;
 
-	/** Format flags (log flags; stored in page-no field of redo header) */
+	/** Format flags (log flags; stored in page-no field of header) */
 	ulint			m_format_flags;
 
 	/** Index meta-data */
 	indexes_t		m_indexes;
 
-	/** LSN of REDO log record. */
-	lsn_t			m_redo_log_lsn;
+	/** LSN of TRUNCATE log record. */
+	lsn_t			m_log_lsn;
+
+	/** Log file name. */
+	char*			m_log_file_name;
 
 	/** Vector of tables to truncate. */
 	typedef	std::vector<truncate_t*> tables_t;
@@ -315,8 +335,52 @@ private:
 	/** Information about tables to truncate post recovery */
 	static	tables_t	s_tables;
 public:
+
+	/** If true then fix-up of table is active and so while creating
+	index instead of grabbing information from dict_index_t, grab it
+	from parsed truncate log record. */
 	static	bool		s_fix_up_active;
 };
+
+/**
+Parse truncate log file. */
+class TruncateLogParser {
+
+public:
+
+	/**
+	Scan and Parse truncate log files.
+
+	@param dir_path         look for log directory in following path
+	@return DB_SUCCESS or error code. */
+	static dberr_t scan_and_parse(
+		const char*	dir_path);
+
+private:
+	typedef std::vector<char*>	trunc_log_files_t;
+
+private:
+	/**
+	Scan to find out truncate log file from the given directory path.
+
+	@param dir_path		look for log directory in following path.
+	@param log_files	cache to hold truncate log file name found.
+	@return DB_SUCCESS or error code. */
+	static dberr_t scan(
+		const char*		dir_path,
+		trunc_log_files_t&	log_files);
+
+	/**
+	Parse the log file and populate table to truncate information.
+	(Add this table to truncate information to central vector that is then
+	used by truncate fix-up routine to fix-up truncate action of the table.)
+
+	@param	log_file_name	log file to parse
+	@return DB_SUCCESS or error code. */
+	static dberr_t parse(
+		const char*		log_file_name);
+};
+
 
 /**
 Truncates a table for MySQL.

@@ -294,7 +294,12 @@ dict_stats_exec_sql(
 	}
 
 	trx = trx_allocate_for_background();
-	trx_start_internal(trx);
+
+	if (srv_read_only_mode) {
+		trx_start_internal_read_only(trx);
+	} else {
+		trx_start_internal(trx);
+	}
 
 	err = que_eval_sql(pinfo, sql, FALSE, trx); /* pinfo is freed here */
 
@@ -1584,7 +1589,7 @@ dict_stats_analyze_index_for_n_prefix(
 	     == !(REC_INFO_MIN_REC_FLAG & rec_get_info_bits(
 			  btr_pcur_get_rec(&pcur), page_is_comp(page))));
 
-	last_idx_on_level = boundaries->at(n_diff_for_this_prefix - 1);
+	last_idx_on_level = boundaries->at((unsigned int) (n_diff_for_this_prefix - 1));
 
 	rec_idx = 0;
 
@@ -1639,7 +1644,7 @@ dict_stats_analyze_index_for_n_prefix(
 		ib_uint64_t could be bigger than ulint */
 		rnd = (ib_uint64_t) ut_rnd_interval(0, (ulint) (right - left));
 
-		dive_below_idx = boundaries->at(left + rnd);
+		dive_below_idx = boundaries->at((unsigned int) (left + rnd));
 
 #if 0
 		DEBUG_PRINTF("    %s(): dive below record with index="
@@ -2751,7 +2756,11 @@ dict_stats_fetch_from_ps(
 
 	trx->isolation_level = TRX_ISO_READ_UNCOMMITTED;
 
-	trx_start_internal(trx);
+	if (srv_read_only_mode) {
+		trx_start_internal_read_only(trx);
+	} else {
+		trx_start_internal(trx);
+	}
 
 	dict_fs2utf8(table->name, db_utf8, sizeof(db_utf8),
 		     table_utf8, sizeof(table_utf8));
@@ -2927,7 +2936,9 @@ dict_stats_update(
 	switch (stats_upd_option) {
 	case DICT_STATS_RECALC_PERSISTENT:
 
-		ut_ad(!srv_read_only_mode);
+		if (srv_read_only_mode) {
+			goto transient;
+		}
 
 		/* Persistent recalculation requested, called from
 		1) ANALYZE TABLE, or
@@ -3028,8 +3039,6 @@ dict_stats_update(
 
 		dict_table_t*	t;
 
-		ut_ad(!srv_read_only_mode);
-
 		/* Create a dummy table object with the same name and
 		indexes, suitable for fetching the stats into it. */
 		t = dict_stats_table_clone_create(table);
@@ -3062,6 +3071,10 @@ dict_stats_update(
 		case DB_STATS_DO_NOT_EXIST:
 
 			dict_stats_table_clone_free(t);
+
+			if (srv_read_only_mode) {
+				goto transient;
+			}
 
 			if (dict_stats_auto_recalc_is_enabled(table)) {
 				return(dict_stats_update(
