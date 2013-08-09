@@ -270,10 +270,11 @@ bool sp_rcontext::handle_sql_condition(THD *thd,
   const sp_handler *found_handler= NULL;
 
   uint condition_sql_errno= 0;
-  Sql_condition::enum_warning_level condition_level;
-  const char *condition_sqlstate;
-  const char *condition_message;
-
+  Sql_condition::enum_warning_level condition_level=  
+                                    Sql_condition::WARN_LEVEL_NOTE;
+  const char *condition_sqlstate= NULL;
+  const char *condition_message= NULL;
+ 
   if (thd->is_error())
   {
     sp_pcontext *cur_pctx= cur_spi->get_parsing_ctx();
@@ -389,11 +390,6 @@ bool sp_rcontext::handle_sql_condition(THD *thd,
   if (end_partial_result_set)
     thd->protocol->end_partial_result_set(thd);
 
-  /* Reset error state. */
-  thd->clear_error();
-  thd->killed= THD::NOT_KILLED; // Some errors set thd->killed
-                                // (e.g. "bad data").
-
   /* Add a frame to handler-call-stack. */
   Handler_call_frame *frame=
     new (std::nothrow) Handler_call_frame(found_handler,
@@ -402,6 +398,11 @@ bool sp_rcontext::handle_sql_condition(THD *thd,
                                           condition_level,
                                           condition_message,
                                           continue_ip);
+
+  /* Reset error state. */
+  thd->clear_error();
+  thd->killed= THD::NOT_KILLED; // Some errors set thd->killed
+                                // (e.g. "bad data").
 
   if (!frame)
   {
