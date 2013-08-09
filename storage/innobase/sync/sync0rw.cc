@@ -40,6 +40,7 @@ Created 9/11/1995 Heikki Tuuri
 #include "os0thread.h"
 #include "mem0mem.h"
 #include "srv0srv.h"
+#include <my_sys.h>
 
 /*
 	IMPLEMENTATION OF THE RW_LOCK
