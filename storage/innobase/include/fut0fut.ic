@@ -45,7 +45,9 @@ fut_get_ptr(
 	byte*		ptr;
 
 	ut_ad(addr.boffset < UNIV_PAGE_SIZE);
-	ut_ad((rw_latch == RW_S_LATCH) || (rw_latch == RW_X_LATCH));
+	ut_ad((rw_latch == RW_S_LATCH)
+	      || (rw_latch == RW_X_LATCH)
+	      || (rw_latch == RW_SX_LATCH));
 
 	block = buf_page_get(space, zip_size, addr.page, rw_latch, mtr);
 	ptr = buf_block_get_frame(block) + addr.boffset;

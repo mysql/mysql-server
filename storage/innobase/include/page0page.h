@@ -672,6 +672,51 @@ page_rec_is_infimum(
 /*================*/
 	const rec_t*	rec)	/*!< in: record */
 	__attribute__((const));
+
+/************************************************************//**
+true if the record is the first user record on a page.
+@return true if the first user record */
+UNIV_INLINE
+bool
+page_rec_is_first(
+/*==============*/
+	const rec_t*	rec,	/*!< in: record */
+	const page_t*	page)	/*!< in: page */
+	__attribute__((const));
+
+/************************************************************//**
+true if the record is the second user record on a page.
+@return true if the second user record */
+UNIV_INLINE
+bool
+page_rec_is_second(
+/*===============*/
+	const rec_t*	rec,	/*!< in: record */
+	const page_t*	page)	/*!< in: page */
+	__attribute__((const));
+
+/************************************************************//**
+true if the record is the last user record on a page.
+@return true if the last user record */
+UNIV_INLINE
+bool
+page_rec_is_last(
+/*=============*/
+	const rec_t*	rec,	/*!< in: record */
+	const page_t*	page)	/*!< in: page */
+	__attribute__((const));
+
+/************************************************************//**
+true if the record is the second last user record on a page.
+@return true if the second last user record */
+UNIV_INLINE
+bool
+page_rec_is_second_last(
+/*====================*/
+	const rec_t*	rec,	/*!< in: record */
+	const page_t*	page)	/*!< in: page */
+	__attribute__((const));
+
 /***************************************************************//**
 Looks for the record which owns the given record.
 @return the owner record */

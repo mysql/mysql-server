@@ -163,7 +163,7 @@ row_purge_remove_clust_if_poss_low(
 			btr_pcur_get_btr_cur(&node->pcur), 0, &mtr);
 	} else {
 		dberr_t	err;
-		ut_ad(mode == BTR_MODIFY_TREE);
+		ut_ad(mode == (BTR_MODIFY_TREE | BTR_LATCH_FOR_DELETE));
 		btr_cur_pessimistic_delete(
 			&err, FALSE, btr_pcur_get_btr_cur(&node->pcur), 0,
 			RB_NONE, &mtr);
@@ -209,7 +209,7 @@ row_purge_remove_clust_if_poss(
 	     n_tries < BTR_CUR_RETRY_DELETE_N_TIMES;
 	     n_tries++) {
 		if (row_purge_remove_clust_if_poss_low(
-			    node, BTR_MODIFY_TREE)) {
+			    node, BTR_MODIFY_TREE | BTR_LATCH_FOR_DELETE)) {
 			return(true);
 		}
 
@@ -285,7 +285,7 @@ row_purge_remove_sec_if_poss_tree(
 		index->name starts with TEMP_INDEX_PREFIX (meaning
 		that the index is or was being created online). It is
 		protected by index->lock. */
-		mtr_x_lock(dict_index_get_lock(index), &mtr);
+		mtr_sx_lock(dict_index_get_lock(index), &mtr);
 
 		if (dict_index_is_online_ddl(index)) {
 			/* Online secondary index creation will not
@@ -302,8 +302,10 @@ row_purge_remove_sec_if_poss_tree(
 		ut_ad(!dict_index_is_online_ddl(index));
 	}
 
-	search_result = row_search_index_entry(index, entry, BTR_MODIFY_TREE,
-					       &pcur, &mtr);
+	search_result = row_search_index_entry(
+				index, entry,
+				BTR_MODIFY_TREE | BTR_LATCH_FOR_DELETE,
+				&pcur, &mtr);
 
 	switch (search_result) {
 	case ROW_NOT_FOUND:
@@ -642,11 +644,11 @@ skip_secondaries:
 
 			mtr_start(&mtr);
 
-			/* We have to acquire an X-latch to the clustered
-			index tree */
+			/* We have to acquire an SX-latch to the clustered
+			index tree (exclude other tree changes) */
 
 			index = dict_table_get_first_index(node->table);
-			mtr_x_lock(dict_index_get_lock(index), &mtr);
+			mtr_sx_lock(dict_index_get_lock(index), &mtr);
 
 			/* NOTE: we must also acquire an X-latch to the
 			root page of the tree. We will need it when we
