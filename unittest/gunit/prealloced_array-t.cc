@@ -25,6 +25,11 @@ namespace prealloced_array_unittest {
 
 class PreallocedArrayTest : public ::testing::Test
 {
+public:
+  PreallocedArrayTest()
+    : int_10(PSI_NOT_INSTRUMENTED)
+  {}
+
 protected:
   Prealloced_array<int, 10> int_10;
   int some_integer;
@@ -54,6 +59,27 @@ TEST_F(PreallocedArrayDeathTest, OutOfBoundsWrite)
 {
   ::testing::FLAGS_gtest_death_test_style = "threadsafe";
   EXPECT_DEATH_IF_SUPPORTED(int_10[5] = some_integer,
+                            ".*Assertion .*n < size.*");
+}
+
+TEST_F(PreallocedArrayDeathTest, EmptyBack)
+{
+  ::testing::FLAGS_gtest_death_test_style = "threadsafe";
+  EXPECT_DEATH_IF_SUPPORTED(int_10.back() = 42,
+                            ".*Assertion .*n < size.*");
+}
+
+TEST_F(PreallocedArrayDeathTest, EmptyPopBack)
+{
+  ::testing::FLAGS_gtest_death_test_style = "threadsafe";
+  EXPECT_DEATH_IF_SUPPORTED(int_10.pop_back(),
+                            ".*Assertion .*!empty.*");
+}
+
+TEST_F(PreallocedArrayDeathTest, EmptyErase)
+{
+  ::testing::FLAGS_gtest_death_test_style = "threadsafe";
+  EXPECT_DEATH_IF_SUPPORTED(int_10.erase(0),
                             ".*Assertion .*n < size.*");
 }
 
@@ -92,6 +118,65 @@ TEST_F(PreallocedArrayTest, Sort)
     EXPECT_EQ(ix, int_10[ix]);
 }
 
+TEST_F(PreallocedArrayTest, Back)
+{
+  for (int ix= 0; ix <= 15; ++ix)
+    int_10.push_back(ix);
+  EXPECT_EQ(15, int_10.back());
+  int_10.back()= 42;
+  EXPECT_EQ(42, int_10.back());
+}
+
+TEST_F(PreallocedArrayTest, PopBack)
+{
+  for (int ix= 0; ix <= 15; ++ix)
+    int_10.push_back(ix);
+  for (int ix= 15; ix >= 0; --ix)
+  {
+    EXPECT_EQ(ix, int_10.back());
+    int_10.pop_back();
+  }
+}
+
+TEST_F(PreallocedArrayTest, EraseFirst)
+{
+  for (int ix= 0; ix <= 15; ++ix)
+    int_10.push_back(ix);
+  EXPECT_EQ(0, int_10[0]);
+  EXPECT_EQ(16U, int_10.size());
+  int_10.erase(0);
+  EXPECT_EQ(15U, int_10.size());
+  for (int ix= 0; ix < static_cast<int>(int_10.size()); ++ix)
+  {
+    EXPECT_EQ(ix + 1, int_10[ix]);
+  }
+}
+
+TEST_F(PreallocedArrayTest, EraseLast)
+{
+  for (int ix= 0; ix <= 15; ++ix)
+    int_10.push_back(ix);
+  EXPECT_EQ(15, int_10.back());
+  EXPECT_EQ(15, int_10.at(15));
+  int_10.erase(15);
+  EXPECT_EQ(14, int_10.back());
+  EXPECT_EQ(14, int_10.at(14));
+}
+
+TEST_F(PreallocedArrayTest, EraseMiddle)
+{
+  for (int ix= 0; ix <= 15; ++ix)
+    int_10.push_back(ix);
+  EXPECT_EQ(6, int_10[6]);
+  EXPECT_EQ(7, int_10[7]);
+  EXPECT_EQ(16U, int_10.size());
+  int_10.erase(7);
+  EXPECT_EQ(6, int_10[6]);
+  EXPECT_EQ(8, int_10[7]);
+  EXPECT_EQ(9, int_10[8]);
+  EXPECT_EQ(15U, int_10.size());
+}
+
 /*
   A simple class for testing that object copying and destruction is done
   properly when we have to expand the array a few times,
@@ -121,15 +206,35 @@ private:
   To verify that there are no leaks, do:
   valgrind ./prealloced_array-t --gtest_filter="-*DeathTest*"
 */
-TEST_F(PreallocedArrayTest, NoMemLeaks)
+TEST_F(PreallocedArrayTest, NoMemLeaksPushing)
 {
-  Prealloced_array<IntWrap, 1, false> array;
+  Prealloced_array<IntWrap, 1, false> array(PSI_NOT_INSTRUMENTED);
   for (int ix= 0; ix < 42; ++ix)
     array.push_back(IntWrap(ix));
   for (int ix= 0; ix < 42; ++ix)
     EXPECT_EQ(ix, array[ix].getval());
 }
 
+TEST_F(PreallocedArrayTest, NoMemLeaksPopping)
+{
+  Prealloced_array<IntWrap, 1, false> array(PSI_NOT_INSTRUMENTED);
+  for (int ix= 0; ix < 42; ++ix)
+    array.push_back(IntWrap(ix));
+  while (!array.empty())
+    array.pop_back();
+}
+
+TEST_F(PreallocedArrayTest, NoMemLeaksErasing)
+{
+  Prealloced_array<IntWrap, 1, false> array(PSI_NOT_INSTRUMENTED);
+  for (int ix= 0; ix < 42; ++ix)
+    array.push_back(IntWrap(ix));
+  for (int ix= 0; !array.empty(); ++ix)
+  {
+    EXPECT_EQ(ix, array[0].getval());
+    array.erase(0);
+  }
+}
 
 /*
   A simple class to verify that Prealloced_array also works for
@@ -155,7 +260,7 @@ private:
  */
 TEST_F(PreallocedArrayTest, SqlAlloc)
 {
-  Prealloced_array<TestAlloc, 1, false> array;
+  Prealloced_array<TestAlloc, 1, false> array(PSI_NOT_INSTRUMENTED);
   for (int ix= 0; ix < 42; ++ix)
     array.push_back(TestAlloc(ix));
   for (int ix= 0; ix < 42; ++ix)

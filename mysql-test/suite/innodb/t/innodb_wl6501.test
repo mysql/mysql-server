@@ -19,8 +19,12 @@
 # 2. Test that truncating reference table is blocked.
 # 3. Test truncate of loaded table that has blob + compression.
 # 4. Compressed table with small key-block-size.
-# 5. check truncate with lock/unlock
-# 6 crash on truncate , remove idb file and check new ibd file created on restart
+# 5. Check truncate with lock/unlock
+# 6. Crash after magic-value to truncate log but before deleting the file.
+# 7. Log checkpoint in between and then crash to see if server is able to
+#    recover successfully.
+# 8. OOM error/File writing error while writing truncate log.
+# 9. Failure before flushing the truncate log but immediate after writing it.
 #
 ################################################################################
 
@@ -38,6 +42,7 @@ let SEARCH_FILE = $MYSQLTEST_VARDIR/log/my_restart.err;
 
 # suppress expected warnings.
 call mtr.add_suppression("Have you deleted or moved.*");
+call mtr.add_suppression("Failed to open truncate log file");
 #
 #-----------------------------------------------------------------------------
 #
@@ -280,9 +285,9 @@ drop table t1;
 drop procedure populate_t1;
 
 #-----------------------------------------------------------------------------
-set global innodb_file_per_table = on;
 --echo "5 check truncate with lock/unlock"
 use test;
+set global innodb_file_per_table = 1;
 create table master
         (i int, f float, c char(100),
          primary key pk(i), index fidx(f))
@@ -311,35 +316,110 @@ select * from master;
 drop table master;
 
 #-----------------------------------------------------------------------------
-#--echo "6 crash on truncate , remove idb file and check new ibd file created on restart"
-#use test;
-#create table t1
-#        (i int, f float, c char(100),
-#         primary key pk(i), index fidx(f))
-#        engine = innodb;
-#insert into t1 values
-#        (1, 1.1, 'a'), (2, 2.2, 'b'), (3, 3.3, 'c'),
-#        (4, 4.4, 'd'), (5, 5.5, 'e');
-#select * from t1;
-#set session debug = "+d,ib_trunc_crash_before_log_checkpoint";
-#--exec echo "restart" > $MYSQLTEST_VARDIR/tmp/mysqld.1.expect
-#--error 2013
-#truncate table t1;
-#--list_files $MYSQL_DATA_DIR/test
-# remove ibd file
-#--remove_file $MYSQL_DATA_DIR/test/t1.ibd
-#--enable_reconnect
-#--echo # Restart the MySQL server
-#--source include/wait_until_connected_again.inc
-#--disable_reconnect
-#--echo "--check t1.ibd file created on restart --"
-#--list_files $MYSQL_DATA_DIR/test
-#check table t1;
-#select * from t1;
-#insert into t1 values
-#        (1, 1.1, 'a'), (2, 2.2, 'b'), (3, 3.3, 'c');
-#select * from t1;
-#drop table t1;
+#
+# 6. Crash after magic-value to truncate log but before deleting the file.
+#
+use test;
+set global innodb_file_per_table = 1;
+create table t1
+        (i int, f float, c char(100),
+         primary key pk(i), index fidx(f))
+        engine = innodb;
+insert into t1 values
+        (1, 1.1, 'a'), (2, 2.2, 'b'), (3, 3.3, 'c'),
+        (4, 4.4, 'd'), (5, 5.5, 'e');
+select * from t1;
+set session debug = "+d,ib_trunc_crash_after_logging_complete";
+--exec echo "restart" > $MYSQLTEST_VARDIR/tmp/mysqld.1.expect
+--error 2013
+truncate table t1;
+--enable_reconnect
+--echo # Restart the MySQL server
+--source include/wait_until_connected_again.inc
+--disable_reconnect
+check table t1;
+select * from t1;
+insert into t1 values
+        (1, 1.1, 'a'), (2, 2.2, 'b'), (3, 3.3, 'c');
+select * from t1;
+drop table t1;
+
+#-----------------------------------------------------------------------------
+#
+# 7. Log checkpoint in between and then crash to see if server is able to
+#    recover successfully.
+#
+use test;
+set global innodb_file_per_table = 1;
+create table t1
+        (i int, f float, c char(100),
+         primary key pk(i), index fidx(f))
+        engine = innodb;
+#
+insert into t1 values
+        (1, 1.1, 'a'), (2, 2.2, 'b'), (3, 3.3, 'c'),
+        (4, 4.4, 'd'), (5, 5.5, 'e');
+select * from t1;
+set session debug = "+d,ib_trunc_crash_with_intermediate_log_checkpoint";
+--exec echo "restart" > $MYSQLTEST_VARDIR/tmp/mysqld.1.expect
+--error 2013
+truncate table t1;
+#
+--enable_reconnect
+--echo # Restart the MySQL server
+--source include/wait_until_connected_again.inc
+--disable_reconnect
+select * from t1;
+drop table t1;
+
+#-----------------------------------------------------------------------------
+#
+# 8. OOM error while writing truncate log.
+#
+use test;
+create table t (i int, j int) engine=innodb;
+insert into t values (1,1), (2,2), (3,3);
+select * from t;
+set session debug="+d,ib_err_trunc_oom_logging";
+--error ER_GET_ERRNO
+truncate table t;
+set session debug="-d,ib_err_trunc_oom_logging";
+select * from t;
+#
+select * from t;
+set session debug="+d,ib_err_trunc_writing_magic_number";
+truncate table t;
+select * from t;
+insert into t values (1,1), (2,2), (3,3);
+select * from t;
+#
+--echo # Restart the MySQL server
+--source include/restart_mysqld.inc
+#
+select * from t;
+drop table t;
+
+#-----------------------------------------------------------------------------
+#
+# 9. Failure before flushing the truncate log but immediate after writing it.
+#
+use test;
+create table t (i int, j int, primary key pk(i), index idx(j)) engine=innodb;
+insert into t values (1,1), (2,2), (3,3);
+select * from t;
+set session debug="+d,ib_trunc_crash_after_updating_magic_no";
+--exec echo "restart" > $MYSQLTEST_VARDIR/tmp/mysqld.1.expect
+--error 2013
+truncate table t;
+#
+--enable_reconnect
+--echo # Restart the MySQL server
+--source include/wait_until_connected_again.inc
+--disable_reconnect
+#
+# truncate action should be complete as magic_number if already written
+select * from t;
+drop table t;
 
 #-----------------------------------------------------------------------------
 #

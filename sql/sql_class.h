@@ -28,7 +28,6 @@
 #include "mdl.h"
 #include "sql_locale.h"                         /* my_locale_st */
 #include "sql_profile.h"                   /* PROFILING */
-#include "scheduler.h"                     /* thd_scheduler */
 #include "protocol.h"             /* Protocol_text, Protocol_binary */
 #include "violite.h"              /* vio_is_connected */
 #include "thr_lock.h"             /* thr_lock_type, THR_LOCK_DATA,
@@ -318,6 +317,40 @@ typedef struct st_mysql_lock
   uint table_count,lock_count;
   THR_LOCK_DATA **locks;
 } MYSQL_LOCK;
+
+
+/**
+ To be used for pool-of-threads (implemeneted differently on various OSs)
+*/
+class thd_scheduler
+{
+public:
+  /*
+    Thread instrumentation for the user job.
+    This member holds the instrumentation while the user job is not run
+    by a thread.
+
+    Note that this member is not conditionally declared
+    (ifdef HAVE_PSI_INTERFACE), because doing so will change the binary
+    layout of THD, which is exposed to plugin code that may be compiled
+    differently.
+  */
+  PSI_thread *m_psi;
+
+  void *data;                  /* scheduler-specific data structure */
+
+  thd_scheduler()
+  : m_psi(NULL), data(NULL)
+  { }
+
+  ~thd_scheduler() { }
+};
+
+/* Needed to get access to scheduler variables */
+void* thd_get_scheduler_data(THD *thd);
+void thd_set_scheduler_data(THD *thd, void *data);
+PSI_thread* thd_get_psi(THD *thd);
+void thd_set_psi(THD *thd, PSI_thread *psi);
 
 
 /**
@@ -1655,7 +1688,8 @@ public:
     m_reopen_array(NULL),
     m_locked_tables_count(0)
   {
-    init_sql_alloc(&m_locked_tables_root, MEM_ROOT_BLOCK_SIZE, 0);
+    init_sql_alloc(key_memory_locked_table_list,
+                   &m_locked_tables_root, MEM_ROOT_BLOCK_SIZE, 0);
   }
   void unlock_locked_tables(THD *thd);
   ~Locked_tables_list()
@@ -2034,7 +2068,7 @@ public:
   struct timeval start_time;
   struct timeval user_time;
   // track down slow pthread_create
-  ulonglong  prior_thr_create_utime, thr_create_utime;
+  ulonglong  thr_create_utime;
   ulonglong  start_utime, utime_after_lock;
 
   /**
@@ -2053,6 +2087,16 @@ public:
 
   /* <> 0 if we are inside of trigger or stored function. */
   uint in_sub_stmt;
+
+  /** 
+    Used by fill_status() to avoid acquiring LOCK_status mutex twice
+    when this function is called recursively (e.g. queries 
+    that contains SELECT on I_S.GLOBAL_STATUS with subquery on the 
+    same I_S table).
+    Incremented each time fill_status() function is entered and 
+    decremented each time before it returns from the function.
+  */
+  uint fill_status_recursion_level;
 
   /* container for handler's private per-connection data */
   Ha_data ha_data[MAX_HA];
@@ -2312,7 +2356,7 @@ public:
     {
       memset(this, 0, sizeof(*this));
       xid_state.xid.null();
-      init_sql_alloc(&mem_root, ALLOC_ROOT_MIN_BLOCK_SIZE, 0);
+      init_sql_alloc(key_memory_thd_transactions, &mem_root, ALLOC_ROOT_MIN_BLOCK_SIZE, 0);
     }
     void push_unsafe_rollback_warnings(THD *thd)
     {
@@ -3621,7 +3665,8 @@ public:
     {
       my_free(db);
       if (new_db)
-        db= my_strndup(new_db, new_db_len, MYF(MY_WME | ME_FATALERROR));
+        db= my_strndup(key_memory_THD_db,
+                       new_db, new_db_len, MYF(MY_WME | ME_FATALERROR));
       else
         db= NULL;
     }
@@ -4710,13 +4755,14 @@ class user_var_entry
   /**
     Initialize all members
     @param name - Name of the user_var_entry instance.
+    @cs         - charset information of the user_var_entry instance.
   */
-  void init(const Simple_cstring &name)
+  void init(const Simple_cstring &name, const CHARSET_INFO *cs)
   {
     copy_name(name);
     reset_value();
     update_query_id= 0;
-    collation.set(NULL, DERIVATION_IMPLICIT, 0);
+    collation.set(cs, DERIVATION_IMPLICIT, 0);
     unsigned_flag= 0;
     /*
       If we are here, we were called from a SET or a query which sets a
@@ -4786,19 +4832,21 @@ public:
   /**
     Allocate and initialize a user variable instance.
     @param namec  Name of the variable.
+    @param cs     Charset of the variable.
     @return
     @retval  Address of the allocated and initialized user_var_entry instance.
     @retval  NULL on allocation error.
   */
-  static user_var_entry *create(const Name_string &name)
+  static user_var_entry *create(const Name_string &name, const CHARSET_INFO *cs)
   {
     user_var_entry *entry;
     uint size= ALIGN_SIZE(sizeof(user_var_entry)) +
                (name.length() + 1) + extra_size;
-    if (!(entry= (user_var_entry*) my_malloc(size, MYF(MY_WME |
+    if (!(entry= (user_var_entry*) my_malloc(key_memory_user_var_entry,
+                                             size, MYF(MY_WME |
                                                        ME_FATALERROR))))
       return NULL;
-    entry->init(name);
+    entry->init(name, cs);
     return entry;
   }
 

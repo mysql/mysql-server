@@ -1246,7 +1246,7 @@ static bool print_admin_msg(THD* thd, uint len,
   char *msgbuf;
   bool error= true;
 
-  if (!(msgbuf= (char*) my_malloc(len, MYF(0))))
+  if (!(msgbuf= (char*) my_malloc(PSI_INSTRUMENT_ME, len, MYF(0))))
     return true;
   va_start(args, fmt);
   msg_length= my_vsnprintf(msgbuf, len, fmt, args);
@@ -2498,7 +2498,8 @@ bool ha_partition::create_handler_file(const char *name)
   /* 4 static words (tot words, checksum, tot partitions, name length) */
   tot_len_words= 4 + tot_partition_words + tot_name_words;
   tot_len_byte= PAR_WORD_SIZE * tot_len_words;
-  if (!(file_buffer= (uchar *) my_malloc(tot_len_byte, MYF(MY_ZEROFILL))))
+  if (!(file_buffer= (uchar *) my_malloc(key_memory_partition_file,
+                                         tot_len_byte, MYF(MY_ZEROFILL))))
     DBUG_RETURN(TRUE);
   engine_array= (file_buffer + PAR_ENGINES_OFFSET);
   name_buffer_ptr= (char*) (engine_array + tot_partition_words * PAR_WORD_SIZE
@@ -2740,7 +2741,8 @@ bool ha_partition::read_par_file(const char *name)
   len_bytes= PAR_WORD_SIZE * len_words;
   if (mysql_file_seek(file, 0, MY_SEEK_SET, MYF(0)) == MY_FILEPOS_ERROR)
     goto err1;
-  if (!(file_buffer= (char*) my_malloc(len_bytes, MYF(0))))
+  if (!(file_buffer= (char*) my_malloc(key_memory_partition_file,
+                                       len_bytes, MYF(0))))
     goto err1;
   if (mysql_file_read(file, (uchar *) file_buffer, len_bytes, MYF(MY_NABP)))
     goto err2;
@@ -2808,7 +2810,8 @@ bool ha_partition::setup_engine_array(MEM_ROOT *mem_root)
     goto err;
 
   if (!(m_engine_array= (plugin_ref*)
-                my_malloc(m_tot_parts * sizeof(plugin_ref), MYF(MY_WME))))
+                my_malloc(key_memory_partition_engine_array,
+                          m_tot_parts * sizeof(plugin_ref), MYF(MY_WME))))
     goto err;
 
   for (i= 0; i < m_tot_parts; i++)
@@ -2932,7 +2935,8 @@ bool ha_partition::insert_partition_name_in_hash(const char *name, uint part_id,
     Since we use my_multi_malloc, then my_free(part_def) will also free
     part_name, as a part of my_hash_free.
   */
-  if (!my_multi_malloc(MY_WME,
+  if (!my_multi_malloc(key_memory_ha_partition_PART_NAME_DEF,
+                       MY_WME,
                        &part_def, sizeof(PART_NAME_DEF),
                        &part_name, part_name_length + 1,
                        NULL))
@@ -3227,7 +3231,8 @@ int ha_partition::open(const char *name, int mode, uint test_if_locked)
   if (!m_part_ids_sorted_by_num_of_records)
   {
     if (!(m_part_ids_sorted_by_num_of_records=
-            (uint32*) my_malloc(m_tot_parts * sizeof(uint32), MYF(MY_WME))))
+            (uint32*) my_malloc(key_memory_ha_partition_part_ids,
+                                m_tot_parts * sizeof(uint32), MYF(MY_WME))))
       DBUG_RETURN(error);
     uint32 i;
     /* Initialize it with all partition ids. */
@@ -4872,7 +4877,8 @@ bool ha_partition::init_record_priority_queue()
     /* Allocate a key for temporary use when setting up the scan. */
     alloc_len+= table_share->max_key_length;
 
-    if (!(m_ordered_rec_buffer= (uchar*)my_malloc(alloc_len, MYF(MY_WME))))
+    if (!(m_ordered_rec_buffer= (uchar*)my_malloc(key_memory_ha_partition_ordered_rec_buffer,
+                                                  alloc_len, MYF(MY_WME))))
       DBUG_RETURN(true);
 
     /*
@@ -6521,7 +6527,7 @@ void ha_partition::get_dynamic_partition_info(PARTITION_STATS *stat_info,
 {
   handler *file= m_file[part_id];
   DBUG_ASSERT(bitmap_is_set(&(m_part_info->read_partitions), part_id));
-  file->info(HA_STATUS_CONST | HA_STATUS_TIME | HA_STATUS_VARIABLE |
+  file->info(HA_STATUS_TIME | HA_STATUS_VARIABLE |
              HA_STATUS_VARIABLE_EXTRA | HA_STATUS_NO_LOCK);
 
   stat_info->records=              file->stats.records;

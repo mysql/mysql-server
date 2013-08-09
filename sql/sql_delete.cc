@@ -49,6 +49,7 @@
 bool mysql_delete(THD *thd, TABLE_LIST *table_list, Item *conds,
                   SQL_I_List<ORDER> *order_list, ha_rows limit, ulonglong options)
 {
+  myf           error_flags= MYF(0);            /**< Flag for fatal errors */
   bool          will_batch;
   int		error, loc_error;
   TABLE		*table;
@@ -205,7 +206,10 @@ bool mysql_delete(THD *thd, TABLE_LIST *table_list, Item *conds,
     }
     if (error != HA_ERR_WRONG_COMMAND)
     {
-      table->file->print_error(error,MYF(0));
+      if (table->file->is_fatal_error(error, HA_CHECK_DUP_KEY))
+        error_flags|= ME_FATALERROR;
+
+      table->file->print_error(error, error_flags);
       error=0;
       goto cleanup;
     }
@@ -358,7 +362,8 @@ bool mysql_delete(THD *thd, TABLE_LIST *table_list, Item *conds,
       {
         Filesort fsort(order, HA_POS_ERROR, select);
         DBUG_ASSERT(usable_index == MAX_KEY);
-        table->sort.io_cache= (IO_CACHE *) my_malloc(sizeof(IO_CACHE),
+        table->sort.io_cache= (IO_CACHE *) my_malloc(key_memory_TABLE_sort_io_cache,
+                                                     sizeof(IO_CACHE),
                                                      MYF(MY_FAE | MY_ZEROFILL));
 
         if ((table->sort.found_records= filesort(thd, table, &fsort, true,
@@ -382,7 +387,10 @@ bool mysql_delete(THD *thd, TABLE_LIST *table_list, Item *conds,
     /* If quick select is used, initialize it before retrieving rows. */
     if (select && select->quick && (error= select->quick->reset()))
     {
-      table->file->print_error(error, MYF(0));
+      if (table->file->is_fatal_error(error, HA_CHECK_DUP_KEY))
+        error_flags|= ME_FATALERROR;
+
+      table->file->print_error(error, error_flags);
       err= true;
       goto exit_without_my_ok;
     }
@@ -457,7 +465,10 @@ bool mysql_delete(THD *thd, TABLE_LIST *table_list, Item *conds,
         }
         else
         {
-          table->file->print_error(error,MYF(0));
+          if (table->file->is_fatal_error(error, HA_CHECK_DUP_KEY))
+            error_flags|= ME_FATALERROR;
+          
+          table->file->print_error(error, error_flags);
           /*
             In < 4.0.14 we set the error number to 0 here, but that
             was not sensible, because then MySQL would not roll back the
@@ -486,7 +497,12 @@ bool mysql_delete(THD *thd, TABLE_LIST *table_list, Item *conds,
     {
       /* purecov: begin inspected */
       if (error != 1)
-        table->file->print_error(loc_error,MYF(0));
+      {
+        if (table->file->is_fatal_error(loc_error, HA_CHECK_DUP_KEY))
+          error_flags|= ME_FATALERROR;
+
+        table->file->print_error(loc_error, error_flags);
+      }
       error=1;
       /* purecov: end */
     }
@@ -890,7 +906,11 @@ bool multi_delete::send_data(List<Item> &values)
           If the IGNORE option is used errors caused by ha_delete_row don't
           have to stop the iteration.
         */
-        table->file->print_error(error,MYF(0));
+        myf error_flags= MYF(0);
+        if (table->file->is_fatal_error(error, HA_CHECK_DUP_KEY))
+          error_flags|= ME_FATALERROR;
+
+        table->file->print_error(error, error_flags);
         DBUG_RETURN(1);
       }
     }
@@ -1034,6 +1054,7 @@ int multi_delete::do_deletes()
 */
 int multi_delete::do_table_deletes(TABLE *table, bool ignore)
 {
+  myf error_flags= MYF(0);                      /**< Flag for fatal errors */
   int local_error= 0;
   READ_RECORD info;
   ha_rows last_deleted= deleted;
@@ -1059,7 +1080,10 @@ int multi_delete::do_table_deletes(TABLE *table, bool ignore)
     local_error= table->file->ha_delete_row(table->record[0]);
     if (local_error && !ignore)
     {
-      table->file->print_error(local_error, MYF(0));
+      if (table->file->is_fatal_error(local_error, HA_CHECK_DUP_KEY))
+        error_flags|= ME_FATALERROR;
+
+      table->file->print_error(local_error, error_flags);
       break;
     }
       
@@ -1086,7 +1110,10 @@ int multi_delete::do_table_deletes(TABLE *table, bool ignore)
     if (tmp_error && !local_error)
     {
       local_error= tmp_error;
-      table->file->print_error(local_error, MYF(0));
+      if (table->file->is_fatal_error(local_error, HA_CHECK_DUP_KEY))
+        error_flags|= ME_FATALERROR;
+
+      table->file->print_error(local_error, error_flags);
     }
   }
   if (last_deleted != deleted && !table->file->has_transactions())

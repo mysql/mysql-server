@@ -48,7 +48,7 @@ uint my_get_large_page_size(void)
   my_malloc() in case of failure
 */
 
-uchar* my_large_malloc(size_t size, myf my_flags)
+uchar* my_large_malloc(PSI_memory_key key, size_t size, myf my_flags)
 {
   uchar* ptr;
   DBUG_ENTER("my_large_malloc");
@@ -61,7 +61,7 @@ uchar* my_large_malloc(size_t size, myf my_flags)
       fprintf(stderr, "Warning: Using conventional memory pool\n");
   }
       
-  DBUG_RETURN(my_malloc(size, my_flags));
+  DBUG_RETURN(my_malloc(key, size, my_flags));
 }
 
 /*

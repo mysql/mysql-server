@@ -131,7 +131,8 @@ mysql_real_connect(MYSQL *mysql,const char *host, const char *user,
     if (!passwd)
       passwd=getenv("MYSQL_PWD");		/* get it from environment */
   }
-  mysql->passwd= passwd ? my_strdup(passwd,MYF(0)) : NULL;
+  mysql->passwd= passwd ? my_strdup(PSI_NOT_INSTRUMENTED,
+                                    passwd,MYF(0)) : NULL;
 #endif /*!NO_EMBEDDED_ACCESS_CHECKS*/
   if (!user || !user[0])
   {
@@ -147,7 +148,8 @@ mysql_real_connect(MYSQL *mysql,const char *host, const char *user,
       put extra 'my_free's in mysql_close.
       So we alloc it with the 'user' string to be freed at once
    */
-  mysql->user= my_strdup(user, MYF(0));
+  mysql->user= my_strdup(PSI_NOT_INSTRUMENTED,
+                         user, MYF(0));
 
   port=0;
   unix_socket=0;
@@ -165,7 +167,8 @@ mysql_real_connect(MYSQL *mysql,const char *host, const char *user,
   if (db)
     client_flag|=CLIENT_CONNECT_WITH_DB;
 
-  mysql->info_buffer= my_malloc(MYSQL_ERRMSG_SIZE, MYF(0));
+  mysql->info_buffer= my_malloc(PSI_NOT_INSTRUMENTED,
+                                MYSQL_ERRMSG_SIZE, MYF(0));
   mysql->thd= create_embedded_thd(client_flag);
 
   init_embedded_mysql(mysql, client_flag);

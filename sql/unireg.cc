@@ -272,7 +272,8 @@ bool mysql_create_frm(THD *thd, const char *file_name,
   }
 
   key_buff_length= uint4korr(fileinfo+47);
-  keybuff=(uchar*) my_malloc(key_buff_length, MYF(0));
+  keybuff=(uchar*) my_malloc(key_memory_frm,
+                             key_buff_length, MYF(0));
   key_info_length= pack_keys(keybuff, keys, key_info, data_offset);
 
   /*
@@ -364,7 +365,8 @@ bool mysql_create_frm(THD *thd, const char *file_name,
   /* "Format section" with additional table and column properties */
   {
     uchar *ptr, *format_section_buff;
-    if (!(format_section_buff=(uchar*) my_malloc(format_section_length,
+    if (!(format_section_buff=(uchar*) my_malloc(key_memory_frm,
+                                                 format_section_length,
                                                  MYF(MY_WME))))
       goto err;
     ptr= format_section_buff;
@@ -539,7 +541,8 @@ static uchar *pack_screens(List<Create_field> &create_fields,
   while ((field=it++))
     length+=(uint) strlen(field->field_name)+1+TE_INFO_LENGTH+cols/2;
 
-  if (!(info=(uchar*) my_malloc(length,MYF(MY_WME))))
+  if (!(info=(uchar*) my_malloc(key_memory_frm,
+                                length,MYF(MY_WME))))
     DBUG_RETURN(0);
 
   start_screen=0;
@@ -1047,7 +1050,8 @@ static bool make_empty_rec(THD *thd, File file,
   memset(&share, 0, sizeof(share));
   table.s= &share;
 
-  if (!(buff=(uchar*) my_malloc((size_t) reclength,MYF(MY_WME | MY_ZEROFILL))))
+  if (!(buff=(uchar*) my_malloc(key_memory_frm,
+                                (size_t) reclength,MYF(MY_WME | MY_ZEROFILL))))
   {
     DBUG_RETURN(1);
   }
