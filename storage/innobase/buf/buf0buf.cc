@@ -2685,6 +2685,7 @@ buf_page_get_gen(
 	ut_ad(mtr->state == MTR_ACTIVE);
 	ut_ad((rw_latch == RW_S_LATCH)
 	      || (rw_latch == RW_X_LATCH)
+	      || (rw_latch == RW_SX_LATCH)
 	      || (rw_latch == RW_NO_LATCH));
 #ifdef UNIV_DEBUG
 	switch (mode) {
@@ -3132,6 +3133,12 @@ wait_until_unfixed:
 		fix_type = MTR_MEMO_PAGE_S_FIX;
 		break;
 
+	case RW_SX_LATCH:
+		rw_lock_sx_lock_inline(&block->lock, 0, file, line);
+
+		fix_type = MTR_MEMO_PAGE_SX_FIX;
+		break;
+
 	default:
 		ut_ad(rw_latch == RW_X_LATCH);
 		rw_lock_x_lock_inline(&(block->lock), 0, file, line);
@@ -3210,14 +3217,19 @@ buf_page_optimistic_get(
 			   buf_block_get_zip_size(block),
 			   buf_block_get_page_no(block), NULL));
 
-	if (rw_latch == RW_S_LATCH) {
+	switch (rw_latch) {
+	case RW_S_LATCH:
 		success = rw_lock_s_lock_nowait(&(block->lock),
 						file, line);
 		fix_type = MTR_MEMO_PAGE_S_FIX;
-	} else {
+		break;
+	case RW_X_LATCH:
 		success = rw_lock_x_lock_func_nowait_inline(&(block->lock),
 							    file, line);
 		fix_type = MTR_MEMO_PAGE_X_FIX;
+		break;
+	default:
+		ut_error; /* RW_SX_LATCH is not implemented yet */
 	}
 
 	if (UNIV_UNLIKELY(!success)) {
@@ -3333,14 +3345,19 @@ buf_page_get_known_nowait(
 
 	ut_ad(!ibuf_inside(mtr) || mode == BUF_KEEP_OLD);
 
-	if (rw_latch == RW_S_LATCH) {
+	switch (rw_latch) {
+	case RW_S_LATCH:
 		success = rw_lock_s_lock_nowait(&(block->lock),
 						file, line);
 		fix_type = MTR_MEMO_PAGE_S_FIX;
-	} else {
+		break;
+	case RW_X_LATCH:
 		success = rw_lock_x_lock_func_nowait_inline(&(block->lock),
 							    file, line);
 		fix_type = MTR_MEMO_PAGE_X_FIX;
+		break;
+	default:
+		ut_error; /* RW_SX_LATCH is not implemented yet */
 	}
 
 	if (!success) {
@@ -4357,8 +4374,8 @@ corrupt:
 		buf_flush_write_complete(bpage);
 
 		if (uncompressed) {
-			rw_lock_s_unlock_gen(&((buf_block_t*) bpage)->lock,
-					     BUF_IO_WRITE);
+			rw_lock_sx_unlock_gen(&((buf_block_t*) bpage)->lock,
+					      BUF_IO_WRITE);
 		}
 
 		buf_pool->stat.n_pages_written++;
@@ -4587,7 +4604,10 @@ buf_pool_validate_instance(
 assert_s_latched:
 						ut_a(rw_lock_is_locked(
 							     &block->lock,
-								     RW_LOCK_SHARED));
+							     RW_LOCK_SHARED)
+						     || rw_lock_is_locked(
+								&block->lock,
+								RW_LOCK_SX));
 						break;
 					case BUF_FLUSH_LIST:
 						n_list_flush++;
