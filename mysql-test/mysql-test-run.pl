@@ -181,6 +181,8 @@ our @opt_combinations;
 our @opt_extra_mysqld_opt;
 our @opt_mysqld_envs;
 
+our @opt_extra_bootstrap_opt;
+
 my $opt_stress;
 
 my $opt_compress;
@@ -992,6 +994,7 @@ sub print_global_resfile {
   resfile_global("parallel", $opt_parallel);
   resfile_global("check-testcases", $opt_check_testcases ? 1 : 0);
   resfile_global("mysqld", \@opt_extra_mysqld_opt);
+  resfile_global("bootstrap", \@opt_extra_bootstrap_opt);
   resfile_global("debug", $opt_debug ? 1 : 0);
   resfile_global("gcov", $opt_gcov ? 1 : 0);
   resfile_global("gprof", $opt_gprof ? 1 : 0);
@@ -1082,6 +1085,9 @@ sub command_line_setup {
              # Extra options used when starting mysqld
              'mysqld=s'                 => \@opt_extra_mysqld_opt,
              'mysqld-env=s'             => \@opt_mysqld_envs,
+
+             # Extra options used when bootstrapping mysqld
+             'bootstrap=s'                 => \@opt_extra_bootstrap_opt,
 
              # Run test on running server
              'extern=s'                  => \%opts_extern, # Append to hash
@@ -3513,6 +3519,14 @@ sub mysql_install_db {
   mtr_add_arg($args, "--core-file");
   # over writing innodb_autoextend_increment to 8 for reducing the ibdata1 file size 
   mtr_add_arg($args, "--innodb_autoextend_increment=8");
+  # over writing the buffer size to 16M for certain tests to pass       
+  mtr_add_arg($args, "--innodb_buffer_pool_size=16M");
+
+  if ( $opt_embedded_server )
+  {
+    # Do not create performance_schema tables for embedded
+    mtr_add_arg($args, "--loose-performance_schema=OFF");
+  }
 
   if ( $opt_debug )
   {
@@ -3536,8 +3550,18 @@ sub mysql_install_db {
     if ($extra_opt =~ /--innodb/) {
       mtr_add_arg($args, $extra_opt);
     }
+  # Plugin arguments need to be given to the bootstrap 
+  # process as well as the server process.
+    if ($extra_opt =~ /--default-authentication-plugin/) {
+      mtr_add_arg($args, $extra_opt);
+    }
   }
 
+  # Arguments to bootstrap process.
+  foreach my $extra_opt ( @opt_extra_bootstrap_opt ) {
+      mtr_add_arg($args, $extra_opt);
+  }
+ 
   # The user can set MYSQLD_BOOTSTRAP to the full path to a mysqld
   # to run a different mysqld during --bootstrap.
   my $exe_mysqld_bootstrap =

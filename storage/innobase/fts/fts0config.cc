@@ -221,7 +221,7 @@ fts_config_set_value(
 
 	graph = fts_parse_sql(
 		fts_table, info,
-		"BEGIN UPDATE %s SET value = :value WHERE key = :name;");
+		"BEGIN UPDATE \"%s\" SET value = :value WHERE key = :name;");
 
 	trx->op_info = "setting FTS config value";
 
@@ -246,7 +246,7 @@ fts_config_set_value(
 		graph = fts_parse_sql(
 			fts_table, info,
 			"BEGIN\n"
-			"INSERT INTO %s VALUES(:name, :value);");
+			"INSERT INTO \"%s\" VALUES(:name, :value);");
 
 		trx->op_info = "inserting FTS config value";
 

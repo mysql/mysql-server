@@ -37,12 +37,14 @@ Created 3/26/1996 Heikki Tuuri
 #include "usr0types.h"
 #include "que0types.h"
 #include "mem0mem.h"
-#include "read0types.h"
 #include "trx0xa.h"
 #include "ut0vec.h"
 #include "fts0fts.h"
 
 #include <set>
+
+// Forward declaration
+class ReadView;
 
 /** Dummy session used currently in MySQL interface */
 extern sess_t*	trx_dummy_sess;
@@ -112,8 +114,7 @@ At shutdown, frees a transaction object that is in the PREPARED state. */
 void
 trx_free_prepared(
 /*==============*/
-	trx_t*	trx)	/*!< in, own: trx object */
-	UNIV_COLD __attribute__((nonnull));
+	trx_t*	trx);	/*!< in, own: trx object */
 /********************************************************************//**
 Frees a transaction object for MySQL. */
 
@@ -157,6 +158,12 @@ trx_start_internal_low(
 /*===================*/
 	trx_t*	trx);		/*!< in/out: transaction */
 
+/** Starts a read-only transaction for internal processing.
+@param[in,out] trx	transaction to be started */
+void
+trx_start_internal_read_only_low(
+	trx_t*	trx);
+
 #ifdef UNIV_DEBUG
 #define trx_start_if_not_started_xa(t, rw)			\
 	do {							\
@@ -178,12 +185,22 @@ trx_start_internal_low(
 	(t)->start_file = __FILE__;				\
 	trx_start_internal_low((t));				\
 	} while (false)
+
+#define trx_start_internal_read_only(t)				\
+	do {							\
+	(t)->start_line = __LINE__;				\
+	(t)->start_file = __FILE__;				\
+	trx_start_internal_read_only_low(t);			\
+	} while (false)
 #else
 #define trx_start_if_not_started(t, rw)				\
 	trx_start_if_not_started_low((t), rw)
 
 #define trx_start_internal(t)					\
 	trx_start_internal_low((t))
+
+#define trx_start_internal_read_only(t)				\
+	trx_start_internal_read_only_low(t)
 
 #define trx_start_if_not_started_xa(t, rw)			\
 	trx_start_if_not_started_xa_low((t), (rw))
@@ -196,8 +213,7 @@ void
 trx_start_for_ddl_low(
 /*==================*/
 	trx_t*		trx,	/*!< in/out: transaction */
-	trx_dict_op_t	op)	/*!< in: dictionary operation type */
-	__attribute__((nonnull));
+	trx_dict_op_t	op);	/*!< in: dictionary operation type */
 
 #ifdef UNIV_DEBUG
 #define trx_start_for_ddl(t, o)					\
@@ -218,8 +234,8 @@ Commits a transaction. */
 void
 trx_commit(
 /*=======*/
-	trx_t*	trx)	/*!< in/out: transaction */
-	__attribute__((nonnull));
+	trx_t*	trx);	/*!< in/out: transaction */
+
 /****************************************************************//**
 Commits a transaction and a mini-transaction. */
 
@@ -227,9 +243,8 @@ void
 trx_commit_low(
 /*===========*/
 	trx_t*	trx,	/*!< in/out: transaction */
-	mtr_t*	mtr)	/*!< in/out: mini-transaction (will be committed),
+	mtr_t*	mtr);	/*!< in/out: mini-transaction (will be committed),
 			or NULL if trx made no modifications */
-	__attribute__((nonnull(1)));
 /****************************************************************//**
 Cleans up a transaction at database startup. The cleanup is needed if
 the transaction already got to the middle of a commit when the database
@@ -282,8 +297,7 @@ with trx->flush_log_later == TRUE. */
 void
 trx_commit_complete_for_mysql(
 /*==========================*/
-	trx_t*	trx)	/*!< in/out: transaction */
-	__attribute__((nonnull));
+	trx_t*	trx);	/*!< in/out: transaction */
 /**********************************************************************//**
 Marks the latest SQL statement ended. */
 
@@ -294,13 +308,29 @@ trx_mark_sql_stat_end(
 /********************************************************************//**
 Assigns a read view for a consistent read query. All the consistent reads
 within the same transaction will get the same read view, which is created
-when this function is first called for a new started transaction.
-@return consistent read view */
+when this function is first called for a new started transaction. */
 
-read_view_t*
+ReadView*
 trx_assign_read_view(
 /*=================*/
 	trx_t*	trx);	/*!< in: active transaction */
+
+/****************************************************************//**
+@return the transaction's read view or NULL if one not assigned. */
+UNIV_INLINE
+ReadView*
+trx_get_read_view(
+/*==============*/
+	trx_t*	trx);
+
+/****************************************************************//**
+@return the transaction's read view or NULL if one not assigned. */
+UNIV_INLINE
+const ReadView*
+trx_get_read_view(
+/*==============*/
+	const trx_t*	trx);
+
 /****************************************************************//**
 Prepares a transaction for commit/rollback. */
 
@@ -343,9 +373,8 @@ trx_print_low(
 			/*!< in: lock_number_of_rows_locked(&trx->lock) */
 	ulint		n_trx_locks,
 			/*!< in: length of trx->lock.trx_locks */
-	ulint		heap_size)
+	ulint		heap_size);
 			/*!< in: mem_heap_get_size(trx->lock.lock_heap) */
-	__attribute__((nonnull));
 
 /**********************************************************************//**
 Prints info about a transaction.
@@ -357,9 +386,8 @@ trx_print_latched(
 /*==============*/
 	FILE*		f,		/*!< in: output stream */
 	const trx_t*	trx,		/*!< in: transaction */
-	ulint		max_query_len)	/*!< in: max query length to print,
+	ulint		max_query_len);	/*!< in: max query length to print,
 					or 0 to use the default max length */
-	__attribute__((nonnull));
 
 /**********************************************************************//**
 Prints info about a transaction.
@@ -370,9 +398,8 @@ trx_print(
 /*======*/
 	FILE*		f,		/*!< in: output stream */
 	const trx_t*	trx,		/*!< in: transaction */
-	ulint		max_query_len)	/*!< in: max query length to print,
+	ulint		max_query_len);	/*!< in: max query length to print,
 					or 0 to use the default max length */
-	__attribute__((nonnull));
 
 /**********************************************************************//**
 Determine if a transaction is a dictionary operation.
@@ -411,7 +438,7 @@ trx_state_eq(
 				if state != TRX_STATE_NOT_STARTED
 				asserts that
 				trx->state != TRX_STATE_NOT_STARTED */
-	__attribute__((nonnull, warn_unused_result));
+	__attribute__((warn_unused_result));
 # ifdef UNIV_DEBUG
 /**********************************************************************//**
 Asserts that a transaction has been started.
@@ -422,7 +449,7 @@ ibool
 trx_assert_started(
 /*===============*/
 	const trx_t*	trx)	/*!< in: transaction */
-	__attribute__((nonnull, warn_unused_result));
+	__attribute__((warn_unused_result));
 # endif /* UNIV_DEBUG */
 
 /**********************************************************************//**
@@ -593,7 +620,7 @@ non-locking select */
 #define	assert_trx_is_free(t)	do {					\
 	ut_ad(trx_state_eq((t), TRX_STATE_NOT_STARTED));		\
 	ut_ad(!trx_is_rseg_updated(trx));				\
-	ut_ad((t)->read_view == NULL);					\
+	ut_ad(!MVCC::is_view_active((t)->read_view));			\
 	ut_ad((t)->lock.wait_thr == NULL);				\
 	ut_ad(UT_LIST_GET_LEN((t)->lock.trx_locks) == 0);		\
 	ut_ad((t)->dict_operation == TRX_DICT_OP_NONE);			\
@@ -634,6 +661,8 @@ ro_trx_list nor the rw_trx_list and that it is a read-only transaction.
 The tranasction must be in the mysql_trx_list. */
 # define assert_trx_nonlocking_or_in_list(trx) ((void)0)
 #endif /* UNIV_DEBUG */
+
+typedef std::vector<ib_lock_t*> lock_pool_t;
 
 /*******************************************************************//**
 Latching protocol for trx_lock_t::que_state.  trx_lock_t::que_state
@@ -694,6 +723,14 @@ struct trx_lock_t {
 					lock_sys->mutex. Otherwise, this may
 					only be modified by the thread that is
 					serving the running transaction. */
+
+	lock_pool_t	rec_pool;	/*!< Pre-allocated record locks */
+
+	lock_pool_t	table_pool;	/*!< Pre-allocated table locks */
+
+	ulint		rec_cached;	/*!< Next free rec lock in pool */
+
+	ulint		table_cached;	/*!< Next free table lock in pool */
 
 	mem_heap_t*	lock_heap;	/*!< memory heap for trx_locks;
 					protected by lock_sys->mutex */
@@ -808,6 +845,10 @@ struct trx_t{
 					The same node is used for both
 					trx_sys_t::ro_trx_list and
 					trx_sys_t::rw_trx_list */
+	UT_LIST_NODE_T(trx_t)
+			no_list;	/*!< Required during view creation
+					to check for the view limit for
+					transactions that are committing */
 
 	trx_id_t	id;		/*!< transaction id */
 
@@ -889,6 +930,9 @@ struct trx_t{
 					state and lock
 					(except some fields of lock, which
 					are protected by lock_sys->mutex) */
+
+	ReadView*	read_view;	/*!< consistent read view used in the
+					transaction, or NULL if not yet set */
 
 	trx_lock_t	lock;		/*!< Information about the transaction
 					locks and state. Protected by
@@ -1038,9 +1082,6 @@ struct trx_t{
 					survive over a transaction commit, if
 					it is a stored procedure with a COMMIT
 					WORK statement, for instance */
-	mem_heap_t*	read_view_heap;	/*!< memory heap for the read view */
-	read_view_t*	read_view;	/*!< consistent read view used in the
-					transaction, or NULL if not yet set */
 	/*------------------------------*/
 	UT_LIST_BASE_NODE_T(trx_named_savept_t)
 			trx_savepoints;	/*!< savepoints set with SAVEPOINT ...,

@@ -1356,7 +1356,8 @@ static my_bool acl_load(THD *thd, TABLE_LIST *tables)
   
   acl_cache->clear(1);                          // Clear locked hostname cache
 
-  init_sql_alloc(&global_acl_memory, ACL_ALLOC_BLOCK_SIZE, 0);
+  init_sql_alloc(key_memory_acl_mem,
+                 &global_acl_memory, ACL_ALLOC_BLOCK_SIZE, 0);
   /*
     Prepare reading from the mysql.user table
   */
@@ -2268,7 +2269,8 @@ my_bool grant_reload(THD *thd)
     opertion possible in case of failure.
   */
   old_mem= memex;
-  init_sql_alloc(&memex, ACL_ALLOC_BLOCK_SIZE, 0);
+  init_sql_alloc(key_memory_acl_memex,
+                 &memex, ACL_ALLOC_BLOCK_SIZE, 0);
 
   if ((return_val= grant_load(thd, tables)))
   {                                             // Error. Revert to old hash

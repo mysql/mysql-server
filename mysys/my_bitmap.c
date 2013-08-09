@@ -151,7 +151,8 @@ my_bool bitmap_init(MY_BITMAP *map, my_bitmap_map *buf, uint n_bits,
     }
     map->mutex= 0;
 
-    if (!(buf= (my_bitmap_map*) my_malloc(size_in_bytes+extra, MYF(MY_WME))))
+    if (!(buf= (my_bitmap_map*) my_malloc(key_memory_MY_BITMAP_bitmap,
+                                          size_in_bytes+extra, MYF(MY_WME))))
       DBUG_RETURN(1);
 
     if (thread_safe)

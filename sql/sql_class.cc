@@ -61,6 +61,7 @@
 #include "lock.h"
 #include "global_threads.h"
 #include "mysqld.h"
+#include "connection_handler_manager.h"   // Connection_handler_manager
 
 #include <mysql/psi/mysql_statement.h>
 
@@ -384,14 +385,14 @@ void thd_new_connection_setup(THD *thd, char *stack_start)
 {
   DBUG_ENTER("thd_new_connection_setup");
   mysql_mutex_assert_owner(&LOCK_thread_count);
+  thd->thread_id= thd->variables.pseudo_thread_id= thread_id++;
 #ifdef HAVE_PSI_INTERFACE
   thd_set_psi(thd,
               PSI_THREAD_CALL(new_thread)
                 (key_thread_one_connection, thd, thd->thread_id));
 #endif
   thd->set_time();
-  thd->prior_thr_create_utime= thd->thr_create_utime= thd->start_utime=
-    my_micro_time();
+  thd->thr_create_utime= thd->start_utime= my_micro_time();
 
   add_global_thread(thd);
   mysql_mutex_unlock(&LOCK_thread_count);
@@ -759,7 +760,7 @@ char *thd_security_context(THD *thd, char *buffer, unsigned int length,
   const char *proc_info= thd->proc_info;
 
   len= my_snprintf(header, sizeof(header),
-                   "MySQL thread id %lu, OS thread handle 0x%lx, query id %lu",
+                   "MySQL thread id %lu, OS thread handle %lu, query id %lu",
                    thd->thread_id, (ulong) thd->real_id, (ulong) thd->query_id);
   str.length(0);
   str.append(header, len);
@@ -886,6 +887,7 @@ THD::THD(bool enable_plugins)
    rli_fake(0), rli_slave(NULL),
    query_plan(this),
    in_sub_stmt(0),
+   fill_status_recursion_level(0),
    binlog_row_event_extra_data(NULL),
    binlog_unsafe_warning_flags(0),
    binlog_table_maps(0),
@@ -931,7 +933,8 @@ THD::THD(bool enable_plugins)
     the destructor works OK in case of an error. The main_mem_root
     will be re-initialized in init_for_queries().
   */
-  init_sql_alloc(&main_mem_root, ALLOC_ROOT_MIN_BLOCK_SIZE, 0);
+  init_sql_alloc(key_memory_thd_main_mem_root,
+                 &main_mem_root, ALLOC_ROOT_MIN_BLOCK_SIZE, 0);
   stmt_arena= this;
   thread_stack= 0;
   catalog= (char*)"std"; // the only catalog we have for now
@@ -958,7 +961,7 @@ THD::THD(bool enable_plugins)
   user_time.tv_usec= 0;
   start_time.tv_sec= 0;
   start_time.tv_usec= 0;
-  start_utime= prior_thr_create_utime= 0L;
+  start_utime= 0L;
   utime_after_lock= 0L;
   current_linfo =  0;
   slave_thread = 0;
@@ -1445,9 +1448,9 @@ void THD::init_for_queries(Relay_log_info *rli)
 
 void THD::change_user(void)
 {
-  mysql_rwlock_wrlock(&LOCK_status);
+  mysql_mutex_lock(&LOCK_status);
   add_to_status(&global_status_var, &status_var);
-  mysql_rwlock_unlock(&LOCK_status);
+  mysql_mutex_unlock(&LOCK_status);
 
   cleanup();
   killed= NOT_KILLED;
@@ -1545,9 +1548,9 @@ void THD::release_resources()
   mysql_mutex_assert_not_owner(&LOCK_thread_count);
   DBUG_ASSERT(m_release_resources_done == false);
 
-  mysql_rwlock_wrlock(&LOCK_status);
+  mysql_mutex_lock(&LOCK_status);
   add_to_status(&global_status_var, &status_var);
-  mysql_rwlock_unlock(&LOCK_status);
+  mysql_mutex_unlock(&LOCK_status);
 
   /* Ensure that no one is using THD */
   mysql_mutex_lock(&LOCK_thd_data);
@@ -1720,12 +1723,19 @@ void THD::awake(THD::killed_state state_to_set)
   mysql_mutex_assert_owner(&LOCK_thd_data);
 
   /*
-    If there is no command executing on the server, we should not set the
-    killed flag so that it does not affect the next command incorrectly.
+    Set killed flag if the connection is being killed (state_to_set
+    is KILL_CONNECTION) or the connection is processing a query
+    (state_to_set is KILL_QUERY and m_server_idle flag is not set).
+    If the connection is idle and state_to_set is KILL QUERY, the
+    the killed flag is not set so that it doesn't affect the next
+    command incorrectly.
   */
-  if (!this->m_server_idle)
-    /* Set the 'killed' flag of 'this', which is the target THD object. */
+  if (this->m_server_idle && state_to_set == KILL_QUERY)
+  { /* nothing */ }
+  else
+  {
     killed= state_to_set;
+  }
 
   if (state_to_set != THD::KILL_QUERY)
   {
@@ -1765,7 +1775,8 @@ void THD::awake(THD::killed_state state_to_set)
 
     /* Send an event to the scheduler that a thread should be killed. */
     if (!slave_thread)
-      MYSQL_CALLBACK(thread_scheduler, post_kill_notification, (this));
+      MYSQL_CALLBACK(Connection_handler_manager::callback,
+                     post_kill_notification, (this));
   }
 
   /* Broadcast a condition to kick the target if it is waiting on it. */
@@ -3721,7 +3732,8 @@ void Security_context::skip_grants()
 bool Security_context::set_user(char *user_arg)
 {
   my_free(user);
-  user= my_strdup(user_arg, MYF(0));
+  user= my_strdup(key_memory_Security_context,
+                  user_arg, MYF(0));
   return user == 0;
 }
 
@@ -4065,7 +4077,8 @@ extern "C" void thd_pool_wait_end(MYSQL_THD thd);
 */
 extern "C" void thd_wait_begin(MYSQL_THD thd, int wait_type)
 {
-  MYSQL_CALLBACK(thread_scheduler, thd_wait_begin, (thd, wait_type));
+  MYSQL_CALLBACK(Connection_handler_manager::callback,
+                 thd_wait_begin, (thd, wait_type));
 }
 
 /**
@@ -4076,7 +4089,8 @@ extern "C" void thd_wait_begin(MYSQL_THD thd, int wait_type)
 */
 extern "C" void thd_wait_end(MYSQL_THD thd)
 {
-  MYSQL_CALLBACK(thread_scheduler, thd_wait_end, (thd));
+  MYSQL_CALLBACK(Connection_handler_manager::callback,
+                 thd_wait_end, (thd));
 }
 #else
 extern "C" void thd_wait_begin(MYSQL_THD thd, int wait_type)
@@ -4574,7 +4588,8 @@ bool xid_cache_insert(XID *xid, enum xa_states xa_state)
   mysql_mutex_lock(&LOCK_xid_cache);
   if (my_hash_search(&xid_cache, xid->key(), xid->key_length()))
     res=0;
-  else if (!(xs=(XID_STATE *)my_malloc(sizeof(*xs), MYF(MY_WME))))
+  else if (!(xs=(XID_STATE *)my_malloc(key_memory_XID_STATE,
+                                       sizeof(*xs), MYF(MY_WME))))
     res=1;
   else
   {
@@ -4619,7 +4634,8 @@ void THD::set_next_event_pos(const char* _filename, ulonglong _pos)
   if (filename == NULL)
   {
     /* First time, allocate maximal buffer */
-    filename= (char*) my_malloc(FN_REFLEN+1, MYF(MY_WME));
+    filename= (char*) my_malloc(key_memory_LOG_POS_COORD,
+                                FN_REFLEN+1, MYF(MY_WME));
     if (filename == NULL) return;
   }
 

@@ -741,6 +741,14 @@
    fun:lf_hash_insert
 }
 
+{
+   missing shutdown_performance_schema 2-mem
+   Memcheck:Leak
+   fun:my_malloc
+   fun:_lf_alloc_new
+   fun:lf_hash_insert
+}
+
 #
 # Note that initialize_bucket() is reccursive,
 # can't provide more stack context.
@@ -754,9 +762,24 @@
 }
 
 {
+   missing shutdown_performance_schema 3a-mem
+   Memcheck:Leak
+   fun:my_malloc
+   fun:initialize_bucket
+}
+
+{
    missing shutdown_performance_schema 3b
    Memcheck:Leak
    fun:malloc
+   fun:my_malloc
+   fun:_lf_dynarray_lvalue
+   fun:initialize_bucket
+}
+
+{
+   missing shutdown_performance_schema 3b-mem
+   Memcheck:Leak
    fun:my_malloc
    fun:_lf_dynarray_lvalue
    fun:initialize_bucket
@@ -772,9 +795,25 @@
 }
 
 {
+   missing shutdown_performance_schema 4-mem
+   Memcheck:Leak
+   fun:my_malloc
+   fun:_lf_dynarray_lvalue
+   fun:_lf_pinbox_get_pins
+}
+
+{
    missing shutdown_performance_schema 5
    Memcheck:Leak
    fun:malloc
+   fun:my_malloc
+   fun:_lf_dynarray_lvalue
+   fun:lf_hash_insert
+}
+
+{
+   missing shutdown_performance_schema 5-mem
+   Memcheck:Leak
    fun:my_malloc
    fun:_lf_dynarray_lvalue
    fun:lf_hash_insert
@@ -790,6 +829,14 @@
 }
 
 {
+   missing shutdown_performance_schema 6-mem
+   Memcheck:Leak
+   fun:my_malloc
+   fun:_lf_dynarray_lvalue
+   fun:lf_hash_delete
+}
+
+{
    missing shutdown_performance_schema 7
    Memcheck:Leak
    fun:malloc
@@ -799,9 +846,28 @@
 }
 
 {
+   missing shutdown_performance_schema 7-mem
+   Memcheck:Leak
+   fun:my_malloc
+   fun:_lf_dynarray_lvalue
+   fun:lf_hash_search
+}
+
+{
    missing shutdown_performance_schema 8
    Memcheck:Leak
    fun:malloc
+   fun:my_malloc
+   fun:_Z22add_pfs_instr_to_arrayPKcS0_
+   fun:mysqld_get_one_option
+   fun:my_handle_options
+   fun:handle_options
+   fun:_Z20handle_early_optionsv
+}
+
+{
+   missing shutdown_performance_schema 8-mem
+   Memcheck:Leak
    fun:my_malloc
    fun:_Z22add_pfs_instr_to_arrayPKcS0_
    fun:mysqld_get_one_option
@@ -822,9 +888,30 @@
 }
 
 {
+   missing shutdown_performance_schema 9-mem
+   Memcheck:Leak
+   fun:my_malloc
+   fun:init_dynamic_array2
+   fun:_Z25init_pfs_instrument_arrayv
+   fun:_Z11mysqld_mainiPPc
+   fun:main
+}
+
+{
    missing shutdown_performance_schema 9a
    Memcheck:Leak
    fun:malloc
+   fun:my_malloc
+   fun:_Z22add_pfs_instr_to_arrayPKcS0_
+   fun:mysqld_get_one_option
+   fun:my_handle_options
+   fun:_Z20handle_early_optionsv
+   fun:_Z11mysqld_mainiPPc
+}
+
+{
+   missing shutdown_performance_schema 9a-mem
+   Memcheck:Leak
    fun:my_malloc
    fun:_Z22add_pfs_instr_to_arrayPKcS0_
    fun:mysqld_get_one_option
@@ -855,9 +942,27 @@
 }
 
 {
+   missing shutdown_performance_schema 10-mem
+   Memcheck:Leak
+   fun:my_malloc
+   fun:init_dynamic_array2
+   fun:_Z11mysqld_mainiPPc
+   fun:main
+}
+
+{
    missing shutdown_performance_schema 11
    Memcheck:Leak
    fun:malloc
+   fun:my_malloc
+   fun:init_dynamic_array2
+   fun:_Z11mysqld_mainiPPc
+   fun:(below main)
+}
+
+{
+   missing shutdown_performance_schema 11-mem
+   Memcheck:Leak
    fun:my_malloc
    fun:init_dynamic_array2
    fun:_Z11mysqld_mainiPPc

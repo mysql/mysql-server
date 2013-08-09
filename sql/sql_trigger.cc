@@ -26,6 +26,7 @@
 #include "sql_parse.h"                // check_table_access()
 #include "trigger_loader.h"           // Trigger_loader
 #include "table_trigger_dispatcher.h" // Table_trigger_dispatcher
+#include "mysql/psi/mysql_sp.h"
 
 ///////////////////////////////////////////////////////////////////////////
 
@@ -285,7 +286,15 @@ end:
     thd->lex->restore_backup_query_tables_list(&backup);
 
   if (!result)
+  {
+#ifdef HAVE_PSI_SP_INTERFACE
+    /* Drop statistics for this stored program from performance schema. */
+    MYSQL_DROP_SP(SP_OBJECT_TYPE_TRIGGER,
+                  thd->lex->spname->m_db.str, thd->lex->spname->m_db.length,
+                  thd->lex->spname->m_name.str, thd->lex->spname->m_name.length);
+#endif
     my_ok(thd);
+  }
 
   DBUG_RETURN(result);
 }
