@@ -440,7 +440,7 @@ lookup_src_db(uint32_t num_dbs, DB *db_array[], DB *src_db) {
 }
 
 static int
-do_del_multiple(DB_TXN *txn, uint32_t num_dbs, DB *db_array[], DBT_ARRAY keys[], DB *src_db, const DBT *src_key) {
+do_del_multiple(DB_TXN *txn, uint32_t num_dbs, DB *db_array[], DBT_ARRAY keys[], DB *src_db, const DBT *src_key, bool indexer_shortcut) {
     int r = 0;
     TOKUTXN ttxn = db_txn_struct_i(txn)->tokutxn;
     for (uint32_t which_db = 0; r == 0 && which_db < num_dbs; which_db++) {
@@ -452,7 +452,7 @@ do_del_multiple(DB_TXN *txn, uint32_t num_dbs, DB *db_array[], DBT_ARRAY keys[],
         // indexers cursor.  we have to get the src_db from the indexer and find it in the db_array.
         int do_delete = true;
         DB_INDEXER *indexer = toku_db_get_indexer(db);
-        if (indexer) { // if this db is the index under construction
+        if (indexer && !indexer_shortcut) { // if this db is the index under construction
             DB *indexer_src_db = toku_indexer_get_src_db(indexer);
             invariant(indexer_src_db != NULL);
             const DBT *indexer_src_key;
@@ -465,7 +465,8 @@ do_del_multiple(DB_TXN *txn, uint32_t num_dbs, DB *db_array[], DBT_ARRAY keys[],
                 invariant(keys[which_src_db].size == 1);
                 indexer_src_key = &keys[which_src_db].dbts[0];
             }
-            do_delete = !toku_indexer_is_key_right_of_le_cursor(indexer, indexer_src_key);
+            do_delete = toku_indexer_should_insert_key(indexer, indexer_src_key);
+            toku_indexer_update_estimate(indexer);
         }
         if (do_delete) {
             for (uint32_t i = 0; i < keys[which_db].size; i++) {
@@ -485,7 +486,9 @@ static int
 get_indexer_if_exists(
     uint32_t num_dbs, 
     DB **db_array, 
-    DB_INDEXER** indexerp
+    DB *src_db,
+    DB_INDEXER** indexerp,
+    bool *src_db_is_indexer_src
     ) 
 {
     int r = 0;
@@ -502,6 +505,13 @@ get_indexer_if_exists(
         }
     }
     if (r == 0) {
+        if (first_indexer) {
+            DB* indexer_src_db = toku_indexer_get_src_db(first_indexer);
+            // we should just make this an invariant
+            if (src_db == indexer_src_db) {
+                *src_db_is_indexer_src = true;
+            }
+        }
         *indexerp = first_indexer;
     }
     return r;
@@ -529,6 +539,9 @@ env_del_multiple(
     uint32_t lock_flags[num_dbs];
     uint32_t remaining_flags[num_dbs];
     FT_HANDLE brts[num_dbs];
+    bool indexer_lock_taken = false;
+    bool src_same = false;
+    bool indexer_shortcut = false;
     if (!txn) {
         r = EINVAL;
         goto cleanup;
@@ -539,7 +552,7 @@ env_del_multiple(
     }
 
     HANDLE_ILLEGAL_WORKING_PARENT_TXN(env, txn);
-    r = get_indexer_if_exists(num_dbs, db_array, &indexer);
+    r = get_indexer_if_exists(num_dbs, db_array, src_db, &indexer, &src_same);
     if (r) {
         goto cleanup;
     }
@@ -584,13 +597,23 @@ env_del_multiple(
     }
 
     if (indexer) {
-        toku_indexer_lock(indexer);
+        // do a cheap check
+        if (src_same) {
+            bool may_insert = toku_indexer_may_insert(indexer, src_key);
+            if (!may_insert) {
+                toku_indexer_lock(indexer);
+                indexer_lock_taken = true;
+            }
+            else {
+                indexer_shortcut = true;
+            }
+        }
     }
     toku_multi_operation_client_lock();
     log_del_multiple(txn, src_db, src_key, src_val, num_dbs, brts, del_keys);
-    r = do_del_multiple(txn, num_dbs, db_array, del_keys, src_db, src_key);
+    r = do_del_multiple(txn, num_dbs, db_array, del_keys, src_db, src_key, indexer_shortcut);
     toku_multi_operation_client_unlock();
-    if (indexer) {
+    if (indexer_lock_taken) {
         toku_indexer_unlock(indexer);
     }
 
@@ -612,7 +635,7 @@ log_put_multiple(DB_TXN *txn, DB *src_db, const DBT *src_key, const DBT *src_val
 }
 
 static int
-do_put_multiple(DB_TXN *txn, uint32_t num_dbs, DB *db_array[], DBT_ARRAY keys[], DBT_ARRAY vals[], DB *src_db, const DBT *src_key) {
+do_put_multiple(DB_TXN *txn, uint32_t num_dbs, DB *db_array[], DBT_ARRAY keys[], DBT_ARRAY vals[], DB *src_db, const DBT *src_key, bool indexer_shortcut) {
     TOKUTXN ttxn = db_txn_struct_i(txn)->tokutxn;
     for (uint32_t which_db = 0; which_db < num_dbs; which_db++) {
         DB *db = db_array[which_db];
@@ -624,7 +647,7 @@ do_put_multiple(DB_TXN *txn, uint32_t num_dbs, DB *db_array[], DBT_ARRAY keys[],
         if (keys[which_db].size > 0) {
             bool do_put = true;
             DB_INDEXER *indexer = toku_db_get_indexer(db);
-            if (indexer) { // if this db is the index under construction
+            if (indexer && !indexer_shortcut) { // if this db is the index under construction
                 DB *indexer_src_db = toku_indexer_get_src_db(indexer);
                 invariant(indexer_src_db != NULL);
                 const DBT *indexer_src_key;
@@ -637,7 +660,8 @@ do_put_multiple(DB_TXN *txn, uint32_t num_dbs, DB *db_array[], DBT_ARRAY keys[],
                     invariant(keys[which_src_db].size == 1);
                     indexer_src_key = &keys[which_src_db].dbts[0];
                 }
-                do_put = !toku_indexer_is_key_right_of_le_cursor(indexer, indexer_src_key);
+                do_put = toku_indexer_should_insert_key(indexer, indexer_src_key);
+                toku_indexer_update_estimate(indexer);
             }
             if (do_put) {
                 for (uint32_t i = 0; i < keys[which_db].size; i++) {
@@ -677,6 +701,9 @@ env_put_multiple_internal(
     uint32_t lock_flags[num_dbs];
     uint32_t remaining_flags[num_dbs];
     FT_HANDLE brts[num_dbs];
+    bool indexer_shortcut = false;
+    bool indexer_lock_taken = false;
+    bool src_same = false;
 
     if (!txn || !num_dbs) {
         r = EINVAL;
@@ -688,7 +715,7 @@ env_put_multiple_internal(
     }
 
     HANDLE_ILLEGAL_WORKING_PARENT_TXN(env, txn);
-    r = get_indexer_if_exists(num_dbs, db_array, &indexer);
+    r = get_indexer_if_exists(num_dbs, db_array, src_db, &indexer, &src_same);
     if (r) {
         goto cleanup;
     }
@@ -749,13 +776,23 @@ env_put_multiple_internal(
     }
     
     if (indexer) {
-        toku_indexer_lock(indexer);
+        // do a cheap check
+        if (src_same) {
+            bool may_insert = toku_indexer_may_insert(indexer, src_key);
+            if (!may_insert) {
+                toku_indexer_lock(indexer);
+                indexer_lock_taken = true;
+            }
+            else {
+                indexer_shortcut = true;
+            }
+        }
     }
     toku_multi_operation_client_lock();
     log_put_multiple(txn, src_db, src_key, src_val, num_dbs, brts);
-    r = do_put_multiple(txn, num_dbs, db_array, put_keys, put_vals, src_db, src_key);
+    r = do_put_multiple(txn, num_dbs, db_array, put_keys, put_vals, src_db, src_key, indexer_shortcut);
     toku_multi_operation_client_unlock();
-    if (indexer) {
+    if (indexer_lock_taken) {
         toku_indexer_unlock(indexer);
     }
 
@@ -787,6 +824,9 @@ env_update_multiple(DB_ENV *env, DB *src_db, DB_TXN *txn,
 
     HANDLE_PANICKED_ENV(env);
     DB_INDEXER* indexer = NULL;
+    bool indexer_shortcut = false;
+    bool indexer_lock_taken = false;
+    bool src_same = false;
     HANDLE_READ_ONLY_TXN(txn);
     DBT_ARRAY old_key_arrays[num_dbs];
     DBT_ARRAY new_key_arrays[num_dbs];
@@ -806,7 +846,7 @@ env_update_multiple(DB_ENV *env, DB *src_db, DB_TXN *txn,
     }
 
     HANDLE_ILLEGAL_WORKING_PARENT_TXN(env, txn);
-    r = get_indexer_if_exists(num_dbs, db_array, &indexer);
+    r = get_indexer_if_exists(num_dbs, db_array, src_db, &indexer, &src_same);
     if (r) {
         goto cleanup;
     }
@@ -1008,12 +1048,24 @@ env_update_multiple(DB_ENV *env, DB *src_db, DB_TXN *txn,
             }
         }
         if (indexer) {
-            toku_indexer_lock(indexer);
+            // do a cheap check
+            if (src_same) {
+                bool may_insert =
+                    toku_indexer_may_insert(indexer, old_src_key) &&
+                    toku_indexer_may_insert(indexer, new_src_key);
+                if (!may_insert) {
+                    toku_indexer_lock(indexer);
+                    indexer_lock_taken = true;
+                }
+                else {
+                    indexer_shortcut = true;
+                }
+            }
         }
         toku_multi_operation_client_lock();
         if (r == 0 && n_del_dbs > 0) {
             log_del_multiple(txn, src_db, old_src_key, old_src_data, n_del_dbs, del_fts, del_key_arrays);
-            r = do_del_multiple(txn, n_del_dbs, del_dbs, del_key_arrays, src_db, old_src_key);
+            r = do_del_multiple(txn, n_del_dbs, del_dbs, del_key_arrays, src_db, old_src_key, indexer_shortcut);
         }
 
         if (r == 0 && n_put_dbs > 0) {
@@ -1022,10 +1074,10 @@ env_update_multiple(DB_ENV *env, DB *src_db, DB_TXN *txn,
             // recovery so we don't end up losing data.
             // So unlike env->put_multiple, we ONLY log a 'put_multiple' log entry.
             log_put_multiple(txn, src_db, new_src_key, new_src_data, n_put_dbs, put_fts);
-            r = do_put_multiple(txn, n_put_dbs, put_dbs, put_key_arrays, put_val_arrays, src_db, new_src_key);
+            r = do_put_multiple(txn, n_put_dbs, put_dbs, put_key_arrays, put_val_arrays, src_db, new_src_key, indexer_shortcut);
         }
         toku_multi_operation_client_unlock();
-        if (indexer) {
+        if (indexer_lock_taken) {
             toku_indexer_unlock(indexer);
         }
     }
