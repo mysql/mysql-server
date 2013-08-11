@@ -32,6 +32,9 @@ Created 2012-08-15 Sunny Bains.
 #ifndef sync0mutex_h
 #define sync0mutex_h
 
+extern ulong	srv_spin_wait_delay;
+extern ulong	srv_n_spin_wait_rounds;
+
 #define mutex_create(N, M)		mutex_init((M), (N), __FILE__, __LINE__)
 
 #define mutex_enter(M)			(M)->enter(			\

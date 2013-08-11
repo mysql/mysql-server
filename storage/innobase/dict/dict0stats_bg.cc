@@ -46,10 +46,6 @@ os_event_t		dict_stats_event = NULL;
 /** This mutex protects the "recalc_pool" variable. */
 static ib_mutex_t		recalc_pool_mutex;
 
-#ifdef HAVE_PSI_INTERFACE
-mysql_pfs_key_t	recalc_pool_mutex_key;
-#endif /* HAVE_PSI_INTERFACE */
-
 /** The number of tables that can be added to "recalc_pool" before
 it is enlarged */
 static const ulint RECALC_POOL_INITIAL_SLOTS = 128;

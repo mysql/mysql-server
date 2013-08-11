@@ -135,8 +135,6 @@ page_cur_try_search_shortcut(
 			goto exit_func;
 		}
 
-		*iup_matched_fields = up_match;
-
 #ifdef UNIV_SEARCH_DEBUG
 		page_cur_search_with_match(block, index, tuple, PAGE_CUR_DBG,
 					   iup_matched_fields,
@@ -146,6 +144,7 @@ page_cur_try_search_shortcut(
 		ut_a(*iup_matched_fields == up_match);
 		ut_a(*ilow_matched_fields == low_match);
 #endif
+		*iup_matched_fields = up_match;
 	}
 
 	page_cur_position(rec, block, cursor);

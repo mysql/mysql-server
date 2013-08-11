@@ -61,6 +61,7 @@ Created 11/5/1995 Heikki Tuuri
 #endif /* !UNIV_INNOCHECKSUM */
 #include "page0zip.h"
 #include "buf0checksum.h"
+#include "sync0sync.h"
 
 #include <new>
 
@@ -262,26 +263,10 @@ static const ulint BUF_PAGE_READ_MAX_RETRIES = 100;
 buf_pool_t*	buf_pool_ptr;
 
 #if defined UNIV_DEBUG || defined UNIV_BUF_DEBUG
-static ulint	buf_dbg_counter	= 0; /*!< This is used to insert validation
-					operations in execution in the
-					debug version */
+/** This is used to insert validation operations in execution
+in the debug version */
+static ulint	buf_dbg_counter	= 0;
 #endif /* UNIV_DEBUG || UNIV_BUF_DEBUG */
-
-#ifdef UNIV_PFS_RWLOCK
-/* Keys to register buffer block related rwlocks and mutexes with
-performance schema */
-mysql_pfs_key_t	buf_block_lock_key;
-# ifdef UNIV_SYNC_DEBUG
-mysql_pfs_key_t	buf_block_debug_latch_key;
-# endif /* UNIV_SYNC_DEBUG */
-#endif /* UNIV_PFS_RWLOCK */
-
-#ifdef UNIV_PFS_MUTEX
-mysql_pfs_key_t	buffer_block_mutex_key;
-mysql_pfs_key_t	buf_pool_mutex_key;
-mysql_pfs_key_t	buf_pool_zip_mutex_key;
-mysql_pfs_key_t	flush_list_mutex_key;
-#endif /* UNIV_PFS_MUTEX */
 
 #if defined UNIV_PFS_MUTEX || defined UNIV_PFS_RWLOCK
 # ifndef PFS_SKIP_BUFFER_MUTEX_RWLOCK
@@ -1024,6 +1009,8 @@ buf_page_print(
 #ifndef UNIV_HOTBACKUP
 
 # ifdef PFS_GROUP_BUFFER_SYNC
+extern mysql_pfs_key_t	buffer_block_mutex_key;
+
 /********************************************************************//**
 This function registers mutexes and rwlocks in buffer blocks with
 performance schema. If PFS_MAX_BUFFER_MUTEX_LOCK_REGISTER is
@@ -2701,6 +2688,7 @@ buf_page_get_gen(
 	ut_ad(mtr->state == MTR_ACTIVE);
 	ut_ad((rw_latch == RW_S_LATCH)
 	      || (rw_latch == RW_X_LATCH)
+	      || (rw_latch == RW_SX_LATCH)
 	      || (rw_latch == RW_NO_LATCH));
 #ifdef UNIV_DEBUG
 	switch (mode) {
@@ -3152,6 +3140,12 @@ wait_until_unfixed:
 		fix_type = MTR_MEMO_PAGE_S_FIX;
 		break;
 
+	case RW_SX_LATCH:
+		rw_lock_sx_lock_inline(&block->lock, 0, file, line);
+
+		fix_type = MTR_MEMO_PAGE_SX_FIX;
+		break;
+
 	default:
 		ut_ad(rw_latch == RW_X_LATCH);
 		rw_lock_x_lock_inline(&(block->lock), 0, file, line);
@@ -3230,14 +3224,19 @@ buf_page_optimistic_get(
 			   buf_block_get_zip_size(block),
 			   buf_block_get_page_no(block), NULL));
 
-	if (rw_latch == RW_S_LATCH) {
+	switch (rw_latch) {
+	case RW_S_LATCH:
 		success = rw_lock_s_lock_nowait(&(block->lock),
 						file, line);
 		fix_type = MTR_MEMO_PAGE_S_FIX;
-	} else {
+		break;
+	case RW_X_LATCH:
 		success = rw_lock_x_lock_func_nowait_inline(&(block->lock),
 							    file, line);
 		fix_type = MTR_MEMO_PAGE_X_FIX;
+		break;
+	default:
+		ut_error; /* RW_SX_LATCH is not implemented yet */
 	}
 
 	if (UNIV_UNLIKELY(!success)) {
@@ -3353,14 +3352,19 @@ buf_page_get_known_nowait(
 
 	ut_ad(!ibuf_inside(mtr) || mode == BUF_KEEP_OLD);
 
-	if (rw_latch == RW_S_LATCH) {
+	switch (rw_latch) {
+	case RW_S_LATCH:
 		success = rw_lock_s_lock_nowait(&(block->lock),
 						file, line);
 		fix_type = MTR_MEMO_PAGE_S_FIX;
-	} else {
+		break;
+	case RW_X_LATCH:
 		success = rw_lock_x_lock_func_nowait_inline(&(block->lock),
 							    file, line);
 		fix_type = MTR_MEMO_PAGE_X_FIX;
+		break;
+	default:
+		ut_error; /* RW_SX_LATCH is not implemented yet */
 	}
 
 	if (!success) {
@@ -4377,8 +4381,8 @@ corrupt:
 		buf_flush_write_complete(bpage);
 
 		if (uncompressed) {
-			rw_lock_s_unlock_gen(&((buf_block_t*) bpage)->lock,
-					     BUF_IO_WRITE);
+			rw_lock_sx_unlock_gen(&((buf_block_t*) bpage)->lock,
+					      BUF_IO_WRITE);
 		}
 
 		buf_pool->stat.n_pages_written++;
@@ -4607,7 +4611,10 @@ buf_pool_validate_instance(
 assert_s_latched:
 						ut_a(rw_lock_is_locked(
 							     &block->lock,
-								     RW_LOCK_S));
+								     RW_LOCK_S)
+						     || rw_lock_is_locked(
+								&block->lock,
+								RW_LOCK_SX));
 						break;
 					case BUF_FLUSH_LIST:
 						n_list_flush++;

@@ -235,8 +235,6 @@ public:
 	@return truen if this view is less than or equal rhs */
 	bool le(const ReadView* rhs) const
 	{
-		ut_ad(!is_closed());
-
 		return(m_low_limit_no <= rhs->m_low_limit_no);
 	}
 

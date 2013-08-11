@@ -116,11 +116,6 @@ struct mem_pool_t{
 /** The common memory pool */
 mem_pool_t*	mem_comm_pool	= NULL;
 
-#ifdef UNIV_PFS_MUTEX
-/* Key to register mutex in mem_pool_t with performance schema */
-mysql_pfs_key_t	mem_pool_mutex_key;
-#endif /* UNIV_PFS_MUTEX */
-
 /* We use this counter to check that the mem pool mutex does not leak;
 this is to track a strange assertion failure reported at
 mysql@lists.mysql.com */

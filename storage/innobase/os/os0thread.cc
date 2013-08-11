@@ -36,13 +36,9 @@ Created 9/8/1995 Heikki Tuuri
 
 #include <map>
 
-#ifdef UNIV_PFS_MUTEX
-/* Key to register server_mutex with performance schema */
-mysql_pfs_key_t	thread_mutex_key;
-#endif /* UNIV_PFS_MUTEX */
-
-/** Mutex that tracks the thread count. */
-static SysMutex	thread_mutex;
+/** Mutex that tracks the thread count. Used by innorwlocktest.cc
+FIXME: the unit tests should use APIs */
+SysMutex	thread_mutex;
 
 /** Number of threads active. */
 ulint	os_thread_count;

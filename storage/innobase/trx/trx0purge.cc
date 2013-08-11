@@ -44,6 +44,7 @@ Created 3/26/1996 Heikki Tuuri
 #include "srv0space.h"
 #include "srv0srv.h"
 #include "srv0start.h"
+#include "sync0sync.h"
 #include "trx0rec.h"
 #include "trx0roll.h"
 #include "trx0rseg.h"
@@ -61,16 +62,6 @@ trx_purge_t*	purge_sys = NULL;
 /** A dummy undo record used as a return value when we have a whole undo log
 which needs no purge */
 trx_undo_rec_t	trx_purge_dummy_rec;
-
-#ifdef UNIV_PFS_RWLOCK
-/* Key to register trx_purge_latch with performance schema */
-mysql_pfs_key_t	trx_purge_latch_key;
-#endif /* UNIV_PFS_RWLOCK */
-
-#ifdef UNIV_PFS_MUTEX
-/* Key to register purge_sys_pq_mutex with performance schema */
-mysql_pfs_key_t	purge_sys_pq_mutex_key;
-#endif /* UNIV_PFS_MUTEX */
 
 #ifdef UNIV_DEBUG
 my_bool		srv_purge_view_update_only_debug;
