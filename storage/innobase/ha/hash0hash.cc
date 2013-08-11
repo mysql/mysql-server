@@ -24,21 +24,16 @@ Created 5/20/1997 Heikki Tuuri
 *******************************************************/
 
 #include "hash0hash.h"
+
 #ifdef UNIV_NONINL
 #include "hash0hash.ic"
-#endif
+#endif /* UNIV_NOINL */
 
 #include "mem0mem.h"
+#include "sync0sync.h"
 
 #ifndef UNIV_HOTBACKUP
 
-# ifdef UNIV_PFS_MUTEX
-mysql_pfs_key_t	hash_table_mutex_key;
-# endif /* UNIV_PFS_MUTEX */
-
-# ifdef UNIV_PFS_RWLOCK
-mysql_pfs_key_t	hash_table_locks_key;
-# endif /* UNIV_PFS_RWLOCK */
 /************************************************************//**
 Reserves the mutex for a fold value in a hash table. */
 

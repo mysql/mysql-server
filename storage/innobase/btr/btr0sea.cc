@@ -33,7 +33,7 @@ Created 2/17/1996 Heikki Tuuri
 #include "btr0sea.h"
 #ifdef UNIV_NONINL
 #include "btr0sea.ic"
-#endif
+#endif /* UNIV_NOINL */
 
 #include "buf0buf.h"
 #include "page0page.h"
@@ -42,6 +42,7 @@ Created 2/17/1996 Heikki Tuuri
 #include "btr0pcur.h"
 #include "btr0btr.h"
 #include "ha0ha.h"
+#include "sync0sync.h"
 
 /** Flag: has the search system been enabled?
 Protected by btr_search_latch. */
@@ -75,11 +76,6 @@ byte		btr_sea_pad2[64];
 
 /** The adaptive hash index */
 btr_search_sys_t*	btr_search_sys;
-
-#ifdef UNIV_PFS_RWLOCK
-/* Key to register btr_search_sys with performance schema */
-mysql_pfs_key_t	btr_search_latch_key;
-#endif /* UNIV_PFS_RWLOCK */
 
 /** If the number of records on the page divided by this parameter
 would have been successfully accessed using a hash index, the index

@@ -38,12 +38,6 @@ Created 3/26/1996 Heikki Tuuri
 
 #include <algorithm>
 
-#ifdef UNIV_PFS_MUTEX
-/* Key to register rseg_mutex_key with performance schema */
-mysql_pfs_key_t	redo_rseg_mutex_key;
-mysql_pfs_key_t	noredo_rseg_mutex_key;
-#endif /* UNIV_PFS_MUTEX */
-
 /****************************************************************//**
 Creates a rollback segment header. This function is called only when
 a new rollback segment is created in the database.

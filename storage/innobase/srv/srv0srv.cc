@@ -186,6 +186,8 @@ ulong	srv_flush_neighbors	= 1;
 ulint	srv_buf_pool_old_size;
 /* current size in kilobytes */
 ulint	srv_buf_pool_curr_size	= 0;
+/* dump that may % of each buffer pool during BP dump */
+ulong	srv_buf_pool_dump_pct;
 /* size in bytes */
 ulint	srv_mem_pool_size	= ULINT_MAX;
 ulint	srv_lock_table_size	= ULINT_MAX;
@@ -338,27 +340,6 @@ ib_mutex_t	page_zip_stat_per_index_mutex;
 
 /* Mutex for locking srv_monitor_file. Not created if srv_read_only_mode */
 ib_mutex_t	srv_monitor_file_mutex;
-
-#ifdef UNIV_PFS_MUTEX
-# ifndef HAVE_ATOMIC_BUILTINS
-/* Key to register server_mutex with performance schema */
-mysql_pfs_key_t	server_mutex_key;
-# endif /* !HAVE_ATOMIC_BUILTINS */
-/** Key to register srv_innodb_monitor_mutex with performance schema */
-mysql_pfs_key_t	srv_innodb_monitor_mutex_key;
-/** Key to register srv_monitor_file_mutex with performance schema */
-mysql_pfs_key_t	srv_monitor_file_mutex_key;
-/** Key to register srv_dict_tmpfile_mutex with performance schema */
-mysql_pfs_key_t	srv_dict_tmpfile_mutex_key;
-/** Key to register the mutex with performance schema */
-mysql_pfs_key_t	srv_misc_tmpfile_mutex_key;
-/** Key to register srv_sys_t::mutex with performance schema */
-mysql_pfs_key_t	srv_sys_mutex_key;
-/** Key to register srv_sys_t::tasks_mutex with performance schema */
-mysql_pfs_key_t	srv_threads_mutex_key;
-/** Key to register page_zip_stat_per_index_mutex with PFS */
-mysql_pfs_key_t	page_zip_stat_per_index_mutex_key;
-#endif /* UNIV_PFS_MUTEX */
 
 /** Temporary file for innodb monitor output */
 FILE*	srv_monitor_file;

@@ -200,6 +200,7 @@ enum latch_level_t {
 
 	SYNC_MUTEX = 1,
 
+	RW_LOCK_SX,
 	RW_LOCK_X_WAIT,
 	RW_LOCK_S,
 	RW_LOCK_X,
@@ -388,5 +389,16 @@ struct dict_sync_check : public sync_check_functor_t {
 	bool		m_result;
 	bool		m_dict_mutex_allowed;
 };
+
+#ifdef UNIV_SYNC_DEBUG
+/* Flags to specify lock types for rw_lock_own_flagged() */
+enum rw_lock_flag_t {
+	RW_LOCK_FLAG_S  = 1 << 0,
+	RW_LOCK_FLAG_X  = 1 << 1,
+	RW_LOCK_FLAG_SX = 1 << 2
+};
+
+typedef ulint rw_lock_flags_t;
+#endif /* UNIV_SYNC_DEBUG */
 
 #endif /* sync0types.h */

@@ -51,7 +51,7 @@ Created July 17, 2007 Vasil Dimov
 #include "srv0srv.h"
 #include "sync0rw.h"
 #include "sync0mutex.h"
-#include "sync0types.h"
+#include "sync0sync.h"
 #include "trx0i_s.h"
 #include "trx0sys.h"
 #include "trx0trx.h"
@@ -188,15 +188,6 @@ static trx_i_s_cache_t	trx_i_s_cache_static;
 INFORMATION SCHEMA tables is fetched and later retrieved by the C++
 code in handler/i_s.cc. */
 trx_i_s_cache_t*	trx_i_s_cache = &trx_i_s_cache_static;
-
-/* Key to register the lock/mutex with performance schema */
-#ifdef UNIV_PFS_RWLOCK
-mysql_pfs_key_t	trx_i_s_cache_lock_key;
-#endif /* UNIV_PFS_RWLOCK */
-
-#ifdef UNIV_PFS_MUTEX
-mysql_pfs_key_t	cache_last_read_mutex_key;
-#endif /* UNIV_PFS_MUTEX */
 
 /*******************************************************************//**
 For a record lock that is in waiting state retrieves the only bit that

@@ -36,11 +36,6 @@ Created 2012-09-23 Sunny Bains
 /** The number of microsecnds in a second. */
 static const ulint MICROSECS_IN_A_SECOND = 1000000;
 
-#ifdef UNIV_PFS_MUTEX
-mysql_pfs_key_t	event_mutex_key;
-mysql_pfs_key_t	event_manager_mutex_key;
-#endif /* UNIV_PFS_MUTEX */
-
 #ifdef _WIN32
 /** Native event (slow) */
 typedef HANDLE			os_win_event_t;

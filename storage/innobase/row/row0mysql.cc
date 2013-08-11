@@ -74,11 +74,6 @@ struct row_mysql_drop_t{
 							/*!< list chain node */
 };
 
-#ifdef UNIV_PFS_MUTEX
-/* Key to register drop list mutex with performance schema */
-mysql_pfs_key_t	row_drop_list_mutex_key;
-#endif /* UNIV_PFS_MUTEX */
-
 /** @brief List of tables we should drop in background.
 
 ALTER TABLE in MySQL requires that the table handler can drop the

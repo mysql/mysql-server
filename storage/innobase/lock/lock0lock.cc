@@ -559,13 +559,6 @@ DeadlockChecker::state_t	DeadlockChecker::s_states[MAX_STACK_SIZE];
 /** The count of the types of locks. */
 static const ulint	lock_types = UT_ARR_SIZE(lock_compatibility_matrix);
 
-#ifdef UNIV_PFS_MUTEX
-/* Key to register mutex with performance schema */
-mysql_pfs_key_t	lock_mutex_key;
-/* Key to register mutex with performance schema */
-mysql_pfs_key_t	lock_wait_mutex_key;
-#endif /* UNIV_PFS_MUTEX */
-
 #ifdef UNIV_DEBUG
 /*********************************************************************//**
 Validates the lock system.

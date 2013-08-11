@@ -34,6 +34,98 @@ Created 9/5/1995 Heikki Tuuri
 #include "sync0rw.h"
 #include "sync0sync.h"
 
+#ifdef UNIV_PFS_MUTEX
+/* Key to register autoinc_mutex with performance schema */
+mysql_pfs_key_t	autoinc_mutex_key;
+mysql_pfs_key_t	buffer_block_mutex_key;
+mysql_pfs_key_t	buf_pool_mutex_key;
+mysql_pfs_key_t	buf_pool_zip_mutex_key;
+mysql_pfs_key_t	cache_last_read_mutex_key;
+mysql_pfs_key_t	dict_foreign_err_mutex_key;
+mysql_pfs_key_t	dict_sys_mutex_key;
+mysql_pfs_key_t	file_format_max_mutex_key;
+mysql_pfs_key_t	fil_system_mutex_key;
+mysql_pfs_key_t	flush_list_mutex_key;
+mysql_pfs_key_t	fts_bg_threads_mutex_key;
+mysql_pfs_key_t	fts_delete_mutex_key;
+mysql_pfs_key_t	fts_optimize_mutex_key;
+mysql_pfs_key_t	fts_doc_id_mutex_key;
+mysql_pfs_key_t	hash_table_mutex_key;
+mysql_pfs_key_t	ibuf_bitmap_mutex_key;
+mysql_pfs_key_t	ibuf_mutex_key;
+mysql_pfs_key_t	ibuf_pessimistic_insert_mutex_key;
+mysql_pfs_key_t	log_sys_mutex_key;
+mysql_pfs_key_t	log_flush_order_mutex_key;
+# ifndef HAVE_ATOMIC_BUILTINS
+mysql_pfs_key_t	server_mutex_key;
+# endif /* !HAVE_ATOMIC_BUILTINS */
+# ifdef UNIV_MEM_DEBUG
+extern mysql_pfs_key_t	mem_hash_mutex_key;
+# endif /* UNIV_MEM_DEBUG */
+mysql_pfs_key_t	mem_pool_mutex_key;
+mysql_pfs_key_t	recalc_pool_mutex_key;
+mysql_pfs_key_t	purge_sys_pq_mutex_key;
+mysql_pfs_key_t	recv_sys_mutex_key;
+mysql_pfs_key_t	recv_writer_mutex_key;
+mysql_pfs_key_t	redo_rseg_mutex_key;
+mysql_pfs_key_t	noredo_rseg_mutex_key;
+mysql_pfs_key_t page_zip_stat_per_index_mutex_key;
+# ifdef UNIV_SYNC_DEBUG
+mysql_pfs_key_t	rw_lock_debug_mutex_key;
+# endif /* UNIV_SYNC_DEBUG */
+mysql_pfs_key_t	rw_lock_list_mutex_key;
+mysql_pfs_key_t	rw_lock_mutex_key;
+mysql_pfs_key_t	srv_dict_tmpfile_mutex_key;
+mysql_pfs_key_t	srv_innodb_monitor_mutex_key;
+mysql_pfs_key_t	srv_misc_tmpfile_mutex_key;
+mysql_pfs_key_t	srv_monitor_file_mutex_key;
+# ifdef UNIV_SYNC_DEBUG
+mysql_pfs_key_t	sync_thread_mutex_key;
+# endif /* UNIV_SYNC_DEBUG */
+mysql_pfs_key_t	buf_dblwr_mutex_key;
+mysql_pfs_key_t	trx_undo_mutex_key;
+mysql_pfs_key_t	trx_mutex_key;
+mysql_pfs_key_t	trx_pool_mutex_key;
+mysql_pfs_key_t	trx_pool_manager_mutex_key;
+mysql_pfs_key_t	lock_mutex_key;
+mysql_pfs_key_t	lock_wait_mutex_key;
+mysql_pfs_key_t	trx_sys_mutex_key;
+mysql_pfs_key_t	srv_sys_mutex_key;
+mysql_pfs_key_t	srv_threads_mutex_key;
+#ifndef HAVE_ATOMIC_BUILTINS
+mysql_pfs_key_t	srv_conc_mutex_key;
+#endif /* !HAVE_ATOMIC_BUILTINS */
+#ifndef HAVE_ATOMIC_BUILTINS_64
+mysql_pfs_key_t	monitor_mutex_key;
+#endif /* !HAVE_ATOMIC_BUILTINS_64 */
+mysql_pfs_key_t	event_mutex_key;
+mysql_pfs_key_t	event_manager_mutex_key;
+mysql_pfs_key_t	sync_array_mutex_key;
+mysql_pfs_key_t	thread_mutex_key;
+mysql_pfs_key_t	ut_list_mutex_key;
+mysql_pfs_key_t zip_pad_mutex_key;
+mysql_pfs_key_t row_drop_list_mutex_key;
+#endif /* UNIV_PFS_MUTEX */
+
+#ifdef UNIV_PFS_RWLOCK
+mysql_pfs_key_t	btr_search_latch_key;
+mysql_pfs_key_t	buf_block_lock_key;
+# ifdef UNIV_SYNC_DEBUG
+mysql_pfs_key_t	buf_block_debug_latch_key;
+# endif /* UNIV_SYNC_DEBUG */
+mysql_pfs_key_t	checkpoint_lock_key;
+mysql_pfs_key_t	dict_operation_lock_key;
+mysql_pfs_key_t	dict_table_stats_key;
+mysql_pfs_key_t	hash_table_locks_key;
+mysql_pfs_key_t	index_tree_rw_lock_key;
+mysql_pfs_key_t	index_online_log_key;
+mysql_pfs_key_t	fil_space_latch_key;
+mysql_pfs_key_t	fts_cache_rw_lock_key;
+mysql_pfs_key_t	fts_cache_init_rw_lock_key;
+mysql_pfs_key_t trx_i_s_cache_lock_key;
+mysql_pfs_key_t	trx_purge_latch_key;
+#endif /* UNIV_PFS_RWLOCK */
+
 /** The number of iterations in the mutex_spin_wait() spin loop.
 Intended for performance monitoring. */
 mutex_counter_t	mutex_spin_round_count;
@@ -59,6 +151,8 @@ sync_print_wait_info(FILE* file)
 		"RW-shared spins "UINT64PF", rounds "UINT64PF", "
 		"OS waits "UINT64PF"\n"
 		"RW-excl spins "UINT64PF", rounds "UINT64PF", "
+		"OS waits "UINT64PF"\n"
+		"RW-sx spins "UINT64PF", rounds "UINT64PF", "
 		"OS waits "UINT64PF"\n",
 		(ib_uint64_t) mutex_spin_wait_count,
 		(ib_uint64_t) mutex_spin_round_count,
@@ -68,19 +162,25 @@ sync_print_wait_info(FILE* file)
 		(ib_uint64_t) rw_lock_stats.rw_s_os_wait_count,
 		(ib_uint64_t) rw_lock_stats.rw_x_spin_wait_count,
 		(ib_uint64_t) rw_lock_stats.rw_x_spin_round_count,
-		(ib_uint64_t) rw_lock_stats.rw_x_os_wait_count);
+		(ib_uint64_t) rw_lock_stats.rw_x_os_wait_count,
+		(ib_uint64_t) rw_lock_stats.rw_sx_spin_wait_count,
+		(ib_uint64_t) rw_lock_stats.rw_sx_spin_round_count,
+		(ib_uint64_t) rw_lock_stats.rw_sx_os_wait_count);
 
 	fprintf(file,
 		"Spin rounds per wait: %.2f mutex, %.2f RW-shared, "
-		"%.2f RW-excl\n",
-		(double) mutex_spin_round_count_get() /
+		"%.2f RW-excl, %.2f RW-sx\n",
+		(double) mutex_spin_round_count /
 		(mutex_spin_wait_count_get() ? mutex_spin_wait_count_get() : 1),
 		(double) rw_lock_stats.rw_s_spin_round_count /
 		(rw_lock_stats.rw_s_spin_wait_count
 		 ? rw_lock_stats.rw_s_spin_wait_count : 1),
 		(double) rw_lock_stats.rw_x_spin_round_count /
 		(rw_lock_stats.rw_x_spin_wait_count
-		 ? rw_lock_stats.rw_x_spin_wait_count : 1));
+		 ? rw_lock_stats.rw_x_spin_wait_count : 1),
+		(double) rw_lock_stats.rw_sx_spin_round_count /
+		(rw_lock_stats.rw_sx_spin_wait_count
+		 ? rw_lock_stats.rw_sx_spin_wait_count : 1));
 }
 
 /**

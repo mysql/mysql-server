@@ -36,8 +36,9 @@ Full Text Search interface
 #include "dict0priv.h"
 #include "dict0stats.h"
 #include "btr0pcur.h"
+#include "sync0sync.h"
 
-#define FTS_MAX_ID_LEN	32
+static const ulint FTS_MAX_ID_LEN = 32;
 
 /** Column name from the FTS config table */
 #define FTS_MAX_CACHE_SIZE_IN_MB	"cache_size_in_mb"
@@ -79,18 +80,6 @@ static const ulint FTS_CACHE_SIZE_UPPER_LIMIT_IN_MB = 1024;
 
 /** Time to sleep after DEADLOCK error before retrying operation. */
 static const ulint FTS_DEADLOCK_RETRY_WAIT = 100000;
-
-#ifdef UNIV_PFS_RWLOCK
-mysql_pfs_key_t	fts_cache_rw_lock_key;
-mysql_pfs_key_t	fts_cache_init_rw_lock_key;
-#endif /* UNIV_PFS_RWLOCK */
-
-#ifdef UNIV_PFS_MUTEX
-mysql_pfs_key_t	fts_delete_mutex_key;
-mysql_pfs_key_t	fts_optimize_mutex_key;
-mysql_pfs_key_t	fts_bg_threads_mutex_key;
-mysql_pfs_key_t	fts_doc_id_mutex_key;
-#endif /* UNIV_PFS_MUTEX */
 
 /** variable to record innodb_fts_internal_tbl_name for information
 schema table INNODB_FTS_INSERTED etc. */

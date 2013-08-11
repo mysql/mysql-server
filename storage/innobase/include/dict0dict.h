@@ -1828,6 +1828,15 @@ const char*
 dict_tf_to_row_format_string(
 /*=========================*/
 	ulint	table_flag);		/*!< in: row format setting */
+/****************************************************************//**
+Return maximum size of the node pointer record.
+@return maximum size of the record in bytes */
+
+ulint
+dict_index_node_ptr_max_size(
+/*=========================*/
+	const dict_index_t*	index)	/*!< in: index */
+	__attribute__((warn_unused_result, pure));
 
 #endif /* !UNIV_HOTBACKUP */
 

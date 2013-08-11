@@ -40,11 +40,6 @@ Created 2011/12/19
 
 #ifndef UNIV_HOTBACKUP
 
-#ifdef UNIV_PFS_MUTEX
-/* Key to register the mutex with performance schema */
-mysql_pfs_key_t	buf_dblwr_mutex_key;
-#endif /* UNIV_PFS_RWLOCK */
-
 /** The doublewrite buffer */
 buf_dblwr_t*	buf_dblwr = NULL;
 

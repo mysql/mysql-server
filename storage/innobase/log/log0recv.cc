@@ -151,21 +151,13 @@ lsn_t	recv_max_page_lsn;
 mysql_pfs_key_t	trx_rollback_clean_thread_key;
 #endif /* UNIV_PFS_THREAD */
 
-#ifdef UNIV_PFS_MUTEX
-mysql_pfs_key_t	recv_sys_mutex_key;
-#endif /* UNIV_PFS_MUTEX */
-
 #ifndef UNIV_HOTBACKUP
 # ifdef UNIV_PFS_THREAD
 mysql_pfs_key_t	recv_writer_thread_key;
 # endif /* UNIV_PFS_THREAD */
 
-# ifdef UNIV_PFS_MUTEX
-mysql_pfs_key_t	recv_writer_mutex_key;
-# endif /* UNIV_PFS_MUTEX */
-
 /** Flag indicating if recv_writer thread is active. */
-bool		recv_writer_thread_active = false;
+bool	recv_writer_thread_active = false;
 #endif /* !UNIV_HOTBACKUP */
 
 /* prototypes */

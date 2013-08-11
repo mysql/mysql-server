@@ -43,11 +43,6 @@ ulint		ut_total_allocated_memory	= 0;
 /** Mutex protecting ut_total_allocated_memory and ut_mem_block_list */
 SysMutex		ut_list_mutex;
 
-#ifdef UNIV_PFS_MUTEX
-/* Key to register server_mutex with performance schema */
-mysql_pfs_key_t	ut_list_mutex_key;
-#endif /* UNIV_PFS_MUTEX */
-
 /** Dynamically allocated memory block */
 struct ut_mem_block_t{
 	UT_LIST_NODE_T(ut_mem_block_t) mem_block_list;

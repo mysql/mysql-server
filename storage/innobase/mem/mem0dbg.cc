@@ -32,11 +32,6 @@ containing the list of live memory heaps, and also the global
 variables below. */
 ib_mutex_t		mem_hash_mutex;
 
-#ifdef UNIV_PFS_MUTEX
-/* Key to register mem_hash_mutex with performance schema */
-mysql_pfs_key_t	mem_hash_mutex_key;
-#endif /* UNIV_PFS_MUTEX */
-
 # endif /* !UNIV_HOTBACKUP */
 
 /* The following variables contain information about the

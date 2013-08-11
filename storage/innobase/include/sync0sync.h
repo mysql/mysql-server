@@ -83,6 +83,7 @@ extern mysql_pfs_key_t	recv_sys_mutex_key;
 extern mysql_pfs_key_t	recv_writer_mutex_key;
 extern mysql_pfs_key_t	redo_rseg_mutex_key;
 extern mysql_pfs_key_t	noredo_rseg_mutex_key;
+extern mysql_pfs_key_t page_zip_stat_per_index_mutex_key;
 # ifdef UNIV_SYNC_DEBUG
 extern mysql_pfs_key_t	rw_lock_debug_mutex_key;
 # endif /* UNIV_SYNC_DEBUG */
@@ -146,17 +147,16 @@ extern  mysql_pfs_key_t hash_table_locks_key;
 
 #include "sync0mutex.h"
 
-/**********************************************************//**
+/**
 Function that uses a mutex to decrement a variable atomically */
 template <typename Mutex>
 void
 os_atomic_dec_ulint_func(
-/*=====================*/
 	Mutex*		mutex,		/*!< in: mutex guarding the dec */
 	volatile ulint*	var,		/*!< in/out: variable to decrement */
 	ulint		delta)		/*!< in: delta to decrement */
 {
-	mutex_enter(mutex);
+	mutex->enter();
 
 	/* I don't think we will encounter a situation where
 	this check will not be required. */
@@ -168,12 +168,11 @@ os_atomic_dec_ulint_func(
 	mutex_exit(mutex);
 }
 
-/**********************************************************//**
+/**
 Function that uses a mutex to increment a variable atomically */
 template <typename Mutex>
 void
 os_atomic_inc_ulint_func(
-/*=====================*/
 	Mutex*		mutex,		/*!< in: mutex guarding the increment */
 	volatile ulint*	var,		/*!< in/out: variable to increment */
 	ulint		delta)		/*!< in: delta to increment */

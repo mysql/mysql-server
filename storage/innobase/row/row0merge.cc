@@ -2260,7 +2260,8 @@ row_merge_insert_index_tuples(
 				mtr_commit(&mtr);
 				mtr_start(&mtr);
 				btr_cur_open_at_index_side(
-					false, index, BTR_MODIFY_TREE,
+					false, index,
+					BTR_MODIFY_TREE | BTR_LATCH_FOR_INSERT,
 					&cursor, 0, &mtr);
 				page_cur_position(
 					page_rec_get_prev(btr_cur_get_rec(

@@ -133,16 +133,6 @@ ulint	fil_n_file_opened			= 0;
 /** The null file address */
 fil_addr_t	fil_addr_null = {FIL_NULL, 0};
 
-#ifdef UNIV_PFS_MUTEX
-/* Key to register fil_system_mutex with performance schema */
-mysql_pfs_key_t	fil_system_mutex_key;
-#endif /* UNIV_PFS_MUTEX */
-
-#ifdef UNIV_PFS_RWLOCK
-/* Key to register file space latch with performance schema */
-mysql_pfs_key_t	fil_space_latch_key;
-#endif /* UNIV_PFS_RWLOCK */
-
 /** File node of a tablespace or the log data space */
 struct fil_node_t {
 	fil_space_t*	space;	/*!< backpointer to the space where this node

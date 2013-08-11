@@ -97,11 +97,6 @@ static srv_conc_queue_t	srv_conc_queue;
 /** Array of wait slots */
 static srv_conc_slot_t*	srv_conc_slots;
 
-#if defined(UNIV_PFS_MUTEX)
-/* Key to register srv_conc_mutex_key with performance schema */
-mysql_pfs_key_t	srv_conc_mutex_key;
-#endif /* UNIV_PFS_MUTEX */
-
 #endif /* !HAVE_ATOMIC_BUILTINS */
 
 /** Variables tracking the active and waiting threads. */
