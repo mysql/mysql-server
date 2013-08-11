@@ -146,10 +146,6 @@ ulint	sync_array_size;
 mutexes and read-write locks */
 sync_array_t**	sync_wait_array;
 
-#ifdef UNIV_PFS_MUTEX
-mysql_pfs_key_t	sync_array_mutex_key;
-#endif /* UNIV_PFS_MUTEX */
-
 /** count of how many times an object has been signalled */
 static ulint			sg_count;
 
@@ -510,10 +506,12 @@ sync_array_cell_print(
 #endif /* HAVE_ATOMIC_BUILTINS */
 	} else if (type == RW_LOCK_X
 		   || type == RW_LOCK_X_WAIT
+		   || type == RW_LOCK_SX
 		   || type == RW_LOCK_S) {
 
 		fputs(type == RW_LOCK_X ? "X-lock on"
 		      : type == RW_LOCK_X_WAIT ? "X-lock (wait_ex) on"
+		      : type == RW_LOCK_SX ? "SX-lock on"
 		      : "S-lock on", file);
 
 		rwlock = cell->latch.lock;
@@ -531,8 +529,8 @@ sync_array_cell_print(
 				"a writer (thread id %lu) has"
 				" reserved it in mode %s",
 				(ulong) os_thread_pf(rwlock->writer_thread),
-				writer == RW_LOCK_X
-				? " exclusive\n"
+				writer == RW_LOCK_X ? " exclusive\n"
+				: writer == RW_LOCK_SX ? " SX\n"
 				: " wait exclusive\n");
 		}
 
@@ -626,6 +624,23 @@ sync_array_deadlock_step(
 	return(FALSE);
 }
 
+/**
+Report an error to stderr.
+@param lock		rw-lock instance
+@param debug		rw-lock debug information
+@param cell		thread context */
+
+void
+sync_array_report_error(
+	rw_lock_t*		lock,
+	rw_lock_debug_t*	debug,
+	sync_cell_t* 		cell)
+{
+	fprintf(stderr, "rw-lock %p ", (void*) lock);
+	sync_array_cell_print(stderr, cell);
+	rw_lock_debug_print(stderr, debug);
+}
+
 /******************************************************************//**
 This function is called only in the debug version. Detects a deadlock
 of one or more threads because of waits of semaphores.
@@ -655,9 +670,13 @@ sync_array_detect_deadlock(
 	depth++;
 
 	if (!cell->waiting) {
+		/* No deadlock here */
+		return(false);
+	}
 
-		return(false); /* No deadlock here */
-	} else if (cell->request_type == SYNC_MUTEX) {
+	switch (cell->request_type) {
+	case SYNC_MUTEX: {
+
 #ifdef HAVE_ATOMIC_BUILTINS
 		WaitMutex*	mutex = cell->latch.mutex;
 		const WaitMutex::MutexPolicy&	policy = mutex->policy();
@@ -690,42 +709,48 @@ sync_array_detect_deadlock(
 			}
 		}
 
-		return(false); /* No deadlock */
+ 		/* No deadlock */
+		return(false);
 #else
 		ut_error;
+		break;
 #endif /* HAVE_ATOMIC_BUILTINS */
+		}
 
-	} else if (cell->request_type == RW_LOCK_X
-		   || cell->request_type == RW_LOCK_X_WAIT) {
+	case RW_LOCK_X:
+	case RW_LOCK_X_WAIT:
 
 		lock = cell->latch.lock;
 
 		for (debug = UT_LIST_GET_FIRST(lock->debug_list);
-		     debug != 0;
+		     debug != NULL;
 		     debug = UT_LIST_GET_NEXT(list, debug)) {
 
 			thread = debug->thread_id;
 
-			if (((debug->lock_type == RW_LOCK_X)
-			     && !os_thread_eq(thread, cell->thread_id))
-			    || ((debug->lock_type == RW_LOCK_X_WAIT)
-				&& !os_thread_eq(thread, cell->thread_id))
-			    || (debug->lock_type == RW_LOCK_S)) {
+			switch (debug->lock_type) {
+			case RW_LOCK_X:
+			case RW_LOCK_SX:
+			case RW_LOCK_X_WAIT:
+				if (os_thread_eq(thread, cell->thread_id)) {
+					break;
+				}
+				/* fall through */
+			case RW_LOCK_S:
 
 				/* The (wait) x-lock request can block
 				infinitely only if someone (can be also cell
 				thread) is holding s-lock, or someone
-				(cannot be cell thread) (wait) x-lock, and
-				he is blocked by start thread */
+				(cannot be cell thread) (wait) x-lock or
+				sx-lock, and he is blocked by start thread */
 
 				ret = sync_array_deadlock_step(
 					arr, start, thread, debug->pass,
 					depth);
+
 				if (ret) {
-print:
-					fprintf(stderr, "rw-lock %p ",
-						(void*) lock);
-					sync_array_cell_print(stderr, cell);
+					sync_array_report_error(
+						lock, debug, cell);
 					rw_lock_debug_print(stderr, debug);
 					return(TRUE);
 				}
@@ -734,7 +759,7 @@ print:
 
 		return(false);
 
-	} else if (cell->request_type == RW_LOCK_S) {
+	case RW_LOCK_SX:
 
 		lock = cell->latch.lock;
 
@@ -744,8 +769,46 @@ print:
 
 			thread = debug->thread_id;
 
-			if ((debug->lock_type == RW_LOCK_X)
-			    || (debug->lock_type == RW_LOCK_X_WAIT)) {
+			switch (debug->lock_type) {
+			case RW_LOCK_X:
+			case RW_LOCK_SX:
+			case RW_LOCK_X_WAIT:
+
+				if (os_thread_eq(thread, cell->thread_id)) {
+					break;
+				}
+
+				/* The sx-lock request can block infinitely
+				only if someone (can be also cell thread) is
+				holding (wait) x-lock or sx-lock, and he is
+				blocked by start thread */
+
+				ret = sync_array_deadlock_step(
+					arr, start, thread, debug->pass,
+					depth);
+
+				if (ret) {
+					sync_array_report_error(
+						lock, debug, cell);
+					return(TRUE);
+				}
+			}
+		}
+
+		return(false);
+
+	case RW_LOCK_S:
+
+		lock = cell->latch.lock;
+
+		for (debug = UT_LIST_GET_FIRST(lock->debug_list);
+		     debug != 0;
+		     debug = UT_LIST_GET_NEXT(list, debug)) {
+
+			thread = debug->thread_id;
+
+			if (debug->lock_type == RW_LOCK_X
+			    || debug->lock_type == RW_LOCK_X_WAIT) {
 
 				/* The s-lock request can block infinitely
 				only if someone (can also be cell thread) is
@@ -755,16 +818,20 @@ print:
 				ret = sync_array_deadlock_step(
 					arr, start, thread, debug->pass,
 					depth);
+
 				if (ret) {
-					goto print;
+					sync_array_report_error(
+						lock, debug, cell);
+					return(TRUE);
 				}
 			}
 		}
 
 		return(false);
-	}
 
-	ut_error;
+	default:
+		ut_error;
+	}
 
 	return(true);
 }
@@ -778,7 +845,11 @@ sync_arr_cell_can_wake_up(
 /*======================*/
 	sync_cell_t*	cell)	/*!< in: cell to search */
 {
-	if (cell->request_type == SYNC_MUTEX) {
+	rw_lock_t*	lock;
+
+	switch (cell->request_type) {
+	case SYNC_MUTEX: {
+
 #ifdef HAVE_ATOMIC_BUILTINS
 		WaitMutex*	mutex;
 
@@ -791,34 +862,37 @@ sync_arr_cell_can_wake_up(
 #else
 		ut_error;
 #endif /* HAVE_ATOMIC_BUILTINS */
+	}
+		break;
 
-	} else if (cell->request_type == RW_LOCK_X) {
-		rw_lock_t*	lock;
-
+	case RW_LOCK_X:
+	case RW_LOCK_SX:
 		lock = cell->latch.lock;
 
-		if (lock->lock_word > 0) {
+		if (lock->lock_word > X_LOCK_HALF_DECR) {
 		/* Either unlocked or only read locked. */
 
 			return(true);
 		}
 
-	} else if (cell->request_type == RW_LOCK_X_WAIT) {
-		rw_lock_t*	lock;
+		break;
+
+	case RW_LOCK_X_WAIT:
 
 		lock = cell->latch.lock;
 
-		/* lock_word == 0 means all readers have left */
+                /* lock_word == 0 means all readers or sx have left */
 		if (lock->lock_word == 0) {
 
 			return(true);
 		}
-	} else if (cell->request_type == RW_LOCK_S) {
-		rw_lock_t*	lock;
+		break;
+
+	case RW_LOCK_S:
 
 		lock = cell->latch.lock;
 
-		/* lock_word > 0 means no writer or reserved writer */
+                /* lock_word > 0 means no writer or reserved writer */
 		if (lock->lock_word > 0) {
 
 			return(true);
@@ -832,8 +906,8 @@ sync_arr_cell_can_wake_up(
 Increments the signalled count. */
 
 void
-sync_array_object_signalled(void)
-/*=============================*/
+sync_array_object_signalled()
+/*=========================*/
 {
 	++sg_count;
 }

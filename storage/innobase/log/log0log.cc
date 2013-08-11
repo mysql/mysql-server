@@ -51,6 +51,7 @@ Created 12/9/1995 Heikki Tuuri
 #include "trx0sys.h"
 #include "trx0trx.h"
 #include "srv0mon.h"
+#include "sync0sync.h"
 
 /*
 General philosophy of InnoDB redo-logs:
@@ -80,15 +81,6 @@ reduce the size of the log.
 
 /* Global log system variable */
 log_t*	log_sys	= NULL;
-
-#ifdef UNIV_PFS_RWLOCK
-mysql_pfs_key_t	checkpoint_lock_key;
-#endif /* UNIV_PFS_RWLOCK */
-
-#ifdef UNIV_PFS_MUTEX
-mysql_pfs_key_t	log_sys_mutex_key;
-mysql_pfs_key_t	log_flush_order_mutex_key;
-#endif /* UNIV_PFS_MUTEX */
 
 #ifdef UNIV_DEBUG
 ibool	log_do_write = TRUE;
@@ -698,8 +690,9 @@ log_init(void)
 	log_sys->n_pending_checkpoint_writes = 0;
 
 
-	rw_lock_create(checkpoint_lock_key, &log_sys->checkpoint_lock,
-		       SYNC_NO_ORDER_CHECK);
+	rw_lock_create(
+		checkpoint_lock_key, &log_sys->checkpoint_lock,
+		SYNC_NO_ORDER_CHECK);
 
 	log_sys->checkpoint_buf_ptr = static_cast<byte*>(
 		mem_zalloc(2 * OS_FILE_LOG_BLOCK_SIZE));

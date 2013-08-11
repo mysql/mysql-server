@@ -45,10 +45,6 @@ Created 2012-08-21 Sunny Bains
 
 extern	ulint	srv_max_n_threads;
 
-#ifdef UNIV_PFS_MUTEX
-mysql_pfs_key_t	sync_thread_mutex_key;
-#endif /* UNIV_PFS_MUTEX */
-
 /** For checking whether this module has been initialised or not. */
 static bool sync_check_initialised = false;
 
@@ -773,6 +769,7 @@ SyncDebug::check_order(const latch_t* latch)
 	case RW_LOCK_X:
 	case RW_LOCK_X_WAIT:
 	case RW_LOCK_S:
+	case RW_LOCK_SX:
 	case RW_LOCK_NOT_LOCKED:
 		/* These levels should never be set for a latch. */
 		ut_error;
@@ -982,6 +979,10 @@ sync_latch_meta_init()
 		  noredo_rseg_mutex_key);
 
 #ifdef UNIV_SYNC_DEBUG
+	LATCH_ADD(SrvLatches, ".innorwlock_test_mutex",
+		  SYNC_NO_ORDER_CHECK,
+		  PFS_NOT_INSTRUMENTED);
+
 	/* Mutex names starting with '.' are not tracked. They are assumed
 	to be diagnostic mustexes used in debugging. */
 	LATCH_ADD(SrvLatches, ".rw_lock_debug",

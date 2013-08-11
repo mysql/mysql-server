@@ -225,6 +225,16 @@ buf_dump(
 			continue;
 		}
 
+		if (srv_buf_pool_dump_pct != 100) {
+			ut_ad(srv_buf_pool_dump_pct < 100);
+
+			n_pages = n_pages * srv_buf_pool_dump_pct / 100;
+
+			if (n_pages == 0) {
+				n_pages = 1;
+			}
+		}
+
 		dump = static_cast<buf_dump_t*>(
 			ut_malloc(n_pages * sizeof(*dump))) ;
 
@@ -239,9 +249,9 @@ buf_dump(
 			return;
 		}
 
-		for (bpage = UT_LIST_GET_LAST(buf_pool->LRU), j = 0;
-		     bpage != NULL;
-		     bpage = UT_LIST_GET_PREV(LRU, bpage), j++) {
+		for (bpage = UT_LIST_GET_FIRST(buf_pool->LRU), j = 0;
+		     bpage != NULL && j < n_pages;
+		     bpage = UT_LIST_GET_NEXT(LRU, bpage), j++) {
 
 			ut_a(buf_page_in_file(bpage));
 
@@ -317,6 +327,72 @@ buf_dump(
 
 	buf_dump_status(STATUS_NOTICE,
 			"Buffer pool(s) dump completed at %s", now);
+}
+
+/*****************************************************************//**
+Artificially delay the buffer pool loading if necessary. The idea of
+this function is to prevent hogging the server with IO and slowing down
+too much normal client queries. */
+UNIV_INLINE
+void
+buf_load_throttle_if_needed(
+/*========================*/
+	ulint*	last_check_time,	/*!< in/out: milliseconds since epoch
+					of the last time we did check if
+					throttling is needed, we do the check
+					every srv_io_capacity IO ops. */
+	ulint*	last_activity_count,
+	ulint	n_io)			/*!< in: number of IO ops done since
+					buffer pool load has started */
+{
+	if (n_io % srv_io_capacity < srv_io_capacity - 1) {
+		return;
+	}
+
+	if (*last_check_time == 0 || *last_activity_count == 0) {
+		*last_check_time = ut_time_ms();
+		*last_activity_count = srv_get_activity_count();
+		return;
+	}
+
+	/* srv_io_capacity IO operations have been performed by buffer pool
+	load since the last time we were here. */
+
+	/* If no other activity, then keep going without any delay. */
+	if (srv_get_activity_count() == *last_activity_count) {
+		return;
+	}
+
+	/* There has been other activity, throttle. */
+
+	ulint	now = ut_time_ms();
+	ulint	elapsed_time = now - *last_check_time;
+
+	/* Notice that elapsed_time is not the time for the last
+	srv_io_capacity IO operations performed by BP load. It is the
+	time elapsed since the last time we detected that there has been
+	other activity. This has a small and acceptable deficiency, e.g.:
+	1. BP load runs and there is no other activity.
+	2. Other activity occurs, we run N IO operations after that and
+	   enter here (where 0 <= N < srv_io_capacity).
+	3. last_check_time is very old and we do not sleep at this time, but
+	   only update last_check_time and last_activity_count.
+	4. We run srv_io_capacity more IO operations and call this function
+	   again.
+	5. There has been more other activity and thus we enter here.
+	6. Now last_check_time is recent and we sleep if necessary to prevent
+	   more than srv_io_capacity IO operations per second.
+	The deficiency is that we could have slept at 3., but for this we
+	would have to update last_check_time before the
+	"cur_activity_count == *last_activity_count" check and calling
+	ut_time_ms() that often may turn out to be too expensive. */
+
+	if (elapsed_time < 1000 /* 1 sec (1000 milli secs) */) {
+		os_thread_sleep((1000 - elapsed_time) * 1000 /* micro secs */);
+	}
+
+	*last_check_time = ut_time_ms();
+	*last_activity_count = srv_get_activity_count();
 }
 
 /*****************************************************************//**
@@ -462,6 +538,9 @@ buf_load()
 		std::sort(dump, dump + dump_n);
 	}
 
+	ulint	last_check_time = 0;
+	ulint	last_activity_cnt = 0;
+
 	for (i = 0; i < dump_n && !SHUTTING_DOWN(); i++) {
 
 		buf_read_page_async(BUF_DUMP_SPACE(dump[i]),
@@ -485,6 +564,9 @@ buf_load()
 				"Buffer pool(s) load aborted on request");
 			return;
 		}
+
+		buf_load_throttle_if_needed(
+			&last_check_time, &last_activity_cnt, i);
 	}
 
 	ut_free(dump);

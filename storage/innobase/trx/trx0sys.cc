@@ -115,12 +115,6 @@ static const char*	file_format_name_map[] = {
 static const ulint	FILE_FORMAT_NAME_N
 	= sizeof(file_format_name_map) / sizeof(file_format_name_map[0]);
 
-#ifdef UNIV_PFS_MUTEX
-/* Key to register the mutex with performance schema */
-mysql_pfs_key_t	file_format_max_mutex_key;
-mysql_pfs_key_t	trx_sys_mutex_key;
-#endif /* UNIV_PFS_RWLOCK */
-
 #ifndef UNIV_HOTBACKUP
 #ifdef UNIV_DEBUG
 /* Flag to control TRX_RSEG_N_SLOTS behavior debugging. */

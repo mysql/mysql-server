@@ -124,9 +124,6 @@ typedef std::map<index_id_t, page_zip_stat_t>	page_zip_stat_per_index_t;
 extern page_zip_stat_t			page_zip_stat[PAGE_ZIP_SSIZE_MAX];
 /** Statistics on compression, indexed by dict_index_t::id */
 extern page_zip_stat_per_index_t	page_zip_stat_per_index;
-#ifdef HAVE_PSI_INTERFACE
-extern mysql_pfs_key_t			page_zip_stat_per_index_mutex_key;
-#endif /* HAVE_PSI_INTERFACE */
 
 /**********************************************************************//**
 Write the "deleted" flag of a record on a compressed page.  The flag must

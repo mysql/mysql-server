@@ -62,15 +62,6 @@ typedef std::set<table_id_t>	table_id_set;
 /** Dummy session used currently in MySQL interface */
 sess_t*		trx_dummy_sess = NULL;
 
-#ifdef UNIV_PFS_MUTEX
-/* Key to register the mutex with performance schema */
-mysql_pfs_key_t	trx_mutex_key;
-mysql_pfs_key_t	trx_pool_mutex_key;
-mysql_pfs_key_t	trx_pool_manager_mutex_key;
-/* Key to register the mutex with performance schema */
-mysql_pfs_key_t	trx_undo_mutex_key;
-#endif /* UNIV_PFS_MUTEX */
-
 /*************************************************************//**
 Set detailed error message for the transaction. */
 
