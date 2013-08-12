@@ -1915,13 +1915,19 @@ static void set_root(const char *path)
 
 static void network_init(void)
 {
+  std::string unix_sock_name= "";
+
   if (opt_bootstrap)
     return;
 
-  if (!opt_disable_networking)
+  set_ports();
+
+#ifdef HAVE_SYS_UN_H
+  unix_sock_name= mysqld_unix_port ? mysqld_unix_port : "";
+#endif
+
+  if (!opt_disable_networking || unix_sock_name != "")
   {
-    set_ports();
-    std::string unix_sock_name= mysqld_unix_port ? mysqld_unix_port : "";
     std::string bind_addr_str= my_bind_addr_str ? my_bind_addr_str : "";
 
     Mysqld_socket_listener *mysqld_socket_listener=
@@ -1948,7 +1954,9 @@ static void network_init(void)
 
     if (report_port == 0)
       report_port= mysqld_port;
-    DBUG_ASSERT(report_port != 0);
+
+    if (!opt_disable_networking)
+      DBUG_ASSERT(report_port != 0);
   }
 #ifdef _WIN32
   // Create named pipe
