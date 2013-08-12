@@ -4389,7 +4389,6 @@ Query_log_event::Query_log_event(const char* buf, uint event_len,
                         {
                           if (mts_accessed_dbs == 2)
                           {
-                            DBUG_ASSERT(pos[sizeof("d?") - 1] == 0);
                             ((char*) pos)[sizeof("d?") - 1]= 'a';
                           }});
         strncpy(mts_accessed_db_names[i], (char*) pos,
