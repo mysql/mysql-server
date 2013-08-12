@@ -1312,6 +1312,8 @@ int ha_partition::handle_opt_partitions(THD *thd, HA_CHECK_OPT *check_opt,
   uint num_parts= m_part_info->num_parts;
   uint num_subparts= m_part_info->num_subparts;
   uint i= 0;
+  bool use_all_parts= !(thd->lex->alter_info.flags &
+                          Alter_info::ALTER_ADMIN_PARTITION);
   int error;
   DBUG_ENTER("ha_partition::handle_opt_partitions");
   DBUG_PRINT("enter", ("flag= %u", flag));
@@ -1321,19 +1323,20 @@ int ha_partition::handle_opt_partitions(THD *thd, HA_CHECK_OPT *check_opt,
     partition_element *part_elem= part_it++;
     /*
       when ALTER TABLE <CMD> PARTITION ...
-      it should only do named partitions, otherwise all partitions
+      it should only do named [sub]partitions, otherwise all partitions
     */
-    if (!(thd->lex->alter_info.flags & Alter_info::ALTER_ADMIN_PARTITION) ||
-        part_elem->part_state == PART_ADMIN)
+    if (m_is_sub_partitioned)
     {
-      if (m_is_sub_partitioned)
+      List_iterator<partition_element> subpart_it(part_elem->subpartitions);
+      partition_element *sub_elem;
+      uint j= 0, part;
+      do
       {
-        List_iterator<partition_element> subpart_it(part_elem->subpartitions);
-        partition_element *sub_elem;
-        uint j= 0, part;
-        do
+        sub_elem= subpart_it++;
+        if (use_all_parts ||
+            part_elem->part_state == PART_ADMIN ||
+            sub_elem->part_state == PART_ADMIN)
         {
-          sub_elem= subpart_it++;
           part= i * num_subparts + j;
           DBUG_PRINT("info", ("Optimize subpartition %u (%s)",
                      part, sub_elem->partition_name));
@@ -1353,14 +1356,34 @@ int ha_partition::handle_opt_partitions(THD *thd, HA_CHECK_OPT *check_opt,
             /* reset part_state for the remaining partitions */
             do
             {
+              if (sub_elem->part_state == PART_ADMIN)
+                sub_elem->part_state= PART_NORMAL;
+            } while ((sub_elem= subpart_it++));
+            if (part_elem->part_state == PART_ADMIN)
+              part_elem->part_state= PART_NORMAL;
+
+            while ((part_elem= part_it++))
+            {
+              List_iterator<partition_element> s_it(part_elem->subpartitions);
+              while ((sub_elem= s_it++))
+              {
+                if (sub_elem->part_state == PART_ADMIN)
+                  sub_elem->part_state= PART_NORMAL;
+              }
               if (part_elem->part_state == PART_ADMIN)
                 part_elem->part_state= PART_NORMAL;
-            } while ((part_elem= part_it++));
+            }
             DBUG_RETURN(error);
           }
-        } while (++j < num_subparts);
-      }
-      else
+          sub_elem->part_state= PART_NORMAL;
+        }
+      } while (++j < num_subparts);
+      part_elem->part_state= PART_NORMAL;
+    }
+    else
+    {
+      if (use_all_parts ||
+          part_elem->part_state == PART_ADMIN)
       {
         DBUG_PRINT("info", ("Optimize partition %u (%s)", i,
                             part_elem->partition_name));
@@ -4292,30 +4315,64 @@ int ha_partition::truncate_partition(Alter_info *alter_info, bool *binlog_stmt)
   do
   {
     partition_element *part_elem= part_it++;
-    if (part_elem->part_state == PART_ADMIN)
+    if (m_is_sub_partitioned)
     {
-      if (m_is_sub_partitioned)
+      List_iterator<partition_element> subpart_it(part_elem->subpartitions);
+      partition_element *sub_elem;
+      uint j= 0, part;
+      do
       {
-        List_iterator<partition_element>
-                                    subpart_it(part_elem->subpartitions);
-        partition_element *sub_elem;
-        uint j= 0, part;
-        do
+        sub_elem= subpart_it++;
+        if (part_elem->part_state == PART_ADMIN ||
+            sub_elem->part_state == PART_ADMIN)
         {
-          sub_elem= subpart_it++;
           part= i * num_subparts + j;
           DBUG_PRINT("info", ("truncate subpartition %u (%s)",
                               part, sub_elem->partition_name));
           if ((error= m_file[part]->ha_truncate()))
+          {
+            /* reset part_state for the remaining partitions */
+            do
+            {
+              if (sub_elem->part_state == PART_ADMIN)
+                sub_elem->part_state= PART_NORMAL;
+            } while ((sub_elem= subpart_it++));
+            if (part_elem->part_state == PART_ADMIN)
+              part_elem->part_state= PART_NORMAL;
+
+            while ((part_elem= part_it++))
+            {
+              List_iterator<partition_element> s_it(part_elem->subpartitions);
+              while ((sub_elem= s_it++))
+              {
+                if (sub_elem->part_state == PART_ADMIN)
+                  sub_elem->part_state= PART_NORMAL;
+              }
+              if (part_elem->part_state == PART_ADMIN)
+                part_elem->part_state= PART_NORMAL;
+            }
             break;
+          }
           sub_elem->part_state= PART_NORMAL;
-        } while (++j < num_subparts);
-      }
-      else
+        }
+      } while (++j < num_subparts);
+      part_elem->part_state= PART_NORMAL;
+    }
+    else
+    {
+      if (part_elem->part_state == PART_ADMIN)
       {
         DBUG_PRINT("info", ("truncate partition %u (%s)", i,
                             part_elem->partition_name));
         error= m_file[i]->ha_truncate();
+        if (error)
+        {
+          do
+          {
+            if (part_elem->part_state == PART_ADMIN)
+              part_elem->part_state= PART_NORMAL;
+          } while ((part_elem= part_it++));
+        }
       }
       part_elem->part_state= PART_NORMAL;
     }
