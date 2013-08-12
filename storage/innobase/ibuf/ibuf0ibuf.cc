@@ -4496,7 +4496,6 @@ ibuf_delete_rec(
 			      pcur, mtr)) {
 
 		mutex_exit(&ibuf_mutex);
-		ut_ad(!ibuf_inside(mtr));
 		ut_ad(mtr->state == MTR_COMMITTED);
 		goto func_exit;
 	}
@@ -4517,7 +4516,6 @@ ibuf_delete_rec(
 	ibuf_btr_pcur_commit_specify_mtr(pcur, mtr);
 
 func_exit:
-	ut_ad(!ibuf_inside(mtr));
 	ut_ad(mtr->state == MTR_COMMITTED);
 	btr_pcur_close(pcur);
 
@@ -4849,7 +4847,6 @@ loop:
 						      BTR_MODIFY_LEAF,
 						      &pcur, &mtr)) {
 
-					ut_ad(!ibuf_inside(&mtr));
 					ut_ad(mtr.state == MTR_COMMITTED);
 					mops[op]++;
 					ibuf_dummy_index_free(dummy_index);
