@@ -11567,6 +11567,13 @@ private:
         ERR_error_string_n(ERR_get_error(), error_buf, MYSQL_ERRMSG_SIZE);
         sql_print_error("Failure to parse RSA %s key (file exists): %s:"
                         " %s", key_type, key_file_path.c_ptr(), error_buf);
+
+        /*
+          Call ERR_clear_error() just in case there are more than 1 entry in the
+          OpenSSL thread's error queue.
+        */
+        ERR_clear_error();
+
         return true;
       }
 
