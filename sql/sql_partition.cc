@@ -4658,6 +4658,25 @@ bool set_part_state(Alter_info *alter_info, partition_info *tab_part_info,
       DBUG_PRINT("info", ("Setting part_state to %u for partition %s",
                           part_state, part_elem->partition_name));
     }
+    else if (tab_part_info->is_sub_partitioned())
+    {
+      List_iterator<partition_element> sub_it(part_elem->subpartitions);
+      partition_element *sub_elem;
+      while ((sub_elem= sub_it++))
+      {
+        if (is_name_in_list(sub_elem->partition_name,
+                            alter_info->partition_names))
+        {
+          num_parts_found++;
+          sub_elem->part_state= part_state;
+          DBUG_PRINT("info", ("Setting part_state to %u for subpartition %s",
+                              part_state, sub_elem->partition_name));
+        }
+        else
+          sub_elem->part_state= PART_NORMAL;
+      }
+      part_elem->part_state= PART_NORMAL;
+    }
     else
       part_elem->part_state= PART_NORMAL;
   } while (++part_count < tab_part_info->num_parts);
@@ -4671,6 +4690,13 @@ bool set_part_state(Alter_info *alter_info, partition_info *tab_part_info,
     do
     {
       partition_element *part_elem= part_it++;
+      if (tab_part_info->is_sub_partitioned())
+      {
+        List_iterator<partition_element> sub_it(part_elem->subpartitions);
+        partition_element *sub_elem;
+        while ((sub_elem= sub_it++))
+	  sub_elem->part_state= PART_NORMAL;
+      }
       part_elem->part_state= PART_NORMAL;
     } while (++part_count < tab_part_info->num_parts);
     return true;
