@@ -71,6 +71,7 @@ dict_index_t*	dict_ind_compact;
 #include "row0merge.h"
 #include "row0log.h"
 #include "srv0space.h"
+#include "sync0sync.h"
 
 /** the dictionary system */
 dict_sys_t*	dict_sys	= NULL;
@@ -92,20 +93,6 @@ ulong	zip_failure_threshold_pct = 5;
 /** Maximum percentage of a page that can be allowed as a pad to avoid
 compression failures */
 ulong	zip_pad_max = 50;
-
-/* Keys to register rwlocks and mutexes with performance schema */
-#ifdef UNIV_PFS_RWLOCK
-mysql_pfs_key_t	dict_operation_lock_key;
-mysql_pfs_key_t	index_tree_rw_lock_key;
-mysql_pfs_key_t	index_online_log_key;
-mysql_pfs_key_t	dict_table_stats_key;
-#endif /* UNIV_PFS_RWLOCK */
-
-#ifdef UNIV_PFS_MUTEX
-mysql_pfs_key_t	zip_pad_mutex_key;
-mysql_pfs_key_t	dict_sys_mutex_key;
-mysql_pfs_key_t	dict_foreign_err_mutex_key;
-#endif /* UNIV_PFS_MUTEX */
 
 #define	DICT_HEAP_SIZE		100	/*!< initial memory heap size when
 					creating a table or index object */
@@ -537,7 +524,7 @@ dict_table_close_and_drop(
 {
 	ut_ad(mutex_own(&dict_sys->mutex));
 #ifdef UNIV_SYNC_DEBUG
-	ut_ad(rw_lock_own(&dict_operation_lock, RW_LOCK_EX));
+	ut_ad(rw_lock_own(&dict_operation_lock, RW_LOCK_X));
 #endif /* UNIV_SYNC_DEBUG */
 	ut_ad(trx->dict_operation != TRX_DICT_OP_NONE);
 	ut_ad(trx_state_eq(trx, TRX_STATE_ACTIVE));
@@ -915,14 +902,16 @@ dict_init(void)
 	UT_LIST_INIT(dict_sys->table_LRU, &dict_table_t::table_LRU);
 	UT_LIST_INIT(dict_sys->table_non_LRU, &dict_table_t::table_LRU);
 
-	mutex_create(dict_sys_mutex_key, &dict_sys->mutex, SYNC_DICT);
+	mutex_create("dict_sys", &dict_sys->mutex);
 
-	dict_sys->table_hash = hash_create(buf_pool_get_curr_size()
-					   / (DICT_POOL_PER_TABLE_HASH
-					      * UNIV_WORD_SIZE));
-	dict_sys->table_id_hash = hash_create(buf_pool_get_curr_size()
-					      / (DICT_POOL_PER_TABLE_HASH
-						 * UNIV_WORD_SIZE));
+	dict_sys->table_hash = hash_create(
+		buf_pool_get_curr_size()
+		/ (DICT_POOL_PER_TABLE_HASH * UNIV_WORD_SIZE));
+
+	dict_sys->table_id_hash = hash_create(
+		buf_pool_get_curr_size()
+		/ (DICT_POOL_PER_TABLE_HASH * UNIV_WORD_SIZE));
+
 	rw_lock_create(dict_operation_lock_key,
 		       &dict_operation_lock, SYNC_DICT_OPERATION);
 
@@ -930,8 +919,7 @@ dict_init(void)
 		dict_foreign_err_file = os_file_create_tmpfile();
 		ut_a(dict_foreign_err_file);
 
-		mutex_create(dict_foreign_err_mutex_key,
-			     &dict_foreign_err_mutex, SYNC_NO_ORDER_CHECK);
+		mutex_create("dict_foreign_err", &dict_foreign_err_mutex);
 	}
 
 	for (i = 0; i < DICT_TABLE_STATS_LATCHES_SIZE; i++) {
@@ -1202,7 +1190,7 @@ dict_table_can_be_evicted(
 {
 	ut_ad(mutex_own(&dict_sys->mutex));
 #ifdef UNIV_SYNC_DEBUG
-	ut_ad(rw_lock_own(&dict_operation_lock, RW_LOCK_EX));
+	ut_ad(rw_lock_own(&dict_operation_lock, RW_LOCK_X));
 #endif /* UNIV_SYNC_DEBUG */
 
 	ut_a(table->can_be_evicted);
@@ -1273,7 +1261,7 @@ dict_make_room_in_cache(
 	ut_a(pct_check <= 100);
 	ut_ad(mutex_own(&dict_sys->mutex));
 #ifdef UNIV_SYNC_DEBUG
-	ut_ad(rw_lock_own(&dict_operation_lock, RW_LOCK_EX));
+	ut_ad(rw_lock_own(&dict_operation_lock, RW_LOCK_X));
 #endif /* UNIV_SYNC_DEBUG */
 	ut_ad(dict_lru_validate());
 
@@ -1893,7 +1881,7 @@ dict_table_remove_from_cache_low(
 
 		ut_ad(mutex_own(&dict_sys->mutex));
 #ifdef UNIV_SYNC_DEBUG
-		ut_ad(rw_lock_own(&dict_operation_lock, RW_LOCK_EX));
+		ut_ad(rw_lock_own(&dict_operation_lock, RW_LOCK_X));
 #endif /* UNIV_SYNC_DEBUG */
 		/* Mimic row_mysql_lock_data_dictionary(). */
 		trx->dict_operation_lock_mode = RW_X_LATCH;
@@ -5686,9 +5674,11 @@ dict_set_corrupted(
 	ut_ad(!dict_table_is_comp(dict_sys->sys_tables));
 	ut_ad(!dict_table_is_comp(dict_sys->sys_indexes));
 
-#ifdef UNIV_SYNC_DEBUG
-        ut_ad(sync_thread_levels_empty_except_dict());
-#endif
+	{
+		dict_sync_check	check(true);
+
+		ut_ad(!sync_check_iterate(check));
+	}
 
 	/* Mark the table as corrupted only if the clustered index
 	is corrupted */
@@ -6634,10 +6624,10 @@ dict_index_zip_success(
 		return;
 	}
 
-	os_fast_mutex_lock(&index->zip_pad.mutex);
+	mutex_enter(&index->zip_pad.mutex);
 	++index->zip_pad.success;
 	dict_index_zip_pad_update(&index->zip_pad, zip_threshold);
-	os_fast_mutex_unlock(&index->zip_pad.mutex);
+	mutex_exit(&index->zip_pad.mutex);
 }
 
 /*********************************************************************//**
@@ -6657,10 +6647,10 @@ dict_index_zip_failure(
 		return;
 	}
 
-	os_fast_mutex_lock(&index->zip_pad.mutex);
+	mutex_enter(&index->zip_pad.mutex);
 	++index->zip_pad.failure;
 	dict_index_zip_pad_update(&index->zip_pad, zip_threshold);
-	os_fast_mutex_unlock(&index->zip_pad.mutex);
+	mutex_exit(&index->zip_pad.mutex);
 }
 
 
@@ -6692,9 +6682,9 @@ dict_index_zip_pad_optimal_page_size(
 #ifdef HAVE_ATOMIC_BUILTINS
 	pad = os_atomic_increment_ulint(&index->zip_pad.pad, 0);
 #else /* HAVE_ATOMIC_BUILTINS */
-	os_fast_mutex_lock(&index->zip_pad.mutex);
+	mutex_enter(&index->zip_pad.mutex);
 	pad = index->zip_pad.pad;
-	os_fast_mutex_unlock(&index->zip_pad.mutex);
+	mutex_exit(&index->zip_pad.mutex);
 #endif /* HAVE_ATOMIC_BUILTINS */
 
 	ut_ad(pad < UNIV_PAGE_SIZE);

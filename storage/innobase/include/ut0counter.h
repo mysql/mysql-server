@@ -51,7 +51,7 @@ struct generic_indexer_t {
 #include <sched.h>
 /** Use the cpu id to index into the counter array. If it fails then
 use the thread id. */
-template <typename Type, int N>
+template <typename Type=ulint, int N=1>
 struct get_sched_indexer_t : public generic_indexer_t<Type, N> {
 	/** Default constructor/destructor should be OK. */
 
@@ -70,7 +70,7 @@ struct get_sched_indexer_t : public generic_indexer_t<Type, N> {
 	}
 };
 #elif HAVE_GETCURRENTPROCESSORNUMBER
-template <typename Type, int N>
+template <typename Type=ulint, int N=1>
 struct get_sched_indexer_t : public generic_indexer_t<Type, N> {
 	/** Default constructor/destructor should be OK. */
 
@@ -94,7 +94,7 @@ struct get_sched_indexer_t : public generic_indexer_t<Type, N> {
 #endif /* HAVE_SCHED_GETCPU */
 
 /** Use the thread id to index into the counter array. */
-template <typename Type, int N>
+template <typename Type=ulint, int N=1>
 struct thread_id_indexer_t : public generic_indexer_t<Type, N> {
 	/** Default constructor/destructor should are OK. */
 
@@ -109,7 +109,7 @@ struct thread_id_indexer_t : public generic_indexer_t<Type, N> {
 };
 
 /** For counters where N=1 */
-template <typename Type, int N=1>
+template <typename Type=ulint, int N=1>
 struct single_indexer_t {
 	/** Default constructor/destructor should are OK. */
 

@@ -46,7 +46,7 @@ Created 1/8/1996 Heikki Tuuri
 typedef std::deque<const char*> dict_names_t;
 
 #ifndef UNIV_HOTBACKUP
-# include "sync0sync.h"
+# include "sync0mutex.h"
 # include "sync0rw.h"
 /******************************************************************//**
 Makes all characters in a NUL-terminated UTF-8 string lower case. */
@@ -1557,8 +1557,9 @@ constraint */
 
 /* Buffers for storing detailed information about the latest foreign key
 and unique key errors */
-extern FILE*	dict_foreign_err_file;
-extern ib_mutex_t	dict_foreign_err_mutex; /* mutex protecting the buffers */
+extern FILE*		dict_foreign_err_file;
+extern ib_mutex_t	dict_foreign_err_mutex; /* mutex protecting the
+						foreign key error messages */
 
 /** the dictionary system */
 extern dict_sys_t*	dict_sys;
@@ -1567,7 +1568,7 @@ extern rw_lock_t	dict_operation_lock;
 
 /* Dictionary system struct */
 struct dict_sys_t{
-	ib_mutex_t	mutex;		/*!< mutex protecting the data
+	DictSysMutex	mutex;		/*!< mutex protecting the data
 					dictionary; protects also the
 					disk-based dictionary system tables;
 					this mutex serializes CREATE TABLE

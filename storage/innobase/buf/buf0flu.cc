@@ -297,7 +297,7 @@ buf_flush_insert_into_flush_list(
 {
 	ut_ad(!buf_pool_mutex_own(buf_pool));
 	ut_ad(log_flush_order_mutex_own());
-	ut_ad(mutex_own(&block->mutex));
+	ut_ad(buf_page_mutex_own(block));
 
 	buf_flush_list_mutex_enter(buf_pool);
 
@@ -358,7 +358,7 @@ buf_flush_insert_sorted_into_flush_list(
 
 	ut_ad(!buf_pool_mutex_own(buf_pool));
 	ut_ad(log_flush_order_mutex_own());
-	ut_ad(mutex_own(&block->mutex));
+	ut_ad(buf_page_mutex_own(block));
 	ut_ad(buf_block_get_state(block) == BUF_BLOCK_FILE_PAGE);
 
 	buf_flush_list_mutex_enter(buf_pool);
@@ -849,7 +849,7 @@ buf_flush_write_block_low(
 	LRU_list. */
 	ut_ad(!buf_pool_mutex_own(buf_pool));
 	ut_ad(!buf_flush_list_mutex_own(buf_pool));
-	ut_ad(!mutex_own(buf_page_get_mutex(bpage)));
+	ut_ad(!buf_page_get_mutex(bpage)->is_owned());
 	ut_ad(buf_page_get_io_fix(bpage) == BUF_IO_WRITE);
 	ut_ad(bpage->oldest_modification != 0);
 
@@ -947,7 +947,7 @@ buf_flush_page(
 	buf_flush_t	flush_type,	/*!< in: type of flush */
 	bool		sync)		/*!< in: true if sync IO request */
 {
-	ib_mutex_t*	block_mutex;
+	BPageMutex*	block_mutex;
 	ibool		is_uncompressed;
 
 	ut_ad(flush_type < BUF_FLUSH_N_TYPES);
@@ -1061,7 +1061,7 @@ buf_flush_page_try(
 {
 	ut_ad(buf_pool_mutex_own(buf_pool));
 	ut_ad(buf_block_get_state(block) == BUF_BLOCK_FILE_PAGE);
-	ut_ad(mutex_own(&block->mutex));
+	ut_ad(buf_page_mutex_own(block));
 
 	if (!buf_flush_ready_for_flush(&block->page, BUF_FLUSH_SINGLE_PAGE)) {
 		return(FALSE);
@@ -1110,7 +1110,7 @@ buf_flush_check_neighbor(
 
 	ret = false;
 	if (flush_type != BUF_FLUSH_LRU || buf_page_is_old(bpage)) {
-		ib_mutex_t* block_mutex = buf_page_get_mutex(bpage);
+		BPageMutex* block_mutex = buf_page_get_mutex(bpage);
 
 		mutex_enter(block_mutex);
 		if (buf_flush_ready_for_flush(bpage, flush_type)) {
@@ -1240,7 +1240,7 @@ buf_flush_try_neighbors(
 		if (flush_type != BUF_FLUSH_LRU
 		    || i == offset
 		    || buf_page_is_old(bpage)) {
-			ib_mutex_t* block_mutex = buf_page_get_mutex(bpage);
+			BPageMutex* block_mutex = buf_page_get_mutex(bpage);
 
 			mutex_enter(block_mutex);
 
@@ -1269,10 +1269,10 @@ buf_flush_try_neighbors(
 
 	if (count > 0) {
 		MONITOR_INC_VALUE_CUMULATIVE(
-					MONITOR_FLUSH_NEIGHBOR_TOTAL_PAGE,
-					MONITOR_FLUSH_NEIGHBOR_COUNT,
-					MONITOR_FLUSH_NEIGHBOR_PAGES,
-					(count - 1));
+			MONITOR_FLUSH_NEIGHBOR_TOTAL_PAGE,
+			MONITOR_FLUSH_NEIGHBOR_COUNT,
+			MONITOR_FLUSH_NEIGHBOR_PAGES,
+			(count - 1));
 	}
 
 	return(count);
@@ -1299,7 +1299,7 @@ buf_flush_page_and_try_neighbors(
 	ulint*		count)		/*!< in/out: number of pages
 					flushed */
 {
-	ib_mutex_t*	block_mutex;
+	BPageMutex*	block_mutex;
 	ibool		flushed = FALSE;
 #ifdef UNIV_DEBUG
 	buf_pool_t*	buf_pool = buf_pool_from_bpage(bpage);
@@ -1439,7 +1439,8 @@ buf_flush_LRU_list_batch(
 		buf_page_t* prev = UT_LIST_GET_PREV(LRU, bpage);
 		buf_pool->lru_hp.set(prev);
 
-		ib_mutex_t* block_mutex = buf_page_get_mutex(bpage);
+		BPageMutex*	block_mutex = buf_page_get_mutex(bpage);
+
 		mutex_enter(block_mutex);
 
 		if (buf_flush_ready_for_replace(bpage)) {
@@ -1630,10 +1631,13 @@ buf_flush_batch(
 	ulint		count	= 0;
 
 	ut_ad(flush_type == BUF_FLUSH_LRU || flush_type == BUF_FLUSH_LIST);
-#ifdef UNIV_SYNC_DEBUG
-	ut_ad((flush_type != BUF_FLUSH_LIST)
-	      || sync_thread_levels_empty_except_dict());
-#endif /* UNIV_SYNC_DEBUG */
+
+	{
+		dict_sync_check	check(true);
+
+		ut_ad(flush_type != BUF_FLUSH_LIST
+		      || !sync_check_iterate(check));
+	}
 
 	buf_pool_mutex_enter(buf_pool);
 
@@ -1907,20 +1911,24 @@ buf_flush_single_page_from_LRU(
 {
 	ulint		scanned;
 	buf_page_t*	bpage;
-	bool		freed;
+	ibool		freed;
 
 	buf_pool_mutex_enter(buf_pool);
 
-	for (bpage = buf_pool->single_scan_itr.start(),
-	     scanned = 0, freed = false; bpage != NULL; ++scanned,
-	     bpage = buf_pool->single_scan_itr.get()) {
+	for (bpage = buf_pool->single_scan_itr.start(), scanned = 0,
+	     freed = false;
+	     bpage != NULL;
+	     ++scanned, bpage = buf_pool->single_scan_itr.get()) {
 
 		ut_ad(buf_pool_mutex_own(buf_pool));
 
 		buf_page_t* prev = UT_LIST_GET_PREV(LRU, bpage);
 		buf_pool->single_scan_itr.set(prev);
 
-		ib_mutex_t* block_mutex = buf_page_get_mutex(bpage);
+		BPageMutex*	block_mutex;
+
+		block_mutex = buf_page_get_mutex(bpage);
+
 		mutex_enter(block_mutex);
 
 		if (buf_flush_ready_for_replace(bpage)) {
@@ -1965,6 +1973,7 @@ buf_flush_single_page_from_LRU(
 	}
 
 	ut_ad(!buf_pool_mutex_own(buf_pool));
+
 	return(freed);
 }
 
@@ -2296,7 +2305,7 @@ DECLARE_THREAD(buf_flush_page_cleaner_thread)(
 
 	buf_page_cleaner_is_active = TRUE;
 
-	buf_flush_event = os_event_create();
+	buf_flush_event = os_event_create("buf_flush_event");
 
 	while (srv_shutdown_state == SRV_SHUTDOWN_NONE) {
 
@@ -2400,7 +2409,7 @@ DECLARE_THREAD(buf_flush_page_cleaner_thread)(
 thread_exit:
 	buf_page_cleaner_is_active = FALSE;
 
-	os_event_free(buf_flush_event);
+	os_event_destroy(buf_flush_event);
 
 	/* We count the number of threads in os_thread_exit(). A created
 	thread should always use that to exit and not use return() to exit. */

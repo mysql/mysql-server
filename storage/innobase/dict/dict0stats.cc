@@ -284,7 +284,7 @@ dict_stats_exec_sql(
 	dberr_t	err;
 
 #ifdef UNIV_SYNC_DEBUG
-	ut_ad(rw_lock_own(&dict_operation_lock, RW_LOCK_EX));
+	ut_ad(rw_lock_own(&dict_operation_lock, RW_LOCK_X));
 #endif /* UNIV_SYNC_DEBUG */
 	ut_ad(mutex_own(&dict_sys->mutex));
 
@@ -1589,7 +1589,8 @@ dict_stats_analyze_index_for_n_prefix(
 	     == !(REC_INFO_MIN_REC_FLAG & rec_get_info_bits(
 			  btr_pcur_get_rec(&pcur), page_is_comp(page))));
 
-	last_idx_on_level = boundaries->at((unsigned int) (n_diff_for_this_prefix - 1));
+	last_idx_on_level = boundaries->at(
+		static_cast<unsigned int>(n_diff_for_this_prefix - 1));
 
 	rec_idx = 0;
 
@@ -2105,7 +2106,7 @@ dict_stats_save_index_stat(
 	char		table_utf8[MAX_TABLE_UTF8_LEN];
 
 #ifdef UNIV_SYNC_DEBUG
-	ut_ad(rw_lock_own(&dict_operation_lock, RW_LOCK_EX));
+	ut_ad(rw_lock_own(&dict_operation_lock, RW_LOCK_X));
 #endif /* UNIV_SYNC_DEBUG */
 	ut_ad(mutex_own(&dict_sys->mutex));
 
@@ -3239,7 +3240,7 @@ dict_stats_delete_from_table_stats(
 	dberr_t		ret;
 
 #ifdef UNIV_SYNC_DEBUG
-	ut_ad(rw_lock_own(&dict_operation_lock, RW_LOCK_EX));
+	ut_ad(rw_lock_own(&dict_operation_lock, RW_LOCK_X));
 #endif /* UNIV_SYNC_DEBUG */
 	ut_ad(mutex_own(&dict_sys->mutex));
 
@@ -3277,7 +3278,7 @@ dict_stats_delete_from_index_stats(
 	dberr_t		ret;
 
 #ifdef UNIV_SYNC_DEBUG
-	ut_ad(rw_lock_own(&dict_operation_lock, RW_LOCK_EX));
+	ut_ad(rw_lock_own(&dict_operation_lock, RW_LOCK_X));
 #endif /* UNIV_SYNC_DEBUG */
 	ut_ad(mutex_own(&dict_sys->mutex));
 
@@ -3317,7 +3318,7 @@ dict_stats_drop_table(
 	dberr_t		ret;
 
 #ifdef UNIV_SYNC_DEBUG
-	ut_ad(rw_lock_own(&dict_operation_lock, RW_LOCK_EX));
+	ut_ad(rw_lock_own(&dict_operation_lock, RW_LOCK_X));
 #endif /* UNIV_SYNC_DEBUG */
 	ut_ad(mutex_own(&dict_sys->mutex));
 
@@ -3395,7 +3396,7 @@ dict_stats_rename_table_in_table_stats(
 	dberr_t		ret;
 
 #ifdef UNIV_SYNC_DEBUG
-	ut_ad(rw_lock_own(&dict_operation_lock, RW_LOCK_EX));
+	ut_ad(rw_lock_own(&dict_operation_lock, RW_LOCK_X));
 #endif /* UNIV_SYNC_DEBUG */
 	ut_ad(mutex_own(&dict_sys->mutex));
 
@@ -3441,7 +3442,7 @@ dict_stats_rename_table_in_index_stats(
 	dberr_t		ret;
 
 #ifdef UNIV_SYNC_DEBUG
-	ut_ad(rw_lock_own(&dict_operation_lock, RW_LOCK_EX));
+	ut_ad(rw_lock_own(&dict_operation_lock, RW_LOCK_X));
 #endif /* UNIV_SYNC_DEBUG */
 	ut_ad(mutex_own(&dict_sys->mutex));
 
@@ -3488,7 +3489,7 @@ dict_stats_rename_table(
 	dberr_t		ret;
 
 #ifdef UNIV_SYNC_DEBUG
-	ut_ad(!rw_lock_own(&dict_operation_lock, RW_LOCK_EX));
+	ut_ad(!rw_lock_own(&dict_operation_lock, RW_LOCK_X));
 #endif /* UNIV_SYNC_DEBUG */
 	ut_ad(!mutex_own(&dict_sys->mutex));
 

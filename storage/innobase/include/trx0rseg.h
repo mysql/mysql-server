@@ -156,18 +156,18 @@ trx_rseg_get_n_undo_tablespaces(
 /* The rollback segment memory object */
 struct trx_rseg_t{
 	/*--------------------------------------------------------*/
-	ulint		id;	/*!< rollback segment id == the index of
-				its slot in the trx system file copy */
-	ib_mutex_t	mutex;	/*!< mutex protecting the fields in this
-				struct except id, which is constant */
-	ulint		space;	/*!< space where the rollback segment is
-				header is placed */
-	ulint		zip_size;/* compressed page size of space
-				in bytes, or 0 for uncompressed spaces */
-	ulint		page_no;/* page number of the rollback segment
-				header */
-	ulint		max_size;/* maximum allowed size in pages */
-	ulint		curr_size;/* current size in pages */
+	ulint		id;		/*!< rollback segment id == the index of
+					its slot in the trx system file copy */
+	RsegMutex	mutex;		/*!< mutex protecting the fields in this
+					struct except id, which is constant */
+	ulint		space;		/*!< space where the rollback segment is
+					header is placed */
+	ulint		zip_size;	/* compressed page size of space
+					in bytes, or 0 for uncompressed spaces */
+	ulint		page_no;	/* page number of the rollback segment
+					header */
+	ulint		max_size;	/* maximum allowed size in pages */
+	ulint		curr_size;	/* current size in pages */
 	/*--------------------------------------------------------*/
 	/* Fields for update undo logs */
 	UT_LIST_BASE_NODE_T(trx_undo_t) update_undo_list;

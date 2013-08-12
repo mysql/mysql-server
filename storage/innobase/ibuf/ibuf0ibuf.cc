@@ -55,7 +55,7 @@ my_bool	srv_ibuf_disable_background_merge;
 #include "btr0pcur.h"
 #include "btr0btr.h"
 #include "row0upd.h"
-#include "sync0sync.h"
+#include "sync0mutex.h"
 #include "dict0boot.h"
 #include "fut0lst.h"
 #include "lock0lock.h"
@@ -204,12 +204,6 @@ uint	ibuf_debug;
 
 /** The insert buffer control structure */
 ibuf_t*	ibuf			= NULL;
-
-#ifdef UNIV_PFS_MUTEX
-mysql_pfs_key_t	ibuf_pessimistic_insert_mutex_key;
-mysql_pfs_key_t	ibuf_mutex_key;
-mysql_pfs_key_t	ibuf_bitmap_mutex_key;
-#endif /* UNIV_PFS_MUTEX */
 
 #ifdef UNIV_IBUF_COUNT_DEBUG
 /** Number of tablespaces in the ibuf_counts array */
@@ -527,15 +521,11 @@ ibuf_init_at_db_start(void)
 	ibuf->max_size = ((buf_pool_get_curr_size() / UNIV_PAGE_SIZE)
 			  * CHANGE_BUFFER_DEFAULT_SIZE) / 100;
 
-	mutex_create(ibuf_pessimistic_insert_mutex_key,
-		     &ibuf_pessimistic_insert_mutex,
-		     SYNC_IBUF_PESS_INSERT_MUTEX);
+	mutex_create("ibuf", &ibuf_mutex);
 
-	mutex_create(ibuf_mutex_key,
-		     &ibuf_mutex, SYNC_IBUF_MUTEX);
+	mutex_create("ibuf_bitmap", &ibuf_bitmap_mutex);
 
-	mutex_create(ibuf_bitmap_mutex_key,
-		     &ibuf_bitmap_mutex, SYNC_IBUF_BITMAP_MUTEX);
+	mutex_create("ibuf_pessimistic_insert", &ibuf_pessimistic_insert_mutex);
 
 	mtr_start(&mtr);
 
@@ -2266,7 +2256,7 @@ ibuf_free_excess_pages(void)
 
 #ifdef UNIV_SYNC_DEBUG
 	ut_ad(rw_lock_own(fil_space_get_latch(IBUF_SPACE_ID, NULL),
-			  RW_LOCK_EX));
+			  RW_LOCK_X));
 #endif /* UNIV_SYNC_DEBUG */
 
 	ut_ad(rw_lock_get_x_lock_count(
@@ -3550,7 +3540,7 @@ ibuf_insert_low(
 			mutex_exit(&ibuf_mutex);
 			mutex_exit(&ibuf_pessimistic_insert_mutex);
 
-			if (UNIV_UNLIKELY(!ibuf_add_free_page())) {
+			if (!ibuf_add_free_page()) {
 
 				mem_heap_free(heap);
 				return(DB_STRONG_FAIL);

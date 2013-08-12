@@ -29,6 +29,8 @@ Created 12/15/2009	Jimmy Yang
 #define srv0mon_h
 
 #include "univ.i"
+#include "sync0mutex.h"
+
 #ifndef UNIV_HOTBACKUP
 
 

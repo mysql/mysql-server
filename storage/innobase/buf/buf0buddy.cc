@@ -387,9 +387,9 @@ buf_buddy_block_free(
 	UNIV_MEM_INVALID(buf, UNIV_PAGE_SIZE);
 
 	block = (buf_block_t*) bpage;
-	mutex_enter(&block->mutex);
+	buf_page_mutex_enter(block);
 	buf_LRU_block_free_non_file_page(block);
-	mutex_exit(&block->mutex);
+	buf_page_mutex_exit(block);
 
 	ut_ad(buf_pool->buddy_n_frames > 0);
 	ut_d(buf_pool->buddy_n_frames--);
@@ -532,7 +532,6 @@ buf_buddy_relocate(
 {
 	buf_page_t*	bpage;
 	const ulint	size	= BUF_BUDDY_LOW << i;
-	ib_mutex_t*	mutex;
 	ulint		space;
 	ulint		offset;
 
@@ -579,9 +578,9 @@ buf_buddy_relocate(
 	contain uninitialized data. */
 	UNIV_MEM_ASSERT_W(src, size);
 
-	mutex = buf_page_get_mutex(bpage);
+	BPageMutex*	block_mutex = buf_page_get_mutex(bpage);
 
-	mutex_enter(mutex);
+	mutex_enter(block_mutex);
 
 	if (buf_page_can_relocate(bpage)) {
 		/* Relocate the compressed page. */
@@ -589,7 +588,7 @@ buf_buddy_relocate(
 		ut_a(bpage->zip.data == src);
 		memcpy(dst, src, size);
 		bpage->zip.data = (page_zip_t*) dst;
-		mutex_exit(mutex);
+		mutex_exit(block_mutex);
 		buf_buddy_mem_invalid(
 			reinterpret_cast<buf_buddy_free_t*>(src), i);
 
@@ -599,7 +598,7 @@ buf_buddy_relocate(
 		return(true);
 	}
 
-	mutex_exit(mutex);
+	mutex_exit(block_mutex);
 	return(false);
 }
 
