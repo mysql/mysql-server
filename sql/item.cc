@@ -297,7 +297,8 @@ String *Item::val_string_from_decimal(String *str)
 String *Item::val_string_from_date(String *str)
 {
   MYSQL_TIME ltime;
-  if (get_date(&ltime, 0) ||
+  if (get_date(&ltime,
+               field_type() == MYSQL_TYPE_TIME ? TIME_TIME_ONLY : 0) ||
       str->alloc(MAX_DATE_STRING_REP_LENGTH))
   {
     null_value= 1;

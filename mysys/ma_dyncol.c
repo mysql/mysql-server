@@ -1227,13 +1227,14 @@ dynamic_column_create(DYNAMIC_COLUMN *str, uint column_nr,
   @param header_end      Pointer to the header end
   @param offset_size     Size of offset field in bytes
   @param last_offset     Size of the data segment
+  @param error           Set in case of error
 
   @return number of bytes
 */
 
 static size_t get_length_interval(uchar *entry, uchar *entry_next,
                                   uchar *header_end, size_t offset_size,
-                                  size_t last_offset)
+                                  size_t last_offset, my_bool *error)
 {
   size_t offset, offset_next;
   DYNAMIC_COLUMN_TYPE type, type_next;
@@ -1241,8 +1242,12 @@ static size_t get_length_interval(uchar *entry, uchar *entry_next,
 
   type_and_offset_read(&type, &offset, entry, offset_size);
   if (entry_next >= header_end)
+  {
+    *error= 0;
     return (last_offset - offset);
+  }
   type_and_offset_read(&type_next, &offset_next, entry_next, offset_size);
+  *error= (offset_next > last_offset);
   return (offset_next - offset);
 }
 
@@ -1254,17 +1259,18 @@ static size_t get_length_interval(uchar *entry, uchar *entry_next,
   @param header_end      Pointer to the header end
   @param offset_size     Size of offset field in bytes
   @param last_offset     Size of the data segment
+  @param error           Set in case of error
 
   @return number of bytes
 */
 
 static size_t get_length(uchar *entry, uchar *header_end,
                          size_t offset_size,
-                         size_t last_offset)
+                         size_t last_offset, my_bool *error)
 {
   return get_length_interval(entry,
                              entry + offset_size + COLUMN_NUMBER_SIZE,
-                             header_end, offset_size, last_offset);
+                             header_end, offset_size, last_offset, error);
 }
 
 
@@ -1303,6 +1309,7 @@ find_column(DYNAMIC_COLUMN_TYPE *type, uchar **data, size_t *length,
   uchar *entry;
   size_t offset, total_data, header_size, entry_size;
   uchar key[2+4];
+  my_bool error;
 
   if (!entry_pos)
     entry_pos= &entry;
@@ -1328,12 +1335,12 @@ find_column(DYNAMIC_COLUMN_TYPE *type, uchar **data, size_t *length,
     return 1;
   *data= header + header_size + offset;
   *length= get_length(entry, header + header_size, offset_size,
-                      total_data);
+                      total_data, &error);
   /*
     Check that the found data is withing the ranges. This can happen if
     we get data with wrong offsets.
   */
-  if ((long) *length < 0 || offset + *length > total_data)
+  if (error || (long) *length < 0 || offset + *length > total_data)
     return 1;
 
   *entry_pos= entry;
@@ -1835,12 +1842,13 @@ dynamic_column_update_many(DYNAMIC_COLUMN *str,
                    entry_size, column_count, &entry))
     {
       size_t entry_data_size;
+      my_bool error;
 
       /* Data existed; We have to replace or delete it */
 
       entry_data_size= get_length(entry, header_end,
-                                  offset_size, max_offset);
-      if ((long) entry_data_size < 0)
+                                  offset_size, max_offset, &error);
+      if (error || (long) entry_data_size < 0)
       {
         rc= ER_DYNCOL_FORMAT;
         goto end;
@@ -2036,12 +2044,13 @@ dynamic_column_update_many(DYNAMIC_COLUMN *str,
       /* copy first the data that was not replaced in original packed data */
       if (start < end)
       {
+        my_bool error;
         /* Add old data last in 'tmp' */
         size_t data_size=
           get_length_interval(header_base + start * entry_size,
                               header_base + end * entry_size,
-                              header_end, offset_size, max_offset);
-        if ((long) data_size < 0 ||
+                              header_end, offset_size, max_offset, &error);
+        if (error || (long) data_size < 0 ||
             data_size > max_offset - first_offset)
         {
           dynamic_column_column_free(&tmp);

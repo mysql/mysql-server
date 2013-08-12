@@ -2791,6 +2791,13 @@ bool Item_func_min_max::get_date(MYSQL_TIME *ltime, ulonglong fuzzy_date)
     ltime->time_type= MYSQL_TIMESTAMP_DATE;
     ltime->hour= ltime->minute= ltime->second= ltime->second_part= 0;
   }
+  else if (compare_as_dates->field_type() == MYSQL_TYPE_TIME)
+  {
+    ltime->time_type= MYSQL_TIMESTAMP_TIME;
+    ltime->hour+= (ltime->month * 32 + ltime->day) * 24;
+    ltime->month= ltime->day= 0;
+  }
+
 
   return (null_value= 0);
 }

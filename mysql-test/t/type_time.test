@@ -129,6 +129,12 @@ drop table t1;
 SELECT CONVERT_TZ(GREATEST(TIME('00:00:00'),TIME('00:00:00')),'+00:00','+7:5');
 
 --echo #
+--echo # MDEV-4652 Wrong result for CONCAT(GREATEST(TIME('00:00:01'),TIME('00:00:00')))
+--echo #
+SELECT CONCAT(GREATEST(TIME('00:00:01'),TIME('00:00:00')));
+SELECT CONCAT(GREATEST(TIME('32 00:00:01'),TIME('00:00:00')));
+
+--echo #
 --echo # End of 5.3 tests
 --echo #
 

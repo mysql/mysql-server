@@ -1404,5 +1404,26 @@ v1	CREATE ALGORITHM=UNDEFINED DEFINER=`root`@`localhost` SQL SECURITY DEFINER VI
 drop view v1;
 drop table t1;
 #
+# MDEV-4811: Assertion `offset < 0x1f' fails in type_and_offset_store 
+# on COLUMN_ADD
+#
+CREATE TABLE t1 (dyn TINYBLOB) ENGINE=MyISAM;
+INSERT INTO t1 SET dyn = COLUMN_CREATE( 40, REPEAT('a', 233), 4, REPEAT('b', 322) );
+Warnings:
+Warning	1265	Data truncated for column 'dyn' at row 1
+SELECT COLUMN_ADD( dyn, 6, REPEAT('x',80), 4, REPEAT('y',215) AS INTEGER ) FROM t1;
+ERROR HY000: Encountered illegal format of dynamic column string
+DROP table t1;
+#
+# MDEV-4812: Valgrind warnings (Invalid write) in
+# dynamic_column_update_many on COLUMN_ADD
+#
+CREATE TABLE t1 (dyncol TINYBLOB) ENGINE=MyISAM;
+INSERT INTO t1 SET dyncol = COLUMN_CREATE( 7, REPEAT('k',487), 209, REPEAT('x',464) );
+Warnings:
+Warning	1265	Data truncated for column 'dyncol' at row 1
+SELECT COLUMN_ADD( dyncol, 7, '22:22:22', 8, REPEAT('x',270) AS CHAR ) FROM t1;
+DROP table t1;
+#
 # end of 5.3 tests
 #
