@@ -40,7 +40,7 @@ Created 11/29/1995 Heikki Tuuri
 #ifdef UNIV_HOTBACKUP
 # include "fut0lst.h"
 #else /* UNIV_HOTBACKUP */
-# include "sync0sync.h"
+# include "sync0mutex.h"
 # include "fut0fut.h"
 # include "srv0srv.h"
 # include "ibuf0ibuf.h"
@@ -1342,7 +1342,7 @@ fsp_page_create(
 		= buf_page_create(space, page_no, zip_size, init_mtr);
 #ifdef UNIV_SYNC_DEBUG
 	ut_ad(mtr_memo_contains(mtr, block, MTR_MEMO_PAGE_X_FIX)
-	      == rw_lock_own(&block->lock, RW_LOCK_EX));
+	      == rw_lock_own(&block->lock, RW_LOCK_X));
 	ut_ad(mtr_memo_contains(mtr, block, MTR_MEMO_PAGE_SX_FIX)
 	      == rw_lock_own(&block->lock, RW_LOCK_SX));
 #endif /* UNIV_SYNC_DEBUG */
@@ -1355,7 +1355,9 @@ fsp_page_create(
 		rw_lock_sx_lock(&block->lock);
 	}
 	mutex_enter(&block->mutex);
+
 	buf_block_buf_fix_inc(block, __FILE__, __LINE__);
+
 	mutex_exit(&block->mutex);
 	mtr_memo_push(init_mtr, block, rw_latch == RW_X_LATCH
 		      ? MTR_MEMO_PAGE_X_FIX : MTR_MEMO_PAGE_SX_FIX);

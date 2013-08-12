@@ -44,7 +44,8 @@ Created 10/10/1995 Heikki Tuuri
 #include "univ.i"
 #ifndef UNIV_HOTBACKUP
 #include "log0log.h"
-#include "sync0sync.h"
+#include "sync0mutex.h"
+#include "os0event.h"
 #include "que0types.h"
 #include "trx0types.h"
 #include "srv0conc.h"
@@ -157,6 +158,8 @@ extern char		srv_disable_sort_file_cache;
 at a time */
 #define SRV_AUTO_EXTEND_INCREMENT (srv_sys_space.get_autoextend_increment())
 
+/** Mutex protecting page_zip_stat_per_index */
+extern ib_mutex_t	page_zip_stat_per_index_mutex;
 /* Mutex for locking srv_monitor_file. Not created if srv_read_only_mode */
 extern ib_mutex_t	srv_monitor_file_mutex;
 /* Temporary file for innodb monitor output */
@@ -213,7 +216,7 @@ use simulated aio we build below with threads.
 Currently we support native aio on windows and linux */
 extern my_bool	srv_use_native_aio;
 #ifdef _WIN32
-extern ibool	srv_use_native_conditions;
+extern bool	srv_use_native_conditions;
 #endif /* _WIN32 */
 #endif /* !UNIV_HOTBACKUP */
 

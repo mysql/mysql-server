@@ -835,7 +835,7 @@ buf_block_dbg_add_level(
 /*====================*/
 	buf_block_t*	block,	/*!< in: buffer page
 				where we have acquired latch */
-	ulint		level);	/*!< in: latching order level */
+	latch_level_t	level);	/*!< in: latching order level */
 #else /* UNIV_SYNC_DEBUG */
 # define buf_block_dbg_add_level(block, level) /* nothing */
 #endif /* UNIV_SYNC_DEBUG */
@@ -896,7 +896,7 @@ buf_page_belongs_to_unzip_LRU(
 Gets the mutex of a block.
 @return pointer to mutex protecting bpage */
 UNIV_INLINE
-ib_mutex_t*
+BPageMutex*
 buf_page_get_mutex(
 /*===============*/
 	const buf_page_t*	bpage)	/*!< in: pointer to control block */
@@ -1274,8 +1274,8 @@ buf_page_hash_get_locked(
 					found. NULL otherwise. If NULL
 					is passed then the hash_lock
 					is released by this function */
-	ulint		lock_mode);	/*!< in: RW_LOCK_EX or
-					RW_LOCK_SHARED. Ignored if
+	ulint		lock_mode);	/*!< in: RW_LOCK_X or
+					RW_LOCK_S. Ignored if
 					lock == NULL */
 /******************************************************************//**
 Returns the control block of a file page, NULL if not found.
@@ -1300,8 +1300,8 @@ buf_block_hash_get_locked(
 					found. NULL otherwise. If NULL
 					is passed then the hash_lock
 					is released by this function */
-	ulint		lock_mode);	/*!< in: RW_LOCK_EX or
-					RW_LOCK_SHARED. Ignored if
+	ulint		lock_mode);	/*!< in: RW_LOCK_X or
+					RW_LOCK_S. Ignored if
 					lock == NULL */
 /* There are four different ways we can try to get a bpage or block
 from the page hash:
@@ -1311,16 +1311,16 @@ buf_page_hash_get_low() function.
 3) Caller wants to hold page hash lock in s-mode
 4) Caller doesn't want to hold page hash lock */
 #define buf_page_hash_get_s_locked(b, s, o, l)			\
-	buf_page_hash_get_locked(b, s, o, l, RW_LOCK_SHARED)
+	buf_page_hash_get_locked(b, s, o, l, RW_LOCK_S)
 #define buf_page_hash_get_x_locked(b, s, o, l)			\
-	buf_page_hash_get_locked(b, s, o, l, RW_LOCK_EX)
+	buf_page_hash_get_locked(b, s, o, l, RW_LOCK_X)
 #define buf_page_hash_get(b, s, o)				\
 	buf_page_hash_get_locked(b, s, o, NULL, 0)
 
 #define buf_block_hash_get_s_locked(b, s, o, l)			\
-	buf_block_hash_get_locked(b, s, o, l, RW_LOCK_SHARED)
+	buf_block_hash_get_locked(b, s, o, l, RW_LOCK_S)
 #define buf_block_hash_get_x_locked(b, s, o, l)			\
-	buf_block_hash_get_locked(b, s, o, l, RW_LOCK_EX)
+	buf_block_hash_get_locked(b, s, o, l, RW_LOCK_X)
 #define buf_block_hash_get(b, s, o)				\
 	buf_block_hash_get_locked(b, s, o, NULL, 0)
 
@@ -1621,7 +1621,7 @@ struct buf_block_t{
 					decompressed LRU list;
 					used in debugging */
 #endif /* UNIV_DEBUG */
-	ib_mutex_t		mutex;		/*!< mutex protecting this block:
+	BPageMutex	mutex;		/*!< mutex protecting this block:
 					state (also protected by the buffer
 					pool mutex), io_fix, buf_fix_count,
 					and accessed; we introduce this new
@@ -1930,9 +1930,9 @@ struct buf_pool_t{
 
 	/** @name General fields */
 	/* @{ */
-	ib_mutex_t	mutex;		/*!< Buffer pool mutex of this
+	BufPoolMutex	mutex;		/*!< Buffer pool mutex of this
 					instance */
-	ib_mutex_t	zip_mutex;	/*!< Zip mutex of this buffer
+	BPageMutex	zip_mutex;	/*!< Zip mutex of this buffer
 					pool instance, protects compressed
 					only pages (of type buf_page_t, not
 					buf_block_t */
@@ -1985,7 +1985,7 @@ struct buf_pool_t{
 
 	/* @{ */
 
-	ib_mutex_t		flush_list_mutex;/*!< mutex protecting the
+	FlushListMutex	flush_list_mutex;/*!< mutex protecting the
 					flush list access. This mutex
 					protects flush_list, flush_rbt
 					and bpage::list pointers when
@@ -2118,53 +2118,66 @@ Use these instead of accessing buf_pool->mutex directly. */
 #define buf_pool_mutex_own(b) mutex_own(&b->mutex)
 /** Acquire a buffer pool mutex. */
 #define buf_pool_mutex_enter(b) do {		\
-	ut_ad(!mutex_own(&b->zip_mutex));	\
-	mutex_enter(&b->mutex);		\
+	ut_ad(!(b)->zip_mutex.is_owned());	\
+	mutex_enter(&(b)->mutex);		\
 } while (0)
 
 /** Test if flush list mutex is owned. */
-#define buf_flush_list_mutex_own(b) mutex_own(&b->flush_list_mutex)
+#define buf_flush_list_mutex_own(b) mutex_own(&(b)->flush_list_mutex)
 
 /** Acquire the flush list mutex. */
 #define buf_flush_list_mutex_enter(b) do {	\
-	mutex_enter(&b->flush_list_mutex);	\
+	mutex_enter(&(b)->flush_list_mutex);	\
 } while (0)
 /** Release the flush list mutex. */
 # define buf_flush_list_mutex_exit(b) do {	\
-	mutex_exit(&b->flush_list_mutex);	\
+	mutex_exit(&(b)->flush_list_mutex);	\
 } while (0)
 
 
+/** Test if block->mutex is owned. */
+#define buf_page_mutex_own(b)	(b)->mutex.is_owned()
+
+/** Acquire the block->mutex. */
+#define buf_page_mutex_enter(b) do {			\
+	mutex_enter(&(b)->mutex);			\
+} while (0)
+
+/** Release the trx->mutex. */
+#define buf_page_mutex_exit(b) do {			\
+	(b)->mutex.exit();				\
+} while (0)
+
 
 /** Get appropriate page_hash_lock. */
-# define buf_page_hash_lock_get(b, f)		\
-	hash_get_lock(b->page_hash, f)
+# define buf_page_hash_lock_get(b, f)			\
+	hash_get_lock((b)->page_hash, f)
 
 #ifdef UNIV_SYNC_DEBUG
 /** Test if page_hash lock is held in s-mode. */
 # define buf_page_hash_lock_held_s(b, p)		\
-	rw_lock_own(buf_page_hash_lock_get(b,		\
-		  buf_page_address_fold(p->space,	\
-					p->offset)),	\
-					RW_LOCK_SHARED)
+	rw_lock_own(buf_page_hash_lock_get((b),		\
+		  buf_page_address_fold((p)->space,	\
+					(p)->offset)),	\
+					RW_LOCK_S)
 
 /** Test if page_hash lock is held in x-mode. */
 # define buf_page_hash_lock_held_x(b, p)		\
-	rw_lock_own(buf_page_hash_lock_get(b,		\
-		  buf_page_address_fold(p->space,	\
-					p->offset)),	\
-					RW_LOCK_EX)
+	rw_lock_own(buf_page_hash_lock_get((b),		\
+		  buf_page_address_fold((p)->space,	\
+					(p)->offset)),	\
+					RW_LOCK_X)
 
 /** Test if page_hash lock is held in x or s-mode. */
 # define buf_page_hash_lock_held_s_or_x(b, p)		\
-	(buf_page_hash_lock_held_s(b, p)		\
-	 || buf_page_hash_lock_held_x(b, p))
+	(buf_page_hash_lock_held_s((b), (p))		\
+	 || buf_page_hash_lock_held_x((b), (p)))
 
 # define buf_block_hash_lock_held_s(b, p)		\
-	buf_page_hash_lock_held_s(b, &(p->page))
+	buf_page_hash_lock_held_s(b, &(p)->page)
 
 # define buf_block_hash_lock_held_x(b, p)		\
-	buf_page_hash_lock_held_x(b, &(p->page))
+	buf_page_hash_lock_held_x(b, &(p)->page)
 
 # define buf_block_hash_lock_held_s_or_x(b, p)		\
 	buf_page_hash_lock_held_s_or_x(b, &(p->page))

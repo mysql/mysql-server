@@ -124,7 +124,7 @@ hash_assert_can_modify(
 	} else if (table->type == HASH_TABLE_SYNC_RW_LOCK) {
 # ifdef UNIV_SYNC_DEBUG
 		rw_lock_t* lock = hash_get_lock(table, fold);
-		ut_ad(rw_lock_own(lock, RW_LOCK_EX));
+		ut_ad(rw_lock_own(lock, RW_LOCK_X));
 # endif
 	} else {
 		ut_ad(table->type == HASH_TABLE_SYNC_NONE);
@@ -147,8 +147,8 @@ hash_assert_can_search(
 	} else if (table->type == HASH_TABLE_SYNC_RW_LOCK) {
 # ifdef UNIV_SYNC_DEBUG
 		rw_lock_t* lock = hash_get_lock(table, fold);
-		ut_ad(rw_lock_own(lock, RW_LOCK_EX)
-		      || rw_lock_own(lock, RW_LOCK_SHARED));
+		ut_ad(rw_lock_own(lock, RW_LOCK_X)
+		      || rw_lock_own(lock, RW_LOCK_S));
 # endif
 	} else {
 		ut_ad(table->type == HASH_TABLE_SYNC_NONE);

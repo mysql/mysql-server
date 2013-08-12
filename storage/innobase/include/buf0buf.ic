@@ -35,6 +35,7 @@ Created 11/5/1995 Heikki Tuuri
 #include "buf0flu.h"
 #include "buf0lru.h"
 #include "buf0rea.h"
+#include "sync0debug.h"
 
 /** A chunk of buffers. The buffer pool is allocated in chunks. */
 struct buf_chunk_t{
@@ -343,7 +344,7 @@ buf_page_belongs_to_unzip_LRU(
 Gets the mutex of a block.
 @return pointer to mutex protecting bpage */
 UNIV_INLINE
-ib_mutex_t*
+BPageMutex*
 buf_page_get_mutex(
 /*===============*/
 	const buf_page_t*	bpage)	/*!< in: pointer to control block */
@@ -845,8 +846,8 @@ buf_block_get_lock_hash_val(
 	ut_ad(block);
 	ut_ad(buf_page_in_file(&block->page));
 #ifdef UNIV_SYNC_DEBUG
-	ut_ad(rw_lock_own(&(((buf_block_t*) block)->lock), RW_LOCK_EXCLUSIVE)
-	      || rw_lock_own(&(((buf_block_t*) block)->lock), RW_LOCK_SHARED));
+	ut_ad(rw_lock_own(&(((buf_block_t*) block)->lock), RW_LOCK_X)
+	      || rw_lock_own(&(((buf_block_t*) block)->lock), RW_LOCK_S));
 #endif /* UNIV_SYNC_DEBUG */
 	return(block->lock_hash_val);
 }
@@ -892,13 +893,13 @@ buf_block_free(
 
 	buf_pool_mutex_enter(buf_pool);
 
-	mutex_enter(&block->mutex);
+	buf_page_mutex_enter(block);
 
 	ut_a(buf_block_get_state(block) != BUF_BLOCK_FILE_PAGE);
 
 	buf_LRU_block_free_non_file_page(block);
 
-	mutex_exit(&block->mutex);
+	buf_page_mutex_exit(block);
 
 	buf_pool_mutex_exit(buf_pool);
 }
@@ -948,7 +949,7 @@ buf_page_get_newest_modification(
 					page frame */
 {
 	lsn_t		lsn;
-	ib_mutex_t*	block_mutex = buf_page_get_mutex(bpage);
+	BPageMutex*	block_mutex = buf_page_get_mutex(bpage);
 
 	mutex_enter(block_mutex);
 
@@ -996,8 +997,8 @@ buf_block_get_modify_clock(
 	buf_block_t*	block)	/*!< in: block */
 {
 #ifdef UNIV_SYNC_DEBUG
-	ut_ad(rw_lock_own(&(block->lock), RW_LOCK_SHARED)
-	      || rw_lock_own(&(block->lock), RW_LOCK_EXCLUSIVE));
+	ut_ad(rw_lock_own(&(block->lock), RW_LOCK_S)
+	      || rw_lock_own(&(block->lock), RW_LOCK_X));
 #endif /* UNIV_SYNC_DEBUG */
 
 	return(block->modify_clock);
@@ -1021,7 +1022,7 @@ buf_block_buf_fix_inc_func(
 	ret = rw_lock_s_lock_nowait(&(block->debug_latch), file, line);
 	ut_a(ret);
 #endif /* UNIV_SYNC_DEBUG */
-	ut_ad(mutex_own(&block->mutex));
+	ut_ad(buf_page_mutex_own(block));
 
 	block->page.buf_fix_count++;
 }
@@ -1034,7 +1035,7 @@ buf_block_buf_fix_dec(
 /*==================*/
 	buf_block_t*	block)	/*!< in/out: block to bufferunfix */
 {
-	ut_ad(mutex_own(&block->mutex));
+	ut_ad(buf_page_mutex_own(block));
 
 	block->page.buf_fix_count--;
 #ifdef UNIV_SYNC_DEBUG
@@ -1099,8 +1100,8 @@ buf_page_hash_get_low(
 	ut_ad(hash_fold == fold);
 
 	hash_lock = hash_get_lock(buf_pool->page_hash, fold);
-	ut_ad(rw_lock_own(hash_lock, RW_LOCK_EX)
-	      || rw_lock_own(hash_lock, RW_LOCK_SHARED));
+	ut_ad(rw_lock_own(hash_lock, RW_LOCK_X)
+	      || rw_lock_own(hash_lock, RW_LOCK_S));
 #endif /* UNIV_SYNC_DEBUG */
 
 	/* Look for the page in the hash table */
@@ -1147,19 +1148,19 @@ buf_page_hash_get_locked(
 					found. NULL otherwise. If NULL
 					is passed then the hash_lock
 					is released by this function */
-	ulint		lock_mode)	/*!< in: RW_LOCK_EX or
-					RW_LOCK_SHARED. Ignored if
+	ulint		lock_mode)	/*!< in: RW_LOCK_X or
+					RW_LOCK_S. Ignored if
 					lock == NULL */
 {
 	buf_page_t*	bpage = NULL;
 	ulint		fold;
 	rw_lock_t*	hash_lock;
-	ulint		mode = RW_LOCK_SHARED;
+	ulint		mode = RW_LOCK_S;
 
 	if (lock != NULL) {
 		*lock = NULL;
-		ut_ad(lock_mode == RW_LOCK_EX
-		      || lock_mode == RW_LOCK_SHARED);
+		ut_ad(lock_mode == RW_LOCK_X
+		      || lock_mode == RW_LOCK_S);
 		mode = lock_mode;
 	}
 
@@ -1167,11 +1168,11 @@ buf_page_hash_get_locked(
 	hash_lock = hash_get_lock(buf_pool->page_hash, fold);
 
 #ifdef UNIV_SYNC_DEBUG
-	ut_ad(!rw_lock_own(hash_lock, RW_LOCK_EX)
-	      && !rw_lock_own(hash_lock, RW_LOCK_SHARED));
+	ut_ad(!rw_lock_own(hash_lock, RW_LOCK_X)
+	      && !rw_lock_own(hash_lock, RW_LOCK_S));
 #endif /* UNIV_SYNC_DEBUG */
 
-	if (mode == RW_LOCK_SHARED) {
+	if (mode == RW_LOCK_S) {
 		rw_lock_s_lock(hash_lock);
 	} else {
 		rw_lock_x_lock(hash_lock);
@@ -1198,7 +1199,7 @@ buf_page_hash_get_locked(
 	}
 
 unlock_and_exit:
-	if (mode == RW_LOCK_SHARED) {
+	if (mode == RW_LOCK_S) {
 		rw_lock_s_unlock(hash_lock);
 	} else {
 		rw_lock_x_unlock(hash_lock);
@@ -1230,8 +1231,8 @@ buf_block_hash_get_locked(
 					found. NULL otherwise. If NULL
 					is passed then the hash_lock
 					is released by this function */
-	ulint		lock_mode)	/*!< in: RW_LOCK_EX or
-					RW_LOCK_SHARED. Ignored if
+	ulint		lock_mode)	/*!< in: RW_LOCK_X or
+					RW_LOCK_S. Ignored if
 					lock == NULL */
 {
 	buf_page_t*	bpage = buf_page_hash_get_locked(buf_pool,
@@ -1252,7 +1253,7 @@ buf_block_hash_get_locked(
 		ut_ad(buf_page_in_file(bpage));
 
 		if (lock) {
-			if (lock_mode == RW_LOCK_SHARED) {
+			if (lock_mode == RW_LOCK_S) {
 				rw_lock_s_unlock(*lock);
 			} else {
 				rw_lock_x_unlock(*lock);
@@ -1309,12 +1310,12 @@ buf_page_release_zip(
 		return;
 	case BUF_BLOCK_FILE_PAGE:
 		block = (buf_block_t*) bpage;
-		mutex_enter(&block->mutex);
+		buf_page_mutex_enter(block);
 #ifdef UNIV_SYNC_DEBUG
 		rw_lock_s_unlock(&block->debug_latch);
 #endif
 		bpage->buf_fix_count--;
-		mutex_exit(&block->mutex);
+		buf_page_mutex_exit(block);
 		return;
 	case BUF_BLOCK_POOL_WATCH:
 	case BUF_BLOCK_NOT_USED:
@@ -1343,14 +1344,14 @@ buf_page_release(
 	ut_a(buf_block_get_state(block) == BUF_BLOCK_FILE_PAGE);
 	ut_a(block->page.buf_fix_count > 0);
 
-	mutex_enter(&block->mutex);
+	buf_page_mutex_enter(block);
 
 #ifdef UNIV_SYNC_DEBUG
 	rw_lock_s_unlock(&(block->debug_latch));
 #endif
 	block->page.buf_fix_count--;
 
-	mutex_exit(&block->mutex);
+	buf_page_mutex_exit(block);
 
 	if (rw_latch == RW_S_LATCH) {
 		rw_lock_s_unlock(&block->lock);
@@ -1372,9 +1373,9 @@ buf_block_dbg_add_level(
 /*====================*/
 	buf_block_t*	block,	/*!< in: buffer page
 				where we have acquired latch */
-	ulint		level)	/*!< in: latching order level */
+	latch_level_t	level)	/*!< in: latching order level */
 {
-	sync_thread_add_level(&block->lock, level, FALSE);
+	sync_check_lock(&block->lock, level);
 }
 #endif /* UNIV_SYNC_DEBUG */
 /********************************************************************//**

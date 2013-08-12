@@ -765,7 +765,7 @@ row_ins_foreign_trx_print(
 	heap_size = mem_heap_get_size(trx->lock.lock_heap);
 	lock_mutex_exit();
 
-	mutex_enter(&trx_sys->mutex);
+	trx_sys_mutex_enter();
 
 	mutex_enter(&dict_foreign_err_mutex);
 	rewind(dict_foreign_err_file);
@@ -775,7 +775,7 @@ row_ins_foreign_trx_print(
 	trx_print_low(dict_foreign_err_file, trx, 600,
 		      n_rec_locks, n_trx_locks, heap_size);
 
-	mutex_exit(&trx_sys->mutex);
+	trx_sys_mutex_exit();
 
 	ut_ad(mutex_own(&dict_foreign_err_mutex));
 }
@@ -969,8 +969,8 @@ row_ins_foreign_check_on_constraint(
 	/* Since we are going to delete or update a row, we have to invalidate
 	the MySQL query cache for table. A deadlock of threads is not possible
 	here because the caller of this function does not hold any latches with
-	the sync0sync.h rank above the lock_sys_t::mutex. The query cache mutex
-       	has a rank just above the lock_sys_t::mutex. */
+	the sync0mutex.h rank above the lock_sys_t::mutex. The query cache mutex
+	has a rank just above the lock_sys_t::mutex. */
 
 	row_ins_invalidate_query_cache(thr, table->name);
 
@@ -1423,7 +1423,7 @@ row_ins_check_foreign_constraint(
 
 run_again:
 #ifdef UNIV_SYNC_DEBUG
-	ut_ad(rw_lock_own(&dict_operation_lock, RW_LOCK_SHARED));
+	ut_ad(rw_lock_own(&dict_operation_lock, RW_LOCK_S));
 #endif /* UNIV_SYNC_DEBUG */
 
 	err = DB_SUCCESS;
@@ -1901,7 +1901,7 @@ row_ins_scan_sec_index_for_duplicate(
 	ulint*		offsets		= NULL;
 
 #ifdef UNIV_SYNC_DEBUG
-	ut_ad(s_latch == rw_lock_own(&index->lock, RW_LOCK_SHARED));
+	ut_ad(s_latch == rw_lock_own(&index->lock, RW_LOCK_S));
 #endif /* UNIV_SYNC_DEBUG */
 
 	n_unique = dict_index_get_n_unique(index);
