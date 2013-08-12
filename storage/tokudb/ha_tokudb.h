@@ -281,8 +281,8 @@ private:
     //
     // individual DBTs for each index
     //
-    DBT mult_key_dbt[2*(MAX_KEY + 1)];
-    DBT mult_rec_dbt[MAX_KEY + 1];
+    DBT_ARRAY mult_key_dbt_array[2*(MAX_KEY + 1)];
+    DBT_ARRAY mult_rec_dbt_array[MAX_KEY + 1];
     uint32_t mult_put_flags[MAX_KEY + 1];
     uint32_t mult_del_flags[MAX_KEY + 1];
     uint32_t mult_dbt_flags[MAX_KEY + 1];
