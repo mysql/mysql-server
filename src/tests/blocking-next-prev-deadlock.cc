@@ -124,13 +124,6 @@ struct my_callback_context {
 };
 
 #if TOKUDB
-static void copy_dbt(DBT *dest, DBT const *src) {
-    assert(dest->flags == DB_DBT_REALLOC);
-    dest->size = src->size;
-    dest->data = toku_xrealloc(dest->data, dest->size);
-    memcpy(dest->data, src->data, dest->size);
-}
-
 static int blocking_next_callback(DBT const *a UU(), DBT const *b UU(), void *e UU()) {
     DBT const *found_key = a;
     DBT const *found_val = b;

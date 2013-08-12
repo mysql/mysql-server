@@ -242,34 +242,38 @@ print_dbt(DBT *dbt) {
 }
 
 static int
-put_callback(DB *dest_db, DB *src_db, DBT *dest_key, DBT *dest_data, const DBT *src_key, const DBT *src_data) {
-    (void) dest_db; (void) src_db; (void) dest_key; (void) dest_data; (void) src_key; (void) src_data;
+put_callback(DB *dest_db, DB *src_db, DBT_ARRAY *dest_keys, DBT_ARRAY *dest_vals, const DBT *src_key, const DBT *src_val) {
+    toku_dbt_array_resize(dest_keys, 1);
+    toku_dbt_array_resize(dest_vals, 1);
+    DBT *dest_key = &dest_keys->dbts[0];
+    DBT *dest_val = &dest_vals->dbts[0];
+    (void) dest_db; (void) src_db; (void) dest_key; (void) dest_val; (void) src_key; (void) src_val;
 
     lazy_assert(src_db != NULL && dest_db != NULL);
 
     switch (dest_key->flags) {
     case 0:
-        dest_key->data = src_data->data;
-        dest_key->size = src_data->size;
+        dest_key->data = src_val->data;
+        dest_key->size = src_val->size;
         break;
     case DB_DBT_REALLOC:
-        dest_key->data = toku_realloc(dest_key->data, src_data->size);
-        memcpy(dest_key->data, src_data->data, src_data->size);
-        dest_key->size = src_data->size;
+        dest_key->data = toku_realloc(dest_key->data, src_val->size);
+        memcpy(dest_key->data, src_val->data, src_val->size);
+        dest_key->size = src_val->size;
         break;
     default:
         lazy_assert(0);
     }
 
-    if (dest_data)
-        switch (dest_data->flags) {
+    if (dest_val)
+        switch (dest_val->flags) {
         case 0:
             lazy_assert(0);
             break;
         case DB_DBT_REALLOC:
-            dest_data->data = toku_realloc(dest_data->data, src_key->size);
-            memcpy(dest_data->data, src_key->data, src_key->size);
-            dest_data->size = src_key->size;
+            dest_val->data = toku_realloc(dest_val->data, src_key->size);
+            memcpy(dest_val->data, src_key->data, src_key->size);
+            dest_val->size = src_key->size;
             break;
         default:
             lazy_assert(0);
@@ -279,7 +283,9 @@ put_callback(DB *dest_db, DB *src_db, DBT *dest_key, DBT *dest_data, const DBT *
 }
 
 static int
-del_callback(DB *dest_db, DB *src_db, DBT *dest_key, const DBT *src_key, const DBT *src_data) {
+del_callback(DB *dest_db, DB *src_db, DBT_ARRAY *dest_keys, const DBT *src_key, const DBT *src_data) {
+    toku_dbt_array_resize(dest_keys, 1);
+    DBT *dest_key = &dest_keys->dbts[0];
     (void) dest_db; (void) src_db; (void) dest_key; (void) src_key; (void) src_data;
 
     lazy_assert(src_db != NULL && dest_db != NULL);

@@ -89,9 +89,7 @@ PATENT RIGHTS GRANT:
 #ident "The technology is licensed by the Massachusetts Institute of Technology, Rutgers State University of New Jersey, and the Research Foundation of State University of New York at Stony Brook under United States of America Serial No. 11/760379 and to the patents and/or patent applications resulting from it."
 #include "test.h"
 
-// verify recovery of some update multiple operations
-
-static const int envflags = DB_INIT_MPOOL|DB_CREATE|DB_THREAD |DB_INIT_LOCK|DB_INIT_LOG|DB_INIT_TXN|DB_PRIVATE;
+// verify that update_multiple where we change the data in row[i] col[j] from x to x+1
 
 static int
 get_num_new_keys(int i, int dbnum) {
@@ -244,15 +242,16 @@ put_callback(DB *dest_db, DB *src_db, DBT_ARRAY *dest_key_arrays, DBT_ARRAY *des
 }
 
 static int
-del_callback(DB *dest_db, DB *src_db, DBT_ARRAY *dest_keys, const DBT *src_key, const DBT *src_data) {
-    return put_callback(dest_db, src_db, dest_keys, NULL, src_key, src_data);
+del_callback(DB *dest_db, DB *src_db, DBT_ARRAY *dest_key_arrays, const DBT *src_key, const DBT *src_data) {
+    return put_callback(dest_db, src_db, dest_key_arrays, NULL, src_key, src_data);
 }
 
 static void
-update_diagonal(DB_ENV *env, DB_TXN *txn, DB *db[], int ndbs, int nrows) {
+do_updates(DB_ENV *env, DB *db[], int ndbs, int nrows) {
     assert(ndbs > 0);
     int r;
-
+    DB_TXN *txn = NULL;
+    r = env->txn_begin(env, NULL, &txn, 0); assert_zero(r);
     int narrays = 2 * ndbs;
     DBT_ARRAY keys[narrays];
     DBT_ARRAY vals[narrays];
@@ -287,7 +286,7 @@ update_diagonal(DB_ENV *env, DB_TXN *txn, DB *db[], int ndbs, int nrows) {
         toku_dbt_array_destroy(&keys[i]);
         toku_dbt_array_destroy(&vals[i]);
     }
-
+    r = txn->commit(txn, 0); assert_zero(r);
 }
 
 static void
@@ -345,15 +344,15 @@ verify_pri_seq(DB_ENV *env, DB *db, int ndbs, int nrows) {
         if (r != 0)
             break;
         int k;
-        int expectk = get_key(i, dbnum, 0);
+        int expectk = get_new_key(i, dbnum, 0);
      
         assert(key.size == sizeof k);
         memcpy(&k, key.data, key.size);
         assert(k == expectk);
 
-        int num_keys = get_total_num_keys(i, ndbs);
+        int num_keys = get_total_num_new_keys(i, ndbs);
         assert(val.size == num_keys*sizeof(int));
-        int v[num_keys]; get_data(v, i, ndbs);
+        int v[num_keys]; get_new_data(v, i, ndbs);
         assert(memcmp(val.data, v, val.size) == 0);
     }
     assert(i == nrows); // if (i != nrows) printf("%s:%d %d %d\n", __FUNCTION__, __LINE__, i, nrows); // assert(i == nrows);
@@ -374,7 +373,7 @@ verify_sec_seq(DB_ENV *env, DB *db, int dbnum, int nrows) {
     int rows_found = 0;
 
     for (i = 0; ; i++) {
-        int num_keys = get_num_keys(i, dbnum);
+        int num_keys = get_num_new_keys(i, dbnum);
         for (int which = 0; which < num_keys; ++which) {
             DBT key; memset(&key, 0, sizeof key);
             DBT val; memset(&val, 0, sizeof val);
@@ -385,8 +384,8 @@ verify_sec_seq(DB_ENV *env, DB *db, int dbnum, int nrows) {
             }
             rows_found++;
             int k;
-            int expectk = get_key(i, dbnum, which);
-         
+            int expectk = get_new_key(i, dbnum, which);
+
             assert(key.size == sizeof k);
             memcpy(&k, key.data, key.size);
             int got_i = (ntohl(k) >> 16) / 2;
@@ -398,7 +397,7 @@ verify_sec_seq(DB_ENV *env, DB *db, int dbnum, int nrows) {
                 assert(k == expectk);
             }
 
-            if (k != expectk && which < get_num_new_keys(i, dbnum) && k == get_new_key(i, dbnum, which)) {
+            if (k != expectk && which < get_num_keys(i, dbnum) && k == get_key(i, dbnum, which)) {
                 // Will fail, never got updated.
                 assert(k == expectk);
             }
@@ -415,94 +414,63 @@ done:
 static void
 run_test(int ndbs, int nrows) {
     int r;
-    toku_os_recursive_delete(TOKU_TEST_FILENAME);
-    r = toku_os_mkdir(TOKU_TEST_FILENAME, S_IRWXU+S_IRWXG+S_IRWXO); assert_zero(r);
+    DB_ENV *env = NULL;
+    r = db_env_create(&env, 0); assert_zero(r);
 
-    DB_ENV *env;
-    r = db_env_create(&env, 0);                                                         assert_zero(r);
-    r = env->set_generate_row_callback_for_put(env, put_callback);                      assert_zero(r);
-    r = env->set_generate_row_callback_for_del(env, del_callback);                      assert_zero(r);
-    r = env->open(env, TOKU_TEST_FILENAME, envflags, S_IRWXU+S_IRWXG+S_IRWXO);                      assert_zero(r);
+    r = env->set_generate_row_callback_for_put(env, put_callback); assert_zero(r);
+    r = env->set_generate_row_callback_for_del(env, del_callback); assert_zero(r);
+
+    r = env->open(env, TOKU_TEST_FILENAME, DB_INIT_MPOOL|DB_CREATE|DB_THREAD |DB_INIT_LOCK|DB_INIT_LOG|DB_INIT_TXN|DB_PRIVATE, S_IRWXU+S_IRWXG+S_IRWXO); assert_zero(r);
 
     DB *db[ndbs];
     for (int dbnum = 0; dbnum < ndbs; dbnum++) {
-        r = db_create(&db[dbnum], env, 0);                                                        
-        assert_zero(r);
+        r = db_create(&db[dbnum], env, 0); assert_zero(r);
+
         DBT dbt_dbnum; dbt_init(&dbt_dbnum, &dbnum, sizeof dbnum);
-        assert_zero(r);
+
         char dbname[32]; sprintf(dbname, "%d.tdb", dbnum);
-        r = db[dbnum]->open(db[dbnum], NULL, dbname, NULL, DB_BTREE, DB_AUTO_COMMIT|DB_CREATE, 0666);    
-        assert_zero(r);
+        r = db[dbnum]->open(db[dbnum], NULL, dbname, NULL, DB_BTREE, DB_AUTO_COMMIT+DB_CREATE, S_IRWXU+S_IRWXG+S_IRWXO); assert_zero(r);
         IN_TXN_COMMIT(env, NULL, txn_desc, 0, {
                 { int chk_r = db[dbnum]->change_descriptor(db[dbnum], txn_desc, &dbt_dbnum, 0); CKERR(chk_r); }
         });
     }
 
-    r = env->txn_checkpoint(env, 0, 0, 0);                                              assert_zero(r);
-
-    for (int dbnum = 0; dbnum < ndbs; dbnum++) {
-        if (dbnum == 0)
-            populate_primary(env, db[dbnum], ndbs, nrows);
-        else
-            populate_secondary(env, db[dbnum], dbnum, nrows);
+    populate_primary(env, db[0], ndbs, nrows);
+    for (int dbnum = 1; dbnum < ndbs-1; dbnum++) {
+        populate_secondary(env, db[dbnum], dbnum, nrows);
     }
 
-    r = env->txn_checkpoint(env, 0, 0, 0);                                              assert_zero(r);
+    DB_TXN *indexer_txn = NULL;
+    r = env->txn_begin(env, NULL, &indexer_txn, 0); assert_zero(r);
 
-    // update multiple key0
-    DB_TXN *txn = NULL;
-    r = env->txn_begin(env, NULL, &txn, 0); assert_zero(r);
+    DB_INDEXER *indexer = NULL;
+    uint32_t db_flags = 0;
+    assert(ndbs > 2);
+    r = env->create_indexer(env, indexer_txn, &indexer, db[0], 1, &db[ndbs-1], &db_flags, 0); assert_zero(r);
 
-    update_diagonal(env, txn, db, ndbs, nrows);
+    do_updates(env, db, ndbs, nrows);
 
-    toku_hard_crash_on_purpose();
-}
+    r = indexer->build(indexer); assert_zero(r);
+    r = indexer->close(indexer); assert_zero(r);
 
-static void
-verify_all(DB_ENV *env, int ndbs, int nrows) {
-    int r;
-    for (int dbnum = 0; dbnum < ndbs; dbnum++) {
-        DB *db = NULL;
-        r = db_create(&db, env, 0);
-        assert_zero(r);
-        char dbname[32]; sprintf(dbname, "%d.tdb", dbnum);
-        r = db->open(db, NULL, dbname, NULL, DB_BTREE, DB_AUTO_COMMIT|DB_CREATE, 0666);
-        assert_zero(r);
-        if (dbnum == 0) {
-            verify_pri_seq(env, db, ndbs, nrows);
-        } else {
-            verify_sec_seq(env, db, dbnum, nrows);
-        }
-        r = db->close(db, 0); 
-        assert_zero(r);
-    }
-}
+    r = indexer_txn->commit(indexer_txn, 0); assert_zero(r);
 
-static void
-run_recover(int ndbs, int nrows) {
-    int r;
+    verify_pri_seq(env, db[0], ndbs, nrows);
+    for (int dbnum = 1; dbnum < ndbs; dbnum++) 
+        verify_sec_seq(env, db[dbnum], dbnum, nrows);
+    for (int dbnum = 0; dbnum < ndbs; dbnum++) 
+        r = db[dbnum]->close(db[dbnum], 0); assert_zero(r);
 
-    DB_ENV *env;
-    r = db_env_create(&env, 0);                                                             assert_zero(r);
-    r = env->set_generate_row_callback_for_put(env, put_callback);                          assert_zero(r);
-    r = env->set_generate_row_callback_for_del(env, del_callback);                          assert_zero(r);
-    r = env->open(env, TOKU_TEST_FILENAME, envflags|DB_RECOVER, S_IRWXU+S_IRWXG+S_IRWXO);               assert_zero(r);
-    verify_all(env, ndbs, nrows);
-    r = env->close(env, 0);                                                                 assert_zero(r);
-}
-
-static int
-usage(void) {
-    return 1;
+    r = env->close(env, 0); assert_zero(r);
 }
 
 int
-test_main (int argc, char * const argv[]) {
-    bool do_test = false;
-    bool do_recover = false;
-    int ndbs = 2;
+test_main(int argc, char * const argv[]) {
+    int r;
+    int ndbs = 10;
     int nrows = 3*(1<<5)*4;
 
+    // parse_args(argc, argv);
     for (int i = 1; i < argc; i++) {
         char * const arg = argv[i];
         if (strcmp(arg, "-v") == 0) {
@@ -510,17 +478,7 @@ test_main (int argc, char * const argv[]) {
             continue;
         }
         if (strcmp(arg, "-q") == 0) {
-            verbose--;
-            if (verbose < 0)
-                verbose = 0;
-            continue;
-        }
-        if (strcmp(arg, "--test") == 0) {
-            do_test = true;
-            continue;
-        }
-        if (strcmp(arg, "--recover") == 0) {
-            do_recover = true;
+            verbose = 0;
             continue;
         }
         if (strcmp(arg, "--ndbs") == 0 && i+1 < argc) {
@@ -531,18 +489,20 @@ test_main (int argc, char * const argv[]) {
             nrows = atoi(argv[++i]);
             continue;
         }
-        if (strcmp(arg, "--help") == 0) {
-            return usage();
-        }
     }
     while (nrows % (3*(1<<5)) != 0) {
         nrows++;
     }
-    
-    if (do_test)
-        run_test(ndbs, nrows);
-    if (do_recover)
-        run_recover(ndbs, nrows);
+    //Need at least one to update, and one to index
+    while (ndbs < 3) {
+        ndbs++;
+    }
+
+    toku_os_recursive_delete(TOKU_TEST_FILENAME);
+    r = toku_os_mkdir(TOKU_TEST_FILENAME, S_IRWXU+S_IRWXG+S_IRWXO); assert_zero(r);
+
+    run_test(ndbs, nrows);
 
     return 0;
 }
+

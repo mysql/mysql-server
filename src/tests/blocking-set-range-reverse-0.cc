@@ -111,13 +111,6 @@ static void populate(DB_ENV *db_env, DB *db, uint64_t nrows) {
     r = txn->commit(txn, 0); assert(r == 0);
 }
 
-static void copy_dbt(DBT *dest, DBT const *src) {
-    assert(dest->flags == DB_DBT_REALLOC);
-    dest->size = src->size;
-    dest->data = toku_xrealloc(dest->data, dest->size);
-    memcpy(dest->data, src->data, dest->size);
-}
-
 struct my_callback_context {
     DBT key;
     DBT val;

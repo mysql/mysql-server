@@ -104,7 +104,11 @@ static DBT dest_vals[num_dbs];
 bool do_test=false, do_recover=false;
 
 static int
-put_multiple_generate(DB *dest_db, DB *src_db, DBT *dest_key, DBT *dest_val, const DBT *src_key, const DBT *src_val) {
+put_multiple_generate(DB *dest_db, DB *src_db, DBT_ARRAY *dest_key_arrays, DBT_ARRAY *dest_val_arrays, const DBT *src_key, const DBT *src_val) {
+    toku_dbt_array_resize(dest_key_arrays, 1);
+    toku_dbt_array_resize(dest_val_arrays, 1);
+    DBT *dest_key = &dest_key_arrays->dbts[0];
+    DBT *dest_val = &dest_val_arrays->dbts[0];
     if (src_db) {
         assert(src_db->descriptor);
         assert(src_db->descriptor->dbt.size == 4);
@@ -173,7 +177,7 @@ static void run_test (void) {
         dbt_init(&k, "a", 2);
         dbt_init(&v, "b", 2);
 
-        r = env->put_multiple(env, dba, txn, &k, &v, num_dbs, dbs, dest_keys, dest_vals, flags);
+        r = env_put_multiple_test_no_array(env, dba, txn, &k, &v, num_dbs, dbs, dest_keys, dest_vals, flags);
         CKERR(r);
         r = txn->abort(txn);                                                            CKERR(r);
     }
@@ -190,7 +194,7 @@ static void run_test (void) {
         dbt_init(&k, "a", 2);
         dbt_init(&v, "b", 2);
 
-        r = env->put_multiple(env, NULL, txn, &k, &v, num_dbs, dbs, dest_keys, dest_vals, flags);
+        r = env_put_multiple_test_no_array(env, NULL, txn, &k, &v, num_dbs, dbs, dest_keys, dest_vals, flags);
         CKERR(r);
         r = txn->commit(txn, 0);                                                        CKERR(r);
     }

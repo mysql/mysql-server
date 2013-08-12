@@ -116,7 +116,12 @@ my_compare(DB *this_db UU(), const DBT *a UU(), const DBT *b UU()) {
 }
 
 static int 
-my_generate_row(DB *dest_db UU(), DB *src_db UU(), DBT *dest_key UU(), DBT *dest_val UU(), const DBT *src_key UU(), const DBT *src_val UU()) {
+my_generate_row(DB *dest_db UU(), DB *src_db UU(), DBT_ARRAY *dest_keys UU(), DBT_ARRAY *dest_vals UU(), const DBT *src_key UU(), const DBT *src_val UU()) {
+    toku_dbt_array_resize(dest_keys, 1);
+    toku_dbt_array_resize(dest_vals, 1);
+    DBT *dest_key = &dest_keys->dbts[0];
+    DBT *dest_val = &dest_vals->dbts[0];
+
     assert(dest_key->flags == DB_DBT_REALLOC);
     dest_key->data = toku_realloc(dest_key->data, src_key->size);
     memcpy(dest_key->data, src_key->data, src_key->size);

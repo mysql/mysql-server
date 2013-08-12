@@ -141,7 +141,8 @@ struct __toku_indexer_internal {
 
     // undo state
     struct indexer_commit_keys commit_keys; // set of keys to commit
-    DBT hotkey, hotval;                     // current hot key and value
+    DBT_ARRAY *hot_keys;
+    DBT_ARRAY *hot_vals;
 
     // test functions
     int (*undo_do)(DB_INDEXER *indexer, DB *hotdb, ULEHANDLE ule);
@@ -161,6 +162,6 @@ void indexer_undo_do_init(DB_INDEXER *indexer);
 
 void indexer_undo_do_destroy(DB_INDEXER *indexer);
 
-int indexer_undo_do(DB_INDEXER *indexer, DB *hotdb, ULEHANDLE ule, struct ule_prov_info *prov_info);
+int indexer_undo_do(DB_INDEXER *indexer, DB *hotdb, ULEHANDLE ule, struct ule_prov_info *prov_info, DBT_ARRAY *hot_keys, DBT_ARRAY *hot_vals);
 
 #endif

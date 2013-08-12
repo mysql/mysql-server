@@ -561,7 +561,9 @@ build_index(DB_INDEXER *indexer) {
             ULEHANDLE ule = prov_info.ule;
             for (int which_db = 0; (which_db < indexer->i->N) && (result == 0); which_db++) {
                 DB *db = indexer->i->dest_dbs[which_db];
-                result = indexer_undo_do(indexer, db, ule, &prov_info);
+                DBT_ARRAY *hot_keys = &indexer->i->hot_keys[which_db];
+                DBT_ARRAY *hot_vals = &indexer->i->hot_vals[which_db];
+                result = indexer_undo_do(indexer, db, ule, &prov_info, hot_keys, hot_vals);
                 if ((result != 0) && (indexer->i->error_callback != NULL)) {
                     // grab the key and call the error callback
                     DBT key; toku_init_dbt_flags(&key, DB_DBT_REALLOC);
@@ -710,12 +712,23 @@ toku_indexer_set_test_only_flags(DB_INDEXER *indexer, int flags) {
 // a convenience wrapper that gets and destroys the ule's prov info
 static int
 test_indexer_undo_do(DB_INDEXER *indexer, DB *hotdb, ULEHANDLE ule) {
+    int which_db;
+    for (which_db = 0; which_db < indexer->i->N; which_db++) {
+        if (indexer->i->dest_dbs[which_db] == hotdb) {
+            break;
+        }
+    }
+    if (which_db == indexer->i->N) {
+        return EINVAL;
+    }
     struct ule_prov_info prov_info;
     memset(&prov_info, 0, sizeof(prov_info));
     // pass null for the leafentry - we don't need it, neither does the info
     ule_prov_info_init(&prov_info, NULL, ule);
     indexer_fill_prov_info(indexer, &prov_info);
-    int r = indexer_undo_do(indexer, hotdb, ule, &prov_info);
+    DBT_ARRAY *hot_keys = &indexer->i->hot_keys[which_db];
+    DBT_ARRAY *hot_vals = &indexer->i->hot_vals[which_db];
+    int r = indexer_undo_do(indexer, hotdb, ule, &prov_info, hot_keys, hot_vals);
     ule_prov_info_destroy(&prov_info);
     return r;
 }
