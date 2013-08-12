@@ -62,15 +62,6 @@ typedef std::set<table_id_t>	table_id_set;
 /** Dummy session used currently in MySQL interface */
 sess_t*		trx_dummy_sess = NULL;
 
-#ifdef UNIV_PFS_MUTEX
-/* Key to register the mutex with performance schema */
-mysql_pfs_key_t	trx_mutex_key;
-mysql_pfs_key_t	trx_pool_mutex_key;
-mysql_pfs_key_t	trx_pools_mutex_key;
-/* Key to register the mutex with performance schema */
-mysql_pfs_key_t	trx_undo_mutex_key;
-#endif /* UNIV_PFS_MUTEX */
-
 /*************************************************************//**
 Set detailed error message for the transaction. */
 
@@ -189,11 +180,14 @@ struct TrxFactory {
 		trx->lock.lock_heap = mem_heap_create_typed(
 			1024, MEM_HEAP_FOR_LOCK_HEAP);
 
-		mutex_create(trx_mutex_key, &trx->mutex, SYNC_TRX);
+		lock_trx_lock_list_init(&trx->lock.trx_locks);
 
-		mutex_create(
-			trx_undo_mutex_key,
-			&trx->undo_mutex, SYNC_TRX_UNDO);
+		UT_LIST_INIT(
+			trx->trx_savepoints,
+			&trx_named_savept_t::trx_savepoints);
+
+		mutex_create("trx", &trx->mutex);
+		mutex_create("trx_undo", &trx->undo_mutex);
 
 		/* Explicitly call the constructor of the already
 		allocated object. trx_t objects are allocated by
@@ -305,7 +299,7 @@ struct TrxPoolLock {
 	/** Create the mutex */
 	void create()
 	{
-		mutex_create(trx_pool_mutex_key, &m_mutex, SYNC_POOL);
+		mutex_create("trx_pool", &m_mutex);
 	}
 
 	/** Acquire the mutex */
@@ -328,7 +322,7 @@ struct TrxPoolManagerLock {
 	/** Create the mutex */
 	void create()
 	{
-		mutex_create(trx_pools_mutex_key, &m_mutex, SYNC_POOL_MANAGER);
+		mutex_create("trx_pool_manager", &m_mutex);
 	}
 
 	/** Acquire the mutex */
@@ -384,24 +378,21 @@ trx_create_low()
 	assert_trx_is_free(trx);
 
 	mem_heap_t*	heap;
-	ib_alloc_t*	heap_alloc;
+	ib_alloc_t*	alloc;
 
 	heap = mem_heap_create(sizeof(ib_vector_t) + sizeof(void*) * 8);
-	heap_alloc = ib_heap_allocator_create(heap);
+
+	alloc = ib_heap_allocator_create(heap);
 
 	/* Remember to free the vector explicitly in trx_free(). */
-	trx->autoinc_locks = ib_vector_create(heap_alloc, sizeof(void**), 4);
+	trx->autoinc_locks = ib_vector_create(alloc, sizeof(void**), 4);
 
 	/* Remember to free the vector explicitly in trx_free(). */
 	heap = mem_heap_create(sizeof(ib_vector_t) + sizeof(void*) * 32);
 
-	heap_alloc = ib_heap_allocator_create(heap);
+	alloc = ib_heap_allocator_create(heap);
 
-	trx->lock.table_locks = ib_vector_create(
-		heap_alloc, sizeof(void**), 32);
-
-	lock_trx_lock_list_init(&trx->lock.trx_locks);
-	UT_LIST_INIT(trx->trx_savepoints, &trx_named_savept_t::trx_savepoints);
+	trx->lock.table_locks = ib_vector_create(alloc, sizeof(void**), 32);
 
 	/* Should have been either just initialized or .clear()ed by
 	trx_free(). */
@@ -474,12 +465,12 @@ trx_allocate_for_mysql(void)
 
 	trx = trx_allocate_for_background();
 
-	mutex_enter(&trx_sys->mutex);
+	trx_sys_mutex_enter();
 
 	ut_d(trx->in_mysql_trx_list = TRUE);
 	UT_LIST_ADD_FIRST(trx_sys->mysql_trx_list, trx);
 
-	mutex_exit(&trx_sys->mutex);
+	trx_sys_mutex_exit();
 
 	return(trx);
 }
@@ -555,7 +546,7 @@ trx_free_prepared(
 /*==============*/
 	trx_t*	trx)	/*!< in, own: trx object */
 {
-	ut_ad(mutex_own(&trx_sys->mutex));
+	ut_ad(trx_sys_mutex_own());
 
 	ut_a(trx_state_eq(trx, TRX_STATE_PREPARED));
 	ut_a(trx->magic_n == TRX_MAGIC_N);
@@ -589,7 +580,7 @@ trx_free_for_mysql(
 /*===============*/
 	trx_t*	trx)	/*!< in, own: trx object */
 {
-	mutex_enter(&trx_sys->mutex);
+	trx_sys_mutex_enter();
 
 	ut_ad(trx->in_mysql_trx_list);
 	ut_d(trx->in_mysql_trx_list = FALSE);
@@ -602,7 +593,7 @@ trx_free_for_mysql(
 
 	ut_ad(trx_sys_validate_trx_list());
 
-	mutex_exit(&trx_sys->mutex);
+	trx_sys_mutex_exit();
 
 	trx_free_for_background(trx);
 }
@@ -919,12 +910,12 @@ trx_lists_init_at_db_start(void)
 		     undo != NULL;
 		     undo = UT_LIST_GET_NEXT(undo_list, undo)) {
 
-			/* Check the trx_sys->rw_trx_list first. */
-			mutex_enter(&trx_sys->mutex);
+			/* Check the trx_sys->rw_trx_set first. */
+			trx_sys_mutex_enter();
 
 			trx_t*	trx = trx_get_rw_trx_by_id(undo->trx_id);
 
-			mutex_exit(&trx_sys->mutex);
+			trx_sys_mutex_exit();
 
 			if (trx == NULL) {
 				trx = trx_allocate_for_background();
@@ -1237,7 +1228,7 @@ trx_start_low(
 		/* Temporary rseg is assigned only if the transaction
 		updates a temporary table */
 
-		mutex_enter(&trx_sys->mutex);
+		trx_sys_mutex_enter();
 
 		trx->id = trx_sys_get_new_trx_id();
 
@@ -1262,7 +1253,7 @@ trx_start_low(
 
 		ut_ad(trx_sys_validate_trx_list());
 
-		mutex_exit(&trx_sys->mutex);
+		trx_sys_mutex_exit();
 
 	} else {
 		trx->id = 0;
@@ -1294,7 +1285,7 @@ trx_start_low(
 			ut_d(trx->in_ro_trx_list = true);
 			ut_ad(trx_sys_validate_trx_list());
 
-			mutex_exit(&trx_sys->mutex);
+			trx_sys_mutex_exit();
 		} else {
 			ut_ad(!read_write);
 			trx->state = TRX_STATE_ACTIVE;
@@ -1339,7 +1330,7 @@ trx_serialisation_number_get(
 		noredo_rseg = noredo_rseg_undo_ptr->rseg;
 	}
 
-	mutex_enter(&trx_sys->mutex);
+	trx_sys_mutex_enter();
 
 	trx->no = trx_sys_get_new_trx_id();
 
@@ -1376,13 +1367,14 @@ trx_serialisation_number_get(
 		though in reality it should make very little (read no)
 		difference because this code path is only taken when the
 		rbs is empty. */
-		mutex_exit(&trx_sys->mutex);
+
+		trx_sys_mutex_exit();
 
 		purge_sys->purge_queue->push(elem);
 
 		mutex_exit(&purge_sys->pq_mutex);
 	} else {
-		mutex_exit(&trx_sys->mutex);
+		trx_sys_mutex_exit();
 	}
 
 	return(added_trx_no);
@@ -1733,7 +1725,7 @@ trx_commit_in_memory(
 
 		ut_ad(trx_state_eq(trx, TRX_STATE_COMMITTED_IN_MEMORY));
 
-		mutex_enter(&trx_sys->mutex);
+		trx_sys_mutex_enter();
 
 		assert_trx_in_list(trx);
 
@@ -1770,7 +1762,7 @@ trx_commit_in_memory(
 			trx_sys->mvcc->view_close(trx->read_view, true);
 		}
 
-		mutex_exit(&trx_sys->mutex);
+		trx_sys_mutex_exit();
 	}
 
 	if (lsn > 0) {
@@ -1994,7 +1986,7 @@ trx_cleanup_at_db_startup(
 	trx->undo_rseg_space = 0;
 	trx->last_sql_stat_start.least_undo_no = 0;
 
-	mutex_enter(&trx_sys->mutex);
+	trx_sys_mutex_enter();
 
 	ut_a(!trx->read_only);
 
@@ -2002,7 +1994,7 @@ trx_cleanup_at_db_startup(
 
 	ut_d(trx->in_rw_trx_list = FALSE);
 
-	mutex_exit(&trx_sys->mutex);
+	trx_sys_mutex_exit();
 
 	/* Change the transaction state without mutex protection, now
 	that it no longer is in the trx_list. Recovered transactions
@@ -2277,7 +2269,7 @@ trx_print_low(
 	ibool		newline;
 	const char*	op_info;
 
-	ut_ad(mutex_own(&trx_sys->mutex));
+	ut_ad(trx_sys_mutex_own());
 
 	fprintf(f, "TRANSACTION " TRX_ID_FMT, trx->id);
 
@@ -2391,7 +2383,7 @@ trx_print_latched(
 					or 0 to use the default max length */
 {
 	ut_ad(lock_mutex_own());
-	ut_ad(mutex_own(&trx_sys->mutex));
+	ut_ad(trx_sys_mutex_own());
 
 	trx_print_low(f, trx, max_query_len,
 		      lock_number_of_rows_locked(&trx->lock),
@@ -2422,8 +2414,10 @@ trx_print(
 	lock_mutex_exit();
 
 	mutex_enter(&trx_sys->mutex);
+
 	trx_print_low(f, trx, max_query_len,
 		      n_rec_locks, n_trx_locks, heap_size);
+
 	mutex_exit(&trx_sys->mutex);
 }
 
@@ -2438,7 +2432,7 @@ trx_assert_started(
 /*===============*/
 	const trx_t*	trx)	/*!< in: transaction */
 {
-	ut_ad(mutex_own(&trx_sys->mutex));
+	ut_ad(trx_sys_mutex_own());
 
 	/* Non-locking autocommits should not hold any locks and this
 	function is only called from the locking code. */
@@ -2595,10 +2589,10 @@ trx_prepare(
 
 	/*--------------------------------------*/
 	ut_a(trx->state == TRX_STATE_ACTIVE);
-	mutex_enter(&trx_sys->mutex);
+	trx_sys_mutex_enter();
 	trx->state = TRX_STATE_PREPARED;
 	trx_sys->n_prepared_trx++;
-	mutex_exit(&trx_sys->mutex);
+	trx_sys_mutex_exit();
 	/*--------------------------------------*/
 
 	if (lsn) {
@@ -2660,7 +2654,7 @@ trx_recover_for_mysql(
 	/* We should set those transactions which are in the prepared state
 	to the xid_list */
 
-	mutex_enter(&trx_sys->mutex);
+	trx_sys_mutex_enter();
 
 	for (trx = UT_LIST_GET_FIRST(trx_sys->rw_trx_list);
 	     trx != NULL;
@@ -2702,7 +2696,7 @@ trx_recover_for_mysql(
 		}
 	}
 
-	mutex_exit(&trx_sys->mutex);
+	trx_sys_mutex_exit();
 
 	if (count > 0){
 		ut_print_timestamp(stderr);
@@ -2730,7 +2724,7 @@ trx_get_trx_by_xid_low(
 {
 	trx_t*		trx;
 
-	ut_ad(mutex_own(&trx_sys->mutex));
+	ut_ad(trx_sys_mutex_own());
 
 	for (trx = UT_LIST_GET_FIRST(trx_sys->rw_trx_list);
 	     trx != NULL;
@@ -2780,13 +2774,13 @@ trx_get_trx_by_xid(
 		return(NULL);
 	}
 
-	mutex_enter(&trx_sys->mutex);
+	trx_sys_mutex_enter();
 
 	/* Recovered/Resurrected transactions are always only on the
 	trx_sys_t::rw_trx_list. */
 	trx = trx_get_trx_by_xid_low(xid);
 
-	mutex_exit(&trx_sys->mutex);
+	trx_sys_mutex_exit();
 
 	return(trx);
 }

@@ -74,11 +74,6 @@ struct row_mysql_drop_t{
 							/*!< list chain node */
 };
 
-#ifdef UNIV_PFS_MUTEX
-/* Key to register drop list mutex with performance schema */
-mysql_pfs_key_t	row_drop_list_mutex_key;
-#endif /* UNIV_PFS_MUTEX */
-
 /** @brief List of tables we should drop in background.
 
 ALTER TABLE in MySQL requires that the table handler can drop the
@@ -1486,7 +1481,7 @@ error_exit:
 
 	que_thr_stop_for_mysql_no_error(thr, trx);
 
-	srv_stats.n_rows_inserted.add((size_t)trx->id, 1);
+	srv_stats.n_rows_inserted.inc();
 
 	/* Not protected by dict_table_stats_lock() for performance
 	reasons, we would rather get garbage in stat_n_rows (which is
@@ -1975,9 +1970,9 @@ run_again:
 		with a latch. */
 		dict_table_n_rows_dec(prebuilt->table);
 
-		srv_stats.n_rows_deleted.add((size_t)trx->id, 1);
+		srv_stats.n_rows_deleted.inc();
 	} else {
-		srv_stats.n_rows_updated.add((size_t)trx->id, 1);
+		srv_stats.n_rows_updated.inc();
 	}
 
 	/* We update table statistics only if it is a DELETE or UPDATE
@@ -2155,7 +2150,6 @@ no_unlock:
 	trx->op_info = "";
 }
 
-
 /*********************************************************************//**
 Checks if a table is such that we automatically created a clustered
 index on it (on row id).
@@ -2278,7 +2272,7 @@ row_create_table_for_mysql(
 	dberr_t		err;
 
 #ifdef UNIV_SYNC_DEBUG
-	ut_ad(rw_lock_own(&dict_operation_lock, RW_LOCK_EX));
+	ut_ad(rw_lock_own(&dict_operation_lock, RW_LOCK_X));
 #endif /* UNIV_SYNC_DEBUG */
 	ut_ad(mutex_own(&(dict_sys->mutex)));
 	ut_ad(trx->dict_operation_lock_mode == RW_X_LATCH);
@@ -2512,7 +2506,7 @@ row_create_index_for_mysql(
 	ibool		is_fts;
 
 #ifdef UNIV_SYNC_DEBUG
-	ut_ad(rw_lock_own(&dict_operation_lock, RW_LOCK_EX));
+	ut_ad(rw_lock_own(&dict_operation_lock, RW_LOCK_X));
 #endif /* UNIV_SYNC_DEBUG */
 	ut_ad(mutex_own(&(dict_sys->mutex)));
 
@@ -2681,7 +2675,7 @@ row_table_add_foreign_constraints(
 
 	ut_ad(mutex_own(&(dict_sys->mutex)));
 #ifdef UNIV_SYNC_DEBUG
-	ut_ad(rw_lock_own(&dict_operation_lock, RW_LOCK_EX));
+	ut_ad(rw_lock_own(&dict_operation_lock, RW_LOCK_X));
 #endif /* UNIV_SYNC_DEBUG */
 	ut_a(sql_string);
 
@@ -3451,7 +3445,7 @@ row_drop_table_for_mysql(
 
 	ut_ad(mutex_own(&(dict_sys->mutex)));
 #ifdef UNIV_SYNC_DEBUG
-	ut_ad(rw_lock_own(&dict_operation_lock, RW_LOCK_EX));
+	ut_ad(rw_lock_own(&dict_operation_lock, RW_LOCK_X));
 #endif /* UNIV_SYNC_DEBUG */
 
 	table = dict_table_open_on_name(
@@ -5062,9 +5056,7 @@ void
 row_mysql_init(void)
 /*================*/
 {
-	mutex_create(
-		row_drop_list_mutex_key,
-		&row_drop_list_mutex, SYNC_NO_ORDER_CHECK);
+	mutex_create("row_drop_list", &row_drop_list_mutex);
 
 	UT_LIST_INIT(
 		row_mysql_drop_list,
