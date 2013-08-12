@@ -26,7 +26,6 @@ subpartition by hash (a)
 subpartitions 1
 (partition p1 values in (1)
  (subpartition sp1));
---error ER_WRONG_PARTITION_NAME
 alter table t1 truncate partition sp1;
 drop table t1;
 
