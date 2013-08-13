@@ -82,10 +82,6 @@
 #include <sys/times.h>       /* for times */
 #endif
 
-#if defined(__INTEL_COMPILER) && defined(__ia64__) && defined(HAVE_IA64INTRIN_H)
-#include <ia64intrin.h>    /* for __GetReg */
-#endif
-
 #if defined(__APPLE__) && defined(__MACH__)
 #include <mach/mach_time.h>
 #endif
@@ -106,14 +102,6 @@ ulonglong my_timer_cycles_il_sparc32();
 ulonglong my_timer_cycles_il_i386();
 #elif defined(__SUNPRO_C) && defined(__x86_64) && defined(_LP64)
 ulonglong my_timer_cycles_il_x86_64();
-#endif
-
-#if defined(__INTEL_COMPILER)
-/*
-  icc warning #1011 is:
-  missing return statement at end of non-void function
-*/
-#pragma warning (disable:1011)
 #endif
 
 /*
@@ -151,8 +139,6 @@ ulonglong my_timer_cycles(void)
 #elif defined(_WIN64) && defined(_M_X64)
   /* For 64-bit Windows: unsigned __int64 __rdtsc(); */
   return __rdtsc();
-#elif defined(__INTEL_COMPILER) && defined(__ia64__) && defined(HAVE_IA64INTRIN_H)
-  return (ulonglong) __getReg(_IA64_REG_AR_ITC); /* (3116) */
 #elif defined(__GNUC__) && defined(__ia64__)
   {
     ulonglong result;
@@ -218,12 +204,6 @@ ulonglong my_timer_cycles(void)
   return 0;
 #endif
 }
-
-#if defined(__INTEL_COMPILER)
-/* re-enable warning#1011 which was only for my_timer_cycles() */
-/* There may be an icc bug which means we must leave disabled. */
-#pragma warning (default:1011)
-#endif
 
 /*
   For nanoseconds, most platforms have nothing available that
@@ -503,8 +483,6 @@ void my_timer_init(MY_TIMER_INFO *mti)
   mti->cycles.routine= MY_TIMER_ROUTINE_ASM_X86_WIN;
 #elif defined(_WIN64) && defined(_M_X64)
   mti->cycles.routine= MY_TIMER_ROUTINE_RDTSC;
-#elif defined(__INTEL_COMPILER) && defined(__ia64__) && defined(HAVE_IA64INTRIN_H)
-  mti->cycles.routine= MY_TIMER_ROUTINE_ASM_IA64;
 #elif defined(__GNUC__) && defined(__ia64__)
   mti->cycles.routine= MY_TIMER_ROUTINE_ASM_IA64;
 #elif defined(__GNUC__) && (defined(__powerpc__) || defined(__POWERPC__)) && (defined(__64BIT__) || defined(_ARCH_PPC64))

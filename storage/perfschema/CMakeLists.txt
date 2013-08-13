@@ -1,4 +1,4 @@
-# Copyright (c) 2009, 2011, Oracle and/or its affiliates. All rights reserved.
+# Copyright (c) 2009, 2013, Oracle and/or its affiliates. All rights reserved.
 #
 # This program is free software; you can redistribute it and/or modify
 # it under the terms of the GNU General Public License as published by
@@ -17,9 +17,13 @@ INCLUDE_DIRECTORIES(${CMAKE_SOURCE_DIR}
                     ${CMAKE_SOURCE_DIR}/include
                     ${CMAKE_SOURCE_DIR}/sql
                     ${CMAKE_SOURCE_DIR}/regex
-                    ${CMAKE_SOURCE_DIR}/extra/yassl/include)
+                    ${CMAKE_SOURCE_DIR}/extra/yassl/include
+                    ${SSL_INCLUDE_DIRS})
 
 ADD_DEFINITIONS(-DMYSQL_SERVER)
+IF (SSL_DEFINES)
+  ADD_DEFINITIONS(${SSL_DEFINES})
+ENDIF()
 
 # Gen_pfs_lex_token
 ADD_EXECUTABLE(gen_pfs_lex_token gen_pfs_lex_token.cc)
@@ -57,6 +61,7 @@ pfs_column_values.h
 pfs_con_slice.h
 pfs_defaults.h
 pfs_digest.h
+pfs_program.h
 pfs_engine_table.h
 pfs_events.h
 pfs_events_stages.h
@@ -67,6 +72,7 @@ pfs_host.h
 pfs_instr.h
 pfs_instr_class.h
 pfs_lock.h
+pfs_memory.h
 pfs_server.h
 pfs_setup_actor.h
 pfs_setup_object.h
@@ -84,6 +90,7 @@ table_esgs_global_by_event_name.h
 table_esms_by_account_by_event_name.h
 table_esms_by_host_by_event_name.h
 table_esms_by_digest.h
+table_esms_by_program.h
 table_esms_by_thread_by_event_name.h
 table_esms_by_user_by_event_name.h
 table_esms_global_by_event_name.h
@@ -97,6 +104,11 @@ table_ews_by_thread_by_event_name.h
 table_ews_by_user_by_event_name.h
 table_ews_global_by_event_name.h
 table_file_instances.h
+table_mems_global_by_event_name.h
+table_mems_by_account_by_event_name.h
+table_mems_by_host_by_event_name.h
+table_mems_by_thread_by_event_name.h
+table_mems_by_user_by_event_name.h
 table_file_summary_by_instance.h
 table_file_summary_by_event_name.h
 table_socket_instances.h
@@ -122,6 +134,12 @@ cursor_by_thread_connect_attr.h
 table_session_connect.h
 table_session_connect_attrs.h
 table_session_account_connect_attrs.h
+table_replication_connection_configuration.h
+table_replication_connection_status.h
+table_replication_execute_configuration.h
+table_replication_execute_status.h
+table_replication_execute_status_by_coordinator.h
+table_replication_execute_status_by_worker.h
 cursor_by_account.cc
 cursor_by_host.cc
 cursor_by_thread.cc
@@ -136,6 +154,7 @@ pfs_column_values.cc
 pfs_con_slice.cc
 pfs_defaults.cc
 pfs_digest.cc
+pfs_program.cc
 pfs_engine_table.cc
 pfs_events_stages.cc
 pfs_events_statements.cc
@@ -144,6 +163,7 @@ pfs_global.cc
 pfs_host.cc
 pfs_instr.cc
 pfs_instr_class.cc
+pfs_memory.cc
 pfs_server.cc
 pfs_setup_actor.cc
 pfs_setup_object.cc
@@ -160,6 +180,7 @@ table_esgs_global_by_event_name.cc
 table_esms_by_account_by_event_name.cc
 table_esms_by_host_by_event_name.cc
 table_esms_by_digest.cc
+table_esms_by_program.cc
 table_esms_by_thread_by_event_name.cc
 table_esms_by_user_by_event_name.cc
 table_esms_global_by_event_name.cc
@@ -173,6 +194,11 @@ table_ews_by_thread_by_event_name.cc
 table_ews_by_user_by_event_name.cc
 table_ews_global_by_event_name.cc
 table_file_instances.cc
+table_mems_global_by_event_name.cc
+table_mems_by_account_by_event_name.cc
+table_mems_by_host_by_event_name.cc
+table_mems_by_thread_by_event_name.cc
+table_mems_by_user_by_event_name.cc
 table_file_summary_by_instance.cc
 table_file_summary_by_event_name.cc
 table_socket_instances.cc
@@ -198,9 +224,15 @@ cursor_by_thread_connect_attr.cc
 table_session_connect.cc
 table_session_connect_attrs.cc
 table_session_account_connect_attrs.cc
+table_replication_connection_configuration.cc
+table_replication_connection_status.cc
+table_replication_execute_configuration.cc
+table_replication_execute_status.cc
+table_replication_execute_status_by_coordinator.cc
+table_replication_execute_status_by_worker.cc
 )
 
-MYSQL_ADD_PLUGIN(perfschema ${PERFSCHEMA_SOURCES} STORAGE_ENGINE DEFAULT STATIC_ONLY)
+MYSQL_ADD_PLUGIN(perfschema ${PERFSCHEMA_SOURCES} STORAGE_ENGINE DEFAULT STATIC_ONLY NOT_FOR_EMBEDDED)
 IF(WITH_PERFSCHEMA_STORAGE_ENGINE AND WITH_UNIT_TESTS)
   ENABLE_TESTING()
   ADD_SUBDIRECTORY(unittest)

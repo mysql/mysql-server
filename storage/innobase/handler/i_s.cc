@@ -152,7 +152,7 @@ do {									\
 } while (0)
 
 #if !defined __STRICT_ANSI__ && defined __GNUC__ && (__GNUC__) > 2 &&	\
-	!defined __INTEL_COMPILER && !defined __clang__
+	!defined __clang__
 #define STRUCT_FLD(name, value)	name: value
 #else
 #define STRUCT_FLD(name, value)	value
@@ -5915,7 +5915,7 @@ i_s_innodb_fill_buffer_lru(
 	lru_len = UT_LIST_GET_LEN(buf_pool->LRU);
 
 	/* Print error message if malloc fail */
-	info_buffer = (buf_page_info_t*) my_malloc(
+	info_buffer = (buf_page_info_t*) my_malloc(PSI_INSTRUMENT_ME,
 		lru_len * sizeof *info_buffer, MYF(MY_WME));
 
 	if (!info_buffer) {

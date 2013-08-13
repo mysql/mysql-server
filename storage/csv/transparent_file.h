@@ -18,6 +18,7 @@
 #include <sys/stat.h>
 #include <my_dir.h>
 
+extern PSI_memory_key csv_key_memory_Transparent_file;
 
 class Transparent_file
 {

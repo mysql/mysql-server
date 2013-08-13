@@ -120,13 +120,13 @@ row_undo_ins_remove_clust_rec(
 	}
 
 	if (node->table->id == DICT_INDEXES_ID) {
+
 		ut_ad(!online);
 		ut_ad(node->trx->dict_operation_lock_mode == RW_X_LATCH);
 
-		/* Drop the index tree associated with the row in
-		SYS_INDEXES table: */
-
-		dict_drop_index_tree_step(btr_pcur_get_rec(&node->pcur), &mtr);
+		dict_drop_index_tree(
+			btr_pcur_get_rec(&node->pcur), &(node->pcur),
+			true, &mtr);
 
 		mtr_commit(&mtr);
 
@@ -148,8 +148,9 @@ retry:
 	mtr_start(&mtr);
 	dict_disable_redo_if_temporary(index->table, &mtr);
 
-	success = btr_pcur_restore_position(BTR_MODIFY_TREE,
-					    &(node->pcur), &mtr);
+	success = btr_pcur_restore_position(
+			BTR_MODIFY_TREE | BTR_LATCH_FOR_DELETE,
+			&node->pcur, &mtr);
 	ut_a(success);
 
 	btr_cur_pessimistic_delete(&err, FALSE, btr_cur, 0,
@@ -207,8 +208,8 @@ row_undo_ins_remove_sec_low(
 		mode = BTR_MODIFY_LEAF | BTR_ALREADY_S_LATCHED;
 		mtr_s_lock(dict_index_get_lock(index), &mtr);
 	} else {
-		ut_ad(mode == BTR_MODIFY_TREE);
-		mtr_x_lock(dict_index_get_lock(index), &mtr);
+		ut_ad(mode == (BTR_MODIFY_TREE | BTR_LATCH_FOR_DELETE));
+		mtr_sx_lock(dict_index_get_lock(index), &mtr);
 	}
 
 	if (row_log_online_op_try(index, entry, 0)) {
@@ -233,7 +234,7 @@ row_undo_ins_remove_sec_low(
 
 	btr_cur = btr_pcur_get_btr_cur(&pcur);
 
-	if (mode != BTR_MODIFY_TREE) {
+	if (mode != (BTR_MODIFY_TREE | BTR_LATCH_FOR_DELETE)) {
 		err = btr_cur_optimistic_delete(btr_cur, 0, &mtr)
 			? DB_SUCCESS : DB_FAIL;
 	} else {
@@ -279,7 +280,9 @@ row_undo_ins_remove_sec(
 
 	/* Try then pessimistic descent to the B-tree */
 retry:
-	err = row_undo_ins_remove_sec_low(BTR_MODIFY_TREE, index, entry);
+	err = row_undo_ins_remove_sec_low(
+		BTR_MODIFY_TREE | BTR_LATCH_FOR_DELETE,
+		index, entry);
 
 	/* The delete operation may fail if we have little
 	file space left: TODO: easiest to crash the database

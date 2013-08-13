@@ -485,7 +485,8 @@ char **copy_arguments(int argc, char **argv)
   for (from=argv ; from != end ; from++)
     length+= strlen(*from);
 
-  if ((res= (char**) my_malloc(sizeof(argv)*(argc+1)+length+argc,
+  if ((res= (char**) my_malloc(PSI_NOT_INSTRUMENTED,
+                               sizeof(argv)*(argc+1)+length+argc,
 			       MYF(MY_WME))))
   {
     char **to= res, *to_str= (char*) (res+argc+1);
@@ -517,20 +518,6 @@ int init_embedded_server(int argc, char **argv, char **groups)
   char *fake_groups[]= { fake_server, fake_embedded, NULL };
   char fake_name[]= "fake_name";
   my_bool acl_error;
-
-#ifdef WITH_PERFSCHEMA_STORAGE_ENGINE
-  /*
-    It makes no sense to build with both:
-    - WITH_EMBEDDED_SERVER
-    - WITH_PERFSCHEMA_STORAGE_ENGINE
-    because nobody is going to look at performance_schema.* tables
-    in a server that can not be connected to.
-    Now, if the build really uses both (this is not prevented),
-    the performance schema must have the very basic initialization
-    done to make sure that calls compiled statically don't fail.
-  */
-  pre_initialize_performance_schema();
-#endif /*WITH_PERFSCHEMA_STORAGE_ENGINE */
 
   if (my_thread_init())
     return 1;
@@ -704,7 +691,7 @@ void init_embedded_mysql(MYSQL *mysql, int client_flag)
   thd->mysql= mysql;
   mysql->server_version= server_version;
   mysql->client_flag= client_flag;
-  init_alloc_root(&mysql->field_alloc, 8192, 0);
+  init_alloc_root(PSI_NOT_INSTRUMENTED, &mysql->field_alloc, 8192, 0);
 }
 
 /**
@@ -803,7 +790,8 @@ int check_embedded_connection(MYSQL *mysql, const char *db)
   sctx->host_or_ip= sctx->get_host()->ptr();
   strmake(sctx->priv_host, (char*) my_localhost,  MAX_HOSTNAME-1);
   strmake(sctx->priv_user, mysql->user,  USERNAME_LENGTH-1);
-  sctx->user= my_strdup(mysql->user, MYF(0));
+  sctx->user= my_strdup(PSI_NOT_INSTRUMENTED,
+                        mysql->user, MYF(0));
   sctx->proxy_user[0]= 0;
   sctx->master_access= GLOBAL_ACLS;       // Full rights
   emb_transfer_connect_attrs(mysql);
@@ -835,8 +823,10 @@ int check_embedded_connection(MYSQL *mysql, const char *db)
                  connect_attrs_len + 2);
   if (mysql->options.client_ip)
   {
-    sctx->host= my_strdup(mysql->options.client_ip, MYF(0));
-    sctx->ip= my_strdup(sctx->host, MYF(0));
+    sctx->host= my_strdup(PSI_NOT_INSTRUMENTED,
+                          mysql->options.client_ip, MYF(0));
+    sctx->ip= my_strdup(PSI_NOT_INSTRUMENTED,
+                        sctx->host, MYF(0));
   }
   else
     sctx->host= (char*)my_localhost;
@@ -954,7 +944,8 @@ MYSQL_DATA *THD::alloc_new_dataset()
 {
   MYSQL_DATA *data;
   struct embedded_query_result *emb_data;
-  if (!my_multi_malloc(MYF(MY_WME | MY_ZEROFILL),
+  if (!my_multi_malloc(PSI_NOT_INSTRUMENTED,
+                       MYF(MY_WME | MY_ZEROFILL),
                        &data, sizeof(*data),
                        &emb_data, sizeof(*emb_data),
                        NULL))
@@ -1019,7 +1010,7 @@ int Protocol::begin_dataset()
   if (!data)
     return 1;
   alloc= &data->alloc;
-  init_alloc_root(alloc,8192,0);	/* Assume rowlength < 8192 */
+  init_alloc_root(PSI_NOT_INSTRUMENTED, alloc, 8192, 0); /* Assume rowlength < 8192 */
   alloc->min_malloc=sizeof(MYSQL_ROWS);
   return 0;
 }

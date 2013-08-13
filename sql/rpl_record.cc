@@ -342,9 +342,12 @@ unpack_row(Relay_log_info const *rli,
 
         /*
           The raw size of the field, as calculated in calc_field_size,
-          should match the one reported by Field_*::unpack.
+          should match the one reported by Field_*::unpack unless it is
+          a old decimal data type which is unsupported datatype in
+          RBR mode.
          */
-        DBUG_ASSERT(tabledef->calc_field_size(i, (uchar *) old_pack_ptr) == 
+        DBUG_ASSERT(tabledef->type(i) == MYSQL_TYPE_DECIMAL ||
+                    tabledef->calc_field_size(i, (uchar *) old_pack_ptr) ==
                     (uint32) (pack_ptr - old_pack_ptr));
       }
 

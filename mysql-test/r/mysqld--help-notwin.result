@@ -603,10 +603,15 @@ The following options may be given as the first argument:
  --performance-schema-max-file-instances=# 
  Maximum number of instrumented files. Use 0 to disable,
  -1 for automated sizing.
+ --performance-schema-max-memory-classes=# 
+ Maximum number of memory pool instruments.
  --performance-schema-max-mutex-classes=# 
  Maximum number of mutex instruments.
  --performance-schema-max-mutex-instances=# 
  Maximum number of instrumented MUTEX objects. Use 0 to
+ disable, -1 for automated sizing.
+ --performance-schema-max-program-instances=# 
+ Maximum number of instrumented programs. Use 0 to
  disable, -1 for automated sizing.
  --performance-schema-max-rwlock-classes=# 
  Maximum number of rwlock instruments.
@@ -622,6 +627,8 @@ The following options may be given as the first argument:
  Maximum number of stage instruments.
  --performance-schema-max-statement-classes=# 
  Maximum number of statement instruments.
+ --performance-schema-max-statement-stack=# 
+ Number of rows per thread in EVENTS_STATEMENTS_CURRENT.
  --performance-schema-max-table-handles=# 
  Maximum number of opened instrumented tables. Use 0 to
  disable, -1 for automated sizing.
@@ -792,6 +799,9 @@ The following options may be given as the first argument:
  not sure, leave this option unset
  --report-user=name  The account user name of the slave to be reported to the
  master during slave registration
+ --rpl-stop-slave-timeout=# 
+ Timeout in seconds to wait for slave to stop before
+ returning a warning.
  --safe-user-create  Don't allow new user creation by the user who has no
  write privileges to the mysql.user table.
  --secure-auth       Disallow authentication for accounts that have old
@@ -875,10 +885,16 @@ The following options may be given as the first argument:
  lock wait timeout, before giving up and stopping
  --slave-type-conversions=name 
  Set of slave type conversions that are enabled. Legal
- values are: ALL_LOSSY to enable lossy conversions and
- ALL_NON_LOSSY to enable non-lossy conversions. If the
- variable is assigned the empty set, no conversions are
- allowed and it is expected that the types match exactly.
+ values are: ALL_LOSSY to enable lossy conversions,
+ ALL_NON_LOSSY to enable non-lossy conversions,
+ ALL_UNSIGNED to treat all integer column type data to be
+ unsigned values, and ALL_SIGNED to treat all integer
+ column type data to be signed values. Default treatment
+ is ALL_SIGNED. If ALL_SIGNED and ALL_UNSIGNED both are
+ specifed, ALL_SIGNED will take high priority than
+ ALL_UNSIGNED. If the variable is assigned the empty set,
+ no conversions are allowed and it is expected that the
+ types match exactly.
  --slow-launch-time=# 
  If creating the thread takes longer than this value (in
  seconds), the Slow_launch_threads counter will be
@@ -1160,14 +1176,17 @@ performance-schema-max-cond-instances -1
 performance-schema-max-file-classes 50
 performance-schema-max-file-handles 32768
 performance-schema-max-file-instances -1
+performance-schema-max-memory-classes 250
 performance-schema-max-mutex-classes 200
 performance-schema-max-mutex-instances -1
+performance-schema-max-program-instances 5000
 performance-schema-max-rwlock-classes 30
 performance-schema-max-rwlock-instances -1
 performance-schema-max-socket-classes 10
 performance-schema-max-socket-instances -1
 performance-schema-max-stage-classes 150
-performance-schema-max-statement-classes 168
+performance-schema-max-statement-classes 187
+performance-schema-max-statement-stack 10
 performance-schema-max-table-handles -1
 performance-schema-max-table-instances -1
 performance-schema-max-thread-classes 50
@@ -1203,6 +1222,7 @@ report-host (No default value)
 report-password (No default value)
 report-port 0
 report-user (No default value)
+rpl-stop-slave-timeout 31536000
 safe-user-create FALSE
 secure-auth TRUE
 secure-file-priv (No default value)

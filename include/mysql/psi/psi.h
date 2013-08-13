@@ -31,6 +31,9 @@
 #error "You must include my_global.h in the code for the build to be correct."
 #endif
 
+#include "psi_base.h"
+#include "psi_memory.h"
+
 /*
   MAINTAINER:
   The following pattern:
@@ -147,6 +150,22 @@ typedef struct PSI_idle_locker PSI_idle_locker;
 struct PSI_digest_locker;
 typedef struct PSI_digest_locker PSI_digest_locker;
 
+/**
+  Interface for an instrumented stored procedure share.
+  This is an opaque structure.
+*/
+struct PSI_sp_share;
+typedef struct PSI_sp_share PSI_sp_share;
+
+/**
+  Interface for an instrumented stored program.
+  This is an opaque structure.
+*/
+struct PSI_sp_locker;
+typedef struct PSI_sp_locker PSI_sp_locker;
+
+
+
 /** Entry point for the performance schema interface. */
 struct PSI_bootstrap
 {
@@ -178,6 +197,7 @@ typedef struct PSI_bootstrap PSI_bootstrap;
 #define DISABLE_PSI_SOCKET
 #define DISABLE_PSI_STAGE
 #define DISABLE_PSI_STATEMENT
+#define DISABLE_PSI_SP
 #define DISABLE_PSI_IDLE
 #define DISABLE_PSI_STATEMENT_DIGEST
 #endif
@@ -275,6 +295,15 @@ typedef struct PSI_bootstrap PSI_bootstrap;
 #endif
 
 /**
+  @def DISABLE_PSI_SP
+  Compiling option to disable the stored program instrumentation.
+  @sa DISABLE_PSI_MUTEX
+*/
+#ifndef DISABLE_PSI_SP
+#define HAVE_PSI_SP_INTERFACE
+#endif
+
+/**
   @def DISABLE_PSI_STATEMENT_DIGEST
   Compiling option to disable the statement digest instrumentation.
 */
@@ -293,6 +322,16 @@ typedef struct PSI_bootstrap PSI_bootstrap;
 
 #ifndef DISABLE_PSI_SOCKET
 #define HAVE_PSI_SOCKET_INTERFACE
+#endif
+
+/**
+  @def DISABLE_PSI_MEMORY
+  Compiling option to disable the memory instrumentation.
+  @sa DISABLE_PSI_MUTEX
+*/
+
+#ifndef DISABLE_PSI_MEMORY
+#define HAVE_PSI_MEMORY_INTERFACE
 #endif
 
 /**
@@ -575,44 +614,6 @@ typedef unsigned int PSI_statement_key;
   Using a zero key always disable the instrumentation.
 */
 typedef unsigned int PSI_socket_key;
-
-/**
-  @def USE_PSI_1
-  Define USE_PSI_1 to use the interface version 1.
-*/
-
-/**
-  @def USE_PSI_2
-  Define USE_PSI_2 to use the interface version 2.
-*/
-
-/**
-  @def HAVE_PSI_1
-  Define HAVE_PSI_1 if the interface version 1 needs to be compiled in.
-*/
-
-/**
-  @def HAVE_PSI_2
-  Define HAVE_PSI_2 if the interface version 2 needs to be compiled in.
-*/
-
-/**
-  Global flag.
-  This flag indicate that an instrumentation point is a global variable,
-  or a singleton.
-*/
-#define PSI_FLAG_GLOBAL (1 << 0)
-
-/**
-  Mutable flag.
-  This flag indicate that an instrumentation point is a general placeholder,
-  that can mutate into a more specific instrumentation point.
-*/
-#define PSI_FLAG_MUTABLE (1 << 1)
-
-#ifdef USE_PSI_1
-#define HAVE_PSI_1
-#endif
 
 #ifdef HAVE_PSI_1
 
@@ -1075,6 +1076,7 @@ struct PSI_statement_locker_state_v1
   char m_schema_name[PSI_SCHEMA_NAME_LEN];
   /** Length in bytes of @c m_schema_name. */
   uint m_schema_name_length;
+  PSI_sp_share *m_parent_sp_share;
 };
 typedef struct PSI_statement_locker_state_v1 PSI_statement_locker_state_v1;
 
@@ -1111,6 +1113,21 @@ struct PSI_socket_locker_state_v1
   void *m_wait;
 };
 typedef struct PSI_socket_locker_state_v1 PSI_socket_locker_state_v1;
+
+struct PSI_sp_locker_state_v1
+{
+  /** Internal state. */
+  uint m_flags;
+  /** Current thread. */
+  struct PSI_thread *m_thread;
+  /** Timer start. */
+  ulonglong m_timer_start;
+  /** Timer function. */
+  ulonglong (*m_timer)(void);
+  /** Stored Procedure share. */
+  PSI_sp_share* m_sp_share;
+};
+typedef struct PSI_sp_locker_state_v1 PSI_sp_locker_state_v1;
 
 /* Using typedef to make reuse between PSI_v1 and PSI_v2 easier later. */
 
@@ -1720,7 +1737,7 @@ typedef void (*end_stage_v1_t) (void);
 */
 typedef struct PSI_statement_locker* (*get_thread_statement_locker_v1_t)
   (struct PSI_statement_locker_state_v1 *state,
-   PSI_statement_key key, const void *charset);
+   PSI_statement_key key, const void *charset, PSI_sp_share *sp_share);
 
 /**
   Refine a statement locker to a more specific key.
@@ -1964,6 +1981,36 @@ typedef struct PSI_digest_locker * (*digest_start_v1_t)
 typedef struct PSI_digest_locker* (*digest_add_token_v1_t)
   (struct PSI_digest_locker *locker, uint token, struct OPAQUE_LEX_YYSTYPE *yylval);
 
+typedef PSI_sp_locker* (*start_sp_v1_t)
+  (struct PSI_sp_locker_state_v1 *state, struct PSI_sp_share* sp_share);
+
+typedef void (*end_sp_v1_t)
+  (struct PSI_sp_locker *locker);
+
+typedef void (*drop_sp_v1_t)
+  (uint object_type,
+   const char *schema_name, uint schema_name_length,
+   const char *object_name, uint object_name_length);
+
+/**
+  Acquire a sp share instrumentation.
+  @param type of stored program
+  @param schema name of stored program
+  @param name of stored program
+  @return a stored program share instrumentation, or NULL
+*/
+typedef struct PSI_sp_share* (*get_sp_share_v1_t)
+  (uint object_type,
+   const char *schema_name, uint schema_name_length,
+   const char *object_name, uint object_name_length);
+
+/**
+  Release a stored program share.
+  @param info the stored program share to release
+*/
+typedef void (*release_sp_share_v1_t)(struct PSI_sp_share *share);
+
+
 /**
   Stores an array of connection attributes
   @param buffer         char array of length encoded connection attributes
@@ -2178,6 +2225,24 @@ struct PSI_v1
   digest_add_token_v1_t digest_add_token;
   /** @sa set_thread_connect_attrs_v1_t. */
   set_thread_connect_attrs_v1_t set_thread_connect_attrs;
+  /** @sa start_sp_v1_t. */
+  start_sp_v1_t start_sp;
+  /** @sa start_sp_v1_t. */
+  end_sp_v1_t end_sp;
+  /** @sa drop_sp_v1_t. */
+  drop_sp_v1_t drop_sp;
+  /** @sa get_sp_share_v1_t. */
+  get_sp_share_v1_t get_sp_share;
+  /** @sa release_sp_share_v1_t. */
+  release_sp_share_v1_t release_sp_share;
+  /** @sa register_memory_v1_t. */
+  register_memory_v1_t register_memory;
+  /** @sa memory_alloc_v1_t. */
+  memory_alloc_v1_t memory_alloc;
+  /** @sa memory_realloc_v1_t. */
+  memory_realloc_v1_t memory_realloc;
+  /** @sa memory_free_v1_t. */
+  memory_free_v1_t memory_free;
 };
 
 /** @} (end of group Group_PSI_v1) */
@@ -2367,6 +2432,7 @@ typedef struct PSI_file_locker_state_v1 PSI_file_locker_state;
 typedef struct PSI_table_locker_state_v1 PSI_table_locker_state;
 typedef struct PSI_statement_locker_state_v1 PSI_statement_locker_state;
 typedef struct PSI_socket_locker_state_v1 PSI_socket_locker_state;
+typedef struct PSI_sp_locker_state_v1 PSI_sp_locker_state;
 #endif
 
 #ifdef USE_PSI_2
@@ -2387,6 +2453,7 @@ typedef struct PSI_file_locker_state_v2 PSI_file_locker_state;
 typedef struct PSI_table_locker_state_v2 PSI_table_locker_state;
 typedef struct PSI_statement_locker_state_v2 PSI_statement_locker_state;
 typedef struct PSI_socket_locker_state_v2 PSI_socket_locker_state;
+typedef struct PSI_sp_locker_state_v2 PSI_sp_locker_state;
 #endif
 
 #else /* HAVE_PSI_INTERFACE */

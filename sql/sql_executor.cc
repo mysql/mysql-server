@@ -38,6 +38,7 @@
 #include "sql_tmp_table.h"
 #include "records.h"          // rr_sequential
 #include "opt_explain_format.h" // Explain_format_flags
+#include "debug_sync.h"
 
 #include <algorithm>
 using std::max;
@@ -91,6 +92,9 @@ static bool cmp_buffer_with_ref(THD *thd, TABLE *table, TABLE_REF *tab_ref);
 
   @todo
     When can we have here thd->net.report_error not zero?
+
+  @note that EXPLAIN may come here (single-row derived table, uncorrelated
+    scalar subquery in WHERE clause...).
 */
 
 void
@@ -105,15 +109,16 @@ JOIN::exec()
   DBUG_ENTER("JOIN::exec");
 
   DBUG_ASSERT(!tables || thd->lex->is_query_tables_locked());
-  DBUG_ASSERT(!(select_options & SELECT_DESCRIBE));
 
   THD_STAGE_INFO(thd, stage_executing);
+  DEBUG_SYNC(thd, "before_join_exec");
 
+  executed= true;
   // Ignore errors of execution if option IGNORE present
   if (thd->lex->ignore)
-    thd->lex->current_select->no_error= true;
+    thd->lex->current_select()->no_error= true;
 
-  if (prepare_result(&columns_list))
+  if (prepare_result())
     DBUG_VOID_RETURN;
 
   if (!tables_list && (tables || !select_lex->with_sum_func))
@@ -225,8 +230,8 @@ JOIN::create_intermediate_table(JOIN_TAB *tab, List<Item> *tmp_table_fields,
                                "");
   if (!table)
     DBUG_RETURN(true);
-  tmp_table_param.using_indirect_summary_function=
-    tab->tmp_table_param->using_indirect_summary_function;
+  tmp_table_param.using_outer_summary_function=
+    tab->tmp_table_param->using_outer_summary_function;
   tab->join= this;
   DBUG_ASSERT(tab > tab->join->join_tab);
   (tab - 1)->next_select= sub_select_op;
@@ -1763,13 +1768,17 @@ int safe_index_read(JOIN_TAB *tab)
 static int
 test_if_quick_select(JOIN_TAB *tab)
 {
+  mysql_mutex_lock(&tab->join->thd->LOCK_query_plan);
   tab->select->set_quick(NULL);
-  return tab->select->test_quick_select(tab->join->thd, 
-                                        tab->keys,
-                                        0,          // empty table map
-                                        HA_POS_ERROR, 
-                                        false,      // don't force quick range
-                                        ORDER::ORDER_NOT_RELEVANT);
+  mysql_mutex_unlock(&tab->join->thd->LOCK_query_plan);
+  const bool ret=
+    tab->select->test_quick_select(tab->join->thd, 
+                                   tab->keys,
+                                   0,          // empty table map
+                                   HA_POS_ERROR, 
+                                   false,      // don't force quick range
+                                   ORDER::ORDER_NOT_RELEVANT);
+  return ret;
 }
 
 
@@ -2395,17 +2404,17 @@ int join_init_read_record(JOIN_TAB *tab)
 int
 join_materialize_derived(JOIN_TAB *tab)
 {
+  THD *thd= tab->table->in_use;
   TABLE_LIST *derived= tab->table->pos_in_table_list;
   DBUG_ASSERT(derived->uses_materialization() && !tab->materialized);
 
   if (derived->materializable_is_const()) // Has been materialized by optimizer
     return NESTED_LOOP_OK;
 
-  bool res= mysql_handle_single_derived(tab->table->in_use->lex,
+  bool res= mysql_handle_single_derived(thd->lex,
                                         derived, &mysql_derived_materialize);
-  if (!tab->table->in_use->lex->describe)
-    mysql_handle_single_derived(tab->table->in_use->lex,
-                                derived, &mysql_derived_cleanup);
+  res|= mysql_handle_single_derived(thd->lex, derived, &mysql_derived_cleanup);
+  DEBUG_SYNC(thd, "after_materialize_derived");
   return res ? NESTED_LOOP_ERROR : NESTED_LOOP_OK;
 }
 
@@ -3286,43 +3295,16 @@ create_sort_index(THD *thd, JOIN *join, JOIN_TAB *tab)
   table=  tab->table;
   select= fsort->select;
 
-  table->sort.io_cache=(IO_CACHE*) my_malloc(sizeof(IO_CACHE),
+  table->sort.io_cache=(IO_CACHE*) my_malloc(key_memory_TABLE_sort_io_cache,
+                                             sizeof(IO_CACHE),
                                              MYF(MY_WME | MY_ZEROFILL));
   table->status=0;				// May be wrong if quick_select
 
   // If table has a range, move it to select
   if (select && tab->ref.key >= 0)
   {
-    if (!select->quick)
-    {
-      if (tab->quick)
-      {
-        select->quick= tab->quick;
-        tab->quick= NULL;
-        /* 
-          We can only use 'Only index' if quick key is same as ref_key
-          and in index_merge 'Only index' cannot be used
-        */
-        if (((uint) tab->ref.key != select->quick->index))
-          table->set_keyread(FALSE);
-      }
-      else
-      {
-        /*
-          We have a ref on a const;  Change this to a range that filesort
-          can use.
-          For impossible ranges (like when doing a lookup on NULL on a NOT NULL
-          field, quick will contain an empty record set.
-        */
-        if (!(select->quick= (tab->type == JT_FT ?
-                              get_ft_select(thd, table, tab->ref.key) :
-                              get_quick_select_for_ref(thd, table, &tab->ref, 
-                                                       tab->found_records))))
-          goto err;
-      }
-      fsort->own_select= true;
-    }
-    else
+    DBUG_ASSERT(select->quick);
+    if (tab->type != JT_REF_OR_NULL && tab->type != JT_FT)
     {
       DBUG_ASSERT(tab->type == JT_REF || tab->type == JT_EQ_REF);
       // Update ref value
@@ -3557,7 +3539,8 @@ static bool remove_dup_with_hash_index(THD *thd, TABLE *table,
   HASH hash;
   DBUG_ENTER("remove_dup_with_hash_index");
 
-  if (!my_multi_malloc(MYF(MY_WME),
+  if (!my_multi_malloc(key_memory_hash_index_key_buffer,
+                       MYF(MY_WME),
 		       &key_buffer,
 		       (uint) ((key_length + extra_length) *
 			       (long) file->stats.records),

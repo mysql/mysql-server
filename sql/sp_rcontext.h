@@ -79,7 +79,7 @@ private:
 private:
   /// This is an auxillary class to store entering instruction pointer for an
   /// SQL-handler.
-  class sp_handler_entry : public Sql_alloc
+  class sp_handler_entry
   {
   public:
     /// Handler definition (from parsing context).
@@ -386,7 +386,7 @@ typedef class st_select_lex_unit SELECT_LEX_UNIT;
 
 /* A mediator between stored procedures and server side cursors */
 
-class sp_cursor : public Sql_alloc
+class sp_cursor
 {
 private:
   /// An interceptor of cursor result set used to implement
@@ -434,6 +434,6 @@ private:
 
 private:
   void destroy();
-}; // class sp_cursor : public Sql_alloc
+}; // class sp_cursor
 
 #endif /* _SP_RCONTEXT_H_ */

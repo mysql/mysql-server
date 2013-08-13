@@ -456,314 +456,321 @@ bool mysql_insert(THD *thd,TABLE_LIST *table_list,
 
   /* mysql_prepare_insert set table_list->table if it was not set */
   table= table_list->table;
-  /* Must be done before can_prune_insert, due to internal initialization. */
-  if (info.add_function_default_columns(table, table->write_set))
-    goto exit_without_my_ok;
-  if (duplic == DUP_UPDATE &&
-      update.add_function_default_columns(table, table->write_set))
-    goto exit_without_my_ok;
-
-  context= &thd->lex->select_lex->context;
-  /*
-    These three asserts test the hypothesis that the resetting of the name
-    resolution context below is not necessary at all since the list of local
-    tables for INSERT always consists of one table.
-  */
-  DBUG_ASSERT(!table_list->next_local);
-  DBUG_ASSERT(!context->table_list->next_local);
-  DBUG_ASSERT(!context->first_name_resolution_table->next_name_resolution_table);
-
-  /* Save the state of the current name resolution context. */
-  ctx_state.save_state(context, table_list);
-
-  /*
-    Perform name resolution only in the first table - 'table_list',
-    which is the table that is inserted into.
-  */
-  table_list->next_local= 0;
-  context->resolve_in_table_list_only(table_list);
-
-#ifdef WITH_PARTITION_STORAGE_ENGINE
-  if (!is_locked && table->part_info)
+  // Statement plan is available within these brackets.
   {
-    if (table->part_info->can_prune_insert(thd,
-                                           duplic,
-                                           update,
-                                           update_fields,
-                                           fields,
-                                           !test(values->elements),
-                                           &can_prune_partitions,
-                                           &prune_needs_default_values,
-                                           &used_partitions))
-      goto exit_without_my_ok;
+    /* Must be done before can_prune_insert, due to internal initialization. */
+    if (info.add_function_default_columns(table, table->write_set))
+      goto exit_without_my_ok; /* purecov: inspected */
+    if (duplic == DUP_UPDATE &&
+        update.add_function_default_columns(table, table->write_set))
+      goto exit_without_my_ok; /* purecov: inspected */
 
-    if (can_prune_partitions != partition_info::PRUNE_NO)
-    {
-      num_partitions= table->part_info->lock_partitions.n_bits;
-      /*
-        Pruning probably possible, all partitions is unmarked for read/lock,
-        and we must now add them on row by row basis.
-
-        Check the first INSERT value.
-        Do not fail here, since that would break MyISAM behavior of inserting
-        all rows before the failing row.
-
-        PRUNE_DEFAULTS means the partitioning fields are only set to DEFAULT
-        values, so we only need to check the first INSERT value, since all the
-        rest will be in the same partition.
-      */
-      if (table->part_info->set_used_partition(fields,
-                                               *values,
-                                               info,
-                                               prune_needs_default_values,
-                                               &used_partitions))
-        can_prune_partitions= partition_info::PRUNE_NO;
-    }
-  }
-#endif /* WITH_PARTITION_STORAGE_ENGINE */
-
-  while ((values= its++))
-  {
-    counter++;
-    if (values->elements != value_count)
-    {
-      my_error(ER_WRONG_VALUE_COUNT_ON_ROW, MYF(0), counter);
-      goto exit_without_my_ok;
-    }
-    if (setup_fields(thd, Ref_ptr_array(), *values, MARK_COLUMNS_READ, 0, 0))
-      goto exit_without_my_ok;
-
-#ifdef WITH_PARTITION_STORAGE_ENGINE
+    context= &thd->lex->select_lex->context;
     /*
-      To make it possible to increase concurrency on table level locking
-      engines such as MyISAM, we check pruning for each row until we will use
-      all partitions, Even if the number of rows is much higher than the
-      number of partitions.
-      TODO: Cache the calculated part_id and reuse in
-      ha_partition::write_row() if possible.
+      These three asserts test the hypothesis that the resetting of the name
+      resolution context below is not necessary at all since the list of local
+      tables for INSERT always consists of one table.
     */
-    if (can_prune_partitions == partition_info::PRUNE_YES)
+    DBUG_ASSERT(!table_list->next_local);
+    DBUG_ASSERT(!context->table_list->next_local);
+    DBUG_ASSERT(!context->first_name_resolution_table->next_name_resolution_table);
+
+    /* Save the state of the current name resolution context. */
+    ctx_state.save_state(context, table_list);
+
+    /*
+      Perform name resolution only in the first table - 'table_list',
+      which is the table that is inserted into.
+    */
+    table_list->next_local= 0;
+    context->resolve_in_table_list_only(table_list);
+
+#ifdef WITH_PARTITION_STORAGE_ENGINE
+    if (!is_locked && table->part_info)
     {
-      if (table->part_info->set_used_partition(fields,
-                                               *values,
-                                               info,
-                                               prune_needs_default_values,
-                                               &used_partitions))
-        can_prune_partitions= partition_info::PRUNE_NO;
-      if (!(counter % num_partitions))
+      if (table->part_info->can_prune_insert(thd,
+                                             duplic,
+                                             update,
+                                             update_fields,
+                                             fields,
+                                             !test(values->elements),
+                                             &can_prune_partitions,
+                                             &prune_needs_default_values,
+                                             &used_partitions))
+        goto exit_without_my_ok; /* purecov: inspected */
+
+      if (can_prune_partitions != partition_info::PRUNE_NO)
       {
+        num_partitions= table->part_info->lock_partitions.n_bits;
         /*
-          Check if we using all partitions in table after adding partition
-          for current row to the set of used partitions. Do it only from
-          time to time to avoid overhead from bitmap_is_set_all() call.
+          Pruning probably possible, all partitions is unmarked for read/lock,
+          and we must now add them on row by row basis.
+
+          Check the first INSERT value.
+          Do not fail here, since that would break MyISAM behavior of inserting
+          all rows before the failing row.
+
+          PRUNE_DEFAULTS means the partitioning fields are only set to DEFAULT
+          values, so we only need to check the first INSERT value, since all the
+          rest will be in the same partition.
         */
-        if (bitmap_is_set_all(&used_partitions))
+        if (table->part_info->set_used_partition(fields,
+                                                 *values,
+                                                 info,
+                                                 prune_needs_default_values,
+                                                 &used_partitions))
           can_prune_partitions= partition_info::PRUNE_NO;
       }
     }
 #endif /* WITH_PARTITION_STORAGE_ENGINE */
-  }
-  table->auto_increment_field_not_null= false;
-  its.rewind ();
- 
-  /* Restore the current context. */
-  ctx_state.restore_state(context, table_list);
 
-  if (thd->lex->describe)
-  {
-    /*
-      Send "No tables used" and stop execution here since
-      there is no SELECT to explain.
-    */
-
-    err= explain_no_table(thd, "No tables used");
-    goto exit_without_my_ok;
-  }
+    while ((values= its++))
+    {
+      counter++;
+      if (values->elements != value_count)
+      {
+        /* purecov: begin inspected */
+        my_error(ER_WRONG_VALUE_COUNT_ON_ROW, MYF(0), counter);
+        goto exit_without_my_ok;
+        /* purecov: end */
+      }
+      if (setup_fields(thd, Ref_ptr_array(), *values, MARK_COLUMNS_READ, 0, 0))
+        goto exit_without_my_ok; /* purecov: inspected */
 
 #ifdef WITH_PARTITION_STORAGE_ENGINE
-  if (can_prune_partitions != partition_info::PRUNE_NO)
-  {
-    /*
-      Only lock the partitions we will insert into.
-      And also only read from those partitions (duplicates etc.).
-      If explicit partition selection 'INSERT INTO t PARTITION (p1)' is used,
-      the new set of read/lock partitions is the intersection of read/lock
-      partitions and used partitions, i.e only the partitions that exists in
-      both sets will be marked for read/lock.
-      It is also safe for REPLACE, since all potentially conflicting records
-      always belong to the same partition as the one which we try to
-      insert a row. This is because ALL unique/primary keys must
-      include ALL partitioning columns.
-    */
-    bitmap_intersect(&table->part_info->read_partitions,
-                     &used_partitions);
-    bitmap_intersect(&table->part_info->lock_partitions,
-                     &used_partitions);
-  }
-#endif /* WITH_PARTITION_STORAGE_ENGINE */
-
-  // Lock the tables now if not locked already.
-  if (!is_locked &&
-      lock_tables(thd, table_list, thd->lex->table_count, 0))
-    DBUG_RETURN(true);
- 
-  /*
-    Count warnings for all inserts.
-    For single line insert, generate an error if try to set a NOT NULL field
-    to NULL.
-  */
-  thd->count_cuted_fields= ((values_list.elements == 1 &&
-                             !ignore) ?
-			    CHECK_FIELD_ERROR_FOR_NULL :
-			    CHECK_FIELD_WARN);
-  thd->cuted_fields = 0L;
-  table->next_number_field=table->found_next_number_field;
-
-#ifdef HAVE_REPLICATION
-  if (thd->slave_thread)
-  {
-    DBUG_ASSERT(active_mi != NULL);
-    if(info.get_duplicate_handling() == DUP_UPDATE &&
-       table->next_number_field != NULL &&
-       rpl_master_has_bug(active_mi->rli, 24432, TRUE, NULL, NULL))
-      goto exit_without_my_ok;
-  }
-#endif
-
-  error=0;
-  THD_STAGE_INFO(thd, stage_update);
-  if (duplic == DUP_REPLACE &&
-      (!table->triggers || !table->triggers->has_delete_triggers()))
-    table->file->extra(HA_EXTRA_WRITE_CAN_REPLACE);
-  if (duplic == DUP_UPDATE)
-    table->file->extra(HA_EXTRA_INSERT_WITH_UPDATE);
-  /*
-    let's *try* to start bulk inserts. It won't necessary
-    start them as values_list.elements should be greater than
-    some - handler dependent - threshold.
-    We should not start bulk inserts if this statement uses
-    functions or invokes triggers since they may access
-    to the same table and therefore should not see its
-    inconsistent state created by this optimization.
-    So we call start_bulk_insert to perform nesessary checks on
-    values_list.elements, and - if nothing else - to initialize
-    the code to make the call of end_bulk_insert() below safe.
-  */
-  if (duplic != DUP_ERROR || ignore)
-    table->file->extra(HA_EXTRA_IGNORE_DUP_KEY);
-  /**
-     This is a simple check for the case when the table has a trigger
-     that reads from it, or when the statement invokes a stored function
-     that reads from the table being inserted to.
-     Engines can't handle a bulk insert in parallel with a read form the
-     same table in the same connection.
-  */
-  if (thd->locked_tables_mode <= LTM_LOCK_TABLES)
-    table->file->ha_start_bulk_insert(values_list.elements);
-
-  thd->abort_on_warning= (!ignore && thd->is_strict_mode());
-
-  prepare_triggers_for_insert_stmt(table);
-
-  if (table_list->prepare_where(thd, 0, TRUE) ||
-      table_list->prepare_check_option(thd))
-    error= 1;
-
-  for (Field** next_field= table->field; *next_field; ++next_field)
-  {
-    (*next_field)->reset_warnings();
-  }
-
-  while ((values= its++))
-  {
-    if (fields.elements || !value_count)
-    {
-      restore_record(table,s->default_values);	// Get empty record
-
       /*
-        Check whether default values of the fields not specified in column list
-        are correct or not.
+        To make it possible to increase concurrency on table level locking
+        engines such as MyISAM, we check pruning for each row until we will use
+        all partitions, Even if the number of rows is much higher than the
+        number of partitions.
+        TODO: Cache the calculated part_id and reuse in
+        ha_partition::write_row() if possible.
       */
-      if (validate_default_values_of_unset_fields(thd, table))
+      if (can_prune_partitions == partition_info::PRUNE_YES)
       {
-        error= 1;
-        break;
-      }
-
-      if (fill_record_n_invoke_before_triggers(thd, fields, *values, 0,
-                                               table, TRG_EVENT_INSERT,
-                                               table->s->fields))
-      {
-        DBUG_ASSERT(thd->is_error());
-	/*
-	  TODO: set thd->abort_on_warning if values_list.elements == 1
-	  and check that all items return warning in case of problem with
-	  storing field.
-        */
-	error=1;
-	break;
-      }
-
-      res= safely_check_that_all_fields_are_given_values(
-        thd,
-        table ? table : context->table_list->table,
-        context->table_list,
-        !ignore && thd->is_strict_mode());
-
-      if (res)
-      {
-        DBUG_ASSERT(thd->is_error());
-        error= 1;
-        break;
-      }
-    }
-    else
-    {
-      if (thd->lex->used_tables)               // Column used in values()
-        restore_record(table,s->default_values); // Get empty record
-      else
-      {
-        TABLE_SHARE *share= table->s;
-
-        /*
-          Fix delete marker. No need to restore rest of record since it will
-          be overwritten by fill_record() anyway (and fill_record() does not
-          use default values in this case).
-        */
-        table->record[0][0]= share->default_values[0];
-
-        /* Fix undefined null_bits. */
-        if (share->null_bytes > 1 && share->last_null_bit_pos)
+        if (table->part_info->set_used_partition(fields,
+                                                 *values,
+                                                 info,
+                                                 prune_needs_default_values,
+                                                 &used_partitions))
+          can_prune_partitions= partition_info::PRUNE_NO;
+        if (!(counter % num_partitions))
         {
-          table->record[0][share->null_bytes - 1]= 
-            share->default_values[share->null_bytes - 1];
+          /*
+            Check if we using all partitions in table after adding partition
+            for current row to the set of used partitions. Do it only from
+            time to time to avoid overhead from bitmap_is_set_all() call.
+          */
+          if (bitmap_is_set_all(&used_partitions))
+            can_prune_partitions= partition_info::PRUNE_NO;
         }
       }
-      if (fill_record_n_invoke_before_triggers(thd, table->field, *values, 0,
-                                               table, TRG_EVENT_INSERT,
-                                               table->s->fields))
-      {
-        DBUG_ASSERT(thd->is_error());
-	error=1;
-	break;
-      }
+#endif /* WITH_PARTITION_STORAGE_ENGINE */
+    }
+    table->auto_increment_field_not_null= false;
+    its.rewind ();
+   
+    /* Restore the current context. */
+    ctx_state.restore_state(context, table_list);
+
+    Modification_plan plan(thd,
+                           (thd->lex->sql_command == SQLCOM_INSERT) ?
+                           MT_INSERT : MT_REPLACE, table,
+                           NULL, MAX_KEY, HA_POS_ERROR, false, false, false,
+                           0);
+    DEBUG_SYNC(thd, "planned_single_insert");
+
+    if (thd->lex->describe)
+    {
+      err= explain_single_table_modification(thd, &plan, thd->lex->select_lex);
+      goto exit_without_my_ok;
     }
 
-    if ((res= table_list->view_check_option(thd,
-					    (values_list.elements == 1 ?
-					     0 :
-					     ignore))) ==
-        VIEW_CHECK_SKIP)
-      continue;
-    else if (res == VIEW_CHECK_ERROR)
+#ifdef WITH_PARTITION_STORAGE_ENGINE
+    if (can_prune_partitions != partition_info::PRUNE_NO)
     {
-      error= 1;
-      break;
+      /*
+        Only lock the partitions we will insert into.
+        And also only read from those partitions (duplicates etc.).
+        If explicit partition selection 'INSERT INTO t PARTITION (p1)' is used,
+        the new set of read/lock partitions is the intersection of read/lock
+        partitions and used partitions, i.e only the partitions that exists in
+        both sets will be marked for read/lock.
+        It is also safe for REPLACE, since all potentially conflicting records
+        always belong to the same partition as the one which we try to
+        insert a row. This is because ALL unique/primary keys must
+        include ALL partitioning columns.
+      */
+      bitmap_intersect(&table->part_info->read_partitions,
+                       &used_partitions);
+      bitmap_intersect(&table->part_info->lock_partitions,
+                       &used_partitions);
     }
-    error= write_record(thd, table, &info, &update);
-    if (error)
-      break;
-    thd->get_stmt_da()->inc_current_row_for_condition();
+#endif /* WITH_PARTITION_STORAGE_ENGINE */
+
+    /* Lock the tables now if not delayed/already locked. */
+    if (!is_locked &&
+        lock_tables(thd, table_list, thd->lex->table_count, 0))
+      DBUG_RETURN(true);
+   
+    /*
+      Count warnings for all inserts.
+      For single line insert, generate an error if try to set a NOT NULL field
+      to NULL.
+    */
+    thd->count_cuted_fields= ((values_list.elements == 1 &&
+                               !ignore) ?
+                              CHECK_FIELD_ERROR_FOR_NULL :
+                              CHECK_FIELD_WARN);
+    thd->cuted_fields = 0L;
+    table->next_number_field=table->found_next_number_field;
+
+#ifdef HAVE_REPLICATION
+    if (thd->slave_thread)
+    {
+      DBUG_ASSERT(active_mi != NULL);
+      if(info.get_duplicate_handling() == DUP_UPDATE &&
+         table->next_number_field != NULL &&
+         rpl_master_has_bug(active_mi->rli, 24432, TRUE, NULL, NULL))
+        goto exit_without_my_ok; /* purecov: inspected */
+    }
+#endif
+
+    error=0;
+    THD_STAGE_INFO(thd, stage_update);
+    if (duplic == DUP_REPLACE &&
+        (!table->triggers || !table->triggers->has_delete_triggers()))
+      table->file->extra(HA_EXTRA_WRITE_CAN_REPLACE);
+    if (duplic == DUP_UPDATE)
+      table->file->extra(HA_EXTRA_INSERT_WITH_UPDATE);
+    /*
+      let's *try* to start bulk inserts. It won't necessary
+      start them as values_list.elements should be greater than
+      some - handler dependent - threshold.
+      We should not start bulk inserts if this statement uses
+      functions or invokes triggers since they may access
+      to the same table and therefore should not see its
+      inconsistent state created by this optimization.
+      So we call start_bulk_insert to perform nesessary checks on
+      values_list.elements, and - if nothing else - to initialize
+      the code to make the call of end_bulk_insert() below safe.
+    */
+    if (duplic != DUP_ERROR || ignore)
+      table->file->extra(HA_EXTRA_IGNORE_DUP_KEY);
+    /**
+       This is a simple check for the case when the table has a trigger
+       that reads from it, or when the statement invokes a stored function
+       that reads from the table being inserted to.
+       Engines can't handle a bulk insert in parallel with a read form the
+       same table in the same connection.
+    */
+    if (thd->locked_tables_mode <= LTM_LOCK_TABLES)
+      table->file->ha_start_bulk_insert(values_list.elements);
+
+    thd->abort_on_warning= (!ignore && thd->is_strict_mode());
+
+    prepare_triggers_for_insert_stmt(table);
+
+    if (table_list->prepare_where(thd, 0, TRUE) ||
+        table_list->prepare_check_option(thd))
+      error= 1;
+
+    for (Field** next_field= table->field; *next_field; ++next_field)
+    {
+      (*next_field)->reset_warnings();
+    }
+
+    while ((values= its++))
+    {
+      if (fields.elements || !value_count)
+      {
+        restore_record(table,s->default_values);	// Get empty record
+
+        /*
+          Check whether default values of the fields not specified in column list
+          are correct or not.
+        */
+        if (validate_default_values_of_unset_fields(thd, table))
+        {
+          error= 1;
+          break;
+        }
+
+        if (fill_record_n_invoke_before_triggers(thd, fields, *values, 0,
+                                                 table, TRG_EVENT_INSERT,
+                                                 table->s->fields))
+        {
+          DBUG_ASSERT(thd->is_error());
+          /*
+            TODO: set thd->abort_on_warning if values_list.elements == 1
+            and check that all items return warning in case of problem with
+            storing field.
+          */
+          error=1;
+          break;
+        }
+
+        res= safely_check_that_all_fields_are_given_values(
+          thd,
+          table ? table : context->table_list->table,
+          context->table_list,
+          !ignore && thd->is_strict_mode());
+
+        if (res)
+        {
+          DBUG_ASSERT(thd->is_error());
+          error= 1;
+          break;
+        }
+      }
+      else
+      {
+        if (thd->lex->used_tables)               // Column used in values()
+          restore_record(table,s->default_values); // Get empty record
+        else
+        {
+          TABLE_SHARE *share= table->s;
+
+          /*
+            Fix delete marker. No need to restore rest of record since it will
+            be overwritten by fill_record() anyway (and fill_record() does not
+            use default values in this case).
+          */
+          table->record[0][0]= share->default_values[0];
+
+          /* Fix undefined null_bits. */
+          if (share->null_bytes > 1 && share->last_null_bit_pos)
+          {
+            table->record[0][share->null_bytes - 1]= 
+              share->default_values[share->null_bytes - 1];
+          }
+        }
+        if (fill_record_n_invoke_before_triggers(thd, table->field, *values, 0,
+                                                 table, TRG_EVENT_INSERT,
+                                                 table->s->fields))
+        {
+          DBUG_ASSERT(thd->is_error());
+          error=1;
+          break;
+        }
+      }
+
+      if ((res= table_list->view_check_option(thd,
+                                              (values_list.elements == 1 ?
+                                               0 :
+                                               ignore))) ==
+          VIEW_CHECK_SKIP)
+        continue;
+      else if (res == VIEW_CHECK_ERROR)
+      {
+        error= 1;
+        break;
+      }
+      error= write_record(thd, table, &info, &update);
+      if (error)
+        break;
+      thd->get_stmt_da()->inc_current_row_for_condition();
+    }
   }
 
   error= thd->get_stmt_da()->is_error();
@@ -776,11 +783,23 @@ bool mysql_insert(THD *thd,TABLE_LIST *table_list,
   */
   {
     table->file->ha_release_auto_increment();
-    if (thd->locked_tables_mode <= LTM_LOCK_TABLES &&
-        table->file->ha_end_bulk_insert() && !error)
+    /*
+      Make sure 'end_bulk_insert()' is called regardless of current error
+    */
+    int loc_error= 0;
+    if (thd->locked_tables_mode <= LTM_LOCK_TABLES)
+      loc_error= table->file->ha_end_bulk_insert();
+    /*
+      Report error if 'end_bulk_insert()' failed, and set 'error' to 1
+    */
+    if (loc_error && !error)
     {
-      table->file->print_error(my_errno,MYF(0));
-      error=1;
+      myf error_flags= MYF(0);
+      if (table->file->is_fatal_error(loc_error, HA_CHECK_DUP_KEY))
+        error_flags|= ME_FATALERROR;
+
+      table->file->print_error(loc_error, error_flags);
+      error= 1;
     }
     if (duplic != DUP_ERROR || ignore)
       table->file->extra(HA_EXTRA_NO_IGNORE_DUP_KEY);
@@ -802,41 +821,41 @@ bool mysql_insert(THD *thd,TABLE_LIST *table_list,
       if (mysql_bin_log.is_open())
       {
         int errcode= 0;
-        if (error <= 0)
+	if (error <= 0)
         {
-          /*
-            [Guilhem wrote] Temporary errors may have filled
-            thd->net.last_error/errno.  For example if there has
-            been a disk full error when writing the row, and it was
-            MyISAM, then thd->net.last_error/errno will be set to
+	  /*
+	    [Guilhem wrote] Temporary errors may have filled
+	    thd->net.last_error/errno.  For example if there has
+	    been a disk full error when writing the row, and it was
+	    MyISAM, then thd->net.last_error/errno will be set to
             "disk full"... and the mysql_file_pwrite() will wait until free
-            space appears, and so when it finishes then the
-            write_row() was entirely successful
-          */
-          /* todo: consider removing */
-          thd->clear_error();
-        }
+	    space appears, and so when it finishes then the
+	    write_row() was entirely successful
+	  */
+	  /* todo: consider removing */
+	  thd->clear_error();
+	}
         else
           errcode= query_error_code(thd, thd->killed == THD::NOT_KILLED);
         
-        /* bug#22725:
-           
-           A query which per-row-loop can not be interrupted with
-           KILLED, like INSERT, and that does not invoke stored
-           routines can be binlogged with neglecting the KILLED error.
-           
-           If there was no error (error == zero) until after the end of
-           inserting loop the KILLED flag that appeared later can be
-           disregarded since previously possible invocation of stored
-           routines did not result in any error due to the KILLED.  In
-           such case the flag is ignored for constructing binlog event.
-        */
-        DBUG_ASSERT(thd->killed != THD::KILL_BAD_DATA || error > 0);
+	/* bug#22725:
+
+	A query which per-row-loop can not be interrupted with
+	KILLED, like INSERT, and that does not invoke stored
+	routines can be binlogged with neglecting the KILLED error.
+        
+	If there was no error (error == zero) until after the end of
+	inserting loop the KILLED flag that appeared later can be
+	disregarded since previously possible invocation of stored
+	routines did not result in any error due to the KILLED.  In
+	such case the flag is ignored for constructing binlog event.
+	*/
+	DBUG_ASSERT(thd->killed != THD::KILL_BAD_DATA || error > 0);
         if (thd->binlog_query(THD::ROW_QUERY_TYPE,
-                              thd->query(), thd->query_length(),
-                              transactional_table, FALSE, FALSE,
-                              errcode))
-          error= 1;
+			           thd->query(), thd->query_length(),
+			           transactional_table, FALSE, FALSE,
+                                   errcode))
+	  error= 1;
       }
     }
     DBUG_ASSERT(transactional_table || !changed || 
@@ -1606,11 +1625,17 @@ ok_or_after_trg_err:
   DBUG_RETURN(trg_error);
 
 err:
-  info->last_errno= error;
-  DBUG_ASSERT(thd->lex->current_select != NULL);
-    thd->lex->current_select->no_error= 0;        // Give error
-  table->file->print_error(error,MYF(0));
-  
+  {
+    myf error_flags= MYF(0);                      /**< Flag for fatal errors */
+    info->last_errno= error;
+    DBUG_ASSERT(thd->lex->current_select() != NULL);
+    thd->lex->current_select()->no_error= 0;        // Give error
+    if (table->file->is_fatal_error(error, HA_CHECK_DUP_KEY))
+      error_flags|= ME_FATALERROR;
+
+    table->file->print_error(error, error_flags);
+  }
+
 before_trg_err:
   table->file->restore_auto_increment(prev_insert_id);
   if (key)
@@ -1718,7 +1743,7 @@ select_insert::prepare(List<Item> &values, SELECT_LEX_UNIT *u)
   LEX *lex= thd->lex;
   int res;
   table_map map= 0;
-  SELECT_LEX *lex_current_select_save= lex->current_select;
+  SELECT_LEX *lex_current_select_save= lex->current_select();
   DBUG_ENTER("select_insert::prepare");
 
   const enum_duplicates duplicate_handling= info.get_duplicate_handling();
@@ -1728,13 +1753,13 @@ select_insert::prepare(List<Item> &values, SELECT_LEX_UNIT *u)
 
   /*
     Since table in which we are going to insert is added to the first
-    select, LEX::current_select should point to the first select while
+    select, LEX::current_select() should point to the first select while
     we are fixing fields from insert list.
   */
-  lex->current_select= lex->select_lex;
+  lex->set_current_select(lex->select_lex);
 
   /* Errors during check_insert_fields() should not be ignored. */
-  lex->current_select->no_error= FALSE;
+  lex->current_select()->no_error= FALSE;
   res= (setup_fields(thd, Ref_ptr_array(), values, MARK_COLUMNS_READ, 0, 0) ||
         check_insert_fields(thd, table_list, *fields, values,
                             !insert_into_view, 1, &map));
@@ -1800,7 +1825,7 @@ select_insert::prepare(List<Item> &values, SELECT_LEX_UNIT *u)
       while ((item= li++))
       {
         item->transform(&Item::update_value_transformer,
-                        (uchar*)lex->current_select);
+                        (uchar*)lex->current_select());
       }
     }
 
@@ -1808,7 +1833,7 @@ select_insert::prepare(List<Item> &values, SELECT_LEX_UNIT *u)
     ctx_state.restore_state(context, table_list);
   }
 
-  lex->current_select= lex_current_select_save;
+  lex->set_current_select(lex_current_select_save);
   if (res)
     DBUG_RETURN(1);
   /*
@@ -1830,8 +1855,8 @@ select_insert::prepare(List<Item> &values, SELECT_LEX_UNIT *u)
   if (unique_table(thd, table_list, table_list->next_global, 0))
   {
     /* Using same table for INSERT and SELECT */
-    lex->current_select->options|= OPTION_BUFFER_RESULT;
-    lex->current_select->join->select_options|= OPTION_BUFFER_RESULT;
+    lex->current_select()->options|= OPTION_BUFFER_RESULT;
+    lex->current_select()->join->select_options|= OPTION_BUFFER_RESULT;
   }
   restore_record(table,s->default_values);		// Get empty record
   table->next_number_field=table->found_next_number_field;
@@ -1994,6 +2019,7 @@ bool select_insert::send_data(List<Item> &values)
   DBUG_RETURN(error);
 }
 
+
 void select_insert::store_values(List<Item> &values)
 {
   const bool ignore_err= true;
@@ -2081,7 +2107,11 @@ bool select_insert::send_eof()
 
   if (error)
   {
-    table->file->print_error(error,MYF(0));
+    myf error_flags= MYF(0);
+    if (table->file->is_fatal_error(my_errno, HA_CHECK_DUP_KEY))
+      error_flags|= ME_FATALERROR;
+
+    table->file->print_error(my_errno, error_flags);
     DBUG_RETURN(1);
   }
 

@@ -170,7 +170,8 @@ void mysql_client_binlog_statement(THD* thd)
   }
 
   const char *error= 0;
-  char *buf= (char *) my_malloc(decoded_len, MYF(MY_WME));
+  char *buf= (char *) my_malloc(key_memory_binlog_statement_buffer,
+                                decoded_len, MYF(MY_WME));
   Log_event *ev = 0;
 
   /*
