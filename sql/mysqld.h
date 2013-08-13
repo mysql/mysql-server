@@ -128,6 +128,7 @@ extern ulonglong slave_rows_search_algorithms_options;
 #ifndef DBUG_OFF
 extern uint slave_rows_last_search_algorithm_used;
 #endif
+extern ulong mts_parallel_option;
 #ifndef EMBEDDED_LIBRARY
 extern "C" int check_enough_stack_size(int);
 #endif
@@ -373,6 +374,7 @@ extern PSI_mutex_key key_RELAYLOG_LOCK_xids;
 extern PSI_mutex_key key_LOCK_sql_rand;
 extern PSI_mutex_key key_gtid_ensure_index_mutex;
 extern PSI_mutex_key key_LOCK_thread_created;
+extern PSI_mutex_key key_mts_temp_table_LOCK;
 
 extern PSI_rwlock_key key_rwlock_LOCK_grant, key_rwlock_LOCK_logger,
   key_rwlock_LOCK_sys_init_connect, key_rwlock_LOCK_sys_init_slave,
@@ -667,6 +669,7 @@ extern PSI_stage_info stage_slave_waiting_worker_to_free_events;
 extern PSI_stage_info stage_slave_waiting_worker_queue;
 extern PSI_stage_info stage_slave_waiting_event_from_coordinator;
 extern PSI_stage_info stage_slave_waiting_workers_to_exit;
+extern PSI_stage_info stage_slave_waiiting_for_workers_to_finish;
 #ifdef HAVE_PSI_STATEMENT_INTERFACE
 /**
   Statement instrumentation keys (sql).
