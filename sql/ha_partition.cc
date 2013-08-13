@@ -4351,7 +4351,7 @@ int ha_partition::truncate_partition(Alter_info *alter_info, bool *binlog_stmt)
               if (part_elem->part_state == PART_ADMIN)
                 part_elem->part_state= PART_NORMAL;
             }
-            break;
+            goto err;
           }
           sub_elem->part_state= PART_NORMAL;
         }
@@ -4367,16 +4367,19 @@ int ha_partition::truncate_partition(Alter_info *alter_info, bool *binlog_stmt)
         error= m_file[i]->ha_truncate();
         if (error)
         {
+          /* reset part_state for the remaining partitions */
           do
           {
             if (part_elem->part_state == PART_ADMIN)
               part_elem->part_state= PART_NORMAL;
           } while ((part_elem= part_it++));
+          goto err;
         }
       }
       part_elem->part_state= PART_NORMAL;
     }
   } while (!error && (++i < num_parts));
+err:
   DBUG_RETURN(error);
 }
 

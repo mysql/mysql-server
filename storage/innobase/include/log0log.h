@@ -889,7 +889,7 @@ extern RedoLog*		redo_log;
 	} while (0)
 
 /** Release the flush order mutex. */
-# define log_flush_order_mutex_exit()	redo_log->m_flush_order_mutex.exit();
+#define log_flush_order_mutex_exit()	redo_log->m_flush_order_mutex.exit();
 
 /**
 Redo log writer thread.
@@ -900,4 +900,3 @@ os_thread_ret_t
 DECLARE_THREAD(log_writer_thread)(void* arg __attribute__((unused)));
 
 #endif /* log0log_h */
-
