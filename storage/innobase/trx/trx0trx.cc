@@ -878,7 +878,9 @@ trx_lists_init_at_db_start(void)
 	ut_a(srv_is_being_started);
 
 	/* Look from the rollback segments if there exist undo logs for
-	transactions */
+	transactions. Upgrade demands clean shutdown and so there is
+	not need to look at pending_purge_rseg_array for rollbacking
+	transactions. */
 
 	for (ulint i = 0; i < TRX_SYS_N_RSEGS; ++i) {
 		trx_undo_t*	undo;
