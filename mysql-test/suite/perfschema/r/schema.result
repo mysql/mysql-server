@@ -23,6 +23,7 @@ events_statements_history_long
 events_statements_summary_by_account_by_event_name
 events_statements_summary_by_digest
 events_statements_summary_by_host_by_event_name
+events_statements_summary_by_program
 events_statements_summary_by_thread_by_event_name
 events_statements_summary_by_user_by_event_name
 events_statements_summary_global_by_event_name
@@ -40,9 +41,20 @@ file_summary_by_event_name
 file_summary_by_instance
 host_cache
 hosts
+memory_summary_by_account_by_event_name
+memory_summary_by_host_by_event_name
+memory_summary_by_thread_by_event_name
+memory_summary_by_user_by_event_name
+memory_summary_global_by_event_name
 mutex_instances
 objects_summary_global_by_type
 performance_timers
+replication_connection_configuration
+replication_connection_status
+replication_execute_configuration
+replication_execute_status
+replication_execute_status_by_coordinator
+replication_execute_status_by_worker
 rwlock_instances
 session_account_connect_attrs
 session_connect_attrs
@@ -212,7 +224,8 @@ events_statements_current	CREATE TABLE `events_statements_current` (
   `NO_INDEX_USED` bigint(20) unsigned NOT NULL,
   `NO_GOOD_INDEX_USED` bigint(20) unsigned NOT NULL,
   `NESTING_EVENT_ID` bigint(20) unsigned DEFAULT NULL,
-  `NESTING_EVENT_TYPE` enum('STATEMENT','STAGE','WAIT') DEFAULT NULL
+  `NESTING_EVENT_TYPE` enum('STATEMENT','STAGE','WAIT') DEFAULT NULL,
+  `NESTING_EVENT_LEVEL` int(11) DEFAULT NULL
 ) ENGINE=PERFORMANCE_SCHEMA DEFAULT CHARSET=utf8
 show create table events_statements_history;
 Table	Create Table
@@ -256,7 +269,8 @@ events_statements_history	CREATE TABLE `events_statements_history` (
   `NO_INDEX_USED` bigint(20) unsigned NOT NULL,
   `NO_GOOD_INDEX_USED` bigint(20) unsigned NOT NULL,
   `NESTING_EVENT_ID` bigint(20) unsigned DEFAULT NULL,
-  `NESTING_EVENT_TYPE` enum('STATEMENT','STAGE','WAIT') DEFAULT NULL
+  `NESTING_EVENT_TYPE` enum('STATEMENT','STAGE','WAIT') DEFAULT NULL,
+  `NESTING_EVENT_LEVEL` int(11) DEFAULT NULL
 ) ENGINE=PERFORMANCE_SCHEMA DEFAULT CHARSET=utf8
 show create table events_statements_history_long;
 Table	Create Table
@@ -300,7 +314,8 @@ events_statements_history_long	CREATE TABLE `events_statements_history_long` (
   `NO_INDEX_USED` bigint(20) unsigned NOT NULL,
   `NO_GOOD_INDEX_USED` bigint(20) unsigned NOT NULL,
   `NESTING_EVENT_ID` bigint(20) unsigned DEFAULT NULL,
-  `NESTING_EVENT_TYPE` enum('STATEMENT','STAGE','WAIT') DEFAULT NULL
+  `NESTING_EVENT_TYPE` enum('STATEMENT','STAGE','WAIT') DEFAULT NULL,
+  `NESTING_EVENT_LEVEL` int(11) DEFAULT NULL
 ) ENGINE=PERFORMANCE_SCHEMA DEFAULT CHARSET=utf8
 show create table events_statements_summary_by_digest;
 Table	Create Table
@@ -620,6 +635,86 @@ events_waits_summary_global_by_event_name	CREATE TABLE `events_waits_summary_glo
   `AVG_TIMER_WAIT` bigint(20) unsigned NOT NULL,
   `MAX_TIMER_WAIT` bigint(20) unsigned NOT NULL
 ) ENGINE=PERFORMANCE_SCHEMA DEFAULT CHARSET=utf8
+show create table memory_summary_by_host_by_event_name;
+Table	Create Table
+memory_summary_by_host_by_event_name	CREATE TABLE `memory_summary_by_host_by_event_name` (
+  `HOST` char(60) CHARACTER SET utf8 COLLATE utf8_bin DEFAULT NULL,
+  `EVENT_NAME` varchar(128) NOT NULL,
+  `COUNT_ALLOC` bigint(20) unsigned NOT NULL,
+  `COUNT_FREE` bigint(20) unsigned NOT NULL,
+  `SUM_NUMBER_OF_BYTES_ALLOC` bigint(20) unsigned NOT NULL,
+  `SUM_NUMBER_OF_BYTES_FREE` bigint(20) unsigned NOT NULL,
+  `LOW_COUNT_USED` bigint(20) NOT NULL,
+  `CURRENT_COUNT_USED` bigint(20) NOT NULL,
+  `HIGH_COUNT_USED` bigint(20) NOT NULL,
+  `LOW_NUMBER_OF_BYTES_USED` bigint(20) NOT NULL,
+  `CURRENT_NUMBER_OF_BYTES_USED` bigint(20) NOT NULL,
+  `HIGH_NUMBER_OF_BYTES_USED` bigint(20) NOT NULL
+) ENGINE=PERFORMANCE_SCHEMA DEFAULT CHARSET=utf8
+show create table memory_summary_by_thread_by_event_name;
+Table	Create Table
+memory_summary_by_thread_by_event_name	CREATE TABLE `memory_summary_by_thread_by_event_name` (
+  `THREAD_ID` bigint(20) unsigned NOT NULL,
+  `EVENT_NAME` varchar(128) NOT NULL,
+  `COUNT_ALLOC` bigint(20) unsigned NOT NULL,
+  `COUNT_FREE` bigint(20) unsigned NOT NULL,
+  `SUM_NUMBER_OF_BYTES_ALLOC` bigint(20) unsigned NOT NULL,
+  `SUM_NUMBER_OF_BYTES_FREE` bigint(20) unsigned NOT NULL,
+  `LOW_COUNT_USED` bigint(20) NOT NULL,
+  `CURRENT_COUNT_USED` bigint(20) NOT NULL,
+  `HIGH_COUNT_USED` bigint(20) NOT NULL,
+  `LOW_NUMBER_OF_BYTES_USED` bigint(20) NOT NULL,
+  `CURRENT_NUMBER_OF_BYTES_USED` bigint(20) NOT NULL,
+  `HIGH_NUMBER_OF_BYTES_USED` bigint(20) NOT NULL
+) ENGINE=PERFORMANCE_SCHEMA DEFAULT CHARSET=utf8
+show create table memory_summary_by_user_by_event_name;
+Table	Create Table
+memory_summary_by_user_by_event_name	CREATE TABLE `memory_summary_by_user_by_event_name` (
+  `USER` char(16) CHARACTER SET utf8 COLLATE utf8_bin DEFAULT NULL,
+  `EVENT_NAME` varchar(128) NOT NULL,
+  `COUNT_ALLOC` bigint(20) unsigned NOT NULL,
+  `COUNT_FREE` bigint(20) unsigned NOT NULL,
+  `SUM_NUMBER_OF_BYTES_ALLOC` bigint(20) unsigned NOT NULL,
+  `SUM_NUMBER_OF_BYTES_FREE` bigint(20) unsigned NOT NULL,
+  `LOW_COUNT_USED` bigint(20) NOT NULL,
+  `CURRENT_COUNT_USED` bigint(20) NOT NULL,
+  `HIGH_COUNT_USED` bigint(20) NOT NULL,
+  `LOW_NUMBER_OF_BYTES_USED` bigint(20) NOT NULL,
+  `CURRENT_NUMBER_OF_BYTES_USED` bigint(20) NOT NULL,
+  `HIGH_NUMBER_OF_BYTES_USED` bigint(20) NOT NULL
+) ENGINE=PERFORMANCE_SCHEMA DEFAULT CHARSET=utf8
+show create table memory_summary_by_account_by_event_name;
+Table	Create Table
+memory_summary_by_account_by_event_name	CREATE TABLE `memory_summary_by_account_by_event_name` (
+  `USER` char(16) CHARACTER SET utf8 COLLATE utf8_bin DEFAULT NULL,
+  `HOST` char(60) CHARACTER SET utf8 COLLATE utf8_bin DEFAULT NULL,
+  `EVENT_NAME` varchar(128) NOT NULL,
+  `COUNT_ALLOC` bigint(20) unsigned NOT NULL,
+  `COUNT_FREE` bigint(20) unsigned NOT NULL,
+  `SUM_NUMBER_OF_BYTES_ALLOC` bigint(20) unsigned NOT NULL,
+  `SUM_NUMBER_OF_BYTES_FREE` bigint(20) unsigned NOT NULL,
+  `LOW_COUNT_USED` bigint(20) NOT NULL,
+  `CURRENT_COUNT_USED` bigint(20) NOT NULL,
+  `HIGH_COUNT_USED` bigint(20) NOT NULL,
+  `LOW_NUMBER_OF_BYTES_USED` bigint(20) NOT NULL,
+  `CURRENT_NUMBER_OF_BYTES_USED` bigint(20) NOT NULL,
+  `HIGH_NUMBER_OF_BYTES_USED` bigint(20) NOT NULL
+) ENGINE=PERFORMANCE_SCHEMA DEFAULT CHARSET=utf8
+show create table memory_summary_global_by_event_name;
+Table	Create Table
+memory_summary_global_by_event_name	CREATE TABLE `memory_summary_global_by_event_name` (
+  `EVENT_NAME` varchar(128) NOT NULL,
+  `COUNT_ALLOC` bigint(20) unsigned NOT NULL,
+  `COUNT_FREE` bigint(20) unsigned NOT NULL,
+  `SUM_NUMBER_OF_BYTES_ALLOC` bigint(20) unsigned NOT NULL,
+  `SUM_NUMBER_OF_BYTES_FREE` bigint(20) unsigned NOT NULL,
+  `LOW_COUNT_USED` bigint(20) NOT NULL,
+  `CURRENT_COUNT_USED` bigint(20) NOT NULL,
+  `HIGH_COUNT_USED` bigint(20) NOT NULL,
+  `LOW_NUMBER_OF_BYTES_USED` bigint(20) NOT NULL,
+  `CURRENT_NUMBER_OF_BYTES_USED` bigint(20) NOT NULL,
+  `HIGH_NUMBER_OF_BYTES_USED` bigint(20) NOT NULL
+) ENGINE=PERFORMANCE_SCHEMA DEFAULT CHARSET=utf8
 show create table file_instances;
 Table	Create Table
 file_instances	CREATE TABLE `file_instances` (
@@ -781,7 +876,7 @@ setup_instruments	CREATE TABLE `setup_instruments` (
 show create table setup_objects;
 Table	Create Table
 setup_objects	CREATE TABLE `setup_objects` (
-  `OBJECT_TYPE` enum('TABLE') NOT NULL DEFAULT 'TABLE',
+  `OBJECT_TYPE` enum('EVENT','FUNCTION','PROCEDURE','TABLE','TRIGGER') NOT NULL DEFAULT 'TABLE',
   `OBJECT_SCHEMA` varchar(64) DEFAULT '%',
   `OBJECT_NAME` varchar(64) NOT NULL DEFAULT '%',
   `ENABLED` enum('YES','NO') NOT NULL DEFAULT 'YES',

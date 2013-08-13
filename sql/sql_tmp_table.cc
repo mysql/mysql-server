@@ -545,7 +545,7 @@ create_tmp_table(THD *thd,TMP_TABLE_PARAM *param,List<Item> &fields,
   if (param->precomputed_group_by)
     copy_func_count+= param->sum_func_count;
   
-  init_sql_alloc(&own_root, TABLE_ALLOC_BLOCK_SIZE, 0);
+  init_sql_alloc(key_memory_TABLE, &own_root, TABLE_ALLOC_BLOCK_SIZE, 0);
 
   void *rawmem= alloc_root(&own_root, sizeof(Func_ptr_array));
   if (!rawmem)
@@ -625,7 +625,7 @@ create_tmp_table(THD *thd,TMP_TABLE_PARAM *param,List<Item> &fields,
 
   reclength= string_total_length= 0;
   blob_count= string_count= null_count= hidden_null_count= group_null_items= 0;
-  param->using_indirect_summary_function=0;
+  param->using_outer_summary_function= 0;
 
   List_iterator_fast<Item> li(fields);
   Item *item;
@@ -648,11 +648,11 @@ create_tmp_table(THD *thd,TMP_TABLE_PARAM *param,List<Item> &fields,
             (item->used_tables() & ~OUTER_REF_TABLE_BIT))
         {
 	  /*
-	    Mark that the we have ignored an item that refers to a summary
+	    Mark that we have ignored an item that refers to a summary
 	    function. We need to know this if someone is going to use
 	    DISTINCT on the result.
 	  */
-	  param->using_indirect_summary_function=1;
+	  param->using_outer_summary_function= 1;
           goto update_hidden;
         }
       }
@@ -1241,7 +1241,7 @@ TABLE *create_duplicate_weedout_tmp_table(THD *thd,
     using_unique_constraint= true;
 
   /* STEP 3: Allocate memory for temptable description */
-  init_sql_alloc(&own_root, TABLE_ALLOC_BLOCK_SIZE, 0);
+  init_sql_alloc(key_memory_TABLE, &own_root, TABLE_ALLOC_BLOCK_SIZE, 0);
   if (!multi_alloc_root(&own_root,
                         &table, sizeof(*table),
                         &share, sizeof(*share),

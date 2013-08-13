@@ -30,10 +30,19 @@ Created 1/20/1994 Heikki Tuuri
 
 #ifndef UNIV_INNOCHECKSUM
 
-#ifndef UNIV_HOTBACKUP
-# include "os0sync.h"
-#endif /* UNIV_HOTBACKUP */
 #include "db0err.h"
+
+#ifndef UNIV_HOTBACKUP
+# include "os0atomic.h"
+#endif /* UNIV_HOTBACKUP */
+
+#include <time.h>
+
+#ifndef MYSQL_SERVER
+#include <ctype.h>
+#endif /* MYSQL_SERVER */
+
+#include <stdarg.h>
 #include <ostream>
 
 /** Index name prefix in fast index creation */

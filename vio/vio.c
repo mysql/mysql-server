@@ -22,6 +22,34 @@
 
 #include "vio_priv.h"
 
+#ifdef HAVE_OPENSSL
+PSI_memory_key key_memory_vio_ssl_fd;
+#endif
+
+PSI_memory_key key_memory_vio;
+PSI_memory_key key_memory_vio_read_buffer;
+
+#ifdef HAVE_PSI_INTERFACE
+static PSI_memory_info all_vio_memory[]=
+{
+#ifdef HAVE_OPENSSL
+  {&key_memory_vio_ssl_fd, "ssl_fd", 0},
+#endif
+
+  {&key_memory_vio, "vio", 0},
+  {&key_memory_vio_read_buffer, "read_buffer", 0},
+};
+
+void init_vio_psi_keys()
+{
+  const char* category= "vio";
+  int count;
+
+  count= array_elements(all_vio_memory);
+  mysql_memory_register(category, all_vio_memory, count);
+}
+#endif
+
 #ifdef _WIN32
 
 /**
@@ -68,7 +96,8 @@ static void vio_init(Vio *vio, enum enum_vio_type type,
   vio->localhost= flags & VIO_LOCALHOST;
   vio->read_timeout= vio->write_timeout= -1;
   if ((flags & VIO_BUFFERED_READ) &&
-      !(vio->read_buffer= (char*)my_malloc(VIO_READ_BUFFER_SIZE, MYF(MY_WME))))
+      !(vio->read_buffer= (char*)my_malloc(key_memory_vio_read_buffer,
+                                           VIO_READ_BUFFER_SIZE, MYF(MY_WME))))
     flags&= ~VIO_BUFFERED_READ;
 #ifdef _WIN32
   if (type == VIO_TYPE_NAMEDPIPE)
@@ -88,8 +117,7 @@ static void vio_init(Vio *vio, enum enum_vio_type type,
     vio->has_data       =has_no_data;
     DBUG_VOID_RETURN;
   }
-#endif
-#ifdef HAVE_SMEM
+#ifndef EMBEDDED_LIBRARY
   if (type == VIO_TYPE_SHARED_MEMORY)
   {
     vio->viodelete	=vio_delete_shared_memory;
@@ -107,7 +135,8 @@ static void vio_init(Vio *vio, enum enum_vio_type type,
     vio->has_data       =has_no_data;
     DBUG_VOID_RETURN;
   }
-#endif
+#endif /* !EMBEDDED_LIBRARY */
+#endif /* _WIN32 */
 #ifdef HAVE_OPENSSL
   if (type == VIO_TYPE_SSL)
   {
@@ -211,7 +240,8 @@ Vio *mysql_socket_vio_new(MYSQL_SOCKET mysql_socket, enum enum_vio_type type, ui
   my_socket sd= mysql_socket_getfd(mysql_socket);
   DBUG_ENTER("mysql_socket_vio_new");
   DBUG_PRINT("enter", ("sd: %d", sd));
-  if ((vio = (Vio*) my_malloc(sizeof(*vio),MYF(MY_WME))))
+  if ((vio = (Vio*) my_malloc(key_memory_vio,
+                              sizeof(*vio),MYF(MY_WME))))
   {
     vio_init(vio, type, sd, flags);
     vio->mysql_socket= mysql_socket;
@@ -240,7 +270,8 @@ Vio *vio_new_win32pipe(HANDLE hPipe)
 {
   Vio *vio;
   DBUG_ENTER("vio_new_handle");
-  if ((vio = (Vio*) my_malloc(sizeof(Vio),MYF(MY_WME))))
+  if ((vio = (Vio*) my_malloc(key_memory_vio,
+                              sizeof(Vio),MYF(MY_WME))))
   {
     vio_init(vio, VIO_TYPE_NAMEDPIPE, 0, VIO_LOCALHOST);
     /* Create an object for event notification. */
@@ -256,7 +287,7 @@ Vio *vio_new_win32pipe(HANDLE hPipe)
   DBUG_RETURN(vio);
 }
 
-#ifdef HAVE_SMEM
+#ifndef EMBEDDED_LIBRARY
 Vio *vio_new_win32shared_memory(HANDLE handle_file_map, HANDLE handle_map,
                                 HANDLE event_server_wrote, HANDLE event_server_read,
                                 HANDLE event_client_wrote, HANDLE event_client_read,
@@ -264,7 +295,8 @@ Vio *vio_new_win32shared_memory(HANDLE handle_file_map, HANDLE handle_map,
 {
   Vio *vio;
   DBUG_ENTER("vio_new_win32shared_memory");
-  if ((vio = (Vio*) my_malloc(sizeof(Vio),MYF(MY_WME))))
+  if ((vio = (Vio*) my_malloc(key_memory_vio,
+                              sizeof(Vio),MYF(MY_WME))))
   {
     vio_init(vio, VIO_TYPE_SHARED_MEMORY, 0, VIO_LOCALHOST);
     vio->handle_file_map= handle_file_map;

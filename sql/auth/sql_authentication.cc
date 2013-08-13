@@ -23,6 +23,7 @@
                                         /* release_user_connection */
 #include "hostname.h"                   /* Host_errors, inc_host_errors */
 #include "sql_db.h"                     /* mysql_change_db */
+#include "connection_handler_manager.h"
 #include <mysql/plugin_validate_password.h> /* validate_password plugin */
 
 #if defined(HAVE_OPENSSL) && !defined(HAVE_YASSL)
@@ -183,6 +184,13 @@ Rsa_authentication_keys::read_key_file(RSA **key_ptr,
       ERR_error_string_n(ERR_get_error(), error_buf, MYSQL_ERRMSG_SIZE);
       sql_print_error("Failure to parse RSA %s key (file exists): %s:"
                       " %s", key_type, key_file_path.c_ptr(), error_buf);
+
+      /*
+        Call ERR_clear_error() just in case there are more than 1 entry in the
+        OpenSSL thread's error queue.
+      */
+      ERR_clear_error();
+
       return true;
     }
 
@@ -1194,7 +1202,8 @@ static bool parse_com_change_user_packet(MPVIO_EXT *mpvio, uint packet_length)
   user_buff[user_len]= 0;
 
   /* we should not free mpvio->user here: it's saved by dispatch_command() */
-  if (!(mpvio->auth_info.user_name= my_strndup(user_buff, user_len, MYF(MY_WME))))
+  if (!(mpvio->auth_info.user_name= my_strndup(key_memory_MPVIO_EXT_auth_info,
+                                               user_buff, user_len, MYF(MY_WME))))
     return 1;
   mpvio->auth_info.user_name_length= user_len;
 
@@ -1773,7 +1782,8 @@ skip_to_ssl:
     return packet_error; /* The error is set by make_lex_string(). */
   if (mpvio->auth_info.user_name)
     my_free(mpvio->auth_info.user_name);
-  if (!(mpvio->auth_info.user_name= my_strndup(user, user_len, MYF(MY_WME))))
+  if (!(mpvio->auth_info.user_name= my_strndup(key_memory_MPVIO_EXT_auth_info,
+                                               user, user_len, MYF(MY_WME))))
     return packet_error; /* The error is set by my_strdup(). */
   mpvio->auth_info.user_name_length= user_len;
 
@@ -2435,16 +2445,15 @@ acl_authenticate(THD *thd, uint com_change_user_pkt_len)
   if (command == COM_CONNECT &&
       !(thd->main_security_ctx.master_access & SUPER_ACL))
   {
-    mysql_mutex_lock(&LOCK_connection_count);
-    bool count_ok= (connection_count <= max_connections);
-    mysql_mutex_unlock(&LOCK_connection_count);
-    if (!count_ok)
+#ifndef EMBEDDED_LIBRARY
+    if (!Connection_handler_manager::valid_connection_count())
     {                                         // too many connections
       release_user_connection(thd);
       connection_errors_max_connection++;
       my_error(ER_CON_COUNT_ERROR, MYF(0));
       DBUG_RETURN(1);
     }
+#endif // !EMBEDDED_LIBRARY
   }
 
   /*
@@ -2469,7 +2478,8 @@ acl_authenticate(THD *thd, uint com_change_user_pkt_len)
   }
 
   if (mpvio.auth_info.external_user[0])
-    sctx->set_external_user(my_strdup(mpvio.auth_info.external_user, MYF(0)));
+    sctx->set_external_user(my_strdup(key_memory_MPVIO_EXT_auth_info,
+                                      mpvio.auth_info.external_user, MYF(0)));
 
 
   if (res == CR_OK_HANDSHAKE_COMPLETE)

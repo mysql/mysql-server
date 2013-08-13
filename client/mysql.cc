@@ -204,7 +204,7 @@ static char delimiter[16]= DEFAULT_DELIMITER;
 static uint delimiter_length= 1;
 unsigned short terminal_width= 80;
 
-#ifdef HAVE_SMEM
+#if defined (_WIN32) && !defined (EMBEDDED_LIBRARY)
 static char *shared_memory_base_name=0;
 #endif
 static uint opt_protocol=0;
@@ -1210,10 +1210,12 @@ int main(int argc,char *argv[])
   charset_index= get_command_index('C');
   delimiter_index= get_command_index('d');
   delimiter_str= delimiter;
-  default_prompt = my_strdup(getenv("MYSQL_PS1") ? 
+  default_prompt = my_strdup(PSI_NOT_INSTRUMENTED,
+                             getenv("MYSQL_PS1") ? 
 			     getenv("MYSQL_PS1") : 
 			     "mysql> ",MYF(MY_WME));
-  current_prompt = my_strdup(default_prompt,MYF(MY_WME));
+  current_prompt = my_strdup(PSI_NOT_INSTRUMENTED,
+                             default_prompt,MYF(MY_WME));
   prompt_counter=0;
 
   outfile[0]=0;			// no (default) outfile
@@ -1288,7 +1290,7 @@ int main(int argc,char *argv[])
   }
   glob_buffer.realloc(512);
   completion_hash_init(&ht, 128);
-  init_alloc_root(&hash_mem_root, 16384, 0);
+  init_alloc_root(PSI_NOT_INSTRUMENTED, &hash_mem_root, 16384, 0);
   memset(&mysql, 0, sizeof(mysql));
   if (sql_connect(current_host,current_db,current_user,opt_password,
 		  opt_silent))
@@ -1355,10 +1357,12 @@ int main(int argc,char *argv[])
 
     /* read-history from file, default ~/.mysql_history*/
     if (getenv("MYSQL_HISTFILE"))
-      histfile=my_strdup(getenv("MYSQL_HISTFILE"),MYF(MY_WME));
+      histfile=my_strdup(PSI_NOT_INSTRUMENTED,
+                         getenv("MYSQL_HISTFILE"),MYF(MY_WME));
     else if (getenv("HOME"))
     {
-      histfile=(char*) my_malloc((uint) strlen(getenv("HOME"))
+      histfile=(char*) my_malloc(PSI_NOT_INSTRUMENTED,
+                                 (uint) strlen(getenv("HOME"))
 				 + (uint) strlen("/.mysql_history")+2,
 				 MYF(MY_WME));
       if (histfile)
@@ -1382,7 +1386,8 @@ int main(int argc,char *argv[])
       if (verbose)
 	tee_fprintf(stdout, "Reading history-file %s\n",histfile);
       read_history(histfile);
-      if (!(histfile_tmp= (char*) my_malloc((uint) strlen(histfile) + 5,
+      if (!(histfile_tmp= (char*) my_malloc(PSI_NOT_INSTRUMENTED,
+                                            (uint) strlen(histfile) + 5,
 					    MYF(MY_WME))))
       {
 	fprintf(stderr, "Couldn't allocate memory for temp histfile!\n");
@@ -1449,7 +1454,7 @@ sig_handler mysql_end(int sig)
   my_free(full_username);
   my_free(part_username);
   my_free(default_prompt);
-#ifdef HAVE_SMEM
+#if defined (_WIN32) && !defined (EMBEDDED_LIBRARY)
   my_free(shared_memory_base_name);
 #endif
   my_free(current_prompt);
@@ -1738,7 +1743,7 @@ static struct my_option my_long_options[] =
    &opt_reconnect, &opt_reconnect, 0, GET_BOOL, NO_ARG, 1, 0, 0, 0, 0, 0},
   {"silent", 's', "Be more silent. Print results with a tab as separator, "
    "each row on new line.", 0, 0, 0, GET_NO_ARG, NO_ARG, 0, 0, 0, 0, 0, 0},
-#ifdef HAVE_SMEM
+#if defined (_WIN32) && !defined (EMBEDDED_LIBRARY)
   {"shared-memory-base-name", OPT_SHARED_MEMORY_BASE_NAME,
    "Base name of shared memory.", &shared_memory_base_name,
    &shared_memory_base_name, 0, GET_STR_ALLOC, REQUIRED_ARG, 0, 0, 0, 0, 0, 0},
@@ -1939,7 +1944,8 @@ get_one_option(int optid, const struct my_option *opt __attribute__((unused)),
     }
     if (embedded_server_arg_count == MAX_SERVER_ARGS-1 ||
         !(embedded_server_args[embedded_server_arg_count++]=
-          my_strdup(argument, MYF(MY_FAE))))
+          my_strdup(PSI_NOT_INSTRUMENTED,
+                    argument, MYF(MY_FAE))))
     {
         put_info("Can't use server argument", INFO_ERROR);
         return 0;
@@ -1985,7 +1991,8 @@ get_one_option(int optid, const struct my_option *opt __attribute__((unused)),
     {
       char *start= argument;
       my_free(opt_password);
-      opt_password= my_strdup(argument, MYF(MY_FAE));
+      opt_password= my_strdup(PSI_NOT_INSTRUMENTED,
+                              argument, MYF(MY_FAE));
       while (*argument) *argument++= 'x';		// Destroy argument
       if (*start)
 	start[1]=0 ;
@@ -2041,7 +2048,8 @@ static int get_options(int argc, char **argv)
 
   tmp= (char *) getenv("MYSQL_HOST");
   if (tmp)
-    current_host= my_strdup(tmp, MYF(MY_WME));
+    current_host= my_strdup(PSI_NOT_INSTRUMENTED,
+                            tmp, MYF(MY_WME));
 
   pagpoint= getenv("PAGER");
   if (!((char*) (pagpoint)))
@@ -2082,7 +2090,8 @@ static int get_options(int argc, char **argv)
   {
     skip_updates= 0;
     my_free(current_db);
-    current_db= my_strdup(*argv, MYF(MY_WME));
+    current_db= my_strdup(PSI_NOT_INSTRUMENTED,
+                          *argv, MYF(MY_WME));
   }
   if (tty_password)
     opt_password= get_tty_password(NullS);
@@ -2104,6 +2113,12 @@ static int read_and_execute(bool interactive)
   String buffer;
 #endif
 
+  /*
+    line can be allocated by:
+    - batch_readline. Use my_free()
+    - my_win_console_readline. Do not free, see tmpbuf.
+    - readline. Use free()
+  */
   char	*line= NULL;
   char	in_string=0;
   ulong line_number=0;
@@ -2207,7 +2222,7 @@ static int read_and_execute(bool interactive)
         free the previous entered line.
       */
       if (line)
-        my_free(line);
+        free(line);
       line= readline(prompt);
 
       if (sigint_received)
@@ -2282,7 +2297,7 @@ static int read_and_execute(bool interactive)
     /*
       free the last entered line.
     */
-    my_free(line);
+    free(line);
 #endif
 
   /*
@@ -3213,7 +3228,8 @@ static void get_current_db()
   {
     MYSQL_ROW row= mysql_fetch_row(res);
     if (row && row[0])
-      current_db= my_strdup(row[0], MYF(MY_WME));
+      current_db= my_strdup(PSI_NOT_INSTRUMENTED,
+                            row[0], MYF(MY_WME));
     mysql_free_result(res);
   }
 }
@@ -3511,6 +3527,8 @@ com_go(String *buffer,char *line __attribute__((unused)))
   do
   {
     char *pos;
+    bool batchmode= (status.batch && verbose <= 1) ? TRUE : FALSE;
+    buff[0]= 0;
 
     if (quick)
     {
@@ -3563,9 +3581,10 @@ com_go(String *buffer,char *line __attribute__((unused)))
 	  print_tab_data(result);
 	else
 	  print_table_data(result);
-	sprintf(buff,"%ld %s in set",
-		(long) mysql_num_rows(result),
-		(long) mysql_num_rows(result) == 1 ? "row" : "rows");
+        if( !batchmode )
+	  sprintf(buff,"%lld %s in set",
+	          mysql_num_rows(result),
+		  mysql_num_rows(result) == 1LL ? "row" : "rows");
 	end_pager();
         if (mysql_errno(&mysql))
           error= put_error(&mysql);
@@ -3573,13 +3592,13 @@ com_go(String *buffer,char *line __attribute__((unused)))
     }
     else if (mysql_affected_rows(&mysql) == ~(ulonglong) 0)
       strmov(buff,"Query OK");
-    else
-      sprintf(buff,"Query OK, %ld %s affected",
-	      (long) mysql_affected_rows(&mysql),
-	      (long) mysql_affected_rows(&mysql) == 1 ? "row" : "rows");
+    else if( !batchmode )
+      sprintf(buff,"Query OK, %lld %s affected",
+	      mysql_affected_rows(&mysql),
+	      mysql_affected_rows(&mysql) == 1LL ? "row" : "rows");
 
     pos=strend(buff);
-    if ((warnings= mysql_warning_count(&mysql)))
+    if ((warnings= mysql_warning_count(&mysql)) && !batchmode)
     {
       *pos++= ',';
       *pos++= ' ';
@@ -4449,12 +4468,14 @@ com_connect(String *buffer, char *line)
     if (tmp && *tmp)
     {
       my_free(current_db);
-      current_db= my_strdup(tmp, MYF(MY_WME));
+      current_db= my_strdup(PSI_NOT_INSTRUMENTED,
+                            tmp, MYF(MY_WME));
       tmp= get_arg(buff, 1);
       if (tmp)
       {
 	my_free(current_host);
-	current_host=my_strdup(tmp,MYF(MY_WME));
+	current_host=my_strdup(PSI_NOT_INSTRUMENTED,
+                               tmp,MYF(MY_WME));
       }
     }
     else
@@ -4642,7 +4663,8 @@ com_use(String *buffer __attribute__((unused)), char *line)
         return put_error(&mysql);
     }
     my_free(current_db);
-    current_db=my_strdup(tmp,MYF(MY_WME));
+    current_db=my_strdup(PSI_NOT_INSTRUMENTED,
+                         tmp,MYF(MY_WME));
 #ifdef HAVE_READLINE
     if (select_db > 1)
       build_completion_hash(opt_rehash, 1);
@@ -4943,7 +4965,7 @@ init_connection_options(MYSQL *mysql)
   if (opt_protocol)
     mysql_options(mysql, MYSQL_OPT_PROTOCOL, (char*) &opt_protocol);
 
-#ifdef HAVE_SMEM
+#if defined (_WIN32) && !defined (EMBEDDED_LIBRARY)
   if (shared_memory_base_name)
     mysql_options(mysql, MYSQL_SHARED_MEMORY_BASE_NAME, shared_memory_base_name);
 #endif
@@ -5155,7 +5177,8 @@ server_version_string(MYSQL *con)
         /* version, space, comment, \0 */
         size_t len= strlen(mysql_get_server_info(con)) + strlen(cur[0]) + 2;
 
-        if ((server_version= (char *) my_malloc(len, MYF(MY_WME))))
+        if ((server_version= (char *) my_malloc(PSI_NOT_INSTRUMENTED,
+                                                len, MYF(MY_WME))))
         {
           char *bufp;
           bufp = strmov(server_version, mysql_get_server_info(con));
@@ -5172,7 +5195,8 @@ server_version_string(MYSQL *con)
     */
 
     if (server_version == NULL)
-      server_version= my_strdup(mysql_get_server_info(con), MYF(MY_WME));
+      server_version= my_strdup(PSI_NOT_INSTRUMENTED,
+                                mysql_get_server_info(con), MYF(MY_WME));
   }
 
   return server_version ? server_version : "";
@@ -5646,8 +5670,10 @@ static void init_username()
       (result=mysql_use_result(&mysql)))
   {
     MYSQL_ROW cur=mysql_fetch_row(result);
-    full_username=my_strdup(cur[0],MYF(MY_WME));
-    part_username=my_strdup(strtok(cur[0],"@"),MYF(MY_WME));
+    full_username=my_strdup(PSI_NOT_INSTRUMENTED,
+                            cur[0],MYF(MY_WME));
+    part_username=my_strdup(PSI_NOT_INSTRUMENTED,
+                            strtok(cur[0],"@"),MYF(MY_WME));
     (void) mysql_fetch_row(result);		// Read eof
   }
 }
@@ -5686,7 +5712,8 @@ static void get_current_os_user() {
        !(user= getenv("LOGIN")))
     user= "UNKNOWN USER";
 #endif                                          /* _WIN32 */
-  current_os_user= my_strdup(user, MYF(MY_WME));
+  current_os_user= my_strdup(PSI_NOT_INSTRUMENTED,
+                             user, MYF(MY_WME));
   return;
 }
 
@@ -5694,7 +5721,8 @@ static void get_current_os_user() {
 static void get_current_os_sudouser() {
 #ifndef _WIN32
   if (getenv("SUDO_USER"))
-   current_os_sudouser= my_strdup(getenv("SUDO_USER"), MYF(MY_WME));
+   current_os_sudouser= my_strdup(PSI_NOT_INSTRUMENTED,
+                                  getenv("SUDO_USER"), MYF(MY_WME));
 #endif                                          /* !_WIN32 */
   return;
 }
@@ -5705,7 +5733,8 @@ static int com_prompt(String *buffer __attribute__((unused)),
   char *ptr=strchr(line, ' ');
   prompt_counter = 0;
   my_free(current_prompt);
-  current_prompt=my_strdup(ptr ? ptr+1 : default_prompt,MYF(MY_WME));
+  current_prompt=my_strdup(PSI_NOT_INSTRUMENTED,
+                           ptr ? ptr+1 : default_prompt,MYF(MY_WME));
   if (!ptr)
     tee_fprintf(stdout, "Returning to default PROMPT of %s\n", default_prompt);
   else

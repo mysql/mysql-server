@@ -51,6 +51,7 @@
 
 #include <sql_common.h>
 #include "client_settings.h"
+#include "mysql_trace.h"
 
 #undef net_buffer_length
 #undef max_allowed_packet
@@ -337,6 +338,8 @@ my_bool	STDCALL mysql_change_user(MYSQL *mysql, const char *user,
 
   rc= run_plugin_auth(mysql, 0, 0, 0, db);
 
+  MYSQL_TRACE_STAGE(mysql, READY_FOR_COMMAND);
+
   /*
     The server will close all statements no matter was the attempt
     to change user successful or not.
@@ -350,9 +353,12 @@ my_bool	STDCALL mysql_change_user(MYSQL *mysql, const char *user,
     my_free(saved_db);
 
     /* alloc new connect information */
-    mysql->user= my_strdup(mysql->user, MYF(MY_WME));
-    mysql->passwd= my_strdup(mysql->passwd, MYF(MY_WME));
-    mysql->db= db ? my_strdup(db, MYF(MY_WME)) : 0;
+    mysql->user= my_strdup(PSI_NOT_INSTRUMENTED,
+                           mysql->user, MYF(MY_WME));
+    mysql->passwd= my_strdup(PSI_NOT_INSTRUMENTED,
+                             mysql->passwd, MYF(MY_WME));
+    mysql->db= db ? my_strdup(PSI_NOT_INSTRUMENTED,
+                              db, MYF(MY_WME)) : 0;
   }
   else
   {
@@ -432,7 +438,8 @@ my_bool handle_local_infile(MYSQL *mysql, const char *net_filename)
   }
 
   /* copy filename into local memory and allocate read buffer */
-  if (!(buf=my_malloc(packet_length, MYF(0))))
+  if (!(buf=my_malloc(PSI_NOT_INSTRUMENTED,
+                      packet_length, MYF(0))))
   {
     set_mysql_error(mysql, CR_OUT_OF_MEMORY, unknown_sqlstate);
     DBUG_RETURN(1);
@@ -442,13 +449,16 @@ my_bool handle_local_infile(MYSQL *mysql, const char *net_filename)
   if ((*options->local_infile_init)(&li_ptr, net_filename,
     options->local_infile_userdata))
   {
+    MYSQL_TRACE(SEND_FILE, mysql, (0, NULL));
     (void) my_net_write(net,(const uchar*) "",0); /* Server needs one packet */
     net_flush(net);
+    MYSQL_TRACE(PACKET_SENT, mysql, (0));
     strmov(net->sqlstate, unknown_sqlstate);
     net->last_errno=
       (*options->local_infile_error)(li_ptr,
                                      net->last_error,
                                      sizeof(net->last_error)-1);
+    MYSQL_TRACE(ERROR, mysql, ());
     goto err;
   }
 
@@ -457,6 +467,7 @@ my_bool handle_local_infile(MYSQL *mysql, const char *net_filename)
 	  (*options->local_infile_read)(li_ptr, buf,
 					packet_length)) > 0)
   {
+    MYSQL_TRACE(SEND_FILE, mysql, ((size_t)readcount, (const unsigned char*)buf));
     if (my_net_write(net, (uchar*) buf, readcount))
     {
       DBUG_PRINT("error",
@@ -464,14 +475,17 @@ my_bool handle_local_infile(MYSQL *mysql, const char *net_filename)
       set_mysql_error(mysql, CR_SERVER_LOST, unknown_sqlstate);
       goto err;
     }
+    MYSQL_TRACE(PACKET_SENT, mysql, (readcount));
   }
 
   /* Send empty packet to mark end of file */
+  MYSQL_TRACE(SEND_FILE, mysql, (0, NULL));
   if (my_net_write(net, (const uchar*) "", 0) || net_flush(net))
   {
     set_mysql_error(mysql, CR_SERVER_LOST, unknown_sqlstate);
     goto err;
   }
+  MYSQL_TRACE(PACKET_SENT, mysql, (0));
 
   if (readcount < 0)
   {
@@ -479,6 +493,7 @@ my_bool handle_local_infile(MYSQL *mysql, const char *net_filename)
       (*options->local_infile_error)(li_ptr,
                                      net->last_error,
                                      sizeof(net->last_error)-1);
+    MYSQL_TRACE(ERROR, mysql, ());
     goto err;
   }
 
@@ -530,7 +545,8 @@ static int default_local_infile_init(void **ptr, const char *filename,
   char tmp_name[FN_REFLEN];
 
   if (!(*ptr= data= ((default_local_infile_data *)
-		     my_malloc(sizeof(default_local_infile_data),  MYF(0)))))
+		     my_malloc(PSI_NOT_INSTRUMENTED,
+                               sizeof(default_local_infile_data),  MYF(0)))))
     return 1; /* out of memory */
 
   data->error_msg[0]= 0;
@@ -765,8 +781,13 @@ mysql_list_tables(MYSQL *mysql, const char *wild)
 MYSQL_FIELD *cli_list_fields(MYSQL *mysql)
 {
   MYSQL_DATA *query;
-  if (!(query= cli_read_rows(mysql,(MYSQL_FIELD*) 0, 
-			     protocol_41(mysql) ? 8 : 6)))
+
+  MYSQL_TRACE_STAGE(mysql, WAIT_FOR_FIELD_DEF);
+  query= cli_read_rows(mysql,(MYSQL_FIELD*) 0, 
+                             protocol_41(mysql) ? 8 : 6);
+  MYSQL_TRACE_STAGE(mysql, READY_FOR_COMMAND);
+
+  if (!query)
     return NULL;
 
   mysql->field_count= (uint) query->rows;
@@ -798,7 +819,8 @@ mysql_list_fields(MYSQL *mysql, const char *table, const char *wild)
       !(fields= (*mysql->methods->list_fields)(mysql)))
     DBUG_RETURN(NULL);
 
-  if (!(result = (MYSQL_RES *) my_malloc(sizeof(MYSQL_RES),
+  if (!(result = (MYSQL_RES *) my_malloc(PSI_NOT_INSTRUMENTED,
+                                         sizeof(MYSQL_RES),
 					 MYF(MY_WME | MY_ZEROFILL))))
     DBUG_RETURN(NULL);
 
@@ -905,6 +927,11 @@ const char *cli_read_statistics(MYSQL *mysql)
     set_mysql_error(mysql, CR_WRONG_HOST_INFO, unknown_sqlstate);
     return mysql->net.last_error;
   }
+  /*
+    After reading the single packet with reply to COM_STATISTICS
+    we are ready for new commands.
+  */
+  MYSQL_TRACE_STAGE(mysql, READY_FOR_COMMAND);
   return (char*) mysql->net.read_pos;
 }
 
@@ -1016,6 +1043,14 @@ uint STDCALL mysql_warning_count(MYSQL *mysql)
 
 const char *STDCALL mysql_info(MYSQL *mysql)
 {
+  if (!mysql)
+  {
+#if defined(CLIENT_PROTOCOL_TRACING)
+    return "protocol tracing enabled";
+#else
+    return NULL;
+#endif
+  }
   return mysql->info;
 }
 
@@ -1381,6 +1416,8 @@ my_bool cli_read_prepare_result(MYSQL *mysql, MYSQL_STMT *stmt)
   {
     MYSQL_DATA *param_data;
 
+    MYSQL_TRACE_STAGE(mysql, WAIT_FOR_PARAM_DEF);
+    
     /* skip parameters data: we don't support it yet */
     if (!(param_data= (*mysql->methods->read_rows)(mysql, (MYSQL_FIELD*)0, 7)))
       DBUG_RETURN(1);
@@ -1392,6 +1429,8 @@ my_bool cli_read_prepare_result(MYSQL *mysql, MYSQL_STMT *stmt)
     if (!(mysql->server_status & SERVER_STATUS_AUTOCOMMIT))
       mysql->server_status|= SERVER_STATUS_IN_TRANS;
 
+    MYSQL_TRACE_STAGE(mysql, WAIT_FOR_FIELD_DEF);
+
     if (!(fields_data= (*mysql->methods->read_rows)(mysql,(MYSQL_FIELD*)0,7)))
       DBUG_RETURN(1);
     if (!(stmt->fields= unpack_fields(mysql, fields_data,&stmt->mem_root,
@@ -1399,6 +1438,9 @@ my_bool cli_read_prepare_result(MYSQL *mysql, MYSQL_STMT *stmt)
 				      mysql->server_capabilities)))
       DBUG_RETURN(1);
   }
+
+  MYSQL_TRACE_STAGE(mysql, READY_FOR_COMMAND);
+
   stmt->field_count=  field_count;
   stmt->param_count=  (ulong) param_count;
   DBUG_PRINT("exit",("field_count: %u  param_count: %u  warning_count: %u",
@@ -1446,10 +1488,12 @@ mysql_stmt_init(MYSQL *mysql)
   DBUG_ENTER("mysql_stmt_init");
 
   if (!(stmt=
-          (MYSQL_STMT *) my_malloc(sizeof (MYSQL_STMT),
+          (MYSQL_STMT *) my_malloc(PSI_NOT_INSTRUMENTED,
+                                   sizeof (MYSQL_STMT),
                                    MYF(MY_WME | MY_ZEROFILL))) ||
       !(stmt->extension=
-          (MYSQL_STMT_EXT *) my_malloc(sizeof (MYSQL_STMT_EXT),
+          (MYSQL_STMT_EXT *) my_malloc(PSI_NOT_INSTRUMENTED,
+                                       sizeof (MYSQL_STMT_EXT),
                                        MYF(MY_WME | MY_ZEROFILL))))
   {
     set_mysql_error(mysql, CR_OUT_OF_MEMORY, unknown_sqlstate);
@@ -1457,8 +1501,8 @@ mysql_stmt_init(MYSQL *mysql)
     DBUG_RETURN(NULL);
   }
 
-  init_alloc_root(&stmt->mem_root, 2048, 2048);
-  init_alloc_root(&stmt->result.alloc, 4096, 4096);
+  init_alloc_root(PSI_NOT_INSTRUMENTED, &stmt->mem_root, 2048, 2048);
+  init_alloc_root(PSI_NOT_INSTRUMENTED, &stmt->result.alloc, 4096, 4096);
   stmt->result.alloc.min_malloc= sizeof(MYSQL_ROWS);
   mysql->stmts= list_add(mysql->stmts, &stmt->list);
   stmt->list.data= stmt;
@@ -1469,7 +1513,7 @@ mysql_stmt_init(MYSQL *mysql)
   strmov(stmt->sqlstate, not_error_sqlstate);
   /* The rest of statement members was zeroed inside malloc */
 
-  init_alloc_root(&stmt->extension->fields_mem_root, 2048, 0);
+  init_alloc_root(PSI_NOT_INSTRUMENTED, &stmt->extension->fields_mem_root, 2048, 0);
 
   DBUG_RETURN(stmt);
 }
@@ -1755,7 +1799,8 @@ mysql_stmt_result_metadata(MYSQL_STMT *stmt)
   if (!stmt->field_count)
      DBUG_RETURN(0);
 
-  if (!(result=(MYSQL_RES*) my_malloc(sizeof(*result),
+  if (!(result=(MYSQL_RES*) my_malloc(PSI_NOT_INSTRUMENTED,
+                                      sizeof(*result),
                                       MYF(MY_WME | MY_ZEROFILL))))
   {
     set_stmt_error(stmt, CR_OUT_OF_MEMORY, unknown_sqlstate, NULL);
@@ -2113,7 +2158,8 @@ int cli_stmt_execute(MYSQL_STMT *stmt)
     }
     length= (ulong) (net->write_pos - net->buff);
     /* TODO: Look into avoding the following memdup */
-    if (!(param_data= my_memdup(net->buff, length, MYF(0))))
+    if (!(param_data= my_memdup(PSI_NOT_INSTRUMENTED,
+                                net->buff, length, MYF(0))))
     {
       set_stmt_error(stmt, CR_OUT_OF_MEMORY, unknown_sqlstate, NULL);
       DBUG_RETURN(1);
@@ -4134,10 +4180,21 @@ static int stmt_fetch_row(MYSQL_STMT *stmt, uchar *row)
 int cli_unbuffered_fetch(MYSQL *mysql, char **row)
 {
   if (packet_error == cli_safe_read(mysql))
+  {
+    MYSQL_TRACE_STAGE(mysql, READY_FOR_COMMAND);
     return 1;
+  }
 
-  *row= ((mysql->net.read_pos[0] == 254) ? NULL :
-	 (char*) (mysql->net.read_pos+1));
+  if (mysql->net.read_pos[0] == 254)
+  {
+    *row= NULL;
+    MYSQL_TRACE_STAGE(mysql, READY_FOR_COMMAND);
+  }
+  else
+  {
+	*row= (char*) (mysql->net.read_pos + 1);
+  }
+
   return 0;
 }
 
@@ -4295,6 +4352,12 @@ int cli_read_binary_rows(MYSQL_STMT *stmt)
         mysql->server_status= uint2korr(cp+3);
       DBUG_PRINT("info",("status: %u  warning_count: %u",
                          mysql->server_status, mysql->warning_count));
+#if defined(CLIENT_PROTOCOL_TRACING)
+      if (mysql->server_status & SERVER_MORE_RESULTS_EXISTS)
+        MYSQL_TRACE_STAGE(mysql, WAIT_FOR_RESULT);
+      else
+        MYSQL_TRACE_STAGE(mysql, READY_FOR_COMMAND);
+#endif
       DBUG_RETURN(0);
     }
   }
@@ -4789,6 +4852,8 @@ int STDCALL mysql_next_result(MYSQL *mysql)
 {
   DBUG_ENTER("mysql_next_result");
 
+  MYSQL_TRACE_STAGE(mysql, WAIT_FOR_RESULT);
+
   if (mysql->status != MYSQL_STATUS_READY)
   {
     set_mysql_error(mysql, CR_COMMANDS_OUT_OF_SYNC, unknown_sqlstate);
@@ -4800,6 +4865,10 @@ int STDCALL mysql_next_result(MYSQL *mysql)
 
   if (mysql->server_status & SERVER_MORE_RESULTS_EXISTS)
     DBUG_RETURN((*mysql->methods->next_result)(mysql));
+  else
+  {
+    MYSQL_TRACE_STAGE(mysql, READY_FOR_COMMAND);
+  }
 
   DBUG_RETURN(-1);				/* No more results */
 }

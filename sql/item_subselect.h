@@ -85,15 +85,13 @@ protected:
   /* allowed number of columns (1 for single value subqueries) */
   uint max_columns;
   /* where subquery is placed */
-  enum_parsing_place parsing_place;
+  enum_parsing_context parsing_place;
   /* work with 'substitution' */
   bool have_to_be_excluded;
   /* cache of constant state */
   bool const_item_cache;
 
 public:
-  /* changed engine indicator */
-  bool engine_changed;
   /* subquery is transformed */
   bool changed;
 
@@ -146,7 +144,6 @@ public:
   {
     old_engine= engine;
     engine= eng;
-    engine_changed= 1;
     return eng == 0;
   }
 
@@ -162,7 +159,7 @@ public:
     mechanism. Engine call this method before rexecution query.
   */
   virtual void reset_value_registration() {}
-  enum_parsing_place place() { return parsing_place; }
+  enum_parsing_context place() { return parsing_place; }
   bool walk_join_condition(List<TABLE_LIST> *tables, Item_processor processor,
                            bool walk_subquery, uchar *argument);
   bool walk_body(Item_processor processor, bool walk_subquery, uchar *arg);
@@ -183,6 +180,8 @@ public:
   friend void mark_select_range_as_dependent(THD*,
                                              st_select_lex*, st_select_lex*,
                                              Field*, Item*, Item_ident*);
+private:
+  virtual bool subq_opt_away_processor(uchar *arg);
 };
 
 /* single value subselect */
@@ -396,10 +395,15 @@ private:
     */
     bool added_to_where;
     /**
-       True: if original subquery was dependent (correlated) before IN->EXISTS
+       True: if subquery was dependent (correlated) before IN->EXISTS
        was done.
     */
-    bool originally_dependent;
+    bool dependent_before;
+    /**
+       True: if subquery was dependent (correlated) after IN->EXISTS
+       was done.
+    */
+    bool dependent_after;
   } *in2exists_info;
 
   Item *remove_in2exists_conds(Item* conds);
@@ -421,8 +425,8 @@ public:
   { return in2exists_info && in2exists_info->added_to_where; }
 
   /// Is reliable only if IN->EXISTS has been done.
-  bool originally_dependent() const
-  { return in2exists_info->originally_dependent; }
+  bool dependent_before_in2exists() const
+  { return in2exists_info->dependent_before; }
 
   bool *get_cond_guard(int i)
   {
@@ -568,7 +572,6 @@ public:
   virtual bool change_result(Item_subselect *si,
                              select_result_interceptor *result)= 0;
   virtual bool no_tables() const = 0;
-  virtual bool is_executed() const { return FALSE; }
   virtual enum_engine_type engine_type() const { return ABSTRACT_ENGINE; }
 #ifndef DBUG_OFF
   /**
@@ -587,7 +590,6 @@ class subselect_single_select_engine: public subselect_engine
 {
 private:
   bool prepared; /* simple subselect is prepared */
-  bool executed; /* simple subselect is executed */
   st_select_lex *select_lex; /* corresponding select_lex */
   JOIN * join; /* corresponding JOIN structure */
 public:
@@ -607,7 +609,6 @@ public:
                              select_result_interceptor *result);
   virtual bool no_tables() const;
   virtual bool may_be_null() const;
-  virtual bool is_executed() const { return executed; }
   virtual enum_engine_type engine_type() const { return SINGLE_SELECT_ENGINE; }
 
   friend class subselect_hash_sj_engine;
@@ -633,7 +634,6 @@ public:
   virtual bool change_result(Item_subselect *si,
                              select_result_interceptor *result);
   virtual bool no_tables() const;
-  virtual bool is_executed() const;
   virtual enum_engine_type engine_type() const { return UNION_ENGINE; }
 
 private:
@@ -720,12 +720,6 @@ Item * all_any_subquery_creator(Item *left_expr,
                                 chooser_compare_func_creator cmp,
                                 bool all,
                                 SELECT_LEX *select_lex);
-
-
-inline bool Item_subselect::is_evaluated() const
-{
-  return engine->is_executed();
-}
 
 
 inline bool Item_subselect::is_uncacheable() const

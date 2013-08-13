@@ -6535,7 +6535,7 @@ ER_CANNOT_LOAD_FROM_TABLE_V2
 
 
 ER_MASTER_DELAY_VALUE_OUT_OF_RANGE
-  eng "The requested value %u for the master delay exceeds the maximum %u"
+  eng "The requested value %s for the master delay exceeds the maximum %u"
 ER_ONLY_FD_AND_RBR_EVENTS_ALLOWED_IN_BINLOG_STATEMENT
   eng "Only Format_description_log_event and row events are allowed in BINLOG statements (but %s was provided)"
 
@@ -6669,7 +6669,7 @@ ER_GTID_NEXT_IS_NOT_IN_GTID_NEXT_LIST
   eng "The system variable @@SESSION.GTID_NEXT has the value %.200s, which is not listed in @@SESSION.GTID_NEXT_LIST."
 
 ER_CANT_CHANGE_GTID_NEXT_IN_TRANSACTION_WHEN_GTID_NEXT_LIST_IS_NULL
-  eng "When @@SESSION.GTID_NEXT_LIST == NULL, the system variable @@SESSION.GTID_NEXT cannot change inside a transaction."
+  eng "The system variable @@SESSION.GTID_NEXT cannot change inside a transaction."
 
 ER_SET_STATEMENT_CANNOT_INVOKE_FUNCTION
   eng "The statement 'SET %.200s' cannot invoke a stored function."
@@ -6699,7 +6699,7 @@ ER_AUTO_POSITION_REQUIRES_GTID_MODE_ON
   eng "CHANGE MASTER TO MASTER_AUTO_POSITION = 1 can only be executed when @@GLOBAL.GTID_MODE = ON."
 
 ER_CANT_DO_IMPLICIT_COMMIT_IN_TRX_WHEN_GTID_NEXT_IS_SET
-  eng "Cannot execute statements with implicit commit inside a transaction when @@SESSION.GTID_NEXT != AUTOMATIC or @@SESSION.GTID_NEXT_LIST != NULL."
+  eng "Cannot execute statements with implicit commit inside a transaction when @@SESSION.GTID_NEXT != AUTOMATIC."
 
 ER_GTID_MODE_2_OR_3_REQUIRES_ENFORCE_GTID_CONSISTENCY_ON
   eng "@@GLOBAL.GTID_MODE = ON or UPGRADE_STEP_2 requires @@GLOBAL.ENFORCE_GTID_CONSISTENCY = 1."
@@ -7021,6 +7021,15 @@ ER_ACCESS_DENIED_CHANGE_USER_ERROR 28000
 ER_INNODB_READ_ONLY
   eng "InnoDB is in read only mode."
 
+ER_STOP_SLAVE_SQL_THREAD_TIMEOUT
+  eng "STOP SLAVE command execution is incomplete: Slave SQL thread got the stop signal, thread is busy, SQL thread will stop once the current task is complete."
+
+ER_STOP_SLAVE_IO_THREAD_TIMEOUT
+  eng "STOP SLAVE command execution is incomplete: Slave IO thread got the stop signal, thread is busy, IO thread will stop once the current task is complete."
+
+ER_TABLE_CORRUPT
+  eng "Operation cannot be performed. The table '%-.64s.%-.64s' is missing, corrupt or contains bad data."
+
 #
 #  End of 5.6 error messages.
 #
@@ -7061,6 +7070,12 @@ ER_WARN_TRIGGER_DOESNT_HAVE_CREATED
 
 ER_REFERENCED_TRG_DOES_NOT_EXIST
   eng "Referenced trigger '%s' for the given action time and event type does not exist."
+
+ER_EXPLAIN_NOT_SUPPORTED
+        eng "EXPLAIN FOR CONNECTION command is supported only for SELECT/UPDATE/INSERT/DELETE/REPLACE"
+
+ER_INVALID_FIELD_SIZE
+        eng "Invalid size for column '%-.192s'."
 
 #
 #  End of 5.7 error messages.

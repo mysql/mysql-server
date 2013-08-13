@@ -465,7 +465,8 @@ void JOIN_CACHE::set_constants()
 */
 bool JOIN_CACHE::alloc_buffer()
 {
-  buff= (uchar*) my_malloc(buff_size, MYF(0));
+  buff= (uchar*) my_malloc(key_memory_JOIN_CACHE,
+                           buff_size, MYF(0));
   return buff == NULL;
 }
 

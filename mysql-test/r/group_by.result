@@ -2287,7 +2287,7 @@ INSERT INTO t2 VALUES (1),(2);
 
 SELECT i, j, COUNT(i) FROM t1 JOIN t2 WHERE j=3;
 i	j	COUNT(i)
-NULL	NULL	0
+1	NULL	0
 
 DROP TABLE t1,t2;
 #
@@ -2482,8 +2482,8 @@ view1 AS alias1,
 t3 AS alias2
 )
 WHERE (
-(SELECT MIN(SQ1_alias1.pk)
-FROM t2 AS SQ1_alias1
+(SELECT MIN(sq1_alias1.pk)
+FROM t2 AS sq1_alias1
 )
 ) OR (alias1.col_varchar_key = alias2.col_varchar_key
 AND alias1.col_varchar_key = 'j'
@@ -2491,10 +2491,10 @@ AND alias1.col_varchar_key = 'j'
 GROUP BY
 field1;
 id	select_type	table	type	possible_keys	key	key_len	ref	rows	filtered	Extra
-1	PRIMARY	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	Impossible WHERE noticed after reading const tables
+1	PRIMARY	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	Impossible WHERE
 2	SUBQUERY	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	No matching min/max row
 Warnings:
-Note	1003	/* select#1 */ select NULL AS `field1` from `test`.`t1` join `test`.`t3` `alias2` where 0 group by `field1`
+Note	1003	/* select#1 */ select `test`.`t1`.`col_datetime_key` AS `field1` from `test`.`t1` join `test`.`t3` `alias2` where 0 group by `field1`
 DROP TABLE t1,t2,t3;
 DROP VIEW view1;
 CREATE TABLE t1 (
@@ -2523,9 +2523,9 @@ ORDER BY field1
 ;
 EXPLAIN EXTENDED SELECT * FROM view1;
 id	select_type	table	type	possible_keys	key	key_len	ref	rows	filtered	Extra
-1	SIMPLE	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	Impossible WHERE noticed after reading const tables
+1	SIMPLE	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	no matching row in const table
 Warnings:
-Note	1003	/* select#1 */ select concat(NULL,NULL) AS `field1` from `test`.`t2` `table1` join `test`.`t1` `table2` where 0 order by `field1`
+Note	1003	/* select#1 */ select concat(NULL,NULL) AS `field1` from `test`.`t2` `table1` join `test`.`t1` `table2` where ((NULL >= NULL) and multiple equal(NULL, NULL)) order by `field1`
 DROP TABLE t1,t2;
 DROP VIEW view1;
 CREATE TABLE t1 (col_varchar_nokey varchar(1) DEFAULT NULL);

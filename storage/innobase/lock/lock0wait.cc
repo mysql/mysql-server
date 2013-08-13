@@ -150,7 +150,7 @@ lock_wait_table_reserve_slot(
 			slot->thr->slot = slot;
 
 			if (slot->event == NULL) {
-				slot->event = os_event_create();
+				slot->event = os_event_create(0);
 				ut_a(slot->event);
 			}
 
@@ -169,8 +169,6 @@ lock_wait_table_reserve_slot(
 			return(slot);
 		}
 	}
-
-	ut_print_timestamp(stderr);
 
 	ib_logf(IB_LOG_LEVEL_ERROR,
 		"There appear to be %lu user threads currently waiting"
@@ -372,6 +370,8 @@ lock_wait_suspend_thread(
 		/* Record the lock wait time for this thread */
 		thd_set_lock_wait_time(trx->mysql_thd, diff_time);
 
+		DBUG_EXECUTE_IF("lock_instrument_slow_query_log",
+			os_thread_sleep(1000););
 	}
 
 	if (lock_wait_timeout < 100000000

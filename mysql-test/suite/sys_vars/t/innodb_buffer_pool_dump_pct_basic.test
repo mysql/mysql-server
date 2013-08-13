@@ -1,0 +1,57 @@
+############################################
+# Variable Name: innodb_buffer_pool_dump_pct
+# Scope: GLOBAL
+# Access Type: Dynamic
+# Data Type: Integer
+# Default Value: 100
+# Range: 1-100
+############################################
+
+-- source include/have_innodb.inc
+
+# Check the default value
+SELECT @@global.innodb_buffer_pool_dump_pct;
+
+# Set the valid value
+SET GLOBAL innodb_buffer_pool_dump_pct=20;
+
+# Check the value is 20
+SELECT @@global.innodb_buffer_pool_dump_pct;
+
+# Set the lower Boundary value
+SET GLOBAL innodb_buffer_pool_dump_pct=1;
+
+# Check the value is 1
+SELECT @@global.innodb_buffer_pool_dump_pct;
+
+# Set the upper boundary value
+SET GLOBAL innodb_buffer_pool_dump_pct=100;
+
+# Check the value is 100
+SELECT @@global.innodb_buffer_pool_dump_pct;
+
+# Set the beyond upper boundary value
+SET GLOBAL innodb_buffer_pool_dump_pct=101;
+
+# Check the value is 100
+SELECT @@global.innodb_buffer_pool_dump_pct;
+
+# Set the beyond lower boundary value
+SET GLOBAL innodb_buffer_pool_dump_pct=-1;
+
+# Check the value is 1
+SELECT @@global.innodb_buffer_pool_dump_pct;
+
+# Set the Default value
+SET GLOBAL innodb_buffer_pool_dump_pct=Default;
+
+# Check the default value
+SELECT @@global.innodb_buffer_pool_dump_pct;
+
+# Set with some invalid value
+--error ER_WRONG_TYPE_FOR_VAR
+SET GLOBAL innodb_buffer_pool_dump_pct='foo';
+
+# Set without using Global
+--error ER_GLOBAL_VARIABLE
+SET innodb_buffer_pool_dump_pct=50;

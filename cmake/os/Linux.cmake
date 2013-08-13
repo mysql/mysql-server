@@ -1,5 +1,5 @@
 
-# Copyright (c) 2010, Oracle and/or its affiliates. All rights reserved.
+# Copyright (c) 2010, 2013, Oracle and/or its affiliates. All rights reserved.
 # 
 # This program is free software; you can redistribute it and/or modify
 # it under the terms of the GNU General Public License as published by
@@ -20,7 +20,6 @@ INCLUDE(CheckSymbolExists)
 
 # Something that needs to be set on legacy reasons
 SET(TARGET_OS_LINUX 1)
-SET(HAVE_NPTL 1)
 SET(_GNU_SOURCE 1)
 
 # Fix CMake (< 2.8) flags. -rdynamic exports too many symbols.

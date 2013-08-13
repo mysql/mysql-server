@@ -801,32 +801,10 @@ Tablespace::file_not_found(
 		if (m_space_id == TRX_SYS_SPACE) {
 			ib_logf(IB_LOG_LEVEL_INFO,
 				"The first specified data file \"%s\" "
-				"did not exist%s",
-				file.m_name,
-				" : a new database to be created!");
+				"did not exist : a new database to be created!",
+				file.m_name);
 		}
 
-	} else if (&file == &m_files.back()) {
-
-		/* Last data file. */
-		ib_logf(IB_LOG_LEVEL_INFO,
-			"%sData file \"%s\" did not exist: new "
-			"to be created",
-			((m_space_id == TRX_SYS_SPACE) ? "" : "Temp-"),
-			file.m_name);
-
-	} else if (*create_new_db) {
-
-		/* Other data files. */
-		ib_logf(IB_LOG_LEVEL_ERROR,
-			"You can add a new %sdata file at the "
-			"end but not in the middle. %sData file "
-			"\"%s\" not found.",
-			((m_space_id == TRX_SYS_SPACE) ? "" : "temp-"),
-			((m_space_id == TRX_SYS_SPACE) ? "" : "Temp-"),
-			file.m_name);
-
-			return(DB_ERROR);
 	} else {
 		ib_logf(IB_LOG_LEVEL_INFO,
 			"Need to create new %sdata file \"%s\"",
@@ -953,9 +931,6 @@ Tablespace::check_file_spec(
 			break;
 
 		} else if (*create_new_db) {
-
-			ut_ad(it->m_exists);
-
 			ib_logf(IB_LOG_LEVEL_ERROR,
 				"First %sdata file \"%s\" of tablespace not "
 				"found but one of the other data files \"%s\" "
@@ -1188,3 +1163,4 @@ Tablespace::is_system_or_undo_tablespace(
 	return(id == srv_sys_space.space_id()
 	       || id <= srv_undo_tablespaces_open);
 }
+

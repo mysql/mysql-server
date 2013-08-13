@@ -12342,7 +12342,8 @@ static void test_datetime_ranges()
 
   rc= mysql_stmt_execute(stmt);
   check_execute(stmt, rc);
-  my_process_warnings(mysql, 6); /* behaviour changed by WL#5928 */
+  /* behaviour changed by WL#5928 */
+  my_process_warnings(mysql, mysql_get_server_version(mysql) < 50702 ? 12 : 6);
 
   verify_col_data("t1", "year", "0000-00-00 00:00:00");
   verify_col_data("t1", "month", "0000-00-00 00:00:00");
@@ -12373,7 +12374,8 @@ static void test_datetime_ranges()
 
   rc= mysql_stmt_execute(stmt);
   check_execute(stmt, rc);
-  my_process_warnings(mysql, 3); /* behaviour changed by WL#5928 */
+  /* behaviour changed by WL#5928 */
+  my_process_warnings(mysql, mysql_get_server_version(mysql) < 50702 ? 6 : 3);
 
   verify_col_data("t1", "year", "0000-00-00 00:00:00");
   verify_col_data("t1", "month", "0000-00-00 00:00:00");
@@ -12412,7 +12414,8 @@ static void test_datetime_ranges()
 
   rc= mysql_stmt_execute(stmt);
   check_execute(stmt, rc);
-  my_process_warnings(mysql, 0);
+  /* behaviour changed by WL#5928 */
+  my_process_warnings(mysql, mysql_get_server_version(mysql) < 50702 ? 2 : 0);
 
   verify_col_data("t1", "day_ovfl", "838:59:59");
   verify_col_data("t1", "day", "828:30:30");
@@ -17762,7 +17765,11 @@ static void test_bug36004()
 
   DIE_UNLESS(mysql_warning_count(mysql) == 0);
   query_int_variable(mysql, "@@warning_count", &warning_count);
-  DIE_UNLESS(!warning_count); /* behaviour changed by WL#5928 */
+  /* behaviour changed by WL#5928 */
+  if (mysql_get_server_version(mysql) < 50702)
+    DIE_UNLESS(warning_count);
+  else
+    DIE_UNLESS(!warning_count);
 
   rc= mysql_stmt_execute(stmt);
   check_execute(stmt, rc);
@@ -17771,7 +17778,11 @@ static void test_bug36004()
   mysql_stmt_close(stmt);
 
   query_int_variable(mysql, "@@warning_count", &warning_count);
-  DIE_UNLESS(!warning_count); /* behaviour changed by WL#5928 */
+  /* behaviour changed by WL#5928 */
+  if (mysql_get_server_version(mysql) < 50702)
+    DIE_UNLESS(warning_count);
+  else
+    DIE_UNLESS(!warning_count);
 
   stmt= mysql_simple_prepare(mysql, "drop table if exists inexistant");
   check_stmt(stmt);
@@ -18038,6 +18049,7 @@ static void test_bug43560(void)
   rc= mysql_stmt_prepare(stmt, insert_str, strlen(insert_str));
   check_execute(stmt, rc);
 
+  memset(&bind, 0, sizeof(bind));
   bind.buffer_type= MYSQL_TYPE_STRING;
   bind.buffer_length= BUFSIZE;
   bind.buffer= buffer;
@@ -18781,7 +18793,8 @@ static void test_bug56976()
   rc= mysql_stmt_bind_param(stmt, bind);
   check_execute(stmt, rc);
 
-  long_buffer= (char*) my_malloc(packet_len, MYF(0));
+  long_buffer= (char*) my_malloc(PSI_NOT_INSTRUMENTED,
+                                 packet_len, MYF(0));
   DIE_UNLESS(long_buffer);
 
   memset(long_buffer, 'a', packet_len);
@@ -19356,6 +19369,14 @@ static void test_wl5928()
   MYSQL_RES  *result;
 
   myheader("test_wl5928");
+
+  if (mysql_get_server_version(mysql) < 50702)
+  {
+    if (!opt_silent)
+      fprintf(stdout, "Skipping test_wl5928: "
+              "tested feature does not exist in versions before MySQL 5.7.2\n");
+    return;
+  }
 
   stmt= mysql_simple_prepare(mysql, "SHOW WARNINGS");
   DIE_UNLESS(stmt == NULL);

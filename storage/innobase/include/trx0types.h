@@ -27,8 +27,13 @@ Created 3/26/1996 Heikki Tuuri
 #define trx0types_h
 
 #include "ut0byte.h"
-#include <vector>
+#include "ut0mutex.h"
+
+#include <set>
 #include <queue>
+#include <vector>
+
+//#include <unordered_set>
 
 /** printf(3) format used for printing DB_TRX_ID and other system fields */
 #define TRX_ID_FMT		IB_ID_FMT
@@ -141,9 +146,13 @@ typedef byte	trx_upagef_t;
 /** Undo log record */
 typedef	byte	trx_undo_rec_t;
 
-/** Transaction list */
-typedef UT_LIST_BASE_NODE_T(trx_t) trx_list_t;
 /* @} */
+
+typedef ib_mutex_t RsegMutex;
+typedef ib_mutex_t TrxMutex;
+typedef ib_mutex_t UndoMutex;
+typedef ib_mutex_t PQMutex;
+typedef ib_mutex_t TrxSysMutex;
 
 /** Rollback segements from a given transaction with trx-no
 scheduled for purge. */
@@ -153,10 +162,14 @@ private:
 public:
 	typedef trx_rsegs_t::iterator iterator;
 
-	TrxUndoRsegs(trx_id_t trx_no)
+	/** Default constructor */
+	TrxUndoRsegs() : m_trx_no() { }
+
+	explicit TrxUndoRsegs(trx_id_t trx_no)
 		:
 		m_trx_no(trx_no)
 	{
+		// Do nothing
 	}
 
 	/** Get transaction number
@@ -187,10 +200,12 @@ public:
 		return(m_rsegs.end());
 	}
 
-	/** Append rollback segments from referred instance to current instance. */
+	/** Append rollback segments from referred instance to current
+	instance. */
 	void append(const TrxUndoRsegs& append_from)
 	{
 		ut_ad(get_trx_no() == append_from.get_trx_no());
+
 		m_rsegs.insert(m_rsegs.end(),
 			       append_from.m_rsegs.begin(),
 			       append_from.m_rsegs.end());
@@ -200,18 +215,17 @@ public:
 	@param elem1 first element to compare
 	@param elem2 second element to compare
 	@return true if elem1 > elem2 else false.*/
-	bool operator()(const TrxUndoRsegs& elem1, const TrxUndoRsegs& elem2)
+	bool operator()(const TrxUndoRsegs& lhs, const TrxUndoRsegs& rhs)
 	{
-		return(elem1.m_trx_no > elem2.m_trx_no);
+		return(lhs.m_trx_no > rhs.m_trx_no);
 	}
 
 	/** Compiler defined copy-constructor/assignment operator
-	should be fine given that there is no reference to memory object
-	outside scope of class object.*/
+	should be fine given that there is no reference to a memory
+	object outside scope of class object.*/
 
 private:
-	/** Transaction number of a transaction of which rollback segments
-	are part off. */
+	/** The rollback segments transaction number. */
 	trx_id_t		m_trx_no;
 
 	/** Rollback segments of a transaction, scheduled for purge. */
@@ -220,4 +234,52 @@ private:
 
 typedef std::priority_queue<
 	TrxUndoRsegs, std::vector<TrxUndoRsegs>, TrxUndoRsegs> purge_pq_t;
+
+typedef std::vector<trx_id_t> trx_ids_t;
+
+/** Mapping read-write transactions from id to transaction instance, for
+creating read views and during trx id lookup for MVCC and locking. */
+struct TrxTrack {
+	explicit TrxTrack(trx_id_t id, trx_t* trx = NULL)
+		:
+		m_id(id),
+		m_trx(trx)
+	{
+		// Do nothing
+	}
+
+	trx_id_t	m_id;
+	trx_t*		m_trx;
+};
+
+struct TrxTrackHash {
+	size_t operator()(const TrxTrack& key) const
+	{
+		return(key.m_id);
+	}
+};
+
+/**
+Comparator for TrxMap */
+struct TrxTrackHashCmp {
+
+	bool operator() (const TrxTrack& lhs, const TrxTrack& rhs) const
+	{
+		return(lhs.m_id == rhs.m_id);
+	}
+};
+
+/**
+Comparator for TrxMap */
+struct TrxTrackCmp {
+
+	bool operator() (const TrxTrack& lhs, const TrxTrack& rhs) const
+	{
+		return(lhs.m_id < rhs.m_id);
+	}
+};
+
+//typedef std::unordered_set<TrxTrack, TrxTrackHash, TrxTrackHashCmp> TrxIdSet;
+typedef std::set<TrxTrack, TrxTrackCmp> TrxIdSet;
+
 #endif /* trx0types_h */

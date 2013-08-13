@@ -66,10 +66,11 @@ Created 2/16/1996 Heikki Tuuri
 #include "srv0start.h"
 #include "srv0srv.h"
 #include "srv0space.h"
+#include "row0trunc.h"
 #ifndef UNIV_HOTBACKUP
 # include "trx0rseg.h"
 # include "os0proc.h"
-# include "sync0sync.h"
+# include "sync0mutex.h"
 # include "buf0flu.h"
 # include "buf0rea.h"
 # include "dict0boot.h"
@@ -90,7 +91,9 @@ Created 2/16/1996 Heikki Tuuri
 # include "row0upd.h"
 # include "row0row.h"
 # include "row0mysql.h"
+# include "row0trunc.h"
 # include "btr0pcur.h"
+# include "os0event.h"
 # include "zlib.h"
 # include "ut0crc32.h"
 
@@ -106,11 +109,11 @@ ibool	srv_start_raw_disk_in_use = FALSE;
 incomplete transactions */
 ibool	srv_startup_is_before_trx_rollback_phase = FALSE;
 /** TRUE if the server is being started */
-ibool	srv_is_being_started = FALSE;
+bool	srv_is_being_started = false;
 /** TRUE if the server was successfully started */
 ibool	srv_was_started = FALSE;
 /** TRUE if innobase_start_or_create_for_mysql() has been called */
-static ibool		srv_start_has_been_called = FALSE;
+static ibool	srv_start_has_been_called = FALSE;
 
 /** Bit flags for tracking background thread creation. They are used to
 determine which threads need to be stopped if we need to abort during
@@ -141,10 +144,6 @@ static os_file_t	files[1000];
 static ulint		n[SRV_MAX_N_IO_THREADS + 6];
 /** io_handler_thread identifiers, 32 is the maximum number of purge threads  */
 static os_thread_id_t	thread_ids[SRV_MAX_N_IO_THREADS + 6 + 32];
-
-/** We use this mutex to test the return value of pthread_mutex_trylock
-   on successful locking. HP-UX does NOT return 0, though Linux et al do. */
-static os_fast_mutex_t	srv_os_test_mutex;
 
 /** Name of srv_monitor_file */
 static char*	srv_monitor_file_name;
@@ -1048,27 +1047,13 @@ srv_shutdown_all_bg_threads()
 		logs_empty_and_mark_files_at_shutdown() and should have
 		already quit or is quitting right now. */
 
-		os_mutex_enter(os_sync_mutex);
-
-		if (os_thread_count == 0) {
-			/* All the threads have exited or are just exiting;
-			NOTE that the threads may not have completed their
-			exit yet. Should we use pthread_join() to make sure
-			they have exited? If we did, we would have to
-			remove the pthread_detach() from
-			os_thread_exit().  Now we just sleep 0.1
-			seconds and hope that is enough! */
-
-			os_mutex_exit(os_sync_mutex);
-
-			os_thread_sleep(100000);
-
-			break;
-		}
-
-		os_mutex_exit(os_sync_mutex);
+		bool	active = os_thread_active();
 
 		os_thread_sleep(100000);
+
+		if (!active) {
+			break;
+		}
 	}
 
 	if (i == 1000) {
@@ -1138,23 +1123,16 @@ innobase_start_or_create_for_mysql(void)
 	}
 
 	if (sizeof(ulint) != sizeof(void*)) {
-		ut_print_timestamp(stderr);
-		fprintf(stderr,
-			" InnoDB: Error: size of InnoDB's ulint is %lu, "
-			"but size of void*\n", (ulong) sizeof(ulint));
-		ut_print_timestamp(stderr);
-		fprintf(stderr,
-			" InnoDB: is %lu. The sizes should be the same "
-			"so that on a 64-bit\n",
+		ib_logf(IB_LOG_LEVEL_ERROR,
+			"Size of InnoDB's ulint is %lu, but size of void* "
+			"is %lu. The sizes should be the same so that on "
+			"a 64-bit platforms you can allocate more than 4 GB "
+			"of memory.",
+			(ulong) sizeof(ulint),
 			(ulong) sizeof(void*));
-		ut_print_timestamp(stderr);
-		fprintf(stderr,
-			" InnoDB: platforms you can allocate more than 4 GB "
-			"of memory.\n");
 	}
 
 #ifdef UNIV_DEBUG
-	ut_print_timestamp(stderr);
 	fprintf(stderr,
 		" InnoDB: !!!!!!!! UNIV_DEBUG switched on !!!!!!!!!\n");
 #endif
@@ -1217,6 +1195,9 @@ innobase_start_or_create_for_mysql(void)
 		"" IB_ATOMICS_STARTUP_MSG "");
 
 	ib_logf(IB_LOG_LEVEL_INFO,
+		"" MUTEX_TYPE"");
+
+	ib_logf(IB_LOG_LEVEL_INFO,
 		"Compressed tables use zlib " ZLIB_VERSION
 #ifdef UNIV_ZIP_DEBUG
 	      " with validation"
@@ -1253,7 +1234,7 @@ innobase_start_or_create_for_mysql(void)
 #endif /* UNIV_DEBUG */
 	/*	yydebug = TRUE; */
 
-	srv_is_being_started = TRUE;
+	srv_is_being_started = true;
 	srv_startup_is_before_trx_rollback_phase = TRUE;
 
 #ifdef _WIN32
@@ -1278,7 +1259,7 @@ innobase_start_or_create_for_mysql(void)
 	default:
 		/* Vista and later have both async IO and condition variables */
 		srv_use_native_aio = TRUE;
-		srv_use_native_conditions = TRUE;
+		srv_use_native_conditions = true;
 		break;
 	}
 
@@ -1404,8 +1385,7 @@ innobase_start_or_create_for_mysql(void)
 
 	if (!srv_read_only_mode) {
 
-		mutex_create(srv_monitor_file_mutex_key,
-			     &srv_monitor_file_mutex, SYNC_NO_ORDER_CHECK);
+		mutex_create("srv_monitor_file", &srv_monitor_file_mutex);
 
 		if (srv_innodb_status) {
 
@@ -1421,15 +1401,14 @@ innobase_start_or_create_for_mysql(void)
 			srv_monitor_file = fopen(srv_monitor_file_name, "w+");
 
 			if (!srv_monitor_file) {
-
 				ib_logf(IB_LOG_LEVEL_ERROR,
 					"Unable to create %s: %s",
 					srv_monitor_file_name,
 					strerror(errno));
-
 				return(srv_init_abort(DB_ERROR));
 			}
 		} else {
+
 			srv_monitor_file_name = NULL;
 			srv_monitor_file = os_file_create_tmpfile();
 
@@ -1438,8 +1417,7 @@ innobase_start_or_create_for_mysql(void)
 			}
 		}
 
-		mutex_create(srv_dict_tmpfile_mutex_key,
-			     &srv_dict_tmpfile_mutex, SYNC_DICT_OPERATION);
+		mutex_create("srv_dict_tmpfile", &srv_dict_tmpfile_mutex);
 
 		srv_dict_tmpfile = os_file_create_tmpfile();
 
@@ -1447,8 +1425,7 @@ innobase_start_or_create_for_mysql(void)
 			return(srv_init_abort(DB_ERROR));
 		}
 
-		mutex_create(srv_misc_tmpfile_mutex_key,
-			     &srv_misc_tmpfile_mutex, SYNC_ANY_LATCH);
+		mutex_create("srv_misc_tmpfile", &srv_misc_tmpfile_mutex);
 
 		srv_misc_tmpfile = os_file_create_tmpfile();
 
@@ -1872,8 +1849,13 @@ files_checked:
 
 		fil_flush_file_spaces(FIL_TABLESPACE);
 
-		create_log_files_rename(logfilename, dirnamelen,
-					max_flushed_lsn, logfile0);
+		create_log_files_rename(
+			logfilename, dirnamelen, max_flushed_lsn, logfile0);
+#ifdef UNIV_SYNC_DEBUG
+		/* Switch latching order checks on in sync0debug.cc. */
+		sync_check_enable();
+#endif /* UNIV_SYNC_DEBUG */
+
 	} else {
 
 		/* Check if we support the max format that is stamped
@@ -1901,6 +1883,15 @@ files_checked:
 		this point there will be only ONE page in the buf_LRU
 		and there must be no page in the buf_flush list. */
 		buf_pool_invalidate();
+
+		/* Scan and locate truncate log files. Parsed located files
+		and add table to truncate information to central vector for
+		truncate fix-up action post recovery. */
+		err = TruncateLogParser::scan_and_parse(srv_log_group_home_dir);
+		if (err != DB_SUCCESS) {
+
+			return(srv_init_abort(DB_ERROR));
+		}
 
 		/* We always try to do a recovery, even if the database had
 		been shut down normally: this is the normal startup path */
@@ -1967,10 +1958,19 @@ files_checked:
 			dict_check_tablespaces_and_store_max_id(dict_check);
 		}
 
+		/* Fix-up truncate of table if server crashed while truncate
+		was active. */
+		err = truncate_t::fixup_tables();
+
+		if (err != DB_SUCCESS) {
+			return(srv_init_abort(err));
+		}
+
 		if (!srv_force_recovery
 		    && !recv_sys->found_corrupt_log
 		    && (srv_log_file_size_requested != srv_log_file_size
 			|| srv_n_log_files_found != srv_n_log_files)) {
+
 			/* Prepare to replace the redo log files. */
 
 			if (srv_read_only_mode) {
@@ -1998,6 +1998,7 @@ files_checked:
 
 			/* Flush the old log files. */
 			log_buffer_flush_to_disk();
+
 			/* If innodb_flush_method=O_DSYNC,
 			we need to explicitly flush the log buffers. */
 			fil_flush(SRV_LOG_SPACE_FIRST_ID);
@@ -2013,8 +2014,7 @@ files_checked:
 			RECOVERY_CRASH(3);
 
 			/* Stamp the LSN to the data files. */
-			fil_write_flushed_lsn_to_data_files(
-				max_flushed_lsn, 0);
+			fil_write_flushed_lsn_to_data_files(max_flushed_lsn, 0);
 
 			fil_flush_file_spaces(FIL_TABLESPACE);
 
@@ -2034,18 +2034,26 @@ files_checked:
 
 			srv_log_file_size = srv_log_file_size_requested;
 
-			err = create_log_files(logfilename, dirnamelen,
-					       max_flushed_lsn, logfile0);
+			err = create_log_files(
+				logfilename, dirnamelen, max_flushed_lsn,
+				logfile0);
 
 			if (err != DB_SUCCESS) {
 				return(srv_init_abort(err));
 			}
 
-			create_log_files_rename(logfilename, dirnamelen,
-						max_flushed_lsn, logfile0);
+			create_log_files_rename(
+				logfilename, dirnamelen, max_flushed_lsn,
+				logfile0);
 		}
 
 		srv_startup_is_before_trx_rollback_phase = FALSE;
+
+#ifdef UNIV_SYNC_DEBUG
+		/* Switch latching order checks on in sync0debug.cc */
+		sync_check_enable();
+#endif /* UNIV_SYNC_DEBUG */
+
 		recv_recovery_rollback_active();
 
 		/* It is possible that file_format tag has never
@@ -2077,18 +2085,15 @@ files_checked:
 		return(srv_init_abort(err));
 	}
 
-	/* Will open temp-tablespace and will keep it open till server lifetime */
+	/* Open temp-tablespace and keep it open until shutdown. */
 	fil_open_log_and_system_tablespace_files();
 
 	/* fprintf(stderr, "Max allowed record size %lu\n",
 	page_get_free_space_of_empty() / 2); */
 
-	if (buf_dblwr == NULL) {
-		/* Create the doublewrite buffer to a new tablespace */
-		if (!buf_dblwr_create()) {
-			return(srv_init_abort(DB_ERROR));
-		}
-
+	/* Create the doublewrite buffer to a new tablespace */
+	if (buf_dblwr == NULL && !buf_dblwr_create()) {
+		return(srv_init_abort(DB_ERROR));
 	}
 
 	/* Here the double write buffer has already been created and so
@@ -2153,7 +2158,7 @@ files_checked:
 		return(srv_init_abort(err));
 	}
 
-	srv_is_being_started = FALSE;
+	srv_is_being_started = false;
 
 	ut_a(trx_purge_state() == PURGE_STATE_INIT);
 
@@ -2288,22 +2293,34 @@ files_checked:
 		}
 	}
 
-	/* Check that os_fast_mutexes work as expected */
-	os_fast_mutex_init(PFS_NOT_INSTRUMENTED, &srv_os_test_mutex);
+	{
+		/* We use this mutex to test the return value of
+		pthread_mutex_trylock on successful locking. HP-UX
+		does NOT return 0, though Linux et al do. */
 
-	if (0 != os_fast_mutex_trylock(&srv_os_test_mutex)) {
-		ib_logf(IB_LOG_LEVEL_FATAL,
-			"pthread_mutex_trylock returns an unexpected"
-			" value on success! Cannot continue.");
+		SysMutex	mutex;
+
+		/* Check that OS utexes work as expected */
+		mutex_create("test_mutex", &mutex);
+
+		if (mutex_enter_nowait(&mutex) != 0) {
+
+			ib_logf(IB_LOG_LEVEL_FATAL,
+				"pthread_mutex_trylock returns "
+				"an unexpected value on success! "
+				"Cannot continue.");
+
+			exit(EXIT_FAILURE);
+		}
+
+		mutex_exit(&mutex);
+
+		mutex_enter(&mutex);
+
+		mutex_exit(&mutex);
+
+		mutex_free(&mutex);
 	}
-
-	os_fast_mutex_unlock(&srv_os_test_mutex);
-
-	os_fast_mutex_lock(&srv_os_test_mutex);
-
-	os_fast_mutex_unlock(&srv_os_test_mutex);
-
-	os_fast_mutex_free(&srv_os_test_mutex);
 
 	if (srv_print_verbose_log) {
 		ib_logf(IB_LOG_LEVEL_INFO,
@@ -2468,15 +2485,10 @@ innobase_shutdown_for_mysql(void)
 	que_close();
 	row_mysql_close();
 	srv_mon_free();
-	sync_close();
 	srv_free();
 	fil_close();
 
-	/* 4. Free the os_conc_mutex and all os_events and os_mutexes */
-
-	os_sync_free();
-
-	/* 5. Free all allocated memory */
+	/* 4. Free all allocated memory */
 
 	pars_lexer_close();
 	log_mem_free();
@@ -2484,22 +2496,16 @@ innobase_shutdown_for_mysql(void)
 
 	mem_close();
 
+	/* 6. Free the thread management resoruces. */
+	os_thread_free();
+
+	/* 7. Free the synchronisation infrastructure. */
+	sync_check_close();
+
 	/* ut_free_all_mem() frees all allocated memory not freed yet
 	in shutdown, and it will also free the ut_list_mutex, so it
 	should be the last one for all operation */
 	ut_free_all_mem();
-
-	if (os_thread_count != 0
-	    || os_event_count != 0
-	    || os_mutex_count != 0
-	    || os_fast_mutex_count != 0) {
-		ib_logf(IB_LOG_LEVEL_WARN,
-			"Some resources were not cleaned up in shutdown: "
-			"threads %lu, events %lu, os_mutexes %lu, "
-			"os_fast_mutexes %lu",
-			(ulong) os_thread_count, (ulong) os_event_count,
-			(ulong) os_mutex_count, (ulong) os_fast_mutex_count);
-	}
 
 	if (dict_foreign_err_file) {
 		fclose(dict_foreign_err_file);

@@ -1,0 +1,63 @@
+###############################################################################
+#                                                                             #
+# Crash in compare Explain vs Explain Other plans                             #
+#                                                                             #
+#                                                                             #
+# Creation Date: 2013-Jan-02                                                  #
+# Author : Tarique Saleem                                                     #
+#                                                                             #
+# 									      #
+###############################################################################
+
+
+# Bug#16077396 : CRASH ON OPT_EXPLAIN_JSON_NAMESPACE::JOIN_CTX::ADD_SUBQUERY IN OPT_EXPLAIN_JSON.
+
+####################################################################################################################
+#   Checking if the build is Debug build else skip the test because debug sync points are avilable in Debug build  #
+####################################################################################################################
+
+
+ echo "WL6369 Explain for Connection";
+
+  --source include/have_debug_sync.inc
+  --source include/not_embedded.inc
+  --source include/not_windows.inc
+  --source include/have_grep.inc
+  --disable_query_log
+  --disable_result_log
+  --disable_warnings
+  let $format=json;
+
+  connect (ce, localhost, root,,test);
+  connect (cq, localhost, root,,test);
+  connection cq;
+  SET GLOBAL innodb_stats_persistent=on;
+  let $point=   before_reset_query_plan;  
+
+
+# Bug#16077396 : CRASH ON OPT_EXPLAIN_JSON_NAMESPACE::JOIN_CTX::ADD_SUBQUERY IN OPT_EXPLAIN_JSON.
+
+
+  create table t1 (a int, c int) ;
+  insert into t1 values (1, 2), (2, 3), (2, 4), (3, 5) ;
+  create table t2 (a int, c int) ;
+  insert into t2 values (1, 5), (2, 4), (3, 3), (3,3) ;
+  let $point=   before_reset_query_plan;let $query=  SELECT group_concat(c order by (select c from t2 where t2.a=t1.a limit 1)) as grp from t1 ;
+  --source include/explain_for_connection.inc
+  drop table t1,t2;
+
+  CREATE TABLE t1 (a VARCHAR(10), FULLTEXT KEY a (a)) ;
+  INSERT INTO t1 VALUES (1),(2) ;
+  CREATE TABLE t2 (b INT) ;
+  INSERT INTO t2 VALUES (1),(2) ;
+  let $point=   before_reset_query_plan;let $query=  SELECT * FROM t1 UNION SELECT * FROM t1 ORDER BY (SELECT a FROM t2 WHERE b = 12) ;
+  --source include/explain_for_connection.inc
+  DROP TABLE t1,t2 ;
+
+
+# Bug# 16078113 : CRASH ON EXPLAIN_FORMAT_JSON::BEGIN_CONTEXT IN OPT_EXPLAIN_JSON.CC
+
+  let $point=   before_reset_query_plan;let $query=  SELECT SQL_CALC_FOUND_ROWS 'foo' UNION SELECT 'bar' LIMIT 0 ;
+  --source include/explain_for_connection.inc
+
+

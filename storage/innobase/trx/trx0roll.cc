@@ -585,7 +585,7 @@ trx_rollback_active(
 
 	ut_a(thr == que_fork_start_command(fork));
 
-	mutex_enter(&trx_sys->mutex);
+	trx_sys_mutex_enter();
 
 	trx_roll_crash_recv_trx	= trx;
 
@@ -595,7 +595,7 @@ trx_rollback_active(
 
 	rows_to_undo = trx_roll_max_undo_no;
 
-	mutex_exit(&trx_sys->mutex);
+	trx_sys_mutex_exit();
 
 	if (rows_to_undo > 1000000000) {
 		rows_to_undo = rows_to_undo / 1000000;
@@ -677,7 +677,7 @@ trx_rollback_resurrected(
 	ibool	all)	/*!< in: FALSE=roll back dictionary transactions;
 			TRUE=roll back all non-PREPARED transactions */
 {
-	ut_ad(mutex_own(&trx_sys->mutex));
+	ut_ad(trx_sys_mutex_own());
 
 	/* The trx->is_recovered flag and trx->state are set
 	atomically under the protection of the trx->mutex (and
@@ -695,7 +695,7 @@ trx_rollback_resurrected(
 
 	switch (state) {
 	case TRX_STATE_COMMITTED_IN_MEMORY:
-		mutex_exit(&trx_sys->mutex);
+		trx_sys_mutex_exit();
 		fprintf(stderr,
 			"InnoDB: Cleaning up trx with id " TRX_ID_FMT "\n",
 			trx->id);
@@ -704,7 +704,7 @@ trx_rollback_resurrected(
 		return(TRUE);
 	case TRX_STATE_ACTIVE:
 		if (all || trx_get_dict_operation(trx) != TRX_DICT_OP_NONE) {
-			mutex_exit(&trx_sys->mutex);
+			trx_sys_mutex_exit();
 			trx_rollback_active(trx);
 			trx_free_for_background(trx);
 			return(TRUE);
@@ -756,7 +756,7 @@ trx_rollback_or_clean_recovered(
 	recovered transactions to clean up or recover. */
 
 	do {
-		mutex_enter(&trx_sys->mutex);
+		trx_sys_mutex_enter();
 
 		for (trx = UT_LIST_GET_FIRST(trx_sys->rw_trx_list);
 		     trx != NULL;
@@ -770,13 +770,13 @@ trx_rollback_or_clean_recovered(
 
 			if (trx_rollback_resurrected(trx, all)) {
 
-				mutex_enter(&trx_sys->mutex);
+				trx_sys_mutex_enter();
 
 				break;
 			}
 		}
 
-		mutex_exit(&trx_sys->mutex);
+		trx_sys_mutex_exit();
 
 	} while (trx != NULL);
 

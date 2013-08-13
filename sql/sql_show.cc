@@ -417,7 +417,8 @@ push_ignored_db_dir(char *path)
     return true;
 
   // No need to normalize, it's only a directory name, not a path.
-  if (!my_multi_malloc(0,
+  if (!my_multi_malloc(key_memory_ignored_db,
+                       0,
                        &new_elt, sizeof(LEX_STRING),
                        &new_elt_buffer, path_len + 1,
                        NullS))
@@ -510,7 +511,8 @@ ignore_db_dirs_process_additions()
     len--;
 
   /* +1 the terminating zero */
-  ptr= opt_ignore_db_dirs= (char *) my_malloc(len + 1, MYF(0));
+  ptr= opt_ignore_db_dirs= (char *) my_malloc(key_memory_ignored_db,
+                                              len + 1, MYF(0));
   if (!ptr)
     return true;
 
@@ -2338,7 +2340,7 @@ int add_status_vars(SHOW_VAR *list)
 {
   int res= 0;
   if (status_vars_inited)
-    mysql_rwlock_wrlock(&LOCK_status);
+    mysql_mutex_lock(&LOCK_status);
   if (!all_status_vars.buffer && // array is not allocated yet - do it now
       my_init_dynamic_array(&all_status_vars, sizeof(SHOW_VAR), 200, 20))
   {
@@ -2353,7 +2355,7 @@ int add_status_vars(SHOW_VAR *list)
     sort_dynamic(&all_status_vars, show_var_cmp);
 err:
   if (status_vars_inited)
-    mysql_rwlock_unlock(&LOCK_status);
+    mysql_mutex_unlock(&LOCK_status);
   return res;
 }
 
@@ -2415,7 +2417,7 @@ void remove_status_vars(SHOW_VAR *list)
 {
   if (status_vars_inited)
   {
-    mysql_rwlock_wrlock(&LOCK_status);
+    mysql_mutex_lock(&LOCK_status);
     SHOW_VAR *all= dynamic_element(&all_status_vars, 0, SHOW_VAR *);
     int a= 0, b= all_status_vars.elements, c= (a+b)/2;
 
@@ -2436,7 +2438,7 @@ void remove_status_vars(SHOW_VAR *list)
         all[c].type= SHOW_UNDEF;
     }
     shrink_var_array(&all_status_vars);
-    mysql_rwlock_unlock(&LOCK_status);
+    mysql_mutex_unlock(&LOCK_status);
   }
   else
   {
@@ -3472,7 +3474,7 @@ fill_schema_table_by_open(THD *thd, bool is_show_fields_or_keys,
 
 
 end:
-  lex->unit->cleanup();
+  lex->unit->cleanup(true);
 
   /* Restore original LEX value, statement's arena and THD arena values. */
   lex_end(thd->lex);
@@ -3777,7 +3779,8 @@ static int fill_schema_table_from_frm(THD *thd, TABLE_LIST *tables,
       TABLE tbl;
 
       memset(&tbl, 0, sizeof(TABLE));
-      init_sql_alloc(&tbl.mem_root, TABLE_ALLOC_BLOCK_SIZE, 0);
+      init_sql_alloc(key_memory_table_triggers_list,
+                     &tbl.mem_root, TABLE_ALLOC_BLOCK_SIZE, 0);
 
       tbl.triggers= &d;
       table_list.table= &tbl;
@@ -3835,7 +3838,8 @@ static int fill_schema_table_from_frm(THD *thd, TABLE_LIST *tables,
   {
     TABLE tbl;
     memset(&tbl, 0, sizeof(TABLE));
-    init_sql_alloc(&tbl.mem_root, TABLE_ALLOC_BLOCK_SIZE, 0);
+    init_sql_alloc(key_memory_table_triggers_list,
+                   &tbl.mem_root, TABLE_ALLOC_BLOCK_SIZE, 0);
 
     if (!open_table_from_share(thd, share, table_name->str, 0,
                                (EXTRA_RECORD | OPEN_FRM_FILE_ONLY),
@@ -5707,10 +5711,7 @@ static bool store_trigger(THD *thd, TABLE *table, Trigger *trigger)
 
   if (!trigger->is_created_timestamp_null())
   {
-    timeval epoche_timestamp;
-    ulonglong created_timestamp= trigger->get_created_timestamp();
-    epoche_timestamp.tv_sec= created_timestamp / 1000;
-    epoche_timestamp.tv_usec= (created_timestamp % 1000) * 1000;
+    timeval epoche_timestamp= trigger->get_created_timestamp();
 
     table->field[16]->set_notnull();
     table->field[16]->store_timestamp(&epoche_timestamp);
@@ -6589,14 +6590,20 @@ int fill_status(THD *thd, TABLE_LIST *tables, Item *cond)
     tmp1= &thd->status_var;
   }
 
-  mysql_rwlock_rdlock(&LOCK_status);
+  /*
+    Avoid recursive acquisition of LOCK_status in cases when WHERE clause
+    represented by "cond" contains subquery on I_S.SESSION/GLOBAL_STATUS.
+  */
+  if (thd->fill_status_recursion_level++ == 0) 
+    mysql_mutex_lock(&LOCK_status);
   if (option_type == OPT_GLOBAL)
     calc_sum_of_all_status(&tmp);
   res= show_status_array(thd, wild,
                          (SHOW_VAR *)all_status_vars.buffer,
                          option_type, tmp1, "", tables->table,
                          upper_case_names, cond);
-  mysql_rwlock_unlock(&LOCK_status);
+  if (thd->fill_status_recursion_level-- == 1) 
+    mysql_mutex_unlock(&LOCK_status);
   DBUG_RETURN(res);
 }
 
@@ -6879,7 +6886,7 @@ TABLE *create_schema_table(THD *thd, TABLE_LIST *table_list)
   tmp_table_param->table_charset= cs;
   tmp_table_param->field_count= field_count;
   tmp_table_param->schema_table= 1;
-  SELECT_LEX *select_lex= thd->lex->current_select;
+  SELECT_LEX *select_lex= thd->lex->current_select();
   if (!(table= create_tmp_table(thd, tmp_table_param,
                                 field_list, (ORDER*) 0, 0, 0, 
                                 (select_lex->options | thd->variables.option_bits |
@@ -6938,7 +6945,7 @@ int make_schemata_old_format(THD *thd, ST_SCHEMA_TABLE *schema_table)
 {
   char tmp[128];
   LEX *lex= thd->lex;
-  SELECT_LEX *sel= lex->current_select;
+  SELECT_LEX *sel= lex->current_select();
   Name_resolution_context *context= &sel->context;
 
   if (!sel->item_list.elements)
@@ -7134,7 +7141,7 @@ int mysql_schema_table(THD *thd, LEX *lex, TABLE_LIST *table_list)
 
   if (table_list->schema_table_reformed) // show command
   {
-    SELECT_LEX *sel= lex->current_select;
+    SELECT_LEX *sel= lex->current_select();
     Item *item;
     Field_translator *transl, *org_transl;
 
@@ -8173,7 +8180,8 @@ int initialize_schema_table(st_plugin_int *plugin)
   ST_SCHEMA_TABLE *schema_table;
   DBUG_ENTER("initialize_schema_table");
 
-  if (!(schema_table= (ST_SCHEMA_TABLE *)my_malloc(sizeof(ST_SCHEMA_TABLE),
+  if (!(schema_table= (ST_SCHEMA_TABLE *)my_malloc(key_memory_ST_SCHEMA_TABLE,
+                                                   sizeof(ST_SCHEMA_TABLE),
                                 MYF(MY_WME | MY_ZEROFILL))))
       DBUG_RETURN(1);
   /* Historical Requirement */
@@ -8278,7 +8286,7 @@ static bool show_create_trigger_impl(THD *thd, Trigger *trigger)
                                          MY_CS_NAME_SIZE));
 
   fields.push_back(new Item_temporal(MYSQL_TYPE_TIMESTAMP,
-                                     Name_string("created",
+                                     Name_string("Created",
                                                  sizeof("created")-1),
                                      0, 0));
 
@@ -8305,12 +8313,9 @@ static bool show_create_trigger_impl(THD *thd, Trigger *trigger)
 
   if (!trigger->is_created_timestamp_null())
   {
-    timeval epoche_timestamp;
-    longlong created_timestamp= trigger->get_created_timestamp();
-    epoche_timestamp.tv_sec= created_timestamp / 1000;
-    epoche_timestamp.tv_usec= (created_timestamp % 1000) * 1000;
     MYSQL_TIME timestamp;
-    my_tz_SYSTEM->gmt_sec_to_TIME(&timestamp, epoche_timestamp);
+    my_tz_SYSTEM->gmt_sec_to_TIME(&timestamp,
+                                  trigger->get_created_timestamp());
     p->store(&timestamp, 2);
   }
   else
