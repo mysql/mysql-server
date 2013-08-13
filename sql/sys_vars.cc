@@ -2683,7 +2683,7 @@ static Sys_var_mybool Sys_slave_sql_verify_checksum(
        "log. Enabled by default.",
        GLOBAL_VAR(opt_slave_sql_verify_checksum), CMD_LINE(OPT_ARG), DEFAULT(TRUE));
 
-static bool slave_rows_search_algorithms_check(sys_var *self, THD *thd, set_var *var)
+static bool check_not_null_not_empty(sys_var *self, THD *thd, set_var *var)
 {
   String str, *res;
   /* null value is not allowed */
@@ -2695,6 +2695,22 @@ static bool slave_rows_search_algorithms_check(sys_var *self, THD *thd, set_var 
   if (res && res->is_empty())
     return true;
 
+  return false;
+}
+
+static bool check_update_mts_type(sys_var *self, THD *thd, set_var *var)
+{
+  if (check_not_null_not_empty(self, thd, var))
+    return true;
+
+  mysql_mutex_lock(&active_mi->rli->run_lock);
+  if (active_mi && active_mi->rli->slave_running)
+  {
+    my_error(ER_SLAVE_MUST_STOP, MYF(0));
+    mysql_mutex_unlock(&active_mi->rli->run_lock);
+    return true;
+  }
+  mysql_mutex_unlock(&active_mi->rli->run_lock);
   return false;
 }
 
@@ -2711,7 +2727,20 @@ static Sys_var_set Slave_rows_search_algorithms(
        GLOBAL_VAR(slave_rows_search_algorithms_options), CMD_LINE(REQUIRED_ARG),
        slave_rows_search_algorithms_names,
        DEFAULT(SLAVE_ROWS_INDEX_SCAN | SLAVE_ROWS_TABLE_SCAN),  NO_MUTEX_GUARD,
-       NOT_IN_BINLOG, ON_CHECK(slave_rows_search_algorithms_check), ON_UPDATE(NULL));
+       NOT_IN_BINLOG, ON_CHECK(check_not_null_not_empty), ON_UPDATE(NULL));
+
+static const char *mts_parallel_type_names[]= {"DATABASE", "LOGICAL_CLOCK", 0};
+static Sys_var_enum Mts_parallel_type(
+       "slave_parallel_type",
+       "Specifies if the slave will use database partioning "
+       "or information from master to parallelize transactions."
+       "(Default: DATABASE).",
+       GLOBAL_VAR(mts_parallel_option), CMD_LINE(REQUIRED_ARG),
+       mts_parallel_type_names,
+       DEFAULT(MTS_PARALLEL_TYPE_DB_NAME),  NO_MUTEX_GUARD,
+       NOT_IN_BINLOG, ON_CHECK(check_update_mts_type),
+       ON_UPDATE(NULL));
+
 #endif
 
 bool Sys_var_enum_binlog_checksum::global_update(THD *thd, set_var *var)

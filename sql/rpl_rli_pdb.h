@@ -10,6 +10,9 @@
 #include <my_bitmap.h>
 #include "rpl_slave.h"
 
+#ifndef DBUG_OFF
+extern ulong w_rr;
+#endif
 /**
   Legends running throughout the module:
 
@@ -54,9 +57,8 @@ void destroy_hash_workers(Relay_log_info*);
 Slave_worker *map_db_to_worker(const char *dbname, Relay_log_info *rli,
                                db_worker_hash_entry **ptr_entry,
                                bool need_temp_tables, Slave_worker *w);
-Slave_worker *get_least_occupied_worker(DYNAMIC_ARRAY *workers);
-int wait_for_workers_to_finish(Relay_log_info const *rli,
-                               Slave_worker *ignore= NULL);
+Slave_worker *get_least_occupied_worker(Relay_log_info *rli,
+                                        DYNAMIC_ARRAY *workers, Log_event* ev);
 
 #define SLAVE_INIT_DBS_IN_GROUP 4     // initial allocation for CGEP dynarray
 
@@ -444,5 +446,11 @@ private:
 
 TABLE* mts_move_temp_table_to_entry(TABLE*, THD*, db_worker_hash_entry*);
 TABLE* mts_move_temp_tables_to_thd(THD*, TABLE*);
+// Auxiliary function
+TABLE* mts_move_temp_tables_to_thd(THD*, TABLE*, enum_mts_parallel_type);
+
+extern  mysql_mutex_t slave_worker_hash_lock;
+extern  mysql_cond_t slave_worker_hash_cond;
+extern HASH mapping_db_to_worker;
 #endif // HAVE_REPLICATION
 #endif
