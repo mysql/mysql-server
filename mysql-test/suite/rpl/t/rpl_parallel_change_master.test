@@ -6,6 +6,7 @@
 # Bug 12995174 - MTS: UNEXPECTED RECOVERY ATTEMPT ENDS WITH ER_MASTER_INFO OR ASSERTION 
 
 --source include/master-slave.inc
+--source include/have_slave_parallel_type_database.inc
 # The test for bug#12995174 is not format-specific but uses sleep
 # so it made to be run in ROW format that is the way the bug is reported.
 --source include/have_binlog_format_row.inc

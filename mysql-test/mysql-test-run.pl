@@ -2434,23 +2434,24 @@ sub environment_setup {
   # ----------------------------------------------------
   # mysql clients
   # ----------------------------------------------------
-  $ENV{'MYSQL_CHECK'}=              client_arguments("mysqlcheck");
-  $ENV{'MYSQL_DUMP'}=               mysqldump_arguments(".1");
-  $ENV{'MYSQL_DUMP_SLAVE'}=         mysqldump_arguments(".2");
-  $ENV{'MYSQL_SLAP'}=               mysqlslap_arguments();
-  $ENV{'MYSQL_IMPORT'}=             client_arguments("mysqlimport");
-  $ENV{'MYSQL_SHOW'}=               client_arguments("mysqlshow");
-  $ENV{'MYSQL_CONFIG_EDITOR'}=      client_arguments_no_grp_suffix("mysql_config_editor");
-  $ENV{'MYSQL_BINLOG'}=             client_arguments("mysqlbinlog");
-  $ENV{'MYSQL'}=                    client_arguments("mysql");
-  $ENV{'MYSQL_SLAVE'}=              client_arguments("mysql", ".2");
-  $ENV{'MYSQL_UPGRADE'}=            client_arguments("mysql_upgrade");
-  $ENV{'MYSQLADMIN'}=               native_path($exe_mysqladmin);
-  $ENV{'MYSQL_CLIENT_TEST'}=        mysql_client_test_arguments();
-  $ENV{'EXE_MYSQL'}=                $exe_mysql;
-  $ENV{'MYSQL_PLUGIN'}=             $exe_mysql_plugin;
-  $ENV{'MYSQL_EMBEDDED'}=           $exe_mysql_embedded;
-  $ENV{'PATH_CONFIG_FILE'}=         $path_config_file;
+  $ENV{'MYSQL_CHECK'}=                 client_arguments("mysqlcheck");
+  $ENV{'MYSQL_DUMP'}=                  mysqldump_arguments(".1");
+  $ENV{'MYSQL_DUMP_SLAVE'}=            mysqldump_arguments(".2");
+  $ENV{'MYSQL_SLAP'}=                  mysqlslap_arguments();
+  $ENV{'MYSQL_IMPORT'}=                client_arguments("mysqlimport");
+  $ENV{'MYSQL_SHOW'}=                  client_arguments("mysqlshow");
+  $ENV{'MYSQL_CONFIG_EDITOR'}=         client_arguments_no_grp_suffix("mysql_config_editor");
+  $ENV{'MYSQL_BINLOG'}=                client_arguments("mysqlbinlog");
+  $ENV{'MYSQL'}=                       client_arguments("mysql");
+  $ENV{'MYSQL_SLAVE'}=                 client_arguments("mysql", ".2");
+  $ENV{'MYSQL_UPGRADE'}=               client_arguments("mysql_upgrade");
+  $ENV{'MYSQL_SECURE_INSTALLATION'}=   "$path_client_bindir/mysql_secure_installation";
+  $ENV{'MYSQLADMIN'}=                  native_path($exe_mysqladmin);
+  $ENV{'MYSQL_CLIENT_TEST'}=           mysql_client_test_arguments();
+  $ENV{'EXE_MYSQL'}=                   $exe_mysql;
+  $ENV{'MYSQL_PLUGIN'}=                $exe_mysql_plugin;
+  $ENV{'MYSQL_EMBEDDED'}=              $exe_mysql_embedded;
+  $ENV{'PATH_CONFIG_FILE'}=            $path_config_file;
 
   my $exe_mysqld= find_mysqld($basedir);
   $ENV{'MYSQLD'}= $exe_mysqld;

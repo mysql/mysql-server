@@ -986,7 +986,19 @@ Log_event::Log_event(const char* buf,
 #ifndef MYSQL_CLIENT
 #ifdef HAVE_REPLICATION
 inline int Log_event::do_apply_event_worker(Slave_worker *w)
-{ 
+{
+  DBUG_EXECUTE_IF("crash_in_a_worker",
+                  {
+                    /* we will crash a worker after waiting for
+                    2 seconds to make sure that other transactions are
+                    scheduled and completed */
+                    if (w->id == 2)
+                    {
+                      DBUG_SET("-d,crash_in_a_worker");
+                      my_sleep((w->id)*2000000);
+                      DBUG_SUICIDE();
+                    }
+                  });
   return do_apply_event(w);
 }
 
@@ -2832,9 +2844,62 @@ bool Log_event::contains_partition_info(bool end_group_sets_max_dbs)
 
   return res;
 }
+/*
+  SYNOPSIS
+    This function assigns a parent ID to the job group being scheduled in parallel.
+    It also checks if we can schedule the new event in parallel with the previous ones
+    being executed.
+
+  @param        ev log event that has to be scheduled next.
+  @param       rli Pointer to coordinato's relay log info.
+  @return      true if error
+               false otherwise
+ */
+bool schedule_next_event(Log_event* ev, Relay_log_info* rli)
+{
+  int error;
+  // Check if we can schedule this event
+  error= rli->current_mts_submode->schedule_next_event(rli, ev);
+  switch (error)
+  {
+  case ER_MTS_CANT_PARALLEL:
+    char llbuff[22];
+    llstr(rli->get_event_relay_log_pos(), llbuff);
+    my_error(ER_MTS_CANT_PARALLEL, MYF(0),
+    ev->get_type_str(), rli->get_event_relay_log_name(), llbuff,
+    "The master does not support the selected parallelization mode. "
+    "It may be too old, or replication was started from an event internal "
+    "to a transaaction.");
+  case ER_MTS_INCONSISTENT_DATA:
+    /* Don't have to do anything. */
+    return true;
+  default:
+    return false;
+  }
+  /* Keep compiler happy */
+  return false;
+}
+
 
 /**
    The method maps the event to a Worker and return a pointer to it.
+   Sending the event to the Worker is done by the caller.
+
+   Irrespective of the type of Group marking (DB partioned or BGC) the
+   following holds true:
+
+   - recognize the beginning of a group to allocate the group descriptor
+     and queue it;
+   - associate an event with a Worker (which also handles possible conflicts
+     detection and waiting for their termination);
+   - finalize the group assignement when the group closing event is met.
+
+   When parallelization mode is BGC-based the partitioning info in the event
+   is simply ignored. Thereby association with a Worker does not require
+   Assigned Partition Hash of the partitioned method.
+   This method is not interested in all the taxonomy of the event group
+   property, what we care about is the boundaries of the group.
+
    As a part of the group, an event belongs to one of the following types:
 
    B - beginning of a group of events (BEGIN query_log_event)
@@ -2881,6 +2946,7 @@ Slave_worker *Log_event::get_slave_worker(Relay_log_info *rli)
   THD *thd= rli->info_thd;
 #endif
   Slave_committed_queue *gaq= rli->gaq;
+  DBUG_ENTER("Log_event::get_slave_worker");
 
   /* checking partioning properties and perform corresponding actions */
 
@@ -2908,12 +2974,13 @@ Slave_worker *Log_event::get_slave_worker(Relay_log_info *rli)
       group.reset(log_pos, rli->mts_groups_assigned);
       // the last occupied GAQ's array index
       gaq_idx= gaq->assigned_group_index= gaq->en_queue((void *) &group);
-    
+      DBUG_PRINT("info",("gaq_idx= %ld  gaq->size=%ld", gaq_idx, gaq->size));
       DBUG_ASSERT(gaq_idx != MTS_WORKER_UNDEF && gaq_idx < gaq->size);
       DBUG_ASSERT(gaq->get_job_group(rli->gaq->assigned_group_index)->
                   group_relay_log_name == NULL);
       DBUG_ASSERT(gaq_idx != MTS_WORKER_UNDEF);  // gaq must have room
-      DBUG_ASSERT(rli->last_assigned_worker == NULL);
+      DBUG_ASSERT(rli->last_assigned_worker == NULL ||
+                  !is_mts_db_partitioned(rli));
 
       if (is_s_event || is_gtid_event(this))
       {
@@ -2934,26 +3001,55 @@ Slave_worker *Log_event::get_slave_worker(Relay_log_info *rli)
         if (is_gtid_event(this))
           // mark the current group as started with explicit Gtid-event
           rli->curr_group_seen_gtid= true;
-
-        return ret_worker;
+        if (schedule_next_event(this, rli))
+        {
+          rli->abort_slave= 1;
+          DBUG_RETURN(NULL);
+        }
+        DBUG_RETURN(ret_worker);
       }
     }
     else
     {
+      /*
+       The block is a result of not making GTID event as group starter.
+       TODO: Make GITD event as B-event that is starts_group() to
+       return true.
+      */
+
       Log_event *ptr_curr_ev= this;
       // B-event is appended to the Deferred Array associated with GCAP
       insert_dynamic(&rli->curr_group_da, (uchar*) &ptr_curr_ev);
       rli->curr_group_seen_begin= true;
       rli->mts_end_group_sets_max_dbs= true;
+      if (schedule_next_event(this, rli))
+      {
+        rli->abort_slave= 1;
+        DBUG_RETURN(NULL);
+      }
+
       DBUG_ASSERT(rli->curr_group_da.elements == 2);
       DBUG_ASSERT(starts_group());
-      return ret_worker;
+      DBUG_RETURN (ret_worker);
+    }
+    if (schedule_next_event(this, rli))
+    {
+      rli->abort_slave= 1;
+      DBUG_RETURN(NULL);
     }
   }
 
-  // mini-group representative
-
-  if (contains_partition_info(rli->mts_end_group_sets_max_dbs))
+  ptr_group= gaq->get_job_group(rli->gaq->assigned_group_index);
+  if (!is_mts_db_partitioned(rli))
+  {
+    mts_group_idx= gaq->assigned_group_index;
+    /* Get least occupied worker */
+    ret_worker=
+      rli->current_mts_submode->get_least_occupied_worker(rli, &rli->workers,
+                                                          this);
+    ptr_group->worker_id= ret_worker->id;
+  }
+  else if (contains_partition_info(rli->mts_end_group_sets_max_dbs))
   {
     int i= 0;
     num_dbs= mts_number_dbs();
@@ -2976,10 +3072,9 @@ Slave_worker *Log_event::get_slave_worker(Relay_log_info *rli)
                 (rli->mts_end_group_sets_max_dbs &&
                  ((rli->curr_group_da.elements == 3 && rli->curr_group_seen_gtid) ||
                  (rli->curr_group_da.elements == 2 && !rli->curr_group_seen_gtid)) &&
-                 ((*(Log_event **)
-                   dynamic_array_ptr(&rli->curr_group_da,
-                                     rli->curr_group_da.elements - 1))-> 
-                  get_type_code() == BEGIN_LOAD_QUERY_EVENT)));
+                 ((*(Log_event **) dynamic_array_ptr(&rli->curr_group_da,
+                                     rli->curr_group_da.elements - 1))->
+                                get_type_code() == BEGIN_LOAD_QUERY_EVENT)));
 
     // partioning info is found which drops the flag
     rli->mts_end_group_sets_max_dbs= false;
@@ -2990,7 +3085,8 @@ Slave_worker *Log_event::get_slave_worker(Relay_log_info *rli)
       if (!ret_worker)
         ret_worker= *(Slave_worker**) dynamic_array_ptr(&rli->workers, 0);
       // No need to know a possible error out of synchronization call.
-      (void) wait_for_workers_to_finish(rli, ret_worker);
+      (void)rli->current_mts_submode-> wait_for_workers_to_finish(rli,
+                                                                  ret_worker);
       /*
         this marking is transferred further into T-event of the current group.
       */
@@ -3015,7 +3111,7 @@ Slave_worker *Log_event::get_slave_worker(Relay_log_info *rli)
         my_error(ER_MTS_CANT_PARALLEL, MYF(0),
                  get_type_str(), rli->get_event_relay_log_name(), llbuff,
                  "could not distribute the event to a Worker");
-        return ret_worker;
+        DBUG_RETURN(ret_worker);
       }
       // all temporary tables are transferred from Coordinator in over-max case
       DBUG_ASSERT(num_dbs != OVER_MAX_DBS_IN_EVENT_MTS || !thd->temporary_tables);
@@ -3065,17 +3161,18 @@ Slave_worker *Log_event::get_slave_worker(Relay_log_info *rli)
                  "the event is a part of a group that is unsupported in "
                  "the parallel execution mode");
 
-        return ret_worker;
+        DBUG_RETURN(ret_worker);
       }
 
       insert_dynamic(&rli->curr_group_da, (uchar*) &ptr_curr_ev);
       
       DBUG_ASSERT(!ret_worker);
-      return ret_worker;
+      DBUG_RETURN (ret_worker);
     }
   }
 
   DBUG_ASSERT(ret_worker);
+  // T-event: Commit, Xid, a DDL query or dml query of B-less group.4
 
   /*
     Preparing event physical coordinates info for Worker before any
@@ -3096,7 +3193,6 @@ Slave_worker *Log_event::get_slave_worker(Relay_log_info *rli)
 #endif
   }
 
-  // T-event: Commit, Xid, a DDL query or dml query of B-less group.
   if (ends_group() || !rli->curr_group_seen_begin)
   {
     rli->mts_group_status= Relay_log_info::MTS_END_GROUP;
@@ -3163,8 +3259,8 @@ Slave_worker *Log_event::get_slave_worker(Relay_log_info *rli)
 #endif
 
   }
-  
-  return ret_worker;
+
+  DBUG_RETURN (ret_worker);
 }
 
 /**
@@ -3228,7 +3324,8 @@ int Log_event::apply_event(Relay_log_info *rli)
           a separator beetwen two master's binlog therefore requiring
           Workers to sync.
         */
-        if (rli->curr_group_da.elements > 0)
+        if (rli->curr_group_da.elements > 0 &&
+            is_mts_db_partitioned(rli))
         {
           char llbuff[22];
           /* 
@@ -3249,7 +3346,7 @@ int Log_event::apply_event(Relay_log_info *rli)
         /*
           Marking sure the event will be executed in sequential mode.
         */
-        if (wait_for_workers_to_finish(rli) == -1)
+        if (rli->current_mts_submode->wait_for_workers_to_finish(rli) == -1)
         {
           // handle synchronization error
           rli->report(WARNING_LEVEL, 0,
@@ -3262,7 +3359,8 @@ int Log_event::apply_event(Relay_log_info *rli)
           Given not in-group mark the event handler can invoke checkpoint
           update routine in the following course.
         */
-        DBUG_ASSERT(rli->mts_group_status == Relay_log_info::MTS_NOT_IN_GROUP);
+        DBUG_ASSERT(rli->mts_group_status == Relay_log_info::MTS_NOT_IN_GROUP
+                    || !is_mts_db_partitioned(rli));
 
 #ifndef DBUG_OFF
         /* all Workers are idle as done through wait_for_workers_to_finish */
@@ -3289,7 +3387,7 @@ int Log_event::apply_event(Relay_log_info *rli)
                 This is an empty group being processed due to gtids.
               */
               (rli->curr_group_seen_begin && rli->curr_group_seen_gtid
-               && ends_group()) ||
+              && ends_group()) || is_mts_db_partitioned(rli) ||
               rli->last_assigned_worker ||
               /*
                 Begin_load_query can be logged w/o db info and within
@@ -3651,6 +3749,19 @@ bool Query_log_event::write(IO_CACHE* file)
     start+= 3;
   }
 
+  /*
+    We store -1 in the following status var since we don't have the
+    commit timestamp. The logical timestamp will be updated in the
+    do_write_cache.
+  */
+  if (!file->commit_seq_offset > 0)
+  {
+    file->commit_seq_offset= QUERY_HEADER_LEN +
+                             (uint)(start-start_of_status);
+    *start++= Q_COMMIT_TS;
+    int8store(start, SEQ_UNINIT);
+    start+= COMMIT_SEQ_LEN;
+  }
   /*
     NOTE: When adding new status vars, please don't forget to update
     the MAX_SIZE_LOG_EVENT_STATUS in log_event.h and update the function
@@ -4026,6 +4137,7 @@ code_name(int code)
   case Q_MASTER_DATA_WRITTEN_CODE: return "Q_MASTER_DATA_WRITTEN_CODE";
   case Q_UPDATED_DB_NAMES: return "Q_UPDATED_DB_NAMES";
   case Q_MICROSECONDS: return "Q_MICROSECONDS";
+  case Q_COMMIT_TS: return "Q_COMMIT_TS";
   }
   sprintf(buf, "CODE#%d", code);
   return buf;
@@ -4076,6 +4188,7 @@ Query_log_event::Query_log_event(const char* buf, uint event_len,
 
   memset(&user, 0, sizeof(user));
   memset(&host, 0, sizeof(host));
+  commit_seq_no= SEQ_UNINIT;
   common_header_len= description_event->common_header_len;
   post_header_len= description_event->post_header_len[event_type-1];
   DBUG_PRINT("info",("event_len: %u  common_header_len: %d  post_header_len: %d",
@@ -4276,7 +4389,6 @@ Query_log_event::Query_log_event(const char* buf, uint event_len,
                         {
                           if (mts_accessed_dbs == 2)
                           {
-                            DBUG_ASSERT(pos[sizeof("d?") - 1] == 0);
                             ((char*) pos)[sizeof("d?") - 1]= 'a';
                           }});
         strncpy(mts_accessed_db_names[i], (char*) pos,
@@ -4288,6 +4400,11 @@ Query_log_event::Query_log_event(const char* buf, uint event_len,
         DBUG_VOID_RETURN;
       break;
     }
+    case Q_COMMIT_TS:
+      CHECK_SPACE(pos, end, COMMIT_SEQ_LEN);
+      commit_seq_no= (int64)uint8korr(pos);
+      pos+= COMMIT_SEQ_LEN;
+      break;
     default:
       /* That's why you must write status vars in growing order of code */
       DBUG_PRINT("info",("Query_log_event has unknown status vars (first has\
@@ -4594,29 +4711,15 @@ void Query_log_event::print(FILE* file, PRINT_EVENT_INFO* print_event_info)
 #if defined(HAVE_REPLICATION) && !defined(MYSQL_CLIENT)
 
 /**
-   Associating slave Worker thread to a subset of temporary tables
-   belonging to db-partitions the event accesses.
-   The pointer if all entries is cleaned.
+   Associating slave Worker thread to a subset of temporary tables.
 
    @param thd   THD instance pointer
+   @param rli   Relay_log_info of the worker
 */
-void Query_log_event::attach_temp_tables_worker(THD *thd)
+void Query_log_event::attach_temp_tables_worker(THD *thd,
+                                                const Relay_log_info* rli)
 {
-  if (!is_mts_worker(thd) || (ends_group() || starts_group()))
-    return;
-  
-  // in over max-db:s case just one special partition is locked
-  int parts= ((mts_accessed_dbs == OVER_MAX_DBS_IN_EVENT_MTS) ?
-              1 : mts_accessed_dbs);
-
-  DBUG_ASSERT(!thd->temporary_tables);
-
-  for (int i= 0; i < parts; i++)
-  {
-    mts_move_temp_tables_to_thd(thd,
-                                mts_assigned_partitions[i]->temporary_tables);
-    mts_assigned_partitions[i]->temporary_tables= NULL;
-  }
+  rli->current_mts_submode->attach_temp_tables(thd, rli, this);
 }
 
 /**
@@ -4625,86 +4728,12 @@ void Query_log_event::attach_temp_tables_worker(THD *thd)
    with new values of temporary_tables.
 
    @param thd   THD instance pointer
+   @param rli   relay log info of the worker thread
 */
-void Query_log_event::detach_temp_tables_worker(THD *thd)
+void Query_log_event::detach_temp_tables_worker(THD *thd,
+                                                const Relay_log_info *rli)
 {
-  if (!is_mts_worker(thd))
-    return;
-
-  int parts= ((mts_accessed_dbs == OVER_MAX_DBS_IN_EVENT_MTS) ?
-              1 : mts_accessed_dbs);
-  /*
-    todo: optimize for a case of 
-
-    a. one db
-       Only detaching temporary_tables from thd to entry would require
-       instead of the double-loop below.
-
-    b. unchanged thd->temporary_tables. 
-       In such case the involved entries would continue to hold the
-       unmodified lists provided that the attach_ method does not
-       destroy references to them.
-  */
-  for (int i= 0; i < parts; i++)
-  {
-    mts_assigned_partitions[i]->temporary_tables= NULL;
-  }
-
-  for (TABLE *table= thd->temporary_tables; table;)
-  {
-    int i;
-    char *db_name= NULL;
-
-    // find which entry to go
-    for (i= 0; i < parts; i++)
-    {
-      db_name= mts_accessed_db_names[i];
-
-      if (!strlen(db_name))
-        break;
-
-      // Only default database is rewritten.
-      if (!rpl_filter->is_rewrite_empty() && !strcmp(get_db(), db_name))
-      {
-        size_t dummy_len;
-        const char *db_filtered= rpl_filter->get_rewrite_db(db_name, &dummy_len);
-        // db_name != db_filtered means that db_name is rewritten.
-        if (strcmp(db_name, db_filtered))
-          db_name= (char*)db_filtered;
-      }
-
-      if (strcmp(table->s->db.str, db_name) < 0)
-        continue;
-      else
-      {
-        // When rewrite db rules are used we can not rely on
-        // mts_accessed_db_names elements order.
-        if (!rpl_filter->is_rewrite_empty() &&
-            strcmp(table->s->db.str, db_name))
-          continue;
-        else
-          break;
-      }
-    }
-
-    DBUG_ASSERT(db_name && (
-                !strcmp(table->s->db.str, db_name) ||
-                !strlen(db_name))
-                );
-    DBUG_ASSERT(i < mts_accessed_dbs);
-
-    // table pointer is shifted inside the function
-    table= mts_move_temp_table_to_entry(table, thd, mts_assigned_partitions[i]);
-  }
-
-  DBUG_ASSERT(!thd->temporary_tables);
-#ifndef DBUG_OFF
-  for (int i= 0; i < parts; i++)
-  {
-    DBUG_ASSERT(!mts_assigned_partitions[i]->temporary_tables ||
-                !mts_assigned_partitions[i]->temporary_tables->prev);
-  }
-#endif
+  rli->current_mts_submode->detach_temp_tables(thd, rli, this);
 }
 
 /*
@@ -4853,7 +4882,7 @@ int Query_log_event::do_apply_event(Relay_log_info const *rli,
     thd->set_query_and_id((char*)query_arg, q_len_arg,
                           thd->charset(), next_query_id());
     thd->variables.pseudo_thread_id= thread_id;		// for temp tables
-    attach_temp_tables_worker(thd);
+    attach_temp_tables_worker(thd, rli);
     DBUG_PRINT("query",("%s", thd->query()));
 
     if (ignored_error_code((expected_error= error_code)) ||
@@ -5158,7 +5187,7 @@ compare_errors:
 end:
 
   if (thd->temporary_tables)
-    detach_temp_tables_worker(thd);
+    detach_temp_tables_worker(thd, rli);
   /*
     Probably we have set thd->query, thd->db, thd->catalog to point to places
     in the data_buf of this event. Now the event is going to be deleted
@@ -6990,6 +7019,12 @@ int Rotate_log_event::do_update_pos(Relay_log_info *rli)
       ((!rli->is_parallel_exec() && !rli->is_in_group()) ||
        rli->mts_group_status != Relay_log_info::MTS_IN_GROUP))
   {
+    if (!is_mts_db_partitioned(rli) && server_id != ::server_id && log_pos )
+    {
+      // force the coordinator to start a new group.
+      static_cast<Mts_submode_logical_clock*>
+        (rli->current_mts_submode)->start_new_group();
+    }
     if (rli->is_parallel_exec())
     {
       /*
@@ -13434,7 +13469,12 @@ Gtid_log_event::Gtid_log_event(const char *buffer, uint event_len,
   DBUG_PRINT("info",("event_len: %u; common_header_len: %d; post_header_len: %d",
                      event_len, common_header_len, post_header_len));
 #endif
-
+/*
+  The layout of the buffer is as follows
+   +-------------+-------------+------------+------------+--------------+
+   | commit flag | ENCODED SID | ENCODED GNO| G_COMMIT_TS| commit_seq_no|
+   +-------------+-------------+------------+------------+--------------+
+*/
   char const *ptr_buffer= buffer + common_header_len;
 
   spec.type= buffer[EVENT_TYPE_OFFSET] == ANONYMOUS_GTID_LOG_EVENT ? 
@@ -13451,6 +13491,23 @@ Gtid_log_event::Gtid_log_event(const char *buffer, uint event_len,
 
   spec.gtid.gno= uint8korr(ptr_buffer);
   ptr_buffer+= ENCODED_GNO_LENGTH;
+
+  /* fetch the commit timestamp */
+  if (
+      /*Old masters will not have this part, so we should prevent segfaulting */
+      (ptr_buffer-buffer) < event_len &&
+      *ptr_buffer == G_COMMIT_TS)
+  {
+    ptr_buffer++;
+    commit_seq_no= (int64)uint8korr(ptr_buffer);
+    ptr_buffer+= COMMIT_SEQ_LEN;
+  }
+  else
+    /* We let coordinator complain when it sees that we have first
+       event and the master has not sent us the commit sequence number
+       Also, we can be rest assured that this is an old master, because new
+       master would have compained of the missing commit seq no while flushing.*/
+    commit_seq_no= SEQ_UNINIT;
 
   DBUG_VOID_RETURN;
 }
@@ -13543,6 +13600,10 @@ bool Gtid_log_event::write_data_header(IO_CACHE *file)
 
   int8store(ptr_buffer, spec.gtid.gno);
   ptr_buffer+= ENCODED_GNO_LENGTH;
+  file->commit_seq_offset= ptr_buffer- buffer;
+  *ptr_buffer++= G_COMMIT_TS;
+  int8store(ptr_buffer, SEQ_UNINIT);
+  ptr_buffer+= COMMIT_SEQ_LEN;
 
   DBUG_ASSERT(ptr_buffer == (buffer + sizeof(buffer)));
   DBUG_RETURN(wrapper_my_b_safe_write(file, (uchar *) buffer, sizeof(buffer)));
