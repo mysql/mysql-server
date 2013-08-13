@@ -115,6 +115,13 @@ SELECT * FROM articles WHERE
 SELECT * FROM articles WHERE
 	MATCH(title, body) AGAINST('full text');
 
+# Test query expansion
+SELECT * FROM articles WHERE
+	MATCH(title, body) AGAINST('full-text' WITH QUERY EXPANSION);
+
+SELECT * FROM articles WHERE
+	MATCH(title, body) AGAINST('full text' WITH QUERY EXPANSION);
+
 # No result here, we get '"mysql' 'database"' by simple parser
 SELECT * FROM articles WHERE
 	MATCH(title, body) AGAINST('"mysql database"' IN BOOLEAN MODE);

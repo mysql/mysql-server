@@ -1,6 +1,6 @@
 /*****************************************************************************
 
-Copyright (c) 2013, 2013, Oracle and/or its affiliates. All Rights Reserved.
+Copyright (c) 2013, Oracle and/or its affiliates. All Rights Reserved.
 
 This program is free software; you can redistribute it and/or modify it under
 the terms of the GNU General Public License as published by the Free Software
@@ -23,9 +23,8 @@ Full Text Search plugin support.
 Created 2013/06/04 Shaohua Wang
 ***********************************************************************/
 
-#include "fts0plugin.h"
+#include "fts0ast.h"
 
-#include "ha_prototypes.h"
 #include "ft_global.h"
 
 /** Macros and structs below are from ftdefs.h in MYISAM */
@@ -35,7 +34,7 @@ Created 2013/06/04 Shaohua Wang
 /** Check if a char is misc word */
 #define misc_word_char(X)       0
 
-const char *fts_boolean_syntax = DEFAULT_FTB_SYNTAX;
+const char* fts_boolean_syntax = DEFAULT_FTB_SYNTAX;
 
 /** Boolean search operators */
 #define FTB_YES   (fts_boolean_syntax[0])
@@ -168,10 +167,10 @@ ft_get_word(
 						info->yesno = +1;
 						continue;
 					} else if (*doc == FTB_EGAL) {
-						info->yesno= 0;
+						info->yesno = 0;
 						continue;
 					} else if (*doc == FTB_NO) {
-						info->yesno=-1;
+						info->yesno = -1;
 						continue;
 					} else if (*doc == FTB_INC) {
 						info->weight_adjust++;
@@ -189,12 +188,12 @@ ft_get_word(
 			info->prev = *doc;
 			info->yesno = (FTB_YES == ' ') ? 1 : (info->quot != 0);
 			info->weight_adjust = info->wasign = 0;
-		} // end for
+		}
 
 		mwc = length = 0;
 		for (word->pos = doc;
 		     doc < end;
-		     length++, doc+= (mbl > 0 ? mbl : (mbl < 0 ? -mbl : 1))) {
+		     length++, doc += (mbl > 0 ? mbl : (mbl < 0 ? -mbl : 1))) {
 			mbl = cs->cset->ctype(cs, &ctype, doc, end);
 
 			if (true_word_char(ctype, *doc)) {
@@ -218,13 +217,12 @@ ft_get_word(
 		*start = doc;
 		info->type = FT_TOKEN_WORD;
 		goto ret;
+	}
 
-		if (info->quot) {
-			*start = doc;
-			info->type = FT_TOKEN_RIGHT_PAREN;
-			goto ret;
-		}
-	} // end while
+	if (info->quot) {
+		*start = doc;
+		info->type = FT_TOKEN_RIGHT_PAREN;
+	}
 
 ret:
 	return(info->type);
@@ -278,8 +276,6 @@ fts_query_add_word_for_parser(
 	fts_ast_node_t* oper_node = NULL;
 	fts_ast_node_t* term_node = NULL;
 	fts_ast_node_t* node = NULL;
-
-	ut_ad(cur_node);
 
 	switch (info->type) {
 	case FT_TOKEN_STOPWORD:
@@ -372,7 +368,8 @@ fts_query_add_word_for_parser(
 		}
 
 		state->cur_node = cur_node;
-		state->depth -= 1;
+		ut_ad(state->depth > 0);
+		state->depth--;
 
 		break;
 
@@ -398,8 +395,8 @@ fts_parse_query_internal(
 {
 	MYSQL_FTPARSER_BOOLEAN_INFO info;
 	const CHARSET_INFO *cs = param->cs;
-	uchar **start = reinterpret_cast<uchar**>(&query);
-	uchar *end = reinterpret_cast<uchar*>(query + len);
+	uchar** start = reinterpret_cast<uchar**>(&query);
+	uchar* end = reinterpret_cast<uchar*>(query + len);
 	FT_WORD w;
 
 	info.prev = ' ';
@@ -437,16 +434,16 @@ fts_parse_by_parser(
 	ut_ad(parser);
 
 	/* Initial parser param */
-	param.mysql_parse= fts_parse_query_internal;
-	param.mysql_add_word= fts_query_add_word_for_parser;
-	param.mysql_ftparam= static_cast<void*>(state);
-	param.cs= state->charset;
-	param.doc= reinterpret_cast<char*>(query_str);
-	param.length= query_len;
-	param.flags= 0;
-	param.mode= mode ?
-		    MYSQL_FTPARSER_FULL_BOOLEAN_INFO :
-		    MYSQL_FTPARSER_SIMPLE_MODE;
+	param.mysql_parse = fts_parse_query_internal;
+	param.mysql_add_word = fts_query_add_word_for_parser;
+	param.mysql_ftparam = static_cast<void*>(state);
+	param.cs = state->charset;
+	param.doc = reinterpret_cast<char*>(query_str);
+	param.length = query_len;
+	param.flags = 0;
+	param.mode = mode ?
+		     MYSQL_FTPARSER_FULL_BOOLEAN_INFO :
+		     MYSQL_FTPARSER_SIMPLE_MODE;
 
 	parser->init(&param);
 	ret = parser->parse(&param);
