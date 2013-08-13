@@ -179,7 +179,7 @@ static void __attribute__((unused))
 do_hot_optimize_on_dbs(DB_ENV *UU(env), DB **dbs, int num_dbs)
 {
     for (int i = 0; i < num_dbs; ++i) {
-        int r = dbs[i]->hot_optimize(dbs[i], dummy_progress, NULL);
+        int r = dbs[i]->hot_optimize(dbs[i], NULL, NULL, dummy_progress, NULL);
         CKERR(r);
     }
 }

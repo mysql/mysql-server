@@ -884,14 +884,13 @@ toku_db_optimize(DB *db) {
 }
 
 static int
-toku_db_hot_optimize(DB *db,
+toku_db_hot_optimize(DB *db, DBT* left, DBT* right,
                      int (*progress_callback)(void *extra, float progress),
                      void *progress_extra)
 {
     HANDLE_PANICKED_DB(db);
     int r = 0;
-    // If we areunable to get a directory read lock, do nothing.
-    r = toku_ft_hot_optimize(db->i->ft_handle,
+    r = toku_ft_hot_optimize(db->i->ft_handle, left, right,
                               progress_callback,
                               progress_extra);
 
