@@ -143,7 +143,7 @@ static int
 do_hot_optimize(FT_HANDLE t, CACHETABLE UU(ct), void *extra)
 {
     float *CAST_FROM_VOIDP(fraction, extra);
-    int r = toku_ft_hot_optimize(t, progress, extra);
+    int r = toku_ft_hot_optimize(t, NULL, NULL, progress, extra);
     if (*fraction < 1.0) {
         CKERR2(r, 1);
     } else {
