@@ -96,11 +96,12 @@ Relay_log_info::Relay_log_info(bool is_slave_recovery
    rows_query_ev(NULL), last_event_start_time(0), deferred_events(NULL),
    workers_array_initialized(false), slave_parallel_workers(0),
    recovery_parallel_workers(0), checkpoint_seqno(0),
-   checkpoint_group(opt_mts_checkpoint_group), 
+   checkpoint_group(opt_mts_checkpoint_group),
    recovery_groups_inited(false), mts_recovery_group_cnt(0),
    mts_recovery_index(0), mts_recovery_group_seen_begin(0),
-   mts_group_status(MTS_NOT_IN_GROUP), reported_unsafe_warning(false),
-   rli_description_event(NULL),
+   mts_group_status(MTS_NOT_IN_GROUP),
+   current_mts_submode(0),
+   reported_unsafe_warning(false), rli_description_event(NULL),
    sql_delay(0), sql_delay_end(0), m_flags(0), row_stmt_start_timestamp(0),
    long_find_row_note_printed(false), error_on_rli_init_info(false)
 {
@@ -143,6 +144,7 @@ Relay_log_info::Relay_log_info(bool is_slave_recovery
   mysql_mutex_init(key_mutex_slave_parallel_pend_jobs, &pending_jobs_lock,
                    MY_MUTEX_INIT_FAST);
   mysql_cond_init(key_cond_slave_parallel_pend_jobs, &pending_jobs_cond, NULL);
+  mysql_mutex_init(key_mts_temp_table_LOCK, &mts_temp_table_LOCK, MY_MUTEX_INIT_FAST);
 
   relay_log.init_pthread_objects();
   do_server_version_split(::server_version, slave_version_split);
@@ -185,6 +187,8 @@ Relay_log_info::~Relay_log_info()
   mysql_cond_destroy(&log_space_cond);
   mysql_mutex_destroy(&pending_jobs_lock);
   mysql_cond_destroy(&pending_jobs_cond);
+  mysql_mutex_destroy(&mts_temp_table_LOCK);
+  delete current_mts_submode;
 
   if(workers_copy_pfs.size())
   {
@@ -278,14 +282,14 @@ void Relay_log_info::reset_notified_checkpoint(ulong shift, time_t new_ts,
   }
   /*
     There should not be a call where (shift == 0 && checkpoint_seqno != 0).
-
     Then the new checkpoint sequence is updated by subtracting the number
     of consecutive jobs that were successfully processed.
   */
-  DBUG_ASSERT(!(shift == 0 && checkpoint_seqno != 0));
+  DBUG_ASSERT(current_mts_submode->get_type() != MTS_PARALLEL_TYPE_DB_NAME ||
+              !(shift == 0 && checkpoint_seqno != 0));
   checkpoint_seqno= checkpoint_seqno - shift;
   DBUG_PRINT("mts", ("reset_notified_checkpoint shift --> %lu, "
-             "checkpoint_seqno --> %u.", shift, checkpoint_seqno));  
+             "checkpoint_seqno --> %u.", shift, checkpoint_seqno));
 
   if (new_ts)
   {
@@ -2406,4 +2410,10 @@ void Relay_log_info::adapt_to_master_version(Format_description_log_event *fdle)
       s_features[i].upgrade(thd);
     }
   }
+}
+
+bool is_mts_db_partitioned(Relay_log_info * rli)
+{
+  return (rli->current_mts_submode->get_type() ==
+    MTS_PARALLEL_TYPE_DB_NAME);
 }
