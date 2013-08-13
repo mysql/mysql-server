@@ -6500,6 +6500,8 @@ fil_tablespace_iterate(
 	mem_free(page_ptr);
 	mem_free(filepath);
 
+	mutex_free(&block->mutex);
+
 	mem_free(block);
 
 	return(err);

@@ -3914,9 +3914,7 @@ os_aio_array_free(
 	os_aio_array_t*& array)	/*!< in, own: array to free */
 {
 #ifdef WIN_ASYNC_IO
-	ulint	i;
-
-	for (i = 0; i < array->n_slots; i++) {
+	for (ulint i = 0; i < array->n_slots; i++) {
 		os_aio_slot_t*	slot = os_aio_array_get_nth_slot(array, i);
 		CloseHandle(slot->handle);
 	}
@@ -3924,12 +3922,12 @@ os_aio_array_free(
 
 #ifdef _WIN32
 	ut_free(array->handles);
+#endif /* _WIN32 */
 
 	mutex_destroy(&array->mutex);
 
 	os_event_destroy(array->not_full);
 	os_event_destroy(array->is_empty);
-#endif /* _WIN32 */
 
 #if defined(LINUX_NATIVE_AIO)
 	if (srv_use_native_aio) {
