@@ -223,7 +223,7 @@ int ha_tokudb::optimize(THD * thd, HA_CHECK_OPT * check_opt) {
         hc.ha = this;
         hc.current_table = i;
         hc.num_tables = curr_num_DBs;
-        error = db->hot_optimize(db, hot_poll_fun, &hc);
+        error = db->hot_optimize(db, NULL, NULL, hot_poll_fun, &hc);
         if (error) {
             goto cleanup;
         }
