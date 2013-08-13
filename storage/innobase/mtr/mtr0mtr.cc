@@ -122,6 +122,7 @@ memo_slot_release(mtr_memo_slot_t* slot)
 	switch (slot->type) {
 	case MTR_MEMO_BUF_FIX:
 	case MTR_MEMO_PAGE_S_FIX:
+	case MTR_MEMO_PAGE_SX_FIX:
 	case MTR_MEMO_PAGE_X_FIX: {
 		buf_block_t*	block;
 
@@ -141,6 +142,10 @@ memo_slot_release(mtr_memo_slot_t* slot)
 
 	case MTR_MEMO_S_LOCK:
 		rw_lock_s_unlock(reinterpret_cast<rw_lock_t*>(slot->object));
+		break;
+
+	case MTR_MEMO_SX_LOCK:
+		rw_lock_sx_unlock(reinterpret_cast<rw_lock_t*>(slot->object));
 		break;
 
 	case MTR_MEMO_X_LOCK:
@@ -166,10 +171,12 @@ memo_latch_release(mtr_memo_slot_t* slot)
 	switch (slot->type) {
 	case MTR_MEMO_BUF_FIX:
 	case MTR_MEMO_PAGE_S_FIX:
+	case MTR_MEMO_PAGE_SX_FIX:
 	case MTR_MEMO_PAGE_X_FIX: {
 		buf_block_t*	block;
 
 	       	block = reinterpret_cast<buf_block_t*>(slot->object);
+
 		buf_page_release_latches(block, slot->type);
 		/* We will unfix the block later, preserve the object
 		pointer. */
@@ -188,9 +195,15 @@ memo_latch_release(mtr_memo_slot_t* slot)
 		slot->object = NULL;
 		break;
 
+	case MTR_MEMO_SX_LOCK:
+		rw_lock_sx_unlock(reinterpret_cast<rw_lock_t*>(slot->object));
+		slot->object = NULL;
+		break;
+
 #ifdef UNIV_DEBUG
 	default:
 		ut_ad(slot->type == MTR_MEMO_MODIFY);
+
 		slot->object = NULL;
 #endif /* UNIV_DEBUG */
 	}
@@ -207,12 +220,15 @@ memo_block_unfix(mtr_memo_slot_t* slot)
 	case MTR_MEMO_BUF_FIX:
 	case MTR_MEMO_PAGE_S_FIX:
 	case MTR_MEMO_PAGE_X_FIX: {
+	case MTR_MEMO_PAGE_SX_FIX:
 		buf_block_t*	block;
 
 	       	block = reinterpret_cast<buf_block_t*>(slot->object);
 
 		mutex_enter(&block->mutex);
+
 		--block->page.buf_fix_count;
+
 		mutex_exit(&block->mutex);
 		// FIXME:
 		//slot->object = NULL;
@@ -221,6 +237,8 @@ memo_block_unfix(mtr_memo_slot_t* slot)
 
 	case MTR_MEMO_S_LOCK:
 	case MTR_MEMO_X_LOCK:
+	case MTR_MEMO_SX_LOCK:
+		break;
 #ifdef UNIV_DEBUG
 	default:
 #endif /* UNIV_DEBUG */
@@ -266,7 +284,7 @@ struct DebugCheck {
 
 	/**
 	@return true always. */
-	bool operator()(mtr_memo_slot_t* slot) const
+	bool operator()(const mtr_memo_slot_t* slot) const
 	{
 		ut_a(slot->object == NULL);
 		return(true);
@@ -310,7 +328,9 @@ struct ReleaseBlocks {
 
 		if (slot->object != NULL) {
 
-			if (slot->type == MTR_MEMO_PAGE_X_FIX) {
+			if (slot->type == MTR_MEMO_PAGE_X_FIX
+			    || slot->type == MTR_MEMO_PAGE_SX_FIX) {
+
 				add_dirty_page_to_flush_list(slot);
 			}
 
@@ -658,7 +678,7 @@ mtr_t::Command::execute(RedoLog* redo_log)
 	write(redo_log);
 
 	if (m_impl->m_made_dirty) {
-		log_flush_order_mutex_enter();
+		redo_log->flush_order_mutex_enter();
 	}
 
 	redo_log->mutex_release();
@@ -668,7 +688,7 @@ mtr_t::Command::execute(RedoLog* redo_log)
 	release_blocks();
 
 	if (m_impl->m_made_dirty) {
-		log_flush_order_mutex_exit();
+		redo_log->flush_order_mutex_exit();
 	}
 
 	release_latches();
@@ -694,15 +714,74 @@ mtr_t::memo_contains(
 
 /**
 Checks if memo contains the given page.
+@param memo		info
+@param ptr		record
+@param type		type of
 @return	true if contains */
 
 bool
-mtr_t::memo_contains_page(
-	mtr_buf_t*	memo,
-	const byte*	ptr,
-	ulint		type)
+mtr_t::memo_contains_page(mtr_buf_t* memo, const byte* ptr, ulint type)
 {
 	return(memo_contains(memo, buf_block_align(ptr), type));
+}
+
+/**
+Debug check for flags */
+struct FlaggedCheck {
+
+	FlaggedCheck(const void* ptr, ulint flags)
+		:
+		m_ptr(ptr),
+		m_flags(flags)
+	{
+		// Do nothing
+	}
+
+	bool operator()(const mtr_memo_slot_t* slot) const
+	{
+		if (m_ptr == slot->object && (m_flags & slot->type)) {
+			return(false);
+		}
+
+		return(true);
+	}
+
+	const void*	m_ptr;
+	ulint		m_flags;
+};
+
+/**
+Checks if memo contains the given item.
+@param object		object to search
+@param flags		specify types of object (can be ORred) of
+			MTR_MEMO_PAGE_S_FIX ... values
+@return true if contains */
+
+bool
+mtr_t::memo_contains_flagged(const void* ptr, ulint flags) const
+{
+	ut_ad(m_impl->m_magic_n == MTR_MAGIC_N);
+	ut_ad(is_committing() || is_active());
+
+	FlaggedCheck		check(ptr, flags);
+	Iterate<FlaggedCheck>	iterator(check);
+
+	return(!m_impl->m_memo.for_each_block_in_reverse(iterator));
+}
+
+/**
+Checks if memo contains the given page.
+@param ptr		buffer frame
+@param flags		specify types of object with OR of
+			MTR_MEMO_PAGE_S_FIX... values
+@return true if contains */
+
+bool
+mtr_t::memo_contains_page_flagged(
+	const byte*	ptr,
+	ulint		flags) const
+{
+	return(memo_contains_flagged(buf_block_align(ptr), flags));
 }
 
 /**

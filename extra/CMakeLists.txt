@@ -52,6 +52,9 @@ ADD_CUSTOM_TARGET(GenError
                   ${PROJECT_BINARY_DIR}/sql/share/english/errmsg.sys 
                   ${PROJECT_SOURCE_DIR}/sql/share/errmsg-utf8.txt)
 
+# Set InnoDB mutex type
+ADD_DEFINITIONS(-DMUTEX_EVENT)
+
 ## Most executables depend on libeay32.dll (through mysys_ssl).
 ## For 'comp_err' we need it to be available during build.
 COPY_OPENSSL_DLLS(copy_openssl_extra)

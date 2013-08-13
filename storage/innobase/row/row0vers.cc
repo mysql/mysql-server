@@ -253,7 +253,7 @@ row_vers_impl_x_locked(
 	dict_index_t*	clust_index;
 
 	ut_ad(!lock_mutex_own());
-	ut_ad(!mutex_own(&trx_sys->mutex));
+	ut_ad(!trx_sys_mutex_own());
 
 	mtr_start(&mtr);
 
@@ -307,7 +307,7 @@ row_vers_must_preserve_del_marked(
 				hold the latch on purge_view */
 {
 #ifdef UNIV_SYNC_DEBUG
-	ut_ad(!rw_lock_own(&(purge_sys->latch), RW_LOCK_SHARED));
+	ut_ad(!rw_lock_own(&(purge_sys->latch), RW_LOCK_S));
 #endif /* UNIV_SYNC_DEBUG */
 
 	mtr_s_lock(&purge_sys->latch, mtr);
@@ -349,7 +349,7 @@ row_vers_old_has_index_entry(
 	ut_ad(mtr_memo_contains_page(mtr, rec, MTR_MEMO_PAGE_X_FIX)
 	      || mtr_memo_contains_page(mtr, rec, MTR_MEMO_PAGE_S_FIX));
 #ifdef UNIV_SYNC_DEBUG
-	ut_ad(!rw_lock_own(&(purge_sys->latch), RW_LOCK_SHARED));
+	ut_ad(!rw_lock_own(&(purge_sys->latch), RW_LOCK_S));
 #endif /* UNIV_SYNC_DEBUG */
 
 	clust_index = dict_table_get_first_index(index->table);
@@ -500,7 +500,7 @@ row_vers_build_for_consistent_read(
 	ut_ad(mtr_memo_contains_page(mtr, rec, MTR_MEMO_PAGE_X_FIX)
 	      || mtr_memo_contains_page(mtr, rec, MTR_MEMO_PAGE_S_FIX));
 #ifdef UNIV_SYNC_DEBUG
-	ut_ad(!rw_lock_own(&(purge_sys->latch), RW_LOCK_SHARED));
+	ut_ad(!rw_lock_own(&(purge_sys->latch), RW_LOCK_S));
 #endif /* UNIV_SYNC_DEBUG */
 
 	ut_ad(rec_offs_validate(rec, index, *offsets));
@@ -601,7 +601,7 @@ row_vers_build_for_semi_consistent_read(
 	ut_ad(mtr_memo_contains_page(mtr, rec, MTR_MEMO_PAGE_X_FIX)
 	      || mtr_memo_contains_page(mtr, rec, MTR_MEMO_PAGE_S_FIX));
 #ifdef UNIV_SYNC_DEBUG
-	ut_ad(!rw_lock_own(&(purge_sys->latch), RW_LOCK_SHARED));
+	ut_ad(!rw_lock_own(&(purge_sys->latch), RW_LOCK_S));
 #endif /* UNIV_SYNC_DEBUG */
 
 	ut_ad(rec_offs_validate(rec, index, *offsets));
@@ -619,7 +619,7 @@ row_vers_build_for_semi_consistent_read(
 			rec_trx_id = version_trx_id;
 		}
 
-		mutex_enter(&trx_sys->mutex);
+		trx_sys_mutex_enter();
 		version_trx = trx_get_rw_trx_by_id(version_trx_id);
 		/* Because version_trx is a read-write transaction,
 		its state cannot change from or to NOT_STARTED while
@@ -630,7 +630,7 @@ row_vers_build_for_semi_consistent_read(
 				    TRX_STATE_COMMITTED_IN_MEMORY)) {
 			version_trx = NULL;
 		}
-		mutex_exit(&trx_sys->mutex);
+		trx_sys_mutex_exit();
 
 		if (!version_trx) {
 committed_version_trx:

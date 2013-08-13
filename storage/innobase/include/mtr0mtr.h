@@ -112,9 +112,29 @@ Pushes an object to an mtr memo stack. */
 /**
 This macro locks an rw-lock in s-mode. */
 #define mtr_s_lock(l, m)	(m)->s_lock((l), __FILE__, __LINE__)
+
 /**
 This macro locks an rw-lock in x-mode. */
 #define mtr_x_lock(l, m)	(m)->x_lock((l), __FILE__, __LINE__)
+
+/**
+This macro locks an rw-lock in sx-mode. */
+#define mtr_sx_lock(l, m)	(m)->sx_lock((l), __FILE__, __LINE__)
+
+#define mtr_memo_contains_flagged(m, p, l)				\
+				(m)->memo_contains_flagged((p), (l))
+
+#define mtr_memo_contains_page_flagged(m, p, l)				\
+				(m)->memo_contains_page_flagged((p), (l))
+
+#define mtr_release_block_at_savepoint(m, s, b)				\
+				(m)->release_block_at_savepoint((s), (b))
+
+#define mtr_block_sx_latch_at_savepoint(m, s, b)			\
+				(m)->sx_latch_at_savepoint((s), (b))
+
+#define mtr_block_x_latch_at_savepoint(m, s, b)				\
+				(m)->x_latch_at_savepoint((s), (b))
 
 /**
 Checks if a mini-transaction is dirtying a clean page.
@@ -226,6 +246,20 @@ struct mtr_t {
 		rw_lock_t*	lock);
 
 	/**
+	Releases the block in an mtr memo after a savepoint. */
+	inline void release_block_at_savepoint(
+		ulint		savepoint,
+		buf_block_t*	block);
+
+	/**
+	SX-latches the not yet latched block after a savepoint. */
+	inline void sx_latch_at_savepoint(ulint savepoint, buf_block_t* block);
+
+	/**
+	X-latches the not yet latched block after a savepoint. */
+	inline void x_latch_at_savepoint(ulint savepoint, buf_block_t*	block);
+
+	/**
 	Gets the logging mode of a mini-transaction.
 	@return	logging mode: MTR_LOG_NONE, ... */
 	inline mtr_log_t get_log_mode() const
@@ -246,15 +280,18 @@ struct mtr_t {
 		__attribute__((warn_unused_result));
 
 	/**
+	Reads 8 bytes from a file page buffered in the buffer pool.
+	@return	value read */
+	inline ib_id_t read_ull(const byte* ptr, ulint type) const
+		__attribute__((warn_unused_result));
+
+	/**
 	NOTE! Use the macro above!
 	Locks a lock in s-mode.
 	@param lock	rw-lock
 	@param file	file name from where called
 	@param line	line number in file */
-	inline void s_lock(
-		rw_lock_t*	lock,
-		const char*	file,
-		ulint		line);
+	inline void s_lock(rw_lock_t* lock, const char* file, ulint line);
 
 	/**
 	NOTE! Use the macro above!
@@ -262,10 +299,11 @@ struct mtr_t {
 	@param lock	rw-lock
 	@param file	file name from where called
 	@param line	line number in file */
-	inline void x_lock(
-		rw_lock_t*	lock,
-		const char*	file,
-		ulint		line);
+	inline void x_lock(rw_lock_t* lock, const char*	file, ulint line);
+
+	/**
+	Locks a lock in sx-mode. */
+	inline void sx_lock(rw_lock_t* lock, const char* file, ulint line);
 
 	/**
 	Releases an object in the memo stack.
@@ -358,6 +396,22 @@ struct mtr_t {
 		const byte*	ptr,
 		ulint		type)
 		__attribute__((warn_unused_result));
+
+	/**
+	Checks if memo contains the given item.
+	@param object		object to search
+	@param flags		specify types of object (can be ORred) of
+				MTR_MEMO_PAGE_S_FIX ... values
+	@return true if contains */
+	bool memo_contains_flagged(const void* ptr, ulint flags) const;
+
+	/**
+	Checks if memo contains the given page.
+	@param ptr		buffer frame
+	@param flags		specify types of object with OR of
+				MTR_MEMO_PAGE_S_FIX... values
+	@return true if contains */
+	bool memo_contains_page_flagged(const byte* ptr, ulint flags) const;
 
 	/**
 	Prints info of an mtr handle. */

@@ -45,6 +45,7 @@ Created 12/9/1995 Heikki Tuuri
 #include "trx0sys.h"
 #include "trx0trx.h"
 #include "srv0mon.h"
+#include "sync0sync.h"
 
 #include <queue>
 #include <vector>
@@ -75,20 +76,13 @@ reduce the size of the log.
 
 */
 
+#ifdef UNIV_PFS_THREAD
+mysql_pfs_key_t        log_writer_thread_key;
+#endif /* UNIV_PFS_THREAD */
+
 /** Size of block reads when the log groups are scanned forward to do a
 roll-forward */
 #define	SCAN_SIZE		(4 * UNIV_PAGE_SIZE)
-
-#ifdef UNIV_PFS_RWLOCK
-mysql_pfs_key_t	checkpoint_lock_key;
-mysql_pfs_key_t	log_writer_thread_key;
-#endif /* UNIV_PFS_RWLOCK */
-
-#ifdef UNIV_PFS_MUTEX
-mysql_pfs_key_t	cmdq_mutex_key;
-mysql_pfs_key_t	log_sys_mutex_key;
-mysql_pfs_key_t	log_flush_order_mutex_key;
-#endif /* UNIV_PFS_MUTEX */
 
 /* These control how often we print warnings if the last checkpoint is too
 old */
@@ -1119,8 +1113,7 @@ things simple. */
 struct RedoLog::CommandQueue {
 	CommandQueue()
 	{
-		// FIXME: Should have proper sync ordering
-		mutex_create(cmdq_mutex_key, &m_mutex, SYNC_NO_ORDER_CHECK);
+		mutex_create("log_cmdq_mutex", &m_mutex);
 	}
 
 	~CommandQueue()
@@ -1316,11 +1309,9 @@ RedoLog::RedoLog(ulint n_files, os_offset_t size, ulint mem_avail)
 	m_state(STATE_RUNNING),
 	m_flushed_to_disk_lsn()
 {
-	mutex_create(log_sys_mutex_key, &m_mutex, SYNC_LOG);
+	mutex_create("log_sys", &m_mutex);
 
-	mutex_create(
-		log_flush_order_mutex_key,
-		&m_flush_order_mutex, SYNC_LOG_FLUSH_ORDER);
+	mutex_create("log_flush_order", &m_flush_order_mutex);
 
 	mutex_acquire();
 
@@ -1348,13 +1339,13 @@ RedoLog::RedoLog(ulint n_files, os_offset_t size, ulint mem_avail)
 
 	m_last_printout_time = ut_time();
 
-	m_no_flush_event = os_event_create();
+	m_no_flush_event = os_event_create("no_flush_event");
 
 	m_check_flush_or_checkpoint = true;
 
 	os_event_set(m_no_flush_event);
 
-	m_one_flushed_event = os_event_create();
+	m_one_flushed_event = os_event_create("one_flushed_event");
 
 	os_event_set(m_one_flushed_event);
 
@@ -1668,7 +1659,6 @@ RedoLog::calc_max_ages()
 }
 
 /**
-Initializes the log.
 @return true if success, false if not */
 bool
 RedoLog::init()
@@ -2156,7 +2146,7 @@ RedoLog::flush_margin()
 
 	mutex_release();
 
-	if (lsn) {
+	if (lsn > 0) {
 		write_up_to(lsn, WAIT_MODE_NO_WAIT, false);
 	}
 }
@@ -2591,6 +2581,7 @@ Checks that there is enough free space in the log to start a new query step.
 Flushes the log buffer or makes a new checkpoint if necessary. NOTE: this
 function may only be called if the calling thread owns no synchronization
 objects! */
+
 void
 RedoLog::check_margins()
 {
@@ -2700,8 +2691,8 @@ RedoLog::shutdown()
 	delete m_checkpoint;
 	m_checkpoint = NULL;
 
-	os_event_free(m_no_flush_event);
-	os_event_free(m_one_flushed_event);
+	os_event_destroy(m_no_flush_event);
+	os_event_destroy(m_one_flushed_event);
 
 	mutex_free(&m_mutex);
 

@@ -269,7 +269,8 @@ btr_pcur_restore_position_func(
 			index, latch_mode,
 			btr_pcur_get_btr_cur(cursor), 0, mtr);
 
-		cursor->latch_mode = latch_mode;
+		cursor->latch_mode =
+			BTR_LATCH_MODE_WITHOUT_INTENTION(latch_mode);
 		cursor->pos_state = BTR_PCUR_IS_POSITIONED;
 		cursor->block_when_stored = btr_pcur_get_block(cursor);
 
@@ -421,6 +422,7 @@ btr_pcur_move_to_next_page(
 	page_t*		page;
 	buf_block_t*	next_block;
 	page_t*		next_page;
+	ulint		mode;
 
 	ut_a(cursor->pos_state == BTR_PCUR_IS_POSITIONED);
 	ut_ad(cursor->latch_mode != BTR_NO_LATCHES);
@@ -435,8 +437,15 @@ btr_pcur_move_to_next_page(
 
 	ut_ad(next_page_no != FIL_NULL);
 
-	next_block = btr_block_get(space, zip_size, next_page_no,
-				   cursor->latch_mode,
+	mode = cursor->latch_mode;
+	switch (mode) {
+	case BTR_SEARCH_TREE:
+		mode = BTR_SEARCH_LEAF;
+		break;
+	case BTR_MODIFY_TREE:
+		mode = BTR_MODIFY_LEAF;
+	}
+	next_block = btr_block_get(space, zip_size, next_page_no, mode,
 				   btr_pcur_get_btr_cur(cursor)->index, mtr);
 	next_page = buf_block_get_frame(next_block);
 #ifdef UNIV_BTR_DEBUG
@@ -447,7 +456,7 @@ btr_pcur_move_to_next_page(
 	next_block->check_index_page_at_flush = TRUE;
 
 	btr_leaf_page_release(btr_pcur_get_block(cursor),
-			      cursor->latch_mode, mtr);
+			      mode, mtr);
 
 	page_cur_set_before_first(next_block, btr_pcur_get_page_cur(cursor));
 

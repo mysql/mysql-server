@@ -222,16 +222,20 @@ enum mtr_memo_type_t {
 
 	MTR_MEMO_PAGE_X_FIX = RW_X_LATCH,
 
+	MTR_MEMO_PAGE_SX_FIX = RW_SX_LATCH,
+
 	MTR_MEMO_BUF_FIX = RW_NO_LATCH,
 #endif /* !UNIV_CHECKSUM */
 
 #ifdef UNIV_DEBUG
-	MTR_MEMO_MODIFY = 54,
+	MTR_MEMO_MODIFY = 32,
 #endif /* UNIV_DEBUG */
 
-	MTR_MEMO_S_LOCK = 55,
+	MTR_MEMO_S_LOCK = 64,
 
-	MTR_MEMO_X_LOCK = 56
+	MTR_MEMO_X_LOCK = 128,
+
+	MTR_MEMO_SX_LOCK = 256
 };
 
 /** @name Flags for MLOG_FILE operations

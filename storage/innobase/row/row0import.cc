@@ -1575,7 +1575,8 @@ IndexPurge::purge_pessimistic_delete() UNIV_NOTHROW
 {
 	dberr_t	err;
 
-	btr_pcur_restore_position(BTR_MODIFY_TREE, &m_pcur, &m_mtr);
+	btr_pcur_restore_position(BTR_MODIFY_TREE | BTR_LATCH_FOR_DELETE,
+				  &m_pcur, &m_mtr);
 
 	ut_ad(rec_get_deleted_flag(
 			btr_pcur_get_rec(&m_pcur),

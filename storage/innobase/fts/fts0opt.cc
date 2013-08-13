@@ -34,6 +34,7 @@ Completed 2011/7/10 Sunny and Jimmy Yang
 #include "fts0types.h"
 #include "ut0wqueue.h"
 #include "srv0start.h"
+#include "ut0list.h"
 #include "zlib.h"
 
 #ifdef UNIV_NONINL
@@ -2616,7 +2617,7 @@ fts_optimize_remove_table(
 	msg = fts_optimize_create_msg(FTS_MSG_DEL_TABLE, NULL);
 
 	/* We will wait on this event until signalled by the consumer. */
-	event = os_event_create();
+	event = os_event_create(0);
 
 	remove = static_cast<fts_msg_del_t*>(
 		mem_heap_alloc(msg->heap, sizeof(*remove)));
@@ -2629,7 +2630,7 @@ fts_optimize_remove_table(
 
 	os_event_wait(event);
 
-	os_event_free(event);
+	os_event_destroy(event);
 }
 
 /**********************************************************************//**
@@ -3148,7 +3149,7 @@ fts_optimize_start_shutdown(void)
 	/* We tell the OPTIMIZE thread to switch to state done, we
 	can't delete the work queue here because the add thread needs
 	deregister the FTS tables. */
-	event = os_event_create();
+	event = os_event_create(0);
 
 	msg = fts_optimize_create_msg(FTS_MSG_STOP, NULL);
 	msg->ptr = event;
@@ -3156,10 +3157,10 @@ fts_optimize_start_shutdown(void)
 	ib_wqueue_add(fts_optimize_wq, msg, msg->heap);
 
 	os_event_wait(event);
-	os_event_free(event);
+
+	os_event_destroy(event);
 
 	ib_wqueue_free(fts_optimize_wq);
-
 }
 
 /**********************************************************************//**
