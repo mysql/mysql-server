@@ -58,6 +58,7 @@
 
 #include "rpl_tblmap.h"
 #include "debug_sync.h"
+#include "rpl_mts_submode.h"
 
 using std::min;
 using std::max;
@@ -199,7 +200,6 @@ static int process_io_rotate(Master_info* mi, Rotate_log_event* rev);
 static int process_io_create_file(Master_info* mi, Create_file_log_event* cev);
 static bool wait_for_relay_log_space(Relay_log_info* rli);
 static inline bool io_slave_killed(THD* thd,Master_info* mi);
-static inline bool sql_slave_killed(THD* thd,Relay_log_info* rli);
 static int init_slave_thread(THD* thd, SLAVE_THD_TYPE thd_type);
 static void print_slave_skip_errors(void);
 static int safe_connect(THD* thd, MYSQL* mysql, Master_info* mi);
@@ -901,6 +901,8 @@ int terminate_slave_threads(Master_info* mi,int thread_mask,bool need_lock_term)
       }
       DBUG_RETURN(error);
     }
+    delete mi->rli->current_mts_submode;
+    mi->rli->current_mts_submode= 0;
     mysql_mutex_lock(log_lock);
 
     DBUG_PRINT("info",("Flushing relay-log info file."));
@@ -1006,6 +1008,7 @@ terminate_slave_thread(THD *thd,
                        volatile uint *slave_running,
                        bool need_lock_term)
 {
+  int error;
   DBUG_ENTER("terminate_slave_thread");
   if (need_lock_term)
   {
@@ -1041,7 +1044,6 @@ terminate_slave_thread(THD *thd,
 
   while (*slave_running)                        // Should always be true
   {
-    int error;
     DBUG_PRINT("loop", ("killing slave thread"));
 
     mysql_mutex_lock(&thd->LOCK_thd_data);
@@ -1320,7 +1322,7 @@ static bool io_slave_killed(THD* thd, Master_info* mi)
    @return TRUE the killed status is recognized, FALSE a possible killed
            status is deferred.
 */
-static bool sql_slave_killed(THD* thd, Relay_log_info* rli)
+bool sql_slave_killed(THD* thd, Relay_log_info* rli)
 {
   bool ret= FALSE;
   bool is_parallel_warn= FALSE;
@@ -3504,7 +3506,11 @@ apply_event_and_update_pos(Log_event** ptr_ev, THD* thd, Relay_log_info* rli)
                                    curr_group_assigned_parts, i - 1);
           // reset the B-group and Gtid-group marker
           rli->curr_group_seen_begin= rli->curr_group_seen_gtid= false;
-          rli->last_assigned_worker= NULL;
+          if (is_mts_db_partitioned(rli)||
+              (!is_mts_db_partitioned(rli) &&
+             !static_cast<Mts_submode_logical_clock*>
+                (rli->current_mts_submode)->defer_new_group))
+            rli->last_assigned_worker= NULL;
         }
         /* 
            Stroring GAQ index of the group that the event belongs to
@@ -3560,7 +3566,7 @@ apply_event_and_update_pos(Log_event** ptr_ev, THD* thd, Relay_log_info* rli)
             after wait_() returns.
             No need to know a possible error out of synchronization call.
           */
-          (void) wait_for_workers_to_finish(rli);
+          (void)rli->current_mts_submode->wait_for_workers_to_finish(rli);
         }
 
       }
@@ -3734,8 +3740,8 @@ apply_event_and_update_pos(Log_event** ptr_ev, THD* thd, Relay_log_info* rli)
     }
   }
 
-  DBUG_RETURN(exec_res ? SLAVE_APPLY_EVENT_AND_UPDATE_POS_APPLY_ERROR
-                       : SLAVE_APPLY_EVENT_AND_UPDATE_POS_OK);
+  DBUG_RETURN(exec_res ? SLAVE_APPLY_EVENT_AND_UPDATE_POS_APPLY_ERROR :
+                         SLAVE_APPLY_EVENT_AND_UPDATE_POS_OK);
 }
 
 
@@ -5046,7 +5052,7 @@ bool mts_checkpoint_routine(Relay_log_info *rli, ulonglong period,
     DBUG_RETURN(FALSE);
   }
 
-  do
+ do
   {
     cnt= rli->gaq->move_queue_head(&rli->workers);
 #ifndef DBUG_OFF
@@ -5063,10 +5069,21 @@ bool mts_checkpoint_routine(Relay_log_info *rli, ulonglong period,
     If this value is different than zero the checkpoint
     routine can proceed. Otherwise, there is nothing to be
     done.
-  */      
+  */
   if (cnt == 0)
     goto end;
 
+ /*
+    The workers have completed  cnt jobs from the gaq. This means that we
+    should increment C->jobs_done by cnt.
+  */
+  if (!is_mts_worker(rli->info_thd) &&
+      !is_mts_db_partitioned(rli))
+  {
+    DBUG_PRINT("info", ("jobs_done this itr=%ld", cnt));
+    static_cast<Mts_submode_logical_clock*>
+      (rli->current_mts_submode)->jobs_done+= cnt;
+  }
 
   /* TODO: 
      to turn the least occupied selection in terms of jobs pieces
@@ -5132,7 +5149,7 @@ end:
     DBUG_SUICIDE();
 #endif
   set_timespec_nsec(rli->last_clock, 0);
-  
+
   DBUG_RETURN(error);
 }
 
@@ -5355,7 +5372,7 @@ void slave_stop_workers(Relay_log_info *rli, bool *mts_inited)
     }
 #endif
     // No need to know a possible error out of synchronization call.
-    (void) wait_for_workers_to_finish(rli);
+    (void)rli->current_mts_submode->wait_for_workers_to_finish(rli);
     /*
       At this point the coordinator has been stopped and the checkpoint
       routine is executed to eliminate possible gaps.
@@ -5433,8 +5450,9 @@ void slave_stop_workers(Relay_log_info *rli, bool *mts_inited)
       mysql_mutex_lock(&w->jobs_lock);
     }
     mysql_mutex_unlock(&w->jobs_lock);
-
-
+    // Free the current submode object
+    delete w->current_mts_submode;
+    w->current_mts_submode= 0;
     delete_dynamic_element(&rli->workers, i);
     delete w;
   }
@@ -5512,8 +5530,23 @@ pthread_handler_t handle_slave_sql(void *arg)
   thd->thread_stack = (char*)&thd; // remember where our stack is
   mysql_mutex_lock(&rli->info_thd_lock);
   rli->info_thd= thd;
+
+ /*
+  Create Mts Submode.
+  It is possible that we may not have deleted the last MTS submode in case
+  terminate_slave_threads() returned with ER_STOP_SLAVE_SQL_THREAD_TIMEOUT
+  while stopping the slave in the previous slave session.
+ */
+ if (rli->current_mts_submode)
+   delete rli->current_mts_submode;
+
+ if (mts_parallel_option != MTS_PARALLEL_TYPE_DB_NAME)
+   rli->current_mts_submode= new Mts_submode_logical_clock();
+ else
+   rli->current_mts_submode= new Mts_submode_database();
+
   mysql_mutex_unlock(&rli->info_thd_lock);
-  
+
   /* Inform waiting threads that slave has started */
   rli->slave_run_id++;
   rli->slave_running = 1;
@@ -7241,11 +7274,14 @@ static Log_event* next_event(Relay_log_info* rli)
       if (hot_log)
         mysql_mutex_unlock(log_lock);
 
-      /* 
-         MTS checkpoint in the successful read branch 
+      /*
+         MTS checkpoint in the successful read branch
       */
       bool force= (rli->checkpoint_seqno > (rli->checkpoint_group - 1));
-      if (rli->is_parallel_exec() && (opt_mts_checkpoint_period != 0 || force))
+      if (rli->is_parallel_exec() && (opt_mts_checkpoint_period != 0 || force) &&
+          /* We don't need this in MTS logical clock slave since this will
+             foil the scheduling logic of coordinator */
+          is_mts_db_partitioned(rli))
       {
         ulonglong period= static_cast<ulonglong>(opt_mts_checkpoint_period * 1000000ULL);
         mysql_mutex_unlock(&rli->data_lock);

@@ -26,6 +26,23 @@ class Master_info;
 class Format_description_log_event;
 
 /**
+  Logical timestamp generator for binlog Prepare stage.
+ */
+class  Logical_clock
+{
+private:
+  my_atomic_rwlock_t m_state_lock;
+  int64 state;
+protected:
+  void init(){ state= 0; }
+public:
+  Logical_clock();
+  int64 step();
+  int64 get_timestamp();
+  ~Logical_clock();
+};
+
+/**
   Class for maintaining the commit stages for binary log group commit.
  */
 class Stage_manager {
@@ -538,6 +555,11 @@ public:
     m_key_file_log_index= key_file_log_index;
   }
 #endif
+
+public:
+  /* Clock to timestamp the commits */
+   Logical_clock commit_clock;
+
   /**
     Find the oldest binary log that contains any GTID that
     is not in the given gtid set.
