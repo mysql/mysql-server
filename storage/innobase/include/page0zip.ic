@@ -32,6 +32,7 @@ Created June 2005 by Marko Makela
 #include "page0zip.h"
 #include "mtr0log.h"
 #include "page0page.h"
+#include "srv0srv.h"
 
 /* The format of compressed pages is as follows.
 

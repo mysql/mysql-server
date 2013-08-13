@@ -626,6 +626,13 @@ int replace_user_table(THD *thd, TABLE *table, LEX_USER *combo,
   DBUG_ENTER("replace_user_table");
 
   mysql_mutex_assert_owner(&acl_cache->lock);
+  
+  if (!table->key_info)
+  {
+    my_error(ER_TABLE_CORRUPT, MYF(0), table->s->db.str,
+             table->s->table_name.str);
+    goto end;
+  }
  
   table->use_all_columns();
   DBUG_ASSERT(combo->host.str != '\0');
@@ -1373,8 +1380,16 @@ int replace_column_table(GRANT_TABLE *g_t,
   int result=0;
   uchar key[MAX_KEY_LENGTH];
   uint key_prefix_length;
-  KEY_PART_INFO *key_part= table->key_info->key_part;
   DBUG_ENTER("replace_column_table");
+  
+  if (!table->key_info)
+  {
+    my_error(ER_TABLE_CORRUPT, MYF(0), table->s->db.str,
+             table->s->table_name.str);
+    DBUG_RETURN(-1);
+  }
+  
+  KEY_PART_INFO *key_part= table->key_info->key_part;
 
   table->use_all_columns();
   table->field[0]->store(combo.host.str,combo.host.length,
@@ -2014,6 +2029,13 @@ int handle_grant_table(TABLE_LIST *tables, uint table_no, bool drop,
                        table->s->table_name.str, user_str, host_str));
     host_field->store(host_str, user_from->host.length, system_charset_info);
     user_field->store(user_str, user_from->user.length, system_charset_info);
+    
+    if (!table->key_info)
+    {
+      my_error(ER_TABLE_CORRUPT, MYF(0), table->s->db.str,
+               table->s->table_name.str);
+      DBUG_RETURN(-1);
+    }
 
     key_prefix_length= (table->key_info->key_part[0].store_length +
                         table->key_info->key_part[1].store_length);

@@ -38,6 +38,8 @@ Created 12/9/1995 Heikki Tuuri
 #ifndef UNIV_HOTBACKUP
 # include "sync0sync.h"
 # include "sync0rw.h"
+#include "sync0mutex.h"
+#include "sync0rw.h"
 #endif /* !UNIV_HOTBACKUP */
 
 #include "log0types.h"
@@ -162,7 +164,11 @@ struct RedoLog {
 	void free_check()
 	{
 #ifdef UNIV_SYNC_DEBUG
-		ut_ad(sync_thread_levels_empty_except_dict());
+		{
+			dict_sync_check	check(true);
+
+			ut_ad(!sync_check_iterate(check));
+		}
 #endif /* UNIV_SYNC_DEBUG */
 
 		if (m_check_flush_or_checkpoint) {
@@ -873,13 +879,17 @@ extern RedoLog*		redo_log;
 
 /** Test if flush order mutex is owned. */
 #define log_flush_order_mutex_own()					\
-	redo_log->is_flush_order_mutex_owned()
+	redo_log->m_flush_order_mutex.is_owned()
 
 /** Acquire the flush order mutex. */
-#define log_flush_order_mutex_enter()	redo_log->flush_order_mutex_enter()
+#define log_flush_order_mutex_enter()					\
+	do {								\
+		redo_log->m_flush_order_mutex.enter(			\
+			1, srv_spin_wait_delay / 2, __FILE__, __LINE__);\
+	} while (0)
 
 /** Release the flush order mutex. */
-# define log_flush_order_mutex_exit()	redo_log->flush_order_mutex_exit();
+# define log_flush_order_mutex_exit()	redo_log->m_flush_order_mutex.exit();
 
 /**
 Redo log writer thread.
@@ -890,3 +900,4 @@ os_thread_ret_t
 DECLARE_THREAD(log_writer_thread)(void* arg __attribute__((unused)));
 
 #endif /* log0log_h */
+

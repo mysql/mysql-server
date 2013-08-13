@@ -163,8 +163,10 @@ btr_page_get_next(
 				/*!< in: mini-transaction handle */
 {
 	ut_ad(page && mtr);
-	ut_ad(mtr_memo_contains_page(mtr, page, MTR_MEMO_PAGE_X_FIX)
-	      || mtr_memo_contains_page(mtr, page, MTR_MEMO_PAGE_S_FIX));
+	ut_ad(mtr_memo_contains_page_flagged(mtr, page,
+					     MTR_MEMO_PAGE_S_FIX
+					     | MTR_MEMO_PAGE_X_FIX
+					     | MTR_MEMO_PAGE_SX_FIX));
 
 	return(mach_read_from_4(page + FIL_PAGE_NEXT));
 }

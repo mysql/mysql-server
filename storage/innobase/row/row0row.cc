@@ -243,7 +243,7 @@ row_build(
 
 	ut_ad(index && rec && heap);
 	ut_ad(dict_index_is_clust(index));
-	ut_ad(!mutex_own(&trx_sys->mutex));
+	ut_ad(!trx_sys_mutex_own());
 	ut_ad(!col_map || col_table);
 
 	if (!offsets) {

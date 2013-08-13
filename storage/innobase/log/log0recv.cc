@@ -45,7 +45,7 @@ Created 9/20/1997 Heikki Tuuri
 # include "srv0start.h"
 # include "trx0roll.h"
 # include "row0merge.h"
-# include "sync0sync.h"
+# include "sync0mutex.h"
 #else /* !UNIV_HOTBACKUP */
 
 /** This is set to false if the backup was originally taken with the
@@ -82,11 +82,6 @@ redo_recover_t*	recover_ptr = &recover;
 mysql_pfs_key_t	trx_rollback_clean_thread_key;
 #endif /* UNIV_PFS_THREAD */
 
-#ifdef UNIV_PFS_MUTEX
-mysql_pfs_key_t	recv_sys_mutex_key;
-mysql_pfs_key_t	recv_writer_mutex_key;
-#endif /* UNIV_PFS_MUTEX */
-
 #ifndef UNIV_HOTBACKUP
 # ifdef UNIV_PFS_THREAD
 mysql_pfs_key_t	recv_writer_thread_key;
@@ -105,12 +100,12 @@ redo_recover_t::create(ulint n_bytes)
 {
 	// FIXME: Make this an assertion
 	if (!m_inited) {
-		mutex_create(recv_sys_mutex_key, &m_mutex, SYNC_RECV);
+		mutex_create("recv_sys", &m_mutex);
 
 #ifndef UNIV_HOTBACKUP
-		mutex_create(recv_writer_mutex_key,
-			     &m_writer_mutex, SYNC_LEVEL_VARYING);
+		mutex_create("recv_writer", &m_writer_mutex);
 #endif /* !UNIV_HOTBACKUP */
+
 		m_inited = true;
 
 		init(n_bytes);
@@ -1095,11 +1090,11 @@ redo_recover_t::recover_page(
 
 #ifndef UNIV_HOTBACKUP
 	if (modification_to_page) {
-		ut_a(block);
+		redo_log->flush_order_mutex_enter();
 
-		log_flush_order_mutex_enter();
 		buf_flush_recv_note_modification(block, start_lsn, end_lsn);
-		log_flush_order_mutex_exit();
+
+		redo_log->flush_order_mutex_exit();
 	}
 #endif /* !UNIV_HOTBACKUP */
 
@@ -2075,16 +2070,7 @@ Initiates the rollback of active transactions. */
 void
 redo_recover_t::recovery_rollback_active()
 {
-#ifdef UNIV_SYNC_DEBUG
-	/* Wait for a while so that created threads have time to suspend
-	themselves before we switch the latching order checks on */
-	os_thread_sleep(1000000);
-
 	ut_ad(!m_writer_thread_active);
-
-	/* Switch latching order checks on in sync0sync.cc */
-	sync_order_checks_on = true;
-#endif /* UNIV_SYNC_DEBUG */
 
 	/* We can't start any (DDL) transactions if UNDO logging
 	has been disabled, additionally disable ROLLBACK of recovered

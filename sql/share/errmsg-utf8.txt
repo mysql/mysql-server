@@ -7027,6 +7027,9 @@ ER_STOP_SLAVE_SQL_THREAD_TIMEOUT
 ER_STOP_SLAVE_IO_THREAD_TIMEOUT
   eng "STOP SLAVE command execution is incomplete: Slave IO thread got the stop signal, thread is busy, IO thread will stop once the current task is complete."
 
+ER_TABLE_CORRUPT
+  eng "Operation cannot be performed. The table '%-.64s.%-.64s' is missing, corrupt or contains bad data."
+
 #
 #  End of 5.6 error messages.
 #

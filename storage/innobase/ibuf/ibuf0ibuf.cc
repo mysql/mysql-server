@@ -55,7 +55,7 @@ my_bool	srv_ibuf_disable_background_merge;
 #include "btr0pcur.h"
 #include "btr0btr.h"
 #include "row0upd.h"
-#include "sync0sync.h"
+#include "sync0mutex.h"
 #include "dict0boot.h"
 #include "fut0lst.h"
 #include "lock0lock.h"
@@ -204,12 +204,6 @@ uint	ibuf_debug;
 
 /** The insert buffer control structure */
 ibuf_t*	ibuf			= NULL;
-
-#ifdef UNIV_PFS_MUTEX
-mysql_pfs_key_t	ibuf_pessimistic_insert_mutex_key;
-mysql_pfs_key_t	ibuf_mutex_key;
-mysql_pfs_key_t	ibuf_bitmap_mutex_key;
-#endif /* UNIV_PFS_MUTEX */
 
 #ifdef UNIV_IBUF_COUNT_DEBUG
 /** Number of tablespaces in the ibuf_counts array */
@@ -407,10 +401,11 @@ ibuf_tree_root_get(
 	ut_ad(ibuf_inside(mtr));
 	ut_ad(mutex_own(&ibuf_mutex));
 
-	mtr_x_lock(dict_index_get_lock(ibuf->index), mtr);
+	mtr_sx_lock(dict_index_get_lock(ibuf->index), mtr);
 
+	/* only segment list access is exclusive each other */
 	block = buf_page_get(
-		IBUF_SPACE_ID, 0, FSP_IBUF_TREE_ROOT_PAGE_NO, RW_X_LATCH, mtr);
+		IBUF_SPACE_ID, 0, FSP_IBUF_TREE_ROOT_PAGE_NO, RW_SX_LATCH, mtr);
 
 	buf_block_dbg_add_level(block, SYNC_IBUF_TREE_NODE_NEW);
 
@@ -526,15 +521,11 @@ ibuf_init_at_db_start(void)
 	ibuf->max_size = ((buf_pool_get_curr_size() / UNIV_PAGE_SIZE)
 			  * CHANGE_BUFFER_DEFAULT_SIZE) / 100;
 
-	mutex_create(ibuf_pessimistic_insert_mutex_key,
-		     &ibuf_pessimistic_insert_mutex,
-		     SYNC_IBUF_PESS_INSERT_MUTEX);
+	mutex_create("ibuf", &ibuf_mutex);
 
-	mutex_create(ibuf_mutex_key,
-		     &ibuf_mutex, SYNC_IBUF_MUTEX);
+	mutex_create("ibuf_bitmap", &ibuf_bitmap_mutex);
 
-	mutex_create(ibuf_bitmap_mutex_key,
-		     &ibuf_bitmap_mutex, SYNC_IBUF_BITMAP_MUTEX);
+	mutex_create("ibuf_pessimistic_insert", &ibuf_pessimistic_insert_mutex);
 
 	mtr_start(&mtr);
 
@@ -2265,7 +2256,7 @@ ibuf_free_excess_pages(void)
 
 #ifdef UNIV_SYNC_DEBUG
 	ut_ad(rw_lock_own(fil_space_get_latch(IBUF_SPACE_ID, NULL),
-			  RW_LOCK_EX));
+			  RW_LOCK_X));
 #endif /* UNIV_SYNC_DEBUG */
 
 	ut_ad(rw_lock_get_x_lock_count(
@@ -3536,7 +3527,7 @@ ibuf_insert_low(
 	the new entry to it without exceeding the free space limit for the
 	page. */
 
-	if (mode == BTR_MODIFY_TREE) {
+	if (BTR_LATCH_MODE_WITHOUT_INTENTION(mode) == BTR_MODIFY_TREE) {
 		for (;;) {
 			mutex_enter(&ibuf_pessimistic_insert_mutex);
 			mutex_enter(&ibuf_mutex);
@@ -3549,7 +3540,7 @@ ibuf_insert_low(
 			mutex_exit(&ibuf_mutex);
 			mutex_exit(&ibuf_pessimistic_insert_mutex);
 
-			if (UNIV_UNLIKELY(!ibuf_add_free_page())) {
+			if (!ibuf_add_free_page()) {
 
 				mem_heap_free(heap);
 				return(DB_STRONG_FAIL);
@@ -3591,7 +3582,7 @@ ibuf_insert_low(
 		until after the IBUF_OP_DELETE has been buffered. */
 
 fail_exit:
-		if (mode == BTR_MODIFY_TREE) {
+		if (BTR_LATCH_MODE_WITHOUT_INTENTION(mode) == BTR_MODIFY_TREE) {
 			mutex_exit(&ibuf_mutex);
 			mutex_exit(&ibuf_pessimistic_insert_mutex);
 		}
@@ -3708,7 +3699,8 @@ fail_exit:
 			ibuf->empty = page_is_empty(root);
 		}
 	} else {
-		ut_ad(mode == BTR_MODIFY_TREE);
+		ut_ad(BTR_LATCH_MODE_WITHOUT_INTENTION(mode)
+		      == BTR_MODIFY_TREE);
 
 		/* We acquire an x-latch to the root page before the insert,
 		because a pessimistic insert releases the tree x-latch,
@@ -3768,7 +3760,8 @@ func_exit:
 
 	mem_heap_free(heap);
 
-	if (err == DB_SUCCESS && mode == BTR_MODIFY_TREE) {
+	if (err == DB_SUCCESS
+	    && BTR_LATCH_MODE_WITHOUT_INTENTION(mode) == BTR_MODIFY_TREE) {
 		ibuf_contract_after_insert(entry_size);
 	}
 
@@ -3914,8 +3907,8 @@ skip_watch:
 			      entry, entry_size,
 			      index, space, zip_size, page_no, thr);
 	if (err == DB_FAIL) {
-		err = ibuf_insert_low(BTR_MODIFY_TREE, op, no_counter,
-				      entry, entry_size,
+		err = ibuf_insert_low(BTR_MODIFY_TREE | BTR_LATCH_FOR_INSERT,
+				      op, no_counter, entry, entry_size,
 				      index, space, zip_size, page_no, thr);
 	}
 
@@ -4363,7 +4356,8 @@ ibuf_restore_pos(
 				position is to be restored */
 	mtr_t*		mtr)	/*!< in/out: mini-transaction */
 {
-	ut_ad(mode == BTR_MODIFY_LEAF || mode == BTR_MODIFY_TREE);
+	ut_ad(mode == BTR_MODIFY_LEAF
+	      || BTR_LATCH_MODE_WITHOUT_INTENTION(mode) == BTR_MODIFY_TREE);
 
 	if (btr_pcur_restore_position(mode, pcur, mtr)) {
 
@@ -4395,7 +4389,7 @@ ibuf_restore_pos(
 		ibuf_btr_pcur_commit_specify_mtr(pcur, mtr);
 
 		ib_logf(IB_LOG_LEVEL_INFO, "Validating insert buffer tree:");
-		if (!btr_validate_index(ibuf->index, 0)) {
+		if (!btr_validate_index(ibuf->index, 0, false)) {
 			ut_error;
 		}
 		ib_logf(IB_LOG_LEVEL_INFO, "ibuf tree is OK.");
@@ -4502,10 +4496,10 @@ ibuf_delete_rec(
 	mutex_enter(&ibuf_mutex);
 
 	if (!ibuf_restore_pos(space, page_no, search_tuple,
-			      BTR_MODIFY_TREE, pcur, mtr)) {
+			      BTR_MODIFY_TREE | BTR_LATCH_FOR_DELETE,
+			      pcur, mtr)) {
 
 		mutex_exit(&ibuf_mutex);
-		ut_ad(!ibuf_inside(mtr));
 		ut_ad(mtr->has_committed());
 		goto func_exit;
 	}
@@ -4526,7 +4520,6 @@ ibuf_delete_rec(
 	ibuf_btr_pcur_commit_specify_mtr(pcur, mtr);
 
 func_exit:
-	ut_ad(!ibuf_inside(mtr));
 	ut_ad(mtr->has_committed());
 	btr_pcur_close(pcur);
 
@@ -4858,7 +4851,6 @@ loop:
 						      BTR_MODIFY_LEAF,
 						      &pcur, &mtr)) {
 
-					ut_ad(!ibuf_inside(&mtr));
 					ut_ad(mtr.has_committed());
 					mops[op]++;
 					ibuf_dummy_index_free(dummy_index);

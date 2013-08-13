@@ -29,8 +29,9 @@ Created 5/20/1997 Heikki Tuuri
 #include "univ.i"
 #include "mem0mem.h"
 #ifndef UNIV_HOTBACKUP
-# include "sync0sync.h"
+# include "sync0mutex.h"
 # include "sync0rw.h"
+# include "sync0mutex.h"
 #endif /* !UNIV_HOTBACKUP */
 
 struct hash_table_t;
@@ -69,25 +70,14 @@ Creates a sync object array array to protect a hash table.
 hash table. */
 
 void
-hash_create_sync_obj_func(
-/*======================*/
+hash_create_sync_obj(
+/*=================*/
 	hash_table_t*		table,	/*!< in: hash table */
 	enum hash_table_sync_t	type,	/*!< in: HASH_TABLE_SYNC_MUTEX
 					or HASH_TABLE_SYNC_RW_LOCK */
-#ifdef UNIV_SYNC_DEBUG
-	ulint			sync_level,/*!< in: latching order level
-					of the mutexes: used in the
-					debug version */
-#endif /* UNIV_SYNC_DEBUG */
+	const char*		name,	/*!< in: mutex/rw_lock name */
 	ulint			n_sync_obj);/*!< in: number of sync objects,
 					must be a power of 2 */
-#ifdef UNIV_SYNC_DEBUG
-# define hash_create_sync_obj(t, s, n, level)			\
-			hash_create_sync_obj_func(t, s, level, n)
-#else /* UNIV_SYNC_DEBUG */
-# define hash_create_sync_obj(t, s, n, level)			\
-			hash_create_sync_obj_func(t, s, n)
-#endif /* UNIV_SYNC_DEBUG */
 #endif /* !UNIV_HOTBACKUP */
 
 /*************************************************************//**
