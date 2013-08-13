@@ -4537,6 +4537,7 @@ fts_get_token_size(
 	char*	end;
 	ulint	size = 0;
 
+	/* const_cast is for reinterpret_cast below, or it will fail. */
 	start = const_cast<char*>(token);
 	end = start + len;
 	while (start < end) {
