@@ -1857,24 +1857,19 @@ bool Item_in_optimizer::fix_left(THD *thd, Item **ref)
     return 1;
 
   cache->setup(args[0]);
+  used_tables_cache= args[0]->used_tables();
   if (cache->cols() == 1)
   {
-    if ((used_tables_cache= args[0]->used_tables()))
-      cache->set_used_tables(OUTER_REF_TABLE_BIT);
-    else
-      cache->set_used_tables(0);
+    cache->set_used_tables(used_tables_cache);
   }
   else
   {
     uint n= cache->cols();
     for (uint i= 0; i < n; i++)
     {
-      if (args[0]->element_index(i)->used_tables())
-	((Item_cache *)cache->element_index(i))->set_used_tables(OUTER_REF_TABLE_BIT);
-      else
-	((Item_cache *)cache->element_index(i))->set_used_tables(0);
+      ((Item_cache *)cache->element_index(i))->
+        set_used_tables(args[0]->element_index(i)->used_tables());
     }
-    used_tables_cache= args[0]->used_tables();
   }
   not_null_tables_cache= args[0]->not_null_tables();
   with_sum_func= args[0]->with_sum_func;
@@ -2072,7 +2067,7 @@ longlong Item_in_optimizer::val_int()
       }
 
       if (all_left_cols_null && result_for_null_param != UNKNOWN &&
-          !item_subs->originally_dependent())
+          !item_subs->dependent_before_in2exists())
       {
         /*
            This subquery was originally not correlated. The IN->EXISTS
@@ -2504,7 +2499,7 @@ bool Item_func_between::fix_fields(THD *thd, Item **ref)
   if (Item_func_opt_neg::fix_fields(thd, ref))
     return 1;
 
-  thd->lex->current_select->between_count++;
+  thd->lex->current_select()->between_count++;
 
   /* not_null_tables_cache == union(T1(e),T1(e1),T1(e2)) */
   if (pred_level && !negated)
@@ -4774,7 +4769,7 @@ Item_cond::fix_fields(THD *thd, Item **ref)
   DBUG_ASSERT(fixed == 0);
   List_iterator<Item> li(list);
   Item *item;
-  Switch_resolve_place SRP(&thd->lex->current_select->resolve_place,
+  Switch_resolve_place SRP(&thd->lex->current_select()->resolve_place,
                            st_select_lex::RESOLVE_NONE,
                            functype() != COND_AND_FUNC);
   uchar buff[sizeof(char*)];			// Max local vars in function
@@ -4834,7 +4829,7 @@ Item_cond::fix_fields(THD *thd, Item **ref)
     if (item->maybe_null)
       maybe_null= true;
   }
-  thd->lex->current_select->cond_count+= list.elements;
+  thd->lex->current_select()->cond_count+= list.elements;
   fix_length_and_dec();
   fixed= true;
   return false;

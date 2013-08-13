@@ -687,7 +687,8 @@ static bool write_execute_load_query_log_event(THD *thd, sql_exchange* ex,
                       *p= NULL;
   size_t               pl= 0;
   List<Item>           fv;
-  Item                *item, *val;
+  Item                *item;
+  String              *str;
   String               pfield, pfields;
   int                  n;
   const char          *tbl= table_name_arg;
@@ -743,19 +744,19 @@ static bool write_execute_load_query_log_event(THD *thd, sql_exchange* ex,
   if (!thd->lex->update_list.is_empty())
   {
     List_iterator<Item> lu(thd->lex->update_list);
-    List_iterator<Item> lv(thd->lex->value_list);
+    List_iterator<String> ls(thd->lex->load_set_str_list);
 
     pfields.append(" SET ");
     n= 0;
 
     while ((item= lu++))
     {
-      val= lv++;
+      str= ls++;
       if (n++)
         pfields.append(", ");
       append_identifier(thd, &pfields, item->item_name.ptr(),
                         strlen(item->item_name.ptr()));
-      pfields.append(val->item_name.ptr());
+      pfields.append((char *)str->ptr());
     }
   }
 
@@ -929,6 +930,33 @@ continue_loop:;
 }
 
 
+class Field_tmp_nullability_guard
+{
+public:
+  explicit Field_tmp_nullability_guard(Item *item)
+   :m_field(NULL)
+  {
+    if (item->type() == Item::FIELD_ITEM)
+    {
+      m_field= ((Item_field *) item)->field;
+      /*
+        Enable temporary nullability for items that corresponds
+        to table fields.
+      */
+      m_field->set_tmp_nullable();
+    }
+  }
+
+  ~Field_tmp_nullability_guard()
+  {
+    if (m_field)
+      m_field->reset_tmp_nullable();
+  }
+
+private:
+  Field *m_field;
+};
+
 
 static int
 read_sep_field(THD *thd, COPY_INFO &info, TABLE_LIST *table_list,
@@ -983,12 +1011,7 @@ read_sep_field(THD *thd, COPY_INFO &info, TABLE_LIST *table_list,
 
       real_item= item->real_item();
 
-      /*
-        Enable temporary nullability for items that corresponds
-        to table fields.
-      */
-      if (real_item->type() == Item::FIELD_ITEM)
-        ((Item_field *)real_item)->field->set_tmp_nullable();
+      Field_tmp_nullability_guard fld_tmp_nullability_guard(real_item);
 
       if ((!read_info.enclosed &&
 	  (enclosed_length && length == 4 &&
@@ -1112,16 +1135,6 @@ read_sep_field(THD *thd, COPY_INFO &info, TABLE_LIST *table_list,
           DBUG_RETURN(1);
         }
       }
-    }
-
-    // Clear temporary nullability flags for every field in the table.
-
-    it.rewind();
-    while ((item= it++))
-    {
-      Item *real_item= item->real_item();
-      if (real_item->type() == Item::FIELD_ITEM)
-        ((Item_field *)real_item)->field->reset_tmp_nullable();
     }
 
     if (thd->killed ||
@@ -1432,7 +1445,8 @@ READ_INFO::READ_INFO(File file_par, uint tot_length, const CHARSET_INFO *cs,
   set_if_bigger(length,line_start.length());
   stack=stack_pos=(int*) sql_alloc(sizeof(int)*length);
 
-  if (!(buffer=(uchar*) my_malloc(buff_length+1,MYF(0))))
+  if (!(buffer=(uchar*) my_malloc(key_memory_READ_INFO,
+                                  buff_length+1,MYF(0))))
     error=1; /* purecov: inspected */
   else
   {
@@ -1660,7 +1674,8 @@ int READ_INFO::read_field()
     /*
     ** We come here if buffer is too small. Enlarge it and continue
     */
-    if (!(new_buffer=(uchar*) my_realloc((char*) buffer,buff_length+1+IO_SIZE,
+    if (!(new_buffer=(uchar*) my_realloc(key_memory_READ_INFO,
+                                         (char*) buffer,buff_length+1+IO_SIZE,
 					MYF(MY_WME))))
       return (error=1);
     to=new_buffer + (to-buffer);

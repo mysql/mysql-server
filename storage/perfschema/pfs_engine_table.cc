@@ -62,6 +62,7 @@
 #include "table_esms_by_account_by_event_name.h"
 #include "table_esms_global_by_event_name.h"
 #include "table_esms_by_digest.h"
+#include "table_esms_by_program.h"
 
 #include "table_users.h"
 #include "table_accounts.h"
@@ -72,8 +73,20 @@
 #include "table_socket_summary_by_event_name.h"
 #include "table_session_connect_attrs.h"
 #include "table_session_account_connect_attrs.h"
+#include "table_mems_global_by_event_name.h"
+#include "table_mems_by_account_by_event_name.h"
+#include "table_mems_by_host_by_event_name.h"
+#include "table_mems_by_thread_by_event_name.h"
+#include "table_mems_by_user_by_event_name.h"
 
-/* For show status */
+/* For replication related perfschema tables. */
+#include "table_replication_connection_configuration.h"
+#include "table_replication_connection_status.h"
+#include "table_replication_execute_configuration.h"
+#include "table_replication_execute_status.h"
+#include "table_replication_execute_status_by_coordinator.h"
+#include "table_replication_execute_status_by_worker.h"
+
 #include "pfs_column_values.h"
 #include "pfs_instr_class.h"
 #include "pfs_instr.h"
@@ -139,6 +152,7 @@ static PFS_engine_table_share *all_shares[]=
   &table_esms_by_host_by_event_name::m_share,
   &table_esms_global_by_event_name::m_share,
   &table_esms_by_digest::m_share,
+  &table_esms_by_program::m_share,
 
   &table_users::m_share,
   &table_accounts::m_share,
@@ -147,8 +161,22 @@ static PFS_engine_table_share *all_shares[]=
   &table_socket_instances::m_share,
   &table_socket_summary_by_instance::m_share,
   &table_socket_summary_by_event_name::m_share,
+
   &table_session_connect_attrs::m_share,
   &table_session_account_connect_attrs::m_share,
+
+  &table_mems_global_by_event_name::m_share,
+  &table_mems_by_account_by_event_name::m_share,
+  &table_mems_by_host_by_event_name::m_share,
+  &table_mems_by_thread_by_event_name::m_share,
+  &table_mems_by_user_by_event_name::m_share,
+
+  &table_replication_connection_configuration::m_share,
+  &table_replication_connection_status::m_share,
+  &table_replication_execute_configuration::m_share,
+  &table_replication_execute_status::m_share,
+  &table_replication_execute_status_by_coordinator::m_share,
+  &table_replication_execute_status_by_worker::m_share,
   NULL
 };
 
@@ -471,11 +499,25 @@ void PFS_engine_table::get_normalizer(PFS_instr_class *instr_class)
   }
 }
 
+void PFS_engine_table::set_field_long(Field *f, long value)
+{
+  DBUG_ASSERT(f->real_type() == MYSQL_TYPE_LONG);
+  Field_long *f2= (Field_long*) f;
+  f2->store(value, false);
+}
+
 void PFS_engine_table::set_field_ulong(Field *f, ulong value)
 {
   DBUG_ASSERT(f->real_type() == MYSQL_TYPE_LONG);
   Field_long *f2= (Field_long*) f;
   f2->store(value, true);
+}
+
+void PFS_engine_table::set_field_longlong(Field *f, longlong value)
+{
+  DBUG_ASSERT(f->real_type() == MYSQL_TYPE_LONGLONG);
+  Field_longlong *f2= (Field_longlong*) f;
+  f2->store(value, false);
 }
 
 void PFS_engine_table::set_field_ulonglong(Field *f, ulonglong value)
@@ -1327,84 +1369,105 @@ bool pfs_show_status(handlerton *hton, THD *thd,
       total_memory+= size;
       break;
     case 134:
+      name= "events_statements_summary_by_program.size";
+      size= sizeof(PFS_program);
+      break;
+    case 135:
+      name= "events_statements_summary_by_program.count";
+      size= program_max;
+      break;
+    case 136:
+      name= "events_statements_summary_by_program.memory";
+      size= program_max * sizeof(PFS_program);
+      total_memory+= size;
+      break;
+    case 137:
       name= "session_connect_attrs.size";
       size= thread_max;
       break;
-    case 135:
+    case 138:
       name= "session_connect_attrs.count";
       size= session_connect_attrs_size_per_thread;
       break;
-    case 136:
+    case 139:
       name= "session_connect_attrs.memory";
       size= thread_max * session_connect_attrs_size_per_thread;
       total_memory+= size;
       break;
 
-    case 137:
+    case 140:
       name= "(account_hash).count";
       size= account_hash.count;
       break;
-    case 138:
+    case 141:
       name= "(account_hash).size";
       size= account_hash.size;
       break;
-    case 139:
+    case 142:
       name= "(digest_hash).count";
       size= digest_hash.count;
       break;
-    case 140:
+    case 143:
       name= "(digest_hash).size";
       size= digest_hash.size;
       break;
-    case 141:
+    case 144:
       name= "(filename_hash).count";
       size= filename_hash.count;
       break;
-    case 142:
+    case 145:
       name= "(filename_hash).size";
       size= filename_hash.size;
       break;
-    case 143:
+    case 146:
       name= "(host_hash).count";
       size= host_hash.count;
       break;
-    case 144:
+    case 147:
       name= "(host_hash).size";
       size= host_hash.size;
       break;
-    case 145:
+    case 148:
       name= "(setup_actor_hash).count";
       size= setup_actor_hash.count;
       break;
-    case 146:
+    case 149:
       name= "(setup_actor_hash).size";
       size= setup_actor_hash.size;
       break;
-    case 147:
+    case 150:
       name= "(setup_object_hash).count";
       size= setup_object_hash.count;
       break;
-    case 148:
+    case 151:
       name= "(setup_object_hash).size";
       size= setup_object_hash.size;
       break;
-    case 149:
+    case 152:
       name= "(table_share_hash).count";
       size= table_share_hash.count;
       break;
-    case 150:
+    case 153:
       name= "(table_share_hash).size";
       size= table_share_hash.size;
       break;
-    case 151:
+    case 154:
       name= "(user_hash).count";
       size= user_hash.count;
       break;
-    case 152:
+    case 155:
       name= "(user_hash).size";
       size= user_hash.size;
       break;
-    case 153:
+    case 156:
+      name= "(program_hash).count";
+      size= program_hash.count;
+      break;
+    case 157:
+      name= "(program_hash).size";
+      size= program_hash.size;
+      break;
+    case 158:
       /*
         This is not a performance_schema buffer,
         the data is maintained in the server,
@@ -1417,11 +1480,90 @@ bool pfs_show_status(handlerton *hton, THD *thd,
       size= sizeof(Host_entry);
       break;
 
+    case 159:
+      name= "(pfs_memory_class).row_size";
+      size= sizeof(PFS_memory_class);
+      break;
+    case 160:
+      name= "(pfs_memory_class).row_count";
+      size= memory_class_max;
+      break;
+    case 161:
+      name= "(pfs_memory_class).memory";
+      size= memory_class_max * sizeof(PFS_memory_class);
+      total_memory+= size;
+      break;
+
+    case 162:
+      name= "memory_summary_by_thread_by_event_name.row_size";
+      size= sizeof(PFS_memory_stat);
+      break;
+    case 163:
+      name= "memory_summary_by_thread_by_event_name.row_count";
+      size= thread_max * memory_class_max;
+      break;
+    case 164:
+      name= "memory_summary_by_thread_by_event_name.memory";
+      size= thread_max * memory_class_max * sizeof(PFS_memory_stat);
+      total_memory+= size;
+      break;
+    case 165:
+      name= "memory_summary_global_by_event_name.row_size";
+      size= sizeof(PFS_memory_stat);
+      break;
+    case 166:
+      name= "memory_summary_global_by_event_name.row_count";
+      size= memory_class_max;
+      break;
+    case 167:
+      name= "memory_summary_global_by_event_name.memory";
+      size= memory_class_max * sizeof(PFS_memory_stat);
+      total_memory+= size;
+      break;
+    case 168:
+      name= "memory_summary_by_account_by_event_name.row_size";
+      size= sizeof(PFS_memory_stat);
+      break;
+    case 169:
+      name= "memory_summary_by_account_by_event_name.row_count";
+      size= account_max * memory_class_max;
+      break;
+    case 170:
+      name= "memory_summary_by_account_by_event_name.memory";
+      size= account_max * memory_class_max * sizeof(PFS_memory_stat);
+      total_memory+= size;
+      break;
+    case 171:
+      name= "memory_summary_by_user_by_event_name.row_size";
+      size= sizeof(PFS_memory_stat);
+      break;
+    case 172:
+      name= "memory_summary_by_user_by_event_name.row_count";
+      size= user_max * memory_class_max;
+      break;
+    case 173:
+      name= "memory_summary_by_user_by_event_name.memory";
+      size= user_max * memory_class_max * sizeof(PFS_memory_stat);
+      total_memory+= size;
+      break;
+    case 174:
+      name= "memory_summary_by_host_by_event_name.row_size";
+      size= sizeof(PFS_memory_stat);
+      break;
+    case 175:
+      name= "memory_summary_by_host_by_event_name.row_count";
+      size= host_max * memory_class_max;
+      break;
+    case 176:
+      name= "memory_summary_by_host_by_event_name.memory";
+      size= host_max * memory_class_max * sizeof(PFS_memory_stat);
+      total_memory+= size;
+      break;
     /*
       This case must be last,
       for aggregation in total_memory.
     */
-    case 154:
+    case 177:
       name= "performance_schema.memory";
       size= total_memory;
       /* This will fail if something is not advertised here */

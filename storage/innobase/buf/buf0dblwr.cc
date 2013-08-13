@@ -40,11 +40,6 @@ Created 2011/12/19
 
 #ifndef UNIV_HOTBACKUP
 
-#ifdef UNIV_PFS_MUTEX
-/* Key to register the mutex with performance schema */
-mysql_pfs_key_t	buf_dblwr_mutex_key;
-#endif /* UNIV_PFS_RWLOCK */
-
 /** The doublewrite buffer */
 buf_dblwr_t*	buf_dblwr = NULL;
 
@@ -144,11 +139,10 @@ buf_dblwr_init(
 	ut_a(srv_doublewrite_batch_size > 0
 	     && srv_doublewrite_batch_size < buf_size);
 
-	mutex_create(buf_dblwr_mutex_key,
-		     &buf_dblwr->mutex, SYNC_DOUBLEWRITE);
+	mutex_create("buf_dblwr", &buf_dblwr->mutex);
 
-	buf_dblwr->b_event = os_event_create();
-	buf_dblwr->s_event = os_event_create();
+	buf_dblwr->b_event = os_event_create("dblwr_batch_event");
+	buf_dblwr->s_event = os_event_create("dblwr_single_event");
 	buf_dblwr->first_free = 0;
 	buf_dblwr->s_reserved = 0;
 	buf_dblwr->b_reserved = 0;
@@ -470,12 +464,17 @@ buf_dblwr_init_or_restore_pages(
 
 		} else if (!fil_check_adress_in_tablespace(space_id,
 							   page_no)) {
-			ib_logf(IB_LOG_LEVEL_WARN,
-				"A page in the doublewrite buffer is not "
-				"within space bounds; space id %lu "
-				"page number %lu, page %lu in "
-				"doublewrite buf.",
-				(ulong) space_id, (ulong) page_no, (ulong) i);
+			/* Do not report the warning if the tablespace is
+			truncated as it's reasonable */
+			if (!srv_is_tablespace_truncated(space_id)) {
+				ib_logf(IB_LOG_LEVEL_WARN,
+					"A page in the doublewrite buffer is "
+					"not within space bounds; space id %lu "
+					"page number %lu, page %lu in "
+					"doublewrite buf.",
+					(ulong) space_id, (ulong) page_no,
+					(ulong) i);
+			}
 
 		} else if (space_id == TRX_SYS_SPACE
 			   && ((page_no >= block1
@@ -570,8 +569,8 @@ buf_dblwr_free(void)
 	ut_ad(buf_dblwr->s_reserved == 0);
 	ut_ad(buf_dblwr->b_reserved == 0);
 
-	os_event_free(buf_dblwr->b_event);
-	os_event_free(buf_dblwr->s_event);
+	os_event_destroy(buf_dblwr->b_event);
+	os_event_destroy(buf_dblwr->s_event);
 	ut_free(buf_dblwr->write_buf_unaligned);
 	buf_dblwr->write_buf_unaligned = NULL;
 
@@ -690,7 +689,6 @@ buf_dblwr_assert_on_corrupt_block(
 {
 	buf_page_print(block->frame, 0, BUF_PAGE_PRINT_NO_CRASH);
 
-	ut_print_timestamp(stderr);
 	ib_logf(IB_LOG_LEVEL_FATAL,
 		"Apparent corruption of an index page n:o %lu in space"
 		" %lu to be written to data file. We intentionally crash"

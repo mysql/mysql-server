@@ -217,22 +217,6 @@ typedef void *(* pthread_handler)(void *);
 #endif
 #define my_pthread_once(C,F) pthread_once(C,F)
 
-#if defined(_BSDI_VERSION) && _BSDI_VERSION < 199910
-int sigwait(sigset_t *set, int *sig);
-#endif
-
-#define my_sigwait(A,B) sigwait((A),(B))
-
-
-#if defined(HAVE_SIGTHREADMASK) && !defined(HAVE_PTHREAD_SIGMASK)
-#define pthread_sigmask(A,B,C) sigthreadmask((A),(B),(C))
-#endif
-
-#if !defined(HAVE_SIGWAIT) && !defined(sigwait)
-int sigwait(sigset_t *setp, int *sigp);		/* Use our implemention */
-#endif
-
-
 /*
   We define my_sigset() and use that instead of the system sigset() so that
   we can favor an implementation based on sigaction(). On some systems, such
@@ -254,11 +238,6 @@ int sigwait(sigset_t *setp, int *sigp);		/* Use our implemention */
 #define my_sigset(A,B) signal((A),(B))
 #endif
 
-#if !defined(HAVE_PTHREAD_ATTR_SETSCOPE)
-#define pthread_attr_setscope(A,B)
-#undef	HAVE_GETHOSTBYADDR_R			/* No definition */
-#endif
-
 #define my_pthread_getspecific(A,B) ((A) pthread_getspecific(B))
 
 #ifndef HAVE_LOCALTIME_R
@@ -272,26 +251,6 @@ struct tm *gmtime_r(const time_t *clock, struct tm *res);
 /* FSU THREADS */
 #if !defined(HAVE_PTHREAD_KEY_DELETE) && !defined(pthread_key_delete)
 #define pthread_key_delete(A) pthread_dummy(0)
-#endif
-
-#if ((defined(HAVE_PTHREAD_ATTR_CREATE) && !defined(HAVE_SIGWAIT)))
-/* This is set on AIX_3_2 and Siemens unix (and DEC OSF/1 3.2 too) */
-#define pthread_key_create(A,B) \
-		pthread_keycreate(A,(B) ?\
-				  (pthread_destructor_t) (B) :\
-				  (pthread_destructor_t) pthread_dummy)
-#define pthread_attr_init(A) pthread_attr_create(A)
-#define pthread_attr_destroy(A) pthread_attr_delete(A)
-#define pthread_attr_setdetachstate(A,B) pthread_dummy(0)
-#define pthread_create(A,B,C,D) pthread_create((A),*(B),(C),(D))
-#ifndef pthread_sigmask
-#define pthread_sigmask(A,B,C) sigprocmask((A),(B),(C))
-#endif
-#define pthread_kill(A,B) pthread_dummy((A) ? 0 : ESRCH)
-#undef	pthread_detach_this_thread
-#define pthread_detach_this_thread() { pthread_t tmp=pthread_self() ; pthread_detach(&tmp); }
-#else /* HAVE_PTHREAD_ATTR_CREATE && !HAVE_SIGWAIT */
-#define HAVE_PTHREAD_KILL
 #endif
 
 #endif /* defined(_WIN32) */
@@ -642,6 +601,15 @@ extern const char *my_thread_name(void);
 extern my_thread_id my_thread_dbug_id(void);
 extern int pthread_dummy(int);
 
+#ifndef HAVE_PTHREAD_ATTR_GETGUARDSIZE
+static inline int pthread_attr_getguardsize(pthread_attr_t *attr,
+                                            size_t *guardsize)
+{
+  *guardsize= 0;
+  return 0;
+}
+#endif
+
 /* All thread specific variables are in the following struct */
 
 #define THREAD_NAME_SIZE 10
@@ -659,8 +627,6 @@ extern int pthread_dummy(int);
 
 #include <pfs_thread_provider.h>
 #include <mysql/psi/mysql_thread.h>
-
-#define INSTRUMENT_ME 0
 
 struct st_my_thread_var
 {
@@ -701,18 +667,6 @@ extern uint my_thread_end_wait_time;
 #if defined(_WIN32)
 #define my_winerr my_thread_var->thr_winerr
 #endif
-/*
-  Keep track of shutdown,signal, and main threads so that my_end() will not
-  report errors with them
-*/
-
-/* Which kind of thread library is in use */
-
-#define THD_LIB_OTHER 1
-#define THD_LIB_NPTL  2
-#define THD_LIB_LT    4
-
-extern uint thd_lib_detected;
 
 /*
   thread_safe_xxx functions are for critical statistic or counters.
@@ -726,17 +680,11 @@ extern uint thd_lib_detected;
 #ifdef _WIN32
 #define thread_safe_increment(V,L) InterlockedIncrement((long*) &(V))
 #define thread_safe_decrement(V,L) InterlockedDecrement((long*) &(V))
-#define thread_safe_increment_rwlock(V,L) InterlockedIncrement((long*) &(V))
-#define thread_safe_decrement_rwlock(V,L) InterlockedDecrement((long*) &(V))
 #else
 #define thread_safe_increment(V,L) \
         (mysql_mutex_lock((L)), (V)++, mysql_mutex_unlock((L)))
 #define thread_safe_decrement(V,L) \
         (mysql_mutex_lock((L)), (V)--, mysql_mutex_unlock((L)))
-#define thread_safe_increment_rwlock(V,L) \
-        (mysql_rwlock_wrlock((L)), (V)++, mysql_rwlock_unlock((L)))
-#define thread_safe_decrement_rwlock(V,L) \
-        (mysql_rwlock_wrlock((L)), (V)--, mysql_rwlock_unlock((L)))
 #endif
 #endif
 
@@ -744,17 +692,11 @@ extern uint thd_lib_detected;
 #ifdef _WIN32
 #define thread_safe_add(V,C,L) InterlockedExchangeAdd((long*) &(V),(C))
 #define thread_safe_sub(V,C,L) InterlockedExchangeAdd((long*) &(V),-(long) (C))
-#define thread_safe_add_rwlock(V,C,L) InterlockedExchangeAdd((long*) &(V),(C))
-#define thread_safe_sub_rwlock(V,C,L) InterlockedExchangeAdd((long*) &(V),-(long) (C))
 #else
 #define thread_safe_add(V,C,L) \
         (mysql_mutex_lock((L)), (V)+=(C), mysql_mutex_unlock((L)))
 #define thread_safe_sub(V,C,L) \
         (mysql_mutex_lock((L)), (V)-=(C), mysql_mutex_unlock((L)))
-#define thread_safe_add_rwlock(V,C,L) \
-        (mysql_rwlock_wrlock((L)), (V)+=(C), mysql_rwlock_unlock((L)))
-#define thread_safe_sub_rwlock(V,C,L) \
-        (mysql_rwlock_wrlock((L)), (V)-=(C), mysql_rwlock_unlock((L)))
 #endif
 #endif
 

@@ -35,13 +35,20 @@ Created 3/26/1996 Heikki Tuuri
 #ifndef UNIV_HOTBACKUP
 #include "mem0mem.h"
 #include "mtr0mtr.h"
-#include "page0types.h"
-#include "read0types.h"
-#include "sync0sync.h"
-#include "trx0trx.h"
-#include "ut0bh.h"
-#include "ut0lst.h"
 #include "ut0byte.h"
+#include "mem0mem.h"
+#include "sync0mutex.h"
+#include "ut0lst.h"
+#include "read0types.h"
+#include "page0types.h"
+#include "ut0mutex.h"
+#include "trx0trx.h"
+
+typedef UT_LIST_BASE_NODE_T(trx_t) trx_list_t;
+
+// Forward declaration
+class MVCC;
+class ReadView;
 
 /** In a MySQL replication slave, in crash recovery we store the master log
 file name and position here. */
@@ -69,9 +76,9 @@ extern trx_sys_t*	trx_sys;
 
 /***************************************************************//**
 Checks if a page address is the trx sys header page.
-@return TRUE if trx sys header page */
+@return true if trx sys header page */
 UNIV_INLINE
-ibool
+bool
 trx_sys_hdr_page(
 /*=============*/
 	ulint	space,	/*!< in: space */
@@ -221,10 +228,7 @@ trx_read_trx_id(
 	const byte*	ptr);	/*!< in: pointer to memory from where to read */
 /****************************************************************//**
 Looks for the trx instance with the given id in the rw trx_list.
-The caller must be holding trx_sys->mutex.
-@return the trx handle or NULL if not found;
-the pointer must not be dereferenced unless lock_sys->mutex was
-acquired before calling this function and is still being held */
+@return	the trx handle or NULL if not found */
 UNIV_INLINE
 trx_t*
 trx_get_rw_trx_by_id(
@@ -241,12 +245,8 @@ trx_id_t
 trx_rw_min_trx_id(void);
 /*===================*/
 /****************************************************************//**
-Checks if a rw transaction with the given id is active. Caller must hold
-trx_sys->mutex in shared mode. If the caller is not holding
-lock_sys->mutex, the transaction may already have been committed.
-@return transaction instance if active, or NULL;
-the pointer must not be dereferenced unless lock_sys->mutex was
-acquired before calling this function and is still being held */
+Checks if a rw transaction with the given id is active.
+@return transaction instance if active, or NULL */
 UNIV_INLINE
 trx_t*
 trx_rw_is_active_low(
@@ -256,11 +256,9 @@ trx_rw_is_active_low(
 					that will be set if corrupt */
 /****************************************************************//**
 Checks if a rw transaction with the given id is active. If the caller is
-not holding lock_sys->mutex, the transaction may already have been
+not holding trx_sys->mutex, the transaction may already have been
 committed.
-@return transaction instance if active, or NULL;
-the pointer must not be dereferenced unless lock_sys->mutex was
-acquired before calling this function and is still being held */
+@return transaction instance if active, or NULL; */
 UNIV_INLINE
 trx_t*
 trx_rw_is_active(
@@ -463,6 +461,13 @@ trx_sys_file_format_id_to_name(
 /*===========================*/
 	const ulint	id);	/*!< in: id of the file format */
 
+/**
+Add the transaction to the RW transaction set
+@param trx		transaction instance to add */
+UNIV_INLINE
+void
+trx_sys_rw_trx_add(trx_t* trx);
+
 #ifdef UNIV_DEBUG
 /*************************************************************//**
 Validate the trx_sys_t::rw_trx_list.
@@ -617,30 +622,27 @@ identifier is added to this 64-bit constant. */
 /** The transaction system central memory data structure. */
 struct trx_sys_t {
 
-	ib_mutex_t	mutex;		/*!< mutex protecting most fields in
+	TrxSysMutex	mutex;		/*!< mutex protecting most fields in
 					this structure except when noted
 					otherwise */
-	ulint		n_prepared_trx;	/*!< Number of transactions currently
-					in the XA PREPARED state */
-	ulint		n_prepared_recovered_trx; /*!< Number of transactions
-					currently in XA PREPARED state that are
-					also recovered. Such transactions cannot
-					be added during runtime. They can only
-					occur after recovery if mysqld crashed
-					while there were XA PREPARED
-					transactions. We disable query cache
-					if such transactions exist. */
-	trx_id_t	max_trx_id;	/*!< The smallest number not yet
+
+	MVCC*		mvcc;		/*!< Multi version concurrency control
+					manager */
+	volatile trx_id_t
+			max_trx_id;	/*!< The smallest number not yet
 					assigned as a transaction id or
-					transaction number */
+					transaction number. This is declared
+					volatile because it can be accessed
+					without holding any mutex during
+					AC-NL-RO view creation. */
+	trx_list_t	serialisation_list;
+					/*!< Ordered on trx_t::no of all the
+					currenrtly active RW transactions */
 #ifdef UNIV_DEBUG
 	trx_id_t	rw_max_trx_id;	/*!< Max trx id of read-write
 					transactions which exist or existed */
 #endif /* UNIV_DEBUG */
-	trx_list_t	rw_trx_list;	/*!< List of active and committed in
-					memory read-write transactions, sorted
-					on trx id, biggest first. Recovered
-					transactions are always on this list. */
+
 	trx_list_t	ro_trx_list;	/*!< List of active and committed in
 					memory read-only transactions, sorted
 					on trx id, biggest first. NOTE:
@@ -648,6 +650,13 @@ struct trx_sys_t {
 					is not necessary. We should exploit
 					this and increase concurrency during
 					add/remove. */
+	char		pad1[64];	/*!< To avoid false sharing */
+	trx_list_t	rw_trx_list;	/*!< List of active and committed in
+					memory read-write transactions, sorted
+					on trx id, biggest first. Recovered
+					transactions are always on this list. */
+
+	char		pad2[64];	/*!< To avoid false sharing */
 	trx_list_t	mysql_trx_list;	/*!< List of transactions created
 					for MySQL. All transactions on
 					ro_trx_list are on mysql_trx_list. The
@@ -660,6 +669,10 @@ struct trx_sys_t {
 					mysql_trx_list may additionally contain
 					transactions that have not yet been
 					started in InnoDB. */
+
+	trx_ids_t	rw_trx_ids;	/*!< Read write transaction IDs */
+
+	char		pad3[64];	/*!< To avoid false sharing */
 	trx_rseg_t*	rseg_array[TRX_SYS_N_RSEGS];
 					/*!< Pointer array to rollback
 					segments; NULL if slot not in use;
@@ -667,6 +680,12 @@ struct trx_sys_t {
 					single-threaded mode; not protected
 					by any mutex, because it is read-only
 					during multi-threaded operation */
+	ulint		rseg_history_len;
+					/*!< Length of the TRX_RSEG_HISTORY
+					list (update undo logs for committed
+					transactions), protected by
+					rseg->mutex */
+
 	trx_rseg_t*	const pending_purge_rseg_array[TRX_SYS_N_RSEGS];
 					/*!< Pointer array to rollback segments
 					between slot-1..slot-srv_tmp_undo_logs
@@ -674,13 +693,21 @@ struct trx_sys_t {
 					rollback segments. We need them for
 					scheduling purge if any of the rollback
 					segment has pending records to purge. */
-	ulint		rseg_history_len;/*!< Length of the TRX_RSEG_HISTORY
-					list (update undo logs for committed
-					transactions), protected by
-					rseg->mutex */
-	UT_LIST_BASE_NODE_T(read_view_t) view_list;
-					/*!< List of read views sorted
-					on trx no, biggest first */
+
+	TrxIdSet	rw_trx_set;	/*!< Mapping from transaction id
+					to transaction instance */
+
+	ulint		n_prepared_trx;	/*!< Number of transactions currently
+					in the XA PREPARED state */
+
+	ulint		n_prepared_recovered_trx; /*!< Number of transactions
+					currently in XA PREPARED state that are
+					also recovered. Such transactions cannot
+					be added during runtime. They can only
+					occur after recovery if mysqld crashed
+					while there were XA PREPARED
+					transactions. We disable query cache
+					if such transactions exist. */
 };
 
 /** When a trx id which is zero modulo this number (which must be a power of
@@ -688,6 +715,19 @@ two) is assigned, the field TRX_SYS_TRX_ID_STORE on the transaction system
 page is updated */
 #define TRX_SYS_TRX_ID_WRITE_MARGIN	((trx_id_t) 256)
 #endif /* !UNIV_HOTBACKUP */
+
+/** Test if trx_sys->mutex is owned. */
+#define trx_sys_mutex_own() (trx_sys->mutex.is_owned())
+
+/** Acquire the trx_sys->mutex. */
+#define trx_sys_mutex_enter() do {			\
+	mutex_enter(&trx_sys->mutex);			\
+} while (0)
+
+/** Release the trx_sys->mutex. */
+#define trx_sys_mutex_exit() do {			\
+	trx_sys->mutex.exit();				\
+} while (0)
 
 #ifndef UNIV_NONINL
 #include "trx0sys.ic"

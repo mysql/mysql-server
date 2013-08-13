@@ -5,16 +5,14 @@ drop table if exists t1;
 --error ER_TOO_BIG_DISPLAYWIDTH
 eval create table t1 (a bit(65), primary key (a)) engine=$engine partition by key (a);
 
+--error ER_INVALID_FIELD_SIZE
 eval create table t1 (a bit(0), primary key (a)) engine=$engine partition by key (a);
-show create table t1;
-drop table t1;
 
+--error ER_INVALID_FIELD_SIZE
 eval create table t1 (a bit(0), primary key (a)) engine=$engine 
 partition by key (a) (
 partition pa1,
 partition pa2);
-show create table t1;
-drop table t1;
 
 eval create table t1 (a bit(64), primary key (a)) engine=$engine 
 partition by key (a) partitions 2;

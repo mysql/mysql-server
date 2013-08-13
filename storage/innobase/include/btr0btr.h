@@ -66,7 +66,11 @@ enum btr_latch_mode {
 	/** Search the previous record. */
 	BTR_SEARCH_PREV = 35,
 	/** Modify the previous record. */
-	BTR_MODIFY_PREV = 36
+	BTR_MODIFY_PREV = 36,
+	/** Start searching the entire B-tree. */
+	BTR_SEARCH_TREE = 37,
+	/** Continue searching the entire B-tree. */
+	BTR_CONT_SEARCH_TREE = 38
 };
 
 /* BTR_INSERT, BTR_DELETE and BTR_DELETE_MARK are mutually exclusive. */
@@ -97,13 +101,27 @@ buffer when the record is not in the buffer pool. */
 already holding an S latch on the index tree */
 #define BTR_ALREADY_S_LATCHED	16384
 
+/** In the case of BTR_MODIFY_TREE, the caller specifies the intention
+to insert record only. It is used to optimize block->lock range.*/
+#define BTR_LATCH_FOR_INSERT	32768
+
+/** In the case of BTR_MODIFY_TREE, the caller specifies the intention
+to delete record only. It is used to optimize block->lock range.*/
+#define BTR_LATCH_FOR_DELETE	65536
+
 #define BTR_LATCH_MODE_WITHOUT_FLAGS(latch_mode)	\
 	((latch_mode) & ~(BTR_INSERT			\
 			  | BTR_DELETE_MARK		\
 			  | BTR_DELETE			\
 			  | BTR_ESTIMATE		\
 			  | BTR_IGNORE_SEC_UNIQUE	\
-			  | BTR_ALREADY_S_LATCHED))
+			  | BTR_ALREADY_S_LATCHED	\
+			  | BTR_LATCH_FOR_INSERT	\
+			  | BTR_LATCH_FOR_DELETE))
+
+#define BTR_LATCH_MODE_WITHOUT_INTENTION(latch_mode)	\
+	((latch_mode) & ~(BTR_LATCH_FOR_INSERT		\
+			  | BTR_LATCH_FOR_DELETE))
 #endif /* UNIV_HOTBACKUP */
 
 /**************************************************************//**
@@ -213,8 +231,8 @@ btr_blob_dbg_owner(
 #endif /* UNIV_BLOB_DEBUG */
 
 /**************************************************************//**
-Gets the root node of a tree and x-latches it.
-@return root page, x-latched */
+Gets the root node of a tree and sx-latches it for segment access.
+@return root page, sx-latched */
 
 page_t*
 btr_root_get(
@@ -394,14 +412,21 @@ Creates the root node for a new index tree.
 ulint
 btr_create(
 /*=======*/
-	ulint		type,	/*!< in: type of the index */
-	ulint		space,	/*!< in: space where created */
-	ulint		zip_size,/*!< in: compressed page size in bytes
-				or 0 for uncompressed pages */
-	index_id_t	index_id,/*!< in: index id */
-	dict_index_t*	index,	/*!< in: index */
-	mtr_t*		mtr)	/*!< in: mini-transaction handle */
-	__attribute__((nonnull));
+	ulint			type,		/*!< in: type of the index */
+	ulint			space,		/*!< in: space where created */
+	ulint			zip_size,	/*!< in: compressed page size
+						in bytes or 0 for uncompressed
+						pages */
+	index_id_t		index_id,	/*!< in: index id */
+	dict_index_t*		index,		/*!< in: index, or NULL when
+						applying TRNCATE log 
+						record during recovery */
+	const btr_create_t*	btr_redo_create_info,
+						/*!< in: used for applying
+						TRUNCATE log record
+						during recovery */
+	mtr_t*			mtr);		/*!< in: mini-transaction
+						handle */
 /************************************************************//**
 Frees a B-tree except the root page, which MUST be freed after this
 by calling btr_free_root. */
@@ -414,7 +439,7 @@ btr_free_but_not_root(
 						size in bytes or 0 for
 						uncompressed pages */
 	ulint			root_page_no,	/*!< in: root page number */
-	bool			is_temp_table);	/*!< in: true if temp-table */
+	ulint			logging_mode);	/*!< in: mtr logging mode */
 /************************************************************//**
 Frees the B-tree root page. Other tree MUST already have been freed. */
 
@@ -754,13 +779,14 @@ btr_index_rec_validate(
 	__attribute__((nonnull, warn_unused_result));
 /**************************************************************//**
 Checks the consistency of an index tree.
-@return TRUE if ok */
+@return true if ok */
 
 bool
 btr_validate_index(
 /*===============*/
-	dict_index_t*	index,			/*!< in: index */
-	const trx_t*	trx)			/*!< in: transaction or 0 */
+	dict_index_t*	index,	/*!< in: index */
+	const trx_t*	trx,	/*!< in: transaction or 0 */
+	bool		lockout)/*!< in: true if X-latch index is intended */
 	__attribute__((nonnull(1), warn_unused_result));
 
 #define BTR_N_LEAF_PAGES	1

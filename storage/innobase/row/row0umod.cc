@@ -191,7 +191,7 @@ row_undo_mod_remove_clust_low(
 			? DB_SUCCESS
 			: DB_FAIL;
 	} else {
-		ut_ad(mode == BTR_MODIFY_TREE);
+		ut_ad(mode == (BTR_MODIFY_TREE | BTR_LATCH_FOR_DELETE));
 
 		/* This operation is analogous to purge, we can free also
 		inherited externally stored fields */
@@ -230,8 +230,8 @@ row_undo_mod_clust(
 	ut_ad(node->trx->dict_operation_lock_mode);
 	ut_ad(node->trx->in_rollback);
 #ifdef UNIV_SYNC_DEBUG
-	ut_ad(rw_lock_own(&dict_operation_lock, RW_LOCK_SHARED)
-	      || rw_lock_own(&dict_operation_lock, RW_LOCK_EX));
+	ut_ad(rw_lock_own(&dict_operation_lock, RW_LOCK_S)
+	      || rw_lock_own(&dict_operation_lock, RW_LOCK_X));
 #endif /* UNIV_SYNC_DEBUG */
 
 	log_free_check();
@@ -282,8 +282,10 @@ row_undo_mod_clust(
 
 	if (err == DB_SUCCESS && online) {
 #ifdef UNIV_SYNC_DEBUG
-		ut_ad(rw_lock_own(&index->lock, RW_LOCK_SHARED)
-		      || rw_lock_own(&index->lock, RW_LOCK_EX));
+		ut_ad(rw_lock_own_flagged(
+				&index->lock,
+				RW_LOCK_FLAG_S | RW_LOCK_FLAG_X
+				| RW_LOCK_FLAG_SX));
 #endif /* UNIV_SYNC_DEBUG */
 		switch (node->rec_type) {
 		case TRX_UNDO_DEL_MARK_REC:
@@ -327,8 +329,9 @@ row_undo_mod_clust(
 			mtr_start(&mtr);
 			dict_disable_redo_if_temporary(index->table, &mtr);
 
-			err = row_undo_mod_remove_clust_low(node, thr, &mtr,
-							    BTR_MODIFY_TREE);
+			err = row_undo_mod_remove_clust_low(
+				node, thr, &mtr,
+				BTR_MODIFY_TREE | BTR_LATCH_FOR_DELETE);
 
 			ut_ad(err == DB_SUCCESS
 			      || err == DB_OUT_OF_FILE_SPACE);
@@ -382,8 +385,8 @@ row_undo_mod_del_mark_or_remove_sec_low(
 			mode = BTR_MODIFY_LEAF | BTR_ALREADY_S_LATCHED;
 			mtr_s_lock(dict_index_get_lock(index), &mtr);
 		} else {
-			ut_ad(mode == BTR_MODIFY_TREE);
-			mtr_x_lock(dict_index_get_lock(index), &mtr);
+			ut_ad(mode == (BTR_MODIFY_TREE | BTR_LATCH_FOR_DELETE));
+			mtr_sx_lock(dict_index_get_lock(index), &mtr);
 		}
 
 		if (row_log_online_op_try(index, entry, 0)) {
@@ -444,7 +447,7 @@ row_undo_mod_del_mark_or_remove_sec_low(
 	} else {
 		/* Remove the index record */
 
-		if (mode != BTR_MODIFY_TREE) {
+		if (BTR_LATCH_MODE_WITHOUT_INTENTION(mode) != BTR_MODIFY_TREE) {
 			success = btr_cur_optimistic_delete(btr_cur, 0, &mtr);
 			if (success) {
 				err = DB_SUCCESS;
@@ -506,7 +509,7 @@ row_undo_mod_del_mark_or_remove_sec(
 	}
 
 	err = row_undo_mod_del_mark_or_remove_sec_low(node, thr, index,
-						      entry, BTR_MODIFY_TREE);
+		entry, BTR_MODIFY_TREE | BTR_LATCH_FOR_DELETE);
 	return(err);
 }
 
@@ -557,7 +560,7 @@ row_undo_mod_del_unmark_sec_and_undo_update(
 			mtr_s_lock(dict_index_get_lock(index), &mtr);
 		} else {
 			ut_ad(mode == BTR_MODIFY_TREE);
-			mtr_x_lock(dict_index_get_lock(index), &mtr);
+			mtr_sx_lock(dict_index_get_lock(index), &mtr);
 		}
 
 		if (row_log_online_op_try(index, entry, trx->id)) {

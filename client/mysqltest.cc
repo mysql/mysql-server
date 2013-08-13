@@ -359,6 +359,7 @@ enum enum_commands {
   Q_SEND_SHUTDOWN, Q_SHUTDOWN_SERVER,
   Q_RESULT_FORMAT_VERSION,
   Q_MOVE_FILE, Q_REMOVE_FILES_WILDCARD, Q_SEND_EVAL,
+  Q_OUTPUT,                            /* redirect output to a file */
   Q_UNKNOWN,			       /* Unknown command.   */
   Q_COMMENT,			       /* Comments, ignored. */
   Q_COMMENT_WITH_COMMAND,
@@ -460,6 +461,7 @@ const char *command_names[]=
   "move_file",
   "remove_files_wildcard",
   "send_eval",
+  "output",
 
   0
 };
@@ -504,6 +506,7 @@ struct st_command
   my_bool abort_on_error, used_replace;
   struct st_expected_errors expected_errors;
   char require_file[FN_REFLEN];
+  char output_file[FN_REFLEN];
   enum enum_commands type;
 };
 
@@ -594,6 +597,9 @@ void free_replace_regex();
 
 /* Used by sleep */
 void check_eol_junk_line(const char *eol);
+
+static void var_set(const char *var_name, const char *var_name_end,
+                    const char *var_val, const char *var_val_end);
 
 void free_all_replace(){
   free_replace();
@@ -1258,8 +1264,7 @@ void handle_command_error(struct st_command *command, uint error)
     {
       DBUG_PRINT("info", ("command \"%.*s\" failed with expected error: %d",
                           command->first_word_len, command->query, error));
-      revert_properties();
-      DBUG_VOID_RETURN;
+      goto end;
     }
     if (command->expected_errors.count > 0)
       die("command \"%.*s\" failed with wrong error: %d. my_errno=%d",
@@ -1273,6 +1278,16 @@ void handle_command_error(struct st_command *command, uint error)
         command->first_word_len, command->query,
         command->expected_errors.err[0].code.errnum);
   }
+end:
+  // Save error code
+  {
+    const char var_name[]= "__error";
+    char buf[10];
+    int err_len= snprintf(buf, 10, "%u", error);
+    buf[err_len > 9 ? 9 : err_len]= '0';
+    var_set(var_name, var_name + 7, buf, buf + err_len);
+  }
+
   revert_properties();
   DBUG_VOID_RETURN;
 }
@@ -1557,6 +1572,7 @@ int cat_file(DYNAMIC_STRING* ds, const char* filename)
   int fd;
   size_t len;
   char buff[512];
+  bool dangling_cr= 0;
 
   if ((fd= my_open(filename, O_RDONLY, MYF(0))) < 0)
     return 1;
@@ -1564,6 +1580,12 @@ int cat_file(DYNAMIC_STRING* ds, const char* filename)
                       sizeof(buff), MYF(0))) > 0)
   {
     char *p= buff, *start= buff;
+    if (dangling_cr)
+    {
+      if (*p != '\n')
+       dynstr_append_mem(ds, "\r", 1);
+      dangling_cr= 0;
+    }
     while (p < buff+len)
     {
       /* Convert cr/lf to lf */
@@ -1579,8 +1601,13 @@ int cat_file(DYNAMIC_STRING* ds, const char* filename)
       else
         p++;
     }
+    if (*(p-1) == '\r' && len == 512)
+      dangling_cr=1;
     /* Output any chars that migh be left */
-    dynstr_append_mem(ds, start, p-start);
+    if (dangling_cr)
+      dynstr_append_mem(ds, start, p-start-1);
+    else
+      dynstr_append_mem(ds, start, p-start);
   }
   my_close(fd, MYF(0));
   return 0;
@@ -2165,7 +2192,8 @@ VAR *var_init(VAR *v, const char *name, int name_len, const char *val,
   if (!val)
     val_len= 0;
   val_alloc_len = val_len + 16; /* room to grow */
-  if (!(tmp_var=v) && !(tmp_var = (VAR*)my_malloc(sizeof(*tmp_var)
+  if (!(tmp_var=v) && !(tmp_var = (VAR*)my_malloc(PSI_NOT_INSTRUMENTED,
+                                                  sizeof(*tmp_var)
                                                   + name_len+2, MYF(MY_WME))))
     die("Out of memory");
 
@@ -2180,7 +2208,8 @@ VAR *var_init(VAR *v, const char *name, int name_len, const char *val,
 
   tmp_var->alloced = (v == 0);
 
-  if (!(tmp_var->str_val = (char*)my_malloc(val_alloc_len+1, MYF(MY_WME))))
+  if (!(tmp_var->str_val = (char*)my_malloc(PSI_NOT_INSTRUMENTED,
+                                            val_alloc_len+1, MYF(MY_WME))))
     die("Out of memory");
 
   if (val)
@@ -2780,8 +2809,10 @@ void var_copy(VAR *dest, VAR *src)
   /* Alloc/realloc data for str_val in dest */
   if (dest->alloced_len < src->alloced_len &&
       !(dest->str_val= dest->str_val
-        ? (char*)my_realloc(dest->str_val, src->alloced_len, MYF(MY_WME))
-        : (char*)my_malloc(src->alloced_len, MYF(MY_WME))))
+        ? (char*)my_realloc(PSI_NOT_INSTRUMENTED,
+                            dest->str_val, src->alloced_len, MYF(MY_WME))
+        : (char*)my_malloc(PSI_NOT_INSTRUMENTED,
+                           src->alloced_len, MYF(MY_WME))))
     die("Out of memory");
   else
     dest->alloced_len= src->alloced_len;
@@ -2871,8 +2902,10 @@ void eval_expr(VAR *v, const char *p, const char **p_end,
         MIN_VAR_ALLOC : new_val_len + 1;
       if (!(v->str_val =
             v->str_val ?
-            (char*)my_realloc(v->str_val, v->alloced_len+1, MYF(MY_WME)) :
-            (char*)my_malloc(v->alloced_len+1, MYF(MY_WME))))
+            (char*)my_realloc(PSI_NOT_INSTRUMENTED,
+                              v->str_val, v->alloced_len+1, MYF(MY_WME)) :
+            (char*)my_malloc(PSI_NOT_INSTRUMENTED,
+                             v->alloced_len+1, MYF(MY_WME))))
         die("Out of memory");
     }
     v->str_val_len = new_val_len;
@@ -2915,7 +2948,8 @@ int open_file(const char *name)
     cur_file--;
     die("Could not open '%s' for reading, errno: %d", buff, errno);
   }
-  cur_file->file_name= my_strdup(buff, MYF(MY_FAE));
+  cur_file->file_name= my_strdup(PSI_NOT_INSTRUMENTED,
+                                 buff, MYF(MY_FAE));
   cur_file->lineno=1;
   DBUG_RETURN(0);
 }
@@ -3196,6 +3230,14 @@ void do_exec(struct st_command *command)
     dynstr_free(&ds_cmd);
     die("command \"%s\" succeeded - should have failed with errno %d...",
         command->first_argument, command->expected_errors.err[0].code.errnum);
+  }
+  // Save error code
+  {
+    const char var_name[]= "__error";
+    char buf[10];
+    int err_len= snprintf(buf, 10, "%u", error);
+    buf[err_len > 9 ? 9 : err_len]= '0';
+    var_set(var_name, var_name + 7, buf, buf + err_len);
   }
 
   dynstr_free(&ds_cmd);
@@ -5207,7 +5249,8 @@ void do_close_connection(struct st_command *command)
     When the connection is closed set name to "-closed_connection-"
     to make it possible to reuse the connection name.
   */
-  if (!(con->name = my_strdup("-closed_connection-", MYF(MY_WME))))
+  if (!(con->name = my_strdup(PSI_NOT_INSTRUMENTED,
+                              "-closed_connection-", MYF(MY_WME))))
     die("Out of memory");
 
   if (con == cur_con)
@@ -5472,7 +5515,7 @@ void do_connect(struct st_command *command)
   static DYNAMIC_STRING ds_sock;
   static DYNAMIC_STRING ds_options;
   static DYNAMIC_STRING ds_default_auth;
-#ifdef HAVE_SMEM
+#if defined (_WIN32) && !defined (EMBEDDED_LIBRARY)
   static DYNAMIC_STRING ds_shm;
 #endif
   const struct command_arg connect_args[] = {
@@ -5503,7 +5546,7 @@ void do_connect(struct st_command *command)
       die("Illegal argument for port: '%s'", ds_port.str);
   }
 
-#ifdef HAVE_SMEM
+#if defined (_WIN32) && !defined (EMBEDDED_LIBRARY)
   /* Shared memory */
   init_dynamic_string(&ds_shm, ds_sock.str, 0, 0);
 #endif
@@ -5628,7 +5671,7 @@ void do_connect(struct st_command *command)
 
   if (con_shm)
   {
-#ifdef HAVE_SMEM
+#if defined (_WIN32) && !defined (EMBEDDED_LIBRARY)
     uint protocol= MYSQL_PROTOCOL_MEMORY;
     if (!ds_shm.length)
       die("Missing shared memory base name");
@@ -5636,7 +5679,7 @@ void do_connect(struct st_command *command)
     mysql_options(&con_slot->mysql, MYSQL_OPT_PROTOCOL, &protocol);
 #endif
   }
-#ifdef HAVE_SMEM
+#if defined (_WIN32) && !defined (EMBEDDED_LIBRARY)
   else if (shared_memory_base_name)
   {
     mysql_options(&con_slot->mysql, MYSQL_SHARED_MEMORY_BASE_NAME,
@@ -5680,7 +5723,8 @@ void do_connect(struct st_command *command)
   {
     DBUG_PRINT("info", ("Inserting connection %s in connection pool",
                         ds_connection_name.str));
-    if (!(con_slot->name= my_strdup(ds_connection_name.str, MYF(MY_WME))))
+    if (!(con_slot->name= my_strdup(PSI_NOT_INSTRUMENTED,
+                                    ds_connection_name.str, MYF(MY_WME))))
       die("Out of memory");
     con_slot->name_len= strlen(con_slot->name);
     set_current_connection(con_slot);
@@ -5698,7 +5742,7 @@ void do_connect(struct st_command *command)
   dynstr_free(&ds_sock);
   dynstr_free(&ds_options);
   dynstr_free(&ds_default_auth);
-#ifdef HAVE_SMEM
+#if defined (_WIN32) && !defined (EMBEDDED_LIBRARY)
   dynstr_free(&ds_shm);
 #endif
   DBUG_VOID_RETURN;
@@ -6430,7 +6474,8 @@ int read_command(struct st_command** command_ptr)
     DBUG_RETURN(0);
   }
   if (!(*command_ptr= command=
-        (struct st_command*) my_malloc(sizeof(*command),
+        (struct st_command*) my_malloc(PSI_NOT_INSTRUMENTED,
+                                       sizeof(*command),
                                        MYF(MY_WME|MY_ZEROFILL))) ||
       insert_dynamic(&q_lines, &command))
     die("Out of memory");
@@ -6465,7 +6510,8 @@ int read_command(struct st_command** command_ptr)
   while (*p && my_isspace(charset_info, *p))
     p++;
 
-  if (!(command->query_buf= command->query= my_strdup(p, MYF(MY_WME))))
+  if (!(command->query_buf= command->query= my_strdup(PSI_NOT_INSTRUMENTED,
+                                                      p, MYF(MY_WME))))
     die("Out of memory");
 
   /*
@@ -6681,7 +6727,8 @@ void read_embedded_server_arguments(const char *name)
   {
     *(strend(str)-1)=0;				/* Remove end newline */
     if (!(embedded_server_args[embedded_server_arg_count]=
-	  (char*) my_strdup(str,MYF(MY_WME))))
+	  (char*) my_strdup(PSI_NOT_INSTRUMENTED,
+                            str,MYF(MY_WME))))
     {
       my_fclose(file,MYF(0));
       die("Out of memory");
@@ -6723,7 +6770,8 @@ get_one_option(int optid, const struct my_option *opt, char *argument)
     if (!(cur_file->file=
           fopen(buff, "rb")))
       die("Could not open '%s' for reading, errno: %d", buff, errno);
-    cur_file->file_name= my_strdup(buff, MYF(MY_FAE));
+    cur_file->file_name= my_strdup(PSI_NOT_INSTRUMENTED,
+                                   buff, MYF(MY_FAE));
     cur_file->lineno= 1;
     break;
   }
@@ -6746,7 +6794,8 @@ get_one_option(int optid, const struct my_option *opt, char *argument)
     if (argument)
     {
       my_free(opt_pass);
-      opt_pass= my_strdup(argument, MYF(MY_FAE));
+      opt_pass= my_strdup(PSI_NOT_INSTRUMENTED,
+                          argument, MYF(MY_FAE));
       while (*argument) *argument++= 'x';		/* Destroy argument */
       tty_password= 0;
     }
@@ -6765,7 +6814,8 @@ get_one_option(int optid, const struct my_option *opt, char *argument)
     }
     if (embedded_server_arg_count == MAX_EMBEDDED_SERVER_ARGS-1 ||
         !(embedded_server_args[embedded_server_arg_count++]=
-          my_strdup(argument, MYF(MY_FAE))))
+          my_strdup(PSI_NOT_INSTRUMENTED,
+                    argument, MYF(MY_FAE))))
     {
       die("Can't use server argument");
     }
@@ -6934,10 +6984,12 @@ void init_win_path_patterns()
     if (*(paths[i]) == '$')
     {
       v= var_get(paths[i], 0, 0, 0);
-      p= my_strdup(v->str_val, MYF(MY_FAE));
+      p= my_strdup(PSI_NOT_INSTRUMENTED,
+                   v->str_val, MYF(MY_FAE));
     }
     else
-      p= my_strdup(paths[i], MYF(MY_FAE));
+      p= my_strdup(PSI_NOT_INSTRUMENTED,
+                   paths[i], MYF(MY_FAE));
 
     /* Don't insert zero length strings in patterns array */
     if (strlen(p) == 0)
@@ -7122,11 +7174,14 @@ void append_stmt_result(DYNAMIC_STRING *ds, MYSQL_STMT *stmt,
   uint i;
 
   /* Allocate array with bind structs, lengths and NULL flags */
-  my_bind= (MYSQL_BIND*) my_malloc(num_fields * sizeof(MYSQL_BIND),
+  my_bind= (MYSQL_BIND*) my_malloc(PSI_NOT_INSTRUMENTED,
+                                   num_fields * sizeof(MYSQL_BIND),
 				MYF(MY_WME | MY_FAE | MY_ZEROFILL));
-  length= (ulong*) my_malloc(num_fields * sizeof(ulong),
+  length= (ulong*) my_malloc(PSI_NOT_INSTRUMENTED,
+                             num_fields * sizeof(ulong),
 			     MYF(MY_WME | MY_FAE));
-  is_null= (my_bool*) my_malloc(num_fields * sizeof(my_bool),
+  is_null= (my_bool*) my_malloc(PSI_NOT_INSTRUMENTED,
+                                num_fields * sizeof(my_bool),
 				MYF(MY_WME | MY_FAE));
 
   /* Allocate data for the result of each field */
@@ -7134,7 +7189,8 @@ void append_stmt_result(DYNAMIC_STRING *ds, MYSQL_STMT *stmt,
   {
     uint max_length= fields[i].max_length + 1;
     my_bind[i].buffer_type= MYSQL_TYPE_STRING;
-    my_bind[i].buffer= my_malloc(max_length, MYF(MY_WME | MY_FAE));
+    my_bind[i].buffer= my_malloc(PSI_NOT_INSTRUMENTED,
+                                 max_length, MYF(MY_WME | MY_FAE));
     my_bind[i].buffer_length= max_length;
     my_bind[i].is_null= &is_null[i];
     my_bind[i].length= &length[i];
@@ -7941,7 +7997,7 @@ void run_query(struct st_connection *cn, struct st_command *command, int flags)
     Create a temporary dynamic string to contain the output from
     this query.
   */
-  if (command->require_file[0])
+  if (command->require_file[0] || command->output_file[0])
   {
     init_dynamic_string(&ds_result, "", 1024, 1024);
     ds= &ds_result;
@@ -8108,6 +8164,13 @@ void run_query(struct st_connection *cn, struct st_command *command, int flags)
        existing file which has been specified using --require or --result
     */
     check_require(ds, command->require_file);
+  }
+
+  if (command->output_file[0])
+  {
+    /* An output file was specified for _this_ query */
+    str_to_file2(command->output_file, ds_result.str, ds_result.length, false);
+    command->output_file[0]= 0;
   }
 
   if (ds == &ds_result)
@@ -8525,9 +8588,11 @@ int main(int argc, char **argv)
   my_bool q_send_flag= 0, abort_flag= 0;
   uint command_executed= 0, last_command_executed= 0;
   char save_file[FN_REFLEN];
+  char output_file[FN_REFLEN];
   MY_INIT(argv[0]);
 
   save_file[0]= 0;
+  output_file[0]= 0;
   TMPDIR[0]= 0;
 
   init_signal_handling();
@@ -8599,7 +8664,8 @@ int main(int argc, char **argv)
 
   /* Init connections, allocate 1 extra as buffer + 1 for default */
   connections= (struct st_connection*)
-    my_malloc((opt_max_connections+2) * sizeof(struct st_connection),
+    my_malloc(PSI_NOT_INSTRUMENTED,
+              (opt_max_connections+2) * sizeof(struct st_connection),
               MYF(MY_WME | MY_ZEROFILL));
   connections_end= connections + opt_max_connections +1;
   next_con= connections + 1;
@@ -8632,7 +8698,8 @@ int main(int argc, char **argv)
   if (cur_file == file_stack && cur_file->file == 0)
   {
     cur_file->file= stdin;
-    cur_file->file_name= my_strdup("<stdin>", MYF(MY_WME));
+    cur_file->file_name= my_strdup(PSI_NOT_INSTRUMENTED,
+                                   "<stdin>", MYF(MY_WME));
     cur_file->lineno= 1;
   }
   var_set_string("MYSQLTEST_FILE", cur_file->file_name);
@@ -8690,12 +8757,13 @@ int main(int argc, char **argv)
   }
 #endif
 
-#ifdef HAVE_SMEM
+#if defined (_WIN32) && !defined (EMBEDDED_LIBRARY)
   if (shared_memory_base_name)
     mysql_options(&con->mysql,MYSQL_SHARED_MEMORY_BASE_NAME,shared_memory_base_name);
 #endif
 
-  if (!(con->name = my_strdup("default", MYF(MY_WME))))
+  if (!(con->name = my_strdup(PSI_NOT_INSTRUMENTED,
+                              "default", MYF(MY_WME))))
     die("Out of memory");
 
   safe_connect(&con->mysql, con->name, opt_host, opt_user, opt_pass,
@@ -8926,6 +8994,11 @@ int main(int argc, char **argv)
 	  strmake(command->require_file, save_file, sizeof(save_file) - 1);
 	  *save_file= 0;
 	}
+	if (*output_file)
+	{
+	  strmake(command->output_file, output_file, sizeof(output_file) - 1);
+	  *output_file= 0;
+	}
 	run_query(cur_con, command, flags);
 	display_opt_trace(cur_con, command, flags);
 	command_executed++;
@@ -9095,6 +9168,18 @@ int main(int argc, char **argv)
       case Q_RESULT:
         die("result, deprecated command");
         break;
+
+      case Q_OUTPUT:
+        {
+          static DYNAMIC_STRING ds_to_file;
+          const struct command_arg output_file_args[] = 
+            {{ "to_file", ARG_STRING, TRUE, &ds_to_file, "Output filename" }};
+          check_command_args(command, command->first_argument,
+                             output_file_args, 1, ' ');
+          strmake(output_file, ds_to_file.str, FN_REFLEN);
+          dynstr_free(&ds_to_file);
+          break;
+        }
 
       default:
         processed= 0;
@@ -9272,7 +9357,8 @@ void do_get_replace_column(struct st_command *command)
     die("Missing argument in %s", command->query);
 
   /* Allocate a buffer for results */
-  start= buff= (char*)my_malloc(strlen(from)+1,MYF(MY_WME | MY_FAE));
+  start= buff= (char*)my_malloc(PSI_NOT_INSTRUMENTED,
+                                strlen(from)+1,MYF(MY_WME | MY_FAE));
   while (*from)
   {
     char *to;
@@ -9284,7 +9370,8 @@ void do_get_replace_column(struct st_command *command)
       die("Wrong number of arguments to replace_column in '%s'", command->query);
     to= get_string(&buff, &from, command);
     my_free(replace_column[column_number-1]);
-    replace_column[column_number-1]= my_strdup(to, MYF(MY_WME | MY_FAE));
+    replace_column[column_number-1]= my_strdup(PSI_NOT_INSTRUMENTED,
+                                               to, MYF(MY_WME | MY_FAE));
     set_if_bigger(max_replace_column, column_number);
   }
   my_free(start);
@@ -9351,7 +9438,8 @@ void do_get_replace(struct st_command *command)
   memset(&from_array, 0, sizeof(from_array));
   if (!*from)
     die("Missing argument in %s", command->query);
-  start= buff= (char*)my_malloc(strlen(from)+1,MYF(MY_WME | MY_FAE));
+  start= buff= (char*)my_malloc(PSI_NOT_INSTRUMENTED,
+                                strlen(from)+1,MYF(MY_WME | MY_FAE));
   while (*from)
   {
     char *to= buff;
@@ -9522,7 +9610,7 @@ struct st_replace_regex* init_replace_regex(char* expr)
   struct st_regex reg;
 
   /* my_malloc() will die on fail with MY_FAE */
-  res=(struct st_replace_regex*)my_malloc(
+  res=(struct st_replace_regex*)my_malloc(PSI_NOT_INSTRUMENTED,
                                           sizeof(*res)+expr_len ,MYF(MY_FAE+MY_WME));
   my_init_dynamic_array(&res->regex_arr,sizeof(struct st_regex),128,128);
 
@@ -9580,8 +9668,10 @@ struct st_replace_regex* init_replace_regex(char* expr)
       die("Out of memory");
   }
   res->odd_buf_len= res->even_buf_len= 8192;
-  res->even_buf= (char*)my_malloc(res->even_buf_len,MYF(MY_WME+MY_FAE));
-  res->odd_buf= (char*)my_malloc(res->odd_buf_len,MYF(MY_WME+MY_FAE));
+  res->even_buf= (char*)my_malloc(PSI_NOT_INSTRUMENTED,
+                                  res->even_buf_len,MYF(MY_WME+MY_FAE));
+  res->odd_buf= (char*)my_malloc(PSI_NOT_INSTRUMENTED,
+                                 res->odd_buf_len,MYF(MY_WME+MY_FAE));
   res->buf= res->even_buf;
 
   return res;
@@ -9701,7 +9791,8 @@ void free_replace_regex()
 #define SECURE_REG_BUF   if (buf_len < need_buf_len)                    \
   {                                                                     \
     int off= res_p - buf;                                               \
-    buf= (char*)my_realloc(buf,need_buf_len,MYF(MY_WME+MY_FAE));        \
+    buf= (char*)my_realloc(PSI_NOT_INSTRUMENTED,                        \
+                           buf,need_buf_len,MYF(MY_WME+MY_FAE));        \
     res_p= buf + off;                                                   \
     buf_len= need_buf_len;                                              \
   }                                                                     \
@@ -9752,7 +9843,8 @@ int reg_replace(char** buf_p, int* buf_len_p, char *pattern,
     return 1;
   }
 
-  subs= (my_regmatch_t*)my_malloc(sizeof(my_regmatch_t) * (r.re_nsub+1),
+  subs= (my_regmatch_t*)my_malloc(PSI_NOT_INSTRUMENTED,
+                                  sizeof(my_regmatch_t) * (r.re_nsub+1),
                                   MYF(MY_WME+MY_FAE));
 
   *res_p= 0;
@@ -10000,7 +10092,8 @@ REPLACE *init_replace(char * *from, char * *to,uint count,
   if (init_sets(&sets,states))
     DBUG_RETURN(0);
   found_sets=0;
-  if (!(found_set= (FOUND_SET*) my_malloc(sizeof(FOUND_SET)*max_length*count,
+  if (!(found_set= (FOUND_SET*) my_malloc(PSI_NOT_INSTRUMENTED,
+                                          sizeof(FOUND_SET)*max_length*count,
 					  MYF(MY_WME))))
   {
     free_sets(&sets);
@@ -10011,7 +10104,8 @@ REPLACE *init_replace(char * *from, char * *to,uint count,
   used_sets=-1;
   word_states=make_new_set(&sets);		/* Start of new word */
   start_states=make_new_set(&sets);		/* This is first state */
-  if (!(follow=(FOLLOWS*) my_malloc((states+2)*sizeof(FOLLOWS),MYF(MY_WME))))
+  if (!(follow=(FOLLOWS*) my_malloc(PSI_NOT_INSTRUMENTED,
+                                    (states+2)*sizeof(FOLLOWS),MYF(MY_WME))))
   {
     free_sets(&sets);
     my_free(found_set);
@@ -10176,7 +10270,8 @@ REPLACE *init_replace(char * *from, char * *to,uint count,
 
   /* Alloc replace structure for the replace-state-machine */
 
-  if ((replace=(REPLACE*) my_malloc(sizeof(REPLACE)*(sets.count)+
+  if ((replace=(REPLACE*) my_malloc(PSI_NOT_INSTRUMENTED,
+                                    sizeof(REPLACE)*(sets.count)+
 				    sizeof(REPLACE_STRING)*(found_sets+1)+
 				    sizeof(char *)*count+result_len,
 				    MYF(MY_WME | MY_ZEROFILL))))
@@ -10221,10 +10316,12 @@ int init_sets(REP_SETS *sets,uint states)
 {
   memset(sets, 0, sizeof(*sets));
   sets->size_of_bits=((states+7)/8);
-  if (!(sets->set_buffer=(REP_SET*) my_malloc(sizeof(REP_SET)*SET_MALLOC_HUNC,
+  if (!(sets->set_buffer=(REP_SET*) my_malloc(PSI_NOT_INSTRUMENTED,
+                                              sizeof(REP_SET)*SET_MALLOC_HUNC,
 					      MYF(MY_WME))))
     return 1;
-  if (!(sets->bit_buffer=(uint*) my_malloc(sizeof(uint)*sets->size_of_bits*
+  if (!(sets->bit_buffer=(uint*) my_malloc(PSI_NOT_INSTRUMENTED,
+                                           sizeof(uint)*sets->size_of_bits*
 					   SET_MALLOC_HUNC,MYF(MY_WME))))
   {
     my_free(sets->set);
@@ -10259,13 +10356,15 @@ REP_SET *make_new_set(REP_SETS *sets)
     return set;
   }
   count=sets->count+sets->invisible+SET_MALLOC_HUNC;
-  if (!(set=(REP_SET*) my_realloc((uchar*) sets->set_buffer,
+  if (!(set=(REP_SET*) my_realloc(PSI_NOT_INSTRUMENTED,
+                                  (uchar*) sets->set_buffer,
                                   sizeof(REP_SET)*count,
 				  MYF(MY_WME))))
     return 0;
   sets->set_buffer=set;
   sets->set=set+sets->invisible;
-  if (!(bit_buffer=(uint*) my_realloc((uchar*) sets->bit_buffer,
+  if (!(bit_buffer=(uint*) my_realloc(PSI_NOT_INSTRUMENTED,
+                                      (uchar*) sets->bit_buffer,
 				      (sizeof(uint)*sets->size_of_bits)*count,
 				      MYF(MY_WME))))
     return 0;
@@ -10420,11 +10519,13 @@ int insert_pointer_name(POINTER_ARRAY *pa,char * name)
   if (! pa->typelib.count)
   {
     if (!(pa->typelib.type_names=(const char **)
-	  my_malloc(((PC_MALLOC-MALLOC_OVERHEAD)/
+	  my_malloc(PSI_NOT_INSTRUMENTED,
+                    ((PC_MALLOC-MALLOC_OVERHEAD)/
 		     (sizeof(char *)+sizeof(*pa->flag))*
 		     (sizeof(char *)+sizeof(*pa->flag))),MYF(MY_WME))))
       DBUG_RETURN(-1);
-    if (!(pa->str= (uchar*) my_malloc((uint) (PS_MALLOC-MALLOC_OVERHEAD),
+    if (!(pa->str= (uchar*) my_malloc(PSI_NOT_INSTRUMENTED,
+                                      (uint) (PS_MALLOC-MALLOC_OVERHEAD),
 				     MYF(MY_WME))))
     {
       my_free(pa->typelib.type_names);
@@ -10440,7 +10541,8 @@ int insert_pointer_name(POINTER_ARRAY *pa,char * name)
   length=(uint) strlen(name)+1;
   if (pa->length+length >= pa->max_length)
   {
-    if (!(new_pos= (uchar*) my_realloc((uchar*) pa->str,
+    if (!(new_pos= (uchar*) my_realloc(PSI_NOT_INSTRUMENTED,
+                                       (uchar*) pa->str,
                                       (uint) (pa->length+length+PS_MALLOC),
 				      MYF(MY_WME))))
       DBUG_RETURN(1);
@@ -10459,7 +10561,8 @@ int insert_pointer_name(POINTER_ARRAY *pa,char * name)
     int len;
     pa->array_allocs++;
     len=(PC_MALLOC*pa->array_allocs - MALLOC_OVERHEAD);
-    if (!(new_array=(const char **) my_realloc((uchar*) pa->typelib.type_names,
+    if (!(new_array=(const char **) my_realloc(PSI_NOT_INSTRUMENTED,
+                                               (uchar*) pa->typelib.type_names,
 					       (uint) len/
                                                (sizeof(uchar*)+sizeof(*pa->flag))*
                                                (sizeof(uchar*)+sizeof(*pa->flag)),

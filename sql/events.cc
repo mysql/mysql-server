@@ -32,6 +32,7 @@
 #include "sp_head.h" // for Stored_program_creation_ctx
 #include "set_var.h"
 #include "lock.h"   // lock_object_name
+#include "mysql/psi/mysql_sp.h"
 
 /**
   @addtogroup Event_Scheduler
@@ -601,6 +602,11 @@ Events::drop_event(THD *thd, LEX_STRING dbname, LEX_STRING name, bool if_exists)
 
     thd->add_to_binlog_accessed_dbs(dbname.str);
     ret= write_bin_log(thd, TRUE, thd->query(), thd->query_length());
+#ifdef HAVE_PSI_SP_INTERFACE
+    /* Drop statistics for this stored program from performance schema. */
+    MYSQL_DROP_SP(SP_OBJECT_TYPE_EVENT,
+                  dbname.str, dbname.length, name.str, name.length);
+#endif 
   }
   /* Restore the state of binlog format */
   DBUG_ASSERT(!thd->is_current_stmt_binlog_format_row());
@@ -990,12 +996,19 @@ PSI_stage_info stage_waiting_on_empty_queue= { 0, "Waiting on empty queue", 0};
 PSI_stage_info stage_waiting_for_next_activation= { 0, "Waiting for next activation", 0};
 PSI_stage_info stage_waiting_for_scheduler_to_stop= { 0, "Waiting for the scheduler to stop", 0};
 
+PSI_memory_key key_memory_event_basic_root;
+
 #ifdef HAVE_PSI_INTERFACE
 PSI_stage_info *all_events_stages[]=
 {
   & stage_waiting_on_empty_queue,
   & stage_waiting_for_next_activation,
   & stage_waiting_for_scheduler_to_stop
+};
+
+static PSI_memory_info all_events_memory[]=
+{
+  { &key_memory_event_basic_root, "Event_basic::mem_root", 0}
 };
 
 static void init_events_psi_keys(void)
@@ -1015,6 +1028,8 @@ static void init_events_psi_keys(void)
   count= array_elements(all_events_stages);
   mysql_stage_register(category, all_events_stages, count);
 
+  count= array_elements(all_events_memory);
+  mysql_memory_register(category, all_events_memory, count);
 }
 #endif /* HAVE_PSI_INTERFACE */
 

@@ -3550,14 +3550,14 @@ fts_query_prepare_result(
 			doc_freq = rbt_value(fts_doc_freq_t, node);
 
 			/* Don't put deleted docs into result */
-			if (fts_bsearch(array, 0, size, doc_freq->doc_id)
+			if (fts_bsearch(array, 0, (int) size, doc_freq->doc_id)
 			    >= 0) {
 				continue;
 			}
 
 			ranking.doc_id = doc_freq->doc_id;
-			ranking.rank = doc_freq->freq * word_freq->idf
-				* word_freq->idf;
+			ranking.rank = (fts_rank_t)
+				(doc_freq->freq * word_freq->idf * word_freq->idf);
 			ranking.words = NULL;
 
 			fts_query_add_ranking(query, result->rankings_by_id,

@@ -75,6 +75,7 @@ execute dump_hosts;
 select get_lock("marker", 10);
 select release_lock("marker");
 insert into test.t1 values ("marker");
+select test.f(10,20);
 
 echo "================== con1 marker ==================";
 
@@ -149,6 +150,7 @@ execute dump_hosts;
 select get_lock("marker", 10);
 select release_lock("marker");
 insert into test.t1 values ("marker");
+select test.f(10,20);
 
 echo "================== con2 marker ==================";
 
@@ -219,6 +221,7 @@ execute dump_hosts;
 select get_lock("marker", 10);
 select release_lock("marker");
 insert into test.t1 values ("marker");
+select test.f(10,20);
 
 echo "================== con3 marker ==================";
 
@@ -289,6 +292,7 @@ execute dump_hosts;
 select get_lock("marker", 10);
 select release_lock("marker");
 insert into test.t1 values ("marker");
+select test.f(10,20);
 
 echo "================== con4 marker ==================";
 

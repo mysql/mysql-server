@@ -1,4 +1,4 @@
-/* Copyright (c) 2003, 2011, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2003, 2013, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -214,7 +214,8 @@ static my_bool safe_hash_set(SAFE_HASH *hash, const uchar *key, uint length,
   }
   else
   {
-    if (!(entry= (SAFE_HASH_ENTRY *) my_malloc(sizeof(*entry) + length,
+    if (!(entry= (SAFE_HASH_ENTRY *) my_malloc(key_memory_SAFE_HASH_ENTRY,
+                                               sizeof(*entry) + length,
 					       MYF(MY_WME))))
     {
       error= 1;

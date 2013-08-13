@@ -321,7 +321,7 @@ ndb_binlog_open_shadow_table(THD *thd, NDB_SHARE *share)
 
   MEM_ROOT **root_ptr= my_pthread_get_THR_MALLOC();
   MEM_ROOT *old_root= *root_ptr;
-  init_sql_alloc(&event_data->mem_root, 1024, 0);
+  init_sql_alloc(PSI_INSTRUMENT_ME, &event_data->mem_root, 1024, 0);
   *root_ptr= &event_data->mem_root;
 
   TABLE_SHARE *shadow_table_share=
@@ -468,7 +468,7 @@ get_ndb_blobs_value(TABLE* table, NdbValue* value_array,
       my_free(buffer);
       buffer_size= 0;
       DBUG_PRINT("info", ("allocate blobs buffer size %u", offset));
-      buffer= (uchar*) my_malloc(offset, MYF(MY_WME));
+      buffer= (uchar*) my_malloc(PSI_INSTRUMENT_ME, offset, MYF(MY_WME));
       if (buffer == NULL)
       {
         sql_print_error("get_ndb_blobs_value: my_malloc(%u) failed", offset);
@@ -5623,7 +5623,8 @@ ndbcluster_create_event_ops(THD *thd, NDB_SHARE *share,
     /*
        Allocate memory globally so it can be reused after online alter table
     */
-    if (my_multi_malloc(MYF(MY_WME),
+    if (my_multi_malloc(PSI_INSTRUMENT_ME,
+                        MYF(MY_WME),
                         &event_data->ndb_value[0],
                         val_length,
                         &event_data->ndb_value[1],
@@ -7076,7 +7077,7 @@ restart_cluster_failure:
     MEM_ROOT **root_ptr= my_pthread_get_THR_MALLOC();
     MEM_ROOT *old_root= *root_ptr;
     MEM_ROOT mem_root;
-    init_sql_alloc(&mem_root, 4096, 0);
+    init_sql_alloc(PSI_INSTRUMENT_ME, &mem_root, 4096, 0);
 
     // The Ndb_schema_event_handler does not necessarily need
     // to use the same memroot(or vice versa)

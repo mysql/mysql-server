@@ -34,6 +34,11 @@ IF(UNIX)
   ENDIF()
 ENDIF()
 
+OPTION(INNODB_COMPILER_HINTS "Compile InnoDB with compiler hints" ON)
+MARK_AS_ADVANCED(INNODB_COMPILER_HINTS)
+
+SET(MUTEXTYPE "event" CACHE STRING "Mutex type: event, sys or futex")
+
 IF(CMAKE_CXX_COMPILER_ID MATCHES "GNU")
 # After: WL#5825 Using C++ Standard Library with MySQL code
 #       we no longer use -fno-exceptions
@@ -70,6 +75,11 @@ ENDIF()
 CHECK_FUNCTION_EXISTS(sched_getcpu  HAVE_SCHED_GETCPU)
 IF(HAVE_SCHED_GETCPU)
  ADD_DEFINITIONS(-DHAVE_SCHED_GETCPU=1)
+ENDIF()
+
+CHECK_FUNCTION_EXISTS(nanosleep HAVE_NANOSLEEP)
+IF(HAVE_NANOSLEEP)
+ ADD_DEFINITIONS(-DHAVE_NANOSLEEP=1)
 ENDIF()
 
 IF(NOT MSVC)
@@ -169,6 +179,41 @@ IF(HAVE_IB_ATOMIC_PTHREAD_T_GCC)
   ADD_DEFINITIONS(-DHAVE_IB_ATOMIC_PTHREAD_T_GCC=1)
 ENDIF()
 
+IF(NOT CMAKE_CROSSCOMPILING)
+  CHECK_C_SOURCE_RUNS(
+  "
+  #include <stdio.h>
+  #include <errno.h>
+  #include <assert.h>
+  #include <linux/futex.h>
+  #include <sys/syscall.h>
+
+   int futex_wait(int* futex, int v) {
+	return(syscall(SYS_futex, futex, FUTEX_WAIT_PRIVATE, v, NULL, NULL, 0));
+   }
+
+   int futex_signal(int* futex) {
+	return(syscall(SYS_futex, futex, FUTEX_WAKE, 1, NULL, NULL, 0));
+   }
+
+  int main() {
+	int	ret;
+	int	m = 1;
+
+	/* It is setup to fail and return EWOULDBLOCK. */
+	ret = futex_wait(&m, 0);
+	assert(ret == -1 && errno == EWOULDBLOCK);
+	/* Shouldn't wake up any threads. */
+	assert(futex_signal(&m) == 0);
+
+	return(0);
+  }"
+  HAVE_IB_LINUX_FUTEX)
+ENDIF()
+IF(HAVE_IB_LINUX_FUTEX)
+  ADD_DEFINITIONS(-DHAVE_IB_LINUX_FUTEX=1)
+ENDIF()
+
 ENDIF(NOT MSVC)
 
 CHECK_FUNCTION_EXISTS(asprintf  HAVE_ASPRINTF)
@@ -247,6 +292,23 @@ IF(MSVC)
   ADD_DEFINITIONS(-DHAVE_WINDOWS_ATOMICS)
 ENDIF()
 
+IF(NOT DEFINED HAVE_IB_GCC_ATOMIC_BUILTINS
+   AND NOT DEFINED HAVE_WINDOWS_ATOMICS
+   AND NOT DEFINED HAVE_IB_SOLARIS_ATOMICS)
+
+   UNSET(MUTEXTYPE CACHE)
+   UNSET(HAVE_IB_LINUX_FUTEX CACHE)
+   REMOVE_DEFINITIONS(-DHAVE_IB_LINUX_FUTEX=1)
+
+ENDIF()
+
+IF(MUTEXTYPE MATCHES "event")
+  ADD_DEFINITIONS(-DMUTEX_EVENT)
+ELSEIF(MUTEXTYPE MATCHES "futex" AND DEFINED HAVE_IB_LINUX_FUTEX)
+  ADD_DEFINITIONS(-DMUTEX_FUTEX)
+ELSE()
+   ADD_DEFINITIONS(-DMUTEX_SYS)
+ENDIF()
 
 # Include directories under innobase
 INCLUDE_DIRECTORIES(${CMAKE_SOURCE_DIR}/storage/innobase/include

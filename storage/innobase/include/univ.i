@@ -524,7 +524,7 @@ contains the sum of the following flag and the locally stored len. */
 
 #define UNIV_EXTERN_STORAGE_FIELD (UNIV_SQL_NULL - UNIV_PAGE_SIZE_MAX)
 
-#if defined(__GNUC__) && (__GNUC__ > 2) && ! defined(__INTEL_COMPILER)
+#if defined(__GNUC__) && (__GNUC__ > 2)
 #define HAVE_GCC_GT_2
 /* Tell the compiler that variable/function is unused. */
 # define UNIV_UNUSED    __attribute__ ((unused))
@@ -601,13 +601,10 @@ typedef void* os_thread_ret_t;
 
 #include <stdio.h>
 #include "db0err.h"
-#ifndef UNIV_HOTBACKUP
-# include "os0sync.h"
-#endif /* UNIV_HOTBACKUP */
-#include "sync0types.h"
 #include "ut0dbg.h"
 #include "ut0lst.h"
 #include "ut0ut.h"
+#include "sync0types.h"
 
 #ifdef UNIV_DEBUG_VALGRIND
 # include <valgrind/memcheck.h>

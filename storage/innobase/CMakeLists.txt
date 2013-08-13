@@ -76,7 +76,7 @@ SET(INNOBASE_SOURCES
 	mtr/mtr0mtr.cc
 	os/os0file.cc
 	os/os0proc.cc
-	os/os0sync.cc
+	os/os0event.cc
 	os/os0thread.cc
 	page/page0cur.cc
 	page/page0page.cc
@@ -100,6 +100,7 @@ SET(INNOBASE_SOURCES
 	row/row0purge.cc
 	row/row0row.cc
 	row/row0sel.cc
+	row/row0trunc.cc
 	row/row0uins.cc
 	row/row0umod.cc
 	row/row0undo.cc
@@ -113,6 +114,7 @@ SET(INNOBASE_SOURCES
 	srv/srv0start.cc
 	sync/sync0arr.cc
 	sync/sync0rw.cc
+	sync/sync0debug.cc
 	sync/sync0sync.cc
 	trx/trx0i_s.cc
 	trx/trx0purge.cc

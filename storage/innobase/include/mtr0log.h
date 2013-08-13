@@ -92,7 +92,7 @@ UNIV_INLINE
 byte*
 mlog_write_initial_log_record_for_file_op(
 /*======================================*/
-	ulint	type,	/*!< in: MLOG_FILE_CREATE, MLOG_FILE_DELETE, or
+	ulint	type,	/*!< in: MLOG_FILE_CREATE, MLOG_FILE_DELETE,
 			MLOG_FILE_RENAME */
 	ulint	space_id,/*!< in: space id, if applicable */
 	ulint	page_no,/*!< in: page number (not relevant currently) */
