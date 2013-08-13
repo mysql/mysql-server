@@ -385,7 +385,7 @@ trace_stop(struct st_mysql_client_plugin_TRACE *self,
   LOGGER(conn);
   LOG(("Tracing connection has ended"));
   if (data)
-    my_free(data);
+    delete static_cast<st_trace_data*>(data);
 }
 
 
