@@ -1841,11 +1841,7 @@ fts_query_match_phrase_add_word_for_parser(
 		phrase->found = TRUE;
 	}
 
-	if (phrase->found) {
-		return(1);
-	} else {
-		return(0);
-	}
+	return (phrase->found);
 }
 
 /*****************************************************************//**
@@ -2702,7 +2698,7 @@ fts_query_phrase_split(
 		} else {
 			ut_ad(node->type == FTS_AST_PARSER_PHRASE_LIST);
 			/* Term node in parser phrase list */
-			if (!term_node) {
+			if (term_node == NULL) {
 				break;
 			}
 
@@ -2760,7 +2756,7 @@ fts_query_phrase_split(
 /*****************************************************************//**
 Text/Phrase search.
 @return DB_SUCCESS or error code */
-static __attribute__((nonnull, warn_unused_result))
+static __attribute__((warn_unused_result))
 dberr_t
 fts_query_phrase_search(
 /*====================*/
@@ -4280,6 +4276,7 @@ fts_expand_query(
 		index_cache->charset);
 
 	result_doc.charset = index_cache->charset;
+	result_doc.parser = index_cache->index->parser;
 
 	query->total_size += SIZEOF_RBT_CREATE;
 #ifdef UNIV_DEBUG

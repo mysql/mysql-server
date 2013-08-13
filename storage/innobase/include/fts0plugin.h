@@ -1,6 +1,6 @@
 /*****************************************************************************
 
-Copyright (c) 2011, 2013, Oracle and/or its affiliates. All Rights Reserved.
+Copyright (c) 2013, Oracle and/or its affiliates. All Rights Reserved.
 
 This program is free software; you can redistribute it and/or modify it under
 the terms of the GNU General Public License as published by the Free Software
@@ -26,9 +26,11 @@ Created 2013/06/04 Shaohua Wang
 #ifndef INNOBASE_FTS0PLUGIN_H
 #define INNOBASE_FTS0PLUGIN_H
 
-#include "fts0ast.h"
+#include "ha_prototypes.h"
 
 extern struct st_mysql_ftparser fts_default_parser;
+
+struct fts_ast_state_t;
 
 /******************************************************************//**
 fts parse query by plugin parser.
