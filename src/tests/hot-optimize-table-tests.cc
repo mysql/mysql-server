@@ -246,7 +246,7 @@ hot_test(DB* db, unsigned int size)
 
     // Flatten the tree.
     verbose ? printf("Calling hot optimize...\n") : 0;
-    r = db->hot_optimize(db, NULL, NULL);
+    r = db->hot_optimize(db, NULL, NULL, NULL, NULL);
     assert(r == 0);
     verbose ? printf("HOT Finished!\n") : 0;
     for (unsigned int i = 0; i < size; ++i) {

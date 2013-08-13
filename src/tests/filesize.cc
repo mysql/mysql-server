@@ -205,7 +205,7 @@ delete_n (uint32_t ah)
 static void
 optimize(void) {
     if (verbose) printf("Filesize: begin optimize dictionary\n");
-    int r = db->hot_optimize(db, NULL, NULL);
+    int r = db->hot_optimize(db, NULL, NULL, NULL, NULL);
     CKERR(r);
     if (verbose) printf("Filesize: end optimize dictionary\n");
 }

@@ -523,7 +523,7 @@ static void print_db_struct (void) {
 			 "int (*change_descriptor) (DB*, DB_TXN*, const DBT* descriptor, uint32_t) /* change row/dictionary descriptor for a db.  Available only while db is open */",
 			 "int (*getf_set)(DB*, DB_TXN*, uint32_t, DBT*, YDB_CALLBACK_FUNCTION, void*) /* same as DBC->c_getf_set without a persistent cursor) */",
 			 "int (*optimize)(DB*) /* Run garbage collecion and promote all transactions older than oldest. Amortized (happens during flattening) */",
-			 "int (*hot_optimize)(DB*, int (*progress_callback)(void *progress_extra, float progress), void *progress_extra)",
+			 "int (*hot_optimize)(DB*, DBT*, DBT*, int (*progress_callback)(void *progress_extra, float progress), void *progress_extra)",
 			 "int (*get_fragmentation)(DB*,TOKU_DB_FRAGMENTATION)",
 			 "int (*change_pagesize)(DB*,uint32_t)",
 			 "int (*change_readpagesize)(DB*,uint32_t)",
