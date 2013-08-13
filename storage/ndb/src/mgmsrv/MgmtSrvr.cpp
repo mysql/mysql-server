@@ -4136,6 +4136,13 @@ MgmtSrvr::setConnectionDbParameter(int node1, int node2,
 }
 
 
+bool MgmtSrvr::setDynamicPorts(int node, DynPortSpec ports[],
+                               unsigned num_ports, BaseString& msg)
+{
+  return m_config_manager->set_dynamic_ports(node, ports, num_ports, msg);
+}
+
+
 int
 MgmtSrvr::getConnectionDbParameter(int node1, int node2,
                                    int param, int *value,
