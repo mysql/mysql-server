@@ -2261,7 +2261,8 @@ row_merge_insert_index_tuples(
 				mtr_commit(&mtr);
 				mtr_start(&mtr);
 				btr_cur_open_at_index_side(
-					false, index, BTR_MODIFY_TREE,
+					false, index,
+					BTR_MODIFY_TREE | BTR_LATCH_FOR_INSERT,
 					&cursor, 0, &mtr);
 				page_cur_position(
 					page_rec_get_prev(btr_cur_get_rec(
@@ -2429,7 +2430,7 @@ row_merge_drop_index_dict(
 	ut_ad(trx->dict_operation_lock_mode == RW_X_LATCH);
 	ut_ad(trx_get_dict_operation(trx) == TRX_DICT_OP_INDEX);
 #ifdef UNIV_SYNC_DEBUG
-	ut_ad(rw_lock_own(&dict_operation_lock, RW_LOCK_EX));
+	ut_ad(rw_lock_own(&dict_operation_lock, RW_LOCK_X));
 #endif /* UNIV_SYNC_DEBUG */
 
 	info = pars_info_create();
@@ -2496,7 +2497,7 @@ row_merge_drop_indexes_dict(
 	ut_ad(trx->dict_operation_lock_mode == RW_X_LATCH);
 	ut_ad(trx_get_dict_operation(trx) == TRX_DICT_OP_INDEX);
 #ifdef UNIV_SYNC_DEBUG
-	ut_ad(rw_lock_own(&dict_operation_lock, RW_LOCK_EX));
+	ut_ad(rw_lock_own(&dict_operation_lock, RW_LOCK_X));
 #endif /* UNIV_SYNC_DEBUG */
 
 	/* It is possible that table->n_ref_count > 1 when
@@ -2546,7 +2547,7 @@ row_merge_drop_indexes(
 	ut_ad(trx->dict_operation_lock_mode == RW_X_LATCH);
 	ut_ad(trx_get_dict_operation(trx) == TRX_DICT_OP_INDEX);
 #ifdef UNIV_SYNC_DEBUG
-	ut_ad(rw_lock_own(&dict_operation_lock, RW_LOCK_EX));
+	ut_ad(rw_lock_own(&dict_operation_lock, RW_LOCK_X));
 #endif /* UNIV_SYNC_DEBUG */
 
 	index = dict_table_get_first_index(table);

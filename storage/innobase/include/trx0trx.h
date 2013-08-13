@@ -842,6 +842,10 @@ enum trx_rseg_type_t {
 };
 
 struct trx_t{
+	TrxMutex	mutex;		/*!< Mutex protecting the fields
+					state and lock (except some fields
+					of lock, which are protected by
+					lock_sys->mutex) */
 	UT_LIST_NODE_T(trx_t)
 			trx_list;	/*!< list of transactions;
 					protected by trx_sys->mutex.
@@ -928,11 +932,6 @@ struct trx_t{
 	we treat all read-only transactions as non-locking.  */
 
 	trx_state_t	state;
-
-	ib_mutex_t	mutex;		/*!< Mutex protecting the fields
-					state and lock
-					(except some fields of lock, which
-					are protected by lock_sys->mutex) */
 
 	ReadView*	read_view;	/*!< consistent read view used in the
 					transaction, or NULL if not yet set */
@@ -1090,7 +1089,7 @@ struct trx_t{
 			trx_savepoints;	/*!< savepoints set with SAVEPOINT ...,
 					oldest first */
 	/*------------------------------*/
-	ib_mutex_t	undo_mutex;	/*!< mutex protecting the fields in this
+	UndoMutex	undo_mutex;	/*!< mutex protecting the fields in this
 					section (down to undo_no_arr), EXCEPT
 					last_sql_stat_start, which can be
 					accessed only when we know that there

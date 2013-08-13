@@ -32,11 +32,22 @@ Created 9/8/1995 Heikki Tuuri
 
 #ifndef UNIV_HOTBACKUP
 #include "srv0srv.h"
+#include "os0event.h"
+
+#include <map>
+
+/** Mutex that tracks the thread count. Used by innorwlocktest.cc
+FIXME: the unit tests should use APIs */
+SysMutex	thread_mutex;
+
+/** Number of threads active. */
+ulint	os_thread_count;
 
 #ifdef _WIN32
+typedef std::map<DWORD, HANDLE> WinThreadMap;
 /** This STL map remembers the initial handle returned by CreateThread
 so that it can be closed when the thread exits. */
-static std::map<DWORD, HANDLE>	win_thread_map;
+static WinThreadMap win_thread_map;
 #endif /* _WIN32 */
 
 /***************************************************************//**
@@ -117,8 +128,6 @@ os_thread_create_func(
 #ifdef _WIN32
 	HANDLE		handle;
 
-	os_mutex_enter(os_sync_mutex);
-
 	handle = CreateThread(NULL,	/* no security attributes */
 			      0,	/* default size stack */
 			      func,
@@ -127,36 +136,41 @@ os_thread_create_func(
 			      &new_thread_id);
 
 	if (!handle) {
-		os_mutex_exit(os_sync_mutex);
 		/* If we cannot start a new thread, life has no meaning. */
 		ib_logf(IB_LOG_LEVEL_FATAL,
 			"CreateThread returned %d", GetLastError());
+		ut_ad(0);
+		exit(1);
 	}
 
-	std::pair<std::map<DWORD, HANDLE>::iterator,bool> ret;
+	mutex_enter(&thread_mutex);
+
+	std::pair<WinThreadMap::iterator, bool> ret;
+
 	ret = win_thread_map.insert(
 		std::pair<DWORD, HANDLE>(new_thread_id, handle));
+
 	ut_ad((*ret.first).first == new_thread_id);
 	ut_ad((*ret.first).second == handle);
 	ut_a(ret.second == true);	/* true means thread_id was new */
+
 	os_thread_count++;
 
-	os_mutex_exit(os_sync_mutex);
+	mutex_exit(&thread_mutex);
 
 #else /* _WIN32 else */
 
-	int		ret;
 	pthread_attr_t	attr;
 
 	pthread_attr_init(&attr);
 
-	os_mutex_enter(os_sync_mutex);
-	os_thread_count++;
-	os_mutex_exit(os_sync_mutex);
+	mutex_enter(&thread_mutex);
+	++os_thread_count;
+	mutex_exit(&thread_mutex);
 
-	ret = pthread_create(&new_thread_id, &attr, func, arg);
+	int	ret = pthread_create(&new_thread_id, &attr, func, arg);
 
-	if (ret) {
+	if (ret != 0) {
 		ib_logf(IB_LOG_LEVEL_FATAL,
 			"pthread_create returned %d", ret);
 	}
@@ -189,7 +203,8 @@ os_thread_exit(
 	pfs_delete_thread();
 #endif
 
-	os_mutex_enter(os_sync_mutex);
+	mutex_enter(&thread_mutex);
+
 	os_thread_count--;
 
 #ifdef _WIN32
@@ -199,11 +214,11 @@ os_thread_exit(
 	size_t ret = win_thread_map.erase(win_thread_id);
 	ut_a(ret == 1);
 
-	os_mutex_exit(os_sync_mutex);
+	mutex_exit(&thread_mutex);
 
 	ExitThread((DWORD) exit_value);
 #else
-	os_mutex_exit(os_sync_mutex);
+	mutex_exit(&thread_mutex);
 	pthread_detach(pthread_self());
 	pthread_exit(exit_value);
 #endif
@@ -256,3 +271,54 @@ os_thread_sleep(
 	select(0, NULL, NULL, NULL, &t);
 #endif /* _WIN32 */
 }
+
+/*****************************************************************//**
+Check if there are threads active.
+@return true if the thread count > 0. */
+
+bool
+os_thread_active()
+/*==============*/
+{
+	mutex_enter(&thread_mutex);
+
+	bool active = (os_thread_count > 0);
+
+	/* All the threads have exited or are just exiting;
+	NOTE that the threads may not have completed their
+	exit yet. Should we use pthread_join() to make sure
+	they have exited? If we did, we would have to
+	remove the pthread_detach() from
+	os_thread_exit().  Now we just sleep 0.1
+	seconds and hope that is enough! */
+
+	mutex_exit(&thread_mutex);
+
+	return(active);
+}
+
+/**
+Initializes OS thread management data structures. */
+
+void
+os_thread_init()
+/*============*/
+{
+	mutex_create("thread_mutex", &thread_mutex);
+}
+
+/**
+Frees OS thread management data structures. */
+
+void
+os_thread_free()
+/*============*/
+{
+	if (os_thread_count != 0) {
+		ib_logf(IB_LOG_LEVEL_WARN,
+			"Some (%lu) threads are still active", os_thread_count);
+	}
+
+	mutex_destroy(&thread_mutex);
+}
+

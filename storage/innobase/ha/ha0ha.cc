@@ -41,24 +41,17 @@ of cells is chosen to be a prime number slightly bigger than n.
 @return own: created table */
 
 hash_table_t*
-ib_create_func(
-/*===========*/
-	ulint	n,		/*!< in: number of array cells */
-#ifdef UNIV_SYNC_DEBUG
-	ulint	sync_level,	/*!< in: level of the mutexes or rw_locks
-				in the latching order: this is used in the
-				 debug version */
-#endif /* UNIV_SYNC_DEBUG */
-	ulint	n_sync_obj,	/*!< in: number of mutexes or rw_locks
-				to protect the hash table: must be a
-				power of 2, or 0 */
-	ulint	type)		/*!< in: type of datastructure for which
-				the memory heap is going to be used e.g.:
-				MEM_HEAP_FOR_BTR_SEARCH or
+ib_create(
+/*======*/
+	ulint		n,	/*!< in: number of array cells */
+	const char*	name,	/*!< in: mutex name */
+	ulint		n_sync_obj,
+				/*!< in: number of mutexes to protect the
+				hash table: must be a power of 2, or 0 */
+	ulint		type)	/*!< in: type of datastructure for which
 				MEM_HEAP_FOR_PAGE_HASH */
 {
 	hash_table_t*	table;
-	ulint		i;
 
 	ut_a(type == MEM_HEAP_FOR_BTR_SEARCH
 	     || type == MEM_HEAP_FOR_PAGE_HASH);
@@ -80,17 +73,17 @@ ib_create_func(
 	if (type == MEM_HEAP_FOR_PAGE_HASH) {
 		/* We create a hash table protected by rw_locks for
 		buf_pool->page_hash. */
-		hash_create_sync_obj(table, HASH_TABLE_SYNC_RW_LOCK,
-				     n_sync_obj, sync_level);
+		hash_create_sync_obj(
+			table, HASH_TABLE_SYNC_RW_LOCK, name, n_sync_obj);
 	} else {
-		hash_create_sync_obj(table, HASH_TABLE_SYNC_MUTEX,
-				     n_sync_obj, sync_level);
+		hash_create_sync_obj(
+			table, HASH_TABLE_SYNC_MUTEX, name, n_sync_obj);
 	}
 
 	table->heaps = static_cast<mem_heap_t**>(
 		mem_alloc(n_sync_obj * sizeof(void*)));
 
-	for (i = 0; i < n_sync_obj; i++) {
+	for (ulint i = 0; i < n_sync_obj; i++) {
 		table->heaps[i] = mem_heap_create_typed(4096, type);
 		ut_a(table->heaps[i]);
 	}
@@ -106,20 +99,12 @@ ha_clear(
 /*=====*/
 	hash_table_t*	table)	/*!< in, own: hash table */
 {
-	ulint	i;
-	ulint	n;
-
-	ut_ad(table);
 	ut_ad(table->magic_n == HASH_TABLE_MAGIC_N);
 #ifdef UNIV_SYNC_DEBUG
-	ut_ad(!table->adaptive
-	       || rw_lock_own(&btr_search_latch, RW_LOCK_EXCLUSIVE));
+	ut_ad(!table->adaptive || rw_lock_own(&btr_search_latch, RW_LOCK_X));
 #endif /* UNIV_SYNC_DEBUG */
 
-	/* Free the memory heaps. */
-	n = table->n_sync_obj;
-
-	for (i = 0; i < n; i++) {
+	for (ulint i = 0; i < table->n_sync_obj; i++) {
 		mem_heap_free(table->heaps[i]);
 	}
 
@@ -129,11 +114,18 @@ ha_clear(
 
 	switch (table->type) {
 	case HASH_TABLE_SYNC_MUTEX:
+		for (ulint i = 0; i < table->n_sync_obj; ++i) {
+			mutex_destroy(&table->sync_obj.mutexes[i]);
+		}
 		mem_free(table->sync_obj.mutexes);
 		table->sync_obj.mutexes = NULL;
 		break;
 
 	case HASH_TABLE_SYNC_RW_LOCK:
+		for (ulint i = 0; i < table->n_sync_obj; ++i) {
+			rw_lock_free(&table->sync_obj.rw_locks[i]);
+		}
+
 		mem_free(table->sync_obj.rw_locks);
 		table->sync_obj.rw_locks = NULL;
 		break;
@@ -148,9 +140,9 @@ ha_clear(
 
 
 	/* Clear the hash table. */
-	n = hash_get_n_cells(table);
+	ulint	n = hash_get_n_cells(table);
 
-	for (i = 0; i < n; i++) {
+	for (ulint i = 0; i < n; i++) {
 		hash_get_nth_cell(table, i)->node = NULL;
 	}
 }
@@ -274,7 +266,7 @@ ha_delete_hash_node(
 	ut_ad(table);
 	ut_ad(table->magic_n == HASH_TABLE_MAGIC_N);
 #ifdef UNIV_SYNC_DEBUG
-	ut_ad(rw_lock_own(&btr_search_latch, RW_LOCK_EX));
+	ut_ad(rw_lock_own(&btr_search_latch, RW_LOCK_X));
 #endif /* UNIV_SYNC_DEBUG */
 	ut_ad(btr_search_enabled);
 #if defined UNIV_AHI_DEBUG || defined UNIV_DEBUG
@@ -313,7 +305,7 @@ ha_search_and_update_if_found_func(
 	ut_a(new_block->frame == page_align(new_data));
 #endif /* UNIV_AHI_DEBUG || UNIV_DEBUG */
 #ifdef UNIV_SYNC_DEBUG
-	ut_ad(rw_lock_own(&btr_search_latch, RW_LOCK_EX));
+	ut_ad(rw_lock_own(&btr_search_latch, RW_LOCK_X));
 #endif /* UNIV_SYNC_DEBUG */
 
 	if (!btr_search_enabled) {

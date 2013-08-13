@@ -274,7 +274,7 @@ dict_stats_exec_sql(
 	dberr_t	err;
 
 #ifdef UNIV_SYNC_DEBUG
-	ut_ad(rw_lock_own(&dict_operation_lock, RW_LOCK_EX));
+	ut_ad(rw_lock_own(&dict_operation_lock, RW_LOCK_X));
 #endif /* UNIV_SYNC_DEBUG */
 	ut_ad(mutex_own(&dict_sys->mutex));
 
@@ -954,7 +954,7 @@ dict_stats_analyze_index_level(
 		     index->table->name, index->name, level);
 
 	ut_ad(mtr_memo_contains(mtr, dict_index_get_lock(index),
-				MTR_MEMO_S_LOCK));
+				MTR_MEMO_SX_LOCK));
 
 	n_uniq = dict_index_get_n_unique(index);
 
@@ -988,7 +988,7 @@ dict_stats_analyze_index_level(
 	on the desired level. */
 
 	btr_pcur_open_at_index_side(
-		true, index, BTR_SEARCH_LEAF | BTR_ALREADY_S_LATCHED,
+		true, index, BTR_SEARCH_TREE | BTR_ALREADY_S_LATCHED,
 		&pcur, true, level, mtr);
 	btr_pcur_move_to_next_on_page(&pcur);
 
@@ -1540,7 +1540,7 @@ dict_stats_analyze_index_for_n_prefix(
 #endif
 
 	ut_ad(mtr_memo_contains(mtr, dict_index_get_lock(index),
-				MTR_MEMO_S_LOCK));
+				MTR_MEMO_SX_LOCK));
 
 	/* if some of those is 0 then this means that there is exactly one
 	page in the B-tree and it is empty and we should have done full scan
@@ -1555,7 +1555,7 @@ dict_stats_analyze_index_for_n_prefix(
 	on the desired level. */
 
 	btr_pcur_open_at_index_side(
-		true, index, BTR_SEARCH_LEAF | BTR_ALREADY_S_LATCHED,
+		true, index, BTR_SEARCH_TREE | BTR_ALREADY_S_LATCHED,
 		&pcur, true, level, mtr);
 	btr_pcur_move_to_next_on_page(&pcur);
 
@@ -1579,7 +1579,8 @@ dict_stats_analyze_index_for_n_prefix(
 	     == !(REC_INFO_MIN_REC_FLAG & rec_get_info_bits(
 			  btr_pcur_get_rec(&pcur), page_is_comp(page))));
 
-	last_idx_on_level = boundaries->at((unsigned int) (n_diff_for_this_prefix - 1));
+	last_idx_on_level = boundaries->at(
+		static_cast<unsigned int>(n_diff_for_this_prefix - 1));
 
 	rec_idx = 0;
 
@@ -1782,7 +1783,7 @@ dict_stats_analyze_index(
 
 	mtr_start(&mtr);
 
-	mtr_s_lock(dict_index_get_lock(index), &mtr);
+	mtr_sx_lock(dict_index_get_lock(index), &mtr);
 
 	root_level = btr_height_get(index, &mtr);
 
@@ -1862,7 +1863,7 @@ dict_stats_analyze_index(
 		other threads to do some work too. */
 		mtr_commit(&mtr);
 		mtr_start(&mtr);
-		mtr_s_lock(dict_index_get_lock(index), &mtr);
+		mtr_sx_lock(dict_index_get_lock(index), &mtr);
 		if (root_level != btr_height_get(index, &mtr)) {
 			/* Just quit if the tree has changed beyond
 			recognition here. The old stats from previous
@@ -2095,7 +2096,7 @@ dict_stats_save_index_stat(
 	char		table_utf8[MAX_TABLE_UTF8_LEN];
 
 #ifdef UNIV_SYNC_DEBUG
-	ut_ad(rw_lock_own(&dict_operation_lock, RW_LOCK_EX));
+	ut_ad(rw_lock_own(&dict_operation_lock, RW_LOCK_X));
 #endif /* UNIV_SYNC_DEBUG */
 	ut_ad(mutex_own(&dict_sys->mutex));
 
@@ -3229,7 +3230,7 @@ dict_stats_delete_from_table_stats(
 	dberr_t		ret;
 
 #ifdef UNIV_SYNC_DEBUG
-	ut_ad(rw_lock_own(&dict_operation_lock, RW_LOCK_EX));
+	ut_ad(rw_lock_own(&dict_operation_lock, RW_LOCK_X));
 #endif /* UNIV_SYNC_DEBUG */
 	ut_ad(mutex_own(&dict_sys->mutex));
 
@@ -3267,7 +3268,7 @@ dict_stats_delete_from_index_stats(
 	dberr_t		ret;
 
 #ifdef UNIV_SYNC_DEBUG
-	ut_ad(rw_lock_own(&dict_operation_lock, RW_LOCK_EX));
+	ut_ad(rw_lock_own(&dict_operation_lock, RW_LOCK_X));
 #endif /* UNIV_SYNC_DEBUG */
 	ut_ad(mutex_own(&dict_sys->mutex));
 
@@ -3307,7 +3308,7 @@ dict_stats_drop_table(
 	dberr_t		ret;
 
 #ifdef UNIV_SYNC_DEBUG
-	ut_ad(rw_lock_own(&dict_operation_lock, RW_LOCK_EX));
+	ut_ad(rw_lock_own(&dict_operation_lock, RW_LOCK_X));
 #endif /* UNIV_SYNC_DEBUG */
 	ut_ad(mutex_own(&dict_sys->mutex));
 
@@ -3385,7 +3386,7 @@ dict_stats_rename_table_in_table_stats(
 	dberr_t		ret;
 
 #ifdef UNIV_SYNC_DEBUG
-	ut_ad(rw_lock_own(&dict_operation_lock, RW_LOCK_EX));
+	ut_ad(rw_lock_own(&dict_operation_lock, RW_LOCK_X));
 #endif /* UNIV_SYNC_DEBUG */
 	ut_ad(mutex_own(&dict_sys->mutex));
 
@@ -3431,7 +3432,7 @@ dict_stats_rename_table_in_index_stats(
 	dberr_t		ret;
 
 #ifdef UNIV_SYNC_DEBUG
-	ut_ad(rw_lock_own(&dict_operation_lock, RW_LOCK_EX));
+	ut_ad(rw_lock_own(&dict_operation_lock, RW_LOCK_X));
 #endif /* UNIV_SYNC_DEBUG */
 	ut_ad(mutex_own(&dict_sys->mutex));
 
@@ -3478,7 +3479,7 @@ dict_stats_rename_table(
 	dberr_t		ret;
 
 #ifdef UNIV_SYNC_DEBUG
-	ut_ad(!rw_lock_own(&dict_operation_lock, RW_LOCK_EX));
+	ut_ad(!rw_lock_own(&dict_operation_lock, RW_LOCK_X));
 #endif /* UNIV_SYNC_DEBUG */
 	ut_ad(!mutex_own(&dict_sys->mutex));
 

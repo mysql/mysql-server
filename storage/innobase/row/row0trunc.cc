@@ -1696,7 +1696,7 @@ row_truncate_table_for_mysql(
 	row_mysql_lock_data_dictionary(trx);
 	ut_ad(mutex_own(&(dict_sys->mutex)));
 #ifdef UNIV_SYNC_DEBUG
-	ut_ad(rw_lock_own(&dict_operation_lock, RW_LOCK_EX));
+	ut_ad(rw_lock_own(&dict_operation_lock, RW_LOCK_X));
 #endif /* UNIV_SYNC_DEBUG */
 
 	/* Step-4: Stop all the background process associated with table. */

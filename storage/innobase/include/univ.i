@@ -602,13 +602,10 @@ typedef void* os_thread_ret_t;
 
 #include <stdio.h>
 #include "db0err.h"
-#ifndef UNIV_HOTBACKUP
-# include "os0sync.h"
-#endif /* UNIV_HOTBACKUP */
-#include "sync0types.h"
 #include "ut0dbg.h"
 #include "ut0lst.h"
 #include "ut0ut.h"
+#include "sync0types.h"
 
 #ifdef UNIV_DEBUG_VALGRIND
 # include <valgrind/memcheck.h>

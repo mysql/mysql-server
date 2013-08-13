@@ -4686,7 +4686,7 @@ void THD::decrement_user_connections_counter()
 
 void THD::increment_con_per_hour_counter()
 {
-  DBUG_ENTER("THD::decrement_conn_per_hour_counter");
+  DBUG_ENTER("THD::increment_con_per_hour_counter");
 
   m_user_connect->conn_per_hour++;
 
@@ -4704,7 +4704,7 @@ void THD::increment_updates_counter()
 
 void THD::increment_questions_counter()
 {
-  DBUG_ENTER("THD::increment_updates_counter");
+  DBUG_ENTER("THD::increment_questions_counter");
 
   m_user_connect->questions++;
 
