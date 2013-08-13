@@ -928,7 +928,7 @@ struct log_t{
 
 /** Acquire the log sys mutex. */
 #define log_mutex_enter() do {				\
-	log_sys->mutex.enter(1, srv_spin_wait_delay/2, __FILE__, __LINE__); \
+	mutex_enter(&log_sys->mutex);			\
 } while (0)
 
 /** Release the log sys mutex. */
