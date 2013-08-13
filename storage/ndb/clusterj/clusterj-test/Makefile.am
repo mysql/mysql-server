@@ -91,6 +91,7 @@ clusterj_test_java = \
   $(clusterj_test_src)/testsuite/clusterj/QueryExtraConditionsTest.java \
   $(clusterj_test_src)/testsuite/clusterj/QueryFloatTypesTest.java \
   $(clusterj_test_src)/testsuite/clusterj/QueryHashIndexScanTest.java \
+  $(clusterj_test_src)/testsuite/clusterj/QueryHashPKScanTest.java \
   $(clusterj_test_src)/testsuite/clusterj/QueryInTest.java \
   $(clusterj_test_src)/testsuite/clusterj/QueryLikeTest.java \
   $(clusterj_test_src)/testsuite/clusterj/QueryLikeByteArrayTypesTest.java \
