@@ -52,7 +52,8 @@ perl mysql-test-run.pl --force --debug-server --timer   --parallel=auto --experi
 
 
 # Multi-Thread Slave
-perl mysql-test-run.pl --timer --force --big-test --testcase-timeout=60 --debug-server --parallel=auto --comment=MTS-debug-big --vardir=var-MTS-debug-big --suite=rpl  --experimental=collections/default.experimental --skip-test-list=collections/disabled-per-push.list --mysqld=--slave-parallel-workers=4 --mysqld=--slave-transaction-retries=0 --skip-test-list=collection/disabled-weekly.list
+perl mysql-test-run.pl --timer --force --big-test --testcase-timeout=60 --debug-server --parallel=auto --comment=MTS-debug-big-db-part --vardir=var-MTS-debug-big-db --suite=rpl  --experimental=collections/default.experimental --skip-test-list=collections/disabled-per-push.list --mysqld=--slave-parallel-workers=4 --mysqld=--slave-transaction-retries=0 --mysqld=--slave-parallel-type=database --skip-test-list=collection/disabled-weekly.list
+perl mysql-test-run.pl --timer --force --big-test --testcase-timeout=60 --debug-server --parallel=auto --comment=MTS-debug-big-lc --vardir=var-MTS-debug-big-lc --suite=rpl  --experimental=collections/default.experimental --skip-test-list=collections/disabled-per-push.list --mysqld=--slave-parallel-workers=4 --mysqld=--slave-transaction-retries=0 --mysqld=--slave-parallel-type=logical_clock --skip-test-list=collection/disabled-weekly.list
 
 
 # Run innodb suite including big-test with innodb-page-size=4k and 8k
