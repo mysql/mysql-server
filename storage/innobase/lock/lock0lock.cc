@@ -807,6 +807,14 @@ lock_sys_close(void)
 	mutex_destroy(&lock_sys->mutex);
 	mutex_destroy(&lock_sys->wait_mutex);
 
+	srv_slot_t*	slot = lock_sys->waiting_threads;
+
+	for (ulint i = 0; i < OS_THREAD_MAX_N; i++, ++slot) {
+		if (slot->event != NULL) {
+			os_event_destroy(slot->event);
+		}
+	}
+
 	mem_free(lock_sys);
 
 	lock_sys = NULL;
