@@ -75,6 +75,9 @@ TARGET_LINK_LIBRARIES(mysqlslap mysqlclient)
 MYSQL_ADD_EXECUTABLE(mysql_config_editor mysql_config_editor.cc)
 TARGET_LINK_LIBRARIES(mysql_config_editor mysqlclient)
 
+MYSQL_ADD_EXECUTABLE(mysql_secure_installation mysql_secure_installation.cc)
+TARGET_LINK_LIBRARIES(mysql_secure_installation mysqlclient)
+
 # "WIN32" also covers 64 bit. "echo" is used in some files below "mysql-test/".
 IF(WIN32)
   MYSQL_ADD_EXECUTABLE(echo echo.c)
