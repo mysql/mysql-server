@@ -436,15 +436,17 @@ NdbRestarter::waitNodesState(const int * _nodes, int _num_nodes,
       return -1;
     }
 
-    // ndbout << "waitNodeState; _num_nodes = " << _num_nodes << endl;
-    // for (int i = 0; i < _num_nodes; i++)
-    //   ndbout << " node["<<i<<"] =" <<_nodes[i] << endl;
-
-    for (int i = 0; i < _num_nodes; i++){
+    for (int i = 0; i < _num_nodes; i++)
+    {
+      // Find node with given node id
       ndb_mgm_node_state* ndbNode = NULL;
-      for (unsigned n = 0; n < ndbNodes.size(); n++){
-	if (ndbNodes[n].node_id == _nodes[i])
-	  ndbNode = &ndbNodes[n];
+      for (unsigned n = 0; n < ndbNodes.size(); n++)
+      {
+        if (ndbNodes[n].node_id == _nodes[i])
+        {
+          ndbNode = &ndbNodes[n];
+          break;
+        }
       }
 
       if(ndbNode == NULL){

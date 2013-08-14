@@ -2932,6 +2932,7 @@ NdbDictionary::Dictionary::getWarningFlags() const
 
 // printers
 
+static
 void
 pretty_print_string(NdbOut& out, 
                     const NdbDictionary::NdbDataPrintFormat &f,
@@ -2965,9 +2966,12 @@ pretty_print_string(NdbOut& out,
   }
   if (sz == 0) return; // empty
 
+  // NOTE! This for loop both checks printable and counts length
   for (len=0; len < (int)sz && ref[i] != 0; len++)
+  {
     if (printable && !isprint((int)ref[i]))
       printable= 0;
+  }
 
   if (printable)
     out.print("%.*s", len, ref);
