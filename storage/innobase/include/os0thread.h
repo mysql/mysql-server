@@ -77,7 +77,10 @@ typedef void* (*os_posix_f_t) (void*);
 #ifdef HAVE_PSI_INTERFACE
 /* Define for performance schema registration key */
 typedef unsigned int    mysql_pfs_key_t;
-#endif
+#endif /* HAVE_PSI_INTERFACE */
+
+/** Number of threads active. */
+extern	ulint	os_thread_count;
 
 /***************************************************************//**
 Compares two thread ids for equality.
@@ -144,6 +147,28 @@ void
 os_thread_sleep(
 /*============*/
 	ulint	tm);	/*!< in: time in microseconds */
+
+/**
+Initializes OS thread management data structures. */
+
+void
+os_thread_init();
+/*============*/
+
+/**
+Frees OS thread management data structures. */
+
+void
+os_thread_free();
+/*============*/
+
+/*****************************************************************//**
+Check if there are threads active.
+@return true if the thread count > 0. */
+
+bool
+os_thread_active();
+/*==============*/
 
 #ifndef UNIV_NONINL
 #include "os0thread.ic"

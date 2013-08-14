@@ -48,14 +48,10 @@ Created 1/8/1996 Heikki Tuuri
 #ifdef UNIV_BLOB_DEBUG
 # include "ut0rbt.h"
 #endif /* UNIV_BLOB_DEBUG */
+#include "sync0sync.h"
 
 #define	DICT_HEAP_SIZE		100	/*!< initial memory heap size when
 					creating a table or index object */
-
-#ifdef UNIV_PFS_MUTEX
-/* Key to register autoinc_mutex with performance schema */
-mysql_pfs_key_t	autoinc_mutex_key;
-#endif /* UNIV_PFS_MUTEX */
 
 /**********************************************************************//**
 Creates a table memory object.
@@ -109,8 +105,7 @@ dict_mem_table_create(
 	table->autoinc_lock = static_cast<ib_lock_t*>(
 		mem_heap_alloc(heap, lock_get_size()));
 
-	mutex_create(autoinc_mutex_key,
-		     &table->autoinc_mutex, SYNC_DICT_AUTOINC_MUTEX);
+	mutex_create("autoinc", &table->autoinc_mutex);
 
 	table->autoinc = 0;
 
@@ -463,7 +458,7 @@ dict_mem_index_create(
 	dict_mem_fill_index_struct(index, heap, table_name, index_name,
 				   space, type, n_fields);
 
-	os_fast_mutex_init(zip_pad_mutex_key, &index->zip_pad.mutex);
+	mutex_create("zip_pad_mutex", &index->zip_pad.mutex);
 
 	return(index);
 }
@@ -600,7 +595,7 @@ dict_mem_index_free(
 	}
 #endif /* UNIV_BLOB_DEBUG */
 
-	os_fast_mutex_free(&index->zip_pad.mutex);
+	mutex_destroy(&index->zip_pad.mutex);
 
 	mem_heap_free(index->heap);
 }

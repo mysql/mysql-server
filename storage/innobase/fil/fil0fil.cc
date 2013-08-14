@@ -50,6 +50,7 @@ Created 10/25/1995 Heikki Tuuri
 # include "buf0lru.h"
 # include "ibuf0ibuf.h"
 # include "sync0sync.h"
+# include "os0event.h"
 #else /* !UNIV_HOTBACKUP */
 # include "srv0srv.h"
 static ulint srv_data_read, srv_data_written;
@@ -131,16 +132,6 @@ ulint	fil_n_file_opened			= 0;
 
 /** The null file address */
 fil_addr_t	fil_addr_null = {FIL_NULL, 0};
-
-#ifdef UNIV_PFS_MUTEX
-/* Key to register fil_system_mutex with performance schema */
-mysql_pfs_key_t	fil_system_mutex_key;
-#endif /* UNIV_PFS_MUTEX */
-
-#ifdef UNIV_PFS_RWLOCK
-/* Key to register file space latch with performance schema */
-mysql_pfs_key_t	fil_space_latch_key;
-#endif /* UNIV_PFS_RWLOCK */
 
 /** File node of a tablespace or the log data space */
 struct fil_node_t {
@@ -330,7 +321,7 @@ static fil_system_t*	fil_system	= NULL;
 	 == SRV_UNIX_O_DIRECT_NO_FSYNC)
 #else /* _WIN32 */
 # define fil_buffering_disabled(s)	(0)
-#endif /* _WIN32_ */
+#endif /* __WIN32 */
 
 #ifdef UNIV_DEBUG
 /** Try fil_validate() every this many times */
@@ -655,7 +646,7 @@ fil_node_create(
 
 	ut_a(!is_raw || srv_start_raw_disk_in_use);
 
-	node->sync_event = os_event_create();
+	node->sync_event = os_event_create("fsync_event");
 	node->is_raw_disk = is_raw;
 	node->size = size;
 	node->magic_n = FIL_NODE_MAGIC_N;
@@ -1173,7 +1164,7 @@ fil_node_free(
 
 	UT_LIST_REMOVE(space->chain, node);
 
-	os_event_free(node->sync_event);
+	os_event_destroy(node->sync_event);
 	mem_free(node->name);
 	mem_free(node);
 }
@@ -1638,8 +1629,7 @@ fil_init(
 
 	fil_system = static_cast<fil_system_t*>(mem_zalloc(sizeof(*fil_system)));
 
-	mutex_create(fil_system_mutex_key,
-		     &fil_system->mutex, SYNC_ANY_LATCH);
+	mutex_create("fil_system", &fil_system->mutex);
 
 	fil_system->spaces = hash_create(hash_size);
 	fil_system->name_hash = hash_create(hash_size);
@@ -2194,7 +2184,7 @@ fil_op_write_log(
 
 /********************************************************//**
 Recreates table indexes by applying
-MLOG_FILE_TRUNCATE redo record during recovery.
+TRUNCATE log record during recovery.
 @return DB_SUCCESS or error code */
 
 dberr_t
@@ -2205,7 +2195,7 @@ fil_recreate_table(
 	ulint		flags,		/*!< in: tablespace flags */
 	const char*	name,		/*!< in: table name */
 	truncate_t&	truncate)	/*!< in: The information of
-					MLOG_FILE_TRUNCATE record */
+					TRUNCATE log record */
 {
 	ulint		zip_size;
 	dberr_t		err = DB_SUCCESS;
@@ -2246,7 +2236,7 @@ fil_recreate_table(
 
 /********************************************************//**
 Recreates the tablespace and table indexes by applying
-MLOG_FILE_TRUNCATE redo record during recovery.
+TRUNCATE log record during recovery.
 @return DB_SUCCESS or error code */
 
 dberr_t
@@ -2257,7 +2247,7 @@ fil_recreate_tablespace(
 	ulint		flags,		/*!< in: tablespace flags */
 	const char*	name,		/*!< in: table name */
 	truncate_t&	truncate,	/*!< in: The information of
-					MLOG_FILE_TRUNCATE record */
+					TRUNCATE log record */
 	lsn_t		recv_lsn)	/*!< in: the end LSN of
 						the log record */
 {
@@ -2477,7 +2467,7 @@ fil_op_log_parse_or_replay(
 	/* Step-1a: Parse flags and name of table.
 	Other fields (type, space-id, page-no) are parsed before
 	invocation of this function */
-	if (type == MLOG_FILE_CREATE2 || type == MLOG_FILE_TRUNCATE) {
+	if (type == MLOG_FILE_CREATE2) {
 		if (end_ptr < ptr + 4) {
 
 			return(NULL);
@@ -2502,31 +2492,7 @@ fil_op_log_parse_or_replay(
 	ut_ad(strlen(name) == name_len - 1);
 
 	/* Step-1b: Parse remaining field in type specific form. */
-	if (type == MLOG_FILE_TRUNCATE) {
-
-		truncate_t*	truncate;
-
-		truncate = new(std::nothrow) truncate_t(
-			space_id, name, tablespace_flags, log_flags, recv_lsn);
-
-		if (truncate == NULL) {
-			return(NULL);
-		}
-
-		/* old/new table-id, dir-path, indexes array is populated
-		by parse */
-		if (!truncate->parse(&ptr, &end_ptr, tablespace_flags)) {
-			delete truncate;
-			return(NULL);
-		}
-
-		if (parse_only) {
-			delete truncate;
-		} else {
-			truncate_t::add(truncate);
-		}
-
-	} else if (type == MLOG_FILE_RENAME) {
+	if (type == MLOG_FILE_RENAME) {
 
 		if (end_ptr < ptr + 2) {
 			return(NULL);
@@ -2551,10 +2517,8 @@ fil_op_log_parse_or_replay(
 
 	/* Step-2: Replay log records. */
 
-	/* MLOG_FILE_XXXX ops are not carried out on system tablespaces
-	except for MLOG_FILE_TRUNCATE. */
-	ut_ad(!Tablespace::is_system_tablespace(space_id)
-	      || type == MLOG_FILE_TRUNCATE);
+	/* MLOG_FILE_XXXX ops are not carried out on system tablespaces. */
+	ut_ad(!Tablespace::is_system_tablespace(space_id));
 
 	/* Let us try to perform the file operation, if sensible. Note that
 	ibbackup has at this stage already read in all space id info to the
@@ -2572,12 +2536,6 @@ fil_op_log_parse_or_replay(
 			ut_a(err == DB_SUCCESS);
 		}
 
-		break;
-
-	case MLOG_FILE_TRUNCATE:
-		/* Do nothing if replay is demanded.
-		Replay of REDO log is done post recovery in truncate table
-		fix-up state. */
 		break;
 
 	case MLOG_FILE_RENAME:
@@ -2866,7 +2824,8 @@ fil_close_tablespace(
 	fil_flush() from being applied to this tablespace. */
 
 	buf_LRU_flush_or_remove_pages(id, BUF_REMOVE_FLUSH_WRITE, trx);
-#endif
+#endif /* UNIV_HOTBACKUP */
+
 	mutex_enter(&fil_system->mutex);
 
 	/* If the free is successful, the X lock will be released before
@@ -3022,7 +2981,8 @@ fil_delete_tablespace(
 
 		fil_op_write_log(MLOG_FILE_DELETE, id, 0, 0, path, NULL, &mtr);
 		mtr_commit(&mtr);
-#endif
+#endif /* UNIV_HOTBACKUP */
+
 		err = DB_SUCCESS;
 	}
 
@@ -3994,7 +3954,7 @@ fil_open_single_table_tablespace(
 	ulint		valid_tablespaces_found = 0;
 
 #ifdef UNIV_SYNC_DEBUG
-	ut_ad(!fix_dict || rw_lock_own(&dict_operation_lock, RW_LOCK_EX));
+	ut_ad(!fix_dict || rw_lock_own(&dict_operation_lock, RW_LOCK_X));
 #endif /* UNIV_SYNC_DEBUG */
 	ut_ad(!fix_dict || mutex_own(&(dict_sys->mutex)));
 
@@ -4717,7 +4677,7 @@ directory. We retry 100 times if os_file_readdir_next_file() returns -1. The
 idea is to read as much good data as we can and jump over bad data.
 @return 0 if ok, -1 if error even after the retries, 1 if at the end
 of the directory */
-static
+
 int
 fil_file_readdir_next_file(
 /*=======================*/
@@ -6236,11 +6196,6 @@ void
 fil_close(void)
 /*===========*/
 {
-#ifndef UNIV_HOTBACKUP
-	/* The mutex should already have been freed. */
-	ut_ad(fil_system->mutex.magic_n == 0);
-#endif /* !UNIV_HOTBACKUP */
-
 	hash_table_free(fil_system->spaces);
 
 	hash_table_free(fil_system->name_hash);
@@ -6248,6 +6203,8 @@ fil_close(void)
 	ut_a(UT_LIST_GET_LEN(fil_system->LRU) == 0);
 	ut_a(UT_LIST_GET_LEN(fil_system->unflushed_spaces) == 0);
 	ut_a(UT_LIST_GET_LEN(fil_system->space_list) == 0);
+
+	mutex_free(&fil_system->mutex);
 
 	mem_free(fil_system);
 
@@ -6471,9 +6428,11 @@ fil_tablespace_iterate(
 	ut_a(file_size != (os_offset_t) -1);
 
 	/* The block we will use for every physical page */
-	buf_block_t	block;
+	buf_block_t*	block;
 
-	memset(&block, 0x0, sizeof(block));
+	block = reinterpret_cast<buf_block_t*>(mem_zalloc(sizeof(*block)));
+
+	mutex_create("buf_block_mutex", &block->mutex);
 
 	/* Allocate a page to read in the tablespace header, so that we
 	can determine the page size and zip_size (if it is compressed).
@@ -6483,7 +6442,7 @@ fil_tablespace_iterate(
 	void*	page_ptr = mem_alloc(3 * UNIV_PAGE_SIZE);
 	byte*	page = static_cast<byte*>(ut_align(page_ptr, UNIV_PAGE_SIZE));
 
-	fil_buf_block_init(&block, page);
+	fil_buf_block_init(block, page);
 
 	/* Read the first page and determine the page and zip size. */
 
@@ -6491,7 +6450,7 @@ fil_tablespace_iterate(
 
 		err = DB_IO_ERROR;
 
-	} else if ((err = callback.init(file_size, &block)) == DB_SUCCESS) {
+	} else if ((err = callback.init(file_size, block)) == DB_SUCCESS) {
 		fil_iterator_t	iter;
 
 		iter.file = file;
@@ -6518,7 +6477,7 @@ fil_tablespace_iterate(
 		iter.io_buffer = static_cast<byte*>(
 			ut_align(io_buffer, UNIV_PAGE_SIZE));
 
-		err = fil_iterate(iter, &block, callback);
+		err = fil_iterate(iter, block, callback);
 
 		mem_free(io_buffer);
 	}
@@ -6539,6 +6498,8 @@ fil_tablespace_iterate(
 
 	mem_free(page_ptr);
 	mem_free(filepath);
+
+	mem_free(block);
 
 	return(err);
 }

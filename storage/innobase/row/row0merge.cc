@@ -1350,10 +1350,9 @@ end_of_index:
 			ONLINE_INDEX_COMPLETE state between the time
 			the DML thread has updated the clustered index
 			but has not yet accessed secondary index. */
-			ut_ad(trx->read_view);
+			ut_ad(MVCC::is_view_active(trx->read_view));
 
-			if (!read_view_sees_trx_id(
-				    trx->read_view,
+			if (!trx->read_view->changes_visible(
 				    row_get_rec_trx_id(
 					    rec, clust_index, offsets))) {
 				rec_t*	old_vers;
@@ -2261,7 +2260,8 @@ row_merge_insert_index_tuples(
 				mtr_commit(&mtr);
 				mtr_start(&mtr);
 				btr_cur_open_at_index_side(
-					false, index, BTR_MODIFY_TREE,
+					false, index,
+					BTR_MODIFY_TREE | BTR_LATCH_FOR_INSERT,
 					&cursor, 0, &mtr);
 				page_cur_position(
 					page_rec_get_prev(btr_cur_get_rec(
@@ -2429,7 +2429,7 @@ row_merge_drop_index_dict(
 	ut_ad(trx->dict_operation_lock_mode == RW_X_LATCH);
 	ut_ad(trx_get_dict_operation(trx) == TRX_DICT_OP_INDEX);
 #ifdef UNIV_SYNC_DEBUG
-	ut_ad(rw_lock_own(&dict_operation_lock, RW_LOCK_EX));
+	ut_ad(rw_lock_own(&dict_operation_lock, RW_LOCK_X));
 #endif /* UNIV_SYNC_DEBUG */
 
 	info = pars_info_create();
@@ -2496,7 +2496,7 @@ row_merge_drop_indexes_dict(
 	ut_ad(trx->dict_operation_lock_mode == RW_X_LATCH);
 	ut_ad(trx_get_dict_operation(trx) == TRX_DICT_OP_INDEX);
 #ifdef UNIV_SYNC_DEBUG
-	ut_ad(rw_lock_own(&dict_operation_lock, RW_LOCK_EX));
+	ut_ad(rw_lock_own(&dict_operation_lock, RW_LOCK_X));
 #endif /* UNIV_SYNC_DEBUG */
 
 	/* It is possible that table->n_ref_count > 1 when
@@ -2546,7 +2546,7 @@ row_merge_drop_indexes(
 	ut_ad(trx->dict_operation_lock_mode == RW_X_LATCH);
 	ut_ad(trx_get_dict_operation(trx) == TRX_DICT_OP_INDEX);
 #ifdef UNIV_SYNC_DEBUG
-	ut_ad(rw_lock_own(&dict_operation_lock, RW_LOCK_EX));
+	ut_ad(rw_lock_own(&dict_operation_lock, RW_LOCK_X));
 #endif /* UNIV_SYNC_DEBUG */
 
 	index = dict_table_get_first_index(table);
@@ -3237,8 +3237,9 @@ row_merge_is_index_usable(
 
 	return(!dict_index_is_corrupted(index)
 	       && (dict_table_is_temporary(index->table)
-		   || !trx->read_view
-		   || read_view_sees_trx_id(trx->read_view, index->trx_id)));
+		   || index->trx_id == 0
+		   || !MVCC::is_view_active(trx->read_view)
+		   || trx->read_view->changes_visible(index->trx_id)));
 }
 
 /*********************************************************************//**

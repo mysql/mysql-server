@@ -28,7 +28,6 @@
 #include "mdl.h"
 #include "sql_locale.h"                         /* my_locale_st */
 #include "sql_profile.h"                   /* PROFILING */
-#include "scheduler.h"                     /* thd_scheduler */
 #include "protocol.h"             /* Protocol_text, Protocol_binary */
 #include "violite.h"              /* vio_is_connected */
 #include "thr_lock.h"             /* thr_lock_type, THR_LOCK_DATA,
@@ -318,6 +317,40 @@ typedef struct st_mysql_lock
   uint table_count,lock_count;
   THR_LOCK_DATA **locks;
 } MYSQL_LOCK;
+
+
+/**
+ To be used for pool-of-threads (implemeneted differently on various OSs)
+*/
+class thd_scheduler
+{
+public:
+  /*
+    Thread instrumentation for the user job.
+    This member holds the instrumentation while the user job is not run
+    by a thread.
+
+    Note that this member is not conditionally declared
+    (ifdef HAVE_PSI_INTERFACE), because doing so will change the binary
+    layout of THD, which is exposed to plugin code that may be compiled
+    differently.
+  */
+  PSI_thread *m_psi;
+
+  void *data;                  /* scheduler-specific data structure */
+
+  thd_scheduler()
+  : m_psi(NULL), data(NULL)
+  { }
+
+  ~thd_scheduler() { }
+};
+
+/* Needed to get access to scheduler variables */
+void* thd_get_scheduler_data(THD *thd);
+void thd_set_scheduler_data(THD *thd, void *data);
+PSI_thread* thd_get_psi(THD *thd);
+void thd_set_psi(THD *thd, PSI_thread *psi);
 
 
 /**
@@ -2035,7 +2068,7 @@ public:
   struct timeval start_time;
   struct timeval user_time;
   // track down slow pthread_create
-  ulonglong  prior_thr_create_utime, thr_create_utime;
+  ulonglong  thr_create_utime;
   ulonglong  start_utime, utime_after_lock;
 
   /**
@@ -2054,6 +2087,16 @@ public:
 
   /* <> 0 if we are inside of trigger or stored function. */
   uint in_sub_stmt;
+
+  /** 
+    Used by fill_status() to avoid acquiring LOCK_status mutex twice
+    when this function is called recursively (e.g. queries 
+    that contains SELECT on I_S.GLOBAL_STATUS with subquery on the 
+    same I_S table).
+    Incremented each time fill_status() function is entered and 
+    decremented each time before it returns from the function.
+  */
+  uint fill_status_recursion_level;
 
   /* container for handler's private per-connection data */
   Ha_data ha_data[MAX_HA];

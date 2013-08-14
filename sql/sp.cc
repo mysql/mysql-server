@@ -30,6 +30,7 @@
 #include "sp_cache.h"
 #include "lock.h"                               // lock_object_name
 #include "sp.h"
+#include "mysql/psi/mysql_sp.h"
 
 #include <my_user.h>
 
@@ -417,12 +418,19 @@ TABLE *open_proc_table_for_read(THD *thd, Open_tables_backup *backup)
 
   if (open_system_tables_for_read(thd, &table, backup))
     DBUG_RETURN(NULL);
+   
+  if (!table.table->key_info)
+  {
+    my_error(ER_TABLE_CORRUPT, MYF(0), table.table->s->db.str,
+             table.table->s->table_name.str);
+    goto err;
+  }
 
   if (!proc_table_intact.check(table.table, &proc_table_def))
     DBUG_RETURN(table.table);
 
+err:
   close_system_tables(thd, backup);
-
   DBUG_RETURN(NULL);
 }
 
@@ -783,6 +791,13 @@ static sp_head *sp_compile(THD *thd, String *defstr, sql_mode_t sql_mode,
   thd->sp_runtime_ctx= sp_runtime_ctx_saved;
   thd->variables.sql_mode= old_sql_mode;
   thd->variables.select_limit= old_select_limit;
+#ifdef HAVE_PSI_SP_INTERFACE
+  if (sp != NULL)
+  sp->m_sp_share= MYSQL_GET_SP_SHARE(sp->m_type == SP_TYPE_PROCEDURE ?
+                                     SP_OBJECT_TYPE_PROCEDURE : SP_OBJECT_TYPE_FUNCTION,
+                                     sp->m_db.str, sp->m_db.length,
+                                     sp->m_name.str, sp->m_name.length);
+#endif
   return sp;
 }
 
@@ -1341,6 +1356,13 @@ int sp_drop_routine(THD *thd, enum_sp_type type, sp_name *name)
       if (sp)
         sp_cache_flush_obsolete(spc, &sp);
     }
+#ifdef HAVE_PSI_SP_INTERFACE
+    /* Drop statistics for this stored program from performance schema. */
+    MYSQL_DROP_SP((type == SP_TYPE_PROCEDURE) ?
+                  SP_OBJECT_TYPE_PROCEDURE : SP_OBJECT_TYPE_FUNCTION,
+                  name->m_db.str, name->m_db.length,
+                  name->m_name.str, name->m_name.length);
+#endif 
   }
   /* Restore the state of binlog format */
   DBUG_ASSERT(!thd->is_current_stmt_binlog_format_row());
@@ -1607,7 +1629,29 @@ sp_drop_db_routines(THD *thd, char *db)
     do
     {
       if (! table->file->ha_delete_row(table->record[0]))
+      {
 	deleted= TRUE;		/* We deleted something */
+#ifdef HAVE_PSI_SP_INTERFACE
+      char* sp_name= (char*)table->field[MYSQL_PROC_FIELD_NAME]->ptr;
+      char* sp_name_end= strstr(sp_name," ");
+      uint sp_name_length= sp_name_end - sp_name;
+      uint db_name_length= strlen(db);
+
+      enum_sp_object_type sp_type;
+      if ((int)table->field[MYSQL_PROC_MYSQL_TYPE]->ptr[0] == (int)SP_TYPE_FUNCTION)
+      {
+        sp_type= SP_OBJECT_TYPE_FUNCTION;
+      }
+      else
+      {
+        sp_type= SP_OBJECT_TYPE_PROCEDURE;
+      }
+      /* Drop statistics for this stored program from performance schema. */
+      MYSQL_DROP_SP(sp_type,
+                    db, db_name_length,
+                    sp_name, sp_name_length);
+#endif
+      }
       else
       {
 	ret= SP_DELETE_ROW_FAILED;
