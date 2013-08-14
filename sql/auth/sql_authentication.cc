@@ -23,6 +23,7 @@
                                         /* release_user_connection */
 #include "hostname.h"                   /* Host_errors, inc_host_errors */
 #include "sql_db.h"                     /* mysql_change_db */
+#include "connection_handler_manager.h"
 #include <mysql/plugin_validate_password.h> /* validate_password plugin */
 
 #if defined(HAVE_OPENSSL) && !defined(HAVE_YASSL)
@@ -183,6 +184,13 @@ Rsa_authentication_keys::read_key_file(RSA **key_ptr,
       ERR_error_string_n(ERR_get_error(), error_buf, MYSQL_ERRMSG_SIZE);
       sql_print_error("Failure to parse RSA %s key (file exists): %s:"
                       " %s", key_type, key_file_path.c_ptr(), error_buf);
+
+      /*
+        Call ERR_clear_error() just in case there are more than 1 entry in the
+        OpenSSL thread's error queue.
+      */
+      ERR_clear_error();
+
       return true;
     }
 
@@ -2437,16 +2445,15 @@ acl_authenticate(THD *thd, uint com_change_user_pkt_len)
   if (command == COM_CONNECT &&
       !(thd->main_security_ctx.master_access & SUPER_ACL))
   {
-    mysql_mutex_lock(&LOCK_connection_count);
-    bool count_ok= (connection_count <= max_connections);
-    mysql_mutex_unlock(&LOCK_connection_count);
-    if (!count_ok)
+#ifndef EMBEDDED_LIBRARY
+    if (!Connection_handler_manager::valid_connection_count())
     {                                         // too many connections
       release_user_connection(thd);
       connection_errors_max_connection++;
       my_error(ER_CON_COUNT_ERROR, MYF(0));
       DBUG_RETURN(1);
     }
+#endif // !EMBEDDED_LIBRARY
   }
 
   /*

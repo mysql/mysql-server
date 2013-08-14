@@ -40,6 +40,8 @@ struct PFS_events
   ulonglong m_nesting_event_id;
   /** NESTING_EVENT_TYPE */
   enum_event_type m_nesting_event_type;
+  /** NESTING_EVENT_LEVEL */
+  uint m_nesting_event_level;
   /** Instrument metadata. */
   PFS_instr_class *m_class;
   /**

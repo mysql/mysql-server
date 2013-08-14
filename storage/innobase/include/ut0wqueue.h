@@ -35,6 +35,8 @@ processing.
 #include "ut0list.h"
 #include "mem0mem.h"
 
+// Forward declaration
+struct ib_list_t;
 struct ib_wqueue_t;
 
 /****************************************************************//**
@@ -42,8 +44,8 @@ Create a new work queue.
 @return work queue */
 
 ib_wqueue_t*
-ib_wqueue_create(void);
-/*===================*/
+ib_wqueue_create();
+/*===============*/
 
 /****************************************************************//**
 Free a work queue. */
@@ -51,7 +53,7 @@ Free a work queue. */
 void
 ib_wqueue_free(
 /*===========*/
-	ib_wqueue_t*	wq);	/*!< in: work queue */
+	ib_wqueue_t*	wq);		/*!< in: work queue */
 
 /****************************************************************//**
 Add a work item to the queue. */
@@ -59,10 +61,10 @@ Add a work item to the queue. */
 void
 ib_wqueue_add(
 /*==========*/
-	ib_wqueue_t*	wq,	/*!< in: work queue */
-	void*		item,	/*!< in: work item */
-	mem_heap_t*	heap);	/*!< in: memory heap to use for allocating the
-				list node */
+	ib_wqueue_t*	wq,		/*!< in: work queue */
+	void*		item,		/*!< in: work item */
+	mem_heap_t*	heap);		/*!< in: memory heap to use for
+					allocating the list node */
 
 /********************************************************************
 Check if queue is empty. */
@@ -81,7 +83,7 @@ Wait for a work item to appear in the queue.
 void*
 ib_wqueue_wait(
 /*===========*/
-	ib_wqueue_t*	wq);	/*!< in: work queue */
+	ib_wqueue_t*	wq);		/*!< in: work queue */
 
 /********************************************************************
 Wait for a work item to appear in the queue for specified time. */
@@ -93,11 +95,4 @@ ib_wqueue_timedwait(
 	ib_wqueue_t*	wq,		/* in: work queue */
 	ib_time_t	wait_in_usecs); /* in: wait time in micro seconds */
 
-/* Work queue. */
-struct ib_wqueue_t {
-	ib_mutex_t		mutex;	/*!< mutex protecting everything */
-	ib_list_t*	items;	/*!< work item list */
-	os_event_t	event;	/*!< event we use to signal additions to list */
-};
-
-#endif
+#endif /* IB_WORK_QUEUE_H */

@@ -61,6 +61,7 @@
 #include "lock.h"
 #include "global_threads.h"
 #include "mysqld.h"
+#include "connection_handler_manager.h"   // Connection_handler_manager
 
 #include <mysql/psi/mysql_statement.h>
 
@@ -384,14 +385,14 @@ void thd_new_connection_setup(THD *thd, char *stack_start)
 {
   DBUG_ENTER("thd_new_connection_setup");
   mysql_mutex_assert_owner(&LOCK_thread_count);
+  thd->thread_id= thd->variables.pseudo_thread_id= thread_id++;
 #ifdef HAVE_PSI_INTERFACE
   thd_set_psi(thd,
               PSI_THREAD_CALL(new_thread)
                 (key_thread_one_connection, thd, thd->thread_id));
 #endif
   thd->set_time();
-  thd->prior_thr_create_utime= thd->thr_create_utime= thd->start_utime=
-    my_micro_time();
+  thd->thr_create_utime= thd->start_utime= my_micro_time();
 
   add_global_thread(thd);
   mysql_mutex_unlock(&LOCK_thread_count);
@@ -886,6 +887,7 @@ THD::THD(bool enable_plugins)
    rli_fake(0), rli_slave(NULL),
    query_plan(this),
    in_sub_stmt(0),
+   fill_status_recursion_level(0),
    binlog_row_event_extra_data(NULL),
    binlog_unsafe_warning_flags(0),
    binlog_table_maps(0),
@@ -959,7 +961,7 @@ THD::THD(bool enable_plugins)
   user_time.tv_usec= 0;
   start_time.tv_sec= 0;
   start_time.tv_usec= 0;
-  start_utime= prior_thr_create_utime= 0L;
+  start_utime= 0L;
   utime_after_lock= 0L;
   current_linfo =  0;
   slave_thread = 0;
@@ -1446,9 +1448,9 @@ void THD::init_for_queries(Relay_log_info *rli)
 
 void THD::change_user(void)
 {
-  mysql_rwlock_wrlock(&LOCK_status);
+  mysql_mutex_lock(&LOCK_status);
   add_to_status(&global_status_var, &status_var);
-  mysql_rwlock_unlock(&LOCK_status);
+  mysql_mutex_unlock(&LOCK_status);
 
   cleanup();
   killed= NOT_KILLED;
@@ -1546,9 +1548,9 @@ void THD::release_resources()
   mysql_mutex_assert_not_owner(&LOCK_thread_count);
   DBUG_ASSERT(m_release_resources_done == false);
 
-  mysql_rwlock_wrlock(&LOCK_status);
+  mysql_mutex_lock(&LOCK_status);
   add_to_status(&global_status_var, &status_var);
-  mysql_rwlock_unlock(&LOCK_status);
+  mysql_mutex_unlock(&LOCK_status);
 
   /* Ensure that no one is using THD */
   mysql_mutex_lock(&LOCK_thd_data);
@@ -1773,7 +1775,8 @@ void THD::awake(THD::killed_state state_to_set)
 
     /* Send an event to the scheduler that a thread should be killed. */
     if (!slave_thread)
-      MYSQL_CALLBACK(thread_scheduler, post_kill_notification, (this));
+      MYSQL_CALLBACK(Connection_handler_manager::callback,
+                     post_kill_notification, (this));
   }
 
   /* Broadcast a condition to kick the target if it is waiting on it. */
@@ -4074,7 +4077,8 @@ extern "C" void thd_pool_wait_end(MYSQL_THD thd);
 */
 extern "C" void thd_wait_begin(MYSQL_THD thd, int wait_type)
 {
-  MYSQL_CALLBACK(thread_scheduler, thd_wait_begin, (thd, wait_type));
+  MYSQL_CALLBACK(Connection_handler_manager::callback,
+                 thd_wait_begin, (thd, wait_type));
 }
 
 /**
@@ -4085,7 +4089,8 @@ extern "C" void thd_wait_begin(MYSQL_THD thd, int wait_type)
 */
 extern "C" void thd_wait_end(MYSQL_THD thd)
 {
-  MYSQL_CALLBACK(thread_scheduler, thd_wait_end, (thd));
+  MYSQL_CALLBACK(Connection_handler_manager::callback,
+                 thd_wait_end, (thd));
 }
 #else
 extern "C" void thd_wait_begin(MYSQL_THD thd, int wait_type)
@@ -4681,7 +4686,7 @@ void THD::decrement_user_connections_counter()
 
 void THD::increment_con_per_hour_counter()
 {
-  DBUG_ENTER("THD::decrement_conn_per_hour_counter");
+  DBUG_ENTER("THD::increment_con_per_hour_counter");
 
   m_user_connect->conn_per_hour++;
 
@@ -4699,7 +4704,7 @@ void THD::increment_updates_counter()
 
 void THD::increment_questions_counter()
 {
-  DBUG_ENTER("THD::increment_updates_counter");
+  DBUG_ENTER("THD::increment_questions_counter");
 
   m_user_connect->questions++;
 

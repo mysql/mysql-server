@@ -1332,7 +1332,15 @@ int plugin_init(int *argc, char **argv, int flags)
           to work, by using '--skip-performance-schema' (the plugin)
       */
       if (!my_strcasecmp(&my_charset_latin1, plugin->name, "PERFORMANCE_SCHEMA"))
-        tmp.load_option= PLUGIN_FORCE;
+      {
+        if (load_perfschema_engine)
+          tmp.load_option= PLUGIN_FORCE;
+        else
+        {
+          tmp.load_option= PLUGIN_OFF;
+          continue;
+        }
+      }
 
       free_root(&tmp_root, MYF(MY_MARK_BLOCKS_FREE));
       if (test_plugin_options(&tmp_root, &tmp, argc, argv))
@@ -1931,6 +1939,13 @@ bool mysql_uninstall_plugin(THD *thd, const LEX_STRING *name)
   /* need to open before acquiring LOCK_plugin or it will deadlock */
   if (! (table= open_ltable(thd, &tables, TL_WRITE, MYSQL_LOCK_IGNORE_TIMEOUT)))
     DBUG_RETURN(TRUE);
+
+  if (!table->key_info)
+  {
+    my_error(ER_TABLE_CORRUPT, MYF(0), table->s->db.str,
+             table->s->table_name.str);
+    DBUG_RETURN(TRUE);
+  }
 
   /*
     Pre-acquire audit plugins for events that may potentially occur

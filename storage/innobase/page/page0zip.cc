@@ -61,11 +61,6 @@ Created June 2005 by Marko Makela
 page_zip_stat_t		page_zip_stat[PAGE_ZIP_SSIZE_MAX];
 /** Statistics on compression, indexed by index->id */
 page_zip_stat_per_index_t	page_zip_stat_per_index;
-/** Mutex protecting page_zip_stat_per_index */
-ib_mutex_t			page_zip_stat_per_index_mutex;
-#ifdef HAVE_PSI_INTERFACE
-mysql_pfs_key_t		page_zip_stat_per_index_mutex_key;
-#endif /* HAVE_PSI_INTERFACE */
 #endif /* !UNIV_HOTBACKUP */
 
 /* Compression level to be used by zlib. Settable by user. */
@@ -1215,7 +1210,7 @@ page_zip_compress(
 	ulint			level,		/*!< in: commpression level */
 	const redo_page_compress_t* page_comp_info,
 						/*!< in: used for applying
-						MLOG_FILE_TRUNCATE redo log
+						TRUNCATE log
 						record during recovery */
 	mtr_t*			mtr)		/*!< in/out: mini-transaction,
 						or NULL */
@@ -1238,7 +1233,7 @@ page_zip_compress(
 	ulint			n_blobs	= 0;
 	byte*			storage;	/* storage of uncompressed
 						columns */
-	ulint			ind_id;
+	index_id_t		ind_id;
 #ifndef UNIV_HOTBACKUP
 	ullint			usec = ut_time_us(NULL);
 #endif /* !UNIV_HOTBACKUP */
@@ -1598,9 +1593,9 @@ page_zip_fields_free(
 {
 	if (index) {
 		dict_table_t*	table = index->table;
-		os_fast_mutex_free(&index->zip_pad.mutex);
+		mutex_free(&index->zip_pad.mutex);
 		mem_heap_free(index->heap);
-		mutex_free(&(table->autoinc_mutex));
+		mutex_free(&table->autoinc_mutex);
 		ut_free(table->name);
 		mem_heap_free(table->heap);
 	}

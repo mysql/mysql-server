@@ -33,7 +33,9 @@ Created 2/6/1997 Heikki Tuuri
 #include "que0types.h"
 #include "rem0types.h"
 #include "mtr0mtr.h"
-#include "read0types.h"
+
+// Forward declaration
+class ReadView;
 
 /*****************************************************************//**
 Finds out if an active transaction has inserted or modified a secondary
@@ -99,7 +101,7 @@ row_vers_build_for_consistent_read(
 	dict_index_t*	index,	/*!< in: the clustered index */
 	ulint**		offsets,/*!< in/out: offsets returned by
 				rec_get_offsets(rec, index) */
-	read_view_t*	view,	/*!< in: the consistent read view */
+	ReadView*	view,	/*!< in: the consistent read view */
 	mem_heap_t**	offset_heap,/*!< in/out: memory heap from which
 				the offsets are allocated */
 	mem_heap_t*	in_heap,/*!< in: memory heap from which the memory for

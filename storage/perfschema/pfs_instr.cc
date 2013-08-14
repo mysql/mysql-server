@@ -31,6 +31,8 @@
 #include "pfs_global.h"
 #include "pfs_instr_class.h"
 
+ulong nested_statement_lost= 0;
+
 /**
   @addtogroup Performance_schema_buffers
   @{
@@ -243,7 +245,7 @@ int init_instruments(const PFS_global_param *param)
   thread_statements_history_sizing= param->m_thread_sizing
     * events_statements_history_per_thread;
 
-  statement_stack_max= 1;
+  statement_stack_max= param->m_statement_stack_sizing;
   thread_statements_stack_sizing= param->m_thread_sizing * statement_stack_max;
 
   thread_instr_class_stages_sizing= param->m_thread_sizing
@@ -990,6 +992,7 @@ PFS_thread* create_thread(PFS_thread_class *klass, const void *identity,
         pfs->m_account_hash_pins= NULL;
         pfs->m_host_hash_pins= NULL;
         pfs->m_digest_hash_pins= NULL;
+        pfs->m_program_hash_pins= NULL;
 
         pfs->m_username_length= 0;
         pfs->m_hostname_length= 0;
@@ -1186,6 +1189,11 @@ void destroy_thread(PFS_thread *pfs)
   {
     lf_hash_put_pins(pfs->m_digest_hash_pins);
     pfs->m_digest_hash_pins= NULL;
+  }
+  if (pfs->m_program_hash_pins)
+  {
+    lf_hash_put_pins(pfs->m_program_hash_pins);
+    pfs->m_program_hash_pins= NULL;
   }
   pfs->m_lock.allocated_to_free();
   thread_full= false;

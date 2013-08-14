@@ -53,6 +53,9 @@ select count(name) from mutex_instances
  where name like "wait/synch/mutex/sql/LOCK_log_throttle_qni";
 
 select count(name) from mutex_instances
+ where name like "wait/synch/mutex/sql/LOCK_status";
+
+select count(name) from mutex_instances
  where name like "wait/synch/mutex/sql/LOCK_error_log";
 
 select count(name) from mutex_instances
@@ -134,9 +137,6 @@ select count(name) from rwlock_instances
 
 select count(name) from rwlock_instances
  where name like "wait/synch/rwlock/sql/LOCK_system_variables_hash";
-
-select count(name) from rwlock_instances
- where name like "wait/synch/rwlock/sql/LOCK_status";
 
 # Verify that these global conditions have been properly initilized in sql
 

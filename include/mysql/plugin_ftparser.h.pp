@@ -53,13 +53,15 @@ extern struct thd_wait_service_st {
 void thd_wait_begin(void* thd, int wait_type);
 void thd_wait_end(void* thd);
 #include <mysql/service_thread_scheduler.h>
-struct scheduler_functions;
+struct Connection_handler_callback;
 extern struct my_thread_scheduler_service {
-  int (*set)(struct scheduler_functions *scheduler);
-  int (*reset)();
+  int (*connection_handler_set)(void* conn_handler,
+                                struct Connection_handler_callback *cb);
+  int (*connection_handler_reset)();
 } *my_thread_scheduler_service;
-int my_thread_scheduler_set(struct scheduler_functions *scheduler);
-int my_thread_scheduler_reset();
+int my_connection_handler_set(void* conn_handler,
+                              struct Connection_handler_callback *cb);
+int my_connection_handler_reset();
 #include <mysql/service_my_plugin_log.h>
 enum plugin_log_level
 {

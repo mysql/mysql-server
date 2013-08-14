@@ -481,6 +481,19 @@ inline_mysql_socket_set_state(MYSQL_SOCKET socket, enum PSI_socket_state state)
 #endif
 
 /**
+  @def mysql_sock_set_nonblocking
+  Set socket to non-blocking.
+  @param FD instrumented socket descriptor
+*/
+#ifdef HAVE_PSI_SOCKET_INTERFACE
+  #define mysql_sock_set_nonblocking(FD) \
+    inline_mysql_sock_set_nonblocking(__FILE__, __LINE__, FD)
+#else
+  #define mysql_sock_set_nonblocking(FD) \
+    inline_mysql_sock_set_nonblocking(FD)
+#endif
+
+/**
   @def mysql_socket_listen(FD, N)
   Set socket state to listen for an incoming connection.
   @c mysql_socket_listen is a replacement for @c listen.
@@ -970,6 +983,78 @@ inline_mysql_socket_setsockopt
 
   /* Non instrumented code */
   result= setsockopt(mysql_socket.fd, level, optname, optval, optlen);
+
+  return result;
+}
+
+/** set_socket_nonblock */
+static inline int
+set_socket_nonblock(my_socket fd)
+{
+  int ret= 0;
+#ifdef _WIN32
+  {
+    u_long nonblocking= 1;
+    ret= ioctlsocket(fd, FIONBIO, &nonblocking);
+  }
+#else
+  {
+    int fd_flags;
+    fd_flags= fcntl(fd, F_GETFL, 0);
+    if (fd_flags < 0)
+      return errno;
+#if defined(O_NONBLOCK)
+    fd_flags |= O_NONBLOCK;
+#elif defined(O_NDELAY)
+    fd_flags |= O_NDELAY;
+#elif defined(O_FNDELAY)
+    fd_flags |= O_FNDELAY;
+#else
+#error "No definition of non-blocking flag found."
+#endif /* O_NONBLOCK */
+    if (fcntl(fd, F_SETFL, fd_flags) == -1)
+      ret= errno;
+  }
+#endif /* _WIN32 */
+  return ret;
+}
+
+/** mysql_socket_set_nonblocking */
+
+static inline int
+inline_mysql_sock_set_nonblocking
+(
+#ifdef HAVE_PSI_SOCKET_INTERFACE
+  const char *src_file, uint src_line,
+#endif
+  MYSQL_SOCKET mysql_socket
+)
+{
+  int result= 0;
+
+#ifdef HAVE_PSI_SOCKET_INTERFACE
+  if (mysql_socket.m_psi)
+  {
+    /* Instrumentation start */
+    PSI_socket_locker *locker;
+    PSI_socket_locker_state state;
+    locker= PSI_SOCKET_CALL(start_socket_wait)
+        (&state, mysql_socket.m_psi, PSI_SOCKET_OPT,
+         (size_t)0, src_file, src_line);
+
+    /* Instrumented code */
+    result= set_socket_nonblock(mysql_socket.fd);
+
+    /* Instrumentation end */
+    if (locker != NULL)
+      PSI_SOCKET_CALL(end_socket_wait)(locker, (size_t)0);
+
+    return result;
+  }
+#endif
+
+  /* Non instrumented code */
+  result= set_socket_nonblock(mysql_socket.fd);
 
   return result;
 }

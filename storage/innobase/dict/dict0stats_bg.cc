@@ -23,10 +23,11 @@ Code used for background table and index stats gathering.
 Created Apr 25, 2012 Vasil Dimov
 *******************************************************/
 
-#include "row0mysql.h"
-#include "srv0start.h"
+#include "dict0dict.h"
 #include "dict0stats.h"
 #include "dict0stats_bg.h"
+#include "row0mysql.h"
+#include "srv0start.h"
 
 #ifdef UNIV_NONINL
 # include "dict0stats_bg.ic"
@@ -44,9 +45,6 @@ os_event_t		dict_stats_event = NULL;
 
 /** This mutex protects the "recalc_pool" variable. */
 static ib_mutex_t		recalc_pool_mutex;
-#ifdef HAVE_PSI_INTERFACE
-mysql_pfs_key_t	dict_stats_recalc_pool_mutex_key;
-#endif /* HAVE_PSI_INTERFACE */
 
 /** The number of tables that can be added to "recalc_pool" before
 it is enlarged */
@@ -55,6 +53,7 @@ static const ulint RECALC_POOL_INITIAL_SLOTS = 128;
 /** The multitude of tables whose stats are to be automatically
 recalculated - an STL vector */
 typedef std::vector<table_id_t>	recalc_pool_t;
+
 static recalc_pool_t		recalc_pool;
 
 typedef recalc_pool_t::iterator	recalc_pool_iterator_t;
@@ -209,7 +208,7 @@ dict_stats_thread_init()
 {
 	ut_a(!srv_read_only_mode);
 
-	dict_stats_event = os_event_create();
+	dict_stats_event = os_event_create(0);
 
 	/* The recalc_pool_mutex is acquired from:
 	1) the background stats gathering thread before any other latch
@@ -224,8 +223,8 @@ dict_stats_thread_init()
 	   and dict_operation_lock (SYNC_DICT_OPERATION) have been locked
 	   (thus a level <SYNC_DICT && <SYNC_DICT_OPERATION would do)
 	So we choose SYNC_STATS_AUTO_RECALC to be about below SYNC_DICT. */
-	mutex_create(dict_stats_recalc_pool_mutex_key, &recalc_pool_mutex,
-		     SYNC_STATS_AUTO_RECALC);
+
+	mutex_create("recalc_pool", &recalc_pool_mutex);
 
 	dict_stats_recalc_pool_init();
 }
@@ -246,7 +245,7 @@ dict_stats_thread_deinit()
 	mutex_free(&recalc_pool_mutex);
 	memset(&recalc_pool_mutex, 0x0, sizeof(recalc_pool_mutex));
 
-	os_event_free(dict_stats_event);
+	os_event_destroy(dict_stats_event);
 	dict_stats_event = NULL;
 }
 
