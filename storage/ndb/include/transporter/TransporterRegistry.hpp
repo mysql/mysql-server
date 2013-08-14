@@ -189,6 +189,14 @@ public:
    */
   NDB_SOCKET_TYPE connect_ndb_mgmd(NdbMgmHandle *h);
 
+private:
+
+  /**
+   * Report the dynamically allocated ports to ndb_mgmd so that clients
+   * which want to connect to ndbd can ask ndb_mgmd which port to use.
+   */
+  bool report_dynamic_ports(NdbMgmHandle h) const;
+
   /**
    * Remove all transporters
    */
@@ -198,6 +206,8 @@ public:
    * Disconnect all transporters
    */
   void disconnectAll();
+
+public:
 
   /**
    * Stops the server, disconnects all the transporter 

@@ -2206,6 +2206,468 @@ int runTestConnectionParameterUntilStopped(NDBT_Context* ctx, NDBT_Step* step)
   while(!ctx->isTestStopped() &&
         (result= runTestConnectionParameter(ctx, step)) == NDBT_OK)
     ;
+
+  return result;
+}
+
+
+static bool
+set_ports(NdbMgmd& mgmd,
+          const Properties& args, const char* bulk_arg,
+          Properties& reply)
+{
+  if (!mgmd.call("set ports", args,
+                 "set ports reply", reply, bulk_arg))
+  {
+    g_err << "set_ports: mgmd.call failed" << endl;
+    return false;
+  }
+  return true;
+}
+
+static bool
+check_set_ports_invalid_nodeid(NdbMgmd& mgmd)
+{
+  for (int nodeId = MAX_NODES; nodeId < MAX_NODES+2; nodeId++)
+  {
+    g_err << "Testing invalid node " << nodeId << endl;
+
+    Properties args;
+    args.put("node", nodeId);
+    args.put("num_ports", 2);
+
+    Properties set_result;
+    if (!set_ports(mgmd, args, "", set_result))
+      return false;
+
+    if (ok(set_result))
+      return false;
+
+    if (!result_contains(set_result, "Illegal value for argument node"))
+      return false;
+  }
+  return true;
+}
+
+static bool
+check_set_ports_invalid_num_ports(NdbMgmd& mgmd)
+{
+  g_err << "Testing invalid number of ports "<< endl;
+
+  Properties args;
+  args.put("node", 1);
+  args.put("num_ports", MAX_NODES + 37);
+
+  Properties set_result;
+  if (!set_ports(mgmd, args, "", set_result))
+    return false;
+
+  if (ok(set_result))
+    return false;
+
+  if (!result_contains(set_result, "Illegal value for argument num_ports"))
+    return false;
+
+  return true;
+}
+
+
+
+static bool
+check_set_ports_invalid_mismatch_num_port_1(NdbMgmd& mgmd)
+{
+  g_err << "Testing invalid num port 1"<< endl;
+
+  Properties args;
+  args.put("node", 1);
+  args.put("num_ports", 1);
+  // Intend to send 1   ^ but passes two below
+
+  Properties set_result;
+  if (!set_ports(mgmd, args, "1=-37\n2=-38\n", set_result))
+    return false;
+
+  if (ok(set_result))
+    return false;
+  set_result.print();
+
+  if (!result_contains(set_result, "expected empty line"))
+    return false;
+
+  return true;
+}
+
+static bool
+check_set_ports_invalid_mismatch_num_port_2(NdbMgmd& mgmd)
+{
+  g_err << "Testing invalid num port 2"<< endl;
+
+  Properties args;
+  args.put("node", 1);
+  args.put("num_ports", 2);
+  // Intend to send 2   ^ but pass only one line below
+
+  Properties set_result;
+  if (!set_ports(mgmd, args, "1=-37\n", set_result))
+    return false;
+
+  if (ok(set_result))
+    return false;
+  set_result.print();
+
+  if (!result_contains(set_result, "expected name=value pair"))
+    return false;
+
+  return true;
+}
+
+
+static bool
+check_set_ports_invalid_port_list(NdbMgmd& mgmd)
+{
+  g_err << "Testing invalid port list"<< endl;
+
+  Properties args;
+  args.put("node", 1);
+  // No connection from 1 -> 1 exist
+  args.put("num_ports", 1);
+
+  Properties set_result;
+  if (!set_ports(mgmd, args, "1=-37\n", set_result))
+    return false;
+  set_result.print();
+
+  if (ok(set_result))
+    return false;
+
+  if (!result_contains(set_result,
+                       "Unable to find connection between nodes 1 -> 1"))
+    return false;
+
+  return true;
+}
+
+static bool check_mgmapi_err(NdbMgmd& mgmd,
+                             int return_code,
+                             int expected_error,
+                             const char* expected_message)
+{
+  if (return_code != -1)
+  {
+    ndbout_c("check_mgmapi_error: unexpected return code: %d", return_code);
+    return false;
+  }
+  if (mgmd.last_error() != expected_error)
+  {
+     ndbout_c("check_mgmapi_error: unexpected error code: %d "
+              "expected %d", mgmd.last_error(), expected_error);
+    return false;
+  }
+  if (strstr(mgmd.last_error_message(), expected_message) == NULL)
+  {
+    ndbout_c("check_mgmapi_error: last_error_message '%s' "
+             "didn't contain expected message '%s'",
+             mgmd.last_error_message(), expected_message);
+    return false;
+  }
+  return true;
+
+}
+
+static bool
+check_set_ports_mgmapi(NdbMgmd& mgmd)
+{
+  g_err << "Testing mgmapi"<< endl;
+
+  int ret;
+  int nodeid = 1;
+  unsigned num_ports = 1;
+  ndb_mgm_dynamic_port ports[MAX_NODES * 10];
+  compile_time_assert(MAX_NODES < NDB_ARRAY_SIZE(ports));
+  ports[0].nodeid = 1;
+  ports[0].port = -1;
+
+  {
+    ndbout_c("No handle");
+    NdbMgmd no_handle;
+    ret = ndb_mgm_set_dynamic_ports(no_handle.handle(), nodeid,
+                                    ports, num_ports);
+    if (ret != -1)
+      return false;
+  }
+  {
+    ndbout_c("Not connected");
+    NdbMgmd no_con;
+    no_con.verbose(false);
+    if (no_con.connect("no_such_host:12345", 0, 1))
+    {
+      // Connect should not suceed!
+      return false;
+    }
+
+    ret = ndb_mgm_set_dynamic_ports(no_con.handle(), nodeid,
+                                    ports, num_ports);
+    if (!check_mgmapi_err(no_con, ret, NDB_MGM_SERVER_NOT_CONNECTED, ""))
+      return false;
+  }
+
+  ndbout_c("Invalid number of ports");
+  num_ports = 0; // <<
+  ret = ndb_mgm_set_dynamic_ports(mgmd.handle(), nodeid,
+                                  ports, num_ports);
+  if (!check_mgmapi_err(mgmd, ret, NDB_MGM_USAGE_ERROR,
+                        "Illegal number of dynamic ports"))
+    return false;
+
+  ndbout_c("Invalid nodeid");
+  nodeid = 0; // <<
+  num_ports = 1;
+  ret = ndb_mgm_set_dynamic_ports(mgmd.handle(), nodeid,
+                                  ports, num_ports);
+  if (!check_mgmapi_err(mgmd, ret, NDB_MGM_USAGE_ERROR,
+                        "Illegal value for argument node: 0"))
+    return false;
+
+  ndbout_c("Invalid port in list");
+  nodeid = 1;
+  ports[0].nodeid = 1;
+  ports[0].port = 1; // <<
+  ret = ndb_mgm_set_dynamic_ports(mgmd.handle(), nodeid,
+                                  ports, num_ports);
+  if (!check_mgmapi_err(mgmd, ret, NDB_MGM_USAGE_ERROR,
+                        "Illegal port specfied in ports array"))
+    return false;
+
+
+  ndbout_c("Invalid nodeid in list");
+  nodeid = 1;
+  ports[0].nodeid = 0; // <<
+  ports[0].port = -11;
+  ret = ndb_mgm_set_dynamic_ports(mgmd.handle(), nodeid,
+                                  ports, num_ports);
+  if (!check_mgmapi_err(mgmd, ret, NDB_MGM_USAGE_ERROR,
+                        "Illegal nodeid specfied in ports array"))
+    return false;
+
+  ndbout_c("Max number of ports exceeded");
+  nodeid = 1;
+  num_ports = MAX_NODES; // <<
+  for (unsigned i = 0; i < num_ports; i++)
+  {
+    ports[i].nodeid = i+1;
+    ports[i].port = -37;
+  }
+  ret = ndb_mgm_set_dynamic_ports(mgmd.handle(), nodeid,
+                                  ports, num_ports);
+  if (!check_mgmapi_err(mgmd, ret, NDB_MGM_USAGE_ERROR,
+                        "Illegal value for argument num_ports"))
+    return false;
+
+  ndbout_c("Many many ports");
+  nodeid = 1;
+  num_ports = NDB_ARRAY_SIZE(ports); // <<
+  for (unsigned i = 0; i < num_ports; i++)
+  {
+    ports[i].nodeid = i+1;
+    ports[i].port = -37;
+  }
+  ret = ndb_mgm_set_dynamic_ports(mgmd.handle(), nodeid,
+                                  ports, num_ports);
+  if (!check_mgmapi_err(mgmd, ret, NDB_MGM_USAGE_ERROR,
+                        "Illegal value for argument num_ports"))
+    return false;
+
+  return true;
+}
+
+// Return name value pair of nodeid/ports which can be sent
+// verbatim back to ndb_mgmd
+static bool
+get_all_ports(NdbMgmd& mgmd, Uint32 nodeId1, BaseString& values)
+{
+  for (int nodeId = 1; nodeId < MAX_NODES; nodeId++)
+  {
+    Properties args;
+    args.put("node1", nodeId1);
+    args.put("node2", nodeId);
+
+    Properties result;
+    if (!get_connection_parameter(mgmd, args, result))
+      return false;
+
+    if (!ok(result))
+      continue;
+
+    // Get value
+    BaseString value;
+    if (!result.get("value", value))
+    {
+      g_err << "Failed to get value" << endl;
+      return false;
+    }
+    values.appfmt("%d=%s\n", nodeId, value.c_str());
+  }
+  return true;
+}
+
+
+static bool
+check_set_ports(NdbMgmd& mgmd)
+{
+  // Find a NDB node with dynamic port
+  Config conf;
+  if (!mgmd.get_config(conf))
+    return false;
+
+  Uint32 nodeId1 = 0;
+  for(Uint32 i= 1; i < MAX_NODES; i++){
+    Uint32 nodeType;
+    ConfigIter iter(&conf, CFG_SECTION_NODE);
+    if (iter.find(CFG_NODE_ID, i) == 0 &&
+        iter.get(CFG_TYPE_OF_SECTION, &nodeType) == 0 &&
+        nodeType == NDB_MGM_NODE_TYPE_NDB){
+      nodeId1 = i;
+      break;
+    }
+  }
+
+  g_err << "Using NDB node with id: " << nodeId1 << endl;
+
+  g_err << "Get original values of dynamic ports" << endl;
+  BaseString original_values;
+  if (!get_all_ports(mgmd, nodeId1, original_values))
+  {
+    g_err << "Failed to get all original values" << endl;
+    return false;
+  }
+  ndbout_c("original values: %s", original_values.c_str());
+
+  g_err << "Set new values for all dynamic ports" << endl;
+  BaseString new_values;
+  {
+    Vector<BaseString> port_pairs;
+    original_values.split(port_pairs, "\n");
+    // Remove last empty line
+    assert(port_pairs[port_pairs.size()-1] == "");
+    port_pairs.erase(port_pairs.size()-1);
+
+    // Generate new portnumbers
+    for (unsigned i = 0; i < port_pairs.size(); i++)
+    {
+      unsigned nodeid, port;
+      if (sscanf(port_pairs[i].c_str(), "%d=%d", &nodeid, &port) != 2)
+      {
+        g_err << "Failed to parse port_pairs[" << i << "]: '"
+              << port_pairs[i] << "'" << endl;
+        return false;
+      }
+      new_values.appfmt("%d=%d\n", nodeid, -(37 + i));
+    }
+
+    Properties args;
+    args.put("node", nodeId1);
+    args.put("num_ports", port_pairs.size());
+
+    Properties set_result;
+    if (!set_ports(mgmd, args, new_values.c_str(), set_result))
+      return false;
+
+    if (!ok(set_result))
+    {
+      g_err << "Unexpected result received from set_ports" << endl;
+      set_result.print();
+      return false;
+    }
+  }
+
+  g_err << "Compare new values of dynamic ports" << endl;
+  {
+    BaseString current_values;
+    if (!get_all_ports(mgmd, nodeId1, current_values))
+    {
+      g_err << "Failed to get all current values" << endl;
+      return false;
+    }
+    ndbout_c("current values: %s", current_values.c_str());
+
+    if (current_values != new_values)
+    {
+      g_err << "Set values was not correct, expected "
+            << new_values << ", got "
+            << current_values << endl;
+      return false;
+    }
+  }
+
+  g_err << "Restore old values" << endl;
+  {
+    Vector<BaseString> port_pairs;
+    original_values.split(port_pairs, "\n");
+    // Remove last empty line
+    assert(port_pairs[port_pairs.size()-1] == "");
+    port_pairs.erase(port_pairs.size()-1);
+
+    Properties args;
+    args.put("node", nodeId1);
+    args.put("num_ports", port_pairs.size());
+
+    Properties set_result;
+    if (!set_ports(mgmd, args, original_values.c_str(), set_result))
+      return false;
+
+    if (!ok(set_result))
+    {
+      g_err << "Unexpected result received from set_ports" << endl;
+      set_result.print();
+      return false;
+    }
+  }
+
+  g_err << "Check restored values" << endl;
+  {
+    BaseString current_values;
+    if (!get_all_ports(mgmd, nodeId1, current_values))
+    {
+      g_err << "Failed to get all current values" << endl;
+      return false;
+    }
+    ndbout_c("current values: %s", current_values.c_str());
+
+    if (current_values != original_values)
+    {
+      g_err << "Restored values was not correct, expected "
+            << original_values << ", got "
+            << current_values << endl;
+      return false;
+    }
+  }
+
+  return true;
+}
+
+
+int runTestSetPorts(NDBT_Context* ctx, NDBT_Step* step)
+{
+  NdbMgmd mgmd;
+
+  if (!mgmd.connect())
+    return NDBT_FAILED;
+
+  int result= NDBT_FAILED;
+  if (
+      check_set_ports(mgmd) &&
+      check_set_ports_invalid_nodeid(mgmd) &&
+      check_set_ports_invalid_num_ports(mgmd) &&
+      check_set_ports_invalid_mismatch_num_port_1(mgmd) &&
+      check_set_ports_invalid_mismatch_num_port_2(mgmd) &&
+      check_set_ports_invalid_port_list(mgmd) &&
+      check_set_ports_mgmapi(mgmd) &&
+      true)
+    result= NDBT_OK;
+
+  if (!mgmd.end_session())
+    result= NDBT_FAILED;
+
   return result;
 }
 
@@ -3264,6 +3726,10 @@ TESTCASE("Bug12928429", "")
 TESTCASE("TestNdbApiConfig", "")
 {
   STEP(runTestNdbApiConfig);
+}
+TESTCASE("TestSetPorts",
+         "Test 'set ports'"){
+  INITIALIZER(runTestSetPorts);
 }
 NDBT_TESTSUITE_END(testMgm);
 
