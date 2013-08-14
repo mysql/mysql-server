@@ -7077,6 +7077,9 @@ ER_EXPLAIN_NOT_SUPPORTED
 ER_INVALID_FIELD_SIZE
         eng "Invalid size for column '%-.192s'."
 
+ER_MISSING_HA_CREATE_OPTION
+        eng "Table storage engine '%-.64s' found required create option missing"
+
 #
 #  End of 5.7 error messages.
 #
