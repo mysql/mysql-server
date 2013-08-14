@@ -2,7 +2,7 @@
 # Copyright (c) 2013, Oracle and/or its affiliates. All rights reserved.
 #
 
-# In this test we make sure that the slave does a recovery when the itis
+# In this test we make sure that the slave does a recovery when the it is
 # brought up after it has stopped due to error in one or more of its workers.
 -- source include/not_valgrind.inc
 -- source include/master-slave.inc
@@ -12,8 +12,8 @@ SET GLOBAL DEBUG ='+d,set_commit_parent_100';
 # set up the tables and replicate it to the slave.
 CREATE TABLE t1 (a int primary key) engine=innodb;
 CREATE TABLE t2 (a int primary key) engine=innodb;
-CREATE TABLE t3 (a int primary key) engine=myisam;
-CREATE TABLE t4 (a int primary key) engine=myisam;
+CREATE TABLE t3 (a int primary key) engine=innodb;
+CREATE TABLE t4 (a int primary key) engine=innodb;
 -- sync_slave_with_master
 -- source include/stop_slave.inc
 -- let $saved_debug_slave=`SELECT @@global.DEBUG`
