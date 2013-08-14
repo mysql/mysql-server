@@ -1,0 +1,1038 @@
+=== modified file 'libmysql/libmysql.c'
+--- libmysql/libmysql.c	revid:anil.toshniwal@oracle.com-20130507123124-75iqi1riiewnm0ab
++++ libmysql/libmysql.c	2013-06-27 09:26:38 +0000
+@@ -4905,3 +4905,603 @@ my_bool STDCALL mysql_read_query_result(
+   return (*mysql->methods->read_query_result)(mysql);
+ }
+ 
++#ifndef EMBEDDED_LIBRARY
++
++// Hack to provide both libmysqlclient_16 and libmysqlclient_18 symbol versions
++
++#define SYM_16(_exportedsym) __asm__(".symver symver16_" #_exportedsym "," #_exportedsym "@libmysqlclient_16")
++
++void STDCALL symver16_myodbc_remove_escape(MYSQL *mysql,char *name)
++{
++  return myodbc_remove_escape(mysql, name);
++}
++SYM_16(myodbc_remove_escape);
++
++
++my_ulonglong STDCALL symver16_mysql_affected_rows(MYSQL *mysql)
++{
++  return mysql_affected_rows(mysql);
++}
++SYM_16(mysql_affected_rows);
++
++
++my_bool STDCALL symver16_mysql_autocommit(MYSQL * mysql, my_bool auto_mode)
++{
++  return mysql_autocommit(mysql, auto_mode);
++}
++SYM_16(mysql_autocommit);
++
++
++my_bool	STDCALL symver16_mysql_change_user(MYSQL *mysql, const char *user,
++				  const char *passwd, const char *db)
++{
++  return mysql_change_user(mysql, user, passwd, db);
++}
++SYM_16(mysql_change_user);
++
++
++const char * STDCALL symver16_mysql_character_set_name(MYSQL *mysql)
++{
++  return mysql_character_set_name(mysql);
++}
++SYM_16(mysql_character_set_name);
++
++
++my_bool STDCALL symver16_mysql_commit(MYSQL * mysql)
++{
++  return mysql_commit(mysql);
++}
++SYM_16(mysql_commit);
++
++
++void STDCALL symver16_mysql_data_seek(MYSQL_RES *result, my_ulonglong row)
++{
++  return mysql_data_seek(result, row);
++}
++SYM_16(mysql_data_seek);
++
++
++void STDCALL symver16_mysql_debug(const char *debug __attribute__((unused)))
++{
++  return mysql_debug(debug);
++}
++SYM_16(mysql_debug);
++
++
++int STDCALL symver16_mysql_dump_debug_info(MYSQL *mysql)
++{
++  return mysql_dump_debug_info(mysql);
++}
++SYM_16(mysql_dump_debug_info);
++
++
++my_bool STDCALL symver16_mysql_embedded(void)
++{
++  return mysql_embedded();
++}
++SYM_16(mysql_embedded);
++
++
++my_bool STDCALL symver16_mysql_eof(MYSQL_RES *res)
++{
++  return mysql_eof(res);
++}
++SYM_16(mysql_eof);
++
++
++ulong STDCALL symver16_mysql_escape_string(char *to,const char *from,ulong length)
++{
++  return mysql_escape_string(to, from, length);
++}
++SYM_16(mysql_escape_string);
++
++
++MYSQL_FIELD * STDCALL symver16_mysql_fetch_field(MYSQL_RES *result)
++{
++  return mysql_fetch_field(result);
++}
++SYM_16(mysql_fetch_field);
++
++
++MYSQL_FIELD * STDCALL symver16_mysql_fetch_field_direct(MYSQL_RES *res,uint fieldnr)
++{
++  return mysql_fetch_field_direct(res, fieldnr);
++}
++SYM_16(mysql_fetch_field_direct);
++
++MYSQL_FIELD * STDCALL symver16_mysql_fetch_fields(MYSQL_RES *res)
++{
++  return mysql_fetch_fields(res);
++}
++SYM_16(mysql_fetch_fields);
++
++
++unsigned int STDCALL symver16_mysql_field_count(MYSQL *mysql)
++{
++  return mysql_field_count(mysql);
++}
++SYM_16(mysql_field_count);
++
++
++MYSQL_FIELD_OFFSET STDCALL symver16_mysql_field_seek(MYSQL_RES *result, MYSQL_FIELD_OFFSET field_offset)
++{
++  return mysql_field_seek(result, field_offset);
++}
++SYM_16(mysql_field_seek);
++
++
++MYSQL_FIELD_OFFSET STDCALL symver16_mysql_field_tell(MYSQL_RES *res)
++{
++  return mysql_field_tell(res);
++}
++SYM_16(mysql_field_tell);
++
++
++void STDCALL symver16_mysql_get_character_set_info(MYSQL *mysql, MY_CHARSET_INFO *csinfo)
++{
++  return mysql_get_character_set_info(mysql, csinfo);
++}
++SYM_16(mysql_get_character_set_info);
++
++
++const char * STDCALL symver16_mysql_get_client_info(void)
++{
++  return mysql_get_client_info();
++}
++SYM_16(mysql_get_client_info);
++
++ulong STDCALL symver16_mysql_get_client_version(void)
++{
++  return mysql_get_client_version();
++}
++SYM_16(mysql_get_client_version);
++
++
++const char * STDCALL symver16_mysql_get_host_info(MYSQL *mysql)
++{
++  return mysql_get_host_info(mysql);
++}
++SYM_16(mysql_get_host_info);
++
++
++MYSQL_PARAMETERS *STDCALL symver16_mysql_get_parameters(void)
++{
++  return mysql_get_parameters();
++}
++SYM_16(mysql_get_parameters);
++
++
++uint STDCALL symver16_mysql_get_proto_info(MYSQL *mysql)
++{
++  return mysql_get_proto_info(mysql);
++}
++SYM_16(mysql_get_proto_info);
++
++
++const char * STDCALL symver16_mysql_get_server_info(MYSQL *mysql)
++{
++  return mysql_get_server_info(mysql);
++}
++SYM_16(mysql_get_server_info);
++
++
++ulong STDCALL symver16_mysql_hex_string(char *to, const char *from, ulong length)
++{
++  return mysql_hex_string(to, from, length);
++}
++SYM_16(mysql_hex_string);
++
++
++const char *STDCALL symver16_mysql_info(MYSQL *mysql)
++{
++  return mysql_info(mysql);
++}
++SYM_16(mysql_info);
++
++
++my_ulonglong STDCALL symver16_mysql_insert_id(MYSQL *mysql)
++{
++  return mysql_insert_id(mysql);
++}
++SYM_16(mysql_insert_id);
++
++
++int STDCALL symver16_mysql_kill(MYSQL *mysql,ulong pid)
++{
++  return mysql_kill(mysql, pid);
++}
++SYM_16(mysql_kill);
++
++
++MYSQL_RES * STDCALL symver16_mysql_list_dbs(MYSQL *mysql, const char *wild)
++{
++  return mysql_list_dbs(mysql, wild);
++}
++SYM_16(mysql_list_dbs);
++
++
++MYSQL_RES * STDCALL symver16_mysql_list_fields(MYSQL *mysql, const char *table, const char *wild)
++{
++  return mysql_list_fields(mysql, table, wild);
++}
++SYM_16(mysql_list_fields);
++
++
++MYSQL_RES * STDCALL symver16_mysql_list_processes(MYSQL *mysql)
++{
++  return mysql_list_processes(mysql);
++}
++SYM_16(mysql_list_processes);
++
++
++MYSQL_RES * STDCALL symver16_mysql_list_tables(MYSQL *mysql, const char *wild)
++{
++  return mysql_list_tables(mysql, wild);
++}
++SYM_16(mysql_list_tables);
++
++
++my_bool STDCALL symver16_mysql_more_results(MYSQL *mysql)
++{
++  return mysql_more_results(mysql);
++}
++SYM_16(mysql_more_results);
++
++
++int STDCALL symver16_mysql_next_result(MYSQL *mysql)
++{
++  return mysql_next_result(mysql);
++}
++SYM_16(mysql_next_result);
++
++int STDCALL symver16_mysql_ping(MYSQL *mysql)
++{
++  return mysql_ping(mysql);
++}
++SYM_16(mysql_ping);
++
++
++int STDCALL symver16_mysql_query(MYSQL *mysql, const char *query)
++{
++  return mysql_query(mysql, query);
++}
++SYM_16(mysql_query);
++
++
++my_bool STDCALL symver16_mysql_read_query_result(MYSQL *mysql)
++{
++  return mysql_read_query_result(mysql);
++}
++SYM_16(mysql_read_query_result);
++
++
++ulong STDCALL symver16_mysql_real_escape_string(MYSQL *mysql, char *to,const char *from, ulong length)
++{
++  return mysql_real_escape_string(mysql, to, from, length);
++}
++SYM_16(mysql_real_escape_string);
++
++
++int STDCALL symver16_mysql_refresh(MYSQL *mysql,uint options)
++{
++  return mysql_refresh(mysql, options);
++}
++SYM_16(mysql_refresh);
++
++
++my_bool STDCALL symver16_mysql_rollback(MYSQL * mysql)
++{
++  return mysql_rollback(mysql);
++}
++SYM_16(mysql_rollback);
++
++
++MYSQL_ROW_OFFSET STDCALL symver16_mysql_row_seek(MYSQL_RES *result, MYSQL_ROW_OFFSET row)
++{
++  return mysql_row_seek(result, row);
++}
++SYM_16(mysql_row_seek);
++
++
++MYSQL_ROW_OFFSET STDCALL symver16_mysql_row_tell(MYSQL_RES *res)
++{
++  return mysql_row_tell(res);
++}
++SYM_16(mysql_row_tell);
++
++
++void STDCALL symver16_mysql_server_end()
++{
++  return mysql_server_end();
++}
++SYM_16(mysql_server_end);
++
++
++int STDCALL symver16_mysql_server_init(int argc __attribute__((unused)), char **argv __attribute__((unused)), char **groups __attribute__((unused)))
++{
++  return mysql_server_init(argc, argv, groups);
++}
++SYM_16(mysql_server_init);
++
++
++void symver16_mysql_set_local_infile_default(MYSQL *mysql)
++{
++  return mysql_set_local_infile_default(mysql);
++}
++SYM_16(mysql_set_local_infile_default);
++
++
++void symver16_mysql_set_local_infile_handler(MYSQL *mysql, int (*local_infile_init)(void **, const char *, void *), int (*local_infile_read)(void *, char *, uint), void (*local_infile_end)(void *), int (*local_infile_error)(void *, char *, uint), void *userdata)
++{
++  return mysql_set_local_infile_handler(mysql, local_infile_init, local_infile_read, local_infile_end, local_infile_error, userdata);
++}
++SYM_16(mysql_set_local_infile_handler);
++
++
++int STDCALL symver16_mysql_set_server_option(MYSQL *mysql, enum enum_mysql_set_option option)
++{
++  return mysql_set_server_option(mysql, option);
++}
++SYM_16(mysql_set_server_option);
++
++
++int STDCALL symver16_mysql_shutdown(MYSQL *mysql, enum mysql_enum_shutdown_level shutdown_level)
++{
++  return mysql_shutdown(mysql, shutdown_level);
++}
++SYM_16(mysql_shutdown);
++
++
++const char *STDCALL symver16_mysql_sqlstate(MYSQL *mysql)
++{
++  return mysql_sqlstate(mysql);
++}
++SYM_16(mysql_sqlstate);
++
++
++const char * STDCALL symver16_mysql_stat(MYSQL *mysql)
++{
++  return mysql_stat(mysql);
++}
++SYM_16(mysql_stat);
++
++
++my_ulonglong STDCALL symver16_mysql_stmt_affected_rows(MYSQL_STMT *stmt)
++{
++  return mysql_stmt_affected_rows(stmt);
++}
++SYM_16(mysql_stmt_affected_rows);
++
++
++my_bool STDCALL symver16_mysql_stmt_attr_get(MYSQL_STMT *stmt, enum enum_stmt_attr_type attr_type, void *value)
++{
++  return mysql_stmt_attr_get(stmt, attr_type, value);
++}
++SYM_16(mysql_stmt_attr_get);
++
++
++my_bool STDCALL symver16_mysql_stmt_attr_set(MYSQL_STMT *stmt, enum enum_stmt_attr_type attr_type, const void *value)
++{
++  return mysql_stmt_attr_set(stmt, attr_type, value);
++}
++SYM_16(mysql_stmt_attr_set);
++
++
++my_bool STDCALL symver16_mysql_stmt_bind_param(MYSQL_STMT *stmt, MYSQL_BIND *my_bind)
++{
++  return mysql_stmt_bind_param(stmt, my_bind);
++}
++SYM_16(mysql_stmt_bind_param);
++
++
++my_bool STDCALL symver16_mysql_stmt_bind_result(MYSQL_STMT *stmt, MYSQL_BIND *my_bind)
++{
++  return mysql_stmt_bind_result(stmt, my_bind);
++}
++SYM_16(mysql_stmt_bind_result);
++
++
++my_bool STDCALL symver16_mysql_stmt_close(MYSQL_STMT *stmt)
++{
++  return mysql_stmt_close(stmt);
++}
++SYM_16(mysql_stmt_close);
++
++
++void STDCALL symver16_mysql_stmt_data_seek(MYSQL_STMT *stmt, my_ulonglong row)
++{
++  return mysql_stmt_data_seek(stmt, row);
++}
++SYM_16(mysql_stmt_data_seek);
++
++
++uint STDCALL symver16_mysql_stmt_errno(MYSQL_STMT * stmt)
++{
++  return mysql_stmt_errno(stmt);
++}
++SYM_16(mysql_stmt_errno);
++
++
++const char *STDCALL symver16_mysql_stmt_error(MYSQL_STMT * stmt)
++{
++  return mysql_stmt_error(stmt);
++}
++SYM_16(mysql_stmt_error);
++
++
++int STDCALL symver16_mysql_stmt_execute(MYSQL_STMT *stmt)
++{
++  return mysql_stmt_execute(stmt);
++}
++SYM_16(mysql_stmt_execute);
++
++
++int STDCALL symver16_mysql_stmt_fetch(MYSQL_STMT *stmt)
++{
++  return mysql_stmt_fetch(stmt);
++}
++SYM_16(mysql_stmt_fetch);
++
++
++int STDCALL symver16_mysql_stmt_fetch_column(MYSQL_STMT *stmt, MYSQL_BIND *my_bind, uint column, ulong offset)  
++{
++  return mysql_stmt_fetch_column(stmt, my_bind, column, offset);
++}
++SYM_16(mysql_stmt_fetch_column);
++
++
++unsigned int STDCALL symver16_mysql_stmt_field_count(MYSQL_STMT *stmt)
++{
++  return mysql_stmt_field_count(stmt);
++}
++SYM_16(mysql_stmt_field_count);
++
++
++my_bool STDCALL symver16_mysql_stmt_free_result(MYSQL_STMT *stmt)
++{
++  return mysql_stmt_free_result(stmt);
++}
++SYM_16(mysql_stmt_free_result);
++
++
++MYSQL_STMT * STDCALL symver16_mysql_stmt_init(MYSQL *mysql)
++{
++  return mysql_stmt_init(mysql);
++}
++SYM_16(mysql_stmt_init);
++
++
++my_ulonglong STDCALL symver16_mysql_stmt_insert_id(MYSQL_STMT *stmt)
++{
++  return mysql_stmt_insert_id(stmt);
++}
++SYM_16(mysql_stmt_insert_id);
++
++
++my_ulonglong STDCALL symver16_mysql_stmt_num_rows(MYSQL_STMT *stmt)
++{
++  return mysql_stmt_num_rows(stmt);
++}
++SYM_16(mysql_stmt_num_rows);
++
++
++ulong STDCALL symver16_mysql_stmt_param_count(MYSQL_STMT * stmt)
++{
++  return mysql_stmt_param_count(stmt);
++}
++SYM_16(mysql_stmt_param_count);
++
++
++MYSQL_RES * STDCALL symver16_mysql_stmt_param_metadata(MYSQL_STMT *stmt)
++{
++  return mysql_stmt_param_metadata(stmt);
++}
++SYM_16(mysql_stmt_param_metadata);
++
++
++int STDCALL symver16_mysql_stmt_prepare(MYSQL_STMT *stmt, const char *query, ulong length)
++{
++  return mysql_stmt_prepare(stmt, query, length);
++}
++SYM_16(mysql_stmt_prepare);
++
++
++my_bool STDCALL symver16_mysql_stmt_reset(MYSQL_STMT *stmt)
++{
++  return mysql_stmt_reset(stmt);
++}
++SYM_16(mysql_stmt_reset);
++
++
++MYSQL_RES * STDCALL symver16_mysql_stmt_result_metadata(MYSQL_STMT *stmt)
++{
++  return mysql_stmt_result_metadata(stmt);
++}
++SYM_16(mysql_stmt_result_metadata);
++
++
++MYSQL_ROW_OFFSET STDCALL symver16_mysql_stmt_row_seek(MYSQL_STMT *stmt, MYSQL_ROW_OFFSET row)
++{
++  return mysql_stmt_row_seek(stmt, row);
++}
++SYM_16(mysql_stmt_row_seek);
++
++
++MYSQL_ROW_OFFSET STDCALL symver16_mysql_stmt_row_tell(MYSQL_STMT *stmt)
++{
++  return mysql_stmt_row_tell(stmt);
++}
++SYM_16(mysql_stmt_row_tell);
++
++
++my_bool STDCALL symver16_mysql_stmt_send_long_data(MYSQL_STMT *stmt, uint param_number, const char *data, ulong length)
++{
++  return mysql_stmt_send_long_data(stmt, param_number, data, length);
++}
++SYM_16(mysql_stmt_send_long_data);
++
++
++const char *STDCALL symver16_mysql_stmt_sqlstate(MYSQL_STMT * stmt)
++{
++  return mysql_stmt_sqlstate(stmt);
++}
++SYM_16(mysql_stmt_sqlstate);
++
++
++int STDCALL symver16_mysql_stmt_store_result(MYSQL_STMT *stmt)
++{
++  return mysql_stmt_store_result(stmt);
++}
++SYM_16(mysql_stmt_store_result);
++
++
++void STDCALL symver16_mysql_thread_end()
++{
++  return mysql_thread_end();
++}
++SYM_16(mysql_thread_end);
++
++
++ulong STDCALL symver16_mysql_thread_id(MYSQL *mysql)
++{
++  return mysql_thread_id(mysql);
++}
++SYM_16(mysql_thread_id);
++
++
++my_bool STDCALL symver16_mysql_thread_init()
++{
++  return mysql_thread_init();
++}
++SYM_16(mysql_thread_init);
++
++
++uint STDCALL symver16_mysql_thread_safe(void)
++{
++  return mysql_thread_safe();
++}
++SYM_16(mysql_thread_safe);
++
++
++MYSQL_RES * STDCALL symver16_mysql_use_result(MYSQL *mysql)
++{
++  return mysql_use_result(mysql);
++}
++SYM_16(mysql_use_result);
++
++
++uint STDCALL symver16_mysql_warning_count(MYSQL *mysql)
++{
++  return mysql_warning_count(mysql);
++}
++SYM_16(mysql_warning_count);
++
++/*****/
++
++MYSQL * STDCALL symver16_mysql_real_connect(MYSQL *mysql,const char *host, const char *user, const char *passwd, const char *db, uint port, const char *unix_socket,ulong client_flag)
++{
++  return mysql_real_connect(mysql, host, user, passwd, db, port, unix_socket, client_flag);
++}
++SYM_16(mysql_real_connect);
++
++#endif
+
+=== modified file 'libmysql/libmysql.ver.in'
+--- libmysql/libmysql.ver.in	revid:anil.toshniwal@oracle.com-20130507123124-75iqi1riiewnm0ab
++++ libmysql/libmysql.ver.in	2013-05-14 10:38:22 +0000
+@@ -1 +1,136 @@
+-libmysqlclient_@SHARED_LIB_MAJOR_VERSION@ { global: *; };
++libmysqlclient_16
++{
++  local:
++    symver16_*;
++};
++
++libmysqlclient_18
++{
++  global:
++    my_init;
++    myodbc_remove_escape;
++    mysql_affected_rows;
++    mysql_autocommit;
++    mysql_change_user;
++    mysql_character_set_name;
++    mysql_close;
++    mysql_commit;
++    mysql_data_seek;
++    mysql_debug;
++    mysql_dump_debug_info;
++    mysql_embedded;
++    mysql_eof;
++    mysql_errno;
++    mysql_error;
++    mysql_escape_string;
++    mysql_fetch_field;
++    mysql_fetch_field_direct;
++    mysql_fetch_fields;
++    mysql_fetch_lengths;
++    mysql_fetch_row;
++    mysql_field_count;
++    mysql_field_seek;
++    mysql_field_tell;
++    mysql_free_result;
++    mysql_get_character_set_info;
++    mysql_get_client_info;
++    mysql_get_client_version;
++    mysql_get_host_info;
++    mysql_get_parameters;
++    mysql_get_proto_info;
++    mysql_get_server_info;
++    mysql_get_server_version;
++    mysql_get_ssl_cipher;
++    mysql_hex_string;
++    mysql_info;
++    mysql_init;
++    mysql_insert_id;
++    mysql_kill;
++    mysql_list_dbs;
++    mysql_list_fields;
++    mysql_list_processes;
++    mysql_list_tables;
++    mysql_more_results;
++    mysql_next_result;
++    mysql_num_fields;
++    mysql_num_rows;
++    mysql_options;
++    mysql_ping;
++    mysql_query;
++    mysql_read_query_result;
++    mysql_real_connect;
++    mysql_real_escape_string;
++    mysql_real_query;
++    mysql_refresh;
++    mysql_rollback;
++    mysql_row_seek;
++    mysql_row_tell;
++    mysql_select_db;
++    mysql_send_query;
++    mysql_server_end;
++    mysql_server_init;
++    mysql_set_character_set;
++    mysql_set_local_infile_default;
++    mysql_set_local_infile_handler;
++    mysql_set_server_option;
++    mysql_shutdown;
++    mysql_sqlstate;
++    mysql_ssl_set;
++    mysql_stat;
++    mysql_stmt_affected_rows;
++    mysql_stmt_attr_get;
++    mysql_stmt_attr_set;
++    mysql_stmt_bind_param;
++    mysql_stmt_bind_result;
++    mysql_stmt_close;
++    mysql_stmt_data_seek;
++    mysql_stmt_errno;
++    mysql_stmt_error;
++    mysql_stmt_execute;
++    mysql_stmt_fetch;
++    mysql_stmt_fetch_column;
++    mysql_stmt_field_count;
++    mysql_stmt_free_result;
++    mysql_stmt_init;
++    mysql_stmt_insert_id;
++    mysql_stmt_num_rows;
++    mysql_stmt_param_count;
++    mysql_stmt_param_metadata;
++    mysql_stmt_prepare;
++    mysql_stmt_reset;
++    mysql_stmt_result_metadata;
++    mysql_stmt_row_seek;
++    mysql_stmt_row_tell;
++    mysql_stmt_send_long_data;
++    mysql_stmt_sqlstate;
++    mysql_stmt_store_result;
++    mysql_store_result;
++    mysql_thread_end;
++    mysql_thread_id;
++    mysql_thread_init;
++    mysql_thread_safe;
++    mysql_use_result;
++    mysql_warning_count;
++
++    free_defaults;
++    handle_options;
++    load_defaults;
++    my_print_help;
++
++    #my_make_scrambled_password;
++    THR_KEY_mysys;
++
++    mysql_client_find_plugin;
++    mysql_client_register_plugin;
++    mysql_load_plugin;
++    mysql_load_plugin_v;
++    mysql_plugin_options;
++    mysql_stmt_next_result;
++
++    #mysql_default_charset_info;
++    mysql_get_charset;
++    mysql_get_charset_by_csname;
++    mysql_net_realloc;
++    #mysql_client_errors;
++    *;
++} libmysqlclient_16;
+
+=== modified file 'mysys/charset.c'
+--- mysys/charset.c	revid:anil.toshniwal@oracle.com-20130507123124-75iqi1riiewnm0ab
++++ mysys/charset.c	2013-05-16 06:43:42 +0000
+@@ -1030,3 +1030,20 @@ size_t escape_quotes_for_mysql(CHARSET_I
+   *to= 0;
+   return overflow ? (ulong)~0 : (ulong) (to - to_start);
+ }
++
++#ifndef EMBEDDED_LIBRARY
++
++// Hack to provide Fedora symbols
++
++CHARSET_INFO *mysql_get_charset(uint cs_number, myf flags)
++{
++  return get_charset(cs_number, flags);
++}
++
++
++CHARSET_INFO * mysql_get_charset_by_csname(const char *cs_name, uint cs_flags, myf flags)
++{
++  return get_charset_by_csname(cs_name, cs_flags, flags);
++}
++
++#endif
+
+=== modified file 'mysys/my_init.c'
+--- mysys/my_init.c	revid:anil.toshniwal@oracle.com-20130507123124-75iqi1riiewnm0ab
++++ mysys/my_init.c	2013-05-16 06:43:58 +0000
+@@ -551,3 +551,16 @@ void my_init_mysys_psi_keys()
+ }
+ #endif /* HAVE_PSI_INTERFACE */
+ 
++#ifndef EMBEDDED_LIBRARY
++
++// Hack to provide both libmysqlclient_16 and libmysqlclient_18 symbol versions
++
++#define SYM_16(_exportedsym) __asm__(".symver symver16_" #_exportedsym "," #_exportedsym "@libmysqlclient_16")
++
++my_bool symver16_my_init(void)
++{
++  return my_init();
++}
++SYM_16(my_init);
++
++#endif
+
+=== modified file 'mysys_ssl/my_default.cc'
+--- mysys_ssl/my_default.cc	revid:anil.toshniwal@oracle.com-20130507123124-75iqi1riiewnm0ab
++++ mysys_ssl/my_default.cc	2013-06-27 08:56:34 +0000
+@@ -1497,3 +1497,24 @@ static int check_file_permissions(const
+   return 2;                                     /* Success */
+ }
+ 
++#ifndef EMBEDDED_LIBRARY
++C_MODE_START
++
++// Hack to provide both libmysqlclient_16 and libmysqlclient_18 symbol versions
++
++#define SYM_16(_exportedsym) __asm__(".symver symver16_" #_exportedsym "," #_exportedsym "@libmysqlclient_16")
++
++void symver16_free_defaults(char **argv)
++{
++  return free_defaults(argv);
++}
++SYM_16(free_defaults);
++
++int symver16_load_defaults(const char *conf_file, const char **groups, int *argc, char ***argv)
++{
++  return load_defaults(conf_file, groups, argc, argv);
++}
++SYM_16(load_defaults);
++
++C_MODE_END
++#endif
+
+=== modified file 'mysys_ssl/my_getopt.cc'
+--- mysys_ssl/my_getopt.cc	revid:anil.toshniwal@oracle.com-20130507123124-75iqi1riiewnm0ab
++++ mysys_ssl/my_getopt.cc	2013-06-27 09:01:37 +0000
+@@ -1642,3 +1642,25 @@ void my_print_variables_ex(const struct
+     }
+   }
+ }
++
++#ifndef EMBEDDED_LIBRARY
++C_MODE_START
++
++// Hack to provide both libmysqlclient_16 and libmysqlclient_18 symbol versions
++
++#define SYM_16(_exportedsym) __asm__(".symver symver16_" #_exportedsym "," #_exportedsym "@libmysqlclient_16")
++
++int symver16_handle_options(int *argc, char ***argv, const struct my_option *longopts, my_get_one_option get_one_option)
++{
++  return handle_options(argc, argv, longopts, get_one_option);
++}
++SYM_16(handle_options);
++
++void symver16_my_print_help(const struct my_option *options)
++{
++  return my_print_help(options);
++}
++SYM_16(my_print_help);
++
++C_MODE_END
++#endif
+
+=== modified file 'sql-common/client.c'
+--- sql-common/client.c	revid:anil.toshniwal@oracle.com-20130507123124-75iqi1riiewnm0ab
++++ sql-common/client.c	2013-05-16 06:42:47 +0000
+@@ -4821,3 +4821,136 @@ static int clear_password_auth_client(MY
+ 
+   return res ? CR_ERROR : CR_OK;
+ }
++
++#ifndef EMBEDDED_LIBRARY
++
++// Hack to provide both libmysqlclient_16 and libmysqlclient_18 symbol versions
++
++#define SYM_16(_exportedsym) __asm__(".symver symver16_" #_exportedsym "," #_exportedsym "@libmysqlclient_16")
++
++void STDCALL symver16_mysql_close(MYSQL *mysql)
++{
++  return mysql_close(mysql);
++}
++SYM_16(mysql_close);
++
++
++uint STDCALL symver16_mysql_errno(MYSQL *mysql)
++{
++  return mysql_errno(mysql);
++}
++SYM_16(mysql_errno);
++
++
++const char * STDCALL symver16_mysql_error(MYSQL *mysql)
++{
++  return mysql_error(mysql);
++}
++SYM_16(mysql_error);
++
++
++ulong * STDCALL symver16_mysql_fetch_lengths(MYSQL_RES *res)
++{
++  return mysql_fetch_lengths(res);
++}
++SYM_16(mysql_fetch_lengths);
++
++
++MYSQL_ROW STDCALL symver16_mysql_fetch_row(MYSQL_RES *res)
++{
++  return mysql_fetch_row(res);
++}
++SYM_16(mysql_fetch_row);
++
++
++void STDCALL symver16_mysql_free_result(MYSQL_RES *result)
++{
++  return mysql_free_result(result);
++}
++SYM_16(mysql_free_result);
++
++
++ulong STDCALL symver16_mysql_get_server_version(MYSQL *mysql)
++{
++  return mysql_get_server_version(mysql);
++}
++SYM_16(mysql_get_server_version);
++
++
++const char * STDCALL symver16_mysql_get_ssl_cipher(MYSQL *mysql __attribute__((unused)))
++{
++  return mysql_get_ssl_cipher(mysql);
++}
++SYM_16(mysql_get_ssl_cipher);
++
++
++MYSQL * STDCALL symver16_mysql_init(MYSQL *mysql)
++{
++  return mysql_init(mysql);
++}
++SYM_16(mysql_init);
++
++
++unsigned int STDCALL symver16_mysql_num_fields(MYSQL_RES *res)
++{
++  return mysql_num_fields(res);
++}
++SYM_16(mysql_num_fields);
++
++
++my_ulonglong STDCALL symver16_mysql_num_rows(MYSQL_RES *res)
++{
++  return mysql_num_rows(res);
++}
++SYM_16(mysql_num_rows);
++
++
++int STDCALL symver16_mysql_options(MYSQL *mysql,enum mysql_option option, const void *arg)
++{
++  return mysql_options(mysql, option, arg);
++}
++SYM_16(mysql_options);
++
++
++int STDCALL symver16_mysql_real_query(MYSQL *mysql, const char *query, ulong length)
++{
++  return mysql_real_query(mysql, query, length);
++}
++SYM_16(mysql_real_query);
++
++
++int STDCALL symver16_mysql_select_db(MYSQL *mysql, const char *db)
++{
++  return mysql_select_db(mysql, db);
++}
++SYM_16(mysql_select_db);
++
++
++int STDCALL symver16_mysql_send_query(MYSQL* mysql, const char* query, ulong length)
++{
++  return mysql_send_query(mysql, query, length);
++}
++SYM_16(mysql_send_query);
++
++
++int STDCALL symver16_mysql_set_character_set(MYSQL *mysql, const char *cs_name)
++{
++  return mysql_set_character_set(mysql, cs_name);
++}
++SYM_16(mysql_set_character_set);
++
++
++my_bool STDCALL symver16_mysql_ssl_set(MYSQL *mysql __attribute__((unused)), const char *key __attribute__((unused)), const char *cert __attribute__((unused)), const char *ca __attribute__((unused)), const char *capath __attribute__((unused)), const char *cipher __attribute__((unused)))
++{
++  return mysql_ssl_set(mysql, key, cert, ca, capath, cipher);
++}
++SYM_16(mysql_ssl_set);
++
++
++MYSQL_RES * STDCALL symver16_mysql_store_result(MYSQL *mysql)
++{
++  return mysql_store_result(mysql);
++}
++SYM_16(mysql_store_result);
++
++#endif
+
+=== modified file 'sql/password.c'
+--- sql/password.c	revid:anil.toshniwal@oracle.com-20130507123124-75iqi1riiewnm0ab
++++ sql/password.c	2013-06-27 09:00:09 +0000
+@@ -584,3 +584,16 @@ void make_password_from_salt(char *to, c
+   octet2hex(to, (const char*) hash_stage2, SHA1_HASH_SIZE);
+ }
+ 
++#ifndef EMBEDDED_LIBRARY
++
++// Hack to provide both libmysqlclient_16 and libmysqlclient_18 symbol versions
++
++#define SYM_16(_exportedsym) __asm__(".symver symver16_" #_exportedsym "," #_exportedsym "@libmysqlclient_16")
++
++void symver16_my_make_scrambled_password(char *to, const char *password, size_t pass_len)
++{
++  my_make_scrambled_password(to, password, pass_len);
++}
++SYM_16(my_make_scrambled_password);
++
++#endif
+
+=== modified file 'sql/net_serv.cc'
+--- sql/net_serv.cc	revid:anil.toshniwal@oracle.com-20130507123124-75iqi1riiewnm0ab
++++ sql/net_serv.cc	2013-06-27 09:24:19 +0000
+@@ -1038,3 +1038,15 @@ void my_net_set_write_timeout(NET *net,
+   DBUG_VOID_RETURN;
+ }
+ 
++#ifndef EMBEDDED_LIBRARY
++C_MODE_START
++
++// Hack to provide Fedora symbols
++
++my_bool mysql_net_realloc(NET *net, size_t length)
++{
++  return net_realloc(net, length);
++}
++
++C_MODE_END
++#endif
+
+
