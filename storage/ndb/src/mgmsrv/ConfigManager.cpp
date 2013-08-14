@@ -2574,24 +2574,51 @@ check_dynamic_port_configured(const Config* config,
 
 bool
 ConfigManager::set_dynamic_port(int node1, int node2, int value,
-                                BaseString& msg){
+                                BaseString& msg)
+{
+  MgmtSrvr::DynPortSpec port = { node2, value };
 
+  return set_dynamic_ports(node1, &port, 1, msg);
+}
+
+
+bool
+ConfigManager::set_dynamic_ports(int node, MgmtSrvr::DynPortSpec ports[],
+                                 unsigned num_ports, BaseString &msg)
+{
   Guard g(m_config_mutex);
-  if (!check_dynamic_port_configured(m_config,
-                                     node1, node2, msg))
-    return false;
 
-  if (!m_dynamic_ports.set(node1, node2, value))
+  // Check that all ports to set are configured as dynamic
+  for(unsigned i = 0; i < num_ports; i++)
   {
-    msg.assfmt("Could not set dynamic port for %d -> %d", node1, node2);
-    return false;
+    const int node2 = ports[i].node;
+    if (!check_dynamic_port_configured(m_config,
+                                       node, node2, msg))
+    {
+      return false;
+    }
+  }
+
+  // Set the dynamic ports
+  bool result = true;
+  for(unsigned i = 0; i < num_ports; i++)
+  {
+    const int node2 = ports[i].node;
+    const int value = ports[i].port;
+    if (!m_dynamic_ports.set(node, node2, value))
+    {
+      // Failed to set one port, report problem but since it's very unlikley
+      // that this step fails, continue and attempt to set remaining ports.
+      msg.assfmt("Failed to set dynamic port(s)");
+      result =  false;
+    }
   }
 
   // Removed cache of packed config, need to be recreated
   // to include the new dynamic port
   m_packed_config.clear();
 
-  return true;
+  return result;
 }
 
 
