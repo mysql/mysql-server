@@ -113,7 +113,7 @@ void my_time_init()
 
 
 /*
-  Return cpu time in milliseconds * 10
+  Return cpu time in 1/10th on a microsecond (1e-7 s)
 */
 
 ulonglong my_getcputime()
