@@ -2208,6 +2208,12 @@ bool TransporterRegistry::report_dynamic_ports(NdbMgmHandle h) const
     num_ports++;
   }
 
+  if (num_ports == 0)
+  {
+    // No dynamic ports in use, nothing to report
+    return true;
+  }
+
   // Send array of nodeid/port pairs to mgmd
   if (ndb_mgm_set_dynamic_ports(h, localNodeId,
                                 ports, num_ports) < 0)
