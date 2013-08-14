@@ -767,7 +767,7 @@ pfs_rw_lock_x_lock_func_nowait(
 		ret = rw_lock_x_lock_func_nowait(lock, file_name, line);
 
 		if (locker != NULL) {
-			PSI_RWLOCK_CALL(end_rwlock_wrwait)(locker, ret);
+			PSI_RWLOCK_CALL(end_rwlock_wrwait)(locker, int(ret));
 		}
 
 	} else {
@@ -857,7 +857,7 @@ pfs_rw_lock_s_lock_low(
 		ret = rw_lock_s_lock_low(lock, pass, file_name, line);
 
 		if (locker != NULL) {
-			PSI_RWLOCK_CALL(end_rwlock_rdwait)(locker, ret);
+			PSI_RWLOCK_CALL(end_rwlock_rdwait)(locker, int(ret));
 		}
 	} else {
 		ret = rw_lock_s_lock_low(lock, pass, file_name, line);
