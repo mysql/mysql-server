@@ -1130,6 +1130,7 @@ rw_lock_is_locked(
 	default:
 		ut_error;
 	}
+	return(false);	/* avoid compiler warnings */
 }
 
 #ifdef UNIV_SYNC_DEBUG
