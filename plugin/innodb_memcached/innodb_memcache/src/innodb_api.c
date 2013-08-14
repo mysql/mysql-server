@@ -781,6 +781,7 @@ innodb_api_set_multi_cols(
 			err = ib_cb_col_set_value(
 				tpl, col_info[i].field_id,
 				NULL, IB_SQL_NULL, true);
+			break;
 		} else {
 			err = ib_cb_col_set_value(
 				tpl, col_info[i].field_id,
