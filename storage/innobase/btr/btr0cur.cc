@@ -436,6 +436,7 @@ btr_cur_latch_for_root_leaf(
 	}
 
 	ut_error;
+	return(RW_NO_LATCH); /* avoid compiler warnings */
 }
 
 /**

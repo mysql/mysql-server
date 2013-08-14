@@ -255,7 +255,7 @@ struct TrxTrack {
 struct TrxTrackHash {
 	size_t operator()(const TrxTrack& key) const
 	{
-		return(key.m_id);
+		return(size_t(key.m_id));
 	}
 };
 

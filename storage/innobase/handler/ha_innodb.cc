@@ -1097,7 +1097,7 @@ thd_start_time_in_secs(
 {
 	// FIXME: This function should be added to the server code.
 	//return(thd_start_time(thd));
-	return(ut_time());
+	return(ulint(ut_time()));
 }
 
 /******************************************************************//**
@@ -2324,7 +2324,7 @@ innobase_query_caching_of_table_permitted(
 				store a result to the query cache or
 				retrieve it */
 	char*	full_name,	/*!< in: normalized path to the table */
-	uint	full_name_len,	/*!< in: length of the normalized path 
+	uint	full_name_len,	/*!< in: length of the normalized path
                                 to the table */
 	ulonglong *unused)	/*!< unused for this engine */
 {
@@ -2894,7 +2894,7 @@ innobase_init(
 				" tablespace file name seems to be same");
 		DBUG_RETURN(innobase_init_abort());
 	}
-	
+
 	/* -------------- All log files ---------------------------*/
 
 	/* The default dir for log files is the datadir of MySQL */
@@ -13127,7 +13127,7 @@ my_bool
 ha_innobase::register_query_cache_table(
 /*====================================*/
 	THD*		thd,		/*!< in: user thread handle */
-	char*		table_key,	/*!< in: normalized path to the  
+	char*		table_key,	/*!< in: normalized path to the
 					table */
 	uint		key_length,	/*!< in: length of the normalized
 					path to the table */
