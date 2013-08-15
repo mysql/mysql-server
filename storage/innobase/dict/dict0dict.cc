@@ -6325,7 +6325,7 @@ dict_close(void)
 				HASH_GET_NEXT(name_hash, prev_table));
 #ifdef UNIV_DEBUG
 			ut_a(prev_table->magic_n == DICT_TABLE_MAGIC_N);
-#endif
+#endif /* UNIV_DEBUG */
 			/* Acquire only because it's a pre-condition. */
 			mutex_enter(&dict_sys->mutex);
 
@@ -6346,7 +6346,6 @@ dict_close(void)
 	mutex_free(&dict_sys->mutex);
 
 	rw_lock_free(&dict_operation_lock);
-	memset(&dict_operation_lock, 0x0, sizeof(dict_operation_lock));
 
 	if (!srv_read_only_mode) {
 		mutex_free(&dict_foreign_err_mutex);
