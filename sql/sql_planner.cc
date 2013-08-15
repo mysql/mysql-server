@@ -1629,6 +1629,7 @@ void Optimize_table_order::consider_plan(uint             idx,
                                          double           read_time,
                                          Opt_trace_object *trace_obj)
 {
+  double sort_cost= join->sort_cost;
   /*
     We may have to make a temp table, note that this is only a 
     heuristic since we cannot know for sure at this point. 
@@ -1641,6 +1642,7 @@ void Optimize_table_order::consider_plan(uint             idx,
     read_time+= record_count;
     trace_obj->add("sort_cost", record_count).
       add("new_cost_for_plan", read_time);
+    sort_cost= record_count;
   }
 
   const bool chosen= read_time < join->best_read;
@@ -1658,6 +1660,7 @@ void Optimize_table_order::consider_plan(uint             idx,
     */
     join->best_read= read_time - 0.001;
     join->best_rowcount= (ha_rows)record_count;
+    join->sort_cost= sort_cost;
   }
   DBUG_EXECUTE("opt", print_plan(join, idx+1,
                                  record_count,
