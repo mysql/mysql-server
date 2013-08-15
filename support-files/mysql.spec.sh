@@ -1115,6 +1115,7 @@ echo "====="                                                       >> $STATUS_HI
 %doc %attr(644, root, man) %{_mandir}/man1/mysql_zap.1*
 %doc %attr(644, root, man) %{_mandir}/man1/mysqlbug.1*
 # commenting out ndb docs temporarily #Bug #16303451 	
+#%doc %attr(644, root, man) %{_mandir}/man1/ndb_blob_tool.1*
 #%doc %attr(644, root, man) %{_mandir}/man1/ndb_config.1*
 #%doc %attr(644, root, man) %{_mandir}/man1/ndb_cpcd.1*
 #%doc %attr(644, root, man) %{_mandir}/man1/ndb_delete_all.1*
