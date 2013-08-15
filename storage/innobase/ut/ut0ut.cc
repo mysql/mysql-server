@@ -240,15 +240,10 @@ ut_print_timestamp(
 	struct tm* cal_tm_ptr;
 	time_t	   tm;
 
-#ifdef HAVE_LOCALTIME_R
 	struct tm  cal_tm;
 	time(&tm);
 	localtime_r(&tm, &cal_tm);
 	cal_tm_ptr = &cal_tm;
-#else
-	time(&tm);
-	cal_tm_ptr = localtime(&tm);
-#endif
 	fprintf(file, "%d-%02d-%02d %02d:%02d:%02d %lx",
 		cal_tm_ptr->tm_year + 1900,
 		cal_tm_ptr->tm_mon + 1,
@@ -286,15 +281,10 @@ ut_sprintf_timestamp(
 	struct tm* cal_tm_ptr;
 	time_t	   tm;
 
-#ifdef HAVE_LOCALTIME_R
 	struct tm  cal_tm;
 	time(&tm);
 	localtime_r(&tm, &cal_tm);
 	cal_tm_ptr = &cal_tm;
-#else
-	time(&tm);
-	cal_tm_ptr = localtime(&tm);
-#endif
 	sprintf(buf, "%02d%02d%02d %2d:%02d:%02d",
 		cal_tm_ptr->tm_year % 100,
 		cal_tm_ptr->tm_mon + 1,
@@ -331,15 +321,10 @@ ut_sprintf_timestamp_without_extra_chars(
 	struct tm* cal_tm_ptr;
 	time_t	   tm;
 
-#ifdef HAVE_LOCALTIME_R
 	struct tm  cal_tm;
 	time(&tm);
 	localtime_r(&tm, &cal_tm);
 	cal_tm_ptr = &cal_tm;
-#else
-	time(&tm);
-	cal_tm_ptr = localtime(&tm);
-#endif
 	sprintf(buf, "%02d%02d%02d_%2d_%02d_%02d",
 		cal_tm_ptr->tm_year % 100,
 		cal_tm_ptr->tm_mon + 1,
@@ -372,15 +357,10 @@ ut_get_year_month_day(
 	struct tm* cal_tm_ptr;
 	time_t	   tm;
 
-#ifdef HAVE_LOCALTIME_R
 	struct tm  cal_tm;
 	time(&tm);
 	localtime_r(&tm, &cal_tm);
 	cal_tm_ptr = &cal_tm;
-#else
-	time(&tm);
-	cal_tm_ptr = localtime(&tm);
-#endif
 	*year = (ulint) cal_tm_ptr->tm_year + 1900;
 	*month = (ulint) cal_tm_ptr->tm_mon + 1;
 	*day = (ulint) cal_tm_ptr->tm_mday;

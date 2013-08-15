@@ -268,8 +268,6 @@ inline void setup_fpu()
 
 #define MYSQL_KILL_SIGNAL SIGTERM
 
-#include <my_pthread.h>     // For thr_setconcurency()
-
 #ifdef SOLARIS
 extern "C" int gethostname(char *name, int namelen);
 #endif
@@ -483,7 +481,7 @@ uint protocol_version;
 uint lower_case_table_names;
 ulong tc_heuristic_recover= 0;
 int32 num_thread_running;
-ulong back_log, connect_timeout, concurrency, server_id;
+ulong back_log, connect_timeout, server_id;
 ulong table_cache_size, table_def_size;
 ulong table_cache_instances;
 ulong table_cache_size_per_instance;
@@ -4644,7 +4642,6 @@ int mysqld_main(int argc, char **argv)
   pthread_attr_setstacksize(&connection_attrib,
                             my_thread_stack_size + guardize);
 
-#ifdef HAVE_PTHREAD_ATTR_GETSTACKSIZE
   {
     /* Retrieve used stack size;  Needed for checking stack overflows */
     size_t stack_size= 0;
@@ -4663,9 +4660,6 @@ int mysqld_main(int argc, char **argv)
 #endif
     }
   }
-#endif
-
-  (void) thr_setconcurrency(concurrency); // 10 by default
 
   select_thread=pthread_self();
   select_thread_in_use=1;
