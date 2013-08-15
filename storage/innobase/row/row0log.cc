@@ -522,6 +522,7 @@ row_log_table_delete(
 		ut_ad(dfield_get_type(dfield)->prtype
 		      == (DATA_NOT_NULL | DATA_TRX_ID));
 		ut_ad(dfield_get_len(dfield) == DATA_TRX_ID_LEN);
+		dfield_dup(dfield, heap);
 		trx_write_trx_id(static_cast<byte*>(dfield->data), trx_id);
 	}
 
