@@ -13398,13 +13398,12 @@ join_read_last(JOIN_TAB *tab)
   tab->read_record.file=table->file;
   tab->read_record.index=tab->index;
   tab->read_record.record=table->record[0];
-  if (!table->file->inited)
+  if (!table->file->inited &&
 #ifdef MCP_BUG11764737
-    error= table->file->ha_index_init(tab->index, 1);
+      (error= table->file->ha_index_init(tab->index, 1)))
 #else
-    error= table->file->ha_index_init(tab->index, tab->sorted);
+      (error= table->file->ha_index_init(tab->index, tab->sorted)))
 #endif
-  if (error)
   {
     (void) report_error(table, error);
     return 1;
@@ -13432,13 +13431,12 @@ join_ft_read_first(JOIN_TAB *tab)
   int error;
   TABLE *table= tab->table;
 
-  if (!table->file->inited)
+  if (!table->file->inited &&
 #ifdef MCP_BUG11764737
-    error= table->file->ha_index_init(tab->ref.key, 1);
+      (error= table->file->ha_index_init(tab->ref.key, 1)))
 #else
-    error= table->file->ha_index_init(tab->ref.key, tab->sorted);
+      (error= table->file->ha_index_init(tab->ref.key, tab->sorted)))
 #endif
-  if (error)
   {
     (void) report_error(table, error);
     return 1;
