@@ -1459,7 +1459,7 @@ bool Explain_join::explain_rows_and_filtered()
   else
     examined_rows= tab->position->records_read;
 
-  fmt->entry()->col_rows.set(static_cast<longlong>(examined_rows));
+  fmt->entry()->col_rows.set(static_cast<ulonglong>(examined_rows));
 
   /* Add "filtered" field */
   if (describe(DESCRIBE_EXTENDED))
@@ -1471,7 +1471,7 @@ bool Explain_join::explain_rows_and_filtered()
   }
   // Print cost-related info
   double prefix_rows= tab->position->prefix_record_count;
-  fmt->entry()->col_prefix_rows.set(prefix_rows);
+  fmt->entry()->col_prefix_rows.set(static_cast<ulonglong>(prefix_rows));
   double const cond_cost= prefix_rows * ROW_EVALUATE_COST;
   fmt->entry()->col_cond_cost.set(cond_cost < 0 ? 0 : cond_cost);
 
