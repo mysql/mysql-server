@@ -192,6 +192,8 @@ struct dyn_buf_t {
 			m_first_block.init();
 			ut_ad(UT_LIST_GET_LEN(m_list) == 1);
 		}
+
+		m_size = 0;
 	}
 
 	/**
