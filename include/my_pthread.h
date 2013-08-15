@@ -142,6 +142,7 @@ int pthread_cond_broadcast(pthread_cond_t *cond);
 int pthread_cond_destroy(pthread_cond_t *cond);
 int pthread_attr_init(pthread_attr_t *connect_att);
 int pthread_attr_setstacksize(pthread_attr_t *connect_att,DWORD stack);
+int pthread_attr_getstacksize(pthread_attr_t *connect_att, size_t *stack);
 int pthread_attr_destroy(pthread_attr_t *connect_att);
 int my_pthread_once(my_pthread_once_t *once_control,void (*init_routine)(void));
 struct tm *localtime_r(const time_t *timep,struct tm *tmp);
@@ -150,14 +151,11 @@ struct tm *gmtime_r(const time_t *timep,struct tm *tmp);
 void pthread_exit(void *a);
 int pthread_join(pthread_t thread, void **value_ptr);
 int pthread_cancel(pthread_t thread);
+extern int pthread_dummy(int);
 
 #ifndef ETIMEDOUT
 #define ETIMEDOUT 145		    /* Win32 doesn't have this */
 #endif
-#define HAVE_LOCALTIME_R		1
-#define _REENTRANT			1
-#define HAVE_PTHREAD_ATTR_SETSTACKSIZE	1
-
 
 #define pthread_key(T,V)  DWORD V
 #define pthread_key_create(A,B) ((*A=TlsAlloc())==0xFFFFFFFF)
@@ -189,12 +187,6 @@ int pthread_cancel(pthread_t thread);
 #else /* Normal threads */
 
 #include <pthread.h>
-#ifndef _REENTRANT
-#define _REENTRANT
-#endif
-#ifdef HAVE_THR_SETCONCURRENCY
-#include <thread.h>			/* Probably solaris */
-#endif
 #ifdef HAVE_SCHED_H
 #include <sched.h>
 #endif
@@ -239,19 +231,6 @@ typedef void *(* pthread_handler)(void *);
 #endif
 
 #define my_pthread_getspecific(A,B) ((A) pthread_getspecific(B))
-
-#ifndef HAVE_LOCALTIME_R
-struct tm *localtime_r(const time_t *clock, struct tm *res);
-#endif
-
-#ifndef HAVE_GMTIME_R
-struct tm *gmtime_r(const time_t *clock, struct tm *res);
-#endif
-
-/* FSU THREADS */
-#if !defined(HAVE_PTHREAD_KEY_DELETE) && !defined(pthread_key_delete)
-#define pthread_key_delete(A) pthread_dummy(0)
-#endif
 
 #endif /* defined(_WIN32) */
 
@@ -563,13 +542,6 @@ extern int my_rw_trywrlock(my_rw_lock_t *);
 
 #define GETHOSTBYADDR_BUFF_SIZE 2048
 
-#ifndef HAVE_THR_SETCONCURRENCY
-#define thr_setconcurrency(A) pthread_dummy(0)
-#endif
-#if !defined(HAVE_PTHREAD_ATTR_SETSTACKSIZE) && ! defined(pthread_attr_setstacksize)
-#define pthread_attr_setstacksize(A,B) pthread_dummy(0)
-#endif
-
 /* Define mutex types, see my_thr_init.c */
 #define MY_MUTEX_INIT_SLOW   NULL
 #ifdef PTHREAD_ADAPTIVE_MUTEX_INITIALIZER_NP
@@ -599,7 +571,6 @@ extern my_bool my_thread_init(void);
 extern void my_thread_end(void);
 extern const char *my_thread_name(void);
 extern my_thread_id my_thread_dbug_id(void);
-extern int pthread_dummy(int);
 
 #ifndef HAVE_PTHREAD_ATTR_GETGUARDSIZE
 static inline int pthread_attr_getguardsize(pthread_attr_t *attr,
@@ -685,18 +656,6 @@ extern uint my_thread_end_wait_time;
         (mysql_mutex_lock((L)), (V)++, mysql_mutex_unlock((L)))
 #define thread_safe_decrement(V,L) \
         (mysql_mutex_lock((L)), (V)--, mysql_mutex_unlock((L)))
-#endif
-#endif
-
-#ifndef thread_safe_add
-#ifdef _WIN32
-#define thread_safe_add(V,C,L) InterlockedExchangeAdd((long*) &(V),(C))
-#define thread_safe_sub(V,C,L) InterlockedExchangeAdd((long*) &(V),-(long) (C))
-#else
-#define thread_safe_add(V,C,L) \
-        (mysql_mutex_lock((L)), (V)+=(C), mysql_mutex_unlock((L)))
-#define thread_safe_sub(V,C,L) \
-        (mysql_mutex_lock((L)), (V)-=(C), mysql_mutex_unlock((L)))
 #endif
 #endif
 

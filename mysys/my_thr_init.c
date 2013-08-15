@@ -32,9 +32,6 @@ mysql_mutex_t THR_LOCK_malloc, THR_LOCK_open,
 mysql_cond_t  THR_COND_threads;
 uint            THR_thread_count= 0;
 uint 		my_thread_end_wait_time= 5;
-#if !defined(HAVE_LOCALTIME_R) || !defined(HAVE_GMTIME_R)
-mysql_mutex_t LOCK_localtime_r;
-#endif
 #ifdef PTHREAD_ADAPTIVE_MUTEX_INITIALIZER_NP
 pthread_mutexattr_t my_fast_mutexattr;
 #endif
@@ -168,10 +165,6 @@ my_bool my_thread_global_init(void)
   mysql_mutex_init(key_THR_LOCK_net, &THR_LOCK_net, MY_MUTEX_INIT_FAST);
   mysql_cond_init(key_THR_COND_threads, &THR_COND_threads, NULL);
 
-#if !defined(HAVE_LOCALTIME_R) || !defined(HAVE_GMTIME_R)
-  mysql_mutex_init(key_LOCK_localtime_r, &LOCK_localtime_r, MY_MUTEX_INIT_SLOW);
-#endif
-
 #ifdef _MSC_VER
   install_sigabrt_handler();
 #endif
@@ -232,9 +225,6 @@ void my_thread_global_end(void)
     mysql_mutex_destroy(&THR_LOCK_threads);
     mysql_cond_destroy(&THR_COND_threads);
   }
-#if !defined(HAVE_LOCALTIME_R) || !defined(HAVE_GMTIME_R)
-  mysql_mutex_destroy(&LOCK_localtime_r);
-#endif
 
   my_thread_global_init_done= 0;
 }
