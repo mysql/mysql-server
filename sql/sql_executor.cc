@@ -1836,6 +1836,7 @@ join_read_const_table(JOIN_TAB *tab, POSITION *pos)
       tab->info= ET_CONST_ROW_NOT_FOUND;
       /* Mark for EXPLAIN that the row was not found */
       pos->records_read=0.0;
+      pos->prefix_record_count= 0.0;
       pos->ref_depend_map= 0;
       if (!table->pos_in_table_list->outer_join || error > 0)
 	DBUG_RETURN(error);
@@ -1857,6 +1858,7 @@ join_read_const_table(JOIN_TAB *tab, POSITION *pos)
       tab->info= ET_UNIQUE_ROW_NOT_FOUND;
       /* Mark for EXPLAIN that the row was not found */
       pos->records_read=0.0;
+      pos->prefix_record_count= 0.0;
       pos->ref_depend_map= 0;
       if (!table->pos_in_table_list->outer_join || error > 0)
 	DBUG_RETURN(error);
