@@ -235,7 +235,7 @@ void pre_initialize_performance_schema();
 /**
   Initialize the performance schema.
   @param param Size parameters to use.
-  @return A boostrap handle, or NULL.
+  @return A bootstrap handle, or NULL.
 */
 struct PSI_bootstrap*
 initialize_performance_schema(PFS_global_param *param);
@@ -246,8 +246,8 @@ void pfs_automated_sizing(PFS_global_param *param);
   Initialize the performance schema ACL.
   ACL is strictly enforced when the server is running in normal mode,
   to enforce that only legal operations are allowed.
-  When running in boostrap mode, ACL restrictions are relaxed,
-  to allow the boostrap scripts to DROP / CREATE performance schema tables.
+  When running in bootstrap mode, ACL restrictions are relaxed,
+  to allow the bootstrap scripts to DROP / CREATE performance schema tables.
   @sa ACL_internal_schema_registry
   @param bootstrap True if the server is starting in bootstrap mode.
 */

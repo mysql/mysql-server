@@ -300,13 +300,29 @@ public:
   mem_root_str col_key; ///< "key" column: index that is actually decided to use
   mem_root_str col_key_len; ///< "key_length" column: length of the "key" above
   List<const char> col_ref; ///< "ref":columns/constants which are compared to "key"
-  column<longlong> col_rows; ///< "rows": estimated number of examined table rows
   column<float>    col_filtered; ///< "filtered": % of rows filtered by condition
   List<extra> col_extra; ///< "extra" column (traditional) or property list
 
   // non-TRADITIONAL stuff:
   mem_root_str col_message; ///< replaces "Extra" column if not empty
   mem_root_str col_attached_condition; ///< former "Using where"
+
+  /// "rows": estimated number of examined table rows per single scan
+  column<ulonglong> col_rows;
+  /// "rows": estimated number of examined table rows per query
+  column<ulonglong> col_prefix_rows;
+
+  column<double> col_read_cost; ///< Time to read the table
+  /// Cost of the partial join including this table
+  column<double> col_prefix_cost;
+  /// Cost of evaluating conditions on this table per query
+  column<double> col_cond_cost;
+
+  /// Size of data expected to be read  per query
+  mem_root_str col_data_size_query;
+
+  /// List of used columns
+  List<const char> col_used_columns;
 
   /* For structured EXPLAIN in CTX_JOIN_TAB context: */
   uint query_block_id; ///< query block id for materialized subqueries
@@ -345,12 +361,20 @@ public:
     col_key.cleanup();
     col_key_len.cleanup();
     col_ref.empty();
-    col_rows.cleanup();
     col_filtered.cleanup();
     col_extra.empty();
     col_message.cleanup();
     col_attached_condition.cleanup();
     col_key_parts.empty();
+
+    col_rows.cleanup();
+    col_prefix_rows.cleanup();
+
+    col_read_cost.cleanup();
+    col_prefix_cost.cleanup();
+    col_cond_cost.cleanup();
+
+    col_data_size_query.cleanup();
 
     /*
       Not needed (we call cleanup() for structured EXPLAIN only,

@@ -2497,6 +2497,9 @@ EXPLAIN
 {
   "query_block": {
     "select_id": 1,
+    "cost_info": {
+      "query_cost": "5.68"
+    },
     "table": {
       "table_name": "t1",
       "partitions": [
@@ -2512,9 +2515,19 @@ EXPLAIN
         "c1"
       ],
       "key_length": "5",
-      "rows": 11,
+      "rows_examined_per_scan": 11,
+      "rows_produced_per_join": 11,
       "filtered": 100,
       "using_index": true,
+      "cost_info": {
+        "read_cost": "3.48",
+        "eval_cost": "2.20",
+        "prefix_cost": "5.68",
+        "data_read_per_join": "88"
+      },
+      "used_columns": [
+        "c1"
+      ],
       "attached_condition": "((`test`.`t1`.`c1` > 2) and (`test`.`t1`.`c1` < 15))"
     }
   }
