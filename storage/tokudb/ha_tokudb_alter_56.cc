@@ -115,6 +115,7 @@ public:
         compression_changed(false),
         expand_varchar_update_needed(false),
         expand_fixed_update_needed(false),
+        expand_blob_update_needed(false),
         table_kc_info(NULL),
         altered_table_kc_info(NULL) {
     }
@@ -133,6 +134,7 @@ public:
     enum toku_compression_method orig_compression_method;
     bool expand_varchar_update_needed;
     bool expand_fixed_update_needed;
+    bool expand_blob_update_needed;
     Dynamic_array<uint> changed_fields;
     KEY_AND_COL_INFO *table_kc_info;
     KEY_AND_COL_INFO *altered_table_kc_info;
@@ -472,11 +474,17 @@ bool ha_tokudb::inplace_alter_table(TABLE *altered_table, Alter_inplace_info *ha
             ctx->compression_changed = true;
         }
     }
-    if (error == 0 && ctx->expand_varchar_update_needed)
-        error = alter_table_expand_varchar_offsets(altered_table, ha_alter_info);
+
+    // note: only one column expansion is allowed
 
     if (error == 0 && ctx->expand_fixed_update_needed)
         error = alter_table_expand_columns(altered_table, ha_alter_info);
+
+    if (error == 0 && ctx->expand_varchar_update_needed)
+        error = alter_table_expand_varchar_offsets(altered_table, ha_alter_info);
+
+    if (error == 0 && ctx->expand_blob_update_needed) 
+        error = alter_table_expand_blobs(altered_table, ha_alter_info);
 
     if (error == 0 && ctx->reset_card)
         tokudb::set_card_from_status(share->status_block, ctx->alter_txn, table->s, altered_table->s);
@@ -969,6 +977,60 @@ int ha_tokudb::alter_table_expand_one_column(TABLE *altered_table, Alter_inplace
     return error;
 }
 
+static void marshall_blob_lengths(tokudb::buffer &b, uint32_t n, TABLE *table, KEY_AND_COL_INFO *kc_info) {
+    for (uint i = 0; i < n; i++) {
+        uint blob_field_index = kc_info->blob_fields[i];
+        assert(blob_field_index < table->s->fields);
+        uint8_t blob_field_length = table->s->field[blob_field_index]->row_pack_length();
+        b.append(&blob_field_length, sizeof blob_field_length);
+    }
+}
+
+int ha_tokudb::alter_table_expand_blobs(TABLE *altered_table, Alter_inplace_info *ha_alter_info) {
+    int error = 0;
+    tokudb_alter_ctx *ctx = static_cast<tokudb_alter_ctx *>(ha_alter_info->handler_ctx);
+
+    uint32_t curr_num_DBs = table->s->keys + test(hidden_primary_key);
+    for (uint32_t i = 0; i < curr_num_DBs; i++) {
+        // change to a new descriptor
+        DBT row_descriptor; memset(&row_descriptor, 0, sizeof row_descriptor);
+        error = new_row_descriptor(table, altered_table, ha_alter_info, i, &row_descriptor);
+        if (error)
+            break;
+        error = share->key_file[i]->change_descriptor(share->key_file[i], ctx->alter_txn, &row_descriptor, 0);
+        my_free(row_descriptor.data);
+        if (error)
+            break;
+
+        // for all trees that have values, make an update blobs message and broadcast it into the tree
+        if (i == primary_key || (table_share->key_info[i].flags & HA_CLUSTERING)) {
+            tokudb::buffer b;
+            uint8_t op = UPDATE_OP_EXPAND_BLOB;
+            b.append(&op, sizeof op);
+            b.append_ui<uint32_t>(table->s->null_bytes + ctx->table_kc_info->mcp_info[i].fixed_field_size);
+            uint32_t var_offset_bytes = ctx->table_kc_info->mcp_info[i].len_of_offsets;
+            b.append_ui<uint32_t>(var_offset_bytes);
+            b.append_ui<uint32_t>(var_offset_bytes == 0 ? 0 : ctx->table_kc_info->num_offset_bytes);
+            
+            // add blobs info
+            uint32_t num_blobs = ctx->table_kc_info->num_blobs;
+            b.append_ui<uint32_t>(num_blobs);
+            marshall_blob_lengths(b, num_blobs, table, ctx->table_kc_info);
+            marshall_blob_lengths(b, num_blobs, altered_table, ctx->altered_table_kc_info);
+
+            // and broadcast it into the tree
+            DBT expand; memset(&expand, 0, sizeof expand);
+            expand.data = b.data();
+            expand.size = b.size();
+            error = share->key_file[i]->update_broadcast(share->key_file[i], ctx->alter_txn, &expand, DB_IS_RESETTING_OP);
+            if (error)
+                break;
+        }
+    }
+
+    return error;
+}
+
 // Return true if two fixed length fields can be changed inplace
 static bool change_fixed_length_is_supported(TABLE *table, TABLE *altered_table, Field *old_field, Field *new_field, tokudb_alter_ctx *ctx) {
     // no change in size is supported
@@ -979,6 +1041,22 @@ static bool change_fixed_length_is_supported(TABLE *table, TABLE *altered_table,
         return false;
     ctx->expand_fixed_update_needed = true;
     return true;
+}
+
+static bool change_blob_length_is_supported(TABLE *table, TABLE *altered_table, Field *old_field, Field *new_field, tokudb_alter_ctx *ctx) {
+    // blob -> longer or equal length blob
+    if (old_field->binary() && new_field->binary() && old_field->pack_length() <= new_field->pack_length()) {
+        ctx->expand_blob_update_needed = true;
+        return true;
+    }
+    // text -> longer or equal length text
+    if (!old_field->binary() && !new_field->binary() &&
+        old_field->pack_length() <= new_field->pack_length() &&
+        old_field->charset()->number == new_field->charset()->number) {
+        ctx->expand_blob_update_needed = true;
+        return true;
+    }
+    return false;
 }
 
 // Return true if the MySQL type is an int or unsigned int type
@@ -1017,6 +1095,8 @@ static bool change_field_type_is_supported(Field *old_field, Field *new_field, T
         // varchar(X) -> varchar(Y) and varbinary(X) -> varbinary(Y) expansion where X < 256 <= Y
         // the ALTER_COLUMN_TYPE handler flag is set for these cases
         return change_varchar_length_is_supported(old_field, new_field, table, altered_table, ha_alter_info, ctx);
+    } else if (old_type == MYSQL_TYPE_BLOB && new_type == MYSQL_TYPE_BLOB) {
+        return change_blob_length_is_supported(table, altered_table, old_field, new_field, ctx);
     } else
         return false;
 }
