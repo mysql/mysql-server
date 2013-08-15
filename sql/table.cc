@@ -1801,7 +1801,7 @@ bool fix_vcol_expr(THD *thd,
   bool result= TRUE;
   TABLE_LIST tables;
   TABLE_LIST *save_table_list, *save_first_table, *save_last_table;
-  int error;
+  int error= 0;
   Name_resolution_context *context;
   const char *save_where;
   char* db_name;
@@ -1849,9 +1849,17 @@ bool fix_vcol_expr(THD *thd,
   save_use_only_table_context= thd->lex->use_only_table_context;
   thd->lex->use_only_table_context= TRUE;
   /* Fix fields referenced to by the virtual column function */
-  thd->lex->context_analysis_only|= CONTEXT_ANALYSIS_ONLY_VCOL_EXPR;
-  error= func_expr->fix_fields(thd, (Item**)0);
-  thd->lex->context_analysis_only&= ~CONTEXT_ANALYSIS_ONLY_VCOL_EXPR;
+  if (!func_expr->fixed)
+  {
+    thd->lex->context_analysis_only|= CONTEXT_ANALYSIS_ONLY_VCOL_EXPR;
+    error= func_expr->fix_fields(thd, &vcol_info->expr_item);
+    thd->lex->context_analysis_only&= ~CONTEXT_ANALYSIS_ONLY_VCOL_EXPR;
+  }
+
+  /* fix_fields could change the expression */
+  func_expr= vcol_info->expr_item;
+  /* Number of columns will be checked later */
+
   /* Restore the original context*/
   thd->lex->use_only_table_context= save_use_only_table_context;
   context->table_list= save_table_list;

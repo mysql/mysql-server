@@ -714,14 +714,14 @@ INSERT INTO t1 VALUES
 'd8c4177d09f8b11f5.52725522');
 EXPLAIN
 SELECT s.oxid FROM t1 v, t1 s 
-WHERE s.oxrootid = 'd8c4177d09f8b11f5.52725521' AND
+WHERE 
 v.oxrootid ='d8c4177d09f8b11f5.52725521' AND
 s.oxleft > v.oxleft AND s.oxleft < v.oxright;
 id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
 1	SIMPLE	v	ref	OXLEFT,OXRIGHT,OXROOTID	OXROOTID	34	const	5	Using index condition
 1	SIMPLE	s	ALL	OXLEFT	NULL	NULL	NULL	12	Range checked for each record (index map: 0x4)
 SELECT s.oxid FROM t1 v, t1 s 
-WHERE s.oxrootid = 'd8c4177d09f8b11f5.52725521' AND
+WHERE
 v.oxrootid ='d8c4177d09f8b11f5.52725521' AND
 s.oxleft > v.oxleft AND s.oxleft < v.oxright;
 oxid
@@ -730,6 +730,11 @@ d8c4177d206a333d2.74422679
 d8c4177d225791924.30714720
 d8c4177d2380fc201.39666693
 d8c4177d24ccef970.14957924
+d8c4177d151affab2.81582771
+d8c4177d206a333d2.74422678
+d8c4177d225791924.30714721
+d8c4177d2380fc201.39666694
+d8c4177d24ccef970.14957925
 DROP TABLE t1;
 create table t1 (
 c1  char(10), c2  char(10), c3  char(10), c4  char(10),
@@ -1887,6 +1892,46 @@ AAA	AAA	AAA
 AAAA	AAAA	AAAA
 AAAAA	AAAAA	AAAAA
 DROP TABLE t1;
+#
+# mdev-4894:  Poor performance with unnecessary 
+# (bug#70021) 'Range checked for each record'
+#
+create table t1( key1 int not null, INDEX i1(key1) );
+insert into t1 values (1),(2),(3),(4),(5),(6),(7),(8);
+insert into t1 select key1+8 from t1;
+insert into t1 select key1+16 from t1;
+insert into t1 select key1+32 from t1;
+insert into t1 select key1+64 from t1;
+insert into t1 select key1+128 from t1;
+insert into t1 select key1+256 from t1;
+insert into t1 select key1+512 from t1;
+alter table t1 add key2 int not null, add index i2(key2);
+update t1 set key2=key1;
+analyze table t1;
+Table	Op	Msg_type	Msg_text
+test.t1	analyze	status	OK
+create table t2 (a int);
+insert into t2 values (1),(2),(3),(4),(5),(6),(7),(8);
+insert into t2 select a+16 from t2;
+insert into t2 select a+32 from t2;
+insert into t2 select a+64 from t2;
+explain
+select count(*) from t2 left join t1 on (t1.key1 < 3 or t1.key1 > 1020) and t1.key2 < 1000;
+id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
+1	SIMPLE	t2	ALL	NULL	NULL	NULL	NULL	64	
+1	SIMPLE	t1	range	i1,i2	i1	4	NULL	78	Using where; Rowid-ordered scan; Using join buffer (flat, BNL join)
+select count(*) from t2 left join t1 on (t1.key1 < 3 or t1.key1 > 1020) and t1.key2 < 1000;
+count(*)
+128
+explain
+select count(*) from t2 left join t1 on (t1.key1 < 3 or t1.key1 > 1020) and t1.key2 < t2.a;
+id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
+1	SIMPLE	t2	ALL	NULL	NULL	NULL	NULL	64	
+1	SIMPLE	t1	range	i1,i2	i1	4	NULL	78	Using where; Rowid-ordered scan; Using join buffer (flat, BNL join)
+select count(*) from t2 left join t1 on (t1.key1 < 3 or t1.key1 > 1020) and t1.key2 < t2.a;
+count(*)
+126
+drop table t1,t2;
 End of 5.1 tests
 #
 # LP Bug #533117: Wrong use_count in SEL_ARG trees

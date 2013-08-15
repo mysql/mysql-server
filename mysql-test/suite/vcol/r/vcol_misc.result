@@ -197,6 +197,13 @@ SELECT COUNT(*) FROM t1;
 COUNT(*)
 2
 DROP TABLE t1;
+#
+# MDEV-4823 Server crashes in Item_func_not::fix_fields on
+# creating a table with a virtual column using NOT
+#
+CREATE TABLE t1 ( f1 INT, v4 INT AS ( NOT f1 ) VIRTUAL );
+drop table t1;
+# end of 5.2 tests
 create table t1 (a int, b int);
 insert into t1 values (3, 30), (4, 20), (1, 20);
 create table t2 (c int, d int, v int as (d+1), index idx(c));
@@ -309,3 +316,4 @@ ERROR HY000: The value specified for computed column 'd' in table 't1' ignored
 INSERT INTO `test`.`t1`(`a`,`b`,`c`,`d`) VALUES ( '1','a',NULL,'a');
 ERROR HY000: The value specified for computed column 'd' in table 't1' ignored
 drop table t1;
+# end of 5.3 tests
