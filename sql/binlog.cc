@@ -1330,9 +1330,9 @@ static int binlog_prepare(handlerton *hton, THD *thd, bool all)
   {
     binlog_cache_mngr *const cache_mngr= thd_get_cache_mngr(thd);
     cache= cache_mngr->get_binlog_cache_log(all);
-    DBUG_ASSERT(cache->commit_seq_no == SEQ_UNINIT);
-    cache->commit_seq_no=
-      mysql_bin_log.commit_clock.get_timestamp();
+    if (cache->commit_seq_no == SEQ_UNINIT)
+      cache->commit_seq_no=
+        mysql_bin_log.commit_clock.get_timestamp();
   }
   DBUG_RETURN(0);
 }
