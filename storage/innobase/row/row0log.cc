@@ -638,7 +638,8 @@ row_log_table_low_redundant(
 
 	ut_ad(!page_is_comp(page_align(rec)));
 	ut_ad(dict_index_get_n_fields(index) == rec_get_n_fields_old(rec));
-	ut_ad(!index->table->flags);
+	ut_ad(dict_tf_is_valid(index->table->flags));
+	ut_ad(!dict_table_is_comp(index->table));  /* redundant row format */
 	ut_ad(dict_index_is_clust(new_index));
 
 	heap = mem_heap_create(DTUPLE_EST_ALLOC(index->n_fields));

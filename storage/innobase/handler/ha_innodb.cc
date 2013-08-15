@@ -1097,7 +1097,7 @@ thd_start_time_in_secs(
 {
 	// FIXME: This function should be added to the server code.
 	//return(thd_start_time(thd));
-	return(ut_time());
+	return(ulint(ut_time()));
 }
 
 /******************************************************************//**
@@ -2191,6 +2191,10 @@ ha_innobase::update_thd(
 {
 	trx_t*		trx;
 
+	DBUG_ENTER("ha_innobase::update_thd");
+	DBUG_PRINT("ha_innobase::update_thd", ("user_thd: %p -> %p",
+		   user_thd, thd));
+
 	/* The table should have been opened in ha_innobase::open(). */
 	DBUG_ASSERT(prebuilt->table->n_ref_count > 0);
 
@@ -2207,6 +2211,8 @@ ha_innobase::update_thd(
 
 	DBUG_ASSERT(prebuilt->trx->magic_n == TRX_MAGIC_N);
 	DBUG_ASSERT(prebuilt->trx == thd_to_trx(user_thd));
+
+	DBUG_VOID_RETURN;
 }
 
 /*********************************************************************//**
@@ -2324,7 +2330,7 @@ innobase_query_caching_of_table_permitted(
 				store a result to the query cache or
 				retrieve it */
 	char*	full_name,	/*!< in: normalized path to the table */
-	uint	full_name_len,	/*!< in: length of the normalized path 
+	uint	full_name_len,	/*!< in: length of the normalized path
                                 to the table */
 	ulonglong *unused)	/*!< unused for this engine */
 {
@@ -2894,7 +2900,7 @@ innobase_init(
 				" tablespace file name seems to be same");
 		DBUG_RETURN(innobase_init_abort());
 	}
-	
+
 	/* -------------- All log files ---------------------------*/
 
 	/* The default dir for log files is the datadir of MySQL */
@@ -4932,8 +4938,6 @@ ha_innobase::clone(
 							       mem_root));
 	if (new_handler) {
 		DBUG_ASSERT(new_handler->prebuilt != NULL);
-		DBUG_ASSERT(new_handler->user_thd == user_thd);
-		DBUG_ASSERT(new_handler->prebuilt->trx == prebuilt->trx);
 
 		new_handler->prebuilt->select_lock_type
 			= prebuilt->select_lock_type;
@@ -13127,7 +13131,7 @@ my_bool
 ha_innobase::register_query_cache_table(
 /*====================================*/
 	THD*		thd,		/*!< in: user thread handle */
-	char*		table_key,	/*!< in: normalized path to the  
+	char*		table_key,	/*!< in: normalized path to the
 					table */
 	uint		key_length,	/*!< in: length of the normalized
 					path to the table */

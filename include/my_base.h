@@ -494,7 +494,8 @@ is the global server default. */
 #define HA_ERR_INNODB_READ_ONLY   187    /* InnoDB is in read only mode. */
 #define HA_ERR_FTS_EXCEED_RESULT_CACHE_LIMIT  188 /* FTS query exceeds result cache limit */
 #define HA_ERR_FK_DEPTH_EXCEEDED  189    /* FK cascade depth exceeded */
-#define HA_ERR_LAST               189    /* Copy of last error nr */
+#define HA_MISSING_CREATE_OPTION  190    /* Option Missing during Create */
+#define HA_ERR_LAST               190    /* Copy of last error nr */
 
 /* Number of different errors */
 #define HA_ERR_ERRORS            (HA_ERR_LAST - HA_ERR_FIRST + 1)
