@@ -114,6 +114,7 @@ When one supplies long data for a placeholder:
 #include "lock.h"                               // MYSQL_OPEN_FORCE_SHARED_MDL
 #include "opt_trace.h"                          // Opt_trace_object
 #include "sql_analyse.h"
+#include "sql_rewrite.h"
 
 #include <algorithm>
 using std::max;
@@ -282,6 +283,35 @@ private:
   Implementation
 ******************************************************************************/
 
+static inline void rewrite_query_if_needed(THD *thd)
+{
+  bool general= (opt_general_log &&
+                 !(opt_general_log_raw || thd->slave_thread));
+
+  if ((thd->sp_runtime_ctx == NULL) &&
+      (general || opt_slow_log || opt_bin_log))
+    mysql_rewrite_query(thd);
+}
+
+static inline void log_execute_line(THD *thd)
+{
+  /*
+    Do not print anything if this is an SQL prepared statement and
+    we're inside a stored procedure (also called Dynamic SQL) --
+    sub-statements inside stored procedures are not logged into
+    the general log.
+  */
+  if (thd->sp_runtime_ctx != NULL)
+    return;
+
+  if (thd->rewritten_query.length())
+    query_logger.general_log_write(thd, COM_STMT_EXECUTE,
+                                   thd->rewritten_query.c_ptr_safe(),
+                                   thd->rewritten_query.length());
+  else
+    query_logger.general_log_write(thd, COM_STMT_EXECUTE,
+                                   thd->query(), thd->query_length());
+}
 
 inline bool is_param_null(const uchar *pos, ulong param_no)
 {
@@ -3447,8 +3477,15 @@ bool Prepared_statement::prepare(const char *packet, uint packet_len)
       the general log.
     */
     if (thd->sp_runtime_ctx == NULL)
-      query_logger.general_log_write(thd, COM_STMT_PREPARE,
-                                     query(), query_length());
+    {
+      if (thd->rewritten_query.length())
+        query_logger.general_log_write(thd, COM_STMT_PREPARE,
+                                       thd->rewritten_query.c_ptr_safe(),
+                                       thd->rewritten_query.length());
+      else
+        query_logger.general_log_write(thd, COM_STMT_PREPARE,
+                                       query(), query_length());
+    }
   }
   DBUG_RETURN(error);
 }
