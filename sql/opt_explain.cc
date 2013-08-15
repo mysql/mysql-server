@@ -1186,6 +1186,10 @@ bool Explain_join::end_simple_sort_context(Explain_sort_clause clause,
 
 bool Explain_join::shallow_explain()
 {
+  qep_row *join_entry= fmt->entry();
+
+  join_entry->col_read_cost.set(join->best_read);
+
   LEX const*query_lex= join->thd->query_plan.get_lex();
   if (query_lex->leaf_tables_insert &&
       query_lex->leaf_tables_insert->select_lex == join->select_lex)
@@ -1211,6 +1215,17 @@ bool Explain_join::shallow_explain()
     return true; /* purecov: inspected */
   if (begin_sort_context(ESC_GROUP_BY, CTX_GROUP_BY))
     return true; /* purecov: inspected */
+
+  if (join->sort_cost > 0.0)
+  {
+    /*
+      Due to begin_sort_context() calls above, fmt->entry() returns another
+      context than stored in join_entry.
+    */
+    DBUG_ASSERT(fmt->entry() != join_entry || !fmt->is_hierarchical());
+    fmt->entry()->col_read_cost.set(join->sort_cost);
+  }
+
   if (begin_sort_context(ESC_BUFFER_RESULT, CTX_BUFFER_RESULT))
     return true; /* purecov: inspected */
 
@@ -1230,7 +1245,7 @@ bool Explain_join::shallow_explain()
     return true;
   if (end_sort_context(ESC_ORDER_BY, CTX_ORDER_BY))
     return true;
-    
+
   return false;
 }
 
@@ -1419,6 +1434,17 @@ bool Explain_join::explain_ref()
   return explain_ref_key(fmt, tab->ref.key_parts, tab->ref.key_copy);
 }
 
+static void human_readable_size(char *buf, int buf_len, double data_size)
+{
+  char size[]= " KMGTP";
+  int i;
+  for (i= 0; data_size > 1024 && i < 5; i++)
+    data_size/= 1024;
+  const char mult= i == 0 ? 0 : size[i];
+  snprintf(buf, buf_len, "%llu%c", (ulonglong)data_size, mult);
+  buf[buf_len - 1]= 0;
+}
+
 
 bool Explain_join::explain_rows_and_filtered()
 {
@@ -1443,6 +1469,22 @@ bool Explain_join::explain_rows_and_filtered()
       f= 100.0 * tab->position->records_read / examined_rows;
     fmt->entry()->col_filtered.set(f);
   }
+  // Print cost-related info
+  double prefix_rows= tab->position->prefix_record_count;
+  fmt->entry()->col_prefix_rows.set(prefix_rows);
+  double const cond_cost= prefix_rows * ROW_EVALUATE_COST;
+  fmt->entry()->col_cond_cost.set(cond_cost < 0 ? 0 : cond_cost);
+
+  fmt->entry()->col_read_cost.set(tab->position->read_time < 0.0 ?
+                                  0.0 : tab->position->read_time);
+  fmt->entry()->col_prefix_cost.set(tab->position->prefix_cost.get_io_cost());
+
+  // Calculate amount of data from this table per query
+  char data_size_str[32];
+  double data_size= prefix_rows * tab->table->s->rec_buff_length;
+  human_readable_size(data_size_str, sizeof(data_size_str), data_size);
+  fmt->entry()->col_data_size_query.set(data_size_str);
+
   return false;
 }
 
@@ -1622,6 +1664,19 @@ bool Explain_join::explain_extra()
         DBUG_ASSERT(0); /* purecov: inspected */
       if (push_extra(ET_USING_JOIN_BUFFER, buff))
         return true;
+    }
+  }
+  if (fmt->is_hierarchical() &&
+      (!bitmap_is_clear_all(table->read_set) ||
+       !bitmap_is_clear_all(table->write_set)))
+  {
+    Field **fld;
+    for (fld= table->field; *fld; fld++)
+    {
+      if (!bitmap_is_set(table->read_set, (*fld)->field_index) &&
+          !bitmap_is_set(table->write_set, (*fld)->field_index))
+        continue;
+      fmt->entry()->col_used_columns.push_back((*fld)->field_name);
     }
   }
   return false;

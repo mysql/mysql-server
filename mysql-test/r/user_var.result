@@ -537,22 +537,45 @@ EXPLAIN
 {
   "query_block": {
     "select_id": 1,
+    "cost_info": {
+      "query_cost": "58.04"
+    },
     "nested_loop": [
       {
         "table": {
           "table_name": "t1",
           "access_type": "ALL",
-          "rows": 10,
-          "filtered": 100
+          "rows_examined_per_scan": 10,
+          "rows_produced_per_join": 10,
+          "filtered": 100,
+          "cost_info": {
+            "read_cost": "2.02",
+            "eval_cost": "2.00",
+            "prefix_cost": "4.02",
+            "data_read_per_join": "80"
+          },
+          "used_columns": [
+            "a"
+          ]
         }
       },
       {
         "table": {
           "table_name": "t2",
           "access_type": "ALL",
-          "rows": 5,
+          "rows_examined_per_scan": 5,
+          "rows_produced_per_join": 50,
           "filtered": 100,
           "using_join_buffer": "Block Nested Loop",
+          "cost_info": {
+            "read_cost": "2.01",
+            "eval_cost": "10.00",
+            "prefix_cost": "16.03",
+            "data_read_per_join": "400"
+          },
+          "used_columns": [
+            "a"
+          ],
           "attached_condition": "<if>(is_not_null_compl(t2), ((`test`.`t1`.`a` = `test`.`t2`.`a`) and (`test`.`t2`.`a` < (@`var1`))), true)"
         }
       },
@@ -560,9 +583,19 @@ EXPLAIN
         "table": {
           "table_name": "t3",
           "access_type": "ALL",
-          "rows": 4,
+          "rows_examined_per_scan": 4,
+          "rows_produced_per_join": 200,
           "filtered": 100,
           "using_join_buffer": "Block Nested Loop",
+          "cost_info": {
+            "read_cost": "2.01",
+            "eval_cost": "40.00",
+            "prefix_cost": "58.04",
+            "data_read_per_join": "1K"
+          },
+          "used_columns": [
+            "a"
+          ],
           "attached_condition": "<if>(is_not_null_compl(t3), ((`test`.`t1`.`a` = `test`.`t3`.`a`) and (`test`.`t3`.`a` < (@`var1`))), true)"
         }
       }

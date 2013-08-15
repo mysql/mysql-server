@@ -1035,6 +1035,15 @@ JOIN::optimize()
 
   DEBUG_SYNC(thd, "after_join_optimize");
 
+  // Update last_query_cost to reflect actual need of filesort.
+  if (sort_cost > 0.0 && !explain_flags.any(ESP_USING_FILESORT))
+  {
+    best_read-= sort_cost;
+    sort_cost= 0.0;
+    if (thd->lex->is_single_level_stmt())
+      thd->status_var.last_query_cost= best_read;
+  }
+
   error= 0;
   DBUG_RETURN(0);
 
@@ -6026,6 +6035,8 @@ set_position(JOIN *join, uint idx, JOIN_TAB *table, Key_use *key)
   join->positions[idx].table= table;
   join->positions[idx].key=key;
   join->positions[idx].records_read=1.0;	/* This is a const table */
+  join->positions[idx].prefix_record_count= 1.0;
+  join->positions[idx].read_time= 0.0;
   join->positions[idx].ref_depend_map= 0;
 
   join->positions[idx].loosescan_key= MAX_KEY; /* Not a LooseScan */

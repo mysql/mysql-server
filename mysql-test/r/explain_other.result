@@ -46,11 +46,24 @@ EXPLAIN
 {
   "query_block": {
     "select_id": 1,
+    "cost_info": {
+      "query_cost": "1.40"
+    },
     "table": {
       "table_name": "t1",
       "access_type": "ALL",
-      "rows": 2,
-      "filtered": 100
+      "rows_examined_per_scan": 2,
+      "rows_produced_per_join": 2,
+      "filtered": 100,
+      "cost_info": {
+        "read_cost": "1.00",
+        "eval_cost": "0.40",
+        "prefix_cost": "1.40",
+        "data_read_per_join": "16"
+      },
+      "used_columns": [
+        "f1"
+      ]
     }
   }
 }
@@ -59,22 +72,48 @@ EXPLAIN
 {
   "query_block": {
     "select_id": 1,
+    "cost_info": {
+      "query_cost": "10.50"
+    },
     "table": {
       "table_name": "tt",
       "access_type": "ALL",
-      "rows": 2,
+      "rows_examined_per_scan": 2,
+      "rows_produced_per_join": 2,
       "filtered": 100,
+      "cost_info": {
+        "read_cost": "10.10",
+        "eval_cost": "0.40",
+        "prefix_cost": "10.50",
+        "data_read_per_join": "32"
+      },
+      "used_columns": [
+        "f1"
+      ],
       "materialized_from_subquery": {
         "using_temporary_table": true,
         "dependent": false,
         "cacheable": true,
         "query_block": {
           "select_id": 2,
+          "cost_info": {
+            "query_cost": "1.40"
+          },
           "table": {
             "table_name": "t1",
             "access_type": "ALL",
-            "rows": 2,
-            "filtered": 100
+            "rows_examined_per_scan": 2,
+            "rows_produced_per_join": 2,
+            "filtered": 100,
+            "cost_info": {
+              "read_cost": "1.00",
+              "eval_cost": "0.40",
+              "prefix_cost": "1.40",
+              "data_read_per_join": "16"
+            },
+            "used_columns": [
+              "f1"
+            ]
           }
         }
       }
@@ -86,24 +125,47 @@ EXPLAIN
 {
   "query_block": {
     "select_id": 1,
+    "cost_info": {
+      "query_cost": "3.20"
+    },
     "nested_loop": [
       {
         "table": {
           "table_name": "t1",
           "access_type": "ALL",
-          "rows": 2,
-          "filtered": 100
+          "rows_examined_per_scan": 2,
+          "rows_produced_per_join": 2,
+          "filtered": 100,
+          "cost_info": {
+            "read_cost": "1.00",
+            "eval_cost": "0.40",
+            "prefix_cost": "1.40",
+            "data_read_per_join": "16"
+          },
+          "used_columns": [
+            "f1"
+          ]
         }
       },
       {
         "table": {
           "table_name": "t1",
           "access_type": "ALL",
-          "rows": 2,
+          "rows_examined_per_scan": 2,
+          "rows_produced_per_join": 2,
           "filtered": 100,
           "using_where": true,
           "first_match": "t1",
-          "using_join_buffer": "Block Nested Loop"
+          "using_join_buffer": "Block Nested Loop",
+          "cost_info": {
+            "read_cost": "1.00",
+            "eval_cost": "0.40",
+            "prefix_cost": "3.20",
+            "data_read_per_join": "16"
+          },
+          "used_columns": [
+            "f1"
+          ]
         }
       }
     ]
@@ -123,11 +185,24 @@ EXPLAIN
           "cacheable": true,
           "query_block": {
             "select_id": 1,
+            "cost_info": {
+              "query_cost": "1.40"
+            },
             "table": {
               "table_name": "t1",
               "access_type": "ALL",
-              "rows": 2,
-              "filtered": 100
+              "rows_examined_per_scan": 2,
+              "rows_produced_per_join": 2,
+              "filtered": 100,
+              "cost_info": {
+                "read_cost": "1.00",
+                "eval_cost": "0.40",
+                "prefix_cost": "1.40",
+                "data_read_per_join": "16"
+              },
+              "used_columns": [
+                "f1"
+              ]
             }
           }
         },
@@ -136,11 +211,24 @@ EXPLAIN
           "cacheable": true,
           "query_block": {
             "select_id": 2,
+            "cost_info": {
+              "query_cost": "1.40"
+            },
             "table": {
               "table_name": "t1",
               "access_type": "ALL",
-              "rows": 2,
-              "filtered": 100
+              "rows_examined_per_scan": 2,
+              "rows_produced_per_join": 2,
+              "filtered": 100,
+              "cost_info": {
+                "read_cost": "1.00",
+                "eval_cost": "0.40",
+                "prefix_cost": "1.40",
+                "data_read_per_join": "16"
+              },
+              "used_columns": [
+                "f1"
+              ]
             }
           }
         }
@@ -165,14 +253,30 @@ EXPLAIN
 {
   "query_block": {
     "select_id": 1,
+    "cost_info": {
+      "query_cost": "3.40"
+    },
     "grouping_operation": {
       "using_temporary_table": true,
       "using_filesort": true,
+      "cost_info": {
+        "sort_cost": "2.00"
+      },
       "table": {
         "table_name": "t1",
         "access_type": "ALL",
-        "rows": 2,
-        "filtered": 100
+        "rows_examined_per_scan": 2,
+        "rows_produced_per_join": 2,
+        "filtered": 100,
+        "cost_info": {
+          "read_cost": "1.00",
+          "eval_cost": "0.40",
+          "prefix_cost": "1.40",
+          "data_read_per_join": "16"
+        },
+        "used_columns": [
+          "f1"
+        ]
       },
       "group_by_subqueries": [
         {
@@ -180,14 +284,27 @@ EXPLAIN
           "cacheable": false,
           "query_block": {
             "select_id": 2,
+            "cost_info": {
+              "query_cost": "1.40"
+            },
             "grouping_operation": {
               "using_filesort": false,
               "table": {
                 "table_name": "t2",
                 "access_type": "ALL",
-                "rows": 2,
+                "rows_examined_per_scan": 2,
+                "rows_produced_per_join": 2,
                 "filtered": 100,
-                "using_where": true
+                "using_where": true,
+                "cost_info": {
+                  "read_cost": "1.00",
+                  "eval_cost": "0.40",
+                  "prefix_cost": "1.40",
+                  "data_read_per_join": "16"
+                },
+                "used_columns": [
+                  "f1"
+                ]
               }
             }
           }
@@ -226,6 +343,9 @@ EXPLAIN
 {
   "query_block": {
     "select_id": 1,
+    "cost_info": {
+      "query_cost": "1.80"
+    },
     "table": {
       "insert": true,
       "select_id": 1,
@@ -238,8 +358,18 @@ EXPLAIN
         "table": {
           "table_name": "t1",
           "access_type": "ALL",
-          "rows": 4,
-          "filtered": 100
+          "rows_examined_per_scan": 4,
+          "rows_produced_per_join": 4,
+          "filtered": 100,
+          "cost_info": {
+            "read_cost": "1.00",
+            "eval_cost": "0.80",
+            "prefix_cost": "1.80",
+            "data_read_per_join": "32"
+          },
+          "used_columns": [
+            "f1"
+          ]
         }
       }
     }
@@ -262,7 +392,7 @@ EXPLAIN
       "update": true,
       "table_name": "t1",
       "access_type": "ALL",
-      "rows": 8,
+      "rows_examined_per_scan": 8,
       "filtered": 100,
       "using_where": true
     }
@@ -284,7 +414,7 @@ EXPLAIN
         "update": true,
         "table_name": "t1",
         "access_type": "ALL",
-        "rows": 8,
+        "rows_examined_per_scan": 8,
         "filtered": 100
       },
       "order_by_subqueries": [
@@ -306,24 +436,47 @@ EXPLAIN
 {
   "query_block": {
     "select_id": 1,
+    "cost_info": {
+      "query_cost": "16.40"
+    },
     "nested_loop": [
       {
         "table": {
           "update": true,
           "table_name": "t1",
           "access_type": "ALL",
-          "rows": 8,
+          "rows_examined_per_scan": 8,
+          "rows_produced_per_join": 8,
           "filtered": 100,
-          "using_where": true
+          "using_where": true,
+          "cost_info": {
+            "read_cost": "1.00",
+            "eval_cost": "1.60",
+            "prefix_cost": "2.60",
+            "data_read_per_join": "64"
+          },
+          "used_columns": [
+            "f1"
+          ]
         }
       },
       {
         "table": {
           "table_name": "tt",
           "access_type": "ALL",
-          "rows": 8,
+          "rows_examined_per_scan": 8,
+          "rows_produced_per_join": 64,
           "filtered": 100,
-          "using_where": true
+          "using_where": true,
+          "cost_info": {
+            "read_cost": "1.00",
+            "eval_cost": "12.80",
+            "prefix_cost": "16.40",
+            "data_read_per_join": "512"
+          },
+          "used_columns": [
+            "f1"
+          ]
         }
       }
     ]
@@ -338,7 +491,7 @@ EXPLAIN
       "delete": true,
       "table_name": "t1",
       "access_type": "ALL",
-      "rows": 8,
+      "rows_examined_per_scan": 8,
       "filtered": 100,
       "using_where": true
     }
@@ -389,14 +542,30 @@ EXPLAIN
         "cacheable": true,
         "query_block": {
           "select_id": 2,
+          "cost_info": {
+            "query_cost": "21.40"
+          },
           "grouping_operation": {
             "using_temporary_table": true,
             "using_filesort": true,
+            "cost_info": {
+              "sort_cost": "17.00"
+            },
             "table": {
               "table_name": "t1",
               "access_type": "ALL",
-              "rows": 17,
-              "filtered": 100
+              "rows_examined_per_scan": 17,
+              "rows_produced_per_join": 17,
+              "filtered": 100,
+              "cost_info": {
+                "read_cost": "1.00",
+                "eval_cost": "3.40",
+                "prefix_cost": "4.40",
+                "data_read_per_join": "136"
+              },
+              "used_columns": [
+                "f1"
+              ]
             }
           }
         }
@@ -420,11 +589,24 @@ EXPLAIN
             "cacheable": true,
             "query_block": {
               "select_id": 1,
+              "cost_info": {
+                "query_cost": "4.40"
+              },
               "table": {
                 "table_name": "t1",
                 "access_type": "ALL",
-                "rows": 17,
-                "filtered": 100
+                "rows_examined_per_scan": 17,
+                "rows_produced_per_join": 17,
+                "filtered": 100,
+                "cost_info": {
+                  "read_cost": "1.00",
+                  "eval_cost": "3.40",
+                  "prefix_cost": "4.40",
+                  "data_read_per_join": "136"
+                },
+                "used_columns": [
+                  "f1"
+                ]
               }
             }
           },
@@ -461,22 +643,48 @@ EXPLAIN
 {
   "query_block": {
     "select_id": 1,
+    "cost_info": {
+      "query_cost": "14.25"
+    },
     "table": {
       "table_name": "tt",
       "access_type": "ALL",
-      "rows": 17,
+      "rows_examined_per_scan": 17,
+      "rows_produced_per_join": 17,
       "filtered": 100,
+      "cost_info": {
+        "read_cost": "10.85",
+        "eval_cost": "3.40",
+        "prefix_cost": "14.25",
+        "data_read_per_join": "272"
+      },
+      "used_columns": [
+        "f1"
+      ],
       "materialized_from_subquery": {
         "using_temporary_table": true,
         "dependent": false,
         "cacheable": true,
         "query_block": {
           "select_id": 2,
+          "cost_info": {
+            "query_cost": "4.40"
+          },
           "table": {
             "table_name": "t1",
             "access_type": "ALL",
-            "rows": 17,
-            "filtered": 100
+            "rows_examined_per_scan": 17,
+            "rows_produced_per_join": 17,
+            "filtered": 100,
+            "cost_info": {
+              "read_cost": "1.00",
+              "eval_cost": "3.40",
+              "prefix_cost": "4.40",
+              "data_read_per_join": "136"
+            },
+            "used_columns": [
+              "f1"
+            ]
           }
         }
       }
@@ -510,14 +718,27 @@ EXPLAIN
 {
   "query_block": {
     "select_id": 1,
+    "cost_info": {
+      "query_cost": "63.20"
+    },
     "nested_loop": [
       {
         "table": {
           "table_name": "t1",
           "access_type": "ALL",
-          "rows": 17,
+          "rows_examined_per_scan": 17,
+          "rows_produced_per_join": 17,
           "filtered": 100,
           "using_where": true,
+          "cost_info": {
+            "read_cost": "1.00",
+            "eval_cost": "3.40",
+            "prefix_cost": "4.40",
+            "data_read_per_join": "136"
+          },
+          "used_columns": [
+            "f1"
+          ],
           "attached_subqueries": [
             {
               "dependent": false,
@@ -534,9 +755,19 @@ EXPLAIN
         "table": {
           "table_name": "t2",
           "access_type": "ALL",
-          "rows": 17,
+          "rows_examined_per_scan": 17,
+          "rows_produced_per_join": 289,
           "filtered": 100,
-          "using_join_buffer": "Block Nested Loop"
+          "using_join_buffer": "Block Nested Loop",
+          "cost_info": {
+            "read_cost": "1.00",
+            "eval_cost": "57.80",
+            "prefix_cost": "63.20",
+            "data_read_per_join": "2K"
+          },
+          "used_columns": [
+            "f1"
+          ]
         }
       }
     ]
@@ -549,25 +780,51 @@ EXPLAIN
 {
   "query_block": {
     "select_id": 1,
+    "cost_info": {
+      "query_cost": "63.20"
+    },
     "nested_loop": [
       {
         "table": {
           "table_name": "t1",
           "access_type": "ALL",
-          "rows": 17,
+          "rows_examined_per_scan": 17,
+          "rows_produced_per_join": 17,
           "filtered": 100,
           "using_where": true,
+          "cost_info": {
+            "read_cost": "1.00",
+            "eval_cost": "3.40",
+            "prefix_cost": "4.40",
+            "data_read_per_join": "136"
+          },
+          "used_columns": [
+            "f1"
+          ],
           "attached_subqueries": [
             {
               "dependent": false,
               "cacheable": true,
               "query_block": {
                 "select_id": 2,
+                "cost_info": {
+                  "query_cost": "4.40"
+                },
                 "table": {
                   "table_name": "t3",
                   "access_type": "ALL",
-                  "rows": 17,
-                  "filtered": 100
+                  "rows_examined_per_scan": 17,
+                  "rows_produced_per_join": 17,
+                  "filtered": 100,
+                  "cost_info": {
+                    "read_cost": "1.00",
+                    "eval_cost": "3.40",
+                    "prefix_cost": "4.40",
+                    "data_read_per_join": "136"
+                  },
+                  "used_columns": [
+                    "f1"
+                  ]
                 }
               }
             }
@@ -578,9 +835,19 @@ EXPLAIN
         "table": {
           "table_name": "t2",
           "access_type": "ALL",
-          "rows": 17,
+          "rows_examined_per_scan": 17,
+          "rows_produced_per_join": 289,
           "filtered": 100,
-          "using_join_buffer": "Block Nested Loop"
+          "using_join_buffer": "Block Nested Loop",
+          "cost_info": {
+            "read_cost": "1.00",
+            "eval_cost": "57.80",
+            "prefix_cost": "63.20",
+            "data_read_per_join": "2K"
+          },
+          "used_columns": [
+            "f1"
+          ]
         }
       }
     ]
@@ -593,13 +860,26 @@ EXPLAIN
 {
   "query_block": {
     "select_id": 1,
+    "cost_info": {
+      "query_cost": "63.20"
+    },
     "nested_loop": [
       {
         "table": {
           "table_name": "t1",
           "access_type": "ALL",
-          "rows": 17,
+          "rows_examined_per_scan": 17,
+          "rows_produced_per_join": 17,
           "filtered": 100,
+          "cost_info": {
+            "read_cost": "1.00",
+            "eval_cost": "3.40",
+            "prefix_cost": "4.40",
+            "data_read_per_join": "136"
+          },
+          "used_columns": [
+            "f1"
+          ],
           "attached_condition": "(`mysqltest1`.`t1`.`f1` > (/* select#2 */ select `mysqltest1`.`t3`.`f1` from `mysqltest1`.`t1` `t3` limit 1))",
           "attached_subqueries": [
             {
@@ -607,11 +887,24 @@ EXPLAIN
               "cacheable": true,
               "query_block": {
                 "select_id": 2,
+                "cost_info": {
+                  "query_cost": "4.40"
+                },
                 "table": {
                   "table_name": "t3",
                   "access_type": "ALL",
-                  "rows": 17,
-                  "filtered": 100
+                  "rows_examined_per_scan": 17,
+                  "rows_produced_per_join": 17,
+                  "filtered": 100,
+                  "cost_info": {
+                    "read_cost": "1.00",
+                    "eval_cost": "3.40",
+                    "prefix_cost": "4.40",
+                    "data_read_per_join": "136"
+                  },
+                  "used_columns": [
+                    "f1"
+                  ]
                 }
               }
             }
@@ -622,9 +915,19 @@ EXPLAIN
         "table": {
           "table_name": "t2",
           "access_type": "ALL",
-          "rows": 17,
+          "rows_examined_per_scan": 17,
+          "rows_produced_per_join": 289,
           "filtered": 100,
-          "using_join_buffer": "Block Nested Loop"
+          "using_join_buffer": "Block Nested Loop",
+          "cost_info": {
+            "read_cost": "1.00",
+            "eval_cost": "57.80",
+            "prefix_cost": "63.20",
+            "data_read_per_join": "2K"
+          },
+          "used_columns": [
+            "f1"
+          ]
         }
       }
     ]
@@ -638,12 +941,25 @@ EXPLAIN
 {
   "query_block": {
     "select_id": 1,
+    "cost_info": {
+      "query_cost": "4.40"
+    },
     "table": {
       "table_name": "t1",
       "access_type": "ALL",
-      "rows": 17,
+      "rows_examined_per_scan": 17,
+      "rows_produced_per_join": 17,
       "filtered": 100,
-      "using_where": true
+      "using_where": true,
+      "cost_info": {
+        "read_cost": "1.00",
+        "eval_cost": "3.40",
+        "prefix_cost": "4.40",
+        "data_read_per_join": "136"
+      },
+      "used_columns": [
+        "f1"
+      ]
     },
     "optimized_away_subqueries": [
       {
@@ -651,12 +967,25 @@ EXPLAIN
         "cacheable": true,
         "query_block": {
           "select_id": 2,
+          "cost_info": {
+            "query_cost": "4.40"
+          },
           "table": {
             "table_name": "t1",
             "access_type": "ALL",
-            "rows": 17,
+            "rows_examined_per_scan": 17,
+            "rows_produced_per_join": 17,
             "filtered": 100,
-            "using_where": true
+            "using_where": true,
+            "cost_info": {
+              "read_cost": "1.00",
+              "eval_cost": "3.40",
+              "prefix_cost": "4.40",
+              "data_read_per_join": "136"
+            },
+            "used_columns": [
+              "f1"
+            ]
           }
         }
       }
@@ -669,11 +998,24 @@ EXPLAIN
 {
   "query_block": {
     "select_id": 1,
+    "cost_info": {
+      "query_cost": "4.40"
+    },
     "table": {
       "table_name": "t1",
       "access_type": "ALL",
-      "rows": 17,
+      "rows_examined_per_scan": 17,
+      "rows_produced_per_join": 17,
       "filtered": 100,
+      "cost_info": {
+        "read_cost": "1.00",
+        "eval_cost": "3.40",
+        "prefix_cost": "4.40",
+        "data_read_per_join": "136"
+      },
+      "used_columns": [
+        "f1"
+      ],
       "attached_condition": "((`mysqltest1`.`t1`.`f1`,`mysqltest1`.`t1`.`f1`) >= <cache>(('1',(/* select#2 */ select 1 from `mysqltest1`.`t1` where (`t1`.`f1` > 1234)))))"
     },
     "optimized_away_subqueries": [
@@ -682,11 +1024,24 @@ EXPLAIN
         "cacheable": true,
         "query_block": {
           "select_id": 2,
+          "cost_info": {
+            "query_cost": "4.40"
+          },
           "table": {
             "table_name": "t1",
             "access_type": "ALL",
-            "rows": 17,
+            "rows_examined_per_scan": 17,
+            "rows_produced_per_join": 17,
             "filtered": 100,
+            "cost_info": {
+              "read_cost": "1.00",
+              "eval_cost": "3.40",
+              "prefix_cost": "4.40",
+              "data_read_per_join": "136"
+            },
+            "used_columns": [
+              "f1"
+            ],
             "attached_condition": "(`t1`.`f1` > 1234)"
           }
         }
@@ -703,6 +1058,9 @@ EXPLAIN
 {
   "query_block": {
     "select_id": 1,
+    "cost_info": {
+      "query_cost": "1.00"
+    },
     "table": {
       "table_name": "t3",
       "access_type": "const",
@@ -717,9 +1075,19 @@ EXPLAIN
       "ref": [
         "const"
       ],
-      "rows": 1,
+      "rows_examined_per_scan": 1,
+      "rows_produced_per_join": 1,
       "filtered": 100,
-      "using_index": true
+      "using_index": true,
+      "cost_info": {
+        "read_cost": "0.00",
+        "eval_cost": "0.20",
+        "prefix_cost": "0.00",
+        "data_read_per_join": "8"
+      },
+      "used_columns": [
+        "pk"
+      ]
     },
     "optimized_away_subqueries": [
       {
@@ -727,11 +1095,24 @@ EXPLAIN
         "cacheable": true,
         "query_block": {
           "select_id": 2,
+          "cost_info": {
+            "query_cost": "4.40"
+          },
           "table": {
             "table_name": "t1",
             "access_type": "ALL",
-            "rows": 17,
-            "filtered": 100
+            "rows_examined_per_scan": 17,
+            "rows_produced_per_join": 17,
+            "filtered": 100,
+            "cost_info": {
+              "read_cost": "1.00",
+              "eval_cost": "3.40",
+              "prefix_cost": "4.40",
+              "data_read_per_join": "136"
+            },
+            "used_columns": [
+              "f1"
+            ]
           }
         }
       }
@@ -864,6 +1245,9 @@ EXPLAIN
 {
   "query_block": {
     "select_id": 1,
+    "cost_info": {
+      "query_cost": "3.80"
+    },
     "ordering_operation": {
       "using_temporary_table": true,
       "using_filesort": true,
@@ -883,8 +1267,19 @@ EXPLAIN
                 "login"
               ],
               "key_length": "4",
-              "rows": 2,
-              "filtered": 100
+              "rows_examined_per_scan": 2,
+              "rows_produced_per_join": 2,
+              "filtered": 100,
+              "cost_info": {
+                "read_cost": "1.00",
+                "eval_cost": "0.40",
+                "prefix_cost": "1.40",
+                "data_read_per_join": "32"
+              },
+              "used_columns": [
+                "login",
+                "numb"
+              ]
             }
           },
           {
@@ -902,9 +1297,19 @@ EXPLAIN
               "ref": [
                 "mysqltest1.t1.login"
               ],
-              "rows": 1,
+              "rows_examined_per_scan": 1,
+              "rows_produced_per_join": 2,
               "filtered": 100,
-              "using_index": true
+              "using_index": true,
+              "cost_info": {
+                "read_cost": "2.00",
+                "eval_cost": "0.40",
+                "prefix_cost": "3.80",
+                "data_read_per_join": "32"
+              },
+              "used_columns": [
+                "login"
+              ]
             }
           }
         ],
@@ -914,6 +1319,9 @@ EXPLAIN
             "cacheable": false,
             "query_block": {
               "select_id": 3,
+              "cost_info": {
+                "query_cost": "1.20"
+              },
               "table": {
                 "table_name": "tbl2",
                 "access_type": "ref",
@@ -928,8 +1336,19 @@ EXPLAIN
                 "ref": [
                   "func"
                 ],
-                "rows": 1,
-                "filtered": 100
+                "rows_examined_per_scan": 1,
+                "rows_produced_per_join": 1,
+                "filtered": 100,
+                "cost_info": {
+                  "read_cost": "1.00",
+                  "eval_cost": "0.20",
+                  "prefix_cost": "1.20",
+                  "data_read_per_join": "16"
+                },
+                "used_columns": [
+                  "login",
+                  "nump"
+                ]
               }
             }
           },
@@ -938,6 +1357,9 @@ EXPLAIN
             "cacheable": false,
             "query_block": {
               "select_id": 2,
+              "cost_info": {
+                "query_cost": "1.20"
+              },
               "table": {
                 "table_name": "tbl2",
                 "access_type": "ref",
@@ -952,8 +1374,19 @@ EXPLAIN
                 "ref": [
                   "func"
                 ],
-                "rows": 1,
-                "filtered": 100
+                "rows_examined_per_scan": 1,
+                "rows_produced_per_join": 1,
+                "filtered": 100,
+                "cost_info": {
+                  "read_cost": "1.00",
+                  "eval_cost": "0.20",
+                  "prefix_cost": "1.20",
+                  "data_read_per_join": "16"
+                },
+                "used_columns": [
+                  "login",
+                  "nump"
+                ]
               }
             }
           }
