@@ -2079,6 +2079,7 @@ int Relay_log_info::flush_info(const bool force)
     update every time we call flush because the option maybe 
     dinamically set.
   */
+  mysql_mutex_lock(&mts_temp_table_LOCK);
   handler->set_sync_period(sync_relayloginfo_period);
 
   if (write_info(handler))
@@ -2087,10 +2088,12 @@ int Relay_log_info::flush_info(const bool force)
   if (handler->flush_info(force))
     goto err;
 
+  mysql_mutex_unlock(&mts_temp_table_LOCK);
   DBUG_RETURN(0);
 
 err:
   sql_print_error("Error writing relay log configuration.");
+  mysql_mutex_unlock(&mts_temp_table_LOCK);
   DBUG_RETURN(1);
 }
 

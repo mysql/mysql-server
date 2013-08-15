@@ -6,8 +6,8 @@ Note	####	Storing MySQL user name or password information in the master info rep
 SET GLOBAL DEBUG ='+d,set_commit_parent_100';
 CREATE TABLE t1 (a int primary key) engine=innodb;
 CREATE TABLE t2 (a int primary key) engine=innodb;
-CREATE TABLE t3 (a int primary key) engine=myisam;
-CREATE TABLE t4 (a int primary key) engine=myisam;
+CREATE TABLE t3 (a int primary key) engine=innodb;
+CREATE TABLE t4 (a int primary key) engine=innodb;
 include/stop_slave.inc
 SET GLOBAL DEBUG ='+d,crash_in_a_worker';
 SET GLOBAL DEBUG ='-d,set_commit_parent_100';
