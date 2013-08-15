@@ -1,4 +1,4 @@
-/* Copyright (c) 2011, 2012, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2011, 2013, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or
    modify it under the terms of the GNU General Public License
@@ -620,6 +620,29 @@ static void mysql_rewrite_alter_server(THD *thd, String *rlb)
 
 
 /**
+  Rewrite a PREPARE statement.
+
+  @param thd      The THD to rewrite for.
+  @param rlb      An empty String object to put the rewritten query in.
+*/
+
+static void mysql_rewrite_prepare(THD *thd, String *rlb)
+{
+  LEX *lex= thd->lex;
+
+  if (lex->prepared_stmt_code_is_varref)
+    return;
+
+  rlb->append(STRING_WITH_LEN("PREPARE "));
+  rlb->append(lex->prepared_stmt_name.str,
+              lex->prepared_stmt_name.length);
+  rlb->append(STRING_WITH_LEN(" FROM ..."));
+}
+
+
+
+
+/**
    Rewrite a query (to obfuscate passwords etc.)
 
    Side-effects: thd->rewritten_query will contain a rewritten query,
@@ -645,6 +668,21 @@ void mysql_rewrite_query(THD *thd)
     case SQLCOM_SLAVE_START:   mysql_rewrite_start_slave(thd, rlb);   break;
     case SQLCOM_CREATE_SERVER: mysql_rewrite_create_server(thd, rlb); break;
     case SQLCOM_ALTER_SERVER:  mysql_rewrite_alter_server(thd, rlb);  break;
+
+    /*
+      PREPARE stmt FROM <string> is rewritten so that <string> is
+      not logged.  The statement in <string> will in turn be logged
+      by the prepare and the execute functions in sql_prepare.cc.
+      They do call rewrite so they can safely log the statement,
+      but when they call us, it'll be with sql_command set to reflect
+      the statement in question, not SQLCOM_PREPARE or SQLCOM_EXECUTE.
+      Therefore, there is no SQLCOM_EXECUTE case here, and all
+      SQLCOM_PREPARE does is remove <string>; the "other half",
+      i.e. printing what string we prepare from happens when the
+      prepare function calls the logger (and comes by here with
+      sql_command set to the command being prepared).
+    */
+    case SQLCOM_PREPARE:       mysql_rewrite_prepare(thd, rlb);       break;
     default:                   /* unhandled query types are legal. */ break;
     }
   }
