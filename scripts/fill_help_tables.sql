@@ -1,4 +1,4 @@
--- Copyright (C) 2005 MySQL AB
+-- Copyright (c) 2005, 2013, Oracle and/or its affiliates. All rights reserved.
 -- 
 -- This program is free software; you can redistribute it and/or modify
 -- it under the terms of the GNU General Public License as published by
@@ -14,5 +14,5 @@
 -- Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA 02110-1301, USA
 
 -- fill_help_tables.sql - this file is a placeholder to satisfy build dependencies -
--- it will be replaced with the appropriate content by the Boostrap script that
+-- it will be replaced with the appropriate content by the Bootstrap script that
 -- creates the official source distribution.
