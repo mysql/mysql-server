@@ -166,7 +166,9 @@ init_connection_options(MYSQL *mysql)
 */
 int get_response(const char *opt_message)
 {
-  int a,b,i= 0;
+  int a= 0;
+  int b= 0;
+  int i= 0;
   if (opt_message)
     fprintf(stdout, "%s", opt_message);
   do
