@@ -638,8 +638,6 @@ int init_embedded_server(int argc, char **argv, char **groups)
     udf_init();
 #endif
 
-  (void) thr_setconcurrency(concurrency);	// 10 by default
-
   start_handle_manager();
 
   // FIXME initialize binlog_filter and rpl_filter if not already done

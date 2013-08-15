@@ -1516,9 +1516,6 @@ int main(int argc __attribute__((unused)),char **argv __attribute__((unused)))
     exit(1);
   }
 #endif
-#ifdef HAVE_THR_SETCONCURRENCY
-  (void) thr_setconcurrency(2);
-#endif
   for (i=0 ; i < (int) array_elements(lock_counts) ; i++)
   {
     param=(int*) malloc(sizeof(int));
