@@ -2548,14 +2548,15 @@ check_set_ports(NdbMgmd& mgmd)
     // Generate new portnumbers
     for (unsigned i = 0; i < port_pairs.size(); i++)
     {
-      unsigned nodeid, port;
+      int nodeid, port;
       if (sscanf(port_pairs[i].c_str(), "%d=%d", &nodeid, &port) != 2)
       {
         g_err << "Failed to parse port_pairs[" << i << "]: '"
               << port_pairs[i] << "'" << endl;
         return false;
       }
-      new_values.appfmt("%d=%d\n", nodeid, -(37 + i));
+      const int new_port = -(int)(i + 37);
+      new_values.appfmt("%d=%d\n", nodeid, new_port);
     }
 
     Properties args;
