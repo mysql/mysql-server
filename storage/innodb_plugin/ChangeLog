@@ -1,3 +1,9 @@
+2013-08-15	The InnoDB Team
+
+	* row/row0umod.c:
+	Fix Bug#17302896 DOUBLE PURGE ON ROLLBACK OF UPDATING
+	A DELETE-MARKED RECORD
+
 2013-08-14	The InnoDB Team
 
 	* btr/btr0cur.c, row/row0uins.c:
