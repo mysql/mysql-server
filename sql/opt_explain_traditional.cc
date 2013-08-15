@@ -114,7 +114,7 @@ static bool push(List<Item> *items, const qep_row::column<uint> &c,
 }
 
 
-static bool push(List<Item> *items, const qep_row::column<longlong> &c,
+static bool push(List<Item> *items, const qep_row::column<ulonglong> &c,
                  Item_null *nil)
 {
   if (c.is_empty())

@@ -13495,7 +13495,7 @@ Gtid_log_event::Gtid_log_event(const char *buffer, uint event_len,
   /* fetch the commit timestamp */
   if (
       /*Old masters will not have this part, so we should prevent segfaulting */
-      (ptr_buffer-buffer) < event_len &&
+      (uint)(ptr_buffer-buffer) < event_len &&
       *ptr_buffer == G_COMMIT_TS)
   {
     ptr_buffer++;
