@@ -5608,10 +5608,12 @@ void Item_equal::merge(Item_equal *item)
   @brief
   Merge members of another Item_equal object into this one
   
-  @param item    multiple equality whose members are to be merged
+  @param item         multiple equality whose members are to be merged
+  @param save_merged  keep the list of equalities in 'item' intact
+                      (e.g. for other merges)
 
   @details
-  If the Item_equal 'item' happened to have some elements of the list
+  If the Item_equal 'item' happens to have some elements of the list
   of equal items belonging to 'this' object then the function merges
   the equal items from 'item' into this list.
   If both lists contains constants and they are different then
@@ -5626,24 +5628,45 @@ void Item_equal::merge(Item_equal *item)
   The method 'merge' just joins the list of equal items belonging to 'item'
   to the list of equal items belonging to this object assuming that the lists
   are disjoint. It would be more correct to call the method 'join'.
-  The method 'merge_with_check' really merges two lists of equal items if they
-  have common members.  
+  The method 'merge_into_with_check' really merges two lists of equal items if
+  they have common members.  
 */
   
-bool Item_equal::merge_with_check(Item_equal *item)
+bool Item_equal::merge_with_check(Item_equal *item, bool save_merged)
 {
   bool intersected= FALSE;
-  Item_equal_fields_iterator_slow fi(*this);
+  Item_equal_fields_iterator_slow fi(*item);
+  
   while (fi++)
   {
-    if (item->contains(fi.get_curr_field()))
+    if (contains(fi.get_curr_field()))
     {
-      fi.remove();
       intersected= TRUE;
+      if (!save_merged)
+        fi.remove();
     }
   }
   if (intersected)
-    item->merge(this);
+  {
+    if (!save_merged)
+      merge(item);
+    else
+    {
+      Item *c= item->get_const();
+      if (c)
+        add_const(c);
+      if (!cond_false)
+      {
+        Item *item;
+        fi.rewind();
+        while ((item= fi++))
+	{
+          if (!contains(fi.get_curr_field()))
+            add(item);
+        }
+      }
+    }         
+  }
   return intersected;
 }
 
@@ -5652,17 +5675,25 @@ bool Item_equal::merge_with_check(Item_equal *item)
   @brief
   Merge this object into a list of Item_equal objects 
   
-  @param list   the list of Item_equal objects to merge into
+  @param list                 the list of Item_equal objects to merge into
+  @param save_merged          keep the list of equalities in 'this' intact
+                              (e.g. for other merges)
+  @param only_intersected     do not merge if there are no common members
+                              in any of Item_equal objects from the list
+                              and this Item_equal
 
   @details
   If the list of equal items from 'this' object contains common members
   with the lists of equal items belonging to Item_equal objects from 'list'
   then all involved Item_equal objects e1,...,ek are merged into one 
-  Item equal that replaces e1,...,ek in the 'list'. Otherwise this
+  Item equal that replaces e1,...,ek in the 'list'. Otherwise, in the case
+  when the value of the parameter only_if_intersected is false, this
   Item_equal is joined to the 'list'.
 */
 
-void Item_equal::merge_into_list(List<Item_equal> *list)
+void Item_equal::merge_into_list(List<Item_equal> *list,
+                                 bool save_merged,
+                                 bool only_intersected)
 {
   Item_equal *item;
   List_iterator<Item_equal> it(*list);
@@ -5671,16 +5702,16 @@ void Item_equal::merge_into_list(List<Item_equal> *list)
   {
     if (!merge_into)
     {
-      if (merge_with_check(item))
+      if (item->merge_with_check(this, save_merged))
         merge_into= item;
     }
     else
     {
-      if (item->merge_with_check(merge_into))
+      if (merge_into->merge_with_check(item, false))
         it.remove();
     }
   }
-  if (!merge_into)
+  if (!only_intersected && !merge_into)
     list->push_back(this);
 }
 
