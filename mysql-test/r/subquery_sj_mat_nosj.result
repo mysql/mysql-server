@@ -2916,11 +2916,26 @@ EXPLAIN
 {
   "query_block": {
     "select_id": 1,
+    "cost_info": {
+      "query_cost": "8.51"
+    },
     "table": {
       "table_name": "t1",
       "access_type": "ALL",
-      "rows": 32,
+      "rows_examined_per_scan": 32,
+      "rows_produced_per_join": 32,
       "filtered": 100,
+      "cost_info": {
+        "read_cost": "2.11",
+        "eval_cost": "6.40",
+        "prefix_cost": "8.51",
+        "data_read_per_join": "512"
+      },
+      "used_columns": [
+        "a",
+        "b",
+        "c"
+      ],
       "attached_condition": "<in_optimizer>(`test`.`t1`.`a`,`test`.`t1`.`a` in ( <materialize> (/* select#2 */ select `test`.`t11`.`a` from `test`.`t11` where 1 ), <primary_index_lookup>(`test`.`t1`.`a` in <temporary table> on <auto_key> where ((`test`.`t1`.`a` = `materialized-subquery`.`a`)))))",
       "attached_subqueries": [
         {
@@ -2929,18 +2944,31 @@ EXPLAIN
             "access_type": "eq_ref",
             "key": "<auto_key>",
             "key_length": "4",
-            "rows": 1,
+            "rows_examined_per_scan": 1,
             "materialized_from_subquery": {
               "using_temporary_table": true,
               "dependent": true,
               "cacheable": false,
               "query_block": {
                 "select_id": 2,
+                "cost_info": {
+                  "query_cost": "3.63"
+                },
                 "table": {
                   "table_name": "t11",
                   "access_type": "ALL",
-                  "rows": 8,
-                  "filtered": 100
+                  "rows_examined_per_scan": 8,
+                  "rows_produced_per_join": 8,
+                  "filtered": 100,
+                  "cost_info": {
+                    "read_cost": "2.03",
+                    "eval_cost": "1.60",
+                    "prefix_cost": "3.63",
+                    "data_read_per_join": "128"
+                  },
+                  "used_columns": [
+                    "a"
+                  ]
                 }
               }
             }
@@ -3011,11 +3039,24 @@ EXPLAIN
 {
   "query_block": {
     "select_id": 1,
+    "cost_info": {
+      "query_cost": "12.75"
+    },
     "table": {
       "table_name": "x",
       "access_type": "ALL",
-      "rows": 11,
+      "rows_examined_per_scan": 11,
+      "rows_produced_per_join": 11,
       "filtered": 100,
+      "cost_info": {
+        "read_cost": "10.55",
+        "eval_cost": "2.20",
+        "prefix_cost": "12.75",
+        "data_read_per_join": "176"
+      },
+      "used_columns": [
+        "a"
+      ],
       "attached_condition": "<in_optimizer>(`x`.`a`,`x`.`a` in ( <materialize> (/* select#3 */ select `test`.`t1`.`a` from `test`.`t1` where 1 ), <primary_index_lookup>(`x`.`a` in <temporary table> on <auto_key> where ((`x`.`a` = `materialized-subquery`.`a`)))))",
       "attached_subqueries": [
         {
@@ -3024,18 +3065,31 @@ EXPLAIN
             "access_type": "eq_ref",
             "key": "<auto_key>",
             "key_length": "5",
-            "rows": 1,
+            "rows_examined_per_scan": 1,
             "materialized_from_subquery": {
               "using_temporary_table": true,
               "dependent": true,
               "cacheable": false,
               "query_block": {
                 "select_id": 3,
+                "cost_info": {
+                  "query_cost": "6.03"
+                },
                 "table": {
                   "table_name": "t1",
                   "access_type": "ALL",
-                  "rows": 20,
-                  "filtered": 100
+                  "rows_examined_per_scan": 20,
+                  "rows_produced_per_join": 20,
+                  "filtered": 100,
+                  "cost_info": {
+                    "read_cost": "2.03",
+                    "eval_cost": "4.00",
+                    "prefix_cost": "6.03",
+                    "data_read_per_join": "160"
+                  },
+                  "used_columns": [
+                    "a"
+                  ]
                 }
               }
             }
@@ -3048,11 +3102,24 @@ EXPLAIN
         "cacheable": true,
         "query_block": {
           "select_id": 2,
+          "cost_info": {
+            "query_cost": "4.22"
+          },
           "table": {
             "table_name": "t0",
             "access_type": "ALL",
-            "rows": 11,
-            "filtered": 100
+            "rows_examined_per_scan": 11,
+            "rows_produced_per_join": 11,
+            "filtered": 100,
+            "cost_info": {
+              "read_cost": "2.02",
+              "eval_cost": "2.20",
+              "prefix_cost": "4.22",
+              "data_read_per_join": "88"
+            },
+            "used_columns": [
+              "a"
+            ]
           }
         }
       }
@@ -3250,13 +3317,26 @@ EXPLAIN
 {
   "query_block": {
     "select_id": 1,
+    "cost_info": {
+      "query_cost": "1660.03"
+    },
     "nested_loop": [
       {
         "table": {
           "table_name": "t1",
           "access_type": "ALL",
-          "rows": 10,
+          "rows_examined_per_scan": 10,
+          "rows_produced_per_join": 10,
           "filtered": 100,
+          "cost_info": {
+            "read_cost": "2.02",
+            "eval_cost": "2.00",
+            "prefix_cost": "4.02",
+            "data_read_per_join": "80"
+          },
+          "used_columns": [
+            "a"
+          ],
           "attached_condition": "(`test`.`t1`.`a` = 3)"
         }
       },
@@ -3267,9 +3347,21 @@ EXPLAIN
           "possible_keys": [
             "a"
           ],
-          "rows": 1000,
+          "rows_examined_per_scan": 1000,
+          "rows_produced_per_join": 7930,
           "filtered": 79.3,
           "using_join_buffer": "Block Nested Loop",
+          "cost_info": {
+            "read_cost": "70.02",
+            "eval_cost": "1586.00",
+            "prefix_cost": "1660.03",
+            "data_read_per_join": "867K"
+          },
+          "used_columns": [
+            "a",
+            "b",
+            "filler"
+          ],
           "attached_condition": "(<in_optimizer>(`test`.`t3`.`a`,`test`.`t3`.`a` in ( <materialize> (/* select#2 */ select `test`.`t2`.`a` from `test`.`t2` where 1 ), <primary_index_lookup>(`test`.`t3`.`a` in <temporary table> on <auto_key> where ((`test`.`t3`.`a` = `materialized-subquery`.`a`))))) and ((`test`.`t3`.`a` < 10) or (`test`.`t3`.`a` > 30)))",
           "attached_subqueries": [
             {
@@ -3278,18 +3370,31 @@ EXPLAIN
                 "access_type": "eq_ref",
                 "key": "<auto_key>",
                 "key_length": "5",
-                "rows": 1,
+                "rows_examined_per_scan": 1,
                 "materialized_from_subquery": {
                   "using_temporary_table": true,
                   "dependent": true,
                   "cacheable": false,
                   "query_block": {
                     "select_id": 2,
+                    "cost_info": {
+                      "query_cost": "4.02"
+                    },
                     "table": {
                       "table_name": "t2",
                       "access_type": "ALL",
-                      "rows": 10,
-                      "filtered": 100
+                      "rows_examined_per_scan": 10,
+                      "rows_produced_per_join": 10,
+                      "filtered": 100,
+                      "cost_info": {
+                        "read_cost": "2.02",
+                        "eval_cost": "2.00",
+                        "prefix_cost": "4.02",
+                        "data_read_per_join": "80"
+                      },
+                      "used_columns": [
+                        "a"
+                      ]
                     }
                   }
                 }
@@ -6221,11 +6326,26 @@ EXPLAIN
 {
   "query_block": {
     "select_id": 1,
+    "cost_info": {
+      "query_cost": "5.46"
+    },
     "table": {
       "table_name": "t2",
       "access_type": "ALL",
-      "rows": 16,
+      "rows_examined_per_scan": 16,
+      "rows_produced_per_join": 16,
       "filtered": 100,
+      "cost_info": {
+        "read_cost": "2.27",
+        "eval_cost": "3.20",
+        "prefix_cost": "5.47",
+        "data_read_per_join": "1K"
+      },
+      "used_columns": [
+        "Code",
+        "Name",
+        "Population"
+      ],
       "attached_condition": "(<in_optimizer>(`test`.`t2`.`Code`,`test`.`t2`.`Code` in ( <materialize> (/* select#2 */ select `test`.`t1`.`Country` from `test`.`t1` where (`test`.`t1`.`Population` > 5000000) ), <primary_index_lookup>(`test`.`t2`.`Code` in <temporary table> on <auto_key> where ((`test`.`t2`.`Code` = `materialized-subquery`.`Country`))))) and <in_optimizer>(`test`.`t2`.`Code`,<exists>(<primary_index_lookup>(<cache>(`test`.`t2`.`Code`) in t3 on PRIMARY where ((`test`.`t3`.`Language` = 'English') and (`test`.`t3`.`Percentage` > 10) and (`test`.`t2`.`Population` > 100000) and (<cache>(`test`.`t2`.`Code`) = `test`.`t3`.`Country`))))))",
       "attached_subqueries": [
         {
@@ -6233,6 +6353,9 @@ EXPLAIN
           "cacheable": false,
           "query_block": {
             "select_id": 3,
+            "cost_info": {
+              "query_cost": "1.20"
+            },
             "table": {
               "table_name": "t3",
               "access_type": "unique_subquery",
@@ -6250,8 +6373,20 @@ EXPLAIN
                 "func",
                 "const"
               ],
-              "rows": 1,
+              "rows_examined_per_scan": 1,
+              "rows_produced_per_join": 1,
               "filtered": 100,
+              "cost_info": {
+                "read_cost": "1.00",
+                "eval_cost": "0.20",
+                "prefix_cost": "1.20",
+                "data_read_per_join": "40"
+              },
+              "used_columns": [
+                "Country",
+                "Language",
+                "Percentage"
+              ],
               "attached_condition": "((`test`.`t3`.`Percentage` > 10) and (`test`.`t2`.`Population` > 100000))"
             }
           }
@@ -6262,13 +6397,16 @@ EXPLAIN
             "access_type": "eq_ref",
             "key": "<auto_key>",
             "key_length": "3",
-            "rows": 1,
+            "rows_examined_per_scan": 1,
             "materialized_from_subquery": {
               "using_temporary_table": true,
               "dependent": true,
               "cacheable": false,
               "query_block": {
                 "select_id": 2,
+                "cost_info": {
+                  "query_cost": "2.41"
+                },
                 "table": {
                   "table_name": "t1",
                   "access_type": "range",
@@ -6281,8 +6419,19 @@ EXPLAIN
                     "Population"
                   ],
                   "key_length": "4",
-                  "rows": 1,
+                  "rows_examined_per_scan": 1,
+                  "rows_produced_per_join": 1,
                   "filtered": 100,
+                  "cost_info": {
+                    "read_cost": "2.21",
+                    "eval_cost": "0.20",
+                    "prefix_cost": "2.41",
+                    "data_read_per_join": "48"
+                  },
+                  "used_columns": [
+                    "Country",
+                    "Population"
+                  ],
                   "attached_condition": "(`test`.`t1`.`Population` > 5000000)"
                 }
               }
@@ -8013,14 +8162,28 @@ EXPLAIN
         "cacheable": false,
         "query_block": {
           "select_id": 2,
+          "cost_info": {
+            "query_cost": "4.23"
+          },
           "table": {
             "table_name": "grandparent1",
             "access_type": "ALL",
             "possible_keys": [
               "col_int_key"
             ],
-            "rows": 11,
+            "rows_examined_per_scan": 11,
+            "rows_produced_per_join": 11,
             "filtered": 100,
+            "cost_info": {
+              "read_cost": "2.03",
+              "eval_cost": "2.20",
+              "prefix_cost": "4.23",
+              "data_read_per_join": "176"
+            },
+            "used_columns": [
+              "col_int_nokey",
+              "col_int_key"
+            ],
             "attached_condition": "(<in_optimizer>((`test`.`grandparent1`.`col_int_nokey`,`test`.`grandparent1`.`col_int_key`),(`test`.`grandparent1`.`col_int_nokey`,`test`.`grandparent1`.`col_int_key`) in ( <materialize> (/* select#3 */ select `test`.`parent1`.`col_int_key` AS `p1`,`test`.`parent1`.`col_int_key` AS `p2` from `test`.`t1` `parent1` left join `test`.`t2` `parent2` on((`test`.`parent2`.`col_int_key` = `test`.`parent1`.`col_int_nokey`)) where 1 ), <primary_index_lookup>(`test`.`grandparent1`.`col_int_nokey` in <temporary table> on <auto_key> where ((`test`.`grandparent1`.`col_int_nokey` = `materialized-subquery`.`p1`) and (`test`.`grandparent1`.`col_int_key` = `materialized-subquery`.`p2`))))) and (`test`.`grandparent1`.`col_int_key` <> 3) and (<cache>('8') = `test`.`grandparent1`.`col_int_nokey`))",
             "attached_subqueries": [
               {
@@ -8029,13 +8192,16 @@ EXPLAIN
                   "access_type": "eq_ref",
                   "key": "<auto_key>",
                   "key_length": "8",
-                  "rows": 1,
+                  "rows_examined_per_scan": 1,
                   "materialized_from_subquery": {
                     "using_temporary_table": true,
                     "dependent": true,
                     "cacheable": false,
                     "query_block": {
                       "select_id": 3,
+                      "cost_info": {
+                        "query_cost": "8.44"
+                      },
                       "nested_loop": [
                         {
                           "table": {
@@ -8044,8 +8210,19 @@ EXPLAIN
                             "possible_keys": [
                               "col_int_key"
                             ],
-                            "rows": 11,
-                            "filtered": 100
+                            "rows_examined_per_scan": 11,
+                            "rows_produced_per_join": 11,
+                            "filtered": 100,
+                            "cost_info": {
+                              "read_cost": "2.03",
+                              "eval_cost": "2.20",
+                              "prefix_cost": "4.23",
+                              "data_read_per_join": "176"
+                            },
+                            "used_columns": [
+                              "col_int_nokey",
+                              "col_int_key"
+                            ]
                           }
                         },
                         {
@@ -8060,10 +8237,20 @@ EXPLAIN
                               "col_int_key"
                             ],
                             "key_length": "4",
-                            "rows": 1,
+                            "rows_examined_per_scan": 1,
+                            "rows_produced_per_join": 11,
                             "filtered": 100,
                             "using_index": true,
                             "using_join_buffer": "Block Nested Loop",
+                            "cost_info": {
+                              "read_cost": "2.00",
+                              "eval_cost": "2.20",
+                              "prefix_cost": "8.44",
+                              "data_read_per_join": "176"
+                            },
+                            "used_columns": [
+                              "col_int_key"
+                            ],
                             "attached_condition": "<if>(is_not_null_compl(parent2), (`test`.`parent2`.`col_int_key` = `test`.`parent1`.`col_int_nokey`), true)"
                           }
                         }
@@ -9786,13 +9973,27 @@ EXPLAIN
 {
   "query_block": {
     "select_id": 1,
+    "cost_info": {
+      "query_cost": "7.64"
+    },
     "nested_loop": [
       {
         "table": {
           "table_name": "t2",
           "access_type": "ALL",
-          "rows": 6,
+          "rows_examined_per_scan": 6,
+          "rows_produced_per_join": 6,
           "filtered": 100,
+          "cost_info": {
+            "read_cost": "2.03",
+            "eval_cost": "1.20",
+            "prefix_cost": "3.23",
+            "data_read_per_join": "48"
+          },
+          "used_columns": [
+            "ik",
+            "vc"
+          ],
           "attached_condition": "<in_optimizer>(`test`.`t2`.`vc`,`test`.`t2`.`vc` in ( <materialize> (/* select#2 */ select `test`.`t3`.`vc` from `test`.`t2` `t3` where 1 ), <primary_index_lookup>(`test`.`t2`.`vc` in <temporary table> on <auto_key> where ((`test`.`t2`.`vc` = `materialized-subquery`.`vc`)))))",
           "attached_subqueries": [
             {
@@ -9801,18 +10002,31 @@ EXPLAIN
                 "access_type": "eq_ref",
                 "key": "<auto_key>",
                 "key_length": "4",
-                "rows": 1,
+                "rows_examined_per_scan": 1,
                 "materialized_from_subquery": {
                   "using_temporary_table": true,
                   "dependent": true,
                   "cacheable": false,
                   "query_block": {
                     "select_id": 2,
+                    "cost_info": {
+                      "query_cost": "3.23"
+                    },
                     "table": {
                       "table_name": "t3",
                       "access_type": "ALL",
-                      "rows": 6,
-                      "filtered": 100
+                      "rows_examined_per_scan": 6,
+                      "rows_produced_per_join": 6,
+                      "filtered": 100,
+                      "cost_info": {
+                        "read_cost": "2.03",
+                        "eval_cost": "1.20",
+                        "prefix_cost": "3.23",
+                        "data_read_per_join": "48"
+                      },
+                      "used_columns": [
+                        "vc"
+                      ]
                     }
                   }
                 }
@@ -9825,9 +10039,20 @@ EXPLAIN
         "table": {
           "table_name": "t1",
           "access_type": "ALL",
-          "rows": 2,
+          "rows_examined_per_scan": 2,
+          "rows_produced_per_join": 12,
           "filtered": 100,
           "using_join_buffer": "Block Nested Loop",
+          "cost_info": {
+            "read_cost": "2.01",
+            "eval_cost": "2.40",
+            "prefix_cost": "7.64",
+            "data_read_per_join": "96"
+          },
+          "used_columns": [
+            "ik",
+            "vc"
+          ],
           "attached_condition": "<if>(is_not_null_compl(t1), (`test`.`t1`.`vc` = `test`.`t2`.`vc`), true)"
         }
       }
@@ -9921,13 +10146,27 @@ EXPLAIN
 {
   "query_block": {
     "select_id": 1,
+    "cost_info": {
+      "query_cost": "41.85"
+    },
     "nested_loop": [
       {
         "table": {
           "table_name": "derived1",
           "access_type": "ALL",
-          "rows": 7,
+          "rows_examined_per_scan": 7,
+          "rows_produced_per_join": 7,
           "filtered": 100,
+          "cost_info": {
+            "read_cost": "10.35",
+            "eval_cost": "1.40",
+            "prefix_cost": "11.75",
+            "data_read_per_join": "112"
+          },
+          "used_columns": [
+            "col_varchar_key",
+            "col_varchar_nokey"
+          ],
           "attached_condition": "<in_optimizer>((`derived1`.`col_varchar_nokey`,`derived1`.`col_varchar_nokey`),(`derived1`.`col_varchar_nokey`,`derived1`.`col_varchar_nokey`) in ( <materialize> (/* select#3 */ select `test`.`derived2`.`col_varchar_nokey`,`test`.`derived2`.`col_varchar_key` from `test`.`t2` `derived2` where 1 ), <primary_index_lookup>(`derived1`.`col_varchar_nokey` in <temporary table> on <auto_key> where ((`derived1`.`col_varchar_nokey` = `materialized-subquery`.`col_varchar_nokey`) and (`derived1`.`col_varchar_nokey` = `materialized-subquery`.`col_varchar_key`)))))",
           "attached_subqueries": [
             {
@@ -9936,21 +10175,35 @@ EXPLAIN
                 "access_type": "eq_ref",
                 "key": "<auto_key>",
                 "key_length": "8",
-                "rows": 1,
+                "rows_examined_per_scan": 1,
                 "materialized_from_subquery": {
                   "using_temporary_table": true,
                   "dependent": true,
                   "cacheable": false,
                   "query_block": {
                     "select_id": 3,
+                    "cost_info": {
+                      "query_cost": "3.43"
+                    },
                     "table": {
                       "table_name": "derived2",
                       "access_type": "ALL",
                       "possible_keys": [
                         "col_varchar_key"
                       ],
-                      "rows": 7,
-                      "filtered": 100
+                      "rows_examined_per_scan": 7,
+                      "rows_produced_per_join": 7,
+                      "filtered": 100,
+                      "cost_info": {
+                        "read_cost": "2.03",
+                        "eval_cost": "1.40",
+                        "prefix_cost": "3.43",
+                        "data_read_per_join": "56"
+                      },
+                      "used_columns": [
+                        "col_varchar_key",
+                        "col_varchar_nokey"
+                      ]
                     }
                   }
                 }
@@ -9963,11 +10216,25 @@ EXPLAIN
             "cacheable": true,
             "query_block": {
               "select_id": 2,
+              "cost_info": {
+                "query_cost": "3.43"
+              },
               "table": {
                 "table_name": "t2",
                 "access_type": "ALL",
-                "rows": 7,
-                "filtered": 100
+                "rows_examined_per_scan": 7,
+                "rows_produced_per_join": 7,
+                "filtered": 100,
+                "cost_info": {
+                  "read_cost": "2.03",
+                  "eval_cost": "1.40",
+                  "prefix_cost": "3.43",
+                  "data_read_per_join": "56"
+                },
+                "used_columns": [
+                  "col_varchar_key",
+                  "col_varchar_nokey"
+                ]
               }
             }
           }
@@ -9977,9 +10244,19 @@ EXPLAIN
         "table": {
           "table_name": "t1",
           "access_type": "ALL",
-          "rows": 20,
+          "rows_examined_per_scan": 20,
+          "rows_produced_per_join": 140,
           "filtered": 100,
           "using_join_buffer": "Block Nested Loop",
+          "cost_info": {
+            "read_cost": "2.10",
+            "eval_cost": "28.00",
+            "prefix_cost": "41.85",
+            "data_read_per_join": "1K"
+          },
+          "used_columns": [
+            "col_varchar_nokey"
+          ],
           "attached_condition": "<if>(is_not_null_compl(t1), (`test`.`t1`.`col_varchar_nokey` = `derived1`.`col_varchar_nokey`), true)"
         }
       }
@@ -10035,13 +10312,27 @@ EXPLAIN
 {
   "query_block": {
     "select_id": 1,
+    "cost_info": {
+      "query_cost": "88.09"
+    },
     "nested_loop": [
       {
         "table": {
           "table_name": "grandparent1",
           "access_type": "ALL",
-          "rows": 20,
+          "rows_examined_per_scan": 20,
+          "rows_produced_per_join": 20,
           "filtered": 100,
+          "cost_info": {
+            "read_cost": "2.04",
+            "eval_cost": "4.00",
+            "prefix_cost": "6.04",
+            "data_read_per_join": "320"
+          },
+          "used_columns": [
+            "col_int_nokey",
+            "col_int_key"
+          ],
           "attached_condition": "<in_optimizer>((`test`.`grandparent1`.`col_int_nokey`,`test`.`grandparent1`.`col_int_nokey`),(`test`.`grandparent1`.`col_int_nokey`,`test`.`grandparent1`.`col_int_nokey`) in ( <materialize> (/* select#2 */ select `test`.`t2`.`col_int_nokey`,`test`.`t2`.`col_int_key` from `test`.`t2` where 1 ), <primary_index_lookup>(`test`.`grandparent1`.`col_int_nokey` in <temporary table> on <auto_key> where ((`test`.`grandparent1`.`col_int_nokey` = `materialized-subquery`.`col_int_nokey`) and (`test`.`grandparent1`.`col_int_nokey` = `materialized-subquery`.`col_int_key`)))))",
           "attached_subqueries": [
             {
@@ -10050,21 +10341,35 @@ EXPLAIN
                 "access_type": "eq_ref",
                 "key": "<auto_key>",
                 "key_length": "8",
-                "rows": 1,
+                "rows_examined_per_scan": 1,
                 "materialized_from_subquery": {
                   "using_temporary_table": true,
                   "dependent": true,
                   "cacheable": false,
                   "query_block": {
                     "select_id": 2,
+                    "cost_info": {
+                      "query_cost": "6.04"
+                    },
                     "table": {
                       "table_name": "t2",
                       "access_type": "ALL",
                       "possible_keys": [
                         "col_int_key"
                       ],
-                      "rows": 20,
-                      "filtered": 100
+                      "rows_examined_per_scan": 20,
+                      "rows_produced_per_join": 20,
+                      "filtered": 100,
+                      "cost_info": {
+                        "read_cost": "2.04",
+                        "eval_cost": "4.00",
+                        "prefix_cost": "6.04",
+                        "data_read_per_join": "320"
+                      },
+                      "used_columns": [
+                        "col_int_nokey",
+                        "col_int_key"
+                      ]
                     }
                   }
                 }
@@ -10077,9 +10382,19 @@ EXPLAIN
         "table": {
           "table_name": "t1",
           "access_type": "ALL",
-          "rows": 20,
+          "rows_examined_per_scan": 20,
+          "rows_produced_per_join": 400,
           "filtered": 100,
           "using_join_buffer": "Block Nested Loop",
+          "cost_info": {
+            "read_cost": "2.05",
+            "eval_cost": "80.00",
+            "prefix_cost": "88.09",
+            "data_read_per_join": "6K"
+          },
+          "used_columns": [
+            "col_int_nokey"
+          ],
           "attached_condition": "<if>(is_not_null_compl(t1), (`test`.`t1`.`col_int_nokey` = `test`.`grandparent1`.`col_int_nokey`), true)"
         }
       }
@@ -10222,6 +10537,9 @@ EXPLAIN
 {
   "query_block": {
     "select_id": 1,
+    "cost_info": {
+      "query_cost": "112.23"
+    },
     "nested_loop": [
       {
         "table": {
@@ -10230,8 +10548,20 @@ EXPLAIN
           "possible_keys": [
             "PRIMARY"
           ],
-          "rows": 20,
+          "rows_examined_per_scan": 20,
+          "rows_produced_per_join": 20,
           "filtered": 100,
+          "cost_info": {
+            "read_cost": "2.12",
+            "eval_cost": "4.00",
+            "prefix_cost": "6.12",
+            "data_read_per_join": "480"
+          },
+          "used_columns": [
+            "pk",
+            "col_varchar_key",
+            "col_varchar_nokey"
+          ],
           "attached_condition": "<in_optimizer>((`test`.`alias2`.`col_varchar_key`,`test`.`alias2`.`col_varchar_key`),(`test`.`alias2`.`col_varchar_key`,`test`.`alias2`.`col_varchar_key`) in ( <materialize> (/* select#2 */ select `test`.`sq2_alias2`.`col_varchar_key`,`test`.`sq2_alias1`.`col_varchar_nokey` from `test`.`t1` `sq2_alias1` join `test`.`t1` `sq2_alias2` where (`test`.`sq2_alias2`.`col_int_key` < 2) ), <primary_index_lookup>(`test`.`alias2`.`col_varchar_key` in <temporary table> on <auto_key> where ((`test`.`alias2`.`col_varchar_key` = `materialized-subquery`.`col_varchar_key`) and (`test`.`alias2`.`col_varchar_key` = `materialized-subquery`.`col_varchar_nokey`)))))",
           "attached_subqueries": [
             {
@@ -10240,29 +10570,53 @@ EXPLAIN
                 "access_type": "eq_ref",
                 "key": "<auto_key>",
                 "key_length": "8",
-                "rows": 1,
+                "rows_examined_per_scan": 1,
                 "materialized_from_subquery": {
                   "using_temporary_table": true,
                   "dependent": true,
                   "cacheable": false,
                   "query_block": {
                     "select_id": 2,
+                    "cost_info": {
+                      "query_cost": "88.23"
+                    },
                     "nested_loop": [
                       {
                         "table": {
                           "table_name": "sq2_alias1",
                           "access_type": "ALL",
-                          "rows": 20,
-                          "filtered": 100
+                          "rows_examined_per_scan": 20,
+                          "rows_produced_per_join": 20,
+                          "filtered": 100,
+                          "cost_info": {
+                            "read_cost": "2.12",
+                            "eval_cost": "4.00",
+                            "prefix_cost": "6.12",
+                            "data_read_per_join": "480"
+                          },
+                          "used_columns": [
+                            "col_varchar_nokey"
+                          ]
                         }
                       },
                       {
                         "table": {
                           "table_name": "sq2_alias2",
                           "access_type": "ALL",
-                          "rows": 20,
+                          "rows_examined_per_scan": 20,
+                          "rows_produced_per_join": 400,
                           "filtered": 100,
                           "using_join_buffer": "Block Nested Loop",
+                          "cost_info": {
+                            "read_cost": "2.12",
+                            "eval_cost": "80.00",
+                            "prefix_cost": "88.23",
+                            "data_read_per_join": "9K"
+                          },
+                          "used_columns": [
+                            "col_int_key",
+                            "col_varchar_key"
+                          ],
                           "attached_condition": "(`test`.`sq2_alias2`.`col_int_key` < 2)"
                         }
                       }
@@ -10289,17 +10643,38 @@ EXPLAIN
           "ref": [
             "test.alias2.pk"
           ],
-          "rows": 1,
-          "filtered": 100
+          "rows_examined_per_scan": 1,
+          "rows_produced_per_join": 20,
+          "filtered": 100,
+          "cost_info": {
+            "read_cost": "20.00",
+            "eval_cost": "4.00",
+            "prefix_cost": "30.12",
+            "data_read_per_join": "480"
+          },
+          "used_columns": [
+            "pk",
+            "col_varchar_nokey"
+          ]
         }
       },
       {
         "table": {
           "table_name": "alias1",
           "access_type": "ALL",
-          "rows": 20,
+          "rows_examined_per_scan": 20,
+          "rows_produced_per_join": 400,
           "filtered": 100,
           "using_join_buffer": "Block Nested Loop",
+          "cost_info": {
+            "read_cost": "2.12",
+            "eval_cost": "80.00",
+            "prefix_cost": "112.24",
+            "data_read_per_join": "9K"
+          },
+          "used_columns": [
+            "col_datetime_key"
+          ],
           "attached_condition": "<if>(is_not_null_compl(alias1), ((`test`.`alias3`.`col_varchar_nokey` = `test`.`alias2`.`col_varchar_key`) or `test`.`alias2`.`col_varchar_nokey`), true)"
         }
       }
