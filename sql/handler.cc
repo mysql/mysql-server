@@ -3827,6 +3827,12 @@ void handler::print_error(int error, myf errflag)
   case HA_WRONG_CREATE_OPTION:
     textno= ER_ILLEGAL_HA;
     break;
+  case HA_MISSING_CREATE_OPTION:
+  {
+    const char* engine= table_type();
+    my_error(ER_MISSING_HA_CREATE_OPTION, errflag, engine);
+    DBUG_VOID_RETURN;
+  }
   case HA_ERR_TOO_MANY_FIELDS:
     textno= ER_TOO_MANY_FIELDS;
     break;

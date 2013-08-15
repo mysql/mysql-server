@@ -1990,9 +1990,9 @@ lock_rec_create(
 	lock->type_mode = (type_mode & ~LOCK_TYPE_MASK) | LOCK_REC;
 	lock->index = index;
 
-	lock->un_member.rec_lock.space = space;
-	lock->un_member.rec_lock.page_no = page_no;
-	lock->un_member.rec_lock.n_bits = n_bytes * 8;
+	lock->un_member.rec_lock.space = ib_uint32_t(space);
+	lock->un_member.rec_lock.page_no = ib_uint32_t(page_no);
+	lock->un_member.rec_lock.n_bits = ib_uint32_t(n_bytes * 8);
 
 	/* Reset to zero the bitmap which resides immediately after the
 	lock struct */
@@ -3727,7 +3727,7 @@ lock_table_create(
 
 	}
 
-	lock->type_mode = type_mode | LOCK_TABLE;
+	lock->type_mode = ib_uint32_t(type_mode | LOCK_TABLE);
 	lock->trx = trx;
 
 	lock->un_member.tab_lock.table = table;
