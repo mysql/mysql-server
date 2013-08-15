@@ -734,7 +734,6 @@ int main(int argc __attribute__((unused)),char **argv __attribute__((unused)))
   mysql_mutex_unlock(&LOCK_thread_count);
   DBUG_PRINT("info",("signal thread created"));
 
-  thr_setconcurrency(3);
   pthread_attr_setscope(&thr_attr,PTHREAD_SCOPE_PROCESS);
   printf("Main thread: %s\n",my_thread_name());
   for (i=0 ; i < 2 ; i++)
