@@ -92,6 +92,9 @@ GRANT USAGE ON `test`.* TO 'test_user3'@'localhost' IDENTIFIED BY PASSWORD '*82D
 GRANT SELECT ON `test`.* TO 'test_user3'@'localhost' IDENTIFIED BY PASSWORD '*82DC221D557298F6CE9961037DB1C90604792F5C' REQUIRE X509 WITH MAX_QUERIES_PER_HOUR 1 MAX_UPDATES_PER_HOUR 2 MAX_CONNECTIONS_PER_HOUR 3 MAX_USER_CONNECTIONS 4
 GRANT SELECT ON `test`.* TO 'test_user3'@'localhost' IDENTIFIED BY PASSWORD '*6251A8E13A7DDD42A078C59C1CF7CD307BFFC895' REQUIRE NONE WITH GRANT OPTION
 ------ done ------ see log_tables.test for more proof! :)
+SELECT argument FROM mysql.general_log WHERE argument LIKE 'GRANT SELECT%' AND argument LIKE CONCAT('%', PASSWORD('azundris1'), '%');
+argument
+GRANT SELECT (f2), INSERT (f3), UPDATE (f2, f3, f1, f4), INDEX, ALTER ON `test`.`t1` TO 'test_user1'@'%' IDENTIFIED BY PASSWORD '*8D15E74BC850D11573A52BE84B504DD0BA40C1E3'
 Bug#13958454 -- show we print SET @a:=5, but SELECT (@a:=5)
 EXPLAIN EXTENDED SELECT @a=5,@b:=10,@c:=20,@d:=40+5,(@e:=80)+5;
 id	select_type	table	type	possible_keys	key	key_len	ref	rows	filtered	Extra
