@@ -1769,12 +1769,6 @@ check_set_config_any_node(NDBT_Context* ctx, NDBT_Step* step, NdbMgmd& mgmd)
     if (!mgmd2.get_config(conf2))
       return false;
 
-#if 0
-    // Change one value in the config
-    if (!conf2.setValue(CFG_SECTION_NODE, 0,
-                        CFG_NODE_ARBIT_DELAY,
-#endif
-
     // Set the modified config
     if (!mgmd2.set_config(conf2))
       return false;
@@ -2554,14 +2548,15 @@ check_set_ports(NdbMgmd& mgmd)
     // Generate new portnumbers
     for (unsigned i = 0; i < port_pairs.size(); i++)
     {
-      unsigned nodeid, port;
+      int nodeid, port;
       if (sscanf(port_pairs[i].c_str(), "%d=%d", &nodeid, &port) != 2)
       {
         g_err << "Failed to parse port_pairs[" << i << "]: '"
               << port_pairs[i] << "'" << endl;
         return false;
       }
-      new_values.appfmt("%d=%d\n", nodeid, -(37 + i));
+      const int new_port = -(int)(i + 37);
+      new_values.appfmt("%d=%d\n", nodeid, new_port);
     }
 
     Properties args;
