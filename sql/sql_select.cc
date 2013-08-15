@@ -6632,19 +6632,18 @@ make_join_select(JOIN *join,SQL_SELECT *select,COND *cond)
 	  else
 	  {
 	    sel->needed_reg=tab->needed_reg;
-	    sel->quick_keys.clear_all();
 	  }
+	  sel->quick_keys= tab->table->quick_keys;
 	  if (!sel->quick_keys.is_subset(tab->checked_keys) ||
               !sel->needed_reg.is_subset(tab->checked_keys))
 	  {
-	    tab->keys=sel->quick_keys;
-            tab->keys.merge(sel->needed_reg);
 	    tab->use_quick= (!sel->needed_reg.is_clear_all() &&
-			     (select->quick_keys.is_clear_all() ||
-			      (select->quick &&
-			       (select->quick->records >= 100L)))) ?
+			     (sel->quick_keys.is_clear_all() ||
+			      (sel->quick &&
+			       (sel->quick->records >= 100L)))) ?
 	      2 : 1;
 	    sel->read_tables= used_tables & ~current_map;
+            sel->quick_keys.clear_all();
 	  }
 	  if (i != join->const_tables && tab->use_quick != 2)
 	  {					/* Read with cache */
