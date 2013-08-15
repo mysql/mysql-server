@@ -1761,8 +1761,9 @@ public:
   /** Get number of field items / references to field items in this object */   
   uint n_field_items() { return equal_items.elements-test(with_const); }
   void merge(Item_equal *item);
-  bool merge_with_check(Item_equal *equal_item);
-  void merge_into_list(List<Item_equal> *list);
+  bool merge_with_check(Item_equal *equal_item, bool save_merged);
+  void merge_into_list(List<Item_equal> *list, bool save_merged,
+                      bool only_intersected);
   void update_const();
   enum Functype functype() const { return MULT_EQUAL_FUNC; }
   longlong val_int(); 
