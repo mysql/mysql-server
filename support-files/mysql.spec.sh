@@ -32,6 +32,7 @@
 
 %global release         2  
 
+
 #
 # Macros we use which are not available in all supported versions of RPM
 #
