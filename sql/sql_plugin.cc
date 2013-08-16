@@ -3765,9 +3765,8 @@ static int test_plugin_options(MEM_ROOT *tmp_root, struct st_plugin_int *tmp,
   */
   if (disable_plugin)
   {
-    if (log_warnings)
-      sql_print_information("Plugin '%s' is disabled.",
-                            tmp->name.str);
+    sql_print_information("Plugin '%s' is disabled.",
+                          tmp->name.str);
     if (opts)
       my_cleanup_options(opts);
     DBUG_RETURN(1);

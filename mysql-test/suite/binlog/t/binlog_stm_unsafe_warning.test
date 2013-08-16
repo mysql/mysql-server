@@ -109,25 +109,25 @@ eval USE $old_db;
 
 let BINLOG_COUNTER1= `select CONVERT(NOW(),UNSIGNED) as timestmap from dual`;
 
-SET @old_log_warnings = @@log_warnings;
+SET @old_log_error_verbosity = @@log_error_verbosity;
 
 --disable_warnings
 DROP TABLE IF EXISTS t1;
 --enable_warnings
 CREATE TABLE t1 (a VARCHAR(36), b VARCHAR(15));
 
-SET GLOBAL LOG_WARNINGS = 0;
+SET GLOBAL log_error_verbosity = 1;
 # Replacing the result file content here.
 # Instead of writing $BINLOG_COUNTER1 value to result file, 
 # writing a fixed string timestamp to it.
 --replace_result $BINLOG_COUNTER1 timestamp
 eval INSERT INTO t1 VALUES(UUID(), '$BINLOG_COUNTER1');
-SET GLOBAL LOG_WARNINGS = 1;
+SET GLOBAL log_error_verbosity = 2;
 --replace_result $BINLOG_COUNTER1 timestamp
 eval INSERT INTO t1 VALUES(UUID(), '$BINLOG_COUNTER1');
 DROP TABLE t1;
 
-SET GLOBAL log_warnings = @old_log_warnings;
+SET GLOBAL log_error_verbosity = @old_log_error_verbosity;
 
 let $log_error_= `SELECT @@GLOBAL.log_error`;
 if(!$log_error_)

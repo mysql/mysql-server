@@ -443,15 +443,13 @@ ha_rows filesort(THD *thd, TABLE *table, Filesort *filesort,
                     ER(kill_errno) :
                     thd->get_stmt_da()->message_text());
 
-    if (log_warnings > 1)
-    {
-      sql_print_warning("%s, host: %s, user: %s, thread: %lu, query: %-.4096s",
-                        ER_THD(thd, ER_FILSORT_ABORT),
-                        thd->security_ctx->host_or_ip,
-                        &thd->security_ctx->priv_user[0],
-                        (ulong) thd->thread_id,
-                        thd->query());
-    }
+    sql_print_information("%s, host: %s, user: %s, "
+                          "thread: %lu, query: %-.4096s",
+                          ER_THD(thd, ER_FILSORT_ABORT),
+                          thd->security_ctx->host_or_ip,
+                          &thd->security_ctx->priv_user[0],
+                          (ulong) thd->thread_id,
+                          thd->query());
   }
   else
     thd->inc_status_sort_rows(num_rows);

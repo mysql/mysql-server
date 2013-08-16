@@ -3,9 +3,9 @@ drop function if exists test.user_func;
 create function test.user_func() returns integer
 return 0;
 update mysql.proc set db='performance_schema' where name='user_func';
-Warning: Using a password on the command line interface can be insecure.
-Warning: Using a password on the command line interface can be insecure.
-Warning: Using a password on the command line interface can be insecure.
+mysqlcheck: [Warning] Using a password on the command line interface can be insecure.
+mysqlcheck: [Warning] Using a password on the command line interface can be insecure.
+mysql: [Warning] Using a password on the command line interface can be insecure.
 ERROR 1050 (42S01) at line 157: Table 'cond_instances' already exists
 ERROR 1050 (42S01) at line 182: Table 'events_waits_current' already exists
 ERROR 1050 (42S01) at line 207: Table 'events_waits_history' already exists

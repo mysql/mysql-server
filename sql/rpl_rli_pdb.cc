@@ -1651,7 +1651,7 @@ bool append_item_to_jobs(slave_job_item *job_item,
     thd->EXIT_COND(&old_stage);
     if (thd->killed)
       return true;
-    if (log_warnings > 1 && (rli->wq_size_waits_cnt % 10 == 1))
+    if (rli->wq_size_waits_cnt % 10 == 1)
       sql_print_information("Multi-threaded slave: Coordinator has waited "
                             "%lu times hitting slave_pending_jobs_size_max; "
                             "current event size = %lu.",
@@ -1984,11 +1984,10 @@ int slave_worker_exec_job(Slave_worker *worker, Relay_log_info *rli)
 err:
   if (error)
   {
-    if (log_warnings > 1)
-      sql_print_information("Worker %lu is exiting: killed %i, error %i, "
-                            "running_status %d",
-                            worker->id, thd->killed, thd->is_error(),
-                            worker->running_status);
+    sql_print_information("Worker %lu is exiting: killed %i, error %i, "
+                          "running_status %d",
+                          worker->id, thd->killed, thd->is_error(),
+                          worker->running_status);
     worker->slave_worker_ends_group(ev, error);
   }
 
