@@ -16258,6 +16258,29 @@ ha_innobase::multi_range_read_info(
 	return(ds_mrr.dsmrr_info(keyno, n_ranges, keys, bufsz, flags, cost));
 }
 
+/**
+@brief Determine whether an error is fatal or not. 
+    
+A deadlock error is not a fatal error.
+    
+@param error	error code received from the handler interface (HA_ERR_...)
+@param flags	indicate whether duplicate key errors should be ignorable
+    
+@return   whether the error is fatal or not
+@retval true  the error is fatal
+@retval false the error is not fatal */
+
+bool
+ha_innobase::is_fatal_error(int error, uint flags)
+{
+	if (!handler::is_fatal_error(error, flags)
+	    || error == HA_ERR_LOCK_DEADLOCK) {
+
+		return(false);
+	}
+
+	return(true);
+}
 
 /**
  * Index Condition Pushdown interface implementation
