@@ -1,3 +1,9 @@
+2013-08-16	The InnoDB Team
+
+	* row/row0sel.c:
+	Fix Bug#17312846 CHECK TABLE ASSERTION FAILURE
+	DICT_TABLE_GET_FORMAT(CLUST_INDEX->TABLE) >= 1
+
 2013-08-15	The InnoDB Team
 
 	* row/row0umod.c:
