@@ -5,9 +5,9 @@ use performance_schema;
 show tables like "user_view";
 Tables_in_performance_schema (user_view)
 user_view
-Warning: Using a password on the command line interface can be insecure.
-Warning: Using a password on the command line interface can be insecure.
-Warning: Using a password on the command line interface can be insecure.
+mysqlcheck: [Warning] Using a password on the command line interface can be insecure.
+mysqlcheck: [Warning] Using a password on the command line interface can be insecure.
+mysql: [Warning] Using a password on the command line interface can be insecure.
 ERROR 1050 (42S01) at line 157: Table 'cond_instances' already exists
 ERROR 1050 (42S01) at line 182: Table 'events_waits_current' already exists
 ERROR 1050 (42S01) at line 207: Table 'events_waits_history' already exists

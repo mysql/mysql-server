@@ -250,19 +250,23 @@ void my_parameter_handler(const wchar_t * expression, const wchar_t * function,
 
 /*
   handle_rtc_failure
-  Catch the RTC error and dump it to stderr
+  Windows: run-time error checks are reported to ...
 */
 
 int handle_rtc_failure(int err_type, const char *file, int line,
                        const char* module, const char *format, ...)
 {
   va_list args;
+  char   buff[2048];
+  size_t len;
+
+  len= snprintf(buff, sizeof(buff), "At %s:%d: ", file, line);
+
   va_start(args, format);
-  fprintf(stderr, "Error:");
-  vfprintf(stderr, format, args);
-  fprintf(stderr, " At %s:%d\n", file, line);
+  vsnprintf(buff + len, sizeof(buff) - len, format, args);
   va_end(args);
-  (void) fflush(stderr);
+
+  my_message_local(ERROR_LEVEL, buff);
 
   return 0; /* Error is handled */
 }

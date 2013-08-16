@@ -711,7 +711,7 @@ void *create_embedded_thd(int client_flag)
   thd->thread_stack= (char*) &thd;
   if (thd->store_globals())
   {
-    fprintf(stderr,"store_globals failed.\n");
+    my_message_local(ERROR_LEVEL, "store_globals failed.");
     goto err;
   }
   lex_start(thd);
@@ -1259,7 +1259,7 @@ bool net_send_error_packet(THD *thd, uint sql_errno, const char *err,
 
   if (!thd->mysql)            // bootstrap file handling
   {
-    fprintf(stderr, "ERROR: %d  %s\n", sql_errno, err);
+    my_message_local(ERROR_LEVEL, "%d  %s", sql_errno, err);
     return TRUE;
   }
 

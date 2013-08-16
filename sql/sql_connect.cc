@@ -764,17 +764,17 @@ void end_connection(THD *thd)
 
   if (net->error && net->vio != 0)
   {
-    if (!thd->killed && log_warnings > 1)
+    if (!thd->killed)
     {
       Security_context *sctx= thd->security_ctx;
 
-      sql_print_warning(ER(ER_NEW_ABORTING_CONNECTION),
-                        thd->thread_id,(thd->db ? thd->db : "unconnected"),
-                        sctx->user ? sctx->user : "unauthenticated",
-                        sctx->host_or_ip,
-                        (thd->get_stmt_da()->is_error() ?
-                         thd->get_stmt_da()->message_text() :
-                         ER(ER_UNKNOWN_ERROR)));
+      sql_print_information(ER(ER_NEW_ABORTING_CONNECTION),
+                            thd->thread_id,(thd->db ? thd->db : "unconnected"),
+                            sctx->user ? sctx->user : "unauthenticated",
+                            sctx->host_or_ip,
+                            (thd->get_stmt_da()->is_error() ?
+                             thd->get_stmt_da()->message_text() :
+                             ER(ER_UNKNOWN_ERROR)));
     }
   }
 }
