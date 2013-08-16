@@ -468,7 +468,7 @@ trx_savepoint_for_mysql(
 {
 	trx_named_savept_t*	savep;
 
-	trx_start_if_not_started_xa(trx, true);
+	trx_start_if_not_started_xa(trx, false);
 
 	savep = trx_savepoint_find(trx, savepoint_name);
 
