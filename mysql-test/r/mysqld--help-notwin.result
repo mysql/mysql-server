@@ -136,8 +136,8 @@ The following options may be given as the first argument:
  --datetime-format=name 
  The DATETIME format (ignored)
  --default-authentication-plugin=name 
- Defines what password- and authentication algorithm to
- use per default
+ The default authentication plugin used by the server to
+ hash the password.
  --default-storage-engine=name 
  The default storage engine for new tables
  --default-time-zone=name 
@@ -1028,6 +1028,7 @@ connect-timeout 10
 console FALSE
 date-format %Y-%m-%d
 datetime-format %Y-%m-%d %H:%i:%s
+default-authentication-plugin mysql_native_password
 default-storage-engine InnoDB
 default-time-zone (No default value)
 default-tmp-storage-engine InnoDB

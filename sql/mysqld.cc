@@ -42,7 +42,7 @@
                           // date_time_format_make
 #include "tztime.h"       // my_tz_free, my_tz_init, my_tz_SYSTEM
 #include "hostname.h"     // hostname_cache_free, hostname_cache_init
-#include "auth_common.h"  // init_default_auth_plugin, set_default_auth_plugin
+#include "auth_common.h"  // set_default_auth_plugin
                           // acl_free, acl_init
                           // grant_free, grant_init
 #include "sql_base.h"     // table_def_free, table_def_init,
@@ -747,6 +747,7 @@ static ulong opt_specialflag;
 static char *opt_update_logname;
 char *opt_binlog_index_name;
 char *mysql_home_ptr, *pidfile_name_ptr;
+char *default_auth_plugin;
 /** Initial command line arguments (count), after load_defaults().*/
 static int defaults_argc;
 /**
@@ -3148,7 +3149,6 @@ int init_common_variables()
 #endif
   default_tmp_storage_engine= default_storage_engine;
 
-  init_default_auth_plugin();
 
   /*
     Add server status variables to the dynamic list of
@@ -3187,6 +3187,14 @@ int init_common_variables()
 
   if (get_options(&remaining_argc, &remaining_argv))
     return 1;
+
+  if (set_default_auth_plugin(default_auth_plugin, strlen(default_auth_plugin)))
+  {
+    sql_print_error("Can't start server: "
+		    "Invalid value for --default-authentication-plugin");
+    return 1;
+  }
+
   set_server_version();
 
 #ifndef EMBEDDED_LIBRARY
@@ -5839,10 +5847,6 @@ struct my_option my_long_options[]=
    "Multiple --plugin-load-add are supported.",
    0, 0, 0,
    GET_STR, REQUIRED_ARG, 0, 0, 0, 0, 0, 0},
-  {"default_authentication_plugin", OPT_DEFAULT_AUTH,
-   "Defines what password- and authentication algorithm to use per default",
-   0, 0, 0,
-   GET_STR, REQUIRED_ARG, 0, 0, 0, 0, 0, 0},
   {0, 0, 0, 0, 0, 0, GET_NO_ARG, NO_ARG, 0, 0, 0, 0, 0, 0}
 };
 
@@ -7079,14 +7083,6 @@ mysqld_get_one_option(int optid,
     /* fall through */
   case OPT_PLUGIN_LOAD_ADD:
     opt_plugin_load_list_ptr->push_back(new i_string(argument));
-    break;
-  case OPT_DEFAULT_AUTH:
-    if (set_default_auth_plugin(argument, strlen(argument)))
-    {
-      sql_print_error("Can't start server: "
-                      "Invalid value for --default-authentication-plugin");
-      return 1;
-    }
     break;
   case OPT_SECURE_AUTH:
     if (opt_secure_auth == 0)

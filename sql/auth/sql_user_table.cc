@@ -527,7 +527,6 @@ void get_grantor(THD *thd, char *grantor)
   @param password_field The password field to use 
   @param password_expired Password expiration flag
 
-  @see change_password
 
 */
 
@@ -536,7 +535,7 @@ update_user_table(THD *thd, TABLE *table,
                   const char *host, const char *user,
                   const char *new_password, uint new_password_len,
                   enum mysql_user_table_field password_field,
-                  bool password_expired, bool is_user_table_positioned)
+                  bool password_expired)
 {
   char user_key[MAX_KEY_LENGTH];
   int error;
@@ -551,30 +550,22 @@ update_user_table(THD *thd, TABLE *table,
     DBUG_RETURN(1);
   }
 
-  /* 
-    If this function is reached through change_password, the user record is 
-    already available and hence need not be read again.
-  */
+  table->use_all_columns();
+  DBUG_ASSERT(host != '\0');
+  table->field[MYSQL_USER_FIELD_HOST]->store(host, (uint) strlen(host),
+					     system_charset_info);
+  table->field[MYSQL_USER_FIELD_USER]->store(user, (uint) strlen(user),
+					     system_charset_info);
+  key_copy((uchar *) user_key, table->record[0], table->key_info,
+	   table->key_info->key_length);
 
-  if (!is_user_table_positioned)
+  if (table->file->ha_index_read_idx_map(table->record[0], 0,
+					 (uchar *) user_key, HA_WHOLE_KEY,
+					 HA_READ_KEY_EXACT))
   {
-    table->use_all_columns();
-    DBUG_ASSERT(host != '\0');
-    table->field[MYSQL_USER_FIELD_HOST]->store(host, (uint) strlen(host),
-					       system_charset_info);
-    table->field[MYSQL_USER_FIELD_USER]->store(user, (uint) strlen(user),
-					       system_charset_info);
-    key_copy((uchar *) user_key, table->record[0], table->key_info,
-	     table->key_info->key_length);
-
-    if (table->file->ha_index_read_idx_map(table->record[0], 0,
-					   (uchar *) user_key, HA_WHOLE_KEY,
-					   HA_READ_KEY_EXACT))
-    {
-      my_message(ER_PASSWORD_NO_MATCH, ER(ER_PASSWORD_NO_MATCH),
-		 MYF(0));	/* purecov: deadcode */
-      DBUG_RETURN(1);		/* purecov: deadcode */
-    }
+    my_message(ER_PASSWORD_NO_MATCH, ER(ER_PASSWORD_NO_MATCH),
+	       MYF(0));	/* purecov: deadcode */
+    DBUG_RETURN(1);		/* purecov: deadcode */
   }
   store_record(table,record[1]);
  
@@ -776,133 +767,42 @@ int replace_user_table(THD *thd, TABLE *table, LEX_USER *combo,
     old_plugin.str=
       get_field(thd->mem_root, table->field[MYSQL_USER_FIELD_PLUGIN]);
 
+    if (old_plugin.str == NULL || *old_plugin.str == '\0')
+    {
+      my_error(ER_PASSWORD_NO_MATCH, MYF(0));
+      error= 1;
+      goto end;
+    }
+
     /* 
       It is important not to include the trailing '\0' in the string length 
       because otherwise the plugin hash search will fail.
     */
-    if (old_plugin.str)
-    {
-      old_plugin.length= strlen(old_plugin.str);
-
-      /*
-        Optimize for pointer comparision of built-in plugin name
-      */
-
-      optimize_plugin_compare_by_pointer(&old_plugin);
-
-      /*
-        Disable plugin change for existing rows with anything but
-        the built in plugins.
-        The idea is that all built in plugins support
-        IDENTIFIED BY ... and none of the external ones currently do.
-      */
-      if ((combo->uses_identified_by_clause ||
-	   combo->uses_identified_by_password_clause) &&
-	  !auth_plugin_is_built_in(old_plugin.str))
-      {
-        old_plugin.length= strlen(old_plugin.str);
-
-        /*
-          Optimize for pointer comparision of built-in plugin name
-        */
-
-        optimize_plugin_compare_by_pointer(&old_plugin);
- 
-        /*
-          Disable plugin change for existing rows with anything but
-          the built in plugins.
-          The idea is that all built in plugins support
-          IDENTIFIED BY ... and none of the external ones currently do.
-        */
-        if ((combo->uses_identified_by_clause ||
-             combo->uses_identified_by_password_clause) &&
-            !auth_plugin_is_built_in(old_plugin.str))
-        {
-          const char *new_plugin= (combo->plugin.str && combo->plugin.str[0]) ?
-            combo->plugin.str : default_auth_plugin_name.str;
-
-          if (my_strcasecmp(system_charset_info, new_plugin, old_plugin.str))
-          {
-            push_warning(thd, Sql_condition::SL_WARNING, 
-              ER_SET_PASSWORD_AUTH_PLUGIN, ER(ER_SET_PASSWORD_AUTH_PLUGIN));
-          }
-        }
-      }
-    }
-    old_plugin.length= 0;
-    combo->plugin= old_plugin;
+    old_plugin.length= strlen(old_plugin.str);
 
     /*
-      If the plugin value in user table is found to be null or an empty
-      string, the following steps are followed:
-
-      * If GRANT is used with IDENTIFIED BY PASSWORD clause, and the hash
-        is found to be of mysql_native_password or mysql_old_password
-        type, the statement passes without an error and the password field
-        is updated accordingly.
-      * If GRANT is used with IDENTIFIED BY clause and the password is
-        provided as a plain string, hashing of the string is done according
-        to the value of old_passwords variable in the following way.
-
-         if old_passwords == 0, mysql_native hashing is used.
-	 if old_passwords == 1, mysql_old hashing is used.
-	 if old_passwords == 2, error.
-      * An empty password is considered to be of mysql_native type.
+      Optimize for pointer comparision of built-in plugin name
     */
-    
-    if (combo->plugin.str == NULL || combo->plugin.str == '\0')
+
+    optimize_plugin_compare_by_pointer(&old_plugin);
+
+    /*
+      Disable plugin change for existing rows with anything but
+      the built in plugins.
+      The idea is that all built in plugins support
+      IDENTIFIED BY ... and none of the external ones currently do.
+    */
+    if ((combo->uses_identified_by_clause ||
+	 combo->uses_identified_by_password_clause) &&
+	!auth_plugin_is_built_in(old_plugin.str))
     {
-      if (combo->uses_identified_by_password_clause)
-      {
-	if ((combo->password.length == SCRAMBLED_PASSWORD_CHAR_LENGTH) ||
-	    (combo->password.length == 0))
-	{
-	  combo->plugin.str= native_password_plugin_name.str;
-	  combo->plugin.length= native_password_plugin_name.length;
-	}
-	else if (combo->password.length == SCRAMBLED_PASSWORD_CHAR_LENGTH_323)
-	{
-	  combo->plugin.str= old_password_plugin_name.str;
-	  combo->plugin.length= old_password_plugin_name.length;
-	}
-	else
-	{
-	  /*
-	    If hash length doesn't match either with mysql_native hash length or
-	    mysql_old hash length, throw an error.
-	  */
-	  my_error(ER_PASSWORD_FORMAT, MYF(0));
-	  error= 1;
-	  goto end;
-	}
-      }
-      else
-      {
-	/*
-	  Handling of combo->plugin when IDENTIFIED BY PASSWORD clause is not
-	  used, i.e. when the password hash is not provided within the GRANT
-	  query.
-	*/
-	if ((thd->variables.old_passwords == 1) && (combo->password.length != 0))
-	{
-	  combo->plugin.str= old_password_plugin_name.str;
-	  combo->plugin.length= old_password_plugin_name.length;
-	}
-	else if ((thd->variables.old_passwords == 0) || 
-		 (combo->password.length == 0))
-	{
-	  combo->plugin.str= native_password_plugin_name.str;
-	  combo->plugin.length= native_password_plugin_name.length;
-	}
-	else
-	{
-	  /* If old_passwords variable is neither 0 nor 1, throw an error. */
-	  my_error(ER_PASSWORD_FORMAT, MYF(0));
-	  error= 1;
-	  goto end;
-	}
-      }
+      push_warning(thd, Sql_condition::SL_WARNING, 
+                   ER_SET_PASSWORD_AUTH_PLUGIN,
+		   ER(ER_SET_PASSWORD_AUTH_PLUGIN));
     }
+
+
+    combo->plugin= old_plugin;
 
     if (!combo->uses_authentication_string_clause)
     {

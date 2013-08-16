@@ -331,16 +331,6 @@ Rsa_authentication_keys::read_rsa_keys()
 #endif /* HAVE_OPENSSL */
 
 /**
- Sets the default default auth plugin value if no option was specified.
-*/
-void init_default_auth_plugin()
-{
-  default_auth_plugin_name.str= native_password_plugin_name.str;
-  default_auth_plugin_name.length= native_password_plugin_name.length;
-
-}
-
-/**
  Initialize default authentication plugin based on command line options or
  configuration file settings.
  
@@ -2052,11 +2042,6 @@ static int do_auth_once(THD *thd, LEX_STRING *auth_plugin_name,
     plugin= old_password_plugin;
   else
   {
-    if (auth_plugin_name->length == 0)
-    {
-      auth_plugin_name->str= default_auth_plugin_name.str;
-      auth_plugin_name->length= default_auth_plugin_name.length;
-    }
     if ((plugin= my_plugin_lock_by_name(thd, auth_plugin_name,
                                         MYSQL_AUTHENTICATION_PLUGIN)))
       unlock_plugin= true;
