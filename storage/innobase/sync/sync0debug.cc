@@ -564,6 +564,7 @@ SyncDebug::check_order(const latch_t* latch)
 
 		/* Fall through */
 
+	case SYNC_MONITOR_MUTEX:
 	case SYNC_MEM_POOL:
 	case SYNC_MEM_HASH:
 	case SYNC_RECV:
@@ -1072,7 +1073,7 @@ sync_latch_meta_init()
 
 #ifndef HAVE_ATOMIC_BUILTINS_64
 	LATCH_ADD(SrvLatches, "monitor",
-		  SYNC_ANY_LATCH,
+		  SYNC_MONITOR_MUTEX,
 		  monitor_mutex_key);
 #endif /* !HAVE_ATOMIC_BUILTINS_64 */
 
