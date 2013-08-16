@@ -16,7 +16,7 @@
 eval INSTALL PLUGIN simple_parser SONAME '$SIMPLE_PARSER';
 
 
--- echo # Create Index Test(CREATE TABLE WITH FULLTEXT INDEX)
+-- echo # Test Part 2: Create Index Test(CREATE TABLE WITH FULLTEXT INDEX)
 CREATE TABLE articles (
 	id INT UNSIGNED AUTO_INCREMENT NOT NULL PRIMARY KEY,
 	title VARCHAR(200),
@@ -195,4 +195,71 @@ SELECT * FROM t1 WHERE MATCH (a,b) AGAINST ('"dbms stands"@05' IN BOOLEAN MODE);
 SELECT * FROM t1 WHERE MATCH (a,b) AGAINST ('for');
 
 DROP TABLE t1;
+
+# Set fts_min_token_size, max_token_size values
+# Write file to make mysql-test-run.pl start up the server again
+SELECT @@innodb_ft_min_token_size,@@innodb_ft_max_token_size;
+
+EVAL CREATE TABLE t1 (
+        id INT UNSIGNED AUTO_INCREMENT NOT NULL PRIMARY KEY,
+        a VARCHAR(200),
+        b TEXT,
+        FULLTEXT (b) WITH PARSER simple_parser
+        ) CHARACTER SET = UTF8,ENGINE = InnoDB;
+
+
+INSERT INTO t1 (a,b) VALUES
+        ('MySQL from Tutorial','DBMS stands for DataBase ...')  ,
+        ('when To Use MySQL Well','After that you went through a ...'),
+        ('where will Optimizing MySQL','what In this tutorial we will show ...'),
+        ('Я могу есть стекло', 'оно мне Mне вредит'),
+        ('Μπορῶ νὰ φάω σπασμένα' ,'γυαλιὰ χωρὶς νὰ πάθω τίποτα'),
+        ('Sævör grét', 'áðan því úlpan var ónýt');
+
+CREATE FULLTEXT INDEX idx on t1 (a,b) WITH PARSER simple_parser;
+INSERT INTO t1 (a,b) VALUES
+        ('adding record using session 1','for verifying multiple concurrent transactions'),
+        ('Мога да ям стъкло', 'то Mне ми вреди');
+
+
+--exec echo "wait" > $MYSQLTEST_VARDIR/tmp/mysqld.1.expect
+--shutdown_server 60
+--source include/wait_until_disconnected.inc
+--enable_reconnect
+# Write file to make mysql-test-run.pl start up the server again
+--exec echo "restart:--innodb_ft_min_token_size=5 --innodb_ft_max_token_size=10" > $MYSQLTEST_VARDIR/tmp/mysqld.1.expect
+--source include/wait_until_connected_again.inc
+#
+ --enable_reconnect
+ --source include/wait_until_connected_again.inc
+ --disable_reconnect
+#
+SELECT @@innodb_ft_min_token_size,@@innodb_ft_max_token_size;
+
+ALTER TABLE t1 DROP INDEX idx;
+CREATE FULLTEXT INDEX idx on t1 (a,b) WITH PARSER simple_parser;
+
+
+ALTER TABLE t1 DROP INDEX idx;
+CREATE FULLTEXT INDEX idx on t1 (a,b);
+
+# no record expected - records not seen in boolean for simple_parser
+SELECT * FROM t1 WHERE MATCH (a,b) AGAINST ('+MySQL' IN BOOLEAN MODE);
+#  # # 2 record expected
+SELECT * FROM t1 WHERE MATCH (a,b) AGAINST ('MySQL');
+# no record expected as length < 5
+SELECT * FROM t1 WHERE MATCH (a,b) AGAINST ('dbms');
+# 1 record expected as index on b built with min size 3
+SELECT * FROM t1 WHERE MATCH (b) AGAINST ('show');
+ # 1 record expected
+SELECT * FROM t1 WHERE MATCH (b) AGAINST ('dbms') AND MATCH (a,b) AGAINST ('transactions');
+#      # # 1 record expected
+SELECT * FROM t1 WHERE MATCH (a,b) AGAINST ('transactions');
+SELECT * FROM t1 WHERE MATCH (a,b) AGAINST ('"dbms stands"@05' IN BOOLEAN MODE);
+#
+
+DROP TABLE t1;
+
+
+
 UNINSTALL PLUGIN simple_parser;
