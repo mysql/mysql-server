@@ -107,7 +107,8 @@ row_sel_sec_rec_is_for_clust_rec(
 			dict_col_get_clust_pos(col, clust_index), &clust_len);
 		sec_field = rec_get_nth_field(sec_rec, sec_offs, i, &sec_len);
 
-		if (ifield->prefix_len > 0 && clust_len != UNIV_SQL_NULL) {
+		if (ifield->prefix_len > 0 && clust_len != UNIV_SQL_NULL
+		    && sec_len != UNIV_SQL_NULL) {
 
 			clust_len = dtype_get_at_most_n_mbchars(
 				col->prtype, col->mbminlen, col->mbmaxlen,
