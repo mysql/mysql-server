@@ -42,7 +42,7 @@
                           // date_time_format_make
 #include "tztime.h"       // my_tz_free, my_tz_init, my_tz_SYSTEM
 #include "hostname.h"     // hostname_cache_free, hostname_cache_init
-#include "auth_common.h"  // init_default_auth_plugin, set_default_auth_plugin
+#include "auth_common.h"  // set_default_auth_plugin
                           // acl_free, acl_init
                           // grant_free, grant_init
 #include "sql_base.h"     // table_def_free, table_def_init,
@@ -268,8 +268,6 @@ inline void setup_fpu()
 
 #define MYSQL_KILL_SIGNAL SIGTERM
 
-#include <my_pthread.h>     // For thr_setconcurency()
-
 #ifdef SOLARIS
 extern "C" int gethostname(char *name, int namelen);
 #endif
@@ -483,7 +481,7 @@ uint protocol_version;
 uint lower_case_table_names;
 ulong tc_heuristic_recover= 0;
 int32 num_thread_running;
-ulong back_log, connect_timeout, concurrency, server_id;
+ulong back_log, connect_timeout, server_id;
 ulong table_cache_size, table_def_size;
 ulong table_cache_instances;
 ulong table_cache_size_per_instance;
@@ -501,6 +499,7 @@ ulonglong slave_rows_search_algorithms_options;
 #ifndef DBUG_OFF
 uint slave_rows_last_search_algorithm_used;
 #endif
+ulong mts_parallel_option;
 ulong binlog_cache_size=0;
 ulonglong  max_binlog_cache_size=0;
 ulong slave_max_allowed_packet= 0;
@@ -748,6 +747,7 @@ static ulong opt_specialflag;
 static char *opt_update_logname;
 char *opt_binlog_index_name;
 char *mysql_home_ptr, *pidfile_name_ptr;
+char *default_auth_plugin;
 /** Initial command line arguments (count), after load_defaults().*/
 static int defaults_argc;
 /**
@@ -1919,13 +1919,19 @@ static void set_root(const char *path)
 
 static void network_init(void)
 {
+  std::string unix_sock_name= "";
+
   if (opt_bootstrap)
     return;
 
-  if (!opt_disable_networking)
+  set_ports();
+
+#ifdef HAVE_SYS_UN_H
+  unix_sock_name= mysqld_unix_port ? mysqld_unix_port : "";
+#endif
+
+  if (!opt_disable_networking || unix_sock_name != "")
   {
-    set_ports();
-    std::string unix_sock_name= mysqld_unix_port ? mysqld_unix_port : "";
     std::string bind_addr_str= my_bind_addr_str ? my_bind_addr_str : "";
 
     Mysqld_socket_listener *mysqld_socket_listener=
@@ -1952,7 +1958,9 @@ static void network_init(void)
 
     if (report_port == 0)
       report_port= mysqld_port;
-    DBUG_ASSERT(report_port != 0);
+
+    if (!opt_disable_networking)
+      DBUG_ASSERT(report_port != 0);
   }
 #ifdef _WIN32
   // Create named pipe
@@ -3147,7 +3155,6 @@ int init_common_variables()
 #endif
   default_tmp_storage_engine= default_storage_engine;
 
-  init_default_auth_plugin();
 
   /*
     Add server status variables to the dynamic list of
@@ -3186,6 +3193,14 @@ int init_common_variables()
 
   if (get_options(&remaining_argc, &remaining_argv))
     return 1;
+
+  if (set_default_auth_plugin(default_auth_plugin, strlen(default_auth_plugin)))
+  {
+    sql_print_error("Can't start server: "
+		    "Invalid value for --default-authentication-plugin");
+    return 1;
+  }
+
   set_server_version();
 
 #ifndef EMBEDDED_LIBRARY
@@ -4642,7 +4657,6 @@ int mysqld_main(int argc, char **argv)
   pthread_attr_setstacksize(&connection_attrib,
                             my_thread_stack_size + guardize);
 
-#ifdef HAVE_PTHREAD_ATTR_GETSTACKSIZE
   {
     /* Retrieve used stack size;  Needed for checking stack overflows */
     size_t stack_size= 0;
@@ -4661,9 +4675,6 @@ int mysqld_main(int argc, char **argv)
 #endif
     }
   }
-#endif
-
-  (void) thr_setconcurrency(concurrency); // 10 by default
 
   select_thread=pthread_self();
   select_thread_in_use=1;
@@ -5844,10 +5855,6 @@ struct my_option my_long_options[]=
    "is the plugin library in plugin_dir. This option adds to the list "
    "speficied by --plugin-load in an incremental way. "
    "Multiple --plugin-load-add are supported.",
-   0, 0, 0,
-   GET_STR, REQUIRED_ARG, 0, 0, 0, 0, 0, 0},
-  {"default_authentication_plugin", OPT_DEFAULT_AUTH,
-   "Defines what password- and authentication algorithm to use per default",
    0, 0, 0,
    GET_STR, REQUIRED_ARG, 0, 0, 0, 0, 0, 0},
   {0, 0, 0, 0, 0, 0, GET_NO_ARG, NO_ARG, 0, 0, 0, 0, 0, 0}
@@ -7087,14 +7094,6 @@ mysqld_get_one_option(int optid,
   case OPT_PLUGIN_LOAD_ADD:
     opt_plugin_load_list_ptr->push_back(new i_string(argument));
     break;
-  case OPT_DEFAULT_AUTH:
-    if (set_default_auth_plugin(argument, strlen(argument)))
-    {
-      sql_print_error("Can't start server: "
-                      "Invalid value for --default-authentication-plugin");
-      return 1;
-    }
-    break;
   case OPT_SECURE_AUTH:
     if (opt_secure_auth == 0)
       WARN_DEPRECATED(NULL, "pre-4.1 password hash", "post-4.1 password hash");
@@ -7855,6 +7854,7 @@ PSI_mutex_key key_RELAYLOG_LOCK_xids;
 PSI_mutex_key key_LOCK_sql_rand;
 PSI_mutex_key key_gtid_ensure_index_mutex;
 PSI_mutex_key key_LOCK_thread_created;
+PSI_mutex_key key_mts_temp_table_LOCK;
 
 static PSI_mutex_info all_server_mutexes[]=
 {
@@ -7927,7 +7927,8 @@ static PSI_mutex_info all_server_mutexes[]=
   { &key_LOCK_log_throttle_qni, "LOCK_log_throttle_qni", PSI_FLAG_GLOBAL},
   { &key_gtid_ensure_index_mutex, "Gtid_state", PSI_FLAG_GLOBAL},
   { &key_LOCK_thread_created, "LOCK_thread_created", PSI_FLAG_GLOBAL },
-  { &key_LOCK_query_plan, "THD::LOCK_query_plan", 0}
+  { &key_LOCK_query_plan, "THD::LOCK_query_plan", 0},
+  { &key_mts_temp_table_LOCK, "key_mts_temp_table_LOCK",0},
 };
 
 PSI_rwlock_key key_rwlock_LOCK_grant, key_rwlock_LOCK_logger,
@@ -8184,7 +8185,7 @@ PSI_stage_info stage_slave_waiting_worker_to_release_partition= { 0, "Waiting fo
 PSI_stage_info stage_slave_waiting_worker_to_free_events= { 0, "Waiting for Slave Workers to free pending events", 0};
 PSI_stage_info stage_slave_waiting_worker_queue= { 0, "Waiting for Slave Worker queue", 0};
 PSI_stage_info stage_slave_waiting_event_from_coordinator= { 0, "Waiting for an event from Coordinator", 0};
-
+PSI_stage_info stage_slave_waiiting_for_workers_to_finish= { 0, "Waiting for slave workers to finish.", 0};
 #ifdef HAVE_PSI_INTERFACE
 
 PSI_stage_info *all_server_stages[]=

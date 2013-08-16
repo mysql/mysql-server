@@ -184,6 +184,13 @@ Rsa_authentication_keys::read_key_file(RSA **key_ptr,
       ERR_error_string_n(ERR_get_error(), error_buf, MYSQL_ERRMSG_SIZE);
       sql_print_error("Failure to parse RSA %s key (file exists): %s:"
                       " %s", key_type, key_file_path.c_ptr(), error_buf);
+
+      /*
+        Call ERR_clear_error() just in case there are more than 1 entry in the
+        OpenSSL thread's error queue.
+      */
+      ERR_clear_error();
+
       return true;
     }
 
@@ -322,16 +329,6 @@ Rsa_authentication_keys::read_rsa_keys()
 
 #endif /* HAVE_YASSL */
 #endif /* HAVE_OPENSSL */
-
-/**
- Sets the default default auth plugin value if no option was specified.
-*/
-void init_default_auth_plugin()
-{
-  default_auth_plugin_name.str= native_password_plugin_name.str;
-  default_auth_plugin_name.length= native_password_plugin_name.length;
-
-}
 
 /**
  Initialize default authentication plugin based on command line options or
@@ -2045,11 +2042,6 @@ static int do_auth_once(THD *thd, LEX_STRING *auth_plugin_name,
     plugin= old_password_plugin;
   else
   {
-    if (auth_plugin_name->length == 0)
-    {
-      auth_plugin_name->str= default_auth_plugin_name.str;
-      auth_plugin_name->length= default_auth_plugin_name.length;
-    }
     if ((plugin= my_plugin_lock_by_name(thd, auth_plugin_name,
                                         MYSQL_AUTHENTICATION_PLUGIN)))
       unlock_plugin= true;

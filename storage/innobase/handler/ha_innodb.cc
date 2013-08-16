@@ -74,7 +74,7 @@ this program; if not, write to the Free Software Foundation, Inc.,
 #include "btr0cur.h"
 #include "btr0btr.h"
 #include "fsp0fsp.h"
-#include "sync0sync.h"
+#include "sync0mutex.h"
 #include "fil0fil.h"
 #include "trx0xa.h"
 #include "row0merge.h"
@@ -103,6 +103,7 @@ enum_tx_isolation thd_get_trx_isolation(const THD* thd);
 
 #include "ha_innodb.h"
 #include "i_s.h"
+#include "sync0sync.h"
 
 /** to protect innobase_open_files */
 static mysql_mutex_t innobase_share_mutex;
@@ -287,7 +288,7 @@ static PSI_mutex_info all_innodb_mutexes[] = {
 	PSI_KEY(cache_last_read_mutex),
 	PSI_KEY(dict_foreign_err_mutex),
 	PSI_KEY(dict_sys_mutex),
-	PSI_KEY(dict_stats_recalc_pool_mutex),
+	PSI_KEY(recalc_pool_mutex),
 	PSI_KEY(file_format_max_mutex),
 	PSI_KEY(fil_system_mutex),
 	PSI_KEY(flush_list_mutex),
@@ -308,7 +309,6 @@ static PSI_mutex_info all_innodb_mutexes[] = {
 	PSI_KEY(mem_hash_mutex),
 #  endif /* UNIV_MEM_DEBUG */
 	PSI_KEY(mem_pool_mutex),
-	PSI_KEY(mutex_list_mutex),
 	PSI_KEY(page_zip_stat_per_index_mutex),
 	PSI_KEY(purge_sys_pq_mutex),
 	PSI_KEY(recv_sys_mutex),
@@ -330,17 +330,15 @@ static PSI_mutex_info all_innodb_mutexes[] = {
 	PSI_KEY(buf_dblwr_mutex),
 	PSI_KEY(trx_undo_mutex),
 	PSI_KEY(trx_pool_mutex),
-	PSI_KEY(trx_pools_mutex),
+	PSI_KEY(trx_pool_manager_mutex),
 	PSI_KEY(srv_sys_mutex),
 	PSI_KEY(lock_mutex),
 	PSI_KEY(lock_wait_mutex),
 	PSI_KEY(trx_mutex),
 	PSI_KEY(srv_threads_mutex),
-	/* mutex with os_fast_mutex_ interfaces */
 #  ifndef PFS_SKIP_EVENT_MUTEX
-	PSI_KEY(event_os_mutex),
+	PSI_KEY(event_mutex),
 #  endif /* PFS_SKIP_EVENT_MUTEX */
-	PSI_KEY(os_mutex),
 #ifndef HAVE_ATOMIC_BUILTINS
 	PSI_KEY(srv_conc_mutex),
 #endif /* !HAVE_ATOMIC_BUILTINS */
@@ -1099,7 +1097,7 @@ thd_start_time_in_secs(
 {
 	// FIXME: This function should be added to the server code.
 	//return(thd_start_time(thd));
-	return(ut_time());
+	return(ulint(ut_time()));
 }
 
 /******************************************************************//**
@@ -1142,9 +1140,9 @@ innobase_srv_conc_exit_innodb(
 /*==========================*/
 	trx_t*	trx)	/*!< in: transaction handle */
 {
-#ifdef UNIV_SYNC_DEBUG
-	ut_ad(!sync_thread_levels_nonempty_trx(trx->has_search_latch));
-#endif /* UNIV_SYNC_DEBUG */
+	btrsea_sync_check	check(trx->has_search_latch);
+
+	ut_ad(!sync_check_iterate(check));
 
 	/* This is to avoid making an unnecessary function call. */
 	if (trx->declared_to_be_inside_innodb
@@ -1162,9 +1160,9 @@ innobase_srv_conc_force_exit_innodb(
 /*================================*/
 	trx_t*	trx)	/*!< in: transaction handle */
 {
-#ifdef UNIV_SYNC_DEBUG
-	ut_ad(!sync_thread_levels_nonempty_trx(trx->has_search_latch));
-#endif /* UNIV_SYNC_DEBUG */
+	btrsea_sync_check	check(trx->has_search_latch);
+
+	ut_ad(!sync_check_iterate(check));
 
 	/* This is to avoid making an unnecessary function call. */
 	if (trx->declared_to_be_inside_innodb) {
@@ -2193,6 +2191,10 @@ ha_innobase::update_thd(
 {
 	trx_t*		trx;
 
+	DBUG_ENTER("ha_innobase::update_thd");
+	DBUG_PRINT("ha_innobase::update_thd", ("user_thd: %p -> %p",
+		   user_thd, thd));
+
 	/* The table should have been opened in ha_innobase::open(). */
 	DBUG_ASSERT(prebuilt->table->n_ref_count > 0);
 
@@ -2209,6 +2211,8 @@ ha_innobase::update_thd(
 
 	DBUG_ASSERT(prebuilt->trx->magic_n == TRX_MAGIC_N);
 	DBUG_ASSERT(prebuilt->trx == thd_to_trx(user_thd));
+
+	DBUG_VOID_RETURN;
 }
 
 /*********************************************************************//**
@@ -2313,7 +2317,7 @@ Why a deadlock of threads is not possible: the query cache calls this function
 at the start of a SELECT processing. Then the calling thread cannot be
 holding any InnoDB semaphores. The calling thread is holding the
 query cache mutex, and this function will reserve the InnoDB trx_sys->mutex.
-Thus, the 'rank' in sync0sync.h of the MySQL query cache mutex is above
+Thus, the 'rank' in sync0mutex.h of the MySQL query cache mutex is above
 the InnoDB trx_sys->mutex.
 @return TRUE if permitted, FALSE if not; note that the value FALSE
 does not mean we should invalidate the query cache: invalidation is
@@ -2326,7 +2330,7 @@ innobase_query_caching_of_table_permitted(
 				store a result to the query cache or
 				retrieve it */
 	char*	full_name,	/*!< in: normalized path to the table */
-	uint	full_name_len,	/*!< in: length of the normalized path 
+	uint	full_name_len,	/*!< in: length of the normalized path
                                 to the table */
 	ulonglong *unused)	/*!< unused for this engine */
 {
@@ -2345,7 +2349,7 @@ innobase_query_caching_of_table_permitted(
 		return((my_bool)FALSE);
 	}
 
-	if (UNIV_UNLIKELY(trx->has_search_latch)) {
+	if (trx->has_search_latch) {
 		sql_print_error("The calling thread is holding the adaptive "
 				"search, latch though calling "
 				"innobase_query_caching_of_table_permitted.");
@@ -2419,7 +2423,7 @@ innobase_invalidate_query_cache(
 	ulint		full_name_len)	/*!< in: full name length where
 					also the null chars count */
 {
-	/* Note that the sync0sync.h rank of the query cache mutex is just
+	/* Note that the sync0mutex.h rank of the query cache mutex is just
 	above the InnoDB trx_sys_t->lock. The caller of this function must
 	not have latches of a lower rank. */
 
@@ -2896,7 +2900,7 @@ innobase_init(
 				" tablespace file name seems to be same");
 		DBUG_RETURN(innobase_init_abort());
 	}
-	
+
 	/* -------------- All log files ---------------------------*/
 
 	/* The default dir for log files is the datadir of MySQL */
@@ -4934,8 +4938,6 @@ ha_innobase::clone(
 							       mem_root));
 	if (new_handler) {
 		DBUG_ASSERT(new_handler->prebuilt != NULL);
-		DBUG_ASSERT(new_handler->user_thd == user_thd);
-		DBUG_ASSERT(new_handler->prebuilt->trx == prebuilt->trx);
 
 		new_handler->prebuilt->select_lock_type
 			= prebuilt->select_lock_type;
@@ -11194,7 +11196,7 @@ ha_innobase::check(
 		/* If this is an index being created or dropped, break */
 		if (*index->name == TEMP_INDEX_PREFIX) {
 			break;
-		} else if (!btr_validate_index(index, prebuilt->trx)) {
+		} else if (!btr_validate_index(index, prebuilt->trx, false)) {
 			is_ok = FALSE;
 
 			innobase_format_name(
@@ -12390,164 +12392,6 @@ innodb_show_status(
 }
 
 /************************************************************************//**
-Implements the SHOW MUTEX STATUS command.
-@return 0 on success. */
-static
-int
-innodb_mutex_show_status(
-/*=====================*/
-	handlerton*	hton,		/*!< in: the innodb handlerton */
-	THD*		thd,		/*!< in: the MySQL query thread of the
-					caller */
-	stat_print_fn*	stat_print)	/*!< in: function for printing
-					statistics */
-{
-	char		buf1[IO_SIZE];
-	char		buf2[IO_SIZE];
-	ib_mutex_t*	mutex;
-	rw_lock_t*	lock;
-	ulint		block_mutex_oswait_count = 0;
-	ulint		block_lock_oswait_count = 0;
-	ib_mutex_t*	block_mutex = NULL;
-	rw_lock_t*	block_lock = NULL;
-#ifdef UNIV_DEBUG
-	ulint		rw_lock_count= 0;
-	ulint		rw_lock_count_spin_loop= 0;
-	ulint		rw_lock_count_spin_rounds= 0;
-	ulint		rw_lock_count_os_wait= 0;
-	ulint		rw_lock_count_os_yield= 0;
-	ulonglong	rw_lock_wait_time= 0;
-#endif /* UNIV_DEBUG */
-	uint		buf1len;
-	uint		buf2len;
-	uint		hton_name_len;
-
-	hton_name_len = (uint) strlen(innobase_hton_name);
-
-	DBUG_ENTER("innodb_mutex_show_status");
-	DBUG_ASSERT(hton == innodb_hton_ptr);
-
-	mutex_enter(&mutex_list_mutex);
-
-	for (mutex = UT_LIST_GET_FIRST(mutex_list); mutex != NULL;
-	     mutex = UT_LIST_GET_NEXT(list, mutex)) {
-		if (mutex->count_os_wait == 0) {
-			continue;
-		}
-
-		if (buf_pool_is_block_mutex(mutex)) {
-			block_mutex = mutex;
-			block_mutex_oswait_count += mutex->count_os_wait;
-			continue;
-		}
-
-		buf1len= (uint) my_snprintf(buf1, sizeof(buf1), "%s:%lu",
-				     innobase_basename(mutex->cfile_name),
-				     (ulong) mutex->cline);
-		buf2len= (uint) my_snprintf(buf2, sizeof(buf2), "os_waits=%lu",
-				     (ulong) mutex->count_os_wait);
-
-		if (stat_print(thd, innobase_hton_name,
-			       hton_name_len, buf1, buf1len,
-			       buf2, buf2len)) {
-			mutex_exit(&mutex_list_mutex);
-			DBUG_RETURN(1);
-		}
-	}
-
-	if (block_mutex) {
-		buf1len = (uint) my_snprintf(buf1, sizeof buf1,
-					     "combined %s:%lu",
-					     innobase_basename(
-						block_mutex->cfile_name),
-					     (ulong) block_mutex->cline);
-		buf2len = (uint) my_snprintf(buf2, sizeof buf2,
-					     "os_waits=%lu",
-					     (ulong) block_mutex_oswait_count);
-
-		if (stat_print(thd, innobase_hton_name,
-			       hton_name_len, buf1, buf1len,
-			       buf2, buf2len)) {
-			mutex_exit(&mutex_list_mutex);
-			DBUG_RETURN(1);
-		}
-	}
-
-	mutex_exit(&mutex_list_mutex);
-
-	mutex_enter(&rw_lock_list_mutex);
-
-	for (lock = UT_LIST_GET_FIRST(rw_lock_list); lock != NULL;
-	     lock = UT_LIST_GET_NEXT(list, lock)) {
-		if (lock->count_os_wait == 0) {
-			continue;
-		}
-
-		if (buf_pool_is_block_lock(lock)) {
-			block_lock = lock;
-			block_lock_oswait_count += lock->count_os_wait;
-			continue;
-		}
-
-		buf1len = (uint) my_snprintf(
-			buf1, sizeof buf1, "%s:%lu",
-			innobase_basename(lock->cfile_name),
-			(ulong) lock->cline);
-		buf2len = (uint) my_snprintf(
-			buf2, sizeof buf2, "os_waits=%lu",
-			(ulong) lock->count_os_wait);
-
-		if (stat_print(thd, innobase_hton_name,
-			       hton_name_len, buf1, buf1len,
-			       buf2, buf2len)) {
-			mutex_exit(&rw_lock_list_mutex);
-			DBUG_RETURN(1);
-		}
-	}
-
-	if (block_lock) {
-		buf1len = (uint) my_snprintf(buf1, sizeof buf1,
-					     "combined %s:%lu",
-					     innobase_basename(
-						block_lock->cfile_name),
-					     (ulong) block_lock->cline);
-		buf2len = (uint) my_snprintf(buf2, sizeof buf2,
-					     "os_waits=%lu",
-					     (ulong) block_lock_oswait_count);
-
-		if (stat_print(thd, innobase_hton_name,
-			       hton_name_len, buf1, buf1len,
-			       buf2, buf2len)) {
-			mutex_exit(&rw_lock_list_mutex);
-			DBUG_RETURN(1);
-		}
-	}
-
-	mutex_exit(&rw_lock_list_mutex);
-
-#ifdef UNIV_DEBUG
-	buf2len = (uint) my_snprintf(
-		buf2, sizeof buf2,
-		"count=%lu, spin_waits=%lu, spin_rounds=%lu, "
-		"os_waits=%lu, os_yields=%lu, os_wait_times=%lu",
-		(ulong) rw_lock_count,
-		(ulong) rw_lock_count_spin_loop,
-		(ulong) rw_lock_count_spin_rounds,
-		(ulong) rw_lock_count_os_wait,
-		(ulong) rw_lock_count_os_yield,
-		(ulong) (rw_lock_wait_time / 1000));
-
-	if (stat_print(thd, innobase_hton_name, hton_name_len,
-			STRING_WITH_LEN("rw_lock_mutexes"), buf2, buf2len)) {
-		DBUG_RETURN(1);
-	}
-#endif /* UNIV_DEBUG */
-
-	/* Success */
-	DBUG_RETURN(0);
-}
-
-/************************************************************************//**
 Return 0 on success and non-zero on failure. Note: the bool return type
 seems to be abused here, should be an int. */
 static
@@ -12568,8 +12412,11 @@ innobase_show_status(
 		return(innodb_show_status(hton, thd, stat_print) != 0);
 
 	case HA_ENGINE_MUTEX:
-		/* Non-zero return value means there was an error. */
-		return(innodb_mutex_show_status(hton, thd, stat_print) != 0);
+		/* After WL#6044 we no longer support reporting of mutex
+		statistics via this interface. All mutex related counters
+		should be accessed via the Performance Schema Engine. */
+		/* Not handled */
+		break;
 
 	case HA_ENGINE_LOGS:
 		/* Not handled */
@@ -13284,7 +13131,7 @@ my_bool
 ha_innobase::register_query_cache_table(
 /*====================================*/
 	THD*		thd,		/*!< in: user thread handle */
-	char*		table_key,	/*!< in: normalized path to the  
+	char*		table_key,	/*!< in: normalized path to the
 					table */
 	uint		key_length,	/*!< in: length of the normalized
 					path to the table */
@@ -15690,6 +15537,11 @@ static MYSQL_SYSVAR_BOOL(buffer_pool_dump_at_shutdown, srv_buffer_pool_dump_at_s
   "Dump the buffer pool into a file named @@innodb_buffer_pool_filename",
   NULL, NULL, FALSE);
 
+static MYSQL_SYSVAR_ULONG(buffer_pool_dump_pct, srv_buf_pool_dump_pct,
+  PLUGIN_VAR_RQCMDARG,
+  "Dump only the hottest N% of each buffer pool, defaults to 100",
+  NULL, NULL, 100, 1, 100, 0);
+
 #ifdef UNIV_DEBUG
 static MYSQL_SYSVAR_STR(buffer_pool_evict, srv_buffer_pool_evict,
   PLUGIN_VAR_RQCMDARG,
@@ -16129,6 +15981,7 @@ static struct st_mysql_sys_var* innobase_system_variables[]= {
   MYSQL_SYSVAR(buffer_pool_filename),
   MYSQL_SYSVAR(buffer_pool_dump_now),
   MYSQL_SYSVAR(buffer_pool_dump_at_shutdown),
+  MYSQL_SYSVAR(buffer_pool_dump_pct),
 #ifdef UNIV_DEBUG
   MYSQL_SYSVAR(buffer_pool_evict),
 #endif /* UNIV_DEBUG */
@@ -16405,6 +16258,29 @@ ha_innobase::multi_range_read_info(
 	return(ds_mrr.dsmrr_info(keyno, n_ranges, keys, bufsz, flags, cost));
 }
 
+/**
+@brief Determine whether an error is fatal or not. 
+    
+A deadlock error is not a fatal error.
+    
+@param error	error code received from the handler interface (HA_ERR_...)
+@param flags	indicate whether duplicate key errors should be ignorable
+    
+@return   whether the error is fatal or not
+@retval true  the error is fatal
+@retval false the error is not fatal */
+
+bool
+ha_innobase::is_fatal_error(int error, uint flags)
+{
+	if (!handler::is_fatal_error(error, flags)
+	    || error == HA_ERR_LOCK_DEADLOCK) {
+
+		return(false);
+	}
+
+	return(true);
+}
 
 /**
  * Index Condition Pushdown interface implementation

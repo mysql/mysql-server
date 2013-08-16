@@ -437,7 +437,7 @@ TABLE_SCHEMA='mysql'
 ORDER BY COLUMN_NAME;
 IS_NULLABLE	COLUMN_NAME
 YES	authentication_string
-YES	plugin
+NO	plugin
 #
 # Bug #11936829: diff. between mysql.user (authentication_string) 
 #   in fresh and upgraded 5.5.11
@@ -448,7 +448,7 @@ COLUMN_NAME IN ('plugin', 'authentication_string')
 ORDER BY COLUMN_NAME;
 IS_NULLABLE	COLUMN_NAME
 YES	authentication_string
-YES	plugin
+NO	plugin
 ALTER TABLE mysql.user MODIFY plugin char(64) DEFAULT '' NOT NULL;
 ALTER TABLE mysql.user MODIFY authentication_string TEXT NOT NULL;
 Run mysql_upgrade on a 5.5.10 external authentication column layout
@@ -493,7 +493,7 @@ COLUMN_NAME IN ('plugin', 'authentication_string')
 ORDER BY COLUMN_NAME;
 IS_NULLABLE	COLUMN_NAME
 YES	authentication_string
-YES	plugin
+NO	plugin
 #
 # Bug #12610784: SET PASSWORD INCORRECTLY KEEP AN OLD EMPTY PASSWORD
 #

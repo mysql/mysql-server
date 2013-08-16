@@ -151,6 +151,8 @@ public:
     The estimated row count of the plan with best read time (see above).
   */
   ha_rows  best_rowcount;
+  /// Expected cost of filesort.
+  double   sort_cost;
   List<Item> *fields;
   List<Cached_item> group_fields, group_fields_cache;
   THD	   *thd;
@@ -468,6 +470,7 @@ public:
     set_group_rpa= false;
     group_sent= 0;
     plan_state= NO_PLAN;
+    sort_cost= 0.0;
   }
 
   /// True if plan is const, ie it will return zero or one rows.

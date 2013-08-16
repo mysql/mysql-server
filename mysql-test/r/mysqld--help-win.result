@@ -136,8 +136,8 @@ The following options may be given as the first argument:
  --datetime-format=name 
  The DATETIME format (ignored)
  --default-authentication-plugin=name 
- Defines what password- and authentication algorithm to
- use per default
+ The default authentication plugin used by the server to
+ hash the password.
  --default-storage-engine=name 
  The default storage engine for new tables
  --default-time-zone=name 
@@ -858,6 +858,10 @@ The following options may be given as the first argument:
  --slave-net-timeout=# 
  Number of seconds to wait for more data from a
  master/slave connection before aborting the read
+ --slave-parallel-type=name 
+ Specifies if the slave will use database partioning or
+ information from master to parallelize
+ transactions.(Default: DATABASE).
  --slave-parallel-workers=# 
  Number of worker threads for executing events in parallel
  --slave-pending-jobs-size-max=# 
@@ -1032,6 +1036,7 @@ connect-timeout 10
 console FALSE
 date-format %Y-%m-%d
 datetime-format %Y-%m-%d %H:%i:%s
+default-authentication-plugin mysql_native_password
 default-storage-engine InnoDB
 default-time-zone (No default value)
 default-tmp-storage-engine InnoDB
@@ -1251,6 +1256,7 @@ slave-compressed-protocol FALSE
 slave-exec-mode STRICT
 slave-max-allowed-packet 1073741824
 slave-net-timeout 3600
+slave-parallel-type DATABASE
 slave-parallel-workers 0
 slave-pending-jobs-size-max 16777216
 slave-rows-search-algorithms TABLE_SCAN,INDEX_SCAN

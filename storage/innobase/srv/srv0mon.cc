@@ -326,11 +326,6 @@ static monitor_info_t	innodb_counter_info[] =
 	 MONITOR_SET_MEMBER, MONITOR_FLUSH_BATCH_SCANNED,
 	 MONITOR_FLUSH_BATCH_SCANNED_PER_CALL},
 
-	{"buffer_flush_batch_rescan", "buffer",
-	 "Number of times rescan of flush list forced",
-	 MONITOR_NONE,
-	 MONITOR_DEFAULT_START, MONITOR_FLUSH_HP_RESCAN},
-
 	/* Cumulative counter for pages flushed in flush batches */
 	{"buffer_flush_batch_total_pages", "buffer",
 	 "Total pages flushed as part of flush batch",
@@ -458,20 +453,36 @@ static monitor_info_t	innodb_counter_info[] =
 	 MONITOR_LRU_BATCH_SCANNED_PER_CALL},
 
 	/* Cumulative counter for LRU batch pages flushed */
-	{"buffer_LRU_batch_total_pages", "buffer",
+	{"buffer_LRU_batch_flush_total_pages", "buffer",
 	 "Total pages flushed as part of LRU batches",
-	 MONITOR_SET_OWNER, MONITOR_LRU_BATCH_COUNT,
-	 MONITOR_LRU_BATCH_TOTAL_PAGE},
+	 MONITOR_SET_OWNER, MONITOR_LRU_BATCH_FLUSH_COUNT,
+	 MONITOR_LRU_BATCH_FLUSH_TOTAL_PAGE},
 
-	{"buffer_LRU_batches", "buffer",
+	{"buffer_LRU_batches_flush", "buffer",
 	 "Number of LRU batches",
-	 MONITOR_SET_MEMBER, MONITOR_LRU_BATCH_TOTAL_PAGE,
-	 MONITOR_LRU_BATCH_COUNT},
+	 MONITOR_SET_MEMBER, MONITOR_LRU_BATCH_FLUSH_TOTAL_PAGE,
+	 MONITOR_LRU_BATCH_FLUSH_COUNT},
 
-	{"buffer_LRU_batch_pages", "buffer",
+	{"buffer_LRU_batch_flush_pages", "buffer",
 	 "Pages queued as an LRU batch",
-	 MONITOR_SET_MEMBER, MONITOR_LRU_BATCH_TOTAL_PAGE,
-	 MONITOR_LRU_BATCH_PAGES},
+	 MONITOR_SET_MEMBER, MONITOR_LRU_BATCH_FLUSH_TOTAL_PAGE,
+	 MONITOR_LRU_BATCH_FLUSH_PAGES},
+
+	/* Cumulative counter for LRU batch pages flushed */
+	{"buffer_LRU_batch_evict_total_pages", "buffer",
+	 "Total pages evicted as part of LRU batches",
+	 MONITOR_SET_OWNER, MONITOR_LRU_BATCH_EVICT_COUNT,
+	 MONITOR_LRU_BATCH_EVICT_TOTAL_PAGE},
+
+	{"buffer_LRU_batches_evict", "buffer",
+	 "Number of LRU batches",
+	 MONITOR_SET_MEMBER, MONITOR_LRU_BATCH_EVICT_TOTAL_PAGE,
+	 MONITOR_LRU_BATCH_EVICT_COUNT},
+
+	{"buffer_LRU_batch_evict_pages", "buffer",
+	 "Pages queued as an LRU batch",
+	 MONITOR_SET_MEMBER, MONITOR_LRU_BATCH_EVICT_TOTAL_PAGE,
+	 MONITOR_LRU_BATCH_EVICT_PAGES},
 
 	/* Cumulative counter for single page LRU scans */
 	{"buffer_LRU_single_flush_scanned", "buffer",
@@ -1097,6 +1108,12 @@ static monitor_info_t	innodb_counter_info[] =
 	 MONITOR_EXISTING | MONITOR_DEFAULT_ON),
 	 MONITOR_DEFAULT_START, MONITOR_OVLD_RWLOCK_X_SPIN_WAITS},
 
+	{"innodb_rwlock_sx_spin_waits", "server",
+	 "Number of rwlock spin waits due to sx latch request",
+	 static_cast<monitor_type_t>(
+	 MONITOR_EXISTING | MONITOR_DEFAULT_ON),
+	 MONITOR_DEFAULT_START, MONITOR_OVLD_RWLOCK_SX_SPIN_WAITS},
+
 	{"innodb_rwlock_s_spin_rounds", "server",
 	 "Number of rwlock spin loop rounds due to shared latch request",
 	 static_cast<monitor_type_t>(
@@ -1109,6 +1126,12 @@ static monitor_info_t	innodb_counter_info[] =
 	 MONITOR_EXISTING | MONITOR_DEFAULT_ON),
 	 MONITOR_DEFAULT_START, MONITOR_OVLD_RWLOCK_X_SPIN_ROUNDS},
 
+	{"innodb_rwlock_sx_spin_rounds", "server",
+	 "Number of rwlock spin loop rounds due to sx latch request",
+	 static_cast<monitor_type_t>(
+	 MONITOR_EXISTING | MONITOR_DEFAULT_ON),
+	 MONITOR_DEFAULT_START, MONITOR_OVLD_RWLOCK_SX_SPIN_ROUNDS},
+
 	{"innodb_rwlock_s_os_waits", "server",
 	 "Number of OS waits due to shared latch request",
 	 static_cast<monitor_type_t>(
@@ -1120,6 +1143,12 @@ static monitor_info_t	innodb_counter_info[] =
 	 static_cast<monitor_type_t>(
 	 MONITOR_EXISTING | MONITOR_DEFAULT_ON),
 	 MONITOR_DEFAULT_START, MONITOR_OVLD_RWLOCK_X_OS_WAITS},
+
+	{"innodb_rwlock_sx_os_waits", "server",
+	 "Number of OS waits due to sx latch request",
+	 static_cast<monitor_type_t>(
+	 MONITOR_EXISTING | MONITOR_DEFAULT_ON),
+	 MONITOR_DEFAULT_START, MONITOR_OVLD_RWLOCK_SX_OS_WAITS},
 
 	/* ========== Counters for DML operations ========== */
 	{"module_dml", "dml", "Statistics for DMLs",
@@ -1211,11 +1240,6 @@ ulint		monitor_set_tbl[(NUM_MONITOR + NUM_BITS_ULINT
 built-in operations for atomic memory access */
 ib_mutex_t	monitor_mutex;
 
-#ifdef HAVE_PSI_INTERFACE
-/** Key to register monitor_mutex with performance schema */
-mysql_pfs_key_t	monitor_mutex_key;
-#endif
-
 /****************************************************************//**
 Initialize the monitor subsystem. */
 
@@ -1223,7 +1247,7 @@ void
 srv_mon_create(void)
 /*================*/
 {
-	mutex_create(monitor_mutex_key, &monitor_mutex, SYNC_ANY_LATCH);
+	mutex_create("monitor", &monitor_mutex);
 }
 /****************************************************************//**
 Close the monitor subsystem. */
@@ -1625,6 +1649,10 @@ srv_mon_process_existing_counter(
 		value = rw_lock_stats.rw_x_spin_wait_count;
 		break;
 
+	case MONITOR_OVLD_RWLOCK_SX_SPIN_WAITS:
+		value = rw_lock_stats.rw_sx_spin_wait_count;
+		break;
+
 	case MONITOR_OVLD_RWLOCK_S_SPIN_ROUNDS:
 		value = rw_lock_stats.rw_s_spin_round_count;
 		break;
@@ -1633,12 +1661,20 @@ srv_mon_process_existing_counter(
 		value = rw_lock_stats.rw_x_spin_round_count;
 		break;
 
+	case MONITOR_OVLD_RWLOCK_SX_SPIN_ROUNDS:
+		value = rw_lock_stats.rw_sx_spin_round_count;
+		break;
+
 	case MONITOR_OVLD_RWLOCK_S_OS_WAITS:
 		value = rw_lock_stats.rw_s_os_wait_count;
 		break;
 
 	case MONITOR_OVLD_RWLOCK_X_OS_WAITS:
 		value = rw_lock_stats.rw_x_os_wait_count;
+		break;
+
+	case MONITOR_OVLD_RWLOCK_SX_OS_WAITS:
+		value = rw_lock_stats.rw_sx_os_wait_count;
 		break;
 
 	case MONITOR_OVLD_BUFFER_POOL_SIZE:

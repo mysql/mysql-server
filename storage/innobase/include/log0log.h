@@ -36,18 +36,20 @@ Created 12/9/1995 Heikki Tuuri
 #include "univ.i"
 #include "ut0byte.h"
 #ifndef UNIV_HOTBACKUP
-#include "sync0sync.h"
+#include "sync0mutex.h"
 #include "sync0rw.h"
 #endif /* !UNIV_HOTBACKUP */
 
 /* Type used for all log sequence number storage and arithmetics */
 typedef	ib_uint64_t		lsn_t;
+
 #define LSN_MAX			IB_UINT64_MAX
 
 #define LSN_PF			UINT64PF
 
 /** Redo log buffer */
 struct log_t;
+
 /** Redo log group */
 struct log_group_t;
 
@@ -703,6 +705,9 @@ extern log_t*	log_sys;
 #define LOG_GROUP_OK		301
 #define LOG_GROUP_CORRUPTED	302
 
+typedef ib_mutex_t	LogSysMutex;
+typedef ib_mutex_t	FlushOrderMutex;
+
 /** Log group consists of a number of log files, each of the same size; a log
 group is implemented as a space in the sense of the module fil0fil. */
 struct log_group_t{
@@ -743,9 +748,9 @@ struct log_t{
 	ulint		buf_free;	/*!< first free offset within the log
 					buffer */
 #ifndef UNIV_HOTBACKUP
-	ib_mutex_t		mutex;		/*!< mutex protecting the log */
+	LogSysMutex	mutex;		/*!< mutex protecting the log */
 
-	ib_mutex_t		log_flush_order_mutex;/*!< mutex to serialize access to
+	FlushOrderMutex	log_flush_order_mutex;/*!< mutex to serialize access to
 					the flush list when we are putting
 					dirty blocks in the list. The idea
 					behind this mutex is to be able
@@ -905,7 +910,7 @@ struct log_t{
 };
 
 /** Test if flush order mutex is owned. */
-#define log_flush_order_mutex_own()	\
+#define log_flush_order_mutex_own()			\
 	mutex_own(&log_sys->log_flush_order_mutex)
 
 /** Acquire the flush order mutex. */
@@ -915,6 +920,20 @@ struct log_t{
 /** Release the flush order mutex. */
 # define log_flush_order_mutex_exit() do {		\
 	mutex_exit(&log_sys->log_flush_order_mutex);	\
+} while (0)
+
+/** Test if log sys mutex is owned. */
+#define log_mutex_own()					\
+	mutex_own(&log_sys->mutex)
+
+/** Acquire the log sys mutex. */
+#define log_mutex_enter() do {				\
+	mutex_enter(&log_sys->mutex);			\
+} while (0)
+
+/** Release the log sys mutex. */
+# define log_mutex_exit() do {				\
+	mutex_exit(&log_sys->mutex);			\
 } while (0)
 
 #ifndef UNIV_NONINL

@@ -27,10 +27,12 @@ Created 3/26/1996 Heikki Tuuri
 #define trx0types_h
 
 #include "ut0byte.h"
+#include "ut0mutex.h"
 
 #include <set>
 #include <queue>
 #include <vector>
+
 //#include <unordered_set>
 
 /** printf(3) format used for printing DB_TRX_ID and other system fields */
@@ -144,9 +146,13 @@ typedef byte	trx_upagef_t;
 /** Undo log record */
 typedef	byte	trx_undo_rec_t;
 
-/** Transaction list */
-typedef UT_LIST_BASE_NODE_T(trx_t) trx_list_t;
 /* @} */
+
+typedef ib_mutex_t RsegMutex;
+typedef ib_mutex_t TrxMutex;
+typedef ib_mutex_t UndoMutex;
+typedef ib_mutex_t PQMutex;
+typedef ib_mutex_t TrxSysMutex;
 
 /** Rollback segements from a given transaction with trx-no
 scheduled for purge. */
@@ -249,7 +255,7 @@ struct TrxTrack {
 struct TrxTrackHash {
 	size_t operator()(const TrxTrack& key) const
 	{
-		return(key.m_id);
+		return(size_t(key.m_id));
 	}
 };
 

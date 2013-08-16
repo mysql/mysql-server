@@ -50,6 +50,7 @@ Created July 17, 2007 Vasil Dimov
 #include "row0row.h"
 #include "srv0srv.h"
 #include "sync0rw.h"
+#include "sync0mutex.h"
 #include "sync0sync.h"
 #include "trx0i_s.h"
 #include "trx0sys.h"
@@ -187,15 +188,6 @@ static trx_i_s_cache_t	trx_i_s_cache_static;
 INFORMATION SCHEMA tables is fetched and later retrieved by the C++
 code in handler/i_s.cc. */
 trx_i_s_cache_t*	trx_i_s_cache = &trx_i_s_cache_static;
-
-/* Key to register the lock/mutex with performance schema */
-#ifdef UNIV_PFS_RWLOCK
-mysql_pfs_key_t	trx_i_s_cache_lock_key;
-#endif /* UNIV_PFS_RWLOCK */
-
-#ifdef UNIV_PFS_MUTEX
-mysql_pfs_key_t	cache_last_read_mutex_key;
-#endif /* UNIV_PFS_MUTEX */
 
 /*******************************************************************//**
 For a record lock that is in waiting state retrieves the only bit that
@@ -1244,7 +1236,7 @@ can_cache_be_updated(
 	reading it. */
 
 #ifdef UNIV_SYNC_DEBUG
-	ut_a(rw_lock_own(&cache->rw_lock, RW_LOCK_EX));
+	ut_a(rw_lock_own(&cache->rw_lock, RW_LOCK_X));
 #endif
 
 	now = ut_time_us(NULL);
@@ -1361,7 +1353,7 @@ fetch_data_into_cache(
 	trx_i_s_cache_t*	cache)	/*!< in/out: cache */
 {
 	ut_ad(lock_mutex_own());
-	ut_ad(mutex_own(&trx_sys->mutex));
+	ut_ad(trx_sys_mutex_own());
 
 	trx_i_s_cache_clear(cache);
 
@@ -1394,11 +1386,11 @@ trx_i_s_possibly_fetch_data_into_cache(
 
 	lock_mutex_enter();
 
-	mutex_enter(&trx_sys->mutex);
+	trx_sys_mutex_enter();
 
 	fetch_data_into_cache(cache);
 
-	mutex_exit(&trx_sys->mutex);
+	trx_sys_mutex_exit();
 
 	lock_mutex_exit();
 
@@ -1441,8 +1433,7 @@ trx_i_s_cache_init(
 
 	cache->last_read = 0;
 
-	mutex_create(cache_last_read_mutex_key,
-		     &cache->last_read_mutex, SYNC_TRX_I_S_LAST_READ);
+	mutex_create("cache_last_read", &cache->last_read_mutex);
 
 	table_cache_init(&cache->innodb_trx, sizeof(i_s_trx_row_t));
 	table_cache_init(&cache->innodb_locks, sizeof(i_s_locks_row_t));
@@ -1467,6 +1458,9 @@ trx_i_s_cache_free(
 /*===============*/
 	trx_i_s_cache_t*	cache)	/*!< in, own: cache to free */
 {
+	rw_lock_free(&cache->rw_lock);
+	mutex_free(&cache->last_read_mutex);
+
 	hash_table_free(cache->locks_hash);
 	ha_storage_free(cache->storage);
 	table_cache_free(&cache->innodb_trx);
@@ -1497,7 +1491,7 @@ trx_i_s_cache_end_read(
 	ullint	now;
 
 #ifdef UNIV_SYNC_DEBUG
-	ut_a(rw_lock_own(&cache->rw_lock, RW_LOCK_SHARED));
+	ut_a(rw_lock_own(&cache->rw_lock, RW_LOCK_S));
 #endif
 
 	/* update cache last read time */
@@ -1529,7 +1523,7 @@ trx_i_s_cache_end_write(
 	trx_i_s_cache_t*	cache)	/*!< in: cache */
 {
 #ifdef UNIV_SYNC_DEBUG
-	ut_a(rw_lock_own(&cache->rw_lock, RW_LOCK_EX));
+	ut_a(rw_lock_own(&cache->rw_lock, RW_LOCK_X));
 #endif
 
 	rw_lock_x_unlock(&cache->rw_lock);
@@ -1548,8 +1542,8 @@ cache_select_table(
 	i_s_table_cache_t*	table_cache;
 
 #ifdef UNIV_SYNC_DEBUG
-	ut_a(rw_lock_own(&cache->rw_lock, RW_LOCK_SHARED)
-	     || rw_lock_own(&cache->rw_lock, RW_LOCK_EX));
+	ut_a(rw_lock_own(&cache->rw_lock, RW_LOCK_S)
+	     || rw_lock_own(&cache->rw_lock, RW_LOCK_X));
 #endif
 
 	switch (table) {

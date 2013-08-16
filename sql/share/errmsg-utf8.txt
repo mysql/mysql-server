@@ -7027,6 +7027,9 @@ ER_STOP_SLAVE_SQL_THREAD_TIMEOUT
 ER_STOP_SLAVE_IO_THREAD_TIMEOUT
   eng "STOP SLAVE command execution is incomplete: Slave IO thread got the stop signal, thread is busy, IO thread will stop once the current task is complete."
 
+ER_TABLE_CORRUPT
+  eng "Operation cannot be performed. The table '%-.64s.%-.64s' is missing, corrupt or contains bad data."
+
 #
 #  End of 5.6 error messages.
 #
@@ -7069,10 +7072,13 @@ ER_REFERENCED_TRG_DOES_NOT_EXIST
   eng "Referenced trigger '%s' for the given action time and event type does not exist."
 
 ER_EXPLAIN_NOT_SUPPORTED
-        eng "EXPLAIN FOR CONNECTION command is supported only for SELECT/UPDATE/INSERT/DELETE/REPLACE"
+  eng "EXPLAIN FOR CONNECTION command is supported only for SELECT/UPDATE/INSERT/DELETE/REPLACE"
 
 ER_INVALID_FIELD_SIZE
-        eng "Invalid size for column '%-.192s'."
+  eng "Invalid size for column '%-.192s'."
+
+ER_MISSING_HA_CREATE_OPTION
+  eng "Table storage engine '%-.64s' found required create option missing"
 
 ER_GCS_REPLICATION_CONFIGURATION
   eng "The server is not configured properly to be an active member of the GCS CLUSTER."

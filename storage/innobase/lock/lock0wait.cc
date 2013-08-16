@@ -42,14 +42,11 @@ void
 lock_wait_table_print(void)
 /*=======================*/
 {
-	ulint			i;
-	const srv_slot_t*	slot;
-
 	ut_ad(lock_wait_mutex_own());
 
-	slot = lock_sys->waiting_threads;
+	const srv_slot_t*	slot = lock_sys->waiting_threads;
 
-	for (i = 0; i < OS_THREAD_MAX_N; i++, ++slot) {
+	for (ulint i = 0; i < OS_THREAD_MAX_N; i++, ++slot) {
 
 		fprintf(stderr,
 			"Slot %lu: thread type %lu,"
@@ -150,7 +147,7 @@ lock_wait_table_reserve_slot(
 			slot->thr->slot = slot;
 
 			if (slot->event == NULL) {
-				slot->event = os_event_create();
+				slot->event = os_event_create(0);
 				ut_a(slot->event);
 			}
 

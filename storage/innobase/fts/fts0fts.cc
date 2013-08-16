@@ -36,8 +36,9 @@ Full Text Search interface
 #include "dict0priv.h"
 #include "dict0stats.h"
 #include "btr0pcur.h"
+#include "sync0sync.h"
 
-#define FTS_MAX_ID_LEN	32
+static const ulint FTS_MAX_ID_LEN = 32;
 
 /** Column name from the FTS config table */
 #define FTS_MAX_CACHE_SIZE_IN_MB	"cache_size_in_mb"
@@ -79,18 +80,6 @@ static const ulint FTS_CACHE_SIZE_UPPER_LIMIT_IN_MB = 1024;
 
 /** Time to sleep after DEADLOCK error before retrying operation. */
 static const ulint FTS_DEADLOCK_RETRY_WAIT = 100000;
-
-#ifdef UNIV_PFS_RWLOCK
-mysql_pfs_key_t	fts_cache_rw_lock_key;
-mysql_pfs_key_t	fts_cache_init_rw_lock_key;
-#endif /* UNIV_PFS_RWLOCK */
-
-#ifdef UNIV_PFS_MUTEX
-mysql_pfs_key_t	fts_delete_mutex_key;
-mysql_pfs_key_t	fts_optimize_mutex_key;
-mysql_pfs_key_t	fts_bg_threads_mutex_key;
-mysql_pfs_key_t	fts_doc_id_mutex_key;
-#endif /* UNIV_PFS_MUTEX */
 
 /** variable to record innodb_fts_internal_tbl_name for information
 schema table INNODB_FTS_INSERTED etc. */
@@ -671,15 +660,11 @@ fts_cache_create(
 		fts_cache_init_rw_lock_key, &cache->init_lock,
 		SYNC_FTS_CACHE_INIT);
 
-	mutex_create(
-		fts_delete_mutex_key, &cache->deleted_lock, SYNC_FTS_OPTIMIZE);
+	mutex_create("fts_delete", &cache->deleted_lock);
 
-	mutex_create(
-		fts_optimize_mutex_key, &cache->optimize_lock,
-		SYNC_FTS_OPTIMIZE);
+	mutex_create("fts_optimize", &cache->optimize_lock);
 
-	mutex_create(
-		fts_doc_id_mutex_key, &cache->doc_id_lock, SYNC_FTS_OPTIMIZE);
+	mutex_create("fts_doc_id", &cache->doc_id_lock);
 
 	/* This is the heap used to create the cache itself. */
 	cache->self_heap = ib_heap_allocator_create(heap);
@@ -751,7 +736,7 @@ fts_reset_get_doc(
 	ulint		i;
 
 #ifdef UNIV_SYNC_DEBUG
-	ut_ad(rw_lock_own(&cache->init_lock, RW_LOCK_EX));
+	ut_ad(rw_lock_own(&cache->init_lock, RW_LOCK_X));
 #endif
 	ib_vector_reset(cache->get_docs);
 
@@ -1036,7 +1021,7 @@ fts_cache_index_cache_create(
 	ut_a(cache != NULL);
 
 #ifdef UNIV_SYNC_DEBUG
-	ut_ad(rw_lock_own(&cache->init_lock, RW_LOCK_EX));
+	ut_ad(rw_lock_own(&cache->init_lock, RW_LOCK_X));
 #endif
 
 	/* Must not already exist in the cache vector. */
@@ -1182,8 +1167,8 @@ fts_get_index_cache(
 	ulint			i;
 
 #ifdef UNIV_SYNC_DEBUG
-	ut_ad(rw_lock_own((rw_lock_t*) &cache->lock, RW_LOCK_EX)
-	      || rw_lock_own((rw_lock_t*) &cache->init_lock, RW_LOCK_EX));
+	ut_ad(rw_lock_own((rw_lock_t*) &cache->lock, RW_LOCK_X)
+	      || rw_lock_own((rw_lock_t*) &cache->init_lock, RW_LOCK_X));
 #endif
 
 	for (i = 0; i < ib_vector_size(cache->indexes); ++i) {
@@ -1215,7 +1200,7 @@ fts_get_index_get_doc(
 	ulint			i;
 
 #ifdef UNIV_SYNC_DEBUG
-	ut_ad(rw_lock_own((rw_lock_t*) &cache->init_lock, RW_LOCK_EX));
+	ut_ad(rw_lock_own((rw_lock_t*) &cache->init_lock, RW_LOCK_X));
 #endif
 
 	for (i = 0; i < ib_vector_size(cache->get_docs); ++i) {
@@ -1275,7 +1260,7 @@ fts_tokenizer_word_get(
 	ib_rbt_bound_t		parent;
 
 #ifdef UNIV_SYNC_DEBUG
-	ut_ad(rw_lock_own(&cache->lock, RW_LOCK_EX));
+	ut_ad(rw_lock_own(&cache->lock, RW_LOCK_X));
 #endif
 
 	/* If it is a stopword, do not index it */
@@ -1336,7 +1321,7 @@ fts_cache_node_add_positions(
 
 #ifdef UNIV_SYNC_DEBUG
 	if (cache) {
-		ut_ad(rw_lock_own(&cache->lock, RW_LOCK_EX));
+		ut_ad(rw_lock_own(&cache->lock, RW_LOCK_X));
 	}
 #endif
 	ut_ad(doc_id >= node->last_doc_id);
@@ -1449,7 +1434,7 @@ fts_cache_add_doc(
 	}
 
 #ifdef UNIV_SYNC_DEBUG
-	ut_ad(rw_lock_own(&cache->lock, RW_LOCK_EX));
+	ut_ad(rw_lock_own(&cache->lock, RW_LOCK_X));
 #endif
 
 	n_words = rbt_size(tokens);
@@ -4671,7 +4656,7 @@ fts_get_docs_create(
 	ib_vector_t*	get_docs;
 
 #ifdef UNIV_SYNC_DEBUG
-	ut_ad(rw_lock_own(&cache->init_lock, RW_LOCK_EX));
+	ut_ad(rw_lock_own(&cache->init_lock, RW_LOCK_X));
 #endif
 	/* We need one instance of fts_get_doc_t per index. */
 	get_docs = ib_vector_create(
@@ -5132,7 +5117,7 @@ fts_cache_find_word(
 	dict_table_t*		table = index_cache->index->table;
 	fts_cache_t*		cache = table->fts->cache;
 
-	ut_ad(rw_lock_own((rw_lock_t*) &cache->lock, RW_LOCK_EX));
+	ut_ad(rw_lock_own((rw_lock_t*) &cache->lock, RW_LOCK_X));
 #endif
 
 	/* Lookup the word in the rb tree */
@@ -5370,9 +5355,7 @@ fts_create(
 
 	fts->doc_col = ULINT_UNDEFINED;
 
-	mutex_create(
-		fts_bg_threads_mutex_key, &fts->bg_threads_mutex,
-		SYNC_FTS_BG_THREADS);
+	mutex_create("fts_bg_threads", &fts->bg_threads_mutex);
 
 	heap_alloc = ib_heap_allocator_create(heap);
 	fts->indexes = ib_vector_create(heap_alloc, sizeof(dict_index_t*), 4);

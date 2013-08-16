@@ -36,6 +36,9 @@ Created 3/26/1996 Heikki Tuuri
 #include "fil0fil.h"
 #include "read0types.h"
 
+// Forward declaration
+struct ib_bh_t;
+
 /** The global data structure coordinating a purge */
 extern trx_purge_t*	purge_sys;
 
@@ -223,10 +226,13 @@ struct trx_purge_t{
 					to process */
 
 	/*-----------------------------*/
+	ib_bh_t*	ib_bh;		/*!< Binary min-heap, ordered on
+					rseg_queue_t::trx_no. It is protected
+					by the bh_mutex */
 	purge_pq_t*	purge_queue;	/*!< Binary min-heap, ordered on
 					TrxUndoRsegs::trx_no. It is protected
 					by the pq_mutex */
-	ib_mutex_t	pq_mutex;	/*!< Mutex protecting purge_queue */
+	PQMutex		pq_mutex;	/*!< Mutex protecting purge_queue */
 };
 
 /** Info required to purge a record */

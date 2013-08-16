@@ -1312,6 +1312,8 @@ int ha_partition::handle_opt_partitions(THD *thd, HA_CHECK_OPT *check_opt,
   uint num_parts= m_part_info->num_parts;
   uint num_subparts= m_part_info->num_subparts;
   uint i= 0;
+  bool use_all_parts= !(thd->lex->alter_info.flags &
+                          Alter_info::ALTER_ADMIN_PARTITION);
   int error;
   DBUG_ENTER("ha_partition::handle_opt_partitions");
   DBUG_PRINT("enter", ("flag= %u", flag));
@@ -1321,19 +1323,20 @@ int ha_partition::handle_opt_partitions(THD *thd, HA_CHECK_OPT *check_opt,
     partition_element *part_elem= part_it++;
     /*
       when ALTER TABLE <CMD> PARTITION ...
-      it should only do named partitions, otherwise all partitions
+      it should only do named [sub]partitions, otherwise all partitions
     */
-    if (!(thd->lex->alter_info.flags & Alter_info::ALTER_ADMIN_PARTITION) ||
-        part_elem->part_state == PART_ADMIN)
+    if (m_is_sub_partitioned)
     {
-      if (m_is_sub_partitioned)
+      List_iterator<partition_element> subpart_it(part_elem->subpartitions);
+      partition_element *sub_elem;
+      uint j= 0, part;
+      do
       {
-        List_iterator<partition_element> subpart_it(part_elem->subpartitions);
-        partition_element *sub_elem;
-        uint j= 0, part;
-        do
+        sub_elem= subpart_it++;
+        if (use_all_parts ||
+            part_elem->part_state == PART_ADMIN ||
+            sub_elem->part_state == PART_ADMIN)
         {
-          sub_elem= subpart_it++;
           part= i * num_subparts + j;
           DBUG_PRINT("info", ("Optimize subpartition %u (%s)",
                      part, sub_elem->partition_name));
@@ -1353,14 +1356,34 @@ int ha_partition::handle_opt_partitions(THD *thd, HA_CHECK_OPT *check_opt,
             /* reset part_state for the remaining partitions */
             do
             {
+              if (sub_elem->part_state == PART_ADMIN)
+                sub_elem->part_state= PART_NORMAL;
+            } while ((sub_elem= subpart_it++));
+            if (part_elem->part_state == PART_ADMIN)
+              part_elem->part_state= PART_NORMAL;
+
+            while ((part_elem= part_it++))
+            {
+              List_iterator<partition_element> s_it(part_elem->subpartitions);
+              while ((sub_elem= s_it++))
+              {
+                if (sub_elem->part_state == PART_ADMIN)
+                  sub_elem->part_state= PART_NORMAL;
+              }
               if (part_elem->part_state == PART_ADMIN)
                 part_elem->part_state= PART_NORMAL;
-            } while ((part_elem= part_it++));
+            }
             DBUG_RETURN(error);
           }
-        } while (++j < num_subparts);
-      }
-      else
+          sub_elem->part_state= PART_NORMAL;
+        }
+      } while (++j < num_subparts);
+      part_elem->part_state= PART_NORMAL;
+    }
+    else
+    {
+      if (use_all_parts ||
+          part_elem->part_state == PART_ADMIN)
       {
         DBUG_PRINT("info", ("Optimize partition %u (%s)", i,
                             part_elem->partition_name));
@@ -4292,34 +4315,71 @@ int ha_partition::truncate_partition(Alter_info *alter_info, bool *binlog_stmt)
   do
   {
     partition_element *part_elem= part_it++;
-    if (part_elem->part_state == PART_ADMIN)
+    if (m_is_sub_partitioned)
     {
-      if (m_is_sub_partitioned)
+      List_iterator<partition_element> subpart_it(part_elem->subpartitions);
+      partition_element *sub_elem;
+      uint j= 0, part;
+      do
       {
-        List_iterator<partition_element>
-                                    subpart_it(part_elem->subpartitions);
-        partition_element *sub_elem;
-        uint j= 0, part;
-        do
+        sub_elem= subpart_it++;
+        if (part_elem->part_state == PART_ADMIN ||
+            sub_elem->part_state == PART_ADMIN)
         {
-          sub_elem= subpart_it++;
           part= i * num_subparts + j;
           DBUG_PRINT("info", ("truncate subpartition %u (%s)",
                               part, sub_elem->partition_name));
           if ((error= m_file[part]->ha_truncate()))
-            break;
+          {
+            /* reset part_state for the remaining partitions */
+            do
+            {
+              if (sub_elem->part_state == PART_ADMIN)
+                sub_elem->part_state= PART_NORMAL;
+            } while ((sub_elem= subpart_it++));
+            if (part_elem->part_state == PART_ADMIN)
+              part_elem->part_state= PART_NORMAL;
+
+            while ((part_elem= part_it++))
+            {
+              List_iterator<partition_element> s_it(part_elem->subpartitions);
+              while ((sub_elem= s_it++))
+              {
+                if (sub_elem->part_state == PART_ADMIN)
+                  sub_elem->part_state= PART_NORMAL;
+              }
+              if (part_elem->part_state == PART_ADMIN)
+                part_elem->part_state= PART_NORMAL;
+            }
+            goto err;
+          }
           sub_elem->part_state= PART_NORMAL;
-        } while (++j < num_subparts);
-      }
-      else
+        }
+      } while (++j < num_subparts);
+      part_elem->part_state= PART_NORMAL;
+    }
+    else
+    {
+      if (part_elem->part_state == PART_ADMIN)
       {
         DBUG_PRINT("info", ("truncate partition %u (%s)", i,
                             part_elem->partition_name));
         error= m_file[i]->ha_truncate();
+        if (error)
+        {
+          /* reset part_state for the remaining partitions */
+          do
+          {
+            if (part_elem->part_state == PART_ADMIN)
+              part_elem->part_state= PART_NORMAL;
+          } while ((part_elem= part_it++));
+          goto err;
+        }
       }
       part_elem->part_state= PART_NORMAL;
     }
   } while (!error && (++i < num_parts));
+err:
   DBUG_RETURN(error);
 }
 
@@ -7686,54 +7746,57 @@ enum row_type ha_partition::get_row_type() const
 }
 
 
+/**
+  Append all fields in read_set to string
+
+  @param str  String to append to.
+*/
 void ha_partition::append_row_to_str(String &str)
 {
+  Field **fields, **field_ptr;
   const uchar *rec;
+  uint num_fields= bitmap_bits_set(table->read_set);
+  uint curr_field_index= 0;
   bool is_rec0= !m_err_rec || m_err_rec == table->record[0];
   if (is_rec0)
     rec= table->record[0];
   else
     rec= m_err_rec;
-  // If PK, use full PK instead of full part field array!
-  if (table->s->primary_key != MAX_KEY)
+
+  /* Create a new array of all read fields. */
+  fields= (Field**) my_malloc(PSI_INSTRUMENT_ME,
+                              sizeof(void*) * (num_fields + 1),
+                              MYF(0));
+  if (!fields)
+    return;
+  fields[num_fields]= NULL;
+  for (field_ptr= table->field;
+       *field_ptr;
+       field_ptr++)
   {
-    KEY *key= table->key_info + table->s->primary_key;
-    KEY_PART_INFO *key_part=     key->key_part;
-    KEY_PART_INFO *key_part_end= key_part + key->user_defined_key_parts;
-    if (!is_rec0)
-      set_key_field_ptr(key, rec, table->record[0]);
-    for (; key_part != key_part_end; key_part++)
-    {
-      Field *field= key_part->field;
-      str.append(" ");
-      str.append(field->field_name);
-      str.append(":");
-      field_unpack(&str, field, rec, 0, false);
-    }
-    if (!is_rec0)
-      set_key_field_ptr(key, table->record[0], rec);
+    if (!bitmap_is_set(table->read_set, (*field_ptr)->field_index))
+      continue;
+    fields[curr_field_index++]= *field_ptr;
   }
-  else
+
+
+  if (!is_rec0)
+    set_field_ptr(fields, rec, table->record[0]);
+
+  for (field_ptr= fields;
+       *field_ptr;
+       field_ptr++)
   {
-    Field **field_ptr;
-    if (!is_rec0)
-      set_field_ptr(m_part_info->full_part_field_array, rec,
-                    table->record[0]);
-    /* No primary key, use full partition field array. */
-    for (field_ptr= m_part_info->full_part_field_array;
-         *field_ptr;
-         field_ptr++)
-    {
-      Field *field= *field_ptr;
-      str.append(" ");
-      str.append(field->field_name);
-      str.append(":");
-      field_unpack(&str, field, rec, 0, false);
-    }
-    if (!is_rec0)
-      set_field_ptr(m_part_info->full_part_field_array, table->record[0],
-                    rec);
+    Field *field= *field_ptr;
+    str.append(" ");
+    str.append(field->field_name);
+    str.append(":");
+    field_unpack(&str, field, rec, 0, false);
   }
+
+  if (!is_rec0)
+    set_field_ptr(fields, table->record[0], rec);
+  my_free(fields);
 }
 
 
@@ -8588,9 +8651,11 @@ int ha_partition::indexes_are_disabled(void)
 int ha_partition::check_misplaced_rows(uint read_part_id, bool repair)
 {
   int result= 0;
+  bool ignore= ha_thd()->lex->ignore;
   uint32 correct_part_id;
   longlong func_value;
-  longlong num_misplaced_rows= 0;
+  ha_rows num_misplaced_rows= 0;
+  ha_rows num_deleted_rows= 0;
 
   DBUG_ENTER("ha_partition::check_misplaced_rows");
 
@@ -8622,11 +8687,35 @@ int ha_partition::check_misplaced_rows(uint read_part_id, bool repair)
 
       if (num_misplaced_rows > 0)
       {
-        print_admin_msg(ha_thd(), MI_MAX_MSG_BUF, "warning",
-                        table_share->db.str, table->alias,
-                        opt_op_name[REPAIR_PARTS],
-                        "Moved %lld misplaced rows",
-                        num_misplaced_rows);
+        if (repair)
+        {
+          if (num_deleted_rows > 0)
+          {
+            print_admin_msg(ha_thd(), MI_MAX_MSG_BUF, "warning",
+                            table_share->db.str, table->alias,
+                            opt_op_name[REPAIR_PARTS],
+                            "Moved %lld misplaced rows, deleted %lld rows",
+                            num_misplaced_rows - num_deleted_rows,
+                            num_deleted_rows);
+          }
+          else
+          {
+            print_admin_msg(ha_thd(), MI_MAX_MSG_BUF, "warning",
+                            table_share->db.str, table->alias,
+                            opt_op_name[REPAIR_PARTS],
+                            "Moved %lld misplaced rows",
+                            num_misplaced_rows);
+          }
+        }
+        else
+        {
+          print_admin_msg(ha_thd(), MI_MAX_MSG_BUF, "error",
+                          table_share->db.str, table->alias,
+                          opt_op_name[CHECK_PARTS],
+                          "Found %lld misplaced rows in partition %u",
+                          num_misplaced_rows,
+                          read_part_id);
+        }
       }
       /* End-of-file reached, all rows are now OK, reset result and break. */
       result= 0;
@@ -8644,13 +8733,22 @@ int ha_partition::check_misplaced_rows(uint read_part_id, bool repair)
       if (!repair)
       {
         /* Check. */
+        result= HA_ADMIN_NEEDS_UPGRADE;
+        char buf[MAX_KEY_LENGTH];
+        String str(buf,sizeof(buf),system_charset_info);
+        str.length(0);
+        append_row_to_str(str);
         print_admin_msg(ha_thd(), MI_MAX_MSG_BUF, "error",
                         table_share->db.str, table->alias,
                         opt_op_name[CHECK_PARTS],
-                        "Found a misplaced row");
-        /* Break on first misplaced row! */
-        result= HA_ADMIN_NEEDS_UPGRADE;
-        break;
+                        "Found a misplaced row"
+                        " in part %d should be in part %d:\n%s",
+                        read_part_id,
+                        correct_part_id,
+                        str.c_ptr_safe());
+        /* Break on first misplaced row, unless ignore is given! */
+        if (!ignore)
+          break;
       }
       else
       {
@@ -8671,9 +8769,17 @@ int ha_partition::check_misplaced_rows(uint read_part_id, bool repair)
           str.length(0);
           if (result == HA_ERR_FOUND_DUPP_KEY)
           {
-            str.append("Duplicate key found, "
-                       "please update or delete the record:\n");
-            result= HA_ADMIN_CORRUPT;
+            if (ignore)
+            {
+              str.append("Duplicate key found, deleting the record:\n");
+              num_deleted_rows++;
+            }
+            else
+            {
+              str.append("Duplicate key found, "
+                         "please update or delete the record:\n");
+              result= HA_ADMIN_CORRUPT;
+            }
           }
           m_err_rec= NULL;
           append_row_to_str(str);
@@ -8682,7 +8788,8 @@ int ha_partition::check_misplaced_rows(uint read_part_id, bool repair)
             If the engine supports transactions, the failure will be
             rollbacked.
           */
-          if (!m_file[correct_part_id]->has_transactions())
+          if (!m_file[correct_part_id]->has_transactions() ||
+              ignore || result == HA_ADMIN_CORRUPT)
           {
             /* Log this error, so the DBA can notice it and fix it! */
             sql_print_error("Table '%-192s' failed to move/insert a row"
@@ -8700,12 +8807,14 @@ int ha_partition::check_misplaced_rows(uint read_part_id, bool repair)
                           read_part_id,
                           correct_part_id,
                           str.c_ptr_safe());
-          break;
+          if (!ignore || result != HA_ERR_FOUND_DUPP_KEY)
+            break;
         }
 
         /* Delete row from wrong partition. */
         if ((result= m_file[read_part_id]->ha_delete_row(m_rec0)))
         {
+          result= HA_ADMIN_CORRUPT;
           if (m_file[correct_part_id]->has_transactions())
             break;
           /*

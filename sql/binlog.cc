@@ -423,6 +423,8 @@ public:
       variable after truncating the cache.
     */
     cache_log.disk_writes= 0;
+    cache_log.commit_seq_no= SEQ_UNINIT;
+    cache_log.commit_seq_offset= 0;
     group_cache.clear();
     DBUG_ASSERT(is_binlog_empty());
   }
@@ -707,6 +709,7 @@ private:
 
   binlog_trx_cache_data& operator=(const binlog_trx_cache_data& info);
   binlog_trx_cache_data(const binlog_trx_cache_data& info);
+  inline void reset_commit_seq_offset(){ cache_log.commit_seq_offset= 0; }
 };
 
 class binlog_cache_mngr {
@@ -1168,6 +1171,16 @@ binlog_cache_data::finalize(THD *thd, Log_event *end_event)
       DBUG_RETURN(error);
     if (int error= write_event(thd, end_event))
       DBUG_RETURN(error);
+    /*
+       This is only possible if we have not entered the prepare phase. We
+       still need to have some commit parent to avoid the slave from become
+       inconsistent.
+    */
+    if (cache_log.commit_seq_no == SEQ_UNINIT)
+    {
+      cache_log.commit_seq_no=
+        mysql_bin_log.commit_clock.get_timestamp();
+    }
     flags.finalized= true;
     DBUG_PRINT("debug", ("flags.finalized: %s", YESNO(flags.finalized)));
   }
@@ -1294,6 +1307,13 @@ binlog_trx_cache_data::truncate(THD *thd, bool all)
         explicitly support rollback to savepoints.
       */
       group_cache.clear();
+      /*
+        Also in such a case we must remove the commit parent offset
+        so that we do not end up currupting the binary log since the
+        offset of the commit seq number may differ in the new "BEGIN"
+        event (or B-events in general).
+      */
+      reset_commit_seq_offset();
     }
   }
 
@@ -1304,13 +1324,17 @@ binlog_trx_cache_data::truncate(THD *thd, bool all)
 
 static int binlog_prepare(handlerton *hton, THD *thd, bool all)
 {
-  /*
-    do nothing.
-    just pretend we can do 2pc, so that MySQL won't
-    switch to 1pc.
-    real work will be done in MYSQL_BIN_LOG::commit()
-  */
-  return 0;
+  IO_CACHE* cache;
+  DBUG_ENTER("binlog_prepare");
+  if (all)
+  {
+    binlog_cache_mngr *const cache_mngr= thd_get_cache_mngr(thd);
+    cache= cache_mngr->get_binlog_cache_log(all);
+    if (cache->commit_seq_no == SEQ_UNINIT)
+      cache->commit_seq_no=
+        mysql_bin_log.commit_clock.get_timestamp();
+  }
+  DBUG_RETURN(0);
 }
 
 /**
@@ -5685,6 +5709,38 @@ uint MYSQL_BIN_LOG::next_file_id()
 }
 
 /*
+  Auxiliary function to write the commit seq number for the cache involved in
+  do_write_cache.
+  @param cache   Instance of IO_CACHE being written to the disk.
+  @param buff    Buffer which needs to be fixed to make sure that
+                 commit seq_number is written at the pre-allocated space.
+ */
+inline void write_commit_seq_no(IO_CACHE* cache, uchar* buff)
+{
+  DBUG_ENTER("write_commit_seq_no");
+  uchar* pc_ptr= buff;
+  DBUG_PRINT("info", ("MTS:: cache_ptr:=%p", cache));
+  DBUG_PRINT("info", ("MTS:: commit sequence offset:=%d",
+                       cache->commit_seq_offset));
+  DBUG_PRINT("info", ("MTS:: Commit Timestamp:=%lld",
+                       cache->commit_seq_no));
+  DBUG_DUMP("info", pc_ptr, (COMMIT_SEQ_LEN+1));
+  DBUG_ASSERT(cache->commit_seq_no != SEQ_UNINIT);
+  DBUG_ASSERT((*pc_ptr == Q_COMMIT_TS || *pc_ptr == G_COMMIT_TS));
+  pc_ptr++;
+  DBUG_EXECUTE_IF("set_commit_parent_100",
+                  { cache->commit_seq_no=100; });
+  DBUG_EXECUTE_IF("set_commit_parent_150",
+                  { cache->commit_seq_no=150; });
+
+  // Fix commit ts.
+  int8store(pc_ptr, cache->commit_seq_no);
+  cache->commit_seq_no= SEQ_UNINIT;
+  cache->commit_seq_offset= 0;
+  DBUG_VOID_RETURN;
+}
+
+/*
   Write the contents of a cache to the binary log.
 
   SYNOPSIS
@@ -5721,10 +5777,12 @@ int MYSQL_BIN_LOG::do_write_cache(IO_CACHE *cache)
   ulong remains= 0; // part of unprocessed yet netto length of the event
   long val;
   ulong end_log_pos_inc= 0; // each event processed adds BINLOG_CHECKSUM_LEN 2 t
+  uint pc_offset= LOG_EVENT_HEADER_LEN + cache->commit_seq_offset;
   uchar header[LOG_EVENT_HEADER_LEN];
   ha_checksum crc= 0, crc_0= 0; // assignments to keep compiler happy
   my_bool do_checksum= (binlog_checksum_options != BINLOG_CHECKSUM_ALG_OFF);
   uchar buf[BINLOG_CHECKSUM_LEN];
+  bool pc_fixed= false;
 
   // while there is just one alg the following must hold:
   DBUG_ASSERT(!do_checksum ||
@@ -5875,6 +5933,25 @@ int MYSQL_BIN_LOG::do_write_cache(IO_CACHE *cache)
           uchar *ev= (uchar *)cache->read_pos + hdr_offs;
           uint event_len= uint4korr(ev + EVENT_LEN_OFFSET); // netto len
           uchar *log_pos= ev + LOG_POS_OFFSET;
+          if (!pc_fixed)
+          {
+            Log_event_type ev_type= (Log_event_type)ev[EVENT_TYPE_OFFSET];
+            /* We don't have to fix the strayed user/int/rand_var event outside
+               BEGIN;...COMMIT; boundaries, since they will force the slave
+               to start a new group anyway. Example of strayed USER VAR
+               event includes  CREATE TABLE t1 SELECT @c;
+              */
+            if (ev_type != USER_VAR_EVENT && ev_type != INTVAR_EVENT &&
+                ev_type != RAND_EVENT)
+            {
+              uchar* pc_ptr= (uchar *)cache->read_pos + pc_offset;
+              write_commit_seq_no(cache, pc_ptr);
+            }
+            else
+              DBUG_PRINT("info",("Skipped strayed (USER/INT/RAND)_EVENT event "
+                                 "while fixing commit seq"));
+            pc_fixed= true;
+          }
 
           /* fix end_log_pos */
           val= uint4korr(log_pos) + group +
@@ -6698,6 +6775,10 @@ MYSQL_BIN_LOG::process_flush_stage_queue(my_off_t *total_bytes_var,
                                          bool *rotate_var,
                                          THD **out_queue_var)
 {
+  #ifndef DBUG_OFF
+  // number of flushes per group.
+  int no_flushes= 0;
+  #endif
   DBUG_ASSERT(total_bytes_var && rotate_var && out_queue_var);
   my_off_t total_bytes= 0;
   int flush_error= 1;
@@ -6727,6 +6808,9 @@ MYSQL_BIN_LOG::process_flush_stage_queue(my_off_t *total_bytes_var,
       flush_error= result.first;
     if (first_seen == NULL)
       first_seen= current.second;
+#ifndef DBUG_OFF
+    no_flushes++;
+#endif
   }
 
   /*
@@ -6743,6 +6827,9 @@ MYSQL_BIN_LOG::process_flush_stage_queue(my_off_t *total_bytes_var,
       total_bytes+= result.second;
       if (flush_error == 1)
         flush_error= result.first;
+#ifndef DBUG_OFF
+      no_flushes++;
+#endif
     }
     if (first_seen == NULL)
       first_seen= queue;
@@ -6752,6 +6839,10 @@ MYSQL_BIN_LOG::process_flush_stage_queue(my_off_t *total_bytes_var,
   *total_bytes_var= total_bytes;
   if (total_bytes > 0 && my_b_tell(&log_file) >= (my_off_t) max_size)
     *rotate_var= true;
+#ifndef DBUG_OFF
+  DBUG_PRINT("info",("no_flushes:= %d", no_flushes));
+  no_flushes= 0;
+#endif
   return flush_error;
 }
 
@@ -7202,7 +7293,11 @@ int MYSQL_BIN_LOG::ordered_commit(THD *thd, bool all, bool skip_commit)
 
     Howver, since we are keeping the lock from the previous stage, we
     need to unlock it if we skip the stage.
+    We must also step commit_clock before the ha_commit_low() is called
+    either in ordered fashion(by the leader of this stage) or by the tread
+    themselves.
    */
+  mysql_bin_log.commit_clock.step();
   if (opt_binlog_order_commits)
   {
     if (change_stage(thd, Stage_manager::COMMIT_STAGE,
@@ -9063,6 +9158,54 @@ void THD::issue_unsafe_warnings()
     }
   }
   DBUG_VOID_RETURN;
+}
+
+ Logical_clock::Logical_clock()
+{
+  my_atomic_rwlock_init(&m_state_lock);
+  init();
+}
+
+/**
+SYNOPSIS:
+  Atomically steps state clock.
+  @parms: NONE
+  @ret_val: current timestamp
+ */
+int64
+ Logical_clock::step()
+{
+  int64 retval;
+  DBUG_ENTER("Logical_clock::step_clock");
+  my_atomic_rwlock_wrlock(&m_state_lock);
+  retval= my_atomic_add64(&state, 1);
+  if (retval == (INT_MAX64 - 1))
+    init();
+  my_atomic_rwlock_wrunlock(&m_state_lock);
+  DBUG_RETURN(retval);
+}
+
+/**
+SYNOPSIS:
+  Atomically fetch the current state
+ */
+int64
+ Logical_clock::get_timestamp()
+{
+  int64 retval= 0;
+  DBUG_ENTER("Logical_clock::get_timestamp");
+  my_atomic_rwlock_rdlock(&m_state_lock);
+  retval= my_atomic_load64(&state);
+  my_atomic_rwlock_rdunlock(&m_state_lock);
+  DBUG_RETURN(retval);
+}
+
+/**
+  Destructor for Logical clock.
+*/
+Logical_clock::~Logical_clock()
+{
+  my_atomic_rwlock_destroy(&m_state_lock);
 }
 
 /**

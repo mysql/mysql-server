@@ -35,12 +35,16 @@ Created 3/26/1996 Heikki Tuuri
 #ifndef UNIV_HOTBACKUP
 #include "mem0mem.h"
 #include "mtr0mtr.h"
-#include "page0types.h"
-#include "sync0sync.h"
-#include "trx0trx.h"
-#include "ut0bh.h"
-#include "ut0lst.h"
 #include "ut0byte.h"
+#include "mem0mem.h"
+#include "sync0mutex.h"
+#include "ut0lst.h"
+#include "read0types.h"
+#include "page0types.h"
+#include "ut0mutex.h"
+#include "trx0trx.h"
+
+typedef UT_LIST_BASE_NODE_T(trx_t) trx_list_t;
 
 // Forward declaration
 class MVCC;
@@ -118,8 +122,9 @@ UNIV_INLINE
 trx_rseg_t*
 trx_sys_get_nth_rseg(
 /*=================*/
-	trx_sys_t*	sys,	/*!< in: trx system */
-	ulint		n);	/*!< in: index of slot */
+	trx_sys_t*	sys,		/*!< in: trx system */
+	ulint		n,		/*!< in: index of slot */
+	bool		is_redo_rseg);	/*!< in: true if redo rseg. */
 /**********************************************************************//**
 Gets a pointer to the transaction system file copy and x-locks its page.
 @return pointer to system file copy, page x-locked */
@@ -224,10 +229,7 @@ trx_read_trx_id(
 	const byte*	ptr);	/*!< in: pointer to memory from where to read */
 /****************************************************************//**
 Looks for the trx instance with the given id in the rw trx_list.
-The caller must be holding trx_sys->mutex.
-@return the trx handle or NULL if not found;
-the pointer must not be dereferenced unless lock_sys->mutex was
-acquired before calling this function and is still being held */
+@return	the trx handle or NULL if not found */
 UNIV_INLINE
 trx_t*
 trx_get_rw_trx_by_id(
@@ -244,12 +246,8 @@ trx_id_t
 trx_rw_min_trx_id(void);
 /*===================*/
 /****************************************************************//**
-Checks if a rw transaction with the given id is active. Caller must hold
-trx_sys->mutex in shared mode. If the caller is not holding
-lock_sys->mutex, the transaction may already have been committed.
-@return transaction instance if active, or NULL;
-the pointer must not be dereferenced unless lock_sys->mutex was
-acquired before calling this function and is still being held */
+Checks if a rw transaction with the given id is active.
+@return transaction instance if active, or NULL */
 UNIV_INLINE
 trx_t*
 trx_rw_is_active_low(
@@ -259,11 +257,9 @@ trx_rw_is_active_low(
 					that will be set if corrupt */
 /****************************************************************//**
 Checks if a rw transaction with the given id is active. If the caller is
-not holding lock_sys->mutex, the transaction may already have been
+not holding trx_sys->mutex, the transaction may already have been
 committed.
-@return transaction instance if active, or NULL;
-the pointer must not be dereferenced unless lock_sys->mutex was
-acquired before calling this function and is still being held */
+@return transaction instance if active, or NULL; */
 UNIV_INLINE
 trx_t*
 trx_rw_is_active(
@@ -627,7 +623,7 @@ identifier is added to this 64-bit constant. */
 /** The transaction system central memory data structure. */
 struct trx_sys_t {
 
-	ib_mutex_t	mutex;		/*!< mutex protecting most fields in
+	TrxSysMutex	mutex;		/*!< mutex protecting most fields in
 					this structure except when noted
 					otherwise */
 
@@ -720,6 +716,19 @@ two) is assigned, the field TRX_SYS_TRX_ID_STORE on the transaction system
 page is updated */
 #define TRX_SYS_TRX_ID_WRITE_MARGIN	((trx_id_t) 256)
 #endif /* !UNIV_HOTBACKUP */
+
+/** Test if trx_sys->mutex is owned. */
+#define trx_sys_mutex_own() (trx_sys->mutex.is_owned())
+
+/** Acquire the trx_sys->mutex. */
+#define trx_sys_mutex_enter() do {			\
+	mutex_enter(&trx_sys->mutex);			\
+} while (0)
+
+/** Release the trx_sys->mutex. */
+#define trx_sys_mutex_exit() do {			\
+	trx_sys->mutex.exit();				\
+} while (0)
 
 #ifndef UNIV_NONINL
 #include "trx0sys.ic"

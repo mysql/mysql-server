@@ -559,13 +559,6 @@ DeadlockChecker::state_t	DeadlockChecker::s_states[MAX_STACK_SIZE];
 /** The count of the types of locks. */
 static const ulint	lock_types = UT_ARR_SIZE(lock_compatibility_matrix);
 
-#ifdef UNIV_PFS_MUTEX
-/* Key to register mutex with performance schema */
-mysql_pfs_key_t	lock_mutex_key;
-/* Key to register mutex with performance schema */
-mysql_pfs_key_t	lock_wait_mutex_key;
-#endif /* UNIV_PFS_MUTEX */
-
 #ifdef UNIV_DEBUG
 /*********************************************************************//**
 Validates the lock system.
@@ -781,12 +774,11 @@ lock_sys_create(
 
 	lock_sys->last_slot = lock_sys->waiting_threads;
 
-	mutex_create(lock_mutex_key, &lock_sys->mutex, SYNC_LOCK_SYS);
+	mutex_create("lock_sys", &lock_sys->mutex);
 
-	mutex_create(lock_wait_mutex_key,
-		     &lock_sys->wait_mutex, SYNC_LOCK_WAIT_SYS);
+	mutex_create("lock_sys_wait", &lock_sys->wait_mutex);
 
-	lock_sys->timeout_event = os_event_create();
+	lock_sys->timeout_event = os_event_create(0);
 
 	lock_sys->rec_hash = hash_create(n_cells);
 
@@ -810,8 +802,18 @@ lock_sys_close(void)
 
 	hash_table_free(lock_sys->rec_hash);
 
-	mutex_free(&lock_sys->mutex);
-	mutex_free(&lock_sys->wait_mutex);
+	os_event_destroy(lock_sys->timeout_event);
+
+	mutex_destroy(&lock_sys->mutex);
+	mutex_destroy(&lock_sys->wait_mutex);
+
+	srv_slot_t*	slot = lock_sys->waiting_threads;
+
+	for (ulint i = 0; i < OS_THREAD_MAX_N; i++, ++slot) {
+		if (slot->event != NULL) {
+			os_event_destroy(slot->event);
+		}
+	}
 
 	mem_free(lock_sys);
 
@@ -1817,7 +1819,7 @@ lock_sec_rec_some_has_impl(
 	const page_t*	page = page_align(rec);
 
 	ut_ad(!lock_mutex_own());
-	ut_ad(!mutex_own(&trx_sys->mutex));
+	ut_ad(!trx_sys_mutex_own());
 	ut_ad(!dict_index_is_clust(index));
 	ut_ad(page_rec_is_user_rec(rec));
 	ut_ad(rec_offs_validate(rec, index, offsets));
@@ -1988,9 +1990,9 @@ lock_rec_create(
 	lock->type_mode = (type_mode & ~LOCK_TYPE_MASK) | LOCK_REC;
 	lock->index = index;
 
-	lock->un_member.rec_lock.space = space;
-	lock->un_member.rec_lock.page_no = page_no;
-	lock->un_member.rec_lock.n_bits = n_bytes * 8;
+	lock->un_member.rec_lock.space = ib_uint32_t(space);
+	lock->un_member.rec_lock.page_no = ib_uint32_t(page_no);
+	lock->un_member.rec_lock.n_bits = ib_uint32_t(n_bytes * 8);
 
 	/* Reset to zero the bitmap which resides immediately after the
 	lock struct */
@@ -3725,7 +3727,7 @@ lock_table_create(
 
 	}
 
-	lock->type_mode = type_mode | LOCK_TABLE;
+	lock->type_mode = ib_uint32_t(type_mode | LOCK_TABLE);
 	lock->trx = trx;
 
 	lock->un_member.tab_lock.table = table;
@@ -5315,7 +5317,7 @@ lock_table_queue_validate(
 	const lock_t*	lock;
 
 	ut_ad(lock_mutex_own());
-	ut_ad(mutex_own(&trx_sys->mutex));
+	ut_ad(trx_sys_mutex_own());
 
 	for (lock = UT_LIST_GET_FIRST(table->locks);
 	     lock != NULL;
@@ -5509,7 +5511,7 @@ loop:
 	holding a space->latch.  Deadlocks are possible due to
 	latching order violation when UNIV_DEBUG is defined while
 	UNIV_SYNC_DEBUG is not. */
-	if (!sync_thread_levels_contains(SYNC_FSP))
+	if (!sync_check_find(SYNC_FSP))
 # endif /* UNIV_SYNC_DEBUG */
 	for (i = nth_bit; i < lock_rec_get_n_bits(lock); i++) {
 
@@ -5519,11 +5521,7 @@ loop:
 			ut_a(rec);
 			offsets = rec_get_offsets(rec, lock->index, offsets,
 						  ULINT_UNDEFINED, &heap);
-#if 0
-			fprintf(stderr,
-				"Validating %u %u\n",
-				block->page.space, block->page.offset);
-#endif
+
 			/* If this thread is holding the file space
 			latch (fil_space_t::latch), the following
 			check WILL break the latching order and may
@@ -5565,7 +5563,7 @@ lock_validate_table_locks(
 	const trx_t*	trx;
 
 	ut_ad(lock_mutex_own());
-	ut_ad(mutex_own(&trx_sys->mutex));
+	ut_ad(trx_sys_mutex_own());
 
 	ut_ad(trx_list == &trx_sys->rw_trx_list
 	      || trx_list == &trx_sys->ro_trx_list);
@@ -5608,7 +5606,7 @@ lock_rec_validate(
 					(space, page_no) */
 {
 	ut_ad(lock_mutex_own());
-	ut_ad(mutex_own(&trx_sys->mutex));
+	ut_ad(trx_sys_mutex_own());
 
 	for (const lock_t* lock = static_cast<const lock_t*>(
 			HASH_GET_FIRST(lock_sys->rec_hash, start));
@@ -6853,7 +6851,7 @@ lock_table_locks_lookup(
 
 	ut_a(table != NULL);
 	ut_ad(lock_mutex_own());
-	ut_ad(mutex_own(&trx_sys->mutex));
+	ut_ad(trx_sys_mutex_own());
 
 	ut_ad(trx_list == &trx_sys->rw_trx_list
 	      || trx_list == &trx_sys->ro_trx_list);

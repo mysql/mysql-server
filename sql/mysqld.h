@@ -128,6 +128,7 @@ extern ulonglong slave_rows_search_algorithms_options;
 #ifndef DBUG_OFF
 extern uint slave_rows_last_search_algorithm_used;
 #endif
+extern ulong mts_parallel_option;
 #ifndef EMBEDDED_LIBRARY
 extern "C" int check_enough_stack_size(int);
 #endif
@@ -170,6 +171,7 @@ extern char *opt_backup_history_logname, *opt_backup_progress_logname,
 extern const char *log_output_str;
 extern const char *log_backup_output_str;
 extern char *mysql_home_ptr, *pidfile_name_ptr;
+extern char *default_auth_plugin;
 extern char *my_bind_addr_str;
 extern char glob_hostname[FN_REFLEN], mysql_home[FN_REFLEN];
 extern char pidfile_name[FN_REFLEN], system_time_zone[30], *opt_init_file;
@@ -240,7 +242,6 @@ extern ulong stored_program_cache_size;
 extern ulong back_log;
 extern char language[FN_REFLEN];
 extern "C" MYSQL_PLUGIN_IMPORT ulong server_id;
-extern ulong concurrency;
 extern time_t server_start_time, flush_status_time;
 extern char *opt_mysql_tmpdir, mysql_charsets_dir[];
 extern int mysql_unpacked_real_data_home_len;
@@ -373,6 +374,7 @@ extern PSI_mutex_key key_RELAYLOG_LOCK_xids;
 extern PSI_mutex_key key_LOCK_sql_rand;
 extern PSI_mutex_key key_gtid_ensure_index_mutex;
 extern PSI_mutex_key key_LOCK_thread_created;
+extern PSI_mutex_key key_mts_temp_table_LOCK;
 
 extern PSI_rwlock_key key_rwlock_LOCK_grant, key_rwlock_LOCK_logger,
   key_rwlock_LOCK_sys_init_connect, key_rwlock_LOCK_sys_init_slave,
@@ -667,6 +669,7 @@ extern PSI_stage_info stage_slave_waiting_worker_to_free_events;
 extern PSI_stage_info stage_slave_waiting_worker_queue;
 extern PSI_stage_info stage_slave_waiting_event_from_coordinator;
 extern PSI_stage_info stage_slave_waiting_workers_to_exit;
+extern PSI_stage_info stage_slave_waiiting_for_workers_to_finish;
 #ifdef HAVE_PSI_STATEMENT_INTERFACE
 /**
   Statement instrumentation keys (sql).

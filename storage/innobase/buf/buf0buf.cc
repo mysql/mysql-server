@@ -49,6 +49,7 @@ Created 11/5/1995 Heikki Tuuri
 #ifndef UNIV_HOTBACKUP
 #include "buf0buddy.h"
 #include "lock0lock.h"
+#include "sync0rw.h"
 #include "btr0sea.h"
 #include "ibuf0ibuf.h"
 #include "trx0undo.h"
@@ -61,6 +62,9 @@ Created 11/5/1995 Heikki Tuuri
 #endif /* !UNIV_INNOCHECKSUM */
 #include "page0zip.h"
 #include "buf0checksum.h"
+#include "sync0sync.h"
+
+#include <new>
 
 /*
 		IMPLEMENTATION OF THE BUFFER POOL
@@ -260,26 +264,10 @@ static const ulint BUF_PAGE_READ_MAX_RETRIES = 100;
 buf_pool_t*	buf_pool_ptr;
 
 #if defined UNIV_DEBUG || defined UNIV_BUF_DEBUG
-static ulint	buf_dbg_counter	= 0; /*!< This is used to insert validation
-					operations in execution in the
-					debug version */
+/** This is used to insert validation operations in execution
+in the debug version */
+static ulint	buf_dbg_counter	= 0;
 #endif /* UNIV_DEBUG || UNIV_BUF_DEBUG */
-
-#ifdef UNIV_PFS_RWLOCK
-/* Keys to register buffer block related rwlocks and mutexes with
-performance schema */
-mysql_pfs_key_t	buf_block_lock_key;
-# ifdef UNIV_SYNC_DEBUG
-mysql_pfs_key_t	buf_block_debug_latch_key;
-# endif /* UNIV_SYNC_DEBUG */
-#endif /* UNIV_PFS_RWLOCK */
-
-#ifdef UNIV_PFS_MUTEX
-mysql_pfs_key_t	buffer_block_mutex_key;
-mysql_pfs_key_t	buf_pool_mutex_key;
-mysql_pfs_key_t	buf_pool_zip_mutex_key;
-mysql_pfs_key_t	flush_list_mutex_key;
-#endif /* UNIV_PFS_MUTEX */
 
 #if defined UNIV_PFS_MUTEX || defined UNIV_PFS_RWLOCK
 # ifndef PFS_SKIP_BUFFER_MUTEX_RWLOCK
@@ -1022,6 +1010,8 @@ buf_page_print(
 #ifndef UNIV_HOTBACKUP
 
 # ifdef PFS_GROUP_BUFFER_SYNC
+extern mysql_pfs_key_t	buffer_block_mutex_key;
+
 /********************************************************************//**
 This function registers mutexes and rwlocks in buffer blocks with
 performance schema. If PFS_MAX_BUFFER_MUTEX_LOCK_REGISTER is
@@ -1034,26 +1024,23 @@ pfs_register_buffer_block(
 /*======================*/
 	buf_chunk_t*	chunk)		/*!< in/out: chunk of buffers */
 {
-	ulint		i;
-	ulint		num_to_register;
 	buf_block_t*    block;
+	ulint		num_to_register;
 
 	block = chunk->blocks;
 
-	num_to_register = ut_min(chunk->size,
-				 PFS_MAX_BUFFER_MUTEX_LOCK_REGISTER);
+	num_to_register = ut_min(
+		chunk->size, PFS_MAX_BUFFER_MUTEX_LOCK_REGISTER);
 
-	for (i = 0; i < num_to_register; i++) {
-		ib_mutex_t*	mutex;
-		rw_lock_t*	rwlock;
-
+	for (ulint i = 0; i < num_to_register; i++) {
 #  ifdef UNIV_PFS_MUTEX
+		BPageMutex*	mutex;
+
 		mutex = &block->mutex;
-		ut_a(!mutex->pfs_psi);
-		mutex->pfs_psi = (PSI_server)
-			? PSI_server->init_mutex(buffer_block_mutex_key, mutex)
-			: NULL;
+		mutex->pfs_add(buffer_block_mutex_key);
 #  endif /* UNIV_PFS_MUTEX */
+
+		rw_lock_t*	rwlock;
 
 #  ifdef UNIV_PFS_RWLOCK
 		rwlock = &block->lock;
@@ -1118,29 +1105,34 @@ buf_block_init(
 #endif /* UNIV_AHI_DEBUG || UNIV_DEBUG */
 	page_zip_des_init(&block->page.zip);
 
+	mutex_create("buf_block_mutex", &block->mutex);
+
 #if defined PFS_SKIP_BUFFER_MUTEX_RWLOCK || defined PFS_GROUP_BUFFER_SYNC
 	/* If PFS_SKIP_BUFFER_MUTEX_RWLOCK is defined, skip registration
-	of buffer block mutex/rwlock with performance schema. If
-	PFS_GROUP_BUFFER_SYNC is defined, skip the registration
-	since buffer block mutex/rwlock will be registered later in
-	pfs_register_buffer_block() */
+	of buffer block rwlock with performance schema.
 
-	mutex_create(PFS_NOT_INSTRUMENTED, &block->mutex, SYNC_BUF_BLOCK);
+	If PFS_GROUP_BUFFER_SYNC is defined, skip the registration
+	since buffer block rwlock will be registered later in
+	pfs_register_buffer_block(). */
+
 	rw_lock_create(PFS_NOT_INSTRUMENTED, &block->lock, SYNC_LEVEL_VARYING);
 
 # ifdef UNIV_SYNC_DEBUG
-	rw_lock_create(PFS_NOT_INSTRUMENTED,
-		       &block->debug_latch, SYNC_NO_ORDER_CHECK);
+	rw_lock_create(
+		PFS_NOT_INSTRUMENTED,
+		&block->debug_latch, SYNC_NO_ORDER_CHECK);
 # endif /* UNIV_SYNC_DEBUG */
 
 #else /* PFS_SKIP_BUFFER_MUTEX_RWLOCK || PFS_GROUP_BUFFER_SYNC */
-	mutex_create(buffer_block_mutex_key, &block->mutex, SYNC_BUF_BLOCK);
+
 	rw_lock_create(buf_block_lock_key, &block->lock, SYNC_LEVEL_VARYING);
 
 # ifdef UNIV_SYNC_DEBUG
+
 	rw_lock_create(buf_block_debug_latch_key,
 		       &block->debug_latch, SYNC_NO_ORDER_CHECK);
 # endif /* UNIV_SYNC_DEBUG */
+
 #endif /* PFS_SKIP_BUFFER_MUTEX_RWLOCK || PFS_GROUP_BUFFER_SYNC */
 
 	ut_ad(rw_lock_validate(&(block->lock)));
@@ -1224,7 +1216,7 @@ buf_chunk_init(
 
 #ifdef PFS_GROUP_BUFFER_SYNC
 	pfs_register_buffer_block(chunk);
-#endif
+#endif /* PFS_GROUP_BUFFER_SYNC */
 	return(chunk);
 }
 
@@ -1317,9 +1309,9 @@ buf_chunk_not_freed(
 			file pages. */
 			break;
 		case BUF_BLOCK_FILE_PAGE:
-			mutex_enter(&block->mutex);
+			buf_page_mutex_enter(block);
 			ready = buf_flush_ready_for_replace(&block->page);
-			mutex_exit(&block->mutex);
+			buf_page_mutex_exit(block);
 
 			if (!ready) {
 
@@ -1374,10 +1366,9 @@ buf_pool_init_instance(
 
 	/* 1. Initialize general fields
 	------------------------------- */
-	mutex_create(buf_pool_mutex_key,
-		     &buf_pool->mutex, SYNC_BUF_POOL);
-	mutex_create(buf_pool_zip_mutex_key,
-		     &buf_pool->zip_mutex, SYNC_BUF_BLOCK);
+	mutex_create("buf_pool", &buf_pool->mutex);
+
+	mutex_create("buf_pool_zip", &buf_pool->zip_mutex);
 
 	buf_pool_mutex_enter(buf_pool);
 
@@ -1421,10 +1412,9 @@ buf_pool_init_instance(
 		ut_a(srv_n_page_hash_locks != 0);
 		ut_a(srv_n_page_hash_locks <= MAX_PAGE_HASH_LOCKS);
 
-		buf_pool->page_hash = ib_create(2 * buf_pool->curr_size,
-						srv_n_page_hash_locks,
-						MEM_HEAP_FOR_PAGE_HASH,
-						SYNC_BUF_PAGE_HASH);
+		buf_pool->page_hash = ib_create(
+			2 * buf_pool->curr_size, "hash_table_rw_lock",
+			srv_n_page_hash_locks, MEM_HEAP_FOR_PAGE_HASH);
 
 		buf_pool->zip_hash = hash_create(2 * buf_pool->curr_size);
 
@@ -1433,11 +1423,10 @@ buf_pool_init_instance(
 	/* 2. Initialize flushing fields
 	-------------------------------- */
 
-	mutex_create(flush_list_mutex_key, &buf_pool->flush_list_mutex,
-		     SYNC_BUF_FLUSH_LIST);
+	mutex_create("flush_list", &buf_pool->flush_list_mutex);
 
 	for (i = BUF_FLUSH_LRU; i < BUF_FLUSH_N_TYPES; i++) {
-		buf_pool->no_flush[i] = os_event_create();
+		buf_pool->no_flush[i] = os_event_create(0);
 	}
 
 	buf_pool->watch = (buf_page_t*) mem_zalloc(
@@ -1446,6 +1435,19 @@ buf_pool_init_instance(
 	/* All fields are initialized by mem_zalloc(). */
 
 	buf_pool->try_LRU_scan = TRUE;
+
+	/* Initialize the hazard pointer for flush_list batches */
+	new(&buf_pool->flush_hp)
+		FlushHp(buf_pool, &buf_pool->flush_list_mutex);
+
+	/* Initialize the hazard pointer for LRU batches */
+	new(&buf_pool->lru_hp) LRUHp(buf_pool, &buf_pool->mutex);
+
+	/* Initialize the iterator for LRU scan search */
+	new(&buf_pool->lru_scan_itr) LRUItr(buf_pool, &buf_pool->mutex);
+
+	/* Initialize the iterator for single page scan search */
+	new(&buf_pool->single_scan_itr) LRUItr(buf_pool, &buf_pool->mutex);
 
 	buf_pool_mutex_exit(buf_pool);
 
@@ -1464,11 +1466,18 @@ buf_pool_free_instance(
 	buf_chunk_t*	chunk;
 	buf_chunk_t*	chunks;
 	buf_page_t*	bpage;
+	buf_page_t*	prev_bpage = 0;
 
-	bpage = UT_LIST_GET_LAST(buf_pool->LRU);
-	while (bpage != NULL) {
-		buf_page_t*	prev_bpage = UT_LIST_GET_PREV(LRU, bpage);
-		enum buf_page_state	state = buf_page_get_state(bpage);
+	mutex_free(&buf_pool->mutex);
+	mutex_free(&buf_pool->zip_mutex);
+	mutex_free(&buf_pool->flush_list_mutex);
+
+	for (bpage = UT_LIST_GET_LAST(buf_pool->LRU);
+	     bpage != NULL;
+	     bpage = prev_bpage) {
+
+		prev_bpage = UT_LIST_GET_PREV(LRU, bpage);
+		buf_page_state	state = buf_page_get_state(bpage);
 
 		ut_ad(buf_page_in_file(bpage));
 		ut_ad(bpage->in_LRU_list);
@@ -1480,8 +1489,6 @@ buf_pool_free_instance(
 			      || srv_fast_shutdown == 2);
 			buf_page_free_descriptor(bpage);
 		}
-
-		bpage = prev_bpage;
 	}
 
 	mem_free(buf_pool->watch);
@@ -1491,7 +1498,21 @@ buf_pool_free_instance(
 	chunk = chunks + buf_pool->n_chunks;
 
 	while (--chunk >= chunks) {
+		buf_block_t*	block = chunk->blocks;
+
+		for (ulint i = chunk->size; i--; block++) {
+			mutex_free(&block->mutex);
+			rw_lock_free(&block->lock);
+#ifdef UNIV_SYNC_DEBUG
+			rw_lock_free(&block->debug_latch);
+# endif /* UNIV_SYNC_DEBUG */
+		}
+
 		os_mem_free_large(chunk->mem, chunk->mem_size);
+	}
+
+	for (ulint i = BUF_FLUSH_LRU; i < BUF_FLUSH_N_TYPES; ++i) {
+		os_event_destroy(buf_pool->no_flush[i]);
 	}
 
 	mem_free(buf_pool->chunks);
@@ -1549,9 +1570,7 @@ buf_pool_free(
 /*==========*/
 	ulint	n_instances)	/*!< in: numbere of instances to free */
 {
-	ulint	i;
-
-	for (i = 0; i < n_instances; i++) {
+	for (ulint i = 0; i < n_instances; i++) {
 		buf_pool_free_instance(buf_pool_from_array(i));
 	}
 
@@ -1569,7 +1588,7 @@ buf_pool_clear_hash_index(void)
 	ulint	p;
 
 #ifdef UNIV_SYNC_DEBUG
-	ut_ad(rw_lock_own(&btr_search_latch, RW_LOCK_EX));
+	ut_ad(rw_lock_own(&btr_search_latch, RW_LOCK_X));
 #endif /* UNIV_SYNC_DEBUG */
 	ut_ad(!btr_search_enabled);
 
@@ -1653,6 +1672,10 @@ buf_relocate(
 
 	memcpy(dpage, bpage, sizeof *dpage);
 
+	/* Important that we adjust the hazard pointer before
+	removing bpage from LRU list. */
+	buf_LRU_adjust_hp(buf_pool, bpage);
+
 	ut_d(bpage->in_LRU_list = FALSE);
 	ut_d(bpage->in_page_hash = FALSE);
 
@@ -1660,7 +1683,7 @@ buf_relocate(
 	b = UT_LIST_GET_PREV(LRU, bpage);
 	UT_LIST_REMOVE(buf_pool->LRU, bpage);
 
-	if (b) {
+	if (b != NULL) {
 		UT_LIST_INSERT_AFTER(buf_pool->LRU, b, dpage);
 	} else {
 		UT_LIST_ADD_FIRST(buf_pool->LRU, dpage);
@@ -1688,6 +1711,84 @@ buf_relocate(
 	/* relocate buf_pool->page_hash */
 	HASH_DELETE(buf_page_t, hash, buf_pool->page_hash, fold, bpage);
 	HASH_INSERT(buf_page_t, hash, buf_pool->page_hash, fold, dpage);
+}
+
+/** Hazard Pointer implementation. */
+
+/** Set current value
+@param bpage	buffer block to be set as hp */
+void
+HazardPointer::set(buf_page_t* bpage)
+{
+	ut_ad(mutex_own(m_mutex));
+	ut_ad(!bpage || buf_pool_from_bpage(bpage) == m_buf_pool);
+	ut_ad(!bpage || buf_page_in_file(bpage));
+
+	m_hp = bpage;
+}
+
+/** Checks if a bpage is the hp
+@param bpage    buffer block to be compared
+@return true if it is hp */
+
+bool
+HazardPointer::is_hp(const buf_page_t* bpage)
+{
+	ut_ad(mutex_own(m_mutex));
+	ut_ad(!m_hp || buf_pool_from_bpage(m_hp) == m_buf_pool);
+	ut_ad(!bpage || buf_pool_from_bpage(bpage) == m_buf_pool);
+
+	return(bpage == m_hp);
+}
+
+/** Adjust the value of hp. This happens when some other thread working
+on the same list attempts to remove the hp from the list.
+@param bpage	buffer block to be compared */
+
+void
+FlushHp::adjust(const buf_page_t* bpage)
+{
+	ut_ad(bpage != NULL);
+
+	/** We only support reverse traversal for now. */
+	if (is_hp(bpage)) {
+		m_hp = UT_LIST_GET_PREV(list, m_hp);
+	}
+
+	ut_ad(!m_hp || m_hp->in_flush_list);
+}
+
+/** Adjust the value of hp. This happens when some other thread working
+on the same list attempts to remove the hp from the list.
+@param bpage	buffer block to be compared */
+
+void
+LRUHp::adjust(const buf_page_t* bpage)
+{
+	ut_ad(bpage);
+
+	/** We only support reverse traversal for now. */
+	if (is_hp(bpage)) {
+		m_hp = UT_LIST_GET_PREV(LRU, m_hp);
+	}
+
+	ut_ad(!m_hp || m_hp->in_LRU_list);
+}
+
+/** Selects from where to start a scan. If we have scanned too deep into
+the LRU list it resets the value to the tail of the LRU list.
+@return buf_page_t from where to start scan. */
+
+buf_page_t*
+LRUItr::start()
+{
+	ut_ad(mutex_own(m_mutex));
+
+	if (!m_hp || m_hp->old) {
+		m_hp = UT_LIST_GET_LAST(m_buf_pool->LRU);
+	}
+
+	return(m_hp);
 }
 
 /********************************************************************//**
@@ -1742,7 +1843,7 @@ buf_pool_watch_set(
 	hash_lock = buf_page_hash_lock_get(buf_pool, fold);
 
 #ifdef UNIV_SYNC_DEBUG
-	ut_ad(rw_lock_own(hash_lock, RW_LOCK_EX));
+	ut_ad(rw_lock_own(hash_lock, RW_LOCK_X));
 #endif /* UNIV_SYNC_DEBUG */
 
 	bpage = buf_page_hash_get_low(buf_pool, space, offset, fold);
@@ -1858,7 +1959,7 @@ buf_pool_watch_remove(
 #ifdef UNIV_SYNC_DEBUG
 	/* We must also own the appropriate hash_bucket mutex. */
 	rw_lock_t* hash_lock = buf_page_hash_lock_get(buf_pool, fold);
-	ut_ad(rw_lock_own(hash_lock, RW_LOCK_EX));
+	ut_ad(rw_lock_own(hash_lock, RW_LOCK_X));
 #endif /* UNIV_SYNC_DEBUG */
 
 	ut_ad(buf_pool_mutex_own(buf_pool));
@@ -1899,13 +2000,13 @@ buf_pool_watch_unset(
 	increments buf_fix_count. */
 	ut_a(bpage);
 
-	if (UNIV_UNLIKELY(!buf_pool_watch_is_sentinel(buf_pool, bpage))) {
-		ib_mutex_t* mutex = buf_page_get_mutex(bpage);
+	if (!buf_pool_watch_is_sentinel(buf_pool, bpage)) {
+		BPageMutex* block_mutex = buf_page_get_mutex(bpage);
 
-		mutex_enter(mutex);
+		mutex_enter(block_mutex);
 		ut_a(bpage->buf_fix_count > 0);
 		bpage->buf_fix_count--;
-		mutex_exit(mutex);
+		mutex_exit(block_mutex);
 	} else {
 		ut_a(bpage->buf_fix_count > 0);
 
@@ -2039,7 +2140,7 @@ buf_page_set_file_page_was_freed(
 					   &hash_lock);
 
 	if (bpage) {
-		ib_mutex_t*	block_mutex = buf_page_get_mutex(bpage);
+		BPageMutex*	block_mutex = buf_page_get_mutex(bpage);
 		ut_ad(!buf_pool_watch_is_sentinel(buf_pool, bpage));
 		mutex_enter(block_mutex);
 		rw_lock_s_unlock(hash_lock);
@@ -2072,7 +2173,7 @@ buf_page_reset_file_page_was_freed(
 	bpage = buf_page_hash_get_s_locked(buf_pool, space, offset,
 					   &hash_lock);
 	if (bpage) {
-		ib_mutex_t*	block_mutex = buf_page_get_mutex(bpage);
+		BPageMutex*	block_mutex = buf_page_get_mutex(bpage);
 		ut_ad(!buf_pool_watch_is_sentinel(buf_pool, bpage));
 		mutex_enter(block_mutex);
 		rw_lock_s_unlock(hash_lock);
@@ -2133,7 +2234,7 @@ buf_page_get_zip(
 	ulint		offset)	/*!< in: page number */
 {
 	buf_page_t*	bpage;
-	ib_mutex_t*	block_mutex;
+	BPageMutex*	block_mutex;
 	rw_lock_t*	hash_lock;
 	ibool		discard_attempted = FALSE;
 	ibool		must_read;
@@ -2381,7 +2482,7 @@ buf_block_align_instance(
 			/* A thread that updates these fields must
 			hold buf_pool->mutex and block->mutex.  Acquire
 			only the latter. */
-			mutex_enter(&block->mutex);
+			buf_page_mutex_enter(block);
 
 			switch (buf_block_get_state(block)) {
 			case BUF_BLOCK_POOL_WATCH:
@@ -2421,7 +2522,7 @@ buf_block_align_instance(
 				break;
 			}
 
-			mutex_exit(&block->mutex);
+			buf_page_mutex_exit(block);
 #endif /* UNIV_DEBUG */
 
 			return(block);
@@ -2579,7 +2680,7 @@ buf_page_get_gen(
 	ulint		fix_type;
 	ibool		must_read;
 	rw_lock_t*	hash_lock;
-	ib_mutex_t*	block_mutex;
+	BPageMutex*	block_mutex;
 	buf_page_t*	hash_bpage;
 	ulint		retries = 0;
 	buf_pool_t*	buf_pool = buf_pool_get(space, offset);
@@ -2588,6 +2689,7 @@ buf_page_get_gen(
 	ut_ad(mtr->state == MTR_ACTIVE);
 	ut_ad((rw_latch == RW_S_LATCH)
 	      || (rw_latch == RW_X_LATCH)
+	      || (rw_latch == RW_SX_LATCH)
 	      || (rw_latch == RW_NO_LATCH));
 #ifdef UNIV_DEBUG
 	switch (mode) {
@@ -2654,7 +2756,7 @@ loop:
 			block = (buf_block_t*) buf_pool_watch_set(
 				space, offset, fold);
 
-			if (UNIV_LIKELY_NULL(block)) {
+			if (block) {
 				/* We can release hash_lock after we
 				acquire block_mutex to make sure that
 				no state change takes place. */
@@ -2673,8 +2775,8 @@ loop:
 		    || mode == BUF_PEEK_IF_IN_POOL
 		    || mode == BUF_GET_IF_IN_POOL_OR_WATCH) {
 #ifdef UNIV_SYNC_DEBUG
-			ut_ad(!rw_lock_own(hash_lock, RW_LOCK_EX));
-			ut_ad(!rw_lock_own(hash_lock, RW_LOCK_SHARED));
+			ut_ad(!rw_lock_own(hash_lock, RW_LOCK_X));
+			ut_ad(!rw_lock_own(hash_lock, RW_LOCK_S));
 #endif /* UNIV_SYNC_DEBUG */
 			return(NULL);
 		}
@@ -2783,17 +2885,20 @@ wait_until_unfixed:
 		to verify that bpage is indeed still a part of
 		page_hash. */
 		rw_lock_x_lock(hash_lock);
-		hash_bpage = buf_page_hash_get_low(buf_pool, space,
-						   offset, fold);
 
-		mutex_enter(&block->mutex);
+		hash_bpage = buf_page_hash_get_low(
+			buf_pool, space, offset, fold);
+
+		buf_page_mutex_enter(block);
+
 		if (bpage != hash_bpage
 		    || bpage->buf_fix_count
 		    || buf_page_get_io_fix(bpage) != BUF_IO_NONE) {
+
 			buf_LRU_block_free_non_file_page(block);
 			buf_pool_mutex_exit(buf_pool);
 			rw_lock_x_unlock(hash_lock);
-			mutex_exit(&block->mutex);
+			buf_page_mutex_exit(block);
 
 			if (bpage != hash_bpage) {
 				/* The buf_pool->page_hash was modified
@@ -2847,11 +2952,11 @@ wait_until_unfixed:
 		UNIV_MEM_INVALID(bpage, sizeof *bpage);
 
 		rw_lock_x_unlock(hash_lock);
-
 		buf_pool->n_pend_unzip++;
 		buf_pool_mutex_exit(buf_pool);
 
 		access_time = buf_page_is_accessed(&block->page);
+
 		mutex_exit(&block->mutex);
 		mutex_exit(&buf_pool->zip_mutex);
 
@@ -2878,7 +2983,7 @@ wait_until_unfixed:
 
 		/* Unfix and unlatch the block. */
 		buf_pool_mutex_enter(buf_pool);
-		mutex_enter(&block->mutex);
+		buf_page_mutex_enter(block);
 		block->page.buf_fix_count--;
 		buf_block_set_io_fix(block, BUF_IO_NONE);
 		buf_pool->n_pend_unzip--;
@@ -2897,8 +3002,8 @@ wait_until_unfixed:
 	}
 
 #ifdef UNIV_SYNC_DEBUG
-	ut_ad(!rw_lock_own(hash_lock, RW_LOCK_EX));
-	ut_ad(!rw_lock_own(hash_lock, RW_LOCK_SHARED));
+	ut_ad(!rw_lock_own(hash_lock, RW_LOCK_X));
+	ut_ad(!rw_lock_own(hash_lock, RW_LOCK_S));
 #endif /* UNIV_SYNC_DEBUG */
 
 	ut_ad(buf_block_get_state(block) == BUF_BLOCK_FILE_PAGE);
@@ -2921,11 +3026,11 @@ wait_until_unfixed:
 		the block from changes by temporarily buffer-fixing it
 		for the time we are not holding block->mutex. */
 		buf_block_buf_fix_inc(block, file, line);
-		mutex_exit(&block->mutex);
+		buf_page_mutex_exit(block);
 		buf_pool_mutex_enter(buf_pool);
-		mutex_enter(&block->mutex);
+		buf_page_mutex_enter(block);
 		buf_block_buf_fix_dec(block);
-		mutex_exit(&block->mutex);
+		buf_page_mutex_exit(block);
 
 		/* Now we are only holding the buf_pool->mutex,
 		not block->mutex or hash_lock. Blocks cannot be
@@ -2949,7 +3054,7 @@ wait_until_unfixed:
 
 			rw_lock_x_unlock(hash_lock);
 
-			if (UNIV_LIKELY_NULL(block)) {
+			if (block != 0) {
 				/* Either the page has been read in or
 				a watch was set on that in the window
 				where we released the buf_pool::mutex
@@ -2965,7 +3070,7 @@ wait_until_unfixed:
 			return(NULL);
 		}
 
-		mutex_enter(&block->mutex);
+		buf_page_mutex_enter(block);
 
 		if (buf_flush_page_try(buf_pool, block)) {
 			fprintf(stderr,
@@ -2986,12 +3091,13 @@ wait_until_unfixed:
 	ut_a(mode == BUF_GET_POSSIBLY_FREED
 	     || !block->page.file_page_was_freed);
 #endif
+
 	/* Check if this is the first access to the page */
 	access_time = buf_page_is_accessed(&block->page);
 
 	buf_page_set_accessed(&block->page);
 
-	mutex_exit(&block->mutex);
+	buf_page_mutex_exit(block);
 
 	if (mode != BUF_PEEK_IF_IN_POOL) {
 		buf_page_make_young_if_needed(&block->page);
@@ -3012,9 +3118,9 @@ wait_until_unfixed:
 			for (;;) {
 				enum buf_io_fix	io_fix;
 
-				mutex_enter(&block->mutex);
+				buf_page_mutex_enter(block);
 				io_fix = buf_block_get_io_fix(block);
-				mutex_exit(&block->mutex);
+				buf_page_mutex_exit(block);
 
 				if (io_fix == BUF_IO_READ) {
 					/* wait by temporaly s-latch */
@@ -3033,6 +3139,12 @@ wait_until_unfixed:
 		rw_lock_s_lock_inline(&(block->lock), 0, file, line);
 
 		fix_type = MTR_MEMO_PAGE_S_FIX;
+		break;
+
+	case RW_SX_LATCH:
+		rw_lock_sx_lock_inline(&block->lock, 0, file, line);
+
+		fix_type = MTR_MEMO_PAGE_SX_FIX;
 		break;
 
 	default:
@@ -3058,8 +3170,8 @@ wait_until_unfixed:
 			    buf_block_get_page_no(block)) == 0);
 #endif
 #ifdef UNIV_SYNC_DEBUG
-	ut_ad(!rw_lock_own(hash_lock, RW_LOCK_EX));
-	ut_ad(!rw_lock_own(hash_lock, RW_LOCK_SHARED));
+	ut_ad(!rw_lock_own(hash_lock, RW_LOCK_X));
+	ut_ad(!rw_lock_own(hash_lock, RW_LOCK_S));
 #endif /* UNIV_SYNC_DEBUG */
 	return(block);
 }
@@ -3089,11 +3201,11 @@ buf_page_optimistic_get(
 	ut_ad(mtr->state == MTR_ACTIVE);
 	ut_ad((rw_latch == RW_S_LATCH) || (rw_latch == RW_X_LATCH));
 
-	mutex_enter(&block->mutex);
+	buf_page_mutex_enter(block);
 
 	if (UNIV_UNLIKELY(buf_block_get_state(block) != BUF_BLOCK_FILE_PAGE)) {
 
-		mutex_exit(&block->mutex);
+		buf_page_mutex_exit(block);
 
 		return(FALSE);
 	}
@@ -3104,7 +3216,7 @@ buf_page_optimistic_get(
 
 	buf_page_set_accessed(&block->page);
 
-	mutex_exit(&block->mutex);
+	buf_page_mutex_exit(block);
 
 	buf_page_make_young_if_needed(&block->page);
 
@@ -3113,20 +3225,25 @@ buf_page_optimistic_get(
 			   buf_block_get_zip_size(block),
 			   buf_block_get_page_no(block), NULL));
 
-	if (rw_latch == RW_S_LATCH) {
+	switch (rw_latch) {
+	case RW_S_LATCH:
 		success = rw_lock_s_lock_nowait(&(block->lock),
 						file, line);
 		fix_type = MTR_MEMO_PAGE_S_FIX;
-	} else {
+		break;
+	case RW_X_LATCH:
 		success = rw_lock_x_lock_func_nowait_inline(&(block->lock),
 							    file, line);
 		fix_type = MTR_MEMO_PAGE_X_FIX;
+		break;
+	default:
+		ut_error; /* RW_SX_LATCH is not implemented yet */
 	}
 
 	if (UNIV_UNLIKELY(!success)) {
-		mutex_enter(&block->mutex);
+		buf_page_mutex_enter(block);
 		buf_block_buf_fix_dec(block);
-		mutex_exit(&block->mutex);
+		buf_page_mutex_exit(block);
 
 		return(FALSE);
 	}
@@ -3140,9 +3257,9 @@ buf_page_optimistic_get(
 			rw_lock_x_unlock(&(block->lock));
 		}
 
-		mutex_enter(&block->mutex);
+		buf_page_mutex_enter(block);
 		buf_block_buf_fix_dec(block);
-		mutex_exit(&block->mutex);
+		buf_page_mutex_exit(block);
 
 		return(FALSE);
 	}
@@ -3156,9 +3273,9 @@ buf_page_optimistic_get(
 #endif /* UNIV_DEBUG || UNIV_BUF_DEBUG */
 
 #if defined UNIV_DEBUG_FILE_ACCESSES || defined UNIV_DEBUG
-	mutex_enter(&block->mutex);
+	buf_page_mutex_enter(block);
 	ut_a(!block->page.file_page_was_freed);
-	mutex_exit(&block->mutex);
+	buf_page_mutex_exit(block);
 #endif
 
 	if (!access_time) {
@@ -3205,7 +3322,7 @@ buf_page_get_known_nowait(
 	ut_ad(mtr->state == MTR_ACTIVE);
 	ut_ad((rw_latch == RW_S_LATCH) || (rw_latch == RW_X_LATCH));
 
-	mutex_enter(&block->mutex);
+	buf_page_mutex_enter(block);
 
 	if (buf_block_get_state(block) == BUF_BLOCK_REMOVE_HASH) {
 		/* Another thread is just freeing the block from the LRU list
@@ -3215,7 +3332,7 @@ buf_page_get_known_nowait(
 		we have already removed it from the page address hash table
 		of the buffer pool. */
 
-		mutex_exit(&block->mutex);
+		buf_page_mutex_exit(block);
 
 		return(FALSE);
 	}
@@ -3226,7 +3343,7 @@ buf_page_get_known_nowait(
 
 	buf_page_set_accessed(&block->page);
 
-	mutex_exit(&block->mutex);
+	buf_page_mutex_exit(block);
 
 	buf_pool = buf_pool_from_block(block);
 
@@ -3236,20 +3353,25 @@ buf_page_get_known_nowait(
 
 	ut_ad(!ibuf_inside(mtr) || mode == BUF_KEEP_OLD);
 
-	if (rw_latch == RW_S_LATCH) {
+	switch (rw_latch) {
+	case RW_S_LATCH:
 		success = rw_lock_s_lock_nowait(&(block->lock),
 						file, line);
 		fix_type = MTR_MEMO_PAGE_S_FIX;
-	} else {
+		break;
+	case RW_X_LATCH:
 		success = rw_lock_x_lock_func_nowait_inline(&(block->lock),
 							    file, line);
 		fix_type = MTR_MEMO_PAGE_X_FIX;
+		break;
+	default:
+		ut_error; /* RW_SX_LATCH is not implemented yet */
 	}
 
 	if (!success) {
-		mutex_enter(&block->mutex);
+		buf_page_mutex_enter(block);
 		buf_block_buf_fix_dec(block);
-		mutex_exit(&block->mutex);
+		buf_page_mutex_exit(block);
 
 		return(FALSE);
 	}
@@ -3270,9 +3392,9 @@ buf_page_get_known_nowait(
 		deleting a record from SYS_INDEXES. This check will be
 		skipped in recv_recover_page() as well. */
 
-		mutex_enter(&block->mutex);
+		buf_page_mutex_enter(block);
 		ut_a(!block->page.file_page_was_freed);
-		mutex_exit(&block->mutex);
+		buf_page_mutex_exit(block);
 	}
 #endif
 
@@ -3322,7 +3444,7 @@ buf_page_try_get_func(
 
 	ut_ad(!buf_pool_watch_is_sentinel(buf_pool, &block->page));
 
-	mutex_enter(&block->mutex);
+	buf_page_mutex_enter(block);
 	rw_lock_s_unlock(hash_lock);
 
 #if defined UNIV_DEBUG || defined UNIV_BUF_DEBUG
@@ -3332,7 +3454,7 @@ buf_page_try_get_func(
 #endif /* UNIV_DEBUG || UNIV_BUF_DEBUG */
 
 	buf_block_buf_fix_inc(block, file, line);
-	mutex_exit(&block->mutex);
+	buf_page_mutex_exit(block);
 
 	fix_type = MTR_MEMO_PAGE_S_FIX;
 	success = rw_lock_s_lock_nowait(&block->lock, file, line);
@@ -3348,9 +3470,9 @@ buf_page_try_get_func(
 	}
 
 	if (!success) {
-		mutex_enter(&block->mutex);
+		buf_page_mutex_enter(block);
 		buf_block_buf_fix_dec(block);
-		mutex_exit(&block->mutex);
+		buf_page_mutex_exit(block);
 
 		return(NULL);
 	}
@@ -3362,9 +3484,9 @@ buf_page_try_get_func(
 	ut_a(buf_block_get_state(block) == BUF_BLOCK_FILE_PAGE);
 #endif /* UNIV_DEBUG || UNIV_BUF_DEBUG */
 #if defined UNIV_DEBUG_FILE_ACCESSES || defined UNIV_DEBUG
-	mutex_enter(&block->mutex);
+	buf_page_mutex_enter(block);
 	ut_a(!block->page.file_page_was_freed);
-	mutex_exit(&block->mutex);
+	buf_page_mutex_exit(block);
 #endif /* UNIV_DEBUG_FILE_ACCESSES || UNIV_DEBUG */
 	buf_block_dbg_add_level(block, SYNC_NO_ORDER_CHECK);
 
@@ -3418,12 +3540,12 @@ buf_page_init(
 	ut_ad(buf_pool == buf_pool_get(space, offset));
 	ut_ad(buf_pool_mutex_own(buf_pool));
 
-	ut_ad(mutex_own(&(block->mutex)));
+	ut_ad(buf_page_mutex_own(block));
 	ut_a(buf_block_get_state(block) != BUF_BLOCK_FILE_PAGE);
 
 #ifdef UNIV_SYNC_DEBUG
 	ut_ad(rw_lock_own(buf_page_hash_lock_get(buf_pool, fold),
-			  RW_LOCK_EX));
+			  RW_LOCK_X));
 #endif /* UNIV_SYNC_DEBUG */
 
 	/* Set the state of the block */
@@ -3464,7 +3586,7 @@ buf_page_init(
 			(ulong) offset,
 			(const void*) hash_page, (const void*) block);
 #if defined UNIV_DEBUG || defined UNIV_BUF_DEBUG
-		mutex_exit(&block->mutex);
+		buf_page_mutex_exit(block);
 		buf_pool_mutex_exit(buf_pool);
 		buf_print();
 		buf_LRU_print();
@@ -3562,9 +3684,9 @@ buf_page_init_for_read(
 err_exit:
 		rw_lock_x_unlock(hash_lock);
 		if (block) {
-			mutex_enter(&block->mutex);
+			buf_page_mutex_enter(block);
 			buf_LRU_block_free_non_file_page(block);
-			mutex_exit(&block->mutex);
+			buf_page_mutex_exit(block);
 		}
 
 		bpage = NULL;
@@ -3583,7 +3705,7 @@ err_exit:
 	if (block) {
 		bpage = &block->page;
 
-		mutex_enter(&block->mutex);
+		buf_page_mutex_enter(block);
 
 		ut_ad(buf_pool_from_bpage(bpage) == buf_pool);
 
@@ -3614,9 +3736,9 @@ err_exit:
 			operation until after the block descriptor has
 			been added to buf_pool->LRU and
 			buf_pool->page_hash. */
-			mutex_exit(&block->mutex);
+			buf_page_mutex_exit(block);
 			data = buf_buddy_alloc(buf_pool, zip_size, &lru);
-			mutex_enter(&block->mutex);
+			buf_page_mutex_enter(block);
 			block->page.zip.data = (page_zip_t*) data;
 
 			/* To maintain the invariant
@@ -3628,7 +3750,7 @@ err_exit:
 			buf_unzip_LRU_add_block(block, TRUE);
 		}
 
-		mutex_exit(&block->mutex);
+		buf_page_mutex_exit(block);
 	} else {
 		rw_lock_x_unlock(hash_lock);
 
@@ -3729,8 +3851,8 @@ func_exit:
 
 
 #ifdef UNIV_SYNC_DEBUG
-	ut_ad(!rw_lock_own(hash_lock, RW_LOCK_EX));
-	ut_ad(!rw_lock_own(hash_lock, RW_LOCK_SHARED));
+	ut_ad(!rw_lock_own(hash_lock, RW_LOCK_X));
+	ut_ad(!rw_lock_own(hash_lock, RW_LOCK_S));
 #endif /* UNIV_SYNC_DEBUG */
 
 	ut_ad(!bpage || buf_page_in_file(bpage));
@@ -3802,7 +3924,7 @@ buf_page_create(
 
 	block = free_block;
 
-	mutex_enter(&block->mutex);
+	buf_page_mutex_enter(block);
 
 	buf_page_init(buf_pool, space, offset, fold, zip_size, block);
 
@@ -3825,7 +3947,7 @@ buf_page_create(
 		buf_page_set_io_fix(&block->page, BUF_IO_READ);
 		rw_lock_x_lock(&block->lock);
 
-		mutex_exit(&block->mutex);
+		buf_page_mutex_exit(block);
 		/* buf_pool->mutex may be released and reacquired by
 		buf_buddy_alloc().  Thus, we must release block->mutex
 		in order not to break the latching order in
@@ -3833,7 +3955,7 @@ buf_page_create(
 		defer this operation until after the block descriptor
 		has been added to buf_pool->LRU and buf_pool->page_hash. */
 		data = buf_buddy_alloc(buf_pool, zip_size, &lru);
-		mutex_enter(&block->mutex);
+		buf_page_mutex_enter(block);
 		block->page.zip.data = (page_zip_t*) data;
 
 		/* To maintain the invariant
@@ -3854,7 +3976,7 @@ buf_page_create(
 
 	buf_page_set_accessed(&block->page);
 
-	mutex_exit(&block->mutex);
+	buf_page_mutex_exit(block);
 
 	/* Delete possible entries for the page from the insert buffer:
 	such can exist if the page belonged to an index which was dropped */
@@ -4046,7 +4168,10 @@ the buffer pool.
 bool
 buf_page_io_complete(
 /*=================*/
-	buf_page_t*	bpage)	/*!< in: pointer to the block in question */
+	buf_page_t*	bpage,	/*!< in: pointer to the block in question */
+	bool		evict)	/*!< in: whether or not to evict the page
+				from LRU list. */
+
 {
 	enum buf_io_fix	io_type;
 	buf_pool_t*	buf_pool = buf_pool_from_bpage(bpage);
@@ -4229,6 +4354,7 @@ corrupt:
 	id. */
 
 	buf_page_set_io_fix(bpage, BUF_IO_NONE);
+	buf_page_monitor(bpage, io_type);
 
 	switch (io_type) {
 	case BUF_IO_READ:
@@ -4245,6 +4371,8 @@ corrupt:
 					     BUF_IO_READ);
 		}
 
+		mutex_exit(buf_page_get_mutex(bpage));
+
 		break;
 
 	case BUF_IO_WRITE:
@@ -4254,11 +4382,28 @@ corrupt:
 		buf_flush_write_complete(bpage);
 
 		if (uncompressed) {
-			rw_lock_s_unlock_gen(&((buf_block_t*) bpage)->lock,
-					     BUF_IO_WRITE);
+			rw_lock_sx_unlock_gen(&((buf_block_t*) bpage)->lock,
+					      BUF_IO_WRITE);
 		}
 
 		buf_pool->stat.n_pages_written++;
+
+		/* We decide whether or not to evict the page from the
+		LRU list based on the flush_type.
+		* BUF_FLUSH_LIST: don't evict
+		* BUF_FLUSH_LRU: always evict
+		* BUF_FLUSH_SINGLE_PAGE: eviction preference is passed
+		by the caller explicitly. */
+		if (buf_page_get_flush_type(bpage) == BUF_FLUSH_LRU) {
+			evict = true;
+		}
+
+		if (evict) {
+			mutex_exit(buf_page_get_mutex(bpage));
+			buf_LRU_free_page(bpage, true);
+		} else {
+			mutex_exit(buf_page_get_mutex(bpage));
+		}
 
 		break;
 
@@ -4266,13 +4411,11 @@ corrupt:
 		ut_error;
 	}
 
-	buf_page_monitor(bpage, io_type);
 
 	DBUG_PRINT("ib_buf", ("%s page %u:%u",
 			      io_type == BUF_IO_READ ? "read" : "wrote",
 			      bpage->space, bpage->offset));
 
-	mutex_exit(buf_page_get_mutex(bpage));
 	buf_pool_mutex_exit(buf_pool);
 
 	return(true);
@@ -4353,7 +4496,7 @@ buf_pool_invalidate_instance(
 
 	buf_pool_mutex_enter(buf_pool);
 
-	while (buf_LRU_scan_and_free_block(buf_pool, TRUE)) {
+	while (buf_LRU_scan_and_free_block(buf_pool, true)) {
 	}
 
 	ut_ad(UT_LIST_GET_LEN(buf_pool->LRU) == 0);
@@ -4425,7 +4568,7 @@ buf_pool_validate_instance(
 
 		for (j = chunk->size; j--; block++) {
 
-			mutex_enter(&block->mutex);
+			buf_page_mutex_enter(block);
 
 			switch (buf_block_get_state(block)) {
 			case BUF_BLOCK_POOL_WATCH:
@@ -4469,7 +4612,10 @@ buf_pool_validate_instance(
 assert_s_latched:
 						ut_a(rw_lock_is_locked(
 							     &block->lock,
-								     RW_LOCK_SHARED));
+								     RW_LOCK_S)
+						     || rw_lock_is_locked(
+								&block->lock,
+								RW_LOCK_SX));
 						break;
 					case BUF_FLUSH_LIST:
 						n_list_flush++;
@@ -4483,7 +4629,7 @@ assert_s_latched:
 				case BUF_IO_READ:
 
 					ut_a(rw_lock_is_locked(&block->lock,
-							       RW_LOCK_EX));
+							       RW_LOCK_X));
 					break;
 
 				case BUF_IO_PIN:
@@ -4504,7 +4650,7 @@ assert_s_latched:
 				break;
 			}
 
-			mutex_exit(&block->mutex);
+			buf_page_mutex_exit(block);
 		}
 	}
 
@@ -4822,7 +4968,7 @@ buf_get_latched_pages_number_instance(
 				continue;
 			}
 
-			mutex_enter(&block->mutex);
+			buf_page_mutex_enter(block);
 
 			if (block->page.buf_fix_count != 0
 			    || buf_page_get_io_fix(&block->page)
@@ -4830,7 +4976,7 @@ buf_get_latched_pages_number_instance(
 				fixed_pages_number++;
 			}
 
-			mutex_exit(&block->mutex);
+			buf_page_mutex_exit(block);
 		}
 	}
 
@@ -4915,10 +5061,9 @@ ulint
 buf_get_n_pending_read_ios(void)
 /*============================*/
 {
-	ulint	i;
 	ulint	pend_ios = 0;
 
-	for (i = 0; i < srv_buf_pool_instances; i++) {
+	for (ulint i = 0; i < srv_buf_pool_instances; i++) {
 		pend_ios += buf_pool_from_array(i)->n_pend_reads;
 	}
 

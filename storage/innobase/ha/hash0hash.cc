@@ -24,21 +24,16 @@ Created 5/20/1997 Heikki Tuuri
 *******************************************************/
 
 #include "hash0hash.h"
+
 #ifdef UNIV_NONINL
 #include "hash0hash.ic"
-#endif
+#endif /* UNIV_NOINL */
 
 #include "mem0mem.h"
+#include "sync0sync.h"
 
 #ifndef UNIV_HOTBACKUP
 
-# ifdef UNIV_PFS_MUTEX
-mysql_pfs_key_t	hash_table_mutex_key;
-# endif /* UNIV_PFS_MUTEX */
-
-# ifdef UNIV_PFS_RWLOCK
-mysql_pfs_key_t	hash_table_locks_key;
-# endif /* UNIV_PFS_RWLOCK */
 /************************************************************//**
 Reserves the mutex for a fold value in a hash table. */
 
@@ -73,10 +68,9 @@ hash_mutex_enter_all(
 /*=================*/
 	hash_table_t*	table)	/*!< in: hash table */
 {
-	ulint	i;
-
 	ut_ad(table->type == HASH_TABLE_SYNC_MUTEX);
-	for (i = 0; i < table->n_sync_obj; i++) {
+
+	for (ulint i = 0; i < table->n_sync_obj; i++) {
 
 		mutex_enter(table->sync_obj.mutexes + i);
 	}
@@ -90,10 +84,9 @@ hash_mutex_exit_all(
 /*================*/
 	hash_table_t*	table)	/*!< in: hash table */
 {
-	ulint	i;
-
 	ut_ad(table->type == HASH_TABLE_SYNC_MUTEX);
-	for (i = 0; i < table->n_sync_obj; i++) {
+
+	for (ulint i = 0; i < table->n_sync_obj; i++) {
 
 		mutex_exit(table->sync_obj.mutexes + i);
 	}
@@ -114,7 +107,7 @@ hash_mutex_exit_all_but(
 	for (i = 0; i < table->n_sync_obj; i++) {
 
 		ib_mutex_t* mutex = table->sync_obj.mutexes + i;
-		if (UNIV_LIKELY(keep_mutex != mutex)) {
+		if (keep_mutex != mutex) {
 			mutex_exit(mutex);
 		}
 	}
@@ -138,8 +131,8 @@ hash_lock_s(
 	ut_ad(lock);
 
 #ifdef UNIV_SYNC_DEBUG
-	ut_ad(!rw_lock_own(lock, RW_LOCK_SHARED));
-	ut_ad(!rw_lock_own(lock, RW_LOCK_EX));
+	ut_ad(!rw_lock_own(lock, RW_LOCK_S));
+	ut_ad(!rw_lock_own(lock, RW_LOCK_X));
 #endif /* UNIV_SYNC_DEBUG */
 
 	rw_lock_s_lock(lock);
@@ -161,8 +154,8 @@ hash_lock_x(
 	ut_ad(lock);
 
 #ifdef UNIV_SYNC_DEBUG
-	ut_ad(!rw_lock_own(lock, RW_LOCK_SHARED));
-	ut_ad(!rw_lock_own(lock, RW_LOCK_EX));
+	ut_ad(!rw_lock_own(lock, RW_LOCK_S));
+	ut_ad(!rw_lock_own(lock, RW_LOCK_X));
 #endif /* UNIV_SYNC_DEBUG */
 
 	rw_lock_x_lock(lock);
@@ -185,7 +178,7 @@ hash_unlock_s(
 	ut_ad(lock);
 
 #ifdef UNIV_SYNC_DEBUG
-	ut_ad(rw_lock_own(lock, RW_LOCK_SHARED));
+	ut_ad(rw_lock_own(lock, RW_LOCK_S));
 #endif /* UNIV_SYNC_DEBUG */
 
 	rw_lock_s_unlock(lock);
@@ -206,7 +199,7 @@ hash_unlock_x(
 	ut_ad(lock);
 
 #ifdef UNIV_SYNC_DEBUG
-	ut_ad(rw_lock_own(lock, RW_LOCK_EX));
+	ut_ad(rw_lock_own(lock, RW_LOCK_X));
 #endif /* UNIV_SYNC_DEBUG */
 
 	rw_lock_x_unlock(lock);
@@ -220,15 +213,14 @@ hash_lock_x_all(
 /*============*/
 	hash_table_t*	table)	/*!< in: hash table */
 {
-	ulint	i;
-
 	ut_ad(table->type == HASH_TABLE_SYNC_RW_LOCK);
-	for (i = 0; i < table->n_sync_obj; i++) {
+
+	for (ulint i = 0; i < table->n_sync_obj; i++) {
 
 		rw_lock_t* lock = table->sync_obj.rw_locks + i;
 #ifdef UNIV_SYNC_DEBUG
-		ut_ad(!rw_lock_own(lock, RW_LOCK_SHARED));
-		ut_ad(!rw_lock_own(lock, RW_LOCK_EX));
+		ut_ad(!rw_lock_own(lock, RW_LOCK_S));
+		ut_ad(!rw_lock_own(lock, RW_LOCK_X));
 #endif /* UNIV_SYNC_DEBUG */
 
 		rw_lock_x_lock(lock);
@@ -243,14 +235,13 @@ hash_unlock_x_all(
 /*==============*/
 	hash_table_t*	table)	/*!< in: hash table */
 {
-	ulint	i;
-
 	ut_ad(table->type == HASH_TABLE_SYNC_RW_LOCK);
-	for (i = 0; i < table->n_sync_obj; i++) {
+
+	for (ulint i = 0; i < table->n_sync_obj; i++) {
 
 		rw_lock_t* lock = table->sync_obj.rw_locks + i;
 #ifdef UNIV_SYNC_DEBUG
-		ut_ad(rw_lock_own(lock, RW_LOCK_EX));
+		ut_ad(rw_lock_own(lock, RW_LOCK_X));
 #endif /* UNIV_SYNC_DEBUG */
 
 		rw_lock_x_unlock(lock);
@@ -266,17 +257,16 @@ hash_unlock_x_all_but(
 	hash_table_t*	table,		/*!< in: hash table */
 	rw_lock_t*	keep_lock)	/*!< in: lock to keep */
 {
-	ulint	i;
-
 	ut_ad(table->type == HASH_TABLE_SYNC_RW_LOCK);
-	for (i = 0; i < table->n_sync_obj; i++) {
+
+	for (ulint i = 0; i < table->n_sync_obj; i++) {
 
 		rw_lock_t* lock = table->sync_obj.rw_locks + i;
 #ifdef UNIV_SYNC_DEBUG
-		ut_ad(rw_lock_own(lock, RW_LOCK_EX));
+		ut_ad(rw_lock_own(lock, RW_LOCK_X));
 #endif /* UNIV_SYNC_DEBUG */
 
-		if (UNIV_LIKELY(keep_lock != lock)) {
+		if (keep_lock != lock) {
 			rw_lock_x_unlock(lock);
 		}
 	}
@@ -335,7 +325,6 @@ hash_table_free(
 /*============*/
 	hash_table_t*	table)	/*!< in, own: hash table */
 {
-	ut_ad(table);
 	ut_ad(table->magic_n == HASH_TABLE_MAGIC_N);
 
 	ut_free(table->array);
@@ -349,50 +338,48 @@ Creates a sync object array to protect a hash table.
 hash table. */
 
 void
-hash_create_sync_obj_func(
-/*======================*/
+hash_create_sync_obj(
+/*=================*/
 	hash_table_t*		table,	/*!< in: hash table */
 	enum hash_table_sync_t	type,	/*!< in: HASH_TABLE_SYNC_MUTEX
 					or HASH_TABLE_SYNC_RW_LOCK */
-#ifdef UNIV_SYNC_DEBUG
-	ulint			sync_level,/*!< in: latching order level
-					of the mutexes: used in the
-					debug version */
-#endif /* UNIV_SYNC_DEBUG */
+	const char*		name,/*!< in: mutex/rw_lock name */
 	ulint			n_sync_obj)/*!< in: number of sync objects,
 					must be a power of 2 */
 {
-	ulint	i;
-
-	ut_ad(table);
-	ut_ad(table->magic_n == HASH_TABLE_MAGIC_N);
 	ut_a(n_sync_obj > 0);
 	ut_a(ut_is_2pow(n_sync_obj));
+	ut_ad(table->magic_n == HASH_TABLE_MAGIC_N);
 
 	table->type = type;
 
-	switch (type) {
+	switch (table->type) {
 	case HASH_TABLE_SYNC_MUTEX:
 		table->sync_obj.mutexes = static_cast<ib_mutex_t*>(
 			mem_alloc(n_sync_obj * sizeof(ib_mutex_t)));
 
-		for (i = 0; i < n_sync_obj; i++) {
-			mutex_create(hash_table_mutex_key,
-			     table->sync_obj.mutexes + i, sync_level);
+		for (ulint i = 0; i < n_sync_obj; i++) {
+			mutex_create(name, table->sync_obj.mutexes + i);
 		}
 
 		break;
 
-	case HASH_TABLE_SYNC_RW_LOCK:
+	case HASH_TABLE_SYNC_RW_LOCK: {
+
+		latch_level_t	level = sync_latch_get_level(name);
+
+		ut_a(level != SYNC_UNKNOWN);
+
 		table->sync_obj.rw_locks = static_cast<rw_lock_t*>(
 			mem_alloc(n_sync_obj * sizeof(rw_lock_t)));
 
-		for (i = 0; i < n_sync_obj; i++) {
+		for (ulint i = 0; i < n_sync_obj; i++) {
 			rw_lock_create(hash_table_locks_key,
-			     table->sync_obj.rw_locks + i, sync_level);
+			     table->sync_obj.rw_locks + i, level);
 		}
 
 		break;
+	}
 
 	case HASH_TABLE_SYNC_NONE:
 		ut_error;

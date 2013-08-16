@@ -108,6 +108,22 @@ closedir(DIR);
 exit 0;
 EOF
 
+--echo # Restarting the server with skip-grant-tables option and updating
+--echo # mysql.user table. This is to deal with the restriction imposed on
+--echo # plugin field for users in WL6982.
+
+--echo # Restart the DB server from unzip location of MySQL Data Dir 
+-- exec echo "restart: --datadir=$MYSQL_TMP_DIR/mysqld.5980/data/ --skip-grant-tables" > $MYSQLTEST_VARDIR/tmp/mysqld.1.expect
+-- enable_reconnect
+-- source include/wait_until_connected_again.inc
+
+-- exec $MYSQL -e "UPDATE mysql.user SET plugin = 'mysql_native_password'"
+
+-- echo # Stop server
+-- exec echo "wait" > $MYSQLTEST_VARDIR/tmp/mysqld.1.expect
+-- shutdown_server 30
+-- source include/wait_until_disconnected.inc
+
 --echo # Restart the DB server from unzip location of MySQL Data Dir 
 -- exec echo "restart: --datadir=$MYSQL_TMP_DIR/mysqld.5980/data/ " > $MYSQLTEST_VARDIR/tmp/mysqld.1.expect
 -- enable_reconnect

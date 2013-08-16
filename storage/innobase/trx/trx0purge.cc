@@ -44,6 +44,7 @@ Created 3/26/1996 Heikki Tuuri
 #include "srv0space.h"
 #include "srv0srv.h"
 #include "srv0start.h"
+#include "sync0sync.h"
 #include "trx0rec.h"
 #include "trx0roll.h"
 #include "trx0rseg.h"
@@ -61,16 +62,6 @@ trx_purge_t*	purge_sys = NULL;
 /** A dummy undo record used as a return value when we have a whole undo log
 which needs no purge */
 trx_undo_rec_t	trx_purge_dummy_rec;
-
-#ifdef UNIV_PFS_RWLOCK
-/* Key to register trx_purge_latch with performance schema */
-mysql_pfs_key_t	trx_purge_latch_key;
-#endif /* UNIV_PFS_RWLOCK */
-
-#ifdef UNIV_PFS_MUTEX
-/* Key to register purge_sys_pq_mutex with performance schema */
-mysql_pfs_key_t	purge_sys_pq_mutex_key;
-#endif /* UNIV_PFS_MUTEX */
 
 #ifdef UNIV_DEBUG
 my_bool		srv_purge_view_update_only_debug;
@@ -228,7 +219,7 @@ trx_purge_sys_create(
 	purge_sys = static_cast<trx_purge_t*>(mem_zalloc(sizeof(*purge_sys)));
 
 	purge_sys->state = PURGE_STATE_INIT;
-	purge_sys->event = os_event_create();
+	purge_sys->event = os_event_create(0);
 
 	new (&purge_sys->iter) purge_iter_t;
 	new (&purge_sys->limit) purge_iter_t;
@@ -242,9 +233,7 @@ trx_purge_sys_create(
 	rw_lock_create(trx_purge_latch_key,
 		       &purge_sys->latch, SYNC_PURGE_LATCH);
 
-	mutex_create(
-		purge_sys_pq_mutex_key, &purge_sys->pq_mutex,
-		SYNC_PURGE_QUEUE);
+	mutex_create("purge_sys_pq", &purge_sys->pq_mutex);
 
 	ut_a(n_purge_threads > 0);
 
@@ -303,7 +292,7 @@ trx_purge_sys_close(void)
 		purge_sys->purge_queue = 0;
 	}
 
-	os_event_free(purge_sys->event);
+	os_event_destroy(purge_sys->event);
 
 	purge_sys->event = NULL;
 
@@ -384,9 +373,9 @@ trx_purge_add_update_undo_to_history(
 		os_atomic_increment_ulint(
 			&trx_sys->rseg_history_len, n_added_logs);
 #else
-		mutex_enter(&trx_sys->mutex);
+		trx_sys_mutex_enter();
 		trx_sys->rseg_history_len += n_added_logs;
-		mutex_exit(&trx_sys->mutex);
+		trx_sys_mutex_exit();
 #endif /* HAVE_ATOMIC_BUILTINS */
 		srv_wake_purge_thread_if_not_active();
 	}
@@ -490,9 +479,9 @@ trx_purge_free_segment(
 #ifdef HAVE_ATOMIC_BUILTINS
 	os_atomic_decrement_ulint(&trx_sys->rseg_history_len, n_removed_logs);
 #else
-	mutex_enter(&trx_sys->mutex);
+	trx_sys_mutex_enter();
 	trx_sys->rseg_history_len -= n_removed_logs;
-	mutex_exit(&trx_sys->mutex);
+	trx_sys_mutex_exit();
 #endif /* HAVE_ATOMIC_BUILTINS */
 
 	do {
@@ -577,9 +566,9 @@ loop:
 		os_atomic_decrement_ulint(
 			&trx_sys->rseg_history_len, n_removed_logs);
 #else
-		mutex_enter(&trx_sys->mutex);
+		trx_sys_mutex_enter();
 		trx_sys->rseg_history_len -= n_removed_logs;
-		mutex_exit(&trx_sys->mutex);
+		trx_sys_mutex_exit();
 #endif /* HAVE_ATOMIC_BUILTINS */
 
 		flst_truncate_end(rseg_hdr + TRX_RSEG_HISTORY,
@@ -633,7 +622,7 @@ void
 trx_purge_truncate_history(
 /*========================*/
 	purge_iter_t*		limit,		/*!< in: truncate limit */
-	const ReadView*	view)		/*!< in: purge view */
+	const ReadView*		view)		/*!< in: purge view */
 {
 	ulint		i;
 
@@ -650,6 +639,15 @@ trx_purge_truncate_history(
 
 	for (i = 0; i < TRX_SYS_N_RSEGS; ++i) {
 		trx_rseg_t*	rseg = trx_sys->rseg_array[i];
+
+		if (rseg != NULL) {
+			ut_a(rseg->id == i);
+			trx_purge_truncate_rseg_history(rseg, limit);
+		}
+	}
+
+	for (i = 0; i < TRX_SYS_N_RSEGS; ++i) {
+		trx_rseg_t*	rseg = trx_sys->pending_purge_rseg_array[i];
 
 		if (rseg != NULL) {
 			ut_a(rseg->id == i);
@@ -707,7 +705,7 @@ trx_purge_rseg_get_next_history_log(
 		mutex_exit(&(rseg->mutex));
 		mtr_commit(&mtr);
 
-		mutex_enter(&trx_sys->mutex);
+		trx_sys_mutex_enter();
 
 		/* Add debug code to track history list corruption reported
 		on the MySQL mailing list on Nov 9, 2004. The fut0lst.cc
@@ -730,7 +728,7 @@ trx_purge_rseg_get_next_history_log(
 			ut_ad(0);
 		}
 
-		mutex_exit(&trx_sys->mutex);
+		trx_sys_mutex_exit();
 
 		return;
 	}
@@ -1309,8 +1307,14 @@ run_synchronously:
 
 		que_run_threads(thr);
 
+#ifdef HAVE_ATOMIC_BUILTINS
 		os_atomic_inc_ulint(
 			&purge_sys->pq_mutex, &purge_sys->n_completed, 1);
+#else
+		mutex_enter(&purge_sys->pq_mutex);
+		++purge_sys->n_completed;
+		mutex_exit(&purge_sys->pq_mutex);
+#endif /* HAVE_ATOMIC_BUILTINS */
 
 		if (n_purge_threads > 1) {
 			trx_purge_wait_for_workers_to_complete(purge_sys);

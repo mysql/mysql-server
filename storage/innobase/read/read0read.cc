@@ -511,7 +511,7 @@ void
 MVCC::view_release(ReadView*& view)
 {
 	ut_ad(!srv_read_only_mode);
-	ut_ad(mutex_own(&trx_sys->mutex));
+	ut_ad(trx_sys_mutex_own());
 
 	uintptr_t	p = reinterpret_cast<uintptr_t>(view);
 
@@ -595,7 +595,7 @@ MVCC::view_open(ReadView*& view, trx_t* trx)
 		ut_ad(validate());
 	}
 
-	mutex_exit(&trx_sys->mutex);
+	trx_sys_mutex_exit();
 }
 
 /**
@@ -654,7 +654,7 @@ m_ids too and adjust the m_up_limit_id, if required */
 void
 ReadView::copy_complete()
 {
-	ut_ad(!mutex_own(&trx_sys->mutex));
+	ut_ad(!trx_sys_mutex_own());
 
 	if (m_creator_trx_id > 0) {
 		m_ids.insert(m_creator_trx_id);
@@ -691,14 +691,14 @@ MVCC::clone_oldest_view(ReadView* view)
 
 		view->prepare(0);
 
-		mutex_exit(&trx_sys->mutex);
+		trx_sys_mutex_exit();
 
 		view->complete();
 
 	} else {
 		view->copy_prepare(*oldest_view);
 
-		mutex_exit(&trx_sys->mutex);
+		trx_sys_mutex_exit();
 
 		view->copy_complete();
 	}
@@ -710,7 +710,7 @@ MVCC::clone_oldest_view(ReadView* view)
 ulint
 MVCC::size() const
 {
-	mutex_enter(&trx_sys->mutex);
+	trx_sys_mutex_enter();
 
 	ulint	size = 0;
 
@@ -723,7 +723,7 @@ MVCC::size() const
 		}
 	}
 
-	mutex_exit(&trx_sys->mutex);
+	trx_sys_mutex_exit();
 
 	return(size);
 }
