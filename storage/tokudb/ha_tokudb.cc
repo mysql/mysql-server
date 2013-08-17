@@ -1830,7 +1830,7 @@ int ha_tokudb::initialize_share(
         init_auto_increment();
     }
 
-    if (may_table_be_empty(NULL)) {
+    if (may_table_be_empty(txn)) {
         share->try_table_lock = true;
     }
     else {
