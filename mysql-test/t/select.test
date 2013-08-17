@@ -4372,4 +4372,21 @@ SELECT * FROM t1 WHERE (b = 1 OR a = 5) AND (b = 5 AND a = 5 OR 1 != 1);
 
 DROP TABLE t1;
 
+--echo #
+--echo # Bug mdev-4418: impossible multiple equality in OR formula 
+--echo #                after row substitution
+--echo #
+
+CREATE TABLE t1 (a int, b varchar(1)) ENGINE=MyISAM;
+INSERT INTO t1 VALUES (0,'j'), (8,'v');
+
+CREATE TABLE t2 (c varchar(1), d varchar(1)) ENGINE=MyISAM;
+INSERT INTO t2 VALUES ('k','k');
+
+EXPLAIN EXTENDED
+SELECT * FROM t1, t2 WHERE c=b AND (1=2 OR ((b='h' OR a=136) AND d=b));
+SELECT * FROM t1, t2 WHERE c=b AND (1=2 OR ((b='h' OR a=136) AND d=b));
+
+DROP TABLE t1,t2;
+
 --echo End of 5.3 tests

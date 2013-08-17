@@ -5228,6 +5228,24 @@ Note	1003	select `test`.`t1`.`a` AS `a`,`test`.`t1`.`b` AS `b` from `test`.`t1` 
 SELECT * FROM t1 WHERE (b = 1 OR a = 5) AND (b = 5 AND a = 5 OR 1 != 1);
 a	b
 DROP TABLE t1;
+#
+# Bug mdev-4418: impossible multiple equality in OR formula 
+#                after row substitution
+#
+CREATE TABLE t1 (a int, b varchar(1)) ENGINE=MyISAM;
+INSERT INTO t1 VALUES (0,'j'), (8,'v');
+CREATE TABLE t2 (c varchar(1), d varchar(1)) ENGINE=MyISAM;
+INSERT INTO t2 VALUES ('k','k');
+EXPLAIN EXTENDED
+SELECT * FROM t1, t2 WHERE c=b AND (1=2 OR ((b='h' OR a=136) AND d=b));
+id	select_type	table	type	possible_keys	key	key_len	ref	rows	filtered	Extra
+1	SIMPLE	t2	system	NULL	NULL	NULL	NULL	1	100.00	
+1	SIMPLE	t1	ALL	NULL	NULL	NULL	NULL	2	100.00	Using where
+Warnings:
+Note	1003	select `test`.`t1`.`a` AS `a`,`test`.`t1`.`b` AS `b`,'k' AS `c`,'k' AS `d` from `test`.`t1` join `test`.`t2` where ((`test`.`t1`.`b` = 'k') and (`test`.`t1`.`a` = 136))
+SELECT * FROM t1, t2 WHERE c=b AND (1=2 OR ((b='h' OR a=136) AND d=b));
+a	b	c	d
+DROP TABLE t1,t2;
 End of 5.3 tests
 set join_cache_level=default;
 show variables like 'join_cache_level';

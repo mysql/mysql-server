@@ -1210,6 +1210,23 @@ JOIN::optimize()
     /* Handle the case where we have an OUTER JOIN without a WHERE */
     conds=new Item_int((longlong) 1,1);	// Always true
   }
+
+  if (const_tables && conds)
+  {
+    conds= remove_eq_conds(thd, conds, &cond_value);
+    if (cond_value == Item::COND_FALSE)
+    {
+      zero_result_cause=
+        "Impossible WHERE noticed after reading const tables";
+      select_lex->mark_const_derived(zero_result_cause);
+      if (select_options & SELECT_DESCRIBE)
+      {
+         conds=new Item_int((longlong) 0,1);
+      }
+      goto setup_subq_exit;
+    }
+  }
+
   select= make_select(*table, const_table_map,
                       const_table_map, conds, 1, &error);
   if (error)
