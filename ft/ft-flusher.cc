@@ -1651,7 +1651,7 @@ static void ft_flush_some_child(
     //VERIFY_NODE(brt, child);
 
     // only do the following work if there is a flush to perform
-    if (toku_bnc_n_entries(BNC(parent, childnum)) > 0) {
+    if (toku_bnc_n_entries(BNC(parent, childnum)) > 0 || parent->height == 1) {
         if (!parent->dirty) {
             dirtied++;
             parent->dirty = 1;
