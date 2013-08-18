@@ -75,6 +75,7 @@ clusterj_jpatest_java = \
   $(clusterj_jpatest_src)/com/mysql/clusterj/jpatest/model/TimestampAsUtilDateTypes.java \
   $(clusterj_jpatest_src)/com/mysql/clusterj/jpatest/model/LazyEmployee.java \
   $(clusterj_jpatest_src)/com/mysql/clusterj/jpatest/PersistenceTestCase.java \
+  $(clusterj_jpatest_src)/com/mysql/clusterj/jpatest/QueryCacheTest.java \
   $(clusterj_jpatest_src)/com/mysql/clusterj/jpatest/SingleEMFTestCase.java \
   $(clusterj_jpatest_src)/com/mysql/clusterj/jpatest/SingleEMTestCase.java \
   $(clusterj_jpatest_src)/com/mysql/clusterj/jpatest/TimeAsSqlTimeTest.java \

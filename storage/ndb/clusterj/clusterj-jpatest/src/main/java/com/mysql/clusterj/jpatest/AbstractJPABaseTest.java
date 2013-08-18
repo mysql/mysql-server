@@ -99,6 +99,19 @@ public abstract class AbstractJPABaseTest extends SingleEMTestCase {
         failOnError();
         em.close();
     }
+
+    public void createEmployeeInstances() {
+        for (int i = 0; i < getNumberOfEmployees(); ++i) {
+            System.out.println("AbstractJPABaseTest creating Employee " + i);
+            Employee e = new Employee();
+            e.setId(i);
+            e.setAge(i);
+            e.setMagic(i);
+            e.setName("Employee " + i);
+            em.persist(e);
+        }
+    }
+
     public void createAll() {
         em = emf.createEntityManager();
         begin();
