@@ -73,7 +73,7 @@
         <configuration>
           <instructions>
             <Export-Package>com.mysql.clusterj.openjpa.*</Export-Package>
-            <Import-Package>com.mysql.clusterj, com.mysql.clusterj.core, com.mysql.clusterj.core.metadata, com.mysql.clusterj.core.query, com.mysql.clusterj.core.spi, com.mysql.clusterj.core.store, com.mysql.clusterj.core.util, com.mysql.clusterj.query, org.apache.openjpa.enhance, org.apache.openjpa.kernel, org.apache.openjpa.kernel.exps, org.apache.openjpa.conf, org.apache.openjpa.jdbc.conf, org.apache.openjpa.jdbc.kernel, org.apache.openjpa.jdbc.meta, org.apache.openjpa.jdbc.schema, org.apache.openjpa.jdbc.sql, org.apache.openjpa.lib.conf, org.apache.openjpa.meta, org.apache.openjpa.jdbc.meta.strats, org.apache.openjpa.util</Import-Package>
+            <Import-Package>com.mysql.clusterj, com.mysql.clusterj.core, com.mysql.clusterj.core.metadata, com.mysql.clusterj.core.query, com.mysql.clusterj.core.spi, com.mysql.clusterj.core.store, com.mysql.clusterj.core.util, com.mysql.clusterj.query, org.apache.openjpa.datacache, org.apache.openjpa.enhance, org.apache.openjpa.kernel, org.apache.openjpa.kernel.exps, org.apache.openjpa.conf, org.apache.openjpa.jdbc.conf, org.apache.openjpa.jdbc.kernel, org.apache.openjpa.jdbc.meta, org.apache.openjpa.jdbc.schema, org.apache.openjpa.jdbc.sql, org.apache.openjpa.lib.conf, org.apache.openjpa.meta, org.apache.openjpa.jdbc.meta.strats, org.apache.openjpa.util</Import-Package>
           </instructions>
         </configuration>
       </plugin>
