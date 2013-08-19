@@ -4498,7 +4498,7 @@ static int cache_empty(KEY_CACHE *keycache)
     BLOCK_LINK *block= keycache->block_root + idx;
     if (block->status || block->requests || block->hash_link)
     {
-      fprintf(stderr, "block index: %u\n", idx);
+      my_message_local(INFORMATION_LEVEL, "block index: %u", idx);
       fail_block(block);
       errcnt++;
     }
@@ -4508,18 +4508,17 @@ static int cache_empty(KEY_CACHE *keycache)
     HASH_LINK *hash_link= keycache->hash_link_root + idx;
     if (hash_link->requests || hash_link->block)
     {
-      fprintf(stderr, "hash_link index: %u\n", idx);
+      my_message_local(INFORMATION_LEVEL, "hash_link index: %u", idx);
       fail_hlink(hash_link);
       errcnt++;
     }
   }
   if (errcnt)
   {
-    fprintf(stderr, "blocks: %d  used: %lu\n",
-            keycache->disk_blocks, keycache->blocks_used);
-    fprintf(stderr, "hash_links: %d  used: %d\n",
-            keycache->hash_links, keycache->hash_links_used);
-    fprintf(stderr, "\n");
+    my_message_local(INFORMATION_LEVEL, "blocks: %d  used: %lu",
+                     keycache->disk_blocks, keycache->blocks_used);
+    my_message_local(INFORMATION_LEVEL, "hash_links: %d  used: %d",
+                     keycache->hash_links, keycache->hash_links_used);
   }
   return !errcnt;
 }

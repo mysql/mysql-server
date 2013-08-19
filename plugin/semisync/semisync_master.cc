@@ -353,7 +353,7 @@ int ReplSemiSyncMaster::initObject()
 
   if (init_done_)
   {
-    fprintf(stderr, "%s called twice\n", kWho);
+    sql_print_warning("%s called twice", kWho);
     return 1;
   }
   init_done_ = true;

@@ -1534,8 +1534,7 @@ innobase_get_cset_width(
 
 			/* Fix bug#46256: allow tables to be dropped if the
 			collation is not found, but issue a warning. */
-			if ((log_warnings)
-			    && (cset != 0)){
+			if (cset != 0) {
 
 				sql_print_warning(
 					"Unknown collation #%lu.", cset);
@@ -3782,7 +3781,7 @@ innobase_close_connection(
 				"but transaction is active");
 	}
 
-	if (trx_is_started(trx) && log_warnings) {
+	if (trx_is_started(trx)) {
 
 		sql_print_warning(
 			"MySQL is closing a connection that has an active "
@@ -16260,6 +16259,29 @@ ha_innobase::multi_range_read_info(
 	return(ds_mrr.dsmrr_info(keyno, n_ranges, keys, bufsz, flags, cost));
 }
 
+/**
+@brief Determine whether an error is fatal or not. 
+    
+A deadlock error is not a fatal error.
+    
+@param error	error code received from the handler interface (HA_ERR_...)
+@param flags	indicate whether duplicate key errors should be ignorable
+    
+@return   whether the error is fatal or not
+@retval true  the error is fatal
+@retval false the error is not fatal */
+
+bool
+ha_innobase::is_fatal_error(int error, uint flags)
+{
+	if (!handler::is_fatal_error(error, flags)
+	    || error == HA_ERR_LOCK_DEADLOCK) {
+
+		return(false);
+	}
+
+	return(true);
+}
 
 /**
  * Index Condition Pushdown interface implementation

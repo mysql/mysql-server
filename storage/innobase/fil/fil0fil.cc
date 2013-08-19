@@ -1627,7 +1627,8 @@ fil_init(
 	ut_a(hash_size > 0);
 	ut_a(max_n_open > 0);
 
-	fil_system = static_cast<fil_system_t*>(mem_zalloc(sizeof(*fil_system)));
+	fil_system = static_cast<fil_system_t*>(
+		mem_zalloc(sizeof(*fil_system)));
 
 	mutex_create("fil_system", &fil_system->mutex);
 
