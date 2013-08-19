@@ -140,6 +140,7 @@ if(BUILD_TESTING OR BUILD_SRC_TESTS)
       preload-db
       preload-db-nested
       progress
+      put-del-multiple-array-indexing
       put-multiple
       queries_with_deletes
       recover-2483
@@ -329,6 +330,7 @@ if(BUILD_TESTING OR BUILD_SRC_TESTS)
       update-multiple-key0
       update-multiple-nochange
       update-multiple-with-indexer
+      update-multiple-with-indexer-array
       update
       upgrade_simple
       upgrade-test-1
