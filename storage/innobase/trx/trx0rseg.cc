@@ -38,12 +38,6 @@ Created 3/26/1996 Heikki Tuuri
 
 #include <algorithm>
 
-#ifdef UNIV_PFS_MUTEX
-/* Key to register rseg_mutex_key with performance schema */
-mysql_pfs_key_t	redo_rseg_mutex_key;
-mysql_pfs_key_t	noredo_rseg_mutex_key;
-#endif /* UNIV_PFS_MUTEX */
-
 /****************************************************************//**
 Creates a rollback segment header. This function is called only when
 a new rollback segment is created in the database.
@@ -208,10 +202,9 @@ trx_rseg_mem_create(
 	rseg->page_no = page_no;
 
 	if (space == srv_tmp_space.space_id()) {
-		mutex_create(
-			noredo_rseg_mutex_key, &rseg->mutex, SYNC_NOREDO_RSEG);
+		mutex_create("noredo_rseg", &rseg->mutex);
 	} else {
-		mutex_create(redo_rseg_mutex_key, &rseg->mutex, SYNC_REDO_RSEG);
+		mutex_create("redo_rseg", &rseg->mutex);
 	}
 
 	UT_LIST_INIT(rseg->update_undo_list, &trx_undo_t::undo_list);
@@ -349,7 +342,7 @@ trx_rseg_create_instance(
 			ulint		zip_size;
 			trx_rseg_t*	rseg = NULL;
 
-			ut_a(!trx_rseg_get_on_id(i));
+			ut_a(!trx_rseg_get_on_id(i, true));
 
 			space = trx_sysf_rseg_get_space(sys_header, i, mtr);
 

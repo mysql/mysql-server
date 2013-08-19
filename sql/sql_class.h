@@ -28,7 +28,6 @@
 #include "mdl.h"
 #include "sql_locale.h"                         /* my_locale_st */
 #include "sql_profile.h"                   /* PROFILING */
-#include "scheduler.h"                     /* thd_scheduler */
 #include "protocol.h"             /* Protocol_text, Protocol_binary */
 #include "violite.h"              /* vio_is_connected */
 #include "thr_lock.h"             /* thr_lock_type, THR_LOCK_DATA,
@@ -97,7 +96,9 @@ enum enum_rbr_exec_mode { RBR_EXEC_MODE_STRICT,
                           RBR_EXEC_MODE_IDEMPOTENT,
                           RBR_EXEC_MODE_LAST_BIT };
 enum enum_slave_type_conversions { SLAVE_TYPE_CONVERSIONS_ALL_LOSSY,
-                                   SLAVE_TYPE_CONVERSIONS_ALL_NON_LOSSY};
+                                   SLAVE_TYPE_CONVERSIONS_ALL_NON_LOSSY,
+                                   SLAVE_TYPE_CONVERSIONS_ALL_UNSIGNED,
+                                   SLAVE_TYPE_CONVERSIONS_ALL_SIGNED};
 enum enum_slave_rows_search_algorithms { SLAVE_ROWS_TABLE_SCAN = (1U << 0),
                                          SLAVE_ROWS_INDEX_SCAN = (1U << 1),
                                          SLAVE_ROWS_HASH_SCAN  = (1U << 2)};
@@ -316,6 +317,40 @@ typedef struct st_mysql_lock
   uint table_count,lock_count;
   THR_LOCK_DATA **locks;
 } MYSQL_LOCK;
+
+
+/**
+ To be used for pool-of-threads (implemeneted differently on various OSs)
+*/
+class thd_scheduler
+{
+public:
+  /*
+    Thread instrumentation for the user job.
+    This member holds the instrumentation while the user job is not run
+    by a thread.
+
+    Note that this member is not conditionally declared
+    (ifdef HAVE_PSI_INTERFACE), because doing so will change the binary
+    layout of THD, which is exposed to plugin code that may be compiled
+    differently.
+  */
+  PSI_thread *m_psi;
+
+  void *data;                  /* scheduler-specific data structure */
+
+  thd_scheduler()
+  : m_psi(NULL), data(NULL)
+  { }
+
+  ~thd_scheduler() { }
+};
+
+/* Needed to get access to scheduler variables */
+void* thd_get_scheduler_data(THD *thd);
+void thd_set_scheduler_data(THD *thd, void *data);
+PSI_thread* thd_get_psi(THD *thd);
+void thd_set_psi(THD *thd, PSI_thread *psi);
 
 
 /**
@@ -1653,7 +1688,8 @@ public:
     m_reopen_array(NULL),
     m_locked_tables_count(0)
   {
-    init_sql_alloc(&m_locked_tables_root, MEM_ROOT_BLOCK_SIZE, 0);
+    init_sql_alloc(key_memory_locked_table_list,
+                   &m_locked_tables_root, MEM_ROOT_BLOCK_SIZE, 0);
   }
   void unlock_locked_tables(THD *thd);
   ~Locked_tables_list()
@@ -1771,6 +1807,7 @@ my_micro_time_to_timeval(ulonglong micro_time, struct timeval *tm)
   tm->tv_usec= (long) (micro_time % 1000000);
 }
 
+class Modification_plan;
 /**
   @class THD
   For each client connection we create a separate thread with THD serving as
@@ -1854,6 +1891,19 @@ public:
   */
   mysql_mutex_t LOCK_thd_data;
 
+  /**
+    Protects query plan (SELECT/UPDATE/DELETE's) from being freed/changed
+    while another thread explains it. Following structures are protected by
+    this mutex:
+      THD::Query_plan
+      Modification_plan
+      SELECT_LEX::join
+      JOIN::plan_state
+      Tree of SELECT_LEX_UNIT after THD::Query_plan was set till
+        THD::Query_plan cleanup
+  */
+  mysql_mutex_t LOCK_query_plan;
+
   /* all prepared statements and cursors of this connection */
   Statement_map stmt_map;
   /*
@@ -1896,6 +1946,76 @@ public:
     allocated) strings, which memory won't go away over time.
   */
   const char *proc_info;
+
+  /**
+     Query plan for EXPLAINable commands, should be locked with
+     LOCK_query_plan before using.
+  */
+  class Query_plan
+  {
+  private:
+    THD *const thd;
+    /// Original sql_command;
+    enum_sql_command sql_command;
+    /// LEX of topmost statement
+    LEX *lex;
+    /// Query plan for UPDATE/DELETE/INSERT/REPLACE
+    const Modification_plan *modification_plan;
+    /// True if query is run in prepared statement
+    bool is_ps;
+
+  public:
+    Query_plan(THD *thd_arg) : thd(thd_arg), sql_command(SQLCOM_END),
+      modification_plan(NULL)
+    {}
+    explicit Query_plan(const Query_plan&); ///< not defined
+    Query_plan& operator=(const Query_plan&); ///< not defined
+    /**
+      Set query plan.
+
+      @note This function takes THD::LOCK_query_plan mutex.
+    */
+    void set_query_plan(enum_sql_command sql_cmd, LEX *lex_arg, bool ps);
+    /**
+      Change current command.
+
+      @details This function is needed for single UPDATE statement, for which
+      after opening tables we can find out that the statement have to be
+      converted multi UPDATE.
+
+      @note This function takes THD::LOCK_query_plan mutex.
+    */
+    void set_command(enum_sql_command sql_cmd);
+    /*
+      5 functions below expect THD::LOCK_query_plan to be already taken by a
+      caller.
+    */
+    enum_sql_command get_command() const
+    {
+      mysql_mutex_assert_owner(&thd->LOCK_query_plan);
+      return sql_command;
+    }
+    LEX *get_lex() const
+    {
+      mysql_mutex_assert_owner(&thd->LOCK_query_plan);
+      return lex;
+    }
+    Modification_plan const *get_plan()
+    {
+      mysql_mutex_assert_owner(&thd->LOCK_query_plan);
+      return modification_plan;
+    }
+    bool is_ps_query() const
+    {
+      mysql_mutex_assert_owner(&thd->LOCK_query_plan);
+      return is_ps;
+    }
+    void set_modification_plan(Modification_plan *plan_arg)
+    {
+      mysql_mutex_assert_owner(&thd->LOCK_query_plan);
+      modification_plan= plan_arg;
+    }
+  } query_plan;
 
 private:
   unsigned int m_current_stage_key;
@@ -1948,7 +2068,7 @@ public:
   struct timeval start_time;
   struct timeval user_time;
   // track down slow pthread_create
-  ulonglong  prior_thr_create_utime, thr_create_utime;
+  ulonglong  thr_create_utime;
   ulonglong  start_utime, utime_after_lock;
 
   /**
@@ -1967,6 +2087,16 @@ public:
 
   /* <> 0 if we are inside of trigger or stored function. */
   uint in_sub_stmt;
+
+  /** 
+    Used by fill_status() to avoid acquiring LOCK_status mutex twice
+    when this function is called recursively (e.g. queries 
+    that contains SELECT on I_S.GLOBAL_STATUS with subquery on the 
+    same I_S table).
+    Incremented each time fill_status() function is entered and 
+    decremented each time before it returns from the function.
+  */
+  uint fill_status_recursion_level;
 
   /* container for handler's private per-connection data */
   Ha_data ha_data[MAX_HA];
@@ -2226,7 +2356,7 @@ public:
     {
       memset(this, 0, sizeof(*this));
       xid_state.xid.null();
-      init_sql_alloc(&mem_root, ALLOC_ROOT_MIN_BLOCK_SIZE, 0);
+      init_sql_alloc(key_memory_thd_transactions, &mem_root, ALLOC_ROOT_MIN_BLOCK_SIZE, 0);
     }
     void push_unsafe_rollback_warnings(THD *thd)
     {
@@ -3535,7 +3665,8 @@ public:
     {
       my_free(db);
       if (new_db)
-        db= my_strndup(new_db, new_db_len, MYF(MY_WME | ME_FATALERROR));
+        db= my_strndup(key_memory_THD_db,
+                       new_db, new_db_len, MYF(MY_WME | ME_FATALERROR));
       else
         db= NULL;
     }
@@ -4356,7 +4487,20 @@ public:
   uint  hidden_field_count;
   uint	group_parts,group_length,group_null_parts;
   uint	quick_group;
-  bool  using_indirect_summary_function;
+  /**
+    Number of outer_sum_funcs i.e the number of set functions that are
+    aggregated in a query block outer to this subquery.
+
+    @see count_field_types
+  */
+  uint  outer_sum_func_count;
+  /**
+    Enabled when we have atleast one outer_sum_func. Needed when used
+    along with distinct.
+
+    @see create_tmp_table
+  */
+  bool  using_outer_summary_function;
   CHARSET_INFO *table_charset; 
   bool schema_table;
   /*
@@ -4383,8 +4527,8 @@ public:
 
   TMP_TABLE_PARAM()
     :copy_field(0), copy_field_end(0), group_parts(0),
-     group_length(0), group_null_parts(0),
-     using_indirect_summary_function(0),
+     group_length(0), group_null_parts(0), outer_sum_func_count(0),
+     using_outer_summary_function(0),
      schema_table(0), precomputed_group_by(0), force_copy_fields(0),
      skip_create_table(FALSE), bit_fields_as_long(0)
   {}
@@ -4611,13 +4755,14 @@ class user_var_entry
   /**
     Initialize all members
     @param name - Name of the user_var_entry instance.
+    @cs         - charset information of the user_var_entry instance.
   */
-  void init(const Simple_cstring &name)
+  void init(const Simple_cstring &name, const CHARSET_INFO *cs)
   {
     copy_name(name);
     reset_value();
     update_query_id= 0;
-    collation.set(NULL, DERIVATION_IMPLICIT, 0);
+    collation.set(cs, DERIVATION_IMPLICIT, 0);
     unsigned_flag= 0;
     /*
       If we are here, we were called from a SET or a query which sets a
@@ -4687,19 +4832,21 @@ public:
   /**
     Allocate and initialize a user variable instance.
     @param namec  Name of the variable.
+    @param cs     Charset of the variable.
     @return
     @retval  Address of the allocated and initialized user_var_entry instance.
     @retval  NULL on allocation error.
   */
-  static user_var_entry *create(const Name_string &name)
+  static user_var_entry *create(const Name_string &name, const CHARSET_INFO *cs)
   {
     user_var_entry *entry;
     uint size= ALIGN_SIZE(sizeof(user_var_entry)) +
                (name.length() + 1) + extra_size;
-    if (!(entry= (user_var_entry*) my_malloc(size, MYF(MY_WME |
+    if (!(entry= (user_var_entry*) my_malloc(key_memory_user_var_entry,
+                                             size, MYF(MY_WME |
                                                        ME_FATALERROR))))
       return NULL;
-    entry->init(name);
+    entry->init(name, cs);
     return entry;
   }
 
@@ -5042,7 +5189,7 @@ void mark_transaction_to_rollback(THD *thd, bool all);
 
 inline bool add_item_to_list(THD *thd, Item *item)
 {
-  return thd->lex->current_select->add_item_to_list(thd, item);
+  return thd->lex->current_select()->add_item_to_list(thd, item);
 }
 
 inline bool add_value_to_list(THD *thd, Item *value)
@@ -5052,17 +5199,17 @@ inline bool add_value_to_list(THD *thd, Item *value)
 
 inline bool add_order_to_list(THD *thd, Item *item, bool asc)
 {
-  return thd->lex->current_select->add_order_to_list(thd, item, asc);
+  return thd->lex->current_select()->add_order_to_list(thd, item, asc);
 }
 
 inline bool add_gorder_to_list(THD *thd, Item *item, bool asc)
 {
-  return thd->lex->current_select->add_gorder_to_list(thd, item, asc);
+  return thd->lex->current_select()->add_gorder_to_list(thd, item, asc);
 }
 
 inline bool add_group_to_list(THD *thd, Item *item, bool asc)
 {
-  return thd->lex->current_select->add_group_to_list(thd, item, asc);
+  return thd->lex->current_select()->add_group_to_list(thd, item, asc);
 }
 
 /*************************************************************************/

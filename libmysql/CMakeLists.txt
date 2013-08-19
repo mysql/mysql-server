@@ -131,6 +131,13 @@ mysql_server_end
 mysql_set_character_set
 mysql_get_character_set_info
 mysql_stmt_next_result
+my_init
+mysql_client_find_plugin
+mysql_client_register_plugin
+mysql_load_plugin
+mysql_load_plugin_v
+mysql_options4
+mysql_plugin_options
 
 CACHE INTERNAL "Functions exported by client API"
 
@@ -155,6 +162,22 @@ IF (WIN32 AND OPENSSL_APPLINK_C)
     PROPERTIES COMPILE_FLAGS "-DHAVE_OPENSSL_APPLINK_C"
   )
 ENDIF()
+
+#
+# Include protocol tracing infrastructure and the test
+# trace plugin if enabled by build options.
+#
+IF (WITH_CLIENT_PROTOCOL_TRACING)
+
+  LIST(APPEND CLIENT_SOURCES mysql_trace.c)
+  ADD_DEFINITIONS(-D CLIENT_PROTOCOL_TRACING)
+
+  IF (WITH_TEST_TRACE_PLUGIN)
+    LIST(APPEND CLIENT_SOURCES test_trace_plugin.cc)
+    ADD_DEFINITIONS(-D TEST_TRACE_PLUGIN)
+  ENDIF (WITH_TEST_TRACE_PLUGIN)
+
+ENDIF (WITH_CLIENT_PROTOCOL_TRACING)
 
 ADD_CONVENIENCE_LIBRARY(clientlib ${CLIENT_SOURCES})
 DTRACE_INSTRUMENT(clientlib)

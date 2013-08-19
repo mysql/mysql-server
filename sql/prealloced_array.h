@@ -63,8 +63,8 @@ class Prealloced_array
     return static_cast<Element_type*>(static_cast<void*>(&m_buff[0]));
   }
 public:
-  Prealloced_array()
-    : m_size(0), m_capacity(Prealloc), m_array_ptr(cast_rawbuff())
+  Prealloced_array(PSI_memory_key psi_key)
+    : m_psi_key(psi_key), m_size(0), m_capacity(Prealloc), m_array_ptr(cast_rawbuff())
   {
     // We do not want a zero-size array.
     compile_time_assert(Prealloc != 0);
@@ -117,6 +117,9 @@ public:
   Element_type &operator[](size_t n) { return at(n); }
   const Element_type &operator[](size_t n) const { return at(n); }
 
+  Element_type &back() { return at(size() - 1); }
+  const Element_type &back() const { return at(size() - 1); }
+
   typedef Element_type *iterator;
   typedef const Element_type *const_iterator;
 
@@ -141,7 +144,7 @@ public:
     if (n <= m_capacity)
       return false;
 
-    void *mem= my_malloc(n * element_size(), MYF(MY_WME));
+    void *mem= my_malloc(m_psi_key, n * element_size(), MYF(MY_WME));
     if (!mem)
       return true;
     Element_type *new_array= static_cast<Element_type*>(mem);
@@ -150,10 +153,10 @@ public:
     for (size_t ix= 0; ix < m_size; ++ix)
     {
       Element_type *new_p= &new_array[ix];
-      Element_type *old_p= &m_array_ptr[ix];
-      ::new (new_p) Element_type(*old_p);   // Copy into new location.
+      const Element_type &old_p= m_array_ptr[ix];
+      ::new (new_p) Element_type(old_p);    // Copy into new location.
       if (!Has_trivial_destructor)
-        old_p->~Element_type();             // Destroy the old element.
+        old_p.~Element_type();              // Destroy the old element.
     }
 
     if (m_array_ptr != cast_rawbuff())
@@ -180,7 +183,44 @@ public:
     return false;
   }
 
+  /**
+    Removes the last element in the array, effectively reducing the
+    container size by one. This destroys the removed element.
+   */
+  void pop_back()
+  {
+    DBUG_ASSERT(!empty());
+    if (!Has_trivial_destructor)
+      back().~Element_type();
+    m_size-= 1;
+  }
+
+  /**
+    Removes a single element from the array.
+    The removed element is destroyed.
+    This effectively reduces the container size by one.
+
+    This is generally an inefficient operation, since we need to copy
+    elements to fill the "hole" in the array.
+   */
+  void erase(size_t ix)
+  {
+    if (!Has_trivial_destructor)
+      at(ix).~Element_type();
+
+    for (; ix < size() - 1; ++ix)
+    {
+      Element_type *to= &at(ix);
+      const Element_type &from= at(ix + 1);
+      ::new (to) Element_type(from);
+      if (!Has_trivial_destructor)
+        from.~Element_type();
+    }
+    m_size-= 1;
+  }
+
 private:
+  PSI_memory_key m_psi_key;
   size_t        m_size;
   size_t        m_capacity;
   char          m_buff[Prealloc * sizeof(Element_type)];

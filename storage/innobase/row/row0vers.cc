@@ -253,7 +253,7 @@ row_vers_impl_x_locked(
 	dict_index_t*	clust_index;
 
 	ut_ad(!lock_mutex_own());
-	ut_ad(!mutex_own(&trx_sys->mutex));
+	ut_ad(!trx_sys_mutex_own());
 
 	mtr_start(&mtr);
 
@@ -307,12 +307,12 @@ row_vers_must_preserve_del_marked(
 				hold the latch on purge_view */
 {
 #ifdef UNIV_SYNC_DEBUG
-	ut_ad(!rw_lock_own(&(purge_sys->latch), RW_LOCK_SHARED));
+	ut_ad(!rw_lock_own(&(purge_sys->latch), RW_LOCK_S));
 #endif /* UNIV_SYNC_DEBUG */
 
-	mtr_s_lock(&(purge_sys->latch), mtr);
+	mtr_s_lock(&purge_sys->latch, mtr);
 
-	return(!read_view_sees_trx_id(purge_sys->view, trx_id));
+	return(!purge_sys->view.changes_visible(trx_id));
 }
 
 /*****************************************************************//**
@@ -349,7 +349,7 @@ row_vers_old_has_index_entry(
 	ut_ad(mtr_memo_contains_page(mtr, rec, MTR_MEMO_PAGE_X_FIX)
 	      || mtr_memo_contains_page(mtr, rec, MTR_MEMO_PAGE_S_FIX));
 #ifdef UNIV_SYNC_DEBUG
-	ut_ad(!rw_lock_own(&(purge_sys->latch), RW_LOCK_SHARED));
+	ut_ad(!rw_lock_own(&(purge_sys->latch), RW_LOCK_S));
 #endif /* UNIV_SYNC_DEBUG */
 
 	clust_index = dict_table_get_first_index(index->table);
@@ -477,7 +477,7 @@ row_vers_build_for_consistent_read(
 	dict_index_t*	index,	/*!< in: the clustered index */
 	ulint**		offsets,/*!< in/out: offsets returned by
 				rec_get_offsets(rec, index) */
-	read_view_t*	view,	/*!< in: the consistent read view */
+	ReadView*	view,	/*!< in: the consistent read view */
 	mem_heap_t**	offset_heap,/*!< in/out: memory heap from which
 				the offsets are allocated */
 	mem_heap_t*	in_heap,/*!< in: memory heap from which the memory for
@@ -500,27 +500,33 @@ row_vers_build_for_consistent_read(
 	ut_ad(mtr_memo_contains_page(mtr, rec, MTR_MEMO_PAGE_X_FIX)
 	      || mtr_memo_contains_page(mtr, rec, MTR_MEMO_PAGE_S_FIX));
 #ifdef UNIV_SYNC_DEBUG
-	ut_ad(!rw_lock_own(&(purge_sys->latch), RW_LOCK_SHARED));
+	ut_ad(!rw_lock_own(&(purge_sys->latch), RW_LOCK_S));
 #endif /* UNIV_SYNC_DEBUG */
 
 	ut_ad(rec_offs_validate(rec, index, *offsets));
 
 	trx_id = row_get_rec_trx_id(rec, index, *offsets);
 
-	ut_ad(!read_view_sees_trx_id(view, trx_id));
+	ut_ad(!view->changes_visible(trx_id));
 
 	version = rec;
 
 	for (;;) {
-		mem_heap_t*	heap2	= heap;
+		mem_heap_t*	prev_heap = heap;
+
 		heap = mem_heap_create(1024);
 
-		err = trx_undo_prev_version_build(rec, mtr, version, index,
-						  *offsets, heap,
-						  &prev_version)
-			? DB_SUCCESS : DB_MISSING_HISTORY;
-		if (heap2) {
-			mem_heap_free(heap2); /* free version */
+		/* If purge can't see the record then we can't rely on
+		the UNDO log record. */
+
+		bool	purge_sees = trx_undo_prev_version_build(
+			rec, mtr, version, index, *offsets, heap,
+			&prev_version);
+
+		err  = (purge_sees) ? DB_SUCCESS : DB_MISSING_HISTORY;
+
+		if (prev_heap != NULL) {
+			mem_heap_free(prev_heap);
 		}
 
 		if (prev_version == NULL) {
@@ -529,8 +535,9 @@ row_vers_build_for_consistent_read(
 			break;
 		}
 
-		*offsets = rec_get_offsets(prev_version, index, *offsets,
-					   ULINT_UNDEFINED, offset_heap);
+		*offsets = rec_get_offsets(
+			prev_version, index, *offsets, ULINT_UNDEFINED,
+			offset_heap);
 
 #if defined UNIV_DEBUG || defined UNIV_BLOB_LIGHT_DEBUG
 		ut_a(!rec_offs_any_null_extern(prev_version, *offsets));
@@ -538,7 +545,7 @@ row_vers_build_for_consistent_read(
 
 		trx_id = row_get_rec_trx_id(prev_version, index, *offsets);
 
-		if (read_view_sees_trx_id(view, trx_id)) {
+		if (view->changes_visible(trx_id)) {
 
 			/* The view already sees this version: we can copy
 			it to in_heap and return */
@@ -553,7 +560,7 @@ row_vers_build_for_consistent_read(
 		}
 
 		version = prev_version;
-	}/* for (;;) */
+	}
 
 	mem_heap_free(heap);
 
@@ -594,7 +601,7 @@ row_vers_build_for_semi_consistent_read(
 	ut_ad(mtr_memo_contains_page(mtr, rec, MTR_MEMO_PAGE_X_FIX)
 	      || mtr_memo_contains_page(mtr, rec, MTR_MEMO_PAGE_S_FIX));
 #ifdef UNIV_SYNC_DEBUG
-	ut_ad(!rw_lock_own(&(purge_sys->latch), RW_LOCK_SHARED));
+	ut_ad(!rw_lock_own(&(purge_sys->latch), RW_LOCK_S));
 #endif /* UNIV_SYNC_DEBUG */
 
 	ut_ad(rec_offs_validate(rec, index, *offsets));
@@ -612,7 +619,7 @@ row_vers_build_for_semi_consistent_read(
 			rec_trx_id = version_trx_id;
 		}
 
-		mutex_enter(&trx_sys->mutex);
+		trx_sys_mutex_enter();
 		version_trx = trx_get_rw_trx_by_id(version_trx_id);
 		/* Because version_trx is a read-write transaction,
 		its state cannot change from or to NOT_STARTED while
@@ -623,7 +630,7 @@ row_vers_build_for_semi_consistent_read(
 				    TRX_STATE_COMMITTED_IN_MEMORY)) {
 			version_trx = NULL;
 		}
-		mutex_exit(&trx_sys->mutex);
+		trx_sys_mutex_exit();
 
 		if (!version_trx) {
 committed_version_trx:

@@ -1530,6 +1530,8 @@ tz_init_table_list(TABLE_LIST *tz_tabs)
   }
 }
 
+static PSI_memory_key key_memory_tz_storage;
+
 #ifdef HAVE_PSI_INTERFACE
 static PSI_mutex_key key_tz_LOCK;
 
@@ -1538,6 +1540,12 @@ static PSI_mutex_info all_tz_mutexes[]=
   { & key_tz_LOCK, "tz_LOCK", PSI_FLAG_GLOBAL}
 };
 
+static PSI_memory_info all_tz_memory[]=
+{
+  { &key_memory_tz_storage, "tz_storage", PSI_FLAG_GLOBAL}
+};
+
+
 static void init_tz_psi_keys(void)
 {
   const char* category= "sql";
@@ -1545,6 +1553,9 @@ static void init_tz_psi_keys(void)
 
   count= array_elements(all_tz_mutexes);
   mysql_mutex_register(category, all_tz_mutexes, count);
+
+  count= array_elements(all_tz_memory);
+  mysql_memory_register(category, all_tz_memory, count);
 }
 #endif /* HAVE_PSI_INTERFACE */
 
@@ -1612,7 +1623,7 @@ my_tz_init(THD *org_thd, const char *default_tzname, my_bool bootstrap)
     my_hash_free(&tz_names);
     goto end;
   }
-  init_sql_alloc(&tz_storage, 32 * 1024, 0);
+  init_sql_alloc(key_memory_tz_storage, &tz_storage, 32 * 1024, 0);
   mysql_mutex_init(key_tz_LOCK, &tz_LOCK, MY_MUTEX_INIT_FAST);
   tz_inited= 1;
 
@@ -2488,7 +2499,7 @@ scan_tz_dir(char * name_end)
       }
       else if (MY_S_ISREG(cur_dir->dir_entry[i].mystat->st_mode))
       {
-        init_alloc_root(&tz_storage, 32768, 0);
+        init_alloc_root(PSI_NOT_INSTRUMENTED, &tz_storage, 32768, 0);
         if (!tz_load(fullname, &tz_info, &tz_storage))
           print_tz_as_sql(root_name_end + 1, &tz_info);
         else
@@ -2546,7 +2557,7 @@ main(int argc, char **argv)
   }
   else
   {
-    init_alloc_root(&tz_storage, 32768, 0);
+    init_alloc_root(PSI_NOT_INSTRUMENTED, &tz_storage, 32768, 0);
 
     if (strcmp(argv[1], "--leap") == 0)
     {

@@ -32,9 +32,6 @@ mysql_mutex_t THR_LOCK_malloc, THR_LOCK_open,
 mysql_cond_t  THR_COND_threads;
 uint            THR_thread_count= 0;
 uint 		my_thread_end_wait_time= 5;
-#if !defined(HAVE_LOCALTIME_R) || !defined(HAVE_GMTIME_R)
-mysql_mutex_t LOCK_localtime_r;
-#endif
 #ifdef PTHREAD_ADAPTIVE_MUTEX_INITIALIZER_NP
 pthread_mutexattr_t my_fast_mutexattr;
 #endif
@@ -44,25 +41,7 @@ pthread_mutexattr_t my_errorcheck_mutexattr;
 #ifdef _MSC_VER
 static void install_sigabrt_handler();
 #endif
-#ifdef TARGET_OS_LINUX
 
-/*
-  Dummy thread spawned in my_thread_global_init() below to avoid
-  race conditions in NPTL pthread_exit code.
-*/
-
-static pthread_handler_t
-nptl_pthread_exit_hack_handler(void *arg __attribute((unused)))
-{
-  /* Do nothing! */
-  pthread_exit(0);
-  return 0;
-}
-
-#endif /* TARGET_OS_LINUX */
-
-
-static uint get_thread_lib(void);
 
 /** True if @c my_thread_global_init() has been called. */
 static my_bool my_thread_global_init_done= 0;
@@ -165,8 +144,10 @@ my_bool my_thread_global_init(void)
 
   DBUG_ASSERT(! THR_KEY_mysys_initialized);
   if ((pth_ret= pthread_key_create(&THR_KEY_mysys, NULL)) != 0)
-  {
-    fprintf(stderr, "Can't initialize threads: error %d\n", pth_ret);
+  { /* purecov: begin inspected */
+    my_message_local(ERROR_LEVEL, "Can't initialize threads: error %d",
+                     pth_ret);
+    /* purecov: end */
     return 1;
   }
 
@@ -179,45 +160,12 @@ my_bool my_thread_global_init(void)
   if (my_thread_init())
     return 1;
 
-  thd_lib_detected= get_thread_lib();
-
-#ifdef TARGET_OS_LINUX
-  /*
-    BUG#24507: Race conditions inside current NPTL pthread_exit()
-    implementation.
-
-    To avoid a possible segmentation fault during concurrent
-    executions of pthread_exit(), a dummy thread is spawned which
-    initializes internal variables of pthread lib. See bug description
-    for a full explanation.
-
-    TODO: Remove this code when fixed versions of glibc6 are in common
-    use.
-  */
-  if (thd_lib_detected == THD_LIB_NPTL)
-  {
-    pthread_t       dummy_thread;
-    pthread_attr_t  dummy_thread_attr;
-
-    pthread_attr_init(&dummy_thread_attr);
-    pthread_attr_setdetachstate(&dummy_thread_attr, PTHREAD_CREATE_JOINABLE);
-
-    if (pthread_create(&dummy_thread,&dummy_thread_attr,
-                       nptl_pthread_exit_hack_handler, NULL) == 0)
-      (void)pthread_join(dummy_thread, NULL);
-  }
-#endif /* TARGET_OS_LINUX */
-
   mysql_mutex_init(key_THR_LOCK_lock, &THR_LOCK_lock, MY_MUTEX_INIT_FAST);
   mysql_mutex_init(key_THR_LOCK_myisam, &THR_LOCK_myisam, MY_MUTEX_INIT_SLOW);
   mysql_mutex_init(key_THR_LOCK_myisam_mmap, &THR_LOCK_myisam_mmap, MY_MUTEX_INIT_FAST);
   mysql_mutex_init(key_THR_LOCK_heap, &THR_LOCK_heap, MY_MUTEX_INIT_FAST);
   mysql_mutex_init(key_THR_LOCK_net, &THR_LOCK_net, MY_MUTEX_INIT_FAST);
   mysql_cond_init(key_THR_COND_threads, &THR_COND_threads, NULL);
-
-#if !defined(HAVE_LOCALTIME_R) || !defined(HAVE_GMTIME_R)
-  mysql_mutex_init(key_LOCK_localtime_r, &LOCK_localtime_r, MY_MUTEX_INIT_SLOW);
-#endif
 
 #ifdef _MSC_VER
   install_sigabrt_handler();
@@ -247,9 +195,10 @@ void my_thread_global_end(void)
         are killed when we enter here.
       */
       if (THR_thread_count)
-        fprintf(stderr,
-                "Error in my_thread_global_end(): %d threads didn't exit\n",
-                THR_thread_count);
+        /* purecov: begin inspected */
+        my_message_local(ERROR_LEVEL, "Error in my_thread_global_end(): "
+                         "%d threads didn't exit", THR_thread_count);
+        /* purecov: end */
 #endif
       all_threads_killed= 0;
       break;
@@ -279,9 +228,6 @@ void my_thread_global_end(void)
     mysql_mutex_destroy(&THR_LOCK_threads);
     mysql_cond_destroy(&THR_COND_threads);
   }
-#if !defined(HAVE_LOCALTIME_R) || !defined(HAVE_GMTIME_R)
-  mysql_mutex_destroy(&LOCK_localtime_r);
-#endif
 
   my_thread_global_init_done= 0;
 }
@@ -314,15 +260,16 @@ my_bool my_thread_init(void)
   my_bool error=0;
 
 #ifdef EXTRA_DEBUG_THREADS
-  fprintf(stderr,"my_thread_init(): thread_id: 0x%lx\n",
-          (ulong) pthread_self());
+  my_message_local(INFORMATION_LEVEL, "my_thread_init(): thread_id: 0x%lx",
+                   (ulong) pthread_self());
 #endif  
 
   if (_my_thread_var())
   {
 #ifdef EXTRA_DEBUG_THREADS
-    fprintf(stderr,"my_thread_init() called more than once in thread 0x%lx\n",
-            (long) pthread_self());
+    my_message_local(WARNING_LEVEL,
+                     "my_thread_init() called more than once in thread 0x%lx",
+                     (long) pthread_self());
 #endif    
     goto end;
   }
@@ -377,9 +324,11 @@ void my_thread_end(void)
   tmp= _my_thread_var();
 
 #ifdef EXTRA_DEBUG_THREADS
-  fprintf(stderr,"my_thread_end(): tmp: 0x%lx  pthread_self: 0x%lx  thread_id: %ld\n",
-	  (long) tmp, (long) pthread_self(), tmp ? (long) tmp->id : 0L);
-#endif  
+    my_message_local(INFORMATION_LEVEL, "my_thread_end(): tmp: 0x%lx  "
+                     "pthread_self: 0x%lx  thread_id: %ld",
+                     (long) tmp, (long) pthread_self(),
+                     tmp ? (long) tmp->id : 0L);
+#endif
 
 #ifdef HAVE_PSI_INTERFACE
   /*
@@ -482,21 +431,6 @@ extern void **my_thread_var_dbug()
 }
 #endif /* DBUG_OFF */
 
-
-static uint get_thread_lib(void)
-{
-#ifdef _CS_GNU_LIBPTHREAD_VERSION
-  char buff[64];
-    
-  confstr(_CS_GNU_LIBPTHREAD_VERSION, buff, sizeof(buff));
-
-  if (!strncasecmp(buff, "NPTL", 4))
-    return THD_LIB_NPTL;
-  if (!strncasecmp(buff, "linuxthreads", 12))
-    return THD_LIB_LT;
-#endif
-  return THD_LIB_OTHER;
-}
 
 #ifdef _WIN32
 /*

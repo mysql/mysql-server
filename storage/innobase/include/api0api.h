@@ -35,11 +35,11 @@ InnoDB Native API
 #define strcasecmp		_stricmp
 #endif
 
-#if defined(__GNUC__) && (__GNUC__ > 2) && ! defined(__INTEL_COMPILER)
+#if defined(__GNUC__) && (__GNUC__ > 2)
 #define UNIV_NO_IGNORE		__attribute__ ((warn_unused_result))
 #else
 #define UNIV_NO_IGNORE
-#endif /* __GNUC__ && __GNUC__ > 2 && !__INTEL_COMPILER */
+#endif /* __GNUC__ && __GNUC__ > 2 */
 
 /* See comment about ib_bool_t as to why the two macros are unsigned long. */
 /** The boolean value of "true" used internally within InnoDB */
@@ -732,7 +732,9 @@ ib_col_set_value(
 	ib_tpl_t	ib_tpl,		/*!< in: tuple instance */
 	ib_ulint_t	col_no,		/*!< in: column index in tuple */
 	const void*	src,		/*!< in: data value */
-	ib_ulint_t	len);		/*!< in: data value len */
+	ib_ulint_t	len,		/*!< in: data value len */
+	ib_bool_t	need_cpy);	/*!< in: if need memcpy */
+
 
 /*****************************************************************//**
 Get the size of the data available in the column the tuple.

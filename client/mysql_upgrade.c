@@ -119,7 +119,7 @@ static struct my_option my_long_options[]=
   {"protocol", OPT_MYSQL_PROTOCOL,
    "The protocol to use for connection (tcp, socket, pipe, memory).",
    0, 0, 0, GET_STR, REQUIRED_ARG, 0, 0, 0, 0, 0, 0},
-#ifdef HAVE_SMEM
+#if defined (_WIN32) && !defined (EMBEDDED_LIBRARY)
   {"shared-memory-base-name", OPT_SHARED_MEMORY_BASE_NAME,
    "Base name of shared memory.", 0,
    0, 0, GET_STR, REQUIRED_ARG, 0, 0, 0, 0, 0, 0},
@@ -869,10 +869,25 @@ static int run_sql_fix_privilege_tables(void)
         found_real_errors++;
         print_line(line);
       }
-      else if ((strncmp(line, "WARNING", 7) == 0) ||
-               (strncmp(line, "Warning", 7) == 0))
+      else
       {
-        print_line(line);
+        char *c;
+
+        /*
+          We process the output of the child process here.
+          Basically, if a line contains a warning, we'll print it,
+          otherwise, we won't.
+          The first branch handles new-style tools that print
+          their name, then the severity in brackets,
+          the second branch handles old-style tools that just print
+          a severity.
+        */
+        if ((c= strstr(line, ": ")) && (c < strchr(line, ' ')) &&
+            (strncmp(c + 2, "[Warning] ", 10) == 0))
+          print_line(line);
+        else if ((strncmp(line, "WARNING", 7) == 0) ||
+                 (strncmp(line, "Warning", 7) == 0))
+          print_line(line);
       }
     } while ((line= get_line(line)) && *line);
   }

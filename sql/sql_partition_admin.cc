@@ -677,7 +677,7 @@ bool Sql_cmd_alter_table_analyze_partition::execute(THD *thd)
   thd->lex->alter_info.flags|= Alter_info::ALTER_ADMIN_PARTITION;
 
   res= Sql_cmd_analyze_table::execute(thd);
-    
+
   DBUG_RETURN(res);
 }
 
@@ -781,7 +781,7 @@ bool Sql_cmd_alter_table_truncate_partition::execute(THD *thd)
     DBUG_RETURN(TRUE);
   }
 
-  
+
   /*
     Prune all, but named partitions,
     to avoid excessive calls to external_lock().

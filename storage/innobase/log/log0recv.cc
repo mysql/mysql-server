@@ -51,7 +51,7 @@ Created 9/20/1997 Heikki Tuuri
 # include "srv0start.h"
 # include "trx0roll.h"
 # include "row0merge.h"
-# include "sync0sync.h"
+# include "sync0mutex.h"
 #else /* !UNIV_HOTBACKUP */
 
 /** This is set to FALSE if the backup was originally taken with the
@@ -151,21 +151,13 @@ lsn_t	recv_max_page_lsn;
 mysql_pfs_key_t	trx_rollback_clean_thread_key;
 #endif /* UNIV_PFS_THREAD */
 
-#ifdef UNIV_PFS_MUTEX
-mysql_pfs_key_t	recv_sys_mutex_key;
-#endif /* UNIV_PFS_MUTEX */
-
 #ifndef UNIV_HOTBACKUP
 # ifdef UNIV_PFS_THREAD
 mysql_pfs_key_t	recv_writer_thread_key;
 # endif /* UNIV_PFS_THREAD */
 
-# ifdef UNIV_PFS_MUTEX
-mysql_pfs_key_t	recv_writer_mutex_key;
-# endif /* UNIV_PFS_MUTEX */
-
 /** Flag indicating if recv_writer thread is active. */
-bool		recv_writer_thread_active = false;
+bool	recv_writer_thread_active = false;
 #endif /* !UNIV_HOTBACKUP */
 
 /* prototypes */
@@ -194,12 +186,8 @@ recv_sys_create(void)
 
 	recv_sys = static_cast<recv_sys_t*>(mem_zalloc(sizeof(*recv_sys)));
 
-	mutex_create(recv_sys_mutex_key, &recv_sys->mutex, SYNC_RECV);
-
-#ifndef UNIV_HOTBACKUP
-	mutex_create(recv_writer_mutex_key, &recv_sys->writer_mutex,
-		     SYNC_LEVEL_VARYING);
-#endif /* !UNIV_HOTBACKUP */
+	mutex_create("recv_sys", &recv_sys->mutex);
+	mutex_create("recv_writer", &recv_sys->writer_mutex);
 
 	recv_sys->heap = NULL;
 	recv_sys->addr_hash = NULL;
@@ -842,9 +830,12 @@ recv_parse_or_apply_log_rec_body(
 				record should be complete then */
 	mtr_t*		mtr,	/*!< in: mtr or NULL; should be non-NULL
 				if and only if block is non-NULL */
-	ulint		space_id)
+	ulint		space_id,
 				/*!< in: tablespace id obtained by
-				parsing initial log record */
+				parsing initial log record. */
+	ulint		page_no)
+				/*!< in: page-number obtained by
+				parsing initial log record. */
 {
 	dict_index_t*	index	= NULL;
 	page_t*		page;
@@ -1121,13 +1112,14 @@ recv_parse_or_apply_log_rec_body(
 		ptr = mlog_parse_string(ptr, end_ptr, page, page_zip);
 		break;
 	case MLOG_FILE_RENAME:
-		ptr = fil_op_log_parse_or_replay(ptr, end_ptr, type,
-						 space_id, 0);
+		ptr = fil_op_log_parse_or_replay(
+			ptr, end_ptr, type, space_id, page_no, 0, false);
 		break;
 	case MLOG_FILE_CREATE:
 	case MLOG_FILE_DELETE:
 	case MLOG_FILE_CREATE2:
-		ptr = fil_op_log_parse_or_replay(ptr, end_ptr, type, 0, 0);
+		ptr = fil_op_log_parse_or_replay(
+			ptr, end_ptr, type, ULINT_UNDEFINED, page_no, 0, true);
 		break;
 	case MLOG_ZIP_WRITE_NODE_PTR:
 		ut_ad(!page || page_type == FIL_PAGE_INDEX);
@@ -1489,7 +1481,15 @@ recv_recover_page_func(
 			}
 		}
 
-		if (recv->start_lsn >= page_lsn) {
+		/* Ignore applying the redo logs for tablespace that is
+		truncated. Post recovery there is fixup action that will
+		restore the tablespace back to normal state.
+		Applying redo at this stage can result in error given that
+		redo will have action recorded on page before tablespace
+		was re-inited and that would lead to an error while applying
+		such action. */
+		if (recv->start_lsn >= page_lsn
+		    && !srv_is_tablespace_truncated(recv_addr->space)) {
 
 			lsn_t	end_lsn;
 
@@ -1510,7 +1510,8 @@ recv_recover_page_func(
 			recv_parse_or_apply_log_rec_body(recv->type, buf,
 							 buf + recv->len,
 							 block, &mtr,
-							 recv_addr->space);
+							 recv_addr->space,
+							 recv_addr->page_no);
 
 			end_lsn = recv->start_lsn + recv->len;
 			mach_write_to_8(FIL_PAGE_LSN + page, end_lsn);
@@ -1981,8 +1982,9 @@ recv_parse_log_rec(
 	}
 #endif /* UNIV_LOG_LSN_DEBUG */
 
-	new_ptr = recv_parse_or_apply_log_rec_body(*type, new_ptr, end_ptr,
-						   NULL, NULL, *space);
+	new_ptr = recv_parse_or_apply_log_rec_body(
+			*type, new_ptr, end_ptr, NULL, NULL, *space, *page_no);
+
 	if (UNIV_UNLIKELY(new_ptr == NULL)) {
 
 		return(0);
@@ -2215,7 +2217,8 @@ loop:
 
 				if (NULL == fil_op_log_parse_or_replay(
 					    body, end_ptr, type,
-					    space, page_no)) {
+					    space, page_no, 0, false)) {
+
 					ib_logf(IB_LOG_LEVEL_FATAL,
 						"File op log record of type"
 						" %lu space %lu not complete"
@@ -3087,7 +3090,8 @@ recv_recovery_from_checkpoint_finish(void)
 
 #ifndef UNIV_LOG_DEBUG
 	recv_sys_debug_free();
-#endif
+#endif /* UNIV_LOG_DEBUG */
+
 	/* Roll back any recovered data dictionary transactions, so
 	that the data dictionary tables will be free of any locks.
 	The data dictionary latch should guarantee that there is at
@@ -3104,16 +3108,8 @@ void
 recv_recovery_rollback_active(void)
 /*===============================*/
 {
-#ifdef UNIV_SYNC_DEBUG
-	/* Wait for a while so that created threads have time to suspend
-	themselves before we switch the latching order checks on */
-	os_thread_sleep(1000000);
-
 	ut_ad(!recv_writer_thread_active);
 
-	/* Switch latching order checks on in sync0sync.cc */
-	sync_order_checks_on = TRUE;
-#endif
 	/* We can't start any (DDL) transactions if UNDO logging
 	has been disabled, additionally disable ROLLBACK of recovered
 	user transactions. */

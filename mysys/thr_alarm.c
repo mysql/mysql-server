@@ -29,7 +29,6 @@
 #define ETIME ETIMEDOUT
 #endif
 
-uint thr_client_alarm;
 static int alarm_aborted=1;			/* No alarm thread */
 my_bool thr_alarm_inited= 0;
 volatile my_bool alarm_thread_running= 0;
@@ -47,7 +46,7 @@ pthread_t alarm_thread;
 
 #define MY_THR_ALARM_QUEUE_EXTENT 10
 
-#define reschedule_alarms() pthread_kill(alarm_thread,THR_SERVER_ALARM)
+#define reschedule_alarms() pthread_kill(alarm_thread,thr_server_alarm)
 
 static sig_handler thread_alarm(int sig __attribute__((unused)));
 
@@ -69,28 +68,11 @@ void init_thr_alarm(uint max_alarms)
   sigfillset(&full_signal_set);			/* Neaded to block signals */
   mysql_mutex_init(key_LOCK_alarm, &LOCK_alarm, MY_MUTEX_INIT_FAST);
   mysql_cond_init(key_COND_alarm, &COND_alarm, NULL);
-  if (thd_lib_detected == THD_LIB_LT)
-    thr_client_alarm= SIGALRM;
-  else
-    thr_client_alarm= SIGUSR1;
-  if (thd_lib_detected != THD_LIB_LT)
-  {
-    my_sigset(thr_client_alarm, thread_alarm);
-  }
+  my_sigset(thr_client_alarm, thread_alarm);
   sigemptyset(&s);
-  sigaddset(&s, THR_SERVER_ALARM);
+  sigaddset(&s, thr_server_alarm);
   alarm_thread=pthread_self();
-#if defined(USE_ONE_SIGNAL_HAND)
   pthread_sigmask(SIG_BLOCK, &s, NULL);		/* used with sigwait() */
-  if (thd_lib_detected == THD_LIB_LT)
-  {
-    my_sigset(thr_client_alarm, process_alarm);        /* Linuxthreads */
-    pthread_sigmask(SIG_UNBLOCK, &s, NULL);
-  }
-#else
-  my_sigset(THR_SERVER_ALARM, process_alarm);
-  pthread_sigmask(SIG_UNBLOCK, &s, NULL);
-#endif
   DBUG_VOID_RETURN;
 }
 
@@ -133,27 +115,18 @@ void resize_thr_alarm(uint max_alarms)
 my_bool thr_alarm(thr_alarm_t *alrm, uint sec, ALARM *alarm_data)
 {
   time_t now;
-#ifndef USE_ONE_SIGNAL_HAND
-  sigset_t old_mask;
-#endif
   my_bool reschedule;
   struct st_my_thread_var *current_my_thread_var= my_thread_var;
   DBUG_ENTER("thr_alarm");
   DBUG_PRINT("enter",("thread: %s  sec: %d",my_thread_name(),sec));
 
   now= my_time(0);
-#ifndef USE_ONE_SIGNAL_HAND
-  pthread_sigmask(SIG_BLOCK,&full_signal_set,&old_mask);
-#endif
   mysql_mutex_lock(&LOCK_alarm);        /* Lock from threads & alarms */
   if (alarm_aborted > 0)
   {					/* No signal thread */
     DBUG_PRINT("info", ("alarm aborted"));
     *alrm= 0;					/* No alarm */
     mysql_mutex_unlock(&LOCK_alarm);
-#ifndef USE_ONE_SIGNAL_HAND
-    pthread_sigmask(SIG_SETMASK,&old_mask,NULL);
-#endif
     DBUG_RETURN(1);
   }
   if (alarm_aborted < 0)
@@ -166,14 +139,12 @@ my_bool thr_alarm(thr_alarm_t *alrm, uint sec, ALARM *alarm_data)
   reschedule= (ulong) next_alarm_expire_time > (ulong) now + sec;
   if (!alarm_data)
   {
-    if (!(alarm_data=(ALARM*) my_malloc(sizeof(ALARM),MYF(MY_WME))))
+    if (!(alarm_data=(ALARM*) my_malloc(key_memory_ALARM,
+                                        sizeof(ALARM),MYF(MY_WME))))
     {
       DBUG_PRINT("info", ("failed my_malloc()"));
       *alrm= 0;					/* No alarm */
       mysql_mutex_unlock(&LOCK_alarm);
-#ifndef USE_ONE_SIGNAL_HAND
-      pthread_sigmask(SIG_SETMASK,&old_mask,NULL);
-#endif
       DBUG_RETURN(1);
     }
     alarm_data->malloced=1;
@@ -199,9 +170,6 @@ my_bool thr_alarm(thr_alarm_t *alrm, uint sec, ALARM *alarm_data)
       reschedule_alarms();			/* Reschedule alarms */
   }
   mysql_mutex_unlock(&LOCK_alarm);
-#ifndef USE_ONE_SIGNAL_HAND
-  pthread_sigmask(SIG_SETMASK,&old_mask,NULL);
-#endif
   (*alrm)= &alarm_data->alarmed;
   DBUG_RETURN(0);
 }
@@ -214,15 +182,9 @@ my_bool thr_alarm(thr_alarm_t *alrm, uint sec, ALARM *alarm_data)
 void thr_end_alarm(thr_alarm_t *alarmed)
 {
   ALARM *alarm_data;
-#ifndef USE_ONE_SIGNAL_HAND
-  sigset_t old_mask;
-#endif
   uint i, found=0;
   DBUG_ENTER("thr_end_alarm");
 
-#ifndef USE_ONE_SIGNAL_HAND
-  pthread_sigmask(SIG_BLOCK,&full_signal_set,&old_mask);
-#endif
   mysql_mutex_lock(&LOCK_alarm);
 
   alarm_data= (ALARM*) ((uchar*) *alarmed - offsetof(ALARM,alarmed));
@@ -243,15 +205,15 @@ void thr_end_alarm(thr_alarm_t *alarmed)
   if (!found)
   {
     if (*alarmed)
-      fprintf(stderr,"Warning: Didn't find alarm 0x%lx in queue of %d alarms\n",
-	      (long) *alarmed, alarm_queue.elements);
+      /* purecov: begin inspected */
+      my_message_local(WARNING_LEVEL,
+                       "Didn't find alarm 0x%lx in queue of %d alarms",
+                       (long) *alarmed, alarm_queue.elements);
+      /* purecov: end */
     DBUG_PRINT("warning",("Didn't find alarm 0x%lx in queue\n",
-			  (long) *alarmed));
+                          (long) *alarmed));
   }
   mysql_mutex_unlock(&LOCK_alarm);
-#ifndef USE_ONE_SIGNAL_HAND
-  pthread_sigmask(SIG_SETMASK,&old_mask,NULL);
-#endif
   DBUG_VOID_RETURN;
 }
 
@@ -266,21 +228,6 @@ void thr_end_alarm(thr_alarm_t *alarmed)
 sig_handler process_alarm(int sig __attribute__((unused)))
 {
   sigset_t old_mask;
-/*
-  This must be first as we can't call DBUG inside an alarm for a normal thread
-*/
-
-  if (thd_lib_detected == THD_LIB_LT &&
-      !pthread_equal(pthread_self(),alarm_thread))
-  {
-#if defined(MAIN)
-    printf("thread_alarm in process_alarm\n"); fflush(stdout);
-#endif
-#ifdef SIGNAL_HANDLER_RESET_ON_DELIVERY
-    my_sigset(thr_client_alarm, process_alarm);	/* int. thread system calls */
-#endif
-    return;
-  }
 
   /*
     We have to do do the handling of the alarm in a sub function,
@@ -292,9 +239,6 @@ sig_handler process_alarm(int sig __attribute__((unused)))
   pthread_sigmask(SIG_SETMASK,&full_signal_set,&old_mask);
   mysql_mutex_lock(&LOCK_alarm);
   process_alarm_part2(sig);
-#if defined(SIGNAL_HANDLER_RESET_ON_DELIVERY) && !defined(USE_ONE_SIGNAL_HAND)
-  my_sigset(THR_SERVER_ALARM,process_alarm);
-#endif
   mysql_mutex_unlock(&LOCK_alarm);
   pthread_sigmask(SIG_SETMASK,&old_mask,NULL);
   return;
@@ -677,7 +621,7 @@ static void *test_thread(void *arg)
   return 0;
 }
 
-#ifdef USE_ONE_SIGNAL_HAND
+
 static sig_handler print_signal_warning(int sig)
 {
   printf("Warning: Got signal %d from thread %s\n",sig,my_thread_name());
@@ -688,7 +632,6 @@ static sig_handler print_signal_warning(int sig)
   if (sig == SIGALRM)
     alarm(2);					/* reschedule alarm */
 }
-#endif /* USE_ONE_SIGNAL_HAND */
 
 
 static void *signal_hand(void *arg __attribute__((unused)))
@@ -711,14 +654,10 @@ static void *signal_hand(void *arg __attribute__((unused)))
 #ifdef SIGTSTP
   sigaddset(&set,SIGTSTP);
 #endif
-#ifdef USE_ONE_SIGNAL_HAND
-  sigaddset(&set,THR_SERVER_ALARM);		/* For alarms */
+  sigaddset(&set,thr_server_alarm);		/* For alarms */
   puts("Starting signal and alarm handling thread");
-#else
-  puts("Starting signal handling thread");
-#endif
   printf("server alarm: %d  thread alarm: %d\n",
-         THR_SERVER_ALARM, thr_client_alarm);
+         thr_server_alarm, thr_client_alarm);
   DBUG_PRINT("info",("Starting signal and alarm handling thread"));
   for(;;)
   {
@@ -731,9 +670,7 @@ static void *signal_hand(void *arg __attribute__((unused)))
 	exit(1);				/* Too many errors in test */
       continue;
     }
-#ifdef USE_ONE_SIGNAL_HAND
-    if (sig != THR_SERVER_ALARM)
-#endif
+    if (sig != thr_server_alarm)
       printf("Main thread: Got signal %d\n",sig);
     switch (sig) {
     case SIGINT:
@@ -749,11 +686,9 @@ static void *signal_hand(void *arg __attribute__((unused)))
       exit(1);
       return 0;					/* Keep some compilers happy */
 #endif
-#ifdef USE_ONE_SIGNAL_HAND
-     case THR_SERVER_ALARM:
+     case thr_server_alarm:
        process_alarm(sig);
       break;
-#endif
     }
   }
 }
@@ -785,7 +720,7 @@ int main(int argc __attribute__((unused)),char **argv __attribute__((unused)))
 #ifdef SIGTSTP
   sigaddset(&set,SIGTSTP);
 #endif
-  sigaddset(&set,THR_SERVER_ALARM);
+  sigaddset(&set,thr_server_alarm);
   sigdelset(&set, thr_client_alarm);
   (void) pthread_sigmask(SIG_SETMASK,&set,NULL);
 
@@ -802,7 +737,6 @@ int main(int argc __attribute__((unused)),char **argv __attribute__((unused)))
   mysql_mutex_unlock(&LOCK_thread_count);
   DBUG_PRINT("info",("signal thread created"));
 
-  thr_setconcurrency(3);
   pthread_attr_setscope(&thr_attr,PTHREAD_SCOPE_PROCESS);
   printf("Main thread: %s\n",my_thread_name());
   for (i=0 ; i < 2 ; i++)

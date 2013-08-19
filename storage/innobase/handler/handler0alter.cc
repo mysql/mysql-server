@@ -3040,7 +3040,7 @@ op_ok:
 		ut_ad(ctx->trx->dict_operation_lock_mode == RW_X_LATCH);
 		ut_ad(mutex_own(&dict_sys->mutex));
 #ifdef UNIV_SYNC_DEBUG
-		ut_ad(rw_lock_own(&dict_operation_lock, RW_LOCK_EX));
+		ut_ad(rw_lock_own(&dict_operation_lock, RW_LOCK_X));
 #endif /* UNIV_SYNC_DEBUG */
 
 		DICT_TF2_FLAG_SET(ctx->new_table, DICT_TF2_FTS);
@@ -3229,8 +3229,6 @@ innobase_check_foreign_key_index(
 {
 	dict_foreign_t*	foreign;
 
-	ut_ad(!index->to_be_dropped);
-
 	/* Check if the index is referenced. */
 	foreign = dict_table_get_referenced_constraint(indexed_table, index);
 
@@ -3307,7 +3305,7 @@ rename_index_in_data_dictionary(
 
 	ut_ad(mutex_own(&dict_sys->mutex));
 #ifdef UNIV_SYNC_DEBUG
-	ut_ad(rw_lock_own(&dict_operation_lock, RW_LOCK_EX));
+	ut_ad(rw_lock_own(&dict_operation_lock, RW_LOCK_X));
 #endif /* UNIV_SYNC_DEBUG */
 	ut_ad(trx->dict_operation_lock_mode == RW_X_LATCH);
 
@@ -3413,7 +3411,7 @@ rename_index_in_cache(
 
 	ut_ad(mutex_own(&dict_sys->mutex));
 #ifdef UNIV_SYNC_DEBUG
-	ut_ad(rw_lock_own(&dict_operation_lock, RW_LOCK_EX));
+	ut_ad(rw_lock_own(&dict_operation_lock, RW_LOCK_X));
 #endif /* UNIV_SYNC_DEBUG */
 
 	size_t	old_name_len = strlen(index->name);
@@ -3841,6 +3839,16 @@ check_if_can_drop_indexes:
 		CREATE TABLE adding FOREIGN KEY constraints. */
 		row_mysql_lock_data_dictionary(prebuilt->trx);
 
+		if (!n_drop_index) {
+			drop_index = NULL;
+		} else {
+			/* Flag all indexes that are to be dropped. */
+			for (ulint i = 0; i < n_drop_index; i++) {
+				ut_ad(!drop_index[i]->to_be_dropped);
+				drop_index[i]->to_be_dropped = 1;
+			}
+		}
+
 		if (prebuilt->trx->check_foreigns) {
 			for (uint i = 0; i < n_drop_index; i++) {
 			     dict_index_t*	index = drop_index[i];
@@ -3868,16 +3876,6 @@ check_if_can_drop_indexes:
 				row_mysql_unlock_data_dictionary(prebuilt->trx);
 				print_error(HA_ERR_DROP_INDEX_FK, MYF(0));
 				goto err_exit;
-			}
-		}
-
-		if (!n_drop_index) {
-			drop_index = NULL;
-		} else {
-			/* Flag all indexes that are to be dropped. */
-			for (ulint i = 0; i < n_drop_index; i++) {
-				ut_ad(!drop_index[i]->to_be_dropped);
-				drop_index[i]->to_be_dropped = 1;
 			}
 		}
 
@@ -4116,8 +4114,8 @@ ha_innobase::inplace_alter_table(
 	DBUG_ASSERT(!srv_read_only_mode);
 
 #ifdef UNIV_SYNC_DEBUG
-	ut_ad(!rw_lock_own(&dict_operation_lock, RW_LOCK_EX));
-	ut_ad(!rw_lock_own(&dict_operation_lock, RW_LOCK_SHARED));
+	ut_ad(!rw_lock_own(&dict_operation_lock, RW_LOCK_X));
+	ut_ad(!rw_lock_own(&dict_operation_lock, RW_LOCK_S));
 #endif /* UNIV_SYNC_DEBUG */
 
 	DEBUG_SYNC(user_thd, "innodb_inplace_alter_table_enter");
@@ -4244,7 +4242,7 @@ innobase_online_rebuild_log_free(
 
 	ut_ad(mutex_own(&dict_sys->mutex));
 #ifdef UNIV_SYNC_DEBUG
-	ut_ad(rw_lock_own(&dict_operation_lock, RW_LOCK_EX));
+	ut_ad(rw_lock_own(&dict_operation_lock, RW_LOCK_X));
 #endif /* UNIV_SYNC_DEBUG */
 
 	rw_lock_x_lock(&clust_index->lock);
@@ -4438,7 +4436,7 @@ innobase_drop_foreign_try(
 	ut_ad(trx->dict_operation_lock_mode == RW_X_LATCH);
 	ut_ad(mutex_own(&dict_sys->mutex));
 #ifdef UNIV_SYNC_DEBUG
-	ut_ad(rw_lock_own(&dict_operation_lock, RW_LOCK_EX));
+	ut_ad(rw_lock_own(&dict_operation_lock, RW_LOCK_X));
 #endif /* UNIV_SYNC_DEBUG */
 
 	/* Drop the constraint from the data dictionary. */
@@ -4502,7 +4500,7 @@ innobase_rename_column_try(
 	ut_ad(trx->dict_operation_lock_mode == RW_X_LATCH);
 	ut_ad(mutex_own(&dict_sys->mutex));
 #ifdef UNIV_SYNC_DEBUG
-	ut_ad(rw_lock_own(&dict_operation_lock, RW_LOCK_EX));
+	ut_ad(rw_lock_own(&dict_operation_lock, RW_LOCK_X));
 #endif /* UNIV_SYNC_DEBUG */
 
 	if (new_clustered) {
@@ -4737,7 +4735,7 @@ innobase_enlarge_column_try(
 	ut_ad(trx->dict_operation_lock_mode == RW_X_LATCH);
 	ut_ad(mutex_own(&dict_sys->mutex));
 #ifdef UNIV_SYNC_DEBUG
-	ut_ad(rw_lock_own(&dict_operation_lock, RW_LOCK_EX));
+	ut_ad(rw_lock_own(&dict_operation_lock, RW_LOCK_X));
 #endif /* UNIV_SYNC_DEBUG */
 	ut_ad(dict_table_get_nth_col(user_table, nth_col)->len < new_len);
 #ifdef UNIV_DEBUG

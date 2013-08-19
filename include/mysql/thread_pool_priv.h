@@ -1,5 +1,5 @@
 /*
-  Copyright (c) 2010, 2012, Oracle and/or its affiliates. All rights reserved.
+  Copyright (c) 2010, 2013, Oracle and/or its affiliates. All rights reserved.
 
   This program is free software; you can redistribute it and/or modify
   it under the terms of the GNU General Public License as published by
@@ -31,13 +31,20 @@
 */
 #include <mysqld_error.h> /* To get ER_ERROR_ON_READ */
 #define MYSQL_SERVER 1
-#include <scheduler.h>
+#include <conn_handler/channel_info.h>
+#include <conn_handler/connection_handler_manager.h>
 #include <debug_sync.h>
 #include <sql_profile.h>
 #include <table.h>
 #include <set>
 
 typedef std::set<THD*>::iterator Thread_iterator;
+
+/* create thd from channel_info object */
+THD* create_thd(Channel_info* channel_info);
+/* destroy channel_info object */
+void destroy_channel_info(Channel_info* channel_info);
+
 /* Needed to get access to scheduler variables */
 void* thd_get_scheduler_data(THD *thd);
 void thd_set_scheduler_data(THD *thd, void *data);
@@ -70,6 +77,8 @@ Thread_iterator thd_get_global_thread_list_end();
 
 /* Print to the MySQL error log */
 void sql_print_error(const char *format, ...);
+void sql_print_warning(const char *format, ...);
+void sql_print_information(const char *format, ...);
 
 /* Store a table record */
 bool schema_table_store_record(THD *thd, TABLE *table);
@@ -91,8 +100,6 @@ bool do_command(THD *thd);
 */
 /* Initialise a new connection handler thread */
 bool init_new_connection_handler_thread();
-/* Set up connection thread before use as execution thread */
-bool setup_connection_thread_globals(THD *thd);
 /* Prepare connection as part of connection set-up */
 bool thd_prepare_connection(THD *thd);
 /* Release auditing before executing statement */
@@ -107,6 +114,8 @@ void end_connection(THD *thd);
 void thd_release_resources(THD *thd);
 /* Decrement connection counter */
 void dec_connection_count();
+/* Reset the context associated with the thread */
+void restore_globals(THD *thd);
 /* Destroy THD object */
 void destroy_thd(THD *thd);
 /* Remove the THD from the set of global threads. */
@@ -127,6 +136,7 @@ void remove_global_thread(THD *thd);
   attributes.
 */
 void inc_thread_created(void);
+void inc_aborted_connects(void);
 ulong get_max_connections(void);
 pthread_attr_t *get_connection_attrib(void);
 #endif

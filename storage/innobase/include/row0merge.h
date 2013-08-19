@@ -34,7 +34,6 @@ Created 13/06/2005 Jan Lindstrom
 #include "mtr0mtr.h"
 #include "rem0types.h"
 #include "rem0rec.h"
-#include "read0types.h"
 #include "btr0types.h"
 #include "row0mysql.h"
 #include "lock0types.h"

@@ -22,14 +22,14 @@
 #include <m_string.h>
 #include "my_default.h"
 #include <m_ctype.h>
+#include "../mysys/mysys_priv.h"
 
 typedef void (*init_func_p)(const struct my_option *option, void *variable,
                             longlong value);
 
-static void default_reporter(enum loglevel level, const char *format, ...);
-my_error_reporter my_getopt_error_reporter= &default_reporter;
+my_error_reporter my_getopt_error_reporter= &my_message_local;
 
-static int findopt(char *, uint, const struct my_option **, const char **);
+static bool findopt(char *, uint, const struct my_option **);
 my_bool getopt_compare_strings(const char *, const char *, uint);
 static longlong getopt_ll(char *arg, const struct my_option *optp, int *err);
 static ulonglong getopt_ull(char *, const struct my_option *, int *);
@@ -72,21 +72,6 @@ my_bool my_getopt_print_errors= 1;
 */
 
 my_bool my_getopt_skip_unknown= 0;
-
-static void default_reporter(enum loglevel level,
-                             const char *format, ...)
-{
-  va_list args;
-  va_start(args, format);
-  if (level == WARNING_LEVEL)
-    fprintf(stderr, "%s", "Warning: ");
-  else if (level == INFORMATION_LEVEL)
-    fprintf(stderr, "%s", "Info: ");
-  vfprintf(stderr, format, args);
-  va_end(args);
-  fputc('\n', stderr);
-  fflush(stderr);
-}
 
 static my_getopt_value getopt_get_addr;
 
@@ -215,15 +200,15 @@ int my_handle_options(int *argc, char ***argv,
                       my_get_one_option get_one_option,
                       const char **command_list)
 {
-  uint UNINIT_VAR(opt_found), argvpos= 0, length;
+  uint argvpos= 0, length;
   my_bool end_of_options= 0, must_be_var, set_maximum_value,
           option_is_loose;
   char **pos, **pos_end, *optend, *opt_str, key_name[FN_REFLEN];
-  const char *UNINIT_VAR(prev_found);
   const struct my_option *optp;
   void *value;
   int error, i;
   my_bool is_cmdline_arg= 1;
+  bool opt_found;
 
   /* handle_options() assumes arg0 (program name) always exists */
   DBUG_ASSERT(argc && *argc >= 1);
@@ -249,7 +234,7 @@ int my_handle_options(int *argc, char ***argv,
   {
     char **first= pos;
     char *cur_arg= *pos;
-    opt_found= 0;
+    opt_found= false;
     if (!is_cmdline_arg && (my_getopt_is_args_separator(cur_arg)))
     {
       is_cmdline_arg= 1;
@@ -291,7 +276,7 @@ int my_handle_options(int *argc, char ***argv,
 	  or unknown option
 	*/
 	optp= longopts;
-	if (!(opt_found= findopt(opt_str, length, &optp, &prev_found)))
+	if (!(opt_found= findopt(opt_str, length, &optp)))
 	{
 	  /*
 	    Didn't find any matching option. Let's see if someone called
@@ -315,18 +300,8 @@ int my_handle_options(int *argc, char ***argv,
                 length-= special_opt_prefix_lengths[i] + 1;
 		if (i == OPT_LOOSE)
 		  option_is_loose= 1;
-		if ((opt_found= findopt(opt_str, length, &optp, &prev_found)))
+		if ((opt_found= findopt(opt_str, length, &optp)))
 		{
-		  if (opt_found > 1)
-		  {
-		    if (my_getopt_print_errors)
-                      my_getopt_error_reporter(ERROR_LEVEL,
-                                               "%s: ambiguous option '--%s-%s' (--%s-%s)",
-                                               my_progname, special_opt_prefix[i],
-                                               opt_str, special_opt_prefix[i],
-                                               prev_found);
-		    return EXIT_AMBIGUOUS_OPTION;
-		  }
 		  switch (i) {
 		  case OPT_SKIP:
 		  case OPT_DISABLE: /* fall through */
@@ -366,19 +341,17 @@ int my_handle_options(int *argc, char ***argv,
 	    {
 	      if (my_getopt_print_errors)
                 my_getopt_error_reporter(option_is_loose ? 
-                                           WARNING_LEVEL : ERROR_LEVEL,
-                                         "%s: unknown variable '%s'",
-                                         my_progname, cur_arg);
+                                         WARNING_LEVEL : ERROR_LEVEL,
+                                         "unknown variable '%s'", cur_arg);
 	      if (!option_is_loose)
 		return EXIT_UNKNOWN_VARIABLE;
 	    }
 	    else
 	    {
 	      if (my_getopt_print_errors)
-                my_getopt_error_reporter(option_is_loose ? 
-                                           WARNING_LEVEL : ERROR_LEVEL,
-                                         "%s: unknown option '--%s'", 
-                                         my_progname, cur_arg);
+                my_getopt_error_reporter(option_is_loose ?
+                                         WARNING_LEVEL : ERROR_LEVEL,
+                                         "unknown option '--%s'", cur_arg);
 	      if (!option_is_loose)
 		return EXIT_UNKNOWN_OPTION;
 	    }
@@ -389,32 +362,12 @@ int my_handle_options(int *argc, char ***argv,
 	    }
 	  }
 	}
-	if (opt_found > 1)
-	{
-	  if (must_be_var)
-	  {
-	    if (my_getopt_print_errors)
-              my_getopt_error_reporter(ERROR_LEVEL,
-                                       "%s: variable prefix '%s' is not unique",
-                                       my_progname, opt_str);
-	    return EXIT_VAR_PREFIX_NOT_UNIQUE;
-	  }
-	  else
-	  {
-	    if (my_getopt_print_errors)
-              my_getopt_error_reporter(ERROR_LEVEL,
-                                       "%s: ambiguous option '--%s' (%s, %s)",
-                                       my_progname, opt_str, prev_found, 
-                                       optp->name);
-	    return EXIT_AMBIGUOUS_OPTION;
-	  }
-	}
 	if ((optp->var_type & GET_TYPE_MASK) == GET_DISABLED)
 	{
 	  if (my_getopt_print_errors)
-	    fprintf(stderr,
-		    "%s: %s: Option '%s' used, but is disabled\n", my_progname,
-		    option_is_loose ? "WARNING" : "ERROR", opt_str);
+            my_message_local(option_is_loose ? WARNING_LEVEL : ERROR_LEVEL,
+                             "%s: Option '%s' used, but is disabled",
+                             my_progname, opt_str);
 	  if (option_is_loose)
 	  {
 	    (*argc)--;
@@ -505,19 +458,19 @@ int my_handle_options(int *argc, char ***argv,
       {
 	for (optend= cur_arg; *optend; optend++)
 	{
-	  opt_found= 0;
+	  opt_found= false;
 	  for (optp= longopts; optp->name; optp++)
 	  {
 	    if (optp->id && optp->id == (int) (uchar) *optend)
 	    {
 	      /* Option recognized. Find next what to do with it */
-	      opt_found= 1;
+	      opt_found= true;
 	      if ((optp->var_type & GET_TYPE_MASK) == GET_DISABLED)
 	      {
 		if (my_getopt_print_errors)
-		  fprintf(stderr,
-			  "%s: ERROR: Option '-%c' used, but is disabled\n",
-			  my_progname, optp->id);
+                  my_message_local(ERROR_LEVEL,
+                                   "%s: Option '-%c' used, but is disabled",
+                                   my_progname, optp->id);
 		return EXIT_OPTION_DISABLED;
 	      }
 	      if ((optp->var_type & GET_TYPE_MASK) == GET_BOOL &&
@@ -663,9 +616,8 @@ static void print_cmdline_password_warning()
 
   if (!password_warning_announced)
   {
-    fprintf(stderr, "Warning: Using a password on the command line "
-            "interface can be insecure.\n");
-    (void) fflush(stderr);
+    my_message_local(WARNING_LEVEL, "Using a password on the command line "
+                                    "interface can be insecure.");
     password_warning_announced= TRUE;
   }
 }
@@ -810,7 +762,8 @@ static int setval(const struct my_option *opts, void *value, char *argument,
       if (argument == enabled_my_option)
         break; /* string options don't use this default of "1" */
       my_free(*((char**) value));
-      if (!(*((char**) value)= my_strdup(argument, MYF(MY_WME))))
+      if (!(*((char**) value)= my_strdup(key_memory_defaults,
+                                         argument, MYF(MY_WME))))
       {
         res= EXIT_OUT_OF_MEMORY;
         goto ret;
@@ -895,69 +848,32 @@ ret:
 }
 
 
-/* 
+/**
   Find option
 
-  SYNOPSIS
-    findopt()
-    optpat	Prefix of option to find (with - or _)
-    length	Length of optpat
-    opt_res	Options
-    ffname	Place for pointer to first found name
-
   IMPLEMENTATION
-    Go through all options in the my_option struct. Return number
-    of options found that match the pattern and in the argument
-    list the option found, if any. In case of ambiguous option, store
-    the name in ffname argument
+    Go through all options in the my_option struct. Return true
+    if an option is found. sets opt_res to the option found, if any. 
 
-    RETURN
-    0    No matching options
-    #   Number of matching options
-        ffname points to first matching option
+    @param         optpat   name of option to find (with - or _)
+    @param         length   Length of optpat
+    @param[in,out] opt_res  Options
+
+    @retval false    No matching options
+    @retval true     Found an option
 */
 
-static int findopt(char *optpat, uint length,
-		   const struct my_option **opt_res,
-		   const char **ffname)
+static bool findopt(char *optpat, uint length,
+		   const struct my_option **opt_res)
 {
-  uint count;
-  const struct my_option *opt= *opt_res;
-  my_bool is_prefix= FALSE;
-
-  for (count= 0; opt->name; opt++)
-  {
-    if (!getopt_compare_strings(opt->name, optpat, length)) /* match found */
+  for (const struct my_option *opt= *opt_res; opt->name; opt++)
+    if (!getopt_compare_strings(opt->name, optpat, length) &&
+        !opt->name[length])
     {
       (*opt_res)= opt;
-      if (!opt->name[length])		/* Exact match */
-	return 1;
-
-      if (!count)
-      {
-        /* We only need to know one prev */
-	count= 1;
-	*ffname= opt->name;
-        if (opt->name[length])
-          is_prefix= TRUE;
-      }
-      else if (strcmp(*ffname, opt->name))
-      {
-	/*
-	  The above test is to not count same option twice
-	  (see mysql.cc, option "help")
-	*/
-	count++;
-      }
+      return true;
     }
-  }
-  if (is_prefix && count == 1)
-    my_getopt_error_reporter(WARNING_LEVEL,
-                             "Using unique option prefix %.*s instead of %s "
-                             "is deprecated and will be removed in a future "
-                             "release. Please use the full name instead.",
-        length, optpat, *ffname);
-  return count;
+  return false;
 }
 
 
@@ -1010,9 +926,9 @@ static longlong eval_num_suffix(char *argument, int *error, char *option_name)
     num*= 1024L * 1024L * 1024L;
   else if (*endchar)
   {
-    fprintf(stderr,
-	    "Unknown suffix '%c' used for variable '%s' (value '%s')\n",
-	    *endchar, option_name, argument);
+    my_message_local(ERROR_LEVEL,
+                     "Unknown suffix '%c' used for variable '%s' (value '%s')",
+                     *endchar, option_name, argument);
     *error= 1;
     return 0;
   }
@@ -1052,9 +968,9 @@ static ulonglong eval_num_suffix_ull(char *argument, int *error, char *option_na
     num*= 1024L * 1024L * 1024L;
   else if (*endchar)
   {
-    fprintf(stderr,
-            "Unknown suffix '%c' used for variable '%s' (value '%s')\n",
-            *endchar, option_name, argument);
+    my_message_local(ERROR_LEVEL,
+                     "Unknown suffix '%c' used for variable '%s' (value '%s')",
+                     *endchar, option_name, argument);
     *error= 1;
     return 0;
   }
@@ -1359,7 +1275,8 @@ static void init_one_value(const struct my_option *option, void *variable,
     {
       char **pstr= (char **) variable;
       my_free(*pstr);
-      *pstr= my_strdup((char*) (intptr) value, MYF(MY_WME));
+      *pstr= my_strdup(key_memory_defaults,
+                       (char*) (intptr) value, MYF(MY_WME));
     }
     break;
   default: /* dummy default to avoid compiler warnings */

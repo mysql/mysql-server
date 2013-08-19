@@ -102,11 +102,12 @@ JOIN::prepare(TABLE_LIST *tables_init,
   having= having_for_explain= having_init;
   tables_list= tables_init;
   select_lex= select_lex_arg;
-  select_lex->join= this;
+  DBUG_ASSERT(select_lex == thd->lex->current_select());
+  select_lex->set_join(this);
   join_list= &select_lex->top_join_list;
   union_part= unit_arg->is_union();
 
-  thd->lex->current_select->is_item_list_lookup= 1;
+  select_lex->is_item_list_lookup= 1;
   /*
     If we have already executed SELECT, then it have not sense to prevent
     its table from update (see unique_table())
@@ -138,12 +139,12 @@ JOIN::prepare(TABLE_LIST *tables_init,
 
   /*
     Item and Item_field CTORs will both increment some counters
-    in current_select, based on the current parsing context.
+    in current_select(), based on the current parsing context.
     We are not parsing anymore: any new Items created now are due to
     query rewriting, so stop incrementing counters.
    */
-  DBUG_ASSERT(select_lex->parsing_place == NO_MATTER);
-  select_lex->parsing_place= NO_MATTER;
+  DBUG_ASSERT(select_lex->parsing_place == CTX_NONE);
+  select_lex->parsing_place= CTX_NONE;
 
   if (setup_wild(thd, tables_list, fields_list, &all_fields, wild_num))
     DBUG_RETURN(-1);
@@ -224,8 +225,7 @@ JOIN::prepare(TABLE_LIST *tables_init,
   */
   if (select_lex->master_unit()->item &&    // This is a subquery
                                             // Not normalizing a view
-      !(thd->lex->context_analysis_only & CONTEXT_ANALYSIS_ONLY_VIEW) &&
-      !(select_options & SELECT_DESCRIBE))  // Not within a describe
+      !(thd->lex->context_analysis_only & CONTEXT_ANALYSIS_ONLY_VIEW))
   {
     /* Join object is a subquery within an IN/ANY/ALL/EXISTS predicate */
     if (resolve_subquery(thd, this))
@@ -427,7 +427,7 @@ bool subquery_allows_materialization(Item_in_subselect *predicate,
     // The upper query is SELECT ... FROM DUAL. No gain in materializing.
     cause= "no tables in outer query";
   }
-  else if (predicate->originally_dependent())
+  else if (predicate->dependent_before_in2exists())
   {
     /*
       Subquery should not be correlated; the correlation due to predicates
@@ -555,15 +555,14 @@ static bool resolve_subquery(THD *thd, JOIN *join)
 
   if (in_predicate)
   {
-    DBUG_ASSERT(select_lex == thd->lex->current_select);
-    thd->lex->current_select= outer;
+    thd->lex->set_current_select(outer);
     char const *save_where= thd->where;
     thd->where= "IN/ALL/ANY subquery";
 
     bool result= !in_predicate->left_expr->fixed &&
                   in_predicate->left_expr->fix_fields(thd,
                                                      &in_predicate->left_expr);
-    thd->lex->current_select= select_lex;
+    thd->lex->set_current_select(select_lex);
     thd->where= save_where;
     if (result)
       DBUG_RETURN(TRUE); /* purecov: deadcode */
@@ -581,7 +580,6 @@ static bool resolve_subquery(THD *thd, JOIN *join)
       my_error(ER_OPERAND_COLUMNS, MYF(0), in_predicate->left_expr->cols());
       DBUG_RETURN(TRUE);
     }
-
   }
 
   DBUG_PRINT("info", ("Checking if subq can be converted to semi-join"));
@@ -771,7 +769,7 @@ fix_inner_refs(THD *thd, List<Item> &all_fields, SELECT_LEX *select,
     if (!ref->fixed && ref->fix_fields(thd, 0))
       return TRUE;
     thd->lex->used_tables|= item->used_tables();
-    thd->lex->current_select->select_list_tables|= item->used_tables();
+    thd->lex->current_select()->select_list_tables|= item->used_tables();
   }
   return false;
 }
@@ -917,7 +915,7 @@ setup_without_group(THD *thd, Ref_ptr_array ref_pointer_array,
                     int *hidden_order_field_count)
 {
   int res;
-  st_select_lex *const select= thd->lex->current_select;
+  st_select_lex *const select= thd->lex->current_select();
   nesting_map save_allow_sum_func=thd->lex->allow_sum_func;
   /* 
     Need to save the value, so we can turn off only any new non_agg_field_used
@@ -1133,14 +1131,14 @@ find_order_in_list(THD *thd, Ref_ptr_array ref_pointer_array, TABLE_LIST *tables
         that is a vicious circle.
     So we prevent inclusion of Item_copy items.
   */
-  bool save_group_fix_field= thd->lex->current_select->group_fix_field;
+  bool save_group_fix_field= thd->lex->current_select()->group_fix_field;
   if (is_group_field)
-    thd->lex->current_select->group_fix_field= TRUE;
+    thd->lex->current_select()->group_fix_field= TRUE;
   bool ret= (!order_item->fixed &&
       (order_item->fix_fields(thd, order->item) ||
        (order_item= *order->item)->check_cols(1) ||
        thd->is_fatal_error));
-  thd->lex->current_select->group_fix_field= save_group_fix_field;
+  thd->lex->current_select()->group_fix_field= save_group_fix_field;
   if (ret)
     return TRUE; /* Wrong field. */
 
@@ -1170,17 +1168,17 @@ int setup_order(THD *thd, Ref_ptr_array ref_pointer_array, TABLE_LIST *tables,
 		List<Item> &fields, List<Item> &all_fields, ORDER *order)
 {
   thd->where="order clause";
-  DBUG_ASSERT(thd->lex->current_select->cur_pos_in_all_fields ==
+  DBUG_ASSERT(thd->lex->current_select()->cur_pos_in_all_fields ==
               SELECT_LEX::ALL_FIELDS_UNDEF_POS);
   for (; order; order=order->next)
   {
-    thd->lex->current_select->cur_pos_in_all_fields=
+    thd->lex->current_select()->cur_pos_in_all_fields=
       fields.elements - all_fields.elements - 1;
     if (find_order_in_list(thd, ref_pointer_array, tables, order, fields,
 			   all_fields, FALSE))
       return 1;
   }
-  thd->lex->current_select->cur_pos_in_all_fields=
+  thd->lex->current_select()->cur_pos_in_all_fields=
 		SELECT_LEX::ALL_FIELDS_UNDEF_POS;
   return 0;
 }
@@ -1269,7 +1267,7 @@ match_exprs_for_only_full_group_by(THD *thd, List<Item> &all_fields,
   Item *expr;
   Item_field *non_agg_field;
   List_iterator<Item_field>
-    non_agg_fields_it(thd->lex->current_select->non_agg_fields);
+    non_agg_fields_it(thd->lex->current_select()->non_agg_fields);
 
   non_agg_field= non_agg_fields_it++;
   while (non_agg_field && (expr= exprs_it++))
@@ -1441,7 +1439,7 @@ static bool change_group_ref(THD *thd, Item_func *expr, ORDER *group_list,
 {
   if (expr->arg_count)
   {
-    Name_resolution_context *context= &thd->lex->current_select->context;
+    Name_resolution_context *context= &thd->lex->current_select()->context;
     Item **arg,**arg_end;
     bool arg_changed= FALSE;
     for (arg= expr->arguments(),

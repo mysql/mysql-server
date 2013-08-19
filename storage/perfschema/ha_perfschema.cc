@@ -1,4 +1,4 @@
-/* Copyright (c) 2008, 2011, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2008, 2013, Oracle and/or its affiliates. All rights reserved.
 
   This program is free software; you can redistribute it and/or modify
   it under the terms of the GNU General Public License as published by
@@ -31,7 +31,7 @@
 #include "pfs_account.h"
 #include "pfs_host.h"
 #include "pfs_user.h"
-#include "pfs_account.h"
+#include "pfs_program.h"
 
 #ifdef MY_ATOMIC_MODE_DUMMY
 /*
@@ -132,6 +132,8 @@ static struct st_mysql_show_var pfs_status_vars[]=
     (char*) &file_class_lost, SHOW_LONG_NOFLUSH},
   {"Performance_schema_socket_classes_lost",
     (char*) &socket_class_lost, SHOW_LONG_NOFLUSH},
+  {"Performance_schema_memory_classes_lost",
+    (char*) &memory_class_lost, SHOW_LONG_NOFLUSH},
   {"Performance_schema_mutex_instances_lost",
     (char*) &mutex_lost, SHOW_LONG},
   {"Performance_schema_rwlock_instances_lost",
@@ -168,6 +170,10 @@ static struct st_mysql_show_var pfs_status_vars[]=
     (char*) &digest_lost, SHOW_LONG},
   {"Performance_schema_session_connect_attrs_lost",
     (char*) &session_connect_attrs_lost, SHOW_LONG},
+  {"Performance_schema_program_lost",
+    (char*) &program_lost, SHOW_LONG},
+  {"Performance_schema_nested_statement_lost",
+    (char*) &nested_statement_lost, SHOW_LONG},
   {NullS, NullS, SHOW_LONG}
 };
 

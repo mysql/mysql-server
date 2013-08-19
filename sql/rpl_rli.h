@@ -24,9 +24,12 @@
 #include "rpl_utility.h"
 #include "binlog.h"                      /* MYSQL_BIN_LOG */
 #include "sql_class.h"                   /* THD */
+#include<vector>
+#include "rpl_mts_submode.h"
 
 struct RPL_TABLE_LIST;
 class Master_info;
+class Mts_submode;
 extern uint sql_slave_skip_counter;
 
 /*******************************************************************************
@@ -128,6 +131,15 @@ public:
     DBUG_ASSERT(info_thd);
     return !info_thd->slave_thread;
   }
+/* Instrumentation key for performance schema for mts_temp_table_LOCK */
+#ifdef HAVE_PSI_INTERFACE
+  PSI_mutex_key m_key_mts_temp_table_LOCK;
+#endif
+  /*
+     Lock to protect race condition while transferring temporary table from
+     worker thread to coordinator thread and vice-versa
+   */
+  mysql_mutex_t mts_temp_table_LOCK;
 
   /*
     If true, events with the same server id should be replicated. This
@@ -265,6 +277,15 @@ public:
                          ulonglong pos, bool need_data_lock,
                          const char** errmsg,
                          bool look_for_description_event);
+
+  /*
+    Update the error number, message and timestamp fields. This function is
+    different from va_report() as va_report() also logs the error message in the
+    log apart from updating the error fields.
+  */
+  void fill_coord_err_buf(loglevel level, int err_code,
+                          const char *buff_coord) const;
+
 
   /*
     Flag that the group_master_log_pos is invalid. This may occur
@@ -504,6 +525,30 @@ public:
     WQ - Worker Queue containing event assignments
   */
   DYNAMIC_ARRAY workers; // number's is determined by global slave_parallel_workers
+
+  /*
+    For the purpose of reporting the worker status in performance schema table,
+    we need to preserve the workers array after worker thread was killed. So, we
+    copy this array into the below vector which is used for reporting
+    until next init_workers(). Note that we only copy those attributes that
+    would be useful in reporting worker status. We only use a few attributes in
+    this object as of now but still save the whole object. The idea is
+    to be future proof. We will extend performance schema tables in future
+    and then we would use a good number of attributes from this object.
+  */
+
+  std::vector<Slave_worker*> workers_copy_pfs;
+
+  /*
+    This flag is turned ON when the workers array is initialized.
+    Before destroying the workers array we check this flag to make sure
+    we are not destroying an unitilized array. For the purpose of reporting the
+    worker status in performance schema table, we need to preserve the workers
+    array after worker thread was killed. So, we copy this array into
+    workers_copy_pfs array which is used for reporting until next init_workers().
+  */
+  bool workers_array_initialized;
+
   volatile ulong pending_jobs;
   mysql_mutex_t pending_jobs_lock;
   mysql_cond_t pending_jobs_cond;
@@ -589,7 +634,7 @@ public:
     MTS statistics: 
   */
   ulonglong mts_events_assigned; // number of events (statements) scheduled
-  ulong mts_groups_assigned; // number of groups (transactions) scheduled
+  ulonglong mts_groups_assigned; // number of groups (transactions) scheduled
   volatile ulong mts_wq_overrun_cnt; // counter of all mts_wq_excess_cnt increments
   ulong wq_size_waits_cnt;    // number of times C slept due to WQ:s oversize
   /*
@@ -607,6 +652,50 @@ public:
   DYNAMIC_ARRAY least_occupied_workers;
   time_t mts_last_online_stat;
   /* end of MTS statistics */
+
+  /* Returns the number of elements in workers array/vector. */
+  inline uint get_worker_count()
+  {
+    if (workers_array_initialized)
+      return workers.elements;
+    else
+      return workers_copy_pfs.size();
+  }
+
+  /*
+    Returns a pointer to the worker instance at index n in workers
+    array/vector.
+  */
+  Slave_worker* get_worker(uint n)
+  {
+    if (workers_array_initialized)
+    {
+      if (n >= workers.elements)
+        return NULL;
+
+      Slave_worker *ret_worker;
+      get_dynamic(&workers, (uchar *) &ret_worker, n);
+      return ret_worker;
+    }
+    else if (workers_copy_pfs.size())
+    {
+      if (n >= workers_copy_pfs.size())
+        return NULL;
+
+      return workers_copy_pfs[n];
+    }
+    else
+      return NULL;
+  }
+
+  /* MTS submode  */
+  Mts_submode* current_mts_submode;
+
+  /*
+    Slave side local seq_no identifying a parent group that being
+    the scheduled transaction is considered to be dependent
+   */
+  ulonglong mts_last_known_parent_group_id;
 
   /* most of allocation in the coordinator rli is there */
   void init_workers(ulong);
@@ -991,4 +1080,8 @@ inline bool is_mts_worker(const THD *thd)
   return thd->system_thread == SYSTEM_THREAD_SLAVE_WORKER;
 }
 
+/**
+ Auxiliary function to check if we have a db partitioned MTS
+ */
+bool is_mts_db_partitioned(Relay_log_info * rli);
 #endif /* RPL_RLI_H */

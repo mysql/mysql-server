@@ -53,7 +53,7 @@ ERROR HY000: You can't use locks with log tables.
 show create table mysql.general_log;
 Table	Create Table
 general_log	CREATE TABLE `general_log` (
-  `event_time` timestamp NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+  `event_time` timestamp(6) NOT NULL DEFAULT CURRENT_TIMESTAMP(6) ON UPDATE CURRENT_TIMESTAMP(6),
   `user_host` mediumtext NOT NULL,
   `thread_id` bigint(21) unsigned NOT NULL,
   `server_id` int(10) unsigned NOT NULL,
@@ -62,7 +62,7 @@ general_log	CREATE TABLE `general_log` (
 ) ENGINE=CSV DEFAULT CHARSET=utf8 COMMENT='General log'
 show fields from mysql.general_log;
 Field	Type	Null	Key	Default	Extra
-event_time	timestamp	NO		CURRENT_TIMESTAMP	on update CURRENT_TIMESTAMP
+event_time	timestamp(6)	NO		CURRENT_TIMESTAMP(6)	on update CURRENT_TIMESTAMP(6)
 user_host	mediumtext	NO		NULL	
 thread_id	bigint(21) unsigned	NO		NULL	
 server_id	int(10) unsigned	NO		NULL	
@@ -71,10 +71,10 @@ argument	mediumtext	NO		NULL
 show create table mysql.slow_log;
 Table	Create Table
 slow_log	CREATE TABLE `slow_log` (
-  `start_time` timestamp NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+  `start_time` timestamp(6) NOT NULL DEFAULT CURRENT_TIMESTAMP(6) ON UPDATE CURRENT_TIMESTAMP(6),
   `user_host` mediumtext NOT NULL,
-  `query_time` time NOT NULL,
-  `lock_time` time NOT NULL,
+  `query_time` time(6) NOT NULL,
+  `lock_time` time(6) NOT NULL,
   `rows_sent` int(11) NOT NULL,
   `rows_examined` int(11) NOT NULL,
   `db` varchar(512) NOT NULL,
@@ -86,10 +86,10 @@ slow_log	CREATE TABLE `slow_log` (
 ) ENGINE=CSV DEFAULT CHARSET=utf8 COMMENT='Slow log'
 show fields from mysql.slow_log;
 Field	Type	Null	Key	Default	Extra
-start_time	timestamp	NO		CURRENT_TIMESTAMP	on update CURRENT_TIMESTAMP
+start_time	timestamp(6)	NO		CURRENT_TIMESTAMP(6)	on update CURRENT_TIMESTAMP(6)
 user_host	mediumtext	NO		NULL	
-query_time	time	NO		NULL	
-lock_time	time	NO		NULL	
+query_time	time(6)	NO		NULL	
+lock_time	time(6)	NO		NULL	
 rows_sent	int(11)	NO		NULL	
 rows_examined	int(11)	NO		NULL	
 db	varchar(512)	NO		NULL	
@@ -149,7 +149,7 @@ sleep(2)
 0
 select * from mysql.slow_log;
 start_time	user_host	query_time	lock_time	rows_sent	rows_examined	db	last_insert_id	insert_id	server_id	sql_text	thread_id
-TIMESTAMP	USER_HOST	QUERY_TIME	00:00:00	1	0	mysql	0	0	1	QUERY	THREAD_ID
+TIMESTAMP	USER_HOST	QUERY_TIME	00:00:00.000000	1	0	mysql	0	0	1	QUERY	THREAD_ID
 set @@session.long_query_time = @saved_long_query_time;
 alter table mysql.general_log engine=myisam;
 ERROR HY000: You cannot 'ALTER' a log table if logging is enabled
@@ -166,7 +166,7 @@ set global slow_query_log='OFF';
 show create table mysql.general_log;
 Table	Create Table
 general_log	CREATE TABLE `general_log` (
-  `event_time` timestamp NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+  `event_time` timestamp(6) NOT NULL DEFAULT CURRENT_TIMESTAMP(6) ON UPDATE CURRENT_TIMESTAMP(6),
   `user_host` mediumtext NOT NULL,
   `thread_id` bigint(21) unsigned NOT NULL,
   `server_id` int(10) unsigned NOT NULL,
@@ -176,10 +176,10 @@ general_log	CREATE TABLE `general_log` (
 show create table mysql.slow_log;
 Table	Create Table
 slow_log	CREATE TABLE `slow_log` (
-  `start_time` timestamp NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+  `start_time` timestamp(6) NOT NULL DEFAULT CURRENT_TIMESTAMP(6) ON UPDATE CURRENT_TIMESTAMP(6),
   `user_host` mediumtext NOT NULL,
-  `query_time` time NOT NULL,
-  `lock_time` time NOT NULL,
+  `query_time` time(6) NOT NULL,
+  `lock_time` time(6) NOT NULL,
   `rows_sent` int(11) NOT NULL,
   `rows_examined` int(11) NOT NULL,
   `db` varchar(512) NOT NULL,
@@ -194,7 +194,7 @@ alter table mysql.slow_log engine=myisam;
 show create table mysql.general_log;
 Table	Create Table
 general_log	CREATE TABLE `general_log` (
-  `event_time` timestamp NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+  `event_time` timestamp(6) NOT NULL DEFAULT CURRENT_TIMESTAMP(6) ON UPDATE CURRENT_TIMESTAMP(6),
   `user_host` mediumtext NOT NULL,
   `thread_id` bigint(21) unsigned NOT NULL,
   `server_id` int(10) unsigned NOT NULL,
@@ -204,10 +204,10 @@ general_log	CREATE TABLE `general_log` (
 show create table mysql.slow_log;
 Table	Create Table
 slow_log	CREATE TABLE `slow_log` (
-  `start_time` timestamp NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+  `start_time` timestamp(6) NOT NULL DEFAULT CURRENT_TIMESTAMP(6) ON UPDATE CURRENT_TIMESTAMP(6),
   `user_host` mediumtext NOT NULL,
-  `query_time` time NOT NULL,
-  `lock_time` time NOT NULL,
+  `query_time` time(6) NOT NULL,
+  `lock_time` time(6) NOT NULL,
   `rows_sent` int(11) NOT NULL,
   `rows_examined` int(11) NOT NULL,
   `db` varchar(512) NOT NULL,
@@ -264,8 +264,8 @@ drop table mysql.slow_log;
 ERROR 42S02: Unknown table 'mysql.slow_log'
 use mysql;
 CREATE TABLE `general_log` (
-`event_time` timestamp NOT NULL DEFAULT CURRENT_TIMESTAMP
-ON UPDATE CURRENT_TIMESTAMP,
+`event_time` timestamp(6) NOT NULL DEFAULT CURRENT_TIMESTAMP(6)
+ON UPDATE CURRENT_TIMESTAMP(6),
 `user_host` mediumtext NOT NULL,
 `thread_id` bigint(21) unsigned NOT NULL,
 `server_id` int(10) unsigned NOT NULL,
@@ -273,11 +273,11 @@ ON UPDATE CURRENT_TIMESTAMP,
 `argument` mediumtext NOT NULL
 ) ENGINE=CSV DEFAULT CHARSET=utf8 COMMENT='General log';
 CREATE TABLE `slow_log` (
-`start_time` timestamp NOT NULL DEFAULT CURRENT_TIMESTAMP
-ON UPDATE CURRENT_TIMESTAMP,
+`start_time` timestamp(6) NOT NULL DEFAULT CURRENT_TIMESTAMP(6)
+ON UPDATE CURRENT_TIMESTAMP(6),
 `user_host` mediumtext NOT NULL,
-`query_time` time NOT NULL,
-`lock_time` time NOT NULL,
+`query_time` time(6) NOT NULL,
+`lock_time` time(6) NOT NULL,
 `rows_sent` int(11) NOT NULL,
 `rows_examined` int(11) NOT NULL,
 `db` varchar(512) NOT NULL,

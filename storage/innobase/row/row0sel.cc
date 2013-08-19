@@ -216,7 +216,8 @@ row_sel_sec_rec_is_for_clust_rec(
 
 		len = clust_len;
 
-		if (ifield->prefix_len > 0 && len != UNIV_SQL_NULL) {
+		if (ifield->prefix_len > 0 && len != UNIV_SQL_NULL
+		    && sec_len != UNIV_SQL_NULL) {
 
 			if (rec_offs_nth_extern(clust_offs, clust_pos)) {
 				len -= BTR_EXTERN_FIELD_REF_SIZE;
@@ -675,7 +676,7 @@ static __attribute__((nonnull, warn_unused_result))
 dberr_t
 row_sel_build_prev_vers(
 /*====================*/
-	read_view_t*	read_view,	/*!< in: read view */
+	ReadView*	read_view,	/*!< in: read view */
 	dict_index_t*	index,		/*!< in: plan node for table */
 	rec_t*		rec,		/*!< in: record in a clustered index */
 	ulint**		offsets,	/*!< in/out: offsets returned by
@@ -1229,7 +1230,7 @@ row_sel_try_search_shortcut(
 	ut_ad(!plan->must_get_clust);
 #ifdef UNIV_SYNC_DEBUG
 	if (search_latch_locked) {
-		ut_ad(rw_lock_own(&btr_search_latch, RW_LOCK_SHARED));
+		ut_ad(rw_lock_own(&btr_search_latch, RW_LOCK_S));
 	}
 #endif /* UNIV_SYNC_DEBUG */
 
@@ -1406,7 +1407,7 @@ table_loop:
 			rw_lock_s_lock(&btr_search_latch);
 
 			search_latch_locked = TRUE;
-		} else if (rw_lock_get_writer(&btr_search_latch) == RW_LOCK_WAIT_EX) {
+		} else if (rw_lock_get_writer(&btr_search_latch) == RW_LOCK_X_WAIT) {
 
 			/* There is an x-latch request waiting: release the
 			s-latch for a moment; as an s-latch here is often
@@ -1660,8 +1661,8 @@ skip_lock:
 
 		if (dict_index_is_clust(index)) {
 
-			if (!lock_clust_rec_cons_read_sees(rec, index, offsets,
-							   node->read_view)) {
+			if (!lock_clust_rec_cons_read_sees(
+					rec, index, offsets, node->read_view)) {
 
 				err = row_sel_build_prev_vers(
 					node->read_view, index, rec,
@@ -1976,9 +1977,12 @@ stop_for_a_while:
 
 	mtr_commit(&mtr);
 
-#ifdef UNIV_SYNC_DEBUG
-	ut_ad(sync_thread_levels_empty_except_dict());
-#endif /* UNIV_SYNC_DEBUG */
+	{
+		btrsea_sync_check	check(true);
+
+		ut_ad(!sync_check_iterate(check));
+	}
+
 	err = DB_SUCCESS;
 	goto func_exit;
 
@@ -1997,7 +2001,11 @@ commit_mtr_for_a_while:
 	mtr_has_extra_clust_latch = FALSE;
 
 #ifdef UNIV_SYNC_DEBUG
-	ut_ad(sync_thread_levels_empty_except_dict());
+	{
+		dict_sync_check	check(true);
+
+		ut_ad(!sync_check_iterate(check));
+	}
 #endif /* UNIV_SYNC_DEBUG */
 
 	goto table_loop;
@@ -2014,14 +2022,19 @@ lock_wait_or_error:
 	mtr_commit(&mtr);
 
 #ifdef UNIV_SYNC_DEBUG
-	ut_ad(sync_thread_levels_empty_except_dict());
+	{
+		dict_sync_check	check(true);
+
+		ut_ad(!sync_check_iterate(check));
+	}
 #endif /* UNIV_SYNC_DEBUG */
 
 func_exit:
 	if (search_latch_locked) {
 		rw_lock_s_unlock(&btr_search_latch);
 	}
-	if (UNIV_LIKELY_NULL(heap)) {
+
+	if (heap != NULL) {
 		mem_heap_free(heap);
 	}
 	return(err);
@@ -2065,8 +2078,14 @@ row_sel_step(
 
 		if (node->consistent_read) {
 			/* Assign a read view for the query */
-			node->read_view = trx_assign_read_view(
-				thr_get_trx(thr));
+			trx_assign_read_view(thr_get_trx(thr));
+
+			if (thr_get_trx(thr)->read_view != NULL) {
+				node->read_view = thr_get_trx(thr)->read_view;
+			} else {
+				node->read_view = NULL;
+			}
+
 		} else {
 			sym_node_t*	table_node;
 			enum lock_mode	i_lock_mode;
@@ -2693,8 +2712,7 @@ row_sel_field_store_in_mysql_format_func(
 
 	case DATA_GEOMETRY:
 		/* We store geometry data as BLOB data. */
-		row_mysql_store_geometry(dest, templ->mysql_col_len, data,
-					 len);
+		row_mysql_store_geometry(dest, templ->mysql_col_len, data, len);
 		break;
 
 	case DATA_MYSQL:
@@ -2981,7 +2999,7 @@ static __attribute__((nonnull, warn_unused_result))
 dberr_t
 row_sel_build_prev_vers_for_mysql(
 /*==============================*/
-	read_view_t*	read_view,	/*!< in: read view */
+	ReadView*	read_view,	/*!< in: read view */
 	dict_index_t*	clust_index,	/*!< in: clustered index */
 	row_prebuilt_t*	prebuilt,	/*!< in: prebuilt struct */
 	const rec_t*	rec,		/*!< in: record in a clustered index */
@@ -3139,7 +3157,7 @@ row_sel_get_clust_rec_for_mysql(
 		if (trx->isolation_level > TRX_ISO_READ_UNCOMMITTED
 		    && !lock_clust_rec_cons_read_sees(
 			    clust_rec, clust_index, *offsets,
-			    trx->read_view)) {
+			    trx_get_read_view(trx))) {
 
 			/* The following call returns 'offsets' associated with
 			'old_vers' */
@@ -3509,8 +3527,8 @@ row_sel_try_search_shortcut_for_mysql(
 	*offsets = rec_get_offsets(rec, index, *offsets,
 				   ULINT_UNDEFINED, heap);
 
-	if (!lock_clust_rec_cons_read_sees(rec, index,
-					   *offsets, trx->read_view)) {
+	if (!lock_clust_rec_cons_read_sees(
+			rec, index, *offsets, trx_get_read_view(trx))) {
 
 		return(SEL_RETRY);
 	}
@@ -3680,9 +3698,10 @@ row_search_for_mysql(
 		return(DB_END_OF_INDEX);
 	}
 
-#ifdef UNIV_SYNC_DEBUG
-	ut_ad(!sync_thread_levels_nonempty_trx(trx->has_search_latch));
-#endif /* UNIV_SYNC_DEBUG */
+	{
+		btrsea_sync_check	check(trx->has_search_latch);
+		ut_ad(!sync_check_iterate(check));
+	}
 
 	if (dict_table_is_discarded(prebuilt->table)) {
 
@@ -3889,7 +3908,7 @@ row_search_for_mysql(
 		if (trx->mysql_n_tables_locked == 0
 		    && prebuilt->select_lock_type == LOCK_NONE
 		    && trx->isolation_level > TRX_ISO_READ_UNCOMMITTED
-		    && trx->read_view) {
+		    && MVCC::is_view_active(trx->read_view)) {
 
 			/* This is a SELECT query done as a consistent read,
 			and the read view has already been allocated:
@@ -4016,7 +4035,7 @@ release_search_latch_if_needed:
 
 	ut_ad(prebuilt->sql_stat_start
 	      || prebuilt->select_lock_type != LOCK_NONE
-	      || trx->read_view
+	      || MVCC::is_view_active(trx->read_view)
 	      || srv_read_only_mode);
 
 	trx_start_if_not_started(trx, false);
@@ -4054,7 +4073,7 @@ release_search_latch_if_needed:
 	if (!prebuilt->sql_stat_start) {
 		/* No need to set an intention lock or assign a read view */
 
-		if (trx->read_view == NULL
+		if (!MVCC::is_view_active(trx->read_view)
 		    && !srv_read_only_mode
 		    && prebuilt->select_lock_type == LOCK_NONE) {
 
@@ -4555,9 +4574,10 @@ no_gap_lock:
 			high force recovery level set, we try to avoid crashes
 			by skipping this lookup */
 
-			if (UNIV_LIKELY(srv_force_recovery < 5)
+			if (srv_force_recovery < 5
 			    && !lock_clust_rec_cons_read_sees(
-				    rec, index, offsets, trx->read_view)) {
+				    rec, index, offsets,
+				    trx_get_read_view(trx))) {
 
 				rec_t*	old_vers;
 				/* The following call returns 'offsets'
@@ -5135,9 +5155,11 @@ func_exit:
 		}
 	}
 
-#ifdef UNIV_SYNC_DEBUG
-	ut_ad(!sync_thread_levels_nonempty_trx(trx->has_search_latch));
-#endif /* UNIV_SYNC_DEBUG */
+	{
+		btrsea_sync_check	check(trx->has_search_latch);
+
+		ut_ad(!sync_check_iterate(check));
+	}
 
 	DEBUG_SYNC_C("innodb_row_search_for_mysql_exit");
 
@@ -5196,8 +5218,9 @@ row_search_check_if_query_cache_permitted(
 
 	if (lock_table_get_n_locks(table) == 0
 	    && ((trx->id > 0 && trx->id >= table->query_cache_inv_id)
-		|| trx->read_view == NULL
-		|| trx->read_view->low_limit_id >= table->query_cache_inv_id)) {
+		|| !MVCC::is_view_active(trx->read_view)
+		|| trx->read_view->low_limit_id()
+		>= table->query_cache_inv_id)) {
 
 		ret = TRUE;
 
@@ -5205,11 +5228,10 @@ row_search_check_if_query_cache_permitted(
 		transaction if it does not yet have one */
 
 		if (trx->isolation_level >= TRX_ISO_REPEATABLE_READ
-		    && trx->read_view == NULL
-		    && !srv_read_only_mode) {
+		    && !srv_read_only_mode
+		    && !MVCC::is_view_active(trx->read_view)) {
 
-			trx->read_view = read_view_open_now(
-				trx->id, trx->read_view_heap);
+			trx_sys->mvcc->view_open(trx->read_view, trx);
 		}
 	}
 

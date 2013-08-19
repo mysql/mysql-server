@@ -121,7 +121,7 @@ static handler *myisammrg_create_handler(handlerton *hton,
 ha_myisammrg::ha_myisammrg(handlerton *hton, TABLE_SHARE *table_arg)
   :handler(hton, table_arg), file(0), is_cloned(0)
 {
-  init_sql_alloc(&children_mem_root,
+  init_sql_alloc(rg_key_memory_children, &children_mem_root,
                  FN_REFLEN + ALLOC_ROOT_MIN_BLOCK_SIZE, 0);
 }
 

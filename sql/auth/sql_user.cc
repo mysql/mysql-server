@@ -191,9 +191,6 @@ bool change_password(THD *thd, const char *host, const char *user,
   char buff[512];
   ulong query_length= 0;
   bool save_binlog_row_based;
-  uchar user_key[MAX_KEY_LENGTH];
-  char *plugin_temp= NULL;
-  bool plugin_empty;
   uint new_password_len= (uint) strlen(new_password);
   bool result= 1;
   enum mysql_user_table_field password_field= MYSQL_USER_FIELD_PASSWORD;
@@ -227,6 +224,13 @@ bool change_password(THD *thd, const char *host, const char *user,
   if (!(table= open_ltable(thd, &tables, TL_WRITE, MYSQL_LOCK_IGNORE_TIMEOUT)))
     DBUG_RETURN(1);
 
+  if (!table->key_info)
+  {
+    my_error(ER_TABLE_CORRUPT, MYF(0), table->s->db.str,
+             table->s->table_name.str);
+    DBUG_RETURN(1);
+  }
+
   /*
     This statement will be replicated as a statement, even when using
     row-based replication.  The flag will be reset at the end of the
@@ -243,32 +247,8 @@ bool change_password(THD *thd, const char *host, const char *user,
     my_message(ER_PASSWORD_NO_MATCH, ER(ER_PASSWORD_NO_MATCH), MYF(0));
     goto end;
   }
-  mysql_mutex_assert_owner(&acl_cache->lock);
-  table->use_all_columns();
-  DBUG_ASSERT(host != '\0');
-  table->field[MYSQL_USER_FIELD_HOST]->store(host, strlen(host),
-                                             system_charset_info);
-  table->field[MYSQL_USER_FIELD_USER]->store(user, strlen(user),
-                                             system_charset_info);
 
-  key_copy((uchar *) user_key, table->record[0], table->key_info,
-           table->key_info->key_length);
-  if (!table->file->ha_index_read_idx_map(table->record[0], 0, user_key,
-                                          HA_WHOLE_KEY,
-                                          HA_READ_KEY_EXACT))
-    plugin_temp= (table->s->fields > MYSQL_USER_FIELD_PLUGIN) ?
-                 get_field(&global_acl_memory, table->field[MYSQL_USER_FIELD_PLUGIN]) : NULL;
-  else
-    DBUG_ASSERT(FALSE);
-
-  plugin_empty= plugin_temp ? false: true;
-  
-  if (acl_user->plugin.length == 0)
-  {
-    acl_user->plugin.length= default_auth_plugin_name.length;
-    acl_user->plugin.str= default_auth_plugin_name.str;
-  }
-
+  DBUG_ASSERT(acl_user->plugin.length != 0);
   if (new_password_len == 0)
   {
     String *password_str= new (thd->mem_root) String(new_password,
@@ -281,15 +261,14 @@ bool change_password(THD *thd, const char *host, const char *user,
       goto end;
     }
   }
-  
+
 #if defined(HAVE_OPENSSL)
   /*
     update loaded acl entry:
     TODO Should password depend on @@old_variables here?
     - Probably not if the user exists and have a plugin set already.
   */
-  if (my_strcasecmp(system_charset_info, acl_user->plugin.str,
-                    sha256_password_plugin_name.str) == 0)
+  if (acl_user->plugin.str == sha256_password_plugin_name.str)
   {
     /*
      Accept empty passwords
@@ -341,10 +320,8 @@ bool change_password(THD *thd, const char *host, const char *user,
   }
   else
 #endif
-  if (my_strcasecmp(system_charset_info, acl_user->plugin.str,
-                    native_password_plugin_name.str) == 0 ||
-      my_strcasecmp(system_charset_info, acl_user->plugin.str,
-                    old_password_plugin_name.str) == 0)
+  if ((acl_user->plugin.str == native_password_plugin_name.str) ||
+      (acl_user->plugin.str == old_password_plugin_name.str))
   {
     password_field= MYSQL_USER_FIELD_PASSWORD;
     
@@ -354,44 +331,23 @@ bool change_password(THD *thd, const char *host, const char *user,
     */
     if (new_password_len != 0)
     {
-      if (plugin_empty)
+      if ((acl_user->plugin.str == native_password_plugin_name.str) &&
+	  new_password_len != SCRAMBLED_PASSWORD_CHAR_LENGTH)
       {
-        if (new_password_len == SCRAMBLED_PASSWORD_CHAR_LENGTH)
-          acl_user->plugin= native_password_plugin_name;
-        else if (new_password_len == SCRAMBLED_PASSWORD_CHAR_LENGTH_323)
-          acl_user->plugin= old_password_plugin_name;
-        else
-        {
-          my_error(ER_PASSWD_LENGTH, MYF(0), SCRAMBLED_PASSWORD_CHAR_LENGTH);
-          result= 1;
-          mysql_mutex_unlock(&acl_cache->lock);
-          goto end;
-        }
+	my_error(ER_PASSWD_LENGTH, MYF(0), SCRAMBLED_PASSWORD_CHAR_LENGTH);
+	result= 1;
+	mysql_mutex_unlock(&acl_cache->lock);
+	goto end;
       }
-      else
+      else if ((acl_user->plugin.str == old_password_plugin_name.str) &&
+	       new_password_len != SCRAMBLED_PASSWORD_CHAR_LENGTH_323)
       {
-        if (my_strcasecmp(system_charset_info, acl_user->plugin.str,
-                          native_password_plugin_name.str) == 0 &&
-            new_password_len != SCRAMBLED_PASSWORD_CHAR_LENGTH)
-        {
-          my_error(ER_PASSWD_LENGTH, MYF(0), SCRAMBLED_PASSWORD_CHAR_LENGTH);
-          result= 1;
-          mysql_mutex_unlock(&acl_cache->lock);
-          goto end;
-        }
-        else if (my_strcasecmp(system_charset_info, acl_user->plugin.str,
-                               old_password_plugin_name.str) == 0 &&
-                 new_password_len != SCRAMBLED_PASSWORD_CHAR_LENGTH_323)
-        {
-          my_error(ER_PASSWD_LENGTH, MYF(0), SCRAMBLED_PASSWORD_CHAR_LENGTH_323);
-          result= 1;
-          mysql_mutex_unlock(&acl_cache->lock);
-          goto end;
-        }
+	my_error(ER_PASSWD_LENGTH, MYF(0), SCRAMBLED_PASSWORD_CHAR_LENGTH_323);
+	result= 1;
+	mysql_mutex_unlock(&acl_cache->lock);
+	goto end;
       }
     }
-    else if (plugin_empty)
-      acl_user->plugin= native_password_plugin_name;
 
     /*
       Update loaded acl entry in memory.
@@ -431,7 +387,7 @@ bool change_password(THD *thd, const char *host, const char *user,
   if (update_user_table(thd, table,
                         acl_user->host.get_host() ? acl_user->host.get_host() : "",
                         acl_user->user ? acl_user->user : "",
-                        new_password, new_password_len, password_field, false, true))
+                        new_password, new_password_len, password_field, false))
   {
     mysql_mutex_unlock(&acl_cache->lock); /* purecov: deadcode */
     goto end;
@@ -1346,6 +1302,13 @@ bool mysql_user_password_expire(THD *thd, List <LEX_USER> &list)
   if (!(table= open_ltable(thd, &tables, TL_WRITE, MYSQL_LOCK_IGNORE_TIMEOUT)))
     DBUG_RETURN(true);
 
+  if (!table->key_info)
+  {
+    my_error(ER_TABLE_CORRUPT, MYF(0), table->s->db.str,
+             table->s->table_name.str);
+    DBUG_RETURN(true);
+  }
+
   /*
     This statement will be replicated as a statement, even when using
     row-based replication.  The flag will be reset at the end of the
@@ -1396,7 +1359,7 @@ bool mysql_user_password_expire(THD *thd, List <LEX_USER> &list)
                           acl_user->host.get_host() ?
                           acl_user->host.get_host() : "",
                           acl_user->user ? acl_user->user : "",
-                          NULL, 0, password_field, true, false))
+                          NULL, 0, password_field, true))
     {
       result= true;
       append_user(thd, &wrong_users, user_from, wrong_users.length() > 0,

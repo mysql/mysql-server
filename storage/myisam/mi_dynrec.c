@@ -39,12 +39,6 @@ static int delete_dynamic_record(MI_INFO *info,my_off_t filepos,
 static int _mi_cmp_buffer(File file, const uchar *buff, my_off_t filepos,
 			  uint length);
 
-/* Play it safe; We have a small stack when using threads */
-#undef my_alloca
-#undef my_afree
-#define my_alloca(A) my_malloc((A),MYF(0))
-#define my_afree(A) my_free((A))
-
 	/* Interface function from MI_INFO */
 
 #ifdef HAVE_MMAP
@@ -281,7 +275,8 @@ int _mi_write_blob_record(MI_INFO *info, const uchar *record)
 	  MI_DYN_DELETE_BLOCK_HEADER+1);
   reclength= (info->s->base.pack_reclength +
 	      _my_calc_total_blob_length(info,record)+ extra);
-  if (!(rec_buff=(uchar*) my_alloca(reclength)))
+  if (!(rec_buff=(uchar*) my_malloc(mi_key_memory_record_buffer,
+                                    reclength, MYF(0))))
   {
     my_errno= HA_ERR_OUT_OF_MEM; /* purecov: inspected */
     return(-1);
@@ -293,7 +288,7 @@ int _mi_write_blob_record(MI_INFO *info, const uchar *record)
   DBUG_ASSERT(reclength2 <= reclength);
   error=write_dynamic_record(info,rec_buff+ALIGN_SIZE(MI_MAX_DYN_BLOCK_HEADER),
 			     reclength2);
-  my_afree(rec_buff);
+  my_free(rec_buff);
   return(error);
 }
 
@@ -308,7 +303,8 @@ int _mi_update_blob_record(MI_INFO *info, my_off_t pos, const uchar *record)
 	  MI_DYN_DELETE_BLOCK_HEADER);
   reclength= (info->s->base.pack_reclength+
 	      _my_calc_total_blob_length(info,record)+ extra);
-  if (!(rec_buff=(uchar*) my_alloca(reclength)))
+  if (!(rec_buff=(uchar*) my_malloc(mi_key_memory_record_buffer,
+                                    reclength, MYF(0))))
   {
     my_errno= HA_ERR_OUT_OF_MEM; /* purecov: inspected */
     return(-1);
@@ -318,7 +314,7 @@ int _mi_update_blob_record(MI_INFO *info, my_off_t pos, const uchar *record)
   error=update_dynamic_record(info,pos,
 			      rec_buff+ALIGN_SIZE(MI_MAX_DYN_BLOCK_HEADER),
 			      reclength);
-  my_afree(rec_buff);
+  my_free(rec_buff);
   return(error);
 }
 
@@ -1547,7 +1543,9 @@ int _mi_cmp_dynamic_unique(MI_INFO *info, MI_UNIQUEDEF *def,
   int error;
   DBUG_ENTER("_mi_cmp_dynamic_unique");
 
-  if (!(old_record=my_alloca(info->s->base.reclength)))
+  if (!(old_record= my_malloc(mi_key_memory_record_buffer,
+                              info->s->base.reclength,
+                              MYF(0))))
     DBUG_RETURN(1);
 
   /* Don't let the compare destroy blobs that may be in use */
@@ -1562,7 +1560,7 @@ int _mi_cmp_dynamic_unique(MI_INFO *info, MI_UNIQUEDEF *def,
     my_free(mi_get_rec_buff_ptr(info, info->rec_buff));
     info->rec_buff=rec_buff;
   }
-  my_afree(old_record);
+  my_free(old_record);
   DBUG_RETURN(error);
 }
 
@@ -1592,8 +1590,10 @@ int _mi_cmp_dynamic_record(MI_INFO *info, const uchar *record)
   {						/* If check isn't disabled  */
     if (info->s->base.blobs)
     {
-      if (!(buffer=(uchar*) my_alloca(info->s->base.pack_reclength+
-				     _my_calc_total_blob_length(info,record))))
+      if (!(buffer=(uchar*) my_malloc(mi_key_memory_record_buffer,
+                                      info->s->base.pack_reclength+
+				      _my_calc_total_blob_length(info,record),
+                                      MYF(0))))
 	DBUG_RETURN(-1);
     }
     reclength=_mi_rec_pack(info,buffer,record);
@@ -1640,7 +1640,7 @@ int _mi_cmp_dynamic_record(MI_INFO *info, const uchar *record)
   my_errno=0;
 err:
   if (buffer != info->rec_buff)
-    my_afree((uchar*) buffer);
+    my_free((uchar*) buffer);
   DBUG_RETURN(my_errno);
 }
 

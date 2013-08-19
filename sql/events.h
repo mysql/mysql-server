@@ -1,6 +1,6 @@
 #ifndef _EVENT_H_
 #define _EVENT_H_
-/* Copyright (c) 2004, 2010, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2004, 2013, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -30,6 +30,8 @@ extern PSI_mutex_key key_event_scheduler_LOCK_scheduler_state;
 extern PSI_cond_key key_event_scheduler_COND_state;
 extern PSI_thread_key key_thread_event_scheduler, key_thread_event_worker;
 #endif /* HAVE_PSI_INTERFACE */
+
+extern PSI_memory_key key_memory_event_basic_root;
 
 /* Always defined, for SHOW PROCESSLIST. */
 extern PSI_stage_info stage_waiting_on_empty_queue;

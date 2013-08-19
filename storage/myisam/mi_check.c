@@ -2169,7 +2169,8 @@ int filecopy(MI_CHECK *param, File to,File from,my_off_t start,
   DBUG_ENTER("filecopy");
 
   buff_length=(ulong) MY_MIN(param->write_buffer_length,length);
-  if (!(buff=my_malloc(buff_length,MYF(0))))
+  if (!(buff=my_malloc(mi_key_memory_filecopy,
+                       buff_length,MYF(0))))
   {
     buff=tmp_buff; buff_length=IO_SIZE;
   }
@@ -2319,7 +2320,8 @@ int mi_repair_by_sort(MI_CHECK *param, MI_INFO *info,
     mysql_file_seek(param->read_cache.file, 0L, MY_SEEK_END, MYF(0));
 
   sort_param.wordlist=NULL;
-  init_alloc_root(&sort_param.wordroot, FTPARSER_MEMROOT_ALLOC_SIZE, 0);
+  init_alloc_root(mi_key_memory_MI_SORT_PARAM_wordroot,
+                  &sort_param.wordroot, FTPARSER_MEMROOT_ALLOC_SIZE, 0);
 
   if (share->data_file_type == DYNAMIC_RECORD)
     length= MY_MAX(share->base.min_pack_length + 1, share->base.min_block_length);
@@ -2792,7 +2794,8 @@ int mi_repair_parallel(MI_CHECK *param, MI_INFO *info,
   if (share->options & HA_OPTION_COMPRESS_RECORD)
     set_if_bigger(max_pack_reclength, share->max_pack_length);
   if (!(sort_param=(MI_SORT_PARAM *)
-        my_malloc((uint) share->base.keys *
+        my_malloc(mi_key_memory_MI_SORT_PARAM,
+                  (uint) share->base.keys *
 		  (sizeof(MI_SORT_PARAM) + max_pack_reclength),
 		  MYF(MY_ZEROFILL))))
   {
@@ -2875,7 +2878,8 @@ int mi_repair_parallel(MI_CHECK *param, MI_INFO *info,
       uint ft_max_word_len_for_sort=FT_MAX_WORD_LEN_FOR_SORT*
                                     sort_param[i].keyinfo->seg->charset->mbmaxlen;
       sort_param[i].key_length+=ft_max_word_len_for_sort-HA_FT_MAXBYTELEN;
-      init_alloc_root(&sort_param[i].wordroot, FTPARSER_MEMROOT_ALLOC_SIZE, 0);
+      init_alloc_root(mi_key_memory_MI_SORT_PARAM_wordroot,
+                      &sort_param[i].wordroot, FTPARSER_MEMROOT_ALLOC_SIZE, 0);
     }
   }
   sort_info.total_keys=i;
@@ -3679,7 +3683,8 @@ int sort_write_record(MI_SORT_PARAM *sort_param)
 	  MI_DYN_DELETE_BLOCK_HEADER;
 	if (sort_info->buff_length < reclength)
 	{
-	  if (!(sort_info->buff=my_realloc(sort_info->buff, (uint) reclength,
+	  if (!(sort_info->buff=my_realloc(mi_key_memory_SORT_INFO_buffer,
+                                           sort_info->buff, (uint) reclength,
 					   MYF(MY_FREE_ON_ERROR |
 					       MY_ALLOW_ZERO_PTR))))
 	    DBUG_RETURN(1);
@@ -3891,7 +3896,8 @@ static int sort_ft_key_write(MI_SORT_PARAM *sort_param, const void *a)
          sort_info->info->s->rec_reflength) &&
         (sort_info->info->s->options &
           (HA_OPTION_PACK_RECORD | HA_OPTION_COMPRESS_RECORD)))
-      ft_buf=(SORT_FT_BUF *)my_malloc(sort_param->keyinfo->block_length +
+      ft_buf=(SORT_FT_BUF *)my_malloc(mi_key_memory_SORT_FT_BUF,
+                                      sort_param->keyinfo->block_length +
                                       sizeof(SORT_FT_BUF), MYF(MY_WME));
 
     if (!ft_buf)
@@ -4161,7 +4167,8 @@ static SORT_KEY_BLOCKS *alloc_key_blocks(MI_CHECK *param, uint blocks,
   SORT_KEY_BLOCKS *block;
   DBUG_ENTER("alloc_key_blocks");
 
-  if (!(block=(SORT_KEY_BLOCKS*) my_malloc((sizeof(SORT_KEY_BLOCKS)+
+  if (!(block=(SORT_KEY_BLOCKS*) my_malloc(mi_key_memory_SORT_KEY_BLOCKS,
+                                           (sizeof(SORT_KEY_BLOCKS)+
 					    buffer_length+IO_SIZE)*blocks,
 					   MYF(0))))
   {
@@ -4247,13 +4254,15 @@ int recreate_table(MI_CHECK *param, MI_INFO **org_info, char *filename)
   /* Copy the column definitions */
   memcpy((uchar*) recdef,(uchar*) share.rec,
 	 (size_t) (sizeof(MI_COLUMNDEF)*(share.base.fields+1)));
-  for (rec=recdef,end=recdef+share.base.fields; rec != end ; rec++)
+  if (unpack && !(share.options & HA_OPTION_PACK_RECORD))
   {
-    if (unpack && !(share.options & HA_OPTION_PACK_RECORD) &&
-	rec->type != FIELD_BLOB &&
-	rec->type != FIELD_VARCHAR &&
-	rec->type != FIELD_CHECK)
-      rec->type=(int) FIELD_NORMAL;
+     for (rec=recdef,end=recdef+share.base.fields; rec != end ; rec++)
+     {
+        if (rec->type != FIELD_BLOB &&
+            rec->type != FIELD_VARCHAR &&
+            rec->type != FIELD_CHECK)
+          rec->type=(int) FIELD_NORMAL;
+     }
   }
 
   /* Change the new key to point at the saved key segments */
@@ -4680,10 +4689,13 @@ my_bool mi_test_if_sort_rep(MI_INFO *info, ha_rows rows,
   */
   if (! mi_is_any_key_active(key_map))
     return FALSE;				/* Can't use sort */
-  for (i=0 ; i < share->base.keys ; i++,key++)
+  if (!force)
   {
-    if (!force && mi_too_big_key_for_sort(key,rows))
-      return FALSE;
+     for (i=0 ; i < share->base.keys ; i++,key++)
+     {
+        if (mi_too_big_key_for_sort(key,rows))
+          return FALSE;
+     }
   }
   return TRUE;
 }

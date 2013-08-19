@@ -87,7 +87,7 @@ UNIV_INLINE
 ha_node_t*
 ha_chain_get_next(
 /*==============*/
-	ha_node_t*	node)	/*!< in: hash chain node */
+	const ha_node_t*	node)	/*!< in: hash chain node */
 {
 	return(node->next);
 }
@@ -124,7 +124,7 @@ hash_assert_can_modify(
 	} else if (table->type == HASH_TABLE_SYNC_RW_LOCK) {
 # ifdef UNIV_SYNC_DEBUG
 		rw_lock_t* lock = hash_get_lock(table, fold);
-		ut_ad(rw_lock_own(lock, RW_LOCK_EX));
+		ut_ad(rw_lock_own(lock, RW_LOCK_X));
 # endif
 	} else {
 		ut_ad(table->type == HASH_TABLE_SYNC_NONE);
@@ -147,8 +147,8 @@ hash_assert_can_search(
 	} else if (table->type == HASH_TABLE_SYNC_RW_LOCK) {
 # ifdef UNIV_SYNC_DEBUG
 		rw_lock_t* lock = hash_get_lock(table, fold);
-		ut_ad(rw_lock_own(lock, RW_LOCK_EX)
-		      || rw_lock_own(lock, RW_LOCK_SHARED));
+		ut_ad(rw_lock_own(lock, RW_LOCK_X)
+		      || rw_lock_own(lock, RW_LOCK_S));
 # endif
 	} else {
 		ut_ad(table->type == HASH_TABLE_SYNC_NONE);
@@ -167,20 +167,17 @@ ha_search_and_get_data(
 	hash_table_t*	table,	/*!< in: hash table */
 	ulint		fold)	/*!< in: folded value of the searched data */
 {
-	ha_node_t*	node;
-
 	hash_assert_can_search(table, fold);
 	ut_ad(btr_search_enabled);
 
-	node = ha_chain_get_first(table, fold);
+	for (const ha_node_t* node = ha_chain_get_first(table, fold);
+	     node != NULL;
+	     node = ha_chain_get_next(node)) {
 
-	while (node) {
 		if (node->fold == fold) {
 
 			return(node->data);
 		}
-
-		node = ha_chain_get_next(node);
 	}
 
 	return(NULL);

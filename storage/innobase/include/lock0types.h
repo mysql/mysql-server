@@ -23,10 +23,13 @@ The transaction lock system global types
 Created 5/7/1996 Heikki Tuuri
 *******************************************************/
 
+#include "ut0lst.h"
+
 #ifndef lock0types_h
 #define lock0types_h
 
 #define lock_t ib_lock_t
+
 struct lock_t;
 struct lock_sys_t;
 struct lock_table_t;
@@ -46,4 +49,4 @@ enum lock_mode {
 
 typedef UT_LIST_BASE_NODE_T(lock_t) trx_lock_list_t;
 
-#endif
+#endif /* lock0types_h */

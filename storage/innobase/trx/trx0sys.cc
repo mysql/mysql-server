@@ -115,12 +115,6 @@ static const char*	file_format_name_map[] = {
 static const ulint	FILE_FORMAT_NAME_N
 	= sizeof(file_format_name_map) / sizeof(file_format_name_map[0]);
 
-#ifdef UNIV_PFS_MUTEX
-/* Key to register the mutex with performance schema */
-mysql_pfs_key_t	file_format_max_mutex_key;
-mysql_pfs_key_t	trx_sys_mutex_key;
-#endif /* UNIV_PFS_RWLOCK */
-
 #ifndef UNIV_HOTBACKUP
 #ifdef UNIV_DEBUG
 /* Flag to control TRX_RSEG_N_SLOTS behavior debugging. */
@@ -151,7 +145,7 @@ trx_in_trx_list(
 	trx_list = (in_trx->read_only || in_trx->rsegs.m_redo.rseg == 0)
 		? &trx_sys->ro_trx_list : &trx_sys->rw_trx_list;
 
-	ut_ad(mutex_own(&trx_sys->mutex));
+	ut_ad(trx_sys_mutex_own());
 
 	ut_ad(trx_assert_started(in_trx));
 
@@ -181,7 +175,7 @@ trx_sys_flush_max_trx_id(void)
 	mtr_t		mtr;
 	trx_sysf_t*	sys_header;
 
-	ut_ad(mutex_own(&trx_sys->mutex));
+	ut_ad(trx_sys_mutex_own());
 
 	if (!srv_read_only_mode) {
 		mtr_start(&mtr);
@@ -526,7 +520,8 @@ trx_sys_init_at_db_start(void)
 	/* We create the min binary heap here and pass ownership to
 	purge when we init the purge sub-system. Purge is responsible
 	for freeing the binary heap. */
-	purge_queue = new purge_pq_t(0);
+	purge_queue = new(std::nothrow) purge_pq_t();
+	ut_a(purge_queue != NULL);
 
 	mtr_start(&mtr);
 
@@ -558,7 +553,7 @@ trx_sys_init_at_db_start(void)
 	the debug code (assertions). We are still running in single threaded
 	bootstrap mode. */
 
-	mutex_enter(&trx_sys->mutex);
+	trx_sys_mutex_enter();
 
 	ut_a(UT_LIST_GET_LEN(trx_sys->ro_trx_list) == 0);
 
@@ -593,7 +588,7 @@ trx_sys_init_at_db_start(void)
 			trx_sys->max_trx_id);
 	}
 
-	mutex_exit(&trx_sys->mutex);
+	trx_sys_mutex_exit();
 
 	mtr_commit(&mtr);
 
@@ -611,12 +606,18 @@ trx_sys_create(void)
 
 	trx_sys = static_cast<trx_sys_t*>(mem_zalloc(sizeof(*trx_sys)));
 
-	mutex_create(trx_sys_mutex_key, &trx_sys->mutex, SYNC_TRX_SYS);
+	mutex_create("trx_sys", &trx_sys->mutex);
 
+	UT_LIST_INIT(trx_sys->serialisation_list, &trx_t::no_list);
 	UT_LIST_INIT(trx_sys->ro_trx_list, &trx_t::trx_list);
 	UT_LIST_INIT(trx_sys->rw_trx_list, &trx_t::trx_list);
 	UT_LIST_INIT(trx_sys->mysql_trx_list, &trx_t::mysql_trx_list);
-	UT_LIST_INIT(trx_sys->view_list, &read_view_t::view_list);
+
+	trx_sys->mvcc = new(std::nothrow) MVCC(1024);
+
+	new(&trx_sys->rw_trx_ids) trx_ids_t();
+
+	new(&trx_sys->rw_trx_set) TrxIdSet();
 }
 
 /*****************************************************************//**
@@ -870,8 +871,7 @@ void
 trx_sys_file_format_init(void)
 /*==========================*/
 {
-	mutex_create(file_format_max_mutex_key,
-		     &file_format_max.mutex, SYNC_FILE_FORMAT_TAG);
+	mutex_create("file_format_max", &file_format_max.mutex);
 
 	/* We don't need a mutex here, as this function should only
 	be called once at start up. */
@@ -888,7 +888,7 @@ void
 trx_sys_file_format_close(void)
 /*===========================*/
 {
-	/* Does nothing at the moment */
+	mutex_free(&file_format_max.mutex);
 }
 
 /*********************************************************************
@@ -1227,20 +1227,14 @@ trx_sys_close(void)
 	ut_ad(trx_sys != NULL);
 	ut_ad(srv_shutdown_state == SRV_SHUTDOWN_EXIT_THREADS);
 
-	/* Check that all read views are closed except read view owned
-	by a purge. */
+	ulint	size = trx_sys->mvcc->size();
 
-	mutex_enter(&trx_sys->mutex);
-
-	if (UT_LIST_GET_LEN(trx_sys->view_list) > 1) {
-		fprintf(stderr,
-			"InnoDB: Error: all read views were not closed"
-			" before shutdown:\n"
-			"InnoDB: %lu read views open \n",
-			UT_LIST_GET_LEN(trx_sys->view_list) - 1);
+	if (size > 0) {
+		ib_logf(IB_LOG_LEVEL_ERROR,
+			"All read views were not closed before shutdown: "
+			"%lu read views open", size);
 	}
 
-	mutex_exit(&trx_sys->mutex);
 
 	sess_close(trx_dummy_sess);
 	trx_dummy_sess = NULL;
@@ -1250,7 +1244,7 @@ trx_sys_close(void)
 	/* Free the double write data structures. */
 	buf_dblwr_free();
 
-	mutex_enter(&trx_sys->mutex);
+	trx_sys_mutex_enter();
 
 	ut_a(UT_LIST_GET_LEN(trx_sys->ro_trx_list) == 0);
 
@@ -1267,8 +1261,9 @@ trx_sys_close(void)
 	}
 
 	/* There can't be any active transactions. */
-	trx_rseg_t** rseg_array =
-		static_cast<trx_rseg_t**>(trx_sys->rseg_array);
+	trx_rseg_t** rseg_array = static_cast<trx_rseg_t**>(
+		trx_sys->rseg_array);
+
 	for (ulint i = 0; i < TRX_SYS_N_RSEGS; ++i) {
 		trx_rseg_t*	rseg;
 
@@ -1279,8 +1274,8 @@ trx_sys_close(void)
 		}
 	}
 
-	rseg_array =
-		((trx_rseg_t**) trx_sys->pending_purge_rseg_array);
+	rseg_array = ((trx_rseg_t**) trx_sys->pending_purge_rseg_array);
+
 	for (ulint i = 0; i < TRX_SYS_N_RSEGS; ++i) {
 		trx_rseg_t*	rseg;
 
@@ -1291,23 +1286,21 @@ trx_sys_close(void)
 		}
 	}
 
-	for (read_view_t* view = UT_LIST_GET_FIRST(trx_sys->view_list);
-	     view != NULL;
-	     view = UT_LIST_GET_FIRST(trx_sys->view_list)) {
+	delete trx_sys->mvcc;
 
-		/* Views are allocated from the trx->read_view_heap.
-		So, we simply remove the element here. */
-		UT_LIST_REMOVE(trx_sys->view_list, view);
-	}
-
-	ut_a(UT_LIST_GET_LEN(trx_sys->view_list) == 0);
 	ut_a(UT_LIST_GET_LEN(trx_sys->ro_trx_list) == 0);
 	ut_a(UT_LIST_GET_LEN(trx_sys->rw_trx_list) == 0);
 	ut_a(UT_LIST_GET_LEN(trx_sys->mysql_trx_list) == 0);
+	ut_a(UT_LIST_GET_LEN(trx_sys->serialisation_list) == 0);
 
-	mutex_exit(&trx_sys->mutex);
+	trx_sys_mutex_exit();
 
+	/* We used placement new to create this mutex. Call the destructor. */
 	mutex_free(&trx_sys->mutex);
+
+	trx_sys->rw_trx_ids.~trx_ids_t();
+
+	trx_sys->rw_trx_set.~TrxIdSet();
 
 	mem_free(trx_sys);
 
@@ -1324,7 +1317,7 @@ trx_sys_any_active_transactions(void)
 {
 	ulint	total_trx = 0;
 
-	mutex_enter(&trx_sys->mutex);
+	trx_sys_mutex_enter();
 
 	total_trx = UT_LIST_GET_LEN(trx_sys->rw_trx_list)
 		  + UT_LIST_GET_LEN(trx_sys->mysql_trx_list);
@@ -1332,7 +1325,7 @@ trx_sys_any_active_transactions(void)
 	ut_a(total_trx >= trx_sys->n_prepared_trx);
 	total_trx -= trx_sys->n_prepared_trx;
 
-	mutex_exit(&trx_sys->mutex);
+	trx_sys_mutex_exit();
 
 	return(total_trx);
 }
@@ -1350,7 +1343,7 @@ trx_sys_validate_trx_list_low(
 	const trx_t*	trx;
 	const trx_t*	prev_trx = NULL;
 
-	ut_ad(mutex_own(&trx_sys->mutex));
+	ut_ad(trx_sys_mutex_own());
 
 	ut_ad(trx_list == &trx_sys->rw_trx_list);
 
@@ -1373,7 +1366,7 @@ bool
 trx_sys_validate_trx_list()
 /*=======================*/
 {
-	ut_ad(mutex_own(&trx_sys->mutex));
+	ut_ad(trx_sys_mutex_own());
 
 	ut_a(trx_sys_validate_trx_list_low(&trx_sys->rw_trx_list));
 

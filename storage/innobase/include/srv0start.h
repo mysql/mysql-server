@@ -36,6 +36,19 @@ Created 10/10/1995 Heikki Tuuri
 #define SRV_PATH_SEPARATOR	'/'
 #endif
 
+#ifdef DBUG_OFF
+# define RECOVERY_CRASH(x) do {} while(0)
+#else
+# define RECOVERY_CRASH(x) do {						\
+	if (srv_force_recovery_crash == x) {				\
+		fprintf(stderr, "innodb_force_recovery_crash=%lu\n",	\
+			srv_force_recovery_crash);			\
+		fflush(stderr);						\
+		exit(3);						\
+	}								\
+} while (0)
+#endif
+
 /*********************************************************************//**
 Normalizes a directory path for Windows: converts slashes to backslashes. */
 
@@ -123,7 +136,7 @@ extern	lsn_t	srv_shutdown_lsn;
 extern	lsn_t	srv_start_lsn;
 
 /** TRUE if the server is being started */
-extern	ibool	srv_is_being_started;
+extern	bool	srv_is_being_started;
 /** TRUE if the server was successfully started */
 extern	ibool	srv_was_started;
 /** TRUE if the server is being started, before rolling back any

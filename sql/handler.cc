@@ -504,7 +504,8 @@ int ha_init_errors(void)
 
   /* Allocate a pointer array for the error message strings. */
   /* Zerofill it to avoid uninitialized gaps. */
-  if (! (handler_errmsgs= (const char**) my_malloc(HA_ERR_ERRORS * sizeof(char*),
+  if (! (handler_errmsgs= (const char**) my_malloc(key_memory_handler_errmsgs,
+                                                   HA_ERR_ERRORS * sizeof(char*),
                                                    MYF(MY_WME | MY_ZEROFILL))))
     return 1;
 
@@ -646,7 +647,8 @@ int ha_initialize_handlerton(st_plugin_int *plugin)
   DBUG_ENTER("ha_initialize_handlerton");
   DBUG_PRINT("plugin", ("initialize plugin: '%s'", plugin->name.str));
 
-  hton= (handlerton *)my_malloc(sizeof(handlerton),
+  hton= (handlerton *)my_malloc(key_memory_handlerton,
+                                sizeof(handlerton),
                                 MYF(MY_WME | MY_ZEROFILL));
 
   if (hton == NULL)
@@ -1882,7 +1884,8 @@ int ha_recover(HASH *commit_list)
   for (info.len= MAX_XID_LIST_SIZE ; 
        info.list==0 && info.len > MIN_XID_LIST_SIZE; info.len/=2)
   {
-    info.list=(XID *)my_malloc(info.len*sizeof(XID), MYF(0));
+    info.list=(XID *)my_malloc(key_memory_XID,
+                               info.len*sizeof(XID), MYF(0));
   }
   if (!info.list)
   {
@@ -3579,6 +3582,41 @@ void print_keydup_error(TABLE *table, KEY *key, myf errflag)
 
 
 /**
+  This method is used to analyse the error to see whether the error
+  is ignorable or not. Further comments in header file. 
+*/
+
+bool handler::is_fatal_error(int error, uint flags)
+{
+  DBUG_ENTER("is_fatal_error");
+  // Error code 0 is not fatal, dup key errors may be explicitly ignored
+  if (!error || ((flags & HA_CHECK_DUP_KEY) &&
+       (error == HA_ERR_FOUND_DUPP_KEY ||
+        error == HA_ERR_FOUND_DUPP_UNIQUE)))
+    DBUG_RETURN(false);
+  
+  // Catch errors that are not fatal
+  switch (error)
+  {
+    /*
+      Lock wait timeout was treated as 'non-fatal' by e.g. insert code,
+      and as 'fatal' by update code prior to fix of bug#16587369. 
+      In order to change current behavior as little as possible, we 
+      for now treat lock wait timeout as non-fatal rather than fatal.
+    */
+    case HA_ERR_LOCK_WAIT_TIMEOUT:
+    // Foreign key constraint violations are not fatal:
+    case HA_ERR_ROW_IS_REFERENCED:
+    case HA_ERR_NO_REFERENCED_ROW:
+      DBUG_RETURN(false);
+  }
+  
+  // Default is that an error is fatal
+  DBUG_RETURN(true);
+}
+
+
+/**
   Print error that we got from handler function.
 
   @note
@@ -3789,6 +3827,12 @@ void handler::print_error(int error, myf errflag)
   case HA_WRONG_CREATE_OPTION:
     textno= ER_ILLEGAL_HA;
     break;
+  case HA_MISSING_CREATE_OPTION:
+  {
+    const char* engine= table_type();
+    my_error(ER_MISSING_HA_CREATE_OPTION, errflag, engine);
+    DBUG_VOID_RETURN;
+  }
   case HA_ERR_TOO_MANY_FIELDS:
     textno= ER_TOO_MANY_FIELDS;
     break;
@@ -7571,7 +7615,8 @@ fl_log_iterator_buffer_init(struct handler_iterator *iterator)
   {
     return HA_ITERATOR_ERROR;
   }
-  if ((ptr= (uchar*)my_malloc(ALIGN_SIZE(sizeof(fl_buff)) +
+  if ((ptr= (uchar*)my_malloc(INSTRUMENT_ME,
+                              ALIGN_SIZE(sizeof(fl_buff)) +
                              ((ALIGN_SIZE(sizeof(LEX_STRING)) +
                                sizeof(enum log_status) +
                                + FN_REFLEN + 1) *

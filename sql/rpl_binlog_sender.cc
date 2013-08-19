@@ -38,11 +38,10 @@ void Binlog_sender::init()
   thd->current_linfo= &m_linfo;
   mysql_mutex_unlock(&LOCK_thread_count);
 
-  if (log_warnings > 1)
-    sql_print_information("Start binlog_dump to master_thread_id(%lu) "
-                          "slave_server(%u), pos(%s, %llu)",
-                          thd->thread_id, thd->server_id,
-                          m_start_file, m_start_pos);
+  sql_print_information("Start binlog_dump to master_thread_id(%lu) "
+                        "slave_server(%u), pos(%s, %llu)",
+                        thd->thread_id, thd->server_id,
+                        m_start_file, m_start_pos);
 
   if (RUN_HOOK(binlog_transmit, transmit_start, (thd, 0/*flags*/,
                                                  m_start_file, m_start_pos)))

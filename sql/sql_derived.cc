@@ -77,15 +77,6 @@ mysql_handle_derived(LEX *lex, bool (*processor)(THD*, LEX*, TABLE_LIST*))
         if ((res= mysql_handle_single_derived(lex, table_ref, processor)))
           goto out;
       }
-      if (lex->describe)
-      {
-        /*
-          Force join->join_tmp creation, because we will use this JOIN
-          twice for EXPLAIN and we have to have unchanged join for EXPLAINing
-        */
-        sl->uncacheable|= UNCACHEABLE_EXPLAIN;
-        sl->master_unit()->uncacheable|= UNCACHEABLE_EXPLAIN;
-      }
     }
   }
 out:
@@ -413,8 +404,8 @@ bool mysql_derived_materialize(THD *thd, LEX *lex, TABLE_LIST *derived)
   {
     SELECT_LEX *first_select= unit->first_select();
     JOIN *join= first_select->join;
-    SELECT_LEX *save_current_select= lex->current_select;
-    lex->current_select= first_select;
+    SELECT_LEX *save_current_select= lex->current_select();
+    lex->set_current_select(first_select);
 
     DBUG_ASSERT(join && join->optimized);
 
@@ -424,7 +415,7 @@ bool mysql_derived_materialize(THD *thd, LEX *lex, TABLE_LIST *derived)
 
     join->exec();
     res= join->error;
-    lex->current_select= save_current_select;
+    lex->set_current_select(save_current_select);
   }
 
   if (!res)
@@ -450,6 +441,6 @@ bool mysql_derived_cleanup(THD *thd, LEX *lex, TABLE_LIST *derived)
   DBUG_ENTER("mysql_derived_cleanup");
   SELECT_LEX_UNIT *unit= derived->derived;
   if (unit)
-    unit->cleanup();
+    unit->cleanup(false);
   DBUG_RETURN(false);
 }

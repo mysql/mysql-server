@@ -1,4 +1,4 @@
-/* Copyright (c) 2007, 2010, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2007, 2013, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -47,6 +47,7 @@ int make_profile_table_for_show(THD *thd, ST_SCHEMA_TABLE *schema_table);
 #include <sys/resource.h>
 #endif
 
+extern PSI_memory_key key_memory_queue_item;
 
 class PROF_MEASUREMENT;
 class QUERY_PROFILE;
@@ -93,7 +94,8 @@ public:
   {
     struct queue_item *new_item;
 
-    new_item= (struct queue_item *) my_malloc(sizeof(struct queue_item), MYF(0));
+    new_item= (struct queue_item *) my_malloc(key_memory_queue_item,
+                                              sizeof(struct queue_item), MYF(0));
 
     new_item->payload= payload;
 
@@ -209,7 +211,7 @@ private:
 
   PROFILING *profiling;
 
-  query_id_t profiling_query_id;        /* Session-specific id. */
+  my_thread_id profiling_query_id;        /* Session-specific id. */
   char *query_source;
 
   double m_start_time_usecs;

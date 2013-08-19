@@ -54,6 +54,9 @@
 #ifndef PFS_STATEMENTS_STACK_SIZE
   #define PFS_STATEMENTS_STACK_SIZE 10
 #endif
+#ifndef PFS_MAX_MEMORY_CLASS
+  #define PFS_MAX_MEMORY_CLASS 250
+#endif
 
 /** Sizing hints, from the server configuration. */
 struct PFS_sizing_hints
@@ -199,9 +202,18 @@ struct PFS_global_param
   long m_events_statements_history_long_sizing;
   /** Maximum number of digests to be captured */
   long m_digest_sizing;
+  /** Maximum number of programs to be captured */
+  long m_program_sizing;
   /** Maximum number of session attribute strings per thread */
   long m_session_connect_attrs_sizing;
+  /** Maximum size of statement stack */ 
+  ulong m_statement_stack_sizing;
 
+  /**
+    Maximum number of instrumented memory classes.
+    @sa memory_class_lost.
+  */
+  ulong m_memory_class_sizing;
   /** Sizing hints, for auto tuning. */
   PFS_sizing_hints m_hints;
 };
@@ -223,7 +235,7 @@ void pre_initialize_performance_schema();
 /**
   Initialize the performance schema.
   @param param Size parameters to use.
-  @return A boostrap handle, or NULL.
+  @return A bootstrap handle, or NULL.
 */
 struct PSI_bootstrap*
 initialize_performance_schema(PFS_global_param *param);
@@ -234,8 +246,8 @@ void pfs_automated_sizing(PFS_global_param *param);
   Initialize the performance schema ACL.
   ACL is strictly enforced when the server is running in normal mode,
   to enforce that only legal operations are allowed.
-  When running in boostrap mode, ACL restrictions are relaxed,
-  to allow the boostrap scripts to DROP / CREATE performance schema tables.
+  When running in bootstrap mode, ACL restrictions are relaxed,
+  to allow the bootstrap scripts to DROP / CREATE performance schema tables.
   @sa ACL_internal_schema_registry
   @param bootstrap True if the server is starting in bootstrap mode.
 */
