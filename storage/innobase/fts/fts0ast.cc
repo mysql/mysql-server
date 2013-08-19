@@ -114,6 +114,15 @@ fts_ast_create_node_term(
 				static_cast<fts_ast_state_t*>(arg), node);
 
 			if (first_node) {
+				/* If the subsequent term (after the
+				first one)'s size is less than
+				fts_min_token_size, we shall ignore
+				that. This is to make consistent with
+				MyISAM behavior */
+				if (str.f_n_char < fts_min_token_size) {
+					continue;
+				}
+
 				/* There is more than one word, create
 				a list to organize them */
 				if (!node_list) {
