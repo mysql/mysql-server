@@ -1,7 +1,7 @@
 #ifndef TABLE_INCLUDED
 #define TABLE_INCLUDED
 
-/* Copyright (c) 2000, 2012, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2000, 2013, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -30,6 +30,7 @@
 #include "thr_lock.h"                  /* thr_lock_type */
 #include "filesort_utils.h"
 #include "parse_file.h"
+#include "table_id.h"
 
 /* Structs that defines the TABLE */
 
@@ -261,7 +262,7 @@ typedef struct st_grant_internal_info GRANT_INTERNAL_INFO;
    A GRANT_INFO also serves as a cache of the privilege hash tables. Relevant
    members are grant_table and version.
  */
-typedef struct st_grant_info
+struct GRANT_INFO
 {
   /**
      @brief A copy of the privilege information regarding the current host,
@@ -310,7 +311,7 @@ typedef struct st_grant_info
   ulong orig_want_privilege;
   /** The grant state for internal tables. */
   GRANT_INTERNAL_INFO m_internal;
-} GRANT_INFO;
+};
 
 enum tmp_table_type
 {
@@ -367,7 +368,7 @@ public:
 };
 
 class Field_blob;
-class Table_triggers_list;
+class Table_trigger_dispatcher;
 
 /**
   Category of table found in the table share.
@@ -691,7 +692,7 @@ struct TABLE_SHARE
   bool db_low_byte_first;		/* Portable row format */
   bool crashed;
   bool is_view;
-  ulong table_map_id;                   /* for row-based replication */
+  Table_id table_map_id;                   /* for row-based replication */
 
   /*
     Cache for row-based replication table share checks that does not
@@ -808,7 +809,7 @@ struct TABLE_SHARE
             || (table_category == TABLE_CATEGORY_SYSTEM));
   }
 
-  inline ulong get_table_def_version()
+  inline ulonglong get_table_def_version()
   {
     return table_map_id;
   }
@@ -893,9 +894,9 @@ struct TABLE_SHARE
 
    @sa TABLE_LIST::is_table_ref_id_equal()
   */
-  ulong get_table_ref_version() const
+  ulonglong get_table_ref_version() const
   {
-    return (tmp_table == SYSTEM_TMP_TABLE) ? 0 : table_map_id;
+    return (tmp_table == SYSTEM_TMP_TABLE) ? 0 : table_map_id.id();
   }
 
   bool visit_subgraph(Wait_for_flush *waiting_ticket,
@@ -926,7 +927,8 @@ private:
 public:
   Blob_mem_storage() :truncated_value(false)
   {
-    init_alloc_root(&storage, MAX_FIELD_VARCHARLENGTH, 0);
+    init_alloc_root(key_memory_blob_mem_storage,
+                    &storage, MAX_FIELD_VARCHARLENGTH, 0);
   }
   ~ Blob_mem_storage()
   {
@@ -1015,6 +1017,18 @@ public:
   key_map covering_keys;
   key_map quick_keys, merge_keys;
   key_map used_keys;  /* Indexes that cover all fields used by the query */
+  
+  /*
+    possible_quick_keys is a superset of quick_keys to use with EXPLAIN of
+    JOIN-less commands (single-table UPDATE and DELETE).
+    
+    When explaining regular JOINs, we use JOIN_TAB::keys to output the 
+    "possible_keys" column value. However, it is not available for
+    single-table UPDATE and DELETE commands, since they don't use JOIN
+    optimizer at the top level. OTOH they directly use the range optimizer,
+    that collects all keys usable for range access here.
+  */
+  key_map possible_quick_keys;
 
   /*
     A set of keys that can be used in the query that references this
@@ -1038,7 +1052,7 @@ public:
   Field *found_next_number_field;	/* Set on open */
 
   /* Table's triggers, 0 if there are no of them */
-  Table_triggers_list *triggers;
+  Table_trigger_dispatcher *triggers;
   TABLE_LIST *pos_in_table_list;/* Element referring to this table */
   /* Position in thd->locked_table_list under LOCK TABLES */
   TABLE_LIST *pos_in_locked_tables;
@@ -1047,7 +1061,31 @@ public:
   uchar		*null_flags;
   my_bitmap_map	*bitmap_init_value;
   MY_BITMAP     def_read_set, def_write_set, tmp_set; /* containers */
+
+  /**
+    Bitmap of table fields (columns), which are explicitly set in the
+    INSERT INTO statement. It is declared here to avoid memory allocation
+    on MEM_ROOT).
+
+    @sa fields_set_during_insert.
+  */
+  MY_BITMAP     def_fields_set_during_insert;
+
   MY_BITMAP     *read_set, *write_set;          /* Active column sets */
+
+  /**
+    A pointer to the bitmap of table fields (columns), which are explicitly set
+    in the INSERT INTO statement.
+
+    fields_set_during_insert points to def_fields_set_during_insert
+    for base (non-temporary) tables. In other cases, it is NULL.
+    Triggers can not be defined for temporary tables, so this bitmap does not
+    matter for temporary tables.
+
+    @sa def_fields_set_during_insert.
+  */
+  MY_BITMAP     *fields_set_during_insert;
+
   /*
    The ID of the query that opened and is using this table. Has different
    meanings depending on the table type.
@@ -1250,6 +1288,9 @@ public:
 
   bool check_read_removal(uint index);
 
+  my_ptrdiff_t default_values_offset() const
+  { return (my_ptrdiff_t) (s->default_values - record[0]); }
+
   /// Return true if table is instantiated, and false otherwise.
   bool is_created() const { return created; }
 
@@ -1314,6 +1355,8 @@ typedef struct st_field_info
   /**
      For string-type columns, this is the maximum number of
      characters. Otherwise, it is the 'display-length' for the column.
+     For the data type MYSQL_TYPE_DATETIME this field specifies the
+     number of digits in the fractional part of time value.
   */
   uint field_length;
   /**
@@ -1492,6 +1535,7 @@ class Item_exists_subselect;
        ;
 */
 
+struct Name_resolution_context;
 struct LEX;
 struct TABLE_LIST
 {
@@ -1522,6 +1566,13 @@ struct TABLE_LIST
     callback_func= 0;
   }
 
+  /// Create a TABLE_LIST object representing a nested join
+  static TABLE_LIST *new_nested_join(MEM_ROOT *allocator,
+                                     const char *alias,
+                                     TABLE_LIST *embedding,
+                                     List<TABLE_LIST> *belongs_to,
+                                     class st_select_lex *select);
+
   /*
     List of tables local to a subquery or the top-level SELECT (used by
     SQL_I_List). Considers views as leaves (unlike 'next_leaf' below).
@@ -1533,6 +1584,13 @@ struct TABLE_LIST
   TABLE_LIST *next_global, **prev_global;
   char		*db, *alias, *table_name, *schema_table_name;
   char          *option;                /* Used by cache index  */
+  /**
+     Context which should be used to resolve identifiers contained in the ON
+     condition of the embedding join nest.
+     @todo When name resolution contexts are created after parsing, we should
+     be able to store this in the embedding join nest instead.
+  */
+  Name_resolution_context *context_of_embedding;
 
 private:
   Item		*m_join_cond;           /* Used with outer join */
@@ -1595,7 +1653,7 @@ public:
   /* Index names in a "... JOIN ... USE/IGNORE INDEX ..." clause. */
   List<Index_hint> *index_hints;
   TABLE        *table;                          /* opened table */
-  uint          table_id; /* table id (from binlog) for opened table */
+  Table_id table_id; /* table id (from binlog) for opened table */
   /*
     select_result for derived table to pass it from table creation to table
     filling procedure
@@ -1777,6 +1835,11 @@ public:
     OPEN_NORMAL= 0,
     /* Associate a table share only if the the table exists. */
     OPEN_IF_EXISTS,
+    /*
+      Associate a table share only if the the table exists.
+      Also upgrade metadata lock to exclusive if table doesn't exist.
+    */
+    OPEN_FOR_CREATE,
     /* Don't associate a table share. */
     OPEN_STUB
   } open_strategy;
@@ -1831,6 +1894,9 @@ public:
   enum enum_schema_table_state schema_table_state;
 
   MDL_request mdl_request;
+
+  /// if true, EXPLAIN can't explain view due to insufficient rights.
+  bool view_no_explain;
 
 #ifdef WITH_PARTITION_STORAGE_ENGINE
   /* List to carry partition names from PARTITION (...) clause in statement */
@@ -1946,7 +2012,7 @@ public:
 
   inline
   void set_table_ref_id(enum_table_ref_type table_ref_type_arg,
-                        ulong table_ref_version_arg)
+                        ulonglong table_ref_version_arg)
   {
     m_table_ref_type= table_ref_type_arg;
     m_table_ref_version= table_ref_version_arg;
@@ -1965,7 +2031,7 @@ public:
      @brief Returns the name of the database that the referenced table belongs
      to.
   */
-  char *get_db_name() { return view != NULL ? view_db.str : db; }
+  char *get_db_name() const { return view != NULL ? view_db.str : db; }
 
   /**
      @brief Returns the name of the table that this TABLE_LIST represents.
@@ -1973,7 +2039,7 @@ public:
      @details The unqualified table name or view name for a table or view,
      respectively.
    */
-  char *get_table_name() { return view != NULL ? view_name.str : table_name; }
+  char *get_table_name() const { return view != NULL ? view_name.str : table_name; }
   int fetch_number_of_rows();
   bool update_derived_keys(Field*, Item**, uint);
   bool generate_keys();
@@ -2011,9 +2077,10 @@ private:
   bool prep_where(THD *thd, Item **conds, bool no_where_clause);
   /** See comments for set_metadata_id() */
   enum enum_table_ref_type m_table_ref_type;
-  /** See comments for set_metadata_id() */
-  ulong m_table_ref_version;
+  /** See comments for TABLE_SHARE::get_table_ref_version() */
+  ulonglong m_table_ref_version;
 };
+
 
 struct st_position;
   
@@ -2389,6 +2456,7 @@ inline void mark_as_null_row(TABLE *table)
 {
   table->null_row=1;
   table->status|=STATUS_NULL_ROW;
+  memset(table->null_flags, 255, table->s->null_bytes);
 }
 
 bool is_simple_order(ORDER *order);

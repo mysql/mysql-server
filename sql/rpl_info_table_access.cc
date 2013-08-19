@@ -1,4 +1,4 @@
-/* Copyright (c) 2010, 2012, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2010, 2013, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -130,6 +130,8 @@ bool Rpl_info_table_access::open_table(THD* thd, const LEX_STRING dbstr,
   @param[in] backup Restore the lock info from here
   @param[in] error  If there was an error while updating
                     the table
+  @param[in] force_commit force "real" commit (with ha_commit_trans()
+                          all parameter set to TRUE)
 
   If there is an error, rolls back the current statement. Otherwise,
   commits it. However, if a new thread was created and there is an
@@ -144,7 +146,7 @@ bool Rpl_info_table_access::open_table(THD* thd, const LEX_STRING dbstr,
 */
 bool Rpl_info_table_access::close_table(THD *thd, TABLE* table,
                                         Open_tables_backup *backup,
-                                        bool error)
+                                        bool error, bool force_commit)
 {
   Query_tables_list query_tables_list_backup;
 
@@ -155,14 +157,25 @@ bool Rpl_info_table_access::close_table(THD *thd, TABLE* table,
     if (error)
       ha_rollback_trans(thd, FALSE);
     else
-      ha_commit_trans(thd, FALSE);
-
-    if (saved_current_thd != current_thd)
+    {
+      /*
+        To make the commit not to block with global read lock set
+        "ignore_global_read_lock" flag to true.
+       */
+      ha_commit_trans(thd, FALSE, TRUE);
+    }
+    if (saved_current_thd != current_thd || force_commit)
     {
       if (error)
         ha_rollback_trans(thd, TRUE);
       else
-        ha_commit_trans(thd, TRUE);
+      {
+        /*
+          To make the commit not to block with global read lock set
+          "ignore_global_read_lock" flag to true.
+         */
+        ha_commit_trans(thd, TRUE, TRUE);
+      }
     }
     /*
       In order not to break execution of current statement we have to
@@ -464,7 +477,7 @@ bool Rpl_info_table_access::drop_thd(THD *thd)
   if (saved_current_thd != current_thd)
   {
     delete thd;
-    my_pthread_setspecific_ptr(THR_THD,  NULL);
+    my_pthread_set_THR_THD(NULL);
   }
 
   DBUG_RETURN(FALSE);

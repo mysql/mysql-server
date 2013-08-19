@@ -163,12 +163,12 @@ EXPLAIN SELECT a4 FROM t1 WHERE
 a6=NULL AND
 a4='UNcT5pIde4I6c2SheTo4gt92OV1jgJCVkXmzyf325R1DwLURkbYHwhydANIZMbKTgdcR5xS';
 id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
-1	SIMPLE	NULL	NULL	NULL	NULL	NULL	NULL	NULL	Impossible WHERE noticed after reading const tables
+1	SIMPLE	NULL	NULL	NULL	NULL	NULL	NULL	NULL	no matching row in const table
 EXPLAIN SELECT t1.a4 FROM t1, t1 t WHERE
 t.a6=t.a6 AND t1.a6=NULL AND
 t1.a4='UNcT5pIde4I6c2SheTo4gt92OV1jgJCVkXmzyf325R1DwLURkbYHwhydANIZMbKTgdcR5xS';
 id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
-1	SIMPLE	NULL	NULL	NULL	NULL	NULL	NULL	NULL	Impossible WHERE noticed after reading const tables
+1	SIMPLE	NULL	NULL	NULL	NULL	NULL	NULL	NULL	no matching row in const table
 DROP TABLE t1;
 create table t1m (a int) engine = MEMORY;
 create table t1i (a int);
@@ -234,22 +234,19 @@ select 1, max(1) from t1i where 1=99;
 1	NULL
 explain select count(*), min(7), max(7) from t1m, t1i;
 id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
-1	SIMPLE	t1m	system	NULL	NULL	NULL	NULL	0	const row not found
-1	SIMPLE	t1i	ALL	NULL	NULL	NULL	NULL	1	NULL
+1	SIMPLE	NULL	NULL	NULL	NULL	NULL	NULL	NULL	Select tables optimized away
 select count(*), min(7), max(7) from t1m, t1i;
 count(*)	min(7)	max(7)
 0	NULL	NULL
 explain select count(*), min(7), max(7) from t1m, t2i;
 id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
-1	SIMPLE	t1m	system	NULL	NULL	NULL	NULL	0	const row not found
-1	SIMPLE	t2i	ALL	NULL	NULL	NULL	NULL	1	NULL
+1	SIMPLE	NULL	NULL	NULL	NULL	NULL	NULL	NULL	Select tables optimized away
 select count(*), min(7), max(7) from t1m, t2i;
 count(*)	min(7)	max(7)
 0	NULL	NULL
 explain select count(*), min(7), max(7) from t2m, t1i;
 id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
-1	SIMPLE	t2m	system	NULL	NULL	NULL	NULL	1	NULL
-1	SIMPLE	t1i	ALL	NULL	NULL	NULL	NULL	1	NULL
+1	SIMPLE	NULL	NULL	NULL	NULL	NULL	NULL	NULL	Select tables optimized away
 select count(*), min(7), max(7) from t2m, t1i;
 count(*)	min(7)	max(7)
 0	NULL	NULL
@@ -341,10 +338,10 @@ insert into t1 values ( 1,"e"),(2,"a"),( 3,"c"),(4,"d");
 alter table t1 drop primary key, add primary key (f2, f1);
 explain select distinct f1 a, f1 b from t1;
 id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
-1	SIMPLE	t1	index	NULL	PRIMARY	5	NULL	4	Using index; Using temporary
+1	SIMPLE	t1	index	PRIMARY	PRIMARY	5	NULL	4	Using index; Using temporary
 explain select distinct f1, f2 from t1;
 id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
-1	SIMPLE	t1	index	NULL	PRIMARY	5	NULL	4	Using index
+1	SIMPLE	t1	index	PRIMARY	PRIMARY	5	NULL	4	Using index
 drop table t1;
 CREATE TABLE t1 (id int(11) NOT NULL PRIMARY KEY, name varchar(20),
 INDEX (name));
@@ -782,10 +779,10 @@ INSERT INTO t1 SELECT  a + 32, MOD(a + 32, 20), 1 FROM t1;
 INSERT INTO t1 SELECT  a + 64, MOD(a + 64, 20), 1 FROM t1;
 EXPLAIN SELECT b, SUM(c) FROM t1 GROUP BY b;
 id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
-1	SIMPLE	t1	index	NULL	b	5	NULL	128	NULL
+1	SIMPLE	t1	index	b	b	5	NULL	128	NULL
 EXPLAIN SELECT SQL_BIG_RESULT b, SUM(c) FROM t1 GROUP BY b;
 id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
-1	SIMPLE	t1	ALL	NULL	NULL	NULL	NULL	128	Using filesort
+1	SIMPLE	t1	ALL	b	NULL	NULL	NULL	128	Using filesort
 DROP TABLE t1;
 drop table if exists t1;
 show variables like 'innodb_rollback_on_timeout';
@@ -1190,7 +1187,7 @@ c	b	d
 3	2	40
 EXPLAIN SELECT c,b,d FROM t1 GROUP BY c,b;
 id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
-1	SIMPLE	t1	index	NULL	c	8	NULL	3	NULL
+1	SIMPLE	t1	index	c	c	8	NULL	3	NULL
 SELECT c,b,d FROM t1 GROUP BY c,b;
 c	b	d
 1	1	50
@@ -1198,7 +1195,7 @@ c	b	d
 3	2	40
 EXPLAIN SELECT c,b   FROM t1 GROUP BY c,b;
 id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
-1	SIMPLE	t1	index	NULL	c	8	NULL	3	Using index
+1	SIMPLE	t1	index	c	c	8	NULL	3	Using index
 SELECT c,b   FROM t1 GROUP BY c,b;
 c	b
 1	1
@@ -1434,8 +1431,8 @@ create table t2 (c int) engine=innodb;
 explain
 select b from t1 where a not in (select b from t1,t2 group by a) group by a;
 id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
-1	PRIMARY	NULL	NULL	NULL	NULL	NULL	NULL	NULL	Impossible WHERE noticed after reading const tables
-2	DEPENDENT SUBQUERY	NULL	NULL	NULL	NULL	NULL	NULL	NULL	Impossible WHERE noticed after reading const tables
+1	PRIMARY	NULL	NULL	NULL	NULL	NULL	NULL	NULL	no matching row in const table
+2	DEPENDENT SUBQUERY	NULL	NULL	NULL	NULL	NULL	NULL	NULL	no matching row in const table
 DROP TABLE t1,t2;
 End of 5.0 tests
 CREATE TABLE `t2` (
@@ -2344,7 +2341,7 @@ a	b	c
 EXPLAIN SELECT * FROM t1 WHERE a = 'TEST' AND 
 c >= '2009-10-09 00:00:00.001' AND c <= '2009-10-09 00:00:00.00';
 id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
-1	SIMPLE	NULL	NULL	NULL	NULL	NULL	NULL	NULL	Impossible WHERE noticed after reading const tables
+1	SIMPLE	NULL	NULL	NULL	NULL	NULL	NULL	NULL	no matching row in const table
 DROP TABLE t1;
 #
 # Bug #46175: NULL read_view and consistent read assertion
@@ -2388,7 +2385,7 @@ analyze table t1;
 analyze table t2;
 explain select t1.* from t1 left join t2 using(f1) group by t1.f1;
 id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
-1	SIMPLE	t1	index	NULL	PRIMARY	4	NULL	3	NULL
+1	SIMPLE	t1	index	PRIMARY	PRIMARY	4	NULL	3	NULL
 1	SIMPLE	t2	ref	f1	f1	4	test.t1.f1	1	Using index
 drop table t1,t2;
 #
@@ -2408,14 +2405,14 @@ test.t1	analyze	status	OK
 EXPLAIN SELECT COUNT(*) FROM t1;
 id	1
 select_type	SIMPLE
-table	t1
-type	index
+table	NULL
+type	NULL
 possible_keys	NULL
-key	b
-key_len	10
+key	NULL
+key_len	NULL
 ref	NULL
-rows	10
-Extra	Using index
+rows	NULL
+Extra	Select tables optimized away
 DROP TABLE t1;
 #
 # Bug #49838: DROP INDEX and ADD UNIQUE INDEX for same index may
@@ -2600,7 +2597,7 @@ f1	f2	f3	f4
 EXPLAIN SELECT * FROM t1 WHERE f2 = 1 AND f4 = TRUE
 ORDER BY f1 DESC LIMIT 5;
 id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
-1	SIMPLE	t1	range	f2,f4	f4	1	NULL	22	Using where
+1	SIMPLE	t1	range	f2,f4	f4	1	NULL	22	Using index condition; Using where
 DROP TABLE t1;
 #
 # Bug#54117 crash in thr_multi_unlock, temporary table
@@ -2619,53 +2616,53 @@ INSERT INTO t1 VALUES (1,1,1,1), (2,2,2,2), (3,3,3,3);
 EXPLAIN SELECT COUNT(*) FROM t1;
 id	1
 select_type	SIMPLE
-table	t1
-type	index
+table	NULL
+type	NULL
 possible_keys	NULL
-key	b
-key_len	4
+key	NULL
+key_len	NULL
 ref	NULL
-rows	3
-Extra	Using index
+rows	NULL
+Extra	Select tables optimized away
 DROP INDEX b ON t1;
 CREATE INDEX b ON t1(a,b);
 EXPLAIN SELECT COUNT(*) FROM t1;
 id	1
 select_type	SIMPLE
-table	t1
-type	index
+table	NULL
+type	NULL
 possible_keys	NULL
-key	b
-key_len	8
+key	NULL
+key_len	NULL
 ref	NULL
-rows	3
-Extra	Using index
+rows	NULL
+Extra	Select tables optimized away
 DROP INDEX b ON t1;
 CREATE INDEX b ON t1(a,b,c);
 EXPLAIN SELECT COUNT(*) FROM t1;
 id	1
 select_type	SIMPLE
-table	t1
-type	index
+table	NULL
+type	NULL
 possible_keys	NULL
-key	b
-key_len	13
+key	NULL
+key_len	NULL
 ref	NULL
-rows	3
-Extra	Using index
+rows	NULL
+Extra	Select tables optimized away
 DROP INDEX b ON t1;
 CREATE INDEX b ON t1(a,b,c,d);
 EXPLAIN SELECT COUNT(*) FROM t1;
 id	1
 select_type	SIMPLE
-table	t1
-type	index
+table	NULL
+type	NULL
 possible_keys	NULL
-key	PRIMARY
-key_len	8
+key	NULL
+key_len	NULL
 ref	NULL
-rows	3
-Extra	Using index
+rows	NULL
+Extra	Select tables optimized away
 DROP TABLE t1;
 #
 # Bug#55826: create table .. select crashes with when KILL_BAD_DATA 

@@ -1,4 +1,4 @@
-/* Copyright (c) 2004, 2012, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2004, 2013, Oracle and/or its affiliates. All rights reserved.
 
   This program is free software; you can redistribute it and/or modify
   it under the terms of the GNU General Public License as published by
@@ -1215,7 +1215,8 @@ Thd_ndb::Thd_ndb(THD* thd) :
   global_schema_lock_trans= NULL;
   global_schema_lock_count= 0;
   global_schema_lock_error= 0;
-  init_alloc_root(&m_batch_mem_root, BATCH_FLUSH_SIZE/4, 0);
+  init_alloc_root(PSI_INSTRUMENT_ME,
+                  &m_batch_mem_root, BATCH_FLUSH_SIZE/4, 0);
 }
 
 Thd_ndb::~Thd_ndb()
@@ -1637,7 +1638,8 @@ int g_get_ndb_blobs_value(NdbBlob *ndb_blob, void *arg)
     }
 
     ha->m_blobs_buffer=
-      (uchar*) my_malloc((size_t) ha->m_blobs_row_total_size, MYF(MY_WME));
+      (uchar*) my_malloc(PSI_INSTRUMENT_ME,
+                         (size_t) ha->m_blobs_row_total_size, MYF(MY_WME));
     if (ha->m_blobs_buffer == NULL)
     {
       ha->m_blobs_buffer_size= 0;
@@ -2156,7 +2158,7 @@ static int fix_unique_index_attr_order(NDB_INDEX_DATA &data,
 
   if (data.unique_index_attrid_map)
     my_free((char*)data.unique_index_attrid_map, MYF(0));
-  data.unique_index_attrid_map= (uchar*)my_malloc(sz,MYF(MY_WME));
+  data.unique_index_attrid_map= (uchar*)my_malloc(PSI_INSTRUMENT_ME, sz,MYF(MY_WME));
   if (data.unique_index_attrid_map == 0)
   {
     sql_print_error("fix_unique_index_attr_order: my_malloc(%u) failure",
@@ -4381,13 +4383,6 @@ ha_ndbcluster::eventSetAnyValue(THD *thd,
 #endif
 }
 
-static inline bool
-thd_allow_batch(const THD* thd)
-{
-  return (thd_options(thd) & OPTION_ALLOW_BATCH);
-}
-
-
 #ifdef HAVE_NDB_BINLOG
 
 /**
@@ -6220,7 +6215,7 @@ static void get_default_value(void *def_val, Field *field)
 {
   DBUG_ASSERT(field != NULL);
 
-  my_ptrdiff_t src_offset= field->table->s->default_values - field->table->record[0];
+  my_ptrdiff_t src_offset= field->table->default_values_offset();
 
   {
     if (bitmap_is_set(field->table->read_set, field->field_index))
@@ -8620,8 +8615,7 @@ static int create_ndb_column(THD *thd,
       {
         if (!(field->flags & NO_DEFAULT_VALUE_FLAG))
         {
-          my_ptrdiff_t src_offset= field->table->s->default_values 
-            - field->table->record[0];
+          my_ptrdiff_t src_offset= field->table->default_values_offset();
           if ((! field->is_real_null(src_offset)) ||
               ((field->flags & NOT_NULL_FLAG)))
           {
@@ -10745,7 +10739,8 @@ int ha_ndbcluster::open(const char *name, int mode, uint test_if_locked)
     uint n_keys= table_share->keys + extra_hidden_keys;
     uint ptr_size= sizeof(MY_BITMAP*) * (n_keys + 1 /* null termination */);
     uint map_size= sizeof(MY_BITMAP) * n_keys;
-    m_key_fields= (MY_BITMAP**)my_malloc(ptr_size + map_size,
+    m_key_fields= (MY_BITMAP**)my_malloc(PSI_INSTRUMENT_ME,
+                                         ptr_size + map_size,
                                          MYF(MY_WME + MY_ZEROFILL));
     if (!m_key_fields)
     {
@@ -11396,7 +11391,7 @@ int ndb_create_table_from_engine(THD *thd, const char *db,
 
   LEX *old_lex= thd->lex, newlex;
   thd->lex= &newlex;
-  newlex.current_select= NULL;
+  newlex.set_current_select(NULL);
   lex_start(thd);
   int res= ha_create_table_from_engine(thd, db_buf, table_name_buf);
   thd->lex= old_lex;
@@ -13070,7 +13065,8 @@ NDB_SHARE::create(const char* key, size_t key_length,
                   TABLE* table, const char* db_name, const char* table_name)
 {
   NDB_SHARE* share;
-  if (!(share= (NDB_SHARE*) my_malloc(sizeof(*share),
+  if (!(share= (NDB_SHARE*) my_malloc(PSI_INSTRUMENT_ME,
+                                      sizeof(*share),
                                       MYF(MY_WME | MY_ZEROFILL))))
     return NULL;
 
@@ -13078,7 +13074,7 @@ NDB_SHARE::create(const char* key, size_t key_length,
     my_pthread_getspecific_ptr(MEM_ROOT**, THR_MALLOC);
   MEM_ROOT *old_root= *root_ptr;
 
-  init_sql_alloc(&share->mem_root, 1024, 0);
+  init_sql_alloc(PSI_INSTRUMENT_ME, &share->mem_root, 1024, 0);
   *root_ptr= &share->mem_root; // remember to reset before return
   share->flags= 0;
   share->state= NSS_INITIAL;
@@ -15062,7 +15058,7 @@ ha_ndbcluster::update_table_comment(
   char *str;
   const char *fmt="%s%snumber_of_replicas: %d";
   const unsigned fmt_len_plus_extra= length + (uint)strlen(fmt);
-  if ((str= (char*) my_malloc(fmt_len_plus_extra, MYF(0))) == NULL)
+  if ((str= (char*) my_malloc(PSI_INSTRUMENT_ME, fmt_len_plus_extra, MYF(0))) == NULL)
   {
     sql_print_error("ha_ndbcluster::update_table_comment: "
                     "my_malloc(%u) failed", (unsigned int)fmt_len_plus_extra);
@@ -15665,7 +15661,7 @@ ha_ndbcluster::set_range_data(const partition_info *part_info,
   bool unsigned_flag= part_info->part_expr->unsigned_flag;
   DBUG_ENTER("set_range_data");
 
-  int32 *range_data= (int32*)my_malloc(num_parts*sizeof(int32), MYF(0));
+  int32 *range_data= (int32*)my_malloc(PSI_INSTRUMENT_ME, num_parts*sizeof(int32), MYF(0));
   if (!range_data)
   {
     mem_alloc_error(num_parts*sizeof(int32));
@@ -15701,7 +15697,8 @@ ha_ndbcluster::set_list_data(const partition_info *part_info,
                              NdbDictionary::Table& ndbtab) const
 {
   const uint num_list_values = partition_info_num_list_values(part_info);
-  int32 *list_data= (int32*)my_malloc(num_list_values*2*sizeof(int32), MYF(0));
+  int32 *list_data= (int32*)my_malloc(PSI_INSTRUMENT_ME,
+                                      num_list_values*2*sizeof(int32), MYF(0));
   int error= 0;
   bool unsigned_flag= part_info->part_expr->unsigned_flag;
   DBUG_ENTER("set_list_data");

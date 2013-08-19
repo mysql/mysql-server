@@ -21,8 +21,6 @@ mysqltest
 call sp1();
 my-col
 1
-Warnings:
-Note	1051	Unknown table 'mysqltest.t1'
 select database();
 database()
 mysqltest
@@ -33,8 +31,6 @@ test
 call mysqltest.sp1();
 my-col
 1
-Warnings:
-Note	1051	Unknown table 'mysqltest.t1'
 select database();
 database()
 test

@@ -11,3 +11,4 @@ if ($_have_log_bin != ON)
 {
   --skip Test requires --log-bin
 }
+--let $show_rpl_debug_info= 1

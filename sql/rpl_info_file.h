@@ -30,7 +30,7 @@ class Rpl_info_file : public Rpl_info_handler
   friend class Rpl_info_factory;
 
 public:
-  virtual ~Rpl_info_file() { };
+  virtual ~Rpl_info_file();
 
 private:
   /**

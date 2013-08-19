@@ -1,4 +1,4 @@
-# Copyright (c) 2009, 2012, Oracle and/or its affiliates. All rights reserved.
+# Copyright (c) 2009, 2013, Oracle and/or its affiliates. All rights reserved.
 # 
 # This program is free software; you can redistribute it and/or modify
 # it under the terms of the GNU General Public License as published by
@@ -105,9 +105,13 @@ MACRO (MYSQL_CHECK_SSL)
       UNSET(OPENSSL_APPLINK_C)
       UNSET(OPENSSL_APPLINK_C CACHE)
     ENDIF()
-    IF (OPENSSL_LIBRARIES)
-      UNSET(OPENSSL_LIBRARIES)
-      UNSET(OPENSSL_LIBRARIES CACHE)
+    IF (OPENSSL_LIBRARY)
+      UNSET(OPENSSL_LIBRARY)
+      UNSET(OPENSSL_LIBRARY CACHE)
+    ENDIF()
+    IF (CRYPTO_LIBRARY)
+      UNSET(CRYPTO_LIBRARY)
+      UNSET(CRYPTO_LIBRARY CACHE)
     ENDIF()
   ELSEIF(WITH_SSL STREQUAL "system" OR
          WITH_SSL STREQUAL "yes" OR
@@ -140,15 +144,19 @@ MACRO (MYSQL_CHECK_SSL)
 
     # On mac this list is <.dylib;.so;.a>
     # We prefer static libraries, so we revert it here.
-    LIST(REVERSE CMAKE_FIND_LIBRARY_SUFFIXES)
-    MESSAGE(STATUS "suffixes <${CMAKE_FIND_LIBRARY_SUFFIXES}>")
-    FIND_LIBRARY(OPENSSL_LIBRARIES
+    IF (WITH_SSL_PATH)
+      LIST(REVERSE CMAKE_FIND_LIBRARY_SUFFIXES)
+      MESSAGE(STATUS "suffixes <${CMAKE_FIND_LIBRARY_SUFFIXES}>")
+    ENDIF()
+    FIND_LIBRARY(OPENSSL_LIBRARY
                  NAMES ssl ssleay32 ssleay32MD
                  HINTS ${OPENSSL_ROOT_DIR}/lib)
     FIND_LIBRARY(CRYPTO_LIBRARY
                  NAMES crypto libeay32
                  HINTS ${OPENSSL_ROOT_DIR}/lib)
-    LIST(REVERSE CMAKE_FIND_LIBRARY_SUFFIXES)
+    IF (WITH_SSL_PATH)
+      LIST(REVERSE CMAKE_FIND_LIBRARY_SUFFIXES)
+    ENDIF()
 
     # Verify version number. Version information looks like:
     #   #define OPENSSL_VERSION_NUMBER 0x1000103fL
@@ -163,7 +171,7 @@ MACRO (MYSQL_CHECK_SSL)
     )
 
     IF(OPENSSL_INCLUDE_DIR AND
-       OPENSSL_LIBRARIES   AND
+       OPENSSL_LIBRARY   AND
        CRYPTO_LIBRARY      AND
        OPENSSL_MAJOR_VERSION STREQUAL "1"
       )
@@ -172,8 +180,32 @@ MACRO (MYSQL_CHECK_SSL)
       SET(OPENSSL_FOUND FALSE)
     ENDIF()
 
+    # If we are invoked with -DWITH_SSL=/path/to/custom/openssl
+    # and we have found static libraries, then link them statically
+    # into our executables and libraries.
+    # Adding IMPORTED_LOCATION allows MERGE_STATIC_LIBS
+    # to get LOCATION and do correct dependency analysis.
+    SET(MY_CRYPTO_LIBRARY "${CRYPTO_LIBRARY}")
+    SET(MY_OPENSSL_LIBRARY "${OPENSSL_LIBRARY}")
+    IF (WITH_SSL_PATH)
+      GET_FILENAME_COMPONENT(CRYPTO_EXT "${CRYPTO_LIBRARY}" EXT)
+      GET_FILENAME_COMPONENT(OPENSSL_EXT "${OPENSSL_LIBRARY}" EXT)
+      IF (CRYPTO_EXT STREQUAL ".a")
+        SET(MY_CRYPTO_LIBRARY imported_crypto)
+        ADD_LIBRARY(imported_crypto STATIC IMPORTED)
+        SET_TARGET_PROPERTIES(imported_crypto
+          PROPERTIES IMPORTED_LOCATION "${CRYPTO_LIBRARY}")
+      ENDIF()
+      IF (OPENSSL_EXT STREQUAL ".a")
+        SET(MY_OPENSSL_LIBRARY imported_openssl)
+        ADD_LIBRARY(imported_openssl STATIC IMPORTED)
+        SET_TARGET_PROPERTIES(imported_openssl
+          PROPERTIES IMPORTED_LOCATION "${OPENSSL_LIBRARY}")
+      ENDIF()
+    ENDIF()
+
     MESSAGE(STATUS "OPENSSL_INCLUDE_DIR = ${OPENSSL_INCLUDE_DIR}")
-    MESSAGE(STATUS "OPENSSL_LIBRARIES = ${OPENSSL_LIBRARIES}")
+    MESSAGE(STATUS "OPENSSL_LIBRARY = ${OPENSSL_LIBRARY}")
     MESSAGE(STATUS "CRYPTO_LIBRARY = ${CRYPTO_LIBRARY}")
     MESSAGE(STATUS "OPENSSL_MAJOR_VERSION = ${OPENSSL_MAJOR_VERSION}")
 
@@ -183,7 +215,7 @@ MACRO (MYSQL_CHECK_SSL)
                         HAVE_SHA512_DIGEST_LENGTH)
     IF(OPENSSL_FOUND AND HAVE_SHA512_DIGEST_LENGTH)
       SET(SSL_SOURCES "")
-      SET(SSL_LIBRARIES ${OPENSSL_LIBRARIES} ${CRYPTO_LIBRARY})
+      SET(SSL_LIBRARIES ${MY_OPENSSL_LIBRARY} ${MY_CRYPTO_LIBRARY})
       IF(CMAKE_SYSTEM_NAME MATCHES "SunOS")
         SET(SSL_LIBRARIES ${SSL_LIBRARIES} ${LIBSOCKET})
       ENDIF()
@@ -195,14 +227,29 @@ MACRO (MYSQL_CHECK_SSL)
       SET(SSL_INTERNAL_INCLUDE_DIRS "")
       SET(SSL_DEFINES "-DHAVE_OPENSSL")
     ELSE()
-      IF(WITH_SSL STREQUAL "system")
-        MESSAGE(SEND_ERROR "Cannot find appropriate system libraries for SSL. Use  WITH_SSL=bundled to enable SSL support")
-      ENDIF()
-      MYSQL_USE_BUNDLED_SSL()
+
+      UNSET(WITH_SSL_PATH)
+      UNSET(WITH_SSL_PATH CACHE)
+      UNSET(OPENSSL_ROOT_DIR)
+      UNSET(OPENSSL_ROOT_DIR CACHE)
+      UNSET(OPENSSL_INCLUDE_DIR)
+      UNSET(OPENSSL_INCLUDE_DIR CACHE)
+      UNSET(OPENSSL_APPLINK_C)
+      UNSET(OPENSSL_APPLINK_C CACHE)
+      UNSET(OPENSSL_LIBRARY)
+      UNSET(OPENSSL_LIBRARY CACHE)
+      UNSET(CRYPTO_LIBRARY)
+      UNSET(CRYPTO_LIBRARY CACHE)
+
+      MESSAGE(SEND_ERROR
+        "Cannot find appropriate system libraries for SSL. "
+        "Make sure you've specified a supported SSL version. "
+        "Consult the documentation for WITH_SSL alternatives")
     ENDIF()
   ELSE()
     MESSAGE(SEND_ERROR
-      "Wrong option for WITH_SSL. Valid values are : "${WITH_SSL_DOC})
+      "Wrong option or path for WITH_SSL. "
+      "Valid options are : "${WITH_SSL_DOC})
   ENDIF()
 ENDMACRO()
 
@@ -216,7 +263,7 @@ ENDMACRO()
 MACRO (COPY_OPENSSL_DLLS target_name)
   IF (WIN32 AND WITH_SSL_PATH)
     GET_FILENAME_COMPONENT(CRYPTO_NAME "${CRYPTO_LIBRARY}" NAME_WE)
-    GET_FILENAME_COMPONENT(OPENSSL_NAME "${OPENSSL_LIBRARIES}" NAME_WE)
+    GET_FILENAME_COMPONENT(OPENSSL_NAME "${OPENSSL_LIBRARY}" NAME_WE)
     FILE(GLOB HAVE_CRYPTO_DLL "${WITH_SSL_PATH}/bin/${CRYPTO_NAME}.dll")
     FILE(GLOB HAVE_OPENSSL_DLL "${WITH_SSL_PATH}/bin/${OPENSSL_NAME}.dll")
     IF (HAVE_CRYPTO_DLL AND HAVE_OPENSSL_DLL)

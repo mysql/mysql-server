@@ -1,6 +1,6 @@
 /*****************************************************************************
 
-Copyright (c) 2006, 2011, Oracle and/or its affiliates. All Rights Reserved.
+Copyright (c) 2006, 2013, Oracle and/or its affiliates. All Rights Reserved.
 
 This program is free software; you can redistribute it and/or modify it under
 the terms of the GNU General Public License as published by the Free Software
@@ -16,6 +16,10 @@ this program; if not, write to the Free Software Foundation, Inc.,
 
 *****************************************************************************/
 
+#include "ut0list.h"
+#include "mem0mem.h"
+#include "sync0mutex.h"
+#include "sync0mutex.h"
 #include "ut0wqueue.h"
 
 /*******************************************************************//**
@@ -25,10 +29,17 @@ A work queue
 Created 4/26/2006 Osku Salerma
 ************************************************************************/
 
+/* Work queue. */
+struct ib_wqueue_t {
+	ib_mutex_t	mutex;	/*!< mutex protecting everything */
+	ib_list_t*	items;	/*!< work item list */
+	os_event_t	event;	/*!< event we use to signal additions to list */
+};
+
 /****************************************************************//**
 Create a new work queue.
-@return	work queue */
-UNIV_INTERN
+@return work queue */
+
 ib_wqueue_t*
 ib_wqueue_create(void)
 /*===================*/
@@ -37,17 +48,18 @@ ib_wqueue_create(void)
 
 	/* Function ib_wqueue_create() has not been used anywhere,
 	not necessary to instrument this mutex */
-	mutex_create(PFS_NOT_INSTRUMENTED, &wq->mutex, SYNC_WORK_QUEUE);
+
+	mutex_create("work_queue", &wq->mutex);
 
 	wq->items = ib_list_create();
-	wq->event = os_event_create();
+	wq->event = os_event_create(0);
 
 	return(wq);
 }
 
 /****************************************************************//**
 Free a work queue. */
-UNIV_INTERN
+
 void
 ib_wqueue_free(
 /*===========*/
@@ -55,14 +67,14 @@ ib_wqueue_free(
 {
 	mutex_free(&wq->mutex);
 	ib_list_free(wq->items);
-	os_event_free(wq->event);
+	os_event_destroy(wq->event);
 
 	mem_free(wq);
 }
 
 /****************************************************************//**
 Add a work item to the queue. */
-UNIV_INTERN
+
 void
 ib_wqueue_add(
 /*==========*/
@@ -81,8 +93,8 @@ ib_wqueue_add(
 
 /****************************************************************//**
 Wait for a work item to appear in the queue.
-@return	work item */
-UNIV_INTERN
+@return work item */
+
 void*
 ib_wqueue_wait(
 /*===========*/

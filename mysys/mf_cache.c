@@ -1,4 +1,4 @@
-/* Copyright (c) 2000, 2010, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2000, 2013, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -22,29 +22,15 @@
 
 	/*
 	  Remove an open tempfile so that it doesn't survive
-	  if we crash;	If the operating system doesn't support
-	  this, just remember the file name for later removal
+	  if we crash.
 	*/
 
 static my_bool cache_remove_open_tmp(IO_CACHE *cache __attribute__((unused)),
 				     const char *name)
 {
 #if O_TEMPORARY == 0
-#if !defined(CANT_DELETE_OPEN_FILES)
   /* The following should always succeed */
   (void) my_delete(name,MYF(MY_WME | ME_NOINPUT));
-#else
-  int length;
-  if (!(cache->file_name=
-	(char*) my_malloc((length=strlen(name)+1),MYF(MY_WME))))
-  {
-    my_close(cache->file,MYF(0));
-    cache->file = -1;
-    errno=my_errno=ENOMEM;
-    return 1;
-  }
-  memcpy(cache->file_name,name,length);
-#endif
 #endif /* O_TEMPORARY == 0 */
   return 0;
 }
@@ -61,8 +47,10 @@ my_bool open_cached_file(IO_CACHE *cache, const char* dir, const char *prefix,
                          size_t cache_size, myf cache_myflags)
 {
   DBUG_ENTER("open_cached_file");
-  cache->dir=	 dir ? my_strdup(dir,MYF(cache_myflags & MY_WME)) : (char*) 0;
-  cache->prefix= (prefix ? my_strdup(prefix,MYF(cache_myflags & MY_WME)) :
+  cache->dir=	 dir ? my_strdup(key_memory_IO_CACHE,
+                                 dir,MYF(cache_myflags & MY_WME)) : (char*) 0;
+  cache->prefix= (prefix ? my_strdup(key_memory_IO_CACHE,
+                                     prefix,MYF(cache_myflags & MY_WME)) :
 		 (char*) 0);
   cache->file_name=0;
   cache->buffer=0;				/* Mark that not open */
@@ -106,13 +94,6 @@ void close_cached_file(IO_CACHE *cache)
     if (file >= 0)
     {
       (void) my_close(file,MYF(0));
-#ifdef CANT_DELETE_OPEN_FILES
-      if (cache->file_name)
-      {
-	(void) my_delete(cache->file_name,MYF(MY_WME | ME_NOINPUT));
-	my_free(cache->file_name);
-      }
-#endif
     }
     my_free(cache->dir);
     my_free(cache->prefix);

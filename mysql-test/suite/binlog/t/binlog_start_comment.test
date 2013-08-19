@@ -1,3 +1,8 @@
+# The include statement below is a temp one for tests that are yet to
+#be ported to run with InnoDB,
+#but needs to be kept for tests that would need MyISAM in future.
+--source include/force_myisam_default.inc
+
 # Test case for bug#32205 Replaying statements from mysqlbinlog fails
 # with a syntax error, replicates fine
 
@@ -16,6 +21,9 @@ flush logs;
 select * from t2;
 let $MYSQLD_DATADIR= `select @@datadir`;
 --exec $MYSQL_BINLOG --local-load=$MYSQLTEST_VARDIR/tmp/ $MYSQLD_DATADIR/master-bin.000001 > $MYSQLTEST_VARDIR/tmp/binlog_start_comment.binlog
+# With gtid-mode=on we need purge gtid_executed, if not transactions
+# replayed through mysqlbinlog will be skipped.
+reset master;
 --exec $MYSQL --local-infile=1 < $MYSQLTEST_VARDIR/tmp/binlog_start_comment.binlog
 flush logs;
 select * from t2;

@@ -1,3 +1,8 @@
+# The include statement below is a temp one for tests that are yet to
+#be ported to run with InnoDB,
+#but needs to be kept for tests that would need MyISAM in future.
+--source include/force_myisam_default.inc
+
 --echo # Bug#47699 rpl.rpl_backup_block fails sporadically
 --echo #
 --echo # START SLAVE released the lock and returned before it cleared the error,
@@ -9,7 +14,7 @@ source include/have_debug_sync.inc;
 connection slave;
 
 CALL mtr.add_suppression("Slave: Table 't1' already exists Error_code: 1050");
-CALL mtr.add_suppression("Slave SQL: Error .Table .t1. already exists. on query.* Error_code: 1050");
+CALL mtr.add_suppression("Slave SQL: .*Error .Table .t1. already exists. on query.* Error_code: 1050");
 call mtr.add_suppression("The slave coordinator and worker threads are stopped, possibly leaving data in inconsistent state");
 
 --echo # The statement makes SQL thread to fail.

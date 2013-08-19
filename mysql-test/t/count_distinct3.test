@@ -1,3 +1,8 @@
+# The include statement below is a temp one for tests that are yet to
+#be ported to run with InnoDB,
+#but needs to be kept for tests that would need MyISAM in future.
+--source include/force_myisam_default.inc
+
 # Bug #958 a big table without indices and select with group by doesnt work
 # this is a test for error 1032 in count(distinct) + group by, introduced in 
 # mysql-4.1

@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2005, 2012, Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2005, 2013, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -88,19 +88,19 @@ TODO:
 #include <stdarg.h>
 #include <sslopt-vars.h>
 #include <sys/types.h>
-#ifndef __WIN__
+#ifndef _WIN32
 #include <sys/wait.h>
 #endif
 #include <ctype.h>
 #include <welcome_copyright_notice.h>   /* ORACLE_WELCOME_COPYRIGHT_NOTICE */
 
-#ifdef __WIN__
+#ifdef _WIN32
 #define srandom  srand
 #define random   rand
 #define snprintf _snprintf
 #endif
 
-#ifdef HAVE_SMEM 
+#if defined (_WIN32) && !defined (EMBEDDED_LIBRARY)
 static char *shared_memory_base_name=0;
 #endif
 
@@ -284,7 +284,7 @@ static long int timedif(struct timeval a, struct timeval b)
     return s + us;
 }
 
-#ifdef __WIN__
+#ifdef _WIN32
 static int gettimeofday(struct timeval *tp, void *tzp)
 {
   unsigned int ticks;
@@ -346,7 +346,7 @@ int main(int argc, char **argv)
 #endif
   if (opt_protocol)
     mysql_options(&mysql,MYSQL_OPT_PROTOCOL,(char*)&opt_protocol);
-#ifdef HAVE_SMEM
+#if defined (_WIN32) && !defined (EMBEDDED_LIBRARY)
   if (shared_memory_base_name)
     mysql_options(&mysql,MYSQL_SHARED_MEMORY_BASE_NAME,shared_memory_base_name);
 #endif
@@ -430,7 +430,7 @@ int main(int argc, char **argv)
   statement_cleanup(post_statements);
   option_cleanup(engine_options);
 
-#ifdef HAVE_SMEM
+#if defined (_WIN32) && !defined (EMBEDDED_LIBRARY)
   my_free(shared_memory_base_name);
 #endif
   free_defaults(defaults_argv);
@@ -448,7 +448,8 @@ void concurrency_loop(MYSQL *mysql, uint current, option_string *eptr)
   unsigned long long client_limit;
   int sysret;
 
-  head_sptr= (stats *)my_malloc(sizeof(stats) * iterations, 
+  head_sptr= (stats *)my_malloc(PSI_NOT_INSTRUMENTED,
+                                sizeof(stats) * iterations, 
                                 MYF(MY_ZEROFILL|MY_FAE|MY_WME));
 
   memset(&conclusion, 0, sizeof(conclusions));
@@ -652,7 +653,7 @@ static struct my_option my_long_options[] =
   {"password", 'p',
     "Password to use when connecting to server. If password is not given it's "
       "asked from the tty.", 0, 0, 0, GET_PASSWORD, OPT_ARG, 0, 0, 0, 0, 0, 0},
-#ifdef __WIN__
+#ifdef _WIN32
   {"pipe", 'W', "Use named pipes to connect to server.", 0, 0, 0, GET_NO_ARG,
     NO_ARG, 0, 0, 0, 0, 0, 0},
 #endif
@@ -684,7 +685,7 @@ static struct my_option my_long_options[] =
   {"query", 'q', "Query to run or file containing query to run.",
     &user_supplied_query, &user_supplied_query,
     0, GET_STR, REQUIRED_ARG, 0, 0, 0, 0, 0, 0},
-#ifdef HAVE_SMEM
+#if defined (_WIN32) && !defined (EMBEDDED_LIBRARY)
   {"shared-memory-base-name", OPT_SHARED_MEMORY_BASE_NAME,
     "Base name of shared memory.", &shared_memory_base_name,
     &shared_memory_base_name, 0, GET_STR_ALLOC, REQUIRED_ARG,
@@ -743,7 +744,8 @@ get_one_option(int optid, const struct my_option *opt __attribute__((unused)),
     {
       char *start= argument;
       my_free(opt_password);
-      opt_password= my_strdup(argument,MYF(MY_FAE));
+      opt_password= my_strdup(PSI_NOT_INSTRUMENTED,
+                              argument,MYF(MY_FAE));
       while (*argument) *argument++= 'x';		/* Destroy argument */
       if (*start)
         start[1]= 0;				/* Cut length of argument */
@@ -753,7 +755,7 @@ get_one_option(int optid, const struct my_option *opt __attribute__((unused)),
       tty_password= 1;
     break;
   case 'W':
-#ifdef __WIN__
+#ifdef _WIN32
     opt_protocol= MYSQL_PROTOCOL_PIPE;
 #endif
     break;
@@ -915,9 +917,11 @@ build_table_string(void)
     }
 
   dynstr_append(&table_string, ")");
-  ptr= (statement *)my_malloc(sizeof(statement), 
+  ptr= (statement *)my_malloc(PSI_NOT_INSTRUMENTED,
+                              sizeof(statement), 
                               MYF(MY_ZEROFILL|MY_FAE|MY_WME));
-  ptr->string = (char *)my_malloc(table_string.length+1,
+  ptr->string = (char *)my_malloc(PSI_NOT_INSTRUMENTED,
+                                  table_string.length+1,
                                   MYF(MY_ZEROFILL|MY_FAE|MY_WME));
   ptr->length= table_string.length+1;
   ptr->type= CREATE_TABLE_TYPE;
@@ -983,10 +987,12 @@ build_update_string(void)
     dynstr_append(&update_string, " WHERE id = ");
 
 
-  ptr= (statement *)my_malloc(sizeof(statement), 
+  ptr= (statement *)my_malloc(PSI_NOT_INSTRUMENTED,
+                              sizeof(statement), 
                               MYF(MY_ZEROFILL|MY_FAE|MY_WME));
 
-  ptr->string= (char *)my_malloc(update_string.length + 1,
+  ptr->string= (char *)my_malloc(PSI_NOT_INSTRUMENTED,
+                                 update_string.length + 1,
                                   MYF(MY_ZEROFILL|MY_FAE|MY_WME));
   ptr->length= update_string.length+1;
   if (auto_generate_sql_autoincrement || auto_generate_sql_guid_primary)
@@ -1078,9 +1084,11 @@ build_insert_string(void)
 
   dynstr_append_mem(&insert_string, ")", 1);
 
-  ptr= (statement *)my_malloc(sizeof(statement),
+  ptr= (statement *)my_malloc(PSI_NOT_INSTRUMENTED,
+                              sizeof(statement),
                               MYF(MY_ZEROFILL|MY_FAE|MY_WME));
-  ptr->string= (char *)my_malloc(insert_string.length + 1,
+  ptr->string= (char *)my_malloc(PSI_NOT_INSTRUMENTED,
+                                 insert_string.length + 1,
                               MYF(MY_ZEROFILL|MY_FAE|MY_WME));
   ptr->length= insert_string.length+1;
   ptr->type= INSERT_TYPE;
@@ -1142,9 +1150,11 @@ build_select_string(my_bool key)
       (auto_generate_sql_autoincrement || auto_generate_sql_guid_primary))
     dynstr_append(&query_string, " WHERE id = ");
 
-  ptr= (statement *)my_malloc(sizeof(statement),
+  ptr= (statement *)my_malloc(PSI_NOT_INSTRUMENTED,
+                              sizeof(statement),
                               MYF(MY_ZEROFILL|MY_FAE|MY_WME));
-  ptr->string= (char *)my_malloc(query_string.length + 1,
+  ptr->string= (char *)my_malloc(PSI_NOT_INSTRUMENTED,
+                                 query_string.length + 1,
                               MYF(MY_ZEROFILL|MY_FAE|MY_WME));
   ptr->length= query_string.length+1;
   if ((key) && 
@@ -1388,7 +1398,8 @@ get_options(int *argc,char ***argv)
         fprintf(stderr,"%s: Could not open create file\n", my_progname);
         exit(1);
       }
-      tmp_string= (char *)my_malloc(sbuf.st_size + 1,
+      tmp_string= (char *)my_malloc(PSI_NOT_INSTRUMENTED,
+                                    sbuf.st_size + 1,
                               MYF(MY_ZEROFILL|MY_FAE|MY_WME));
       my_read(data_file, (uchar*) tmp_string, sbuf.st_size, MYF(0));
       tmp_string[sbuf.st_size]= '\0';
@@ -1415,7 +1426,8 @@ get_options(int *argc,char ***argv)
         fprintf(stderr,"%s: Could not open query supplied file\n", my_progname);
         exit(1);
       }
-      tmp_string= (char *)my_malloc(sbuf.st_size + 1,
+      tmp_string= (char *)my_malloc(PSI_NOT_INSTRUMENTED,
+                                    sbuf.st_size + 1,
                                     MYF(MY_ZEROFILL|MY_FAE|MY_WME));
       my_read(data_file, (uchar*) tmp_string, sbuf.st_size, MYF(0));
       tmp_string[sbuf.st_size]= '\0';
@@ -1446,7 +1458,8 @@ get_options(int *argc,char ***argv)
       fprintf(stderr,"%s: Could not open query supplied file\n", my_progname);
       exit(1);
     }
-    tmp_string= (char *)my_malloc(sbuf.st_size + 1,
+    tmp_string= (char *)my_malloc(PSI_NOT_INSTRUMENTED,
+                                  sbuf.st_size + 1,
                                   MYF(MY_ZEROFILL|MY_FAE|MY_WME));
     my_read(data_file, (uchar*) tmp_string, sbuf.st_size, MYF(0));
     tmp_string[sbuf.st_size]= '\0';
@@ -1477,7 +1490,8 @@ get_options(int *argc,char ***argv)
       fprintf(stderr,"%s: Could not open query supplied file\n", my_progname);
       exit(1);
     }
-    tmp_string= (char *)my_malloc(sbuf.st_size + 1,
+    tmp_string= (char *)my_malloc(PSI_NOT_INSTRUMENTED,
+                                  sbuf.st_size + 1,
                                   MYF(MY_ZEROFILL|MY_FAE|MY_WME));
     my_read(data_file, (uchar*) tmp_string, sbuf.st_size, MYF(0));
     tmp_string[sbuf.st_size]= '\0';
@@ -1535,11 +1549,13 @@ generate_primary_key_list(MYSQL *mysql, option_string *engine_stmt)
                          strstr(engine_stmt->string, "blackhole")))
   {
     primary_keys_number_of= 1;
-    primary_keys= (char **)my_malloc((uint)(sizeof(char *) * 
+    primary_keys= (char **)my_malloc(PSI_NOT_INSTRUMENTED,
+                                     (uint)(sizeof(char *) * 
                                             primary_keys_number_of), 
                                     MYF(MY_ZEROFILL|MY_FAE|MY_WME));
     /* Yes, we strdup a const string to simplify the interface */
-    primary_keys[0]= my_strdup("796c4422-1d94-102a-9d6d-00e0812d", MYF(0)); 
+    primary_keys[0]= my_strdup(PSI_NOT_INSTRUMENTED,
+                               "796c4422-1d94-102a-9d6d-00e0812d", MYF(0)); 
   }
   else
   {
@@ -1564,13 +1580,15 @@ generate_primary_key_list(MYSQL *mysql, option_string *engine_stmt)
       /*
         We create the structure and loop and create the items.
       */
-      primary_keys= (char **)my_malloc((uint)(sizeof(char *) * 
+      primary_keys= (char **)my_malloc(PSI_NOT_INSTRUMENTED,
+                                       (uint)(sizeof(char *) * 
                                               primary_keys_number_of), 
                                        MYF(MY_ZEROFILL|MY_FAE|MY_WME));
       row= mysql_fetch_row(result);
       for (counter= 0; counter < primary_keys_number_of; 
            counter++, row= mysql_fetch_row(result))
-        primary_keys[counter]= my_strdup(row[0], MYF(0));
+        primary_keys[counter]= my_strdup(PSI_NOT_INSTRUMENTED,
+                                         row[0], MYF(0));
     }
 
     mysql_free_result(result);
@@ -1980,10 +1998,12 @@ parse_option(const char *origin, option_string **stmt, char delm)
   size_t length= strlen(origin);
   uint count= 0; /* We know that there is always one */
 
-  for (tmp= *sptr= (option_string *)my_malloc(sizeof(option_string),
+  for (tmp= *sptr= (option_string *)my_malloc(PSI_NOT_INSTRUMENTED,
+                                              sizeof(option_string),
                                           MYF(MY_ZEROFILL|MY_FAE|MY_WME));
        (retstr= strchr(ptr, delm)); 
-       tmp->next=  (option_string *)my_malloc(sizeof(option_string),
+       tmp->next=  (option_string *)my_malloc(PSI_NOT_INSTRUMENTED,
+                                              sizeof(option_string),
                                           MYF(MY_ZEROFILL|MY_FAE|MY_WME)),
        tmp= tmp->next)
   {
@@ -1997,18 +2017,21 @@ parse_option(const char *origin, option_string **stmt, char delm)
       char *option_ptr;
 
       tmp->length= (size_t)(buffer_ptr - buffer);
-      tmp->string= my_strndup(ptr, (uint)tmp->length, MYF(MY_FAE));
+      tmp->string= my_strndup(PSI_NOT_INSTRUMENTED,
+                              ptr, (uint)tmp->length, MYF(MY_FAE));
 
       option_ptr= ptr + 1 + tmp->length;
 
       /* Move past the : and the first string */
       tmp->option_length= (size_t)(retstr - option_ptr);
-      tmp->option= my_strndup(option_ptr, (uint)tmp->option_length,
+      tmp->option= my_strndup(PSI_NOT_INSTRUMENTED,
+                              option_ptr, (uint)tmp->option_length,
                               MYF(MY_FAE));
     }
     else
     {
-      tmp->string= my_strndup(ptr, (size_t)(retstr - ptr), MYF(MY_FAE));
+      tmp->string= my_strndup(PSI_NOT_INSTRUMENTED,
+                              ptr, (size_t)(retstr - ptr), MYF(MY_FAE));
       tmp->length= (size_t)(retstr - ptr);
     }
 
@@ -2027,19 +2050,22 @@ parse_option(const char *origin, option_string **stmt, char delm)
       char *option_ptr;
 
       tmp->length= (size_t)(origin_ptr - ptr);
-      tmp->string= my_strndup(origin, tmp->length, MYF(MY_FAE));
+      tmp->string= my_strndup(PSI_NOT_INSTRUMENTED,
+                              origin, tmp->length, MYF(MY_FAE));
 
       option_ptr= (char *)ptr + 1 + tmp->length;
 
       /* Move past the : and the first string */
       tmp->option_length= (size_t)((ptr + length) - option_ptr);
-      tmp->option= my_strndup(option_ptr, tmp->option_length,
+      tmp->option= my_strndup(PSI_NOT_INSTRUMENTED,
+                              option_ptr, tmp->option_length,
                               MYF(MY_FAE));
     }
     else
     {
       tmp->length= (size_t)((ptr + length) - ptr);
-      tmp->string= my_strndup(ptr, tmp->length, MYF(MY_FAE));
+      tmp->string= my_strndup(PSI_NOT_INSTRUMENTED,
+                              ptr, tmp->length, MYF(MY_FAE));
     }
 
     count++;
@@ -2059,15 +2085,18 @@ parse_delimiter(const char *script, statement **stmt, char delm)
   uint length= strlen(script);
   uint count= 0; /* We know that there is always one */
 
-  for (tmp= *sptr= (statement *)my_malloc(sizeof(statement),
+  for (tmp= *sptr= (statement *)my_malloc(PSI_NOT_INSTRUMENTED,
+                                          sizeof(statement),
                                           MYF(MY_ZEROFILL|MY_FAE|MY_WME));
        (retstr= strchr(ptr, delm)); 
-       tmp->next=  (statement *)my_malloc(sizeof(statement),
+       tmp->next=  (statement *)my_malloc(PSI_NOT_INSTRUMENTED,
+                                          sizeof(statement),
                                           MYF(MY_ZEROFILL|MY_FAE|MY_WME)),
        tmp= tmp->next)
   {
     count++;
-    tmp->string= my_strndup(ptr, (uint)(retstr - ptr), MYF(MY_FAE));
+    tmp->string= my_strndup(PSI_NOT_INSTRUMENTED,
+                            ptr, (uint)(retstr - ptr), MYF(MY_FAE));
     tmp->length= (size_t)(retstr - ptr);
     ptr+= retstr - ptr + 1;
     if (isspace(*ptr))
@@ -2076,7 +2105,8 @@ parse_delimiter(const char *script, statement **stmt, char delm)
 
   if (ptr != script+length)
   {
-    tmp->string= my_strndup(ptr, (uint)((script + length) - ptr), 
+    tmp->string= my_strndup(PSI_NOT_INSTRUMENTED,
+                            ptr, (uint)((script + length) - ptr), 
                                        MYF(MY_FAE));
     tmp->length= (size_t)((script + length) - ptr);
     count++;
@@ -2098,7 +2128,8 @@ parse_comma(const char *string, uint **range)
     if (*ptr == ',') count++;
   
   /* One extra spot for the NULL */
-  nptr= *range= (uint *)my_malloc(sizeof(uint) * (count + 1), 
+  nptr= *range= (uint *)my_malloc(PSI_NOT_INSTRUMENTED,
+                                  sizeof(uint) * (count + 1), 
                                   MYF(MY_ZEROFILL|MY_FAE|MY_WME));
 
   ptr= (char *)string;

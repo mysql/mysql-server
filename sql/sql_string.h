@@ -1,7 +1,7 @@
 #ifndef SQL_STRING_INCLUDED
 #define SQL_STRING_INCLUDED
 
-/* Copyright (c) 2000, 2012, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2000, 2013, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -22,6 +22,7 @@
 #include "my_sys.h"              /* alloc_root, my_free, my_realloc */
 #include "m_string.h"                           /* TRASH */
 
+extern PSI_memory_key key_memory_String_value;
 
 /**
   A wrapper class for null-terminated constant strings.
@@ -333,7 +334,8 @@ public:
     if (arg_length < Alloced_length)
     {
       char *new_ptr;
-      if (!(new_ptr=(char*) my_realloc(Ptr,arg_length,MYF(0))))
+      if (!(new_ptr=(char*) my_realloc(key_memory_String_value,
+                                       Ptr,arg_length,MYF(0))))
       {
 	Alloced_length = 0;
 	real_alloc(arg_length);
@@ -357,6 +359,7 @@ public:
       DBUG_ASSERT(!s.uses_buffer_owned_by(this));
       free();
       Ptr=s.Ptr ; str_length=s.str_length ; Alloced_length=s.Alloced_length;
+      str_charset=s.str_charset;
       alloced=0;
     }
     return *this;

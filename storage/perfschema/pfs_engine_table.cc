@@ -1,4 +1,4 @@
-/* Copyright (c) 2008, 2011, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2008, 2013, Oracle and/or its affiliates. All rights reserved.
 
   This program is free software; you can redistribute it and/or modify
   it under the terms of the GNU General Public License as published by
@@ -62,6 +62,7 @@
 #include "table_esms_by_account_by_event_name.h"
 #include "table_esms_global_by_event_name.h"
 #include "table_esms_by_digest.h"
+#include "table_esms_by_program.h"
 
 #include "table_users.h"
 #include "table_accounts.h"
@@ -72,8 +73,20 @@
 #include "table_socket_summary_by_event_name.h"
 #include "table_session_connect_attrs.h"
 #include "table_session_account_connect_attrs.h"
+#include "table_mems_global_by_event_name.h"
+#include "table_mems_by_account_by_event_name.h"
+#include "table_mems_by_host_by_event_name.h"
+#include "table_mems_by_thread_by_event_name.h"
+#include "table_mems_by_user_by_event_name.h"
 
-/* For show status */
+/* For replication related perfschema tables. */
+#include "table_replication_connection_configuration.h"
+#include "table_replication_connection_status.h"
+#include "table_replication_execute_configuration.h"
+#include "table_replication_execute_status.h"
+#include "table_replication_execute_status_by_coordinator.h"
+#include "table_replication_execute_status_by_worker.h"
+
 #include "pfs_column_values.h"
 #include "pfs_instr_class.h"
 #include "pfs_instr.h"
@@ -84,6 +97,7 @@
 
 #include "sql_base.h"                           // close_thread_tables
 #include "lock.h"                               // MYSQL_LOCK_IGNORE_TIMEOUT
+#include "log.h"
 
 /**
   @addtogroup Performance_schema_engine
@@ -138,6 +152,7 @@ static PFS_engine_table_share *all_shares[]=
   &table_esms_by_host_by_event_name::m_share,
   &table_esms_global_by_event_name::m_share,
   &table_esms_by_digest::m_share,
+  &table_esms_by_program::m_share,
 
   &table_users::m_share,
   &table_accounts::m_share,
@@ -146,8 +161,22 @@ static PFS_engine_table_share *all_shares[]=
   &table_socket_instances::m_share,
   &table_socket_summary_by_instance::m_share,
   &table_socket_summary_by_event_name::m_share,
+
   &table_session_connect_attrs::m_share,
   &table_session_account_connect_attrs::m_share,
+
+  &table_mems_global_by_event_name::m_share,
+  &table_mems_by_account_by_event_name::m_share,
+  &table_mems_by_host_by_event_name::m_share,
+  &table_mems_by_thread_by_event_name::m_share,
+  &table_mems_by_user_by_event_name::m_share,
+
+  &table_replication_connection_configuration::m_share,
+  &table_replication_connection_status::m_share,
+  &table_replication_execute_configuration::m_share,
+  &table_replication_execute_status::m_share,
+  &table_replication_execute_status_by_coordinator::m_share,
+  &table_replication_execute_status_by_worker::m_share,
   NULL
 };
 
@@ -470,11 +499,25 @@ void PFS_engine_table::get_normalizer(PFS_instr_class *instr_class)
   }
 }
 
+void PFS_engine_table::set_field_long(Field *f, long value)
+{
+  DBUG_ASSERT(f->real_type() == MYSQL_TYPE_LONG);
+  Field_long *f2= (Field_long*) f;
+  f2->store(value, false);
+}
+
 void PFS_engine_table::set_field_ulong(Field *f, ulong value)
 {
   DBUG_ASSERT(f->real_type() == MYSQL_TYPE_LONG);
   Field_long *f2= (Field_long*) f;
   f2->store(value, true);
+}
+
+void PFS_engine_table::set_field_longlong(Field *f, longlong value)
+{
+  DBUG_ASSERT(f->real_type() == MYSQL_TYPE_LONGLONG);
+  Field_longlong *f2= (Field_longlong*) f;
+  f2->store(value, false);
 }
 
 void PFS_engine_table::set_field_ulonglong(Field *f, ulonglong value)
@@ -723,7 +766,7 @@ bool pfs_show_status(handlerton *hton, THD *thd,
   uint buflen;
   const char *name;
   int i;
-  uint size;
+  size_t size;
 
   DBUG_ENTER("pfs_show_status");
 
@@ -737,25 +780,25 @@ bool pfs_show_status(handlerton *hton, THD *thd,
   if (stat != HA_ENGINE_STATUS)
     DBUG_RETURN(false);
 
-  uint total_memory= 0;
+  size_t total_memory= 0;
 
   for (i=0; /* empty */; i++)
   {
     switch (i){
     case 0:
-      name= "events_waits_current.row_size";
+      name= "events_waits_current.size";
       size= sizeof(PFS_events_waits);
       break;
     case 1:
-      name= "events_waits_current.row_count";
+      name= "events_waits_current.count";
       size= WAIT_STACK_SIZE * thread_max;
       break;
     case 2:
-      name= "events_waits_history.row_size";
+      name= "events_waits_history.size";
       size= sizeof(PFS_events_waits);
       break;
     case 3:
-      name= "events_waits_history.row_count";
+      name= "events_waits_history.count";
       size= events_waits_history_per_thread * thread_max;
       break;
     case 4:
@@ -765,11 +808,11 @@ bool pfs_show_status(handlerton *hton, THD *thd,
       total_memory+= size;
       break;
     case 5:
-      name= "events_waits_history_long.row_size";
+      name= "events_waits_history_long.size";
       size= sizeof(PFS_events_waits);
       break;
     case 6:
-      name= "events_waits_history_long.row_count";
+      name= "events_waits_history_long.count";
       size= events_waits_history_long_size;
       break;
     case 7:
@@ -778,11 +821,11 @@ bool pfs_show_status(handlerton *hton, THD *thd,
       total_memory+= size;
       break;
     case 8:
-      name= "(pfs_mutex_class).row_size";
+      name= "(pfs_mutex_class).size";
       size= sizeof(PFS_mutex_class);
       break;
     case 9:
-      name= "(pfs_mutex_class).row_count";
+      name= "(pfs_mutex_class).count";
       size= mutex_class_max;
       break;
     case 10:
@@ -791,11 +834,11 @@ bool pfs_show_status(handlerton *hton, THD *thd,
       total_memory+= size;
       break;
     case 11:
-      name= "(pfs_rwlock_class).row_size";
+      name= "(pfs_rwlock_class).size";
       size= sizeof(PFS_rwlock_class);
       break;
     case 12:
-      name= "(pfs_rwlock_class).row_count";
+      name= "(pfs_rwlock_class).count";
       size= rwlock_class_max;
       break;
     case 13:
@@ -804,11 +847,11 @@ bool pfs_show_status(handlerton *hton, THD *thd,
       total_memory+= size;
       break;
     case 14:
-      name= "(pfs_cond_class).row_size";
+      name= "(pfs_cond_class).size";
       size= sizeof(PFS_cond_class);
       break;
     case 15:
-      name= "(pfs_cond_class).row_count";
+      name= "(pfs_cond_class).count";
       size= cond_class_max;
       break;
     case 16:
@@ -817,11 +860,11 @@ bool pfs_show_status(handlerton *hton, THD *thd,
       total_memory+= size;
       break;
     case 17:
-      name= "(pfs_thread_class).row_size";
+      name= "(pfs_thread_class).size";
       size= sizeof(PFS_thread_class);
       break;
     case 18:
-      name= "(pfs_thread_class).row_count";
+      name= "(pfs_thread_class).count";
       size= thread_class_max;
       break;
     case 19:
@@ -830,11 +873,11 @@ bool pfs_show_status(handlerton *hton, THD *thd,
       total_memory+= size;
       break;
     case 20:
-      name= "(pfs_file_class).row_size";
+      name= "(pfs_file_class).size";
       size= sizeof(PFS_file_class);
       break;
     case 21:
-      name= "(pfs_file_class).row_count";
+      name= "(pfs_file_class).count";
       size= file_class_max;
       break;
     case 22:
@@ -843,11 +886,11 @@ bool pfs_show_status(handlerton *hton, THD *thd,
       total_memory+= size;
       break;
     case 23:
-      name= "mutex_instances.row_size";
+      name= "mutex_instances.size";
       size= sizeof(PFS_mutex);
       break;
     case 24:
-      name= "mutex_instances.row_count";
+      name= "mutex_instances.count";
       size= mutex_max;
       break;
     case 25:
@@ -856,11 +899,11 @@ bool pfs_show_status(handlerton *hton, THD *thd,
       total_memory+= size;
       break;
     case 26:
-      name= "rwlock_instances.row_size";
+      name= "rwlock_instances.size";
       size= sizeof(PFS_rwlock);
       break;
     case 27:
-      name= "rwlock_instances.row_count";
+      name= "rwlock_instances.count";
       size= rwlock_max;
       break;
     case 28:
@@ -869,11 +912,11 @@ bool pfs_show_status(handlerton *hton, THD *thd,
       total_memory+= size;
       break;
     case 29:
-      name= "cond_instances.row_size";
+      name= "cond_instances.size";
       size= sizeof(PFS_cond);
       break;
     case 30:
-      name= "cond_instances.row_count";
+      name= "cond_instances.count";
       size= cond_max;
       break;
     case 31:
@@ -882,11 +925,11 @@ bool pfs_show_status(handlerton *hton, THD *thd,
       total_memory+= size;
       break;
     case 32:
-      name= "threads.row_size";
+      name= "threads.size";
       size= sizeof(PFS_thread);
       break;
     case 33:
-      name= "threads.row_count";
+      name= "threads.count";
       size= thread_max;
       break;
     case 34:
@@ -895,11 +938,11 @@ bool pfs_show_status(handlerton *hton, THD *thd,
       total_memory+= size;
       break;
     case 35:
-      name= "file_instances.row_size";
+      name= "file_instances.size";
       size= sizeof(PFS_file);
       break;
     case 36:
-      name= "file_instances.row_count";
+      name= "file_instances.count";
       size= file_max;
       break;
     case 37:
@@ -908,11 +951,11 @@ bool pfs_show_status(handlerton *hton, THD *thd,
       total_memory+= size;
       break;
     case 38:
-      name= "(pfs_file_handle).row_size";
+      name= "(pfs_file_handle).size";
       size= sizeof(PFS_file*);
       break;
     case 39:
-      name= "(pfs_file_handle).row_count";
+      name= "(pfs_file_handle).count";
       size= file_handle_max;
       break;
     case 40:
@@ -921,11 +964,11 @@ bool pfs_show_status(handlerton *hton, THD *thd,
       total_memory+= size;
       break;
     case 41:
-      name= "events_waits_summary_by_thread_by_event_name.row_size";
+      name= "events_waits_summary_by_thread_by_event_name.size";
       size= sizeof(PFS_single_stat);
       break;
     case 42:
-      name= "events_waits_summary_by_thread_by_event_name.row_count";
+      name= "events_waits_summary_by_thread_by_event_name.count";
       size= thread_max * wait_class_max;
       break;
     case 43:
@@ -934,11 +977,11 @@ bool pfs_show_status(handlerton *hton, THD *thd,
       total_memory+= size;
       break;
     case 44:
-      name= "(pfs_table_share).row_size";
+      name= "(pfs_table_share).size";
       size= sizeof(PFS_table_share);
       break;
     case 45:
-      name= "(pfs_table_share).row_count";
+      name= "(pfs_table_share).count";
       size= table_share_max;
       break;
     case 46:
@@ -947,11 +990,11 @@ bool pfs_show_status(handlerton *hton, THD *thd,
       total_memory+= size;
       break;
     case 47:
-      name= "(pfs_table).row_size";
+      name= "(pfs_table).size";
       size= sizeof(PFS_table);
       break;
     case 48:
-      name= "(pfs_table).row_count";
+      name= "(pfs_table).count";
       size= table_max;
       break;
     case 49:
@@ -960,11 +1003,11 @@ bool pfs_show_status(handlerton *hton, THD *thd,
       total_memory+= size;
       break;
     case 50:
-      name= "setup_actors.row_size";
+      name= "setup_actors.size";
       size= sizeof(PFS_setup_actor);
       break;
     case 51:
-      name= "setup_actors.row_count";
+      name= "setup_actors.count";
       size= setup_actor_max;
       break;
     case 52:
@@ -973,11 +1016,11 @@ bool pfs_show_status(handlerton *hton, THD *thd,
       total_memory+= size;
       break;
     case 53:
-      name= "setup_objects.row_size";
+      name= "setup_objects.size";
       size= sizeof(PFS_setup_object);
       break;
     case 54:
-      name= "setup_objects.row_count";
+      name= "setup_objects.count";
       size= setup_object_max;
       break;
     case 55:
@@ -986,11 +1029,11 @@ bool pfs_show_status(handlerton *hton, THD *thd,
       total_memory+= size;
       break;
     case 56:
-      name= "(pfs_account).row_size";
+      name= "(pfs_account).size";
       size= sizeof(PFS_account);
       break;
     case 57:
-      name= "(pfs_account).row_count";
+      name= "(pfs_account).count";
       size= account_max;
       break;
     case 58:
@@ -999,11 +1042,11 @@ bool pfs_show_status(handlerton *hton, THD *thd,
       total_memory+= size;
       break;
     case 59:
-      name= "events_waits_summary_by_account_by_event_name.row_size";
+      name= "events_waits_summary_by_account_by_event_name.size";
       size= sizeof(PFS_single_stat);
       break;
     case 60:
-      name= "events_waits_summary_by_account_by_event_name.row_count";
+      name= "events_waits_summary_by_account_by_event_name.count";
       size= account_max * wait_class_max;
       break;
     case 61:
@@ -1012,11 +1055,11 @@ bool pfs_show_status(handlerton *hton, THD *thd,
       total_memory+= size;
       break;
     case 62:
-      name= "events_waits_summary_by_user_by_event_name.row_size";
+      name= "events_waits_summary_by_user_by_event_name.size";
       size= sizeof(PFS_single_stat);
       break;
     case 63:
-      name= "events_waits_summary_by_user_by_event_name.row_count";
+      name= "events_waits_summary_by_user_by_event_name.count";
       size= user_max * wait_class_max;
       break;
     case 64:
@@ -1025,11 +1068,11 @@ bool pfs_show_status(handlerton *hton, THD *thd,
       total_memory+= size;
       break;
     case 65:
-      name= "events_waits_summary_by_host_by_event_name.row_size";
+      name= "events_waits_summary_by_host_by_event_name.size";
       size= sizeof(PFS_single_stat);
       break;
     case 66:
-      name= "events_waits_summary_by_host_by_event_name.row_count";
+      name= "events_waits_summary_by_host_by_event_name.count";
       size= host_max * wait_class_max;
       break;
     case 67:
@@ -1038,11 +1081,11 @@ bool pfs_show_status(handlerton *hton, THD *thd,
       total_memory+= size;
       break;
     case 68:
-      name= "(pfs_user).row_size";
+      name= "(pfs_user).size";
       size= sizeof(PFS_user);
       break;
     case 69:
-      name= "(pfs_user).row_count";
+      name= "(pfs_user).count";
       size= user_max;
       break;
     case 70:
@@ -1051,11 +1094,11 @@ bool pfs_show_status(handlerton *hton, THD *thd,
       total_memory+= size;
       break;
     case 71:
-      name= "(pfs_host).row_size";
+      name= "(pfs_host).size";
       size= sizeof(PFS_host);
       break;
     case 72:
-      name= "(pfs_host).row_count";
+      name= "(pfs_host).count";
       size= host_max;
       break;
     case 73:
@@ -1064,11 +1107,11 @@ bool pfs_show_status(handlerton *hton, THD *thd,
       total_memory+= size;
       break;
     case 74:
-      name= "(pfs_stage_class).row_size";
+      name= "(pfs_stage_class).size";
       size= sizeof(PFS_stage_class);
       break;
     case 75:
-      name= "(pfs_stage_class).row_count";
+      name= "(pfs_stage_class).count";
       size= stage_class_max;
       break;
     case 76:
@@ -1077,11 +1120,11 @@ bool pfs_show_status(handlerton *hton, THD *thd,
       total_memory+= size;
       break;
     case 77:
-      name= "events_stages_history.row_size";
+      name= "events_stages_history.size";
       size= sizeof(PFS_events_stages);
       break;
     case 78:
-      name= "events_stages_history.row_count";
+      name= "events_stages_history.count";
       size= events_stages_history_per_thread * thread_max;
       break;
     case 79:
@@ -1091,11 +1134,11 @@ bool pfs_show_status(handlerton *hton, THD *thd,
       total_memory+= size;
       break;
     case 80:
-      name= "events_stages_history_long.row_size";
+      name= "events_stages_history_long.size";
       size= sizeof(PFS_events_stages);
       break;
     case 81:
-      name= "events_stages_history_long.row_count";
+      name= "events_stages_history_long.count";
       size= events_stages_history_long_size;
       break;
     case 82:
@@ -1104,11 +1147,11 @@ bool pfs_show_status(handlerton *hton, THD *thd,
       total_memory+= size;
       break;
     case 83:
-      name= "events_stages_summary_by_thread_by_event_name.row_size";
+      name= "events_stages_summary_by_thread_by_event_name.size";
       size= sizeof(PFS_stage_stat);
       break;
     case 84:
-      name= "events_stages_summary_by_thread_by_event_name.row_count";
+      name= "events_stages_summary_by_thread_by_event_name.count";
       size= thread_max * stage_class_max;
       break;
     case 85:
@@ -1117,11 +1160,11 @@ bool pfs_show_status(handlerton *hton, THD *thd,
       total_memory+= size;
       break;
     case 86:
-      name= "events_stages_summary_global_by_event_name.row_size";
+      name= "events_stages_summary_global_by_event_name.size";
       size= sizeof(PFS_stage_stat);
       break;
     case 87:
-      name= "events_stages_summary_global_by_event_name.row_count";
+      name= "events_stages_summary_global_by_event_name.count";
       size= stage_class_max;
       break;
     case 88:
@@ -1130,11 +1173,11 @@ bool pfs_show_status(handlerton *hton, THD *thd,
       total_memory+= size;
       break;
     case 89:
-      name= "events_stages_summary_by_account_by_event_name.row_size";
+      name= "events_stages_summary_by_account_by_event_name.size";
       size= sizeof(PFS_stage_stat);
       break;
     case 90:
-      name= "events_stages_summary_by_account_by_event_name.row_count";
+      name= "events_stages_summary_by_account_by_event_name.count";
       size= account_max * stage_class_max;
       break;
     case 91:
@@ -1143,11 +1186,11 @@ bool pfs_show_status(handlerton *hton, THD *thd,
       total_memory+= size;
       break;
     case 92:
-      name= "events_stages_summary_by_user_by_event_name.row_size";
+      name= "events_stages_summary_by_user_by_event_name.size";
       size= sizeof(PFS_stage_stat);
       break;
     case 93:
-      name= "events_stages_summary_by_user_by_event_name.row_count";
+      name= "events_stages_summary_by_user_by_event_name.count";
       size= user_max * stage_class_max;
       break;
     case 94:
@@ -1156,11 +1199,11 @@ bool pfs_show_status(handlerton *hton, THD *thd,
       total_memory+= size;
       break;
     case 95:
-      name= "events_stages_summary_by_host_by_event_name.row_size";
+      name= "events_stages_summary_by_host_by_event_name.size";
       size= sizeof(PFS_stage_stat);
       break;
     case 96:
-      name= "events_stages_summary_by_host_by_event_name.row_count";
+      name= "events_stages_summary_by_host_by_event_name.count";
       size= host_max * stage_class_max;
       break;
     case 97:
@@ -1169,11 +1212,11 @@ bool pfs_show_status(handlerton *hton, THD *thd,
       total_memory+= size;
       break;
     case 98:
-      name= "(pfs_statement_class).row_size";
+      name= "(pfs_statement_class).size";
       size= sizeof(PFS_statement_class);
       break;
     case 99:
-      name= "(pfs_statement_class).row_count";
+      name= "(pfs_statement_class).count";
       size= statement_class_max;
       break;
     case 100:
@@ -1182,11 +1225,11 @@ bool pfs_show_status(handlerton *hton, THD *thd,
       total_memory+= size;
       break;
     case 101:
-      name= "events_statements_history.row_size";
+      name= "events_statements_history.size";
       size= sizeof(PFS_events_statements);
       break;
     case 102:
-      name= "events_statements_history.row_count";
+      name= "events_statements_history.count";
       size= events_statements_history_per_thread * thread_max;
       break;
     case 103:
@@ -1196,11 +1239,11 @@ bool pfs_show_status(handlerton *hton, THD *thd,
       total_memory+= size;
       break;
     case 104:
-      name= "events_statements_history_long.row_size";
+      name= "events_statements_history_long.size";
       size= sizeof(PFS_events_statements);
       break;
     case 105:
-      name= "events_statements_history_long.row_count";
+      name= "events_statements_history_long.count";
       size= events_statements_history_long_size;
       break;
     case 106:
@@ -1209,11 +1252,11 @@ bool pfs_show_status(handlerton *hton, THD *thd,
       total_memory+= size;
       break;
     case 107:
-      name= "events_statements_summary_by_thread_by_event_name.row_size";
+      name= "events_statements_summary_by_thread_by_event_name.size";
       size= sizeof(PFS_statement_stat);
       break;
     case 108:
-      name= "events_statements_summary_by_thread_by_event_name.row_count";
+      name= "events_statements_summary_by_thread_by_event_name.count";
       size= thread_max * statement_class_max;
       break;
     case 109:
@@ -1222,11 +1265,11 @@ bool pfs_show_status(handlerton *hton, THD *thd,
       total_memory+= size;
       break;
     case 110:
-      name= "events_statements_summary_global_by_event_name.row_size";
+      name= "events_statements_summary_global_by_event_name.size";
       size= sizeof(PFS_statement_stat);
       break;
     case 111:
-      name= "events_statements_summary_global_by_event_name.row_count";
+      name= "events_statements_summary_global_by_event_name.count";
       size= statement_class_max;
       break;
     case 112:
@@ -1235,11 +1278,11 @@ bool pfs_show_status(handlerton *hton, THD *thd,
       total_memory+= size;
       break;
     case 113:
-      name= "events_statements_summary_by_account_by_event_name.row_size";
+      name= "events_statements_summary_by_account_by_event_name.size";
       size= sizeof(PFS_statement_stat);
       break;
     case 114:
-      name= "events_statements_summary_by_account_by_event_name.row_count";
+      name= "events_statements_summary_by_account_by_event_name.count";
       size= account_max * statement_class_max;
       break;
     case 115:
@@ -1248,11 +1291,11 @@ bool pfs_show_status(handlerton *hton, THD *thd,
       total_memory+= size;
       break;
     case 116:
-      name= "events_statements_summary_by_user_by_event_name.row_size";
+      name= "events_statements_summary_by_user_by_event_name.size";
       size= sizeof(PFS_statement_stat);
       break;
     case 117:
-      name= "events_statements_summary_by_user_by_event_name.row_count";
+      name= "events_statements_summary_by_user_by_event_name.count";
       size= user_max * statement_class_max;
       break;
     case 118:
@@ -1261,11 +1304,11 @@ bool pfs_show_status(handlerton *hton, THD *thd,
       total_memory+= size;
       break;
     case 119:
-      name= "events_statements_summary_by_host_by_event_name.row_size";
+      name= "events_statements_summary_by_host_by_event_name.size";
       size= sizeof(PFS_statement_stat);
       break;
     case 120:
-      name= "events_statements_summary_by_host_by_event_name.row_count";
+      name= "events_statements_summary_by_host_by_event_name.count";
       size= host_max * statement_class_max;
       break;
     case 121:
@@ -1274,11 +1317,11 @@ bool pfs_show_status(handlerton *hton, THD *thd,
       total_memory+= size;
       break;
     case 122:
-      name= "events_statements_current.row_size";
+      name= "events_statements_current.size";
       size= sizeof(PFS_events_statements);
       break;
     case 123:
-      name= "events_statements_current.row_count";
+      name= "events_statements_current.count";
       size= thread_max * statement_stack_max;
       break;
     case 124:
@@ -1287,11 +1330,11 @@ bool pfs_show_status(handlerton *hton, THD *thd,
       total_memory+= size;
       break;
     case 125:
-      name= "(pfs_socket_class).row_size";
+      name= "(pfs_socket_class).size";
       size= sizeof(PFS_socket_class);
       break;
     case 126:
-      name= "(pfs_socket_class).row_count";
+      name= "(pfs_socket_class).count";
       size= socket_class_max;
       break;
     case 127:
@@ -1300,11 +1343,11 @@ bool pfs_show_status(handlerton *hton, THD *thd,
       total_memory+= size;
       break;
     case 128:
-      name= "socket_instances.row_size";
+      name= "socket_instances.size";
       size= sizeof(PFS_socket);
       break;
     case 129:
-      name= "socket_instances.row_count";
+      name= "socket_instances.count";
       size= socket_max;
       break;
     case 130:
@@ -1313,11 +1356,11 @@ bool pfs_show_status(handlerton *hton, THD *thd,
       total_memory+= size;
       break;
     case 131:
-      name= "events_statements_summary_by_digest.row_size";
+      name= "events_statements_summary_by_digest.size";
       size= sizeof(PFS_statements_digest_stat);
       break;
     case 132:
-      name= "events_statements_summary_by_digest.row_count";
+      name= "events_statements_summary_by_digest.count";
       size= digest_max;
       break;
     case 133:
@@ -1326,84 +1369,105 @@ bool pfs_show_status(handlerton *hton, THD *thd,
       total_memory+= size;
       break;
     case 134:
-      name= "session_connect_attrs.row_size";
-      size= thread_max;
+      name= "events_statements_summary_by_program.size";
+      size= sizeof(PFS_program);
       break;
     case 135:
-      name= "session_connect_attrs.row_count";
-      size= session_connect_attrs_size_per_thread;
+      name= "events_statements_summary_by_program.count";
+      size= program_max;
       break;
     case 136:
+      name= "events_statements_summary_by_program.memory";
+      size= program_max * sizeof(PFS_program);
+      total_memory+= size;
+      break;
+    case 137:
+      name= "session_connect_attrs.size";
+      size= thread_max;
+      break;
+    case 138:
+      name= "session_connect_attrs.count";
+      size= session_connect_attrs_size_per_thread;
+      break;
+    case 139:
       name= "session_connect_attrs.memory";
       size= thread_max * session_connect_attrs_size_per_thread;
       total_memory+= size;
       break;
 
-    case 137:
+    case 140:
       name= "(account_hash).count";
       size= account_hash.count;
       break;
-    case 138:
+    case 141:
       name= "(account_hash).size";
       size= account_hash.size;
       break;
-    case 139:
+    case 142:
       name= "(digest_hash).count";
       size= digest_hash.count;
       break;
-    case 140:
+    case 143:
       name= "(digest_hash).size";
       size= digest_hash.size;
       break;
-    case 141:
+    case 144:
       name= "(filename_hash).count";
       size= filename_hash.count;
       break;
-    case 142:
+    case 145:
       name= "(filename_hash).size";
       size= filename_hash.size;
       break;
-    case 143:
+    case 146:
       name= "(host_hash).count";
       size= host_hash.count;
       break;
-    case 144:
+    case 147:
       name= "(host_hash).size";
       size= host_hash.size;
       break;
-    case 145:
+    case 148:
       name= "(setup_actor_hash).count";
       size= setup_actor_hash.count;
       break;
-    case 146:
+    case 149:
       name= "(setup_actor_hash).size";
       size= setup_actor_hash.size;
       break;
-    case 147:
+    case 150:
       name= "(setup_object_hash).count";
       size= setup_object_hash.count;
       break;
-    case 148:
+    case 151:
       name= "(setup_object_hash).size";
       size= setup_object_hash.size;
       break;
-    case 149:
+    case 152:
       name= "(table_share_hash).count";
       size= table_share_hash.count;
       break;
-    case 150:
+    case 153:
       name= "(table_share_hash).size";
       size= table_share_hash.size;
       break;
-    case 151:
+    case 154:
       name= "(user_hash).count";
       size= user_hash.count;
       break;
-    case 152:
+    case 155:
       name= "(user_hash).size";
       size= user_hash.size;
       break;
-    case 153:
+    case 156:
+      name= "(program_hash).count";
+      size= program_hash.count;
+      break;
+    case 157:
+      name= "(program_hash).size";
+      size= program_hash.size;
+      break;
+    case 158:
       /*
         This is not a performance_schema buffer,
         the data is maintained in the server,
@@ -1416,11 +1480,90 @@ bool pfs_show_status(handlerton *hton, THD *thd,
       size= sizeof(Host_entry);
       break;
 
+    case 159:
+      name= "(pfs_memory_class).row_size";
+      size= sizeof(PFS_memory_class);
+      break;
+    case 160:
+      name= "(pfs_memory_class).row_count";
+      size= memory_class_max;
+      break;
+    case 161:
+      name= "(pfs_memory_class).memory";
+      size= memory_class_max * sizeof(PFS_memory_class);
+      total_memory+= size;
+      break;
+
+    case 162:
+      name= "memory_summary_by_thread_by_event_name.row_size";
+      size= sizeof(PFS_memory_stat);
+      break;
+    case 163:
+      name= "memory_summary_by_thread_by_event_name.row_count";
+      size= thread_max * memory_class_max;
+      break;
+    case 164:
+      name= "memory_summary_by_thread_by_event_name.memory";
+      size= thread_max * memory_class_max * sizeof(PFS_memory_stat);
+      total_memory+= size;
+      break;
+    case 165:
+      name= "memory_summary_global_by_event_name.row_size";
+      size= sizeof(PFS_memory_stat);
+      break;
+    case 166:
+      name= "memory_summary_global_by_event_name.row_count";
+      size= memory_class_max;
+      break;
+    case 167:
+      name= "memory_summary_global_by_event_name.memory";
+      size= memory_class_max * sizeof(PFS_memory_stat);
+      total_memory+= size;
+      break;
+    case 168:
+      name= "memory_summary_by_account_by_event_name.row_size";
+      size= sizeof(PFS_memory_stat);
+      break;
+    case 169:
+      name= "memory_summary_by_account_by_event_name.row_count";
+      size= account_max * memory_class_max;
+      break;
+    case 170:
+      name= "memory_summary_by_account_by_event_name.memory";
+      size= account_max * memory_class_max * sizeof(PFS_memory_stat);
+      total_memory+= size;
+      break;
+    case 171:
+      name= "memory_summary_by_user_by_event_name.row_size";
+      size= sizeof(PFS_memory_stat);
+      break;
+    case 172:
+      name= "memory_summary_by_user_by_event_name.row_count";
+      size= user_max * memory_class_max;
+      break;
+    case 173:
+      name= "memory_summary_by_user_by_event_name.memory";
+      size= user_max * memory_class_max * sizeof(PFS_memory_stat);
+      total_memory+= size;
+      break;
+    case 174:
+      name= "memory_summary_by_host_by_event_name.row_size";
+      size= sizeof(PFS_memory_stat);
+      break;
+    case 175:
+      name= "memory_summary_by_host_by_event_name.row_count";
+      size= host_max * memory_class_max;
+      break;
+    case 176:
+      name= "memory_summary_by_host_by_event_name.memory";
+      size= host_max * memory_class_max * sizeof(PFS_memory_stat);
+      total_memory+= size;
+      break;
     /*
       This case must be last,
       for aggregation in total_memory.
     */
-    case 154:
+    case 177:
       name= "performance_schema.memory";
       size= total_memory;
       /* This will fail if something is not advertised here */
@@ -1431,7 +1574,7 @@ bool pfs_show_status(handlerton *hton, THD *thd,
       break;
     }
 
-    buflen= int10_to_str(size, buf, 10) - buf;
+    buflen= longlong10_to_str(size, buf, 10) - buf;
     if (print(thd,
               PERFORMANCE_SCHEMA_str.str, PERFORMANCE_SCHEMA_str.length,
               name, strlen(name),

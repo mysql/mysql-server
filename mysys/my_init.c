@@ -1,4 +1,4 @@
-/* Copyright (c) 2000, 2011, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2000, 2013, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -20,7 +20,7 @@
 #include <m_ctype.h>
 #include <signal.h>
 #include <mysql/psi/mysql_stage.h>
-#ifdef __WIN__
+#ifdef _WIN32
 #ifdef _MSC_VER
 #include <locale.h>
 #include <crtdbg.h>
@@ -107,7 +107,7 @@ my_bool my_init(void)
     DBUG_PROCESS((char*) (my_progname ? my_progname : "unknown"));
     my_win_init();
     DBUG_PRINT("exit", ("home: '%s'", home_dir));
-#ifdef __WIN__
+#ifdef _WIN32
     win32_init_tcp_ip();
 #endif
     DBUG_RETURN(0);
@@ -184,7 +184,7 @@ Voluntary context switches %ld, Involuntary context switches %ld\n",
 	      rus.ru_msgsnd, rus.ru_msgrcv, rus.ru_nsignals,
 	      rus.ru_nvcsw, rus.ru_nivcsw);
 #endif
-#if defined(__WIN__) && defined(_MSC_VER)
+#if defined(_WIN32) && defined(_MSC_VER)
    _CrtSetReportMode( _CRT_WARN, _CRTDBG_MODE_FILE );
    _CrtSetReportFile( _CRT_WARN, _CRTDBG_FILE_STDERR );
    _CrtSetReportMode( _CRT_ERROR, _CRTDBG_MODE_FILE );
@@ -212,16 +212,16 @@ Voluntary context switches %ld, Involuntary context switches %ld\n",
                  (FILE *) 0);
 #endif /* defined(SAFE_MUTEX) */
 
-#ifdef __WIN__
+#ifdef _WIN32
   if (have_tcpip)
     WSACleanup();
-#endif /* __WIN__ */
+#endif /* _WIN32 */
 
   my_init_done=0;
 } /* my_end */
 
 
-#ifdef __WIN__
+#ifdef _WIN32
 
 
 /*
@@ -450,7 +450,7 @@ static my_bool win32_init_tcp_ip()
   }
   return(0);
 }
-#endif /* __WIN__ */
+#endif /* _WIN32 */
 
 PSI_stage_info stage_waiting_for_table_level_lock=
 {0, "Waiting for table level lock", 0};
@@ -460,10 +460,6 @@ PSI_stage_info stage_waiting_for_table_level_lock=
 #if !defined(HAVE_PREAD) && !defined(_WIN32)
 PSI_mutex_key key_my_file_info_mutex;
 #endif /* !defined(HAVE_PREAD) && !defined(_WIN32) */
-
-#if !defined(HAVE_LOCALTIME_R) || !defined(HAVE_GMTIME_R)
-PSI_mutex_key key_LOCK_localtime_r;
-#endif /* !defined(HAVE_LOCALTIME_R) || !defined(HAVE_GMTIME_R) */
 
 PSI_mutex_key key_BITMAP_mutex, key_IO_CACHE_append_buffer_lock,
   key_IO_CACHE_SHARE_mutex, key_KEY_CACHE_cache_lock, key_LOCK_alarm,
@@ -478,9 +474,6 @@ static PSI_mutex_info all_mysys_mutexes[]=
 #if !defined(HAVE_PREAD) && !defined(_WIN32)
   { &key_my_file_info_mutex, "st_my_file_info:mutex", 0},
 #endif /* !defined(HAVE_PREAD) && !defined(_WIN32) */
-#if !defined(HAVE_LOCALTIME_R) || !defined(HAVE_GMTIME_R)
-  { &key_LOCK_localtime_r, "LOCK_localtime_r", PSI_FLAG_GLOBAL},
-#endif /* !defined(HAVE_LOCALTIME_R) || !defined(HAVE_GMTIME_R) */
   { &key_BITMAP_mutex, "BITMAP::mutex", 0},
   { &key_IO_CACHE_append_buffer_lock, "IO_CACHE::append_buffer_lock", 0},
   { &key_IO_CACHE_SHARE_mutex, "IO_CACHE::SHARE_mutex", 0},
@@ -513,15 +506,6 @@ static PSI_cond_info all_mysys_conds[]=
   { &key_THR_COND_threads, "THR_COND_threads", 0}
 };
 
-#ifdef USE_ALARM_THREAD
-PSI_thread_key key_thread_alarm;
-
-static PSI_thread_info all_mysys_threads[]=
-{
-  { &key_thread_alarm, "alarm", PSI_FLAG_GLOBAL}
-};
-#endif /* USE_ALARM_THREAD */
-
 #ifdef HUGETLB_USE_PROC_MEMINFO
 PSI_file_key key_file_proc_meminfo;
 #endif /* HUGETLB_USE_PROC_MEMINFO */
@@ -541,6 +525,40 @@ PSI_stage_info *all_mysys_stages[]=
   & stage_waiting_for_table_level_lock
 };
 
+static PSI_memory_info all_mysys_memory[]=
+{
+#ifdef _WIN32
+  { &key_memory_win_SECURITY_ATTRIBUTES, "win_SECURITY_ATTRIBUTES", 0},
+  { &key_memory_win_PACL, "win_PACL", 0},
+  { &key_memory_win_IP_ADAPTER_ADDRESSES, "win_IP_ADAPTER_ADDRESSES", 0},
+#endif
+
+  { &key_memory_max_alloca, "max_alloca", 0},
+  { &key_memory_array_buffer, "array_buffer", 0},
+  { &key_memory_charset_file, "charset_file", 0},
+  { &key_memory_charset_loader, "charset_loader", 0},
+  { &key_memory_lf_node, "lf_node", 0},
+  { &key_memory_lf_dynarray, "lf_dynarray", 0},
+  { &key_memory_lf_slist, "lf_slist", 0},
+  { &key_memory_LIST, "LIST", 0},
+  { &key_memory_IO_CACHE, "IO_CACHE", 0},
+  { &key_memory_KEY_CACHE, "KEY_CACHE", 0},
+  { &key_memory_SAFE_HASH_ENTRY, "SAFE_HASH_ENTRY", 0},
+  { &key_memory_MY_TMPDIR_full_list, "MY_TMPDIR::full_list", 0},
+  { &key_memory_MY_BITMAP_bitmap, "MY_BITMAP::bitmap", 0},
+  { &key_memory_my_compress_alloc, "my_compress_alloc", 0},
+  { &key_memory_pack_frm, "pack_frm", 0},
+  { &key_memory_my_err_head, "my_err_head", 0},
+  { &key_memory_my_file_info, "my_file_info", 0},
+  { &key_memory_MY_DIR, "MY_DIR", 0},
+  { &key_memory_MY_STAT, "MY_STAT", 0},
+  { &key_memory_QUEUE, "QUEUE", 0},
+  { &key_memory_DYNAMIC_STRING, "DYNAMIC_STRING", 0},
+  { &key_memory_ALARM, "ALARM", 0},
+  { &key_memory_TREE, "TREE", 0},
+  { &key_memory_radix_sort, "radix_sort", 0}
+};
+
 void my_init_mysys_psi_keys()
 {
   const char* category= "mysys";
@@ -552,16 +570,14 @@ void my_init_mysys_psi_keys()
   count= sizeof(all_mysys_conds)/sizeof(all_mysys_conds[0]);
   mysql_cond_register(category, all_mysys_conds, count);
 
-#ifdef USE_ALARM_THREAD
-  count= sizeof(all_mysys_threads)/sizeof(all_mysys_threads[0]);
-  mysql_thread_register(category, all_mysys_threads, count);
-#endif /* USE_ALARM_THREAD */
-
   count= sizeof(all_mysys_files)/sizeof(all_mysys_files[0]);
   mysql_file_register(category, all_mysys_files, count);
 
   count= array_elements(all_mysys_stages);
   mysql_stage_register(category, all_mysys_stages, count);
+
+  count= array_elements(all_mysys_memory);
+  mysql_memory_register(category, all_mysys_memory, count);
 }
 #endif /* HAVE_PSI_INTERFACE */
 

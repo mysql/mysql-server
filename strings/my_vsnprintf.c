@@ -1,4 +1,4 @@
-/* Copyright (c) 2000, 2011, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2000, 2013, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -295,7 +295,7 @@ static char *process_int_arg(char *to, char *end, size_t length,
       }
       to+= diff;
     }
-    bmove(to, store_start, res_length);
+    memmove(to, store_start, res_length);
   }
   to+= res_length;
   return to;
@@ -343,6 +343,7 @@ start:
     print_arr[idx].length--;    
     DBUG_ASSERT(*fmt == '$' && print_arr[idx].length < MAX_ARGS);
     args_arr[print_arr[idx].length].arg_type= 'd';
+    args_arr[print_arr[idx].length].have_longlong= 0;
     print_arr[idx].flags|= LENGTH_ARG;
     arg_count= MY_MAX(arg_count, print_arr[idx].length + 1);
     fmt++;
@@ -361,6 +362,7 @@ start:
       print_arr[idx].width--;
       DBUG_ASSERT(*fmt == '$' && print_arr[idx].width < MAX_ARGS);
       args_arr[print_arr[idx].width].arg_type= 'd';
+      args_arr[print_arr[idx].width].have_longlong= 0;
       print_arr[idx].flags|= WIDTH_ARG;
       arg_count= MY_MAX(arg_count, print_arr[idx].width + 1);
       fmt++;

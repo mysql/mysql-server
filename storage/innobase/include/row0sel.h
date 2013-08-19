@@ -1,6 +1,6 @@
 /*****************************************************************************
 
-Copyright (c) 1997, 2012, Oracle and/or its affiliates. All Rights Reserved.
+Copyright (c) 1997, 2013, Oracle and/or its affiliates. All Rights Reserved.
 
 This program is free software; you can redistribute it and/or modify it under
 the terms of the GNU General Public License as published by the Free Software
@@ -35,13 +35,12 @@ Created 12/19/1997 Heikki Tuuri
 #include "que0types.h"
 #include "pars0sym.h"
 #include "btr0pcur.h"
-#include "read0read.h"
 #include "row0mysql.h"
 
 /*********************************************************************//**
 Creates a select node struct.
-@return	own: select node struct */
-UNIV_INTERN
+@return own: select node struct */
+
 sel_node_t*
 sel_node_create(
 /*============*/
@@ -49,7 +48,7 @@ sel_node_create(
 /*********************************************************************//**
 Frees the memory private to a select node when a query graph is freed,
 does not free the heap where the node was originally created. */
-UNIV_INTERN
+
 void
 sel_node_free_private(
 /*==================*/
@@ -57,14 +56,14 @@ sel_node_free_private(
 /*********************************************************************//**
 Frees a prefetch buffer for a column, including the dynamically allocated
 memory for data stored there. */
-UNIV_INTERN
+
 void
 sel_col_prefetch_buf_free(
 /*======================*/
 	sel_buf_t*	prefetch_buf);	/*!< in, own: prefetch buffer */
 /*********************************************************************//**
 Gets the plan node for the nth table in a join.
-@return	plan node */
+@return plan node */
 UNIV_INLINE
 plan_t*
 sel_node_get_nth_plan(
@@ -74,15 +73,15 @@ sel_node_get_nth_plan(
 /**********************************************************************//**
 Performs a select step. This is a high-level function used in SQL execution
 graphs.
-@return	query thread to run next or NULL */
-UNIV_INTERN
+@return query thread to run next or NULL */
+
 que_thr_t*
 row_sel_step(
 /*=========*/
 	que_thr_t*	thr);	/*!< in: query thread */
 /**********************************************************************//**
 Performs an execution step of an open or close cursor statement node.
-@return	query thread to run next or NULL */
+@return query thread to run next or NULL */
 UNIV_INLINE
 que_thr_t*
 open_step(
@@ -90,16 +89,16 @@ open_step(
 	que_thr_t*	thr);	/*!< in: query thread */
 /**********************************************************************//**
 Performs a fetch for a cursor.
-@return	query thread to run next or NULL */
-UNIV_INTERN
+@return query thread to run next or NULL */
+
 que_thr_t*
 fetch_step(
 /*=======*/
 	que_thr_t*	thr);	/*!< in: query thread */
 /****************************************************************//**
 Sample callback function for fetch that prints each row.
-@return	always returns non-NULL */
-UNIV_INTERN
+@return always returns non-NULL */
+
 void*
 row_fetch_print(
 /*============*/
@@ -107,8 +106,8 @@ row_fetch_print(
 	void*	user_arg);	/*!< in:  not used */
 /***********************************************************//**
 Prints a row in a select result.
-@return	query thread to run next or NULL */
-UNIV_INTERN
+@return query thread to run next or NULL */
+
 que_thr_t*
 row_printf_step(
 /*============*/
@@ -119,7 +118,7 @@ field of the key value may be just a prefix of a fixed length field: hence
 the parameter key_len. But currently we do not allow search keys where the
 last field is only a prefix of the full key field len and print a warning if
 such appears. */
-UNIV_INTERN
+
 void
 row_sel_convert_mysql_key_to_innobase(
 /*==================================*/
@@ -147,7 +146,7 @@ from a unique index (ROW_SEL_EXACT), then we will not store the cursor
 position and fetch next or fetch prev must not be tried to the cursor!
 @return DB_SUCCESS, DB_RECORD_NOT_FOUND, DB_END_OF_INDEX, DB_DEADLOCK,
 DB_LOCK_TABLE_FULL, or DB_TOO_BIG_RECORD */
-UNIV_INTERN
+
 dberr_t
 row_search_for_mysql(
 /*=================*/
@@ -172,27 +171,18 @@ row_search_for_mysql(
 /*******************************************************************//**
 Checks if MySQL at the moment is allowed for this table to retrieve a
 consistent read result, or store it to the query cache.
-@return	TRUE if storing or retrieving from the query cache is permitted */
-UNIV_INTERN
+@return TRUE if storing or retrieving from the query cache is permitted */
+
 ibool
 row_search_check_if_query_cache_permitted(
 /*======================================*/
 	trx_t*		trx,		/*!< in: transaction object */
 	const char*	norm_name);	/*!< in: concatenation of database name,
 					'/' char, table name */
-void
-row_create_key(
-/*===========*/
-	dtuple_t*	tuple,		/* in: tuple where to build;
-					NOTE: we assume that the type info
-					in the tuple is already according
-					to index! */
-	dict_index_t*	index,		/* in: index of the key value */
-	doc_id_t*	doc_id);	/* in: doc id to lookup.*/
 /*******************************************************************//**
 Read the max AUTOINC value from an index.
-@return	DB_SUCCESS if all OK else error code */
-UNIV_INTERN
+@return DB_SUCCESS if all OK else error code */
+
 dberr_t
 row_search_max_autoinc(
 /*===================*/
@@ -321,7 +311,7 @@ struct sel_node_t{
 					containing the search plan and the
 					search data structures */
 	que_node_t*	search_cond;	/*!< search condition */
-	read_view_t*	read_view;	/*!< if the query is a non-locking
+	ReadView*	read_view;	/*!< if the query is a non-locking
 					consistent read, its read view is
 					placed here, otherwise NULL */
 	ibool		consistent_read;/*!< TRUE if the select is a consistent,

@@ -1,4 +1,4 @@
-/* Copyright (c) 2009, 2011, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2002, 2013, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -66,7 +66,7 @@
 #define session_var(THD, TYPE) (*(TYPE*)session_var_ptr(THD))
 #define global_var(TYPE) (*(TYPE*)global_var_ptr())
 
-#if SIZEOF_OFF_T > 4 && defined(BIG_TABLES)
+#if SIZEOF_OFF_T > 4
 #define GET_HA_ROWS GET_ULL
 #else
 #define GET_HA_ROWS GET_ULONG
@@ -128,7 +128,11 @@ public:
     option.u_max_value= (uchar**)max_var_ptr();
     if (max_var_ptr())
       *max_var_ptr()= max_val;
-    global_var(T)= def_val;
+
+    // Do not set global_var for Sys_var_keycache objects
+    if (offset >= 0)
+      global_var(T)= def_val;
+
     DBUG_ASSERT(size == sizeof(T));
     DBUG_ASSERT(min_val < max_val);
     DBUG_ASSERT(min_val <= def_val);
@@ -494,7 +498,8 @@ public:
     size_t len=var->save_result.string_value.length;
     if (ptr)
     {
-      new_val= (char*)my_memdup(ptr, len+1, MYF(MY_WME));
+      new_val= (char*)my_memdup(key_memory_Sys_var_charptr_value,
+                                ptr, len+1, MYF(MY_WME));
       if (!new_val) return true;
       new_val[len]=0;
     }
@@ -726,12 +731,15 @@ public:
           on_check_function on_check_func,
           keycache_update_function on_update_func,
           const char *substitute=0)
-    : Sys_var_ulonglong(name_arg, comment, flag_args, off, size,
-              getopt, min_val, max_val, def_val,
-              block_size, lock, binlog_status_arg, on_check_func, 0,
-              substitute),
+    : Sys_var_ulonglong(name_arg, comment, flag_args,
+                        -1,     /* offset, see base class CTOR */
+                        size,
+                        getopt, min_val, max_val, def_val,
+                        block_size, lock, binlog_status_arg, on_check_func, 0,
+                        substitute),
     keycache_update(on_update_func)
   {
+    offset= off; /* Remember offset in KEY_CACHE */
     option.var_type|= GET_ASK_ADDR;
     option.value= (uchar**)1; // crash me, please
     keycache_var(dflt_key_cache, off)= def_val;
@@ -796,13 +804,14 @@ public:
           const char *substitute=0,
           int parse_flag= PARSE_NORMAL)
     : sys_var(&all_sys_vars, name_arg, comment, flag_args, off, getopt.id,
-              getopt.arg_type, SHOW_DOUBLE, (longlong) double2ulonglong(def_val),
+              getopt.arg_type, SHOW_DOUBLE,
+              (longlong) getopt_double2ulonglong(def_val),
               lock, binlog_status_arg, on_check_func, on_update_func,
               substitute, parse_flag)
   {
     option.var_type= GET_DOUBLE;
-    option.min_value= (longlong) double2ulonglong(min_val);
-    option.max_value= (longlong) double2ulonglong(max_val);
+    option.min_value= (longlong) getopt_double2ulonglong(min_val);
+    option.max_value= (longlong) getopt_double2ulonglong(max_val);
     global_var(double)= (double)option.def_value;
     DBUG_ASSERT(min_val <= max_val);
     DBUG_ASSERT(min_val <= def_val);
@@ -834,7 +843,7 @@ public:
   void session_save_default(THD *thd, set_var *var)
   { var->save_result.double_value= global_var(double); }
   void global_save_default(THD *thd, set_var *var)
-  { var->save_result.double_value= (double)option.def_value; }
+  { var->save_result.double_value= getopt_ulonglong2double(option.def_value); }
 };
 
 /**
@@ -1884,7 +1893,7 @@ public:
   { DBUG_ASSERT(FALSE); return NULL; }
 };
 
-#ifdef HAVE_NDB_BINLOG
+#ifdef HAVE_GTID_NEXT_LIST
 /**
   Class for variables that store values of type Gtid_set.
 
@@ -2209,7 +2218,10 @@ end:
   }
 
   void global_save_default(THD *thd, set_var *var)
-  { DBUG_ASSERT(FALSE); }
+  {
+    /* gtid_purged does not have default value */
+    my_error(ER_NO_DEFAULT, MYF(0), var->var->name.str);
+  }
 
   bool do_check(THD *thd, set_var *var)
   {
@@ -2269,7 +2281,7 @@ public:
       DBUG_RETURN((uchar *)thd->strdup(""));
     if (thd->owned_gtid.sidno == -1)
     {
-#ifdef HAVE_NDB_BINLOG
+#ifdef HAVE_GTID_NEXT_LIST
       buf= (char *)thd->alloc(thd->owned_gtid_set.get_string_length() + 1);
       if (buf)
       {

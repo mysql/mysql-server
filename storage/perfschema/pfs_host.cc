@@ -1,4 +1,4 @@
-/* Copyright (c) 2010, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2010, 2013, Oracle and/or its affiliates. All rights reserved.
 
   This program is free software; you can redistribute it and/or modify
   it under the terms of the GNU General Public License as published by
@@ -11,7 +11,7 @@
 
   You should have received a copy of the GNU General Public License
   along with this program; if not, write to the Free Software
-  Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA */
+  Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA 02110-1301, USA */
 
 /**
   @file storage/perfschema/pfs_host.cc
@@ -41,6 +41,7 @@ PFS_host *host_array= NULL;
 static PFS_single_stat *host_instr_class_waits_array= NULL;
 static PFS_stage_stat *host_instr_class_stages_array= NULL;
 static PFS_statement_stat *host_instr_class_statements_array= NULL;
+static PFS_memory_stat *host_instr_class_memory_array= NULL;
 
 LF_HASH host_hash;
 static bool host_hash_inited= false;
@@ -60,9 +61,11 @@ int init_host(const PFS_global_param *param)
   host_instr_class_waits_array= NULL;
   host_instr_class_stages_array= NULL;
   host_instr_class_statements_array= NULL;
+  host_instr_class_memory_array= NULL;
   uint waits_sizing= host_max * wait_class_max;
   uint stages_sizing= host_max * stage_class_max;
   uint statements_sizing= host_max * statement_class_max;
+  uint memory_sizing= host_max * memory_class_max;
 
   if (host_max > 0)
   {
@@ -96,6 +99,14 @@ int init_host(const PFS_global_param *param)
       return 1;
   }
 
+  if (memory_sizing > 0)
+  {
+    host_instr_class_memory_array=
+      PFS_connection_slice::alloc_memory_slice(memory_sizing);
+    if (unlikely(host_instr_class_memory_array == NULL))
+      return 1;
+  }
+
   for (index= 0; index < host_max; index++)
   {
     host_array[index].m_instr_class_waits_stats=
@@ -104,6 +115,8 @@ int init_host(const PFS_global_param *param)
       &host_instr_class_stages_array[index * stage_class_max];
     host_array[index].m_instr_class_statements_stats=
       &host_instr_class_statements_array[index * statement_class_max];
+    host_array[index].m_instr_class_memory_stats=
+      &host_instr_class_memory_array[index * memory_class_max];
   }
 
   return 0;
@@ -120,6 +133,8 @@ void cleanup_host(void)
   host_instr_class_stages_array= NULL;
   pfs_free(host_instr_class_statements_array);
   host_instr_class_statements_array= NULL;
+  pfs_free(host_instr_class_memory_array);
+  host_instr_class_memory_array= NULL;
   host_max= 0;
 }
 
@@ -288,11 +303,12 @@ search:
   return NULL;
 }
 
-void PFS_host::aggregate()
+void PFS_host::aggregate(bool alive)
 {
   aggregate_waits();
   aggregate_stages();
   aggregate_statements();
+  aggregate_memory(alive);
   aggregate_stats();
 }
 
@@ -322,6 +338,17 @@ void PFS_host::aggregate_statements()
                            global_instr_class_statements_array);
 }
 
+void PFS_host::aggregate_memory(bool alive)
+{
+  /*
+    Aggregate MEMORY_SUMMARY_BY_HOST_BY_EVENT_NAME to:
+    - MEMORY_SUMMARY_GLOBAL_BY_EVENT_NAME
+  */
+  aggregate_all_memory(alive,
+                       m_instr_class_memory_stats,
+                       global_instr_class_memory_array);
+}
+
 void PFS_host::aggregate_stats()
 {
   /* No parent to aggregate to, clean the stats */
@@ -331,6 +358,27 @@ void PFS_host::aggregate_stats()
 void PFS_host::release()
 {
   dec_refcount();
+}
+
+void PFS_host::carry_memory_stat_delta(PFS_memory_stat_delta *delta, uint index)
+{
+  PFS_memory_stat *stat;
+  PFS_memory_stat_delta delta_buffer;
+  PFS_memory_stat_delta *remaining_delta;
+
+  stat= & m_instr_class_memory_stats[index];
+  remaining_delta= stat->apply_delta(delta, &delta_buffer);
+
+  if (remaining_delta != NULL)
+    carry_global_memory_stat_delta(remaining_delta, index);
+}
+
+PFS_host *sanitize_host(PFS_host *unsafe)
+{
+  if ((&host_array[0] <= unsafe) &&
+      (unsafe < &host_array[host_max]))
+    return unsafe;
+  return NULL;
 }
 
 void purge_host(PFS_thread *thread, PFS_host *host)
@@ -345,13 +393,12 @@ void purge_host(PFS_thread *thread, PFS_host *host)
                     host->m_key.m_hash_key, host->m_key.m_key_length));
   if (entry && (entry != MY_ERRPTR))
   {
-    PFS_host *pfs;
-    pfs= *entry;
-    DBUG_ASSERT(pfs == host);
+    DBUG_ASSERT(*entry == host);
     if (host->get_refcount() == 0)
     {
       lf_hash_delete(&host_hash, pins,
                      host->m_key.m_hash_key, host->m_key.m_key_length);
+      host->aggregate(false);
       host->m_lock.allocated_to_free();
     }
   }
@@ -373,7 +420,7 @@ void purge_all_host(void)
   {
     if (pfs->m_lock.is_populated())
     {
-      pfs->aggregate();
+      pfs->aggregate(true);
       if (pfs->get_refcount() == 0)
         purge_host(thread, pfs);
     }

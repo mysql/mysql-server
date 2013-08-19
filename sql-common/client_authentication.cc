@@ -1,4 +1,4 @@
-/* Copyright (c) 2012, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2013, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -11,7 +11,7 @@
 
    You should have received a copy of the GNU General Public License
    along with this program; if not, write to the Free Software
-   Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA  02111-1307  USA */
+   Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA  02110-1301  USA */
 
 // First include (the generated) my_config.h, to get correct platform defines.
 #include "my_config.h"
@@ -111,6 +111,7 @@ RSA *rsa_init(MYSQL *mysql)
   fclose(pub_key_file);
   if (g_public_key == NULL)
   {
+    ERR_clear_error();
     fprintf(stderr, "Public key is not in PEM format: '%s'\n",
             mysql->options.extension->server_public_key_path);
     return 0;
@@ -205,7 +206,10 @@ int sha256_password_auth_client(MYSQL_PLUGIN_VIO *vio, MYSQL *mysql)
         public_key= PEM_read_bio_RSA_PUBKEY(bio, NULL, NULL, NULL);
         BIO_free(bio);
         if (public_key == 0)
+        {
+          ERR_clear_error();
           DBUG_RETURN(CR_ERROR);
+        }
         got_public_key_from_server= true;
       }
       
@@ -232,7 +236,10 @@ int sha256_password_auth_client(MYSQL_PLUGIN_VIO *vio, MYSQL *mysql)
       if (vio->write_packet(vio, (uchar*) encrypted_password, cipher_length))
         DBUG_RETURN(CR_ERROR);
 #else
-      DBUG_RETURN(CR_ERROR); // If no yassl support
+      set_mysql_extended_error(mysql, CR_AUTH_PLUGIN_ERR, unknown_sqlstate,
+                                ER(CR_AUTH_PLUGIN_ERR), "sha256_password",
+                                "Authentication requires SSL encryption");
+      DBUG_RETURN(CR_ERROR); // If no openssl support
 #endif
     }
     else

@@ -1,6 +1,6 @@
 /*****************************************************************************
 
-Copyright (c) 1995, 2011, Oracle and/or its affiliates. All Rights Reserved.
+Copyright (c) 1995, 2013, Oracle and/or its affiliates. All Rights Reserved.
 
 This program is free software; you can redistribute it and/or modify it under
 the terms of the GNU General Public License as published by the Free Software
@@ -41,8 +41,7 @@ can wait inside InnoDB */
 #define OS_THREAD_PRIORITY_NORMAL	2
 #define OS_THREAD_PRIORITY_ABOVE_NORMAL	3
 
-#ifdef __WIN__
-typedef void*			os_thread_t;
+#ifdef _WIN32
 typedef DWORD			os_thread_id_t;	/*!< In Windows the thread id
 						is an unsigned long int */
 extern "C"  {
@@ -61,8 +60,7 @@ don't access the arguments and don't return any value, we should be safe. */
 
 #else
 
-typedef pthread_t		os_thread_t;
-typedef os_thread_t		os_thread_id_t;	/*!< In Unix we use the thread
+typedef pthread_t		os_thread_id_t;	/*!< In Unix we use the thread
 						handle itself as the id of
 						the thread */
 extern "C"  { typedef void*	(*os_thread_func_t)(void*); }
@@ -71,7 +69,7 @@ extern "C"  { typedef void*	(*os_thread_func_t)(void*); }
 #define DECLARE_THREAD(func)	func
 #define os_thread_create(f,a,i)	os_thread_create_func(f, a, i)
 
-#endif /* __WIN__ */
+#endif /* _WIN32 */
 
 /* Define a function pointer type to use in a typecast */
 typedef void* (*os_posix_f_t) (void*);
@@ -79,12 +77,15 @@ typedef void* (*os_posix_f_t) (void*);
 #ifdef HAVE_PSI_INTERFACE
 /* Define for performance schema registration key */
 typedef unsigned int    mysql_pfs_key_t;
-#endif
+#endif /* HAVE_PSI_INTERFACE */
+
+/** Number of threads active. */
+extern	ulint	os_thread_count;
 
 /***************************************************************//**
 Compares two thread ids for equality.
-@return	TRUE if equal */
-UNIV_INTERN
+@return TRUE if equal */
+
 ibool
 os_thread_eq(
 /*=========*/
@@ -93,21 +94,21 @@ os_thread_eq(
 /****************************************************************//**
 Converts an OS thread id to a ulint. It is NOT guaranteed that the ulint is
 unique for the thread though!
-@return	thread identifier as a number */
-UNIV_INTERN
+@return thread identifier as a number */
+
 ulint
 os_thread_pf(
 /*=========*/
 	os_thread_id_t	a);	/*!< in: OS thread identifier */
 /****************************************************************//**
 Creates a new thread of execution. The execution starts from
-the function given. The start function takes a void* parameter
-and returns a ulint.
+the function given.
 NOTE: We count the number of threads in os_thread_exit(). A created
-thread should always use that to exit and not use return() to exit.
-@return	handle to the thread */
-UNIV_INTERN
-os_thread_t
+thread should always use that to exit so thatthe thread count will be
+decremented.
+We do not return an error code because if there is one, we crash here. */
+
+void
 os_thread_create_func(
 /*==================*/
 	os_thread_func_t	func,		/*!< in: pointer to function
@@ -119,7 +120,7 @@ os_thread_create_func(
 
 /*****************************************************************//**
 Exits the current thread. */
-UNIV_INTERN
+
 void
 os_thread_exit(
 /*===========*/
@@ -128,24 +129,46 @@ os_thread_exit(
 	UNIV_COLD __attribute__((noreturn));
 /*****************************************************************//**
 Returns the thread identifier of current thread.
-@return	current thread identifier */
-UNIV_INTERN
+@return current thread identifier */
+
 os_thread_id_t
 os_thread_get_curr_id(void);
 /*========================*/
 /*****************************************************************//**
 Advises the os to give up remainder of the thread's time slice. */
-UNIV_INTERN
+
 void
 os_thread_yield(void);
 /*=================*/
 /*****************************************************************//**
 The thread sleeps at least the time given in microseconds. */
-UNIV_INTERN
+
 void
 os_thread_sleep(
 /*============*/
 	ulint	tm);	/*!< in: time in microseconds */
+
+/**
+Initializes OS thread management data structures. */
+
+void
+os_thread_init();
+/*============*/
+
+/**
+Frees OS thread management data structures. */
+
+void
+os_thread_free();
+/*============*/
+
+/*****************************************************************//**
+Check if there are threads active.
+@return true if the thread count > 0. */
+
+bool
+os_thread_active();
+/*==============*/
 
 #ifndef UNIV_NONINL
 #include "os0thread.ic"

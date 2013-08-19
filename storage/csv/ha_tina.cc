@@ -1,4 +1,4 @@
-/* Copyright (c) 2004, 2011, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2004, 2013, Oracle and/or its affiliates. All rights reserved.
 
   This program is free software; you can redistribute it and/or modify
   it under the terms of the GNU General Public License as published by
@@ -108,6 +108,11 @@ static uchar* tina_get_key(TINA_SHARE *share, size_t *length,
   return (uchar*) share->table_name;
 }
 
+static PSI_memory_key csv_key_memory_tina_share;
+static PSI_memory_key csv_key_memory_blobroot;
+static PSI_memory_key csv_key_memory_tina_set;
+static PSI_memory_key csv_key_memory_row;
+
 #ifdef HAVE_PSI_INTERFACE
 
 static PSI_mutex_key csv_key_mutex_tina, csv_key_mutex_TINA_SHARE_mutex;
@@ -128,6 +133,15 @@ static PSI_file_info all_tina_files[]=
   { &csv_key_file_update, "update", 0}
 };
 
+static PSI_memory_info all_tina_memory[]=
+{
+  { &csv_key_memory_tina_share, "TINA_SHARE", 0},
+  { &csv_key_memory_blobroot, "blobroot", 0},
+  { &csv_key_memory_tina_set, "tina_set", 0},
+  { &csv_key_memory_row, "row", 0},
+  { &csv_key_memory_Transparent_file, "Transparent_file", 0}
+};
+
 static void init_tina_psi_keys(void)
 {
   const char* category= "csv";
@@ -138,6 +152,9 @@ static void init_tina_psi_keys(void)
 
   count= array_elements(all_tina_files);
   mysql_file_register(category, all_tina_files, count);
+
+  count= array_elements(all_tina_memory);
+  mysql_memory_register(category, all_tina_memory, count);
 }
 #endif /* HAVE_PSI_INTERFACE */
 
@@ -192,7 +209,8 @@ static TINA_SHARE *get_share(const char *table_name, TABLE *table)
                                            (uchar*) table_name,
                                            length)))
   {
-    if (!my_multi_malloc(MYF(MY_WME | MY_ZEROFILL),
+    if (!my_multi_malloc(csv_key_memory_tina_share,
+                         MYF(MY_WME | MY_ZEROFILL),
                          &share, sizeof(*share),
                          &tmp_name, length+1,
                          NullS))
@@ -494,7 +512,8 @@ ha_tina::ha_tina(handlerton *hton, TABLE_SHARE *table_arg)
   buffer.set((char*)byte_buffer, IO_SIZE, &my_charset_bin);
   chain= chain_buffer;
   file_buff= new Transparent_file();
-  init_alloc_root(&blobroot, BLOB_MEMROOT_ALLOC_SIZE, 0);;
+  init_alloc_root(csv_key_memory_blobroot,
+                  &blobroot, BLOB_MEMROOT_ALLOC_SIZE, 0);
 }
 
 
@@ -602,13 +621,15 @@ int ha_tina::chain_append()
       if (chain_alloced)
       {
         /* Must cast since my_malloc unlike malloc doesn't have a void ptr */
-        if ((chain= (tina_set *) my_realloc((uchar*)chain,
+        if ((chain= (tina_set *) my_realloc(csv_key_memory_tina_set,
+                                            (uchar*)chain,
                                             chain_size, MYF(MY_WME))) == NULL)
           return -1;
       }
       else
       {
-        tina_set *ptr= (tina_set *) my_malloc(chain_size * sizeof(tina_set),
+        tina_set *ptr= (tina_set *) my_malloc(csv_key_memory_tina_set,
+                                              chain_size * sizeof(tina_set),
                                               MYF(MY_WME));
         memcpy(ptr, chain, DEFAULT_CHAIN_LENGTH * sizeof(tina_set));
         chain= ptr;
@@ -807,7 +828,7 @@ int ha_tina::find_current_row(uchar *buf)
         if (src)
         {
           tgt= (uchar*) alloc_root(&blobroot, length);
-          bmove(tgt, src, length);
+          memmove(tgt, src, length);
           memcpy(blob->ptr + packlength, &tgt, sizeof(char*));
         }
       }
@@ -1489,7 +1510,8 @@ int ha_tina::repair(THD* thd, HA_CHECK_OPT* check_opt)
 
   /* Don't assert in field::val() functions */
   table->use_all_columns();
-  if (!(buf= (uchar*) my_malloc(table->s->reclength, MYF(MY_WME))))
+  if (!(buf= (uchar*) my_malloc(csv_key_memory_row,
+                                table->s->reclength, MYF(MY_WME))))
     DBUG_RETURN(HA_ERR_OUT_OF_MEM);
 
   /* position buffer to the start of the file */
@@ -1695,7 +1717,8 @@ int ha_tina::check(THD* thd, HA_CHECK_OPT* check_opt)
   DBUG_ENTER("ha_tina::check");
 
   old_proc_info= thd_proc_info(thd, "Checking table");
-  if (!(buf= (uchar*) my_malloc(table->s->reclength, MYF(MY_WME))))
+  if (!(buf= (uchar*) my_malloc(csv_key_memory_row,
+                                table->s->reclength, MYF(MY_WME))))
     DBUG_RETURN(HA_ERR_OUT_OF_MEM);
 
   /* position buffer to the start of the file */

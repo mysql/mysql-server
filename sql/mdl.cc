@@ -1,4 +1,4 @@
-/* Copyright (c) 2007, 2012, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2007, 2013, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -21,7 +21,10 @@
 #include <mysqld_error.h>
 #include <mysql/plugin.h>
 #include <mysql/service_thd_wait.h>
+#include <pfs_stage_provider.h>
 #include <mysql/psi/mysql_stage.h>
+
+static PSI_memory_key key_memory_MDL_context_acquire_locks;
 
 #ifdef HAVE_PSI_INTERFACE
 static PSI_mutex_key key_MDL_map_mutex;
@@ -49,6 +52,11 @@ static PSI_cond_info all_mdl_conds[]=
   { &key_MDL_wait_COND_wait_status, "MDL_context::COND_wait_status", 0}
 };
 
+static PSI_memory_info all_mdl_memory[]=
+{
+  { &key_memory_MDL_context_acquire_locks, "MDL_context::acquire_locks", 0}
+};
+
 /**
   Initialise all the performance schema instrumentation points
   used by the MDL subsystem.
@@ -65,6 +73,9 @@ static void init_mdl_psi_keys(void)
 
   count= array_elements(all_mdl_conds);
   mysql_cond_register("sql", all_mdl_conds, count);
+
+  count= array_elements(all_mdl_memory);
+  mysql_memory_register("sql", all_mdl_memory, count);
 
   MDL_key::init_psi_keys();
 }
@@ -2255,6 +2266,7 @@ MDL_context::acquire_lock(MDL_request *mdl_request, ulong lock_wait_timeout)
       my_error(ER_LOCK_WAIT_TIMEOUT, MYF(0));
       break;
     case MDL_wait::KILLED:
+      my_error(ER_QUERY_INTERRUPTED, MYF(0));
       break;
     default:
       DBUG_ASSERT(0);
@@ -2319,7 +2331,8 @@ bool MDL_context::acquire_locks(MDL_request_list *mdl_requests,
     return FALSE;
 
   /* Sort requests according to MDL_key. */
-  if (! (sort_buf= (MDL_request **)my_malloc(req_count *
+  if (! (sort_buf= (MDL_request **)my_malloc(key_memory_MDL_context_acquire_locks,
+                                             req_count *
                                              sizeof(MDL_request*),
                                              MYF(MY_WME))))
     return TRUE;
@@ -2359,7 +2372,7 @@ err:
 /**
   Upgrade a shared metadata lock.
 
-  Used in ALTER TABLE.
+  Used in ALTER TABLE and CREATE TABLE.
 
   @param mdl_ticket         Lock to upgrade.
   @param new_type           Lock type to upgrade to.
@@ -2371,7 +2384,11 @@ err:
 
   @note There can be only one upgrader for a lock or we will have deadlock.
         This invariant is ensured by the fact that upgradeable locks SU, SNW
-        and SNRW are not compatible with each other and themselves.
+        and SNRW are not compatible with each other and themselves in case
+        of ALTER TABLE operation. 
+        In case of CREATE TABLE operation there is chance of deadlock as 'S'
+        is compatible with 'S'. But the deadlock is recovered by backoff and
+        retry mechanism.
 
   @retval FALSE  Success
   @retval TRUE   Failure (thread was killed)
@@ -2395,11 +2412,6 @@ MDL_context::upgrade_shared_lock(MDL_ticket *mdl_ticket,
   */
   if (mdl_ticket->has_stronger_or_equal_type(new_type))
     DBUG_RETURN(FALSE);
-
-  /* Only allow upgrades from SHARED_UPGRADABLE/NO_WRITE/NO_READ_WRITE */
-  DBUG_ASSERT(mdl_ticket->m_type == MDL_SHARED_UPGRADABLE ||
-              mdl_ticket->m_type == MDL_SHARED_NO_WRITE ||
-              mdl_ticket->m_type == MDL_SHARED_NO_READ_WRITE);
 
   mdl_xlock_request.init(&mdl_ticket->m_lock->key, new_type,
                          MDL_TRANSACTION);

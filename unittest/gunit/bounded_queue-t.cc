@@ -11,7 +11,7 @@
 
    You should have received a copy of the GNU General Public License
    along with this program; if not, write to the Free Software
-   Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA */
+   Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA 02110-1301, USA */
 
 // First include (the generated) my_config.h, to get correct platform defines.
 #include "my_config.h"
@@ -345,7 +345,7 @@ void int_keymaker(Sort_param *sp, int *to, int *from)
  */
 const int num_rows= 10000;
 const int row_limit= 100;
-const int num_iterations= 1000;
+const int num_iterations= 10;
 
 class PerfTestSmall : public ::testing::Test
 {

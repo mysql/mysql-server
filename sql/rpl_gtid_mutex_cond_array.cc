@@ -1,4 +1,4 @@
-/* Copyright (c) 2012, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2012, 2013, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or
    modify it under the terms of the GNU General Public License as
@@ -45,7 +45,7 @@ Mutex_cond_array::~Mutex_cond_array()
     {
       mysql_mutex_destroy(&mutex_cond->mutex);
       mysql_cond_destroy(&mutex_cond->cond);
-      free(mutex_cond);
+      my_free(mutex_cond);
     }
   }
   delete_dynamic(&array);
@@ -77,7 +77,8 @@ enum_return_status Mutex_cond_array::ensure_index(int n)
         goto error;
       for (int i= max_index + 1; i <= n; i++)
       {
-        Mutex_cond *mutex_cond= (Mutex_cond *)my_malloc(sizeof(Mutex_cond), MYF(MY_WME));
+        Mutex_cond *mutex_cond= (Mutex_cond *)my_malloc(key_memory_Mutex_cond_array_Mutex_cond,
+                                                        sizeof(Mutex_cond), MYF(MY_WME));
         if (mutex_cond == NULL)
           goto error;
         mysql_mutex_init(key_gtid_ensure_index_mutex, &mutex_cond->mutex, NULL);

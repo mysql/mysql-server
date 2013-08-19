@@ -1,4 +1,4 @@
-/* Copyright (c) 2000, 2011, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2000, 2013, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -333,7 +333,7 @@ int main(int argc, char *argv[])
 	if (i & 1)
 	  put_blob_in_record(record+blob_pos,&blob_buffer);
 	else
-	  bmove(record+blob_pos,read_record+blob_pos,8);
+	  memmove(record + blob_pos, read_record + blob_pos, 8);
       }
       if (mi_update(file,read_record,record2))
       {
@@ -494,25 +494,6 @@ int main(int argc, char *argv[])
       goto err;
   if (memcmp(read_record2,read_record3,reclength))
      printf("Can't find last record\n");
-#ifdef NOT_ANYMORE
-  if (!silent)
-    puts("- Test read key-part");
-  strmov(key2,key);
-  for(i=strlen(key2) ; i-- > 1 ;)
-  {
-    key2[i]=0;
-
-    /* The following row is just to catch some bugs in the key code */
-    memset(file->lastkey, 0, file->s->base.max_key_length*2);
-    if (mi_rkey(file,read_record,0,key2,(uint) i,HA_READ_PREFIX))
-      goto err;
-    if (memcmp(read_record+start,key,(uint) i))
-    {
-      puts("Didn't find right record");
-      goto end;
-    }
-  }
-#endif
   if (dupp_keys > 2)
   {
     if (!silent)
@@ -597,7 +578,7 @@ int main(int argc, char *argv[])
   if (i == write_count)
     goto err;
 
-  bmove(read_record2,read_record,reclength);
+  memmove(read_record2, read_record, reclength);
   for (i=min(2,keys) ; i-- > 0 ;)
   {
     if (mi_rsame(file,read_record2,(int) i)) goto err;
@@ -1004,9 +985,9 @@ static uint rnd(uint max_value)
 
 static void fix_length(uchar *rec, uint length)
 {
-  bmove(rec+STANDARD_LENGTH,
-	"0123456789012345678901234567890123456789012345678901234567890",
-	length-STANDARD_LENGTH);
+  memmove(rec + STANDARD_LENGTH,
+          "0123456789012345678901234567890123456789012345678901234567890",
+          length - STANDARD_LENGTH);
   strfill((char*) rec+length,STANDARD_LENGTH+60-length,' ');
 } /* fix_length */
 

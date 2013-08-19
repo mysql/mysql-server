@@ -1,4 +1,4 @@
-# Copyright (c) 2009, 2010, Oracle and/or its affiliates. All rights reserved.
+# Copyright (c) 2009, 2013, Oracle and/or its affiliates. All rights reserved.
 # 
 # This program is free software; you can redistribute it and/or modify
 # it under the terms of the GNU General Public License as published by
@@ -53,7 +53,7 @@
 
 
 GET_FILENAME_COMPONENT(MYSQL_CMAKE_SCRIPT_DIR ${CMAKE_CURRENT_LIST_FILE} PATH)
-IF(WIN32 OR CYGWIN OR APPLE OR WITH_PIC OR DISABLE_SHARED OR NOT CMAKE_SHARED_LIBRARY_C_FLAGS)
+IF(WIN32 OR APPLE OR WITH_PIC OR DISABLE_SHARED OR NOT CMAKE_SHARED_LIBRARY_C_FLAGS)
  SET(_SKIP_PIC 1)
 ENDIF()
 
@@ -126,7 +126,7 @@ ENDMACRO()
 
 MACRO(MERGE_STATIC_LIBS TARGET OUTPUT_NAME LIBS_TO_MERGE)
   # To produce a library we need at least one source file.
-  # It is created by ADD_CUSTOM_COMMAND below and will helps 
+  # It is created by ADD_CUSTOM_COMMAND below and will
   # also help to track dependencies.
   SET(SOURCE_FILE ${CMAKE_CURRENT_BINARY_DIR}/${TARGET}_depends.c)
   ADD_LIBRARY(${TARGET} STATIC ${SOURCE_FILE})
@@ -158,6 +158,7 @@ MACRO(MERGE_STATIC_LIBS TARGET OUTPUT_NAME LIBS_TO_MERGE)
   IF(OSLIBS)
     LIST(REMOVE_DUPLICATES OSLIBS)
     TARGET_LINK_LIBRARIES(${TARGET} ${OSLIBS})
+    MESSAGE(STATUS "Library ${TARGET} depends on OSLIBS ${OSLIBS}")
   ENDIF()
 
   # Make the generated dummy source file depended on all static input
@@ -187,7 +188,7 @@ MACRO(MERGE_STATIC_LIBS TARGET OUTPUT_NAME LIBS_TO_MERGE)
         ${STATIC_LIBS}
       )  
     ELSE()
-      # Generic Unix, Cygwin or MinGW. In post-build step, call
+      # Generic Unix or MinGW. In post-build step, call
       # script, that extracts objects from archives with "ar x" 
       # and repacks them with "ar r"
       SET(TARGET ${TARGET})

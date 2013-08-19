@@ -1,7 +1,7 @@
 include/master-slave.inc
 Warnings:
 Note	####	Sending passwords in plain text without SSL/TLS is extremely insecure.
-Note	####	Storing MySQL user name or password information in the master.info repository is not secure and is therefore not recommended. Please see the MySQL Manual for more about this issue and possible alternatives.
+Note	####	Storing MySQL user name or password information in the master info repository is not secure and is therefore not recommended. Please consider using the USER and PASSWORD connection options for START SLAVE; see the 'START SLAVE Syntax' in the MySQL Manual for more information.
 [connection master]
 CALL mtr.add_suppression("Unsafe statement written to the binary log using statement format since BINLOG_FORMAT = STATEMENT");
 call mtr.add_suppression("Slave SQL.*Request to stop slave SQL Thread received while applying a group that has non-transactional changes; waiting for completion of the group");
@@ -79,9 +79,20 @@ ALTER TABLE t1 ADD INDEX id1(a);
 INSERT INTO t1 values(1, sleep(3));
 ### Assertion is good. Both Master and Slave exhibit the 
 ### same number of queries in slow log: 1
+********************************************************************
+**** TRUNCATE the slow log then check whether runtime changes of
+**** log_slow_slave_statements work without slave restart.
+********************************************************************
+SET @old_log_slow_slave_statements= @@global.log_slow_slave_statements;
+SET @@global.log_slow_slave_statements = off;
+TRUNCATE mysql.slow_log;
+INSERT INTO t1 values(1, sleep(3));;
+SET @@global.log_slow_slave_statements = on;
+INSERT INTO t1 values(1, sleep(3));;
 SET @@global.log_output= @old_log_output;
 SET @@global.long_query_time= @old_long_query_time;
 DROP TABLE t1;
 SET @@global.log_output= @old_log_output;
 SET @@global.long_query_time= @old_long_query_time;
+SET @@global.log_slow_slave_statements= @old_log_slow_slave_statements;
 include/rpl_end.inc

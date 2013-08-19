@@ -1,3 +1,8 @@
+# The include statement below is a temp one for tests that are yet to
+#be ported to run with InnoDB,
+#but needs to be kept for tests that would need MyISAM in future.
+--source include/force_myisam_default.inc
+
 --source include/have_log_bin.inc
 # Test sets its own binlog_format, so we restrict it to run only once
 --source include/have_binlog_format_row.inc
@@ -54,14 +59,14 @@ let $wait_condition=
   SELECT COUNT(*) = 1 FROM information_schema.processlist WHERE
   state = "User lock" AND
   info = "INSERT INTO t1 SELECT * FROM t2 WHERE GET_LOCK('Bug#34306', 120)";
---source include/wait_condition.inc
+--source include/wait_condition_or_abort.inc
 --send INSERT INTO t2 VALUES (3);
 --connection con1
 --echo # con1
 let $wait_condition=
   SELECT COUNT(*) = 1 FROM information_schema.processlist WHERE
   state = "Waiting for table level lock" and info = "INSERT INTO t2 VALUES (3)";
---source include/wait_condition.inc
+--source include/wait_condition_or_abort.inc
 SELECT RELEASE_LOCK('Bug#34306');
 --connection con2
 --echo # con2
@@ -91,7 +96,7 @@ let $wait_condition=
   SELECT COUNT(*) = 1 FROM information_schema.processlist WHERE
   state = "User lock" AND
   info = "INSERT INTO t1 SELECT * FROM t2 WHERE GET_LOCK('Bug#34306', 120)";
---source include/wait_condition.inc
+--source include/wait_condition_or_abort.inc
 --connection con1
 --echo # con1
 INSERT INTO t2 VALUES (4);

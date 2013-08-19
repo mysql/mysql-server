@@ -1,4 +1,4 @@
-/* Copyright (c) 2011, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2011, 2013, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -17,7 +17,7 @@
 #define OPT_TRACE_CONTEXT_INCLUDED
 
 #include "my_config.h"  // OPTIMIZER_TRACE
-#include "sql_array.h"  // Dynamic_array
+#include "prealloced_array.h"
 
 /**
    @file
@@ -29,6 +29,8 @@
 #ifdef OPTIMIZER_TRACE
 
 class Opt_trace_stmt;           // implementation detail local to opt_trace.cc
+
+typedef Prealloced_array<Opt_trace_stmt*, 16> Opt_trace_stmt_array;
 
 
 /**
@@ -187,7 +189,7 @@ public:
      @c sys_vars.cc:
      @li "greedy_search" = the greedy search for a plan
      @li "range_optimizer" = the cost analysis of accessing data through
-     ranges in indices
+     ranges in indexes
      @li "dynamic_range" = the range optimization performed for each record
                            when access method is dynamic range
      @li "repeated_subselect" = the repeated execution of subselects
@@ -284,6 +286,9 @@ private:
   {
   public:
     Opt_trace_context_impl() : current_stmt_in_gen(NULL),
+      stack_of_current_stmts(PSI_INSTRUMENT_ME),
+      all_stmts_for_I_S(PSI_INSTRUMENT_ME),
+      all_stmts_to_del(PSI_INSTRUMENT_ME),
       features(feature_value(0)), offset(0), limit(0), since_offset_0(0)
     {}
 
@@ -329,7 +334,7 @@ private:
        substatement's trace; when leaving the substatement we pop from the
        stack and set current_stmt_in_gen to the popped value.
     */
-    Dynamic_array<Opt_trace_stmt *> stack_of_current_stmts;
+    Opt_trace_stmt_array stack_of_current_stmts;
 
     /**
        List of remembered traces for putting into the OPTIMIZER_TRACE
@@ -340,12 +345,12 @@ private:
        - to delete a trace in the middle of the list when it is permanently
        out of the offset/limit showable window.
     */
-    Dynamic_array<Opt_trace_stmt *> all_stmts_for_I_S;
+    Opt_trace_stmt_array all_stmts_for_I_S;
     /**
        List of traces which are unneeded because of OFFSET/LIMIT, and
        scheduled for deletion from memory.
     */
-    Dynamic_array<Opt_trace_stmt *> all_stmts_to_del;
+    Opt_trace_stmt_array all_stmts_to_del;
 
     bool end_marker;        ///< copy of parameter of Opt_trace_context::start
     bool one_line;

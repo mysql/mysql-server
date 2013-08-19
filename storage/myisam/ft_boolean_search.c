@@ -1,4 +1,4 @@
-/* Copyright (c) 2001, 2011, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2001, 2013, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -570,7 +570,8 @@ FT_INFO * ft_init_boolean_search(MI_INFO *info, uint keynr, uchar *query,
   FTB_EXPR  *ftbe;
   FTB_WORD  *ftbw;
 
-  if (!(ftb=(FTB *)my_malloc(sizeof(FTB), MYF(MY_WME))))
+  if (!(ftb=(FTB *)my_malloc(mi_key_memory_FTB,
+                             sizeof(FTB), MYF(MY_WME))))
     return 0;
   ftb->please= (struct _ft_vft *) & _ft_vft_boolean;
   ftb->state=UNINITIALIZED;
@@ -583,7 +584,7 @@ FT_INFO * ft_init_boolean_search(MI_INFO *info, uint keynr, uchar *query,
   memset(&ftb->no_dupes, 0, sizeof(TREE));
   ftb->last_word= 0;
 
-  init_alloc_root(&ftb->mem_root, 1024, 1024);
+  init_alloc_root(PSI_INSTRUMENT_ME, &ftb->mem_root, 1024, 1024);
   ftb->queue.max_elements= 0;
   if (!(ftbe=(FTB_EXPR *)alloc_root(&ftb->mem_root, sizeof(FTB_EXPR))))
     goto err;
@@ -729,7 +730,7 @@ static int _ftb_check_phrase(FTB *ftb, const uchar *document, uint len,
   param->flags= 0;
   param->mode= MYSQL_FTPARSER_WITH_STOPWORDS;
   if (unlikely(parser->parse(param)))
-    return -1;
+    DBUG_RETURN(-1);
   DBUG_RETURN(ftb_param.match ? 1 : 0);
 }
 

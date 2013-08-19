@@ -1,4 +1,4 @@
-/* Copyright (c) 2006, 2011, 2012 Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2006, 2011, 2013 Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -63,7 +63,7 @@ Relay_log_info::Relay_log_info(bool is_slave_recovery
                                PSI_mutex_key *param_key_info_stop_cond,
                                PSI_mutex_key *param_key_info_sleep_cond
 #endif
-                               , uint param_id
+                               , uint param_id, bool is_rli_fake
                               )
    :Rpl_info("SQL"
 #ifdef HAVE_PSI_INTERFACE
@@ -75,12 +75,13 @@ Relay_log_info::Relay_log_info(bool is_slave_recovery
              , param_id
             ),
    replicate_same_server_id(::replicate_same_server_id),
-   cur_log_fd(-1), relay_log(&sync_relaylog_period),
+   cur_log_fd(-1), relay_log(&sync_relaylog_period, SEQ_READ_APPEND),
    is_relay_log_recovery(is_slave_recovery),
    save_temporary_tables(0),
    cur_log_old_open_count(0), group_relay_log_pos(0), event_relay_log_pos(0),
    group_master_log_pos(0),
    gtid_set(global_sid_map, global_sid_lock),
+   rli_fake(is_rli_fake),
    is_group_master_log_pos_invalid(false),
    log_space_total(0), ignore_log_space_limit(0),
    sql_force_rotate_relay(false),
@@ -93,13 +94,14 @@ Relay_log_info::Relay_log_info(bool is_slave_recovery
    retried_trans(0),
    tables_to_lock(0), tables_to_lock_count(0),
    rows_query_ev(NULL), last_event_start_time(0), deferred_events(NULL),
-   slave_parallel_workers(0),
+   workers_array_initialized(false), slave_parallel_workers(0),
    recovery_parallel_workers(0), checkpoint_seqno(0),
-   checkpoint_group(opt_mts_checkpoint_group), 
+   checkpoint_group(opt_mts_checkpoint_group),
    recovery_groups_inited(false), mts_recovery_group_cnt(0),
    mts_recovery_index(0), mts_recovery_group_seen_begin(0),
-   mts_group_status(MTS_NOT_IN_GROUP), reported_unsafe_warning(false),
-   rli_description_event(NULL),
+   mts_group_status(MTS_NOT_IN_GROUP),
+   current_mts_submode(0),
+   reported_unsafe_warning(false), rli_description_event(NULL),
    sql_delay(0), sql_delay_end(0), m_flags(0), row_stmt_start_timestamp(0),
    long_find_row_note_printed(false), error_on_rli_init_info(false)
 {
@@ -107,13 +109,15 @@ Relay_log_info::Relay_log_info(bool is_slave_recovery
 
 #ifdef HAVE_PSI_INTERFACE
   relay_log.set_psi_keys(key_RELAYLOG_LOCK_index,
-                         key_RELAYLOG_LOCK_log,
-                         key_RELAYLOG_LOCK_flush_queue,
                          key_RELAYLOG_LOCK_commit,
                          key_RELAYLOG_LOCK_commit_queue,
-                         key_RELAYLOG_LOCK_sync,
-                         key_RELAYLOG_LOCK_sync_queue,
                          key_RELAYLOG_LOCK_done,
+                         key_RELAYLOG_LOCK_flush_queue,
+                         key_RELAYLOG_LOCK_log,
+                         key_RELAYLOG_LOCK_sync,
+                         0, /* Relaylog doesn't support LOCK_binlog_end_pos */
+                         key_RELAYLOG_LOCK_sync_queue,
+                         key_RELAYLOG_LOCK_xids,
                          key_RELAYLOG_COND_done,
                          key_RELAYLOG_update_cond,
                          key_RELAYLOG_prep_xids_cond,
@@ -128,13 +132,19 @@ Relay_log_info::Relay_log_info(bool is_slave_recovery
   memset(&cache_buf, 0, sizeof(cache_buf));
   cached_charset_invalidate();
 
+  if(!rli_fake)
+  {
+    my_atomic_rwlock_init(&slave_open_temp_tables_lock);
+  }
+
+
   mysql_mutex_init(key_relay_log_info_log_space_lock,
                    &log_space_lock, MY_MUTEX_INIT_FAST);
   mysql_cond_init(key_relay_log_info_log_space_cond, &log_space_cond, NULL);
   mysql_mutex_init(key_mutex_slave_parallel_pend_jobs, &pending_jobs_lock,
                    MY_MUTEX_INIT_FAST);
   mysql_cond_init(key_cond_slave_parallel_pend_jobs, &pending_jobs_cond, NULL);
-  my_atomic_rwlock_init(&slave_open_temp_tables_lock);
+  mysql_mutex_init(key_mts_temp_table_LOCK, &mts_temp_table_LOCK, MY_MUTEX_INIT_FAST);
 
   relay_log.init_pthread_objects();
   do_server_version_split(::server_version, slave_version_split);
@@ -154,7 +164,9 @@ void Relay_log_info::init_workers(ulong n_workers)
   mts_groups_assigned= mts_events_assigned= pending_jobs= wq_size_waits_cnt= 0;
   mts_wq_excess_cnt= mts_wq_no_underrun_cnt= mts_wq_overfill_cnt= 0;
   mts_last_online_stat= 0;
+
   my_init_dynamic_array(&workers, sizeof(Slave_worker *), n_workers, 4);
+  workers_array_initialized= true; //set after init
 }
 
 /**
@@ -175,7 +187,21 @@ Relay_log_info::~Relay_log_info()
   mysql_cond_destroy(&log_space_cond);
   mysql_mutex_destroy(&pending_jobs_lock);
   mysql_cond_destroy(&pending_jobs_cond);
-  my_atomic_rwlock_destroy(&slave_open_temp_tables_lock);
+  mysql_mutex_destroy(&mts_temp_table_LOCK);
+  delete current_mts_submode;
+
+  if(workers_copy_pfs.size())
+  {
+    for (int i= workers_copy_pfs.size() - 1; i >= 0; i--)
+      delete workers_copy_pfs[i];
+    workers_copy_pfs.clear();
+  }
+
+  if(!rli_fake)
+  {
+    my_atomic_rwlock_destroy(&slave_open_temp_tables_lock);
+  }
+
   relay_log.cleanup();
   set_rli_description_event(NULL);
 
@@ -242,6 +268,13 @@ void Relay_log_info::reset_notified_checkpoint(ulong shift, time_t new_ts,
     */
     w->checkpoint_notified= FALSE;
     w->bitmap_shifted= w->bitmap_shifted + shift;
+    /*
+      Zero shift indicates the caller rotates the master binlog.
+      The new name will be passed to W through the group descriptor
+      during the first post-rotation time scheduling.
+    */
+    if (shift == 0)
+      w->master_log_change_notified= false;
 
     DBUG_PRINT("mts", ("reset_notified_checkpoint shift --> %lu, "
                "worker->bitmap_shifted --> %lu, worker --> %u.",
@@ -249,14 +282,14 @@ void Relay_log_info::reset_notified_checkpoint(ulong shift, time_t new_ts,
   }
   /*
     There should not be a call where (shift == 0 && checkpoint_seqno != 0).
-
     Then the new checkpoint sequence is updated by subtracting the number
     of consecutive jobs that were successfully processed.
   */
-  DBUG_ASSERT(!(shift == 0 && checkpoint_seqno != 0));
+  DBUG_ASSERT(current_mts_submode->get_type() != MTS_PARALLEL_TYPE_DB_NAME ||
+              !(shift == 0 && checkpoint_seqno != 0));
   checkpoint_seqno= checkpoint_seqno - shift;
   DBUG_PRINT("mts", ("reset_notified_checkpoint shift --> %lu, "
-             "checkpoint_seqno --> %u.", shift, checkpoint_seqno));  
+             "checkpoint_seqno --> %u.", shift, checkpoint_seqno));
 
   if (new_ts)
   {
@@ -586,6 +619,32 @@ err:
 }
 
 /**
+  Update the error number, message and timestamp fields. This function is
+  different from va_report() as va_report() also logs the error message in the
+  log apart from updating the error fields.
+
+  SYNOPSIS
+  @param[in]  level          specifies the level- error, warning or information,
+  @param[in]  err_code       error number,
+  @param[in]  buff_coord     error message to be used.
+
+*/
+void Relay_log_info::fill_coord_err_buf(loglevel level, int err_code,
+                                      const char *buff_coord) const
+{
+  mysql_mutex_lock(&err_lock);
+
+  if(level == ERROR_LEVEL)
+  {
+    m_last_error.number = err_code;
+    strncpy(m_last_error.message, buff_coord, MAX_SLAVE_ERRMSG);
+    m_last_error.update_timestamp();
+  }
+
+  mysql_mutex_unlock(&err_lock);
+}
+
+/**
   Waits until the SQL thread reaches (has executed up to) the
   log/position or timed out.
 
@@ -864,10 +923,10 @@ int Relay_log_info::wait_for_gtid_set(THD* thd, String* gtid,
     const Gtid_set* logged_gtids= gtid_state->get_logged_gtids();
     const Owned_gtids* owned_gtids= gtid_state->get_owned_gtids();
 
-    DBUG_PRINT("info", ("Waiting for '%s'. is_subset: %d and \
-!is_intersection: %d",
+    DBUG_PRINT("info", ("Waiting for '%s'. is_subset: %d and "
+                        "!is_intersection_nonempty: %d",
       gtid->c_ptr_safe(), wait_gtid_set.is_subset(logged_gtids),
-      !owned_gtids->is_intersection(&wait_gtid_set)));
+      !owned_gtids->is_intersection_nonempty(&wait_gtid_set)));
     logged_gtids->dbug_print("gtid_executed:");
     owned_gtids->dbug_print("owned_gtids:");
 
@@ -876,7 +935,7 @@ int Relay_log_info::wait_for_gtid_set(THD* thd, String* gtid,
       check if any GTID of wait_gtid_set is not yet committed.
     */
     if (wait_gtid_set.is_subset(logged_gtids) &&
-        !owned_gtids->is_intersection(&wait_gtid_set))
+        !owned_gtids->is_intersection_nonempty(&wait_gtid_set))
     {
       global_sid_lock->unlock();
       break;
@@ -1285,7 +1344,7 @@ bool Relay_log_info::is_until_satisfied(THD *thd, Log_event *ev)
         global_sid_lock->wrlock();
         /* Check if until GTIDs were already applied. */
         const Gtid_set* logged_gtids= gtid_state->get_logged_gtids();
-        if (until_sql_gtids.is_intersection(logged_gtids))
+        if (until_sql_gtids.is_intersection_nonempty(logged_gtids))
         {
           char *buffer= until_sql_gtids.to_string();
           global_sid_lock->unlock();
@@ -1606,7 +1665,7 @@ bool mysql_show_relaylog_events(THD* thd)
 
   if (active_mi == NULL)
   {
-    my_eof(thd);
+    my_error(ER_SLAVE_CONFIGURATION, MYF(0));
     DBUG_RETURN(true);
   }
   
@@ -1737,7 +1796,7 @@ a file name for --relay-log-index option.", opt_relaylog_index_name);
     const char *ln;
     static bool name_warning_sent= 0;
     ln= relay_log.generate_name(opt_relay_logname, "-relay-bin",
-                                1, buf);
+                                buf);
     /* We send the warning only at startup, not after every RESET SLAVE */
     if (!opt_relay_logname && !opt_relaylog_index_name && !name_warning_sent)
     {
@@ -1791,7 +1850,7 @@ a file name for --relay-log-index option.", opt_relaylog_index_name);
       note, that if open() fails, we'll still have index file open
       but a destructor will take care of that
     */
-    if (relay_log.open_binlog(ln, 0, SEQ_READ_APPEND,
+    if (relay_log.open_binlog(ln, 0,
                               (max_relay_log_size ? max_relay_log_size :
                                max_binlog_size), true,
                               true/*need_lock_index=true*/,
@@ -2020,6 +2079,7 @@ int Relay_log_info::flush_info(const bool force)
     update every time we call flush because the option maybe 
     dinamically set.
   */
+  mysql_mutex_lock(&mts_temp_table_LOCK);
   handler->set_sync_period(sync_relayloginfo_period);
 
   if (write_info(handler))
@@ -2028,10 +2088,12 @@ int Relay_log_info::flush_info(const bool force)
   if (handler->flush_info(force))
     goto err;
 
+  mysql_mutex_unlock(&mts_temp_table_LOCK);
   DBUG_RETURN(0);
 
 err:
   sql_print_error("Error writing relay log configuration.");
+  mysql_mutex_unlock(&mts_temp_table_LOCK);
   DBUG_RETURN(1);
 }
 
@@ -2351,4 +2413,10 @@ void Relay_log_info::adapt_to_master_version(Format_description_log_event *fdle)
       s_features[i].upgrade(thd);
     }
   }
+}
+
+bool is_mts_db_partitioned(Relay_log_info * rli)
+{
+  return (rli->current_mts_submode->get_type() ==
+    MTS_PARALLEL_TYPE_DB_NAME);
 }

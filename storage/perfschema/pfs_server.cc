@@ -1,4 +1,4 @@
-/* Copyright (c) 2008, 2012, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2008, 2013, Oracle and/or its affiliates. All rights reserved.
 
   This program is free software; you can redistribute it and/or modify
   it under the terms of the GNU General Public License as published by
@@ -37,6 +37,7 @@
 #include "pfs_account.h"
 #include "pfs_defaults.h"
 #include "pfs_digest.h"
+#include "pfs_program.h"
 
 PFS_global_param pfs_param;
 
@@ -49,8 +50,7 @@ C_MODE_END
 static void cleanup_performance_schema(void);
 void cleanup_instrument_config(void);
 
-struct PSI_bootstrap*
-initialize_performance_schema(PFS_global_param *param)
+void pre_initialize_performance_schema()
 {
   pfs_initialized= false;
 
@@ -59,6 +59,17 @@ initialize_performance_schema(PFS_global_param *param)
   global_table_io_stat.reset();
   global_table_lock_stat.reset();
 
+  PFS_atomic::init();
+
+  if (pthread_key_create(&THR_PFS, destroy_pfs_thread))
+    return;
+
+  THR_PFS_initialized= true;
+}
+
+struct PSI_bootstrap*
+initialize_performance_schema(PFS_global_param *param)
+{
   pfs_automated_sizing(param);
 
   if (! param->m_enabled)
@@ -71,15 +82,8 @@ initialize_performance_schema(PFS_global_param *param)
   }
 
   init_timers();
-  PFS_atomic::init();
-
   init_event_name_sizing(param);
   register_global_classes();
-
-  if (pthread_key_create(&THR_PFS, destroy_pfs_thread))
-    return NULL;
-
-  THR_PFS_initialized= true;
 
   if (init_sync_class(param->m_mutex_class_sizing,
                       param->m_rwlock_class_sizing,
@@ -90,6 +94,7 @@ initialize_performance_schema(PFS_global_param *param)
       init_stage_class(param->m_stage_class_sizing) ||
       init_statement_class(param->m_statement_class_sizing) ||
       init_socket_class(param->m_socket_class_sizing) ||
+      init_memory_class(param->m_memory_class_sizing) ||
       init_instruments(param) ||
       init_events_waits_history_long(
         param->m_events_waits_history_long_sizing) ||
@@ -110,7 +115,9 @@ initialize_performance_schema(PFS_global_param *param)
       init_account(param) ||
       init_account_hash() ||
       init_digest(param) ||
-      init_digest_hash())
+      init_digest_hash() ||
+      init_program(param) ||
+      init_program_hash())
   {
     /*
       The performance schema initialization failed.
@@ -248,7 +255,8 @@ int add_pfs_instr_to_array(const char* name, const char* value)
   int value_length= strlen(value);
 
   /* Allocate structure plus string buffers plus null terminators */
-  PFS_instr_config* e = (PFS_instr_config*)my_malloc(sizeof(PFS_instr_config)
+  PFS_instr_config* e = (PFS_instr_config*)my_malloc(PSI_NOT_INSTRUMENTED,
+                                                     sizeof(PFS_instr_config)
                        + name_length + 1 + value_length + 1, MYF(MY_WME));
   if (!e) return 1;
   

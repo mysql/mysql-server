@@ -1,6 +1,6 @@
 /*****************************************************************************
 
-Copyright (c) 2009, 2012, Oracle and/or its affiliates. All Rights Reserved.
+Copyright (c) 2009, 2013, Oracle and/or its affiliates. All Rights Reserved.
 
 This program is free software; you can redistribute it and/or modify it under
 the terms of the GNU General Public License as published by the Free Software
@@ -28,7 +28,6 @@ Created Jan 06, 2010 Vasil Dimov
 
 #include "univ.i"
 
-#include "db0err.h"
 #include "dict0types.h"
 #include "trx0types.h"
 
@@ -60,7 +59,7 @@ is relatively quick and is used to calculate transient statistics that
 are not saved on disk.
 This was the only way to calculate statistics before the
 Persistent Statistics feature was introduced. */
-UNIV_INTERN
+
 void
 dict_stats_update_transient(
 /*========================*/
@@ -133,7 +132,7 @@ dict_stats_deinit(
 Calculates new estimates for table and index statistics. The statistics
 are used in query optimization.
 @return DB_* error code or DB_SUCCESS */
-UNIV_INTERN
+
 dberr_t
 dict_stats_update(
 /*==============*/
@@ -148,7 +147,7 @@ Removes the information for a particular index's stats from the persistent
 storage if it exists and if there is data stored for this index.
 This function creates its own trx and commits it.
 @return DB_SUCCESS or error code */
-UNIV_INTERN
+
 dberr_t
 dict_stats_drop_index(
 /*==================*/
@@ -163,7 +162,7 @@ Removes the statistics for a table and all of its indexes from the
 persistent storage if it exists and if there is data stored for the table.
 This function creates its own transaction and commits it.
 @return DB_SUCCESS or error code */
-UNIV_INTERN
+
 dberr_t
 dict_stats_drop_table(
 /*==================*/
@@ -174,7 +173,7 @@ dict_stats_drop_table(
 
 /*********************************************************************//**
 Fetches or calculates new estimates for index statistics. */
-UNIV_INTERN
+
 void
 dict_stats_update_for_index(
 /*========================*/
@@ -185,7 +184,7 @@ dict_stats_update_for_index(
 Renames a table in InnoDB persistent stats storage.
 This function creates its own transaction and commits it.
 @return DB_SUCCESS or error code */
-UNIV_INTERN
+
 dberr_t
 dict_stats_rename_table(
 /*====================*/
@@ -194,6 +193,21 @@ dict_stats_rename_table(
 	char*		errstr,		/*!< out: error string if != DB_SUCCESS
 					is returned */
 	size_t		errstr_sz);	/*!< in: errstr size */
+
+/*********************************************************************//**
+Renames an index in InnoDB persistent stats storage.
+This function creates its own transaction and commits it.
+@return DB_SUCCESS or error code. DB_STATS_DO_NOT_EXIST will be returned
+if the persistent stats do not exist. */
+
+dberr_t
+dict_stats_rename_index(
+/*====================*/
+	const dict_table_t*	table,		/*!< in: table whose index
+						is renamed */
+	const char*		old_index_name,	/*!< in: old index name */
+	const char*		new_index_name)	/*!< in: new index name */
+	__attribute__((warn_unused_result));
 
 #ifndef UNIV_NONINL
 #include "dict0stats.ic"

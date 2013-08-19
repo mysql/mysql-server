@@ -1,4 +1,4 @@
-/* Copyright (c) 2000, 2011, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2000, 2013, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -44,11 +44,16 @@
 #include <signal.h>
 #include <errno.h>
 #include "probes_mysql.h"
+/* key_memory_NET_buff */
+#include "mysqld.h"
 
 #include <algorithm>
 
 using std::min;
 using std::max;
+
+PSI_memory_key key_memory_NET_buff;
+PSI_memory_key key_memory_NET_compress_packet;
 
 #ifdef EMBEDDED_LIBRARY
 #undef MYSQL_SERVER
@@ -72,11 +77,8 @@ using std::max;
   extern, but as it's hard to include sql_priv.h here, we have to
   live with this for a while.
 */
-#ifdef HAVE_QUERY_CACHE
-#define USE_QUERY_CACHE
 extern void query_cache_insert(const char *packet, ulong length,
                                unsigned pkt_nr);
-#endif /* HAVE_QUERY_CACHE */
 #define update_statistics(A) A
 #else /* MYSQL_SERVER */
 #define update_statistics(A)
@@ -100,7 +102,8 @@ my_bool my_net_init(NET *net, Vio* vio)
   DBUG_ENTER("my_net_init");
   net->vio = vio;
   my_net_local_init(net);			/* Set some limits */
-  if (!(net->buff=(uchar*) my_malloc((size_t) net->max_packet+
+  if (!(net->buff=(uchar*) my_malloc(key_memory_NET_buff,
+                                     (size_t) net->max_packet+
              NET_HEADER_SIZE + COMP_HEADER_SIZE,
              MYF(MY_WME))))
     DBUG_RETURN(1);
@@ -164,7 +167,8 @@ my_bool net_realloc(NET *net, size_t length)
     net_read_packet() may actually read 4 bytes depending on build flags and
     platform.
   */
-  if (!(buff= (uchar*) my_realloc((char*) net->buff, pkt_length +
+  if (!(buff= (uchar*) my_realloc(key_memory_NET_buff,
+                                  (char*) net->buff, pkt_length +
                                   NET_HEADER_SIZE + COMP_HEADER_SIZE + 1,
                                   MYF(MY_WME))))
   {
@@ -242,14 +246,6 @@ net_should_retry(NET *net, uint *retry_count __attribute__((unused)))
 {
   my_bool retry;
 
-#if !defined(MYSQL_SERVER) && defined(THREAD_SAFE_CLIENT)
-  /*
-    In the thread safe client library, interrupted I/O operations
-    are always retried.  Otherwise, its either a timeout or a
-    unrecoverable error.
-  */
-  retry= vio_should_retry(net->vio);
-#else
   /*
     In the non-thread safe client library, or in the server,
     interrupted I/O operations are retried up to a limit.
@@ -257,7 +253,6 @@ net_should_retry(NET *net, uint *retry_count __attribute__((unused)))
     (interrupt) threads waiting for I/O.
   */
   retry= vio_should_retry(net->vio) && ((*retry_count)++ < net->retry_count);
-#endif
 
   return retry;
 }
@@ -550,7 +545,8 @@ compress_packet(NET *net, const uchar *packet, size_t *length)
   size_t compr_length;
   const uint header_length= NET_HEADER_SIZE + COMP_HEADER_SIZE;
 
-  compr_packet= (uchar *) my_malloc(*length + header_length, MYF(MY_WME));
+  compr_packet= (uchar *) my_malloc(key_memory_NET_compress_packet,
+                                    *length + header_length, MYF(MY_WME));
 
   if (compr_packet == NULL)
     return NULL;
@@ -598,7 +594,7 @@ net_write_packet(NET *net, const uchar *packet, size_t length)
   my_bool res;
   DBUG_ENTER("net_write_packet");
 
-#if defined(MYSQL_SERVER) && defined(USE_QUERY_CACHE)
+#if defined(MYSQL_SERVER)
   query_cache_insert((char*) packet, length, net->pkt_nr);
 #endif
 

@@ -1,6 +1,6 @@
 /*****************************************************************************
 
-Copyright (c) 2010, 2012, Oracle and/or its affiliates. All Rights Reserved.
+Copyright (c) 2010, 2013, Oracle and/or its affiliates. All Rights Reserved.
 
 This program is free software; you can redistribute it and/or modify it under
 the terms of the GNU General Public License as published by the Free Software
@@ -23,7 +23,9 @@ Create Full Text Index with (parallel) merge sort
 Created 10/13/2010 Jimmy Yang
 *******************************************************/
 
-#include "dict0dict.h" /* dict_table_stats_lock() */
+#include "ha_prototypes.h"
+
+#include "dict0dict.h"
 #include "row0merge.h"
 #include "pars0pars.h"
 #include "row0ftsort.h"
@@ -32,7 +34,7 @@ Created 10/13/2010 Jimmy Yang
 #include "btr0cur.h"
 
 /** Read the next record to buffer N.
-@param N	index into array of merge info structure */
+@param N index into array of merge info structure */
 #define ROW_MERGE_READ_GET_NEXT(N)					\
 	do {								\
 		b[N] = row_merge_read_rec(				\
@@ -46,7 +48,7 @@ Created 10/13/2010 Jimmy Yang
 	} while (0)
 
 /** Parallel sort degree */
-UNIV_INTERN ulong	fts_sort_pll_degree	= 2;
+ulong	fts_sort_pll_degree	= 2;
 
 /*********************************************************************//**
 Create a temporary "fts sort index" used to merge sort the
@@ -58,7 +60,7 @@ integer value)
 3) Word's position in original doc.
 
 @return dict_index_t structure for the fts sort index */
-UNIV_INTERN
+
 dict_index_t*
 row_merge_create_fts_sort_index(
 /*============================*/
@@ -166,7 +168,7 @@ row_merge_create_fts_sort_index(
 /*********************************************************************//**
 Initialize FTS parallel sort structures.
 @return TRUE if all successful */
-UNIV_INTERN
+
 ibool
 row_fts_psort_info_init(
 /*====================*/
@@ -216,8 +218,8 @@ row_fts_psort_info_init(
 	common_info->new_table = (dict_table_t*) new_table;
 	common_info->trx = trx;
 	common_info->all_info = psort_info;
-	common_info->sort_event = os_event_create();
-	common_info->merge_event = os_event_create();
+	common_info->sort_event = os_event_create(0);
+	common_info->merge_event = os_event_create(0);
 	common_info->opt_doc_id_size = opt_doc_id_size;
 
 	/* There will be FTS_NUM_AUX_INDEX number of "sort buckets" for
@@ -225,7 +227,8 @@ row_fts_psort_info_init(
 	a particular "FTS index partition" */
 	for (j = 0; j < fts_sort_pll_degree; j++) {
 
-		UT_LIST_INIT(psort_info[j].fts_doc_list);
+		UT_LIST_INIT(
+			psort_info[j].fts_doc_list, &fts_doc_item_t::doc_list);
 
 		for (i = 0; i < FTS_NUM_AUX_INDEX; i++) {
 
@@ -241,7 +244,10 @@ row_fts_psort_info_init(
 			psort_info[j].merge_buf[i] = row_merge_buf_create(
 				dup->index);
 
-			row_merge_file_create(psort_info[j].merge_file[i]);
+			if (row_merge_file_create(psort_info[j].merge_file[i])
+			    < 0) {
+				goto func_exit;
+			}
 
 			/* Need to align memory for O_DIRECT write */
 			psort_info[j].block_alloc[i] =
@@ -286,7 +292,7 @@ func_exit:
 /*********************************************************************//**
 Clean up and deallocate FTS parallel sort structures, and close the
 merge sort files  */
-UNIV_INTERN
+
 void
 row_fts_psort_info_destroy(
 /*=======================*/
@@ -311,8 +317,8 @@ row_fts_psort_info_destroy(
 			}
 		}
 
-		os_event_free(merge_info[0].psort_common->sort_event);
-		os_event_free(merge_info[0].psort_common->merge_event);
+		os_event_destroy(merge_info[0].psort_common->sort_event);
+		os_event_destroy(merge_info[0].psort_common->merge_event);
 		ut_free(merge_info[0].psort_common->dup);
 		mem_free(merge_info[0].psort_common);
 		mem_free(psort_info);
@@ -324,7 +330,7 @@ row_fts_psort_info_destroy(
 }
 /*********************************************************************//**
 Free up merge buffers when merge sort is done */
-UNIV_INTERN
+
 void
 row_fts_free_pll_merge_buf(
 /*=======================*/
@@ -348,7 +354,7 @@ row_fts_free_pll_merge_buf(
 
 /*********************************************************************//**
 Tokenize incoming text data and add to the sort buffer.
-@return	TRUE if the record passed, FALSE if out of space */
+@return TRUE if the record passed, FALSE if out of space */
 static
 ibool
 row_merge_fts_doc_tokenize(
@@ -545,7 +551,7 @@ row_merge_fts_doc_tokenize(
 Function performs parallel tokenization of the incoming doc strings.
 It also performs the initial in memory sort of the parsed records.
 @return OS_THREAD_DUMMY_RETURN */
-UNIV_INTERN
+
 os_thread_ret_t
 fts_parallel_tokenization(
 /*======================*/
@@ -819,7 +825,11 @@ exit:
 			continue;
 		}
 
-		tmpfd[i] = innobase_mysql_tmpfile();
+		tmpfd[i] = row_merge_file_create_low();
+		if (tmpfd[i] < 0) {
+			goto func_exit;
+		}
+
 		row_merge_sort(psort_info->psort_common->trx,
 			       psort_info->psort_common->dup,
 			       merge_file[i], block[i], &tmpfd[i]);
@@ -827,6 +837,7 @@ exit:
 		close(tmpfd[i]);
 	}
 
+func_exit:
 	if (fts_enable_diag_print) {
 		DEBUG_FTS_SORT_PRINT("  InnoDB_FTS: complete merge sort\n");
 	}
@@ -837,10 +848,6 @@ exit:
 	os_event_set(psort_info->psort_common->sort_event);
 	psort_info->child_status = FTS_CHILD_EXITING;
 
-#ifdef __WIN__
-	CloseHandle(psort_info->thread_hdl);
-#endif /*__WIN__ */
-
 	os_thread_exit(NULL);
 
 	OS_THREAD_DUMMY_RETURN;
@@ -848,7 +855,7 @@ exit:
 
 /*********************************************************************//**
 Start the parallel tokenization and parallel merge sort */
-UNIV_INTERN
+
 void
 row_fts_start_psort(
 /*================*/
@@ -859,16 +866,16 @@ row_fts_start_psort(
 
 	for (i = 0; i < fts_sort_pll_degree; i++) {
 		psort_info[i].psort_id = i;
-		psort_info[i].thread_hdl = os_thread_create(
-			fts_parallel_tokenization,
-			(void*) &psort_info[i], &thd_id);
+		os_thread_create(fts_parallel_tokenization,
+				 (void*) &psort_info[i],
+				 &thd_id);
 	}
 }
 
 /*********************************************************************//**
 Function performs the merge and insertion of the sorted records.
 @return OS_THREAD_DUMMY_RETURN */
-UNIV_INTERN
+
 os_thread_ret_t
 fts_parallel_merge(
 /*===============*/
@@ -889,10 +896,6 @@ fts_parallel_merge(
 	os_event_set(psort_info->psort_common->merge_event);
 	psort_info->child_status = FTS_CHILD_EXITING;
 
-#ifdef __WIN__
-	CloseHandle(psort_info->thread_hdl);
-#endif /*__WIN__ */
-
 	os_thread_exit(NULL);
 
 	OS_THREAD_DUMMY_RETURN;
@@ -900,7 +903,7 @@ fts_parallel_merge(
 
 /*********************************************************************//**
 Kick off the parallel merge and insert thread */
-UNIV_INTERN
+
 void
 row_fts_start_parallel_merge(
 /*=========================*/
@@ -914,14 +917,15 @@ row_fts_start_parallel_merge(
 		merge_info[i].psort_id = i;
 		merge_info[i].child_status = 0;
 
-		merge_info[i].thread_hdl = os_thread_create(
-			fts_parallel_merge, (void*) &merge_info[i], &thd_id);
+		os_thread_create(fts_parallel_merge,
+				 (void*) &merge_info[i],
+				 &thd_id);
 	}
 }
 
 /********************************************************************//**
 Insert processed FTS data to auxillary index tables.
-@return	DB_SUCCESS if insertion runs fine */
+@return DB_SUCCESS if insertion runs fine */
 static __attribute__((nonnull))
 dberr_t
 row_merge_write_fts_word(
@@ -968,8 +972,8 @@ row_merge_write_fts_word(
 
 /*********************************************************************//**
 Read sorted FTS data files and insert data tuples to auxillary tables.
-@return	DB_SUCCESS or error number */
-UNIV_INTERN
+@return DB_SUCCESS or error number */
+
 void
 row_fts_insert_tuple(
 /*=================*/
@@ -1147,7 +1151,7 @@ row_fts_sel_tree_propagate(
 
 	sel_tree[parent] = selected;
 
-	return(parent);
+	return((int) parent);
 }
 
 /*********************************************************************//**
@@ -1167,8 +1171,8 @@ row_fts_sel_tree_update(
 	ulint	i;
 
 	for (i = 1; i <= height; i++) {
-		propagated = row_fts_sel_tree_propagate(
-			propagated, sel_tree, mrec, offsets, index);
+		propagated = (ulint) row_fts_sel_tree_propagate(
+			(int) propagated, sel_tree, mrec, offsets, index);
 	}
 
 	return(sel_tree[0]);
@@ -1192,8 +1196,8 @@ row_fts_build_sel_tree_level(
 	ulint	i;
 	ulint	num_item;
 
-	start = (1 << level) - 1;
-	num_item = (1 << level);
+	start = ((ulint) 1 << level) - 1;
+	num_item = ((ulint) 1 << level);
 
 	for (i = 0; i < num_item;  i++) {
 		child_left = sel_tree[(start + i) * 2 + 1];
@@ -1268,8 +1272,9 @@ row_fts_build_sel_tree(
 		sel_tree[i + start] = i;
 	}
 
-	for (i = treelevel - 1; i >=0; i--) {
-		row_fts_build_sel_tree_level(sel_tree, i, mrec, offsets, index);
+	for (i = (int) treelevel - 1; i >=0; i--) {
+		row_fts_build_sel_tree_level(
+			sel_tree, (ulint) i, mrec, offsets, index);
 	}
 
 	return(treelevel);
@@ -1278,8 +1283,8 @@ row_fts_build_sel_tree(
 /*********************************************************************//**
 Read sorted file containing index data tuples and insert these data
 tuples to the index
-@return	DB_SUCCESS or error number */
-UNIV_INTERN
+@return DB_SUCCESS or error number */
+
 dberr_t
 row_fts_merge_insert(
 /*=================*/
@@ -1448,7 +1453,7 @@ row_fts_merge_insert(
 					    mrec[i], mrec[min_rec],
 					    offsets[i], offsets[min_rec],
 					    index, NULL) < 0) {
-					min_rec = i;
+					min_rec = (int) i;
 				}
 			}
 		} else {

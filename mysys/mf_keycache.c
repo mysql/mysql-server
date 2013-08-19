@@ -1,4 +1,4 @@
-/* Copyright (c) 2000, 2011, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2000, 2013, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -305,7 +305,7 @@ static long keycache_thread_id;
 #define HASH_LINK_NUMBER(h)                                                   \
   ((uint) (((char*)(h)-(char *) keycache->hash_link_root)/sizeof(HASH_LINK)))
 
-#if (defined(KEYCACHE_TIMEOUT) && !defined(__WIN__)) || defined(KEYCACHE_DEBUG)
+#if (defined(KEYCACHE_TIMEOUT) && !defined(_WIN32)) || defined(KEYCACHE_DEBUG)
 static int keycache_pthread_cond_wait(mysql_cond_t *cond,
                                       mysql_mutex_t *mutex);
 #else
@@ -428,14 +428,16 @@ int init_key_cache(KEY_CACHE *keycache, uint key_cache_block_size,
         blocks--;
       /* Allocate memory for cache page buffers */
       if ((keycache->block_mem=
-	   my_large_malloc((size_t) blocks * keycache->key_cache_block_size,
+	   my_large_malloc(key_memory_KEY_CACHE,
+                           (size_t) blocks * keycache->key_cache_block_size,
 			  MYF(0))))
       {
         /*
 	  Allocate memory for blocks, hash_links and hash entries;
 	  For each block 2 hash links are allocated
         */
-        if ((keycache->block_root= (BLOCK_LINK*) my_malloc(length,
+        if ((keycache->block_root= (BLOCK_LINK*) my_malloc(key_memory_KEY_CACHE,
+                                                           length,
                                                            MYF(0))))
           break;
         my_large_free(keycache->block_mem);
@@ -444,7 +446,8 @@ int init_key_cache(KEY_CACHE *keycache, uint key_cache_block_size,
       if (blocks < 8)
       {
         my_errno= ENOMEM;
-        my_error(EE_OUTOFMEMORY, MYF(0), blocks * keycache->key_cache_block_size);
+        my_error(EE_OUTOFMEMORY, MYF(ME_FATALERROR),
+                 blocks * keycache->key_cache_block_size);
         goto err;
       }
       blocks= blocks / 4*3;
@@ -3638,7 +3641,8 @@ static int flush_key_blocks_int(KEY_CACHE *keycache,
         changed blocks appear while we need to wait for something.
       */
       if ((count > FLUSH_CACHE) &&
-          !(cache= (BLOCK_LINK**) my_malloc(sizeof(BLOCK_LINK*)*count,
+          !(cache= (BLOCK_LINK**) my_malloc(key_memory_KEY_CACHE,
+                                            sizeof(BLOCK_LINK*)*count,
                                             MYF(0))))
         cache= cache_buff;
       /*
@@ -4335,7 +4339,7 @@ static void keycache_dump(KEY_CACHE *keycache)
 
 #endif /* defined(KEYCACHE_TIMEOUT) */
 
-#if defined(KEYCACHE_TIMEOUT) && !defined(__WIN__)
+#if defined(KEYCACHE_TIMEOUT) && !defined(_WIN32)
 
 
 static int keycache_pthread_cond_wait(mysql_cond_t *cond,
@@ -4397,7 +4401,7 @@ static int keycache_pthread_cond_wait(mysql_cond_t *cond,
   return rc;
 }
 #endif
-#endif /* defined(KEYCACHE_TIMEOUT) && !defined(__WIN__) */
+#endif /* defined(KEYCACHE_TIMEOUT) && !defined(_WIN32) */
 
 #if defined(KEYCACHE_DEBUG)
 

@@ -1,4 +1,4 @@
-/* Copyright (c) 2000, 2012, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2000, 2013, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -15,9 +15,6 @@
 
 
 #include "my_global.h"
-
-#ifdef HAVE_SPATIAL
-
 #include "sql_string.h"
 #include "gcalc_tools.h"
 #include "gstream.h"                            // Gis_read_stream
@@ -683,13 +680,13 @@ int Gcalc_operation_reducer::start_couple(active_thread *t0, active_thread *t1,
   t1->rp= rp1;
   if (prev_range)
   {
-    rp0->set_outer_poly(prev_range->thread_start);
-    t1->thread_start= prev_range->thread_start;
+    rp0->set_outer_poly(prev_range->thread_start());
+    t1->set_thread_start(prev_range->thread_start());
   }
   else
   {
     rp0->set_outer_poly(NULL);
-    t0->thread_start= rp0;
+    t0->set_thread_start(rp0);
   }
   DBUG_RETURN(0);
 }
@@ -712,13 +709,13 @@ int Gcalc_operation_reducer::start_i_couple(active_thread *t0, active_thread *t1
   t1->rp= rp1;
   if (prev_range)
   {
-    rp0->set_outer_poly(prev_range->thread_start);
-    t1->thread_start= prev_range->thread_start;
+    rp0->set_outer_poly(prev_range->thread_start());
+    t1->set_thread_start(prev_range->thread_start());
   }
   else
   {
     rp0->set_outer_poly(NULL);
-    t0->thread_start= rp0;
+    t0->set_thread_start(rp0);
   }
   DBUG_RETURN(0);
 }
@@ -1332,6 +1329,3 @@ void Gcalc_operation_reducer::reset()
   free_list(m_first_active_thread);
   DBUG_VOID_RETURN;
 }
-
-#endif /*HAVE_SPATIAL*/
-

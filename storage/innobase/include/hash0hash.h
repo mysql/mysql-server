@@ -1,6 +1,6 @@
 /*****************************************************************************
 
-Copyright (c) 1997, 2011, Oracle and/or its affiliates. All Rights Reserved.
+Copyright (c) 1997, 2013, Oracle and/or its affiliates. All Rights Reserved.
 
 This program is free software; you can redistribute it and/or modify it under
 the terms of the GNU General Public License as published by the Free Software
@@ -29,8 +29,9 @@ Created 5/20/1997 Heikki Tuuri
 #include "univ.i"
 #include "mem0mem.h"
 #ifndef UNIV_HOTBACKUP
-# include "sync0sync.h"
+# include "sync0mutex.h"
 # include "sync0rw.h"
+# include "sync0mutex.h"
 #endif /* !UNIV_HOTBACKUP */
 
 struct hash_table_t;
@@ -56,8 +57,8 @@ enum hash_table_sync_t {
 /*************************************************************//**
 Creates a hash table with >= n array cells. The actual number
 of cells is chosen to be a prime number slightly bigger than n.
-@return	own: created table */
-UNIV_INTERN
+@return own: created table */
+
 hash_table_t*
 hash_create(
 /*========*/
@@ -67,39 +68,28 @@ hash_create(
 Creates a sync object array array to protect a hash table.
 ::sync_obj can be mutexes or rw_locks depening on the type of
 hash table. */
-UNIV_INTERN
+
 void
-hash_create_sync_obj_func(
-/*======================*/
+hash_create_sync_obj(
+/*=================*/
 	hash_table_t*		table,	/*!< in: hash table */
 	enum hash_table_sync_t	type,	/*!< in: HASH_TABLE_SYNC_MUTEX
 					or HASH_TABLE_SYNC_RW_LOCK */
-#ifdef UNIV_SYNC_DEBUG
-	ulint			sync_level,/*!< in: latching order level
-					of the mutexes: used in the
-					debug version */
-#endif /* UNIV_SYNC_DEBUG */
+	const char*		name,	/*!< in: mutex/rw_lock name */
 	ulint			n_sync_obj);/*!< in: number of sync objects,
 					must be a power of 2 */
-#ifdef UNIV_SYNC_DEBUG
-# define hash_create_sync_obj(t, s, n, level)			\
-			hash_create_sync_obj_func(t, s, level, n)
-#else /* UNIV_SYNC_DEBUG */
-# define hash_create_sync_obj(t, s, n, level)			\
-			hash_create_sync_obj_func(t, s, n)
-#endif /* UNIV_SYNC_DEBUG */
 #endif /* !UNIV_HOTBACKUP */
 
 /*************************************************************//**
 Frees a hash table. */
-UNIV_INTERN
+
 void
 hash_table_free(
 /*============*/
 	hash_table_t*	table);	/*!< in, own: hash table */
 /**************************************************************//**
 Calculates the hash value from a folded value.
-@return	hashed value */
+@return hashed value */
 UNIV_INLINE
 ulint
 hash_calc_hash(
@@ -241,7 +231,7 @@ do {									\
 
 /************************************************************//**
 Gets the nth cell in a hash table.
-@return	pointer to cell */
+@return pointer to cell */
 UNIV_INLINE
 hash_cell_t*
 hash_get_nth_cell(
@@ -259,7 +249,7 @@ hash_table_clear(
 
 /*************************************************************//**
 Returns the number of cells in a hash table.
-@return	number of cells */
+@return number of cells */
 UNIV_INLINE
 ulint
 hash_get_n_cells(
@@ -353,7 +343,7 @@ do {\
 
 /************************************************************//**
 Gets the sync object index for a fold value in a hash table.
-@return	index */
+@return index */
 UNIV_INLINE
 ulint
 hash_get_sync_obj_index(
@@ -362,7 +352,7 @@ hash_get_sync_obj_index(
 	ulint		fold);	/*!< in: fold */
 /************************************************************//**
 Gets the nth heap in a hash table.
-@return	mem heap */
+@return mem heap */
 UNIV_INLINE
 mem_heap_t*
 hash_get_nth_heap(
@@ -371,7 +361,7 @@ hash_get_nth_heap(
 	ulint		i);	/*!< in: index of the heap */
 /************************************************************//**
 Gets the heap for a fold value in a hash table.
-@return	mem heap */
+@return mem heap */
 UNIV_INLINE
 mem_heap_t*
 hash_get_heap(
@@ -380,7 +370,7 @@ hash_get_heap(
 	ulint		fold);	/*!< in: fold */
 /************************************************************//**
 Gets the nth mutex in a hash table.
-@return	mutex */
+@return mutex */
 UNIV_INLINE
 ib_mutex_t*
 hash_get_nth_mutex(
@@ -389,7 +379,7 @@ hash_get_nth_mutex(
 	ulint		i);	/*!< in: index of the mutex */
 /************************************************************//**
 Gets the nth rw_lock in a hash table.
-@return	rw_lock */
+@return rw_lock */
 UNIV_INLINE
 rw_lock_t*
 hash_get_nth_lock(
@@ -398,7 +388,7 @@ hash_get_nth_lock(
 	ulint		i);	/*!< in: index of the rw_lock */
 /************************************************************//**
 Gets the mutex for a fold value in a hash table.
-@return	mutex */
+@return mutex */
 UNIV_INLINE
 ib_mutex_t*
 hash_get_mutex(
@@ -407,7 +397,7 @@ hash_get_mutex(
 	ulint		fold);	/*!< in: fold */
 /************************************************************//**
 Gets the rw_lock for a fold value in a hash table.
-@return	rw_lock */
+@return rw_lock */
 UNIV_INLINE
 rw_lock_t*
 hash_get_lock(
@@ -416,7 +406,7 @@ hash_get_lock(
 	ulint		fold);	/*!< in: fold */
 /************************************************************//**
 Reserves the mutex for a fold value in a hash table. */
-UNIV_INTERN
+
 void
 hash_mutex_enter(
 /*=============*/
@@ -424,7 +414,7 @@ hash_mutex_enter(
 	ulint		fold);	/*!< in: fold */
 /************************************************************//**
 Releases the mutex for a fold value in a hash table. */
-UNIV_INTERN
+
 void
 hash_mutex_exit(
 /*============*/
@@ -432,21 +422,21 @@ hash_mutex_exit(
 	ulint		fold);	/*!< in: fold */
 /************************************************************//**
 Reserves all the mutexes of a hash table, in an ascending order. */
-UNIV_INTERN
+
 void
 hash_mutex_enter_all(
 /*=================*/
 	hash_table_t*	table);	/*!< in: hash table */
 /************************************************************//**
 Releases all the mutexes of a hash table. */
-UNIV_INTERN
+
 void
 hash_mutex_exit_all(
 /*================*/
 	hash_table_t*	table);	/*!< in: hash table */
 /************************************************************//**
 Releases all but the passed in mutex of a hash table. */
-UNIV_INTERN
+
 void
 hash_mutex_exit_all_but(
 /*====================*/
@@ -454,7 +444,7 @@ hash_mutex_exit_all_but(
 	ib_mutex_t*	keep_mutex);	/*!< in: mutex to keep */
 /************************************************************//**
 s-lock a lock for a fold value in a hash table. */
-UNIV_INTERN
+
 void
 hash_lock_s(
 /*========*/
@@ -462,7 +452,7 @@ hash_lock_s(
 	ulint		fold);	/*!< in: fold */
 /************************************************************//**
 x-lock a lock for a fold value in a hash table. */
-UNIV_INTERN
+
 void
 hash_lock_x(
 /*========*/
@@ -470,7 +460,7 @@ hash_lock_x(
 	ulint		fold);	/*!< in: fold */
 /************************************************************//**
 unlock an s-lock for a fold value in a hash table. */
-UNIV_INTERN
+
 void
 hash_unlock_s(
 /*==========*/
@@ -479,7 +469,7 @@ hash_unlock_s(
 	ulint		fold);	/*!< in: fold */
 /************************************************************//**
 unlock x-lock for a fold value in a hash table. */
-UNIV_INTERN
+
 void
 hash_unlock_x(
 /*==========*/
@@ -487,21 +477,21 @@ hash_unlock_x(
 	ulint		fold);	/*!< in: fold */
 /************************************************************//**
 Reserves all the locks of a hash table, in an ascending order. */
-UNIV_INTERN
+
 void
 hash_lock_x_all(
 /*============*/
 	hash_table_t*	table);	/*!< in: hash table */
 /************************************************************//**
 Releases all the locks of a hash table, in an ascending order. */
-UNIV_INTERN
+
 void
 hash_unlock_x_all(
 /*==============*/
 	hash_table_t*	table);	/*!< in: hash table */
 /************************************************************//**
 Releases all but passed in lock of a hash table, */
-UNIV_INTERN
+
 void
 hash_unlock_x_all_but(
 /*==================*/

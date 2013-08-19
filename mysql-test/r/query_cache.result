@@ -226,7 +226,7 @@ select benchmark(1,1) from t1;
 benchmark(1,1)
 explain extended select benchmark(1,1) from t1;
 id	select_type	table	type	possible_keys	key	key_len	ref	rows	filtered	Extra
-1	SIMPLE	t1	system	NULL	NULL	NULL	NULL	0	0.00	const row not found
+1	SIMPLE	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	no matching row in const table
 Warnings:
 Note	1003	/* select#1 */ select benchmark(1,1) AS `benchmark(1,1)` from `test`.`t1`
 show status like "Qcache_queries_in_cache";
@@ -1777,3 +1777,36 @@ COUNT(*)
 DROP TABLE t1;
 SET GLOBAL query_cache_size= @qc;
 #
+
+# WL5928: Most statements should clear the diagnostic area
+#         Show this also works when we serve from query-cache!
+#
+SELECT @@session.query_cache_type INTO @qc_type;
+SET SESSION query_cache_type=2;
+CREATE TABLE t1 (f1 VARCHAR(16));
+INSERT INTO t1 VALUES ("cat"),("dog"),("wombat"),("elephant");
+
+DROP TABLE no_such_table;
+ERROR 42S02: Unknown table 'test.no_such_table'
+SELECT SQL_CACHE * FROM t1;
+f1
+cat
+dog
+wombat
+elephant
+SHOW WARNINGS;
+Level	Code	Message
+
+DROP TABLE no_such_table;
+ERROR 42S02: Unknown table 'test.no_such_table'
+SELECT SQL_CACHE * FROM t1;
+f1
+cat
+dog
+wombat
+elephant
+SHOW WARNINGS;
+Level	Code	Message
+
+DROP TABLE t1;
+SET SESSION query_cache_type=@qc_type;

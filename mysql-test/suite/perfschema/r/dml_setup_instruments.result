@@ -8,12 +8,12 @@ wait/synch/mutex/sql/Cversion_lock	YES	YES
 wait/synch/mutex/sql/Event_scheduler::LOCK_scheduler_state	YES	YES
 wait/synch/mutex/sql/Gtid_state	YES	YES
 wait/synch/mutex/sql/hash_filo::lock	YES	YES
+wait/synch/mutex/sql/key_mts_temp_table_LOCK	YES	YES
 wait/synch/mutex/sql/LOCK_active_mi	YES	YES
 wait/synch/mutex/sql/LOCK_audit_mask	YES	YES
 wait/synch/mutex/sql/LOCK_connection_count	YES	YES
 wait/synch/mutex/sql/LOCK_crypt	YES	YES
 wait/synch/mutex/sql/LOCK_des_key_file	YES	YES
-wait/synch/mutex/sql/LOCK_error_log	YES	YES
 select * from performance_schema.setup_instruments
 where name like 'Wait/Synch/Rwlock/sql/%'
   and name not in ('wait/synch/rwlock/sql/CRYPTO_dynlock_value::lock')
@@ -22,13 +22,13 @@ NAME	ENABLED	TIMED
 wait/synch/rwlock/sql/gtid_commit_rollback	YES	YES
 wait/synch/rwlock/sql/LOCK_dboptions	YES	YES
 wait/synch/rwlock/sql/LOCK_grant	YES	YES
-wait/synch/rwlock/sql/LOCK_status	YES	YES
 wait/synch/rwlock/sql/LOCK_system_variables_hash	YES	YES
 wait/synch/rwlock/sql/LOCK_sys_init_connect	YES	YES
 wait/synch/rwlock/sql/LOCK_sys_init_slave	YES	YES
 wait/synch/rwlock/sql/LOGGER::LOCK_logger	YES	YES
 wait/synch/rwlock/sql/MDL_context::LOCK_waiting_for	YES	YES
 wait/synch/rwlock/sql/MDL_lock::rwlock	YES	YES
+wait/synch/rwlock/sql/Query_cache_query::lock	YES	YES
 select * from performance_schema.setup_instruments
 where name like 'Wait/Synch/Cond/sql/%'
   and name not in (
@@ -78,3 +78,5 @@ UNLOCK TABLES;
 
 UPDATE performance_schema.setup_instruments SET timed='NO'
 ORDER BY RAND();
+update performance_schema.setup_instruments
+set enabled='YES', TIMED='YES';

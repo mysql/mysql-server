@@ -1,7 +1,7 @@
 #!/usr/bin/perl
 # -*- cperl -*-
 #
-# Copyright (c) 2007, 2012, Oracle and/or its affiliates. All rights reserved.
+# Copyright (c) 2007, 2013, Oracle and/or its affiliates. All rights reserved.
 #
 # This program is free software; you can redistribute it and/or modify
 # it under the terms of the GNU General Public License as published by
@@ -93,15 +93,20 @@ EOF2
                        uses the compiled binaries and support files within the
                        source tree, useful for if you don't want to install
                        MySQL yet and just want to create the system tables.
+EOF3
+  if ( $^O !~ m/^(MSWin32|cygwin)$/ ) {
+    print <<EOF4;
   --user=user_name     The login username to use for running mysqld.  Files
                        and directories created by mysqld will be owned by this
                        user.  You must be root to use this option.  By default
                        mysqld runs using your current login name and files and
                        directories that it creates will be owned by you.
-
+EOF4
+  }
+  print <<EOF5;
 Any other options are passed to the mysqld program.
 
-EOF3
+EOF5
   exit 1;
 }
 
@@ -351,22 +356,12 @@ sub tell_root_password {
 ##############################################################################
 
 sub generate_random_password {
-  # Short term:
   # On (at least) Linux and Solaris, a "random" device is available, use it:
-  # cat /dev/urandom | LC_CTYPE=C tr -dc "[:alnum:]" | fold -w 8  | head -1
-  # Without LC_CTYPE, "tr" may not know the "alnum" character class -
+  # cat /dev/urandom | LC_ALL=C tr -dc "[:alnum:]" | fold -w 8  | head -1
+  # Without LC_ALL, "tr" may not know the "alnum" character class -
   # and there are user profiles which do not have this set.
-  # Note: There is no guarantee the results will pass a validation checker
-  # as resulted from WL#2739
-  # http://wl.no.oracle.com/worklo/?tid=2739
-  # http://dev.mysql.com/doc/refman/5.6/en/validate-password-plugin.html
   #
-  # Long term:
-  # Password generated via Perl module "String::MkPasswd" available at
-  # http://search.cpan.org/~cgrau/String-MkPasswd/bin/mkpasswd.pl
-  # Using it got approved recently.
-  #
-  my $password = `cat /dev/urandom | LC_CTYPE=C tr -dc "[:alnum:]" | fold -w 8  | head -1`;
+  my $password = `cat /dev/urandom | LC_ALL=C tr -dc "[:alnum:]" | fold -w 8  | head -1`;
   chomp ($password);
   return $password;
 }
@@ -407,7 +402,7 @@ my $print_defaults;
 
 if ( $opt->{srcdir} and $opt->{basedir} )
 {
-  error("Specify either --basedir or --srcdir, not both");
+  error($opt,"Specify either --basedir or --srcdir, not both");
 }
 if ( $opt->{srcdir} )
 {
@@ -440,19 +435,27 @@ my $cfg_template= find_in_basedir($opt,"file","my-default.cnf",
 -e $cfg_template or cannot_find_file("my-default.cnf");
 
 $copy_cfg_file= $config_file;
+my $failed_write_cfg= 0;
 if (-e $copy_cfg_file)
 {
   $copy_cfg_file =~ s/my.cnf/my-new.cnf/;
   # Too early to print warning here, the user may not notice
 }
-open (TEMPL, $cfg_template) or error("Could not open config template");
-open (CFG, "> $copy_cfg_file") or error("Could not open config file");
-while (<TEMPL>)
+open (TEMPL, $cfg_template) or error($opt, "Could not open config template $cfg_template");
+if (open (CFG, "> $copy_cfg_file"))
 {
-  # Remove lines beginning with # *** which are template comments
-  print CFG $_ unless /^# \*\*\*/;
+  while (<TEMPL>)
+  {
+    # Remove lines beginning with # *** which are template comments
+    print CFG $_ unless /^# \*\*\*/;
+  }
+  close CFG;
 }
-close CFG;
+else
+{
+  warning($opt,"Could not write to config file $copy_cfg_file: $!");
+  $failed_write_cfg= 1;
+}
 close TEMPL;
 
 # ----------------------------------------------------------------------
@@ -633,10 +636,30 @@ if ( ! -d $parent ) {
         "restart this script.",
         "If some other path was intended, please use the correct path when restarting this script.");
 }
+
+my $opt_user= $opt->{user};
+my @pwnam;
+if ($opt_user)
+{
+  if ( $^O =~ m/^(MSWin32|cygwin)$/ )
+  {
+    warning($opt, "The --user option is not supported on Windows, ignoring");
+    $opt_user= undef;
+  }
+  else
+  {
+    @pwnam= getpwnam($opt_user);
+  }
+}
+
 foreach my $dir ( $opt->{ldata}, "$opt->{ldata}/mysql", "$opt->{ldata}/test" )
 {
   mkdir($dir, 0700) unless -d $dir;
-  chown($opt->{user}, $dir) if -w "/" and !$opt->{user};
+  if ($opt_user and -w "/")
+  {
+    chown($pwnam[2], $pwnam[3], $dir)
+      or error($opt, "Could not chown directory $dir");
+  }
 }
 
 push(@args, "--user=$opt->{user}") if $opt->{user};
@@ -823,12 +846,20 @@ if ( open(PIPE, "| $mysqld_install_cmd_line") )
            "",
            "Support MySQL by buying support/licenses at http://shop.mysql.com");
 
-    if ($copy_cfg_file eq $config_file)
+    if ($copy_cfg_file eq $config_file and !$failed_write_cfg)
     {
       report($opt,
 	     "New default config file was created as $config_file and",
 	     "will be used by default by the server when you start it.",
 	     "You may edit this file to change server settings");
+    }
+    elsif ($failed_write_cfg)
+    {
+      warning($opt,
+	      "Could not copy config file template $cfg_template to",
+	      "$copy_cfg_file, may not have access rights to do so.",
+	      "You may want to copy the file manually, or create your own,",
+              "it will then be used by default by the server when you start it.");
     }
     else
     {

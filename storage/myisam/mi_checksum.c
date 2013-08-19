@@ -11,7 +11,7 @@
 
    You should have received a copy of the GNU General Public License
    along with this program; if not, write to the Free Software
-   Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA */
+   Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA 02110-1301, USA */
 
 /* Calculate a checksum for a row */
 
@@ -33,8 +33,7 @@ ha_checksum mi_checksum(MI_INFO *info, const uchar *buf)
       length=_mi_calc_blob_length(rec->length-
 					portable_sizeof_char_ptr,
 					buf);
-      memcpy((char*) &pos, buf+rec->length- portable_sizeof_char_ptr,
-	     sizeof(char*));
+      memcpy(&pos, buf+rec->length- portable_sizeof_char_ptr, sizeof(char*));
       break;
     }
     case FIELD_VARCHAR:

@@ -220,7 +220,7 @@ ddl_online_create_index	1
 ddl_pending_alter_table	1
 SELECT sf.name, sf.pos FROM INFORMATION_SCHEMA.INNODB_SYS_INDEXES si
 INNER JOIN INFORMATION_SCHEMA.INNODB_SYS_FIELDS sf
-ON si.index_id = sf.index_id WHERE si.name = 'c2e';
+ON si.index_id = sf.index_id WHERE si.name = '?c2e';
 name	pos
 c2	0
 SET DEBUG_SYNC = 'now SIGNAL dml2_done';
@@ -295,7 +295,7 @@ ALTER TABLE t1 ADD UNIQUE INDEX c3p5(c3(5));
 SET DEBUG_SYNC = 'now WAIT_FOR c3p5_created';
 SELECT sf.name, sf.pos FROM INFORMATION_SCHEMA.INNODB_SYS_INDEXES si
 INNER JOIN INFORMATION_SCHEMA.INNODB_SYS_FIELDS sf
-ON si.index_id = sf.index_id WHERE si.name = 'c3p5';
+ON si.index_id = sf.index_id WHERE si.name = '?c3p5';
 name	pos
 c3	0
 SET DEBUG_SYNC = 'ib_after_row_insert SIGNAL ins_done WAIT_FOR ddl_timed_out';

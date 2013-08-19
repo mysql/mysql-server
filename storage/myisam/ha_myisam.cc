@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2000, 2012, Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2000, 2013, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -29,6 +29,7 @@
 #include "rt_index.h"
 #include "sql_table.h"                          // tablename_to_filename
 #include "sql_class.h"                          // THD
+#include "log.h"
 
 #include <algorithm>
 
@@ -231,7 +232,8 @@ int table2myisam(TABLE *table_arg, MI_KEYDEF **keydef_out,
   TABLE_SHARE *share= table_arg->s;
   uint options= share->db_options_in_use;
   DBUG_ENTER("table2myisam");
-  if (!(my_multi_malloc(MYF(MY_WME),
+  if (!(my_multi_malloc(PSI_INSTRUMENT_ME,
+                        MYF(MY_WME),
           recinfo_out, (share->fields * 2 + 2) * sizeof(MI_COLUMNDEF),
           keydef_out, share->keys * sizeof(MI_KEYDEF),
           &keyseg,
@@ -2114,8 +2116,8 @@ int ha_myisam::ft_read(uchar *buf)
   if (!ft_handler)
     return -1;
 
-  thread_safe_increment_rwlock(table->in_use->status_var.ha_read_next_count,
-                               &LOCK_status); // why ?
+  thread_safe_increment(table->in_use->status_var.ha_read_next_count,
+                        &LOCK_status); // why ?
 
   error=ft_handler->please->read_next(ft_handler,(char*) buf);
 
@@ -2293,7 +2295,6 @@ mysql_declare_plugin(myisam)
 mysql_declare_plugin_end;
 
 
-#ifdef HAVE_QUERY_CACHE
 /**
   @brief Register a named table with a call back function to the query cache.
 
@@ -2385,4 +2386,3 @@ my_bool ha_myisam::register_query_cache_table(THD *thd, char *table_name,
   /* It is ok to try to cache current statement. */
   DBUG_RETURN(TRUE);
 }
-#endif

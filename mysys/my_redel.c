@@ -1,4 +1,4 @@
-/* Copyright (c) 2000, 2010, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2000, 2013, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -21,7 +21,7 @@
 #include <utime.h>
 #elif defined(HAVE_SYS_UTIME_H)
 #include <sys/utime.h>
-#elif !defined(HPUX10)
+#else
 struct utimbuf {
   time_t actime;
   time_t modtime;
@@ -104,7 +104,7 @@ int my_copystat(const char *from, const char *to, int MyFlags)
     return -1;
   }
 
-#if !defined(__WIN__)
+#if !defined(_WIN32)
   if (statbuf.st_nlink > 1 && MyFlags & MY_LINK_WARNING)
   {
     if (MyFlags & MY_LINK_WARNING)
@@ -122,7 +122,7 @@ int my_copystat(const char *from, const char *to, int MyFlags)
     }
     return -1;
   }
-#endif /* !__WIN__ */
+#endif /* !_WIN32 */
 
   if (MyFlags & MY_COPYTIME)
   {

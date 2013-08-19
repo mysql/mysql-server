@@ -13,6 +13,7 @@
 #
 
 --source include/not_embedded.inc
+--source include/have_myisam.inc
 let $engine_type= MyISAM;
 SET @@session.sql_mode = 'NO_ENGINE_SUBSTITUTION';
 --source suite/funcs_1/datadict/datadict_load.inc

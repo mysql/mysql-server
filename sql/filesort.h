@@ -44,13 +44,16 @@ public:
   SQL_SELECT *select;
   /** TRUE <=> free select on destruction */
   bool own_select;
+  /** true means we are using Priority Queue for order by with limit. */
+  bool using_pq;
 
   Filesort(ORDER *order_arg, ha_rows limit_arg, SQL_SELECT *select_arg):
     order(order_arg),
     limit(limit_arg),
     sortorder(NULL),
     select(select_arg),
-    own_select(false)
+    own_select(false), 
+    using_pq(false)
   {
     DBUG_ASSERT(order);
   };

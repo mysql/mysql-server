@@ -1,4 +1,4 @@
-/* Copyright (c) 2002, 2012, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2002, 2013, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -40,6 +40,75 @@ bool sp_condition_value::equals(const sp_condition_value *cv) const
   default:
     return true;
   }
+}
+
+
+void sp_condition_value::print(String *str) const
+{
+  switch (type)
+  {
+  case sp_condition_value::ERROR_CODE:
+    str->append(STRING_WITH_LEN(" "));
+    str->append_ulonglong(static_cast<ulonglong>(mysqlerr));
+    break;
+  case sp_condition_value::SQLSTATE:
+    str->append(STRING_WITH_LEN(" SQLSTATE '"));
+    str->append(static_cast<const char *>(sql_state), 5);
+    str->append(STRING_WITH_LEN("'"));
+    break;
+  case sp_condition_value::WARNING:
+    str->append(STRING_WITH_LEN(" SQLWARNING"));
+    break;
+  case sp_condition_value::NOT_FOUND:
+    str->append(STRING_WITH_LEN(" NOT FOUND"));
+    break;
+  case sp_condition_value::EXCEPTION:
+    str->append(STRING_WITH_LEN(" SQLEXCEPTION"));
+    break;
+  default:
+    break;
+  }
+}
+
+
+void sp_handler::print_conditions(String *str) const
+{
+  List_iterator_fast<const sp_condition_value> li(
+    const_cast<List<const sp_condition_value>&>(condition_values));
+  const sp_condition_value *cv;
+  bool first= true;
+
+  while ((cv= li++))
+  {
+    if (first)
+    {
+      first= false;
+      str->append(STRING_WITH_LEN(" HANDLER FOR"));
+    }
+    else
+      str->append(STRING_WITH_LEN(","));
+
+    cv->print(str);
+  }
+}
+
+
+void sp_handler::print(String *str) const
+{
+  switch (type)
+  {
+  case sp_handler::EXIT:
+    str->append(STRING_WITH_LEN(" EXIT"));
+    break;
+  case sp_handler::CONTINUE:
+    str->append(STRING_WITH_LEN(" CONTINUE"));
+    break;
+  default:
+    // The handler type must be either CONTINUE or EXIT.
+    DBUG_ASSERT(0);
+  }
+
+  print_conditions(str);
 }
 
 
@@ -292,8 +361,9 @@ bool sp_pcontext::check_duplicate_handler(
   {
     sp_handler *h= m_handlers.at(i);
 
-    List_iterator_fast<sp_condition_value> li(h->condition_values);
-    sp_condition_value *cv;
+    List_iterator_fast<const sp_condition_value> li(
+      const_cast<List<const sp_condition_value>&>(h->condition_values));
+    const sp_condition_value *cv;
 
     while ((cv= li++))
     {
@@ -312,14 +382,15 @@ sp_pcontext::find_handler(const char *sql_state,
                           Sql_condition::enum_severity_level severity) const
 {
   sp_handler *found_handler= NULL;
-  sp_condition_value *found_cv= NULL;
+  const sp_condition_value *found_cv= NULL;
 
   for (int i= 0; i < m_handlers.elements(); ++i)
   {
     sp_handler *h= m_handlers.at(i);
 
-    List_iterator_fast<sp_condition_value> li(h->condition_values);
-    sp_condition_value *cv;
+    List_iterator_fast<const sp_condition_value> li(
+      const_cast<List<const sp_condition_value>&>(h->condition_values));
+    const sp_condition_value *cv;
 
     while ((cv= li++))
     {

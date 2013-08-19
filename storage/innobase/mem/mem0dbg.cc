@@ -1,6 +1,6 @@
 /*****************************************************************************
 
-Copyright (c) 1994, 2011, Oracle and/or its affiliates. All Rights Reserved.
+Copyright (c) 1994, 2013, Oracle and/or its affiliates. All Rights Reserved.
 
 This program is free software; you can redistribute it and/or modify it under
 the terms of the GNU General Public License as published by the Free Software
@@ -30,12 +30,7 @@ Created 6/9/1994 Heikki Tuuri
 /* The mutex which protects in the debug version the hash table
 containing the list of live memory heaps, and also the global
 variables below. */
-UNIV_INTERN ib_mutex_t		mem_hash_mutex;
-
-#ifdef UNIV_PFS_MUTEX
-/* Key to register mem_hash_mutex with performance schema */
-UNIV_INTERN mysql_pfs_key_t	mem_hash_mutex_key;
-#endif /* UNIV_PFS_MUTEX */
+ib_mutex_t		mem_hash_mutex;
 
 # endif /* !UNIV_HOTBACKUP */
 
@@ -46,7 +41,7 @@ Protected by mem_hash_mutex above. */
 static ulint		mem_n_created_heaps		= 0;
 static ulint		mem_n_allocations		= 0;
 static ulint		mem_total_allocated_memory	= 0;
-UNIV_INTERN ulint	mem_current_allocated_memory	= 0;
+ulint	mem_current_allocated_memory	= 0;
 static ulint		mem_max_allocated_memory	= 0;
 # ifndef UNIV_HOTBACKUP
 static ulint		mem_last_print_info		= 0;
@@ -95,42 +90,42 @@ mem_hash_get_nth_cell(ulint i)
 }
 
 /* Accessor functions for a memory field in the debug version */
-UNIV_INTERN
+
 void
 mem_field_header_set_len(byte* field, ulint len)
 {
 	mach_write_to_4(field - 2 * sizeof(ulint), len);
 }
 
-UNIV_INTERN
+
 ulint
-mem_field_header_get_len(byte* field)
+mem_field_header_get_len(const byte* field)
 {
 	return(mach_read_from_4(field - 2 * sizeof(ulint)));
 }
 
-UNIV_INTERN
+
 void
 mem_field_header_set_check(byte* field, ulint check)
 {
 	mach_write_to_4(field - sizeof(ulint), check);
 }
 
-UNIV_INTERN
+
 ulint
 mem_field_header_get_check(byte* field)
 {
 	return(mach_read_from_4(field - sizeof(ulint)));
 }
 
-UNIV_INTERN
+
 void
 mem_field_trailer_set_check(byte* field, ulint check)
 {
 	mach_write_to_4(field + mem_field_header_get_len(field), check);
 }
 
-UNIV_INTERN
+
 ulint
 mem_field_trailer_get_check(byte* field)
 {
@@ -142,7 +137,7 @@ mem_field_trailer_get_check(byte* field)
 #ifndef UNIV_HOTBACKUP
 /******************************************************************//**
 Initializes the memory system. */
-UNIV_INTERN
+
 void
 mem_init(
 /*=====*/
@@ -155,16 +150,16 @@ mem_init(
 	/* Initialize the hash table */
 	ut_a(FALSE == mem_hash_initialized);
 
-	mutex_create(mem_hash_mutex_key, &mem_hash_mutex, SYNC_MEM_HASH);
+	mutex_create("mem_hash", &mem_hash_mutex);
 
 	for (i = 0; i < MEM_HASH_SIZE; i++) {
-		UT_LIST_INIT(*mem_hash_get_nth_cell(i));
+		UT_LIST_INIT(*mem_hash_get_nth_cell(i), &mem_hash_node_t::list);
 	}
 
-	UT_LIST_INIT(mem_all_list_base);
+	UT_LIST_INIT(mem_all_list_base, &mem_hash_node_t::all_list);
 
 	mem_hash_initialized = TRUE;
-#endif
+#endif /* UNIV_MEM_DEBUG */
 
 	if (UNIV_LIKELY(srv_use_sys_malloc)) {
 		/* When innodb_use_sys_malloc is set, the
@@ -179,7 +174,7 @@ mem_init(
 
 /******************************************************************//**
 Closes the memory system. */
-UNIV_INTERN
+
 void
 mem_close(void)
 /*===========*/
@@ -196,7 +191,7 @@ mem_close(void)
 #ifdef UNIV_MEM_DEBUG
 /******************************************************************//**
 Initializes an allocated memory field in the debug version. */
-UNIV_INTERN
+
 void
 mem_field_init(
 /*===========*/
@@ -243,24 +238,20 @@ mem_field_init(
 
 /******************************************************************//**
 Erases an allocated memory field in the debug version. */
-UNIV_INTERN
+
 void
 mem_field_erase(
 /*============*/
 	byte*	buf,	/*!< in: memory field */
-	ulint	n __attribute__((unused)))
-			/*!< in: how many bytes the user requested */
+	ulint	n)	/*!< in: how many bytes the user requested */
 {
-	byte*	usr_buf;
-
-	usr_buf = buf + MEM_FIELD_HEADER_SIZE;
-
 	mutex_enter(&mem_hash_mutex);
 	mem_current_allocated_memory	-= n;
 	mutex_exit(&mem_hash_mutex);
 
 	/* Check that the field lengths agree */
-	ut_ad(n == (ulint) mem_field_header_get_len(usr_buf));
+	ut_ad(n == (ulint) mem_field_header_get_len(
+		buf + MEM_FIELD_HEADER_SIZE));
 
 	/* In the debug version, set the freed space to a random
 	combination of 0xDE and 0xAD */
@@ -271,7 +262,7 @@ mem_field_erase(
 /***************************************************************//**
 Initializes a buffer to a random combination of hex BA and BE.
 Used to initialize allocated memory. */
-UNIV_INTERN
+
 void
 mem_init_buf(
 /*=========*/
@@ -297,7 +288,7 @@ mem_init_buf(
 /***************************************************************//**
 Initializes a buffer to a random combination of hex DE and AD.
 Used to erase freed memory. */
-UNIV_INTERN
+
 void
 mem_erase_buf(
 /*==========*/
@@ -322,7 +313,7 @@ mem_erase_buf(
 /***************************************************************//**
 Inserts a created memory heap to the hash table of current allocated
 memory heaps. */
-UNIV_INTERN
+
 void
 mem_hash_insert(
 /*============*/
@@ -348,9 +339,9 @@ mem_hash_insert(
 	new_node->nth_heap = mem_n_created_heaps;
 
 	/* Insert into lists */
-	UT_LIST_ADD_FIRST(list, *mem_hash_get_nth_cell(cell_no), new_node);
+	UT_LIST_ADD_FIRST(*mem_hash_get_nth_cell(cell_no), new_node);
 
-	UT_LIST_ADD_LAST(all_list, mem_all_list_base, new_node);
+	UT_LIST_ADD_LAST(mem_all_list_base, new_node);
 
 	mem_n_created_heaps++;
 
@@ -365,7 +356,7 @@ the heap (not the total space occupied by the heap).
 Also validates the heap.
 NOTE: This function does not free the storage occupied by the
 heap itself, only the node in the list of heaps. */
-UNIV_INTERN
+
 void
 mem_hash_remove(
 /*============*/
@@ -397,28 +388,26 @@ mem_hash_remove(
 	}
 
 	if (node == NULL) {
-		fprintf(stderr,
+		ib_logf(IB_LOG_LEVEL_FATAL,
 			"Memory heap or buffer freed in %s line %lu"
-			" did not exist.\n",
+			" did not exist.",
 			innobase_basename(file_name), (ulong) line);
-		ut_error;
 	}
 
 	/* Remove from lists */
-	UT_LIST_REMOVE(list, *mem_hash_get_nth_cell(cell_no), node);
+	UT_LIST_REMOVE(*mem_hash_get_nth_cell(cell_no), node);
 
-	UT_LIST_REMOVE(all_list, mem_all_list_base, node);
+	UT_LIST_REMOVE(mem_all_list_base, node);
 
 	/* Validate the heap which will be freed */
 	mem_heap_validate_or_print(node->heap, NULL, FALSE, &error, &size,
 				   NULL, NULL);
 	if (error) {
-		fprintf(stderr,
-			"Inconsistency in memory heap or"
-			" buffer n:o %lu created\n"
-			"in %s line %lu and tried to free in %s line %lu.\n"
-			"Hex dump of 400 bytes around memory heap"
-			" first block start:\n",
+		ib_logf(IB_LOG_LEVEL_ERROR,
+			"Inconsistency in memory heap or buffer n:o %lu"
+			" created in %s line %lu and tried to free in %s"
+			" line %lu.\nHex dump of 400 bytes around memory"
+			" heap first block start:\n",
 			node->nth_heap,
 			innobase_basename(node->file_name), (ulong) node->line,
 			innobase_basename(file_name), (ulong) line);
@@ -445,7 +434,7 @@ Outputs the sum of sizes of buffers given to the user (only in
 the debug version), the physical size of the heap and the number of
 blocks in the heap. In case of error returns 0 as sizes and number
 of blocks. */
-UNIV_INTERN
+
 void
 mem_heap_validate_or_print(
 /*=======================*/
@@ -641,8 +630,8 @@ mem_heap_print(
 
 /**************************************************************//**
 Validates the contents of a memory heap.
-@return	TRUE if ok */
-UNIV_INTERN
+@return TRUE if ok */
+
 ibool
 mem_heap_validate(
 /*==============*/
@@ -670,8 +659,8 @@ mem_heap_validate(
 #ifdef UNIV_DEBUG
 /**************************************************************//**
 Checks that an object is a memory heap (or a block of it).
-@return	TRUE if ok */
-UNIV_INTERN
+@return TRUE if ok */
+
 ibool
 mem_heap_check(
 /*===========*/
@@ -686,8 +675,8 @@ mem_heap_check(
 #ifdef UNIV_MEM_DEBUG
 /*****************************************************************//**
 TRUE if no memory is currently allocated.
-@return	TRUE if no heaps exist */
-UNIV_INTERN
+@return TRUE if no heaps exist */
+
 ibool
 mem_all_freed(void)
 /*===============*/
@@ -724,8 +713,8 @@ mem_all_freed(void)
 
 /*****************************************************************//**
 Validates the dynamic memory allocation system.
-@return	TRUE if error */
-UNIV_INTERN
+@return TRUE if error */
+
 ibool
 mem_validate_no_assert(void)
 /*========================*/
@@ -800,8 +789,8 @@ mem_validate_no_assert(void)
 
 /************************************************************//**
 Validates the dynamic memory
-@return	TRUE if ok */
-UNIV_INTERN
+@return TRUE if ok */
+
 ibool
 mem_validate(void)
 /*==============*/
@@ -815,7 +804,7 @@ mem_validate(void)
 /************************************************************//**
 Tries to find neigboring memory allocation blocks and dumps to stderr
 the neighborhood of a given pointer. */
-UNIV_INTERN
+
 void
 mem_analyze_corruption(
 /*===================*/
@@ -1029,7 +1018,7 @@ next_heap:
 /*****************************************************************//**
 Prints information of dynamic memory usage and currently allocated memory
 heaps or buffers. Can only be used in the debug version. */
-UNIV_INTERN
+
 void
 mem_print_info(void)
 /*================*/
@@ -1040,7 +1029,7 @@ mem_print_info(void)
 /*****************************************************************//**
 Prints information of dynamic memory usage and currently allocated memory
 heaps or buffers since the last ..._print_info or..._print_new_info. */
-UNIV_INTERN
+
 void
 mem_print_new_info(void)
 /*====================*/

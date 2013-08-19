@@ -1,6 +1,6 @@
 /*****************************************************************************
 
-Copyright (c) 1996, 2012, Oracle and/or its affiliates. All Rights Reserved.
+Copyright (c) 1996, 2013, Oracle and/or its affiliates. All Rights Reserved.
 
 This program is free software; you can redistribute it and/or modify it under
 the terms of the GNU General Public License as published by the Free Software
@@ -23,6 +23,8 @@ General row routines
 Created 4/20/1996 Heikki Tuuri
 *******************************************************/
 
+#include "ha_prototypes.h"
+
 #include "row0row.h"
 
 #ifdef UNIV_NONINL
@@ -32,7 +34,6 @@ Created 4/20/1996 Heikki Tuuri
 #include "data0type.h"
 #include "dict0dict.h"
 #include "btr0btr.h"
-#include "ha_prototypes.h"
 #include "mach0data.h"
 #include "trx0rseg.h"
 #include "trx0trx.h"
@@ -53,7 +54,7 @@ the entry to be inserted into or purged from an index on the table.
 @return index entry which should be inserted or purged
 @retval NULL if the externally stored columns in the clustered index record
 are unavailable and ext != NULL, or row is missing some needed columns. */
-UNIV_INTERN
+
 dtuple_t*
 row_build_index_entry_low(
 /*======================*/
@@ -186,8 +187,8 @@ row_build_index_entry_low(
 /*******************************************************************//**
 An inverse function to row_build_index_entry. Builds a row from a
 record in a clustered index.
-@return	own: row built; see the NOTE below! */
-UNIV_INTERN
+@return own: row built; see the NOTE below! */
+
 dtuple_t*
 row_build(
 /*======*/
@@ -242,7 +243,7 @@ row_build(
 
 	ut_ad(index && rec && heap);
 	ut_ad(dict_index_is_clust(index));
-	ut_ad(!mutex_own(&trx_sys->mutex));
+	ut_ad(!trx_sys_mutex_own());
 	ut_ad(!col_map || col_table);
 
 	if (!offsets) {
@@ -390,7 +391,7 @@ row_build(
 Converts an index record to a typed data tuple.
 @return index entry built; does not set info_bits, and the data fields
 in the entry will point directly to rec */
-UNIV_INTERN
+
 dtuple_t*
 row_rec_to_index_entry_low(
 /*=======================*/
@@ -447,8 +448,8 @@ row_rec_to_index_entry_low(
 /*******************************************************************//**
 Converts an index record to a typed data tuple. NOTE that externally
 stored (often big) fields are NOT copied to heap.
-@return	own: index entry built */
-UNIV_INTERN
+@return own: index entry built */
+
 dtuple_t*
 row_rec_to_index_entry(
 /*===================*/
@@ -487,8 +488,8 @@ row_rec_to_index_entry(
 /*******************************************************************//**
 Builds from a secondary index record a row reference with which we can
 search the clustered index record.
-@return	own: row reference built; see the NOTE below! */
-UNIV_INTERN
+@return own: row reference built; see the NOTE below! */
+
 dtuple_t*
 row_build_row_ref(
 /*==============*/
@@ -598,7 +599,7 @@ row_build_row_ref(
 /*******************************************************************//**
 Builds from a secondary index record a row reference with which we can
 search the clustered index record. */
-UNIV_INTERN
+
 void
 row_build_row_ref_in_tuple(
 /*=======================*/
@@ -709,8 +710,8 @@ notfound:
 
 /***************************************************************//**
 Searches the clustered index record for a row, if we have the row reference.
-@return	TRUE if found */
-UNIV_INTERN
+@return TRUE if found */
+
 ibool
 row_search_on_row_ref(
 /*==================*/
@@ -753,8 +754,8 @@ row_search_on_row_ref(
 /*********************************************************************//**
 Fetches the clustered index record for a secondary index record. The latches
 on the secondary index record are preserved.
-@return	record or NULL, if no record found */
-UNIV_INTERN
+@return record or NULL, if no record found */
+
 rec_t*
 row_get_clust_rec(
 /*==============*/
@@ -794,8 +795,8 @@ row_get_clust_rec(
 
 /***************************************************************//**
 Searches an index record.
-@return	whether the record was found or buffered */
-UNIV_INTERN
+@return whether the record was found or buffered */
+
 enum row_search_result
 row_search_index_entry(
 /*===================*/
@@ -857,7 +858,7 @@ Not more than "buf_size" bytes are written to "buf".
 The result is always '\0'-terminated (provided buf_size > 0) and the
 number of bytes that were written to "buf" is returned (including the
 terminating '\0').
-@return	number of bytes that were written */
+@return number of bytes that were written */
 static
 ulint
 row_raw_format_int(
@@ -905,7 +906,7 @@ Not more than "buf_size" bytes are written to "buf".
 The result is always '\0'-terminated (provided buf_size > 0) and the
 number of bytes that were written to "buf" is returned (including the
 terminating '\0').
-@return	number of bytes that were written */
+@return number of bytes that were written */
 static
 ulint
 row_raw_format_str(
@@ -955,8 +956,8 @@ Not more than "buf_size" bytes are written to "buf".
 The result is always NUL-terminated (provided buf_size is positive) and the
 number of bytes that were written to "buf" is returned (including the
 terminating NUL).
-@return	number of bytes that were written */
-UNIV_INTERN
+@return number of bytes that were written */
+
 ulint
 row_raw_format(
 /*===========*/
@@ -1035,8 +1036,6 @@ row_raw_format(
 }
 
 #ifdef UNIV_COMPILE_TEST_FUNCS
-
-#include "ut0dbg.h"
 
 void
 test_row_raw_format_int()

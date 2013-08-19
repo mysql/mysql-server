@@ -7,6 +7,7 @@ create procedure p()
 begin
 declare utf8_var VARCHAR(128) CHARACTER SET UTF8;
 set utf8_var = concat(repeat('A', 128), 'X');
+show warnings;
 select length(utf8_var), utf8_var;
 end
 $$
@@ -29,10 +30,10 @@ table_name = name;
 end
 $$
 call p;
+Level	Code	Message
+Warning	1265	Data truncated for column 'utf8_var' at row 1
 length(utf8_var)	utf8_var
 128	AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA
-Warnings:
-Warning	1265	Data truncated for column 'utf8_var' at row 1
 call p2;
 length(msg)	msg
 129	AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAX

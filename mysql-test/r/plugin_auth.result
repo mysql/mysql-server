@@ -79,6 +79,8 @@ REVOKE ALL PRIVILEGES ON test_grant_db.* FROM new_grant_user;
 # try re-create existing user via GRANT IDENTIFIED BY
 GRANT ALL PRIVILEGES ON test_grant_db.* TO new_grant_user
 IDENTIFIED BY 'unused_password';
+Warnings:
+Warning	1699	SET PASSWORD has no significance for users authenticating via plugins
 # make sure password doesn't take precendence
 ERROR 28000: Access denied for user 'new_grant_user'@'localhost' (using password: YES)
 #make sure plugin auth still available
@@ -90,9 +92,9 @@ CREATE TABLE t1 (a INT);
 DROP TABLE t1;
 DROP USER new_grant_user;
 # try re-create existing user via GRANT IDENTIFIED WITH
-GRANTS which don't affect current plugin are allowed!
 GRANT ALL PRIVILEGES ON test_grant_db.* TO plug
 IDENTIFIED WITH 'test_plugin_server' AS 'plug_dest';
+ERROR HY000: GRANT with IDENTIFIED WITH is illegal because the user plug already exists
 GRANT ALL PRIVILEGES ON test_grant_db.* TO plug_dest
 IDENTIFIED WITH 'test_plugin_server' AS 'plug_dest';
 ERROR HY000: GRANT with IDENTIFIED WITH is illegal because the user plug_dest already exists
@@ -315,8 +317,6 @@ DROP USER u1@localhost,u2@localhost;
 FLUSH PRIVILEGES;
 Warning: Using a password on the command line interface can be insecure.
 Warning: Using a password on the command line interface can be insecure.
-mtr.global_suppressions                            OK
-mtr.test_suppressions                              OK
 mysql.columns_priv                                 OK
 mysql.db                                           OK
 mysql.event                                        OK
@@ -345,6 +345,10 @@ mysql.time_zone_transition                         OK
 mysql.time_zone_transition_type                    OK
 mysql.user                                         OK
 Warning: Using a password on the command line interface can be insecure.
+Warning: Using a password on the command line interface can be insecure.
+Warning: Using a password on the command line interface can be insecure.
+mtr.global_suppressions                            OK
+mtr.test_suppressions                              OK
 SELECT Host,User,Proxied_host,Proxied_user,With_grant FROM mysql.proxies_priv;
 Host	localhost
 User	root
@@ -433,7 +437,7 @@ TABLE_SCHEMA='mysql'
 ORDER BY COLUMN_NAME;
 IS_NULLABLE	COLUMN_NAME
 YES	authentication_string
-YES	plugin
+NO	plugin
 #
 # Bug #11936829: diff. between mysql.user (authentication_string) 
 #   in fresh and upgraded 5.5.11
@@ -444,14 +448,12 @@ COLUMN_NAME IN ('plugin', 'authentication_string')
 ORDER BY COLUMN_NAME;
 IS_NULLABLE	COLUMN_NAME
 YES	authentication_string
-YES	plugin
+NO	plugin
 ALTER TABLE mysql.user MODIFY plugin char(64) DEFAULT '' NOT NULL;
 ALTER TABLE mysql.user MODIFY authentication_string TEXT NOT NULL;
 Run mysql_upgrade on a 5.5.10 external authentication column layout
 Warning: Using a password on the command line interface can be insecure.
 Warning: Using a password on the command line interface can be insecure.
-mtr.global_suppressions                            OK
-mtr.test_suppressions                              OK
 mysql.columns_priv                                 OK
 mysql.db                                           OK
 mysql.event                                        OK
@@ -481,13 +483,17 @@ mysql.time_zone_transition                         OK
 mysql.time_zone_transition_type                    OK
 mysql.user                                         OK
 Warning: Using a password on the command line interface can be insecure.
+Warning: Using a password on the command line interface can be insecure.
+Warning: Using a password on the command line interface can be insecure.
+mtr.global_suppressions                            OK
+mtr.test_suppressions                              OK
 SELECT IS_NULLABLE, COLUMN_NAME FROM INFORMATION_SCHEMA.COLUMNS
 WHERE TABLE_SCHEMA= 'mysql' AND TABLE_NAME= 'user' AND
 COLUMN_NAME IN ('plugin', 'authentication_string')
 ORDER BY COLUMN_NAME;
 IS_NULLABLE	COLUMN_NAME
 YES	authentication_string
-YES	plugin
+NO	plugin
 #
 # Bug #12610784: SET PASSWORD INCORRECTLY KEEP AN OLD EMPTY PASSWORD
 #

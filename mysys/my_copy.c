@@ -1,4 +1,4 @@
-/* Copyright (c) 2000, 2010, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2000, 2013, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -21,7 +21,7 @@
 #include <utime.h>
 #elif defined(HAVE_SYS_UTIME_H)
 #include <sys/utime.h>
-#elif !defined(HPUX10)
+#else
 #include <time.h>
 struct utimbuf {
   time_t actime;
@@ -98,6 +98,10 @@ int my_copy(const char *from, const char *to, myf MyFlags)
     if (my_close(from_file,MyFlags) | my_close(to_file,MyFlags))
       DBUG_RETURN(-1);				/* Error on close */
 
+    /* Reinitialize closed fd, so they won't be closed again. */
+    from_file= -1;
+    to_file= -1;
+
     /* Copy modes if possible */
 
     if (MyFlags & MY_HOLD_ORIGINAL_MODES && !new_file_stat)
@@ -114,7 +118,7 @@ int my_copy(const char *from, const char *to, myf MyFlags)
       }
       goto err;
     }
-#if !defined(__WIN__)
+#if !defined(_WIN32)
     /* Copy ownership */
     if (chown(to, stat_buff.st_uid, stat_buff.st_gid))
     {

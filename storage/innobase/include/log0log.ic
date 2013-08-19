@@ -1,6 +1,6 @@
 /*****************************************************************************
 
-Copyright (c) 1995, 2010, Oracle and/or its affiliates. All Rights Reserved.
+Copyright (c) 1995, 2013, Oracle and/or its affiliates. All Rights Reserved.
 
 This program is free software; you can redistribute it and/or modify it under
 the terms of the GNU General Public License as published by the Free Software
@@ -32,7 +32,7 @@ Created 12/9/1995 Heikki Tuuri
 /******************************************************//**
 Checks by parsing that the catenated log segment for a single mtr is
 consistent. */
-UNIV_INTERN
+
 ibool
 log_check_log_recs(
 /*===============*/
@@ -45,7 +45,7 @@ log_check_log_recs(
 
 /************************************************************//**
 Gets a log block flush bit.
-@return	TRUE if this block was the first to be written in a log flush */
+@return TRUE if this block was the first to be written in a log flush */
 UNIV_INLINE
 ibool
 log_block_get_flush_bit(
@@ -85,7 +85,7 @@ log_block_set_flush_bit(
 
 /************************************************************//**
 Gets a log block number stored in the header.
-@return	log block number stored in the block header */
+@return log block number stored in the block header */
 UNIV_INLINE
 ulint
 log_block_get_hdr_no(
@@ -115,7 +115,7 @@ log_block_set_hdr_no(
 
 /************************************************************//**
 Gets a log block data length.
-@return	log block data length measured as a byte offset from the block start */
+@return log block data length measured as a byte offset from the block start */
 UNIV_INLINE
 ulint
 log_block_get_data_len(
@@ -164,7 +164,7 @@ log_block_set_first_rec_group(
 
 /************************************************************//**
 Gets a log block checkpoint number field (4 lowest bytes).
-@return	checkpoint no (4 lowest bytes) */
+@return checkpoint no (4 lowest bytes) */
 UNIV_INLINE
 ulint
 log_block_get_checkpoint_no(
@@ -188,7 +188,7 @@ log_block_set_checkpoint_no(
 
 /************************************************************//**
 Converts a lsn to a log block number.
-@return	log block number, it is > 0 and <= 1G */
+@return log block number, it is > 0 and <= 1G */
 UNIV_INLINE
 ulint
 log_block_convert_lsn_to_no(
@@ -200,7 +200,7 @@ log_block_convert_lsn_to_no(
 
 /************************************************************//**
 Calculates the checksum for a log block.
-@return	checksum */
+@return checksum */
 UNIV_INLINE
 ulint
 log_block_calc_checksum(
@@ -230,7 +230,7 @@ log_block_calc_checksum(
 
 /************************************************************//**
 Gets a log block checksum field value.
-@return	checksum */
+@return checksum */
 UNIV_INLINE
 ulint
 log_block_get_checksum(
@@ -303,7 +303,7 @@ log_block_init_in_old_format(
 /************************************************************//**
 Writes to the log the string given. The log must be released with
 log_release.
-@return	end lsn of the log record, zero if did not succeed */
+@return end lsn of the log record, zero if did not succeed */
 UNIV_INLINE
 lsn_t
 log_reserve_and_write_fast(
@@ -318,7 +318,8 @@ log_reserve_and_write_fast(
 	ulint		lsn_len;
 #endif /* UNIV_LOG_LSN_DEBUG */
 
-	mutex_enter(&log_sys->mutex);
+	log_mutex_enter();
+
 #ifdef UNIV_LOG_LSN_DEBUG
 	lsn_len = 1
 		+ mach_get_compressed_size(log_sys->lsn >> 32)
@@ -336,7 +337,7 @@ log_reserve_and_write_fast(
 		/* The string does not fit within the current log block
 		or the log block would become full */
 
-		mutex_exit(&log_sys->mutex);
+		log_mutex_exit();
 
 		return(0);
 	}
@@ -393,12 +394,12 @@ void
 log_release(void)
 /*=============*/
 {
-	mutex_exit(&(log_sys->mutex));
+	log_mutex_exit();
 }
 
 /************************************************************//**
 Gets the current lsn.
-@return	current lsn */
+@return current lsn */
 UNIV_INLINE
 lsn_t
 log_get_lsn(void)
@@ -406,11 +407,11 @@ log_get_lsn(void)
 {
 	lsn_t	lsn;
 
-	mutex_enter(&(log_sys->mutex));
+	log_mutex_enter();
 
 	lsn = log_sys->lsn;
 
-	mutex_exit(&(log_sys->mutex));
+	log_mutex_exit();
 
 	return(lsn);
 }
@@ -418,7 +419,7 @@ log_get_lsn(void)
 /****************************************************************
 Gets the log group capacity. It is OK to read the value without
 holding log_sys->mutex because it is constant.
-@return	log group capacity */
+@return log group capacity */
 UNIV_INLINE
 lsn_t
 log_get_capacity(void)
@@ -430,7 +431,7 @@ log_get_capacity(void)
 /****************************************************************
 Get log_sys::max_modified_age_async. It is OK to read the value without
 holding log_sys::mutex because it is constant.
-@return	max_modified_age_async */
+@return max_modified_age_async */
 UNIV_INLINE
 lsn_t
 log_get_max_modified_age_async(void)
@@ -449,10 +450,9 @@ void
 log_free_check(void)
 /*================*/
 {
+	dict_sync_check	check(true);
 
-#ifdef UNIV_SYNC_DEBUG
-	ut_ad(sync_thread_levels_empty_except_dict());
-#endif /* UNIV_SYNC_DEBUG */
+        ut_ad(!sync_check_iterate(check));
 
 	if (log_sys->check_flush_or_checkpoint) {
 

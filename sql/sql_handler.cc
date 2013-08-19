@@ -1,4 +1,4 @@
-/* Copyright (c) 2001, 2012, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2001, 2013, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -168,7 +168,7 @@ bool Sql_cmd_handler_open::execute(THD *thd)
   TABLE_LIST    *hash_tables = NULL;
   char          *db, *name, *alias;
   uint          dblen, namelen, aliaslen;
-  TABLE_LIST    *tables= (TABLE_LIST*) thd->lex->select_lex.table_list.first;
+  TABLE_LIST    *tables= thd->lex->select_lex->get_table_list();
   DBUG_ENTER("Sql_cmd_handler_open::execute");
   DBUG_PRINT("enter",("'%s'.'%s' as '%s'",
                       tables->db, tables->table_name, tables->alias));
@@ -223,7 +223,8 @@ bool Sql_cmd_handler_open::execute(THD *thd)
   dblen= strlen(tables->db) + 1;
   namelen= strlen(tables->table_name) + 1;
   aliaslen= strlen(tables->alias) + 1;
-  if (!(my_multi_malloc(MYF(MY_WME),
+  if (!(my_multi_malloc(key_memory_THD_handler_tables_hash,
+                        MYF(MY_WME),
                         &hash_tables, (uint) sizeof(*hash_tables),
                         &db, (uint) dblen,
                         &name, (uint) namelen,
@@ -392,7 +393,7 @@ static bool mysql_ha_open_table(THD *thd, TABLE_LIST *hash_tables)
 
 bool Sql_cmd_handler_close::execute(THD *thd)
 {
-  TABLE_LIST    *tables= (TABLE_LIST*) thd->lex->select_lex.table_list.first;
+  TABLE_LIST    *tables= thd->lex->select_lex->get_table_list();
   TABLE_LIST    *hash_tables;
   DBUG_ENTER("Sql_cmd_handler_close::execute");
   DBUG_PRINT("enter",("'%s'.'%s' as '%s'",
@@ -507,9 +508,9 @@ bool Sql_cmd_handler_read::execute(THD *thd)
   uint		UNINIT_VAR(key_len);
   Sql_handler_lock_error_handler sql_handler_lock_error;
   LEX           *lex= thd->lex;
-  SELECT_LEX    *select_lex= &lex->select_lex;
-  SELECT_LEX_UNIT *unit= &lex->unit;
-  TABLE_LIST    *tables= select_lex->table_list.first;
+  SELECT_LEX    *select_lex= lex->select_lex;
+  SELECT_LEX_UNIT *unit= lex->unit;
+  TABLE_LIST    *tables= select_lex->get_table_list();
   enum enum_ha_read_modes mode= m_read_mode;
   Item          *cond= select_lex->where;
   ha_rows select_limit_cnt, offset_limit_cnt;
@@ -761,7 +762,7 @@ retry:
 	  goto err;
         }
         old_map= dbug_tmp_use_all_columns(table, table->write_set);
-	(void) item->save_in_field(key_part->field, 1);
+	item->save_in_field(key_part->field, true);
         dbug_tmp_restore_column_map(table->write_set, old_map);
 	key_len+=key_part->store_length;
         keypart_map= (keypart_map << 1) | 1;
@@ -855,10 +856,15 @@ static TABLE_LIST *mysql_ha_find(THD *thd, TABLE_LIST *tables)
     hash_tables= (TABLE_LIST*) my_hash_element(&thd->handler_tables_hash, i);
     for (tables= first; tables; tables= tables->next_local)
     {
-      if ((! *tables->db ||
-          ! my_strcasecmp(&my_charset_latin1, hash_tables->db, tables->db)) &&
-          ! my_strcasecmp(&my_charset_latin1, hash_tables->table_name,
-                          tables->table_name))
+      if (tables->is_anonymous_derived_table())
+        continue;
+      if ((! *tables->get_db_name() ||
+          ! my_strcasecmp(&my_charset_latin1,
+                          hash_tables->get_db_name(),
+                          tables->get_db_name())) &&
+          ! my_strcasecmp(&my_charset_latin1,
+                          hash_tables->get_table_name(),
+                          tables->get_table_name()))
         break;
     }
     if (tables)

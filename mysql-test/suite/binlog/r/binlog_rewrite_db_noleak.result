@@ -1,0 +1,29 @@
+RESET MASTER;
+CREATE DATABASE db1;
+USE db1;
+CREATE TABLE t1 (i INT);
+INSERT INTO db1.t1 VALUES(1);
+INSERT INTO db1.t1 VALUES(2);
+UPDATE t1 SET i= i+1;
+DELETE FROM t1 WHERE i=2;
+CREATE DATABASE db2;
+CREATE TABLE db2.t1 (i INT);
+INSERT INTO db2.t1 VALUES(3);
+INSERT INTO db2.t1 VALUES(4);
+INSERT INTO db2.t1 VALUES(5);
+UPDATE db2.t1 SET i= i+1;
+DELETE FROM db2.t1 WHERE i=4;
+call mtr.add_suppression("Slave SQL: Error executing row event:*");
+Dropping the database db1 creating the new database db3.
+DROP DATABASE db1;
+CREATE DATABASE db3;
+DROP DATABASE db2;
+RESET MASTER;
+[The sql file will be applied on the current database]
+[The content of table db3.t1 and db2.t1 will be different confirming no leak]
+include/assert.inc [The content of the table t1 in database db3 and db2 is different]
+include/assert.inc [Table t1 in db3 have different row count than t1 in db2]
+CLEANUP
+DROP DATABASE db1;
+DROP DATABASE db2;
+DROP DATABASE db3;

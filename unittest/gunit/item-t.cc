@@ -1,4 +1,4 @@
-/* Copyright (c) 2011, 2012, Oracle and/or its affiliates. All rights reserved. 
+/* Copyright (c) 2011, 2013, Oracle and/or its affiliates. All rights reserved. 
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -11,7 +11,7 @@
 
    You should have received a copy of the GNU General Public License
    along with this program; if not, write to the Free Software
-   Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA */
+   Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA 02110-1301, USA */
 
 // First include (the generated) my_config.h, to get correct platform defines.
 #include "my_config.h"
@@ -24,6 +24,7 @@
 #include "sql_class.h"
 #include "tztime.h"
 
+#include "fake_table.h"
 #include "mock_field_timestamp.h"
 
 namespace item_unittest {
@@ -70,6 +71,92 @@ public:
     Note: Sun Studio needs a little help in resolving longlong.
    */
   MOCK_METHOD2(store, type_conversion_status(::longlong nr, bool unsigned_val));
+};
+
+
+/**
+  Mock class for CHAR field.
+*/
+
+class Mock_field_string : public Field_string
+{
+private:
+  Fake_TABLE *m_fake_tbl;
+
+public:
+  Mock_field_string(uint32 length)
+    : Field_string(0,                  // ptr_arg
+                   length,             // len_arg
+                   NULL,               // null_ptr_arg
+                   0,                  // null_bit_arg
+                   Field::NONE,        // unireg_check_arg
+                   NULL,               // field_name_arg
+                   &my_charset_latin1) // char set
+  {
+    m_fake_tbl= new Fake_TABLE(this);
+
+    // Allocate place for storing the field value
+    ptr= new uchar[length];
+
+    // Make it possible to write into this field
+    bitmap_set_bit(m_fake_tbl->write_set, 0);
+
+    /*
+      count_cuted_fields must be set in order for producing
+      warning/error for Item_string::save_in_field().
+    */
+    m_fake_tbl->in_use->count_cuted_fields= CHECK_FIELD_WARN;
+  }
+
+  ~Mock_field_string()
+  {
+    delete [] ptr;
+    ptr= NULL;
+    delete m_fake_tbl;
+    m_fake_tbl= NULL;
+  }
+};
+
+
+/**
+  Mock class for VARCHAR field.
+*/
+
+class Mock_field_varstring : public Field_varstring
+{
+private:
+  Fake_TABLE *m_fake_tbl;
+
+public:
+  Mock_field_varstring(uint32 length, TABLE_SHARE *share)
+    : Field_varstring(length,             // len_arg
+                      false,              // maybe_null_arg
+                      NULL,               // field_name_arg
+                      share,              // share
+                      &my_charset_latin1) // char set
+  {
+    m_fake_tbl= new Fake_TABLE(this);
+
+    // Allocate place for storing the field value
+    ptr= new uchar[length + 1];
+
+    // Make it possible to write into this field
+    bitmap_set_bit(m_fake_tbl->write_set, 0);
+
+    /*
+      count_cuted_fields must be set in order for producing
+      warning/error for Item_string::save_in_field().
+    */
+    m_fake_tbl->in_use->count_cuted_fields= CHECK_FIELD_WARN;
+  }
+
+  ~Mock_field_varstring()
+  {
+    delete [] ptr;
+    ptr= NULL;
+    delete m_fake_tbl;
+    m_fake_tbl= NULL;
+  }
 };
 
 
@@ -127,6 +214,85 @@ TEST_F(ItemTest, ItemInt)
    TODO: There are about 100 member functions in Item.
          Figure out which ones are relevant for unit testing here.
   */
+}
+
+
+TEST_F(ItemTest, ItemString)
+{
+  const char short_str[]= "abc";
+  const char long_str[]= "abcd";
+  const char space_str[]= "abc ";
+
+  Item_string *item_short_string=
+    new Item_string(STRING_WITH_LEN(short_str), &my_charset_latin1);
+  Item_string *item_long_string=
+    new Item_string(STRING_WITH_LEN(long_str), &my_charset_latin1);
+  Item_string *item_space_string=
+    new Item_string(STRING_WITH_LEN(space_str), &my_charset_latin1);
+
+  /* 
+    Bug 16407965 ITEM::SAVE_IN_FIELD_NO_WARNING() DOES NOT RETURN CORRECT 
+                 CONVERSION STATUS
+  */
+
+  // Create a CHAR field that can store short_str but not long_str
+  Mock_field_string field_string(3);
+  EXPECT_EQ(MYSQL_TYPE_STRING, field_string.type());
+
+  /*
+    Tests of Item_string::save_in_field() when storing into a CHAR field.
+  */
+  EXPECT_EQ(TYPE_OK, item_short_string->save_in_field(&field_string, true));
+  EXPECT_EQ(TYPE_WARN_TRUNCATED,
+            item_long_string->save_in_field(&field_string, true));
+  // Field_string does not consider trailing spaces when truncating a string
+  EXPECT_EQ(TYPE_OK,
+            item_space_string->save_in_field(&field_string, true));
+  
+  /*
+    Tests of Item_string::save_in_field_no_warnings() when storing into
+    a CHAR field.
+  */
+  EXPECT_EQ(TYPE_OK,
+            item_short_string->save_in_field_no_warnings(&field_string, true));
+  EXPECT_EQ(TYPE_WARN_TRUNCATED,
+            item_long_string->save_in_field_no_warnings(&field_string, true));
+  // Field_string does not consider trailing spaces when truncating a string
+  EXPECT_EQ(TYPE_OK,
+            item_space_string->save_in_field_no_warnings(&field_string, true));
+
+  /*
+    Create a VARCHAR field that can store short_str but not long_str.
+    Need a table share object since the constructor for Field_varstring
+    updates its table share.
+  */
+  TABLE_SHARE table_share;
+  Mock_field_varstring field_varstring(3, &table_share);
+  EXPECT_EQ(MYSQL_TYPE_VARCHAR, field_varstring.type());
+
+  /*
+    Tests of Item_string::save_in_field() when storing into a VARCHAR field.
+  */
+  EXPECT_EQ(TYPE_OK, item_short_string->save_in_field(&field_varstring, true));
+  EXPECT_EQ(TYPE_WARN_TRUNCATED,
+            item_long_string->save_in_field(&field_varstring, true));
+  // Field_varstring produces a note when truncating a string with 
+  // trailing spaces
+  EXPECT_EQ(TYPE_NOTE_TRUNCATED,
+            item_space_string->save_in_field(&field_varstring, true));
+
+  /*
+    Tests of Item_string::save_in_field_no_warnings() when storing into
+    a VARCHAR field.
+  */
+  EXPECT_EQ(TYPE_OK,
+         item_short_string->save_in_field_no_warnings(&field_varstring, true));
+  EXPECT_EQ(TYPE_WARN_TRUNCATED,
+         item_long_string->save_in_field_no_warnings(&field_varstring, true));
+  // Field_varstring produces a note when truncating a string with 
+  // trailing spaces
+  EXPECT_EQ(TYPE_NOTE_TRUNCATED,
+         item_space_string->save_in_field_no_warnings(&field_varstring, true));
 }
 
 

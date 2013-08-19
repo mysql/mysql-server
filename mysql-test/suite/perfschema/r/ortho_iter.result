@@ -4,11 +4,17 @@ begin
 declare count_expected integer;
 declare count_actual integer;
 declare is_wait integer;
+declare is_wait_file integer;
+declare is_wait_socket integer;
 declare is_stage integer;
 declare is_statement integer;
+declare is_memory integer;
 declare is_wait_table integer;
+declare is_wait_file_table integer;
+declare is_wait_socket_table integer;
 declare is_stage_table integer;
 declare is_statement_table integer;
+declare is_memory_table integer;
 declare pfs_table_name varchar(64);
 declare msg varchar(512);
 declare msg_detail varchar(512);
@@ -19,13 +25,16 @@ declare debug integer default 0;
 declare pfs_cursor CURSOR FOR
 select table_name from information_schema.tables
 where table_schema= 'performance_schema'
-      and table_name like "events_%_by_event_name%";
+      and table_name like "%_by_event_name%";
 declare continue handler for sqlstate '02000'
     set done = 1;
 select (instr_name like "wait/%") or (instr_name like "idle/%") into is_wait;
+select (instr_name like "wait/io/file/%") into is_wait_file;
+select (instr_name like "wait/io/socket/%") into is_wait_socket;
 select (instr_name like "stage/%") into is_stage;
 select (instr_name like "statement/%") into is_statement;
-select instr_name, is_wait, is_stage, is_statement;
+select (instr_name like "memory/%") into is_memory;
+select instr_name, is_wait, is_wait_file, is_wait_socket, is_stage, is_statement, is_memory;
 select count(name)
 from performance_schema.setup_instruments
 where name like (concat(instr_name, "%"))
@@ -39,8 +48,11 @@ repeat
 fetch pfs_cursor into pfs_table_name;
 if not done then
 select (pfs_table_name like "%waits%") into is_wait_table;
+select (pfs_table_name like "file_summary%") into is_wait_file_table;
+select (pfs_table_name like "socket_summary%") into is_wait_socket_table;
 select (pfs_table_name like "%stages%") into is_stage_table;
 select (pfs_table_name like "%statements%") into is_statement_table;
+select (pfs_table_name like "%memory%") into is_memory_table;
 select concat("Checking table ", pfs_table_name, " ...") as status;
 select concat(cmd_1, pfs_table_name, cmd_2) into @cmd;
 if debug = 1
@@ -53,35 +65,86 @@ drop prepare stmt;
 set msg_detail= concat("table ", pfs_table_name,
 ", instruments ", count_expected,
 ", found ", @count_actual);
-if is_wait = 1 and is_wait_table = 1 and @count_actual <> count_expected
+if is_wait = 1
+then
+if is_wait_table = 1 and @count_actual <> count_expected
 then
 set msg= concat("Missing wait events: ", msg_detail);
 signal sqlstate '05000' set message_text= msg;
 end if;
-if is_wait = 1 and is_wait_table = 0 and @count_actual <> 0
+if is_wait_table = 0
+and is_wait_file_table = 0
+and is_wait_socket_table = 0
+and @count_actual <> 0
 then
 set msg= concat("Unexpected wait events: ", msg_detail);
 signal sqlstate '05000' set message_text= msg;
 end if;
-if is_stage = 1 and is_stage_table = 1 and @count_actual <> count_expected
+end if;
+if is_wait_file = 1
+then
+if is_wait_file_table = 1 and @count_actual <> count_expected
+then
+set msg= concat("Missing wait/io/file events: ", msg_detail);
+signal sqlstate '05000' set message_text= msg;
+end if;
+if is_wait_table = 0 and is_wait_file_table = 0 and @count_actual <> 0
+then
+set msg= concat("Unexpected wait/io/file events: ", msg_detail);
+signal sqlstate '05000' set message_text= msg;
+end if;
+end if;
+if is_wait_socket = 1
+then
+if is_wait_socket_table = 1 and @count_actual <> count_expected
+then
+set msg= concat("Missing wait/io/socket events: ", msg_detail);
+signal sqlstate '05000' set message_text= msg;
+end if;
+if is_wait_table = 0 and is_wait_socket_table = 0 and @count_actual <> 0
+then
+set msg= concat("Unexpected wait/io/socket events: ", msg_detail);
+signal sqlstate '05000' set message_text= msg;
+end if;
+end if;
+if is_stage = 1
+then
+if is_stage_table = 1 and @count_actual <> count_expected
 then
 set msg= concat("Missing stage events: ", msg_detail);
 signal sqlstate '05000' set message_text= msg;
 end if;
-if is_stage = 1 and is_stage_table = 0 and @count_actual <> 0
+if is_stage_table = 0 and @count_actual <> 0
 then
 set msg= concat("Unexpected stage events: ", msg_detail);
 signal sqlstate '05000' set message_text= msg;
 end if;
-if is_statement = 1 and is_statement_table = 1 and @count_actual <> count_expected
+end if;
+if is_statement = 1
+then
+if is_statement_table = 1 and @count_actual <> count_expected
 then
 set msg= concat("Missing statement events: ", msg_detail);
 signal sqlstate '05000' set message_text= msg;
 end if;
-if is_statement = 1 and is_statement_table = 0 and @count_actual <> 0
+if is_statement_table = 0 and @count_actual <> 0
 then
 set msg= concat("Unexpected statement events: ", msg_detail);
 signal sqlstate '05000' set message_text= msg;
+end if;
+end if;
+if is_memory = 1
+then
+if is_memory_table = 1 and @count_actual <> count_expected
+then
+set msg= concat("Missing memory events: ", msg_detail);
+signal sqlstate '05000' set message_text= msg;
+end if;
+if is_memory_table = 0 and @count_actual <> 0
+then
+set msg= concat("Unexpected memory events: ", msg_detail);
+signal sqlstate '05000' set message_text= msg;
+end if;
 end if;
 end if;
 until done
@@ -108,14 +171,17 @@ performance_schema_max_cond_instances	1000
 performance_schema_max_file_classes	50
 performance_schema_max_file_handles	32768
 performance_schema_max_file_instances	10000
+performance_schema_max_memory_classes	250
 performance_schema_max_mutex_classes	200
 performance_schema_max_mutex_instances	5000
+performance_schema_max_program_instances	5000
 performance_schema_max_rwlock_classes	30
 performance_schema_max_rwlock_instances	5000
 performance_schema_max_socket_classes	10
 performance_schema_max_socket_instances	1000
 performance_schema_max_stage_classes	150
-performance_schema_max_statement_classes	168
+performance_schema_max_statement_classes	187
+performance_schema_max_statement_stack	10
 performance_schema_max_table_handles	1000
 performance_schema_max_table_instances	500
 performance_schema_max_thread_classes	50
@@ -135,8 +201,11 @@ Performance_schema_file_handles_lost	0
 Performance_schema_file_instances_lost	0
 Performance_schema_hosts_lost	0
 Performance_schema_locker_lost	0
+Performance_schema_memory_classes_lost	0
 Performance_schema_mutex_classes_lost	0
 Performance_schema_mutex_instances_lost	0
+Performance_schema_nested_statement_lost	0
+Performance_schema_program_lost	0
 Performance_schema_rwlock_classes_lost	0
 Performance_schema_rwlock_instances_lost	0
 Performance_schema_session_connect_attrs_lost	0
@@ -150,8 +219,8 @@ Performance_schema_thread_classes_lost	0
 Performance_schema_thread_instances_lost	0
 Performance_schema_users_lost	0
 call check_instrument("wait/synch/mutex/");
-instr_name	is_wait	is_stage	is_statement
-wait/synch/mutex/	1	0	0
+instr_name	is_wait	is_wait_file	is_wait_socket	is_stage	is_statement	is_memory
+wait/synch/mutex/	1	0	0	0	0	0
 status
 Checking table events_stages_summary_by_account_by_event_name ...
 status
@@ -182,11 +251,25 @@ status
 Checking table events_waits_summary_by_user_by_event_name ...
 status
 Checking table events_waits_summary_global_by_event_name ...
+status
+Checking table file_summary_by_event_name ...
+status
+Checking table memory_summary_by_account_by_event_name ...
+status
+Checking table memory_summary_by_host_by_event_name ...
+status
+Checking table memory_summary_by_thread_by_event_name ...
+status
+Checking table memory_summary_by_user_by_event_name ...
+status
+Checking table memory_summary_global_by_event_name ...
+status
+Checking table socket_summary_by_event_name ...
 Warnings:
 Warning	12000	Done
 call check_instrument("wait/synch/rwlock/");
-instr_name	is_wait	is_stage	is_statement
-wait/synch/rwlock/	1	0	0
+instr_name	is_wait	is_wait_file	is_wait_socket	is_stage	is_statement	is_memory
+wait/synch/rwlock/	1	0	0	0	0	0
 status
 Checking table events_stages_summary_by_account_by_event_name ...
 status
@@ -217,11 +300,25 @@ status
 Checking table events_waits_summary_by_user_by_event_name ...
 status
 Checking table events_waits_summary_global_by_event_name ...
+status
+Checking table file_summary_by_event_name ...
+status
+Checking table memory_summary_by_account_by_event_name ...
+status
+Checking table memory_summary_by_host_by_event_name ...
+status
+Checking table memory_summary_by_thread_by_event_name ...
+status
+Checking table memory_summary_by_user_by_event_name ...
+status
+Checking table memory_summary_global_by_event_name ...
+status
+Checking table socket_summary_by_event_name ...
 Warnings:
 Warning	12000	Done
 call check_instrument("wait/synch/cond/");
-instr_name	is_wait	is_stage	is_statement
-wait/synch/cond/	1	0	0
+instr_name	is_wait	is_wait_file	is_wait_socket	is_stage	is_statement	is_memory
+wait/synch/cond/	1	0	0	0	0	0
 status
 Checking table events_stages_summary_by_account_by_event_name ...
 status
@@ -252,11 +349,25 @@ status
 Checking table events_waits_summary_by_user_by_event_name ...
 status
 Checking table events_waits_summary_global_by_event_name ...
+status
+Checking table file_summary_by_event_name ...
+status
+Checking table memory_summary_by_account_by_event_name ...
+status
+Checking table memory_summary_by_host_by_event_name ...
+status
+Checking table memory_summary_by_thread_by_event_name ...
+status
+Checking table memory_summary_by_user_by_event_name ...
+status
+Checking table memory_summary_global_by_event_name ...
+status
+Checking table socket_summary_by_event_name ...
 Warnings:
 Warning	12000	Done
 call check_instrument("wait/synch/");
-instr_name	is_wait	is_stage	is_statement
-wait/synch/	1	0	0
+instr_name	is_wait	is_wait_file	is_wait_socket	is_stage	is_statement	is_memory
+wait/synch/	1	0	0	0	0	0
 status
 Checking table events_stages_summary_by_account_by_event_name ...
 status
@@ -287,11 +398,25 @@ status
 Checking table events_waits_summary_by_user_by_event_name ...
 status
 Checking table events_waits_summary_global_by_event_name ...
+status
+Checking table file_summary_by_event_name ...
+status
+Checking table memory_summary_by_account_by_event_name ...
+status
+Checking table memory_summary_by_host_by_event_name ...
+status
+Checking table memory_summary_by_thread_by_event_name ...
+status
+Checking table memory_summary_by_user_by_event_name ...
+status
+Checking table memory_summary_global_by_event_name ...
+status
+Checking table socket_summary_by_event_name ...
 Warnings:
 Warning	12000	Done
 call check_instrument("wait/io/file/");
-instr_name	is_wait	is_stage	is_statement
-wait/io/file/	1	0	0
+instr_name	is_wait	is_wait_file	is_wait_socket	is_stage	is_statement	is_memory
+wait/io/file/	1	1	0	0	0	0
 status
 Checking table events_stages_summary_by_account_by_event_name ...
 status
@@ -322,11 +447,25 @@ status
 Checking table events_waits_summary_by_user_by_event_name ...
 status
 Checking table events_waits_summary_global_by_event_name ...
+status
+Checking table file_summary_by_event_name ...
+status
+Checking table memory_summary_by_account_by_event_name ...
+status
+Checking table memory_summary_by_host_by_event_name ...
+status
+Checking table memory_summary_by_thread_by_event_name ...
+status
+Checking table memory_summary_by_user_by_event_name ...
+status
+Checking table memory_summary_global_by_event_name ...
+status
+Checking table socket_summary_by_event_name ...
 Warnings:
 Warning	12000	Done
-call check_instrument("wait/io/net/");
-instr_name	is_wait	is_stage	is_statement
-wait/io/net/	1	0	0
+call check_instrument("wait/io/socket/");
+instr_name	is_wait	is_wait_file	is_wait_socket	is_stage	is_statement	is_memory
+wait/io/socket/	1	0	1	0	0	0
 status
 Checking table events_stages_summary_by_account_by_event_name ...
 status
@@ -357,11 +496,25 @@ status
 Checking table events_waits_summary_by_user_by_event_name ...
 status
 Checking table events_waits_summary_global_by_event_name ...
+status
+Checking table file_summary_by_event_name ...
+status
+Checking table memory_summary_by_account_by_event_name ...
+status
+Checking table memory_summary_by_host_by_event_name ...
+status
+Checking table memory_summary_by_thread_by_event_name ...
+status
+Checking table memory_summary_by_user_by_event_name ...
+status
+Checking table memory_summary_global_by_event_name ...
+status
+Checking table socket_summary_by_event_name ...
 Warnings:
 Warning	12000	Done
 call check_instrument("wait/io/table/");
-instr_name	is_wait	is_stage	is_statement
-wait/io/table/	1	0	0
+instr_name	is_wait	is_wait_file	is_wait_socket	is_stage	is_statement	is_memory
+wait/io/table/	1	0	0	0	0	0
 status
 Checking table events_stages_summary_by_account_by_event_name ...
 status
@@ -392,11 +545,25 @@ status
 Checking table events_waits_summary_by_user_by_event_name ...
 status
 Checking table events_waits_summary_global_by_event_name ...
+status
+Checking table file_summary_by_event_name ...
+status
+Checking table memory_summary_by_account_by_event_name ...
+status
+Checking table memory_summary_by_host_by_event_name ...
+status
+Checking table memory_summary_by_thread_by_event_name ...
+status
+Checking table memory_summary_by_user_by_event_name ...
+status
+Checking table memory_summary_global_by_event_name ...
+status
+Checking table socket_summary_by_event_name ...
 Warnings:
 Warning	12000	Done
 call check_instrument("wait/io/");
-instr_name	is_wait	is_stage	is_statement
-wait/io/	1	0	0
+instr_name	is_wait	is_wait_file	is_wait_socket	is_stage	is_statement	is_memory
+wait/io/	1	0	0	0	0	0
 status
 Checking table events_stages_summary_by_account_by_event_name ...
 status
@@ -427,11 +594,25 @@ status
 Checking table events_waits_summary_by_user_by_event_name ...
 status
 Checking table events_waits_summary_global_by_event_name ...
+status
+Checking table file_summary_by_event_name ...
+status
+Checking table memory_summary_by_account_by_event_name ...
+status
+Checking table memory_summary_by_host_by_event_name ...
+status
+Checking table memory_summary_by_thread_by_event_name ...
+status
+Checking table memory_summary_by_user_by_event_name ...
+status
+Checking table memory_summary_global_by_event_name ...
+status
+Checking table socket_summary_by_event_name ...
 Warnings:
 Warning	12000	Done
 call check_instrument("wait/lock/table/");
-instr_name	is_wait	is_stage	is_statement
-wait/lock/table/	1	0	0
+instr_name	is_wait	is_wait_file	is_wait_socket	is_stage	is_statement	is_memory
+wait/lock/table/	1	0	0	0	0	0
 status
 Checking table events_stages_summary_by_account_by_event_name ...
 status
@@ -462,11 +643,25 @@ status
 Checking table events_waits_summary_by_user_by_event_name ...
 status
 Checking table events_waits_summary_global_by_event_name ...
+status
+Checking table file_summary_by_event_name ...
+status
+Checking table memory_summary_by_account_by_event_name ...
+status
+Checking table memory_summary_by_host_by_event_name ...
+status
+Checking table memory_summary_by_thread_by_event_name ...
+status
+Checking table memory_summary_by_user_by_event_name ...
+status
+Checking table memory_summary_global_by_event_name ...
+status
+Checking table socket_summary_by_event_name ...
 Warnings:
 Warning	12000	Done
 call check_instrument("wait/lock/");
-instr_name	is_wait	is_stage	is_statement
-wait/lock/	1	0	0
+instr_name	is_wait	is_wait_file	is_wait_socket	is_stage	is_statement	is_memory
+wait/lock/	1	0	0	0	0	0
 status
 Checking table events_stages_summary_by_account_by_event_name ...
 status
@@ -497,11 +692,25 @@ status
 Checking table events_waits_summary_by_user_by_event_name ...
 status
 Checking table events_waits_summary_global_by_event_name ...
+status
+Checking table file_summary_by_event_name ...
+status
+Checking table memory_summary_by_account_by_event_name ...
+status
+Checking table memory_summary_by_host_by_event_name ...
+status
+Checking table memory_summary_by_thread_by_event_name ...
+status
+Checking table memory_summary_by_user_by_event_name ...
+status
+Checking table memory_summary_global_by_event_name ...
+status
+Checking table socket_summary_by_event_name ...
 Warnings:
 Warning	12000	Done
 call check_instrument("wait/");
-instr_name	is_wait	is_stage	is_statement
-wait/	1	0	0
+instr_name	is_wait	is_wait_file	is_wait_socket	is_stage	is_statement	is_memory
+wait/	1	0	0	0	0	0
 status
 Checking table events_stages_summary_by_account_by_event_name ...
 status
@@ -532,11 +741,25 @@ status
 Checking table events_waits_summary_by_user_by_event_name ...
 status
 Checking table events_waits_summary_global_by_event_name ...
+status
+Checking table file_summary_by_event_name ...
+status
+Checking table memory_summary_by_account_by_event_name ...
+status
+Checking table memory_summary_by_host_by_event_name ...
+status
+Checking table memory_summary_by_thread_by_event_name ...
+status
+Checking table memory_summary_by_user_by_event_name ...
+status
+Checking table memory_summary_global_by_event_name ...
+status
+Checking table socket_summary_by_event_name ...
 Warnings:
 Warning	12000	Done
 call check_instrument("stage/");
-instr_name	is_wait	is_stage	is_statement
-stage/	0	1	0
+instr_name	is_wait	is_wait_file	is_wait_socket	is_stage	is_statement	is_memory
+stage/	0	0	0	1	0	0
 status
 Checking table events_stages_summary_by_account_by_event_name ...
 status
@@ -567,11 +790,25 @@ status
 Checking table events_waits_summary_by_user_by_event_name ...
 status
 Checking table events_waits_summary_global_by_event_name ...
+status
+Checking table file_summary_by_event_name ...
+status
+Checking table memory_summary_by_account_by_event_name ...
+status
+Checking table memory_summary_by_host_by_event_name ...
+status
+Checking table memory_summary_by_thread_by_event_name ...
+status
+Checking table memory_summary_by_user_by_event_name ...
+status
+Checking table memory_summary_global_by_event_name ...
+status
+Checking table socket_summary_by_event_name ...
 Warnings:
 Warning	12000	Done
 call check_instrument("statement/com/");
-instr_name	is_wait	is_stage	is_statement
-statement/com/	0	0	1
+instr_name	is_wait	is_wait_file	is_wait_socket	is_stage	is_statement	is_memory
+statement/com/	0	0	0	0	1	0
 status
 Checking table events_stages_summary_by_account_by_event_name ...
 status
@@ -602,11 +839,25 @@ status
 Checking table events_waits_summary_by_user_by_event_name ...
 status
 Checking table events_waits_summary_global_by_event_name ...
+status
+Checking table file_summary_by_event_name ...
+status
+Checking table memory_summary_by_account_by_event_name ...
+status
+Checking table memory_summary_by_host_by_event_name ...
+status
+Checking table memory_summary_by_thread_by_event_name ...
+status
+Checking table memory_summary_by_user_by_event_name ...
+status
+Checking table memory_summary_global_by_event_name ...
+status
+Checking table socket_summary_by_event_name ...
 Warnings:
 Warning	12000	Done
 call check_instrument("statement/sql/");
-instr_name	is_wait	is_stage	is_statement
-statement/sql/	0	0	1
+instr_name	is_wait	is_wait_file	is_wait_socket	is_stage	is_statement	is_memory
+statement/sql/	0	0	0	0	1	0
 status
 Checking table events_stages_summary_by_account_by_event_name ...
 status
@@ -637,11 +888,25 @@ status
 Checking table events_waits_summary_by_user_by_event_name ...
 status
 Checking table events_waits_summary_global_by_event_name ...
+status
+Checking table file_summary_by_event_name ...
+status
+Checking table memory_summary_by_account_by_event_name ...
+status
+Checking table memory_summary_by_host_by_event_name ...
+status
+Checking table memory_summary_by_thread_by_event_name ...
+status
+Checking table memory_summary_by_user_by_event_name ...
+status
+Checking table memory_summary_global_by_event_name ...
+status
+Checking table socket_summary_by_event_name ...
 Warnings:
 Warning	12000	Done
 call check_instrument("statement/");
-instr_name	is_wait	is_stage	is_statement
-statement/	0	0	1
+instr_name	is_wait	is_wait_file	is_wait_socket	is_stage	is_statement	is_memory
+statement/	0	0	0	0	1	0
 status
 Checking table events_stages_summary_by_account_by_event_name ...
 status
@@ -672,46 +937,25 @@ status
 Checking table events_waits_summary_by_user_by_event_name ...
 status
 Checking table events_waits_summary_global_by_event_name ...
-Warnings:
-Warning	12000	Done
-call check_instrument("idle/io/socket");
-instr_name	is_wait	is_stage	is_statement
-idle/io/socket	1	0	0
 status
-Checking table events_stages_summary_by_account_by_event_name ...
+Checking table file_summary_by_event_name ...
 status
-Checking table events_stages_summary_by_host_by_event_name ...
+Checking table memory_summary_by_account_by_event_name ...
 status
-Checking table events_stages_summary_by_thread_by_event_name ...
+Checking table memory_summary_by_host_by_event_name ...
 status
-Checking table events_stages_summary_by_user_by_event_name ...
+Checking table memory_summary_by_thread_by_event_name ...
 status
-Checking table events_stages_summary_global_by_event_name ...
+Checking table memory_summary_by_user_by_event_name ...
 status
-Checking table events_statements_summary_by_account_by_event_name ...
+Checking table memory_summary_global_by_event_name ...
 status
-Checking table events_statements_summary_by_host_by_event_name ...
-status
-Checking table events_statements_summary_by_thread_by_event_name ...
-status
-Checking table events_statements_summary_by_user_by_event_name ...
-status
-Checking table events_statements_summary_global_by_event_name ...
-status
-Checking table events_waits_summary_by_account_by_event_name ...
-status
-Checking table events_waits_summary_by_host_by_event_name ...
-status
-Checking table events_waits_summary_by_thread_by_event_name ...
-status
-Checking table events_waits_summary_by_user_by_event_name ...
-status
-Checking table events_waits_summary_global_by_event_name ...
+Checking table socket_summary_by_event_name ...
 Warnings:
 Warning	12000	Done
 call check_instrument("idle/");
-instr_name	is_wait	is_stage	is_statement
-idle/	1	0	0
+instr_name	is_wait	is_wait_file	is_wait_socket	is_stage	is_statement	is_memory
+idle/	1	0	0	0	0	0
 status
 Checking table events_stages_summary_by_account_by_event_name ...
 status
@@ -742,6 +986,69 @@ status
 Checking table events_waits_summary_by_user_by_event_name ...
 status
 Checking table events_waits_summary_global_by_event_name ...
+status
+Checking table file_summary_by_event_name ...
+status
+Checking table memory_summary_by_account_by_event_name ...
+status
+Checking table memory_summary_by_host_by_event_name ...
+status
+Checking table memory_summary_by_thread_by_event_name ...
+status
+Checking table memory_summary_by_user_by_event_name ...
+status
+Checking table memory_summary_global_by_event_name ...
+status
+Checking table socket_summary_by_event_name ...
+Warnings:
+Warning	12000	Done
+call check_instrument("memory/");
+instr_name	is_wait	is_wait_file	is_wait_socket	is_stage	is_statement	is_memory
+memory/	0	0	0	0	0	1
+status
+Checking table events_stages_summary_by_account_by_event_name ...
+status
+Checking table events_stages_summary_by_host_by_event_name ...
+status
+Checking table events_stages_summary_by_thread_by_event_name ...
+status
+Checking table events_stages_summary_by_user_by_event_name ...
+status
+Checking table events_stages_summary_global_by_event_name ...
+status
+Checking table events_statements_summary_by_account_by_event_name ...
+status
+Checking table events_statements_summary_by_host_by_event_name ...
+status
+Checking table events_statements_summary_by_thread_by_event_name ...
+status
+Checking table events_statements_summary_by_user_by_event_name ...
+status
+Checking table events_statements_summary_global_by_event_name ...
+status
+Checking table events_waits_summary_by_account_by_event_name ...
+status
+Checking table events_waits_summary_by_host_by_event_name ...
+status
+Checking table events_waits_summary_by_thread_by_event_name ...
+status
+Checking table events_waits_summary_by_user_by_event_name ...
+status
+Checking table events_waits_summary_global_by_event_name ...
+status
+Checking table file_summary_by_event_name ...
+status
+Checking table memory_summary_by_account_by_event_name ...
+status
+Checking table memory_summary_by_host_by_event_name ...
+status
+Checking table memory_summary_by_thread_by_event_name ...
+status
+Checking table memory_summary_by_user_by_event_name ...
+status
+Checking table memory_summary_global_by_event_name ...
+status
+Checking table socket_summary_by_event_name ...
 Warnings:
 Warning	12000	Done
 drop procedure check_instrument;

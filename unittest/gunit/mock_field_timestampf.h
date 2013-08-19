@@ -11,7 +11,7 @@
 
    You should have received a copy of the GNU General Public License
    along with this program; if not, write to the Free Software
-   Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA */
+   Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA 02110-1301, USA */
 
 #ifndef MOCK_FIELD_TIMESTAMPF_H
 #define MOCK_FIELD_TIMESTAMPF_H
@@ -28,7 +28,7 @@ class Mock_field_timestampf : public Field_timestampf
     EXPECT_FALSE(table == NULL) << "Out of memory";
     ptr= buffer;
     memset(buffer, 0, PACK_LENGTH);
-    null_ptr= &null_byte;
+    set_null_ptr(&null_byte, 1);
   }
 
 public:

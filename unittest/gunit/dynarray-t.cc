@@ -1,4 +1,4 @@
-/* Copyright (c) 2011, Oracle and/or its affiliates. All rights reserved. 
+/* Copyright (c) 2011, 2013 Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -11,7 +11,7 @@
 
    You should have received a copy of the GNU General Public License
    along with this program; if not, write to the Free Software
-   Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA */
+   Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA 02110-1301, USA */
 
 // First include (the generated) my_config.h, to get correct platform defines.
 #include "my_config.h"
@@ -164,6 +164,11 @@ public:
     m_keyuse_vec.reserve(num_elements);
   }
 
+  virtual void TearDown()
+  {
+    delete_dynamic(&m_keyuse_dyn);
+  }
+
   void insert_and_sort_dynamic()
   {
     reset_dynamic(&m_keyuse_dyn);
@@ -228,7 +233,7 @@ protected:
 
   virtual void SetUp()
   {
-    init_sql_alloc(&m_mem_root, 1024, 0);
+    init_sql_alloc(PSI_NOT_INSTRUMENTED, &m_mem_root, 1024, 0);
     ASSERT_EQ(0, my_pthread_setspecific_ptr(THR_MALLOC, &m_mem_root_p));
     MEM_ROOT *root= *my_pthread_getspecific_ptr(MEM_ROOT**, THR_MALLOC);
     ASSERT_EQ(root, m_mem_root_p);
@@ -246,13 +251,17 @@ protected:
   {
     generate_test_data(test_data, table_list, num_elements);
     ASSERT_EQ(0, pthread_key_create(&THR_THD, NULL));
+    THR_THD_initialized= true;
     ASSERT_EQ(0, pthread_key_create(&THR_MALLOC, NULL));
+    THR_MALLOC_initialized= true;
   }
 
   static void TearDownTestCase()
   {
     pthread_key_delete(THR_THD);
+    THR_THD_initialized= false;
     pthread_key_delete(THR_MALLOC);
+    THR_MALLOC_initialized= false;
   }
 
   void insert_and_sort_mysys()

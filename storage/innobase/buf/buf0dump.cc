@@ -1,6 +1,6 @@
 /*****************************************************************************
 
-Copyright (c) 2011, 2012, Oracle and/or its affiliates. All Rights Reserved.
+Copyright (c) 2011, 2013, Oracle and/or its affiliates. All Rights Reserved.
 
 This program is free software; you can redistribute it and/or modify it under
 the terms of the GNU General Public License as published by the Free Software
@@ -25,21 +25,17 @@ Created April 08, 2011 Vasil Dimov
 
 #include "univ.i"
 
-#include <stdarg.h> /* va_* */
-#include <string.h> /* strerror() */
-
-#include "buf0buf.h" /* buf_pool_mutex_enter(), srv_buf_pool_instances */
+#include "buf0buf.h"
 #include "buf0dump.h"
-#include "db0err.h"
-#include "dict0dict.h" /* dict_operation_lock */
-#include "os0file.h" /* OS_FILE_MAX_PATH */
-#include "os0sync.h" /* os_event* */
-#include "os0thread.h" /* os_thread_* */
-#include "srv0srv.h" /* srv_fast_shutdown, srv_buf_dump* */
-#include "srv0start.h" /* srv_shutdown_state */
-#include "sync0rw.h" /* rw_lock_s_lock() */
-#include "ut0byte.h" /* ut_ull_create() */
-#include "ut0sort.h" /* UT_SORT_FUNCTION_BODY */
+#include "dict0dict.h"
+#include "os0file.h"
+#include "os0thread.h"
+#include "srv0srv.h"
+#include "srv0start.h"
+#include "sync0rw.h"
+#include "ut0byte.h"
+
+#include <algorithm>
 
 enum status_severity {
 	STATUS_INFO,
@@ -47,8 +43,7 @@ enum status_severity {
 	STATUS_ERR
 };
 
-#define SHUTTING_DOWN()	(UNIV_UNLIKELY(srv_shutdown_state \
-				       != SRV_SHUTDOWN_NONE))
+#define SHUTTING_DOWN()	(srv_shutdown_state != SRV_SHUTDOWN_NONE)
 
 /* Flags that tell the buffer pool dump/load thread which action should it
 take after being waked up. */
@@ -73,7 +68,7 @@ Wakes up the buffer pool dump/load thread and instructs it to start
 a dump. This function is called by MySQL code via buffer_pool_dump_now()
 and it should return immediately because the whole MySQL is frozen during
 its execution. */
-UNIV_INTERN
+
 void
 buf_dump_start()
 /*============*/
@@ -87,7 +82,7 @@ Wakes up the buffer pool dump/load thread and instructs it to start
 a load. This function is called by MySQL code via buffer_pool_load_now()
 and it should return immediately because the whole MySQL is frozen during
 its execution. */
-UNIV_INTERN
+
 void
 buf_load_start()
 /*============*/
@@ -230,6 +225,16 @@ buf_dump(
 			continue;
 		}
 
+		if (srv_buf_pool_dump_pct != 100) {
+			ut_ad(srv_buf_pool_dump_pct < 100);
+
+			n_pages = n_pages * srv_buf_pool_dump_pct / 100;
+
+			if (n_pages == 0) {
+				n_pages = 1;
+			}
+		}
+
 		dump = static_cast<buf_dump_t*>(
 			ut_malloc(n_pages * sizeof(*dump))) ;
 
@@ -244,9 +249,9 @@ buf_dump(
 			return;
 		}
 
-		for (bpage = UT_LIST_GET_LAST(buf_pool->LRU), j = 0;
-		     bpage != NULL;
-		     bpage = UT_LIST_GET_PREV(LRU, bpage), j++) {
+		for (bpage = UT_LIST_GET_FIRST(buf_pool->LRU), j = 0;
+		     bpage != NULL && j < n_pages;
+		     bpage = UT_LIST_GET_NEXT(LRU, bpage), j++) {
 
 			ut_a(buf_page_in_file(bpage));
 
@@ -325,39 +330,69 @@ buf_dump(
 }
 
 /*****************************************************************//**
-Compare two buffer pool dump entries, used to sort the dump on
-space_no,page_no before loading in order to increase the chance for
-sequential IO.
-@return -1/0/1 if entry 1 is smaller/equal/bigger than entry 2 */
-static
-lint
-buf_dump_cmp(
-/*=========*/
-	const buf_dump_t	d1,	/*!< in: buffer pool dump entry 1 */
-	const buf_dump_t	d2)	/*!< in: buffer pool dump entry 2 */
-{
-	if (d1 < d2) {
-		return(-1);
-	} else if (d1 == d2) {
-		return(0);
-	} else {
-		return(1);
-	}
-}
-
-/*****************************************************************//**
-Sort a buffer pool dump on space_no, page_no. */
-static
+Artificially delay the buffer pool loading if necessary. The idea of
+this function is to prevent hogging the server with IO and slowing down
+too much normal client queries. */
+UNIV_INLINE
 void
-buf_dump_sort(
-/*==========*/
-	buf_dump_t*	dump,	/*!< in/out: buffer pool dump to sort */
-	buf_dump_t*	tmp,	/*!< in/out: temp storage */
-	ulint		low,	/*!< in: lowest index (inclusive) */
-	ulint		high)	/*!< in: highest index (non-inclusive) */
+buf_load_throttle_if_needed(
+/*========================*/
+	ulint*	last_check_time,	/*!< in/out: milliseconds since epoch
+					of the last time we did check if
+					throttling is needed, we do the check
+					every srv_io_capacity IO ops. */
+	ulint*	last_activity_count,
+	ulint	n_io)			/*!< in: number of IO ops done since
+					buffer pool load has started */
 {
-	UT_SORT_FUNCTION_BODY(buf_dump_sort, dump, tmp, low, high,
-			      buf_dump_cmp);
+	if (n_io % srv_io_capacity < srv_io_capacity - 1) {
+		return;
+	}
+
+	if (*last_check_time == 0 || *last_activity_count == 0) {
+		*last_check_time = ut_time_ms();
+		*last_activity_count = srv_get_activity_count();
+		return;
+	}
+
+	/* srv_io_capacity IO operations have been performed by buffer pool
+	load since the last time we were here. */
+
+	/* If no other activity, then keep going without any delay. */
+	if (srv_get_activity_count() == *last_activity_count) {
+		return;
+	}
+
+	/* There has been other activity, throttle. */
+
+	ulint	now = ut_time_ms();
+	ulint	elapsed_time = now - *last_check_time;
+
+	/* Notice that elapsed_time is not the time for the last
+	srv_io_capacity IO operations performed by BP load. It is the
+	time elapsed since the last time we detected that there has been
+	other activity. This has a small and acceptable deficiency, e.g.:
+	1. BP load runs and there is no other activity.
+	2. Other activity occurs, we run N IO operations after that and
+	   enter here (where 0 <= N < srv_io_capacity).
+	3. last_check_time is very old and we do not sleep at this time, but
+	   only update last_check_time and last_activity_count.
+	4. We run srv_io_capacity more IO operations and call this function
+	   again.
+	5. There has been more other activity and thus we enter here.
+	6. Now last_check_time is recent and we sleep if necessary to prevent
+	   more than srv_io_capacity IO operations per second.
+	The deficiency is that we could have slept at 3., but for this we
+	would have to update last_check_time before the
+	"cur_activity_count == *last_activity_count" check and calling
+	ut_time_ms() that often may turn out to be too expensive. */
+
+	if (elapsed_time < 1000 /* 1 sec (1000 milli secs) */) {
+		os_thread_sleep((1000 - elapsed_time) * 1000 /* micro secs */);
+	}
+
+	*last_check_time = ut_time_ms();
+	*last_activity_count = srv_get_activity_count();
 }
 
 /*****************************************************************//**
@@ -375,7 +410,6 @@ buf_load()
 	char		now[32];
 	FILE*		f;
 	buf_dump_t*	dump;
-	buf_dump_t*	dump_tmp;
 	ulint		dump_n;
 	ulint		total_buffer_pools_pages;
 	ulint		i;
@@ -446,19 +480,6 @@ buf_load()
 		return;
 	}
 
-	dump_tmp = static_cast<buf_dump_t*>(
-		ut_malloc(dump_n * sizeof(*dump_tmp)));
-
-	if (dump_tmp == NULL) {
-		ut_free(dump);
-		fclose(f);
-		buf_load_status(STATUS_ERR,
-				"Cannot allocate " ULINTPF " bytes: %s",
-				(ulint) (dump_n * sizeof(*dump_tmp)),
-				strerror(errno));
-		return;
-	}
-
 	rewind(f);
 
 	for (i = 0; i < dump_n && !SHUTTING_DOWN(); i++) {
@@ -472,7 +493,6 @@ buf_load()
 			/* else */
 
 			ut_free(dump);
-			ut_free(dump_tmp);
 			fclose(f);
 			buf_load_status(STATUS_ERR,
 					"Error parsing '%s', unable "
@@ -483,7 +503,6 @@ buf_load()
 
 		if (space_id > ULINT32_MASK || page_no > ULINT32_MASK) {
 			ut_free(dump);
-			ut_free(dump_tmp);
 			fclose(f);
 			buf_load_status(STATUS_ERR,
 					"Error parsing '%s': bogus "
@@ -516,10 +535,11 @@ buf_load()
 	}
 
 	if (!SHUTTING_DOWN()) {
-		buf_dump_sort(dump, dump_tmp, 0, dump_n);
+		std::sort(dump, dump + dump_n);
 	}
 
-	ut_free(dump_tmp);
+	ulint	last_check_time = 0;
+	ulint	last_activity_cnt = 0;
 
 	for (i = 0; i < dump_n && !SHUTTING_DOWN(); i++) {
 
@@ -544,6 +564,9 @@ buf_load()
 				"Buffer pool(s) load aborted on request");
 			return;
 		}
+
+		buf_load_throttle_if_needed(
+			&last_check_time, &last_activity_cnt, i);
 	}
 
 	ut_free(dump);
@@ -558,7 +581,7 @@ buf_load()
 Aborts a currently running buffer pool load. This function is called by
 MySQL code via buffer_pool_load_abort() and it should return immediately
 because the whole MySQL is frozen during its execution. */
-UNIV_INTERN
+
 void
 buf_load_abort()
 /*============*/
@@ -571,7 +594,7 @@ This is the main thread for buffer pool dump/load. It waits for an
 event and when waked up either performs a dump or load and sleeps
 again.
 @return this function does not return, it calls os_thread_exit() */
-extern "C" UNIV_INTERN
+extern "C"
 os_thread_ret_t
 DECLARE_THREAD(buf_dump_thread)(
 /*============================*/

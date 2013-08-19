@@ -1,7 +1,7 @@
 #ifndef SQL_TMP_TABLE_INCLUDED
 #define SQL_TMP_TABLE_INCLUDED
 
-/* Copyright (c) 2000, 2011, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2000, 2013, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -66,7 +66,7 @@ bool instantiate_tmp_table(TABLE *table, KEY *keyinfo,
                            ulonglong options, my_bool big_tables,
                            Opt_trace_context *trace);
 Field *create_tmp_field(THD *thd, TABLE *table,Item *item, Item::Type type,
-                        Item ***copy_func, Field **from_field,
+                        Func_ptr_array *copy_func, Field **from_field,
                         Field **default_field,
                         bool group, bool modify_item,
                         bool table_cant_handle_bit_fields,

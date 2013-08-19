@@ -711,14 +711,14 @@ show create table t1;
 Table	Create Table
 t1	CREATE TABLE `t1` (
   `d` decimal(5,0) DEFAULT NULL
-) ENGINE=MyISAM DEFAULT CHARSET=latin1
+) ENGINE=ENGINE DEFAULT CHARSET=latin1
 drop table t1;
 create table t1 (d decimal);
 show create table t1;
 Table	Create Table
 t1	CREATE TABLE `t1` (
   `d` decimal(10,0) DEFAULT NULL
-) ENGINE=MyISAM DEFAULT CHARSET=latin1
+) ENGINE=ENGINE DEFAULT CHARSET=latin1
 drop table t1;
 create table t1 (d decimal(66,0));
 ERROR 42000: Too big precision 66 specified for column 'd'. Maximum is 65.
@@ -891,7 +891,7 @@ Table	Create Table
 t1	CREATE TABLE `t1` (
   `a` decimal(10,0) DEFAULT NULL,
   `b` int(11) DEFAULT NULL
-) ENGINE=MyISAM DEFAULT CHARSET=latin1
+) ENGINE=ENGINE DEFAULT CHARSET=latin1
 select round(a,b) as c from t1 order by c;
 c
 1000

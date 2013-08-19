@@ -1,4 +1,4 @@
-/* Copyright (c) 2004, 2012, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2004, 2013, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -27,13 +27,14 @@
 #include <my_global.h>
 #include <algorithm>
 
-#if !defined(TZINFO2SQL) && !defined(TESTTIME)
+#if !defined(TZINFO2SQL)
 #include "sql_priv.h"
 #include "unireg.h"
 #include "tztime.h"
 #include "sql_time.h"                           // localtime_to_TIME
 #include "sql_base.h"                           // open_system_tables_for_read,
                                                 // close_system_tables
+#include "log.h"
 #else
 #include <my_time.h>
 #include "tztime.h"
@@ -51,7 +52,7 @@ using std::min;
 /*
   Now we don't use abbreviations in server but we will do this in future.
 */
-#if defined(TZINFO2SQL) || defined(TESTTIME)
+#if defined(TZINFO2SQL)
 #define ABBR_ARE_USED
 #else
 #if !defined(DBUG_OFF)
@@ -59,7 +60,7 @@ using std::min;
 #undef ABBR_ARE_USED
 #define ABBR_ARE_USED
 #endif /* !defined(DBUG_OFF) */
-#endif /* defined(TZINFO2SQL) || defined(TESTTIME) */
+#endif /* defined(TZINFO2SQL) */
 
 /* Structure describing local time type (e.g. Moscow summer time (MSD)) */
 typedef struct ttinfo
@@ -143,7 +144,7 @@ typedef struct st_time_zone_info
 static my_bool prepare_tz_info(TIME_ZONE_INFO *sp, MEM_ROOT *storage);
 
 
-#if defined(TZINFO2SQL) || defined(TESTTIME)
+#if defined(TZINFO2SQL)
 
 /*
   Load time zone description from zoneinfo (TZinfo) file.
@@ -282,7 +283,7 @@ tz_load(const char *name, TIME_ZONE_INFO *sp, MEM_ROOT *storage)
 
   return prepare_tz_info(sp, storage);
 }
-#endif /* defined(TZINFO2SQL) || defined(TESTTIME) */
+#endif /* defined(TZINFO2SQL) */
 
 
 /*
@@ -789,7 +790,6 @@ sec_since_epoch(int year, int mon, int mday, int hour, int min ,int sec)
 {
   /* Guard against my_time_t overflow(on system with 32 bit my_time_t) */
   DBUG_ASSERT(!(year == TIMESTAMP_MAX_YEAR && mon == 1 && mday > 17));
-#ifndef WE_WANT_TO_HANDLE_UNORMALIZED_DATES
   /*
     It turns out that only whenever month is normalized or unnormalized
     plays role.
@@ -799,15 +799,6 @@ sec_since_epoch(int year, int mon, int mday, int hour, int min ,int sec)
              LEAPS_THRU_END_OF(year - 1) -
              LEAPS_THRU_END_OF(EPOCH_YEAR - 1);
   days+= mon_starts[isleap(year)][mon - 1];
-#else
-  long norm_month= (mon - 1) % MONS_PER_YEAR;
-  long a_year= year + (mon - 1)/MONS_PER_YEAR - (int)(norm_month < 0);
-  long days= a_year * DAYS_PER_NYEAR - EPOCH_YEAR * DAYS_PER_NYEAR +
-             LEAPS_THRU_END_OF(a_year - 1) -
-             LEAPS_THRU_END_OF(EPOCH_YEAR - 1);
-  days+= mon_starts[isleap(a_year)]
-                    [norm_month + (norm_month < 0 ? MONS_PER_YEAR : 0)];
-#endif
   days+= mday - 1;
 
   return ((days * HOURS_PER_DAY + hour) * MINS_PER_HOUR + min) *
@@ -992,7 +983,7 @@ TIME_to_gmt_sec(const MYSQL_TIME *t, const TIME_ZONE_INFO *sp,
 #endif /* !defined(TZINFO2SQL) */
 
 
-#if !defined(TESTTIME) && !defined(TZINFO2SQL)
+#if !defined(TZINFO2SQL)
 
 /*
   String with names of SYSTEM time zone.
@@ -1539,6 +1530,8 @@ tz_init_table_list(TABLE_LIST *tz_tabs)
   }
 }
 
+static PSI_memory_key key_memory_tz_storage;
+
 #ifdef HAVE_PSI_INTERFACE
 static PSI_mutex_key key_tz_LOCK;
 
@@ -1547,6 +1540,12 @@ static PSI_mutex_info all_tz_mutexes[]=
   { & key_tz_LOCK, "tz_LOCK", PSI_FLAG_GLOBAL}
 };
 
+static PSI_memory_info all_tz_memory[]=
+{
+  { &key_memory_tz_storage, "tz_storage", PSI_FLAG_GLOBAL}
+};
+
+
 static void init_tz_psi_keys(void)
 {
   const char* category= "sql";
@@ -1554,6 +1553,9 @@ static void init_tz_psi_keys(void)
 
   count= array_elements(all_tz_mutexes);
   mysql_mutex_register(category, all_tz_mutexes, count);
+
+  count= array_elements(all_tz_memory);
+  mysql_memory_register(category, all_tz_memory, count);
 }
 #endif /* HAVE_PSI_INTERFACE */
 
@@ -1621,7 +1623,7 @@ my_tz_init(THD *org_thd, const char *default_tzname, my_bool bootstrap)
     my_hash_free(&tz_names);
     goto end;
   }
-  init_sql_alloc(&tz_storage, 32 * 1024, 0);
+  init_sql_alloc(key_memory_tz_storage, &tz_storage, 32 * 1024, 0);
   mysql_mutex_init(key_tz_LOCK, &tz_LOCK, MY_MUTEX_INIT_FAST);
   tz_inited= 1;
 
@@ -1785,8 +1787,8 @@ end:
   else
   {
     /* Remember that we don't have a THD */
-    my_pthread_setspecific_ptr(THR_THD,  0);
-    my_pthread_setspecific_ptr(THR_MALLOC,  0);
+    my_pthread_set_THR_THD(0);
+    my_pthread_set_THR_MALLOC(0);
   }
   
   default_tz= default_tz_name ? global_system_variables.time_zone
@@ -1841,7 +1843,7 @@ static Time_zone*
 tz_load_from_open_tables(const String *tz_name, TABLE_LIST *tz_tables)
 {
   TABLE *table= 0;
-  TIME_ZONE_INFO *tz_info;
+  TIME_ZONE_INFO *tz_info= NULL;
   Tz_names_entry *tmp_tzname;
   Time_zone *return_val= 0;
   int res;
@@ -1849,7 +1851,8 @@ tz_load_from_open_tables(const String *tz_name, TABLE_LIST *tz_tables)
   my_time_t ttime;
   char buff[MAX_FIELD_WIDTH];
   String abbr(buff, sizeof(buff), &my_charset_latin1);
-  char *alloc_buff, *tz_name_buff;
+  char *alloc_buff= NULL;
+  char *tz_name_buff= NULL;
   /*
     Temporary arrays that are used for loading of data for filling
     TIME_ZONE_INFO structure
@@ -1868,22 +1871,6 @@ tz_load_from_open_tables(const String *tz_name, TABLE_LIST *tz_tables)
   memset(&tmp_tz_info, 0, sizeof(TIME_ZONE_INFO));
 
   DBUG_ENTER("tz_load_from_open_tables");
-
-  /* Prepare tz_info for loading also let us make copy of time zone name */
-  if (!(alloc_buff= (char*) alloc_root(&tz_storage, sizeof(TIME_ZONE_INFO) +
-                                       tz_name->length() + 1)))
-  {
-    sql_print_error("Out of memory while loading time zone description");
-    return 0;
-  }
-  tz_info= (TIME_ZONE_INFO *)alloc_buff;
-  memset(tz_info, 0, sizeof(TIME_ZONE_INFO));
-  tz_name_buff= alloc_buff + sizeof(TIME_ZONE_INFO);
-  /*
-    By writing zero to the end we guarantee that we can call ptr()
-    instead of c_ptr() for time zone name.
-  */
-  strmake(tz_name_buff, tz_name->ptr(), tz_name->length());
 
   /*
     Let us find out time zone id by its name (there is only one index
@@ -2366,7 +2353,7 @@ void Time_zone::adjust_leap_second(MYSQL_TIME *t)
     t->second= 59;
 }
 
-#endif /* !defined(TESTTIME) && !defined(TZINFO2SQL) */
+#endif /* !defined(TZINFO2SQL) */
 
 
 #ifdef TZINFO2SQL
@@ -2512,7 +2499,7 @@ scan_tz_dir(char * name_end)
       }
       else if (MY_S_ISREG(cur_dir->dir_entry[i].mystat->st_mode))
       {
-        init_alloc_root(&tz_storage, 32768, 0);
+        init_alloc_root(PSI_NOT_INSTRUMENTED, &tz_storage, 32768, 0);
         if (!tz_load(fullname, &tz_info, &tz_storage))
           print_tz_as_sql(root_name_end + 1, &tz_info);
         else
@@ -2570,7 +2557,7 @@ main(int argc, char **argv)
   }
   else
   {
-    init_alloc_root(&tz_storage, 32768, 0);
+    init_alloc_root(PSI_NOT_INSTRUMENTED, &tz_storage, 32768, 0);
 
     if (strcmp(argv[1], "--leap") == 0)
     {
@@ -2598,216 +2585,3 @@ main(int argc, char **argv)
 }
 
 #endif /* defined(TZINFO2SQL) */
-
-
-#ifdef TESTTIME
-
-/*
-   Some simple brute-force test wich allowed to catch a pair of bugs.
-   Also can provide interesting facts about system's time zone support
-   implementation.
-*/
-
-#ifndef CHAR_BIT
-#define CHAR_BIT 8
-#endif
-
-#ifndef TYPE_BIT
-#define TYPE_BIT(type)	(sizeof (type) * CHAR_BIT)
-#endif
-
-#ifndef TYPE_SIGNED
-#define TYPE_SIGNED(type) (((type) -1) < 0)
-#endif
-
-my_bool
-is_equal_TIME_tm(const TIME* time_arg, const struct tm * tm_arg)
-{
-  return (time_arg->year == (uint)tm_arg->tm_year+TM_YEAR_BASE) &&
-         (time_arg->month == (uint)tm_arg->tm_mon+1) &&
-         (time_arg->day == (uint)tm_arg->tm_mday) &&
-         (time_arg->hour == (uint)tm_arg->tm_hour) &&
-         (time_arg->minute == (uint)tm_arg->tm_min) &&
-         (time_arg->second == (uint)tm_arg->tm_sec) &&
-         time_arg->second_part == 0;
-}
-
-
-int
-main(int argc, char **argv)
-{
-  my_bool localtime_negative;
-  TIME_ZONE_INFO tz_info;
-  struct tm tmp;
-  MYSQL_TIME time_tmp;
-  time_t t, t1, t2;
-  char fullname[FN_REFLEN+1];
-  char *str_end;
-  MEM_ROOT tz_storage;
-
-  MY_INIT(argv[0]);
-
-  init_alloc_root(&tz_storage, 32768, 0);
-
-  /* let us set some well known timezone */
-  setenv("TZ", "MET", 1);
-  tzset();
-
-  /* Some initial time zone related system info */
-  printf("time_t: %s %u bit\n", TYPE_SIGNED(time_t) ? "signed" : "unsigned",
-                                (uint)TYPE_BIT(time_t));
-  if (TYPE_SIGNED(time_t))
-  {
-    t= -100;
-    localtime_negative= test(localtime_r(&t, &tmp) != 0);
-    printf("localtime_r %s negative params \
-           (time_t=%d is %d-%d-%d %d:%d:%d)\n",
-           (localtime_negative ? "supports" : "doesn't support"), (int)t,
-           TM_YEAR_BASE + tmp.tm_year, tmp.tm_mon + 1, tmp.tm_mday,
-           tmp.tm_hour, tmp.tm_min, tmp.tm_sec);
-
-    printf("mktime %s negative results (%d)\n",
-           (t == mktime(&tmp) ? "doesn't support" : "supports"),
-           (int)mktime(&tmp));
-  }
-
-  tmp.tm_year= 103; tmp.tm_mon= 2; tmp.tm_mday= 30;
-  tmp.tm_hour= 2; tmp.tm_min= 30; tmp.tm_sec= 0; tmp.tm_isdst= -1;
-  t= mktime(&tmp);
-  printf("mktime returns %s for spring time gap (%d)\n",
-         (t != (time_t)-1 ? "something" : "error"), (int)t);
-
-  tmp.tm_year= 103; tmp.tm_mon= 8; tmp.tm_mday= 1;
-  tmp.tm_hour= 0; tmp.tm_min= 0; tmp.tm_sec= 0; tmp.tm_isdst= 0;
-  t= mktime(&tmp);
-  printf("mktime returns %s for non existing date (%d)\n",
-         (t != (time_t)-1 ? "something" : "error"), (int)t);
-
-  tmp.tm_year= 103; tmp.tm_mon= 8; tmp.tm_mday= 1;
-  tmp.tm_hour= 25; tmp.tm_min=0; tmp.tm_sec=0; tmp.tm_isdst=1;
-  t= mktime(&tmp);
-  printf("mktime %s unnormalized input (%d)\n",
-         (t != (time_t)-1 ? "handles" : "doesn't handle"), (int)t);
-
-  tmp.tm_year= 103; tmp.tm_mon= 9; tmp.tm_mday= 26;
-  tmp.tm_hour= 0; tmp.tm_min= 30; tmp.tm_sec= 0; tmp.tm_isdst= 1;
-  mktime(&tmp);
-  tmp.tm_hour= 2; tmp.tm_isdst= -1;
-  t= mktime(&tmp);
-  tmp.tm_hour= 4; tmp.tm_isdst= 0;
-  mktime(&tmp);
-  tmp.tm_hour= 2; tmp.tm_isdst= -1;
-  t1= mktime(&tmp);
-  printf("mktime is %s (%d %d)\n",
-         (t == t1 ? "determenistic" : "is non-determenistic"),
-         (int)t, (int)t1);
-
-  /* Let us load time zone description */
-  str_end= strmake(fullname, TZDIR, FN_REFLEN);
-  strmake(str_end, "/MET", FN_REFLEN - (str_end - fullname));
-
-  if (tz_load(fullname, &tz_info, &tz_storage))
-  {
-    printf("Unable to load time zone info from '%s'\n", fullname);
-    free_root(&tz_storage, MYF(0));
-    return 1;
-  }
-
-  printf("Testing our implementation\n");
-
-  if (TYPE_SIGNED(time_t) && localtime_negative)
-  {
-    for (t= -40000; t < 20000; t++)
-    {
-      localtime_r(&t, &tmp);
-      gmt_sec_to_TIME(&time_tmp, (my_time_t)t, &tz_info);
-      if (!is_equal_TIME_tm(&time_tmp, &tmp))
-      {
-        printf("Problem with negative time_t = %d\n", (int)t);
-        free_root(&tz_storage, MYF(0));
-        return 1;
-      }
-    }
-    printf("gmt_sec_to_TIME = localtime for time_t in [-40000,20000) range\n");
-  }
-
-  for (t= 1000000000; t < 1100000000; t+= 13)
-  {
-    localtime_r(&t,&tmp);
-    gmt_sec_to_TIME(&time_tmp, (my_time_t)t, &tz_info);
-
-    if (!is_equal_TIME_tm(&time_tmp, &tmp))
-    {
-      printf("Problem with time_t = %d\n", (int)t);
-      free_root(&tz_storage, MYF(0));
-      return 1;
-    }
-  }
-  printf("gmt_sec_to_TIME = localtime for time_t in [1000000000,1100000000) range\n");
-
-  my_init_time();
-
-  /*
-    Be careful here! my_system_gmt_sec doesn't fully handle unnormalized
-    dates.
-  */
-  for (time_tmp.year= 1980; time_tmp.year < 2010; time_tmp.year++)
-  {
-    for (time_tmp.month= 1; time_tmp.month < 13; time_tmp.month++)
-    {
-      for (time_tmp.day= 1;
-           time_tmp.day < mon_lengths[isleap(time_tmp.year)][time_tmp.month-1];
-           time_tmp.day++)
-      {
-        for (time_tmp.hour= 0; time_tmp.hour < 24; time_tmp.hour++)
-        {
-          for (time_tmp.minute= 0; time_tmp.minute < 60; time_tmp.minute+= 5)
-          {
-            for (time_tmp.second=0; time_tmp.second<60; time_tmp.second+=25)
-            {
-              long not_used;
-              my_bool not_used_2;
-              t= (time_t)my_system_gmt_sec(&time_tmp, &not_used, &not_used_2);
-              t1= (time_t)TIME_to_gmt_sec(&time_tmp, &tz_info, &not_used_2);
-              if (t != t1)
-              {
-                /*
-                  We need special handling during autumn since my_system_gmt_sec
-                  prefers greater time_t values (in MET) for ambiguity.
-                  And BTW that is a bug which should be fixed !!!
-                */
-                tmp.tm_year= time_tmp.year - TM_YEAR_BASE;
-                tmp.tm_mon= time_tmp.month - 1;
-                tmp.tm_mday= time_tmp.day;
-                tmp.tm_hour= time_tmp.hour;
-                tmp.tm_min= time_tmp.minute;
-                tmp.tm_sec= time_tmp.second;
-                tmp.tm_isdst= 1;
-
-                t2= mktime(&tmp);
-
-                if (t1 == t2)
-                  continue;
-
-                printf("Problem: %u/%u/%u %u:%u:%u with times t=%d, t1=%d\n",
-                       time_tmp.year, time_tmp.month, time_tmp.day,
-                       time_tmp.hour, time_tmp.minute, time_tmp.second,
-                       (int)t,(int)t1);
-
-                free_root(&tz_storage, MYF(0));
-                return 1;
-              }
-            }
-          }
-        }
-      }
-    }
-  }
-
-  printf("TIME_to_gmt_sec = my_system_gmt_sec for test range\n");
-
-  free_root(&tz_storage, MYF(0));
-  return 0;
-}
-
-#endif /* defined(TESTTIME) */

@@ -1,4 +1,4 @@
-/* Copyright (c) 2000, 2012, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2000, 2013, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -100,12 +100,22 @@ static void do_field_to_null_str(Copy_field *copy)
 
 type_conversion_status set_field_to_null(Field *field)
 {
-  if (field->real_maybe_null())
+  if (field->real_maybe_null() || field->is_tmp_nullable())
   {
     field->set_null();
     field->reset();
     return TYPE_OK;
   }
+  DBUG_ASSERT(0);
+
+#ifdef DBUG_OFF
+  /**
+    Can not be true, but do not take chances in production.
+    Test coverage discovered that the source code below wasn't
+    executed but to protect mysql server from unexpected behaviour
+    caused by some possible wrong code snippet in the server code base
+    we leave it for server compiled without debug.
+  */
   field->reset();
   switch (field->table->in_use->count_cuted_fields) {
   case CHECK_FIELD_WARN:
@@ -119,7 +129,8 @@ type_conversion_status set_field_to_null(Field *field)
     return TYPE_ERR_NULL_CONSTRAINT_VIOLATION;
   }
   DBUG_ASSERT(false); // impossible
-  return TYPE_ERR_NULL_CONSTRAINT_VIOLATION;
+#endif
+  return TYPE_ERR_NULL_CONSTRAINT_VIOLATION; // to avoid compiler's warning
 }
 
 
@@ -149,6 +160,7 @@ set_field_to_null_with_conversions(Field *field, bool no_conversions)
     field->reset();
     return TYPE_OK;
   }
+
   if (no_conversions)
     return TYPE_ERR_NULL_CONSTRAINT_VIOLATION;
 
@@ -160,13 +172,17 @@ set_field_to_null_with_conversions(Field *field, bool no_conversions)
     From the manual:
 
     TIMESTAMP columns [...] assigning NULL assigns the current timestamp.
+
+    But if explicit_defaults_for_timestamp, use standard-compliant behaviour:
+    no special value.
   */
-  if (field->type() == MYSQL_TYPE_TIMESTAMP)
+  if (field->type() == MYSQL_TYPE_TIMESTAMP &&
+      !field->table->in_use->variables.explicit_defaults_for_timestamp)
   {
     Item_func_now_local::store_in(field);
     return TYPE_OK;			// Ok to set time to NULL
   }
-  
+
   // Note: we ignore any potential failure of reset() here.
   field->reset();
 
@@ -175,6 +191,14 @@ set_field_to_null_with_conversions(Field *field, bool no_conversions)
     field->table->auto_increment_field_not_null= FALSE;
     return TYPE_OK;		        // field is set in fill_record()
   }
+
+  if (field->is_tmp_nullable())
+  {
+    field->set_null();
+    field->reset();
+    return TYPE_OK;
+  }
+
   switch (field->table->in_use->count_cuted_fields) {
   case CHECK_FIELD_WARN:
     field->set_warning(Sql_condition::SL_WARNING, ER_BAD_NULL_ERROR, 1);
@@ -214,7 +238,8 @@ static void do_copy_null(Copy_field *copy)
 
 static void do_copy_not_null(Copy_field *copy)
 {
-  if (*copy->null_row || (*copy->from_null_ptr & copy->from_bit))
+  if (*copy->null_row ||
+      (copy->from_null_ptr && (*copy->from_null_ptr & copy->from_bit)))
   {
     copy->to_field->set_warning(Sql_condition::SL_WARNING,
                                 WARN_DATA_TRUNCATED, 1);
@@ -550,7 +575,7 @@ void Copy_field::set(uchar *to,Field *from)
   null_row= &from->table->null_row;
   if (from->maybe_null())
   {
-    from_null_ptr=from->null_ptr;
+    from_null_ptr=from->get_null_ptr();
     from_bit=	  from->null_bit;
     to_ptr[0]=	  1;				// Null as default value
     to_null_ptr=  (uchar*) to_ptr++;
@@ -598,11 +623,11 @@ void Copy_field::set(Field *to,Field *from,bool save)
   null_row= &from->table->null_row;
   if (from->maybe_null())
   {
-    from_null_ptr=	from->null_ptr;
+    from_null_ptr=	from->get_null_ptr();
     from_bit=		from->null_bit;
     if (to_field->real_maybe_null())
     {
-      to_null_ptr=	to->null_ptr;
+      to_null_ptr=	to->get_null_ptr();
       to_bit=		to->null_bit;
       do_copy=	do_copy_null;
     }
@@ -618,7 +643,7 @@ void Copy_field::set(Field *to,Field *from,bool save)
   }
   else if (to_field->real_maybe_null())
   {
-    to_null_ptr=	to->null_ptr;
+    to_null_ptr=	to->get_null_ptr();
     to_bit=		to->null_bit;
     do_copy= do_copy_maybe_null;
   }
@@ -807,8 +832,10 @@ type_conversion_status field_conv(Field *to,Field *from)
         (!(to->table->in_use->variables.sql_mode &
            (MODE_NO_ZERO_IN_DATE | MODE_NO_ZERO_DATE | MODE_INVALID_DATES)) ||
          (to->type() != MYSQL_TYPE_DATE &&
-          to->type() != MYSQL_TYPE_DATETIME)) &&
-        (from->real_type() != MYSQL_TYPE_VARCHAR))
+          to->type() != MYSQL_TYPE_DATETIME &&
+          (!to->table->in_use->variables.explicit_defaults_for_timestamp ||
+           to->type() != MYSQL_TYPE_TIMESTAMP))) &&
+         (from->real_type() != MYSQL_TYPE_VARCHAR))
     {						// Identical fields
       // to->ptr==from->ptr may happen if one does 'UPDATE ... SET x=x'
       memmove(to->ptr, from->ptr, to->pack_length());

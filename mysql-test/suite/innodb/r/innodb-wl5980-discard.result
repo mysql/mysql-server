@@ -689,12 +689,15 @@ ERROR HY000: Tablespace has been discarded for table 't5980bb'
 #
 # Discarded tablespaces can be ALTERED with ALGORITHM=INPLACE.
 #
+SET @old_sql_mode = @@sql_mode;
+SET @@sql_mode = 'STRICT_TRANS_TABLES';
 ALTER TABLE t5980aa ADD PRIMARY KEY(a), ALGORITHM=INPLACE;
 Warnings:
 Warning	1814	InnoDB: Tablespace has been discarded for table 't5980aa'
 ALTER TABLE t5980bb ADD PRIMARY KEY(a), ALGORITHM=INPLACE;
 Warnings:
 Warning	1814	InnoDB: Tablespace has been discarded for table 't5980bb'
+SET @@sql_mode = @old_sql_mode;
 ### files in MYSQL_DATA_DIR/test
 t5980aa.frm
 t5980bb.frm

@@ -1,4 +1,4 @@
-/* Copyright (c) 2001, 2011, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2001, 2013, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -32,13 +32,11 @@
 #ifdef	 HAVE_PWD_H
 #include <pwd.h>
 #endif
-#if !defined(__WIN__)
 #ifdef HAVE_SELECT_H
 #  include <select.h>
 #endif
 #ifdef HAVE_SYS_SELECT_H
 #include <sys/select.h>
-#endif
 #endif
 #ifdef HAVE_SYS_UN_H
 #  include <sys/un.h>
@@ -50,7 +48,7 @@
 extern ulong net_buffer_length;
 extern ulong max_allowed_packet;
 
-#if defined(__WIN__)
+#if defined(_WIN32)
 #define ERRNO WSAGetLastError()
 #define perror(A)
 #else
@@ -65,7 +63,7 @@ struct passwd *getpwuid(uid_t);
 char* getlogin(void);
 #endif
 
-#ifdef __WIN__
+#ifdef _WIN32
 static my_bool is_NT(void)
 {
   char *os=getenv("OS");
@@ -133,7 +131,8 @@ mysql_real_connect(MYSQL *mysql,const char *host, const char *user,
     if (!passwd)
       passwd=getenv("MYSQL_PWD");		/* get it from environment */
   }
-  mysql->passwd= passwd ? my_strdup(passwd,MYF(0)) : NULL;
+  mysql->passwd= passwd ? my_strdup(PSI_NOT_INSTRUMENTED,
+                                    passwd,MYF(0)) : NULL;
 #endif /*!NO_EMBEDDED_ACCESS_CHECKS*/
   if (!user || !user[0])
   {
@@ -149,7 +148,8 @@ mysql_real_connect(MYSQL *mysql,const char *host, const char *user,
       put extra 'my_free's in mysql_close.
       So we alloc it with the 'user' string to be freed at once
    */
-  mysql->user= my_strdup(user, MYF(0));
+  mysql->user= my_strdup(PSI_NOT_INSTRUMENTED,
+                         user, MYF(0));
 
   port=0;
   unix_socket=0;
@@ -167,7 +167,8 @@ mysql_real_connect(MYSQL *mysql,const char *host, const char *user,
   if (db)
     client_flag|=CLIENT_CONNECT_WITH_DB;
 
-  mysql->info_buffer= my_malloc(MYSQL_ERRMSG_SIZE, MYF(0));
+  mysql->info_buffer= my_malloc(PSI_NOT_INSTRUMENTED,
+                                MYSQL_ERRMSG_SIZE, MYF(0));
   mysql->thd= create_embedded_thd(client_flag);
 
   init_embedded_mysql(mysql, client_flag);

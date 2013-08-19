@@ -21,6 +21,14 @@
 
 ReplSemiSyncMaster repl_semisync;
 
+/* The places at where semisync waits for binlog ACKs. */
+enum enum_wait_point {
+  WAIT_AFTER_SYNC,
+  WAIT_AFTER_COMMIT
+};
+
+static ulong rpl_semi_sync_master_wait_point= WAIT_AFTER_COMMIT;
+
 C_MODE_START
 
 int repl_semi_report_binlog_update(Binlog_storage_param *param,
@@ -43,6 +51,15 @@ int repl_semi_report_binlog_update(Binlog_storage_param *param,
   return error;
 }
 
+int repl_semi_report_binlog_sync(Binlog_storage_param *param,
+                                 const char *log_file,
+                                 my_off_t log_pos)
+{
+  if (rpl_semi_sync_master_wait_point == WAIT_AFTER_SYNC)
+    return repl_semisync.commitTrx(log_file, log_pos);
+  return 0;
+}
+
 int repl_semi_request_commit(Trans_param *param)
 {
   return 0;
@@ -53,7 +70,8 @@ int repl_semi_report_commit(Trans_param *param)
 
   bool is_real_trans= param->flags & TRANS_IS_REAL_TRANS;
 
-  if (is_real_trans && param->log_pos)
+  if (rpl_semi_sync_master_wait_point == WAIT_AFTER_COMMIT &&
+      is_real_trans && param->log_pos)
   {
     const char *binlog_name= param->log_file;
     return repl_semisync.commitTrx(binlog_name, param->log_pos);
@@ -124,19 +142,27 @@ int repl_semi_before_send_event(Binlog_transmit_param *param,
 }
 
 int repl_semi_after_send_event(Binlog_transmit_param *param,
-                               const char *event_buf, unsigned long len)
+                               const char *event_buf, unsigned long len,
+                               const char * skipped_log_file,
+                               my_off_t skipped_log_pos)
 {
   if (repl_semisync.is_semi_sync_slave())
   {
-    THD *thd= current_thd;
-    /*
-      Possible errors in reading slave reply are ignored deliberately
-      because we do not want dump thread to quit on this. Error
-      messages are already reported.
-    */
-    (void) repl_semisync.readSlaveReply(&thd->net,
-                                        param->server_id, event_buf);
-    thd->clear_error();
+    if(skipped_log_pos>0)
+      repl_semisync.skipSlaveReply(event_buf, param->server_id,
+                                   skipped_log_file, skipped_log_pos);
+    else
+    {
+      THD *thd= current_thd;
+      /*
+        Possible errors in reading slave reply are ignored deliberately
+        because we do not want dump thread to quit on this. Error
+        messages are already reported.
+      */
+      (void) repl_semisync.readSlaveReply(&thd->net,
+                                          param->server_id, event_buf);
+      thd->clear_error();
+    }
   }
   return 0;
 }
@@ -196,15 +222,40 @@ static MYSQL_SYSVAR_ULONG(trace_level, rpl_semi_sync_master_trace_level,
   &fix_rpl_semi_sync_master_trace_level, // update
   32, 0, ~0UL, 1);
 
+static const char *wait_point_names[]= {"AFTER_SYNC", "AFTER_COMMIT", NullS};
+static TYPELIB wait_point_typelib= {
+  array_elements(wait_point_names) - 1,
+  "",
+  wait_point_names,
+  NULL
+};
+static MYSQL_SYSVAR_ENUM(
+  wait_point,                      /* name     */
+  rpl_semi_sync_master_wait_point, /* var      */
+  PLUGIN_VAR_OPCMDARG,             /* flags    */
+  "Semisync can wait for slave ACKs at one of two points,"
+  "AFTER_SYNC or AFTER_COMMIT. AFTER_SYNC is the default value."
+  "AFTER_SYNC means that semisynchronous replication waits just after the "
+  "binary log file is flushed, but before the engine commits, and so "
+  "guarantees that no other sessions can see the data before replicated to "
+  "slave. AFTER_COMMIT means that semisynchronous replication waits just "
+  "after the engine commits. Other sessions may see the data before it is "
+  "replicated, even though the current session is still waiting for the commit "
+  "to end successfully.",
+  NULL,                            /* check()  */
+  NULL,                            /* update() */
+  WAIT_AFTER_SYNC,                 /* default  */
+  &wait_point_typelib              /* typelib  */
+);
+
 static SYS_VAR* semi_sync_master_system_vars[]= {
   MYSQL_SYSVAR(enabled),
   MYSQL_SYSVAR(timeout),
   MYSQL_SYSVAR(wait_no_slave),
   MYSQL_SYSVAR(trace_level),
+  MYSQL_SYSVAR(wait_point),
   NULL,
 };
-
-
 static void fix_rpl_semi_sync_master_timeout(MYSQL_THD thd,
 				      SYS_VAR *var,
 				      void *ptr,
@@ -256,6 +307,7 @@ Binlog_storage_observer storage_observer = {
   sizeof(Binlog_storage_observer), // len
 
   repl_semi_report_binlog_update, // report_update
+  repl_semi_report_binlog_sync,   // after_sync
 };
 
 Binlog_transmit_observer transmit_observer = {
@@ -365,6 +417,13 @@ PSI_stage_info *all_semisync_stages[]=
   & stage_waiting_for_semi_sync_ack_from_slave
 };
 
+PSI_memory_key key_ss_memory_TranxNodeAllocator_block;
+
+PSI_memory_info all_semisync_memory[]=
+{
+  {&key_ss_memory_TranxNodeAllocator_block, "TranxNodeAllocator::block", 0}
+};
+
 static void init_semisync_psi_keys(void)
 {
   const char* category= "semisync";
@@ -378,6 +437,9 @@ static void init_semisync_psi_keys(void)
 
   count= array_elements(all_semisync_stages);
   mysql_stage_register(category, all_semisync_stages, count);
+
+  count= array_elements(all_semisync_memory);
+  mysql_memory_register(category, all_semisync_memory, count);
 }
 #endif /* HAVE_PSI_INTERFACE */
 

@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2000, 2012, Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2000, 2013, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -272,7 +272,8 @@ bool mysql_create_frm(THD *thd, const char *file_name,
   }
 
   key_buff_length= uint4korr(fileinfo+47);
-  keybuff=(uchar*) my_malloc(key_buff_length, MYF(0));
+  keybuff=(uchar*) my_malloc(key_memory_frm,
+                             key_buff_length, MYF(0));
   key_info_length= pack_keys(keybuff, keys, key_info, data_offset);
 
   /*
@@ -364,7 +365,8 @@ bool mysql_create_frm(THD *thd, const char *file_name,
   /* "Format section" with additional table and column properties */
   {
     uchar *ptr, *format_section_buff;
-    if (!(format_section_buff=(uchar*) my_malloc(format_section_length,
+    if (!(format_section_buff=(uchar*) my_malloc(key_memory_frm,
+                                                 format_section_length,
                                                  MYF(MY_WME))))
       goto err;
     ptr= format_section_buff;
@@ -415,28 +417,6 @@ bool mysql_create_frm(THD *thd, const char *file_name,
       mysql_file_write(file, screen_buff, info_length, MYF_RW) ||
       pack_fields(file, create_fields, data_offset))
     goto err;
-
-#ifdef HAVE_CRYPTED_FRM
-  if (create_info->password)
-  {
-    char tmp=2,*disk_buff=0;
-    SQL_CRYPT *crypted=new SQL_CRYPT(create_info->password);
-    if (!crypted || mysql_file_pwrite(file, &tmp, 1, 26, MYF_RW))// Mark crypted
-      goto err;
-    uint read_length=uint2korr(forminfo)-256;
-    mysql_file_seek(file, filepos+256, MY_SEEK_SET, MYF(0));
-    if (read_string(file,(uchar**) &disk_buff,read_length))
-      goto err;
-    crypted->encode(disk_buff,read_length);
-    delete crypted;
-    if (mysql_file_pwrite(file, disk_buff, read_length, filepos+256, MYF_RW))
-    {
-      my_free(disk_buff);
-      goto err;
-    }
-    my_free(disk_buff);
-  }
-#endif
 
   my_free(screen_buff);
   my_free(keybuff);
@@ -507,8 +487,9 @@ int rea_create_table(THD *thd, const char *path,
 {
   DBUG_ENTER("rea_create_table");
 
-  char frm_name[FN_REFLEN];
-  strxmov(frm_name, path, reg_ext, NullS);
+  char frm_name[FN_REFLEN + 1];
+  strxnmov(frm_name, sizeof(frm_name) - 1, path, reg_ext, NullS);
+
   if (mysql_create_frm(thd, frm_name, db, table_name, create_info,
                        create_fields, keys, key_info, file))
 
@@ -560,7 +541,8 @@ static uchar *pack_screens(List<Create_field> &create_fields,
   while ((field=it++))
     length+=(uint) strlen(field->field_name)+1+TE_INFO_LENGTH+cols/2;
 
-  if (!(info=(uchar*) my_malloc(length,MYF(MY_WME))))
+  if (!(info=(uchar*) my_malloc(key_memory_frm,
+                                length,MYF(MY_WME))))
     DBUG_RETURN(0);
 
   start_screen=0;
@@ -913,9 +895,6 @@ static bool pack_fields(File file, List<Create_field> &create_fields,
     {
       buff[11]= 0;
       buff[14]= (uchar) field->geom_type;
-#ifndef HAVE_SPATIAL
-      DBUG_ASSERT(0);                           // Should newer happen
-#endif
     }
     else if (field->charset) 
     {
@@ -1071,7 +1050,8 @@ static bool make_empty_rec(THD *thd, File file,
   memset(&share, 0, sizeof(share));
   table.s= &share;
 
-  if (!(buff=(uchar*) my_malloc((size_t) reclength,MYF(MY_WME | MY_ZEROFILL))))
+  if (!(buff=(uchar*) my_malloc(key_memory_frm,
+                                (size_t) reclength,MYF(MY_WME | MY_ZEROFILL))))
   {
     DBUG_RETURN(1);
   }
@@ -1131,7 +1111,7 @@ static bool make_empty_rec(THD *thd, File file,
         be constant.
       */
       DBUG_ASSERT(field->def->type() != Item::FUNC_ITEM);
-      type_conversion_status res= field->def->save_in_field(regfield, 1);
+      type_conversion_status res= field->def->save_in_field(regfield, true);
       if (res != TYPE_OK && res != TYPE_NOTE_TIME_TRUNCATED &&
           res != TYPE_NOTE_TRUNCATED)
       {

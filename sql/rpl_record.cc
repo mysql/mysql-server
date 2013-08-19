@@ -67,7 +67,7 @@ pack_row(TABLE *table, MY_BITMAP const* cols,
   uchar *pack_ptr = row_data + null_byte_count;
   uchar *null_ptr = row_data;
   my_ptrdiff_t const rec_offset= record - table->record[0];
-  my_ptrdiff_t const def_offset= table->s->default_values - table->record[0];
+  my_ptrdiff_t const def_offset= table->default_values_offset();
 
   DBUG_ENTER("pack_row");
 
@@ -342,9 +342,12 @@ unpack_row(Relay_log_info const *rli,
 
         /*
           The raw size of the field, as calculated in calc_field_size,
-          should match the one reported by Field_*::unpack.
+          should match the one reported by Field_*::unpack unless it is
+          a old decimal data type which is unsupported datatype in
+          RBR mode.
          */
-        DBUG_ASSERT(tabledef->calc_field_size(i, (uchar *) old_pack_ptr) == 
+        DBUG_ASSERT(tabledef->type(i) == MYSQL_TYPE_DECIMAL ||
+                    tabledef->calc_field_size(i, (uchar *) old_pack_ptr) ==
                     (uint32) (pack_ptr - old_pack_ptr));
       }
 

@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2005, 2011, Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2005, 2013, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -17,7 +17,7 @@
 #include "sql_priv.h"
 #include "sql_binlog.h"
 #include "sql_parse.h"
-#include "sql_acl.h"
+#include "auth_common.h"
 #include "rpl_info.h"
 #include "rpl_info_factory.h"
 #include "base64.h"
@@ -170,7 +170,8 @@ void mysql_client_binlog_statement(THD* thd)
   }
 
   const char *error= 0;
-  char *buf= (char *) my_malloc(decoded_len, MYF(MY_WME));
+  char *buf= (char *) my_malloc(key_memory_binlog_statement_buffer,
+                                decoded_len, MYF(MY_WME));
   Log_event *ev = 0;
 
   /*
@@ -178,7 +179,7 @@ void mysql_client_binlog_statement(THD* thd)
   */
   if (!(rli && buf))
   {
-    my_error(ER_OUTOFMEMORY, MYF(0), 1);  /* needed 1 bytes */
+    my_error(ER_OUTOFMEMORY, MYF(ME_FATALERROR), 1);  /* needed 1 bytes */
     goto end;
   }
 

@@ -1,3 +1,8 @@
+# The include statement below is a temp one for tests that are yet to
+#be ported to run with InnoDB,
+#but needs to be kept for tests that would need MyISAM in future.
+--source include/force_myisam_default.inc
+
 # Test need anonymous user when connection are made as "zedjzlcsjhd"
 source include/add_anonymous_users.inc;
 -- source include/master-slave.inc
@@ -142,7 +147,7 @@ create temporary table t3(f int);
 --disable_warnings ONCE
 insert into t3 select * from t1 where f<6;
 let $wait_condition= SELECT COUNT(*) = 5 FROM t3;
---source include/wait_condition.inc
+--source include/wait_condition_or_abort.inc
 
 connection con2;
 create temporary table t3(f int);
@@ -151,13 +156,13 @@ connection con1;
 --disable_warnings ONCE
 insert into t2 select count(*) from t3;
 let $wait_condition= SELECT COUNT(*) = 1 FROM t2;
---source include/wait_condition.inc
+--source include/wait_condition_or_abort.inc
 
 connection con2;
 --disable_warnings ONCE
 insert into t3 select * from t1 where f>=4;
 let $wait_condition= SELECT COUNT(*) = 7 FROM t3;
---source include/wait_condition.inc
+--source include/wait_condition_or_abort.inc
 
 connection con1;
 drop temporary table t3;

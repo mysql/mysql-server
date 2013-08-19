@@ -1,4 +1,4 @@
-# Copyright (c) 2006, 2012, Oracle and/or its affiliates. All rights reserved.
+# Copyright (c) 2006, 2013, Oracle and/or its affiliates. All rights reserved.
 # 
 # This program is free software; you can redistribute it and/or modify
 # it under the terms of the GNU General Public License as published by
@@ -27,15 +27,15 @@ SET(MYSYS_SOURCES  array.c charset-def.c charset.c checksum.c
 				my_gethwaddr.c my_getsystime.c my_getwd.c my_compare.c my_init.c
 				my_isnan.c
 				my_lib.c my_lock.c my_malloc.c my_mess.c
-				my_mkdir.c my_mmap.c my_once.c my_open.c my_pread.c my_pthread.c
-				my_quick.c my_read.c my_redel.c my_rename.c my_seek.c my_sleep.c
+				my_mkdir.c my_mmap.c my_once.c my_open.c my_pread.c
+				my_read.c my_redel.c my_rename.c my_seek.c my_sleep.c
 				my_static.c my_symlink.c my_symlink2.c my_sync.c my_thr_init.c 
 				my_write.c ptr_cmp.c queues.c stacktrace.c
 				string.c thr_alarm.c thr_lock.c thr_mutex.c
 				thr_rwlock.c tree.c typelib.c base64.c my_memmem.c my_getpagesize.c
 				lf_alloc-pin.c lf_dynarray.c lf_hash.c
-				my_atomic.c my_getncpus.c
-				my_rdtsc.c waiting_threads.c psi_noop.c)
+				my_getncpus.c
+				my_rdtsc.c psi_noop.c my_syslog.c)
 
 IF (WIN32)
  SET (MYSYS_SOURCES ${MYSYS_SOURCES} my_winthread.c my_wincond.c my_winerr.c my_winfile.c my_windac.c my_conio.c)
@@ -55,14 +55,15 @@ IF(HAVE_LARGE_PAGES)
  SET(MYSYS_SOURCES ${MYSYS_SOURCES} my_largepage.c)
 ENDIF()
 
-IF(HAVE_MLOCK)
- SET(MYSYS_SOURCES ${MYSYS_SOURCES} my_lockmem.c)
-ENDIF()
-
 ADD_CONVENIENCE_LIBRARY(mysys ${MYSYS_SOURCES})
 TARGET_LINK_LIBRARIES(mysys dbug strings ${ZLIB_LIBRARY} 
  ${LIBNSL} ${LIBM} ${LIBRT})
 DTRACE_INSTRUMENT(mysys)
+
+# Need explicit pthread for gcc -fsanitize=address
+IF(CMAKE_USE_PTHREADS_INIT AND CMAKE_C_FLAGS MATCHES "-fsanitize=")
+  TARGET_LINK_LIBRARIES(mysys pthread)
+ENDIF()
 
 ADD_EXECUTABLE(thr_lock thr_lock.c)
 TARGET_LINK_LIBRARIES(thr_lock mysys)

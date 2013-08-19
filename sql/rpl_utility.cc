@@ -1,4 +1,4 @@
-/* Copyright (c) 2006, 2011, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2006, 2013, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -923,12 +923,25 @@ TABLE *table_def::create_conversion_table(THD *thd, Relay_log_info *rli, TABLE *
   DBUG_ENTER("table_def::create_conversion_table");
 
   List<Create_field> field_list;
+  TABLE *conv_table= NULL;
   /*
     At slave, columns may differ. So we should create
     min(columns@master, columns@slave) columns in the
     conversion table.
   */
   uint const cols_to_create= min<ulong>(target_table->s->fields, size());
+
+  // Default value : treat all values signed
+  bool unsigned_flag= FALSE;
+
+  // Check if slave_type_conversions contains ALL_UNSIGNED
+  unsigned_flag= slave_type_conversions_options &
+                  (ULL(1) << SLAVE_TYPE_CONVERSIONS_ALL_UNSIGNED);
+
+  // Check if slave_type_conversions contains ALL_SIGNED
+  unsigned_flag= unsigned_flag && !(slave_type_conversions_options &
+                 (ULL(1) << SLAVE_TYPE_CONVERSIONS_ALL_SIGNED));
+
   for (uint col= 0 ; col < cols_to_create; ++col)
   {
     Create_field *field_def=
@@ -964,10 +977,15 @@ TABLE *table_def::create_conversion_table(THD *thd, Relay_log_info *rli, TABLE *
       break;
 
     case MYSQL_TYPE_DECIMAL:
-      precision= field_metadata(col);
-      decimals= static_cast<Field_num*>(target_table->field[col])->dec;
-      max_length= field_metadata(col);
-      break;
+      sql_print_error("In RBR mode, Slave received incompatible DECIMAL field "
+                      "(old-style decimal field) from Master while creating "
+                      "conversion table. Please consider changing datatype on "
+                      "Master to new style decimal by executing ALTER command for"
+                      " column Name: %s.%s.%s.",
+                      target_table->s->db.str,
+                      target_table->s->table_name.str,
+                      target_table->field[col]->field_name);
+      goto err;
 
     case MYSQL_TYPE_TINY_BLOB:
     case MYSQL_TYPE_MEDIUM_BLOB:
@@ -984,18 +1002,20 @@ TABLE *table_def::create_conversion_table(THD *thd, Relay_log_info *rli, TABLE *
     DBUG_PRINT("debug", ("sql_type: %d, target_field: '%s', max_length: %d, decimals: %d,"
                          " maybe_null: %d, unsigned_flag: %d, pack_length: %u",
                          binlog_type(col), target_table->field[col]->field_name,
-                         max_length, decimals, TRUE, FALSE, pack_length));
+                         max_length, decimals, TRUE, unsigned_flag, pack_length));
     field_def->init_for_tmp_table(type(col),
                                   max_length,
                                   decimals,
-                                  TRUE,         // maybe_null
-                                  FALSE,        // unsigned_flag
+                                  TRUE,          // maybe_null
+                                  unsigned_flag, // unsigned_flag
                                   pack_length);
     field_def->charset= target_table->field[col]->charset();
     field_def->interval= interval;
   }
 
-  TABLE *conv_table= create_virtual_tmp_table(thd, field_list);
+  conv_table= create_virtual_tmp_table(thd, field_list);
+
+err:
   if (conv_table == NULL)
     rli->report(ERROR_LEVEL, ER_SLAVE_CANT_CREATE_CONVERSION,
                 ER(ER_SLAVE_CANT_CREATE_CONVERSION),
@@ -1006,6 +1026,8 @@ TABLE *table_def::create_conversion_table(THD *thd, Relay_log_info *rli, TABLE *
 
 #endif /* MYSQL_CLIENT */
 
+PSI_memory_key key_memory_table_def_memory;
+
 table_def::table_def(unsigned char *types, ulong size,
                      uchar *field_metadata, int metadata_size,
                      uchar *null_bitmap, uint16 flags)
@@ -1013,7 +1035,8 @@ table_def::table_def(unsigned char *types, ulong size,
     m_field_metadata(0), m_null_bits(0), m_flags(flags),
     m_memory(NULL)
 {
-  m_memory= (uchar *)my_multi_malloc(MYF(MY_WME),
+  m_memory= (uchar *)my_multi_malloc(key_memory_table_def_memory,
+                                     MYF(MY_WME),
                                      &m_type, size,
                                      &m_field_metadata,
                                      size * sizeof(uint16),
@@ -1241,14 +1264,21 @@ int Hash_slave_rows::size()
   return m_hash.records;
 }
 
-HASH_ROW_ENTRY* Hash_slave_rows::make_entry(const uchar* bi_start, const uchar* bi_ends,
-                                            const uchar* ai_start, const uchar* ai_ends)
+HASH_ROW_ENTRY* Hash_slave_rows::make_entry()
+{
+  return make_entry(NULL, NULL);
+}
+
+HASH_ROW_ENTRY* Hash_slave_rows::make_entry(const uchar* bi_start, const uchar* bi_ends)
 {
   DBUG_ENTER("Hash_slave_rows::make_entry");
 
-  HASH_ROW_ENTRY *entry= (HASH_ROW_ENTRY*) my_malloc(sizeof(HASH_ROW_ENTRY), MYF(0));
-  HASH_ROW_PREAMBLE *preamble= (HASH_ROW_PREAMBLE *) my_malloc(sizeof(HASH_ROW_PREAMBLE), MYF(0));
-  HASH_ROW_POS *pos= (HASH_ROW_POS *) my_malloc(sizeof(HASH_ROW_POS), MYF(0));
+  HASH_ROW_ENTRY *entry= (HASH_ROW_ENTRY*) my_malloc(key_memory_HASH_ROW_ENTRY,
+                                                     sizeof(HASH_ROW_ENTRY), MYF(0));
+  HASH_ROW_PREAMBLE *preamble= (HASH_ROW_PREAMBLE *) my_malloc(key_memory_HASH_ROW_ENTRY,
+                                                               sizeof(HASH_ROW_PREAMBLE), MYF(0));
+  HASH_ROW_POS *pos= (HASH_ROW_POS *) my_malloc(key_memory_HASH_ROW_ENTRY,
+                                                sizeof(HASH_ROW_POS), MYF(0));
 
   if (!entry || !preamble || !pos)
     goto err;
@@ -1266,8 +1296,6 @@ HASH_ROW_ENTRY* Hash_slave_rows::make_entry(const uchar* bi_start, const uchar* 
    */
   pos->bi_start= (const uchar *) bi_start;
   pos->bi_ends= (const uchar *) bi_ends;
-  pos->ai_start= (const uchar *) ai_start;
-  pos->ai_ends= (const uchar *) ai_ends;
 
   /**
     Filling in the entry
@@ -1443,7 +1471,10 @@ Hash_slave_rows::make_hash_key(TABLE *table, MY_BITMAP *cols)
     was not marked completely.
    */
   if (bitmap_is_set_all(cols))
+  {
     crc= my_checksum(crc, table->null_flags, table->s->null_bytes);
+    DBUG_PRINT("debug", ("make_hash_entry: hash after null_flags: %u", crc));
+  }
 
   for (Field **ptr=table->field ;
        *ptr && ((*ptr)->field_index < cols->n_bits);
@@ -1451,10 +1482,37 @@ Hash_slave_rows::make_hash_key(TABLE *table, MY_BITMAP *cols)
   {
     Field *f= (*ptr);
 
-    /* field is set in the read_set and is not a blob or a BIT */
-    if (bitmap_is_set(cols, f->field_index) &&
-        (f->type() != MYSQL_TYPE_BLOB) && (f->type() != MYSQL_TYPE_BIT))
-      crc= my_checksum(crc, f->ptr, f->data_length());
+    /*
+      Field is set in the read_set and is isn't NULL.
+     */
+    if (bitmap_is_set(cols, f->field_index) && !f->is_null())
+    {
+      /*
+        BLOB and VARCHAR have pointers in their field, we must convert
+        to string; GEOMETRY is implemented on top of BLOB.
+        BIT may store its data among NULL bits, convert as well.
+      */
+      switch (f->type()) {
+        case MYSQL_TYPE_BLOB:
+        case MYSQL_TYPE_VARCHAR:
+        case MYSQL_TYPE_GEOMETRY:
+        case MYSQL_TYPE_BIT:
+        {
+          String tmp;
+          f->val_str(&tmp);
+          crc= my_checksum(crc, (uchar*) tmp.ptr(), tmp.length());
+          break;
+        }
+        default:
+          crc= my_checksum(crc, f->ptr, f->data_length());
+          break;
+      }
+#ifndef DBUG_OFF
+      String tmp;
+      f->val_str(&tmp);
+      DBUG_PRINT("debug", ("make_hash_entry: hash after field %s=%s: %u", f->field_name, tmp.c_ptr_safe(), crc));
+#endif
+    }
   }
 
   /*
@@ -1481,19 +1539,18 @@ Hash_slave_rows::make_hash_key(TABLE *table, MY_BITMAP *cols)
 
 #if defined(MYSQL_SERVER) && defined(HAVE_REPLICATION)
 
-Deferred_log_events::Deferred_log_events(Relay_log_info *rli) : last_added(NULL)
+Deferred_log_events::Deferred_log_events(Relay_log_info *rli)
 {
   my_init_dynamic_array(&array, sizeof(Log_event *), 32, 16);
 }
 
-Deferred_log_events::~Deferred_log_events() 
+Deferred_log_events::~Deferred_log_events()
 {
   delete_dynamic(&array);
 }
 
 int Deferred_log_events::add(Log_event *ev)
 {
-  last_added= ev;
   insert_dynamic(&array, (uchar*) &ev);
   ev->worker= NULL; // to mark event busy avoiding deletion
   return 0;
