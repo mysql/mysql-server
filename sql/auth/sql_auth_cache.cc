@@ -1494,6 +1494,19 @@ static my_bool acl_load(THD *thd, TABLE_LIST *tables)
                                   table->field[MYSQL_USER_FIELD_PLUGIN]);
           if (tmpstr)
           {
+	    /*
+	      Check if the plugin string is blank.
+	      If it is, the user will be skipped.
+	    */
+	    if(strlen(tmpstr) == 0)
+	    {
+	      sql_print_warning("User entry '%s'@'%s' has an empty plugin "
+				"value. The user will be ignored and no one can login "
+				"with this user anymore.",
+				user.user ? user.user : "",
+				user.host.get_host() ? user.host.get_host() : "");
+	      continue;
+	    }
             /*
               By comparing the plugin with the built in plugins it is possible
               to optimize the string allocation and comparision.
@@ -1533,8 +1546,15 @@ static my_bool acl_load(THD *thd, TABLE_LIST *tables)
               user.auth_string.str= const_cast<char*>("");
             user.auth_string.length= strlen(user.auth_string.str);
           }
-          else /* skip auth_string if there's no plugin */
-            next_field++;
+          else /* skip the user if plugin value is NULL */
+	  {
+	    sql_print_warning("User entry '%s'@'%s' has an empty plugin "
+			      "value. The user will be ignored and no one can login "
+			      "with this user anymore.",
+			      user.user ? user.user : "",
+			      user.host.get_host() ? user.host.get_host() : "");
+	    continue;
+	  }
         }
 
         if (table->s->fields > MYSQL_USER_FIELD_PASSWORD_EXPIRED)
@@ -1573,19 +1593,6 @@ static my_bool acl_load(THD *thd, TABLE_LIST *tables)
           user.access|= REPL_CLIENT_ACL | REPL_SLAVE_ACL;
         if (user.access & PROCESS_ACL)
           user.access|= SUPER_ACL | EXECUTE_ACL;
-      }
-      if (!user.plugin.length)
-      {
-        /*
-           Set plugin deduced from password length.
-           We can reach here in two cases:
-           1. mysql.user doesn't have plugin field
-           2. Plugin field is empty
-         */
-        user.plugin= native_password_plugin_name;
-        if (password_len == SCRAMBLED_PASSWORD_CHAR_LENGTH_323)
-          user.plugin= old_password_plugin_name;
-  
       }
       /*
          Transform hex to octets and adjust the format.

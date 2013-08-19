@@ -2824,7 +2824,7 @@ trx_start_if_not_started_xa_low(
 			trx_sys_t::rw_trx_list. */
 			if (!trx->read_only) {
 				trx_set_rw_mode(trx);
-			} else if (trx->read_only && !srv_read_only_mode) {
+			} else if (!srv_read_only_mode) {
 				trx_assign_rseg(trx);
 			}
 		}

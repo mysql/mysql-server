@@ -228,7 +228,7 @@ ut_print_timestamp(
 
 	GetLocalTime(&cal_tm);
 
-	fprintf(file, "%d-%02d-%02d %02d:%02d:%02d %lx",
+	fprintf(file, "%d-%02d-%02d %02d:%02d:%02d %#lx",
 		(int) cal_tm.wYear,
 		(int) cal_tm.wMonth,
 		(int) cal_tm.wDay,
@@ -244,7 +244,7 @@ ut_print_timestamp(
 	time(&tm);
 	localtime_r(&tm, &cal_tm);
 	cal_tm_ptr = &cal_tm;
-	fprintf(file, "%d-%02d-%02d %02d:%02d:%02d %lx",
+	fprintf(file, "%d-%02d-%02d %02d:%02d:%02d %#lx",
 		cal_tm_ptr->tm_year + 1900,
 		cal_tm_ptr->tm_mon + 1,
 		cal_tm_ptr->tm_mday,

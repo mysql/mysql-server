@@ -82,8 +82,6 @@ use strict;
 my $input_file= $ENV{'INPUT_FILE'} or die "INPUT_FILE not set\n";
 my $io_thread_id= $ENV{'IO_THREAD_ID'} or die "IO_THREAD_ID not set\n";
 open(IN_FILE, "$input_file") or die("Unable to open '$input_file': $!\n");
-
-open(IN_FILE, "$input_file") or die("Unable to open '$input_file': $!\n");
 while (<IN_FILE>)
 {
   if (/(\d+)(.*?)(Waiting\s+for\s+master\s+to\s+send\s+event)(.*?)$/)

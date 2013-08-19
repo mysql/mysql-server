@@ -3,9 +3,9 @@ drop event if exists test.user_event;
 create event test.user_event on schedule every 1 day do
 select "not supposed to be here";
 update mysql.event set db='performance_schema' where name='user_event';
-Warning: Using a password on the command line interface can be insecure.
-Warning: Using a password on the command line interface can be insecure.
-Warning: Using a password on the command line interface can be insecure.
+mysqlcheck: [Warning] Using a password on the command line interface can be insecure.
+mysqlcheck: [Warning] Using a password on the command line interface can be insecure.
+mysql: [Warning] Using a password on the command line interface can be insecure.
 ERROR 1050 (42S01) at line 157: Table 'cond_instances' already exists
 ERROR 1050 (42S01) at line 182: Table 'events_waits_current' already exists
 ERROR 1050 (42S01) at line 207: Table 'events_waits_history' already exists

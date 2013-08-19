@@ -13,6 +13,7 @@ drop table if exists t1,t2;
 #
 # Bug#19263: variables.test doesn't clean up after itself (I/II -- save)
 #
+set @my_log_error_verbosity       =@@global.log_error_verbosity;
 set @my_connect_timeout           =@@global.connect_timeout;
 set @my_delayed_insert_timeout    =@@global.delayed_insert_timeout;
 set @my_delayed_queue_size        =@@global.delayed_queue_size;
@@ -831,6 +832,7 @@ set global slow_launch_time          =@my_slow_launch_time;
 set global default_storage_engine            =@my_storage_engine;
 set global max_allowed_packet        =@my_max_allowed_packet;
 set global join_buffer_size          =@my_join_buffer_size;
+set global log_error_verbosity       =@my_log_error_verbosity;
 
 #
 # Bug#28580 Repeatation of status variables

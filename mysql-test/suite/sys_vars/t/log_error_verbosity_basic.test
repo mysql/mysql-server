@@ -1,0 +1,18 @@
+SET @old_log_error_verbosity= @@global.log_error_verbosity;
+
+SET GLOBAL log_error_verbosity=DEFAULT;
+SELECT @@global.log_error_verbosity;
+
+# turning off even errors is forbidden for now.
+SET GLOBAL log_error_verbosity=0;
+SELECT @@global.log_error_verbosity;
+
+# there is nothing beyond Notes, so there is no level higher than 3.
+SET GLOBAL log_error_verbosity=4;
+SELECT @@global.log_error_verbosity;
+
+# It's a global. There is no thread-specific log_error_verbosity.
+--error ER_GLOBAL_VARIABLE
+SET SESSION log_error_verbosity=DEFAULT;
+
+SET GLOBAL log_error_verbosity = @old_log_error_verbosity;

@@ -333,7 +333,13 @@ create_log_file(
 
 	*file = os_file_create(
 		innodb_log_file_key, name,
-		OS_FILE_CREATE, OS_FILE_NORMAL, OS_LOG_FILE, &ret);
+		OS_FILE_CREATE|OS_FILE_ON_ERROR_NO_EXIT, OS_FILE_NORMAL,
+		OS_LOG_FILE, &ret);
+
+	if (!ret) {
+		ib_logf(IB_LOG_LEVEL_ERROR, "Cannot create %s", name);
+		return(DB_ERROR);
+	}
 
 	ib_logf(IB_LOG_LEVEL_INFO,
 		"Setting log file %s size to %lu MB",
@@ -344,7 +350,9 @@ create_log_file(
 			       (os_offset_t) srv_log_file_size
 			       << UNIV_PAGE_SIZE_SHIFT);
 	if (!ret) {
-		ib_logf(IB_LOG_LEVEL_ERROR, "Error in creating %s", name);
+		ib_logf(IB_LOG_LEVEL_ERROR, "Cannot set log file"
+			" %s to size %lu MB", name, (ulong) srv_log_file_size
+			>> (20 - UNIV_PAGE_SIZE_SHIFT));
 		return(DB_ERROR);
 	}
 
@@ -562,12 +570,12 @@ srv_undo_tablespace_create(
 	if (srv_read_only_mode && ret) {
 		ib_logf(IB_LOG_LEVEL_INFO,
 			"%s opened in read-only mode", name);
-	} else if (ret == FALSE
-		   && os_file_get_last_error(false) != OS_FILE_ALREADY_EXISTS) {
+	} else if (ret == FALSE) {
+		if (os_file_get_last_error(false) != OS_FILE_ALREADY_EXISTS) {
 
-		ib_logf(IB_LOG_LEVEL_ERROR,
-			"Can't create UNDO tablespace %s", name);
-
+			ib_logf(IB_LOG_LEVEL_ERROR,
+				"Can't create UNDO tablespace %s", name);
+		}
 		err = DB_ERROR;
 	} else {
 		ut_a(!srv_read_only_mode);
@@ -670,6 +678,81 @@ srv_undo_tablespace_open(
 	}
 
 	return(err);
+}
+
+/** Check if undo tablespaces and redo log files exist before creating a
+new system tablespace
+@retval DB_SUCCESS  if all undo and redo logs are not found
+@retval DB_ERROR    if any undo and redo logs are found */
+static
+dberr_t
+srv_check_undo_redo_logs_exists()
+{
+	ibool		ret;
+	os_file_t	fh;
+	char	name[OS_FILE_MAX_PATH];
+
+	/* Check if any undo tablespaces exist */
+	for (ulint i = 1; i <= srv_undo_tablespaces; ++i) {
+
+		ut_snprintf(
+			name, sizeof(name),
+			"%s%cundo%03lu",
+			srv_undo_dir, SRV_PATH_SEPARATOR,
+			i);
+
+		fh = os_file_create(
+			innodb_data_file_key, name,
+			OS_FILE_OPEN_RETRY
+			| OS_FILE_ON_ERROR_NO_EXIT
+			| OS_FILE_ON_ERROR_SILENT,
+			OS_FILE_NORMAL,
+			OS_DATA_FILE,
+			&ret);
+
+		if (ret) {
+			os_file_close(fh);
+			ib_logf(IB_LOG_LEVEL_ERROR,
+				"undo tablespace '%s' exists. "
+				"Creating system tablespace with existing undo "
+				"tablespaces is not supported. Please delete "
+				"all undo tablespaces before creating new "
+				"system tablespace.", name);
+			return(DB_ERROR);
+		}
+	}
+
+	/* Check if any redo log files exist */
+	char	logfilename[OS_FILE_MAX_PATH];
+	size_t dirnamelen = strlen(srv_log_group_home_dir);
+	memcpy(logfilename, srv_log_group_home_dir, dirnamelen);
+
+	for (unsigned i = 0; i < srv_n_log_files; i++) {
+		sprintf(logfilename + dirnamelen,
+			"ib_logfile%u", i);
+
+		fh = os_file_create(
+			innodb_log_file_key, logfilename,
+			OS_FILE_OPEN_RETRY
+			| OS_FILE_ON_ERROR_NO_EXIT
+			| OS_FILE_ON_ERROR_SILENT,
+			OS_FILE_NORMAL,
+			OS_LOG_FILE,
+			&ret);
+
+		if (ret) {
+			os_file_close(fh);
+			ib_logf(IB_LOG_LEVEL_ERROR,
+				"redo log file '%s' exists. "
+				"Creating system tablespace with existing redo "
+				"log files is not recommended. Please delete "
+				"all redo log files before creating new system "
+				"tablespace.", logfilename);
+			return(DB_ERROR);
+		}
+	}
+
+	return(DB_SUCCESS);
 }
 
 /********************************************************************
@@ -1586,6 +1669,15 @@ innobase_start_or_create_for_mysql(void)
 		return(srv_init_abort(DB_ERROR));
 	}
 
+	/* Check if undo tablespaces and redo log files exist before creating
+	a new system tablespace */
+	if (create_new_db) {
+		err = srv_check_undo_redo_logs_exists();
+		if (err != DB_SUCCESS) {
+			return(srv_init_abort(DB_ERROR));
+		}
+	}
+
 	/* Open or create the data files. */
 	ulint	sum_of_new_sizes;
 
@@ -2138,6 +2230,11 @@ files_checked:
 		ut_a(srv_force_recovery >= SRV_FORCE_NO_TRX_UNDO
 		     || srv_read_only_mode);
 		srv_undo_logs = ULONG_UNDEFINED;
+	}
+
+	/* Flush the changes made to TRX_SYS_PAGE by trx_sys_create_rsegs()*/
+	if (!srv_force_recovery && !srv_read_only_mode) {
+		buf_flush_sync_all_buf_pools();
 	}
 
 	if (!srv_read_only_mode) {
