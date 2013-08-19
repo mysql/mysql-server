@@ -60,7 +60,7 @@ mysql_pfs_key_t	log_flush_order_mutex_key;
 mysql_pfs_key_t	server_mutex_key;
 # endif /* !HAVE_ATOMIC_BUILTINS */
 # ifdef UNIV_MEM_DEBUG
-extern mysql_pfs_key_t	mem_hash_mutex_key;
+mysql_pfs_key_t	mem_hash_mutex_key;
 # endif /* UNIV_MEM_DEBUG */
 mysql_pfs_key_t	mem_pool_mutex_key;
 mysql_pfs_key_t	recalc_pool_mutex_key;
