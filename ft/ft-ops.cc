@@ -2420,7 +2420,6 @@ void toku_bnc_flush_to_child(
     )
 {
     paranoid_invariant(bnc);
-    paranoid_invariant(toku_fifo_n_entries(bnc->buffer)>0);
     STAT64INFO_S stats_delta = {0,0};
     size_t remaining_memsize = toku_fifo_buffer_size_in_use(bnc->buffer);
     FIFO_ITERATE(
