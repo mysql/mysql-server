@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2000, 2011, Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2000, 2013, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -83,12 +83,15 @@ int mi_write(MI_INFO *info, uchar *record)
     goto err2;
 
   /* Calculate and check all unique constraints */
-  for (i=0 ; i < share->state.header.uniques ; i++)
+  if (mi_is_any_key_active(share->state.key_map))
   {
-    if (mi_check_unique(info,share->uniqueinfo+i,record,
-		     mi_unique_hash(share->uniqueinfo+i,record),
-		     HA_OFFSET_ERROR))
-      goto err2;
+    for (i= 0 ; i < share->state.header.uniques ; i++)
+    {
+      if (mi_check_unique(info, share->uniqueinfo + i, record,
+                          mi_unique_hash(share->uniqueinfo + i, record),
+                          HA_OFFSET_ERROR))
+        goto err2;
+    }
   }
 
 	/* Write all keys to indextree */
@@ -500,7 +503,7 @@ int _mi_insert(MI_INFO *info, MI_KEYDEF *keyinfo,
       my_errno=HA_ERR_CRASHED;
       DBUG_RETURN(-1);
     }
-    bmove_upp((uchar*) endpos+t_length,(uchar*) endpos,(uint) (endpos-key_pos));
+    memmove(key_pos + t_length, key_pos, (size_t) (endpos - key_pos));
   }
   else
   {
@@ -510,7 +513,7 @@ int _mi_insert(MI_INFO *info, MI_KEYDEF *keyinfo,
       my_errno=HA_ERR_CRASHED;
       DBUG_RETURN(-1);
     }
-    bmove(key_pos,key_pos-t_length,(uint) (endpos-key_pos)+t_length);
+    memmove(key_pos, key_pos - t_length, (uint) (endpos - key_pos) + t_length);
   }
   (*keyinfo->store_key)(keyinfo,key_pos,&s_temp);
   a_length+=t_length;
@@ -543,7 +546,8 @@ int _mi_insert(MI_INFO *info, MI_KEYDEF *keyinfo,
       {
         /* yup. converting */
         info->ft1_to_ft2=(DYNAMIC_ARRAY *)
-          my_malloc(sizeof(DYNAMIC_ARRAY), MYF(MY_WME));
+          my_malloc(mi_key_memory_MI_INFO_ft1_to_ft2,
+                    sizeof(DYNAMIC_ARRAY), MYF(MY_WME));
         my_init_dynamic_array(info->ft1_to_ft2, ft2len, 300, 50);
 
         /*
@@ -819,13 +823,14 @@ static int _mi_balance_page(MI_INFO *info, MI_KEYDEF *keyinfo,
 	     (size_t) (length=new_left_length - left_length - k_length));
       pos=buff+2+length;
       memcpy((uchar*) father_key_pos,(uchar*) pos,(size_t) k_length);
-      bmove((uchar*) buff + 2, (uchar*) pos + k_length, new_right_length - 2);
+      memmove((uchar*) buff + 2,
+              (uchar*) pos + k_length, new_right_length - 2);
     }
     else
     {						/* Move keys -> buff */
 
-      bmove_upp((uchar*) buff+new_right_length,(uchar*) buff+right_length,
-		right_length-2);
+      memmove(buff + new_right_length - right_length + 2,
+              buff + 2, right_length - 2);
       length=new_right_length-right_length-k_length;
       memcpy((uchar*) buff+2+length,father_key_pos,(size_t) k_length);
       pos=curr_buff+new_left_length;
@@ -861,8 +866,9 @@ static int _mi_balance_page(MI_INFO *info, MI_KEYDEF *keyinfo,
   /* Save new parting key */
   memcpy(tmp_part_key, pos-k_length,k_length);
   /* Make place for new keys */
-  bmove_upp((uchar*) buff+new_right_length,(uchar*) pos-k_length,
-	    right_length-extra_length-k_length-2);
+  memmove(buff + new_right_length - right_length + extra_length + k_length + 2,
+          pos - right_length + extra_length + 2,
+          right_length - extra_length - k_length - 2);
   /* Copy keys from left page */
   pos= curr_buff+new_left_length;
   memcpy((uchar*) buff+2,(uchar*) pos+k_length,
@@ -991,7 +997,8 @@ int mi_init_bulk_insert(MI_INFO *info, ulong cache_size, ha_rows rows)
     cache_size/=total_keylength*16;
 
   info->bulk_insert=(TREE *)
-    my_malloc((sizeof(TREE)*share->base.keys+
+    my_malloc(mi_key_memory_MI_INFO_bulk_insert,
+              (sizeof(TREE)*share->base.keys+
                sizeof(bulk_insert_param)*num_keys),MYF(0));
 
   if (!info->bulk_insert)

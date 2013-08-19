@@ -485,7 +485,8 @@ char **copy_arguments(int argc, char **argv)
   for (from=argv ; from != end ; from++)
     length+= strlen(*from);
 
-  if ((res= (char**) my_malloc(sizeof(argv)*(argc+1)+length+argc,
+  if ((res= (char**) my_malloc(PSI_NOT_INSTRUMENTED,
+                               sizeof(argv)*(argc+1)+length+argc,
 			       MYF(MY_WME))))
   {
     char **to= res, *to_str= (char*) (res+argc+1);
@@ -511,6 +512,7 @@ int init_embedded_server(int argc, char **argv, char **groups)
   char ***argvp= NULL;
   int fake_argc= 1;
   char *fake_argv[2];
+  char **foo= &fake_argv[0];
   char fake_server[]= "server";
   char fake_embedded[]= "embedded";
   char *fake_groups[]= { fake_server, fake_embedded, NULL };
@@ -530,7 +532,6 @@ int init_embedded_server(int argc, char **argv, char **groups)
     fake_argv[0]= fake_name;
     fake_argv[1]= NULL;
 
-    char **foo= &fake_argv[0];
     argcp= &fake_argc;
     argvp= &foo;
   }
@@ -540,10 +541,10 @@ int init_embedded_server(int argc, char **argv, char **groups)
   my_progname= "mysql_embedded";
 
   /*
-    Perform basic logger initialization logger. Should be called after
-    MY_INIT, as it initializes mutexes. Log tables are inited later.
+    Perform basic query log initialization. Should be called after
+    MY_INIT, as it initializes mutexes.
   */
-  logger.init_base();
+  query_logger.init();
 
   orig_argc= *argcp;
   orig_argv= *argvp;
@@ -566,7 +567,8 @@ int init_embedded_server(int argc, char **argv, char **groups)
     return 1;
   }
 
-  adjust_related_options();
+  ulong requested_open_files_dummy;
+  adjust_related_options(&requested_open_files_dummy);
 
   if (init_common_variables())
   {
@@ -579,7 +581,7 @@ int init_embedded_server(int argc, char **argv, char **groups)
 
   /* Get default temporary directory */
   opt_mysql_tmpdir=getenv("TMPDIR");	/* Use this if possible */
-#if defined(__WIN__)
+#if defined(_WIN32)
   if (!opt_mysql_tmpdir)
     opt_mysql_tmpdir=getenv("TEMP");
   if (!opt_mysql_tmpdir)
@@ -636,8 +638,6 @@ int init_embedded_server(int argc, char **argv, char **groups)
     udf_init();
 #endif
 
-  (void) thr_setconcurrency(concurrency);	// 10 by default
-
   start_handle_manager();
 
   // FIXME initialize binlog_filter and rpl_filter if not already done
@@ -659,7 +659,7 @@ int init_embedded_server(int argc, char **argv, char **groups)
   /* Signal successful initialization */
   mysql_mutex_lock(&LOCK_server_started);
   mysqld_server_started= 1;
-  mysql_cond_signal(&COND_server_started);
+  mysql_cond_broadcast(&COND_server_started);
   mysql_mutex_unlock(&LOCK_server_started);
 
 #ifdef WITH_NDBCLUSTER_STORAGE_ENGINE
@@ -689,7 +689,7 @@ void init_embedded_mysql(MYSQL *mysql, int client_flag)
   thd->mysql= mysql;
   mysql->server_version= server_version;
   mysql->client_flag= client_flag;
-  init_alloc_root(&mysql->field_alloc, 8192, 0);
+  init_alloc_root(PSI_NOT_INSTRUMENTED, &mysql->field_alloc, 8192, 0);
 }
 
 /**
@@ -784,10 +784,12 @@ int check_embedded_connection(MYSQL *mysql, const char *db)
   thd_init_client_charset(thd, mysql->charset->number);
   thd->update_charset();
   Security_context *sctx= thd->security_ctx;
-  sctx->host_or_ip= sctx->host= (char*) my_localhost;
+  sctx->set_host(my_localhost);
+  sctx->host_or_ip= sctx->get_host()->ptr();
   strmake(sctx->priv_host, (char*) my_localhost,  MAX_HOSTNAME-1);
   strmake(sctx->priv_user, mysql->user,  USERNAME_LENGTH-1);
-  sctx->user= my_strdup(mysql->user, MYF(0));
+  sctx->user= my_strdup(PSI_NOT_INSTRUMENTED,
+                        mysql->user, MYF(0));
   sctx->proxy_user[0]= 0;
   sctx->master_access= GLOBAL_ACLS;       // Full rights
   emb_transfer_connect_attrs(mysql);
@@ -819,8 +821,10 @@ int check_embedded_connection(MYSQL *mysql, const char *db)
                  connect_attrs_len + 2);
   if (mysql->options.client_ip)
   {
-    sctx->host= my_strdup(mysql->options.client_ip, MYF(0));
-    sctx->ip= my_strdup(sctx->host, MYF(0));
+    sctx->host= my_strdup(PSI_NOT_INSTRUMENTED,
+                          mysql->options.client_ip, MYF(0));
+    sctx->ip= my_strdup(PSI_NOT_INSTRUMENTED,
+                        sctx->host, MYF(0));
   }
   else
     sctx->host= (char*)my_localhost;
@@ -938,7 +942,8 @@ MYSQL_DATA *THD::alloc_new_dataset()
 {
   MYSQL_DATA *data;
   struct embedded_query_result *emb_data;
-  if (!my_multi_malloc(MYF(MY_WME | MY_ZEROFILL),
+  if (!my_multi_malloc(PSI_NOT_INSTRUMENTED,
+                       MYF(MY_WME | MY_ZEROFILL),
                        &data, sizeof(*data),
                        &emb_data, sizeof(*emb_data),
                        NULL))
@@ -1003,7 +1008,7 @@ int Protocol::begin_dataset()
   if (!data)
     return 1;
   alloc= &data->alloc;
-  init_alloc_root(alloc,8192,0);	/* Assume rowlength < 8192 */
+  init_alloc_root(PSI_NOT_INSTRUMENTED, alloc, 8192, 0); /* Assume rowlength < 8192 */
   alloc->min_malloc=sizeof(MYSQL_ROWS);
   return 0;
 }
@@ -1334,13 +1339,12 @@ bool Protocol::net_store_data(const uchar *from, size_t length)
 #define vsnprintf _vsnprintf
 #endif
 
-int vprint_msg_to_log(enum loglevel level __attribute__((unused)),
-                       const char *format, va_list argsi)
+void error_log_print(enum loglevel level __attribute__((unused)),
+                     const char *format, va_list argsi)
 {
   my_vsnprintf(mysql_server_last_error, sizeof(mysql_server_last_error),
                format, argsi);
   mysql_server_last_errno= CR_UNKNOWN_ERROR;
-  return 0;
 }
 
 

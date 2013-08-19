@@ -94,7 +94,7 @@ CREATE DATABASE db_datadict_1;
 CREATE DATABASE db_datadict_2;
 CREATE DATABASE db_datadict_3;
 CREATE TABLE db_datadict_2.t1(f1 INT, f2 INT, f3 INT)
-ENGINE = MEMORY;
+ENGINE = <engine_type>;
 DROP   USER 'testuser1'@'localhost';
 CREATE USER 'testuser1'@'localhost';
 DROP   USER 'testuser2'@'localhost';

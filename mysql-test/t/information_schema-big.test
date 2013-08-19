@@ -1,10 +1,11 @@
+# The include statement below is a temp one for tests that are yet to
+#be ported to run with InnoDB,
+#but needs to be kept for tests that would need MyISAM in future.
+--source include/force_myisam_default.inc
+
 # This test  uses grants, which can't get tested for embedded server
 -- source include/big_test.inc
 -- source include/not_embedded.inc
-
-# check that CSV engine was compiled in, as the result of the test depends
-# on the presence of the log tables (which are CSV-based).
---source include/have_csv.inc
 
 --disable_warnings
 DROP TABLE IF EXISTS t0,t1,t2,t3,t4,t5;

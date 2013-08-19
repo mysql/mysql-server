@@ -1,6 +1,6 @@
 /***********************************************************************
 
-Copyright (c) 2010, 2012, Oracle and/or its affiliates. All Rights Reserved.
+Copyright (c) 2010, 2013, Oracle and/or its affiliates. All Rights Reserved.
 Copyright (c) 2012, Facebook Inc.
 
 This program is free software; you can redistribute it and/or modify it
@@ -29,6 +29,8 @@ Created 12/15/2009	Jimmy Yang
 #define srv0mon_h
 
 #include "univ.i"
+#include "sync0mutex.h"
+
 #ifndef UNIV_HOTBACKUP
 
 
@@ -98,7 +100,7 @@ enum monitor_type_t {
 
 /** Counter minimum value is initialized to be max value of
  mon_type_t (ib_int64_t) */
-#define	MIN_RESERVED		((mon_type_t) (IB_ULONGLONG_MAX >> 1))
+#define	MIN_RESERVED		((mon_type_t) (IB_UINT64_MAX >> 1))
 #define	MAX_RESERVED		(~MIN_RESERVED)
 
 /** This enumeration defines internal monitor identifier used internally
@@ -157,7 +159,9 @@ enum monitor_id_t {
 	MONITOR_OVLD_BUF_POOL_PAGE_TOTAL,
 	MONITOR_OVLD_BUF_POOL_PAGE_MISC,
 	MONITOR_OVLD_BUF_POOL_PAGES_DATA,
+	MONITOR_OVLD_BUF_POOL_BYTES_DATA,
 	MONITOR_OVLD_BUF_POOL_PAGES_DIRTY,
+	MONITOR_OVLD_BUF_POOL_BYTES_DIRTY,
 	MONITOR_OVLD_BUF_POOL_PAGES_FREE,
 	MONITOR_OVLD_PAGE_CREATED,
 	MONITOR_OVLD_PAGES_WRITTEN,
@@ -191,9 +195,12 @@ enum monitor_id_t {
 	MONITOR_LRU_BATCH_SCANNED,
 	MONITOR_LRU_BATCH_SCANNED_NUM_CALL,
 	MONITOR_LRU_BATCH_SCANNED_PER_CALL,
-	MONITOR_LRU_BATCH_TOTAL_PAGE,
-	MONITOR_LRU_BATCH_COUNT,
-	MONITOR_LRU_BATCH_PAGES,
+	MONITOR_LRU_BATCH_FLUSH_TOTAL_PAGE,
+	MONITOR_LRU_BATCH_FLUSH_COUNT,
+	MONITOR_LRU_BATCH_FLUSH_PAGES,
+	MONITOR_LRU_BATCH_EVICT_TOTAL_PAGE,
+	MONITOR_LRU_BATCH_EVICT_COUNT,
+	MONITOR_LRU_BATCH_EVICT_PAGES,
 	MONITOR_LRU_SINGLE_FLUSH_SCANNED,
 	MONITOR_LRU_SINGLE_FLUSH_SCANNED_NUM_CALL,
 	MONITOR_LRU_SINGLE_FLUSH_SCANNED_PER_CALL,
@@ -351,10 +358,13 @@ enum monitor_id_t {
 	MONITOR_OVLD_SRV_PAGE_SIZE,
 	MONITOR_OVLD_RWLOCK_S_SPIN_WAITS,
 	MONITOR_OVLD_RWLOCK_X_SPIN_WAITS,
+	MONITOR_OVLD_RWLOCK_SX_SPIN_WAITS,
 	MONITOR_OVLD_RWLOCK_S_SPIN_ROUNDS,
 	MONITOR_OVLD_RWLOCK_X_SPIN_ROUNDS,
+	MONITOR_OVLD_RWLOCK_SX_SPIN_ROUNDS,
 	MONITOR_OVLD_RWLOCK_S_OS_WAITS,
 	MONITOR_OVLD_RWLOCK_X_OS_WAITS,
+	MONITOR_OVLD_RWLOCK_SX_OS_WAITS,
 
 	/* Data DML related counters */
 	MONITOR_MODULE_DML_STATS,
@@ -530,8 +540,8 @@ on the counters */
 
 /** Increment a monitor counter under mutex protection.
 Use MONITOR_INC if appropriate mutex protection already exists.
-@param monitor	monitor to be incremented by 1
-@param mutex	mutex to acquire and relese */
+@param monitor monitor to be incremented by 1
+@param mutex mutex to acquire and relese */
 # define MONITOR_MUTEX_INC(mutex, monitor)				\
 	ut_ad(!mutex_own(mutex));					\
 	if (MONITOR_IS_ON(monitor)) {					\
@@ -543,8 +553,8 @@ Use MONITOR_INC if appropriate mutex protection already exists.
 	}
 /** Decrement a monitor counter under mutex protection.
 Use MONITOR_DEC if appropriate mutex protection already exists.
-@param monitor	monitor to be decremented by 1
-@param mutex	mutex to acquire and relese */
+@param monitor monitor to be decremented by 1
+@param mutex mutex to acquire and relese */
 # define MONITOR_MUTEX_DEC(mutex, monitor)				\
 	ut_ad(!mutex_own(mutex));					\
 	if (MONITOR_IS_ON(monitor)) {					\
@@ -558,7 +568,7 @@ Use MONITOR_DEC if appropriate mutex protection already exists.
 #if defined HAVE_ATOMIC_BUILTINS_64
 /** Atomically increment a monitor counter.
 Use MONITOR_INC if appropriate mutex protection exists.
-@param monitor	monitor to be incremented by 1 */
+@param monitor monitor to be incremented by 1 */
 # define MONITOR_ATOMIC_INC(monitor)					\
 	if (MONITOR_IS_ON(monitor)) {					\
 		ib_uint64_t	value;					\
@@ -573,7 +583,7 @@ Use MONITOR_INC if appropriate mutex protection exists.
 
 /** Atomically decrement a monitor counter.
 Use MONITOR_DEC if appropriate mutex protection exists.
-@param monitor	monitor to be decremented by 1 */
+@param monitor monitor to be decremented by 1 */
 # define MONITOR_ATOMIC_DEC(monitor)					\
 	if (MONITOR_IS_ON(monitor)) {					\
 		ib_uint64_t	value;					\
@@ -593,24 +603,24 @@ built-in operations for atomic memory access */
 extern ib_mutex_t	monitor_mutex;
 /****************************************************************//**
 Initialize the monitor subsystem. */
-UNIV_INTERN
+
 void
 srv_mon_create(void);
 /*================*/
 /****************************************************************//**
 Close the monitor subsystem. */
-UNIV_INTERN
+
 void
 srv_mon_free(void);
 /*==============*/
 
 /** Atomically increment a monitor counter.
 Use MONITOR_INC if appropriate mutex protection exists.
-@param monitor	monitor to be incremented by 1 */
+@param monitor monitor to be incremented by 1 */
 # define MONITOR_ATOMIC_INC(monitor) MONITOR_MUTEX_INC(&monitor_mutex, monitor)
 /** Atomically decrement a monitor counter.
 Use MONITOR_DEC if appropriate mutex protection exists.
-@param monitor	monitor to be decremented by 1 */
+@param monitor monitor to be decremented by 1 */
 # define MONITOR_ATOMIC_DEC(monitor) MONITOR_MUTEX_DEC(&monitor_mutex, monitor)
 #endif /* HAVE_ATOMIC_BUILTINS_64 */
 
@@ -683,8 +693,8 @@ could already be checked as a module group */
 
 /** Add time difference between now and input "value" (in seconds) to the
 monitor counter
-@param monitor	monitor to update for the time difference
-@param value	the start time value */
+@param monitor monitor to update for the time difference
+@param value the start time value */
 #define	MONITOR_INC_TIME_IN_MICRO_SECS(monitor, value)			\
 	MONITOR_CHECK_DEFINED(value);					\
 	if (MONITOR_IS_ON(monitor)) {					\
@@ -696,13 +706,13 @@ monitor counter
 /** This macro updates 3 counters in one call. However, it only checks the
 main/first monitor counter 'monitor', to see it is on or off to decide
 whether to do the update.
-@param monitor		the main monitor counter to update. It accounts for
+@param monitor the main monitor counter to update. It accounts for
 			the accumulative value for the counter.
-@param monitor_n_calls	counter that counts number of times this macro is
+@param monitor_n_calls counter that counts number of times this macro is
 			called
-@param monitor_per_call	counter that records the current and max value of
+@param monitor_per_call counter that records the current and max value of
 			each incremental value
-@param value		incremental value to record this time */
+@param value incremental value to record this time */
 #define MONITOR_INC_VALUE_CUMULATIVE(					\
 		monitor, monitor_n_calls, monitor_per_call, value)	\
 	MONITOR_CHECK_DEFINED(value);					\
@@ -788,9 +798,9 @@ compensated by mon_last_value if accumulated value is required. */
 /****************************************************************//**
 Get monitor's monitor_info_t by its monitor id (index into the
 innodb_counter_info array
-@return	Point to corresponding monitor_info_t, or NULL if no such
+@return Point to corresponding monitor_info_t, or NULL if no such
 monitor */
-UNIV_INTERN
+
 monitor_info_t*
 srv_mon_get_info(
 /*=============*/
@@ -799,9 +809,9 @@ srv_mon_get_info(
 /****************************************************************//**
 Get monitor's name by its monitor id (index into the
 innodb_counter_info array
-@return	corresponding monitor name, or NULL if no such
+@return corresponding monitor name, or NULL if no such
 monitor */
-UNIV_INTERN
+
 const char*
 srv_mon_get_name(
 /*=============*/
@@ -811,9 +821,9 @@ srv_mon_get_name(
 /****************************************************************//**
 Turn on/off/reset monitor counters in a module. If module_value
 is NUM_MONITOR then turn on all monitor counters.
-@return	0 if successful, or the first monitor that cannot be
+@return 0 if successful, or the first monitor that cannot be
 turned on because it is already turned on. */
-UNIV_INTERN
+
 void
 srv_mon_set_module_control(
 /*=======================*/
@@ -830,7 +840,7 @@ mechanism to start/stop and reset the counters, so we simulate these
 controls by remembering the corresponding counter values when the
 corresponding monitors are turned on/off/reset, and do appropriate
 mathematics to deduct the actual value. */
-UNIV_INTERN
+
 void
 srv_mon_process_existing_counter(
 /*=============================*/
@@ -841,7 +851,7 @@ srv_mon_process_existing_counter(
 /*************************************************************//**
 This function is used to calculate the maximum counter value
 since the start of monitor counter
-@return	max counter value since start. */
+@return max counter value since start. */
 UNIV_INLINE
 mon_type_t
 srv_mon_calc_max_since_start(
@@ -850,7 +860,7 @@ srv_mon_calc_max_since_start(
 /*************************************************************//**
 This function is used to calculate the minimum counter value
 since the start of monitor counter
-@return	min counter value since start. */
+@return min counter value since start. */
 UNIV_INLINE
 mon_type_t
 srv_mon_calc_min_since_start(
@@ -859,7 +869,7 @@ srv_mon_calc_min_since_start(
 /*************************************************************//**
 Reset a monitor, create a new base line with the current monitor
 value. This baseline is recorded by MONITOR_VALUE_RESET(monitor) */
-UNIV_INTERN
+
 void
 srv_mon_reset(
 /*==========*/
@@ -873,7 +883,7 @@ srv_mon_reset_all(
 	monitor_id_t	monitor);	/*!< in: monitor id*/
 /*************************************************************//**
 Turn on monitor counters that are marked as default ON. */
-UNIV_INTERN
+
 void
 srv_mon_default_on(void);
 /*====================*/

@@ -1,6 +1,6 @@
 /***********************************************************************
 
-Copyright (c) 2012, Oracle and/or its affiliates. All Rights Reserved.
+Copyright (c) 2013, Oracle and/or its affiliates. All Rights Reserved.
 
 This program is free software; you can redistribute it and/or modify it
 under the terms of the GNU General Public License as published by the
@@ -174,13 +174,6 @@ typedef struct option {
 					and "TABLE_MAP_SEPARATOR" */
 	option_value_t	default_value;	/*!< default value */
 } option_t;
-
-/** Configure options enum IDs, their "names" and their default value */
-static option_t	config_option_names[] =
-{
-        {OPTION_ID_COL_SEP, COLUMN_SEPARATOR, {"|", 1}},
-        {OPTION_ID_TBL_MAP_SEP, TABLE_MAP_SEPARATOR, {".", 1}}
-};
 
 /** Get configure option value. If the value is not configured by
 user, obtain its default value from "config_option_names"

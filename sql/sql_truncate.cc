@@ -1,4 +1,4 @@
-/* Copyright (c) 2010, 2012, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2010, 2013, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -20,7 +20,7 @@
 #include "sql_table.h"   // write_bin_log
 #include "datadict.h"    // dd_recreate_table()
 #include "lock.h"        // MYSQL_OPEN_* flags
-#include "sql_acl.h"     // DROP_ACL
+#include "auth_common.h" // DROP_ACL
 #include "sql_parse.h"   // check_one_table_access()
 #include "sql_truncate.h"
 #include "sql_show.h"    //append_identifier()
@@ -271,7 +271,7 @@ static bool recreate_temporary_table(THD *thd, TABLE *table)
     on table and schema names.
   */
   ha_create_table(thd, share->normalized_path.str, share->db.str,
-                  share->table_name.str, &create_info, 1);
+                  share->table_name.str, &create_info, true, true);
 
   if (open_table_uncached(thd, share->path.str, share->db.str,
                           share->table_name.str, true, true))
@@ -487,7 +487,7 @@ bool Sql_cmd_truncate_table::truncate_table(THD *thd, TABLE_LIST *table_ref)
       query_cache_invalidate does not need a valid TABLE object.
     */
     table_ref->table= NULL;
-    query_cache_invalidate3(thd, table_ref, FALSE);
+    query_cache.invalidate(thd, table_ref, FALSE);
   }
 
   /* DDL is logged in statement format, regardless of binlog format. */
@@ -516,7 +516,7 @@ bool Sql_cmd_truncate_table::truncate_table(THD *thd, TABLE_LIST *table_ref)
 bool Sql_cmd_truncate_table::execute(THD *thd)
 {
   bool res= TRUE;
-  TABLE_LIST *first_table= thd->lex->select_lex.table_list.first;
+  TABLE_LIST *first_table= thd->lex->select_lex->table_list.first;
   DBUG_ENTER("Sql_cmd_truncate_table::execute");
 
   if (check_one_table_access(thd, DROP_ACL, first_table))

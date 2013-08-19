@@ -1,4 +1,4 @@
-/* Copyright (c) 2012, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2012, 2013, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or
    modify it under the terms of the GNU General Public License as
@@ -63,7 +63,8 @@ enum_return_status Owned_gtids::ensure_sidno(rpl_sidno sidno)
       goto error;
     for (int i= max_sidno; i < sidno; i++)
     {
-      HASH *hash= (HASH *)my_malloc(sizeof(HASH), MYF(MY_WME));
+      HASH *hash= (HASH *)my_malloc(key_memory_Owned_gtids_sidno_to_hash,
+                                    sizeof(HASH), MYF(MY_WME));
       if (hash == NULL)
         goto error;
       my_hash_init(hash, &my_charset_bin, 20,
@@ -85,7 +86,8 @@ enum_return_status Owned_gtids::add_gtid_owner(const Gtid &gtid,
   DBUG_ENTER("Owned_gtids::add_gtid_owner(Gtid, my_thread_id)");
   DBUG_ASSERT(!contains_gtid(gtid));
   DBUG_ASSERT(gtid.sidno <= get_max_sidno());
-  Node *n= (Node *)my_malloc(sizeof(Node), MYF(MY_WME));
+  Node *n= (Node *)my_malloc(key_memory_Sid_map_Node,
+                             sizeof(Node), MYF(MY_WME));
   if (n == NULL)
     RETURN_REPORTED_ERROR;
   n->gno= gtid.gno;
@@ -134,9 +136,9 @@ my_thread_id Owned_gtids::get_owner(const Gtid &gtid) const
 }
 
 
-bool Owned_gtids::is_intersection(const Gtid_set *other) const
+bool Owned_gtids::is_intersection_nonempty(const Gtid_set *other) const
 {
-  DBUG_ENTER("Owned_gtids::is_intersection(Gtid_set *)");
+  DBUG_ENTER("Owned_gtids::is_intersection_nonempty(Gtid_set *)");
   if (sid_lock != NULL)
     sid_lock->assert_some_wrlock();
   Gtid_iterator git(this);

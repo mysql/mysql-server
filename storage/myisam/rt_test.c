@@ -1,4 +1,4 @@
-/* Copyright (c) 2002, 2011, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2002, 2013, Oracle and/or its affiliates. All rights reserved.
    
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -18,9 +18,6 @@
 
 
 #include "myisam.h"
-
-#ifdef HAVE_RTREE_KEYS
-
 #include "rt_index.h"
 
 #define MAX_REC_LENGTH 1024
@@ -424,6 +421,5 @@ int main(int argc __attribute__((unused)),char *argv[] __attribute__((unused)))
 {
   exit(0);
 }
-#endif /*HAVE_RTREE_KEYS*/
 
 #include "mi_extrafunc.h"

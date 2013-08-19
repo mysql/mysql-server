@@ -1,4 +1,4 @@
-/* Copyright (c) 2000, 2011, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2000, 2013, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -147,7 +147,7 @@ vio_set_cert_stuff(SSL_CTX *ctx, const char *cert_file, const char *key_file,
 }
 
 
-static void check_ssl_init()
+void ssl_start()
 {
   if (!ssl_algorithms_added)
   {
@@ -186,10 +186,11 @@ new_VioSSLFd(const char *key_file, const char *cert_file,
               crl_file ? crl_file : "NULL",
               crl_path ? crl_path : "NULL"));
 
-  check_ssl_init();
+  ssl_start();
 
   if (!(ssl_fd= ((struct st_VioSSLFd*)
-                 my_malloc(sizeof(struct st_VioSSLFd),MYF(0)))))
+                 my_malloc(key_memory_vio_ssl_fd,
+                           sizeof(struct st_VioSSLFd),MYF(0)))))
     DBUG_RETURN(0);
 
   if (!(ssl_fd->ssl_context= SSL_CTX_new(is_client ?

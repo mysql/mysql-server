@@ -1,4 +1,4 @@
-/* Copyright (c) 2010, 2011, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2010, 2013, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -39,6 +39,15 @@ Rpl_info_file::Rpl_info_file(const int nparam,
   memset(&info_file, 0, sizeof(info_file));
   fn_format(pattern_fname, param_pattern_fname, mysql_data_home, "", 4 + 32);
   fn_format(info_fname, param_info_fname, mysql_data_home, "", 4 + 32);
+
+  DBUG_VOID_RETURN;
+}
+
+Rpl_info_file::~Rpl_info_file()
+{
+  DBUG_ENTER("Rpl_info_file::~Rpl_info_file");
+
+  do_end_info();
 
   DBUG_VOID_RETURN;
 }
@@ -639,7 +648,8 @@ bool init_dynarray_intvar_from_file(char *buffer, size_t size,
           (decimal size + space) - 1 + `\n' + '\0'
     */
     size_t max_size= (1 + num_items) * (sizeof(long) * 3 + 1) + 1;
-    if (! (buf_act= (char*) my_malloc(max_size, MYF(MY_WME))))
+    if (! (buf_act= (char*) my_malloc(key_memory_Rpl_info_file_buffer,
+                                      max_size, MYF(MY_WME))))
       DBUG_RETURN(TRUE);
     *buffer_act= buf_act;
     memcpy(buf_act, buf, read_size);

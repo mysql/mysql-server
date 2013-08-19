@@ -22,6 +22,7 @@ FIND_PATH(WIX_DIR heat.exe
    $ENV{ProgramFiles}/wix/bin
   "$ENV{ProgramFiles}/Windows Installer XML v3/bin"
   "$ENV{ProgramFiles}/Windows Installer XML v3.5/bin"
+  "$ENV{ProgramFiles}/WiX Toolset V3.6/bin"
 )
 
 IF(NOT WIX_DIR)
@@ -52,6 +53,22 @@ FOREACH(dir mysql performance_schema)
  STRING(TOUPPER ${dir} DIR_UPPER)
  SET(DATADIR_${DIR_UPPER}_FILES "${filelist}")
 ENDFOREACH()
+
+FILE(GLOB files ${CMAKE_BINARY_DIR}/sql/data/*)
+SET(filelist)
+FOREACH(f ${files})
+  IF(IS_DIRECTORY "${f}")
+  ELSE()
+    IF(NOT (f MATCHES ".rule" OR f MATCHES "bootstrap.sql"))
+      FILE(TO_NATIVE_PATH "${f}" file_native_path)
+      GET_FILENAME_COMPONENT(file_name "${f}" NAME)
+      SET(filelist 
+"${filelist}
+<File Id='${file_name}' Source='${file_native_path}'/>")
+    ENDIF()
+  ENDIF()
+ENDFOREACH()
+SET(DATADIR_FILES "${filelist}")
 
 
 FIND_PROGRAM(HEAT_EXECUTABLE heat ${WIX_DIR})

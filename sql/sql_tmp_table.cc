@@ -1,4 +1,4 @@
-/* Copyright (c) 2011, 2012, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2011, 2013, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -102,7 +102,8 @@ Field *create_tmp_field_from_field(THD *thd, Field *org_field,
 */
 
 static Field *create_tmp_field_from_item(THD *thd, Item *item, TABLE *table,
-                                         Item ***copy_func, bool modify_item)
+                                         Func_ptr_array *copy_func,
+                                         bool modify_item)
 {
   bool maybe_null= item->maybe_null;
   Field *new_field;
@@ -163,7 +164,7 @@ static Field *create_tmp_field_from_item(THD *thd, Item *item, TABLE *table,
     in the beginning of create_tmp_field().
    */
   if (copy_func && item->real_item()->is_result_field())
-    *((*copy_func)++) = item;			// Save for copy_funcs
+    copy_func->push_back(item);
   if (modify_item)
     item->set_result_field(new_field);
   if (item->type() == Item::NULL_ITEM)
@@ -230,19 +231,19 @@ static Field *create_tmp_field_for_schema(THD *thd, Item *item, TABLE *table)
                        the temporary table
 
   @retval
-    0			on error
+    NULL		on error
   @retval
     new_created field
 */
 
 Field *create_tmp_field(THD *thd, TABLE *table,Item *item, Item::Type type,
-                        Item ***copy_func, Field **from_field,
+                        Func_ptr_array *copy_func, Field **from_field,
                         Field **default_field,
                         bool group, bool modify_item,
                         bool table_cant_handle_bit_fields,
                         bool make_copy_field)
 {
-  Field *result;
+  Field *result= NULL;
   Item::Type orig_type= type;
   Item *orig_item= 0;
 
@@ -261,10 +262,11 @@ Field *create_tmp_field(THD *thd, TABLE *table,Item *item, Item::Type type,
     result= item_sum->create_tmp_field(group, table);
     if (!result)
       my_error(ER_OUT_OF_RESOURCES, MYF(ME_FATALERROR));
-    return result;
+    break;
   }
   case Item::FIELD_ITEM:
   case Item::DEFAULT_VALUE_ITEM:
+  case Item::TRIGGER_FIELD_ITEM:
   {
     Item_field *field= (Item_field*) item;
     bool orig_modify= modify_item;
@@ -278,8 +280,10 @@ Field *create_tmp_field(THD *thd, TABLE *table,Item *item, Item::Type type,
     {
       result= create_tmp_field_from_item(thd, item, table, NULL,
                                          modify_item);
+      if (!result)
+        break;
       *from_field= field->field;
-      if (result && modify_item)
+      if (modify_item)
         field->result_field= result;
     } 
     else if (table_cant_handle_bit_fields && field->field->type() ==
@@ -288,16 +292,22 @@ Field *create_tmp_field(THD *thd, TABLE *table,Item *item, Item::Type type,
       *from_field= field->field;
       result= create_tmp_field_from_item(thd, item, table, copy_func,
                                          modify_item);
-      if (result && modify_item)
+      if (!result)
+        break;
+      if (modify_item)
         field->result_field= result;
     }
     else
+    {
       result= create_tmp_field_from_field(thd, (*from_field= field->field),
                                           orig_item ? orig_item->item_name.ptr() :
                                           item->item_name.ptr(),
                                           table,
                                           modify_item ? field :
                                           NULL);
+      if (!result)
+        break;
+    }
     if (orig_type == Item::REF_ITEM && orig_modify)
       ((Item_ref*)orig_item)->set_result_field(result);
     /*
@@ -307,7 +317,7 @@ Field *create_tmp_field(THD *thd, TABLE *table,Item *item, Item::Type type,
     */
     if (orig_type != Item::DEFAULT_VALUE_ITEM && field->field->eq_def(result))
       *default_field= field->field;
-    return result;
+    break;
   }
   /* Fall through */
   case Item::FUNC_ITEM:
@@ -323,26 +333,26 @@ Field *create_tmp_field(THD *thd, TABLE *table,Item *item, Item::Type type,
       }
       else
       {
-        *((*copy_func)++)= item;
+        copy_func->push_back(item);
       }
 
-      Field *result_field=
-        create_tmp_field_from_field(thd,
-                                    sp_result_field,
-                                    item_func_sp->item_name.ptr(),
-                                    table,
-                                    NULL);
-
+      result= create_tmp_field_from_field(thd,
+                                          sp_result_field,
+                                          item_func_sp->item_name.ptr(),
+                                          table,
+                                          NULL);
+      if (!result)
+        break;
       if (modify_item)
-        item->set_result_field(result_field);
-
-      return result_field;
+        item->set_result_field(result);
+      break;
     }
 
     /* Fall through */
   case Item::COND_ITEM:
   case Item::FIELD_AVG_ITEM:
   case Item::FIELD_STD_ITEM:
+  case Item::FIELD_VARIANCE_ITEM:
   case Item::SUBSELECT_ITEM:
     /* The following can only happen with 'CREATE TABLE ... SELECT' */
   case Item::PROC_ITEM:
@@ -358,16 +368,21 @@ Field *create_tmp_field(THD *thd, TABLE *table,Item *item, Item::Type type,
       DBUG_ASSERT(((Item_result_field*)item)->result_field);
       *from_field= ((Item_result_field*)item)->result_field;
     }
-    return create_tmp_field_from_item(thd, item, table,
-                                      (make_copy_field ? 0 : copy_func),
+    result= create_tmp_field_from_item(thd, item, table,
+                                       (make_copy_field ? NULL : copy_func),
                                        modify_item);
+    break;
   case Item::TYPE_HOLDER:  
     result= ((Item_type_holder *)item)->make_field_by_type(table);
+    if (!result)
+      break;
     result->set_derivation(item->collation.derivation);
-    return result;
+    break;
   default:					// Dosen't have to be stored
-    return 0;
+    DBUG_ASSERT(false);
+    break;
   }
+  return result;
 }
 
 /*
@@ -458,7 +473,6 @@ create_tmp_table(THD *thd,TMP_TABLE_PARAM *param,List<Item> &fields,
   Copy_field *copy=0;
   KEY *keyinfo;
   KEY_PART_INFO *key_part_info;
-  Item **copy_func;
   MI_COLUMNDEF *recinfo;
   /*
     total_uneven_bit_length is uneven bit length for visible fields
@@ -531,7 +545,13 @@ create_tmp_table(THD *thd,TMP_TABLE_PARAM *param,List<Item> &fields,
   if (param->precomputed_group_by)
     copy_func_count+= param->sum_func_count;
   
-  init_sql_alloc(&own_root, TABLE_ALLOC_BLOCK_SIZE, 0);
+  init_sql_alloc(key_memory_TABLE, &own_root, TABLE_ALLOC_BLOCK_SIZE, 0);
+
+  void *rawmem= alloc_root(&own_root, sizeof(Func_ptr_array));
+  if (!rawmem)
+    DBUG_RETURN(NULL);                        /* purecov: inspected */
+  Func_ptr_array *copy_func= new (rawmem) Func_ptr_array(&own_root);
+  copy_func->reserve(copy_func_count);
 
   if (!multi_alloc_root(&own_root,
                         &table, sizeof(*table),
@@ -540,7 +560,6 @@ create_tmp_table(THD *thd,TMP_TABLE_PARAM *param,List<Item> &fields,
                         &default_field, sizeof(Field*) * (field_count),
                         &blob_field, sizeof(uint)*(field_count+1),
                         &from_field, sizeof(Field*)*field_count,
-                        &copy_func, sizeof(*copy_func)*(copy_func_count+1),
                         &param->keyinfo, sizeof(*param->keyinfo),
                         &key_part_info,
                         sizeof(*key_part_info)*(param->group_parts+1),
@@ -586,6 +605,7 @@ create_tmp_table(THD *thd,TMP_TABLE_PARAM *param,List<Item> &fields,
   table->copy_blobs= 1;
   table->in_use= thd;
   table->quick_keys.init();
+  table->possible_quick_keys.init();
   table->covering_keys.init();
   table->merge_keys.init();
   table->keys_in_use_for_query.init();
@@ -605,14 +625,19 @@ create_tmp_table(THD *thd,TMP_TABLE_PARAM *param,List<Item> &fields,
 
   reclength= string_total_length= 0;
   blob_count= string_count= null_count= hidden_null_count= group_null_items= 0;
-  param->using_indirect_summary_function=0;
+  param->using_outer_summary_function= 0;
 
   List_iterator_fast<Item> li(fields);
   Item *item;
   Field **tmp_from_field=from_field;
   while ((item=li++))
   {
-    Item::Type type=item->type();
+    Item::Type type= item->type();
+    if (type == Item::COPY_STR_ITEM)
+    {
+      item= ((Item_copy *)item)->get_item();
+      type= item->type();
+    }
     if (not_all_columns)
     {
       if (item->with_sum_func && type != Item::SUM_FUNC_ITEM)
@@ -623,16 +648,14 @@ create_tmp_table(THD *thd,TMP_TABLE_PARAM *param,List<Item> &fields,
             (item->used_tables() & ~OUTER_REF_TABLE_BIT))
         {
 	  /*
-	    Mark that the we have ignored an item that refers to a summary
+	    Mark that we have ignored an item that refers to a summary
 	    function. We need to know this if someone is going to use
 	    DISTINCT on the result.
 	  */
-	  param->using_indirect_summary_function=1;
-	  continue;
+	  param->using_outer_summary_function= 1;
+          goto update_hidden;
         }
       }
-      if (item->const_item() && (int) hidden_field_count <= 0)
-        continue; // We don't have to store this
     }
     if (type == Item::SUM_FUNC_ITEM && !group && !save_sum_fields)
     {						/* Can't calc group yet */
@@ -644,7 +667,7 @@ create_tmp_table(THD *thd,TMP_TABLE_PARAM *param,List<Item> &fields,
 	if (!arg->const_item())
 	{
 	  Field *new_field=
-            create_tmp_field(thd, table, arg, arg->type(), &copy_func,
+            create_tmp_field(thd, table, arg, arg->type(), copy_func,
                              tmp_from_field, &default_field[fieldnr],
                              group != 0,not_all_columns,
                              distinct, false);
@@ -696,7 +719,7 @@ create_tmp_table(THD *thd,TMP_TABLE_PARAM *param,List<Item> &fields,
       */
       Field *new_field= (param->schema_table) ?
         create_tmp_field_for_schema(thd, item, table) :
-        create_tmp_field(thd, table, item, type, &copy_func,
+        create_tmp_field(thd, table, item, type, copy_func,
                          tmp_from_field, &default_field[fieldnr],
                          group != 0,
                          !force_copy_fields &&
@@ -713,9 +736,8 @@ create_tmp_table(THD *thd,TMP_TABLE_PARAM *param,List<Item> &fields,
 
       if (!new_field)
       {
-	if (thd->is_fatal_error)
-	  goto err;				// Got OOM
-	continue;				// Some kindf of const item
+        DBUG_ASSERT(thd->is_fatal_error);
+        goto err;				// Got OOM
       }
       if (type == Item::SUM_FUNC_ITEM)
 	((Item_sum *) item)->result_field= new_field;
@@ -746,6 +768,8 @@ create_tmp_table(THD *thd,TMP_TABLE_PARAM *param,List<Item> &fields,
       new_field->field_index= fieldnr++;
       *(reg_field++)= new_field;
     }
+
+update_hidden:
     if (!--hidden_field_count)
     {
       /*
@@ -844,8 +868,7 @@ create_tmp_table(THD *thd,TMP_TABLE_PARAM *param,List<Item> &fields,
     table->record[1]= table->record[0]+alloc_length;
     share->default_values= table->record[1]+alloc_length;
   }
-  copy_func[0]=0;				// End marker
-  param->func_count= copy_func - param->items_to_copy;
+  param->func_count= copy_func->size();
   DBUG_ASSERT(param->func_count <= copy_func_count); // Used <= allocated
 
   setup_tmp_table_column_bitmaps(table, bitmaps);
@@ -867,6 +890,7 @@ create_tmp_table(THD *thd,TMP_TABLE_PARAM *param,List<Item> &fields,
   }
   null_count= (blob_count == 0) ? 1 : 0;
   hidden_field_count=param->hidden_field_count;
+  DBUG_ASSERT(hidden_field_count <= field_count);
   for (i=0,reg_field=table->field; i < field_count; i++,reg_field++,recinfo++)
   {
     Field *field= *reg_field;
@@ -889,11 +913,11 @@ create_tmp_table(THD *thd,TMP_TABLE_PARAM *param,List<Item> &fields,
       }
       else
       {
-	recinfo->null_bit= 1 << (null_count & 7);
+	recinfo->null_bit= (uint8)1 << (null_count & 7);
 	recinfo->null_pos= null_count/8;
       }
       field->move_field(pos,null_flags+null_count/8,
-			1 << (null_count & 7));
+			(uint8)1 << (null_count & 7));
       null_count++;
     }
     else
@@ -918,11 +942,9 @@ create_tmp_table(THD *thd,TMP_TABLE_PARAM *param,List<Item> &fields,
          inherit the default value that is defined for the field referred
          by the Item_field object from which 'field' has been created.
       */
-      my_ptrdiff_t diff;
       Field *orig_field= default_field[i];
       /* Get the value from default_values */
-      diff= (my_ptrdiff_t) (orig_field->table->s->default_values-
-                            orig_field->table->record[0]);
+      my_ptrdiff_t diff= orig_field->table->default_values_offset();
       orig_field->move_field_offset(diff);      // Points now at default_values
       if (orig_field->is_real_null())
         field->set_null();
@@ -1219,7 +1241,7 @@ TABLE *create_duplicate_weedout_tmp_table(THD *thd,
     using_unique_constraint= true;
 
   /* STEP 3: Allocate memory for temptable description */
-  init_sql_alloc(&own_root, TABLE_ALLOC_BLOCK_SIZE, 0);
+  init_sql_alloc(key_memory_TABLE, &own_root, TABLE_ALLOC_BLOCK_SIZE, 0);
   if (!multi_alloc_root(&own_root,
                         &table, sizeof(*table),
                         &share, sizeof(*share),
@@ -1259,6 +1281,7 @@ TABLE *create_duplicate_weedout_tmp_table(THD *thd,
   table->copy_blobs= 1;
   table->in_use= thd;
   table->quick_keys.init();
+  table->possible_quick_keys.init();
   table->covering_keys.init();
   table->keys_in_use_for_query.init();
 
@@ -1547,7 +1570,7 @@ TABLE *create_virtual_tmp_table(THD *thd, List<Create_field> &field_list)
       {
         cur_field->move_field(field_pos, (uchar*) null_pos, null_bit);
         null_bit<<= 1;
-        if (null_bit == (1 << 8))
+        if (null_bit == (uint8)1 << 8)
         {
           ++null_pos;
           null_bit= 1;
@@ -1941,7 +1964,7 @@ bool create_myisam_from_heap(THD *thd, TABLE *table,
 
   if (create_myisam_tmp_table(&new_table, table->s->key_info,
                               start_recinfo, recinfo,
-			      (thd->lex->select_lex.options |
+			      (thd->lex->select_lex->options |
                                thd->variables.option_bits),
                               thd->variables.big_tables))
     goto err2;

@@ -1,4 +1,4 @@
-/* Copyright (c) 2009, 2010, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2009, 2013, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -19,6 +19,9 @@
 
 #ifndef SQL_CMD_INCLUDED
 #define SQL_CMD_INCLUDED
+
+#include "sql_alloc.h"
+class THD;
 
 /*
   When a command is added here, be sure it's also added in mysqld.cc
@@ -90,6 +93,7 @@ enum enum_sql_command {
   SQLCOM_SHOW_RELAYLOG_EVENTS,
   SQLCOM_GET_DIAGNOSTICS,
   SQLCOM_ALTER_USER,
+  SQLCOM_EXPLAIN_OTHER,
 
   /*
     When a command is added here, be sure it's also added in mysqld.cc

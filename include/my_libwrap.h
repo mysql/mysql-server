@@ -1,8 +1,8 @@
 #ifndef MY_LIBWRAP_INCLUDED
 #define MY_LIBWRAP_INCLUDED
 
-/* Copyright (c) 2000, 2006 MySQL AB, 2009 Sun Microsystems, Inc.
-   Use is subject to license terms.
+/*
+   Copyright (c) 2000, 2013, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -20,9 +20,6 @@
 #ifdef HAVE_LIBWRAP
 #include <tcpd.h>
 #include <syslog.h>
-#ifdef NEED_SYS_SYSLOG_H
-#include <sys/syslog.h>
-#endif /* NEED_SYS_SYSLOG_H */
 
 extern void my_fromhost(struct request_info *req);
 extern int my_hosts_access(struct request_info *req);

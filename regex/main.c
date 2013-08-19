@@ -22,7 +22,7 @@ extern int split(char *string, char *fields[], int nfields, char *sep);
 extern void regprint(my_regex_t *r, FILE *d);
 
 
-#ifdef __WIN__
+#ifdef _WIN32
 char *optarg= "";
 int optind= 1;
 int opterr;

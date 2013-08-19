@@ -1,4 +1,4 @@
-/* Copyright (c) 2012, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2012, 2013, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or
    modify it under the terms of the GNU General Public License as
@@ -47,6 +47,12 @@
 #include "hash.h"
 #include "lf.h"
 #include "my_atomic.h"
+
+extern PSI_memory_key key_memory_Gtid_set_to_string;
+extern PSI_memory_key key_memory_Owned_gtids_to_string;
+extern PSI_memory_key key_memory_Gtid_state_to_string;
+extern PSI_memory_key key_memory_Group_cache_to_string;
+extern PSI_memory_key key_memory_Gtid_set_Interval_chunk;
 
 /**
   This macro is used to check that the given character, pointed to by the
@@ -983,9 +989,14 @@ public:
 
     @param string The string to parse.
     @param length The number of bytes.
+    @param actual_length If this is not NULL, it is set to the number
+    of bytes used by the encoding (which may be less than 'length').
+    If this is NULL, an error is generated if the encoding is shorter
+    than the given 'length'.
     @return GS_SUCCESS or GS_ERROR_PARSE or GS_ERROR_OUT_OF_MEMORY
   */
-  enum_return_status add_gtid_encoding(const uchar *encoded, size_t length);
+  enum_return_status add_gtid_encoding(const uchar *encoded, size_t length,
+                                       size_t *actual_length= NULL);
   /// Return true iff the given GTID exists in this set.
   bool contains_gtid(rpl_sidno sidno, rpl_gno gno) const;
   /// Return true iff the given GTID exists in this set.
@@ -1015,8 +1026,14 @@ public:
   bool is_subset(const Gtid_set *super) const;
   /// Returns true if there is a least one element of this Gtid_set in
   /// the other Gtid_set.
-  bool is_intersection(const Gtid_set *other) const;
-  /// Result is the intersection of this Gtid_set and the other Gtid_set.
+  bool is_intersection_nonempty(const Gtid_set *other) const;
+  /**
+    Add the intersection of this Gtid_set and the other Gtid_set to result.
+
+    @param other The Gtid_set to intersect with this Gtid_set
+    @param result Gtid_set where the result will be stored.
+    @return RETURN_STATUS_OK or RETURN_STATUS_REPORTED_ERROR.
+  */
   enum_return_status intersection(const Gtid_set *other, Gtid_set *result);
   /// Returns true if this Gtid_set is empty.
   bool is_empty() const
@@ -1053,7 +1070,8 @@ public:
   */
   char *to_string() const
   {
-    char *str= (char *)my_malloc(get_string_length() + 1, MYF(MY_WME));
+    char *str= (char *)my_malloc(key_memory_Gtid_set_to_string,
+                                 get_string_length() + 1, MYF(MY_WME));
     if (str != NULL)
       to_string(str);
     return str;
@@ -1624,6 +1642,14 @@ private:
                                           Const_interval_iterator ivit,
                                           Free_intervals_lock *lock);
 
+  /// Returns true if every interval of sub is a subset of some
+  /// interval of super.
+  static bool is_interval_subset(Const_interval_iterator *sub,
+                                 Const_interval_iterator *super);
+  /// Returns true if at least one sidno in ivit1 is also in ivit2.
+  static bool is_interval_intersection_nonempty(Const_interval_iterator *ivit1,
+                                                Const_interval_iterator *ivit2);
+
   /// Sid_map associated with this Gtid_set.
   Sid_map *sid_map;
   /**
@@ -1777,7 +1803,7 @@ public:
   enum_return_status ensure_sidno(rpl_sidno sidno);
   /// Returns true if there is a least one element of this Owned_gtids
   /// set in the other Gtid_set.
-  bool is_intersection(const Gtid_set *other) const;
+  bool is_intersection_nonempty(const Gtid_set *other) const;
   /// Returns true if this Owned_gtids is empty.
   bool is_empty() const
   {
@@ -1869,7 +1895,8 @@ public:
   */
   char *to_string() const
   {
-    char *str= (char *)my_malloc(get_max_string_length(), MYF(MY_WME));
+    char *str= (char *)my_malloc(key_memory_Owned_gtids_to_string,
+                                 get_max_string_length(), MYF(MY_WME));
     DBUG_ASSERT(str != NULL);
     to_string(str);
     return str;
@@ -2182,7 +2209,7 @@ public:
   */
   void wait_for_gtid(THD *thd, const Gtid &gtid);
 #endif // ifndef MYSQL_CLIENT
-#ifdef HAVE_NDB_BINLOG
+#ifdef HAVE_GTID_NEXT_LIST
   /**
     Locks one mutex for each SIDNO where the given Gtid_set has at
     least one GTID.  Locks are acquired in order of increasing SIDNO.
@@ -2198,7 +2225,7 @@ public:
     Gtid_set has at least one GTID.
   */
   void broadcast_sidnos(const Gtid_set *set);
-#endif // ifdef HAVE_NDB_BINLOG
+#endif // ifdef HAVE_GTID_NEXT_LIST
   /**
     Ensure that owned_gtids, logged_gtids, lost_gtids, and sid_locks
     have room for at least as many SIDNOs as sid_map.
@@ -2261,7 +2288,8 @@ public:
   /// Debug only: return a newly allocated string, or NULL on out-of-memory.
   char *to_string() const
   {
-    char *str= (char *)my_malloc(get_max_string_length(), MYF(MY_WME));
+    char *str= (char *)my_malloc(key_memory_Gtid_state_to_string,
+                                 get_max_string_length(), MYF(MY_WME));
     to_string(str);
     return str;
   }
@@ -2287,7 +2315,7 @@ public:
 #endif
   }
 private:
-#ifdef HAVE_NDB_BINLOG
+#ifdef HAVE_GTID_NEXT_LIST
   /// Lock all SIDNOs owned by the given THD.
   void lock_owned_sidnos(const THD *thd);
 #endif
@@ -2506,7 +2534,7 @@ public:
   */
   enum enum_add_group_status
   {
-    EXTEND_EXISTING_GROUP, APPEND_NEW_GROUP, ERROR
+    EXTEND_EXISTING_GROUP, APPEND_NEW_GROUP, ERROR_GROUP
   };
 #ifndef MYSQL_CLIENT
   enum_add_group_status
@@ -2600,7 +2628,8 @@ public:
   */
   char *to_string(const Sid_map *sm) const
   {
-    char *str= (char *)my_malloc(get_max_string_length(), MYF(MY_WME));
+    char *str= (char *)my_malloc(key_memory_Group_cache_to_string,
+                                 get_max_string_length(), MYF(MY_WME));
     if (str)
       to_string(sm, str);
     return str;
@@ -2735,13 +2764,21 @@ gtid_before_statement(THD *thd, Group_cache *gsc, Group_cache *gtc);
 enum_gtid_statement_status gtid_pre_statement_checks(const THD *thd);
 
 /**
+  Check if the current statement terminates a transaction, and if so
+  set GTID_NEXT.type to UNDEFINED_GROUP.
+
+  @param thd THD object for the session.
+*/
+void gtid_post_statement_checks(THD *thd);
+
+/**
   When a transaction is rolled back, this function releases ownership
   of any GTIDs that the transaction owns.
 */
 int gtid_rollback(THD *thd);
 
 int gtid_acquire_ownership_single(THD *thd);
-#ifdef HAVE_NDB_BINLOG
+#ifdef HAVE_GTID_NEXT_LIST
 int gtid_acquire_ownership_multiple(THD *thd);
 #endif
 

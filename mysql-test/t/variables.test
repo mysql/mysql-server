@@ -1,3 +1,8 @@
+# The include statement below is a temp one for tests that are yet to
+#be ported to run with InnoDB,
+#but needs to be kept for tests that would need MyISAM in future.
+--source include/force_myisam_default.inc
+
 #
 # test variables
 #
@@ -34,7 +39,6 @@ set @my_query_cache_size          =@@global.query_cache_size;
 set @my_server_id                 =@@global.server_id;
 set @my_slow_launch_time          =@@global.slow_launch_time;
 set @my_storage_engine            =@@global.default_storage_engine;
-set @my_thread_cache_size         =@@global.thread_cache_size;
 set @my_max_allowed_packet        =@@global.max_allowed_packet;
 set @my_join_buffer_size          =@@global.join_buffer_size;
 # case insensitivity tests (new in 5.0)
@@ -352,7 +356,6 @@ set sql_select_limit=default;
 set sql_warnings=1;
 set global table_open_cache=100;
 set default_storage_engine=myisam;
-set global thread_cache_size=100;
 set timestamp=1, timestamp=default;
 set tmp_table_size=100;
 set tx_isolation="READ-COMMITTED";
@@ -826,7 +829,6 @@ set global query_cache_size          =@my_query_cache_size;
 set global server_id                 =@my_server_id;
 set global slow_launch_time          =@my_slow_launch_time;
 set global default_storage_engine            =@my_storage_engine;
-set global thread_cache_size         =@my_thread_cache_size;
 set global max_allowed_packet        =@my_max_allowed_packet;
 set global join_buffer_size          =@my_join_buffer_size;
 
@@ -1527,3 +1529,28 @@ set session collation_database=2048;
 
 --error ER_WRONG_VALUE_FOR_VAR
 SET @@sql_mode= 4294967296;
+
+--echo #
+--echo # Bug #59860: log-slow-admin-statements and log-slow-slave-statements not displayed
+--echo #
+
+# Basic testing to check that each variable shows up and can be
+# altered. 
+#
+# Functional testing of log_slow_admin_statements is within
+# suites/sys_vars/t/log_slow_admin_statements_basic.test
+# suites/sys_vars/t/log_slow_admin_statements_func.test
+#
+# Functional testing of log_slow_slave_statements is within
+# suites/sys_vars/t/log_slow_slave_statements_basic.test
+# suites/rpl/t/rpl_slow_query_log.test
+
+show variables like 'log_slow%';
+set global log_slow_admin_statements = on;
+show global variables like 'log_slow_admin_statements';
+select * from information_schema.global_variables where variable_name like 'log_slow_admin_statements';
+set global log_slow_slave_statements = on;
+show global variables like 'log_slow_slave_statements';
+select * from information_schema.global_variables where variable_name like 'log_slow_slave_statements';
+set global log_slow_admin_statements = default;
+set global log_slow_slave_statements = default;

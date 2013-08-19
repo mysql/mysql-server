@@ -20,7 +20,8 @@
 # privileges.
 --source include/not_embedded.inc
 
-let $engine_type       = MyISAM;
+--source include/have_innodb.inc
+let $engine_type       = InnoDB;
 
 let $is_table = TABLE_CONSTRAINTS;
 

@@ -1,7 +1,7 @@
 #ifndef SQL_PLANNER_INCLUDED
 #define SQL_PLANNER_INCLUDED
 
-/* Copyright (c) 2000, 2012, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2000, 2013, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -92,12 +92,15 @@ private:
 
   void best_access_path(JOIN_TAB *s, table_map remaining_tables, uint idx, 
                         bool disable_jbuf, double record_count,
-                        POSITION *pos, POSITION *loose_scan_pos);
+                        POSITION *pos);
+  bool semijoin_loosescan_fill_driving_table_position(const JOIN_TAB  *s,
+                                                      table_map remaining_tables,
+                                                      uint      idx,
+                                                      POSITION *loose_scan_pos);
   bool check_interleaving_with_nj(JOIN_TAB *next_tab);
   void advance_sj_state(table_map remaining_tables,
                         const JOIN_TAB *tab, uint idx,
-                        double *current_rowcount, double *current_cost,
-                        POSITION *loose_scan_pos);
+                        double *current_rowcount, double *current_cost);
   void backout_nj_state(const table_map remaining_tables,
                         const JOIN_TAB *tab);
   void optimize_straight_join(table_map join_tables);

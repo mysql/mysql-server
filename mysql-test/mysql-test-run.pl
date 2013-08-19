@@ -1,7 +1,7 @@
 #!/usr/bin/perl
 # -*- cperl -*-
 
-# Copyright (c) 2004, 2012, Oracle and/or its affiliates. All rights reserved.
+# Copyright (c) 2004, 2013, Oracle and/or its affiliates. All rights reserved.
 #
 # This program is free software; you can redistribute it and/or modify
 # it under the terms of the GNU General Public License as published by
@@ -163,7 +163,7 @@ our $opt_vs_config = $ENV{'MTR_VS_CONFIG'};
 
 # If you add a new suite, please check TEST_DIRS in Makefile.am.
 #
-my $DEFAULT_SUITES= "main,sys_vars,binlog,federated,rpl,innodb,innodb_fts,perfschema,funcs_1,opt_trace,parts";
+my $DEFAULT_SUITES= "main,sys_vars,binlog,federated,rpl,innodb,innodb_gis,innodb_fts,perfschema,funcs_1,opt_trace,parts,auth_sec";
 my $opt_suites;
 
 our $opt_verbose= 0;  # Verbose output, enable with --verbose
@@ -180,6 +180,8 @@ our @opt_combinations;
 
 our @opt_extra_mysqld_opt;
 our @opt_mysqld_envs;
+
+our @opt_extra_bootstrap_opt;
 
 my $opt_stress;
 
@@ -646,7 +648,7 @@ sub run_test_server ($$$) {
 			   mtr_report(" - found '$core_name'",
 				      "($num_saved_cores/$opt_max_save_core)");
 
-			   My::CoreDump->show($core_file, $exe_mysqld);
+			   My::CoreDump->show($core_file, $exe_mysqld, $opt_parallel);
 
 			   if ($num_saved_cores >= $opt_max_save_core) {
 			     mtr_report(" - deleting it, already saved",
@@ -701,6 +703,12 @@ sub run_test_server ($$$) {
 	    else {
 	      mtr_report("\nRetrying test $tname, ".
 			 "attempt($retries/$opt_retry)...\n");
+              #saving the log file as filename.failed in case of retry
+              if ( $result->is_failed() ) {
+                my $worker_logdir= $result->{savedir};
+                my $log_file_name=dirname($worker_logdir)."/".$result->{shortname}.".log";
+                rename $log_file_name,$log_file_name.".failed";
+              }
 	      delete($result->{result});
 	      $result->{retries}= $retries+1;
 	      $result->write_test($sock, 'TESTCASE');
@@ -986,6 +994,7 @@ sub print_global_resfile {
   resfile_global("parallel", $opt_parallel);
   resfile_global("check-testcases", $opt_check_testcases ? 1 : 0);
   resfile_global("mysqld", \@opt_extra_mysqld_opt);
+  resfile_global("bootstrap", \@opt_extra_bootstrap_opt);
   resfile_global("debug", $opt_debug ? 1 : 0);
   resfile_global("gcov", $opt_gcov ? 1 : 0);
   resfile_global("gprof", $opt_gprof ? 1 : 0);
@@ -1076,6 +1085,9 @@ sub command_line_setup {
              # Extra options used when starting mysqld
              'mysqld=s'                 => \@opt_extra_mysqld_opt,
              'mysqld-env=s'             => \@opt_mysqld_envs,
+
+             # Extra options used when bootstrapping mysqld
+             'bootstrap=s'                 => \@opt_extra_bootstrap_opt,
 
              # Run test on running server
              'extern=s'                  => \%opts_extern, # Append to hash
@@ -2062,7 +2074,17 @@ sub executable_setup () {
   }
   else
   {
-    $exe_mysqltest= mtr_exe_exists("$path_client_bindir/mysqltest");
+    if ( defined $ENV{'MYSQL_TEST'} )
+    {
+      $exe_mysqltest=$ENV{'MYSQL_TEST'};
+      print "===========================================================\n";
+      print "WARNING:The mysqltest binary is fetched from $exe_mysqltest\n";
+      print "===========================================================\n";
+    }
+    else
+    {
+      $exe_mysqltest= mtr_exe_exists("$path_client_bindir/mysqltest");
+    }
   }
 
 }
@@ -2218,7 +2240,7 @@ sub read_plugin_defs($)
     mtr_error("Lines in $defs_file must have 3 or 4 items") unless $plug_var;
 
     # If running debug server, plugins will be in 'debug' subdirectory
-    $plug_file= "debug/$plug_file" if $running_debug;
+    $plug_file= "debug/$plug_file" if $running_debug && !$source_dist;
 
     my ($plugin)= find_plugin($plug_file, $plug_loc);
 
@@ -2324,18 +2346,6 @@ sub environment_setup {
 				  split(':', $ENV{'DYLD_LIBRARY_PATH'}) : ());
   mtr_debug("DYLD_LIBRARY_PATH: $ENV{'DYLD_LIBRARY_PATH'}");
 
-  # The environment variable used for shared libs on AIX
-  $ENV{'SHLIB_PATH'}= join(":", @ld_library_paths,
-                           $ENV{'SHLIB_PATH'} ?
-                           split(':', $ENV{'SHLIB_PATH'}) : ());
-  mtr_debug("SHLIB_PATH: $ENV{'SHLIB_PATH'}");
-
-  # The environment variable used for shared libs on hp-ux
-  $ENV{'LIBPATH'}= join(":", @ld_library_paths,
-                        $ENV{'LIBPATH'} ?
-                        split(':', $ENV{'LIBPATH'}) : ());
-  mtr_debug("LIBPATH: $ENV{'LIBPATH'}");
-
   $ENV{'UMASK'}=              "0660"; # The octal *string*
   $ENV{'UMASK_DIR'}=          "0770"; # The octal *string*
 
@@ -2433,23 +2443,24 @@ sub environment_setup {
   # ----------------------------------------------------
   # mysql clients
   # ----------------------------------------------------
-  $ENV{'MYSQL_CHECK'}=              client_arguments("mysqlcheck");
-  $ENV{'MYSQL_DUMP'}=               mysqldump_arguments(".1");
-  $ENV{'MYSQL_DUMP_SLAVE'}=         mysqldump_arguments(".2");
-  $ENV{'MYSQL_SLAP'}=               mysqlslap_arguments();
-  $ENV{'MYSQL_IMPORT'}=             client_arguments("mysqlimport");
-  $ENV{'MYSQL_SHOW'}=               client_arguments("mysqlshow");
-  $ENV{'MYSQL_CONFIG_EDITOR'}=      client_arguments_no_grp_suffix("mysql_config_editor");
-  $ENV{'MYSQL_BINLOG'}=             client_arguments("mysqlbinlog");
-  $ENV{'MYSQL'}=                    client_arguments("mysql");
-  $ENV{'MYSQL_SLAVE'}=              client_arguments("mysql", ".2");
-  $ENV{'MYSQL_UPGRADE'}=            client_arguments("mysql_upgrade");
-  $ENV{'MYSQLADMIN'}=               native_path($exe_mysqladmin);
-  $ENV{'MYSQL_CLIENT_TEST'}=        mysql_client_test_arguments();
-  $ENV{'EXE_MYSQL'}=                $exe_mysql;
-  $ENV{'MYSQL_PLUGIN'}=             $exe_mysql_plugin;
-  $ENV{'MYSQL_EMBEDDED'}=           $exe_mysql_embedded;
-  $ENV{'PATH_CONFIG_FILE'}=         $path_config_file;
+  $ENV{'MYSQL_CHECK'}=                 client_arguments("mysqlcheck");
+  $ENV{'MYSQL_DUMP'}=                  mysqldump_arguments(".1");
+  $ENV{'MYSQL_DUMP_SLAVE'}=            mysqldump_arguments(".2");
+  $ENV{'MYSQL_SLAP'}=                  mysqlslap_arguments();
+  $ENV{'MYSQL_IMPORT'}=                client_arguments("mysqlimport");
+  $ENV{'MYSQL_SHOW'}=                  client_arguments("mysqlshow");
+  $ENV{'MYSQL_CONFIG_EDITOR'}=         client_arguments_no_grp_suffix("mysql_config_editor");
+  $ENV{'MYSQL_BINLOG'}=                client_arguments("mysqlbinlog");
+  $ENV{'MYSQL'}=                       client_arguments("mysql");
+  $ENV{'MYSQL_SLAVE'}=                 client_arguments("mysql", ".2");
+  $ENV{'MYSQL_UPGRADE'}=               client_arguments("mysql_upgrade");
+  $ENV{'MYSQL_SECURE_INSTALLATION'}=   "$path_client_bindir/mysql_secure_installation";
+  $ENV{'MYSQLADMIN'}=                  native_path($exe_mysqladmin);
+  $ENV{'MYSQL_CLIENT_TEST'}=           mysql_client_test_arguments();
+  $ENV{'EXE_MYSQL'}=                   $exe_mysql;
+  $ENV{'MYSQL_PLUGIN'}=                $exe_mysql_plugin;
+  $ENV{'MYSQL_EMBEDDED'}=              $exe_mysql_embedded;
+  $ENV{'PATH_CONFIG_FILE'}=            $path_config_file;
 
   my $exe_mysqld= find_mysqld($basedir);
   $ENV{'MYSQLD'}= $exe_mysqld;
@@ -2486,6 +2497,15 @@ sub environment_setup {
 		   "$path_client_bindir/my_print_defaults",
 		   "$basedir/extra/my_print_defaults");
   $ENV{'MYSQL_MY_PRINT_DEFAULTS'}= native_path($exe_my_print_defaults);
+
+  # ----------------------------------------------------
+  # Setup env so childs can execute innochecksum
+  # ----------------------------------------------------
+  my $exe_innochecksum=
+    mtr_exe_exists(vs_config_dirs('extra', 'innochecksum'),
+                   "$path_client_bindir/innochecksum",
+                   "$basedir/extra/innochecksum");
+  $ENV{'INNOCHECKSUM'}= native_path($exe_innochecksum);
 
   # ----------------------------------------------------
   # Setup env so childs can execute myisampack and myisamchk
@@ -3503,13 +3523,20 @@ sub mysql_install_db {
   mtr_add_arg($args, "--bootstrap");
   mtr_add_arg($args, "--basedir=%s", $install_basedir);
   mtr_add_arg($args, "--datadir=%s", $install_datadir);
-  mtr_add_arg($args, "--loose-skip-falcon");
   mtr_add_arg($args, "--loose-skip-ndbcluster");
   mtr_add_arg($args, "--tmpdir=%s", "$opt_vardir/tmp/");
   mtr_add_arg($args, "--innodb-log-file-size=5M");
   mtr_add_arg($args, "--core-file");
   # over writing innodb_autoextend_increment to 8 for reducing the ibdata1 file size 
   mtr_add_arg($args, "--innodb_autoextend_increment=8");
+  # over writing the buffer size to 16M for certain tests to pass       
+  mtr_add_arg($args, "--innodb_buffer_pool_size=16M");
+
+  if ( $opt_embedded_server )
+  {
+    # Do not create performance_schema tables for embedded
+    mtr_add_arg($args, "--loose-performance_schema=OFF");
+  }
 
   if ( $opt_debug )
   {
@@ -3533,13 +3560,20 @@ sub mysql_install_db {
     if ($extra_opt =~ /--innodb/) {
       mtr_add_arg($args, $extra_opt);
     }
+  # Plugin arguments need to be given to the bootstrap 
+  # process as well as the server process.
+    if ($extra_opt =~ /--default-authentication-plugin/) {
+      mtr_add_arg($args, $extra_opt);
+    }
   }
 
-  # If DISABLE_GRANT_OPTIONS is defined when the server is compiled (e.g.,
-  # configure --disable-grant-options), mysqld will not recognize the
-  # --bootstrap or --skip-grant-tables options.  The user can set
-  # MYSQLD_BOOTSTRAP to the full path to a mysqld which does accept
-  # --bootstrap, to accommodate this.
+  # Arguments to bootstrap process.
+  foreach my $extra_opt ( @opt_extra_bootstrap_opt ) {
+      mtr_add_arg($args, $extra_opt);
+  }
+ 
+  # The user can set MYSQLD_BOOTSTRAP to the full path to a mysqld
+  # to run a different mysqld during --bootstrap.
   my $exe_mysqld_bootstrap =
     $ENV{'MYSQLD_BOOTSTRAP'} || find_mysqld($install_basedir);
 
@@ -5789,6 +5823,7 @@ sub start_check_testcase ($$$) {
   mtr_add_arg($args, "--result-file=%s", "$opt_vardir/tmp/$name.result");
   mtr_add_arg($args, "--test-file=%s", "include/check-testcase.test");
   mtr_add_arg($args, "--verbose");
+  mtr_add_arg($args, "--logdir=%s/tmp", $opt_vardir);
 
   if ( $mode eq "before" )
   {
@@ -6289,6 +6324,7 @@ sub valgrind_exit_reports() {
         $err_in_report= 1 if $line =~ /ERROR SUMMARY: [1-9]/;
         $err_in_report= 1 if $line =~ /definitely lost: [1-9]/;
         $err_in_report= 1 if $line =~ /possibly lost: [1-9]/;
+        $err_in_report= 1 if $line =~ /still reachable: [1-9]/;
       }
     }
 

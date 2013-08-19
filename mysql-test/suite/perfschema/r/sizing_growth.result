@@ -189,8 +189,11 @@ Performance_schema_file_handles_lost	0
 Performance_schema_file_instances_lost	0
 Performance_schema_hosts_lost	0
 Performance_schema_locker_lost	0
+Performance_schema_memory_classes_lost	0
 Performance_schema_mutex_classes_lost	0
 Performance_schema_mutex_instances_lost	0
+Performance_schema_nested_statement_lost	0
+Performance_schema_program_lost	0
 Performance_schema_rwlock_classes_lost	0
 Performance_schema_rwlock_instances_lost	0
 Performance_schema_session_connect_attrs_lost	0
@@ -214,7 +217,7 @@ select @file_per_share <= 3;
 1
 select @mutex_per_con;
 @mutex_per_con
-3
+4
 select @rwlock_per_con;
 @rwlock_per_con
 1
@@ -240,7 +243,7 @@ select if(
 (@rwlock_per_share <= 3)
 AND (@cond_per_share = 0)
 AND (@file_per_share <= 3)
-AND (@mutex_per_con = 3)
+AND (@mutex_per_con = 4)
 AND (@rwlock_per_con = 1)
 AND (@cond_per_con = 2)
 AND (@file_per_con = 0)

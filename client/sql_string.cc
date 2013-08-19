@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2000, 2011, Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2000, 2013, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -44,7 +44,8 @@ bool String::real_alloc(uint32 length)
   if (Alloced_length < arg_length)
   {
     free();
-    if (!(Ptr=(char*) my_malloc(arg_length,MYF(MY_WME))))
+    if (!(Ptr=(char*) my_malloc(PSI_NOT_INSTRUMENTED,
+                                arg_length,MYF(MY_WME))))
       return TRUE;
     Alloced_length=arg_length;
     alloced=1;
@@ -70,15 +71,16 @@ bool String::realloc(uint32 alloc_length)
     char *new_ptr;
     if (alloced)
     {
-      if (!(new_ptr= (char*) my_realloc(Ptr,len,MYF(MY_WME))))
+      if (!(new_ptr= (char*) my_realloc(PSI_NOT_INSTRUMENTED,
+                                        Ptr,len,MYF(MY_WME))))
         return TRUE;				// Signal error
     }
-    else if ((new_ptr= (char*) my_malloc(len,MYF(MY_WME))))
+    else if ((new_ptr= (char*) my_malloc(PSI_NOT_INSTRUMENTED,
+                                         len,MYF(MY_WME))))
     {
       if (str_length > len - 1)
         str_length= 0;
-      if (str_length)				// Avoid bugs in memcpy on AIX
-	memcpy(new_ptr,Ptr,str_length);
+      memcpy(new_ptr,Ptr,str_length);
       new_ptr[str_length]=0;
       alloced=1;
     }
@@ -146,7 +148,7 @@ bool String::copy(const String &str)
   if (alloc(str.str_length))
     return TRUE;
   str_length=str.str_length;
-  bmove(Ptr,str.Ptr,str_length);		// May be overlapping
+  memmove(Ptr, str.Ptr, str_length);		// May be overlapping
   Ptr[str_length]=0;
   str_charset=str.str_charset;
   return FALSE;
@@ -554,8 +556,9 @@ bool String::replace(uint32 offset,uint32 arg_length,
     {
       if (to_length)
 	memcpy(Ptr+offset,to,to_length);
-      bmove(Ptr+offset+to_length,Ptr+offset+arg_length,
-	    str_length-offset-arg_length);
+      memmove(Ptr + offset + to_length,
+              Ptr + offset + arg_length,
+              str_length - offset - arg_length);
     }
     else
     {
@@ -563,8 +566,9 @@ bool String::replace(uint32 offset,uint32 arg_length,
       {
 	if (realloc(str_length+(uint32) diff))
 	  return TRUE;
-	bmove_upp((uchar*) Ptr+str_length+diff, (uchar*) Ptr+str_length,
-		  str_length-offset-arg_length);
+        memmove(Ptr + offset + to_length,
+                Ptr + offset + arg_length,
+                str_length - offset - arg_length);
       }
       if (to_length)
 	memcpy(Ptr+offset,to,to_length);
@@ -677,7 +681,7 @@ String *copy_if_not_alloced(String *to,String *from,uint32 from_length)
 {
   if (from->Alloced_length >= from_length)
     return from;
-  if (from->alloced || !to || from == to)
+  if ((from->alloced && (from->Alloced_length != 0)) || !to || from == to)
   {
     (void) from->realloc(from_length);
     return from;

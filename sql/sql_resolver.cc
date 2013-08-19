@@ -1,4 +1,4 @@
-/* Copyright (c) 2000, 2012, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2000, 2013, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -29,10 +29,14 @@
 #include "sql_optimizer.h"
 #include "opt_trace.h"
 #include "sql_base.h"
-#include "sql_acl.h"
+#include "auth_common.h"
 #include "opt_explain_format.h"
 
-static void remove_redundant_subquery_clauses(st_select_lex *subq_select_lex);
+static void remove_redundant_subquery_clauses(st_select_lex *subq_select_lex,
+                                              int hidden_group_field_count,
+                                              int hidden_order_field_count,
+                                              List<Item> &fields,
+                                              Ref_ptr_array ref_pointer_array);
 static inline int 
 setup_without_group(THD *thd, Ref_ptr_array ref_pointer_array,
                     TABLE_LIST *tables,
@@ -41,7 +45,9 @@ setup_without_group(THD *thd, Ref_ptr_array ref_pointer_array,
                     List<Item> &all_fields,
                     Item **conds,
                     ORDER *order,
-                    ORDER *group, bool *hidden_group_fields);
+                    ORDER *group,
+                    int *hidden_group_field_count,
+                    int *hidden_order_field_count);
 static bool resolve_subquery(THD *thd, JOIN *join);
 static int
 setup_group(THD *thd, Ref_ptr_array ref_pointer_array, TABLE_LIST *tables,
@@ -96,11 +102,12 @@ JOIN::prepare(TABLE_LIST *tables_init,
   having= having_for_explain= having_init;
   tables_list= tables_init;
   select_lex= select_lex_arg;
-  select_lex->join= this;
+  DBUG_ASSERT(select_lex == thd->lex->current_select());
+  select_lex->set_join(this);
   join_list= &select_lex->top_join_list;
   union_part= unit_arg->is_union();
 
-  thd->lex->current_select->is_item_list_lookup= 1;
+  select_lex->is_item_list_lookup= 1;
   /*
     If we have already executed SELECT, then it have not sense to prevent
     its table from update (see unique_table())
@@ -132,12 +139,12 @@ JOIN::prepare(TABLE_LIST *tables_init,
 
   /*
     Item and Item_field CTORs will both increment some counters
-    in current_select, based on the current parsing context.
+    in current_select(), based on the current parsing context.
     We are not parsing anymore: any new Items created now are due to
     query rewriting, so stop incrementing counters.
    */
-  DBUG_ASSERT(select_lex->parsing_place == NO_MATTER);
-  select_lex->parsing_place= NO_MATTER;
+  DBUG_ASSERT(select_lex->parsing_place == CTX_NONE);
+  select_lex->parsing_place= CTX_NONE;
 
   if (setup_wild(thd, tables_list, fields_list, &all_fields, wild_num))
     DBUG_RETURN(-1);
@@ -147,12 +154,15 @@ JOIN::prepare(TABLE_LIST *tables_init,
   ref_ptrs= ref_ptr_array_slice(0);
   
   if (setup_fields(thd, ref_ptrs, fields_list, MARK_COLUMNS_READ,
-		   &all_fields, 1))
+                   &all_fields, 1))
     DBUG_RETURN(-1);
+
+  int hidden_order_field_count;
   if (setup_without_group(thd, ref_ptrs, tables_list,
-			  select_lex->leaf_tables, fields_list,
-			  all_fields, &conds, order, group_list,
-			  &hidden_group_fields))
+                          select_lex->leaf_tables, fields_list,
+                          all_fields, &conds, order, group_list,
+                          &hidden_group_field_count,
+                          &hidden_order_field_count))
     DBUG_RETURN(-1);
 
   /*
@@ -168,19 +178,21 @@ JOIN::prepare(TABLE_LIST *tables_init,
       select_lex->first_cond_optimization &&                           // 2)
       !(thd->lex->context_analysis_only & CONTEXT_ANALYSIS_ONLY_VIEW)) // 3)
   {
-    remove_redundant_subquery_clauses(select_lex);
+    remove_redundant_subquery_clauses(select_lex, hidden_group_field_count,
+                                      hidden_order_field_count,
+                                      all_fields, ref_ptrs);
   }
 
   if (having)
   {
     nesting_map save_allow_sum_func= thd->lex->allow_sum_func;
     thd->where="having clause";
-    thd->lex->allow_sum_func|= 1 << select_lex_arg->nest_level;
+    thd->lex->allow_sum_func|= (nesting_map)1 << select_lex_arg->nest_level;
     select_lex->having_fix_field= 1;
     select_lex->resolve_place= st_select_lex::RESOLVE_HAVING;
     bool having_fix_rc= (!having->fixed &&
-			 (having->fix_fields(thd, &having) ||
-			  having->check_cols(1)));
+                         (having->fix_fields(thd, &having) ||
+                          having->check_cols(1)));
     select_lex->having_fix_field= 0;
     select_lex->having= having;
 
@@ -213,8 +225,7 @@ JOIN::prepare(TABLE_LIST *tables_init,
   */
   if (select_lex->master_unit()->item &&    // This is a subquery
                                             // Not normalizing a view
-      !(thd->lex->context_analysis_only & CONTEXT_ANALYSIS_ONLY_VIEW) &&
-      !(select_options & SELECT_DESCRIBE))  // Not within a describe
+      !(thd->lex->context_analysis_only & CONTEXT_ANALYSIS_ONLY_VIEW))
   {
     /* Join object is a subquery within an IN/ANY/ALL/EXISTS predicate */
     if (resolve_subquery(thd, this))
@@ -336,13 +347,6 @@ JOIN::prepare(TABLE_LIST *tables_init,
     order= NULL;
   }
 
-#ifdef RESTRICTED_GROUP
-  if (implicit_grouping)
-  {
-    my_message(ER_WRONG_SUM_SELECT,ER(ER_WRONG_SUM_SELECT),MYF(0));
-    DBUG_RETURN(-1); /* purecov: inspected */
-  }
-#endif
   if (select_lex->olap == ROLLUP_TYPE && rollup_init())
     DBUG_RETURN(-1); /* purecov: inspected */
   if (alloc_func_list())
@@ -423,7 +427,7 @@ bool subquery_allows_materialization(Item_in_subselect *predicate,
     // The upper query is SELECT ... FROM DUAL. No gain in materializing.
     cause= "no tables in outer query";
   }
-  else if (predicate->originally_dependent())
+  else if (predicate->dependent_before_in2exists())
   {
     /*
       Subquery should not be correlated; the correlation due to predicates
@@ -551,6 +555,18 @@ static bool resolve_subquery(THD *thd, JOIN *join)
 
   if (in_predicate)
   {
+    thd->lex->set_current_select(outer);
+    char const *save_where= thd->where;
+    thd->where= "IN/ALL/ANY subquery";
+
+    bool result= !in_predicate->left_expr->fixed &&
+                  in_predicate->left_expr->fix_fields(thd,
+                                                     &in_predicate->left_expr);
+    thd->lex->set_current_select(select_lex);
+    thd->where= save_where;
+    if (result)
+      DBUG_RETURN(TRUE); /* purecov: deadcode */
+
     /*
       Check if the left and right expressions have the same # of
       columns, i.e. we don't have a case like 
@@ -564,19 +580,6 @@ static bool resolve_subquery(THD *thd, JOIN *join)
       my_error(ER_OPERAND_COLUMNS, MYF(0), in_predicate->left_expr->cols());
       DBUG_RETURN(TRUE);
     }
-
-    DBUG_ASSERT(select_lex == thd->lex->current_select);
-    thd->lex->current_select= outer;
-    char const *save_where= thd->where;
-    thd->where= "IN/ALL/ANY subquery";
-        
-    bool result= !in_predicate->left_expr->fixed &&
-                  in_predicate->left_expr->fix_fields(thd,
-                                                     &in_predicate->left_expr);
-    thd->lex->current_select= select_lex;
-    thd->where= save_where;
-    if (result)
-      DBUG_RETURN(TRUE); /* purecov: deadcode */
   }
 
   DBUG_PRINT("info", ("Checking if subq can be converted to semi-join"));
@@ -766,7 +769,7 @@ fix_inner_refs(THD *thd, List<Item> &all_fields, SELECT_LEX *select,
     if (!ref->fixed && ref->fix_fields(thd, 0))
       return TRUE;
     thd->lex->used_tables|= item->used_tables();
-    thd->lex->current_select->select_list_tables|= item->used_tables();
+    thd->lex->current_select()->select_list_tables|= item->used_tables();
   }
   return false;
 }
@@ -790,10 +793,20 @@ fix_inner_refs(THD *thd, List<Item> &all_fields, SELECT_LEX *select,
    @param subq_select_lex   select_lex that is part of a subquery 
                             predicate. This object and the associated 
                             join is modified.
+   @param hidden_group_field_count Number of hidden group fields added
+                            by setup_group().
+   @param hidden_order_field_count Number of hidden order fields added
+                            by setup_order().
+   @param fields            Fields list from which to remove items.
+   @param ref_pointer_array Pointers to top level of all_fields.
 */
 
 static
-void remove_redundant_subquery_clauses(st_select_lex *subq_select_lex)
+void remove_redundant_subquery_clauses(st_select_lex *subq_select_lex,
+                                       int hidden_group_field_count,
+                                       int hidden_order_field_count,
+                                       List<Item> &fields,
+                                       Ref_ptr_array ref_pointer_array)
 {
   Item_subselect *subq_predicate= subq_select_lex->master_unit()->item;
   /*
@@ -822,22 +835,21 @@ void remove_redundant_subquery_clauses(st_select_lex *subq_select_lex)
 
   uint changelog= 0;
 
-  bool order_with_sum_func= false;
-  for (ORDER *o= subq_select_lex->join->order; o != NULL; o= o->next)
-    order_with_sum_func|= (*o->item)->with_sum_func;
   if (subq_select_lex->order_list.elements)
   {
     changelog|= REMOVE_ORDER;
+    for (ORDER *o= subq_select_lex->order_list.first; o != NULL; o= o->next)
+    {
+      if (*o->item == o->item_ptr)
+        (*o->item)->walk(&Item::clean_up_after_removal, true, NULL);
+    }
     subq_select_lex->join->order= NULL;
-    /*
-      If the ORDER BY clause contains aggregate functions, we cannot
-      remove it from subq_select_lex->order_list since the aggregate
-      function still appears in the inner_sum_func_list for some
-      SELECT_LEX. Clearing subq_select_lex->join->order has made sure
-      it won't be executed.
-     */
-    if (!order_with_sum_func)
-      subq_select_lex->order_list.empty();
+    subq_select_lex->order_list.empty();
+    while (hidden_order_field_count-- > 0)
+    {
+      fields.pop();
+      ref_pointer_array[fields.elements]= NULL;
+    }
   }
 
   if (subq_select_lex->options & SELECT_DISTINCT)
@@ -855,8 +867,18 @@ void remove_redundant_subquery_clauses(st_select_lex *subq_select_lex)
       !subq_select_lex->with_sum_func && !subq_select_lex->join->having)
   {
     changelog|= REMOVE_GROUP;
+    for (ORDER *g= subq_select_lex->group_list.first; g != NULL; g= g->next)
+    {
+      if (*g->item == g->item_ptr)
+        (*g->item)->walk(&Item::clean_up_after_removal, true, NULL);
+    }
     subq_select_lex->join->group_list= NULL;
     subq_select_lex->group_list.empty();
+    while (hidden_group_field_count-- > 0)
+    {
+      fields.pop();
+      ref_pointer_array[fields.elements]= NULL;
+    }
   }
 
   if (changelog)
@@ -888,44 +910,42 @@ setup_without_group(THD *thd, Ref_ptr_array ref_pointer_array,
                     List<Item> &all_fields,
                     Item **conds,
                     ORDER *order,
-                    ORDER *group, bool *hidden_group_fields)
+                    ORDER *group,
+                    int *hidden_group_field_count,
+                    int *hidden_order_field_count)
 {
   int res;
-  nesting_map save_allow_sum_func=thd->lex->allow_sum_func ;
+  st_select_lex *const select= thd->lex->current_select();
+  nesting_map save_allow_sum_func=thd->lex->allow_sum_func;
   /* 
     Need to save the value, so we can turn off only any new non_agg_field_used
     additions coming from the WHERE
   */
-  const bool saved_non_agg_field_used=
-    thd->lex->current_select->non_agg_field_used();
+  const bool saved_non_agg_field_used= select->non_agg_field_used();
   DBUG_ENTER("setup_without_group");
 
-  thd->lex->allow_sum_func&= ~(1 << thd->lex->current_select->nest_level);
+  thd->lex->allow_sum_func&= ~((nesting_map)1 << select->nest_level);
   res= setup_conds(thd, tables, leaves, conds);
 
   /* it's not wrong to have non-aggregated columns in a WHERE */
-  thd->lex->current_select->set_non_agg_field_used(saved_non_agg_field_used);
+  select->set_non_agg_field_used(saved_non_agg_field_used);
 
-  thd->lex->allow_sum_func|= 1 << thd->lex->current_select->nest_level;
-
+  // GROUP BY
   int all_fields_count= all_fields.elements;
-
-  res= res || setup_order(thd, ref_pointer_array, tables, fields, all_fields,
-                          order);
-
-  const int hidden_order_fields_count= all_fields.elements - all_fields_count;
-  all_fields_count= all_fields.elements;
-
-  thd->lex->allow_sum_func&= ~(1 << thd->lex->current_select->nest_level);
-
   res= res || setup_group(thd, ref_pointer_array, tables, fields, all_fields,
                           group);
-  const int hidden_group_fields_count= all_fields.elements - all_fields_count;
-  *hidden_group_fields= hidden_group_fields_count != 0;
+  *hidden_group_field_count= all_fields.elements - all_fields_count;
+
+  // ORDER BY
+  all_fields_count= all_fields.elements;
+  thd->lex->allow_sum_func|= (nesting_map)1 << select->nest_level;
+  res= res || setup_order(thd, ref_pointer_array, tables, fields, all_fields,
+                          order);
+  *hidden_order_field_count= all_fields.elements - all_fields_count;
 
   res= res || match_exprs_for_only_full_group_by(thd, all_fields,
-                                                 hidden_group_fields_count,
-                                                 hidden_order_fields_count,
+                                                 *hidden_group_field_count,
+                                                 *hidden_order_field_count,
                                                  fields.elements, group);
 
   thd->lex->allow_sum_func= save_allow_sum_func;
@@ -1055,7 +1075,16 @@ find_order_in_list(THD *thd, Ref_ptr_array ref_pointer_array, TABLE_LIST *tables
         the SELECT field. As a result if there was a derived field that
         'shadowed' a table field with the same name, the table field will be
         chosen over the derived field.
+
+        If we replace *order->item with one from the select list or
+        from a table in the FROM list, we should clean up after
+        removing the old *order->item from the query. The item has not
+        been fixed (so there are no aggregation functions that need
+        cleaning up), but it may contain subqueries that should be
+        unlinked.
       */
+      if (*order->item != *select_item)
+        (*order->item)->walk(&Item::clean_up_after_removal, true, NULL);
       order->item= &ref_pointer_array[counter];
       order->in_field_list=1;
       if (resolution == RESOLVED_AGAINST_ALIAS)
@@ -1102,20 +1131,27 @@ find_order_in_list(THD *thd, Ref_ptr_array ref_pointer_array, TABLE_LIST *tables
         that is a vicious circle.
     So we prevent inclusion of Item_copy items.
   */
-  bool save_group_fix_field= thd->lex->current_select->group_fix_field;
+  bool save_group_fix_field= thd->lex->current_select()->group_fix_field;
   if (is_group_field)
-    thd->lex->current_select->group_fix_field= TRUE;
+    thd->lex->current_select()->group_fix_field= TRUE;
   bool ret= (!order_item->fixed &&
       (order_item->fix_fields(thd, order->item) ||
        (order_item= *order->item)->check_cols(1) ||
        thd->is_fatal_error));
-  thd->lex->current_select->group_fix_field= save_group_fix_field;
+  thd->lex->current_select()->group_fix_field= save_group_fix_field;
   if (ret)
     return TRUE; /* Wrong field. */
 
   uint el= all_fields.elements;
   all_fields.push_front(order_item); /* Add new field to field list. */
   ref_pointer_array[el]= order_item;
+  /*
+    Currently, we assume that this assertion holds. If it turns out
+    that it fails for some query, order->item has changed and the old
+    item is removed from the query. In that case, we must call walk()
+    with clean_up_after_removal() on the old order->item.
+  */
+  DBUG_ASSERT(order_item == *order->item);
   order->item= &ref_pointer_array[el];
   return FALSE;
 }
@@ -1132,17 +1168,17 @@ int setup_order(THD *thd, Ref_ptr_array ref_pointer_array, TABLE_LIST *tables,
 		List<Item> &fields, List<Item> &all_fields, ORDER *order)
 {
   thd->where="order clause";
-  DBUG_ASSERT(thd->lex->current_select->cur_pos_in_all_fields ==
+  DBUG_ASSERT(thd->lex->current_select()->cur_pos_in_all_fields ==
               SELECT_LEX::ALL_FIELDS_UNDEF_POS);
   for (; order; order=order->next)
   {
-    thd->lex->current_select->cur_pos_in_all_fields=
+    thd->lex->current_select()->cur_pos_in_all_fields=
       fields.elements - all_fields.elements - 1;
     if (find_order_in_list(thd, ref_pointer_array, tables, order, fields,
 			   all_fields, FALSE))
       return 1;
   }
-  thd->lex->current_select->cur_pos_in_all_fields=
+  thd->lex->current_select()->cur_pos_in_all_fields=
 		SELECT_LEX::ALL_FIELDS_UNDEF_POS;
   return 0;
 }
@@ -1171,14 +1207,11 @@ int setup_order(THD *thd, Ref_ptr_array ref_pointer_array, TABLE_LIST *tables,
    @param  thd                     THD pointer
    @param  all_fields              list of expressions, including SELECT list
                                    and hidden ORDER BY expressions
-   @param  hidden_group_exprs_count the list starts with that many hidden
-                                   GROUP BY expressions
-   @param  hidden_order_exprs_count and continues with that many hidden ORDER
-                                   BY expressions
-   @param  select_exprs_cout       and ends with that many SELECT list
-                                   expressions (there may be a gap between
-                                   hidden ORDER BY expressions and SELECT list
-                                   expressions)
+   @param  hidden_group_exprs_count number of hidden GROUP BY expressions
+   @param  hidden_order_exprs_count number of hidden ORDER BY expressions
+   @param  select_exprs_count      number of SELECT list expressions (there may
+                                   be a gap between hidden GROUP BY expressions
+                                   and SELECT list expressions)
    @param  group_exprs             GROUP BY expressions
 
    @returns true if ONLY_FULL_GROUP_BY is violated.
@@ -1202,7 +1235,7 @@ match_exprs_for_only_full_group_by(THD *thd, List<Item> &all_fields,
     keeps in Item::marker the position, in all_fields, of the (SELECT
     list or ORDER BY) expression which it belongs to (see
     st_select_lex::cur_pos_in_all_fields). all_fields looks like this:
-    (front) HIDDEN GROUP BY - HIDDEN ORDER BY - gap - SELECT LIST (back)
+    (front) HIDDEN ORDER BY - HIDDEN GROUP BY - gap - SELECT LIST (back)
     "Gap" may contain some aggregate expressions (see Item::split_sum_func2())
     which are irrelevant to us.
 
@@ -1224,9 +1257,7 @@ match_exprs_for_only_full_group_by(THD *thd, List<Item> &all_fields,
     front" = 0 and "index of back" = all_fields.elements - 1.
   */
   int idx= -1;
-  const int idx_of_first_hidden_order= hidden_group_exprs_count;
-  const int idx_of_last_hidden_order= idx_of_first_hidden_order +
-    hidden_order_exprs_count - 1;
+  const int idx_of_first_hidden_group= hidden_order_exprs_count;
   const int idx_of_first_select= all_fields.elements - select_exprs_count;
   /*
     Also an index in all_fields, but with the same counting convention as
@@ -1236,15 +1267,14 @@ match_exprs_for_only_full_group_by(THD *thd, List<Item> &all_fields,
   Item *expr;
   Item_field *non_agg_field;
   List_iterator<Item_field>
-    non_agg_fields_it(thd->lex->current_select->non_agg_fields);
+    non_agg_fields_it(thd->lex->current_select()->non_agg_fields);
 
   non_agg_field= non_agg_fields_it++;
   while (non_agg_field && (expr= exprs_it++))
   {
     idx++;
-    if (idx < idx_of_first_hidden_order ||      // In hidden GROUP BY.
-        (idx > idx_of_last_hidden_order &&      // After hidden ORDER BY,
-         idx < idx_of_first_select))            // but not yet in SELECT list
+    if (idx >= idx_of_first_hidden_group &&     // In or after hidden GROUP BY
+         idx < idx_of_first_select)             // but not yet in SELECT list
       continue;
     cur_pos_in_all_fields= idx - idx_of_first_select;
 
@@ -1324,8 +1354,6 @@ match_exprs_for_only_full_group_by(THD *thd, List<Item> &all_fields,
                                select. All items in 'order' that was not part
                                of fields will be added first to this list.
   @param order			The fields we should do GROUP BY on.
-  @param hidden_group_fields	Pointer to flag that is set to 1 if we added
-                               any fields to all_fields.
 
   @todo
     change ER_WRONG_FIELD_WITH_GROUP to more detailed
@@ -1411,7 +1439,7 @@ static bool change_group_ref(THD *thd, Item_func *expr, ORDER *group_list,
 {
   if (expr->arg_count)
   {
-    Name_resolution_context *context= &thd->lex->current_select->context;
+    Name_resolution_context *context= &thd->lex->current_select()->context;
     Item **arg,**arg_end;
     bool arg_changed= FALSE;
     for (arg= expr->arguments(),

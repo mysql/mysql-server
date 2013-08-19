@@ -1,7 +1,7 @@
 #ifndef ITEM_INCLUDED
 #define ITEM_INCLUDED
 
-/* Copyright (c) 2000, 2012, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2000, 2013, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -24,6 +24,7 @@
 #include "thr_malloc.h"                         /* sql_calloc */
 #include "field.h"                              /* Derivation */
 #include "sql_array.h"
+#include "table_trigger_field_support.h"  // Table_trigger_field_support
 
 class Protocol;
 struct TABLE_LIST;
@@ -784,7 +785,17 @@ public:
     complete fix_fields() procedure.
   */
   inline void quick_fix_field() { fixed= 1; }
-  /* Function returns 1 on overflow and -1 on fatal errors */
+
+  /**
+    Save the item into a field but do not emit any warnings.
+
+    @param field         field to save the item into
+    @param no_coversions whether or not to allow conversions of the value
+
+    @return the status from saving into the field
+      @retval TYPE_OK    item saved without any issues
+      @retval != TYPE_OK there were issues saving the item
+  */
   type_conversion_status save_in_field_no_warnings(Field *field,
                                                    bool no_conversions);
   /**
@@ -796,10 +807,13 @@ public:
   */
   virtual type_conversion_status save_in_field(Field *field,
                                                bool no_conversions);
+
   virtual void save_org_in_field(Field *field)
-  { (void) save_in_field(field, 1); }
+  { save_in_field(field, true); }
+
   virtual type_conversion_status save_safe_in_field(Field *field)
-  { return save_in_field(field, 1); }
+  { return save_in_field(field, true); }
+
   virtual bool send(Protocol *protocol, String *str);
   virtual bool eq(const Item *, bool binary_cmp) const;
   virtual Item_result result_type() const { return REAL_RESULT; }
@@ -1187,6 +1201,23 @@ public:
 
   /* bit map of tables used by item */
   virtual table_map used_tables() const { return (table_map) 0L; }
+  /**
+    Return used table information for the level this item is resolved on.
+     - For fields, this returns the table the item is resolved from.
+     - For all other items, this behaves like used_tables().
+
+    @note: Use this function with caution. External calls to this function
+           should only be made for class objects derived from Item_ident.
+           Item::resolved_used_tables is for internal use only, in order to
+           process fields underlying a view column reference.
+  */
+  virtual table_map resolved_used_tables() const
+  {
+    // As this is the level this item was resolved on, it cannot be outer:
+    DBUG_ASSERT(!(used_tables() & OUTER_REF_TABLE_BIT));
+
+    return used_tables();
+  }
   /*
     Return table map of tables that can't be NULL tables (tables that are
     used in a context where if they would contain a NULL row generated
@@ -1316,11 +1347,18 @@ public:
   virtual bool is_bool_func() { return 0; }
   virtual void save_in_result_field(bool no_conversions) {}
   /*
-    set value of aggregate function in case of no rows for grouping were found
+    Set value of aggregate function in case of no rows for grouping were found.
+    Also used for subqueries with outer references in SELECT list.
   */
   virtual void no_rows_in_result() {}
   virtual Item *copy_or_same(THD *thd) { return this; }
-  virtual Item *copy_andor_structure(THD *thd) { return this; }
+  /**
+     @param real_items  True <=> in the copy, replace any Item_ref with its
+     real_item()
+     @todo this argument should be always false and removed in WL#7082.
+  */
+  virtual Item *copy_andor_structure(THD *thd, bool real_items= false)
+  { return real_items ? real_item() : this; }
   virtual Item *real_item() { return this; }
   virtual Item *get_tmp_table_item(THD *thd) { return copy_or_same(thd); }
 
@@ -1407,6 +1445,12 @@ public:
   virtual bool find_item_processor(uchar *arg) { return this == (void *) arg; }
   virtual bool register_field_in_read_map(uchar *arg) { return 0; }
   virtual bool inform_item_in_cond_of_tab(uchar *join_tab_index) { return false; }
+  /**
+     Clean up after removing the item from the item tree.
+
+     @param arg Not used
+  */
+  virtual bool clean_up_after_removal(uchar *arg) { return false; }
 
   virtual bool cache_const_expr_analyzer(uchar **arg);
   virtual Item* cache_const_expr_transformer(uchar *arg);
@@ -1695,6 +1739,13 @@ public:
   virtual bool has_stored_program() const { return with_stored_program; }
   /// Whether this Item was created by the IN->EXISTS subquery transformation
   virtual bool created_by_in2exists() const { return false; }
+  void mark_subqueries_optimized_away()
+  {
+    if (has_subquery())
+      walk(&Item::subq_opt_away_processor, false, NULL);
+  }
+private:
+  virtual bool subq_opt_away_processor(uchar *arg) { return false; }
 };
 
 
@@ -2068,10 +2119,6 @@ public:
              const char *db_name_arg, const char *table_name_arg,
              const char *field_name_arg);
   Item_ident(THD *thd, Item_ident *item);
-  /*
-    Return used table information for the level on which this table is resolved.
-  */
-  virtual table_map resolved_used_tables() const= 0;
   const char *full_name() const;
   virtual void fix_after_pullout(st_select_lex *parent_select,
                                  st_select_lex *removed_select);
@@ -2268,7 +2315,7 @@ public:
   }
 #endif
 
-  /// Pushes the item to select_lex.non_agg_fields() and updates its marker.
+  /// Pushes the item to select_lex->non_agg_fields() and updates its marker.
   bool push_to_non_agg_fields(st_select_lex *select_lex);
 
   friend class Item_default_value;
@@ -3165,6 +3212,10 @@ public:
   Field *get_tmp_table_field()
   { return result_field ? result_field : (*ref)->get_tmp_table_field(); }
   Item *get_tmp_table_item(THD *thd);
+  bool const_item() const
+  {
+    return (*ref)->const_item() && (used_tables() == 0);
+  }
   table_map used_tables() const		
   {
     return depended_from ? OUTER_REF_TABLE_BIT : (*ref)->used_tables(); 
@@ -3174,7 +3225,10 @@ public:
     if (!depended_from) 
       (*ref)->update_used_tables(); 
   }
-  virtual table_map resolved_used_tables() const;
+
+  virtual table_map resolved_used_tables() const
+  { return (*ref)->resolved_used_tables(); }
+
   table_map not_null_tables() const
   {
     /*
@@ -3940,8 +3994,10 @@ public:
 
   bool walk(Item_processor processor, bool walk_subquery, uchar *args)
   {
-    return arg->walk(processor, walk_subquery, args) ||
-      (this->*processor)(args);
+    if (arg && arg->walk(processor, walk_subquery, args))
+      return true;
+
+    return (this->*processor)(args);
   }
 
   Item *transform(Item_transformer transformer, uchar *args);
@@ -3986,8 +4042,6 @@ public:
 };
 
 
-class Table_triggers_list;
-
 /*
   Represents NEW/OLD version of field of row which is
   changed/read in trigger.
@@ -4004,25 +4058,27 @@ class Item_trigger_field : public Item_field,
 {
 public:
   /* Is this item represents row from NEW or OLD row ? */
-  enum row_version_type {OLD_ROW, NEW_ROW};
-  row_version_type row_version;
+  enum_trigger_variable_type trigger_var_type;
   /* Next in list of all Item_trigger_field's in trigger */
   Item_trigger_field *next_trg_field;
   /* Index of the field in the TABLE::field array */
   uint field_idx;
-  /* Pointer to Table_trigger_list object for table of this trigger */
-  Table_triggers_list *triggers;
+  /* Pointer to an instance of Table_trigger_field_support interface */
+  Table_trigger_field_support *triggers;
 
   Item_trigger_field(Name_resolution_context *context_arg,
-                     row_version_type row_ver_arg,
+                     enum_trigger_variable_type trigger_var_type_arg,
                      const char *field_name_arg,
                      ulong priv, const bool ro)
     :Item_field(context_arg,
                (const char *)NULL, (const char *)NULL, field_name_arg),
-     row_version(row_ver_arg), field_idx((uint)-1), original_privilege(priv),
+     trigger_var_type(trigger_var_type_arg),
+     field_idx((uint)-1), original_privilege(priv),
      want_privilege(priv), table_grants(NULL), read_only (ro)
   {}
-  void setup_field(THD *thd, TABLE *table, GRANT_INFO *table_grant_info);
+  void setup_field(THD *thd,
+                   Table_trigger_field_support *table_triggers,
+                   GRANT_INFO *table_grant_info);
   enum Type type() const { return TRIGGER_FIELD_ITEM; }
   bool eq(const Item *item, bool binary_cmp) const;
   bool fix_fields(THD *, Item **);
@@ -4045,7 +4101,11 @@ public:
 
   bool set_value(THD *thd, Item **it)
   {
-    return set_value(thd, NULL, it);
+    bool ret= set_value(thd, NULL, it);
+    if (!ret)
+      bitmap_set_bit(triggers->get_subject_table()->fields_set_during_insert,
+                     field_idx);
+    return ret;
   }
 
 private:
@@ -4110,6 +4170,11 @@ public:
 
   void set_used_tables(table_map map) { used_table_map= map; }
 
+  virtual table_map resolved_used_tables() const
+  {
+    return example ? example->resolved_used_tables() : used_table_map;
+  }
+
   virtual bool allocate(uint i) { return 0; }
   virtual bool setup(Item *item)
   {
@@ -4118,6 +4183,8 @@ public:
     decimals= item->decimals;
     collation.set(item->collation);
     unsigned_flag= item->unsigned_flag;
+    with_subselect|= item->has_subquery();
+    with_stored_program|= item->has_stored_program();
     if (item->type() == FIELD_ITEM)
       cached_field= ((Item_field *)item)->field;
     return 0;

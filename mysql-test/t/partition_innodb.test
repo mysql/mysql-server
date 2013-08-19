@@ -422,7 +422,7 @@ analyze table t1;
 # Avg_row_length (col 6) and Data_length (col 7) vary depending
 # on the page size.  Data_free for InnoDB tablespace varies
 # depending on which tests have been run before this one.
---replace_column 6 # 7 # 10 #
+--replace_column 6 # 7 # 10 # 13 #
 show table status;
 drop table t1;
 
@@ -439,14 +439,14 @@ analyze table t1;
 # Avg_row_length (col 6) and Data_length (col 7) vary depending
 # on the page size.  Data_free for InnoDB tablespace varies
 # depending on which tests have been run before this one.
---replace_column 6 # 7 # 10 #
+--replace_column 6 # 7 # 10 # 13 #
 show table status;
 insert into t1 values (NULL), (NULL), (NULL), (NULL);
 analyze table t1;
 # Avg_row_length (col 6) and Data_length (col 7) vary depending
 # on the page size.  Data_free for InnoDB tablespace varies
 # depending on which tests have been run before this one.
---replace_column 6 # 7 # 10 #
+--replace_column 6 # 7 # 10 # 13 #
 show table status;
 drop table t1;
 

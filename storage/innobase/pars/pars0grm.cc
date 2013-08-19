@@ -284,7 +284,7 @@
 que_node_t */
 
 #include "univ.i"
-#include <math.h>				/* Can't be before univ.i */
+#include <math.h>
 #include "pars0pars.h"
 #include "mem0mem.h"
 #include "que0types.h"
@@ -426,8 +426,6 @@ YYID (i)
 #    define YYSTACK_ALLOC __builtin_alloca
 #   elif defined __BUILTIN_VA_ARG_INCR
 #    include <alloca.h> /* INFRINGES ON USER NAME SPACE */
-#   elif defined _AIX
-#    define YYSTACK_ALLOC __alloca
 #   elif defined _MSC_VER
 #    include <malloc.h> /* INFRINGES ON USER NAME SPACE */
 #    define alloca _alloca

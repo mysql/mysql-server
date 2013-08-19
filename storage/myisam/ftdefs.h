@@ -32,8 +32,6 @@
 
 #define FTPARSER_MEMROOT_ALLOC_SIZE 65536
 
-#define COMPILE_STOPWORDS_IN
-
 /* Interested readers may consult SMART
    (ftp://ftp.cs.cornell.edu/pub/smart/smart.11.0.tar.Z)
    for an excellent implementation of vector space model we use.

@@ -1,4 +1,4 @@
-/* Copyright (c) 2007, 2011, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2007, 2013, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -15,6 +15,7 @@
 
 #include "sql_priv.h"
 #include "sql_audit.h"
+#include "log.h"
 
 extern int initialize_audit_plugin(st_plugin_int *plugin);
 extern int finalize_audit_plugin(st_plugin_int *plugin);
@@ -83,6 +84,10 @@ static void general_class_handler(THD *thd, uint event_subtype, va_list ap)
   event.general_query_length= va_arg(ap, unsigned int);
   event.general_charset= va_arg(ap, struct charset_info_st *);
   event.general_rows= (unsigned long long) va_arg(ap, ha_rows);
+  event.general_sql_command= va_arg(ap, MYSQL_LEX_STRING);
+  event.general_host= va_arg(ap, MYSQL_LEX_STRING);
+  event.general_external_user= va_arg(ap, MYSQL_LEX_STRING);
+  event.general_ip= va_arg(ap, MYSQL_LEX_STRING);
   event_class_dispatch(thd, MYSQL_AUDIT_GENERAL_CLASS, &event);
 }
 
@@ -346,7 +351,7 @@ int initialize_audit_plugin(st_plugin_int *plugin)
     return 1;
   }
   
-  if (plugin->plugin->init && plugin->plugin->init(NULL))
+  if (plugin->plugin->init && plugin->plugin->init(plugin))
   {
     sql_print_error("Plugin '%s' init function returned error.",
                     plugin->name.str);
@@ -416,7 +421,7 @@ int finalize_audit_plugin(st_plugin_int *plugin)
                  &event_class_mask);
 
   /* Set the global audit mask */
-  bmove(mysql_global_audit_mask, event_class_mask, sizeof(event_class_mask));
+  memmove(mysql_global_audit_mask, event_class_mask, sizeof(event_class_mask));
   mysql_mutex_unlock(&LOCK_audit_mask);
 
   return 0;

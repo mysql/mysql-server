@@ -1,4 +1,4 @@
-/* Copyright (c) 2000, 2011, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2000, 2013, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -680,7 +680,7 @@ longlong sequence(UDF_INIT *initid __attribute__((unused)), UDF_ARGS *args,
 **
 ****************************************************************************/
 
-#ifdef __WIN__
+#ifdef _WIN32
 #include <winsock2.h>
 #else
 #include <sys/socket.h>

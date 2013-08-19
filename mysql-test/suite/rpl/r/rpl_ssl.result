@@ -1,7 +1,7 @@
 include/master-slave.inc
 Warnings:
 Note	####	Sending passwords in plain text without SSL/TLS is extremely insecure.
-Note	####	Storing MySQL user name or password information in the master.info repository is not secure and is therefore not recommended. Please see the MySQL Manual for more about this issue and possible alternatives.
+Note	####	Storing MySQL user name or password information in the master info repository is not secure and is therefore not recommended. Please consider using the USER and PASSWORD connection options for START SLAVE; see the 'START SLAVE Syntax' in the MySQL Manual for more information.
 [connection master]
 grant replication slave on *.* to replssl@localhost require ssl;
 create table t1 (t int auto_increment, KEY(t));
@@ -15,7 +15,7 @@ master_ssl_cert='MYSQL_TEST_DIR/std_data/client-cert.pem',
 master_ssl_key='MYSQL_TEST_DIR/std_data/client-key.pem';
 Warnings:
 Note	####	Sending passwords in plain text without SSL/TLS is extremely insecure.
-Note	####	Storing MySQL user name or password information in the master.info repository is not secure and is therefore not recommended. Please see the MySQL Manual for more about this issue and possible alternatives.
+Note	####	Storing MySQL user name or password information in the master info repository is not secure and is therefore not recommended. Please consider using the USER and PASSWORD connection options for START SLAVE; see the 'START SLAVE Syntax' in the MySQL Manual for more information.
 start slave;
 insert into t1 values(1);
 select * from t1;
@@ -50,6 +50,6 @@ master_ssl_cert = '',
 master_ssl_key = '';
 Warnings:
 Note	####	Sending passwords in plain text without SSL/TLS is extremely insecure.
-Note	####	Storing MySQL user name or password information in the master.info repository is not secure and is therefore not recommended. Please see the MySQL Manual for more about this issue and possible alternatives.
+Note	####	Storing MySQL user name or password information in the master info repository is not secure and is therefore not recommended. Please consider using the USER and PASSWORD connection options for START SLAVE; see the 'START SLAVE Syntax' in the MySQL Manual for more information.
 End of 5.0 tests
 include/rpl_end.inc

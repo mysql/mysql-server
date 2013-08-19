@@ -11,7 +11,7 @@
 
    You should have received a copy of the GNU General Public License
    along with this program; if not, write to the Free Software
-   Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA */
+   Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA 02110-1301, USA */
 
 // First include (the generated) my_config.h, to get correct platform defines.
 #include "my_config.h"
@@ -73,9 +73,9 @@ private:
   void initialize()
   {
     ptr= buffer;
-    null_ptr= &null_byte;
     memset(buffer, 0, PACK_LENGTH);
     null_byte= '\0';
+    set_null_ptr(&null_byte, 1);
   }
 public:
 

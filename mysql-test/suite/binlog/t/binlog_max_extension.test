@@ -1,3 +1,8 @@
+# The include statement below is a temp one for tests that are yet to
+#be ported to run with InnoDB,
+#but needs to be kept for tests that would need MyISAM in future.
+--source include/force_myisam_default.inc
+
 #  BUG#40611: MySQL cannot make a binary log after sequential number beyond 
 #             unsigned long.
 # 
@@ -22,8 +27,9 @@
 call mtr.add_suppression("Next log extension: 2147483647. Remaining log filename extensions: 0.");
 call mtr.add_suppression("Log filename extension number exhausted:");
 call mtr.add_suppression("Can't generate a unique log-filename");
-
-
+call mtr.add_suppression("The server was unable to create a new log file. "
+                         "An incident event has been written to the binary "
+                         "log which will stop the slaves.");
 -- source include/have_log_bin.inc
 RESET MASTER;
 

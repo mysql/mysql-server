@@ -11,7 +11,7 @@
 
    You should have received a copy of the GNU General Public License
    along with this program; if not, write to the Free Software
-   Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA */
+   Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA 02110-1301, USA */
 
 /* Returns info about database status */
 
@@ -24,21 +24,6 @@ uchar *heap_position(HP_INFO *info)
 	  (HEAP_PTR) 0);
 }
 
-
-#ifdef WANT_OLD_HEAP_VERSION
-
-/*
-  The following should NOT be used anymore as this can't be used together with
-   heap_rkey()
-*/
-
-ulong heap_position_old(HP_INFO *info)
-{
-  return ((info->update & HA_STATE_AKTIV) ? info->current_record :
-	  (ulong) ~0L);
-}
-
-#endif /* WANT_OLD_HEAP_CODE */
 
 /* Note that heap_info does NOT return information about the
    current position anymore;  Use heap_position instead */

@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2000, 2012, Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2000, 2013, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -238,13 +238,11 @@ typedef struct st_columndef		/* column information */
   uint8  null_bit;			/* If column may be 0 */
   uint16 null_pos;			/* position for null marker */
 
-#ifndef NOT_PACKED_DATABASES
   void (*unpack)(struct st_columndef *rec,struct st_mi_bit_buff *buff,
 		 uchar *start,uchar *end);
   enum en_fieldtype base_type;
   uint space_length_bits,pack_type;
   MI_DECODE_TREE *huff_tree;
-#endif
 } MI_COLUMNDEF;
 
 

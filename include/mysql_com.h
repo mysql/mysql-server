@@ -1,4 +1,4 @@
-/* Copyright (c) 2000, 2012, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2000, 2013, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -53,10 +53,10 @@
 #define LOCAL_HOST_NAMEDPIPE "."
 
 
-#if defined(__WIN__) && !defined( _CUSTOMCONFIG_)
+#if defined(_WIN32)
 #define MYSQL_NAMEDPIPE "MySQL"
 #define MYSQL_SERVICENAME "MySQL"
-#endif /* __WIN__ */
+#endif /* _WIN32 */
 
 /*
   You should add new commands to the end of this list, otherwise old
@@ -180,6 +180,9 @@ enum enum_server_command
 /* Enable authentication response packet to be larger than 255 bytes. */
 #define CLIENT_PLUGIN_AUTH_LENENC_CLIENT_DATA (1UL << 21)
 
+/* Don't close the connection for a connection with expired password. */
+#define CLIENT_CAN_HANDLE_EXPIRED_PASSWORDS (1UL << 22)
+
 #define CLIENT_SSL_VERIFY_SERVER_CERT (1UL << 30)
 #define CLIENT_REMEMBER_OPTIONS (1UL << 31)
 
@@ -190,30 +193,32 @@ enum enum_server_command
 #endif
 
 /* Gather all possible capabilites (flags) supported by the server */
-#define CLIENT_ALL_FLAGS  (CLIENT_LONG_PASSWORD | \
-                           CLIENT_FOUND_ROWS | \
-                           CLIENT_LONG_FLAG | \
-                           CLIENT_CONNECT_WITH_DB | \
-                           CLIENT_NO_SCHEMA | \
-                           CLIENT_COMPRESS | \
-                           CLIENT_ODBC | \
-                           CLIENT_LOCAL_FILES | \
-                           CLIENT_IGNORE_SPACE | \
-                           CLIENT_PROTOCOL_41 | \
-                           CLIENT_INTERACTIVE | \
-                           CLIENT_SSL | \
-                           CLIENT_IGNORE_SIGPIPE | \
-                           CLIENT_TRANSACTIONS | \
-                           CLIENT_RESERVED | \
-                           CLIENT_SECURE_CONNECTION | \
-                           CLIENT_MULTI_STATEMENTS | \
-                           CLIENT_MULTI_RESULTS | \
-                           CLIENT_PS_MULTI_RESULTS | \
-                           CLIENT_SSL_VERIFY_SERVER_CERT | \
-                           CLIENT_REMEMBER_OPTIONS | \
-                           CLIENT_PLUGIN_AUTH | \
-                           CLIENT_PLUGIN_AUTH_LENENC_CLIENT_DATA | \
-                           CLIENT_CONNECT_ATTRS)
+#define CLIENT_ALL_FLAGS  (CLIENT_LONG_PASSWORD \
+                           | CLIENT_FOUND_ROWS \
+                           | CLIENT_LONG_FLAG \
+                           | CLIENT_CONNECT_WITH_DB \
+                           | CLIENT_NO_SCHEMA \
+                           | CLIENT_COMPRESS \
+                           | CLIENT_ODBC \
+                           | CLIENT_LOCAL_FILES \
+                           | CLIENT_IGNORE_SPACE \
+                           | CLIENT_PROTOCOL_41 \
+                           | CLIENT_INTERACTIVE \
+                           | CLIENT_SSL \
+                           | CLIENT_IGNORE_SIGPIPE \
+                           | CLIENT_TRANSACTIONS \
+                           | CLIENT_RESERVED \
+                           | CLIENT_SECURE_CONNECTION \
+                           | CLIENT_MULTI_STATEMENTS \
+                           | CLIENT_MULTI_RESULTS \
+                           | CLIENT_PS_MULTI_RESULTS \
+                           | CLIENT_SSL_VERIFY_SERVER_CERT \
+                           | CLIENT_REMEMBER_OPTIONS \
+                           | CLIENT_PLUGIN_AUTH \
+                           | CLIENT_CONNECT_ATTRS \
+                           | CLIENT_PLUGIN_AUTH_LENENC_CLIENT_DATA \
+                           | CLIENT_CAN_HANDLE_EXPIRED_PASSWORDS \
+)
 
 /*
   Switch off the flags that are optional and depending on build flags
@@ -309,7 +314,6 @@ typedef struct st_vio Vio;
 #define MAX_BLOB_WIDTH		16777216	/* Default width for blob */
 
 typedef struct st_net {
-#if !defined(CHECK_EMBEDDED_DIFFERENCES) || !defined(EMBEDDED_LIBRARY)
   Vio *vio;
   unsigned char *buff,*buff_end,*write_pos,*read_pos;
   my_socket fd;					/* For Perl DBI/dbd */
@@ -334,7 +338,6 @@ typedef struct st_net {
     Pointer to query object in query cache, do not equal NULL (0) for
     queries in cache that have not stored its results yet
   */
-#endif
   /*
     Unused, please remove with the next incompatible ABI change.
   */

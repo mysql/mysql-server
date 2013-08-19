@@ -1650,7 +1650,7 @@ FLUSH LOGS;
 --echo #
 let $MYSQLD_DATADIR= `select @@datadir`;
 --replace_result $MYSQLTEST_VARDIR MYSQLTEST_VARDIR
---replace_regex /SQL_LOAD_MB-[0-9]-[0-9]/SQL_LOAD_MB-#-#/ /exec_time=[0-9]*/exec_time=#/ /end_log_pos [0-9]*/end_log_pos #/ /# at [0-9]*/# at #/ /Xid = [0-9]*/Xid = #/ /thread_id=[0-9]*/thread_id=#/ /table id [0-9]*/table id #/ /mapped to number [0-9]*/mapped to number #/ /server v [^ ]*/server v #.##.##/ /(@[0-9]*=[0-9-]*[.][0-9]{1,3})[0-9e+-]*[^ ]*[ ]*(.*(FLOAT|DOUBLE).*[*].)/\1... \2/ /SET @@SESSION.GTID_NEXT=.*$/SET @@SESSION.GTID_NEXT= 'GTID';/ /([0-9A-F\-]{36})\:[0-9]+\-[0-9]+/GTID:#-#/ /GROUPS: .*:(.*,.*)/GROUPS: GTID:(X,X)/ /CRC32 0x[0-9a-f]{8}/CRC32 #/
+--replace_regex /SQL_LOAD_MB-[0-9]-[0-9]/SQL_LOAD_MB-#-#/ /exec_time=[0-9]*/exec_time=#/ /end_log_pos [0-9]*/end_log_pos #/ /# at [0-9]*/# at #/ /Xid = [0-9]*/Xid = #/ /thread_id=[0-9]*/thread_id=#/ /table id [0-9]*/table id #/ /mapped to number [0-9]*/mapped to number #/ /server v [^ ]*/server v #.##.##/ /(@[0-9]*=[0-9-]*[.][0-9]{1,3})[0-9e+-]*[^ ]*[ ]*(.*(FLOAT|DOUBLE).*[*].)/\1... \2/ /SET @@SESSION.GTID_NEXT= '.*'/SET @@SESSION.GTID_NEXT= 'GTID'/ /([0-9A-F\-]{36})\:[0-9]+\-[0-9]+/GTID:#-#/ /GROUPS: .*:(.*,.*)/GROUPS: GTID:(X,X)/ /CRC32 0x[0-9a-f]{8}/CRC32 #/
 --exec $MYSQL_BINLOG --base64-output=decode-rows -v -v $MYSQLD_DATADIR/master-bin.000001
 
 --echo #
@@ -1730,7 +1730,7 @@ FLUSH LOGS;
 --echo #
 let $MYSQLD_DATADIR= `select @@datadir`;
 --replace_result $MYSQLTEST_VARDIR MYSQLTEST_VARDIR
---replace_regex /SQL_LOAD_MB-[0-9]-[0-9]/SQL_LOAD_MB-#-#/ /exec_time=[0-9]*/exec_time=#/ /end_log_pos [0-9]*/end_log_pos #/ /# at [0-9]*/# at #/ /Xid = [0-9]*/Xid = #/ /thread_id=[0-9]*/thread_id=#/ /table id [0-9]*/table id #/ /mapped to number [0-9]*/mapped to number #/ /server v [^ ]*/server v #.##.##/ /(@[0-9]*=[0-9-]*[.][0-9]{1,3})[0-9e+-]*[^ ]*[ ]*(.*(FLOAT|DOUBLE).*[*].)/\1... \2/ /SET @@SESSION.GTID_NEXT=.*$/SET @@SESSION.GTID_NEXT= 'GTID';/ /([0-9A-F\-]{36})\:[0-9]+\-[0-9]+/GTID:#-#/ /GROUPS: .*:(.*,.*)/GROUPS: GTID:(X,X)/ /CRC32 0x[0-9a-f]{8}/CRC32 #/
+--replace_regex /SQL_LOAD_MB-[0-9]-[0-9]/SQL_LOAD_MB-#-#/ /exec_time=[0-9]*/exec_time=#/ /end_log_pos [0-9]*/end_log_pos #/ /# at [0-9]*/# at #/ /Xid = [0-9]*/Xid = #/ /thread_id=[0-9]*/thread_id=#/ /table id [0-9]*/table id #/ /mapped to number [0-9]*/mapped to number #/ /server v [^ ]*/server v #.##.##/ /(@[0-9]*=[0-9-]*[.][0-9]{1,3})[0-9e+-]*[^ ]*[ ]*(.*(FLOAT|DOUBLE).*[*].)/\1... \2/ /SET @@SESSION.GTID_NEXT= '.*'/SET @@SESSION.GTID_NEXT= 'GTID'/ /([0-9A-F\-]{36})\:[0-9]+\-[0-9]+/GTID:#-#/ /GROUPS: .*:(.*,.*)/GROUPS: GTID:(X,X)/ /CRC32 0x[0-9a-f]{8}/CRC32 #/
 --exec $MYSQL_BINLOG --base64-output=decode-rows -v -v $MYSQLD_DATADIR/master-bin.000001
 
 --echo #
@@ -1809,6 +1809,10 @@ INSERT INTO t3 VALUES
   ('2008-03-08','VARCHAR-03-08',38),
   ('2008-03-09','VARCHAR-03-09',39);
 
+ANALYZE TABLE t1;
+ANALYZE TABLE t2;
+ANALYZE TABLE t3;
+
 --echo #
 --echo # Multi-table update.
 --echo #
@@ -1853,7 +1857,7 @@ FLUSH LOGS;
 --echo #
 let $MYSQLD_DATADIR= `select @@datadir`;
 --replace_result $MYSQLTEST_VARDIR MYSQLTEST_VARDIR
---replace_regex /SQL_LOAD_MB-[0-9]-[0-9]/SQL_LOAD_MB-#-#/ /exec_time=[0-9]*/exec_time=#/ /end_log_pos [0-9]*/end_log_pos #/ /# at [0-9]*/# at #/ /Xid = [0-9]*/Xid = #/ /thread_id=[0-9]*/thread_id=#/ /table id [0-9]*/table id #/ /mapped to number [0-9]*/mapped to number #/ /server v [^ ]*/server v #.##.##/ /(@[0-9]*=[0-9-]*[.][0-9]{1,3})[0-9e+-]*[^ ]*[ ]*(.*(FLOAT|DOUBLE).*[*].)/\1... \2/ /SET @@SESSION.GTID_NEXT=.*$/SET @@SESSION.GTID_NEXT= 'GTID';/ /([0-9A-F\-]{36})\:[0-9]+\-[0-9]+/GTID:#-#/ /GROUPS: .*:(.*,.*)/GROUPS: GTID:(X,X)/ /CRC32 0x[0-9a-f]{8}/CRC32 #/
+--replace_regex /SQL_LOAD_MB-[0-9]-[0-9]/SQL_LOAD_MB-#-#/ /exec_time=[0-9]*/exec_time=#/ /end_log_pos [0-9]*/end_log_pos #/ /# at [0-9]*/# at #/ /Xid = [0-9]*/Xid = #/ /thread_id=[0-9]*/thread_id=#/ /table id [0-9]*/table id #/ /mapped to number [0-9]*/mapped to number #/ /server v [^ ]*/server v #.##.##/ /(@[0-9]*=[0-9-]*[.][0-9]{1,3})[0-9e+-]*[^ ]*[ ]*(.*(FLOAT|DOUBLE).*[*].)/\1... \2/ /SET @@SESSION.GTID_NEXT= '.*'/SET @@SESSION.GTID_NEXT= 'GTID'/ /([0-9A-F\-]{36})\:[0-9]+\-[0-9]+/GTID:#-#/ /GROUPS: .*:(.*,.*)/GROUPS: GTID:(X,X)/ /CRC32 0x[0-9a-f]{8}/CRC32 #/
 --exec $MYSQL_BINLOG --base64-output=decode-rows -v -v $MYSQLD_DATADIR/master-bin.000001
 
 --echo #
@@ -1911,7 +1915,7 @@ FLUSH LOGS;
 --echo #
 let $MYSQLD_DATADIR= `select @@datadir`;
 --replace_result $MYSQLTEST_VARDIR MYSQLTEST_VARDIR
---replace_regex /SQL_LOAD_MB-[0-9]-[0-9]/SQL_LOAD_MB-#-#/ /exec_time=[0-9]*/exec_time=#/ /end_log_pos [0-9]*/end_log_pos #/ /# at [0-9]*/# at #/ /Xid = [0-9]*/Xid = #/ /thread_id=[0-9]*/thread_id=#/ /table id [0-9]*/table id #/ /mapped to number [0-9]*/mapped to number #/ /server v [^ ]*/server v #.##.##/ /(@[0-9]*=[0-9-]*[.][0-9]{1,3})[0-9e+-]*[^ ]*[ ]*(.*(FLOAT|DOUBLE).*[*].)/\1... \2/ /SET @@SESSION.GTID_NEXT= '.*'/SET @@SESSION.GTID_NEXT= 'GTID';/ /CRC32 0x[0-9a-f]{8}/CRC32 #/
+--replace_regex /SQL_LOAD_MB-[0-9]-[0-9]/SQL_LOAD_MB-#-#/ /exec_time=[0-9]*/exec_time=#/ /end_log_pos [0-9]*/end_log_pos #/ /# at [0-9]*/# at #/ /Xid = [0-9]*/Xid = #/ /thread_id=[0-9]*/thread_id=#/ /table id [0-9]*/table id #/ /mapped to number [0-9]*/mapped to number #/ /server v [^ ]*/server v #.##.##/ /(@[0-9]*=[0-9-]*[.][0-9]{1,3})[0-9e+-]*[^ ]*[ ]*(.*(FLOAT|DOUBLE).*[*].)/\1... \2/ /SET @@SESSION.GTID_NEXT= '.*'/SET @@SESSION.GTID_NEXT= 'GTID'/ /CRC32 0x[0-9a-f]{8}/CRC32 #/
 --exec $MYSQL_BINLOG --base64-output=decode-rows -v -v $MYSQLD_DATADIR/master-bin.000001
 
 --echo #

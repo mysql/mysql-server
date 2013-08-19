@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2000, 2012, Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2000, 2013, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -20,16 +20,16 @@
 #include "sql_priv.h"
 #include "unireg.h"                    // REQUIRED: for other includes
 #include "table.h"
-#include "frm_crypt.h"           // get_crypt_for_frm
 #include "key.h"                                // find_ref_key
 #include "sql_table.h"                          // build_table_filename,
                                                 // primary_key_name
-#include "sql_trigger.h"
+#include "table_trigger_dispatcher.h"           // Table_trigger_dispatcher
 #include "sql_parse.h"                          // free_items
 #include "strfunc.h"                            // unhex_type2
 #include "sql_partition.h"       // mysql_unpack_partition,
                                  // fix_partition_func, partition_info
-#include "sql_acl.h"             // *_ACL, acl_getroot_no_password
+#include "auth_common.h"         // acl_getroot
+                                 // *_ACL, acl_getroot_no_password
 #include "sql_base.h"            // release_table_share
 #include "sql_derived.h"
 #include <m_ctype.h>
@@ -302,37 +302,54 @@ TABLE_CATEGORY get_table_category(const LEX_STRING *db, const LEX_STRING *name)
 }
 
 
-/*
-  Allocate a setup TABLE_SHARE structure
+/**
+  Allocate and setup a TABLE_SHARE structure
 
-  SYNOPSIS
-    alloc_table_share()
-    TABLE_LIST		Take database and table name from there
-    key			Table cache key (db \0 table_name \0...)
-    key_length		Length of key
+  @param table_list  structure from which database and table 
+                     name can be retrieved
+  @param key         table cache key (db \0 table_name \0...)
+  @param key_length  length of the key
 
-  RETURN
-    0  Error (out of memory)
-    #  Share
+  @return            pointer to allocated table share
+    @retval NULL     error (out of memory, too long path name)
 */
 
 TABLE_SHARE *alloc_table_share(TABLE_LIST *table_list, const char *key,
                                uint key_length)
 {
   MEM_ROOT mem_root;
-  TABLE_SHARE *share;
+  TABLE_SHARE *share= NULL;
   char *key_buff, *path_buff;
-  char path[FN_REFLEN];
+  char path[FN_REFLEN + 1];
   uint path_length;
   Table_cache_element **cache_element_array;
+  bool was_truncated= false;
   DBUG_ENTER("alloc_table_share");
   DBUG_PRINT("enter", ("table: '%s'.'%s'",
                        table_list->db, table_list->table_name));
 
-  path_length= build_table_filename(path, sizeof(path) - 1,
+  /*
+    There are FN_REFLEN - reg_ext_length bytes available for the 
+    file path and the trailing '\0', which may be padded to the right 
+    of the length indicated by the length parameter. The returned 
+    path length does not include the trailing '\0'.
+  */
+  path_length= build_table_filename(path, sizeof(path) - 1 - reg_ext_length,
                                     table_list->db,
-                                    table_list->table_name, "", 0);
-  init_sql_alloc(&mem_root, TABLE_ALLOC_BLOCK_SIZE, 0);
+                                    table_list->table_name, "", 0,
+                                    &was_truncated);
+
+  /*
+    The path now misses extension, but includes '\0'. Unless it was
+    truncated, everything should be ok. 
+  */
+  if (was_truncated)
+  {
+    my_error(ER_IDENT_CAUSES_TOO_LONG_PATH, MYF(0), sizeof(path) - 1, path);
+    DBUG_RETURN(NULL);
+  }
+
+  init_sql_alloc(key_memory_table_share, &mem_root, TABLE_ALLOC_BLOCK_SIZE, 0);
   if (multi_alloc_root(&mem_root,
                        &share, sizeof(*share),
                        &key_buff, key_length,
@@ -360,7 +377,7 @@ TABLE_SHARE *alloc_table_share(TABLE_LIST *table_list, const char *key,
       elsewhere, and then assign a table map id inside open_table()
       under the protection of the LOCK_open mutex.
     */
-    share->table_map_id= ~0UL;
+    share->table_map_id= ~0ULL;
     share->cached_row_logging_check= -1;
 
     share->m_flush_tickets.empty();
@@ -408,7 +425,8 @@ void init_tmp_table_share(THD *thd, TABLE_SHARE *share, const char *key,
   DBUG_PRINT("enter", ("table: '%s'.'%s'", key, table_name));
 
   memset(share, 0, sizeof(*share));
-  init_sql_alloc(&share->mem_root, TABLE_ALLOC_BLOCK_SIZE, 0);
+  init_sql_alloc(key_memory_table_share,
+                 &share->mem_root, TABLE_ALLOC_BLOCK_SIZE, 0);
   share->table_category=         TABLE_CATEGORY_TEMPORARY;
   share->tmp_table=              INTERNAL_TMP_TABLE;
   share->db.str=                 (char*) key;
@@ -428,7 +446,7 @@ void init_tmp_table_share(THD *thd, TABLE_SHARE *share, const char *key,
     table_map_id is also used for MERGE tables to suppress repeated
     compatibility checks.
   */
-  share->table_map_id= (ulong) thd->query_id;
+  share->table_map_id= (ulonglong) thd->query_id;
 
   share->m_flush_tickets.empty();
 
@@ -638,7 +656,7 @@ int open_table_def(THD *thd, TABLE_SHARE *share, uint db_flags)
   bool error_given;
   File file;
   uchar head[64];
-  char	path[FN_REFLEN];
+  char	path[FN_REFLEN + 1];
   MEM_ROOT **root_ptr, *old_root;
   DBUG_ENTER("open_table_def");
   DBUG_PRINT("enter", ("table: '%s'.'%s'  path: '%s'", share->db.str,
@@ -647,7 +665,7 @@ int open_table_def(THD *thd, TABLE_SHARE *share, uint db_flags)
   error= 1;
   error_given= 0;
 
-  strxmov(path, share->normalized_path.str, reg_ext, NullS);
+  strxnmov(path, sizeof(path) - 1, share->normalized_path.str, reg_ext, NullS);
   if ((file= mysql_file_open(key_file_frm,
                              path, O_RDONLY | O_SHARE, MYF(0))) < 0)
   {
@@ -746,7 +764,7 @@ int open_table_def(THD *thd, TABLE_SHARE *share, uint db_flags)
 
   if (table_type == 1)
   {
-    root_ptr= my_pthread_getspecific_ptr(MEM_ROOT**, THR_MALLOC);
+    root_ptr= my_pthread_get_THR_MALLOC();
     old_root= *root_ptr;
     *root_ptr= &share->mem_root;
     error= open_binary_frm(thd, share, head, file);
@@ -843,63 +861,136 @@ void KEY_PART_INFO::init_from_field(Field *fld)
 
 
 /**
-  Add primary key parts to the secondary key
-  unless they would be too long. Function
-  updates sk->actual/hidden_key_parts.
-  Function also updates sk->actual_flags
+  Setup key-related fields of Field object for given key and key part.
 
-
-  @param[in]     sk            Secondary key
-  @param[in]     pk            Primary key
-  @param[in,out] key_part      Pointer to the current KEY_PART_INFO*
-                               allocated after all the user defined key parts.
-  @param[in,out] rec_per_key   Pointer to the current rec_per_key
-                               allocated after all the user defined key parts.
+  @param[in]     share         Pointer to TABLE_SHARE
+  @param[in]     handler       Pointer to handler
+  @param[in]     primary_key_n Primary key number
+  @param[in]     keyinfo       Pointer to processed key
+  @param[in]     key_n         Processed key number
+  @param[in]     key_part_n    Processed key part number
+  @param[in,out] usable_parts  Pointer to usable_parts variable
 */
 
-static void add_pk_parts_to_sk(KEY *sk, KEY *pk,
-                               KEY_PART_INFO **key_part,
-                               ulong **rec_per_key)
+static void setup_key_part_field(TABLE_SHARE *share, handler *handler_file,
+                                 uint primary_key_n, KEY *keyinfo, uint key_n,
+                                 uint key_part_n, uint *usable_parts)
+{
+  KEY_PART_INFO *key_part= &keyinfo->key_part[key_part_n];
+  Field *field= key_part->field;
+
+  /* Flag field as unique if it is the only keypart in a unique index */
+  if (key_part_n == 0 && key_n != primary_key_n)
+    field->flags |= (((keyinfo->flags & HA_NOSAME) &&
+                      (keyinfo->user_defined_key_parts == 1)) ?
+                     UNIQUE_KEY_FLAG : MULTIPLE_KEY_FLAG);
+  if (key_part_n == 0)
+    field->key_start.set_bit(key_n);
+  if (field->key_length() == key_part->length &&
+      !(field->flags & BLOB_FLAG))
+  {
+    if (handler_file->index_flags(key_n, key_part_n, 0) & HA_KEYREAD_ONLY)
+    {
+      share->keys_for_keyread.set_bit(key_n);
+      field->part_of_key.set_bit(key_n);
+      field->part_of_key_not_clustered.set_bit(key_n);
+    }
+    if (handler_file->index_flags(key_n, key_part_n, 1) & HA_READ_ORDER)
+      field->part_of_sortkey.set_bit(key_n);
+  }
+
+  if (!(key_part->key_part_flag & HA_REVERSE_SORT) &&
+      *usable_parts == key_part_n)
+    (*usable_parts)++;			// For FILESORT
+}
+
+
+/**
+  Generate extended secondary keys by adding primary key parts to the
+  existing secondary key. A primary key part is added if such part doesn't
+  present in the secondary key or the part in the secondary key is a
+  prefix of the key field. Key parts are added till:
+  .) all parts were added
+  .) number of key parts became bigger that MAX_REF_PARTS
+  .) total key length became longer than MAX_REF_LENGTH
+  depending on what occurs first first.
+  Unlike existing secondary key parts which are initialized at
+  open_binary_frm(), newly added ones are initialized here by copying
+  KEY_PART_INFO structure from primary key part and calling
+  setup_key_part_field().
+
+  Function updates sk->actual/unused_key_parts and sk->actual_flags.
+
+  @param[in]     sk            Secondary key
+  @param[in]     sk_n          Secondary key number
+  @param[in]     pk            Primary key
+  @param[in]     pk_n          Primary key number
+  @param[in]     share         Pointer to TABLE_SHARE
+  @param[in]     handler       Pointer to handler
+  @param[in,out] usable_parts  Pointer to usable_parts variable
+
+  @retval                      Number of added key parts
+*/
+
+static uint add_pk_parts_to_sk(KEY *sk, uint sk_n, KEY *pk, uint pk_n,
+                               TABLE_SHARE *share, handler *handler_file,
+                               uint *usable_parts)
 {
   uint max_key_length= sk->key_length;
   bool is_unique_key= false;
+  KEY_PART_INFO *current_key_part= &sk->key_part[sk->user_defined_key_parts];
+  ulong *current_rec_per_key= &sk->rec_per_key[sk->user_defined_key_parts];
+
+  /* 
+     For each keypart in the primary key: check if the keypart is
+     already part of the secondary key and add it if not.
+  */
   for (uint pk_part= 0; pk_part < pk->user_defined_key_parts; pk_part++)
   {
     KEY_PART_INFO *pk_key_part= &pk->key_part[pk_part];
     /* MySQL does not supports more key parts than MAX_REF_LENGTH */
     if (sk->actual_key_parts >= MAX_REF_PARTS)
-      return;
+      goto end;
 
+    bool pk_field_is_in_sk= false;
     for (uint j= 0; j < sk->user_defined_key_parts; j++)
     {
       if (sk->key_part[j].fieldnr == pk_key_part->fieldnr &&
-          sk->key_part[j].length >= pk_key_part->length)
+          share->field[pk_key_part->fieldnr - 1]->key_length() ==
+          sk->key_part[j].length)
+      {
+        pk_field_is_in_sk= true;
         break;
-
-      if (j == sk->user_defined_key_parts - 1)
-      {   
-        /* MySQL does not supports keys longer than MAX_KEY_LENGTH */
-        if (max_key_length + pk_key_part->length > MAX_KEY_LENGTH)
-          return;
-
-        /*
-          Secondary key will be unique if the key  does not exceed
-          key length limitation and key parts limitation.
-        */
-        is_unique_key= true;
-        **key_part= *pk_key_part;
-        **rec_per_key= 0;
-        key_part= &++*key_part;
-        rec_per_key= &++*rec_per_key;
-        sk->actual_key_parts++;
-        sk->hidden_key_parts++;
-        max_key_length+= pk_key_part->length;
       }
+    }
+
+    /* Add PK field to secondary key if it's not already  part of the key. */
+    if (!pk_field_is_in_sk)
+    {
+      /* MySQL does not supports keys longer than MAX_KEY_LENGTH */
+      if (max_key_length + pk_key_part->length > MAX_KEY_LENGTH)
+        goto end;
+
+      *current_key_part= *pk_key_part;
+      setup_key_part_field(share, handler_file, pk_n, sk, sk_n,
+                           sk->actual_key_parts, usable_parts);
+      *current_rec_per_key++= 0;
+      sk->actual_key_parts++;
+      sk->unused_key_parts--;
+      current_key_part++;
+      max_key_length+= pk_key_part->length;
+      /*
+        Secondary key will be unique if the key  does not exceed
+        key length limitation and key parts limitation.
+      */
+      is_unique_key= true;
     }
   }
   if (is_unique_key)
     sk->actual_flags|= HA_NOSAME;
-  return;
+
+end:
+  return (sk->actual_key_parts - sk->user_defined_key_parts);
 }
 
 
@@ -931,7 +1022,6 @@ static int open_binary_frm(THD *thd, TABLE_SHARE *share, uchar *head,
   handler *handler_file= 0;
   KEY	*keyinfo;
   KEY_PART_INFO *key_part;
-  SQL_CRYPT *crypted=0;
   Field  **field_ptr, *reg_field;
   const char **interval_array;
   enum legacy_db_type legacy_db_type;
@@ -1035,7 +1125,9 @@ static int open_binary_frm(THD *thd, TABLE_SHARE *share, uchar *head,
 
   strpos=disk_buff+6;  
 
-  use_extended_sk= (legacy_db_type == DB_TYPE_INNODB);
+  use_extended_sk=
+    ha_check_storage_engine_flag(share->db_type(),
+                                 HTON_SUPPORTS_EXTENDED_KEYS);
 
   uint total_key_parts;
   if (use_extended_sk)
@@ -1109,21 +1201,23 @@ static int open_binary_frm(THD *thd, TABLE_SHARE *share, uchar *head,
       key_part->store_length=key_part->length;
     }
     /*
-      Add PK parts if engine supports PK extension for secondary keys.
-      Atm it works for Innodb only. Here we add unique first key parts
-      to the end of secondary key parts array and increase actual number
-      of key parts. Note that primary key is always first if exists.
-      Later if there is no PK in the table then number of actual keys parts
-      is set to user defined key parts.
+      Add primary key parts if engine supports primary key extension for
+      secondary keys. Here we add unique first key parts to the end of
+      secondary key parts array and increase actual number of key parts.
+      Note that primary key is always first if exists. Later if there is no
+      primary key in the table then number of actual keys parts is set to
+      user defined key parts.
     */
     keyinfo->actual_key_parts= keyinfo->user_defined_key_parts;
     keyinfo->actual_flags= keyinfo->flags;
     if (use_extended_sk && i && !(keyinfo->flags & HA_NOSAME))
     {
-      add_pk_parts_to_sk(keyinfo, share->key_info,
-                         &key_part, &rec_per_key);
+      const uint primary_key_parts= share->key_info->user_defined_key_parts;
+      keyinfo->unused_key_parts= primary_key_parts;
+      key_part+= primary_key_parts;
+      rec_per_key+= primary_key_parts;
+      share->key_parts+= primary_key_parts;
     }
-    share->key_parts+= keyinfo->hidden_key_parts;
   }
   keynames=(char*) key_part;
   strpos+= (strmov(keynames, (char *) strpos) - keynames)+1;
@@ -1145,13 +1239,6 @@ static int open_binary_frm(THD *thd, TABLE_SHARE *share, uchar *head,
   share->reclength = uint2korr((head+16));
   if (*(head+26) == 1)
     share->system= 1;				/* one-record-database */
-#ifdef HAVE_CRYPTED_FRM
-  else if (*(head+26) == 2)
-  {
-    crypted= get_crypt_for_frm();
-    share->crypted= 1;
-  }
-#endif
 
   record_offset= (ulong) (uint2korr(head+6)+
                           ((uint2korr(head+14) == 0xffff ?
@@ -1162,7 +1249,8 @@ static int open_binary_frm(THD *thd, TABLE_SHARE *share, uchar *head,
     /* Read extra data segment */
     uchar *next_chunk, *buff_end;
     DBUG_PRINT("info", ("extra segment size is %u bytes", n_length));
-    if (!(extra_segment_buff= (uchar*) my_malloc(n_length, MYF(MY_WME))))
+    if (!(extra_segment_buff= (uchar*) my_malloc(key_memory_frm_extra_segment_buff,
+                                                 n_length, MYF(MY_WME))))
       goto err;
     next_chunk= extra_segment_buff;
     if (mysql_file_pread(file, extra_segment_buff,
@@ -1400,14 +1488,6 @@ static int open_binary_frm(THD *thd, TABLE_SHARE *share, uchar *head,
     goto err;                                   /* purecov: inspected */
 
   mysql_file_seek(file, pos+288, MY_SEEK_SET, MYF(0));
-#ifdef HAVE_CRYPTED_FRM
-  if (crypted)
-  {
-    crypted->decode((char*) forminfo+256,288-256);
-    if (sint2korr(forminfo+284) != 0)		// Should be 0
-      goto err;                                 // Wrong password
-  }
-#endif
 
   share->fields= uint2korr(forminfo+258);
   pos= uint2korr(forminfo+260);   /* Length of all screens */
@@ -1440,14 +1520,7 @@ static int open_binary_frm(THD *thd, TABLE_SHARE *share, uchar *head,
 		      pos+ (uint) (n_length+int_length+com_length));
   if (read_string(file,(uchar**) &disk_buff,read_length))
     goto err;                                   /* purecov: inspected */
-#ifdef HAVE_CRYPTED_FRM
-  if (crypted)
-  {
-    crypted->decode((char*) disk_buff,read_length);
-    delete crypted;
-    crypted=0;
-  }
-#endif
+
   strpos= disk_buff+pos;
 
   share->intervals= (TYPELIB*) (field_ptr+share->fields+1);
@@ -1509,7 +1582,6 @@ static int open_binary_frm(THD *thd, TABLE_SHARE *share, uchar *head,
     */
     share->null_bytes= (share->null_fields + null_bit_pos + 7) / 8;
   }
-#ifndef WE_WANT_TO_SUPPORT_VERY_OLD_FRM_FILES
   else
   {
     share->null_bytes= (share->null_fields+7)/8;
@@ -1517,7 +1589,6 @@ static int open_binary_frm(THD *thd, TABLE_SHARE *share, uchar *head,
                                     share->null_bytes);
     null_bit_pos= 0;
   }
-#endif
 
   use_hash= share->fields >= MAX_FIELDS_BEFORE_HASH;
   if (use_hash)
@@ -1548,13 +1619,8 @@ static int open_binary_frm(THD *thd, TABLE_SHARE *share, uchar *head,
       /* charset and geometry_type share the same byte in frm */
       if (field_type == MYSQL_TYPE_GEOMETRY)
       {
-#ifdef HAVE_SPATIAL
 	geom_type= (Field::geometry_type) strpos[14];
 	charset= &my_charset_bin;
-#else
-	error= 4;  // unsupported field type
-	goto err;
-#endif
       }
       else
       {
@@ -1620,8 +1686,7 @@ static int open_binary_frm(THD *thd, TABLE_SHARE *share, uchar *head,
       TYPELIB *interval= share->intervals + interval_nr - 1;
       unhex_type2(interval);
     }
-    
-#ifndef TO_BE_DELETED_ON_PRODUCTION
+
     if (field_type == MYSQL_TYPE_NEWDECIMAL && !share->mysql_version)
     {
       /*
@@ -1646,7 +1711,6 @@ static int open_binary_frm(THD *thd, TABLE_SHARE *share, uchar *head,
                           share->table_name.str);
       share->crashed= 1;                        // Marker for CHECK TABLE
     }
-#endif
 
     *field_ptr= reg_field=
       make_field(share, record+recpos,
@@ -1740,30 +1804,31 @@ static int open_binary_frm(THD *thd, TABLE_SHARE *share, uchar *head,
 	primary_key=key;
 	for (i=0 ; i < keyinfo->user_defined_key_parts ;i++)
 	{
-	  uint fieldnr= key_part[i].fieldnr;
-	  if (!fieldnr ||
-	      share->field[fieldnr-1]->real_maybe_null() ||
-	      share->field[fieldnr-1]->key_length() !=
-	      key_part[i].length)
-	  {
-	    primary_key=MAX_KEY;		// Can't be used
+          DBUG_ASSERT(key_part[i].fieldnr > 0);
+          // Table field corresponding to the i'th key part.
+          Field *table_field= share->field[key_part[i].fieldnr - 1];
+
+          /*
+            If the key column is of NOT NULL BLOB type, then it
+            will definitly have key prefix. And if key part prefix size
+            is equal to the BLOB column max size, then we can promote
+            it to primary key.
+          */
+          if (!table_field->real_maybe_null() &&
+              table_field->type() == MYSQL_TYPE_BLOB &&
+              table_field->field_length == key_part[i].length)
+            continue;
+
+	  if (table_field->real_maybe_null() ||
+	      table_field->key_length() != key_part[i].length)
+ 	  {
+	    primary_key= MAX_KEY;		// Can't be used
 	    break;
 	  }
 	}
       }
 
-      if (primary_key >= MAX_KEY && key)
-      {
-        /*
-          If there is no PK then PK parts added earlier are
-          excluded from processing and reset original flag
-          value.
-        */
-        keyinfo->actual_key_parts= keyinfo->user_defined_key_parts;
-        keyinfo->actual_flags= keyinfo->flags;
-      }
-
-      for (i=0 ; i < keyinfo->actual_key_parts ; key_part++,i++)
+      for (i=0 ; i < keyinfo->user_defined_key_parts ; key_part++,i++)
       {
         Field *field;
 	if (new_field_pack_flag <= 1)
@@ -1795,27 +1860,10 @@ static int open_binary_frm(THD *thd, TABLE_SHARE *share, uchar *head,
             keyinfo->key_length+= HA_KEY_BLOB_LENGTH;
         }
         key_part->init_flags();
-        if (i == 0 && key != primary_key)
-          field->flags |= (((keyinfo->flags & HA_NOSAME) &&
-                           (keyinfo->user_defined_key_parts == 1)) ?
-                           UNIQUE_KEY_FLAG : MULTIPLE_KEY_FLAG);
-        if (i == 0)
-          field->key_start.set_bit(key);
-        if (field->key_length() == key_part->length &&
-            !(field->flags & BLOB_FLAG))
-        {
-          if (handler_file->index_flags(key, i, 0) & HA_KEYREAD_ONLY)
-          {
-            share->keys_for_keyread.set_bit(key);
-            field->part_of_key.set_bit(key);
-            field->part_of_key_not_clustered.set_bit(key);
-          }
-          if (handler_file->index_flags(key, i, 1) & HA_READ_ORDER)
-            field->part_of_sortkey.set_bit(key);
-        }
-        if (!(key_part->key_part_flag & HA_REVERSE_SORT) &&
-            usable_parts == i)
-          usable_parts++;			// For FILESORT
+
+        setup_key_part_field(share, handler_file, primary_key,
+                             keyinfo, key, i, &usable_parts);
+
         field->flags|= PART_KEY_FLAG;
         if (key == primary_key)
         {
@@ -1835,7 +1883,6 @@ static int open_binary_frm(THD *thd, TABLE_SHARE *share, uchar *head,
         }
         if (field->key_length() != key_part->length)
         {
-#ifndef TO_BE_DELETED_ON_PRODUCTION
           if (field->type() == MYSQL_TYPE_NEWDECIMAL)
           {
             /*
@@ -1863,14 +1910,18 @@ static int open_binary_frm(THD *thd, TABLE_SHARE *share, uchar *head,
             share->crashed= 1;                // Marker for CHECK TABLE
             continue;
           }
-#endif
           key_part->key_part_flag|= HA_PART_KEY_SEG;
         }
       }
 
+
+      if (use_extended_sk && primary_key < MAX_KEY &&
+          key && !(keyinfo->flags & HA_NOSAME))
+        key_part+= add_pk_parts_to_sk(keyinfo, key, share->key_info, primary_key,
+                                      share,  handler_file, &usable_parts);
+
       /* Skip unused key parts if they exist */
-      if (primary_key >= MAX_KEY)
-        key_part+= keyinfo->hidden_key_parts;
+      key_part+= keyinfo->unused_key_parts;
 
       keyinfo->usable_key_parts= usable_parts; // Filesort
 
@@ -1984,7 +2035,6 @@ static int open_binary_frm(THD *thd, TABLE_SHARE *share, uchar *head,
   share->errarg= errarg;
   my_free(disk_buff);
   my_free(extra_segment_buff);
-  delete crypted;
   delete handler_file;
   my_hash_free(&share->name_hash);
 
@@ -2040,11 +2090,14 @@ int open_table_from_share(THD *thd, TABLE_SHARE *share, const char *alias,
   outparam->db_stat= db_stat;
   outparam->write_row_record= NULL;
 
-  init_sql_alloc(&outparam->mem_root, TABLE_ALLOC_BLOCK_SIZE, 0);
+  init_sql_alloc(key_memory_TABLE,
+                 &outparam->mem_root, TABLE_ALLOC_BLOCK_SIZE, 0);
 
-  if (!(outparam->alias= my_strdup(alias, MYF(MY_WME))))
+  if (!(outparam->alias= my_strdup(key_memory_TABLE,
+                                   alias, MYF(MY_WME))))
     goto err;
   outparam->quick_keys.init();
+  outparam->possible_quick_keys.init();
   outparam->covering_keys.init();
   outparam->merge_keys.init();
   outparam->keys_in_use_for_query.init();
@@ -2180,8 +2233,7 @@ int open_table_from_share(THD *thd, TABLE_SHARE *share, const char *alias,
         }
       }
       /* Skip unused key parts if they exist */
-      if (share->primary_key >= MAX_KEY)
-        key_part+= key_info->hidden_key_parts;
+      key_part+= key_info->unused_key_parts;
     }
   }
 
@@ -2255,7 +2307,7 @@ partititon_err:
   /* Allocate bitmaps */
 
   bitmap_size= share->column_bitmap_size;
-  if (!(bitmaps= (uchar*) alloc_root(&outparam->mem_root, bitmap_size*3)))
+  if (!(bitmaps= (uchar*) alloc_root(&outparam->mem_root, bitmap_size * 4)))
     goto err;
   bitmap_init(&outparam->def_read_set,
               (my_bitmap_map*) bitmaps, share->fields, FALSE);
@@ -2263,6 +2315,9 @@ partititon_err:
               (my_bitmap_map*) (bitmaps+bitmap_size), share->fields, FALSE);
   bitmap_init(&outparam->tmp_set,
               (my_bitmap_map*) (bitmaps+bitmap_size*2), share->fields, FALSE);
+  bitmap_init(&outparam->def_fields_set_during_insert,
+              (my_bitmap_map*) (bitmaps + bitmap_size * 3), share->fields,
+              FALSE);
   outparam->default_column_bitmaps();
 
   /* The table struct is now initialized;  Open the table */
@@ -2474,7 +2529,8 @@ static ulong get_form_pos(File file, uchar *head)
 
   mysql_file_seek(file, 64L, MY_SEEK_SET, MYF(0));
 
-  if (!(buf= (uchar*) my_malloc(length+names*4, MYF(MY_WME))))
+  if (!(buf= (uchar*) my_malloc(key_memory_frm_form_pos,
+                                length+names*4, MYF(MY_WME))))
     DBUG_RETURN(0);
 
   if (mysql_file_read(file, buf, length+names*4, MYF(MY_NABP)))
@@ -2504,7 +2560,8 @@ int read_string(File file, uchar**to, size_t length)
   DBUG_ENTER("read_string");
 
   my_free(*to);
-  if (!(*to= (uchar*) my_malloc(length+1,MYF(MY_WME))) ||
+  if (!(*to= (uchar*) my_malloc(key_memory_frm_string,
+                                length+1,MYF(MY_WME))) ||
       mysql_file_read(file, *to, length, MYF(MY_NABP)))
   {
      my_free(*to);                            /* purecov: inspected */
@@ -2812,7 +2869,7 @@ void append_unescaped(String *res, const char *pos, uint length)
 
   for (; pos != end ; pos++)
   {
-#if defined(USE_MB) && MYSQL_VERSION_ID < 40100
+#if MYSQL_VERSION_ID < 40100
     uint mblen;
     if (use_mb(default_charset_info) &&
         (mblen= my_ismbchar(default_charset_info, pos, end)))
@@ -3163,16 +3220,10 @@ enum_ident_name_check check_table_name(const char *name, size_t length,
   const char *end= name+length;
   if (!length || length > NAME_LEN)
     return IDENT_NAME_WRONG;
-#if defined(USE_MB) && defined(USE_MB_IDENT)
   bool last_char_is_space= FALSE;
-#else
-  if (name[length-1]==' ')
-    return IDENT_NAME_WRONG;
-#endif
 
   while (name != end)
   {
-#if defined(USE_MB) && defined(USE_MB_IDENT)
     last_char_is_space= my_isspace(system_charset_info, *name);
     if (use_mb(system_charset_info))
     {
@@ -3184,19 +3235,16 @@ enum_ident_name_check check_table_name(const char *name, size_t length,
         continue;
       }
     }
-#endif
     if (check_for_path_chars &&
         (*name == '/' || *name == '\\' || *name == '~' || *name == FN_EXTCHAR))
       return IDENT_NAME_WRONG;
     name++;
     name_length++;
   }
-#if defined(USE_MB) && defined(USE_MB_IDENT)
   if (last_char_is_space)
    return IDENT_NAME_WRONG;
   else if (name_length > NAME_CHAR_LEN)
    return IDENT_NAME_TOO_LONG;
-#endif
   return IDENT_NAME_OK;
 }
 
@@ -3209,7 +3257,6 @@ bool check_column_name(const char *name)
 
   while (*name)
   {
-#if defined(USE_MB) && defined(USE_MB_IDENT)
     last_char_is_space= my_isspace(system_charset_info, *name);
     if (use_mb(system_charset_info))
     {
@@ -3222,9 +3269,6 @@ bool check_column_name(const char *name)
         continue;
       }
     }
-#else
-    last_char_is_space= *name==' ';
-#endif
     if (*name == NAMES_SEP_CHAR)
       return 1;
     name++;
@@ -3272,9 +3316,10 @@ Table_check_intact::check(TABLE *table, const TABLE_FIELD_DEF *table_def)
     /* previous MySQL version */
     if (MYSQL_VERSION_ID > table->s->mysql_version)
     {
-      report_error(ER_COL_COUNT_DOESNT_MATCH_PLEASE_UPDATE,
-                   ER(ER_COL_COUNT_DOESNT_MATCH_PLEASE_UPDATE),
-                   table->alias, table_def->count, table->s->fields,
+      report_error(ER_COL_COUNT_DOESNT_MATCH_PLEASE_UPDATE_V2,
+                   ER(ER_COL_COUNT_DOESNT_MATCH_PLEASE_UPDATE_V2),
+                   table->s->db.str, table->alias,
+                   table_def->count, table->s->fields,
                    static_cast<int>(table->s->mysql_version),
                    MYSQL_VERSION_ID);
       DBUG_RETURN(TRUE);
@@ -3601,7 +3646,8 @@ void TABLE::init(THD *thd, TABLE_LIST *tl)
   if (strcmp(alias, tl->alias))
   {
     uint length= (uint) strlen(tl->alias)+1;
-    alias= (char*) my_realloc((char*) alias, length, MYF(MY_WME));
+    alias= (char*) my_realloc(key_memory_TABLE,
+                              (char*) alias, length, MYF(MY_WME));
     memcpy((char*) alias, tl->alias, length);
   }
 
@@ -3692,6 +3738,50 @@ void TABLE::reset_item_list(List<Item> *item_list) const
   }
 }
 
+/**
+  Create a TABLE_LIST object representing a nested join
+
+  @param allocator  Mem root allocator that object is created from.
+  @param alias      Name of nested join object
+  @param embedding  Pointer to embedding join nest (or NULL if top-most)
+  @param belongs_to List of tables this nest belongs to (never NULL).
+  @param select     The query block that this join nest belongs within.
+
+  @returns Pointer to created join nest object, or NULL if error.
+*/
+
+TABLE_LIST *TABLE_LIST::new_nested_join(MEM_ROOT *allocator,
+                            const char *alias,
+                            TABLE_LIST *embedding,
+                            List<TABLE_LIST> *belongs_to,
+                            class st_select_lex *select)
+{
+  DBUG_ASSERT(belongs_to && select);
+
+  TABLE_LIST *const join_nest=
+    (TABLE_LIST *) alloc_root(allocator, ALIGN_SIZE(sizeof(TABLE_LIST))+
+                                                    sizeof(NESTED_JOIN));
+  if (join_nest == NULL)
+    return NULL;
+
+  memset(join_nest, 0, ALIGN_SIZE(sizeof(TABLE_LIST)) + sizeof(NESTED_JOIN));
+  join_nest->nested_join=
+    (NESTED_JOIN *) ((uchar *)join_nest + ALIGN_SIZE(sizeof(TABLE_LIST)));
+
+  join_nest->db= (char *)"";
+  join_nest->db_length= 0;
+  join_nest->table_name= (char *)"";
+  join_nest->table_name_length= 0;
+  join_nest->alias= (char *)alias;
+  
+  join_nest->embedding= embedding;
+  join_nest->join_list= belongs_to;
+  join_nest->select_lex= select;
+
+  join_nest->nested_join->join_list.empty();
+
+  return join_nest;
+}
 /*
   calculate md5 of query
 
@@ -3793,7 +3883,7 @@ bool TABLE_LIST::setup_underlying(THD *thd)
   if (!field_translation && merge_underlying_list)
   {
     Field_translator *transl;
-    SELECT_LEX *select= &view->select_lex;
+    SELECT_LEX *select= view->select_lex;
     Item *item;
     TABLE_LIST *tbl;
     List_iterator_fast<Item> it(select->item_list);
@@ -3833,12 +3923,12 @@ bool TABLE_LIST::setup_underlying(THD *thd)
     /* TODO: use hash for big number of fields */
 
     /* full text function moving to current select */
-    if (view->select_lex.ftfunc_list->elements)
+    if (view->select_lex->ftfunc_list->elements)
     {
       Item_func_match *ifm;
-      SELECT_LEX *current_select= thd->lex->current_select;
+      SELECT_LEX *current_select= thd->lex->current_select();
       List_iterator_fast<Item_func_match>
-        li(*(view->select_lex.ftfunc_list));
+        li(*(view->select_lex->ftfunc_list));
       while ((ifm= li++))
         current_select->ftfunc_list->push_front(ifm);
     }
@@ -3890,7 +3980,7 @@ bool TABLE_LIST::prep_where(THD *thd, Item **conds,
         evaluation of check_option when we insert/update/delete a row.
         So we must forbid semijoin transformation in fix_fields():
       */
-      Switch_resolve_place SRP(&thd->lex->current_select->resolve_place,
+      Switch_resolve_place SRP(&thd->lex->current_select()->resolve_place,
                                st_select_lex::RESOLVE_NONE,
                                effective_with_check != VIEW_CHECK_NONE);
 
@@ -3905,8 +3995,8 @@ bool TABLE_LIST::prep_where(THD *thd, Item **conds,
     if (!no_where_clause)
     {
       TABLE_LIST *tbl= this;
-      Query_arena *arena= thd->stmt_arena, backup;
-      arena= thd->activate_stmt_arena_if_needed(&backup);  // For easier test
+
+      Prepared_stmt_arena_holder ps_arena_holder(thd);
 
       /* Go up to join tree and try to find left join */
       for (; tbl; tbl= tbl->embedding)
@@ -3926,8 +4016,6 @@ bool TABLE_LIST::prep_where(THD *thd, Item **conds,
       }
       if (tbl == 0)
         *conds= and_conds(*conds, where->copy_andor_structure(thd));
-      if (arena)
-        thd->restore_active_arena(arena, &backup);
       where_processed= TRUE;
     }
   }
@@ -4019,8 +4107,7 @@ bool TABLE_LIST::prep_check_option(THD *thd, uint8 check_opt_type)
 
   if (check_opt_type && !check_option_processed)
   {
-    Query_arena *arena= thd->stmt_arena, backup;
-    arena= thd->activate_stmt_arena_if_needed(&backup);  // For easier test
+    Prepared_stmt_arena_holder ps_arena_holder(thd);
 
     if (where)
     {
@@ -4038,10 +4125,7 @@ bool TABLE_LIST::prep_check_option(THD *thd, uint8 check_opt_type)
     check_option= and_conds(check_option,
                             merge_on_conds(thd, this, is_cascaded));
 
-    if (arena)
-      thd->restore_active_arena(arena, &backup);
     check_option_processed= TRUE;
-
   }
 
   if (check_option)
@@ -4616,7 +4700,7 @@ Item *Natural_join_column::create_item(THD *thd)
   if (view_field)
   {
     DBUG_ASSERT(table_field == NULL);
-    SELECT_LEX *select= thd->lex->current_select;
+    SELECT_LEX *select= thd->lex->current_select();
     return create_view_field(thd, table_ref, &view_field->item,
                              view_field->name, &select->context);
   }
@@ -4686,7 +4770,7 @@ const char *Field_iterator_table::name()
 
 Item *Field_iterator_table::create_item(THD *thd)
 {
-  SELECT_LEX *select= thd->lex->current_select;
+  SELECT_LEX *select= thd->lex->current_select();
 
   Item_field *item= new Item_field(thd, &select->context, *ptr);
   /*
@@ -4701,8 +4785,8 @@ Item *Field_iterator_table::create_item(THD *thd)
       item->push_to_non_agg_fields(select);
       select->set_non_agg_field_used(true);
     }
-    if (thd->lex->current_select->with_sum_func &&
-        !thd->lex->current_select->group_list.elements)
+    if (thd->lex->current_select()->with_sum_func &&
+        !thd->lex->current_select()->group_list.elements)
       item->maybe_null= true;
   }
   return item;
@@ -4717,7 +4801,7 @@ const char *Field_iterator_view::name()
 
 Item *Field_iterator_view::create_item(THD *thd)
 {
-  SELECT_LEX *select= thd->lex->current_select;
+  SELECT_LEX *select= thd->lex->current_select();
   return create_view_field(thd, view, &ptr->item, ptr->name,
                            &select->context);
 }
@@ -4726,7 +4810,7 @@ static Item *create_view_field(THD *thd, TABLE_LIST *view, Item **field_ref,
                                const char *name,
                                Name_resolution_context *context)
 {
-  bool save_wrapper= thd->lex->select_lex.no_wrap_view_item;
+  bool save_wrapper= thd->lex->select_lex->no_wrap_view_item;
   Item *field= *field_ref;
   DBUG_ENTER("create_view_field");
 
@@ -4742,17 +4826,17 @@ static Item *create_view_field(THD *thd, TABLE_LIST *view, Item **field_ref,
   }
 
   DBUG_ASSERT(field);
-  thd->lex->current_select->no_wrap_view_item= TRUE;
+  thd->lex->current_select()->no_wrap_view_item= TRUE;
   if (!field->fixed)
   {
     if (field->fix_fields(thd, field_ref))
     {
-      thd->lex->current_select->no_wrap_view_item= save_wrapper;
+      thd->lex->current_select()->no_wrap_view_item= save_wrapper;
       DBUG_RETURN(0);
     }
     field= *field_ref;
   }
-  thd->lex->current_select->no_wrap_view_item= save_wrapper;
+  thd->lex->current_select()->no_wrap_view_item= save_wrapper;
   if (save_wrapper)
   {
     DBUG_RETURN(field);
@@ -4955,7 +5039,7 @@ Field_iterator_table_ref::get_or_create_column_ref(THD *thd, TABLE_LIST *parent_
     /* The field belongs to a stored table. */
     Field *tmp_field= table_field_it.field();
     Item_field *tmp_item=
-      new Item_field(thd, &thd->lex->current_select->context, tmp_field);
+      new Item_field(thd, &thd->lex->current_select()->context, tmp_field);
     if (!tmp_item)
       return NULL;
     nj_col= new Natural_join_column(tmp_item, table_ref);
@@ -5066,6 +5150,9 @@ void TABLE::clear_column_bitmaps()
   */
   memset(def_read_set.bitmap, 0, s->column_bitmap_size*2);
   column_bitmaps_set(&def_read_set, &def_write_set);
+
+  bitmap_clear_all(&def_fields_set_during_insert);
+  fields_set_during_insert= &def_fields_set_during_insert;
 }
 
 
@@ -5179,7 +5266,7 @@ void TABLE::mark_columns_needed_for_delete()
   mark_columns_per_binlog_row_image();
 
   if (triggers)
-    triggers->mark_fields_used(TRG_EVENT_DELETE);
+    triggers->mark_fields(TRG_EVENT_DELETE);
   if (file->ha_table_flags() & HA_REQUIRES_KEY_COLUMNS_FOR_DELETE)
   {
     Field **reg_field;
@@ -5237,7 +5324,7 @@ void TABLE::mark_columns_needed_for_delete()
     
     Unlike other similar methods, it doesn't mark fields used by triggers,
     that is the responsibility of the caller to do, by using
-    Table_triggers_list::mark_used_fields(TRG_EVENT_UPDATE)!
+    Table_trigger_dispatcher::mark_used_fields(TRG_EVENT_UPDATE)!
 */
 
 void TABLE::mark_columns_needed_for_update()
@@ -5599,7 +5686,7 @@ void TABLE::mark_columns_needed_for_insert()
       row replacement or update write_record() will mark all table
       fields as used.
     */
-    triggers->mark_fields_used(TRG_EVENT_INSERT);
+    triggers->mark_fields(TRG_EVENT_INSERT);
   }
   if (found_next_number_field)
     mark_auto_increment_column();
@@ -6216,7 +6303,7 @@ bool TABLE_LIST::handle_derived(LEX *lex,
 
 st_select_lex_unit *TABLE_LIST::get_unit() const
 {
-  return (view ? &view->unit : derived);
+  return (view ? view->unit : derived);
 }
 
 

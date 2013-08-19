@@ -137,6 +137,10 @@ stop(){
 	    action $"Stopping $prog: " /bin/true
 	    return 0
 	fi
+
+        # signal mysqld_safe that it needs to stop
+        touch "$mysqlpidfile.shutdown"
+
 	MYSQLPID=`cat "$mypidfile"`
 	if [ -n "$MYSQLPID" ]; then
 	    /bin/kill "$MYSQLPID" >/dev/null 2>&1

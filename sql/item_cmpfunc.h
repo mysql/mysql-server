@@ -1,7 +1,7 @@
 #ifndef ITEM_CMPFUNC_INCLUDED
 #define ITEM_CMPFUNC_INCLUDED
 
-/* Copyright (c) 2000, 2012, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2000, 2013, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -1566,19 +1566,19 @@ public:
 
 class Item_func_like :public Item_bool_func2
 {
-  // Turbo Boyer-Moore data
-  bool        canDoTurboBM;	// pattern is '%abcd%' case
+  // Boyer-Moore data
+  bool        can_do_bm;	// pattern is '%abcd%' case
   const char* pattern;
   int         pattern_len;
 
-  // TurboBM buffers, *this is owner
+  // Boyer-Moore buffers, *this is owner
   int* bmGs; //   good suffix shift table, size is pattern_len + 1
   int* bmBc; // bad character shift table, size is alphabet_size
 
-  void turboBM_compute_suffixes(int* suff);
-  void turboBM_compute_good_suffix_shifts(int* suff);
-  void turboBM_compute_bad_character_shifts();
-  bool turboBM_matches(const char* text, int text_len) const;
+  void bm_compute_suffixes(int* suff);
+  void bm_compute_good_suffix_shifts(int* suff);
+  void bm_compute_bad_character_shifts();
+  bool bm_matches(const char* text, int text_len) const;
   enum { alphabet_size = 256 };
 
   Item *escape_item;
@@ -1589,7 +1589,7 @@ public:
   int escape;
 
   Item_func_like(Item *a,Item *b, Item *escape_arg, bool escape_used)
-    :Item_bool_func2(a,b), canDoTurboBM(FALSE), pattern(0), pattern_len(0), 
+    :Item_bool_func2(a,b), can_do_bm(false), pattern(0), pattern_len(0), 
      bmGs(0), bmBc(0), escape_item(escape_arg),
      escape_used_in_parsing(escape_used) {}
   longlong val_int();
@@ -1683,7 +1683,7 @@ public:
   friend int setup_conds(THD *thd, TABLE_LIST *tables, TABLE_LIST *leaves,
                          Item **conds);
   void top_level_item() { abort_on_null=1; }
-  void copy_andor_arguments(THD *thd, Item_cond *item);
+  void copy_andor_arguments(THD *thd, Item_cond *item, bool real_items= false);
   bool walk(Item_processor processor, bool walk_subquery, uchar *arg);
   Item *transform(Item_transformer transformer, uchar *arg);
   void traverse_cond(Cond_traverser, void *arg, traverse_order order);
@@ -1874,11 +1874,11 @@ public:
   enum Functype functype() const { return COND_AND_FUNC; }
   longlong val_int();
   const char *func_name() const { return "and"; }
-  Item* copy_andor_structure(THD *thd)
+  Item* copy_andor_structure(THD *thd, bool real_items)
   {
     Item_cond_and *item;
     if ((item= new Item_cond_and(thd, this)))
-       item->copy_andor_arguments(thd, this);
+      item->copy_andor_arguments(thd, this, real_items);
     return item;
   }
   Item *neg_transformer(THD *thd);
@@ -1903,11 +1903,11 @@ public:
   enum Functype functype() const { return COND_OR_FUNC; }
   longlong val_int();
   const char *func_name() const { return "or"; }
-  Item* copy_andor_structure(THD *thd)
+  Item* copy_andor_structure(THD *thd, bool real_items)
   {
     Item_cond_or *item;
     if ((item= new Item_cond_or(thd, this)))
-      item->copy_andor_arguments(thd, this);
+      item->copy_andor_arguments(thd, this, real_items);
     return item;
   }
   Item *neg_transformer(THD *thd);

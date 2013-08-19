@@ -1,7 +1,7 @@
 #ifndef SQL_OPTIMIZER_INCLUDED
 #define SQL_OPTIMIZER_INCLUDED
 
-/* Copyright (c) 2000, 2011, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2000, 2013, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -52,7 +52,6 @@ class JOIN :public Sql_alloc
 public:
   JOIN_TAB *join_tab,**best_ref;
   JOIN_TAB **map2table;    ///< mapping between table indexes and JOIN_TABs
-  TABLE    **table;
   /*
     The table which has an index that allows to produce the requried ordering.
     A special value of 0x1 means that the ordering will be produced by
@@ -152,6 +151,8 @@ public:
     The estimated row count of the plan with best read time (see above).
   */
   ha_rows  best_rowcount;
+  /// Expected cost of filesort.
+  double   sort_cost;
   List<Item> *fields;
   List<Cached_item> group_fields, group_fields_cache;
   THD	   *thd;
@@ -216,7 +217,8 @@ public:
   /** Is set if we have a GROUP BY and we have ORDER BY on a constant. */
   bool          skip_sort_order;
 
-  bool need_tmp, hidden_group_fields;
+  bool need_tmp;
+  int hidden_group_field_count;
 
   Key_use_array keyuse;
 
@@ -439,7 +441,7 @@ public:
     ordered_index_usage= ordered_index_void;
     skip_sort_order= 0;
     need_tmp= 0;
-    hidden_group_fields= 0; /*safety*/
+    hidden_group_field_count= 0; /*safety*/
     error= 0;
     return_tab= 0;
     ref_ptrs.reset();
@@ -449,6 +451,7 @@ public:
     items3.reset();
     zero_result_cause= 0;
     optimized= child_subquery_can_materialize= false;
+    executed= false;
     cond_equal= 0;
     group_optimized_away= 0;
 
@@ -466,6 +469,8 @@ public:
     first_select= sub_select;
     set_group_rpa= false;
     group_sent= 0;
+    plan_state= NO_PLAN;
+    sort_cost= 0.0;
   }
 
   /// True if plan is const, ie it will return zero or one rows.
@@ -484,8 +489,7 @@ public:
   int optimize();
   void reset();
   void exec();
-  bool prepare_result(List<Item> **columns_list);
-  void explain();
+  bool prepare_result();
   bool destroy();
   void restore_tmp();
   bool alloc_func_list();
@@ -569,11 +573,6 @@ public:
             select_lex->having_value != Item::COND_FALSE);
   }
   bool change_result(select_result *result);
-  bool is_top_level_join() const
-  {
-    return (unit == &thd->lex->unit && (unit->fake_select_lex == 0 ||
-                                        select_lex == unit->fake_select_lex));
-  }
   bool cache_const_exprs();
   bool generate_derived_keys();
   void drop_unused_derived_keys();
@@ -582,8 +581,23 @@ public:
   bool add_sorting_to_table(JOIN_TAB *tab, ORDER_with_src *order);
   bool decide_subquery_strategy();
   void refine_best_rowcount();
+  /// State of execution plan. Currently used only for EXPLAIN
+  enum enum_plan_state
+  {
+    NO_PLAN,      ///< No plan is ready yet
+    ZERO_RESULT,  ///< Zero result cause is set
+    NO_TABLES,    ///< Plan has no tables
+    PLAN_READY    ///< Plan is ready
+  };
+  /// See enum_plan_state
+  enum_plan_state get_plan_state() const { return plan_state; }
+  bool is_executed() const { return executed; }
 
 private:
+  bool executed;                          ///< Set by exec(), reset by reset()
+
+  /// Final execution plan state. Currently used only for EXPLAIN
+  enum_plan_state plan_state;
   /**
     Execute current query. To be called from @c JOIN::exec.
 
@@ -683,25 +697,24 @@ private:
                                 const POSITION *inner_pos,
                                 POSITION *sjm_pos);
   bool make_tmp_tables_info();
+  void set_plan_state(enum_plan_state plan_state_arg);
   bool compare_costs_of_subquery_strategies(
          Item_exists_subselect::enum_exec_method *method);
-
-  /// RAII class to ease the call of LEX::mark_broken() if error
-  class Prepare_error_tracker
-  {
-public:
-    Prepare_error_tracker(THD *thd_arg) : thd(thd_arg) {}
-    ~Prepare_error_tracker()
-    {
-      if (unlikely(thd->is_error()))
-        thd->lex->mark_broken();
-    }
-private:
-    THD *const thd;
-  };
-
 };
 
+/// RAII class to ease the call of LEX::mark_broken() if error.
+class Prepare_error_tracker
+{
+public:
+  Prepare_error_tracker(THD *thd_arg) : thd(thd_arg) {}
+  ~Prepare_error_tracker()
+  {
+    if (unlikely(thd->is_error()))
+      thd->lex->mark_broken();
+  }
+private:
+  THD *const thd;
+};
 
 bool uses_index_fields_only(Item *item, TABLE *tbl, uint keyno, 
                             bool other_tbls_ok);

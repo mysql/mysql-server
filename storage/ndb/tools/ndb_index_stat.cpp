@@ -11,7 +11,7 @@
 
    You should have received a copy of the GNU General Public License
    along with this program; if not, write to the Free Software
-   Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA */
+   Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA 02110-1301, USA */
 
 #include <ndb_global.h>
 #include <ndb_opts.h>
@@ -349,7 +349,8 @@ checkobjs()
       NdbDictionary::Dictionary::List list;
       CHK2(g_dic->listIndexes(list, g_tabname) == 0, g_dic->getNdbError());
       const int count = list.count;
-      g_indnames = (const char**)my_malloc(sizeof(char*) * count, MYF(0));
+      g_indnames = (const char**)my_malloc(PSI_INSTRUMENT_ME,
+                                           sizeof(char*) * count, MYF(0));
       CHK2(g_indnames != 0, "out of memory");
       for (int i = 0; i < count; i++)
       {
@@ -357,13 +358,14 @@ checkobjs()
         if (e.type == NdbDictionary::Object::OrderedIndex)
         {
           g_indcount++;
-          g_indnames[i] = my_strdup(e.name, MYF(0));
+          g_indnames[i] = my_strdup(PSI_INSTRUMENT_ME, e.name, MYF(0));
           CHK2(g_indnames[i] != 0, "out of memory");
         }
       }
       CHK1(ret == 0);
     }
-    g_indlist = (const NdbDictionary::Index**)my_malloc(sizeof(NdbDictionary::Index*) * g_indcount, MYF(0));
+    g_indlist = (const NdbDictionary::Index**)my_malloc(PSI_INSTRUMENT_ME,
+                                                        sizeof(NdbDictionary::Index*) * g_indcount, MYF(0));
     CHK2(g_indlist != 0, "out of memory");
     for (int i = 0; i < g_indcount; i++)
     {
@@ -675,16 +677,17 @@ checkopts(int argc, char** argv)
       if (_dbname == 0)
         _dbname = "TEST_DB";
       CHK2(argc >= 1, "stats options require table");
-      g_tabname = my_strdup(argv[0], MYF(0));
+      g_tabname = my_strdup(PSI_INSTRUMENT_ME, argv[0], MYF(0));
       CHK2(g_tabname != 0, "out of memory");
       g_indcount = argc - 1;
       if (g_indcount != 0)
       {
-        g_indnames = (const char**)my_malloc(sizeof(char*) * g_indcount, MYF(0));
+        g_indnames = (const char**)my_malloc(PSI_INSTRUMENT_ME,
+                                             sizeof(char*) * g_indcount, MYF(0));
         CHK2(g_indnames != 0, "out of memory");
         for (int i = 0; i < g_indcount; i++)
         {
-          g_indnames[i] = my_strdup(argv[1 + i], MYF(0));
+          g_indnames[i] = my_strdup(PSI_INSTRUMENT_ME, argv[1 + i], MYF(0));
           CHK2(g_indnames[i] != 0, "out of memory");
         }
         CHK1(ret == 0);

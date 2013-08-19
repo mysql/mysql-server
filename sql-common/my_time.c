@@ -1,4 +1,4 @@
-/* Copyright (c) 2004, 2012, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2004, 2013, Oracle and/or its affiliates. All rights reserved.
 
  This program is free software; you can redistribute it and/or modify
  it under the terms of the GNU General Public License as published by
@@ -712,8 +712,8 @@ my_bool str_to_time(const char *str, uint length, MYSQL_TIME *l_time,
     /* Fix the date to assume that seconds was given */
     if (!found_hours && !found_days)
     {
-      bmove_upp((uchar*) (date+4), (uchar*) (date+state),
-                sizeof(long)*(state-1));
+      size_t len= sizeof(long) * (state - 1);
+      memmove((uchar*) (date+4) - len, (uchar*) (date+state) - len, len);
       memset(date, 0, sizeof(long)*(4-state));
     }
     else

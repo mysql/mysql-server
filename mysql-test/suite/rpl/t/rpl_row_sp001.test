@@ -1,3 +1,8 @@
+# The include statement below is a temp one for tests that are yet to
+#be ported to run with InnoDB,
+#but needs to be kept for tests that would need MyISAM in future.
+--source include/force_myisam_default.inc
+
 #############################################################################
 # This test is being created to test out the non deterministic items with   #
 # row based replication.                                                    #
@@ -52,7 +57,7 @@ while ($1)
 {
   call test.p1();
   let $wait_condition= SELECT COUNT(*) = @wait_count FROM test.t1;
-  -- source include/wait_condition.inc
+  -- source include/wait_condition_or_abort.inc
   -- disable_query_log
   SET @wait_count = @wait_count + 1;
   dec $1;

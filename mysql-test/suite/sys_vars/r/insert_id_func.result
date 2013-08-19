@@ -16,7 +16,7 @@ SELECT @@session.insert_id;
 INSERT into t1(name) values('Record_1');
 INSERT into t1(name) values('Record_2');
 ## Verifying rows in table ##
-SELECT * from t1;
+SELECT * from t1 order by name;
 id	name
 100	Record_1
 101	Record_2
@@ -35,7 +35,7 @@ SELECT @@session.insert_id;
 INSERT into t1(name) values('Record_4');
 INSERT into t1(name) values('Record_5');
 INSERT into t1(name) values('Record_6');
-SELECT * from t1;
+SELECT * from t1 order by name;
 id	name
 100	Record_1
 101	Record_2
@@ -53,7 +53,7 @@ SET @@session.insert_id = 25;
 INSERT into t1(name) values('Record_7');
 INSERT into t1(name) values('Record_8');
 ## Verifying data in table t1 ##
-SELECT * from t1;
+SELECT * from t1 order by name;
 id	name
 100	Record_1
 101	Record_2

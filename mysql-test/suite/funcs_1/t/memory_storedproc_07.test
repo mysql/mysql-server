@@ -2,6 +2,7 @@
 #
 
 SET @@session.sql_mode = 'NO_ENGINE_SUBSTITUTION';
+# --source include/have_memory.inc
 let $engine_type= memory;
 
 --source suite/funcs_1/storedproc/storedproc_07.inc

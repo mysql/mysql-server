@@ -1,4 +1,4 @@
-/* Copyright (c) 2008, 2010, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2008, 2013, Oracle and/or its affiliates. All rights reserved.
 
   This program is free software; you can redistribute it and/or modify
   it under the terms of the GNU General Public License as published by
@@ -30,14 +30,14 @@
 #include <unistd.h>
 #endif
 
-#ifdef __WIN__
+#ifdef _WIN32
   #include <winsock2.h>
 #else
   #include <arpa/inet.h>
 #endif
 
 bool pfs_initialized= false;
-ulonglong pfs_allocated_memory= 0;
+size_t pfs_allocated_memory= 0;
 
 /**
   Memory allocation for the performance schema.
@@ -147,7 +147,7 @@ uint pfs_get_socket_address(char *host,
       if (host_len < INET_ADDRSTRLEN+1)
         return 0;
       struct sockaddr_in *sa4= (struct sockaddr_in *)(src_addr);
-    #ifdef __WIN__
+    #ifdef _WIN32
       /* Older versions of Windows do not support inet_ntop() */
       getnameinfo((struct sockaddr *)sa4, sizeof(struct sockaddr_in),
                   host, host_len, NULL, 0, NI_NUMERICHOST);
@@ -164,7 +164,7 @@ uint pfs_get_socket_address(char *host,
       if (host_len < INET6_ADDRSTRLEN+1)
         return 0;
       struct sockaddr_in6 *sa6= (struct sockaddr_in6 *)(src_addr);
-    #ifdef __WIN__
+    #ifdef _WIN32
       /* Older versions of Windows do not support inet_ntop() */
       getnameinfo((struct sockaddr *)sa6, sizeof(struct sockaddr_in6),
                   host, host_len, NULL, 0, NI_NUMERICHOST);

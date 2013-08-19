@@ -1,3 +1,8 @@
+# The include statement below is a temp one for tests that are yet to
+#be ported to run with InnoDB,
+#but needs to be kept for tests that would need MyISAM in future.
+--source include/force_myisam_default.inc
+
 #Want to skip this test from daily Valgrind execution
 --source include/no_valgrind_without_big.inc
 # ==== Purpose ====
@@ -414,7 +419,17 @@ while ($server <= $n_servers)
 --let $server= 1
 while ($server <= $n_servers)
 {
+  --connection default
   eval DROP DATABASE db_$server;
+
+  # restoring the AUTO_POSITION 
+  --connection server_$server
+  --let $include_silent=1
+  --source include/stop_slave.inc
+  CHANGE MASTER TO MASTER_AUTO_POSITION=0;
+  --source include/start_slave.inc
+  --let $include_silent=0
+
   --inc $server
 }
 

@@ -1,6 +1,6 @@
 /*****************************************************************************
 
-Copyright (c) 1996, 2011, Oracle and/or its affiliates. All Rights Reserved.
+Copyright (c) 1996, 2013, Oracle and/or its affiliates. All Rights Reserved.
 
 This program is free software; you can redistribute it and/or modify it under
 the terms of the GNU General Public License as published by the Free Software
@@ -71,10 +71,10 @@ extern char	btr_search_enabled;
 struct btr_blob_dbg_t;
 
 /** Insert to index->blobs a reference to an off-page column.
-@param index	the index tree
-@param b	the reference
-@param ctx	context (for logging) */
-UNIV_INTERN
+@param index the index tree
+@param b the reference
+@param ctx context (for logging) */
+
 void
 btr_blob_dbg_rbt_insert(
 /*====================*/
@@ -84,10 +84,10 @@ btr_blob_dbg_rbt_insert(
 	__attribute__((nonnull));
 
 /** Remove from index->blobs a reference to an off-page column.
-@param index	the index tree
-@param b	the reference
-@param ctx	context (for logging) */
-UNIV_INTERN
+@param index the index tree
+@param b the reference
+@param ctx context (for logging) */
+
 void
 btr_blob_dbg_rbt_delete(
 /*====================*/
@@ -99,7 +99,7 @@ btr_blob_dbg_rbt_delete(
 /**************************************************************//**
 Add to index->blobs any references to off-page columns from a record.
 @return number of references added */
-UNIV_INTERN
+
 ulint
 btr_blob_dbg_add_rec(
 /*=================*/
@@ -111,7 +111,7 @@ btr_blob_dbg_add_rec(
 /**************************************************************//**
 Remove from index->blobs any references to off-page columns from a record.
 @return number of references removed */
-UNIV_INTERN
+
 ulint
 btr_blob_dbg_remove_rec(
 /*====================*/
@@ -124,7 +124,7 @@ btr_blob_dbg_remove_rec(
 Count and add to index->blobs any references to off-page columns
 from records on a page.
 @return number of references added */
-UNIV_INTERN
+
 ulint
 btr_blob_dbg_add(
 /*=============*/
@@ -137,7 +137,7 @@ Count and remove from index->blobs any references to off-page columns
 from records on a page.
 Used when reorganizing a page, before copying the records.
 @return number of references removed */
-UNIV_INTERN
+
 ulint
 btr_blob_dbg_remove(
 /*================*/
@@ -148,7 +148,7 @@ btr_blob_dbg_remove(
 /**************************************************************//**
 Restore in index->blobs any references to off-page columns
 Used when page reorganize fails due to compressed page overflow. */
-UNIV_INTERN
+
 void
 btr_blob_dbg_restore(
 /*=================*/
@@ -159,18 +159,18 @@ btr_blob_dbg_restore(
 	__attribute__((nonnull));
 
 /** Operation that processes the BLOB references of an index record
-@param[in]	rec	record on index page
-@param[in/out]	index	the index tree of the record
-@param[in]	offsets	rec_get_offsets(rec,index)
-@param[in]	ctx	context (for logging)
-@return			number of BLOB references processed */
+@param[in] rec record on index page
+@param[in/out] index the index tree of the record
+@param[in] offsets rec_get_offsets(rec,index)
+@param[in] ctx context (for logging)
+@return number of BLOB references processed */
 typedef ulint (*btr_blob_dbg_op_f)
 (const rec_t* rec,dict_index_t* index,const ulint* offsets,const char* ctx);
 
 /**************************************************************//**
 Count and process all references to off-page columns on a page.
 @return number of references processed */
-UNIV_INTERN
+
 ulint
 btr_blob_dbg_op(
 /*============*/
@@ -195,9 +195,44 @@ The reference is stored at the end of the prefix of the field
 in the index record. */
 #define BTR_EXTERN_FIELD_REF_SIZE	20
 
+/** If the data don't exceed the size, the data are stored locally. */
+#define BTR_EXTERN_LOCAL_STORED_MAX_SIZE	\
+	(BTR_EXTERN_FIELD_REF_SIZE * 2)
+
 /** A BLOB field reference full of zero, for use in assertions and tests.
 Initially, BLOB field references are set to zero, in
 dtuple_convert_big_rec(). */
 extern const byte field_ref_zero[BTR_EXTERN_FIELD_REF_SIZE];
+
+/** The information is used for creating a new index tree when
+applying TRUNCATE log record during recovery */
+struct btr_create_t {
+
+	explicit btr_create_t(const byte* const ptr)
+		:
+		format_flags(),
+		n_fields(),
+		field_len(),
+		fields(ptr),
+		trx_id_pos(ULINT_UNDEFINED)
+	{
+		/* Do nothing */
+	}
+
+	/** Page format */
+	ulint			format_flags;
+
+	/** Numbr of index fields */
+	ulint			n_fields;
+
+	/** The length of the encoded meta-data */
+	ulint			field_len;
+
+	/** Field meta-data, encoded. */
+	const byte* const	fields;
+
+	/** Position of trx-id column. */
+	ulint			trx_id_pos;
+};
 
 #endif

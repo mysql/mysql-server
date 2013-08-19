@@ -1,4 +1,4 @@
-# Copyright (c) 2000, 2012, Oracle and/or its affiliates. All rights reserved.
+# Copyright (c) 2000, 2013, Oracle and/or its affiliates. All rights reserved.
 #
 # This program is free software; you can redistribute it and/or modify
 # it under the terms of the GNU General Public License as published by
@@ -126,13 +126,13 @@
     %if "%oelver" == "4"
       %define distro_description        Oracle Enterprise Linux 4
       %define distro_releasetag         oel4
-      %define distro_buildreq           gcc-c++ gperf ncurses-devel perl time zlib-devel
+      %define distro_buildreq           gcc-c++ gperf ncurses-devel perl time zlib-devel cmake libaio-devel
       %define distro_requires           chkconfig coreutils grep procps shadow-utils net-tools
     %else
       %if "%oelver" == "5"
         %define distro_description      Oracle Enterprise Linux 5
         %define distro_releasetag       oel5
-        %define distro_buildreq         gcc-c++ gperf ncurses-devel perl time zlib-devel
+        %define distro_buildreq         gcc-c++ gperf ncurses-devel perl time zlib-devel cmake libaio-devel
         %define distro_requires         chkconfig coreutils grep procps shadow-utils net-tools
       %else
         %{error:Oracle Enterprise Linux %{oelver} is unsupported}
@@ -144,7 +144,7 @@
       %if "%elver" == "6"
         %define distro_description      Oracle Linux 6
         %define distro_releasetag       el6
-        %define distro_buildreq         gcc-c++ ncurses-devel perl time zlib-devel
+        %define distro_buildreq         gcc-c++ ncurses-devel perl time zlib-devel cmake libaio-devel
         %define distro_requires         chkconfig coreutils grep procps shadow-utils net-tools
       %else
         %{error:Oracle Linux %{elver} is unsupported}
@@ -155,19 +155,19 @@
         %if "%rhelver" == "4"
           %define distro_description      Red Hat Enterprise Linux 4
           %define distro_releasetag       rhel4
-          %define distro_buildreq         gcc-c++ gperf ncurses-devel perl time zlib-devel
+          %define distro_buildreq         gcc-c++ gperf ncurses-devel perl time zlib-devel cmake libaio-devel
           %define distro_requires         chkconfig coreutils grep procps shadow-utils net-tools
         %else
           %if "%rhelver" == "5"
             %define distro_description    Red Hat Enterprise Linux 5
             %define distro_releasetag     rhel5
-            %define distro_buildreq       gcc-c++ gperf ncurses-devel perl time zlib-devel
+            %define distro_buildreq       gcc-c++ gperf ncurses-devel perl time zlib-devel cmake libaio-devel
             %define distro_requires       chkconfig coreutils grep procps shadow-utils net-tools
           %else
             %if "%rhelver" == "6"
               %define distro_description    Red Hat Enterprise Linux 6
               %define distro_releasetag     rhel6
-              %define distro_buildreq       gcc-c++ ncurses-devel perl time zlib-devel
+              %define distro_buildreq       gcc-c++ ncurses-devel perl time zlib-devel cmake libaio-devel
               %define distro_requires       chkconfig coreutils grep procps shadow-utils net-tools
             %else
               %{error:Red Hat Enterprise Linux %{rhelver} is unsupported}
@@ -180,13 +180,13 @@
           %if "%susever" == "10"
             %define distro_description    SUSE Linux Enterprise Server 10
             %define distro_releasetag     sles10
-            %define distro_buildreq       gcc-c++ gdbm-devel gperf ncurses-devel openldap2-client zlib-devel
+            %define distro_buildreq       gcc-c++ gdbm-devel gperf ncurses-devel openldap2-client zlib-devel cmake libaio-devel
             %define distro_requires       aaa_base coreutils grep procps pwdutils
           %else
             %if "%susever" == "11"
               %define distro_description  SUSE Linux Enterprise Server 11
               %define distro_releasetag   sles11
-              %define distro_buildreq     gcc-c++ gdbm-devel gperf ncurses-devel openldap2-client procps pwdutils zlib-devel
+              %define distro_buildreq     gcc-c++ gdbm-devel gperf ncurses-devel openldap2-client procps pwdutils zlib-devel cmake libaio-devel
               %define distro_requires     aaa_base coreutils grep procps pwdutils
             %else
               %{error:SuSE %{susever} is unsupported}
@@ -199,9 +199,9 @@
     %endif
   %endif
 %else
-  %define generic_kernel %(uname -r | cut -d. -f1-2)
-  %define distro_description            Generic Linux (kernel %{generic_kernel})
-  %define distro_releasetag             linux%{generic_kernel}
+  %define glibc_version %(/lib/libc.so.6 | grep stable | cut -d, -f1 | cut -c38-)
+  %define distro_description            Generic Linux (glibc %{glibc_version})
+  %define distro_releasetag             linux_glibc%{glibc_version}
   %define distro_buildreq               gcc-c++ gperf ncurses-devel perl  time zlib-devel
   %define distro_requires               coreutils grep procps /sbin/chkconfig /usr/sbin/useradd /usr/sbin/groupadd
 %endif
@@ -226,7 +226,7 @@
 # Configuration based upon above user input, not to be set directly
 ##############################################################################
 
-%if %{commercial}
+%if 0%{?commercial}
 %define license_files_server    %{src_dir}/LICENSE.mysql
 %define license_type            Commercial
 %else
@@ -247,7 +247,7 @@ Distribution:   %{distro_description}
 License:        Copyright (c) 2000, @MYSQL_COPYRIGHT_YEAR@, %{mysql_vendor}. All rights reserved. Under %{license_type} license as shown in the Description field.
 Source:         %{src_dir}.tar.gz
 URL:            http://www.mysql.com/
-Packager:       MySQL Release Engineering <mysql-build@oss.oracle.com>
+Packager:       MySQL Release Engineering <mysql-build@oss.oracle.com> 
 Vendor:         %{mysql_vendor}
 Conflicts:      msqlormysql MySQL-server mysql
 BuildRequires:  %{distro_buildreq}
@@ -291,8 +291,14 @@ Obsoletes:      MySQL-Cluster-server
 Obsoletes:      MySQL-Cluster-management MySQL-Cluster-storage
 Obsoletes:      MySQL-Cluster-extra MySQL-Cluster-tools
 Obsoletes:      mysql MySQL mysql-server MySQL-server
+%if 0%{?commercial}
+Obsoletes:      MySQL-server
+%else
+Obsoletes:      MySQL-server-advanced
+%endif
+Obsoletes:      mysql-server mysql-advanced mysql-server-advanced
 Obsoletes:      MySQL-server-classic MySQL-server-community MySQL-server-enterprise
-Obsoletes:      MySQL-server-advanced MySQL-server-advanced-gpl MySQL-server-enterprise-gpl
+Obsoletes:      MySQL-server-advanced-gpl MySQL-server-enterprise-gpl
 
 %description -n MySQL-Cluster-server%{product_suffix}
 The MySQL(TM) software delivers a very fast, multi-threaded, multi-user,
@@ -324,6 +330,16 @@ Summary:        MySQL Cluster - Client
 Group:          Applications/Databases
 Provides:       MySQL-Cluster-client
 Obsoletes:      MySQL-Cluster-client
+%if 0%{?commercial}
+Obsoletes:      MySQL-client
+%else
+Obsoletes:      MySQL-client-advanced
+%endif
+Obsoletes:      mysql < %{version}-%{release}
+Obsoletes:      mysql-advanced < %{version}-%{release}
+Obsoletes:      MySQL-client-classic MySQL-client-community MySQL-client-enterprise
+Obsoletes:      MySQL-client-advanced-gpl MySQL-client-enterprise-gpl
+Provides:       mysql = %{version}-%{release} 
 
 %description -n MySQL-Cluster-client%{product_suffix}
 This package contains the standard MySQL clients and administration tools.
@@ -337,6 +353,16 @@ Summary:        MySQL Cluster - Test suite
 Group:          Applications/Databases
 Provides:       MySQL-Cluster-test
 Obsoletes:      MySQL-Cluster-test
+%if 0%{?commercial}
+Requires:       MySQL-client-advanced perl
+Obsoletes:      MySQL-test
+%else
+Requires:       MySQL-client perl
+Obsoletes:      MySQL-test-advanced
+%endif
+Obsoletes:      mysql-test mysql-test-advanced
+Obsoletes:      MySQL-test-classic MySQL-test-community MySQL-test-enterprise
+Obsoletes:      MySQL-test-advanced-gpl MySQL-test-enterprise-gpl
 AutoReqProv:    no
 
 %description -n MySQL-Cluster-test%{product_suffix}
@@ -350,6 +376,14 @@ Summary:        MySQL Cluster - Development header files and libraries
 Group:          Applications/Databases
 Provides:       MySQL-Cluster-devel
 Obsoletes:      MySQL-Cluster-devel
+%if 0%{?commercial}
+Obsoletes:      MySQL-devel
+%else
+Obsoletes:      MySQL-devel-advanced
+%endif
+Obsoletes:      mysql-devel mysql-embedded-devel mysql-devel-advanced mysql-embedded-devel-advanced
+Obsoletes:      MySQL-devel-classic MySQL-devel-community MySQL-devel-enterprise
+Obsoletes:      MySQL-devel-advanced-gpl MySQL-devel-enterprise-gpl
 
 %description -n MySQL-Cluster-devel%{product_suffix}
 This package contains the development header files and libraries necessary
@@ -363,6 +397,16 @@ Summary:        MySQL Cluster - Shared libraries
 Group:          Applications/Databases
 Provides:       MySQL-Cluster-shared
 Obsoletes:      MySQL-Cluster-shared
+%if 0%{?commercial}
+Obsoletes:      MySQL-shared
+%else
+Obsoletes:      MySQL-shared-advanced
+%endif
+Obsoletes:      MySQL-shared-standard MySQL-shared-pro
+Obsoletes:      MySQL-shared-pro-cert MySQL-shared-pro-gpl
+Obsoletes:      MySQL-shared-pro-gpl-cert
+Obsoletes:      MySQL-shared-classic MySQL-shared-community MySQL-shared-enterprise
+Obsoletes:      MySQL-shared-advanced-gpl MySQL-shared-enterprise-gpl
 
 %description -n MySQL-Cluster-shared%{product_suffix}
 This package contains the shared libraries (*.so*) which certain languages
@@ -375,6 +419,17 @@ Group:          Applications/Databases
 Requires:       MySQL-Cluster-devel%{product_suffix}
 Provides:       MySQL-Cluster-embedded
 Obsoletes:      MySQL-Cluster-embedded
+%if 0%{?commercial}
+Requires:       MySQL-devel-advanced
+Obsoletes:      MySQL-embedded
+%else
+Requires:       MySQL-devel
+Obsoletes:      MySQL-embedded-advanced
+%endif
+Obsoletes:      mysql-embedded mysql-embedded-advanced
+Obsoletes:      MySQL-embedded-pro
+Obsoletes:      MySQL-embedded-classic MySQL-embedded-community MySQL-embedded-enterprise
+Obsoletes:      MySQL-embedded-advanced-gpl MySQL-embedded-enterprise-gpl
 
 %description -n MySQL-Cluster-embedded%{product_suffix}
 This package contains the MySQL server as an embedded library.
@@ -691,16 +746,19 @@ NEW_VERSION=%{mysql_version}-%{release}
 # Check for the existence of subdirectory "mysql/", the database of system
 # tables like "mysql.user".
 if [ -d $mysql_datadir/mysql ] ; then
-	echo "MySQL RPM upgrade to version $NEW_VERSION"  > $STATUS_FILE
-	echo "'pre' step running at `date`"          >> $STATUS_FILE
-	echo                                         >> $STATUS_FILE
-	echo "ERR file(s):"                          >> $STATUS_FILE
-	ls -ltr $mysql_datadir/*.err                 >> $STATUS_FILE
-	echo                                         >> $STATUS_FILE
-	echo "Latest 'Version' line in latest file:" >> $STATUS_FILE
-	grep '^Version' `ls -tr $mysql_datadir/*.err | tail -1` | \
-		tail -1                              >> $STATUS_FILE
-	echo                                         >> $STATUS_FILE
+        echo "MySQL RPM upgrade to version $NEW_VERSION"  > $STATUS_FILE
+        echo "'pre' step running at `date`"          >> $STATUS_FILE
+        echo                                         >> $STATUS_FILE
+        fcount=`ls -ltr $mysql_datadir/*.err 2>/dev/null | wc -l`
+        if [ $fcount -gt 0 ] ; then
+             echo "ERR file(s):"                          >> $STATUS_FILE
+             ls -ltr $mysql_datadir/*.err                 >> $STATUS_FILE
+             echo                                         >> $STATUS_FILE
+             echo "Latest 'Version' line in latest file:" >> $STATUS_FILE
+             grep '^Version' `ls -tr $mysql_datadir/*.err | tail -1` | \
+                tail -1                              >> $STATUS_FILE
+             echo                                         >> $STATUS_FILE
+        fi
 
 	if [ -n "$SERVER_TO_START" ] ; then
 		# There is only one PID file, race possibility ignored
@@ -1220,6 +1278,9 @@ echo "====="                                                       >> $STATUS_HI
 # merging BK trees)
 ##############################################################################
 %changelog
+* Wed Jun 26 2013 Balasubramanian Kandasamy <balasubramanian.kandasamy@oracle.com>
+- Cleaned up spec file to resolve rpm dependencies.
+
 * Mon Nov 05 2012 Joerg Bruehe <joerg.bruehe@oracle.com>
 
 - Allow to override the default to use the bundled yaSSL by an option like

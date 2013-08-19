@@ -1,4 +1,4 @@
-/* Copyright (c) 2008, 2010, 2012 Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2008, 2010, 2013 Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -126,7 +126,7 @@ public:
     inited= FALSE;
     if (my_rwlock_init(&lock, NULL))
       return;
-    init_sql_alloc(&memroot, 1024, 0);
+    init_sql_alloc(key_memory_delegate, &memroot, 1024, 0);
     inited= TRUE;
   }
   ~Delegate()
@@ -159,6 +159,8 @@ public:
   typedef Binlog_storage_observer Observer;
   int after_flush(THD *thd, const char *log_file,
                   my_off_t log_pos);
+  int after_sync(THD *thd, const char *log_file,
+                 my_off_t log_pos);
 };
 
 #ifdef HAVE_REPLICATION
@@ -174,7 +176,8 @@ public:
                         String *packet, const
                         char *log_file, my_off_t log_pos );
   int after_send_event(THD *thd, ushort flags,
-                       String *packet);
+                       String *packet, const char *skipped_log_file,
+                       my_off_t skipped_log_pos);
   int after_reset_master(THD *thd, ushort flags);
 };
 
@@ -214,5 +217,7 @@ extern Binlog_relay_IO_delegate *binlog_relay_io_delegate;
 #define RUN_HOOK(group, hook, args)             \
   (group ##_delegate->is_empty() ?              \
    0 : group ##_delegate->hook args)
+
+#define NO_HOOK(group) (group ##_delegate->is_empty())
 
 #endif /* RPL_HANDLER_H */

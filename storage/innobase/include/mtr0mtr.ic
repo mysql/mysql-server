@@ -1,6 +1,6 @@
 /*****************************************************************************
 
-Copyright (c) 1995, 2012, Oracle and/or its affiliates. All Rights Reserved.
+Copyright (c) 1995, 2013, Oracle and/or its affiliates. All Rights Reserved.
 
 This program is free software; you can redistribute it and/or modify it under
 the terms of the GNU General Public License as published by the Free Software
@@ -24,7 +24,7 @@ Created 11/26/1995 Heikki Tuuri
 *******************************************************/
 
 #ifndef UNIV_HOTBACKUP
-# include "sync0sync.h"
+# include "sync0mutex.h"
 # include "sync0rw.h"
 #endif /* !UNIV_HOTBACKUP */
 #include "mach0data.h"
@@ -32,7 +32,7 @@ Created 11/26/1995 Heikki Tuuri
 /***************************************************//**
 Checks if a mini-transaction is dirtying a clean page.
 @return TRUE if the mtr is dirtying a clean page. */
-UNIV_INTERN
+
 ibool
 mtr_block_dirtied(
 /*==============*/
@@ -78,7 +78,8 @@ mtr_memo_push(
 
 	ut_ad(object);
 	ut_ad(type >= MTR_MEMO_PAGE_S_FIX);
-	ut_ad(type <= MTR_MEMO_X_LOCK);
+	ut_ad(type <= MTR_MEMO_SX_LOCK);
+	ut_ad(ut_is_2pow(type));
 	ut_ad(mtr);
 	ut_ad(mtr->magic_n == MTR_MAGIC_N);
 	ut_ad(mtr->state == MTR_ACTIVE);
@@ -87,7 +88,8 @@ mtr_memo_push(
 	the made_dirty flag. This tells us if we need to
 	grab log_flush_order_mutex at mtr_commit so that we
 	can insert the dirtied page to the flush list. */
-	if (type == MTR_MEMO_PAGE_X_FIX && !mtr->made_dirty) {
+	if ((type == MTR_MEMO_PAGE_X_FIX || type == MTR_MEMO_PAGE_SX_FIX)
+	    && !mtr->made_dirty) {
 		mtr->made_dirty =
 			mtr_block_dirtied((const buf_block_t*) object);
 	}
@@ -102,7 +104,7 @@ mtr_memo_push(
 
 /**********************************************************//**
 Sets and returns a savepoint in mtr.
-@return	savepoint */
+@return savepoint */
 UNIV_INLINE
 ulint
 mtr_set_savepoint(
@@ -156,46 +158,90 @@ mtr_release_s_latch_at_savepoint(
 # ifdef UNIV_DEBUG
 /**********************************************************//**
 Checks if memo contains the given item.
-@return	TRUE if contains */
+@return true if contains */
 UNIV_INLINE
-ibool
+bool
 mtr_memo_contains(
 /*==============*/
-	mtr_t*		mtr,	/*!< in: mtr */
+	const mtr_t*	mtr,	/*!< in: mtr */
 	const void*	object,	/*!< in: object to search */
 	ulint		type)	/*!< in: type of object */
 {
-	mtr_memo_slot_t* slot;
-	dyn_array_t*	memo;
-	ulint		offset;
-
 	ut_ad(mtr);
 	ut_ad(mtr->magic_n == MTR_MAGIC_N);
 	ut_ad(mtr->state == MTR_ACTIVE || mtr->state == MTR_COMMITTING);
 
-	memo = &(mtr->memo);
+	for (const dyn_block_t* block = dyn_array_get_last_block(&mtr->memo);
+	     block;
+	     block = dyn_array_get_prev_block(&mtr->memo, block)) {
+		const mtr_memo_slot_t*	start
+			= reinterpret_cast<mtr_memo_slot_t*>(
+				dyn_block_get_data(block));
+		mtr_memo_slot_t*	slot
+			= reinterpret_cast<mtr_memo_slot_t*>(
+				dyn_block_get_data(block)
+				+ dyn_block_get_used(block));
 
-	offset = dyn_array_get_data_size(memo);
+		ut_ad(!(dyn_block_get_used(block) % sizeof(mtr_memo_slot_t)));
 
-	while (offset > 0) {
-		offset -= sizeof(mtr_memo_slot_t);
-
-		slot = (mtr_memo_slot_t*) dyn_array_get_element(memo, offset);
-
-		if ((object == slot->object) && (type == slot->type)) {
-
-			return(TRUE);
+		while (slot-- != start) {
+			if (object == slot->object && type == slot->type) {
+				return(true);
+			}
 		}
 	}
 
-	return(FALSE);
+	return(false);
+}
+
+/**********************************************************//**
+Checks if memo contains the given item.
+@return true if contains */
+UNIV_INLINE
+bool
+mtr_memo_contains_flagged(
+/*======================*/
+	const mtr_t*	mtr,	/*!< in: mtr */
+	const void*	object,	/*!< in: object to search */
+	ulint		flags)	/*!< in: specify types of object with
+				OR of MTR_MEMO_PAGE_S_FIX... values */
+{
+	ut_ad(mtr);
+	ut_ad(mtr->magic_n == MTR_MAGIC_N);
+	ut_ad(mtr->state == MTR_ACTIVE || mtr->state == MTR_COMMITTING);
+
+	for (const dyn_block_t* block = dyn_array_get_last_block(&mtr->memo);
+	     block;
+	     block = dyn_array_get_prev_block(&mtr->memo, block)) {
+		const mtr_memo_slot_t*	start
+			= reinterpret_cast<mtr_memo_slot_t*>(
+				dyn_block_get_data(block));
+		mtr_memo_slot_t*	slot
+			= reinterpret_cast<mtr_memo_slot_t*>(
+				dyn_block_get_data(block)
+				+ dyn_block_get_used(block));
+
+		ut_ad(!(dyn_block_get_used(block) % sizeof(mtr_memo_slot_t)));
+
+		while (slot-- != start) {
+			if (object != slot->object) {
+				continue;
+			}
+
+			if (flags & slot->type) {
+				return(true);
+			}
+		}
+	}
+
+	return(false);
 }
 # endif /* UNIV_DEBUG */
 #endif /* !UNIV_HOTBACKUP */
 
 /***************************************************************//**
 Returns the log object of a mini-transaction buffer.
-@return	log */
+@return log */
 UNIV_INLINE
 dyn_array_t*
 mtr_get_log(
@@ -210,7 +256,7 @@ mtr_get_log(
 
 /***************************************************************//**
 Gets the logging mode of a mini-transaction.
-@return	logging mode: MTR_LOG_NONE, ... */
+@return logging mode: MTR_LOG_NONE, ... */
 UNIV_INLINE
 ulint
 mtr_get_log_mode(
@@ -226,7 +272,7 @@ mtr_get_log_mode(
 
 /***************************************************************//**
 Changes the logging mode of a mini-transaction.
-@return	old mode */
+@return old mode */
 UNIV_INLINE
 ulint
 mtr_set_log_mode(
@@ -252,6 +298,49 @@ mtr_set_log_mode(
 	ut_ad(old_mode <= MTR_LOG_SHORT_INSERTS);
 
 	return(old_mode);
+}
+
+/********************************************************//**
+Reads 1 - 4 bytes from a file page buffered in the buffer pool.
+@return value read */
+UNIV_INLINE
+ulint
+mtr_read_ulint(
+/*===========*/
+	const byte*	ptr,	/*!< in: pointer from where to read */
+	ulint		type,	/*!< in: MLOG_1BYTE, MLOG_2BYTES, MLOG_4BYTES */
+	mtr_t*		mtr __attribute__((unused)))
+				/*!< in: mini-transaction handle */
+{
+	ut_ad(mtr->state == MTR_ACTIVE);
+	ut_ad(mtr_memo_contains_page_flagged(mtr, ptr,
+					     MTR_MEMO_PAGE_S_FIX
+					     | MTR_MEMO_PAGE_X_FIX
+					     | MTR_MEMO_PAGE_SX_FIX));
+
+	return(mach_read_ulint(ptr, type));
+}
+
+/********************************************************//**
+Reads 8 bytes from a file page buffered in the buffer pool.
+@return	value read */
+UNIV_INLINE
+ib_id_t
+mtr_read_ull(
+/*=========*/
+	const byte*	ptr,	/*!< in: pointer from where to read */
+	ulint		type,	/*!< in: MLOG_8BYTES */
+	mtr_t*		mtr __attribute__((unused)))
+				/*!< in: mini-transaction handle */
+{
+	ut_ad(mtr->state == MTR_ACTIVE);
+	ut_ad(type == MLOG_8BYTES);
+	ut_ad(mtr_memo_contains_page_flagged(mtr, ptr,
+					     MTR_MEMO_PAGE_S_FIX
+					     | MTR_MEMO_PAGE_X_FIX
+					     | MTR_MEMO_PAGE_SX_FIX));
+
+	return(mach_read_from_8(ptr));
 }
 
 #ifndef UNIV_HOTBACKUP
@@ -291,5 +380,24 @@ mtr_x_lock_func(
 	rw_lock_x_lock_inline(lock, 0, file, line);
 
 	mtr_memo_push(mtr, lock, MTR_MEMO_X_LOCK);
+}
+
+/*********************************************************************//**
+Locks a lock in sx-mode. */
+UNIV_INLINE
+void
+mtr_sx_lock_func(
+/*=============*/
+	rw_lock_t*	lock,	/*!< in/out: rw-lock */
+	const char*	file,	/*!< in: file name */
+	ulint		line,	/*!< in: line number */
+	mtr_t*		mtr)	/*!< in/out: mtr */
+{
+	ut_ad(mtr);
+	ut_ad(lock);
+
+	rw_lock_sx_lock_func(lock, 0, file, line);
+
+	mtr_memo_push(mtr, lock, MTR_MEMO_SX_LOCK);
 }
 #endif /* !UNIV_HOTBACKUP */

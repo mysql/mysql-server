@@ -70,6 +70,8 @@ create table t5 as select
                                           @arg15 as param15;
   
 # Bug#4788 show create table provides incorrect statement
+--let $DEFAULT_ENGINE = `select @@global.default_storage_engine`
+--replace_result $DEFAULT_ENGINE ENGINE
 show create table t5 ;
 --vertical_results
 --enable_metadata

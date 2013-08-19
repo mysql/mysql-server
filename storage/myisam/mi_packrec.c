@@ -1,4 +1,4 @@
-/* Copyright (c) 2000, 2011, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2000, 2013, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -194,7 +194,8 @@ my_bool _mi_read_pack_info(MI_INFO *info, pbool fix_keys)
     - Distinct column values
   */
   if (!(share->decode_trees=(MI_DECODE_TREE*)
-	my_malloc((uint) (trees*sizeof(MI_DECODE_TREE)+
+	my_malloc(mi_key_memory_MI_DECODE_TREE,
+                  (uint) (trees*sizeof(MI_DECODE_TREE)+
 			  intervall_length*sizeof(uchar)),
 		  MYF(MY_WME))))
     goto err0;
@@ -217,7 +218,8 @@ my_bool _mi_read_pack_info(MI_INFO *info, pbool fix_keys)
     data, we add (BITS_SAVED / 8) - 1 bytes to the buffer size.
   */
   if (!(share->decode_tables=(uint16*)
-        my_malloc((length + OFFSET_TABLE_SIZE) * sizeof(uint16) +
+        my_malloc(mi_key_memory_MYISAM_SHARE_decode_tables,
+                  (length + OFFSET_TABLE_SIZE) * sizeof(uint16) +
                   (uint) (share->pack.header_length - sizeof(header) +
                   (BITS_SAVED / 8) - 1), MYF(MY_WME | MY_ZEROFILL))))
     goto err1;
@@ -257,7 +259,8 @@ my_bool _mi_read_pack_info(MI_INFO *info, pbool fix_keys)
       goto err3;
   /* Reallocate the decoding tables to the used size. */
   decode_table=(uint16*)
-    my_realloc((uchar*) share->decode_tables,
+    my_realloc(mi_key_memory_MYISAM_SHARE_decode_tables,
+               (uchar*) share->decode_tables,
 	       (uint) ((uchar*) decode_table - (uchar*) share->decode_tables),
 	       MYF(MY_HOLD_ON_ERROR));
   /* Fix the table addresses in the tree heads. */
@@ -1051,7 +1054,7 @@ static void uf_blob(MI_COLUMNDEF *rec, MI_BIT_BUFF *bit_buff,
     }
     decode_bytes(rec,bit_buff,bit_buff->blob_pos,bit_buff->blob_pos+length);
     _mi_store_blob_length((uchar*) to,pack_length,length);
-    memcpy((char*) to+pack_length, &bit_buff->blob_pos, sizeof(char*));
+    memcpy(to+pack_length, &bit_buff->blob_pos, sizeof(char*));
     bit_buff->blob_pos+=length;
   }
 }

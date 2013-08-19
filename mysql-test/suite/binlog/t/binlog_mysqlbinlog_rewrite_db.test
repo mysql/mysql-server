@@ -1,0 +1,77 @@
+# WL#6404 - Add rewrite-db option to mysqlbinlog on RBR
+#
+# The test checks the new rewrite-db option for the mysqlbinlog.
+#
+# The test checks the following aspects of the new option:
+
+# 1. The valid syntax for the use of the new option and the errors in
+#    case the usage is not correct.
+# 2. Apply the new binlog file ( with database rewritten ) to a new database
+#    and check if it works.
+#
+--source include/have_binlog_format_row.inc
+
+RESET MASTER;
+CREATE DATABASE db1;
+USE db1;
+CREATE TABLE t1 (i INT);
+
+# Get some INSERT, UPDATE and DELETE ROW events.
+INSERT INTO t1 VALUES(1);
+INSERT INTO t1 VALUES(2);
+UPDATE t1 SET i= i+1;
+DELETE FROM t1 WHERE i=2;
+
+--let $MYSQLD_DATADIR= `select @@datadir`
+--exec $MYSQL_BINLOG --force-if-open $MYSQLD_DATADIR/master-bin.000001 > $MYSQLTEST_VARDIR/tmp/row_event.sql
+
+# Using the new option to apply the row event on some other database (from db1 -> db2 in the current case)
+
+--echo [Syntax error in the use of the new option: The from database name is missing]
+--error 1
+--exec $MYSQL_BINLOG --force-if-open --rewrite-db="->db2" $MYSQLD_DATADIR/master-bin.000001 > $MYSQLTEST_VARDIR/tmp/row_event_rewrite.sql
+
+--echo [Syntax error in the use of the new option: The '->' is missing]
+--error 1
+--exec $MYSQL_BINLOG --force-if-open --rewrite-db="db1 db2" $MYSQLD_DATADIR/master-bin.000001 > $MYSQLTEST_VARDIR/tmp/row_event_rewrite.sql
+
+--echo [Syntax error in the use of the new option: The to database name is missing]
+--error 1
+--exec $MYSQL_BINLOG --force-if-open --rewrite-db="db1->" $MYSQLD_DATADIR/master-bin.000001 > $MYSQLTEST_VARDIR/tmp/row_event_rewrite.sql
+
+--echo [VALID SYNTAX,The from->to database names is correctly mentioned]
+--exec $MYSQL_BINLOG --force-if-open --rewrite-db="db1->db2" $MYSQLD_DATADIR/master-bin.000001 > $MYSQLTEST_VARDIR/tmp/row_event_rewrite.sql
+
+--echo #Dropping the database db1 and creating the table in the new database db2.
+
+CREATE DATABASE db2;
+DROP DATABASE db1;
+
+# The SQL file will be applied but nothing is applied on Database db2 since the row event was
+# generated for database db1 and table t1.
+
+# With gtid-mode=on we need purge gtid_executed, if not transactions
+# replayed through mysqlbinlog will be skipped.
+RESET MASTER;
+--exec $MYSQL --database=db2 --local-infile=1 < $MYSQLTEST_VARDIR/tmp/row_event.sql
+--error ER_NO_SUCH_TABLE
+SELECT * FROM db2.t1;
+
+# The SQL file should be applied since the row event was extracted using the new mysqlbinlog option.
+
+DROP DATABASE db1;
+# With gtid-mode=on we need purge gtid_executed, if not transactions
+# replayed through mysqlbinlog will be skipped.
+RESET MASTER;
+--echo [The event of table db1.t1 has been successfully applied to db2.t1]
+--exec $MYSQL  --database=db2 --local-infile=1 < $MYSQLTEST_VARDIR/tmp/row_event_rewrite.sql
+--let $assert_text= Assert that table db2.t1 has one row after applying the sql file.
+--let $assert_cond= `SELECT COUNT(*)=1 from db2.t1`
+--source include/assert.inc
+
+--echo CLEANUP
+
+--remove_file $MYSQLTEST_VARDIR/tmp/row_event.sql
+--remove_file $MYSQLTEST_VARDIR/tmp/row_event_rewrite.sql
+DROP DATABASE db1;
+DROP DATABASE db2;

@@ -1,4 +1,4 @@
-# Copyright (c) 2006, 2012, Oracle and/or its affiliates. All rights reserved.
+# Copyright (c) 2006, 2013, Oracle and/or its affiliates. All rights reserved.
 # 
 # This program is free software; you can redistribute it and/or modify
 # it under the terms of the GNU General Public License as published by
@@ -15,7 +15,9 @@
 
 INCLUDE_DIRECTORIES(
   ${CMAKE_SOURCE_DIR}/include 
+  ${CMAKE_SOURCE_DIR}/sql/conn_handler
   ${CMAKE_SOURCE_DIR}/sql 
+  ${CMAKE_SOURCE_DIR}/sql/auth
   ${CMAKE_SOURCE_DIR}/regex 
   ${ZLIB_INCLUDE_DIR}
   ${SSL_INCLUDE_DIRS}
@@ -31,13 +33,20 @@ SET(GEN_SOURCES
 
 SET_SOURCE_FILES_PROPERTIES(${GEN_SOURCES} PROPERTIES GENERATED 1)
 
-ADD_DEFINITIONS(-DMYSQL_SERVER -DHAVE_EVENT_SCHEDULER) 
+ADD_DEFINITIONS(-DMYSQL_SERVER -DHAVE_REPLICATION)
 IF(SSL_DEFINES)
  ADD_DEFINITIONS(${SSL_DEFINES})
 ENDIF()
 
 SET(SQL_SHARED_SOURCES
   abstract_query_plan.cc
+  auth/sql_authentication.cc
+  auth/sql_auth_cache.cc
+  auth/sql_authorization.cc
+  auth/sql_user_table.cc
+  auth/sql_user.cc
+  auth/password.c
+  conn_handler/connection_handler_manager.cc 
   datadict.cc
   debug_sync.cc
   derror.cc
@@ -83,12 +92,10 @@ SET(SQL_SHARED_SOURCES
   opt_trace2server.cc
   parse_file.cc
   partition_info.cc
-  password.c
   procedure.cc 
   protocol.cc
   records.cc
   rpl_handler.cc
-  scheduler.cc 
   set_var.cc 
   signal_handler.cc
   sp.cc
@@ -99,7 +106,6 @@ SET(SQL_SHARED_SOURCES
   sp_rcontext.cc
   spatial.cc
   string_service.cc
-  sql_acl.cc
   sql_admin.cc
   sql_alloc_error_handler.cc
   sql_alter.cc
@@ -162,8 +168,13 @@ SET(SQL_SHARED_SOURCES
   sys_vars.cc
   table.cc
   table_cache.cc
+  table_trigger_dispatcher.cc
   thr_malloc.cc 
   transaction.cc
+  trigger.cc
+  trigger_creation_ctx.cc
+  trigger_loader.cc
+  trigger_chain.cc
   tztime.cc
   uniques.cc
   unireg.cc
@@ -186,6 +197,10 @@ SET(SQL_SOURCE
   ../sql-common/my_user.c 
   ../sql-common/pack.c
   ../sql-common/client_authentication.cc
+  conn_handler/channel_info.cc
+  conn_handler/connection_handler_per_thread.cc
+  conn_handler/connection_handler_one_thread.cc
+  conn_handler/socket_connection.cc
   event_data_objects.cc
   event_db_repository.cc 
   event_parse_data.cc
@@ -195,6 +210,13 @@ SET(SQL_SOURCE
   mysqld.cc
   sql_client.cc
   )
+
+IF(WIN32)
+  LIST(APPEND SQL_SOURCE
+              conn_handler/named_pipe_connection.cc
+              conn_handler/shared_memory_connection.cc
+      )
+ENDIF()
 
 IF (WIN32 AND OPENSSL_APPLINK_C)
   SET_SOURCE_FILES_PROPERTIES(
@@ -234,15 +256,15 @@ ADD_LIBRARY(binlog ${BINLOG_SOURCE})
 SET (RPL_SOURCE rpl_handler.cc rpl_tblmap.cc)
 ADD_DEPENDENCIES(binlog GenError)
 ADD_LIBRARY(rpl ${RPL_SOURCE})
-SET (MASTER_SOURCE rpl_master.cc)
+SET (MASTER_SOURCE rpl_master.cc rpl_binlog_sender.cc)
 ADD_DEPENDENCIES(rpl GenError)
 ADD_LIBRARY(master ${MASTER_SOURCE})
 ADD_DEPENDENCIES(master GenError)
 SET (SLAVE_SOURCE rpl_slave.cc rpl_reporting.cc rpl_mi.cc rpl_rli.cc
-		  rpl_info_handler.cc rpl_info_file.cc rpl_info_table.cc
-		  rpl_info_values.cc rpl_info.cc rpl_info_factory.cc
-		  rpl_info_table_access.cc dynamic_ids.cc rpl_rli_pdb.cc
-		  rpl_info_dummy.cc)
+                  rpl_info_handler.cc rpl_info_file.cc
+                  rpl_info_table.cc rpl_info_values.cc rpl_info.cc
+                  rpl_info_factory.cc rpl_info_table_access.cc dynamic_ids.cc
+                  rpl_rli_pdb.cc rpl_info_dummy.cc rpl_mts_submode.cc)
 ADD_LIBRARY(slave ${SLAVE_SOURCE})
 ADD_DEPENDENCIES(slave GenError)
 
@@ -295,7 +317,7 @@ IF(NOT WITHOUT_DYNAMIC_PLUGINS)
   IF(NOT mysqld_link_flags)
     SET(mysqld_link_flags)
   ENDIF()
-  IF (MINGW OR CYGWIN)
+  IF (MINGW)
     SET_TARGET_PROPERTIES(mysqld PROPERTIES LINK_FLAGS "${mysqld_link_flags} -Wl,--export-all-symbols")
   ENDIF()
   IF(MSVC)
@@ -408,12 +430,15 @@ IF(WIN32 OR HAVE_DLOPEN AND NOT DISABLE_SHARED)
   # udf_example depends on strings 
   IF(WIN32)
     IF(MSVC)
-     SET_TARGET_PROPERTIES(udf_example PROPERTIES LINK_FLAGS "/DEF:${CMAKE_CURRENT_SOURCE_DIR}/udf_example.def")
+     SET_TARGET_PROPERTIES(udf_example
+       PROPERTIES LINK_FLAGS "/DEF:${CMAKE_CURRENT_SOURCE_DIR}/udf_example.def")
     ENDIF()
     TARGET_LINK_LIBRARIES(udf_example strings)
   ELSE()
     # udf_example is using safemutex exported by mysqld
     TARGET_LINK_LIBRARIES(udf_example mysqld)
+    SET_TARGET_PROPERTIES(udf_example
+      PROPERTIES LINK_FLAGS "${CMAKE_SHARED_LIBRARY_C_FLAGS}")
   ENDIF()
 ENDIF()
 
@@ -442,15 +467,9 @@ ADD_CUSTOM_TARGET(distclean
 
 IF(INSTALL_LAYOUT STREQUAL "STANDALONE")
 
-# We need to create empty directories (data/test) the installation.  
-# This does not work with current CPack due to http://www.cmake.org/Bug/view.php?id=8767
-# Avoid completely empty directories and install dummy file instead.
-# Use a file extension so that it will be deleted in case someone does
-#   'drop database test'
-# See deletable_extentions.
-SET(DUMMY_FILE ${CMAKE_CURRENT_BINARY_DIR}/dummy.bak ) 
-FILE(WRITE ${DUMMY_FILE} "")
-INSTALL(FILES ${DUMMY_FILE} DESTINATION data/test COMPONENT DataFiles)
+# Copy db.opt into data/test/
+SET(DBOPT_FILE ${CMAKE_CURRENT_SOURCE_DIR}/db.opt ) 
+INSTALL(FILES ${DBOPT_FILE} DESTINATION data/test COMPONENT DataFiles)
 
 # Install initial database on windows
 IF(NOT CMAKE_CROSSCOMPILING)

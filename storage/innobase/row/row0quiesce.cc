@@ -1,6 +1,6 @@
 /*****************************************************************************
 
-Copyright (c) 2012, Oracle and/or its affiliates. All Rights Reserved.
+Copyright (c) 2013, Oracle and/or its affiliates. All Rights Reserved.
 
 This program is free software; you can redistribute it and/or modify it under
 the terms of the GNU General Public License as published by the Free Software
@@ -23,16 +23,18 @@ Quiesce a tablespace.
 Created 2012-02-08 by Sunny Bains.
 *******************************************************/
 
-#include "row0quiesce.h"
-#include "row0mysql.h"
+#include "ha_prototypes.h"
 
+#include "row0quiesce.h"
 #ifdef UNIV_NONINL
 #include "row0quiesce.ic"
 #endif
 
+#include "row0mysql.h"
 #include "ibuf0ibuf.h"
 #include "srv0start.h"
 #include "trx0purge.h"
+#include "srv0space.h"
 
 /*********************************************************************//**
 Write the meta data (index user fields) config file.
@@ -71,7 +73,7 @@ row_quiesce_write_index_fields(
 		}
 
 		/* Include the NUL byte in the length. */
-		ib_uint32_t	len = strlen(field->name) + 1;
+		ib_uint32_t len = (ib_uint32_t) strlen(field->name) + 1;
 		ut_a(len > 1);
 
 		mach_write_to_4(row, len);
@@ -180,7 +182,7 @@ row_quiesce_write_indexes(
 
 		/* Write the length of the index name.
 		NUL byte is included in the length. */
-		ib_uint32_t	len = strlen(index->name) + 1;
+		ib_uint32_t len = (ib_uint32_t) strlen(index->name) + 1;
 		ut_a(len > 1);
 
 		mach_write_to_4(row, len);
@@ -267,7 +269,7 @@ row_quiesce_write_table(
 		col_name = dict_table_get_col_name(table, dict_col_get_no(col));
 
 		/* Include the NUL byte in the length. */
-		len = strlen(col_name) + 1;
+		len = (ib_uint32_t) strlen(col_name) + 1;
 		ut_a(len > 1);
 
 		mach_write_to_4(row, len);
@@ -333,7 +335,7 @@ row_quiesce_write_header(
 	}
 
 	/* The server hostname includes the NUL byte. */
-	len = strlen(hostname) + 1;
+	len = (ib_uint32_t) strlen(hostname) + 1;
 	mach_write_to_4(value, len);
 
 	DBUG_EXECUTE_IF("ib_export_io_write_failure_5", close(fileno(file)););
@@ -351,7 +353,7 @@ row_quiesce_write_header(
 
 	/* The table name includes the NUL byte. */
 	ut_a(table->name != 0);
-	len = strlen(table->name) + 1;
+	len = (ib_uint32_t) strlen(table->name) + 1;
 
 	/* Write the table name. */
 	mach_write_to_4(value, len);
@@ -505,7 +507,7 @@ row_quiesce_table_has_fts_index(
 
 /*********************************************************************//**
 Quiesce the tablespace that the table resides in. */
-UNIV_INTERN
+
 void
 row_quiesce_table_start(
 /*====================*/
@@ -532,10 +534,11 @@ row_quiesce_table_start(
 
 	ut_a(table->id > 0);
 
-	ulint	count = 0;
-
-	while (ibuf_contract_in_background(table->id, TRUE) != 0) {
-		if (!(++count % 20)) {
+	for (ulint count = 0;
+	     ibuf_contract_in_background(table->id, TRUE) != 0
+	     && !trx_is_interrupted(trx);
+	     ++count) {
+		if (!(count % 20)) {
 			ib_logf(IB_LOG_LEVEL_INFO,
 				"Merging change buffer entries for '%s'",
 				table_name);
@@ -570,7 +573,7 @@ row_quiesce_table_start(
 
 /*********************************************************************//**
 Cleanup after table quiesce. */
-UNIV_INTERN
+
 void
 row_quiesce_table_complete(
 /*=======================*/
@@ -610,7 +613,7 @@ row_quiesce_table_complete(
 
 	srv_get_meta_data_filename(table, cfg_name, sizeof(cfg_name));
 
-	os_file_delete_if_exists(cfg_name);
+	os_file_delete_if_exists(innodb_data_file_key, cfg_name, NULL);
 
 	ib_logf(IB_LOG_LEVEL_INFO,
 		"Deleting the meta-data file '%s'", cfg_name);
@@ -626,7 +629,7 @@ row_quiesce_table_complete(
 /*********************************************************************//**
 Set a table's quiesce state.
 @return DB_SUCCESS or error code. */
-UNIV_INTERN
+
 dberr_t
 row_quiesce_set_state(
 /*==================*/
@@ -643,7 +646,13 @@ row_quiesce_set_state(
 
 		return(DB_UNSUPPORTED);
 
-	} else if (table->space == TRX_SYS_SPACE) {
+	} else if (dict_table_is_temporary(table)) {
+
+		ib_senderrf(trx->mysql_thd, IB_LOG_LEVEL_WARN,
+			    ER_CANNOT_DISCARD_TEMPORARY_TABLE);
+
+		return(DB_UNSUPPORTED);
+	} else if (table->space == srv_sys_space.space_id()) {
 
 		char	table_name[MAX_FULL_NAME_LEN + 1];
 
@@ -654,6 +663,7 @@ row_quiesce_set_state(
 			    ER_TABLE_IN_SYSTEM_TABLESPACE, table_name);
 
 		return(DB_UNSUPPORTED);
+
 	} else if (row_quiesce_table_has_fts_index(table)) {
 
 		ib_senderrf(trx->mysql_thd, IB_LOG_LEVEL_WARN,

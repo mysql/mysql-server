@@ -11,7 +11,7 @@
 
    You should have received a copy of the GNU General Public License
    along with this program; if not, write to the Free Software
-   Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA */
+   Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA 02110-1301, USA */
 
 /**
    This is a unit test for the 'meta data locking' classes.
@@ -449,38 +449,6 @@ TEST_F(MDLTest, UpgradeSharedUpgradable)
                upgrade_shared_lock(m_request.ticket, MDL_EXCLUSIVE, long_timeout));
   EXPECT_EQ(MDL_EXCLUSIVE, m_request.ticket->get_type());
 
-  m_mdl_context.release_transactional_locks();
-}
-
-
-/*
-  Verifies that only upgradable locks can be upgraded to exclusive.
- */
-TEST_F(MDLDeathTest, DieUpgradeShared)
-{
-  MDL_request request_2;
-  m_request.init(MDL_key::TABLE, db_name, table_name1, MDL_SHARED,
-                 MDL_TRANSACTION);
-  request_2.init(MDL_key::TABLE, db_name, table_name2, MDL_SHARED_NO_READ_WRITE,
-                 MDL_TRANSACTION);
-
-  m_request_list.push_front(&m_request);
-  m_request_list.push_front(&request_2);
-  m_request_list.push_front(&m_global_request);
-  
-  EXPECT_FALSE(m_mdl_context.acquire_locks(&m_request_list, long_timeout));
-
-#if GTEST_HAS_DEATH_TEST && !defined(DBUG_OFF)
-  ::testing::FLAGS_gtest_death_test_style = "threadsafe";
-  EXPECT_DEATH_IF_SUPPORTED(m_mdl_context.
-                            upgrade_shared_lock(m_request.ticket,
-                                                MDL_EXCLUSIVE,
-                                                long_timeout),
-                            ".*MDL_SHARED_NO_.*");
-#endif
-  EXPECT_FALSE(m_mdl_context.
-               upgrade_shared_lock(request_2.ticket, MDL_EXCLUSIVE,
-                                   long_timeout));
   m_mdl_context.release_transactional_locks();
 }
 
@@ -1608,8 +1576,88 @@ TEST_F(MDLTest, HogLockTest5)
   mdl_thread3.join();
   mdl_thread4.join();
   mdl_thread5.join();
+  mdl_thread6.join();
 
   max_write_lock_count= org_max_write_lock_count;
 }
+
+
+/** Test class for MDL_key class testing. Doesn't require MDL initialization. */
+
+class MDLKeyTest : public ::testing::Test
+{
+protected:
+  MDLKeyTest()
+  { }
+private:
+  GTEST_DISALLOW_COPY_AND_ASSIGN_(MDLKeyTest);
+};
+
+
+// Google Test recommends DeathTest suffix for classes use in death tests.
+typedef MDLKeyTest MDLKeyDeathTest;
+
+
+/*
+  Verifies that debug build dies with a DBUG_ASSERT if we try to construct
+  MDL_key with too long database or object names.
+*/
+
+#if GTEST_HAS_DEATH_TEST && !defined(DBUG_OFF)
+TEST_F(MDLKeyDeathTest, DieWhenNamesAreTooLong)
+{
+  ::testing::FLAGS_gtest_death_test_style = "threadsafe";
+
+  /* We need a name which is longer than NAME_LEN = 64*3 = 192.*/
+  const char *too_long_name=
+    "0123456789012345678901234567890123456789012345678901234567890123"
+    "0123456789012345678901234567890123456789012345678901234567890123"
+    "0123456789012345678901234567890123456789012345678901234567890123"
+    "0123456789";
+
+  EXPECT_DEATH(MDL_key key0(MDL_key::TABLE, too_long_name, ""),
+               ".*Assertion.*strlen.*");
+  EXPECT_DEATH(MDL_key key1(MDL_key::TABLE, "", too_long_name),
+               ".*Assertion.*strlen.*");
+
+  MDL_key key2;
+
+  EXPECT_DEATH(key2.mdl_key_init(MDL_key::TABLE, too_long_name, ""),
+               ".*Assertion.*strlen.*");
+  EXPECT_DEATH(key2.mdl_key_init(MDL_key::TABLE, "", too_long_name),
+               ".*Assertion.*strlen.*");
+
+}
+#endif  // GTEST_HAS_DEATH_TEST && !defined(DBUG_OFF)
+
+
+/*
+  Verifies that for production build we allow construction of
+  MDL_key with too long database or object names, but they are
+  truncated.
+*/
+
+#if defined(DBUG_OFF)
+TEST_F(MDLKeyTest, TruncateTooLongNames)
+{
+  /* We need a name which is longer than NAME_LEN = 64*3 = 192.*/
+  const char *too_long_name=
+    "0123456789012345678901234567890123456789012345678901234567890123"
+    "0123456789012345678901234567890123456789012345678901234567890123"
+    "0123456789012345678901234567890123456789012345678901234567890123"
+    "0123456789";
+
+  MDL_key key(MDL_key::TABLE, too_long_name, too_long_name);
+
+  const char *db_name= key.db_name();
+  const char *name= key.name();
+
+  EXPECT_LE(strlen(db_name), (uint)NAME_LEN);
+  EXPECT_TRUE(strncmp(db_name, too_long_name, NAME_LEN) == 0);
+  EXPECT_LE(strlen(name), (uint)NAME_LEN);
+  EXPECT_TRUE(strncmp(name, too_long_name, NAME_LEN) == 0);
+}
+#endif  // defined(DBUG_OFF)
+
 
 }  // namespace

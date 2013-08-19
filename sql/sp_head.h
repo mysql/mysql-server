@@ -1,4 +1,4 @@
-/* Copyright (c) 2002, 2012, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2002, 2013, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -35,6 +35,17 @@
 class sp_instr;
 class sp_branch_instr;
 class sp_lex_branch_instr;
+
+/**
+  Number of PSI_statement_info instruments
+  for internal stored programs statements.
+*/
+#define SP_PSI_STATEMENT_INFO_COUNT 16
+
+#ifdef HAVE_PSI_INTERFACE
+void init_sp_psi_keys(void);
+#endif
+
 
 ///////////////////////////////////////////////////////////////////////////
 
@@ -192,6 +203,7 @@ public:
     if (!is_parsing_sp_body())
       return;
 
+    thd->free_items();
     thd->mem_root= m_saved_memroot;
     thd->free_list= m_saved_free_list;
 
@@ -482,6 +494,11 @@ public:
   uint m_flags;
 
   /**
+    Instrumentation interface for SP.
+  */
+  PSI_sp_share *m_sp_share;
+
+  /**
     Definition of the RETURN-field (from the RETURNS-clause).
     It's used (and valid) for stored functions only.
   */
@@ -578,8 +595,8 @@ public:
   /// Trigger characteristics.
   st_trg_chistics m_trg_chistics;
 
-  /// The Table_triggers_list instance, where this trigger belongs to.
-  class Table_triggers_list *m_trg_list;
+  /// The Table_trigger_dispatcher instance, where this trigger belongs to.
+  class Table_trigger_dispatcher *m_trg_list;
 
 public:
   static void *operator new(size_t size) throw ();
@@ -613,6 +630,15 @@ public:
 
   /// Set the statement-definition (body-definition) end position.
   void set_body_end(THD *thd);
+
+  bool setup_trigger_fields(THD *thd,
+                            Table_trigger_field_support *tfs,
+                            GRANT_INFO *subject_table_grant,
+                            bool need_fix_fields);
+
+  void mark_used_trigger_fields(TABLE *subject_table);
+
+  bool has_updated_trigger_fields(const MY_BITMAP *used_fields) const;
 
   /**
     Execute trigger stored program.

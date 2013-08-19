@@ -3,7 +3,6 @@
 #
 #  Bug #50296 Slave reconnects earlier than the prescribed slave_net_timeout value
 #
---source include/have_csv.inc
 --source include/master-slave.inc
 
 

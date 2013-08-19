@@ -2455,6 +2455,8 @@ drop table t1;
 
 create table t1 (s1 int);
 insert into t1 values (null),(1);
+select avg(s1) as x from t1 group by s1 with rollup;
+--error ER_WRONG_USAGE
 select distinct avg(s1) as x from t1 group by s1 with rollup;
 drop table t1;
 
@@ -3400,7 +3402,7 @@ DROP TABLE t1;
 CREATE TABLE t1 (c1 INT, c2 INT);
 INSERT INTO t1 VALUES (1,11), (2,22), (2,22);
 
-let $n= 31;
+let $n= 29;
 let $q= COUNT(c2);
 while ($n)
 {
@@ -3408,7 +3410,10 @@ while ($n)
   dec $n;
 }
 --disable_warnings
+--disable_result_log
+--error 0,1436
 eval EXPLAIN SELECT c1 FROM t1 WHERE $q > 0;
+--enable_result_log
 --enable_warnings
 
 let $n= 64;

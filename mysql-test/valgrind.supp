@@ -1,4 +1,4 @@
-# Copyright (c) 2005, 2011, Oracle and/or its affiliates. All rights reserved.
+# Copyright (c) 2005, 2013, Oracle and/or its affiliates. All rights reserved.
 #
 # This program is free software; you can redistribute it and/or
 # modify it under the terms of the GNU Library General Public
@@ -741,6 +741,14 @@
    fun:lf_hash_insert
 }
 
+{
+   missing shutdown_performance_schema 2-mem
+   Memcheck:Leak
+   fun:my_malloc
+   fun:_lf_alloc_new
+   fun:lf_hash_insert
+}
+
 #
 # Note that initialize_bucket() is reccursive,
 # can't provide more stack context.
@@ -754,9 +762,24 @@
 }
 
 {
+   missing shutdown_performance_schema 3a-mem
+   Memcheck:Leak
+   fun:my_malloc
+   fun:initialize_bucket
+}
+
+{
    missing shutdown_performance_schema 3b
    Memcheck:Leak
    fun:malloc
+   fun:my_malloc
+   fun:_lf_dynarray_lvalue
+   fun:initialize_bucket
+}
+
+{
+   missing shutdown_performance_schema 3b-mem
+   Memcheck:Leak
    fun:my_malloc
    fun:_lf_dynarray_lvalue
    fun:initialize_bucket
@@ -772,9 +795,25 @@
 }
 
 {
+   missing shutdown_performance_schema 4-mem
+   Memcheck:Leak
+   fun:my_malloc
+   fun:_lf_dynarray_lvalue
+   fun:_lf_pinbox_get_pins
+}
+
+{
    missing shutdown_performance_schema 5
    Memcheck:Leak
    fun:malloc
+   fun:my_malloc
+   fun:_lf_dynarray_lvalue
+   fun:lf_hash_insert
+}
+
+{
+   missing shutdown_performance_schema 5-mem
+   Memcheck:Leak
    fun:my_malloc
    fun:_lf_dynarray_lvalue
    fun:lf_hash_insert
@@ -790,6 +829,14 @@
 }
 
 {
+   missing shutdown_performance_schema 6-mem
+   Memcheck:Leak
+   fun:my_malloc
+   fun:_lf_dynarray_lvalue
+   fun:lf_hash_delete
+}
+
+{
    missing shutdown_performance_schema 7
    Memcheck:Leak
    fun:malloc
@@ -799,9 +846,28 @@
 }
 
 {
+   missing shutdown_performance_schema 7-mem
+   Memcheck:Leak
+   fun:my_malloc
+   fun:_lf_dynarray_lvalue
+   fun:lf_hash_search
+}
+
+{
    missing shutdown_performance_schema 8
    Memcheck:Leak
    fun:malloc
+   fun:my_malloc
+   fun:_Z22add_pfs_instr_to_arrayPKcS0_
+   fun:mysqld_get_one_option
+   fun:my_handle_options
+   fun:handle_options
+   fun:_Z20handle_early_optionsv
+}
+
+{
+   missing shutdown_performance_schema 8-mem
+   Memcheck:Leak
    fun:my_malloc
    fun:_Z22add_pfs_instr_to_arrayPKcS0_
    fun:mysqld_get_one_option
@@ -822,9 +888,30 @@
 }
 
 {
+   missing shutdown_performance_schema 9-mem
+   Memcheck:Leak
+   fun:my_malloc
+   fun:init_dynamic_array2
+   fun:_Z25init_pfs_instrument_arrayv
+   fun:_Z11mysqld_mainiPPc
+   fun:main
+}
+
+{
    missing shutdown_performance_schema 9a
    Memcheck:Leak
    fun:malloc
+   fun:my_malloc
+   fun:_Z22add_pfs_instr_to_arrayPKcS0_
+   fun:mysqld_get_one_option
+   fun:my_handle_options
+   fun:_Z20handle_early_optionsv
+   fun:_Z11mysqld_mainiPPc
+}
+
+{
+   missing shutdown_performance_schema 9a-mem
+   Memcheck:Leak
    fun:my_malloc
    fun:_Z22add_pfs_instr_to_arrayPKcS0_
    fun:mysqld_get_one_option
@@ -855,9 +942,27 @@
 }
 
 {
+   missing shutdown_performance_schema 10-mem
+   Memcheck:Leak
+   fun:my_malloc
+   fun:init_dynamic_array2
+   fun:_Z11mysqld_mainiPPc
+   fun:main
+}
+
+{
    missing shutdown_performance_schema 11
    Memcheck:Leak
    fun:malloc
+   fun:my_malloc
+   fun:init_dynamic_array2
+   fun:_Z11mysqld_mainiPPc
+   fun:(below main)
+}
+
+{
+   missing shutdown_performance_schema 11-mem
+   Memcheck:Leak
    fun:my_malloc
    fun:init_dynamic_array2
    fun:_Z11mysqld_mainiPPc
@@ -1166,25 +1271,7 @@
 }
 
 {
-   OpenSSL still reachable. One.
-   Memcheck:Leak
-   fun:malloc
-   fun:CRYPTO_malloc
-   fun:lh_insert
-   fun:int_thread_set_item
-   fun:ERR_get_state
-   fun:ERR_put_error
-   fun:PEM_read_bio
-   fun:PEM_X509_INFO_read_bio
-   fun:X509_load_cert_crl_file
-   fun:by_file_ctrl
-   fun:X509_STORE_load_locations
-   fun:new_VioSSLFd
-   fun:new_VioSSLAcceptorFd
-}
-
-{
-   OpenSSL still reachable. Two.
+   OpenSSL still reachable.
    Memcheck:Leak
    fun:malloc
    fun:CRYPTO_malloc
@@ -1192,58 +1279,6 @@
    fun:load_builtin_compressions
    fun:SSL_COMP_get_compression_methods
    fun:SSL_library_init
-   fun:check_ssl_init
-   fun:new_VioSSLFd
-   fun:new_VioSSLAcceptorFd
-}
-
-{
-   OpenSSL still reachable. Three.
-   Memcheck:Leak
-   fun:malloc
-   fun:CRYPTO_malloc
-   fun:sk_new
-   fun:load_builtin_compressions
-   fun:SSL_COMP_get_compression_methods
-   fun:SSL_library_init
-   fun:check_ssl_init
-   fun:new_VioSSLFd
-   fun:new_VioSSLAcceptorFd
-}
-
-{
-   OpenSSL still reachable. Four.
-   Memcheck:Leak
-   fun:malloc
-   fun:CRYPTO_malloc
-   fun:lh_new
-   fun:int_thread_get
-   fun:int_thread_set_item
-   fun:ERR_get_state
-   fun:ERR_put_error
-   fun:PEM_read_bio
-   fun:PEM_X509_INFO_read_bio
-   fun:X509_load_cert_crl_file
-   fun:by_file_ctrl
-   fun:X509_STORE_load_locations
-   fun:new_VioSSLFd
-   fun:new_VioSSLAcceptorFd
-}
-
-{
-   OpenSSL still reachable. Five.
-   Memcheck:Leak
-   fun:malloc
-   fun:CRYPTO_malloc
-   fun:ERR_get_state
-   fun:ERR_put_error
-   fun:PEM_read_bio
-   fun:PEM_X509_INFO_read_bio
-   fun:X509_load_cert_crl_file
-   fun:by_file_ctrl
-   fun:X509_STORE_load_locations
-   fun:new_VioSSLFd
-   fun:new_VioSSLAcceptorFd
 }
 {
    BUG#14801497 CONDITIONAL JUMP OR MOVE DEPENDS ON UNINITIALISED VALUE(S) IN CREATE_TMP_TABLE
@@ -1261,4 +1296,41 @@
    fun:_Z24do_handle_one_connectionP3THD
    fun:handle_one_connection
    fun:pfs_spawn_thread
+}
+
+
+{
+   Bug#16039908 "BYTES STILL REACHABLE" IN VALGRIND TEST ON 5.6/TRUNK
+   Memcheck:Leak
+   fun:calloc
+   fun:_dlerror_run
+   fun:dlclose
+   fun:_ZL15free_plugin_memP12st_plugin_dl
+   fun:_ZL13plugin_dl_delPK19st_mysql_lex_string
+   fun:_ZL10plugin_delP13st_plugin_int
+   fun:_ZL12reap_pluginsv
+   fun:_Z15plugin_shutdownv
+   fun:_ZL8clean_upb
+   fun:_Z10unireg_endv
+   fun:_ZL11kill_serverPv
+   fun:kill_server_thread
+}
+
+#Suppress warnings from glibc implementation of 'malloc_info' 
+{
+   Malloc_info uninitialised value of size 8
+   Memcheck:Value8
+   fun:_itoa_word
+   fun:vfprintf
+   fun:fprintf
+   fun:mi_arena.*
+   fun:malloc_info
+}
+
+{
+   Malloc_info conditional jump depends on uninitialised values
+   Memcheck:Cond
+   ...
+   fun:mi_arena.*
+   fun:malloc_info
 }
