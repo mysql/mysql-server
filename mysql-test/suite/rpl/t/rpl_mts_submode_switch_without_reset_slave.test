@@ -7,6 +7,7 @@
 # without using RESET SLAVE. The idea is that the two submode should work
 # seamlessly.
 
+--source include/have_debug.inc
 --source include/master-slave.inc
 --let $saved_debug=`SELECT @@global.DEBUG`
 SET GLOBAL DEBUG ='+d,set_commit_parent_150';
