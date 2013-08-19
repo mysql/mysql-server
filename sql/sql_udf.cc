@@ -102,12 +102,19 @@ extern "C" uchar* get_hash_key(const uchar *buff, size_t *length,
   return (uchar*) udf->name.str;
 }
 
+static PSI_memory_key key_memory_udf_mem;
+
 #ifdef HAVE_PSI_INTERFACE
 static PSI_rwlock_key key_rwlock_THR_LOCK_udf;
 
 static PSI_rwlock_info all_udf_rwlocks[]=
 {
   { &key_rwlock_THR_LOCK_udf, "THR_LOCK_udf", PSI_FLAG_GLOBAL}
+};
+
+static PSI_memory_info all_udf_memory[]=
+{
+  { &key_memory_udf_mem, "udf_mem", PSI_FLAG_GLOBAL}
 };
 
 static void init_udf_psi_keys(void)
@@ -117,6 +124,9 @@ static void init_udf_psi_keys(void)
 
   count= array_elements(all_udf_rwlocks);
   mysql_rwlock_register(category, all_udf_rwlocks, count);
+
+  count= array_elements(all_udf_memory);
+  mysql_memory_register(category, all_udf_memory, count);
 }
 #endif
 
@@ -144,7 +154,7 @@ void udf_init()
 
   mysql_rwlock_init(key_rwlock_THR_LOCK_udf, &THR_LOCK_udf);
 
-  init_sql_alloc(&mem, UDF_ALLOC_BLOCK_SIZE, 0);
+  init_sql_alloc(key_memory_udf_mem, &mem, UDF_ALLOC_BLOCK_SIZE, 0);
   THD *new_thd = new THD;
   if (!new_thd ||
       my_hash_init(&udf_hash,system_charset_info,32,0,0,get_hash_key, NULL, 0))

@@ -51,7 +51,8 @@ bool mysql_manager_submit(void (*action)())
     cb= &(*cb)->next;
   if (!*cb)
   {
-    *cb= (struct handler_cb *)my_malloc(sizeof(struct handler_cb), MYF(MY_WME));
+    *cb= (struct handler_cb *)my_malloc(key_memory_mysql_manager,
+                                        sizeof(struct handler_cb), MYF(MY_WME));
     if (!*cb)
       result= TRUE;
     else

@@ -88,3 +88,9 @@ UNLOCK TABLES;
 --echo
 UPDATE performance_schema.setup_instruments SET timed='NO'
 ORDER BY RAND();
+
+# Test cleanup
+
+update performance_schema.setup_instruments
+  set enabled='YES', TIMED='YES';
+

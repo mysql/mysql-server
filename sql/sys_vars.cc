@@ -58,6 +58,10 @@
 #include "hostname.h"                           // host_cache_size
 #include "sql_show.h"                           // opt_ignore_db_dirs
 #include "table_cache.h"                        // Table_cache_manager
+#include "connection_handler_impl.h"            // Per_thread_connection_handler
+#include "connection_handler_manager.h"         // Connection_handler_manager
+#include "socket_connection.h"                  // MY_BIND_ALL_ADDRESSES
+#include "sp_head.h" // SP_PSI_STATEMENT_INFO_COUNT 
 
 #include "log_event.h"
 #ifdef WITH_PERFSCHEMA_STORAGE_ENGINE
@@ -294,6 +298,15 @@ static Sys_var_long Sys_pfs_max_cond_instances(
        DEFAULT(-1),
        BLOCK_SIZE(1), PFS_TRAILING_PROPERTIES);
 
+static Sys_var_long Sys_pfs_max_program_instances(
+       "performance_schema_max_program_instances",
+       "Maximum number of instrumented programs."
+         " Use 0 to disable, -1 for automated sizing.",
+       READ_ONLY GLOBAL_VAR(pfs_param.m_program_sizing),
+       CMD_LINE(REQUIRED_ARG), VALID_RANGE(-1, 1024*1024),
+       DEFAULT(5000),
+       BLOCK_SIZE(1), PFS_TRAILING_PROPERTIES);
+
 static Sys_var_ulong Sys_pfs_max_file_classes(
        "performance_schema_max_file_classes",
        "Maximum number of file instruments.",
@@ -482,13 +495,16 @@ static Sys_var_long Sys_pfs_events_stages_history_size(
   - 1 for "statement/com/Error", for invalid enum_server_command
   - SQLCOM_END for all regular "statement/sql/...",
   - 1 for "statement/sql/error", for invalid enum_sql_command.
+  - SP_PSI_STATEMENT_INFO_COUNT for "statement/sp/...". 
+  - 1 for "statement/rpl/relay_log", for replicated statements.
+  - 1 for "statement/scheduler/event", for scheduled events.
 */
 static Sys_var_ulong Sys_pfs_max_statement_classes(
        "performance_schema_max_statement_classes",
        "Maximum number of statement instruments.",
        READ_ONLY GLOBAL_VAR(pfs_param.m_statement_class_sizing),
        CMD_LINE(REQUIRED_ARG), VALID_RANGE(0, 256),
-       DEFAULT((ulong) SQLCOM_END + (ulong) COM_END + 3),
+       DEFAULT((ulong) SQLCOM_END + (ulong) COM_END + 5 + SP_PSI_STATEMENT_INFO_COUNT),
        BLOCK_SIZE(1), PFS_TRAILING_PROPERTIES);
 
 static Sys_var_long Sys_pfs_events_statements_history_long_size(
@@ -507,6 +523,22 @@ static Sys_var_long Sys_pfs_events_statements_history_size(
        READ_ONLY GLOBAL_VAR(pfs_param.m_events_statements_history_sizing),
        CMD_LINE(REQUIRED_ARG), VALID_RANGE(-1, 1024),
        DEFAULT(-1),
+       BLOCK_SIZE(1), PFS_TRAILING_PROPERTIES);
+
+static Sys_var_ulong Sys_pfs_statement_stack_size(
+       "performance_schema_max_statement_stack",
+       "Number of rows per thread in EVENTS_STATEMENTS_CURRENT.",
+       READ_ONLY GLOBAL_VAR(pfs_param.m_statement_stack_sizing),
+       CMD_LINE(REQUIRED_ARG), VALID_RANGE(1, 256),
+       DEFAULT(PFS_STATEMENTS_STACK_SIZE),
+       BLOCK_SIZE(1), PFS_TRAILING_PROPERTIES);
+
+static Sys_var_ulong Sys_pfs_max_memory_classes(
+       "performance_schema_max_memory_classes",
+       "Maximum number of memory pool instruments.",
+       READ_ONLY GLOBAL_VAR(pfs_param.m_memory_class_sizing),
+       CMD_LINE(REQUIRED_ARG), VALID_RANGE(0, 256),
+       DEFAULT(PFS_MAX_MEMORY_CLASS),
        BLOCK_SIZE(1), PFS_TRAILING_PROPERTIES);
 
 static Sys_var_long Sys_pfs_digest_size(
@@ -566,10 +598,18 @@ static Sys_var_charptr Sys_basedir(
        READ_ONLY GLOBAL_VAR(mysql_home_ptr), CMD_LINE(REQUIRED_ARG, 'b'),
        IN_FS_CHARSET, DEFAULT(0));
 
+static Sys_var_charptr Sys_default_authentication_plugin(
+       "default_authentication_plugin", "The default authentication plugin "
+       "used by the server to hash the password.",
+       READ_ONLY GLOBAL_VAR(default_auth_plugin), CMD_LINE(REQUIRED_ARG),
+       IN_FS_CHARSET, DEFAULT("mysql_native_password"));
+
+#ifndef EMBEDDED_LIBRARY
 static Sys_var_charptr Sys_my_bind_addr(
        "bind_address", "IP address to bind to.",
        READ_ONLY GLOBAL_VAR(my_bind_addr_str), CMD_LINE(REQUIRED_ARG),
        IN_FS_CHARSET, DEFAULT(MY_BIND_ALL_ADDRESSES));
+#endif
 
 static bool fix_binlog_cache_size(sys_var *self, THD *thd, enum_var_type type)
 {
@@ -1516,6 +1556,13 @@ static Sys_var_mybool Sys_log_bin(
        "log_bin", "Whether the binary log is enabled",
        READ_ONLY GLOBAL_VAR(opt_bin_log), NO_CMD_LINE, DEFAULT(FALSE));
 
+static Sys_var_ulong Sys_rpl_stop_slave_timeout(
+       "rpl_stop_slave_timeout",
+       "Timeout in seconds to wait for slave to stop before returning a "
+       "warning.",
+       GLOBAL_VAR(rpl_stop_slave_timeout), CMD_LINE(REQUIRED_ARG),
+       VALID_RANGE(2, LONG_TIMEOUT), DEFAULT(LONG_TIMEOUT), BLOCK_SIZE(1));
+
 static Sys_var_mybool Sys_trust_function_creators(
        "log_bin_trust_function_creators",
        "If set to FALSE (the default), then when --log-bin is used, creation "
@@ -1586,12 +1633,55 @@ static Sys_var_ulong Sys_log_throttle_queries_not_using_indexes(
        ON_CHECK(0),
        ON_UPDATE(update_log_throttle_queries_not_using_indexes));
 
+static bool update_log_warnings(sys_var *self, THD *thd, enum_var_type type)
+{
+  // log_warnings is deprecated, but for now, we'll set the
+  // new log_error_verbosity from it for backward compatibility.
+  log_error_verbosity= std::min(3UL, 1UL + log_warnings);
+  return false;
+}
+
 static Sys_var_ulong Sys_log_warnings(
        "log_warnings",
        "Log some not critical warnings to the log file",
        GLOBAL_VAR(log_warnings),
        CMD_LINE(OPT_ARG, 'W'),
-       VALID_RANGE(0, ULONG_MAX), DEFAULT(1), BLOCK_SIZE(1));
+       VALID_RANGE(0, 2), DEFAULT(2), BLOCK_SIZE(1), NO_MUTEX_GUARD,
+       NOT_IN_BINLOG, ON_CHECK(0), ON_UPDATE(update_log_warnings),
+       DEPRECATED("log_error_verbosity"));
+
+static bool update_log_error_verbosity(sys_var *self, THD *thd,
+                                       enum_var_type type)
+{
+  // log_warnings is deprecated, but for now, we'll set it from
+  // the new log_error_verbosity for backward compatibility.
+  log_warnings= log_error_verbosity - 1;
+  return false;
+}
+
+static Sys_var_ulong Sys_log_error_verbosity(
+       "log_error_verbosity",
+       "How detailed the error log should be. "
+       "1, log errors only. "
+       "2, log errors and warnings. "
+       "3, log errors, warnings, and notes. "
+       "Messages sent to the client are unaffected by this setting.",
+       GLOBAL_VAR(log_error_verbosity),
+       CMD_LINE(REQUIRED_ARG),
+       VALID_RANGE(1, 3), DEFAULT(3), BLOCK_SIZE(1), NO_MUTEX_GUARD,
+       NOT_IN_BINLOG, ON_CHECK(0), ON_UPDATE(update_log_error_verbosity));
+
+static Sys_var_enum Sys_log_timestamps(
+       "log_timestamps",
+       "UTC to timestamp log files in zulu time, for more concise timestamps "
+       "and easier correlation of logs from servers from multiple time zones, "
+       "or SYSTEM to use the system's local time. "
+       "This affects only log files, not log tables, as the timestamp columns "
+       "of the latter can be converted at will.",
+       GLOBAL_VAR(opt_log_timestamps),
+       CMD_LINE(REQUIRED_ARG, OPT_BINLOG_FORMAT),
+       timestamp_type_names, DEFAULT(0),
+       NO_MUTEX_GUARD, NOT_IN_BINLOG);
 
 static bool update_cached_long_query_time(sys_var *self, THD *thd,
                                           enum_var_type type)
@@ -2360,7 +2450,7 @@ static Sys_var_ulong Sys_query_prealloc_size(
        BLOCK_SIZE(1024), NO_MUTEX_GUARD, NOT_IN_BINLOG, ON_CHECK(0),
        ON_UPDATE(fix_thd_mem_root));
 
-#ifdef HAVE_SMEM
+#if defined (_WIN32) && !defined (EMBEDDED_LIBRARY)
 static Sys_var_mybool Sys_shared_memory(
        "shared_memory", "Enable the shared memory",
        READ_ONLY GLOBAL_VAR(opt_enable_shared_memory), CMD_LINE(OPT_ARG),
@@ -2398,22 +2488,6 @@ static Sys_var_charptr Sys_socket(
        "socket", "Socket file to use for connection",
        READ_ONLY GLOBAL_VAR(mysqld_unix_port), CMD_LINE(REQUIRED_ARG),
        IN_FS_CHARSET, DEFAULT(0));
-
-/* 
-  thread_concurrency is a no-op on all platforms since
-  MySQL 5.1.  It will be removed in the context of
-  WL#5265
-*/
-static Sys_var_ulong Sys_thread_concurrency(
-       "thread_concurrency",
-       "Permits the application to give the threads system a hint for "
-       "the desired number of threads that should be run at the same time. "
-       "This variable has no effect, and is deprecated. "
-       "It will be removed in a future release. ",
-       READ_ONLY GLOBAL_VAR(concurrency), CMD_LINE(REQUIRED_ARG),
-       VALID_RANGE(1, 512), DEFAULT(DEFAULT_CONCURRENCY), BLOCK_SIZE(1),
-       NO_MUTEX_GUARD, NOT_IN_BINLOG, ON_CHECK(0), ON_UPDATE(0), 
-       DEPRECATED(""));
 
 static Sys_var_ulong Sys_thread_stack(
        "thread_stack", "The stack size for each thread",
@@ -2457,6 +2531,7 @@ static Sys_var_ulong Sys_trans_prealloc_size(
        BLOCK_SIZE(1024), NO_MUTEX_GUARD, NOT_IN_BINLOG, ON_CHECK(0),
        ON_UPDATE(fix_trans_mem_root));
 
+#ifndef EMBEDDED_LIBRARY
 static const char *thread_handling_names[]=
 {
   "one-thread-per-connection", "no-threads", "loaded-dynamically",
@@ -2466,8 +2541,9 @@ static Sys_var_enum Sys_thread_handling(
        "thread_handling",
        "Define threads usage for handling queries, one of "
        "one-thread-per-connection, no-threads, loaded-dynamically"
-       , READ_ONLY GLOBAL_VAR(thread_handling), CMD_LINE(REQUIRED_ARG),
-       thread_handling_names, DEFAULT(0));
+       , READ_ONLY GLOBAL_VAR(Connection_handler_manager::thread_handling),
+       CMD_LINE(REQUIRED_ARG), thread_handling_names, DEFAULT(0));
+#endif // !EMBEDDED_LIBRARY
 
 static bool fix_query_cache_size(sys_var *self, THD *thd, enum_var_type type)
 {
@@ -2615,12 +2691,17 @@ static Sys_var_enum Slave_exec_mode(
        GLOBAL_VAR(slave_exec_mode_options), CMD_LINE(REQUIRED_ARG),
        slave_exec_mode_names, DEFAULT(RBR_EXEC_MODE_STRICT));
 
-const char *slave_type_conversions_name[]= {"ALL_LOSSY", "ALL_NON_LOSSY", 0};
+const char *slave_type_conversions_name[]=
+       {"ALL_LOSSY", "ALL_NON_LOSSY", "ALL_UNSIGNED", "ALL_SIGNED", 0};
 static Sys_var_set Slave_type_conversions(
        "slave_type_conversions",
        "Set of slave type conversions that are enabled. Legal values are:"
-       " ALL_LOSSY to enable lossy conversions and"
-       " ALL_NON_LOSSY to enable non-lossy conversions."
+       " ALL_LOSSY to enable lossy conversions,"
+       " ALL_NON_LOSSY to enable non-lossy conversions,"
+       " ALL_UNSIGNED to treat all integer column type data to be unsigned values, and"
+       " ALL_SIGNED to treat all integer column type data to be signed values." 
+       " Default treatment is ALL_SIGNED. If ALL_SIGNED and ALL_UNSIGNED both are"
+       " specifed, ALL_SIGNED will take high priority than ALL_UNSIGNED."
        " If the variable is assigned the empty set, no conversions are"
        " allowed and it is expected that the types match exactly.",
        GLOBAL_VAR(slave_type_conversions_options), CMD_LINE(REQUIRED_ARG),
@@ -2635,7 +2716,7 @@ static Sys_var_mybool Sys_slave_sql_verify_checksum(
        "log. Enabled by default.",
        GLOBAL_VAR(opt_slave_sql_verify_checksum), CMD_LINE(OPT_ARG), DEFAULT(TRUE));
 
-static bool slave_rows_search_algorithms_check(sys_var *self, THD *thd, set_var *var)
+static bool check_not_null_not_empty(sys_var *self, THD *thd, set_var *var)
 {
   String str, *res;
   /* null value is not allowed */
@@ -2647,6 +2728,22 @@ static bool slave_rows_search_algorithms_check(sys_var *self, THD *thd, set_var 
   if (res && res->is_empty())
     return true;
 
+  return false;
+}
+
+static bool check_update_mts_type(sys_var *self, THD *thd, set_var *var)
+{
+  if (check_not_null_not_empty(self, thd, var))
+    return true;
+
+  mysql_mutex_lock(&active_mi->rli->run_lock);
+  if (active_mi && active_mi->rli->slave_running)
+  {
+    my_error(ER_SLAVE_MUST_STOP, MYF(0));
+    mysql_mutex_unlock(&active_mi->rli->run_lock);
+    return true;
+  }
+  mysql_mutex_unlock(&active_mi->rli->run_lock);
   return false;
 }
 
@@ -2663,7 +2760,20 @@ static Sys_var_set Slave_rows_search_algorithms(
        GLOBAL_VAR(slave_rows_search_algorithms_options), CMD_LINE(REQUIRED_ARG),
        slave_rows_search_algorithms_names,
        DEFAULT(SLAVE_ROWS_INDEX_SCAN | SLAVE_ROWS_TABLE_SCAN),  NO_MUTEX_GUARD,
-       NOT_IN_BINLOG, ON_CHECK(slave_rows_search_algorithms_check), ON_UPDATE(NULL));
+       NOT_IN_BINLOG, ON_CHECK(check_not_null_not_empty), ON_UPDATE(NULL));
+
+static const char *mts_parallel_type_names[]= {"DATABASE", "LOGICAL_CLOCK", 0};
+static Sys_var_enum Mts_parallel_type(
+       "slave_parallel_type",
+       "Specifies if the slave will use database partioning "
+       "or information from master to parallelize transactions."
+       "(Default: DATABASE).",
+       GLOBAL_VAR(mts_parallel_option), CMD_LINE(REQUIRED_ARG),
+       mts_parallel_type_names,
+       DEFAULT(MTS_PARALLEL_TYPE_DB_NAME),  NO_MUTEX_GUARD,
+       NOT_IN_BINLOG, ON_CHECK(check_update_mts_type),
+       ON_UPDATE(NULL));
+
 #endif
 
 bool Sys_var_enum_binlog_checksum::global_update(THD *thd, set_var *var)
@@ -2950,12 +3060,14 @@ static Sys_var_ulong Sys_table_cache_instances(
        */
        sys_var::PARSE_EARLY);
 
+#ifndef EMBEDDED_LIBRARY
 static Sys_var_ulong Sys_thread_cache_size(
        "thread_cache_size",
        "How many threads we should keep in a cache for reuse",
-       GLOBAL_VAR(max_blocked_pthreads),
+       GLOBAL_VAR(Per_thread_connection_handler::max_blocked_pthreads),
        CMD_LINE(REQUIRED_ARG, OPT_THREAD_CACHE_SIZE),
        VALID_RANGE(0, 16384), DEFAULT(0), BLOCK_SIZE(1));
+#endif // !EMBEDDED_LIBRARY
 
 /**
   Can't change the 'next' tx_isolation if we are already in a
@@ -3673,7 +3785,8 @@ static bool fix_general_log_file(sys_var *self, THD *thd, enum_var_type type)
   if (!opt_general_logname) // SET ... = DEFAULT
   {
     char buff[FN_REFLEN];
-    opt_general_logname= my_strdup(make_query_log_name(buff, QUERY_LOG_GENERAL),
+    opt_general_logname= my_strdup(key_memory_LOG_name,
+                                   make_query_log_name(buff, QUERY_LOG_GENERAL),
                                    MYF(MY_FAE+MY_WME));
     if (!opt_general_logname)
       return true;
@@ -3700,7 +3813,8 @@ static bool fix_slow_log_file(sys_var *self, THD *thd, enum_var_type type)
   if (!opt_slow_logname) // SET ... = DEFAULT
   {
     char buff[FN_REFLEN];
-    opt_slow_logname= my_strdup(make_query_log_name(buff, QUERY_LOG_SLOW),
+    opt_slow_logname= my_strdup(key_memory_LOG_name,
+                                make_query_log_name(buff, QUERY_LOG_SLOW),
                                 MYF(MY_FAE+MY_WME));
     if (!opt_slow_logname)
       return true;

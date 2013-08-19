@@ -96,14 +96,14 @@ buf_LRU_free_page(
 	__attribute__((nonnull));
 /******************************************************************//**
 Try to free a replaceable block.
-@return TRUE if found and freed */
+@return true if found and freed */
 
-ibool
+bool
 buf_LRU_scan_and_free_block(
 /*========================*/
 	buf_pool_t*	buf_pool,	/*!< in: buffer pool instance */
-	ibool		scan_all)	/*!< in: scan whole LRU list
-					if TRUE, otherwise scan only
+	bool		scan_all)	/*!< in: scan whole LRU list
+					if true, otherwise scan only
 					'old' blocks. */
 	__attribute__((nonnull,warn_unused_result));
 /******************************************************************//**
@@ -117,7 +117,7 @@ buf_LRU_get_free_only(
 	buf_pool_t*	buf_pool);	/*!< buffer pool instance */
 /******************************************************************//**
 Returns a free block from the buf_pool. The block is taken off the
-free list. If it is empty, blocks are moved from the end of the
+free list. If free list is empty, blocks are moved from the end of the
 LRU list to the free list.
 This function is called from a user thread when it needs a clean
 block to read in a page. Note that we only ever get a block from
@@ -125,8 +125,6 @@ the free list. Even when we flush a page or find a page in LRU scan
 we put it to free list to be used.
 * iteration 0:
   * get a block from free list, success:done
-  * if there is an LRU flush batch in progress:
-    * wait for batch to end: retry free list
   * if buf_pool->try_LRU_scan is set
     * scan LRU up to srv_LRU_scan_depth to find a clean block
     * the above will put the block on free list
@@ -139,7 +137,7 @@ we put it to free list to be used.
     * scan whole LRU list
     * scan LRU list even if buf_pool->try_LRU_scan is not set
 * iteration > 1:
-  * same as iteration 1 but sleep 100ms
+  * same as iteration 1 but sleep 10ms
 @return the free control block, in state BUF_BLOCK_READY_FOR_USE */
 
 buf_block_t*
@@ -230,6 +228,15 @@ buf_LRU_free_one_page(
 				be in a state where it can be freed; there
 				may or may not be a hash index to the page */
 	__attribute__((nonnull));
+
+/******************************************************************//**
+Adjust LRU hazard pointers if needed. */
+
+void
+buf_LRU_adjust_hp(
+/*==============*/
+	buf_pool_t*		buf_pool,/*!< in: buffer pool instance */
+	const buf_page_t*	bpage);	/*!< in: control block */
 
 #if defined UNIV_DEBUG || defined UNIV_BUF_DEBUG
 /**********************************************************************//**

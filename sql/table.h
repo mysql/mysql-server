@@ -927,7 +927,8 @@ private:
 public:
   Blob_mem_storage() :truncated_value(false)
   {
-    init_alloc_root(&storage, MAX_FIELD_VARCHARLENGTH, 0);
+    init_alloc_root(key_memory_blob_mem_storage,
+                    &storage, MAX_FIELD_VARCHARLENGTH, 0);
   }
   ~ Blob_mem_storage()
   {
@@ -1893,6 +1894,9 @@ public:
   enum enum_schema_table_state schema_table_state;
 
   MDL_request mdl_request;
+
+  /// if true, EXPLAIN can't explain view due to insufficient rights.
+  bool view_no_explain;
 
 #ifdef WITH_PARTITION_STORAGE_ENGINE
   /* List to carry partition names from PARTITION (...) clause in statement */

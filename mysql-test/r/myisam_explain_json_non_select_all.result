@@ -11,12 +11,12 @@ INSERT INTO t1 VALUES (1), (2), (3);
 #
 EXPLAIN UPDATE t1 SET a = 10 WHERE a < 10;
 id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
-1	SIMPLE	t1	ALL	NULL	NULL	NULL	NULL	3	Using where
+1	UPDATE	t1	ALL	NULL	NULL	NULL	NULL	3	Using where
 FLUSH STATUS;
 FLUSH TABLES;
 EXPLAIN EXTENDED UPDATE t1 SET a = 10 WHERE a < 10;
 id	select_type	table	type	possible_keys	key	key_len	ref	rows	filtered	Extra
-1	SIMPLE	t1	ALL	NULL	NULL	NULL	NULL	3	100.00	Using where
+1	UPDATE	t1	ALL	NULL	NULL	NULL	NULL	3	100.00	Using where
 # Status of EXPLAIN EXTENDED query
 Variable_name	Value
 EXPLAIN FORMAT=JSON UPDATE t1 SET a = 10 WHERE a < 10;;
@@ -28,7 +28,7 @@ EXPLAIN
       "update": true,
       "table_name": "t1",
       "access_type": "ALL",
-      "rows": 3,
+      "rows_examined_per_scan": 3,
       "filtered": 100,
       "attached_condition": "(`test`.`t1`.`a` < 10)"
     } /* table */
@@ -48,11 +48,24 @@ EXPLAIN
 {
   "query_block": {
     "select_id": 1,
+    "cost_info": {
+      "query_cost": "2.60"
+    } /* cost_info */,
     "table": {
       "table_name": "t1",
       "access_type": "ALL",
-      "rows": 3,
+      "rows_examined_per_scan": 3,
+      "rows_produced_per_join": 3,
       "filtered": 100,
+      "cost_info": {
+        "read_cost": "2.01",
+        "eval_cost": "0.60",
+        "prefix_cost": "2.61",
+        "data_read_per_join": "24"
+      } /* cost_info */,
+      "used_columns": [
+        "a"
+      ] /* used_columns */,
       "attached_condition": "(`test`.`t1`.`a` < 10)"
     } /* table */
   } /* query_block */
@@ -77,12 +90,12 @@ INSERT INTO t1 VALUES (1), (2), (3);
 #
 EXPLAIN DELETE   FROM t1 WHERE a < 10;
 id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
-1	SIMPLE	t1	ALL	NULL	NULL	NULL	NULL	3	Using where
+1	DELETE	t1	ALL	NULL	NULL	NULL	NULL	3	Using where
 FLUSH STATUS;
 FLUSH TABLES;
 EXPLAIN EXTENDED DELETE   FROM t1 WHERE a < 10;
 id	select_type	table	type	possible_keys	key	key_len	ref	rows	filtered	Extra
-1	SIMPLE	t1	ALL	NULL	NULL	NULL	NULL	3	100.00	Using where
+1	DELETE	t1	ALL	NULL	NULL	NULL	NULL	3	100.00	Using where
 # Status of EXPLAIN EXTENDED query
 Variable_name	Value
 EXPLAIN FORMAT=JSON DELETE   FROM t1 WHERE a < 10;;
@@ -94,7 +107,7 @@ EXPLAIN
       "delete": true,
       "table_name": "t1",
       "access_type": "ALL",
-      "rows": 3,
+      "rows_examined_per_scan": 3,
       "filtered": 100,
       "attached_condition": "(`test`.`t1`.`a` < 10)"
     } /* table */
@@ -114,11 +127,24 @@ EXPLAIN
 {
   "query_block": {
     "select_id": 1,
+    "cost_info": {
+      "query_cost": "2.60"
+    } /* cost_info */,
     "table": {
       "table_name": "t1",
       "access_type": "ALL",
-      "rows": 3,
+      "rows_examined_per_scan": 3,
+      "rows_produced_per_join": 3,
       "filtered": 100,
+      "cost_info": {
+        "read_cost": "2.01",
+        "eval_cost": "0.60",
+        "prefix_cost": "2.61",
+        "data_read_per_join": "24"
+      } /* cost_info */,
+      "used_columns": [
+        "a"
+      ] /* used_columns */,
       "attached_condition": "(`test`.`t1`.`a` < 10)"
     } /* table */
   } /* query_block */
@@ -143,12 +169,12 @@ INSERT INTO t1 VALUES (1), (2), (3);
 #
 EXPLAIN DELETE   FROM t1 USING t1 WHERE a = 1;
 id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
-1	SIMPLE	t1	ALL	NULL	NULL	NULL	NULL	3	Using where
+1	DELETE	t1	ALL	NULL	NULL	NULL	NULL	3	Using where
 FLUSH STATUS;
 FLUSH TABLES;
 EXPLAIN EXTENDED DELETE   FROM t1 USING t1 WHERE a = 1;
 id	select_type	table	type	possible_keys	key	key_len	ref	rows	filtered	Extra
-1	SIMPLE	t1	ALL	NULL	NULL	NULL	NULL	3	100.00	Using where
+1	DELETE	t1	ALL	NULL	NULL	NULL	NULL	3	100.00	Using where
 # Status of EXPLAIN EXTENDED query
 Variable_name	Value
 EXPLAIN FORMAT=JSON DELETE   FROM t1 USING t1 WHERE a = 1;;
@@ -156,12 +182,25 @@ EXPLAIN
 {
   "query_block": {
     "select_id": 1,
+    "cost_info": {
+      "query_cost": "2.60"
+    } /* cost_info */,
     "table": {
       "delete": true,
       "table_name": "t1",
       "access_type": "ALL",
-      "rows": 3,
+      "rows_examined_per_scan": 3,
+      "rows_produced_per_join": 3,
       "filtered": 100,
+      "cost_info": {
+        "read_cost": "2.01",
+        "eval_cost": "0.60",
+        "prefix_cost": "2.61",
+        "data_read_per_join": "24"
+      } /* cost_info */,
+      "used_columns": [
+        "a"
+      ] /* used_columns */,
       "attached_condition": "(`test`.`t1`.`a` = 1)"
     } /* table */
   } /* query_block */
@@ -180,11 +219,24 @@ EXPLAIN
 {
   "query_block": {
     "select_id": 1,
+    "cost_info": {
+      "query_cost": "2.60"
+    } /* cost_info */,
     "table": {
       "table_name": "t1",
       "access_type": "ALL",
-      "rows": 3,
+      "rows_examined_per_scan": 3,
+      "rows_produced_per_join": 3,
       "filtered": 100,
+      "cost_info": {
+        "read_cost": "2.01",
+        "eval_cost": "0.60",
+        "prefix_cost": "2.61",
+        "data_read_per_join": "24"
+      } /* cost_info */,
+      "used_columns": [
+        "a"
+      ] /* used_columns */,
       "attached_condition": "(`test`.`t1`.`a` = 1)"
     } /* table */
   } /* query_block */
@@ -211,13 +263,13 @@ INSERT INTO t2 VALUES (1), (2), (3);
 #
 EXPLAIN UPDATE        t1, t2 SET t1.a = 10 WHERE t1.a = 1;
 id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
-1	SIMPLE	t1	ALL	NULL	NULL	NULL	NULL	3	Using where
+1	UPDATE	t1	ALL	NULL	NULL	NULL	NULL	3	Using where
 1	SIMPLE	t2	ALL	NULL	NULL	NULL	NULL	3	Using join buffer (Block Nested Loop)
 FLUSH STATUS;
 FLUSH TABLES;
 EXPLAIN EXTENDED UPDATE        t1, t2 SET t1.a = 10 WHERE t1.a = 1;
 id	select_type	table	type	possible_keys	key	key_len	ref	rows	filtered	Extra
-1	SIMPLE	t1	ALL	NULL	NULL	NULL	NULL	3	100.00	Using where
+1	UPDATE	t1	ALL	NULL	NULL	NULL	NULL	3	100.00	Using where
 1	SIMPLE	t2	ALL	NULL	NULL	NULL	NULL	3	100.00	Using join buffer (Block Nested Loop)
 # Status of EXPLAIN EXTENDED query
 Variable_name	Value
@@ -226,14 +278,27 @@ EXPLAIN
 {
   "query_block": {
     "select_id": 1,
+    "cost_info": {
+      "query_cost": "6.41"
+    } /* cost_info */,
     "nested_loop": [
       {
         "table": {
           "update": true,
           "table_name": "t1",
           "access_type": "ALL",
-          "rows": 3,
+          "rows_examined_per_scan": 3,
+          "rows_produced_per_join": 3,
           "filtered": 100,
+          "cost_info": {
+            "read_cost": "2.01",
+            "eval_cost": "0.60",
+            "prefix_cost": "2.61",
+            "data_read_per_join": "24"
+          } /* cost_info */,
+          "used_columns": [
+            "a"
+          ] /* used_columns */,
           "attached_condition": "(`test`.`t1`.`a` = 1)"
         } /* table */
       },
@@ -241,9 +306,16 @@ EXPLAIN
         "table": {
           "table_name": "t2",
           "access_type": "ALL",
-          "rows": 3,
+          "rows_examined_per_scan": 3,
+          "rows_produced_per_join": 9,
           "filtered": 100,
-          "using_join_buffer": "Block Nested Loop"
+          "using_join_buffer": "Block Nested Loop",
+          "cost_info": {
+            "read_cost": "2.01",
+            "eval_cost": "1.80",
+            "prefix_cost": "6.41",
+            "data_read_per_join": "72"
+          } /* cost_info */
         } /* table */
       }
     ] /* nested_loop */
@@ -264,13 +336,26 @@ EXPLAIN
 {
   "query_block": {
     "select_id": 1,
+    "cost_info": {
+      "query_cost": "6.41"
+    } /* cost_info */,
     "nested_loop": [
       {
         "table": {
           "table_name": "t1",
           "access_type": "ALL",
-          "rows": 3,
+          "rows_examined_per_scan": 3,
+          "rows_produced_per_join": 3,
           "filtered": 100,
+          "cost_info": {
+            "read_cost": "2.01",
+            "eval_cost": "0.60",
+            "prefix_cost": "2.61",
+            "data_read_per_join": "24"
+          } /* cost_info */,
+          "used_columns": [
+            "a"
+          ] /* used_columns */,
           "attached_condition": "(`test`.`t1`.`a` = 1)"
         } /* table */
       },
@@ -278,9 +363,19 @@ EXPLAIN
         "table": {
           "table_name": "t2",
           "access_type": "ALL",
-          "rows": 3,
+          "rows_examined_per_scan": 3,
+          "rows_produced_per_join": 9,
           "filtered": 100,
-          "using_join_buffer": "Block Nested Loop"
+          "using_join_buffer": "Block Nested Loop",
+          "cost_info": {
+            "read_cost": "2.01",
+            "eval_cost": "1.80",
+            "prefix_cost": "6.41",
+            "data_read_per_join": "72"
+          } /* cost_info */,
+          "used_columns": [
+            "b"
+          ] /* used_columns */
         } /* table */
       }
     ] /* nested_loop */
@@ -308,14 +403,14 @@ INSERT INTO t2 VALUES (1), (2), (3);
 #
 EXPLAIN UPDATE        t1 t11, (SELECT * FROM t2) t12 SET t11.a = 10 WHERE t11.a = 1;
 id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
-1	PRIMARY	t11	ALL	NULL	NULL	NULL	NULL	3	Using where
+1	UPDATE	t11	ALL	NULL	NULL	NULL	NULL	3	Using where
 1	PRIMARY	<derived2>	ALL	NULL	NULL	NULL	NULL	3	Using join buffer (Block Nested Loop)
 2	DERIVED	t2	ALL	NULL	NULL	NULL	NULL	3	NULL
 FLUSH STATUS;
 FLUSH TABLES;
 EXPLAIN EXTENDED UPDATE        t1 t11, (SELECT * FROM t2) t12 SET t11.a = 10 WHERE t11.a = 1;
 id	select_type	table	type	possible_keys	key	key_len	ref	rows	filtered	Extra
-1	PRIMARY	t11	ALL	NULL	NULL	NULL	NULL	3	100.00	Using where
+1	UPDATE	t11	ALL	NULL	NULL	NULL	NULL	3	100.00	Using where
 1	PRIMARY	<derived2>	ALL	NULL	NULL	NULL	NULL	3	100.00	Using join buffer (Block Nested Loop)
 2	DERIVED	t2	ALL	NULL	NULL	NULL	NULL	3	100.00	NULL
 # Status of EXPLAIN EXTENDED query
@@ -325,14 +420,27 @@ EXPLAIN
 {
   "query_block": {
     "select_id": 1,
+    "cost_info": {
+      "query_cost": "14.55"
+    } /* cost_info */,
     "nested_loop": [
       {
         "table": {
           "update": true,
           "table_name": "t11",
           "access_type": "ALL",
-          "rows": 3,
+          "rows_examined_per_scan": 3,
+          "rows_produced_per_join": 3,
           "filtered": 100,
+          "cost_info": {
+            "read_cost": "2.01",
+            "eval_cost": "0.60",
+            "prefix_cost": "2.61",
+            "data_read_per_join": "24"
+          } /* cost_info */,
+          "used_columns": [
+            "a"
+          ] /* used_columns */,
           "attached_condition": "(`test`.`t11`.`a` = 1)"
         } /* table */
       },
@@ -340,20 +448,43 @@ EXPLAIN
         "table": {
           "table_name": "t12",
           "access_type": "ALL",
-          "rows": 3,
+          "rows_examined_per_scan": 3,
+          "rows_produced_per_join": 9,
           "filtered": 100,
           "using_join_buffer": "Block Nested Loop",
+          "cost_info": {
+            "read_cost": "10.15",
+            "eval_cost": "1.80",
+            "prefix_cost": "14.56",
+            "data_read_per_join": "144"
+          } /* cost_info */,
+          "used_columns": [
+            "b"
+          ] /* used_columns */,
           "materialized_from_subquery": {
             "using_temporary_table": true,
             "dependent": false,
             "cacheable": true,
             "query_block": {
               "select_id": 2,
+              "cost_info": {
+                "query_cost": "2.60"
+              } /* cost_info */,
               "table": {
                 "table_name": "t2",
                 "access_type": "ALL",
-                "rows": 3,
-                "filtered": 100
+                "rows_examined_per_scan": 3,
+                "rows_produced_per_join": 3,
+                "filtered": 100,
+                "cost_info": {
+                  "read_cost": "2.01",
+                  "eval_cost": "0.60",
+                  "prefix_cost": "2.61",
+                  "data_read_per_join": "24"
+                } /* cost_info */,
+                "used_columns": [
+                  "b"
+                ] /* used_columns */
               } /* table */
             } /* query_block */
           } /* materialized_from_subquery */
@@ -378,13 +509,26 @@ EXPLAIN
 {
   "query_block": {
     "select_id": 1,
+    "cost_info": {
+      "query_cost": "14.55"
+    } /* cost_info */,
     "nested_loop": [
       {
         "table": {
           "table_name": "t11",
           "access_type": "ALL",
-          "rows": 3,
+          "rows_examined_per_scan": 3,
+          "rows_produced_per_join": 3,
           "filtered": 100,
+          "cost_info": {
+            "read_cost": "2.01",
+            "eval_cost": "0.60",
+            "prefix_cost": "2.61",
+            "data_read_per_join": "24"
+          } /* cost_info */,
+          "used_columns": [
+            "a"
+          ] /* used_columns */,
           "attached_condition": "(`test`.`t11`.`a` = 1)"
         } /* table */
       },
@@ -392,20 +536,43 @@ EXPLAIN
         "table": {
           "table_name": "t12",
           "access_type": "ALL",
-          "rows": 3,
+          "rows_examined_per_scan": 3,
+          "rows_produced_per_join": 9,
           "filtered": 100,
           "using_join_buffer": "Block Nested Loop",
+          "cost_info": {
+            "read_cost": "10.15",
+            "eval_cost": "1.80",
+            "prefix_cost": "14.56",
+            "data_read_per_join": "144"
+          } /* cost_info */,
+          "used_columns": [
+            "b"
+          ] /* used_columns */,
           "materialized_from_subquery": {
             "using_temporary_table": true,
             "dependent": false,
             "cacheable": true,
             "query_block": {
               "select_id": 2,
+              "cost_info": {
+                "query_cost": "2.60"
+              } /* cost_info */,
               "table": {
                 "table_name": "t2",
                 "access_type": "ALL",
-                "rows": 3,
-                "filtered": 100
+                "rows_examined_per_scan": 3,
+                "rows_produced_per_join": 3,
+                "filtered": 100,
+                "cost_info": {
+                  "read_cost": "2.01",
+                  "eval_cost": "0.60",
+                  "prefix_cost": "2.61",
+                  "data_read_per_join": "24"
+                } /* cost_info */,
+                "used_columns": [
+                  "b"
+                ] /* used_columns */
               } /* table */
             } /* query_block */
           } /* materialized_from_subquery */
@@ -438,16 +605,17 @@ INSERT INTO t2 VALUES (1), (2), (3);
 #
 EXPLAIN UPDATE        t1 SET a = 10 WHERE 1 IN (SELECT 1 FROM t2 WHERE t2.b < 3);
 id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
-1	PRIMARY	t1	ALL	NULL	NULL	NULL	NULL	3	Using where
-2	DEPENDENT SUBQUERY	t2	ALL	NULL	NULL	NULL	NULL	3	Using where
+1	UPDATE	t1	ALL	NULL	NULL	NULL	NULL	3	NULL
+2	SUBQUERY	t2	ALL	NULL	NULL	NULL	NULL	3	Using where
 FLUSH STATUS;
 FLUSH TABLES;
 EXPLAIN EXTENDED UPDATE        t1 SET a = 10 WHERE 1 IN (SELECT 1 FROM t2 WHERE t2.b < 3);
 id	select_type	table	type	possible_keys	key	key_len	ref	rows	filtered	Extra
-1	PRIMARY	t1	ALL	NULL	NULL	NULL	NULL	3	100.00	Using where
-2	DEPENDENT SUBQUERY	t2	ALL	NULL	NULL	NULL	NULL	3	100.00	Using where
+1	UPDATE	t1	ALL	NULL	NULL	NULL	NULL	3	100.00	NULL
+2	SUBQUERY	t2	ALL	NULL	NULL	NULL	NULL	3	100.00	Using where
 # Status of EXPLAIN EXTENDED query
 Variable_name	Value
+Handler_read_rnd_next	1
 EXPLAIN FORMAT=JSON UPDATE        t1 SET a = 10 WHERE 1 IN (SELECT 1 FROM t2 WHERE t2.b < 3);;
 EXPLAIN
 {
@@ -457,20 +625,32 @@ EXPLAIN
       "update": true,
       "table_name": "t1",
       "access_type": "ALL",
-      "rows": 3,
+      "rows_examined_per_scan": 3,
       "filtered": 100,
-      "attached_condition": "<in_optimizer>(1,<exists>(/* select#2 */ select 1 from `test`.`t2` where (`test`.`t2`.`b` < 3)))",
       "attached_subqueries": [
         {
-          "dependent": true,
-          "cacheable": false,
+          "dependent": false,
+          "cacheable": true,
           "query_block": {
             "select_id": 2,
+            "cost_info": {
+              "query_cost": "2.60"
+            } /* cost_info */,
             "table": {
               "table_name": "t2",
               "access_type": "ALL",
-              "rows": 3,
+              "rows_examined_per_scan": 3,
+              "rows_produced_per_join": 3,
               "filtered": 100,
+              "cost_info": {
+                "read_cost": "2.01",
+                "eval_cost": "0.60",
+                "prefix_cost": "2.61",
+                "data_read_per_join": "24"
+              } /* cost_info */,
+              "used_columns": [
+                "b"
+              ] /* used_columns */,
               "attached_condition": "(`test`.`t2`.`b` < 3)"
             } /* table */
           } /* query_block */
@@ -494,14 +674,27 @@ EXPLAIN
 {
   "query_block": {
     "select_id": 1,
+    "cost_info": {
+      "query_cost": "5.21"
+    } /* cost_info */,
     "nested_loop": [
       {
         "table": {
           "table_name": "t2",
           "access_type": "ALL",
-          "rows": 3,
+          "rows_examined_per_scan": 3,
+          "rows_produced_per_join": 1,
           "filtered": 100,
           "first_match": true,
+          "cost_info": {
+            "read_cost": "2.01",
+            "eval_cost": "0.20",
+            "prefix_cost": "2.61",
+            "data_read_per_join": "8"
+          } /* cost_info */,
+          "used_columns": [
+            "b"
+          ] /* used_columns */,
           "attached_condition": "(`test`.`t2`.`b` < 3)"
         } /* table */
       },
@@ -509,9 +702,19 @@ EXPLAIN
         "table": {
           "table_name": "t1",
           "access_type": "ALL",
-          "rows": 3,
+          "rows_examined_per_scan": 3,
+          "rows_produced_per_join": 3,
           "filtered": 100,
-          "using_join_buffer": "Block Nested Loop"
+          "using_join_buffer": "Block Nested Loop",
+          "cost_info": {
+            "read_cost": "2.01",
+            "eval_cost": "0.60",
+            "prefix_cost": "5.21",
+            "data_read_per_join": "24"
+          } /* cost_info */,
+          "used_columns": [
+            "a"
+          ] /* used_columns */
         } /* table */
       }
     ] /* nested_loop */
@@ -524,7 +727,7 @@ Variable_name	Value
 Handler_read_rnd_next	5
 # Status of testing query execution:
 Variable_name	Value
-Handler_read_rnd_next	7
+Handler_read_rnd_next	5
 Handler_update	3
 
 DROP TABLE t1, t2;
@@ -539,13 +742,13 @@ INSERT INTO t2 VALUES (1), (2), (3);
 #
 EXPLAIN UPDATE        t1 SET a = 10 WHERE a IN (SELECT b FROM t2 WHERE t1.a < 3);
 id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
-1	PRIMARY	t1	ALL	NULL	NULL	NULL	NULL	3	Using where
+1	UPDATE	t1	ALL	NULL	NULL	NULL	NULL	3	Using where
 2	DEPENDENT SUBQUERY	t2	ALL	NULL	NULL	NULL	NULL	3	Using where
 FLUSH STATUS;
 FLUSH TABLES;
 EXPLAIN EXTENDED UPDATE        t1 SET a = 10 WHERE a IN (SELECT b FROM t2 WHERE t1.a < 3);
 id	select_type	table	type	possible_keys	key	key_len	ref	rows	filtered	Extra
-1	PRIMARY	t1	ALL	NULL	NULL	NULL	NULL	3	100.00	Using where
+1	UPDATE	t1	ALL	NULL	NULL	NULL	NULL	3	100.00	Using where
 2	DEPENDENT SUBQUERY	t2	ALL	NULL	NULL	NULL	NULL	3	100.00	Using where
 Warnings:
 Note	1276	Field or reference 'test.t1.a' of SELECT #2 was resolved in SELECT #1
@@ -560,7 +763,7 @@ EXPLAIN
       "update": true,
       "table_name": "t1",
       "access_type": "ALL",
-      "rows": 3,
+      "rows_examined_per_scan": 3,
       "filtered": 100,
       "attached_condition": "<in_optimizer>(`test`.`t1`.`a`,<exists>(/* select#2 */ select 1 from `test`.`t2` where ((`test`.`t1`.`a` < 3) and (<cache>(`test`.`t1`.`a`) = `test`.`t2`.`b`))))",
       "attached_subqueries": [
@@ -569,11 +772,24 @@ EXPLAIN
           "cacheable": false,
           "query_block": {
             "select_id": 2,
+            "cost_info": {
+              "query_cost": "2.60"
+            } /* cost_info */,
             "table": {
               "table_name": "t2",
               "access_type": "ALL",
-              "rows": 3,
+              "rows_examined_per_scan": 3,
+              "rows_produced_per_join": 3,
               "filtered": 100,
+              "cost_info": {
+                "read_cost": "2.01",
+                "eval_cost": "0.60",
+                "prefix_cost": "2.61",
+                "data_read_per_join": "24"
+              } /* cost_info */,
+              "used_columns": [
+                "b"
+              ] /* used_columns */,
               "attached_condition": "((`test`.`t1`.`a` < 3) and (<cache>(`test`.`t1`.`a`) = `test`.`t2`.`b`))"
             } /* table */
           } /* query_block */
@@ -600,13 +816,26 @@ EXPLAIN
 {
   "query_block": {
     "select_id": 1,
+    "cost_info": {
+      "query_cost": "6.41"
+    } /* cost_info */,
     "nested_loop": [
       {
         "table": {
           "table_name": "t1",
           "access_type": "ALL",
-          "rows": 3,
+          "rows_examined_per_scan": 3,
+          "rows_produced_per_join": 3,
           "filtered": 100,
+          "cost_info": {
+            "read_cost": "2.01",
+            "eval_cost": "0.60",
+            "prefix_cost": "2.61",
+            "data_read_per_join": "24"
+          } /* cost_info */,
+          "used_columns": [
+            "a"
+          ] /* used_columns */,
           "attached_condition": "(`test`.`t1`.`a` < 3)"
         } /* table */
       },
@@ -614,10 +843,20 @@ EXPLAIN
         "table": {
           "table_name": "t2",
           "access_type": "ALL",
-          "rows": 3,
+          "rows_examined_per_scan": 3,
+          "rows_produced_per_join": 3,
           "filtered": 100,
           "first_match": "t1",
           "using_join_buffer": "Block Nested Loop",
+          "cost_info": {
+            "read_cost": "2.01",
+            "eval_cost": "0.60",
+            "prefix_cost": "6.41",
+            "data_read_per_join": "24"
+          } /* cost_info */,
+          "used_columns": [
+            "b"
+          ] /* used_columns */,
           "attached_condition": "(`test`.`t2`.`b` = `test`.`t1`.`a`)"
         } /* table */
       }
@@ -647,14 +886,14 @@ INSERT INTO t2 VALUES (1), (2), (3);
 #
 EXPLAIN UPDATE        t1, t2 SET a = 10 WHERE a IN (SELECT b FROM t2 WHERE t2.b < 3);
 id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
-1	SIMPLE	t1	ALL	NULL	NULL	NULL	NULL	3	Using where
+1	UPDATE	t1	ALL	NULL	NULL	NULL	NULL	3	Using where
 1	SIMPLE	t2	ALL	NULL	NULL	NULL	NULL	3	Using where; FirstMatch(t1); Using join buffer (Block Nested Loop)
 1	SIMPLE	t2	ALL	NULL	NULL	NULL	NULL	3	Using join buffer (Block Nested Loop)
 FLUSH STATUS;
 FLUSH TABLES;
 EXPLAIN EXTENDED UPDATE        t1, t2 SET a = 10 WHERE a IN (SELECT b FROM t2 WHERE t2.b < 3);
 id	select_type	table	type	possible_keys	key	key_len	ref	rows	filtered	Extra
-1	SIMPLE	t1	ALL	NULL	NULL	NULL	NULL	3	100.00	Using where
+1	UPDATE	t1	ALL	NULL	NULL	NULL	NULL	3	100.00	Using where
 1	SIMPLE	t2	ALL	NULL	NULL	NULL	NULL	3	100.00	Using where; FirstMatch(t1); Using join buffer (Block Nested Loop)
 1	SIMPLE	t2	ALL	NULL	NULL	NULL	NULL	3	100.00	Using join buffer (Block Nested Loop)
 # Status of EXPLAIN EXTENDED query
@@ -664,14 +903,27 @@ EXPLAIN
 {
   "query_block": {
     "select_id": 1,
+    "cost_info": {
+      "query_cost": "10.21"
+    } /* cost_info */,
     "nested_loop": [
       {
         "table": {
           "update": true,
           "table_name": "t1",
           "access_type": "ALL",
-          "rows": 3,
+          "rows_examined_per_scan": 3,
+          "rows_produced_per_join": 3,
           "filtered": 100,
+          "cost_info": {
+            "read_cost": "2.01",
+            "eval_cost": "0.60",
+            "prefix_cost": "2.61",
+            "data_read_per_join": "24"
+          } /* cost_info */,
+          "used_columns": [
+            "a"
+          ] /* used_columns */,
           "attached_condition": "(`test`.`t1`.`a` < 3)"
         } /* table */
       },
@@ -679,10 +931,20 @@ EXPLAIN
         "table": {
           "table_name": "t2",
           "access_type": "ALL",
-          "rows": 3,
+          "rows_examined_per_scan": 3,
+          "rows_produced_per_join": 3,
           "filtered": 100,
           "first_match": "t1",
           "using_join_buffer": "Block Nested Loop",
+          "cost_info": {
+            "read_cost": "2.01",
+            "eval_cost": "0.60",
+            "prefix_cost": "6.41",
+            "data_read_per_join": "24"
+          } /* cost_info */,
+          "used_columns": [
+            "b"
+          ] /* used_columns */,
           "attached_condition": "(`test`.`t2`.`b` = `test`.`t1`.`a`)"
         } /* table */
       },
@@ -690,9 +952,16 @@ EXPLAIN
         "table": {
           "table_name": "t2",
           "access_type": "ALL",
-          "rows": 3,
+          "rows_examined_per_scan": 3,
+          "rows_produced_per_join": 9,
           "filtered": 100,
-          "using_join_buffer": "Block Nested Loop"
+          "using_join_buffer": "Block Nested Loop",
+          "cost_info": {
+            "read_cost": "2.01",
+            "eval_cost": "1.80",
+            "prefix_cost": "10.22",
+            "data_read_per_join": "72"
+          } /* cost_info */
         } /* table */
       }
     ] /* nested_loop */
@@ -714,13 +983,26 @@ EXPLAIN
 {
   "query_block": {
     "select_id": 1,
+    "cost_info": {
+      "query_cost": "10.21"
+    } /* cost_info */,
     "nested_loop": [
       {
         "table": {
           "table_name": "t1",
           "access_type": "ALL",
-          "rows": 3,
+          "rows_examined_per_scan": 3,
+          "rows_produced_per_join": 3,
           "filtered": 100,
+          "cost_info": {
+            "read_cost": "2.01",
+            "eval_cost": "0.60",
+            "prefix_cost": "2.61",
+            "data_read_per_join": "24"
+          } /* cost_info */,
+          "used_columns": [
+            "a"
+          ] /* used_columns */,
           "attached_condition": "(`test`.`t1`.`a` < 3)"
         } /* table */
       },
@@ -728,10 +1010,20 @@ EXPLAIN
         "table": {
           "table_name": "t2",
           "access_type": "ALL",
-          "rows": 3,
+          "rows_examined_per_scan": 3,
+          "rows_produced_per_join": 3,
           "filtered": 100,
           "first_match": "t1",
           "using_join_buffer": "Block Nested Loop",
+          "cost_info": {
+            "read_cost": "2.01",
+            "eval_cost": "0.60",
+            "prefix_cost": "6.41",
+            "data_read_per_join": "24"
+          } /* cost_info */,
+          "used_columns": [
+            "b"
+          ] /* used_columns */,
           "attached_condition": "(`test`.`t2`.`b` = `test`.`t1`.`a`)"
         } /* table */
       },
@@ -739,9 +1031,19 @@ EXPLAIN
         "table": {
           "table_name": "t2",
           "access_type": "ALL",
-          "rows": 3,
+          "rows_examined_per_scan": 3,
+          "rows_produced_per_join": 9,
           "filtered": 100,
-          "using_join_buffer": "Block Nested Loop"
+          "using_join_buffer": "Block Nested Loop",
+          "cost_info": {
+            "read_cost": "2.01",
+            "eval_cost": "1.80",
+            "prefix_cost": "10.22",
+            "data_read_per_join": "72"
+          } /* cost_info */,
+          "used_columns": [
+            "b"
+          ] /* used_columns */
         } /* table */
       }
     ] /* nested_loop */
@@ -769,14 +1071,14 @@ INSERT INTO t2 VALUES (1), (2), (3);
 #
 EXPLAIN UPDATE        t1 t11, (SELECT * FROM t2) t12 SET t11.a = t11.a + 10;
 id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
-1	PRIMARY	t11	ALL	NULL	NULL	NULL	NULL	3	NULL
+1	UPDATE	t11	ALL	NULL	NULL	NULL	NULL	3	NULL
 1	PRIMARY	<derived2>	ALL	NULL	NULL	NULL	NULL	3	Using join buffer (Block Nested Loop)
 2	DERIVED	t2	ALL	NULL	NULL	NULL	NULL	3	NULL
 FLUSH STATUS;
 FLUSH TABLES;
 EXPLAIN EXTENDED UPDATE        t1 t11, (SELECT * FROM t2) t12 SET t11.a = t11.a + 10;
 id	select_type	table	type	possible_keys	key	key_len	ref	rows	filtered	Extra
-1	PRIMARY	t11	ALL	NULL	NULL	NULL	NULL	3	100.00	NULL
+1	UPDATE	t11	ALL	NULL	NULL	NULL	NULL	3	100.00	NULL
 1	PRIMARY	<derived2>	ALL	NULL	NULL	NULL	NULL	3	100.00	Using join buffer (Block Nested Loop)
 2	DERIVED	t2	ALL	NULL	NULL	NULL	NULL	3	100.00	NULL
 # Status of EXPLAIN EXTENDED query
@@ -786,34 +1088,70 @@ EXPLAIN
 {
   "query_block": {
     "select_id": 1,
+    "cost_info": {
+      "query_cost": "14.55"
+    } /* cost_info */,
     "nested_loop": [
       {
         "table": {
           "update": true,
           "table_name": "t11",
           "access_type": "ALL",
-          "rows": 3,
-          "filtered": 100
+          "rows_examined_per_scan": 3,
+          "rows_produced_per_join": 3,
+          "filtered": 100,
+          "cost_info": {
+            "read_cost": "2.01",
+            "eval_cost": "0.60",
+            "prefix_cost": "2.61",
+            "data_read_per_join": "24"
+          } /* cost_info */,
+          "used_columns": [
+            "a"
+          ] /* used_columns */
         } /* table */
       },
       {
         "table": {
           "table_name": "t12",
           "access_type": "ALL",
-          "rows": 3,
+          "rows_examined_per_scan": 3,
+          "rows_produced_per_join": 9,
           "filtered": 100,
           "using_join_buffer": "Block Nested Loop",
+          "cost_info": {
+            "read_cost": "10.15",
+            "eval_cost": "1.80",
+            "prefix_cost": "14.56",
+            "data_read_per_join": "144"
+          } /* cost_info */,
+          "used_columns": [
+            "b"
+          ] /* used_columns */,
           "materialized_from_subquery": {
             "using_temporary_table": true,
             "dependent": false,
             "cacheable": true,
             "query_block": {
               "select_id": 2,
+              "cost_info": {
+                "query_cost": "2.60"
+              } /* cost_info */,
               "table": {
                 "table_name": "t2",
                 "access_type": "ALL",
-                "rows": 3,
-                "filtered": 100
+                "rows_examined_per_scan": 3,
+                "rows_produced_per_join": 3,
+                "filtered": 100,
+                "cost_info": {
+                  "read_cost": "2.01",
+                  "eval_cost": "0.60",
+                  "prefix_cost": "2.61",
+                  "data_read_per_join": "24"
+                } /* cost_info */,
+                "used_columns": [
+                  "b"
+                ] /* used_columns */
               } /* table */
             } /* query_block */
           } /* materialized_from_subquery */
@@ -838,33 +1176,69 @@ EXPLAIN
 {
   "query_block": {
     "select_id": 1,
+    "cost_info": {
+      "query_cost": "14.55"
+    } /* cost_info */,
     "nested_loop": [
       {
         "table": {
           "table_name": "t11",
           "access_type": "ALL",
-          "rows": 3,
-          "filtered": 100
+          "rows_examined_per_scan": 3,
+          "rows_produced_per_join": 3,
+          "filtered": 100,
+          "cost_info": {
+            "read_cost": "2.01",
+            "eval_cost": "0.60",
+            "prefix_cost": "2.61",
+            "data_read_per_join": "24"
+          } /* cost_info */,
+          "used_columns": [
+            "a"
+          ] /* used_columns */
         } /* table */
       },
       {
         "table": {
           "table_name": "t12",
           "access_type": "ALL",
-          "rows": 3,
+          "rows_examined_per_scan": 3,
+          "rows_produced_per_join": 9,
           "filtered": 100,
           "using_join_buffer": "Block Nested Loop",
+          "cost_info": {
+            "read_cost": "10.15",
+            "eval_cost": "1.80",
+            "prefix_cost": "14.56",
+            "data_read_per_join": "144"
+          } /* cost_info */,
+          "used_columns": [
+            "b"
+          ] /* used_columns */,
           "materialized_from_subquery": {
             "using_temporary_table": true,
             "dependent": false,
             "cacheable": true,
             "query_block": {
               "select_id": 2,
+              "cost_info": {
+                "query_cost": "2.60"
+              } /* cost_info */,
               "table": {
                 "table_name": "t2",
                 "access_type": "ALL",
-                "rows": 3,
-                "filtered": 100
+                "rows_examined_per_scan": 3,
+                "rows_produced_per_join": 3,
+                "filtered": 100,
+                "cost_info": {
+                  "read_cost": "2.01",
+                  "eval_cost": "0.60",
+                  "prefix_cost": "2.61",
+                  "data_read_per_join": "24"
+                } /* cost_info */,
+                "used_columns": [
+                  "b"
+                ] /* used_columns */
               } /* table */
             } /* query_block */
           } /* materialized_from_subquery */
@@ -899,14 +1273,14 @@ INSERT INTO t2 VALUES (1), (2), (3);
 EXPLAIN UPDATE        t1 t11, (SELECT 1 FROM DUAL) t12 SET t11.a = t11.a + 10;
 id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
 1	PRIMARY	<derived2>	system	NULL	NULL	NULL	NULL	1	NULL
-1	PRIMARY	t11	ALL	NULL	NULL	NULL	NULL	3	NULL
+1	UPDATE	t11	ALL	NULL	NULL	NULL	NULL	3	NULL
 2	DERIVED	NULL	NULL	NULL	NULL	NULL	NULL	NULL	No tables used
 FLUSH STATUS;
 FLUSH TABLES;
 EXPLAIN EXTENDED UPDATE        t1 t11, (SELECT 1 FROM DUAL) t12 SET t11.a = t11.a + 10;
 id	select_type	table	type	possible_keys	key	key_len	ref	rows	filtered	Extra
 1	PRIMARY	<derived2>	system	NULL	NULL	NULL	NULL	1	100.00	NULL
-1	PRIMARY	t11	ALL	NULL	NULL	NULL	NULL	3	100.00	NULL
+1	UPDATE	t11	ALL	NULL	NULL	NULL	NULL	3	100.00	NULL
 2	DERIVED	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	No tables used
 # Status of EXPLAIN EXTENDED query
 Variable_name	Value
@@ -918,22 +1292,33 @@ EXPLAIN
 {
   "query_block": {
     "select_id": 1,
+    "cost_info": {
+      "query_cost": "2.60"
+    } /* cost_info */,
     "nested_loop": [
       {
         "table": {
           "table_name": "t12",
           "access_type": "system",
-          "rows": 1,
+          "rows_examined_per_scan": 1,
+          "rows_produced_per_join": 1,
           "filtered": 100,
+          "cost_info": {
+            "read_cost": "0.00",
+            "eval_cost": "0.20",
+            "prefix_cost": "0.00",
+            "data_read_per_join": "16"
+          } /* cost_info */,
+          "used_columns": [
+            "1"
+          ] /* used_columns */,
           "materialized_from_subquery": {
             "using_temporary_table": true,
             "dependent": false,
             "cacheable": true,
             "query_block": {
               "select_id": 2,
-              "table": {
-                "message": "No tables used"
-              } /* table */
+              "message": "No tables used"
             } /* query_block */
           } /* materialized_from_subquery */
         } /* table */
@@ -943,8 +1328,18 @@ EXPLAIN
           "update": true,
           "table_name": "t11",
           "access_type": "ALL",
-          "rows": 3,
-          "filtered": 100
+          "rows_examined_per_scan": 3,
+          "rows_produced_per_join": 3,
+          "filtered": 100,
+          "cost_info": {
+            "read_cost": "2.01",
+            "eval_cost": "0.60",
+            "prefix_cost": "2.61",
+            "data_read_per_join": "24"
+          } /* cost_info */,
+          "used_columns": [
+            "a"
+          ] /* used_columns */
         } /* table */
       }
     ] /* nested_loop */
@@ -969,22 +1364,33 @@ EXPLAIN
 {
   "query_block": {
     "select_id": 1,
+    "cost_info": {
+      "query_cost": "2.60"
+    } /* cost_info */,
     "nested_loop": [
       {
         "table": {
           "table_name": "t12",
           "access_type": "system",
-          "rows": 1,
+          "rows_examined_per_scan": 1,
+          "rows_produced_per_join": 1,
           "filtered": 100,
+          "cost_info": {
+            "read_cost": "0.00",
+            "eval_cost": "0.20",
+            "prefix_cost": "0.00",
+            "data_read_per_join": "16"
+          } /* cost_info */,
+          "used_columns": [
+            "1"
+          ] /* used_columns */,
           "materialized_from_subquery": {
             "using_temporary_table": true,
             "dependent": false,
             "cacheable": true,
             "query_block": {
               "select_id": 2,
-              "table": {
-                "message": "No tables used"
-              } /* table */
+              "message": "No tables used"
             } /* query_block */
           } /* materialized_from_subquery */
         } /* table */
@@ -993,8 +1399,18 @@ EXPLAIN
         "table": {
           "table_name": "t11",
           "access_type": "ALL",
-          "rows": 3,
-          "filtered": 100
+          "rows_examined_per_scan": 3,
+          "rows_produced_per_join": 3,
+          "filtered": 100,
+          "cost_info": {
+            "read_cost": "2.01",
+            "eval_cost": "0.60",
+            "prefix_cost": "2.61",
+            "data_read_per_join": "24"
+          } /* cost_info */,
+          "used_columns": [
+            "a"
+          ] /* used_columns */
         } /* table */
       }
     ] /* nested_loop */
@@ -1027,14 +1443,14 @@ INSERT INTO t2 VALUES (1), (2), (3);
 #
 EXPLAIN UPDATE        t1 t11, (SELECT * FROM t2) t12 SET t11.a = 10 WHERE t11.a > 1;
 id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
-1	PRIMARY	t11	ALL	NULL	NULL	NULL	NULL	3	Using where
+1	UPDATE	t11	ALL	NULL	NULL	NULL	NULL	3	Using where
 1	PRIMARY	<derived2>	ALL	NULL	NULL	NULL	NULL	3	Using join buffer (Block Nested Loop)
 2	DERIVED	t2	ALL	NULL	NULL	NULL	NULL	3	NULL
 FLUSH STATUS;
 FLUSH TABLES;
 EXPLAIN EXTENDED UPDATE        t1 t11, (SELECT * FROM t2) t12 SET t11.a = 10 WHERE t11.a > 1;
 id	select_type	table	type	possible_keys	key	key_len	ref	rows	filtered	Extra
-1	PRIMARY	t11	ALL	NULL	NULL	NULL	NULL	3	100.00	Using where
+1	UPDATE	t11	ALL	NULL	NULL	NULL	NULL	3	100.00	Using where
 1	PRIMARY	<derived2>	ALL	NULL	NULL	NULL	NULL	3	100.00	Using join buffer (Block Nested Loop)
 2	DERIVED	t2	ALL	NULL	NULL	NULL	NULL	3	100.00	NULL
 # Status of EXPLAIN EXTENDED query
@@ -1044,14 +1460,27 @@ EXPLAIN
 {
   "query_block": {
     "select_id": 1,
+    "cost_info": {
+      "query_cost": "14.55"
+    } /* cost_info */,
     "nested_loop": [
       {
         "table": {
           "update": true,
           "table_name": "t11",
           "access_type": "ALL",
-          "rows": 3,
+          "rows_examined_per_scan": 3,
+          "rows_produced_per_join": 3,
           "filtered": 100,
+          "cost_info": {
+            "read_cost": "2.01",
+            "eval_cost": "0.60",
+            "prefix_cost": "2.61",
+            "data_read_per_join": "24"
+          } /* cost_info */,
+          "used_columns": [
+            "a"
+          ] /* used_columns */,
           "attached_condition": "(`test`.`t11`.`a` > 1)"
         } /* table */
       },
@@ -1059,20 +1488,43 @@ EXPLAIN
         "table": {
           "table_name": "t12",
           "access_type": "ALL",
-          "rows": 3,
+          "rows_examined_per_scan": 3,
+          "rows_produced_per_join": 9,
           "filtered": 100,
           "using_join_buffer": "Block Nested Loop",
+          "cost_info": {
+            "read_cost": "10.15",
+            "eval_cost": "1.80",
+            "prefix_cost": "14.56",
+            "data_read_per_join": "144"
+          } /* cost_info */,
+          "used_columns": [
+            "b"
+          ] /* used_columns */,
           "materialized_from_subquery": {
             "using_temporary_table": true,
             "dependent": false,
             "cacheable": true,
             "query_block": {
               "select_id": 2,
+              "cost_info": {
+                "query_cost": "2.60"
+              } /* cost_info */,
               "table": {
                 "table_name": "t2",
                 "access_type": "ALL",
-                "rows": 3,
-                "filtered": 100
+                "rows_examined_per_scan": 3,
+                "rows_produced_per_join": 3,
+                "filtered": 100,
+                "cost_info": {
+                  "read_cost": "2.01",
+                  "eval_cost": "0.60",
+                  "prefix_cost": "2.61",
+                  "data_read_per_join": "24"
+                } /* cost_info */,
+                "used_columns": [
+                  "b"
+                ] /* used_columns */
               } /* table */
             } /* query_block */
           } /* materialized_from_subquery */
@@ -1097,13 +1549,26 @@ EXPLAIN
 {
   "query_block": {
     "select_id": 1,
+    "cost_info": {
+      "query_cost": "14.55"
+    } /* cost_info */,
     "nested_loop": [
       {
         "table": {
           "table_name": "t11",
           "access_type": "ALL",
-          "rows": 3,
+          "rows_examined_per_scan": 3,
+          "rows_produced_per_join": 3,
           "filtered": 100,
+          "cost_info": {
+            "read_cost": "2.01",
+            "eval_cost": "0.60",
+            "prefix_cost": "2.61",
+            "data_read_per_join": "24"
+          } /* cost_info */,
+          "used_columns": [
+            "a"
+          ] /* used_columns */,
           "attached_condition": "(`test`.`t11`.`a` > 1)"
         } /* table */
       },
@@ -1111,20 +1576,43 @@ EXPLAIN
         "table": {
           "table_name": "t12",
           "access_type": "ALL",
-          "rows": 3,
+          "rows_examined_per_scan": 3,
+          "rows_produced_per_join": 9,
           "filtered": 100,
           "using_join_buffer": "Block Nested Loop",
+          "cost_info": {
+            "read_cost": "10.15",
+            "eval_cost": "1.80",
+            "prefix_cost": "14.56",
+            "data_read_per_join": "144"
+          } /* cost_info */,
+          "used_columns": [
+            "b"
+          ] /* used_columns */,
           "materialized_from_subquery": {
             "using_temporary_table": true,
             "dependent": false,
             "cacheable": true,
             "query_block": {
               "select_id": 2,
+              "cost_info": {
+                "query_cost": "2.60"
+              } /* cost_info */,
               "table": {
                 "table_name": "t2",
                 "access_type": "ALL",
-                "rows": 3,
-                "filtered": 100
+                "rows_examined_per_scan": 3,
+                "rows_produced_per_join": 3,
+                "filtered": 100,
+                "cost_info": {
+                  "read_cost": "2.01",
+                  "eval_cost": "0.60",
+                  "prefix_cost": "2.61",
+                  "data_read_per_join": "24"
+                } /* cost_info */,
+                "used_columns": [
+                  "b"
+                ] /* used_columns */
               } /* table */
             } /* query_block */
           } /* materialized_from_subquery */
@@ -1155,12 +1643,12 @@ INSERT INTO t1 VALUES (1), (2), (3);
 #
 EXPLAIN DELETE   FROM t1 WHERE a > 1 LIMIT 1;
 id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
-1	SIMPLE	t1	ALL	NULL	NULL	NULL	NULL	3	Using where
+1	DELETE	t1	ALL	NULL	NULL	NULL	NULL	3	Using where
 FLUSH STATUS;
 FLUSH TABLES;
 EXPLAIN EXTENDED DELETE   FROM t1 WHERE a > 1 LIMIT 1;
 id	select_type	table	type	possible_keys	key	key_len	ref	rows	filtered	Extra
-1	SIMPLE	t1	ALL	NULL	NULL	NULL	NULL	3	100.00	Using where
+1	DELETE	t1	ALL	NULL	NULL	NULL	NULL	3	100.00	Using where
 # Status of EXPLAIN EXTENDED query
 Variable_name	Value
 EXPLAIN FORMAT=JSON DELETE   FROM t1 WHERE a > 1 LIMIT 1;;
@@ -1172,7 +1660,7 @@ EXPLAIN
       "delete": true,
       "table_name": "t1",
       "access_type": "ALL",
-      "rows": 3,
+      "rows_examined_per_scan": 3,
       "filtered": 100,
       "attached_condition": "(`test`.`t1`.`a` > 1)"
     } /* table */
@@ -1192,11 +1680,24 @@ EXPLAIN
 {
   "query_block": {
     "select_id": 1,
+    "cost_info": {
+      "query_cost": "2.60"
+    } /* cost_info */,
     "table": {
       "table_name": "t1",
       "access_type": "ALL",
-      "rows": 3,
+      "rows_examined_per_scan": 3,
+      "rows_produced_per_join": 3,
       "filtered": 100,
+      "cost_info": {
+        "read_cost": "2.01",
+        "eval_cost": "0.60",
+        "prefix_cost": "2.61",
+        "data_read_per_join": "24"
+      } /* cost_info */,
+      "used_columns": [
+        "a"
+      ] /* used_columns */,
       "attached_condition": "(`test`.`t1`.`a` > 1)"
     } /* table */
   } /* query_block */
@@ -1221,12 +1722,12 @@ INSERT INTO t1 VALUES (1), (2), (3);
 #
 EXPLAIN DELETE   FROM t1 WHERE 0;
 id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
-1	SIMPLE	NULL	NULL	NULL	NULL	NULL	NULL	NULL	Impossible WHERE
+1	DELETE	NULL	NULL	NULL	NULL	NULL	NULL	NULL	Impossible WHERE
 FLUSH STATUS;
 FLUSH TABLES;
 EXPLAIN EXTENDED DELETE   FROM t1 WHERE 0;
 id	select_type	table	type	possible_keys	key	key_len	ref	rows	filtered	Extra
-1	SIMPLE	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	Impossible WHERE
+1	DELETE	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	Impossible WHERE
 # Status of EXPLAIN EXTENDED query
 Variable_name	Value
 EXPLAIN FORMAT=JSON DELETE   FROM t1 WHERE 0;;
@@ -1234,9 +1735,7 @@ EXPLAIN
 {
   "query_block": {
     "select_id": 1,
-    "table": {
-      "message": "Impossible WHERE"
-    } /* table */
+    "message": "Impossible WHERE"
   } /* query_block */
 }
 FLUSH STATUS;
@@ -1253,9 +1752,7 @@ EXPLAIN
 {
   "query_block": {
     "select_id": 1,
-    "table": {
-      "message": "Impossible WHERE"
-    } /* table */
+    "message": "Impossible WHERE"
   } /* query_block */
 }
 Warnings:
@@ -1275,12 +1772,12 @@ INSERT INTO t1 VALUES (1), (2), (3);
 #
 EXPLAIN DELETE   FROM t1 USING t1 WHERE 0;
 id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
-1	SIMPLE	NULL	NULL	NULL	NULL	NULL	NULL	NULL	Impossible WHERE
+1	DELETE	NULL	NULL	NULL	NULL	NULL	NULL	NULL	Impossible WHERE
 FLUSH STATUS;
 FLUSH TABLES;
 EXPLAIN EXTENDED DELETE   FROM t1 USING t1 WHERE 0;
 id	select_type	table	type	possible_keys	key	key_len	ref	rows	filtered	Extra
-1	SIMPLE	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	Impossible WHERE
+1	DELETE	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	Impossible WHERE
 # Status of EXPLAIN EXTENDED query
 Variable_name	Value
 EXPLAIN FORMAT=JSON DELETE   FROM t1 USING t1 WHERE 0;;
@@ -1288,9 +1785,7 @@ EXPLAIN
 {
   "query_block": {
     "select_id": 1,
-    "table": {
-      "message": "Impossible WHERE"
-    } /* table */
+    "message": "Impossible WHERE"
   } /* query_block */
 }
 FLUSH STATUS;
@@ -1307,9 +1802,7 @@ EXPLAIN
 {
   "query_block": {
     "select_id": 1,
-    "table": {
-      "message": "Impossible WHERE"
-    } /* table */
+    "message": "Impossible WHERE"
   } /* query_block */
 }
 Warnings:
@@ -1329,12 +1822,12 @@ INSERT INTO t1 VALUES (3, 3), (7, 7);
 #
 EXPLAIN DELETE   FROM t1 WHERE a = 3;
 id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
-1	SIMPLE	t1	range	a	a	5	const	1	Using where
+1	DELETE	t1	range	a	a	5	const	1	Using where
 FLUSH STATUS;
 FLUSH TABLES;
 EXPLAIN EXTENDED DELETE   FROM t1 WHERE a = 3;
 id	select_type	table	type	possible_keys	key	key_len	ref	rows	filtered	Extra
-1	SIMPLE	t1	range	a	a	5	const	1	100.00	Using where
+1	DELETE	t1	range	a	a	5	const	1	100.00	Using where
 # Status of EXPLAIN EXTENDED query
 Variable_name	Value
 EXPLAIN FORMAT=JSON DELETE   FROM t1 WHERE a = 3;;
@@ -1357,7 +1850,7 @@ EXPLAIN
       "ref": [
         "const"
       ] /* ref */,
-      "rows": 1,
+      "rows_examined_per_scan": 1,
       "filtered": 100,
       "attached_condition": "(`test`.`t1`.`a` = 3)"
     } /* table */
@@ -1378,6 +1871,9 @@ EXPLAIN
 {
   "query_block": {
     "select_id": 1,
+    "cost_info": {
+      "query_cost": "1.00"
+    } /* cost_info */,
     "table": {
       "table_name": "t1",
       "access_type": "const",
@@ -1392,8 +1888,19 @@ EXPLAIN
       "ref": [
         "const"
       ] /* ref */,
-      "rows": 1,
-      "filtered": 100
+      "rows_examined_per_scan": 1,
+      "rows_produced_per_join": 1,
+      "filtered": 100,
+      "cost_info": {
+        "read_cost": "0.00",
+        "eval_cost": "0.20",
+        "prefix_cost": "0.00",
+        "data_read_per_join": "16"
+      } /* cost_info */,
+      "used_columns": [
+        "a",
+        "b"
+      ] /* used_columns */
     } /* table */
   } /* query_block */
 }
@@ -1417,12 +1924,12 @@ INSERT INTO t1 VALUES (3, 3), (7, 7);
 #
 EXPLAIN DELETE   FROM t1 WHERE a < 3;
 id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
-1	SIMPLE	t1	range	a	a	5	const	1	Using where
+1	DELETE	t1	range	a	a	5	const	1	Using where
 FLUSH STATUS;
 FLUSH TABLES;
 EXPLAIN EXTENDED DELETE   FROM t1 WHERE a < 3;
 id	select_type	table	type	possible_keys	key	key_len	ref	rows	filtered	Extra
-1	SIMPLE	t1	range	a	a	5	const	1	100.00	Using where
+1	DELETE	t1	range	a	a	5	const	1	100.00	Using where
 # Status of EXPLAIN EXTENDED query
 Variable_name	Value
 EXPLAIN FORMAT=JSON DELETE   FROM t1 WHERE a < 3;;
@@ -1445,7 +1952,7 @@ EXPLAIN
       "ref": [
         "const"
       ] /* ref */,
-      "rows": 1,
+      "rows_examined_per_scan": 1,
       "filtered": 100,
       "attached_condition": "(`test`.`t1`.`a` < 3)"
     } /* table */
@@ -1465,6 +1972,9 @@ EXPLAIN
 {
   "query_block": {
     "select_id": 1,
+    "cost_info": {
+      "query_cost": "2.30"
+    } /* cost_info */,
     "table": {
       "table_name": "t1",
       "access_type": "range",
@@ -1476,10 +1986,21 @@ EXPLAIN
         "a"
       ] /* used_key_parts */,
       "key_length": "5",
-      "rows": 1,
+      "rows_examined_per_scan": 1,
+      "rows_produced_per_join": 1,
       "filtered": 100,
       "index_condition": "(`test`.`t1`.`a` < 3)",
-      "using_MRR": true
+      "using_MRR": true,
+      "cost_info": {
+        "read_cost": "2.10",
+        "eval_cost": "0.20",
+        "prefix_cost": "2.30",
+        "data_read_per_join": "16"
+      } /* cost_info */,
+      "used_columns": [
+        "a",
+        "b"
+      ] /* used_columns */
     } /* table */
   } /* query_block */
 }
@@ -1501,12 +2022,12 @@ CREATE TABLE t1 ( a int PRIMARY KEY );
 #
 EXPLAIN DELETE   FROM t1 WHERE t1.a > 0 ORDER BY t1.a;
 id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
-1	SIMPLE	t1	range	PRIMARY	PRIMARY	4	const	1	Using where
+1	DELETE	t1	range	PRIMARY	PRIMARY	4	const	1	Using where
 FLUSH STATUS;
 FLUSH TABLES;
 EXPLAIN EXTENDED DELETE   FROM t1 WHERE t1.a > 0 ORDER BY t1.a;
 id	select_type	table	type	possible_keys	key	key_len	ref	rows	filtered	Extra
-1	SIMPLE	t1	range	PRIMARY	PRIMARY	4	const	1	100.00	Using where
+1	DELETE	t1	range	PRIMARY	PRIMARY	4	const	1	100.00	Using where
 # Status of EXPLAIN EXTENDED query
 Variable_name	Value
 EXPLAIN FORMAT=JSON DELETE   FROM t1 WHERE t1.a > 0 ORDER BY t1.a;;
@@ -1531,7 +2052,7 @@ EXPLAIN
         "ref": [
           "const"
         ] /* ref */,
-        "rows": 1,
+        "rows_examined_per_scan": 1,
         "filtered": 100,
         "attached_condition": "(`test`.`t1`.`a` > 0)"
       } /* table */
@@ -1542,9 +2063,9 @@ FLUSH STATUS;
 FLUSH TABLES;
 EXPLAIN EXTENDED SELECT * FROM t1 WHERE t1.a > 0 ORDER BY t1.a;
 id	select_type	table	type	possible_keys	key	key_len	ref	rows	filtered	Extra
-1	SIMPLE	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	Impossible WHERE noticed after reading const tables
+1	SIMPLE	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	no matching row in const table
 Warnings:
-Note	1003	/* select#1 */ select NULL AS `a` from `test`.`t1` where 0 order by NULL
+Note	1003	/* select#1 */ select NULL AS `a` from `test`.`t1` where (NULL > 0) order by NULL
 # Status of EXPLAIN EXTENDED "equivalent" SELECT query execution
 Variable_name	Value
 Handler_read_first	1
@@ -1554,13 +2075,11 @@ EXPLAIN
 {
   "query_block": {
     "select_id": 1,
-    "table": {
-      "message": "Impossible WHERE noticed after reading const tables"
-    } /* table */
+    "message": "no matching row in const table"
   } /* query_block */
 }
 Warnings:
-Note	1003	/* select#1 */ select NULL AS `a` from `test`.`t1` where 0 order by NULL
+Note	1003	/* select#1 */ select NULL AS `a` from `test`.`t1` where (NULL > 0) order by NULL
 # Status of "equivalent" SELECT query execution:
 Variable_name	Value
 Handler_read_first	1
@@ -1576,12 +2095,12 @@ INSERT INTO t1 VALUES (1), (2), (3);
 #
 EXPLAIN DELETE   FROM t1 WHERE t1.a > 0 ORDER BY t1.a;
 id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
-1	SIMPLE	t1	range	PRIMARY	PRIMARY	4	const	3	Using where
+1	DELETE	t1	range	PRIMARY	PRIMARY	4	const	3	Using where
 FLUSH STATUS;
 FLUSH TABLES;
 EXPLAIN EXTENDED DELETE   FROM t1 WHERE t1.a > 0 ORDER BY t1.a;
 id	select_type	table	type	possible_keys	key	key_len	ref	rows	filtered	Extra
-1	SIMPLE	t1	range	PRIMARY	PRIMARY	4	const	3	100.00	Using where
+1	DELETE	t1	range	PRIMARY	PRIMARY	4	const	3	100.00	Using where
 # Status of EXPLAIN EXTENDED query
 Variable_name	Value
 EXPLAIN FORMAT=JSON DELETE   FROM t1 WHERE t1.a > 0 ORDER BY t1.a;;
@@ -1606,7 +2125,7 @@ EXPLAIN
         "ref": [
           "const"
         ] /* ref */,
-        "rows": 3,
+        "rows_examined_per_scan": 3,
         "filtered": 100,
         "attached_condition": "(`test`.`t1`.`a` > 0)"
       } /* table */
@@ -1627,6 +2146,9 @@ EXPLAIN
 {
   "query_block": {
     "select_id": 1,
+    "cost_info": {
+      "query_cost": "2.60"
+    } /* cost_info */,
     "ordering_operation": {
       "using_filesort": false,
       "table": {
@@ -1640,9 +2162,19 @@ EXPLAIN
           "a"
         ] /* used_key_parts */,
         "key_length": "4",
-        "rows": 3,
+        "rows_examined_per_scan": 3,
+        "rows_produced_per_join": 3,
         "filtered": 100,
         "using_index": true,
+        "cost_info": {
+          "read_cost": "2.01",
+          "eval_cost": "0.60",
+          "prefix_cost": "2.61",
+          "data_read_per_join": "24"
+        } /* cost_info */,
+        "used_columns": [
+          "a"
+        ] /* used_columns */,
         "attached_condition": "(`test`.`t1`.`a` > 0)"
       } /* table */
     } /* ordering_operation */
@@ -1670,12 +2202,12 @@ INSERT INTO t1 VALUES (4),(3),(1),(2);
 #
 EXPLAIN DELETE   FROM t1 WHERE (@a:= a) ORDER BY a LIMIT 1;
 id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
-1	SIMPLE	t1	index	NULL	PRIMARY	4	NULL	4	Using where
+1	DELETE	t1	index	NULL	PRIMARY	4	NULL	4	Using where
 FLUSH STATUS;
 FLUSH TABLES;
 EXPLAIN EXTENDED DELETE   FROM t1 WHERE (@a:= a) ORDER BY a LIMIT 1;
 id	select_type	table	type	possible_keys	key	key_len	ref	rows	filtered	Extra
-1	SIMPLE	t1	index	NULL	PRIMARY	4	NULL	4	100.00	Using where
+1	DELETE	t1	index	NULL	PRIMARY	4	NULL	4	100.00	Using where
 # Status of EXPLAIN EXTENDED query
 Variable_name	Value
 EXPLAIN FORMAT=JSON DELETE   FROM t1 WHERE (@a:= a) ORDER BY a LIMIT 1;;
@@ -1694,7 +2226,7 @@ EXPLAIN
           "a"
         ] /* used_key_parts */,
         "key_length": "4",
-        "rows": 4,
+        "rows_examined_per_scan": 4,
         "filtered": 100,
         "attached_condition": "(@a:=`test`.`t1`.`a`)"
       } /* table */
@@ -1715,6 +2247,9 @@ EXPLAIN
 {
   "query_block": {
     "select_id": 1,
+    "cost_info": {
+      "query_cost": "2.81"
+    } /* cost_info */,
     "ordering_operation": {
       "using_filesort": false,
       "table": {
@@ -1725,9 +2260,19 @@ EXPLAIN
           "a"
         ] /* used_key_parts */,
         "key_length": "4",
-        "rows": 1,
+        "rows_examined_per_scan": 1,
+        "rows_produced_per_join": 4,
         "filtered": 400,
         "using_index": true,
+        "cost_info": {
+          "read_cost": "2.01",
+          "eval_cost": "0.80",
+          "prefix_cost": "2.81",
+          "data_read_per_join": "32"
+        } /* cost_info */,
+        "used_columns": [
+          "a"
+        ] /* used_columns */,
         "attached_condition": "(@a:=`test`.`t1`.`a`)"
       } /* table */
     } /* ordering_operation */
@@ -1754,12 +2299,12 @@ UPDATE t1 SET a = c, b = c;
 #
 EXPLAIN DELETE   FROM t1 ORDER BY a ASC, b ASC LIMIT 1;
 id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
-1	SIMPLE	t1	ALL	NULL	NULL	NULL	NULL	10	Using filesort
+1	DELETE	t1	ALL	NULL	NULL	NULL	NULL	10	Using filesort
 FLUSH STATUS;
 FLUSH TABLES;
 EXPLAIN EXTENDED DELETE   FROM t1 ORDER BY a ASC, b ASC LIMIT 1;
 id	select_type	table	type	possible_keys	key	key_len	ref	rows	filtered	Extra
-1	SIMPLE	t1	ALL	NULL	NULL	NULL	NULL	10	100.00	Using filesort
+1	DELETE	t1	ALL	NULL	NULL	NULL	NULL	10	100.00	Using filesort
 # Status of EXPLAIN EXTENDED query
 Variable_name	Value
 EXPLAIN FORMAT=JSON DELETE   FROM t1 ORDER BY a ASC, b ASC LIMIT 1;;
@@ -1773,7 +2318,7 @@ EXPLAIN
         "delete": true,
         "table_name": "t1",
         "access_type": "ALL",
-        "rows": 10,
+        "rows_examined_per_scan": 10,
         "filtered": 100
       } /* table */
     } /* ordering_operation */
@@ -1793,13 +2338,28 @@ EXPLAIN
 {
   "query_block": {
     "select_id": 1,
+    "cost_info": {
+      "query_cost": "4.03"
+    } /* cost_info */,
     "ordering_operation": {
       "using_filesort": true,
       "table": {
         "table_name": "t1",
         "access_type": "ALL",
-        "rows": 10,
-        "filtered": 100
+        "rows_examined_per_scan": 10,
+        "rows_produced_per_join": 10,
+        "filtered": 100,
+        "cost_info": {
+          "read_cost": "2.03",
+          "eval_cost": "2.00",
+          "prefix_cost": "4.03",
+          "data_read_per_join": "160"
+        } /* cost_info */,
+        "used_columns": [
+          "a",
+          "b",
+          "c"
+        ] /* used_columns */
       } /* table */
     } /* ordering_operation */
   } /* query_block */
@@ -1833,16 +2393,16 @@ INSERT INTO t3 VALUES (1,1), (2,1), (1,3);
 #
 EXPLAIN DELETE t1,t2,t3 FROM t1,t2,t3 WHERE a1=a2 AND b2=a3 AND b1=b3;
 id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
-1	SIMPLE	t1	ALL	NULL	NULL	NULL	NULL	3	NULL
-1	SIMPLE	t2	ref	PRIMARY	PRIMARY	4	test.t1.a1	1	NULL
-1	SIMPLE	t3	eq_ref	PRIMARY	PRIMARY	8	test.t2.b2,test.t1.b1	1	NULL
+1	DELETE	t1	ALL	NULL	NULL	NULL	NULL	3	NULL
+1	DELETE	t2	ref	PRIMARY	PRIMARY	4	test.t1.a1	1	NULL
+1	DELETE	t3	eq_ref	PRIMARY	PRIMARY	8	test.t2.b2,test.t1.b1	1	NULL
 FLUSH STATUS;
 FLUSH TABLES;
 EXPLAIN EXTENDED DELETE t1,t2,t3 FROM t1,t2,t3 WHERE a1=a2 AND b2=a3 AND b1=b3;
 id	select_type	table	type	possible_keys	key	key_len	ref	rows	filtered	Extra
-1	SIMPLE	t1	ALL	NULL	NULL	NULL	NULL	3	100.00	NULL
-1	SIMPLE	t2	ref	PRIMARY	PRIMARY	4	test.t1.a1	1	100.00	NULL
-1	SIMPLE	t3	eq_ref	PRIMARY	PRIMARY	8	test.t2.b2,test.t1.b1	1	100.00	NULL
+1	DELETE	t1	ALL	NULL	NULL	NULL	NULL	3	100.00	NULL
+1	DELETE	t2	ref	PRIMARY	PRIMARY	4	test.t1.a1	1	100.00	NULL
+1	DELETE	t3	eq_ref	PRIMARY	PRIMARY	8	test.t2.b2,test.t1.b1	1	100.00	NULL
 # Status of EXPLAIN EXTENDED query
 Variable_name	Value
 EXPLAIN FORMAT=JSON DELETE t1,t2,t3 FROM t1,t2,t3 WHERE a1=a2 AND b2=a3 AND b1=b3;;
@@ -1850,14 +2410,28 @@ EXPLAIN
 {
   "query_block": {
     "select_id": 1,
+    "cost_info": {
+      "query_cost": "9.81"
+    } /* cost_info */,
     "nested_loop": [
       {
         "table": {
           "delete": true,
           "table_name": "t1",
           "access_type": "ALL",
-          "rows": 3,
-          "filtered": 100
+          "rows_examined_per_scan": 3,
+          "rows_produced_per_join": 3,
+          "filtered": 100,
+          "cost_info": {
+            "read_cost": "2.01",
+            "eval_cost": "0.60",
+            "prefix_cost": "2.61",
+            "data_read_per_join": "48"
+          } /* cost_info */,
+          "used_columns": [
+            "a1",
+            "b1"
+          ] /* used_columns */
         } /* table */
       },
       {
@@ -1876,8 +2450,19 @@ EXPLAIN
           "ref": [
             "test.t1.a1"
           ] /* ref */,
-          "rows": 1,
-          "filtered": 100
+          "rows_examined_per_scan": 1,
+          "rows_produced_per_join": 3,
+          "filtered": 100,
+          "cost_info": {
+            "read_cost": "3.00",
+            "eval_cost": "0.60",
+            "prefix_cost": "6.21",
+            "data_read_per_join": "48"
+          } /* cost_info */,
+          "used_columns": [
+            "a2",
+            "b2"
+          ] /* used_columns */
         } /* table */
       },
       {
@@ -1898,8 +2483,19 @@ EXPLAIN
             "test.t2.b2",
             "test.t1.b1"
           ] /* ref */,
-          "rows": 1,
-          "filtered": 100
+          "rows_examined_per_scan": 1,
+          "rows_produced_per_join": 3,
+          "filtered": 100,
+          "cost_info": {
+            "read_cost": "3.00",
+            "eval_cost": "0.60",
+            "prefix_cost": "9.81",
+            "data_read_per_join": "48"
+          } /* cost_info */,
+          "used_columns": [
+            "a3",
+            "b3"
+          ] /* used_columns */
         } /* table */
       }
     ] /* nested_loop */
@@ -1921,13 +2517,27 @@ EXPLAIN
 {
   "query_block": {
     "select_id": 1,
+    "cost_info": {
+      "query_cost": "9.81"
+    } /* cost_info */,
     "nested_loop": [
       {
         "table": {
           "table_name": "t1",
           "access_type": "ALL",
-          "rows": 3,
-          "filtered": 100
+          "rows_examined_per_scan": 3,
+          "rows_produced_per_join": 3,
+          "filtered": 100,
+          "cost_info": {
+            "read_cost": "2.01",
+            "eval_cost": "0.60",
+            "prefix_cost": "2.61",
+            "data_read_per_join": "48"
+          } /* cost_info */,
+          "used_columns": [
+            "a1",
+            "b1"
+          ] /* used_columns */
         } /* table */
       },
       {
@@ -1945,9 +2555,20 @@ EXPLAIN
           "ref": [
             "test.t1.a1"
           ] /* ref */,
-          "rows": 1,
+          "rows_examined_per_scan": 1,
+          "rows_produced_per_join": 3,
           "filtered": 100,
-          "using_index": true
+          "using_index": true,
+          "cost_info": {
+            "read_cost": "3.00",
+            "eval_cost": "0.60",
+            "prefix_cost": "6.21",
+            "data_read_per_join": "48"
+          } /* cost_info */,
+          "used_columns": [
+            "a2",
+            "b2"
+          ] /* used_columns */
         } /* table */
       },
       {
@@ -1967,9 +2588,20 @@ EXPLAIN
             "test.t2.b2",
             "test.t1.b1"
           ] /* ref */,
-          "rows": 1,
+          "rows_examined_per_scan": 1,
+          "rows_produced_per_join": 3,
           "filtered": 100,
-          "using_index": true
+          "using_index": true,
+          "cost_info": {
+            "read_cost": "3.00",
+            "eval_cost": "0.60",
+            "prefix_cost": "9.81",
+            "data_read_per_join": "48"
+          } /* cost_info */,
+          "used_columns": [
+            "a3",
+            "b3"
+          ] /* used_columns */
         } /* table */
       }
     ] /* nested_loop */
@@ -2002,13 +2634,13 @@ INSERT INTO t2 VALUES (1), (2), (3);
 #
 EXPLAIN UPDATE t1 SET a = 10 WHERE a IN (SELECT a FROM t2);
 id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
-1	PRIMARY	t1	ALL	NULL	NULL	NULL	NULL	3	Using where
+1	UPDATE	t1	ALL	NULL	NULL	NULL	NULL	3	Using where
 2	DEPENDENT SUBQUERY	t2	ALL	NULL	NULL	NULL	NULL	3	Using where
 FLUSH STATUS;
 FLUSH TABLES;
 EXPLAIN EXTENDED UPDATE t1 SET a = 10 WHERE a IN (SELECT a FROM t2);
 id	select_type	table	type	possible_keys	key	key_len	ref	rows	filtered	Extra
-1	PRIMARY	t1	ALL	NULL	NULL	NULL	NULL	3	100.00	Using where
+1	UPDATE	t1	ALL	NULL	NULL	NULL	NULL	3	100.00	Using where
 2	DEPENDENT SUBQUERY	t2	ALL	NULL	NULL	NULL	NULL	3	100.00	Using where
 # Status of EXPLAIN EXTENDED query
 Variable_name	Value
@@ -2021,7 +2653,7 @@ EXPLAIN
       "update": true,
       "table_name": "t1",
       "access_type": "ALL",
-      "rows": 3,
+      "rows_examined_per_scan": 3,
       "filtered": 100,
       "attached_condition": "<in_optimizer>(`test`.`t1`.`a`,<exists>(/* select#2 */ select 1 from `test`.`t2` where (<cache>(`test`.`t1`.`a`) = `test`.`t2`.`a`)))",
       "attached_subqueries": [
@@ -2030,11 +2662,24 @@ EXPLAIN
           "cacheable": false,
           "query_block": {
             "select_id": 2,
+            "cost_info": {
+              "query_cost": "2.60"
+            } /* cost_info */,
             "table": {
               "table_name": "t2",
               "access_type": "ALL",
-              "rows": 3,
+              "rows_examined_per_scan": 3,
+              "rows_produced_per_join": 3,
               "filtered": 100,
+              "cost_info": {
+                "read_cost": "2.01",
+                "eval_cost": "0.60",
+                "prefix_cost": "2.61",
+                "data_read_per_join": "24"
+              } /* cost_info */,
+              "used_columns": [
+                "a"
+              ] /* used_columns */,
               "attached_condition": "(<cache>(`test`.`t1`.`a`) = `test`.`t2`.`a`)"
             } /* table */
           } /* query_block */
@@ -2058,23 +2703,46 @@ EXPLAIN
 {
   "query_block": {
     "select_id": 1,
+    "cost_info": {
+      "query_cost": "6.41"
+    } /* cost_info */,
     "nested_loop": [
       {
         "table": {
           "table_name": "t1",
           "access_type": "ALL",
-          "rows": 3,
-          "filtered": 100
+          "rows_examined_per_scan": 3,
+          "rows_produced_per_join": 3,
+          "filtered": 100,
+          "cost_info": {
+            "read_cost": "2.01",
+            "eval_cost": "0.60",
+            "prefix_cost": "2.61",
+            "data_read_per_join": "24"
+          } /* cost_info */,
+          "used_columns": [
+            "a"
+          ] /* used_columns */
         } /* table */
       },
       {
         "table": {
           "table_name": "t2",
           "access_type": "ALL",
-          "rows": 3,
+          "rows_examined_per_scan": 3,
+          "rows_produced_per_join": 3,
           "filtered": 100,
           "first_match": "t1",
           "using_join_buffer": "Block Nested Loop",
+          "cost_info": {
+            "read_cost": "2.01",
+            "eval_cost": "0.60",
+            "prefix_cost": "6.41",
+            "data_read_per_join": "24"
+          } /* cost_info */,
+          "used_columns": [
+            "a"
+          ] /* used_columns */,
           "attached_condition": "(`test`.`t2`.`a` = `test`.`t1`.`a`)"
         } /* table */
       }
@@ -2104,13 +2772,13 @@ SET @save_optimizer_switch= @@optimizer_switch;
 #
 EXPLAIN DELETE   FROM t1 WHERE a1 IN (SELECT a2 FROM t2 WHERE a2 > 2);
 id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
-1	PRIMARY	t1	ALL	NULL	NULL	NULL	NULL	5	Using where
+1	DELETE	t1	ALL	NULL	NULL	NULL	NULL	5	Using where
 2	DEPENDENT SUBQUERY	t2	ALL	NULL	NULL	NULL	NULL	5	Using where
 FLUSH STATUS;
 FLUSH TABLES;
 EXPLAIN EXTENDED DELETE   FROM t1 WHERE a1 IN (SELECT a2 FROM t2 WHERE a2 > 2);
 id	select_type	table	type	possible_keys	key	key_len	ref	rows	filtered	Extra
-1	PRIMARY	t1	ALL	NULL	NULL	NULL	NULL	5	100.00	Using where
+1	DELETE	t1	ALL	NULL	NULL	NULL	NULL	5	100.00	Using where
 2	DEPENDENT SUBQUERY	t2	ALL	NULL	NULL	NULL	NULL	5	100.00	Using where
 # Status of EXPLAIN EXTENDED query
 Variable_name	Value
@@ -2123,7 +2791,7 @@ EXPLAIN
       "delete": true,
       "table_name": "t1",
       "access_type": "ALL",
-      "rows": 5,
+      "rows_examined_per_scan": 5,
       "filtered": 100,
       "attached_condition": "<in_optimizer>(`test`.`t1`.`a1`,<exists>(/* select#2 */ select 1 from `test`.`t2` where ((`test`.`t2`.`a2` > 2) and (<cache>(`test`.`t1`.`a1`) = `test`.`t2`.`a2`))))",
       "attached_subqueries": [
@@ -2132,11 +2800,24 @@ EXPLAIN
           "cacheable": false,
           "query_block": {
             "select_id": 2,
+            "cost_info": {
+              "query_cost": "3.02"
+            } /* cost_info */,
             "table": {
               "table_name": "t2",
               "access_type": "ALL",
-              "rows": 5,
+              "rows_examined_per_scan": 5,
+              "rows_produced_per_join": 5,
               "filtered": 100,
+              "cost_info": {
+                "read_cost": "2.02",
+                "eval_cost": "1.00",
+                "prefix_cost": "3.02",
+                "data_read_per_join": "80"
+              } /* cost_info */,
+              "used_columns": [
+                "a2"
+              ] /* used_columns */,
               "attached_condition": "((`test`.`t2`.`a2` > 2) and (<cache>(`test`.`t1`.`a1`) = `test`.`t2`.`a2`))"
             } /* table */
           } /* query_block */
@@ -2160,11 +2841,24 @@ EXPLAIN
 {
   "query_block": {
     "select_id": 1,
+    "cost_info": {
+      "query_cost": "3.01"
+    } /* cost_info */,
     "table": {
       "table_name": "t1",
       "access_type": "ALL",
-      "rows": 5,
+      "rows_examined_per_scan": 5,
+      "rows_produced_per_join": 5,
       "filtered": 100,
+      "cost_info": {
+        "read_cost": "2.01",
+        "eval_cost": "1.00",
+        "prefix_cost": "3.01",
+        "data_read_per_join": "40"
+      } /* cost_info */,
+      "used_columns": [
+        "a1"
+      ] /* used_columns */,
       "attached_condition": "<in_optimizer>(`test`.`t1`.`a1`,<exists>(/* select#2 */ select 1 from `test`.`t2` where ((`test`.`t2`.`a2` > 2) and (<cache>(`test`.`t1`.`a1`) = `test`.`t2`.`a2`))))",
       "attached_subqueries": [
         {
@@ -2172,11 +2866,24 @@ EXPLAIN
           "cacheable": false,
           "query_block": {
             "select_id": 2,
+            "cost_info": {
+              "query_cost": "3.02"
+            } /* cost_info */,
             "table": {
               "table_name": "t2",
               "access_type": "ALL",
-              "rows": 5,
+              "rows_examined_per_scan": 5,
+              "rows_produced_per_join": 5,
               "filtered": 100,
+              "cost_info": {
+                "read_cost": "2.02",
+                "eval_cost": "1.00",
+                "prefix_cost": "3.02",
+                "data_read_per_join": "80"
+              } /* cost_info */,
+              "used_columns": [
+                "a2"
+              ] /* used_columns */,
               "attached_condition": "((`test`.`t2`.`a2` > 2) and (<cache>(`test`.`t1`.`a1`) = `test`.`t2`.`a2`))"
             } /* table */
           } /* query_block */
@@ -2204,13 +2911,13 @@ INSERT INTO t1 VALUES (1), (2), (3), (4), (5);
 #
 EXPLAIN DELETE   FROM t1 WHERE a1 IN (SELECT a2 FROM t2 WHERE a2 > 2);
 id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
-1	PRIMARY	t1	ALL	NULL	NULL	NULL	NULL	5	Using where
+1	DELETE	t1	ALL	NULL	NULL	NULL	NULL	5	Using where
 2	DEPENDENT SUBQUERY	t2	ALL	NULL	NULL	NULL	NULL	5	Using where
 FLUSH STATUS;
 FLUSH TABLES;
 EXPLAIN EXTENDED DELETE   FROM t1 WHERE a1 IN (SELECT a2 FROM t2 WHERE a2 > 2);
 id	select_type	table	type	possible_keys	key	key_len	ref	rows	filtered	Extra
-1	PRIMARY	t1	ALL	NULL	NULL	NULL	NULL	5	100.00	Using where
+1	DELETE	t1	ALL	NULL	NULL	NULL	NULL	5	100.00	Using where
 2	DEPENDENT SUBQUERY	t2	ALL	NULL	NULL	NULL	NULL	5	100.00	Using where
 # Status of EXPLAIN EXTENDED query
 Variable_name	Value
@@ -2223,7 +2930,7 @@ EXPLAIN
       "delete": true,
       "table_name": "t1",
       "access_type": "ALL",
-      "rows": 5,
+      "rows_examined_per_scan": 5,
       "filtered": 100,
       "attached_condition": "<in_optimizer>(`test`.`t1`.`a1`,<exists>(/* select#2 */ select 1 from `test`.`t2` where ((`test`.`t2`.`a2` > 2) and (<cache>(`test`.`t1`.`a1`) = `test`.`t2`.`a2`))))",
       "attached_subqueries": [
@@ -2232,11 +2939,24 @@ EXPLAIN
           "cacheable": false,
           "query_block": {
             "select_id": 2,
+            "cost_info": {
+              "query_cost": "3.02"
+            } /* cost_info */,
             "table": {
               "table_name": "t2",
               "access_type": "ALL",
-              "rows": 5,
+              "rows_examined_per_scan": 5,
+              "rows_produced_per_join": 5,
               "filtered": 100,
+              "cost_info": {
+                "read_cost": "2.02",
+                "eval_cost": "1.00",
+                "prefix_cost": "3.02",
+                "data_read_per_join": "80"
+              } /* cost_info */,
+              "used_columns": [
+                "a2"
+              ] /* used_columns */,
               "attached_condition": "((`test`.`t2`.`a2` > 2) and (<cache>(`test`.`t1`.`a1`) = `test`.`t2`.`a2`))"
             } /* table */
           } /* query_block */
@@ -2260,23 +2980,46 @@ EXPLAIN
 {
   "query_block": {
     "select_id": 1,
+    "cost_info": {
+      "query_cost": "10.03"
+    } /* cost_info */,
     "nested_loop": [
       {
         "table": {
           "table_name": "t1",
           "access_type": "ALL",
-          "rows": 5,
-          "filtered": 100
+          "rows_examined_per_scan": 5,
+          "rows_produced_per_join": 5,
+          "filtered": 100,
+          "cost_info": {
+            "read_cost": "2.01",
+            "eval_cost": "1.00",
+            "prefix_cost": "3.01",
+            "data_read_per_join": "40"
+          } /* cost_info */,
+          "used_columns": [
+            "a1"
+          ] /* used_columns */
         } /* table */
       },
       {
         "table": {
           "table_name": "t2",
           "access_type": "ALL",
-          "rows": 5,
+          "rows_examined_per_scan": 5,
+          "rows_produced_per_join": 5,
           "filtered": 100,
           "first_match": "t1",
           "using_join_buffer": "Block Nested Loop",
+          "cost_info": {
+            "read_cost": "2.02",
+            "eval_cost": "1.00",
+            "prefix_cost": "10.03",
+            "data_read_per_join": "80"
+          } /* cost_info */,
+          "used_columns": [
+            "a2"
+          ] /* used_columns */,
           "attached_condition": "((`test`.`t2`.`a2` > 2) and (`test`.`t1`.`a1` = `test`.`t2`.`a2`))"
         } /* table */
       }
@@ -2303,12 +3046,12 @@ INSERT INTO t1 VALUES (1, 1), (2, 2), (3, 3), (4, 4), (5, 5);
 #
 EXPLAIN UPDATE t1 SET i = 10;
 id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
-1	SIMPLE	t1	ALL	NULL	NULL	NULL	NULL	5	NULL
+1	UPDATE	t1	ALL	NULL	NULL	NULL	NULL	5	NULL
 FLUSH STATUS;
 FLUSH TABLES;
 EXPLAIN EXTENDED UPDATE t1 SET i = 10;
 id	select_type	table	type	possible_keys	key	key_len	ref	rows	filtered	Extra
-1	SIMPLE	t1	ALL	NULL	NULL	NULL	NULL	5	100.00	NULL
+1	UPDATE	t1	ALL	NULL	NULL	NULL	NULL	5	100.00	NULL
 # Status of EXPLAIN EXTENDED query
 Variable_name	Value
 EXPLAIN FORMAT=JSON UPDATE t1 SET i = 10;;
@@ -2320,7 +3063,7 @@ EXPLAIN
       "update": true,
       "table_name": "t1",
       "access_type": "ALL",
-      "rows": 5,
+      "rows_examined_per_scan": 5,
       "filtered": 100
     } /* table */
   } /* query_block */
@@ -2339,11 +3082,25 @@ EXPLAIN
 {
   "query_block": {
     "select_id": 1,
+    "cost_info": {
+      "query_cost": "3.01"
+    } /* cost_info */,
     "table": {
       "table_name": "t1",
       "access_type": "ALL",
-      "rows": 5,
-      "filtered": 100
+      "rows_examined_per_scan": 5,
+      "rows_produced_per_join": 5,
+      "filtered": 100,
+      "cost_info": {
+        "read_cost": "2.01",
+        "eval_cost": "1.00",
+        "prefix_cost": "3.01",
+        "data_read_per_join": "80"
+      } /* cost_info */,
+      "used_columns": [
+        "i",
+        "j"
+      ] /* used_columns */
     } /* table */
   } /* query_block */
 }
@@ -2367,12 +3124,12 @@ INSERT INTO t1 VALUES (1, 1), (2, 2), (3, 3), (4, 4), (5, 5);
 #
 EXPLAIN DELETE FROM t1;
 id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
-1	SIMPLE	NULL	NULL	NULL	NULL	NULL	NULL	5	Deleting all rows
+1	DELETE	t1	ALL	NULL	NULL	NULL	NULL	5	Deleting all rows
 FLUSH STATUS;
 FLUSH TABLES;
 EXPLAIN EXTENDED DELETE FROM t1;
 id	select_type	table	type	possible_keys	key	key_len	ref	rows	filtered	Extra
-1	SIMPLE	NULL	NULL	NULL	NULL	NULL	NULL	5	NULL	Deleting all rows
+1	DELETE	t1	ALL	NULL	NULL	NULL	NULL	5	100.00	Deleting all rows
 # Status of EXPLAIN EXTENDED query
 Variable_name	Value
 EXPLAIN FORMAT=JSON DELETE FROM t1;;
@@ -2381,7 +3138,11 @@ EXPLAIN
   "query_block": {
     "select_id": 1,
     "table": {
-      "rows": 5,
+      "delete": true,
+      "table_name": "t1",
+      "access_type": "ALL",
+      "rows_examined_per_scan": 5,
+      "filtered": 100,
       "message": "Deleting all rows"
     } /* table */
   } /* query_block */
@@ -2400,11 +3161,25 @@ EXPLAIN
 {
   "query_block": {
     "select_id": 1,
+    "cost_info": {
+      "query_cost": "3.01"
+    } /* cost_info */,
     "table": {
       "table_name": "t1",
       "access_type": "ALL",
-      "rows": 5,
-      "filtered": 100
+      "rows_examined_per_scan": 5,
+      "rows_produced_per_join": 5,
+      "filtered": 100,
+      "cost_info": {
+        "read_cost": "2.01",
+        "eval_cost": "1.00",
+        "prefix_cost": "3.01",
+        "data_read_per_join": "80"
+      } /* cost_info */,
+      "used_columns": [
+        "i",
+        "j"
+      ] /* used_columns */
     } /* table */
   } /* query_block */
 }
@@ -2431,12 +3206,12 @@ INSERT INTO t2 (a, b, c) SELECT t1.i, t1.i, t1.i FROM t1, t1 x1, t1 x2;
 #
 EXPLAIN DELETE   FROM t2 WHERE b = 10 ORDER BY a, c LIMIT 5;
 id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
-1	SIMPLE	t2	index	NULL	a	15	NULL	17602	Using where
+1	DELETE	t2	index	NULL	a	15	NULL	17602	Using where
 FLUSH STATUS;
 FLUSH TABLES;
 EXPLAIN EXTENDED DELETE   FROM t2 WHERE b = 10 ORDER BY a, c LIMIT 5;
 id	select_type	table	type	possible_keys	key	key_len	ref	rows	filtered	Extra
-1	SIMPLE	t2	index	NULL	a	15	NULL	17602	100.00	Using where
+1	DELETE	t2	index	NULL	a	15	NULL	17602	100.00	Using where
 # Status of EXPLAIN EXTENDED query
 Variable_name	Value
 EXPLAIN FORMAT=JSON DELETE   FROM t2 WHERE b = 10 ORDER BY a, c LIMIT 5;;
@@ -2457,7 +3232,7 @@ EXPLAIN
           "c"
         ] /* used_key_parts */,
         "key_length": "15",
-        "rows": 17602,
+        "rows_examined_per_scan": 17602,
         "filtered": 100,
         "attached_condition": "(`test`.`t2`.`b` = 10)"
       } /* table */
@@ -2478,6 +3253,9 @@ EXPLAIN
 {
   "query_block": {
     "select_id": 1,
+    "cost_info": {
+      "query_cost": "3595.45"
+    } /* cost_info */,
     "ordering_operation": {
       "using_filesort": false,
       "table": {
@@ -2490,8 +3268,21 @@ EXPLAIN
           "c"
         ] /* used_key_parts */,
         "key_length": "15",
-        "rows": 5,
+        "rows_examined_per_scan": 5,
+        "rows_produced_per_join": 17602,
         "filtered": 352040,
+        "cost_info": {
+          "read_cost": "75.06",
+          "eval_cost": "3520.40",
+          "prefix_cost": "3595.46",
+          "data_read_per_join": "412K"
+        } /* cost_info */,
+        "used_columns": [
+          "a",
+          "b",
+          "c",
+          "d"
+        ] /* used_columns */,
         "attached_condition": "(`test`.`t2`.`b` = 10)"
       } /* table */
     } /* ordering_operation */
@@ -2520,11 +3311,13 @@ CREATE TABLE t2 (i INT);
 #
 EXPLAIN INSERT INTO t2 SELECT * FROM t1;
 id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
+1	INSERT	t2	ALL	NULL	NULL	NULL	NULL	NULL	NULL
 1	SIMPLE	t1	ALL	NULL	NULL	NULL	NULL	3	NULL
 FLUSH STATUS;
 FLUSH TABLES;
 EXPLAIN EXTENDED INSERT INTO t2 SELECT * FROM t1;
 id	select_type	table	type	possible_keys	key	key_len	ref	rows	filtered	Extra
+1	INSERT	t2	ALL	NULL	NULL	NULL	NULL	NULL	NULL	NULL
 1	SIMPLE	t1	ALL	NULL	NULL	NULL	NULL	3	100.00	NULL
 # Status of EXPLAIN EXTENDED query
 Variable_name	Value
@@ -2533,12 +3326,32 @@ EXPLAIN
 {
   "query_block": {
     "select_id": 1,
+    "cost_info": {
+      "query_cost": "2.60"
+    } /* cost_info */,
     "table": {
-      "table_name": "t1",
-      "access_type": "ALL",
-      "rows": 3,
-      "filtered": 100
-    } /* table */
+      "insert": true,
+      "table_name": "t2",
+      "access_type": "ALL"
+    } /* table */,
+    "insert_from": {
+      "table": {
+        "table_name": "t1",
+        "access_type": "ALL",
+        "rows_examined_per_scan": 3,
+        "rows_produced_per_join": 3,
+        "filtered": 100,
+        "cost_info": {
+          "read_cost": "2.01",
+          "eval_cost": "0.60",
+          "prefix_cost": "2.61",
+          "data_read_per_join": "24"
+        } /* cost_info */,
+        "used_columns": [
+          "i"
+        ] /* used_columns */
+      } /* table */
+    } /* insert_from */
   } /* query_block */
 }
 FLUSH STATUS;
@@ -2555,11 +3368,24 @@ EXPLAIN
 {
   "query_block": {
     "select_id": 1,
+    "cost_info": {
+      "query_cost": "2.60"
+    } /* cost_info */,
     "table": {
       "table_name": "t1",
       "access_type": "ALL",
-      "rows": 3,
-      "filtered": 100
+      "rows_examined_per_scan": 3,
+      "rows_produced_per_join": 3,
+      "filtered": 100,
+      "cost_info": {
+        "read_cost": "2.01",
+        "eval_cost": "0.60",
+        "prefix_cost": "2.61",
+        "data_read_per_join": "24"
+      } /* cost_info */,
+      "used_columns": [
+        "i"
+      ] /* used_columns */
     } /* table */
   } /* query_block */
 }
@@ -2573,6 +3399,151 @@ Variable_name	Value
 Handler_read_rnd_next	4
 Handler_write	3
 
+#
+# query:  INSERT INTO t2 SELECT * FROM t1 JOIN t1 AS tt USING(i)
+# select: SELECT * FROM t1 JOIN t1 AS tt USING(i)
+#
+EXPLAIN INSERT INTO t2 SELECT * FROM t1 JOIN t1 AS tt USING(i);
+id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
+1	INSERT	t2	ALL	NULL	NULL	NULL	NULL	NULL	NULL
+1	SIMPLE	t1	ALL	NULL	NULL	NULL	NULL	3	NULL
+1	SIMPLE	tt	ALL	NULL	NULL	NULL	NULL	3	Using where; Using join buffer (Block Nested Loop)
+FLUSH STATUS;
+FLUSH TABLES;
+EXPLAIN EXTENDED INSERT INTO t2 SELECT * FROM t1 JOIN t1 AS tt USING(i);
+id	select_type	table	type	possible_keys	key	key_len	ref	rows	filtered	Extra
+1	INSERT	t2	ALL	NULL	NULL	NULL	NULL	NULL	NULL	NULL
+1	SIMPLE	t1	ALL	NULL	NULL	NULL	NULL	3	100.00	NULL
+1	SIMPLE	tt	ALL	NULL	NULL	NULL	NULL	3	100.00	Using where; Using join buffer (Block Nested Loop)
+# Status of EXPLAIN EXTENDED query
+Variable_name	Value
+EXPLAIN FORMAT=JSON INSERT INTO t2 SELECT * FROM t1 JOIN t1 AS tt USING(i);;
+EXPLAIN
+{
+  "query_block": {
+    "select_id": 1,
+    "cost_info": {
+      "query_cost": "6.41"
+    } /* cost_info */,
+    "table": {
+      "insert": true,
+      "table_name": "t2",
+      "access_type": "ALL"
+    } /* table */,
+    "insert_from": {
+      "nested_loop": [
+        {
+          "table": {
+            "table_name": "t1",
+            "access_type": "ALL",
+            "rows_examined_per_scan": 3,
+            "rows_produced_per_join": 3,
+            "filtered": 100,
+            "cost_info": {
+              "read_cost": "2.01",
+              "eval_cost": "0.60",
+              "prefix_cost": "2.61",
+              "data_read_per_join": "24"
+            } /* cost_info */,
+            "used_columns": [
+              "i"
+            ] /* used_columns */
+          } /* table */
+        },
+        {
+          "table": {
+            "table_name": "tt",
+            "access_type": "ALL",
+            "rows_examined_per_scan": 3,
+            "rows_produced_per_join": 9,
+            "filtered": 100,
+            "using_join_buffer": "Block Nested Loop",
+            "cost_info": {
+              "read_cost": "2.01",
+              "eval_cost": "1.80",
+              "prefix_cost": "6.41",
+              "data_read_per_join": "72"
+            } /* cost_info */,
+            "used_columns": [
+              "i"
+            ] /* used_columns */,
+            "attached_condition": "(`test`.`tt`.`i` = `test`.`t1`.`i`)"
+          } /* table */
+        }
+      ] /* nested_loop */
+    } /* insert_from */
+  } /* query_block */
+}
+FLUSH STATUS;
+FLUSH TABLES;
+EXPLAIN EXTENDED SELECT * FROM t1 JOIN t1 AS tt USING(i);
+id	select_type	table	type	possible_keys	key	key_len	ref	rows	filtered	Extra
+1	SIMPLE	t1	ALL	NULL	NULL	NULL	NULL	3	100.00	NULL
+1	SIMPLE	tt	ALL	NULL	NULL	NULL	NULL	3	100.00	Using where; Using join buffer (Block Nested Loop)
+Warnings:
+Note	1003	/* select#1 */ select `test`.`t1`.`i` AS `i` from `test`.`t1` join `test`.`t1` `tt` where (`test`.`tt`.`i` = `test`.`t1`.`i`)
+# Status of EXPLAIN EXTENDED "equivalent" SELECT query execution
+Variable_name	Value
+EXPLAIN FORMAT=JSON SELECT * FROM t1 JOIN t1 AS tt USING(i);;
+EXPLAIN
+{
+  "query_block": {
+    "select_id": 1,
+    "cost_info": {
+      "query_cost": "6.41"
+    } /* cost_info */,
+    "nested_loop": [
+      {
+        "table": {
+          "table_name": "t1",
+          "access_type": "ALL",
+          "rows_examined_per_scan": 3,
+          "rows_produced_per_join": 3,
+          "filtered": 100,
+          "cost_info": {
+            "read_cost": "2.01",
+            "eval_cost": "0.60",
+            "prefix_cost": "2.61",
+            "data_read_per_join": "24"
+          } /* cost_info */,
+          "used_columns": [
+            "i"
+          ] /* used_columns */
+        } /* table */
+      },
+      {
+        "table": {
+          "table_name": "tt",
+          "access_type": "ALL",
+          "rows_examined_per_scan": 3,
+          "rows_produced_per_join": 9,
+          "filtered": 100,
+          "using_join_buffer": "Block Nested Loop",
+          "cost_info": {
+            "read_cost": "2.01",
+            "eval_cost": "1.80",
+            "prefix_cost": "6.41",
+            "data_read_per_join": "72"
+          } /* cost_info */,
+          "used_columns": [
+            "i"
+          ] /* used_columns */,
+          "attached_condition": "(`test`.`tt`.`i` = `test`.`t1`.`i`)"
+        } /* table */
+      }
+    ] /* nested_loop */
+  } /* query_block */
+}
+Warnings:
+Note	1003	/* select#1 */ select `test`.`t1`.`i` AS `i` from `test`.`t1` join `test`.`t1` `tt` where (`test`.`tt`.`i` = `test`.`t1`.`i`)
+# Status of "equivalent" SELECT query execution:
+Variable_name	Value
+Handler_read_rnd_next	8
+# Status of testing query execution:
+Variable_name	Value
+Handler_read_rnd_next	8
+Handler_write	3
+
 DROP TABLE t1, t2;
 #26
 CREATE TABLE t1 (i INT);
@@ -2584,11 +3555,13 @@ CREATE TABLE t2 (i INT);
 #
 EXPLAIN REPLACE INTO t2 SELECT * FROM t1;
 id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
+1	REPLACE	t2	ALL	NULL	NULL	NULL	NULL	NULL	NULL
 1	SIMPLE	t1	ALL	NULL	NULL	NULL	NULL	3	NULL
 FLUSH STATUS;
 FLUSH TABLES;
 EXPLAIN EXTENDED REPLACE INTO t2 SELECT * FROM t1;
 id	select_type	table	type	possible_keys	key	key_len	ref	rows	filtered	Extra
+1	REPLACE	t2	ALL	NULL	NULL	NULL	NULL	NULL	NULL	NULL
 1	SIMPLE	t1	ALL	NULL	NULL	NULL	NULL	3	100.00	NULL
 # Status of EXPLAIN EXTENDED query
 Variable_name	Value
@@ -2597,12 +3570,32 @@ EXPLAIN
 {
   "query_block": {
     "select_id": 1,
+    "cost_info": {
+      "query_cost": "2.60"
+    } /* cost_info */,
     "table": {
-      "table_name": "t1",
-      "access_type": "ALL",
-      "rows": 3,
-      "filtered": 100
-    } /* table */
+      "replace": true,
+      "table_name": "t2",
+      "access_type": "ALL"
+    } /* table */,
+    "insert_from": {
+      "table": {
+        "table_name": "t1",
+        "access_type": "ALL",
+        "rows_examined_per_scan": 3,
+        "rows_produced_per_join": 3,
+        "filtered": 100,
+        "cost_info": {
+          "read_cost": "2.01",
+          "eval_cost": "0.60",
+          "prefix_cost": "2.61",
+          "data_read_per_join": "24"
+        } /* cost_info */,
+        "used_columns": [
+          "i"
+        ] /* used_columns */
+      } /* table */
+    } /* insert_from */
   } /* query_block */
 }
 FLUSH STATUS;
@@ -2619,11 +3612,24 @@ EXPLAIN
 {
   "query_block": {
     "select_id": 1,
+    "cost_info": {
+      "query_cost": "2.60"
+    } /* cost_info */,
     "table": {
       "table_name": "t1",
       "access_type": "ALL",
-      "rows": 3,
-      "filtered": 100
+      "rows_examined_per_scan": 3,
+      "rows_produced_per_join": 3,
+      "filtered": 100,
+      "cost_info": {
+        "read_cost": "2.01",
+        "eval_cost": "0.60",
+        "prefix_cost": "2.61",
+        "data_read_per_join": "24"
+      } /* cost_info */,
+      "used_columns": [
+        "i"
+      ] /* used_columns */
     } /* table */
   } /* query_block */
 }
@@ -2646,12 +3652,12 @@ CREATE TABLE t1 (i INT);
 #
 EXPLAIN INSERT INTO t1 SET i = 10;
 id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
-1	SIMPLE	NULL	NULL	NULL	NULL	NULL	NULL	NULL	No tables used
+1	INSERT	t1	ALL	NULL	NULL	NULL	NULL	NULL	NULL
 FLUSH STATUS;
 FLUSH TABLES;
 EXPLAIN EXTENDED INSERT INTO t1 SET i = 10;
 id	select_type	table	type	possible_keys	key	key_len	ref	rows	filtered	Extra
-1	SIMPLE	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	No tables used
+1	INSERT	t1	ALL	NULL	NULL	NULL	NULL	NULL	NULL	NULL
 # Status of EXPLAIN EXTENDED query
 Variable_name	Value
 EXPLAIN FORMAT=JSON INSERT INTO t1 SET i = 10;;
@@ -2660,7 +3666,9 @@ EXPLAIN
   "query_block": {
     "select_id": 1,
     "table": {
-      "message": "No tables used"
+      "insert": true,
+      "table_name": "t1",
+      "access_type": "ALL"
     } /* table */
   } /* query_block */
 }
@@ -2677,12 +3685,12 @@ CREATE TABLE t1 (i INT);
 #
 EXPLAIN REPLACE INTO t1 SET i = 10;
 id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
-1	SIMPLE	NULL	NULL	NULL	NULL	NULL	NULL	NULL	No tables used
+1	REPLACE	t1	ALL	NULL	NULL	NULL	NULL	NULL	NULL
 FLUSH STATUS;
 FLUSH TABLES;
 EXPLAIN EXTENDED REPLACE INTO t1 SET i = 10;
 id	select_type	table	type	possible_keys	key	key_len	ref	rows	filtered	Extra
-1	SIMPLE	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	No tables used
+1	REPLACE	t1	ALL	NULL	NULL	NULL	NULL	NULL	NULL	NULL
 # Status of EXPLAIN EXTENDED query
 Variable_name	Value
 EXPLAIN FORMAT=JSON REPLACE INTO t1 SET i = 10;;
@@ -2691,7 +3699,9 @@ EXPLAIN
   "query_block": {
     "select_id": 1,
     "table": {
-      "message": "No tables used"
+      "replace": true,
+      "table_name": "t1",
+      "access_type": "ALL"
     } /* table */
   } /* query_block */
 }
@@ -2711,12 +3721,12 @@ INSERT INTO t1 (i) VALUES (10),(11),(12),(13),(14),(15),(16),(17),(18),(19),
 #
 EXPLAIN DELETE   FROM t1 WHERE i > 10 AND i <= 18 ORDER BY i LIMIT 5;
 id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
-1	SIMPLE	t1	range	PRIMARY	PRIMARY	4	const	8	Using where
+1	DELETE	t1	range	PRIMARY	PRIMARY	4	const	8	Using where
 FLUSH STATUS;
 FLUSH TABLES;
 EXPLAIN EXTENDED DELETE   FROM t1 WHERE i > 10 AND i <= 18 ORDER BY i LIMIT 5;
 id	select_type	table	type	possible_keys	key	key_len	ref	rows	filtered	Extra
-1	SIMPLE	t1	range	PRIMARY	PRIMARY	4	const	8	100.00	Using where
+1	DELETE	t1	range	PRIMARY	PRIMARY	4	const	8	100.00	Using where
 # Status of EXPLAIN EXTENDED query
 Variable_name	Value
 EXPLAIN FORMAT=JSON DELETE   FROM t1 WHERE i > 10 AND i <= 18 ORDER BY i LIMIT 5;;
@@ -2741,7 +3751,7 @@ EXPLAIN
         "ref": [
           "const"
         ] /* ref */,
-        "rows": 8,
+        "rows_examined_per_scan": 8,
         "filtered": 100,
         "attached_condition": "((`test`.`t1`.`i` > 10) and (`test`.`t1`.`i` <= 18))"
       } /* table */
@@ -2762,6 +3772,9 @@ EXPLAIN
 {
   "query_block": {
     "select_id": 1,
+    "cost_info": {
+      "query_cost": "5.49"
+    } /* cost_info */,
     "ordering_operation": {
       "using_filesort": false,
       "table": {
@@ -2775,9 +3788,20 @@ EXPLAIN
           "i"
         ] /* used_key_parts */,
         "key_length": "4",
-        "rows": 8,
+        "rows_examined_per_scan": 8,
+        "rows_produced_per_join": 8,
         "filtered": 100,
-        "index_condition": "((`test`.`t1`.`i` > 10) and (`test`.`t1`.`i` <= 18))"
+        "index_condition": "((`test`.`t1`.`i` > 10) and (`test`.`t1`.`i` <= 18))",
+        "cost_info": {
+          "read_cost": "3.89",
+          "eval_cost": "1.60",
+          "prefix_cost": "5.49",
+          "data_read_per_join": "128"
+        } /* cost_info */,
+        "used_columns": [
+          "a",
+          "i"
+        ] /* used_columns */
       } /* table */
     } /* ordering_operation */
   } /* query_block */
@@ -2806,12 +3830,12 @@ INSERT INTO t1 (i) VALUES (10),(11),(12),(13),(14),(15),(16),(17),(18),(19),
 #
 EXPLAIN DELETE   FROM t1 WHERE i > 10 AND i <= 18 ORDER BY i LIMIT 5;
 id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
-1	SIMPLE	t1	ALL	NULL	NULL	NULL	NULL	26	Using where; Using filesort
+1	DELETE	t1	ALL	NULL	NULL	NULL	NULL	26	Using where; Using filesort
 FLUSH STATUS;
 FLUSH TABLES;
 EXPLAIN EXTENDED DELETE   FROM t1 WHERE i > 10 AND i <= 18 ORDER BY i LIMIT 5;
 id	select_type	table	type	possible_keys	key	key_len	ref	rows	filtered	Extra
-1	SIMPLE	t1	ALL	NULL	NULL	NULL	NULL	26	100.00	Using where; Using filesort
+1	DELETE	t1	ALL	NULL	NULL	NULL	NULL	26	100.00	Using where; Using filesort
 Warnings:
 Warning	1739	Cannot use range access on index 'i' due to type or collation conversion on field 'i'
 Warning	1739	Cannot use range access on index 'i' due to type or collation conversion on field 'i'
@@ -2828,7 +3852,7 @@ EXPLAIN
         "delete": true,
         "table_name": "t1",
         "access_type": "ALL",
-        "rows": 26,
+        "rows_examined_per_scan": 26,
         "filtered": 100,
         "attached_condition": "((`test`.`t1`.`i` > 10) and (`test`.`t1`.`i` <= 18))"
       } /* table */
@@ -2854,6 +3878,9 @@ EXPLAIN
 {
   "query_block": {
     "select_id": 1,
+    "cost_info": {
+      "query_cost": "7.24"
+    } /* cost_info */,
     "ordering_operation": {
       "using_filesort": true,
       "table": {
@@ -2862,8 +3889,19 @@ EXPLAIN
         "possible_keys": [
           "i"
         ] /* possible_keys */,
-        "rows": 26,
+        "rows_examined_per_scan": 26,
+        "rows_produced_per_join": 26,
         "filtered": 100,
+        "cost_info": {
+          "read_cost": "2.04",
+          "eval_cost": "5.20",
+          "prefix_cost": "7.24",
+          "data_read_per_join": "208"
+        } /* cost_info */,
+        "used_columns": [
+          "a",
+          "i"
+        ] /* used_columns */,
         "attached_condition": "((`test`.`t1`.`i` > 10) and (`test`.`t1`.`i` <= 18))"
       } /* table */
     } /* ordering_operation */
@@ -2900,12 +3938,12 @@ INSERT INTO t2 (a, b, c) SELECT i, i, i FROM t1;
 #
 EXPLAIN DELETE   FROM t2 WHERE b = 10 ORDER BY a, c LIMIT 5;
 id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
-1	SIMPLE	t2	ALL	NULL	NULL	NULL	NULL	26	Using where; Using filesort
+1	DELETE	t2	ALL	NULL	NULL	NULL	NULL	26	Using where; Using filesort
 FLUSH STATUS;
 FLUSH TABLES;
 EXPLAIN EXTENDED DELETE   FROM t2 WHERE b = 10 ORDER BY a, c LIMIT 5;
 id	select_type	table	type	possible_keys	key	key_len	ref	rows	filtered	Extra
-1	SIMPLE	t2	ALL	NULL	NULL	NULL	NULL	26	100.00	Using where; Using filesort
+1	DELETE	t2	ALL	NULL	NULL	NULL	NULL	26	100.00	Using where; Using filesort
 # Status of EXPLAIN EXTENDED query
 Variable_name	Value
 EXPLAIN FORMAT=JSON DELETE   FROM t2 WHERE b = 10 ORDER BY a, c LIMIT 5;;
@@ -2919,7 +3957,7 @@ EXPLAIN
         "delete": true,
         "table_name": "t2",
         "access_type": "ALL",
-        "rows": 26,
+        "rows_examined_per_scan": 26,
         "filtered": 100,
         "attached_condition": "(`test`.`t2`.`b` = 10)"
       } /* table */
@@ -2940,13 +3978,29 @@ EXPLAIN
 {
   "query_block": {
     "select_id": 1,
+    "cost_info": {
+      "query_cost": "7.31"
+    } /* cost_info */,
     "ordering_operation": {
       "using_filesort": true,
       "table": {
         "table_name": "t2",
         "access_type": "ALL",
-        "rows": 26,
+        "rows_examined_per_scan": 26,
+        "rows_produced_per_join": 26,
         "filtered": 100,
+        "cost_info": {
+          "read_cost": "2.11",
+          "eval_cost": "5.20",
+          "prefix_cost": "7.31",
+          "data_read_per_join": "624"
+        } /* cost_info */,
+        "used_columns": [
+          "a",
+          "b",
+          "c",
+          "d"
+        ] /* used_columns */,
         "attached_condition": "(`test`.`t2`.`b` = 10)"
       } /* table */
     } /* ordering_operation */
@@ -2982,12 +4036,12 @@ INSERT INTO t2 (a, b, c) SELECT t1.i, t1.i, t1.i FROM t1, t1 x1, t1 x2;
 #
 EXPLAIN DELETE   FROM t2 WHERE b = 10 ORDER BY a, c LIMIT 5;
 id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
-1	SIMPLE	t2	index	NULL	a	15	NULL	17602	Using where
+1	DELETE	t2	index	NULL	a	15	NULL	17602	Using where
 FLUSH STATUS;
 FLUSH TABLES;
 EXPLAIN EXTENDED DELETE   FROM t2 WHERE b = 10 ORDER BY a, c LIMIT 5;
 id	select_type	table	type	possible_keys	key	key_len	ref	rows	filtered	Extra
-1	SIMPLE	t2	index	NULL	a	15	NULL	17602	100.00	Using where
+1	DELETE	t2	index	NULL	a	15	NULL	17602	100.00	Using where
 # Status of EXPLAIN EXTENDED query
 Variable_name	Value
 EXPLAIN FORMAT=JSON DELETE   FROM t2 WHERE b = 10 ORDER BY a, c LIMIT 5;;
@@ -3008,7 +4062,7 @@ EXPLAIN
           "c"
         ] /* used_key_parts */,
         "key_length": "15",
-        "rows": 17602,
+        "rows_examined_per_scan": 17602,
         "filtered": 100,
         "attached_condition": "(`test`.`t2`.`b` = 10)"
       } /* table */
@@ -3029,6 +4083,9 @@ EXPLAIN
 {
   "query_block": {
     "select_id": 1,
+    "cost_info": {
+      "query_cost": "3595.45"
+    } /* cost_info */,
     "ordering_operation": {
       "using_filesort": false,
       "table": {
@@ -3041,8 +4098,21 @@ EXPLAIN
           "c"
         ] /* used_key_parts */,
         "key_length": "15",
-        "rows": 5,
+        "rows_examined_per_scan": 5,
+        "rows_produced_per_join": 17602,
         "filtered": 352040,
+        "cost_info": {
+          "read_cost": "75.06",
+          "eval_cost": "3520.40",
+          "prefix_cost": "3595.46",
+          "data_read_per_join": "412K"
+        } /* cost_info */,
+        "used_columns": [
+          "a",
+          "b",
+          "c",
+          "d"
+        ] /* used_columns */,
         "attached_condition": "(`test`.`t2`.`b` = 10)"
       } /* table */
     } /* ordering_operation */
@@ -3074,12 +4144,12 @@ INSERT INTO t2 SELECT i, i, i, i FROM t1;
 #
 EXPLAIN DELETE   FROM t2 WHERE b = 10 ORDER BY a, c LIMIT 5;
 id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
-1	SIMPLE	t2	ALL	NULL	NULL	NULL	NULL	26	Using where; Using filesort
+1	DELETE	t2	ALL	NULL	NULL	NULL	NULL	26	Using where; Using filesort
 FLUSH STATUS;
 FLUSH TABLES;
 EXPLAIN EXTENDED DELETE   FROM t2 WHERE b = 10 ORDER BY a, c LIMIT 5;
 id	select_type	table	type	possible_keys	key	key_len	ref	rows	filtered	Extra
-1	SIMPLE	t2	ALL	NULL	NULL	NULL	NULL	26	100.00	Using where; Using filesort
+1	DELETE	t2	ALL	NULL	NULL	NULL	NULL	26	100.00	Using where; Using filesort
 Warnings:
 Warning	1739	Cannot use range access on index 'a' due to type or collation conversion on field 'b'
 # Status of EXPLAIN EXTENDED query
@@ -3095,7 +4165,7 @@ EXPLAIN
         "delete": true,
         "table_name": "t2",
         "access_type": "ALL",
-        "rows": 26,
+        "rows_examined_per_scan": 26,
         "filtered": 100,
         "attached_condition": "(`test`.`t2`.`b` = 10)"
       } /* table */
@@ -3118,13 +4188,29 @@ EXPLAIN
 {
   "query_block": {
     "select_id": 1,
+    "cost_info": {
+      "query_cost": "7.26"
+    } /* cost_info */,
     "ordering_operation": {
       "using_filesort": true,
       "table": {
         "table_name": "t2",
         "access_type": "ALL",
-        "rows": 26,
+        "rows_examined_per_scan": 26,
+        "rows_produced_per_join": 26,
         "filtered": 100,
+        "cost_info": {
+          "read_cost": "2.06",
+          "eval_cost": "5.20",
+          "prefix_cost": "7.26",
+          "data_read_per_join": "416"
+        } /* cost_info */,
+        "used_columns": [
+          "a",
+          "b",
+          "c",
+          "d"
+        ] /* used_columns */,
         "attached_condition": "(`test`.`t2`.`b` = 10)"
       } /* table */
     } /* ordering_operation */
@@ -3160,12 +4246,12 @@ INSERT INTO t2 SELECT i, i, i, i FROM t1;
 #
 EXPLAIN DELETE   FROM t2 WHERE b = 10 ORDER BY a, c LIMIT 5;
 id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
-1	SIMPLE	t2	ALL	NULL	NULL	NULL	NULL	26	Using where; Using filesort
+1	DELETE	t2	ALL	NULL	NULL	NULL	NULL	26	Using where; Using filesort
 FLUSH STATUS;
 FLUSH TABLES;
 EXPLAIN EXTENDED DELETE   FROM t2 WHERE b = 10 ORDER BY a, c LIMIT 5;
 id	select_type	table	type	possible_keys	key	key_len	ref	rows	filtered	Extra
-1	SIMPLE	t2	ALL	NULL	NULL	NULL	NULL	26	100.00	Using where; Using filesort
+1	DELETE	t2	ALL	NULL	NULL	NULL	NULL	26	100.00	Using where; Using filesort
 Warnings:
 Warning	1739	Cannot use range access on index 'a' due to type or collation conversion on field 'b'
 # Status of EXPLAIN EXTENDED query
@@ -3181,7 +4267,7 @@ EXPLAIN
         "delete": true,
         "table_name": "t2",
         "access_type": "ALL",
-        "rows": 26,
+        "rows_examined_per_scan": 26,
         "filtered": 100,
         "attached_condition": "(`test`.`t2`.`b` = 10)"
       } /* table */
@@ -3204,13 +4290,29 @@ EXPLAIN
 {
   "query_block": {
     "select_id": 1,
+    "cost_info": {
+      "query_cost": "16.50"
+    } /* cost_info */,
     "ordering_operation": {
       "using_filesort": true,
       "table": {
         "table_name": "t2",
         "access_type": "ALL",
-        "rows": 26,
+        "rows_examined_per_scan": 26,
+        "rows_produced_per_join": 26,
         "filtered": 100,
+        "cost_info": {
+          "read_cost": "11.30",
+          "eval_cost": "5.20",
+          "prefix_cost": "16.50",
+          "data_read_per_join": "416"
+        } /* cost_info */,
+        "used_columns": [
+          "a",
+          "b",
+          "c",
+          "d"
+        ] /* used_columns */,
         "attached_condition": "(`test`.`t2`.`b` = 10)"
       } /* table */
     } /* ordering_operation */
@@ -3247,12 +4349,12 @@ INSERT INTO t2 (key1, key2) SELECT i, i FROM t1;
 #
 EXPLAIN DELETE   FROM t2 WHERE key1 < 13 or key2 < 14 ORDER BY key1;
 id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
-1	SIMPLE	t2	index_merge	key1,key2	key1,key2	5,5	NULL	7	Using sort_union(key1,key2); Using where; Using filesort
+1	DELETE	t2	index_merge	key1,key2	key1,key2	5,5	NULL	7	Using sort_union(key1,key2); Using where; Using filesort
 FLUSH STATUS;
 FLUSH TABLES;
 EXPLAIN EXTENDED DELETE   FROM t2 WHERE key1 < 13 or key2 < 14 ORDER BY key1;
 id	select_type	table	type	possible_keys	key	key_len	ref	rows	filtered	Extra
-1	SIMPLE	t2	index_merge	key1,key2	key1,key2	5,5	NULL	7	100.00	Using sort_union(key1,key2); Using where; Using filesort
+1	DELETE	t2	index_merge	key1,key2	key1,key2	5,5	NULL	7	100.00	Using sort_union(key1,key2); Using where; Using filesort
 # Status of EXPLAIN EXTENDED query
 Variable_name	Value
 EXPLAIN FORMAT=JSON DELETE   FROM t2 WHERE key1 < 13 or key2 < 14 ORDER BY key1;;
@@ -3272,7 +4374,7 @@ EXPLAIN
         ] /* possible_keys */,
         "key": "sort_union(key1,key2)",
         "key_length": "5,5",
-        "rows": 7,
+        "rows_examined_per_scan": 7,
         "filtered": 100,
         "attached_condition": "((`test`.`t2`.`key1` < 13) or (`test`.`t2`.`key2` < 14))"
       } /* table */
@@ -3293,8 +4395,14 @@ EXPLAIN
 {
   "query_block": {
     "select_id": 1,
+    "cost_info": {
+      "query_cost": "15.89"
+    } /* cost_info */,
     "ordering_operation": {
       "using_filesort": true,
+      "cost_info": {
+        "sort_cost": "7.00"
+      } /* cost_info */,
       "table": {
         "table_name": "t2",
         "access_type": "index_merge",
@@ -3304,8 +4412,20 @@ EXPLAIN
         ] /* possible_keys */,
         "key": "sort_union(key1,key2)",
         "key_length": "5,5",
-        "rows": 7,
+        "rows_examined_per_scan": 7,
+        "rows_produced_per_join": 7,
         "filtered": 100,
+        "cost_info": {
+          "read_cost": "7.49",
+          "eval_cost": "1.40",
+          "prefix_cost": "8.89",
+          "data_read_per_join": "112"
+        } /* cost_info */,
+        "used_columns": [
+          "i",
+          "key1",
+          "key2"
+        ] /* used_columns */,
         "attached_condition": "((`test`.`t2`.`key1` < 13) or (`test`.`t2`.`key2` < 14))"
       } /* table */
     } /* ordering_operation */
@@ -3343,12 +4463,12 @@ INSERT INTO t2 (i) SELECT i FROM t1;
 #
 EXPLAIN DELETE   FROM t2 WHERE i > 10 AND i <= 18 ORDER BY i DESC LIMIT 5;
 id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
-1	SIMPLE	t2	range	PRIMARY	PRIMARY	4	const	8	Using where
+1	DELETE	t2	range	PRIMARY	PRIMARY	4	const	8	Using where
 FLUSH STATUS;
 FLUSH TABLES;
 EXPLAIN EXTENDED DELETE   FROM t2 WHERE i > 10 AND i <= 18 ORDER BY i DESC LIMIT 5;
 id	select_type	table	type	possible_keys	key	key_len	ref	rows	filtered	Extra
-1	SIMPLE	t2	range	PRIMARY	PRIMARY	4	const	8	100.00	Using where
+1	DELETE	t2	range	PRIMARY	PRIMARY	4	const	8	100.00	Using where
 # Status of EXPLAIN EXTENDED query
 Variable_name	Value
 EXPLAIN FORMAT=JSON DELETE   FROM t2 WHERE i > 10 AND i <= 18 ORDER BY i DESC LIMIT 5;;
@@ -3373,7 +4493,7 @@ EXPLAIN
         "ref": [
           "const"
         ] /* ref */,
-        "rows": 8,
+        "rows_examined_per_scan": 8,
         "filtered": 100,
         "attached_condition": "((`test`.`t2`.`i` > 10) and (`test`.`t2`.`i` <= 18))"
       } /* table */
@@ -3394,6 +4514,9 @@ EXPLAIN
 {
   "query_block": {
     "select_id": 1,
+    "cost_info": {
+      "query_cost": "5.49"
+    } /* cost_info */,
     "ordering_operation": {
       "using_filesort": false,
       "table": {
@@ -3407,9 +4530,20 @@ EXPLAIN
           "i"
         ] /* used_key_parts */,
         "key_length": "4",
-        "rows": 8,
+        "rows_examined_per_scan": 8,
+        "rows_produced_per_join": 8,
         "filtered": 100,
-        "index_condition": "((`test`.`t2`.`i` > 10) and (`test`.`t2`.`i` <= 18))"
+        "index_condition": "((`test`.`t2`.`i` > 10) and (`test`.`t2`.`i` <= 18))",
+        "cost_info": {
+          "read_cost": "3.89",
+          "eval_cost": "1.60",
+          "prefix_cost": "5.49",
+          "data_read_per_join": "128"
+        } /* cost_info */,
+        "used_columns": [
+          "a",
+          "i"
+        ] /* used_columns */
       } /* table */
     } /* ordering_operation */
   } /* query_block */
@@ -3440,12 +4574,12 @@ INSERT INTO t2 SELECT i, i, i FROM t1;
 #
 EXPLAIN DELETE   FROM t2 ORDER BY a, b DESC LIMIT 5;
 id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
-1	SIMPLE	t2	ALL	NULL	NULL	NULL	NULL	26	Using filesort
+1	DELETE	t2	ALL	NULL	NULL	NULL	NULL	26	Using filesort
 FLUSH STATUS;
 FLUSH TABLES;
 EXPLAIN EXTENDED DELETE   FROM t2 ORDER BY a, b DESC LIMIT 5;
 id	select_type	table	type	possible_keys	key	key_len	ref	rows	filtered	Extra
-1	SIMPLE	t2	ALL	NULL	NULL	NULL	NULL	26	100.00	Using filesort
+1	DELETE	t2	ALL	NULL	NULL	NULL	NULL	26	100.00	Using filesort
 # Status of EXPLAIN EXTENDED query
 Variable_name	Value
 EXPLAIN FORMAT=JSON DELETE   FROM t2 ORDER BY a, b DESC LIMIT 5;;
@@ -3459,7 +4593,7 @@ EXPLAIN
         "delete": true,
         "table_name": "t2",
         "access_type": "ALL",
-        "rows": 26,
+        "rows_examined_per_scan": 26,
         "filtered": 100
       } /* table */
     } /* ordering_operation */
@@ -3479,13 +4613,28 @@ EXPLAIN
 {
   "query_block": {
     "select_id": 1,
+    "cost_info": {
+      "query_cost": "7.24"
+    } /* cost_info */,
     "ordering_operation": {
       "using_filesort": true,
       "table": {
         "table_name": "t2",
         "access_type": "ALL",
-        "rows": 26,
-        "filtered": 100
+        "rows_examined_per_scan": 26,
+        "rows_produced_per_join": 26,
+        "filtered": 100,
+        "cost_info": {
+          "read_cost": "2.04",
+          "eval_cost": "5.20",
+          "prefix_cost": "7.24",
+          "data_read_per_join": "208"
+        } /* cost_info */,
+        "used_columns": [
+          "a",
+          "b",
+          "c"
+        ] /* used_columns */
       } /* table */
     } /* ordering_operation */
   } /* query_block */
@@ -3520,12 +4669,12 @@ INSERT INTO t2 (a, b) SELECT t1.i, t1.i FROM t1, t1 x1, t1 x2;
 #
 EXPLAIN DELETE   FROM t2 ORDER BY a DESC, b DESC LIMIT 5;
 id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
-1	SIMPLE	t2	index	NULL	a	6	NULL	5	NULL
+1	DELETE	t2	index	NULL	a	6	NULL	5	NULL
 FLUSH STATUS;
 FLUSH TABLES;
 EXPLAIN EXTENDED DELETE   FROM t2 ORDER BY a DESC, b DESC LIMIT 5;
 id	select_type	table	type	possible_keys	key	key_len	ref	rows	filtered	Extra
-1	SIMPLE	t2	index	NULL	a	6	NULL	5	100.00	NULL
+1	DELETE	t2	index	NULL	a	6	NULL	5	100.00	NULL
 # Status of EXPLAIN EXTENDED query
 Variable_name	Value
 EXPLAIN FORMAT=JSON DELETE   FROM t2 ORDER BY a DESC, b DESC LIMIT 5;;
@@ -3545,7 +4694,7 @@ EXPLAIN
           "b"
         ] /* used_key_parts */,
         "key_length": "6",
-        "rows": 5,
+        "rows_examined_per_scan": 5,
         "filtered": 100
       } /* table */
     } /* ordering_operation */
@@ -3565,6 +4714,9 @@ EXPLAIN
 {
   "query_block": {
     "select_id": 1,
+    "cost_info": {
+      "query_cost": "3561.08"
+    } /* cost_info */,
     "ordering_operation": {
       "using_filesort": false,
       "table": {
@@ -3576,8 +4728,20 @@ EXPLAIN
           "b"
         ] /* used_key_parts */,
         "key_length": "6",
-        "rows": 5,
-        "filtered": 352040
+        "rows_examined_per_scan": 5,
+        "rows_produced_per_join": 17602,
+        "filtered": 352040,
+        "cost_info": {
+          "read_cost": "40.68",
+          "eval_cost": "3520.40",
+          "prefix_cost": "3561.08",
+          "data_read_per_join": "275K"
+        } /* cost_info */,
+        "used_columns": [
+          "a",
+          "b",
+          "c"
+        ] /* used_columns */
       } /* table */
     } /* ordering_operation */
   } /* query_block */
@@ -3608,12 +4772,12 @@ INSERT INTO t2 (i) SELECT i FROM t1;
 #
 EXPLAIN UPDATE t2 SET a = 10 WHERE i > 10 AND i <= 18 ORDER BY i LIMIT 5;
 id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
-1	SIMPLE	t2	range	PRIMARY	PRIMARY	4	const	8	Using where; Using temporary
+1	UPDATE	t2	range	PRIMARY	PRIMARY	4	const	8	Using where; Using temporary
 FLUSH STATUS;
 FLUSH TABLES;
 EXPLAIN EXTENDED UPDATE t2 SET a = 10 WHERE i > 10 AND i <= 18 ORDER BY i LIMIT 5;
 id	select_type	table	type	possible_keys	key	key_len	ref	rows	filtered	Extra
-1	SIMPLE	t2	range	PRIMARY	PRIMARY	4	const	8	100.00	Using where; Using temporary
+1	UPDATE	t2	range	PRIMARY	PRIMARY	4	const	8	100.00	Using where; Using temporary
 # Status of EXPLAIN EXTENDED query
 Variable_name	Value
 EXPLAIN FORMAT=JSON UPDATE t2 SET a = 10 WHERE i > 10 AND i <= 18 ORDER BY i LIMIT 5;;
@@ -3639,7 +4803,7 @@ EXPLAIN
         "ref": [
           "const"
         ] /* ref */,
-        "rows": 8,
+        "rows_examined_per_scan": 8,
         "filtered": 100,
         "attached_condition": "((`test`.`t2`.`i` > 10) and (`test`.`t2`.`i` <= 18))"
       } /* table */
@@ -3660,6 +4824,9 @@ EXPLAIN
 {
   "query_block": {
     "select_id": 1,
+    "cost_info": {
+      "query_cost": "5.49"
+    } /* cost_info */,
     "ordering_operation": {
       "using_filesort": false,
       "table": {
@@ -3673,9 +4840,20 @@ EXPLAIN
           "i"
         ] /* used_key_parts */,
         "key_length": "4",
-        "rows": 8,
+        "rows_examined_per_scan": 8,
+        "rows_produced_per_join": 8,
         "filtered": 100,
-        "index_condition": "((`test`.`t2`.`i` > 10) and (`test`.`t2`.`i` <= 18))"
+        "index_condition": "((`test`.`t2`.`i` > 10) and (`test`.`t2`.`i` <= 18))",
+        "cost_info": {
+          "read_cost": "3.89",
+          "eval_cost": "1.60",
+          "prefix_cost": "5.49",
+          "data_read_per_join": "128"
+        } /* cost_info */,
+        "used_columns": [
+          "a",
+          "i"
+        ] /* used_columns */
       } /* table */
     } /* ordering_operation */
   } /* query_block */
@@ -3707,12 +4885,12 @@ INSERT INTO t2 (i) SELECT i FROM t1;
 #
 EXPLAIN UPDATE t2 SET a = 10 WHERE i > 10 AND i <= 18 ORDER BY i LIMIT 5;
 id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
-1	SIMPLE	t2	ALL	NULL	NULL	NULL	NULL	26	Using where; Using filesort
+1	UPDATE	t2	ALL	NULL	NULL	NULL	NULL	26	Using where; Using filesort
 FLUSH STATUS;
 FLUSH TABLES;
 EXPLAIN EXTENDED UPDATE t2 SET a = 10 WHERE i > 10 AND i <= 18 ORDER BY i LIMIT 5;
 id	select_type	table	type	possible_keys	key	key_len	ref	rows	filtered	Extra
-1	SIMPLE	t2	ALL	NULL	NULL	NULL	NULL	26	100.00	Using where; Using filesort
+1	UPDATE	t2	ALL	NULL	NULL	NULL	NULL	26	100.00	Using where; Using filesort
 Warnings:
 Warning	1739	Cannot use range access on index 'i' due to type or collation conversion on field 'i'
 Warning	1739	Cannot use range access on index 'i' due to type or collation conversion on field 'i'
@@ -3729,7 +4907,7 @@ EXPLAIN
         "update": true,
         "table_name": "t2",
         "access_type": "ALL",
-        "rows": 26,
+        "rows_examined_per_scan": 26,
         "filtered": 100,
         "attached_condition": "((`test`.`t2`.`i` > 10) and (`test`.`t2`.`i` <= 18))"
       } /* table */
@@ -3755,6 +4933,9 @@ EXPLAIN
 {
   "query_block": {
     "select_id": 1,
+    "cost_info": {
+      "query_cost": "7.24"
+    } /* cost_info */,
     "ordering_operation": {
       "using_filesort": true,
       "table": {
@@ -3763,8 +4944,19 @@ EXPLAIN
         "possible_keys": [
           "i"
         ] /* possible_keys */,
-        "rows": 26,
+        "rows_examined_per_scan": 26,
+        "rows_produced_per_join": 26,
         "filtered": 100,
+        "cost_info": {
+          "read_cost": "2.04",
+          "eval_cost": "5.20",
+          "prefix_cost": "7.24",
+          "data_read_per_join": "208"
+        } /* cost_info */,
+        "used_columns": [
+          "a",
+          "i"
+        ] /* used_columns */,
         "attached_condition": "((`test`.`t2`.`i` > 10) and (`test`.`t2`.`i` <= 18))"
       } /* table */
     } /* ordering_operation */
@@ -3801,12 +4993,12 @@ INSERT INTO t2 (a, b, c) SELECT i, i, i FROM t1;
 #
 EXPLAIN UPDATE t2 SET d = 10 WHERE b = 10 ORDER BY a, c LIMIT 5;
 id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
-1	SIMPLE	t2	ALL	NULL	NULL	NULL	NULL	26	Using where; Using filesort
+1	UPDATE	t2	ALL	NULL	NULL	NULL	NULL	26	Using where; Using filesort
 FLUSH STATUS;
 FLUSH TABLES;
 EXPLAIN EXTENDED UPDATE t2 SET d = 10 WHERE b = 10 ORDER BY a, c LIMIT 5;
 id	select_type	table	type	possible_keys	key	key_len	ref	rows	filtered	Extra
-1	SIMPLE	t2	ALL	NULL	NULL	NULL	NULL	26	100.00	Using where; Using filesort
+1	UPDATE	t2	ALL	NULL	NULL	NULL	NULL	26	100.00	Using where; Using filesort
 # Status of EXPLAIN EXTENDED query
 Variable_name	Value
 EXPLAIN FORMAT=JSON UPDATE t2 SET d = 10 WHERE b = 10 ORDER BY a, c LIMIT 5;;
@@ -3820,7 +5012,7 @@ EXPLAIN
         "update": true,
         "table_name": "t2",
         "access_type": "ALL",
-        "rows": 26,
+        "rows_examined_per_scan": 26,
         "filtered": 100,
         "attached_condition": "(`test`.`t2`.`b` = 10)"
       } /* table */
@@ -3841,13 +5033,29 @@ EXPLAIN
 {
   "query_block": {
     "select_id": 1,
+    "cost_info": {
+      "query_cost": "7.31"
+    } /* cost_info */,
     "ordering_operation": {
       "using_filesort": true,
       "table": {
         "table_name": "t2",
         "access_type": "ALL",
-        "rows": 26,
+        "rows_examined_per_scan": 26,
+        "rows_produced_per_join": 26,
         "filtered": 100,
+        "cost_info": {
+          "read_cost": "2.11",
+          "eval_cost": "5.20",
+          "prefix_cost": "7.31",
+          "data_read_per_join": "624"
+        } /* cost_info */,
+        "used_columns": [
+          "a",
+          "b",
+          "c",
+          "d"
+        ] /* used_columns */,
         "attached_condition": "(`test`.`t2`.`b` = 10)"
       } /* table */
     } /* ordering_operation */
@@ -3883,12 +5091,12 @@ INSERT INTO t2 (a, b, c) SELECT t1.i, t1.i, t1.i FROM t1, t1 x1, t1 x2;
 #
 EXPLAIN UPDATE t2 SET d = 10 WHERE b = 10 ORDER BY a, c LIMIT 5;
 id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
-1	SIMPLE	t2	index	NULL	a	15	NULL	17602	Using where; Using temporary
+1	UPDATE	t2	index	NULL	a	15	NULL	17602	Using where; Using temporary
 FLUSH STATUS;
 FLUSH TABLES;
 EXPLAIN EXTENDED UPDATE t2 SET d = 10 WHERE b = 10 ORDER BY a, c LIMIT 5;
 id	select_type	table	type	possible_keys	key	key_len	ref	rows	filtered	Extra
-1	SIMPLE	t2	index	NULL	a	15	NULL	17602	100.00	Using where; Using temporary
+1	UPDATE	t2	index	NULL	a	15	NULL	17602	100.00	Using where; Using temporary
 # Status of EXPLAIN EXTENDED query
 Variable_name	Value
 EXPLAIN FORMAT=JSON UPDATE t2 SET d = 10 WHERE b = 10 ORDER BY a, c LIMIT 5;;
@@ -3910,7 +5118,7 @@ EXPLAIN
           "c"
         ] /* used_key_parts */,
         "key_length": "15",
-        "rows": 17602,
+        "rows_examined_per_scan": 17602,
         "filtered": 100,
         "attached_condition": "(`test`.`t2`.`b` = 10)"
       } /* table */
@@ -3931,6 +5139,9 @@ EXPLAIN
 {
   "query_block": {
     "select_id": 1,
+    "cost_info": {
+      "query_cost": "3595.45"
+    } /* cost_info */,
     "ordering_operation": {
       "using_filesort": false,
       "table": {
@@ -3943,8 +5154,21 @@ EXPLAIN
           "c"
         ] /* used_key_parts */,
         "key_length": "15",
-        "rows": 5,
+        "rows_examined_per_scan": 5,
+        "rows_produced_per_join": 17602,
         "filtered": 352040,
+        "cost_info": {
+          "read_cost": "75.06",
+          "eval_cost": "3520.40",
+          "prefix_cost": "3595.46",
+          "data_read_per_join": "412K"
+        } /* cost_info */,
+        "used_columns": [
+          "a",
+          "b",
+          "c",
+          "d"
+        ] /* used_columns */,
         "attached_condition": "(`test`.`t2`.`b` = 10)"
       } /* table */
     } /* ordering_operation */
@@ -3977,12 +5201,12 @@ INSERT INTO t2 SELECT i, i, i, i FROM t1;
 #
 EXPLAIN UPDATE t2 SET d = 10 WHERE b = 10 ORDER BY a, c LIMIT 5;
 id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
-1	SIMPLE	t2	ALL	NULL	NULL	NULL	NULL	26	Using where; Using filesort
+1	UPDATE	t2	ALL	NULL	NULL	NULL	NULL	26	Using where; Using filesort
 FLUSH STATUS;
 FLUSH TABLES;
 EXPLAIN EXTENDED UPDATE t2 SET d = 10 WHERE b = 10 ORDER BY a, c LIMIT 5;
 id	select_type	table	type	possible_keys	key	key_len	ref	rows	filtered	Extra
-1	SIMPLE	t2	ALL	NULL	NULL	NULL	NULL	26	100.00	Using where; Using filesort
+1	UPDATE	t2	ALL	NULL	NULL	NULL	NULL	26	100.00	Using where; Using filesort
 Warnings:
 Warning	1739	Cannot use range access on index 'a' due to type or collation conversion on field 'b'
 # Status of EXPLAIN EXTENDED query
@@ -3998,7 +5222,7 @@ EXPLAIN
         "update": true,
         "table_name": "t2",
         "access_type": "ALL",
-        "rows": 26,
+        "rows_examined_per_scan": 26,
         "filtered": 100,
         "attached_condition": "(`test`.`t2`.`b` = 10)"
       } /* table */
@@ -4021,13 +5245,29 @@ EXPLAIN
 {
   "query_block": {
     "select_id": 1,
+    "cost_info": {
+      "query_cost": "7.26"
+    } /* cost_info */,
     "ordering_operation": {
       "using_filesort": true,
       "table": {
         "table_name": "t2",
         "access_type": "ALL",
-        "rows": 26,
+        "rows_examined_per_scan": 26,
+        "rows_produced_per_join": 26,
         "filtered": 100,
+        "cost_info": {
+          "read_cost": "2.06",
+          "eval_cost": "5.20",
+          "prefix_cost": "7.26",
+          "data_read_per_join": "416"
+        } /* cost_info */,
+        "used_columns": [
+          "a",
+          "b",
+          "c",
+          "d"
+        ] /* used_columns */,
         "attached_condition": "(`test`.`t2`.`b` = 10)"
       } /* table */
     } /* ordering_operation */
@@ -4062,12 +5302,12 @@ INSERT INTO t2 SELECT i, i, i, i FROM t1;
 #
 EXPLAIN UPDATE t2 SET d = 10 WHERE b = 10 ORDER BY a, c LIMIT 5;
 id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
-1	SIMPLE	t2	ALL	NULL	NULL	NULL	NULL	26	Using where; Using filesort
+1	UPDATE	t2	ALL	NULL	NULL	NULL	NULL	26	Using where; Using filesort
 FLUSH STATUS;
 FLUSH TABLES;
 EXPLAIN EXTENDED UPDATE t2 SET d = 10 WHERE b = 10 ORDER BY a, c LIMIT 5;
 id	select_type	table	type	possible_keys	key	key_len	ref	rows	filtered	Extra
-1	SIMPLE	t2	ALL	NULL	NULL	NULL	NULL	26	100.00	Using where; Using filesort
+1	UPDATE	t2	ALL	NULL	NULL	NULL	NULL	26	100.00	Using where; Using filesort
 Warnings:
 Warning	1739	Cannot use range access on index 'a' due to type or collation conversion on field 'b'
 # Status of EXPLAIN EXTENDED query
@@ -4083,7 +5323,7 @@ EXPLAIN
         "update": true,
         "table_name": "t2",
         "access_type": "ALL",
-        "rows": 26,
+        "rows_examined_per_scan": 26,
         "filtered": 100,
         "attached_condition": "(`test`.`t2`.`b` = 10)"
       } /* table */
@@ -4106,13 +5346,29 @@ EXPLAIN
 {
   "query_block": {
     "select_id": 1,
+    "cost_info": {
+      "query_cost": "16.50"
+    } /* cost_info */,
     "ordering_operation": {
       "using_filesort": true,
       "table": {
         "table_name": "t2",
         "access_type": "ALL",
-        "rows": 26,
+        "rows_examined_per_scan": 26,
+        "rows_produced_per_join": 26,
         "filtered": 100,
+        "cost_info": {
+          "read_cost": "11.30",
+          "eval_cost": "5.20",
+          "prefix_cost": "16.50",
+          "data_read_per_join": "416"
+        } /* cost_info */,
+        "used_columns": [
+          "a",
+          "b",
+          "c",
+          "d"
+        ] /* used_columns */,
         "attached_condition": "(`test`.`t2`.`b` = 10)"
       } /* table */
     } /* ordering_operation */
@@ -4148,12 +5404,12 @@ INSERT INTO t2 (key1, key2) SELECT i, i FROM t1;
 #
 EXPLAIN UPDATE t2 SET i = 123 WHERE key1 < 13 or key2 < 14 ORDER BY key1;
 id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
-1	SIMPLE	t2	index_merge	key1,key2	key1,key2	5,5	NULL	7	Using sort_union(key1,key2); Using where; Using filesort
+1	UPDATE	t2	index_merge	key1,key2	key1,key2	5,5	NULL	7	Using sort_union(key1,key2); Using where; Using filesort
 FLUSH STATUS;
 FLUSH TABLES;
 EXPLAIN EXTENDED UPDATE t2 SET i = 123 WHERE key1 < 13 or key2 < 14 ORDER BY key1;
 id	select_type	table	type	possible_keys	key	key_len	ref	rows	filtered	Extra
-1	SIMPLE	t2	index_merge	key1,key2	key1,key2	5,5	NULL	7	100.00	Using sort_union(key1,key2); Using where; Using filesort
+1	UPDATE	t2	index_merge	key1,key2	key1,key2	5,5	NULL	7	100.00	Using sort_union(key1,key2); Using where; Using filesort
 # Status of EXPLAIN EXTENDED query
 Variable_name	Value
 EXPLAIN FORMAT=JSON UPDATE t2 SET i = 123 WHERE key1 < 13 or key2 < 14 ORDER BY key1;;
@@ -4173,7 +5429,7 @@ EXPLAIN
         ] /* possible_keys */,
         "key": "sort_union(key1,key2)",
         "key_length": "5,5",
-        "rows": 7,
+        "rows_examined_per_scan": 7,
         "filtered": 100,
         "attached_condition": "((`test`.`t2`.`key1` < 13) or (`test`.`t2`.`key2` < 14))"
       } /* table */
@@ -4194,8 +5450,14 @@ EXPLAIN
 {
   "query_block": {
     "select_id": 1,
+    "cost_info": {
+      "query_cost": "15.89"
+    } /* cost_info */,
     "ordering_operation": {
       "using_filesort": true,
+      "cost_info": {
+        "sort_cost": "7.00"
+      } /* cost_info */,
       "table": {
         "table_name": "t2",
         "access_type": "index_merge",
@@ -4205,8 +5467,20 @@ EXPLAIN
         ] /* possible_keys */,
         "key": "sort_union(key1,key2)",
         "key_length": "5,5",
-        "rows": 7,
+        "rows_examined_per_scan": 7,
+        "rows_produced_per_join": 7,
         "filtered": 100,
+        "cost_info": {
+          "read_cost": "7.49",
+          "eval_cost": "1.40",
+          "prefix_cost": "8.89",
+          "data_read_per_join": "112"
+        } /* cost_info */,
+        "used_columns": [
+          "i",
+          "key1",
+          "key2"
+        ] /* used_columns */,
         "attached_condition": "((`test`.`t2`.`key1` < 13) or (`test`.`t2`.`key2` < 14))"
       } /* table */
     } /* ordering_operation */
@@ -4244,12 +5518,12 @@ INSERT INTO t2 (i) SELECT i FROM t1;
 #
 EXPLAIN UPDATE t2 SET a = 10 WHERE i > 10 AND i <= 18 ORDER BY i DESC LIMIT 5;
 id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
-1	SIMPLE	t2	range	PRIMARY	PRIMARY	4	const	8	Using where; Using temporary
+1	UPDATE	t2	range	PRIMARY	PRIMARY	4	const	8	Using where; Using temporary
 FLUSH STATUS;
 FLUSH TABLES;
 EXPLAIN EXTENDED UPDATE t2 SET a = 10 WHERE i > 10 AND i <= 18 ORDER BY i DESC LIMIT 5;
 id	select_type	table	type	possible_keys	key	key_len	ref	rows	filtered	Extra
-1	SIMPLE	t2	range	PRIMARY	PRIMARY	4	const	8	100.00	Using where; Using temporary
+1	UPDATE	t2	range	PRIMARY	PRIMARY	4	const	8	100.00	Using where; Using temporary
 # Status of EXPLAIN EXTENDED query
 Variable_name	Value
 EXPLAIN FORMAT=JSON UPDATE t2 SET a = 10 WHERE i > 10 AND i <= 18 ORDER BY i DESC LIMIT 5;;
@@ -4275,7 +5549,7 @@ EXPLAIN
         "ref": [
           "const"
         ] /* ref */,
-        "rows": 8,
+        "rows_examined_per_scan": 8,
         "filtered": 100,
         "attached_condition": "((`test`.`t2`.`i` > 10) and (`test`.`t2`.`i` <= 18))"
       } /* table */
@@ -4296,6 +5570,9 @@ EXPLAIN
 {
   "query_block": {
     "select_id": 1,
+    "cost_info": {
+      "query_cost": "5.49"
+    } /* cost_info */,
     "ordering_operation": {
       "using_filesort": false,
       "table": {
@@ -4309,9 +5586,20 @@ EXPLAIN
           "i"
         ] /* used_key_parts */,
         "key_length": "4",
-        "rows": 8,
+        "rows_examined_per_scan": 8,
+        "rows_produced_per_join": 8,
         "filtered": 100,
-        "index_condition": "((`test`.`t2`.`i` > 10) and (`test`.`t2`.`i` <= 18))"
+        "index_condition": "((`test`.`t2`.`i` > 10) and (`test`.`t2`.`i` <= 18))",
+        "cost_info": {
+          "read_cost": "3.89",
+          "eval_cost": "1.60",
+          "prefix_cost": "5.49",
+          "data_read_per_join": "128"
+        } /* cost_info */,
+        "used_columns": [
+          "a",
+          "i"
+        ] /* used_columns */
       } /* table */
     } /* ordering_operation */
   } /* query_block */
@@ -4343,12 +5631,12 @@ INSERT INTO t2 SELECT i, i, i FROM t1;
 #
 EXPLAIN UPDATE t2 SET c = 10 ORDER BY a, b DESC LIMIT 5;
 id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
-1	SIMPLE	t2	ALL	NULL	NULL	NULL	NULL	26	Using filesort
+1	UPDATE	t2	ALL	NULL	NULL	NULL	NULL	26	Using filesort
 FLUSH STATUS;
 FLUSH TABLES;
 EXPLAIN EXTENDED UPDATE t2 SET c = 10 ORDER BY a, b DESC LIMIT 5;
 id	select_type	table	type	possible_keys	key	key_len	ref	rows	filtered	Extra
-1	SIMPLE	t2	ALL	NULL	NULL	NULL	NULL	26	100.00	Using filesort
+1	UPDATE	t2	ALL	NULL	NULL	NULL	NULL	26	100.00	Using filesort
 # Status of EXPLAIN EXTENDED query
 Variable_name	Value
 EXPLAIN FORMAT=JSON UPDATE t2 SET c = 10 ORDER BY a, b DESC LIMIT 5;;
@@ -4362,7 +5650,7 @@ EXPLAIN
         "update": true,
         "table_name": "t2",
         "access_type": "ALL",
-        "rows": 26,
+        "rows_examined_per_scan": 26,
         "filtered": 100
       } /* table */
     } /* ordering_operation */
@@ -4382,13 +5670,28 @@ EXPLAIN
 {
   "query_block": {
     "select_id": 1,
+    "cost_info": {
+      "query_cost": "7.24"
+    } /* cost_info */,
     "ordering_operation": {
       "using_filesort": true,
       "table": {
         "table_name": "t2",
         "access_type": "ALL",
-        "rows": 26,
-        "filtered": 100
+        "rows_examined_per_scan": 26,
+        "rows_produced_per_join": 26,
+        "filtered": 100,
+        "cost_info": {
+          "read_cost": "2.04",
+          "eval_cost": "5.20",
+          "prefix_cost": "7.24",
+          "data_read_per_join": "208"
+        } /* cost_info */,
+        "used_columns": [
+          "a",
+          "b",
+          "c"
+        ] /* used_columns */
       } /* table */
     } /* ordering_operation */
   } /* query_block */
@@ -4423,12 +5726,12 @@ INSERT INTO t2 (a, b) SELECT t1.i, t1.i FROM t1, t1 x1, t1 x2;
 #
 EXPLAIN UPDATE t2 SET c = 10 ORDER BY a DESC, b DESC LIMIT 5;
 id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
-1	SIMPLE	t2	index	NULL	a	6	NULL	5	Using temporary
+1	UPDATE	t2	index	NULL	a	6	NULL	5	Using temporary
 FLUSH STATUS;
 FLUSH TABLES;
 EXPLAIN EXTENDED UPDATE t2 SET c = 10 ORDER BY a DESC, b DESC LIMIT 5;
 id	select_type	table	type	possible_keys	key	key_len	ref	rows	filtered	Extra
-1	SIMPLE	t2	index	NULL	a	6	NULL	5	100.00	Using temporary
+1	UPDATE	t2	index	NULL	a	6	NULL	5	100.00	Using temporary
 # Status of EXPLAIN EXTENDED query
 Variable_name	Value
 EXPLAIN FORMAT=JSON UPDATE t2 SET c = 10 ORDER BY a DESC, b DESC LIMIT 5;;
@@ -4449,7 +5752,7 @@ EXPLAIN
           "b"
         ] /* used_key_parts */,
         "key_length": "6",
-        "rows": 5,
+        "rows_examined_per_scan": 5,
         "filtered": 100
       } /* table */
     } /* ordering_operation */
@@ -4469,6 +5772,9 @@ EXPLAIN
 {
   "query_block": {
     "select_id": 1,
+    "cost_info": {
+      "query_cost": "3561.08"
+    } /* cost_info */,
     "ordering_operation": {
       "using_filesort": false,
       "table": {
@@ -4480,8 +5786,20 @@ EXPLAIN
           "b"
         ] /* used_key_parts */,
         "key_length": "6",
-        "rows": 5,
-        "filtered": 352040
+        "rows_examined_per_scan": 5,
+        "rows_produced_per_join": 17602,
+        "filtered": 352040,
+        "cost_info": {
+          "read_cost": "40.68",
+          "eval_cost": "3520.40",
+          "prefix_cost": "3561.08",
+          "data_read_per_join": "275K"
+        } /* cost_info */,
+        "used_columns": [
+          "a",
+          "b",
+          "c"
+        ] /* used_columns */
       } /* table */
     } /* ordering_operation */
   } /* query_block */
@@ -4515,12 +5833,12 @@ INSERT INTO t1 VALUES (1,'y',1), (2,'n',2), (3,'y',3), (4,'n',4);
 #
 EXPLAIN UPDATE t1 SET c2 = 0 WHERE c1_idx = 'y' ORDER BY pk DESC LIMIT 2;
 id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
-1	SIMPLE	t1	range	c1_idx	c1_idx	2	const	2	Using where; Using filesort
+1	UPDATE	t1	range	c1_idx	c1_idx	2	const	2	Using where; Using filesort
 FLUSH STATUS;
 FLUSH TABLES;
 EXPLAIN EXTENDED UPDATE t1 SET c2 = 0 WHERE c1_idx = 'y' ORDER BY pk DESC LIMIT 2;
 id	select_type	table	type	possible_keys	key	key_len	ref	rows	filtered	Extra
-1	SIMPLE	t1	range	c1_idx	c1_idx	2	const	2	100.00	Using where; Using filesort
+1	UPDATE	t1	range	c1_idx	c1_idx	2	const	2	100.00	Using where; Using filesort
 # Status of EXPLAIN EXTENDED query
 Variable_name	Value
 EXPLAIN FORMAT=JSON UPDATE t1 SET c2 = 0 WHERE c1_idx = 'y' ORDER BY pk DESC LIMIT 2;;
@@ -4545,7 +5863,7 @@ EXPLAIN
         "ref": [
           "const"
         ] /* ref */,
-        "rows": 2,
+        "rows_examined_per_scan": 2,
         "filtered": 100,
         "attached_condition": "(`test`.`t1`.`c1_idx` = 'y')"
       } /* table */
@@ -4566,6 +5884,9 @@ EXPLAIN
 {
   "query_block": {
     "select_id": 1,
+    "cost_info": {
+      "query_cost": "2.40"
+    } /* cost_info */,
     "ordering_operation": {
       "using_filesort": true,
       "table": {
@@ -4582,8 +5903,20 @@ EXPLAIN
         "ref": [
           "const"
         ] /* ref */,
-        "rows": 2,
+        "rows_examined_per_scan": 2,
+        "rows_produced_per_join": 2,
         "filtered": 100,
+        "cost_info": {
+          "read_cost": "2.00",
+          "eval_cost": "0.40",
+          "prefix_cost": "2.40",
+          "data_read_per_join": "32"
+        } /* cost_info */,
+        "used_columns": [
+          "pk",
+          "c1_idx",
+          "c2"
+        ] /* used_columns */,
         "attached_condition": "((`test`.`t1`.`c1_idx` <=> 'y'))"
       } /* table */
     } /* ordering_operation */
@@ -4613,12 +5946,12 @@ Sort_rows	2
 #
 EXPLAIN DELETE   FROM t1 WHERE c1_idx = 'y' ORDER BY pk DESC LIMIT 2;
 id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
-1	SIMPLE	t1	range	c1_idx	c1_idx	2	const	2	Using where; Using filesort
+1	DELETE	t1	range	c1_idx	c1_idx	2	const	2	Using where; Using filesort
 FLUSH STATUS;
 FLUSH TABLES;
 EXPLAIN EXTENDED DELETE   FROM t1 WHERE c1_idx = 'y' ORDER BY pk DESC LIMIT 2;
 id	select_type	table	type	possible_keys	key	key_len	ref	rows	filtered	Extra
-1	SIMPLE	t1	range	c1_idx	c1_idx	2	const	2	100.00	Using where; Using filesort
+1	DELETE	t1	range	c1_idx	c1_idx	2	const	2	100.00	Using where; Using filesort
 # Status of EXPLAIN EXTENDED query
 Variable_name	Value
 EXPLAIN FORMAT=JSON DELETE   FROM t1 WHERE c1_idx = 'y' ORDER BY pk DESC LIMIT 2;;
@@ -4643,7 +5976,7 @@ EXPLAIN
         "ref": [
           "const"
         ] /* ref */,
-        "rows": 2,
+        "rows_examined_per_scan": 2,
         "filtered": 100,
         "attached_condition": "(`test`.`t1`.`c1_idx` = 'y')"
       } /* table */
@@ -4664,6 +5997,9 @@ EXPLAIN
 {
   "query_block": {
     "select_id": 1,
+    "cost_info": {
+      "query_cost": "2.40"
+    } /* cost_info */,
     "ordering_operation": {
       "using_filesort": true,
       "table": {
@@ -4680,8 +6016,20 @@ EXPLAIN
         "ref": [
           "const"
         ] /* ref */,
-        "rows": 2,
+        "rows_examined_per_scan": 2,
+        "rows_produced_per_join": 2,
         "filtered": 100,
+        "cost_info": {
+          "read_cost": "2.00",
+          "eval_cost": "0.40",
+          "prefix_cost": "2.40",
+          "data_read_per_join": "32"
+        } /* cost_info */,
+        "used_columns": [
+          "pk",
+          "c1_idx",
+          "c2"
+        ] /* used_columns */,
         "attached_condition": "((`test`.`t1`.`c1_idx` <=> 'y'))"
       } /* table */
     } /* ordering_operation */
@@ -4715,12 +6063,12 @@ INSERT INTO t1 VALUES (),(),(),(),(),(),(),(),(),(),(),(),(),(),(),(),(),(),(),(
 #
 EXPLAIN UPDATE t1 SET a=a+10 WHERE a > 34;
 id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
-1	SIMPLE	t1	range	PRIMARY	PRIMARY	4	const	3	Using where; Using temporary
+1	UPDATE	t1	range	PRIMARY	PRIMARY	4	const	3	Using where; Using temporary
 FLUSH STATUS;
 FLUSH TABLES;
 EXPLAIN EXTENDED UPDATE t1 SET a=a+10 WHERE a > 34;
 id	select_type	table	type	possible_keys	key	key_len	ref	rows	filtered	Extra
-1	SIMPLE	t1	range	PRIMARY	PRIMARY	4	const	3	100.00	Using where; Using temporary
+1	UPDATE	t1	range	PRIMARY	PRIMARY	4	const	3	100.00	Using where; Using temporary
 # Status of EXPLAIN EXTENDED query
 Variable_name	Value
 EXPLAIN FORMAT=JSON UPDATE t1 SET a=a+10 WHERE a > 34;;
@@ -4743,7 +6091,7 @@ EXPLAIN
       "ref": [
         "const"
       ] /* ref */,
-      "rows": 3,
+      "rows_examined_per_scan": 3,
       "filtered": 100,
       "using_temporary_table": "for update",
       "attached_condition": "(`test`.`t1`.`a` > 34)"
@@ -4764,6 +6112,9 @@ EXPLAIN
 {
   "query_block": {
     "select_id": 1,
+    "cost_info": {
+      "query_cost": "2.25"
+    } /* cost_info */,
     "table": {
       "table_name": "t1",
       "access_type": "range",
@@ -4775,9 +6126,19 @@ EXPLAIN
         "a"
       ] /* used_key_parts */,
       "key_length": "4",
-      "rows": 3,
+      "rows_examined_per_scan": 3,
+      "rows_produced_per_join": 3,
       "filtered": 100,
       "using_index": true,
+      "cost_info": {
+        "read_cost": "1.65",
+        "eval_cost": "0.60",
+        "prefix_cost": "2.25",
+        "data_read_per_join": "24"
+      } /* cost_info */,
+      "used_columns": [
+        "a"
+      ] /* used_columns */,
       "attached_condition": "(`test`.`t1`.`a` > 34)"
     } /* table */
   } /* query_block */
@@ -4806,13 +6167,13 @@ INSERT INTO t1 VALUES (1, 1, 10), (2, 2, 20);
 #
 EXPLAIN UPDATE        t1 LEFT JOIN t2 ON t1.c1 = t2.c1 SET t2.c2 = 10;
 id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
-1	SIMPLE	t2	system	NULL	NULL	NULL	NULL	0	const row not found
+1	UPDATE	t2	system	NULL	NULL	NULL	NULL	0	const row not found
 1	SIMPLE	t1	ALL	NULL	NULL	NULL	NULL	2	NULL
 FLUSH STATUS;
 FLUSH TABLES;
 EXPLAIN EXTENDED UPDATE        t1 LEFT JOIN t2 ON t1.c1 = t2.c1 SET t2.c2 = 10;
 id	select_type	table	type	possible_keys	key	key_len	ref	rows	filtered	Extra
-1	SIMPLE	t2	system	NULL	NULL	NULL	NULL	0	0.00	const row not found
+1	UPDATE	t2	system	NULL	NULL	NULL	NULL	0	0.00	const row not found
 1	SIMPLE	t1	ALL	NULL	NULL	NULL	NULL	2	100.00	NULL
 # Status of EXPLAIN EXTENDED query
 Variable_name	Value
@@ -4823,23 +6184,47 @@ EXPLAIN
 {
   "query_block": {
     "select_id": 1,
+    "cost_info": {
+      "query_cost": "2.41"
+    } /* cost_info */,
     "nested_loop": [
       {
         "table": {
           "update": true,
           "table_name": "t2",
           "access_type": "system",
-          "rows": 0,
+          "rows_examined_per_scan": 0,
+          "rows_produced_per_join": 0,
           "filtered": 0,
-          "const_row_not_found": true
+          "const_row_not_found": true,
+          "cost_info": {
+            "read_cost": "0.00",
+            "eval_cost": "0.00",
+            "prefix_cost": "0.00",
+            "data_read_per_join": "0"
+          } /* cost_info */,
+          "used_columns": [
+            "c1",
+            "c2"
+          ] /* used_columns */
         } /* table */
       },
       {
         "table": {
           "table_name": "t1",
           "access_type": "ALL",
-          "rows": 2,
-          "filtered": 100
+          "rows_examined_per_scan": 2,
+          "rows_produced_per_join": 2,
+          "filtered": 100,
+          "cost_info": {
+            "read_cost": "2.01",
+            "eval_cost": "0.40",
+            "prefix_cost": "2.41",
+            "data_read_per_join": "32"
+          } /* cost_info */,
+          "used_columns": [
+            "c1"
+          ] /* used_columns */
         } /* table */
       }
     ] /* nested_loop */
@@ -4862,22 +6247,48 @@ EXPLAIN
 {
   "query_block": {
     "select_id": 1,
+    "cost_info": {
+      "query_cost": "2.41"
+    } /* cost_info */,
     "nested_loop": [
       {
         "table": {
           "table_name": "t2",
           "access_type": "system",
-          "rows": 0,
+          "rows_examined_per_scan": 0,
+          "rows_produced_per_join": 0,
           "filtered": 0,
-          "const_row_not_found": true
+          "const_row_not_found": true,
+          "cost_info": {
+            "read_cost": "0.00",
+            "eval_cost": "0.00",
+            "prefix_cost": "0.00",
+            "data_read_per_join": "0"
+          } /* cost_info */,
+          "used_columns": [
+            "c1",
+            "c2"
+          ] /* used_columns */
         } /* table */
       },
       {
         "table": {
           "table_name": "t1",
           "access_type": "ALL",
-          "rows": 2,
-          "filtered": 100
+          "rows_examined_per_scan": 2,
+          "rows_produced_per_join": 2,
+          "filtered": 100,
+          "cost_info": {
+            "read_cost": "2.01",
+            "eval_cost": "0.40",
+            "prefix_cost": "2.41",
+            "data_read_per_join": "32"
+          } /* cost_info */,
+          "used_columns": [
+            "c1",
+            "c2",
+            "c3"
+          ] /* used_columns */
         } /* table */
       }
     ] /* nested_loop */
@@ -4900,13 +6311,13 @@ Handler_read_rnd_next	4
 #
 EXPLAIN UPDATE        t1 LEFT JOIN t2 ON t1.c1 = t2.c1 SET t2.c2 = 10 WHERE t1.c3 = 10;
 id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
-1	SIMPLE	t2	system	NULL	NULL	NULL	NULL	0	const row not found
+1	UPDATE	t2	system	NULL	NULL	NULL	NULL	0	const row not found
 1	SIMPLE	t1	ALL	NULL	NULL	NULL	NULL	2	Using where
 FLUSH STATUS;
 FLUSH TABLES;
 EXPLAIN EXTENDED UPDATE        t1 LEFT JOIN t2 ON t1.c1 = t2.c1 SET t2.c2 = 10 WHERE t1.c3 = 10;
 id	select_type	table	type	possible_keys	key	key_len	ref	rows	filtered	Extra
-1	SIMPLE	t2	system	NULL	NULL	NULL	NULL	0	0.00	const row not found
+1	UPDATE	t2	system	NULL	NULL	NULL	NULL	0	0.00	const row not found
 1	SIMPLE	t1	ALL	NULL	NULL	NULL	NULL	2	100.00	Using where
 # Status of EXPLAIN EXTENDED query
 Variable_name	Value
@@ -4917,23 +6328,48 @@ EXPLAIN
 {
   "query_block": {
     "select_id": 1,
+    "cost_info": {
+      "query_cost": "2.41"
+    } /* cost_info */,
     "nested_loop": [
       {
         "table": {
           "update": true,
           "table_name": "t2",
           "access_type": "system",
-          "rows": 0,
+          "rows_examined_per_scan": 0,
+          "rows_produced_per_join": 0,
           "filtered": 0,
-          "const_row_not_found": true
+          "const_row_not_found": true,
+          "cost_info": {
+            "read_cost": "0.00",
+            "eval_cost": "0.00",
+            "prefix_cost": "0.00",
+            "data_read_per_join": "0"
+          } /* cost_info */,
+          "used_columns": [
+            "c1",
+            "c2"
+          ] /* used_columns */
         } /* table */
       },
       {
         "table": {
           "table_name": "t1",
           "access_type": "ALL",
-          "rows": 2,
+          "rows_examined_per_scan": 2,
+          "rows_produced_per_join": 2,
           "filtered": 100,
+          "cost_info": {
+            "read_cost": "2.01",
+            "eval_cost": "0.40",
+            "prefix_cost": "2.41",
+            "data_read_per_join": "32"
+          } /* cost_info */,
+          "used_columns": [
+            "c1",
+            "c3"
+          ] /* used_columns */,
           "attached_condition": "(`test`.`t1`.`c3` = 10)"
         } /* table */
       }
@@ -4957,22 +6393,48 @@ EXPLAIN
 {
   "query_block": {
     "select_id": 1,
+    "cost_info": {
+      "query_cost": "2.41"
+    } /* cost_info */,
     "nested_loop": [
       {
         "table": {
           "table_name": "t2",
           "access_type": "system",
-          "rows": 0,
+          "rows_examined_per_scan": 0,
+          "rows_produced_per_join": 0,
           "filtered": 0,
-          "const_row_not_found": true
+          "const_row_not_found": true,
+          "cost_info": {
+            "read_cost": "0.00",
+            "eval_cost": "0.00",
+            "prefix_cost": "0.00",
+            "data_read_per_join": "0"
+          } /* cost_info */,
+          "used_columns": [
+            "c1",
+            "c2"
+          ] /* used_columns */
         } /* table */
       },
       {
         "table": {
           "table_name": "t1",
           "access_type": "ALL",
-          "rows": 2,
+          "rows_examined_per_scan": 2,
+          "rows_produced_per_join": 2,
           "filtered": 100,
+          "cost_info": {
+            "read_cost": "2.01",
+            "eval_cost": "0.40",
+            "prefix_cost": "2.41",
+            "data_read_per_join": "32"
+          } /* cost_info */,
+          "used_columns": [
+            "c1",
+            "c2",
+            "c3"
+          ] /* used_columns */,
           "attached_condition": "(`test`.`t1`.`c3` = 10)"
         } /* table */
       }
@@ -5003,13 +6465,13 @@ INSERT INTO t2 VALUES(1,1),(2,2);
 #
 EXPLAIN UPDATE t1 SET t1.f2=(SELECT MAX(t2.f4) FROM t2 WHERE t2.f3=t1.f1);
 id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
-1	PRIMARY	t1	ALL	NULL	NULL	NULL	NULL	2	NULL
+1	UPDATE	t1	ALL	NULL	NULL	NULL	NULL	2	NULL
 2	DEPENDENT SUBQUERY	t2	ref	IDX	IDX	5	test.t1.f1	2	NULL
 FLUSH STATUS;
 FLUSH TABLES;
 EXPLAIN EXTENDED UPDATE t1 SET t1.f2=(SELECT MAX(t2.f4) FROM t2 WHERE t2.f3=t1.f1);
 id	select_type	table	type	possible_keys	key	key_len	ref	rows	filtered	Extra
-1	PRIMARY	t1	ALL	NULL	NULL	NULL	NULL	2	100.00	NULL
+1	UPDATE	t1	ALL	NULL	NULL	NULL	NULL	2	100.00	NULL
 2	DEPENDENT SUBQUERY	t2	ref	IDX	IDX	5	test.t1.f1	2	100.00	NULL
 Warnings:
 Note	1276	Field or reference 'test.t1.f1' of SELECT #2 was resolved in SELECT #1
@@ -5024,7 +6486,7 @@ EXPLAIN
       "update": true,
       "table_name": "t1",
       "access_type": "ALL",
-      "rows": 2,
+      "rows_examined_per_scan": 2,
       "filtered": 100
     } /* table */,
     "update_value_subqueries": [
@@ -5033,6 +6495,9 @@ EXPLAIN
         "cacheable": false,
         "query_block": {
           "select_id": 2,
+          "cost_info": {
+            "query_cost": "2.40"
+          } /* cost_info */,
           "table": {
             "table_name": "t2",
             "access_type": "ref",
@@ -5047,8 +6512,19 @@ EXPLAIN
             "ref": [
               "test.t1.f1"
             ] /* ref */,
-            "rows": 2,
-            "filtered": 100
+            "rows_examined_per_scan": 2,
+            "rows_produced_per_join": 2,
+            "filtered": 100,
+            "cost_info": {
+              "read_cost": "2.00",
+              "eval_cost": "0.40",
+              "prefix_cost": "2.40",
+              "data_read_per_join": "32"
+            } /* cost_info */,
+            "used_columns": [
+              "f3",
+              "f4"
+            ] /* used_columns */
           } /* table */
         } /* query_block */
       }
@@ -5073,11 +6549,24 @@ EXPLAIN
 {
   "query_block": {
     "select_id": 1,
+    "cost_info": {
+      "query_cost": "2.40"
+    } /* cost_info */,
     "table": {
       "table_name": "t1",
       "access_type": "ALL",
-      "rows": 2,
-      "filtered": 100
+      "rows_examined_per_scan": 2,
+      "rows_produced_per_join": 2,
+      "filtered": 100,
+      "cost_info": {
+        "read_cost": "2.00",
+        "eval_cost": "0.40",
+        "prefix_cost": "2.40",
+        "data_read_per_join": "32"
+      } /* cost_info */,
+      "used_columns": [
+        "f1"
+      ] /* used_columns */
     } /* table */,
     "select_list_subqueries": [
       {
@@ -5085,6 +6574,9 @@ EXPLAIN
         "cacheable": false,
         "query_block": {
           "select_id": 2,
+          "cost_info": {
+            "query_cost": "2.40"
+          } /* cost_info */,
           "table": {
             "table_name": "t2",
             "access_type": "ref",
@@ -5099,8 +6591,19 @@ EXPLAIN
             "ref": [
               "test.t1.f1"
             ] /* ref */,
-            "rows": 2,
-            "filtered": 100
+            "rows_examined_per_scan": 2,
+            "rows_produced_per_join": 2,
+            "filtered": 100,
+            "cost_info": {
+              "read_cost": "2.00",
+              "eval_cost": "0.40",
+              "prefix_cost": "2.40",
+              "data_read_per_join": "32"
+            } /* cost_info */,
+            "used_columns": [
+              "f3",
+              "f4"
+            ] /* used_columns */
           } /* table */
         } /* query_block */
       }
@@ -5129,7 +6632,7 @@ INSERT INTO t1 VALUES (1);
 SET @a = NULL;
 EXPLAIN DELETE FROM t1 WHERE (@a:= a);
 id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
-1	SIMPLE	t1	ALL	NULL	NULL	NULL	NULL	1	Using where
+1	DELETE	t1	ALL	NULL	NULL	NULL	NULL	1	Using where
 DROP TABLE t1;
 #56
 CREATE TABLE t1 (a INT);
@@ -5168,13 +6671,13 @@ CREATE VIEW v1 AS SELECT t11.a, t12.a AS b FROM t1 t11, t1 t12;
 #
 EXPLAIN UPDATE        v1 SET a = 1 WHERE a > 0;
 id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
-1	SIMPLE	t11	ALL	NULL	NULL	NULL	NULL	2	Using where
+1	UPDATE	t11	ALL	NULL	NULL	NULL	NULL	2	Using where
 1	SIMPLE	t12	ALL	NULL	NULL	NULL	NULL	2	Using join buffer (Block Nested Loop)
 FLUSH STATUS;
 FLUSH TABLES;
 EXPLAIN EXTENDED UPDATE        v1 SET a = 1 WHERE a > 0;
 id	select_type	table	type	possible_keys	key	key_len	ref	rows	filtered	Extra
-1	SIMPLE	t11	ALL	NULL	NULL	NULL	NULL	2	100.00	Using where
+1	UPDATE	t11	ALL	NULL	NULL	NULL	NULL	2	100.00	Using where
 1	SIMPLE	t12	ALL	NULL	NULL	NULL	NULL	2	100.00	Using join buffer (Block Nested Loop)
 # Status of EXPLAIN EXTENDED query
 Variable_name	Value
@@ -5183,14 +6686,27 @@ EXPLAIN
 {
   "query_block": {
     "select_id": 1,
+    "cost_info": {
+      "query_cost": "5.21"
+    } /* cost_info */,
     "nested_loop": [
       {
         "table": {
           "update": true,
           "table_name": "t11",
           "access_type": "ALL",
-          "rows": 2,
+          "rows_examined_per_scan": 2,
+          "rows_produced_per_join": 2,
           "filtered": 100,
+          "cost_info": {
+            "read_cost": "2.00",
+            "eval_cost": "0.40",
+            "prefix_cost": "2.40",
+            "data_read_per_join": "16"
+          } /* cost_info */,
+          "used_columns": [
+            "a"
+          ] /* used_columns */,
           "attached_condition": "(`test`.`t11`.`a` > 0)"
         } /* table */
       },
@@ -5198,9 +6714,16 @@ EXPLAIN
         "table": {
           "table_name": "t12",
           "access_type": "ALL",
-          "rows": 2,
+          "rows_examined_per_scan": 2,
+          "rows_produced_per_join": 4,
           "filtered": 100,
-          "using_join_buffer": "Block Nested Loop"
+          "using_join_buffer": "Block Nested Loop",
+          "cost_info": {
+            "read_cost": "2.00",
+            "eval_cost": "0.80",
+            "prefix_cost": "5.21",
+            "data_read_per_join": "32"
+          } /* cost_info */
         } /* table */
       }
     ] /* nested_loop */
@@ -5221,13 +6744,26 @@ EXPLAIN
 {
   "query_block": {
     "select_id": 1,
+    "cost_info": {
+      "query_cost": "5.21"
+    } /* cost_info */,
     "nested_loop": [
       {
         "table": {
           "table_name": "t11",
           "access_type": "ALL",
-          "rows": 2,
+          "rows_examined_per_scan": 2,
+          "rows_produced_per_join": 2,
           "filtered": 100,
+          "cost_info": {
+            "read_cost": "2.00",
+            "eval_cost": "0.40",
+            "prefix_cost": "2.40",
+            "data_read_per_join": "16"
+          } /* cost_info */,
+          "used_columns": [
+            "a"
+          ] /* used_columns */,
           "attached_condition": "(`test`.`t11`.`a` > 0)"
         } /* table */
       },
@@ -5235,9 +6771,19 @@ EXPLAIN
         "table": {
           "table_name": "t12",
           "access_type": "ALL",
-          "rows": 2,
+          "rows_examined_per_scan": 2,
+          "rows_produced_per_join": 4,
           "filtered": 100,
-          "using_join_buffer": "Block Nested Loop"
+          "using_join_buffer": "Block Nested Loop",
+          "cost_info": {
+            "read_cost": "2.00",
+            "eval_cost": "0.80",
+            "prefix_cost": "5.21",
+            "data_read_per_join": "32"
+          } /* cost_info */,
+          "used_columns": [
+            "a"
+          ] /* used_columns */
         } /* table */
       }
     ] /* nested_loop */
@@ -5261,14 +6807,14 @@ Handler_write	2
 EXPLAIN UPDATE        t1, v1 SET v1.a = 1 WHERE t1.a = v1.a;
 id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
 1	SIMPLE	t1	ALL	NULL	NULL	NULL	NULL	2	NULL
-1	SIMPLE	t11	ALL	NULL	NULL	NULL	NULL	2	Using where; Using join buffer (Block Nested Loop)
+1	UPDATE	t11	ALL	NULL	NULL	NULL	NULL	2	Using where; Using join buffer (Block Nested Loop)
 1	SIMPLE	t12	ALL	NULL	NULL	NULL	NULL	2	Using join buffer (Block Nested Loop)
 FLUSH STATUS;
 FLUSH TABLES;
 EXPLAIN EXTENDED UPDATE        t1, v1 SET v1.a = 1 WHERE t1.a = v1.a;
 id	select_type	table	type	possible_keys	key	key_len	ref	rows	filtered	Extra
 1	SIMPLE	t1	ALL	NULL	NULL	NULL	NULL	2	100.00	NULL
-1	SIMPLE	t11	ALL	NULL	NULL	NULL	NULL	2	100.00	Using where; Using join buffer (Block Nested Loop)
+1	UPDATE	t11	ALL	NULL	NULL	NULL	NULL	2	100.00	Using where; Using join buffer (Block Nested Loop)
 1	SIMPLE	t12	ALL	NULL	NULL	NULL	NULL	2	100.00	Using join buffer (Block Nested Loop)
 # Status of EXPLAIN EXTENDED query
 Variable_name	Value
@@ -5277,13 +6823,26 @@ EXPLAIN
 {
   "query_block": {
     "select_id": 1,
+    "cost_info": {
+      "query_cost": "8.81"
+    } /* cost_info */,
     "nested_loop": [
       {
         "table": {
           "table_name": "t1",
           "access_type": "ALL",
-          "rows": 2,
-          "filtered": 100
+          "rows_examined_per_scan": 2,
+          "rows_produced_per_join": 2,
+          "filtered": 100,
+          "cost_info": {
+            "read_cost": "2.00",
+            "eval_cost": "0.40",
+            "prefix_cost": "2.40",
+            "data_read_per_join": "16"
+          } /* cost_info */,
+          "used_columns": [
+            "a"
+          ] /* used_columns */
         } /* table */
       },
       {
@@ -5291,9 +6850,19 @@ EXPLAIN
           "update": true,
           "table_name": "t11",
           "access_type": "ALL",
-          "rows": 2,
+          "rows_examined_per_scan": 2,
+          "rows_produced_per_join": 4,
           "filtered": 100,
           "using_join_buffer": "Block Nested Loop",
+          "cost_info": {
+            "read_cost": "2.00",
+            "eval_cost": "0.80",
+            "prefix_cost": "5.21",
+            "data_read_per_join": "32"
+          } /* cost_info */,
+          "used_columns": [
+            "a"
+          ] /* used_columns */,
           "attached_condition": "(`test`.`t11`.`a` = `test`.`t1`.`a`)"
         } /* table */
       },
@@ -5301,9 +6870,16 @@ EXPLAIN
         "table": {
           "table_name": "t12",
           "access_type": "ALL",
-          "rows": 2,
+          "rows_examined_per_scan": 2,
+          "rows_produced_per_join": 8,
           "filtered": 100,
-          "using_join_buffer": "Block Nested Loop"
+          "using_join_buffer": "Block Nested Loop",
+          "cost_info": {
+            "read_cost": "2.00",
+            "eval_cost": "1.60",
+            "prefix_cost": "8.81",
+            "data_read_per_join": "64"
+          } /* cost_info */
         } /* table */
       }
     ] /* nested_loop */
@@ -5325,22 +6901,45 @@ EXPLAIN
 {
   "query_block": {
     "select_id": 1,
+    "cost_info": {
+      "query_cost": "8.81"
+    } /* cost_info */,
     "nested_loop": [
       {
         "table": {
           "table_name": "t1",
           "access_type": "ALL",
-          "rows": 2,
-          "filtered": 100
+          "rows_examined_per_scan": 2,
+          "rows_produced_per_join": 2,
+          "filtered": 100,
+          "cost_info": {
+            "read_cost": "2.00",
+            "eval_cost": "0.40",
+            "prefix_cost": "2.40",
+            "data_read_per_join": "16"
+          } /* cost_info */,
+          "used_columns": [
+            "a"
+          ] /* used_columns */
         } /* table */
       },
       {
         "table": {
           "table_name": "t11",
           "access_type": "ALL",
-          "rows": 2,
+          "rows_examined_per_scan": 2,
+          "rows_produced_per_join": 4,
           "filtered": 100,
           "using_join_buffer": "Block Nested Loop",
+          "cost_info": {
+            "read_cost": "2.00",
+            "eval_cost": "0.80",
+            "prefix_cost": "5.21",
+            "data_read_per_join": "32"
+          } /* cost_info */,
+          "used_columns": [
+            "a"
+          ] /* used_columns */,
           "attached_condition": "(`test`.`t11`.`a` = `test`.`t1`.`a`)"
         } /* table */
       },
@@ -5348,9 +6947,19 @@ EXPLAIN
         "table": {
           "table_name": "t12",
           "access_type": "ALL",
-          "rows": 2,
+          "rows_examined_per_scan": 2,
+          "rows_produced_per_join": 8,
           "filtered": 100,
-          "using_join_buffer": "Block Nested Loop"
+          "using_join_buffer": "Block Nested Loop",
+          "cost_info": {
+            "read_cost": "2.00",
+            "eval_cost": "1.60",
+            "prefix_cost": "8.81",
+            "data_read_per_join": "64"
+          } /* cost_info */,
+          "used_columns": [
+            "a"
+          ] /* used_columns */
         } /* table */
       }
     ] /* nested_loop */
@@ -5380,12 +6989,12 @@ CREATE VIEW v1 (a) AS SELECT a FROM t1;
 #
 EXPLAIN DELETE   FROM v1 WHERE a < 4;
 id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
-1	SIMPLE	t1	range	PRIMARY	PRIMARY	4	const	3	Using where
+1	DELETE	t1	range	PRIMARY	PRIMARY	4	const	3	Using where
 FLUSH STATUS;
 FLUSH TABLES;
 EXPLAIN EXTENDED DELETE   FROM v1 WHERE a < 4;
 id	select_type	table	type	possible_keys	key	key_len	ref	rows	filtered	Extra
-1	SIMPLE	t1	range	PRIMARY	PRIMARY	4	const	3	100.00	Using where
+1	DELETE	t1	range	PRIMARY	PRIMARY	4	const	3	100.00	Using where
 # Status of EXPLAIN EXTENDED query
 Variable_name	Value
 EXPLAIN FORMAT=JSON DELETE   FROM v1 WHERE a < 4;;
@@ -5408,7 +7017,7 @@ EXPLAIN
       "ref": [
         "const"
       ] /* ref */,
-      "rows": 3,
+      "rows_examined_per_scan": 3,
       "filtered": 100,
       "attached_condition": "(`test`.`t1`.`a` < 4)"
     } /* table */
@@ -5428,6 +7037,9 @@ EXPLAIN
 {
   "query_block": {
     "select_id": 1,
+    "cost_info": {
+      "query_cost": "2.25"
+    } /* cost_info */,
     "table": {
       "table_name": "t1",
       "access_type": "range",
@@ -5439,9 +7051,19 @@ EXPLAIN
         "a"
       ] /* used_key_parts */,
       "key_length": "4",
-      "rows": 3,
+      "rows_examined_per_scan": 3,
+      "rows_produced_per_join": 3,
       "filtered": 100,
       "using_index": true,
+      "cost_info": {
+        "read_cost": "1.65",
+        "eval_cost": "0.60",
+        "prefix_cost": "2.25",
+        "data_read_per_join": "24"
+      } /* cost_info */,
+      "used_columns": [
+        "a"
+      ] /* used_columns */,
       "attached_condition": "(`test`.`t1`.`a` < 4)"
     } /* table */
   } /* query_block */
@@ -5473,13 +7095,13 @@ CREATE VIEW v1 (a,c) AS SELECT a, b+1 FROM t1;
 EXPLAIN DELETE v1 FROM t2, v1 WHERE t2.x = v1.a;
 id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
 1	SIMPLE	t2	ALL	NULL	NULL	NULL	NULL	4	Using where
-1	SIMPLE	t1	eq_ref	PRIMARY	PRIMARY	4	test.t2.x	1	NULL
+1	DELETE	t1	eq_ref	PRIMARY	PRIMARY	4	test.t2.x	1	NULL
 FLUSH STATUS;
 FLUSH TABLES;
 EXPLAIN EXTENDED DELETE v1 FROM t2, v1 WHERE t2.x = v1.a;
 id	select_type	table	type	possible_keys	key	key_len	ref	rows	filtered	Extra
 1	SIMPLE	t2	ALL	NULL	NULL	NULL	NULL	4	100.00	Using where
-1	SIMPLE	t1	eq_ref	PRIMARY	PRIMARY	4	test.t2.x	1	100.00	NULL
+1	DELETE	t1	eq_ref	PRIMARY	PRIMARY	4	test.t2.x	1	100.00	NULL
 # Status of EXPLAIN EXTENDED query
 Variable_name	Value
 EXPLAIN FORMAT=JSON DELETE v1 FROM t2, v1 WHERE t2.x = v1.a;;
@@ -5487,13 +7109,26 @@ EXPLAIN
 {
   "query_block": {
     "select_id": 1,
+    "cost_info": {
+      "query_cost": "7.61"
+    } /* cost_info */,
     "nested_loop": [
       {
         "table": {
           "table_name": "t2",
           "access_type": "ALL",
-          "rows": 4,
+          "rows_examined_per_scan": 4,
+          "rows_produced_per_join": 4,
           "filtered": 100,
+          "cost_info": {
+            "read_cost": "2.01",
+            "eval_cost": "0.80",
+            "prefix_cost": "2.81",
+            "data_read_per_join": "32"
+          } /* cost_info */,
+          "used_columns": [
+            "x"
+          ] /* used_columns */,
           "attached_condition": "(`test`.`t2`.`x` is not null)"
         } /* table */
       },
@@ -5513,8 +7148,18 @@ EXPLAIN
           "ref": [
             "test.t2.x"
           ] /* ref */,
-          "rows": 1,
-          "filtered": 100
+          "rows_examined_per_scan": 1,
+          "rows_produced_per_join": 4,
+          "filtered": 100,
+          "cost_info": {
+            "read_cost": "4.00",
+            "eval_cost": "0.80",
+            "prefix_cost": "7.61",
+            "data_read_per_join": "64"
+          } /* cost_info */,
+          "used_columns": [
+            "a"
+          ] /* used_columns */
         } /* table */
       }
     ] /* nested_loop */
@@ -5535,13 +7180,26 @@ EXPLAIN
 {
   "query_block": {
     "select_id": 1,
+    "cost_info": {
+      "query_cost": "7.61"
+    } /* cost_info */,
     "nested_loop": [
       {
         "table": {
           "table_name": "t2",
           "access_type": "ALL",
-          "rows": 4,
+          "rows_examined_per_scan": 4,
+          "rows_produced_per_join": 4,
           "filtered": 100,
+          "cost_info": {
+            "read_cost": "2.01",
+            "eval_cost": "0.80",
+            "prefix_cost": "2.81",
+            "data_read_per_join": "32"
+          } /* cost_info */,
+          "used_columns": [
+            "x"
+          ] /* used_columns */,
           "attached_condition": "(`test`.`t2`.`x` is not null)"
         } /* table */
       },
@@ -5560,8 +7218,19 @@ EXPLAIN
           "ref": [
             "test.t2.x"
           ] /* ref */,
-          "rows": 1,
-          "filtered": 100
+          "rows_examined_per_scan": 1,
+          "rows_produced_per_join": 4,
+          "filtered": 100,
+          "cost_info": {
+            "read_cost": "4.00",
+            "eval_cost": "0.80",
+            "prefix_cost": "7.61",
+            "data_read_per_join": "64"
+          } /* cost_info */,
+          "used_columns": [
+            "a",
+            "b"
+          ] /* used_columns */
         } /* table */
       }
     ] /* nested_loop */
@@ -5595,13 +7264,13 @@ CREATE VIEW v1 (a,c) AS SELECT a, b+1 FROM t1;
 EXPLAIN DELETE v1 FROM t2, v1 WHERE t2.x = v1.a;
 id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
 1	SIMPLE	t2	ALL	NULL	NULL	NULL	NULL	4	Using where
-1	SIMPLE	t1	eq_ref	PRIMARY	PRIMARY	4	test.t2.x	1	NULL
+1	DELETE	t1	eq_ref	PRIMARY	PRIMARY	4	test.t2.x	1	NULL
 FLUSH STATUS;
 FLUSH TABLES;
 EXPLAIN EXTENDED DELETE v1 FROM t2, v1 WHERE t2.x = v1.a;
 id	select_type	table	type	possible_keys	key	key_len	ref	rows	filtered	Extra
 1	SIMPLE	t2	ALL	NULL	NULL	NULL	NULL	4	100.00	Using where
-1	SIMPLE	t1	eq_ref	PRIMARY	PRIMARY	4	test.t2.x	1	100.00	NULL
+1	DELETE	t1	eq_ref	PRIMARY	PRIMARY	4	test.t2.x	1	100.00	NULL
 # Status of EXPLAIN EXTENDED query
 Variable_name	Value
 EXPLAIN FORMAT=JSON DELETE v1 FROM t2, v1 WHERE t2.x = v1.a;;
@@ -5609,13 +7278,26 @@ EXPLAIN
 {
   "query_block": {
     "select_id": 1,
+    "cost_info": {
+      "query_cost": "7.61"
+    } /* cost_info */,
     "nested_loop": [
       {
         "table": {
           "table_name": "t2",
           "access_type": "ALL",
-          "rows": 4,
+          "rows_examined_per_scan": 4,
+          "rows_produced_per_join": 4,
           "filtered": 100,
+          "cost_info": {
+            "read_cost": "2.01",
+            "eval_cost": "0.80",
+            "prefix_cost": "2.81",
+            "data_read_per_join": "32"
+          } /* cost_info */,
+          "used_columns": [
+            "x"
+          ] /* used_columns */,
           "attached_condition": "(`test`.`t2`.`x` is not null)"
         } /* table */
       },
@@ -5635,8 +7317,18 @@ EXPLAIN
           "ref": [
             "test.t2.x"
           ] /* ref */,
-          "rows": 1,
-          "filtered": 100
+          "rows_examined_per_scan": 1,
+          "rows_produced_per_join": 4,
+          "filtered": 100,
+          "cost_info": {
+            "read_cost": "4.00",
+            "eval_cost": "0.80",
+            "prefix_cost": "7.61",
+            "data_read_per_join": "64"
+          } /* cost_info */,
+          "used_columns": [
+            "a"
+          ] /* used_columns */
         } /* table */
       }
     ] /* nested_loop */
@@ -5657,13 +7349,26 @@ EXPLAIN
 {
   "query_block": {
     "select_id": 1,
+    "cost_info": {
+      "query_cost": "7.61"
+    } /* cost_info */,
     "nested_loop": [
       {
         "table": {
           "table_name": "t2",
           "access_type": "ALL",
-          "rows": 4,
+          "rows_examined_per_scan": 4,
+          "rows_produced_per_join": 4,
           "filtered": 100,
+          "cost_info": {
+            "read_cost": "2.01",
+            "eval_cost": "0.80",
+            "prefix_cost": "2.81",
+            "data_read_per_join": "32"
+          } /* cost_info */,
+          "used_columns": [
+            "x"
+          ] /* used_columns */,
           "attached_condition": "(`test`.`t2`.`x` is not null)"
         } /* table */
       },
@@ -5682,8 +7387,19 @@ EXPLAIN
           "ref": [
             "test.t2.x"
           ] /* ref */,
-          "rows": 1,
-          "filtered": 100
+          "rows_examined_per_scan": 1,
+          "rows_produced_per_join": 4,
+          "filtered": 100,
+          "cost_info": {
+            "read_cost": "4.00",
+            "eval_cost": "0.80",
+            "prefix_cost": "7.61",
+            "data_read_per_join": "64"
+          } /* cost_info */,
+          "used_columns": [
+            "a",
+            "b"
+          ] /* used_columns */
         } /* table */
       }
     ] /* nested_loop */
@@ -5713,12 +7429,12 @@ CREATE VIEW v1 (x) AS SELECT a FROM t1;
 #
 EXPLAIN INSERT INTO v1 VALUES (10);
 id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
-1	SIMPLE	NULL	NULL	NULL	NULL	NULL	NULL	NULL	No tables used
+1	INSERT	t1	ALL	NULL	NULL	NULL	NULL	NULL	NULL
 FLUSH STATUS;
 FLUSH TABLES;
 EXPLAIN EXTENDED INSERT INTO v1 VALUES (10);
 id	select_type	table	type	possible_keys	key	key_len	ref	rows	filtered	Extra
-1	SIMPLE	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	No tables used
+1	INSERT	t1	ALL	NULL	NULL	NULL	NULL	NULL	NULL	NULL
 # Status of EXPLAIN EXTENDED query
 Variable_name	Value
 EXPLAIN FORMAT=JSON INSERT INTO v1 VALUES (10);;
@@ -5727,7 +7443,9 @@ EXPLAIN
   "query_block": {
     "select_id": 1,
     "table": {
-      "message": "No tables used"
+      "insert": true,
+      "table_name": "t1",
+      "access_type": "ALL"
     } /* table */
   } /* query_block */
 }
@@ -5745,9 +7463,7 @@ EXPLAIN
 {
   "query_block": {
     "select_id": 1,
-    "table": {
-      "message": "No tables used"
-    } /* table */
+    "message": "No tables used"
   } /* query_block */
 }
 Warnings:
@@ -5771,12 +7487,12 @@ CREATE VIEW v1 (x) AS SELECT b FROM t2;
 #
 EXPLAIN INSERT INTO v1 SELECT * FROM t1;
 id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
-1	SIMPLE	t1	system	NULL	NULL	NULL	NULL	0	const row not found
+1	INSERT	NULL	NULL	NULL	NULL	NULL	NULL	NULL	no matching row in const table
 FLUSH STATUS;
 FLUSH TABLES;
 EXPLAIN EXTENDED INSERT INTO v1 SELECT * FROM t1;
 id	select_type	table	type	possible_keys	key	key_len	ref	rows	filtered	Extra
-1	SIMPLE	t1	system	NULL	NULL	NULL	NULL	0	0.00	const row not found
+1	INSERT	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	no matching row in const table
 # Status of EXPLAIN EXTENDED query
 Variable_name	Value
 Handler_read_first	1
@@ -5786,20 +7502,14 @@ EXPLAIN
 {
   "query_block": {
     "select_id": 1,
-    "table": {
-      "table_name": "t1",
-      "access_type": "system",
-      "rows": 0,
-      "filtered": 0,
-      "const_row_not_found": true
-    } /* table */
+    "message": "no matching row in const table"
   } /* query_block */
 }
 FLUSH STATUS;
 FLUSH TABLES;
 EXPLAIN EXTENDED SELECT * FROM t1;
 id	select_type	table	type	possible_keys	key	key_len	ref	rows	filtered	Extra
-1	SIMPLE	t1	system	NULL	NULL	NULL	NULL	0	0.00	const row not found
+1	SIMPLE	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	no matching row in const table
 Warnings:
 Note	1003	/* select#1 */ select NULL AS `a` from `test`.`t1`
 # Status of EXPLAIN EXTENDED "equivalent" SELECT query execution
@@ -5811,13 +7521,7 @@ EXPLAIN
 {
   "query_block": {
     "select_id": 1,
-    "table": {
-      "table_name": "t1",
-      "access_type": "system",
-      "rows": 0,
-      "filtered": 0,
-      "const_row_not_found": true
-    } /* table */
+    "message": "no matching row in const table"
   } /* query_block */
 }
 Warnings:
@@ -5844,14 +7548,14 @@ INSERT INTO t2 VALUES (1), (2), (3);
 #
 EXPLAIN UPDATE        t1 SET a = 10 WHERE a IN (SELECT * FROM (SELECT b FROM t2 ORDER BY b LIMIT 2,2) x);
 id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
-1	PRIMARY	t1	ALL	NULL	NULL	NULL	NULL	3	Using where
+1	UPDATE	t1	ALL	NULL	NULL	NULL	NULL	3	Using where
 2	DEPENDENT SUBQUERY	<derived3>	index_subquery	<auto_key0>	<auto_key0>	5	func	2	Using index
 3	DERIVED	t2	ALL	NULL	NULL	NULL	NULL	3	Using filesort
 FLUSH STATUS;
 FLUSH TABLES;
 EXPLAIN EXTENDED UPDATE        t1 SET a = 10 WHERE a IN (SELECT * FROM (SELECT b FROM t2 ORDER BY b LIMIT 2,2) x);
 id	select_type	table	type	possible_keys	key	key_len	ref	rows	filtered	Extra
-1	PRIMARY	t1	ALL	NULL	NULL	NULL	NULL	3	100.00	Using where
+1	UPDATE	t1	ALL	NULL	NULL	NULL	NULL	3	100.00	Using where
 2	DEPENDENT SUBQUERY	<derived3>	index_subquery	<auto_key0>	<auto_key0>	5	func	2	100.00	Using index
 3	DERIVED	t2	ALL	NULL	NULL	NULL	NULL	3	100.00	Using filesort
 # Status of EXPLAIN EXTENDED query
@@ -5865,7 +7569,7 @@ EXPLAIN
       "update": true,
       "table_name": "t1",
       "access_type": "ALL",
-      "rows": 3,
+      "rows_examined_per_scan": 3,
       "filtered": 100,
       "attached_condition": "<in_optimizer>(`test`.`t1`.`a`,<exists>(<index_lookup>(<cache>(`test`.`t1`.`a`) in x on <auto_key0>)))",
       "attached_subqueries": [
@@ -5874,6 +7578,9 @@ EXPLAIN
           "cacheable": false,
           "query_block": {
             "select_id": 2,
+            "cost_info": {
+              "query_cost": "2.40"
+            } /* cost_info */,
             "table": {
               "table_name": "x",
               "access_type": "index_subquery",
@@ -5888,22 +7595,48 @@ EXPLAIN
               "ref": [
                 "func"
               ] /* ref */,
-              "rows": 2,
+              "rows_examined_per_scan": 2,
+              "rows_produced_per_join": 2,
               "filtered": 100,
               "using_index": true,
+              "cost_info": {
+                "read_cost": "2.00",
+                "eval_cost": "0.40",
+                "prefix_cost": "2.40",
+                "data_read_per_join": "32"
+              } /* cost_info */,
+              "used_columns": [
+                "b"
+              ] /* used_columns */,
               "materialized_from_subquery": {
                 "using_temporary_table": true,
                 "dependent": false,
                 "cacheable": true,
                 "query_block": {
                   "select_id": 3,
+                  "cost_info": {
+                    "query_cost": "5.60"
+                  } /* cost_info */,
                   "ordering_operation": {
                     "using_filesort": true,
+                    "cost_info": {
+                      "sort_cost": "3.00"
+                    } /* cost_info */,
                     "table": {
                       "table_name": "t2",
                       "access_type": "ALL",
-                      "rows": 3,
-                      "filtered": 100
+                      "rows_examined_per_scan": 3,
+                      "rows_produced_per_join": 3,
+                      "filtered": 100,
+                      "cost_info": {
+                        "read_cost": "2.01",
+                        "eval_cost": "0.60",
+                        "prefix_cost": "2.61",
+                        "data_read_per_join": "24"
+                      } /* cost_info */,
+                      "used_columns": [
+                        "b"
+                      ] /* used_columns */
                     } /* table */
                   } /* ordering_operation */
                 } /* query_block */
@@ -5931,13 +7664,26 @@ EXPLAIN
 {
   "query_block": {
     "select_id": 1,
+    "cost_info": {
+      "query_cost": "9.80"
+    } /* cost_info */,
     "nested_loop": [
       {
         "table": {
           "table_name": "t1",
           "access_type": "ALL",
-          "rows": 3,
+          "rows_examined_per_scan": 3,
+          "rows_produced_per_join": 3,
           "filtered": 100,
+          "cost_info": {
+            "read_cost": "2.01",
+            "eval_cost": "0.60",
+            "prefix_cost": "2.61",
+            "data_read_per_join": "24"
+          } /* cost_info */,
+          "used_columns": [
+            "a"
+          ] /* used_columns */,
           "attached_condition": "(`test`.`t1`.`a` is not null)"
         } /* table */
       },
@@ -5956,23 +7702,49 @@ EXPLAIN
           "ref": [
             "test.t1.a"
           ] /* ref */,
-          "rows": 2,
+          "rows_examined_per_scan": 2,
+          "rows_produced_per_join": 3,
           "filtered": 100,
           "using_index": true,
           "first_match": "t1",
+          "cost_info": {
+            "read_cost": "6.00",
+            "eval_cost": "0.60",
+            "prefix_cost": "9.81",
+            "data_read_per_join": "48"
+          } /* cost_info */,
+          "used_columns": [
+            "b"
+          ] /* used_columns */,
           "materialized_from_subquery": {
             "using_temporary_table": true,
             "dependent": false,
             "cacheable": true,
             "query_block": {
               "select_id": 3,
+              "cost_info": {
+                "query_cost": "5.60"
+              } /* cost_info */,
               "ordering_operation": {
                 "using_filesort": true,
+                "cost_info": {
+                  "sort_cost": "3.00"
+                } /* cost_info */,
                 "table": {
                   "table_name": "t2",
                   "access_type": "ALL",
-                  "rows": 3,
-                  "filtered": 100
+                  "rows_examined_per_scan": 3,
+                  "rows_produced_per_join": 3,
+                  "filtered": 100,
+                  "cost_info": {
+                    "read_cost": "2.01",
+                    "eval_cost": "0.60",
+                    "prefix_cost": "2.61",
+                    "data_read_per_join": "24"
+                  } /* cost_info */,
+                  "used_columns": [
+                    "b"
+                  ] /* used_columns */
                 } /* table */
               } /* ordering_operation */
             } /* query_block */
@@ -6006,7 +7778,7 @@ Sort_scan	1
 #
 EXPLAIN UPDATE        t1, t2 SET a = 10 WHERE a IN (SELECT * FROM (SELECT b FROM t2 ORDER BY b LIMIT 2,2) x);
 id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
-1	PRIMARY	t1	ALL	NULL	NULL	NULL	NULL	3	Using where
+1	UPDATE	t1	ALL	NULL	NULL	NULL	NULL	3	Using where
 1	PRIMARY	<derived3>	ref	<auto_key0>	<auto_key0>	5	test.t1.a	2	Using index; FirstMatch(t1)
 1	PRIMARY	t2	ALL	NULL	NULL	NULL	NULL	3	Using join buffer (Block Nested Loop)
 3	DERIVED	t2	ALL	NULL	NULL	NULL	NULL	3	Using filesort
@@ -6014,7 +7786,7 @@ FLUSH STATUS;
 FLUSH TABLES;
 EXPLAIN EXTENDED UPDATE        t1, t2 SET a = 10 WHERE a IN (SELECT * FROM (SELECT b FROM t2 ORDER BY b LIMIT 2,2) x);
 id	select_type	table	type	possible_keys	key	key_len	ref	rows	filtered	Extra
-1	PRIMARY	t1	ALL	NULL	NULL	NULL	NULL	3	100.00	Using where
+1	UPDATE	t1	ALL	NULL	NULL	NULL	NULL	3	100.00	Using where
 1	PRIMARY	<derived3>	ref	<auto_key0>	<auto_key0>	5	test.t1.a	2	100.00	Using index; FirstMatch(t1)
 1	PRIMARY	t2	ALL	NULL	NULL	NULL	NULL	3	100.00	Using join buffer (Block Nested Loop)
 3	DERIVED	t2	ALL	NULL	NULL	NULL	NULL	3	100.00	Using filesort
@@ -6025,14 +7797,27 @@ EXPLAIN
 {
   "query_block": {
     "select_id": 1,
+    "cost_info": {
+      "query_cost": "13.61"
+    } /* cost_info */,
     "nested_loop": [
       {
         "table": {
           "update": true,
           "table_name": "t1",
           "access_type": "ALL",
-          "rows": 3,
+          "rows_examined_per_scan": 3,
+          "rows_produced_per_join": 3,
           "filtered": 100,
+          "cost_info": {
+            "read_cost": "2.01",
+            "eval_cost": "0.60",
+            "prefix_cost": "2.61",
+            "data_read_per_join": "24"
+          } /* cost_info */,
+          "used_columns": [
+            "a"
+          ] /* used_columns */,
           "attached_condition": "(`test`.`t1`.`a` is not null)"
         } /* table */
       },
@@ -6051,23 +7836,49 @@ EXPLAIN
           "ref": [
             "test.t1.a"
           ] /* ref */,
-          "rows": 2,
+          "rows_examined_per_scan": 2,
+          "rows_produced_per_join": 3,
           "filtered": 100,
           "using_index": true,
           "first_match": "t1",
+          "cost_info": {
+            "read_cost": "6.00",
+            "eval_cost": "0.60",
+            "prefix_cost": "9.81",
+            "data_read_per_join": "48"
+          } /* cost_info */,
+          "used_columns": [
+            "b"
+          ] /* used_columns */,
           "materialized_from_subquery": {
             "using_temporary_table": true,
             "dependent": false,
             "cacheable": true,
             "query_block": {
               "select_id": 3,
+              "cost_info": {
+                "query_cost": "5.60"
+              } /* cost_info */,
               "ordering_operation": {
                 "using_filesort": true,
+                "cost_info": {
+                  "sort_cost": "3.00"
+                } /* cost_info */,
                 "table": {
                   "table_name": "t2",
                   "access_type": "ALL",
-                  "rows": 3,
-                  "filtered": 100
+                  "rows_examined_per_scan": 3,
+                  "rows_produced_per_join": 3,
+                  "filtered": 100,
+                  "cost_info": {
+                    "read_cost": "2.01",
+                    "eval_cost": "0.60",
+                    "prefix_cost": "2.61",
+                    "data_read_per_join": "24"
+                  } /* cost_info */,
+                  "used_columns": [
+                    "b"
+                  ] /* used_columns */
                 } /* table */
               } /* ordering_operation */
             } /* query_block */
@@ -6078,9 +7889,16 @@ EXPLAIN
         "table": {
           "table_name": "t2",
           "access_type": "ALL",
-          "rows": 3,
+          "rows_examined_per_scan": 3,
+          "rows_produced_per_join": 9,
           "filtered": 100,
-          "using_join_buffer": "Block Nested Loop"
+          "using_join_buffer": "Block Nested Loop",
+          "cost_info": {
+            "read_cost": "2.01",
+            "eval_cost": "1.80",
+            "prefix_cost": "13.61",
+            "data_read_per_join": "72"
+          } /* cost_info */
         } /* table */
       }
     ] /* nested_loop */
@@ -6103,13 +7921,26 @@ EXPLAIN
 {
   "query_block": {
     "select_id": 1,
+    "cost_info": {
+      "query_cost": "13.61"
+    } /* cost_info */,
     "nested_loop": [
       {
         "table": {
           "table_name": "t1",
           "access_type": "ALL",
-          "rows": 3,
+          "rows_examined_per_scan": 3,
+          "rows_produced_per_join": 3,
           "filtered": 100,
+          "cost_info": {
+            "read_cost": "2.01",
+            "eval_cost": "0.60",
+            "prefix_cost": "2.61",
+            "data_read_per_join": "24"
+          } /* cost_info */,
+          "used_columns": [
+            "a"
+          ] /* used_columns */,
           "attached_condition": "(`test`.`t1`.`a` is not null)"
         } /* table */
       },
@@ -6128,23 +7959,49 @@ EXPLAIN
           "ref": [
             "test.t1.a"
           ] /* ref */,
-          "rows": 2,
+          "rows_examined_per_scan": 2,
+          "rows_produced_per_join": 3,
           "filtered": 100,
           "using_index": true,
           "first_match": "t1",
+          "cost_info": {
+            "read_cost": "6.00",
+            "eval_cost": "0.60",
+            "prefix_cost": "9.81",
+            "data_read_per_join": "48"
+          } /* cost_info */,
+          "used_columns": [
+            "b"
+          ] /* used_columns */,
           "materialized_from_subquery": {
             "using_temporary_table": true,
             "dependent": false,
             "cacheable": true,
             "query_block": {
               "select_id": 3,
+              "cost_info": {
+                "query_cost": "5.60"
+              } /* cost_info */,
               "ordering_operation": {
                 "using_filesort": true,
+                "cost_info": {
+                  "sort_cost": "3.00"
+                } /* cost_info */,
                 "table": {
                   "table_name": "t2",
                   "access_type": "ALL",
-                  "rows": 3,
-                  "filtered": 100
+                  "rows_examined_per_scan": 3,
+                  "rows_produced_per_join": 3,
+                  "filtered": 100,
+                  "cost_info": {
+                    "read_cost": "2.01",
+                    "eval_cost": "0.60",
+                    "prefix_cost": "2.61",
+                    "data_read_per_join": "24"
+                  } /* cost_info */,
+                  "used_columns": [
+                    "b"
+                  ] /* used_columns */
                 } /* table */
               } /* ordering_operation */
             } /* query_block */
@@ -6155,9 +8012,19 @@ EXPLAIN
         "table": {
           "table_name": "t2",
           "access_type": "ALL",
-          "rows": 3,
+          "rows_examined_per_scan": 3,
+          "rows_produced_per_join": 9,
           "filtered": 100,
-          "using_join_buffer": "Block Nested Loop"
+          "using_join_buffer": "Block Nested Loop",
+          "cost_info": {
+            "read_cost": "2.01",
+            "eval_cost": "1.80",
+            "prefix_cost": "13.61",
+            "data_read_per_join": "72"
+          } /* cost_info */,
+          "used_columns": [
+            "b"
+          ] /* used_columns */
         } /* table */
       }
     ] /* nested_loop */
@@ -6186,7 +8053,7 @@ Sort_scan	1
 #
 EXPLAIN UPDATE        t1, (SELECT * FROM t2) y SET a = 10 WHERE a IN (SELECT * FROM (SELECT b FROM t2 ORDER BY b LIMIT 2,2) x);
 id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
-1	PRIMARY	t1	ALL	NULL	NULL	NULL	NULL	3	Using where
+1	UPDATE	t1	ALL	NULL	NULL	NULL	NULL	3	Using where
 1	PRIMARY	<derived4>	ref	<auto_key0>	<auto_key0>	5	test.t1.a	2	Using index; FirstMatch(t1)
 1	PRIMARY	<derived2>	ALL	NULL	NULL	NULL	NULL	3	Using join buffer (Block Nested Loop)
 4	DERIVED	t2	ALL	NULL	NULL	NULL	NULL	3	Using filesort
@@ -6195,7 +8062,7 @@ FLUSH STATUS;
 FLUSH TABLES;
 EXPLAIN EXTENDED UPDATE        t1, (SELECT * FROM t2) y SET a = 10 WHERE a IN (SELECT * FROM (SELECT b FROM t2 ORDER BY b LIMIT 2,2) x);
 id	select_type	table	type	possible_keys	key	key_len	ref	rows	filtered	Extra
-1	PRIMARY	t1	ALL	NULL	NULL	NULL	NULL	3	100.00	Using where
+1	UPDATE	t1	ALL	NULL	NULL	NULL	NULL	3	100.00	Using where
 1	PRIMARY	<derived4>	ref	<auto_key0>	<auto_key0>	5	test.t1.a	2	100.00	Using index; FirstMatch(t1)
 1	PRIMARY	<derived2>	ALL	NULL	NULL	NULL	NULL	3	100.00	Using join buffer (Block Nested Loop)
 4	DERIVED	t2	ALL	NULL	NULL	NULL	NULL	3	100.00	Using filesort
@@ -6207,14 +8074,27 @@ EXPLAIN
 {
   "query_block": {
     "select_id": 1,
+    "cost_info": {
+      "query_cost": "21.76"
+    } /* cost_info */,
     "nested_loop": [
       {
         "table": {
           "update": true,
           "table_name": "t1",
           "access_type": "ALL",
-          "rows": 3,
+          "rows_examined_per_scan": 3,
+          "rows_produced_per_join": 3,
           "filtered": 100,
+          "cost_info": {
+            "read_cost": "2.01",
+            "eval_cost": "0.60",
+            "prefix_cost": "2.61",
+            "data_read_per_join": "24"
+          } /* cost_info */,
+          "used_columns": [
+            "a"
+          ] /* used_columns */,
           "attached_condition": "(`test`.`t1`.`a` is not null)"
         } /* table */
       },
@@ -6233,23 +8113,49 @@ EXPLAIN
           "ref": [
             "test.t1.a"
           ] /* ref */,
-          "rows": 2,
+          "rows_examined_per_scan": 2,
+          "rows_produced_per_join": 3,
           "filtered": 100,
           "using_index": true,
           "first_match": "t1",
+          "cost_info": {
+            "read_cost": "6.00",
+            "eval_cost": "0.60",
+            "prefix_cost": "9.81",
+            "data_read_per_join": "48"
+          } /* cost_info */,
+          "used_columns": [
+            "b"
+          ] /* used_columns */,
           "materialized_from_subquery": {
             "using_temporary_table": true,
             "dependent": false,
             "cacheable": true,
             "query_block": {
               "select_id": 4,
+              "cost_info": {
+                "query_cost": "5.60"
+              } /* cost_info */,
               "ordering_operation": {
                 "using_filesort": true,
+                "cost_info": {
+                  "sort_cost": "3.00"
+                } /* cost_info */,
                 "table": {
                   "table_name": "t2",
                   "access_type": "ALL",
-                  "rows": 3,
-                  "filtered": 100
+                  "rows_examined_per_scan": 3,
+                  "rows_produced_per_join": 3,
+                  "filtered": 100,
+                  "cost_info": {
+                    "read_cost": "2.01",
+                    "eval_cost": "0.60",
+                    "prefix_cost": "2.61",
+                    "data_read_per_join": "24"
+                  } /* cost_info */,
+                  "used_columns": [
+                    "b"
+                  ] /* used_columns */
                 } /* table */
               } /* ordering_operation */
             } /* query_block */
@@ -6260,20 +8166,43 @@ EXPLAIN
         "table": {
           "table_name": "y",
           "access_type": "ALL",
-          "rows": 3,
+          "rows_examined_per_scan": 3,
+          "rows_produced_per_join": 9,
           "filtered": 100,
           "using_join_buffer": "Block Nested Loop",
+          "cost_info": {
+            "read_cost": "10.15",
+            "eval_cost": "1.80",
+            "prefix_cost": "21.76",
+            "data_read_per_join": "144"
+          } /* cost_info */,
+          "used_columns": [
+            "b"
+          ] /* used_columns */,
           "materialized_from_subquery": {
             "using_temporary_table": true,
             "dependent": false,
             "cacheable": true,
             "query_block": {
               "select_id": 2,
+              "cost_info": {
+                "query_cost": "2.60"
+              } /* cost_info */,
               "table": {
                 "table_name": "t2",
                 "access_type": "ALL",
-                "rows": 3,
-                "filtered": 100
+                "rows_examined_per_scan": 3,
+                "rows_produced_per_join": 3,
+                "filtered": 100,
+                "cost_info": {
+                  "read_cost": "2.01",
+                  "eval_cost": "0.60",
+                  "prefix_cost": "2.61",
+                  "data_read_per_join": "24"
+                } /* cost_info */,
+                "used_columns": [
+                  "b"
+                ] /* used_columns */
               } /* table */
             } /* query_block */
           } /* materialized_from_subquery */
@@ -6300,13 +8229,26 @@ EXPLAIN
 {
   "query_block": {
     "select_id": 1,
+    "cost_info": {
+      "query_cost": "21.76"
+    } /* cost_info */,
     "nested_loop": [
       {
         "table": {
           "table_name": "t1",
           "access_type": "ALL",
-          "rows": 3,
+          "rows_examined_per_scan": 3,
+          "rows_produced_per_join": 3,
           "filtered": 100,
+          "cost_info": {
+            "read_cost": "2.01",
+            "eval_cost": "0.60",
+            "prefix_cost": "2.61",
+            "data_read_per_join": "24"
+          } /* cost_info */,
+          "used_columns": [
+            "a"
+          ] /* used_columns */,
           "attached_condition": "(`test`.`t1`.`a` is not null)"
         } /* table */
       },
@@ -6325,23 +8267,49 @@ EXPLAIN
           "ref": [
             "test.t1.a"
           ] /* ref */,
-          "rows": 2,
+          "rows_examined_per_scan": 2,
+          "rows_produced_per_join": 3,
           "filtered": 100,
           "using_index": true,
           "first_match": "t1",
+          "cost_info": {
+            "read_cost": "6.00",
+            "eval_cost": "0.60",
+            "prefix_cost": "9.81",
+            "data_read_per_join": "48"
+          } /* cost_info */,
+          "used_columns": [
+            "b"
+          ] /* used_columns */,
           "materialized_from_subquery": {
             "using_temporary_table": true,
             "dependent": false,
             "cacheable": true,
             "query_block": {
               "select_id": 4,
+              "cost_info": {
+                "query_cost": "5.60"
+              } /* cost_info */,
               "ordering_operation": {
                 "using_filesort": true,
+                "cost_info": {
+                  "sort_cost": "3.00"
+                } /* cost_info */,
                 "table": {
                   "table_name": "t2",
                   "access_type": "ALL",
-                  "rows": 3,
-                  "filtered": 100
+                  "rows_examined_per_scan": 3,
+                  "rows_produced_per_join": 3,
+                  "filtered": 100,
+                  "cost_info": {
+                    "read_cost": "2.01",
+                    "eval_cost": "0.60",
+                    "prefix_cost": "2.61",
+                    "data_read_per_join": "24"
+                  } /* cost_info */,
+                  "used_columns": [
+                    "b"
+                  ] /* used_columns */
                 } /* table */
               } /* ordering_operation */
             } /* query_block */
@@ -6352,20 +8320,43 @@ EXPLAIN
         "table": {
           "table_name": "y",
           "access_type": "ALL",
-          "rows": 3,
+          "rows_examined_per_scan": 3,
+          "rows_produced_per_join": 9,
           "filtered": 100,
           "using_join_buffer": "Block Nested Loop",
+          "cost_info": {
+            "read_cost": "10.15",
+            "eval_cost": "1.80",
+            "prefix_cost": "21.76",
+            "data_read_per_join": "144"
+          } /* cost_info */,
+          "used_columns": [
+            "b"
+          ] /* used_columns */,
           "materialized_from_subquery": {
             "using_temporary_table": true,
             "dependent": false,
             "cacheable": true,
             "query_block": {
               "select_id": 2,
+              "cost_info": {
+                "query_cost": "2.60"
+              } /* cost_info */,
               "table": {
                 "table_name": "t2",
                 "access_type": "ALL",
-                "rows": 3,
-                "filtered": 100
+                "rows_examined_per_scan": 3,
+                "rows_produced_per_join": 3,
+                "filtered": 100,
+                "cost_info": {
+                  "read_cost": "2.01",
+                  "eval_cost": "0.60",
+                  "prefix_cost": "2.61",
+                  "data_read_per_join": "24"
+                } /* cost_info */,
+                "used_columns": [
+                  "b"
+                ] /* used_columns */
               } /* table */
             } /* query_block */
           } /* materialized_from_subquery */
@@ -6405,8 +8396,8 @@ JOIN t1 AS a12 ON a12.c1 = a11.c1
 ) d1
 );
 id	select_type	table	type	possible_keys	key	key_len	ref	rows	filtered	Extra
-1	PRIMARY	t3	ALL	NULL	NULL	NULL	NULL	0	100.00	NULL
-2	SUBQUERY	<derived3>	system	NULL	NULL	NULL	NULL	0	0.00	const row not found
+1	UPDATE	t3	ALL	NULL	NULL	NULL	NULL	0	100.00	NULL
+2	SUBQUERY	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	no matching row in const table
 3	DERIVED	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	no matching row in const table
 DROP TABLE t1, t2, t3;
 #71
@@ -6415,6 +8406,7 @@ INSERT INTO t1 VALUES (1,0),(2,0),(3,0),(4,0),(5,0),(6,0),(7,0),(8,0);
 CREATE TABLE t2 LIKE t1;
 EXPLAIN INSERT INTO t2 SELECT * FROM t1;
 id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
+1	INSERT	t2	ALL	NULL	NULL	NULL	NULL	X	NULL
 1	SIMPLE	t1	ALL	NULL	NULL	NULL	NULL	X	NULL
 INSERT INTO t2 SELECT * FROM t1;
 SELECT * FROM t1 LEFT JOIN t2 ON t1.c1 = t2.c1;
@@ -6438,12 +8430,12 @@ INSERT INTO t1 VALUES (1), (2), (3), (4), (5);
 #
 EXPLAIN UPDATE t1 SET a=a+1 WHERE a>10;
 id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
-1	SIMPLE	t1	range	PRIMARY	PRIMARY	4	const	1	Using where; Using temporary
+1	UPDATE	t1	range	PRIMARY	PRIMARY	4	const	1	Using where; Using temporary
 FLUSH STATUS;
 FLUSH TABLES;
 EXPLAIN EXTENDED UPDATE t1 SET a=a+1 WHERE a>10;
 id	select_type	table	type	possible_keys	key	key_len	ref	rows	filtered	Extra
-1	SIMPLE	t1	range	PRIMARY	PRIMARY	4	const	1	100.00	Using where; Using temporary
+1	UPDATE	t1	range	PRIMARY	PRIMARY	4	const	1	100.00	Using where; Using temporary
 # Status of EXPLAIN EXTENDED query
 Variable_name	Value
 EXPLAIN FORMAT=JSON UPDATE t1 SET a=a+1 WHERE a>10;;
@@ -6466,7 +8458,7 @@ EXPLAIN
       "ref": [
         "const"
       ] /* ref */,
-      "rows": 1,
+      "rows_examined_per_scan": 1,
       "filtered": 100,
       "using_temporary_table": "for update",
       "attached_condition": "(`test`.`t1`.`a` > 10)"
@@ -6487,6 +8479,9 @@ EXPLAIN
 {
   "query_block": {
     "select_id": 1,
+    "cost_info": {
+      "query_cost": "1.41"
+    } /* cost_info */,
     "table": {
       "table_name": "t1",
       "access_type": "range",
@@ -6498,9 +8493,19 @@ EXPLAIN
         "a"
       ] /* used_key_parts */,
       "key_length": "4",
-      "rows": 1,
+      "rows_examined_per_scan": 1,
+      "rows_produced_per_join": 1,
       "filtered": 100,
       "using_index": true,
+      "cost_info": {
+        "read_cost": "1.21",
+        "eval_cost": "0.20",
+        "prefix_cost": "1.41",
+        "data_read_per_join": "8"
+      } /* cost_info */,
+      "used_columns": [
+        "a"
+      ] /* used_columns */,
       "attached_condition": "(`test`.`t1`.`a` > 10)"
     } /* table */
   } /* query_block */
@@ -6521,12 +8526,12 @@ Handler_read_key	1
 #
 EXPLAIN UPDATE t1 SET a=a+1 WHERE a>10 ORDER BY a+20;
 id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
-1	SIMPLE	t1	range	PRIMARY	PRIMARY	4	const	1	Using where; Using filesort
+1	UPDATE	t1	range	PRIMARY	PRIMARY	4	const	1	Using where; Using filesort
 FLUSH STATUS;
 FLUSH TABLES;
 EXPLAIN EXTENDED UPDATE t1 SET a=a+1 WHERE a>10 ORDER BY a+20;
 id	select_type	table	type	possible_keys	key	key_len	ref	rows	filtered	Extra
-1	SIMPLE	t1	range	PRIMARY	PRIMARY	4	const	1	100.00	Using where; Using filesort
+1	UPDATE	t1	range	PRIMARY	PRIMARY	4	const	1	100.00	Using where; Using filesort
 # Status of EXPLAIN EXTENDED query
 Variable_name	Value
 EXPLAIN FORMAT=JSON UPDATE t1 SET a=a+1 WHERE a>10 ORDER BY a+20;;
@@ -6551,7 +8556,7 @@ EXPLAIN
         "ref": [
           "const"
         ] /* ref */,
-        "rows": 1,
+        "rows_examined_per_scan": 1,
         "filtered": 100,
         "attached_condition": "(`test`.`t1`.`a` > 10)"
       } /* table */
@@ -6572,8 +8577,14 @@ EXPLAIN
 {
   "query_block": {
     "select_id": 1,
+    "cost_info": {
+      "query_cost": "2.41"
+    } /* cost_info */,
     "ordering_operation": {
       "using_filesort": true,
+      "cost_info": {
+        "sort_cost": "1.00"
+      } /* cost_info */,
       "table": {
         "table_name": "t1",
         "access_type": "range",
@@ -6585,9 +8596,19 @@ EXPLAIN
           "a"
         ] /* used_key_parts */,
         "key_length": "4",
-        "rows": 1,
+        "rows_examined_per_scan": 1,
+        "rows_produced_per_join": 1,
         "filtered": 100,
         "using_index": true,
+        "cost_info": {
+          "read_cost": "1.21",
+          "eval_cost": "0.20",
+          "prefix_cost": "1.41",
+          "data_read_per_join": "8"
+        } /* cost_info */,
+        "used_columns": [
+          "a"
+        ] /* used_columns */,
         "attached_condition": "(`test`.`t1`.`a` > 10)"
       } /* table */
     } /* ordering_operation */
@@ -6631,49 +8652,49 @@ CALL p16();
 DROP PROCEDURE p16;
 CALL p15();
 id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
-1	SIMPLE	t1	system	NULL	NULL	NULL	NULL	0	const row not found
+1	DELETE	NULL	NULL	NULL	NULL	NULL	NULL	NULL	no matching row in const table
 DROP PROCEDURE p15;
 CALL p14();
 DROP PROCEDURE p14;
 CALL p13();
 id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
-1	SIMPLE	NULL	NULL	NULL	NULL	NULL	NULL	0	Deleting all rows
+1	DELETE	t1	ALL	NULL	NULL	NULL	NULL	0	Deleting all rows
 DROP PROCEDURE p13;
 CALL p12();
 DROP PROCEDURE p12;
 CALL p11();
 id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
-1	SIMPLE	NULL	NULL	NULL	NULL	NULL	NULL	NULL	Impossible WHERE noticed after reading const tables
+1	UPDATE	NULL	NULL	NULL	NULL	NULL	NULL	NULL	no matching row in const table
 DROP PROCEDURE p11;
 CALL p10();
 DROP PROCEDURE p10;
 CALL p9();
 id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
-1	SIMPLE	t1	ALL	NULL	NULL	NULL	NULL	0	NULL
+1	UPDATE	t1	ALL	NULL	NULL	NULL	NULL	0	NULL
 DROP PROCEDURE p9;
 CALL p8();
 DROP PROCEDURE p8;
 CALL p7();
 id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
-1	SIMPLE	NULL	NULL	NULL	NULL	NULL	NULL	NULL	No tables used
+1	REPLACE	t1	ALL	NULL	NULL	NULL	NULL	NULL	NULL
 DROP PROCEDURE p7;
 CALL p6();
 DROP PROCEDURE p6;
 CALL p5();
 id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
-1	SIMPLE	NULL	NULL	NULL	NULL	NULL	NULL	NULL	No tables used
+1	REPLACE	t1	ALL	NULL	NULL	NULL	NULL	NULL	NULL
 DROP PROCEDURE p5;
 CALL p4();
 DROP PROCEDURE p4;
 CALL p3();
 id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
-1	SIMPLE	NULL	NULL	NULL	NULL	NULL	NULL	NULL	No tables used
+1	INSERT	t1	ALL	NULL	NULL	NULL	NULL	NULL	NULL
 DROP PROCEDURE p3;
 CALL p2();
 DROP PROCEDURE p2;
 CALL p1();
 id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
-1	SIMPLE	NULL	NULL	NULL	NULL	NULL	NULL	NULL	No tables used
+1	INSERT	t1	ALL	NULL	NULL	NULL	NULL	NULL	NULL
 DROP PROCEDURE p1;
 DROP TABLE t1, t2;
 #

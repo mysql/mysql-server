@@ -23,6 +23,7 @@
 #include <mysys_err.h>    // EE_OUTOFMEMORY
 #include "parse_file.h"   // File_option
 #include "trigger.h"
+#include "mysql/psi/mysql_sp.h"
 
 ///////////////////////////////////////////////////////////////////////////
 
@@ -928,11 +929,19 @@ bool Trigger_loader::drop_all_triggers(const char *db_name,
 
   while ((t= it++))
   {
-    if (rm_trn_file(db_name, t->get_trigger_name().str))
+    LEX_STRING trigger_name= t->get_trigger_name();
+    if (rm_trn_file(db_name, trigger_name.str))
     {
       rc= true;
       continue;
     }
+#ifdef HAVE_PSI_SP_INTERFACE                                                    
+    LEX_STRING db_name= t->get_db_name();
+    /* Drop statistics for this stored program from performance schema. */      
+    MYSQL_DROP_SP(SP_OBJECT_TYPE_TRIGGER,                                       
+                  db_name.str, db_name.length,    
+                  trigger_name.str, trigger_name.length);
+#endif
   }
 
   return rm_trg_file(db_name, table_name) || rc;

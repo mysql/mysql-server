@@ -1,4 +1,4 @@
-/* Copyright (c) 2011, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2011, 2013, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -46,6 +46,7 @@ SELECT_LEX), by calling explain_unit() for each of them.
 */
 
 #include <my_base.h>
+#include "opt_explain_format.h"
 
 class JOIN;
 class select_result;
@@ -53,25 +54,137 @@ class select_result_interceptor;
 class SQL_SELECT;
 struct TABLE;
 class THD;
-
+typedef class st_select_lex_unit SELECT_LEX_UNIT;
+typedef class st_select_lex SELECT_LEX;
 
 extern const char *join_type_str[];
 
-bool explain_no_table(THD *thd, JOIN *join, const char *message);
-bool explain_no_table(THD *thd, const char *message,
-                      ha_rows rows= HA_POS_ERROR);
-bool explain_single_table_modification(THD *thd,
-                                       TABLE *table,
-                                       const SQL_SELECT *select,
-                                       uint key,
-                                       ha_rows limit,
-                                       bool need_tmp_table,
-                                       bool need_sort,
-                                       bool is_update,
-                                       bool used_key_is_modified= false);
-bool explain_query_specification(THD *thd, JOIN *join);
-bool explain_multi_table_modification(THD *thd,
-                                      select_result_interceptor *result);
-bool explain_query_expression(THD *thd, select_result *result);
+/** Table modification plan for JOIN-less statements (update/delete) */
+class Modification_plan
+{
+public:
+  THD *const thd;           ///< Owning thread
+  const enum_mod_type mod_type;///< Modification type - MT_INSERT/MT_UPDATE/etc
+  TABLE *table;             ///< Table to modify
+
+  SQL_SELECT *select;       ///< QUICK access method + WHERE clause
+  uint key;                 ///< Key to use
+  ha_rows limit;            ///< Limit
+  bool need_tmp_table;      ///< Whether tmp table needs to be used
+  bool need_sort;           ///< Whether to use filesort
+  bool used_key_is_modified;///< Whether the key used to scan is modified
+  const char *message;      ///< Arbitrary message
+  bool zero_result;         ///< TRUE <=> plan will not be executed
+  ha_rows examined_rows;    ///< # of rows expected to be examined in the table
+
+  Modification_plan(THD *thd_arg,
+                    enum_mod_type mt, TABLE *table_arg,
+                    SQL_SELECT *select_arg,
+                    uint key_arg, ha_rows limit_arg, bool need_tmp_table_arg,
+                    bool need_sort_arg, bool used_key_is_modified_arg,
+                    ha_rows rows);
+
+  Modification_plan(THD *thd_arg,
+                    enum_mod_type mt, TABLE *table_arg,
+                    const char *message_arg, bool zero_result_arg,
+                    ha_rows rows);
+
+  ~Modification_plan();
+
+private:
+  void register_in_thd();
+};
+
+
+/**
+  EXPLAIN functionality for insert_select, multi_update and multi_delete
+
+  This class objects substitute insert_select, multi_update and multi_delete
+  data interceptor objects to implement EXPLAIN for INSERT, REPLACE and
+  multi-table UPDATE and DELETE queries.
+  explain_send class object initializes tables like insert_select, multi_update
+  or multi_delete data interceptor do, but it suppress table data modification
+  by the underlying interceptor object.
+  Thus, we can use explain_send object in the context of EXPLAIN INSERT/
+  REPLACE/UPDATE/DELETE query like we use select_send in the context of
+  EXPLAIN SELECT command:
+    1) in presence of lex->describe flag we pass explain_send object to the
+       mysql_select() function,
+    2) it call prepare(), prepare2() and initialize_tables() functions to
+       mark modified tables etc.
+
+*/
+
+class explain_send : public select_send {
+protected:
+  /*
+    As far as we use explain_send object in a place of select_send, explain_send
+    have to pass multiple invocation of its prepare(), prepare2() and
+    initialize_tables() functions, since JOIN::exec() of subqueries runs
+    these functions of select_send multiple times by design.
+    insert_select, multi_update and multi_delete class functions are not intended
+    for multiple invocations, so "prepared", "prepared2" and "initialized" flags
+    guard data interceptor object from function re-invocation.
+  */
+  bool prepared;    ///< prepare() is done
+  bool prepared2;   ///< prepare2() is done
+  bool initialized; ///< initialize_tables() is done
+  
+  /**
+    Pointer to underlying insert_select, multi_update or multi_delete object
+  */
+  select_result *interceptor;
+
+public:
+  explain_send(select_result *interceptor_arg)
+  : prepared(false), prepared2(false), initialized(false),
+    interceptor(interceptor_arg)
+  {}
+
+protected:
+  virtual int prepare(List<Item> &list, SELECT_LEX_UNIT *u)
+  {
+    if (prepared)
+      return false;
+    prepared= true;
+    return select_send::prepare(list, u) || interceptor->prepare(list, u);
+  }
+
+  virtual int prepare2(void)
+  {
+    if (prepared2)
+      return false;
+    prepared2= true;
+    return select_send::prepare2() || interceptor->prepare2();
+  }
+
+  virtual bool initialize_tables(JOIN *join)
+  {
+    if (initialized)
+      return false;
+    initialized= true;
+    return select_send::initialize_tables(join) ||
+           interceptor->initialize_tables(join);
+  }
+
+  virtual void cleanup()
+  {
+    select_send::cleanup();
+    interceptor->cleanup();
+  }
+};
+
+
+bool explain_no_table(THD *thd, SELECT_LEX *select_lex, const char *message,
+                      enum_parsing_context ctx);
+bool explain_single_table_modification(THD *ethd,
+                                       const Modification_plan *plan,
+                                       SELECT_LEX *select);
+bool explain_query(THD *thd, SELECT_LEX_UNIT *unit, select_result *result);
+bool explain_query_expression(THD *thd, SELECT_LEX_UNIT *unit,
+                              select_result *result);
+bool explain_query_specification(THD *ethd, SELECT_LEX *select_lex,
+                                 enum_parsing_context ctx);
+void mysql_explain_other(THD *thd);
 
 #endif /* OPT_EXPLAIN_INCLUDED */

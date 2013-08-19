@@ -1,4 +1,4 @@
-/* Copyright (c) 2002, 2012, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2002, 2013, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -36,7 +36,7 @@ static char *opt_user= 0;
 static char *opt_password= 0;
 static char *opt_host= 0;
 static char *opt_unix_socket= 0;
-#ifdef HAVE_SMEM
+#if defined (_WIN32) && !defined (EMBEDDED_LIBRARY)
 static char *shared_memory_base_name= 0;
 #endif
 static unsigned int  opt_port;
@@ -250,7 +250,7 @@ base on Windows.
 static MYSQL *mysql_client_init(MYSQL* con)
 {
  MYSQL* res = mysql_init(con);
- #ifdef HAVE_SMEM
+ #if defined (_WIN32) && !defined (EMBEDDED_LIBRARY)
  if (res && shared_memory_base_name)
  mysql_options(res, MYSQL_SHARED_MEMORY_BASE_NAME, shared_memory_base_name);
  #endif
@@ -1202,7 +1202,7 @@ static struct my_option client_test_long_options[] =
  0, 0, 0, 0, 0, 0},
 {"silent", 's', "Be more silent", 0, 0, 0, GET_NO_ARG, NO_ARG, 0, 0, 0, 0, 0,
  0},
-#ifdef HAVE_SMEM
+#if defined (_WIN32) && !defined (EMBEDDED_LIBRARY)
 {"shared-memory-base-name", 'm', "Base name of shared memory.", 
  &shared_memory_base_name, (uchar**)&shared_memory_base_name, 0, 
  GET_STR, REQUIRED_ARG, 0, 0, 0, 0, 0, 0},
@@ -1267,7 +1267,8 @@ char *argument)
  {
    char *start=argument;
    my_free(opt_password);
-   opt_password= my_strdup(argument, MYF(MY_FAE));
+   opt_password= my_strdup(PSI_NOT_INSTRUMENTED,
+                           argument, MYF(MY_FAE));
    while (*argument) *argument++= 'x';               /* Destroy argument */
    if (*start)
    start[1]=0;
@@ -1298,7 +1299,8 @@ char *argument)
  }
  if (embedded_server_arg_count == MAX_SERVER_ARGS-1 ||
  !(embedded_server_args[embedded_server_arg_count++]=
- my_strdup(argument, MYF(MY_FAE))))
+ my_strdup(PSI_NOT_INSTRUMENTED,
+           argument, MYF(MY_FAE))))
  {
    DIE("Can't use server argument");
  }

@@ -207,8 +207,8 @@ row_log_online_op(
 	ut_ad(dtuple_validate(tuple));
 	ut_ad(dtuple_get_n_fields(tuple) == dict_index_get_n_fields(index));
 #ifdef UNIV_SYNC_DEBUG
-	ut_ad(rw_lock_own(dict_index_get_lock(index), RW_LOCK_SHARED)
-	      || rw_lock_own(dict_index_get_lock(index), RW_LOCK_EX));
+	ut_ad(rw_lock_own(dict_index_get_lock(index), RW_LOCK_S)
+	      || rw_lock_own(dict_index_get_lock(index), RW_LOCK_X));
 #endif /* UNIV_SYNC_DEBUG */
 
 	if (dict_index_is_corrupted(index)) {
@@ -449,8 +449,9 @@ row_log_table_delete(
 	ut_ad(rec_offs_n_fields(offsets) == dict_index_get_n_fields(index));
 	ut_ad(rec_offs_size(offsets) <= sizeof index->online_log->tail.buf);
 #ifdef UNIV_SYNC_DEBUG
-	ut_ad(rw_lock_own(&index->lock, RW_LOCK_SHARED)
-	      || rw_lock_own(&index->lock, RW_LOCK_EX));
+	ut_ad(rw_lock_own_flagged(
+			&index->lock,
+			RW_LOCK_FLAG_S | RW_LOCK_FLAG_X | RW_LOCK_FLAG_SX));
 #endif /* UNIV_SYNC_DEBUG */
 
 	if (dict_index_is_corrupted(index)
@@ -521,6 +522,7 @@ row_log_table_delete(
 		ut_ad(dfield_get_type(dfield)->prtype
 		      == (DATA_NOT_NULL | DATA_TRX_ID));
 		ut_ad(dfield_get_len(dfield) == DATA_TRX_ID_LEN);
+		dfield_dup(dfield, heap);
 		trx_write_trx_id(static_cast<byte*>(dfield->data), trx_id);
 	}
 
@@ -636,7 +638,8 @@ row_log_table_low_redundant(
 
 	ut_ad(!page_is_comp(page_align(rec)));
 	ut_ad(dict_index_get_n_fields(index) == rec_get_n_fields_old(rec));
-	ut_ad(!index->table->flags);
+	ut_ad(dict_tf_is_valid(index->table->flags));
+	ut_ad(!dict_table_is_comp(index->table));  /* redundant row format */
 	ut_ad(dict_index_is_clust(new_index));
 
 	heap = mem_heap_create(DTUPLE_EST_ALLOC(index->n_fields));
@@ -757,8 +760,9 @@ row_log_table_low(
 	ut_ad(rec_offs_n_fields(offsets) == dict_index_get_n_fields(index));
 	ut_ad(rec_offs_size(offsets) <= sizeof index->online_log->tail.buf);
 #ifdef UNIV_SYNC_DEBUG
-	ut_ad(rw_lock_own(&index->lock, RW_LOCK_SHARED)
-	      || rw_lock_own(&index->lock, RW_LOCK_EX));
+	ut_ad(rw_lock_own_flagged(
+			&index->lock,
+			RW_LOCK_FLAG_S | RW_LOCK_FLAG_X | RW_LOCK_FLAG_SX));
 #endif /* UNIV_SYNC_DEBUG */
 	ut_ad(fil_page_get_type(page_align(rec)) == FIL_PAGE_INDEX);
 	ut_ad(page_is_leaf(page_align(rec)));
@@ -963,8 +967,9 @@ row_log_table_get_pk(
 	ut_ad(dict_index_is_online_ddl(index));
 	ut_ad(!offsets || rec_offs_validate(rec, index, offsets));
 #ifdef UNIV_SYNC_DEBUG
-	ut_ad(rw_lock_own(&index->lock, RW_LOCK_SHARED)
-	      || rw_lock_own(&index->lock, RW_LOCK_EX));
+	ut_ad(rw_lock_own_flagged(
+			&index->lock,
+			RW_LOCK_FLAG_S | RW_LOCK_FLAG_X | RW_LOCK_FLAG_SX));
 #endif /* UNIV_SYNC_DEBUG */
 
 	ut_ad(log);
@@ -1120,7 +1125,9 @@ row_log_table_blob_free(
 	ut_ad(dict_index_is_clust(index));
 	ut_ad(dict_index_is_online_ddl(index));
 #ifdef UNIV_SYNC_DEBUG
-	ut_ad(rw_lock_own(&index->lock, RW_LOCK_EX));
+	ut_ad(rw_lock_own_flagged(
+			&index->lock,
+			RW_LOCK_FLAG_X | RW_LOCK_FLAG_SX));
 #endif /* UNIV_SYNC_DEBUG */
 	ut_ad(page_no != FIL_NULL);
 
@@ -1165,7 +1172,9 @@ row_log_table_blob_alloc(
 	ut_ad(dict_index_is_clust(index));
 	ut_ad(dict_index_is_online_ddl(index));
 #ifdef UNIV_SYNC_DEBUG
-	ut_ad(rw_lock_own(&index->lock, RW_LOCK_EX));
+	ut_ad(rw_lock_own_flagged(
+			&index->lock,
+			RW_LOCK_FLAG_X | RW_LOCK_FLAG_SX));
 #endif /* UNIV_SYNC_DEBUG */
 	ut_ad(page_no != FIL_NULL);
 
@@ -1491,7 +1500,8 @@ row_log_table_apply_delete_low(
 			row, save_ext, index, heap);
 		mtr_start(mtr);
 		btr_pcur_open(index, entry, PAGE_CUR_LE,
-			      BTR_MODIFY_TREE, pcur, mtr);
+			      BTR_MODIFY_TREE | BTR_LATCH_FOR_DELETE,
+			      pcur, mtr);
 #ifdef UNIV_DEBUG
 		switch (btr_pcur_get_btr_cur(pcur)->flag) {
 		case BTR_CUR_DELETE_REF:
@@ -1574,7 +1584,8 @@ row_log_table_apply_delete(
 
 	mtr_start(&mtr);
 	btr_pcur_open(index, old_pk, PAGE_CUR_LE,
-		      BTR_MODIFY_TREE, &pcur, &mtr);
+		      BTR_MODIFY_TREE | BTR_LATCH_FOR_DELETE,
+		      &pcur, &mtr);
 #ifdef UNIV_DEBUG
 	switch (btr_pcur_get_btr_cur(&pcur)->flag) {
 	case BTR_CUR_DELETE_REF:
@@ -2232,7 +2243,7 @@ row_log_table_apply_ops(
 	ut_ad(dict_index_is_online_ddl(index));
 	ut_ad(trx->mysql_thd);
 #ifdef UNIV_SYNC_DEBUG
-	ut_ad(rw_lock_own(dict_index_get_lock(index), RW_LOCK_EX));
+	ut_ad(rw_lock_own(dict_index_get_lock(index), RW_LOCK_X));
 #endif /* UNIV_SYNC_DEBUG */
 	ut_ad(!dict_index_is_online_ddl(new_index));
 	ut_ad(trx_id_col > 0);
@@ -2253,7 +2264,7 @@ row_log_table_apply_ops(
 next_block:
 	ut_ad(has_index_lock);
 #ifdef UNIV_SYNC_DEBUG
-	ut_ad(rw_lock_own(dict_index_get_lock(index), RW_LOCK_EX));
+	ut_ad(rw_lock_own(dict_index_get_lock(index), RW_LOCK_X));
 #endif /* UNIV_SYNC_DEBUG */
 	ut_ad(index->online_log->head.bytes == 0);
 
@@ -2552,7 +2563,7 @@ row_log_table_apply(
 	thr_get_trx(thr)->error_key_num = 0;
 
 #ifdef UNIV_SYNC_DEBUG
-	ut_ad(!rw_lock_own(&dict_operation_lock, RW_LOCK_SHARED));
+	ut_ad(!rw_lock_own(&dict_operation_lock, RW_LOCK_S));
 #endif /* UNIV_SYNC_DEBUG */
 	clust_index = dict_table_get_first_index(old_table);
 
@@ -2614,7 +2625,7 @@ row_log_allocate(
 	ut_ad(!table || col_map);
 	ut_ad(!add_cols || col_map);
 #ifdef UNIV_SYNC_DEBUG
-	ut_ad(rw_lock_own(dict_index_get_lock(index), RW_LOCK_EX));
+	ut_ad(rw_lock_own(dict_index_get_lock(index), RW_LOCK_X));
 #endif /* UNIV_SYNC_DEBUG */
 	size = 2 * srv_sort_buf_size + sizeof *log;
 	buf = (byte*) os_mem_alloc_large(&size);
@@ -2625,12 +2636,14 @@ row_log_allocate(
 	log = (row_log_t*) &buf[2 * srv_sort_buf_size];
 	log->size = size;
 	log->fd = row_merge_file_create_low();
+
 	if (log->fd < 0) {
 		os_mem_free_large(buf, size);
 		DBUG_RETURN(false);
 	}
-	mutex_create(index_online_log_key, &log->mutex,
-		     SYNC_INDEX_ONLINE_LOG);
+
+	mutex_create("index_online_log", &log->mutex);
+
 	log->blobs = NULL;
 	log->table = table;
 	log->same_pk = same_pk;
@@ -2684,9 +2697,9 @@ row_log_get_max_trx(
 {
 	ut_ad(dict_index_get_online_status(index) == ONLINE_INDEX_CREATION);
 #ifdef UNIV_SYNC_DEBUG
-	ut_ad((rw_lock_own(dict_index_get_lock(index), RW_LOCK_SHARED)
+	ut_ad((rw_lock_own(dict_index_get_lock(index), RW_LOCK_S)
 	       && mutex_own(&index->online_log->mutex))
-	      || rw_lock_own(dict_index_get_lock(index), RW_LOCK_EX));
+	      || rw_lock_own(dict_index_get_lock(index), RW_LOCK_X));
 #endif /* UNIV_SYNC_DEBUG */
 	return(index->online_log->max_trx);
 }
@@ -2715,7 +2728,7 @@ row_log_apply_op_low(
 
 	ut_ad(!dict_index_is_clust(index));
 #ifdef UNIV_SYNC_DEBUG
-	ut_ad(rw_lock_own(dict_index_get_lock(index), RW_LOCK_EX)
+	ut_ad(rw_lock_own(dict_index_get_lock(index), RW_LOCK_X)
 	      == has_index_lock);
 #endif /* UNIV_SYNC_DEBUG */
 	ut_ad(!dict_index_is_corrupted(index));
@@ -2927,7 +2940,7 @@ row_log_apply_op(
 	/* Online index creation is only used for secondary indexes. */
 	ut_ad(!dict_index_is_clust(index));
 #ifdef UNIV_SYNC_DEBUG
-	ut_ad(rw_lock_own(dict_index_get_lock(index), RW_LOCK_EX)
+	ut_ad(rw_lock_own(dict_index_get_lock(index), RW_LOCK_X)
 	      == has_index_lock);
 #endif /* UNIV_SYNC_DEBUG */
 
@@ -3037,7 +3050,7 @@ row_log_apply_ops(
 	ut_ad(dict_index_is_online_ddl(index));
 	ut_ad(*index->name == TEMP_INDEX_PREFIX);
 #ifdef UNIV_SYNC_DEBUG
-	ut_ad(rw_lock_own(dict_index_get_lock(index), RW_LOCK_EX));
+	ut_ad(rw_lock_own(dict_index_get_lock(index), RW_LOCK_X));
 #endif /* UNIV_SYNC_DEBUG */
 	ut_ad(index->online_log);
 	UNIV_MEM_INVALID(&mrec_end, sizeof mrec_end);
@@ -3053,7 +3066,7 @@ row_log_apply_ops(
 next_block:
 	ut_ad(has_index_lock);
 #ifdef UNIV_SYNC_DEBUG
-	ut_ad(rw_lock_own(dict_index_get_lock(index), RW_LOCK_EX));
+	ut_ad(rw_lock_own(dict_index_get_lock(index), RW_LOCK_X));
 #endif /* UNIV_SYNC_DEBUG */
 	ut_ad(index->online_log->head.bytes == 0);
 

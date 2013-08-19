@@ -40,10 +40,13 @@ Created 10/25/1995 Heikki Tuuri
 #endif /* !UNIV_HOTBACKUP */
 
 #include <list>
+#include <vector>
 
 // Forward declaration
 struct trx_t;
+class truncate_t;
 struct fil_space_t;
+struct btr_create_t;
 
 typedef std::list<const char*> space_name_list_t;
 
@@ -72,7 +75,7 @@ typedef	byte	fil_faddr_t;	/*!< 'type' definition in C: an address
 #ifndef UNIV_INNOCHECKSUM
 
 /** File space address */
-struct fil_addr_t{
+struct fil_addr_t {
 	ulint	page;		/*!< page number within a space */
 	ulint	boffset;	/*!< byte offset within the page */
 };
@@ -383,6 +386,44 @@ fil_decr_pending_ops(
 /*=================*/
 	ulint	id);	/*!< in: space id */
 #endif /* !UNIV_HOTBACKUP */
+/********************************************************//**
+Creates the database directory for a table if it does not exist yet. */
+
+void
+fil_create_directory_for_tablename(
+/*===============================*/
+	const char*	name);	/*!< in: name in the standard
+				'databasename/tablename' format */
+/********************************************************//**
+Recreates table indexes by applying
+TRUNCATE log record during recovery.
+@return DB_SUCCESS or error code */
+
+dberr_t
+fil_recreate_table(
+/*===============*/
+	ulint			space_id,	/*!< in: space id */
+	ulint			format_flags,	/*!< in: page format */
+	ulint			flags,		/*!< in: tablespace flags */
+	const char*		name,		/*!< in: table name */
+	truncate_t&		truncate);	/*!< in/out: The information of
+						TRUNCATE log record */
+/********************************************************//**
+Recreates the tablespace and table indexes by applying
+TRUNCATE log record during recovery.
+@return DB_SUCCESS or error code */
+
+dberr_t
+fil_recreate_tablespace(
+/*====================*/
+	ulint			space_id,	/*!< in: space id */
+	ulint			format_flags,	/*!< in: page format */
+	ulint			flags,		/*!< in: tablespace flags */
+	const char*		name,		/*!< in: table name */
+	truncate_t&		truncate,	/*!< in/out: The information of
+						TRUNCATE log record */
+	lsn_t			recv_lsn);	/*!< in: the end LSN of
+						the log record */
 /*******************************************************************//**
 Parses the body of a log record written about an .ibd file operation. That is,
 the log record part after the standard (type, space id, page no) header of the
@@ -401,16 +442,19 @@ contained between ptr and end_ptr */
 byte*
 fil_op_log_parse_or_replay(
 /*=======================*/
-	byte*	ptr,		/*!< in: buffer containing the log record body,
-				or an initial segment of it, if the record does
-				not fir completely between ptr and end_ptr */
-	byte*	end_ptr,	/*!< in: buffer end */
-	ulint	type,		/*!< in: the type of this log record */
-	ulint	space_id,	/*!< in: the space id of the tablespace in
-				question, or 0 if the log record should
-				only be parsed but not replayed */
-	ulint	log_flags);	/*!< in: redo log flags
-				(stored in the page number parameter) */
+	byte*		ptr,		/*!< in/out: buffer containing the log
+					record body, or an initial segment
+					of it, if the record does not fire
+					completely between ptr and end_ptr */
+	const byte*	end_ptr,	/*!< in: buffer end */
+	ulint		type,		/*!< in: the type of this log record */
+	ulint		space_id,	/*!< in: the space id of the tablespace
+					in question */
+	ulint		log_flags,	/*!< in: redo log flags
+					(stored in the page number parameter) */
+	lsn_t		recv_lsn,	/*!< in: the end LSN of log record */
+	bool		parse_only);	/*!< in: if true, parse the
+					log record don't replay it. */
 /*******************************************************************//**
 Deletes a single-table tablespace. The tablespace must be cached in the
 memory cache.
@@ -423,6 +467,36 @@ fil_delete_tablespace(
 	buf_remove_t	buf_remove);	/*!< in: specify the action to take
 					on the tables pages in the buffer
 					pool */
+/*******************************************************************//**
+Check if an index tree is freed by a descriptor bit of a page.
+@return true if the index tree is freed */
+
+bool
+fil_index_tree_is_freed(
+/*====================*/
+	ulint	space_id,	/*!< in: space id */
+	ulint	root_page_no,	/*!< in: root page no of an index tree */
+	ulint	zip_size);	/*!< in: compressed page size in bytes */
+/*******************************************************************//**
+Prepare for truncating a single-table tablespace. The tablespace
+must be cached in the memory cache.
+1) Check pending operations on a tablespace;
+2) Remove all insert buffer entries for the tablespace;
+@return DB_SUCCESS or error */
+
+dberr_t
+fil_prepare_for_truncate(
+/*=====================*/
+	ulint	id);			/*!< in: space id */
+/**********************************************************************//**
+Reinitialize the original tablespace header with the same space id
+for single tablespace */
+
+void
+fil_reinit_space_header(
+/*====================*/
+	ulint		id,	/*!< in: space id */
+	ulint		size);	/*!< in: size in blocks */
 /*******************************************************************//**
 Closes a single-table tablespace. The tablespace must be cached in the
 memory cache. Free all pages used by the tablespace.
@@ -584,6 +658,22 @@ fil_open_single_table_tablespace(
 	__attribute__((nonnull(5), warn_unused_result));
 
 #endif /* !UNIV_HOTBACKUP */
+/***********************************************************************//**
+A fault-tolerant function that tries to read the next file name in the
+directory. We retry 100 times if os_file_readdir_next_file() returns -1. The
+idea is to read as much good data as we can and jump over bad data.
+@return 0 if ok, -1 if error even after the retries, 1 if at the end
+of the directory */
+
+int
+fil_file_readdir_next_file(
+/*=======================*/
+	dberr_t*	err,	/*!< out: this is set to DB_ERROR if an error
+				was encountered, otherwise not changed */
+	const char*	dirname,/*!< in: directory name or path */
+	os_file_dir_t	dir,	/*!< in: directory stream */
+	os_file_stat_t*	info);	/*!< in/out: buffer where the
+				info is returned */
 /********************************************************************//**
 At the server startup, if we need crash recovery, scans the database
 directories under the MySQL datadir, looking for .ibd files. Those files are

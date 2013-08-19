@@ -45,7 +45,7 @@ Created 10/8/1995 Heikki Tuuri
 #include "os0proc.h"
 #include "mem0mem.h"
 #include "mem0pool.h"
-#include "sync0sync.h"
+#include "sync0mutex.h"
 #include "que0que.h"
 #include "log0recv.h"
 #include "pars0pars.h"
@@ -62,9 +62,11 @@ Created 10/8/1995 Heikki Tuuri
 #include "srv0space.h"
 #include "srv0start.h"
 #include "row0mysql.h"
+#include "row0trunc.h"
 #include "trx0i_s.h"
 #include "srv0mon.h"
 #include "ut0crc32.h"
+#include "sync0sync.h"
 
 /* The following is the maximum allowed duration of a lock wait. */
 ulint	srv_fatal_semaphore_wait_threshold = 600;
@@ -140,21 +142,6 @@ use simulated aio we build below with threads.
 Currently we support native aio on windows and linux */
 my_bool	srv_use_native_aio = TRUE;
 
-#ifdef _WIN32
-/* Windows native condition variables. We use runtime loading / function
-pointers, because they are not available on Windows Server 2003 and
-Windows XP/2000.
-
-We use condition for events on Windows if possible, even if os_event
-resembles Windows kernel event object well API-wise. The reason is
-performance, kernel objects are heavyweights and WaitForSingleObject() is a
-performance killer causing calling thread to context switch. Besides, InnoDB
-is preallocating large number (often millions) of os_events. With kernel event
-objects it takes a big chunk out of non-paged pool, which is better suited
-for tasks like IO than for storing idle event objects. */
-ibool	srv_use_native_conditions = FALSE;
-#endif /* _WIN32 */
-
 /*------------------------- LOG FILES ------------------------ */
 char*	srv_log_group_home_dir	= NULL;
 
@@ -199,6 +186,8 @@ ulong	srv_flush_neighbors	= 1;
 ulint	srv_buf_pool_old_size;
 /* current size in kilobytes */
 ulint	srv_buf_pool_curr_size	= 0;
+/* dump that may % of each buffer pool during BP dump */
+ulong	srv_buf_pool_dump_pct;
 /* size in bytes */
 ulint	srv_mem_pool_size	= ULINT_MAX;
 ulint	srv_lock_table_size	= ULINT_MAX;
@@ -346,27 +335,11 @@ time_t	srv_last_monitor_time;
 
 ib_mutex_t	srv_innodb_monitor_mutex;
 
+/** Mutex protecting page_zip_stat_per_index */
+ib_mutex_t	page_zip_stat_per_index_mutex;
+
 /* Mutex for locking srv_monitor_file. Not created if srv_read_only_mode */
 ib_mutex_t	srv_monitor_file_mutex;
-
-#ifdef UNIV_PFS_MUTEX
-# ifndef HAVE_ATOMIC_BUILTINS
-/* Key to register server_mutex with performance schema */
-mysql_pfs_key_t	server_mutex_key;
-# endif /* !HAVE_ATOMIC_BUILTINS */
-/** Key to register srv_innodb_monitor_mutex with performance schema */
-mysql_pfs_key_t	srv_innodb_monitor_mutex_key;
-/** Key to register srv_monitor_file_mutex with performance schema */
-mysql_pfs_key_t	srv_monitor_file_mutex_key;
-/** Key to register srv_dict_tmpfile_mutex with performance schema */
-mysql_pfs_key_t	srv_dict_tmpfile_mutex_key;
-/** Key to register the mutex with performance schema */
-mysql_pfs_key_t	srv_misc_tmpfile_mutex_key;
-/** Key to register srv_sys_t::mutex with performance schema */
-mysql_pfs_key_t	srv_sys_mutex_key;
-/** Key to register srv_sys_t::tasks_mutex with performance schema */
-mysql_pfs_key_t	srv_threads_mutex_key;
-#endif /* UNIV_PFS_MUTEX */
 
 /** Temporary file for innodb monitor output */
 FILE*	srv_monitor_file;
@@ -871,11 +844,10 @@ srv_init(void)
 	ulint	srv_sys_sz = sizeof(*srv_sys);
 
 #ifndef HAVE_ATOMIC_BUILTINS
-	mutex_create(server_mutex_key, &server_mutex, SYNC_ANY_LATCH);
+	mutex_create("server", &server_mutex);
 #endif /* !HAVE_ATOMIC_BUILTINS */
 
-	mutex_create(srv_innodb_monitor_mutex_key,
-		     &srv_innodb_monitor_mutex, SYNC_NO_ORDER_CHECK);
+	mutex_create("srv_innodb_monitor", &srv_innodb_monitor_mutex);
 
 	if (!srv_read_only_mode) {
 
@@ -891,26 +863,25 @@ srv_init(void)
 
 	if (!srv_read_only_mode) {
 
-		mutex_create(srv_sys_mutex_key, &srv_sys->mutex, SYNC_THREADS);
+		mutex_create("srv_sys", &srv_sys->mutex);
 
-		mutex_create(srv_threads_mutex_key,
-			     &srv_sys->tasks_mutex, SYNC_ANY_LATCH);
+		mutex_create("srv_sys_tasks", &srv_sys->tasks_mutex);
 
 		srv_sys->sys_threads = (srv_slot_t*) &srv_sys[1];
 
 		for (ulint i = 0; i < srv_sys->n_sys_threads; ++i) {
 			srv_slot_t*	slot = &srv_sys->sys_threads[i];
 
-			slot->event = os_event_create();
+			slot->event = os_event_create(0);
 
 			ut_a(slot->event);
 		}
 
-		srv_error_event = os_event_create();
+		srv_error_event = os_event_create(0);
 
-		srv_monitor_event = os_event_create();
+		srv_monitor_event = os_event_create(0);
 
-		srv_buf_dump_event = os_event_create();
+		srv_buf_dump_event = os_event_create(0);
 
 		UT_LIST_INIT(srv_sys->tasks, &que_thr_t::queue);
 	}
@@ -922,10 +893,7 @@ srv_init(void)
 	4. innodb_cmp_per_index_update(), no other latches
 	since we do not acquire any other latches while holding this mutex,
 	it can have very low level. We pick SYNC_ANY_LATCH for it. */
-
-	mutex_create(
-		page_zip_stat_per_index_mutex_key,
-		&page_zip_stat_per_index_mutex, SYNC_ANY_LATCH);
+	mutex_create("page_zip_stat_per_index", &page_zip_stat_per_index_mutex);
 
 	/* Create dummy indexes for infimum and supremum records */
 
@@ -948,17 +916,33 @@ srv_free(void)
 {
 	srv_conc_free();
 
-	/* The mutexes srv_sys->mutex and srv_sys->tasks_mutex should have
-	been freed by sync_close() already. */
-	mem_free(srv_sys);
-	srv_sys = NULL;
+#ifndef HAVE_ATOMIC_BUILTINS
+	mutex_free(&server_mutex);
+#endif /* !HAVE_ATOMIC_BUILTINS */
+
+	mutex_free(&srv_innodb_monitor_mutex);
+	mutex_free(&page_zip_stat_per_index_mutex);
+
+	if (!srv_read_only_mode) {
+		mutex_free(&srv_sys->mutex);
+		mutex_free(&srv_sys->tasks_mutex);
+
+		for (ulint i = 0; i < srv_sys->n_sys_threads; ++i) {
+			srv_slot_t*	slot = &srv_sys->sys_threads[i];
+
+			os_event_destroy(slot->event);
+		}
+
+		os_event_destroy(srv_error_event);
+		os_event_destroy(srv_monitor_event);
+		os_event_destroy(srv_buf_dump_event);
+	}
 
 	trx_i_s_cache_free(trx_i_s_cache);
 
-	if (!srv_read_only_mode) {
-		os_event_free(srv_buf_dump_event);
-		srv_buf_dump_event = NULL;
-	}
+	mem_free(srv_sys);
+
+	srv_sys = 0;
 }
 
 /*********************************************************************//**
@@ -969,11 +953,12 @@ void
 srv_general_init(void)
 /*==================*/
 {
+	os_event_init();
+	sync_check_init();
 	ut_mem_init();
 	/* Reset the system variables in the recovery module. */
 	recv_sys_var_init();
-	os_sync_init();
-	sync_init();
+	os_thread_init();
 	mem_init(srv_mem_pool_size);
 	trx_pool_init();
 	que_init();
@@ -1100,10 +1085,11 @@ srv_printf_innodb_monitor(
 	fputs("----------\n"
 	      "SEMAPHORES\n"
 	      "----------\n", file);
+
 	sync_print(file);
 
 	/* Conceptually, srv_innodb_monitor_mutex has a very high latching
-	order level in sync0sync.h, while dict_foreign_err_mutex has a very
+	order level in sync0mutex.h, while dict_foreign_err_mutex has a very
 	low level 135. Therefore we can reserve the latter mutex here without
 	a danger of a deadlock of threads. */
 
@@ -1198,7 +1184,7 @@ srv_printf_innodb_monitor(
 
 	/* This is a dirty read, without holding trx_sys->mutex. */
 	fprintf(file, "%lu read views open inside InnoDB\n",
-		UT_LIST_GET_LEN(trx_sys->view_list));
+		trx_sys->mvcc->size());
 
 	n_reserved = fil_space_get_n_reserved_extents(0);
 	if (n_reserved > 0) {
@@ -1405,10 +1391,12 @@ srv_export_innodb_status(void)
 
 #ifdef UNIV_DEBUG
 	rw_lock_s_lock(&purge_sys->latch);
+	trx_id_t	up_limit_id;
 	trx_id_t	done_trx_no	= purge_sys->done.trx_no;
-	trx_id_t	up_limit_id	= purge_sys->view
-		? purge_sys->view->up_limit_id
-		: 0;
+
+	up_limit_id	= purge_sys->view_active
+		? purge_sys->view.up_limit_id() : 0;
+
 	rw_lock_s_unlock(&purge_sys->latch);
 
 	mutex_enter(&trx_sys->mutex);
@@ -1814,8 +1802,8 @@ thread stays suspended (we do not protect our operation with the
 srv_sys_t->mutex, for performance reasons). */
 
 void
-srv_active_wake_master_thread_low(void)
-/*===================================*/
+srv_active_wake_master_thread_low()
+/*===============================*/
 {
 	ut_ad(!srv_read_only_mode);
 	ut_ad(!srv_sys_mutex_own());
@@ -2814,4 +2802,24 @@ srv_purge_wakeup(void)
 		}
 	}
 }
+
+/** Check if tablespace is being truncated.
+(Ignore system-tablespace as we don't re-create the tablespace
+and so some of the action that are suppressed by this function
+for independent tablespace are not applicable to system-tablespace).
+@param	space_id	space_id to check for truncate action
+@return true		if being truncated, false if not being
+			truncated or tablespace is system-tablespace. */
+
+bool
+srv_is_tablespace_truncated(ulint space_id)
+{
+	if (Tablespace::is_system_tablespace(space_id)) {
+		return(false);
+	}
+
+	return(truncate_t::is_tablespace_truncated(space_id));
+
+}
+
 

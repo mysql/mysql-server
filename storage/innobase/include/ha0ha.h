@@ -80,45 +80,23 @@ updates the pointer to data if found.
 # define ha_search_and_update_if_found(table,fold,data,new_block,new_data) \
 	ha_search_and_update_if_found_func(table,fold,data,new_data)
 #endif /* UNIV_AHI_DEBUG || UNIV_DEBUG */
+
 /*************************************************************//**
 Creates a hash table with at least n array cells.  The actual number
 of cells is chosen to be a prime number slightly bigger than n.
 @return own: created table */
 
 hash_table_t*
-ib_create_func(
-/*===========*/
-	ulint	n,		/*!< in: number of array cells */
-#ifdef UNIV_SYNC_DEBUG
-	ulint	mutex_level,	/*!< in: level of the mutexes in the latching
-				order: this is used in the debug version */
-#endif /* UNIV_SYNC_DEBUG */
-	ulint	n_mutexes,	/*!< in: number of mutexes to protect the
+ib_create(
+/*======*/
+	ulint		n,	/*!< in: number of array cells */
+	const char*	name,	/*!< in: mutex name */
+	ulint		n_mutexes,/*!< in: number of mutexes to protect the
 				hash table: must be a power of 2, or 0 */
-	ulint	type);		/*!< in: type of datastructure for which
+	ulint		type);	/*!< in: type of datastructure for which
 				the memory heap is going to be used e.g.:
 				MEM_HEAP_FOR_BTR_SEARCH or
 				MEM_HEAP_FOR_PAGE_HASH */
-#ifdef UNIV_SYNC_DEBUG
-/** Creates a hash table.
-@return own: created table
-@param n_c in: number of array cells. The actual number of cells is
-chosen to be a slightly bigger prime number.
-@param level in: level of the mutexes in the latching order
-@param n_m in: number of mutexes to protect the hash table;
-		must be a power of 2, or 0 */
-# define ib_create(n_c,n_m,type,level) ib_create_func(n_c,level,n_m,type)
-#else /* UNIV_SYNC_DEBUG */
-/** Creates a hash table.
-@return own: created table
-@param n_c in: number of array cells. The actual number of cells is
-chosen to be a slightly bigger prime number.
-@param level in: level of the mutexes in the latching order
-@param n_m in: number of mutexes to protect the hash table;
-		must be a power of 2, or 0 */
-# define ib_create(n_c,n_m,type,level) ib_create_func(n_c,n_m,type)
-#endif /* UNIV_SYNC_DEBUG */
-
 /*************************************************************//**
 Empties a hash table and frees the memory heaps. */
 
@@ -222,12 +200,12 @@ ha_print_info(
 
 /** The hash table external chain node */
 struct ha_node_t {
+	ulint		fold;	/*!< fold value for the data */
 	ha_node_t*	next;	/*!< next chain node or NULL if none */
 #if defined UNIV_AHI_DEBUG || defined UNIV_DEBUG
 	buf_block_t*	block;	/*!< buffer block containing the data, or NULL */
 #endif /* UNIV_AHI_DEBUG || UNIV_DEBUG */
 	const rec_t*	data;	/*!< pointer to the data */
-	ulint		fold;	/*!< fold value for the data */
 };
 
 #ifdef UNIV_DEBUG

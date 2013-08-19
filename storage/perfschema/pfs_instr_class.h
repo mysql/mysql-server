@@ -70,6 +70,8 @@ typedef unsigned int PFS_stage_key;
 typedef unsigned int PFS_statement_key;
 /** Key, naming a socket instrument. */
 typedef unsigned int PFS_socket_key;
+/** Key, naming a memory instrument. */
+typedef unsigned int PFS_memory_key;
 
 enum PFS_class_type
 {
@@ -85,7 +87,8 @@ enum PFS_class_type
   PFS_CLASS_TABLE_IO=    9,
   PFS_CLASS_TABLE_LOCK= 10,
   PFS_CLASS_IDLE=       11,
-  PFS_CLASS_LAST=       PFS_CLASS_IDLE,
+  PFS_CLASS_MEMORY=     12,
+  PFS_CLASS_LAST=       PFS_CLASS_MEMORY,
   PFS_CLASS_MAX=        PFS_CLASS_LAST + 1
 };
 
@@ -331,6 +334,8 @@ inline uint sanitize_index_count(uint count)
 #define GLOBAL_TABLE_IO_EVENT_INDEX 0
 #define GLOBAL_TABLE_LOCK_EVENT_INDEX 1
 #define GLOBAL_IDLE_EVENT_INDEX 2
+/** Number of global events. */
+#define COUNT_GLOBAL_EVENT_INDEX 3
 
 /**
   Instrument controlling all table io.
@@ -377,7 +382,7 @@ struct PFS_ALIGNED PFS_statement_class : public PFS_instr_class
 {
 };
 
-struct  PFS_socket;
+struct PFS_socket;
 
 /** Instrumentation metadata for a socket. */
 struct PFS_ALIGNED PFS_socket_class : public PFS_instr_class
@@ -386,6 +391,11 @@ struct PFS_ALIGNED PFS_socket_class : public PFS_instr_class
   PFS_socket_stat m_socket_stat;
   /** Singleton instance. */
   PFS_socket *m_singleton;
+};
+
+/** Instrumentation metadata for a memory. */
+struct PFS_ALIGNED PFS_memory_class : public PFS_instr_class
+{
 };
 
 void init_event_name_sizing(const PFS_global_param *param);
@@ -411,6 +421,8 @@ int init_statement_class(uint statement_class_sizing);
 void cleanup_statement_class();
 int init_socket_class(uint socket_class_sizing);
 void cleanup_socket_class();
+int init_memory_class(uint memory_class_sizing);
+void cleanup_memory_class();
 
 PFS_sync_key register_mutex_class(const char *name, uint name_length,
                                   int flags);
@@ -438,6 +450,9 @@ PFS_statement_key register_statement_class(const char *name, uint name_length,
 PFS_socket_key register_socket_class(const char *name, uint name_length,
                                      int flags);
 
+PFS_memory_key register_memory_class(const char *name, uint name_length,
+                                     int flags);
+
 PFS_mutex_class *find_mutex_class(PSI_mutex_key key);
 PFS_mutex_class *sanitize_mutex_class(PFS_mutex_class *unsafe);
 PFS_rwlock_class *find_rwlock_class(PSI_rwlock_key key);
@@ -456,6 +471,8 @@ PFS_instr_class *find_table_class(uint index);
 PFS_instr_class *sanitize_table_class(PFS_instr_class *unsafe);
 PFS_socket_class *find_socket_class(PSI_socket_key key);
 PFS_socket_class *sanitize_socket_class(PFS_socket_class *unsafe);
+PFS_memory_class *find_memory_class(PSI_memory_key key);
+PFS_memory_class *sanitize_memory_class(PFS_memory_class *unsafe);
 PFS_instr_class *find_idle_class(uint index);
 PFS_instr_class *sanitize_idle_class(PFS_instr_class *unsafe);
 
@@ -486,6 +503,8 @@ extern ulong statement_class_max;
 extern ulong statement_class_lost;
 extern ulong socket_class_max;
 extern ulong socket_class_lost;
+extern ulong memory_class_max;
+extern ulong memory_class_lost;
 extern ulong table_share_max;
 extern ulong table_share_lost;
 
@@ -503,6 +522,9 @@ void reset_socket_class_io();
 
 /** Update derived flags for all table shares. */
 void update_table_share_derived_flags(PFS_thread *thread);
+
+/** Update derived flags for all stored procedure shares. */
+void update_program_share_derived_flags(PFS_thread *thread);
 
 extern LF_HASH table_share_hash;
 

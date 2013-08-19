@@ -192,7 +192,9 @@ mlog_write_initial_log_record_fast(
 	ulint		space;
 	ulint		offset;
 
-	ut_ad(mtr_memo_contains_page(mtr, ptr, MTR_MEMO_PAGE_X_FIX));
+	ut_ad(mtr_memo_contains_page_flagged(mtr, ptr,
+					     MTR_MEMO_PAGE_X_FIX
+					     | MTR_MEMO_PAGE_SX_FIX));
 	ut_ad(type <= MLOG_BIGGEST_TYPE);
 	ut_ad(ptr && log_ptr);
 
@@ -249,8 +251,8 @@ mlog_write_initial_log_record_fast(
 }
 
 /********************************************************//**
-Writes a log record about an .ibd file create/delete/rename.
-@return new value of log_ptr */
+Writes a log record about an .ibd file create/delete/rename/truncate.
+@return	new value of log_ptr */
 UNIV_INLINE
 byte*
 mlog_write_initial_log_record_for_file_op(

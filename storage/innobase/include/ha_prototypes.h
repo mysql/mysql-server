@@ -385,6 +385,15 @@ thd_trx_is_auto_commit(
 /*===================*/
 	THD*	thd);	/*!< in: thread handle, or NULL */
 
+/******************************************************************//**
+Get the thread start time.
+@return the thread start time in seconds since the epoch. */
+
+ulint
+thd_start_time_in_secs(
+/*===================*/
+	THD*	thd);	/*!< in: thread handle, or NULL */
+
 /*****************************************************************//**
 A wrapper function of innobase_convert_name(), convert a table or
 index name to the MySQL system_charset_info (UTF-8) and quote it if needed.

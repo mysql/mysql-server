@@ -10,6 +10,9 @@
 #include <my_bitmap.h>
 #include "rpl_slave.h"
 
+#ifndef DBUG_OFF
+extern ulong w_rr;
+#endif
 /**
   Legends running throughout the module:
 
@@ -54,9 +57,8 @@ void destroy_hash_workers(Relay_log_info*);
 Slave_worker *map_db_to_worker(const char *dbname, Relay_log_info *rli,
                                db_worker_hash_entry **ptr_entry,
                                bool need_temp_tables, Slave_worker *w);
-Slave_worker *get_least_occupied_worker(DYNAMIC_ARRAY *workers);
-int wait_for_workers_to_finish(Relay_log_info const *rli,
-                               Slave_worker *ignore= NULL);
+Slave_worker *get_least_occupied_worker(Relay_log_info *rli,
+                                        DYNAMIC_ARRAY *workers, Log_event* ev);
 
 #define SLAVE_INIT_DBS_IN_GROUP 4     // initial allocation for CGEP dynarray
 
@@ -164,7 +166,9 @@ typedef struct st_slave_job_group
   volatile uchar done;  // Flag raised by W,  read and reset by Coordinator
   ulong    shifted;     // shift the last CP bitmap at receiving a new CP
   time_t   ts;          // Group's timestampt to update Seconds_behind_master
-
+#ifndef DBUG_OFF
+  bool     notified;    // to debug group_master_log_name change notification
+#endif
   /*
     Coordinator fills the struct with defaults and options at starting of 
     a group distribution.
@@ -183,6 +187,9 @@ typedef struct st_slave_job_group
     checkpoint_relay_log_pos= 0;
     checkpoint_seqno= (uint) -1;
     done= 0;
+#ifndef DBUG_OFF
+    notified= false;
+#endif
   }
 } Slave_job_group;
 
@@ -225,7 +232,8 @@ public:
     my_init_dynamic_array(&last_done, sizeof(lwm.total_seqno), n, 0);
     for (k= 0; k < n; k++)
       insert_dynamic(&last_done, (uchar*) &l);  // empty for each Worker
-    lwm.group_relay_log_name= (char *) my_malloc(FN_REFLEN + 1, MYF(0));
+    lwm.group_relay_log_name= (char *) my_malloc(key_memory_Slave_job_group_group_relay_log_name,
+                                                 FN_REFLEN + 1, MYF(0));
     lwm.group_relay_log_name[0]= 0;
   }
 
@@ -295,6 +303,7 @@ public:
 #endif
                , uint param_id
               );
+
   virtual ~Slave_worker();
 
   Slave_jobs_queue jobs;   // assignment queue containing events to execute
@@ -321,6 +330,7 @@ public:
 
   volatile bool relay_log_change_notified; // Coord sets and resets, W can read
   volatile bool checkpoint_notified; // Coord sets and resets, W can read
+  volatile bool master_log_change_notified; // Coord sets and resets, W can read
   ulong bitmap_shifted;  // shift the last bitmap at receiving new CP
   // WQ current excess above the overrun level
   long wq_overrun_cnt;
@@ -358,17 +368,39 @@ public:
     ERROR_LEAVING,         // is set by Worker
     KILLED                 // is set by Coordinator
   };
+
+  /*
+    This function is used to make a copy of the worker object before we
+    destroy it on STOP SLAVE. This new object is then used to report the
+    worker status until next START SLAVE following which the new worker objetcs
+    will be used.
+  */
+  void copy_values_for_PFS(ulong worker_id, enum en_running_state running_status,
+                      THD *worker_thd, Error last_error,
+                      Gtid currently_executing_gtid);
+
   /*
     The running status is guarded by jobs_lock mutex that a writer
     Coordinator or Worker itself needs to hold when write a new value.
   */
   en_running_state volatile running_status;
+  /*
+    If the server is running in gtid-mode=on, this variables stores
+    gtid of the currently executing transaction. This variable is set/modified
+    in Gtid_log_event::do_apply_event(Relay_log_info const *rli). Since the
+    rli argument is a const, we need to make currently_executing_gtid mutable
+    to allow this data member of const object to be modified.
+  */
+  mutable Gtid currently_executing_gtid;
 
   int init_worker(Relay_log_info*, ulong);
   int rli_init_info(bool);
   int flush_info(bool force= FALSE);
   static size_t get_number_worker_fields();
   void slave_worker_ends_group(Log_event*, int);
+  const char *get_master_log_name();
+  ulonglong get_master_log_pos() { return master_log_pos; };
+  ulonglong set_master_log_pos(ulong val) { return master_log_pos= val; };
   bool commit_positions(Log_event *evt, Slave_job_group *ptr_g, bool force);
   bool reset_recovery_info();
   /**
@@ -390,12 +422,21 @@ public:
     rli_description_event= fdle;
   }
 
+  inline void reset_gaq_index() { gaq_index= c_rli->gaq->size; };
+  inline void set_gaq_index(ulong val)
+  { 
+    if (gaq_index == c_rli->gaq->size)
+      gaq_index= val;
+  };
+
 protected:
 
   virtual void do_report(loglevel level, int err_code,
                          const char *msg, va_list v_args) const;
 
 private:
+  ulong gaq_index;          // GAQ index of the current assignment 
+  ulonglong master_log_pos; // event's cached log_pos for possibile error report
   void end_info();
   bool read_info(Rpl_info_handler *from);
   bool write_info(Rpl_info_handler *to);
@@ -405,5 +446,11 @@ private:
 
 TABLE* mts_move_temp_table_to_entry(TABLE*, THD*, db_worker_hash_entry*);
 TABLE* mts_move_temp_tables_to_thd(THD*, TABLE*);
+// Auxiliary function
+TABLE* mts_move_temp_tables_to_thd(THD*, TABLE*, enum_mts_parallel_type);
+
+extern  mysql_mutex_t slave_worker_hash_lock;
+extern  mysql_cond_t slave_worker_hash_cond;
+extern HASH mapping_db_to_worker;
 #endif // HAVE_REPLICATION
 #endif

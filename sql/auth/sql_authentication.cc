@@ -23,6 +23,7 @@
                                         /* release_user_connection */
 #include "hostname.h"                   /* Host_errors, inc_host_errors */
 #include "sql_db.h"                     /* mysql_change_db */
+#include "connection_handler_manager.h"
 #include <mysql/plugin_validate_password.h> /* validate_password plugin */
 
 #if defined(HAVE_OPENSSL) && !defined(HAVE_YASSL)
@@ -183,6 +184,13 @@ Rsa_authentication_keys::read_key_file(RSA **key_ptr,
       ERR_error_string_n(ERR_get_error(), error_buf, MYSQL_ERRMSG_SIZE);
       sql_print_error("Failure to parse RSA %s key (file exists): %s:"
                       " %s", key_type, key_file_path.c_ptr(), error_buf);
+
+      /*
+        Call ERR_clear_error() just in case there are more than 1 entry in the
+        OpenSSL thread's error queue.
+      */
+      ERR_clear_error();
+
       return true;
     }
 
@@ -321,16 +329,6 @@ Rsa_authentication_keys::read_rsa_keys()
 
 #endif /* HAVE_YASSL */
 #endif /* HAVE_OPENSSL */
-
-/**
- Sets the default default auth plugin value if no option was specified.
-*/
-void init_default_auth_plugin()
-{
-  default_auth_plugin_name.str= native_password_plugin_name.str;
-  default_auth_plugin_name.length= native_password_plugin_name.length;
-
-}
 
 /**
  Initialize default authentication plugin based on command line options or
@@ -504,17 +502,14 @@ static void login_failed_error(MPVIO_EXT *mpvio, int passwd_used)
                                    ER(ER_ACCESS_DENIED_NO_PASSWORD_ERROR),
                                    mpvio->auth_info.user_name,
                                    mpvio->auth_info.host_or_ip);
-    /* 
+    /*
       Log access denied messages to the error log when log-warnings = 2
-      so that the overhead of the general query log is not required to track 
+      so that the overhead of the general query log is not required to track
       failed connections.
     */
-    if (log_warnings > 1)
-    {
-      sql_print_warning(ER(ER_ACCESS_DENIED_NO_PASSWORD_ERROR),
-                        mpvio->auth_info.user_name,
-                        mpvio->auth_info.host_or_ip);      
-    }
+    sql_print_information(ER(ER_ACCESS_DENIED_NO_PASSWORD_ERROR),
+                          mpvio->auth_info.user_name,
+                          mpvio->auth_info.host_or_ip);
   }
   else
   {
@@ -526,18 +521,15 @@ static void login_failed_error(MPVIO_EXT *mpvio, int passwd_used)
                                    mpvio->auth_info.user_name,
                                    mpvio->auth_info.host_or_ip,
                                    passwd_used ? ER(ER_YES) : ER(ER_NO));
-    /* 
+    /*
       Log access denied messages to the error log when log-warnings = 2
-      so that the overhead of the general query log is not required to track 
+      so that the overhead of the general query log is not required to track
       failed connections.
     */
-    if (log_warnings > 1)
-    {
-      sql_print_warning(ER(ER_ACCESS_DENIED_ERROR),
-                        mpvio->auth_info.user_name,
-                        mpvio->auth_info.host_or_ip,
-                        passwd_used ? ER(ER_YES) : ER(ER_NO));      
-    }
+    sql_print_information(ER(ER_ACCESS_DENIED_ERROR),
+                          mpvio->auth_info.user_name,
+                          mpvio->auth_info.host_or_ip,
+                          passwd_used ? ER(ER_YES) : ER(ER_NO));
   }
 }
 
@@ -547,7 +539,7 @@ static void login_failed_error(MPVIO_EXT *mpvio, int passwd_used)
   after the connection was established
 
   Packet format:
-   
+
     Bytes       Content
     -----       ----
     1           protocol version (always 10)
@@ -982,7 +974,7 @@ read_client_connect_attrs(char **ptr, size_t *max_bytes_available,
     return true;
 
 #ifdef HAVE_PSI_THREAD_INTERFACE
-  if (PSI_THREAD_CALL(set_thread_connect_attrs)(*ptr, length, from_cs) && log_warnings)
+  if (PSI_THREAD_CALL(set_thread_connect_attrs)(*ptr, length, from_cs))
     sql_print_warning("Connection attributes of length %lu were truncated",
                       (unsigned long) length);
 #endif /* HAVE_PSI_THREAD_INTERFACE */
@@ -1038,9 +1030,8 @@ static bool acl_check_ssl(THD *thd, const ACL_USER *acl_user)
                          acl_user->ssl_cipher, SSL_get_cipher(ssl)));
       if (strcmp(acl_user->ssl_cipher, SSL_get_cipher(ssl)))
       {
-        if (log_warnings)
-          sql_print_information("X509 ciphers mismatch: should be '%s' but is '%s'",
-                            acl_user->ssl_cipher, SSL_get_cipher(ssl));
+        sql_print_information("X509 ciphers mismatch: should be '%s' but is '%s'",
+                              acl_user->ssl_cipher, SSL_get_cipher(ssl));
         return 1;
       }
     }
@@ -1055,9 +1046,8 @@ static bool acl_check_ssl(THD *thd, const ACL_USER *acl_user)
                          acl_user->x509_issuer, ptr));
       if (strcmp(acl_user->x509_issuer, ptr))
       {
-        if (log_warnings)
-          sql_print_information("X509 issuer mismatch: should be '%s' "
-                            "but is '%s'", acl_user->x509_issuer, ptr);
+        sql_print_information("X509 issuer mismatch: should be '%s' "
+                              "but is '%s'", acl_user->x509_issuer, ptr);
         OPENSSL_free(ptr);
         X509_free(cert);
         return 1;
@@ -1072,8 +1062,7 @@ static bool acl_check_ssl(THD *thd, const ACL_USER *acl_user)
                          acl_user->x509_subject, ptr));
       if (strcmp(acl_user->x509_subject, ptr))
       {
-        if (log_warnings)
-          sql_print_information("X509 subject mismatch: should be '%s' but is '%s'",
+        sql_print_information("X509 subject mismatch: should be '%s' but is '%s'",
                           acl_user->x509_subject, ptr);
         OPENSSL_free(ptr);
         X509_free(cert);
@@ -1194,7 +1183,8 @@ static bool parse_com_change_user_packet(MPVIO_EXT *mpvio, uint packet_length)
   user_buff[user_len]= 0;
 
   /* we should not free mpvio->user here: it's saved by dispatch_command() */
-  if (!(mpvio->auth_info.user_name= my_strndup(user_buff, user_len, MYF(MY_WME))))
+  if (!(mpvio->auth_info.user_name= my_strndup(key_memory_MPVIO_EXT_auth_info,
+                                               user_buff, user_len, MYF(MY_WME))))
     return 1;
   mpvio->auth_info.user_name_length= user_len;
 
@@ -1773,7 +1763,8 @@ skip_to_ssl:
     return packet_error; /* The error is set by make_lex_string(). */
   if (mpvio->auth_info.user_name)
     my_free(mpvio->auth_info.user_name);
-  if (!(mpvio->auth_info.user_name= my_strndup(user, user_len, MYF(MY_WME))))
+  if (!(mpvio->auth_info.user_name= my_strndup(key_memory_MPVIO_EXT_auth_info,
+                                               user, user_len, MYF(MY_WME))))
     return packet_error; /* The error is set by my_strdup(). */
   mpvio->auth_info.user_name_length= user_len;
 
@@ -2042,11 +2033,6 @@ static int do_auth_once(THD *thd, LEX_STRING *auth_plugin_name,
     plugin= old_password_plugin;
   else
   {
-    if (auth_plugin_name->length == 0)
-    {
-      auth_plugin_name->str= default_auth_plugin_name.str;
-      auth_plugin_name->length= default_auth_plugin_name.length;
-    }
     if ((plugin= my_plugin_lock_by_name(thd, auth_plugin_name,
                                         MYSQL_AUTHENTICATION_PLUGIN)))
       unlock_plugin= true;
@@ -2389,8 +2375,7 @@ acl_authenticate(THD *thd, uint com_change_user_pkt_len)
       my_error(ER_MUST_CHANGE_PASSWORD_LOGIN, MYF(0));
       query_logger.general_log_print(thd, COM_CONNECT,
                                      ER(ER_MUST_CHANGE_PASSWORD_LOGIN));
-      if (log_warnings > 1)
-        sql_print_warning("%s", ER(ER_MUST_CHANGE_PASSWORD_LOGIN));
+      sql_print_information("%s", ER(ER_MUST_CHANGE_PASSWORD_LOGIN));
 
       errors.m_authentication= 1;
       inc_host_errors(mpvio.ip, &errors);
@@ -2400,7 +2385,7 @@ acl_authenticate(THD *thd, uint com_change_user_pkt_len)
     /* Don't allow the user to connect if he has done too many queries */
     if ((acl_user->user_resource.questions || acl_user->user_resource.updates ||
          acl_user->user_resource.conn_per_hour ||
-         acl_user->user_resource.user_conn || 
+         acl_user->user_resource.user_conn ||
          global_system_variables.max_user_connections) &&
         get_or_create_user_conn(thd,
           (opt_old_style_user_limits ? sctx->user : sctx->priv_user),
@@ -2435,16 +2420,15 @@ acl_authenticate(THD *thd, uint com_change_user_pkt_len)
   if (command == COM_CONNECT &&
       !(thd->main_security_ctx.master_access & SUPER_ACL))
   {
-    mysql_mutex_lock(&LOCK_connection_count);
-    bool count_ok= (connection_count <= max_connections);
-    mysql_mutex_unlock(&LOCK_connection_count);
-    if (!count_ok)
+#ifndef EMBEDDED_LIBRARY
+    if (!Connection_handler_manager::valid_connection_count())
     {                                         // too many connections
       release_user_connection(thd);
       connection_errors_max_connection++;
       my_error(ER_CON_COUNT_ERROR, MYF(0));
       DBUG_RETURN(1);
     }
+#endif // !EMBEDDED_LIBRARY
   }
 
   /*
@@ -2469,7 +2453,8 @@ acl_authenticate(THD *thd, uint com_change_user_pkt_len)
   }
 
   if (mpvio.auth_info.external_user[0])
-    sctx->set_external_user(my_strdup(mpvio.auth_info.external_user, MYF(0)));
+    sctx->set_external_user(my_strdup(key_memory_MPVIO_EXT_auth_info,
+                                      mpvio.auth_info.external_user, MYF(0)));
 
 
   if (res == CR_OK_HANDSHAKE_COMPLETE)

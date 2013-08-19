@@ -15,6 +15,7 @@
 
 INCLUDE_DIRECTORIES(
   ${CMAKE_SOURCE_DIR}/include 
+  ${CMAKE_SOURCE_DIR}/sql/conn_handler
   ${CMAKE_SOURCE_DIR}/sql 
   ${CMAKE_SOURCE_DIR}/sql/auth
   ${CMAKE_SOURCE_DIR}/regex 
@@ -45,6 +46,7 @@ SET(SQL_SHARED_SOURCES
   auth/sql_user_table.cc
   auth/sql_user.cc
   auth/password.c
+  conn_handler/connection_handler_manager.cc 
   datadict.cc
   debug_sync.cc
   derror.cc
@@ -94,7 +96,6 @@ SET(SQL_SHARED_SOURCES
   protocol.cc
   records.cc
   rpl_handler.cc
-  scheduler.cc 
   set_var.cc 
   signal_handler.cc
   sp.cc
@@ -196,6 +197,10 @@ SET(SQL_SOURCE
   ../sql-common/my_user.c 
   ../sql-common/pack.c
   ../sql-common/client_authentication.cc
+  conn_handler/channel_info.cc
+  conn_handler/connection_handler_per_thread.cc
+  conn_handler/connection_handler_one_thread.cc
+  conn_handler/socket_connection.cc
   event_data_objects.cc
   event_db_repository.cc 
   event_parse_data.cc
@@ -205,6 +210,13 @@ SET(SQL_SOURCE
   mysqld.cc
   sql_client.cc
   )
+
+IF(WIN32)
+  LIST(APPEND SQL_SOURCE
+              conn_handler/named_pipe_connection.cc
+              conn_handler/shared_memory_connection.cc
+      )
+ENDIF()
 
 IF (WIN32 AND OPENSSL_APPLINK_C)
   SET_SOURCE_FILES_PROPERTIES(
@@ -249,10 +261,10 @@ ADD_DEPENDENCIES(rpl GenError)
 ADD_LIBRARY(master ${MASTER_SOURCE})
 ADD_DEPENDENCIES(master GenError)
 SET (SLAVE_SOURCE rpl_slave.cc rpl_reporting.cc rpl_mi.cc rpl_rli.cc
-		  rpl_info_handler.cc rpl_info_file.cc rpl_info_table.cc
-		  rpl_info_values.cc rpl_info.cc rpl_info_factory.cc
-		  rpl_info_table_access.cc dynamic_ids.cc rpl_rli_pdb.cc
-		  rpl_info_dummy.cc)
+                  rpl_info_handler.cc rpl_info_file.cc
+                  rpl_info_table.cc rpl_info_values.cc rpl_info.cc
+                  rpl_info_factory.cc rpl_info_table_access.cc dynamic_ids.cc
+                  rpl_rli_pdb.cc rpl_info_dummy.cc rpl_mts_submode.cc)
 ADD_LIBRARY(slave ${SLAVE_SOURCE})
 ADD_DEPENDENCIES(slave GenError)
 

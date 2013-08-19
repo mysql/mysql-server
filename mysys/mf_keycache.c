@@ -428,14 +428,16 @@ int init_key_cache(KEY_CACHE *keycache, uint key_cache_block_size,
         blocks--;
       /* Allocate memory for cache page buffers */
       if ((keycache->block_mem=
-	   my_large_malloc((size_t) blocks * keycache->key_cache_block_size,
+	   my_large_malloc(key_memory_KEY_CACHE,
+                           (size_t) blocks * keycache->key_cache_block_size,
 			  MYF(0))))
       {
         /*
 	  Allocate memory for blocks, hash_links and hash entries;
 	  For each block 2 hash links are allocated
         */
-        if ((keycache->block_root= (BLOCK_LINK*) my_malloc(length,
+        if ((keycache->block_root= (BLOCK_LINK*) my_malloc(key_memory_KEY_CACHE,
+                                                           length,
                                                            MYF(0))))
           break;
         my_large_free(keycache->block_mem);
@@ -3639,7 +3641,8 @@ static int flush_key_blocks_int(KEY_CACHE *keycache,
         changed blocks appear while we need to wait for something.
       */
       if ((count > FLUSH_CACHE) &&
-          !(cache= (BLOCK_LINK**) my_malloc(sizeof(BLOCK_LINK*)*count,
+          !(cache= (BLOCK_LINK**) my_malloc(key_memory_KEY_CACHE,
+                                            sizeof(BLOCK_LINK*)*count,
                                             MYF(0))))
         cache= cache_buff;
       /*
@@ -4495,7 +4498,7 @@ static int cache_empty(KEY_CACHE *keycache)
     BLOCK_LINK *block= keycache->block_root + idx;
     if (block->status || block->requests || block->hash_link)
     {
-      fprintf(stderr, "block index: %u\n", idx);
+      my_message_local(INFORMATION_LEVEL, "block index: %u", idx);
       fail_block(block);
       errcnt++;
     }
@@ -4505,18 +4508,17 @@ static int cache_empty(KEY_CACHE *keycache)
     HASH_LINK *hash_link= keycache->hash_link_root + idx;
     if (hash_link->requests || hash_link->block)
     {
-      fprintf(stderr, "hash_link index: %u\n", idx);
+      my_message_local(INFORMATION_LEVEL, "hash_link index: %u", idx);
       fail_hlink(hash_link);
       errcnt++;
     }
   }
   if (errcnt)
   {
-    fprintf(stderr, "blocks: %d  used: %lu\n",
-            keycache->disk_blocks, keycache->blocks_used);
-    fprintf(stderr, "hash_links: %d  used: %d\n",
-            keycache->hash_links, keycache->hash_links_used);
-    fprintf(stderr, "\n");
+    my_message_local(INFORMATION_LEVEL, "blocks: %d  used: %lu",
+                     keycache->disk_blocks, keycache->blocks_used);
+    my_message_local(INFORMATION_LEVEL, "hash_links: %d  used: %d",
+                     keycache->hash_links, keycache->hash_links_used);
   }
   return !errcnt;
 }

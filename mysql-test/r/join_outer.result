@@ -2068,22 +2068,46 @@ EXPLAIN
 {
   "query_block": {
     "select_id": 1,
+    "cost_info": {
+      "query_cost": "3.60"
+    },
     "nested_loop": [
       {
         "table": {
           "table_name": "t1",
           "access_type": "ALL",
-          "rows": 1,
-          "filtered": 100
+          "rows_examined_per_scan": 1,
+          "rows_produced_per_join": 1,
+          "filtered": 100,
+          "cost_info": {
+            "read_cost": "1.00",
+            "eval_cost": "0.20",
+            "prefix_cost": "1.20",
+            "data_read_per_join": "8"
+          },
+          "used_columns": [
+            "ik",
+            "vc"
+          ]
         }
       },
       {
         "table": {
           "table_name": "t2",
           "access_type": "ALL",
-          "rows": 1,
+          "rows_examined_per_scan": 1,
+          "rows_produced_per_join": 1,
           "filtered": 100,
           "using_join_buffer": "Block Nested Loop",
+          "cost_info": {
+            "read_cost": "1.00",
+            "eval_cost": "0.20",
+            "prefix_cost": "2.40",
+            "data_read_per_join": "8"
+          },
+          "used_columns": [
+            "vc"
+          ],
           "attached_condition": "(`test`.`t2`.`vc` = `test`.`t1`.`vc`)"
         }
       },
@@ -2091,9 +2115,19 @@ EXPLAIN
         "table": {
           "table_name": "t3",
           "access_type": "ALL",
-          "rows": 1,
+          "rows_examined_per_scan": 1,
+          "rows_produced_per_join": 1,
           "filtered": 100,
           "using_join_buffer": "Block Nested Loop",
+          "cost_info": {
+            "read_cost": "1.00",
+            "eval_cost": "0.20",
+            "prefix_cost": "3.60",
+            "data_read_per_join": "8"
+          },
+          "used_columns": [
+            "vc"
+          ],
           "attached_condition": "<if>(is_not_null_compl(t3), (`test`.`t3`.`vc` = `test`.`t1`.`vc`), true)"
         }
       }

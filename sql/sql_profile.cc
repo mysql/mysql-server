@@ -207,7 +207,8 @@ void PROF_MEASUREMENT::set_label(const char *status_arg,
   sizes[1]= (function_arg == NULL) ? 0 : strlen(function_arg) + 1;
   sizes[2]= (file_arg == NULL) ? 0 : strlen(file_arg) + 1;
 
-  allocated_status_memory= (char *) my_malloc(sizes[0] + sizes[1] + sizes[2], MYF(0));
+  allocated_status_memory= (char *) my_malloc(key_memory_PROFILE,
+                                              sizes[0] + sizes[1] + sizes[2], MYF(0));
   DBUG_ASSERT(allocated_status_memory != NULL);
 
   cursor= allocated_status_memory;
@@ -295,7 +296,8 @@ void QUERY_PROFILE::set_query_source(char *query_source_arg,
 
   DBUG_ASSERT(query_source == NULL); /* we don't leak memory */
   if (query_source_arg != NULL)
-    query_source= my_strndup(query_source_arg, length, MYF(0));
+    query_source= my_strndup(key_memory_PROFILE,
+                             query_source_arg, length, MYF(0));
 }
 
 void QUERY_PROFILE::new_status(const char *status_arg,
@@ -577,14 +579,14 @@ int PROFILING::fill_statistics_info(THD *thd_arg, TABLE_LIST *tables, Item *cond
           struct where and having conditions at the SQL layer, then this
           condition should be ripped out.
         */
-        if (thd_arg->lex->profile_query_id == 0) /* 0 == show final query */
+        if (thd_arg->lex->query_id == 0) /* 0 == show final query */
         {
           if (query != last)
             continue;
         }
         else
         {
-          if (thd_arg->lex->profile_query_id != query->profiling_query_id)
+          if (thd_arg->lex->query_id != query->profiling_query_id)
             continue;
         }
       }

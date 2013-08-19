@@ -34,6 +34,7 @@ Completed 2011/7/10 Sunny and Jimmy Yang
 #include "fts0types.h"
 #include "ut0wqueue.h"
 #include "srv0start.h"
+#include "ut0list.h"
 #include "zlib.h"
 
 #ifdef UNIV_NONINL
@@ -247,22 +248,22 @@ static	const char* fts_init_delete_sql =
 	"BEGIN\n"
 	"\n"
 	"INSERT INTO %s_BEING_DELETED\n"
-		"SELECT doc_id FROM %s_DELETED;\n"
+		"SELECT doc_id FROM \"%s_DELETED\";\n"
 	"\n"
 	"INSERT INTO %s_BEING_DELETED_CACHE\n"
-		"SELECT doc_id FROM %s_DELETED_CACHE;\n";
+		"SELECT doc_id FROM \"%s_DELETED_CACHE\";\n";
 
 static const char* fts_delete_doc_ids_sql =
 	"BEGIN\n"
 	"\n"
-	"DELETE FROM %s_DELETED WHERE doc_id = :doc_id1;\n"
-	"DELETE FROM %s_DELETED_CACHE WHERE doc_id = :doc_id2;\n";
+	"DELETE FROM \"%s_DELETED\" WHERE doc_id = :doc_id1;\n"
+	"DELETE FROM \"%s_DELETED_CACHE\" WHERE doc_id = :doc_id2;\n";
 
 static const char* fts_end_delete_sql =
 	"BEGIN\n"
 	"\n"
-	"DELETE FROM %s_BEING_DELETED;\n"
-	"DELETE FROM %s_BEING_DELETED_CACHE;\n";
+	"DELETE FROM \"%s_BEING_DELETED\";\n"
+	"DELETE FROM \"%s_BEING_DELETED_CACHE\";\n";
 
 /**********************************************************************//**
 Initialize fts_zip_t. */
@@ -505,7 +506,7 @@ fts_index_fetch_nodes(
 			"DECLARE CURSOR c IS"
 			" SELECT word, doc_count, first_doc_id, last_doc_id, "
 				"ilist\n"
-			" FROM %s\n"
+			" FROM \"%s\"\n"
 			" WHERE word LIKE :word\n"
 			" ORDER BY first_doc_id;\n"
 			"BEGIN\n"
@@ -829,7 +830,7 @@ fts_index_fetch_words(
 			"DECLARE FUNCTION my_func;\n"
 			"DECLARE CURSOR c IS"
 			" SELECT word\n"
-			" FROM %s\n"
+			" FROM \"%s\"\n"
 			" WHERE word > :word\n"
 			" ORDER BY word;\n"
 			"BEGIN\n"
@@ -989,7 +990,7 @@ fts_table_fetch_doc_ids(
 		info,
 		"DECLARE FUNCTION my_func;\n"
 		"DECLARE CURSOR c IS"
-		" SELECT doc_id FROM %s;\n"
+		" SELECT doc_id FROM \"%s\";\n"
 		"BEGIN\n"
 		"\n"
 		"OPEN c;\n"
@@ -1462,7 +1463,7 @@ fts_optimize_write_word(
 	graph = fts_parse_sql(
 		fts_table,
 		info,
-		"BEGIN DELETE FROM %s WHERE word = :word;");
+		"BEGIN DELETE FROM \"%s\" WHERE word = :word;");
 
 	error = fts_eval_sql(trx, graph);
 
@@ -2616,7 +2617,7 @@ fts_optimize_remove_table(
 	msg = fts_optimize_create_msg(FTS_MSG_DEL_TABLE, NULL);
 
 	/* We will wait on this event until signalled by the consumer. */
-	event = os_event_create();
+	event = os_event_create(0);
 
 	remove = static_cast<fts_msg_del_t*>(
 		mem_heap_alloc(msg->heap, sizeof(*remove)));
@@ -2629,7 +2630,7 @@ fts_optimize_remove_table(
 
 	os_event_wait(event);
 
-	os_event_free(event);
+	os_event_destroy(event);
 }
 
 /**********************************************************************//**
@@ -3148,7 +3149,7 @@ fts_optimize_start_shutdown(void)
 	/* We tell the OPTIMIZE thread to switch to state done, we
 	can't delete the work queue here because the add thread needs
 	deregister the FTS tables. */
-	event = os_event_create();
+	event = os_event_create(0);
 
 	msg = fts_optimize_create_msg(FTS_MSG_STOP, NULL);
 	msg->ptr = event;
@@ -3156,10 +3157,10 @@ fts_optimize_start_shutdown(void)
 	ib_wqueue_add(fts_optimize_wq, msg, msg->heap);
 
 	os_event_wait(event);
-	os_event_free(event);
+
+	os_event_destroy(event);
 
 	ib_wqueue_free(fts_optimize_wq);
-
 }
 
 /**********************************************************************//**

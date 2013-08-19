@@ -44,12 +44,14 @@ Created 10/10/1995 Heikki Tuuri
 #include "univ.i"
 #ifndef UNIV_HOTBACKUP
 #include "log0log.h"
-#include "sync0sync.h"
+#include "sync0mutex.h"
+#include "os0event.h"
 #include "que0types.h"
 #include "trx0types.h"
 #include "srv0conc.h"
 #include "buf0checksum.h"
 #include "ut0counter.h"
+#include "fil0fil.h"
 
 /* Global counters used inside InnoDB. */
 struct srv_stats_t {
@@ -156,6 +158,8 @@ extern char		srv_disable_sort_file_cache;
 at a time */
 #define SRV_AUTO_EXTEND_INCREMENT (srv_sys_space.get_autoextend_increment())
 
+/** Mutex protecting page_zip_stat_per_index */
+extern ib_mutex_t	page_zip_stat_per_index_mutex;
 /* Mutex for locking srv_monitor_file. Not created if srv_read_only_mode */
 extern ib_mutex_t	srv_monitor_file_mutex;
 /* Temporary file for innodb monitor output */
@@ -212,7 +216,7 @@ use simulated aio we build below with threads.
 Currently we support native aio on windows and linux */
 extern my_bool	srv_use_native_aio;
 #ifdef _WIN32
-extern ibool	srv_use_native_conditions;
+extern bool	srv_use_native_conditions;
 #endif /* _WIN32 */
 #endif /* !UNIV_HOTBACKUP */
 
@@ -265,6 +269,8 @@ extern ulong	srv_flush_neighbors;	/*!< whether or not to flush
 					neighbors of a block */
 extern ulint	srv_buf_pool_old_size;	/*!< previously requested size */
 extern ulint	srv_buf_pool_curr_size;	/*!< current size in bytes */
+extern ulong	srv_buf_pool_dump_pct;	/*!< dump that may % of each buffer
+					pool during BP dump */
 extern ulint	srv_mem_pool_size;
 extern ulint	srv_lock_table_size;
 
@@ -746,6 +752,17 @@ Wakeup the purge threads. */
 void
 srv_purge_wakeup(void);
 /*==================*/
+
+/** Check if tablespace is being truncated.
+(Ignore system-tablespace as we don't re-create the tablespace
+and so some of the action that are suppressed by this function
+for independent tablespace are not applicable to system-tablespace).
+@param	space_id	space_id to check for truncate action
+@return true		if being truncated, false if not being
+			truncated or tablespace is system-tablespace. */
+
+bool
+srv_is_tablespace_truncated(ulint space_id);
 
 /** Status variables to be passed to MySQL */
 struct export_var_t{

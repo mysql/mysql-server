@@ -1,4 +1,4 @@
-/* Copyright (c) 2010, 2011, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2010, 2013, Oracle and/or its affiliates. All rights reserved.
 
   This program is free software; you can redistribute it and/or modify
   it under the terms of the GNU General Public License as published by
@@ -46,6 +46,8 @@ struct row_events_statements
   ulonglong m_nesting_event_id;
   /** Column NESTING_EVENT_TYPE. */
   enum_event_type m_nesting_event_type;
+  /** Column NESTING_EVENT_LEVEL. */
+  uint m_nesting_event_level;
   /** Column EVENT_NAME. */
   const char *m_name;
   /** Length in bytes of @c m_name. */
@@ -72,6 +74,18 @@ struct row_events_statements
   char m_current_schema_name[NAME_LEN];
   /** Length in bytes of @c m_current_schema_name. */
   uint m_current_schema_name_length;
+
+  /** Column OBJECT_TYPE. */
+  enum_object_type m_object_type;
+  /** Column OBJECT_SCHEMA. */
+  char m_schema_name[NAME_LEN];
+  /** Length in bytes of @c m_schema_name. */
+  uint m_schema_name_length;
+  /** Column OBJECT_NAME. */
+  char m_object_name[NAME_LEN];
+  /** Length in bytes of @c m_object_name. */
+  uint m_object_name_length;
+
 
   /** Column MESSAGE_TEXT. */
   char m_message_text[MYSQL_ERRMSG_SIZE+1];

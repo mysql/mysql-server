@@ -12,9 +12,6 @@
 # 1. test insert/delete/update of big-rec (blob)		   #
 #
 use test;
-let $wait_condition=
-  select variable_value < 1 from information_schema.global_status
-  where variable_name = 'INNODB_PURGE_TRX_ID_AGE';
 create temporary table t1
 	(i int, b mediumblob,
 	 primary key pk(i), index sk(b(100))
@@ -47,7 +44,7 @@ select count(*) from t1;
 commit;
 set global innodb_purge_stop_now=ON;
 set global innodb_purge_run_now=ON;
---source include/wait_condition.inc
+--source include/wait_innodb_all_purged.inc
 #
 delete from t1 where i < 20;
 select count(*) from t1;

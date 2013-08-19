@@ -16,6 +16,7 @@
 /* Written by Sinisa Milivojevic <sinisa@mysql.com> */
 
 #include <my_global.h>
+#include <mysys_priv.h>
 #ifdef HAVE_COMPRESS
 #include <my_sys.h>
 #include <m_string.h>
@@ -62,7 +63,8 @@ uchar *my_compress_alloc(const uchar *packet, size_t *len, size_t *complen)
   int res;
   *complen=  *len * 120 / 100 + 12;
 
-  if (!(compbuf= (uchar *) my_malloc(*complen, MYF(MY_WME))))
+  if (!(compbuf= (uchar *) my_malloc(key_memory_my_compress_alloc,
+                                     *complen, MYF(MY_WME))))
     return 0;					/* Not enough memory */
 
   tmp_complen= (uint) *complen;
@@ -111,7 +113,8 @@ my_bool my_uncompress(uchar *packet, size_t len, size_t *complen)
 
   if (*complen)					/* If compressed */
   {
-    uchar *compbuf= (uchar *) my_malloc(*complen,MYF(MY_WME));
+    uchar *compbuf= (uchar *) my_malloc(key_memory_my_compress_alloc,
+                                        *complen,MYF(MY_WME));
     int error;
     if (!compbuf)
       DBUG_RETURN(1);				/* Not enough memory */
@@ -185,7 +188,8 @@ int packfrm(uchar *data, size_t len,
 
   error= 2;
   blob_len= BLOB_HEADER + org_len;
-  if (!(blob= (uchar*) my_malloc(blob_len,MYF(MY_WME))))
+  if (!(blob= (uchar*) my_malloc(key_memory_pack_frm,
+                                 blob_len,MYF(MY_WME))))
     goto err;
 
   /* Store compressed blob in machine independent format */
@@ -242,7 +246,8 @@ int unpackfrm(uchar **unpack_data, size_t *unpack_len,
 
    if (ver != 1)
      DBUG_RETURN(1);
-   if (!(data= my_malloc(MY_MAX(orglen, complen), MYF(MY_WME))))
+   if (!(data= my_malloc(key_memory_pack_frm,
+                         MY_MAX(orglen, complen), MYF(MY_WME))))
      DBUG_RETURN(2);
    memcpy(data, pack_data + BLOB_HEADER, complen);
 

@@ -1,0 +1,43 @@
+# Tests for PERFORMANCE_SCHEMA
+
+# This test verifies the correct behaviour in case of invalid
+# usage of DMLs on the table replication_connection_status.
+
+--source include/not_embedded.inc
+--source include/have_perfschema.inc
+
+--disable_result_log
+SELECT * FROM performance_schema.replication_connection_status
+  LIMIT 1;
+
+SELECT * FROM performance_schema.replication_connection_status
+  WHERE received_transaction_set='FOO' OR last_error_message='BAR';
+--enable_result_log
+
+--error ER_TABLEACCESS_DENIED_ERROR
+INSERT INTO performance_schema.replication_connection_status
+  SET received_transaction_set='FOO', last_error_message='BAR',
+  thread_id=1, last_error_number=2;
+
+--error ER_TABLEACCESS_DENIED_ERROR
+UPDATE performance_schema.replication_connection_status
+  SET last_error_number=12;
+
+--error ER_TABLEACCESS_DENIED_ERROR
+UPDATE performance_schema.replication_connection_status
+  SET thread_id=12 WHERE received_transaction_set like "FOO";
+
+--error ER_TABLEACCESS_DENIED_ERROR
+DELETE FROM performance_schema.replication_connection_status
+  WHERE last_error_number=1;
+
+--error ER_TABLEACCESS_DENIED_ERROR
+DELETE FROM performance_schema.replication_connection_status;
+
+-- error ER_TABLEACCESS_DENIED_ERROR
+LOCK TABLES performance_schema.replication_connection_status READ;
+UNLOCK TABLES;
+
+-- error ER_TABLEACCESS_DENIED_ERROR
+LOCK TABLES performance_schema.replication_connection_status WRITE;
+UNLOCK TABLES;

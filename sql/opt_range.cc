@@ -1344,7 +1344,7 @@ QUICK_SELECT_I::QUICK_SELECT_I()
 QUICK_RANGE_SELECT::QUICK_RANGE_SELECT(THD *thd, TABLE *table, uint key_nr,
                                        bool no_alloc, MEM_ROOT *parent_alloc,
                                        bool *create_error)
-  :free_file(0), cur_range(NULL), last_range(0),
+  :ranges(key_memory_Quick_ranges), free_file(0), cur_range(NULL), last_range(0),
    mrr_flags(0), mrr_buf_size(0), mrr_buf_desc(NULL),
    dont_free(0)
 {
@@ -1362,7 +1362,8 @@ QUICK_RANGE_SELECT::QUICK_RANGE_SELECT(THD *thd, TABLE *table, uint key_nr,
   if (!no_alloc && !parent_alloc)
   {
     // Allocates everything through the internal memroot
-    init_sql_alloc(&alloc, thd->variables.range_alloc_block_size, 0);
+    init_sql_alloc(key_memory_quick_range_select_root,
+                   &alloc, thd->variables.range_alloc_block_size, 0);
     thd->mem_root= &alloc;
   }
   else
@@ -1371,7 +1372,8 @@ QUICK_RANGE_SELECT::QUICK_RANGE_SELECT(THD *thd, TABLE *table, uint key_nr,
   record= head->record[0];
 
   /* Allocate a bitmap for used columns (Q: why not on MEM_ROOT?) */
-  if (!(bitmap= (my_bitmap_map*) my_malloc(head->s->column_bitmap_size,
+  if (!(bitmap= (my_bitmap_map*) my_malloc(key_memory_my_bitmap_map,
+                                           head->s->column_bitmap_size,
                                            MYF(MY_WME))))
   {
     column_bitmap.bitmap= 0;
@@ -1440,7 +1442,8 @@ QUICK_INDEX_MERGE_SELECT::QUICK_INDEX_MERGE_SELECT(THD *thd_param,
   index= MAX_KEY;
   head= table;
   memset(&read_record, 0, sizeof(read_record));
-  init_sql_alloc(&alloc, thd->variables.range_alloc_block_size, 0);
+  init_sql_alloc(key_memory_quick_index_merge_root,
+                 &alloc, thd->variables.range_alloc_block_size, 0);
   DBUG_VOID_RETURN;
 }
 
@@ -1502,7 +1505,8 @@ QUICK_ROR_INTERSECT_SELECT::QUICK_ROR_INTERSECT_SELECT(THD *thd_param,
   head= table;
   record= head->record[0];
   if (!parent_alloc)
-    init_sql_alloc(&alloc, thd->variables.range_alloc_block_size, 0);
+    init_sql_alloc(key_memory_quick_ror_intersect_select_root,
+                   &alloc, thd->variables.range_alloc_block_size, 0);
   else
     memset(&alloc, 0, sizeof(MEM_ROOT));
   last_rowid= (uchar*) alloc_root(parent_alloc? parent_alloc : &alloc,
@@ -1760,7 +1764,8 @@ QUICK_ROR_UNION_SELECT::QUICK_ROR_UNION_SELECT(THD *thd_param,
   head= table;
   rowid_length= table->file->ref_length;
   record= head->record[0];
-  init_sql_alloc(&alloc, thd->variables.range_alloc_block_size, 0);
+  init_sql_alloc(key_memory_quick_ror_union_select_root,
+                 &alloc, thd->variables.range_alloc_block_size, 0);
   thd_param->mem_root= &alloc;
 }
 
@@ -2679,7 +2684,8 @@ int SQL_SELECT::test_quick_select(THD *thd, key_map keys_to_use,
     param.use_index_statistics= false;
 
     thd->no_errors=1;				// Don't warn about NULL
-    init_sql_alloc(&alloc, thd->variables.range_alloc_block_size, 0);
+    init_sql_alloc(key_memory_sql_select_test_quick_select_exec,
+                   &alloc, thd->variables.range_alloc_block_size, 0);
     if (!(param.key_parts= (KEY_PART*) alloc_root(&alloc,
                                                   sizeof(KEY_PART)*
                                                   head->s->key_parts)) ||
@@ -2918,9 +2924,11 @@ int SQL_SELECT::test_quick_select(THD *thd, key_map keys_to_use,
     /* If we got a read plan, create a quick select from it. */
     if (best_trp)
     {
+      mysql_mutex_lock(&thd->LOCK_query_plan);
       records= best_trp->records;
       if (!(quick= best_trp->make_quick(&param, TRUE)) || quick->init())
         set_quick(NULL);
+      mysql_mutex_unlock(&thd->LOCK_query_plan);
     }
 
 free_mem:
@@ -3192,7 +3200,8 @@ bool prune_partitions(THD *thd, TABLE *table, Item *pprune_cond)
   my_bitmap_map *old_sets[2];
 
   prune_param.part_info= part_info;
-  init_sql_alloc(&alloc, thd->variables.range_alloc_block_size, 0);
+  init_sql_alloc(key_memory_prune_partitions_exec,
+                 &alloc, thd->variables.range_alloc_block_size, 0);
   range_par->mem_root= &alloc;
   range_par->old_root= thd->mem_root;
 
@@ -6268,7 +6277,10 @@ static SEL_TREE *get_mm_tree(RANGE_OPT_PARAM *param,Item *cond)
     Here when simple cond 
     There are limits on what kinds of const items we can evaluate.
     At this stage a subquery in 'cond' might not be fully transformed yet
-    (example: semijoin) thus cannot be evaluated.
+    (example: semijoin) thus cannot be evaluated. Another reason is that we
+    may be called by test_if_quick_select (), which holds LOCK_query_plan,
+    thus we must not acquire this Mutex here, thus we can neither prepare nor
+    optimize any subquery here.
   */
   if (cond->const_item() && !cond->is_expensive() && !cond->has_subquery())
   {
@@ -6755,9 +6767,13 @@ get_mm_leaf(RANGE_OPT_PARAM *param, Item *conf_func, Field *field,
   param->thd->mem_root= param->old_root;
   if (!value)					// IS NULL or IS NOT NULL
   {
-    if (field->table->maybe_null)		// Can't use a key on this
+    if (field->table->pos_in_table_list->outer_join)
+      /*
+        Range scan cannot be used to scan the inner table of an outer
+        join if the predicate is IS NULL.
+      */
       goto end;
-    if (!maybe_null)				// Not null field
+    if (!maybe_null)                            // NOT NULL column
     {
       if (type == Item_func::ISNULL_FUNC)
         tree= &null_element;
@@ -9281,6 +9297,11 @@ uint sel_arg_range_seq_next(range_seq_t rseq, KEY_MULTI_RANGE *range)
     range->start_key.length= min_key_length;
     range->start_key.keypart_map= make_prev_keypart_map(cur->min_key_parts);
     range->start_key.flag=  (ha_rkey_function) (cur->min_key_flag ^ GEOM_FLAG);
+    /*
+      Spatial operators are only allowed on spatial indexes, and no
+      spatial index can at the moment return rows in ROWID order
+    */
+    DBUG_ASSERT(!param->is_ror_scan);
   }
   else
   {
@@ -10397,7 +10418,8 @@ int QUICK_RANGE_SELECT::reset()
   if (mrr_buf_size && !mrr_buf_desc)
   {
     buf_size= mrr_buf_size;
-    while (buf_size && !my_multi_malloc(MYF(MY_WME),
+    while (buf_size && !my_multi_malloc(key_memory_QUICK_RANGE_SELECT_mrr_buf_desc,
+                                        MYF(MY_WME),
                                         &mrr_buf_desc, sizeof(*mrr_buf_desc),
                                         &mrange_buff, buf_size,
                                         NullS))
@@ -11360,7 +11382,7 @@ static TRP_GROUP_MIN_MAX *
 get_best_group_min_max(PARAM *param, SEL_TREE *tree, double read_time)
 {
   THD *thd= param->thd;
-  JOIN *join= thd->lex->current_select->join;
+  JOIN *join= thd->lex->current_select()->join;
   TABLE *table= param->table;
   bool have_min= FALSE;              /* TRUE if there is a MIN function. */
   bool have_max= FALSE;              /* TRUE if there is a MAX function. */
@@ -12473,7 +12495,7 @@ TRP_GROUP_MIN_MAX::make_quick(PARAM *param, bool retrieve_full_rows,
   DBUG_ENTER("TRP_GROUP_MIN_MAX::make_quick");
 
   quick= new QUICK_GROUP_MIN_MAX_SELECT(param->table,
-                                        param->thd->lex->current_select->join,
+                                        param->thd->lex->current_select()->join,
                                         have_min, have_max, 
                                         have_agg_distinct, min_max_arg_part,
                                         group_prefix_len, group_key_parts,
@@ -12591,6 +12613,7 @@ QUICK_GROUP_MIN_MAX_SELECT(TABLE *table, JOIN *join_arg, bool have_min_arg,
    have_max(have_max_arg), have_agg_distinct(have_agg_distinct_arg),
    seen_first_key(FALSE), min_max_arg_part(min_max_arg_part_arg),
    key_infix(key_infix_arg), key_infix_len(key_infix_len_arg),
+   min_max_ranges(PSI_INSTRUMENT_ME),
    min_functions_it(NULL), max_functions_it(NULL), 
    is_index_scan(is_index_scan_arg)
 {
@@ -12613,7 +12636,8 @@ QUICK_GROUP_MIN_MAX_SELECT(TABLE *table, JOIN *join_arg, bool have_min_arg,
   DBUG_ASSERT(!parent_alloc);
   if (!parent_alloc)
   {
-    init_sql_alloc(&alloc, join->thd->variables.range_alloc_block_size, 0);
+    init_sql_alloc(key_memory_quick_group_min_max_select_root,
+                   &alloc, join->thd->variables.range_alloc_block_size, 0);
     join->thd->mem_root= &alloc;
   }
   else

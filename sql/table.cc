@@ -349,7 +349,7 @@ TABLE_SHARE *alloc_table_share(TABLE_LIST *table_list, const char *key,
     DBUG_RETURN(NULL);
   }
 
-  init_sql_alloc(&mem_root, TABLE_ALLOC_BLOCK_SIZE, 0);
+  init_sql_alloc(key_memory_table_share, &mem_root, TABLE_ALLOC_BLOCK_SIZE, 0);
   if (multi_alloc_root(&mem_root,
                        &share, sizeof(*share),
                        &key_buff, key_length,
@@ -425,7 +425,8 @@ void init_tmp_table_share(THD *thd, TABLE_SHARE *share, const char *key,
   DBUG_PRINT("enter", ("table: '%s'.'%s'", key, table_name));
 
   memset(share, 0, sizeof(*share));
-  init_sql_alloc(&share->mem_root, TABLE_ALLOC_BLOCK_SIZE, 0);
+  init_sql_alloc(key_memory_table_share,
+                 &share->mem_root, TABLE_ALLOC_BLOCK_SIZE, 0);
   share->table_category=         TABLE_CATEGORY_TEMPORARY;
   share->tmp_table=              INTERNAL_TMP_TABLE;
   share->db.str=                 (char*) key;
@@ -1248,7 +1249,8 @@ static int open_binary_frm(THD *thd, TABLE_SHARE *share, uchar *head,
     /* Read extra data segment */
     uchar *next_chunk, *buff_end;
     DBUG_PRINT("info", ("extra segment size is %u bytes", n_length));
-    if (!(extra_segment_buff= (uchar*) my_malloc(n_length, MYF(MY_WME))))
+    if (!(extra_segment_buff= (uchar*) my_malloc(key_memory_frm_extra_segment_buff,
+                                                 n_length, MYF(MY_WME))))
       goto err;
     next_chunk= extra_segment_buff;
     if (mysql_file_pread(file, extra_segment_buff,
@@ -2088,9 +2090,11 @@ int open_table_from_share(THD *thd, TABLE_SHARE *share, const char *alias,
   outparam->db_stat= db_stat;
   outparam->write_row_record= NULL;
 
-  init_sql_alloc(&outparam->mem_root, TABLE_ALLOC_BLOCK_SIZE, 0);
+  init_sql_alloc(key_memory_TABLE,
+                 &outparam->mem_root, TABLE_ALLOC_BLOCK_SIZE, 0);
 
-  if (!(outparam->alias= my_strdup(alias, MYF(MY_WME))))
+  if (!(outparam->alias= my_strdup(key_memory_TABLE,
+                                   alias, MYF(MY_WME))))
     goto err;
   outparam->quick_keys.init();
   outparam->possible_quick_keys.init();
@@ -2525,7 +2529,8 @@ static ulong get_form_pos(File file, uchar *head)
 
   mysql_file_seek(file, 64L, MY_SEEK_SET, MYF(0));
 
-  if (!(buf= (uchar*) my_malloc(length+names*4, MYF(MY_WME))))
+  if (!(buf= (uchar*) my_malloc(key_memory_frm_form_pos,
+                                length+names*4, MYF(MY_WME))))
     DBUG_RETURN(0);
 
   if (mysql_file_read(file, buf, length+names*4, MYF(MY_NABP)))
@@ -2555,7 +2560,8 @@ int read_string(File file, uchar**to, size_t length)
   DBUG_ENTER("read_string");
 
   my_free(*to);
-  if (!(*to= (uchar*) my_malloc(length+1,MYF(MY_WME))) ||
+  if (!(*to= (uchar*) my_malloc(key_memory_frm_string,
+                                length+1,MYF(MY_WME))) ||
       mysql_file_read(file, *to, length, MYF(MY_NABP)))
   {
      my_free(*to);                            /* purecov: inspected */
@@ -3640,7 +3646,8 @@ void TABLE::init(THD *thd, TABLE_LIST *tl)
   if (strcmp(alias, tl->alias))
   {
     uint length= (uint) strlen(tl->alias)+1;
-    alias= (char*) my_realloc((char*) alias, length, MYF(MY_WME));
+    alias= (char*) my_realloc(key_memory_TABLE,
+                              (char*) alias, length, MYF(MY_WME));
     memcpy((char*) alias, tl->alias, length);
   }
 
@@ -3919,7 +3926,7 @@ bool TABLE_LIST::setup_underlying(THD *thd)
     if (view->select_lex->ftfunc_list->elements)
     {
       Item_func_match *ifm;
-      SELECT_LEX *current_select= thd->lex->current_select;
+      SELECT_LEX *current_select= thd->lex->current_select();
       List_iterator_fast<Item_func_match>
         li(*(view->select_lex->ftfunc_list));
       while ((ifm= li++))
@@ -3973,7 +3980,7 @@ bool TABLE_LIST::prep_where(THD *thd, Item **conds,
         evaluation of check_option when we insert/update/delete a row.
         So we must forbid semijoin transformation in fix_fields():
       */
-      Switch_resolve_place SRP(&thd->lex->current_select->resolve_place,
+      Switch_resolve_place SRP(&thd->lex->current_select()->resolve_place,
                                st_select_lex::RESOLVE_NONE,
                                effective_with_check != VIEW_CHECK_NONE);
 
@@ -4693,7 +4700,7 @@ Item *Natural_join_column::create_item(THD *thd)
   if (view_field)
   {
     DBUG_ASSERT(table_field == NULL);
-    SELECT_LEX *select= thd->lex->current_select;
+    SELECT_LEX *select= thd->lex->current_select();
     return create_view_field(thd, table_ref, &view_field->item,
                              view_field->name, &select->context);
   }
@@ -4763,7 +4770,7 @@ const char *Field_iterator_table::name()
 
 Item *Field_iterator_table::create_item(THD *thd)
 {
-  SELECT_LEX *select= thd->lex->current_select;
+  SELECT_LEX *select= thd->lex->current_select();
 
   Item_field *item= new Item_field(thd, &select->context, *ptr);
   /*
@@ -4778,8 +4785,8 @@ Item *Field_iterator_table::create_item(THD *thd)
       item->push_to_non_agg_fields(select);
       select->set_non_agg_field_used(true);
     }
-    if (thd->lex->current_select->with_sum_func &&
-        !thd->lex->current_select->group_list.elements)
+    if (thd->lex->current_select()->with_sum_func &&
+        !thd->lex->current_select()->group_list.elements)
       item->maybe_null= true;
   }
   return item;
@@ -4794,7 +4801,7 @@ const char *Field_iterator_view::name()
 
 Item *Field_iterator_view::create_item(THD *thd)
 {
-  SELECT_LEX *select= thd->lex->current_select;
+  SELECT_LEX *select= thd->lex->current_select();
   return create_view_field(thd, view, &ptr->item, ptr->name,
                            &select->context);
 }
@@ -4819,17 +4826,17 @@ static Item *create_view_field(THD *thd, TABLE_LIST *view, Item **field_ref,
   }
 
   DBUG_ASSERT(field);
-  thd->lex->current_select->no_wrap_view_item= TRUE;
+  thd->lex->current_select()->no_wrap_view_item= TRUE;
   if (!field->fixed)
   {
     if (field->fix_fields(thd, field_ref))
     {
-      thd->lex->current_select->no_wrap_view_item= save_wrapper;
+      thd->lex->current_select()->no_wrap_view_item= save_wrapper;
       DBUG_RETURN(0);
     }
     field= *field_ref;
   }
-  thd->lex->current_select->no_wrap_view_item= save_wrapper;
+  thd->lex->current_select()->no_wrap_view_item= save_wrapper;
   if (save_wrapper)
   {
     DBUG_RETURN(field);
@@ -5032,7 +5039,7 @@ Field_iterator_table_ref::get_or_create_column_ref(THD *thd, TABLE_LIST *parent_
     /* The field belongs to a stored table. */
     Field *tmp_field= table_field_it.field();
     Item_field *tmp_item=
-      new Item_field(thd, &thd->lex->current_select->context, tmp_field);
+      new Item_field(thd, &thd->lex->current_select()->context, tmp_field);
     if (!tmp_item)
       return NULL;
     nj_col= new Natural_join_column(tmp_item, table_ref);

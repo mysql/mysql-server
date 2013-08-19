@@ -1,4 +1,4 @@
-/* Copyright (c) 2000, 2010, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2000, 2013, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -15,6 +15,23 @@
 
 #include "mysys_priv.h"
 
+/**
+  Print an error message on stderr.
+  Prefixed with the binary's name (sans .exe, where applicable,
+  and without path, both to keep our test cases sane).
+  The name is intended to aid debugging by clarifying which
+  binary reported an error, especially in cases like mysql_upgrade
+  which calls several other tools whose messages should be
+  distinguishable from each other's, and from mysql_upgrade's.
+
+  This is low-level, in most cases, you should use my_message_local()
+  instead (which by default goes through my_message_local_stderr(),
+  which is a wrapper around this function that adds a severity level).
+
+  @param error    The error number. Currently unused.
+  @param str      The message to print. Not trailing \n needed.
+  @param MyFlags  ME_BELL to beep, or 0.
+*/
 void my_message_stderr(uint error __attribute__((unused)),
                        const char *str, myf MyFlags)
 {
@@ -25,7 +42,20 @@ void my_message_stderr(uint error __attribute__((unused)),
     (void) fputc('\007', stderr);
   if (my_progname)
   {
-    (void)fputs(my_progname,stderr); (void)fputs(": ",stderr);
+    size_t l;
+    const char *r;
+
+    if ((r= strrchr(my_progname, FN_LIBCHAR)))
+      r++;
+    else
+      r= my_progname;
+
+    l= strlen(r);
+ #ifdef _WIN32
+    if ((l > 4) && !strcmp(&r[l - 4], ".exe"))
+      l-= 4; /* purecov: inspected */  /* Windows-only */
+ #endif
+    fprintf(stderr, "%.*s: ", (int) l, r);
   }
   (void)fputs(str,stderr);
   (void)fputc('\n',stderr);

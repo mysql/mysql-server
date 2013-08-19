@@ -31,7 +31,7 @@ Created 5/12/1997 Heikki Tuuri
 #endif
 
 #include "srv0srv.h"
-#include "sync0sync.h"
+#include "sync0mutex.h"
 #include "ut0mem.h"
 #include "ut0byte.h"
 #include "mem0mem.h"
@@ -115,11 +115,6 @@ struct mem_pool_t{
 
 /** The common memory pool */
 mem_pool_t*	mem_comm_pool	= NULL;
-
-#ifdef UNIV_PFS_MUTEX
-/* Key to register mutex in mem_pool_t with performance schema */
-mysql_pfs_key_t	mem_pool_mutex_key;
-#endif /* UNIV_PFS_MUTEX */
 
 /* We use this counter to check that the mem pool mutex does not leak;
 this is to track a strange assertion failure reported at
@@ -232,7 +227,7 @@ mem_pool_create(
 	pool->buf = static_cast<byte*>(ut_malloc_low(size, TRUE));
 	pool->size = size;
 
-	mutex_create(mem_pool_mutex_key, &pool->mutex, SYNC_MEM_POOL);
+	mutex_create("mem_pool", &pool->mutex);
 
 	/* Initialize the free lists */
 
@@ -281,6 +276,8 @@ mem_pool_free(
 /*==========*/
 	mem_pool_t*	pool)	/*!< in, own: memory pool */
 {
+	mutex_free(&pool->mutex);
+
 	ut_free(pool->buf);
 	ut_free(pool);
 }

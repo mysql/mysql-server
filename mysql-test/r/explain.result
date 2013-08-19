@@ -2,7 +2,7 @@ drop table if exists t1;
 create table t1 (id int not null, str char(10), unique(str));
 explain select * from t1;
 id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
-1	SIMPLE	t1	system	NULL	NULL	NULL	NULL	0	const row not found
+1	SIMPLE	NULL	NULL	NULL	NULL	NULL	NULL	NULL	no matching row in const table
 insert into t1 values (1, null),(2, null),(3, "foo"),(4, "bar");
 select * from t1 where str is null;
 id	str
@@ -19,6 +19,9 @@ EXPLAIN
 {
   "query_block": {
     "select_id": 1,
+    "cost_info": {
+      "query_cost": "1.20"
+    },
     "table": {
       "table_name": "t1",
       "access_type": "ref",
@@ -33,9 +36,20 @@ EXPLAIN
       "ref": [
         "const"
       ],
-      "rows": 1,
+      "rows_examined_per_scan": 1,
+      "rows_produced_per_join": 1,
       "filtered": 100,
-      "index_condition": "isnull(`test`.`t1`.`str`)"
+      "index_condition": "isnull(`test`.`t1`.`str`)",
+      "cost_info": {
+        "read_cost": "1.00",
+        "eval_cost": "0.20",
+        "prefix_cost": "1.20",
+        "data_read_per_join": "16"
+      },
+      "used_columns": [
+        "id",
+        "str"
+      ]
     }
   }
 }
@@ -169,7 +183,7 @@ INSERT INTO t2 VALUES (),(),();
 EXPLAIN SELECT 1 FROM
 (SELECT 1 FROM t2,t1 WHERE b < c GROUP BY 1 LIMIT 1) AS d2;
 id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
-X	X	X	X	X	X	X	X	X	const row not found
+X	X	X	X	X	X	X	X	X	no matching row in const table
 X	X	X	X	X	X	X	X	X	NULL
 X	X	X	X	X	X	X	X	X	Range checked for each record (index map: 0xFFFFFFFFFF)
 DROP TABLE t2;
@@ -202,6 +216,91 @@ id	select_type	table	type	possible_keys	key	key_len	ref	rows	filtered	Extra
 1	PRIMARY	<derived2>	ALL	NULL	NULL	NULL	NULL	4	100.00	NULL
 2	DERIVED	t1	ALL	NULL	NULL	NULL	NULL	2	100.00	Using temporary; Using filesort
 2	DERIVED	t2	ALL	NULL	NULL	NULL	NULL	2	100.00	Using join buffer (Block Nested Loop)
+Warnings:
+Note	1003	/* select#1 */ select 1 AS `1` from (/* select#2 */ select count(distinct `test`.`t1`.`a`) AS `COUNT(DISTINCT t1.a)` from `test`.`t1` join `test`.`t2` group by `test`.`t1`.`a`) `s1`
+prepare s1 from 
+'EXPLAIN FORMAT=JSON SELECT 1  
+ FROM (SELECT COUNT(DISTINCT t1.a) FROM t1,t2 GROUP BY t1.a) AS s1';
+execute s1;
+EXPLAIN
+{
+  "query_block": {
+    "select_id": 1,
+    "cost_info": {
+      "query_cost": "11.00"
+    },
+    "table": {
+      "table_name": "s1",
+      "access_type": "ALL",
+      "rows_examined_per_scan": 4,
+      "rows_produced_per_join": 4,
+      "filtered": 100,
+      "cost_info": {
+        "read_cost": "10.20",
+        "eval_cost": "0.80",
+        "prefix_cost": "11.00",
+        "data_read_per_join": "64"
+      },
+      "used_columns": [
+        "COUNT(DISTINCT t1.a)"
+      ],
+      "materialized_from_subquery": {
+        "using_temporary_table": true,
+        "dependent": false,
+        "cacheable": true,
+        "query_block": {
+          "select_id": 2,
+          "cost_info": {
+            "query_cost": "9.21"
+          },
+          "grouping_operation": {
+            "using_temporary_table": true,
+            "using_filesort": true,
+            "cost_info": {
+              "sort_cost": "4.00"
+            },
+            "nested_loop": [
+              {
+                "table": {
+                  "table_name": "t1",
+                  "access_type": "ALL",
+                  "rows_examined_per_scan": 2,
+                  "rows_produced_per_join": 2,
+                  "filtered": 100,
+                  "cost_info": {
+                    "read_cost": "2.00",
+                    "eval_cost": "0.40",
+                    "prefix_cost": "2.40",
+                    "data_read_per_join": "16"
+                  },
+                  "used_columns": [
+                    "a"
+                  ]
+                }
+              },
+              {
+                "table": {
+                  "table_name": "t2",
+                  "access_type": "ALL",
+                  "rows_examined_per_scan": 2,
+                  "rows_produced_per_join": 4,
+                  "filtered": 100,
+                  "using_join_buffer": "Block Nested Loop",
+                  "cost_info": {
+                    "read_cost": "2.00",
+                    "eval_cost": "0.80",
+                    "prefix_cost": "5.21",
+                    "data_read_per_join": "32"
+                  }
+                }
+              }
+            ]
+          }
+        }
+      }
+    }
+  }
+}
 Warnings:
 Note	1003	/* select#1 */ select 1 AS `1` from (/* select#2 */ select count(distinct `test`.`t1`.`a`) AS `COUNT(DISTINCT t1.a)` from `test`.`t1` join `test`.`t2` group by `test`.`t1`.`a`) `s1`
 prepare s1 from 
@@ -248,11 +347,10 @@ SET SESSION sql_mode='ONLY_FULL_GROUP_BY';
 EXPLAIN EXTENDED SELECT 1 FROM t1
 WHERE f1 > ALL( SELECT t.f1 FROM t1,t1 AS t );
 id	select_type	table	type	possible_keys	key	key_len	ref	rows	filtered	Extra
-1	PRIMARY	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	Impossible WHERE noticed after reading const tables
-2	SUBQUERY	t1	system	NULL	NULL	NULL	NULL	0	0.00	const row not found
-2	SUBQUERY	t	system	NULL	NULL	NULL	NULL	0	0.00	const row not found
+1	PRIMARY	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	no matching row in const table
+2	SUBQUERY	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	no matching row in const table
 Warnings:
-Note	1003	/* select#1 */ select 1 AS `1` from `test`.`t1` where 0
+Note	1003	/* select#1 */ select 1 AS `1` from `test`.`t1` where <not>((NULL <= <max>(/* select#2 */ select NULL from `test`.`t1` join `test`.`t1` `t`)))
 SET SESSION sql_mode=@old_sql_mode;
 DROP TABLE t1;
 End of 5.0 tests.
@@ -329,8 +427,8 @@ INSERT INTO t2 VALUES ('1'), ('2'), ('3');
 FLUSH TABLES;
 EXPLAIN SELECT 1 FROM t1 WHERE a = (SELECT 1 FROM t1 t JOIN t2 WHERE b <= 1 AND t.a);
 id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
-1	PRIMARY	NULL	NULL	NULL	NULL	NULL	NULL	NULL	Impossible WHERE noticed after reading const tables
-2	SUBQUERY	NULL	NULL	NULL	NULL	NULL	NULL	NULL	Impossible WHERE noticed after reading const tables
+1	PRIMARY	NULL	NULL	NULL	NULL	NULL	NULL	NULL	no matching row in const table
+2	SUBQUERY	NULL	NULL	NULL	NULL	NULL	NULL	NULL	no matching row in const table
 DROP TABLE t1, t2;
 #
 # Bug #48573: difference of index selection between rpm binary and
@@ -357,7 +455,7 @@ WHERE t1.f1 GROUP BY t1.f1));
 id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
 1	PRIMARY	t1	system	NULL	NULL	NULL	NULL	1	NULL
 2	SUBQUERY	a	system	NULL	NULL	NULL	NULL	1	NULL
-2	SUBQUERY	t1	fulltext	f1	f1	0	NULL	1	Using where
+2	SUBQUERY	t1	fulltext	f1	f1	0	const	1	Using where
 PREPARE stmt FROM
 'EXPLAIN SELECT 1 FROM t1
  WHERE 1 > ALL((SELECT 1 FROM t1 RIGHT OUTER JOIN t1 a
@@ -367,12 +465,12 @@ EXECUTE stmt;
 id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
 1	PRIMARY	t1	system	NULL	NULL	NULL	NULL	1	NULL
 2	SUBQUERY	a	system	NULL	NULL	NULL	NULL	1	NULL
-2	SUBQUERY	t1	fulltext	f1	f1	0	NULL	1	Using where
+2	SUBQUERY	t1	fulltext	f1	f1	0	const	1	Using where
 EXECUTE stmt;
 id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
 1	PRIMARY	t1	system	NULL	NULL	NULL	NULL	1	NULL
 2	SUBQUERY	a	system	NULL	NULL	NULL	NULL	1	NULL
-2	SUBQUERY	t1	fulltext	f1	f1	0	NULL	1	Using where
+2	SUBQUERY	t1	fulltext	f1	f1	0	const	1	Using where
 DEALLOCATE PREPARE stmt;
 PREPARE stmt FROM
 'EXPLAIN SELECT 1 FROM t1
@@ -383,12 +481,12 @@ EXECUTE stmt;
 id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
 1	PRIMARY	t1	system	NULL	NULL	NULL	NULL	1	NULL
 2	SUBQUERY	a	system	NULL	NULL	NULL	NULL	1	NULL
-2	SUBQUERY	t1	fulltext	f1	f1	0	NULL	1	Using where
+2	SUBQUERY	t1	fulltext	f1	f1	0	const	1	Using where
 EXECUTE stmt;
 id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
 1	PRIMARY	t1	system	NULL	NULL	NULL	NULL	1	NULL
 2	SUBQUERY	a	system	NULL	NULL	NULL	NULL	1	NULL
-2	SUBQUERY	t1	fulltext	f1	f1	0	NULL	1	Using where
+2	SUBQUERY	t1	fulltext	f1	f1	0	const	1	Using where
 DEALLOCATE PREPARE stmt;
 DROP TABLE t1;
 End of 5.1 tests.
@@ -529,7 +627,7 @@ FROM t1 WHERE 0 > ANY (SELECT @a FROM t1)';
 EXECUTE s;
 id	select_type	table	type	possible_keys	key	key_len	ref	rows	filtered	Extra
 1	PRIMARY	t1	ALL	NULL	NULL	NULL	NULL	2	100.00	Using where
-3	DEPENDENT SUBQUERY	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	Impossible HAVING
+3	UNCACHEABLE SUBQUERY	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	Impossible HAVING
 2	SUBQUERY	t1	ALL	NULL	NULL	NULL	NULL	2	100.00	NULL
 2	SUBQUERY	a1	ALL	NULL	NULL	NULL	NULL	2	100.00	Using where; Using join buffer (Block Nested Loop)
 Warnings:
@@ -551,6 +649,13 @@ id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
 1	PRIMARY	t1	ALL	NULL	NULL	NULL	NULL	3	NULL
 2	UNION	t2	ALL	NULL	NULL	NULL	NULL	3	NULL
 NULL	UNION RESULT	<union1,2>	ALL	NULL	NULL	NULL	NULL	NULL	Using temporary
+EXPLAIN REPLACE INTO t1 VALUES (10);
+id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
+1	REPLACE	t1	ALL	NULL	NULL	NULL	NULL	NULL	NULL
+EXPLAIN REPLACE INTO t1 SELECT * FROM t2;
+id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
+1	REPLACE	t1	ALL	NULL	NULL	NULL	NULL	NULL	NULL
+1	SIMPLE	t2	ALL	NULL	NULL	NULL	NULL	3	NULL
 DROP TABLE t1, t2;
 # End WL#4897
 End of 6.0 tests.

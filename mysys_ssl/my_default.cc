@@ -47,10 +47,12 @@
 #include <winbase.h>
 #endif
 
+
 C_MODE_START
 #ifdef HAVE_PSI_INTERFACE
 extern PSI_file_key key_file_cnf;
 #endif
+PSI_memory_key key_memory_defaults;
 C_MODE_END
 
 /**
@@ -397,8 +399,9 @@ int my_search_option_files(const char *conf_file, int *argc, char ***argv,
       goto err;
     if (error > 0)
     {
-      fprintf(stderr, "Could not open required defaults file: %s\n",
-              my_defaults_file);
+      my_message_local(ERROR_LEVEL,
+                       "Could not open required defaults file: %s",
+                       my_defaults_file);
       goto err;
     }
   }
@@ -418,8 +421,9 @@ int my_search_option_files(const char *conf_file, int *argc, char ***argv,
 	  goto err;				/* Fatal error */
         if (error > 0)
         {
-          fprintf(stderr, "Could not open required defaults file: %s\n",
-                  my_defaults_extra_file);
+          my_message_local(ERROR_LEVEL,
+                           "Could not open required defaults file: %s",
+                           my_defaults_extra_file);
           goto err;
         }
       }
@@ -429,7 +433,8 @@ int my_search_option_files(const char *conf_file, int *argc, char ***argv,
   DBUG_RETURN(0);
 
 err:
-  fprintf(stderr,"Fatal error in defaults handling. Program aborted\n");
+  my_message_local(ERROR_LEVEL,
+                   "Fatal error in defaults handling. Program aborted!");
   DBUG_RETURN(1);
 }
 
@@ -633,7 +638,7 @@ int my_load_defaults(const char *conf_file, const char **groups,
   uint args_sep= my_getopt_use_args_separator ? 1 : 0;
   DBUG_ENTER("load_defaults");
 
-  init_alloc_root(&alloc,512,0);
+  init_alloc_root(key_memory_defaults, &alloc,512,0);
   if ((dirs= init_default_directories(&alloc)) == NULL)
     goto err;
   /*
@@ -741,7 +746,8 @@ int my_load_defaults(const char *conf_file, const char **groups,
   DBUG_RETURN(0);
 
  err:
-  fprintf(stderr,"Fatal error in defaults handling. Program aborted\n");
+  my_message_local(ERROR_LEVEL,
+                   "Fatal error in defaults handling. Program aborted!");
   exit(1);
   return 0;					/* Keep compiler happy */
 }
@@ -818,9 +824,9 @@ static char *get_argument(const char *keyword, size_t kwlen,
   /* Print error msg if there is nothing after !include* directive */
   if (end <= ptr)
   {
-    fprintf(stderr,
-	    "error: Wrong '!%s' directive in config file: %s at line %d\n",
-	    keyword, name, line);
+    my_message_local(ERROR_LEVEL,
+                     "Wrong '!%s' directive in config file %s at line %d!",
+                     keyword, name, line);
     return 0;
   }
   return ptr;
@@ -918,10 +924,10 @@ static int search_default_file_with_ext(Process_option_func opt_handler,
              end--)
         {}
         end[0]= 0;
-        fprintf(stderr,
-                "Warning: skipping '%s' directive as maximum include"
-                "recursion level was reached in file %s at line %d\n",
-                ptr, name, line);
+        my_message_local(WARNING_LEVEL,
+                         "skipping '%s' directive as maximum include"
+                         "recursion level was reached in file %s at line %d!",
+                         ptr, name, line);
         continue;
       }
 
@@ -985,10 +991,10 @@ static int search_default_file_with_ext(Process_option_func opt_handler,
       found_group=1;
       if (!(end=(char *) strchr(++ptr,']')))
       {
-	fprintf(stderr,
-		"error: Wrong group definition in config file: %s at line %d\n",
-		name,line);
-	goto err;
+        my_message_local(ERROR_LEVEL,
+                         "Wrong group definition in config file %s at line %d!",
+                         name,line);
+        goto err;
       }
       /* Remove end space */
       for ( ; my_isspace(&my_charset_latin1, end[-1]); end --)
@@ -1005,13 +1011,13 @@ static int search_default_file_with_ext(Process_option_func opt_handler,
     }
     if (!found_group)
     {
-      fprintf(stderr,
-	      "error: Found option without preceding group in config file: %s at line: %d\n",
-	      name,line);
+      my_message_local(ERROR_LEVEL,
+                       "Found option without preceding group in config file"
+                       " %s at line %d!", name,line);
       goto err;
     }
-    
-   
+
+
     end= remove_end_comment(ptr);
     if ((value= strchr(ptr, '=')))
       end= value;				/* Option without argument */
@@ -1205,7 +1211,7 @@ void my_print_default_files(const char *conf_file)
   {
     const char **dirs;
     MEM_ROOT alloc;
-    init_alloc_root(&alloc,512,0);
+    init_alloc_root(key_memory_defaults, &alloc, 512, 0);
 
     if ((dirs= init_default_directories(&alloc)) == NULL)
     {
@@ -1476,8 +1482,8 @@ static int check_file_permissions(const char *file_name)
   if (is_login_file && (stat_info.st_mode & (S_IXUSR | S_IRWXG | S_IRWXO))
       && (stat_info.st_mode & S_IFMT) == S_IFREG)
   {
-    fprintf(stderr, "Warning: %s should be readable/writable only by "
-            "current user.\n", file_name);
+    my_message_local(WARNING_LEVEL, "%s should be readable/writable only by "
+            "current user.", file_name);
     return 0;
   }
   /*
@@ -1489,8 +1495,8 @@ static int check_file_permissions(const char *file_name)
            (stat_info.st_mode & S_IFMT) == S_IFREG)
 
   {
-    fprintf(stderr, "Warning: World-writable config file '%s' is ignored\n",
-            file_name);
+    my_message_local(WARNING_LEVEL,
+                     "World-writable config file '%s' is ignored.", file_name);
     return 0;
   }
 #endif

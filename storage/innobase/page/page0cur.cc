@@ -135,8 +135,6 @@ page_cur_try_search_shortcut(
 			goto exit_func;
 		}
 
-		*iup_matched_fields = up_match;
-
 #ifdef UNIV_SEARCH_DEBUG
 		page_cur_search_with_match(block, index, tuple, PAGE_CUR_DBG,
 					   iup_matched_fields,
@@ -146,6 +144,7 @@ page_cur_try_search_shortcut(
 		ut_a(*iup_matched_fields == up_match);
 		ut_a(*ilow_matched_fields == low_match);
 #endif
+		*iup_matched_fields = up_match;
 	}
 
 	page_cur_position(rec, block, cursor);
@@ -1216,7 +1215,7 @@ page_cur_insert_rec_zip(
 			get rid of the modification log. */
 			page_create_zip(page_cur_get_block(cursor), index,
 					page_header_get_field(page, PAGE_LEVEL),
-					0, mtr);
+					0, NULL, mtr);
 			ut_ad(!page_header_get_ptr(page, PAGE_FREE));
 
 			if (page_zip_available(
@@ -1289,7 +1288,7 @@ page_cur_insert_rec_zip(
 			if (!log_compressed) {
 				if (page_zip_compress(
 					    page_zip, page, index,
-					    level, NULL)) {
+					    level, NULL, NULL)) {
 					page_cur_insert_rec_write_log(
 						insert_rec, rec_size,
 						cursor->rec, index, mtr);
@@ -1968,8 +1967,11 @@ page_cur_delete_rec(
 	/* The record must not be the supremum or infimum record. */
 	ut_ad(page_rec_is_user_rec(current_rec));
 
-	if (page_get_n_recs(page) == 1) {
-		/* Empty the page. */
+	if (page_get_n_recs(page) == 1 && !recv_recovery_is_on()) {
+		/* Empty the page, unless we are applying the redo log
+		during crash recovery. During normal operation, the
+		page_create_empty() gets logged as one of MLOG_PAGE_CREATE,
+		MLOG_COMP_PAGE_CREATE, MLOG_ZIP_PAGE_COMPRESS. */
 		ut_ad(page_is_leaf(page));
 		/* Usually, this should be the root page,
 		and the whole index tree should become empty.

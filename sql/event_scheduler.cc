@@ -315,6 +315,16 @@ Event_worker_thread::run(THD *thd, Event_queue_element_for_exec *event)
   Event_job_data job_data;
   bool res;
 
+#ifdef HAVE_PSI_STATEMENT_INTERFACE
+  PSI_statement_locker_state state;
+  DBUG_ASSERT(thd->m_statement_psi == NULL);
+  thd->m_statement_psi= MYSQL_START_STATEMENT(& state,
+                                              event->get_psi_info()->m_key,
+                                              event->dbname.str,
+                                              event->dbname.length,
+                                              thd->charset(), NULL);
+#endif
+
   thd->thread_stack= &my_stack;                // remember where our stack is
   res= post_init_event_thread(thd);
 
@@ -343,6 +353,11 @@ Event_worker_thread::run(THD *thd, Event_queue_element_for_exec *event)
                           job_data.definer.str,
                           job_data.dbname.str, job_data.name.str);
 end:
+#ifdef HAVE_PSI_STATEMENT_INTERFACE
+    MYSQL_END_STATEMENT(thd->m_statement_psi, thd->get_stmt_da());
+    thd->m_statement_psi= NULL;
+#endif
+
   DBUG_PRINT("info", ("Done with Event %s.%s", event->dbname.str,
              event->name.str));
 
@@ -437,7 +452,8 @@ Event_scheduler::start(int *err_no)
   new_thd->tx_read_only= false;
 
   scheduler_param_value=
-    (struct scheduler_param *)my_malloc(sizeof(struct scheduler_param), MYF(0));
+    (struct scheduler_param *)my_malloc(key_memory_Event_scheduler_scheduler_param,
+                                        sizeof(struct scheduler_param), MYF(0));
   scheduler_param_value->thd= new_thd;
   scheduler_param_value->scheduler= this;
 

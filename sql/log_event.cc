@@ -44,6 +44,7 @@
 #include <my_dir.h>
 #include "rpl_rli_pdb.h"
 #include "sql_show.h"    // append_identifier
+#include <mysql/psi/mysql_statement.h>
 
 #endif /* MYSQL_CLIENT */
 
@@ -53,6 +54,10 @@
 /* This is necessary for the List manipuation */
 #include "sql_list.h"                           /* I_List */
 #include "hash.h"
+
+PSI_memory_key key_memory_log_event;
+PSI_memory_key key_memory_Incident_log_event_message;
+PSI_memory_key key_memory_Rows_query_log_event_rows_query;
 
 using std::min;
 using std::max;
@@ -128,6 +133,32 @@ template bool valid_buffer_range<unsigned int>(unsigned int,
 
 #if defined(MYSQL_CLIENT)
 
+/*
+  Function to check whether the database name provided as an input
+  parameter is a part of the list of database that needs to be
+  rewritten.
+
+  @param[in] db   The database that needs to be checked in the list.
+
+  @retval   true  The database mentioned as input is in the list of
+                  database that needs to be rewriten.
+  @retval   false The database mentioned as input is not in the list
+                  of databases the needs to be rewritten.
+*/
+bool is_binlog_rewrite_db(const char* db)
+{
+  if (binlog_rewrite_db.is_empty() || !db)
+    return false;
+  I_List_iterator<i_string_pair> it(binlog_rewrite_db);
+  i_string_pair* tmp;
+  while ((tmp= it++))
+  {
+    if (!strncmp(tmp->key, db, NAME_LEN+1))
+      return true;
+  }
+  return false;
+}
+
 /**
   Function to extract the to_db name from the list of the
   from_db and to_db pairs.
@@ -157,7 +188,8 @@ bool get_binlog_rewrite_db(const char* db)
   {
     if (!strncmp(tmp->key, db, NAME_LEN+1))
     {
-      rewrite_to_db= (const char*) my_malloc(strlen(tmp->val)+1, MYF(MY_WME));
+      rewrite_to_db= (const char*) my_malloc(PSI_NOT_INSTRUMENTED,
+                                             strlen(tmp->val)+1, MYF(MY_WME));
       strncpy(const_cast<char*>(rewrite_to_db), tmp->val, strlen(tmp->val)+1);
       return true;
     }
@@ -210,7 +242,8 @@ int rewrite_buffer(char **buf, int event_len,
 
   uchar const *const ptr_tbllen= ptr_dblen + old_db_len + 2;
   int replace_segment= rewrite_db_len - old_db_len;
-  if (!(temp_rewrite_buf= (char*) my_malloc(event_len + replace_segment,
+  if (!(temp_rewrite_buf= (char*) my_malloc(PSI_NOT_INSTRUMENTED,
+                                            event_len + replace_segment,
                                             MYF(MY_WME))))
     return -1;
 
@@ -415,6 +448,13 @@ static void clear_all_errors(THD *thd, Relay_log_info *rli)
   thd->is_slave_error = 0;
   thd->clear_error();
   rli->clear_error();
+  if (rli->workers_array_initialized)
+  {
+    for(uint i= 0; i<rli->get_worker_count(); i++)
+    {
+      rli->get_worker(i)->clear_error();
+    }
+  }
 }
 
 inline int idempotent_error_code(int err_code)
@@ -488,8 +528,7 @@ int convert_handler_error(int error, THD* thd, TABLE *table)
     actual_error= (thd->is_error() ? thd->get_stmt_da()->mysql_errno() :
                         ER_UNKNOWN_ERROR);
     if (actual_error == ER_UNKNOWN_ERROR)
-      if (log_warnings)
-        sql_print_warning("Unknown error detected %d in handler", error);
+      sql_print_warning("Unknown error detected %d in handler", error);
   }
 
   return (actual_error);
@@ -946,7 +985,19 @@ Log_event::Log_event(const char* buf,
 #ifndef MYSQL_CLIENT
 #ifdef HAVE_REPLICATION
 inline int Log_event::do_apply_event_worker(Slave_worker *w)
-{ 
+{
+  DBUG_EXECUTE_IF("crash_in_a_worker",
+                  {
+                    /* we will crash a worker after waiting for
+                    2 seconds to make sure that other transactions are
+                    scheduled and completed */
+                    if (w->id == 2)
+                    {
+                      DBUG_SET("-d,crash_in_a_worker");
+                      my_sleep((w->id)*2000000);
+                      DBUG_SUICIDE();
+                    }
+                  });
   return do_apply_event(w);
 }
 
@@ -1473,7 +1524,8 @@ Log_event* Log_event::read_log_event(IO_CACHE* file,
   }
 
   // some events use the extra byte to null-terminate strings
-  if (!(buf = (char*) my_malloc(data_len+1, MYF(MY_WME))))
+  if (!(buf = (char*) my_malloc(key_memory_log_event,
+                                data_len+1, MYF(MY_WME))))
   {
     error = "Out of memory";
     goto err;
@@ -2624,7 +2676,8 @@ void Log_event::print_base64(IO_CACHE* file,
   DBUG_ENTER("Log_event::print_base64");
 
   size_t const tmp_str_sz= base64_needed_encoded_length((int) size);
-  char *const tmp_str= (char *) my_malloc(tmp_str_sz, MYF(MY_WME));
+  char *const tmp_str= (char *) my_malloc(key_memory_log_event,
+                                          tmp_str_sz, MYF(MY_WME));
   if (!tmp_str) {
     fprintf(stderr, "\nError: Out of memory. "
             "Could not print correct binlog event.\n");
@@ -2790,9 +2843,62 @@ bool Log_event::contains_partition_info(bool end_group_sets_max_dbs)
 
   return res;
 }
+/*
+  SYNOPSIS
+    This function assigns a parent ID to the job group being scheduled in parallel.
+    It also checks if we can schedule the new event in parallel with the previous ones
+    being executed.
+
+  @param        ev log event that has to be scheduled next.
+  @param       rli Pointer to coordinato's relay log info.
+  @return      true if error
+               false otherwise
+ */
+bool schedule_next_event(Log_event* ev, Relay_log_info* rli)
+{
+  int error;
+  // Check if we can schedule this event
+  error= rli->current_mts_submode->schedule_next_event(rli, ev);
+  switch (error)
+  {
+  case ER_MTS_CANT_PARALLEL:
+    char llbuff[22];
+    llstr(rli->get_event_relay_log_pos(), llbuff);
+    my_error(ER_MTS_CANT_PARALLEL, MYF(0),
+    ev->get_type_str(), rli->get_event_relay_log_name(), llbuff,
+    "The master does not support the selected parallelization mode. "
+    "It may be too old, or replication was started from an event internal "
+    "to a transaaction.");
+  case ER_MTS_INCONSISTENT_DATA:
+    /* Don't have to do anything. */
+    return true;
+  default:
+    return false;
+  }
+  /* Keep compiler happy */
+  return false;
+}
+
 
 /**
    The method maps the event to a Worker and return a pointer to it.
+   Sending the event to the Worker is done by the caller.
+
+   Irrespective of the type of Group marking (DB partioned or BGC) the
+   following holds true:
+
+   - recognize the beginning of a group to allocate the group descriptor
+     and queue it;
+   - associate an event with a Worker (which also handles possible conflicts
+     detection and waiting for their termination);
+   - finalize the group assignement when the group closing event is met.
+
+   When parallelization mode is BGC-based the partitioning info in the event
+   is simply ignored. Thereby association with a Worker does not require
+   Assigned Partition Hash of the partitioned method.
+   This method is not interested in all the taxonomy of the event group
+   property, what we care about is the boundaries of the group.
+
    As a part of the group, an event belongs to one of the following types:
 
    B - beginning of a group of events (BEGIN query_log_event)
@@ -2830,7 +2936,7 @@ bool Log_event::contains_partition_info(bool end_group_sets_max_dbs)
 
 Slave_worker *Log_event::get_slave_worker(Relay_log_info *rli)
 {
-  Slave_job_group group, *ptr_group;
+  Slave_job_group group, *ptr_group= NULL;
   bool is_s_event;
   int  num_dbs= 0;
   Slave_worker *ret_worker= NULL;
@@ -2839,6 +2945,7 @@ Slave_worker *Log_event::get_slave_worker(Relay_log_info *rli)
   THD *thd= rli->info_thd;
 #endif
   Slave_committed_queue *gaq= rli->gaq;
+  DBUG_ENTER("Log_event::get_slave_worker");
 
   /* checking partioning properties and perform corresponding actions */
 
@@ -2866,12 +2973,13 @@ Slave_worker *Log_event::get_slave_worker(Relay_log_info *rli)
       group.reset(log_pos, rli->mts_groups_assigned);
       // the last occupied GAQ's array index
       gaq_idx= gaq->assigned_group_index= gaq->en_queue((void *) &group);
-    
+      DBUG_PRINT("info",("gaq_idx= %ld  gaq->size=%ld", gaq_idx, gaq->size));
       DBUG_ASSERT(gaq_idx != MTS_WORKER_UNDEF && gaq_idx < gaq->size);
       DBUG_ASSERT(gaq->get_job_group(rli->gaq->assigned_group_index)->
                   group_relay_log_name == NULL);
       DBUG_ASSERT(gaq_idx != MTS_WORKER_UNDEF);  // gaq must have room
-      DBUG_ASSERT(rli->last_assigned_worker == NULL);
+      DBUG_ASSERT(rli->last_assigned_worker == NULL ||
+                  !is_mts_db_partitioned(rli));
 
       if (is_s_event || is_gtid_event(this))
       {
@@ -2892,26 +3000,55 @@ Slave_worker *Log_event::get_slave_worker(Relay_log_info *rli)
         if (is_gtid_event(this))
           // mark the current group as started with explicit Gtid-event
           rli->curr_group_seen_gtid= true;
-
-        return ret_worker;
+        if (schedule_next_event(this, rli))
+        {
+          rli->abort_slave= 1;
+          DBUG_RETURN(NULL);
+        }
+        DBUG_RETURN(ret_worker);
       }
     }
     else
     {
+      /*
+       The block is a result of not making GTID event as group starter.
+       TODO: Make GITD event as B-event that is starts_group() to
+       return true.
+      */
+
       Log_event *ptr_curr_ev= this;
       // B-event is appended to the Deferred Array associated with GCAP
       insert_dynamic(&rli->curr_group_da, (uchar*) &ptr_curr_ev);
       rli->curr_group_seen_begin= true;
       rli->mts_end_group_sets_max_dbs= true;
+      if (schedule_next_event(this, rli))
+      {
+        rli->abort_slave= 1;
+        DBUG_RETURN(NULL);
+      }
+
       DBUG_ASSERT(rli->curr_group_da.elements == 2);
       DBUG_ASSERT(starts_group());
-      return ret_worker;
+      DBUG_RETURN (ret_worker);
+    }
+    if (schedule_next_event(this, rli))
+    {
+      rli->abort_slave= 1;
+      DBUG_RETURN(NULL);
     }
   }
 
-  // mini-group representative
-
-  if (contains_partition_info(rli->mts_end_group_sets_max_dbs))
+  ptr_group= gaq->get_job_group(rli->gaq->assigned_group_index);
+  if (!is_mts_db_partitioned(rli))
+  {
+    mts_group_idx= gaq->assigned_group_index;
+    /* Get least occupied worker */
+    ret_worker=
+      rli->current_mts_submode->get_least_occupied_worker(rli, &rli->workers,
+                                                          this);
+    ptr_group->worker_id= ret_worker->id;
+  }
+  else if (contains_partition_info(rli->mts_end_group_sets_max_dbs))
   {
     int i= 0;
     num_dbs= mts_number_dbs();
@@ -2934,10 +3071,9 @@ Slave_worker *Log_event::get_slave_worker(Relay_log_info *rli)
                 (rli->mts_end_group_sets_max_dbs &&
                  ((rli->curr_group_da.elements == 3 && rli->curr_group_seen_gtid) ||
                  (rli->curr_group_da.elements == 2 && !rli->curr_group_seen_gtid)) &&
-                 ((*(Log_event **)
-                   dynamic_array_ptr(&rli->curr_group_da,
-                                     rli->curr_group_da.elements - 1))-> 
-                  get_type_code() == BEGIN_LOAD_QUERY_EVENT)));
+                 ((*(Log_event **) dynamic_array_ptr(&rli->curr_group_da,
+                                     rli->curr_group_da.elements - 1))->
+                                get_type_code() == BEGIN_LOAD_QUERY_EVENT)));
 
     // partioning info is found which drops the flag
     rli->mts_end_group_sets_max_dbs= false;
@@ -2948,7 +3084,8 @@ Slave_worker *Log_event::get_slave_worker(Relay_log_info *rli)
       if (!ret_worker)
         ret_worker= *(Slave_worker**) dynamic_array_ptr(&rli->workers, 0);
       // No need to know a possible error out of synchronization call.
-      (void) wait_for_workers_to_finish(rli, ret_worker);
+      (void)rli->current_mts_submode-> wait_for_workers_to_finish(rli,
+                                                                  ret_worker);
       /*
         this marking is transferred further into T-event of the current group.
       */
@@ -2973,7 +3110,7 @@ Slave_worker *Log_event::get_slave_worker(Relay_log_info *rli)
         my_error(ER_MTS_CANT_PARALLEL, MYF(0),
                  get_type_str(), rli->get_event_relay_log_name(), llbuff,
                  "could not distribute the event to a Worker");
-        return ret_worker;
+        DBUG_RETURN(ret_worker);
       }
       // all temporary tables are transferred from Coordinator in over-max case
       DBUG_ASSERT(num_dbs != OVER_MAX_DBS_IN_EVENT_MTS || !thd->temporary_tables);
@@ -3023,25 +3160,45 @@ Slave_worker *Log_event::get_slave_worker(Relay_log_info *rli)
                  "the event is a part of a group that is unsupported in "
                  "the parallel execution mode");
 
-        return ret_worker;
+        DBUG_RETURN(ret_worker);
       }
 
       insert_dynamic(&rli->curr_group_da, (uchar*) &ptr_curr_ev);
       
       DBUG_ASSERT(!ret_worker);
-      return ret_worker;
+      DBUG_RETURN (ret_worker);
     }
   }
 
-  // T-event: Commit, Xid, a DDL query or dml query of B-less group.
+  DBUG_ASSERT(ret_worker);
+  // T-event: Commit, Xid, a DDL query or dml query of B-less group.4
+
+  /*
+    Preparing event physical coordinates info for Worker before any
+    event got scheduled so when Worker error-stopped at the first
+    event it would be aware of where exactly in the event stream.
+  */
+  if (!ret_worker->master_log_change_notified)
+  {
+    if (!ptr_group)
+      ptr_group= gaq->get_job_group(rli->gaq->assigned_group_index);
+    ptr_group->group_master_log_name=
+      my_strdup(key_memory_log_event, rli->get_group_master_log_name(), MYF(MY_WME));
+    ret_worker->master_log_change_notified= true;
+
+    DBUG_ASSERT(!ptr_group->notified);
+#ifndef DBUG_OFF
+    ptr_group->notified= true;
+#endif
+  }
+
   if (ends_group() || !rli->curr_group_seen_begin)
   {
-    // index of GAQ that this terminal event belongs to
-    mts_group_idx= gaq->assigned_group_index;
     rli->mts_group_status= Relay_log_info::MTS_END_GROUP;
     if (rli->curr_group_isolated)
       set_mts_isolate_group();
-    ptr_group= gaq->get_job_group(rli->gaq->assigned_group_index);
+    if (!ptr_group)
+      ptr_group= gaq->get_job_group(rli->gaq->assigned_group_index);
 
     DBUG_ASSERT(ret_worker != NULL);
     
@@ -3064,7 +3221,8 @@ Slave_worker *Log_event::get_slave_worker(Relay_log_info *rli)
       DBUG_ASSERT(ptr_group->group_relay_log_name == NULL);
 
       ptr_group->group_relay_log_name= (char *)
-        my_malloc(strlen(rli->
+        my_malloc(key_memory_log_event,
+                  strlen(rli->
                          get_group_relay_log_name()) + 1, MYF(MY_WME));
       strcpy(ptr_group->group_relay_log_name,
              rli->get_event_relay_log_name());
@@ -3076,17 +3234,13 @@ Slave_worker *Log_event::get_slave_worker(Relay_log_info *rli)
 
     if (!ret_worker->checkpoint_notified)
     {
-      ptr_group->checkpoint_log_name= (char *)
-        my_malloc(strlen(rli->
-                         get_group_master_log_name()) + 1, MYF(MY_WME));
-      strcpy(ptr_group->checkpoint_log_name,
-             rli->get_group_master_log_name());
+      if (!ptr_group)
+        ptr_group= gaq->get_job_group(rli->gaq->assigned_group_index);
+      ptr_group->checkpoint_log_name=
+        my_strdup(key_memory_log_event, rli->get_group_master_log_name(), MYF(MY_WME));
       ptr_group->checkpoint_log_pos= rli->get_group_master_log_pos();
-      ptr_group->checkpoint_relay_log_name= (char *)
-        my_malloc(strlen(rli->
-                         get_group_relay_log_name()) + 1, MYF(MY_WME));
-      strcpy(ptr_group->checkpoint_relay_log_name,
-             rli->get_group_relay_log_name());
+      ptr_group->checkpoint_relay_log_name=
+        my_strdup(key_memory_log_event, rli->get_group_relay_log_name(), MYF(MY_WME));
       ptr_group->checkpoint_relay_log_pos= rli->get_group_relay_log_pos();
       ptr_group->shifted= ret_worker->bitmap_shifted;
       ret_worker->bitmap_shifted= 0;
@@ -3104,8 +3258,8 @@ Slave_worker *Log_event::get_slave_worker(Relay_log_info *rli)
 #endif
 
   }
-  
-  return ret_worker;
+
+  DBUG_RETURN (ret_worker);
 }
 
 /**
@@ -3169,7 +3323,8 @@ int Log_event::apply_event(Relay_log_info *rli)
           a separator beetwen two master's binlog therefore requiring
           Workers to sync.
         */
-        if (rli->curr_group_da.elements > 0)
+        if (rli->curr_group_da.elements > 0 &&
+            is_mts_db_partitioned(rli))
         {
           char llbuff[22];
           /* 
@@ -3190,7 +3345,7 @@ int Log_event::apply_event(Relay_log_info *rli)
         /*
           Marking sure the event will be executed in sequential mode.
         */
-        if (wait_for_workers_to_finish(rli) == -1)
+        if (rli->current_mts_submode->wait_for_workers_to_finish(rli) == -1)
         {
           // handle synchronization error
           rli->report(WARNING_LEVEL, 0,
@@ -3203,7 +3358,8 @@ int Log_event::apply_event(Relay_log_info *rli)
           Given not in-group mark the event handler can invoke checkpoint
           update routine in the following course.
         */
-        DBUG_ASSERT(rli->mts_group_status == Relay_log_info::MTS_NOT_IN_GROUP);
+        DBUG_ASSERT(rli->mts_group_status == Relay_log_info::MTS_NOT_IN_GROUP
+                    || !is_mts_db_partitioned(rli));
 
 #ifndef DBUG_OFF
         /* all Workers are idle as done through wait_for_workers_to_finish */
@@ -3230,7 +3386,7 @@ int Log_event::apply_event(Relay_log_info *rli)
                 This is an empty group being processed due to gtids.
               */
               (rli->curr_group_seen_begin && rli->curr_group_seen_gtid
-               && ends_group()) ||
+              && ends_group()) || is_mts_db_partitioned(rli) ||
               rli->last_assigned_worker ||
               /*
                 Begin_load_query can be logged w/o db info and within
@@ -3592,6 +3748,19 @@ bool Query_log_event::write(IO_CACHE* file)
     start+= 3;
   }
 
+  /*
+    We store -1 in the following status var since we don't have the
+    commit timestamp. The logical timestamp will be updated in the
+    do_write_cache.
+  */
+  if (!file->commit_seq_offset > 0)
+  {
+    file->commit_seq_offset= QUERY_HEADER_LEN +
+                             (uint)(start-start_of_status);
+    *start++= Q_COMMIT_TS;
+    int8store(start, SEQ_UNINIT);
+    start+= COMMIT_SEQ_LEN;
+  }
   /*
     NOTE: When adding new status vars, please don't forget to update
     the MAX_SIZE_LOG_EVENT_STATUS in log_event.h and update the function
@@ -3967,6 +4136,7 @@ code_name(int code)
   case Q_MASTER_DATA_WRITTEN_CODE: return "Q_MASTER_DATA_WRITTEN_CODE";
   case Q_UPDATED_DB_NAMES: return "Q_UPDATED_DB_NAMES";
   case Q_MICROSECONDS: return "Q_MICROSECONDS";
+  case Q_COMMIT_TS: return "Q_COMMIT_TS";
   }
   sprintf(buf, "CODE#%d", code);
   return buf;
@@ -4017,6 +4187,7 @@ Query_log_event::Query_log_event(const char* buf, uint event_len,
 
   memset(&user, 0, sizeof(user));
   memset(&host, 0, sizeof(host));
+  commit_seq_no= SEQ_UNINIT;
   common_header_len= description_event->common_header_len;
   post_header_len= description_event->post_header_len[event_type-1];
   DBUG_PRINT("info",("event_len: %u  common_header_len: %d  post_header_len: %d",
@@ -4217,7 +4388,6 @@ Query_log_event::Query_log_event(const char* buf, uint event_len,
                         {
                           if (mts_accessed_dbs == 2)
                           {
-                            DBUG_ASSERT(pos[sizeof("d?") - 1] == 0);
                             ((char*) pos)[sizeof("d?") - 1]= 'a';
                           }});
         strncpy(mts_accessed_db_names[i], (char*) pos,
@@ -4229,6 +4399,11 @@ Query_log_event::Query_log_event(const char* buf, uint event_len,
         DBUG_VOID_RETURN;
       break;
     }
+    case Q_COMMIT_TS:
+      CHECK_SPACE(pos, end, COMMIT_SEQ_LEN);
+      commit_seq_no= (int64)uint8korr(pos);
+      pos+= COMMIT_SEQ_LEN;
+      break;
     default:
       /* That's why you must write status vars in growing order of code */
       DBUG_PRINT("info",("Query_log_event has unknown status vars (first has\
@@ -4254,7 +4429,8 @@ Query_log_event::Query_log_event(const char* buf, uint event_len,
     */
 
 #if !defined(MYSQL_CLIENT)
-  if (!(start= data_buf = (Log_event::Byte*) my_malloc(catalog_len + 1
+  if (!(start= data_buf = (Log_event::Byte*) my_malloc(key_memory_log_event,
+                                                       catalog_len + 1
                                                     +  time_zone_len + 1
                                                     +  user.length + 1
                                                     +  host.length + 1
@@ -4264,7 +4440,8 @@ Query_log_event::Query_log_event(const char* buf, uint event_len,
                                                     +  QUERY_CACHE_FLAGS_SIZE,
                                                        MYF(MY_WME))))
 #else
-  if (!(start= data_buf = (Log_event::Byte*) my_malloc(catalog_len + 1
+  if (!(start= data_buf = (Log_event::Byte*) my_malloc(key_memory_log_event,
+                                                       catalog_len + 1
                                                     +  time_zone_len + 1
                                                     +  user.length + 1
                                                     +  host.length + 1
@@ -4346,6 +4523,7 @@ void Query_log_event::print_query_header(IO_CACHE* file,
                 error_code);
   }
 
+  bool suppress_use_flag= is_binlog_rewrite_db(db);
   if ((flags & LOG_EVENT_SUPPRESS_USE_F))
   {
     if (!is_trans_keyword())
@@ -4355,10 +4533,10 @@ void Query_log_event::print_query_header(IO_CACHE* file,
 /*
   option_rewrite_set is used to check whether the USE DATABASE command needs
   to be suppressed or not.
-  Suppress if the --rewrite-db  option in use.
-  Skip otherwise.
+  Suppress if the database being processed is in the list of database that
+  needs to be rewritten. Skip otherwise.
 */
-  else if (db && !option_rewrite_set)
+  else if (db && !suppress_use_flag)
   {
 #ifdef MYSQL_SERVER
     quoted_len= my_strmov_quoted_identifier(this->thd, (char*)quoted_id, db, 0);
@@ -4532,29 +4710,15 @@ void Query_log_event::print(FILE* file, PRINT_EVENT_INFO* print_event_info)
 #if defined(HAVE_REPLICATION) && !defined(MYSQL_CLIENT)
 
 /**
-   Associating slave Worker thread to a subset of temporary tables
-   belonging to db-partitions the event accesses.
-   The pointer if all entries is cleaned.
+   Associating slave Worker thread to a subset of temporary tables.
 
    @param thd   THD instance pointer
+   @param rli   Relay_log_info of the worker
 */
-void Query_log_event::attach_temp_tables_worker(THD *thd)
+void Query_log_event::attach_temp_tables_worker(THD *thd,
+                                                const Relay_log_info* rli)
 {
-  if (!is_mts_worker(thd) || (ends_group() || starts_group()))
-    return;
-  
-  // in over max-db:s case just one special partition is locked
-  int parts= ((mts_accessed_dbs == OVER_MAX_DBS_IN_EVENT_MTS) ?
-              1 : mts_accessed_dbs);
-
-  DBUG_ASSERT(!thd->temporary_tables);
-
-  for (int i= 0; i < parts; i++)
-  {
-    mts_move_temp_tables_to_thd(thd,
-                                mts_assigned_partitions[i]->temporary_tables);
-    mts_assigned_partitions[i]->temporary_tables= NULL;
-  }
+  rli->current_mts_submode->attach_temp_tables(thd, rli, this);
 }
 
 /**
@@ -4563,86 +4727,12 @@ void Query_log_event::attach_temp_tables_worker(THD *thd)
    with new values of temporary_tables.
 
    @param thd   THD instance pointer
+   @param rli   relay log info of the worker thread
 */
-void Query_log_event::detach_temp_tables_worker(THD *thd)
+void Query_log_event::detach_temp_tables_worker(THD *thd,
+                                                const Relay_log_info *rli)
 {
-  if (!is_mts_worker(thd))
-    return;
-
-  int parts= ((mts_accessed_dbs == OVER_MAX_DBS_IN_EVENT_MTS) ?
-              1 : mts_accessed_dbs);
-  /*
-    todo: optimize for a case of 
-
-    a. one db
-       Only detaching temporary_tables from thd to entry would require
-       instead of the double-loop below.
-
-    b. unchanged thd->temporary_tables. 
-       In such case the involved entries would continue to hold the
-       unmodified lists provided that the attach_ method does not
-       destroy references to them.
-  */
-  for (int i= 0; i < parts; i++)
-  {
-    mts_assigned_partitions[i]->temporary_tables= NULL;
-  }
-
-  for (TABLE *table= thd->temporary_tables; table;)
-  {
-    int i;
-    char *db_name= NULL;
-
-    // find which entry to go
-    for (i= 0; i < parts; i++)
-    {
-      db_name= mts_accessed_db_names[i];
-
-      if (!strlen(db_name))
-        break;
-
-      // Only default database is rewritten.
-      if (!rpl_filter->is_rewrite_empty() && !strcmp(get_db(), db_name))
-      {
-        size_t dummy_len;
-        const char *db_filtered= rpl_filter->get_rewrite_db(db_name, &dummy_len);
-        // db_name != db_filtered means that db_name is rewritten.
-        if (strcmp(db_name, db_filtered))
-          db_name= (char*)db_filtered;
-      }
-
-      if (strcmp(table->s->db.str, db_name) < 0)
-        continue;
-      else
-      {
-        // When rewrite db rules are used we can not rely on
-        // mts_accessed_db_names elements order.
-        if (!rpl_filter->is_rewrite_empty() &&
-            strcmp(table->s->db.str, db_name))
-          continue;
-        else
-          break;
-      }
-    }
-
-    DBUG_ASSERT(db_name && (
-                !strcmp(table->s->db.str, db_name) ||
-                !strlen(db_name))
-                );
-    DBUG_ASSERT(i < mts_accessed_dbs);
-
-    // table pointer is shifted inside the function
-    table= mts_move_temp_table_to_entry(table, thd, mts_assigned_partitions[i]);
-  }
-
-  DBUG_ASSERT(!thd->temporary_tables);
-#ifndef DBUG_OFF
-  for (int i= 0; i < parts; i++)
-  {
-    DBUG_ASSERT(!mts_assigned_partitions[i]->temporary_tables ||
-                !mts_assigned_partitions[i]->temporary_tables->prev);
-  }
-#endif
+  rli->current_mts_submode->detach_temp_tables(thd, rli, this);
 }
 
 /*
@@ -4791,7 +4881,7 @@ int Query_log_event::do_apply_event(Relay_log_info const *rli,
     thd->set_query_and_id((char*)query_arg, q_len_arg,
                           thd->charset(), next_query_id());
     thd->variables.pseudo_thread_id= thread_id;		// for temp tables
-    attach_temp_tables_worker(thd);
+    attach_temp_tables_worker(thd, rli);
     DBUG_PRINT("query",("%s", thd->query()));
 
     if (ignored_error_code((expected_error= error_code)) ||
@@ -4914,6 +5004,13 @@ int Query_log_event::do_apply_event(Relay_log_info const *rli,
       Parser_state parser_state;
       if (!parser_state.init(thd, thd->query(), thd->query_length()))
       {
+        thd->m_statement_psi= MYSQL_START_STATEMENT(&thd->m_statement_state,
+                                                    stmt_info_rpl.m_key,
+                                                    thd->db, thd->db_length,
+                                                    thd->charset(), NULL);
+        THD_STAGE_INFO(thd, stage_init);
+        MYSQL_SET_STATEMENT_TEXT(thd->m_statement_psi, thd->query(), thd->query_length());
+
         mysql_parse(thd, thd->query(), thd->query_length(), &parser_state);
         /* Finalize server status flags after executing a statement. */
         thd->update_server_status();
@@ -5018,11 +5115,11 @@ compare_errors:
              ignored_error_code(actual_error))
     {
       DBUG_PRINT("info",("error ignored"));
-      if (log_warnings > 1 && ignored_error_code(actual_error))
+      if (ignored_error_code(actual_error))
       {
-	    rli->report(WARNING_LEVEL, actual_error,
-                "Could not execute %s event. Detailed error: %s;",
-		 get_type_str(), thd->get_stmt_da()->message_text());
+        rli->report(INFORMATION_LEVEL, actual_error,
+                    "Could not execute %s event. Detailed error: %s;",
+                    get_type_str(), thd->get_stmt_da()->message_text());
       }
       clear_all_errors(thd, const_cast<Relay_log_info*>(rli));
       thd->killed= THD::NOT_KILLED;
@@ -5089,7 +5186,7 @@ compare_errors:
 end:
 
   if (thd->temporary_tables)
-    detach_temp_tables_worker(thd);
+    detach_temp_tables_worker(thd, rli);
   /*
     Probably we have set thd->query, thd->db, thd->catalog to point to places
     in the data_buf of this event. Now the event is going to be deleted
@@ -5105,6 +5202,11 @@ end:
   thd->reset_query();
   thd->lex->sql_command= SQLCOM_END;
   DBUG_PRINT("info", ("end: query= 0"));
+
+  /* Mark the statement completed. */
+  MYSQL_END_STATEMENT(thd->m_statement_psi, thd->get_stmt_da());
+  thd->m_statement_psi= NULL;
+
   /*
     As a disk space optimization, future masters will not log an event for
     LAST_INSERT_ID() if that function returned 0 (and thus they will be able
@@ -5411,7 +5513,8 @@ Format_description_log_event(uint8 binlog_ver, const char* server_ver)
     common_header_len= LOG_EVENT_HEADER_LEN;
     number_of_event_types= LOG_EVENT_TYPES;
     /* we'll catch my_malloc() error in is_valid() */
-    post_header_len=(uint8*) my_malloc(number_of_event_types*sizeof(uint8)
+    post_header_len=(uint8*) my_malloc(key_memory_log_event,
+                                       number_of_event_types*sizeof(uint8)
                                        + BINLOG_CHECKSUM_ALG_DESC_LEN,
                                        MYF(0));
     /*
@@ -5514,7 +5617,8 @@ Format_description_log_event(uint8 binlog_ver, const char* server_ver)
       make the slave detect less corruptions).
     */
     number_of_event_types= FORMAT_DESCRIPTION_EVENT - 1;
-    post_header_len=(uint8*) my_malloc(number_of_event_types*sizeof(uint8),
+    post_header_len=(uint8*) my_malloc(key_memory_log_event,
+                                       number_of_event_types*sizeof(uint8),
                                        MYF(0));
     if (post_header_len)
     {
@@ -5580,7 +5684,8 @@ Format_description_log_event(const char* buf,
                       common_header_len, number_of_event_types));
   /* If alloc fails, we'll detect it in is_valid() */
 
-  post_header_len= (uint8*) my_memdup((uchar*)buf+ST_COMMON_HEADER_LEN_OFFSET+1,
+  post_header_len= (uint8*) my_memdup(key_memory_log_event,
+                                      (uchar*)buf+ST_COMMON_HEADER_LEN_OFFSET+1,
                                       number_of_event_types*
                                       sizeof(*post_header_len),
                                       MYF(0));
@@ -6071,7 +6176,8 @@ int Load_log_event::pack_info(Protocol *protocol)
 {
   char *buf, *end;
 
-  if (!(buf= (char*) my_malloc(get_query_buffer_length(), MYF(MY_WME))))
+  if (!(buf= (char*) my_malloc(key_memory_log_event,
+                               get_query_buffer_length(), MYF(MY_WME))))
     return 1;
   print_query(TRUE, NULL, buf, &end, 0, 0);
   protocol->store(buf, end-buf, &my_charset_bin);
@@ -6809,7 +6915,8 @@ Rotate_log_event::Rotate_log_event(const char* new_log_ident_arg,
                       llstr(pos_arg, buff), (ulong) flags));
 #endif
   if (flags & DUP_NAME)
-    new_log_ident= my_strndup(new_log_ident_arg, ident_len, MYF(MY_WME));
+    new_log_ident= my_strndup(key_memory_log_event,
+                              new_log_ident_arg, ident_len, MYF(MY_WME));
   if (flags & RELAY_LOG)
     set_relay_log_event();
   DBUG_VOID_RETURN;
@@ -6834,7 +6941,8 @@ Rotate_log_event::Rotate_log_event(const char* buf, uint event_len,
                      (header_size+post_header_len)); 
   ident_offset = post_header_len; 
   set_if_smaller(ident_len,FN_REFLEN-1);
-  new_log_ident= my_strndup(buf + ident_offset, (uint) ident_len, MYF(MY_WME));
+  new_log_ident= my_strndup(key_memory_log_event,
+                            buf + ident_offset, (uint) ident_len, MYF(MY_WME));
   DBUG_PRINT("debug", ("new_log_ident: '%s'", new_log_ident));
   DBUG_VOID_RETURN;
 }
@@ -6910,6 +7018,12 @@ int Rotate_log_event::do_update_pos(Relay_log_info *rli)
       ((!rli->is_parallel_exec() && !rli->is_in_group()) ||
        rli->mts_group_status != Relay_log_info::MTS_IN_GROUP))
   {
+    if (!is_mts_db_partitioned(rli) && server_id != ::server_id && log_pos )
+    {
+      // force the coordinator to start a new group.
+      static_cast<Mts_submode_logical_clock*>
+        (rli->current_mts_submode)->start_new_group();
+    }
     if (rli->is_parallel_exec())
     {
       /*
@@ -7526,7 +7640,8 @@ int User_var_log_event::pack_info(Protocol* protocol)
 
   if (is_null)
   {
-    if (!(buf= (char*) my_malloc(val_offset + 5, MYF(MY_WME))))
+    if (!(buf= (char*) my_malloc(key_memory_log_event,
+                                 val_offset + 5, MYF(MY_WME))))
       return 1;
     strmov(buf + val_offset, "NULL");
     event_len= val_offset + 4;
@@ -7537,14 +7652,16 @@ int User_var_log_event::pack_info(Protocol* protocol)
     case REAL_RESULT:
       double real_val;
       float8get(real_val, val);
-      if (!(buf= (char*) my_malloc(val_offset + MY_GCVT_MAX_FIELD_WIDTH + 1,
+      if (!(buf= (char*) my_malloc(key_memory_log_event,
+                                   val_offset + MY_GCVT_MAX_FIELD_WIDTH + 1,
                                    MYF(MY_WME))))
         return 1;
       event_len+= my_gcvt(real_val, MY_GCVT_ARG_DOUBLE, MY_GCVT_MAX_FIELD_WIDTH,
                           buf + val_offset, NULL);
       break;
     case INT_RESULT:
-      if (!(buf= (char*) my_malloc(val_offset + 22, MYF(MY_WME))))
+      if (!(buf= (char*) my_malloc(key_memory_log_event,
+                                   val_offset + 22, MYF(MY_WME))))
         return 1;
       event_len= longlong10_to_str(uint8korr(val), buf + val_offset, 
                                    ((flags & User_var_log_event::UNSIGNED_F) ? 
@@ -7552,7 +7669,8 @@ int User_var_log_event::pack_info(Protocol* protocol)
       break;
     case DECIMAL_RESULT:
     {
-      if (!(buf= (char*) my_malloc(val_offset + DECIMAL_MAX_STR_LENGTH + 1,
+      if (!(buf= (char*) my_malloc(key_memory_log_event,
+                                   val_offset + DECIMAL_MAX_STR_LENGTH + 1,
                                    MYF(MY_WME))))
         return 1;
       String str(buf+val_offset, DECIMAL_MAX_STR_LENGTH + 1, &my_charset_bin);
@@ -7565,7 +7683,8 @@ int User_var_log_event::pack_info(Protocol* protocol)
     } 
     case STRING_RESULT:
       /* 15 is for 'COLLATE' and other chars */
-      buf= (char*) my_malloc(event_len+val_len*2+1+2*MY_CS_NAME_SIZE+15,
+      buf= (char*) my_malloc(key_memory_log_event,
+                             event_len+val_len*2+1+2*MY_CS_NAME_SIZE+15,
                              MYF(MY_WME));
       CHARSET_INFO *cs;
       if (!buf)
@@ -7849,7 +7968,8 @@ void User_var_log_event::print(FILE* file, PRINT_EVENT_INFO* print_event_info)
       char *hex_str;
       CHARSET_INFO *cs;
 
-      hex_str= (char *)my_malloc(2*val_len+1+2,MYF(MY_WME)); // 2 hex digits / byte
+      hex_str= (char *)my_malloc(key_memory_log_event,
+                                 2*val_len+1+2,MYF(MY_WME)); // 2 hex digits / byte
       if (!hex_str)
         return;
       str_to_hex(hex_str, val, val_len);
@@ -8169,7 +8289,8 @@ Create_file_log_event::Create_file_log_event(const char* buf, uint len,
   uint header_len= description_event->common_header_len;
   uint8 load_header_len= description_event->post_header_len[LOAD_EVENT-1];
   uint8 create_file_header_len= description_event->post_header_len[CREATE_FILE_EVENT-1];
-  if (!(event_buf= (char*) my_memdup(buf, len, MYF(MY_WME))) ||
+  if (!(event_buf= (char*) my_memdup(key_memory_log_event,
+                                     buf, len, MYF(MY_WME))) ||
       copy_log_event(event_buf,len,
                      ((buf[EVENT_TYPE_OFFSET] == LOAD_EVENT) ?
                       load_header_len + header_len :
@@ -8829,7 +8950,8 @@ int Execute_load_log_event::do_apply_event(Relay_log_info const *rli)
       don't want to overwrite it with the filename.
       What we want instead is add the filename to the current error message.
     */
-    char *tmp= my_strdup(rli->last_error().message, MYF(MY_WME));
+    char *tmp= my_strdup(key_memory_log_event,
+                         rli->last_error().message, MYF(MY_WME));
     if (tmp)
     {
       rli->report(ERROR_LEVEL, rli->last_error().number,
@@ -9033,7 +9155,8 @@ void Execute_load_query_log_event::print(FILE* file,
 int Execute_load_query_log_event::pack_info(Protocol *protocol)
 {
   char *buf, *pos;
-  if (!(buf= (char*) my_malloc(9 + (db_len * 2) + 2 + q_len + 10 + 21,
+  if (!(buf= (char*) my_malloc(key_memory_log_event,
+                               9 + (db_len * 2) + 2 + q_len + 10 + 21,
                                MYF(MY_WME))))
     return 1;
   pos= buf;
@@ -9073,7 +9196,8 @@ Execute_load_query_log_event::do_apply_event(Relay_log_info const *rli)
   char *fname_end;
   int error;
 
-  buf= (char*) my_malloc(q_len + 1 - (fn_pos_end - fn_pos_start) +
+  buf= (char*) my_malloc(key_memory_log_event,
+                         q_len + 1 - (fn_pos_end - fn_pos_start) +
                          (FN_REFLEN + TEMP_FILE_MAX_LEN) + 10 + 8 + 5, MYF(MY_WME));
 
   DBUG_EXECUTE_IF("LOAD_DATA_INFILE_has_fatal_error", my_free(buf); buf= NULL;);
@@ -9308,7 +9432,8 @@ Rows_log_event::Rows_log_event(THD *thd_arg, TABLE *tbl_arg, const Table_id& tid
     uint8 extra_data_len= extra_row_info[EXTRA_ROW_INFO_LEN_OFFSET];
     assert(extra_data_len >= EXTRA_ROW_INFO_HDR_BYTES);
 
-    m_extra_row_data= (uchar*) my_malloc(extra_data_len, MYF(MY_WME));
+    m_extra_row_data= (uchar*) my_malloc(key_memory_log_event,
+                                         extra_data_len, MYF(MY_WME));
 
     if (likely(m_extra_row_data != NULL))
     {
@@ -9415,7 +9540,8 @@ Rows_log_event::Rows_log_event(const char *buf, uint event_len,
         /* Just store/use the first tag of this type, skip others */
         if (likely(!m_extra_row_data))
         {
-          m_extra_row_data= (uchar*) my_malloc(infoLen,
+          m_extra_row_data= (uchar*) my_malloc(key_memory_log_event,
+                                               infoLen,
                                                MYF(MY_WME));
           if (likely(m_extra_row_data != NULL))
           {
@@ -9496,7 +9622,8 @@ Rows_log_event::Rows_log_event(const char *buf, uint event_len,
                      m_table_id.id(), m_flags, m_width, (ulong) data_size));
 
   // Allocate one extra byte, in case we have to do uint3korr!
-  m_rows_buf= (uchar*) my_malloc(data_size + 1, MYF(MY_WME)); // didrik
+  m_rows_buf= (uchar*) my_malloc(key_memory_log_event,
+                                 data_size + 1, MYF(MY_WME)); // didrik
   if (likely((bool)m_rows_buf))
   {
 #if !defined(MYSQL_CLIENT) && defined(HAVE_REPLICATION)
@@ -9604,7 +9731,8 @@ int Rows_log_event::do_add_row_data(uchar *row_data, size_t length)
 
     // Allocate one extra byte, in case we have to do uint3korr!
     uchar* const new_buf=
-      (uchar*)my_realloc((uchar*)m_rows_buf, (uint) new_alloc + 1,
+      (uchar*)my_realloc(key_memory_log_event,
+                         (uchar*)m_rows_buf, (uint) new_alloc + 1,
                          MYF(MY_ALLOW_ZERO_PTR|MY_WME));
     if (unlikely(!new_buf))
       DBUG_RETURN(HA_ERR_OUT_OF_MEM);
@@ -9970,7 +10098,8 @@ Rows_log_event::row_operations_scan_and_key_setup()
     {
       DBUG_ASSERT (m_key_index < MAX_KEY);
       // Allocate buffer for key searches
-      m_key= (uchar*)my_malloc(MAX_KEY_LENGTH, MYF(MY_WME));
+      m_key= (uchar*)my_malloc(key_memory_log_event,
+                               MAX_KEY_LENGTH, MYF(MY_WME));
       if (!m_key)
         error= HA_ERR_OUT_OF_MEM;
       goto err;
@@ -10192,12 +10321,15 @@ int Rows_log_event::handle_idempotent_and_ignored_errors(Relay_log_info const *r
 
     if (idempotent_error || ignored_error)
     {
-      if ( (idempotent_error && log_warnings) || 
-		(ignored_error && log_warnings > 1) )
-        slave_rows_error_report(WARNING_LEVEL, error, rli, thd, m_table,
-                                get_type_str(),
-                                const_cast<Relay_log_info*>(rli)->get_rpl_log_name(),
-                                (ulong) log_pos);
+      loglevel ll;
+      if (idempotent_error)
+        ll= WARNING_LEVEL;
+      else
+        ll= INFORMATION_LEVEL;
+      slave_rows_error_report(ll, error, rli, thd, m_table,
+                              get_type_str(),
+                              const_cast<Relay_log_info*>(rli)->get_rpl_log_name(),
+                              (ulong) log_pos);
       thd->get_stmt_da()->reset_condition_info(thd);
       clear_all_errors(thd, const_cast<Relay_log_info*>(rli));
       *err= 0;
@@ -10429,7 +10561,8 @@ Rows_log_event::add_key_to_distinct_keyset()
 
   if (distinct)
   {
-    uchar *cur_key= (uchar *)my_malloc(cur_key_info->key_length,
+    uchar *cur_key= (uchar *)my_malloc(key_memory_log_event,
+                                       cur_key_info->key_length,
                                        MYF(MY_WME));
     if (!cur_key )
     {
@@ -11382,12 +11515,10 @@ AFTER_MAIN_EXEC_ROW_LOOP:
     if ((error= do_after_row_operations(rli, error)) &&
         ignored_error_code(convert_handler_error(error, thd, table)))
     {
-
-      if (log_warnings > 1)
-        slave_rows_error_report(WARNING_LEVEL, error, rli, thd, table,
-                                get_type_str(),
-                                const_cast<Relay_log_info*>(rli)->get_rpl_log_name(),
-                                (ulong) log_pos);
+      slave_rows_error_report(INFORMATION_LEVEL, error, rli, thd, table,
+                              get_type_str(),
+                              const_cast<Relay_log_info*>(rli)->get_rpl_log_name(),
+                              (ulong) log_pos);
       thd->get_stmt_da()->reset_condition_info(thd);
       clear_all_errors(thd, const_cast<Relay_log_info*>(rli));
       error= 0;
@@ -11792,7 +11923,8 @@ Table_map_log_event::Table_map_log_event(THD *thd, TABLE *tbl,
   m_data_size+= (cbuf_end - cbuf) + m_colcnt;	// COLCNT and column types
 
   /* If malloc fails, caught in is_valid() */
-  if ((m_memory= (uchar*) my_malloc(m_colcnt, MYF(MY_WME))))
+  if ((m_memory= (uchar*) my_malloc(key_memory_log_event,
+                                    m_colcnt, MYF(MY_WME))))
   {
     m_coltype= reinterpret_cast<uchar*>(m_memory);
     for (unsigned int i= 0 ; i < m_table->s->fields ; ++i)
@@ -11807,7 +11939,8 @@ Table_map_log_event::Table_map_log_event(THD *thd, TABLE *tbl,
   */
   uint num_null_bytes= (m_table->s->fields + 7) / 8;
   m_data_size+= num_null_bytes;
-  m_meta_memory= (uchar *)my_multi_malloc(MYF(MY_WME),
+  m_meta_memory= (uchar *)my_multi_malloc(key_memory_log_event,
+                                          MYF(MY_WME),
                                  &m_null_bits, num_null_bytes,
                                  &m_field_metadata, (m_colcnt * 2),
                                  NULL);
@@ -11877,6 +12010,9 @@ Table_map_log_event::Table_map_log_event(const char *buf, uint event_len,
   DBUG_PRINT("info",("event_len: %u  common_header_len: %d  post_header_len: %d",
                      event_len, common_header_len, post_header_len));
 
+  /* Set the event data size = post header + body */
+  m_data_size= event_len - common_header_len;
+
   /*
     Don't print debug messages when running valgrind since they can
     trigger false warnings.
@@ -11926,7 +12062,8 @@ Table_map_log_event::Table_map_log_event(const char *buf, uint event_len,
                      m_colcnt, (long) (ptr_colcnt-(const uchar*)vpart)));
 
   /* Allocate mem for all fields in one go. If fails, caught in is_valid() */
-  m_memory= (uchar*) my_multi_malloc(MYF(MY_WME),
+  m_memory= (uchar*) my_multi_malloc(key_memory_log_event,
+                                     MYF(MY_WME),
                                      &m_dbnam, (uint) m_dblen + 1,
                                      &m_tblnam, (uint) m_tbllen + 1,
                                      &m_coltype, (uint) m_colcnt,
@@ -11948,7 +12085,8 @@ Table_map_log_event::Table_map_log_event(const char *buf, uint event_len,
       if (m_field_metadata_size > (m_colcnt * 2))
         DBUG_VOID_RETURN;
       uint num_null_bytes= (m_colcnt + 7) / 8;
-      m_meta_memory= (uchar *)my_multi_malloc(MYF(MY_WME),
+      m_meta_memory= (uchar *)my_multi_malloc(key_memory_log_event,
+                                              MYF(MY_WME),
                                      &m_null_bits, num_null_bytes,
                                      &m_field_metadata, m_field_metadata_size,
                                      NULL);
@@ -12085,7 +12223,8 @@ int Table_map_log_event::do_apply_event(Relay_log_info const *rli)
   /* Step the query id to mark what columns that are actually used. */
   thd->set_query_id(next_query_id());
 
-  if (!(memory= my_multi_malloc(MYF(MY_WME),
+  if (!(memory= my_multi_malloc(key_memory_log_event,
+                                MYF(MY_WME),
                                 &table_list, (uint) sizeof(RPL_TABLE_LIST),
                                 &db_mem, (uint) NAME_LEN + 1,
                                 &tname_mem, (uint) NAME_LEN + 1,
@@ -13045,7 +13184,8 @@ Incident_log_event::Incident_log_event(const char *buf, uint event_len,
   uint8 len= 0;                   // Assignment to keep compiler happy
   const char *str= NULL;          // Assignment to keep compiler happy
   read_str_at_most_255_bytes(&ptr, str_end, &str, &len);
-  if (!(m_message.str= (char*) my_malloc(len+1, MYF(MY_WME))))
+  if (!(m_message.str= (char*) my_malloc(key_memory_log_event,
+                                         len+1, MYF(MY_WME))))
   {
     /* Mark this event invalid */
     m_incident= INCIDENT_NONE;
@@ -13221,7 +13361,8 @@ Rows_query_log_event::Rows_query_log_event(const char *buf, uint event_len,
   */
   int offset= common_header_len + post_header_len + 1;
   int len= event_len - offset;
-  if (!(m_rows_query= (char*) my_malloc(len+1, MYF(MY_WME))))
+  if (!(m_rows_query= (char*) my_malloc(key_memory_log_event,
+                                        len+1, MYF(MY_WME))))
     return;
   strmake(m_rows_query, buf + offset, len);
   DBUG_PRINT("info", ("m_rows_query: %s", m_rows_query));
@@ -13239,7 +13380,8 @@ int Rows_query_log_event::pack_info(Protocol *protocol)
   char *buf;
   size_t bytes;
   ulong len= sizeof("# ") + (ulong) strlen(m_rows_query);
-  if (!(buf= (char*) my_malloc(len, MYF(MY_WME))))
+  if (!(buf= (char*) my_malloc(key_memory_log_event,
+                               len, MYF(MY_WME))))
     return 1;
   bytes= my_snprintf(buf, len, "# %s", m_rows_query);
   protocol->store(buf, bytes, &my_charset_bin);
@@ -13259,7 +13401,8 @@ Rows_query_log_event::print(FILE *file,
     IO_CACHE *const body= &print_event_info->body_cache;
     char *token= NULL, *saveptr= NULL;
     char *rows_query_copy= NULL;
-    if (!(rows_query_copy= my_strdup(m_rows_query, MYF(MY_WME))))
+    if (!(rows_query_copy= my_strdup(key_memory_log_event,
+                                     m_rows_query, MYF(MY_WME))))
       return;
 
     print_header(head, print_event_info, FALSE);
@@ -13326,7 +13469,12 @@ Gtid_log_event::Gtid_log_event(const char *buffer, uint event_len,
   DBUG_PRINT("info",("event_len: %u; common_header_len: %d; post_header_len: %d",
                      event_len, common_header_len, post_header_len));
 #endif
-
+/*
+  The layout of the buffer is as follows
+   +-------------+-------------+------------+------------+--------------+
+   | commit flag | ENCODED SID | ENCODED GNO| G_COMMIT_TS| commit_seq_no|
+   +-------------+-------------+------------+------------+--------------+
+*/
   char const *ptr_buffer= buffer + common_header_len;
 
   spec.type= buffer[EVENT_TYPE_OFFSET] == ANONYMOUS_GTID_LOG_EVENT ? 
@@ -13343,6 +13491,23 @@ Gtid_log_event::Gtid_log_event(const char *buffer, uint event_len,
 
   spec.gtid.gno= uint8korr(ptr_buffer);
   ptr_buffer+= ENCODED_GNO_LENGTH;
+
+  /* fetch the commit timestamp */
+  if (
+      /*Old masters will not have this part, so we should prevent segfaulting */
+      (uint)(ptr_buffer-buffer) < event_len &&
+      *ptr_buffer == G_COMMIT_TS)
+  {
+    ptr_buffer++;
+    commit_seq_no= (int64)uint8korr(ptr_buffer);
+    ptr_buffer+= COMMIT_SEQ_LEN;
+  }
+  else
+    /* We let coordinator complain when it sees that we have first
+       event and the master has not sent us the commit sequence number
+       Also, we can be rest assured that this is an old master, because new
+       master would have compained of the missing commit seq no while flushing.*/
+    commit_seq_no= SEQ_UNINIT;
 
   DBUG_VOID_RETURN;
 }
@@ -13435,6 +13600,10 @@ bool Gtid_log_event::write_data_header(IO_CACHE *file)
 
   int8store(ptr_buffer, spec.gtid.gno);
   ptr_buffer+= ENCODED_GNO_LENGTH;
+  file->commit_seq_offset= ptr_buffer- buffer;
+  *ptr_buffer++= G_COMMIT_TS;
+  int8store(ptr_buffer, SEQ_UNINIT);
+  ptr_buffer+= COMMIT_SEQ_LEN;
 
   DBUG_ASSERT(ptr_buffer == (buffer + sizeof(buffer)));
   DBUG_RETURN(wrapper_my_b_safe_write(file, (uchar *) buffer, sizeof(buffer)));
@@ -13458,6 +13627,17 @@ int Gtid_log_event::do_apply_event(Relay_log_info const *rli)
     gtid_rollback(thd);
   }
   thd->variables.gtid_next.set(sidno, spec.gtid.gno);
+
+  /*
+    The variable 'currently_executing_gtid' is used to fill
+    last_seen_transaction column of the table
+    performance_schema.replication_execute_status_by_worker
+    to show the GTID of last transaction picked up by this worker thread.
+  */
+  const Slave_worker* worker;
+  worker= dynamic_cast<const Slave_worker* >(rli);
+  if (is_mts_worker(thd))
+    worker->currently_executing_gtid= thd->variables.gtid_next.gtid;
   DBUG_PRINT("info", ("setting gtid_next=%d:%lld",
                       sidno, spec.gtid.gno));
 
@@ -13510,7 +13690,8 @@ Previous_gtids_log_event::Previous_gtids_log_event(const Gtid_set *set)
   DBUG_ENTER("Previous_gtids_log_event::Previous_gtids_log_event(THD *, const Gtid_set *)");
   global_sid_lock->assert_some_lock();
   buf_size= set->get_encoded_length();
-  uchar *buffer= (uchar *) my_malloc(buf_size, MYF(MY_WME));
+  uchar *buffer= (uchar *) my_malloc(key_memory_log_event,
+                                     buf_size, MYF(MY_WME));
   if (buffer != NULL)
   {
     set->encode(buffer);
@@ -13584,7 +13765,8 @@ char *Previous_gtids_log_event::get_str(
   set.dbug_print("set");
   size_t length= set.get_string_length(string_format);
   DBUG_PRINT("info", ("string length= %lu", (ulong) length));
-  char* str= (char *)my_malloc(length + 1, MYF(MY_WME));
+  char* str= (char *)my_malloc(key_memory_log_event,
+                               length + 1, MYF(MY_WME));
   if (str != NULL)
   {
     set.to_string(str, string_format);

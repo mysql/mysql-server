@@ -136,8 +136,8 @@ The following options may be given as the first argument:
  --datetime-format=name 
  The DATETIME format (ignored)
  --default-authentication-plugin=name 
- Defines what password- and authentication algorithm to
- use per default
+ The default authentication plugin used by the server to
+ hash the password.
  --default-storage-engine=name 
  The default storage engine for new tables
  --default-time-zone=name 
@@ -306,6 +306,11 @@ The following options may be given as the first argument:
  version of events are written.  This option is useful
  during some upgrades.
  --log-error[=name]  Error log file
+ --log-error-verbosity=# 
+ How detailed the error log should be. 1, log errors only.
+ 2, log errors and warnings. 3, log errors, warnings, and
+ notes. Messages sent to the client are unaffected by this
+ setting.
  --log-isam[=name]   Log all MyISAM changes to file.
  --log-output=name   Syntax: log-output=value[,value...], where "value" could
  be TABLE, FILE or NONE
@@ -336,6 +341,13 @@ The following options may be given as the first argument:
  condensed into a single summary line. A value of 0
  disables throttling. Option has no effect unless
  --log_queries_not_using_indexes is set.
+ --log-timestamps=name 
+ UTC to timestamp log files in zulu time, for more concise
+ timestamps and easier correlation of logs from servers
+ from multiple time zones, or SYSTEM to use the system's
+ local time. This affects only log files, not log tables,
+ as the timestamp columns of the latter can be converted
+ at will.
  -W, --log-warnings[=#] 
  Log some not critical warnings to the log file
  --long-query-time=# Log all queries that have taken more than long_query_time
@@ -603,10 +615,15 @@ The following options may be given as the first argument:
  --performance-schema-max-file-instances=# 
  Maximum number of instrumented files. Use 0 to disable,
  -1 for automated sizing.
+ --performance-schema-max-memory-classes=# 
+ Maximum number of memory pool instruments.
  --performance-schema-max-mutex-classes=# 
  Maximum number of mutex instruments.
  --performance-schema-max-mutex-instances=# 
  Maximum number of instrumented MUTEX objects. Use 0 to
+ disable, -1 for automated sizing.
+ --performance-schema-max-program-instances=# 
+ Maximum number of instrumented programs. Use 0 to
  disable, -1 for automated sizing.
  --performance-schema-max-rwlock-classes=# 
  Maximum number of rwlock instruments.
@@ -622,6 +639,8 @@ The following options may be given as the first argument:
  Maximum number of stage instruments.
  --performance-schema-max-statement-classes=# 
  Maximum number of statement instruments.
+ --performance-schema-max-statement-stack=# 
+ Number of rows per thread in EVENTS_STATEMENTS_CURRENT.
  --performance-schema-max-table-handles=# 
  Maximum number of opened instrumented tables. Use 0 to
  disable, -1 for automated sizing.
@@ -792,6 +811,9 @@ The following options may be given as the first argument:
  not sure, leave this option unset
  --report-user=name  The account user name of the slave to be reported to the
  master during slave registration
+ --rpl-stop-slave-timeout=# 
+ Timeout in seconds to wait for slave to stop before
+ returning a warning.
  --safe-user-create  Don't allow new user creation by the user who has no
  write privileges to the mysql.user table.
  --secure-auth       Disallow authentication for accounts that have old
@@ -845,6 +867,10 @@ The following options may be given as the first argument:
  --slave-net-timeout=# 
  Number of seconds to wait for more data from a
  master/slave connection before aborting the read
+ --slave-parallel-type=name 
+ Specifies if the slave will use database partioning or
+ information from master to parallelize
+ transactions.(Default: DATABASE).
  --slave-parallel-workers=# 
  Number of worker threads for executing events in parallel
  --slave-pending-jobs-size-max=# 
@@ -875,10 +901,16 @@ The following options may be given as the first argument:
  lock wait timeout, before giving up and stopping
  --slave-type-conversions=name 
  Set of slave type conversions that are enabled. Legal
- values are: ALL_LOSSY to enable lossy conversions and
- ALL_NON_LOSSY to enable non-lossy conversions. If the
- variable is assigned the empty set, no conversions are
- allowed and it is expected that the types match exactly.
+ values are: ALL_LOSSY to enable lossy conversions,
+ ALL_NON_LOSSY to enable non-lossy conversions,
+ ALL_UNSIGNED to treat all integer column type data to be
+ unsigned values, and ALL_SIGNED to treat all integer
+ column type data to be signed values. Default treatment
+ is ALL_SIGNED. If ALL_SIGNED and ALL_UNSIGNED both are
+ specifed, ALL_SIGNED will take high priority than
+ ALL_UNSIGNED. If the variable is assigned the empty set,
+ no conversions are allowed and it is expected that the
+ types match exactly.
  --slow-launch-time=# 
  If creating the thread takes longer than this value (in
  seconds), the Slow_launch_threads counter will be
@@ -1008,6 +1040,7 @@ connect-timeout 10
 console FALSE
 date-format %Y-%m-%d
 datetime-format %Y-%m-%d %H:%i:%s
+default-authentication-plugin mysql_native_password
 default-storage-engine InnoDB
 default-time-zone (No default value)
 default-tmp-storage-engine InnoDB
@@ -1062,6 +1095,7 @@ log-bin-index (No default value)
 log-bin-trust-function-creators FALSE
 log-bin-use-v1-row-events FALSE
 log-error stderr
+log-error-verbosity 1
 log-isam myisam.log
 log-output FILE
 log-queries-not-using-indexes FALSE
@@ -1073,7 +1107,8 @@ log-slow-slave-statements FALSE
 log-tc tc.log
 log-tc-size 24576
 log-throttle-queries-not-using-indexes 0
-log-warnings 1
+log-timestamps UTC
+log-warnings 0
 long-query-time 10
 low-priority-updates FALSE
 lower-case-table-names 1
@@ -1160,14 +1195,17 @@ performance-schema-max-cond-instances -1
 performance-schema-max-file-classes 50
 performance-schema-max-file-handles 32768
 performance-schema-max-file-instances -1
+performance-schema-max-memory-classes 250
 performance-schema-max-mutex-classes 200
 performance-schema-max-mutex-instances -1
+performance-schema-max-program-instances 5000
 performance-schema-max-rwlock-classes 30
 performance-schema-max-rwlock-instances -1
 performance-schema-max-socket-classes 10
 performance-schema-max-socket-instances -1
 performance-schema-max-stage-classes 150
-performance-schema-max-statement-classes 168
+performance-schema-max-statement-classes 187
+performance-schema-max-statement-stack 10
 performance-schema-max-table-handles -1
 performance-schema-max-table-instances -1
 performance-schema-max-thread-classes 50
@@ -1203,6 +1241,7 @@ report-host (No default value)
 report-password (No default value)
 report-port 0
 report-user (No default value)
+rpl-stop-slave-timeout 31536000
 safe-user-create FALSE
 secure-auth TRUE
 secure-file-priv (No default value)
@@ -1221,6 +1260,7 @@ slave-compressed-protocol FALSE
 slave-exec-mode STRICT
 slave-max-allowed-packet 1073741824
 slave-net-timeout 3600
+slave-parallel-type DATABASE
 slave-parallel-workers 0
 slave-pending-jobs-size-max 16777216
 slave-rows-search-algorithms TABLE_SCAN,INDEX_SCAN

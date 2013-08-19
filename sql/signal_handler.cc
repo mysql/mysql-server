@@ -19,6 +19,7 @@
 #include "sys_vars.h"
 #include "my_stacktrace.h"
 #include "global_threads.h"
+#include "connection_handler_manager.h"  // Connection_handler_manager
 
 #ifdef _WIN32
 #include <crtdbg.h>
@@ -33,11 +34,7 @@
   to guarantee that we read some consistent value.
  */
 static volatile sig_atomic_t segfaulted= 0;
-extern ulong max_used_connections;
 extern volatile sig_atomic_t calling_initgroups;
-#ifdef HAVE_NPTL
-extern volatile sig_atomic_t ld_assume_kernel_is_set;
-#endif
 
 /**
  * Handler for fatal signals
@@ -109,14 +106,18 @@ extern "C" sig_handler handle_fatal_signal(int sig)
                         (long) global_system_variables.read_buff_size);
 
   my_safe_printf_stderr("max_used_connections=%lu\n",
-                        (ulong) max_used_connections);
+                        Connection_handler_manager::max_used_connections);
 
-  my_safe_printf_stderr("max_threads=%u\n",
-                        (uint) thread_scheduler->max_threads);
+  uint max_threads= 1;
+#ifndef EMBEDDED_LIBRARY
+  max_threads= Connection_handler_manager::get_instance()->get_max_threads();
+#endif
+  my_safe_printf_stderr("max_threads=%u\n", max_threads);
 
   my_safe_printf_stderr("thread_count=%u\n", get_thread_count());
 
-  my_safe_printf_stderr("connection_count=%u\n", (uint) connection_count);
+  my_safe_printf_stderr("connection_count=%u\n",
+                        Connection_handler_manager::connection_count);
 
   my_safe_printf_stderr("It is possible that mysqld could use up to \n"
                         "key_buffer_size + "
@@ -124,8 +125,8 @@ extern "C" sig_handler handle_fatal_signal(int sig)
                         "%lu K  bytes of memory\n",
                         ((ulong) dflt_key_cache->key_cache_mem_size +
                          (global_system_variables.read_buff_size +
-                          global_system_variables.sortbuff_size) *
-                         thread_scheduler->max_threads +
+                         global_system_variables.sortbuff_size) *
+                         max_threads +
                          max_connections * sizeof(THD)) / 1024);
 
   my_safe_printf_stderr("%s",
@@ -196,21 +197,6 @@ extern "C" sig_handler handle_fatal_signal(int sig)
   }
 #endif
 
-#ifdef HAVE_NPTL
-  if (thd_lib_detected == THD_LIB_LT && !ld_assume_kernel_is_set)
-  {
-    my_safe_printf_stderr("%s",
-      "You are running a statically-linked LinuxThreads binary on an NPTL\n"
-      "system. This can result in crashes on some distributions due to "
-      "LT/NPTL conflicts.\n"
-      "You should either build a dynamically-linked binary, "
-      "or force LinuxThreads\n"
-      "to be used with the LD_ASSUME_KERNEL environment variable.\n"
-      "Please consult the documentation for your distribution "
-      "on how to do that.\n");
-  }
-#endif
-
   if (locked_in_memory)
   {
     my_safe_printf_stderr("%s", "\n"
@@ -224,13 +210,11 @@ extern "C" sig_handler handle_fatal_signal(int sig)
       "\"mlockall\" bugs.\n");
   }
 
-#ifdef HAVE_WRITE_CORE
   if (test_flags & TEST_CORE_ON_SIGNAL)
   {
     my_safe_printf_stderr("%s", "Writing a core file\n");
     my_write_core(sig);
   }
-#endif
 
 #ifndef _WIN32
   /*
