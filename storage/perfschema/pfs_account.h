@@ -1,4 +1,4 @@
-/* Copyright (c) 2010, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2010, 2013, Oracle and/or its affiliates. All rights reserved.
 
   This program is free software; you can redistribute it and/or modify
   it under the terms of the GNU General Public License as published by
@@ -71,12 +71,15 @@ public:
     PFS_atomic::add_32(& m_refcount, -1);
   }
 
-  void aggregate(void);
-  void aggregate_waits(void);
-  void aggregate_stages(void);
-  void aggregate_statements(void);
-  void aggregate_stats(void);
+  void aggregate(bool alive, PFS_user *safe_user, PFS_host *safe_host);
+  void aggregate_waits(PFS_user *safe_user, PFS_host *safe_host);
+  void aggregate_stages(PFS_user *safe_user, PFS_host *safe_host);
+  void aggregate_statements(PFS_user *safe_user, PFS_host *safe_host);
+  void aggregate_memory(bool alive, PFS_user *safe_user, PFS_host *safe_host);
+  void aggregate_stats(PFS_user *safe_user, PFS_host *safe_host);
   void release(void);
+
+  void carry_memory_stat_delta(PFS_memory_stat_delta *delta, uint index);
 
   /** Internal lock. */
   pfs_lock m_lock;

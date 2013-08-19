@@ -1,4 +1,4 @@
-/* Copyright (c) 2000, 2012, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2000, 2013, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -30,8 +30,9 @@ using std::min;
 using std::max;
 
 static const unsigned int PACKET_BUFFER_EXTRA_ALLOC= 1024;
-/* Declared non-static only because of the embedded library. */
 bool net_send_error_packet(THD *, uint, const char *, const char *);
+bool net_send_error_packet(NET *, uint, const char *, const char *, bool,
+                           ulong, const CHARSET_INFO*);
 /* Declared non-static only because of the embedded library. */
 bool net_send_ok(THD *, uint, uint, ulonglong, ulonglong, const char *);
 /* Declared non-static only because of the embedded library. */
@@ -142,8 +143,7 @@ bool Protocol::net_store_data(const uchar *from, size_t length,
     @retval TRUE An error occurred and the message wasn't sent properly
 */
 
-bool net_send_error(THD *thd, uint sql_errno, const char *err,
-                    const char* sqlstate)
+bool net_send_error(THD *thd, uint sql_errno, const char *err)
 {
   bool error;
   DBUG_ENTER("net_send_error");
@@ -154,9 +154,6 @@ bool net_send_error(THD *thd, uint sql_errno, const char *err,
 
   DBUG_PRINT("enter",("sql_errno: %d  err: %s", sql_errno, err));
 
-  if (sqlstate == NULL)
-    sqlstate= mysql_errno_to_sqlstate(sql_errno);
-
   /*
     It's one case when we can push an error even though there
     is an OK or EOF already.
@@ -166,12 +163,46 @@ bool net_send_error(THD *thd, uint sql_errno, const char *err,
   /* Abort multi-result sets */
   thd->server_status&= ~SERVER_MORE_RESULTS_EXISTS;
 
-  error= net_send_error_packet(thd, sql_errno, err, sqlstate);
+  error= net_send_error_packet(thd, sql_errno, err,
+                               mysql_errno_to_sqlstate(sql_errno));
 
   thd->get_stmt_da()->set_overwrite_status(false);
 
   DBUG_RETURN(error);
 }
+
+
+/**
+  Send a error string to client using net struct.
+  This is used initial connection handling code.
+
+  @param net        Low-level net struct
+  @param sql_errno  The error code to send
+  @param err        A pointer to the error message
+
+  @return
+    @retval FALSE The message was sent to the client
+    @retval TRUE  An error occurred and the message wasn't sent properly
+*/
+
+#ifndef EMBEDDED_LIBRARY
+bool net_send_error(NET *net, uint sql_errno, const char *err)
+{
+  DBUG_ENTER("net_send_error");
+
+  DBUG_ASSERT(sql_errno && err);
+
+  DBUG_PRINT("enter",("sql_errno: %d  err: %s", sql_errno, err));
+
+  bool error=
+    net_send_error_packet(net, sql_errno, err,
+                          mysql_errno_to_sqlstate(sql_errno), false, 0,
+                          (const CHARSET_INFO*)
+                          global_system_variables.character_set_results);
+
+  DBUG_RETURN(error);
+}
+
 
 /**
   Return ok to the client.
@@ -201,7 +232,6 @@ bool net_send_error(THD *thd, uint sql_errno, const char *err,
 
 */
 
-#ifndef EMBEDDED_LIBRARY
 bool
 net_send_ok(THD *thd,
             uint server_status, uint statement_warn_count,
@@ -348,6 +378,7 @@ static bool write_eof_packet(THD *thd, NET *net,
   return error;
 }
 
+
 /**
   @param thd Thread handler
   @param sql_errno The error code to send
@@ -360,9 +391,33 @@ static bool write_eof_packet(THD *thd, NET *net,
 
 bool net_send_error_packet(THD *thd, uint sql_errno, const char *err,
                            const char* sqlstate)
-
 {
-  NET *net= &thd->net;
+  return net_send_error_packet(&thd->net, sql_errno, err,
+                               sqlstate, thd->bootstrap,
+                               thd->client_capabilities,
+                               thd->variables.character_set_results);
+}
+
+
+/**
+  @param net                    Low-level NET struct
+  @param sql_errno              The error code to send
+  @param err                    A pointer to the error message
+  @param sqlstate               SQL state
+  @param bootstrap              Server is started in bootstrap mode
+  @param client_capabilities    Client capabilities flag
+  @param character_set_results  Char set info
+
+  @return
+   @retval FALSE The message was successfully sent
+   @retval TRUE  An error occurred and the messages wasn't sent properly
+*/
+
+bool net_send_error_packet(NET* net, uint sql_errno, const char *err,
+                           const char* sqlstate,bool bootstrap,
+                           ulong client_capabilities,
+                           const CHARSET_INFO* character_set_results)
+{
   uint length;
   /*
     buff[]: sql_errno:2 + ('#':1 + SQLSTATE_LENGTH:5) + MYSQL_ERRMSG_SIZE:512
@@ -375,17 +430,17 @@ bool net_send_error_packet(THD *thd, uint sql_errno, const char *err,
 
   if (net->vio == 0)
   {
-    if (thd->bootstrap)
+    if (bootstrap)
     {
       /* In bootstrap it's ok to print on stderr */
-      fprintf(stderr,"ERROR: %d  %s\n",sql_errno,err);
+      my_message_local(ERROR_LEVEL, "%d  %s", sql_errno, err);
     }
     DBUG_RETURN(FALSE);
   }
 
   int2store(buff,sql_errno);
   pos= buff+2;
-  if (thd->client_capabilities & CLIENT_PROTOCOL_41)
+  if (client_capabilities & CLIENT_PROTOCOL_41)
   {
     /* The first # is to make the protocol backward compatible */
     buff[2]= '#';
@@ -393,8 +448,8 @@ bool net_send_error_packet(THD *thd, uint sql_errno, const char *err,
   }
 
   convert_error_message(converted_err, sizeof(converted_err),
-                        thd->variables.character_set_results,
-                        err, strlen(err), system_charset_info, &error);
+                        character_set_results, err,
+                        strlen(err), system_charset_info, &error);
   /* Converted error message is always null-terminated. */
   length= (uint) (strmake(pos, converted_err, MYSQL_ERRMSG_SIZE - 1) - buff);
 

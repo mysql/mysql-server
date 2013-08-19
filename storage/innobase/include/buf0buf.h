@@ -637,8 +637,12 @@ buf_page_is_corrupted(
 	/* these variables are used only for innochecksum tool. */
 	,ullint		page_no,	/*!< in: page number of
 					given read_buf */
-	bool		strict_check	/*!< in: true if strict-check
+	bool		strict_check,	/*!< in: true if strict-check
 					option is enable */
+	bool		is_log_enabled, /*!< in: true if log option is
+					enable */
+	FILE*		log_file	/*!< in: file pointer to
+					log_file*/
 #endif /* UNIV_INNOCHECKSUM */
 )
 	__attribute__((nonnull, warn_unused_result));
@@ -831,7 +835,7 @@ buf_block_dbg_add_level(
 /*====================*/
 	buf_block_t*	block,	/*!< in: buffer page
 				where we have acquired latch */
-	ulint		level);	/*!< in: latching order level */
+	latch_level_t	level);	/*!< in: latching order level */
 #else /* UNIV_SYNC_DEBUG */
 # define buf_block_dbg_add_level(block, level) /* nothing */
 #endif /* UNIV_SYNC_DEBUG */
@@ -892,7 +896,7 @@ buf_page_belongs_to_unzip_LRU(
 Gets the mutex of a block.
 @return pointer to mutex protecting bpage */
 UNIV_INLINE
-ib_mutex_t*
+BPageMutex*
 buf_page_get_mutex(
 /*===============*/
 	const buf_page_t*	bpage)	/*!< in: pointer to control block */
@@ -1179,7 +1183,9 @@ the buffer pool.
 bool
 buf_page_io_complete(
 /*=================*/
-	buf_page_t*	bpage);	/*!< in: pointer to the block in question */
+	buf_page_t*	bpage,	/*!< in: pointer to the block in question */
+	bool		evict = false);/*!< in: whether or not to evict
+				the page from LRU list. */
 /********************************************************************//**
 Calculates a folded value of a file page address to use in the page hash
 table.
@@ -1268,8 +1274,8 @@ buf_page_hash_get_locked(
 					found. NULL otherwise. If NULL
 					is passed then the hash_lock
 					is released by this function */
-	ulint		lock_mode);	/*!< in: RW_LOCK_EX or
-					RW_LOCK_SHARED. Ignored if
+	ulint		lock_mode);	/*!< in: RW_LOCK_X or
+					RW_LOCK_S. Ignored if
 					lock == NULL */
 /******************************************************************//**
 Returns the control block of a file page, NULL if not found.
@@ -1294,8 +1300,8 @@ buf_block_hash_get_locked(
 					found. NULL otherwise. If NULL
 					is passed then the hash_lock
 					is released by this function */
-	ulint		lock_mode);	/*!< in: RW_LOCK_EX or
-					RW_LOCK_SHARED. Ignored if
+	ulint		lock_mode);	/*!< in: RW_LOCK_X or
+					RW_LOCK_S. Ignored if
 					lock == NULL */
 /* There are four different ways we can try to get a bpage or block
 from the page hash:
@@ -1305,16 +1311,16 @@ buf_page_hash_get_low() function.
 3) Caller wants to hold page hash lock in s-mode
 4) Caller doesn't want to hold page hash lock */
 #define buf_page_hash_get_s_locked(b, s, o, l)			\
-	buf_page_hash_get_locked(b, s, o, l, RW_LOCK_SHARED)
+	buf_page_hash_get_locked(b, s, o, l, RW_LOCK_S)
 #define buf_page_hash_get_x_locked(b, s, o, l)			\
-	buf_page_hash_get_locked(b, s, o, l, RW_LOCK_EX)
+	buf_page_hash_get_locked(b, s, o, l, RW_LOCK_X)
 #define buf_page_hash_get(b, s, o)				\
 	buf_page_hash_get_locked(b, s, o, NULL, 0)
 
 #define buf_block_hash_get_s_locked(b, s, o, l)			\
-	buf_block_hash_get_locked(b, s, o, l, RW_LOCK_SHARED)
+	buf_block_hash_get_locked(b, s, o, l, RW_LOCK_S)
 #define buf_block_hash_get_x_locked(b, s, o, l)			\
-	buf_block_hash_get_locked(b, s, o, l, RW_LOCK_EX)
+	buf_block_hash_get_locked(b, s, o, l, RW_LOCK_X)
 #define buf_block_hash_get(b, s, o)				\
 	buf_block_hash_get_locked(b, s, o, NULL, 0)
 
@@ -1615,7 +1621,7 @@ struct buf_block_t{
 					decompressed LRU list;
 					used in debugging */
 #endif /* UNIV_DEBUG */
-	ib_mutex_t		mutex;		/*!< mutex protecting this block:
+	BPageMutex	mutex;		/*!< mutex protecting this block:
 					state (also protected by the buffer
 					pool mutex), io_fix, buf_fix_count,
 					and accessed; we introduce this new
@@ -1729,6 +1735,133 @@ Compute the hash fold value for blocks in buf_pool->zip_hash. */
 #define BUF_POOL_ZIP_FOLD_BPAGE(b) BUF_POOL_ZIP_FOLD((buf_block_t*) (b))
 /* @} */
 
+/** A "Hazard Pointer" class used to iterate over page lists
+inside the buffer pool. A hazard pointer is a buf_page_t pointer
+which we intend to iterate over next and we want it remain valid
+even after we release the buffer pool mutex. */
+class HazardPointer {
+
+public:
+	/** Constructor
+	@param buf_pool buffer pool instance
+	@param mutex	mutex that is protecting the hp. */
+	HazardPointer(const buf_pool_t* buf_pool, const ib_mutex_t* mutex)
+		:
+		m_buf_pool(buf_pool)
+#ifdef UNIV_DEBUG
+		, m_mutex(mutex)
+#endif /* UNIV_DEBUG */
+		, m_hp() {}
+
+	/** Destructor */
+	virtual ~HazardPointer() {}
+
+	/** Get current value */
+	buf_page_t* get() const
+	{
+		ut_ad(mutex_own(m_mutex));
+		return(m_hp);
+	}
+
+	/** Set current value
+	@param bpage	buffer block to be set as hp */
+	void set(buf_page_t* bpage);
+
+	/** Checks if a bpage is the hp
+	@param bpage	buffer block to be compared
+	@return true if it is hp */
+	bool is_hp(const buf_page_t* bpage);
+
+	/** Adjust the value of hp. This happens when some
+	other thread working on the same list attempts to
+	remove the hp from the list. Must be implemented
+	by the derived classes.
+	@param bpage	buffer block to be compared */
+	virtual void adjust(const buf_page_t*) = 0;
+
+protected:
+	/** Disable copying */
+	HazardPointer(const HazardPointer&);
+	HazardPointer& operator=(const HazardPointer&);
+
+	/** Buffer pool instance */
+	const buf_pool_t*	m_buf_pool;
+
+#ifdef UNIV_DEBUG
+	/** mutex that protects access to the m_hp. */
+	const ib_mutex_t*	m_mutex;
+#endif /* UNIV_DEBUG */
+
+	/** hazard pointer. */
+	buf_page_t*		m_hp;
+};
+
+/** Class implementing buf_pool->flush_list hazard pointer */
+class FlushHp: public HazardPointer {
+
+public:
+	/** Constructor
+	@param buf_pool buffer pool instance
+	@param mutex	mutex that is protecting the hp. */
+	FlushHp(const buf_pool_t* buf_pool, const ib_mutex_t* mutex)
+		:
+		HazardPointer(buf_pool, mutex) {}
+
+	/** Destructor */
+	virtual ~FlushHp() {}
+
+	/** Adjust the value of hp. This happens when some
+	other thread working on the same list attempts to
+	remove the hp from the list.
+	@param bpage	buffer block to be compared */
+	void adjust(const buf_page_t* bpage);
+};
+
+/** Class implementing buf_pool->LRU hazard pointer */
+class LRUHp: public HazardPointer {
+
+public:
+	/** Constructor
+	@param buf_pool buffer pool instance
+	@param mutex	mutex that is protecting the hp. */
+	LRUHp(const buf_pool_t* buf_pool, const ib_mutex_t* mutex)
+		:
+		HazardPointer(buf_pool, mutex) {}
+
+	/** Destructor */
+	virtual ~LRUHp() {}
+
+	/** Adjust the value of hp. This happens when some
+	other thread working on the same list attempts to
+	remove the hp from the list.
+	@param bpage	buffer block to be compared */
+	void adjust(const buf_page_t* bpage);
+};
+
+/** Special purpose iterators to be used when scanning the LRU list.
+The idea is that when one thread finishes the scan it leaves the
+itr in that position and the other thread can start scan from
+there */
+class LRUItr: public LRUHp {
+
+public:
+	/** Constructor
+	@param buf_pool buffer pool instance
+	@param mutex	mutex that is protecting the hp. */
+	LRUItr(const buf_pool_t* buf_pool, const ib_mutex_t* mutex)
+		:
+		LRUHp(buf_pool, mutex) {}
+
+	/** Destructor */
+	virtual ~LRUItr() {}
+
+	/** Selects from where to start a scan. If we have scanned
+	too deep into the LRU list it resets the value to the tail
+	of the LRU list.
+	@return buf_page_t from where to start scan. */
+	buf_page_t* start();
+};
+
 /** Struct that is embedded in the free zip blocks */
 struct buf_buddy_free_t {
 	union {
@@ -1797,9 +1930,9 @@ struct buf_pool_t{
 
 	/** @name General fields */
 	/* @{ */
-	ib_mutex_t	mutex;		/*!< Buffer pool mutex of this
+	BufPoolMutex	mutex;		/*!< Buffer pool mutex of this
 					instance */
-	ib_mutex_t	zip_mutex;	/*!< Zip mutex of this buffer
+	BPageMutex	zip_mutex;	/*!< Zip mutex of this buffer
 					pool instance, protects compressed
 					only pages (of type buf_page_t, not
 					buf_block_t */
@@ -1852,7 +1985,7 @@ struct buf_pool_t{
 
 	/* @{ */
 
-	ib_mutex_t		flush_list_mutex;/*!< mutex protecting the
+	FlushListMutex	flush_list_mutex;/*!< mutex protecting the
 					flush list access. This mutex
 					protects flush_list, flush_rbt
 					and bpage::list pointers when
@@ -1860,7 +1993,7 @@ struct buf_pool_t{
 					also protects writes to
 					bpage::oldest_modification and
 					flush_list_hp */
-	const buf_page_t*	flush_list_hp;/*!< "hazard pointer"
+	FlushHp			flush_hp;/*!< "hazard pointer"
 					used during scan of flush_list
 					while doing flush list batch.
 					Protected by flush_list_mutex */
@@ -1918,8 +2051,22 @@ struct buf_pool_t{
 	UT_LIST_BASE_NODE_T(buf_page_t) free;
 					/*!< base node of the free
 					block list */
+
+	/** "hazard pointer" used during scan of LRU while doing
+	LRU list batch.  Protected by buf_pool::mutex */
+	LRUHp		lru_hp;
+
+	/** Iterator used to scan the LRU list when searching for
+	replacable victim. Protected by buf_pool::mutex. */
+	LRUItr		lru_scan_itr;
+
+	/** Iterator used to scan the LRU list when searching for
+	single page flushing victim.  Protected by buf_pool::mutex. */
+	LRUItr		single_scan_itr;
+
 	UT_LIST_BASE_NODE_T(buf_page_t) LRU;
 					/*!< base node of the LRU list */
+
 	buf_page_t*	LRU_old;	/*!< pointer to the about
 					LRU_old_ratio/BUF_LRU_OLD_RATIO_DIV
 					oldest blocks in the LRU list;
@@ -1971,53 +2118,66 @@ Use these instead of accessing buf_pool->mutex directly. */
 #define buf_pool_mutex_own(b) mutex_own(&b->mutex)
 /** Acquire a buffer pool mutex. */
 #define buf_pool_mutex_enter(b) do {		\
-	ut_ad(!mutex_own(&b->zip_mutex));	\
-	mutex_enter(&b->mutex);		\
+	ut_ad(!(b)->zip_mutex.is_owned());	\
+	mutex_enter(&(b)->mutex);		\
 } while (0)
 
 /** Test if flush list mutex is owned. */
-#define buf_flush_list_mutex_own(b) mutex_own(&b->flush_list_mutex)
+#define buf_flush_list_mutex_own(b) mutex_own(&(b)->flush_list_mutex)
 
 /** Acquire the flush list mutex. */
 #define buf_flush_list_mutex_enter(b) do {	\
-	mutex_enter(&b->flush_list_mutex);	\
+	mutex_enter(&(b)->flush_list_mutex);	\
 } while (0)
 /** Release the flush list mutex. */
 # define buf_flush_list_mutex_exit(b) do {	\
-	mutex_exit(&b->flush_list_mutex);	\
+	mutex_exit(&(b)->flush_list_mutex);	\
 } while (0)
 
 
+/** Test if block->mutex is owned. */
+#define buf_page_mutex_own(b)	(b)->mutex.is_owned()
+
+/** Acquire the block->mutex. */
+#define buf_page_mutex_enter(b) do {			\
+	mutex_enter(&(b)->mutex);			\
+} while (0)
+
+/** Release the trx->mutex. */
+#define buf_page_mutex_exit(b) do {			\
+	(b)->mutex.exit();				\
+} while (0)
+
 
 /** Get appropriate page_hash_lock. */
-# define buf_page_hash_lock_get(b, f)		\
-	hash_get_lock(b->page_hash, f)
+# define buf_page_hash_lock_get(b, f)			\
+	hash_get_lock((b)->page_hash, f)
 
 #ifdef UNIV_SYNC_DEBUG
 /** Test if page_hash lock is held in s-mode. */
 # define buf_page_hash_lock_held_s(b, p)		\
-	rw_lock_own(buf_page_hash_lock_get(b,		\
-		  buf_page_address_fold(p->space,	\
-					p->offset)),	\
-					RW_LOCK_SHARED)
+	rw_lock_own(buf_page_hash_lock_get((b),		\
+		  buf_page_address_fold((p)->space,	\
+					(p)->offset)),	\
+					RW_LOCK_S)
 
 /** Test if page_hash lock is held in x-mode. */
 # define buf_page_hash_lock_held_x(b, p)		\
-	rw_lock_own(buf_page_hash_lock_get(b,		\
-		  buf_page_address_fold(p->space,	\
-					p->offset)),	\
-					RW_LOCK_EX)
+	rw_lock_own(buf_page_hash_lock_get((b),		\
+		  buf_page_address_fold((p)->space,	\
+					(p)->offset)),	\
+					RW_LOCK_X)
 
 /** Test if page_hash lock is held in x or s-mode. */
 # define buf_page_hash_lock_held_s_or_x(b, p)		\
-	(buf_page_hash_lock_held_s(b, p)		\
-	 || buf_page_hash_lock_held_x(b, p))
+	(buf_page_hash_lock_held_s((b), (p))		\
+	 || buf_page_hash_lock_held_x((b), (p)))
 
 # define buf_block_hash_lock_held_s(b, p)		\
-	buf_page_hash_lock_held_s(b, &(p->page))
+	buf_page_hash_lock_held_s(b, &(p)->page)
 
 # define buf_block_hash_lock_held_x(b, p)		\
-	buf_page_hash_lock_held_x(b, &(p->page))
+	buf_page_hash_lock_held_x(b, &(p)->page)
 
 # define buf_block_hash_lock_held_s_or_x(b, p)		\
 	buf_page_hash_lock_held_s_or_x(b, &(p->page))

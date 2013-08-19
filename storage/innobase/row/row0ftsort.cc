@@ -99,7 +99,7 @@ row_merge_create_fts_sort_index(
 	field->prefix_len = 0;
 	field->col = static_cast<dict_col_t*>(
 		mem_heap_alloc(new_index->heap, sizeof(dict_col_t)));
-	field->col->len = fts_max_token_size;
+	field->col->len = 4 * fts_max_token_size;
 
 	if (strcmp(charset->name, "latin1_swedish_ci") == 0) {
 		field->col->mtype = DATA_VARCHAR;
@@ -219,8 +219,8 @@ row_fts_psort_info_init(
 	common_info->new_table = (dict_table_t*) new_table;
 	common_info->trx = trx;
 	common_info->all_info = psort_info;
-	common_info->sort_event = os_event_create();
-	common_info->merge_event = os_event_create();
+	common_info->sort_event = os_event_create(0);
+	common_info->merge_event = os_event_create(0);
 	common_info->opt_doc_id_size = opt_doc_id_size;
 
 	/* There will be FTS_NUM_AUX_INDEX number of "sort buckets" for
@@ -318,8 +318,8 @@ row_fts_psort_info_destroy(
 			}
 		}
 
-		os_event_free(merge_info[0].psort_common->sort_event);
-		os_event_free(merge_info[0].psort_common->merge_event);
+		os_event_destroy(merge_info[0].psort_common->sort_event);
+		os_event_destroy(merge_info[0].psort_common->merge_event);
 		ut_free(merge_info[0].psort_common->dup);
 		mem_free(merge_info[0].psort_common);
 		mem_free(psort_info);
@@ -575,7 +575,7 @@ row_merge_fts_doc_tokenize(
 		field->type.prtype = word_dtype->prtype | DATA_NOT_NULL;
 
 		/* Variable length field, set to max size. */
-		field->type.len = fts_max_token_size;
+		field->type.len = 4 * fts_max_token_size;
 		field->type.mbminmaxlen = word_dtype->mbminmaxlen;
 
 		cur_len += len;

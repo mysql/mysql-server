@@ -1,4 +1,4 @@
-/* Copyright (c) 2011, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2011, 2013, Oracle and/or its affiliates. All rights reserved.
 
   This program is free software; you can redistribute it and/or modify
   it under the terms of the GNU General Public License as published by
@@ -21,6 +21,7 @@
 #include "pfs_account.h"
 #include "pfs_host.h"
 #include "pfs_visitor.h"
+#include "pfs_memory.h"
 
 THR_LOCK table_hosts::m_table_lock;
 
@@ -80,6 +81,9 @@ table_hosts::delete_all_rows(void)
   reset_events_statements_by_thread();
   reset_events_statements_by_account();
   reset_events_statements_by_host();
+  reset_memory_by_thread();
+  reset_memory_by_account();
+  reset_memory_by_host();
   purge_all_account();
   purge_all_host();
   return 0;

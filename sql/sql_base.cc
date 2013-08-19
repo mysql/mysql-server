@@ -2969,7 +2969,8 @@ share_found:
   mysql_mutex_unlock(&LOCK_open);
 
   /* make a new table */
-  if (!(table= (TABLE*) my_malloc(sizeof(*table), MYF(MY_WME))))
+  if (!(table= (TABLE*) my_malloc(key_memory_TABLE,
+                                  sizeof(*table), MYF(MY_WME))))
     goto err_lock;
 
   error= open_table_from_share(thd, share, alias,
@@ -3823,7 +3824,8 @@ static bool auto_repair_table(THD *thd, TABLE_LIST *table_list)
     goto end_unlock;
   }
 
-  if (!(entry= (TABLE*)my_malloc(sizeof(TABLE), MYF(MY_WME))))
+  if (!(entry= (TABLE*)my_malloc(key_memory_TABLE,
+                                 sizeof(TABLE), MYF(MY_WME))))
   {
     release_table_share(share);
     goto end_unlock;
@@ -6000,7 +6002,8 @@ TABLE *open_table_uncached(THD *thd, const char *path, const char *db,
   /* Create the cache_key for temporary tables */
   key_length= create_table_def_key(thd, cache_key, db, table_name, 1);
 
-  if (!(tmp_table= (TABLE*) my_malloc(sizeof(*tmp_table) + sizeof(*share) +
+  if (!(tmp_table= (TABLE*) my_malloc(key_memory_TABLE,
+                                      sizeof(*tmp_table) + sizeof(*share) +
                                       strlen(path)+1 + key_length,
                                       MYF(MY_WME))))
     DBUG_RETURN(0);				/* purecov: inspected */
@@ -6951,7 +6954,7 @@ find_field_in_tables(THD *thd, Item_ident *item,
       */
       if (!table_ref->belong_to_view)
       {
-        SELECT_LEX *current_sel= thd->lex->current_select;
+        SELECT_LEX *current_sel= thd->lex->current_select();
         SELECT_LEX *last_select= table_ref->select_lex;
         /*
           If the field was an outer referencee, mark all selects using this
@@ -7561,7 +7564,7 @@ mark_common_columns(THD *thd, TABLE_LIST *table_ref_1, TABLE_LIST *table_ref_2,
         The following assert checks that the two created items are of
         type Item_ident.
       */
-      DBUG_ASSERT(!thd->lex->current_select->no_wrap_view_item);
+      DBUG_ASSERT(!thd->lex->current_select()->no_wrap_view_item);
       /*
         In the case of no_wrap_view_item == 0, the created items must be
         of sub-classes of Item_ident.
@@ -8031,10 +8034,10 @@ int setup_wild(THD *thd, TABLE_LIST *tables, List<Item> &fields,
   Prepared_stmt_arena_holder ps_arena_holder(thd);
 
   // When we enter, we're "nowhere":
-  DBUG_ASSERT(thd->lex->current_select->cur_pos_in_all_fields ==
+  DBUG_ASSERT(thd->lex->current_select()->cur_pos_in_all_fields ==
               SELECT_LEX::ALL_FIELDS_UNDEF_POS);
   // Now we're in the SELECT list:
-  thd->lex->current_select->cur_pos_in_all_fields= 0;
+  thd->lex->current_select()->cur_pos_in_all_fields= 0;
   while (wild_num && (item= it++))
   {
     if (item->type() == Item::FIELD_ITEM &&
@@ -8044,7 +8047,7 @@ int setup_wild(THD *thd, TABLE_LIST *tables, List<Item> &fields,
     {
       uint elem= fields.elements;
       bool any_privileges= ((Item_field *) item)->any_privileges;
-      Item_subselect *subsel= thd->lex->current_select->master_unit()->item;
+      Item_subselect *subsel= thd->lex->current_select()->master_unit()->item;
       if (subsel &&
           subsel->substype() == Item_subselect::EXISTS_SUBS)
       {
@@ -8075,16 +8078,16 @@ int setup_wild(THD *thd, TABLE_LIST *tables, List<Item> &fields,
       wild_num--;
     }
     else
-      thd->lex->current_select->cur_pos_in_all_fields++;
+      thd->lex->current_select()->cur_pos_in_all_fields++;
   }
   // We're nowhere again:
-  thd->lex->current_select->cur_pos_in_all_fields=
+  thd->lex->current_select()->cur_pos_in_all_fields=
     SELECT_LEX::ALL_FIELDS_UNDEF_POS;
 
   if (ps_arena_holder.is_activated())
   {
     /* make * substituting permanent */
-    SELECT_LEX *select_lex= thd->lex->current_select;
+    SELECT_LEX *select_lex= thd->lex->current_select();
     select_lex->with_wild= 0;
     /*   
       The assignment below is translated to memcpy() call (at least on some
@@ -8116,10 +8119,10 @@ bool setup_fields(THD *thd, Ref_ptr_array ref_pointer_array,
   DBUG_PRINT("info", ("thd->mark_used_columns: %d", thd->mark_used_columns));
   if (allow_sum_func)
     thd->lex->allow_sum_func|=
-      (nesting_map)1 << thd->lex->current_select->nest_level;
+      (nesting_map)1 << thd->lex->current_select()->nest_level;
   thd->where= THD::DEFAULT_WHERE;
-  save_is_item_list_lookup= thd->lex->current_select->is_item_list_lookup;
-  thd->lex->current_select->is_item_list_lookup= 0;
+  save_is_item_list_lookup= thd->lex->current_select()->is_item_list_lookup;
+  thd->lex->current_select()->is_item_list_lookup= 0;
 
   /*
     To prevent fail on forward lookup we fill it with zerows,
@@ -8155,15 +8158,15 @@ bool setup_fields(THD *thd, Ref_ptr_array ref_pointer_array,
     var->set_entry(thd, FALSE);
 
   Ref_ptr_array ref= ref_pointer_array;
-  DBUG_ASSERT(thd->lex->current_select->cur_pos_in_all_fields ==
+  DBUG_ASSERT(thd->lex->current_select()->cur_pos_in_all_fields ==
               SELECT_LEX::ALL_FIELDS_UNDEF_POS);
-  thd->lex->current_select->cur_pos_in_all_fields= 0;
+  thd->lex->current_select()->cur_pos_in_all_fields= 0;
   while ((item= it++))
   {
     if ((!item->fixed && item->fix_fields(thd, it.ref())) ||
 	(item= *(it.ref()))->check_cols(1))
     {
-      thd->lex->current_select->is_item_list_lookup= save_is_item_list_lookup;
+      thd->lex->current_select()->is_item_list_lookup= save_is_item_list_lookup;
       thd->lex->allow_sum_func= save_allow_sum_func;
       thd->mark_used_columns= save_mark_used_columns;
       DBUG_PRINT("info", ("thd->mark_used_columns: %d", thd->mark_used_columns));
@@ -8177,12 +8180,12 @@ bool setup_fields(THD *thd, Ref_ptr_array ref_pointer_array,
     if (item->with_sum_func && item->type() != Item::SUM_FUNC_ITEM &&
 	sum_func_list)
       item->split_sum_func(thd, ref_pointer_array, *sum_func_list);
-    thd->lex->current_select->select_list_tables|= item->used_tables();
+    thd->lex->current_select()->select_list_tables|= item->used_tables();
     thd->lex->used_tables|= item->used_tables();
-    thd->lex->current_select->cur_pos_in_all_fields++;
+    thd->lex->current_select()->cur_pos_in_all_fields++;
   }
-  thd->lex->current_select->is_item_list_lookup= save_is_item_list_lookup;
-  thd->lex->current_select->cur_pos_in_all_fields=
+  thd->lex->current_select()->is_item_list_lookup= save_is_item_list_lookup;
+  thd->lex->current_select()->cur_pos_in_all_fields=
     SELECT_LEX::ALL_FIELDS_UNDEF_POS;
 
   thd->lex->allow_sum_func= save_allow_sum_func;
@@ -8485,7 +8488,7 @@ insert_fields(THD *thd, Name_resolution_context *context, const char *db_name,
     if (table)
     {
       thd->lex->used_tables|= table->map;
-      thd->lex->current_select->select_list_tables|= table->map;
+      thd->lex->current_select()->select_list_tables|= table->map;
     }
 
     /*
@@ -8572,7 +8575,7 @@ insert_fields(THD *thd, Name_resolution_context *context, const char *db_name,
           if (field_table)
           {
             thd->lex->used_tables|= field_table->map;
-            thd->lex->current_select->select_list_tables|=
+            thd->lex->current_select()->select_list_tables|=
               field_table->map;
             field_table->covering_keys.intersect(field->part_of_key);
             field_table->merge_keys.merge(field->part_of_key);
@@ -8583,10 +8586,10 @@ insert_fields(THD *thd, Name_resolution_context *context, const char *db_name,
       else
       {
         thd->lex->used_tables|= item->used_tables();
-        thd->lex->current_select->select_list_tables|=
+        thd->lex->current_select()->select_list_tables|=
           item->used_tables();
       }
-      thd->lex->current_select->cur_pos_in_all_fields++;
+      thd->lex->current_select()->cur_pos_in_all_fields++;
     }
     /*
       In case of stored tables, all fields are considered as used,
@@ -8645,7 +8648,7 @@ insert_fields(THD *thd, Name_resolution_context *context, const char *db_name,
 int setup_conds(THD *thd, TABLE_LIST *tables, TABLE_LIST *leaves,
                 Item **conds)
 {
-  SELECT_LEX *select_lex= thd->lex->current_select;
+  SELECT_LEX *select_lex= thd->lex->current_select();
   TABLE_LIST *table= NULL;	// For HP compilers
   /*
     it_is_update set to TRUE when tables of primary SELECT_LEX (SELECT_LEX
@@ -8751,7 +8754,7 @@ int setup_conds(THD *thd, TABLE_LIST *tables, TABLE_LIST *leaves,
     }
   }
 
-  thd->lex->current_select->is_item_list_lookup= save_is_item_list_lookup;
+  thd->lex->current_select()->is_item_list_lookup= save_is_item_list_lookup;
   DBUG_RETURN(test(thd->is_error()));
 
 err_no_arena:

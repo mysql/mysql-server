@@ -194,6 +194,10 @@ term	: FTS_TERM	{
 		free($1);
 	}
 
+	/* Ignore leading '*' */
+	| '*' term {
+		$$  = $2;
+	}
 	;
 
 text	: FTS_TEXT	{

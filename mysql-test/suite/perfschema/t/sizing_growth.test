@@ -464,7 +464,7 @@ select if(
       (@rwlock_per_share <= 3)
   AND (@cond_per_share = 0)
   AND (@file_per_share <= 3)
-  AND (@mutex_per_con = 3)
+  AND (@mutex_per_con = 4)
   AND (@rwlock_per_con = 1)
   AND (@cond_per_con = 2)
   AND (@file_per_con = 0)

@@ -1,4 +1,13 @@
 #include "mysql/psi/psi.h"
+#include "psi_base.h"
+#include "psi_memory.h"
+#include "psi_base.h"
+typedef unsigned int PSI_memory_key;
+struct PSI_memory_info_v2
+{
+  int placeholder;
+};
+typedef struct PSI_memory_info_v2 PSI_memory_info;
 C_MODE_START
 struct TABLE_SHARE;
 struct OPAQUE_LEX_YYSTYPE;
@@ -26,6 +35,10 @@ struct PSI_idle_locker;
 typedef struct PSI_idle_locker PSI_idle_locker;
 struct PSI_digest_locker;
 typedef struct PSI_digest_locker PSI_digest_locker;
+struct PSI_sp_share;
+typedef struct PSI_sp_share PSI_sp_share;
+struct PSI_sp_locker;
+typedef struct PSI_sp_locker PSI_sp_locker;
 struct PSI_bootstrap
 {
   void* (*get_interface)(int version);
@@ -210,5 +223,6 @@ typedef struct PSI_file_locker_state_v2 PSI_file_locker_state;
 typedef struct PSI_table_locker_state_v2 PSI_table_locker_state;
 typedef struct PSI_statement_locker_state_v2 PSI_statement_locker_state;
 typedef struct PSI_socket_locker_state_v2 PSI_socket_locker_state;
+typedef struct PSI_sp_locker_state_v2 PSI_sp_locker_state;
 extern MYSQL_PLUGIN_IMPORT PSI *PSI_server;
 C_MODE_END

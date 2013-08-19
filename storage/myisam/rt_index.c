@@ -714,7 +714,8 @@ static int rtree_fill_reinsert_list(stPageList *ReinsertList, my_off_t page,
   if (ReinsertList->n_pages == ReinsertList->m_pages)
   {
     ReinsertList->m_pages += REINSERT_BUFFER_INC;
-    if (!(ReinsertList->pages = (stPageLevel*)my_realloc((uchar*)ReinsertList->pages, 
+    if (!(ReinsertList->pages = (stPageLevel*)my_realloc(mi_key_memory_stPageList_pages,
+                                                         (uchar*)ReinsertList->pages, 
       ReinsertList->m_pages * sizeof(stPageLevel), MYF(MY_ALLOW_ZERO_PTR))))
       goto err1;
   }

@@ -1,4 +1,4 @@
-/* Copyright (c) 2007, 2012, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2007, 2013, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -118,6 +118,7 @@ Slave_reporting_capability::report(loglevel level, int err_code,
 
 void
 Slave_reporting_capability::va_report(loglevel level, int err_code,
+                                      const char *prefix_msg,
                                       const char *msg, va_list args) const
 {
 #if !defined(EMBEDDED_LIBRARY)
@@ -125,6 +126,7 @@ Slave_reporting_capability::va_report(loglevel level, int err_code,
   void (*report_function)(const char *, ...);
   char buff[MAX_SLAVE_ERRMSG];
   char *pbuff= buff;
+  char *curr_buff;
   uint pbuffsize= sizeof(buff);
 
   if (thd && level == ERROR_LEVEL && has_temporary_error(thd, err_code) &&
@@ -146,29 +148,28 @@ Slave_reporting_capability::va_report(loglevel level, int err_code,
     report_function= sql_print_error;
     break;
   case WARNING_LEVEL:
-    report_function= log_warnings?
-      sql_print_warning : NULL;
+    report_function= sql_print_warning;
     break;
   case INFORMATION_LEVEL:
-    report_function= log_warnings?
-      sql_print_information : NULL;
+    report_function= sql_print_information;
     break;
   default:
     DBUG_ASSERT(0);                            // should not come here
     return;          // don't crash production builds, just do nothing
   }
-
-  my_vsnprintf(pbuff, pbuffsize, msg, args);
+  curr_buff= pbuff;
+  if (prefix_msg)
+    curr_buff += sprintf(curr_buff, "%s; ", prefix_msg);
+  my_vsnprintf(curr_buff, pbuffsize, msg, args);
 
   mysql_mutex_unlock(&err_lock);
 
   /* If the msg string ends with '.', do not add a ',' it would be ugly */
-  if (report_function)
-    report_function("Slave %s: %s%s Error_code: %d",
-                    m_thread_name, pbuff,
-                    (pbuff[0] && *(strend(pbuff)-1) == '.') ? "" : ",",
-                    err_code);
-#endif  
+  report_function("Slave %s: %s%s Error_code: %d",
+                  m_thread_name, pbuff,
+                  (curr_buff[0] && *(strend(curr_buff)-1) == '.') ? "" : ",",
+                  err_code);
+#endif
 }
 
 Slave_reporting_capability::~Slave_reporting_capability()

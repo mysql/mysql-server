@@ -193,8 +193,8 @@ longlong my_strtoll10(const char *nptr, char **endptr, int *error)
     goto overflow;
 
   /* Check that we didn't get an overflow with the last digit */
-  if (i > cutoff || (i == cutoff && ((j > cutoff2 || j == cutoff2) &&
-                                     k > cutoff3)))
+  if (i > cutoff || (i == cutoff && (j > cutoff2 || (j == cutoff2 &&
+                                     k > cutoff3))))
     goto overflow;
   li=i*LFACTOR2+ (ulonglong) j*100 + k;
   return (longlong) li;

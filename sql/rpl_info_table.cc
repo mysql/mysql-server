@@ -26,21 +26,24 @@ Rpl_info_table::Rpl_info_table(uint nparam,
   str_schema.length= str_table.length= 0;
 
   uint schema_length= strlen(param_schema);
-  if ((str_schema.str= (char *) my_malloc(schema_length + 1, MYF(0))))
+  if ((str_schema.str= (char *) my_malloc(key_memory_Rpl_info_table,
+                                          schema_length + 1, MYF(0))))
   {
     str_schema.length= schema_length;
     strmake(str_schema.str, param_schema, schema_length);
   }
   
   uint table_length= strlen(param_table);
-  if ((str_table.str= (char *) my_malloc(table_length + 1, MYF(0))))
+  if ((str_table.str= (char *) my_malloc(key_memory_Rpl_info_table,
+                                         table_length + 1, MYF(0))))
   {
     str_table.length= table_length;
     strmake(str_table.str, param_table, table_length);
   }
 
   if ((description= (char *)
-      my_malloc(str_schema.length + str_table.length + 2, MYF(0))))
+      my_malloc(key_memory_Rpl_info_table,
+                str_schema.length + str_table.length + 2, MYF(0))))
   {
     char *pos= strmov(description, param_schema);
     pos= strmov(pos, ".");
@@ -291,7 +294,7 @@ end:
   /*
     Unlocks and closes the rpl_info table.
   */
-  access->close_table(thd, table, &backup, error);
+  access->close_table(thd, table, &backup, error, true);
   reenable_binlog(thd);
   thd->variables.sql_mode= saved_mode;
   access->drop_thd(thd);
@@ -308,6 +311,7 @@ int Rpl_info_table::do_reset_info(uint nparam,
   Open_tables_backup backup;
   Rpl_info_table *info= NULL;
   THD *thd= NULL;
+  enum enum_return_id scan_retval= FOUND_ID;
 
   DBUG_ENTER("Rpl_info_table::do_reset_info");
 
@@ -328,15 +332,18 @@ int Rpl_info_table::do_reset_info(uint nparam,
     goto end;
 
   /*
-    Deletes a row in the rpl_info table.
+    Delete all rows in the rpl_info table. We cannot use truncate() since it
+    is a non-transactional DDL operation.
   */
-  if ((error= table->file->truncate()))
+  while ((scan_retval= info->access->scan_info(table, 1)) == FOUND_ID)
   {
-     table->file->print_error(error, MYF(0));
-     goto end;
+    if ((error= table->file->ha_delete_row(table->record[0])))
+    {
+       table->file->print_error(error, MYF(0));
+       goto end;
+    }
   }
-
-  error= 0;
+  error= (scan_retval == ERROR_ID);
 
 end:
   /*

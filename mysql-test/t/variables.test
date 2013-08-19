@@ -13,6 +13,7 @@ drop table if exists t1,t2;
 #
 # Bug#19263: variables.test doesn't clean up after itself (I/II -- save)
 #
+set @my_log_error_verbosity       =@@global.log_error_verbosity;
 set @my_connect_timeout           =@@global.connect_timeout;
 set @my_delayed_insert_timeout    =@@global.delayed_insert_timeout;
 set @my_delayed_queue_size        =@@global.delayed_queue_size;
@@ -39,7 +40,6 @@ set @my_query_cache_size          =@@global.query_cache_size;
 set @my_server_id                 =@@global.server_id;
 set @my_slow_launch_time          =@@global.slow_launch_time;
 set @my_storage_engine            =@@global.default_storage_engine;
-set @my_thread_cache_size         =@@global.thread_cache_size;
 set @my_max_allowed_packet        =@@global.max_allowed_packet;
 set @my_join_buffer_size          =@@global.join_buffer_size;
 # case insensitivity tests (new in 5.0)
@@ -357,7 +357,6 @@ set sql_select_limit=default;
 set sql_warnings=1;
 set global table_open_cache=100;
 set default_storage_engine=myisam;
-set global thread_cache_size=100;
 set timestamp=1, timestamp=default;
 set tmp_table_size=100;
 set tx_isolation="READ-COMMITTED";
@@ -831,9 +830,9 @@ set global query_cache_size          =@my_query_cache_size;
 set global server_id                 =@my_server_id;
 set global slow_launch_time          =@my_slow_launch_time;
 set global default_storage_engine            =@my_storage_engine;
-set global thread_cache_size         =@my_thread_cache_size;
 set global max_allowed_packet        =@my_max_allowed_packet;
 set global join_buffer_size          =@my_join_buffer_size;
+set global log_error_verbosity       =@my_log_error_verbosity;
 
 #
 # Bug#28580 Repeatation of status variables

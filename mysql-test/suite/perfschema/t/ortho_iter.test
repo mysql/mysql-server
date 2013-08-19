@@ -15,11 +15,17 @@ begin
   declare count_expected integer;
   declare count_actual integer;
   declare is_wait integer;
+  declare is_wait_file integer;
+  declare is_wait_socket integer;
   declare is_stage integer;
   declare is_statement integer;
+  declare is_memory integer;
   declare is_wait_table integer;
+  declare is_wait_file_table integer;
+  declare is_wait_socket_table integer;
   declare is_stage_table integer;
   declare is_statement_table integer;
+  declare is_memory_table integer;
   declare pfs_table_name varchar(64);
   declare msg varchar(512);
   declare msg_detail varchar(512);
@@ -31,16 +37,19 @@ begin
   declare pfs_cursor CURSOR FOR
     select table_name from information_schema.tables
       where table_schema= 'performance_schema'
-      and table_name like "events_%_by_event_name%";
+      and table_name like "%_by_event_name%";
 
   declare continue handler for sqlstate '02000'
     set done = 1;
 
   select (instr_name like "wait/%") or (instr_name like "idle/%") into is_wait;
+  select (instr_name like "wait/io/file/%") into is_wait_file;
+  select (instr_name like "wait/io/socket/%") into is_wait_socket;
   select (instr_name like "stage/%") into is_stage;
   select (instr_name like "statement/%") into is_statement;
+  select (instr_name like "memory/%") into is_memory;
 
-  select instr_name, is_wait, is_stage, is_statement;
+  select instr_name, is_wait, is_wait_file, is_wait_socket, is_stage, is_statement, is_memory;
 
   select count(name)
     from performance_schema.setup_instruments
@@ -57,8 +66,11 @@ begin
     fetch pfs_cursor into pfs_table_name;
     if not done then
       select (pfs_table_name like "%waits%") into is_wait_table;
+      select (pfs_table_name like "file_summary%") into is_wait_file_table;
+      select (pfs_table_name like "socket_summary%") into is_wait_socket_table;
       select (pfs_table_name like "%stages%") into is_stage_table;
       select (pfs_table_name like "%statements%") into is_statement_table;
+      select (pfs_table_name like "%memory%") into is_memory_table;
 
       select concat("Checking table ", pfs_table_name, " ...") as status;
       select concat(cmd_1, pfs_table_name, cmd_2) into @cmd;
@@ -73,40 +85,97 @@ begin
                              ", instruments ", count_expected,
                              ", found ", @count_actual);
 
-      if is_wait = 1 and is_wait_table = 1 and @count_actual <> count_expected
+      if is_wait = 1
       then
-        set msg= concat("Missing wait events: ", msg_detail);
-        signal sqlstate '05000' set message_text= msg;
+        if is_wait_table = 1 and @count_actual <> count_expected
+        then
+          set msg= concat("Missing wait events: ", msg_detail);
+          signal sqlstate '05000' set message_text= msg;
+        end if;
+
+        if is_wait_table = 0
+           and is_wait_file_table = 0
+           and is_wait_socket_table = 0
+           and @count_actual <> 0
+        then
+          set msg= concat("Unexpected wait events: ", msg_detail);
+          signal sqlstate '05000' set message_text= msg;
+        end if;
       end if;
 
-      if is_wait = 1 and is_wait_table = 0 and @count_actual <> 0
+      if is_wait_file = 1
       then
-        set msg= concat("Unexpected wait events: ", msg_detail);
-        signal sqlstate '05000' set message_text= msg;
+        if is_wait_file_table = 1 and @count_actual <> count_expected
+        then
+          set msg= concat("Missing wait/io/file events: ", msg_detail);
+          signal sqlstate '05000' set message_text= msg;
+        end if;
+
+        if is_wait_table = 0 and is_wait_file_table = 0 and @count_actual <> 0
+        then
+          set msg= concat("Unexpected wait/io/file events: ", msg_detail);
+          signal sqlstate '05000' set message_text= msg;
+        end if;
       end if;
 
-      if is_stage = 1 and is_stage_table = 1 and @count_actual <> count_expected
+      if is_wait_socket = 1
       then
-        set msg= concat("Missing stage events: ", msg_detail);
-        signal sqlstate '05000' set message_text= msg;
+        if is_wait_socket_table = 1 and @count_actual <> count_expected
+        then
+          set msg= concat("Missing wait/io/socket events: ", msg_detail);
+          signal sqlstate '05000' set message_text= msg;
+        end if;
+
+        if is_wait_table = 0 and is_wait_socket_table = 0 and @count_actual <> 0
+        then
+          set msg= concat("Unexpected wait/io/socket events: ", msg_detail);
+          signal sqlstate '05000' set message_text= msg;
+        end if;
       end if;
 
-      if is_stage = 1 and is_stage_table = 0 and @count_actual <> 0
+      if is_stage = 1
       then
-        set msg= concat("Unexpected stage events: ", msg_detail);
-        signal sqlstate '05000' set message_text= msg;
+        if is_stage_table = 1 and @count_actual <> count_expected
+        then
+          set msg= concat("Missing stage events: ", msg_detail);
+          signal sqlstate '05000' set message_text= msg;
+        end if;
+
+        if is_stage_table = 0 and @count_actual <> 0
+        then
+          set msg= concat("Unexpected stage events: ", msg_detail);
+          signal sqlstate '05000' set message_text= msg;
+        end if;
       end if;
 
-      if is_statement = 1 and is_statement_table = 1 and @count_actual <> count_expected
+      if is_statement = 1
       then
-        set msg= concat("Missing statement events: ", msg_detail);
-        signal sqlstate '05000' set message_text= msg;
+        if is_statement_table = 1 and @count_actual <> count_expected
+        then
+          set msg= concat("Missing statement events: ", msg_detail);
+          signal sqlstate '05000' set message_text= msg;
+        end if;
+
+        if is_statement_table = 0 and @count_actual <> 0
+        then
+          set msg= concat("Unexpected statement events: ", msg_detail);
+          signal sqlstate '05000' set message_text= msg;
+        end if;
       end if;
 
-      if is_statement = 1 and is_statement_table = 0 and @count_actual <> 0
+      if is_memory = 1
       then
-        set msg= concat("Unexpected statement events: ", msg_detail);
-        signal sqlstate '05000' set message_text= msg;
+        if is_memory_table = 1 and @count_actual <> count_expected
+        then
+          set msg= concat("Missing memory events: ", msg_detail);
+          signal sqlstate '05000' set message_text= msg;
+        end if;
+
+        if is_memory_table = 0 and @count_actual <> 0
+        then
+          set msg= concat("Unexpected memory events: ", msg_detail);
+          signal sqlstate '05000' set message_text= msg;
+        end if;
       end if;
 
     end if;
@@ -129,7 +198,7 @@ call check_instrument("wait/synch/rwlock/");
 call check_instrument("wait/synch/cond/");
 call check_instrument("wait/synch/");
 call check_instrument("wait/io/file/");
-call check_instrument("wait/io/net/");
+call check_instrument("wait/io/socket/");
 call check_instrument("wait/io/table/");
 call check_instrument("wait/io/");
 call check_instrument("wait/lock/table/");
@@ -139,8 +208,8 @@ call check_instrument("stage/");
 call check_instrument("statement/com/");
 call check_instrument("statement/sql/");
 call check_instrument("statement/");
-call check_instrument("idle/io/socket");
 call check_instrument("idle/");
+call check_instrument("memory/");
 
 drop procedure check_instrument;
 

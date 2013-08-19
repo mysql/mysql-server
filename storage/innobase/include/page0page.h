@@ -672,6 +672,51 @@ page_rec_is_infimum(
 /*================*/
 	const rec_t*	rec)	/*!< in: record */
 	__attribute__((const));
+
+/************************************************************//**
+true if the record is the first user record on a page.
+@return true if the first user record */
+UNIV_INLINE
+bool
+page_rec_is_first(
+/*==============*/
+	const rec_t*	rec,	/*!< in: record */
+	const page_t*	page)	/*!< in: page */
+	__attribute__((const));
+
+/************************************************************//**
+true if the record is the second user record on a page.
+@return true if the second user record */
+UNIV_INLINE
+bool
+page_rec_is_second(
+/*===============*/
+	const rec_t*	rec,	/*!< in: record */
+	const page_t*	page)	/*!< in: page */
+	__attribute__((const));
+
+/************************************************************//**
+true if the record is the last user record on a page.
+@return true if the last user record */
+UNIV_INLINE
+bool
+page_rec_is_last(
+/*=============*/
+	const rec_t*	rec,	/*!< in: record */
+	const page_t*	page)	/*!< in: page */
+	__attribute__((const));
+
+/************************************************************//**
+true if the record is the second last user record on a page.
+@return true if the second last user record */
+UNIV_INLINE
+bool
+page_rec_is_second_last(
+/*====================*/
+	const rec_t*	rec,	/*!< in: record */
+	const page_t*	page)	/*!< in: page */
+	__attribute__((const));
+
 /***************************************************************//**
 Looks for the record which owns the given record.
 @return the owner record */
@@ -801,13 +846,21 @@ Create a compressed B-tree index page.
 page_t*
 page_create_zip(
 /*============*/
-	buf_block_t*	block,		/*!< in/out: a buffer frame where the
-					page is created */
-	dict_index_t*	index,		/*!< in: the index of the page */
-	ulint		level,		/*!< in: the B-tree level of the page */
-	trx_id_t	max_trx_id,	/*!< in: PAGE_MAX_TRX_ID */
-	mtr_t*		mtr)		/*!< in/out: mini-transaction */
-	__attribute__((nonnull));
+	buf_block_t*		block,		/*!< in/out: a buffer frame
+						where the page is created */
+	dict_index_t*		index,		/*!< in: the index of the
+						page, or NULL when applying
+						TRUNCATE log 
+						record during recovery */
+	ulint			level,		/*!< in: the B-tree level of
+						the page */
+	trx_id_t		max_trx_id,	/*!< in: PAGE_MAX_TRX_ID */
+	const redo_page_compress_t* page_comp_info,
+						/*!< in: used for applying
+						TRUNCATE log
+						record during recovery */
+	mtr_t*			mtr);		/*!< in/out: mini-transaction
+						handle */
 /**********************************************************//**
 Empty a previously created B-tree index page. */
 

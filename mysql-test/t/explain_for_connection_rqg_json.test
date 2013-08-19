@@ -1,0 +1,26 @@
+###############################################################################
+#                                                                             #
+# Test: To compare Explain vs Explain Other plans of RQG queries              #
+#                                                                             #
+#                                                                             #
+# Creation Date: 2012-12-15                                                   #
+# Author : Tarique Saleem                                                     #
+#                                                                             #
+#                                                                             #
+# Description:This test contains Explain vs Explain Other plans on different  #
+#             queries generated from RQG optimizer grammaers. Some distinct   #
+#             have been taken from the differences cases reported.            #
+#                                                                             #               
+#             1. Sync Point used is "before_reset_query_plan"                 #
+#             2. Format used is Traditional                                   #
+#                                                                             #
+###############################################################################
+
+ echo "WL6369 Explain for Connection";
+
+####################################################################################################################
+#   Checking if the build is Debug build else skip the test because debug sync points are avilable in Debug build  #
+####################################################################################################################
+
+let $format=json;
+--source include/explain_for_connection_rqg.inc

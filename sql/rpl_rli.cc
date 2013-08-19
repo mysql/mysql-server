@@ -94,13 +94,14 @@ Relay_log_info::Relay_log_info(bool is_slave_recovery
    retried_trans(0),
    tables_to_lock(0), tables_to_lock_count(0),
    rows_query_ev(NULL), last_event_start_time(0), deferred_events(NULL),
-   slave_parallel_workers(0),
+   workers_array_initialized(false), slave_parallel_workers(0),
    recovery_parallel_workers(0), checkpoint_seqno(0),
-   checkpoint_group(opt_mts_checkpoint_group), 
+   checkpoint_group(opt_mts_checkpoint_group),
    recovery_groups_inited(false), mts_recovery_group_cnt(0),
    mts_recovery_index(0), mts_recovery_group_seen_begin(0),
-   mts_group_status(MTS_NOT_IN_GROUP), reported_unsafe_warning(false),
-   rli_description_event(NULL),
+   mts_group_status(MTS_NOT_IN_GROUP),
+   current_mts_submode(0),
+   reported_unsafe_warning(false), rli_description_event(NULL),
    sql_delay(0), sql_delay_end(0), m_flags(0), row_stmt_start_timestamp(0),
    long_find_row_note_printed(false), error_on_rli_init_info(false)
 {
@@ -143,6 +144,7 @@ Relay_log_info::Relay_log_info(bool is_slave_recovery
   mysql_mutex_init(key_mutex_slave_parallel_pend_jobs, &pending_jobs_lock,
                    MY_MUTEX_INIT_FAST);
   mysql_cond_init(key_cond_slave_parallel_pend_jobs, &pending_jobs_cond, NULL);
+  mysql_mutex_init(key_mts_temp_table_LOCK, &mts_temp_table_LOCK, MY_MUTEX_INIT_FAST);
 
   relay_log.init_pthread_objects();
   do_server_version_split(::server_version, slave_version_split);
@@ -162,7 +164,9 @@ void Relay_log_info::init_workers(ulong n_workers)
   mts_groups_assigned= mts_events_assigned= pending_jobs= wq_size_waits_cnt= 0;
   mts_wq_excess_cnt= mts_wq_no_underrun_cnt= mts_wq_overfill_cnt= 0;
   mts_last_online_stat= 0;
+
   my_init_dynamic_array(&workers, sizeof(Slave_worker *), n_workers, 4);
+  workers_array_initialized= true; //set after init
 }
 
 /**
@@ -183,6 +187,15 @@ Relay_log_info::~Relay_log_info()
   mysql_cond_destroy(&log_space_cond);
   mysql_mutex_destroy(&pending_jobs_lock);
   mysql_cond_destroy(&pending_jobs_cond);
+  mysql_mutex_destroy(&mts_temp_table_LOCK);
+  delete current_mts_submode;
+
+  if(workers_copy_pfs.size())
+  {
+    for (int i= workers_copy_pfs.size() - 1; i >= 0; i--)
+      delete workers_copy_pfs[i];
+    workers_copy_pfs.clear();
+  }
 
   if(!rli_fake)
   {
@@ -255,6 +268,13 @@ void Relay_log_info::reset_notified_checkpoint(ulong shift, time_t new_ts,
     */
     w->checkpoint_notified= FALSE;
     w->bitmap_shifted= w->bitmap_shifted + shift;
+    /*
+      Zero shift indicates the caller rotates the master binlog.
+      The new name will be passed to W through the group descriptor
+      during the first post-rotation time scheduling.
+    */
+    if (shift == 0)
+      w->master_log_change_notified= false;
 
     DBUG_PRINT("mts", ("reset_notified_checkpoint shift --> %lu, "
                "worker->bitmap_shifted --> %lu, worker --> %u.",
@@ -262,14 +282,14 @@ void Relay_log_info::reset_notified_checkpoint(ulong shift, time_t new_ts,
   }
   /*
     There should not be a call where (shift == 0 && checkpoint_seqno != 0).
-
     Then the new checkpoint sequence is updated by subtracting the number
     of consecutive jobs that were successfully processed.
   */
-  DBUG_ASSERT(!(shift == 0 && checkpoint_seqno != 0));
+  DBUG_ASSERT(current_mts_submode->get_type() != MTS_PARALLEL_TYPE_DB_NAME ||
+              !(shift == 0 && checkpoint_seqno != 0));
   checkpoint_seqno= checkpoint_seqno - shift;
   DBUG_PRINT("mts", ("reset_notified_checkpoint shift --> %lu, "
-             "checkpoint_seqno --> %u.", shift, checkpoint_seqno));  
+             "checkpoint_seqno --> %u.", shift, checkpoint_seqno));
 
   if (new_ts)
   {
@@ -596,6 +616,32 @@ err:
     *errmsg= "Invalid Format_description log event; could be out of memory";
 
   DBUG_RETURN ((*errmsg) ? 1 : 0);
+}
+
+/**
+  Update the error number, message and timestamp fields. This function is
+  different from va_report() as va_report() also logs the error message in the
+  log apart from updating the error fields.
+
+  SYNOPSIS
+  @param[in]  level          specifies the level- error, warning or information,
+  @param[in]  err_code       error number,
+  @param[in]  buff_coord     error message to be used.
+
+*/
+void Relay_log_info::fill_coord_err_buf(loglevel level, int err_code,
+                                      const char *buff_coord) const
+{
+  mysql_mutex_lock(&err_lock);
+
+  if(level == ERROR_LEVEL)
+  {
+    m_last_error.number = err_code;
+    strncpy(m_last_error.message, buff_coord, MAX_SLAVE_ERRMSG);
+    m_last_error.update_timestamp();
+  }
+
+  mysql_mutex_unlock(&err_lock);
 }
 
 /**
@@ -2033,6 +2079,7 @@ int Relay_log_info::flush_info(const bool force)
     update every time we call flush because the option maybe 
     dinamically set.
   */
+  mysql_mutex_lock(&mts_temp_table_LOCK);
   handler->set_sync_period(sync_relayloginfo_period);
 
   if (write_info(handler))
@@ -2041,10 +2088,12 @@ int Relay_log_info::flush_info(const bool force)
   if (handler->flush_info(force))
     goto err;
 
+  mysql_mutex_unlock(&mts_temp_table_LOCK);
   DBUG_RETURN(0);
 
 err:
   sql_print_error("Error writing relay log configuration.");
+  mysql_mutex_unlock(&mts_temp_table_LOCK);
   DBUG_RETURN(1);
 }
 
@@ -2364,4 +2413,10 @@ void Relay_log_info::adapt_to_master_version(Format_description_log_event *fdle)
       s_features[i].upgrade(thd);
     }
   }
+}
+
+bool is_mts_db_partitioned(Relay_log_info * rli)
+{
+  return (rli->current_mts_submode->get_type() ==
+    MTS_PARALLEL_TYPE_DB_NAME);
 }

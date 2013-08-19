@@ -152,7 +152,7 @@ static enum enum_set_gtid_purged_mode {
   SET_GTID_PURGED_ON=2
 } opt_set_gtid_purged_mode= SET_GTID_PURGED_AUTO;
 
-#ifdef HAVE_SMEM
+#if defined (_WIN32) && !defined (EMBEDDED_LIBRARY)
 static char *shared_memory_base_name=0;
 #endif
 static uint opt_protocol= 0;
@@ -480,7 +480,7 @@ static struct my_option my_long_options[] =
     "If GTIDs are disabled, AUTO does nothing. Default is AUTO.",
     0, 0, 0, GET_STR, OPT_ARG,
     0, 0, 0, 0, 0, 0},
-#ifdef HAVE_SMEM
+#if defined (_WIN32) && !defined (EMBEDDED_LIBRARY)
   {"shared-memory-base-name", OPT_SHARED_MEMORY_BASE_NAME,
    "Base name of shared memory.", &shared_memory_base_name, &shared_memory_base_name,
    0, GET_STR_ALLOC, REQUIRED_ARG, 0, 0, 0, 0, 0, 0},
@@ -772,7 +772,8 @@ get_one_option(int optid, const struct my_option *opt __attribute__((unused)),
     {
       char *start=argument;
       my_free(opt_password);
-      opt_password=my_strdup(argument,MYF(MY_FAE));
+      opt_password=my_strdup(PSI_NOT_INSTRUMENTED,
+                             argument,MYF(MY_FAE));
       while (*argument) *argument++= 'x';               /* Destroy argument */
       if (*start)
         start[1]=0;                             /* Cut length of argument */
@@ -860,7 +861,8 @@ get_one_option(int optid, const struct my_option *opt __attribute__((unused)),
       fprintf(stderr, "Illegal use of option --ignore-table=<database>.<table>\n");
       exit(1);
     }
-    if (my_hash_insert(&ignore_table, (uchar*)my_strdup(argument, MYF(0))))
+    if (my_hash_insert(&ignore_table, (uchar*)my_strdup(PSI_NOT_INSTRUMENTED,
+                                                        argument, MYF(0))))
       exit(EX_EOM);
     break;
   }
@@ -954,13 +956,17 @@ static int get_options(int *argc, char ***argv)
     return(EX_EOM);
   /* Don't copy internal log tables */
   if (my_hash_insert(&ignore_table,
-                     (uchar*) my_strdup("mysql.apply_status", MYF(MY_WME))) ||
+                     (uchar*) my_strdup(PSI_NOT_INSTRUMENTED,
+                                        "mysql.apply_status", MYF(MY_WME))) ||
       my_hash_insert(&ignore_table,
-                     (uchar*) my_strdup("mysql.schema", MYF(MY_WME))) ||
+                     (uchar*) my_strdup(PSI_NOT_INSTRUMENTED,
+                                        "mysql.schema", MYF(MY_WME))) ||
       my_hash_insert(&ignore_table,
-                     (uchar*) my_strdup("mysql.general_log", MYF(MY_WME))) ||
+                     (uchar*) my_strdup(PSI_NOT_INSTRUMENTED,
+                                        "mysql.general_log", MYF(MY_WME))) ||
       my_hash_insert(&ignore_table,
-                     (uchar*) my_strdup("mysql.slow_log", MYF(MY_WME))))
+                     (uchar*) my_strdup(PSI_NOT_INSTRUMENTED,
+                                        "mysql.slow_log", MYF(MY_WME))))
     return(EX_EOM);
 
   if ((ho_error= handle_options(argc, argv, my_long_options, get_one_option)))
@@ -1604,7 +1610,7 @@ static int connect_to_db(char *host, char *user,char *passwd)
     mysql_options(&mysql_connection,MYSQL_OPT_PROTOCOL,(char*)&opt_protocol);
   if (opt_bind_addr)
     mysql_options(&mysql_connection,MYSQL_OPT_BIND,opt_bind_addr);
-#ifdef HAVE_SMEM
+#if defined (_WIN32) && !defined (EMBEDDED_LIBRARY)
   if (shared_memory_base_name)
     mysql_options(&mysql_connection,MYSQL_SHARED_MEMORY_BASE_NAME,shared_memory_base_name);
 #endif
@@ -1672,7 +1678,8 @@ static void unescape(FILE *file,char *pos,uint length)
 {
   char *tmp;
   DBUG_ENTER("unescape");
-  if (!(tmp=(char*) my_malloc(length*2+1, MYF(MY_WME))))
+  if (!(tmp=(char*) my_malloc(PSI_NOT_INSTRUMENTED,
+                              length*2+1, MYF(MY_WME))))
     die(EX_MYSQLERR, "Couldn't allocate memory");
 
   mysql_real_escape_string(&mysql_connection, tmp, pos, length);
@@ -2675,7 +2682,8 @@ static uint get_table_structure(char *table, char *db, char *table_type,
 
         /* save "show create" statement for later */
         if ((row= mysql_fetch_row(result)) && (scv_buff=row[1]))
-          scv_buff= my_strdup(scv_buff, MYF(0));
+          scv_buff= my_strdup(PSI_NOT_INSTRUMENTED,
+                              scv_buff, MYF(0));
 
         mysql_free_result(result);
 
@@ -3434,7 +3442,8 @@ static char *alloc_query_str(ulong size)
 {
   char *query;
 
-  if (!(query= (char*) my_malloc(size, MYF(MY_WME))))
+  if (!(query= (char*) my_malloc(PSI_NOT_INSTRUMENTED,
+                                 size, MYF(MY_WME))))
     die(EX_MYSQLERR, "Couldn't allocate a query string.");
 
   return query;
@@ -4708,7 +4717,7 @@ static int dump_selected_tables(char *db, char **table_names, int tables)
   if (init_dumping(db, init_dumping_tables))
     DBUG_RETURN(1);
 
-  init_alloc_root(&root, 8192, 0);
+  init_alloc_root(PSI_NOT_INSTRUMENTED, &root, 8192, 0);
   if (!(dump_tables= pos= (char**) alloc_root(&root, tables * sizeof(char *))))
      die(EX_EOM, "alloc_root failure.");
 
@@ -5284,7 +5293,8 @@ static char *primary_key_fields(const char *table_name)
   {
     char *end;
     /* result (terminating \0 is already in result_length) */
-    result= my_malloc(result_length + 10, MYF(MY_WME));
+    result= my_malloc(PSI_NOT_INSTRUMENTED,
+                      result_length + 10, MYF(MY_WME));
     if (!result)
     {
       fprintf(stderr, "Error: Not enough memory to store ORDER BY clause\n");
@@ -5888,7 +5898,7 @@ int main(int argc, char **argv)
   if (opt_delete_master_logs && purge_bin_logs_to(mysql, bin_log_name))
     goto err;
 
-#ifdef HAVE_SMEM
+#if defined (_WIN32) && !defined (EMBEDDED_LIBRARY)
   my_free(shared_memory_base_name);
 #endif
   /*

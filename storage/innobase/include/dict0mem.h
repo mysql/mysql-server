@@ -528,7 +528,7 @@ extern ulong	zip_pad_max;
 an uncompressed page should be left as padding to avoid compression
 failures. This estimate is based on a self-adapting heuristic. */
 struct zip_pad_info_t {
-	os_fast_mutex_t	mutex;	/*!< mutex protecting the info */
+	SysMutex	mutex;	/*!< mutex protecting the info */
 	ulint		pad;	/*!< number of bytes used as pad */
 	ulint		success;/*!< successful compression ops during
 				current round */
@@ -1018,8 +1018,7 @@ Initialise the table lock list. */
 void
 lock_table_lock_list_init(
 /*======================*/
-	table_lock_list_t*	locks)		/*!< List to initialise */
-	__attribute__((nonnull));
+	table_lock_list_t*	locks);		/*!< List to initialise */
 
 #ifndef UNIV_NONINL
 #include "dict0mem.ic"

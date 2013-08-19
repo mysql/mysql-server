@@ -43,6 +43,7 @@ Created 5/7/1996 Heikki Tuuri
 #include "ut0vec.h"
 #include "btr0btr.h"
 #include "dict0boot.h"
+
 #include <set>
 
 /** Restricts the length of search we will do in the waits-for
@@ -57,11 +58,23 @@ static const ulint	LOCK_MAX_DEPTH_IN_DEADLOCK_CHECK = 200;
 the lock mutex for a moment to give also others access to it */
 static const ulint	LOCK_RELEASE_INTERVAL = 1000;
 
-/* Safety margin when creating a new record lock: this many extra records
+/** Safety margin when creating a new record lock: this many extra records
 can be inserted to the page without need to create a lock with a bigger
 bitmap */
 
 static const ulint	LOCK_PAGE_BITMAP_MARGIN = 64;
+
+/** Total number of cached record locks */
+static const ulint	REC_LOCK_CACHE = 8;
+
+/** Maximum record lock size in bytes */
+static const ulint	REC_LOCK_SIZE = sizeof(ib_lock_t) + 256;
+
+/** Total number of cached table locks */
+static const ulint	TABLE_LOCK_CACHE = 8;
+
+/** Size in bytes, of the table lock instance */
+static const ulint	TABLE_LOCK_SIZE = sizeof(ib_lock_t);
 
 /* An explicit record lock affects both the record and the gap before it.
 An implicit x-lock does not affect the gap, it only locks the index
@@ -546,13 +559,6 @@ DeadlockChecker::state_t	DeadlockChecker::s_states[MAX_STACK_SIZE];
 /** The count of the types of locks. */
 static const ulint	lock_types = UT_ARR_SIZE(lock_compatibility_matrix);
 
-#ifdef UNIV_PFS_MUTEX
-/* Key to register mutex with performance schema */
-mysql_pfs_key_t	lock_mutex_key;
-/* Key to register mutex with performance schema */
-mysql_pfs_key_t	lock_wait_mutex_key;
-#endif /* UNIV_PFS_MUTEX */
-
 #ifdef UNIV_DEBUG
 /*********************************************************************//**
 Validates the lock system.
@@ -678,7 +684,7 @@ lock_clust_rec_cons_read_sees(
 				passed over by a read cursor */
 	dict_index_t*	index,	/*!< in: clustered index */
 	const ulint*	offsets,/*!< in: rec_get_offsets(rec, index) */
-	read_view_t*	view)	/*!< in: consistent read view */
+	ReadView*	view)	/*!< in: consistent read view */
 {
 	ut_ad(dict_index_is_clust(index));
 	ut_ad(page_rec_is_user_rec(rec));
@@ -698,7 +704,7 @@ lock_clust_rec_cons_read_sees(
 
 	trx_id_t	trx_id = row_get_rec_trx_id(rec, index, offsets);
 
-	return(read_view_sees_trx_id(view, trx_id));
+	return(view->changes_visible(trx_id));
 }
 
 /*********************************************************************//**
@@ -719,7 +725,7 @@ lock_sec_rec_cons_read_sees(
 					should be read or passed over
 					by a read cursor */
 	const dict_index_t*	index,	/*!< in: index */
-	const read_view_t*	view)	/*!< in: consistent read view */
+	const ReadView*	view)	/*!< in: consistent read view */
 {
 	trx_id_t	max_trx_id;
 
@@ -744,7 +750,7 @@ lock_sec_rec_cons_read_sees(
 	max_trx_id = page_get_max_trx_id(page_align(rec));
 	ut_ad(max_trx_id);
 
-	return(max_trx_id < view->up_limit_id);
+	return(view->sees(max_trx_id));
 }
 
 /*********************************************************************//**
@@ -768,12 +774,11 @@ lock_sys_create(
 
 	lock_sys->last_slot = lock_sys->waiting_threads;
 
-	mutex_create(lock_mutex_key, &lock_sys->mutex, SYNC_LOCK_SYS);
+	mutex_create("lock_sys", &lock_sys->mutex);
 
-	mutex_create(lock_wait_mutex_key,
-		     &lock_sys->wait_mutex, SYNC_LOCK_WAIT_SYS);
+	mutex_create("lock_sys_wait", &lock_sys->wait_mutex);
 
-	lock_sys->timeout_event = os_event_create();
+	lock_sys->timeout_event = os_event_create(0);
 
 	lock_sys->rec_hash = hash_create(n_cells);
 
@@ -797,8 +802,18 @@ lock_sys_close(void)
 
 	hash_table_free(lock_sys->rec_hash);
 
-	mutex_free(&lock_sys->mutex);
-	mutex_free(&lock_sys->wait_mutex);
+	os_event_destroy(lock_sys->timeout_event);
+
+	mutex_destroy(&lock_sys->mutex);
+	mutex_destroy(&lock_sys->wait_mutex);
+
+	srv_slot_t*	slot = lock_sys->waiting_threads;
+
+	for (ulint i = 0; i < OS_THREAD_MAX_N; i++, ++slot) {
+		if (slot->event != NULL) {
+			os_event_destroy(slot->event);
+		}
+	}
 
 	mem_free(lock_sys);
 
@@ -1804,7 +1819,7 @@ lock_sec_rec_some_has_impl(
 	const page_t*	page = page_align(rec);
 
 	ut_ad(!lock_mutex_own());
-	ut_ad(!mutex_own(&trx_sys->mutex));
+	ut_ad(!trx_sys_mutex_own());
 	ut_ad(!dict_index_is_clust(index));
 	ut_ad(page_rec_is_user_rec(rec));
 	ut_ad(rec_offs_validate(rec, index, offsets));
@@ -1960,17 +1975,24 @@ lock_rec_create(
 	n_bits = page_dir_get_n_heap(page) + LOCK_PAGE_BITMAP_MARGIN;
 	n_bytes = 1 + n_bits / 8;
 
-	lock = static_cast<lock_t*>(
-		mem_heap_alloc(trx->lock.lock_heap, sizeof(lock_t) + n_bytes));
+	if (trx->lock.rec_cached >= trx->lock.rec_pool.size()
+	    || sizeof(lock_t) + n_bytes > REC_LOCK_SIZE) {
+
+		lock = static_cast<lock_t*>(
+			mem_heap_alloc(trx->lock.lock_heap,
+				       sizeof(lock_t) + n_bytes));
+	} else {
+		lock = trx->lock.rec_pool[trx->lock.rec_cached++];
+	}
 
 	lock->trx = trx;
 
 	lock->type_mode = (type_mode & ~LOCK_TYPE_MASK) | LOCK_REC;
 	lock->index = index;
 
-	lock->un_member.rec_lock.space = space;
-	lock->un_member.rec_lock.page_no = page_no;
-	lock->un_member.rec_lock.n_bits = n_bytes * 8;
+	lock->un_member.rec_lock.space = ib_uint32_t(space);
+	lock->un_member.rec_lock.page_no = ib_uint32_t(page_no);
+	lock->un_member.rec_lock.n_bits = ib_uint32_t(n_bytes * 8);
 
 	/* Reset to zero the bitmap which resides immediately after the
 	lock struct */
@@ -3672,15 +3694,13 @@ lock_table_create(
 				LOCK_WAIT */
 	trx_t*		trx)	/*!< in: trx */
 {
-	lock_t*	lock;
+	lock_t*		lock;
 
 	ut_ad(table && trx);
 	ut_ad(lock_mutex_own());
 	ut_ad(trx_mutex_own(trx));
 	ut_ad(!(type_mode & LOCK_CONV_BY_OTHER));
 
-	/* Non-locking autocommit read-only transactions should not set
-	any locks. */
 	assert_trx_in_list(trx);
 
 	if ((type_mode & LOCK_MODE_MASK) == LOCK_AUTO_INC) {
@@ -3697,12 +3717,17 @@ lock_table_create(
 		table->autoinc_trx = trx;
 
 		ib_vector_push(trx->autoinc_locks, &lock);
+
+	} else if (trx->lock.table_cached < trx->lock.table_pool.size()) {
+		lock = trx->lock.table_pool[trx->lock.table_cached++];
 	} else {
+
 		lock = static_cast<lock_t*>(
 			mem_heap_alloc(trx->lock.lock_heap, sizeof(*lock)));
+
 	}
 
-	lock->type_mode = type_mode | LOCK_TABLE;
+	lock->type_mode = ib_uint32_t(type_mode | LOCK_TABLE);
 	lock->trx = trx;
 
 	lock->un_member.tab_lock.table = table;
@@ -4111,7 +4136,7 @@ lock_table_ix_resurrect(
 Checks if a waiting table lock request still has to wait in a queue.
 @return TRUE if still has to wait */
 static
-ibool
+bool
 lock_table_has_to_wait_in_queue(
 /*============================*/
 	const lock_t*	wait_lock)	/*!< in: waiting table lock */
@@ -4130,11 +4155,11 @@ lock_table_has_to_wait_in_queue(
 
 		if (lock_has_to_wait(wait_lock, lock)) {
 
-			return(TRUE);
+			return(true);
 		}
 	}
 
-	return(FALSE);
+	return(false);
 }
 
 /*************************************************************//**
@@ -4149,12 +4174,10 @@ lock_table_dequeue(
 			behind will get their lock requests granted, if
 			they are now qualified to it */
 {
-	lock_t*	lock;
-
 	ut_ad(lock_mutex_own());
 	ut_a(lock_get_type_low(in_lock) == LOCK_TABLE);
 
-	lock = UT_LIST_GET_NEXT(un_member.tab_lock.locks, in_lock);
+	lock_t*	lock = UT_LIST_GET_NEXT(un_member.tab_lock.locks, in_lock);
 
 	lock_table_remove_low(in_lock);
 
@@ -5025,13 +5048,10 @@ lock_trx_print_wait_and_mvcc_state(
 
 	trx_print_latched(file, trx, 600);
 
-	if (trx->read_view != 0) {
-		fprintf(file,
-			"Trx read view will not see trx with"
-			" id >= " TRX_ID_FMT
-			", sees < " TRX_ID_FMT "\n",
-			trx->read_view->low_limit_id,
-			trx->read_view->up_limit_id);
+	const ReadView*	read_view = trx_get_read_view(trx);
+
+	if (read_view != NULL) {
+		read_view->print_limits(file);
 	}
 
 	if (trx->lock.que_state == TRX_QUE_LOCK_WAIT) {
@@ -5133,7 +5153,7 @@ lock_trx_print_locks(
 
 				fprintf(file,
 					"RECORD LOCKS on non-existing "
-					"space %lu\n",
+					"space %u\n",
 					lock->un_member.rec_lock.space);
 			}
 
@@ -5297,7 +5317,7 @@ lock_table_queue_validate(
 	const lock_t*	lock;
 
 	ut_ad(lock_mutex_own());
-	ut_ad(mutex_own(&trx_sys->mutex));
+	ut_ad(trx_sys_mutex_own());
 
 	for (lock = UT_LIST_GET_FIRST(table->locks);
 	     lock != NULL;
@@ -5491,7 +5511,7 @@ loop:
 	holding a space->latch.  Deadlocks are possible due to
 	latching order violation when UNIV_DEBUG is defined while
 	UNIV_SYNC_DEBUG is not. */
-	if (!sync_thread_levels_contains(SYNC_FSP))
+	if (!sync_check_find(SYNC_FSP))
 # endif /* UNIV_SYNC_DEBUG */
 	for (i = nth_bit; i < lock_rec_get_n_bits(lock); i++) {
 
@@ -5501,11 +5521,7 @@ loop:
 			ut_a(rec);
 			offsets = rec_get_offsets(rec, lock->index, offsets,
 						  ULINT_UNDEFINED, &heap);
-#if 0
-			fprintf(stderr,
-				"Validating %u %u\n",
-				block->page.space, block->page.offset);
-#endif
+
 			/* If this thread is holding the file space
 			latch (fil_space_t::latch), the following
 			check WILL break the latching order and may
@@ -5547,7 +5563,7 @@ lock_validate_table_locks(
 	const trx_t*	trx;
 
 	ut_ad(lock_mutex_own());
-	ut_ad(mutex_own(&trx_sys->mutex));
+	ut_ad(trx_sys_mutex_own());
 
 	ut_ad(trx_list == &trx_sys->rw_trx_list
 	      || trx_list == &trx_sys->ro_trx_list);
@@ -5590,7 +5606,7 @@ lock_rec_validate(
 					(space, page_no) */
 {
 	ut_ad(lock_mutex_own());
-	ut_ad(mutex_own(&trx_sys->mutex));
+	ut_ad(trx_sys_mutex_own());
 
 	for (const lock_t* lock = static_cast<const lock_t*>(
 			HASH_GET_FIRST(lock_sys->rec_hash, start));
@@ -5861,10 +5877,15 @@ lock_rec_convert_impl_to_expl_for_trx(
 {
 	ut_ad(trx_is_referenced(trx));
 
+	DEBUG_SYNC_C("before_lock_rec_convert_impl_to_expl_for_trx");
+
 	lock_mutex_enter();
 
-	if (!lock_rec_has_expl(LOCK_X | LOCK_REC_NOT_GAP,
-			       block, heap_no, trx)) {
+	ut_ad(!trx_state_eq(trx, TRX_STATE_NOT_STARTED));
+
+	if (!trx_state_eq(trx, TRX_STATE_COMMITTED_IN_MEMORY)
+	    && !lock_rec_has_expl(LOCK_X | LOCK_REC_NOT_GAP,
+				  block, heap_no, trx)) {
 
 		ulint	type_mode;
 
@@ -5890,6 +5911,8 @@ lock_rec_convert_impl_to_expl_for_trx(
 	lock_mutex_exit();
 
 	trx_release_reference(trx);
+
+	DEBUG_SYNC_C("after_lock_rec_convert_impl_to_expl_for_trx");
 }
 
 /*********************************************************************//**
@@ -6230,6 +6253,8 @@ lock_clust_rec_read_check_and_lock(
 	lock_mutex_exit();
 
 	ut_ad(lock_rec_queue_validate(FALSE, block, rec, index, offsets));
+
+	DEBUG_SYNC_C("after_lock_clust_rec_read_check_and_lock");
 
 	return(err);
 }
@@ -6657,13 +6682,17 @@ lock_trx_release_locks(
 	assert_trx_in_list(trx);
 
 	if (trx_state_eq(trx, TRX_STATE_PREPARED)) {
+
 		mutex_enter(&trx_sys->mutex);
+
 		ut_a(trx_sys->n_prepared_trx > 0);
-		trx_sys->n_prepared_trx--;
+		--trx_sys->n_prepared_trx;
+
 		if (trx->is_recovered) {
 			ut_a(trx_sys->n_prepared_recovered_trx > 0);
 			trx_sys->n_prepared_recovered_trx--;
 		}
+
 		mutex_exit(&trx_sys->mutex);
 	} else {
 		ut_ad(trx_state_eq(trx, TRX_STATE_ACTIVE));
@@ -6700,6 +6729,8 @@ lock_trx_release_locks(
 		while (trx_is_referenced(trx)) {
 
 			trx_mutex_exit(trx);
+
+			DEBUG_SYNC_C("waiting_trx_is_not_referenced");
 
 			/** Doing an implicit to explicit conversion
 			should not be expensive. */
@@ -6820,7 +6851,7 @@ lock_table_locks_lookup(
 
 	ut_a(table != NULL);
 	ut_ad(lock_mutex_own());
-	ut_ad(mutex_own(&trx_sys->mutex));
+	ut_ad(trx_sys_mutex_own());
 
 	ut_ad(trx_list == &trx_sys->rw_trx_list
 	      || trx_list == &trx_sys->ro_trx_list);
@@ -7448,4 +7479,33 @@ DeadlockChecker::check_and_resolve(const lock_t* lock, const trx_t* trx)
 	}
 
 	return(victim_trx);
+}
+
+/**
+Allocate cached locks for the transaction.
+@param trx		allocate cached record locks for this transaction */
+
+void
+lock_trx_alloc_locks(trx_t* trx)
+{
+	ulint	sz = REC_LOCK_SIZE * REC_LOCK_CACHE;
+	byte*	ptr = reinterpret_cast<byte*>(mem_alloc(sz));
+
+	/* We allocate one big chunk and then distribute it among
+	the rest of the elements. The allocated chunk pointer is always
+	at index 0. */
+
+	for (ulint i = 0; i < REC_LOCK_CACHE; ++i, ptr += REC_LOCK_SIZE) {
+		trx->lock.rec_pool.push_back(
+			reinterpret_cast<ib_lock_t*>(ptr));
+	}
+
+	sz = TABLE_LOCK_SIZE * TABLE_LOCK_CACHE;
+	ptr = reinterpret_cast<byte*>(mem_alloc(sz));
+
+	for (ulint i = 0; i < TABLE_LOCK_CACHE; ++i, ptr += TABLE_LOCK_SIZE) {
+		trx->lock.table_pool.push_back(
+			reinterpret_cast<ib_lock_t*>(ptr));
+	}
+
 }

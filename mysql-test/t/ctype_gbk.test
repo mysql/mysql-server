@@ -1,6 +1,7 @@
-# The include statement below is a temp one for tests that are yet to
-#be ported to run with InnoDB,
-#but needs to be kept for tests that would need MyISAM in future.
+# Test takes long time to run on valgrind due to Bug#17022890
+# Run on valgrind only if --big-test is specified
+# This has to be removed along with the fix for Bug#17022890
+-- source include/no_valgrind_without_big.inc
 
 -- source include/have_gbk.inc
 

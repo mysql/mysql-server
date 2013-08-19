@@ -26,6 +26,9 @@ Created 11/17/1995 Heikki Tuuri
 #ifndef buf0types_h
 #define buf0types_h
 
+#include "os0event.h"
+#include "ut0mutex.h"
+
 /** Buffer page (uncompressed or compressed) */
 struct buf_page_t;
 /** Buffer block for which an uncompressed page exists */
@@ -112,5 +115,11 @@ the underlying memory is aligned by this amount:
 this must be equal to UNIV_PAGE_SIZE */
 #define BUF_BUDDY_HIGH	(BUF_BUDDY_LOW << BUF_BUDDY_SIZES)
 /* @} */
+
+#ifndef UNIV_INNOCHECKSUM
+typedef ib_mutex_t BPageMutex;
+typedef ib_mutex_t BufPoolMutex;
+typedef ib_mutex_t FlushListMutex;
+#endif /* !UNIV_INNOCHECKSUM */
 
 #endif /* buf0types.h */
