@@ -1,4 +1,4 @@
-/* Copyright (c) 2010, 2011, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2010, 2013, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -37,6 +37,40 @@
 #include "errmsg.h"
 #include <mysql/client_plugin.h>
 
+#if defined(CLIENT_PROTOCOL_TRACING)
+#include <mysql/plugin_trace.h>
+#endif
+
+PSI_memory_key key_memory_root;
+PSI_memory_key key_memory_load_env_plugins;
+
+#ifdef HAVE_PSI_INTERFACE
+PSI_mutex_key key_mutex_LOCK_load_client_plugin;
+
+static PSI_mutex_info all_client_plugin_mutexes[]=
+{
+  {&key_mutex_LOCK_load_client_plugin, "LOCK_load_client_plugin", PSI_FLAG_GLOBAL}
+};
+
+static PSI_memory_info all_client_plugin_memory[]=
+{
+  {&key_memory_root, "root", PSI_FLAG_GLOBAL},
+  {&key_memory_load_env_plugins, "load_env_plugins", PSI_FLAG_GLOBAL}
+};
+
+static void init_client_plugin_psi_keys()
+{
+  const char* category= "sql";
+  int count;
+
+  count= array_elements(all_client_plugin_mutexes);
+  mysql_mutex_register(category, all_client_plugin_mutexes, count);
+
+  count= array_elements(all_client_plugin_memory);
+  mysql_memory_register(category, all_client_plugin_memory, count);
+}
+#endif /* HAVE_PSI_INTERFACE */
+
 struct st_client_plugin_int {
   struct st_client_plugin_int *next;
   void   *dlhandle;
@@ -51,7 +85,8 @@ static uint plugin_version[MYSQL_CLIENT_MAX_PLUGINS]=
 {
   0, /* these two are taken by Connector/C */
   0, /* these two are taken by Connector/C */
-  MYSQL_CLIENT_AUTHENTICATION_PLUGIN_INTERFACE_VERSION
+  MYSQL_CLIENT_AUTHENTICATION_PLUGIN_INTERFACE_VERSION,
+  MYSQL_CLIENT_TRACE_PLUGIN_INTERFACE_VERSION,
 };
 
 /*
@@ -117,8 +152,9 @@ find_plugin(const char *name, int type)
   @retval a pointer to an installed plugin or 0
 */
 static struct st_mysql_client_plugin *
-add_plugin(MYSQL *mysql, struct st_mysql_client_plugin *plugin, void *dlhandle,
-           int argc, va_list args)
+do_add_plugin(MYSQL *mysql, struct st_mysql_client_plugin *plugin,
+              void *dlhandle,
+              int argc, va_list args)
 {
   const char *errmsg;
   struct st_client_plugin_int plugin_int, *p;
@@ -143,6 +179,20 @@ add_plugin(MYSQL *mysql, struct st_mysql_client_plugin *plugin, void *dlhandle,
     goto err1;
   }
 
+#if defined(CLIENT_PROTOCOL_TRACING) && !defined(MYSQL_SERVER)
+  /*
+    If we try to load a protocol trace plugin but one is already
+    loaded (global trace_plugin pointer is not NULL) then we ignore
+    the new trace plugin and give error. This is done before the
+    new plugin gets initialized.
+  */
+  if (plugin->type == MYSQL_CLIENT_TRACE_PLUGIN && NULL != trace_plugin)
+  {
+    errmsg= "Can not load another trace plugin while one is already loaded";
+    goto err1;
+  }
+#endif
+
   /* Call the plugin initialization function, if any */
   if (plugin->init && plugin->init(errbuf, sizeof(errbuf), argc, args))
   {
@@ -165,6 +215,19 @@ add_plugin(MYSQL *mysql, struct st_mysql_client_plugin *plugin, void *dlhandle,
   plugin_list[plugin->type]= p;
   net_clear_error(&mysql->net);
 
+#if defined(CLIENT_PROTOCOL_TRACING) && !defined(MYSQL_SERVER)
+  /*
+    If loaded plugin is a protocol trace one, then set the global
+    trace_plugin pointer to point at it. When trace_plugin is not NULL,
+    each new connection will be traced using the plugin pointed by it
+    (see MYSQL_TRACE_STAGE() macro in libmysql/mysql_trace.h).
+  */
+  if (plugin->type == MYSQL_CLIENT_TRACE_PLUGIN)
+  {
+    trace_plugin = (struct st_mysql_client_plugin_TRACE*)plugin;
+  }
+#endif
+
   return plugin;
 
 err2:
@@ -178,6 +241,31 @@ err1:
     dlclose(dlhandle);
   return NULL;
 }
+
+
+static struct st_mysql_client_plugin *
+add_plugin_noargs(MYSQL *mysql, struct st_mysql_client_plugin *plugin,
+                  void *dlhandle,
+                  int argc, ...)
+{
+  struct st_mysql_client_plugin *retval= NULL;
+  va_list ap;
+  va_start(ap, argc);
+  retval= do_add_plugin(mysql, plugin, dlhandle, argc, ap);
+  va_end(ap);
+  return retval;
+}
+
+
+static struct st_mysql_client_plugin *
+add_plugin_withargs(MYSQL *mysql, struct st_mysql_client_plugin *plugin,
+                    void *dlhandle,
+                    int argc, va_list args)
+{
+  return do_add_plugin(mysql, plugin, dlhandle, argc, args);
+}
+
+
 
 /**
   Loads plugins which are specified in the environment variable
@@ -206,7 +294,8 @@ static void load_env_plugins(MYSQL *mysql)
   if(!s)
     return;
 
-  free_env= plugs= my_strdup(s, MYF(MY_WME));
+  free_env= plugs= my_strdup(key_memory_load_env_plugins,
+                             s, MYF(MY_WME));
 
   do {
     if ((s= strchr(plugs, ';')))
@@ -218,6 +307,7 @@ static void load_env_plugins(MYSQL *mysql)
   my_free(free_env);
 
 }
+
 
 /********** extern functions to be used by libmysql *********************/
 
@@ -237,10 +327,15 @@ int mysql_client_plugin_init()
   if (initialized)
     return 0;
 
+#ifdef HAVE_PSI_INTERFACE
+  init_client_plugin_psi_keys();
+#endif /* HAVE_PSI_INTERFACE */
+
   memset(&mysql, 0, sizeof(mysql)); /* dummy mysql for set_mysql_extended_error */
 
-  mysql_mutex_init(0, &LOCK_load_client_plugin, MY_MUTEX_INIT_SLOW);
-  init_alloc_root(&mem_root, 128, 128);
+  mysql_mutex_init(key_mutex_LOCK_load_client_plugin,
+                   &LOCK_load_client_plugin, MY_MUTEX_INIT_SLOW);
+  init_alloc_root(key_memory_root, &mem_root, 128, 128);
 
   memset(&plugin_list, 0, sizeof(plugin_list));
 
@@ -249,7 +344,7 @@ int mysql_client_plugin_init()
   mysql_mutex_lock(&LOCK_load_client_plugin);
 
   for (builtin= mysql_client_builtins; *builtin; builtin++)
-    add_plugin(&mysql, *builtin, 0, 0, 0);
+    add_plugin_noargs(&mysql, *builtin, 0, 0);
 
   mysql_mutex_unlock(&LOCK_load_client_plugin);
 
@@ -286,6 +381,7 @@ void mysql_client_plugin_deinit()
   mysql_mutex_destroy(&LOCK_load_client_plugin);
 }
 
+
 /************* public facing functions, for client consumption *********/
 
 /* see <mysql/client_plugin.h> for a full description */
@@ -307,7 +403,7 @@ mysql_client_register_plugin(MYSQL *mysql,
     plugin= NULL;
   }
   else
-    plugin= add_plugin(mysql, plugin, 0, 0, 0);
+    plugin= add_plugin_noargs(mysql, plugin, 0, 0);
 
   mysql_mutex_unlock(&LOCK_load_client_plugin);
   return plugin;
@@ -420,7 +516,7 @@ have_plugin:
     goto err;
   }
 
-  plugin= add_plugin(mysql, plugin, dlhandle, argc, args);
+  plugin= add_plugin_withargs(mysql, plugin, dlhandle, argc, args);
 
   mysql_mutex_unlock(&LOCK_load_client_plugin);
 

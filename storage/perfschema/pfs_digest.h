@@ -1,4 +1,4 @@
-/* Copyright (c) 2011, 2012, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2011, 2013, Oracle and/or its affiliates. All rights reserved.
 
   This program is free software; you can redistribute it and/or modify
   it under the terms of the GNU General Public License as published by
@@ -84,13 +84,6 @@ void reset_esms_by_digest();
 /* Exposing the data directly, for iterators. */
 extern PFS_statements_digest_stat *statements_digest_stat_array;
 
-/* Instrumentation callbacks for pfs.cc */
-
-struct PSI_digest_locker *pfs_digest_start_v1(PSI_statement_locker *locker);
-PSI_digest_locker *pfs_digest_add_token_v1(PSI_digest_locker *locker,
-                                           uint token,
-                                           OPAQUE_LEX_YYSTYPE *yylval);
-
 static inline void digest_reset(PSI_digest_storage *digest)
 {
   digest->m_full= false;
@@ -110,7 +103,6 @@ static inline void digest_copy(PSI_digest_storage *to, const PSI_digest_storage 
   }
   else
   {
-    DBUG_ASSERT(! from->m_full);
     DBUG_ASSERT(from->m_byte_count == 0);
     to->m_full= false;
     to->m_byte_count= 0;
@@ -124,10 +116,10 @@ static inline void digest_copy(PSI_digest_storage *to, const PSI_digest_storage 
 inline int read_token(PSI_digest_storage *digest_storage,
                       int index, uint *tok)
 {
-  DBUG_ASSERT(index <= digest_storage->m_byte_count);
-  DBUG_ASSERT(digest_storage->m_byte_count <= PSI_MAX_DIGEST_STORAGE_SIZE);
+  int safe_byte_count= digest_storage->m_byte_count;
 
-  if (index + PFS_SIZE_OF_A_TOKEN <= digest_storage->m_byte_count)
+  if (index + PFS_SIZE_OF_A_TOKEN <= safe_byte_count &&
+      safe_byte_count <= PSI_MAX_DIGEST_STORAGE_SIZE)
   {
     unsigned char *src= & digest_storage->m_token_array[index];
     *tok= src[0] | (src[1] << 8);

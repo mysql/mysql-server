@@ -1,6 +1,6 @@
 /*****************************************************************************
 
-Copyright (c) 1997, 2012, Oracle and/or its affiliates. All Rights Reserved.
+Copyright (c) 1997, 2013, Oracle and/or its affiliates. All Rights Reserved.
 
 This program is free software; you can redistribute it and/or modify it under
 the terms of the GNU General Public License as published by the Free Software
@@ -22,6 +22,8 @@ Row versions
 
 Created 2/6/1997 Heikki Tuuri
 *******************************************************/
+
+#include "ha_prototypes.h"
 
 #include "row0vers.h"
 
@@ -54,7 +56,7 @@ NOTE that this function can return false positives but never false
 negatives. The caller must confirm all positive results by calling
 trx_is_active() while holding lock_sys->mutex. */
 UNIV_INLINE
-trx_id_t
+trx_t*
 row_vers_impl_x_locked_low(
 /*=======================*/
 	const rec_t*	clust_rec,	/*!< in: clustered index record */
@@ -83,7 +85,9 @@ row_vers_impl_x_locked_low(
 	trx_id = row_get_rec_trx_id(clust_rec, clust_index, clust_offsets);
 	corrupt = FALSE;
 
-	if (!trx_rw_is_active(trx_id, &corrupt)) {
+	trx_t*	trx = trx_rw_is_active(trx_id, &corrupt, true);
+
+	if (trx == 0) {
 		/* The transaction that modified or inserted clust_rec is no
 		longer active, or it is corrupt: no implicit lock on rec */
 		if (corrupt) {
@@ -184,21 +188,7 @@ row_vers_impl_x_locked_low(
 		/* We check if entry and rec are identified in the alphabetical
 		ordering */
 
-		if (!trx_rw_is_active(trx_id, &corrupt)) {
-			/* Transaction no longer active: no implicit
-			x-lock. This situation should only be possible
-			because we are not holding lock_sys->mutex. */
-			ut_ad(!lock_mutex_own());
-			if (corrupt) {
-				lock_report_trx_id_insanity(
-					trx_id,
-					prev_version, clust_index,
-					clust_offsets,
-					trx_sys_get_max_trx_id());
-			}
-			trx_id = 0;
-			break;
-		} else if (0 == cmp_dtuple_rec(entry, rec, offsets)) {
+		if (0 == cmp_dtuple_rec(entry, rec, offsets)) {
 			/* The delete marks of rec and prev_version should be
 			equal for rec to be in the state required by
 			prev_version */
@@ -228,17 +218,18 @@ row_vers_impl_x_locked_low(
 			break;
 		}
 
-		if (trx_id != prev_trx_id) {
+		if (trx->id != prev_trx_id) {
 			/* prev_version was the first version modified by
 			the trx_id transaction: no implicit x-lock */
 
-			trx_id = 0;
+			trx_release_reference(trx);
+			trx = 0;
 			break;
 		}
 	}
 
 	mem_heap_free(heap);
-	return(trx_id);
+	return(trx);
 }
 
 /*****************************************************************//**
@@ -248,21 +239,21 @@ index record.
 NOTE that this function can return false positives but never false
 negatives. The caller must confirm all positive results by calling
 trx_is_active() while holding lock_sys->mutex. */
-UNIV_INTERN
-trx_id_t
+
+trx_t*
 row_vers_impl_x_locked(
 /*===================*/
 	const rec_t*	rec,	/*!< in: record in a secondary index */
 	dict_index_t*	index,	/*!< in: the secondary index */
 	const ulint*	offsets)/*!< in: rec_get_offsets(rec, index) */
 {
-	dict_index_t*	clust_index;
-	const rec_t*	clust_rec;
-	trx_id_t	trx_id;
 	mtr_t		mtr;
+	trx_t*		trx;
+	const rec_t*	clust_rec;
+	dict_index_t*	clust_index;
 
 	ut_ad(!lock_mutex_own());
-	ut_ad(!mutex_own(&trx_sys->mutex));
+	ut_ad(!trx_sys_mutex_own());
 
 	mtr_start(&mtr);
 
@@ -276,7 +267,7 @@ row_vers_impl_x_locked(
 	clust_rec = row_get_clust_rec(
 		BTR_SEARCH_LEAF, rec, index, &clust_index, &mtr);
 
-	if (UNIV_UNLIKELY(!clust_rec)) {
+	if (!clust_rec) {
 		/* In a rare case it is possible that no clust rec is found
 		for a secondary index record: if in row0umod.cc
 		row_undo_mod_remove_clust_low() we have already removed the
@@ -289,22 +280,24 @@ row_vers_impl_x_locked(
 		a rollback we always undo the modifications to secondary index
 		records before the clustered index record. */
 
-		trx_id = 0;
+		trx = 0;
 	} else {
-		trx_id = row_vers_impl_x_locked_low(
+		trx = row_vers_impl_x_locked_low(
 			clust_rec, clust_index, rec, index, offsets, &mtr);
+
+		ut_ad(trx == 0 || trx_is_referenced(trx));
 	}
 
 	mtr_commit(&mtr);
 
-	return(trx_id);
+	return(trx);
 }
 
 /*****************************************************************//**
 Finds out if we must preserve a delete marked earlier version of a clustered
 index record, because it is >= the purge view.
-@return	TRUE if earlier version should be preserved */
-UNIV_INTERN
+@return TRUE if earlier version should be preserved */
+
 ibool
 row_vers_must_preserve_del_marked(
 /*==============================*/
@@ -314,12 +307,12 @@ row_vers_must_preserve_del_marked(
 				hold the latch on purge_view */
 {
 #ifdef UNIV_SYNC_DEBUG
-	ut_ad(!rw_lock_own(&(purge_sys->latch), RW_LOCK_SHARED));
+	ut_ad(!rw_lock_own(&(purge_sys->latch), RW_LOCK_S));
 #endif /* UNIV_SYNC_DEBUG */
 
-	mtr_s_lock(&(purge_sys->latch), mtr);
+	mtr_s_lock(&purge_sys->latch, mtr);
 
-	return(!read_view_sees_trx_id(purge_sys->view, trx_id));
+	return(!purge_sys->view.changes_visible(trx_id));
 }
 
 /*****************************************************************//**
@@ -328,8 +321,8 @@ purge view, should have ientry as its secondary index entry. We check
 if there is any not delete marked version of the record where the trx
 id >= purge view, and the secondary index entry and ientry are identified in
 the alphabetical ordering; exactly in this case we return TRUE.
-@return	TRUE if earlier version should have */
-UNIV_INTERN
+@return TRUE if earlier version should have */
+
 ibool
 row_vers_old_has_index_entry(
 /*=========================*/
@@ -356,7 +349,7 @@ row_vers_old_has_index_entry(
 	ut_ad(mtr_memo_contains_page(mtr, rec, MTR_MEMO_PAGE_X_FIX)
 	      || mtr_memo_contains_page(mtr, rec, MTR_MEMO_PAGE_S_FIX));
 #ifdef UNIV_SYNC_DEBUG
-	ut_ad(!rw_lock_own(&(purge_sys->latch), RW_LOCK_SHARED));
+	ut_ad(!rw_lock_own(&(purge_sys->latch), RW_LOCK_S));
 #endif /* UNIV_SYNC_DEBUG */
 
 	clust_index = dict_table_get_first_index(index->table);
@@ -471,8 +464,8 @@ row_vers_old_has_index_entry(
 Constructs the version of a clustered index record which a consistent
 read should see. We assume that the trx id stored in rec is such that
 the consistent read should not see rec in its present version.
-@return	DB_SUCCESS or DB_MISSING_HISTORY */
-UNIV_INTERN
+@return DB_SUCCESS or DB_MISSING_HISTORY */
+
 dberr_t
 row_vers_build_for_consistent_read(
 /*===============================*/
@@ -484,7 +477,7 @@ row_vers_build_for_consistent_read(
 	dict_index_t*	index,	/*!< in: the clustered index */
 	ulint**		offsets,/*!< in/out: offsets returned by
 				rec_get_offsets(rec, index) */
-	read_view_t*	view,	/*!< in: the consistent read view */
+	ReadView*	view,	/*!< in: the consistent read view */
 	mem_heap_t**	offset_heap,/*!< in/out: memory heap from which
 				the offsets are allocated */
 	mem_heap_t*	in_heap,/*!< in: memory heap from which the memory for
@@ -507,64 +500,33 @@ row_vers_build_for_consistent_read(
 	ut_ad(mtr_memo_contains_page(mtr, rec, MTR_MEMO_PAGE_X_FIX)
 	      || mtr_memo_contains_page(mtr, rec, MTR_MEMO_PAGE_S_FIX));
 #ifdef UNIV_SYNC_DEBUG
-	ut_ad(!rw_lock_own(&(purge_sys->latch), RW_LOCK_SHARED));
+	ut_ad(!rw_lock_own(&(purge_sys->latch), RW_LOCK_S));
 #endif /* UNIV_SYNC_DEBUG */
 
 	ut_ad(rec_offs_validate(rec, index, *offsets));
 
 	trx_id = row_get_rec_trx_id(rec, index, *offsets);
 
-	ut_ad(!read_view_sees_trx_id(view, trx_id));
+	ut_ad(!view->changes_visible(trx_id));
 
 	version = rec;
 
 	for (;;) {
-		mem_heap_t*	heap2	= heap;
-		trx_undo_rec_t* undo_rec;
-		roll_ptr_t	roll_ptr;
-		undo_no_t	undo_no;
+		mem_heap_t*	prev_heap = heap;
+
 		heap = mem_heap_create(1024);
 
-		/* If we have high-granularity consistent read view and
-		creating transaction of the view is the same as trx_id in
-		the record we see this record only in the case when
-		undo_no of the record is < undo_no in the view. */
+		/* If purge can't see the record then we can't rely on
+		the UNDO log record. */
 
-		if (view->type == VIEW_HIGH_GRANULARITY
-		    && view->creator_trx_id == trx_id) {
+		bool	purge_sees = trx_undo_prev_version_build(
+			rec, mtr, version, index, *offsets, heap,
+			&prev_version);
 
-			roll_ptr = row_get_rec_roll_ptr(version, index,
-							*offsets);
-			undo_rec = trx_undo_get_undo_rec_low(roll_ptr, heap);
-			undo_no = trx_undo_rec_get_undo_no(undo_rec);
-			mem_heap_empty(heap);
+		err  = (purge_sees) ? DB_SUCCESS : DB_MISSING_HISTORY;
 
-			if (view->undo_no > undo_no) {
-				/* The view already sees this version: we can
-				copy it to in_heap and return */
-
-#if defined UNIV_DEBUG || defined UNIV_BLOB_LIGHT_DEBUG
-				ut_a(!rec_offs_any_null_extern(
-					     version, *offsets));
-#endif /* UNIV_DEBUG || UNIV_BLOB_LIGHT_DEBUG */
-
-				buf = static_cast<byte*>(mem_heap_alloc(
-					in_heap, rec_offs_size(*offsets)));
-
-				*old_vers = rec_copy(buf, version, *offsets);
-				rec_offs_make_valid(*old_vers, index,
-						    *offsets);
-				err = DB_SUCCESS;
-				break;
-			}
-		}
-
-		err = trx_undo_prev_version_build(rec, mtr, version, index,
-						  *offsets, heap,
-						  &prev_version)
-			? DB_SUCCESS : DB_MISSING_HISTORY;
-		if (heap2) {
-			mem_heap_free(heap2); /* free version */
+		if (prev_heap != NULL) {
+			mem_heap_free(prev_heap);
 		}
 
 		if (prev_version == NULL) {
@@ -573,8 +535,9 @@ row_vers_build_for_consistent_read(
 			break;
 		}
 
-		*offsets = rec_get_offsets(prev_version, index, *offsets,
-					   ULINT_UNDEFINED, offset_heap);
+		*offsets = rec_get_offsets(
+			prev_version, index, *offsets, ULINT_UNDEFINED,
+			offset_heap);
 
 #if defined UNIV_DEBUG || defined UNIV_BLOB_LIGHT_DEBUG
 		ut_a(!rec_offs_any_null_extern(prev_version, *offsets));
@@ -582,7 +545,7 @@ row_vers_build_for_consistent_read(
 
 		trx_id = row_get_rec_trx_id(prev_version, index, *offsets);
 
-		if (read_view_sees_trx_id(view, trx_id)) {
+		if (view->changes_visible(trx_id)) {
 
 			/* The view already sees this version: we can copy
 			it to in_heap and return */
@@ -597,7 +560,7 @@ row_vers_build_for_consistent_read(
 		}
 
 		version = prev_version;
-	}/* for (;;) */
+	}
 
 	mem_heap_free(heap);
 
@@ -607,7 +570,7 @@ row_vers_build_for_consistent_read(
 /*****************************************************************//**
 Constructs the last committed version of a clustered index record,
 which should be seen by a semi-consistent read. */
-UNIV_INTERN
+
 void
 row_vers_build_for_semi_consistent_read(
 /*====================================*/
@@ -638,7 +601,7 @@ row_vers_build_for_semi_consistent_read(
 	ut_ad(mtr_memo_contains_page(mtr, rec, MTR_MEMO_PAGE_X_FIX)
 	      || mtr_memo_contains_page(mtr, rec, MTR_MEMO_PAGE_S_FIX));
 #ifdef UNIV_SYNC_DEBUG
-	ut_ad(!rw_lock_own(&(purge_sys->latch), RW_LOCK_SHARED));
+	ut_ad(!rw_lock_own(&(purge_sys->latch), RW_LOCK_S));
 #endif /* UNIV_SYNC_DEBUG */
 
 	ut_ad(rec_offs_validate(rec, index, *offsets));
@@ -656,7 +619,7 @@ row_vers_build_for_semi_consistent_read(
 			rec_trx_id = version_trx_id;
 		}
 
-		mutex_enter(&trx_sys->mutex);
+		trx_sys_mutex_enter();
 		version_trx = trx_get_rw_trx_by_id(version_trx_id);
 		/* Because version_trx is a read-write transaction,
 		its state cannot change from or to NOT_STARTED while
@@ -667,7 +630,7 @@ row_vers_build_for_semi_consistent_read(
 				    TRX_STATE_COMMITTED_IN_MEMORY)) {
 			version_trx = NULL;
 		}
-		mutex_exit(&trx_sys->mutex);
+		trx_sys_mutex_exit();
 
 		if (!version_trx) {
 committed_version_trx:

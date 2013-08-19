@@ -1,6 +1,5 @@
 /***********************************************************************
-
-Copyright (c) 2011, Oracle and/or its affiliates. All Rights Reserved.
+Copyright (c) 2011, 2013, Oracle and/or its affiliates. All Rights Reserved.
 
 This program is free software; you can redistribute it and/or modify it
 under the terms of the GNU General Public License as published by the
@@ -36,6 +35,8 @@ Created 04/12/2011 Jimmy Yang
 
 /** Whether to update all columns' value or a specific column value */
 #define UPDATE_ALL_VAL_COL	-1
+
+extern option_t config_option_names[];
 
 /** InnoDB API callback functions */
 static ib_cb_t* innodb_memcached_api[] = {
@@ -89,7 +90,8 @@ static ib_cb_t* innodb_memcached_api[] = {
 	(ib_cb_t*) &ib_cb_cursor_clear_trx,
 	(ib_cb_t*) &ib_cb_get_idx_field_name,
 	(ib_cb_t*) &ib_cb_trx_get_start_time,
-	(ib_cb_t*) &ib_cb_cfg_bk_commit_interval
+	(ib_cb_t*) &ib_cb_cfg_bk_commit_interval,
+	(ib_cb_t*) &ib_cb_ut_strerr
 };
 
 /** Set expiration time. If the exp sent by client is larger than
@@ -143,7 +145,7 @@ innodb_api_begin(
 	char		table_name[MAX_TABLE_NAME_LEN + MAX_DATABASE_NAME_LEN];
 
 	if (!*crsr) {
-#ifdef __WIN__
+#ifdef _WIN32
 		sprintf(table_name, "%s\%s", dbname, name);
 #else
 		snprintf(table_name, sizeof(table_name),
@@ -170,7 +172,7 @@ innodb_api_begin(
 			meta_cfg_info_t* meta_info = conn_data->conn_meta;
 			meta_index_t*	meta_index = &meta_info->index_info;
 
-			if (!engine->enable_mdl) {
+			if (!engine->enable_mdl || !conn_data->mysql_tbl) {
 				err = innodb_verify_low(
 					meta_info , *crsr, true);
 
@@ -303,7 +305,7 @@ innodb_api_write_int(
 {
 	ib_col_meta_t   col_meta;
 	ib_col_meta_t*	m_col = &col_meta;
-	void*		src;
+	void*		src = NULL;
 
 	ib_cb_col_get_meta(tpl, field, m_col);
 
@@ -353,7 +355,7 @@ innodb_api_write_int(
 		}
 	}
 
-	ib_cb_col_set_value(tpl, field, src, m_col->type_len);
+	ib_cb_col_set_value(tpl, field, src, m_col->type_len, true);
 	return(DB_SUCCESS);
 }
 
@@ -510,6 +512,10 @@ innodb_api_search(
 	ib_tpl_t	key_tpl;
 	ib_crsr_t	srch_crsr;
 
+	if (item) {
+		memset(item, 0, sizeof(*item));
+	}
+
 	/* If srch_use_idx is set to META_USE_SECONDARY, we will use the
 	secondary index to find the record first */
 	if (meta_index->srch_use_idx == META_USE_SECONDARY) {
@@ -540,7 +546,7 @@ innodb_api_search(
 		srch_crsr = crsr;
 	}
 
-	err = ib_cb_col_set_value(key_tpl, 0, (char*) key, len);
+	err = ib_cb_col_set_value(key_tpl, 0, (char*) key, len, true);
 
 	ib_cb_cursor_set_match_mode(srch_crsr, IB_EXACT_MATCH);
 
@@ -559,8 +565,6 @@ innodb_api_search(
 		ib_tpl_t	read_tpl;
 		int		n_cols;
 		int		i;
-
-		memset(item, 0, sizeof(*item));
 
 		read_tpl = ib_cb_read_tuple_create(
 				sel_only ? cursor_data->read_crsr
@@ -758,7 +762,7 @@ innodb_api_set_multi_cols(
 	if (value[0] == *sep) {
 		err = ib_cb_col_set_value(
 			tpl, col_info[i].field_id,
-			NULL, IB_SQL_NULL);
+			NULL, IB_SQL_NULL, true);
 		i++;
 
 		if (err != DB_SUCCESS) {
@@ -776,11 +780,12 @@ innodb_api_set_multi_cols(
 		if (!col_val) {
 			err = ib_cb_col_set_value(
 				tpl, col_info[i].field_id,
-				NULL, IB_SQL_NULL);
+				NULL, IB_SQL_NULL, true);
+			break;
 		} else {
 			err = ib_cb_col_set_value(
 				tpl, col_info[i].field_id,
-				col_val, strlen(col_val));
+				col_val, strlen(col_val), true);
 
 			if (table) {
 				handler_rec_setup_str(
@@ -797,7 +802,7 @@ innodb_api_set_multi_cols(
 	for (; i < meta_info->n_extra_col; i++) {
 		err = ib_cb_col_set_value(
 			tpl, col_info[i].field_id,
-			NULL, IB_SQL_NULL);
+			NULL, IB_SQL_NULL, true);
 
 		if (err != DB_SUCCESS) {
 			break;
@@ -844,7 +849,6 @@ ib_err_t
 innodb_api_set_tpl(
 /*===============*/
 	ib_tpl_t	tpl,		/*!< in/out: tuple for insert */
-	ib_tpl_t	old_tpl,	/*!< in: old tuple */
 	meta_cfg_info_t* meta_info,	/*!< in: metadata info */
 	meta_column_t*	col_info,	/*!< in: insert col info */
 	const char*	key,		/*!< in: key */
@@ -855,16 +859,13 @@ innodb_api_set_tpl(
 	uint64_t	exp,		/*!< in: expiration */
 	uint64_t	flag,		/*!< in: flag */
 	int		col_to_set,	/*!< in: column to set */
-	void*		table)		/*!< in: MySQL TABLE* */
+	void*		table,		/*!< in: MySQL TABLE* */
+	bool		need_cpy)	/*!< in: if need memcpy */
 {
 	ib_err_t	err = DB_ERROR;
 
-	if (old_tpl) {
-		ib_cb_tuple_copy(tpl, old_tpl);
-	}
-
 	err = ib_cb_col_set_value(tpl, col_info[CONTAINER_KEY].field_id,
-				  key, key_len);
+				  key, key_len, need_cpy);
 
 	if (err != DB_SUCCESS) {
 		return(err);
@@ -885,12 +886,13 @@ innodb_api_set_tpl(
 		if (col_to_set == UPDATE_ALL_VAL_COL) {
 			err = innodb_api_set_multi_cols(tpl, meta_info,
 							(char*) value,
-							value_len, table);
+							value_len,
+							table);
 		} else {
 			err = ib_cb_col_set_value(
 				tpl,
 				meta_info->extra_col_info[col_to_set].field_id,
-				value, value_len);
+				value, value_len, need_cpy);
 
 			if (table) {
 				handler_rec_setup_str(
@@ -902,7 +904,7 @@ innodb_api_set_tpl(
 	} else {
 		err = ib_cb_col_set_value(
 			tpl, col_info[CONTAINER_VALUE].field_id,
-			value, value_len);
+			value, value_len, need_cpy);
 
 		if (table) {
 			handler_rec_setup_str(
@@ -974,11 +976,12 @@ innodb_api_insert(
 	assert(!cursor_data->mysql_tbl || engine->enable_binlog
 	       || engine->enable_mdl);
 
-	err = innodb_api_set_tpl(tpl, NULL, meta_info, col_info, key, len,
+	err = innodb_api_set_tpl(tpl, meta_info, col_info, key, len,
 				 key + len, val_len,
 				 new_cas, exp, flags, UPDATE_ALL_VAL_COL,
 				 engine->enable_binlog
-				 ? cursor_data->mysql_tbl : NULL);
+				 ? cursor_data->mysql_tbl : NULL,
+				 false);
 
 	if (err == DB_SUCCESS) {
 		err = ib_cb_insert_row(cursor_data->crsr, tpl);
@@ -1045,11 +1048,12 @@ innodb_api_update(
 	assert(!cursor_data->mysql_tbl || engine->enable_binlog
 	       || engine->enable_mdl);
 
-	err = innodb_api_set_tpl(new_tpl, old_tpl, meta_info, col_info, key,
+	err = innodb_api_set_tpl(new_tpl, meta_info, col_info, key,
 				 len, key + len, val_len,
 				 new_cas, exp, flags, UPDATE_ALL_VAL_COL,
 				 engine->enable_binlog
-				 ? cursor_data->mysql_tbl : NULL);
+				 ? cursor_data->mysql_tbl : NULL,
+				 true);
 
 	if (err == DB_SUCCESS) {
 		err = ib_cb_update_row(srch_crsr, old_tpl, new_tpl);
@@ -1210,11 +1214,12 @@ innodb_api_link(
 	assert(!cursor_data->mysql_tbl || engine->enable_binlog
 	       || engine->enable_mdl);
 
-	err = innodb_api_set_tpl(new_tpl, old_tpl, meta_info, col_info,
+	err = innodb_api_set_tpl(new_tpl, meta_info, col_info,
 				 key, len, append_buf, total_len,
 				 new_cas, exp, flags, column_used,
 				 engine->enable_binlog
-				 ? cursor_data->mysql_tbl : NULL);
+				 ? cursor_data->mysql_tbl : NULL,
+				 true);
 
 	if (err == DB_SUCCESS) {
 		err = ib_cb_update_row(srch_crsr, old_tpl, new_tpl);
@@ -1293,7 +1298,8 @@ innodb_api_arithmetic(
 
 		/* If create is true, insert a new row */
 		if (create) {
-			snprintf(value_buf, sizeof(value_buf), "%llu", initial);
+			snprintf(value_buf, sizeof(value_buf),
+				 "%" PRIu64, initial);
 			create_new = true;
 			goto create_new_value;
 		} else {
@@ -1359,8 +1365,7 @@ innodb_api_arithmetic(
 		}
 	}
 
-
-	snprintf(value_buf, sizeof(value_buf), "%llu", value);
+	snprintf(value_buf, sizeof(value_buf), "%" PRIu64, value);
 create_new_value:
 	*cas = mci_get_cas(engine);
 
@@ -1371,14 +1376,15 @@ create_new_value:
 
 	/* The cas, exp and flags field are not changing, so use the
 	data from result */
-	err = innodb_api_set_tpl(new_tpl, old_tpl, meta_info, col_info,
+	err = innodb_api_set_tpl(new_tpl, meta_info, col_info,
 				 key, len, value_buf, strlen(value_buf),
 				 *cas,
 				 result.col_value[MCI_COL_EXP].value_int,
 				 result.col_value[MCI_COL_FLAG].value_int,
 				 column_used,
 				 engine->enable_binlog
-				 ? cursor_data->mysql_tbl : NULL);
+				 ? cursor_data->mysql_tbl : NULL,
+				 true);
 
 	if (err != DB_SUCCESS) {
 		ib_cb_tuple_delete(new_tpl);
@@ -1408,6 +1414,15 @@ create_new_value:
 	ib_cb_tuple_delete(old_tpl);
 
 func_exit:
+	/* Free memory of result. */
+	if (result.extra_col_value) {
+		free(result.extra_col_value);
+	} else {
+		if (result.col_value[MCI_COL_VALUE].allocated) {
+			free(result.col_value[MCI_COL_VALUE].value_str);
+			result.col_value[MCI_COL_VALUE].allocated = false;
+		}
+	}
 
 	if (ret == ENGINE_SUCCESS) {
 		ret = (err == DB_SUCCESS) ? ENGINE_SUCCESS : ENGINE_NOT_STORED;
@@ -1445,9 +1460,16 @@ innodb_api_store(
 	ENGINE_ERROR_CODE stored = ENGINE_NOT_STORED;
 	ib_crsr_t	srch_crsr = cursor_data->crsr;
 
-	/* First check whether record with the key value exists */
-	err = innodb_api_search(cursor_data, &srch_crsr,
-				key, len, &result, &old_tpl, false);
+	/* Skip search for add operation. Rely on the unique index of
+	key to check any duplicates */
+	if (op == OPERATION_ADD) {
+		err = DB_RECORD_NOT_FOUND;
+		memset(&result, 0, sizeof(result));
+	} else {
+		/* First check whether record with the key value exists */
+		err = innodb_api_search(cursor_data, &srch_crsr,
+					key, len, &result, &old_tpl, false);
+	}
 
 	/* If the return message is not success or record not found, just
 	exit */
@@ -1457,13 +1479,8 @@ innodb_api_store(
 
 	switch (op) {
 	case OPERATION_ADD:
-		/* Only add if the key does not exist */
-		if (err != DB_SUCCESS) {
-			err = innodb_api_insert(engine, cursor_data, key, len,
-						val_len, exp, cas, flags);
-		} else {
-			err = DB_ERROR;
-		}
+		err = innodb_api_insert(engine, cursor_data, key, len,
+					val_len, exp, cas, flags);
 		break;
 	case OPERATION_REPLACE:
 		if (err == DB_SUCCESS) {
@@ -1515,6 +1532,16 @@ innodb_api_store(
 		break;
 	}
 
+	/* Free memory of result. */
+	if (result.extra_col_value) {
+		free(result.extra_col_value);
+	} else {
+		if (result.col_value[MCI_COL_VALUE].allocated) {
+			free(result.col_value[MCI_COL_VALUE].value_str);
+			result.col_value[MCI_COL_VALUE].allocated = false;
+		}
+	}
+
 func_exit:
 	ib_cb_tuple_delete(old_tpl);
 
@@ -1542,7 +1569,7 @@ innodb_api_flush(
 				   + MAX_DATABASE_NAME_LEN + 1];
 	ib_id_u64_t	new_id;
 
-#ifdef __WIN__
+#ifdef _WIN32
 	sprintf(table_name, "%s\%s", dbname, name);
 #else
 	snprintf(table_name, sizeof(table_name), "%s/%s", dbname, name);

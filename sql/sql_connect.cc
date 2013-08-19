@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2007, 2012, Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2007, 2013, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -32,8 +32,10 @@
 #include "sql_db.h"                             // mysql_change_db
 #include "hostname.h" // inc_host_errors, ip_to_hostname,
                       // reset_host_errors
-#include "sql_acl.h"  // acl_getroot, NO_ACCESS, SUPER_ACL
+#include "auth_common.h"                // SUPER_ACL, acl_check_host
+                                        // acl_getroot, NO_ACCESS
 #include "sql_callback.h"
+#include "log.h"
 
 #include <algorithm>
 
@@ -85,7 +87,8 @@ int get_or_create_user_conn(THD *thd, const char *user,
   {
     /* First connection for user; Create a user connection object */
     if (!(uc= ((struct user_conn*)
-         my_malloc(sizeof(struct user_conn) + temp_len+1,
+         my_malloc(key_memory_user_conn,
+                   sizeof(struct user_conn) + temp_len+1,
        MYF(MY_WME)))))
     {
       /* MY_WME ensures an error is set in THD. */
@@ -186,7 +189,7 @@ end:
   mysql_mutex_unlock(&LOCK_user_conn);
   if (error)
   {
-    inc_host_errors(thd->main_security_ctx.ip, &errors);
+    inc_host_errors(thd->main_security_ctx.get_ip()->ptr(), &errors);
   }
   DBUG_RETURN(error);
 }
@@ -441,6 +444,14 @@ bool thd_init_client_charset(THD *thd, uint cs_number)
                      global_system_variables.character_set_client->name,
                      cs->name))
   {
+    if (!is_supported_parser_charset(
+      global_system_variables.character_set_client))
+    {
+      /* Disallow non-supported parser character sets: UCS2, UTF16, UTF32 */
+      my_error(ER_WRONG_VALUE_FOR_VAR, MYF(0), "character_set_client",
+               global_system_variables.character_set_client->csname);
+      return true;
+    }    
     thd->variables.character_set_client=
       global_system_variables.character_set_client;
     thd->variables.collation_connection=
@@ -474,7 +485,7 @@ bool init_new_connection_handler_thread()
   pthread_detach_this_thread();
   if (my_thread_init())
   {
-    statistic_increment_rwlock(connection_errors_internal, &LOCK_status);
+    connection_errors_internal++;
     return 1;
   }
   return 0;
@@ -501,11 +512,10 @@ static int check_connection(THD *thd)
 
   DBUG_PRINT("info",
              ("New connection received on %s", vio_description(net->vio)));
-#ifdef SIGNAL_WITH_VIO_CLOSE
-  thd->set_active_vio(net->vio);
-#endif
 
-  if (!thd->main_security_ctx.host)         // If TCP/IP connection
+  thd->set_active_vio(net->vio);
+
+  if (!thd->main_security_ctx.get_host()->length())      // If TCP/IP connection
   {
     my_bool peer_rc;
     char ip[NI_MAXHOST];
@@ -581,37 +591,41 @@ static int check_connection(THD *thd)
         there is nothing to show in the host_cache,
         so increment the global status variable for peer address errors.
       */
-      statistic_increment_rwlock(connection_errors_peer_addr, &LOCK_status);
+      connection_errors_peer_addr++;
       my_error(ER_BAD_HOST_ERROR, MYF(0));
       return 1;
     }
-    if (!(thd->main_security_ctx.ip= my_strdup(ip,MYF(MY_WME))))
+    thd->main_security_ctx.set_ip(my_strdup(key_memory_Security_context,
+                                            ip, MYF(MY_WME)));
+    if (!(thd->main_security_ctx.get_ip()->length()))
     {
       /*
         No error accounting per IP in host_cache,
         this is treated as a global server OOM error.
         TODO: remove the need for my_strdup.
       */
-      statistic_increment_rwlock(connection_errors_internal, &LOCK_status);
+      connection_errors_internal++;
       return 1; /* The error is set by my_strdup(). */
     }
-    thd->main_security_ctx.host_or_ip= thd->main_security_ctx.ip;
+    thd->main_security_ctx.host_or_ip= thd->main_security_ctx.get_ip()->ptr();
     if (!(specialflag & SPECIAL_NO_RESOLVE))
     {
       int rc;
-
+      char *host= (char *) thd->main_security_ctx.get_host()->ptr();
       rc= ip_to_hostname(&net->vio->remote,
-                         thd->main_security_ctx.ip,
-                         &thd->main_security_ctx.host,
-                         &connect_errors);
+                         thd->main_security_ctx.get_ip()->ptr(),
+                         &host, &connect_errors);
+
+      thd->main_security_ctx.set_host(host);
 
       /* Cut very long hostnames to avoid possible overflows */
-      if (thd->main_security_ctx.host)
+      if (thd->main_security_ctx.get_host()->length())
       {
-        if (thd->main_security_ctx.host != my_localhost)
-          thd->main_security_ctx.host[min<size_t>(strlen(thd->main_security_ctx.host),
-                                                  HOSTNAME_LENGTH)]= 0;
-        thd->main_security_ctx.host_or_ip= thd->main_security_ctx.host;
+        if (thd->main_security_ctx.get_host()->ptr() != my_localhost)
+          thd->main_security_ctx.set_host(thd->main_security_ctx.get_host()->ptr(),
+                       min<size_t>(thd->main_security_ctx.get_host()->length(),
+                       HOSTNAME_LENGTH));
+        thd->main_security_ctx.host_or_ip= thd->main_security_ctx.get_host()->ptr();
       }
 
       if (rc == RC_BLOCKED_HOST)
@@ -622,11 +636,12 @@ static int check_connection(THD *thd)
       }
     }
     DBUG_PRINT("info",("Host: %s  ip: %s",
-           (thd->main_security_ctx.host ?
-                        thd->main_security_ctx.host : "unknown host"),
-           (thd->main_security_ctx.ip ?
-                        thd->main_security_ctx.ip : "unknown ip")));
-    if (acl_check_host(thd->main_security_ctx.host, thd->main_security_ctx.ip))
+           (thd->main_security_ctx.get_host()->length() ?
+                 thd->main_security_ctx.get_host()->ptr() : "unknown host"),
+           (thd->main_security_ctx.get_ip()->length() ?
+                 thd->main_security_ctx.get_ip()->ptr() : "unknown ip")));
+    if (acl_check_host(thd->main_security_ctx.get_host()->ptr(), 
+                       thd->main_security_ctx.get_ip()->ptr()))
     {
       /* HOST_CACHE stats updated by acl_check_host(). */
       my_error(ER_HOST_NOT_PRIVILEGED, MYF(0),
@@ -636,9 +651,10 @@ static int check_connection(THD *thd)
   }
   else /* Hostname given means that the connection was on a socket */
   {
-    DBUG_PRINT("info",("Host: %s", thd->main_security_ctx.host));
-    thd->main_security_ctx.host_or_ip= thd->main_security_ctx.host;
-    thd->main_security_ctx.ip= 0;
+    DBUG_PRINT("info",("Host: %s", thd->main_security_ctx.get_host()->ptr()));
+    thd->main_security_ctx.host_or_ip= thd->main_security_ctx.
+                                       get_host()->ptr();
+    thd->main_security_ctx.set_ip("");
     /* Reset sin_addr */
     memset(&net->vio->remote, 0, sizeof(net->vio->remote));
   }
@@ -657,7 +673,7 @@ static int check_connection(THD *thd)
       Hence, there is no reason to account on OOM conditions per client IP,
       we count failures in the global server status instead.
     */
-    statistic_increment_rwlock(connection_errors_internal, &LOCK_status);
+    connection_errors_internal++;
     return 1; /* The error is set by alloc(). */
   }
 
@@ -669,36 +685,10 @@ static int check_connection(THD *thd)
       after some previous failures.
       Reset the connection error counter.
     */
-    reset_host_connect_errors(thd->main_security_ctx.ip);
+    reset_host_connect_errors(thd->main_security_ctx.get_ip()->ptr());
   }
 
   return auth_rc;
-}
-
-
-/*
-  Setup thread to be used with the current thread
-
-  SYNOPSIS
-    bool setup_connection_thread_globals()
-    thd    Thread/connection handler
-
-  RETURN
-    0   ok
-    1   Error (out of memory)
-        In this case we will close the connection and increment status
-*/
-
-bool setup_connection_thread_globals(THD *thd)
-{
-  if (thd->store_globals())
-  {
-    close_connection(thd, ER_OUT_OF_RESOURCES);
-    statistic_increment_rwlock(aborted_connects,&LOCK_status);
-    MYSQL_CALLBACK(thread_scheduler, end_thread, (thd, 0));
-    return 1;                                   // Error
-  }
-  return 0;
 }
 
 
@@ -739,7 +729,6 @@ bool login_connection(THD *thd)
     if (vio_type(net->vio) == VIO_TYPE_NAMEDPIPE)
       my_sleep(1000);       /* must wait after eof() */
 #endif
-    statistic_increment_rwlock(aborted_connects,&LOCK_status);
     DBUG_RETURN(1);
   }
   /* Connect completed, set read/write timeouts back to default */
@@ -770,7 +759,7 @@ void end_connection(THD *thd)
 
   if (thd->killed || (net->error && net->vio != 0))
   {
-    statistic_increment_rwlock(aborted_threads,&LOCK_status);
+    aborted_threads++;
   }
 
   if (net->error && net->vio != 0)
@@ -828,7 +817,7 @@ void prepare_new_connection_state(THD* thd)
                         sctx->host_or_ip, "init_connect command failed");
       sql_print_warning("%s", thd->get_stmt_da()->message_text());
 
-      thd->lex->current_select= 0;
+      thd->lex->set_current_select(0);
       my_net_set_read_timeout(net, thd->variables.net_wait_timeout);
       thd->clear_error();
       net_new_transaction(net);
@@ -848,7 +837,7 @@ void prepare_new_connection_state(THD* thd)
       thd->protocol->end_statement();
       thd->killed = THD::KILL_CONNECTION;
       errors.m_init_connect= 1;
-      inc_host_errors(thd->main_security_ctx.ip, &errors);
+      inc_host_errors(thd->main_security_ctx.get_ip()->ptr(), &errors);
       return;
     }
 
@@ -858,33 +847,6 @@ void prepare_new_connection_state(THD* thd)
   }
 }
 
-
-/*
-  Thread handler for a connection
-
-  SYNOPSIS
-    handle_one_connection()
-    arg   Connection object (THD)
-
-  IMPLEMENTATION
-    This function (normally) does the following:
-    - Initialize thread
-    - Initialize THD to be used with this thread
-    - Authenticate user
-    - Execute all queries sent on the connection
-    - Take connection down
-    - End thread  / Handle next connection using thread from thread cache
-*/
-
-pthread_handler_t handle_one_connection(void *arg)
-{
-  THD *thd= (THD*) arg;
-
-  mysql_thread_set_psi_id(thd->thread_id);
-
-  do_handle_one_connection(thd);
-  return 0;
-}
 
 bool thd_prepare_connection(THD *thd)
 {
@@ -902,6 +864,37 @@ bool thd_prepare_connection(THD *thd)
   return FALSE;
 }
 
+
+/**
+  Close a connection.
+
+  @param thd        Thread handle.
+  @param sql_errno  The error code to send before disconnect.
+
+  @note
+    For the connection that is doing shutdown, this is called twice
+*/
+
+void close_connection(THD *thd, uint sql_errno)
+{
+  DBUG_ENTER("close_connection");
+
+  if (sql_errno)
+    net_send_error(thd, sql_errno, ER_DEFAULT(sql_errno));
+
+  thd->disconnect();
+
+  MYSQL_CONNECTION_DONE((int) sql_errno, thd->thread_id);
+
+  if (MYSQL_CONNECTION_DONE_ENABLED())
+  {
+    sleep(0); /* Workaround to avoid tailcall optimisation */
+  }
+  MYSQL_AUDIT_NOTIFY_CONNECTION_DISCONNECT(thd, sql_errno);
+  DBUG_VOID_RETURN;
+}
+
+
 bool thd_is_connection_alive(THD *thd)
 {
   NET *net= &thd->net;
@@ -912,77 +905,4 @@ bool thd_is_connection_alive(THD *thd)
   return FALSE;
 }
 
-void do_handle_one_connection(THD *thd_arg)
-{
-  THD *thd= thd_arg;
-
-  thd->thr_create_utime= my_micro_time();
-
-  if (MYSQL_CALLBACK_ELSE(thread_scheduler, init_new_connection_thread, (), 0))
-  {
-    close_connection(thd, ER_OUT_OF_RESOURCES);
-    statistic_increment_rwlock(aborted_connects,&LOCK_status);
-    MYSQL_CALLBACK(thread_scheduler, end_thread, (thd, 0));
-    return;
-  }
-
-  /*
-    If a thread was created to handle this connection:
-    increment slow_launch_threads counter if it took more than
-    slow_launch_time seconds to create the thread.
-  */
-  if (thd->prior_thr_create_utime)
-  {
-    ulong launch_time= (ulong) (thd->thr_create_utime -
-                                thd->prior_thr_create_utime);
-    if (launch_time >= slow_launch_time*1000000L)
-      statistic_increment_rwlock(slow_launch_threads, &LOCK_status);
-    thd->prior_thr_create_utime= 0;
-  }
-
-  /*
-    handle_one_connection() is normally the only way a thread would
-    start and would always be on the very high end of the stack ,
-    therefore, the thread stack always starts at the address of the
-    first local variable of handle_one_connection, which is thd. We
-    need to know the start of the stack so that we could check for
-    stack overruns.
-  */
-  thd->thread_stack= (char*) &thd;
-  if (setup_connection_thread_globals(thd))
-    return;
-
-  for (;;)
-  {
-	bool rc;
-
-    NET *net= &thd->net;
-    mysql_socket_set_thread_owner(net->vio->mysql_socket);
-
-    rc= thd_prepare_connection(thd);
-    if (rc)
-      goto end_thread;
-
-    while (thd_is_connection_alive(thd))
-    {
-      mysql_audit_release(thd);
-      if (do_command(thd))
-  break;
-    }
-    end_connection(thd);
-
-end_thread:
-    close_connection(thd);
-    if (MYSQL_CALLBACK_ELSE(thread_scheduler, end_thread, (thd, 1), 0))
-      return;                                 // Probably no-threads
-
-    /*
-      If end_thread() returns, we are either running with
-      thread-handler=no-threads or this thread has been schedule to
-      handle the next connection.
-    */
-    thd= current_thd;
-    thd->thread_stack= (char*) &thd;
-  }
-}
 #endif /* EMBEDDED_LIBRARY */

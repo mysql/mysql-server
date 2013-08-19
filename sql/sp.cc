@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2002, 2012, Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2002, 2013, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -25,11 +25,12 @@
                     // mysql_change_db, check_db_dir_existence,
                     // load_db_opt_by_name
 #include "sql_table.h"                          // write_bin_log
-#include "sql_acl.h"                       // SUPER_ACL
+#include "auth_common.h"                        // SUPER_ACL
 #include "sp_head.h"
 #include "sp_cache.h"
 #include "lock.h"                               // lock_object_name
 #include "sp.h"
+#include "mysql/psi/mysql_sp.h"
 
 #include <my_user.h>
 
@@ -417,12 +418,19 @@ TABLE *open_proc_table_for_read(THD *thd, Open_tables_backup *backup)
 
   if (open_system_tables_for_read(thd, &table, backup))
     DBUG_RETURN(NULL);
+   
+  if (!table.table->key_info)
+  {
+    my_error(ER_TABLE_CORRUPT, MYF(0), table.table->s->db.str,
+             table.table->s->table_name.str);
+    goto err;
+  }
 
   if (!proc_table_intact.check(table.table, &proc_table_def))
     DBUG_RETURN(table.table);
 
+err:
   close_system_tables(thd, backup);
-
   DBUG_RETURN(NULL);
 }
 
@@ -783,6 +791,13 @@ static sp_head *sp_compile(THD *thd, String *defstr, sql_mode_t sql_mode,
   thd->sp_runtime_ctx= sp_runtime_ctx_saved;
   thd->variables.sql_mode= old_sql_mode;
   thd->variables.select_limit= old_select_limit;
+#ifdef HAVE_PSI_SP_INTERFACE
+  if (sp != NULL)
+  sp->m_sp_share= MYSQL_GET_SP_SHARE(sp->m_type == SP_TYPE_PROCEDURE ?
+                                     SP_OBJECT_TYPE_PROCEDURE : SP_OBJECT_TYPE_FUNCTION,
+                                     sp->m_db.str, sp->m_db.length,
+                                     sp->m_name.str, sp->m_name.length);
+#endif
   return sp;
 }
 
@@ -848,7 +863,8 @@ db_load_routine(THD *thd, enum_sp_type type, sp_name *name, sp_head **sphp,
   int ret= 0;
 
   thd->lex= &newlex;
-  newlex.current_select= NULL;
+  newlex.thd= thd;
+  newlex.set_current_select(NULL);
 
   parse_user(definer, strlen(definer),
              definer_user_name.str, &definer_user_name.length,
@@ -1340,6 +1356,13 @@ int sp_drop_routine(THD *thd, enum_sp_type type, sp_name *name)
       if (sp)
         sp_cache_flush_obsolete(spc, &sp);
     }
+#ifdef HAVE_PSI_SP_INTERFACE
+    /* Drop statistics for this stored program from performance schema. */
+    MYSQL_DROP_SP((type == SP_TYPE_PROCEDURE) ?
+                  SP_OBJECT_TYPE_PROCEDURE : SP_OBJECT_TYPE_FUNCTION,
+                  name->m_db.str, name->m_db.length,
+                  name->m_name.str, name->m_name.length);
+#endif 
   }
   /* Restore the state of binlog format */
   DBUG_ASSERT(!thd->is_current_stmt_binlog_format_row());
@@ -1471,7 +1494,7 @@ public:
   {
     if (sql_errno == ER_NO_SUCH_TABLE ||
         sql_errno == ER_CANNOT_LOAD_FROM_TABLE_V2 ||
-        sql_errno == ER_COL_COUNT_DOESNT_MATCH_PLEASE_UPDATE ||
+        sql_errno == ER_COL_COUNT_DOESNT_MATCH_PLEASE_UPDATE_V2 ||
         sql_errno == ER_COL_COUNT_DOESNT_MATCH_CORRUPTED_V2)
       return true;
     return false;
@@ -1525,9 +1548,9 @@ bool lock_db_routines(THD *thd, char *db)
     DBUG_RETURN(true);
   }
 
-  if (! table->file->index_read_map(table->record[0],
-                                    table->field[MYSQL_PROC_FIELD_DB]->ptr,
-                                    (key_part_map)1, HA_READ_KEY_EXACT))
+  if (! table->file->ha_index_read_map(table->record[0],
+                                       table->field[MYSQL_PROC_FIELD_DB]->ptr,
+                                       (key_part_map)1, HA_READ_KEY_EXACT))
   {
     do
     {
@@ -1539,9 +1562,9 @@ bool lock_db_routines(THD *thd, char *db)
                         MDL_key::FUNCTION : MDL_key::PROCEDURE,
                         db, sp_name, MDL_EXCLUSIVE, MDL_TRANSACTION);
       mdl_requests.push_front(mdl_request);
-    } while (! (nxtres= table->file->index_next_same(table->record[0],
-                                         table->field[MYSQL_PROC_FIELD_DB]->ptr,
-						     key_len)));
+    } while (! (nxtres= table->file->ha_index_next_same(table->record[0],
+                                       table->field[MYSQL_PROC_FIELD_DB]->ptr,
+                                       key_len)));
   }
   table->file->ha_index_end();
   if (nxtres != 0 && nxtres != HA_ERR_END_OF_FILE)
@@ -1606,7 +1629,29 @@ sp_drop_db_routines(THD *thd, char *db)
     do
     {
       if (! table->file->ha_delete_row(table->record[0]))
+      {
 	deleted= TRUE;		/* We deleted something */
+#ifdef HAVE_PSI_SP_INTERFACE
+      char* sp_name= (char*)table->field[MYSQL_PROC_FIELD_NAME]->ptr;
+      char* sp_name_end= strstr(sp_name," ");
+      uint sp_name_length= sp_name_end - sp_name;
+      uint db_name_length= strlen(db);
+
+      enum_sp_object_type sp_type;
+      if ((int)table->field[MYSQL_PROC_MYSQL_TYPE]->ptr[0] == (int)SP_TYPE_FUNCTION)
+      {
+        sp_type= SP_OBJECT_TYPE_FUNCTION;
+      }
+      else
+      {
+        sp_type= SP_OBJECT_TYPE_PROCEDURE;
+      }
+      /* Drop statistics for this stored program from performance schema. */
+      MYSQL_DROP_SP(sp_type,
+                    db, db_name_length,
+                    sp_name, sp_name_length);
+#endif
+      }
       else
       {
 	ret= SP_DELETE_ROW_FAILED;
@@ -1836,7 +1881,7 @@ sp_exist_routines(THD *thd, TABLE_LIST *routines, bool is_proc)
                                sp_find_routine(thd, SP_TYPE_FUNCTION,
                                                name, &thd->sp_func_cache,
                                                FALSE) != NULL;
-    thd->get_stmt_da()->reset_condition_info(thd->query_id);
+    thd->get_stmt_da()->reset_condition_info(thd);
     if (! sp_object_found)
     {
       my_error(ER_SP_DOES_NOT_EXIST, MYF(0), "FUNCTION or PROCEDURE",
@@ -2285,7 +2330,8 @@ sp_load_for_information_schema(THD *thd, TABLE *proc_table, String *db,
     return 0;
 
   thd->lex= &newlex;
-  newlex.current_select= NULL; 
+  newlex.thd= thd;
+  newlex.set_current_select(NULL); 
   sp= sp_compile(thd, &defstr, sql_mode, creation_ctx);
   *free_sp_head= 1;
   thd->lex->sphead= NULL;
@@ -2541,6 +2587,15 @@ uint sp_get_flags_for_command(LEX *lex)
   case SQLCOM_DROP_EVENT:
   case SQLCOM_INSTALL_PLUGIN:
   case SQLCOM_UNINSTALL_PLUGIN:
+  case SQLCOM_ALTER_DB_UPGRADE:
+  case SQLCOM_ALTER_DB:
+  case SQLCOM_ALTER_USER:
+  case SQLCOM_CREATE_SERVER:
+  case SQLCOM_ALTER_SERVER:
+  case SQLCOM_DROP_SERVER:
+  case SQLCOM_CHANGE_MASTER:
+  case SQLCOM_SLAVE_START:
+  case SQLCOM_SLAVE_STOP:
     flags= sp_head::HAS_COMMIT_OR_ROLLBACK;
     break;
   default:
@@ -2602,7 +2657,7 @@ TABLE_LIST *sp_add_to_query_tables(THD *thd, LEX *lex,
   table->table_name= thd->strmake(name, table->table_name_length);
   table->alias= thd->strdup(name);
   table->lock_type= locktype;
-  table->select_lex= lex->current_select;
+  table->select_lex= lex->current_select();
   table->cacheable_table= 1;
   table->mdl_request.init(MDL_key::TABLE, table->db, table->table_name,
                           mdl_type, MDL_TRANSACTION);
@@ -2679,7 +2734,7 @@ bool sp_eval_expr(THD *thd, Field *result_field, Item **expr_item_ptr)
 
   /* Save the value in the field. Convert the value if needed. */
 
-  expr_item->save_in_field(result_field, 0);
+  expr_item->save_in_field(result_field, false);
 
   thd->count_cuted_fields= save_count_cuted_fields;
   thd->abort_on_warning= save_abort_on_warning;

@@ -1,4 +1,4 @@
-/* Copyright (c) 2000, 2012, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2000, 2013, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -221,15 +221,15 @@ static uint collect_cmp_types(Item **items, uint nitems, bool skip_nulls= FALSE)
          items[i]->result_type() == ROW_RESULT) &&
         cmp_row_type(items[0], items[i]))
       return 0;
-    found_types|= 1<< (uint)item_cmp_type(left_result,
-                                           items[i]->result_type());
+    found_types|= 1U << (uint)item_cmp_type(left_result,
+                                            items[i]->result_type());
   }
   /*
    Even if all right-hand items are NULLs and we are skipping them all, we need
    at least one type bit in the found_type bitmask.
   */
   if (skip_nulls && !found_types)
-    found_types= 1 << (uint)left_result;
+    found_types= 1U << (uint)left_result;
   return found_types;
 }
 
@@ -451,7 +451,7 @@ static bool convert_constant_item(THD *thd, Item_field *field_item,
       orig_field_val= field->val_int();
     int rc;
     if (!(*item)->is_null() &&
-        (((rc= (*item)->save_in_field(field, 1)) == TYPE_OK) ||
+        (((rc= (*item)->save_in_field(field, true)) == TYPE_OK) ||
          rc == TYPE_NOTE_TIME_TRUNCATED)) // TS-TODO
     {
       int field_cmp= 0;
@@ -1857,24 +1857,19 @@ bool Item_in_optimizer::fix_left(THD *thd, Item **ref)
     return 1;
 
   cache->setup(args[0]);
+  used_tables_cache= args[0]->used_tables();
   if (cache->cols() == 1)
   {
-    if ((used_tables_cache= args[0]->used_tables()))
-      cache->set_used_tables(OUTER_REF_TABLE_BIT);
-    else
-      cache->set_used_tables(0);
+    cache->set_used_tables(used_tables_cache);
   }
   else
   {
     uint n= cache->cols();
     for (uint i= 0; i < n; i++)
     {
-      if (args[0]->element_index(i)->used_tables())
-	((Item_cache *)cache->element_index(i))->set_used_tables(OUTER_REF_TABLE_BIT);
-      else
-	((Item_cache *)cache->element_index(i))->set_used_tables(0);
+      ((Item_cache *)cache->element_index(i))->
+        set_used_tables(args[0]->element_index(i)->used_tables());
     }
-    used_tables_cache= args[0]->used_tables();
   }
   not_null_tables_cache= args[0]->not_null_tables();
   with_sum_func= args[0]->with_sum_func;
@@ -2072,7 +2067,7 @@ longlong Item_in_optimizer::val_int()
       }
 
       if (all_left_cols_null && result_for_null_param != UNKNOWN &&
-          !item_subs->originally_dependent())
+          !item_subs->dependent_before_in2exists())
       {
         /*
            This subquery was originally not correlated. The IN->EXISTS
@@ -2504,7 +2499,7 @@ bool Item_func_between::fix_fields(THD *thd, Item **ref)
   if (Item_func_opt_neg::fix_fields(thd, ref))
     return 1;
 
-  thd->lex->current_select->between_count++;
+  thd->lex->current_select()->between_count++;
 
   /* not_null_tables_cache == union(T1(e),T1(e1),T1(e2)) */
   if (pred_level && !negated)
@@ -3257,12 +3252,12 @@ Item *Item_func_case::find_item(String *str)
       cmp_type= item_cmp_type(left_result_type, args[i]->result_type());
       DBUG_ASSERT(cmp_type != ROW_RESULT);
       DBUG_ASSERT(cmp_items[(uint)cmp_type]);
-      if (!(value_added_map & (1<<(uint)cmp_type)))
+      if (!(value_added_map & (1U << (uint)cmp_type)))
       {
         cmp_items[(uint)cmp_type]->store_value(args[first_expr_num]);
         if ((null_value=args[first_expr_num]->null_value))
           return else_expr_num != -1 ? args[else_expr_num] : 0;
-        value_added_map|= 1<<(uint)cmp_type;
+        value_added_map|= 1U << (uint)cmp_type;
       }
       if (!cmp_items[(uint)cmp_type]->cmp(args[i]) && !args[i]->null_value)
         return args[i + 1];
@@ -3523,7 +3518,7 @@ void Item_func_case::fix_length_and_dec()
     nagg++;
     if (!(found_types= collect_cmp_types(agg, nagg)))
       return;
-    if (found_types & (1 << STRING_RESULT))
+    if (found_types & (1U << STRING_RESULT))
     {
       /*
         If we'll do string comparison, we also need to aggregate
@@ -3563,7 +3558,7 @@ void Item_func_case::fix_length_and_dec()
     }
     for (i= 0; i <= (uint)DECIMAL_RESULT; i++)
     {
-      if (found_types & (1 << i) && !cmp_items[i])
+      if (found_types & (1U << i) && !cmp_items[i])
       {
         DBUG_ASSERT((Item_result)i != ROW_RESULT);
         if (!(cmp_items[i]=
@@ -4412,7 +4407,7 @@ void Item_func_in::fix_length_and_dec()
   }
   for (i= 0; i <= (uint)DECIMAL_RESULT; i++)
   {
-    if (found_types & 1 << i)
+    if (found_types & (1U << i))
     {
       (type_cnt)++;
       cmp_type= (Item_result) i;
@@ -4603,7 +4598,7 @@ void Item_func_in::fix_length_and_dec()
     {
       for (i= 0; i <= (uint) DECIMAL_RESULT; i++)
       {
-        if (found_types & (1 << i) && !cmp_items[i])
+        if (found_types & (1U << i) && !cmp_items[i])
         {
           if ((Item_result)i == STRING_RESULT &&
               agg_arg_charsets_for_comparison(cmp_collation, args, arg_count))
@@ -4693,12 +4688,12 @@ longlong Item_func_in::val_int()
     Item_result cmp_type= item_cmp_type(left_result_type, args[i]->result_type());
     in_item= cmp_items[(uint)cmp_type];
     DBUG_ASSERT(in_item);
-    if (!(value_added_map & (1 << (uint)cmp_type)))
+    if (!(value_added_map & (1U << (uint)cmp_type)))
     {
       in_item->store_value(args[0]);
       if ((null_value= args[0]->null_value))
         return 0;
-      value_added_map|= 1 << (uint)cmp_type;
+      value_added_map|= 1U << (uint)cmp_type;
     }
     if (!in_item->cmp(args[i]) && !args[i]->null_value)
       return (longlong) (!negated);
@@ -4759,11 +4754,12 @@ Item_cond::Item_cond(THD *thd, Item_cond *item)
 }
 
 
-void Item_cond::copy_andor_arguments(THD *thd, Item_cond *item)
+void Item_cond::copy_andor_arguments(THD *thd, Item_cond *item, bool real_items)
 {
   List_iterator_fast<Item> li(item->list);
   while (Item *it= li++)
-    list.push_back(it->real_item()->copy_andor_structure(thd));
+    list.push_back((real_items ? it->real_item() : it)->
+                   copy_andor_structure(thd, real_items));
 }
 
 
@@ -4773,7 +4769,7 @@ Item_cond::fix_fields(THD *thd, Item **ref)
   DBUG_ASSERT(fixed == 0);
   List_iterator<Item> li(list);
   Item *item;
-  Switch_resolve_place SRP(&thd->lex->current_select->resolve_place,
+  Switch_resolve_place SRP(&thd->lex->current_select()->resolve_place,
                            st_select_lex::RESOLVE_NONE,
                            functype() != COND_AND_FUNC);
   uchar buff[sizeof(char*)];			// Max local vars in function
@@ -4833,7 +4829,7 @@ Item_cond::fix_fields(THD *thd, Item **ref)
     if (item->maybe_null)
       maybe_null= true;
   }
-  thd->lex->current_select->cond_count+= list.elements;
+  thd->lex->current_select()->cond_count+= list.elements;
   fix_length_and_dec();
   fixed= true;
   return false;
@@ -5183,7 +5179,7 @@ longlong Item_func_isnull::val_int()
     Handle optimization if the argument can't be null
     This has to be here because of the test in update_used_tables().
   */
-  if (!used_tables_cache && !with_subselect && !with_stored_program)
+  if (const_item_cache)
     return cached_value;
   return args[0]->is_null() ? 1: 0;
 }
@@ -5194,6 +5190,11 @@ longlong Item_is_not_null_test::val_int()
   DBUG_ENTER("Item_is_not_null_test::val_int");
   if (!used_tables_cache && !with_subselect && !with_stored_program)
   {
+    /*
+     TODO: Currently this branch never executes, since used_tables_cache
+     is never equal to 0 --  it always contains RAND_TABLE_BIT,
+     see get_initial_pseudo_tables().
+    */
     owner->was_null|= (!cached_value);
     DBUG_PRINT("info", ("cached: %ld", (long) cached_value));
     DBUG_RETURN(cached_value);
@@ -5262,8 +5263,8 @@ longlong Item_func_like::val_int()
     return 0;
   }
   null_value=0;
-  if (canDoTurboBM)
-    return turboBM_matches(res->ptr(), res->length()) ? 1 : 0;
+  if (can_do_bm)
+    return bm_matches(res->ptr(), res->length()) ? 1 : 0;
   return my_wildcmp(cmp.cmp_collation.collation,
 		    res->ptr(),res->ptr()+res->length(),
 		    res2->ptr(),res2->ptr()+res2->length(),
@@ -5299,12 +5300,12 @@ bool Item_func_like::fix_fields(THD *thd, Item **ref)
   DBUG_ASSERT(fixed == 0);
   if (Item_bool_func2::fix_fields(thd, ref) ||
       escape_item->fix_fields(thd, &escape_item))
-    return TRUE;
+    return true;
 
   if (!escape_item->const_during_execution())
   {
     my_error(ER_WRONG_ARGUMENTS,MYF(0),"ESCAPE");
-    return TRUE;
+    return true;
   }
   
   if (escape_item->const_item())
@@ -5368,25 +5369,29 @@ bool Item_func_like::fix_fields(THD *thd, Item **ref)
     {
       String* res2 = args[1]->val_str(&cmp.value2);
       if (!res2)
-        return FALSE;				// Null argument
-      
+        return false;				// Null argument
+
       const size_t len   = res2->length();
       const char*  first = res2->ptr();
       const char*  last  = first + len - 1;
+
       /*
-        len must be > 2 ('%pattern%')
-        heuristic: only do TurboBM for pattern_len > 2
+        Minimum length pattern before Boyer-Moore is used
+        for SELECT "text" LIKE "%pattern%" including the two
+        wildcards in class Item_func_like.
       */
-      
-      if (len > MIN_TURBOBM_PATTERN_LEN + 2 &&
+
+      const size_t min_bm_pattern_len= 5;
+
+      if (len > min_bm_pattern_len &&
           *first == wild_many &&
           *last  == wild_many)
       {
         const char* tmp = first + 1;
         for (; *tmp != wild_many && *tmp != wild_one && *tmp != escape; tmp++) ;
-        canDoTurboBM = (tmp == last) && !use_mb(args[0]->collation.collation);
+        can_do_bm= (tmp == last) && !use_mb(args[0]->collation.collation);
       }
-      if (canDoTurboBM)
+      if (can_do_bm)
       {
         pattern_len = (int) len - 2;
         pattern     = thd->strmake(first + 1, pattern_len);
@@ -5396,18 +5401,18 @@ bool Item_func_like::fix_fields(THD *thd, Item **ref)
                                       alphabet_size)));
         bmGs      = suff + pattern_len + 1;
         bmBc      = bmGs + pattern_len + 1;
-        turboBM_compute_good_suffix_shifts(suff);
-        turboBM_compute_bad_character_shifts();
+        bm_compute_good_suffix_shifts(suff);
+        bm_compute_bad_character_shifts();
         DBUG_PRINT("info",("done"));
       }
     }
   }
-  return FALSE;
+  return false;
 }
 
 void Item_func_like::cleanup()
 {
-  canDoTurboBM= FALSE;
+  can_do_bm= false;
   Item_bool_func2::cleanup();
 }
 
@@ -5478,6 +5483,9 @@ Item_func_regex::fix_fields(THD *thd, Item **ref)
        args[1]->fix_fields(thd, args + 1)) || args[1]->check_cols(1))
     return TRUE;				/* purecov: inspected */
   with_sum_func=args[0]->with_sum_func || args[1]->with_sum_func;
+  with_subselect= args[0]->has_subquery() || args[1]->has_subquery();
+  with_stored_program= args[0]->has_stored_program() ||
+                       args[1]->has_stored_program();
   max_length= 1;
   decimals= 0;
 
@@ -5562,18 +5570,14 @@ void Item_func_regex::cleanup()
 }
 
 
-#ifdef LIKE_CMP_TOUPPER
-#define likeconv(cs,A) (uchar) (cs)->toupper(A)
-#else
 #define likeconv(cs,A) (uchar) (cs)->sort_order[(uchar) (A)]
-#endif
 
 
 /**
   Precomputation dependent only on pattern_len.
 */
 
-void Item_func_like::turboBM_compute_suffixes(int *suff)
+void Item_func_like::bm_compute_suffixes(int *suff)
 {
   const int   plm1 = pattern_len - 1;
   int            f = 0;
@@ -5629,9 +5633,9 @@ void Item_func_like::turboBM_compute_suffixes(int *suff)
   Precomputation dependent only on pattern_len.
 */
 
-void Item_func_like::turboBM_compute_good_suffix_shifts(int *suff)
+void Item_func_like::bm_compute_good_suffix_shifts(int *suff)
 {
-  turboBM_compute_suffixes(suff);
+  bm_compute_suffixes(suff);
 
   int *end = bmGs + pattern_len;
   int *k;
@@ -5673,7 +5677,7 @@ void Item_func_like::turboBM_compute_good_suffix_shifts(int *suff)
    Precomputation dependent on pattern_len.
 */
 
-void Item_func_like::turboBM_compute_bad_character_shifts()
+void Item_func_like::bm_compute_bad_character_shifts()
 {
   int *i;
   int *end = bmBc + alphabet_size;
@@ -5704,13 +5708,11 @@ void Item_func_like::turboBM_compute_bad_character_shifts()
     returns true/false for match/no match
 */
 
-bool Item_func_like::turboBM_matches(const char* text, int text_len) const
+bool Item_func_like::bm_matches(const char* text, int text_len) const
 {
   int bcShift;
-  int turboShift;
   int shift = pattern_len;
   int j     = 0;
-  int u     = 0;
   const CHARSET_INFO	*cs= cmp.cmp_collation.collation;
 
   const int plm1=  pattern_len - 1;
@@ -5721,66 +5723,43 @@ bool Item_func_like::turboBM_matches(const char* text, int text_len) const
   {
     while (j <= tlmpl)
     {
-      int i= plm1;
-      while (i >= 0 && pattern[i] == text[i + j])
-      {
-	i--;
-	if (i == plm1 - shift)
-	  i-= u;
-      }
-      if (i < 0)
-	return 1;
+      int i;
 
-      const int v = plm1 - i;
-      turboShift = u - v;
-      bcShift    = bmBc[(uint) (uchar) text[i + j]] - plm1 + i;
-      shift      = max(turboShift, bcShift);
-      shift      = max(shift, bmGs[i]);
-      if (shift == bmGs[i])
-	u = min(pattern_len - shift, v);
+      for (i= plm1; (i >= 0) && (pattern[i] == text[i + j]) ;--i) {}
+
+      if (i < 0)
+	return true;
       else
       {
-	if (turboShift < bcShift)
-	  shift = max(shift, u + 1);
-	u = 0;
+        bcShift= bmBc[(uint) text[i + j]] - plm1 + i;
+        shift= max(bcShift, bmGs[i]);
       }
       j+= shift;
     }
-    return 0;
+    return false;
   }
   else
   {
     while (j <= tlmpl)
     {
-      int i = plm1;
-      while (i >= 0 && likeconv(cs,pattern[i]) == likeconv(cs,text[i + j]))
-      {
-	i--;
-	if (i == plm1 - shift)
-	  i-= u;
-      }
-      if (i < 0)
-	return 1;
+      int i;
 
-      const int v = plm1 - i;
-      turboShift = u - v;
-      bcShift    = bmBc[(uint) likeconv(cs, text[i + j])] - plm1 + i;
-      shift      = max(turboShift, bcShift);
-      shift      = max(shift, bmGs[i]);
-      if (shift == bmGs[i])
-	u = min(pattern_len - shift, v);
+      for (i= plm1;
+           (i >= 0) && likeconv(cs,pattern[i]) == likeconv(cs,text[i + j]);
+           --i) {}
+
+      if (i < 0)
+	return true;
       else
       {
-	if (turboShift < bcShift)
-	  shift = max(shift, u + 1);
-	u = 0;
+        bcShift= bmBc[(uint) likeconv(cs, text[i + j])] - plm1 + i;
+        shift= max(bcShift, bmGs[i]);
       }
       j+= shift;
     }
-    return 0;
+    return false;
   }
 }
-
 
 /**
   Make a logical XOR of the arguments.

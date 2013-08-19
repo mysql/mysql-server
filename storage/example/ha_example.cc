@@ -915,6 +915,7 @@ struct st_mysql_storage_engine example_storage_engine=
 
 static ulong srv_enum_var= 0;
 static ulong srv_ulong_var= 0;
+static double srv_double_var= 0;
 
 const char *enum_var_names[]=
 {
@@ -949,9 +950,34 @@ static MYSQL_SYSVAR_ULONG(
   1000,
   0);
 
+static MYSQL_SYSVAR_DOUBLE(
+  double_var,
+  srv_double_var,
+  PLUGIN_VAR_RQCMDARG,
+  "0.500000..1000.500000",
+  NULL,
+  NULL,
+  8.5,
+  0.5,
+  1000.5,
+  0);                             // reserved always 0
+
+static MYSQL_THDVAR_DOUBLE(
+  double_thdvar,
+  PLUGIN_VAR_RQCMDARG,
+  "0.500000..1000.500000",
+  NULL,
+  NULL,
+  8.5,
+  0.5,
+  1000.5,
+  0);
+
 static struct st_mysql_sys_var* example_system_variables[]= {
   MYSQL_SYSVAR(enum_var),
   MYSQL_SYSVAR(ulong_var),
+  MYSQL_SYSVAR(double_var),
+  MYSQL_SYSVAR(double_thdvar),
   NULL
 };
 
@@ -962,8 +988,9 @@ static int show_func_example(MYSQL_THD thd, struct st_mysql_show_var *var,
   var->type= SHOW_CHAR;
   var->value= buf; // it's of SHOW_VAR_FUNC_BUFF_SIZE bytes
   my_snprintf(buf, SHOW_VAR_FUNC_BUFF_SIZE,
-              "enum_var is %lu, ulong_var is %lu, %.6b", // %b is MySQL extension
-              srv_enum_var, srv_ulong_var, "really");
+              "enum_var is %lu, ulong_var is %lu, "
+              "double_var is %f, %.6b", // %b is a MySQL extension
+              srv_enum_var, srv_ulong_var, srv_double_var, "really");
   return 0;
 }
 

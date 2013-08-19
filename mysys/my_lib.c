@@ -1,4 +1,4 @@
-/* Copyright (c) 2000, 2011, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2000, 2013, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -11,7 +11,8 @@
 
    You should have received a copy of the GNU General Public License
    along with this program; if not, write to the Free Software
-   Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA */
+   Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA  02110-1301, USA.
+*/
 
 /* TODO: check for overun of memory for names. */
 
@@ -34,11 +35,6 @@
 # if defined(HAVE_NDIR_H)
 #  include <ndir.h>
 # endif
-# if defined(_WIN32)
-# ifdef __BORLANDC__
-# include <dir.h>
-# endif
-# endif
 #endif
 
 #if defined(HAVE_READDIR_R)
@@ -55,7 +51,6 @@
 #define ENTRIES_START_SIZE (8192/sizeof(FILEINFO))
 #define ENTRIES_INCREMENT  (65536/sizeof(FILEINFO))
 #define NAMES_START_SIZE   32768
-
 
 static int	comp_names(struct fileinfo *a,struct fileinfo *b);
 
@@ -96,7 +91,7 @@ MY_DIR	*my_dir(const char *path, myf MyFlags)
   MEM_ROOT      *names_storage;
   DIR		*dirp;
   struct dirent *dp;
-  char		tmp_path[FN_REFLEN+1],*tmp_file;
+  char		tmp_path[FN_REFLEN + 2], *tmp_file;
   char	dirent_tmp[sizeof(struct dirent)+_POSIX_PATH_MAX+1];
 
   DBUG_ENTER("my_dir");
@@ -108,7 +103,8 @@ MY_DIR	*my_dir(const char *path, myf MyFlags)
 
   dirp = opendir(directory_file_name(tmp_path,(char *) path));
   if (dirp == NULL || 
-      ! (buffer= my_malloc(ALIGN_SIZE(sizeof(MY_DIR)) + 
+      ! (buffer= my_malloc(key_memory_MY_DIR,
+                           ALIGN_SIZE(sizeof(MY_DIR)) + 
                            ALIGN_SIZE(sizeof(DYNAMIC_ARRAY)) +
                            sizeof(MEM_ROOT), MyFlags)))
     goto error;
@@ -123,7 +119,7 @@ MY_DIR	*my_dir(const char *path, myf MyFlags)
     my_free(buffer);
     goto error;
   }
-  init_alloc_root(names_storage, NAMES_START_SIZE, NAMES_START_SIZE);
+  init_alloc_root(key_memory_MY_DIR, names_storage, NAMES_START_SIZE, NAMES_START_SIZE);
   
   /* MY_DIR structure is allocated and completly initialized at this point */
   result= (MY_DIR*)buffer;
@@ -197,10 +193,11 @@ char * directory_file_name (char * dst, const char *src)
 {
   /* Process as Unix format: just remove test the final slash. */
   char *end;
+  DBUG_ASSERT(strlen(src) < (FN_REFLEN + 1));
 
   if (src[0] == 0)
     src= (char*) ".";				/* Use empty as current */
-  end=strmov(dst, src);
+  end= strnmov(dst, src, FN_REFLEN + 1);
   if (end[-1] != FN_LIBCHAR)
   {
     end[0]=FN_LIBCHAR;				/* Add last '/' */
@@ -224,11 +221,7 @@ MY_DIR	*my_dir(const char *path, myf MyFlags)
   FILEINFO      finfo;
   DYNAMIC_ARRAY *dir_entries_storage;
   MEM_ROOT      *names_storage;
-#ifdef __BORLANDC__
-  struct ffblk       find;
-#else
   struct _finddata_t find;
-#endif
   ushort	mode;
   char		tmp_path[FN_REFLEN],*tmp_file,attrib;
 #ifdef _WIN64
@@ -253,7 +246,8 @@ MY_DIR	*my_dir(const char *path, myf MyFlags)
   tmp_file[2]='*';
   tmp_file[3]='\0';
 
-  if (!(buffer= my_malloc(ALIGN_SIZE(sizeof(MY_DIR)) + 
+  if (!(buffer= my_malloc(key_memory_MY_DIR,
+                          ALIGN_SIZE(sizeof(MY_DIR)) + 
                           ALIGN_SIZE(sizeof(DYNAMIC_ARRAY)) +
                           sizeof(MEM_ROOT), MyFlags)))
     goto error;
@@ -268,16 +262,12 @@ MY_DIR	*my_dir(const char *path, myf MyFlags)
     my_free(buffer);
     goto error;
   }
-  init_alloc_root(names_storage, NAMES_START_SIZE, NAMES_START_SIZE);
+  init_alloc_root(key_memory_MY_DIR, names_storage, NAMES_START_SIZE, NAMES_START_SIZE);
   
   /* MY_DIR structure is allocated and completly initialized at this point */
   result= (MY_DIR*)buffer;
 
-#ifdef __BORLANDC__
-  if ((handle= findfirst(tmp_path,&find,0)) == -1L)
-#else
   if ((handle=_findfirst(tmp_path,&find)) == -1L)
-#endif
   {
     DBUG_PRINT("info", ("findfirst returned error, errno: %d", errno));
     if  (errno != EINVAL)
@@ -293,9 +283,6 @@ MY_DIR	*my_dir(const char *path, myf MyFlags)
 
     do
     {
-#ifdef __BORLANDC__
-      attrib= find.ff_attrib;
-#else
       attrib= find.attrib;
       /*
         Do not show hidden and system files which Windows sometimes create.
@@ -304,14 +291,8 @@ MY_DIR	*my_dir(const char *path, myf MyFlags)
       */
       if (attrib & (_A_HIDDEN | _A_SYSTEM))
         continue;
-#endif
-#ifdef __BORLANDC__
-      if (!(finfo.name= strdup_root(names_storage, find.ff_name)))
-        goto error;
-#else
       if (!(finfo.name= strdup_root(names_storage, find.name)))
         goto error;
-#endif
       if (MyFlags & MY_WANT_STAT)
       {
         if (!(finfo.mystat= (MY_STAT*)alloc_root(names_storage,
@@ -319,22 +300,14 @@ MY_DIR	*my_dir(const char *path, myf MyFlags)
           goto error;
 
         memset(finfo.mystat, 0, sizeof(MY_STAT));
-#ifdef __BORLANDC__
-        finfo.mystat->st_size=find.ff_fsize;
-#else
         finfo.mystat->st_size=find.size;
-#endif
         mode= MY_S_IREAD;
         if (!(attrib & _A_RDONLY))
           mode|= MY_S_IWRITE;
         if (attrib & _A_SUBDIR)
           mode|= MY_S_IFDIR;
         finfo.mystat->st_mode= mode;
-#ifdef __BORLANDC__
-        finfo.mystat->st_mtime= ((uint32) find.ff_ftime);
-#else
         finfo.mystat->st_mtime= ((uint32) find.time_write);
-#endif
       }
       else
         finfo.mystat= NULL;
@@ -342,13 +315,9 @@ MY_DIR	*my_dir(const char *path, myf MyFlags)
       if (push_dynamic(dir_entries_storage, (uchar*)&finfo))
         goto error;
     }
-#ifdef __BORLANDC__
-    while (findnext(&find) == 0);
-#else
     while (_findnext(handle,&find) == 0);
 
     _findclose(handle);
-#endif
   }
 
   result->dir_entry= (FILEINFO *)dir_entries_storage->buffer;
@@ -361,10 +330,8 @@ MY_DIR	*my_dir(const char *path, myf MyFlags)
   DBUG_RETURN(result);
 error:
   my_errno=errno;
-#ifndef __BORLANDC__
   if (handle != -1)
       _findclose(handle);
-#endif
   my_dirend(result);
   if (MyFlags & MY_FAE+MY_WME)
   {
@@ -404,7 +371,8 @@ MY_STAT *my_stat(const char *path, MY_STAT *stat_area, myf my_flags)
                     (long) stat_area, my_flags));
 
   if (m_used)
-    if (!(stat_area= (MY_STAT *) my_malloc(sizeof(MY_STAT), my_flags)))
+    if (!(stat_area= (MY_STAT *) my_malloc(key_memory_MY_STAT,
+                                           sizeof(MY_STAT), my_flags)))
       goto error;
 #ifndef _WIN32
     if (! stat((char *) path, (struct stat *) stat_area) )

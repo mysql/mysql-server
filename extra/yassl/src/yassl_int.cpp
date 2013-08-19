@@ -1,4 +1,4 @@
-/* Copyright (c) 2005, 2011, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2005, 2013, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -11,7 +11,7 @@
 
    You should have received a copy of the GNU General Public License
    along with this program; if not, write to the Free Software
-   Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA */
+   Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA 02110-1301, USA */
 
 /* yaSSL internal source implements SSL supporting types not specified in the
  * draft along with type conversion functions.
@@ -19,7 +19,7 @@
 
 // First include (the generated) my_config.h, to get correct platform defines.
 #include "my_config.h"
-#ifdef __WIN__
+#ifdef _WIN32
 #include<Windows.h>
 #else
 #include <pthread.h>
@@ -722,7 +722,7 @@ void SSL::set_pending(Cipher suite)
     }
 }
 
-#ifdef __WIN__
+#ifdef _WIN32
 typedef volatile LONG yassl_pthread_once_t;
 #define YASSL_PTHREAD_ONCE_INIT  0
 #define YASSL_PTHREAD_ONCE_INPROGRESS 1
@@ -773,7 +773,7 @@ int yassl_pthread_once(yassl_pthread_once_t *once_control,
 #define YASSL_PTHREAD_ONCE_INIT PTHREAD_ONCE_INIT
 #endif
 #define yassl_pthread_once(C,F) pthread_once(C,F)
-#endif // __WIN__
+#endif // _WIN32
 
 // store peer's random
 void SSL::set_random(const opaque* random, ConnectionEnd sender)

@@ -1,6 +1,6 @@
 /*****************************************************************************
 
-Copyright (c) 1996, 2011, Oracle and/or its affiliates. All Rights Reserved.
+Copyright (c) 1996, 2013, Oracle and/or its affiliates. All Rights Reserved.
 
 This program is free software; you can redistribute it and/or modify it under
 the terms of the GNU General Public License as published by the Free Software
@@ -23,6 +23,8 @@ The transaction
 Created 3/26/1996 Heikki Tuuri
 *******************************************************/
 
+#include "read0read.h"
+
 /**********************************************************************//**
 Determines if a transaction is in the given state.
 The caller must hold trx_sys->mutex, or it must be the thread
@@ -30,7 +32,7 @@ that is serving a running transaction.
 A running transaction must be in trx_sys->ro_trx_list or trx_sys->rw_trx_list
 unless it is a non-locking autocommit read only transaction, which is only
 in trx_sys->mysql_trx_list.
-@return	TRUE if trx->state == state */
+@return TRUE if trx->state == state */
 UNIV_INLINE
 ibool
 trx_state_eq(
@@ -69,7 +71,7 @@ trx_state_eq(
 
 /****************************************************************//**
 Retrieves the error_info field from a trx.
-@return	the error info */
+@return the error info */
 UNIV_INLINE
 const dict_index_t*
 trx_get_error_info(
@@ -82,7 +84,7 @@ trx_get_error_info(
 /*******************************************************************//**
 Retrieves transaction's que state in a human readable string. The string
 should not be free()'d or modified.
-@return	string in the data segment */
+@return string in the data segment */
 UNIV_INLINE
 const char*
 trx_get_que_state_str(
@@ -106,7 +108,7 @@ trx_get_que_state_str(
 
 /**********************************************************************//**
 Determine if a transaction is a dictionary operation.
-@return	dictionary operation mode */
+@return dictionary operation mode */
 UNIV_INLINE
 enum trx_dict_op_t
 trx_get_dict_operation(
@@ -174,7 +176,122 @@ trx_search_latch_release_if_reserved(
 	if (trx->has_search_latch) {
 		rw_lock_s_unlock(&btr_search_latch);
 
-		trx->has_search_latch = FALSE;
+		trx->has_search_latch = false;
 	}
 }
 
+/********************************************************************//**
+Check if redo rseg is modified for insert/update. */
+UNIV_INLINE
+bool
+trx_is_redo_rseg_updated(
+/*=====================*/
+	const trx_t*	   trx) /*!< in: transaction */
+{
+	return(trx->rsegs.m_redo.insert_undo != 0
+	       || trx->rsegs.m_redo.update_undo != 0);
+}
+
+/********************************************************************//**
+Check if noredo rseg is modified for insert/update. */
+UNIV_INLINE
+bool
+trx_is_noredo_rseg_updated(
+/*=======================*/
+	const trx_t*	   trx) /*!< in: transaction */
+{
+	return(trx->rsegs.m_noredo.insert_undo != 0
+	       || trx->rsegs.m_noredo.update_undo != 0);
+}
+
+/********************************************************************//**
+Check if redo/noredo rseg is modified for insert/update. */
+UNIV_INLINE
+bool
+trx_is_rseg_updated(
+/*================*/
+	const trx_t*	   trx) /*!< in: transaction */
+{
+	return(trx_is_redo_rseg_updated(trx)
+	       || trx_is_noredo_rseg_updated(trx));
+}
+
+/********************************************************************//**
+Check if redo/nonredo rseg is valid. */
+UNIV_INLINE
+bool
+trx_is_rseg_assigned(
+/*=================*/
+	const trx_t*	   trx) /*!< in: transaction */
+{
+	return(trx->rsegs.m_redo.rseg != NULL
+	       || trx->rsegs.m_noredo.rseg != NULL);
+}
+
+/**
+Increase the reference count. If the transaction is in state
+TRX_STATE_COMMITTED_IN_MEMORY then the transaction is considered
+committed and the reference count is not incremented.
+@param trx Transaction that is being referenced
+@param do_ref_count Increment the reference iff this is true
+@return transaction instance if it is not committed */
+UNIV_INLINE
+trx_t*
+trx_reference(
+	trx_t*		trx,
+	bool		do_ref_count)
+{
+	trx_mutex_enter(trx);
+
+	if (trx_state_eq(trx, TRX_STATE_COMMITTED_IN_MEMORY)) {
+		trx_mutex_exit(trx);
+		trx = NULL;
+	} else if (do_ref_count) {
+		ut_ad(trx->n_ref >= 0);
+		++trx->n_ref;
+		trx_mutex_exit(trx);
+	} else {
+		trx_mutex_exit(trx);
+	}
+
+	return(trx);
+}
+
+/**
+Release the transaction. Decrease the reference count.
+@param trx Transaction that is being released */
+UNIV_INLINE
+void
+trx_release_reference(
+	trx_t*		trx)
+{
+	trx_mutex_enter(trx);
+
+	ut_ad(trx->n_ref > 0);
+	--trx->n_ref;
+
+	trx_mutex_exit(trx);
+}
+
+
+/**
+@param trx		Get the active view for this transaction, if one exists
+@return the transaction's read view or NULL if one not assigned. */
+UNIV_INLINE
+ReadView*
+trx_get_read_view(
+	trx_t*		trx)
+{
+	return(!MVCC::is_view_active(trx->read_view) ? NULL : trx->read_view);
+}
+
+/**
+@param trx		Get the active view for this transaction, if one exists
+@return the transaction's read view or NULL if one not assigned. */
+UNIV_INLINE
+const ReadView*
+trx_get_read_view(
+	const trx_t*	trx)
+{
+	return(!MVCC::is_view_active(trx->read_view) ? NULL : trx->read_view);
+}

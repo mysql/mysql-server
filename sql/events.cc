@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2005, 2011, Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2005, 2013, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -23,7 +23,7 @@
 #include "sql_db.h"                          // check_db_dir_existence
 #include "sql_table.h"                       // write_bin_log
 #include "tztime.h"                             // struct Time_zone
-#include "sql_acl.h"                            // EVENT_ACL
+#include "auth_common.h"                        // EVENT_ACL
 #include "records.h"          // init_read_record, end_read_record
 #include "event_data_objects.h"
 #include "event_db_repository.h"
@@ -32,6 +32,7 @@
 #include "sp_head.h" // for Stored_program_creation_ctx
 #include "set_var.h"
 #include "lock.h"   // lock_object_name
+#include "mysql/psi/mysql_sp.h"
 
 /**
   @addtogroup Event_Scheduler
@@ -601,6 +602,11 @@ Events::drop_event(THD *thd, LEX_STRING dbname, LEX_STRING name, bool if_exists)
 
     thd->add_to_binlog_accessed_dbs(dbname.str);
     ret= write_bin_log(thd, TRUE, thd->query(), thd->query_length());
+#ifdef HAVE_PSI_SP_INTERFACE
+    /* Drop statistics for this stored program from performance schema. */
+    MYSQL_DROP_SP(SP_OBJECT_TYPE_EVENT,
+                  dbname.str, dbname.length, name.str, name.length);
+#endif 
   }
   /* Restore the state of binlog format */
   DBUG_ASSERT(!thd->is_current_stmt_binlog_format_row());
@@ -786,17 +792,17 @@ Events::fill_schema_events(THD *thd, TABLE_LIST *tables, Item * /* cond */)
     DBUG_RETURN(1);
 
   /*
-    If it's SHOW EVENTS then thd->lex->select_lex.db is guaranteed not to
+    If it's SHOW EVENTS then thd->lex->select_lex->db is guaranteed not to
     be NULL. Let's do an assert anyway.
   */
   if (thd->lex->sql_command == SQLCOM_SHOW_EVENTS)
   {
-    DBUG_ASSERT(thd->lex->select_lex.db);
-    if (!is_infoschema_db(thd->lex->select_lex.db) && // There is no events in I_S
-        check_access(thd, EVENT_ACL, thd->lex->select_lex.db,
+    DBUG_ASSERT(thd->lex->select_lex->db);
+    if (!is_infoschema_db(thd->lex->select_lex->db) && // No events in I_S
+        check_access(thd, EVENT_ACL, thd->lex->select_lex->db,
                      NULL, NULL, 0, 0))
       DBUG_RETURN(1);
-    db= thd->lex->select_lex.db;
+    db= thd->lex->select_lex->db;
   }
   ret= db_repository->fill_schema_events(thd, tables, db);
 
@@ -824,6 +830,7 @@ Events::init(my_bool opt_noacl_or_bootstrap)
 {
 
   THD *thd;
+  int err_no;
   bool res= FALSE;
 
   DBUG_ENTER("Events::init");
@@ -904,7 +911,7 @@ Events::init(my_bool opt_noacl_or_bootstrap)
   }
 
   if (event_queue->init_queue(thd) || load_events_from_db(thd) ||
-      (opt_event_scheduler == EVENTS_ON && scheduler->start()))
+      (opt_event_scheduler == EVENTS_ON && scheduler->start(&err_no)))
   {
     sql_print_error("Event Scheduler: Error while loading from disk.");
     res= TRUE; /* fatal error: request unireg_abort */
@@ -924,7 +931,7 @@ end:
   }
   delete thd;
   /* Remember that we don't have a THD */
-  my_pthread_setspecific_ptr(THR_THD,  NULL);
+  my_pthread_set_THR_THD(NULL);
 
   DBUG_RETURN(res);
 }
@@ -989,12 +996,19 @@ PSI_stage_info stage_waiting_on_empty_queue= { 0, "Waiting on empty queue", 0};
 PSI_stage_info stage_waiting_for_next_activation= { 0, "Waiting for next activation", 0};
 PSI_stage_info stage_waiting_for_scheduler_to_stop= { 0, "Waiting for the scheduler to stop", 0};
 
+PSI_memory_key key_memory_event_basic_root;
+
 #ifdef HAVE_PSI_INTERFACE
 PSI_stage_info *all_events_stages[]=
 {
   & stage_waiting_on_empty_queue,
   & stage_waiting_for_next_activation,
   & stage_waiting_for_scheduler_to_stop
+};
+
+static PSI_memory_info all_events_memory[]=
+{
+  { &key_memory_event_basic_root, "Event_basic::mem_root", 0}
 };
 
 static void init_events_psi_keys(void)
@@ -1014,6 +1028,8 @@ static void init_events_psi_keys(void)
   count= array_elements(all_events_stages);
   mysql_stage_register(category, all_events_stages, count);
 
+  count= array_elements(all_events_memory);
+  mysql_memory_register(category, all_events_memory, count);
 }
 #endif /* HAVE_PSI_INTERFACE */
 
@@ -1069,10 +1085,10 @@ Events::dump_internal_status()
   DBUG_VOID_RETURN;
 }
 
-bool Events::start()
+bool Events::start(int *err_no)
 {
   bool ret= false;
-  if (scheduler) ret= scheduler->start();
+  if (scheduler) ret= scheduler->start(err_no);
   return ret;
 }
 

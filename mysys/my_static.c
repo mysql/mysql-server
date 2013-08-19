@@ -1,4 +1,4 @@
-/* Copyright (c) 2000, 2012, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2000, 2013, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -21,6 +21,37 @@
 #include "mysys_priv.h"
 #include "my_static.h"
 #include "my_alarm.h"
+
+PSI_memory_key key_memory_array_buffer;
+PSI_memory_key key_memory_charset_file;
+PSI_memory_key key_memory_charset_loader;
+PSI_memory_key key_memory_lf_node;
+PSI_memory_key key_memory_lf_dynarray;
+PSI_memory_key key_memory_lf_slist;
+PSI_memory_key key_memory_LIST;
+PSI_memory_key key_memory_IO_CACHE;
+PSI_memory_key key_memory_KEY_CACHE;
+PSI_memory_key key_memory_SAFE_HASH_ENTRY;
+PSI_memory_key key_memory_MY_BITMAP_bitmap;
+PSI_memory_key key_memory_my_compress_alloc;
+PSI_memory_key key_memory_pack_frm;
+PSI_memory_key key_memory_my_err_head;
+PSI_memory_key key_memory_my_file_info;
+PSI_memory_key key_memory_max_alloca;
+PSI_memory_key key_memory_radix_sort;
+PSI_memory_key key_memory_MY_DIR;
+PSI_memory_key key_memory_MY_STAT;
+PSI_memory_key key_memory_MY_TMPDIR_full_list;
+PSI_memory_key key_memory_QUEUE;
+PSI_memory_key key_memory_DYNAMIC_STRING;
+PSI_memory_key key_memory_ALARM;
+PSI_memory_key key_memory_TREE;
+
+#ifdef _WIN32
+PSI_memory_key key_memory_win_SECURITY_ATTRIBUTES;
+PSI_memory_key key_memory_win_PACL;
+PSI_memory_key key_memory_win_IP_ADAPTER_ADDRESSES;
+#endif /* _WIN32 */
 
 my_bool timed_mutexes= 0;
 
@@ -65,9 +96,6 @@ int volatile my_have_got_alarm=0;	/* declare variable to reset */
 ulong my_time_to_wait_for_lock=2;	/* In seconds */
 
 	/* from errors.c */
-#ifdef SHARED_LIBRARY
-const char *globerrs[GLOBERRS];		/* my_error_messages is here */
-#endif
 void (*my_abort_hook)(int) = (void(*)(int)) exit;
 void (*error_handler_hook)(uint error, const char *str, myf MyFlags)=
   my_message_stderr;
@@ -96,7 +124,7 @@ void (*proc_info_hook)(void *, const PSI_stage_info *, PSI_stage_info *,
 void (*debug_sync_C_callback_ptr)(const char *, size_t);
 #endif /* defined(ENABLED_DEBUG_SYNC) */
 
-#ifdef __WIN__
+#ifdef _WIN32
 /* from my_getsystime.c */
 ulonglong query_performance_frequency, query_performance_offset;
 #endif

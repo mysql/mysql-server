@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2001, 2012, Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2001, 2013, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or
    modify it under the terms of the GNU General Public License
@@ -328,7 +328,7 @@ int vio_fastsend(Vio * vio __attribute__((unused)))
 #endif                                    /* IPTOS_THROUGHPUT */
   if (!r)
   {
-#ifdef __WIN__
+#ifdef _WIN32
     BOOL nodelay= 1;
 #else
     int nodelay = 1;
@@ -400,12 +400,12 @@ vio_was_timeout(Vio *vio)
 }
 
 
-int vio_close(Vio * vio)
+int vio_shutdown(Vio * vio)
 {
   int r=0;
-  DBUG_ENTER("vio_close");
+  DBUG_ENTER("vio_shutdown");
 
- if (vio->type != VIO_CLOSED)
+ if (vio->inactive == FALSE)
   {
     DBUG_ASSERT(vio->type ==  VIO_TYPE_TCPIP ||
       vio->type == VIO_TYPE_SOCKET ||
@@ -422,7 +422,7 @@ int vio_close(Vio * vio)
     DBUG_PRINT("vio_error", ("close() failed, error: %d",socket_errno));
     /* FIXME: error handling (not critical for MySQL) */
   }
-  vio->type= VIO_CLOSED;
+  vio->inactive= TRUE;
   vio->mysql_socket= MYSQL_INVALID_SOCKET;
   DBUG_RETURN(r);
 }
@@ -796,10 +796,15 @@ int vio_io_wait(Vio *vio, enum enum_vio_io_event event, int timeout)
 {
   int ret;
   struct timeval tm;
-  my_socket fd= mysql_socket_getfd(vio->mysql_socket);
+  my_socket fd;
   fd_set readfds, writefds, exceptfds;
   MYSQL_SOCKET_WAIT_VARIABLES(locker, state) /* no ';' */
   DBUG_ENTER("vio_io_wait");
+
+  fd= mysql_socket_getfd(vio->mysql_socket);
+
+  if (fd == INVALID_SOCKET)
+    DBUG_RETURN(-1);
 
   /* Convert the timeout, in milliseconds, to seconds and microseconds. */
   if (timeout >= 0)

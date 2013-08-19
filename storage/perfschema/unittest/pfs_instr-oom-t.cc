@@ -1,4 +1,4 @@
-/* Copyright (c) 2008, 2011, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2008, 2013, Oracle and/or its affiliates. All rights reserved.
 
   This program is free software; you can redistribute it and/or modify
   it under the terms of the GNU General Public License as published by
@@ -22,7 +22,6 @@
 #include <tap.h>
 
 #include "stub_pfs_global.h"
-#include "stub_server_misc.h"
 
 #include <string.h> /* memset */
 
@@ -64,6 +63,7 @@ void test_oom()
   param.m_events_statements_history_sizing= 0;
   param.m_events_statements_history_long_sizing= 0;
   param.m_session_connect_attrs_sizing= 0;
+  param.m_memory_class_sizing= 0;
 
   init_event_name_sizing(& param);
   rc= init_instruments(& param);
@@ -100,6 +100,7 @@ void test_oom()
   param.m_events_statements_history_sizing= 0;
   param.m_events_statements_history_long_sizing= 0;
   param.m_session_connect_attrs_sizing= 0;
+  param.m_memory_class_sizing= 0;
 
   init_event_name_sizing(& param);
   rc= init_instruments(& param);
@@ -136,6 +137,7 @@ void test_oom()
   param.m_events_statements_history_sizing= 0;
   param.m_events_statements_history_long_sizing= 0;
   param.m_session_connect_attrs_sizing= 0;
+  param.m_memory_class_sizing= 0;
 
   init_event_name_sizing(& param);
   rc= init_instruments(& param);
@@ -172,6 +174,7 @@ void test_oom()
   param.m_events_statements_history_sizing= 0;
   param.m_events_statements_history_long_sizing= 0;
   param.m_session_connect_attrs_sizing= 0;
+  param.m_memory_class_sizing= 0;
 
   init_event_name_sizing(& param);
   rc= init_instruments(& param);
@@ -206,6 +209,7 @@ void test_oom()
   param.m_events_statements_history_sizing= 0;
   param.m_events_statements_history_long_sizing= 0;
   param.m_session_connect_attrs_sizing= 0;
+  param.m_memory_class_sizing= 0;
 
   init_event_name_sizing(& param);
   rc= init_instruments(& param);
@@ -242,6 +246,7 @@ void test_oom()
   param.m_events_statements_history_sizing= 0;
   param.m_events_statements_history_long_sizing= 0;
   param.m_session_connect_attrs_sizing= 0;
+  param.m_memory_class_sizing= 0;
 
   init_event_name_sizing(& param);
   rc= init_instruments(& param);
@@ -278,6 +283,7 @@ void test_oom()
   param.m_events_statements_history_sizing= 0;
   param.m_events_statements_history_long_sizing= 0;
   param.m_session_connect_attrs_sizing= 0;
+  param.m_memory_class_sizing= 0;
 
   init_event_name_sizing(& param);
   rc= init_instruments(& param);
@@ -316,6 +322,7 @@ void test_oom()
   param.m_events_statements_history_sizing= 0;
   param.m_events_statements_history_long_sizing= 0;
   param.m_session_connect_attrs_sizing= 0;
+  param.m_memory_class_sizing= 0;
 
   stub_alloc_fails_after_count= 2;
   init_event_name_sizing(& param);
@@ -350,6 +357,7 @@ void test_oom()
   param.m_events_statements_history_sizing= 0;
   param.m_events_statements_history_long_sizing= 0;
   param.m_session_connect_attrs_sizing= 0;
+  param.m_memory_class_sizing= 0;
 
   stub_alloc_fails_after_count= 2;
   init_event_name_sizing(& param);
@@ -376,6 +384,7 @@ void test_oom()
   param.m_events_waits_history_long_sizing= 0;
   param.m_setup_actor_sizing= 0;
   param.m_setup_object_sizing= 0;
+  param.m_memory_class_sizing= 0;
 
   init_event_name_sizing(& param);
   rc= init_instruments(& param);
@@ -393,6 +402,7 @@ void test_oom()
   param.m_events_statements_history_sizing= 0;
   param.m_events_statements_history_long_sizing= 0;
   param.m_session_connect_attrs_sizing= 0;
+  param.m_memory_class_sizing= 0;
 
   stub_alloc_fails_after_count= 1;
   init_event_name_sizing(& param);
@@ -428,6 +438,7 @@ void test_oom()
   param.m_events_statements_history_sizing= 0;
   param.m_events_statements_history_long_sizing= 0;
   param.m_session_connect_attrs_sizing= 0;
+  param.m_memory_class_sizing= 0;
 
   stub_alloc_fails_after_count= 3;
   init_event_name_sizing(& param);
@@ -463,6 +474,7 @@ void test_oom()
   param.m_events_statements_history_sizing= 0;
   param.m_events_statements_history_long_sizing= 0;
   param.m_session_connect_attrs_sizing= 0;
+  param.m_memory_class_sizing= 0;
 
   stub_alloc_fails_after_count= 2;
   init_event_name_sizing(& param);
@@ -498,6 +510,7 @@ void test_oom()
   param.m_events_statements_history_sizing= 10;
   param.m_events_statements_history_long_sizing= 0;
   param.m_session_connect_attrs_sizing= 0;
+  param.m_memory_class_sizing= 0;
 
   stub_alloc_fails_after_count= 2;
   init_event_name_sizing(& param);
@@ -533,6 +546,7 @@ void test_oom()
   param.m_events_statements_history_sizing= 0;
   param.m_events_statements_history_long_sizing= 0;
   param.m_session_connect_attrs_sizing= 0;
+  param.m_memory_class_sizing= 0;
 
   stub_alloc_fails_after_count= 2;
   init_event_name_sizing(& param);
@@ -568,6 +582,7 @@ void test_oom()
   param.m_events_statements_history_sizing= 0;
   param.m_events_statements_history_long_sizing= 0;
   param.m_session_connect_attrs_sizing= 0;
+  param.m_memory_class_sizing= 0;
 
   stub_alloc_fails_after_count= 1;
   init_event_name_sizing(& param);
@@ -603,6 +618,7 @@ void test_oom()
   param.m_events_statements_history_sizing= 0;
   param.m_events_statements_history_long_sizing= 0;
   param.m_session_connect_attrs_sizing= 0;
+  param.m_memory_class_sizing= 0;
 
   stub_alloc_fails_after_count= 3;
   init_event_name_sizing(& param);
@@ -641,6 +657,7 @@ void test_oom()
   param.m_events_statements_history_sizing= 0;
   param.m_events_statements_history_long_sizing= 0;
   param.m_session_connect_attrs_sizing= 0;
+  param.m_memory_class_sizing= 0;
 
   stub_alloc_fails_after_count= 3;
   init_event_name_sizing(& param);
@@ -648,6 +665,43 @@ void test_oom()
   ok(rc == 0, "init statement class");
   rc= init_instruments(& param);
   ok(rc == 1, "oom (global statements)");
+  cleanup_instruments();
+  cleanup_statement_class();
+
+  param.m_enabled= true;
+  param.m_mutex_class_sizing= 0;
+  param.m_rwlock_class_sizing= 0;
+  param.m_cond_class_sizing= 0;
+  param.m_thread_class_sizing= 0;
+  param.m_table_share_sizing= 0;
+  param.m_file_class_sizing= 0;
+  param.m_mutex_sizing= 0;
+  param.m_rwlock_sizing= 0;
+  param.m_cond_sizing= 0;
+  param.m_thread_sizing= 0;
+  param.m_table_sizing= 0;
+  param.m_file_sizing= 0;
+  param.m_file_handle_sizing= 0;
+  param.m_events_waits_history_sizing= 0;
+  param.m_events_waits_history_long_sizing= 0;
+  param.m_setup_actor_sizing= 0;
+  param.m_setup_object_sizing= 0;
+  param.m_host_sizing= 0;
+  param.m_user_sizing= 0;
+  param.m_account_sizing= 0;
+  param.m_stage_class_sizing= 0;
+  param.m_events_stages_history_sizing= 0;
+  param.m_events_stages_history_long_sizing= 0;
+  param.m_statement_class_sizing= 0;
+  param.m_events_statements_history_sizing= 0;
+  param.m_events_statements_history_long_sizing= 0;
+  param.m_session_connect_attrs_sizing= 0;
+  param.m_memory_class_sizing= 10;
+
+  stub_alloc_fails_after_count= 0;
+  init_event_name_sizing(& param);
+  rc= init_memory_class(param.m_memory_class_sizing);
+  ok(rc == 1, "oom (memory classes)");
   cleanup_instruments();
   cleanup_statement_class();
 }
@@ -663,7 +717,7 @@ void do_all_tests()
 
 int main(int, char **)
 {
-  plan(20);
+  plan(21);
   MY_INIT("pfs_instr-oom-t");
   do_all_tests();
   return 0;

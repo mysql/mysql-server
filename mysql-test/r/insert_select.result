@@ -607,7 +607,6 @@ create table t2(No int not null, Field int not null, Count int not null);
 insert into t2 Select null, Field, Count From t1 Where Month=20030901 and Type=2;
 Warnings:
 Warning	1048	Column 'No' cannot be null
-Warning	1048	Column 'No' cannot be null
 select * from t2;
 No	Field	Count
 0	1	100

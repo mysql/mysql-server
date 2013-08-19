@@ -33,7 +33,6 @@ set @my_query_cache_size          =@@global.query_cache_size;
 set @my_server_id                 =@@global.server_id;
 set @my_slow_launch_time          =@@global.slow_launch_time;
 set @my_storage_engine            =@@global.default_storage_engine;
-set @my_thread_cache_size         =@@global.thread_cache_size;
 set @my_max_allowed_packet        =@@global.max_allowed_packet;
 set @my_join_buffer_size          =@@global.join_buffer_size;
 set @`test`=1;
@@ -85,7 +84,7 @@ explain extended select @t1:=(@t2:=1)+@t3:=4,@t1,@t2,@t3;
 id	select_type	table	type	possible_keys	key	key_len	ref	rows	filtered	Extra
 1	SIMPLE	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	No tables used
 Warnings:
-Note	1003	/* select#1 */ select (@t1:=((@t2:=1) + (@t3:=4))) AS `@t1:=(@t2:=1)+@t3:=4`,(@t1) AS `@t1`,(@t2) AS `@t2`,(@t3) AS `@t3`
+Note	1003	/* select#1 */ select (@t1:=((@t2:=1) + (@t3:=4))) AS `@t1:=(@t2:=1)+@t3:=4`,(@`t1`) AS `@t1`,(@`t2`) AS `@t2`,(@`t3`) AS `@t3`
 select @t5;
 @t5
 1.23456
@@ -593,7 +592,6 @@ set sql_select_limit=default;
 set sql_warnings=1;
 set global table_open_cache=100;
 set default_storage_engine=myisam;
-set global thread_cache_size=100;
 set timestamp=1, timestamp=default;
 set tmp_table_size=100;
 Warnings:
@@ -1090,7 +1088,6 @@ set global query_cache_size          =@my_query_cache_size;
 set global server_id                 =@my_server_id;
 set global slow_launch_time          =@my_slow_launch_time;
 set global default_storage_engine            =@my_storage_engine;
-set global thread_cache_size         =@my_thread_cache_size;
 set global max_allowed_packet        =@my_max_allowed_packet;
 set global join_buffer_size          =@my_join_buffer_size;
 show global variables where Variable_name='table_definition_cache';
@@ -1799,3 +1796,26 @@ End of 5.5 tests
 #
 SET @@sql_mode= 4294967296;
 ERROR 42000: Variable 'sql_mode' can't be set to the value of '4294967296'
+#
+# Bug #59860: log-slow-admin-statements and log-slow-slave-statements not displayed
+#
+show variables like 'log_slow%';
+Variable_name	Value
+log_slow_admin_statements	OFF
+log_slow_slave_statements	OFF
+set global log_slow_admin_statements = on;
+show global variables like 'log_slow_admin_statements';
+Variable_name	Value
+log_slow_admin_statements	ON
+select * from information_schema.global_variables where variable_name like 'log_slow_admin_statements';
+VARIABLE_NAME	VARIABLE_VALUE
+LOG_SLOW_ADMIN_STATEMENTS	ON
+set global log_slow_slave_statements = on;
+show global variables like 'log_slow_slave_statements';
+Variable_name	Value
+log_slow_slave_statements	ON
+select * from information_schema.global_variables where variable_name like 'log_slow_slave_statements';
+VARIABLE_NAME	VARIABLE_VALUE
+LOG_SLOW_SLAVE_STATEMENTS	ON
+set global log_slow_admin_statements = default;
+set global log_slow_slave_statements = default;

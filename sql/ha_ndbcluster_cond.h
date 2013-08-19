@@ -258,7 +258,7 @@ public:
       length= item->max_length;
       my_bitmap_map *old_map=
         dbug_tmp_use_all_columns(field->table, field->table->write_set);
-      ((Item *)item)->save_in_field(field, FALSE);
+      ((Item *)item)->save_in_field(field, false);
       dbug_tmp_restore_column_map(field->table->write_set, old_map);
     }
     DBUG_RETURN(length);

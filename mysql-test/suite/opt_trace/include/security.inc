@@ -556,6 +556,7 @@ insert into t2 values(current_user());
 select QUERY, length(TRACE), INSUFFICIENT_PRIVILEGES from information_schema.OPTIMIZER_TRACE;
 --echo # Trace exposed body of trigger, and content of t2/t3, which we
 --echo # could see anyway:
+--replace_column 7 #
 show create trigger trg2;
 select * from t2, t3 limit 1;
 --echo # Trace exposed content of t1 which we could see anyway:

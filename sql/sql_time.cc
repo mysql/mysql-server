@@ -1,4 +1,4 @@
-/* Copyright (c) 2000, 2012, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2000, 2013, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -25,8 +25,6 @@
 
 
 	/* Some functions to calculate dates */
-
-#ifndef TESTTIME
 
 /*
   Name description of interval names used in statements.
@@ -1115,7 +1113,8 @@ DATE_TIME_FORMAT *date_time_format_copy(THD *thd, DATE_TIME_FORMAT *format)
   if (thd)
     new_format= (DATE_TIME_FORMAT *) thd->alloc(length);
   else
-    new_format=  (DATE_TIME_FORMAT *) my_malloc(length, MYF(MY_WME));
+    new_format=  (DATE_TIME_FORMAT *) my_malloc(key_memory_DATE_TIME_FORMAT,
+                                                length, MYF(MY_WME));
   if (new_format)
   {
     /* Put format string after current pos */
@@ -1772,5 +1771,3 @@ double double_from_datetime_packed(enum enum_field_types type,
   return result +
         ((double) MY_PACKED_TIME_GET_FRAC_PART(packed_value)) / 1000000;
 }
-
-#endif

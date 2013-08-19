@@ -42,12 +42,12 @@ Pos	Instruction
 0	set count@3 0
 1	set nulls@2 0
 2	cpush c@0: select name from t1
-3	hpush_jump 6 4 EXIT
+3	hpush_jump 6 4 EXIT HANDLER FOR NOT FOUND
 4	cclose c@0
 5	hreturn 0 19
 6	copen c@0
 7	set n@4 NULL
-8	hpush_jump 11 5 CONTINUE
+8	hpush_jump 11 5 CONTINUE HANDLER FOR SQLEXCEPTION
 9	set err@1 1
 10	hreturn 5
 11	cfetch c@0 n@4
@@ -666,7 +666,7 @@ end//
 show procedure code proc_26977_broken;
 Pos	Instruction
 0	set i@1 5
-1	hpush_jump 8 2 CONTINUE
+1	hpush_jump 8 2 CONTINUE HANDLER FOR SQLEXCEPTION
 2	stmt "select 'caught something'"
 3	jump_if_not 7(7) (i@1 > 0)
 4	set i@1 (i@1 - 1)
@@ -681,7 +681,7 @@ Pos	Instruction
 show procedure code proc_26977_works;
 Pos	Instruction
 0	set i@1 5
-1	hpush_jump 9 2 CONTINUE
+1	hpush_jump 9 2 CONTINUE HANDLER FOR SQLEXCEPTION
 2	stmt "select 'caught something'"
 3	jump_if_not 7(7) (i@1 > 0)
 4	set i@1 (i@1 - 1)
@@ -799,12 +799,12 @@ Pos	Instruction
 3	jump_if_not 24(24) (num@0 >= 1)
 4	set num@0 (num@0 - 1)
 5	cpush cur1@0: select `a` from t_33618
-6	hpush_jump 9 4 CONTINUE
+6	hpush_jump 9 4 CONTINUE HANDLER FOR NOT FOUND
 7	set last_row@3 1
 8	hreturn 4
 9	set last_row@3 0
 10	copen cur1@0
-11	hpush_jump 13 4 EXIT
+11	hpush_jump 13 4 EXIT HANDLER FOR 1062
 12	hreturn 0 17
 13	cfetch cur1@0 vb@2
 14	jump_if_not 17(17) (last_row@3 = 1)
@@ -824,7 +824,7 @@ Pos	Instruction
 3	jump_if_not 23(23) (num@0 >= 1)
 4	set num@0 (num@0 - 1)
 5	cpush cur1@0: select `a` from t_33618
-6	hpush_jump 9 4 CONTINUE
+6	hpush_jump 9 4 CONTINUE HANDLER FOR NOT FOUND
 7	set last_row@3 1
 8	hreturn 4
 9	set last_row@3 0
@@ -904,13 +904,17 @@ BEGIN
 DECLARE v INT;
 DECLARE CONTINUE HANDLER FOR SQLWARNING
 BEGIN
+GET DIAGNOSTICS @n = NUMBER;
+GET DIAGNOSTICS CONDITION @n @err_no = MYSQL_ERRNO, @err_txt = MESSAGE_TEXT;
 SELECT "Warning found!";
-SHOW WARNINGS;
+SELECT @err_no, @err_txt;
 END;
 DECLARE EXIT HANDLER FOR NOT FOUND
 BEGIN
+GET DIAGNOSTICS @n = NUMBER;
+GET DIAGNOSTICS CONDITION @n @err_no = MYSQL_ERRNO, @err_txt = MESSAGE_TEXT;
 SELECT "End of Result Set found!";
-SHOW WARNINGS;
+SELECT @err_no, @err_txt;
 END;
 WHILE TRUE DO
 FETCH c INTO v;
@@ -923,21 +927,20 @@ SET SESSION debug="+d,bug23032_emit_warning";
 CALL p1();
 Warning found!
 Warning found!
-Level	Code	Message
-Warning	1105	Unknown error
+@err_no	@err_txt
+1105	Unknown error
 Warning found!
 Warning found!
-Level	Code	Message
-Warning	1105	Unknown error
+@err_no	@err_txt
+1105	Unknown error
 Warning found!
 Warning found!
-Level	Code	Message
-Warning	1105	Unknown error
+@err_no	@err_txt
+1105	Unknown error
 End of Result Set found!
 End of Result Set found!
-Level	Code	Message
-Warning	1105	Unknown error
-Error	1329	No data - zero rows fetched, selected, or processed
+@err_no	@err_txt
+1329	No data - zero rows fetched, selected, or processed
 SET SESSION debug="-d,bug23032_emit_warning";
 DROP PROCEDURE p1;
 DROP TABLE t1;
@@ -1256,3 +1259,40 @@ DROP FUNCTION f6;
 DROP TABLE t1;
 DROP TEMPORARY TABLE t2;
 DROP VIEW t3;
+
+# SHOW ... CODE
+#
+CREATE PROCEDURE p11_many_handlers ()
+BEGIN
+DECLARE CONTINUE HANDLER FOR 1050             SELECT "1050 for 401a, please";
+DECLARE EXIT     HANDLER FOR NOT FOUND        SELECT "a place not found";
+DECLARE CONTINUE HANDLER FOR SQLWARNING       SELECT "a warn place";
+DECLARE EXIT     HANDLER FOR SQLEXCEPTION     SELECT "an exceptional place";
+DECLARE CONTINUE HANDLER FOR SQLSTATE '01000' SELECT "state of the nation";
+BEGIN
+DECLARE EXIT   HANDLER FOR NOT FOUND, 1,2   SELECT "multi multi";
+END;
+END|
+SHOW PROCEDURE CODE p11_many_handlers;
+Pos	Instruction
+0	hpush_jump 3 0 CONTINUE HANDLER FOR 1050
+1	stmt "SELECT "1050 for 401a, please""
+2	hreturn 0
+3	hpush_jump 6 0 EXIT HANDLER FOR NOT FOUND
+4	stmt "SELECT "a place not found""
+5	hreturn 0 19
+6	hpush_jump 9 0 CONTINUE HANDLER FOR SQLWARNING
+7	stmt "SELECT "a warn place""
+8	hreturn 0
+9	hpush_jump 12 0 EXIT HANDLER FOR SQLEXCEPTION
+10	stmt "SELECT "an exceptional place""
+11	hreturn 0 19
+12	hpush_jump 15 0 CONTINUE HANDLER FOR SQLSTATE '01000'
+13	stmt "SELECT "state of the nation""
+14	hreturn 0
+15	hpush_jump 18 0 EXIT HANDLER FOR NOT FOUND, 1, 2
+16	stmt "SELECT "multi multi""
+17	hreturn 0 18
+18	hpop
+19	hpop
+DROP PROCEDURE p11_many_handlers;

@@ -1,4 +1,4 @@
-/* Copyright (c) 2000, 2011, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2000, 2013, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -19,7 +19,6 @@
 #include <m_string.h>
 #include <my_dir.h>
 #include <my_xml.h>
-
 
 /*
   The code below implements this functionality:
@@ -75,10 +74,8 @@ static my_bool init_state_maps(CHARSET_INFO *cs)
       state_map[i]=(uchar) MY_LEX_IDENT;
     else if (my_isdigit(cs,i))
       state_map[i]=(uchar) MY_LEX_NUMBER_IDENT;
-#if defined(USE_MB) && defined(USE_MB_IDENT)
     else if (my_mbcharlen(cs, i)>1)
       state_map[i]=(uchar) MY_LEX_IDENT;
-#endif
     else if (my_isspace(cs,i))
       state_map[i]=(uchar) MY_LEX_SKIP;
     else
@@ -376,13 +373,19 @@ my_once_alloc_c(size_t size)
 
 static void *
 my_malloc_c(size_t size)
-{ return my_malloc(size, MYF(MY_WME)); }
+{ return my_malloc(key_memory_charset_loader, size, MYF(MY_WME)); }
 
 
 static void *
 my_realloc_c(void *old, size_t size)
-{ return my_realloc(old, size, MYF(MY_WME)); }
+{ return my_realloc(key_memory_charset_loader,
+                    old, size, MYF(MY_WME)); }
 
+static void
+my_free_c(void *ptr)
+{
+  my_free(ptr);
+}
 
 /**
   Initialize character set loader to use mysys memory management functions.
@@ -395,7 +398,7 @@ my_charset_loader_init_mysys(MY_CHARSET_LOADER *loader)
   loader->once_alloc= my_once_alloc_c;
   loader->malloc= my_malloc_c;
   loader->realloc= my_realloc_c;
-  loader->free= my_free;
+  loader->free= my_free_c;
   loader->reporter= my_charset_error_reporter;
   loader->add_collation= add_collation;
 }
@@ -419,7 +422,8 @@ my_read_charset_file(MY_CHARSET_LOADER *loader,
   
   if (!my_stat(filename, &stat_info, MYF(myflags)) ||
        ((len= (uint)stat_info.st_size) > MY_MAX_ALLOWED_BUF) ||
-       !(buf= (uchar*) my_malloc(len,myflags)))
+       !(buf= (uchar*) my_malloc(key_memory_charset_file,
+                                 len,myflags)))
     return TRUE;
   
   if ((fd= mysql_file_open(key_file_charset, filename, O_RDONLY, myflags)) < 0)
@@ -849,13 +853,10 @@ size_t escape_string_for_mysql(const CHARSET_INFO *charset_info,
   const char *to_start= to;
   const char *end, *to_end=to_start + (to_length ? to_length-1 : 2*length);
   my_bool overflow= FALSE;
-#ifdef USE_MB
   my_bool use_mb_flag= use_mb(charset_info);
-#endif
   for (end= from + length; from < end; from++)
   {
     char escape= 0;
-#ifdef USE_MB
     int tmp_length;
     if (use_mb_flag && (tmp_length= my_ismbchar(charset_info, from, end)))
     {
@@ -883,7 +884,6 @@ size_t escape_string_for_mysql(const CHARSET_INFO *charset_info,
     if (use_mb_flag && (tmp_length= my_mbcharlen(charset_info, *from)) > 1)
       escape= *from;
     else
-#endif
     switch (*from) {
     case 0:				/* Must be escaped for 'mysql' */
       escape= '0';
@@ -992,12 +992,9 @@ size_t escape_quotes_for_mysql(CHARSET_INFO *charset_info,
   const char *to_start= to;
   const char *end, *to_end=to_start + (to_length ? to_length-1 : 2*length);
   my_bool overflow= FALSE;
-#ifdef USE_MB
   my_bool use_mb_flag= use_mb(charset_info);
-#endif
   for (end= from + length; from < end; from++)
   {
-#ifdef USE_MB
     int tmp_length;
     if (use_mb_flag && (tmp_length= my_ismbchar(charset_info, from, end)))
     {
@@ -1016,7 +1013,6 @@ size_t escape_quotes_for_mysql(CHARSET_INFO *charset_info,
       turned into a multi-byte character by the addition of an escaping
       character, because we are only escaping the ' character with itself.
      */
-#endif
     if (*from == '\'')
     {
       if (to + 2 > to_end)

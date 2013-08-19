@@ -1,4 +1,4 @@
-/* Copyright (c) 2000, 2011, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2000, 2013, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -92,7 +92,7 @@ char *my_strerror(char *buf, size_t len, int nr)
       this choice is not advertised, use the default (POSIX/XSI).  Testing
       for __GNUC__ is not sufficient to determine whether this choice exists.
     */
-#if defined(__WIN__)
+#if defined(_WIN32)
     strerror_s(buf, len, nr);
     if (my_winerr != 0)
     {
@@ -257,6 +257,28 @@ void my_printv_error(uint error, const char *format, myf MyFlags, va_list ap)
   DBUG_VOID_RETURN;
 }
 
+/*
+  Warning as printf
+
+  SYNOPSIS
+    my_printf_warning()
+      format>   Format string
+      ...>      variable list
+*/
+void(*sql_print_warning_hook)(const char *format,...);
+void my_printf_warning(const char *format, ...)
+{
+  va_list args;
+  char wbuff[ERRMSGSIZE];
+  DBUG_ENTER("my_printf_warning");
+  DBUG_PRINT("my", ("Format: %s", format));
+  va_start(args,format);
+  (void) my_vsnprintf (wbuff, sizeof(wbuff), format, args);
+  va_end(args);
+  (*sql_print_warning_hook)(wbuff);
+  DBUG_VOID_RETURN;
+}
+
 /**
   Print an error message.
 
@@ -300,7 +322,8 @@ int my_error_register(const char** (*get_errmsgs) (), int first, int last)
   struct my_err_head **search_meh_pp;
 
   /* Allocate a new header structure. */
-  if (! (meh_p= (struct my_err_head*) my_malloc(sizeof(struct my_err_head),
+  if (! (meh_p= (struct my_err_head*) my_malloc(key_memory_my_err_head,
+                                                sizeof(struct my_err_head),
                                                 MYF(MY_WME))))
     return 1;
   meh_p->get_errmsgs= get_errmsgs;

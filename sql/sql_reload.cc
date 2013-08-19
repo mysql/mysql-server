@@ -1,4 +1,4 @@
-/* Copyright (c) 2010, 2012, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2010, 2013, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -17,7 +17,7 @@
 #include "sql_priv.h"
 #include "mysqld.h"      // select_errors
 #include "sql_class.h"   // THD
-#include "sql_acl.h"     // acl_reload
+#include "auth_common.h" // acl_reload, grant_reload
 #include "sql_servers.h" // servers_reload
 #include "sql_connect.h" // reset_mqh
 #include "sql_base.h"    // close_cached_tables
@@ -28,6 +28,7 @@
 #include "rpl_rli.h"     // rotate_relay_log
 #include "rpl_mi.h"
 #include "debug_sync.h"
+#include "connection_handler_impl.h"
 
 
 /**
@@ -97,7 +98,7 @@ bool reload_acl_and_cache(THD *thd, unsigned long options,
     {
       delete tmp_thd;
       /* Remember that we don't have a THD */
-      my_pthread_setspecific_ptr(THR_THD,  0);
+      my_pthread_set_THR_THD(0);
       thd= 0;
     }
     reset_mqh((LEX_USER *)NULL, TRUE);
@@ -131,10 +132,10 @@ bool reload_acl_and_cache(THD *thd, unsigned long options,
     }
 
   if ((options & REFRESH_SLOW_LOG) && opt_slow_log)
-    logger.flush_slow_log();
+    query_logger.reopen_log_file(QUERY_LOG_SLOW);
 
-  if ((options & REFRESH_GENERAL_LOG) && opt_log)
-    logger.flush_general_log();
+  if ((options & REFRESH_GENERAL_LOG) && opt_general_log)
+    query_logger.reopen_log_file(QUERY_LOG_GENERAL);
 
   if (options & REFRESH_ENGINE_LOG)
     if (ha_flush_logs(NULL))
@@ -169,7 +170,6 @@ bool reload_acl_and_cache(THD *thd, unsigned long options,
     mysql_mutex_unlock(&LOCK_active_mi);
 #endif
   }
-#ifdef HAVE_QUERY_CACHE
   if (options & REFRESH_QUERY_CACHE_FREE)
   {
     query_cache.pack();				// FLUSH QUERY CACHE
@@ -179,7 +179,6 @@ bool reload_acl_and_cache(THD *thd, unsigned long options,
   {
     query_cache.flush();			// RESET QUERY CACHE
   }
-#endif /*HAVE_QUERY_CACHE*/
 
   DBUG_ASSERT(!thd || thd->locked_tables_mode ||
               !thd->mdl_context.has_locks() ||
@@ -291,8 +290,10 @@ bool reload_acl_and_cache(THD *thd, unsigned long options,
     hostname_cache_refresh();
   if (thd && (options & REFRESH_STATUS))
     refresh_status(thd);
+#ifndef EMBEDDED_LIBRARY
   if (options & REFRESH_THREADS)
-    kill_blocked_pthreads();
+    Per_thread_connection_handler::kill_blocked_pthreads();
+#endif
 #ifdef HAVE_REPLICATION
   if (options & REFRESH_MASTER)
   {

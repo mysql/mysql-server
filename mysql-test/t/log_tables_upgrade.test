@@ -1,5 +1,9 @@
+# The include statement below is a temp one for tests that are yet to
+#be ported to run with InnoDB,
+#but needs to be kept for tests that would need MyISAM in future.
+--source include/force_myisam_default.inc
+
 --source include/not_embedded.inc
---source include/have_csv.inc
 
 # Only run test if "mysql_upgrade" is found
 --require r/have_mysql_upgrade.result

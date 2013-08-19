@@ -1,4 +1,4 @@
-/* Copyright (c) 2005, 2012, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2005, 2013, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -24,7 +24,7 @@
                                            // date_add_interval,
                                            // calc_time_diff
 #include "tztime.h"     // my_tz_find, my_tz_OFFSET0, struct Time_zone
-#include "sql_acl.h"    // EVENT_ACL, SUPER_ACL
+#include "auth_common.h"                   // EVENT_ACL, SUPER_ACL
 #include "sp.h"         // load_charset, load_collation
 #include "events.h"
 #include "event_data_objects.h"
@@ -32,10 +32,24 @@
 #include "sp_head.h"
 #include "sql_show.h"                // append_definer, append_identifier
 
+#include "mysql/psi/mysql_sp.h"
+
 /**
   @addtogroup Event_Scheduler
   @{
 */
+
+#ifdef HAVE_PSI_INTERFACE
+void init_scheduler_psi_keys()
+{
+  const char *category= "scheduler";
+
+  PSI_server->register_statement(category, & Event_queue_element_for_exec::psi_info, 1);
+}
+
+PSI_statement_info Event_queue_element_for_exec::psi_info=
+{ 0, "event", 0};
+#endif
 
 /*************************************************************************/
 
@@ -172,9 +186,11 @@ Event_creation_ctx::load_from_db(THD *thd,
 bool
 Event_queue_element_for_exec::init(LEX_STRING db, LEX_STRING n)
 {
-  if (!(dbname.str= my_strndup(db.str, dbname.length= db.length, MYF(MY_WME))))
+  if (!(dbname.str= my_strndup(key_memory_Event_queue_element_for_exec_names,
+                               db.str, dbname.length= db.length, MYF(MY_WME))))
     return TRUE;
-  if (!(name.str= my_strndup(n.str, name.length= n.length, MYF(MY_WME))))
+  if (!(name.str= my_strndup(key_memory_Event_queue_element_for_exec_names,
+                             n.str, name.length= n.length, MYF(MY_WME))))
   {
     my_free(dbname.str);
     return TRUE;
@@ -208,7 +224,7 @@ Event_basic::Event_basic()
 {
   DBUG_ENTER("Event_basic::Event_basic");
   /* init memory root */
-  init_sql_alloc(&mem_root, 256, 512);
+  init_sql_alloc(key_memory_event_basic_root, &mem_root, 256, 512);
   dbname.str= name.str= NULL;
   dbname.length= name.length= 0;
   time_zone= NULL;
@@ -1406,6 +1422,7 @@ Event_job_data::execute(THD *thd, bool drop)
 
   {
     Parser_state parser_state;
+    
     if (parser_state.init(thd, thd->query(), thd->query_length()))
       goto end;
 
@@ -1434,6 +1451,13 @@ Event_job_data::execute(THD *thd, bool drop)
     sphead->set_info(0, 0, &thd->lex->sp_chistics, sql_mode);
     sphead->set_creation_ctx(creation_ctx);
     sphead->optimize();
+
+    sphead->m_type= SP_TYPE_EVENT;
+#ifdef HAVE_PSI_SP_INTERFACE
+    sphead->m_sp_share= MYSQL_GET_SP_SHARE(SP_OBJECT_TYPE_EVENT,
+                                           dbname.str, dbname.length,
+                                           name.str, name.length);
+#endif
 
     ret= sphead->execute_procedure(thd, &empty_item_list);
     /*
@@ -1487,7 +1511,7 @@ end:
   if (save_sctx)
     event_sctx.restore_security_context(thd, save_sctx);
 #endif
-  thd->lex->unit.cleanup();
+  thd->lex->unit->cleanup(true);
   thd->end_statement();
   thd->cleanup_after_query();
   /* Avoid races with SHOW PROCESSLIST */

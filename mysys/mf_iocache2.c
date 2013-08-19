@@ -1,4 +1,4 @@
-/* Copyright (c) 2000, 2011, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2000, 2013, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -63,6 +63,8 @@ my_b_copy_to_file(IO_CACHE *cache, FILE *file)
       DBUG_RETURN(1);
     cache->read_pos= cache->read_end;
   } while ((bytes_in_cache= my_b_fill(cache)));
+  if(cache->error == -1)
+    DBUG_RETURN(1);
   DBUG_RETURN(0);
 }
 
@@ -219,6 +221,8 @@ size_t my_b_fill(IO_CACHE *info)
     info->error= 0;
     return 0;					/* EOF */
   }
+  DBUG_EXECUTE_IF ("simulate_my_b_fill_error",
+                   {DBUG_SET("+d,simulate_file_read_error");});
   if ((length= my_read(info->file,info->buffer,max_length,
                        info->myflags)) == (size_t) -1)
   {
@@ -288,7 +292,7 @@ my_off_t my_b_filelength(IO_CACHE *info)
 
 
 /*
-  Simple printf version.  Supports '%s', '%d', '%u', "%ld" and "%lu"
+  Simple printf version.  Supports '%s', '%d', '%u', "%ld", "%lu" and "%llu"
   Used for logging in MySQL
   returns number of written character, or (size_t) -1 on error
 */
@@ -460,6 +464,19 @@ process_flags:
       out_length+= length2;
       if (my_b_write(info, (uchar*) buff, length2))
 	goto err;
+    }
+    else if (fmt[0] == 'l' && fmt[1] == 'l' && fmt[2] == 'u')
+    {
+      ulonglong iarg;
+      size_t length2;
+      char buff[32];
+
+      iarg = va_arg(args, ulonglong);
+      length2= (size_t) (longlong10_to_str(iarg, buff, 10) - buff);
+      out_length+= length2;
+      fmt+= 2;
+      if (my_b_write(info, (uchar *) buff, length2))
+        goto err;
     }
     else
     {

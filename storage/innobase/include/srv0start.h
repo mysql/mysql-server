@@ -1,6 +1,6 @@
 /*****************************************************************************
 
-Copyright (c) 1995, 2012, Oracle and/or its affiliates. All Rights Reserved.
+Copyright (c) 1995, 2013, Oracle and/or its affiliates. All Rights Reserved.
 
 This program is free software; you can redistribute it and/or modify it under
 the terms of the GNU General Public License as published by the Free Software
@@ -30,49 +30,52 @@ Created 10/10/1995 Heikki Tuuri
 #include "log0log.h"
 #include "ut0byte.h"
 
-#ifdef __WIN__
+#ifdef _WIN32
 #define SRV_PATH_SEPARATOR	'\\'
 #else
 #define SRV_PATH_SEPARATOR	'/'
 #endif
 
+#ifdef DBUG_OFF
+# define RECOVERY_CRASH(x) do {} while(0)
+#else
+# define RECOVERY_CRASH(x) do {						\
+	if (srv_force_recovery_crash == x) {				\
+		fprintf(stderr, "innodb_force_recovery_crash=%lu\n",	\
+			srv_force_recovery_crash);			\
+		fflush(stderr);						\
+		exit(3);						\
+	}								\
+} while (0)
+#endif
+
 /*********************************************************************//**
 Normalizes a directory path for Windows: converts slashes to backslashes. */
-UNIV_INTERN
+
 void
 srv_normalize_path_for_win(
 /*=======================*/
 	char*	str);	/*!< in/out: null-terminated character string */
 /*********************************************************************//**
-Reads the data files and their sizes from a character string given in
-the .cnf file.
-@return	TRUE if ok, FALSE on parse error */
-UNIV_INTERN
-ibool
-srv_parse_data_file_paths_and_sizes(
-/*================================*/
+Parse temporary tablespace configuration.
+@return true if ok, false on parse error */
+
+bool
+srv_parse_temp_data_file_paths_and_sizes(
+/*=====================================*/
 	char*	str);	/*!< in/out: the data file path string */
-/*********************************************************************//**
-Reads log group home directories from a character string given in
-the .cnf file.
-@return	TRUE if ok, FALSE on parse error */
-UNIV_INTERN
-ibool
-srv_parse_log_group_home_dirs(
-/*==========================*/
-	char*	str);	/*!< in/out: character string */
 /*********************************************************************//**
 Frees the memory allocated by srv_parse_data_file_paths_and_sizes()
 and srv_parse_log_group_home_dirs(). */
-UNIV_INTERN
+
 void
 srv_free_paths_and_sizes(void);
 /*==========================*/
 /*********************************************************************//**
 Adds a slash or a backslash to the end of a string if it is missing
 and the string is not empty.
-@return	string which has the separator if the string is not empty */
-UNIV_INTERN
+@return string which has the separator if the string is not empty */
+
 char*
 srv_add_path_separator_if_needed(
 /*=============================*/
@@ -81,22 +84,22 @@ srv_add_path_separator_if_needed(
 /****************************************************************//**
 Starts Innobase and creates a new database if database files
 are not found and the user wants.
-@return	DB_SUCCESS or error code */
-UNIV_INTERN
+@return DB_SUCCESS or error code */
+
 dberr_t
 innobase_start_or_create_for_mysql(void);
 /*====================================*/
 /****************************************************************//**
 Shuts down the Innobase database.
-@return	DB_SUCCESS or error code */
-UNIV_INTERN
+@return DB_SUCCESS or error code */
+
 dberr_t
 innobase_shutdown_for_mysql(void);
 
 /********************************************************************
 Signal all per-table background threads to shutdown, and wait for them to do
 so. */
-UNIV_INTERN
+
 void
 srv_shutdown_table_bg_threads(void);
 /*=============================*/
@@ -106,7 +109,7 @@ Copy the file path component of the physical file to parameter. It will
 copy up to and including the terminating path separator.
 @return number of bytes copied or ULINT_UNDEFINED if destination buffer
 	is smaller than the path to be copied. */
-UNIV_INTERN
+
 ulint
 srv_path_copy(
 /*==========*/
@@ -118,7 +121,7 @@ srv_path_copy(
 
 /*****************************************************************//**
 Get the meta-data filename from the table name. */
-UNIV_INTERN
+
 void
 srv_get_meta_data_filename(
 /*======================*/
@@ -132,13 +135,8 @@ extern	lsn_t	srv_shutdown_lsn;
 /** Log sequence number immediately after startup */
 extern	lsn_t	srv_start_lsn;
 
-#ifdef HAVE_DARWIN_THREADS
-/** TRUE if the F_FULLFSYNC option is available */
-extern	ibool	srv_have_fullfsync;
-#endif
-
 /** TRUE if the server is being started */
-extern	ibool	srv_is_being_started;
+extern	bool	srv_is_being_started;
 /** TRUE if the server was successfully started */
 extern	ibool	srv_was_started;
 /** TRUE if the server is being started, before rolling back any

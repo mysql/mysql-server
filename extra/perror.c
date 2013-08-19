@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2000, 2012, Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2000, 2013, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -136,7 +136,7 @@ static const char *get_ha_error_msg(int code)
   /*
     If you got compilation error here about compile_time_assert array, check
     that every HA_ERR_xxx constant has a corresponding error message in
-    handler_error_messages[] list (check mysys/ma_handler_errors.h and
+    handler_error_messages[] list (check mysys/my_handler_errors.h and
     include/my_base.h).
   */
   compile_time_assert(HA_ERR_FIRST + array_elements(handler_error_messages) ==
@@ -187,7 +187,7 @@ int get_ER_error_msg(uint code, const char **name_ptr, const char **msg_ptr)
   return 0;
 }
 
-#if defined(__WIN__)
+#if defined(_WIN32)
 static my_bool print_win_error_msg(DWORD error, my_bool verbose)
 {
   LPTSTR s;
@@ -247,7 +247,7 @@ int main(int argc,char *argv[])
   const char *msg;
   const char *name;
   char *unknown_error = 0;
-#if defined(__WIN__)
+#if defined(_WIN32)
   my_bool skip_win_message= 0;
 #endif
   MY_INIT(argv[0]);
@@ -345,17 +345,17 @@ int main(int argc,char *argv[])
       }
       if (!found)
       {
-#if defined(__WIN__)
+#if defined(_WIN32)
         if (!(skip_win_message= !print_win_error_msg((DWORD)code, verbose)))
         {
 #endif
           fprintf(stderr,"Illegal error code: %d\n",code);
           error=1;
-#if defined(__WIN__)
+#if defined(_WIN32)
         }
 #endif
       }
-#if defined(__WIN__)
+#if defined(_WIN32)
       if (!skip_win_message)
         print_win_error_msg((DWORD)code, verbose);
 #endif

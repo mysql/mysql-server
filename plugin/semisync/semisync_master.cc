@@ -17,6 +17,10 @@
 
 
 #include "semisync_master.h"
+#if defined(ENABLED_DEBUG_SYNC)
+#include "debug_sync.h"
+#include "sql_class.h"
+#endif
 
 #define TIME_THOUSAND 1000
 #define TIME_MILLION  1000000
@@ -48,11 +52,11 @@ static int getWaitTime(const struct timespec& start_ts);
 
 static unsigned long long timespec_to_usec(const struct timespec *ts)
 {
-#ifndef __WIN__
+#ifndef _WIN32
   return (unsigned long long) ts->tv_sec * TIME_MILLION + ts->tv_nsec / TIME_THOUSAND;
 #else
   return ts->tv.i64 / 10;
-#endif /* __WIN__ */
+#endif /* _WIN32 */
 }
 
 /*******************************************************************************
@@ -501,8 +505,9 @@ bool ReplSemiSyncMaster::is_semi_sync_slave()
 }
 
 int ReplSemiSyncMaster::reportReplyBinlog(uint32 server_id,
-					  const char *log_file_name,
-					  my_off_t log_file_pos)
+                                          const char *log_file_name,
+                                          my_off_t log_file_pos,
+                                          bool skipped_event)
 {
   const char *kWho = "ReplSemiSyncMaster::reportReplyBinlog";
   int   cmp;
@@ -561,8 +566,14 @@ int ReplSemiSyncMaster::reportReplyBinlog(uint32 server_id,
     active_tranxs_->clear_active_tranx_nodes(log_file_name, log_file_pos);
 
     if (trace_level_ & kTraceDetail)
-      sql_print_information("%s: Got reply at (%s, %lu)", kWho,
+    {
+      if(!skipped_event)
+        sql_print_information("%s: Got reply at (%s, %lu)", kWho,
                             log_file_name, (unsigned long)log_file_pos);
+      else
+        sql_print_information("%s: Transaction skipped at (%s, %lu)", kWho,
+                            log_file_name, (unsigned long)log_file_pos);
+    }
   }
 
   if (rpl_semi_sync_master_wait_sessions > 0)
@@ -611,7 +622,11 @@ int ReplSemiSyncMaster::commitTrx(const char* trx_wait_binlog_name,
     PSI_stage_info old_stage;
 
     set_timespec(start_ts, 0);
-
+#if defined(ENABLED_DEBUG_SYNC)
+    /* debug sync may not be initialized for a master */
+    if (current_thd->debug_sync_control)
+      DEBUG_SYNC(current_thd, "rpl_semisync_master_commit_trx_before_lock");
+#endif
     /* Acquire the mutex. */
     lock();
 
@@ -630,6 +645,21 @@ int ReplSemiSyncMaster::commitTrx(const char* trx_wait_binlog_name,
                             trx_wait_binlog_name, (unsigned long)trx_wait_binlog_pos,
                             (int)is_on());
     }
+
+    /* Calcuate the waiting period. */
+#ifdef _WIN32
+      abstime.tv.i64 = start_ts.tv.i64 + (__int64)wait_timeout_ * TIME_THOUSAND * 10;
+      abstime.max_timeout_msec= (long)wait_timeout_;
+#else
+      abstime.tv_sec = start_ts.tv_sec + wait_timeout_ / TIME_THOUSAND;
+      abstime.tv_nsec = start_ts.tv_nsec +
+        (wait_timeout_ % TIME_THOUSAND) * TIME_MILLION;
+      if (abstime.tv_nsec >= TIME_BILLION)
+      {
+        abstime.tv_sec++;
+        abstime.tv_nsec -= TIME_BILLION;
+      }
+#endif /* _WIN32 */
 
     while (is_on())
     {
@@ -679,22 +709,6 @@ int ReplSemiSyncMaster::commitTrx(const char* trx_wait_binlog_name,
                                 kWho, wait_file_name_, (unsigned long)wait_file_pos_);
       }
 
-      /* Calcuate the waiting period. */
-#ifdef __WIN__
-      abstime.tv.i64 = start_ts.tv.i64 + (__int64)wait_timeout_ * TIME_THOUSAND * 10;
-      abstime.max_timeout_msec= (long)wait_timeout_;
-#else
-      unsigned long long diff_nsecs =
-        start_ts.tv_nsec + (unsigned long long)wait_timeout_ * TIME_MILLION;
-      abstime.tv_sec = start_ts.tv_sec;
-      while (diff_nsecs >= TIME_BILLION)
-      {
-        abstime.tv_sec++;
-        diff_nsecs -= TIME_BILLION;
-      }
-      abstime.tv_nsec = diff_nsecs;
-#endif /* __WIN__ */
-      
       /* In semi-synchronous replication, we wait until the binlog-dump
        * thread has received the reply on the relevant binlog segment from the
        * replication slave.
@@ -734,9 +748,10 @@ int ReplSemiSyncMaster::commitTrx(const char* trx_wait_binlog_name,
         {
           if (trace_level_ & kTraceGeneral)
           {
-            sql_print_error("Replication semi-sync getWaitTime fail at "
-                            "wait position (%s, %lu)",
-                            trx_wait_binlog_name, (unsigned long)trx_wait_binlog_pos);
+            sql_print_information("Assessment of waiting time for commitTrx "
+                                  "failed at wait position (%s, %lu)",
+                                  trx_wait_binlog_name,
+                                  (unsigned long)trx_wait_binlog_pos);
           }
           rpl_semi_sync_master_timefunc_fails++;
         }
@@ -748,14 +763,13 @@ int ReplSemiSyncMaster::commitTrx(const char* trx_wait_binlog_name,
       }
     }
 
-  l_end:
     /*
       At this point, the binlog file and position of this transaction
       must have been removed from ActiveTranx.
     */
     assert(!active_tranxs_->is_tranx_end_pos(trx_wait_binlog_name,
                                              trx_wait_binlog_pos));
-    
+  l_end:
     /* Update the status counter. */
     if (is_on())
       rpl_semi_sync_master_yes_transactions++;
@@ -1046,6 +1060,29 @@ int ReplSemiSyncMaster::writeTranxInBinlog(const char* log_file_name,
   return function_exit(kWho, result);
 }
 
+int ReplSemiSyncMaster::skipSlaveReply(const char *event_buf,
+                                       uint32 server_id,
+                                       const char* skipped_log_file,
+                                       my_off_t skipped_log_pos)
+{
+  const char *kWho = "ReplSemiSyncMaster::skipSlaveReply";
+
+  function_enter(kWho);
+
+  assert((unsigned char)event_buf[1] == kPacketMagicNum);
+  if ((unsigned char)event_buf[2] != kPacketFlagSync)
+  {
+    /* current event would not require a reply anyway */
+    goto l_end;
+  }
+
+  reportReplyBinlog(server_id, skipped_log_file,
+                    skipped_log_pos, true);
+
+ l_end:
+  return function_exit(kWho, 0);
+}
+
 int ReplSemiSyncMaster::readSlaveReply(NET *net, uint32 server_id,
                                        const char *event_buf)
 {
@@ -1099,8 +1136,8 @@ int ReplSemiSyncMaster::readSlaveReply(NET *net, uint32 server_id,
     int wait_time = getWaitTime(start_ts);
     if (wait_time < 0)
     {
-      sql_print_error("Semi-sync master wait for reply "
-                      "fail to get wait time.");
+      sql_print_information("Assessment of waiting time for "
+                            "readSlaveReply failed.");
       rpl_semi_sync_master_timefunc_fails++;
     }
     else

@@ -1,6 +1,6 @@
 /*****************************************************************************
 
-Copyright (c) 1996, 2012, Oracle and/or its affiliates. All Rights Reserved.
+Copyright (c) 1996, 2013, Oracle and/or its affiliates. All Rights Reserved.
 Copyright (c) 2012, Facebook Inc.
 
 This program is free software; you can redistribute it and/or modify it under
@@ -40,7 +40,6 @@ Created 1/8/1996 Heikki Tuuri
 # include "sync0rw.h"
 #endif /* !UNIV_HOTBACKUP */
 #include "ut0mem.h"
-#include "ut0lst.h"
 #include "ut0rnd.h"
 #include "ut0byte.h"
 #include "hash0hash.h"
@@ -226,7 +225,7 @@ This could result in rescursive calls and out of stack error eventually.
 DICT_FK_MAX_RECURSIVE_LOAD defines the maximum number of recursive loads,
 when exceeded, the child table will not be loaded. It will be loaded when
 the foreign constraint check needs to be run. */
-#define DICT_FK_MAX_RECURSIVE_LOAD	255
+#define DICT_FK_MAX_RECURSIVE_LOAD	20
 
 /** Similarly, when tables are chained together with foreign key constraints
 with on cascading delete/update clause, delete from parent table could
@@ -238,8 +237,8 @@ before proceeds. */
 
 /**********************************************************************//**
 Creates a table memory object.
-@return	own: table object */
-UNIV_INTERN
+@return own: table object */
+
 dict_table_t*
 dict_mem_table_create(
 /*==================*/
@@ -251,14 +250,14 @@ dict_mem_table_create(
 	ulint		flags2);	/*!< in: table flags2 */
 /****************************************************************//**
 Free a table memory object. */
-UNIV_INTERN
+
 void
 dict_mem_table_free(
 /*================*/
 	dict_table_t*	table);		/*!< in: table */
 /**********************************************************************//**
 Adds a column definition to a table. */
-UNIV_INTERN
+
 void
 dict_mem_table_add_col(
 /*===================*/
@@ -271,7 +270,7 @@ dict_mem_table_add_col(
 	__attribute__((nonnull(1)));
 /**********************************************************************//**
 Renames a column of a table in the data dictionary cache. */
-UNIV_INTERN
+
 void
 dict_mem_table_col_rename(
 /*======================*/
@@ -283,7 +282,7 @@ dict_mem_table_col_rename(
 /**********************************************************************//**
 This function populates a dict_col_t memory structure with
 supplied information. */
-UNIV_INTERN
+
 void
 dict_mem_fill_column_struct(
 /*========================*/
@@ -312,8 +311,8 @@ dict_mem_fill_index_struct(
 	ulint		n_fields);	/*!< in: number of fields */
 /**********************************************************************//**
 Creates an index memory object.
-@return	own: index object */
-UNIV_INTERN
+@return own: index object */
+
 dict_index_t*
 dict_mem_index_create(
 /*==================*/
@@ -329,7 +328,7 @@ dict_mem_index_create(
 Adds a field definition to an index. NOTE: does not take a copy
 of the column name if the field is a column. The memory occupied
 by the column name may be released only after publishing the index. */
-UNIV_INTERN
+
 void
 dict_mem_index_add_field(
 /*=====================*/
@@ -340,15 +339,15 @@ dict_mem_index_add_field(
 					INDEX (textcol(25)) */
 /**********************************************************************//**
 Frees an index memory object. */
-UNIV_INTERN
+
 void
 dict_mem_index_free(
 /*================*/
 	dict_index_t*	index);	/*!< in: index */
 /**********************************************************************//**
 Creates and initializes a foreign constraint memory object.
-@return	own: foreign constraint struct */
-UNIV_INTERN
+@return own: foreign constraint struct */
+
 dict_foreign_t*
 dict_mem_foreign_create(void);
 /*=========================*/
@@ -358,7 +357,7 @@ Sets the foreign_table_name_lookup pointer based on the value of
 lower_case_table_names.  If that is 0 or 1, foreign_table_name_lookup
 will point to foreign_table_name.  If 2, then another string is
 allocated from the heap and set to lower case. */
-UNIV_INTERN
+
 void
 dict_mem_foreign_table_name_lookup_set(
 /*===================================*/
@@ -370,7 +369,7 @@ Sets the referenced_table_name_lookup pointer based on the value of
 lower_case_table_names.  If that is 0 or 1, referenced_table_name_lookup
 will point to referenced_table_name.  If 2, then another string is
 allocated from the heap and set to lower case. */
-UNIV_INTERN
+
 void
 dict_mem_referenced_table_name_lookup_set(
 /*======================================*/
@@ -378,9 +377,15 @@ dict_mem_referenced_table_name_lookup_set(
 	ibool		do_alloc);	/*!< in: is an alloc needed */
 
 /*******************************************************************//**
-Create a temporary tablename.
-@return temporary tablename suitable for InnoDB use */
-UNIV_INTERN __attribute__((nonnull, warn_unused_result))
+Create a temporary tablename like "#sql-ibnnnn-mmmm" where
+  nnnn = the table ID
+  mmmm = the current LSN
+Both of these numbers are 64 bit integers and can use up to 20 digits.
+Note that both numbers are needed to achieve a unique name since it is
+possible for two threads to call this while the LSN is the same.
+But these two threads will not be working on the same table.
+@return A unique temporary tablename suitable for InnoDB use */
+__attribute__((nonnull, warn_unused_result))
 char*
 dict_mem_create_temporary_tablename(
 /*================================*/
@@ -523,7 +528,7 @@ extern ulong	zip_pad_max;
 an uncompressed page should be left as padding to avoid compression
 failures. This estimate is based on a self-adapting heuristic. */
 struct zip_pad_info_t {
-	os_fast_mutex_t	mutex;	/*!< mutex protecting the info */
+	SysMutex	mutex;	/*!< mutex protecting the info */
 	ulint		pad;	/*!< number of bytes used as pad */
 	ulint		success;/*!< successful compression ops during
 				current round */
@@ -717,6 +722,13 @@ a foreign key constraint is enforced, therefore RESTRICT just means no flag */
 #define DICT_FOREIGN_ON_UPDATE_NO_ACTION 32	/*!< ON UPDATE NO ACTION */
 /* @} */
 
+/** List of locks that different transactions have acquired on a table. This
+list has a list node that is embedded in a nested union/structure. We have to
+generate a specific template for it. */
+
+typedef ut_list_base<lock_t, ut_list_node<lock_t> lock_table_t::*>
+	table_lock_list_t;
+
 /** Data structure for a database table.  Most fields will be
 initialized to 0, NULL or FALSE in dict_mem_table_create(). */
 struct dict_table_t{
@@ -795,14 +807,19 @@ struct dict_table_t{
 				on the table: we cannot drop the table while
 				there are foreign key checks running on
 				it! */
-	trx_id_t	query_cache_inv_trx_id;
-				/*!< transactions whose trx id is
-				smaller than this number are not
-				allowed to store to the MySQL query
-				cache or retrieve from it; when a trx
-				with undo logs commits, it sets this
-				to the value of the trx id counter for
-				the tables it had an IX lock on */
+	trx_id_t	query_cache_inv_id;
+				/*!< transactions whose view low limit is
+				greater than this number are not allowed
+				to store to the MySQL query cache or
+				retrieve from it; when a trx with undo
+				logs commits, it sets this to the value
+				of the current time. */
+	trx_id_t	def_trx_id;
+				/*!< transaction id that last touched
+				the table definition, either when
+				loading the definition or CREATE
+				TABLE, or ALTER TABLE (prepare,
+				commit, and rollback phases) */
 #ifdef UNIV_DEBUG
 	/*----------------------*/
 	ibool		does_not_fit_in_memory;
@@ -910,7 +927,9 @@ struct dict_table_t{
 				the background stats thread will detect this
 				and will eventually quit sooner */
 	byte		stats_bg_flag;
-				/*!< see BG_STAT_* above */
+				/*!< see BG_STAT_* above.
+				Writes are covered by dict_sys->mutex.
+				Dirty reads are possible. */
 				/* @} */
 	/*----------------------*/
 				/**!< The following fields are used by the
@@ -976,9 +995,13 @@ struct dict_table_t{
 				NOT allowed until this count gets to zero;
 				MySQL does NOT itself check the number of
 				open handles at drop */
-	UT_LIST_BASE_NODE_T(lock_t)
+	table_lock_list_t
 			locks;	/*!< list of locks on the table; protected
 				by lock_sys->mutex */
+
+	time_t		update_time;
+				/*!< timestamp of the last modification of
+				this table */
 #endif /* !UNIV_HOTBACKUP */
 
 #ifdef UNIV_DEBUG
@@ -988,8 +1011,16 @@ struct dict_table_t{
 #endif /* UNIV_DEBUG */
 };
 
+/*******************************************************************//**
+Initialise the table lock list. */
+
+void
+lock_table_lock_list_init(
+/*======================*/
+	table_lock_list_t*	locks);		/*!< List to initialise */
+
 #ifndef UNIV_NONINL
 #include "dict0mem.ic"
 #endif
 
-#endif
+#endif /* dict0mem_h */

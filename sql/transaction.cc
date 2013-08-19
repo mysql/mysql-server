@@ -1,4 +1,4 @@
-/* Copyright (c) 2000, 2011, 2012 Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2000, 2013, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -18,10 +18,19 @@
 #include "transaction.h"
 #include "rpl_handler.h"
 #include "debug_sync.h"         // DEBUG_SYNC
-#include "sql_acl.h"            // SUPER_ACL
+#include "auth_common.h"            // SUPER_ACL
 
-/* Conditions under which the transaction state must not change. */
-static bool trans_check(THD *thd)
+/**
+  Check if we have a condition where the transaction state must
+  not be changed (committed or rolled back). Currently we check
+  that we are not executing a stored program and that we don't
+  have an active XA transaction.
+
+  @return TRUE if the commit/rollback cannot be executed,
+          FALSE otherwise.
+*/
+
+bool trans_check_state(THD *thd)
 {
   enum xa_states xa_state= thd->transaction.xid_state.xa_state;
   DBUG_ENTER("trans_check");
@@ -120,7 +129,7 @@ bool trans_begin(THD *thd, uint flags)
   int res= FALSE;
   DBUG_ENTER("trans_begin");
 
-  if (trans_check(thd))
+  if (trans_check_state(thd))
     DBUG_RETURN(TRUE);
 
   thd->locked_tables_list.unlock_locked_tables(thd);
@@ -210,7 +219,7 @@ bool trans_commit(THD *thd)
   thd->transaction.all.dbug_unsafe_rollback_flags("all");
 #endif
 
-  if (trans_check(thd))
+  if (trans_check_state(thd))
     DBUG_RETURN(TRUE);
 
   thd->server_status&=
@@ -251,8 +260,14 @@ bool trans_commit_implicit(THD *thd)
   thd->transaction.all.dbug_unsafe_rollback_flags("all");
 #endif
 
-  if (trans_check(thd))
-    DBUG_RETURN(TRUE);
+  /*
+    Ensure that trans_check_state() was called before trans_commit_implicit()
+    by asserting that conditions that are checked in the former function are
+    true.
+  */
+  DBUG_ASSERT(thd->transaction.stmt.is_empty() &&
+              !thd->in_sub_stmt &&
+              thd->transaction.xid_state.xa_state == XA_NOTR);
 
   if (thd->in_multi_stmt_transaction_mode() ||
       (thd->variables.option_bits & OPTION_TABLE_LOCK))
@@ -308,7 +323,7 @@ bool trans_rollback(THD *thd)
   thd->transaction.all.dbug_unsafe_rollback_flags("all");
 #endif
 
-  if (trans_check(thd))
+  if (trans_check_state(thd))
     DBUG_RETURN(TRUE);
 
   thd->server_status&=
@@ -665,15 +680,19 @@ bool trans_xa_start(THD *thd)
     my_error(ER_XAER_RMFAIL, MYF(0), xa_state_names[xa_state]);
   else if (thd->locked_tables_mode || thd->in_active_multi_stmt_transaction())
     my_error(ER_XAER_OUTSIDE, MYF(0));
-  else if (xid_cache_search(thd->lex->xid))
-    my_error(ER_XAER_DUPID, MYF(0));
   else if (!trans_begin(thd))
   {
     DBUG_ASSERT(thd->transaction.xid_state.xid.is_null());
     thd->transaction.xid_state.xa_state= XA_ACTIVE;
     thd->transaction.xid_state.rm_error= 0;
     thd->transaction.xid_state.xid.set(thd->lex->xid);
-    xid_cache_insert(&thd->transaction.xid_state);
+    if (xid_cache_insert(&thd->transaction.xid_state))
+    {
+      thd->transaction.xid_state.xa_state= XA_NOTR;
+      thd->transaction.xid_state.xid.null();
+      trans_rollback(thd);
+      DBUG_RETURN(true);
+    }
     DBUG_RETURN(FALSE);
   }
 
@@ -759,6 +778,16 @@ bool trans_xa_commit(THD *thd)
 
   if (!thd->transaction.xid_state.xid.eq(thd->lex->xid))
   {
+    /*
+      xid_state.in_thd is always true beside of xa recovery procedure.
+      Note, that there is no race condition here between xid_cache_search
+      and xid_cache_delete, since we always delete our own XID
+      (thd->lex->xid == thd->transaction.xid_state.xid).
+      The only case when thd->lex->xid != thd->transaction.xid_state.xid
+      and xid_state->in_thd == 0 is in the function
+      xa_cache_insert(XID, xa_states), which is called before starting
+      client connections, and thus is always single-threaded.
+    */
     XID_STATE *xs= xid_cache_search(thd->lex->xid);
     res= !xs || xs->in_thd;
     if (res)

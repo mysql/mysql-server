@@ -1,7 +1,7 @@
 #ifndef STRUCTS_INCLUDED
 #define STRUCTS_INCLUDED
 
-/* Copyright (c) 2000, 2011, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2000, 2013, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -96,8 +96,11 @@ typedef struct st_key {
   uint  user_defined_key_parts;
   /** How many key_parts including hidden parts */
   uint  actual_key_parts;
-  /** Key parts added from first key */
-  uint  hidden_key_parts;
+  /**
+     Key parts allocated for primary key parts extension but
+     not used due to some reasons(no primary key, duplicated key parts)
+  */
+  uint  unused_key_parts;
   /** Should normally be = key_parts */
   uint	usable_key_parts;
   uint  block_size;
@@ -289,6 +292,13 @@ private:
   ulonglong  interval_max;    // excluded bound. Redundant.
 public:
   Discrete_interval *next;    // used when linked into Discrete_intervals_list
+
+  /// Determine if the given value is within the interval
+  bool in_range(const ulonglong value) const
+  {
+    return  ((value >= interval_min) && (value < interval_max));
+  }
+
   void replace(ulonglong start, ulonglong val, ulonglong incr)
   {
     interval_min=    start;

@@ -1,4 +1,4 @@
-/* Copyright (c) 2000, 2011, 2012 Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2000, 2013 Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -23,6 +23,7 @@
 #include <signal.h>
 
 pthread_key(struct st_my_thread_var*, THR_KEY_mysys);
+my_bool THR_KEY_mysys_initialized= FALSE;
 mysql_mutex_t THR_LOCK_malloc, THR_LOCK_open,
               THR_LOCK_lock, THR_LOCK_myisam, THR_LOCK_heap,
               THR_LOCK_net, THR_LOCK_charset, THR_LOCK_threads,
@@ -31,9 +32,6 @@ mysql_mutex_t THR_LOCK_malloc, THR_LOCK_open,
 mysql_cond_t  THR_COND_threads;
 uint            THR_thread_count= 0;
 uint 		my_thread_end_wait_time= 5;
-#if !defined(HAVE_LOCALTIME_R) || !defined(HAVE_GMTIME_R)
-mysql_mutex_t LOCK_localtime_r;
-#endif
 #ifdef PTHREAD_ADAPTIVE_MUTEX_INITIALIZER_NP
 pthread_mutexattr_t my_fast_mutexattr;
 #endif
@@ -43,25 +41,7 @@ pthread_mutexattr_t my_errorcheck_mutexattr;
 #ifdef _MSC_VER
 static void install_sigabrt_handler();
 #endif
-#ifdef TARGET_OS_LINUX
 
-/*
-  Dummy thread spawned in my_thread_global_init() below to avoid
-  race conditions in NPTL pthread_exit code.
-*/
-
-static pthread_handler_t
-nptl_pthread_exit_hack_handler(void *arg __attribute((unused)))
-{
-  /* Do nothing! */
-  pthread_exit(0);
-  return 0;
-}
-
-#endif /* TARGET_OS_LINUX */
-
-
-static uint get_thread_lib(void);
 
 /** True if @c my_thread_global_init() has been called. */
 static my_bool my_thread_global_init_done= 0;
@@ -109,7 +89,7 @@ void my_thread_global_reinit(void)
   mysql_cond_destroy(&THR_COND_threads);
   mysql_cond_init(key_THR_COND_threads, &THR_COND_threads, NULL);
 
-  tmp= my_pthread_getspecific(struct st_my_thread_var*, THR_KEY_mysys);
+  tmp= _my_thread_var();
   DBUG_ASSERT(tmp);
 
   mysql_mutex_destroy(&tmp->mutex);
@@ -162,12 +142,14 @@ my_bool my_thread_global_init(void)
                             PTHREAD_MUTEX_ERRORCHECK);
 #endif
 
+  DBUG_ASSERT(! THR_KEY_mysys_initialized);
   if ((pth_ret= pthread_key_create(&THR_KEY_mysys, NULL)) != 0)
   {
     fprintf(stderr, "Can't initialize threads: error %d\n", pth_ret);
     return 1;
   }
 
+  THR_KEY_mysys_initialized= TRUE;
   mysql_mutex_init(key_THR_LOCK_malloc, &THR_LOCK_malloc, MY_MUTEX_INIT_FAST);
   mysql_mutex_init(key_THR_LOCK_open, &THR_LOCK_open, MY_MUTEX_INIT_FAST);
   mysql_mutex_init(key_THR_LOCK_charset, &THR_LOCK_charset, MY_MUTEX_INIT_FAST);
@@ -176,45 +158,12 @@ my_bool my_thread_global_init(void)
   if (my_thread_init())
     return 1;
 
-  thd_lib_detected= get_thread_lib();
-
-#ifdef TARGET_OS_LINUX
-  /*
-    BUG#24507: Race conditions inside current NPTL pthread_exit()
-    implementation.
-
-    To avoid a possible segmentation fault during concurrent
-    executions of pthread_exit(), a dummy thread is spawned which
-    initializes internal variables of pthread lib. See bug description
-    for a full explanation.
-
-    TODO: Remove this code when fixed versions of glibc6 are in common
-    use.
-  */
-  if (thd_lib_detected == THD_LIB_NPTL)
-  {
-    pthread_t       dummy_thread;
-    pthread_attr_t  dummy_thread_attr;
-
-    pthread_attr_init(&dummy_thread_attr);
-    pthread_attr_setdetachstate(&dummy_thread_attr, PTHREAD_CREATE_JOINABLE);
-
-    if (pthread_create(&dummy_thread,&dummy_thread_attr,
-                       nptl_pthread_exit_hack_handler, NULL) == 0)
-      (void)pthread_join(dummy_thread, NULL);
-  }
-#endif /* TARGET_OS_LINUX */
-
   mysql_mutex_init(key_THR_LOCK_lock, &THR_LOCK_lock, MY_MUTEX_INIT_FAST);
   mysql_mutex_init(key_THR_LOCK_myisam, &THR_LOCK_myisam, MY_MUTEX_INIT_SLOW);
   mysql_mutex_init(key_THR_LOCK_myisam_mmap, &THR_LOCK_myisam_mmap, MY_MUTEX_INIT_FAST);
   mysql_mutex_init(key_THR_LOCK_heap, &THR_LOCK_heap, MY_MUTEX_INIT_FAST);
   mysql_mutex_init(key_THR_LOCK_net, &THR_LOCK_net, MY_MUTEX_INIT_FAST);
   mysql_cond_init(key_THR_COND_threads, &THR_COND_threads, NULL);
-
-#if !defined(HAVE_LOCALTIME_R) || !defined(HAVE_GMTIME_R)
-  mysql_mutex_init(key_LOCK_localtime_r, &LOCK_localtime_r, MY_MUTEX_INIT_SLOW);
-#endif
 
 #ifdef _MSC_VER
   install_sigabrt_handler();
@@ -237,7 +186,7 @@ void my_thread_global_end(void)
                                     &abstime);
     if (error == ETIMEDOUT || error == ETIME)
     {
-#ifdef HAVE_PTHREAD_KILL
+#ifndef _WIN32
       /*
         We shouldn't give an error here, because if we don't have
         pthread_kill(), programs like mysqld can't ensure that all threads
@@ -254,7 +203,9 @@ void my_thread_global_end(void)
   }
   mysql_mutex_unlock(&THR_LOCK_threads);
 
+  DBUG_ASSERT(THR_KEY_mysys_initialized);
   pthread_key_delete(THR_KEY_mysys);
+  THR_KEY_mysys_initialized= FALSE;
 #ifdef PTHREAD_ADAPTIVE_MUTEX_INITIALIZER_NP
   pthread_mutexattr_destroy(&my_fast_mutexattr);
 #endif
@@ -274,9 +225,6 @@ void my_thread_global_end(void)
     mysql_mutex_destroy(&THR_LOCK_threads);
     mysql_cond_destroy(&THR_COND_threads);
   }
-#if !defined(HAVE_LOCALTIME_R) || !defined(HAVE_GMTIME_R)
-  mysql_mutex_destroy(&LOCK_localtime_r);
-#endif
 
   my_thread_global_init_done= 0;
 }
@@ -313,7 +261,7 @@ my_bool my_thread_init(void)
           (ulong) pthread_self());
 #endif  
 
-  if (my_pthread_getspecific(struct st_my_thread_var *,THR_KEY_mysys))
+  if (_my_thread_var())
   {
 #ifdef EXTRA_DEBUG_THREADS
     fprintf(stderr,"my_thread_init() called more than once in thread 0x%lx\n",
@@ -331,7 +279,7 @@ my_bool my_thread_init(void)
     error= 1;
     goto end;
   }
-  pthread_setspecific(THR_KEY_mysys,tmp);
+  set_mysys_var(tmp);
   tmp->pthread_self= pthread_self();
   mysql_mutex_init(key_my_thread_var_mutex, &tmp->mutex, MY_MUTEX_INIT_FAST);
   mysql_cond_init(key_my_thread_var_suspend, &tmp->suspend, NULL);
@@ -369,7 +317,7 @@ end:
 void my_thread_end(void)
 {
   struct st_my_thread_var *tmp;
-  tmp= my_pthread_getspecific(struct st_my_thread_var*,THR_KEY_mysys);
+  tmp= _my_thread_var();
 
 #ifdef EXTRA_DEBUG_THREADS
   fprintf(stderr,"my_thread_end(): tmp: 0x%lx  pthread_self: 0x%lx  thread_id: %ld\n",
@@ -396,10 +344,7 @@ void my_thread_end(void)
       tmp->dbug=0;
     }
 #endif
-#if !defined(__bsdi__) && !defined(__OpenBSD__)
- /* bsdi and openbsd 3.5 dumps core here */
     mysql_cond_destroy(&tmp->suspend);
-#endif
     mysql_mutex_destroy(&tmp->mutex);
     free(tmp);
 
@@ -415,17 +360,20 @@ void my_thread_end(void)
       mysql_cond_signal(&THR_COND_threads);
     mysql_mutex_unlock(&THR_LOCK_threads);
   }
-  pthread_setspecific(THR_KEY_mysys,0);
+  set_mysys_var(NULL);
 }
 
 struct st_my_thread_var *_my_thread_var(void)
 {
+  DBUG_ASSERT(THR_KEY_mysys_initialized);
   return  my_pthread_getspecific(struct st_my_thread_var*,THR_KEY_mysys);
 }
 
 int set_mysys_var(struct st_my_thread_var *mysys_var)
 {
-  return my_pthread_setspecific_ptr(THR_KEY_mysys, mysys_var);
+  if (THR_KEY_mysys_initialized)
+    return my_pthread_setspecific_ptr(THR_KEY_mysys, mysys_var);
+  return 0;
 }
 
 /****************************************************************************
@@ -462,27 +410,21 @@ const char *my_thread_name(void)
 
 extern void **my_thread_var_dbug()
 {
-  struct st_my_thread_var *tmp=
-    my_pthread_getspecific(struct st_my_thread_var*,THR_KEY_mysys);
+  struct st_my_thread_var *tmp;
+  /*
+    Instead of enforcing DBUG_ASSERT(THR_KEY_mysys_initialized) here,
+    which causes any DBUG_ENTER and related traces to fail when
+    used in init / cleanup code, we are more tolerant:
+    using DBUG_ENTER / DBUG_PRINT / DBUG_RETURN
+    when the dbug instrumentation is not in place will do nothing.
+  */
+  if (! THR_KEY_mysys_initialized)
+    return NULL;
+  tmp= _my_thread_var();
   return tmp && tmp->init ? &tmp->dbug : 0;
 }
 #endif /* DBUG_OFF */
 
-
-static uint get_thread_lib(void)
-{
-#ifdef _CS_GNU_LIBPTHREAD_VERSION
-  char buff[64];
-    
-  confstr(_CS_GNU_LIBPTHREAD_VERSION, buff, sizeof(buff));
-
-  if (!strncasecmp(buff, "NPTL", 4))
-    return THD_LIB_NPTL;
-  if (!strncasecmp(buff, "linuxthreads", 12))
-    return THD_LIB_LT;
-#endif
-  return THD_LIB_OTHER;
-}
 
 #ifdef _WIN32
 /*

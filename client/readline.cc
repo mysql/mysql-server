@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2000, 2011, Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2000, 2013, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -35,7 +35,7 @@ LINE_BUFFER *batch_readline_init(ulong max_size,FILE *file)
   LINE_BUFFER *line_buff;
   MY_STAT input_file_stat;
 
-#ifndef __WIN__
+#ifndef _WIN32
   if (my_fstat(fileno(file), &input_file_stat, MYF(MY_WME)) ||
       MY_S_ISDIR(input_file_stat.st_mode) ||
       MY_S_ISBLK(input_file_stat.st_mode))
@@ -43,7 +43,8 @@ LINE_BUFFER *batch_readline_init(ulong max_size,FILE *file)
 #endif
 
   if (!(line_buff=(LINE_BUFFER*)
-        my_malloc(sizeof(*line_buff),MYF(MY_WME | MY_ZEROFILL))))
+        my_malloc(PSI_NOT_INSTRUMENTED,
+                  sizeof(*line_buff),MYF(MY_WME | MY_ZEROFILL))))
     return 0;
   if (init_line_buffer(line_buff,my_fileno(file),IO_SIZE,max_size))
   {
@@ -63,7 +64,7 @@ char *batch_readline(LINE_BUFFER *line_buff, bool binary_mode)
     return 0;
   if (out_length && pos[out_length-1] == '\n')
   {
-#if defined(__WIN__)
+#if defined(_WIN32)
     /*
       On Windows platforms we also need to remove '\r', 
       unconditionally.
@@ -106,7 +107,8 @@ LINE_BUFFER *batch_readline_command(LINE_BUFFER *line_buff, char * str)
 {
   if (!line_buff)
     if (!(line_buff=(LINE_BUFFER*)
-          my_malloc(sizeof(*line_buff),MYF(MY_WME | MY_ZEROFILL))))
+          my_malloc(PSI_NOT_INSTRUMENTED,
+                    sizeof(*line_buff),MYF(MY_WME | MY_ZEROFILL))))
       return 0;
   if (init_line_buffer_from_string(line_buff,str))
   {
@@ -127,7 +129,8 @@ init_line_buffer(LINE_BUFFER *buffer,File file,ulong size,ulong max_buffer)
   buffer->file=file;
   buffer->bufread=size;
   buffer->max_size=max_buffer;
-  if (!(buffer->buffer = (char*) my_malloc(buffer->bufread+1,
+  if (!(buffer->buffer = (char*) my_malloc(PSI_NOT_INSTRUMENTED,
+                                           buffer->bufread+1,
 					   MYF(MY_WME | MY_FAE))))
     return 1;
   buffer->end_of_line=buffer->end=buffer->buffer;
@@ -145,7 +148,8 @@ static bool init_line_buffer_from_string(LINE_BUFFER *buffer,char * str)
   uint old_length=(uint)(buffer->end - buffer->buffer);
   uint length= (uint) strlen(str);
   if (!(buffer->buffer= buffer->start_of_line= buffer->end_of_line=
-	(char*) my_realloc((uchar*) buffer->buffer, old_length+length+2,
+	(char*) my_realloc(PSI_NOT_INSTRUMENTED,
+                           (uchar*) buffer->buffer, old_length+length+2,
                            MYF(MY_FAE|MY_ALLOW_ZERO_PTR))))
     return 1;
   buffer->end= buffer->buffer + old_length;
@@ -192,7 +196,8 @@ static size_t fill_buffer(LINE_BUFFER *buffer)
       return 0;
     }
     buffer->bufread *= 2;
-    if (!(buffer->buffer = (char*) my_realloc(buffer->buffer,
+    if (!(buffer->buffer = (char*) my_realloc(PSI_NOT_INSTRUMENTED,
+                                              buffer->buffer,
 					      buffer->bufread+1,
 					      MYF(MY_WME | MY_FAE))))
     {
@@ -206,7 +211,7 @@ static size_t fill_buffer(LINE_BUFFER *buffer)
   /* Shift stuff down. */
   if (buffer->start_of_line != buffer->buffer)
   {
-    bmove(buffer->buffer,buffer->start_of_line,(uint) bufbytes);
+    memmove(buffer->buffer, buffer->start_of_line, bufbytes);
     buffer->end=buffer->buffer+bufbytes;
   }
 

@@ -1,6 +1,6 @@
 /*****************************************************************************
 
-Copyright (c) 1995, 2012, Oracle and/or its affiliates. All Rights Reserved.
+Copyright (c) 1995, 2013, Oracle and/or its affiliates. All Rights Reserved.
 
 This program is free software; you can redistribute it and/or modify it under
 the terms of the GNU General Public License as published by the Free Software
@@ -23,11 +23,12 @@ The database buffer read
 Created 11/5/1995 Heikki Tuuri
 *******************************************************/
 
-#include "buf0rea.h"
+#include "ha_prototypes.h"
+#include <mysql/plugin.h>
 
+#include "buf0rea.h"
 #include "fil0fil.h"
 #include "mtr0mtr.h"
-
 #include "buf0buf.h"
 #include "buf0flu.h"
 #include "buf0lru.h"
@@ -38,8 +39,6 @@ Created 11/5/1995 Heikki Tuuri
 #include "os0file.h"
 #include "srv0start.h"
 #include "srv0srv.h"
-#include "mysql/plugin.h"
-#include "mysql/service_thd_wait.h"
 
 /** There must be at least this many pages in buf_pool in the area to start
 a random read-ahead */
@@ -104,10 +103,13 @@ static
 ulint
 buf_read_page_low(
 /*==============*/
-	dberr_t*	err,	/*!< out: DB_SUCCESS or DB_TABLESPACE_DELETED if we are
-			trying to read from a non-existent tablespace, or a
-			tablespace which is just now being dropped */
-	ibool	sync,	/*!< in: TRUE if synchronous aio is desired */
+	dberr_t*	err,
+			/*!< out: DB_SUCCESS, DB_TABLESPACE_DELETED
+			or DB_TABLESPACE_TRUNCATED if we are trying to read
+			from a non-existent tablespace, a tablespace which
+			is just now being dropped, or a tablespace which is
+			truncated */
+	bool	sync,	/*!< in: true if synchronous aio is desired */
 	ulint	mode,	/*!< in: BUF_READ_IBUF_PAGES_ONLY, ...,
 			ORed to OS_AIO_SIMULATED_WAKE_LATER (see below
 			at read-ahead functions) */
@@ -134,12 +136,9 @@ buf_read_page_low(
 	mode &= ~BUF_READ_IGNORE_NONEXISTENT_PAGES;
 
 	if (space == TRX_SYS_SPACE && buf_dblwr_page_inside(offset)) {
-		ut_print_timestamp(stderr);
-		fprintf(stderr,
-			"  InnoDB: Warning: trying to read"
-			" doublewrite buffer page %lu\n",
-			(ulong) offset);
-
+		ib_logf(IB_LOG_LEVEL_ERROR,
+			"Trying to read doublewrite buffer page %u",
+			unsigned(offset));
 		return(0);
 	}
 
@@ -152,7 +151,7 @@ buf_read_page_low(
 		syncronous i/o, to make sure they do not get involved in
 		thread deadlocks. */
 
-		sync = TRUE;
+		sync = true;
 	}
 
 	/* The following call will also check if the tablespace does not exist
@@ -166,18 +165,17 @@ buf_read_page_low(
 		return(0);
 	}
 
-#ifdef UNIV_DEBUG
-	if (buf_debug_prints) {
-		fprintf(stderr,
-			"Posting read request for page %lu, sync %lu\n",
-			(ulong) offset,
-			(ulong) sync);
-	}
-#endif
+	DBUG_PRINT("ib_buf", ("read page %u:%u zip=%u unzip=%u,%s",
+			      unsigned(space), unsigned(offset),
+			      unsigned(zip_size), unsigned(unzip),
+			      sync ? "sync" : "async"));
 
 	ut_ad(buf_page_in_file(bpage));
 
-	thd_wait_begin(NULL, THD_WAIT_DISKIO);
+	if (sync) {
+		thd_wait_begin(NULL, THD_WAIT_DISKIO);
+	}
+
 	if (zip_size) {
 		*err = fil_io(OS_FILE_READ | wake_later
 			      | ignore_nonexistent_pages,
@@ -191,14 +189,30 @@ buf_read_page_low(
 			      sync, space, 0, offset, 0, UNIV_PAGE_SIZE,
 			      ((buf_block_t*) bpage)->frame, bpage);
 	}
-	thd_wait_end(NULL);
+
+	if (sync) {
+		thd_wait_end(NULL);
+	}
 
 	if (*err != DB_SUCCESS) {
-		if (ignore_nonexistent_pages || *err == DB_TABLESPACE_DELETED) {
+		if (*err == DB_TABLESPACE_TRUNCATED) {
+			/* Remove the page which is outside the
+			truncated tablespace bounds when recovering
+			from a crash happened during a truncation */
+			buf_read_page_handle_error(bpage);
+			if (recv_recovery_on) {
+				mutex_enter(&recv_sys->mutex);
+				ut_ad(recv_sys->n_addrs > 0);
+				recv_sys->n_addrs--;
+				mutex_exit(&recv_sys->mutex);
+			}
+			return(0);
+		} else if (ignore_nonexistent_pages
+			   || *err == DB_TABLESPACE_DELETED) {
 			buf_read_page_handle_error(bpage);
 			return(0);
 		}
-		/* else */
+
 		ut_error;
 	}
 
@@ -226,8 +240,8 @@ the OS does not support asynchronous i/o.
 @return number of page read requests issued; NOTE that if we read ibuf
 pages, it may happen that the page at the given page number does not
 get read even if we return a positive value!
-@return	number of page read requests issued */
-UNIV_INTERN
+@return number of page read requests issued */
+
 ulint
 buf_read_ahead_random(
 /*==================*/
@@ -337,19 +351,17 @@ read_ahead:
 
 		if (!ibuf_bitmap_page(zip_size, i)) {
 			count += buf_read_page_low(
-				&err, FALSE,
+				&err, false,
 				ibuf_mode | OS_AIO_SIMULATED_WAKE_LATER,
 				space, zip_size, FALSE,
 				tablespace_version, i);
 			if (err == DB_TABLESPACE_DELETED) {
-				ut_print_timestamp(stderr);
-				fprintf(stderr,
-					"  InnoDB: Warning: in random"
-					" readahead trying to access\n"
-					"InnoDB: tablespace %lu page %lu,\n"
-					"InnoDB: but the tablespace does not"
-					" exist or is just being dropped.\n",
-					(ulong) space, (ulong) i);
+				ib_logf(IB_LOG_LEVEL_WARN,
+					"random readahead trying to access"
+					" page %u:%u in nonexisting or"
+					" being-dropped tablespace",
+					unsigned(space), unsigned(i));
+				break;
 			}
 		}
 	}
@@ -360,14 +372,11 @@ read_ahead:
 
 	os_aio_simulated_wake_handler_threads();
 
-#ifdef UNIV_DEBUG
-	if (buf_debug_prints && (count > 0)) {
-		fprintf(stderr,
-			"Random read-ahead space %lu offset %lu pages %lu\n",
-			(ulong) space, (ulong) offset,
-			(ulong) count);
+	if (count) {
+		DBUG_PRINT("ib_buf", ("random read-ahead %u pages, %u:%u",
+				      unsigned(count),
+				      unsigned(space), unsigned(offset)));
 	}
-#endif /* UNIV_DEBUG */
 
 	/* Read ahead is considered one I/O operation for the purpose of
 	LRU policy decision. */
@@ -384,7 +393,7 @@ buffer buf_pool if it is not already there. Sets the io_fix flag and sets
 an exclusive lock on the buffer frame. The flag is cleared and the x-lock
 released by the i/o-handler thread.
 @return TRUE if page has been read in, FALSE in case of failure */
-UNIV_INTERN
+
 ibool
 buf_read_page(
 /*==========*/
@@ -401,18 +410,15 @@ buf_read_page(
 	/* We do the i/o in the synchronous aio mode to save thread
 	switches: hence TRUE */
 
-	count = buf_read_page_low(&err, TRUE, BUF_READ_ANY_PAGE, space,
+	count = buf_read_page_low(&err, true, BUF_READ_ANY_PAGE, space,
 				  zip_size, FALSE,
 				  tablespace_version, offset);
 	srv_stats.buf_pool_reads.add(count);
 	if (err == DB_TABLESPACE_DELETED) {
-		ut_print_timestamp(stderr);
-		fprintf(stderr,
-			"  InnoDB: Error: trying to access"
-			" tablespace %lu page no. %lu,\n"
-			"InnoDB: but the tablespace does not exist"
-			" or is just being dropped.\n",
-			(ulong) space, (ulong) offset);
+		ib_logf(IB_LOG_LEVEL_ERROR,
+			"trying to read page %u:%u in nonexisting or"
+			" being-dropped tablespace",
+			unsigned(space), unsigned(offset));
 	}
 
 	/* Increment number of I/O operations used for LRU policy. */
@@ -427,7 +433,7 @@ buffer buf_pool if it is not already there. Sets the io_fix flag and sets
 an exclusive lock on the buffer frame. The flag is cleared and the x-lock
 released by the i/o-handler thread.
 @return TRUE if page has been read in, FALSE in case of failure */
-UNIV_INTERN
+
 ibool
 buf_read_page_async(
 /*================*/
@@ -447,7 +453,7 @@ buf_read_page_async(
 
 	tablespace_version = fil_space_get_version(space);
 
-	count = buf_read_page_low(&err, TRUE, BUF_READ_ANY_PAGE
+	count = buf_read_page_low(&err, true, BUF_READ_ANY_PAGE
 				  | OS_AIO_SIMULATED_WAKE_LATER
 				  | BUF_READ_IGNORE_NONEXISTENT_PAGES,
 				  space, zip_size, FALSE,
@@ -487,8 +493,8 @@ latches!
 NOTE 3: the calling thread must want access to the page given: this rule is
 set to prevent unintended read-aheads performed by ibuf routines, a situation
 which could result in a deadlock if the OS does not support asynchronous io.
-@return	number of page read requests issued */
-UNIV_INTERN
+@return number of page read requests issued */
+
 ulint
 buf_read_ahead_linear(
 /*==================*/
@@ -708,18 +714,15 @@ buf_read_ahead_linear(
 
 		if (!ibuf_bitmap_page(zip_size, i)) {
 			count += buf_read_page_low(
-				&err, FALSE,
+				&err, false,
 				ibuf_mode,
 				space, zip_size, FALSE, tablespace_version, i);
 			if (err == DB_TABLESPACE_DELETED) {
-				ut_print_timestamp(stderr);
-				fprintf(stderr,
-					"  InnoDB: Warning: in"
-					" linear readahead trying to access\n"
-					"InnoDB: tablespace %lu page %lu,\n"
-					"InnoDB: but the tablespace does not"
-					" exist or is just being dropped.\n",
-					(ulong) space, (ulong) i);
+				ib_logf(IB_LOG_LEVEL_WARN,
+					"linear readahead trying to access"
+					" page %u:%u in nonexisting or"
+					" being-dropped tablespace",
+					unsigned(space), unsigned(i));
 			}
 		}
 	}
@@ -730,13 +733,11 @@ buf_read_ahead_linear(
 
 	os_aio_simulated_wake_handler_threads();
 
-#ifdef UNIV_DEBUG
-	if (buf_debug_prints && (count > 0)) {
-		fprintf(stderr,
-			"LINEAR read-ahead space %lu offset %lu pages %lu\n",
-			(ulong) space, (ulong) offset, (ulong) count);
+	if (count) {
+		DBUG_PRINT("ib_buf", ("linear read-ahead %u pages, %u:%u",
+				      unsigned(count),
+				      unsigned(space), unsigned(offset)));
 	}
-#endif /* UNIV_DEBUG */
 
 	/* Read ahead is considered one I/O operation for the purpose of
 	LRU policy decision. */
@@ -750,11 +751,11 @@ buf_read_ahead_linear(
 Issues read requests for pages which the ibuf module wants to read in, in
 order to contract the insert buffer tree. Technically, this function is like
 a read-ahead function. */
-UNIV_INTERN
+
 void
 buf_read_ibuf_merge_pages(
 /*======================*/
-	ibool		sync,		/*!< in: TRUE if the caller
+	bool		sync,		/*!< in: true if the caller
 					wants this function to wait
 					for the highest address page
 					to get read in, before this
@@ -815,18 +816,16 @@ tablespace_deleted:
 
 	os_aio_simulated_wake_handler_threads();
 
-#ifdef UNIV_DEBUG
-	if (buf_debug_prints) {
-		fprintf(stderr,
-			"Ibuf merge read-ahead space %lu pages %lu\n",
-			(ulong) space_ids[0], (ulong) n_stored);
+	if (n_stored) {
+		DBUG_PRINT("ib_buf",
+			   ("ibuf merge read-ahead %u pages, space %u",
+			    unsigned(n_stored), unsigned(space_ids[0])));
 	}
-#endif /* UNIV_DEBUG */
 }
 
 /********************************************************************//**
 Issues read requests for pages which recovery wants to read in. */
-UNIV_INTERN
+
 void
 buf_read_recv_pages(
 /*================*/
@@ -866,7 +865,6 @@ buf_read_recv_pages(
 
 		count = 0;
 
-		os_aio_print_debug = FALSE;
 		buf_pool = buf_pool_get(space, page_nos[i]);
 		while (buf_pool->n_pend_reads >= recv_n_pool_free_frames / 2) {
 
@@ -875,29 +873,22 @@ buf_read_recv_pages(
 
 			count++;
 
-			if (count > 1000) {
-				fprintf(stderr,
-					"InnoDB: Error: InnoDB has waited for"
-					" 10 seconds for pending\n"
-					"InnoDB: reads to the buffer pool to"
-					" be finished.\n"
-					"InnoDB: Number of pending reads %lu,"
-					" pending pread calls %lu\n",
-					(ulong) buf_pool->n_pend_reads,
-					(ulong) os_file_n_pending_preads);
-
-				os_aio_print_debug = TRUE;
+			if (!(count % 1000)) {
+				ib_logf(IB_LOG_LEVEL_ERROR,
+					"Waited for %u seconds for %u pending"
+					" reads (%u pread calls) to finish",
+					unsigned(count / 100),
+					unsigned(buf_pool->n_pend_reads),
+					unsigned(os_file_n_pending_preads));
 			}
 		}
 
-		os_aio_print_debug = FALSE;
-
 		if ((i + 1 == n_stored) && sync) {
-			buf_read_page_low(&err, TRUE, BUF_READ_ANY_PAGE, space,
+			buf_read_page_low(&err, true, BUF_READ_ANY_PAGE, space,
 					  zip_size, TRUE, tablespace_version,
 					  page_nos[i]);
 		} else {
-			buf_read_page_low(&err, FALSE, BUF_READ_ANY_PAGE
+			buf_read_page_low(&err, false, BUF_READ_ANY_PAGE
 					  | OS_AIO_SIMULATED_WAKE_LATER,
 					  space, zip_size, TRUE,
 					  tablespace_version, page_nos[i]);
@@ -906,11 +897,6 @@ buf_read_recv_pages(
 
 	os_aio_simulated_wake_handler_threads();
 
-#ifdef UNIV_DEBUG
-	if (buf_debug_prints) {
-		fprintf(stderr,
-			"Recovery applies read-ahead pages %lu\n",
-			(ulong) n_stored);
-	}
-#endif /* UNIV_DEBUG */
+	DBUG_PRINT("ib_buf", ("recovery read-ahead (%u pages)",
+			      unsigned(n_stored)));
 }

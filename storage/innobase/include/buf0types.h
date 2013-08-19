@@ -1,6 +1,6 @@
 /*****************************************************************************
 
-Copyright (c) 1995, 2011, Oracle and/or its affiliates. All Rights Reserved
+Copyright (c) 1995, 2013, Oracle and/or its affiliates. All Rights Reserved
 
 This program is free software; you can redistribute it and/or modify it under
 the terms of the GNU General Public License as published by the Free Software
@@ -26,6 +26,9 @@ Created 11/17/1995 Heikki Tuuri
 #ifndef buf0types_h
 #define buf0types_h
 
+#include "os0event.h"
+#include "ut0mutex.h"
+
 /** Buffer page (uncompressed or compressed) */
 struct buf_page_t;
 /** Buffer block for which an uncompressed page exists */
@@ -45,7 +48,7 @@ struct buf_dblwr_t;
 typedef	byte	buf_frame_t;
 
 /** Flags for flush types */
-enum buf_flush {
+enum buf_flush_t {
 	BUF_FLUSH_LRU = 0,		/*!< flush via the LRU list */
 	BUF_FLUSH_LIST,			/*!< flush via the flush list
 					of dirty blocks */
@@ -112,5 +115,11 @@ the underlying memory is aligned by this amount:
 this must be equal to UNIV_PAGE_SIZE */
 #define BUF_BUDDY_HIGH	(BUF_BUDDY_LOW << BUF_BUDDY_SIZES)
 /* @} */
+
+#ifndef UNIV_INNOCHECKSUM
+typedef ib_mutex_t BPageMutex;
+typedef ib_mutex_t BufPoolMutex;
+typedef ib_mutex_t FlushListMutex;
+#endif /* !UNIV_INNOCHECKSUM */
 
 #endif /* buf0types.h */

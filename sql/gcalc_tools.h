@@ -275,16 +275,25 @@ public:
 
   class active_thread : public Gcalc_dyn_list::Item
   {
+    res_point *m_thread_start;
   public:
     res_point *rp;
     int result_range;
-    res_point *thread_start;
     void init()
     {
-      rp= thread_start= NULL;
+      rp= m_thread_start= NULL;
       result_range= 0;
+      DBUG_PRINT("info", ("setting m_thread_start of #%u to NULL (reset)",
+                          item_id()));
     }
     active_thread *get_next() { return (active_thread *)next; }
+    void set_thread_start(res_point *p)
+    {
+      DBUG_PRINT("info", ("setting m_thread_start of #%u to #%u",
+                          item_id(), p ? p->item_id() : 0));
+      m_thread_start= p;
+    }
+    res_point *thread_start() const { return m_thread_start; }
   };
 
 protected:

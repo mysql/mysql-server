@@ -1,3 +1,8 @@
+# The include statement below is a temp one for tests that are yet to
+#be ported to run with InnoDB,
+#but needs to be kept for tests that would need MyISAM in future.
+--source include/force_myisam_default.inc
+
 #
 # Bug with distinct and INSERT INTO
 # Bug with group by and not used fields
@@ -84,6 +89,7 @@ insert into t4 select * from t3;
 insert into t3 select * from t4;
 
 explain select distinct t1.a from t1,t3 where t1.a=t3.a;
+
 # This query uses the "not used in distinct" optimization (search for
 # not_used_in_distinct in code); it means that when we have a partial
 # record for t1, and we find a match in t3, we have a combination
@@ -98,18 +104,26 @@ flush status;
 select distinct t1.a from t1,t3 where t1.a=t3.a;
 show status like 'Handler_read%';
 flush status;
-# This one does ~200 reads, filed as Bug #13622058
 select distinct 1 from t1,t3 where t1.a=t3.a;
 show status like 'Handler_read%';
 
-explain SELECT distinct t1.a from t1;
-explain SELECT distinct t1.a from t1 order by a desc;
-explain SELECT t1.a from t1 group by a order by a desc;
-explain SELECT distinct t1.a from t1 order by a desc limit 1;
-explain SELECT distinct a from t3 order by a desc limit 2;
-explain SELECT distinct a,b from t3 order by a+1;
-explain SELECT distinct a,b from t3 order by a limit 2;
-explain SELECT a,b from t3 group by a,b order by a+1;
+let $iteration=2;
+let $q_type= explain;
+# First EXPLAIN query, then execute query
+while($iteration)
+{
+  eval $q_type SELECT distinct t1.a from t1;
+  eval $q_type SELECT distinct t1.a from t1 order by a desc;
+  eval $q_type SELECT t1.a from t1 group by a order by a desc;
+  eval $q_type SELECT distinct t1.a from t1 order by a desc limit 1;
+  eval $q_type SELECT distinct a from t3 order by a desc limit 2;
+  eval $q_type SELECT distinct a,b from t3 order by a+1;
+  eval $q_type SELECT distinct a,b from t3 order by a limit 2;
+  eval $q_type SELECT a,b from t3 group by a,b order by a+1;
+
+  let $q_type=;
+  dec $iteration;
+}
 
 drop table t1,t2,t3,t4;
 

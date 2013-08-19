@@ -1,4 +1,4 @@
-/* Copyright (c) 2000, 2011, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2000, 2013, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -22,12 +22,13 @@
 #include "sql_rename.h"
 #include "sql_cache.h"                          // query_cache_*
 #include "sql_table.h"                         // build_table_filename
+#include "sql_trigger.h"          // change_trigger_table_name
 #include "sql_view.h"             // mysql_frm_type, mysql_rename_view
-#include "sql_trigger.h"
 #include "lock.h"       // MYSQL_OPEN_SKIP_TEMPORARY
 #include "sql_base.h"   // tdc_remove_table, lock_table_names,
 #include "sql_handler.h"                        // mysql_ha_rm_tables
 #include "datadict.h"
+#include "log.h"
 
 static TABLE_LIST *rename_tables(THD *thd, TABLE_LIST *table_list,
 				 bool skip_error);
@@ -65,8 +66,8 @@ bool mysql_rename_tables(THD *thd, TABLE_LIST *table_list, bool silent)
 
   mysql_ha_rm_tables(thd, table_list);
 
-  if (logger.is_log_table_enabled(QUERY_LOG_GENERAL) ||
-      logger.is_log_table_enabled(QUERY_LOG_SLOW))
+  if (query_logger.is_log_table_enabled(QUERY_LOG_GENERAL) ||
+      query_logger.is_log_table_enabled(QUERY_LOG_SLOW))
   {
 
     /*
@@ -84,10 +85,7 @@ bool mysql_rename_tables(THD *thd, TABLE_LIST *table_list, bool silent)
     {
       int log_table_rename= 0;
 
-      if ((log_table_rename=
-           check_if_log_table(ren_table->db_length, ren_table->db,
-                              ren_table->table_name_length,
-                              ren_table->table_name, 1)))
+      if ((log_table_rename= query_logger.check_if_log_table(ren_table, true)))
       {
         /*
           as we use log_table_rename as an array index, we need it to start
@@ -188,7 +186,7 @@ bool mysql_rename_tables(THD *thd, TABLE_LIST *table_list, bool silent)
   }
 
   if (!error)
-    query_cache_invalidate3(thd, table_list, 0);
+    query_cache.invalidate(thd, table_list, FALSE);
 
 err:
   DBUG_RETURN(error || binlog_error);
@@ -288,11 +286,9 @@ do_rename(THD *thd, TABLE_LIST *ren_table, char *new_db, char *new_table_name,
         if (!(rc= mysql_rename_table(hton, ren_table->db, old_alias,
                                      new_db, new_alias, 0)))
         {
-          if ((rc= Table_triggers_list::change_table_name(thd, ren_table->db,
-                                                          old_alias,
-                                                          ren_table->table_name,
-                                                          new_db,
-                                                          new_alias)))
+          if ((rc= change_trigger_table_name(thd, ren_table->db, old_alias,
+                                             ren_table->table_name,
+                                             new_db, new_alias)))
           {
             /*
               We've succeeded in renaming table's .frm and in updating
@@ -301,7 +297,7 @@ do_rename(THD *thd, TABLE_LIST *ren_table, char *new_db, char *new_table_name,
               and handler's data and report about failure to rename table.
             */
             (void) mysql_rename_table(hton, new_db, new_alias,
-                                      ren_table->db, old_alias, 0);
+                                      ren_table->db, old_alias, NO_FK_CHECKS);
           }
         }
       }

@@ -1,4 +1,4 @@
-/* Copyright (c) 2000, 2011, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2000, 2013, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -35,6 +35,7 @@
 #include "records.h"          // init_read_record, end_read_record
 #include <my_pthread.h>
 #include "lock.h"                               // MYSQL_LOCK_IGNORE_TIMEOUT
+#include "log.h"
 
 #ifdef HAVE_DLOPEN
 extern "C"
@@ -101,12 +102,19 @@ extern "C" uchar* get_hash_key(const uchar *buff, size_t *length,
   return (uchar*) udf->name.str;
 }
 
+static PSI_memory_key key_memory_udf_mem;
+
 #ifdef HAVE_PSI_INTERFACE
 static PSI_rwlock_key key_rwlock_THR_LOCK_udf;
 
 static PSI_rwlock_info all_udf_rwlocks[]=
 {
   { &key_rwlock_THR_LOCK_udf, "THR_LOCK_udf", PSI_FLAG_GLOBAL}
+};
+
+static PSI_memory_info all_udf_memory[]=
+{
+  { &key_memory_udf_mem, "udf_mem", PSI_FLAG_GLOBAL}
 };
 
 static void init_udf_psi_keys(void)
@@ -116,6 +124,9 @@ static void init_udf_psi_keys(void)
 
   count= array_elements(all_udf_rwlocks);
   mysql_rwlock_register(category, all_udf_rwlocks, count);
+
+  count= array_elements(all_udf_memory);
+  mysql_memory_register(category, all_udf_memory, count);
 }
 #endif
 
@@ -143,7 +154,7 @@ void udf_init()
 
   mysql_rwlock_init(key_rwlock_THR_LOCK_udf, &THR_LOCK_udf);
 
-  init_sql_alloc(&mem, UDF_ALLOC_BLOCK_SIZE, 0);
+  init_sql_alloc(key_memory_udf_mem, &mem, UDF_ALLOC_BLOCK_SIZE, 0);
   THD *new_thd = new THD;
   if (!new_thd ||
       my_hash_init(&udf_hash,system_charset_info,32,0,0,get_hash_key, NULL, 0))
@@ -249,7 +260,7 @@ end:
   close_mysql_tables(new_thd);
   delete new_thd;
   /* Remember that we don't have a THD */
-  my_pthread_setspecific_ptr(THR_THD,  0);
+  my_pthread_set_THR_THD(0);
   DBUG_VOID_RETURN;
 }
 

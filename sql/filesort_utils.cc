@@ -1,4 +1,4 @@
-/* Copyright (c) 2010, 2012, Oracle and/or its affiliates. All rights reserved. 
+/* Copyright (c) 2010, 2013, Oracle and/or its affiliates. All rights reserved. 
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -21,6 +21,8 @@
 #include <algorithm>
 #include <functional>
 #include <vector>
+
+PSI_memory_key key_memory_Filesort_buffer_sort_keys;
 
 namespace {
 /**
@@ -96,7 +98,8 @@ uchar **Filesort_buffer::alloc_sort_buffer(uint num_records, uint record_length)
   if (m_idx_array.is_null())
   {
     uchar **sort_keys=
-      (uchar**) my_malloc(num_records * (record_length + sizeof(uchar*)),
+      (uchar**) my_malloc(key_memory_Filesort_buffer_sort_keys,
+                          num_records * (record_length + sizeof(uchar*)),
                           MYF(0));
     m_idx_array= Idx_array(sort_keys, num_records);
     m_record_length= record_length;
@@ -177,6 +180,9 @@ void Filesort_buffer::sort_buffer(const Sort_param *param, uint count)
 {
   if (count <= 1)
     return;
+  if (param->sort_length == 0)
+    return;
+
   uchar **keys= get_sort_keys();
   std::pair<uchar**, ptrdiff_t> buffer;
   if (radixsort_is_appliccable(count, param->sort_length) &&

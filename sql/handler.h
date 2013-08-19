@@ -2,7 +2,7 @@
 #define HANDLER_INCLUDED
 
 /*
-   Copyright (c) 2000, 2012, Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2000, 2013, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or
    modify it under the terms of the GNU General Public License
@@ -862,9 +862,6 @@ struct handlerton
    int  (*recover)(handlerton *hton, XID *xid_list, uint len);
    int  (*commit_by_xid)(handlerton *hton, XID *xid);
    int  (*rollback_by_xid)(handlerton *hton, XID *xid);
-   void *(*create_cursor_read_view)(handlerton *hton, THD *thd);
-   void (*set_cursor_read_view)(handlerton *hton, THD *thd, void *read_view);
-   void (*close_cursor_read_view)(handlerton *hton, THD *thd, void *read_view);
    handler *(*create)(handlerton *hton, TABLE_SHARE *table, MEM_ROOT *mem_root);
    void (*drop_database)(handlerton *hton, char* path);
    int (*panic)(handlerton *hton, enum ha_panic_function flag);
@@ -969,6 +966,7 @@ struct handlerton
 #define HTON_TEMPORARY_NOT_SUPPORTED (1 << 6) //Having temporary tables not supported
 #define HTON_SUPPORT_LOG_TABLES      (1 << 7) //Engine supports log tables
 #define HTON_NO_PARTITION            (1 << 8) //You can not partition these tables
+
 /*
   This flag should be set when deciding that the engine does not allow row based
   binary logging (RBL) optimizations.
@@ -982,6 +980,17 @@ struct handlerton
   no meaning for replication.
 */
 #define HTON_NO_BINLOG_ROW_OPT       (1 << 9)
+
+/**
+  Engine supports extended keys. The flag allows to
+  use 'extended key' feature if the engine is able to
+  do it (has primary key values in the secondary key).
+  Note that handler flag HA_PRIMARY_KEY_IN_READ_INDEX is
+  actually partial case of HTON_SUPPORTS_EXTENDED_KEYS.
+*/
+
+#define HTON_SUPPORTS_EXTENDED_KEYS  (1 << 10)
+
 
 enum enum_tx_isolation { ISO_READ_UNCOMMITTED, ISO_READ_COMMITTED,
 			 ISO_REPEATABLE_READ, ISO_SERIALIZABLE};
@@ -1050,6 +1059,27 @@ typedef struct st_ha_create_information
   bool varchar;                         /* 1 if table has a VARCHAR */
   enum ha_storage_media storage_media;  /* DEFAULT, DISK or MEMORY */
 } HA_CREATE_INFO;
+
+
+/**
+  Structure describing changes to an index to be caused by ALTER TABLE.
+*/
+
+struct KEY_PAIR
+{
+  /**
+    Pointer to KEY object describing old version of index in
+    TABLE::key_info array for TABLE instance representing old
+    version of table.
+  */
+  KEY *old_key;
+  /**
+    Pointer to KEY object describing new version of index in
+    Alter_inplace_info::key_info_buffer array.
+  */
+  KEY *new_key;
+};
+
 
 /**
   In-place alter handler context.
@@ -1196,6 +1226,14 @@ public:
   static const HA_ALTER_FLAGS ALTER_ALL_PARTITION        = 1L << 28;
 
   /**
+    Rename index. Note that we set this flag only if there are no other
+    changes to the index being renamed. Also for simplicity we don't
+    detect renaming of indexes which is done by dropping index and then
+    re-creating index with identical definition under different name.
+  */
+  static const HA_ALTER_FLAGS RENAME_INDEX               = 1L << 29;
+
+  /**
     Create options (like MAX_ROWS) for the new version of table.
 
     @note The referenced instance of HA_CREATE_INFO object was already
@@ -1257,6 +1295,19 @@ public:
   */
   uint *index_add_buffer;
 
+  /** Size of index_rename_buffer array. */
+  uint index_rename_count;
+
+  /**
+    Array of KEY_PAIR objects describing indexes being renamed.
+    For each index renamed it contains object with KEY_PAIR::old_key
+    pointing to KEY object belonging to the TABLE instance for old
+    version of table representing old version of index and with
+    KEY_PAIR::new_key pointing to KEY object for new version of
+    index in key_info_buffer member.
+  */
+  KEY_PAIR  *index_rename_buffer;
+
   /**
      Context information to allow handlers to keep context between in-place
      alter API calls.
@@ -1264,6 +1315,18 @@ public:
      @see inplace_alter_handler_ctx for information about object lifecycle.
   */
   inplace_alter_handler_ctx *handler_ctx;
+
+  /**
+    If the table uses several handlers, like ha_partition uses one handler
+    per partition, this contains a Null terminated array of ctx pointers
+    that should all be committed together.
+    Or NULL if only handler_ctx should be committed.
+    Set to NULL if the low level handler::commit_inplace_alter_table uses it,
+    to signal to the main handler that everything was committed as atomically.
+
+    @see inplace_alter_handler_ctx for information about object lifecycle.
+  */
+  inplace_alter_handler_ctx **group_commit_ctx;
 
   /**
      Flags describing in detail which operations the storage engine is to execute.
@@ -1311,7 +1374,10 @@ public:
     index_drop_buffer(NULL),
     index_add_count(0),
     index_add_buffer(NULL),
+    index_rename_count(0),
+    index_rename_buffer(NULL),
     handler_ctx(NULL),
+    group_commit_ctx(NULL),
     handler_flags(0),
     modified_part_info(modified_part_info_arg),
     ignore(ignore_arg),
@@ -1335,6 +1401,41 @@ public:
   */
   void report_unsupported_error(const char *not_supported,
                                 const char *try_instead);
+
+  /** Add old and new version of key to array of indexes to be renamed. */
+  void add_renamed_key(KEY *old_key, KEY *new_key)
+  {
+    KEY_PAIR *key_pair= index_rename_buffer + index_rename_count++;
+    key_pair->old_key= old_key;
+    key_pair->new_key= new_key;
+    DBUG_PRINT("info", ("index renamed: '%s' to '%s'",
+                        old_key->name, new_key->name));
+  }
+
+  /**
+    Add old and new version of modified key to arrays of indexes to
+    be dropped and added (correspondingly).
+  */
+  void add_modified_key(KEY *old_key, KEY *new_key)
+  {
+    index_drop_buffer[index_drop_count++]= old_key;
+    index_add_buffer[index_add_count++]= (uint) (new_key - key_info_buffer);
+    DBUG_PRINT("info", ("index changed: '%s'", old_key->name));
+  }
+
+  /** Drop key to array of indexes to be dropped. */
+  void add_dropped_key(KEY *old_key)
+  {
+    index_drop_buffer[index_drop_count++]= old_key;
+    DBUG_PRINT("info", ("index dropped: '%s'", old_key->name));
+  }
+
+  /** Add key to array of indexes to be added. */
+  void add_added_key(KEY *new_key)
+  {
+    index_add_buffer[index_add_count++]= (uint) (new_key - key_info_buffer);
+    DBUG_PRINT("info", ("index added: '%s'", new_key->name));
+  }
 };
 
 
@@ -1347,7 +1448,8 @@ typedef struct st_key_create_information
   /**
     A flag to determine if we will check for duplicate indexes.
     This typically means that the key information was specified
-    directly by the user (set by the parser).
+    directly by the user (set by the parser) or a column
+    associated with it was dropped.
   */
   bool check_for_duplicate_indexes;
 } KEY_CREATE_INFO;
@@ -1942,6 +2044,8 @@ public:
   int ha_index_read_map(uchar *buf, const uchar *key,
                         key_part_map keypart_map,
                         enum ha_rkey_function find_flag);
+  int ha_index_read_last_map(uchar * buf, const uchar * key,
+                             key_part_map keypart_map);
   int ha_index_read_idx_map(uchar *buf, uint index, const uchar *key,
                            key_part_map keypart_map,
                            enum ha_rkey_function find_flag);
@@ -2092,24 +2196,26 @@ public:
   virtual uint extra_rec_buf_length() const { return 0; }
 
   /**
-    This method is used to analyse the error to see whether the error
-    is ignorable or not, certain handlers can have more error that are
-    ignorable than others. E.g. the partition handler can get inserts
-    into a range where there is no partition and this is an ignorable
-    error.
+    @brief Determine whether an error is fatal or not. 
+    
+    @details This method is used to analyze the error to see whether the 
+    error is fatal or not. Handlers can have different sets of fatal errors, 
+    e.g. the partition handler can get inserts into a range where there 
+    is no partition, and this is an ignorable error.
+    
     HA_ERR_FOUND_DUP_UNIQUE is a special case in MyISAM that means the
-    same thing as HA_ERR_FOUND_DUP_KEY but can in some cases lead to
+    same thing as HA_ERR_FOUND_DUP_KEY, but can in some cases lead to
     a slightly different error message.
+     
+    @param error  error code received from the handler interface (HA_ERR_...)
+    @param flags  indicate whether duplicate key errors should be ignorable
+    
+    @return   whether the error is fatal or not
+      @retval true  the error is fatal
+      @retval false the error is not fatal
   */
-  virtual bool is_fatal_error(int error, uint flags)
-  {
-    if (!error ||
-        ((flags & HA_CHECK_DUP_KEY) &&
-         (error == HA_ERR_FOUND_DUPP_KEY ||
-          error == HA_ERR_FOUND_DUPP_UNIQUE)))
-      return FALSE;
-    return TRUE;
-  }
+  
+  virtual bool is_fatal_error(int error, uint flags);
 
   /**
     Number of rows in table. It will only be called if
@@ -2186,6 +2292,7 @@ public:
     DBUG_ASSERT(FALSE);
     return HA_ERR_WRONG_COMMAND;
   }
+protected:
   /**
      @brief
      Positions an index cursor to the index specified in the handle
@@ -2202,7 +2309,6 @@ public:
     uint key_len= calculate_key_len(table, active_index, key, keypart_map);
     return  index_read(buf, key, key_len, find_flag);
   }
-protected:
   /**
      @brief
      Positions an index cursor to the index specified in argument. Fetches
@@ -2225,7 +2331,6 @@ protected:
   /// @returns @see index_read_map().
   virtual int index_last(uchar * buf)
    { return  HA_ERR_WRONG_COMMAND; }
-public:
   /// @returns @see index_read_map().
   virtual int index_next_same(uchar *buf, const uchar *key, uint keylen);
   /**
@@ -2240,6 +2345,7 @@ public:
     uint key_len= calculate_key_len(table, active_index, key, keypart_map);
     return index_read_last(buf, key, key_len);
   }
+public:
   virtual int read_range_first(const key_range *start_key,
                                const key_range *end_key,
                                bool eq_range, bool sorted);
@@ -2482,7 +2588,7 @@ public:
   uint max_keys() const
   {
     using std::min;
-    return min(MAX_KEY, max_supported_keys());
+    return min<uint>(MAX_KEY, max_supported_keys());
   }
   uint max_key_parts() const
   {
@@ -2925,6 +3031,10 @@ protected:
 
     @note In case of partitioning, this function might be called for rollback
     without prepare_inplace_alter_table() having been called first.
+    Also partitioned tables sets ha_alter_info->group_commit_ctx to a NULL
+    terminated array of the partitions handlers and if all of them are
+    committed as one, then group_commit_ctx should be set to NULL to indicate
+    to the partitioning handler that all partitions handlers are committed.
     @see prepare_inplace_alter_table().
 
     @param    altered_table     TABLE object for new version of table.
@@ -2939,7 +3049,11 @@ protected:
  virtual bool commit_inplace_alter_table(TABLE *altered_table,
                                          Alter_inplace_info *ha_alter_info,
                                          bool commit)
- { return false; }
+{
+  /* Nothing to commit/rollback, mark all handlers committed! */
+  ha_alter_info->group_commit_ctx= NULL;
+  return false;
+}
 
 
  /**
@@ -3336,7 +3450,9 @@ void ha_drop_database(char* path);
 int ha_create_table(THD *thd, const char *path,
                     const char *db, const char *table_name,
                     HA_CREATE_INFO *create_info,
-		    bool update_create_info);
+		                bool update_create_info,
+                    bool is_temp_table= false);
+
 int ha_delete_table(THD *thd, handlerton *db_type, const char *path,
                     const char *db, const char *alias, bool generate_warning);
 
@@ -3367,7 +3483,7 @@ int ha_release_temporary_latches(THD *thd);
 /* transactions: interface to handlerton functions */
 int ha_start_consistent_snapshot(THD *thd);
 int ha_commit_or_rollback_by_xid(THD *thd, XID *xid, bool commit);
-int ha_commit_trans(THD *thd, bool all);
+int ha_commit_trans(THD *thd, bool all, bool ignore_global_read_lock= false);
 int ha_rollback_trans(THD *thd, bool all);
 int ha_prepare(THD *thd);
 int ha_recover(HASH *commit_list);
@@ -3377,7 +3493,7 @@ int ha_recover(HASH *commit_list);
  intended to be used by the transaction coordinators to
  commit/prepare/rollback transactions in the engines.
 */
-int ha_commit_low(THD *thd, bool all);
+int ha_commit_low(THD *thd, bool all, bool run_after_commit= true);
 int ha_prepare_low(THD *thd, bool all);
 int ha_rollback_low(THD *thd, bool all);
 
@@ -3403,7 +3519,6 @@ void trans_register_ha(THD *thd, bool all, handlerton *ht);
 #define trans_need_2pc(thd, all)                   ((total_ha_2pc > 1) && \
         !((all ? &thd->transaction.all : &thd->transaction.stmt)->no_2pc))
 
-#ifdef HAVE_NDB_BINLOG
 int ha_reset_logs(THD *thd);
 int ha_binlog_index_purge_file(THD *thd, const char *file);
 void ha_reset_slave(THD *thd);
@@ -3412,15 +3527,9 @@ void ha_binlog_log_query(THD *thd, handlerton *db_type,
                          const char *query, uint query_length,
                          const char *db, const char *table_name);
 void ha_binlog_wait(THD *thd);
+
+/* It is required by basic binlog features on both MySQL server and libmysqld */
 int ha_binlog_end(THD *thd);
-#else
-#define ha_reset_logs(a) do {} while (0)
-#define ha_binlog_index_purge_file(a,b) do {} while (0)
-#define ha_reset_slave(a) do {} while (0)
-#define ha_binlog_log_query(a,b,c,d,e,f,g) do {} while (0)
-#define ha_binlog_wait(a) do {} while (0)
-#define ha_binlog_end(a)  do {} while (0)
-#endif
 
 #ifndef MCP_GLOBAL_SCHEMA_LOCK
 class Ha_global_schema_lock_guard

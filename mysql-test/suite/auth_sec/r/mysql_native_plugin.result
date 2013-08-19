@@ -1,0 +1,229 @@
+
+
+===========================================================================================================================================
+Checking the password authentication using the mysql_native_password plugin at the client and mysql_native_password plugin at the server side
+===========================================================================================================================================
+
+select @@Global.old_passwords;
+@@Global.old_passwords
+0
+0 Expected
+select @@session.old_passwords;
+@@session.old_passwords
+0
+0 Expected
+CREATE USER 'Tanjotuser1'@'localhost' IDENTIFIED WITH 'mysql_native_password';
+CREATE USER 'Tanjotuser2'@'127.0.0.1' IDENTIFIED WITH 'mysql_native_password';
+select (select plugin from mysql.user where User='Tanjotuser1' and Host='localhost')='mysql_native_password';
+(select plugin from mysql.user where User='Tanjotuser1' and Host='localhost')='mysql_native_password'
+1
+1 Expected
+select (select plugin from mysql.user where User='Tanjotuser2' and Host='127.0.0.1')='mysql_native_password';
+(select plugin from mysql.user where User='Tanjotuser2' and Host='127.0.0.1')='mysql_native_password'
+1
+1 Expected
+ERROR 28000: Access denied for user 'Tanjotuser1'@'localhost' (using password: )
+ERROR 28000: Access denied for user 'Tanjotuser2'@'localhost' (using password: )
+SET PASSWORD FOR 'Tanjotuser1'@'localhost'=PASSWORD('abc');
+SET PASSWORD FOR 'Tanjotuser2'@'127.0.0.1'=PASSWORD('abc');
+**** connecting Tanjotuser1 with server 
+@@session.old_passwords
+0
+0 Expected
+**** connecting Tanjotuser2 with server 
+@@session.old_passwords
+0
+0 Expected
+**** connecting Tanjotuser1 with server 
+@@session.old_passwords
+0
+0 Expected
+**** connecting Tanjotuser2 with server 
+@@session.old_passwords
+0
+0 Expected
+**** connecting Tanjotuser1 with server 
+@@session.old_passwords
+0
+0 Expected
+**** connecting Tanjotuser2 with server 
+@@session.old_passwords
+0
+0 Expected
+**** connecting Tanjotuser1 with server 
+@@session.old_passwords
+0
+0 Expected
+**** connecting Tanjotuser2 with server 
+@@session.old_passwords
+0
+0 Expected
+ERROR 28000: Access denied for user 'Tanjotuser1'@'localhost' (using password: )
+ERROR 28000: Access denied for user 'Tanjotuser2'@'localhost' (using password: )
+ERROR 28000: Access denied for user 'Tanjotuser1'@'localhost' (using password: )
+ERROR 28000: Access denied for user 'Tanjotuser2'@'localhost' (using password: )
+ERROR 28000: Access denied for user 'Tanjotuser1'@'localhost' (using password: )
+ERROR 28000: Access denied for user 'Tanjotuser2'@'localhost' (using password: )
+ERROR 28000: Access denied for user 'Tanjotuser1'@'localhost' (using password: )
+ERROR 28000: Access denied for user 'Tanjotuser2'@'localhost' (using password: )
+ERROR 28000: Access denied for user 'Tanjotuser1'@'localhost' (using password: )
+ERROR 28000: Access denied for user 'Tanjotuser2'@'localhost' (using password: )
+ERROR 28000: Access denied for user 'Tanjotuser1'@'localhost' (using password: )
+ERROR 28000: Access denied for user 'Tanjotuser2'@'localhost' (using password: )
+ERROR 28000: Access denied for user 'Tanjotuser1'@'localhost' (using password: )
+ERROR 28000: Access denied for user 'Tanjotuser2'@'localhost' (using password: )
+ERROR 28000: Access denied for user 'Tanjotuser1'@'localhost' (using password: )
+ERROR 28000: Access denied for user 'Tanjotuser2'@'localhost' (using password: )
+select @@global.secure_auth;
+@@global.secure_auth
+1
+1 Expected
+set @@global.secure_auth=0;
+ERROR 28000: Access denied for user 'Tanjotuser1'@'localhost' (using password: )
+ERROR 28000: Access denied for user 'Tanjotuser2'@'localhost' (using password: )
+ERROR 28000: Access denied for user 'Tanjotuser1'@'localhost' (using password: )
+ERROR 28000: Access denied for user 'Tanjotuser2'@'localhost' (using password: )
+ERROR 28000: Access denied for user 'Tanjotuser1'@'localhost' (using password: )
+ERROR 28000: Access denied for user 'Tanjotuser2'@'localhost' (using password: )
+DROP USER 'Tanjotuser1'@'localhost';
+DROP USER 'Tanjotuser2'@'127.0.0.1';
+
+
+====================================================================================================
+checking the integrity of long password (more than 40 chars) using mysql_native_password plugin
+====================================================================================================
+
+CREATE USER 'Tanjotuser1'@'localhost' IDENTIFIED WITH 'mysql_native_password';
+CREATE USER 'Tanjotuser2'@'127.0.0.1' IDENTIFIED WITH 'mysql_native_password';
+SET @@session.old_passwords=0;
+SET PASSWORD FOR 'Tanjotuser1'@'localhost'=PASSWORD('$$$$$$$$$$^^^^^^^^^^&&&&&&&&&&**********((((((((((##########!!!!!!!!!!@@@@@@@@@@          @@@@@@@@@@__________');
+SET PASSWORD FOR 'Tanjotuser2'@'127.0.0.1'=PASSWORD('$$$$$$$$$$^^^^^^^^^^&&&&&&&&&&**********((((((((((##########!!!!!!!!!!@@@@@@@@@@          @@@@@@@@@@__________');
+set @@global.secure_auth=0;
+set @@global.secure_auth=1;
+ERROR 28000: Access denied for user 'Tanjotuser1'@'localhost' (using password: )
+ERROR 28000: Access denied for user 'Tanjotuser2'@'localhost' (using password: )
+ERROR 28000: Access denied for user 'Tanjotuser1'@'localhost' (using password: )
+ERROR 28000: Access denied for user 'Tanjotuser2'@'localhost' (using password: )
+ERROR 28000: Access denied for user 'Tanjotuser1'@'localhost' (using password: )
+ERROR 28000: Access denied for user 'Tanjotuser2'@'localhost' (using password: )
+ERROR 28000: Access denied for user 'Tanjotuser1'@'localhost' (using password: )
+ERROR 28000: Access denied for user 'Tanjotuser2'@'localhost' (using password: )
+DROP USER 'Tanjotuser1'@'localhost';
+DROP USER 'Tanjotuser2'@'127.0.0.1';
+
+
+============================================================================================================================================
+Checking the password authentication using the mysql_native_password plugin at the client and sha256_password plugin at the server side
+============================================================================================================================================
+
+# Restart server with default-authentication-plugin=sha256_password;
+select @@Global.old_passwords;
+@@Global.old_passwords
+2
+2 Expected
+select @@session.old_passwords;
+@@session.old_passwords
+0
+0 Expected
+CREATE USER 'Tanjotuser1'@'localhost' IDENTIFIED WITH 'mysql_native_password';
+CREATE USER 'Tanjotuser2'@'127.0.0.1' IDENTIFIED WITH 'mysql_native_password';
+select (select plugin from mysql.user where User='Tanjotuser1' and Host='localhost')='mysql_native_password';
+(select plugin from mysql.user where User='Tanjotuser1' and Host='localhost')='mysql_native_password'
+1
+1 Expected
+select (select plugin from mysql.user where User='Tanjotuser2' and Host='127.0.0.1')='mysql_native_password';
+(select plugin from mysql.user where User='Tanjotuser2' and Host='127.0.0.1')='mysql_native_password'
+1
+1 Expected
+ERROR 28000: Access denied for user 'Tanjotuser1'@'localhost' (using password: )
+ERROR 28000: Access denied for user 'Tanjotuser2'@'localhost' (using password: )
+SET @@session.old_passwords=0;
+SET PASSWORD FOR 'Tanjotuser1'@'localhost'=PASSWORD('abc');
+SET PASSWORD FOR 'Tanjotuser2'@'127.0.0.1'=PASSWORD('abc');
+**** connecting Tanjotuser1 with server 
+@@session.old_passwords
+0
+0 Expected
+**** connecting Tanjotuser2 with server 
+@@session.old_passwords
+0
+0 Expected
+**** connecting Tanjotuser1 with server 
+@@session.old_passwords
+0
+0 Expected
+**** connecting Tanjotuser2 with server 
+@@session.old_passwords
+0
+0 Expected
+**** connecting Tanjotuser1 with server 
+@@session.old_passwords
+0
+0 Expected
+**** connecting Tanjotuser2 with server 
+@@session.old_passwords
+0
+0 Expected
+**** connecting Tanjotuser1 with server 
+@@session.old_passwords
+0
+0 Expected
+**** connecting Tanjotuser2 with server 
+@@session.old_passwords
+0
+0 Expected
+ERROR 28000: Access denied for user 'Tanjotuser1'@'localhost' (using password: )
+ERROR 28000: Access denied for user 'Tanjotuser2'@'localhost' (using password: )
+ERROR 28000: Access denied for user 'Tanjotuser1'@'localhost' (using password: )
+ERROR 28000: Access denied for user 'Tanjotuser2'@'localhost' (using password: )
+ERROR 28000: Access denied for user 'Tanjotuser1'@'localhost' (using password: )
+ERROR 28000: Access denied for user 'Tanjotuser2'@'localhost' (using password: )
+ERROR 28000: Access denied for user 'Tanjotuser1'@'localhost' (using password: )
+ERROR 28000: Access denied for user 'Tanjotuser2'@'localhost' (using password: )
+ERROR 28000: Access denied for user 'Tanjotuser1'@'localhost' (using password: )
+ERROR 28000: Access denied for user 'Tanjotuser2'@'localhost' (using password: )
+ERROR 28000: Access denied for user 'Tanjotuser1'@'localhost' (using password: )
+ERROR 28000: Access denied for user 'Tanjotuser2'@'localhost' (using password: )
+ERROR 28000: Access denied for user 'Tanjotuser1'@'localhost' (using password: )
+ERROR 28000: Access denied for user 'Tanjotuser2'@'localhost' (using password: )
+ERROR 28000: Access denied for user 'Tanjotuser1'@'localhost' (using password: )
+ERROR 28000: Access denied for user 'Tanjotuser2'@'localhost' (using password: )
+select @@global.secure_auth;
+@@global.secure_auth
+1
+1 Expected
+set @@global.secure_auth=0;
+ERROR 28000: Access denied for user 'Tanjotuser1'@'localhost' (using password: )
+ERROR 28000: Access denied for user 'Tanjotuser2'@'localhost' (using password: )
+ERROR 28000: Access denied for user 'Tanjotuser1'@'localhost' (using password: )
+ERROR 28000: Access denied for user 'Tanjotuser2'@'localhost' (using password: )
+ERROR 28000: Access denied for user 'Tanjotuser1'@'localhost' (using password: )
+ERROR 28000: Access denied for user 'Tanjotuser2'@'localhost' (using password: )
+DROP USER 'Tanjotuser1'@'localhost';
+DROP USER 'Tanjotuser2'@'127.0.0.1';
+
+
+====================================================================================================
+checking the integrity of long password (more than 40 chars) using mysql_native_password plugin
+====================================================================================================
+
+CREATE USER 'Tanjotuser1'@'localhost' IDENTIFIED WITH 'mysql_native_password';
+CREATE USER 'Tanjotuser2'@'127.0.0.1' IDENTIFIED WITH 'mysql_native_password';
+SET @@session.old_passwords=0;
+SET PASSWORD FOR 'Tanjotuser1'@'localhost'=PASSWORD('$$$$$$$$$$^^^^^^^^^^&&&&&&&&&&**********((((((((((##########!!!!!!!!!!@@@@@@@@@@          @@@@@@@@@@__________');
+SET PASSWORD FOR 'Tanjotuser2'@'127.0.0.1'=PASSWORD('$$$$$$$$$$^^^^^^^^^^&&&&&&&&&&**********((((((((((##########!!!!!!!!!!@@@@@@@@@@          @@@@@@@@@@__________');
+set @@global.secure_auth=0;
+set @@global.secure_auth=1;
+ERROR 28000: Access denied for user 'Tanjotuser1'@'localhost' (using password: )
+ERROR 28000: Access denied for user 'Tanjotuser2'@'localhost' (using password: )
+ERROR 28000: Access denied for user 'Tanjotuser1'@'localhost' (using password: )
+ERROR 28000: Access denied for user 'Tanjotuser2'@'localhost' (using password: )
+ERROR 28000: Access denied for user 'Tanjotuser1'@'localhost' (using password: )
+ERROR 28000: Access denied for user 'Tanjotuser2'@'localhost' (using password: )
+ERROR 28000: Access denied for user 'Tanjotuser1'@'localhost' (using password: )
+ERROR 28000: Access denied for user 'Tanjotuser2'@'localhost' (using password: )
+DROP USER 'Tanjotuser1'@'localhost';
+DROP USER 'Tanjotuser2'@'127.0.0.1';
+SET @@global.secure_auth=default;
+SET @@global.old_passwords=default;
+SET @@session.old_passwords=default;

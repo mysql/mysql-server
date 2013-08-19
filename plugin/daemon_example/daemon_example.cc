@@ -1,4 +1,4 @@
-/* Copyright (c) 2006, 2010, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2006, 2013, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -32,6 +32,24 @@
 #define __attribute__(A)
 #endif
 
+PSI_memory_key key_memory_mysql_heartbeat_context;
+
+#ifdef HAVE_PSI_INTERFACE
+
+static PSI_memory_info all_deamon_example_memory[]=
+{
+  {&key_memory_mysql_heartbeat_context, "mysql_heartbeat_context", 0}
+};
+
+static void init_deamon_example_psi_keys()
+{
+  const char* category= "deamon_example";
+  int count;
+
+  count= array_elements(all_deamon_example_memory);
+  mysql_memory_register(category, all_deamon_example_memory, count);
+};
+#endif /* HAVE_PSI_INTERFACE */
 
 #define HEART_STRING_BUFFER 100
   
@@ -85,8 +103,12 @@ pthread_handler_t mysql_heartbeat(void *p)
 
 static int daemon_example_plugin_init(void *p)
 {
-
   DBUG_ENTER("daemon_example_plugin_init");
+
+#ifdef HAVE_PSI_INTERFACE
+  init_deamon_example_psi_keys();
+#endif
+
   struct mysql_heartbeat_context *con;
   pthread_attr_t attr;          /* Thread attributes */
   char heartbeat_filename[FN_REFLEN];
@@ -97,7 +119,8 @@ static int daemon_example_plugin_init(void *p)
   struct st_plugin_int *plugin= (struct st_plugin_int *)p;
 
   con= (struct mysql_heartbeat_context *)
-    my_malloc(sizeof(struct mysql_heartbeat_context), MYF(0)); 
+    my_malloc(key_memory_mysql_heartbeat_context,
+              sizeof(struct mysql_heartbeat_context), MYF(0)); 
 
   fn_format(heartbeat_filename, "mysql-heartbeat", "", ".log",
             MY_REPLACE_EXT | MY_UNPACK_FILENAME);

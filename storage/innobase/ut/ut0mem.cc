@@ -1,6 +1,6 @@
 /*****************************************************************************
 
-Copyright (c) 1994, 2011, Oracle and/or its affiliates. All Rights Reserved.
+Copyright (c) 1994, 2013, Oracle and/or its affiliates. All Rights Reserved.
 
 This program is free software; you can redistribute it and/or modify it under
 the terms of the GNU General Public License as published by the Free Software
@@ -38,15 +38,10 @@ Created 5/11/1994 Heikki Tuuri
 /** The total amount of memory currently allocated from the operating
 system with os_mem_alloc_large() or malloc().  Does not count malloc()
 if srv_use_sys_malloc is set.  Protected by ut_list_mutex. */
-UNIV_INTERN ulint		ut_total_allocated_memory	= 0;
+ulint		ut_total_allocated_memory	= 0;
 
 /** Mutex protecting ut_total_allocated_memory and ut_mem_block_list */
-UNIV_INTERN os_fast_mutex_t	ut_list_mutex;
-
-#ifdef UNIV_PFS_MUTEX
-/* Key to register server_mutex with performance schema */
-UNIV_INTERN mysql_pfs_key_t	ut_list_mutex_key;
-#endif
+SysMutex		ut_list_mutex;
 
 /** Dynamically allocated memory block */
 struct ut_mem_block_t{
@@ -65,7 +60,7 @@ with malloc.  Protected by ut_list_mutex. */
 static UT_LIST_BASE_NODE_T(ut_mem_block_t)   ut_mem_block_list;
 
 /** Flag: has ut_mem_block_list been initialized? */
-static ibool  ut_mem_block_list_inited = FALSE;
+static bool  ut_mem_block_list_inited = false;
 
 /** A dummy pointer for generating a null pointer exception in
 ut_malloc_low() */
@@ -73,22 +68,24 @@ static ulint*	ut_mem_null_ptr	= NULL;
 
 /**********************************************************************//**
 Initializes the mem block list at database startup. */
-UNIV_INTERN
+
 void
 ut_mem_init(void)
 /*=============*/
 {
 	ut_a(!ut_mem_block_list_inited);
-	os_fast_mutex_init(ut_list_mutex_key, &ut_list_mutex);
-	UT_LIST_INIT(ut_mem_block_list);
-	ut_mem_block_list_inited = TRUE;
+	mutex_create("ut_list_mutex", &ut_list_mutex);
+
+	UT_LIST_INIT(ut_mem_block_list, &ut_mem_block_t::mem_block_list);
+
+	ut_mem_block_list_inited = true;
 }
 #endif /* !UNIV_HOTBACKUP */
 
 /**********************************************************************//**
 Allocates memory.
-@return	own: allocated memory */
-UNIV_INTERN
+@return own: allocated memory */
+
 void*
 ut_malloc_low(
 /*==========*/
@@ -107,12 +104,13 @@ ut_malloc_low(
 		return(ret);
 	}
 
-	ut_ad((sizeof(ut_mem_block_t) % 8) == 0); /* check alignment ok */
+	/* check alignment ok */
+	ut_ad((sizeof(ut_mem_block_t) % 8) == 0);
 	ut_a(ut_mem_block_list_inited);
 
 	retry_count = 0;
 retry:
-	os_fast_mutex_lock(&ut_list_mutex);
+	mutex_enter(&ut_list_mutex);
 
 	ret = malloc(n + sizeof(ut_mem_block_t));
 
@@ -120,35 +118,29 @@ retry:
 		if (retry_count == 0) {
 			ut_print_timestamp(stderr);
 
-			fprintf(stderr,
-				"  InnoDB: Error: cannot allocate"
-				" %lu bytes of\n"
-				"InnoDB: memory with malloc!"
-				" Total allocated memory\n"
-				"InnoDB: by InnoDB %lu bytes."
-				" Operating system errno: %lu\n"
-				"InnoDB: Check if you should"
-				" increase the swap file or\n"
-				"InnoDB: ulimits of your operating system.\n"
-				"InnoDB: On FreeBSD check you"
-				" have compiled the OS with\n"
-				"InnoDB: a big enough maximum process size.\n"
-				"InnoDB: Note that in most 32-bit"
-				" computers the process\n"
-				"InnoDB: memory space is limited"
-				" to 2 GB or 4 GB.\n"
-				"InnoDB: We keep retrying"
-				" the allocation for 60 seconds...\n",
-				(ulong) n, (ulong) ut_total_allocated_memory,
-#ifdef __WIN__
+			ib_logf(IB_LOG_LEVEL_ERROR,
+				"Cannot allocate %lu bytes of memory with "
+				"malloc! Total allocated memory by InnoDB "
+				"is %lu bytes. Operating system errno: %lu "
+				"Check if you should increase the swap file "
+				"or ulimits of your operating system. "
+				"On FreeBSD check that you have compiled the "
+				"OS with a big enough maximum process size. "
+				"Note that on most 32-bit computers the "
+				"process memory space is limited to 2 GB "
+				"or 4 GB. We keep retrying the allocation "
+				"for 60 seconds...",
+				(ulong) n,
+				(ulong) ut_total_allocated_memory,
+#ifdef _WIN32
 				(ulong) GetLastError()
 #else
 				(ulong) errno
-#endif
+#endif /* _WIN32 */
 				);
 		}
 
-		os_fast_mutex_unlock(&ut_list_mutex);
+		mutex_exit(&ut_list_mutex);
 
 		/* Sleep for a second and retry the allocation; maybe this is
 		just a temporary shortage of memory */
@@ -167,19 +159,20 @@ retry:
 
 		fflush(stderr);
 
-		os_fast_mutex_unlock(&ut_list_mutex);
+		mutex_enter(&ut_list_mutex);
 
 		/* Make an intentional seg fault so that we get a stack
 		trace */
 		if (assert_on_error) {
 			ut_print_timestamp(stderr);
 
-			fprintf(stderr,
-				"  InnoDB: We now intentionally"
-				" generate a seg fault so that\n"
-				"InnoDB: on Linux we get a stack trace.\n");
+			ib_logf(IB_LOG_LEVEL_ERROR,
+				"We now intentionally generate a seg fault "
+				"so that on Linux we get a stack trace.");
 
-			if (*ut_mem_null_ptr) ut_mem_null_ptr = 0;
+			if (*ut_mem_null_ptr) {
+				ut_mem_null_ptr = 0;
+			}
 		} else {
 			return(NULL);
 		}
@@ -192,9 +185,8 @@ retry:
 
 	ut_total_allocated_memory += n + sizeof(ut_mem_block_t);
 
-	UT_LIST_ADD_FIRST(mem_block_list, ut_mem_block_list,
-			  ((ut_mem_block_t*) ret));
-	os_fast_mutex_unlock(&ut_list_mutex);
+	UT_LIST_ADD_FIRST(ut_mem_block_list, ((ut_mem_block_t*) ret));
+	mutex_exit(&ut_list_mutex);
 
 	return((void*)((byte*) ret + sizeof(ut_mem_block_t)));
 #else /* !UNIV_HOTBACKUP */
@@ -208,7 +200,7 @@ retry:
 /**********************************************************************//**
 Frees a memory block allocated with ut_malloc. Freeing a NULL pointer is
 a nop. */
-UNIV_INTERN
+
 void
 ut_free(
 /*====*/
@@ -226,17 +218,19 @@ ut_free(
 
 	block = (ut_mem_block_t*)((byte*) ptr - sizeof(ut_mem_block_t));
 
-	os_fast_mutex_lock(&ut_list_mutex);
+	mutex_enter(&ut_list_mutex);
 
 	ut_a(block->magic_n == UT_MEM_MAGIC_N);
 	ut_a(ut_total_allocated_memory >= block->size);
 
 	ut_total_allocated_memory -= block->size;
 
-	UT_LIST_REMOVE(mem_block_list, ut_mem_block_list, block);
+	UT_LIST_REMOVE(ut_mem_block_list, block);
+
 	free(block);
 
-	os_fast_mutex_unlock(&ut_list_mutex);
+	mutex_exit(&ut_list_mutex);
+
 #else /* !UNIV_HOTBACKUP */
 	free(ptr);
 #endif /* !UNIV_HOTBACKUP */
@@ -267,8 +261,8 @@ RETURN VALUE
        be passed to free() is returned.	 If realloc()  fails  the
        original	 block	is  left  untouched  - it is not freed or
        moved.
-@return	own: pointer to new mem block or NULL */
-UNIV_INTERN
+@return own: pointer to new mem block or NULL */
+
 void*
 ut_realloc(
 /*=======*/
@@ -324,7 +318,7 @@ ut_realloc(
 
 /**********************************************************************//**
 Frees in shutdown all allocated memory not freed yet. */
-UNIV_INTERN
+
 void
 ut_free_all_mem(void)
 /*=================*/
@@ -332,8 +326,10 @@ ut_free_all_mem(void)
 	ut_mem_block_t* block;
 
 	ut_a(ut_mem_block_list_inited);
-	ut_mem_block_list_inited = FALSE;
-	os_fast_mutex_free(&ut_list_mutex);
+
+	ut_mem_block_list_inited = false;
+
+	mutex_free(&ut_list_mutex);
 
 	while ((block = UT_LIST_GET_FIRST(ut_mem_block_list))) {
 
@@ -342,18 +338,18 @@ ut_free_all_mem(void)
 
 		ut_total_allocated_memory -= block->size;
 
-		UT_LIST_REMOVE(mem_block_list, ut_mem_block_list, block);
-		free(block);
+		UT_LIST_REMOVE(ut_mem_block_list, block);
+
+		::free(block);
 	}
 
 	if (ut_total_allocated_memory != 0) {
-		fprintf(stderr,
-			"InnoDB: Warning: after shutdown"
-			" total allocated memory is %lu\n",
+		ib_logf(IB_LOG_LEVEL_WARN,
+			"after shutdown total allocated memory is %lu",
 			(ulong) ut_total_allocated_memory);
 	}
 
-	ut_mem_block_list_inited = FALSE;
+	ut_mem_block_list_inited = false;
 }
 #endif /* !UNIV_HOTBACKUP */
 
@@ -361,8 +357,8 @@ ut_free_all_mem(void)
 Copies up to size - 1 characters from the NUL-terminated string src to
 dst, NUL-terminating the result. Returns strlen(src), so truncation
 occurred if the return value >= size.
-@return	strlen(src) */
-UNIV_INTERN
+@return strlen(src) */
+
 ulint
 ut_strlcpy(
 /*=======*/
@@ -385,8 +381,8 @@ ut_strlcpy(
 /**********************************************************************//**
 Like ut_strlcpy, but if src doesn't fit in dst completely, copies the last
 (size - 1) bytes of src, not the first.
-@return	strlen(src) */
-UNIV_INTERN
+@return strlen(src) */
+
 ulint
 ut_strlcpy_rev(
 /*===========*/
@@ -409,8 +405,8 @@ ut_strlcpy_rev(
 /**********************************************************************//**
 Return the number of times s2 occurs in s1. Overlapping instances of s2
 are only counted once.
-@return	the number of times s2 occurs in s1 */
-UNIV_INTERN
+@return the number of times s2 occurs in s1 */
+
 ulint
 ut_strcount(
 /*========*/
@@ -470,8 +466,8 @@ ut_str3cat(
 /**********************************************************************//**
 Replace every occurrence of s1 in str with s2. Overlapping instances of s1
 are only replaced once.
-@return	own: modified string, must be freed with mem_free() */
-UNIV_INTERN
+@return own: modified string, must be freed with mem_free() */
+
 char*
 ut_strreplace(
 /*==========*/
@@ -527,83 +523,4 @@ ut_strreplace(
 	return(new_str);
 }
 
-#ifdef UNIV_COMPILE_TEST_FUNCS
-
-void
-test_ut_str_sql_format()
-{
-	char	buf[128];
-	ulint	ret;
-
-#define CALL_AND_TEST(str, str_len, buf, buf_size, ret_expected, buf_expected)\
-	do {\
-		ibool	ok = TRUE;\
-		memset(buf, 'x', 10);\
-		buf[10] = '\0';\
-		fprintf(stderr, "TESTING \"%s\", %lu, %lu\n",\
-			str, (ulint) str_len, (ulint) buf_size);\
-		ret = ut_str_sql_format(str, str_len, buf, buf_size);\
-		if (ret != ret_expected) {\
-			fprintf(stderr, "expected ret %lu, got %lu\n",\
-				(ulint) ret_expected, ret);\
-			ok = FALSE;\
-		}\
-		if (strcmp((char*) buf, buf_expected) != 0) {\
-			fprintf(stderr, "expected buf \"%s\", got \"%s\"\n",\
-				buf_expected, buf);\
-			ok = FALSE;\
-		}\
-		if (ok) {\
-			fprintf(stderr, "OK: %lu, \"%s\"\n\n",\
-				(ulint) ret, buf);\
-		} else {\
-			return;\
-		}\
-	} while (0)
-
-	CALL_AND_TEST("abcd", 4, buf, 0, 0, "xxxxxxxxxx");
-
-	CALL_AND_TEST("abcd", 4, buf, 1, 1, "");
-
-	CALL_AND_TEST("abcd", 4, buf, 2, 1, "");
-
-	CALL_AND_TEST("abcd", 0, buf, 3, 3, "''");
-	CALL_AND_TEST("abcd", 1, buf, 3, 1, "");
-	CALL_AND_TEST("abcd", 2, buf, 3, 1, "");
-	CALL_AND_TEST("abcd", 3, buf, 3, 1, "");
-	CALL_AND_TEST("abcd", 4, buf, 3, 1, "");
-
-	CALL_AND_TEST("abcd", 0, buf, 4, 3, "''");
-	CALL_AND_TEST("abcd", 1, buf, 4, 4, "'a'");
-	CALL_AND_TEST("abcd", 2, buf, 4, 4, "'a'");
-	CALL_AND_TEST("abcd", 3, buf, 4, 4, "'a'");
-	CALL_AND_TEST("abcd", 4, buf, 4, 4, "'a'");
-	CALL_AND_TEST("abcde", 5, buf, 4, 4, "'a'");
-	CALL_AND_TEST("'", 1, buf, 4, 3, "''");
-	CALL_AND_TEST("''", 2, buf, 4, 3, "''");
-	CALL_AND_TEST("a'", 2, buf, 4, 4, "'a'");
-	CALL_AND_TEST("'a", 2, buf, 4, 3, "''");
-	CALL_AND_TEST("ab", 2, buf, 4, 4, "'a'");
-
-	CALL_AND_TEST("abcdef", 0, buf, 5, 3, "''");
-	CALL_AND_TEST("abcdef", 1, buf, 5, 4, "'a'");
-	CALL_AND_TEST("abcdef", 2, buf, 5, 5, "'ab'");
-	CALL_AND_TEST("abcdef", 3, buf, 5, 5, "'ab'");
-	CALL_AND_TEST("abcdef", 4, buf, 5, 5, "'ab'");
-	CALL_AND_TEST("abcdef", 5, buf, 5, 5, "'ab'");
-	CALL_AND_TEST("abcdef", 6, buf, 5, 5, "'ab'");
-	CALL_AND_TEST("'", 1, buf, 5, 5, "''''");
-	CALL_AND_TEST("''", 2, buf, 5, 5, "''''");
-	CALL_AND_TEST("a'", 2, buf, 5, 4, "'a'");
-	CALL_AND_TEST("'a", 2, buf, 5, 5, "''''");
-	CALL_AND_TEST("ab", 2, buf, 5, 5, "'ab'");
-	CALL_AND_TEST("abc", 3, buf, 5, 5, "'ab'");
-
-	CALL_AND_TEST("ab", 2, buf, 6, 5, "'ab'");
-
-	CALL_AND_TEST("a'b'c", 5, buf, 32, 10, "'a''b''c'");
-	CALL_AND_TEST("a'b'c'", 6, buf, 32, 12, "'a''b''c'''");
-}
-
-#endif /* UNIV_COMPILE_TEST_FUNCS */
 #endif /* !UNIV_HOTBACKUP */

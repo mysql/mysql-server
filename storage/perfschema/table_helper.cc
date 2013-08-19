@@ -1,4 +1,4 @@
-/* Copyright (c) 2010, 2011, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2010, 2013, Oracle and/or its affiliates. All rights reserved.
 
   This program is free software; you can redistribute it and/or modify
   it under the terms of the GNU General Public License as published by
@@ -11,7 +11,7 @@
 
   You should have received a copy of the GNU General Public License
   along with this program; if not, write to the Free Software
-  Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA */
+  Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA 02110-1301, USA */
 
 /**
   @file storage/perfschema/table_helper.cc
@@ -25,6 +25,7 @@
 #include "pfs_host.h"
 #include "pfs_user.h"
 #include "pfs_account.h"
+#include "pfs_instr.h"
 
 int PFS_host_row::make_row(PFS_host *pfs)
 {
@@ -103,16 +104,23 @@ void PFS_account_row::set_field(uint index, Field *f)
 
 int PFS_digest_row::make_row(PFS_statements_digest_stat* pfs)
 {
+  m_schema_name_length= pfs->m_digest_key.m_schema_name_length;
+  if (m_schema_name_length > sizeof(m_schema_name))
+    m_schema_name_length= 0;
+  if (m_schema_name_length > 0)
+    memcpy(m_schema_name, pfs->m_digest_key.m_schema_name, m_schema_name_length);
+
+  int safe_byte_count= pfs->m_digest_storage.m_byte_count;
+  if (safe_byte_count > PSI_MAX_DIGEST_STORAGE_SIZE)
+    safe_byte_count= 0;
+
   /*
     "0" value for byte_count indicates special entry i.e. aggregated
     stats at index 0 of statements_digest_stat_array. So do not calculate
     digest/digest_text as it should always be "NULL".
   */
-  if (pfs->m_digest_storage.m_byte_count != 0)
+  if (safe_byte_count > 0)
   {
-    m_schema_name_length= pfs->m_digest_key.m_schema_name_length;
-    if (m_schema_name_length > 0)
-      memcpy(m_schema_name, pfs->m_digest_key.m_schema_name, m_schema_name_length);
     /*
       Calculate digest from MD5 HASH collected to be shown as
       DIGEST in this row.
@@ -126,10 +134,12 @@ int PFS_digest_row::make_row(PFS_statements_digest_stat* pfs)
     */
     get_digest_text(m_digest_text, &pfs->m_digest_storage);
     m_digest_text_length= strlen(m_digest_text);
+
+    if (m_digest_text_length == 0)
+      m_digest_length= 0;
   }
   else
   {
-    m_schema_name_length= 0;
     m_digest_length= 0;
     m_digest_text_length= 0;
   }
@@ -344,8 +354,70 @@ void set_field_object_type(Field *f, enum_object_type object_type)
   case OBJECT_TYPE_TEMPORARY_TABLE:
     PFS_engine_table::set_field_varchar_utf8(f, "TEMPORARY TABLE", 15);
     break;
+  case OBJECT_TYPE_PROCEDURE:
+    PFS_engine_table::set_field_varchar_utf8(f, "PROCEDURE", 9);
+    break;
+  case OBJECT_TYPE_FUNCTION:
+    PFS_engine_table::set_field_varchar_utf8(f, "FUNCTION", 8);
+    break;
+  case OBJECT_TYPE_TRIGGER:
+    PFS_engine_table::set_field_varchar_utf8(f, "TRIGGER", 7);
+    break;
+  case OBJECT_TYPE_EVENT:
+    PFS_engine_table::set_field_varchar_utf8(f, "EVENT", 5);
+    break;
   default:
     DBUG_ASSERT(false);
+    PFS_engine_table::set_field_varchar_utf8(f, "", 0);
+    break;
+  }
+}
+
+void PFS_memory_stat_row::set_field(uint index, Field *f)
+{
+  ssize_t val;
+
+  switch (index)
+  {
+    case 0: /* COUNT_ALLOC */
+      PFS_engine_table::set_field_ulonglong(f, m_stat.m_alloc_count);
+      break;
+    case 1: /* COUNT_FREE */
+      PFS_engine_table::set_field_ulonglong(f, m_stat.m_free_count);
+      break;
+    case 2: /* SUM_NUMBER_OF_BYTES_ALLOC */
+      PFS_engine_table::set_field_ulonglong(f, m_stat.m_alloc_size);
+      break;
+    case 3: /* SUM_NUMBER_OF_BYTES_FREE */
+      PFS_engine_table::set_field_ulonglong(f, m_stat.m_free_size);
+      break;
+    case 4: /* LOW_COUNT_USED */
+      val= m_stat.m_alloc_count - m_stat.m_free_count - m_stat.m_free_count_capacity;
+      PFS_engine_table::set_field_longlong(f, val);
+      break;
+    case 5: /* CURRENT_COUNT_USED */
+      val= m_stat.m_alloc_count - m_stat.m_free_count;
+      PFS_engine_table::set_field_longlong(f, val);
+      break;
+    case 6: /* HIGH_COUNT_USED */
+      val= m_stat.m_alloc_count - m_stat.m_free_count + m_stat.m_alloc_count_capacity;
+      PFS_engine_table::set_field_longlong(f, val);
+      break;
+    case 7: /* LOW_NUMBER_OF_BYTES_USED */
+      val= m_stat.m_alloc_size - m_stat.m_free_size - m_stat.m_free_size_capacity;
+      PFS_engine_table::set_field_longlong(f, val);
+      break;
+    case 8: /* CURRENT_NUMBER_OF_BYTES_USED */
+      val= m_stat.m_alloc_size - m_stat.m_free_size;
+      PFS_engine_table::set_field_longlong(f, val);
+      break;
+    case 9: /* HIGH_NUMBER_OF_BYTES_USED */
+      val= m_stat.m_alloc_size - m_stat.m_free_size + m_stat.m_alloc_size_capacity;
+      PFS_engine_table::set_field_longlong(f, val);
+      break;
+    default:
+      DBUG_ASSERT(false);
+      break;
   }
 }
 

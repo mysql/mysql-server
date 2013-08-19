@@ -1285,11 +1285,6 @@ class Item_func_sec_to_time :public Item_time_func
 {
 public:
   Item_func_sec_to_time(Item *item) :Item_time_func(item) {}
-  double val_real()
-  {
-    DBUG_ASSERT(fixed == 1);
-    return (double) Item_func_sec_to_time::val_int();
-  }
   void fix_length_and_dec()
   { 
     maybe_null=1;

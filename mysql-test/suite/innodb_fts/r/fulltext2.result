@@ -1,3 +1,5 @@
+call mtr.add_suppression("Trying to free a missing index of table 'test/t1'");
+call mtr.add_suppression("Failed to create index with index id .* of table 'test/t1'");
 DROP TABLE IF EXISTS t1;
 CREATE TABLE t1 (
 i int(10) unsigned not null auto_increment primary key,
@@ -239,5 +241,6 @@ CREATE TABLE t1(a VARCHAR(255), FULLTEXT(a)) ENGINE = INNODB DEFAULT CHARSET=utf
 INSERT INTO t1 VALUES('„MySQL“');
 SELECT a FROM t1 WHERE MATCH a AGAINST('“MySQL„' IN BOOLEAN MODE);
 a
+„MySQL“
 DROP TABLE t1;
 SET NAMES latin1;

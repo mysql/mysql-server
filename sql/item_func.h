@@ -1,7 +1,7 @@
 #ifndef ITEM_FUNC_INCLUDED
 #define ITEM_FUNC_INCLUDED
 
-/* Copyright (c) 2000, 2012, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2000, 2013, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -1027,17 +1027,17 @@ public:
   {
     item_name= a->item_name;
   }
-  double val_real() { return args[0]->val_real(); }
-  longlong val_int() { return args[0]->val_int(); }
-  String *val_str(String *str) { return args[0]->val_str(str); }
-  my_decimal *val_decimal(my_decimal *dec) { return args[0]->val_decimal(dec); }
+  double val_real();
+  longlong val_int();
+  String *val_str(String *str);
+  my_decimal *val_decimal(my_decimal *dec);
   bool get_date(MYSQL_TIME *ltime, uint fuzzydate)
   {
-    return args[0]->get_date(ltime, fuzzydate);
+    return (null_value= args[0]->get_date(ltime, fuzzydate));
   }
   bool get_time(MYSQL_TIME *ltime)
   {
-    return args[0]->get_time(ltime);
+    return (null_value= args[0]->get_time(ltime));
   }
   const char *func_name() const { return "rollup_const"; }
   bool const_item() const { return 0; }
@@ -1258,7 +1258,7 @@ public:
   {}
   longlong val_int();
   const char *func_name() const { return "benchmark"; }
-  void fix_length_and_dec() { max_length=1; maybe_null=0; }
+  void fix_length_and_dec() { max_length=1; maybe_null= true; }
   virtual void print(String *str, enum_query_type query_type);
 };
 
@@ -1596,7 +1596,6 @@ public:
   void fix_length_and_dec() { max_length= 21; maybe_null= 1; }
 };
 
-#ifdef HAVE_REPLICATION
 class Item_func_gtid_subset : public Item_int_func
 {
   String buf1;
@@ -1607,7 +1606,6 @@ public:
   const char *func_name() const { return "gtid_subset"; }
   void fix_length_and_dec() { max_length= 21; maybe_null= 0; }
 };
-#endif // if HAVE_REPLICATION
 
 
 /**
@@ -1715,13 +1713,16 @@ public:
   virtual void print(String *str, enum_query_type query_type);
   void print_assignment(String *str, enum_query_type query_type);
   const char *func_name() const { return "set_user_var"; }
+
   type_conversion_status save_in_field(Field *field, bool no_conversions,
                                        bool can_use_result_field);
+
   type_conversion_status save_in_field(Field *field, bool no_conversions)
-  {
-    return save_in_field(field, no_conversions, 1);
-  }
-  void save_org_in_field(Field *field) { (void)save_in_field(field, 1, 0); }
+  { return save_in_field(field, no_conversions, true); }
+
+  void save_org_in_field(Field *field)
+  { save_in_field(field, true, false); }
+
   bool register_field_in_read_map(uchar *arg);
   bool set_entry(THD *thd, bool create_if_not_exists);
   void cleanup();
@@ -1953,6 +1954,42 @@ public:
     return ((FT_INFO_EXT *)ft_handler)->could_you->get_flags() & 
       FTS_DOCID_IN_RESULT;
   }
+
+private:
+  /**
+     Check whether storage engine for given table, 
+     allows FTS Boolean search on non-indexed columns.
+
+     @todo A flag should be added to the extended fulltext API so that 
+           it may be checked whether search on non-indexed columns are 
+           supported. Currently, it is not possible to check for such a 
+           flag since @c this->ft_handler is not yet set when this function is 
+           called.  The current hack is to assume that search on non-indexed
+           columns are supported for engines that does not support the extended
+           fulltext API (e.g., MyISAM), while it is not supported for other 
+           engines (e.g., InnoDB)
+
+     @param table_arg Table for which storage engine to check
+
+     @retval true if BOOLEAN search on non-indexed columns is supported
+     @retval false otherwise
+   */
+  bool allows_search_on_non_indexed_columns(TABLE* table_arg)
+  {
+    // Only Boolean search may support non_indexed columns
+    if (!(flags & FT_BOOL))
+      return false;
+
+    DBUG_ASSERT(table_arg && table_arg->file);
+
+    // Assume that if extended fulltext API is not supported,
+    // non-indexed columns are allowed.  This will be true for MyISAM.
+    if ((table_arg->file->ha_table_flags() & HA_CAN_FULLTEXT_EXT) == 0)
+      return true;
+
+    return false;
+  }
+
 };
 
 /**

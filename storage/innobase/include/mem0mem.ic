@@ -1,6 +1,6 @@
 /*****************************************************************************
 
-Copyright (c) 1994, 2010, Oracle and/or its affiliates. All Rights Reserved.
+Copyright (c) 1994, 2013, Oracle and/or its affiliates. All Rights Reserved.
 
 This program is free software; you can redistribute it and/or modify it under
 the terms of the GNU General Public License as published by the Free Software
@@ -32,7 +32,7 @@ Created 6/8/1994 Heikki Tuuri
 Creates a memory heap block where data can be allocated.
 @return own: memory heap block, NULL if did not succeed (only possible
 for MEM_HEAP_BTR_SEARCH type heaps) */
-UNIV_INTERN
+
 mem_block_t*
 mem_heap_create_block(
 /*==================*/
@@ -45,7 +45,7 @@ mem_heap_create_block(
 	ulint		line);	/*!< in: line where created */
 /******************************************************************//**
 Frees a block from a memory heap. */
-UNIV_INTERN
+
 void
 mem_heap_block_free(
 /*================*/
@@ -54,7 +54,7 @@ mem_heap_block_free(
 #ifndef UNIV_HOTBACKUP
 /******************************************************************//**
 Frees the free_block field from a memory heap. */
-UNIV_INTERN
+
 void
 mem_heap_free_block_free(
 /*=====================*/
@@ -64,7 +64,7 @@ mem_heap_free_block_free(
 Adds a new block to a memory heap.
 @return created block, NULL if did not succeed (only possible for
 MEM_HEAP_BTR_SEARCH type heaps) */
-UNIV_INTERN
+
 mem_block_t*
 mem_heap_add_block(
 /*===============*/
@@ -139,7 +139,7 @@ mem_block_get_start(mem_block_t* block)
 
 /***************************************************************//**
 Allocates and zero-fills n bytes of memory from a memory heap.
-@return	allocated, zero-filled storage */
+@return allocated, zero-filled storage */
 UNIV_INLINE
 void*
 mem_heap_zalloc(
@@ -215,7 +215,7 @@ mem_heap_alloc(
 
 /*****************************************************************//**
 Returns a pointer to the heap top.
-@return	pointer to the heap top */
+@return pointer to the heap top */
 UNIV_INLINE
 byte*
 mem_heap_get_heap_top(
@@ -332,7 +332,7 @@ mem_heap_empty(
 /*****************************************************************//**
 Returns a pointer to the topmost element in a memory heap. The size of the
 element must be given.
-@return	pointer to the topmost element */
+@return pointer to the topmost element */
 UNIV_INLINE
 void*
 mem_heap_get_top(
@@ -362,6 +362,117 @@ mem_heap_get_top(
 #endif
 
 	return((void*) buf);
+}
+
+/*****************************************************************//**
+Checks if a given chunk of memory is the topmost element stored in the
+heap. If this is the case, then calling mem_heap_free_top() would free
+that element from the heap.
+@return true if topmost */
+UNIV_INLINE
+bool
+mem_heap_is_top(
+/*============*/
+	mem_heap_t*	heap,	/*!< in: memory heap */
+	const void*	buf,	/*!< in: presumed topmost element */
+	ulint		buf_sz)	/*!< in: size of buf in bytes */
+{
+	const byte*	first_free_byte;
+	const byte*	presumed_start_of_buf;
+
+	ut_ad(mem_heap_check(heap));
+
+	first_free_byte = mem_heap_get_heap_top(heap);
+
+	presumed_start_of_buf = first_free_byte - MEM_SPACE_NEEDED(buf_sz);
+
+#ifdef UNIV_MEM_DEBUG
+	mem_block_t*	block = UT_LIST_GET_LAST(heap->base);
+	/* Imitate the calc done by mem_heap_free_top()->mem_field_erase().
+	In UNIV_MEM_DEBUG the size of the top element is also checked in
+	addition to checking that the pointer matches. */
+	ulint		sz = mem_field_header_get_len(
+		reinterpret_cast<byte*>(block)
+		+ mem_block_get_free(block) - MEM_SPACE_NEEDED(buf_sz)
+		+ MEM_FIELD_HEADER_SIZE);
+
+	if (buf_sz != sz) {
+		return(false);
+	}
+	presumed_start_of_buf += MEM_FIELD_HEADER_SIZE;
+#endif /* UNIV_MEM_DEBUG */
+
+	return(presumed_start_of_buf == buf);
+}
+
+/*****************************************************************//**
+Allocate a new chunk of memory from a memory heap, possibly discarding
+the topmost element. If the memory chunk specified with (top, top_sz)
+is the topmost element, then it will be discarded, otherwise it will
+be left untouched and this function will be equivallent to
+mem_heap_alloc().
+@return allocated storage, NULL if did not succeed (only possible for
+MEM_HEAP_BTR_SEARCH type heaps) */
+UNIV_INLINE
+void*
+mem_heap_replace(
+/*=============*/
+	mem_heap_t*	heap,	/*!< in/out: memory heap */
+	const void*	top,	/*!< in: chunk to discard if possible */
+	ulint		top_sz,	/*!< in: size of top in bytes */
+	ulint		new_sz)	/*!< in: desired size of the new chunk */
+{
+	if (mem_heap_is_top(heap, top, top_sz)) {
+		mem_heap_free_top(heap, top_sz);
+	}
+
+	return(mem_heap_alloc(heap, new_sz));
+}
+
+/*****************************************************************//**
+Allocate a new chunk of memory from a memory heap, possibly discarding
+the topmost element and then copy the specified data to it. If the memory
+chunk specified with (top, top_sz) is the topmost element, then it will be
+discarded, otherwise it will be left untouched and this function will be
+equivallent to mem_heap_dup().
+@return allocated storage, NULL if did not succeed (only possible for
+MEM_HEAP_BTR_SEARCH type heaps) */
+UNIV_INLINE
+void*
+mem_heap_dup_replace(
+/*=================*/
+	mem_heap_t*	heap,	/*!< in/out: memory heap */
+	const void*	top,	/*!< in: chunk to discard if possible */
+	ulint		top_sz,	/*!< in: size of top in bytes */
+	const void*	data,	/*!< in: new data to duplicate */
+	ulint		data_sz)/*!< in: size of data in bytes */
+{
+	void*	p = mem_heap_replace(heap, top, top_sz, data_sz);
+
+	memcpy(p, data, data_sz);
+
+	return(p);
+}
+
+/*****************************************************************//**
+Allocate a new chunk of memory from a memory heap, possibly discarding
+the topmost element and then copy the specified string to it. If the memory
+chunk specified with (top, top_sz) is the topmost element, then it will be
+discarded, otherwise it will be left untouched and this function will be
+equivallent to mem_heap_strdup().
+@return allocated string, NULL if did not succeed (only possible for
+MEM_HEAP_BTR_SEARCH type heaps) */
+UNIV_INLINE
+char*
+mem_heap_strdup_replace(
+/*====================*/
+	mem_heap_t*	heap,	/*!< in/out: memory heap */
+	const void*	top,	/*!< in: chunk to discard if possible */
+	ulint		top_sz,	/*!< in: size of top in bytes */
+	const char*	str)	/*!< in: new data to duplicate */
+{
+	return(reinterpret_cast<char*>(mem_heap_dup_replace(
+			heap, top, top_sz, str, strlen(str) + 1)));
 }
 
 /*****************************************************************//**
@@ -438,15 +549,13 @@ mem_heap_create_func(
 		return(NULL);
 	}
 
-	UT_LIST_INIT(block->base);
+	UT_LIST_INIT(block->base, &mem_block_t::list);
 
 	/* Add the created block itself as the first block in the list */
-	UT_LIST_ADD_FIRST(list, block->base, block);
+	UT_LIST_ADD_FIRST(block->base, block);
 
 #ifdef UNIV_MEM_DEBUG
-
 	mem_hash_insert(block, file_name, line);
-
 #endif
 
 	return(block);
@@ -503,7 +612,7 @@ NOTE: Use the corresponding macro instead of this function.
 Allocates a single buffer of memory from the dynamic memory of
 the C compiler. Is like malloc of C. The buffer must be freed
 with mem_free.
-@return	own: free storage */
+@return own: free storage */
 UNIV_INLINE
 void*
 mem_alloc_func(
@@ -588,7 +697,7 @@ mem_heap_get_size(
 
 /**********************************************************************//**
 Duplicates a NUL-terminated string.
-@return	own: a copy of the string, must be deallocated with mem_free */
+@return own: a copy of the string, must be deallocated with mem_free */
 UNIV_INLINE
 char*
 mem_strdup(
@@ -601,7 +710,7 @@ mem_strdup(
 
 /**********************************************************************//**
 Makes a NUL-terminated copy of a nonterminated string.
-@return	own: a copy of the string, must be deallocated with mem_free */
+@return own: a copy of the string, must be deallocated with mem_free */
 UNIV_INLINE
 char*
 mem_strdupl(
@@ -617,7 +726,7 @@ mem_strdupl(
 /**********************************************************************//**
 Makes a NUL-terminated copy of a nonterminated string,
 allocated from a memory heap.
-@return	own: a copy of the string */
+@return own: a copy of the string */
 UNIV_INLINE
 char*
 mem_heap_strdupl(

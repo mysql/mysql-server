@@ -1,4 +1,4 @@
-/* Copyright (c) 2008, 2011, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2008, 2013, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -20,6 +20,8 @@
 #include <m_string.h>
 
 class THD;
+
+bool trans_check_state(THD *thd);
 
 bool trans_begin(THD *thd, uint flags= 0);
 bool trans_commit(THD *thd);

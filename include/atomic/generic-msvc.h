@@ -22,7 +22,6 @@
   intrinsics.
   8 and 16-bit atomics are not implemented, but it can be done if necessary.
 */
-#undef MY_ATOMIC_HAS_8_16
 
 #include <windows.h>
 /*

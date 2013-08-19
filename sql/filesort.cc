@@ -1,4 +1,4 @@
-/* Copyright (c) 2000, 2012, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2000, 2013, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -24,9 +24,7 @@
 #include "sql_priv.h"
 #include "filesort.h"
 #include "unireg.h"                      // REQUIRED by other includes
-#ifdef HAVE_STDDEF_H
 #include <stddef.h>			/* for macro offsetof */
-#endif
 #include <m_ctype.h>
 #include "sql_sort.h"
 #include "probes_mysql.h"
@@ -200,9 +198,6 @@ ha_rows filesort(THD *thd, TABLE *table, Filesort *filesort,
   Opt_trace_object trace_wrapper(trace);
   trace_filesort_information(trace, filesort->sortorder, s_length);
 
-#ifdef SKIP_DBUG_IN_FILESORT
-  DBUG_PUSH("");		/* No DBUG here */
-#endif
   Item_subselect *subselect= table->reginfo.join_tab ?
      table->reginfo.join_tab->join->select_lex->master_unit()->item :
      NULL;
@@ -243,7 +238,8 @@ ha_rows filesort(THD *thd, TABLE *table, Filesort *filesort,
   table_sort.unpack= unpack_addon_fields;
   if (param.addon_field &&
       !(table_sort.addon_buf=
-        (uchar *) my_malloc(param.addon_length, MYF(MY_WME))))
+        (uchar *) my_malloc(key_memory_SORT_ADDON_FIELD,
+                            param.addon_length, MYF(MY_WME))))
       goto err;
 
   if (select && select->quick)
@@ -255,7 +251,8 @@ ha_rows filesort(THD *thd, TABLE *table, Filesort *filesort,
   num_rows= table->file->estimate_rows_upper_bound();
 
   if (multi_byte_charset &&
-      !(param.tmp_buffer= (char*) my_malloc(param.sort_length,MYF(MY_WME))))
+      !(param.tmp_buffer= (char*) my_malloc(key_memory_Sort_param_tmp_buffer,
+                                            param.sort_length,MYF(MY_WME))))
     goto err;
 
   if (check_if_pq_applicable(trace, &param, &table_sort,
@@ -280,6 +277,7 @@ ha_rows filesort(THD *thd, TABLE *table, Filesort *filesort,
     }
     // For PQ queries (with limit) we initialize all pointers.
     table_sort.init_record_pointers();
+    filesort->using_pq= true;
   }
   else
   {
@@ -458,9 +456,6 @@ ha_rows filesort(THD *thd, TABLE *table, Filesort *filesort,
   else
     thd->inc_status_sort_rows(num_rows);
   *examined_rows= param.examined_rows;
-#ifdef SKIP_DBUG_IN_FILESORT
-  DBUG_POP();			/* Ok to DBUG */
-#endif
 
   // Assign the copy back!
   table->sort= table_sort;
@@ -559,9 +554,10 @@ static uchar *read_buffpek_from_file(IO_CACHE *buffpek_pointers, uint count,
   uchar *tmp= buf;
   DBUG_ENTER("read_buffpek_from_file");
   if (count > UINT_MAX/sizeof(BUFFPEK))
-    return 0; /* sizeof(BUFFPEK)*count will overflow */
+    DBUG_RETURN(0); /* sizeof(BUFFPEK)*count will overflow */
   if (!tmp)
-    tmp= (uchar *)my_malloc(length, MYF(MY_WME));
+    tmp= (uchar *)my_malloc(key_memory_Filesort_info_buffpek,
+                            length, MYF(MY_WME));
   if (tmp)
   {
     if (reinit_io_cache(buffpek_pointers,READ_CACHE,0L,0,0) ||
@@ -599,17 +595,26 @@ static void dbug_print_record(TABLE *table, bool print_rowid)
   {
     Field *field=  *pfield;
 
-    if (field->is_null())
-      fwrite("NULL", sizeof(char), 4, DBUG_FILE);
+    if (field->is_null()) {
+      if (fwrite("NULL", sizeof(char), 4, DBUG_FILE) != 4) {
+        goto unlock_file_and_quit;
+      }
+    }
    
     if (field->type() == MYSQL_TYPE_BIT)
       (void) field->val_int_as_str(&tmp, 1);
     else
       field->val_str(&tmp);
 
-    fwrite(tmp.ptr(),sizeof(char),tmp.length(),DBUG_FILE);
-    if (pfield[1])
-      fwrite(", ", sizeof(char), 2, DBUG_FILE);
+    if (fwrite(tmp.ptr(),sizeof(char),tmp.length(),DBUG_FILE) != tmp.length()) {
+      goto unlock_file_and_quit;
+    }
+
+    if (pfield[1]) {
+      if (fwrite(", ", sizeof(char), 2, DBUG_FILE) != 2) {
+        goto unlock_file_and_quit;
+      }
+    }
   }
   fprintf(DBUG_FILE, ")");
   if (print_rowid)
@@ -621,6 +626,7 @@ static void dbug_print_record(TABLE *table, bool print_rowid)
     }
   }
   fprintf(DBUG_FILE, "\n");
+unlock_file_and_quit:
   DBUG_UNLOCK_FILE;
 }
 #endif 
@@ -723,8 +729,11 @@ static ha_rows find_all_keys(Sort_param *param, SQL_SELECT *select,
 
   if (quick_select)
   {
-    if (select->quick->reset())
+    if ((error= select->quick->reset()))
+    {
+      file->print_error(error, MYF(0));
       DBUG_RETURN(HA_POS_ERROR);
+    }
   }
 
   /* Remember original bitmaps */
@@ -1238,7 +1247,8 @@ static bool save_index(Sort_param *param, uint count, Filesort_info *table_sort)
   res_length= param->res_length;
   offset= param->rec_length-res_length;
   if (!(to= table_sort->record_pointers= 
-        (uchar*) my_malloc(res_length*count, MYF(MY_WME))))
+        (uchar*) my_malloc(key_memory_Filesort_info_record_pointers,
+                           res_length*count, MYF(MY_WME))))
     DBUG_RETURN(1);                 /* purecov: inspected */
   uchar **sort_keys= table_sort->get_sort_keys();
   for (uchar **end= sort_keys+count ; sort_keys != end ; sort_keys++)
@@ -1955,7 +1965,8 @@ get_addon_fields(ulong max_length_for_sort_data,
   length+= (null_fields+7)/8;
 
   if (length+sortlength > max_length_for_sort_data ||
-      !(addonf= (SORT_ADDON_FIELD *) my_malloc(sizeof(SORT_ADDON_FIELD)*
+      !(addonf= (SORT_ADDON_FIELD *) my_malloc(key_memory_SORT_ADDON_FIELD,
+                                               sizeof(SORT_ADDON_FIELD)*
                                                (fields+1), MYF(MY_WME))))
     return 0;
 

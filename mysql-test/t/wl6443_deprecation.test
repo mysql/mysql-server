@@ -1,3 +1,8 @@
+# The include statement below is a temp one for tests that are yet to
+#be ported to run with InnoDB,
+#but needs to be kept for tests that would need MyISAM in future.
+--source include/force_myisam_default.inc
+
 --source include/not_embedded.inc
 --source include/have_validate_password_plugin.inc
 
@@ -110,3 +115,16 @@ drop user 'wl6443_u1'@'10.10.10.1';
 --exec $MYSQL_UPGRADE --skip-verbose --force 2>&1
 # It should have created a file in the MySQL Servers datadir
 file_exists $MYSQLD_DATADIR/mysql_upgrade_info;
+
+
+--echo # End of 5.6 tests
+
+
+--echo #
+--echo # WL#6802: Deprecate the INFORMATION_SCHEMA.PROFILING table
+--echo #
+
+SELECT * FROM INFORMATION_SCHEMA.profiling;
+
+
+--echo # End of 5.7 tests

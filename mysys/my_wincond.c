@@ -1,4 +1,4 @@
-/* Copyright (c) 2000, 2011, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2000, 2013, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -18,11 +18,11 @@
 *****************************************************************************/
 #if defined(_WIN32)
 
-#undef SAFE_MUTEX			/* Avoid safe_mutex redefinitions */
 #include "mysys_priv.h"
 #include <m_string.h>
 #include <process.h>
 #include <sys/timeb.h>
+#include <time.h>
 
 
 /*
@@ -338,32 +338,37 @@ int pthread_attr_setstacksize(pthread_attr_t *connect_att,DWORD stack)
   return 0;
 }
 
+int pthread_attr_getstacksize(pthread_attr_t *connect_att, size_t *stack)
+{
+  *stack= (size_t)connect_att->dwStackSize;
+  return 0;
+}
+
 int pthread_attr_destroy(pthread_attr_t *connect_att)
 {
   memset(connect_att, 0, sizeof(*connect_att));
   return 0;
 }
 
+int pthread_dummy(int ret)
+{
+  return ret;
+}
+
 /****************************************************************************
-** Fix localtime_r() to be a bit safer
+** Replacements for localtime_r and gmtime_r
 ****************************************************************************/
 
 struct tm *localtime_r(const time_t *timep,struct tm *tmp)
 {
-  if (*timep == (time_t) -1)			/* This will crash win32 */
-  {
-    memset(tmp, 0, sizeof(*tmp));
-  }
-  else
-  {
-    struct tm *res=localtime(timep);
-    if (!res)                                   /* Wrong date */
-    {
-      memset(tmp, 0, sizeof(*tmp));             /* Keep things safe */
-      return 0;
-    }
-    *tmp= *res;
-  }
+  localtime_s(tmp, timep);
   return tmp;
 }
-#endif /* __WIN__ */
+
+
+struct tm *gmtime_r(const time_t *clock, struct tm *res)
+{
+  gmtime_s(res, clock);
+  return res;
+}
+#endif /* _WIN32 */

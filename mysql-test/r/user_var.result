@@ -126,14 +126,14 @@ select @a+0, @a:=@a+0+count(*), count(*), @a+0 from t1 group by i;
 set @a=0;
 select @a,@a:="hello",@a,@a:=3,@a,@a:="hello again" from t1 group by i;
 @a	@a:="hello"	@a	@a:=3	@a	@a:="hello again"
-0	hello	0	3	0	hello again
-0	hello	0	3	0	hello again
-0	hello	0	3	0	hello again
+0	hello	0	3	3	hello again
+0	hello	0	3	3	hello again
+0	hello	0	3	3	hello again
 select @a,@a:="hello",@a,@a:=3,@a,@a:="hello again" from t1 group by i;
 @a	@a:="hello"	@a	@a:=3	@a	@a:="hello again"
-hello again	hello	hello again	3	hello again	hello again
-hello again	hello	hello again	3	hello again	hello again
-hello again	hello	hello again	3	hello again	hello again
+hello again	hello	hello	3	3	hello again
+hello again	hello	hello	3	3	hello again
+hello again	hello	hello	3	3	hello again
 drop table t1;
 set @a=_latin2'test';
 select charset(@a),collation(@a),coercibility(@a);
@@ -537,40 +537,73 @@ EXPLAIN
 {
   "query_block": {
     "select_id": 1,
+    "cost_info": {
+      "query_cost": "58.04"
+    },
     "nested_loop": [
       {
         "table": {
           "table_name": "t1",
           "access_type": "ALL",
-          "rows": 10,
-          "filtered": 100
+          "rows_examined_per_scan": 10,
+          "rows_produced_per_join": 10,
+          "filtered": 100,
+          "cost_info": {
+            "read_cost": "2.02",
+            "eval_cost": "2.00",
+            "prefix_cost": "4.02",
+            "data_read_per_join": "80"
+          },
+          "used_columns": [
+            "a"
+          ]
         }
       },
       {
         "table": {
           "table_name": "t2",
           "access_type": "ALL",
-          "rows": 5,
+          "rows_examined_per_scan": 5,
+          "rows_produced_per_join": 50,
           "filtered": 100,
           "using_join_buffer": "Block Nested Loop",
-          "attached_condition": "<if>(is_not_null_compl(t2), ((`test`.`t1`.`a` = `test`.`t2`.`a`) and (`test`.`t2`.`a` < (@var1))), true)"
+          "cost_info": {
+            "read_cost": "2.01",
+            "eval_cost": "10.00",
+            "prefix_cost": "16.03",
+            "data_read_per_join": "400"
+          },
+          "used_columns": [
+            "a"
+          ],
+          "attached_condition": "<if>(is_not_null_compl(t2), ((`test`.`t1`.`a` = `test`.`t2`.`a`) and (`test`.`t2`.`a` < (@`var1`))), true)"
         }
       },
       {
         "table": {
           "table_name": "t3",
           "access_type": "ALL",
-          "rows": 4,
+          "rows_examined_per_scan": 4,
+          "rows_produced_per_join": 200,
           "filtered": 100,
           "using_join_buffer": "Block Nested Loop",
-          "attached_condition": "<if>(is_not_null_compl(t3), ((`test`.`t1`.`a` = `test`.`t3`.`a`) and (`test`.`t3`.`a` < (@var1))), true)"
+          "cost_info": {
+            "read_cost": "2.01",
+            "eval_cost": "40.00",
+            "prefix_cost": "58.04",
+            "data_read_per_join": "1K"
+          },
+          "used_columns": [
+            "a"
+          ],
+          "attached_condition": "<if>(is_not_null_compl(t3), ((`test`.`t1`.`a` = `test`.`t3`.`a`) and (`test`.`t3`.`a` < (@`var1`))), true)"
         }
       }
     ]
   }
 }
 Warnings:
-Note	1003	/* select#1 */ select `test`.`t1`.`a` AS `a`,`test`.`t2`.`a` AS `a`,`test`.`t3`.`a` AS `a`,(@var1:=((@var1) + 0)) AS `var` from `test`.`t1` left join `test`.`t2` on(((`test`.`t1`.`a` = `test`.`t2`.`a`) and (`test`.`t2`.`a` < (@var1)))) left join `test`.`t3` on(((`test`.`t1`.`a` = `test`.`t3`.`a`) and (`test`.`t3`.`a` < (@var1)))) where 1
+Note	1003	/* select#1 */ select `test`.`t1`.`a` AS `a`,`test`.`t2`.`a` AS `a`,`test`.`t3`.`a` AS `a`,(@var1:=((@`var1`) + 0)) AS `var` from `test`.`t1` left join `test`.`t2` on(((`test`.`t1`.`a` = `test`.`t2`.`a`) and (`test`.`t2`.`a` < (@`var1`)))) left join `test`.`t3` on(((`test`.`t1`.`a` = `test`.`t3`.`a`) and (`test`.`t3`.`a` < (@`var1`)))) where 1
 SELECT t1.a, t2.a, t3.a, (@var1:= @var1+0) AS var
 FROM t1
 LEFT JOIN t2 ON t1.a=t2.a AND t2.a < @var1

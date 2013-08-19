@@ -1,3 +1,8 @@
+# The include statement below is a temp one for tests that are yet to
+#be ported to run with InnoDB,
+#but needs to be kept for tests that would need MyISAM in future.
+--source include/force_myisam_default.inc
+
 # Test to see if slave can detect certain known bugs present
 # on the master, and appropriately decides to stop
 # (assuming the bug is fixed in the slave, slave cannot of course
@@ -33,10 +38,7 @@ connection slave;
 
 call mtr.add_suppression("The slave coordinator and worker threads are stopped, possibly leaving data in inconsistent state");
 
-# show the error message 
-#1105 = ER_UNKNOWN_ERROR
---let $slave_sql_errno= 1105
---let $show_slave_sql_error= 1
+--let $slave_sql_errno= convert_error(ER_UNKNOWN_ERROR)
 call mtr.add_suppression("Slave SQL.*suffer.*http:..bugs.mysql.com.bug.php.id=24432");
 --source include/wait_for_slave_sql_error.inc
 # show that it was not replicated
@@ -86,10 +88,7 @@ t1.field_3 = t2.field_c;
 SELECT * FROM t1;
 connection slave;
 
-# show the error message
-#1105 = ER_UNKNOWN_ERROR
---let $slave_sql_errno= 1105
---let $show_slave_sql_error= 1
+--let $slave_sql_errno= convert_error(ER_UNKNOWN_ERROR)
 --source include/wait_for_slave_sql_error.inc
 
 # show that it was not replicated

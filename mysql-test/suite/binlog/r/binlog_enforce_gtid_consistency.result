@@ -9,14 +9,11 @@ ERROR HY000: Variable 'enforce_gtid_consistency' is a read only variable
 ==== Restart server ====
 include/rpl_restart_server.inc [server_number=1 parameters: --enforce-gtid-consistency=1]
 include/assert.inc [ENFORCE_GTID_CONSISTENCY should be set to 1 at restart]
-SELECT @@GLOBAL.ENFORCE_GTID_CONSISTENCY;
-@@GLOBAL.ENFORCE_GTID_CONSISTENCY
-1
 ==== CREATE TABLE .... SELECT not allowed ====
 CREATE TABLE t1 (a INT) ENGINE = InnoDB SELECT 1;
-ERROR HY000: CREATE TABLE ... SELECT is forbidden when ENFORCE_GTID_CONSISTENCY = 1.
+ERROR HY000: CREATE TABLE ... SELECT is forbidden when @@GLOBAL.ENFORCE_GTID_CONSISTENCY = 1.
 CREATE TABLE t1 (a INT) ENGINE = MyISAM SELECT 1;
-ERROR HY000: CREATE TABLE ... SELECT is forbidden when ENFORCE_GTID_CONSISTENCY = 1.
+ERROR HY000: CREATE TABLE ... SELECT is forbidden when @@GLOBAL.ENFORCE_GTID_CONSISTENCY = 1.
 CREATE TEMPORARY TABLE t1 (a INT) ENGINE = InnoDB SELECT 1;
 CREATE TEMPORARY TABLE t2 (a INT) ENGINE = InnoDB SELECT 1;
 DROP TEMPORARY TABLE t1, t2;
@@ -37,7 +34,7 @@ INSERT INTO t2 VALUES (1);
 CREATE TABLE t3 (a INT) ENGINE = InnoDB;
 CREATE TRIGGER trig BEFORE INSERT ON t3 FOR EACH ROW BEGIN INSERT INTO t1 VALUES (1); END;
 INSERT INTO t3 VALUES (1);
-ERROR HY000: When ENFORCE_GTID_CONSISTENCY = 1, updates to non-transactional tables can only be done in either autocommitted statements or single-statement transactions, and never in the same statement as updates to transactional tables.
+ERROR HY000: When @@GLOBAL.ENFORCE_GTID_CONSISTENCY = 1, updates to non-transactional tables can only be done in either autocommitted statements or single-statement transactions, and never in the same statement as updates to transactional tables.
 SET SQL_LOG_BIN = 0;
 INSERT INTO t1 VALUES (1);
 INSERT INTO t2 VALUES (1);
@@ -54,11 +51,11 @@ CREATE TEMPORARY TABLE t1 (a INT) ENGINE = InnoDB;
 DROP TEMPORARY TABLE t1;
 BEGIN;
 CREATE TEMPORARY TABLE t1 (a INT) ENGINE = InnoDB;
-ERROR HY000: When ENFORCE_GTID_CONSISTENCY = 1, the statements CREATE TEMPORARY TABLE and DROP TEMPORARY TABLE can be executed in a non-transactional context only, and require that AUTOCOMMIT = 1.
+ERROR HY000: When @@GLOBAL.ENFORCE_GTID_CONSISTENCY = 1, the statements CREATE TEMPORARY TABLE and DROP TEMPORARY TABLE can be executed in a non-transactional context only, and require that AUTOCOMMIT = 1.
 COMMIT;
 SET AUTOCOMMIT = 0;
 CREATE TEMPORARY TABLE t1 (a INT) ENGINE = InnoDB;
-ERROR HY000: When ENFORCE_GTID_CONSISTENCY = 1, the statements CREATE TEMPORARY TABLE and DROP TEMPORARY TABLE can be executed in a non-transactional context only, and require that AUTOCOMMIT = 1.
+ERROR HY000: When @@GLOBAL.ENFORCE_GTID_CONSISTENCY = 1, the statements CREATE TEMPORARY TABLE and DROP TEMPORARY TABLE can be executed in a non-transactional context only, and require that AUTOCOMMIT = 1.
 SET AUTOCOMMIT = 1;
 CREATE TEMPORARY TABLE t1 (a INT) ENGINE = InnoDB;
 BEGIN;
@@ -70,11 +67,11 @@ SET AUTOCOMMIT = 1;
 ALTER TABLE t1 ADD COLUMN (d INT);
 BEGIN;
 DROP TEMPORARY TABLE t1;
-ERROR HY000: When ENFORCE_GTID_CONSISTENCY = 1, the statements CREATE TEMPORARY TABLE and DROP TEMPORARY TABLE can be executed in a non-transactional context only, and require that AUTOCOMMIT = 1.
+ERROR HY000: When @@GLOBAL.ENFORCE_GTID_CONSISTENCY = 1, the statements CREATE TEMPORARY TABLE and DROP TEMPORARY TABLE can be executed in a non-transactional context only, and require that AUTOCOMMIT = 1.
 COMMIT;
 SET AUTOCOMMIT = 0;
 DROP TEMPORARY TABLE t1;
-ERROR HY000: When ENFORCE_GTID_CONSISTENCY = 1, the statements CREATE TEMPORARY TABLE and DROP TEMPORARY TABLE can be executed in a non-transactional context only, and require that AUTOCOMMIT = 1.
+ERROR HY000: When @@GLOBAL.ENFORCE_GTID_CONSISTENCY = 1, the statements CREATE TEMPORARY TABLE and DROP TEMPORARY TABLE can be executed in a non-transactional context only, and require that AUTOCOMMIT = 1.
 COMMIT;
 SET AUTOCOMMIT = 1;
 DROP TEMPORARY TABLE t1;
@@ -104,4 +101,7 @@ DROP TEMPORARY TABLE t2;
 COMMIT;
 SET AUTOCOMMIT = 1;
 SET SQL_LOG_BIN = 1;
+==== Restart server ====
+include/rpl_restart_server.inc [server_number=1 parameters: --enforce-gtid-consistency=0]
+include/assert.inc [ENFORCE_GTID_CONSISTENCY should be set to 0 at restart]
 include/rpl_end.inc

@@ -21,4 +21,12 @@ if (`SELECT VERSION() LIKE '%embedded%'`)
 {
    --skip Bug#37456 funcs_1: Several tests crash when used with embedded server
 }
+
+# The test
+# - results are MyISAM specific
+# - is not focused on checking MyISAM properties though it exploits
+#   some MyISAM functionality for some checks.
+--source include/have_myisam.inc
+let $engine_type       = MyISAM;
+let $other_engine_type = MyISAM;
 --source suite/funcs_1/datadict/is_tables.inc

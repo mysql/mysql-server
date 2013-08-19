@@ -1,4 +1,4 @@
-/* Copyright (c) 2008, 2012, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2008, 2013, Oracle and/or its affiliates. All rights reserved.
 
   This program is free software; you can redistribute it and/or modify
   it under the terms of the GNU General Public License as published by
@@ -31,53 +31,71 @@
 #include "pfs_global.h"
 #include "pfs_instr_class.h"
 
+ulong nested_statement_lost= 0;
+
 /**
   @addtogroup Performance_schema_buffers
   @{
 */
 
 /** Size of the mutex instances array. @sa mutex_array */
-ulong mutex_max;
+ulong mutex_max= 0;
+/** True when @c mutex_array is full. */
+bool mutex_full;
 /** Number of mutexes instance lost. @sa mutex_array */
-ulong mutex_lost;
+ulong mutex_lost= 0;
 /** Size of the rwlock instances array. @sa rwlock_array */
-ulong rwlock_max;
+ulong rwlock_max= 0;
+/** True when @c rwlock_array is full. */
+bool rwlock_full;
 /** Number or rwlock instances lost. @sa rwlock_array */
-ulong rwlock_lost;
+ulong rwlock_lost= 0;
 /** Size of the conditions instances array. @sa cond_array */
-ulong cond_max;
+ulong cond_max= 0;
+/** True when @c cond_array is full. */
+bool cond_full;
 /** Number of conditions instances lost. @sa cond_array */
-ulong cond_lost;
+ulong cond_lost= 0;
 /** Size of the thread instances array. @sa thread_array */
-ulong thread_max;
+ulong thread_max= 0;
+/** True when @c thread_array is full. */
+bool thread_full;
 /** Number or thread instances lost. @sa thread_array */
-ulong thread_lost;
+ulong thread_lost= 0;
 /** Size of the file instances array. @sa file_array */
-ulong file_max;
+ulong file_max= 0;
+/** True when @c file_array is full. */
+bool file_full;
 /** Number of file instances lost. @sa file_array */
-ulong file_lost;
+ulong file_lost= 0;
 /**
   Size of the file handle array. @sa file_handle_array.
   Signed value, for easier comparisons with a file descriptor number.
 */
-long file_handle_max;
+long file_handle_max= 0;
+/** True when @c file_handle_array is full. */
+bool file_handle_full;
 /** Number of file handle lost. @sa file_handle_array */
-ulong file_handle_lost;
+ulong file_handle_lost= 0;
 /** Size of the table instances array. @sa table_array */
-ulong table_max;
+ulong table_max= 0;
+/** True when @c table_array is full. */
+bool table_full;
 /** Number of table instances lost. @sa table_array */
-ulong table_lost;
+ulong table_lost= 0;
 /** Size of the socket instances array. @sa socket_array */
-ulong socket_max;
+ulong socket_max= 0;
+/** True when @c socket_array is full. */
+bool socket_full;
 /** Number of socket instances lost. @sa socket_array */
-ulong socket_lost;
+ulong socket_lost= 0;
 /** Number of EVENTS_WAITS_HISTORY records per thread. */
-ulong events_waits_history_per_thread;
+ulong events_waits_history_per_thread= 0;
 /** Number of EVENTS_STAGES_HISTORY records per thread. */
-ulong events_stages_history_per_thread;
+ulong events_stages_history_per_thread= 0;
 /** Number of EVENTS_STATEMENTS_HISTORY records per thread. */
-ulong events_statements_history_per_thread;
-uint statement_stack_max;
+ulong events_statements_history_per_thread= 0;
+uint statement_stack_max= 0;
 /** Number of locker lost. @sa LOCKER_STACK_SIZE. */
 ulong locker_lost= 0;
 /** Number of statement lost. @sa STATEMENT_STACK_SIZE. */
@@ -146,15 +164,18 @@ PFS_socket *socket_array= NULL;
 
 PFS_stage_stat *global_instr_class_stages_array= NULL;
 PFS_statement_stat *global_instr_class_statements_array= NULL;
+PFS_memory_stat *global_instr_class_memory_array= NULL;
 
 static volatile uint64 thread_internal_id_counter= 0;
 
-static uint thread_instr_class_waits_sizing;
-static uint thread_instr_class_stages_sizing;
-static uint thread_instr_class_statements_sizing;
+static uint thread_instr_class_waits_sizing= 0;
+static uint thread_instr_class_stages_sizing= 0;
+static uint thread_instr_class_statements_sizing= 0;
+static uint thread_instr_class_memory_sizing= 0;
 static PFS_single_stat *thread_instr_class_waits_array= NULL;
 static PFS_stage_stat *thread_instr_class_stages_array= NULL;
 static PFS_statement_stat *thread_instr_class_statements_array= NULL;
+static PFS_memory_stat *thread_instr_class_memory_array= NULL;
 
 static PFS_events_waits *thread_waits_history_array= NULL;
 static PFS_events_stages *thread_stages_history_array= NULL;
@@ -185,20 +206,28 @@ int init_instruments(const PFS_global_param *param)
   DBUG_ASSERT(wait_class_max != 0);
 
   mutex_max= param->m_mutex_sizing;
+  mutex_full= false;
   mutex_lost= 0;
   rwlock_max= param->m_rwlock_sizing;
+  rwlock_full= false;
   rwlock_lost= 0;
   cond_max= param->m_cond_sizing;
+  cond_full= false;
   cond_lost= 0;
   file_max= param->m_file_sizing;
+  file_full= false;
   file_lost= 0;
   file_handle_max= param->m_file_handle_sizing;
+  file_handle_full= false;
   file_handle_lost= 0;
   table_max= param->m_table_sizing;
+  table_full= false;
   table_lost= 0;
   thread_max= param->m_thread_sizing;
+  thread_full= false;
   thread_lost= 0;
   socket_max= param->m_socket_sizing;
+  socket_full= false;
   socket_lost= 0;
 
   events_waits_history_per_thread= param->m_events_waits_history_sizing;
@@ -216,7 +245,7 @@ int init_instruments(const PFS_global_param *param)
   thread_statements_history_sizing= param->m_thread_sizing
     * events_statements_history_per_thread;
 
-  statement_stack_max= 1;
+  statement_stack_max= param->m_statement_stack_sizing;
   thread_statements_stack_sizing= param->m_thread_sizing * statement_stack_max;
 
   thread_instr_class_stages_sizing= param->m_thread_sizing
@@ -224,6 +253,9 @@ int init_instruments(const PFS_global_param *param)
 
   thread_instr_class_statements_sizing= param->m_thread_sizing
     * param->m_statement_class_sizing;
+
+  thread_instr_class_memory_sizing= param->m_thread_sizing
+    * param->m_memory_class_sizing;
 
   session_connect_attrs_size_per_thread= param->m_session_connect_attrs_sizing;
   thread_session_connect_attrs_sizing= param->m_thread_sizing
@@ -245,6 +277,7 @@ int init_instruments(const PFS_global_param *param)
   thread_instr_class_waits_array= NULL;
   thread_instr_class_stages_array= NULL;
   thread_instr_class_statements_array= NULL;
+  thread_instr_class_memory_array= NULL;
   thread_internal_id_counter= 0;
 
   if (mutex_max > 0)
@@ -375,6 +408,18 @@ int init_instruments(const PFS_global_param *param)
       thread_instr_class_statements_array[index].reset();
   }
 
+  if (thread_instr_class_memory_sizing > 0)
+  {
+    thread_instr_class_memory_array=
+      PFS_MALLOC_ARRAY(thread_instr_class_memory_sizing,
+                       PFS_memory_stat, MYF(MY_ZEROFILL));
+    if (unlikely(thread_instr_class_memory_array == NULL))
+      return 1;
+
+    for (index= 0; index < thread_instr_class_memory_sizing; index++)
+      thread_instr_class_memory_array[index].reset();
+  }
+
   if (thread_session_connect_attrs_sizing > 0)
   {
     thread_session_connect_attrs_array=
@@ -399,6 +444,8 @@ int init_instruments(const PFS_global_param *param)
       &thread_statements_stack_array[index * statement_stack_max];
     thread_array[index].m_instr_class_statements_stats=
       &thread_instr_class_statements_array[index * statement_class_max];
+    thread_array[index].m_instr_class_memory_stats=
+      &thread_instr_class_memory_array[index * memory_class_max];
     thread_array[index].m_session_connect_attrs=
       &thread_session_connect_attrs_array[index * session_connect_attrs_size_per_thread];
   }
@@ -425,6 +472,18 @@ int init_instruments(const PFS_global_param *param)
 
     for (index= 0; index < statement_class_max; index++)
       global_instr_class_statements_array[index].reset();
+  }
+
+  if (memory_class_max > 0)
+  {
+    global_instr_class_memory_array=
+      PFS_MALLOC_ARRAY(memory_class_max,
+                       PFS_memory_stat, MYF(MY_ZEROFILL));
+    if (unlikely(global_instr_class_memory_array == NULL))
+      return 1;
+
+    for (index= 0; index < memory_class_max; index++)
+      global_instr_class_memory_array[index].reset();
   }
 
   return 0;
@@ -471,6 +530,8 @@ void cleanup_instruments(void)
   global_instr_class_stages_array= NULL;
   pfs_free(global_instr_class_statements_array);
   global_instr_class_statements_array= NULL;
+  pfs_free(global_instr_class_memory_array);
+  global_instr_class_memory_array= NULL;
   pfs_free(thread_session_connect_attrs_array);
   thread_session_connect_attrs_array=NULL;
 }
@@ -601,6 +662,17 @@ PFS_mutex* create_mutex(PFS_mutex_class *klass, const void *identity)
   uint attempts= 0;
   PFS_mutex *pfs;
 
+  if (mutex_full)
+  {
+    /*
+      This is a safety plug.
+      When mutex_array is severely undersized,
+      do not spin to death for each call.
+    */
+    mutex_lost++;
+    return NULL;
+  }
+
   while (++attempts <= mutex_max)
   {
     /*
@@ -645,6 +717,15 @@ PFS_mutex* create_mutex(PFS_mutex_class *klass, const void *identity)
   }
 
   mutex_lost++;
+  /*
+    Race condition.
+    The mutex_array might not be full if a concurrent thread
+    called destroy_mutex() during the scan, leaving one
+    empty slot we did not find.
+    However, 99.999 percent full tables or 100 percent full tables
+    are treated the same here, we declare the array overloaded.
+  */
+  mutex_full= true;
   return NULL;
 }
 
@@ -662,6 +743,7 @@ void destroy_mutex(PFS_mutex *pfs)
   if (klass->is_singleton())
     klass->m_singleton= NULL;
   pfs->m_lock.allocated_to_free();
+  mutex_full= false;
 }
 
 /**
@@ -676,6 +758,12 @@ PFS_rwlock* create_rwlock(PFS_rwlock_class *klass, const void *identity)
   uint index;
   uint attempts= 0;
   PFS_rwlock *pfs;
+
+  if (rwlock_full)
+  {
+    rwlock_lost++;
+    return NULL;
+  }
 
   while (++attempts <= rwlock_max)
   {
@@ -705,6 +793,7 @@ PFS_rwlock* create_rwlock(PFS_rwlock_class *klass, const void *identity)
   }
 
   rwlock_lost++;
+  rwlock_full= true;
   return NULL;
 }
 
@@ -722,6 +811,7 @@ void destroy_rwlock(PFS_rwlock *pfs)
   if (klass->is_singleton())
     klass->m_singleton= NULL;
   pfs->m_lock.allocated_to_free();
+  rwlock_full= false;
 }
 
 /**
@@ -736,6 +826,12 @@ PFS_cond* create_cond(PFS_cond_class *klass, const void *identity)
   uint index;
   uint attempts= 0;
   PFS_cond *pfs;
+
+  if (cond_full)
+  {
+    cond_lost++;
+    return NULL;
+  }
 
   while (++attempts <= cond_max)
   {
@@ -763,6 +859,7 @@ PFS_cond* create_cond(PFS_cond_class *klass, const void *identity)
   }
 
   cond_lost++;
+  cond_full= true;
   return NULL;
 }
 
@@ -780,6 +877,7 @@ void destroy_cond(PFS_cond *pfs)
   if (klass->is_singleton())
     klass->m_singleton= NULL;
   pfs->m_lock.allocated_to_free();
+  cond_full= false;
 }
 
 PFS_thread* PFS_thread::get_current_thread()
@@ -801,6 +899,38 @@ void PFS_thread::reset_session_connect_attrs()
   }
 }
 
+void PFS_thread::carry_memory_stat_delta(PFS_memory_stat_delta *delta, uint index)
+{
+  if (m_account != NULL)
+  {
+    m_account->carry_memory_stat_delta(delta, index);
+    return;
+  }
+
+  if (m_user != NULL)
+  {
+    m_user->carry_memory_stat_delta(delta, index);
+    /* do not return, need to process m_host below */
+  }
+
+  if (m_host != NULL)
+  {
+    m_host->carry_memory_stat_delta(delta, index);
+    return;
+  }
+
+  carry_global_memory_stat_delta(delta, index);
+}
+
+void carry_global_memory_stat_delta(PFS_memory_stat_delta *delta, uint index)
+{
+  PFS_memory_stat *stat;
+  PFS_memory_stat_delta delta_buffer;
+
+  stat= & global_instr_class_memory_array[index];
+  (void) stat->apply_delta(delta, &delta_buffer);
+}
+
 /**
   Create instrumentation for a thread instance.
   @param klass                        the thread class
@@ -818,6 +948,12 @@ PFS_thread* create_thread(PFS_thread_class *klass, const void *identity,
   uint attempts= 0;
   PFS_thread *pfs;
 
+  if (thread_full)
+  {
+    thread_lost++;
+    return NULL;
+  }
+
   while (++attempts <= thread_max)
   {
     /* See create_mutex() */
@@ -833,6 +969,8 @@ PFS_thread* create_thread(PFS_thread_class *klass, const void *identity,
         pfs->m_parent_thread_internal_id= 0;
         pfs->m_processlist_id= processlist_id;
         pfs->m_event_id= 1;
+        pfs->m_stmt_lock.set_allocated();
+        pfs->m_session_lock.set_allocated();
         pfs->m_enabled= true;
         pfs->m_class= klass;
         pfs->m_events_waits_current= & pfs->m_events_waits_stack[WAIT_STACK_BOTTOM];
@@ -854,17 +992,16 @@ PFS_thread* create_thread(PFS_thread_class *klass, const void *identity,
         pfs->m_account_hash_pins= NULL;
         pfs->m_host_hash_pins= NULL;
         pfs->m_digest_hash_pins= NULL;
+        pfs->m_program_hash_pins= NULL;
 
         pfs->m_username_length= 0;
         pfs->m_hostname_length= 0;
         pfs->m_dbname_length= 0;
         pfs->m_command= 0;
         pfs->m_start_time= 0;
-        pfs->m_processlist_state_ptr= NULL;
-        pfs->m_processlist_state_length= 0;
-        pfs->m_processlist_info_ptr= NULL;
+        pfs->m_stage= 0;
+        pfs->m_processlist_info[0]= '\0';
         pfs->m_processlist_info_length= 0;
-        pfs->m_processlist_lock.set_allocated();
 
         pfs->m_host= NULL;
         pfs->m_user= NULL;
@@ -942,6 +1079,7 @@ PFS_thread* create_thread(PFS_thread_class *klass, const void *identity,
   }
 
   thread_lost++;
+  thread_full= true;
   return NULL;
 }
 
@@ -1052,7 +1190,13 @@ void destroy_thread(PFS_thread *pfs)
     lf_hash_put_pins(pfs->m_digest_hash_pins);
     pfs->m_digest_hash_pins= NULL;
   }
+  if (pfs->m_program_hash_pins)
+  {
+    lf_hash_put_pins(pfs->m_program_hash_pins);
+    pfs->m_program_hash_pins= NULL;
+  }
   pfs->m_lock.allocated_to_free();
+  thread_full= false;
 }
 
 /**
@@ -1203,6 +1347,12 @@ search:
     return NULL;
   }
 
+  if (file_full)
+  {
+    file_lost++;
+    return NULL;
+  }
+
   while (++attempts <= file_max)
   {
     /* See create_mutex() */
@@ -1256,6 +1406,7 @@ search:
   }
 
   file_lost++;
+  file_full= true;
   return NULL;
 }
 
@@ -1295,6 +1446,7 @@ void destroy_file(PFS_thread *thread, PFS_file *pfs)
   if (klass->is_singleton())
     klass->m_singleton= NULL;
   pfs->m_lock.allocated_to_free();
+  file_full= false;
 }
 
 /**
@@ -1311,6 +1463,12 @@ PFS_table* create_table(PFS_table_share *share, PFS_thread *opening_thread,
   uint index;
   uint attempts= 0;
   PFS_table *pfs;
+
+  if (table_full)
+  {
+    table_lost++;
+    return NULL;
+  }
 
   while (++attempts <= table_max)
   {
@@ -1342,6 +1500,7 @@ PFS_table* create_table(PFS_table_share *share, PFS_thread *opening_thread,
   }
 
   table_lost++;
+  table_full= true;
   return NULL;
 }
 
@@ -1439,6 +1598,7 @@ void destroy_table(PFS_table *pfs)
   DBUG_ASSERT(pfs != NULL);
   pfs->m_share->dec_refcount();
   pfs->m_lock.allocated_to_free();
+  table_full= false;
 }
 
 /**
@@ -1456,6 +1616,12 @@ PFS_socket* create_socket(PFS_socket_class *klass, const my_socket *fd,
   uint index;
   uint attempts= 0;
   PFS_socket *pfs;
+
+  if (socket_full)
+  {
+    socket_lost++;
+    return NULL;
+  }
 
   uint fd_used= 0;
   uint addr_len_used= addr_len;
@@ -1506,6 +1672,7 @@ PFS_socket* create_socket(PFS_socket_class *klass, const my_socket *fd,
   }
 
   socket_lost++;
+  socket_full= true;
   return NULL;
 }
 
@@ -1543,6 +1710,7 @@ void destroy_socket(PFS_socket *pfs)
   pfs->m_fd= 0;
   pfs->m_addr_len= 0;
   pfs->m_lock.allocated_to_free();
+  socket_full= false;
 }
 
 static void reset_mutex_waits_by_instance(void)
@@ -1758,55 +1926,119 @@ void aggregate_all_statements(PFS_statement_stat *from_array,
   }
 }
 
-void aggregate_thread_stats(PFS_thread *thread)
+void aggregate_all_memory(bool alive,
+                          PFS_memory_stat *from_array,
+                          PFS_memory_stat *to_array)
 {
-  if (likely(thread->m_account != NULL))
+  PFS_memory_stat *from;
+  PFS_memory_stat *from_last;
+  PFS_memory_stat *to;
+
+  from= from_array;
+  from_last= from_array + memory_class_max;
+  to= to_array;
+
+  if (alive)
   {
-    thread->m_account->m_disconnected_count++;
+    for ( ; from < from_last ; from++, to++)
+    {
+      from->partial_aggregate_to(to);
+    }
+  }
+  else
+  {
+    for ( ; from < from_last ; from++, to++)
+    {
+      from->full_aggregate_to(to);
+      from->reset();
+    }
+  }
+}
+
+void aggregate_all_memory(bool alive,
+                          PFS_memory_stat *from_array,
+                          PFS_memory_stat *to_array_1,
+                          PFS_memory_stat *to_array_2)
+{
+  PFS_memory_stat *from;
+  PFS_memory_stat *from_last;
+  PFS_memory_stat *to_1;
+  PFS_memory_stat *to_2;
+
+  from= from_array;
+  from_last= from_array + memory_class_max;
+  to_1= to_array_1;
+  to_2= to_array_2;
+
+  if (alive)
+  {
+    for ( ; from < from_last ; from++, to_1++, to_2++)
+    {
+      from->partial_aggregate_to(to_1, to_2);
+    }
+  }
+  else
+  {
+    for ( ; from < from_last ; from++, to_1++, to_2++)
+    {
+      from->full_aggregate_to(to_1, to_2);
+      from->reset();
+    }
+  }
+}
+
+void aggregate_thread_stats(PFS_thread *thread,
+                            PFS_account *safe_account,
+                            PFS_user *safe_user,
+                            PFS_host *safe_host)
+{
+  if (likely(safe_account != NULL))
+  {
+    safe_account->m_disconnected_count++;
     return;
   }
 
-  if (thread->m_user != NULL)
-    thread->m_user->m_disconnected_count++;
+  if (safe_user != NULL)
+    safe_user->m_disconnected_count++;
 
-  if (thread->m_host != NULL)
-    thread->m_host->m_disconnected_count++;
+  if (safe_host != NULL)
+    safe_host->m_disconnected_count++;
 
   /* There is no global table for connections statistics. */
   return;
 }
 
-void aggregate_thread(PFS_thread *thread)
+void aggregate_thread(PFS_thread *thread,
+                      PFS_account *safe_account,
+                      PFS_user *safe_user,
+                      PFS_host *safe_host)
 {
-  aggregate_thread_waits(thread);
-  aggregate_thread_stages(thread);
-  aggregate_thread_statements(thread);
-  aggregate_thread_stats(thread);
+  aggregate_thread_waits(thread, safe_account, safe_user, safe_host);
+  aggregate_thread_stages(thread, safe_account, safe_user, safe_host);
+  aggregate_thread_statements(thread, safe_account, safe_user, safe_host);
+  aggregate_thread_memory(false, thread, safe_account, safe_user, safe_host);
+  aggregate_thread_stats(thread, safe_account, safe_user, safe_host);
 }
 
-void aggregate_thread_waits(PFS_thread *thread)
+void aggregate_thread_waits(PFS_thread *thread,
+                            PFS_account *safe_account,
+                            PFS_user *safe_user,
+                            PFS_host *safe_host)
 {
-  if (likely(thread->m_account != NULL))
+  if (likely(safe_account != NULL))
   {
-    DBUG_ASSERT(thread->m_user == NULL);
-    DBUG_ASSERT(thread->m_host == NULL);
-    DBUG_ASSERT(thread->m_account->get_refcount() > 0);
-
     /*
       Aggregate EVENTS_WAITS_SUMMARY_BY_THREAD_BY_EVENT_NAME
       to EVENTS_WAITS_SUMMARY_BY_ACCOUNT_BY_EVENT_NAME.
     */
     aggregate_all_event_names(thread->m_instr_class_waits_stats,
-                              thread->m_account->m_instr_class_waits_stats);
+                              safe_account->m_instr_class_waits_stats);
 
     return;
   }
 
-  if ((thread->m_user != NULL) && (thread->m_host != NULL))
+  if ((safe_user != NULL) && (safe_host != NULL))
   {
-    DBUG_ASSERT(thread->m_user->get_refcount() > 0);
-    DBUG_ASSERT(thread->m_host->get_refcount() > 0);
-
     /*
       Aggregate EVENTS_WAITS_SUMMARY_BY_THREAD_BY_EVENT_NAME to:
       -  EVENTS_WAITS_SUMMARY_BY_USER_BY_EVENT_NAME
@@ -1814,34 +2046,30 @@ void aggregate_thread_waits(PFS_thread *thread)
       in parallel.
     */
     aggregate_all_event_names(thread->m_instr_class_waits_stats,
-                              thread->m_user->m_instr_class_waits_stats,
-                              thread->m_host->m_instr_class_waits_stats);
+                              safe_user->m_instr_class_waits_stats,
+                              safe_host->m_instr_class_waits_stats);
     return;
   }
 
-  if (thread->m_user != NULL)
+  if (safe_user != NULL)
   {
-    DBUG_ASSERT(thread->m_user->get_refcount() > 0);
-
     /*
       Aggregate EVENTS_WAITS_SUMMARY_BY_THREAD_BY_EVENT_NAME
       to EVENTS_WAITS_SUMMARY_BY_USER_BY_EVENT_NAME, directly.
     */
     aggregate_all_event_names(thread->m_instr_class_waits_stats,
-                              thread->m_user->m_instr_class_waits_stats);
+                              safe_user->m_instr_class_waits_stats);
     return;
   }
 
-  if (thread->m_host != NULL)
+  if (safe_host != NULL)
   {
-    DBUG_ASSERT(thread->m_host->get_refcount() > 0);
-
     /*
       Aggregate EVENTS_WAITS_SUMMARY_BY_THREAD_BY_EVENT_NAME
       to EVENTS_WAITS_SUMMARY_BY_HOST_BY_EVENT_NAME, directly.
     */
     aggregate_all_event_names(thread->m_instr_class_waits_stats,
-                              thread->m_host->m_instr_class_waits_stats);
+                              safe_host->m_instr_class_waits_stats);
     return;
   }
 
@@ -1849,29 +2077,25 @@ void aggregate_thread_waits(PFS_thread *thread)
   thread->reset_waits_stats();
 }
 
-void aggregate_thread_stages(PFS_thread *thread)
+void aggregate_thread_stages(PFS_thread *thread,
+                             PFS_account *safe_account,
+                             PFS_user *safe_user,
+                             PFS_host *safe_host)
 {
-  if (likely(thread->m_account != NULL))
+  if (likely(safe_account != NULL))
   {
-    DBUG_ASSERT(thread->m_user == NULL);
-    DBUG_ASSERT(thread->m_host == NULL);
-    DBUG_ASSERT(thread->m_account->get_refcount() > 0);
-
     /*
       Aggregate EVENTS_STAGES_SUMMARY_BY_THREAD_BY_EVENT_NAME
       to EVENTS_STAGES_SUMMARY_BY_ACCOUNT_BY_EVENT_NAME.
     */
     aggregate_all_stages(thread->m_instr_class_stages_stats,
-                         thread->m_account->m_instr_class_stages_stats);
+                         safe_account->m_instr_class_stages_stats);
 
     return;
   }
 
-  if ((thread->m_user != NULL) && (thread->m_host != NULL))
+  if ((safe_user != NULL) && (safe_host != NULL))
   {
-    DBUG_ASSERT(thread->m_user->get_refcount() > 0);
-    DBUG_ASSERT(thread->m_host->get_refcount() > 0);
-
     /*
       Aggregate EVENTS_STAGES_SUMMARY_BY_THREAD_BY_EVENT_NAME to:
       -  EVENTS_STAGES_SUMMARY_BY_USER_BY_EVENT_NAME
@@ -1879,15 +2103,13 @@ void aggregate_thread_stages(PFS_thread *thread)
       in parallel.
     */
     aggregate_all_stages(thread->m_instr_class_stages_stats,
-                         thread->m_user->m_instr_class_stages_stats,
-                         thread->m_host->m_instr_class_stages_stats);
+                         safe_user->m_instr_class_stages_stats,
+                         safe_host->m_instr_class_stages_stats);
     return;
   }
 
-  if (thread->m_user != NULL)
+  if (safe_user != NULL)
   {
-    DBUG_ASSERT(thread->m_user->get_refcount() > 0);
-
     /*
       Aggregate EVENTS_STAGES_SUMMARY_BY_THREAD_BY_EVENT_NAME to:
       -  EVENTS_STAGES_SUMMARY_BY_USER_BY_EVENT_NAME
@@ -1895,21 +2117,19 @@ void aggregate_thread_stages(PFS_thread *thread)
       in parallel.
     */
     aggregate_all_stages(thread->m_instr_class_stages_stats,
-                         thread->m_user->m_instr_class_stages_stats,
+                         safe_user->m_instr_class_stages_stats,
                          global_instr_class_stages_array);
     return;
   }
 
-  if (thread->m_host != NULL)
+  if (safe_host != NULL)
   {
-    DBUG_ASSERT(thread->m_host->get_refcount() > 0);
-
     /*
       Aggregate EVENTS_STAGES_SUMMARY_BY_THREAD_BY_EVENT_NAME
       to EVENTS_STAGES_SUMMARY_BY_HOST_BY_EVENT_NAME, directly.
     */
     aggregate_all_stages(thread->m_instr_class_stages_stats,
-                         thread->m_host->m_instr_class_stages_stats);
+                         safe_host->m_instr_class_stages_stats);
     return;
   }
 
@@ -1921,29 +2141,25 @@ void aggregate_thread_stages(PFS_thread *thread)
                        global_instr_class_stages_array);
 }
 
-void aggregate_thread_statements(PFS_thread *thread)
+void aggregate_thread_statements(PFS_thread *thread,
+                                 PFS_account *safe_account,
+                                 PFS_user *safe_user,
+                                 PFS_host *safe_host)
 {
-  if (likely(thread->m_account != NULL))
+  if (likely(safe_account != NULL))
   {
-    DBUG_ASSERT(thread->m_user == NULL);
-    DBUG_ASSERT(thread->m_host == NULL);
-    DBUG_ASSERT(thread->m_account->get_refcount() > 0);
-
     /*
       Aggregate EVENTS_STATEMENTS_SUMMARY_BY_THREAD_BY_EVENT_NAME
       to EVENTS_STATEMENTS_SUMMARY_BY_ACCOUNT_BY_EVENT_NAME.
     */
     aggregate_all_statements(thread->m_instr_class_statements_stats,
-                             thread->m_account->m_instr_class_statements_stats);
+                             safe_account->m_instr_class_statements_stats);
 
     return;
   }
 
-  if ((thread->m_user != NULL) && (thread->m_host != NULL))
+  if ((safe_user != NULL) && (safe_host != NULL))
   {
-    DBUG_ASSERT(thread->m_user->get_refcount() > 0);
-    DBUG_ASSERT(thread->m_host->get_refcount() > 0);
-
     /*
       Aggregate EVENTS_STATEMENT_SUMMARY_BY_THREAD_BY_EVENT_NAME to:
       -  EVENTS_STATEMENT_SUMMARY_BY_USER_BY_EVENT_NAME
@@ -1951,15 +2167,13 @@ void aggregate_thread_statements(PFS_thread *thread)
       in parallel.
     */
     aggregate_all_statements(thread->m_instr_class_statements_stats,
-                             thread->m_user->m_instr_class_statements_stats,
-                             thread->m_host->m_instr_class_statements_stats);
+                             safe_user->m_instr_class_statements_stats,
+                             safe_host->m_instr_class_statements_stats);
     return;
   }
 
-  if (thread->m_user != NULL)
+  if (safe_user != NULL)
   {
-    DBUG_ASSERT(thread->m_user->get_refcount() > 0);
-
     /*
       Aggregate EVENTS_STATEMENTS_SUMMARY_BY_THREAD_BY_EVENT_NAME to:
       -  EVENTS_STATEMENTS_SUMMARY_BY_USER_BY_EVENT_NAME
@@ -1967,21 +2181,19 @@ void aggregate_thread_statements(PFS_thread *thread)
       in parallel.
     */
     aggregate_all_statements(thread->m_instr_class_statements_stats,
-                             thread->m_user->m_instr_class_statements_stats,
+                             safe_user->m_instr_class_statements_stats,
                              global_instr_class_statements_array);
     return;
   }
 
-  if (thread->m_host != NULL)
+  if (safe_host != NULL)
   {
-    DBUG_ASSERT(thread->m_host->get_refcount() > 0);
-
     /*
       Aggregate EVENTS_STATEMENTS_SUMMARY_BY_THREAD_BY_EVENT_NAME
       to EVENTS_STATEMENTS_SUMMARY_BY_HOST_BY_EVENT_NAME, directly.
     */
     aggregate_all_statements(thread->m_instr_class_statements_stats,
-                             thread->m_host->m_instr_class_statements_stats);
+                             safe_host->m_instr_class_statements_stats);
     return;
   }
 
@@ -1991,6 +2203,75 @@ void aggregate_thread_statements(PFS_thread *thread)
   */
   aggregate_all_statements(thread->m_instr_class_statements_stats,
                            global_instr_class_statements_array);
+}
+
+void aggregate_thread_memory(bool alive, PFS_thread *thread,
+                             PFS_account *safe_account,
+                             PFS_user *safe_user,
+                             PFS_host *safe_host)
+{
+  if (likely(safe_account != NULL))
+  {
+    /*
+      Aggregate MEMORY_SUMMARY_BY_THREAD_BY_EVENT_NAME
+      to MEMORY_SUMMARY_BY_ACCOUNT_BY_EVENT_NAME.
+    */
+    aggregate_all_memory(alive,
+                         thread->m_instr_class_memory_stats,
+                         safe_account->m_instr_class_memory_stats);
+
+    return;
+  }
+
+  if ((safe_user != NULL) && (safe_host != NULL))
+  {
+    /*
+      Aggregate MEMORY_SUMMARY_BY_THREAD_BY_EVENT_NAME to:
+      -  MEMORY_SUMMARY_BY_USER_BY_EVENT_NAME
+      -  MEMORY_SUMMARY_BY_HOST_BY_EVENT_NAME
+      in parallel.
+    */
+    aggregate_all_memory(alive,
+                         thread->m_instr_class_memory_stats,
+                         safe_user->m_instr_class_memory_stats,
+                         safe_host->m_instr_class_memory_stats);
+    return;
+  }
+
+  if (safe_user != NULL)
+  {
+    /*
+      Aggregate MEMORY_SUMMARY_BY_THREAD_BY_EVENT_NAME to:
+      -  MEMORY_SUMMARY_BY_USER_BY_EVENT_NAME
+      -  MEMORY_SUMMARY_GLOBAL_BY_EVENT_NAME
+      in parallel.
+    */
+    aggregate_all_memory(alive,
+                         thread->m_instr_class_memory_stats,
+                         safe_user->m_instr_class_memory_stats,
+                         global_instr_class_memory_array);
+    return;
+  }
+
+  if (safe_host != NULL)
+  {
+    /*
+      Aggregate MEMORY_SUMMARY_BY_THREAD_BY_EVENT_NAME
+      to MEMORY_SUMMARY_BY_HOST_BY_EVENT_NAME, directly.
+    */
+    aggregate_all_memory(alive,
+                         thread->m_instr_class_memory_stats,
+                         safe_host->m_instr_class_memory_stats);
+    return;
+  }
+
+  /*
+    Aggregate MEMORY_SUMMARY_BY_THREAD_BY_EVENT_NAME
+    to MEMORY_SUMMARY_GLOBAL_BY_EVENT_NAME.
+  */
+  aggregate_all_memory(alive,
+                       thread->m_instr_class_memory_stats,
+                       global_instr_class_memory_array);
 }
 
 void clear_thread_account(PFS_thread *thread)

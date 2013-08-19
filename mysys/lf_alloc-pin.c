@@ -1,5 +1,5 @@
 /* QQ: TODO multi-pinbox */
-/* Copyright (c) 2006, 2011, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2006, 2013, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -101,6 +101,7 @@
 */
 #include <my_global.h>
 #include <my_sys.h>
+#include <mysys_priv.h>
 #include <lf.h>
 
 #define LF_PINBOX_MAX_PINS 65536
@@ -344,7 +345,6 @@ static void _lf_pinbox_real_free(LF_PINS *pins)
 
   npins= pinbox->pins_in_array+1;
 
-#ifdef HAVE_ALLOCA
   if (pins->stack_ends_here != NULL)
   {
     int alloca_size= sizeof(void *)*LF_PINBOX_PINS*npins;
@@ -365,7 +365,6 @@ static void _lf_pinbox_real_free(LF_PINS *pins)
         qsort(addr, npins, sizeof(void *), (qsort_cmp)ptr_cmp);
     }
   }
-#endif
 
   list= pins->purgatory;
   pins->purgatory= 0;
@@ -510,7 +509,8 @@ void *_lf_alloc_new(LF_PINS *pins)
     } while (node != allocator->top && LF_BACKOFF);
     if (!node)
     {
-      node= (void *)my_malloc(allocator->element_size, MYF(MY_WME));
+      node= (void *)my_malloc(key_memory_lf_node,
+                              allocator->element_size, MYF(MY_WME));
       if (allocator->constructor)
         allocator->constructor(node);
 #ifdef MY_LF_EXTRA_DEBUG

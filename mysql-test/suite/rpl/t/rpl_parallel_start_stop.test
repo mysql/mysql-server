@@ -1,3 +1,8 @@
+# The include statement below is a temp one for tests that are yet to
+#be ported to run with InnoDB,
+#but needs to be kept for tests that would need MyISAM in future.
+--source include/force_myisam_default.inc
+
 #
 # WL#5569 MTS
 #
@@ -9,13 +14,14 @@
 #
 
 --source include/master-slave.inc
+--source include/have_slave_parallel_type_database.inc
 --source include/have_binlog_format_row.inc
 --source include/not_gtid_enabled.inc
 
 connection slave;
 
-call mtr.add_suppression('Slave SQL: Could not execute Write_rows event on table test.t1');
-call mtr.add_suppression('Slave SQL: Could not execute Update_rows event on table test.t1; Deadlock found when trying to get lock');
+call mtr.add_suppression('Slave SQL:.* Could not execute Write_rows event on table test.t1');
+call mtr.add_suppression("Slave SQL:.* Could not execute Update_rows event on table d1.t1; Deadlock found when trying to get lock");
 call mtr.add_suppression("The slave coordinator and worker threads are stopped, possibly leaving data in inconsistent state");
 
 create view worker_proc_list as SELECT id  from Information_Schema.processlist
