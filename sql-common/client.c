@@ -109,6 +109,10 @@ PSI_memory_key key_memory_MYSQL;
 PSI_memory_key key_memory_MYSQL_RES;
 PSI_memory_key key_memory_MYSQL_ROW;
 
+#if defined (_WIN32) && !defined (EMBEDDED_LIBRARY)
+PSI_memory_key key_memory_create_shared_memory;
+#endif /* _WIN32 && ! EMBEDDED_LIBRARY */
+
 #ifdef HAVE_PSI_INTERFACE
 /*
   This code is common to the client and server,
@@ -116,10 +120,6 @@ PSI_memory_key key_memory_MYSQL_ROW;
   for example with replication.
   Therefore, the code is also instrumented.
 */
-
-#if defined (_WIN32) && !defined (EMBEDDED_LIBRARY)
-PSI_memory_key key_memory_create_shared_memory;
-#endif /* _WIN32 && ! EMBEDDED_LIBRARY */
 
 static PSI_memory_info all_client_memory[]=
 {
