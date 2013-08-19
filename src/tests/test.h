@@ -400,6 +400,8 @@ static void copy_dbt(DBT *dest, const DBT *src) {
     memcpy(dest->data, src->data, src->size);
 }
 
+// DBT_ARRAY is a toku-specific type
+#ifdef USE_TDB
 UU()
 static int
 env_update_multiple_test_no_array(
@@ -504,6 +506,7 @@ static int env_del_multiple_test_no_array(
     }
     return r;
 }
+#endif
 
 /* Some macros for evaluating blocks or functions within the scope of a
  * transaction. */
