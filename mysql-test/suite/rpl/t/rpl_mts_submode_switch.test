@@ -4,6 +4,8 @@
 
 # The motive of this test case is to test the
 # mts submode switch between master parallel to dbname and vice-versa
+
+-- source include/have_debug.inc
 -- source include/master-slave.inc
 call mtr.add_suppression("Statement is unsafe because it uses a system function that may return a different value on the slave");
 -- let $saved_debug=`SELECT @@global.DEBUG`
