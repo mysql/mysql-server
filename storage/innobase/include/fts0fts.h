@@ -364,7 +364,10 @@ need a sync to free some memory */
 extern bool		fts_need_sync;
 
 /** Maximum possible Fulltext word length */
-#define FTS_MAX_WORD_LEN	3 * HA_FT_MAXCHARLEN
+#define FTS_MAX_WORD_LEN		HA_FT_MAXBYTELEN
+
+/** Maximum possible Fulltext word length (in characters) */
+#define FTS_MAX_WORD_LEN_IN_CHAR	HA_FT_MAXCHARLEN
 
 /** Variable specifying the table that has Fulltext index to display its
 content through information schema table */
