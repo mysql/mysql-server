@@ -164,6 +164,8 @@ extern my_bool relay_log_recovery;
 extern uint test_flags,select_errors,ha_open_options;
 extern uint protocol_version, mysqld_port, dropping_tables;
 extern ulong delay_key_write_options;
+extern ulong opt_log_timestamps;
+extern const char *timestamp_type_names[];
 extern char *opt_general_logname, *opt_slow_logname, *opt_bin_logname,
             *opt_relay_logname;
 extern char *opt_backup_history_logname, *opt_backup_progress_logname,
@@ -171,6 +173,7 @@ extern char *opt_backup_history_logname, *opt_backup_progress_logname,
 extern const char *log_output_str;
 extern const char *log_backup_output_str;
 extern char *mysql_home_ptr, *pidfile_name_ptr;
+extern char *default_auth_plugin;
 extern char *my_bind_addr_str;
 extern char glob_hostname[FN_REFLEN], mysql_home[FN_REFLEN];
 extern char pidfile_name[FN_REFLEN], system_time_zone[30], *opt_init_file;
@@ -287,6 +290,7 @@ extern ulong connection_errors_internal;
 extern ulong connection_errors_max_connection;
 extern ulong connection_errors_peer_addr;
 extern ulong log_warnings;
+extern ulong log_error_verbosity;
 extern LEX_CSTRING sql_statement_names[(uint) SQLCOM_END + 1];
 extern mysql_cond_t COND_thread_cache, COND_flush_thread_cache;
 #if defined(_WIN32) && !defined(EMBEDDED_LIBRARY)

@@ -78,7 +78,7 @@ SET GLOBAL DEBUG ='+d,set_commit_parent_100';
 # 1. A fresh group is started since we will encounter a "real" ROTATE event
 # 2. Query on connection m2  have released its temp tables so that the
 #    corresponding query on m3 should not fail on slave.
- 
+
 FLUSH LOGS;
 
 # temp tables operations
@@ -221,14 +221,24 @@ DROP DATABASE db4;
 
 -- connection slave
 
+# temporary fix until BUG#16580366 is fixed.
+# wait till we have dropped all temp tables.  
+-- let $status_var_comparsion= =    
+-- let $status_var= slave_open_temp_tables
+-- let $status_var_value= 0
+-- source include/wait_for_status_var.inc
+
 -- source include/stop_slave.inc
+
 -- disable_query_log
 -- disable_result_log
 -- eval SET GLOBAL slave_parallel_type= '$saved_submode'
 -- source include/start_slave.inc
+
 -- connection master
 -- eval SET GLOBAL DEBUG='$saved_debug'
 -- enable_query_log
 -- enable_result_log
+
 -- source include/rpl_end.inc
 

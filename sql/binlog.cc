@@ -9034,7 +9034,7 @@ static void print_unsafe_warning_to_log(int unsafe_type, char* buf,
    query       - The actual query statement.
 
   TODO: Remove this function and implement a general service for all warnings
-  that would prevent flooding the error log.
+  that would prevent flooding the error log. => switch to log_throttle class?
 */
 static void do_unsafe_limit_checkout(char* buf, int unsafe_type, char* query)
 {
@@ -9148,7 +9148,7 @@ void THD::issue_unsafe_warnings()
                           ER_BINLOG_UNSAFE_STATEMENT,
                           ER(ER_BINLOG_UNSAFE_STATEMENT),
                           ER(LEX::binlog_stmt_unsafe_errcode[unsafe_type]));
-      if (log_warnings)
+      if (log_error_verbosity > 1)
       {
         if (unsafe_type == LEX::BINLOG_STMT_UNSAFE_LIMIT)
           do_unsafe_limit_checkout( buf, unsafe_type, query());

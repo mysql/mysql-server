@@ -528,8 +528,7 @@ int convert_handler_error(int error, THD* thd, TABLE *table)
     actual_error= (thd->is_error() ? thd->get_stmt_da()->mysql_errno() :
                         ER_UNKNOWN_ERROR);
     if (actual_error == ER_UNKNOWN_ERROR)
-      if (log_warnings)
-        sql_print_warning("Unknown error detected %d in handler", error);
+      sql_print_warning("Unknown error detected %d in handler", error);
   }
 
   return (actual_error);
@@ -5116,11 +5115,11 @@ compare_errors:
              ignored_error_code(actual_error))
     {
       DBUG_PRINT("info",("error ignored"));
-      if (log_warnings > 1 && ignored_error_code(actual_error))
+      if (ignored_error_code(actual_error))
       {
-	    rli->report(WARNING_LEVEL, actual_error,
-                "Could not execute %s event. Detailed error: %s;",
-		 get_type_str(), thd->get_stmt_da()->message_text());
+        rli->report(INFORMATION_LEVEL, actual_error,
+                    "Could not execute %s event. Detailed error: %s;",
+                    get_type_str(), thd->get_stmt_da()->message_text());
       }
       clear_all_errors(thd, const_cast<Relay_log_info*>(rli));
       thd->killed= THD::NOT_KILLED;
@@ -10322,12 +10321,15 @@ int Rows_log_event::handle_idempotent_and_ignored_errors(Relay_log_info const *r
 
     if (idempotent_error || ignored_error)
     {
-      if ( (idempotent_error && log_warnings) || 
-		(ignored_error && log_warnings > 1) )
-        slave_rows_error_report(WARNING_LEVEL, error, rli, thd, m_table,
-                                get_type_str(),
-                                const_cast<Relay_log_info*>(rli)->get_rpl_log_name(),
-                                (ulong) log_pos);
+      loglevel ll;
+      if (idempotent_error)
+        ll= WARNING_LEVEL;
+      else
+        ll= INFORMATION_LEVEL;
+      slave_rows_error_report(ll, error, rli, thd, m_table,
+                              get_type_str(),
+                              const_cast<Relay_log_info*>(rli)->get_rpl_log_name(),
+                              (ulong) log_pos);
       thd->get_stmt_da()->reset_condition_info(thd);
       clear_all_errors(thd, const_cast<Relay_log_info*>(rli));
       *err= 0;
@@ -11513,12 +11515,10 @@ AFTER_MAIN_EXEC_ROW_LOOP:
     if ((error= do_after_row_operations(rli, error)) &&
         ignored_error_code(convert_handler_error(error, thd, table)))
     {
-
-      if (log_warnings > 1)
-        slave_rows_error_report(WARNING_LEVEL, error, rli, thd, table,
-                                get_type_str(),
-                                const_cast<Relay_log_info*>(rli)->get_rpl_log_name(),
-                                (ulong) log_pos);
+      slave_rows_error_report(INFORMATION_LEVEL, error, rli, thd, table,
+                              get_type_str(),
+                              const_cast<Relay_log_info*>(rli)->get_rpl_log_name(),
+                              (ulong) log_pos);
       thd->get_stmt_da()->reset_condition_info(thd);
       clear_all_errors(thd, const_cast<Relay_log_info*>(rli));
       error= 0;
