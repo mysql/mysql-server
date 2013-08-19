@@ -973,7 +973,8 @@ retry_page_get:
 		rw_latch = upper_rw_latch;
 
 		rw_lock_s_lock(&block->lock);
-		left_page_no = btr_page_get_prev(page, mtr);
+		left_page_no = btr_page_get_prev(
+			buf_block_get_frame(block), mtr);
 		rw_lock_s_unlock(&block->lock);
 
 		if (left_page_no != FIL_NULL) {
