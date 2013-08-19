@@ -1219,10 +1219,7 @@ JOIN::optimize()
       zero_result_cause=
         "Impossible WHERE noticed after reading const tables";
       select_lex->mark_const_derived(zero_result_cause);
-      if (select_options & SELECT_DESCRIBE)
-      {
-         conds=new Item_int((longlong) 0,1);
-      }
+      conds=new Item_int((longlong) 0,1);
       goto setup_subq_exit;
     }
   }
