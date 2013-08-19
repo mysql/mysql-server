@@ -1328,10 +1328,9 @@ INSERT INTO articles (title,body) VALUES
 ('MySQL vs. YourSQL','In the following database comparison ...'),
 ('( that''s me )','When configured properly, MySQL ...');
 SELECT * FROM articles WHERE MATCH (title,body)
-AGAINST ('( that''s* )' IN BOOLEAN MODE);
+AGAINST ('( yours''s* )' IN BOOLEAN MODE);
 id	title	body
-1	MySQL Tutorial	DBMS stands for DataBase ...
-3	Optimizing MySQL	In this tutorial we will show ...
+5	MySQL vs. YourSQL	In the following database comparison ...
 SELECT * FROM articles WHERE MATCH (title,body)
 AGAINST ('s*' IN BOOLEAN MODE);
 id	title	body
