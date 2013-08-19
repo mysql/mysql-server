@@ -7,9 +7,12 @@ import MySQLdb
 
 def usage():
     print "diff the tokudb engine status"
-    print "[--host=HOSTNAME] (default: localhost)"
-    print "[--port=PORT]"
-    print "[--sleeptime=SLEEPTIME] (default: 10 seconds)"
+    print "--host=HOSTNAME (default: localhost)"
+    print "--port=PORT"
+    print "--sleeptime=SLEEPTIME (default: 10 seconds)"
+    print "--q='show engine tokudb status'"
+    print "--q='select * from information_schema.global_status'"
+
     return 1
 
 def convert(v):
@@ -38,9 +41,14 @@ def printit(stats, rs, sleeptime):
                 print k, "|", oldv, "|", v,
                 try:
                     d = v - oldv
-                    if d == 0:
-                        d = float(v - oldv)
-                    print "|", d, "|", d / sleeptime
+                    if sleeptime != 1:
+                        if d >= sleeptime:
+                            e = d / sleeptime
+                        else:
+                            e = float(d) / sleeptime
+                        print "|", d, "|", e
+                    else:
+                        print "|", d
                 except:
                     print
         stats[k] = v
