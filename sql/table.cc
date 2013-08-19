@@ -2070,7 +2070,7 @@ bool fix_vcol_expr(THD *thd,
   Item* func_expr= vcol_info->expr_item;
   bool result= TRUE;
   TABLE_LIST tables;
-  int error;
+  int error= 0;
   const char *save_where;
   Field **ptr, *field;
   enum_mark_columns save_mark_used_columns= thd->mark_used_columns;
@@ -2083,7 +2083,11 @@ bool fix_vcol_expr(THD *thd,
   thd->where= "virtual column function";
 
   /* Fix fields referenced to by the virtual column function */
-  error= func_expr->fix_fields(thd, (Item**)0);
+  if (!func_expr->fixed)
+    error= func_expr->fix_fields(thd, &vcol_info->expr_item);
+  /* fix_fields could change the expression */
+  func_expr= vcol_info->expr_item;
+  /* Number of columns will be checked later */
 
   if (unlikely(error))
   {
