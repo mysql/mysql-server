@@ -132,7 +132,7 @@ struct fts_query_t {
 
 	doc_id_t	upper_doc_id;	/*!< Highest doc id in doc_ids */
 
-	ibool		boolean_mode;	/*!< TRUE if boolean mode query */
+	bool		boolean_mode;	/*!< TRUE if boolean mode query */
 
 	ib_vector_t*	matched;	/*!< Array of matching documents
 					(fts_match_t) to search for a phrase */
@@ -3707,7 +3707,7 @@ fts_query_parse(
 {
 	int		error;
 	fts_ast_state_t state;
-	ibool		mode = query->boolean_mode;
+	bool		mode = query->boolean_mode;
 
 	memset(&state, 0x0, sizeof(state));
 
@@ -3754,6 +3754,89 @@ fts_query_can_optimize(
 }
 
 /*******************************************************************//**
+Pre-process the query string
+1) make it lower case
+2) in boolean mode, if there is '-' or '+' that is immediately proceeded
+and followed by valid word, make it a space
+@return the processed string */
+static
+byte*
+fts_query_str_preprocess(
+/*=====================*/
+	const byte*	query_str,	/*!< in: FTS query */
+	ulint		query_len,	/*!< in: FTS query string len */
+	ulint		*result_len,	/*!< out: result string length */
+	CHARSET_INFO*	charset,	/*!< in: string charset */
+	bool		boolean_mode)	/*!< in: is boolean mode */
+{
+	ulint	cur_pos = 0;
+	ulint	str_len;
+	byte*	str_ptr;
+	bool	in_phrase = false;
+
+	/* Convert the query string to lower case before parsing. We own
+	the ut_malloc'ed result and so remember to free it before return. */
+
+	str_len = query_len * charset->casedn_multiply + 1;
+	str_ptr = static_cast<byte*>(ut_malloc(str_len));
+
+	*result_len = innobase_fts_casedn_str(
+		charset, const_cast<char*>(reinterpret_cast<const char*>(
+			query_str)), query_len,
+		reinterpret_cast<char*>(str_ptr), str_len);
+
+	ut_ad(*result_len < str_len);
+
+	str_ptr[*result_len] = 0;
+
+	/* If it is boolean mode, no need to check for '-/+' */
+	if (!boolean_mode) {
+		return(str_ptr);
+	}
+
+	/* Otherwise, we travese the string to find any '-/+' that are
+	immediately proceeded and followed by valid search word.
+	NOTE: we should not do so for CJK languages, this should
+	be taken care of in our CJK implementation */
+        while (cur_pos < *result_len) {
+                fts_string_t    str;
+                ulint           offset;
+                ulint           cur_len;
+
+                cur_len = innobase_mysql_fts_get_token(
+                        charset, str_ptr + cur_pos, str_ptr + *result_len,
+			&str, &offset);
+
+                if (cur_len == 0) {
+                        break;
+                }
+
+		/* Check if we are in a phrase, if so, no need to do
+		replacement of '-/+'. */
+		for (byte* ptr = str_ptr + cur_pos; ptr < str.f_str; ptr++) {
+			if ((char) (*ptr) == '"' ) {
+				in_phrase = !in_phrase;
+			}
+		}
+
+		/* Find those are not leading '-/+' and also not in a phrase */
+		if (cur_pos > 0 && str.f_str - str_ptr - cur_pos == 1
+		    && !in_phrase) {
+			char*	last_op = reinterpret_cast<char*>(
+						str_ptr + cur_pos);
+
+			if (*last_op == '-' || *last_op == '+') {
+				*last_op = ' ';
+			}
+		}
+
+                cur_pos += cur_len;
+	}
+
+	return(str_ptr);
+}
+
+/*******************************************************************//**
 FTS Query entry point.
 @return DB_SUCCESS if successful otherwise error code */
 
@@ -3771,9 +3854,8 @@ fts_query(
 	fts_query_t	query;
 	dberr_t		error = DB_SUCCESS;
 	byte*		lc_query_str;
-	ulint		lc_query_str_len;
 	ulint		result_len;
-	ibool		boolean_mode;
+	bool		boolean_mode;
 	trx_t*		query_trx;
 	CHARSET_INFO*	charset;
 	ulint		start_time_ms;
@@ -3860,6 +3942,7 @@ fts_query(
 	/* Sort the vector so that we can do a binary search over the ids. */
 	ib_vector_sort(query.deleted->doc_ids, fts_update_doc_id_cmp);
 
+#if 0
 	/* Convert the query string to lower case before parsing. We own
 	the ut_malloc'ed result and so remember to free it before return. */
 
@@ -3873,6 +3956,11 @@ fts_query(
 	ut_ad(result_len < lc_query_str_len);
 
 	lc_query_str[result_len] = 0;
+
+#endif
+
+	lc_query_str = fts_query_str_preprocess(
+		query_str, query_len, &result_len, charset, boolean_mode);
 
 	query.heap = mem_heap_create(128);
 
