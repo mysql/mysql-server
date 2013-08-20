@@ -1,4 +1,4 @@
-/* Copyright (c) 2006, 2012, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2006, 2013, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -1317,6 +1317,8 @@ void Relay_log_info::slave_close_thread_tables(THD *thd)
 
   close_thread_tables(thd);
   /*
+    - If transaction rollback was requested due to deadlock
+    perform it and release metadata locks.
     - If inside a multi-statement transaction,
     defer the release of metadata locks until the current
     transaction is either committed or rolled back. This prevents
@@ -1326,7 +1328,12 @@ void Relay_log_info::slave_close_thread_tables(THD *thd)
     - If in autocommit mode, or outside a transactional context,
     automatically release metadata locks of the current statement.
   */
-  if (! thd->in_multi_stmt_transaction_mode())
+  if (thd->transaction_rollback_request)
+  {
+    trans_rollback_implicit(thd);
+    thd->mdl_context.release_transactional_locks();
+  }
+  else if (! thd->in_multi_stmt_transaction_mode())
     thd->mdl_context.release_transactional_locks();
   else
     thd->mdl_context.release_statement_locks();
