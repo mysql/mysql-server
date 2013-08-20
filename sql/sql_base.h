@@ -1,4 +1,4 @@
-/* Copyright (c) 2006, 2011, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2010, 2013, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -519,7 +519,7 @@ public:
   };
   Open_table_context(THD *thd, uint flags);
 
-  bool recover_from_failed_open(THD *thd);
+  bool recover_from_failed_open();
   bool request_backoff_action(enum_open_table_action action_arg,
                               TABLE_LIST *table);
 
@@ -559,6 +559,8 @@ public:
   }
 
 private:
+  /* THD for which tables are opened. */
+  THD *m_thd;
   /**
     For OT_DISCOVER and OT_REPAIR actions, the table list element for
     the table which definition should be re-discovered or which
