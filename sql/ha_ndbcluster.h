@@ -266,7 +266,11 @@ enum THD_NDB_OPTIONS
     In participating mysqld, do not remove stray files
     when dropping tables
   */
-  TNO_NO_REMOVE_STRAY_FILES= 1 <<3
+  TNO_NO_REMOVE_STRAY_FILES= 1 << 3,
+  /*
+    Skip Binlog setup when performing find_files()
+  */
+  TNO_NO_BINLOG_SETUP_IN_FIND_FILES= 1 << 4
 };
 
 enum THD_NDB_TRANS_OPTIONS
