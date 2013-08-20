@@ -29,7 +29,6 @@
 
 C_MODE_START
 
-#include <mysql/plugin.h>
 #include <mysql/client_plugin.h>
 
 /*
