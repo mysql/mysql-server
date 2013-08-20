@@ -47,6 +47,10 @@ enum THD_NDB_TRANS_OPTIONS
   ,TNTO_NO_LOGGING=           1 << 1
   ,TNTO_TRANSACTIONS_OFF=     1 << 2
   ,TNTO_NO_REMOVE_STRAY_FILES=  1 << 3
+  /*
+    Skip Binlog setup when performing find_files()
+  */
+  ,TNTO_NO_BINLOG_SETUP_IN_FIND_FILES= 1 << 4
 };
 
 class Thd_ndb 
