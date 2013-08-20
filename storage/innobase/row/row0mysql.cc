@@ -4909,6 +4909,7 @@ loop:
 	case DB_DEADLOCK:
 	case DB_LOCK_TABLE_FULL:
 	case DB_LOCK_WAIT_TIMEOUT:
+	case DB_INTERRUPTED:
 		goto func_exit;
 	default:
 	{
