@@ -412,15 +412,27 @@ ulong get_access(TABLE *form, uint fieldnr, uint *next_field)
 
   @note We assume that we have only read from the tables so commit
         can't fail. @sa close_mysql_tables().
+
+  @note This function also rollbacks the transaction if rollback was
+        requested (e.g. as result of deadlock).
 */
 
 void close_acl_tables(THD *thd)
 {
+  /* Transaction rollback request by SE is unlikely. Still we handle it. */
+  if (thd->transaction_rollback_request)
+  {
+    trans_rollback_stmt(thd);
+    trans_rollback_implicit(thd);
+  }
+  else
+  {
 #ifndef DBUG_OFF
-  bool res=
+    bool res=
 #endif
-    trans_commit_stmt(thd);
-  DBUG_ASSERT(res == false);
+      trans_commit_stmt(thd);
+    DBUG_ASSERT(res == false);
+  }
 
   close_mysql_tables(thd);
 }
@@ -441,6 +453,7 @@ void close_acl_tables(THD *thd)
 bool acl_trans_commit_and_close_tables(THD *thd)
 {
   bool result;
+  bool rollback= false;
 
   /*
     Try to commit a transaction even if we had some failures.
@@ -459,12 +472,25 @@ bool acl_trans_commit_and_close_tables(THD *thd)
   */
   DBUG_ASSERT(stmt_causes_implicit_commit(thd, CF_IMPLICIT_COMMIT_END));
 
-  result= trans_commit_stmt(thd);
-  result|= trans_commit_implicit(thd);
+  if (thd->transaction_rollback_request)
+  {
+    /*
+      Transaction rollback request by SE is unlikely. Still let us
+      handle it and also do ACL reload if it happens.
+    */
+    result= trans_rollback_stmt(thd);
+    result|= trans_rollback_implicit(thd);
+    rollback= true;
+  }
+  else
+  {
+    result= trans_commit_stmt(thd);
+    result|= trans_commit_implicit(thd);
+  }
   close_thread_tables(thd);
   thd->mdl_context.release_transactional_locks();
 
-  if (result)
+  if (result || rollback)
   {
     /*
       Try to bring in-memory structures back in sync with on-disk data if we

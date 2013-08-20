@@ -115,6 +115,7 @@ When one supplies long data for a placeholder:
 #include "opt_trace.h"                          // Opt_trace_object
 #include "sql_analyse.h"
 #include "sql_rewrite.h"
+#include "transaction.h"                        // trans_rollback_implicit
 
 #include <algorithm>
 using std::max;
@@ -3449,6 +3450,22 @@ bool Prepared_statement::prepare(const char *packet, uint packet_len)
 
   close_thread_tables(thd);
   thd->mdl_context.rollback_to_savepoint(mdl_savepoint);
+
+  /*
+    Transaction rollback was requested since MDL deadlock was discovered
+    while trying to open tables. Rollback transaction in all storage
+    engines including binary log and release all locks.
+
+    Once dynamic SQL is allowed as substatements the below if-statement
+    has to be adjusted to not do rollback in substatement.
+  */
+  DBUG_ASSERT(! thd->in_sub_stmt);
+  if (thd->transaction_rollback_request)
+  {
+    trans_rollback_implicit(thd);
+    thd->mdl_context.release_transactional_locks();
+  }
+
   lex_end(lex);
   cleanup_stmt();
   thd->restore_backup_statement(this, &stmt_backup);
