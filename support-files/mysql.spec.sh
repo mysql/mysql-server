@@ -30,7 +30,7 @@
 %global mysqld_group    mysql
 %global mysqldatadir    /var/lib/mysql
 
-%global release         2  
+%global release         1  
 
 
 #
