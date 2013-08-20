@@ -1745,9 +1745,11 @@ typedef enum {
     FS_ENOSPC_REDZONE_CTR,        // number of operations rejected by enospc prevention (red zone)
     FS_ENOSPC_MOST_RECENT,        // most recent time that file system was completely full
     FS_ENOSPC_COUNT,              // total number of times ENOSPC was returned from an attempt to write
-    FS_FSYNC_TIME ,
+    FS_FSYNC_TIME,
     FS_FSYNC_COUNT,
-    FS_STATUS_NUM_ROWS
+    FS_LONG_FSYNC_TIME,
+    FS_LONG_FSYNC_COUNT,
+    FS_STATUS_NUM_ROWS,           // must be last
 } fs_status_entry;
 
 typedef struct {
@@ -1766,8 +1768,10 @@ fs_status_init(void) {
     FS_STATUS_INIT(FS_ENOSPC_REDZONE_CTR,     nullptr, UINT64,   "number of operations rejected by enospc prevention (red zone)", TOKU_ENGINE_STATUS);
     FS_STATUS_INIT(FS_ENOSPC_MOST_RECENT,     nullptr, UNIXTIME, "most recent disk full", TOKU_ENGINE_STATUS);
     FS_STATUS_INIT(FS_ENOSPC_COUNT,           nullptr, UINT64,   "number of write operations that returned ENOSPC", TOKU_ENGINE_STATUS);
-    FS_STATUS_INIT(FS_FSYNC_TIME,             FILESYSTEM_FSYNC_SECONDS, UINT64,   "fsync time", TOKU_ENGINE_STATUS|TOKU_GLOBAL_STATUS);
+    FS_STATUS_INIT(FS_FSYNC_TIME,             FILESYSTEM_FSYNC_TIME, UINT64,   "fsync time", TOKU_ENGINE_STATUS|TOKU_GLOBAL_STATUS);
     FS_STATUS_INIT(FS_FSYNC_COUNT,            FILESYSTEM_FSYNC_NUM, UINT64,   "fsync count", TOKU_ENGINE_STATUS|TOKU_GLOBAL_STATUS);
+    FS_STATUS_INIT(FS_LONG_FSYNC_TIME,        FILESYSTEM_LONG_FSYNC_TIME, UINT64,   "long fsync time", TOKU_ENGINE_STATUS);
+    FS_STATUS_INIT(FS_LONG_FSYNC_COUNT,       FILESYSTEM_LONG_FSYNC_NUM, UINT64,   "long fsync count", TOKU_ENGINE_STATUS);
     fsstat.initialized = true;
 }
 #undef FS_STATUS_INIT
@@ -1792,10 +1796,12 @@ fs_get_status(DB_ENV * env, fs_redzone_state * redzone_state) {
     FS_STATUS_VALUE(FS_ENOSPC_MOST_RECENT) = enospc_most_recent_timestamp;
     FS_STATUS_VALUE(FS_ENOSPC_COUNT) = enospc_total;
     
-    uint64_t fsync_count, fsync_time;
-    toku_get_fsync_times(&fsync_count, &fsync_time);
+    uint64_t fsync_count, fsync_time, long_fsync_threshold, long_fsync_count, long_fsync_time;
+    toku_get_fsync_times(&fsync_count, &fsync_time, &long_fsync_threshold, &long_fsync_count, &long_fsync_time);
     FS_STATUS_VALUE(FS_FSYNC_COUNT) = fsync_count;
     FS_STATUS_VALUE(FS_FSYNC_TIME) = fsync_time;
+    FS_STATUS_VALUE(FS_LONG_FSYNC_COUNT) = long_fsync_count;
+    FS_STATUS_VALUE(FS_LONG_FSYNC_TIME) = long_fsync_time;
 }
 #undef FS_STATUS_VALUE
 
