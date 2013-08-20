@@ -23,6 +23,13 @@ ALTER TABLE articles ADD FULLTEXT INDEX (body) WITH PARSER simple_parser;
 ANALYZE TABLE articles;
 Table	Op	Msg_type	Msg_text
 test.articles	analyze	status	OK
+SELECT
+PLUGIN_NAME, PLUGIN_STATUS, PLUGIN_TYPE,
+PLUGIN_LIBRARY
+FROM INFORMATION_SCHEMA.PLUGINS WHERE PLUGIN_NAME LIKE '%simple_parser%';
+PLUGIN_NAME	PLUGIN_STATUS	PLUGIN_TYPE	PLUGIN_LIBRARY
+simple_parser	ACTIVE	FTPARSER	mypluglib.so
+INSERT INTO articles (title, body,body1,body2,body3) VALUES (NULL,NULL,NULL,NULL,NULL);
 SELECT * FROM articles WHERE
 MATCH(title, body) AGAINST('mysql');
 id	title	body	body1	body2	body3
@@ -114,8 +121,9 @@ MATCH(body1,body2) AGAINST('row7col5');
 id	title	body	body1	body2	body3
 SELECT * FROM articles WHERE id > 5;
 id	title	body	body1	body2	body3
-6	latest Tutorial	transactional properties tests ...	row6col4	row6col5	row6col5
-7	certification guide	all mysql exams tests ...	row7col4	row7col5	row7col5
+6	NULL	NULL	NULL	NULL	NULL
+7	latest Tutorial	transactional properties tests ...	row6col4	row6col5	row6col5
+8	certification guide	all mysql exams tests ...	row7col4	row7col5	row7col5
 ROLLBACK;
 SELECT * FROM articles WHERE
 MATCH(title, body) AGAINST('mysql');
@@ -159,22 +167,48 @@ MATCH(title, body) AGAINST('Tutorial');
 id	title	body	body1	body2	body3
 1	MySQL Tutorial	DBMS stands for MySQL DataBase ...	row1col4	row1col5	row1col5
 3	Optimizing MySQL	In this tutorial we will show ...	row3col4	row3col5	row3col5 for
-8	latest Tutorial	transactional properties tests ...	row6col4	row6col5	row6col5
+9	latest Tutorial	transactional properties tests ...	row6col4	row6col5	row6col5
 SELECT * FROM articles WHERE
 MATCH(title, body) AGAINST('guide');
 id	title	body	body1	body2	body3
 SELECT * FROM articles WHERE
 MATCH(title, body) AGAINST('tests');
 id	title	body	body1	body2	body3
-8	latest Tutorial	transactional properties tests ...	row6col4	row6col5	row6col5
+9	latest Tutorial	transactional properties tests ...	row6col4	row6col5	row6col5
 SELECT * FROM articles WHERE
 MATCH(body) AGAINST('tests');
 id	title	body	body1	body2	body3
-8	latest Tutorial	transactional properties tests ...	row6col4	row6col5	row6col5
+9	latest Tutorial	transactional properties tests ...	row6col4	row6col5	row6col5
 SELECT * FROM articles WHERE
 MATCH(title, body1) AGAINST('row6col4');
 id	title	body	body1	body2	body3
-8	latest Tutorial	transactional properties tests ...	row6col4	row6col5	row6col5
+9	latest Tutorial	transactional properties tests ...	row6col4	row6col5	row6col5
+SELECT * FROM articles WHERE
+MATCH(body1,body2) AGAINST('row7col5');
+id	title	body	body1	body2	body3
+SELECT COUNT(*) FROM articles;
+COUNT(*)
+7
+ALTER TABLE articles ADD COLUMN col_test VARCHAR(100) DEFAULT 'check add drop column';
+SELECT COUNT(*) FROM articles WHERE col_test = 'check add drop column';
+COUNT(*)
+7
+ALTER TABLE articles ADD FULLTEXT INDEX `idx_add` (col_test) WITH PARSER simple_parser;
+INSERT INTO articles (title, body,body1,body2,body3,col_test) VALUES
+('value','value','value','value','value','value');
+SELECT COUNT(*) AS score FROM articles WHERE
+MATCH(col_test) AGAINST('check');
+score
+7
+SELECT COUNT(*) AS score FROM articles WHERE
+MATCH(col_test) AGAINST('value');
+score
+1
+ALTER TABLE articles DROP COLUMN col_test;
+SELECT * FROM articles WHERE
+MATCH(title, body1) AGAINST('row6col4');
+id	title	body	body1	body2	body3
+9	latest Tutorial	transactional properties tests ...	row6col4	row6col5	row6col5
 SELECT * FROM articles WHERE
 MATCH(body1,body2) AGAINST('row7col5');
 id	title	body	body1	body2	body3
@@ -242,11 +276,13 @@ INSERT INTO t1 (a,b) VALUES
 CREATE FULLTEXT INDEX idx on t1 (a,b) WITH PARSER simple_parser;
 INSERT INTO t1 (a,b) VALUES
 ('adding record using session 1','for verifying multiple concurrent transactions'),
-('Мога да ям стъкло', 'то Mне ми вреди');
+('Мога да ям стъкло', 'то Mне ми вреди'),(NULL,NULL);
 SELECT @@innodb_ft_min_token_size,@@innodb_ft_max_token_size;
 @@innodb_ft_min_token_size	@@innodb_ft_max_token_size
 5	10
 ALTER TABLE t1 DROP INDEX idx;
+SELECT * FROM t1 WHERE MATCH (a,b) AGAINST ('+MySQL' IN BOOLEAN MODE);
+ERROR HY000: Can't find FULLTEXT index matching the column list
 CREATE FULLTEXT INDEX idx on t1 (a,b) WITH PARSER simple_parser;
 ALTER TABLE t1 DROP INDEX idx;
 CREATE FULLTEXT INDEX idx on t1 (a,b);
@@ -272,5 +308,21 @@ id	a	b
 SELECT * FROM t1 WHERE MATCH (a,b) AGAINST ('"dbms stands"@05' IN BOOLEAN MODE);
 id	a	b
 1	MySQL from Tutorial	DBMS stands for DataBase ...
+SELECT * FROM t1 WHERE MATCH (a,b) AGAINST ('NULL' IN BOOLEAN MODE);
+id	a	b
+SELECT * FROM t1 WHERE b IS NULL or a IS NULL;
+id	a	b
+9	NULL	NULL
+CREATE TABLE t1_join AS SELECT * FROM t1;
+CREATE FULLTEXT INDEX idx on t1_join (a,b) WITH PARSER simple_parser;
+Warnings:
+Warning	124	InnoDB rebuilding table to add column FTS_DOC_ID
+SELECT t1.id,t1_join.id FROM t1,t1_join WHERE MATCH (t1.a,t1.b) AGAINST ('Tutorial') AND t1.id = t1_join.id ;
+id	id
+1	1
+3	3
+SELECT * FROM t1 WHERE MATCH (a) AGAINST ('NULL');
+ERROR HY000: Can't find FULLTEXT index matching the column list
 DROP TABLE t1;
+DROP TABLE t1_join;
 UNINSTALL PLUGIN simple_parser;
