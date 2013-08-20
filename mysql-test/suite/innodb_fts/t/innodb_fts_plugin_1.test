@@ -9,6 +9,10 @@
 # - external parser index using alter table
 # - check with transactional statement
 # - Check utf8 charset table
+# - alter table commands Add/drop fulltext index and column
+# - NULL values in table
+# - FTS query with join condition
+# - Invalid query
 #-----------------------------------------------------------------------------
 
 # Install fts parser plugin
@@ -41,6 +45,14 @@ ALTER TABLE articles ADD FULLTEXT INDEX (body2,body3);
 ALTER TABLE articles ADD FULLTEXT INDEX (body) WITH PARSER simple_parser;
 
 ANALYZE TABLE articles;
+SELECT
+  PLUGIN_NAME, PLUGIN_STATUS, PLUGIN_TYPE,
+  PLUGIN_LIBRARY
+FROM INFORMATION_SCHEMA.PLUGINS WHERE PLUGIN_NAME LIKE '%simple_parser%';
+
+
+INSERT INTO articles (title, body,body1,body2,body3) VALUES (NULL,NULL,NULL,NULL,NULL);
+
 # Simple term search
 SELECT * FROM articles WHERE
 	MATCH(title, body) AGAINST('mysql');
@@ -144,6 +156,25 @@ SELECT * FROM articles WHERE
 SELECT * FROM articles WHERE
 	MATCH(body1,body2) AGAINST('row7col5');
 
+# Alter table Add/drop column
+SELECT COUNT(*) FROM articles;
+ALTER TABLE articles ADD COLUMN col_test VARCHAR(100) DEFAULT 'check add drop column';
+SELECT COUNT(*) FROM articles WHERE col_test = 'check add drop column';
+ALTER TABLE articles ADD FULLTEXT INDEX `idx_add` (col_test) WITH PARSER simple_parser;
+INSERT INTO articles (title, body,body1,body2,body3,col_test) VALUES
+  ('value','value','value','value','value','value');
+SELECT COUNT(*) AS score FROM articles WHERE
+	MATCH(col_test) AGAINST('check');
+SELECT COUNT(*) AS score FROM articles WHERE
+	MATCH(col_test) AGAINST('value');
+
+ALTER TABLE articles DROP COLUMN col_test;
+
+SELECT * FROM articles WHERE
+        MATCH(title, body1) AGAINST('row6col4');
+SELECT * FROM articles WHERE
+        MATCH(body1,body2) AGAINST('row7col5');
+
 DROP TABLE articles;
 # Get warning here
 
@@ -220,7 +251,7 @@ INSERT INTO t1 (a,b) VALUES
 CREATE FULLTEXT INDEX idx on t1 (a,b) WITH PARSER simple_parser;
 INSERT INTO t1 (a,b) VALUES
         ('adding record using session 1','for verifying multiple concurrent transactions'),
-        ('Мога да ям стъкло', 'то Mне ми вреди');
+        ('Мога да ям стъкло', 'то Mне ми вреди'),(NULL,NULL);
 
 
 --exec echo "wait" > $MYSQLTEST_VARDIR/tmp/mysqld.1.expect
@@ -238,6 +269,11 @@ INSERT INTO t1 (a,b) VALUES
 SELECT @@innodb_ft_min_token_size,@@innodb_ft_max_token_size;
 
 ALTER TABLE t1 DROP INDEX idx;
+
+# invalid query
+--error 1191
+SELECT * FROM t1 WHERE MATCH (a,b) AGAINST ('+MySQL' IN BOOLEAN MODE);
+
 CREATE FULLTEXT INDEX idx on t1 (a,b) WITH PARSER simple_parser;
 
 
@@ -257,10 +293,21 @@ SELECT * FROM t1 WHERE MATCH (b) AGAINST ('dbms') AND MATCH (a,b) AGAINST ('tran
 #      # # 1 record expected
 SELECT * FROM t1 WHERE MATCH (a,b) AGAINST ('transactions');
 SELECT * FROM t1 WHERE MATCH (a,b) AGAINST ('"dbms stands"@05' IN BOOLEAN MODE);
-#
+# No result expected for query with null
+SELECT * FROM t1 WHERE MATCH (a,b) AGAINST ('NULL' IN BOOLEAN MODE);
+SELECT * FROM t1 WHERE b IS NULL or a IS NULL;
+
+
+# join tables
+CREATE TABLE t1_join AS SELECT * FROM t1;
+CREATE FULLTEXT INDEX idx on t1_join (a,b) WITH PARSER simple_parser;
+SELECT t1.id,t1_join.id FROM t1,t1_join WHERE MATCH (t1.a,t1.b) AGAINST ('Tutorial') AND t1.id = t1_join.id ;
+
+--error 1191
+#invalid query - no index on column a
+SELECT * FROM t1 WHERE MATCH (a) AGAINST ('NULL');
 
 DROP TABLE t1;
-
-
+DROP TABLE t1_join;
 
 UNINSTALL PLUGIN simple_parser;
