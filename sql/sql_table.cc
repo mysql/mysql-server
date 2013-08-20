@@ -5452,7 +5452,6 @@ int mysql_discard_or_import_tablespace(THD *thd,
   error= write_bin_log(thd, FALSE, thd->query(), thd->query_length());
 
 err:
-  trans_rollback_stmt(thd);
   thd->tablespace_op=FALSE;
 
   if (error == 0)
@@ -8911,6 +8910,12 @@ bool mysql_checksum_table(THD *thd, TABLE_LIST *tables,
   Protocol *protocol= thd->protocol;
   DBUG_ENTER("mysql_checksum_table");
 
+  /*
+    CHECKSUM TABLE returns results and rollbacks statement transaction,
+    so it should not be used in stored function or trigger.
+  */
+  DBUG_ASSERT(! thd->in_sub_stmt);
+
   field_list.push_back(item = new Item_empty_string("Table", NAME_LEN*2));
   item->maybe_null= 1;
   field_list.push_back(item= new Item_int(NAME_STRING("Checksum"),
@@ -8949,7 +8954,6 @@ bool mysql_checksum_table(THD *thd, TABLE_LIST *tables,
         open_and_lock_tables(thd, table, FALSE, 0))
     {
       t= NULL;
-      thd->clear_error();     // these errors shouldn't get client
     }
     else
       t= table->table;
@@ -8963,7 +8967,6 @@ bool mysql_checksum_table(THD *thd, TABLE_LIST *tables,
     {
       /* Table didn't exist */
       protocol->store_null();
-      thd->clear_error();
     }
     else
     {
@@ -9048,11 +9051,24 @@ bool mysql_checksum_table(THD *thd, TABLE_LIST *tables,
           t->file->ha_rnd_end();
 	}
       }
-      thd->clear_error();
-      if (! thd->in_sub_stmt)
-        trans_rollback_stmt(thd);
+      trans_rollback_stmt(thd);
       close_thread_tables(thd);
     }
+
+    if (thd->transaction_rollback_request)
+    {
+      /*
+        If transaction rollback was requested we honor it. To do this we
+        abort statement and return error as not only CHECKSUM TABLE is
+        rolled back but the whole transaction in which it was used.
+      */
+      thd->protocol->remove_last_row();
+      goto err;
+    }
+
+    /* Hide errors from client. Return NULL for problematic tables instead. */
+    thd->clear_error();
+
     if (protocol->write())
       goto err;
   }
