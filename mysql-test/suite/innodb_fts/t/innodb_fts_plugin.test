@@ -379,7 +379,84 @@ CREATE TABLE articles2 (
 	) ENGINE=InnoDB;
 
 DROP TABLE articles;
-
 # Uninstall plugin
 -- error ER_SP_DOES_NOT_EXIST
 UNINSTALL PLUGIN simple_parser;
+
+
+-- echo # Test Part 9:# Abort the operation in dict_create_index_step 
+# by setting return status of dict_create_index_tree_step() to DB_OUT_OF_MEMORY
+# # The newly create dict_index_t should be removed from fts cache
+
+# Install fts parser plugin
+--replace_regex /\.dll/.so/
+eval INSTALL PLUGIN simple_parser SONAME '$SIMPLE_PARSER';
+#
+CREATE TABLE articles (
+       id INT UNSIGNED AUTO_INCREMENT NOT NULL PRIMARY KEY,
+       title VARCHAR(200),
+       body TEXT,
+       FULLTEXT (title, body) WITH PARSER simple_parser
+) ENGINE=InnoDB;
+#
+ SET SESSION debug="+d,ib_dict_create_index_tree_fail";
+ --error ER_OUT_OF_RESOURCES
+ CREATE FULLTEXT INDEX idx ON articles(body);
+ SET SESSION debug="-d,ib_dict_create_index_tree_fail";
+#
+DROP TABLE articles;
+
+-- echo # Test Part 10:crash on commit(before/after)
+CREATE TABLE articles (
+       id INT UNSIGNED AUTO_INCREMENT NOT NULL PRIMARY KEY,
+       title VARCHAR(200),
+       body TEXT,
+       FULLTEXT (title, body) WITH PARSER simple_parser
+) ENGINE=InnoDB;
+#
+SET SESSION debug="+d,crash_commit_before";
+# Write file to make mysql-test-run.pl start up the server again
+--exec echo "restart" > $MYSQLTEST_VARDIR/tmp/mysqld.1.expect
+# Execute the statement that causes the crash
+--error 2013
+INSERT INTO articles (title, body) VALUES
+  ('MySQL Tutorial','DBMS stands for MySQL DataBase ...'),
+  ('How To Use MySQL Well','After you went through a ...'),
+  ('Optimizing MySQL','In this tutorial we will show ...'),
+  ('1001 MySQL Tricks','How to use full-text search engine'),
+  ('Go MySQL Tricks','How to use full text search engine');
+#
+--enable_reconnect
+--source include/wait_until_connected_again.inc
+--disable_reconnect
+SET SESSION debug="-d,crash_commit_before";
+SELECT COUNT(*) FROM articles;
+USE test;
+# Simple term search - no records expected
+SELECT * FROM articles WHERE
+	MATCH(title, body) AGAINST('mysql');
+
+SET SESSION debug="+d,crash_commit_after";
+# Write file to make mysql-test-run.pl start up the server again
+--exec echo "restart" > $MYSQLTEST_VARDIR/tmp/mysqld.1.expect
+# Execute the statement that causes the crash
+--error 2013
+INSERT INTO articles (title, body) VALUES
+  ('MySQL Tutorial','DBMS stands for MySQL DataBase ...'),
+  ('How To Use MySQL Well','After you went through a ...'),
+  ('Optimizing MySQL','In this tutorial we will show ...'),
+  ('1001 MySQL Tricks','How to use full-text search engine'),
+  ('Go MySQL Tricks','How to use full text search engine');
+--enable_reconnect
+--source include/wait_until_connected_again.inc
+--disable_reconnect
+SET SESSION debug="-d,crash_commit_after";
+USE test;
+# Simple term search - 4 records expected
+SELECT * FROM articles WHERE
+         MATCH(title, body) AGAINST('Tricks');
+SELECT COUNT(*) FROM articles;
+DROP TABLE articles;
+
+UNINSTALL PLUGIN simple_parser;
+
