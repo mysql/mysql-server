@@ -226,6 +226,11 @@ handler_binlog_rollback(
 {
 	THD*		thd = static_cast<THD*>(my_thd);
 
+	/*
+	  Memcached plugin doesn't use thd_mark_transaction_to_rollback()
+	  on deadlocks. So no special handling for this flag is needed.
+	*/
+	assert(! thd->transaction_rollback_request);
 	if (tc_log) {
 		tc_log->rollback(thd, true);
 	}
