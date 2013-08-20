@@ -383,3 +383,59 @@ ERROR HY000: Function 'simple_parser' is not defined
 DROP TABLE articles;
 UNINSTALL PLUGIN simple_parser;
 ERROR 42000: PLUGIN simple_parser does not exist
+# Test Part 9:# Abort the operation in dict_create_index_step 
+INSTALL PLUGIN simple_parser SONAME 'mypluglib.so';
+CREATE TABLE articles (
+id INT UNSIGNED AUTO_INCREMENT NOT NULL PRIMARY KEY,
+title VARCHAR(200),
+body TEXT,
+FULLTEXT (title, body) WITH PARSER simple_parser
+) ENGINE=InnoDB;
+SET SESSION debug="+d,ib_dict_create_index_tree_fail";
+CREATE FULLTEXT INDEX idx ON articles(body);
+ERROR HY000: Out of memory; check if mysqld or some other process uses all available memory; if not, you may have to use 'ulimit' to allow mysqld to use more memory or you can add more swap space
+SET SESSION debug="-d,ib_dict_create_index_tree_fail";
+DROP TABLE articles;
+# Test Part 10:crash on commit(before/after)
+CREATE TABLE articles (
+id INT UNSIGNED AUTO_INCREMENT NOT NULL PRIMARY KEY,
+title VARCHAR(200),
+body TEXT,
+FULLTEXT (title, body) WITH PARSER simple_parser
+) ENGINE=InnoDB;
+SET SESSION debug="+d,crash_commit_before";
+INSERT INTO articles (title, body) VALUES
+('MySQL Tutorial','DBMS stands for MySQL DataBase ...'),
+('How To Use MySQL Well','After you went through a ...'),
+('Optimizing MySQL','In this tutorial we will show ...'),
+('1001 MySQL Tricks','How to use full-text search engine'),
+('Go MySQL Tricks','How to use full text search engine');
+ERROR HY000: Lost connection to MySQL server during query
+SET SESSION debug="-d,crash_commit_before";
+SELECT COUNT(*) FROM articles;
+COUNT(*)
+0
+USE test;
+SELECT * FROM articles WHERE
+MATCH(title, body) AGAINST('mysql');
+id	title	body
+SET SESSION debug="+d,crash_commit_after";
+INSERT INTO articles (title, body) VALUES
+('MySQL Tutorial','DBMS stands for MySQL DataBase ...'),
+('How To Use MySQL Well','After you went through a ...'),
+('Optimizing MySQL','In this tutorial we will show ...'),
+('1001 MySQL Tricks','How to use full-text search engine'),
+('Go MySQL Tricks','How to use full text search engine');
+ERROR HY000: Lost connection to MySQL server during query
+SET SESSION debug="-d,crash_commit_after";
+USE test;
+SELECT * FROM articles WHERE
+MATCH(title, body) AGAINST('Tricks');
+id	title	body
+4	1001 MySQL Tricks	How to use full-text search engine
+5	Go MySQL Tricks	How to use full text search engine
+SELECT COUNT(*) FROM articles;
+COUNT(*)
+5
+DROP TABLE articles;
+UNINSTALL PLUGIN simple_parser;
