@@ -11830,7 +11830,7 @@ ndbcluster_find_files(handlerton *hton, THD *thd,
   while ((file_name=it++))
   {
     bool file_on_disk= FALSE;
-    DBUG_PRINT("info", ("%s", file_name->str));
+    DBUG_PRINT("info", ("File : %s", file_name->str));
     if (my_hash_search(&ndb_tables,
                        (const uchar*)file_name->str, file_name->length))
     {
@@ -11838,6 +11838,10 @@ ndbcluster_find_files(handlerton *hton, THD *thd,
                            file_name->str, reg_ext, 0);
       if (my_access(name, F_OK))
       {
+        /* No frm for database, table name combination, but
+         * Cluster says the table with that combination exists.
+         * Assume frm was deleted, re-discover from engine.
+         */
         DBUG_PRINT("info", ("Table %s listed and need discovery",
                             file_name->str));
         if (ndb_create_table_from_engine(thd, db, file_name->str))
@@ -11863,6 +11867,9 @@ ndbcluster_find_files(handlerton *hton, THD *thd,
       // .ndb file did not exist on disk, another table type
       if (file_on_disk)
       {
+        // Cluster table and an frm file exist, but no .ndb file
+        // Assume this means the frm is for a local table, and is
+        // hiding the cluster table in its shadow. 
 	// Ignore this ndb table 
  	uchar *record= my_hash_search(&ndb_tables,
                                       (const uchar*) file_name->str,
@@ -11876,14 +11883,17 @@ ndbcluster_find_files(handlerton *hton, THD *thd,
       }
       continue;
     }
+
+    /* .ndb file exists */
     if (file_on_disk) 
     {
-      // File existed in NDB and as frm file, put in ok_tables list
+      // File existed in Cluster and has both frm and .ndb files, 
+      // Put in ok_tables list
       my_hash_insert(&ok_tables, (uchar*) file_name->str);
       continue;
     }
     DBUG_PRINT("info", ("%s existed on disk", name));     
-    // The .ndb file exists on disk, but it's not in list of tables in ndb
+    // The .ndb file exists on disk, but it's not in list of tables in cluster
     // Verify that handler agrees table is gone.
     if (ndbcluster_table_exists_in_engine(hton, thd, db, file_name->str) ==
         HA_ERR_NO_SUCH_TABLE)
@@ -11907,6 +11917,7 @@ ndbcluster_find_files(handlerton *hton, THD *thd,
   }
 
   /* setup logging to binlog for all discovered tables */
+  if (!(thd_ndb->trans_options & TNTO_NO_BINLOG_SETUP_IN_FIND_FILES))
   {
     char *end, *end1= name +
       build_table_filename(name, sizeof(name) - 1, db, "", "", 0);
@@ -11929,12 +11940,14 @@ ndbcluster_find_files(handlerton *hton, THD *thd,
     if (!my_hash_search(&ok_tables,
                         (const uchar*) file_name_str, strlen(file_name_str)))
     {
+      /* Table in Cluster did not have frm or .ndb */
       build_table_filename(name, sizeof(name) - 1,
                            db, file_name_str, reg_ext, 0);
       if (my_access(name, F_OK))
       {
         DBUG_PRINT("info", ("%s must be discovered", file_name_str));
-        // File is in list of ndb tables and not in ok_tables
+        // File is in list of ndb tables and not in ok_tables.
+        // It is missing an frm file.
         // This table need to be created
         create_list.push_back(thd->strdup(file_name_str));
       }
