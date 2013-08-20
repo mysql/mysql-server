@@ -1,5 +1,5 @@
 /*
-  Copyright (c) 2006, 2011, Oracle and/or its affiliates. All rights reserved.
+  Copyright (c) 2006, 2013, Oracle and/or its affiliates. All rights reserved.
 
   This program is free software; you can redistribute it and/or modify
   it under the terms of the GNU General Public License as published by
@@ -3370,6 +3370,12 @@ add_ndb_binlog_index_err:
 
   // Close the tables this thread has opened
   close_thread_tables(thd);
+
+  /*
+    There should be no need for rolling back transaction due to deadlock
+    (since ndb_binlog_index is non transactional).
+  */
+  DBUG_ASSERT(! thd->transaction_rollback_request);
 
   // Release MDL locks on the opened table
   thd->mdl_context.release_transactional_locks();
