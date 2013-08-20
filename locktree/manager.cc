@@ -368,7 +368,7 @@ bool locktree::manager::memory_tracker::out_of_locks(void) const {
 void locktree::manager::status_init(void) {
     STATUS_INIT(LTM_SIZE_CURRENT,             LOCKTREE_MEMORY_SIZE, UINT64,   "memory size", TOKU_ENGINE_STATUS|TOKU_GLOBAL_STATUS);
     STATUS_INIT(LTM_SIZE_LIMIT,               LOCKTREE_MEMORY_SIZE_LIMIT, UINT64,   "memory size limit", TOKU_ENGINE_STATUS|TOKU_GLOBAL_STATUS);
-    STATUS_INIT(LTM_ESCALATION_COUNT, LOCKTREE_ESCALATION_NUM, UINT64, "number of times lock escalation ran", TOKU_ENGINE_STATUS|TOKU_GLOBAL_STATUS);
+    STATUS_INIT(LTM_ESCALATION_COUNT,         LOCKTREE_ESCALATION_NUM, UINT64, "number of times lock escalation ran", TOKU_ENGINE_STATUS|TOKU_GLOBAL_STATUS);
     STATUS_INIT(LTM_ESCALATION_TIME,          LOCKTREE_ESCALATION_SECONDS, TOKUTIME, "time spent running escalation (seconds)", TOKU_ENGINE_STATUS|TOKU_GLOBAL_STATUS);
     STATUS_INIT(LTM_ESCALATION_LATEST_RESULT, LOCKTREE_LATEST_POST_ESCALATION_MEMORY_SIZE, UINT64,   "latest post-escalation memory size", TOKU_ENGINE_STATUS|TOKU_GLOBAL_STATUS);
     STATUS_INIT(LTM_NUM_LOCKTREES,            LOCKTREE_OPEN_CURRENT, UINT64,   "number of locktrees open now", TOKU_ENGINE_STATUS|TOKU_GLOBAL_STATUS);
@@ -376,6 +376,12 @@ void locktree::manager::status_init(void) {
     STATUS_INIT(LTM_STO_NUM_ELIGIBLE,         LOCKTREE_STO_ELIGIBLE_NUM, UINT64,   "number of locktrees eligible for the STO", TOKU_ENGINE_STATUS|TOKU_GLOBAL_STATUS);
     STATUS_INIT(LTM_STO_END_EARLY_COUNT,      LOCKTREE_STO_ENDED_NUM, UINT64,   "number of times a locktree ended the STO early", TOKU_ENGINE_STATUS|TOKU_GLOBAL_STATUS);
     STATUS_INIT(LTM_STO_END_EARLY_TIME,       LOCKTREE_STO_ENDED_SECONDS, TOKUTIME, "time spent ending the STO early (seconds)", TOKU_ENGINE_STATUS|TOKU_GLOBAL_STATUS);
+
+    STATUS_INIT(LTM_WAIT_COUNT,               LOCKTREE_WAIT_COUNT, UINT64, "number of wait locks", TOKU_ENGINE_STATUS);
+    STATUS_INIT(LTM_WAIT_TIME,                LOCKTREE_WAIT_TIME, UINT64, "time waiting for locks", TOKU_ENGINE_STATUS);
+    STATUS_INIT(LTM_LONG_WAIT_COUNT,          LOCKTREE_LONG_WAIT_COUNT, UINT64, "number of long wait locks ", TOKU_ENGINE_STATUS);
+    STATUS_INIT(LTM_LONG_WAIT_TIME,           LOCKTREE_LONG_WAIT_TIME, UINT64, "long time waiting for locks", TOKU_ENGINE_STATUS);
+
     status.initialized = true;
 }
 
@@ -399,6 +405,9 @@ void locktree::manager::get_status(LTM_STATUS statp) {
     uint64_t sto_num_eligible = 0;
     uint64_t sto_end_early_count = 0;
     tokutime_t sto_end_early_time = 0;
+    
+    uint64_t lock_wait_count = 0, lock_wait_time = 0;
+    uint64_t long_lock_wait_count = 0, long_lock_wait_time = 0;
 
     size_t num_locktrees = m_locktree_map.size();
     for (size_t i = 0; i < num_locktrees; i++) {
@@ -407,7 +416,11 @@ void locktree::manager::get_status(LTM_STATUS statp) {
         invariant_zero(r);
 
         toku_mutex_lock(&lt->m_lock_request_info.mutex);
-        lock_requests_pending += lt->get_lock_request_info()->pending_lock_requests.size();
+        lock_requests_pending += lt->m_lock_request_info.pending_lock_requests.size();
+        lock_wait_count += lt->m_lock_request_info.wait_count;
+        lock_wait_time += lt->m_lock_request_info.wait_time;
+        long_lock_wait_count += lt->m_lock_request_info.long_wait_count;
+        long_lock_wait_time  += lt->m_lock_request_info.long_wait_time;        
         toku_mutex_unlock(&lt->m_lock_request_info.mutex);
 
         sto_num_eligible += lt->sto_txnid_is_valid_unsafe() ? 1 : 0;
@@ -422,6 +435,10 @@ void locktree::manager::get_status(LTM_STATUS statp) {
     STATUS_VALUE(LTM_STO_NUM_ELIGIBLE) = sto_num_eligible;
     STATUS_VALUE(LTM_STO_END_EARLY_COUNT) = sto_end_early_count;
     STATUS_VALUE(LTM_STO_END_EARLY_TIME) = sto_end_early_time;
+    STATUS_VALUE(LTM_WAIT_COUNT) = lock_wait_count;
+    STATUS_VALUE(LTM_WAIT_TIME) = lock_wait_time;
+    STATUS_VALUE(LTM_LONG_WAIT_COUNT) = long_lock_wait_count;
+    STATUS_VALUE(LTM_LONG_WAIT_TIME) = long_lock_wait_time;
     *statp = status;
 }
 #undef STATUS_VALUE

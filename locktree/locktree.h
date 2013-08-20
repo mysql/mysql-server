@@ -115,7 +115,11 @@ enum {
     LTM_STO_NUM_ELIGIBLE,
     LTM_STO_END_EARLY_COUNT,
     LTM_STO_END_EARLY_TIME,
-    LTM_STATUS_NUM_ROWS
+    LTM_WAIT_COUNT,
+    LTM_WAIT_TIME,
+    LTM_LONG_WAIT_COUNT,
+    LTM_LONG_WAIT_TIME,
+    LTM_STATUS_NUM_ROWS // must be last
 };
 
 typedef struct {
@@ -187,6 +191,8 @@ public:
         omt<lock_request *> pending_lock_requests;
         toku_mutex_t mutex;
         bool should_retry_lock_requests;
+        uint64_t wait_count, wait_time;
+        uint64_t long_wait_count, long_wait_time;
     };
 
     // Private info struct for storing pending lock request state.

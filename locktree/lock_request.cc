@@ -245,6 +245,7 @@ void lock_request::calculate_cond_wakeup_time(struct timespec *ts) {
 
 // sleep on the lock request until it becomes resolved or the wait time has elapsed.
 int lock_request::wait(void) {
+    uint64_t t_start = toku_current_time_microsec();
     toku_mutex_lock(&m_info->mutex);
     while (m_state == state::PENDING) {
         struct timespec ts;
@@ -258,6 +259,14 @@ int lock_request::wait(void) {
             // complete sets m_state to COMPLETE, breaking us out of the loop
             complete(DB_LOCK_NOTGRANTED);
         }
+    }
+    uint64_t t_end = toku_current_time_microsec();
+    uint64_t duration = t_end - t_start;
+    m_info->wait_count += 1;
+    m_info->wait_time += duration;
+    if (duration >= 1000000) {
+        m_info->long_wait_count += 1;
+        m_info->long_wait_time += duration;
     }
     toku_mutex_unlock(&m_info->mutex);
 
