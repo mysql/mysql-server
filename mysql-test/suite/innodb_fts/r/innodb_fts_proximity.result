@@ -25,7 +25,6 @@ SELECT * FROM t1 WHERE MATCH(a,b) AGAINST("+from" IN BOOLEAN MODE);
 id	a	b
 SELECT * FROM t1 WHERE MATCH(a,b) AGAINST("+where +(show what)" IN BOOLEAN MODE);
 id	a	b
-3	where will Optimizing MySQL	what In this tutorial we will show ...
 SELECT * FROM t1
 WHERE MATCH (a,b)
 AGAINST ('"where will"@6' IN BOOLEAN MODE);
