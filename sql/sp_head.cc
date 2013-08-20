@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2002, 2011, Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2002, 2013, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -2155,10 +2155,18 @@ sp_head::execute_procedure(THD *thd, List<Item> *args)
     close_thread_tables(thd);
     thd_proc_info(thd, 0);
 
-    if (! thd->in_sub_stmt && ! thd->in_multi_stmt_transaction_mode())
-      thd->mdl_context.release_transactional_locks();
-    else if (! thd->in_sub_stmt)
-      thd->mdl_context.release_statement_locks();
+    if (! thd->in_sub_stmt)
+    {
+      if (thd->transaction_rollback_request)
+      {
+        trans_rollback_implicit(thd);
+        thd->mdl_context.release_transactional_locks();
+      }
+      else if (! thd->in_multi_stmt_transaction_mode())
+        thd->mdl_context.release_transactional_locks();
+      else
+        thd->mdl_context.release_statement_locks();
+    }
 
     thd->rollback_item_tree_changes();
 
@@ -3008,10 +3016,18 @@ sp_lex_keeper::reset_lex_and_exec_core(THD *thd, uint *nextp,
     close_thread_tables(thd);
     thd_proc_info(thd, 0);
 
-    if (! thd->in_sub_stmt && ! thd->in_multi_stmt_transaction_mode())
-      thd->mdl_context.release_transactional_locks();
-    else if (! thd->in_sub_stmt)
-      thd->mdl_context.release_statement_locks();
+    if (! thd->in_sub_stmt)
+    {
+      if (thd->transaction_rollback_request)
+      {
+        trans_rollback_implicit(thd);
+        thd->mdl_context.release_transactional_locks();
+      }
+      else if (! thd->in_multi_stmt_transaction_mode())
+        thd->mdl_context.release_transactional_locks();
+      else
+        thd->mdl_context.release_statement_locks();
+    }
   }
 
   if (m_lex->query_tables_own_last)
