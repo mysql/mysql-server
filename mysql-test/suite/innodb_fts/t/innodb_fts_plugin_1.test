@@ -40,6 +40,7 @@ ALTER TABLE articles ADD FULLTEXT INDEX (body1,body2) WITH PARSER simple_parser;
 ALTER TABLE articles ADD FULLTEXT INDEX (body2,body3);
 ALTER TABLE articles ADD FULLTEXT INDEX (body) WITH PARSER simple_parser;
 
+ANALYZE TABLE articles;
 # Simple term search
 SELECT * FROM articles WHERE
 	MATCH(title, body) AGAINST('mysql');
