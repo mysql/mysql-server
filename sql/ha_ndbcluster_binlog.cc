@@ -1510,6 +1510,8 @@ static void clean_away_stray_files(THD *thd)
     DBUG_PRINT("info", ("Failed to find databases"));
     DBUG_VOID_RETURN;
   }
+  Thd_ndb *thd_ndb = get_thd_ndb(thd);
+  Thd_ndb_options_guard thd_ndb_options(thd_ndb);
   it.rewind();
   while ((db_name= it++))
   {
@@ -1517,6 +1519,11 @@ static void clean_away_stray_files(THD *thd)
     sql_print_information("NDB: Cleaning stray tables from database '%s'",
 			  db_name->str);
     build_table_filename(path, sizeof(path) - 1, db_name->str, "", "", 0);
+     
+    /* Require that no binlog setup is attempted yet, that will come later
+     * right now we just want to get rid of stray frms et al
+     */
+    thd_ndb_options.set(TNO_NO_BINLOG_SETUP_IN_FIND_FILES);
     if (find_files(thd, &tab_names, db_name->str, path, NullS, 0)
 	!= FIND_FILES_OK)
     {
