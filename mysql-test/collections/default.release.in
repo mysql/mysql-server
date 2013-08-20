@@ -15,4 +15,4 @@ perl mysql-test-run.pl --force --timer --parallel=auto --experimental=collection
 perl mysql-test-run.pl --force --timer --parallel=auto --experimental=collections/default.experimental --comment=embedded   --vardir=var-embedded                    --embedded-server --skip-rpl
 perl mysql-test-run.pl --force --timer --parallel=auto --experimental=collections/default.experimental --comment=nist       --vardir=var-nist       --suite=nist
 perl mysql-test-run.pl --force --timer --parallel=auto --experimental=collections/default.experimental --comment=nist+ps    --vardir=var-nist_ps    --suite=nist     --ps-protocol
-perl mysql-test-run.pl --timer --force --comment=memcached --vardir=var-memcached --experimental=collections/default.experimental --parallel=auto --retry=0 --suite=memcached --mysqld=--innodb-page-size=4k
+perl mysql-test-run.pl --timer --force --comment=memcached --vardir=var-memcached --experimental=collections/default.experimental --parallel=auto --retry=0 --suite=memcached 
