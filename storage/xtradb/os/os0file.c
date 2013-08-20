@@ -1658,8 +1658,8 @@ try_again:
 		}
 	}
 
-	if (srv_use_atomic_writes && type == OS_DATA_FILE && 
-		os_file_set_atomic_writes(file, name)) {
+	if (srv_use_atomic_writes && type == OS_DATA_FILE &&
+		!os_file_set_atomic_writes(file, name)) {
 			 CloseHandle(file);
 			*success = FALSE;
 			file = INVALID_HANDLE_VALUE;
@@ -1786,7 +1786,7 @@ try_again:
 #endif /* USE_FILE_LOCK */
 
 	if (srv_use_atomic_writes && type == OS_DATA_FILE
-	    && os_file_set_atomic_writes(name, file)) {
+	    && !os_file_set_atomic_writes(name, file)) {
 
 		*success = FALSE;
 		close(file);
