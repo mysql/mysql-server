@@ -112,6 +112,13 @@ fts_ast_create_node_term(
 		cur_pos += cur_len;
 
 		if (str.f_n_char > 0) {
+			/* If the subsequent term (after the first one)'s size
+			is less than fts_min_token_size, we shall ignore
+			that. This is to make consistent with MyISAM behavior */
+			if (first_node && (str.f_n_char < fts_min_token_size)) {
+				continue;
+			}
+
 			node = fts_ast_node_create();
 
 			node->type = FTS_AST_TERM;
@@ -121,20 +128,10 @@ fts_ast_create_node_term(
 			memcpy(node->term.ptr, str.f_str, str.f_len);
 			node->term.ptr[str.f_len] = '\0';
 
-
 			fts_ast_state_add_node(
 				static_cast<fts_ast_state_t*>(arg), node);
 
 			if (first_node) {
-				/* If the subsequent term (after the
-				first one)'s size is less than
-				fts_min_token_size, we shall ignore
-				that. This is to make consistent with
-				MyISAM behavior */
-				if (str.f_n_char < fts_min_token_size) {
-					continue;
-				}
-
 				/* There is more than one word, create
 				a list to organize them */
 				if (!node_list) {
