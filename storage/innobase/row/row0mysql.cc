@@ -4514,12 +4514,17 @@ loop:
 			/* There could be orphan temp tables left from
 			interrupted alter table. Leave them, and handle
 			the rest.*/
-			ut_a(!table->ibd_file_missing);
 			if (table->can_be_evicted) {
 				ib_logf(IB_LOG_LEVEL_WARN,
 					"Orphan table encountered during "
 					"DROP DATABASE. This is possible if "
 					"'%s.frm' was lost.", table->name);
+			}
+
+			if (table->ibd_file_missing) {
+				ib_logf(IB_LOG_LEVEL_WARN,
+					"Missing %s.ibd file for table %s.",
+					table->name, table->name);
 			}
 		}
 
