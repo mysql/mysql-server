@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2000, 2012, Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2000, 2013, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -2284,6 +2284,12 @@ public:
   */
   bool set_db(const char *new_db, size_t new_db_len)
   {
+    /*
+      Acquiring mutex LOCK_thd_data as we either free the memory allocated
+      for the database and reallocate the memory for the new db or memcpy
+      the new_db to the db.
+    */
+    pthread_mutex_lock(&LOCK_thd_data);
     /* Do not reallocate memory if current chunk is big enough. */
     if (db && new_db && db_length >= new_db_len)
       memcpy(db, new_db, new_db_len+1);
@@ -2293,6 +2299,7 @@ public:
       db= new_db ? my_strndup(new_db, new_db_len, MYF(MY_WME)) : NULL;
     }
     db_length= db ? new_db_len : 0;
+    pthread_mutex_unlock(&LOCK_thd_data);
     return new_db && !db;
   }
 
