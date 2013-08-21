@@ -135,15 +135,6 @@ page_cur_try_search_shortcut(
 			goto exit_func;
 		}
 
-#ifdef UNIV_SEARCH_DEBUG
-		page_cur_search_with_match(block, index, tuple, PAGE_CUR_DBG,
-					   iup_matched_fields,
-					   ilow_matched_fields,
-					   cursor);
-		ut_a(cursor->rec == rec);
-		ut_a(*iup_matched_fields == up_match);
-		ut_a(*ilow_matched_fields == low_match);
-#endif
 		*iup_matched_fields = up_match;
 	}
 
@@ -248,10 +239,6 @@ page_cur_search_with_match(
 	ulint		low_matched_fields;
 	ulint		cur_matched_fields;
 	int		cmp;
-#ifdef UNIV_SEARCH_DEBUG
-	int		dbg_cmp;
-	ulint		dbg_matched_fields;
-#endif
 #ifdef UNIV_ZIP_DEBUG
 	const page_zip_des_t*	page_zip = buf_block_get_page_zip(block);
 #endif /* UNIV_ZIP_DEBUG */
@@ -423,52 +410,6 @@ up_rec_match:
 		}
 	}
 
-#ifdef UNIV_SEARCH_DEBUG
-
-	/* Check that the lower and upper limit records have the
-	right alphabetical order compared to tuple. */
-	dbg_matched_fields = 0;
-
-	offsets = rec_get_offsets(low_rec, index, offsets,
-				  ULINT_UNDEFINED, &heap);
-	dbg_cmp = page_cmp_dtuple_rec_with_match(tuple, low_rec, offsets,
-						 &dbg_matched_fields);
-	if (mode == PAGE_CUR_G) {
-		ut_a(dbg_cmp >= 0);
-	} else if (mode == PAGE_CUR_GE) {
-		ut_a(dbg_cmp > 0);
-	} else if (mode == PAGE_CUR_L) {
-		ut_a(dbg_cmp > 0);
-	} else if (mode == PAGE_CUR_LE) {
-		ut_a(dbg_cmp >= 0);
-	}
-
-	if (!page_rec_is_infimum(low_rec)) {
-
-		ut_a(low_matched_fields == dbg_matched_fields);
-	}
-
-	dbg_matched_fields = 0;
-
-	offsets = rec_get_offsets(up_rec, index, offsets,
-				  ULINT_UNDEFINED, &heap);
-	dbg_cmp = page_cmp_dtuple_rec_with_match(tuple, up_rec, offsets,
-						 &dbg_matched_fields);
-	if (mode == PAGE_CUR_G) {
-		ut_a(dbg_cmp < 0);
-	} else if (mode == PAGE_CUR_GE) {
-		ut_a(dbg_cmp <= 0);
-	} else if (mode == PAGE_CUR_L) {
-		ut_a(dbg_cmp <= 0);
-	} else if (mode == PAGE_CUR_LE) {
-		ut_a(dbg_cmp < 0);
-	}
-
-	if (!page_rec_is_supremum(up_rec)) {
-
-		ut_a(up_matched_fields == dbg_matched_fields);
-	}
-#endif
 	if (mode <= PAGE_CUR_GE) {
 		page_cur_position(up_rec, block, cursor);
 	} else {
