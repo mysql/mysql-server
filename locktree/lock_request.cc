@@ -253,6 +253,7 @@ int lock_request::wait(void) {
         int r = toku_cond_timedwait(&m_wait_cond, &m_info->mutex, &ts);
         invariant(r == 0 || r == ETIMEDOUT);
         if (r == ETIMEDOUT && m_state == state::PENDING) {
+            m_info->counters.timeout_count += 1;
             // if we're still pending and we timed out, then remove our
             // request from the set of lock requests and fail.
             remove_from_lock_requests();
@@ -262,11 +263,11 @@ int lock_request::wait(void) {
     }
     uint64_t t_end = toku_current_time_microsec();
     uint64_t duration = t_end - t_start;
-    m_info->wait_count += 1;
-    m_info->wait_time += duration;
+    m_info->counters.wait_count += 1;
+    m_info->counters.wait_time += duration;
     if (duration >= 1000000) {
-        m_info->long_wait_count += 1;
-        m_info->long_wait_time += duration;
+        m_info->counters.long_wait_count += 1;
+        m_info->counters.long_wait_time += duration;
     }
     toku_mutex_unlock(&m_info->mutex);
 
