@@ -1959,6 +1959,9 @@ void st_select_lex_unit::exclude_level()
       (*units_last)= sl->first_inner_unit();
       units_last= last;
     }
+
+    // clean up and destroy join
+    sl->cleanup_level();
   }
   if (units)
   {
@@ -1976,6 +1979,9 @@ void st_select_lex_unit::exclude_level()
     if (next)
       next->prev= prev;
   }
+
+  // clean up fake_select_lex and global_parameters
+  cleanup_level();
 }
 
 
@@ -1998,11 +2004,17 @@ void st_select_lex_unit::exclude_tree()
     {
       u->exclude_level();
     }
+
+    // clean up and destroy join
+    sl->cleanup();
   }
   // exclude currect unit from list of nodes
   (*prev)= next;
   if (next)
     next->prev= prev;
+
+  // clean up fake_select_lex and global_parameters
+  cleanup();
 }
 
 
