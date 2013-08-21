@@ -632,6 +632,7 @@ public:
   bool exec();
   bool explain();
   bool cleanup();
+  bool cleanup_level();
   inline void unclean() { cleaned= 0; }
   void reinit_exec_mechanism();
 
@@ -958,6 +959,7 @@ public:
     SELECT_LEX and all nested SELECT_LEXes and SELECT_LEX_UNITs).
   */
   bool cleanup();
+  bool cleanup_level();
   /*
     Recursively cleanup the join of this select lex and of all nested
     select lexes.
