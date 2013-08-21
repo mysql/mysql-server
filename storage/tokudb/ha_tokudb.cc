@@ -3470,6 +3470,8 @@ int ha_tokudb::end_bulk_insert() {
     return end_bulk_insert( false );
 }
 
+volatile int ha_tokudb_is_index_unique_wait = 0; // debug
+
 int ha_tokudb::is_index_unique(bool* is_unique, DB_TXN* txn, DB* db, KEY* key_info) {
     int error;
     DBC* tmp_cursor1 = NULL;
@@ -3614,6 +3616,7 @@ int ha_tokudb::is_index_unique(bool* is_unique, DB_TXN* txn, DB* db, KEY* key_in
     error = 0;
 
 cleanup:
+    while (ha_tokudb_is_index_unique_wait) sleep(1); // debug
     if (tmp_cursor1) {
         tmp_cursor1->c_close(tmp_cursor1);
         tmp_cursor1 = NULL;
@@ -7813,6 +7816,7 @@ int ha_tokudb::tokudb_add_index(
         indexer = NULL;
     }
     else {
+        DBUG_ASSERT(table->mdl_ticket->get_type() >= MDL_SHARED_NO_WRITE);
         rw_unlock(&share->num_DBs_lock);
         rw_lock_taken = false;
         prelocked_right_range_size = 0;

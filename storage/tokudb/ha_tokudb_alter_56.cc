@@ -312,8 +312,10 @@ enum_alter_inplace_result ha_tokudb::check_if_supported_inplace_alter(TABLE *alt
 
                 // someday, allow multiple hot indexes via alter table add key. don't forget to change the store_lock function.
                 // for now, hot indexing is only supported via session variable with the create index sql command
-                if (ha_alter_info->index_add_count == 1 && ha_alter_info->index_drop_count == 0 && 
-                    get_create_index_online(thd) && thd_sql_command(thd) == SQLCOM_CREATE_INDEX) {
+                if (ha_alter_info->index_add_count == 1 && ha_alter_info->index_drop_count == 0 &&  // only one add or drop
+                    ctx->handler_flags == Alter_inplace_info::ADD_INDEX &&                          // must be add index not add unique index
+                    thd_sql_command(thd) == SQLCOM_CREATE_INDEX &&                                  // must be a create index command
+                    get_create_index_online(thd)) {                                                 // must be enabled
                     // external_lock set WRITE_ALLOW_WRITE which allows writes concurrent with the index creation
                     result = HA_ALTER_INPLACE_NO_LOCK_AFTER_PREPARE; 
                 }
