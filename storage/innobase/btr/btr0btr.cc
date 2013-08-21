@@ -3470,7 +3470,7 @@ btr_node_ptr_delete(
 	btr_page_get_father(index, block, mtr, &cursor);
 
 	compressed = btr_cur_pessimistic_delete(&err, TRUE, &cursor,
-						BTR_CREATE_FLAG, RB_NONE, mtr);
+						BTR_CREATE_FLAG, false, mtr);
 	ut_a(err == DB_SUCCESS);
 
 	if (!compressed) {
@@ -3854,7 +3854,7 @@ btr_compress(
 
 		compressed = btr_cur_pessimistic_delete(&err, TRUE, &cursor2,
 							BTR_CREATE_FLAG,
-							RB_NONE, mtr);
+							false, mtr);
 		ut_a(err == DB_SUCCESS);
 
 		if (!compressed) {
