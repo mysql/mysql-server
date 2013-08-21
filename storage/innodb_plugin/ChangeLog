@@ -1,3 +1,9 @@
+2013-08-21	The InnoDB Team
+
+	* buf/buf0buf.c:
+	Fix Bug#12560151 61132: infinite loop in buf_page_get_gen()
+	when handling compressed pages
+
 2013-08-16	The InnoDB Team
 
 	* row/row0sel.c:
