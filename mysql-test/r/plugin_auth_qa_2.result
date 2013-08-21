@@ -101,52 +101,34 @@ CREATE USER qa_test_6_user IDENTIFIED WITH qa_auth_interface AS 'qa_test_6_dest'
 CREATE USER qa_test_6_dest IDENTIFIED BY 'dest_passwd';
 GRANT ALL PRIVILEGES ON test_user_db.* TO qa_test_6_dest identified by 'dest_passwd';
 GRANT PROXY ON qa_test_6_dest TO qa_test_6_user;
-SELECT user,plugin,authentication_string,password FROM mysql.user;
+SELECT user,plugin,authentication_string,password FROM mysql.user WHERE user != 'root';
 user	plugin	authentication_string	password
 qa_test_6_dest	mysql_native_password		*DFCACE76914AD7BD801FC1A1ECF6562272621A22
 qa_test_6_user	qa_auth_interface	qa_test_6_dest	
-root			
-root			
-root			
-root			
 exec MYSQL PLUGIN_AUTH_OPT -h localhost -P MASTER_MYPORT --user=qa_test_6_user  --password=qa_test_6_dest test_user_db -e "SELECT current_user(),user(),@@local.proxy_user,@@local.external_user;" 2>&1
 Warning: Using a password on the command line interface can be insecure.
 ERROR 1045 (28000): Access denied for user 'qa_test_6_user'@'localhost' (using password: YES)
 GRANT PROXY ON qa_test_6_dest TO root IDENTIFIED WITH qa_auth_interface AS 'qa_test_6_dest';
-SELECT user,plugin,authentication_string,password FROM mysql.user;
+SELECT user,plugin,authentication_string,password FROM mysql.user WHERE user != 'root';
 user	plugin	authentication_string	password
 qa_test_6_dest	mysql_native_password		*DFCACE76914AD7BD801FC1A1ECF6562272621A22
 qa_test_6_user	qa_auth_interface	qa_test_6_dest	
-root			
-root			
-root			
-root			
-root	qa_auth_interface	qa_test_6_dest	
 exec MYSQL PLUGIN_AUTH_OPT -h localhost -P MASTER_MYPORT --user=root  --password=qa_test_6_dest test_user_db -e "SELECT current_user(),user(),@@local.proxy_user,@@local.external_user;" 2>&1
 Warning: Using a password on the command line interface can be insecure.
 ERROR 1045 (28000): Access denied for user 'root'@'localhost' (using password: YES)
 REVOKE PROXY ON qa_test_6_dest FROM root;
-SELECT user,plugin,authentication_string FROM mysql.user;
+SELECT user,plugin,authentication_string FROM mysql.user WHERE user != 'root';
 user	plugin	authentication_string
 qa_test_6_dest	mysql_native_password	
 qa_test_6_user	qa_auth_interface	qa_test_6_dest
-root		
-root		
-root		
-root		
-root	qa_auth_interface	qa_test_6_dest
 exec MYSQL PLUGIN_AUTH_OPT -h localhost -P MASTER_MYPORT --user=root  --password=qa_test_6_dest test_user_db -e "SELECT current_user(),user(),@@local.proxy_user,@@local.external_user;" 2>&1
 Warning: Using a password on the command line interface can be insecure.
 ERROR 1045 (28000): Access denied for user 'root'@'localhost' (using password: YES)
 DROP USER qa_test_6_user;
 DROP USER qa_test_6_dest;
 DELETE FROM mysql.user WHERE user='root' AND plugin='qa_auth_interface';
-SELECT user,plugin,authentication_string,password FROM mysql.user;
+SELECT user,plugin,authentication_string,password FROM mysql.user WHERE user != 'root';
 user	plugin	authentication_string	password
-root			
-root			
-root			
-root			
 === Test of the --default_auth option for clients ====
 CREATE USER qa_test_11_user IDENTIFIED WITH qa_auth_interface AS 'qa_test_11_dest';
 CREATE USER qa_test_11_dest IDENTIFIED BY 'dest_passwd';
