@@ -586,20 +586,6 @@ public:
 
 private:
   /**
-    Execute current query. To be called from @c JOIN::exec.
-
-    If current query is a dependent subquery, this execution is performed on a
-    temporary copy of the original JOIN object in order to be able to restore
-    the original content for re-execution and EXPLAIN. (@note Subqueries may
-    be executed as part of EXPLAIN.) In such cases, execution data that may be
-    reused for later executions will be copied to the original 
-    @c JOIN object (@c parent).
-
-    @param parent Original @c JOIN object when current object is a temporary 
-                  copy. @c NULL, otherwise
-  */
-  void execute(JOIN *parent);
-  /**
     Send current query result set to the client. To be called from JOIN::execute
 
     @note       Explain skips this call during JOIN::execute() execution
@@ -670,6 +656,9 @@ private:
   */
   void replace_item_field(const char* field_name, Item* new_item);
 
+#ifdef WITH_PARTITION_STORAGE_ENGINE
+  bool prune_table_partitions(THD *thd);
+#endif
   /**
     TRUE if the query contains an aggregate function but has no GROUP
     BY clause. 
@@ -678,6 +667,9 @@ private:
 
   void set_prefix_tables();
   void cleanup_item_list(List<Item> &items) const;
+public: // @todo: Make private
+  void set_semijoin_embedding();
+private:
   void set_semijoin_info();
   bool set_access_methods();
   bool setup_materialized_table(JOIN_TAB *tab, uint tableno,
