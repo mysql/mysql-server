@@ -1008,7 +1008,6 @@ terminate_slave_thread(THD *thd,
                        volatile uint *slave_running,
                        bool need_lock_term)
 {
-  int error;
   DBUG_ENTER("terminate_slave_thread");
   if (need_lock_term)
   {
@@ -1063,7 +1062,10 @@ terminate_slave_thread(THD *thd,
     */
     struct timespec abstime;
     set_timespec(abstime,2);
-    error= mysql_cond_timedwait(term_cond, term_lock, &abstime);
+#ifndef DBUG_OFF
+    int error=
+#endif
+      mysql_cond_timedwait(term_cond, term_lock, &abstime);
     if (stop_wait_timeout >= 2)
       stop_wait_timeout= stop_wait_timeout - 2;
     else if (*slave_running)

@@ -2966,18 +2966,19 @@ Slave_worker *Log_event::get_slave_worker(Relay_log_info *rli)
   {
     if (!rli->curr_group_seen_gtid && !rli->curr_group_seen_begin)
     {
-      ulong gaq_idx;
       rli->mts_groups_assigned++;
 
       rli->curr_group_isolated= FALSE;
       group.reset(log_pos, rli->mts_groups_assigned);
       // the last occupied GAQ's array index
-      gaq_idx= gaq->assigned_group_index= gaq->en_queue((void *) &group);
-      DBUG_PRINT("info",("gaq_idx= %ld  gaq->size=%ld", gaq_idx, gaq->size));
-      DBUG_ASSERT(gaq_idx != MTS_WORKER_UNDEF && gaq_idx < gaq->size);
+      gaq->assigned_group_index= gaq->en_queue((void *) &group);
+      DBUG_PRINT("info",("gaq_idx= %ld  gaq->size=%ld",
+                         gaq->assigned_group_index,
+                         gaq->size));
+      DBUG_ASSERT(gaq->assigned_group_index != MTS_WORKER_UNDEF);
+      DBUG_ASSERT(gaq->assigned_group_index < gaq->size);
       DBUG_ASSERT(gaq->get_job_group(rli->gaq->assigned_group_index)->
                   group_relay_log_name == NULL);
-      DBUG_ASSERT(gaq_idx != MTS_WORKER_UNDEF);  // gaq must have room
       DBUG_ASSERT(rli->last_assigned_worker == NULL ||
                   !is_mts_db_partitioned(rli));
 
