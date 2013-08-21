@@ -13748,7 +13748,7 @@ internal_remove_eq_conds(THD *thd, COND *cond, Item::cond_result *cond_value)
         Propagate the newly formed multiple equalities to
         the all AND/OR levels of cond 
       */
-      bool is_simplifiable_cond= true;
+      bool is_simplifiable_cond= false;
       propagate_new_equalities(thd, cond, cond_equalities,
                                cond_equal->upper_levels,
                                &is_simplifiable_cond);
@@ -13759,7 +13759,7 @@ internal_remove_eq_conds(THD *thd, COND *cond, Item::cond_result *cond_value)
       */ 
       if (is_simplifiable_cond)
       {
-        if (!(cond= remove_eq_conds(thd, cond, cond_value)))
+        if (!(cond= internal_remove_eq_conds(thd, cond, cond_value)))
           return cond;
       }          
     }

@@ -4748,6 +4748,8 @@ Item *and_expressions(Item *a, Item *b, Item **org_item)
 longlong Item_func_isnull::val_int()
 {
   DBUG_ASSERT(fixed == 1);
+  if (const_item() && !args[0]->maybe_null)
+    return 0;
   return args[0]->is_null() ? 1: 0;
 }
 
@@ -4755,6 +4757,8 @@ longlong Item_is_not_null_test::val_int()
 {
   DBUG_ASSERT(fixed == 1);
   DBUG_ENTER("Item_is_not_null_test::val_int");
+  if (const_item() && !args[0]->maybe_null)
+    DBUG_RETURN(1);
   if (args[0]->is_null())
   {
     DBUG_PRINT("info", ("null"));
