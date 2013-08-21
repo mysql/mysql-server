@@ -44,10 +44,13 @@ using std::max;
 #define REPORT_TO_LOG  1
 #define REPORT_TO_USER 2
 
+#ifndef DBUG_OFF
+static PSI_memory_key key_memory_plugin_ref;
+#endif
+
 static PSI_memory_key key_memory_plugin_mem_root;
 static PSI_memory_key key_memory_plugin_init_tmp;
 static PSI_memory_key key_memory_plugin_int_mem_root;
-static PSI_memory_key key_memory_plugin_ref;
 static PSI_memory_key key_memory_mysql_plugin;
 static PSI_memory_key key_memory_mysql_plugin_dl;
 
@@ -1220,10 +1223,12 @@ static PSI_mutex_info all_plugin_mutexes[]=
 
 static PSI_memory_info all_plugin_memory[]=
 {
+#ifndef DBUG_OFF
+  { &key_memory_plugin_ref, "plugin_ref", 0},
+#endif
   { &key_memory_plugin_mem_root, "plugin_mem_root", PSI_FLAG_GLOBAL},
   { &key_memory_plugin_init_tmp, "plugin_init_tmp", 0},
   { &key_memory_plugin_int_mem_root, "plugin_int_mem_root", 0},
-  { &key_memory_plugin_ref, "plugin_ref", 0},
   { &key_memory_mysql_plugin_dl, "mysql_plugin_dl", 0},
   { &key_memory_mysql_plugin, "mysql_plugin", 0}
 };
