@@ -189,6 +189,8 @@ static void
 free_indexer_resources(DB_INDEXER *indexer) {
     if ( indexer->i ) {        
         toku_mutex_destroy(&indexer->i->indexer_lock);
+        toku_mutex_destroy(&indexer->i->indexer_estimate_lock);
+        toku_destroy_dbt(&indexer->i->position_estimate);
         if ( indexer->i->lec ) {
             toku_le_cursor_close(indexer->i->lec);
         }
@@ -220,6 +222,49 @@ toku_indexer_lock(DB_INDEXER* indexer) {
 void
 toku_indexer_unlock(DB_INDEXER* indexer) {
     toku_mutex_unlock(&indexer->i->indexer_lock);
+}
+
+// a shortcut call
+//
+// a cheap(er) call to see if a key must be inserted
+// into the DB. If true, then we know we have to insert.
+// If false, then we don't know, and have to check again
+// after grabbing the indexer lock
+bool
+toku_indexer_may_insert(DB_INDEXER* indexer, const DBT* key) {
+    bool retval = false;
+    toku_mutex_lock(&indexer->i->indexer_estimate_lock);
+    // if we have no position estimate, we can't tell, so return false
+    if (indexer->i->position_estimate.data == NULL) {
+        retval = false;
+    }
+    else {
+        FT_HANDLE ft_handle = indexer->i->src_db->i->ft_handle;
+        ft_compare_func keycompare = toku_ft_get_bt_compare(ft_handle);        
+        int r = keycompare(
+            indexer->i->src_db, 
+            &indexer->i->position_estimate, 
+            key
+            );
+        // if key > position_estimate, then we know the indexer cursor
+        // is past key, and we can safely say that associated values of 
+        // key must be inserted into the indexer's db
+        if (r  < 0) {
+            retval = true;
+        }
+        else {
+            retval = false;
+        }
+    }
+    toku_mutex_unlock(&indexer->i->indexer_estimate_lock);
+    return retval;
+}
+
+void
+toku_indexer_update_estimate(DB_INDEXER* indexer) {
+    toku_mutex_lock(&indexer->i->indexer_estimate_lock);
+    toku_le_cursor_update_estimate(indexer->i->lec, &indexer->i->position_estimate);
+    toku_mutex_unlock(&indexer->i->indexer_estimate_lock);
 }
 
 // forward declare the test-only wrapper function for undo-do
@@ -272,6 +317,8 @@ toku_indexer_create_indexer(DB_ENV *env,
     indexer->abort                 = abort_indexer;
 
     toku_mutex_init(&indexer->i->indexer_lock, NULL);
+    toku_mutex_init(&indexer->i->indexer_estimate_lock, NULL);
+    toku_init_dbt(&indexer->i->position_estimate);
 
     //
     // create and close a dummy loader to get redirection going for the hot indexer
@@ -356,8 +403,14 @@ toku_indexer_set_error_callback(DB_INDEXER *indexer,
 // a key is to the right of the indexer's cursor if it compares
 // greater than the current le cursor position.
 bool
-toku_indexer_is_key_right_of_le_cursor(DB_INDEXER *indexer, const DBT *key) {
-    return toku_le_cursor_is_key_greater(indexer->i->lec, key);
+toku_indexer_should_insert_key(DB_INDEXER *indexer, const DBT *key) {
+    // the hot indexer runs from the end to the beginning, it gets the largest keys first
+    //
+    // if key is less than indexer's position, then we should NOT insert it because
+    // the indexer will get to it. If it is greater or equal, that means the indexer
+    // has already processed the key, and will not get to it, therefore, we need
+    // to handle it
+    return toku_le_cursor_is_key_greater_or_equal(indexer->i->lec, key);
 }
 
 // initialize provisional info by allocating enough space to hold provisional 

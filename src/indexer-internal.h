@@ -123,8 +123,10 @@ struct ule_prov_info {
 
 struct __toku_indexer_internal {
     DB_ENV *env;
-    DB_TXN *txn;    
+    DB_TXN *txn;
     toku_mutex_t indexer_lock;
+    toku_mutex_t indexer_estimate_lock;
+    DBT position_estimate;
     DB *src_db;
     int N;
     DB **dest_dbs; /* [N] */

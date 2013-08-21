@@ -208,10 +208,10 @@ walk_tree(const char *fname, int n) {
 
     int i;
     for (i = 0; ; i++) {
-	error = TOKUDB_TRY_AGAIN;
-	while (error == TOKUDB_TRY_AGAIN) {
-	    error = le_cursor_get_next(cursor, &val);
-	}
+        error = TOKUDB_TRY_AGAIN;
+        while (error == TOKUDB_TRY_AGAIN) {
+            error = le_cursor_get_next(cursor, &val);
+        }
         if (error != 0) 
             break;
 
@@ -220,7 +220,7 @@ walk_tree(const char *fname, int n) {
         assert(le->keylen == sizeof (int));
         int ii;
         memcpy(&ii, le->u.mvcc.key_xrs, le->keylen);
-        assert((int) toku_htonl(i) == ii);
+        assert((int) toku_htonl(n-i-1) == ii);
     }
     assert(i == n);
 

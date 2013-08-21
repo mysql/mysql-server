@@ -252,7 +252,7 @@ test_provdel(const char *logdir, const char *fname, int n) {
         assert(le->keylen == sizeof (int));
         int ii;
         memcpy(&ii, le->u.mvcc.key_xrs, le->keylen);
-        assert((int) toku_htonl(i) == ii);
+        assert((int) toku_htonl(n-i-1) == ii);
     }
     assert(i == n);
 
