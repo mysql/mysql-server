@@ -6346,14 +6346,16 @@ end:
 */
 ha_rows DsMrr_impl::dsmrr_info(uint keyno, uint n_ranges, uint rows,
                                uint *bufsz, uint *flags, Cost_estimate *cost)
-{  
-  ha_rows res;
+{
   uint def_flags= *flags;
   uint def_bufsz= *bufsz;
 
   /* Get cost/flags/mem_usage of default MRR implementation */
-  res= h->handler::multi_range_read_info(keyno, n_ranges, rows, &def_bufsz,
-                                         &def_flags, cost);
+#ifndef DBUG_OFF
+  ha_rows res=
+#endif
+    h->handler::multi_range_read_info(keyno, n_ranges, rows, &def_bufsz,
+                                      &def_flags, cost);
   DBUG_ASSERT(!res);
 
   if ((*flags & HA_MRR_USE_DEFAULT_IMPL) || 

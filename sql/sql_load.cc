@@ -195,7 +195,6 @@ int mysql_load(THD *thd,sql_exchange *ex,TABLE_LIST *table_list,
   */
   char *tdb= thd->db ? thd->db : db;		// Result is never null
   ulong skip_lines= ex->skip_lines;
-  bool transactional_table;
   DBUG_ENTER("mysql_load");
 
   /*
@@ -267,7 +266,10 @@ int mysql_load(THD *thd,sql_exchange *ex,TABLE_LIST *table_list,
   for (Field **cur_field= table->field; *cur_field; ++cur_field)
     (*cur_field)->reset_warnings();
 
-  transactional_table= table->file->has_transactions();
+#if not defined (EMBEDDED_LIBRARY) || not defined (DBUG_OFF)
+  bool transactional_table= table->file->has_transactions();
+#endif
+
 #ifndef EMBEDDED_LIBRARY
   is_concurrent= (table_list->lock_type == TL_WRITE_CONCURRENT_INSERT);
 #endif
