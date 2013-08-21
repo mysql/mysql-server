@@ -116,6 +116,7 @@ void locktree::manager::create(lt_create_cb create_cb, lt_destroy_cb destroy_cb,
     toku_mutex_init(&m_mutex, nullptr);
 
     ZERO_STRUCT(status);
+    ZERO_STRUCT(m_lt_counters);
 }
 
 void locktree::manager::destroy(void) {
@@ -238,6 +239,14 @@ void locktree::manager::reference_lt(locktree *lt) {
     toku_sync_fetch_and_add(&lt->m_reference_count, 1);
 }
 
+static void add_lt_counters(locktree::lt_counters *x, locktree::lt_counters *y) {
+    x->wait_count += y->wait_count;
+    x->wait_time += y->wait_time;
+    x->long_wait_count += y->long_wait_count;
+    x->long_wait_time += y->long_wait_time;
+    x->timeout_count += y->timeout_count;
+}
+
 void locktree::manager::release_lt(locktree *lt) {
     bool do_destroy = false;
     DICTIONARY_ID dict_id = lt->m_dict_id;
@@ -285,6 +294,7 @@ void locktree::manager::release_lt(locktree *lt) {
                 do_destroy = true;
             }
         }
+        add_lt_counters(&m_lt_counters, &lt->m_lock_request_info.counters);
         mutex_unlock();
     }
 
@@ -381,6 +391,7 @@ void locktree::manager::status_init(void) {
     STATUS_INIT(LTM_WAIT_TIME,                LOCKTREE_WAIT_TIME, UINT64, "time waiting for locks", TOKU_ENGINE_STATUS);
     STATUS_INIT(LTM_LONG_WAIT_COUNT,          LOCKTREE_LONG_WAIT_COUNT, UINT64, "number of long wait locks ", TOKU_ENGINE_STATUS);
     STATUS_INIT(LTM_LONG_WAIT_TIME,           LOCKTREE_LONG_WAIT_TIME, UINT64, "long time waiting for locks", TOKU_ENGINE_STATUS);
+    STATUS_INIT(LTM_TIMEOUT_COUNT,            LOCKTREE_TIMEOUT_COUNT, UINT64, "number of lock timeouts", TOKU_ENGINE_STATUS);
 
     status.initialized = true;
 }
@@ -388,6 +399,7 @@ void locktree::manager::status_init(void) {
 #undef STATUS_INIT
 
 #define STATUS_VALUE(x) status.status[x].value.num
+
 void locktree::manager::get_status(LTM_STATUS statp) {
     if (!status.initialized) {
         status_init();
@@ -405,10 +417,9 @@ void locktree::manager::get_status(LTM_STATUS statp) {
     uint64_t sto_num_eligible = 0;
     uint64_t sto_end_early_count = 0;
     tokutime_t sto_end_early_time = 0;
-    
-    uint64_t lock_wait_count = 0, lock_wait_time = 0;
-    uint64_t long_lock_wait_count = 0, long_lock_wait_time = 0;
 
+    struct lt_counters lt_counters = m_lt_counters;
+    
     size_t num_locktrees = m_locktree_map.size();
     for (size_t i = 0; i < num_locktrees; i++) {
         locktree *lt;
@@ -417,10 +428,7 @@ void locktree::manager::get_status(LTM_STATUS statp) {
 
         toku_mutex_lock(&lt->m_lock_request_info.mutex);
         lock_requests_pending += lt->m_lock_request_info.pending_lock_requests.size();
-        lock_wait_count += lt->m_lock_request_info.wait_count;
-        lock_wait_time += lt->m_lock_request_info.wait_time;
-        long_lock_wait_count += lt->m_lock_request_info.long_wait_count;
-        long_lock_wait_time  += lt->m_lock_request_info.long_wait_time;        
+        add_lt_counters(&lt_counters, &lt->m_lock_request_info.counters);
         toku_mutex_unlock(&lt->m_lock_request_info.mutex);
 
         sto_num_eligible += lt->sto_txnid_is_valid_unsafe() ? 1 : 0;
@@ -435,10 +443,11 @@ void locktree::manager::get_status(LTM_STATUS statp) {
     STATUS_VALUE(LTM_STO_NUM_ELIGIBLE) = sto_num_eligible;
     STATUS_VALUE(LTM_STO_END_EARLY_COUNT) = sto_end_early_count;
     STATUS_VALUE(LTM_STO_END_EARLY_TIME) = sto_end_early_time;
-    STATUS_VALUE(LTM_WAIT_COUNT) = lock_wait_count;
-    STATUS_VALUE(LTM_WAIT_TIME) = lock_wait_time;
-    STATUS_VALUE(LTM_LONG_WAIT_COUNT) = long_lock_wait_count;
-    STATUS_VALUE(LTM_LONG_WAIT_TIME) = long_lock_wait_time;
+    STATUS_VALUE(LTM_WAIT_COUNT) = lt_counters.wait_count;
+    STATUS_VALUE(LTM_WAIT_TIME) = lt_counters.wait_time;
+    STATUS_VALUE(LTM_LONG_WAIT_COUNT) = lt_counters.long_wait_count;
+    STATUS_VALUE(LTM_LONG_WAIT_TIME) = lt_counters.long_wait_time;
+    STATUS_VALUE(LTM_TIMEOUT_COUNT) = lt_counters.timeout_count;
     *statp = status;
 }
 #undef STATUS_VALUE

@@ -88,27 +88,86 @@ PATENT RIGHTS GRANT:
 #ident "Copyright (c) 2007-2013 Tokutek Inc.  All rights reserved."
 #ident "The technology is licensed by the Massachusetts Institute of Technology, Rutgers State University of New Jersey, and the Research Foundation of State University of New York at Stony Brook under United States of America Serial No. 11/760379 and to the patents and/or patent applications resulting from it."
 
-#ifndef TOKU_MANAGER_TEST_H
-#define TOKU_MANAGER_TEST_H
-
-#include <toku_assert.h>
-#include <locktree/locktree.h>
+#include "manager_unit_test.h"
+#include "locktree_unit_test.h"
+#include "lock_request_unit_test.h"
 
 namespace toku {
 
-class manager_unit_test {
-public:
-    void test_create_destroy(void);
-    
-    void test_params(void);
+static void assert_status(LTM_STATUS ltm_status, const char *keyname, uint64_t v) {
+    TOKU_ENGINE_STATUS_ROW key_status = NULL;
+    // lookup keyname in status
+    for (int i = 0; ; i++) {
+        TOKU_ENGINE_STATUS_ROW status = &ltm_status->status[i];
+        if (status->keyname == NULL)
+            break;
+        if (strcmp(status->keyname, keyname) == 0) {
+            key_status = status;
+            break;
+        }
+    }
+    assert(key_status);
+    assert(key_status->value.num == v);
+}
 
-    void test_lt_map(void);
+void manager_unit_test::test_status(void) {
 
-    void test_reference_release_lt(void);
+    locktree::manager mgr;
+    mgr.create(nullptr, nullptr, nullptr, nullptr);
 
-    void test_status(void);
-};
+    LTM_STATUS_S status;
+    mgr.get_status(&status);
+    assert_status(&status, "LTM_WAIT_COUNT", 0);
+    assert_status(&status, "LTM_TIMEOUT_COUNT", 0);
+
+    DESCRIPTOR desc = nullptr;
+    DICTIONARY_ID dict_id = { 1 };
+    locktree *lt = mgr.get_lt(dict_id, desc, compare_dbts, nullptr);
+    int r;
+    TXNID txnid_a = 1001;
+    TXNID txnid_b = 2001;
+    const DBT *one = get_dbt(1);
+
+    // txn a write locks one
+    r = lt->acquire_write_lock(txnid_a, one, one, nullptr);
+    assert(r == 0);
+
+    // txn b tries to write lock one, conflicts, waits, and fails to lock one
+    lock_request request_b;
+    request_b.create(1000);
+    request_b.set(lt, txnid_b, one, one, lock_request::type::WRITE);
+    r = request_b.start();
+    assert(r == DB_LOCK_NOTGRANTED);
+    r = request_b.wait();
+    assert(r == DB_LOCK_NOTGRANTED);
+    request_b.destroy();
+
+    range_buffer buffer;
+    buffer.create();
+    buffer.append(one, one);
+    lt->release_locks(txnid_a, &buffer);
+    buffer.destroy();
+
+    assert(lt->m_rangetree->is_empty() && lt->m_sto_buffer.is_empty());
+
+    // assert that wait counters incremented
+    mgr.get_status(&status);
+    assert_status(&status, "LTM_WAIT_COUNT", 1);
+    assert_status(&status, "LTM_TIMEOUT_COUNT", 1);
+
+    // assert that wait counters are persistent after the lock tree is destroyed
+    mgr.release_lt(lt);
+    mgr.get_status(&status);
+    assert_status(&status, "LTM_WAIT_COUNT", 1);
+    assert_status(&status, "LTM_TIMEOUT_COUNT", 1);
+
+    mgr.destroy();
+}
 
 } /* namespace toku */
 
-#endif /* TOKU_MANAGER_TEST_H */
+int main(void) {
+    toku::manager_unit_test test;
+    test.test_status();
+    return 0;
+}

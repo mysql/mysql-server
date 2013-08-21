@@ -119,6 +119,7 @@ enum {
     LTM_WAIT_TIME,
     LTM_LONG_WAIT_COUNT,
     LTM_LONG_WAIT_TIME,
+    LTM_TIMEOUT_COUNT,
     LTM_STATUS_NUM_ROWS // must be last
 };
 
@@ -185,14 +186,19 @@ public:
 
     int compare(const locktree *lt);
 
+    struct lt_counters {
+        uint64_t wait_count, wait_time;
+        uint64_t long_wait_count, long_wait_time;
+        uint64_t timeout_count;
+    };
+
     // The locktree stores some data for lock requests. It doesn't have to know
     // how they work or even what a lock request object looks like.
     struct lt_lock_request_info {
         omt<lock_request *> pending_lock_requests;
         toku_mutex_t mutex;
         bool should_retry_lock_requests;
-        uint64_t wait_count, wait_time;
-        uint64_t long_wait_count, long_wait_time;
+        lt_counters counters;
     };
 
     // Private info struct for storing pending lock request state.
@@ -300,6 +306,8 @@ public:
         uint64_t m_escalation_count;
         tokutime_t m_escalation_time;
         uint64_t m_escalation_latest_result;
+
+        struct lt_counters m_lt_counters;
 
         // lock wait time for blocking row locks, in ms
         uint64_t m_lock_wait_time_ms;

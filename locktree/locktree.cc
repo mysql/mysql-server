@@ -139,6 +139,7 @@ void locktree::create(manager::memory_tracker *mem_tracker, DICTIONARY_ID dict_i
     ZERO_STRUCT(m_lock_request_info.mutex);
     toku_mutex_init(&m_lock_request_info.mutex, nullptr);
     m_lock_request_info.should_retry_lock_requests = false;
+    ZERO_STRUCT(m_lock_request_info.counters);
 
     // Threads read the should retry bit without a lock
     // for performance. It's ok to read the wrong value.
