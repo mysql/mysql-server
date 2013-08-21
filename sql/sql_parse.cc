@@ -979,7 +979,9 @@ bool dispatch_command(enum enum_server_command command, THD *thd,
       if (save_user_connect)
 	decrease_user_connections(save_user_connect);
 #endif /* NO_EMBEDDED_ACCESS_CHECKS */
+      mysql_mutex_lock(&thd->LOCK_thd_data);
       my_free(save_db);
+      mysql_mutex_unlock(&thd->LOCK_thd_data);
       my_free(save_security_ctx.user);
     }
     break;
