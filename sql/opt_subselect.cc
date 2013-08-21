@@ -5211,10 +5211,12 @@ bool setup_jtbm_semi_joins(JOIN *join, List<TABLE_LIST> *join_list,
           {
             eq_cond= new Item_func_eq(subq_pred->left_expr->element_index(i),
                                       new_sink->row[i]);
-            if (!eq_cond || eq_cond->fix_fields(join->thd, &eq_cond))
+            if (!eq_cond)
               DBUG_RETURN(1);
 
-            (*join_where)= and_items(*join_where, eq_cond);
+            if (!((*join_where)= and_items(*join_where, eq_cond)) ||
+                (*join_where)->fix_fields(join->thd, join_where))
+              DBUG_RETURN(1);
           }
         }
         else
