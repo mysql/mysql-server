@@ -364,12 +364,6 @@ public:
   */
   Gtid_set until_sql_gtids;
   /*
-    On START SLAVE UNTIL SQL_AFTER_GTIDS this set contains the
-    intersection between logged gtids set and gtids scheduled on MTS
-    worker queues.
-  */
-  Gtid_set until_sql_gtids_seen;
-  /*
     True if the current event is the first gtid event to be processed
     after executing START SLAVE UNTIL SQL_*_GTIDS.
   */
