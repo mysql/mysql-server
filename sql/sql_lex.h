@@ -652,6 +652,8 @@ public:
 
   List<Item> *get_unit_column_types();
   List<Item> *get_field_list();
+private:
+  void invalidate();
 };
 
 typedef class st_select_lex_unit SELECT_LEX_UNIT;
@@ -900,6 +902,7 @@ public:
   {
     return &link_next;
   }
+  void invalidate();
   void mark_as_dependent(st_select_lex *last);
 
   bool set_braces(bool value);
