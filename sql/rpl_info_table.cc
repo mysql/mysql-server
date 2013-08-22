@@ -294,7 +294,7 @@ end:
   /*
     Unlocks and closes the rpl_info table.
   */
-  access->close_table(thd, table, &backup, error, true);
+  access->close_table(thd, table, &backup, error);
   reenable_binlog(thd);
   thd->variables.sql_mode= saved_mode;
   access->drop_thd(thd);
