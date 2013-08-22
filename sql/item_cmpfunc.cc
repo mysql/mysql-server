@@ -3238,12 +3238,12 @@ bool Item_func_coalesce::get_date(MYSQL_TIME *ltime,ulonglong fuzzydate)
   null_value= 0;
   for (uint i= 0; i < arg_count; i++)
   {
-    bool res= args[i]->get_date(ltime, fuzzydate);
+    bool res= args[i]->get_date(ltime, fuzzydate & ~TIME_FUZZY_DATES);
     if (!args[i]->null_value)
       return res;
   }
-  null_value=1;
-  return 1;
+  bzero((char*) ltime,sizeof(*ltime));
+  return null_value|= !(fuzzydate & TIME_FUZZY_DATES);
 }
 
 

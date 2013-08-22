@@ -300,6 +300,28 @@ drop table t1;
 SELECT CONVERT_TZ(GREATEST(DATE('2021-00-00'),DATE('2022-00-00')),'+00:00','+7:5');
 
 --echo #
+--echo # MDEV-4804 Date comparing false result 
+--echo #
+SET @h0="20111107";
+SET @h1="0";
+SET @@timestamp=UNIX_TIMESTAMP('2013-08-19 20:30:00');
+SELECT
+  COALESCE(DATE(@h0),DATE("1901-01-01")) AS h0d,
+  COALESCE(DATE(@h1),DATE(NOW())) AS h1d,
+  COALESCE(DATE(@h0),DATE("1901-01-01"))>COALESCE(DATE(@h1),DATE(NOW())) AS compare_h0_gt_h1;
+SELECT
+  DATE('20011107'),
+  DATE('0'),
+  COALESCE(DATE('0'),CURRENT_DATE) AS d1,
+  DATE('20011107')>COALESCE(DATE('0'),CURRENT_DATE) AS cmp;
+SELECT
+  DATE('20011107'),
+  DATE('0'),
+  IFNULL(DATE('0'),CURRENT_DATE) AS d1,
+  DATE('20011107')>IFNULL(DATE('0'),CURRENT_DATE) AS cmp;
+SET @@timestamp=DEFAULT;
+
+--echo #
 --echo # End of 5.3 tests
 --echo #
 
