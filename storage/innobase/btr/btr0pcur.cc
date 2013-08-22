@@ -453,6 +453,7 @@ btr_pcur_move_to_next_page(
 	ut_a(btr_page_get_prev(next_page, mtr)
 	     == buf_block_get_page_no(btr_pcur_get_block(cursor)));
 #endif /* UNIV_BTR_DEBUG */
+	next_block->check_index_page_at_flush = TRUE;
 
 	btr_leaf_page_release(btr_pcur_get_block(cursor),
 			      mode, mtr);

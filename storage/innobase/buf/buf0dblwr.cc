@@ -707,44 +707,26 @@ buf_dblwr_check_block(
 /*==================*/
 	const buf_block_t*	block)	/*!< in: block to check */
 {
-	if (buf_block_get_state(block) != BUF_BLOCK_FILE_PAGE) {
+	if (buf_block_get_state(block) != BUF_BLOCK_FILE_PAGE
+	    || block->page.zip.data) {
 		/* No simple validate for compressed pages exists. */
 		return;
 	}
 
 	buf_dblwr_check_page_lsn(block->frame);
 
-	switch (fil_page_get_type(block->frame)) {
-	case FIL_PAGE_INDEX:
-		if (page_is_comp(block->frame)) {
-			if (page_simple_validate_new(block->frame)) {
-				return;
-			}
-		} else if (page_simple_validate_old(block->frame)) {
-			return;
-		}
-		break;
-	case FIL_PAGE_UNDO_LOG:
-	case FIL_PAGE_INODE:
-	case FIL_PAGE_IBUF_FREE_LIST:
-	case FIL_PAGE_IBUF_BITMAP:
-	case FIL_PAGE_TYPE_SYS:
-	case FIL_PAGE_TYPE_TRX_SYS:
-	case FIL_PAGE_TYPE_FSP_HDR:
-	case FIL_PAGE_TYPE_XDES:
-	case FIL_PAGE_TYPE_BLOB:
-	case FIL_PAGE_TYPE_ZBLOB:
-	case FIL_PAGE_TYPE_ZBLOB2:
-		/* TODO: long-term, we could write a validate function for
-		other pages than b-tree pages. */
+	if (!block->check_index_page_at_flush) {
 		return;
-	case FIL_PAGE_TYPE_ALLOCATED:
-		/* empty pages should never be flushed; fall through */
-	default:
-		break;
 	}
 
-	buf_dblwr_assert_on_corrupt_block(block);
+	if (page_is_comp(block->frame)) {
+		if (!page_simple_validate_new(block->frame)) {
+			buf_dblwr_assert_on_corrupt_block(block);
+		}
+	} else if (!page_simple_validate_old(block->frame)) {
+
+		buf_dblwr_assert_on_corrupt_block(block);
+	}
 }
 
 /********************************************************************//**
