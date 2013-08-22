@@ -791,6 +791,9 @@ void prepare_new_connection_state(THD* thd)
   if (thd->client_capabilities & CLIENT_COMPRESS)
     thd->net.compress=1;        // Use compression
 
+  // Initializing session system variables.
+  alloc_and_copy_thd_dynamic_variables(thd, true);
+
   /*
     Much of this is duplicated in create_embedded_thd() for the
     embedded server library.
