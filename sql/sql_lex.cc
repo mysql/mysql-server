@@ -2159,17 +2159,34 @@ void st_select_lex_unit::exclude_level()
     taken. This is needed to provide stable tree for EXPLAIN FOR CONNECTION.
   */
   mysql_mutex_lock(&thd->LOCK_query_plan);
-  SELECT_LEX_UNIT *units= 0, **units_last= &units;
-  for (SELECT_LEX *sl= first_select(); sl; sl= sl->next_select())
+  SELECT_LEX_UNIT *units= NULL;
+  SELECT_LEX_UNIT **units_last= &units;
+  SELECT_LEX *sl= first_select();
+  while (sl)
   {
+    SELECT_LEX *next_select= sl->next_select();
+
     // unlink current level from global SELECTs list
     if (sl->link_prev && (*sl->link_prev= sl->link_next))
       sl->link_next->link_prev= sl->link_prev;
 
     // bring up underlay levels
-    SELECT_LEX_UNIT **last= 0;
+    SELECT_LEX_UNIT **last= NULL;
     for (SELECT_LEX_UNIT *u= sl->first_inner_unit(); u; u= u->next_unit())
     {
+      /*
+        We are excluding a SELECT_LEX from the hierarchy of
+        SELECT_LEX_UNITs and SELECT_LEXes. Since this level is
+        removed, we must also exclude the Name_resolution_context
+        belonging to this level. Do this by looping through inner
+        subqueries and changing their contexts' outer context pointers
+        to point to the outer context of the removed SELECT_LEX.
+      */
+      for (SELECT_LEX *s= u->first_select(); s; s= s->next_select())
+      {
+        if (s->context.outer_context == &sl->context)
+          s->context.outer_context= sl->context.outer_context;
+      }
       u->master= master;
       last= &(u->next);
     }
@@ -2178,6 +2195,9 @@ void st_select_lex_unit::exclude_level()
       (*units_last)= sl->first_inner_unit();
       units_last= last;
     }
+
+    sl->invalidate();
+    sl= next_select;
   }
   if (units)
   {
@@ -2191,10 +2211,13 @@ void st_select_lex_unit::exclude_level()
   else
   {
     // exclude currect unit from list of nodes
-    (*prev)= next;
+    if (prev)
+      (*prev)= next;
     if (next)
       next->prev= prev;
   }
+
+  invalidate();
   mysql_mutex_unlock(&thd->LOCK_query_plan);
 }
 
@@ -2204,8 +2227,11 @@ void st_select_lex_unit::exclude_level()
 */
 void st_select_lex_unit::exclude_tree()
 {
-  for (SELECT_LEX *sl= first_select(); sl; sl= sl->next_select())
+  SELECT_LEX *sl= first_select();
+  while (sl)
   {
+    SELECT_LEX *next_select= sl->next_select();
+
     // unlink current level from global SELECTs list
     if (sl->link_prev && (*sl->link_prev= sl->link_next))
       sl->link_next->link_prev= sl->link_prev;
@@ -2215,11 +2241,30 @@ void st_select_lex_unit::exclude_tree()
     {
       u->exclude_level();
     }
+
+    sl->invalidate();
+    sl= next_select;
   }
   // exclude currect unit from list of nodes
-  (*prev)= next;
+  if (prev)
+    (*prev)= next;
   if (next)
     next->prev= prev;
+
+  invalidate();
+}
+
+
+/**
+  Invalidate by nulling out pointers to other st_select_lex_units and
+  st_select_lexes.
+*/
+void st_select_lex_unit::invalidate()
+{
+  next= NULL;
+  prev= NULL;
+  master= NULL;
+  slave= NULL;
 }
 
 /**
@@ -2328,6 +2373,21 @@ bool st_select_lex::add_group_to_list(THD *thd, Item *item, bool asc)
 bool st_select_lex::add_ftfunc_to_list(Item_func_match *func)
 {
   return !func || ftfunc_list->push_back(func); // end of memory?
+}
+
+
+/**
+  Invalidate by nulling out pointers to other st_select_lex_units and
+  st_select_lexes.
+*/
+void st_select_lex::invalidate()
+{
+  next= NULL;
+  prev= NULL;
+  master= NULL;
+  slave= NULL;
+  link_next= NULL;
+  link_prev= NULL;  
 }
 
 
