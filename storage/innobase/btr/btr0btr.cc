@@ -503,8 +503,6 @@ btr_page_create(
 		btr_page_set_level(page, NULL, level, mtr);
 	}
 
-	block->check_index_page_at_flush = TRUE;
-
 	btr_page_set_index_id(page, page_zip, index->id, mtr);
 }
 
@@ -1116,8 +1114,6 @@ btr_create(
 		btr_page_set_level(page, NULL, 0, mtr);
 	}
 
-	block->check_index_page_at_flush = TRUE;
-
 	/* Set the index id of the page */
 	btr_page_set_index_id(page, page_zip, index_id, mtr);
 
@@ -1313,8 +1309,6 @@ btr_page_reorganize_low(
 	if (!recovery) {
 		btr_search_drop_page_hash_index(block);
 	}
-
-	block->check_index_page_at_flush = TRUE;
 #endif /* !UNIV_HOTBACKUP */
 
 	/* Save the cursor position. */
@@ -1592,8 +1586,6 @@ btr_page_empty(
 		page_create(block, mtr, dict_table_is_comp(index->table));
 		btr_page_set_level(page, NULL, level, mtr);
 	}
-
-	block->check_index_page_at_flush = TRUE;
 }
 
 /*************************************************************//**
