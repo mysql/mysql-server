@@ -561,4 +561,21 @@ EXPLAIN EXTENDED
 
 DROP TABLE t1,t2;
 
+--echo #
+--echo # MDEV-4840: Wrong result (missing rows) on LEFT JOIN with InnoDB tables
+--echo #
+CREATE TABLE t1 (alpha3 VARCHAR(3));
+INSERT INTO t1 VALUES ('USA'),('CAN');
+
+CREATE TABLE t2 ( t3_code VARCHAR(3), name VARCHAR(64));
+INSERT INTO t2 VALUES ('USA','Austin'),('USA','Boston');
+
+CREATE TABLE t3 ( code VARCHAR(3),  name VARCHAR(64),  PRIMARY KEY (code),  UNIQUE KEY (name));
+INSERT INTO t3 VALUES ('CAN','Canada'),('USA','United States');
+
+SELECT *         FROM t1 LEFT JOIN ( t2 LEFT JOIN t3 ON t2.t3_code  = t3.code ) ON t1.alpha3 = t3.code;
+SELECT t1.alpha3 FROM t1 LEFT JOIN ( t2 LEFT JOIN t3 ON t2.t3_code  = t3.code ) ON t1.alpha3 = t3.code;
+
+DROP TABLE t1, t2, t3;
+
 SET optimizer_switch=@save_optimizer_switch;
