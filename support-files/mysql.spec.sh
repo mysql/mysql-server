@@ -1215,7 +1215,7 @@ echo "====="                                     >> $STATUS_HISTORY
 # merging BK trees)
 ##############################################################################
 %changelog
-* Fri Aug 22 2013 Balasubramanian Kandasamy <balasubramanian.kandasamy@oracle.com>
+* Fri Aug 16 2013 Balasubramanian Kandasamy <balasubramanian.kandasamy@oracle.com>
 - Added provides lowercase mysql tags  
 
 * Wed Jun 26 2013 Balasubramanian Kandasamy <balasubramanian.kandasamy@oracle.com>
