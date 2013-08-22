@@ -597,10 +597,6 @@ fsp_init_file_page_low(
 	page_t*		page	= buf_block_get_frame(block);
 	page_zip_des_t*	page_zip= buf_block_get_page_zip(block);
 
-#ifndef UNIV_HOTBACKUP
-	block->check_index_page_at_flush = FALSE;
-#endif /* !UNIV_HOTBACKUP */
-
 	if (page_zip) {
 		memset(page, 0, UNIV_PAGE_SIZE);
 		memset(page_zip->data, 0, page_zip_get_size(page_zip));
@@ -1748,8 +1744,6 @@ fsp_alloc_seg_inode_page(
 
 	buf_block_dbg_add_level(block, SYNC_FSP_PAGE);
 	ut_ad(rw_lock_get_sx_lock_count(&block->lock) == 1);
-
-	block->check_index_page_at_flush = FALSE;
 
 	page = buf_block_get_frame(block);
 
