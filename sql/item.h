@@ -1434,7 +1434,8 @@ public:
   /**
      Clean up after removing the item from the item tree.
 
-     @param arg Not used
+     @param arg Pointer to the st_select_lex from which the walk started, i.e.,
+                the st_select_lex that contained the clause that was removed.
   */
   virtual bool clean_up_after_removal(uchar *arg) { return false; }
 

@@ -861,7 +861,8 @@ void remove_redundant_subquery_clauses(st_select_lex *subq_select_lex,
     for (ORDER *o= subq_select_lex->order_list.first; o != NULL; o= o->next)
     {
       if (*o->item == o->item_ptr)
-        (*o->item)->walk(&Item::clean_up_after_removal, true, NULL);
+        (*o->item)->walk(&Item::clean_up_after_removal, true,
+                      static_cast<uchar*>(static_cast<void*>(subq_select_lex)));
     }
     subq_select_lex->join->order= NULL;
     subq_select_lex->order_list.empty();
@@ -890,7 +891,8 @@ void remove_redundant_subquery_clauses(st_select_lex *subq_select_lex,
     for (ORDER *g= subq_select_lex->group_list.first; g != NULL; g= g->next)
     {
       if (*g->item == g->item_ptr)
-        (*g->item)->walk(&Item::clean_up_after_removal, true, NULL);
+        (*g->item)->walk(&Item::clean_up_after_removal, true,
+                      static_cast<uchar*>(static_cast<void*>(subq_select_lex)));
     }
     subq_select_lex->join->group_list= NULL;
     subq_select_lex->group_list.empty();
