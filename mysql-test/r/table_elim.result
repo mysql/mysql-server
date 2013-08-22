@@ -628,4 +628,24 @@ id	select_type	table	type	possible_keys	key	key_len	ref	rows	filtered	Extra
 Warnings:
 Note	1003	select `test`.`t2`.`b` AS `b` from `test`.`t2` where <expr_cache><`test`.`t2`.`b`>(<in_optimizer>(`test`.`t2`.`b`,<exists>(select sum(1) from dual having (<cache>(`test`.`t2`.`b`) = <ref_null_helper>(sum(1))))))
 DROP TABLE t1,t2;
+#
+# MDEV-4840: Wrong result (missing rows) on LEFT JOIN with InnoDB tables
+#
+CREATE TABLE t1 (alpha3 VARCHAR(3));
+INSERT INTO t1 VALUES ('USA'),('CAN');
+CREATE TABLE t2 ( t3_code VARCHAR(3), name VARCHAR(64));
+INSERT INTO t2 VALUES ('USA','Austin'),('USA','Boston');
+CREATE TABLE t3 ( code VARCHAR(3),  name VARCHAR(64),  PRIMARY KEY (code),  UNIQUE KEY (name));
+INSERT INTO t3 VALUES ('CAN','Canada'),('USA','United States');
+SELECT *         FROM t1 LEFT JOIN ( t2 LEFT JOIN t3 ON t2.t3_code  = t3.code ) ON t1.alpha3 = t3.code;
+alpha3	t3_code	name	code	name
+USA	USA	Austin	USA	United States
+USA	USA	Boston	USA	United States
+CAN	NULL	NULL	NULL	NULL
+SELECT t1.alpha3 FROM t1 LEFT JOIN ( t2 LEFT JOIN t3 ON t2.t3_code  = t3.code ) ON t1.alpha3 = t3.code;
+alpha3
+USA
+USA
+CAN
+DROP TABLE t1, t2, t3;
 SET optimizer_switch=@save_optimizer_switch;

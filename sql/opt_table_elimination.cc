@@ -892,8 +892,11 @@ bool Dep_analysis_context::run_wave(List<Dep_module> *new_bound_modules)
       iter= module->init_unbound_values_iter(iter_buf);
       while ((value= module->get_next_unbound_value(this, iter)))
       {
-        value->make_bound();
-        new_bound_values.push_back(value);
+        if (!value->is_bound())
+        {
+          value->make_bound();
+          new_bound_values.push_back(value);
+        }
       }
     }
     new_bound_modules->empty();
@@ -1740,7 +1743,7 @@ Dep_module* Dep_value_field::get_next_unbound_module(Dep_analysis_context *dac,
     - have this field as a part of them
   */
   while (key_dep && (key_dep->is_applicable() ||
-         !field->part_of_key.is_set(key_dep->keyno)))
+         !field->part_of_key_not_clustered.is_set(key_dep->keyno)))
   {
     key_dep= key_dep->next_table_key;
   }
