@@ -669,6 +669,8 @@ public:
 #else
   void assert_not_fully_clean() {}
 #endif
+private:
+  void invalidate();
 };
 
 typedef class st_select_lex_unit SELECT_LEX_UNIT;
@@ -955,6 +957,7 @@ public:
   SELECT_LEX *next_select_in_list() const { return link_next; }
 
   void mark_as_dependent(SELECT_LEX *last);
+  void invalidate();
 
   bool set_braces(bool value);
   bool inc_in_sum_expr();
