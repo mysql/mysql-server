@@ -296,7 +296,6 @@ btr_cur_latch_leaves(
 #ifdef UNIV_BTR_DEBUG
 		ut_a(page_is_comp(get_block->frame) == page_is_comp(page));
 #endif /* UNIV_BTR_DEBUG */
-		get_block->check_index_page_at_flush = TRUE;
 		return;
 	case BTR_MODIFY_TREE:
 		/* It is exclusive for other operations which calls
@@ -317,7 +316,6 @@ btr_cur_latch_leaves(
 			ut_a(btr_page_get_next(get_block->frame, mtr)
 			     == page_get_page_no(page));
 #endif /* UNIV_BTR_DEBUG */
-			get_block->check_index_page_at_flush = TRUE;
 		}
 
 		get_block = btr_block_get(
@@ -326,7 +324,6 @@ btr_cur_latch_leaves(
 #ifdef UNIV_BTR_DEBUG
 		ut_a(page_is_comp(get_block->frame) == page_is_comp(page));
 #endif /* UNIV_BTR_DEBUG */
-		get_block->check_index_page_at_flush = TRUE;
 
 		right_page_no = btr_page_get_next(page, mtr);
 
@@ -340,7 +337,6 @@ btr_cur_latch_leaves(
 			ut_a(btr_page_get_prev(get_block->frame, mtr)
 			     == page_get_page_no(page));
 #endif /* UNIV_BTR_DEBUG */
-			get_block->check_index_page_at_flush = TRUE;
 		}
 
 		return;
@@ -364,7 +360,6 @@ btr_cur_latch_leaves(
 			ut_a(btr_page_get_next(get_block->frame, mtr)
 			     == page_get_page_no(page));
 #endif /* UNIV_BTR_DEBUG */
-			get_block->check_index_page_at_flush = TRUE;
 		}
 
 		get_block = btr_block_get(
@@ -372,7 +367,6 @@ btr_cur_latch_leaves(
 #ifdef UNIV_BTR_DEBUG
 		ut_a(page_is_comp(get_block->frame) == page_is_comp(page));
 #endif /* UNIV_BTR_DEBUG */
-		get_block->check_index_page_at_flush = TRUE;
 		return;
 	}
 
@@ -1006,7 +1000,6 @@ retry_page_get:
 		tree_blocks[n_blocks] = block;
 	}
 
-	block->check_index_page_at_flush = TRUE;
 	page = buf_block_get_frame(block);
 
 	if (height == ULINT_UNDEFINED
@@ -1581,8 +1574,6 @@ btr_cur_open_at_index_side_func(
 
 		ut_ad(fil_page_get_type(page) == FIL_PAGE_INDEX);
 		ut_ad(index->id == btr_page_get_index_id(page));
-
-		block->check_index_page_at_flush = TRUE;
 
 		if (height == ULINT_UNDEFINED) {
 			/* We are in the root node */
