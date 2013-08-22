@@ -596,7 +596,12 @@ static inline int pthread_attr_getguardsize(pthread_attr_t *attr,
 #endif
 #endif
 
+#ifdef MYSQL_SERVER
+#ifndef MYSQL_DYNAMIC_PLUGIN
 #include <pfs_thread_provider.h>
+#endif /* MYSQL_DYNAMIC_PLUGIN */
+#endif /* MYSQL_SERVER */
+
 #include <mysql/psi/mysql_thread.h>
 
 struct st_my_thread_var
