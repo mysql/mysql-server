@@ -434,10 +434,18 @@ ib_cb_t innodb_api_cb[] = {
 	(ib_cb_t) ib_clust_read_tuple_create,
 	(ib_cb_t) ib_tuple_delete,
 	(ib_cb_t) ib_tuple_copy,
+	(ib_cb_t) ib_tuple_read_u8,
+	(ib_cb_t) ib_tuple_write_u8,
+	(ib_cb_t) ib_tuple_read_u16,
+	(ib_cb_t) ib_tuple_write_u16,
 	(ib_cb_t) ib_tuple_read_u32,
 	(ib_cb_t) ib_tuple_write_u32,
 	(ib_cb_t) ib_tuple_read_u64,
 	(ib_cb_t) ib_tuple_write_u64,
+	(ib_cb_t) ib_tuple_read_i8,
+	(ib_cb_t) ib_tuple_write_i8,
+	(ib_cb_t) ib_tuple_read_i16,
+	(ib_cb_t) ib_tuple_write_i16,
 	(ib_cb_t) ib_tuple_read_i32,
 	(ib_cb_t) ib_tuple_write_i32,
 	(ib_cb_t) ib_tuple_read_i64,
@@ -1534,8 +1542,7 @@ innobase_get_cset_width(
 
 			/* Fix bug#46256: allow tables to be dropped if the
 			collation is not found, but issue a warning. */
-			if ((log_warnings)
-			    && (cset != 0)){
+			if (cset != 0) {
 
 				sql_print_warning(
 					"Unknown collation #%lu.", cset);
@@ -3782,7 +3789,7 @@ innobase_close_connection(
 				"but transaction is active");
 	}
 
-	if (trx_is_started(trx) && log_warnings) {
+	if (trx_is_started(trx)) {
 
 		sql_print_warning(
 			"MySQL is closing a connection that has an active "
@@ -15632,7 +15639,7 @@ static MYSQL_SYSVAR_ULONG(ft_min_token_size, fts_min_token_size,
 static MYSQL_SYSVAR_ULONG(ft_max_token_size, fts_max_token_size,
   PLUGIN_VAR_RQCMDARG | PLUGIN_VAR_READONLY,
   "InnoDB Fulltext search maximum token size in characters",
-  NULL, NULL, HA_FT_MAXCHARLEN, 10, FTS_MAX_WORD_LEN , 0);
+  NULL, NULL, FTS_MAX_WORD_LEN_IN_CHAR, 10, FTS_MAX_WORD_LEN_IN_CHAR, 0);
 
 static MYSQL_SYSVAR_ULONG(ft_num_word_optimize, fts_num_word_optimize,
   PLUGIN_VAR_OPCMDARG,

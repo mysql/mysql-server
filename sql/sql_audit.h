@@ -109,6 +109,7 @@ void mysql_audit_general_log(THD *thd, time_t time,
 #endif
 }
 
+
 /**
   Call audit plugins of GENERAL audit class.
   event_subtype should be set to one of:

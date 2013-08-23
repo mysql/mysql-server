@@ -515,7 +515,7 @@ static int check_connection(THD *thd)
 
   thd->set_active_vio(net->vio);
 
-  if (!thd->main_security_ctx.get_host()->length())      // If TCP/IP connection
+  if (!thd->main_security_ctx.get_host()->length())     // If TCP/IP connection
   {
     my_bool peer_rc;
     char ip[NI_MAXHOST];
@@ -612,12 +612,12 @@ static int check_connection(THD *thd)
     {
       int rc;
       char *host= (char *) thd->main_security_ctx.get_host()->ptr();
+
       rc= ip_to_hostname(&net->vio->remote,
                          thd->main_security_ctx.get_ip()->ptr(),
                          &host, &connect_errors);
 
       thd->main_security_ctx.set_host(host);
-
       /* Cut very long hostnames to avoid possible overflows */
       if (thd->main_security_ctx.get_host()->length())
       {
@@ -640,7 +640,7 @@ static int check_connection(THD *thd)
                  thd->main_security_ctx.get_host()->ptr() : "unknown host"),
            (thd->main_security_ctx.get_ip()->length() ?
                  thd->main_security_ctx.get_ip()->ptr() : "unknown ip")));
-    if (acl_check_host(thd->main_security_ctx.get_host()->ptr(), 
+    if (acl_check_host(thd->main_security_ctx.get_host()->ptr(),
                        thd->main_security_ctx.get_ip()->ptr()))
     {
       /* HOST_CACHE stats updated by acl_check_host(). */
@@ -652,8 +652,7 @@ static int check_connection(THD *thd)
   else /* Hostname given means that the connection was on a socket */
   {
     DBUG_PRINT("info",("Host: %s", thd->main_security_ctx.get_host()->ptr()));
-    thd->main_security_ctx.host_or_ip= thd->main_security_ctx.
-                                       get_host()->ptr();
+    thd->main_security_ctx.host_or_ip= thd->main_security_ctx.get_host()->ptr();
     thd->main_security_ctx.set_ip("");
     /* Reset sin_addr */
     memset(&net->vio->remote, 0, sizeof(net->vio->remote));
@@ -764,17 +763,17 @@ void end_connection(THD *thd)
 
   if (net->error && net->vio != 0)
   {
-    if (!thd->killed && log_warnings > 1)
+    if (!thd->killed)
     {
       Security_context *sctx= thd->security_ctx;
 
-      sql_print_warning(ER(ER_NEW_ABORTING_CONNECTION),
-                        thd->thread_id,(thd->db ? thd->db : "unconnected"),
-                        sctx->user ? sctx->user : "unauthenticated",
-                        sctx->host_or_ip,
-                        (thd->get_stmt_da()->is_error() ?
-                         thd->get_stmt_da()->message_text() :
-                         ER(ER_UNKNOWN_ERROR)));
+      sql_print_information(ER(ER_NEW_ABORTING_CONNECTION),
+                            thd->thread_id,(thd->db ? thd->db : "unconnected"),
+                            sctx->user ? sctx->user : "unauthenticated",
+                            sctx->host_or_ip,
+                            (thd->get_stmt_da()->is_error() ?
+                             thd->get_stmt_da()->message_text() :
+                             ER(ER_UNKNOWN_ERROR)));
     }
   }
 }
@@ -790,6 +789,9 @@ void prepare_new_connection_state(THD* thd)
 
   if (thd->client_capabilities & CLIENT_COMPRESS)
     thd->net.compress=1;        // Use compression
+
+  // Initializing session system variables.
+  alloc_and_copy_thd_dynamic_variables(thd, true);
 
   /*
     Much of this is duplicated in create_embedded_thd() for the

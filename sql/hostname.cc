@@ -414,7 +414,6 @@ int ip_to_hostname(struct sockaddr_storage *ip_storage,
 {
   const struct sockaddr *ip= (const sockaddr *) ip_storage;
   int err_code;
-  bool err_status;
   Host_errors errors;
 
   DBUG_ENTER("ip_to_hostname");
@@ -944,7 +943,9 @@ int ip_to_hostname(struct sockaddr_storage *ip_storage,
     char ip_buffer[HOST_ENTRY_KEY_SIZE];
 
     {
-      err_status=
+#ifndef DBUG_OFF
+      bool err_status=
+#endif
         vio_get_normalized_ip_string(addr_info->ai_addr, addr_info->ai_addrlen,
                                      ip_buffer, sizeof (ip_buffer));
       DBUG_ASSERT(!err_status);
@@ -989,7 +990,9 @@ int ip_to_hostname(struct sockaddr_storage *ip_storage,
     {
       char ip_buffer[HOST_ENTRY_KEY_SIZE];
 
-      err_status=
+#ifndef DBUG_OFF
+      bool err_status=
+#endif
         vio_get_normalized_ip_string(addr_info->ai_addr, addr_info->ai_addrlen,
                                      ip_buffer, sizeof (ip_buffer));
       DBUG_ASSERT(!err_status);
