@@ -2485,7 +2485,7 @@ id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
 1	PRIMARY	t3	system	NULL	NULL	NULL	NULL	1	
 1	PRIMARY	<subquery2>	ALL	distinct_key	NULL	NULL	NULL	1	
 1	PRIMARY	t1	ref	a	a	5	const	1	Using index
-1	PRIMARY	t2	ref	a	a	5	test.t3.b	1	Using index
+1	PRIMARY	t2	ref	a	a	5	func	1	Using index
 2	MATERIALIZED	t4	ALL	NULL	NULL	NULL	NULL	0	
 SELECT * FROM t1, t2
 WHERE t1.a = t2.a AND t2.a IN (SELECT b FROM t3 STRAIGHT_JOIN t4);
