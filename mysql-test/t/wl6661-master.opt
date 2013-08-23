@@ -1,0 +1,1 @@
+--no-console --log-error=$MYSQLTEST_VARDIR/tmp/wl6661_log.err --log-error-verbosity=7 --verbose --log-warnings=2 --log-error-verbosity=2 --log-error-verbosity=0 --log-error-verbosity=1 --log-timestamps=SYSTEM
