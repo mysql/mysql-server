@@ -3688,7 +3688,6 @@ void Security_context::init()
   password_expired= false; 
 }
 
-
 void Security_context::destroy()
 {
   if (host.ptr() != my_localhost && host.length())
@@ -3715,7 +3714,7 @@ void Security_context::destroy()
   {
     char *c= (char *) ip.ptr();
     ip.set("", 0, system_charset_info);
-    my_free(c); 
+    my_free(c);
   }
 }
 

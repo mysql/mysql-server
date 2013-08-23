@@ -515,7 +515,7 @@ static int check_connection(THD *thd)
 
   thd->set_active_vio(net->vio);
 
-  if (!thd->main_security_ctx.get_host()->length())      // If TCP/IP connection
+  if (!thd->main_security_ctx.get_host()->length())     // If TCP/IP connection
   {
     my_bool peer_rc;
     char ip[NI_MAXHOST];
@@ -612,12 +612,12 @@ static int check_connection(THD *thd)
     {
       int rc;
       char *host= (char *) thd->main_security_ctx.get_host()->ptr();
+
       rc= ip_to_hostname(&net->vio->remote,
                          thd->main_security_ctx.get_ip()->ptr(),
                          &host, &connect_errors);
 
       thd->main_security_ctx.set_host(host);
-
       /* Cut very long hostnames to avoid possible overflows */
       if (thd->main_security_ctx.get_host()->length())
       {
@@ -640,7 +640,7 @@ static int check_connection(THD *thd)
                  thd->main_security_ctx.get_host()->ptr() : "unknown host"),
            (thd->main_security_ctx.get_ip()->length() ?
                  thd->main_security_ctx.get_ip()->ptr() : "unknown ip")));
-    if (acl_check_host(thd->main_security_ctx.get_host()->ptr(), 
+    if (acl_check_host(thd->main_security_ctx.get_host()->ptr(),
                        thd->main_security_ctx.get_ip()->ptr()))
     {
       /* HOST_CACHE stats updated by acl_check_host(). */
@@ -652,8 +652,7 @@ static int check_connection(THD *thd)
   else /* Hostname given means that the connection was on a socket */
   {
     DBUG_PRINT("info",("Host: %s", thd->main_security_ctx.get_host()->ptr()));
-    thd->main_security_ctx.host_or_ip= thd->main_security_ctx.
-                                       get_host()->ptr();
+    thd->main_security_ctx.host_or_ip= thd->main_security_ctx.get_host()->ptr();
     thd->main_security_ctx.set_ip("");
     /* Reset sin_addr */
     memset(&net->vio->remote, 0, sizeof(net->vio->remote));
