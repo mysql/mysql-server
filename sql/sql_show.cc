@@ -1844,8 +1844,6 @@ void mysqld_list_processes(THD *thd,const char *user, bool verbose)
                                       tmp_sctx->host_or_ip : 
                                       tmp_sctx->get_host()->length() ?
                                       tmp_sctx->get_host()->ptr() : "");
-        if ((thd_info->db=tmp->db))             // Safe test
-          thd_info->db=thd->strdup(thd_info->db);
         thd_info->command=(int) tmp->command;
         mysql_mutex_lock(&tmp->LOCK_thd_data);
         if ((thd_info->db= tmp->db))             // Safe test
