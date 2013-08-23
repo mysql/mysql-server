@@ -33,6 +33,7 @@ Full Text Search interface
 #include "fts0types.h"
 #include "fts0types.ic"
 #include "fts0vlc.ic"
+#include "fts0plugin.h"
 #include "dict0priv.h"
 #include "dict0stats.h"
 #include "btr0pcur.h"
@@ -4750,9 +4751,9 @@ fts_tokenize_by_parser(
 	param.length = doc->text.f_len;
 	param.mode= MYSQL_FTPARSER_SIMPLE_MODE;
 
-	parser->init(&param);
+	PARSER_INIT(parser, &param);
 	parser->parse(&param);
-	parser->deinit(&param);
+	PARSER_DEINIT(parser, &param);
 }
 
 /******************************************************************//**

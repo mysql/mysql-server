@@ -24,6 +24,7 @@ Created 2013/06/04 Shaohua Wang
 ***********************************************************************/
 
 #include "fts0ast.h"
+#include "fts0plugin.h"
 
 #include "ft_global.h"
 
@@ -445,9 +446,9 @@ fts_parse_by_parser(
 		     MYSQL_FTPARSER_FULL_BOOLEAN_INFO :
 		     MYSQL_FTPARSER_SIMPLE_MODE;
 
-	parser->init(&param);
+	PARSER_INIT(parser, &param);
 	ret = parser->parse(&param);
-	parser->deinit(&param);
+	PARSER_DEINIT(parser, &param);
 
 	return(ret | state->depth);
 }

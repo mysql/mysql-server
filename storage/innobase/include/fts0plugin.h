@@ -32,6 +32,9 @@ extern struct st_mysql_ftparser fts_default_parser;
 
 struct fts_ast_state_t;
 
+#define PARSER_INIT(parser, arg) if (parser->init) { parser->init(arg); }
+#define PARSER_DEINIT(parser, arg) if (parser->deinit) { parser->deinit(arg); }
+
 /******************************************************************//**
 fts parse query by plugin parser.
 @return 0 if parse successfully, or return non-zero. */

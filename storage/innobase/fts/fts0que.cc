@@ -1869,9 +1869,9 @@ fts_query_match_phrase_terms_by_parser(
 	param.length = len;
 	param.mode= MYSQL_FTPARSER_WITH_STOPWORDS;
 
-	parser->init(&param);
+	PARSER_INIT(parser, &param);
 	parser->parse(&param);
-	parser->deinit(&param);
+	PARSER_DEINIT(parser, &param);
 
 	return(phrase_param->phrase->found);
 }
