@@ -32,6 +32,7 @@ Created 10/13/2010 Jimmy Yang
 #include "row0merge.h"
 #include "row0row.h"
 #include "btr0cur.h"
+#include "fts0plugin.h"
 
 /** Read the next record to buffer N.
 @param N index into array of merge info structure */
@@ -428,10 +429,10 @@ row_merge_fts_doc_tokenize_by_parser(
 	param.length = doc->text.f_len;
 	param.mode= MYSQL_FTPARSER_SIMPLE_MODE;
 
-	parser->init(&param);
+	PARSER_INIT(parser, &param);
 	/* We assume parse returns successfully here. */
 	parser->parse(&param);
-	parser->deinit(&param);
+	PARSER_DEINIT(parser, &param);
 }
 
 /*********************************************************************//**
