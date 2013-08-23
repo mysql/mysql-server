@@ -320,6 +320,31 @@ handler_rec_setup_int(
 }
 
 /**********************************************************************//**
+Set up an unsigned int64 field in TABLE->record[0] */
+void
+handler_rec_setup_uint64(
+/*=====================*/
+	void*		my_table,	/*!< in/out: TABLE structure */
+	int		field_id,	/*!< in: Field ID for the field */
+	unsigned long long
+			value,		/*!< in: value to set */
+	bool		unsigned_flag,	/*!< in: whether it is unsigned */
+	bool		is_null)	/*!< in: whether it is null value */
+{
+	Field*		fld;
+	TABLE*		table = static_cast<TABLE*>(my_table);
+
+	fld = table->field[field_id];
+
+	if (is_null) {
+		fld->set_null();
+	} else {
+		fld->set_notnull();
+		fld->store(value, unsigned_flag);
+	}
+}
+
+/**********************************************************************//**
 Store a record */
 void
 handler_store_record(
