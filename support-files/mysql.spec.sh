@@ -301,7 +301,6 @@ Obsoletes:      mysql mysql-server mysql-advanced mysql-server-advanced
 Obsoletes:      MySQL-server-classic MySQL-server-community MySQL-server-enterprise
 Obsoletes:      MySQL-server-advanced-gpl MySQL-server-enterprise-gpl
 Provides:       msqlormysql MySQL MySQL-server MySQL-server-advanced
-Provides:       mysql
 %endif
 
 %description -n MySQL-Cluster-server%{product_suffix}

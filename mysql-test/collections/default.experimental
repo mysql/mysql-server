@@ -12,11 +12,16 @@ main.index_merge_innodb                  # BUG#11754168 2012-05-08 jorgen Doing 
 
 innodb.innodb_monitor                    # Bug#12320827 2011-08-04 Occasional failure in PB2
 
+parts.partition_debug_innodb             # Bug#14150368 2013-03-07 anitha Failing very frequently on PB2
+
 rpl.rpl_delayed_slave                    # BUG#11764654 rpl_delayed_slave fails sporadically in pb
 rpl.rpl_innodb_bug28430                  # Bug#11754425
 rpl.rpl_show_slave_running               # BUG#12346048 2011-04-11 sven fails sporadically on pb2
 rpl.rpl_gtid_logs_without_rotate_or_stop_event @windows    # Bug#16207800 2013-02-09 anitha Fails very frequently on windows
 
-sys_vars.rpl_init_slave_func		 # Bug#12535301 2011-05-09 andrei sys_vars.rpl_init_slave_func mismatches in daily-5.5
+sys_vars.rpl_init_slave_func		    # Bug#12535301 2011-05-09 andrei sys_vars.rpl_init_slave_func mismatches in daily-5.5
 
+innodb.innodb_bug13867871                   # bug#14529475
+perfschema.socket_summary_by_instance_func  # bug#16274580
+innodb.innodb_bug14676111                   # bug #16371942 innodb.innodb_bug14676111 is failing on pb2 due to timeout 
 

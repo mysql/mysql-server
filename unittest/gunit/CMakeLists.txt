@@ -186,11 +186,11 @@ INCLUDE_DIRECTORIES(
   ${CMAKE_SOURCE_DIR}/include
   ${CMAKE_SOURCE_DIR}/regex
   ${CMAKE_SOURCE_DIR}/sql
-  ${CMAKE_SOURCE_DIR}/unittest/mytap
   ${CMAKE_SOURCE_DIR}/storage/example
 )
 
-CHECK_C_COMPILER_FLAG("-Wno-null-dereference" HAVE_NO_NULL)
+INCLUDE(CheckCXXCompilerFlag)
+CHECK_CXX_COMPILER_FLAG("-Wno-null-dereference" HAVE_NO_NULL)
 IF(HAVE_NO_NULL)
   SET(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -Wno-null-dereference")
 ENDIF()
@@ -248,6 +248,7 @@ SET(SERVER_TESTS
   copy_info
   create_field
   delayable_insert_operation
+  explain_filename
   field
   get_diagnostics
   handler

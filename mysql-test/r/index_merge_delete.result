@@ -1,0 +1,564 @@
+DROP TABLE IF EXISTS t1;
+CREATE TABLE t1
+(
+key1 INT NOT NULL,
+key2 INT NOT NULL,
+key3 INT NOT NULL,
+key4 INT NOT NULL,
+key5 INT,
+key6 INT,
+key7 INT NOT NULL,
+key8 INT NOT NULL,
+INDEX i1(key1),
+INDEX i2(key2),
+INDEX i3(key3),
+INDEX i4(key4),
+INDEX i5(key5),
+INDEX i6(key6)
+);
+ANALYZE TABLE t1;
+Table	Op	Msg_type	Msg_text
+test.t1	analyze	status	OK
+DROP TABLE IF EXISTS t2;
+CREATE TABLE t2 LIKE t1;
+INSERT INTO t2 SELECT * FROM t1;
+ANALYZE TABLE t2;
+Table	Op	Msg_type	Msg_text
+test.t2	analyze	status	Table is already up to date
+EXPLAIN DELETE FROM t1 WHERE key1=25 OR key4=10;
+id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
+1	SIMPLE	t1	index_merge	i1,i4	i1,i4	4,4	NULL	#	Using union(i1,i4); Using where
+SELECT COUNT(*) FROM t1 WHERE key1=25 OR key4=10;
+COUNT(*)
+3
+DELETE FROM t1 WHERE key1=25 OR key4=10;
+SELECT COUNT(*) FROM t1 WHERE key1=25 OR key4=10;
+COUNT(*)
+0
+EXPLAIN DELETE FROM t1 WHERE key1=48 OR  key4=2 OR key6=3;
+id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
+1	SIMPLE	t1	index_merge	i1,i4,i6	i1,i4,i6	4,4,5	NULL	#	Using union(i1,i4,i6); Using where
+SELECT COUNT(*) FROM t1 WHERE key1=48 OR  key4=2 OR key6=3;
+COUNT(*)
+4
+DELETE FROM t1 WHERE key1=48 OR  key4=2 OR key6=3;
+SELECT COUNT(*) FROM t1 WHERE key1=48 OR  key4=2 OR key6=3;
+COUNT(*)
+0
+EXPLAIN DELETE FROM t1 WHERE key3=1025 OR key5 IS NULL;
+id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
+1	SIMPLE	t1	index_merge	i3,i5	i3,i5	4,5	NULL	#	Using union(i3,i5); Using where
+SELECT COUNT(*) FROM t1 WHERE key3=1025 OR key5 IS NULL;
+COUNT(*)
+8
+DELETE FROM t1 WHERE key3=1025 OR key5 IS NULL;
+SELECT COUNT(*) FROM t1 WHERE key3=1025 OR key5 IS NULL;
+COUNT(*)
+0
+EXPLAIN DELETE FROM t1 WHERE key3=45 OR key1=6 OR key6 IS NULL;
+id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
+1	SIMPLE	t1	index_merge	i1,i3,i6	i3,i1,i6	4,4,5	NULL	#	Using union(i3,i1,i6); Using where
+SELECT COUNT(*) FROM t1 WHERE key3=45 OR key1=6 OR key6 IS NULL;
+COUNT(*)
+2
+DELETE FROM t1 WHERE key3=45 OR key1=6 OR key6 IS NULL;
+SELECT COUNT(*) FROM t1 WHERE key3=45 OR key1=6 OR key6 IS NULL;
+COUNT(*)
+0
+EXPLAIN DELETE FROM t1 WHERE (key4=42 AND key6 IS NOT NULL) OR (key1=4 AND key3=6);
+id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
+1	SIMPLE	t1	index_merge	i1,i3,i4,i6	i4,i3	4,4	NULL	#	Using union(i4,i3); Using where
+SELECT COUNT(*) FROM t1 WHERE (key4=42 AND key6 IS NOT NULL) OR (key1=4 AND key3=6);
+COUNT(*)
+1
+DELETE FROM t1 WHERE (key4=42 AND key6 IS NOT NULL) OR (key1=4 AND key3=6);
+SELECT COUNT(*) FROM t1 WHERE (key4=42 AND key6 IS NOT NULL) OR (key1=4 AND key3=6);
+COUNT(*)
+0
+INSERT INTO t1 VALUES (42,42,42,42,3,3,3,3),(4,4,6,6,6,6,4,4);
+EXPLAIN DELETE FROM t1 WHERE (key4=42 AND key6=3) OR (key1=4 AND key3=6);
+id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
+1	SIMPLE	t1	index_merge	i1,i3,i4,i6	i4,i3,i1	4,4,4	NULL	#	Using union(i4,intersect(i3,i1)); Using where
+SELECT COUNT(*) FROM t1 WHERE (key4=42 AND key6=3) OR (key1=4 AND key3=6);
+COUNT(*)
+2
+DELETE FROM t1 WHERE (key4=42 AND key6=3) OR (key1=4 AND key3=6);
+SELECT COUNT(*) FROM t1 WHERE (key4=42 AND key6=3) OR (key1=4 AND key3=6);
+COUNT(*)
+0
+INSERT INTO t1 VALUES (42,42,42,42,3,3,3,3),(4,4,6,6,6,6,4,4);
+EXPLAIN DELETE FROM t1 WHERE (key4=42 AND key6=3) OR (key1=4 AND key3=6) AND key5<>50;
+id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
+1	SIMPLE	t1	index_merge	i1,i3,i4,i5,i6	i4,i3,i1	4,4,4	NULL	#	Using union(i4,intersect(i3,i1)); Using where
+SELECT COUNT(*) FROM t1 WHERE (key4=42 AND key6=3) OR (key1=4 AND key3=6) AND key5<>50;
+COUNT(*)
+2
+DELETE FROM t1 WHERE (key4=42 AND key6=3) OR (key1=4 AND key3=6) AND key5<>50;
+SELECT COUNT(*) FROM t1 WHERE (key4=42 AND key6=3) OR (key1=4 AND key3=6) AND key5<>50;
+COUNT(*)
+0
+EXPLAIN DELETE FROM t1 WHERE key1<2 OR key2<3;
+id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
+1	SIMPLE	t1	index_merge	i2,i1	i2,i1	4,4	NULL	#	Using sort_union(i2,i1); Using where
+SELECT COUNT(*) FROM t1 WHERE key1<2 OR key2<3;
+COUNT(*)
+1
+DELETE FROM t1 WHERE key1<2 OR key2<3;
+SELECT COUNT(*) FROM t1 WHERE key1<2 OR key2<3;
+COUNT(*)
+0
+EXPLAIN DELETE FROM t1 WHERE key1<5 OR key3<7;
+id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
+1	SIMPLE	t1	index_merge	i3,i1	i3,i1	4,4	NULL	#	Using sort_union(i3,i1); Using where
+SELECT COUNT(*) FROM t1 WHERE key1<5 OR key3<7;
+COUNT(*)
+2
+DELETE FROM t1 WHERE key1<5 OR key3<7;
+SELECT COUNT(*) FROM t1 WHERE key1<5 OR key3<7;
+COUNT(*)
+0
+INSERT INTO t1 VALUES (10,10,10,10,10,10,10,10),(3,3,3,3,3,3,3,3);
+EXPLAIN DELETE FROM t1 WHERE key2=10 OR key3=3 OR key4 IS NULL;
+id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
+1	SIMPLE	t1	index_merge	i2,i3	i2,i3	4,4	NULL	#	Using union(i2,i3); Using where
+SELECT COUNT(*) FROM t1 WHERE key2=10 OR key3=3 OR key4 IS NULL;
+COUNT(*)
+2
+DELETE FROM t1 WHERE key2=10 OR key3=3 OR key4 IS NULL;
+SELECT COUNT(*) FROM t1 WHERE key2=10 OR key3=3 OR key4 IS NULL;
+COUNT(*)
+0
+INSERT INTO t1 VALUES (10,10,10,10,10,10,10,10),(3,3,3,3,3,3,3,3);
+EXPLAIN DELETE FROM t1 WHERE key2=10 OR key3=3 OR key4 <=> null;
+id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
+1	SIMPLE	t1	index_merge	i2,i3	i2,i3	4,4	NULL	#	Using union(i2,i3); Using where
+SELECT COUNT(*) FROM t1 WHERE key2=10 OR key3=3 OR key4 <=> null;
+COUNT(*)
+2
+DELETE FROM t1 WHERE key2=10 OR key3=3 OR key4 <=> null;
+SELECT COUNT(*) FROM t1 WHERE key2=10 OR key3=3 OR key4 <=> null;
+COUNT(*)
+0
+EXPLAIN DELETE FROM t1 WHERE (key1>30 AND key1<35) OR (key2>32 AND key2<40);
+id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
+1	SIMPLE	t1	index_merge	i1,i2	i1,i2	4,4	NULL	#	Using sort_union(i1,i2); Using where
+SELECT COUNT(*) FROM t1 WHERE (key1>30 AND key1<35) OR (key2>32 AND key2<40);
+COUNT(*)
+9
+DELETE FROM t1 WHERE (key1>30 AND key1<35) OR (key2>32 AND key2<40);
+SELECT COUNT(*) FROM t1 WHERE (key1>30 AND key1<35) OR (key2>32 AND key2<40);
+COUNT(*)
+0
+EXPLAIN DELETE FROM t1 WHERE key1 BETWEEN 30 AND 35 OR key2 BETWEEN 32 AND 40;
+id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
+1	SIMPLE	t1	index_merge	i1,i2	i1,i2	4,4	NULL	#	Using sort_union(i1,i2); Using where
+SELECT COUNT(*) FROM t1 WHERE key1 BETWEEN 30 AND 35 OR key2 BETWEEN 32 AND 40;
+COUNT(*)
+2
+DELETE FROM t1 WHERE key1 BETWEEN 30 AND 35 OR key2 BETWEEN 32 AND 40;
+SELECT COUNT(*) FROM t1 WHERE key1 BETWEEN 30 AND 35 OR key2 BETWEEN 32 AND 40;
+COUNT(*)
+0
+EXPLAIN DELETE FROM t1 WHERE (key1>30 AND key1<35) OR (key2>32 AND key2<40) OR (key3>20 AND key3<45);
+id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
+1	SIMPLE	t1	index_merge	i1,i2,i3	i1,i2,i3	4,4,4	NULL	#	Using sort_union(i1,i2,i3); Using where
+SELECT COUNT(*) FROM t1 WHERE (key1>30 AND key1<35) OR (key2>32 AND key2<40) OR (key3>20 AND key3<45);
+COUNT(*)
+11
+DELETE FROM t1 WHERE (key1>30 AND key1<35) OR (key2>32 AND key2<40) OR (key3>20 AND key3<45);
+SELECT COUNT(*) FROM t1 WHERE (key1>30 AND key1<35) OR (key2>32 AND key2<40) OR (key3>20 AND key3<45);
+COUNT(*)
+0
+EXPLAIN DELETE FROM t1 WHERE key1 BETWEEN 30 AND 35 OR key2 BETWEEN 32 AND 40 OR key3 BETWEEN 20 AND 45;
+id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
+1	SIMPLE	t1	index_merge	i1,i2,i3	i1,i2,i3	4,4,4	NULL	#	Using sort_union(i1,i2,i3); Using where
+SELECT COUNT(*) FROM t1 WHERE key1 BETWEEN 30 AND 35 OR key2 BETWEEN 32 AND 40 OR key3 BETWEEN 20 AND 45;
+COUNT(*)
+1
+DELETE FROM t1 WHERE key1 BETWEEN 30 AND 35 OR key2 BETWEEN 32 AND 40 OR key3 BETWEEN 20 AND 45;
+SELECT COUNT(*) FROM t1 WHERE key1 BETWEEN 30 AND 35 OR key2 BETWEEN 32 AND 40 OR key3 BETWEEN 20 AND 45;
+COUNT(*)
+0
+INSERT INTO t1 VALUES (1,1,1,1,1,1,1,1),(2,2,2,2,2,2,2,2),(3,3,3,3,3,3,3,3),(4,4,4,4,4,4,4,4);
+EXPLAIN DELETE FROM t1 WHERE ((key3<4 OR key5<3) AND (key1<3 OR key2<3)) OR (((key3<5 AND key6<5) OR key5<2) AND (key5<4 OR key6<4));
+id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
+1	SIMPLE	t1	index_merge	i3,i5	i3,i5	4,5	NULL	#	Using sort_union(i3,i5); Using where
+SELECT COUNT(*) FROM t1 WHERE ((key3<4 OR key5<3) AND (key1<3 OR key2<3)) OR (((key3<5 AND key6<5) OR key5<2) AND (key5<4 OR key6<4));
+COUNT(*)
+3
+DELETE FROM t1 WHERE ((key3<4 OR key5<3) AND (key1<3 OR key2<3)) OR (((key3<5 AND key6<5) OR key5<2) AND (key5<4 OR key6<4));
+SELECT COUNT(*) FROM t1 WHERE ((key3<4 OR key5<3) AND (key1<3 OR key2<3)) OR (((key3<5 AND key6<5) OR key5<2) AND (key5<4 OR key6<4));
+COUNT(*)
+0
+EXPLAIN DELETE FROM t1 WHERE (key4<42 AND key6 IS NOT NULL) OR (key1>4 AND key5 IS NULL) AND key2<>50;
+id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
+1	SIMPLE	t1	index_merge	i1,i2,i4,i5,i6	i4,i5	4,5	NULL	#	Using sort_union(i4,i5); Using where
+SELECT COUNT(*) FROM t1 WHERE (key4<42 AND key6 IS NOT NULL) OR (key1>4 AND key5 IS NULL) AND key2<>50;
+COUNT(*)
+13
+DELETE FROM t1 WHERE (key4<42 AND key6 IS NOT NULL) OR (key1>4 AND key5 IS NULL) AND key2<>50;
+SELECT COUNT(*) FROM t1 WHERE (key4<42 AND key6 IS NOT NULL) OR (key1>4 AND key5 IS NULL) AND key2<>50;
+COUNT(*)
+0
+EXPLAIN DELETE FROM t1 WHERE (key5 IN (15,70) OR key6 IN (15,70)) ;
+id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
+1	SIMPLE	t1	index_merge	i5,i6	i5,i6	5,5	NULL	#	Using sort_union(i5,i6); Using where
+SELECT COUNT(*) FROM t1 WHERE (key5 IN (15,70) OR key6 IN (15,70)) ;
+COUNT(*)
+1
+DELETE FROM t1 WHERE (key5 IN (15,70) OR key6 IN (15,70)) ;
+SELECT COUNT(*) FROM t1 WHERE (key5 IN (15,70) OR key6 IN (15,70)) ;
+COUNT(*)
+0
+INSERT INTO t1 VALUES (1,1,1,1,1,1,1,1),(2,2,2,2,2,2,2,2),(3,3,3,3,3,3,3,3);
+EXPLAIN DELETE FROM t1 WHERE key1<2 OR key2<3 ORDER BY key1;
+id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
+1	SIMPLE	t1	index_merge	i1,i2	i1,i2	4,4	NULL	#	Using sort_union(i1,i2); Using where; Using filesort
+SELECT COUNT(*) FROM t1 WHERE key1<2 OR key2<3 ORDER BY key1;
+COUNT(*)
+2
+DELETE FROM t1 WHERE key1<2 OR key2<3 ORDER BY key1;
+SELECT COUNT(*) FROM t1 WHERE key1<2 OR key2<3 ORDER BY key1;
+COUNT(*)
+0
+EXPLAIN DELETE FROM t1 USING t1 INNER JOIN t2 ON (t2.key1=t2.key1) WHERE t1.key1=3 OR t1.key2=4;
+id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
+1	SIMPLE	t1	index_merge	i1,i2	i1,i2	4,4	NULL	#	Using union(i1,i2); Using where
+1	SIMPLE	t2	index	NULL	i1	4	NULL	#	Using index; Using join buffer (Block Nested Loop)
+SELECT COUNT(*) FROM t1;
+COUNT(*)
+2001
+DELETE FROM t1 USING t1 INNER JOIN t2 ON (t2.key1=t2.key1) WHERE t1.key1=3 OR t1.key2=4;
+SELECT COUNT(*) FROM t1;
+COUNT(*)
+2000
+EXPLAIN DELETE FROM t2 WHERE key6 = (SELECT key6 FROM t1 WHERE key1=10 OR key5=3 OR key2 IS NULL) OR key3=28 OR key4=10;
+id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
+1	PRIMARY	t2	index_merge	i3,i4	i3,i4	4,4	NULL	#	Using union(i3,i4); Using where
+2	SUBQUERY	t1	index_merge	i1,i5	i1,i5	4,5	NULL	#	Using union(i1,i5); Using where
+SELECT COUNT(*) FROM t2 WHERE key6 = (SELECT key6 FROM t1 WHERE key1=10 OR key5=3 OR key2 IS NULL) OR key3=28 OR key4=10;
+COUNT(*)
+3
+DELETE FROM t2 WHERE key6 = (SELECT key6 FROM t1 WHERE key1=10 OR key5=3 OR key2 IS NULL) OR key3=28 OR key4=10;
+SELECT COUNT(*) FROM t2 WHERE key6 = (SELECT key6 FROM t1 WHERE key1=10 OR key5=3 OR key2 IS NULL) OR key3=28 OR key4=10;
+COUNT(*)
+0
+EXPLAIN DELETE FROM t2 WHERE key1=25 OR key4=40 AND (key4 < SOME (SELECT key4 FROM t1 WHERE key1<5 OR key4<8) OR key1 < ANY (SELECT key1 FROM t1 WHERE key1<5 OR key4<7) );
+id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
+1	PRIMARY	t2	index_merge	i1,i4	i1,i4	4,4	NULL	#	Using union(i1,i4); Using where
+3	SUBQUERY	t1	index_merge	i1,i4	i1,i4	4,4	NULL	#	Using sort_union(i1,i4); Using where
+2	SUBQUERY	t1	index_merge	i1,i4	i1,i4	4,4	NULL	#	Using sort_union(i1,i4); Using where
+SELECT COUNT(*) FROM t2 WHERE key1=25 OR key4=40 AND (key4 < SOME (SELECT key4 FROM t1 WHERE key1<5 OR key4<8) OR key1 < ANY (SELECT key1 FROM t1 WHERE key1<5 OR key4<7) );
+COUNT(*)
+1
+DELETE FROM t2 WHERE key1=25 OR key4=40 AND (key4 < SOME (SELECT key4 FROM t1 WHERE key1<5 OR key4<8) OR key1 < ANY (SELECT key1 FROM t1 WHERE key1<5 OR key4<7) );
+SELECT COUNT(*) FROM t2 WHERE key1=25 OR key4=40 AND (key4 < SOME (SELECT key4 FROM t1 WHERE key1<5 OR key4<8) OR key1 < ANY (SELECT key1 FROM t1 WHERE key1<5 OR key4<7) );
+COUNT(*)
+0
+INSERT INTO t1 VALUES (2,2,2,2,2,2,2,2),(5,5,5,5,5,5,5,5);
+EXPLAIN DELETE FROM t2 WHERE EXISTS (SELECT * FROM t1 WHERE key1<5 OR key3<7);
+id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
+1	PRIMARY	NULL	NULL	NULL	NULL	NULL	NULL	#	Deleting all rows
+2	SUBQUERY	t1	index_merge	i1,i3	i1,i3	4,4	NULL	#	Using sort_union(i1,i3); Using where
+SELECT COUNT(*) FROM t2 WHERE EXISTS (SELECT * FROM t1 WHERE key1<5 OR key3<7);
+COUNT(*)
+2053
+DELETE FROM t2 WHERE EXISTS (SELECT * FROM t1 WHERE key1<5 OR key3<7);
+SELECT COUNT(*) FROM t2 WHERE EXISTS (SELECT * FROM t1 WHERE key1<5 OR key3<7);
+COUNT(*)
+0
+INSERT INTO t1 VALUES ( 3,3,3,3,3,3,3,3 ),(4,4,4,4,4,4,4,4);
+EXPLAIN DELETE FROM t1 WHERE key7 = 3 OR key8 = 4;
+id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
+1	SIMPLE	t1	ALL	NULL	NULL	NULL	NULL	#	Using where
+SELECT COUNT(*) FROM t1 WHERE key7 = 3 OR key8 = 4;
+COUNT(*)
+2
+DELETE FROM t1 WHERE key7 = 3 OR key8 = 4;
+SELECT COUNT(*) FROM t1 WHERE key7 = 3 OR key8 = 4;
+COUNT(*)
+0
+DROP TABLE IF EXISTS t1;
+CREATE TABLE t1
+(
+key1 INT NOT NULL,
+key2 INT NOT NULL,
+key3 INT NOT NULL,
+key4 INT NOT NULL,
+key5 INT,
+key6 INT,
+key7 INT NOT NULL,
+key8 INT NOT NULL,
+INDEX i1(key1,key2),
+INDEX i2(key2,key1),
+INDEX i3(key3,key4),
+INDEX i4(key4,key3),
+INDEX i5(key5,key6),
+INDEX i6(key6,key5),
+INDEX i7(key7,key8),
+INDEX i8(key8,key7)
+);
+ANALYZE TABLE t1;
+Table	Op	Msg_type	Msg_text
+test.t1	analyze	status	OK
+DROP TABLE IF EXISTS t2;
+CREATE TABLE t2 LIKE t1;
+INSERT INTO t2 SELECT * FROM t1;
+ANALYZE TABLE t2;
+Table	Op	Msg_type	Msg_text
+test.t2	analyze	status	Table is already up to date
+EXPLAIN DELETE FROM t1 WHERE key1=25 OR key4=10;
+id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
+1	SIMPLE	t1	index_merge	i1,i4	i1,i4	4,4	NULL	#	Using sort_union(i1,i4); Using where
+SELECT COUNT(*) FROM t1 WHERE key1=25 OR key4=10;
+COUNT(*)
+3
+DELETE FROM t1 WHERE key1=25 OR key4=10;
+SELECT COUNT(*) FROM t1 WHERE key1=25 OR key4=10;
+COUNT(*)
+0
+EXPLAIN DELETE FROM t1 WHERE key1=48 OR  key4=2 OR key6=3;
+id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
+1	SIMPLE	t1	index_merge	i1,i4,i6	i1,i4,i6	4,4,5	NULL	#	Using sort_union(i1,i4,i6); Using where
+SELECT COUNT(*) FROM t1 WHERE key1=48 OR  key4=2 OR key6=3;
+COUNT(*)
+4
+DELETE FROM t1 WHERE key1=48 OR  key4=2 OR key6=3;
+SELECT COUNT(*) FROM t1 WHERE key1=48 OR  key4=2 OR key6=3;
+COUNT(*)
+0
+EXPLAIN DELETE FROM t1 WHERE key3=1025 OR key5 IS NULL;
+id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
+1	SIMPLE	t1	index_merge	i3,i5	i3,i5	4,5	NULL	#	Using sort_union(i3,i5); Using where
+SELECT COUNT(*) FROM t1 WHERE key3=1025 OR key5 IS NULL;
+COUNT(*)
+8
+DELETE FROM t1 WHERE key3=1025 OR key5 IS NULL;
+SELECT COUNT(*) FROM t1 WHERE key3=1025 OR key5 IS NULL;
+COUNT(*)
+0
+EXPLAIN DELETE FROM t1 WHERE key3=45 OR key1=6 OR key6 IS NULL;
+id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
+1	SIMPLE	t1	index_merge	i1,i3,i6	i3,i1,i6	4,4,5	NULL	#	Using sort_union(i3,i1,i6); Using where
+SELECT COUNT(*) FROM t1 WHERE key3=45 OR key1=6 OR key6 IS NULL;
+COUNT(*)
+2
+DELETE FROM t1 WHERE key3=45 OR key1=6 OR key6 IS NULL;
+SELECT COUNT(*) FROM t1 WHERE key3=45 OR key1=6 OR key6 IS NULL;
+COUNT(*)
+0
+EXPLAIN DELETE FROM t1 WHERE (key4=42 AND key6 IS NOT NULL) OR (key1=4 AND key3=6);
+id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
+1	SIMPLE	t1	index_merge	i1,i3,i4,i6	i4,i3	4,4	NULL	#	Using sort_union(i4,i3); Using where
+SELECT COUNT(*) FROM t1 WHERE (key4=42 AND key6 IS NOT NULL) OR (key1=4 AND key3=6);
+COUNT(*)
+1
+DELETE FROM t1 WHERE (key4=42 AND key6 IS NOT NULL) OR (key1=4 AND key3=6);
+SELECT COUNT(*) FROM t1 WHERE (key4=42 AND key6 IS NOT NULL) OR (key1=4 AND key3=6);
+COUNT(*)
+0
+INSERT INTO t1 VALUES (42,42,42,42,3,3,3,3),(4,4,6,6,6,6,4,4);
+EXPLAIN DELETE FROM t1 WHERE (key4=42 AND key6=3) OR (key1=4 AND key3=6);
+id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
+1	SIMPLE	t1	index_merge	i1,i3,i4,i6	i6,i1	5,4	NULL	#	Using sort_union(i6,i1); Using where
+SELECT COUNT(*) FROM t1 WHERE (key4=42 AND key6=3) OR (key1=4 AND key3=6);
+COUNT(*)
+2
+DELETE FROM t1 WHERE (key4=42 AND key6=3) OR (key1=4 AND key3=6);
+SELECT COUNT(*) FROM t1 WHERE (key4=42 AND key6=3) OR (key1=4 AND key3=6);
+COUNT(*)
+0
+INSERT INTO t1 VALUES (42,42,42,42,3,3,3,3),(4,4,6,6,6,6,4,4);
+EXPLAIN DELETE FROM t1 WHERE (key4=42 AND key6=3) OR (key1=4 AND key3=6) AND key5<>50;
+id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
+1	SIMPLE	t1	index_merge	i1,i3,i4,i5,i6	i6,i1	5,4	NULL	#	Using sort_union(i6,i1); Using where
+SELECT COUNT(*) FROM t1 WHERE (key4=42 AND key6=3) OR (key1=4 AND key3=6) AND key5<>50;
+COUNT(*)
+2
+DELETE FROM t1 WHERE (key4=42 AND key6=3) OR (key1=4 AND key3=6) AND key5<>50;
+SELECT COUNT(*) FROM t1 WHERE (key4=42 AND key6=3) OR (key1=4 AND key3=6) AND key5<>50;
+COUNT(*)
+0
+EXPLAIN DELETE FROM t1 WHERE key1<2 OR key2<3;
+id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
+1	SIMPLE	t1	index_merge	i2,i1	i2,i1	4,4	NULL	#	Using sort_union(i2,i1); Using where
+SELECT COUNT(*) FROM t1 WHERE key1<2 OR key2<3;
+COUNT(*)
+1
+DELETE FROM t1 WHERE key1<2 OR key2<3;
+SELECT COUNT(*) FROM t1 WHERE key1<2 OR key2<3;
+COUNT(*)
+0
+EXPLAIN DELETE FROM t1 WHERE key1<5 OR key3<7;
+id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
+1	SIMPLE	t1	index_merge	i3,i1	i3,i1	4,4	NULL	#	Using sort_union(i3,i1); Using where
+SELECT COUNT(*) FROM t1 WHERE key1<5 OR key3<7;
+COUNT(*)
+2
+DELETE FROM t1 WHERE key1<5 OR key3<7;
+SELECT COUNT(*) FROM t1 WHERE key1<5 OR key3<7;
+COUNT(*)
+0
+INSERT INTO t1 VALUES (10,10,10,10,10,10,10,10),(3,3,3,3,3,3,3,3);
+EXPLAIN DELETE FROM t1 WHERE key2=10 OR key3=3 OR key4 IS NULL;
+id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
+1	SIMPLE	t1	index_merge	i2,i3	i2,i3	4,4	NULL	#	Using sort_union(i2,i3); Using where
+SELECT COUNT(*) FROM t1 WHERE key2=10 OR key3=3 OR key4 IS NULL;
+COUNT(*)
+2
+DELETE FROM t1 WHERE key2=10 OR key3=3 OR key4 IS NULL;
+SELECT COUNT(*) FROM t1 WHERE key2=10 OR key3=3 OR key4 IS NULL;
+COUNT(*)
+0
+INSERT INTO t1 VALUES (10,10,10,10,10,10,10,10),(3,3,3,3,3,3,3,3);
+EXPLAIN DELETE FROM t1 WHERE key2=10 OR key3=3 OR key4 <=> null;
+id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
+1	SIMPLE	t1	index_merge	i2,i3	i2,i3	4,4	NULL	#	Using sort_union(i2,i3); Using where
+SELECT COUNT(*) FROM t1 WHERE key2=10 OR key3=3 OR key4 <=> null;
+COUNT(*)
+2
+DELETE FROM t1 WHERE key2=10 OR key3=3 OR key4 <=> null;
+SELECT COUNT(*) FROM t1 WHERE key2=10 OR key3=3 OR key4 <=> null;
+COUNT(*)
+0
+EXPLAIN DELETE FROM t1 WHERE (key1>30 AND key1<35) OR (key2>32 AND key2<40);
+id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
+1	SIMPLE	t1	index_merge	i1,i2	i1,i2	4,4	NULL	#	Using sort_union(i1,i2); Using where
+SELECT COUNT(*) FROM t1 WHERE (key1>30 AND key1<35) OR (key2>32 AND key2<40);
+COUNT(*)
+9
+DELETE FROM t1 WHERE (key1>30 AND key1<35) OR (key2>32 AND key2<40);
+SELECT COUNT(*) FROM t1 WHERE (key1>30 AND key1<35) OR (key2>32 AND key2<40);
+COUNT(*)
+0
+EXPLAIN DELETE FROM t1 WHERE key1 BETWEEN 30 AND 35 OR key2 BETWEEN 32 AND 40;
+id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
+1	SIMPLE	t1	index_merge	i1,i2	i1,i2	4,4	NULL	#	Using sort_union(i1,i2); Using where
+SELECT COUNT(*) FROM t1 WHERE key1 BETWEEN 30 AND 35 OR key2 BETWEEN 32 AND 40;
+COUNT(*)
+2
+DELETE FROM t1 WHERE key1 BETWEEN 30 AND 35 OR key2 BETWEEN 32 AND 40;
+SELECT COUNT(*) FROM t1 WHERE key1 BETWEEN 30 AND 35 OR key2 BETWEEN 32 AND 40;
+COUNT(*)
+0
+EXPLAIN DELETE FROM t1 WHERE (key1>30 AND key1<35) OR (key2>32 AND key2<40) OR (key3>20 AND key3<45);
+id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
+1	SIMPLE	t1	index_merge	i1,i2,i3	i1,i2,i3	4,4,4	NULL	#	Using sort_union(i1,i2,i3); Using where
+SELECT COUNT(*) FROM t1 WHERE (key1>30 AND key1<35) OR (key2>32 AND key2<40) OR (key3>20 AND key3<45);
+COUNT(*)
+11
+DELETE FROM t1 WHERE (key1>30 AND key1<35) OR (key2>32 AND key2<40) OR (key3>20 AND key3<45);
+SELECT COUNT(*) FROM t1 WHERE (key1>30 AND key1<35) OR (key2>32 AND key2<40) OR (key3>20 AND key3<45);
+COUNT(*)
+0
+EXPLAIN DELETE FROM t1 WHERE key1 BETWEEN 30 AND 35 OR key2 BETWEEN 32 AND 40 OR key3 BETWEEN 20 AND 45;
+id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
+1	SIMPLE	t1	index_merge	i1,i2,i3	i1,i2,i3	4,4,4	NULL	#	Using sort_union(i1,i2,i3); Using where
+SELECT COUNT(*) FROM t1 WHERE key1 BETWEEN 30 AND 35 OR key2 BETWEEN 32 AND 40 OR key3 BETWEEN 20 AND 45;
+COUNT(*)
+1
+DELETE FROM t1 WHERE key1 BETWEEN 30 AND 35 OR key2 BETWEEN 32 AND 40 OR key3 BETWEEN 20 AND 45;
+SELECT COUNT(*) FROM t1 WHERE key1 BETWEEN 30 AND 35 OR key2 BETWEEN 32 AND 40 OR key3 BETWEEN 20 AND 45;
+COUNT(*)
+0
+INSERT INTO t1 VALUES (1,1,1,1,1,1,1,1),(2,2,2,2,2,2,2,2),(3,3,3,3,3,3,3,3),(4,4,4,4,4,4,4,4);
+EXPLAIN DELETE FROM t1 WHERE ((key3<4 OR key5<3) AND (key1<3 OR key2<3)) OR (((key3<5 AND key6<5) OR key5<2) AND (key5<4 OR key6<4));
+id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
+1	SIMPLE	t1	index_merge	i3,i5	i3,i5	4,5	NULL	#	Using sort_union(i3,i5); Using where
+SELECT COUNT(*) FROM t1 WHERE ((key3<4 OR key5<3) AND (key1<3 OR key2<3)) OR (((key3<5 AND key6<5) OR key5<2) AND (key5<4 OR key6<4));
+COUNT(*)
+3
+DELETE FROM t1 WHERE ((key3<4 OR key5<3) AND (key1<3 OR key2<3)) OR (((key3<5 AND key6<5) OR key5<2) AND (key5<4 OR key6<4));
+SELECT COUNT(*) FROM t1 WHERE ((key3<4 OR key5<3) AND (key1<3 OR key2<3)) OR (((key3<5 AND key6<5) OR key5<2) AND (key5<4 OR key6<4));
+COUNT(*)
+0
+EXPLAIN DELETE FROM t1 WHERE (key4<42 AND key6 IS NOT NULL) OR (key1>4 AND key5 IS NULL) AND key2<>50;
+id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
+1	SIMPLE	t1	index_merge	i1,i2,i4,i5,i6	i4,i5	4,5	NULL	#	Using sort_union(i4,i5); Using where
+SELECT COUNT(*) FROM t1 WHERE (key4<42 AND key6 IS NOT NULL) OR (key1>4 AND key5 IS NULL) AND key2<>50;
+COUNT(*)
+13
+DELETE FROM t1 WHERE (key4<42 AND key6 IS NOT NULL) OR (key1>4 AND key5 IS NULL) AND key2<>50;
+SELECT COUNT(*) FROM t1 WHERE (key4<42 AND key6 IS NOT NULL) OR (key1>4 AND key5 IS NULL) AND key2<>50;
+COUNT(*)
+0
+EXPLAIN DELETE FROM t1 WHERE (key5 IN (15,70) OR key6 IN (15,70)) ;
+id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
+1	SIMPLE	t1	index_merge	i5,i6	i5,i6	5,5	NULL	#	Using sort_union(i5,i6); Using where
+SELECT COUNT(*) FROM t1 WHERE (key5 IN (15,70) OR key6 IN (15,70)) ;
+COUNT(*)
+1
+DELETE FROM t1 WHERE (key5 IN (15,70) OR key6 IN (15,70)) ;
+SELECT COUNT(*) FROM t1 WHERE (key5 IN (15,70) OR key6 IN (15,70)) ;
+COUNT(*)
+0
+INSERT INTO t1 VALUES (1,1,1,1,1,1,1,1),(2,2,2,2,2,2,2,2),(3,3,3,3,3,3,3,3);
+EXPLAIN DELETE FROM t1 WHERE key1<2 OR key2<3 ORDER BY key1;
+id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
+1	SIMPLE	t1	index_merge	i1,i2	i1,i2	4,4	NULL	#	Using sort_union(i1,i2); Using where; Using filesort
+SELECT COUNT(*) FROM t1 WHERE key1<2 OR key2<3 ORDER BY key1;
+COUNT(*)
+2
+DELETE FROM t1 WHERE key1<2 OR key2<3 ORDER BY key1;
+SELECT COUNT(*) FROM t1 WHERE key1<2 OR key2<3 ORDER BY key1;
+COUNT(*)
+0
+EXPLAIN DELETE FROM t1 USING t1 INNER JOIN t2 ON (t2.key1=t2.key1) WHERE t1.key1=3 OR t1.key2=4;
+id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
+1	SIMPLE	t1	index_merge	i1,i2	i1,i2	4,4	NULL	#	Using sort_union(i1,i2); Using where
+1	SIMPLE	t2	index	NULL	i1	8	NULL	#	Using index; Using join buffer (Block Nested Loop)
+SELECT COUNT(*) FROM t1;
+COUNT(*)
+2001
+DELETE FROM t1 USING t1 INNER JOIN t2 ON (t2.key1=t2.key1) WHERE t1.key1=3 OR t1.key2=4;
+SELECT COUNT(*) FROM t1;
+COUNT(*)
+2000
+EXPLAIN DELETE FROM t2 WHERE key6 = (SELECT key6 FROM t1 WHERE key1=10 OR key5=3 OR key2 IS NULL) OR key3=28 OR key4=10;
+id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
+1	PRIMARY	t2	index_merge	i3,i4	i3,i4	4,4	NULL	#	Using sort_union(i3,i4); Using where
+2	SUBQUERY	t1	index_merge	i1,i5	i1,i5	4,5	NULL	#	Using sort_union(i1,i5); Using where
+SELECT COUNT(*) FROM t2 WHERE key6 = (SELECT key6 FROM t1 WHERE key1=10 OR key5=3 OR key2 IS NULL) OR key3=28 OR key4=10;
+COUNT(*)
+3
+DELETE FROM t2 WHERE key6 = (SELECT key6 FROM t1 WHERE key1=10 OR key5=3 OR key2 IS NULL) OR key3=28 OR key4=10;
+SELECT COUNT(*) FROM t2 WHERE key6 = (SELECT key6 FROM t1 WHERE key1=10 OR key5=3 OR key2 IS NULL) OR key3=28 OR key4=10;
+COUNT(*)
+0
+EXPLAIN DELETE FROM t2 WHERE key1=25 OR key4=40 AND (key4 < SOME (SELECT key4 FROM t1 WHERE key1<5 OR key4<8) OR key1 < ANY (SELECT key1 FROM t1 WHERE key1<5 OR key4<7) );
+id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
+1	PRIMARY	t2	index_merge	i1,i4	i1,i4	4,4	NULL	#	Using sort_union(i1,i4); Using where
+3	SUBQUERY	t1	index_merge	i1,i4	i1,i4	4,4	NULL	#	Using sort_union(i1,i4); Using where
+2	SUBQUERY	t1	index_merge	i1,i4	i1,i4	4,4	NULL	#	Using sort_union(i1,i4); Using where
+SELECT COUNT(*) FROM t2 WHERE key1=25 OR key4=40 AND (key4 < SOME (SELECT key4 FROM t1 WHERE key1<5 OR key4<8) OR key1 < ANY (SELECT key1 FROM t1 WHERE key1<5 OR key4<7) );
+COUNT(*)
+1
+DELETE FROM t2 WHERE key1=25 OR key4=40 AND (key4 < SOME (SELECT key4 FROM t1 WHERE key1<5 OR key4<8) OR key1 < ANY (SELECT key1 FROM t1 WHERE key1<5 OR key4<7) );
+SELECT COUNT(*) FROM t2 WHERE key1=25 OR key4=40 AND (key4 < SOME (SELECT key4 FROM t1 WHERE key1<5 OR key4<8) OR key1 < ANY (SELECT key1 FROM t1 WHERE key1<5 OR key4<7) );
+COUNT(*)
+0
+INSERT INTO t1 VALUES (2,2,2,2,2,2,2,2),(5,5,5,5,5,5,5,5);
+EXPLAIN DELETE FROM t2 WHERE EXISTS (SELECT * FROM t1 WHERE key1<5 OR key3<7);
+id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
+1	PRIMARY	NULL	NULL	NULL	NULL	NULL	NULL	#	Deleting all rows
+2	SUBQUERY	t1	index_merge	i1,i3	i1,i3	4,4	NULL	#	Using sort_union(i1,i3); Using where
+SELECT COUNT(*) FROM t2 WHERE EXISTS (SELECT * FROM t1 WHERE key1<5 OR key3<7);
+COUNT(*)
+2053
+DELETE FROM t2 WHERE EXISTS (SELECT * FROM t1 WHERE key1<5 OR key3<7);
+SELECT COUNT(*) FROM t2 WHERE EXISTS (SELECT * FROM t1 WHERE key1<5 OR key3<7);
+COUNT(*)
+0
+INSERT INTO t1 VALUES ( 3,3,3,3,3,3,3,3 ),(4,4,4,4,4,4,4,4);
+EXPLAIN DELETE FROM t1 WHERE key7 = 3 OR key8 = 4;
+id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
+1	SIMPLE	t1	index_merge	i7,i8	i7,i8	4,4	NULL	#	Using sort_union(i7,i8); Using where
+SELECT COUNT(*) FROM t1 WHERE key7 = 3 OR key8 = 4;
+COUNT(*)
+2
+DELETE FROM t1 WHERE key7 = 3 OR key8 = 4;
+SELECT COUNT(*) FROM t1 WHERE key7 = 3 OR key8 = 4;
+COUNT(*)
+0
+DROP TABLE t1;
+DROP TABLE t2;

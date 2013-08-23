@@ -1,6 +1,6 @@
 /*****************************************************************************
 
-Copyright (c) 1996, 2011, Oracle and/or its affiliates. All Rights Reserved.
+Copyright (c) 1996, 2013, Oracle and/or its affiliates. All Rights Reserved.
 
 This program is free software; you can redistribute it and/or modify it under
 the terms of the GNU General Public License as published by the Free Software
@@ -303,7 +303,7 @@ struct	CreateView {
 			trx_sys->max_trx_id can still be active, if it is
 			in the middle of its commit! Note that when a
 			transaction starts, we initialize trx->no to
-			IB_ULONGLONG_MAX. */
+			TRX_ID_MAX. */
 
 			/* trx->no is protected by trx_sys->mutex, which
 			we are holding. It is assigned by trx_commit()

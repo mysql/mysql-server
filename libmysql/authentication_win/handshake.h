@@ -1,4 +1,4 @@
-/* Copyright (c) 2011, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2011, 2013, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -53,7 +53,12 @@ class Security_buffer: public SecBufferDesc
   }
 
   /// If @c false, no deallocation will be done in the destructor.
-  bool m_allocated;
+  const bool m_allocated;
+
+  // Copying/assignment is not supported and can lead to memory leaks
+  // So declaring copy constructor and assignment operator as private
+  Security_buffer( const Security_buffer& );
+  const Security_buffer& operator=( const Security_buffer& );
 
  public:
 
@@ -73,11 +78,6 @@ class Security_buffer: public SecBufferDesc
   size_t len() const
   {
     return m_buf.cbBuffer;
-  }
-
-  bool is_valid() const
-  {
-    return ptr() != NULL;
   }
 
   const Blob as_blob() const

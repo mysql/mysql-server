@@ -1187,6 +1187,23 @@ public:
 
   /* bit map of tables used by item */
   virtual table_map used_tables() const { return (table_map) 0L; }
+  /**
+    Return used table information for the level this item is resolved on.
+     - For fields, this returns the table the item is resolved from.
+     - For all other items, this behaves like used_tables().
+
+    @note: Use this function with caution. External calls to this function
+           should only be made for class objects derived from Item_ident.
+           Item::resolved_used_tables is for internal use only, in order to
+           process fields underlying a view column reference.
+  */
+  virtual table_map resolved_used_tables() const
+  {
+    // As this is the level this item was resolved on, it cannot be outer:
+    DBUG_ASSERT(!(used_tables() & OUTER_REF_TABLE_BIT));
+
+    return used_tables();
+  }
   /*
     Return table map of tables that can't be NULL tables (tables that are
     used in a context where if they would contain a NULL row generated
@@ -2075,10 +2092,6 @@ public:
              const char *db_name_arg, const char *table_name_arg,
              const char *field_name_arg);
   Item_ident(THD *thd, Item_ident *item);
-  /*
-    Return used table information for the level on which this table is resolved.
-  */
-  virtual table_map resolved_used_tables() const= 0;
   const char *full_name() const;
   virtual void fix_after_pullout(st_select_lex *parent_select,
                                  st_select_lex *removed_select);
@@ -3185,7 +3198,10 @@ public:
     if (!depended_from) 
       (*ref)->update_used_tables(); 
   }
-  virtual table_map resolved_used_tables() const;
+
+  virtual table_map resolved_used_tables() const
+  { return (*ref)->resolved_used_tables(); }
+
   table_map not_null_tables() const
   {
     /*

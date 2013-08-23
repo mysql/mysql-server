@@ -1,6 +1,6 @@
 /*****************************************************************************
 
-Copyright (c) 1996, 2012, Oracle and/or its affiliates. All Rights Reserved.
+Copyright (c) 1996, 2013, Oracle and/or its affiliates. All Rights Reserved.
 
 This program is free software; you can redistribute it and/or modify it under
 the terms of the GNU General Public License as published by the Free Software
@@ -58,6 +58,18 @@ enum dict_table_info_t {
 					is in the cache, if so, return it */
 };
 
+/** Check type for dict_check_tablespaces_and_store_max_id() */
+enum dict_check_t {
+	/** No user tablespaces have been opened
+	(no crash recovery, no transactions recovered). */
+	DICT_CHECK_NONE_LOADED = 0,
+	/** Some user tablespaces may have been opened
+	(no crash recovery; recovered table locks for transactions). */
+	DICT_CHECK_SOME_LOADED,
+	/** All user tablespaces have been opened (crash recovery). */
+	DICT_CHECK_ALL_LOADED
+};
+
 /********************************************************************//**
 In a crash recovery we already have all the tablespace objects created.
 This function compares the space id information in the InnoDB data dictionary
@@ -70,7 +82,7 @@ UNIV_INTERN
 void
 dict_check_tablespaces_and_store_max_id(
 /*====================================*/
-	ibool	in_crash_recovery);	/*!< in: are we doing a crash recovery */
+	dict_check_t	dict_check);	/*!< in: how to check */
 /********************************************************************//**
 Finds the first table name in the given database.
 @return own: table name, NULL if does not exist; the caller must free
@@ -199,7 +211,9 @@ UNIV_INTERN
 dict_table_t*
 dict_load_table_on_id(
 /*==================*/
-	table_id_t	table_id);	/*!< in: table id */
+	table_id_t		table_id,	/*!< in: table id */
+	dict_err_ignore_t	ignore_err);	/*!< in: errors to ignore
+						when loading the table */
 /********************************************************************//**
 This function is called when the database is booted.
 Loads system table index definitions except for the clustered index which
@@ -220,13 +234,15 @@ UNIV_INTERN
 dberr_t
 dict_load_foreigns(
 /*===============*/
-	const char*	table_name,	/*!< in: table name */
-	const char**	col_names,	/*!< in: column names, or NULL to use
-					table->col_names */
-	bool		check_recursive,/*!< in: Whether to check recursive
-					load of tables chained by FK */
-	bool		check_charsets)	/*!< in: whether to check charset
-					compatibility */
+	const char*		table_name,	/*!< in: table name */
+	const char**		col_names,	/*!< in: column names, or NULL
+						to use table->col_names */
+	bool			check_recursive,/*!< in: Whether to check
+						recursive load of tables
+						chained by FK */
+	bool			check_charsets,	/*!< in: whether to check
+						charset compatibility */
+	dict_err_ignore_t	ignore_err)	/*!< in: error to be ignored */
 	__attribute__((nonnull(1), warn_unused_result));
 /********************************************************************//**
 Prints to the standard output information on all tables found in the data
