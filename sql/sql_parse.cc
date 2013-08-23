@@ -4837,8 +4837,8 @@ check_access(THD *thd, ulong want_access, const char *db, ulong *save_priv,
     if (!(sctx->master_access & SELECT_ACL))
     {
       if (db && (!thd->db || db_is_pattern || strcmp(db, thd->db)))
-        db_access= acl_get(sctx->host, sctx->ip, sctx->priv_user, db,
-                           db_is_pattern);
+        db_access= acl_get(sctx->get_host()->ptr(), sctx->get_ip()->ptr(),
+                           sctx->priv_user, db, db_is_pattern);
       else
       {
         /* get access for current db */
@@ -4886,8 +4886,8 @@ check_access(THD *thd, ulong want_access, const char *db, ulong *save_priv,
   }
 
   if (db && (!thd->db || db_is_pattern || strcmp(db,thd->db)))
-    db_access= acl_get(sctx->host, sctx->ip, sctx->priv_user, db,
-                       db_is_pattern);
+    db_access= acl_get(sctx->get_host()->ptr(), sctx->get_ip()->ptr(),
+                       sctx->priv_user, db, db_is_pattern);
   else
     db_access= sctx->db_access;
   DBUG_PRINT("info",("db_access: %lu  want_access: %lu",
