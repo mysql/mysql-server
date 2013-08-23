@@ -1237,8 +1237,8 @@ void xid_cache_delete(XID_STATE *xid_state);
 class Security_context {
 private:
 
-String host; 
-String ip; 
+String host;
+String ip;
 String external_user;
 public:
   Security_context() {}                       /* Remove gcc warning */
