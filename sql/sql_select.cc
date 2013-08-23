@@ -1379,6 +1379,12 @@ JOIN::optimize()
               new store_key_const_item(*tab->ref.key_copy[key_copy_index],
                                        item);
           }
+          else if (item->const_item())
+	  {
+            tab->ref.key_copy[key_copy_index]=
+              new store_key_item(*tab->ref.key_copy[key_copy_index],
+                                 item, TRUE);
+          }            
           else
           {
             store_key_field *field_copy= ((store_key_field *)key_copy);
@@ -8243,14 +8249,12 @@ static void add_not_null_conds(JOIN *join)
           Item *item= tab->ref.items[keypart];
           Item *notnull;
           Item *real= item->real_item();
-          if (real->basic_const_item())
+	  if (real->const_item() && !real->is_expensive())
           {
             /*
               It could be constant instead of field after constant
               propagation.
             */
-            DBUG_ASSERT(real->is_expensive() || // prevent early expensive eval
-                        !real->is_null()); // NULLs are not propagated
             continue;
           }
           DBUG_ASSERT(real->type() == Item::FIELD_ITEM);

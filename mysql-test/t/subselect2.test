@@ -315,6 +315,26 @@ set optimizer_switch=@tmp_mdev614;
 
 DROP TABLE t1;
 
+--echo #
+--echo # MDEV-4420: non-expensive single-value subquery used as
+--echo #            used as an access key to join a table
+--echo #
+
+create table t1 (a varchar(3));
+insert into t1 values ('USA'), ('FRA');
+create table t2 select * from t1;
+insert into t2 values ('RUS');
+create table t3 select * from t2;
+create index idx on t3(a);
+
+explain extended
+select * from t1, t2 left join t3 on ( t2.a = t3.a )
+where t1.a = t2.a and ( t1.a = ( select min(a) from t1 ) or 0 );
+
+select * from t1, t2 left join t3 on ( t2.a = t3.a )
+where t1.a = t2.a and ( t1.a = ( select min(a) from t1 ) or 0 );
+
+drop table t1,t2,t3;
 
 set optimizer_switch=@subselect2_test_tmp;
 
