@@ -7918,7 +7918,6 @@ uint Field_blob::get_key_image(uchar *buff,uint length, imagetype type_arg)
 #ifdef HAVE_SPATIAL
   if (type_arg == itMBR)
   {
-    const char *dummy;
     MBR mbr;
     Geometry_buffer buffer;
     Geometry *gobj;
@@ -7931,7 +7930,7 @@ uint Field_blob::get_key_image(uchar *buff,uint length, imagetype type_arg)
     }
     get_ptr(&blob);
     gobj= Geometry::construct(&buffer, (char*) blob, blob_length);
-    if (!gobj || gobj->get_mbr(&mbr, &dummy))
+    if (!gobj || gobj->get_mbr(&mbr))
       memset(buff, 0, image_length);
     else
     {

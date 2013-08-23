@@ -36,6 +36,7 @@ Tables_in_test_user_db
 t1
 REVOKE ALL PRIVILEGES ON test_user_db.* FROM 'plug_user'
                          IDENTIFIED WITH test_plugin_server AS 'plug_dest';
+ERROR 42000: You have an error in your SQL syntax; check the manual that corresponds to your MySQL server version for the right syntax to use near ''plug_dest'' at line 2
 2)
 Warning: Using a password on the command line interface can be insecure.
 current_user()
@@ -66,6 +67,7 @@ Tables_in_test_user_db
 t1
 REVOKE ALL PRIVILEGES ON test_user_db.* FROM 'plug_user'
                          IDENTIFIED WITH test_plugin_server AS 'plug_dest';
+ERROR 42000: You have an error in your SQL syntax; check the manual that corresponds to your MySQL server version for the right syntax to use near ''plug_dest'' at line 2
 DROP USER plug_user,plug_dest;
 ========== test 1.2 ========================================
 GRANT ALL PRIVILEGES ON test_user_db.* TO plug_user

@@ -129,7 +129,7 @@ table_threads::table_threads()
 void table_threads::make_row(PFS_thread *pfs)
 {
   pfs_lock lock;
-  pfs_lock processlist_state_lock;
+  PFS_stage_class *stage_class;
   pfs_lock processlist_info_lock;
   PFS_thread_class *safe_class;
 
@@ -169,20 +169,14 @@ void table_threads::make_row(PFS_thread *pfs)
   m_row.m_command= pfs->m_command;
   m_row.m_start_time= pfs->m_start_time;
 
-  /* Protect this reader against state attribute changes. */
-  pfs->m_processlist_state_lock.begin_optimistic_lock(&processlist_state_lock);
-
-  m_row.m_processlist_state_ptr= pfs->m_processlist_state_ptr;
-  m_row.m_processlist_state_length= pfs->m_processlist_state_length;
-
-  if (! pfs->m_processlist_state_lock.end_optimistic_lock(& processlist_state_lock))
+  stage_class= find_stage_class(pfs->m_stage);
+  if (stage_class != NULL)
   {
-    /*
-      Column PROCESSLIST_STATE is being updated.
-      Do not discard the entire row.
-      Do not loop waiting for a stable value.
-      Just return NULL values for this column.
-    */
+    m_row.m_processlist_state_ptr= stage_class->m_name + stage_class->m_prefix_length;
+    m_row.m_processlist_state_length= stage_class->m_name_length - stage_class->m_prefix_length;
+  }
+  else
+  {
     m_row.m_processlist_state_length= 0;
   }
 

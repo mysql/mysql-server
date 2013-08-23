@@ -3009,6 +3009,11 @@ void JOIN_TAB::cleanup()
       (Tested in part_of_refkey)
     */
     table->reginfo.join_tab= NULL;
+    if (table->pos_in_table_list)
+    {
+      table->pos_in_table_list->derived_keys_ready= false;
+      table->pos_in_table_list->derived_key_list.empty();
+    }
   }
   end_read_record(&read_record);
 }
@@ -3066,6 +3071,18 @@ bool JOIN_TAB::and_with_condition(Item *add_cond, uint line)
                       "at line %u tab %p",
                       old_cond, m_condition, line, this));
   return false;
+}
+
+
+/**
+  Check if JOIN_TAB condition was moved to Filesort condition.
+  If yes then return condition belonging to Filesort, otherwise
+  return condition belonging to JOIN_TAB.
+*/
+
+Item *JOIN_TAB::unified_condition() const
+{
+  return filesort && filesort->select ? filesort->select->cond : condition();
 }
 
 

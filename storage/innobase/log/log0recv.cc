@@ -1,6 +1,6 @@
 /*****************************************************************************
 
-Copyright (c) 1997, 2012, Oracle and/or its affiliates. All Rights Reserved.
+Copyright (c) 1997, 2013, Oracle and/or its affiliates. All Rights Reserved.
 Copyright (c) 2012, Facebook Inc.
 
 This program is free software; you can redistribute it and/or modify it under
@@ -1689,17 +1689,13 @@ recv_recover_page_func(
 				start_lsn = recv->start_lsn;
 			}
 
-#ifdef UNIV_DEBUG
-			if (log_debug_writes) {
-				fprintf(stderr,
-					"InnoDB: Applying log rec"
-					" type %lu len %lu"
-					" to space %lu page no %lu\n",
-					(ulong) recv->type, (ulong) recv->len,
-					(ulong) recv_addr->space,
-					(ulong) recv_addr->page_no);
-			}
-#endif /* UNIV_DEBUG */
+			DBUG_PRINT("ib_log",
+				   ("apply " DBUG_LSN_PF ": %u len %u "
+				    "page %u:%u", recv->start_lsn,
+				    (unsigned) recv->type,
+				    (unsigned) recv->len,
+				    (unsigned) recv_addr->space,
+				    (unsigned) recv_addr->page_no));
 
 			recv_parse_or_apply_log_rec_body(recv->type, buf,
 							 buf + recv->len,
@@ -1734,19 +1730,6 @@ recv_recover_page_func(
 	}
 #endif /* UNIV_ZIP_DEBUG */
 
-	mutex_enter(&(recv_sys->mutex));
-
-	if (recv_max_page_lsn < page_lsn) {
-		recv_max_page_lsn = page_lsn;
-	}
-
-	recv_addr->state = RECV_PROCESSED;
-
-	ut_a(recv_sys->n_addrs);
-	recv_sys->n_addrs--;
-
-	mutex_exit(&(recv_sys->mutex));
-
 #ifndef UNIV_HOTBACKUP
 	if (modification_to_page) {
 		ut_a(block);
@@ -1763,6 +1746,20 @@ recv_recover_page_func(
 	mtr.modifications = FALSE;
 
 	mtr_commit(&mtr);
+
+	mutex_enter(&(recv_sys->mutex));
+
+	if (recv_max_page_lsn < page_lsn) {
+		recv_max_page_lsn = page_lsn;
+	}
+
+	recv_addr->state = RECV_PROCESSED;
+
+	ut_a(recv_sys->n_addrs);
+	recv_sys->n_addrs--;
+
+	mutex_exit(&(recv_sys->mutex));
+
 }
 
 #ifndef UNIV_HOTBACKUP
@@ -2060,7 +2057,7 @@ recv_apply_log_recs_for_backup(void)
 			fil0fil.cc routines */
 
 			if (zip_size) {
-				error = fil_io(OS_FILE_READ, TRUE,
+				error = fil_io(OS_FILE_READ, true,
 					       recv_addr->space, zip_size,
 					       recv_addr->page_no, 0, zip_size,
 					       block->page.zip.data, NULL);
@@ -2069,7 +2066,7 @@ recv_apply_log_recs_for_backup(void)
 					exit(1);
 				}
 			} else {
-				error = fil_io(OS_FILE_READ, TRUE,
+				error = fil_io(OS_FILE_READ, true,
 					       recv_addr->space, 0,
 					       recv_addr->page_no, 0,
 					       UNIV_PAGE_SIZE,
@@ -2098,13 +2095,13 @@ recv_apply_log_recs_for_backup(void)
 				mach_read_from_8(block->frame + FIL_PAGE_LSN));
 
 			if (zip_size) {
-				error = fil_io(OS_FILE_WRITE, TRUE,
+				error = fil_io(OS_FILE_WRITE, true,
 					       recv_addr->space, zip_size,
 					       recv_addr->page_no, 0,
 					       zip_size,
 					       block->page.zip.data, NULL);
 			} else {
-				error = fil_io(OS_FILE_WRITE, TRUE,
+				error = fil_io(OS_FILE_WRITE, true,
 					       recv_addr->space, 0,
 					       recv_addr->page_no, 0,
 					       UNIV_PAGE_SIZE,
@@ -2387,15 +2384,11 @@ loop:
 		recv_sys->recovered_offset += len;
 		recv_sys->recovered_lsn = new_recovered_lsn;
 
-#ifdef UNIV_DEBUG
-		if (log_debug_writes) {
-			fprintf(stderr,
-				"InnoDB: Parsed a single log rec"
-				" type %lu len %lu space %lu page no %lu\n",
-				(ulong) type, (ulong) len, (ulong) space,
-				(ulong) page_no);
-		}
-#endif /* UNIV_DEBUG */
+		DBUG_PRINT("ib_log",
+			   ("scan " DBUG_LSN_PF ": log rec %u len %u "
+			    "page %u:%u", old_lsn,
+			    (unsigned) type, (unsigned) len,
+			    (unsigned) space, (unsigned) page_no));
 
 		if (type == MLOG_DUMMY_RECORD) {
 			/* Do nothing */
@@ -2482,16 +2475,12 @@ loop:
 			}
 #endif /* UNIV_LOG_DEBUG */
 
-#ifdef UNIV_DEBUG
-			if (log_debug_writes) {
-				fprintf(stderr,
-					"InnoDB: Parsed a multi log rec"
-					" type %lu len %lu"
-					" space %lu page no %lu\n",
-					(ulong) type, (ulong) len,
-					(ulong) space, (ulong) page_no);
-			}
-#endif /* UNIV_DEBUG */
+			DBUG_PRINT("ib_log",
+				   ("scan " DBUG_LSN_PF ": multi-log rec %u "
+				    "len %u page %u:%u",
+				    recv_sys->recovered_lsn,
+				    (unsigned) type, (unsigned) len,
+				    (unsigned) space, (unsigned) page_no));
 
 			total_len += len;
 			n_recs++;
@@ -2980,6 +2969,11 @@ recv_init_crash_recovery(void)
 			"from the doublewrite buffer...");
 
 		buf_dblwr_init_or_restore_pages(TRUE);
+
+		/* Spawn the background thread to flush dirty pages
+		from the buffer pools. */
+		recv_writer_thread_handle = os_thread_create(
+			recv_writer_thread, 0, 0);
 	}
 }
 
@@ -3072,7 +3066,7 @@ recv_recovery_from_checkpoint_start_func(
 	/* Read the first log file header to print a note if this is
 	a recovery from a restored InnoDB Hot Backup */
 
-	fil_io(OS_FILE_READ | OS_FILE_LOG, TRUE, max_cp_group->space_id, 0,
+	fil_io(OS_FILE_READ | OS_FILE_LOG, true, max_cp_group->space_id, 0,
 	       0, 0, LOG_FILE_HDR_SIZE,
 	       log_hdr_buf, max_cp_group);
 
@@ -3102,7 +3096,7 @@ recv_recovery_from_checkpoint_start_func(
 		memset(log_hdr_buf + LOG_FILE_WAS_CREATED_BY_HOT_BACKUP,
 		       ' ', 4);
 		/* Write to the log file to wipe over the label */
-		fil_io(OS_FILE_WRITE | OS_FILE_LOG, TRUE,
+		fil_io(OS_FILE_WRITE | OS_FILE_LOG, true,
 		       max_cp_group->space_id, 0,
 		       0, 0, OS_FILE_LOG_BLOCK_SIZE,
 		       log_hdr_buf, max_cp_group);
@@ -3266,19 +3260,9 @@ recv_recovery_from_checkpoint_start_func(
 			}
 		}
 
-		if (!srv_read_only_mode) {
-			if (recv_needed_recovery) {
-				/* Spawn the background thread to
-				flush dirty pages from the buffer
-				pools. */
-				recv_writer_thread_handle =
-					os_thread_create(
-					recv_writer_thread, 0, 0);
-			} else {
-				/* Init the doublewrite buffer memory
-				 structure */
-				buf_dblwr_init_or_restore_pages(FALSE);
-			}
+		if (!recv_needed_recovery && !srv_read_only_mode) {
+			/* Init the doublewrite buffer memory structure */
+			buf_dblwr_init_or_restore_pages(FALSE);
 		}
 	}
 
@@ -3347,7 +3331,7 @@ recv_recovery_from_checkpoint_start_func(
 	log_sys->next_checkpoint_no = checkpoint_no + 1;
 
 #ifdef UNIV_LOG_ARCHIVE
-	if (archived_lsn == IB_ULONGLONG_MAX) {
+	if (archived_lsn == LSN_MAX) {
 
 		log_sys->archiving_state = LOG_ARCH_OFF;
 	}
@@ -3387,12 +3371,7 @@ recv_recovery_from_checkpoint_finish(void)
 		recv_apply_hashed_log_recs(TRUE);
 	}
 
-#ifdef UNIV_DEBUG
-	if (log_debug_writes) {
-		fprintf(stderr,
-			"InnoDB: Log records applied to the database\n");
-	}
-#endif /* UNIV_DEBUG */
+	DBUG_PRINT("ib_log", ("apply completed"));
 
 	if (recv_needed_recovery) {
 		trx_sys_print_mysql_master_log_pos();
@@ -3753,7 +3732,7 @@ ask_again:
 #endif
 
 	/* Read the archive file header */
-	fil_io(OS_FILE_READ | OS_FILE_LOG, TRUE, group->archive_space_id, 0, 0,
+	fil_io(OS_FILE_READ | OS_FILE_LOG, true, group->archive_space_id, 0, 0,
 	       LOG_FILE_HDR_SIZE, buf, NULL);
 
 	/* Check if the archive file header is consistent */
@@ -3825,7 +3804,7 @@ ask_again:
 		}
 #endif /* UNIV_DEBUG */
 
-		fil_io(OS_FILE_READ | OS_FILE_LOG, TRUE,
+		fil_io(OS_FILE_READ | OS_FILE_LOG, true,
 		       group->archive_space_id, read_offset / UNIV_PAGE_SIZE,
 		       read_offset % UNIV_PAGE_SIZE, len, buf, NULL);
 
@@ -3951,8 +3930,8 @@ recv_recovery_from_archive_start(
 
 		err = recv_recovery_from_checkpoint_start(LOG_ARCHIVE,
 							  limit_lsn,
-							  IB_ULONGLONG_MAX,
-							  IB_ULONGLONG_MAX);
+							  LSN_MAX,
+							  LSN_MAX);
 		if (err != DB_SUCCESS) {
 
 			return(err);
@@ -3961,7 +3940,7 @@ recv_recovery_from_archive_start(
 		mutex_enter(&(log_sys->mutex));
 	}
 
-	if (limit_lsn != IB_ULONGLONG_MAX) {
+	if (limit_lsn != LSN_MAX) {
 
 		recv_apply_hashed_log_recs(FALSE);
 

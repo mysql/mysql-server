@@ -1,6 +1,6 @@
 /*****************************************************************************
 
-Copyright (c) 1996, 2012, Oracle and/or its affiliates. All Rights Reserved.
+Copyright (c) 1996, 2013, Oracle and/or its affiliates. All Rights Reserved.
 
 This program is free software; you can redistribute it and/or modify it under
 the terms of the GNU General Public License as published by the Free Software
@@ -960,7 +960,7 @@ UNIV_INTERN
 void
 dict_check_tablespaces_and_store_max_id(
 /*====================================*/
-	ibool	in_crash_recovery)	/*!< in: are we doing a crash recovery */
+	dict_check_t	dict_check)	/*!< in: how to check */
 {
 	dict_table_t*	sys_tables;
 	dict_index_t*	sys_index;
@@ -1039,7 +1039,7 @@ loop:
 			ib_logf(IB_LOG_LEVEL_ERROR,
 				"Table '%s' in InnoDB data dictionary"
 				" has unknown type %lx", table_name, flags);
-
+			mem_free(name);
 			goto loop;
 		}
 
@@ -1085,15 +1085,36 @@ loop:
 		if (space_id == 0) {
 			/* The system tablespace always exists. */
 			ut_ad(!discarded);
-		} else if (in_crash_recovery) {
+			goto next_tablespace;
+		}
+
+		switch (dict_check) {
+		case DICT_CHECK_ALL_LOADED:
 			/* All tablespaces should have been found in
 			fil_load_single_table_tablespaces(). */
 
 			fil_space_for_table_exists_in_mem(
 				space_id, name, TRUE, !(is_temp || discarded),
 				false, NULL, 0);
+			break;
 
-		} else if (!discarded) {
+		case DICT_CHECK_SOME_LOADED:
+			/* Some tablespaces may have been opened in
+			trx_resurrect_table_locks(). */
+			if (fil_space_for_table_exists_in_mem(
+				    space_id, name, FALSE, FALSE,
+				    false, NULL, 0)) {
+				break;
+			}
+			/* fall through */
+		case DICT_CHECK_NONE_LOADED:
+			if (discarded) {
+				ib_logf(IB_LOG_LEVEL_INFO,
+					"DISCARD flag set for table '%s',"
+					" ignored.",
+					table_name);
+				break;
+			}
 
 			/* It is a normal database startup: create the
 			space object and check that the .ibd file exists.
@@ -1127,18 +1148,16 @@ loop:
 			if (filepath) {
 				mem_free(filepath);
 			}
-		} else {
-			ib_logf(IB_LOG_LEVEL_INFO,
-				"DISCARD flag set for table '%s', ignored.",
-				table_name);
-		}
 
-		mem_free(name);
+			break;
+		}
 
 		if (space_id > max_space_id) {
 			max_space_id = space_id;
 		}
 
+next_tablespace:
+		mem_free(name);
 		mtr_start(&mtr);
 
 		btr_pcur_restore_position(BTR_SEARCH_LEAF, &pcur, &mtr);
@@ -1808,6 +1827,23 @@ dict_load_indexes(
 
 		rec = btr_pcur_get_rec(&pcur);
 
+		if ((ignore_err & DICT_ERR_IGNORE_RECOVER_LOCK)
+		    && rec_get_n_fields_old(rec)
+		    == DICT_NUM_FIELDS__SYS_INDEXES) {
+			const byte*	field;
+			ulint		len;
+			field = rec_get_nth_field_old(
+				rec, DICT_FLD__SYS_INDEXES__NAME, &len);
+
+			if (len != UNIV_SQL_NULL
+			    && char(*field) == char(TEMP_INDEX_PREFIX)) {
+				/* Skip indexes whose name starts with
+				TEMP_INDEX_PREFIX, because they will
+				be dropped during crash recovery. */
+				goto next_rec;
+			}
+		}
+
 		err_msg = dict_load_index_low(buf, table->name, heap, rec,
 					      TRUE, &index);
 		ut_ad((index == NULL && err_msg != NULL)
@@ -2317,11 +2353,14 @@ err_exit:
 			table->ibd_file_missing = TRUE;
 
 		} else {
-			ib_logf(IB_LOG_LEVEL_ERROR,
-				"Failed to find tablespace for table '%s' "
-				"in the cache. Attempting to load the "
-				"tablespace with space id %lu.",
-				table_name, (ulong) table->space);
+			if (!(ignore_err & DICT_ERR_IGNORE_RECOVER_LOCK)) {
+				ib_logf(IB_LOG_LEVEL_ERROR,
+					"Failed to find tablespace for "
+					"table '%s' in the cache. "
+					"Attempting to load the tablespace "
+					"with space id %lu.",
+					table_name, (ulong) table->space);
+			}
 
 			/* Use the remote filepath if needed. */
 			if (DICT_TF_HAS_DATA_DIR(table->flags)) {
@@ -2368,13 +2407,15 @@ err_exit:
 
 	/* If there is no tablespace for the table then we only need to
 	load the index definitions. So that we can IMPORT the tablespace
-	later. */
-	if (table->ibd_file_missing) {
-		err = dict_load_indexes(
-			table, heap, DICT_ERR_IGNORE_ALL);
-	} else {
-		err = dict_load_indexes(table, heap, ignore_err);
-	}
+	later. When recovering table locks for resurrected incomplete
+	transactions, the tablespace should exist, because DDL operations
+	were not allowed while the table is being locked by a transaction. */
+	dict_err_ignore_t index_load_err =
+		!(ignore_err & DICT_ERR_IGNORE_RECOVER_LOCK)
+		&& table->ibd_file_missing
+		? DICT_ERR_IGNORE_ALL
+		: ignore_err;
+	err = dict_load_indexes(table, heap, index_load_err);
 
 	if (err == DB_INDEX_CORRUPT) {
 		/* Refuse to load the table if the table has a corrupted
@@ -2411,9 +2452,16 @@ err_exit:
 	if (!cached || table->ibd_file_missing) {
 		/* Don't attempt to load the indexes from disk. */
 	} else if (err == DB_SUCCESS) {
-		err = dict_load_foreigns(table->name, NULL, true, true);
+		err = dict_load_foreigns(table->name, NULL, true, true,
+					 ignore_err);
 
 		if (err != DB_SUCCESS) {
+			ib_logf(IB_LOG_LEVEL_WARN,
+				"Load table '%s' failed, the table has missing "
+				"foreign key indexes. Turn off "
+				"'foreign_key_checks' and try again.",
+				table->name);
+
 			dict_table_remove_from_cache(table);
 			table = NULL;
 		} else {
@@ -2474,7 +2522,9 @@ UNIV_INTERN
 dict_table_t*
 dict_load_table_on_id(
 /*==================*/
-	table_id_t	table_id)	/*!< in: table id */
+	table_id_t		table_id,	/*!< in: table id */
+	dict_err_ignore_t	ignore_err)	/*!< in: errors to ignore
+						when loading the table */
 {
 	byte		id_buf[8];
 	btr_pcur_t	pcur;
@@ -2551,7 +2601,7 @@ check_rec:
 				table = dict_load_table(
 					mem_heap_strdupl(
 						heap, (char*) field, len),
-					TRUE, DICT_ERR_IGNORE_NONE);
+					TRUE, ignore_err);
 			}
 		}
 	}
@@ -2714,18 +2764,21 @@ static __attribute__((nonnull(1), warn_unused_result))
 dberr_t
 dict_load_foreign(
 /*==============*/
-	const char*	id,	/*!< in: foreign constraint id, must be
+	const char*		id,
+				/*!< in: foreign constraint id, must be
 				'\0'-terminated */
-	const char**	col_names,
+	const char**		col_names,
 				/*!< in: column names, or NULL
 				to use foreign->foreign_table->col_names */
-	bool		check_recursive,
+	bool			check_recursive,
 				/*!< in: whether to record the foreign table
 				parent count to avoid unlimited recursive
 				load of chained foreign tables */
-	bool		check_charsets)
+	bool			check_charsets,
 				/*!< in: whether to check charset
 				compatibility */
+	dict_err_ignore_t	ignore_err)
+				/*!< in: error to be ignored */
 {
 	dict_foreign_t*	foreign;
 	dict_table_t*	sys_foreign;
@@ -2894,7 +2947,8 @@ dict_load_foreign(
 	a new foreign key constraint but loading one from the data
 	dictionary. */
 
-	return(dict_foreign_add_to_cache(foreign, col_names, check_charsets));
+	return(dict_foreign_add_to_cache(foreign, col_names, check_charsets,
+					 ignore_err));
 }
 
 /***********************************************************************//**
@@ -2908,13 +2962,15 @@ UNIV_INTERN
 dberr_t
 dict_load_foreigns(
 /*===============*/
-	const char*	table_name,	/*!< in: table name */
-	const char**	col_names,	/*!< in: column names, or NULL to use
-					table->col_names */
-	bool		check_recursive,/*!< in: Whether to check recursive
-					load of tables chained by FK */
-	bool		check_charsets)	/*!< in: whether to check charset
-					compatibility */
+	const char*		table_name,	/*!< in: table name */
+	const char**		col_names,	/*!< in: column names, or NULL
+						to use table->col_names */
+	bool			check_recursive,/*!< in: Whether to check
+						recursive load of tables
+						chained by FK */
+	bool			check_charsets,	/*!< in: whether to check
+						charset compatibility */
+	dict_err_ignore_t	ignore_err)	/*!< in: error to be ignored */
 {
 	ulint		tuple_buf[(DTUPLE_EST_ALLOC(1) + sizeof(ulint) - 1)
 				/ sizeof(ulint)];
@@ -3026,7 +3082,7 @@ loop:
 	/* Load the foreign constraint definition to the dictionary cache */
 
 	err = dict_load_foreign(fk_id, col_names,
-				check_recursive, check_charsets);
+				check_recursive, check_charsets, ignore_err);
 
 	if (err != DB_SUCCESS) {
 		btr_pcur_close(&pcur);

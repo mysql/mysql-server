@@ -48,7 +48,9 @@ DROP USER mysqltest1@'%';
 --replace_result $MYSQLTEST_VARDIR var
 --replace_regex /.*mysqlcheck.*: Got/mysqlcheck: Got/ /\([0-9]*\)/(errno)/
 --error 1
---exec $MYSQL_UPGRADE --skip-verbose --force --host=not_existing_host 2>&1
+# NC: Added --skip-version-check, as the version check would fail when
+# mysql_upgrade tries to get the server version.
+--exec $MYSQL_UPGRADE --skip-verbose --force --host=not_existing_host --skip-version-check 2>&1
 
 #
 # Bug #28401 mysql_upgrade Failed with STRICT_ALL_TABLES, ANSI_QUOTES and NO_ZERO_DATE

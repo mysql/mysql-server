@@ -2566,6 +2566,14 @@ static bool show_status_array(THD *thd, const char *wild,
         {
           if (!(pos= *(char**) value))
             pos= "";
+
+          DBUG_EXECUTE_IF("alter_server_version_str",
+                          if (!my_strcasecmp(system_charset_info,
+                                             variables->name,
+                                             "version")) {
+                            pos= "some-other-version";
+                          });
+
           end= strend(pos);
           break;
         }
@@ -7166,7 +7174,7 @@ static bool do_fill_table(THD *thd,
   da->push_warning_info(&wi_tmp);
 
   bool res= table_list->schema_table->fill_table(
-    thd, table_list, join_table->condition());
+    thd, table_list, join_table->unified_condition());
 
   da->pop_warning_info();
 

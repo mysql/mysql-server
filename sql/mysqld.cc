@@ -1755,7 +1755,8 @@ void clean_up(bool print_message)
     make sure that handlers finish up
     what they have that is dependent on the binlog
   */
-  sql_print_information("Binlog end");
+  if ((opt_help == 0) || (opt_verbose > 0))
+    sql_print_information("Binlog end");
   ha_binlog_end(current_thd);
 
   logger.cleanup_base();
@@ -3661,6 +3662,7 @@ int init_common_variables()
                              key_BINLOG_LOCK_log,
                              key_BINLOG_LOCK_sync,
                              key_BINLOG_LOCK_sync_queue,
+                             key_BINLOG_LOCK_xids,
                              key_BINLOG_COND_done,
                              key_BINLOG_update_cond,
                              key_BINLOG_prep_xids_cond,
@@ -3850,68 +3852,6 @@ int init_common_variables()
   var= intern_find_sys_var(STRING_WITH_LEN("host_cache_size"));
   var->update_default(default_value);
 
-  /* Calculate and update default value for table_def_size. */
-  if ((default_value= 400 + table_cache_size / 2) > 2000)
-    default_value= 2000;
-  var= intern_find_sys_var(STRING_WITH_LEN("table_definition_cache"));
-  var->update_default(default_value);
-
-  /* connections and databases needs lots of files */
-  {
-    uint files, wanted_files, max_open_files;
-
-    /* MyISAM requires two file handles per table. */
-    wanted_files= 10 + max_connections + table_cache_size * 2;
-    /*
-      We are trying to allocate no less than max_connections*5 file
-      handles (i.e. we are trying to set the limit so that they will
-      be available).  In addition, we allocate no less than how much
-      was already allocated.  However below we report a warning and
-      recompute values only if we got less file handles than were
-      explicitly requested.  No warning and re-computation occur if we
-      can't get max_connections*5 but still got no less than was
-      requested (value of wanted_files).
-      Try to allocate no less than 5000 by default.
-    */
-    max_open_files= max(max<ulong>(wanted_files, max_connections * 5),
-                        open_files_limit ? open_files_limit : 5000);
-
-    files= my_set_max_open_files(max_open_files);
-
-    if (files < wanted_files)
-    {
-      if (!open_files_limit)
-      {
-        /*
-          If we have requested too much file handles than we bring
-          max_connections in supported bounds.
-        */
-        max_connections= min<ulong>(files - 10 - TABLE_OPEN_CACHE_MIN * 2,
-                                    max_connections);
-        /*
-          Decrease table_cache_size according to max_connections, but
-          not below TABLE_OPEN_CACHE_MIN.  Outer min() ensures that we
-          never increase table_cache_size automatically (that could
-          happen if max_connections is decreased above).
-        */
-        table_cache_size= min<ulong>(max<ulong>((files-10-max_connections)/2,
-                                                TABLE_OPEN_CACHE_MIN),
-                                     table_cache_size);
-        DBUG_PRINT("warning", ("Changed limits: max_open_files: %u  "
-                               "max_connections: %ld  table_cache: %ld",
-                               files, max_connections, table_cache_size));
-        if (log_warnings)
-          sql_print_warning("Changed limits: max_open_files: %u  "
-                            "max_connections: %ld  table_cache: %ld",
-                            files, max_connections, table_cache_size);
-      }
-      else if (log_warnings)
-        sql_print_warning("Could not increase number of max_open_files to "
-                          "more than %u (request: %u)", files, wanted_files);
-    }
-    open_files_limit= files;
-  }
-
   /* Fix thread_cache_size. */
   if (!thread_cache_size_specified &&
       (max_blocked_pthreads= 8 + max_connections / 100) > 100)
@@ -3923,16 +3863,10 @@ int init_common_variables()
       (host_cache_size= 628 + ((max_connections - 500) / 20)) > 2000)
     host_cache_size= 2000;
 
-  /* Fix table_definition_cache. */
-  if (!table_definition_cache_specified &&
-      (table_def_size= 400 + table_cache_size / 2) > 2000)
-    table_def_size= 2000;
-
   /* Fix back_log */
   if (back_log == 0 && (back_log= 50 + max_connections / 5) > 900)
     back_log= 900;
 
-  table_cache_size_per_instance= table_cache_size / table_cache_instances;
   unireg_init(opt_specialflag); /* Set up extern variabels */
   if (!(my_default_lc_messages=
         my_locale_by_name(lc_messages)))
@@ -4970,7 +4904,7 @@ a file name for --log-bin-index option", opt_binlog_index_name);
   {
     time_t purge_time= server_start_time - expire_logs_days*24*60*60;
     if (purge_time >= 0)
-      mysql_bin_log.purge_logs_before_date(purge_time);
+      mysql_bin_log.purge_logs_before_date(purge_time, true);
   }
 #endif
 
@@ -6779,11 +6713,132 @@ int handle_early_options()
   return ho_error;
 }
 
+/**
+  Adjust @c open_files_limit.
+  Computation is  based on:
+  - @c max_connections,
+  - @c table_cache_size,
+  - the platform max open file limit.
+*/
+void adjust_open_files_limit()
+{
+  ulong limit_1;
+  ulong limit_2;
+  ulong limit_3;
+  ulong request_open_files;
+  ulong effective_open_files;
+
+  /* MyISAM requires two file handles per table. */
+  limit_1= 10 + max_connections + table_cache_size * 2;
+
+  /*
+    We are trying to allocate no less than max_connections*5 file
+    handles (i.e. we are trying to set the limit so that they will
+    be available).
+  */
+  limit_2= max_connections * 5;
+
+  /* Try to allocate no less than 5000 by default. */
+  limit_3= open_files_limit ? open_files_limit : 5000;
+
+  request_open_files= max<ulong>(max<ulong>(limit_1, limit_2), limit_3);
+
+  effective_open_files= my_set_max_open_files(request_open_files);
+
+  /* Warning: my_set_max_open_files() may return more than requested. */
+  if (effective_open_files > request_open_files)
+    effective_open_files= request_open_files;
+
+  if (effective_open_files < request_open_files)
+  {
+    char msg[1024];
+
+    if (open_files_limit == 0)
+    {
+      snprintf(msg, sizeof(msg),
+               "Changed limits: max_open_files: %lu (requested %lu)",
+               effective_open_files, request_open_files);
+      buffered_logs.buffer(WARNING_LEVEL, msg);
+    }
+    else
+    {
+      snprintf(msg, sizeof(msg),
+               "Could not increase number of max_open_files to "
+               "more than %lu (request: %lu)",
+               effective_open_files, request_open_files);
+      buffered_logs.buffer(WARNING_LEVEL, msg);
+    }
+  }
+
+  open_files_limit= effective_open_files;
+}
+
+void adjust_max_connections()
+{
+  ulong limit;
+
+  limit= open_files_limit - 10 - TABLE_OPEN_CACHE_MIN * 2;
+
+  if (limit < max_connections)
+  {
+    char msg[1024];
+
+    snprintf(msg, sizeof(msg),
+             "Changed limits: max_connections: %lu (requested %lu)",
+             limit, max_connections);
+    buffered_logs.buffer(WARNING_LEVEL, msg);
+
+    max_connections= limit;
+  }
+}
+
+void adjust_table_cache_size()
+{
+  ulong limit;
+
+  limit= max<ulong>((open_files_limit - 10 - max_connections) / 2,
+                    TABLE_OPEN_CACHE_MIN);
+
+  if (limit < table_cache_size)
+  {
+    char msg[1024];
+
+    snprintf(msg, sizeof(msg),
+             "Changed limits: table_cache: %lu (requested %lu)",
+             limit, table_cache_size);
+    buffered_logs.buffer(WARNING_LEVEL, msg);
+
+    table_cache_size= limit;
+  }
+
+  table_cache_size_per_instance= table_cache_size / table_cache_instances;
+}
+
+void adjust_table_def_size()
+{
+  longlong default_value;
+  sys_var *var;
+
+  default_value= min<longlong> (400 + table_cache_size / 2, 2000);
+  var= intern_find_sys_var(STRING_WITH_LEN("table_definition_cache"));
+  DBUG_ASSERT(var != NULL);
+  var->update_default(default_value);
+
+  if (! table_definition_cache_specified)
+    table_def_size= default_value;
+}
+
 void adjust_related_options()
 {
   /* In bootstrap, disable grant tables (we are about to create them) */
   if (opt_bootstrap)
     opt_noacl= 1;
+
+  /* The order is critical here, because of dependencies. */
+  adjust_open_files_limit();
+  adjust_max_connections();
+  adjust_table_cache_size();
+  adjust_table_def_size();
 }
 
 vector<my_option> all_options;
@@ -9156,6 +9211,7 @@ PSI_mutex_key key_BINLOG_LOCK_index;
 PSI_mutex_key key_BINLOG_LOCK_log;
 PSI_mutex_key key_BINLOG_LOCK_sync;
 PSI_mutex_key key_BINLOG_LOCK_sync_queue;
+PSI_mutex_key key_BINLOG_LOCK_xids;
 PSI_mutex_key
   key_delayed_insert_mutex, key_hash_filo_lock, key_LOCK_active_mi,
   key_LOCK_connection_count, key_LOCK_crypt, key_LOCK_delayed_create,
@@ -9186,6 +9242,7 @@ PSI_mutex_key key_RELAYLOG_LOCK_index;
 PSI_mutex_key key_RELAYLOG_LOCK_log;
 PSI_mutex_key key_RELAYLOG_LOCK_sync;
 PSI_mutex_key key_RELAYLOG_LOCK_sync_queue;
+PSI_mutex_key key_RELAYLOG_LOCK_xids;
 PSI_mutex_key key_LOCK_sql_rand;
 PSI_mutex_key key_gtid_ensure_index_mutex;
 PSI_mutex_key key_LOCK_thread_created;
@@ -9211,6 +9268,7 @@ static PSI_mutex_info all_server_mutexes[]=
   { &key_BINLOG_LOCK_log, "MYSQL_BIN_LOG::LOCK_log", 0},
   { &key_BINLOG_LOCK_sync, "MYSQL_BIN_LOG::LOCK_sync", 0},
   { &key_BINLOG_LOCK_sync_queue, "MYSQL_BIN_LOG::LOCK_sync_queue", 0 },
+  { &key_BINLOG_LOCK_xids, "MYSQL_BIN_LOG::LOCK_xids", 0 },
   { &key_RELAYLOG_LOCK_commit, "MYSQL_RELAY_LOG::LOCK_commit", 0},
   { &key_RELAYLOG_LOCK_commit_queue, "MYSQL_RELAY_LOG::LOCK_commit_queue", 0 },
   { &key_RELAYLOG_LOCK_done, "MYSQL_RELAY_LOG::LOCK_done", 0 },
@@ -9219,6 +9277,7 @@ static PSI_mutex_info all_server_mutexes[]=
   { &key_RELAYLOG_LOCK_log, "MYSQL_RELAY_LOG::LOCK_log", 0},
   { &key_RELAYLOG_LOCK_sync, "MYSQL_RELAY_LOG::LOCK_sync", 0},
   { &key_RELAYLOG_LOCK_sync_queue, "MYSQL_RELAY_LOG::LOCK_sync_queue", 0 },
+  { &key_RELAYLOG_LOCK_xids, "MYSQL_RELAY_LOG::LOCK_xids", 0},
   { &key_delayed_insert_mutex, "Delayed_insert::mutex", 0},
   { &key_hash_filo_lock, "hash_filo::lock", 0},
   { &key_LOCK_active_mi, "LOCK_active_mi", PSI_FLAG_GLOBAL},

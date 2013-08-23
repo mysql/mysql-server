@@ -10451,6 +10451,7 @@ sum_expr:
             if ($$ == NULL)
               MYSQL_YYABORT;
             $5->empty();
+            sel->gorder_list.empty();
           }
         ;
 
@@ -10521,18 +10522,27 @@ opt_gconcat_separator:
 
 opt_gorder_clause:
           /* empty */
+        | ORDER_SYM BY
           {
-            Select->gorder_list = NULL;
-          }
-        | order_clause
-          {
-            SELECT_LEX *select= Select;
-            select->gorder_list= new (YYTHD->mem_root)
-                                   SQL_I_List<ORDER>(select->order_list);
-            if (select->gorder_list == NULL)
+            LEX *lex= Lex;
+            SELECT_LEX *sel= lex->current_select;
+            if (sel->linkage != GLOBAL_OPTIONS_TYPE &&
+                sel->olap != UNSPECIFIED_OLAP_TYPE &&
+                (sel->linkage != UNION_TYPE || sel->braces))
+            {
+              my_error(ER_WRONG_USAGE, MYF(0),
+                       "CUBE/ROLLUP", "ORDER BY");
               MYSQL_YYABORT;
-            select->order_list.empty();
+            }
           }
+         gorder_list;
+        ;
+
+gorder_list:
+          gorder_list ',' order_ident order_dir
+          { if (add_gorder_to_list(YYTHD, $3,(bool) $4)) MYSQL_YYABORT; }
+        | order_ident order_dir
+          { if (add_gorder_to_list(YYTHD, $1,(bool) $2)) MYSQL_YYABORT; }
         ;
 
 in_sum_expr:
@@ -15288,7 +15298,7 @@ handler_rkey_mode:
 /* GRANT / REVOKE */
 
 revoke:
-          REVOKE clear_privileges revoke_command
+          REVOKE clear_privileges { Lex->sql_command= SQLCOM_REVOKE; } revoke_command
           {}
         ;
 
@@ -15296,7 +15306,6 @@ revoke_command:
           grant_privileges ON opt_table grant_ident FROM grant_list
           {
             LEX *lex= Lex;
-            lex->sql_command= SQLCOM_REVOKE;
             lex->type= 0;
           }
         | grant_privileges ON FUNCTION_SYM grant_ident FROM grant_list
@@ -15307,7 +15316,6 @@ revoke_command:
               my_parse_error(ER(ER_SYNTAX_ERROR));
               MYSQL_YYABORT;
             }
-            lex->sql_command= SQLCOM_REVOKE;
             lex->type= TYPE_ENUM_FUNCTION;
           }
         | grant_privileges ON PROCEDURE_SYM grant_ident FROM grant_list
@@ -15318,7 +15326,6 @@ revoke_command:
               my_parse_error(ER(ER_SYNTAX_ERROR));
               MYSQL_YYABORT;
             }
-            lex->sql_command= SQLCOM_REVOKE;
             lex->type= TYPE_ENUM_PROCEDURE;
           }
         | ALL opt_privileges ',' GRANT OPTION FROM grant_list
@@ -15329,13 +15336,12 @@ revoke_command:
           {
             LEX *lex= Lex;
             lex->users_list.push_front ($3);
-            lex->sql_command= SQLCOM_REVOKE;
             lex->type= TYPE_ENUM_PROXY;
           } 
         ;
 
 grant:
-          GRANT clear_privileges grant_command
+          GRANT clear_privileges { Lex->sql_command= SQLCOM_GRANT; } grant_command
           {}
         ;
 
@@ -15344,7 +15350,6 @@ grant_command:
           require_clause grant_options
           {
             LEX *lex= Lex;
-            lex->sql_command= SQLCOM_GRANT;
             lex->type= 0;
           }
         | grant_privileges ON FUNCTION_SYM grant_ident TO_SYM grant_list
@@ -15356,7 +15361,6 @@ grant_command:
               my_parse_error(ER(ER_SYNTAX_ERROR));
               MYSQL_YYABORT;
             }
-            lex->sql_command= SQLCOM_GRANT;
             lex->type= TYPE_ENUM_FUNCTION;
           }
         | grant_privileges ON PROCEDURE_SYM grant_ident TO_SYM grant_list
@@ -15368,14 +15372,12 @@ grant_command:
               my_parse_error(ER(ER_SYNTAX_ERROR));
               MYSQL_YYABORT;
             }
-            lex->sql_command= SQLCOM_GRANT;
             lex->type= TYPE_ENUM_PROCEDURE;
           }
         | PROXY_SYM ON user TO_SYM grant_list opt_grant_option
           {
             LEX *lex= Lex;
             lex->users_list.push_front ($3);
-            lex->sql_command= SQLCOM_GRANT;
             lex->type= TYPE_ENUM_PROXY;
           } 
         ;
@@ -15386,7 +15388,13 @@ opt_table:
         ;
 
 grant_privileges:
-          object_privilege_list {}
+          object_privilege_list
+          {
+            LEX *lex= Lex;
+            if (lex->grant == GLOBAL_ACLS &&
+                lex->sql_command == SQLCOM_REVOKE)
+              lex->sql_command= SQLCOM_REVOKE_ALL;
+          }
         | ALL opt_privileges
           { 
             Lex->all_privileges= 1; 
@@ -15572,7 +15580,10 @@ grant_user:
           {
             $$=$1; $1->password=$4;
             if (Lex->sql_command == SQLCOM_REVOKE)
+            {
+              my_parse_error(ER(ER_SYNTAX_ERROR));
               MYSQL_YYABORT;
+            }
             String *password = new (YYTHD->mem_root) String((const char*)$4.str,
                                     YYTHD->variables.character_set_client);
             check_password_policy(password);
@@ -15586,9 +15597,18 @@ grant_user:
         | user IDENTIFIED_SYM BY PASSWORD TEXT_STRING
           { 
             if (Lex->sql_command == SQLCOM_REVOKE)
+            {
+              my_parse_error(ER(ER_SYNTAX_ERROR));
               MYSQL_YYABORT;
+            }
             $$= $1; 
             $1->password= $5; 
+            if (!strcmp($5.str, ""))
+            {
+              String *password= new (YYTHD->mem_root) String ((const char *)"",
+                                     YYTHD->variables.character_set_client);
+              check_password_policy(password);
+            }
             /*
               1. Plugin must be resolved
             */
@@ -15597,7 +15617,10 @@ grant_user:
         | user IDENTIFIED_SYM WITH ident_or_text
           {
             if (Lex->sql_command == SQLCOM_REVOKE)
+            {
+              my_parse_error(ER(ER_SYNTAX_ERROR));
               MYSQL_YYABORT;
+            }
             $$= $1;
             $1->plugin= $4;
             $1->auth= empty_lex_str;
@@ -15606,7 +15629,10 @@ grant_user:
         | user IDENTIFIED_SYM WITH ident_or_text AS TEXT_STRING_sys
           {
             if (Lex->sql_command == SQLCOM_REVOKE)
+            {
+              my_parse_error(ER(ER_SYNTAX_ERROR));
               MYSQL_YYABORT;
+            }
             $$= $1;
             $1->plugin= $4;
             $1->auth= $6;
@@ -15617,6 +15643,7 @@ grant_user:
           {
             $$= $1;
             $1->password= null_lex_str;
+            check_password_policy(NULL);
           }
         ;
 
