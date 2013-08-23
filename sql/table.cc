@@ -3738,6 +3738,50 @@ void TABLE::reset_item_list(List<Item> *item_list) const
   }
 }
 
+/**
+  Create a TABLE_LIST object representing a nested join
+
+  @param allocator  Mem root allocator that object is created from.
+  @param alias      Name of nested join object
+  @param embedding  Pointer to embedding join nest (or NULL if top-most)
+  @param belongs_to List of tables this nest belongs to (never NULL).
+  @param select     The query block that this join nest belongs within.
+
+  @returns Pointer to created join nest object, or NULL if error.
+*/
+
+TABLE_LIST *TABLE_LIST::new_nested_join(MEM_ROOT *allocator,
+                            const char *alias,
+                            TABLE_LIST *embedding,
+                            List<TABLE_LIST> *belongs_to,
+                            class st_select_lex *select)
+{
+  DBUG_ASSERT(belongs_to && select);
+
+  TABLE_LIST *const join_nest=
+    (TABLE_LIST *) alloc_root(allocator, ALIGN_SIZE(sizeof(TABLE_LIST))+
+                                                    sizeof(NESTED_JOIN));
+  if (join_nest == NULL)
+    return NULL;
+
+  memset(join_nest, 0, ALIGN_SIZE(sizeof(TABLE_LIST)) + sizeof(NESTED_JOIN));
+  join_nest->nested_join=
+    (NESTED_JOIN *) ((uchar *)join_nest + ALIGN_SIZE(sizeof(TABLE_LIST)));
+
+  join_nest->db= (char *)"";
+  join_nest->db_length= 0;
+  join_nest->table_name= (char *)"";
+  join_nest->table_name_length= 0;
+  join_nest->alias= (char *)alias;
+  
+  join_nest->embedding= embedding;
+  join_nest->join_list= belongs_to;
+  join_nest->select_lex= select;
+
+  join_nest->nested_join->join_list.empty();
+
+  return join_nest;
+}
 /*
   calculate md5 of query
 

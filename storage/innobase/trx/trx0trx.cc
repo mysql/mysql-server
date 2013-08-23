@@ -1,6 +1,6 @@
 /*****************************************************************************
 
-Copyright (c) 1996, 2012, Oracle and/or its affiliates. All Rights Reserved.
+Copyright (c) 1996, 2013, Oracle and/or its affiliates. All Rights Reserved.
 
 This program is free software; you can redistribute it and/or modify it under
 the terms of the GNU General Public License as published by the Free Software
@@ -42,10 +42,16 @@ Created 3/26/1996 Heikki Tuuri
 #include "btr0sea.h"
 #include "os0proc.h"
 #include "trx0xa.h"
+#include "trx0rec.h"
 #include "trx0purge.h"
 #include "ha_prototypes.h"
 #include "srv0mon.h"
 #include "ut0vec.h"
+
+#include<set>
+
+/** Set of table_id */
+typedef std::set<table_id_t>	table_id_set;
 
 /** Dummy session used currently in MySQL interface */
 UNIV_INTERN sess_t*		trx_dummy_sess = NULL;
@@ -107,7 +113,7 @@ trx_create(void)
 
 	trx->isolation_level = TRX_ISO_REPEATABLE_READ;
 
-	trx->no = IB_ULONGLONG_MAX;
+	trx->no = TRX_ID_MAX;
 
 	trx->support_xa = TRUE;
 
@@ -305,6 +311,9 @@ trx_free_prepared(
 	UT_LIST_REMOVE(trx_list, trx_sys->rw_trx_list, trx);
 	ut_d(trx->in_rw_trx_list = FALSE);
 
+	/* Undo trx_resurrect_table_locks(). */
+	UT_LIST_INIT(trx->lock.trx_locks);
+
 	trx_free(trx);
 }
 
@@ -385,6 +394,96 @@ trx_list_rw_insert_ordered(
 }
 
 /****************************************************************//**
+Resurrect the table locks for a resurrected transaction. */
+static
+void
+trx_resurrect_table_locks(
+/*======================*/
+	trx_t*			trx,	/*!< in/out: transaction */
+	const trx_undo_t*	undo)	/*!< in: undo log */
+{
+	mtr_t			mtr;
+	page_t*			undo_page;
+	trx_undo_rec_t*		undo_rec;
+	table_id_set		tables;
+
+	ut_ad(undo == trx->insert_undo || undo == trx->update_undo);
+
+	if (trx_state_eq(trx, TRX_STATE_COMMITTED_IN_MEMORY)
+	    || undo->empty) {
+		return;
+	}
+
+	mtr_start(&mtr);
+	/* trx_rseg_mem_create() may have acquired an X-latch on this
+	page, so we cannot acquire an S-latch. */
+	undo_page = trx_undo_page_get(
+		undo->space, undo->zip_size, undo->top_page_no, &mtr);
+	undo_rec = undo_page + undo->top_offset;
+
+	do {
+		ulint		type;
+		ulint		cmpl_info;
+		bool		updated_extern;
+		undo_no_t	undo_no;
+		table_id_t	table_id;
+
+		page_t*		undo_rec_page = page_align(undo_rec);
+
+		if (undo_rec_page != undo_page) {
+			if (!mtr_memo_release(&mtr,
+					      buf_block_align(undo_page),
+					      MTR_MEMO_PAGE_X_FIX)) {
+				/* The page of the previous undo_rec
+				should have been latched by
+				trx_undo_page_get() or
+				trx_undo_get_prev_rec(). */
+				ut_ad(0);
+			}
+
+			undo_page = undo_rec_page;
+		}
+
+		trx_undo_rec_get_pars(
+			undo_rec, &type, &cmpl_info,
+			&updated_extern, &undo_no, &table_id);
+		tables.insert(table_id);
+
+		undo_rec = trx_undo_get_prev_rec(
+			undo_rec, undo->hdr_page_no,
+			undo->hdr_offset, false, &mtr);
+	} while (undo_rec);
+
+	mtr_commit(&mtr);
+
+	for (table_id_set::const_iterator i = tables.begin();
+	     i != tables.end(); i++) {
+		if (dict_table_t* table = dict_table_open_on_id(
+			    *i, FALSE, DICT_TABLE_OP_LOAD_TABLESPACE)) {
+			if (table->ibd_file_missing
+			    || dict_table_is_temporary(table)) {
+				mutex_enter(&dict_sys->mutex);
+				dict_table_close(table, TRUE, FALSE);
+				dict_table_remove_from_cache(table);
+				mutex_exit(&dict_sys->mutex);
+				continue;
+			}
+
+			lock_table_ix_resurrect(table, trx);
+
+			DBUG_PRINT("ib_trx",
+				   ("resurrect" TRX_ID_FMT
+				    "  table '%s' IX lock from %s undo",
+				    trx->id, table->name,
+				    undo == trx->insert_undo
+				    ? "insert" : "update"));
+
+			dict_table_close(table, FALSE, FALSE);
+		}
+	}
+}
+
+/****************************************************************//**
 Resurrect the transactions that were doing inserts the time of the
 crash, they need to be undone.
 @return trx_t instance  */
@@ -446,9 +545,9 @@ trx_resurrect_insert(
 		trx->state = TRX_STATE_ACTIVE;
 
 		/* A running transaction always has the number
-		field inited to IB_ULONGLONG_MAX */
+		field inited to TRX_ID_MAX */
 
-		trx->no = IB_ULONGLONG_MAX;
+		trx->no = TRX_ID_MAX;
 	}
 
 	if (undo->dict_operation) {
@@ -533,9 +632,9 @@ trx_resurrect_update(
 		trx->state = TRX_STATE_ACTIVE;
 
 		/* A running transaction always has the number field inited to
-		IB_ULONGLONG_MAX */
+		TRX_ID_MAX */
 
-		trx->no = IB_ULONGLONG_MAX;
+		trx->no = TRX_ID_MAX;
 	}
 
 	if (undo->dict_operation) {
@@ -589,6 +688,8 @@ trx_lists_init_at_db_start(void)
 			trx = trx_resurrect_insert(undo, rseg);
 
 			trx_list_rw_insert_ordered(trx);
+
+			trx_resurrect_table_locks(trx, undo);
 		}
 
 		/* Ressurrect transactions that were doing updates. */
@@ -615,6 +716,8 @@ trx_lists_init_at_db_start(void)
 			if (trx_created) {
 				trx_list_rw_insert_ordered(trx);
 			}
+
+			trx_resurrect_table_locks(trx, undo);
 		}
 	}
 }
@@ -721,10 +824,10 @@ trx_start_low(
 			srv_undo_logs, srv_undo_tablespaces);
 	}
 
-	/* The initial value for trx->no: IB_ULONGLONG_MAX is used in
+	/* The initial value for trx->no: TRX_ID_MAX is used in
 	read_view_open_now: */
 
-	trx->no = IB_ULONGLONG_MAX;
+	trx->no = TRX_ID_MAX;
 
 	ut_a(ib_vector_is_empty(trx->autoinc_locks));
 	ut_a(ib_vector_is_empty(trx->lock.table_locks));

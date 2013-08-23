@@ -655,8 +655,8 @@ page_zip_dir_encode(
 #if PAGE_ZIP_DIR_SLOT_MASK & (PAGE_ZIP_DIR_SLOT_MASK + 1)
 # error "PAGE_ZIP_DIR_SLOT_MASK is not 1 less than a power of 2"
 #endif
-#if PAGE_ZIP_DIR_SLOT_MASK < UNIV_PAGE_SIZE - 1
-# error "PAGE_ZIP_DIR_SLOT_MASK < UNIV_PAGE_SIZE - 1"
+#if PAGE_ZIP_DIR_SLOT_MASK < UNIV_PAGE_SIZE_MAX - 1
+# error "PAGE_ZIP_DIR_SLOT_MASK < UNIV_PAGE_SIZE_MAX - 1"
 #endif
 		if (UNIV_UNLIKELY(rec_get_n_owned_new(rec))) {
 			offs |= PAGE_ZIP_DIR_SLOT_OWNED;

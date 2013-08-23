@@ -751,22 +751,25 @@ void set_var_user::print(THD *thd, String *str)
   Functions to handle SET PASSWORD
 *****************************************************************************/
 
+/**
+  Check the validity of the SET PASSWORD request
+
+  User name and no host is used for SET PASSWORD =
+  No user name and no host used for SET PASSWORD for CURRENT_USER() =
+
+  @param  thd  The current thread
+  @return      status code
+  @retval 0    failure
+  @retval 1    success
+*/
 int set_var_password::check(THD *thd)
 {
 #ifndef NO_EMBEDDED_ACCESS_CHECKS
   if (!user->host.str)
   {
     DBUG_ASSERT(thd->security_ctx->priv_host);
-    if (*thd->security_ctx->priv_host != 0)
-    {
-      user->host.str= (char *) thd->security_ctx->priv_host;
-      user->host.length= strlen(thd->security_ctx->priv_host);
-    }
-    else
-    {
-      user->host.str= (char *)"%";
-      user->host.length= 1;
-    }
+    user->host.str= (char *) thd->security_ctx->priv_host;
+    user->host.length= strlen(thd->security_ctx->priv_host);
   }
   /*
     In case of anonymous user, user->user is set to empty string with length 0.

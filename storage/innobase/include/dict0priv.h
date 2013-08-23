@@ -1,6 +1,6 @@
 /*****************************************************************************
 
-Copyright (c) 2010, Oracle and/or its affiliates. All Rights Reserved.
+Copyright (c) 2010, 2013, Oracle and/or its affiliates. All Rights Reserved.
 
 This program is free software; you can redistribute it and/or modify it under
 the terms of the GNU General Public License as published by the Free Software
@@ -52,7 +52,9 @@ UNIV_INLINE
 dict_table_t*
 dict_table_open_on_id_low(
 /*=====================*/
-	table_id_t	table_id);		/*!< in: table id */
+	table_id_t		table_id,	/*!< in: table id */
+	dict_err_ignore_t	ignore_err);	/*!< in: errors to ignore
+						when loading the table */
 
 #ifndef UNIV_NONINL
 #include "dict0priv.ic"

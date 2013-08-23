@@ -625,7 +625,12 @@ create_tmp_table(THD *thd,TMP_TABLE_PARAM *param,List<Item> &fields,
   Field **tmp_from_field=from_field;
   while ((item=li++))
   {
-    Item::Type type=item->type();
+    Item::Type type= item->type();
+    if (type == Item::COPY_STR_ITEM)
+    {
+      item= ((Item_copy *)item)->get_item();
+      type= item->type();
+    }
     if (not_all_columns)
     {
       if (item->with_sum_func && type != Item::SUM_FUNC_ITEM)

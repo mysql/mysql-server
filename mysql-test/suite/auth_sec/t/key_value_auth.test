@@ -868,8 +868,8 @@ SET @@session.old_passwords=1;
 SET PASSWORD FOR 'Tanjotuser1'@'localhost'=PASSWORD('abc');
 SET PASSWORD FOR 'Tanjotuser2'@'127.0.0.1'=PASSWORD('abc');
 
-GRANT ALL ON *.* TO 'Tanjotuser1'@'localhost' IDENTIFIED WITH 'mysql_old_password';
-GRANT ALL ON *.* TO 'Tanjotuser2'@'127.0.0.1' IDENTIFIED WITH 'mysql_old_password';
+GRANT ALL ON *.* TO 'Tanjotuser1'@'localhost';
+GRANT ALL ON *.* TO 'Tanjotuser2'@'127.0.0.1';
 
 --disable_warnings
 set @@global.secure_auth=0;
@@ -900,8 +900,8 @@ SET @@session.old_passwords=2;
 SET PASSWORD FOR 'Tanjotuser1'@'localhost'=PASSWORD('abc');
 SET PASSWORD FOR 'Tanjotuser2'@'127.0.0.1'=PASSWORD('abc');
 
-GRANT ALL ON *.* TO 'Tanjotuser1'@'localhost' IDENTIFIED WITH 'sha256_password';
-GRANT ALL ON *.* TO 'Tanjotuser2'@'127.0.0.1' IDENTIFIED WITH 'sha256_password';
+GRANT ALL ON *.* TO 'Tanjotuser1'@'localhost';
+GRANT ALL ON *.* TO 'Tanjotuser2'@'127.0.0.1';
 
 --echo **** Client default_auth=sha_256_password and server default auth=native
 --exec $MYSQL -uTanjotuser1 -hlocalhost -pabc --default_auth=sha256_password -e "select user(), current_user()"

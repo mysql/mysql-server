@@ -496,14 +496,13 @@ buf_page_is_corrupted(
 	}
 
 #ifndef UNIV_HOTBACKUP
-	if (recv_lsn_checks_on) {
+	if (check_lsn && recv_lsn_checks_on) {
 		lsn_t	current_lsn;
 
 		/* Since we are going to reset the page LSN during the import
 		phase it makes no sense to spam the log with error messages. */
 
-		if (check_lsn
-		    && log_peek_lsn(&current_lsn)
+		if (log_peek_lsn(&current_lsn)
 		    && current_lsn
 		    < mach_read_from_8(read_buf + FIL_PAGE_LSN)) {
 			ut_print_timestamp(stderr);
@@ -2014,7 +2013,7 @@ lookup:
 		buf_read_page(space, zip_size, offset);
 
 #if defined UNIV_DEBUG || defined UNIV_BUF_DEBUG
-		ut_a(++buf_dbg_counter % 37 || buf_validate());
+		ut_a(++buf_dbg_counter % 5771 || buf_validate());
 #endif /* UNIV_DEBUG || UNIV_BUF_DEBUG */
 	}
 
@@ -2567,7 +2566,7 @@ loop:
 		}
 
 #if defined UNIV_DEBUG || defined UNIV_BUF_DEBUG
-		ut_a(++buf_dbg_counter % 37 || buf_validate());
+		ut_a(++buf_dbg_counter % 5771 || buf_validate());
 #endif /* UNIV_DEBUG || UNIV_BUF_DEBUG */
 		goto loop;
 	}
@@ -3753,7 +3752,7 @@ buf_page_create(
 	memset(frame + FIL_PAGE_FILE_FLUSH_LSN, 0, 8);
 
 #if defined UNIV_DEBUG || defined UNIV_BUF_DEBUG
-	ut_a(++buf_dbg_counter % 357 || buf_validate());
+	ut_a(++buf_dbg_counter % 5771 || buf_validate());
 #endif /* UNIV_DEBUG || UNIV_BUF_DEBUG */
 #ifdef UNIV_IBUF_COUNT_DEBUG
 	ut_a(ibuf_count_get(buf_block_get_space(block),
@@ -4221,7 +4220,7 @@ buf_pool_invalidate_instance(
 		pool invalidation to proceed we must ensure there is NO
 		write activity happening. */
 		if (buf_pool->n_flush[i] > 0) {
-			enum buf_flush	type = static_cast<enum buf_flush>(i);
+			buf_flush_t	type = static_cast<buf_flush_t>(i);
 
 			buf_pool_mutex_exit(buf_pool);
 			buf_flush_wait_batch_end(buf_pool, type);
@@ -5040,7 +5039,7 @@ buf_print_io_instance(
 		"Old database pages %lu\n"
 		"Modified db pages  %lu\n"
 		"Pending reads %lu\n"
-		"Pending writes: LRU %lu, flush list %lu single page %lu\n",
+		"Pending writes: LRU %lu, flush list %lu, single page %lu\n",
 		pool_info->pool_size,
 		pool_info->free_list_len,
 		pool_info->lru_len,

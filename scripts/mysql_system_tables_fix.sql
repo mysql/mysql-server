@@ -735,6 +735,14 @@ CALL mysql.warn_host_table_nonempty();
 SHOW WARNINGS;
 DROP PROCEDURE mysql.warn_host_table_nonempty;
 
+--
+-- Upgrade help tables
+--
+
+ALTER TABLE help_category MODIFY url TEXT NOT NULL;
+ALTER TABLE help_topic MODIFY url TEXT NOT NULL;
+
+
 # MCP_BUG16226274 >
 # Handle distributed grant tables after upgrade
 # - move any tables which was in engine=NDB back into NDB

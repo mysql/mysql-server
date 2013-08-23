@@ -3407,8 +3407,12 @@ void do_remove_files_wildcard(struct st_command *command)
   /* Set default wild chars for wild_compare, is changed in embedded mode */
   set_wild_chars(1);
   
+  uint length;
+  /* Storing the length of the path to the file, so it can be reused */
+  length= ds_file_to_remove.length;
   for (i= 0; i < (uint) dir_info->number_off_files; i++)
   {
+    ds_file_to_remove.length= length;
     file= dir_info->dir_entry + i;
     /* Remove only regular files, i.e. no directories etc. */
     /* if (!MY_S_ISREG(file->mystat->st_mode)) */
@@ -3418,8 +3422,10 @@ void do_remove_files_wildcard(struct st_command *command)
     if (ds_wild.length &&
         wild_compare(file->name, ds_wild.str, 0))
       continue;
-    ds_file_to_remove.length= ds_directory.length + 1;
-    ds_file_to_remove.str[ds_directory.length + 1]= 0;
+    /* Not required as the var ds_file_to_remove.length already has the
+       length in canonnicalized form */
+    /* ds_file_to_remove.length= ds_directory.length + 1;
+    ds_file_to_remove.str[ds_directory.length + 1]= 0; */
     dynstr_append(&ds_file_to_remove, file->name);
     DBUG_PRINT("info", ("removing file: %s", ds_file_to_remove.str));
     error= my_delete(ds_file_to_remove.str, MYF(0)) != 0;

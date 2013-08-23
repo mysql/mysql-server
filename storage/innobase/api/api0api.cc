@@ -1,6 +1,6 @@
 /*****************************************************************************
 
-Copyright (c) 2008, 2012, Oracle and/or its affiliates. All Rights Reserved.
+Copyright (c) 2008, 2013, Oracle and/or its affiliates. All Rights Reserved.
 
 This program is free software; you can redistribute it and/or modify it under
 the terms of the GNU General Public License as published by the Free Software
@@ -245,7 +245,7 @@ ib_open_table_by_id(
 		dict_mutex_enter_for_mysql();
 	}
 
-	table = dict_table_open_on_id(table_id, FALSE, FALSE);
+	table = dict_table_open_on_id(table_id, FALSE, DICT_TABLE_OP_NORMAL);
 
 	if (table != NULL && table->ibd_file_missing) {
 		table = NULL;
@@ -1183,7 +1183,7 @@ ib_cursor_open_index_using_name(
 
 	/* We want to increment the ref count, so we do a redundant search. */
 	table = dict_table_open_on_id(cursor->prebuilt->table->id,
-				      FALSE, FALSE);
+				      FALSE, DICT_TABLE_OP_NORMAL);
 	ut_a(table != NULL);
 
 	/* The first index is always the cluster index. */
@@ -2302,6 +2302,7 @@ ib_col_set_value(
 	dfield_t*	dfield;
 	void*		dst = NULL;
 	ib_tuple_t*	tuple = (ib_tuple_t*) ib_tpl;
+	ulint		col_len;
 
 	dfield = ib_col_get_dfield(tuple, col_no);
 
@@ -2312,6 +2313,7 @@ ib_col_set_value(
 	}
 
 	dtype = dfield_get_type(dfield);
+	col_len = dtype_get_len(dtype);
 
 	/* Not allowed to update system columns. */
 	if (dtype_get_mtype(dtype) == DATA_SYS) {
@@ -2325,10 +2327,10 @@ ib_col_set_value(
 	for that. */
 	if (ib_col_is_capped(dtype)) {
 
-		len = ut_min(len, dtype_get_len(dtype));
+		len = ut_min(len, col_len);
 
 		if (dst == NULL || len > dfield_get_len(dfield)) {
-			dst = mem_heap_alloc(tuple->heap, dtype_get_len(dtype));
+			dst = mem_heap_alloc(tuple->heap, col_len);
 			ut_a(dst != NULL);
 		}
 	} else if (dst == NULL || len > dfield_get_len(dfield)) {
@@ -2342,7 +2344,7 @@ ib_col_set_value(
 	switch (dtype_get_mtype(dtype)) {
 	case DATA_INT: {
 
-		if (dtype_get_len(dtype) == len) {
+		if (col_len == len) {
 			ibool		usign;
 
 			usign = dtype_get_prtype(dtype) & DATA_UNSIGNED;
@@ -2387,22 +2389,91 @@ ib_col_set_value(
 
 		memset((byte*) dst + len,
 		       pad_char,
-		       dtype_get_len(dtype) - len);
+		       col_len - len);
 
 		memcpy(dst, src, len);
 
-		len = dtype_get_len(dtype);
+		len = col_len;
 		break;
 	}
 	case DATA_BLOB:
 	case DATA_BINARY:
-	case DATA_MYSQL:
 	case DATA_DECIMAL:
 	case DATA_VARCHAR:
-	case DATA_VARMYSQL:
 	case DATA_FIXBINARY:
 		memcpy(dst, src, len);
 		break;
+
+	case DATA_MYSQL:
+	case DATA_VARMYSQL: {
+		ulint		cset;
+		CHARSET_INFO*	cs;
+		int		error = 0;
+		ulint		true_len = len;
+
+		/* For multi byte character sets we need to
+		calculate the true length of the data. */
+		cset = dtype_get_charset_coll(
+			dtype_get_prtype(dtype));
+		cs = all_charsets[cset];
+		if (cs) {
+			uint pos = (uint)(col_len / cs->mbmaxlen);
+
+			if (len > 0 && cs->mbmaxlen > 1) {
+				true_len = (ulint)
+					cs->cset->well_formed_len(
+						cs,
+						(const char*)src,
+						(const char*)src + len,
+						pos,
+						&error);
+
+				if (true_len < len) {
+					len = true_len;
+				}
+			}
+		}
+
+		/* All invalid bytes in data need be truncated.
+		If len == 0, means all bytes of the data is invalid.
+		In this case, the data will be truncated to empty.*/
+		memcpy(dst, src, len);
+
+		/* For DATA_MYSQL, need to pad the unused
+		space with spaces. */
+		if (dtype_get_mtype(dtype) == DATA_MYSQL) {
+			ulint		n_chars;
+
+			if (len < col_len) {
+				ulint	pad_len = col_len - len;
+
+				ut_a(cs != NULL);
+				ut_a(!(pad_len % cs->mbminlen));
+
+				cs->cset->fill(cs, (char*)dst + len,
+					       pad_len,
+					       0x20 /* space */);
+			}
+
+			/* Why we should do below? See function
+			row_mysql_store_col_in_innobase_format */
+
+			ut_a(!(dtype_get_len(dtype)
+				% dtype_get_mbmaxlen(dtype)));
+
+			n_chars = dtype_get_len(dtype)
+				/ dtype_get_mbmaxlen(dtype);
+
+			/* Strip space padding. */
+			while (col_len > n_chars
+				&& ((char*)dst)[col_len - 1] == 0x20) {
+				col_len--;
+			}
+
+			len = col_len;
+		}
+		break;
+	}
 
 	default:
 		ut_error;

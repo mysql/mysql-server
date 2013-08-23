@@ -1,6 +1,6 @@
 /*****************************************************************************
 
-Copyright (c) 1996, 2012, Oracle and/or its affiliates. All Rights Reserved.
+Copyright (c) 1996, 2013, Oracle and/or its affiliates. All Rights Reserved.
 
 This program is free software; you can redistribute it and/or modify it under
 the terms of the GNU General Public License as published by the Free Software
@@ -175,6 +175,7 @@ trx_undo_get_prev_rec(
 	trx_undo_rec_t*	rec,	/*!< in: undo record */
 	ulint		page_no,/*!< in: undo log header page number */
 	ulint		offset,	/*!< in: undo log header offset on page */
+	bool		shared,	/*!< in: true=S-latch, false=X-latch */
 	mtr_t*		mtr);	/*!< in: mtr */
 /***********************************************************************//**
 Gets the next record in an undo log.

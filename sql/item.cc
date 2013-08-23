@@ -3959,7 +3959,9 @@ bool Item_param::convert_str_value(THD *thd)
     /* Here str_value is guaranteed to be in final_character_set_of_str_value */
 
     max_length= str_value.numchars() * str_value.charset()->mbmaxlen;
-    decimals= 0;
+
+    /* For the strings converted to numeric form within some functions */
+    decimals= NOT_FIXED_DEC;
     /*
       str_value_ptr is returned from val_str(). It must be not alloced
       to prevent it's modification by val_str() invoker.
@@ -4683,6 +4685,30 @@ void mark_select_range_as_dependent(THD *thd,
     mark_as_dependent(thd, last_select, current_sel, resolved_item,
                       dependent);
   }
+}
+
+
+/**
+ Find a Item reference in a item list
+
+ @param[in]   item            The Item to search for.
+ @param[in]   list            Item list.
+
+ @retval true   found
+ @retval false  otherwise
+*/
+
+static bool find_item_in_item_list (Item *item, List<Item> *list)
+{
+  List_iterator<Item> li(*list);
+  Item *it= NULL;
+  while ((it= li++))    
+  {
+    if (it->walk(&Item::find_item_processor, true,
+                 (uchar*)item))
+      return true;
+  }
+  return false;
 }
 
 
@@ -7375,13 +7401,6 @@ void Item_ref::set_properties()
 }
 
 
-table_map Item_ref::resolved_used_tables() const
-{
-  DBUG_ASSERT((*ref)->real_item()->type() == FIELD_ITEM);
-  return ((Item_field*)(*ref))->resolved_used_tables();
-}
-
-
 void Item_ref::cleanup()
 {
   DBUG_ENTER("Item_ref::cleanup");
@@ -8102,7 +8121,8 @@ bool Item_insert_value::fix_fields(THD *thd, Item **reference)
 
   Item_field *field_arg= (Item_field *)arg;
 
-  if (field_arg->field->table->insert_values)
+  if (field_arg->field->table->insert_values &&
+      find_item_in_item_list(this, &thd->lex->value_list))
   {
     Field *def_field= field_arg->field->clone();
     if (!def_field)

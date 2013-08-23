@@ -211,7 +211,6 @@ uint explain_filename(THD* thd,
                       uint to_length,
                       enum_explain_filename_mode explain_mode)
 {
-  uint res= 0;
   char *to_p= to;
   char *end_p= to_p + to_length;
   const char *db_name= NULL;
@@ -222,7 +221,8 @@ uint explain_filename(THD* thd,
   int  part_name_len= 0;
   const char *subpart_name= NULL;
   int  subpart_name_len= 0;
-  enum enum_file_name_type {NORMAL, TEMP, RENAMED} name_type= NORMAL;
+  enum enum_part_name_type {NORMAL, TEMP, RENAMED} part_type= NORMAL;
+
   const char *tmp_p;
   DBUG_ENTER("explain_filename");
   DBUG_PRINT("enter", ("from '%s'", from));
@@ -241,17 +241,18 @@ uint explain_filename(THD* thd,
     table_name= tmp_p;
   }
   tmp_p= table_name;
-  while (!res && (tmp_p= strchr(tmp_p, '#')))
+  /* Look if there are partition tokens in the table name. */
+  while ((tmp_p= strchr(tmp_p, '#')))
   {
     tmp_p++;
     switch (tmp_p[0]) {
     case 'P':
     case 'p':
       if (tmp_p[1] == '#')
+      {
         part_name= tmp_p + 2;
-      else
-        res= 1;
-      tmp_p+= 2;
+        tmp_p+= 2;
+      }
       break;
     case 'S':
     case 's':
@@ -259,43 +260,33 @@ uint explain_filename(THD* thd,
       {
         part_name_len= tmp_p - part_name - 1;
         subpart_name= tmp_p + 3;
+        tmp_p+= 3;
       }
-      else
-        res= 2;
-      tmp_p+= 3;
       break;
     case 'T':
     case 't':
       if ((tmp_p[1] == 'M' || tmp_p[1] == 'm') &&
           (tmp_p[2] == 'P' || tmp_p[2] == 'p') &&
           tmp_p[3] == '#' && !tmp_p[4])
-        name_type= TEMP;
-      else
-        res= 3;
-      tmp_p+= 4;
+      {
+        part_type= TEMP;
+        tmp_p+= 4;
+      }
       break;
     case 'R':
     case 'r':
       if ((tmp_p[1] == 'E' || tmp_p[1] == 'e') &&
           (tmp_p[2] == 'N' || tmp_p[2] == 'n') &&
           tmp_p[3] == '#' && !tmp_p[4])
-        name_type= RENAMED;
-      else
-        res= 4;
-      tmp_p+= 4;
+      {
+        part_type= RENAMED;
+        tmp_p+= 4;
+      }
       break;
     default:
-      res= 5;
+      /* Not partition name part. */
+      ;
     }
-  }
-  if (res)
-  {
-    /* Better to give something back if we fail parsing, than nothing at all */
-    DBUG_PRINT("info", ("Error in explain_filename: %u", res));
-    sql_print_warning("Invalid (old?) table or database name '%s'", from);
-    DBUG_RETURN(my_snprintf(to, to_length,
-                            "<result %u when explaining filename '%s'>",
-                            res, from));
   }
   if (part_name)
   {
@@ -304,7 +295,7 @@ uint explain_filename(THD* thd,
       subpart_name_len= strlen(subpart_name);
     else
       part_name_len= strlen(part_name);
-    if (name_type != NORMAL)
+    if (part_type != NORMAL)
     {
       if (subpart_name)
         subpart_name_len-= 5;
@@ -346,9 +337,9 @@ uint explain_filename(THD* thd,
       to_p= strnmov(to_p, " ", end_p - to_p);
     else
       to_p= strnmov(to_p, ", ", end_p - to_p);
-    if (name_type != NORMAL)
+    if (part_type != NORMAL)
     {
-      if (name_type == TEMP)
+      if (part_type == TEMP)
         to_p= strnmov(to_p, ER_THD_OR_DEFAULT(thd, ER_TEMPORARY_NAME),
                       end_p - to_p);
       else

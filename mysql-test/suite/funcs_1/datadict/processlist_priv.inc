@@ -233,7 +233,7 @@ SELECT * FROM information_schema.processlist;
 --echo   connection default (user=root)
 --echo ####################################################################################
 connection default;
-REVOKE PROCESS ON *.* FROM ddicttestuser1@'localhost' IDENTIFIED BY 'ddictpass';
+REVOKE PROCESS ON *.* FROM ddicttestuser1@'localhost';
 --real_sleep 0.3
 
 --echo ####################################################################################

@@ -69,6 +69,7 @@ wait/synch/mutex/sql/MYSQL_BIN_LOG::LOCK_index	MANY
 wait/synch/mutex/sql/MYSQL_BIN_LOG::LOCK_log	MANY
 wait/synch/mutex/sql/MYSQL_BIN_LOG::LOCK_sync	MANY
 wait/synch/mutex/sql/MYSQL_BIN_LOG::LOCK_sync_queue	MANY
+wait/synch/mutex/sql/MYSQL_BIN_LOG::LOCK_xids	NONE
 "Expect no slave relay log"
 select * from performance_schema.file_summary_by_instance
 where event_name like "%relaylog%" order by file_name;
@@ -93,6 +94,7 @@ wait/synch/mutex/sql/MYSQL_RELAY_LOG::LOCK_index	0	0	0	0	0
 wait/synch/mutex/sql/MYSQL_RELAY_LOG::LOCK_log	0	0	0	0	0
 wait/synch/mutex/sql/MYSQL_RELAY_LOG::LOCK_sync	0	0	0	0	0
 wait/synch/mutex/sql/MYSQL_RELAY_LOG::LOCK_sync_queue	0	0	0	0	0
+wait/synch/mutex/sql/MYSQL_RELAY_LOG::LOCK_xids	0	0	0	0	0
 "============ Performance schema on slave ============"
 select * from performance_schema.file_summary_by_instance
 where file_name like "%master-%" order by file_name;
@@ -159,6 +161,7 @@ wait/synch/mutex/sql/MYSQL_BIN_LOG::LOCK_index	MANY
 wait/synch/mutex/sql/MYSQL_BIN_LOG::LOCK_log	MANY
 wait/synch/mutex/sql/MYSQL_BIN_LOG::LOCK_sync	MANY
 wait/synch/mutex/sql/MYSQL_BIN_LOG::LOCK_sync_queue	MANY
+wait/synch/mutex/sql/MYSQL_BIN_LOG::LOCK_xids	NONE
 "Expect a slave relay log"
 select
 substring(file_name, locate("slave-", file_name)) as FILE_NAME,
@@ -203,6 +206,7 @@ wait/synch/mutex/sql/MYSQL_RELAY_LOG::LOCK_done	NONE
 wait/synch/mutex/sql/MYSQL_RELAY_LOG::LOCK_flush_queue	NONE
 wait/synch/mutex/sql/MYSQL_RELAY_LOG::LOCK_index	MANY
 wait/synch/mutex/sql/MYSQL_RELAY_LOG::LOCK_log	MANY
-wait/synch/mutex/sql/MYSQL_RELAY_LOG::LOCK_sync	MANY
+wait/synch/mutex/sql/MYSQL_RELAY_LOG::LOCK_sync	NONE
 wait/synch/mutex/sql/MYSQL_RELAY_LOG::LOCK_sync_queue	NONE
+wait/synch/mutex/sql/MYSQL_RELAY_LOG::LOCK_xids	MANY
 include/rpl_end.inc
