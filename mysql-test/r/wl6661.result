@@ -1,0 +1,182 @@
+#
+# WL#6661: Error logging: Allow control of verbosity
+#
+CALL mtr.add_suppression("option 'log_error_verbosity'");
+CALL mtr.add_suppression("--verbose is for use with");
+SET @old_log_error_verbosity= @@global.log_error_verbosity;
+SET @old_log_warnings       = @@global.log_warnings;
+Warnings:
+Warning	1287	'@@log_warnings' is deprecated and will be removed in a future release. Please use log_error_verbosity instead
+SET @old_log_timestamps     = @@global.log_timestamps;
+
+# Spec 1: Nomenclature, no test
+
+# The following four can be verified using mysqld--help-[not]win.test:
+#
+# Spec 2a: "--help works"
+# Spec 2b: "default verbosity for --help is 1, errors only"
+#
+# Spec 3a: "--help --verbose works"
+# Spec 3b: "default verbosity for --help --verbose is 1, errors only"
+
+# Spec 4a "new sys-var log_error_verbosity"
+# Spec 4d "--log_error_verbosity settable on command-line"
+# Spec B  "later options replace earlier ones."
+SELECT @@global.log_error_verbosity;
+@@global.log_error_verbosity
+1
+
+# Spec 4b "default"
+SET GLOBAL log_error_verbosity=DEFAULT;
+SELECT @@global.log_error_verbosity;
+@@global.log_error_verbosity
+3
+
+# Spec 4c "range"
+SET GLOBAL log_error_verbosity=0;
+Warnings:
+Warning	1292	Truncated incorrect log_error_verbosity value: '0'
+SELECT @@global.log_error_verbosity;
+@@global.log_error_verbosity
+1
+
+# Spec 4c "range"
+SET GLOBAL log_error_verbosity=4;
+Warnings:
+Warning	1292	Truncated incorrect log_error_verbosity value: '4'
+SELECT @@global.log_error_verbosity;
+@@global.log_error_verbosity
+3
+
+# Spec 4d -- see above at 4a, and below in error log
+
+# Spec 4e "global only"
+SET SESSION log_error_verbosity=DEFAULT;
+ERROR HY000: Variable 'log_error_verbosity' is a GLOBAL variable and should be set with SET GLOBAL
+
+# Spec 4e "SUPER required for log_error_verbosity"
+# Spec Ed "SUPER required for log_timestamps"
+CREATE USER mysqltest_1;
+# as unprivileged user:
+SET GLOBAL log_error_verbosity=1;
+ERROR 42000: Access denied; you need (at least one of) the SUPER privilege(s) for this operation
+SET GLOBAL log_timestamps=SYSTEM;
+ERROR 42000: Access denied; you need (at least one of) the SUPER privilege(s) for this operation
+# as root:
+DROP USER mysqltest_1;
+
+# Spec 5 "--verbose without --help throws an error" -- see below in error log
+
+# Spec 6 "example for things previously governed by log_warnings"
+# see error log below for results
+SET GLOBAL  init_connect='wombat;';
+CREATE USER mysqltest_yeslog;
+CREATE USER mysqltest_nolog;
+# Spec 6a "log_error_warnings=2+ includes warnings"
+SET GLOBAL  log_error_verbosity=2;
+# Spec 6c "warnings now gagged by log_error_verbosity=1"
+SET GLOBAL  log_error_verbosity=1;
+DROP USER mysqltest_yeslog;
+DROP USER mysqltest_nolog;
+SET GLOBAL  init_connect='';
+# Spec 6b "log_error_warnings=3  includes notes"
+SET GLOBAL  log_error_verbosity=2;
+connect(localhost,mysqltest_2_nolog,,,MASTER_PORT,MASTER_SOCKET);
+ERROR 28000: Access denied for user 'mysqltest_2_nolog'@'localhost' (using password: NO)
+SET GLOBAL  log_error_verbosity=3;
+connect(localhost,mysqltest_3_yeslog,,,MASTER_PORT,MASTER_SOCKET);
+ERROR 28000: Access denied for user 'mysqltest_3_yeslog'@'localhost' (using password: NO)
+SET GLOBAL  log_error_verbosity=DEFAULT;
+
+# Spec 7 "--log_warning throws deprecation warning" -- see below in error log
+
+# Spec 8/Spec 8a "log_warnings sets log_error_verbosity"
+SET SESSION log_warnings=2;
+ERROR HY000: Variable 'log_warnings' is a GLOBAL variable and should be set with SET GLOBAL
+SET GLOBAL  log_warnings=0;
+Warnings:
+Warning	1287	'@@log_warnings' is deprecated and will be removed in a future release. Please use log_error_verbosity instead
+SELECT      @@global.log_error_verbosity;
+@@global.log_error_verbosity
+1
+SET GLOBAL  log_warnings=1;
+Warnings:
+Warning	1287	'@@log_warnings' is deprecated and will be removed in a future release. Please use log_error_verbosity instead
+SELECT      @@global.log_error_verbosity;
+@@global.log_error_verbosity
+2
+SET GLOBAL  log_warnings=2;
+Warnings:
+Warning	1287	'@@log_warnings' is deprecated and will be removed in a future release. Please use log_error_verbosity instead
+SELECT      @@global.log_error_verbosity;
+@@global.log_error_verbosity
+3
+# out of range
+SET GLOBAL  log_warnings=4;
+Warnings:
+Warning	1287	'@@log_warnings' is deprecated and will be removed in a future release. Please use log_error_verbosity instead
+Warning	1292	Truncated incorrect log_warnings value: '4'
+SELECT      @@global.log_error_verbosity, @@global.log_warnings;
+@@global.log_error_verbosity	@@global.log_warnings
+3	2
+Warnings:
+Warning	1287	'@@log_warnings' is deprecated and will be removed in a future release. Please use log_error_verbosity instead
+# reverse: log_error_verbosity updates log_warnings
+SET GLOBAL  log_error_verbosity=1;
+SELECT      @@global.log_warnings;
+@@global.log_warnings
+0
+Warnings:
+Warning	1287	'@@log_warnings' is deprecated and will be removed in a future release. Please use log_error_verbosity instead
+
+# Spec 9 -- no test; limits part shown in Spec 4c/Spec 8
+
+# Spec A -- see Spec 4c "range" and Spec 8
+#           "interaction of log_warnings and log_error_verbosity"
+
+# Spec B -- see above at 4a, and below in error log
+
+# Spec C  "bootstrap" -- no test
+
+# Spec D  "timestamp format" -- results in log below = regex was matched
+
+# Spec Ea  "log_timestamps"
+SELECT      @@global.log_timestamps;
+@@global.log_timestamps
+SYSTEM
+# Spec Eb  "log_timestamps -- values UTC|SYSTEM"
+SET GLOBAL  log_timestamps=UTC;
+SELECT      @@global.log_timestamps;
+@@global.log_timestamps
+UTC
+SET GLOBAL  log_timestamps=SYSTEM;
+SELECT      @@global.log_timestamps;
+@@global.log_timestamps
+SYSTEM
+# Spec Ec  "log_timestamps -- default UTC"
+SET GLOBAL  log_timestamps=DEFAULT;
+SELECT      @@global.log_timestamps;
+@@global.log_timestamps
+UTC
+# Spec Ed  "SUPER required" -- see 4e
+# Spec Ee  "SYSTEM = old behavior" -- no test
+
+# Spec 4d "--log_error_verbosity settable on command-line"
+# Spec 5  "--verbose without --help throws an error"
+# Spec 7  "--log_warning throws deprecation warning"
+# Spec D  "ISO 8601 / RFC 3339 compliant timestamps"
+#
+# error log:
+DATE_TIME [Note] Access denied for user 'mysqltest_3_yeslog'@'localhost' (using password: NO)
+
+
+# cleanup
+SET GLOBAL log_warnings        = @old_log_warnings;
+Warnings:
+Warning	1287	'@@log_warnings' is deprecated and will be removed in a future release. Please use log_error_verbosity instead
+SET GLOBAL log_error_verbosity = @old_log_error_verbosity;
+SET GLOBAL log_timestamps      = @old_log_timestamps;
+FLUSH LOGS;
+
+#
+# end WL#6661
