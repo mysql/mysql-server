@@ -2972,11 +2972,11 @@ uint JOIN_CACHE_BKA_UNIQUE::get_hash_idx(uchar* key, uint key_len)
 {
   ulong nr= 1;
   ulong nr2= 4;
-  uchar *pos= key;
+  uchar *position= key;
   uchar *end= key+key_len;
-  for (; pos < end ; pos++)
+  for (; position < end ; position++)
   {
-    nr^= (ulong) ((((uint) nr & 63)+nr2)*((uint) *pos))+ (nr << 8);
+    nr^= (ulong) ((((uint) nr & 63)+nr2)*((uint) *position))+ (nr << 8);
     nr2+= 3;
   }
   return nr % hash_entries;
