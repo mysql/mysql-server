@@ -5434,7 +5434,7 @@ void TABLE::mark_columns_per_binlog_row_image()
         /* for every field that is not set, mark it unless it is a blob */
         for (Field **ptr=field ; *ptr ; ptr++)
         {
-          Field *field= *ptr;
+          Field *my_field= *ptr;
           /* 
             bypass blob fields. These can be set or not set, we don't care.
             Later, at binlogging time, if we don't need them in the before 
@@ -5444,12 +5444,12 @@ void TABLE::mark_columns_per_binlog_row_image()
             nothing we can do about it.
            */
           if ((s->primary_key < MAX_KEY) && 
-              ((field->flags & PRI_KEY_FLAG) || 
-              (field->type() != MYSQL_TYPE_BLOB)))
-            bitmap_set_bit(read_set, field->field_index);
+              ((my_field->flags & PRI_KEY_FLAG) || 
+              (my_field->type() != MYSQL_TYPE_BLOB)))
+            bitmap_set_bit(read_set, my_field->field_index);
 
-          if (field->type() != MYSQL_TYPE_BLOB)
-            bitmap_set_bit(write_set, field->field_index);
+          if (my_field->type() != MYSQL_TYPE_BLOB)
+            bitmap_set_bit(write_set, my_field->field_index);
         }
         break;
       case BINLOG_ROW_IMAGE_MINIMAL:

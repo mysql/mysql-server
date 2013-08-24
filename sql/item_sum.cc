@@ -3264,7 +3264,7 @@ void Item_func_group_concat::cleanup()
 }
 
 
-Field *Item_func_group_concat::make_string_field(TABLE *table)
+Field *Item_func_group_concat::make_string_field(TABLE *table_arg)
 {
   Field *field;
   DBUG_ASSERT(collation.collation);
@@ -3281,10 +3281,10 @@ Field *Item_func_group_concat::make_string_field(TABLE *table)
                           maybe_null, item_name.ptr(), collation.collation, TRUE);
   else
     field= new Field_varstring(max_characters * collation.collation->mbmaxlen,
-                               maybe_null, item_name.ptr(), table->s, collation.collation);
+                               maybe_null, item_name.ptr(), table_arg->s, collation.collation);
 
   if (field)
-    field->init(table);
+    field->init(table_arg);
   return field;
 }
 
