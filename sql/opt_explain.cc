@@ -258,15 +258,15 @@ private:
   const ha_rows rows; ///< HA_POS_ERROR or cached "rows" argument
 
 public:
-  Explain_no_table(THD *thd_arg, SELECT_LEX *select_lex,
+  Explain_no_table(THD *thd_arg, SELECT_LEX *select_lex_arg,
                    const char *message_arg,
                    enum_parsing_context context_type_arg= CTX_JOIN,
                    ha_rows rows_arg= HA_POS_ERROR)
-  : Explain(context_type_arg, thd_arg, select_lex),
+  : Explain(context_type_arg, thd_arg, select_lex_arg),
     message(message_arg), rows(rows_arg)
   {
     if (can_walk_clauses())
-      order_list= test(select_lex->order_list.elements);
+      order_list= test(select_lex_arg->order_list.elements);
   }
 
 protected:
@@ -434,14 +434,14 @@ private:
   const char *message; ///< cached "message" argument
 
 public:
-  Explain_table(THD *const thd_arg, SELECT_LEX *select_lex,
+  Explain_table(THD *const thd_arg, SELECT_LEX *select_lex_arg,
                 TABLE *const table_arg,
                 const SQL_SELECT *select_arg,
                 uint key_arg, ha_rows limit_arg,
                 bool need_tmp_table_arg, bool need_sort_arg,
                 enum_mod_type mod_type_arg, bool used_key_is_modified_arg,
                 const char *msg)
-  : Explain_table_base(CTX_JOIN, thd_arg, select_lex, table_arg),
+  : Explain_table_base(CTX_JOIN, thd_arg, select_lex_arg, table_arg),
     select(select_arg), key(key_arg),
     limit(limit_arg),
     need_tmp_table(need_tmp_table_arg), need_sort(need_sort_arg),
@@ -450,7 +450,7 @@ public:
   {
     usable_keys= table->possible_quick_keys;
     if (can_walk_clauses())
-      order_list= test(select_lex->order_list.elements);
+      order_list= test(select_lex_arg->order_list.elements);
   }
 
   virtual bool explain_modify_flags();
