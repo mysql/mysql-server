@@ -1376,4 +1376,20 @@ SELECT a.* FROM t1 a LEFT JOIN t1 b ON a.id = b.id
 
 DROP TABLE t1;
 
+--echo #
+--echo # Bug mdev-4942: LEFT JOIN with conjunctive 
+--echo #                <non-nullable datetime field> IS NULL in WHERE 
+--echo #                causes an assert failure  
+--echo #
+
+CREATE TABLE t1 ( i1 int, d1 date );
+INSERT INTO t1 VALUES (1,'2001-06-26'), (2,'2000-11-16');
+
+CREATE TABLE t2 ( i2 int, d2 date NOT NULL );
+INSERT INTO t2 VALUES (3,'2000-03-06'), (4,'2007-09-25');
+
+SELECT * FROM t1 LEFT JOIN t2 ON i1 = i2 WHERE d1 IS NULL AND d2 IS NULL;
+
+DROP TABLE t1,t2;
+
 SET optimizer_switch=@save_optimizer_switch;

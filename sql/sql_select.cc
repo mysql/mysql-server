@@ -13350,7 +13350,8 @@ remove_eq_conds(THD *thd, COND *cond, Item::cond_result *cond_value)
           In these cases the disjunct/conjunct must be merged into the
           argument list of cond.
 	*/
-        if (new_item->type() == Item::COND_ITEM)
+        if (new_item->type() == Item::COND_ITEM &&
+            item->type() == Item::COND_ITEM)
         {
           DBUG_ASSERT(((Item_cond *) cond)->functype() == 
                       ((Item_cond *) new_item)->functype());          
