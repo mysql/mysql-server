@@ -316,7 +316,9 @@ static void tokudb_cleanup_log_files(void);
 static int tokudb_end(handlerton * hton, ha_panic_function type);
 static bool tokudb_flush_logs(handlerton * hton);
 static bool tokudb_show_status(handlerton * hton, THD * thd, stat_print_fn * print, enum ha_stat_type);
+#if TOKU_INCLUDE_HANDLERTON_HANDLE_FATAL_SIGNAL
 static void tokudb_handle_fatal_signal(handlerton *hton, THD *thd, int sig);
+#endif
 static int tokudb_close_connection(handlerton * hton, THD * thd);
 static int tokudb_commit(handlerton * hton, THD * thd, bool all);
 static int tokudb_rollback(handlerton * hton, THD * thd, bool all);
@@ -497,7 +499,9 @@ static int tokudb_init_func(void *p) {
     tokudb_hton->panic = tokudb_end;
     tokudb_hton->flush_logs = tokudb_flush_logs;
     tokudb_hton->show_status = tokudb_show_status;
+#if TOKU_INCLUDE_HANDLERTON_HANDLE_FATAL_SIGNAL
     tokudb_hton->handle_fatal_signal = tokudb_handle_fatal_signal;
+#endif
     if (!tokudb_home)
         tokudb_home = mysql_real_data_home;
     DBUG_PRINT("info", ("tokudb_home: %s", tokudb_home));
@@ -1860,6 +1864,7 @@ static bool tokudb_show_status(handlerton * hton, THD * thd, stat_print_fn * sta
     return false;
 }
 
+#if TOKU_INCLUDE_HANDLERTON_HANDLE_FATAL_SIGNAL
 static void tokudb_handle_fatal_signal(handlerton *hton __attribute__ ((__unused__)),
                                        THD *thd __attribute__ ((__unused__)),
                                        int sig) {
@@ -1867,6 +1872,7 @@ static void tokudb_handle_fatal_signal(handlerton *hton __attribute__ ((__unused
         db_env_try_gdb_stack_trace(tokudb_gdb_path);
     }
 }
+#endif
 
 static void tokudb_print_error(const DB_ENV * db_env, const char *db_errpfx, const char *buffer) {
     sql_print_error("%s:  %s", db_errpfx, buffer);
