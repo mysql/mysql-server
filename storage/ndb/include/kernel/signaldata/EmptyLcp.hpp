@@ -1,5 +1,5 @@
-/* Copyright (c) 2003, 2005 MySQL AB
-
+/*
+   Copyright (c) 2003, 2013, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -17,6 +17,9 @@
 
 #ifndef EMPTY_LCPREQ_HPP
 #define EMPTY_LCPREQ_HPP
+
+#define JAM_FILE_ID 157
+
 
 /**
  * This signals is sent by Dbdih-Master to Dblqh
@@ -85,5 +88,8 @@ struct EmptyLcpRep
   Uint32 receiverGroup[NdbNodeBitmask::Size];
   Uint32 conf[EmptyLcpConf::SignalLength];
 };
+
+
+#undef JAM_FILE_ID
 
 #endif

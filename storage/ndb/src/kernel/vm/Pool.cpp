@@ -1,5 +1,5 @@
-/* Copyright (c) 2003, 2006, 2008 MySQL AB
-
+/*
+   Copyright (c) 2006, 2013, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -18,6 +18,9 @@
 
 #include "Pool.hpp"
 #include "SimulatedBlock.hpp"
+
+#define JAM_FILE_ID 255
+
 
 void*
 Pool_context::alloc_page(Uint32 type_id, Uint32 *i)

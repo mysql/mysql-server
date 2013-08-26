@@ -1,4 +1,4 @@
-/* Copyright (C) 2008 MySQL AB
+/* Copyright (c) 2008, 2013, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -15,6 +15,9 @@
 
 #ifndef TAB_COMMIT_HPP
 #define TAB_COMMIT_HPP
+
+#define JAM_FILE_ID 20
+
 
 struct TabCommitReq {
   enum { SignalLength = 3 };
@@ -38,5 +41,8 @@ struct TabCommitRef {
   Uint32 errorCode;
   Uint32 tableStatus;
 };
+
+
+#undef JAM_FILE_ID
 
 #endif

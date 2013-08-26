@@ -15,6 +15,9 @@
    Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA  02110-1301, USA */
 
 
+#ifndef TIMER_HPP
+#define TIMER_HPP
+
 /**
  *  @class Timer
  *  @brief A timer class that can't be fooled by NTP:ing the system clock to old time
@@ -66,3 +69,5 @@ private:
   NDB_TICKS m_alarm_time;
   NDB_TICKS m_delay;
 };
+
+#endif

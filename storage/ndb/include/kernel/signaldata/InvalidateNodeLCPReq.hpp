@@ -1,5 +1,5 @@
-/* Copyright (c) 2003, 2005 MySQL AB
-
+/*
+   Copyright (c) 2003, 2013, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -17,6 +17,9 @@
 
 #ifndef INVALIDATE_NODE_LCP_REQ_HPP
 #define INVALIDATE_NODE_LCP_REQ_HPP
+
+#define JAM_FILE_ID 76
+
 
 /**
  * This signal is sent from the master DIH to all DIHs
@@ -39,5 +42,8 @@ class InvalidateNodeLCPReq {
 public:
   STATIC_CONST( SignalLength = 1 );
 };
+
+
+#undef JAM_FILE_ID
 
 #endif

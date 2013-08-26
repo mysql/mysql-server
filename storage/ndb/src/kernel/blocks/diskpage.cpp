@@ -1,5 +1,5 @@
-/* Copyright (c) 2005-2007 MySQL AB
-
+/*
+   Copyright (c) 2005, 2013, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -20,6 +20,9 @@
 #include <NdbOut.hpp>
 #include <version.h>
 #include <time.h>
+
+#define JAM_FILE_ID 364
+
 
 void
 File_formats::Zero_page_header::init(File_type ft, 

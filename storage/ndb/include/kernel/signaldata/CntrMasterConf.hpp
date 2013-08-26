@@ -1,5 +1,5 @@
-/* Copyright (c) 2003, 2005 MySQL AB
-
+/*
+   Copyright (c) 2003, 2013, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -19,6 +19,9 @@
 #define CNTR_MASTERCONF_HPP
 
 #include <NodeBitmask.hpp>
+
+#define JAM_FILE_ID 154
+
 
 /**
  * This signals is sent by NdbCntr-Master to NdbCntr
@@ -44,5 +47,8 @@ private:
   Uint32 noStartNodes;
   Uint32 theNodes[NdbNodeBitmask::Size];
 };
+
+
+#undef JAM_FILE_ID
 
 #endif

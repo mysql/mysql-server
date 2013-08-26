@@ -200,6 +200,9 @@ static int TRACENR_FLAG = 0;
 #define CLEAR_TRACENR_FLAG
 #endif
 
+#define JAM_FILE_ID 451
+
+
 #ifdef NDBD_TRACENR
 static NdbOut * traceopout = 0;
 #define TRACE_OP(regTcPtr, place) do { if (TRACE_OP_CHECK(regTcPtr)) TRACE_OP_DUMP(regTcPtr, place); } while(0)

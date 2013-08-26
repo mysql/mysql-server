@@ -1,4 +1,4 @@
-/* Copyright (c) 2008, 2011, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2008, 2013, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -18,6 +18,9 @@
 
 #include <kernel_types.h>
 #include <TransporterDefinitions.hpp>
+
+#define JAM_FILE_ID 275
+
 
 Uint32 mt_get_instance_count(Uint32 block);
 
@@ -116,5 +119,8 @@ mt_get_trp_receive_handle(unsigned instance);
  */
 Uint32
 mt_get_recv_thread_idx(NodeId nodeId);
+
+
+#undef JAM_FILE_ID
 
 #endif

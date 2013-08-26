@@ -1,5 +1,5 @@
-/* Copyright (c) 2003, 2005 MySQL AB
-
+/*
+   Copyright (c) 2003, 2013, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -17,6 +17,9 @@
 
 #ifndef DIH_SWITCH_REPLICA_HPP
 #define DIH_SWITCH_REPLICA_HPP
+
+#define JAM_FILE_ID 172
+
 
 /**
  * This signal is sent from master DIH to all DIH's 
@@ -70,4 +73,7 @@ public:
 private:
   Uint32 senderNode;
 };
+
+#undef JAM_FILE_ID
+
 #endif

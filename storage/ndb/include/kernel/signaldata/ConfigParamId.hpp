@@ -1,5 +1,5 @@
-/* Copyright (c) 2003, 2005 MySQL AB
-
+/*
+   Copyright (c) 2003, 2013, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -17,6 +17,9 @@
 
 #ifndef ConfigParamId_H
 #define ConfigParamId_H
+
+#define JAM_FILE_ID 146
+
 
   enum ConfigParamId {
 
@@ -62,6 +65,9 @@
 
     MaxNoOfSavedEvents
   };
+
+
+#undef JAM_FILE_ID
 
 #endif // ConfigParamId_H
 

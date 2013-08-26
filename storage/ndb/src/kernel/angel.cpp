@@ -1,4 +1,4 @@
-/* Copyright (c) 2009, 2010, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2009, 2013, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -314,6 +314,9 @@ kill(pid_t pid, int sig)
   return pid;
 }
 #endif
+
+#define JAM_FILE_ID 333
+
 
 extern int real_main(int, char**);
 

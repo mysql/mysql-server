@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2012 Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2012, 2013, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -30,6 +30,9 @@
 
 #include <assert.h>
 #include "Bitmask.hpp"
+
+#define JAM_FILE_ID 261
+
 
 template<typename Int> class LHBits
 {
@@ -474,5 +477,8 @@ inline LHBits32 LHLevelRH::enlarge(LHBits16 reduced_hash_value, Uint32 bucket_nu
   hv.shift_in(addr_bits, bucket_number);
   return hv;
 }
+
+
+#undef JAM_FILE_ID
 
 #endif

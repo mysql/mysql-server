@@ -1,5 +1,5 @@
-/* Copyright (c) 2003, 2005 MySQL AB
-
+/*
+   Copyright (c) 2003, 2013, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -19,6 +19,9 @@
 #define INDX_KEY_INFO_HPP
 
 #include "SignalData.hpp"
+
+#define JAM_FILE_ID 203
+
 
 class IndxKeyInfo {
   /**
@@ -53,5 +56,8 @@ Uint32* IndxKeyInfo::getData() const
 {
   return (Uint32*)&keyData[0];
 }
+
+
+#undef JAM_FILE_ID
 
 #endif

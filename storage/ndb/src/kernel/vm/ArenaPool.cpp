@@ -1,4 +1,4 @@
-/* Copyright (c) 2010, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2010, 2013, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -16,6 +16,9 @@
 #include "ArenaPool.hpp"
 #include <ndbd_exit_codes.h>
 #include <NdbOut.hpp>
+
+#define JAM_FILE_ID 309
+
 
 static
 Uint32
