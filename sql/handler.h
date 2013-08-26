@@ -758,8 +758,8 @@ enum ha_option_type { HA_OPTION_TYPE_ULL,    /* unsigned long long */
   HA_xOPTION_STRING(name, ha_index_option_struct, field)
 #define HA_IOPTION_ENUM(name, field, values, def)                    \
   HA_xOPTION_ENUM(name, ha_index_option_struct, field, values, def)
-#define HA_IOPTION_BOOL(name, field, values, def)                    \
-  HA_xOPTION_BOOL(name, ha_index_option_struct, field, values, def)
+#define HA_IOPTION_BOOL(name, field, def)                            \
+  HA_xOPTION_BOOL(name, ha_index_option_struct, field, def)
 #define HA_IOPTION_END HA_xOPTION_END
 
 typedef struct st_ha_create_table_option {
