@@ -16912,7 +16912,7 @@ int report_error(TABLE *table, int error)
     print them to the .err log
   */
   if (error != HA_ERR_LOCK_DEADLOCK && error != HA_ERR_LOCK_WAIT_TIMEOUT
-      && !table->in_use->killed)
+      && error != HA_ERR_TABLE_DEF_CHANGED && !table->in_use->killed)
   {
     push_warning_printf(table->in_use, MYSQL_ERROR::WARN_LEVEL_WARN, error,
                         "Got error %d when reading table %`s.%`s",
