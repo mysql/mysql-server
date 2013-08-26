@@ -968,6 +968,8 @@ sub get_tags_from_file($$) {
   } elsif ($over and $file =~ m@^$pdir/(.*)$@) {
     $suffix = $1;
     @prefix = map { "$_/" } $sdir, $pdir;
+  } else {
+    $over = 0; # file neither in $sdir nor in $pdir
   }
 
   while (my $line= <$F>)
