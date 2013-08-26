@@ -3731,6 +3731,12 @@ void handler::print_error(int error, myf errflag)
   case HA_ERR_OUT_OF_MEM:
     textno=ER_OUT_OF_RESOURCES;
     break;
+  case HA_ERR_SE_OUT_OF_MEMORY:
+    my_error(ER_ENGINE_OUT_OF_MEMORY, errflag,
+             table->part_info ? ha_resolve_storage_engine_name
+             (table->part_info->default_engine_type) :
+             table->file->table_type());
+    DBUG_VOID_RETURN;
   case HA_ERR_WRONG_COMMAND:
     textno=ER_ILLEGAL_HA;
     break;
@@ -7338,7 +7344,8 @@ int handler::ha_write_row(uchar *buf)
   DBUG_ENTER("handler::ha_write_row");
   DBUG_EXECUTE_IF("inject_error_ha_write_row",
                   DBUG_RETURN(HA_ERR_INTERNAL_ERROR); );
-
+  DBUG_EXECUTE_IF("simulate_storage_engine_out_of_memory",
+                  DBUG_RETURN(HA_ERR_SE_OUT_OF_MEMORY); );
   MYSQL_INSERT_ROW_START(table_share->db.str, table_share->table_name.str);
   mark_trx_read_write();
 
