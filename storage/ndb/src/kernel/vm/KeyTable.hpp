@@ -1,5 +1,5 @@
-/* Copyright (c) 2003, 2005, 2006 MySQL AB
-
+/*
+   Copyright (c) 2003, 2013, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -19,6 +19,9 @@
 #define KEY_TABLE_HPP
 
 #include <DLHashTable.hpp>
+
+#define JAM_FILE_ID 221
+
 
 /**
  * KeyTable2 is DLHashTable2 with hardcoded Uint32 key named "key".
@@ -49,5 +52,8 @@ class KeyTable : public KeyTableImpl<ArrayPool<T>, T>
 public:
   KeyTable(ArrayPool<T> & p) : KeyTableImpl<ArrayPool<T>, T>(p) {}
 };
+
+
+#undef JAM_FILE_ID
 
 #endif

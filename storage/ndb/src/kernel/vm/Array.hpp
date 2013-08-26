@@ -1,5 +1,5 @@
-/* Copyright (c) 2003, 2005 MySQL AB
-
+/*
+   Copyright (c) 2003, 2013, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -22,6 +22,9 @@
 
 #include <pc.hpp>
 #include <ErrorReporter.hpp>
+
+#define JAM_FILE_ID 227
+
 
 /**
  * Template class used for implementing an
@@ -162,5 +165,8 @@ Array<T>::getPtr(Uint32 i) const {
   return thePool.getPtr(i + base);
 }
 
+
+
+#undef JAM_FILE_ID
 
 #endif

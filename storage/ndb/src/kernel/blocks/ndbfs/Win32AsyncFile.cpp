@@ -1,5 +1,5 @@
 /* 
-   Copyright (c) 2007, 2010, Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2007, 2013, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -22,6 +22,9 @@
 #include <signaldata/FsRef.hpp>
 #include <signaldata/FsOpenReq.hpp>
 #include <signaldata/FsReadWriteReq.hpp>
+
+#define JAM_FILE_ID 399
+
 
 Win32AsyncFile::Win32AsyncFile(SimulatedBlock& fs) :
   AsyncFile(fs),hFile(INVALID_HANDLE_VALUE)

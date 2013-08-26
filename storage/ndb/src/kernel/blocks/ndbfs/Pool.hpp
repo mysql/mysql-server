@@ -1,5 +1,5 @@
-/* Copyright (c) 2003-2005 MySQL AB
-
+/*
+   Copyright (c) 2003, 2013, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -17,6 +17,9 @@
 
 #ifndef FOR_LIB_POOL_H
 #define FOR_LIB_POOL_H
+
+#define JAM_FILE_ID 398
+
 
  
 //===========================================================================
@@ -259,5 +262,8 @@ template <class T> inline void Pool<T>::put(T* aT)
    theList[theTop]= aT;
    ++theTop;
 }
+
+
+#undef JAM_FILE_ID
 
 #endif

@@ -1,5 +1,5 @@
-/* Copyright (c) 2003-2006 MySQL AB
-
+/*
+   Copyright (c) 2003, 2013, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -19,6 +19,9 @@
 #define TC_CONTINUEB_H
 
 #include "SignalData.hpp"
+
+#define JAM_FILE_ID 16
+
 
 class TcContinueB {
   /**
@@ -49,5 +52,8 @@ private:
     ZSTART_FRAG_SCANS                      = 21
   };
 };
+
+
+#undef JAM_FILE_ID
 
 #endif

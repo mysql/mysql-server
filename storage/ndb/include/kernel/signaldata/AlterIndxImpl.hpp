@@ -1,4 +1,4 @@
-/* Copyright (C) 2007, 2008 MySQL AB
+/* Copyright (c) 2007, 2013, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -17,6 +17,9 @@
 #define ALTER_INDX_IMPL_HPP
 
 #include "SignalData.hpp"
+
+#define JAM_FILE_ID 209
+
 
 struct AlterIndxImplReq {
   enum RequestType {
@@ -68,5 +71,8 @@ struct AlterIndxImplRef {
   Uint32 errorNodeId;
   Uint32 masterNodeId;
 };
+
+
+#undef JAM_FILE_ID
 
 #endif

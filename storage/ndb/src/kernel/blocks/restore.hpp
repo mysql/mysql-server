@@ -1,5 +1,5 @@
-/* Copyright (c) 2003, 2005, 2006 MySQL AB
-
+/*
+   Copyright (c) 2005, 2013, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -26,6 +26,9 @@
 #include <DataBuffer.hpp>
 #include <NodeBitmask.hpp>
 #include <backup/BackupFormat.hpp>
+
+#define JAM_FILE_ID 439
+
 
 class Restore : public SimulatedBlock
 {
@@ -161,5 +164,8 @@ private:
 };
 
 NdbOut& operator << (NdbOut&, const Restore::Column&);
+
+
+#undef JAM_FILE_ID
 
 #endif

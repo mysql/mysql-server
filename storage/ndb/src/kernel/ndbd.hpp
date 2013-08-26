@@ -1,4 +1,4 @@
-/* Copyright (c) 2009, 2010, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2009, 2013, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -15,6 +15,9 @@
 
 #ifndef NDBD_HPP
 #define NDBD_HPP
+
+#define JAM_FILE_ID 218
+
 
 void
 ndbd_run(bool foreground, int report_fd,
@@ -54,5 +57,8 @@ NdbShutdown(int error_code,
 	    NdbRestartType restartType = NRT_Default);
 
 
+
+
+#undef JAM_FILE_ID
 
 #endif

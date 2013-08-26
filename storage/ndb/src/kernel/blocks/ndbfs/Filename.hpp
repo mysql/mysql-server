@@ -1,5 +1,5 @@
-/* Copyright (c) 2003-2005 MySQL AB
-
+/*
+   Copyright (c) 2003, 2013, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -57,6 +57,9 @@
 #include <kernel_types.h>
 #include <SimulatedBlock.hpp>
 
+#define JAM_FILE_ID 392
+
+
 class Filename
 {
 public:
@@ -82,6 +85,9 @@ inline const char* Filename::c_str() const {
 inline const char* Filename::get_base_name() const {
   return m_base_name;
 }
+
+
+#undef JAM_FILE_ID
 
 #endif
 

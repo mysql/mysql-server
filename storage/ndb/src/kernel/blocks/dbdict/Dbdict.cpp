@@ -123,6 +123,9 @@ static const char EVENT_SYSTEM_TABLE_NAME[] = "sys/def/NDB$EVENTS_0";
 #define WORDS2PAGES(x) DIV(x, (ZSIZE_OF_PAGES_IN_WORDS - ZPAGE_HEADER_SIZE))
 #include <ndb_version.h>
 
+#define JAM_FILE_ID 465
+
+
 static
 Uint32
 alter_obj_inc_schema_version(Uint32 old)
