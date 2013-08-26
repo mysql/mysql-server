@@ -1884,7 +1884,7 @@ sp_exist_routines(THD *thd, TABLE_LIST *routines, bool is_proc)
     thd->get_stmt_da()->reset_condition_info(thd);
     if (! sp_object_found)
     {
-      my_error(ER_SP_DOES_NOT_EXIST, MYF(0), "FUNCTION or PROCEDURE",
+      my_error(ER_SP_DOES_NOT_EXIST, MYF(0), is_proc ? "PROCEDURE" : "FUNCTION",
                routine->table_name);
       DBUG_RETURN(TRUE);
     }
