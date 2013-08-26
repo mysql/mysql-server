@@ -2625,7 +2625,7 @@ innobase_init(
         innobase_hton->start_consistent_snapshot=innobase_start_trx_and_assign_read_view;
         innobase_hton->flush_logs=innobase_flush_logs;
         innobase_hton->show_status=innobase_show_status;
-        innobase_hton->flags=HTON_NO_FLAGS;
+        innobase_hton->flags=HTON_EXTENDED_KEYS;
         innobase_hton->release_temporary_latches=innobase_release_temporary_latches;
 	innobase_hton->alter_table_flags = innobase_alter_table_flags;
         innobase_hton->kill_query = innobase_kill_query;

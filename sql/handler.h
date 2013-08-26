@@ -1076,6 +1076,7 @@ inline LEX_STRING *hton_name(const handlerton *hton)
 #define HTON_TEMPORARY_NOT_SUPPORTED (1 << 6) //Having temporary tables not supported
 #define HTON_SUPPORT_LOG_TABLES      (1 << 7) //Engine supports log tables
 #define HTON_NO_PARTITION            (1 << 8) //You can not partition these tables
+#define HTON_EXTENDED_KEYS           (1 << 9) //supports extended keys
 
 class Ha_trx_info;
 
