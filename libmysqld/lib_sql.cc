@@ -821,16 +821,14 @@ int check_embedded_connection(MYSQL *mysql, const char *db)
                  connect_attrs_len + 2);
   if (mysql->options.client_ip)
   {
-    sctx->host= my_strdup(PSI_NOT_INSTRUMENTED,
-                          mysql->options.client_ip, MYF(0));
-    sctx->ip= my_strdup(PSI_NOT_INSTRUMENTED,
-                        sctx->host, MYF(0));
+    sctx->set_host(my_strdup(mysql->options.client_ip, MYF(0)));
+    sctx->set_ip(my_strdup(sctx->get_host()->ptr(), MYF(0)));
   }
   else
-    sctx->host= (char*)my_localhost;
-  sctx->host_or_ip= sctx->host;
+    sctx->set_host((char*)my_localhost);
+  sctx->host_or_ip= sctx->host->ptr();
 
-  if (acl_check_host(sctx->host, sctx->ip))
+  if (acl_check_host(sctx->get_host()->ptr(), sctx->get_ip()->ptr()))
     goto err;
 
   /* construct a COM_CHANGE_USER packet */

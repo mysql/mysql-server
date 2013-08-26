@@ -1359,7 +1359,6 @@ ulong Slave_committed_queue::move_queue_head(DYNAMIC_ARRAY *ws)
     Slave_worker *w_i;
     Slave_job_group *ptr_g, g;
     char grl_name[FN_REFLEN];
-    ulong ind;
 
 #ifndef DBUG_OFF
     if (DBUG_EVALUATE_IF("check_slave_debug_group", 1, 0) &&
@@ -1398,7 +1397,10 @@ ulong Slave_committed_queue::move_queue_head(DYNAMIC_ARRAY *ws)
     /*
       Removes the job from the (G)lobal (A)ssigned (Q)ueue.
     */
-    ind= de_queue((uchar*) &g);
+#ifndef DBUG_OFF
+    ulong ind=
+#endif
+      de_queue((uchar*) &g);
 
     /*
       Stores the memorized name into the result struct. Note that we

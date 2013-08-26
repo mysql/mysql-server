@@ -1993,7 +1993,6 @@ static void print_xml_row(FILE *xml_file, const char *row_name,
                           const char *str_create)
 {
   uint i;
-  my_bool body_found= 0;
   char *create_stmt_ptr= NULL;
   ulong create_stmt_len= 0;
   MYSQL_FIELD *field;
@@ -2011,7 +2010,6 @@ static void print_xml_row(FILE *xml_file, const char *row_name,
       {
         create_stmt_ptr= (*row)[i];
         create_stmt_len= lengths[i];
-        body_found= 1;
       }
       else
       {
@@ -2027,7 +2025,6 @@ static void print_xml_row(FILE *xml_file, const char *row_name,
 
   if (create_stmt_len)
   {
-    DBUG_ASSERT(body_found);
     fputs(">\n", xml_file);
     print_xml_cdata(xml_file, create_stmt_ptr, create_stmt_len);
     fprintf(xml_file, "\t\t</%s>\n", row_name);

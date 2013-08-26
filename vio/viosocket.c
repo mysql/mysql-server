@@ -735,7 +735,9 @@ static my_bool socket_peek_read(Vio *vio, uint *bytes)
 int vio_io_wait(Vio *vio, enum enum_vio_io_event event, int timeout)
 {
   int ret;
+#ifndef DBUG_OFF
   short revents= 0;
+#endif
   struct pollfd pfd;
   my_socket sd= mysql_socket_getfd(vio->mysql_socket);
   MYSQL_SOCKET_WAIT_VARIABLES(locker, state) /* no ';' */
@@ -753,12 +755,16 @@ int vio_io_wait(Vio *vio, enum enum_vio_io_event event, int timeout)
   {
   case VIO_IO_EVENT_READ:
     pfd.events= MY_POLL_SET_IN;
+#ifndef DBUG_OFF
     revents= MY_POLL_SET_IN | MY_POLL_SET_ERR | POLLRDHUP;
+#endif
     break;
   case VIO_IO_EVENT_WRITE:
   case VIO_IO_EVENT_CONNECT:
     pfd.events= MY_POLL_SET_OUT;
+#ifndef DBUG_OFF
     revents= MY_POLL_SET_OUT | MY_POLL_SET_ERR;
+#endif
     break;
   }
 

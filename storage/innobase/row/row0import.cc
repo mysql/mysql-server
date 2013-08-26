@@ -1583,7 +1583,7 @@ IndexPurge::purge_pessimistic_delete() UNIV_NOTHROW
 			dict_table_is_comp(m_index->table)));
 
 	btr_cur_pessimistic_delete(
-		&err, FALSE, btr_pcur_get_btr_cur(&m_pcur), 0, RB_NONE, &m_mtr);
+		&err, FALSE, btr_pcur_get_btr_cur(&m_pcur), 0, false, &m_mtr);
 
 	ut_a(err == DB_SUCCESS);
 

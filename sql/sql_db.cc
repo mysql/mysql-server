@@ -1312,9 +1312,12 @@ static void mysql_change_db_impl(THD *thd,
       we just call THD::reset_db(). Since THD::reset_db() does not releases
       the previous database name, we should do it explicitly.
     */
-    my_free(thd->db);
-
+    mysql_mutex_lock(&thd->LOCK_thd_data);
+    if (thd->db)
+      my_free(thd->db);
+    DEBUG_SYNC(thd, "after_freeing_thd_db");
     thd->reset_db(new_db_name->str, new_db_name->length);
+    mysql_mutex_unlock(&thd->LOCK_thd_data);
   }
 
   /* 2. Update security context. */
