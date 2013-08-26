@@ -966,8 +966,8 @@ bool mysqld_show_create_db(THD *thd, char *dbname,
   if (test_all_bits(sctx->master_access, DB_ACLS))
     db_access=DB_ACLS;
   else
-    db_access= (acl_get(sctx->host, sctx->ip, sctx->priv_user, dbname, 0) |
-		sctx->master_access);
+    db_access= (acl_get(sctx->get_host()->ptr(), sctx->get_ip()->ptr(),
+                        sctx->priv_user, dbname, 0) | sctx->master_access);
   if (!(db_access & DB_ACLS) && check_grant_db(thd,dbname))
   {
     my_error(ER_DBACCESS_DENIED_ERROR, MYF(0),
@@ -2081,8 +2081,8 @@ void mysqld_list_processes(THD *thd,const char *user, bool verbose)
         thd_info->user= thd->strdup(tmp_sctx->user ? tmp_sctx->user :
                                     (tmp->system_thread ?
                                      "system user" : "unauthenticated user"));
-	if (tmp->peer_port && (tmp_sctx->host || tmp_sctx->ip) &&
-            thd->security_ctx->host_or_ip[0])
+	if (tmp->peer_port && (tmp_sctx->get_host()->length() ||
+            tmp_sctx->get_ip()->length()) && thd->security_ctx->host_or_ip[0])
 	{
 	  if ((thd_info->host= (char*) thd->alloc(LIST_PROCESS_HOST_LEN+1)))
 	    my_snprintf((char *) thd_info->host, LIST_PROCESS_HOST_LEN,
@@ -2091,11 +2091,12 @@ void mysqld_list_processes(THD *thd,const char *user, bool verbose)
 	else
 	  thd_info->host= thd->strdup(tmp_sctx->host_or_ip[0] ? 
                                       tmp_sctx->host_or_ip : 
-                                      tmp_sctx->host ? tmp_sctx->host : "");
-        if ((thd_info->db=tmp->db))             // Safe test
-          thd_info->db=thd->strdup(thd_info->db);
+                                      tmp_sctx->get_host()->length() ?
+                                      tmp_sctx->get_host()->ptr() : "");
         thd_info->command=(int) tmp->get_command();
         mysql_mutex_lock(&tmp->LOCK_thd_data);
+        if ((thd_info->db= tmp->db))             // Safe test
+          thd_info->db= thd->strdup(thd_info->db);
         if ((mysys_var= tmp->mysys_var))
           mysql_mutex_lock(&mysys_var->mutex);
         thd_info->proc_info= (char*) (tmp->killed == THD::KILL_CONNECTION? "Killed" : 0);
@@ -2171,7 +2172,7 @@ int fill_schema_processlist(THD* thd, TABLE_LIST* tables, Item* cond)
       THD* tmp= *it;
       Security_context *tmp_sctx= tmp->security_ctx;
       struct st_my_thread_var *mysys_var;
-      const char *val;
+      const char *val, *db;
 
       if ((!tmp->vio_ok() && !tmp->system_thread) ||
           (user && (!tmp_sctx->user || strcmp(tmp_sctx->user, user))))
@@ -2186,8 +2187,8 @@ int fill_schema_processlist(THD* thd, TABLE_LIST* tables, Item* cond)
             (tmp->system_thread ? "system user" : "unauthenticated user");
       table->field[1]->store(val, strlen(val), cs);
       /* HOST */
-      if (tmp->peer_port && (tmp_sctx->host || tmp_sctx->ip) &&
-          thd->security_ctx->host_or_ip[0])
+      if (tmp->peer_port && (tmp_sctx->get_host()->length() ||
+          tmp_sctx->get_ip()->length()) && thd->security_ctx->host_or_ip[0])
       {
         char host[LIST_PROCESS_HOST_LEN + 1];
         my_snprintf(host, LIST_PROCESS_HOST_LEN, "%s:%u",
@@ -2198,13 +2199,13 @@ int fill_schema_processlist(THD* thd, TABLE_LIST* tables, Item* cond)
         table->field[2]->store(tmp_sctx->host_or_ip,
                                strlen(tmp_sctx->host_or_ip), cs);
       /* DB */
-      if (tmp->db)
+      mysql_mutex_lock(&tmp->LOCK_thd_data);
+      if ((db= tmp->db))
       {
-        table->field[3]->store(tmp->db, strlen(tmp->db), cs);
+        table->field[3]->store(db, strlen(db), cs);
         table->field[3]->set_notnull();
       }
 
-      mysql_mutex_lock(&tmp->LOCK_thd_data);
       if ((mysys_var= tmp->mysys_var))
         mysql_mutex_lock(&mysys_var->mutex);
       /* COMMAND */
@@ -4002,7 +4003,8 @@ int get_all_tables(THD *thd, TABLE_LIST *tables, Item *cond)
                        &thd->col_access, NULL, 0, 1) ||
           (!thd->col_access && check_grant_db(thd, db_name->str))) ||
         sctx->master_access & (DB_ACLS | SHOW_DB_ACL) ||
-        acl_get(sctx->host, sctx->ip, sctx->priv_user, db_name->str, 0))
+        acl_get(sctx->get_host()->ptr(), sctx->get_ip()->ptr(),
+                sctx->priv_user, db_name->str, 0))
 #endif
     {
       List<LEX_STRING> table_names;
@@ -4173,7 +4175,8 @@ int fill_schema_schemata(THD *thd, TABLE_LIST *tables, Item *cond)
     }
 #ifndef NO_EMBEDDED_ACCESS_CHECKS
     if (sctx->master_access & (DB_ACLS | SHOW_DB_ACL) ||
-	acl_get(sctx->host, sctx->ip, sctx->priv_user, db_name->str, 0) ||
+	acl_get(sctx->get_host()->ptr(), sctx->get_ip()->ptr(),
+                sctx->priv_user, db_name->str, 0) ||
 	!check_grant_db(thd, db_name->str))
 #endif
     {
@@ -6502,14 +6505,20 @@ int fill_status(THD *thd, TABLE_LIST *tables, Item *cond)
     tmp1= &thd->status_var;
   }
 
-  mysql_mutex_lock(&LOCK_status);
+  /*
+    Avoid recursive acquisition of LOCK_status in cases when WHERE clause
+    represented by "cond" contains subquery on I_S.SESSION/GLOBAL_STATUS.
+  */
+  if (thd->fill_status_recursion_level++ == 0) 
+    mysql_mutex_lock(&LOCK_status);
   if (option_type == OPT_GLOBAL)
     calc_sum_of_all_status(&tmp);
   res= show_status_array(thd, wild,
                          (SHOW_VAR *)all_status_vars.buffer,
                          option_type, tmp1, "", tables->table,
                          upper_case_names, cond);
-  mysql_mutex_unlock(&LOCK_status);
+  if (thd->fill_status_recursion_level-- == 1) 
+    mysql_mutex_unlock(&LOCK_status);
   DBUG_RETURN(res);
 }
 

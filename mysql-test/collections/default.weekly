@@ -11,10 +11,10 @@
 # Repeat daily run
 # big-test option for normal runs 
 # Default suites (in modes binlog format stmt/mixed/row, parts), embedded and ps-protocol
-perl mysql-test-run.pl --force --timer  --big-test --testcase-timeout=90 --debug-server --parallel=auto --experimental=collections/default.experimental --comment=normal-debug-big  --vardir=var-normal-debug-big  --report-features --skip-test-list=collections/disabled-daily.list --mysqld=--innodb_autoextend_increment=64 --unit-tests
+perl mysql-test-run.pl --force --timer  --big-test --testcase-timeout=90 --debug-server --parallel=auto --experimental=collections/default.experimental --comment=normal-debug-big  --vardir=var-normal-debug-big  --report-features --skip-test-list=collections/disabled-weekly.list --mysqld=--innodb_autoextend_increment=64 --unit-tests
 # --debug-server is not used for embedded runs since debug build of embedded server is not available
 perl mysql-test-run.pl --force --timer  --big-test --testcase-timeout=60 --parallel=auto --experimental=collections/default.experimental --comment=embedded-big  --vardir=var-embedded-big  --embedded-server
-perl mysql-test-run.pl --force --timer  --big-test --testcase-timeout=90 --debug-server --parallel=auto --experimental=collections/default.experimental --comment=ps-debug-big  --vardir=var-ps-debug-big  --ps-protocol --skip-test-list=collections/disabled-daily.list
+perl mysql-test-run.pl --force --timer  --big-test --testcase-timeout=90 --debug-server --parallel=auto --experimental=collections/default.experimental --comment=ps-debug-big  --vardir=var-ps-debug-big  --ps-protocol --skip-test-list=collections/disabled-weekly.list
 
 # Run the suites that are not part of the default - funcs_2, stress, jp, nist
 perl mysql-test-run.pl --force --timer  --big-test --testcase-timeout=60 --debug-server --parallel=auto --experimental=collections/default.experimental --comment=funcs2-debug  --vardir=var-funcs2-big  --suite=funcs_2-big
@@ -26,9 +26,9 @@ perl mysql-test-run.pl --force --timer --testcase-timeout=60 --debug-server --pa
 
 # Additional  replication configurations
 perl mysql-test-run.pl --timer --force --big-test --testcase-timeout=60 --parallel=auto --comment=all_binlog_checksum-debug --experimental=collections/default.experimental --mysqld=--binlog-checksum=CRC32 --vardir=var-all_binlog_checksum-debug --suite=main,binlog,innodb,federated,rpl,sys_vars,perfschema --skip-test-list=collections/disabled-weekly.list
-perl mysql-test-run.pl --force --timer --big-test --testcase-timeout=60 --debug-server --parallel=auto --experimental=collections/default.experimental --comment=rpl_crash_safe_relay-debug --vardir=var-rpl_crash_safe_relay-debug --suite=rpl --mysqld=--relay-log-info-repository=TABLE --skip-test-list=collections/disabled-daily.list
-perl mysql-test-run.pl --force --timer --big-test --testcase-timeout=60 --debug-server --parallel=auto --experimental=collections/default.experimental --comment=rpl_crash_safe_master-debug --vardir=var-rpl_crash_safe_master-debug --suite=rpl --mysqld=--master-info-repository=TABLE --skip-test-list=collections/disabled-daily.list
-perl mysql-test-run.pl --force --timer --big-test --testcase-timeout=60 --debug-server --parallel=auto --experimental=collections/default.experimental --comment=rpl_binlog-debug-big --vardir=rpl_binlog-debug-big --suite=rpl --skip-test-list=collections/disabled-daily.list
+perl mysql-test-run.pl --force --timer --big-test --testcase-timeout=60 --debug-server --parallel=auto --experimental=collections/default.experimental --comment=rpl_crash_safe_relay-debug --vardir=var-rpl_crash_safe_relay-debug --suite=rpl --mysqld=--relay-log-info-repository=TABLE --skip-test-list=collections/disabled-weekly.list
+perl mysql-test-run.pl --force --timer --big-test --testcase-timeout=60 --debug-server --parallel=auto --experimental=collections/default.experimental --comment=rpl_crash_safe_master-debug --vardir=var-rpl_crash_safe_master-debug --suite=rpl --mysqld=--master-info-repository=TABLE --skip-test-list=collections/disabled-weekly.list
+perl mysql-test-run.pl --force --timer --big-test --testcase-timeout=60 --debug-server --parallel=auto --experimental=collections/default.experimental --comment=rpl_binlog-debug-big --vardir=rpl_binlog-debug-big --suite=rpl --skip-test-list=collections/disabled-weekly.list
 
 
 #Engine independent tests
@@ -43,19 +43,17 @@ perl mysql-test-run.pl --timer --force --debug-server --parallel=auto --comment=
 perl mysql-test-run.pl --timer --force --debug-server --comment=memcached-debug --vardir=var-debug-memcached --experimental=collections/default.experimental --parallel=1 --retry=0 --suite=memcached  --skip-test-list=collections/disabled-weekly.list
 
 # Non debug runs of default suites in normal modes
-perl mysql-test-run.pl --force --debug-server --timer   --parallel=auto --experimental=collections/default.experimental --comment=normal-non-debug  --vardir=var-normal-non-debug --report-features --skip-test-list=collections/disabled-daily.list
+perl mysql-test-run.pl --force --timer   --parallel=auto --experimental=collections/default.experimental --comment=normal-non-debug  --vardir=var-normal-non-debug --report-features --skip-test-list=collections/disabled-weekly.list
 
 
 
 # Multi-Thread Slave
-perl mysql-test-run.pl --timer --force --big-test --testcase-timeout=60 --debug-server --parallel=auto --comment=MTS-debug-big --vardir=var-MTS-debug-big --suite=rpl  --experimental=collections/default.experimental --skip-test-list=collections/disabled-per-push.list --mysqld=--slave-parallel-workers=4 --mysqld=--slave-transaction-retries=0
+perl mysql-test-run.pl --timer --force --big-test --testcase-timeout=60 --debug-server --parallel=auto --comment=MTS-debug-big --vardir=var-MTS-debug-big --suite=rpl  --experimental=collections/default.experimental --skip-test-list=collections/disabled-weekly.list --mysqld=--slave-parallel-workers=4 --mysqld=--slave-transaction-retries=0
 
-# Run with 4K page size
-perl mysql-test-run.pl --debug-server --timer --force --parallel=auto --comment=n_mix_4k_size --vardir=var-n_mix_4k_size --mysqld=--binlog-format=mixed --experimental=collections/default.experimental --skip-test-list=collections/disabled-per-push.list --mysqld=--innodb-page-size=4k --skip-test=innodb_ignore_builtin
 
-# Run with 8K page size
-perl mysql-test-run.pl --debug-server  --timer --force --parallel=auto --comment=n_mix_8k_size --vardir=var-n_mix_8k_size --mysqld=--binlog-format=mixed --experimental=collections/default.experimental --skip-test-list=collections/disabled-per-push.list --mysqld=--innodb-page-size=8k --skip-test=innodb_ignore_builtin
-
+# Run innodb suite including big-test with innodb-page-size=4k and 8k
+perl mysql-test-run.pl --timer --force --big-test --testcase-timeout=60 --debug-server --parallel=auto --comment=n_mix_4k_size --vardir=var-n_mix --mysqld=--binlog-format=mixed --experimental=collections/default.experimental --skip-test-list=collections/disabled-weekly.list --mysqld=--innodb-page-size=4k --skip-test=innodb_ignore_builtin --suite=innodb
+perl mysql-test-run.pl --timer --force --big-test --testcase-timeout=60 --debug-server --parallel=auto --comment=n_mix_8k_size --vardir=var-n_mix --mysqld=--binlog-format=mixed --experimental=collections/default.experimental --skip-test-list=collections/disabled-weekly.list --mysqld=--innodb-page-size=8k --skip-test=innodb_ignore_builtin --suite=innodb
 
 # Additional run to test rpl HASH_SCAN & INDEX_SCAN
 perl mysql-test-run.pl --force --debug-server --timer --parallel=auto --experimental=collections/default.experimental --comment=binlog_rpl_row_hash_scan --vardir=var-binlog_rpl_row_hash_scan --mysqld=--binlog-format=row --suite=binlog,rpl --mysqld=--slave-rows-search-algorithms=HASH_SCAN,INDEX_SCAN --big-test --testcase-timeout=60

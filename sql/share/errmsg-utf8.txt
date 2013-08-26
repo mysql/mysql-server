@@ -6590,7 +6590,7 @@ ER_CANNOT_LOAD_FROM_TABLE_V2
 
 
 ER_MASTER_DELAY_VALUE_OUT_OF_RANGE
-  eng "The requested value %u for the master delay exceeds the maximum %u"
+  eng "The requested value %s for the master delay exceeds the maximum %u"
 ER_ONLY_FD_AND_RBR_EVENTS_ALLOWED_IN_BINLOG_STATEMENT
   eng "Only Format_description_log_event and row events are allowed in BINLOG statements (but %s was provided)"
 
@@ -7081,6 +7081,9 @@ ER_STOP_SLAVE_SQL_THREAD_TIMEOUT
 
 ER_STOP_SLAVE_IO_THREAD_TIMEOUT
   eng "STOP SLAVE command execution is incomplete: Slave IO thread got the stop signal, thread is busy, IO thread will stop once the current task is complete."
+
+ER_TABLE_CORRUPT
+  eng "Operation cannot be performed. The table '%-.64s.%-.64s' is missing, corrupt or contains bad data."
 
 #
 #  End of 5.6 error messages.

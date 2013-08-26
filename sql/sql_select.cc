@@ -1363,22 +1363,25 @@ bool JOIN::get_best_combination()
     table, and will later be used to track the position of any materialized
     temporary tables. 
   */
+  const bool has_semijoin= !select_lex->sj_nests.is_empty();
   uint outer_target= 0;                   
   uint inner_target= primary_tables + tmp_tables;
   uint sjm_nests= 0;
 
-  for (uint tableno= 0; tableno < primary_tables; )
+  if (has_semijoin)
   {
-    if (sj_is_materialize_strategy(best_positions[tableno].sj_strategy))
+    for (uint tableno= 0; tableno < primary_tables; )
     {
-      sjm_nests++;
-      inner_target-= (best_positions[tableno].n_sj_tables - 1);
-      tableno+= best_positions[tableno].n_sj_tables;
+      if (sj_is_materialize_strategy(best_positions[tableno].sj_strategy))
+      {
+        sjm_nests++;
+        inner_target-= (best_positions[tableno].n_sj_tables - 1);
+        tableno+= best_positions[tableno].n_sj_tables;
+      }
+      else
+        tableno++;
     }
-    else
-      tableno++;
   }
-
   if (!(join_tab= new(thd->mem_root) JOIN_TAB[tables + sjm_nests + tmp_tables]))
     DBUG_RETURN(true);
 
@@ -1386,7 +1389,8 @@ bool JOIN::get_best_combination()
   int remaining_sjm_inner= 0;
   for (uint tableno= 0; tableno < tables; tableno++)
   {
-    if (sj_is_materialize_strategy(best_positions[tableno].sj_strategy))
+    if (has_semijoin &&
+        sj_is_materialize_strategy(best_positions[tableno].sj_strategy))
     {
       DBUG_ASSERT(outer_target < inner_target);
 
@@ -1441,12 +1445,14 @@ bool JOIN::get_best_combination()
   // Set the number of non-materialized tables:
   primary_tables= outer_target;
 
-  set_semijoin_info();
+  if (has_semijoin)
+  {
+    set_semijoin_info();
 
-  // Update equalities and keyuses after having added semi-join materialization
-  if (update_equalities_for_sjm())
-    DBUG_RETURN(true);
-
+    // Update equalities and keyuses after having added SJ materialization
+    if (update_equalities_for_sjm())
+      DBUG_RETURN(true);
+  }
   // sjm is no longer needed, trash it. To reuse it, reset its members!
   List_iterator<TABLE_LIST> sj_list_it(select_lex->sj_nests);
   TABLE_LIST *sj_nest;
@@ -1479,7 +1485,7 @@ bool JOIN::set_access_methods()
 
   full_join= false;
 
-  for (uint tableno= 0; tableno < tables; tableno++)
+  for (uint tableno= const_tables; tableno < tables; tableno++)
   {
     JOIN_TAB *const tab= join_tab + tableno;
 
