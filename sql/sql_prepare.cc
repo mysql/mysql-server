@@ -114,6 +114,8 @@ When one supplies long data for a placeholder:
 #include "lock.h"                               // MYSQL_OPEN_FORCE_SHARED_MDL
 #include "opt_trace.h"                          // Opt_trace_object
 #include "sql_analyse.h"
+#include "sql_rewrite.h"
+#include "transaction.h"                        // trans_rollback_implicit
 
 #include <algorithm>
 using std::max;
@@ -281,6 +283,36 @@ private:
 /******************************************************************************
   Implementation
 ******************************************************************************/
+
+static inline void rewrite_query_if_needed(THD *thd)
+{
+  bool general= (opt_log &&
+                 !(opt_log_raw || thd->slave_thread));
+
+  if ((thd->sp_runtime_ctx == NULL) &&
+      (general || opt_slow_log || opt_bin_log))
+    mysql_rewrite_query(thd);
+}
+
+static inline void log_execute_line(THD *thd)
+{
+  /*
+    Do not print anything if this is an SQL prepared statement and
+    we're inside a stored procedure (also called Dynamic SQL) --
+    sub-statements inside stored procedures are not logged into
+    the general log.
+  */
+  if (thd->sp_runtime_ctx != NULL)
+    return;
+
+  if (thd->rewritten_query.length())
+    logger.general_log_write(thd, COM_STMT_EXECUTE,
+                             thd->rewritten_query.c_ptr_safe(),
+                             thd->rewritten_query.length());
+  else
+    logger.general_log_write(thd, COM_STMT_EXECUTE,
+                             thd->query(), thd->query_length());
+}
 
 
 inline bool is_param_null(const uchar *pos, ulong param_no)
@@ -1508,9 +1540,6 @@ static int mysql_test_select(Prepared_statement *stmt,
     goto error;
   if (!lex->describe && !stmt->is_sql_prepare())
   {
-    /* Make copy of item list, as change_columns may change it */
-    List<Item> fields(lex->select_lex.item_list);
-
     select_result *result= lex->result;
     select_result *analyse_result= NULL;
     if (lex->proc_analyse)
@@ -1527,8 +1556,9 @@ static int mysql_test_select(Prepared_statement *stmt,
       We can use "result" as it should've been prepared in
       unit->prepare call above.
     */
-    bool rc= (send_prep_stmt(stmt, result->field_count(fields)) ||
-              result->send_result_set_metadata(fields, Protocol::SEND_EOF) ||
+    bool rc= (send_prep_stmt(stmt, result->field_count(unit->types)) ||
+              result->send_result_set_metadata(unit->types,
+                                               Protocol::SEND_EOF) ||
               thd->protocol->flush());
     delete analyse_result;
     if (rc)
@@ -3130,13 +3160,18 @@ Execute_sql_statement::execute_server_code(THD *thd)
 
   parent_locker= thd->m_statement_psi;
   thd->m_statement_psi= NULL;
+  /*
+    Rewrite first (if needed); execution might replace passwords
+    with hashes in situ without flagging it, and then we'd make
+    a hash of that hash.
+  */
+  rewrite_query_if_needed(thd);
   error= mysql_execute_command(thd) ;
   thd->m_statement_psi= parent_locker;
 
   /* report error issued during command execution */
-  if (error == 0 && thd->sp_runtime_ctx == NULL)
-    general_log_write(thd, COM_STMT_EXECUTE,
-                      thd->query(), thd->query_length());
+  if (error == 0)
+    log_execute_line(thd);
 
 end:
   lex_end(thd->lex);
@@ -3394,7 +3429,7 @@ bool Prepared_statement::prepare(const char *packet, uint packet_len)
   */
   MDL_savepoint mdl_savepoint= thd->mdl_context.mdl_savepoint();
 
-  /* 
+  /*
    The only case where we should have items in the thd->free_list is
    after stmt->set_params_from_vars(), which may in some cases create
    Item_null objects.
@@ -3417,7 +3452,26 @@ bool Prepared_statement::prepare(const char *packet, uint packet_len)
 
   close_thread_tables(thd);
   thd->mdl_context.rollback_to_savepoint(mdl_savepoint);
+
+  /*
+    Transaction rollback was requested since MDL deadlock was discovered
+    while trying to open tables. Rollback transaction in all storage
+    engines including binary log and release all locks.
+
+    Once dynamic SQL is allowed as substatements the below if-statement
+    has to be adjusted to not do rollback in substatement.
+  */
+  DBUG_ASSERT(! thd->in_sub_stmt);
+  if (thd->transaction_rollback_request)
+  {
+    trans_rollback_implicit(thd);
+    thd->mdl_context.release_transactional_locks();
+  }
+
   lex_end(lex);
+
+  rewrite_query_if_needed(thd);
+
   cleanup_stmt();
   thd->restore_backup_statement(this, &stmt_backup);
   thd->stmt_arena= old_stmt_arena;
@@ -3429,15 +3483,27 @@ bool Prepared_statement::prepare(const char *packet, uint packet_len)
     state= Query_arena::STMT_PREPARED;
     flags&= ~ (uint) IS_IN_USE;
 
-    /* 
-      Log COM_EXECUTE to the general log. Note, that in case of SQL
+    /*
+      Log COM_STMT_PREPARE to the general log. Note, that in case of SQL
       prepared statements this causes two records to be output:
 
       Query       PREPARE stmt from @user_variable
       Prepare     <statement SQL text>
 
-      This is considered user-friendly, since in the
-      second log entry we output the actual statement text.
+      This is considered user-friendly, since in the  second log Entry
+      we output the actual statement text rather than the variable name.
+
+      Rewriting/password obfuscation:
+
+      - If we're preparing from a string literal rather than from a
+        variable, the literal is elided in the "Query" log line, as
+        it may contain a password.  (As we've parsed the PREPARE statement,
+        but not the statement to prepare yet, we don't know at that point.)
+        Eliding the literal is fine, as we'll print it in the next log line
+        ("Prepare"), anyway.
+
+      - Any passwords in the "Prepare" line should be substituted with their
+        hashes, or a notice.
 
       Do not print anything if this is an SQL prepared statement and
       we're inside a stored procedure (also called Dynamic SQL) --
@@ -3445,7 +3511,15 @@ bool Prepared_statement::prepare(const char *packet, uint packet_len)
       the general log.
     */
     if (thd->sp_runtime_ctx == NULL)
-      general_log_write(thd, COM_STMT_PREPARE, query(), query_length());
+    {
+      if (thd->rewritten_query.length())
+        logger.general_log_write(thd, COM_STMT_PREPARE,
+                                 thd->rewritten_query.c_ptr_safe(),
+                                 thd->rewritten_query.length());
+      else
+        logger.general_log_write(thd, COM_STMT_PREPARE,
+                                 query(), query_length());
+    }
   }
   DBUG_RETURN(error);
 }
@@ -3929,6 +4003,13 @@ bool Prepared_statement::execute(String *expanded_query, bool open_cursor)
                              1);
       parent_locker= thd->m_statement_psi;
       thd->m_statement_psi= NULL;
+      /*
+        Rewrite first (if needed); execution might replace passwords
+        with hashes in situ without flagging it, and then we'd make
+        a hash of that hash.
+      */
+      rewrite_query_if_needed(thd);
+
       error= mysql_execute_command(thd);
       thd->m_statement_psi= parent_locker;
       MYSQL_QUERY_EXEC_DONE(error);
@@ -3967,7 +4048,7 @@ bool Prepared_statement::execute(String *expanded_query, bool open_cursor)
   }
 
   /*
-    Log COM_EXECUTE to the general log. Note, that in case of SQL
+    Log COM_STMT_EXECUTE to the general log. Note, that in case of SQL
     prepared statements this causes two records to be output:
 
     Query       EXECUTE <statement name>
@@ -3976,13 +4057,14 @@ bool Prepared_statement::execute(String *expanded_query, bool open_cursor)
     This is considered user-friendly, since in the
     second log entry we output values of parameter markers.
 
-    Do not print anything if this is an SQL prepared statement and
-    we're inside a stored procedure (also called Dynamic SQL) --
-    sub-statements inside stored procedures are not logged into
-    the general log.
+    Rewriting/password obfuscation:
+
+    - Any passwords in the "Execute" line should be substituted with
+      their hashes, or a notice.
+
   */
-  if (error == 0 && thd->sp_runtime_ctx == NULL)
-    general_log_write(thd, COM_STMT_EXECUTE, thd->query(), thd->query_length());
+  if (error == 0)
+    log_execute_line(thd);
 
 error:
   flags&= ~ (uint) IS_IN_USE;

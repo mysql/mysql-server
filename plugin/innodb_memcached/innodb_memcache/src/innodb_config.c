@@ -653,7 +653,7 @@ innodb_config_container(
 		/* User supplied a config option name, find it */
 		tpl = ib_cb_search_tuple_create(crsr);
 
-		err = ib_cb_col_set_value(tpl, 0, name, name_len);
+		err = ib_cb_col_set_value(tpl, 0, name, name_len, true);
 
 		ib_cb_cursor_set_match_mode(crsr, IB_EXACT_MATCH);
 		err = ib_cb_moveto(crsr, tpl, IB_CUR_GE);
@@ -788,6 +788,18 @@ innodb_config_value_col_verify(
 	meta_column_t*	col_verify)	/*!< in: verify structure */
 {
 	ib_err_t	err = DB_NOT_FOUND;
+	char            table_name[MAX_TABLE_NAME_LEN + MAX_DATABASE_NAME_LEN];
+	char*		dbname;
+	char*		tname;
+
+	/* Get table name. */
+	dbname = meta_info->col_info[CONTAINER_DB].col_name;
+	tname = meta_info->col_info[CONTAINER_TABLE].col_name;
+#ifdef __WIN__
+	sprintf(table_name, "%s\%s", dbname, tname);
+#else
+	snprintf(table_name, sizeof(table_name), "%s/%s", dbname, tname);
+#endif
 
 	if (!meta_info->n_extra_col) {
 		meta_column_t*	cinfo = meta_info->col_info;
@@ -798,7 +810,14 @@ innodb_config_value_col_verify(
 			    && col_meta->type != IB_CHAR
 			    && col_meta->type != IB_BLOB
 			    && col_meta->type != IB_CHAR_ANYCHARSET
-			    && col_meta->type != IB_VARCHAR_ANYCHARSET) {
+			    && col_meta->type != IB_VARCHAR_ANYCHARSET
+			    && col_meta->type != IB_INT) {
+				fprintf(stderr,
+					" InnoDB_Memcached: the value"
+					" column %s in table %s"
+					" should be INTEGER, CHAR or"
+					" VARCHAR.\n",
+					name, table_name);
 				err = DB_DATA_MISMATCH;
 			}
 
@@ -810,12 +829,21 @@ innodb_config_value_col_verify(
 		int	i;
 
 		for (i = 0; i < meta_info->n_extra_col; i++) {
-			if (strcmp(name, meta_info->extra_col_info[i].col_name) == 0) {
+			if (strcmp(name,
+				   meta_info->extra_col_info[i].col_name) == 0)
+			{
 				if (col_meta->type != IB_VARCHAR
 				    && col_meta->type != IB_CHAR
 				    && col_meta->type != IB_BLOB
 				    && col_meta->type != IB_CHAR_ANYCHARSET
-				    && col_meta->type != IB_VARCHAR_ANYCHARSET) {
+				    && col_meta->type != IB_VARCHAR_ANYCHARSET
+				    && col_meta->type != IB_INT) {
+					fprintf(stderr,
+						" InnoDB_Memcached: the value"
+						" column %s in table %s"
+						" should be INTEGER, CHAR or"
+						" VARCHAR.\n",
+						name, table_name);
 					err = DB_DATA_MISMATCH;
 					break;
 				}
@@ -868,6 +896,9 @@ innodb_verify_low(
 	char*		name;
 	meta_column_t*	cinfo = info->col_info;
 	meta_column_t*	col_verify = NULL;
+	char            table_name[MAX_TABLE_NAME_LEN + MAX_DATABASE_NAME_LEN];
+	char*		dbname;
+	char*		tname;
 
 	tpl = innodb_cb_read_tuple_create(crsr);
 
@@ -882,6 +913,15 @@ innodb_verify_low(
 			col_verify[i].field_id = -1;
 		}
 	}
+
+	/* Get table name. */
+	dbname = info->col_info[CONTAINER_DB].col_name;
+	tname = info->col_info[CONTAINER_TABLE].col_name;
+#ifdef __WIN__
+	sprintf(table_name, "%s\%s", dbname, tname);
+#else
+	snprintf(table_name, sizeof(table_name), "%s/%s", dbname, tname);
+#endif
 
 	n_cols = innodb_cb_tuple_get_n_cols(tpl);
 
@@ -908,7 +948,13 @@ innodb_verify_low(
 			if (col_meta.type != IB_VARCHAR
 			    && col_meta.type != IB_CHAR
 			    && col_meta.type != IB_VARCHAR_ANYCHARSET
-			    && col_meta.type != IB_CHAR_ANYCHARSET) {
+			    && col_meta.type != IB_CHAR_ANYCHARSET
+			    && col_meta.type != IB_INT) {
+				fprintf(stderr,
+					" InnoDB_Memcached: the key"
+					" column %s in table %s should"
+					" be INTEGER, CHAR or VARCHAR.\n",
+					name, table_name);
 				err = DB_DATA_MISMATCH;
 				goto func_exit;
 			}
@@ -918,6 +964,10 @@ innodb_verify_low(
 		} else if (strcmp(name, cinfo[CONTAINER_FLAG].col_name) == 0) {
 			/* Flag column must be integer type */
 			if (col_meta.type != IB_INT) {
+				fprintf(stderr, " InnoDB_Memcached: the flag"
+						" column %s in table %s should"
+						" be INTEGER.\n",
+					name, table_name);
 				err = DB_DATA_MISMATCH;
 				goto func_exit;
 			}
@@ -928,6 +978,10 @@ innodb_verify_low(
 		} else if (strcmp(name, cinfo[CONTAINER_CAS].col_name) == 0) {
 			/* CAS column must be integer type */
 			if (col_meta.type != IB_INT) {
+				fprintf(stderr, " InnoDB_Memcached: the cas"
+						" column %s in table %s should"
+						" be INTEGER.\n",
+					name, table_name);
 				err = DB_DATA_MISMATCH;
 				goto func_exit;
 			}
@@ -938,6 +992,10 @@ innodb_verify_low(
 		} else if (strcmp(name, cinfo[CONTAINER_EXP].col_name) == 0) {
 			/* EXP column must be integer type */
 			if (col_meta.type != IB_INT) {
+				fprintf(stderr, " InnoDB_Memcached: the expire"
+						" column %s in table %s should"
+						" be INTEGER.\n",
+					name, table_name);
 				err = DB_DATA_MISMATCH;
 				goto func_exit;
 			}

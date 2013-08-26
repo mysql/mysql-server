@@ -1250,7 +1250,7 @@ INSERT INTO articles (title,body) VALUES
         ('( that''s me )','When configured properly, MySQL ...');
 
 SELECT * FROM articles WHERE MATCH (title,body)
-        AGAINST ('( that''s* )' IN BOOLEAN MODE);
+        AGAINST ('( yours''s* )' IN BOOLEAN MODE);
 
 SELECT * FROM articles WHERE MATCH (title,body)
 	AGAINST ('s*' IN BOOLEAN MODE);

@@ -64,8 +64,9 @@ let $wait_timeout= 90;
 let $wait_condition= SELECT @@global.max_connections = @start_max_connections;
 --source include/wait_condition_sp.inc
 # check that the action in init_slave does not happen immediately
-SELECT @@global.max_connections= @start_max_connections;
---echo Expect 1
+--let $assert_text= @@global.max_connections = @start_max_connections
+--let $assert_cond= @@global.max_connections = @start_max_connections
+--source include/assert.inc
 #
 # reset of the server
 STOP SLAVE;
@@ -80,8 +81,9 @@ let $wait_timeout= 90;
 let $wait_condition= SELECT @@global.max_connections = @start_max_connections + 1;
 --source include/wait_condition_sp.inc
 # check that the action in init_slave was executed and had the intended effect
-SELECT @@global.max_connections = @start_max_connections + 1;
---echo Expect 1
+--let $assert_text= @@global.max_connections = @start_max_connections + 1
+--let $assert_cond= @@global.max_connections = @start_max_connections + 1
+--source include/assert.inc
 #
 # Setting a variable(which is local to a session) and must not be visible
 SET @@global.init_slave = "SET @a=5";

@@ -362,12 +362,19 @@ void get_digest_text(char* digest_text, PSI_digest_storage* digest_storage)
   DBUG_ASSERT(digest_storage != NULL);
   bool truncated= false;
   int byte_count= digest_storage->m_byte_count;
+  char *digest_output= digest_text;
   int bytes_needed= 0;
   uint tok= 0;
   int current_byte= 0;
   lex_token_string *tok_data;
   /* -4 is to make sure extra space for '...' and a '\0' at the end. */
   int bytes_available= COL_DIGEST_TEXT_SIZE - 4;
+
+  if (byte_count <= 0 || byte_count > PSI_MAX_DIGEST_STORAGE_SIZE)
+  {
+    *digest_text= '\0';
+    return;
+  }
 
   /* Convert text to utf8 */
   const CHARSET_INFO *from_cs= get_charset(digest_storage->m_charset_number, MYF(0));
@@ -400,6 +407,13 @@ void get_digest_text(char* digest_text, PSI_digest_storage* digest_storage)
          !truncated)
   {
     current_byte= read_token(digest_storage, current_byte, &tok);
+
+    if (tok <= 0 || tok >= array_elements(lex_token_array))
+    {
+      *digest_text='\0';
+      return;
+    }
+
     tok_data= &lex_token_array[tok];
 
     switch (tok)
@@ -444,15 +458,15 @@ void get_digest_text(char* digest_text, PSI_digest_storage* digest_storage)
         if (bytes_needed <= bytes_available)
         {
           if (tok == IDENT_QUOTED)
-            *digest_text++= '`';
+            *digest_output++= '`';
           if (id_length > 0)
           {
-            memcpy(digest_text, id_string, id_length);
-            digest_text+= id_length;
+            memcpy(digest_output, id_string, id_length);
+            digest_output+= id_length;
           }
           if (tok == IDENT_QUOTED)
-            *digest_text++= '`';
-          *digest_text++= ' ';
+            *digest_output++= '`';
+          *digest_output++= ' ';
           bytes_available-= bytes_needed;
         }
         else
@@ -473,9 +487,9 @@ void get_digest_text(char* digest_text, PSI_digest_storage* digest_storage)
 
       if (bytes_needed <= bytes_available)
       {
-        strncpy(digest_text, tok_data->m_token_string, tok_length);
-        digest_text+= tok_length;
-        *digest_text++= ' ';
+        strncpy(digest_output, tok_data->m_token_string, tok_length);
+        digest_output+= tok_length;
+        *digest_output++= ' ';
         bytes_available-= bytes_needed;
       }
       else
@@ -489,11 +503,11 @@ void get_digest_text(char* digest_text, PSI_digest_storage* digest_storage)
   /* Truncate digest text in case of long queries. */
   if (digest_storage->m_full || truncated)
   {
-    strcpy(digest_text, "...");
-    digest_text+= 3;
+    strcpy(digest_output, "...");
+    digest_output+= 3;
   }
 
-  *digest_text= '\0';
+  *digest_output= '\0';
 }
 
 static inline uint peek_token(const PSI_digest_storage *digest, int index)

@@ -414,12 +414,19 @@ TABLE *open_proc_table_for_read(THD *thd, Open_tables_backup *backup)
 
   if (open_system_tables_for_read(thd, &table, backup))
     DBUG_RETURN(NULL);
+   
+  if (!table.table->key_info)
+  {
+    my_error(ER_TABLE_CORRUPT, MYF(0), table.table->s->db.str,
+             table.table->s->table_name.str);
+    goto err;
+  }
 
   if (!proc_table_intact.check(table.table, &proc_table_def))
     DBUG_RETURN(table.table);
 
+err:
   close_system_tables(thd, backup);
-
   DBUG_RETURN(NULL);
 }
 

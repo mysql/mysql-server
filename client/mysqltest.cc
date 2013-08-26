@@ -1583,6 +1583,7 @@ int cat_file(DYNAMIC_STRING* ds, const char* filename)
       else
         p++;
     }
+
     /* Output any chars that migh be left */
     dynstr_append_mem(ds, start, p-start);
   }

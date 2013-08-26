@@ -831,6 +831,22 @@ bool st_select_lex_unit::cleanup()
   for (SELECT_LEX *sl= first_select(); sl; sl= sl->next_select())
     error|= sl->cleanup();
 
+  cleanup_level();
+
+  DBUG_RETURN(error);
+}
+
+
+/**
+  Cleanup only this select_lex_unit after preparation or one round of
+  execution.
+
+  @return false if previous execution was successful, and true otherwise
+*/
+bool st_select_lex_unit::cleanup_level()
+{
+  bool error= false;
+
   if (fake_select_lex)
   {
     error|= fake_select_lex->cleanup();
@@ -865,7 +881,7 @@ bool st_select_lex_unit::cleanup()
 
   explain_marker= CTX_NONE;
 
-  DBUG_RETURN(error);
+  return error;
 }
 
 
@@ -985,6 +1001,27 @@ bool st_select_lex::cleanup()
   bool error= FALSE;
   DBUG_ENTER("st_select_lex::cleanup()");
 
+  error= cleanup_level();
+  for (SELECT_LEX_UNIT *lex_unit= first_inner_unit(); lex_unit;
+       lex_unit= lex_unit->next_unit())
+  {
+    error|= lex_unit->cleanup();
+  }
+
+  DBUG_RETURN(error);
+}
+
+
+/**
+  Cleanup only this select_lex after preparation or one round of
+  execution.
+
+  @return false if previous execution was successful, and true otherwise
+*/
+bool st_select_lex::cleanup_level()
+{
+  bool error= FALSE;
+
   if (join)
   {
     DBUG_ASSERT((st_select_lex*)join->select_lex == this);
@@ -992,15 +1029,12 @@ bool st_select_lex::cleanup()
     delete join;
     join= 0;
   }
-  for (SELECT_LEX_UNIT *lex_unit= first_inner_unit(); lex_unit ;
-       lex_unit= lex_unit->next_unit())
-  {
-    error|= lex_unit->cleanup();
-  }
+
   cur_pos_in_all_fields= ALL_FIELDS_UNDEF_POS;
   non_agg_fields.empty();
   inner_refs_list.empty();
-  DBUG_RETURN(error);
+
+  return error;
 }
 
 

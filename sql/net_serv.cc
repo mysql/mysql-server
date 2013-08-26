@@ -1,4 +1,4 @@
-/* Copyright (c) 2000, 2011, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2000, 2013, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -190,14 +190,23 @@ my_bool net_realloc(NET *net, size_t length)
   @param check_buffer  Whether to check the socket buffer.
 */
 
-void net_clear(NET *net,
-               my_bool check_buffer __attribute__((unused)))
+void net_clear(NET *net, my_bool check_buffer)
 {
   DBUG_ENTER("net_clear");
 
 #if !defined(EMBEDDED_LIBRARY)
   /* Ensure the socket buffer is empty, except for an EOF (at least 1). */
   DBUG_ASSERT(!check_buffer || (vio_pending(net->vio) <= 1));
+
+  /*
+    Check if peer is still connected (EOF hasn't been reached). If not,
+    set the error flag so that the connection might be re-established
+    before attempting to send a command to the server (which can succeed
+    even if the connection was closed by the peer).
+  */
+
+  if (check_buffer && !vio_is_connected(net->vio))
+    net->error= 2;
 #endif
 
   /* Ready for new command */

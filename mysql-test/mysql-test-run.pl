@@ -2225,7 +2225,7 @@ sub read_plugin_defs($)
     mtr_error("Lines in $defs_file must have 3 or 4 items") unless $plug_var;
 
     # If running debug server, plugins will be in 'debug' subdirectory
-    $plug_file= "debug/$plug_file" if $running_debug;
+    $plug_file= "debug/$plug_file" if $running_debug && !$source_dist;
 
     my ($plugin)= find_plugin($plug_file, $plug_loc);
 
