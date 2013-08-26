@@ -82,6 +82,9 @@
 #include <signaldata/DihRestart.hpp>
 
 #include <EventLogger.hpp>
+
+#define JAM_FILE_ID 354
+
 extern EventLogger * g_eventLogger;
 
 #define SYSFILE ((Sysfile *)&sysfileData[0])

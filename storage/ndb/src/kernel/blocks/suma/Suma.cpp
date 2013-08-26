@@ -64,7 +64,11 @@
 #include <signaldata/DbinfoScan.hpp>
 #include <signaldata/TransIdAI.hpp>
 
+#include <ndb_version.h>
 #include <EventLogger.hpp>
+
+#define JAM_FILE_ID 467
+
 extern EventLogger * g_eventLogger;
 
 //#define HANDOVER_DEBUG
@@ -364,8 +368,6 @@ Suma::execSTTOR(Signal* signal) {
   
   DBUG_VOID_RETURN;
 }
-
-#include <ndb_version.h>
 
 void
 Suma::send_dict_lock_req(Signal* signal, Uint32 state)

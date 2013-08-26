@@ -1,5 +1,5 @@
-/* Copyright (c) 2003, 2005 MySQL AB
-
+/*
+   Copyright (c) 2003, 2013, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -25,6 +25,9 @@
 #include <signaldata/CmvmiCfgConf.hpp>
 #include <signaldata/SetLogLevelOrd.hpp>
 #include <NodeInfo.hpp>
+
+#define JAM_FILE_ID 284
+
 
 // MaxNumber of sizealteration records in each block
 // MaxNumber of blocks with sizealteration, (size of array)
@@ -101,6 +104,9 @@ private:
   void calcSizeAlteration();
 
 };
+
+
+#undef JAM_FILE_ID
 
 #endif // ClusterConfiguration_H
 

@@ -1,5 +1,5 @@
-/* Copyright (c) 2003, 2005 MySQL AB
-
+/*
+   Copyright (c) 2003, 2013, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -19,6 +19,9 @@
 #define OPENFILES_H
 
 #include <Vector.hpp>
+
+#define JAM_FILE_ID 386
+
 
 class OpenFiles
 {
@@ -117,5 +120,8 @@ inline AsyncFile* OpenFiles::getFile(unsigned i){
 inline unsigned OpenFiles::size(){
   return m_files.size(); 
 }
+
+
+#undef JAM_FILE_ID
 
 #endif

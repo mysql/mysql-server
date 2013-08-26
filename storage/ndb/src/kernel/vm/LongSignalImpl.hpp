@@ -1,4 +1,4 @@
-/* Copyright (c) 2008, 2011, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2008, 2013, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -36,6 +36,9 @@ f_section_lock =
 #define SPC_CACHE_ARG
 #endif
 
+
+#define JAM_FILE_ID 228
+
 /* Calculate number of segments to release based on section size
  * Always release one segment, even if size is zero
  */
@@ -52,5 +55,8 @@ bool writeToSection(Uint32 firstSegmentIVal, Uint32 offset, const Uint32* src, U
 
 void release(SPC_ARG SegmentedSectionPtr & ptr);
 void releaseSection(SPC_ARG Uint32 firstSegmentIVal);
+
+
+#undef JAM_FILE_ID
 
 #endif

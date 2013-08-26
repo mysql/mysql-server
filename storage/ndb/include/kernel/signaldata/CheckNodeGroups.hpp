@@ -1,5 +1,5 @@
-/* Copyright (c) 2003-2005 MySQL AB
-
+/*
+   Copyright (c) 2003, 2013, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -22,6 +22,9 @@
 #include <NodeBitmask.hpp>
 #include "SignalData.hpp"
 #include "SignalDataPrint.hpp"
+
+#define JAM_FILE_ID 190
+
 
 /**
  * Ask DIH to check if a node set can survive i.e. if it
@@ -64,5 +67,8 @@ public:
 
   STATIC_CONST( SignalLength = 4 + NdbNodeBitmask::Size );
 };
+
+
+#undef JAM_FILE_ID
 
 #endif

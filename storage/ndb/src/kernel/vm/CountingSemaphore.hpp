@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2012 Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2012, 2013, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -17,6 +17,9 @@
 
 #ifndef COUNTING_SEMAPHORE_HPP
 #define COUNTING_SEMAPHORE_HPP
+
+#define JAM_FILE_ID 245
+
 
 /**
   * CountingSemaphore
@@ -157,5 +160,8 @@
    /* totalResources - the maximum resources in use at one time */
    Uint32 totalResources;
  }; /* CountingSemaphore */
+
+
+#undef JAM_FILE_ID
 
 #endif

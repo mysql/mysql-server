@@ -1,5 +1,5 @@
-/* Copyright (c) 2003, 2005 MySQL AB
-
+/*
+   Copyright (c) 2003, 2013, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -21,6 +21,9 @@
 #include "ArrayPool.hpp"
 #include "SimulatedBlock.hpp"
 
+#define JAM_FILE_ID 302
+
+
 template <class Block,
 	  class T, 
 	  void (Block::* Function)(Signal*, Ptr<T>)>
@@ -32,5 +35,8 @@ public:
   void add(Ptr<T>, void (Block::* Callback)(Signal*, Ptr<T>)) {}
   void complete(Ptr<T>) {}
 };
+
+
+#undef JAM_FILE_ID
 
 #endif

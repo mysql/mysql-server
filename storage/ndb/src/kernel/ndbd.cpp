@@ -1,4 +1,4 @@
-/* Copyright (c) 2009, 2010, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2009, 2013, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -39,6 +39,9 @@
 #endif
 
 #include <EventLogger.hpp>
+
+#define JAM_FILE_ID 484
+
 extern EventLogger * g_eventLogger;
 
 static void

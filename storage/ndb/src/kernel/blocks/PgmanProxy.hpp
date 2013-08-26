@@ -1,4 +1,4 @@
-/* Copyright (c) 2008, 2010, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2008, 2013, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -20,6 +20,9 @@
 #include <signaldata/LCP.hpp>
 #include <signaldata/ReleasePages.hpp>
 #include "pgman.hpp"
+
+#define JAM_FILE_ID 434
+
 
 class PgmanProxy : public LocalProxy {
 public:
@@ -113,5 +116,8 @@ protected:
   void send_data_file_ord(Signal*, Uint32 i, Uint32 ret,
                           Uint32 cmd, Uint32 file_no = RNIL, Uint32 fd = RNIL);
 };
+
+
+#undef JAM_FILE_ID
 
 #endif

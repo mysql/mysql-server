@@ -97,6 +97,10 @@
 
 #include <ndb_limits.h>
 #include <Pool.hpp>
+#include "ArrayPool.hpp"
+
+#define JAM_FILE_ID 298
+
 
 template<class FirstLink, class LastLink, class Count> class ListHeadPOD
 : public FirstLink, public LastLink, public Count
@@ -293,8 +297,6 @@ protected:
 };
 
 /* Specialisations */
-
-#include "ArrayPool.hpp"
 
 #define INTRUSIVE_LIST_COMPAT(prefix, links) \
 template <typename P, typename T, typename U = T, typename LM = Default##links##LinkMethods<T, U> > \
@@ -664,5 +666,8 @@ inline void IntrusiveList<T, Pool, THead, LM>::release(Uint32 i)
   remove(p);
   getPool().release(p);
 }
+
+
+#undef JAM_FILE_ID
 
 #endif

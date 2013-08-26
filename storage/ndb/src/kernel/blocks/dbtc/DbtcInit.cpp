@@ -1,5 +1,5 @@
-/* Copyright (c) 2003-2007 MySQL AB
-
+/*
+   Copyright (c) 2003, 2013, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -21,6 +21,9 @@
 #include <ndb_limits.h>
 #include <Properties.hpp>
 #include <Configuration.hpp>
+
+#define JAM_FILE_ID 349
+
 
 #define DEBUG(x) { ndbout << "TC::" << x << endl; }
 

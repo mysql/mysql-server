@@ -1,5 +1,5 @@
-/* Copyright (c) 2003-2005 MySQL AB
-
+/*
+   Copyright (c) 2003, 2013, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -17,6 +17,9 @@
 
 #ifndef ATTRIBUTE_DESCRIPTOR_HPP
 #define ATTRIBUTE_DESCRIPTOR_HPP
+
+#define JAM_FILE_ID 5
+
 
 class AttributeDescriptor {
   friend class Dbdict;
@@ -248,5 +251,8 @@ AttributeDescriptor::getDiskBased(const Uint32 & desc)
 
 class NdbOut&
 operator<<(class NdbOut&, const AttributeDescriptor&);
+
+
+#undef JAM_FILE_ID
 
 #endif

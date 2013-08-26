@@ -1,5 +1,5 @@
-/* Copyright (c) 2003, 2005 MySQL AB
-
+/*
+   Copyright (c) 2003, 2013, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -19,6 +19,9 @@
 #define SIGNAL_DROPPED_HPP
 
 #include "SignalData.hpp"
+
+#define JAM_FILE_ID 42
+
 
 struct SignalDroppedRep
 {
@@ -42,5 +45,8 @@ struct SignalDroppedRep
   Uint32 originalSectionCount;
   Uint32 originalData[1];
 };
+
+
+#undef JAM_FILE_ID
 
 #endif
