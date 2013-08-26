@@ -370,7 +370,11 @@ bool trans_rollback_implicit(THD *thd)
     ~(SERVER_STATUS_IN_TRANS | SERVER_STATUS_IN_TRANS_READONLY);
   DBUG_PRINT("info", ("clearing SERVER_STATUS_IN_TRANS"));
   res= ha_rollback_trans(thd, true);
-  thd->variables.option_bits&= ~OPTION_BEGIN;
+  /*
+    We don't reset OPTION_BEGIN flag below to simulate implicit start
+    of new transacton in @@autocommit=1 mode. This is necessary to
+    preserve backward compatibility.
+  */
   thd->transaction.all.reset_unsafe_rollback_flags();
 
   /* Rollback should clear transaction_rollback_request flag. */
