@@ -1035,18 +1035,20 @@ void make_sortkey(Sort_param *param, uchar *to, uchar *ref_pos)
         if (sort_field->need_strxnfrm)
         {
           char *from=(char*) res->ptr();
-          uint tmp_length;
           if ((uchar*) from == to)
           {
             set_if_smaller(length,sort_field->length);
             memcpy(param->tmp_buffer,from,length);
             from=param->tmp_buffer;
           }
-          tmp_length= cs->coll->strnxfrm(cs, to, sort_field->length,
-                                         item->max_char_length(),
-                                         (uchar*) from, length,
-                                         MY_STRXFRM_PAD_WITH_SPACE |
-                                         MY_STRXFRM_PAD_TO_MAXLEN);
+#ifndef DBUG_OFF
+          uint tmp_length=
+#endif
+            cs->coll->strnxfrm(cs, to, sort_field->length,
+                               item->max_char_length(),
+                               (uchar*) from, length,
+                               MY_STRXFRM_PAD_WITH_SPACE |
+                               MY_STRXFRM_PAD_TO_MAXLEN);
           DBUG_ASSERT(tmp_length == sort_field->length);
         }
         else

@@ -1552,10 +1552,15 @@ int ha_rollback_low(THD *thd, bool all)
     trans->ha_list= 0;
     trans->no_2pc=0;
     trans->rw_ha_count= 0;
-    if (all && thd->transaction_rollback_request &&
-        thd->transaction.xid_state.xa_state != XA_NOTR)
-      thd->transaction.xid_state.rm_error= thd->get_stmt_da()->mysql_errno();
   }
+
+  /*
+    Thanks to possibility of MDL deadlock rollback request can come even if
+    transaction hasn't been started in any transactional storage engine.
+  */
+  if (all && thd->transaction_rollback_request &&
+      thd->transaction.xid_state.xa_state != XA_NOTR)
+    thd->transaction.xid_state.rm_error= thd->get_stmt_da()->mysql_errno();
 
   (void) RUN_HOOK(transaction, after_rollback, (thd, all));
   return error;
@@ -6341,14 +6346,16 @@ end:
 */
 ha_rows DsMrr_impl::dsmrr_info(uint keyno, uint n_ranges, uint rows,
                                uint *bufsz, uint *flags, Cost_estimate *cost)
-{  
-  ha_rows res;
+{
   uint def_flags= *flags;
   uint def_bufsz= *bufsz;
 
   /* Get cost/flags/mem_usage of default MRR implementation */
-  res= h->handler::multi_range_read_info(keyno, n_ranges, rows, &def_bufsz,
-                                         &def_flags, cost);
+#ifndef DBUG_OFF
+  ha_rows res=
+#endif
+    h->handler::multi_range_read_info(keyno, n_ranges, rows, &def_bufsz,
+                                      &def_flags, cost);
   DBUG_ASSERT(!res);
 
   if ((*flags & HA_MRR_USE_DEFAULT_IMPL) || 

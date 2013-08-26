@@ -818,11 +818,13 @@ bool sp_head::execute(THD *thd, bool merge_da_on_success)
   thd->stmt_arena= old_arena;
   state= STMT_EXECUTED;
 
-  if (err_status)
+  if (err_status && thd->is_error())
   {
     /*
       If the SP ended with an exception, transfer the exception condition
       information to the Diagnostics Area of the caller.
+      Note that no error might be set yet in the case of kill.
+      It will be set later by mysql_execute_command() / execute_trigger().
     */
     caller_da->set_error_status(thd->get_stmt_da()->mysql_errno(),
                                 thd->get_stmt_da()->message_text(),
@@ -1418,10 +1420,18 @@ bool sp_head::execute_procedure(THD *thd, List<Item> *args)
     close_thread_tables(thd);
     thd_proc_info(thd, 0);
 
-    if (! thd->in_sub_stmt && ! thd->in_multi_stmt_transaction_mode())
-      thd->mdl_context.release_transactional_locks();
-    else if (! thd->in_sub_stmt)
-      thd->mdl_context.release_statement_locks();
+    if (! thd->in_sub_stmt)
+    {
+      if (thd->transaction_rollback_request)
+      {
+        trans_rollback_implicit(thd);
+        thd->mdl_context.release_transactional_locks();
+      }
+      else if (! thd->in_multi_stmt_transaction_mode())
+        thd->mdl_context.release_transactional_locks();
+      else
+        thd->mdl_context.release_statement_locks();
+    }
 
     thd->rollback_item_tree_changes();
 

@@ -1184,6 +1184,8 @@ static void close_connections(void)
   /* Kill blocked pthreads */
   Per_thread_connection_handler::kill_blocked_pthreads();
 
+  uint dump_thread_count= 0;
+  uint dump_thread_kill_retries= 8;
   /* kill connection thread */
 #if !defined(_WIN32)
   DBUG_PRINT("quit", ("waiting for select thread: 0x%lx",
@@ -1258,8 +1260,19 @@ static void close_connections(void)
     /* We skip slave threads & scheduler on this first loop through. */
     if (tmp->slave_thread)
       continue;
+    if (tmp->get_command() == COM_BINLOG_DUMP ||
+        tmp->get_command() == COM_BINLOG_DUMP_GTID)
+    {
+      ++dump_thread_count;
+      continue;
+    }
 
     tmp->killed= THD::KILL_CONNECTION;
+    DBUG_EXECUTE_IF("Check_dump_thread_is_alive",
+                    {
+                      DBUG_ASSERT(tmp->get_command() != COM_BINLOG_DUMP &&
+                                  tmp->get_command() != COM_BINLOG_DUMP_GTID);
+                    };);
     MYSQL_CALLBACK(Connection_handler_manager::callback,
                    post_kill_notification, (tmp));
     mysql_mutex_lock(&tmp->LOCK_thd_data);
@@ -1282,6 +1295,47 @@ static void close_connections(void)
   sql_print_information("Shutting down slave threads");
   end_slave();
 
+  if (dump_thread_count)
+  {
+    /*
+      Replication dump thread should be terminated after the clients are
+      terminated. Wait for few more seconds for other sessions to end.
+     */
+    while (get_thread_count() > dump_thread_count && dump_thread_kill_retries)
+    {
+      sleep(1);
+      dump_thread_kill_retries--;
+    }
+    mysql_mutex_lock(&LOCK_thread_count);
+    for (it= global_thread_list->begin(); it != global_thread_list->end(); ++it)
+    {
+      THD *tmp= *it;
+      DBUG_PRINT("quit",("Informing dump thread %ld that it's time to die",
+                         tmp->thread_id));
+      if (tmp->get_command() == COM_BINLOG_DUMP ||
+          tmp->get_command() == COM_BINLOG_DUMP_GTID)
+      {
+        tmp->killed= THD::KILL_CONNECTION;
+        MYSQL_CALLBACK(Connection_handler_manager::callback,
+                       post_kill_notification, (tmp));
+        mysql_mutex_lock(&tmp->LOCK_thd_data);
+        if (tmp->mysys_var)
+        {
+          tmp->mysys_var->abort= 1;
+          mysql_mutex_lock(&tmp->mysys_var->mutex);
+          if (tmp->mysys_var->current_cond)
+          {
+            mysql_mutex_lock(tmp->mysys_var->current_mutex);
+            mysql_cond_broadcast(tmp->mysys_var->current_cond);
+            mysql_mutex_unlock(tmp->mysys_var->current_mutex);
+          }
+          mysql_mutex_unlock(&tmp->mysys_var->mutex);
+        }
+        mysql_mutex_unlock(&tmp->LOCK_thd_data);
+      }
+    }
+    mysql_mutex_unlock(&LOCK_thread_count);
+  }
   if (get_thread_count() > 0)
     sleep(2);         // Give threads time to die
 

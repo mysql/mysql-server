@@ -1008,7 +1008,6 @@ terminate_slave_thread(THD *thd,
                        volatile uint *slave_running,
                        bool need_lock_term)
 {
-  int error;
   DBUG_ENTER("terminate_slave_thread");
   if (need_lock_term)
   {
@@ -1063,7 +1062,10 @@ terminate_slave_thread(THD *thd,
     */
     struct timespec abstime;
     set_timespec(abstime,2);
-    error= mysql_cond_timedwait(term_cond, term_lock, &abstime);
+#ifndef DBUG_OFF
+    int error=
+#endif
+      mysql_cond_timedwait(term_cond, term_lock, &abstime);
     if (stop_wait_timeout >= 2)
       stop_wait_timeout= stop_wait_timeout - 2;
     else if (*slave_running)
@@ -3784,6 +3786,22 @@ static int exec_relay_log_event(THD* thd, Relay_log_info* rli)
    */
   mysql_mutex_lock(&rli->data_lock);
 
+  /*
+    UNTIL_SQL_AFTER_GTIDS requires special handling since we have to check
+    whether the until_condition is satisfied *before* the SQL threads goes on
+    a wait inside next_event() for the relay log to grow. This is reuired since
+    if we have already applied the last event in the waiting set but since he
+    check happens only at the start of the next event we may end up waiting
+    forever the next event is not available or is delayed.
+  */
+  if (rli->until_condition == Relay_log_info::UNTIL_SQL_AFTER_GTIDS &&
+       rli->is_until_satisfied(thd, NULL))
+  {
+    rli->abort_slave= 1;
+    mysql_mutex_unlock(&rli->data_lock);
+    DBUG_RETURN(1);
+  }
+
   Log_event *ev = next_event(rli), **ptr_ev;
 
   DBUG_ASSERT(rli->info_thd==thd);
@@ -3825,6 +3843,7 @@ static int exec_relay_log_event(THD* thd, Relay_log_info* rli)
       temporarily (see is_until_satisfied todo).
     */
     if (rli->until_condition != Relay_log_info::UNTIL_NONE &&
+        rli->until_condition != Relay_log_info::UNTIL_SQL_AFTER_GTIDS &&
         rli->is_until_satisfied(thd, ev))
     {
       /*
@@ -7995,6 +8014,17 @@ int start_slave(THD* thd , Master_info* mi,  bool net_report)
               LEX_MASTER_INFO::UNTIL_SQL_BEFORE_GTIDS == thd->lex->mi.gtid_until_condition
               ? Relay_log_info::UNTIL_SQL_BEFORE_GTIDS
               : Relay_log_info::UNTIL_SQL_AFTER_GTIDS;
+            if ((mi->rli->until_condition ==
+               Relay_log_info::UNTIL_SQL_AFTER_GTIDS) &&
+               mi->rli->opt_slave_parallel_workers != 0)
+            {
+              mi->rli->opt_slave_parallel_workers= 0;
+              push_warning_printf(thd, Sql_condition::SL_NOTE,
+                                  ER_MTS_FEATURE_IS_NOT_SUPPORTED,
+                                  ER(ER_MTS_FEATURE_IS_NOT_SUPPORTED),
+                                  "UNTIL condtion",
+                                  "Slave is started in the sequential execution mode.");
+            }
           }
           global_sid_lock->unlock();
         }

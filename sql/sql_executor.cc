@@ -3383,7 +3383,7 @@ JOIN_TAB::remove_duplicates()
   bool error;
   ulong reclength,offset;
   uint field_count;
-  List<Item> *fields= (this-1)->fields;
+  List<Item> *field_list= (this-1)->fields;
   DBUG_ENTER("remove_duplicates");
 
   DBUG_ASSERT(join->tmp_tables > 0 && table->s->tmp_table != NO_TMP_TABLE);
@@ -3393,7 +3393,7 @@ JOIN_TAB::remove_duplicates()
 
   /* Calculate how many saved fields there is in list */
   field_count=0;
-  List_iterator<Item> it(*fields);
+  List_iterator<Item> it(*field_list);
   Item *item;
   while ((item=it++))
   {
