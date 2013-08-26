@@ -1,4 +1,4 @@
-/* Copyright (c) 2002, 2012, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2002, 2013, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -79,7 +79,7 @@ private:
 private:
   /// This is an auxillary class to store entering instruction pointer for an
   /// SQL-handler.
-  class sp_handler_entry : public Sql_alloc
+  class sp_handler_entry
   {
   public:
     /// Handler definition (from parsing context).
@@ -130,16 +130,21 @@ public:
 
     /// The constructor.
     ///
-    /// @param _sql_condition  The SQL condition.
-    /// @param arena           Query arena for SP
-    Sql_condition_info(const Sql_condition *_sql_condition)
-      :sql_errno(_sql_condition->get_sql_errno()),
-       level(_sql_condition->get_level())
+    /// @param _sql_errno  SQL error number.
+    /// @param _sql_state  Diagnostic status.
+    /// @param _level      Error level of the condition.
+    /// @param _message    Error message.
+    Sql_condition_info(uint _sql_errno,
+                       const char *_sql_state,
+                       Sql_condition::enum_warning_level _level,
+                       const char *_message)
+     :sql_errno(_sql_errno),
+      level(_level)
     {
-      memcpy(sql_state, _sql_condition->get_sqlstate(), SQLSTATE_LENGTH);
+      memcpy(sql_state, _sql_state, SQLSTATE_LENGTH);
       sql_state[SQLSTATE_LENGTH]= '\0';
 
-      strncpy(message, _sql_condition->get_message_text(), MYSQL_ERRMSG_SIZE);
+      strncpy(message, _message, MYSQL_ERRMSG_SIZE);
     }
   };
 
@@ -154,7 +159,7 @@ private:
     const sp_handler *handler;
 
     /// SQL-condition, triggered handler activation.
-    const Sql_condition_info sql_condition;
+    Sql_condition_info sql_condition_info;
 
     /// Continue-instruction-pointer for CONTINUE-handlers.
     /// The attribute contains 0 for EXIT-handlers.
@@ -162,13 +167,20 @@ private:
 
     /// The constructor.
     ///
-    /// @param _sql_condition SQL-condition, triggered handler activation.
-    /// @param _continue_ip   Continue instruction pointer.
+    /// @param _handler      handler triggered due to SQL-condition.
+    /// @param _sql_errno    SQL error number.
+    /// @param _sql_state    Diagnostic status.
+    /// @param  _level       Error level of the condition.
+    /// @param  _message     Error message.
+    /// @param _continue_ip  Continue instruction pointer.
     Handler_call_frame(const sp_handler *_handler,
-                       const Sql_condition *_sql_condition,
+                       uint _sql_errno,
+                       const char *_sql_state,
+                       Sql_condition::enum_warning_level _level,
+                       const char *_message,
                        uint _continue_ip)
      :handler(_handler),
-      sql_condition(_sql_condition),
+      sql_condition_info(_sql_errno, _sql_state, _level, _message),
       continue_ip(_continue_ip)
     { }
  };
@@ -229,7 +241,7 @@ public:
   const Sql_condition_info *raised_condition() const
   {
     return m_activated_handlers.elements() ?
-      &(*m_activated_handlers.back())->sql_condition : NULL;
+      &(*m_activated_handlers.back())->sql_condition_info : NULL;
   }
 
   /// Handle current SQL condition (if any).
@@ -420,7 +432,7 @@ typedef class st_select_lex_unit SELECT_LEX_UNIT;
 
 /* A mediator between stored procedures and server side cursors */
 
-class sp_cursor : public Sql_alloc
+class sp_cursor
 {
 private:
   /// An interceptor of cursor result set used to implement
@@ -468,6 +480,6 @@ private:
 
 private:
   void destroy();
-}; // class sp_cursor : public Sql_alloc
+}; // class sp_cursor
 
 #endif /* _SP_RCONTEXT_H_ */

@@ -376,9 +376,10 @@ NOTE: you must call fil_mutex_enter_and_prepare_for_io() first!
 Prepares a file node for i/o. Opens the file if it is closed. Updates the
 pending i/o's field in the node and the system appropriately. Takes the node
 off the LRU list if it is in the LRU list. The caller must hold the fil_sys
-mutex. */
+mutex.
+@return false if the file can't be opened, otherwise true */
 static
-void
+bool
 fil_node_prepare_for_io(
 /*====================*/
 	fil_node_t*	node,	/*!< in: file node */
@@ -692,9 +693,10 @@ fil_node_create(
 
 /********************************************************************//**
 Opens a file of a node of a tablespace. The caller must own the fil_system
-mutex. */
+mutex.
+@return false if the file can't be opened, otherwise true */
 static
-void
+bool
 fil_node_open_file(
 /*===============*/
 	fil_node_t*	node,	/*!< in: file node */
@@ -732,12 +734,12 @@ fil_node_open_file(
 
 			ut_print_timestamp(stderr);
 
-			fprintf(stderr,
-				"  InnoDB: Fatal error: cannot open %s\n."
-				"InnoDB: Have you deleted .ibd files"
-				" under a running mysqld server?\n",
+			ib_logf(IB_LOG_LEVEL_WARN, "InnoDB: Error: cannot "
+				"open %s\n. InnoDB: Have you deleted .ibd "
+				"files under a running mysqld server?\n",
 				node->name);
-			ut_a(0);
+
+			return(false);
 		}
 
 		size_bytes = os_file_get_size(node->handle);
@@ -882,6 +884,8 @@ add_size:
 		/* Put the node to the LRU list */
 		UT_LIST_ADD_FIRST(LRU, system->LRU, node);
 	}
+
+	return(true);
 }
 
 /**********************************************************************//**
@@ -1512,7 +1516,11 @@ fil_space_get_space(
 		the file yet; the following calls will open it and update the
 		size fields */
 
-		fil_node_prepare_for_io(node, fil_system, space);
+		if (!fil_node_prepare_for_io(node, fil_system, space)) {
+			/* The single-table tablespace can't be opened,
+			because the ibd file is missing. */
+			return(NULL);
+		}
 		fil_node_complete_io(node, fil_system, OS_FILE_READ);
 	}
 
@@ -1720,7 +1728,15 @@ fil_open_log_and_system_tablespace_files(void)
 		     node = UT_LIST_GET_NEXT(chain, node)) {
 
 			if (!node->open) {
-				fil_node_open_file(node, fil_system, space);
+				if (!fil_node_open_file(node, fil_system,
+							space)) {
+					/* This func is called during server's
+					startup. If some file of log or system
+					tablespace is missing, the server
+					can't start successfully. So we should
+					assert for it. */
+					ut_a(0);
+				}
 			}
 
 			if (fil_system->max_n_open < 10 + fil_system->n_open) {
@@ -4892,7 +4908,13 @@ retry:
 		goto retry;
 	}
 
-	fil_node_prepare_for_io(node, fil_system, space);
+	if (!fil_node_prepare_for_io(node, fil_system, space)) {
+		/* The tablespace data file, such as .ibd file, is missing */
+		node->being_extended = false;
+		mutex_exit(&fil_system->mutex);
+
+		return(false);
+	}
 
 	/* At this point it is safe to release fil_system mutex. No
 	other thread can rename, delete or close the file because
@@ -5142,9 +5164,10 @@ NOTE: you must call fil_mutex_enter_and_prepare_for_io() first!
 Prepares a file node for i/o. Opens the file if it is closed. Updates the
 pending i/o's field in the node and the system appropriately. Takes the node
 off the LRU list if it is in the LRU list. The caller must hold the fil_sys
-mutex. */
+mutex.
+@return false if the file can't be opened, otherwise true */
 static
-void
+bool
 fil_node_prepare_for_io(
 /*====================*/
 	fil_node_t*	node,	/*!< in: file node */
@@ -5166,7 +5189,10 @@ fil_node_prepare_for_io(
 	if (node->open == FALSE) {
 		/* File is closed: open it */
 		ut_a(node->n_pending == 0);
-		fil_node_open_file(node, system, space);
+
+		if (!fil_node_open_file(node, system, space)) {
+			return(false);
+		}
 	}
 
 	if (node->n_pending == 0 && fil_space_belongs_in_lru(space)) {
@@ -5178,6 +5204,8 @@ fil_node_prepare_for_io(
 	}
 
 	node->n_pending++;
+
+	return(true);
 }
 
 /********************************************************************//**
@@ -5394,7 +5422,7 @@ fil_io(
 
 			ut_error;
 
-		} else  if (fil_is_user_tablespace_id(space->id)
+		} else if (fil_is_user_tablespace_id(space->id)
 			   && node->size == 0) {
 
 			/* We do not know the size of a single-table tablespace
@@ -5410,7 +5438,28 @@ fil_io(
 	}
 
 	/* Open file if closed */
-	fil_node_prepare_for_io(node, fil_system, space);
+	if (!fil_node_prepare_for_io(node, fil_system, space)) {
+		if (space->purpose == FIL_TABLESPACE
+		    && fil_is_user_tablespace_id(space->id)) {
+			mutex_exit(&fil_system->mutex);
+
+			ib_logf(IB_LOG_LEVEL_ERROR,
+				"Trying to do i/o to a tablespace which "
+				"exists without .ibd data file. "
+				"i/o type %lu, space id %lu, page no %lu, "
+				"i/o length %lu bytes",
+				(ulong) type, (ulong) space_id,
+				(ulong) block_offset, (ulong) len);
+
+			return(DB_TABLESPACE_DELETED);
+		}
+
+		/* The tablespace is for log. Currently, we just assert here
+		to prevent handling errors along the way fil_io returns.
+		Also, if the log files are missing, it would be hard to
+		promise the server can continue running. */
+		ut_a(0);
+	}
 
 	/* Check that at least the start offset is within the bounds of a
 	single-table tablespace, including rollback tablespaces. */

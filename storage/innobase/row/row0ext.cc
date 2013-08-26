@@ -1,6 +1,6 @@
 /*****************************************************************************
 
-Copyright (c) 2006, 2011, Oracle and/or its affiliates. All Rights Reserved.
+Copyright (c) 2006, 2013, Oracle and/or its affiliates. All Rights Reserved.
 
 This program is free software; you can redistribute it and/or modify it under
 the terms of the GNU General Public License as published by the Free Software
@@ -58,14 +58,28 @@ row_ext_cache_fill(
 		/* The BLOB pointer is not set: we cannot fetch it */
 		ext->len[i] = 0;
 	} else {
-		/* Fetch at most ext->max_len of the column.
-		The column should be non-empty.  However,
-		trx_rollback_or_clean_all_recovered() may try to
-		access a half-deleted BLOB if the server previously
-		crashed during the execution of
-		btr_free_externally_stored_field(). */
-		ext->len[i] = btr_copy_externally_stored_field_prefix(
-			buf, ext->max_len, zip_size, field, f_len);
+		if (ext->max_len == REC_VERSION_56_MAX_INDEX_COL_LEN
+		    && f_len > BTR_EXTERN_FIELD_REF_SIZE) {
+			/* In this case, the field is in B format or beyond,
+			(refer to the definition of row_ext_t.max_len)
+			and the field is already fill with prefix, otherwise
+			f_len would be BTR_EXTERN_FIELD_REF_SIZE.
+			So there is no need to re-read the prefix externally,
+			but just copy the local prefix to buf. Please note
+			if the ext->len[i] is zero, it means an error
+			as above. */
+			memcpy(buf, field, f_len - BTR_EXTERN_FIELD_REF_SIZE);
+			ext->len[i] = f_len - BTR_EXTERN_FIELD_REF_SIZE;
+		} else {
+			/* Fetch at most ext->max_len of the column.
+			The column should be non-empty.  However,
+			trx_rollback_or_clean_all_recovered() may try to
+			access a half-deleted BLOB if the server previously
+			crashed during the execution of
+			btr_free_externally_stored_field(). */
+			ext->len[i] = btr_copy_externally_stored_field_prefix(
+				buf, ext->max_len, zip_size, field, f_len);
+		}
 	}
 }
 

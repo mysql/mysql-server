@@ -32,6 +32,7 @@
 
 %global release         1  
 
+
 #
 # Macros we use which are not available in all supported versions of RPM
 #
@@ -249,7 +250,6 @@ Source:         http://www.mysql.com/Downloads/MySQL-@MYSQL_BASE_VERSION@/%{src_
 URL:            http://www.mysql.com/
 Packager:       MySQL Release Engineering <mysql-build@oss.oracle.com> 
 Vendor:         %{mysql_vendor}
-Provides:       msqlormysql MySQL-server
 BuildRequires:  %{distro_buildreq}
 
 # Regression tests may take a long time, override the default to skip them 
@@ -288,10 +288,15 @@ Group:          Applications/Databases
 Requires:       %{distro_requires}
 %if 0%{?commercial}
 Obsoletes:      MySQL-server
+%else
+Obsoletes:      MySQL-server-advanced
 %endif
-Obsoletes:      mysql-server mysql-advanced mysql-server-advanced
+Obsoletes:      mysql-server < %{version}-%{release}
+Obsoletes:      mysql-server-advanced
 Obsoletes:      MySQL-server-classic MySQL-server-community MySQL-server-enterprise
 Obsoletes:      MySQL-server-advanced-gpl MySQL-server-enterprise-gpl
+Provides:       mysql-server = %{version}-%{release}
+Provides:       mysql-server%{?_isa} = %{version}-%{release}
 
 %description -n MySQL-server%{product_suffix}
 The MySQL(TM) software delivers a very fast, multi-threaded, multi-user,
@@ -323,12 +328,15 @@ Summary:        MySQL - Client
 Group:          Applications/Databases
 %if 0%{?commercial}
 Obsoletes:      MySQL-client
+%else
+Obsoletes:      MySQL-client-advanced
 %endif
 Obsoletes:      mysql < %{version}-%{release}
 Obsoletes:      mysql-advanced < %{version}-%{release}
 Obsoletes:      MySQL-client-classic MySQL-client-community MySQL-client-enterprise
 Obsoletes:      MySQL-client-advanced-gpl MySQL-client-enterprise-gpl
 Provides:       mysql = %{version}-%{release} 
+Provides:       mysql%{?_isa} = %{version}-%{release}
 
 %description -n MySQL-client%{product_suffix}
 This package contains the standard MySQL clients and administration tools.
@@ -340,14 +348,18 @@ For a description of MySQL see the base MySQL RPM or http://www.mysql.com/
 Summary:        MySQL - Test suite
 Group:          Applications/Databases
 %if 0%{?commercial}
-Obsoletes:      MySQL-test
 Requires:       MySQL-client-advanced perl
+Obsoletes:      MySQL-test
 %else
 Requires:       MySQL-client perl
+Obsoletes:      MySQL-test-advanced
 %endif
-Obsoletes:      mysql-test mysql-test-advanced
+Obsoletes:      mysql-test < %{version}-%{release}
+Obsoletes:      mysql-test-advanced
 Obsoletes:      MySQL-test-classic MySQL-test-community MySQL-test-enterprise
 Obsoletes:      MySQL-test-advanced-gpl MySQL-test-enterprise-gpl
+Provides:       mysql-test = %{version}-%{release}
+Provides:       mysql-test%{?_isa} = %{version}-%{release}
 AutoReqProv:    no
 
 %description -n MySQL-test%{product_suffix}
@@ -361,10 +373,15 @@ Summary:        MySQL - Development header files and libraries
 Group:          Applications/Databases
 %if 0%{?commercial}
 Obsoletes:      MySQL-devel
+%else
+Obsoletes:      MySQL-devel-advanced
 %endif
-Obsoletes:      mysql-devel mysql-embedded-devel mysql-devel-advanced mysql-embedded-devel-advanced
+Obsoletes:      mysql-devel < %{version}-%{release}
+Obsoletes:      mysql-embedded-devel mysql-devel-advanced mysql-embedded-devel-advanced
 Obsoletes:      MySQL-devel-classic MySQL-devel-community MySQL-devel-enterprise
 Obsoletes:      MySQL-devel-advanced-gpl MySQL-devel-enterprise-gpl
+Provides:       mysql-devel = %{version}-%{release}
+Provides:       mysql-devel%{?_isa} = %{version}-%{release}
 
 %description -n MySQL-devel%{product_suffix}
 This package contains the development header files and libraries necessary
@@ -378,6 +395,8 @@ Summary:        MySQL - Shared libraries
 Group:          Applications/Databases
 %if 0%{?commercial}
 Obsoletes:      MySQL-shared
+%else
+Obsoletes:      MySQL-shared-advanced
 %endif
 Obsoletes:      MySQL-shared-standard MySQL-shared-pro
 Obsoletes:      MySQL-shared-pro-cert MySQL-shared-pro-gpl
@@ -394,15 +413,19 @@ and applications need to dynamically load and use MySQL.
 Summary:        MySQL - Embedded library
 Group:          Applications/Databases
 %if 0%{?commercial}
-Obsoletes:      MySQL-embedded
 Requires:       MySQL-devel-advanced
+Obsoletes:      MySQL-embedded
 %else
 Requires:       MySQL-devel
+Obsoletes:      MySQL-embedded-advanced
 %endif
-Obsoletes:      mysql-embedded mysql-embedded-advanced
+Obsoletes:      mysql-embedded < %{version}-%{release}
+Obsoletes:      mysql-embedded-advanced
 Obsoletes:      MySQL-embedded-pro
 Obsoletes:      MySQL-embedded-classic MySQL-embedded-community MySQL-embedded-enterprise
 Obsoletes:      MySQL-embedded-advanced-gpl MySQL-embedded-enterprise-gpl
+Provides:       mysql-embedded = %{version}-%{release}
+Provides:       mysql-emdedded%{?_isa} = %{version}-%{release}
 
 %description -n MySQL-embedded%{product_suffix}
 This package contains the MySQL server as an embedded library.
@@ -1190,6 +1213,9 @@ echo "====="                                     >> $STATUS_HISTORY
 # merging BK trees)
 ##############################################################################
 %changelog
+* Fri Aug 16 2013 Balasubramanian Kandasamy <balasubramanian.kandasamy@oracle.com>
+- Added provides lowercase mysql tags  
+
 * Wed Jun 26 2013 Balasubramanian Kandasamy <balasubramanian.kandasamy@oracle.com>
 - Cleaned up spec file to resolve rpm dependencies.
 

@@ -1,4 +1,4 @@
-/* Copyright (c) 2010, 2011, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2010, 2013, Oracle and/or its affiliates. All rights reserved.
 
   This program is free software; you can redistribute it and/or modify
   it under the terms of the GNU General Public License as published by
@@ -179,11 +179,19 @@ void reset_events_stages_by_thread()
 {
   PFS_thread *thread= thread_array;
   PFS_thread *thread_last= thread_array + thread_max;
+  PFS_account *account;
+  PFS_user *user;
+  PFS_host *host;
 
   for ( ; thread < thread_last; thread++)
   {
     if (thread->m_lock.is_populated())
-      aggregate_thread_stages(thread);
+    {
+      account= sanitize_account(thread->m_account);
+      user= sanitize_user(thread->m_user);
+      host= sanitize_host(thread->m_host);
+      aggregate_thread_stages(thread, account, user, host);
+    }
   }
 }
 
@@ -192,11 +200,17 @@ void reset_events_stages_by_account()
 {
   PFS_account *pfs= account_array;
   PFS_account *pfs_last= account_array + account_max;
+  PFS_user *user;
+  PFS_host *host;
 
   for ( ; pfs < pfs_last; pfs++)
   {
     if (pfs->m_lock.is_populated())
-      pfs->aggregate_stages();
+    {
+      user= sanitize_user(pfs->m_user);
+      host= sanitize_host(pfs->m_host);
+      pfs->aggregate_stages(user, host);
+    }
   }
 }
 

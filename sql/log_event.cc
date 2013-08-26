@@ -2863,23 +2863,22 @@ Slave_worker *Log_event::get_slave_worker(Relay_log_info *rli)
   DBUG_ASSERT(ret_worker);
 
   /*
-    Preparing event physical coordinates info for Worker before any event got
-    scheduled so when Worker error-stopped at the first event it would be aware of
-    where exactly in the event stream.
+    Preparing event physical coordinates info for Worker before any
+    event got scheduled so when Worker error-stopped at the first
+    event it would be aware of where exactly in the event stream.
   */
-  if (!ret_worker->checkpoint_notified)
+  if (!ret_worker->master_log_change_notified)
   {
     if (!ptr_group)
       ptr_group= gaq->get_job_group(rli->gaq->assigned_group_index);
-    ptr_group->checkpoint_log_name= 
+    ptr_group->group_master_log_name=
       my_strdup(rli->get_group_master_log_name(), MYF(MY_WME));
-    ptr_group->checkpoint_log_pos= rli->get_group_master_log_pos();
-    ptr_group->checkpoint_relay_log_name=
-      my_strdup(rli->get_group_relay_log_name(), MYF(MY_WME));
-    ptr_group->checkpoint_relay_log_pos= rli->get_group_relay_log_pos();
-    ptr_group->shifted= ret_worker->bitmap_shifted;
-    ret_worker->bitmap_shifted= 0;
-    ret_worker->checkpoint_notified= TRUE;
+    ret_worker->master_log_change_notified= true;
+
+    DBUG_ASSERT(!ptr_group->notified);
+#ifndef DBUG_OFF
+    ptr_group->notified= true;
+#endif
   }
 
   // T-event: Commit, Xid, a DDL query or dml query of B-less group.
@@ -2920,6 +2919,21 @@ Slave_worker *Log_event::get_slave_worker(Relay_log_info *rli)
       DBUG_ASSERT(ptr_group->group_relay_log_name != NULL);
 
       ret_worker->relay_log_change_notified= TRUE;
+    }
+
+    if (!ret_worker->checkpoint_notified)
+    {
+      if (!ptr_group)
+        ptr_group= gaq->get_job_group(rli->gaq->assigned_group_index);
+      ptr_group->checkpoint_log_name=
+        my_strdup(rli->get_group_master_log_name(), MYF(MY_WME));
+      ptr_group->checkpoint_log_pos= rli->get_group_master_log_pos();
+      ptr_group->checkpoint_relay_log_name=
+        my_strdup(rli->get_group_relay_log_name(), MYF(MY_WME));
+      ptr_group->checkpoint_relay_log_pos= rli->get_group_relay_log_pos();
+      ptr_group->shifted= ret_worker->bitmap_shifted;
+      ret_worker->bitmap_shifted= 0;
+      ret_worker->checkpoint_notified= TRUE;
     }
     ptr_group->checkpoint_seqno= rli->checkpoint_seqno;
     ptr_group->ts= when.tv_sec + (time_t) exec_time; // Seconds_behind_master related
@@ -6523,6 +6537,8 @@ error:
   thd->get_stmt_da()->set_overwrite_status(false);
   close_thread_tables(thd);
   /*
+    - If transaction rollback was requested due to deadlock
+      perform it and release metadata locks.
     - If inside a multi-statement transaction,
     defer the release of metadata locks until the current
     transaction is either committed or rolled back. This prevents
@@ -6532,7 +6548,12 @@ error:
     - If in autocommit mode, or outside a transactional context,
     automatically release metadata locks of the current statement.
   */
-  if (! thd->in_multi_stmt_transaction_mode())
+  if (thd->transaction_rollback_request)
+  {
+    trans_rollback_implicit(thd);
+    thd->mdl_context.release_transactional_locks();
+  }
+  else if (! thd->in_multi_stmt_transaction_mode())
     thd->mdl_context.release_transactional_locks();
   else
     thd->mdl_context.release_statement_locks();
@@ -11273,7 +11294,10 @@ static int rows_event_stmt_cleanup(Relay_log_info const *rli, THD * thd)
       Xid_log_event will come next which will, if some transactional engines
       are involved, commit the transaction and flush the pending event to the
       binlog.
+      If there was a deadlock the transaction should have been rolled back
+      already. So there should be no need to rollback the transaction.
     */
+    DBUG_ASSERT(! thd->transaction_rollback_request);
     error|= (error ? trans_rollback_stmt(thd) : trans_commit_stmt(thd));
 
     /*

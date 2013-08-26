@@ -111,6 +111,7 @@ RSA *rsa_init(MYSQL *mysql)
   fclose(pub_key_file);
   if (g_public_key == NULL)
   {
+    ERR_clear_error();
     fprintf(stderr, "Public key is not in PEM format: '%s'\n",
             mysql->options.extension->server_public_key_path);
     return 0;
@@ -205,7 +206,10 @@ int sha256_password_auth_client(MYSQL_PLUGIN_VIO *vio, MYSQL *mysql)
         public_key= PEM_read_bio_RSA_PUBKEY(bio, NULL, NULL, NULL);
         BIO_free(bio);
         if (public_key == 0)
+        {
+          ERR_clear_error();
           DBUG_RETURN(CR_ERROR);
+        }
         got_public_key_from_server= true;
       }
       

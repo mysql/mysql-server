@@ -2924,7 +2924,9 @@ dict_stats_update(
 	switch (stats_upd_option) {
 	case DICT_STATS_RECALC_PERSISTENT:
 
-		ut_ad(!srv_read_only_mode);
+		if (srv_read_only_mode) {
+			goto transient;
+		}
 
 		/* Persistent recalculation requested, called from
 		1) ANALYZE TABLE, or
@@ -3025,8 +3027,6 @@ dict_stats_update(
 
 		dict_table_t*	t;
 
-		ut_ad(!srv_read_only_mode);
-
 		/* Create a dummy table object with the same name and
 		indexes, suitable for fetching the stats into it. */
 		t = dict_stats_table_clone_create(table);
@@ -3059,6 +3059,10 @@ dict_stats_update(
 		case DB_STATS_DO_NOT_EXIST:
 
 			dict_stats_table_clone_free(t);
+
+			if (srv_read_only_mode) {
+				goto transient;
+			}
 
 			if (dict_stats_auto_recalc_is_enabled(table)) {
 				return(dict_stats_update(
