@@ -7531,11 +7531,13 @@ copy_data_between_tables(THD *thd, TABLE *from,TABLE *to,
                   AUTO_INCREMENT_FLAG))
                err_msg= ER(ER_DUP_ENTRY_AUTOINCREMENT_CASE);
              to->file->print_keydup_error(key_nr, err_msg, MYF(0));
+             error= 1;
              break;
            }
          }
 
 	to->file->print_error(error,MYF(0));
+        error= 1;
 	break;
       }
       to->file->restore_auto_increment(prev_insert_id);
