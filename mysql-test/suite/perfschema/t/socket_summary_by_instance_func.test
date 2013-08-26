@@ -30,6 +30,7 @@
 # Embedded server does not supprt the performance_schema.
 --source include/not_embedded.inc
 --source include/not_windows.inc
+--source include/no_valgrind_without_big.inc
 --source include/have_perfschema.inc
 
 # The values in the performance_schema tables depend on how much communication
