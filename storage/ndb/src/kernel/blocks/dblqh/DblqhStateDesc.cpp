@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2011, Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2011, 2013, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -18,6 +18,9 @@
 #include <kernel/statedesc.hpp>
 #define DBLQH_STATE_EXTRACT
 #include "Dblqh.hpp"
+
+#define JAM_FILE_ID 446
+
 
 #define SDESC(a,b,c) { (unsigned)Dblqh::TcConnectionrec::a, #a, b, c }
 

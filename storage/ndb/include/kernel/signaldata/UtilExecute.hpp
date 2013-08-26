@@ -1,5 +1,5 @@
-/* Copyright (c) 2003, 2005, 2006 MySQL AB
-
+/*
+   Copyright (c) 2003, 2013, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -20,6 +20,9 @@
 
 #include "SignalData.hpp"
 #include <SimpleProperties.hpp>
+
+#define JAM_FILE_ID 145
+
 
 /**
  * UTIL_EXECUTE_REQ, UTIL_EXECUTE_CONF, UTIL_EXECUTE_REF
@@ -135,5 +138,8 @@ private:
   Uint32 TCErrorCode;
 };
 
+
+
+#undef JAM_FILE_ID
 
 #endif

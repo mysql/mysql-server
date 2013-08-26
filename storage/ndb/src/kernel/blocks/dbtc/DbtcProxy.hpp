@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2011, Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2011, 2013, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -26,6 +26,9 @@
 #include <signaldata/AlterIndxImpl.hpp>
 #include <signaldata/DropIndxImpl.hpp>
 #include <signaldata/AbortAll.hpp>
+
+#define JAM_FILE_ID 348
+
 
 
 class DbtcProxy : public DbgdmProxy {
@@ -186,5 +189,8 @@ protected:
   void execABORT_ALL_CONF(Signal*);
   void sendABORT_ALL_CONF(Signal*, Uint32 ssId);
 };
+
+
+#undef JAM_FILE_ID
 
 #endif

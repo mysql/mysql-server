@@ -1,5 +1,5 @@
-/* Copyright (c) 2003-2005 MySQL AB
-
+/*
+   Copyright (c) 2003, 2013, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -26,6 +26,9 @@
 #include "NdbTick.h"
 #include "NdbThread.h"
 #include "NdbMain.h"
+
+#define JAM_FILE_ID 389
+
 
 // Test and benchmark functionality of AsyncFile
 // -n Number of files

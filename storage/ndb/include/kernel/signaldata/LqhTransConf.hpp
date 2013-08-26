@@ -1,5 +1,5 @@
-/* Copyright (c) 2003, 2005 MySQL AB
-
+/*
+   Copyright (c) 2003, 2013, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -19,6 +19,9 @@
 #define LQH_TRANS_CONF_H
 
 #include "SignalData.hpp"
+
+#define JAM_FILE_ID 21
+
 
 /**
  * This signal is sent as response to a LQH_TRANSREQ
@@ -224,5 +227,8 @@ LqhTransConf::setMarkerFlag(UintR & requestInfo, UintR val){
   ASSERT_BOOL(val, "LqhTransConf::setMarkerFlag");
   requestInfo |= (val << LTC_MARKER_SHIFT);
 }
+
+
+#undef JAM_FILE_ID
 
 #endif

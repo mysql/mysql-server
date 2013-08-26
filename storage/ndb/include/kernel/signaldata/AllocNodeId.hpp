@@ -1,5 +1,5 @@
-/* Copyright (c) 2003, 2006 MySQL AB
-
+/*
+   Copyright (c) 2006, 2013, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -20,6 +20,9 @@
 
 #include "SignalData.hpp"
 #include <NodeBitmask.hpp>
+
+#define JAM_FILE_ID 26
+
 
 /**
  * Request to allocate node id
@@ -72,4 +75,7 @@ public:
   Uint32 errorCode;
   Uint32 masterRef;
 };
+
+#undef JAM_FILE_ID
+
 #endif
