@@ -8,8 +8,6 @@ main.mysqlslap @windows                  # Bug#11761520 2010-08-10 alik mysqlsla
 
 main.index_merge_innodb                  # BUG#11754168 2012-05-08 jorgen Doing an attempt at reenabling tests disabled by bug. EXPLAIN's row estimates varies for innodb so marked experimental for a while
 
-innodb.innodb_bug14676111               # Bug#17026780 2013-06-28 Anitha Failing frequently on PB2
-
 parts.partition_debug_innodb             # Bug#14150368 2013-03-07 anitha Failing very frequently on PB2
 
 rpl.rpl_delayed_slave                    # BUG#11764654 rpl_delayed_slave fails sporadically in pb
