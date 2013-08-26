@@ -1,5 +1,5 @@
-/* Copyright (c) 2003, 2005, 2006 MySQL AB
-
+/*
+   Copyright (c) 2003, 2013, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -19,6 +19,9 @@
 #define SYSTEM_ERROR_HPP
 
 #include "SignalData.hpp"
+
+#define JAM_FILE_ID 180
+
 
 class SystemError {
 
@@ -54,6 +57,9 @@ public:
   Uint32 errorCode;
   Uint32 data[1];
 };
+
+
+#undef JAM_FILE_ID
 
 #endif
 

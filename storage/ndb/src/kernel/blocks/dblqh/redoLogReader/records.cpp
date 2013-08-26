@@ -1,5 +1,5 @@
-/* Copyright (c) 2003, 2005, 2006 MySQL AB
-
+/*
+   Copyright (c) 2003, 2013, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -16,6 +16,9 @@
 
 
 #include "records.hpp"
+
+#define JAM_FILE_ID 448
+
 
 void printOut(const char *string, Uint32 value) {
   ndbout_c("%-30s%-12u%-12x", string, value, value);

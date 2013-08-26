@@ -90,6 +90,9 @@
 
 #include <TransporterRegistry.hpp> // error 8035
 
+#define JAM_FILE_ID 353
+
+
 // Use DEBUG to print messages that should be
 // seen only when we debug the product
 #ifdef VM_TRACE

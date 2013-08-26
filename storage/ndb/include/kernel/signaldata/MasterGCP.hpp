@@ -1,5 +1,5 @@
-/* Copyright (c) 2003, 2005 MySQL AB
-
+/*
+   Copyright (c) 2003, 2013, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -19,6 +19,9 @@
 #define MASTER_GCP_HPP
 
 #include <NodeBitmask.hpp>
+
+#define JAM_FILE_ID 17
+
 
 /**
  * 
@@ -129,4 +132,7 @@ private:
   Uint32 senderNodeId;
   Uint32 failedNodeId;
 };
+
+#undef JAM_FILE_ID
+
 #endif

@@ -1,5 +1,5 @@
-/* Copyright (c) 2003, 2005-2007 MySQL AB
-
+/*
+   Copyright (c) 2003, 2013, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -19,6 +19,9 @@
 #define DROP_TABLE_HPP
 
 #include "SignalData.hpp"
+
+#define JAM_FILE_ID 176
+
 
 struct DropTableReq {
   STATIC_CONST( SignalLength = 7 );
@@ -68,5 +71,8 @@ struct DropTableRef {
     ActiveSchemaTrans = 785
   };
 };
+
+
+#undef JAM_FILE_ID
 
 #endif

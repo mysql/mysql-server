@@ -1,6 +1,5 @@
-/* Copyright (c) 2003-2005 MySQL AB, 2009 Sun Microsystems, Inc.
-   Use is subject to license terms.
-
+/*
+   Copyright (c) 2003, 2013, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -26,6 +25,9 @@
 #include <SimpleProperties.hpp>
 #include <ndb_version.h>
 #include <util/ndbzio.h>
+
+#define JAM_FILE_ID 476
+
 
 bool readHeader(ndbzio_stream*, BackupFormat::FileHeader *);
 bool readFragHeader(ndbzio_stream*, BackupFormat::DataFile::FragmentHeader *);

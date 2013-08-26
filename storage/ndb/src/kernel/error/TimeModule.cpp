@@ -1,5 +1,5 @@
-/* Copyright (c) 2003-2007 MySQL AB
-
+/*
+   Copyright (c) 2003, 2013, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -19,6 +19,9 @@
 
 #include <ndb_global.h>
 #include "TimeModule.hpp"
+
+#define JAM_FILE_ID 488
+
 
 static const char* cMonth[]  = { "x", "January", "February", "March", "April", "May", "June",
 				 "July", "August", "September", "October", "November", "December"};

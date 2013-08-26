@@ -1,5 +1,5 @@
-/* Copyright (c) 2003, 2005-2007 MySQL AB
-
+/*
+   Copyright (c) 2005, 2013, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -29,6 +29,9 @@
 
 #include <WOPool.hpp>
 #include <SafeMutex.hpp>
+
+#define JAM_FILE_ID 339
+
 
 class Lgman : public SimulatedBlock
 {
@@ -399,5 +402,8 @@ private:
   Uint32* get_log_buffer(Uint32 sz);
 };
 
+
+
+#undef JAM_FILE_ID
 
 #endif

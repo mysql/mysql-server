@@ -18,6 +18,9 @@
    Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA
 */
 
+#define JAM_FILE_ID 342
+
+
 #define BITSENUMS(name, pos, bits) name##_POS = (pos), name##_BITS = (bits), name##_MASK = (1 << (bits)) - 1
 #define GETBITS(name, value) (((value) >> name##_POS) & name##_MASK)
 #define SETBITS(name, value, bits) (((value) & ~(name##_MASK << name##_POS)) | ((bits) << name##_POS))
@@ -327,5 +330,8 @@ bool Container::Header::haveNextFree() const
   assert(isFree());
   return getNextFree() <= MAX_CONTAINER_INDEX;
 }
+
+
+#undef JAM_FILE_ID
 
 #endif

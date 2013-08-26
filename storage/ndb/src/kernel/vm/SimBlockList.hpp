@@ -1,5 +1,5 @@
-/* Copyright (c) 2003, 2005, 2006 MySQL AB
-
+/*
+   Copyright (c) 2003, 2013, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -19,6 +19,9 @@
 #define SimBlockList_H
 
 #include <SimulatedBlock.hpp>
+
+#define JAM_FILE_ID 322
+
 
 struct EmulatorData;
 
@@ -45,5 +48,8 @@ inline
 SimBlockList::~SimBlockList(){
   unload();
 }
+
+
+#undef JAM_FILE_ID
 
 #endif

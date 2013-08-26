@@ -26,6 +26,10 @@
 #include "AttributeOffset.hpp"
 #include <AttributeHeader.hpp>
 #include <dblqh/Dblqh.hpp>
+#include <signaldata/TransIdAI.hpp>
+
+#define JAM_FILE_ID 402
+
 
 void
 Dbtup::setUpQueryRoutines(Tablerec *regTabPtr)
@@ -2852,8 +2856,6 @@ error:
   ndbrequire(false);
   return 0;
 }
-
-#include <signaldata/TransIdAI.hpp>
 
 void
 Dbtup::flush_read_buffer(KeyReqStruct *req_struct,

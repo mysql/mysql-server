@@ -17,6 +17,9 @@
 
 #include "Ndbcntr.hpp"
 
+#define JAM_FILE_ID 460
+
+
 #define arrayLength(x) sizeof(x)/sizeof(x[0])
 
 // SYSTAB_0

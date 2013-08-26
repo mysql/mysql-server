@@ -29,6 +29,9 @@
 #include <signaldata/DbspjErr.hpp>
 #include "../dbtup/tuppage.hpp"
 
+#define JAM_FILE_ID 481
+
+
 class SectionReader;
 struct QueryNode;
 struct QueryNodeParameters;
@@ -1530,5 +1533,8 @@ private:
   Uint32 m_buffer0[16*1024]; // 64k
   Uint32 m_buffer1[16*1024]; // 64k
 };
+
+
+#undef JAM_FILE_ID
 
 #endif
