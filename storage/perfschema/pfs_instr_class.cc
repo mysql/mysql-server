@@ -1224,7 +1224,7 @@ PFS_memory_key register_memory_class(const char *name, uint name_length,
     entry= &memory_class_array[index];
     init_instr_class(entry, name, name_length, flags, PFS_CLASS_MEMORY);
     entry->m_event_name_index= index;
-    entry->m_enabled= true; /* enabled by default */
+    entry->m_enabled= false; /* disabled by default */
     /* Set user-defined configuration options for this instrument */
     configure_instr_class(entry);
     entry->m_timed= false; /* unused anyway */

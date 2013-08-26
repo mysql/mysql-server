@@ -1051,6 +1051,11 @@ fsp_try_extend_data_file(
 
 	success = fil_extend_space_to_desired_size(&actual_size, space,
 						   size + size_increase);
+	if (!success) {
+
+		return(false);
+	}
+
 	/* We ignore any fragments of a full megabyte when storing the size
 	to the space header */
 
