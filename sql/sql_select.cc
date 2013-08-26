@@ -1211,17 +1211,12 @@ JOIN::optimize()
     conds=new Item_int((longlong) 1,1);	// Always true
   }
 
-  if (const_tables && conds)
+  if (impossible_where)
   {
-    conds= remove_eq_conds(thd, conds, &cond_value);
-    if (cond_value == Item::COND_FALSE)
-    {
-      zero_result_cause=
-        "Impossible WHERE noticed after reading const tables";
-      select_lex->mark_const_derived(zero_result_cause);
-      conds=new Item_int((longlong) 0,1);
-      goto setup_subq_exit;
-    }
+    zero_result_cause=
+      "Impossible WHERE noticed after reading const tables";
+    select_lex->mark_const_derived(zero_result_cause);
+    goto setup_subq_exit;
   }
 
   select= make_select(*table, const_table_map,
@@ -3526,6 +3521,18 @@ make_join_statistics(JOIN *join, List<TABLE_LIST> &tables_list,
       if (is_const)
         join_tab[0].const_keys.merge(possible_keys);
     }
+  }
+
+  join->impossible_where= false;
+  if (conds && const_count)
+  { 
+    conds= remove_eq_conds(join->thd, conds, &join->cond_value);
+    if (join->cond_value == Item::COND_FALSE)
+    {
+      join->impossible_where= true;
+      conds=new Item_int((longlong) 0,1);
+    }
+    join->conds= conds;      
   }
 
   /* Calc how many (possible) matched records in each table */
