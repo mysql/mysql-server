@@ -4302,7 +4302,7 @@ Item_cond::fix_fields(THD *thd, Item **ref)
     used_tables_cache|=     item->used_tables();
     if (item->const_item())
     {
-      if (!item->is_expensive() && !cond_is_datetime_is_null(item) && 
+      if (!item->is_expensive() && !cond_has_datetime_is_null(item) && 
           item->val_int() == 0)
       {
         /* 
@@ -4355,7 +4355,7 @@ Item_cond::eval_not_null_tables(uchar *opt_arg)
     table_map tmp_table_map;
     if (item->const_item())
     {
-      if (!item->is_expensive() && !cond_is_datetime_is_null(item) && 
+      if (!item->is_expensive() && !cond_has_datetime_is_null(item) && 
           item->val_int() == 0)
       {
         /* 

@@ -1696,6 +1696,17 @@ CREATE TABLE t2 (i INT);
 SELECT * FROM t1 LEFT JOIN t2 ON (id=i) WHERE NULL OR d IS NULL;
 DROP TABLE t1,t2;
 
+
+CREATE TABLE t1 (i1 INT, d1 DATE NOT NULL);
+INSERT INTO t1 VALUES (1,'2012-12-21'),(2,'0000-00-00');
+
+CREATE TABLE t2 (i2 INT, j2 INT);
+INSERT INTO t2 VALUES (1,10),(2,20);
+
+SELECT * FROM t1 LEFT JOIN t2 ON i1 = j2 WHERE d1 IS NULL AND 1 OR i1 = i2;
+DROP TABLE t1,t2;
+
+
 --echo #
 --echo # Bug mdev-4942: LEFT JOIN with conjunctive 
 --echo #                <non-nullable datetime field> IS NULL in WHERE 

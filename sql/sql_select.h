@@ -1796,6 +1796,7 @@ bool const_expression_in_where(COND *cond, Item *comp_item,
                                Field *comp_field= NULL,
                                Item **const_item= NULL);
 bool cond_is_datetime_is_null(Item *cond);
+bool cond_has_datetime_is_null(Item *cond);
 
 /* Table elimination entry point function */
 void eliminate_tables(JOIN *join);
