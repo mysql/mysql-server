@@ -1,5 +1,5 @@
-/* Copyright (c) 2003, 2005 MySQL AB
-
+/*
+   Copyright (c) 2003, 2013, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -20,6 +20,9 @@
 #include <GlobalData.hpp>
 #include <FastScheduler.hpp>
 #include <VMSignal.hpp>
+
+#define JAM_FILE_ID 273
+
 
 static const int MAX_TIME_QUEUE_VALUE = 32000;
 

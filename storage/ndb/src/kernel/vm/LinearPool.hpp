@@ -1,5 +1,5 @@
-/* Copyright (c) 2003, 2005, 2006 MySQL AB
-
+/*
+   Copyright (c) 2005, 2013, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -63,6 +63,9 @@
  */
 
 #include "SuperPool.hpp"
+
+#define JAM_FILE_ID 264
+
 
 template <class T, Uint32 LogBase = 8>
 class LinearPool {
@@ -653,5 +656,8 @@ LinearPool<T, LogBase>::verify_map(Ptr<Map> map_ptr, Uint32 level, Uint32* count
     assert(found == (map_ptr.p->m_occup < Base));
   }
 }
+
+
+#undef JAM_FILE_ID
 
 #endif

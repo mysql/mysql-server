@@ -1,4 +1,4 @@
-/* Copyright (c) 2009, 2010, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2009, 2013, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -18,6 +18,9 @@
 
 #include <util/BaseString.hpp>
 
+#define JAM_FILE_ID 491
+
+
 void
 angel_run(const char* progname,
           const Vector<BaseString>& original_args,
@@ -32,5 +35,8 @@ angel_run(const char* progname,
 
 void
 angel_stop(void);
+
+
+#undef JAM_FILE_ID
 
 #endif

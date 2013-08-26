@@ -1,5 +1,5 @@
-/* Copyright (c) 2003, 2005 MySQL AB
-
+/*
+   Copyright (c) 2003, 2013, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -17,6 +17,9 @@
 
 #ifndef STOP_PERM_HPP
 #define STOP_PERM_HPP
+
+#define JAM_FILE_ID 144
+
 
 /**
  * This signal is sent by ndbcntr to local DIH
@@ -93,5 +96,8 @@ private:
   Uint32 errorCode;
   Uint32 senderData;
 };
+
+
+#undef JAM_FILE_ID
 
 #endif

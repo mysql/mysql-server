@@ -28,7 +28,11 @@
 #include <Interpreter.hpp>
 #include <signaldata/TupKey.hpp>
 #include <signaldata/AttrInfo.hpp>
+#include <signaldata/TuxMaint.hpp>
 #include <NdbSqlUtil.hpp>
+
+#define JAM_FILE_ID 422
+
 
 // #define TRACE_INTERPRETER
 
@@ -4284,8 +4288,6 @@ Dbtup::nr_read_pk(Uint32 fragPtrI,
   }
   return ret;
 }
-
-#include <signaldata/TuxMaint.hpp>
 
 int
 Dbtup::nr_delete(Signal* signal, Uint32 senderData,

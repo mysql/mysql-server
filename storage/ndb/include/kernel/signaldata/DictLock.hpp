@@ -1,5 +1,5 @@
-/* Copyright (c) 2003, 2006 MySQL AB
-
+/*
+   Copyright (c) 2006, 2013, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -19,6 +19,9 @@
 #define DICT_LOCK_HPP
 
 #include "SignalData.hpp"
+
+#define JAM_FILE_ID 133
+
 
 // see comments in Dbdict.hpp
 
@@ -90,5 +93,8 @@ public:
   Uint32 senderData;
   Uint32 senderRef;
 };
+
+
+#undef JAM_FILE_ID
 
 #endif

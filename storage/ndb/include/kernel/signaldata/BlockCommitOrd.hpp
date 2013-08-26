@@ -1,5 +1,5 @@
-/* Copyright (c) 2003, 2005 MySQL AB
-
+/*
+   Copyright (c) 2003, 2013, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -17,6 +17,9 @@
 
 #ifndef BLOCK_COMMIT_ORD_HPP
 #define BLOCK_COMMIT_ORD_HPP
+
+#define JAM_FILE_ID 89
+
 
 /**
  * These two signals are sent via EXECUTE_DIRECT
@@ -59,5 +62,8 @@ public:
 private:
   Uint32 failNo; // As used by Qmgr  
 };
+
+
+#undef JAM_FILE_ID
 
 #endif
