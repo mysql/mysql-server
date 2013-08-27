@@ -25,6 +25,19 @@ Created 1/8/1996 Heikki Tuuri
 
 #include "mem0mem.h"
 
+/*********************************************************************//**
+Checks if a table name contains the string "/#sql" which denotes temporary
+tables in MySQL.
+@return true if temporary table */
+UNIV_INTERN
+bool
+row_is_mysql_tmp_table_name(
+/*========================*/
+	const char*     name) __attribute__((warn_unused_result));
+				/*!< in: table name in the form
+				'database/tablename' */
+
+
 /********************************************************************//**
 Generate a foreign key constraint name when it was not named by the user.
 A generated constraint has a name of the format dbname/tablename_ibfk_NUMBER,
@@ -42,18 +55,42 @@ dict_create_add_foreign_id(
 	if (foreign->id == NULL) {
 		/* Generate a new constraint id */
 		ulint	namelen	= strlen(name);
-		char*	id = static_cast<char*>(
-			mem_heap_alloc(foreign->heap, namelen + 20));
-		/* no overflow if number < 1e13 */
-		sprintf(id, "%s_ibfk_%lu", name, (ulong) (*id_nr)++);
-		foreign->id = id;
+		char*	id	= static_cast<char*>(
+					mem_heap_alloc(foreign->heap,
+						       namelen + 20));
 
-		char* stripped_name = strchr(foreign->id, '/') + 1;
-		if (innobase_check_identifier_length(stripped_name)) {
-			fprintf(stderr, "InnoDB: Generated foreign key "
-				"name (%s) is too long\n", foreign->id);
-			return(DB_IDENTIFIER_TOO_LONG);
+		if (row_is_mysql_tmp_table_name(name)) {
+
+			/* no overflow if number < 1e13 */
+			sprintf(id, "%s_ibfk_%lu", name,
+				(ulong) (*id_nr)++);
+		} else {
+			char	table_name[MAX_TABLE_NAME_LEN + 20] = "";
+			uint	errors = 0;
+
+			strncpy(table_name, name,
+				MAX_TABLE_NAME_LEN + 20);
+
+			innobase_convert_to_system_charset(
+				strchr(table_name, '/') + 1,
+				strchr(name, '/') + 1,
+				MAX_TABLE_NAME_LEN, &errors);
+
+			if (errors) {
+				strncpy(table_name, name,
+					MAX_TABLE_NAME_LEN + 20);
+			}
+
+			/* no overflow if number < 1e13 */
+			sprintf(id, "%s_ibfk_%lu", table_name,
+				(ulong) (*id_nr)++);
+
+			if (innobase_check_identifier_length(
+				strchr(id,'/') + 1)) {
+				return(DB_IDENTIFIER_TOO_LONG);
+			}
 		}
+		foreign->id = id;
 	}
 
 	return(DB_SUCCESS);

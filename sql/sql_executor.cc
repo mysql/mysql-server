@@ -934,9 +934,7 @@ do_select(JOIN *join)
 
   join->thd->limit_found_rows= join->send_records;
   /*
-    Use info provided by filesort for "order by with limit":
-
-    When using a Priority Queue, we cannot rely on send_records, but need
+    For "order by with limit", we cannot rely on send_records, but need
     to use the rowcount read originally into the join_tab applying the
     filesort. There cannot be any post-filtering conditions, nor any
     following join_tabs in this case, so this rowcount properly represents
@@ -958,7 +956,8 @@ do_select(JOIN *join)
       sort_tab= join_tab + const_tables;
     }
     if (sort_tab->filesort &&
-        sort_tab->filesort->using_pq)
+        sort_tab->filesort->sortorder &&
+        sort_tab->filesort->limit != HA_POS_ERROR)
     {
       join->thd->limit_found_rows= sort_tab->records;
     }
@@ -3321,7 +3320,7 @@ create_sort_index(THD *thd, JOIN *join, JOIN_TAB *tab)
     }
     else
     {
-      DBUG_ASSERT(tab->type == JT_REF);
+      DBUG_ASSERT(tab->type == JT_REF || tab->type == JT_EQ_REF);
       // Update ref value
       if ((cp_buffer_from_ref(thd, table, &tab->ref) && thd->is_fatal_error))
         goto err;                                   // out of memory

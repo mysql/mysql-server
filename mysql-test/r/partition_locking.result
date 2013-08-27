@@ -3622,7 +3622,7 @@ a	b
 FLUSH STATUS;
 EXPLAIN PARTITIONS DELETE FROM t1 WHERE a = 105;
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	Extra
-1	SIMPLE	t1	p1	range	PRIMARY	PRIMARY	4	NULL	#	Using where
+1	SIMPLE	t1	p1	range	PRIMARY	PRIMARY	4	const	#	Using where
 SELECT * FROM INFORMATION_SCHEMA.SESSION_STATUS
 WHERE VARIABLE_NAME LIKE 'HANDLER_%' AND VARIABLE_VALUE > 0;
 VARIABLE_NAME	VARIABLE_VALUE
@@ -3633,7 +3633,7 @@ HANDLER_WRITE	17
 FLUSH STATUS;
 EXPLAIN PARTITIONS DELETE FROM t1 WHERE b = "No duplicate";
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	Extra
-1	SIMPLE	t1	p0,p1,p2,p3,p4,p5,p6,p7,p8,p9,p10,p11,p12	range	b	b	131	NULL	#	Using where
+1	SIMPLE	t1	p0,p1,p2,p3,p4,p5,p6,p7,p8,p9,p10,p11,p12	range	b	b	131	const	#	Using where
 SELECT * FROM INFORMATION_SCHEMA.SESSION_STATUS
 WHERE VARIABLE_NAME LIKE 'HANDLER_%' AND VARIABLE_VALUE > 0;
 VARIABLE_NAME	VARIABLE_VALUE
@@ -3644,7 +3644,7 @@ HANDLER_WRITE	17
 FLUSH STATUS;
 EXPLAIN PARTITIONS DELETE FROM t1 WHERE a = 105;
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	Extra
-1	SIMPLE	t1	p1	range	PRIMARY	PRIMARY	4	NULL	#	Using where
+1	SIMPLE	t1	p1	range	PRIMARY	PRIMARY	4	const	#	Using where
 SELECT * FROM INFORMATION_SCHEMA.SESSION_STATUS
 WHERE VARIABLE_NAME LIKE 'HANDLER_%' AND VARIABLE_VALUE > 0;
 VARIABLE_NAME	VARIABLE_VALUE
@@ -3655,7 +3655,7 @@ HANDLER_WRITE	17
 FLUSH STATUS;
 EXPLAIN PARTITIONS DELETE FROM t1 WHERE b = "No duplicate";
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	Extra
-1	SIMPLE	t1	p0,p1,p2,p3,p4,p5,p6,p7,p8,p9,p10,p11,p12	range	b	b	131	NULL	#	Using where
+1	SIMPLE	t1	p0,p1,p2,p3,p4,p5,p6,p7,p8,p9,p10,p11,p12	range	b	b	131	const	#	Using where
 SELECT * FROM INFORMATION_SCHEMA.SESSION_STATUS
 WHERE VARIABLE_NAME LIKE 'HANDLER_%' AND VARIABLE_VALUE > 0;
 VARIABLE_NAME	VARIABLE_VALUE
@@ -3710,7 +3710,7 @@ HANDLER_WRITE	17
 # 1 delete
 EXPLAIN PARTITIONS DELETE FROM t1 WHERE a = (SELECT a + 90 FROM t2 WHERE a = 1);
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	Extra
-1	PRIMARY	t1	p0	range	PRIMARY	PRIMARY	4	NULL	#	Using where
+1	PRIMARY	t1	p0	range	PRIMARY	PRIMARY	4	const	#	Using where
 2	SUBQUERY	t2	p1	const	PRIMARY	PRIMARY	4	const	#	Using index
 FLUSH STATUS;
 DELETE FROM t1 PARTITION (p0)
@@ -3927,7 +3927,7 @@ a	b
 FLUSH STATUS;
 EXPLAIN PARTITIONS UPDATE t1 SET b = CONCAT(b, ", UPDATED2") WHERE a = 3;
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	Extra
-1	SIMPLE	t1	p3	range	PRIMARY	PRIMARY	4	NULL	#	Using where
+1	SIMPLE	t1	p3	range	PRIMARY	PRIMARY	4	const	#	Using where
 SELECT * FROM INFORMATION_SCHEMA.SESSION_STATUS
 WHERE VARIABLE_NAME LIKE 'HANDLER_%' AND VARIABLE_VALUE > 0;
 VARIABLE_NAME	VARIABLE_VALUE
@@ -4012,7 +4012,7 @@ a	b
 FLUSH STATUS;
 EXPLAIN PARTITIONS UPDATE t1 SET b = CONCAT(b, ", UPDATED2") WHERE a = 3;
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	Extra
-1	SIMPLE	t1	p3	range	PRIMARY	PRIMARY	4	NULL	#	Using where; Using temporary
+1	SIMPLE	t1	p3	range	PRIMARY	PRIMARY	4	const	#	Using where; Using temporary
 SELECT * FROM INFORMATION_SCHEMA.SESSION_STATUS
 WHERE VARIABLE_NAME LIKE 'HANDLER_%' AND VARIABLE_VALUE > 0;
 VARIABLE_NAME	VARIABLE_VALUE
@@ -4071,7 +4071,7 @@ HANDLER_WRITE	20
 FLUSH STATUS;
 EXPLAIN PARTITIONS DELETE FROM t1 WHERE a = 98;
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	Extra
-1	SIMPLE	t1	p7	range	PRIMARY	PRIMARY	4	NULL	#	Using where
+1	SIMPLE	t1	p7	range	PRIMARY	PRIMARY	4	const	#	Using where
 SELECT * FROM INFORMATION_SCHEMA.SESSION_STATUS
 WHERE VARIABLE_NAME LIKE 'HANDLER_%' AND VARIABLE_VALUE > 0;
 VARIABLE_NAME	VARIABLE_VALUE
@@ -6060,7 +6060,7 @@ HANDLER_READ_NEXT	2
 HANDLER_WRITE	17
 EXPLAIN PARTITIONS UPDATE t2 SET b = CONCAT('+', b) WHERE a = (SELECT a FROM t1 WHERE b = '1');
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	Extra
-1	PRIMARY	t2	p1	range	PRIMARY	PRIMARY	4	NULL	#	Using where
+1	PRIMARY	t2	p1	range	PRIMARY	PRIMARY	4	const	#	Using where
 2	SUBQUERY	t1	p0,p1,p2	ref	b	b	258	const	#	Using where; Using index
 FLUSH STATUS;
 START TRANSACTION;
@@ -6102,7 +6102,7 @@ ROLLBACK;
 UNLOCK TABLES;
 EXPLAIN PARTITIONS UPDATE t2 SET b = CONCAT('+', b) WHERE a = 7 + (SELECT a FROM t1 WHERE b = '1');
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	Extra
-1	PRIMARY	t2	p2	range	PRIMARY	PRIMARY	4	NULL	#	Using where
+1	PRIMARY	t2	p2	range	PRIMARY	PRIMARY	4	const	#	Using where
 2	SUBQUERY	t1	p0,p1,p2	ref	b	b	258	const	#	Using where; Using index
 FLUSH STATUS;
 START TRANSACTION;
@@ -6189,7 +6189,7 @@ ROLLBACK;
 UNLOCK TABLES;
 EXPLAIN PARTITIONS UPDATE t2 SET b = CONCAT('+', b) WHERE a = sf_a_from_t1b_d('1');
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	Extra
-1	SIMPLE	t2	p1	range	PRIMARY	PRIMARY	4	NULL	#	Using where
+1	SIMPLE	t2	p1	range	PRIMARY	PRIMARY	4	const	#	Using where
 FLUSH STATUS;
 START TRANSACTION;
 UPDATE t2 SET b = CONCAT('+', b) WHERE a = sf_a_from_t1b_d('1');
@@ -6275,7 +6275,7 @@ ROLLBACK;
 UNLOCK TABLES;
 EXPLAIN PARTITIONS UPDATE t2 SET b = CONCAT('+', b) WHERE a = 7 + sf_a_from_t1b_d('1');
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	Extra
-1	SIMPLE	t2	p2	range	PRIMARY	PRIMARY	4	NULL	#	Using where
+1	SIMPLE	t2	p2	range	PRIMARY	PRIMARY	4	const	#	Using where
 FLUSH STATUS;
 START TRANSACTION;
 UPDATE t2 SET b = CONCAT('+', b) WHERE a = 7 + sf_a_from_t1b_d('1');
@@ -6316,7 +6316,7 @@ ROLLBACK;
 UNLOCK TABLES;
 EXPLAIN PARTITIONS UPDATE t2 SET b = CONCAT('+', b) WHERE a = sf_a_from_t1b('1') AND a = 2;
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	Extra
-1	SIMPLE	t2	p2	range	PRIMARY	PRIMARY	4	NULL	#	Using where
+1	SIMPLE	t2	p2	range	PRIMARY	PRIMARY	4	const	#	Using where
 FLUSH STATUS;
 START TRANSACTION;
 UPDATE t2 SET b = CONCAT('+', b) WHERE a = sf_a_from_t1b('1') AND a = 2;
@@ -6355,7 +6355,7 @@ ROLLBACK;
 UNLOCK TABLES;
 EXPLAIN PARTITIONS UPDATE t2 SET b = CONCAT('+', b) WHERE a = sf_a_from_t1b_d('1') AND a = 2;
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	Extra
-1	SIMPLE	t2	p2	range	PRIMARY	PRIMARY	4	NULL	#	Using where
+1	SIMPLE	t2	p2	range	PRIMARY	PRIMARY	4	const	#	Using where
 FLUSH STATUS;
 START TRANSACTION;
 UPDATE t2 SET b = CONCAT('+', b) WHERE a = sf_a_from_t1b_d('1') AND a = 2;
@@ -6434,7 +6434,7 @@ ROLLBACK;
 UNLOCK TABLES;
 EXPLAIN PARTITIONS UPDATE t2 SET b = CONCAT('+', b) WHERE a = (SELECT a FROM t1 WHERE b = '1') OR a = 2;
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	Extra
-1	PRIMARY	t2	p1,p2	range	PRIMARY	PRIMARY	4	NULL	#	Using where
+1	PRIMARY	t2	p1,p2	range	PRIMARY	PRIMARY	4	const	#	Using where
 2	SUBQUERY	t1	p0,p1,p2	ref	b	b	258	const	#	Using where; Using index
 FLUSH STATUS;
 START TRANSACTION;
@@ -6476,7 +6476,7 @@ ROLLBACK;
 UNLOCK TABLES;
 EXPLAIN PARTITIONS UPDATE t2 SET b = CONCAT('+', b) WHERE a = (SELECT a FROM t1 WHERE b = '1') AND a = 2 OR a = 8 AND sf_a_from_t1b('2');
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	Extra
-1	PRIMARY	t2	p2	range	PRIMARY	PRIMARY	4	NULL	#	Using where
+1	PRIMARY	t2	p2	range	PRIMARY	PRIMARY	4	const	#	Using where
 2	SUBQUERY	t1	p0,p1,p2	ref	b	b	258	const	#	Using where; Using index
 FLUSH STATUS;
 START TRANSACTION;
@@ -6498,7 +6498,7 @@ a	b
 ROLLBACK;
 EXPLAIN PARTITIONS UPDATE t2 SET b = sf_add_hello(b) WHERE a = (SELECT a FROM t1 WHERE b = '1');
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	Extra
-1	PRIMARY	t2	p1	range	PRIMARY	PRIMARY	4	NULL	#	Using where
+1	PRIMARY	t2	p1	range	PRIMARY	PRIMARY	4	const	#	Using where
 2	SUBQUERY	t1	p0,p1,p2	ref	b	b	258	const	#	Using where; Using index
 FLUSH STATUS;
 START TRANSACTION;
@@ -6540,7 +6540,7 @@ ROLLBACK;
 UNLOCK TABLES;
 EXPLAIN PARTITIONS UPDATE t2 SET b = sf_add_hello(b) WHERE a = 7 + (SELECT a FROM t1 WHERE b = '1');
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	Extra
-1	PRIMARY	t2	p2	range	PRIMARY	PRIMARY	4	NULL	#	Using where
+1	PRIMARY	t2	p2	range	PRIMARY	PRIMARY	4	const	#	Using where
 2	SUBQUERY	t1	p0,p1,p2	ref	b	b	258	const	#	Using where; Using index
 FLUSH STATUS;
 START TRANSACTION;
@@ -6627,7 +6627,7 @@ ROLLBACK;
 UNLOCK TABLES;
 EXPLAIN PARTITIONS UPDATE t2 SET b = sf_add_hello(b) WHERE a = sf_a_from_t1b_d('1');
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	Extra
-1	SIMPLE	t2	p1	range	PRIMARY	PRIMARY	4	NULL	#	Using where
+1	SIMPLE	t2	p1	range	PRIMARY	PRIMARY	4	const	#	Using where
 FLUSH STATUS;
 START TRANSACTION;
 UPDATE t2 SET b = sf_add_hello(b) WHERE a = sf_a_from_t1b_d('1');
@@ -6713,7 +6713,7 @@ ROLLBACK;
 UNLOCK TABLES;
 EXPLAIN PARTITIONS UPDATE t2 SET b = sf_add_hello(b) WHERE a = 7 + sf_a_from_t1b_d('1');
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	Extra
-1	SIMPLE	t2	p2	range	PRIMARY	PRIMARY	4	NULL	#	Using where
+1	SIMPLE	t2	p2	range	PRIMARY	PRIMARY	4	const	#	Using where
 FLUSH STATUS;
 START TRANSACTION;
 UPDATE t2 SET b = sf_add_hello(b) WHERE a = 7 + sf_a_from_t1b_d('1');
@@ -6754,7 +6754,7 @@ ROLLBACK;
 UNLOCK TABLES;
 EXPLAIN PARTITIONS UPDATE t2 SET b = sf_add_hello(b) WHERE a = sf_a_from_t1b('1') AND a = 2;
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	Extra
-1	SIMPLE	t2	p2	range	PRIMARY	PRIMARY	4	NULL	#	Using where
+1	SIMPLE	t2	p2	range	PRIMARY	PRIMARY	4	const	#	Using where
 FLUSH STATUS;
 START TRANSACTION;
 UPDATE t2 SET b = sf_add_hello(b) WHERE a = sf_a_from_t1b('1') AND a = 2;
@@ -6793,7 +6793,7 @@ ROLLBACK;
 UNLOCK TABLES;
 EXPLAIN PARTITIONS UPDATE t2 SET b = sf_add_hello(b) WHERE a = sf_a_from_t1b_d('1') AND a = 2;
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	Extra
-1	SIMPLE	t2	p2	range	PRIMARY	PRIMARY	4	NULL	#	Using where
+1	SIMPLE	t2	p2	range	PRIMARY	PRIMARY	4	const	#	Using where
 FLUSH STATUS;
 START TRANSACTION;
 UPDATE t2 SET b = sf_add_hello(b) WHERE a = sf_a_from_t1b_d('1') AND a = 2;
@@ -6872,7 +6872,7 @@ ROLLBACK;
 UNLOCK TABLES;
 EXPLAIN PARTITIONS UPDATE t2 SET b = sf_add_hello(b) WHERE a = (SELECT a FROM t1 WHERE b = '1') OR a = 2;
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	Extra
-1	PRIMARY	t2	p1,p2	range	PRIMARY	PRIMARY	4	NULL	#	Using where
+1	PRIMARY	t2	p1,p2	range	PRIMARY	PRIMARY	4	const	#	Using where
 2	SUBQUERY	t1	p0,p1,p2	ref	b	b	258	const	#	Using where; Using index
 FLUSH STATUS;
 START TRANSACTION;
@@ -6914,7 +6914,7 @@ ROLLBACK;
 UNLOCK TABLES;
 EXPLAIN PARTITIONS UPDATE t2 SET b = sf_add_hello(b) WHERE a = (SELECT a FROM t1 WHERE b = '1') AND a = 2 OR a = 8 AND sf_a_from_t1b('2');
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	Extra
-1	PRIMARY	t2	p2	range	PRIMARY	PRIMARY	4	NULL	#	Using where
+1	PRIMARY	t2	p2	range	PRIMARY	PRIMARY	4	const	#	Using where
 2	SUBQUERY	t1	p0,p1,p2	ref	b	b	258	const	#	Using where; Using index
 FLUSH STATUS;
 START TRANSACTION;
@@ -6936,7 +6936,7 @@ a	b
 ROLLBACK;
 EXPLAIN PARTITIONS UPDATE t2 SET a = sf_add_1(a) + 4 WHERE a = (SELECT a FROM t1 WHERE b = '1');
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	Extra
-1	PRIMARY	t2	p1	range	PRIMARY	PRIMARY	4	NULL	#	Using where; Using temporary
+1	PRIMARY	t2	p1	range	PRIMARY	PRIMARY	4	const	#	Using where; Using temporary
 2	SUBQUERY	t1	p0,p1,p2	ref	b	b	258	const	#	Using where; Using index
 FLUSH STATUS;
 START TRANSACTION;
@@ -6980,7 +6980,7 @@ ROLLBACK;
 UNLOCK TABLES;
 EXPLAIN PARTITIONS UPDATE t2 SET a = sf_add_1(a) + 4 WHERE a = 7 + (SELECT a FROM t1 WHERE b = '1');
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	Extra
-1	PRIMARY	t2	p2	range	PRIMARY	PRIMARY	4	NULL	#	Using where; Using temporary
+1	PRIMARY	t2	p2	range	PRIMARY	PRIMARY	4	const	#	Using where; Using temporary
 2	SUBQUERY	t1	p0,p1,p2	ref	b	b	258	const	#	Using where; Using index
 FLUSH STATUS;
 START TRANSACTION;
@@ -7069,7 +7069,7 @@ ROLLBACK;
 UNLOCK TABLES;
 EXPLAIN PARTITIONS UPDATE t2 SET a = sf_add_1(a) + 4 WHERE a = sf_a_from_t1b_d('1');
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	Extra
-1	SIMPLE	t2	p1	range	PRIMARY	PRIMARY	4	NULL	#	Using where; Using temporary
+1	SIMPLE	t2	p1	range	PRIMARY	PRIMARY	4	const	#	Using where; Using temporary
 FLUSH STATUS;
 START TRANSACTION;
 UPDATE t2 SET a = sf_add_1(a) + 4 WHERE a = sf_a_from_t1b_d('1');
@@ -7157,7 +7157,7 @@ ROLLBACK;
 UNLOCK TABLES;
 EXPLAIN PARTITIONS UPDATE t2 SET a = sf_add_1(a) + 4 WHERE a = 7 + sf_a_from_t1b_d('1');
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	Extra
-1	SIMPLE	t2	p2	range	PRIMARY	PRIMARY	4	NULL	#	Using where; Using temporary
+1	SIMPLE	t2	p2	range	PRIMARY	PRIMARY	4	const	#	Using where; Using temporary
 FLUSH STATUS;
 START TRANSACTION;
 UPDATE t2 SET a = sf_add_1(a) + 4 WHERE a = 7 + sf_a_from_t1b_d('1');
@@ -7200,7 +7200,7 @@ ROLLBACK;
 UNLOCK TABLES;
 EXPLAIN PARTITIONS UPDATE t2 SET a = sf_add_1(a) + 4 WHERE a = sf_a_from_t1b('1') AND a = 2;
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	Extra
-1	SIMPLE	t2	p2	range	PRIMARY	PRIMARY	4	NULL	#	Using where; Using temporary
+1	SIMPLE	t2	p2	range	PRIMARY	PRIMARY	4	const	#	Using where; Using temporary
 FLUSH STATUS;
 START TRANSACTION;
 UPDATE t2 SET a = sf_add_1(a) + 4 WHERE a = sf_a_from_t1b('1') AND a = 2;
@@ -7239,7 +7239,7 @@ ROLLBACK;
 UNLOCK TABLES;
 EXPLAIN PARTITIONS UPDATE t2 SET a = sf_add_1(a) + 4 WHERE a = sf_a_from_t1b_d('1') AND a = 2;
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	Extra
-1	SIMPLE	t2	p2	range	PRIMARY	PRIMARY	4	NULL	#	Using where; Using temporary
+1	SIMPLE	t2	p2	range	PRIMARY	PRIMARY	4	const	#	Using where; Using temporary
 FLUSH STATUS;
 START TRANSACTION;
 UPDATE t2 SET a = sf_add_1(a) + 4 WHERE a = sf_a_from_t1b_d('1') AND a = 2;
@@ -7318,7 +7318,7 @@ ROLLBACK;
 UNLOCK TABLES;
 EXPLAIN PARTITIONS UPDATE t2 SET a = sf_add_1(a) + 4 WHERE a = (SELECT a FROM t1 WHERE b = '1') OR a = 2;
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	Extra
-1	PRIMARY	t2	p1,p2	range	PRIMARY	PRIMARY	4	NULL	#	Using where; Using temporary
+1	PRIMARY	t2	p1,p2	range	PRIMARY	PRIMARY	4	const	#	Using where; Using temporary
 2	SUBQUERY	t1	p0,p1,p2	ref	b	b	258	const	#	Using where; Using index
 FLUSH STATUS;
 START TRANSACTION;
@@ -7362,7 +7362,7 @@ ROLLBACK;
 UNLOCK TABLES;
 EXPLAIN PARTITIONS UPDATE t2 SET a = sf_add_1(a) + 4 WHERE a = (SELECT a FROM t1 WHERE b = '1') AND a = 2 OR a = 8 AND sf_a_from_t1b('2');
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	Extra
-1	PRIMARY	t2	p2	range	PRIMARY	PRIMARY	4	NULL	#	Using where; Using temporary
+1	PRIMARY	t2	p2	range	PRIMARY	PRIMARY	4	const	#	Using where; Using temporary
 2	SUBQUERY	t1	p0,p1,p2	ref	b	b	258	const	#	Using where; Using index
 FLUSH STATUS;
 START TRANSACTION;
@@ -7385,7 +7385,7 @@ a	b
 ROLLBACK;
 EXPLAIN PARTITIONS DELETE FROM t2 WHERE a = (SELECT a FROM t1 WHERE b = '1');
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	Extra
-1	PRIMARY	t2	p1	range	PRIMARY	PRIMARY	4	NULL	#	Using where
+1	PRIMARY	t2	p1	range	PRIMARY	PRIMARY	4	const	#	Using where
 2	SUBQUERY	t1	p0,p1,p2	ref	b	b	258	const	#	Using where; Using index
 FLUSH STATUS;
 START TRANSACTION;
@@ -7425,7 +7425,7 @@ ROLLBACK;
 UNLOCK TABLES;
 EXPLAIN PARTITIONS DELETE FROM t2 WHERE a = 7 + (SELECT a FROM t1 WHERE b = '1');
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	Extra
-1	PRIMARY	t2	p2	range	PRIMARY	PRIMARY	4	NULL	#	Using where
+1	PRIMARY	t2	p2	range	PRIMARY	PRIMARY	4	const	#	Using where
 2	SUBQUERY	t1	p0,p1,p2	ref	b	b	258	const	#	Using where; Using index
 FLUSH STATUS;
 START TRANSACTION;
@@ -7508,7 +7508,7 @@ ROLLBACK;
 UNLOCK TABLES;
 EXPLAIN PARTITIONS DELETE FROM t2 WHERE a = sf_a_from_t1b_d('1');
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	Extra
-1	SIMPLE	t2	p1	range	PRIMARY	PRIMARY	4	NULL	#	Using where
+1	SIMPLE	t2	p1	range	PRIMARY	PRIMARY	4	const	#	Using where
 FLUSH STATUS;
 START TRANSACTION;
 DELETE FROM t2 WHERE a = sf_a_from_t1b_d('1');
@@ -7590,7 +7590,7 @@ ROLLBACK;
 UNLOCK TABLES;
 EXPLAIN PARTITIONS DELETE FROM t2 WHERE a = 7 + sf_a_from_t1b_d('1');
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	Extra
-1	SIMPLE	t2	p2	range	PRIMARY	PRIMARY	4	NULL	#	Using where
+1	SIMPLE	t2	p2	range	PRIMARY	PRIMARY	4	const	#	Using where
 FLUSH STATUS;
 START TRANSACTION;
 DELETE FROM t2 WHERE a = 7 + sf_a_from_t1b_d('1');
@@ -7629,7 +7629,7 @@ ROLLBACK;
 UNLOCK TABLES;
 EXPLAIN PARTITIONS DELETE FROM t2 WHERE a = sf_a_from_t1b('1') AND a = 2;
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	Extra
-1	SIMPLE	t2	p2	range	PRIMARY	PRIMARY	4	NULL	#	Using where
+1	SIMPLE	t2	p2	range	PRIMARY	PRIMARY	4	const	#	Using where
 FLUSH STATUS;
 START TRANSACTION;
 DELETE FROM t2 WHERE a = sf_a_from_t1b('1') AND a = 2;
@@ -7668,7 +7668,7 @@ ROLLBACK;
 UNLOCK TABLES;
 EXPLAIN PARTITIONS DELETE FROM t2 WHERE a = sf_a_from_t1b_d('1') AND a = 2;
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	Extra
-1	SIMPLE	t2	p2	range	PRIMARY	PRIMARY	4	NULL	#	Using where
+1	SIMPLE	t2	p2	range	PRIMARY	PRIMARY	4	const	#	Using where
 FLUSH STATUS;
 START TRANSACTION;
 DELETE FROM t2 WHERE a = sf_a_from_t1b_d('1') AND a = 2;
@@ -7747,7 +7747,7 @@ ROLLBACK;
 UNLOCK TABLES;
 EXPLAIN PARTITIONS DELETE FROM t2 WHERE a = (SELECT a FROM t1 WHERE b = '1') OR a = 2;
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	Extra
-1	PRIMARY	t2	p1,p2	range	PRIMARY	PRIMARY	4	NULL	#	Using where
+1	PRIMARY	t2	p1,p2	range	PRIMARY	PRIMARY	4	const	#	Using where
 2	SUBQUERY	t1	p0,p1,p2	ref	b	b	258	const	#	Using where; Using index
 FLUSH STATUS;
 START TRANSACTION;
@@ -7785,7 +7785,7 @@ ROLLBACK;
 UNLOCK TABLES;
 EXPLAIN PARTITIONS DELETE FROM t2 WHERE a = (SELECT a FROM t1 WHERE b = '1') AND a = 2 OR a = 8 AND sf_a_from_t1b('2');
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	Extra
-1	PRIMARY	t2	p2	range	PRIMARY	PRIMARY	4	NULL	#	Using where
+1	PRIMARY	t2	p2	range	PRIMARY	PRIMARY	4	const	#	Using where
 2	SUBQUERY	t1	p0,p1,p2	ref	b	b	258	const	#	Using where; Using index
 FLUSH STATUS;
 START TRANSACTION;

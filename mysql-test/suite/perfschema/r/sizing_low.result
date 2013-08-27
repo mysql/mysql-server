@@ -7,6 +7,9 @@ table_open_cache	100
 show variables like "max_connections";
 Variable_name	Value
 max_connections	50
+show variables like "open_files_limit";
+Variable_name	Value
+open_files_limit	1024
 show variables like "%performance_schema%";
 Variable_name	Value
 performance_schema	ON
@@ -141,9 +144,9 @@ performance_schema	(pfs_user).memory	640
 performance_schema	(pfs_host).row_size	128
 performance_schema	(pfs_host).row_count	20
 performance_schema	(pfs_host).memory	2560
-performance_schema	(pfs_stage_class).row_size	192
+performance_schema	(pfs_stage_class).row_size	256
 performance_schema	(pfs_stage_class).row_count	150
-performance_schema	(pfs_stage_class).memory	28800
+performance_schema	(pfs_stage_class).memory	38400
 performance_schema	events_stages_history.row_size	88
 performance_schema	events_stages_history.row_count	560
 performance_schema	events_stages_history.memory	49280
@@ -216,9 +219,9 @@ performance_schema	(setup_actor_hash).count	1
 performance_schema	(setup_actor_hash).size	100
 performance_schema	(setup_object_hash).count	4
 performance_schema	(setup_object_hash).size	100
-performance_schema	(table_share_hash).count	82
+performance_schema	(table_share_hash).count	80
 performance_schema	(table_share_hash).size	445
 performance_schema	(user_hash).count	2
 performance_schema	(user_hash).size	5
 performance_schema	host_cache.size	336
-performance_schema	performance_schema.memory	24691520
+performance_schema	performance_schema.memory	24701120

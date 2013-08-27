@@ -353,7 +353,8 @@ lock_wait_suspend_thread(
 			finish_time = (ib_int64_t) sec * 1000000 + ms;
 		}
 
-		diff_time = (ulint) (finish_time - start_time);
+		diff_time = (finish_time > start_time) ?
+			    (ulint) (finish_time - start_time) : 0;
 
 		srv_stats.n_lock_wait_current_count.dec();
 		srv_stats.n_lock_wait_time.add(diff_time);

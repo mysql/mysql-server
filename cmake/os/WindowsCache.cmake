@@ -1,4 +1,4 @@
-# Copyright (c) 2010, 2011, Oracle and/or its affiliates. All rights reserved.
+# Copyright (c) 2010, 2013, Oracle and/or its affiliates. All rights reserved.
 # 
 # This program is free software; you can redistribute it and/or modify
 # it under the terms of the GNU General Public License as published by
@@ -116,7 +116,7 @@ SET(HAVE_LONGJMP 1 CACHE  INTERNAL "")
 SET(HAVE_LRAND48 CACHE  INTERNAL "")
 SET(HAVE_LSTAT CACHE  INTERNAL "")
 SET(HAVE_MADVISE CACHE  INTERNAL "")
-SET(HAVE_MALLINFO CACHE  INTERNAL "")
+SET(HAVE_MALLOC_INFO CACHE  INTERNAL "")
 SET(HAVE_MALLOC_H 1 CACHE  INTERNAL "")
 SET(HAVE_MEMALIGN CACHE  INTERNAL "")
 SET(HAVE_MEMCPY 1 CACHE  INTERNAL "")

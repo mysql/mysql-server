@@ -445,9 +445,7 @@ void init_update_queries(void)
   sql_command_flags[SQLCOM_GRANT]=             CF_CHANGES_DATA;
   sql_command_flags[SQLCOM_REVOKE]=            CF_CHANGES_DATA;
   sql_command_flags[SQLCOM_REVOKE_ALL]=        CF_CHANGES_DATA;
-  sql_command_flags[SQLCOM_REPAIR]=            CF_CHANGES_DATA;
   sql_command_flags[SQLCOM_OPTIMIZE]=          CF_CHANGES_DATA;
-  sql_command_flags[SQLCOM_ANALYZE]=           CF_CHANGES_DATA;
   sql_command_flags[SQLCOM_CREATE_FUNCTION]=   CF_CHANGES_DATA | CF_AUTO_COMMIT_TRANS;
   sql_command_flags[SQLCOM_CREATE_PROCEDURE]=  CF_CHANGES_DATA | CF_AUTO_COMMIT_TRANS;
   sql_command_flags[SQLCOM_CREATE_SPFUNCTION]= CF_CHANGES_DATA | CF_AUTO_COMMIT_TRANS;
@@ -474,9 +472,9 @@ void init_update_queries(void)
     The following admin table operations are allowed
     on log tables.
   */
-  sql_command_flags[SQLCOM_REPAIR]|=    CF_WRITE_LOGS_COMMAND | CF_AUTO_COMMIT_TRANS;
+  sql_command_flags[SQLCOM_REPAIR]=    CF_WRITE_LOGS_COMMAND | CF_AUTO_COMMIT_TRANS;
   sql_command_flags[SQLCOM_OPTIMIZE]|= CF_WRITE_LOGS_COMMAND | CF_AUTO_COMMIT_TRANS;
-  sql_command_flags[SQLCOM_ANALYZE]|=   CF_WRITE_LOGS_COMMAND | CF_AUTO_COMMIT_TRANS;
+  sql_command_flags[SQLCOM_ANALYZE]=   CF_WRITE_LOGS_COMMAND | CF_AUTO_COMMIT_TRANS;
   sql_command_flags[SQLCOM_CHECK]=     CF_WRITE_LOGS_COMMAND | CF_AUTO_COMMIT_TRANS;
 
   sql_command_flags[SQLCOM_CREATE_USER]|=       CF_AUTO_COMMIT_TRANS;
@@ -1347,6 +1345,12 @@ bool dispatch_command(enum enum_server_command command, THD *thd,
       thd->update_server_status();
       thd->protocol->end_statement();
       query_cache_end_of_result(thd);
+
+      mysql_audit_general(thd, MYSQL_AUDIT_GENERAL_STATUS,
+                          thd->get_stmt_da()->is_error() ?
+                          thd->get_stmt_da()->sql_errno() : 0,
+                          command_name[command].str);
+
       ulong length= (ulong)(packet_end - beginning_of_next_stmt);
 
       log_slow_statement(thd);
@@ -2486,6 +2490,15 @@ mysql_execute_command(THD *thd)
     DBUG_ASSERT(! thd->in_sub_stmt);
     /* Commit or rollback the statement transaction. */
     thd->is_error() ? trans_rollback_stmt(thd) : trans_commit_stmt(thd);
+
+    /*
+      Implicit commit is not allowed with an active XA transaction.
+      In this case we should not release metadata locks as the XA transaction
+      will not be rolled back. Therefore we simply return here.
+    */
+    if (trans_check_state(thd))
+      DBUG_RETURN(-1);
+
     /* Commit the normal transaction if one is active. */
     if (trans_commit_implicit(thd))
       goto error;
@@ -3690,6 +3703,12 @@ end_with_restore_list:
     */
     if (thd->variables.option_bits & OPTION_TABLE_LOCK)
     {
+      /*
+        Can we commit safely? If not, return to avoid releasing
+        transactional metadata locks.
+      */
+      if (trans_check_state(thd))
+        DBUG_RETURN(-1);
       res= trans_commit_implicit(thd);
       thd->locked_tables_list.unlock_locked_tables(thd);
       thd->mdl_context.release_transactional_locks();
@@ -3702,6 +3721,12 @@ end_with_restore_list:
     my_ok(thd);
     break;
   case SQLCOM_LOCK_TABLES:
+    /*
+      Can we commit safely? If not, return to avoid releasing
+      transactional metadata locks.
+    */
+    if (trans_check_state(thd))
+      DBUG_RETURN(-1);
     /* We must end the transaction first, regardless of anything */
     res= trans_commit_implicit(thd);
     thd->locked_tables_list.unlock_locked_tables(thd);
@@ -5837,7 +5862,8 @@ void THD::reset_for_next_command()
 
   thd->m_trans_end_pos= 0;
   thd->m_trans_log_file= NULL;
-  thd->commit_error= 0;
+  thd->m_trans_fixed_log_file= NULL;
+  thd->commit_error= THD::CE_NONE;
   thd->durability_property= HA_REGULAR_DURABILITY;
   thd->set_trans_pos(NULL, 0);
 
@@ -6613,24 +6639,19 @@ TABLE_LIST *st_select_lex::add_table_to_list(THD *thd,
 
 bool st_select_lex::init_nested_join(THD *thd)
 {
-  TABLE_LIST *ptr;
-  NESTED_JOIN *nested_join;
   DBUG_ENTER("init_nested_join");
 
-  if (!(ptr= (TABLE_LIST*) thd->calloc(ALIGN_SIZE(sizeof(TABLE_LIST))+
-                                       sizeof(NESTED_JOIN))))
-    DBUG_RETURN(1);
-  nested_join= ptr->nested_join=
-    ((NESTED_JOIN*) ((uchar*) ptr + ALIGN_SIZE(sizeof(TABLE_LIST))));
+  TABLE_LIST *const ptr=
+    TABLE_LIST::new_nested_join(thd->mem_root, "(nested_join)",
+                                embedding, join_list, this);
+  if (ptr == NULL)
+    DBUG_RETURN(true);
 
   join_list->push_front(ptr);
-  ptr->embedding= embedding;
-  ptr->join_list= join_list;
-  ptr->alias= (char*) "(nested_join)";
   embedding= ptr;
-  join_list= &nested_join->join_list;
-  join_list->empty();
-  DBUG_RETURN(0);
+  join_list= &ptr->nested_join->join_list;
+
+  DBUG_RETURN(false);
 }
 
 
@@ -6692,22 +6713,15 @@ TABLE_LIST *st_select_lex::end_nested_join(THD *thd)
 
 TABLE_LIST *st_select_lex::nest_last_join(THD *thd)
 {
-  TABLE_LIST *ptr;
-  NESTED_JOIN *nested_join;
-  List<TABLE_LIST> *embedded_list;
   DBUG_ENTER("nest_last_join");
 
-  if (!(ptr= (TABLE_LIST*) thd->calloc(ALIGN_SIZE(sizeof(TABLE_LIST))+
-                                       sizeof(NESTED_JOIN))))
-    DBUG_RETURN(0);
-  nested_join= ptr->nested_join=
-    ((NESTED_JOIN*) ((uchar*) ptr + ALIGN_SIZE(sizeof(TABLE_LIST))));
+  TABLE_LIST *const ptr=
+    TABLE_LIST::new_nested_join(thd->mem_root, "(nest_last_join)",
+                                embedding, join_list, this);
+  if (ptr == NULL)
+    DBUG_RETURN(NULL);
 
-  ptr->embedding= embedding;
-  ptr->join_list= join_list;
-  ptr->alias= (char*) "(nest_last_join)";
-  embedded_list= &nested_join->join_list;
-  embedded_list->empty();
+  List<TABLE_LIST> *const embedded_list= &ptr->nested_join->join_list;
 
   for (uint i=0; i < 2; i++)
   {
@@ -6727,7 +6741,7 @@ TABLE_LIST *st_select_lex::nest_last_join(THD *thd)
     }
   }
   join_list->push_front(ptr);
-  nested_join->used_tables= nested_join->not_null_tables= (table_map) 0;
+
   DBUG_RETURN(ptr);
 }
 
