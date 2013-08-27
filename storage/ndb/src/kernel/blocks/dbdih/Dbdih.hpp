@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2003, 2010, Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2003, 2013, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -30,6 +30,10 @@
 #include <signaldata/LCP.hpp>
 #include <NdbSeqLock.hpp>
 #include <CountingSemaphore.hpp>
+#include <Mutex.hpp>
+
+#define JAM_FILE_ID 356
+
 
 #ifdef DBDIH_C
 
@@ -1946,6 +1950,9 @@ private:
 #if (DIH_CDATA_SIZE < _SYSFILE_SIZE32)
 #error "cdata is to small compared to Sysfile size"
 #endif
+
+
+#undef JAM_FILE_ID
 
 #endif
 

@@ -1,6 +1,5 @@
 /*
-   Copyright (C) 2003, 2005-2008 MySQL AB, 2008 Sun Microsystems, Inc.
-    All rights reserved. Use is subject to license terms.
+   Copyright (c) 2003, 2013, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -20,6 +19,9 @@
 #define BACKUP_FORMAT_HPP
 
 #include <ndb_types.h>
+
+#define JAM_FILE_ID 473
+
 
 static const char BACKUP_MAGIC[] = { 'N', 'D', 'B', 'B', 'C', 'K', 'U', 'P' };
 
@@ -211,5 +213,8 @@ struct BackupFormat {
     DataFile::FragmentFooter FragmentFooter;
   };
 };
+
+
+#undef JAM_FILE_ID
 
 #endif

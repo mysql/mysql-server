@@ -36,11 +36,15 @@
 
 // primary key is stored in TUP
 #include "../dbtup/Dbtup.hpp"
+#include "../dbacc/Dbacc.hpp"
 
 class Dbacc;
 class Dbtup;
 class Lgman;
 #endif // DBLQH_STATE_EXTRACT
+
+
+#define JAM_FILE_ID 450
 
 #ifdef DBLQH_C
 // Constants
@@ -3451,8 +3455,6 @@ Dblqh::get_op_info(Uint32 opId, Uint32 *hash, Uint32* gci_hi, Uint32* gci_lo,
   *transId2 = regTcPtr.p->transid[1];
 }
 
-#include "../dbacc/Dbacc.hpp"
-
 inline
 void
 Dblqh::accminupdate(Signal* signal, Uint32 opId, const Local_key* key)
@@ -3507,4 +3509,7 @@ Dblqh::TRACE_OP_CHECK(const TcConnectionrec* regTcPtr)
     ERROR_INSERTED(5713);
 }
 #endif
+
+#undef JAM_FILE_ID
+
 #endif

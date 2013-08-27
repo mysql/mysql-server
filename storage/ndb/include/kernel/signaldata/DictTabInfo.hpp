@@ -25,6 +25,9 @@
 #include <NdbSqlUtil.hpp>
 #include <ndb_global.h>
 
+#define JAM_FILE_ID 87
+
+
 #ifndef my_decimal_h
 
 // sql/my_decimal.h requires many more sql/*.h new to ndb
@@ -811,5 +814,8 @@ struct DictHashMapInfo {
   static const Uint32 MappingSize;
   static const SimpleProperties::SP2StructMapping Mapping[];
 };
+
+
+#undef JAM_FILE_ID
 
 #endif

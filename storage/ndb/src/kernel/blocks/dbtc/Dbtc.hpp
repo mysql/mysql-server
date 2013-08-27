@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2003, 2010, Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2003, 2013, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -38,6 +38,9 @@
 #include <trigger_definitions.h>
 #include <SignalCounter.hpp>
 #endif
+
+
+#define JAM_FILE_ID 350
 
 #ifdef DBTC_C
 /*
@@ -2152,5 +2155,8 @@ private:
   Uint32 m_max_writes_per_trans;
 #endif
 };
+
+
+#undef JAM_FILE_ID
 
 #endif

@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2003, 2010, Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2003, 2013, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -19,6 +19,9 @@
 #define ALTER_TABLE_HPP
 
 #include "SignalData.hpp"
+
+#define JAM_FILE_ID 112
+
 
 struct AlterTableReq {
   STATIC_CONST( SignalLength = 8 );
@@ -342,5 +345,8 @@ struct AlterTableRep
   
   SECTION( TABLE_NAME = 0 );
 };
+
+
+#undef JAM_FILE_ID
 
 #endif

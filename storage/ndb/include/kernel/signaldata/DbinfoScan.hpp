@@ -1,6 +1,5 @@
 /* 
-   Copyright 2008, 2009 Sun Microsystems, Inc.
-    All rights reserved. Use is subject to license terms.
+   Copyright (c) 2008, 2013, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -19,6 +18,9 @@
 #define DBINFO_SCAN_H
 
 #include "SignalData.hpp"
+
+#define JAM_FILE_ID 122
+
 
 struct DbinfoScanCursor
 {
@@ -79,5 +81,8 @@ struct DbinfoScanRef
     NoTable = 4800
   };
 };
+
+
+#undef JAM_FILE_ID
 
 #endif
