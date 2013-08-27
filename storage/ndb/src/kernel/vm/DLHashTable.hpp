@@ -1,5 +1,6 @@
 /*
-   Copyright (c) 2003-2006, 2008, 2011, Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2003-2006, 2008, 2013, Oracle and/or its affiliates. All 
+   rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -19,6 +20,10 @@
 #define DL_HASHTABLE_HPP
 
 #include <ndb_global.h>
+#include "ArrayPool.hpp"
+
+#define JAM_FILE_ID 313
+
 
 /**
  * DLMHashTable implements a hashtable using chaining
@@ -529,8 +534,6 @@ DLMHashTable<P, T, M>::find(Ptr<T> & ptr, const T & key) const
 
 // Specializations
 
-#include "ArrayPool.hpp"
-
 template <typename P, typename T, typename U = T >
 class DLHashTableImpl: public DLMHashTable<P, T, DLHashTableDefaultMethods<T, U> >
 {
@@ -550,5 +553,8 @@ private:
   DLHashTable(const DLHashTable&);
   DLHashTable&  operator=(const DLHashTable&);
 };
+
+
+#undef JAM_FILE_ID
 
 #endif

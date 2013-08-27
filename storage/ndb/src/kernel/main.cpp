@@ -23,7 +23,12 @@
 #include "ndbd.hpp"
 #include "angel.hpp"
 
+#include "../common/util/parse_mask.hpp"
+
 #include <EventLogger.hpp>
+
+#define JAM_FILE_ID 485
+
 extern EventLogger * g_eventLogger;
 
 static int opt_daemon, opt_no_daemon, opt_foreground,
@@ -114,8 +119,6 @@ static void usage()
 }
 
 extern int g_ndb_init_need_monotonic;
-
-#include "../common/util/parse_mask.hpp"
 
 /**
  * C++ Standard 3.6.1/3:

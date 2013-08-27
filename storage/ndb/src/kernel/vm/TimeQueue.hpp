@@ -1,6 +1,5 @@
 /*
-   Copyright (C) 2003, 2005, 2006 MySQL AB
-    All rights reserved. Use is subject to license terms.
+   Copyright (c) 2003, 2013, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -21,6 +20,9 @@
 
 #include <kernel_types.h>
 #include "Prio.hpp"
+
+#define JAM_FILE_ID 247
+
 
 #define MAX_NO_OF_SHORT_TQ 512
 #define MAX_NO_OF_LONG_TQ 512
@@ -60,5 +62,8 @@ private:
   TimerEntry  theLongQueue[MAX_NO_OF_LONG_TQ];
   Uint16     theFreeIndex[MAX_NO_OF_TQ];
 };
+
+
+#undef JAM_FILE_ID
 
 #endif

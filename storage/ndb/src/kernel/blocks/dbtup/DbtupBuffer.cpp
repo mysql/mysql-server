@@ -23,6 +23,9 @@
 #include <pc.hpp>
 #include <signaldata/TransIdAI.hpp>
 
+#define JAM_FILE_ID 410
+
+
 void Dbtup::execSEND_PACKED(Signal* signal)
 {
   Uint16 hostId;

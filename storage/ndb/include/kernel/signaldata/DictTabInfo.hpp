@@ -25,6 +25,9 @@
 #include <NdbSqlUtil.hpp>
 #include <ndb_global.h>
 
+#define JAM_FILE_ID 87
+
+
 #ifndef my_decimal_h
 
 // sql/my_decimal.h requires many more sql/*.h new to ndb
@@ -916,5 +919,7 @@ struct DictForeignKeyInfo
 
 #define DFKIBREAK(x) \
   { DictForeignKeyInfo::x, 0, SimpleProperties::InvalidValue, 0, 0, 0 }
+
+#undef JAM_FILE_ID
 
 #endif

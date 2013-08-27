@@ -59,6 +59,9 @@
 
 #include "Ndbinfo.hpp"
 
+#define JAM_FILE_ID 248
+
+
 #ifdef VM_TRACE
 #define D(x) \
   do { \
@@ -1342,8 +1345,6 @@ BLOCK::addRecSignal(GlobalSignalNumber gsn, ExecSignalLocal f, bool force){ \
   addRecSignalImpl(gsn, (ExecFunction)f, force);\
 }
 
-#include "Mutex.hpp"
-
 #ifdef ERROR_INSERT
 #define RSS_AP_SNAPSHOT(x) Uint32 rss_##x
 #define RSS_AP_SNAPSHOT_SAVE(x) rss_##x = x.getNoOfFree()
@@ -1433,6 +1434,8 @@ public:
     release();
   }
 };
+
+#undef JAM_FILE_ID
 
 #endif
 

@@ -1,6 +1,5 @@
 /*
-   Copyright (C) 2003-2006, 2008 MySQL AB
-    All rights reserved. Use is subject to license terms.
+   Copyright (c) 2003, 2013, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -20,6 +19,9 @@
 #define TUP_KEY_H
 
 #include "SignalData.hpp"
+
+#define JAM_FILE_ID 57
+
 
 class TupKeyReq {
   /**
@@ -127,5 +129,8 @@ private:
   Uint32 userRef;
   Uint32 errorCode;
 };
+
+
+#undef JAM_FILE_ID
 
 #endif

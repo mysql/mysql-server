@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2003, 2010, Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2003, 2013, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -20,6 +20,9 @@
 
 #include "SignalData.hpp"
 #include <trigger_definitions.h>
+
+#define JAM_FILE_ID 27
+
 
 class LqhKeyReq {
   /**
@@ -789,5 +792,8 @@ private:
   Uint32 transId1;
   Uint32 transId2;
 };
+
+
+#undef JAM_FILE_ID
 
 #endif
