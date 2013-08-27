@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2005, 2010, Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2005, 2013, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -28,6 +28,11 @@
 
 #include <DebuggerNames.hpp>
 #include <md5_hash.hpp>
+
+#include <PgmanProxy.hpp>
+
+#define JAM_FILE_ID 335
+
 
 /**
  * Requests that make page dirty
@@ -2124,8 +2129,6 @@ Pgman::execRELEASE_PAGES_REQ(Signal* signal)
 }
 
 // page cache client
-
-#include <PgmanProxy.hpp>
 
 Page_cache_client::Page_cache_client(SimulatedBlock* block,
                                      SimulatedBlock* pgman)

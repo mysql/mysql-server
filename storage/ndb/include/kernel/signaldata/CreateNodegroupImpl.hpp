@@ -1,4 +1,4 @@
-/* Copyright (C) 2008 MySQL AB
+/* Copyright (c) 2008, 2013, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -17,6 +17,9 @@
 #define CREATE_NODEGROUP_IMPL_HPP
 
 #include "SignalData.hpp"
+
+#define JAM_FILE_ID 36
+
 
 struct CreateNodegroupImplReq {
   /**
@@ -90,5 +93,8 @@ struct CreateNodegroupImplConf {
   Uint32 gci_hi;
   Uint32 gci_lo;
 };
+
+
+#undef JAM_FILE_ID
 
 #endif

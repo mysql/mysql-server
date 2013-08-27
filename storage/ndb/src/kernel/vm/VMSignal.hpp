@@ -27,6 +27,10 @@
 
 #include <RefConvert.hpp>
 #include <TransporterDefinitions.hpp>
+#include <SignalCounter.hpp>
+
+#define JAM_FILE_ID 314
+
 
 extern void getSections(Uint32 secCount, SegmentedSectionPtr ptr[3]);
 
@@ -227,8 +231,6 @@ NodeReceiverGroup::NodeReceiverGroup(Uint32 blockNo,
   m_nodes = nodes;
 }
 
-#include "SignalCounter.hpp"
-
 inline
 NodeReceiverGroup::NodeReceiverGroup(Uint32 blockNo, 
 				     const SignalCounter & nodes){
@@ -303,5 +305,8 @@ SectionHandle::~SectionHandle()
                                "");
   }
 }
+
+
+#undef JAM_FILE_ID
 
 #endif
