@@ -2427,10 +2427,13 @@ void
 buf_flush_sync_all_buf_pools(void)
 /*==============================*/
 {
-	bool success = buf_flush_list(ULINT_MAX, LSN_MAX, NULL);
-	ut_a(success);
+	bool success;
+	do {
+		success = buf_flush_list(ULINT_MAX, LSN_MAX, NULL);
+		buf_flush_wait_batch_end(NULL, BUF_FLUSH_LIST);
+	} while (!success);
 
-	buf_flush_wait_batch_end(NULL, BUF_FLUSH_LIST);
+	ut_a(success);
 }
 #if defined UNIV_DEBUG || defined UNIV_BUF_DEBUG
 
