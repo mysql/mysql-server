@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2003, 2011, Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2003, 2013, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -40,81 +40,9 @@
 #include "../pgman.hpp"
 #include "../tsman.hpp"
 
-// jams
-#undef jam
-#undef jamEntry
-#ifdef DBTUP_BUFFER_CPP
-#define jam()	 	jamLine(10000 + __LINE__)
-#define jamEntry() 	jamEntryLine(10000 + __LINE__)
-#endif
-#ifdef DBTUP_ROUTINES_CPP
-#define jam()           jamLine(15000 + __LINE__)
-#define jamEntry()      jamEntryLine(15000 + __LINE__)
-#endif
-#ifdef DBTUP_COMMIT_CPP
-#define jam()           jamLine(20000 + __LINE__)
-#define jamEntry()      jamEntryLine(20000 + __LINE__)
-#endif
-#ifdef DBTUP_FIXALLOC_CPP
-#define jam()           jamLine(25000 + __LINE__)
-#define jamEntry()      jamEntryLine(25000 + __LINE__)
-#endif
-#ifdef DBTUP_TRIGGER_CPP
-#define jam()           jamLine(30000 + __LINE__)
-#define jamEntry()      jamEntryLine(30000 + __LINE__)
-#endif
-#ifdef DBTUP_ABORT_CPP
-#define jam()           jamLine(35000 + __LINE__)
-#define jamEntry()      jamEntryLine(35000 + __LINE__)
-#endif
-#ifdef DBTUP_PAGE_MAP_CPP
-#define jam()           jamLine(40000 + __LINE__)
-#define jamEntry()      jamEntryLine(40000 + __LINE__)
-#endif
-#ifdef DBTUP_PAG_MAN_CPP
-#define jam()           jamLine(45000 + __LINE__)
-#define jamEntry()      jamEntryLine(45000 + __LINE__)
-#endif
-#ifdef DBTUP_STORE_PROC_DEF_CPP
-#define jam()           jamLine(50000 + __LINE__)
-#define jamEntry()      jamEntryLine(50000 + __LINE__)
-#endif
-#ifdef DBTUP_META_CPP
-#define jam()           jamLine(55000 + __LINE__)
-#define jamEntry()      jamEntryLine(55000 + __LINE__)
-#endif
-#ifdef DBTUP_TAB_DES_MAN_CPP
-#define jam()           jamLine(60000 + __LINE__)
-#define jamEntry()      jamEntryLine(60000 + __LINE__)
-#endif
-#ifdef DBTUP_GEN_CPP
-#define jam()           jamLine(65000 + __LINE__)
-#define jamEntry()      jamEntryLine(65000 + __LINE__)
-#endif
-#ifdef DBTUP_INDEX_CPP
-#define jam()           jamLine(70000 + __LINE__)
-#define jamEntry()      jamEntryLine(70000 + __LINE__)
-#endif
-#ifdef DBTUP_DEBUG_CPP
-#define jam()           jamLine(75000 + __LINE__)
-#define jamEntry()      jamEntryLine(75000 + __LINE__)
-#endif
-#ifdef DBTUP_VAR_ALLOC_CPP
-#define jam()           jamLine(80000 + __LINE__)
-#define jamEntry()      jamEntryLine(80000 + __LINE__)
-#endif
-#ifdef DBTUP_SCAN_CPP
-#define jam()           jamLine(85000 + __LINE__)
-#define jamEntry()      jamEntryLine(85000 + __LINE__)
-#endif
-#ifdef DBTUP_DISK_ALLOC_CPP
-#define jam()           jamLine(90000 + __LINE__)
-#define jamEntry()      jamEntryLine(90000 + __LINE__)
-#endif
-#ifndef jam
-#define jam()           jamLine(__LINE__)
-#define jamEntry()      jamEntryLine(__LINE__)
-#endif
+#define JAM_FILE_ID 414
+
+
 
 #ifdef VM_TRACE
 inline const char* dbgmask(const Bitmask<MAXNROFATTRIBUTESINWORDS>& bm) {
@@ -142,35 +70,6 @@ inline const Uint32* ALIGN_WORD(const void* ptr)
 }
 
 #ifdef DBTUP_C
-//------------------------------------------------------------------
-// Jam Handling:
-//
-// When DBTUP reports lines through jam in the trace files it has to
-// be interpreted. 4024 means as an example line 24 in DbtupCommit.cpp
-// Thus 4000 is added to the line number beacuse it is located in the
-// file DbtupCommit.cpp. The following is the exhaustive list of the
-// added value in the various files. ndbrequire, ptrCheckGuard still
-// only reports the line number in the file it currently is located in.
-// 
-// DbtupExecQuery.cpp         0
-// DbtupBuffer.cpp         10000
-// DbtupRoutines.cpp       15000
-// DbtupCommit.cpp         20000
-// DbtupFixAlloc.cpp       25000
-// DbtupTrigger.cpp        30000
-// DbtupAbort.cpp          35000
-// DbtupPageMap.cpp        40000
-// DbtupPagMan.cpp         45000
-// DbtupStoredProcDef.cpp  50000
-// DbtupMeta.cpp           55000
-// DbtupTabDesMan.cpp      60000
-// DbtupGen.cpp            65000
-// DbtupIndex.cpp          70000
-// DbtupDebug.cpp          75000
-// DbtupVarAlloc.cpp       80000
-// DbtupScan.cpp           85000
-// DbtupDiskAlloc.cpp      90000
-//------------------------------------------------------------------
 
 /*
 2.2 LOCAL SYMBOLS
@@ -3737,5 +3636,8 @@ public:
   void disk_restart_page_bits(Uint32 tableId, Uint32 fragId,
 			      const Local_key* key, Uint32 bits);
 };
+
+
+#undef JAM_FILE_ID
 
 #endif

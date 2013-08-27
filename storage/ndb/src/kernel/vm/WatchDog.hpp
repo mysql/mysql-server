@@ -1,6 +1,5 @@
 /*
-   Copyright (C) 2003, 2005, 2006, 2008 MySQL AB, 2008 Sun Microsystems, Inc.
-    All rights reserved. Use is subject to license terms.
+   Copyright (c) 2003, 2013, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -23,6 +22,9 @@
 #include <NdbThread.h>
 #include <NdbMutex.h>
 #include <NdbTick.h>
+
+#define JAM_FILE_ID 253
+
 
 extern "C" void* runWatchDog(void* w);
 
@@ -92,5 +94,8 @@ private:
   void run();
   void shutdownSystem(const char *last_stuck_action);
 };
+
+
+#undef JAM_FILE_ID
 
 #endif // WatchDog_H

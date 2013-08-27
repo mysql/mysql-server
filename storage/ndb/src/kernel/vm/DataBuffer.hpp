@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2003, 2010, Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2003, 2013, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -19,6 +19,9 @@
 #define DATA_BUFFER_HPP
 
 #include "ArrayPool.hpp"
+
+#define JAM_FILE_ID 274
+
 
 /**
  * @class  DataBuffer
@@ -620,6 +623,9 @@ bool
 DataBuffer<sz>::isEmpty() const {
   return (head.used == 0);
 }
+
+
+#undef JAM_FILE_ID
 
 #endif
 

@@ -44,6 +44,9 @@
 #include <signaldata/ReadNodesConf.hpp>
 #include <signaldata/SignalDroppedRep.hpp>
 
+#define JAM_FILE_ID 479
+
+
 #ifdef VM_TRACE
 
 /**

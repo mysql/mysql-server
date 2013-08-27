@@ -55,6 +55,9 @@
 #include "../dbtup/Dbtup.hpp"
 #include "../dblqh/Dblqh.hpp"
 
+#define JAM_FILE_ID 345
+
+
 
 // Signal entries and statement blocks
 /* --------------------------------------------------------------------------------- */

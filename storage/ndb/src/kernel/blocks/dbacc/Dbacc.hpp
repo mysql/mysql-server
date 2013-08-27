@@ -30,6 +30,9 @@
 #include <IntrusiveList.hpp>
 #include "Container.hpp"
 
+#define JAM_FILE_ID 344
+
+
 #ifdef DBACC_C
 // Debug Macros
 #define dbgWord32(ptr, ind, val) 
@@ -1112,5 +1115,8 @@ inline void Dbacc::getPtr(Ptr<Page8>& page) const
 {
   ptrCheckGuard(page, cpagesize, page8);
 }
+
+
+#undef JAM_FILE_ID
 
 #endif

@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2003, 2011, Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2003, 2013, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -20,6 +20,9 @@
 
 #include "SignalData.hpp"
 #include <NodeBitmask.hpp>
+
+#define JAM_FILE_ID 59
+
 
 /**
  * This signals is sent by Qmgr to NdbCntr
@@ -50,5 +53,8 @@ struct NodeFailRep {
     return signalLength - 3;
   }
 };
+
+
+#undef JAM_FILE_ID
 
 #endif
