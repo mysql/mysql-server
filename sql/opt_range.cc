@@ -838,6 +838,15 @@ public:
     statistics is used for these indexes.
   */
   bool use_index_statistics;
+
+  bool statement_should_be_aborted() const
+  {
+    return
+      thd->is_fatal_error ||
+      thd->is_error() ||
+      alloced_sel_args > SEL_ARG::MAX_SEL_ARGS;
+  }
+
 };
 
 class PARAM : public RANGE_OPT_PARAM
@@ -5806,6 +5815,10 @@ static SEL_TREE *get_func_mm_tree(RANGE_OPT_PARAM *param, Item_func *cond_func,
 
   switch (cond_func->functype()) {
 
+  case Item_func::XOR_FUNC:
+    DBUG_RETURN(NULL); // Always true (don't use range access on XOR).
+    break;             // See WL#5800
+
   case Item_func::NE_FUNC:
     tree= get_ne_mm_tree(param, cond_func, field, value, value, cmp_type);
     break;
@@ -5945,6 +5958,34 @@ static SEL_TREE *get_func_mm_tree(RANGE_OPT_PARAM *param, Item_func *cond_func,
               {
                 new_interval->min_value= last_val->max_value;
                 new_interval->min_flag= NEAR_MIN;
+
+                /*
+                  If the interval is over a partial keypart, the
+                  interval must be "c_{i-1} <= X < c_i" instead of
+                  "c_{i-1} < X < c_i". Reason:
+
+                  Consider a table with a column "my_col VARCHAR(3)",
+                  and an index with definition
+                  "INDEX my_idx my_col(1)". If the table contains rows
+                  with my_col values "f" and "foo", the index will not
+                  distinguish the two rows.
+
+                  Note that tree_or() below will effectively merge
+                  this range with the range created for c_{i-1} and
+                  we'll eventually end up with only one range:
+                  "NULL < X".
+
+                  Partitioning indexes are never partial.
+                */
+                if (param->using_real_indexes)
+                {
+                  const KEY key=
+                    param->table->key_info[param->real_keynr[idx]];
+                  const KEY_PART_INFO *kpi= key.key_part + new_interval->part;
+
+                  if (kpi->key_part_flag & HA_PART_KEY_SEG)
+                    new_interval->min_flag= 0;
+                }
               }
             }
             /* 
@@ -6182,36 +6223,37 @@ static SEL_TREE *get_mm_tree(RANGE_OPT_PARAM *param,Item *cond)
 
     if (((Item_cond*) cond)->functype() == Item_func::COND_AND_FUNC)
     {
-      tree=0;
+      tree= NULL;
       Item *item;
       while ((item=li++))
       {
-	SEL_TREE *new_tree=get_mm_tree(param,item);
-	if (param->thd->is_fatal_error || 
-            param->alloced_sel_args > SEL_ARG::MAX_SEL_ARGS)
-	  DBUG_RETURN(0);	// out of memory
-	tree=tree_and(param,tree,new_tree);
+        SEL_TREE *new_tree= get_mm_tree(param,item);
+        if (param->statement_should_be_aborted())
+          DBUG_RETURN(NULL);
+        tree= tree_and(param,tree,new_tree);
         dbug_print_tree("after_and", tree, param);
-	if (tree && tree->type == SEL_TREE::IMPOSSIBLE)
-	  break;
+        if (tree && tree->type == SEL_TREE::IMPOSSIBLE)
+          break;
       }
     }
     else
-    {						// Item OR
-      tree=get_mm_tree(param,li++);
+    {                                           // Item OR
+      tree= get_mm_tree(param,li++);
+      if (param->statement_should_be_aborted())
+        DBUG_RETURN(NULL);
       if (tree)
       {
-	Item *item;
-	while ((item=li++))
-	{
-	  SEL_TREE *new_tree=get_mm_tree(param,item);
-	  if (!new_tree)
-	    DBUG_RETURN(0);	// out of memory
-	  tree=tree_or(param,tree,new_tree);
+        Item *item;
+        while ((item=li++))
+        {
+          SEL_TREE *new_tree=get_mm_tree(param,item);
+          if (new_tree == NULL || param->statement_should_be_aborted())
+            DBUG_RETURN(NULL);
+          tree= tree_or(param,tree,new_tree);
           dbug_print_tree("after_or", tree, param);
-	  if (!tree || tree->type == SEL_TREE::ALWAYS)
-	    break;
-	}
+          if (tree == NULL || tree->type == SEL_TREE::ALWAYS)
+            break;
+        }
       }
     }
     dbug_print_tree("tree_returned", tree, param);
@@ -6784,6 +6826,7 @@ get_mm_leaf(RANGE_OPT_PARAM *param, Item *conf_func, Field *field,
 
   if (key_part->image_type == Field::itMBR)
   {
+    // @todo: use is_spatial_operator() instead?
     switch (type) {
     case Item_func::SP_EQUALS_FUNC:
     case Item_func::SP_DISJOINT_FUNC:
@@ -10816,7 +10859,20 @@ int QUICK_SELECT_DESC::get_next()
     {
       int local_error;
       if ((local_error= file->ha_index_last(record)))
-	DBUG_RETURN(local_error);		// Empty table
+      {
+        /*
+          HA_ERR_END_OF_FILE is returned both when the table is empty and when
+          there are no qualifying records in the range (when using ICP).
+          Interpret this return value as "no qualifying rows in the range" to
+          avoid loss of records. If the error code truly meant "empty table"
+          the next iteration of the loop will exit.
+        */
+        if (local_error != HA_ERR_END_OF_FILE)
+          DBUG_RETURN(local_error);
+        last_range= NULL;                       // Go to next range
+        continue;
+      }
+
       if (cmp_prev(last_range) == 0)
 	DBUG_RETURN(0);
       last_range= 0;                            // No match; go to next range
@@ -13017,9 +13073,11 @@ int QUICK_GROUP_MIN_MAX_SELECT::next_min()
     */
     if (min_max_arg_part && min_max_arg_part->field->is_null())
     {
+      uchar key_buf[MAX_KEY_LENGTH];
+
       /* Find the first subsequent record without NULL in the MIN/MAX field. */
-      key_copy(tmp_record, record, index_info, max_used_key_length);
-      result= head->file->ha_index_read_map(record, tmp_record,
+      key_copy(key_buf, record, index_info, max_used_key_length);
+      result= head->file->ha_index_read_map(record, key_buf,
                                             make_keypart_map(real_key_parts),
                                             HA_READ_AFTER_KEY);
       /*
@@ -13035,7 +13093,7 @@ int QUICK_GROUP_MIN_MAX_SELECT::next_min()
       if (!result)
       {
         if (key_cmp(index_info->key_part, group_prefix, real_prefix_len))
-          key_restore(record, tmp_record, index_info, 0);
+          key_restore(record, key_buf, index_info, 0);
       }
       else if (result == HA_ERR_KEY_NOT_FOUND || result == HA_ERR_END_OF_FILE)
         result= 0; /* There is a result in any case. */

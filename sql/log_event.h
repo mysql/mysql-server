@@ -2947,6 +2947,7 @@ public:
   uchar flags;
 #ifdef MYSQL_SERVER
   bool deferred;
+  query_id_t query_id;
   User_var_log_event(THD* thd_arg, const char *name_arg, uint name_len_arg,
                      char *val_arg, ulong val_len_arg, Item_result type_arg,
 		     uint charset_number_arg, uchar flags_arg,
@@ -2975,7 +2976,11 @@ public:
      and which case the applier adjusts execution path.
   */
   bool is_deferred() { return deferred; }
-  void set_deferred() { deferred= true; }
+  /*
+    In case of the deffered applying the variable instance is flagged
+    and the parsing time query id is stored to be used at applying time.
+  */
+  void set_deferred(query_id_t qid) { deferred= true; query_id= qid; }
 #endif
   bool is_valid() const { return name != 0; }
 
@@ -4329,42 +4334,66 @@ private:
    */
   int do_table_scan_and_update(Relay_log_info const *rli);
 
-/**
-  Initializes scanning of rows. Opens an index and initailizes an iterator
-  over a list of distinct keys (m_distinct_key_list) if it is a HASH_SCAN
-  over an index or the table if its a HASH_SCAN over the table.
-*/
+  /**
+    Initializes scanning of rows. Opens an index and initailizes an iterator
+    over a list of distinct keys (m_distinct_key_list) if it is a HASH_SCAN
+    over an index or the table if its a HASH_SCAN over the table.
+  */
   int open_record_scan();
 
-/**
-   Does the cleanup
-     -  deallocates all the elements in m_distinct_key_list if any
-     -  closes the index if opened by open_record_scan
-     -  closes the table if opened for scanning.
-*/
+  /**
+    Does the cleanup
+    - deallocates all the elements in m_distinct_key_list if any
+    - closes the index if opened by open_record_scan
+    - closes the table if opened for scanning.
+  */
   int close_record_scan();
 
-/**
-  Fetches next row. If it is a HASH_SCAN over an index, it populates
-  table->record[0] with the next row corresponding to the index. If
-  the indexes are in non-contigous ranges it fetches record corresponding
-  to the key value in the next range.
+  /**
+    Fetches next row. If it is a HASH_SCAN over an index, it populates
+    table->record[0] with the next row corresponding to the index. If
+    the indexes are in non-contigous ranges it fetches record corresponding
+    to the key value in the next range.
 
-  @parms: bool first_read : signifying if this is the first time we are reading a row
-          over an index.
-  @return_value: -  error code when there are no more reeords to be fetched or some other
-                    error occured,
-                 -  0 otherwise.
-*/
+    @parms: bool first_read : signifying if this is the first time we are reading a row
+            over an index.
+    @return_value: -  error code when there are no more reeords to be fetched or some other
+                      error occured,
+                   -  0 otherwise.
+  */
   int next_record_scan(bool first_read);
 
-/**
-  Populates the m_distinct_key_list with unique keys to be modified
-  during HASH_SCAN over keys.
-  @return_value -0 success
-                -Err_code
-*/
+  /**
+    Populates the m_distinct_key_list with unique keys to be modified
+    during HASH_SCAN over keys.
+    @return_value -0 success
+                  -Err_code
+  */
   int add_key_to_distinct_keyset();
+
+  /**
+    Populates the m_hash when using HASH_SCAN. Thence, it:
+    - unpacks the before image (BI)
+    - saves the positions
+    - saves the positions into the hash map, using the
+      BI checksum as key
+    - unpacks the after image (AI) if needed, so that
+      m_curr_row_end gets updated correctly.
+
+    @param rli The reference to the relay log info object.
+    @returns 0 on success. Otherwise, the error code.
+  */
+  int do_hash_row(Relay_log_info const *rli);
+
+  /**
+    This member function scans the table and applies the changes
+    that had been previously hashed. As such, m_hash MUST be filled
+    by do_hash_row before calling this member function.
+
+    @param rli The reference to the relay log info object.
+    @returns 0 on success. Otherwise, the error code.
+  */
+  int do_scan_and_update(Relay_log_info const *rli);
 #endif /* defined(MYSQL_SERVER) && defined(HAVE_REPLICATION) */
 
   friend class Old_rows_log_event;

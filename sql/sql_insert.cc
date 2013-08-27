@@ -105,14 +105,13 @@ static bool check_view_insertability(THD *thd, TABLE_LIST *view);
 /*
   Check that insert/update fields are from the same single table of a view.
 
-  SYNOPSIS
-    check_view_single_update()
-    fields            The insert/update fields to be checked.
-    view              The view for insert.
-    map     [in/out]  The insert table map.
+  @param fields            The insert/update fields to be checked.
+  @param values            The insert/update values to be checked, NULL if
+  checking is not wanted.
+  @param view              The view for insert.
+  @param map     [in/out]  The insert table map.
 
-  DESCRIPTION
-    This function is called in 2 cases:
+  This function is called in 2 cases:
     1. to check insert fields. In this case *map will be set to 0.
        Insert fields are checked to be all from the same single underlying
        table of the given view. Otherwise the error is thrown. Found table
@@ -122,9 +121,7 @@ static bool check_view_insertability(THD *thd, TABLE_LIST *view);
        the function to check insert fields. Update fields are checked to be
        from the same table as the insert fields.
 
-  RETURN
-    0   OK
-    1   Error
+  @returns false if success.
 */
 
 bool check_view_single_update(List<Item> &fields, List<Item> *values,
@@ -176,17 +173,16 @@ error:
 /*
   Check if insert fields are correct.
 
-  SYNOPSIS
-    check_insert_fields()
-    thd                         The current thread.
-    table                       The table for insert.
-    fields                      The insert fields.
-    values                      The insert values.
-    check_unique                If duplicate values should be rejected.
-
-  RETURN
-    0           OK
-    -1          Error
+  @param thd            The current thread.
+  @param table_list     The table we are inserting into (may be view)
+  @param fields         The insert fields.
+  @param values         The insert values.
+  @param check_unique   If duplicate values should be rejected.
+  @param fields_and_values_from_different_maps If 'values' are allowed to
+  refer to other tables than those of 'fields'
+  @param map            See check_view_single_update
+  
+  @returns 0 if success, -1 if error
 */
 
 static int check_insert_fields(THD *thd, TABLE_LIST *table_list,
@@ -295,24 +291,25 @@ static int check_insert_fields(THD *thd, TABLE_LIST *table_list,
 }
 
 
-/*
-  Check update fields for the timestamp field.
+/**
+  Check if update fields are correct.
 
-  SYNOPSIS
-    check_update_fields()
-    thd                         The current thread.
-    insert_table_list           The insert table list.
-    table                       The table for update.
-    update_fields               The update fields.
+  @param thd                  The current thread.
+  @param insert_table_list    The table we are inserting into (may be view)
+  @param update_fields        The update fields.
+  @param update_values        The update values.
+  @param fields_and_values_from_different_maps If 'update_values' are allowed to
+  refer to other tables than those of 'update_fields'
+  @param map                  See check_view_single_update
 
-  RETURN
-    0           OK
-    -1          Error
+  @returns 0 if success, -1 if error
 */
 
 static int check_update_fields(THD *thd, TABLE_LIST *insert_table_list,
                                List<Item> &update_fields,
-                               List<Item> &update_values, table_map *map)
+                               List<Item> &update_values,
+                               bool fields_and_values_from_different_maps,
+                               table_map *map)
 {
   /* Check the fields we are going to modify */
   if (setup_fields(thd, Ref_ptr_array(),
@@ -320,7 +317,9 @@ static int check_update_fields(THD *thd, TABLE_LIST *insert_table_list,
     return -1;
 
   if (insert_table_list->effective_algorithm == VIEW_ALGORITHM_MERGE &&
-      check_view_single_update(update_fields, &update_values,
+      check_view_single_update(update_fields,
+                               fields_and_values_from_different_maps ?
+                               (List<Item>*) 0 : &update_values,
                                insert_table_list, map))
     return -1;
   return 0;
@@ -1502,7 +1501,7 @@ bool mysql_prepare_insert(THD *thd, TABLE_LIST *table_list,
     {
       select_lex->no_wrap_view_item= TRUE;
       res= check_update_fields(thd, context->table_list, update_fields,
-                               update_values, &map);
+                               update_values, false, &map);
       select_lex->no_wrap_view_item= FALSE;
     }
 
@@ -1713,6 +1712,37 @@ int write_record(THD *thd, TABLE *table, COPY_INFO *info, COPY_INFO *update)
                                                  TRG_EVENT_UPDATE))
           goto before_trg_err;
 
+        bool insert_id_consumed= false;
+        if (// UPDATE clause specifies a value for the auto increment field
+            table->auto_increment_field_not_null &&
+            // An auto increment value has been generated for this row
+            (insert_id_for_cur_row > 0))
+        {
+          // After-update value:
+          const ulonglong auto_incr_val= table->next_number_field->val_int();
+          if (auto_incr_val == insert_id_for_cur_row)
+          {
+            // UPDATE wants to use the generated value
+            insert_id_consumed= true;
+          }
+          else if (table->file->auto_inc_interval_for_cur_row.
+                   in_range(auto_incr_val))
+          {
+            /*
+              UPDATE wants to use one auto generated value which we have already
+              reserved for another (previous or following) row. That may cause
+              a duplicate key error if we later try to insert the reserved
+              value. Such conflicts on auto generated values would be strange
+              behavior, so we return a clear error now.
+            */
+            my_error(ER_AUTO_INCREMENT_CONFLICT, MYF(0));
+	    goto before_trg_err;
+          }
+        }
+
+        if (!insert_id_consumed)
+          table->file->restore_auto_increment(prev_insert_id);
+
         /* CHECK OPTION for VIEW ... ON DUPLICATE KEY UPDATE ... */
         {
           const TABLE_LIST *inserted_view=
@@ -1727,7 +1757,6 @@ int write_record(THD *thd, TABLE *table, COPY_INFO *info, COPY_INFO *update)
           }
         }
 
-        table->file->restore_auto_increment(prev_insert_id);
         info->stats.touched++;
         if (!records_are_comparable(table) || compare_records(table))
         {
@@ -1764,9 +1793,6 @@ int write_record(THD *thd, TABLE *table, COPY_INFO *info, COPY_INFO *update)
           info->stats.copied++;
         }
 
-        if (table->next_number_field)
-          table->file->adjust_next_insert_id_after_explicit_value(
-            table->next_number_field->val_int());
         goto ok_or_after_trg_err;
       }
       else /* DUP_REPLACE */
@@ -3429,10 +3455,17 @@ select_insert::prepare(List<Item> &values, SELECT_LEX_UNIT *u)
     context->resolve_in_table_list_only(table_list);
 
     lex->select_lex.no_wrap_view_item= TRUE;
-    res= res || check_update_fields(thd, context->table_list,
-                                    *update.get_changed_columns(),
-                                    *update.update_values,
-                                    &map);
+    res= res ||
+      check_update_fields(thd, context->table_list,
+                          *update.get_changed_columns(),
+                          *update.update_values,
+                          /*
+                            In INSERT SELECT ON DUPLICATE KEY UPDATE col=x
+                            'x' can legally refer to a non-inserted table.
+                            'x' is not even resolved yet.
+                           */
+                          true,
+                          &map);
     lex->select_lex.no_wrap_view_item= FALSE;
     /*
       When we are not using GROUP BY and there are no ungrouped aggregate
@@ -3558,8 +3591,10 @@ int select_insert::prepare2(void)
   if (thd->locked_tables_mode <= LTM_LOCK_TABLES &&
       !thd->lex->describe)
   {
+    DBUG_ASSERT(!bulk_insert_started);
     // TODO: Is there no better estimation than 0 == Unknown number of rows?
     table->file->ha_start_bulk_insert((ha_rows) 0);
+    bulk_insert_started= true;
   }
   DBUG_RETURN(0);
 }
@@ -3687,7 +3722,7 @@ bool select_insert::send_eof()
   DBUG_PRINT("enter", ("trans_table=%d, table_type='%s'",
                        trans_table, table->file->table_type()));
 
-  error= (thd->locked_tables_mode <= LTM_LOCK_TABLES ?
+  error= (bulk_insert_started ?
           table->file->ha_end_bulk_insert() : 0);
   if (!error && thd->is_error())
     error= thd->get_stmt_da()->sql_errno();
@@ -3779,8 +3814,7 @@ void select_insert::abort_result_set() {
       if tables are not locked yet (bulk insert is not started yet
       in this case).
     */
-    if (thd->locked_tables_mode <= LTM_LOCK_TABLES &&
-        thd->lex->is_query_tables_locked())
+    if (bulk_insert_started)
       table->file->ha_end_bulk_insert();
 
     /*
@@ -4160,7 +4194,10 @@ select_create::prepare2()
   if (duplicate_handling == DUP_UPDATE)
     table->file->extra(HA_EXTRA_INSERT_WITH_UPDATE);
   if (thd->locked_tables_mode <= LTM_LOCK_TABLES)
+  {
     table->file->ha_start_bulk_insert((ha_rows) 0);
+    bulk_insert_started= true;
+  }
   thd->abort_on_warning= (!ignore_errors && thd->is_strict_mode());
   if (check_that_all_fields_are_given_values(thd, table, table_list))
     DBUG_RETURN(1);

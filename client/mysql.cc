@@ -97,7 +97,7 @@ extern "C" {
 #if defined(__WIN__)
 #include <conio.h>
 #else
-#include <readline/readline.h>
+#include <readline.h>
 #define HAVE_READLINE
 #define USE_POPEN
 #endif
@@ -164,6 +164,7 @@ static char * opt_mysql_unix_port=0;
 static char *opt_bind_addr = NULL;
 static int connect_flag=CLIENT_INTERACTIVE;
 static my_bool opt_binary_mode= FALSE;
+static my_bool opt_connect_expired_password= FALSE;
 static char *current_host,*current_db,*current_user=0,*opt_password=0,
             *current_prompt=0, *delimiter_str= 0,
             *default_charset= (char*) MYSQL_AUTODETECT_CHARSET_NAME,
@@ -1769,6 +1770,11 @@ static struct my_option my_long_options[] =
    &opt_server_public_key, &opt_server_public_key, 0,
    GET_STR, REQUIRED_ARG, 0, 0, 0, 0, 0, 0},
 #endif
+  {"connect-expired-password", 0,
+   "Notify the server that this client is prepared to handle expired "
+   "password sandbox mode.",
+   &opt_connect_expired_password, &opt_connect_expired_password, 0, GET_BOOL,
+   NO_ARG, 0, 0, 0, 0, 0, 0},
   { 0, 0, 0, 0, 0, 0, GET_NO_ARG, NO_ARG, 0, 0, 0, 0, 0, 0}
 };
 
@@ -2038,7 +2044,7 @@ static int read_and_execute(bool interactive)
   String buffer;
 #endif
 
-  char	*line;
+  char	*line= NULL;
   char	in_string=0;
   ulong line_number=0;
   bool ml_comment= 0;  
@@ -2124,6 +2130,13 @@ static int read_and_execute(bool interactive)
 #else
       if (opt_outfile)
 	fputs(prompt, OUTFILE);
+      /*
+        free the previous entered line.
+        Note: my_free() cannot be used here as the memory was allocated under
+        the readline/libedit library.
+      */
+      if (line)
+        free(line);
       line= readline(prompt);
 #endif /* defined(__WIN__) */
 
@@ -2183,6 +2196,14 @@ static int read_and_execute(bool interactive)
 #if defined(__WIN__)
   buffer.free();
   tmpbuf.free();
+#else
+  if (interactive)
+    /*
+      free the last entered line.
+      Note: my_free() cannot be used here as the memory was allocated under
+      the readline/libedit library.
+    */
+    free(line);
 #endif
 
   /*
@@ -2995,7 +3016,7 @@ my_bool check_histignore(const char *string)
   for (i= 0; i < histignore_patterns.elements; i++)
   {
     tmp= dynamic_element(&histignore_patterns, i, LEX_STRING *);
-    if ((rc= charset_info->coll->wildcmp(&my_charset_latin1,
+    if ((rc= charset_info->coll->wildcmp(charset_info,
                                          string, string + strlen(string),
                                          tmp->str, tmp->str + tmp->length,
                                          wild_prefix, wild_one,
@@ -4685,7 +4706,8 @@ static int
 sql_real_connect(char *host,char *database,char *user,char *password,
 		 uint silent)
 {
-  my_bool interactive= status.batch ? FALSE : TRUE;
+  my_bool handle_expired= (opt_connect_expired_password || !status.batch) ?
+    TRUE : FALSE;
 
   if (connected)
   {
@@ -4777,7 +4799,7 @@ sql_real_connect(char *host,char *database,char *user,char *password,
   mysql_options(&mysql, MYSQL_OPT_CONNECT_ATTR_RESET, 0);
   mysql_options4(&mysql, MYSQL_OPT_CONNECT_ATTR_ADD, 
                  "program_name", "mysql");
-  mysql_options(&mysql, MYSQL_OPT_CAN_HANDLE_EXPIRED_PASSWORDS, &interactive);
+  mysql_options(&mysql, MYSQL_OPT_CAN_HANDLE_EXPIRED_PASSWORDS, &handle_expired);
 
   if (!mysql_real_connect(&mysql, host, user, password,
                           database, opt_mysql_port, opt_mysql_unix_port,

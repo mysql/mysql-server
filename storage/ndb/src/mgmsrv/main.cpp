@@ -47,7 +47,7 @@ extern "C" {
 #if defined(_WIN32)
 #include <conio.h>
 #elif !defined(__NETWARE__)
-#include <readline/readline.h>
+#include <readline.h>
 extern "C" int add_history(const char *command); /* From readline directory */
 #define HAVE_READLINE
 #endif

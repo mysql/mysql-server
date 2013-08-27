@@ -29,9 +29,9 @@
 #include "opt_explain.h"    // join_type_str
 #include <hash.h>
 #include <thr_alarm.h>
-#if defined(HAVE_MALLINFO) && defined(HAVE_MALLOC_H)
+#if defined(HAVE_MALLOC_INFO) && defined(HAVE_MALLOC_H)
 #include <malloc.h>
-#elif defined(HAVE_MALLINFO) && defined(HAVE_SYS_MALLOC_H)
+#elif defined(HAVE_MALLOC_INFO) && defined(HAVE_SYS_MALLOC_H)
 #include <sys/malloc.h>
 #endif
 
@@ -510,32 +510,9 @@ Next alarm time: %lu\n",
 	 alarm_info.next_alarm_time);
 #endif
   display_table_locks();
-#ifdef HAVE_MALLINFO
-  struct mallinfo info= mallinfo();
-  printf("\nMemory status:\n\
-Non-mmapped space allocated from system: %d\n\
-Number of free chunks:			 %d\n\
-Number of fastbin blocks:		 %d\n\
-Number of mmapped regions:		 %d\n\
-Space in mmapped regions:		 %d\n\
-Maximum total allocated space:		 %d\n\
-Space available in freed fastbin blocks: %d\n\
-Total allocated space:			 %d\n\
-Total free space:			 %d\n\
-Top-most, releasable space:		 %d\n\
-Estimated memory (with thread stack):    %ld\n",
-	 (int) info.arena	,
-	 (int) info.ordblks,
-	 (int) info.smblks,
-	 (int) info.hblks,
-	 (int) info.hblkhd,
-	 (int) info.usmblks,
-	 (int) info.fsmblks,
-	 (int) info.uordblks,
-	 (int) info.fordblks,
-	 (int) info.keepcost,
-	 (long) (get_thread_count() * my_thread_stack_size +
-                 info.hblkhd + info.arena));
+#ifdef HAVE_MALLOC_INFO
+  printf("\nMemory status:\n");
+  malloc_info(0, stdout);
 #endif
 
 #ifdef HAVE_EVENT_SCHEDULER

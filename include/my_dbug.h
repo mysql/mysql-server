@@ -39,7 +39,7 @@ struct _db_stack_frame_ {
 };
 
 struct  _db_code_state_;
-extern  my_bool _dbug_on_;
+extern  MYSQL_PLUGIN_IMPORT my_bool _dbug_on_;
 extern  my_bool _db_keyword_(struct _db_code_state_ *, const char *, int);
 extern  int _db_explain_(struct _db_code_state_ *cs, char *buf, size_t len);
 extern  int _db_explain_init_(char *buf, size_t len);
@@ -55,6 +55,7 @@ extern void _db_enter_(const char *_func_, const char *_file_, uint _line_,
                        struct _db_stack_frame_ *_stack_frame_);
 extern  void _db_return_(uint _line_, struct _db_stack_frame_ *_stack_frame_);
 extern  void _db_pargs_(uint _line_,const char *keyword);
+extern  int _db_enabled_();
 extern  void _db_doprnt_(const char *format,...)
   ATTRIBUTE_FORMAT(printf, 1, 2);
 extern  void _db_dump_(uint _line_,const char *keyword,
@@ -80,7 +81,17 @@ extern  const char* _db_get_func_(void);
 #define DBUG_EVALUATE_IF(keyword,a1,a2) \
         (_db_keyword_(0,(keyword), 1) ? (a1) : (a2))
 #define DBUG_PRINT(keyword,arglist) \
-        do {_db_pargs_(__LINE__,keyword); _db_doprnt_ arglist;} while(0)
+        do \
+        {  \
+          if (_dbug_on_) \
+          { \
+            _db_pargs_(__LINE__,keyword); \
+            if (_db_enabled_()) \
+            {  \
+              _db_doprnt_ arglist; \
+            } \
+          } \
+        } while(0)
 #define DBUG_PUSH(a1) _db_push_ (a1)
 #define DBUG_POP() _db_pop_ ()
 #define DBUG_SET(a1) _db_set_ (a1)

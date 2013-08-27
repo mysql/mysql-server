@@ -1,6 +1,6 @@
 /*****************************************************************************
 
-Copyright (c) 1996, 2012, Oracle and/or its affiliates. All rights reserved.
+Copyright (c) 1996, 2013, Oracle and/or its affiliates. All rights reserved.
 Copyright (c) 2008, Google Inc.
 Copyright (c) 2009, Percona Inc.
 
@@ -220,9 +220,9 @@ srv_file_check_mode(
 
 				ib_logf(IB_LOG_LEVEL_ERROR,
 					"%s can't be opened in %s mode",
+					name,
 					srv_read_only_mode
-					? "read-write" : "read",
-					name);
+					? "read" : "read-write");
 
 				return(false);
 			}
@@ -866,6 +866,7 @@ open_or_create_data_files(
 		}
 
 		if (ret == FALSE) {
+			const char* check_msg;
 			/* We open the data file */
 
 			if (one_created) {
@@ -961,12 +962,19 @@ size_check:
 				return(DB_ERROR);
 			}
 skip_size_check:
-			fil_read_first_page(
+			check_msg = fil_read_first_page(
 				files[i], one_opened, &flags, &space,
 #ifdef UNIV_LOG_ARCHIVE
 				min_arch_log_no, max_arch_log_no,
 #endif /* UNIV_LOG_ARCHIVE */
 				min_flushed_lsn, max_flushed_lsn);
+
+			if (check_msg) {
+				ib_logf(IB_LOG_LEVEL_ERROR,
+					"%s in data file %s",
+					check_msg, name);
+				return(DB_ERROR);
+			}
 
 			/* The first file of the system tablespace must
 			have space ID = TRX_SYS_SPACE.  The FSP_SPACE_ID
@@ -1455,6 +1463,7 @@ innobase_start_or_create_for_mysql(void)
 	ulint		io_limit;
 	mtr_t		mtr;
 	ib_bh_t*	ib_bh;
+	ulint		n_recovered_trx;
 	char		logfilename[10000];
 	char*		logfile0	= NULL;
 	size_t		dirnamelen;
@@ -2201,6 +2210,7 @@ files_checked:
 		trx_sys_create_sys_pages();
 
 		ib_bh = trx_sys_init_at_db_start();
+		n_recovered_trx = UT_LIST_GET_LEN(trx_sys->rw_trx_list);
 
 		/* The purge system needs to create the purge view and
 		therefore requires that the trx_sys is inited. */
@@ -2252,6 +2262,7 @@ files_checked:
 		}
 
 		ib_bh = trx_sys_init_at_db_start();
+		n_recovered_trx = UT_LIST_GET_LEN(trx_sys->rw_trx_list);
 
 		/* The purge system needs to create the purge view and
 		therefore requires that the trx_sys is inited. */
@@ -2294,7 +2305,7 @@ files_checked:
 		been shut down normally: this is the normal startup path */
 
 		err = recv_recovery_from_checkpoint_start(
-			LOG_CHECKPOINT, IB_ULONGLONG_MAX,
+			LOG_CHECKPOINT, LSN_MAX,
 			min_flushed_lsn, max_flushed_lsn);
 
 		if (err != DB_SUCCESS) {
@@ -2315,6 +2326,7 @@ files_checked:
 		}
 
 		ib_bh = trx_sys_init_at_db_start();
+		n_recovered_trx = UT_LIST_GET_LEN(trx_sys->rw_trx_list);
 
 		/* The purge system needs to create the purge view and
 		therefore requires that the trx_sys is inited. */
@@ -2342,9 +2354,17 @@ files_checked:
 			an .ibd file.
 
 			We also determine the maximum tablespace id used. */
+			dict_check_t	dict_check;
 
-			dict_check_tablespaces_and_store_max_id(
-				recv_needed_recovery);
+			if (recv_needed_recovery) {
+				dict_check = DICT_CHECK_ALL_LOADED;
+			} else if (n_recovered_trx) {
+				dict_check = DICT_CHECK_SOME_LOADED;
+			} else {
+				dict_check = DICT_CHECK_NONE_LOADED;
+			}
+
+			dict_check_tablespaces_and_store_max_id(dict_check);
 		}
 
 		if (!srv_force_recovery

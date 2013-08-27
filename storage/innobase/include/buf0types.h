@@ -1,6 +1,6 @@
 /*****************************************************************************
 
-Copyright (c) 1995, 2011, Oracle and/or its affiliates. All Rights Reserved
+Copyright (c) 1995, 2013, Oracle and/or its affiliates. All Rights Reserved
 
 This program is free software; you can redistribute it and/or modify it under
 the terms of the GNU General Public License as published by the Free Software
@@ -45,7 +45,7 @@ struct buf_dblwr_t;
 typedef	byte	buf_frame_t;
 
 /** Flags for flush types */
-enum buf_flush {
+enum buf_flush_t {
 	BUF_FLUSH_LRU = 0,		/*!< flush via the LRU list */
 	BUF_FLUSH_LIST,			/*!< flush via the flush list
 					of dirty blocks */

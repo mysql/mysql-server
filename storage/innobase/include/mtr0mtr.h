@@ -299,9 +299,10 @@ mtr_x_lock_func(
 #endif /* !UNIV_HOTBACKUP */
 
 /***************************************************//**
-Releases an object in the memo stack. */
+Releases an object in the memo stack.
+@return true if released */
 UNIV_INTERN
-void
+bool
 mtr_memo_release(
 /*=============*/
 	mtr_t*	mtr,	/*!< in/out: mini-transaction */

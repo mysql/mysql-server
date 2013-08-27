@@ -187,6 +187,10 @@ static char *opt_include_gtids_str= NULL,
             *opt_exclude_gtids_str= NULL;
 static my_bool opt_skip_gtids= 0;
 static bool filter_based_on_gtids= false;
+
+static bool in_transaction= false;
+static bool seen_gtids= false;
+
 static Exit_status dump_local_log_entries(PRINT_EVENT_INFO *print_event_info,
                                           const char* logname);
 static Exit_status dump_remote_log_entries(PRINT_EVENT_INFO *print_event_info,
@@ -745,6 +749,60 @@ static bool shall_skip_gtids(Log_event* ev)
        filtered= filtered || opt_skip_gtids;
     }
     break;
+    /* Skip previous gtids if --skip-gtids is set. */
+    case PREVIOUS_GTIDS_LOG_EVENT:
+      filtered= opt_skip_gtids;
+    break;
+
+    /*
+      Transaction boundaries reset the global filtering flag.
+
+      Since in the relay log a transaction can span multiple
+      log files, we do not reset filter_based_on_gtids flag when
+      processing control events (they can appear in the middle
+      of a transaction). But then, if:
+
+        FILE1: ... GTID BEGIN QUERY QUERY COMMIT ROTATE
+        FILE2: FD BEGIN QUERY QUERY COMMIT
+
+      Events on the second file would not be outputted, even
+      though they should.
+    */
+    case XID_EVENT:
+      filtered= filter_based_on_gtids;
+      filter_based_on_gtids= false;
+    break;
+    case QUERY_EVENT:
+      filtered= filter_based_on_gtids;
+      if (((Query_log_event *)ev)->ends_group())
+        filter_based_on_gtids= false;
+    break;
+
+    /*
+      Never skip STOP, FD, ROTATE, IGNORABLE or INCIDENT events.
+      SLAVE_EVENT and START_EVENT_V3 are there for completion.
+
+      Although in the binlog transactions do not span multiple
+      log files, in the relay-log, that can happen. As such,
+      we need to explicitly state that we do not filter these
+      events, because there is a chance that they appear in the
+      middle of a filtered transaction, e.g.:
+
+         FILE1: ... GTID BEGIN QUERY QUERY ROTATE
+         FILE2: FD QUERY QUERY COMMIT GTID BEGIN ...
+
+      In this case, ROTATE and FD events should be processed and
+      outputted.
+    */
+    case START_EVENT_V3: /* for completion */
+    case SLAVE_EVENT: /* for completion */
+    case STOP_EVENT:
+    case FORMAT_DESCRIPTION_EVENT:
+    case ROTATE_EVENT:
+    case IGNORABLE_LOG_EVENT:
+    case INCIDENT_EVENT:
+      filtered= false;
+    break;
     default:
       filtered= filter_based_on_gtids;
     break;
@@ -842,7 +900,9 @@ Exit_status process_event(PRINT_EVENT_INFO *print_event_info, Log_event *ev,
       bool parent_query_skips=
           !((Query_log_event*) ev)->is_trans_keyword() &&
            shall_skip_database(((Query_log_event*) ev)->db);
-           
+      bool ends_group= ((Query_log_event*) ev)->ends_group();
+      bool starts_group= ((Query_log_event*) ev)->starts_group();
+
       for (uint i= 0; i < buff_ev.elements; i++) 
       {
         buff_event_info pop_event_array= *dynamic_element(&buff_ev, i, buff_event_info *);
@@ -865,12 +925,28 @@ Exit_status process_event(PRINT_EVENT_INFO *print_event_info, Log_event *ev,
           statements in the Query_log_event, we still need to handle DDL,
           which causes a commit itself.
         */
-        print_event_info->skipped_event_in_transaction= true;
+
+        if (seen_gtids && !in_transaction && !starts_group && !ends_group)
+        {
+          /*
+            For DDLs, print the COMMIT right away. 
+          */
+          fprintf(result_file, "COMMIT /* added by mysqlbinlog */%s\n", print_event_info->delimiter);
+          print_event_info->skipped_event_in_transaction= false;
+          in_transaction= false;
+        }
+        else
+          print_event_info->skipped_event_in_transaction= true;
         goto end;
       }
 
-      if (((Query_log_event*) ev)->ends_group())
+      if (ends_group)
+      {
+        in_transaction= false;
         print_event_info->skipped_event_in_transaction= false;
+      }
+      else if (starts_group)
+        in_transaction= true;
 
       ev->print(result_file, print_event_info);
       if (head->error == -1)
@@ -1113,9 +1189,13 @@ Exit_status process_event(PRINT_EVENT_INFO *print_event_info, Log_event *ev,
       bool skip_event= (ignored_map != NULL);
       /*
         end of statement check:
-           i) destroy/free ignored maps
-          ii) if skip event, flush cache now
-      */
+        i) destroy/free ignored maps
+        ii) if skip event
+              a) set the unflushed_events flag to false
+              b) since we are skipping the last event,
+                 append END-MARKER(') to body cache (if required)
+              c) flush cache now
+       */
       if (stmt_end)
       {
         /*
@@ -1134,11 +1214,22 @@ Exit_status process_event(PRINT_EVENT_INFO *print_event_info, Log_event *ev,
            event was not skipped).
         */
         if (skip_event)
+        {
+          // set the unflushed_events flag to false
+          print_event_info->have_unflushed_events= FALSE;
+
+          // append END-MARKER(') with delimiter
+          IO_CACHE *const body_cache= &print_event_info->body_cache;
+          if (my_b_tell(body_cache))
+            my_b_printf(body_cache, "'%s\n", print_event_info->delimiter);
+
+          // flush cache
           if ((copy_event_cache_to_file_and_reinit(&print_event_info->head_cache,
                                                    result_file, stop_never /* flush result_file */) ||
               copy_event_cache_to_file_and_reinit(&print_event_info->body_cache,
                                                   result_file, stop_never /* flush result_file */)))
             goto err;
+        }
       }
 
       /* skip the event check */
@@ -1188,8 +1279,10 @@ Exit_status process_event(PRINT_EVENT_INFO *print_event_info, Log_event *ev,
       }
       break;
     }
+    case ANONYMOUS_GTID_LOG_EVENT:
     case GTID_LOG_EVENT:
     {
+      seen_gtids= true;
       if (print_event_info->skipped_event_in_transaction == true)
         fprintf(result_file, "COMMIT /* added by mysqlbinlog */%s\n", print_event_info->delimiter);
       print_event_info->skipped_event_in_transaction= false;
@@ -1201,7 +1294,35 @@ Exit_status process_event(PRINT_EVENT_INFO *print_event_info, Log_event *ev,
     }
     case XID_EVENT:
     {
+      in_transaction= false;
       print_event_info->skipped_event_in_transaction= false;
+      ev->print(result_file, print_event_info);
+      if (head->error == -1)
+        goto err;
+      break;
+    }
+    case ROTATE_EVENT:
+    {
+      Rotate_log_event *rev= (Rotate_log_event *) ev;
+      /* no transaction context, gtids seen and not a fake rotate */
+      if (seen_gtids)
+      {
+        /*   
+          Fake rotate events have 'when' set to zero. @c fake_rotate_event(...).
+        */
+        bool is_fake= (rev->when.tv_sec == 0);
+        if (!in_transaction && !is_fake)
+        {
+          /*
+            If processing multiple files, we must reset this flag,
+            since there may be no gtids on the next one.
+          */
+          seen_gtids= false;
+          fprintf(result_file, "SET @@SESSION.GTID_NEXT= 'AUTOMATIC' "
+                               "/* added by mysqlbinlog */ %s\n", 
+                               print_event_info->delimiter);
+        }
+      }
       ev->print(result_file, print_event_info);
       if (head->error == -1)
         goto err;
@@ -2135,6 +2256,11 @@ static Exit_status dump_remote_log_entries(PRINT_EVENT_INFO *print_event_info,
             */
             continue;
           }
+          /*
+             Reset the value of '# at pos' field shown against first event of
+             next binlog file (fake rotate) picked by mysqlbinlog --to-last-log
+         */
+          old_off= start_position_mot;
           len= 1; // fake Rotate, so don't increment old_off
         }
       }

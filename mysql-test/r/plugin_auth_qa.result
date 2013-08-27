@@ -158,10 +158,12 @@ user	plugin	authentication_string
 plug_dest	mysql_native_password	
 DROP USER plug_dest;
 CREATE USER plug IDENTIFIED WITH 'test_plugin_server' AS 'plug_dest';
-GRANTs which doesn't change the plugin are allowed
+GRANT IDENTIFIED WITH for existing users is not allowed
 GRANT ALL PRIVILEGES ON test_user_db.* TO plug IDENTIFIED WITH 'test_plugin_server' AS 'plug_dest';
-GRANTs which doesn't change the plugin are allowed
+ERROR HY000: GRANT with IDENTIFIED WITH is illegal because the user plug already exists
+GRANT IDENTIFIED WITH for existing users is not allowed
 GRANT ALL PRIVILEGES ON test_user_db.* TO plug IDENTIFIED WITH 'test_plugin_server';
+ERROR HY000: GRANT with IDENTIFIED WITH is illegal because the user plug already exists
 DROP USER plug;
 GRANT ALL PRIVILEGES ON test_user_db.* TO plug IDENTIFIED WITH test_plugin_server AS 'plug_dest';
 CREATE USER plug IDENTIFIED WITH 'test_plugin_server' AS 'plug_dest';
