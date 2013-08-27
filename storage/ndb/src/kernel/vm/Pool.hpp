@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2006, 2010, Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2006, 2013, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -20,6 +20,9 @@
 
 #include <ndb_global.h>
 #include <kernel_types.h>
+
+#define JAM_FILE_ID 315
+
 
 /**
  * Type bits
@@ -387,5 +390,8 @@ RecordPool<T, P>::release(Ptr<T> ptr)
   tmp.p = ptr.p;
   m_pool.release(tmp);
 }
+
+
+#undef JAM_FILE_ID
 
 #endif

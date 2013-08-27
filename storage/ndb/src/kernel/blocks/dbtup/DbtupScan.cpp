@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2005, 2010, Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2005, 2013, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -23,10 +23,8 @@
 #include <signaldata/AccLock.hpp>
 #include <md5_hash.hpp>
 
-#undef jam
-#undef jamEntry
-#define jam() { jamLine(32000 + __LINE__); }
-#define jamEntry() { jamEntryLine(32000 + __LINE__); }
+#define JAM_FILE_ID 408
+
 
 #ifdef VM_TRACE
 #define dbg(x) globalSignalLoggers.log x

@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2003, 2010, Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2003, 2013, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -53,53 +53,9 @@
 #include <OutputStream.hpp>
 #endif
 
-// jams
-#undef jam
-#undef jamEntry
-#ifdef DBTUX_GEN_CPP
-#define jam()           jamLine(10000 + __LINE__)
-#define jamEntry()      jamEntryLine(10000 + __LINE__)
-#endif
-#ifdef DBTUX_META_CPP
-#define jam()           jamLine(20000 + __LINE__)
-#define jamEntry()      jamEntryLine(20000 + __LINE__)
-#endif
-#ifdef DBTUX_MAINT_CPP
-#define jam()           jamLine(30000 + __LINE__)
-#define jamEntry()      jamEntryLine(30000 + __LINE__)
-#endif
-#ifdef DBTUX_NODE_CPP
-#define jam()           jamLine(40000 + __LINE__)
-#define jamEntry()      jamEntryLine(40000 + __LINE__)
-#endif
-#ifdef DBTUX_TREE_CPP
-#define jam()           jamLine(50000 + __LINE__)
-#define jamEntry()      jamEntryLine(50000 + __LINE__)
-#endif
-#ifdef DBTUX_SCAN_CPP
-#define jam()           jamLine(60000 + __LINE__)
-#define jamEntry()      jamEntryLine(60000 + __LINE__)
-#endif
-#ifdef DBTUX_SEARCH_CPP
-#define jam()           jamLine(70000 + __LINE__)
-#define jamEntry()      jamEntryLine(70000 + __LINE__)
-#endif
-#ifdef DBTUX_CMP_CPP
-#define jam()           jamLine(80000 + __LINE__)
-#define jamEntry()      jamEntryLine(80000 + __LINE__)
-#endif
-#ifdef DBTUX_STAT_CPP
-#define jam()           jamLine(90000 + __LINE__)
-#define jamEntry()      jamEntryLine(90000 + __LINE__)
-#endif
-#ifdef DBTUX_DEBUG_CPP
-#define jam()           jamLine(100000 + __LINE__)
-#define jamEntry()      jamEntryLine(100000 + __LINE__)
-#endif
-#ifndef jam
-#define jam()           jamLine(__LINE__)
-#define jamEntry()      jamEntryLine(__LINE__)
-#endif
+
+#define JAM_FILE_ID 374
+
 
 #undef max
 #undef min
@@ -1443,5 +1399,8 @@ Dbtux::cmpSearchBound(TuxCtx& ctx, const KeyBoundC& searchBound, const KeyDataC&
 #endif
   return ret;
 }
+
+
+#undef JAM_FILE_ID
 
 #endif

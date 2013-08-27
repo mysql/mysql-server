@@ -1,6 +1,5 @@
 /*
-   Copyright (C) 2003-2007 MySQL AB, 2009 Sun Microsystems, Inc.
-    All rights reserved. Use is subject to license terms.
+   Copyright (c) 2003, 2013, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -22,6 +21,9 @@
 #include "Callback.hpp"
 #include "SimulatedBlock.hpp"
 #include <signaldata/UtilLock.hpp>
+
+#define JAM_FILE_ID 269
+
 
 class Mutex;
 
@@ -303,5 +305,8 @@ Mutex::destroy(SimulatedBlock::Callback & callback){
   return false;
 }
 
+
+
+#undef JAM_FILE_ID
 
 #endif

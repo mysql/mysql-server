@@ -37,6 +37,9 @@ extern EventLogger * g_eventLogger;
 
 #include <record_types.hpp>
 
+#define JAM_FILE_ID 441
+
+
 /**
  * ---<a>-----<b>-----<c>-----<d>---> (time)
  *

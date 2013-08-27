@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2011, Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2011, 2013, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -28,6 +28,9 @@
 #include <signaldata/AbortAll.hpp>
 #include <signaldata/CreateFKImpl.hpp>
 #include <signaldata/DropFKImpl.hpp>
+
+#define JAM_FILE_ID 348
+
 
 
 class DbtcProxy : public DbgdmProxy {
@@ -227,5 +230,8 @@ protected:
   void execDROP_FK_IMPL_REF(Signal*);
   void sendDROP_FK_IMPL_CONF(Signal*, Uint32 ssId);
 };
+
+
+#undef JAM_FILE_ID
 
 #endif

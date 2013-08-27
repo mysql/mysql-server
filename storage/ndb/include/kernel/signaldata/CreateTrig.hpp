@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2003, 2010, Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2003, 2013, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -22,6 +22,9 @@
 #include <Bitmask.hpp>
 #include <trigger_definitions.h>
 #include <AttributeList.hpp>
+
+#define JAM_FILE_ID 100
+
 
 struct CreateTrigReq
 {
@@ -106,5 +109,8 @@ struct CreateTrigRef
   Uint32 errorNodeId;
   Uint32 masterNodeId;
 };
+
+
+#undef JAM_FILE_ID
 
 #endif

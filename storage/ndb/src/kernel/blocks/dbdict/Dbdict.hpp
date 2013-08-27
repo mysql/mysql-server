@@ -83,6 +83,7 @@
 #include <signaldata/DropNodegroup.hpp>
 #include <signaldata/CreateNodegroupImpl.hpp>
 #include <signaldata/DropNodegroupImpl.hpp>
+#include <Mutex.hpp>
 
 #include <signaldata/CreateFK.hpp>
 #include <signaldata/CreateFKImpl.hpp>
@@ -90,6 +91,8 @@
 #include <signaldata/BuildFKImpl.hpp>
 #include <signaldata/DropFK.hpp>
 #include <signaldata/DropFKImpl.hpp>
+
+#define JAM_FILE_ID 464
 
 #ifdef DBDICT_C
 
@@ -4410,4 +4413,7 @@ Dbdict::TableRecord::isOrderedIndex() const
 }
 
 // quilt keeper
+
+#undef JAM_FILE_ID
+
 #endif

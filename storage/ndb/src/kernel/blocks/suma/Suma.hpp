@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2003, 2010, Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2003, 2013, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -33,6 +33,9 @@
 #include <signaldata/UtilSequence.hpp>
 #include <signaldata/SumaImpl.hpp>
 #include <ndbapi/NdbDictionary.hpp>
+
+#define JAM_FILE_ID 469
+
 
 class Suma : public SimulatedBlock {
   BLOCK_DEFINES(Suma);
@@ -714,5 +717,8 @@ private:
 
   void sendScanSubTableData(Signal* signal, Ptr<SyncRecord>, Uint32);
 };
+
+
+#undef JAM_FILE_ID
 
 #endif

@@ -1,6 +1,5 @@
 /*
-   Copyright (C) 2003, 2005, 2006 MySQL AB, 2009 Sun Microsystems, Inc.
-    All rights reserved. Use is subject to license terms.
+   Copyright (c) 2003, 2013, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -21,6 +20,9 @@
 
 #include "SignalData.hpp"
 #include <NodeBitmask.hpp>
+
+#define JAM_FILE_ID 174
+
 
 /**
  * The Req signal is sent by Qmgr to Cmvmi
@@ -57,5 +59,8 @@ struct CloseComReqConf {
   Uint32 noOfNodes;
   Uint32 theNodes[NodeBitmask::Size];
 };
+
+
+#undef JAM_FILE_ID
 
 #endif

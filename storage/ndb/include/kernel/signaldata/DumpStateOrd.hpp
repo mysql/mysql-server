@@ -20,6 +20,9 @@
 
 #include "SignalData.hpp"
 
+#define JAM_FILE_ID 137
+
+
 /**
  * DumpStateOrd is sent by the mgmtsrvr to CMVMI.
  * CMVMI the redirect the signal to all blocks.
@@ -201,5 +204,8 @@ public:
   
   Uint32 args[25];          // Generic argument
 };
+
+
+#undef JAM_FILE_ID
 
 #endif
