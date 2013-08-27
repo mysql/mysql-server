@@ -2838,7 +2838,6 @@ try_again:
 		(void) os_atomic_decrement_ulint(&os_n_pending_reads, 1);
 		MONITOR_ATOMIC_DEC(MONITOR_OS_PENDING_READS);
 #else
-		os_mutex_enter(os_file_count_mutex);
 		mutex_enter(&os_file_count_mutex);
 		os_n_pending_reads--;
 		MONITOR_DEC(MONITOR_OS_PENDING_READS);
