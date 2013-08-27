@@ -113,6 +113,8 @@ struct ule_prov_info {
     // is responsible for cleaning up the leafentry and ule when done.
     LEAFENTRY le;
     ULEHANDLE ule;
+    void* key;
+    uint32_t keylen;
     // provisional txn info for the ule
     uint32_t num_provisional;
     uint32_t num_committed;
@@ -147,7 +149,7 @@ struct __toku_indexer_internal {
     DBT_ARRAY *hot_vals;
 
     // test functions
-    int (*undo_do)(DB_INDEXER *indexer, DB *hotdb, ULEHANDLE ule);
+    int (*undo_do)(DB_INDEXER *indexer, DB *hotdb, DBT* key, ULEHANDLE ule);
     TOKUTXN_STATE (*test_xid_state)(DB_INDEXER *indexer, TXNID xid);
     void (*test_lock_key)(DB_INDEXER *indexer, TXNID xid, DB *hotdb, DBT *key);
     int (*test_delete_provisional)(DB_INDEXER *indexer, DB *hotdb, DBT *hotkey, XIDS xids);
@@ -164,6 +166,6 @@ void indexer_undo_do_init(DB_INDEXER *indexer);
 
 void indexer_undo_do_destroy(DB_INDEXER *indexer);
 
-int indexer_undo_do(DB_INDEXER *indexer, DB *hotdb, ULEHANDLE ule, struct ule_prov_info *prov_info, DBT_ARRAY *hot_keys, DBT_ARRAY *hot_vals);
+int indexer_undo_do(DB_INDEXER *indexer, DB *hotdb, struct ule_prov_info *prov_info, DBT_ARRAY *hot_keys, DBT_ARRAY *hot_vals);
 
 #endif

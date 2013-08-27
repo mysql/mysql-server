@@ -320,10 +320,10 @@ doit (bool after_child_pin) {
     assert(!node->dirty);
     assert(node->n_children == 1);
     if (after_child_pin) {
-        assert(BLB_NBYTESINBUF(node,0) > 0);
+        assert(BLB_NBYTESINDATA(node,0) > 0);
     }
     else {
-        assert(BLB_NBYTESINBUF(node,0) == 0);
+        assert(BLB_NBYTESINDATA(node,0) == 0);
     }
     toku_unpin_ftnode_off_client_thread(c_ft->ft, node);
 

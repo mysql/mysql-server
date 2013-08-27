@@ -1236,9 +1236,9 @@ static TXNID leafentry_xid(FTLOADER bl, int which_db) {
 size_t ft_loader_leafentry_size(size_t key_size, size_t val_size, TXNID xid) {
     size_t s = 0;
     if (xid == TXNID_NONE)
-        s = LE_CLEAN_MEMSIZE(key_size, val_size);
+        s = LE_CLEAN_MEMSIZE(val_size) + key_size + sizeof(uint32_t);
     else
-        s = LE_MVCC_COMMITTED_MEMSIZE(key_size, val_size);
+        s = LE_MVCC_COMMITTED_MEMSIZE(val_size) + key_size + sizeof(uint32_t);
     return s;
 }
 
@@ -2906,7 +2906,7 @@ static void add_pair_to_leafnode (struct leaf_buf *lbuf, unsigned char *key, int
     // #3588 TODO just make a clean ule and append it to the omt
     // #3588 TODO can do the rebalancing here and avoid a lot of work later
     FTNODE leafnode = lbuf->node;
-    uint32_t idx = toku_omt_size(BLB_BUFFER(leafnode, 0));
+    uint32_t idx = BLB_DATA(leafnode, 0)->omt_size();
     DBT thekey = { .data = key, .size = (uint32_t) keylen }; 
     DBT theval = { .data = val, .size = (uint32_t) vallen };
     FT_MSG_S cmd = { .type = FT_INSERT,

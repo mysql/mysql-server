@@ -156,7 +156,7 @@ static int indexer_append_xid(DB_INDEXER *indexer, TXNID xid, XIDS *xids_result)
 
 static bool indexer_find_prev_xr(DB_INDEXER *indexer, ULEHANDLE ule, uint64_t xrindex, uint64_t *prev_xrindex);
 
-static int indexer_generate_hot_keys_vals(DB_INDEXER *indexer, DB *hotdb, ULEHANDLE ule, UXRHANDLE uxr, DBT_ARRAY *hotkeys, DBT_ARRAY *hotvals);
+static int indexer_generate_hot_keys_vals(DB_INDEXER *indexer, DB *hotdb, struct ule_prov_info* prov_info, UXRHANDLE uxr, DBT_ARRAY *hotkeys, DBT_ARRAY *hotvals);
 static int indexer_ft_delete_provisional(DB_INDEXER *indexer, DB *hotdb, DBT *hotkey, XIDS xids, TOKUTXN txn);
 static int indexer_ft_delete_committed(DB_INDEXER *indexer, DB *hotdb, DBT *hotkey, XIDS xids);
 static int indexer_ft_insert_provisional(DB_INDEXER *indexer, DB *hotdb, DBT *hotkey, DBT *hotval, XIDS xids, TOKUTXN txn);
@@ -193,8 +193,9 @@ indexer_undo_do_destroy(DB_INDEXER *indexer) {
 }
 
 static int
-indexer_undo_do_committed(DB_INDEXER *indexer, DB *hotdb, ULEHANDLE ule, DBT_ARRAY *hot_keys, DBT_ARRAY *hot_vals) {
+indexer_undo_do_committed(DB_INDEXER *indexer, DB *hotdb, struct ule_prov_info *prov_info, DBT_ARRAY *hot_keys, DBT_ARRAY *hot_vals) {
     int result = 0;
+    ULEHANDLE ule = prov_info->ule;
 
     // init the xids to the root xid
     XIDS xids = xids_get_root_xids();
@@ -225,7 +226,7 @@ indexer_undo_do_committed(DB_INDEXER *indexer, DB *hotdb, ULEHANDLE ule, DBT_ARR
                 ; // do nothing
             } else if (uxr_is_insert(prevuxr)) {
                 // generate the hot delete key
-                result = indexer_generate_hot_keys_vals(indexer, hotdb, ule, prevuxr, hot_keys, NULL);
+                result = indexer_generate_hot_keys_vals(indexer, hotdb, prov_info, prevuxr, hot_keys, NULL);
                 if (result == 0) {
                     paranoid_invariant(hot_keys->size <= hot_keys->capacity);
                     for (uint32_t i = 0; i < hot_keys->size; i++) {
@@ -251,7 +252,7 @@ indexer_undo_do_committed(DB_INDEXER *indexer, DB *hotdb, ULEHANDLE ule, DBT_ARR
             ; // do nothing
         } else if (uxr_is_insert(uxr)) {
             // generate the hot insert key and val
-            result = indexer_generate_hot_keys_vals(indexer, hotdb, ule, uxr, hot_keys, hot_vals);
+            result = indexer_generate_hot_keys_vals(indexer, hotdb, prov_info, uxr, hot_keys, hot_vals);
             if (result == 0) {
                 paranoid_invariant(hot_keys->size == hot_vals->size);
                 paranoid_invariant(hot_keys->size <= hot_keys->capacity);
@@ -304,9 +305,10 @@ exit:
 }
 
 static int
-indexer_undo_do_provisional(DB_INDEXER *indexer, DB *hotdb, ULEHANDLE ule, struct ule_prov_info *prov_info, DBT_ARRAY *hot_keys, DBT_ARRAY *hot_vals) {
+indexer_undo_do_provisional(DB_INDEXER *indexer, DB *hotdb, struct ule_prov_info *prov_info, DBT_ARRAY *hot_keys, DBT_ARRAY *hot_vals) {
     int result = 0;
     indexer_commit_keys_set_empty(&indexer->i->commit_keys);
+    ULEHANDLE ule = prov_info->ule;
 
     // init the xids to the root xid
     XIDS xids = xids_get_root_xids();
@@ -380,7 +382,7 @@ indexer_undo_do_provisional(DB_INDEXER *indexer, DB *hotdb, ULEHANDLE ule, struc
                 ; // do nothing
             } else if (uxr_is_insert(prevuxr)) {
                 // generate the hot delete key
-                result = indexer_generate_hot_keys_vals(indexer, hotdb, ule, prevuxr, hot_keys, NULL);
+                result = indexer_generate_hot_keys_vals(indexer, hotdb, prov_info, prevuxr, hot_keys, NULL);
                 if (result == 0) {
                     paranoid_invariant(hot_keys->size <= hot_keys->capacity);
                     for (uint32_t i = 0; i < hot_keys->size; i++) {
@@ -419,7 +421,7 @@ indexer_undo_do_provisional(DB_INDEXER *indexer, DB *hotdb, ULEHANDLE ule, struc
             ; // do nothing
         } else if (uxr_is_insert(uxr)) {
             // generate the hot insert key and val
-            result = indexer_generate_hot_keys_vals(indexer, hotdb, ule, uxr, hot_keys, hot_vals);
+            result = indexer_generate_hot_keys_vals(indexer, hotdb, prov_info, uxr, hot_keys, hot_vals);
             if (result == 0) {
                 paranoid_invariant(hot_keys->size == hot_vals->size);
                 paranoid_invariant(hot_keys->size <= hot_keys->capacity);
@@ -474,10 +476,10 @@ exit:
 }
 
 int
-indexer_undo_do(DB_INDEXER *indexer, DB *hotdb, ULEHANDLE ule, struct ule_prov_info *prov_info, DBT_ARRAY *hot_keys, DBT_ARRAY *hot_vals) {
-    int result = indexer_undo_do_committed(indexer, hotdb, ule, hot_keys, hot_vals);
+indexer_undo_do(DB_INDEXER *indexer, DB *hotdb, struct ule_prov_info *prov_info, DBT_ARRAY *hot_keys, DBT_ARRAY *hot_vals) {
+    int result = indexer_undo_do_committed(indexer, hotdb, prov_info, hot_keys, hot_vals);
     if (result == 0) {
-        result = indexer_undo_do_provisional(indexer, hotdb, ule, prov_info, hot_keys, hot_vals);
+        result = indexer_undo_do_provisional(indexer, hotdb, prov_info, hot_keys, hot_vals);
     }
     if (indexer->i->test_only_flags == INDEXER_TEST_ONLY_ERROR_CALLBACK)  {
         result = EINVAL;
@@ -523,12 +525,12 @@ indexer_append_xid(DB_INDEXER *UU(indexer), TXNID xid, XIDS *xids_result) {
 }
 
 static int
-indexer_generate_hot_keys_vals(DB_INDEXER *indexer, DB *hotdb, ULEHANDLE ule, UXRHANDLE uxr, DBT_ARRAY *hotkeys, DBT_ARRAY *hotvals) {
+indexer_generate_hot_keys_vals(DB_INDEXER *indexer, DB *hotdb, struct ule_prov_info *prov_info, UXRHANDLE uxr, DBT_ARRAY *hotkeys, DBT_ARRAY *hotvals) {
     int result = 0;
 
     // setup the source key
     DBT srckey;
-    toku_fill_dbt(&srckey, ule_get_key(ule), ule_get_keylen(ule));
+    toku_fill_dbt(&srckey, prov_info->key, prov_info->keylen);
 
     // setup the source val
     DBT srcval;

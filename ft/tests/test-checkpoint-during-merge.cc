@@ -347,7 +347,7 @@ doit (int state) {
         assert(node->height == 0);
         assert(!node->dirty);
         assert(node->n_children == 1);
-        assert(toku_omt_size(BLB_BUFFER(node,0)) == 1);
+        assert(BLB_DATA(node, 0)->omt_size() == 1);
         toku_unpin_ftnode_off_client_thread(c_ft->ft, node);
 
         toku_pin_ftnode_off_client_thread(
@@ -363,7 +363,7 @@ doit (int state) {
         assert(node->height == 0);
         assert(!node->dirty);
         assert(node->n_children == 1);
-        assert(toku_omt_size(BLB_BUFFER(node,0)) == 1);
+        assert(BLB_DATA(node, 0)->omt_size() == 1);
         toku_unpin_ftnode_off_client_thread(c_ft->ft, node);
     }
     else if (state == ft_flush_aflter_merge || state == flt_flush_before_unpin_remove) {
@@ -380,7 +380,7 @@ doit (int state) {
         assert(node->height == 0);
         assert(!node->dirty);
         assert(node->n_children == 1);
-        assert(toku_omt_size(BLB_BUFFER(node,0)) == 2);
+        assert(BLB_DATA(node, 0)->omt_size() == 2);
         toku_unpin_ftnode_off_client_thread(c_ft->ft, node);
     }
     else {
