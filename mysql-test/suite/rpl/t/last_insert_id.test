@@ -1,0 +1,30 @@
+--source include/have_innodb.inc
+--source include/have_binlog_format_mixed_or_statement.inc
+--let $rpl_topology=1->2->3
+--source include/rpl_init.inc
+
+connection server_1;
+
+create table t1 (id int not null auto_increment primary key, i int) engine=InnoDB;
+insert into t1 (i) values (-1);
+insert into t1 (i) values (LAST_INSERT_ID());
+select * from t1;
+
+save_master_pos;
+
+connection server_2;
+
+sync_with_master;
+select * from t1;
+save_master_pos;
+
+connection server_3;
+
+sync_with_master;
+select * from t1;
+
+connection server_1;
+drop table t1;
+
+--source include/rpl_end.inc
+

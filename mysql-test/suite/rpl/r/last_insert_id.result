@@ -1,0 +1,18 @@
+include/rpl_init.inc [topology=1->2->3]
+create table t1 (id int not null auto_increment primary key, i int) engine=InnoDB;
+insert into t1 (i) values (-1);
+insert into t1 (i) values (LAST_INSERT_ID());
+select * from t1;
+id	i
+1	-1
+2	1
+select * from t1;
+id	i
+1	-1
+2	1
+select * from t1;
+id	i
+1	-1
+2	1
+drop table t1;
+include/rpl_end.inc

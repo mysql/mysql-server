@@ -5933,6 +5933,7 @@ void Intvar_log_event::print(FILE* file, PRINT_EVENT_INFO* print_event_info)
 
 int Intvar_log_event::do_apply_event(Relay_log_info const *rli)
 {
+  DBUG_ENTER("Intvar_log_event::do_apply_event");
   /*
     We are now in a statement until the associated query log event has
     been processed.
@@ -5940,18 +5941,23 @@ int Intvar_log_event::do_apply_event(Relay_log_info const *rli)
   const_cast<Relay_log_info*>(rli)->set_flag(Relay_log_info::IN_STMT);
 
   if (rli->deferred_events_collecting)
-    return rli->deferred_events->add(this);
+  {
+    DBUG_PRINT("info",("deferring event"));
+    DBUG_RETURN(rli->deferred_events->add(this));
+  }
 
   switch (type) {
   case LAST_INSERT_ID_EVENT:
     thd->stmt_depends_on_first_successful_insert_id_in_prev_stmt= 1;
-    thd->first_successful_insert_id_in_prev_stmt= val;
+    thd->first_successful_insert_id_in_prev_stmt_for_binlog=
+      thd->first_successful_insert_id_in_prev_stmt= val;
+    DBUG_PRINT("info",("last_insert_id_event: %ld", (long) val));
     break;
   case INSERT_ID_EVENT:
     thd->force_one_auto_inc_interval(val);
     break;
   }
-  return 0;
+  DBUG_RETURN(0);
 }
 
 int Intvar_log_event::do_update_pos(Relay_log_info *rli)
