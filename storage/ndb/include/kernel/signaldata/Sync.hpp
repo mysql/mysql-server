@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2010, Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2010, 2013, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -17,6 +17,9 @@
 
 #ifndef SYNC_HPP
 #define SYNC_HPP
+
+#define JAM_FILE_ID 31
+
 
 struct SyncReq
 {
@@ -68,5 +71,8 @@ struct SyncPathConf
 
   STATIC_CONST( SignalLength = 2 );
 };
+
+
+#undef JAM_FILE_ID
 
 #endif

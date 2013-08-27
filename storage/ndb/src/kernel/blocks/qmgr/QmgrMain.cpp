@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2003, 2010, Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2003, 2013, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -60,6 +60,9 @@ extern EventLogger * g_eventLogger;
 #define DEBUG_START2(gsn, rg, msg)
 #define DEBUG_START3(signal, msg)
 #endif
+
+#define JAM_FILE_ID 360
+
 
 /**
  * c_start.m_gsn = GSN_CM_REGREQ

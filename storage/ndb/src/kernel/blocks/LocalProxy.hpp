@@ -31,6 +31,9 @@
 #include <signaldata/DbinfoScan.hpp>
 #include <signaldata/Sync.hpp>
 
+#define JAM_FILE_ID 438
+
+
 /*
  * Proxy blocks for MT LQH.
  *
@@ -585,5 +588,8 @@ protected:
   void execAPI_FAILCONF(Signal*);
   void sendAPI_FAILCONF(Signal*, Uint32 ssId);
 };
+
+
+#undef JAM_FILE_ID
 
 #endif

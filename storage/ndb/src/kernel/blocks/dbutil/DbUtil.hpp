@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2003, 2010, Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2003, 2013, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -37,6 +37,9 @@
 #include <Array.hpp>
 
 #include <LockQueue.hpp>
+
+#define JAM_FILE_ID 401
+
 
 #define UTIL_WORDS_PER_PAGE 1023
 
@@ -480,5 +483,8 @@ public:
   void mutex_locked(Signal* signal, Uint32 mutexId, Uint32 retVal);
   void mutex_unlocked(Signal* signal, Uint32 mutexId, Uint32 retVal);
 };
+
+
+#undef JAM_FILE_ID
 
 #endif

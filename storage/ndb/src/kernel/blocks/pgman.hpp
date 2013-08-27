@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2005, 2010, Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2005, 2013, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -28,6 +28,9 @@
 
 #include <NdbOut.hpp>
 #include <OutputStream.hpp>
+
+#define JAM_FILE_ID 462
+
 
 /*
  * PGMAN
@@ -624,5 +627,8 @@ public:
    */
   void free_data_file(Signal*, Uint32 file_no, Uint32 fd = RNIL);
 };
+
+
+#undef JAM_FILE_ID
 
 #endif

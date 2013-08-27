@@ -46,7 +46,6 @@ public:
   const char * getText() const;
 
   SignalCounter& operator=(const NdbNodeBitmask & bitmask);
-  SignalCounter& operator=(const NodeReceiverGroup& rg);
 
   /**
    * When sending to same node
@@ -160,15 +159,6 @@ SignalCounter&
 SignalCounter::operator=(const NdbNodeBitmask & bitmask){
   m_nodes = bitmask;
   m_count = bitmask.count();
-  return * this;
-}
-
-inline
-SignalCounter&
-SignalCounter::operator=(const NodeReceiverGroup & rg){
-  assert(rg.m_nodes.find(65) == NodeBitmask::NotFound);
-  memcpy(&m_nodes, &rg.m_nodes, sizeof(m_nodes));
-  m_count = m_nodes.count();
   return * this;
 }
 

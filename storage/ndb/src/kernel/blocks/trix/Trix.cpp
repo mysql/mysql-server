@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2003, 2010, Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2003, 2013, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -39,6 +39,9 @@
 #include <signaldata/DbinfoScan.hpp>
 #include <signaldata/TransIdAI.hpp>
 #include <signaldata/WaitGCP.hpp>
+
+#define JAM_FILE_ID 433
+
 
 #define CONSTRAINT_VIOLATION 893
 

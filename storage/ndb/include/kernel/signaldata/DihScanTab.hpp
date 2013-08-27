@@ -1,4 +1,4 @@
-/* Copyright (C) 2008 MySQL AB
+/* Copyright (c) 2008, 2013, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -17,6 +17,9 @@
 #define DIH_SCAN_TAB_HPP
 
 #include "SignalData.hpp"
+
+#define JAM_FILE_ID 108
+
 
 /**
  * DihScanTabReq
@@ -153,5 +156,8 @@ struct DihScanTabCompleteRep
   Uint32 tableId;
   Uint32 scanCookie;
 };
+
+
+#undef JAM_FILE_ID
 
 #endif

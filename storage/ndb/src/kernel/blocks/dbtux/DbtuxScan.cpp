@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2003, 2010, Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2003, 2013, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -18,6 +18,9 @@
 #define DBTUX_SCAN_CPP
 #include "Dbtux.hpp"
 #include <my_sys.h>
+
+#define JAM_FILE_ID 371
+
 
 /*
  * Error handling:  Any seized scan op is released.  ACC_SCANREF is sent

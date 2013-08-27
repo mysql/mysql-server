@@ -1,5 +1,4 @@
-/* Copyright 2008 Sun Microsystems, Inc.
-    All rights reserved. Use is subject to license terms.
+/* Copyright (c) 2008, 2013, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -17,6 +16,9 @@
 #ifndef DATA_FILE_ORD_HPP
 #define DATA_FILE_ORD_HPP
 
+#define JAM_FILE_ID 39
+
+
 // sent to pgman instances to manipulate data file list
 struct DataFileOrd {
   enum Cmd {
@@ -31,5 +33,8 @@ struct DataFileOrd {
   Uint32 file_no;
   Uint32 fd;
 };
+
+
+#undef JAM_FILE_ID
 
 #endif

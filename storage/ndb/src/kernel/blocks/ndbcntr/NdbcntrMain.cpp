@@ -62,6 +62,9 @@
 
 #include <EventLogger.hpp>
 
+#define JAM_FILE_ID 458
+
+
 extern EventLogger * g_eventLogger;
 
 // used during shutdown for reporting current startphase
