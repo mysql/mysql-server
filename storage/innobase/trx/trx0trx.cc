@@ -1954,6 +1954,9 @@ trx_commit(
 	mtr_t*	mtr;
 	mtr_t	local_mtr;
 
+	DBUG_EXECUTE_IF("ib_trx_commit_crash_before_trx_commit_start",
+			DBUG_SUICIDE(););
+
 	if (trx_is_rseg_updated(trx)) {
 		mtr = &local_mtr;
 		mtr_start_sync(mtr);
