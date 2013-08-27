@@ -2403,7 +2403,21 @@ bool change_password(THD *thd, const char *host, const char *user,
     plugin_temp= (table->s->fields > MYSQL_USER_FIELD_PLUGIN) ?
                  get_field(&global_acl_memory, table->field[MYSQL_USER_FIELD_PLUGIN]) : NULL;
   else
+#ifdef MCP_BUG17359329
     DBUG_ASSERT(FALSE);
+#else
+  {
+    /*
+      The early read from mysql.user failed. Return same error as
+      when ha_index_read_idx_map() fails in update_user_table()
+    */
+    my_message(ER_PASSWORD_NO_MATCH, ER(ER_PASSWORD_NO_MATCH),
+               MYF(0));
+    result= 1;
+    mysql_mutex_unlock(&acl_cache->lock);
+    goto end;
+  }
+#endif
 
   plugin_empty= plugin_temp ? false: true;
 
