@@ -4419,19 +4419,12 @@ ha_rows ha_partition::guess_bulk_insert_rows()
 }
 
 
-/*
-  Finish a large batch of insert rows
+/**
+  Finish a large batch of insert rows.
 
-  SYNOPSIS
-    end_bulk_insert()
-
-  RETURN VALUE
-    >0                      Error code
-    0                       Success
-
-  Note: end_bulk_insert can be called without start_bulk_insert
-        being called, see bug¤44108.
-
+  @return Operation status.
+    @retval     0 Success
+    @retval  != 0 Error code
 */
 
 int ha_partition::end_bulk_insert()
@@ -4441,7 +4434,10 @@ int ha_partition::end_bulk_insert()
   DBUG_ENTER("ha_partition::end_bulk_insert");
 
   if (!bitmap_is_set(&m_bulk_insert_started, m_tot_parts))
+  {
+    DBUG_ASSERT(0);
     DBUG_RETURN(error);
+  }
 
   for (i= bitmap_get_first_set(&m_bulk_insert_started);
        i < m_tot_parts;
@@ -4962,28 +4958,6 @@ int ha_partition::index_init(uint inx, bool sorted)
   */
   if (get_lock_type() == F_WRLCK)
     bitmap_union(table->read_set, &m_part_info->full_part_field_set);
-  if (sorted)
-  {
-    /*
-      An ordered scan is requested. We must make sure all fields of the 
-      used index are in the read set, as partitioning requires them for
-      sorting (see ha_partition::handle_ordered_index_scan).
-
-      The SQL layer may request an ordered index scan without having index
-      fields in the read set when
-       - it needs to do an ordered scan over an index prefix.
-       - it evaluates ORDER BY with SELECT COUNT(*) FROM t1.
-
-      TODO: handle COUNT(*) queries via unordered scan.
-    */
-    KEY **key_info= m_curr_key_info;
-    do
-    {
-      for (i= 0; i < (*key_info)->user_defined_key_parts; i++)
-        bitmap_set_bit(table->read_set,
-                       (*key_info)->key_part[i].field->field_index);
-    } while (*(++key_info));
-  }
   for (i= bitmap_get_first_set(&m_part_info->read_partitions);
        i < m_tot_parts;
        i= bitmap_get_next_set(&m_part_info->read_partitions, i))
@@ -6034,11 +6008,7 @@ int ha_partition::handle_ordered_next(uchar *buf, bool is_next_same)
     }
   }
   if (part_id >= m_tot_parts)
-  {
-    /* This should never happen! */
-    DBUG_ASSERT(0);
     DBUG_RETURN(HA_ERR_END_OF_FILE);
-  }
 
   file= m_file[part_id];
 

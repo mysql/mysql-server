@@ -16,7 +16,7 @@ flush logs;
 DELIMITER /*!*/;
 ROLLBACK/*!*/;
 # [empty]
-SET @@SESSION.GTID_NEXT= 'GTID';/*!*/;
+SET @@SESSION.GTID_NEXT= 'GTID'/*!*/;
 SET TIMESTAMP=10000/*!*/;
 SET @@session.pseudo_thread_id=999999999/*!*/;
 SET @@session.foreign_key_checks=1, @@session.sql_auto_is_null=0, @@session.unique_checks=1, @@session.autocommit=1/*!*/;
@@ -36,6 +36,7 @@ insert into t2 values (@v)
 SET TIMESTAMP=10000/*!*/;
 COMMIT
 /*!*/;
+SET @@SESSION.GTID_NEXT= 'GTID' /* added by mysqlbinlog */ /*!*/;
 DELIMITER ;
 # End of log file
 ROLLBACK /* added by mysqlbinlog */;

@@ -1,4 +1,4 @@
-/* Copyright (c) 2006, 2011, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2006, 2013, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -1241,8 +1241,12 @@ int Hash_slave_rows::size()
   return m_hash.records;
 }
 
-HASH_ROW_ENTRY* Hash_slave_rows::make_entry(const uchar* bi_start, const uchar* bi_ends,
-                                            const uchar* ai_start, const uchar* ai_ends)
+HASH_ROW_ENTRY* Hash_slave_rows::make_entry()
+{
+  return make_entry(NULL, NULL);
+}
+
+HASH_ROW_ENTRY* Hash_slave_rows::make_entry(const uchar* bi_start, const uchar* bi_ends)
 {
   DBUG_ENTER("Hash_slave_rows::make_entry");
 
@@ -1266,8 +1270,6 @@ HASH_ROW_ENTRY* Hash_slave_rows::make_entry(const uchar* bi_start, const uchar* 
    */
   pos->bi_start= (const uchar *) bi_start;
   pos->bi_ends= (const uchar *) bi_ends;
-  pos->ai_start= (const uchar *) ai_start;
-  pos->ai_ends= (const uchar *) ai_ends;
 
   /**
     Filling in the entry
@@ -1443,7 +1445,10 @@ Hash_slave_rows::make_hash_key(TABLE *table, MY_BITMAP *cols)
     was not marked completely.
    */
   if (bitmap_is_set_all(cols))
+  {
     crc= my_checksum(crc, table->null_flags, table->s->null_bytes);
+    DBUG_PRINT("debug", ("make_hash_entry: hash after null_flags: %u", crc));
+  }
 
   for (Field **ptr=table->field ;
        *ptr && ((*ptr)->field_index < cols->n_bits);
@@ -1451,10 +1456,37 @@ Hash_slave_rows::make_hash_key(TABLE *table, MY_BITMAP *cols)
   {
     Field *f= (*ptr);
 
-    /* field is set in the read_set and is not a blob or a BIT */
-    if (bitmap_is_set(cols, f->field_index) &&
-        (f->type() != MYSQL_TYPE_BLOB) && (f->type() != MYSQL_TYPE_BIT))
-      crc= my_checksum(crc, f->ptr, f->data_length());
+    /*
+      Field is set in the read_set and is isn't NULL.
+     */
+    if (bitmap_is_set(cols, f->field_index) && !f->is_null())
+    {
+      /*
+        BLOB and VARCHAR have pointers in their field, we must convert
+        to string; GEOMETRY is implemented on top of BLOB.
+        BIT may store its data among NULL bits, convert as well.
+      */
+      switch (f->type()) {
+        case MYSQL_TYPE_BLOB:
+        case MYSQL_TYPE_VARCHAR:
+        case MYSQL_TYPE_GEOMETRY:
+        case MYSQL_TYPE_BIT:
+        {
+          String tmp;
+          f->val_str(&tmp);
+          crc= my_checksum(crc, (uchar*) tmp.ptr(), tmp.length());
+          break;
+        }
+        default:
+          crc= my_checksum(crc, f->ptr, f->data_length());
+          break;
+      }
+#ifndef DBUG_OFF
+      String tmp;
+      f->val_str(&tmp);
+      DBUG_PRINT("debug", ("make_hash_entry: hash after field %s=%s: %u", f->field_name, tmp.c_ptr_safe(), crc));
+#endif
+    }
   }
 
   /*

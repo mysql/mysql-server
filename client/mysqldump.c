@@ -12,7 +12,7 @@
 
    You should have received a copy of the GNU General Public License
    along with this program; if not, write to the Free Software
-   Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA
+   Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA 02110-1301, USA
 */
 
 /* mysqldump.c  - Dump a tables contents and format to an ASCII file
@@ -4841,7 +4841,7 @@ static int do_show_slave_status(MYSQL *mysql_con)
         if (row[1])
           fprintf(md_result_file, "MASTER_HOST='%s', ", row[1]);
         if (row[3])
-          fprintf(md_result_file, "MASTER_PORT='%s', ", row[3]);
+          fprintf(md_result_file, "MASTER_PORT=%s, ", row[3]);
       }
       fprintf(md_result_file,
               "MASTER_LOG_FILE='%s', MASTER_LOG_POS=%s;\n", row[9], row[21]);
@@ -5362,18 +5362,28 @@ static my_bool process_set_gtid_purged(MYSQL* mysql_con)
   MYSQL_RES  *gtid_mode_res;
   MYSQL_ROW  gtid_mode_row;
   char       *gtid_mode_val= 0;
+  char buf[32], query[64];
 
   if (opt_set_gtid_purged_mode == SET_GTID_PURGED_OFF)
     return FALSE;  /* nothing to be done */
 
+  /*
+    Check if the server has the knowledge of GTIDs(pre mysql-5.6)
+    or if the gtid_mode is ON or OFF.
+  */
+  my_snprintf(query, sizeof(query), "SHOW VARIABLES LIKE %s",
+              quote_for_like("gtid_mode", buf));
 
-  /* check if gtid_mode is ON or OFF */
-  if (mysql_query_with_error_report(mysql_con, &gtid_mode_res,
-                                    "SELECT @@GTID_MODE"))
+  if (mysql_query_with_error_report(mysql_con, &gtid_mode_res, query))
     return TRUE;
 
   gtid_mode_row = mysql_fetch_row(gtid_mode_res);
-  gtid_mode_val = (char*)gtid_mode_row[0];
+
+  /*
+     gtid_mode_row is NULL for pre 5.6 versions. For versions >= 5.6,
+     get the gtid_mode value from the second column.
+  */
+  gtid_mode_val = gtid_mode_row ? (char*)gtid_mode_row[1] : NULL;
 
   if (gtid_mode_val && strcmp(gtid_mode_val, "OFF"))
   {

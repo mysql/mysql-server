@@ -30,5 +30,5 @@ while (`SELECT LOCATE('=', '$option_text')`)
 --echo ---- $option_text ----
 
 # Print output
---replace_regex /SET @@SESSION.GTID_NEXT= '.*'/SET @@SESSION.GTID_NEXT= 'GTID';/ /([0-9A-Fa-f\-]{36})\:[0-9]+\-[0-9]+/UUID:#-#/
+--replace_regex /SET @@SESSION.GTID_NEXT= '.*'/SET @@SESSION.GTID_NEXT= 'GTID'/ /([0-9A-Fa-f\-]{36})\:[0-9]+\-[0-9]+/UUID:#-#/
 --exec $MYSQL_BINLOG --short-form $option $extra_options

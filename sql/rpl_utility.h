@@ -1,4 +1,4 @@
-/* Copyright (c) 2006, 2011, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2006, 2013, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -48,9 +48,6 @@ typedef struct hash_row_pos_st
   const uchar *bi_start;
   const uchar *bi_ends;
 
-  const uchar *ai_start;
-  const uchar *ai_ends;
-
 } HASH_ROW_POS;
 
 
@@ -97,24 +94,29 @@ class Hash_slave_rows
 public:
 
   /**
+     Allocates an empty entry to be added to the hash table.
+     It should be called before calling member function @c put.
+
+     @returns NULL if a problem occured, a valid pointer otherwise.
+  */
+  HASH_ROW_ENTRY* make_entry();
+
+  /**
      Allocates an entry to be added to the hash table. It should be
-     called before calling member function add.
+     called before calling member function @c put.
      
      @param bi_start the position to where in the rows buffer the
                      before image begins.
      @param bi_ends  the position to where in the rows buffer the
                      before image ends.
-     @param ai_start the position to where in the rows buffer the 
-                     after image starts (if any).
-     @param ai_ends  the position to where in the rows buffer the
-                     after image ends (if any).
      @returns NULL if a problem occured, a valid pointer otherwise.
    */
-  HASH_ROW_ENTRY* make_entry(const uchar *bi_start, const uchar *bi_ends,
-                             const uchar *ai_start, const uchar *ai_ends);
+  HASH_ROW_ENTRY* make_entry(const uchar *bi_start, const uchar *bi_ends);
+
 
   /**
-     Puts data into the hash table.
+     Puts data into the hash table. It calculates the key taking 
+     the data on @c TABLE::record as the input for hash computation.
 
      @param table   The table holding the buffer used to calculate the
                     key, ie, table->record[0].

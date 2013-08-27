@@ -121,8 +121,7 @@ disconnect plug_con_grant;
 DROP USER new_grant_user;
 
 --echo # try re-create existing user via GRANT IDENTIFIED WITH
-#--error ER_GRANT_PLUGIN_USER_EXISTS
---echo GRANTS which don't affect current plugin are allowed!
+--error ER_GRANT_PLUGIN_USER_EXISTS
 GRANT ALL PRIVILEGES ON test_grant_db.* TO plug
   IDENTIFIED WITH 'test_plugin_server' AS 'plug_dest';
 

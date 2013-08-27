@@ -1,6 +1,6 @@
 /*****************************************************************************
 
-Copyright (c) 1996, 2012, Oracle and/or its affiliates. All Rights Reserved.
+Copyright (c) 1996, 2013, Oracle and/or its affiliates. All Rights Reserved.
 Copyright (c) 2012, Facebook Inc.
 
 This program is free software; you can redistribute it and/or modify it under
@@ -52,10 +52,6 @@ Created 1/8/1996 Heikki Tuuri
 /* Key to register autoinc_mutex with performance schema */
 UNIV_INTERN mysql_pfs_key_t	autoinc_mutex_key;
 #endif /* UNIV_PFS_MUTEX */
-
-/** Prefix for tmp tables, adopted from sql/table.h */
-#define tmp_file_prefix		"#sql"
-#define tmp_file_prefix_length	4
 
 /**********************************************************************//**
 Creates a table memory object.

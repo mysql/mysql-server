@@ -2517,11 +2517,13 @@ fts_get_next_doc_id(
 
 		/* Otherwise, simply increment the value in cache */
 		mutex_enter(&cache->doc_id_lock);
-		++cache->next_doc_id;
+		*doc_id = ++cache->next_doc_id;
+		mutex_exit(&cache->doc_id_lock);
+	} else {
+		mutex_enter(&cache->doc_id_lock);
+		*doc_id = cache->next_doc_id;
 		mutex_exit(&cache->doc_id_lock);
 	}
-
-	*doc_id = cache->next_doc_id;
 
 	return(DB_SUCCESS);
 }
@@ -5819,7 +5821,7 @@ fts_check_and_drop_orphaned_tables(
 			ib_vector_get(tables, i));
 
 		table = dict_table_open_on_id(
-			aux_table->parent_id, TRUE, FALSE);
+			aux_table->parent_id, TRUE, DICT_TABLE_OP_NORMAL);
 
 		if (table == NULL || table->fts == NULL) {
 

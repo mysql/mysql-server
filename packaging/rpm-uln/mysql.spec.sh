@@ -230,7 +230,7 @@ Source9: mysql-embedded-check.c
 Source999: filter-requires-mysql.sh
 
 # Patch1: mysql-ssl-multilib.patch           Not needed by MySQL (yaSSL), will not work in 5.5 (cmake)
-Patch2: mysql-5.5-errno.patch
+# Patch2: mysql-5.5-errno.patch              Fixed in trunk
 Patch4: mysql-5.5-testing.patch
 Patch5: mysql-install-test.patch
 Patch6: mysql-5.6-stack-guard.patch
@@ -390,7 +390,7 @@ the MySQL sources.
 
 cd %{src_dir} # read about "%setup -n"
 # %patch1 -p1
-%patch2 -p1
+# %patch2 -p1
 # %patch4 -p1  TODO / FIXME: if wanted, needs to be adapted to new mysql-test-run setup
 %patch5 -p1
 %patch6 -p1

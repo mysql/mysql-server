@@ -29,6 +29,7 @@
 #include "sql_array.h"                        /* Array */
 #include "records.h"                          /* READ_RECORD */
 #include "opt_range.h"                /* SQL_SELECT, QUICK_SELECT_I */
+#include "filesort.h"
 
 #include "mem_root_array.h"
 #include "sql_executor.h"
@@ -772,14 +773,32 @@ public:
   void cleanup();
   inline bool is_using_loose_index_scan()
   {
-    return (select && select->quick &&
-            (select->quick->get_type() ==
-             QUICK_SELECT_I::QS_TYPE_GROUP_MIN_MAX));
+    /*
+      If JOIN_TAB::filesort is set, then the access method defined in
+      filesort will be used to read from the table and
+      JOIN_TAB::select reads from filesort using scan or ref access.
+    */
+    DBUG_ASSERT(!(select && select->quick && filesort));
+
+    const SQL_SELECT *sel= filesort ? filesort->select : select;
+    return (sel && sel->quick &&
+            (sel->quick->get_type() == QUICK_SELECT_I::QS_TYPE_GROUP_MIN_MAX));
   }
   bool is_using_agg_loose_index_scan ()
   {
-    return (is_using_loose_index_scan() &&
-            ((QUICK_GROUP_MIN_MAX_SELECT *)select->quick)->is_agg_distinct());
+    /*
+      If JOIN_TAB::filesort is set, then the access method defined in
+      filesort will be used to read from the table and
+      JOIN_TAB::select reads from filesort using scan or ref access.
+    */
+    DBUG_ASSERT(!(select && select->quick && filesort));
+
+    const SQL_SELECT *sel= filesort ? filesort->select : select;
+    return (sel && sel->quick &&
+            (sel->quick->get_type() ==
+             QUICK_SELECT_I::QS_TYPE_GROUP_MIN_MAX) &&
+            static_cast<QUICK_GROUP_MIN_MAX_SELECT*>(sel->quick)->
+                                                     is_agg_distinct());
   }
   /* SemiJoinDuplicateElimination: reserve space for rowid */
   bool check_rowid_field()
@@ -858,6 +877,7 @@ public:
   {
     return ref.has_guarded_conds();
   }
+  Item *unified_condition() const;
   bool prepare_scan();
   bool use_order() const; ///< Use ordering provided by chosen index?
   bool sort_table();

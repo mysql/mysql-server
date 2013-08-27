@@ -43,6 +43,7 @@ buffer_data_written	disabled
 buffer_flush_batch_scanned	disabled
 buffer_flush_batch_num_scan	disabled
 buffer_flush_batch_scanned_per_call	disabled
+buffer_flush_batch_rescan	disabled
 buffer_flush_batch_total_pages	disabled
 buffer_flush_batches	disabled
 buffer_flush_batch_pages	disabled

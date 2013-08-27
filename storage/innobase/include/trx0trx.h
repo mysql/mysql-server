@@ -1,6 +1,6 @@
 /*****************************************************************************
 
-Copyright (c) 1996, 2012, Oracle and/or its affiliates. All Rights Reserved.
+Copyright (c) 1996, 2013, Oracle and/or its affiliates. All Rights Reserved.
 
 This program is free software; you can redistribute it and/or modify it under
 the terms of the GNU General Public License as published by the Free Software
@@ -834,7 +834,7 @@ struct trx_t{
 					COMMITTED_IN_MEMORY state.
 					Protected by trx_sys_t::mutex
 					when trx->in_rw_trx_list. Initially
-					set to IB_ULONGLONG_MAX. */
+					set to TRX_ID_MAX. */
 
 	time_t		start_time;	/*!< time the trx object was created
 					or the state last time became
