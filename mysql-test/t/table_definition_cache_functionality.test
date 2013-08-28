@@ -35,7 +35,7 @@ SELECT COUNT(@@GLOBAL.table_definition_cache);
 --echo 1 Expected
 
 SET @@GLOBAL.table_definition_cache=DEFAULT;
-SELECT @@GLOBAL.table_definition_cache;
+SELECT IF (@@open_files_limit < 5000, 1400, @@GLOBAL.table_definition_cache);
 --echo 1400 Expected
 
 
@@ -57,7 +57,7 @@ SELECT @@GLOBAL.table_definition_cache;
 --echo 2000 Expected
 
 SET @@GLOBAL.table_definition_cache=DEFAULT;
-SELECT @@GLOBAL.table_definition_cache;
+SELECT IF (@@open_files_limit < 5000, 1400, @@GLOBAL.table_definition_cache);
 --echo 1400 Expected
 
 
@@ -81,7 +81,7 @@ SET @@GLOBAL.table_definition_cache=1;
 SET @@GLOBAL.table_definition_cache=DEFAULT;
 
 
-SELECT @@GLOBAL.table_definition_cache;
+SELECT IF (@@open_files_limit < 5000, 1400, @@GLOBAL.table_definition_cache);
 --echo 1400 Expected
 
 --echo '#---------------------WL6372_VAR_5_04----------------------#'

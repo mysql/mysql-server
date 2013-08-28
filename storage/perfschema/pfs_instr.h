@@ -371,7 +371,13 @@ struct PFS_ALIGNED PFS_thread : PFS_connection_slice
   PFS_events_waits *m_events_waits_current;
   /** Event ID counter */
   ulonglong m_event_id;
-  /** Internal lock. */
+  /**
+    Internal lock.
+    This lock is exclusively used to protect against races
+    when creating and destroying PFS_thread.
+    Do not use this lock to protect thread attributes,
+    use one of @c m_stmt_lock or @c m_session_lock instead.
+  */
   pfs_lock m_lock;
   /** Pins for filename_hash. */
   LF_PINS *m_filename_hash_pins;
@@ -460,29 +466,63 @@ struct PFS_ALIGNED PFS_thread : PFS_connection_slice
   */
   PFS_events_statements *m_statements_history;
 
-  /** User name. */
+  /**
+    Internal lock, for session attributes.
+    Statement attributes are expected to be updated in frequently,
+    typically per session execution.
+  */
+  pfs_lock m_session_lock;
+  /**
+    User name.
+    Protected by @c m_session_lock.
+  */
   char m_username[USERNAME_LENGTH];
-  /** Length of @c m_username. */
+  /**
+    Length of @c m_username.
+    Protected by @c m_session_lock.
+  */
   uint m_username_length;
-  /** Host name. */
+  /**
+    Host name.
+    Protected by @c m_session_lock.
+  */
   char m_hostname[HOSTNAME_LENGTH];
-  /** Length of @c m_hostname. */
+  /**
+    Length of @c m_hostname.
+    Protected by @c m_session_lock.
+  */
   uint m_hostname_length;
-  /** Database name. */
+  /**
+    Database name.
+    Protected by @c m_stmt_lock.
+  */
   char m_dbname[NAME_LEN];
-  /** Length of @c m_dbname. */
+  /**
+    Length of @c m_dbname.
+    Protected by @c m_stmt_lock.
+  */
   uint m_dbname_length;
   /** Current command. */
   int m_command;
   /** Start time. */
   time_t m_start_time;
-  /** Lock for Processlist info. */
-  pfs_lock m_processlist_info_lock;
+  /**
+    Internal lock, for statement attributes.
+    Statement attributes are expected to be updated frequently,
+    typically per statement execution.
+  */
+  pfs_lock m_stmt_lock;
   /** Processlist state (derived from stage). */
   PFS_stage_key m_stage;
-  /** Processlist info. */
+  /**
+    Processlist info.
+    Protected by @c m_stmt_lock.
+  */
   char m_processlist_info[COL_INFO_SIZE];
-  /** Length of @c m_processlist_info_length. */
+  /**
+    Length of @c m_processlist_info_length.
+    Protected by @c m_stmt_lock.
+  */
   uint m_processlist_info_length;
 
   PFS_events_stages m_stage_current;
@@ -498,11 +538,20 @@ struct PFS_ALIGNED PFS_thread : PFS_connection_slice
   /** Reset session connect attributes */
   void reset_session_connect_attrs();
 
-  /** a buffer for the connection attributes */
+  /**
+    Buffer for the connection attributes.
+    Protected by @c m_session_lock.
+  */
   char *m_session_connect_attrs;
-  /** length used by @c m_connect_attrs */
+  /**
+    Length used by @c m_connect_attrs.
+    Protected by @c m_session_lock.
+  */
   uint m_session_connect_attrs_length;
-  /** character set in which @c m_connect_attrs are encoded */
+  /**
+    Character set in which @c m_connect_attrs are encoded.
+    Protected by @c m_session_lock.
+  */
   const CHARSET_INFO *m_session_connect_attrs_cs;
 };
 

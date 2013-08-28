@@ -347,7 +347,7 @@ private:
     delete_table and rename_table uses very similar logic which
     is packed into this routine.
   */
-  uint del_ren_table(const char *from, const char *to);
+  int del_ren_table(const char *from, const char *to);
   /*
     One method to create the table_name.par file containing the names of the
     underlying partitions, their engine and the number of partitions.

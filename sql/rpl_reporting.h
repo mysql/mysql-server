@@ -59,7 +59,7 @@ public:
   */
   virtual void report(loglevel level, int err_code, const char *msg, ...) const
     ATTRIBUTE_FORMAT(printf, 4, 5);
-  void va_report(loglevel level, int err_code,
+  void va_report(loglevel level, int err_code, const char *prefix_msg,
                  const char *msg, va_list v_args) const;
 
   /**
@@ -136,7 +136,7 @@ protected:
   virtual void do_report(loglevel level, int err_code,
                  const char *msg, va_list v_args) const
   {
-    va_report(level, err_code, msg, v_args);
+    va_report(level, err_code, NULL, msg, v_args);
   }
 
 private:

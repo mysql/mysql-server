@@ -788,10 +788,12 @@ while ($i != 5)
     --let $gtid_ini= 1
     --let $gtid_end= 1
   }
+  # Post relay log recovery the previous GTIDs set should
+  # be empty.
   if ($i != 1)
   {
-    --let $gtid_set_ini= 1
-    --let $gtid_set_end= `SELECT $i - 1`
+    --let $gtid_set_ini= 0
+    --let $gtid_set_end= 0
     --let $gtid_ini= `SELECT $i`
     --let $gtid_end= `SELECT $i`
   }
@@ -884,10 +886,12 @@ while ($i != 5)
     --let $gtid_ini= 1
     --let $gtid_end= 1
   }
+  # Post relay log recovery the previous GTIDs set should
+  # be empty.
   if ($i != 1)
   {
-    --let $gtid_set_ini= 1
-    --let $gtid_set_end= `SELECT $i - 1`
+    --let $gtid_set_ini= 0
+    --let $gtid_set_end= 0
     --let $gtid_ini= `SELECT $i`
     --let $gtid_end= `SELECT $i`
   }

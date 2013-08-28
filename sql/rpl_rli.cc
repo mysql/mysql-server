@@ -241,6 +241,13 @@ void Relay_log_info::reset_notified_checkpoint(ulong shift, time_t new_ts,
     */
     w->checkpoint_notified= FALSE;
     w->bitmap_shifted= w->bitmap_shifted + shift;
+    /*
+      Zero shift indicates the caller rotates the master binlog.
+      The new name will be passed to W through the group descriptor
+      during the first post-rotation time scheduling.
+    */
+    if (shift == 0)
+      w->master_log_change_notified= false;
 
     DBUG_PRINT("mts", ("reset_notified_checkpoint shift --> %lu, "
                "worker->bitmap_shifted --> %lu, worker --> %u.",

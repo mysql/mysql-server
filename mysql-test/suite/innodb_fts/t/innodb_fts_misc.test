@@ -634,6 +634,7 @@ CREATE TABLE t1 ( id INT , char_column VARCHAR(60) CHARACTER SET UTF32, char_col
 INSERT INTO t1 (char_column) VALUES ('abcde'),('fghij'),('klmno'),('qrstu');
 UPDATE t1 SET char_column2 = char_column;
 CREATE FULLTEXT INDEX i ON t1 (char_column2);
+--error ER_FT_MATCHING_KEY_NOT_FOUND
 SELECT * FROM t1 WHERE MATCH(char_column) AGAINST ('abc*' IN BOOLEAN MODE);
 DROP TABLE t1;
 
@@ -1258,3 +1259,70 @@ SELECT * FROM articles WHERE MATCH (title,body)
         AGAINST ('stands\'] | * | show[@database' IN NATURAL LANGUAGE MODE);
 
 DROP TABLE articles;
+
+# Test for BUG#16429688 - FTS: SYNTAX ERROR, UNEXPECTED '*', EXPECTING $END
+CREATE TABLE t1(a TEXT CHARACTER SET LATIN1, FULLTEXT INDEX(a)) ENGINE=INNODB;
+
+--error ER_PARSE_ERROR
+SELECT * FROM t1 WHERE MATCH(a) AGAINST("*");
+
+DROP TABLE t1;
+
+# Test for BUG#16516193 - LITERAL PHRASES CANNOT BE COMBINED WITH + OR - OPERATOR
+# Create FTS table
+CREATE TABLE t1 (
+	id INT UNSIGNED AUTO_INCREMENT NOT NULL PRIMARY KEY,
+	a VARCHAR(200),
+	FULLTEXT (a)
+	) ENGINE= InnoDB;
+
+# Insert rows
+INSERT INTO t1 (a) VALUES
+	('Do you know MySQL is a good database'),
+	('How to build a good database'),
+	('Do you know'),
+	('Do you know MySQL'),
+	('How to use MySQL'),
+	('Do you feel good'),
+	('MySQL is good'),
+	('MySQL is good to know'),
+	('What is database');
+
+SELECT * FROM t1 WHERE MATCH (a) AGAINST ('+"know mysql"' IN BOOLEAN MODE);
+
+SELECT * FROM t1 WHERE MATCH (a) AGAINST ('+("know mysql")' IN BOOLEAN MODE);
+
+SELECT * FROM t1 WHERE MATCH (a) AGAINST ('("know mysql" good)' IN BOOLEAN MODE);
+
+SELECT * FROM t1 WHERE MATCH (a) AGAINST ('+("know mysql" good)' IN BOOLEAN MODE);
+
+SELECT * FROM t1 WHERE MATCH (a) AGAINST ('(good "know mysql")' IN BOOLEAN MODE);
+
+SELECT * FROM t1 WHERE MATCH (a) AGAINST ('+(good "know mysql")' IN BOOLEAN MODE);
+
+SELECT * FROM t1 WHERE MATCH (a) AGAINST ('+("know mysql" "good database")' IN BOOLEAN MODE);
+
+SELECT * FROM t1 WHERE MATCH (a) AGAINST ('+"know mysql" +"good database"' IN BOOLEAN MODE);
+
+SELECT * FROM t1 WHERE MATCH (a) AGAINST ('+"know database"@4' IN BOOLEAN MODE);
+
+SELECT * FROM t1 WHERE MATCH (a) AGAINST ('+"know database"@8' IN BOOLEAN MODE);
+
+# Drop table
+DROP TABLE t1;
+
+# Test for BUG#16885178 - INNODB FULLTEXT PHRASE SEARCH VALGRIND ERROR
+CREATE TABLE t1 (
+	id INT UNSIGNED AUTO_INCREMENT NOT NULL PRIMARY KEY,
+	a VARCHAR(200),
+	FULLTEXT (a)
+	) ENGINE= InnoDB;
+
+# Insert a special row
+INSERT INTO t1 (a) VALUES
+        ('know mysql good database');
+
+# This phrase search fails in valgrind test before the fix.
+SELECT * FROM t1 WHERE MATCH (a) AGAINST ('+"good database"' IN BOOLEAN MODE);
+
+DROP TABLE t1;

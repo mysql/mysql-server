@@ -1,4 +1,4 @@
-/* Copyright (c) 2011, 2012, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2011, 2013, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -11,7 +11,7 @@
 
    You should have received a copy of the GNU General Public License
    along with this program; if not, write to the Free Software
-   Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA  02111-1307  USA */
+   Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA  02110-1301  USA */
 
 // Always include (the generated) my_config.h, to get correct platform defines.
 #include "my_config.h"
@@ -61,6 +61,9 @@ TEST_F(FatalSignalDeathTest, Segfault)
    gtest library instead.
   */
   EXPECT_DEATH_IF_SUPPORTED(*pint= 42, "");
+#elif defined(__SANITIZE_ADDRESS__)
+  /* gcc 4.8.1 with '-fsanitize=address -O1' */
+  EXPECT_DEATH_IF_SUPPORTED(*pint= 42, ".*ASAN:SIGSEGV.*");
 #else
   /*
    On most platforms we get SIGSEGV == 11, but SIGBUS == 10 is also possible.

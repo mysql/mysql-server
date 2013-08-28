@@ -1,4 +1,4 @@
-/* Copyright (c) 2006, 2010, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2006, 2013, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -35,33 +35,3 @@ int my_atomic_initialize()
   return MY_ATOMIC_OK;
 #endif
 }
-
-#ifdef SAFE_MUTEX
-#undef pthread_mutex_init
-#undef pthread_mutex_destroy
-#undef pthread_mutex_lock
-#undef pthread_mutex_unlock
-
-void plain_pthread_mutex_init(safe_mutex_t *m)
-{
-  pthread_mutex_init(& m->mutex, NULL);
-}
-
-void plain_pthread_mutex_destroy(safe_mutex_t *m)
-{
-  pthread_mutex_destroy(& m->mutex);
-}
-
-void plain_pthread_mutex_lock(safe_mutex_t *m)
-{
-  pthread_mutex_lock(& m->mutex);
-}
-
-void plain_pthread_mutex_unlock(safe_mutex_t *m)
-{
-  pthread_mutex_unlock(& m->mutex);
-}
-
-#endif
-
-

@@ -62,7 +62,7 @@ this program; if not, write to the Free Software Foundation, Inc.,
 
 	return(FTS_TERM);
 }
-
+.	;
 \n
 
 %%

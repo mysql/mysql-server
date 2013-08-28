@@ -61,6 +61,7 @@ UNIV_INTERN my_bool	srv_ibuf_disable_background_merge;
 #include "que0que.h"
 #include "srv0start.h" /* srv_shutdown_state */
 #include "ha_prototypes.h"
+#include "rem0cmp.h"
 
 /*	STRUCTURE OF AN INSERT BUFFER RECORD
 
@@ -3799,6 +3800,10 @@ ibuf_insert(
 	/* Read the settable global variable ibuf_use only once in
 	this function, so that we will have a consistent view of it. */
 	ibuf_use_t	use		= ibuf_use;
+	DBUG_ENTER("ibuf_insert");
+
+	DBUG_PRINT("ibuf", ("op: %d, space: %ld, page_no: %ld",
+			    op, space, page_no));
 
 	ut_ad(dtuple_check_typed(entry));
 	ut_ad(ut_is_2pow(zip_size));
@@ -3813,7 +3818,7 @@ ibuf_insert(
 		case IBUF_USE_NONE:
 		case IBUF_USE_DELETE:
 		case IBUF_USE_DELETE_MARK:
-			return(FALSE);
+			DBUG_RETURN(FALSE);
 		case IBUF_USE_INSERT:
 		case IBUF_USE_INSERT_DELETE_MARK:
 		case IBUF_USE_ALL:
@@ -3826,7 +3831,7 @@ ibuf_insert(
 		switch (use) {
 		case IBUF_USE_NONE:
 		case IBUF_USE_INSERT:
-			return(FALSE);
+			DBUG_RETURN(FALSE);
 		case IBUF_USE_DELETE_MARK:
 		case IBUF_USE_DELETE:
 		case IBUF_USE_INSERT_DELETE_MARK:
@@ -3842,7 +3847,7 @@ ibuf_insert(
 		case IBUF_USE_NONE:
 		case IBUF_USE_INSERT:
 		case IBUF_USE_INSERT_DELETE_MARK:
-			return(FALSE);
+			DBUG_RETURN(FALSE);
 		case IBUF_USE_DELETE_MARK:
 		case IBUF_USE_DELETE:
 		case IBUF_USE_ALL:
@@ -3884,7 +3889,7 @@ check_watch:
 			is being buffered, have this request executed
 			directly on the page in the buffer pool after the
 			buffered entries for this page have been merged. */
-			return(FALSE);
+			DBUG_RETURN(FALSE);
 		}
 	}
 
@@ -3895,7 +3900,7 @@ skip_watch:
 	    >= page_get_free_space_of_empty(dict_table_is_comp(index->table))
 	    / 2) {
 
-		return(FALSE);
+		DBUG_RETURN(FALSE);
 	}
 
 	err = ibuf_insert_low(BTR_MODIFY_PREV, op, no_counter,
@@ -3912,20 +3917,21 @@ skip_watch:
 		/* fprintf(stderr, "Ibuf insert for page no %lu of index %s\n",
 		page_no, index->name); */
 #endif
-		return(TRUE);
+		DBUG_RETURN(TRUE);
 
 	} else {
 		ut_a(err == DB_STRONG_FAIL || err == DB_TOO_BIG_RECORD);
 
-		return(FALSE);
+		DBUG_RETURN(FALSE);
 	}
 }
 
 /********************************************************************//**
 During merge, inserts to an index page a secondary index entry extracted
-from the insert buffer. */
+from the insert buffer. 
+@return	newly inserted record */
 static __attribute__((nonnull))
-void
+rec_t*
 ibuf_insert_to_index_page_low(
 /*==========================*/
 	const dtuple_t*	entry,	/*!< in: buffered entry to insert */
@@ -3944,10 +3950,13 @@ ibuf_insert_to_index_page_low(
 	ulint		zip_size;
 	const page_t*	bitmap_page;
 	ulint		old_bits;
+	rec_t*		rec;
+	DBUG_ENTER("ibuf_insert_to_index_page_low");
 
-	if (page_cur_tuple_insert(
-		    page_cur, entry, index, offsets, &heap, 0, mtr) != NULL) {
-		return;
+	rec = page_cur_tuple_insert(page_cur, entry, index,
+				    offsets, &heap, 0, mtr);
+	if (rec != NULL) {
+		DBUG_RETURN(rec);
 	}
 
 	/* Page reorganization or recompression should already have
@@ -3962,9 +3971,10 @@ ibuf_insert_to_index_page_low(
 
 	/* This time the record must fit */
 
-	if (page_cur_tuple_insert(page_cur, entry, index,
-				  offsets, &heap, 0, mtr) != NULL) {
-		return;
+	rec = page_cur_tuple_insert(page_cur, entry, index,
+				    offsets, &heap, 0, mtr);
+	if (rec != NULL) {
+		DBUG_RETURN(rec);
 	}
 
 	page = buf_block_get_frame(block);
@@ -3998,6 +4008,7 @@ ibuf_insert_to_index_page_low(
 	fputs("InnoDB: Submit a detailed bug report"
 	      " to http://bugs.mysql.com\n", stderr);
 	ut_ad(0);
+	DBUG_RETURN(NULL);
 }
 
 /************************************************************************
@@ -4019,6 +4030,13 @@ ibuf_insert_to_index_page(
 	rec_t*		rec;
 	ulint*		offsets;
 	mem_heap_t*	heap;
+
+	DBUG_ENTER("ibuf_insert_to_index_page");
+
+	DBUG_PRINT("ibuf", ("page_no: %ld", buf_block_get_page_no(block)));
+	DBUG_PRINT("ibuf", ("index name: %s", index->name));
+	DBUG_PRINT("ibuf", ("online status: %d",
+			    dict_index_get_online_status(index)));
 
 	ut_ad(ibuf_inside(mtr));
 	ut_ad(dtuple_check_typed(entry));
@@ -4063,7 +4081,7 @@ dump:
 		      "InnoDB: Submit a detailed bug report to"
 		      " http://bugs.mysql.com!\n", stderr);
 
-		return;
+		DBUG_VOID_RETURN;
 	}
 
 	low_match = page_cur_search(block, index, entry,
@@ -4146,10 +4164,11 @@ dump:
 		lock_rec_store_on_page_infimum(block, rec);
 		page_cur_delete_rec(&page_cur, index, offsets, mtr);
 		page_cur_move_to_prev(&page_cur);
+		rec = ibuf_insert_to_index_page_low(entry, block, index,
+				      		    &offsets, heap, mtr,
+						    &page_cur);
 
-		ibuf_insert_to_index_page_low(entry, block, index,
-					      &offsets, heap, mtr,
-					      &page_cur);
+		ut_ad(!cmp_dtuple_rec(entry, rec, offsets));
 		lock_rec_restore_from_page_infimum(block, rec, block);
 	} else {
 		offsets = NULL;
@@ -4157,9 +4176,10 @@ dump:
 					      &offsets, heap, mtr,
 					      &page_cur);
 	}
-
 updated_in_place:
 	mem_heap_free(heap);
+
+	DBUG_VOID_RETURN;
 }
 
 /****************************************************************//**

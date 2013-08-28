@@ -18,8 +18,7 @@ connection slave;
 call mtr.add_suppression("Slave SQL.*Fatal error: Not enough memory, Error_code: 1593");
 call mtr.add_suppression("The slave coordinator and worker threads are stopped, possibly leaving data in inconsistent state");
 
-let $slave_sql_errno= 1593;
-let $show_slave_sql_error= 1;
+--let $slave_sql_errno= convert_error(ER_SLAVE_FATAL_ERROR) # 1593
 source include/wait_for_slave_sql_error_and_skip.inc;
 
 connection master;

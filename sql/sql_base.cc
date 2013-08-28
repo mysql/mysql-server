@@ -2802,7 +2802,8 @@ bool open_table(THD *thd, TABLE_LIST *table_list, Open_table_context *ot_ctx)
   hash_value= my_calc_hash(&table_def_cache, (uchar*) key, key_length);
 
 
-  if (table_list->open_strategy == TABLE_LIST::OPEN_IF_EXISTS)
+  if (table_list->open_strategy == TABLE_LIST::OPEN_IF_EXISTS ||
+      table_list->open_strategy == TABLE_LIST::OPEN_FOR_CREATE)
   {
     bool exists;
 
@@ -2810,7 +2811,31 @@ bool open_table(THD *thd, TABLE_LIST *table_list, Open_table_context *ot_ctx)
       DBUG_RETURN(TRUE);
 
     if (!exists)
+    {
+      if (table_list->open_strategy == TABLE_LIST::OPEN_FOR_CREATE &&
+          ! (flags & (MYSQL_OPEN_FORCE_SHARED_MDL |
+                      MYSQL_OPEN_FORCE_SHARED_HIGH_PRIO_MDL)))
+      {
+        MDL_deadlock_handler mdl_deadlock_handler(ot_ctx);
+
+        thd->push_internal_handler(&mdl_deadlock_handler);
+
+        DEBUG_SYNC(thd, "before_upgrading_lock_from_S_to_X_for_create_table");
+        bool wait_result= thd->mdl_context.upgrade_shared_lock(
+                                 table_list->mdl_request.ticket,
+                                 MDL_EXCLUSIVE,
+                                 thd->variables.lock_wait_timeout);
+
+        thd->pop_internal_handler();
+        DEBUG_SYNC(thd, "after_upgrading_lock_from_S_to_X_for_create_table");
+
+        /* Deadlock or timeout occurred while upgrading the lock. */
+        if (wait_result)
+          DBUG_RETURN(TRUE);
+      }
+
       DBUG_RETURN(FALSE);
+    }
 
     /* Table exists. Let us try to open it. */
   }
@@ -4658,8 +4683,11 @@ extern "C" uchar *schema_set_get_key(const uchar *record, size_t *length,
 
 /**
   Acquire upgradable (SNW, SNRW) metadata locks on tables used by
-  LOCK TABLES or by a DDL statement. Under LOCK TABLES, we can't take
-  new locks, so use open_tables_check_upgradable_mdl() instead.
+  LOCK TABLES or by a DDL statement.
+  Acquire lock "S" on table being created in CREATE TABLE statement.
+
+  @note  Under LOCK TABLES, we can't take new locks, so use
+         open_tables_check_upgradable_mdl() instead.
 
   @param thd               Thread context.
   @param tables_start      Start of list of tables on which upgradable locks
@@ -4688,7 +4716,8 @@ lock_table_names(THD *thd,
   for (table= tables_start; table && table != tables_end;
        table= table->next_global)
   {
-    if (table->mdl_request.type < MDL_SHARED_UPGRADABLE ||
+    if ((table->mdl_request.type < MDL_SHARED_UPGRADABLE &&
+         table->open_strategy != TABLE_LIST::OPEN_FOR_CREATE) ||
         table->open_type == OT_TEMPORARY_ONLY ||
         (table->open_type == OT_TEMPORARY_OR_BASE && is_temporary_table(table)))
     {
@@ -4925,7 +4954,8 @@ restart:
       for (table= *start; table && table != thd->lex->first_not_own_table();
            table= table->next_global)
       {
-        if (table->mdl_request.type >= MDL_SHARED_UPGRADABLE)
+        if (table->mdl_request.type >= MDL_SHARED_UPGRADABLE ||
+            table->open_strategy == TABLE_LIST::OPEN_FOR_CREATE)
           table->mdl_request.ticket= NULL;
       }
     }
