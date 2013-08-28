@@ -190,7 +190,8 @@ my_bool net_realloc(NET *net, size_t length)
   @param check_buffer  Whether to check the socket buffer.
 */
 
-void net_clear(NET *net, my_bool check_buffer)
+void net_clear(NET *net,
+               my_bool check_buffer __attribute__((unused)))
 {
   DBUG_ENTER("net_clear");
 
