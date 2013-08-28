@@ -1,4 +1,4 @@
-# Copyright (c) 2009, 2010, Oracle and/or its affiliates. All rights reserved.
+# Copyright (c) 2009, 2013, Oracle and/or its affiliates. All rights reserved.
 # 
 # This program is free software; you can redistribute it and/or modify
 # it under the terms of the GNU General Public License as published by
@@ -157,7 +157,7 @@ IF(CMAKE_SYSTEM_NAME MATCHES "SunOS" AND ENABLE_DTRACE)
   FOREACH(lib ${libs})
     GET_TARGET_PROPERTY(libtype ${lib} TYPE)
     IF(libtype MATCHES STATIC_LIBRARY)
-      SET(static_libs ${static_lics} ${lib})
+      SET(static_libs ${static_libs} ${lib})
     ENDIF()
   ENDFOREACH()
 

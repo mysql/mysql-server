@@ -38,22 +38,32 @@
 
 /** Size of the mutex instances array. @sa mutex_array */
 ulong mutex_max;
+/** True when @c mutex_array is full. */
+bool mutex_full;
 /** Number of mutexes instance lost. @sa mutex_array */
 ulong mutex_lost;
 /** Size of the rwlock instances array. @sa rwlock_array */
 ulong rwlock_max;
+/** True when @c rwlock_array is full. */
+bool rwlock_full;
 /** Number or rwlock instances lost. @sa rwlock_array */
 ulong rwlock_lost;
 /** Size of the conditions instances array. @sa cond_array */
 ulong cond_max;
+/** True when @c cond_array is full. */
+bool cond_full;
 /** Number of conditions instances lost. @sa cond_array */
 ulong cond_lost;
 /** Size of the thread instances array. @sa thread_array */
 ulong thread_max;
+/** True when @c thread_array is full. */
+bool thread_full;
 /** Number or thread instances lost. @sa thread_array */
 ulong thread_lost;
 /** Size of the file instances array. @sa file_array */
 ulong file_max;
+/** True when @c file_array is full. */
+bool file_full;
 /** Number of file instances lost. @sa file_array */
 ulong file_lost;
 /**
@@ -61,14 +71,20 @@ ulong file_lost;
   Signed value, for easier comparisons with a file descriptor number.
 */
 long file_handle_max;
+/** True when @c file_handle_array is full. */
+bool file_handle_full;
 /** Number of file handle lost. @sa file_handle_array */
 ulong file_handle_lost;
 /** Size of the table instances array. @sa table_array */
 ulong table_max;
+/** True when @c table_array is full. */
+bool table_full;
 /** Number of table instances lost. @sa table_array */
 ulong table_lost;
 /** Size of the socket instances array. @sa socket_array */
 ulong socket_max;
+/** True when @c socket_array is full. */
+bool socket_full;
 /** Number of socket instances lost. @sa socket_array */
 ulong socket_lost;
 /** Number of EVENTS_WAITS_HISTORY records per thread. */
@@ -185,20 +201,28 @@ int init_instruments(const PFS_global_param *param)
   DBUG_ASSERT(wait_class_max != 0);
 
   mutex_max= param->m_mutex_sizing;
+  mutex_full= false;
   mutex_lost= 0;
   rwlock_max= param->m_rwlock_sizing;
+  rwlock_full= false;
   rwlock_lost= 0;
   cond_max= param->m_cond_sizing;
+  cond_full= false;
   cond_lost= 0;
   file_max= param->m_file_sizing;
+  file_full= false;
   file_lost= 0;
   file_handle_max= param->m_file_handle_sizing;
+  file_handle_full= false;
   file_handle_lost= 0;
   table_max= param->m_table_sizing;
+  table_full= false;
   table_lost= 0;
   thread_max= param->m_thread_sizing;
+  thread_full= false;
   thread_lost= 0;
   socket_max= param->m_socket_sizing;
+  socket_full= false;
   socket_lost= 0;
 
   events_waits_history_per_thread= param->m_events_waits_history_sizing;
@@ -601,6 +625,17 @@ PFS_mutex* create_mutex(PFS_mutex_class *klass, const void *identity)
   uint attempts= 0;
   PFS_mutex *pfs;
 
+  if (mutex_full)
+  {
+    /*
+      This is a safety plug.
+      When mutex_array is severely undersized,
+      do not spin to death for each call.
+    */
+    mutex_lost++;
+    return NULL;
+  }
+
   while (++attempts <= mutex_max)
   {
     /*
@@ -645,6 +680,15 @@ PFS_mutex* create_mutex(PFS_mutex_class *klass, const void *identity)
   }
 
   mutex_lost++;
+  /*
+    Race condition.
+    The mutex_array might not be full if a concurrent thread
+    called destroy_mutex() during the scan, leaving one
+    empty slot we did not find.
+    However, 99.999 percent full tables or 100 percent full tables
+    are treated the same here, we declare the array overloaded.
+  */
+  mutex_full= true;
   return NULL;
 }
 
@@ -662,6 +706,7 @@ void destroy_mutex(PFS_mutex *pfs)
   if (klass->is_singleton())
     klass->m_singleton= NULL;
   pfs->m_lock.allocated_to_free();
+  mutex_full= false;
 }
 
 /**
@@ -676,6 +721,12 @@ PFS_rwlock* create_rwlock(PFS_rwlock_class *klass, const void *identity)
   uint index;
   uint attempts= 0;
   PFS_rwlock *pfs;
+
+  if (rwlock_full)
+  {
+    rwlock_lost++;
+    return NULL;
+  }
 
   while (++attempts <= rwlock_max)
   {
@@ -705,6 +756,7 @@ PFS_rwlock* create_rwlock(PFS_rwlock_class *klass, const void *identity)
   }
 
   rwlock_lost++;
+  rwlock_full= true;
   return NULL;
 }
 
@@ -722,6 +774,7 @@ void destroy_rwlock(PFS_rwlock *pfs)
   if (klass->is_singleton())
     klass->m_singleton= NULL;
   pfs->m_lock.allocated_to_free();
+  rwlock_full= false;
 }
 
 /**
@@ -736,6 +789,12 @@ PFS_cond* create_cond(PFS_cond_class *klass, const void *identity)
   uint index;
   uint attempts= 0;
   PFS_cond *pfs;
+
+  if (cond_full)
+  {
+    cond_lost++;
+    return NULL;
+  }
 
   while (++attempts <= cond_max)
   {
@@ -763,6 +822,7 @@ PFS_cond* create_cond(PFS_cond_class *klass, const void *identity)
   }
 
   cond_lost++;
+  cond_full= true;
   return NULL;
 }
 
@@ -780,6 +840,7 @@ void destroy_cond(PFS_cond *pfs)
   if (klass->is_singleton())
     klass->m_singleton= NULL;
   pfs->m_lock.allocated_to_free();
+  cond_full= false;
 }
 
 PFS_thread* PFS_thread::get_current_thread()
@@ -818,6 +879,12 @@ PFS_thread* create_thread(PFS_thread_class *klass, const void *identity,
   uint attempts= 0;
   PFS_thread *pfs;
 
+  if (thread_full)
+  {
+    thread_lost++;
+    return NULL;
+  }
+
   while (++attempts <= thread_max)
   {
     /* See create_mutex() */
@@ -833,6 +900,8 @@ PFS_thread* create_thread(PFS_thread_class *klass, const void *identity,
         pfs->m_parent_thread_internal_id= 0;
         pfs->m_processlist_id= processlist_id;
         pfs->m_event_id= 1;
+        pfs->m_stmt_lock.set_allocated();
+        pfs->m_session_lock.set_allocated();
         pfs->m_enabled= true;
         pfs->m_class= klass;
         pfs->m_events_waits_current= & pfs->m_events_waits_stack[WAIT_STACK_BOTTOM];
@@ -863,7 +932,6 @@ PFS_thread* create_thread(PFS_thread_class *klass, const void *identity,
         pfs->m_stage= 0;
         pfs->m_processlist_info[0]= '\0';
         pfs->m_processlist_info_length= 0;
-        pfs->m_processlist_info_lock.set_allocated();
 
         pfs->m_host= NULL;
         pfs->m_user= NULL;
@@ -941,6 +1009,7 @@ PFS_thread* create_thread(PFS_thread_class *klass, const void *identity,
   }
 
   thread_lost++;
+  thread_full= true;
   return NULL;
 }
 
@@ -1052,6 +1121,7 @@ void destroy_thread(PFS_thread *pfs)
     pfs->m_digest_hash_pins= NULL;
   }
   pfs->m_lock.allocated_to_free();
+  thread_full= false;
 }
 
 /**
@@ -1202,6 +1272,12 @@ search:
     return NULL;
   }
 
+  if (file_full)
+  {
+    file_lost++;
+    return NULL;
+  }
+
   while (++attempts <= file_max)
   {
     /* See create_mutex() */
@@ -1255,6 +1331,7 @@ search:
   }
 
   file_lost++;
+  file_full= true;
   return NULL;
 }
 
@@ -1294,6 +1371,7 @@ void destroy_file(PFS_thread *thread, PFS_file *pfs)
   if (klass->is_singleton())
     klass->m_singleton= NULL;
   pfs->m_lock.allocated_to_free();
+  file_full= false;
 }
 
 /**
@@ -1310,6 +1388,12 @@ PFS_table* create_table(PFS_table_share *share, PFS_thread *opening_thread,
   uint index;
   uint attempts= 0;
   PFS_table *pfs;
+
+  if (table_full)
+  {
+    table_lost++;
+    return NULL;
+  }
 
   while (++attempts <= table_max)
   {
@@ -1341,6 +1425,7 @@ PFS_table* create_table(PFS_table_share *share, PFS_thread *opening_thread,
   }
 
   table_lost++;
+  table_full= true;
   return NULL;
 }
 
@@ -1438,6 +1523,7 @@ void destroy_table(PFS_table *pfs)
   DBUG_ASSERT(pfs != NULL);
   pfs->m_share->dec_refcount();
   pfs->m_lock.allocated_to_free();
+  table_full= false;
 }
 
 /**
@@ -1453,6 +1539,12 @@ PFS_socket* create_socket(PFS_socket_class *klass, const my_socket *fd,
   uint index;
   uint attempts= 0;
   PFS_socket *pfs;
+
+  if (socket_full)
+  {
+    socket_lost++;
+    return NULL;
+  }
 
   uint fd_used= 0;
   uint addr_len_used= addr_len;
@@ -1503,6 +1595,7 @@ PFS_socket* create_socket(PFS_socket_class *klass, const my_socket *fd,
   }
 
   socket_lost++;
+  socket_full= true;
   return NULL;
 }
 
@@ -1540,6 +1633,7 @@ void destroy_socket(PFS_socket *pfs)
   pfs->m_fd= 0;
   pfs->m_addr_len= 0;
   pfs->m_lock.allocated_to_free();
+  socket_full= false;
 }
 
 static void reset_mutex_waits_by_instance(void)

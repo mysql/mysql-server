@@ -5390,7 +5390,7 @@ bool Item_field::fix_fields(THD *thd, Item **reference)
               It's not an Item_field in the select list so we must make a new
               Item_ref to point to the Item in the select list and replace the
               Item_field created by the parser with the new Item_ref.
-
+              Ex: SELECT func1(col) as c ... ORDER BY func2(c);
               NOTE: If we are fixing an alias reference inside ORDER/GROUP BY
               item tree, then we use new Item_ref as an intermediate value
               to resolve referenced item only.
@@ -8051,7 +8051,7 @@ Item_default_value::save_in_field(Field *field_arg, bool no_conversions)
       return TYPE_ERR_BAD_VALUE;
     }
     field_arg->set_default();
-    return TYPE_OK;
+    return field_arg->validate_stored_val(current_thd);
   }
   return Item_field::save_in_field(field_arg, no_conversions);
 }

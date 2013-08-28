@@ -48,6 +48,17 @@ Full Text Search interface
 a configurable variable */
 UNIV_INTERN ulong	fts_max_cache_size;
 
+/** Whether the total memory used for FTS cache is exhausted, and we will
+need a sync to free some memory */
+UNIV_INTERN bool       fts_need_sync = false;
+
+/** Variable specifying the total memory allocated for FTS cache */
+UNIV_INTERN ulong      fts_max_total_cache_size;
+
+/** This is FTS result cache limit for each query and would be
+a configurable variable */
+UNIV_INTERN ulong	fts_result_cache_limit;
+
 /** Variable specifying the maximum FTS max token size */
 UNIV_INTERN ulong	fts_max_token_size;
 
@@ -643,6 +654,8 @@ fts_cache_create(
 	/* This is a transient heap, used for storing sync data. */
 	cache->sync_heap = ib_heap_allocator_create(heap);
 	cache->sync_heap->arg = NULL;
+
+	fts_need_sync = false;
 
 	cache->sync = static_cast<fts_sync_t*>(
 		mem_heap_zalloc(heap, sizeof(fts_sync_t)));
@@ -1507,6 +1520,112 @@ fts_drop_table(
 	}
 
 	return(error);
+}
+
+/****************************************************************//**
+Rename a single auxiliary table due to database name change.
+@return DB_SUCCESS or error code */
+static __attribute__((nonnull, warn_unused_result))
+dberr_t
+fts_rename_one_aux_table(
+/*=====================*/
+	const char*	new_name,		/*!< in: new parent tbl name */
+	const char*	fts_table_old_name,	/*!< in: old aux tbl name */
+	trx_t*		trx)			/*!< in: transaction */
+{
+	char	fts_table_new_name[MAX_TABLE_NAME_LEN];
+	ulint	new_db_name_len = dict_get_db_name_len(new_name);
+	ulint	old_db_name_len = dict_get_db_name_len(fts_table_old_name);
+	ulint	table_new_name_len = strlen(fts_table_old_name)
+				     + new_db_name_len - old_db_name_len;
+
+	/* Check if the new and old database names are the same, if so,
+	nothing to do */
+	ut_ad((new_db_name_len != old_db_name_len)
+	      || strncmp(new_name, fts_table_old_name, old_db_name_len) != 0);
+
+	/* Get the database name from "new_name", and table name
+	from the fts_table_old_name */
+	strncpy(fts_table_new_name, new_name, new_db_name_len);
+	strncpy(fts_table_new_name + new_db_name_len,
+	       strchr(fts_table_old_name, '/'),
+	       table_new_name_len - new_db_name_len);
+	fts_table_new_name[table_new_name_len] = 0;
+
+	return(row_rename_table_for_mysql(
+		fts_table_old_name, fts_table_new_name, trx, false));
+}
+
+/****************************************************************//**
+Rename auxiliary tables for all fts index for a table. This(rename)
+is due to database name change
+@return DB_SUCCESS or error code */
+
+dberr_t
+fts_rename_aux_tables(
+/*==================*/
+	dict_table_t*	table,		/*!< in: user Table */
+	const char*     new_name,       /*!< in: new table name */
+	trx_t*		trx)		/*!< in: transaction */
+{
+	ulint		i;
+	fts_table_t	fts_table;
+
+	FTS_INIT_FTS_TABLE(&fts_table, NULL, FTS_COMMON_TABLE, table);
+
+	/* Rename common auxiliary tables */
+	for (i = 0; fts_common_tables[i] != NULL; ++i) {
+		char*	old_table_name;
+		dberr_t	err = DB_SUCCESS;
+
+		fts_table.suffix = fts_common_tables[i];
+
+		old_table_name = fts_get_table_name(&fts_table);
+
+		err = fts_rename_one_aux_table(new_name, old_table_name, trx);
+
+		mem_free(old_table_name);
+
+		if (err != DB_SUCCESS) {
+			return(err);
+		}
+	}
+
+	fts_t*	fts = table->fts;
+
+	/* Rename index specific auxiliary tables */
+	for (i = 0; fts->indexes != 0 && i < ib_vector_size(fts->indexes);
+	     ++i) {
+		dict_index_t*	index;
+
+		index = static_cast<dict_index_t*>(
+			ib_vector_getp(fts->indexes, i));
+
+		FTS_INIT_INDEX_TABLE(&fts_table, NULL, FTS_INDEX_TABLE, index);
+
+		for (ulint j = 0; fts_index_selector[j].value; ++j) {
+			dberr_t	err;
+			char*	old_table_name;
+
+			fts_table.suffix = fts_get_suffix(j);
+
+			old_table_name = fts_get_table_name(&fts_table);
+
+			err = fts_rename_one_aux_table(
+				new_name, old_table_name, trx);
+
+			DBUG_EXECUTE_IF("fts_rename_failure",
+					err = DB_DEADLOCK;);
+
+			mem_free(old_table_name);
+
+			if (err != DB_SUCCESS) {
+				return(err);
+			}
+		}
+	}
+
+	return(DB_SUCCESS);
 }
 
 /****************************************************************//**
@@ -3427,7 +3546,8 @@ fts_add_doc_by_id(
 					fts_sync(cache->sync);
 				);
 
-				if (cache->total_size > fts_max_cache_size) {
+				if (cache->total_size > fts_max_cache_size
+				    || fts_need_sync) {
 					fts_sync(cache->sync);
 				}
 
@@ -4919,20 +5039,20 @@ fts_get_doc_id_from_rec(
 	ulint		len;
 	const byte*	data;
 	ulint		col_no;
-	ulint*		offsets;
 	doc_id_t	doc_id = 0;
 	dict_index_t*	clust_index;
 	ulint		offsets_[REC_OFFS_NORMAL_SIZE];
+	ulint*		offsets = offsets_;
+	mem_heap_t*	my_heap = heap;
 
 	ut_a(table->fts->doc_col != ULINT_UNDEFINED);
 
-	offsets	= offsets_;
 	clust_index = dict_table_get_first_index(table);
 
-	offsets_[0] = UT_ARR_SIZE(offsets_);
+	rec_offs_init(offsets_);
 
 	offsets = rec_get_offsets(
-		rec, clust_index, offsets, ULINT_UNDEFINED, &heap);
+		rec, clust_index, offsets, ULINT_UNDEFINED, &my_heap);
 
 	col_no = dict_col_get_clust_pos(
 		&table->cols[table->fts->doc_col], clust_index);
@@ -4943,6 +5063,10 @@ fts_get_doc_id_from_rec(
 	ut_a(len == 8);
 	ut_ad(8 == sizeof(doc_id));
 	doc_id = static_cast<doc_id_t>(mach_read_from_8(data));
+
+	if (my_heap && !heap) {
+		mem_heap_free(my_heap);
+	}
 
 	return(doc_id);
 }

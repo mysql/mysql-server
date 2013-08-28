@@ -1806,6 +1806,11 @@ public:
     OPEN_NORMAL= 0,
     /* Associate a table share only if the the table exists. */
     OPEN_IF_EXISTS,
+    /*
+      Associate a table share only if the the table exists.
+      Also upgrade metadata lock to exclusive if table doesn't exist.
+    */
+    OPEN_FOR_CREATE,
     /* Don't associate a table share. */
     OPEN_STUB
   } open_strategy;
@@ -2419,6 +2424,7 @@ inline void mark_as_null_row(TABLE *table)
 {
   table->null_row=1;
   table->status|=STATUS_NULL_ROW;
+  memset(table->null_flags, 255, table->s->null_bytes);
 }
 
 bool is_simple_order(ORDER *order);

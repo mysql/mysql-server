@@ -1,4 +1,4 @@
-# Copyright (c) 2006, 2012, Oracle and/or its affiliates. All rights reserved.
+# Copyright (c) 2006, 2013, Oracle and/or its affiliates. All rights reserved.
 # 
 # This program is free software; you can redistribute it and/or modify
 # it under the terms of the GNU General Public License as published by
@@ -63,6 +63,11 @@ ADD_CONVENIENCE_LIBRARY(mysys ${MYSYS_SOURCES})
 TARGET_LINK_LIBRARIES(mysys dbug strings ${ZLIB_LIBRARY} 
  ${LIBNSL} ${LIBM} ${LIBRT})
 DTRACE_INSTRUMENT(mysys)
+
+# Need explicit pthread for gcc -fsanitize=address
+IF(CMAKE_USE_PTHREADS_INIT AND CMAKE_C_FLAGS MATCHES "-fsanitize=")
+  TARGET_LINK_LIBRARIES(mysys pthread)
+ENDIF()
 
 ADD_EXECUTABLE(thr_lock thr_lock.c)
 TARGET_LINK_LIBRARIES(thr_lock mysys)

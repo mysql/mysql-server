@@ -1339,13 +1339,16 @@ bool JOIN::get_best_combination()
       # of semi-join nests for materialization +
       1? + // For GROUP BY
       1? + // For DISTINCT
+      1? + // For aggregation functions aggregated in outer query
+           // when used with distinct
       1? + // For ORDER BY
       1?   // buffer result
     Up to 2 tmp tables are actually used, but it's hard to tell exact number
     at this stage.
   */
   uint tmp_tables= (group_list ? 1 : 0) +
-                   (select_distinct ? 1 : 0) +
+                   (select_distinct ?
+                    (tmp_table_param.outer_sum_func_count ? 2 : 1) : 0) +
                    (order ? 1 : 0) +
        (select_options & (SELECT_BIG_RESULT | OPTION_BUFFER_RESULT) ? 1 : 0) ;
   if (tmp_tables > 2)
@@ -3462,8 +3465,8 @@ const_expression_in_where(Item *cond, Item *comp_item, Field *comp_field,
     -1   Reverse key can be used
 */
 
-static int test_if_order_by_key(ORDER *order, TABLE *table, uint idx,
-				uint *used_key_parts= NULL)
+int test_if_order_by_key(ORDER *order, TABLE *table, uint idx,
+                         uint *used_key_parts)
 {
   KEY_PART_INFO *key_part,*key_part_end;
   key_part=table->key_info[idx].key_part;
@@ -3476,7 +3479,16 @@ static int test_if_order_by_key(ORDER *order, TABLE *table, uint idx,
 
   for (; order ; order=order->next, const_key_parts>>=1)
   {
-    Field *field=((Item_field*) (*order->item)->real_item())->field;
+
+    /*
+      Since only fields can be indexed, ORDER BY <something> that is
+      not a field cannot be resolved by using an index.
+    */
+    Item *real_itm= (*order->item)->real_item();
+    if (real_itm->type() != Item::FIELD_ITEM)
+      DBUG_RETURN(0);
+
+    Field *field= static_cast<Item_field*>(real_itm)->field;
     int flag;
 
     /*
@@ -4356,8 +4368,11 @@ count_field_types(SELECT_LEX *select_lex, TMP_TABLE_PARAM *param,
   List_iterator<Item> li(fields);
   Item *field;
 
-  param->field_count=param->sum_func_count=param->func_count=
-    param->hidden_field_count=0;
+  param->field_count= 0;
+  param->sum_func_count= 0;
+  param->func_count= 0;
+  param->hidden_field_count= 0;
+  param->outer_sum_func_count= 0;
   param->quick_group=1;
   while ((field=li++))
   {
@@ -4392,6 +4407,8 @@ count_field_types(SELECT_LEX *select_lex, TMP_TABLE_PARAM *param,
       param->func_count++;
       if (reset_with_sum_func)
 	field->with_sum_func=0;
+      if (field->with_sum_func)
+        param->outer_sum_func_count++;
     }
   }
 }
@@ -4819,12 +4836,12 @@ bool JOIN::rollup_make_fields(List<Item> &fields_arg, List<Item> &sel_fields,
 
 void JOIN::clear()
 {
-  for (uint tableno= 0; tableno < primary_tables; tableno++)
-  {
-    TABLE *const table= (join_tab+tableno)->table;
-    if (table)
-      mark_as_null_row(table);
-  }
+  /* 
+    must clear only the non-const tables, as const tables
+    are not re-calculated.
+  */
+  for (uint tableno= const_tables; tableno < primary_tables; tableno++)
+    mark_as_null_row(join_tab[tableno].table);  // All fields are NULL
 
   copy_fields(&tmp_table_param);
 
@@ -5032,9 +5049,9 @@ bool JOIN::make_tmp_tables_info()
       like SEC_TO_TIME(SUM(...)).
     */
 
-    if ((group_list && 
+    if ((group_list &&
          (!test_if_subpart(group_list, order) || select_distinct)) ||
-        (select_distinct && tmp_table_param.using_indirect_summary_function))
+        (select_distinct && tmp_table_param.using_outer_summary_function))
     {					/* Must copy to another table */
       DBUG_PRINT("info",("Creating group table"));
       

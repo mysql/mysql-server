@@ -14,8 +14,8 @@
 
 connection slave;
 
-call mtr.add_suppression('Slave SQL: Could not execute Write_rows event on table test.t1');
-call mtr.add_suppression('Slave SQL: Could not execute Update_rows event on table test.t1; Deadlock found when trying to get lock');
+call mtr.add_suppression('Slave SQL:.* Could not execute Write_rows event on table test.t1');
+call mtr.add_suppression("Slave SQL:.* Could not execute Update_rows event on table d1.t1; Deadlock found when trying to get lock");
 call mtr.add_suppression("The slave coordinator and worker threads are stopped, possibly leaving data in inconsistent state");
 
 create view worker_proc_list as SELECT id  from Information_Schema.processlist

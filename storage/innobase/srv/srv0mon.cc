@@ -1620,7 +1620,7 @@ srv_mon_process_existing_counter(
 		break;
 
 	case MONITOR_OVLD_RWLOCK_X_SPIN_WAITS:
-		value = rw_lock_stats.rw_x_os_wait_count;
+		value = rw_lock_stats.rw_x_spin_wait_count;
 		break;
 
 	case MONITOR_OVLD_RWLOCK_S_SPIN_ROUNDS:

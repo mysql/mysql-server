@@ -1,7 +1,7 @@
 include/master-slave.inc
 Warnings:
 Note	####	Sending passwords in plain text without SSL/TLS is extremely insecure.
-Note	####	Storing MySQL user name or password information in the master.info repository is not secure and is therefore not recommended. Please see the MySQL Manual for more about this issue and possible alternatives.
+Note	####	Storing MySQL user name or password information in the master info repository is not secure and is therefore not recommended. Please consider using the USER and PASSWORD connection options for START SLAVE; see the 'START SLAVE Syntax' in the MySQL Manual for more information.
 [connection master]
 **** Testing WL#3228 changes. ****
 *** Create "wider" table on slave ***
@@ -15,7 +15,6 @@ CREATE TABLE t1 (a DECIMAL(20, 10));
 include/rpl_reset.inc
 INSERT INTO t1 VALUES (901251.90125);
 include/wait_for_slave_sql_error.inc [errno=1677]
-Last_SQL_Error = 'Column 0 of table 'test.t1' cannot be converted from type 'decimal(20,10)' to type 'decimal(5,2)''
 SELECT COUNT(*) FROM t1;
 COUNT(*)
 0
@@ -28,7 +27,6 @@ CREATE TABLE t1 (a DECIMAL(27, 18));
 include/rpl_reset.inc
 INSERT INTO t1 VALUES (901251.90125);
 include/wait_for_slave_sql_error.inc [errno=1677]
-Last_SQL_Error = 'Column 0 of table 'test.t1' cannot be converted from type 'decimal(27,18)' to type 'decimal(27,9)''
 SELECT COUNT(*) FROM t1;
 COUNT(*)
 0
@@ -41,7 +39,6 @@ CREATE TABLE t1 (a NUMERIC(20, 10));
 include/rpl_reset.inc
 INSERT INTO t1 VALUES (901251.90125);
 include/wait_for_slave_sql_error.inc [errno=1677]
-Last_SQL_Error = 'Column 0 of table 'test.t1' cannot be converted from type 'decimal(20,10)' to type 'decimal(5,2)''
 SELECT COUNT(*) FROM t1;
 COUNT(*)
 0
@@ -55,7 +52,6 @@ CREATE TABLE t1 (a FLOAT(47));
 include/rpl_reset.inc
 INSERT INTO t1 VALUES (901251.90125);
 include/wait_for_slave_sql_error.inc [errno=1677]
-Last_SQL_Error = 'Column 0 of table 'test.t1' cannot be converted from type 'double' to type 'float''
 SELECT COUNT(*) FROM t1;
 COUNT(*)
 0
@@ -69,7 +65,6 @@ CREATE TABLE t1 (a BIT(64));
 include/rpl_reset.inc
 INSERT INTO t1 VALUES (B'10101');
 include/wait_for_slave_sql_error.inc [errno=1677]
-Last_SQL_Error = 'Column 0 of table 'test.t1' cannot be converted from type 'bit(64)' to type 'bit(5)''
 SELECT COUNT(*) FROM t1;
 COUNT(*)
 0
@@ -82,7 +77,6 @@ CREATE TABLE t1 (a BIT(12));
 include/rpl_reset.inc
 INSERT INTO t1 VALUES (B'10101');
 include/wait_for_slave_sql_error.inc [errno=1677]
-Last_SQL_Error = 'Column 0 of table 'test.t1' cannot be converted from type 'bit(12)' to type 'bit(11)''
 SELECT COUNT(*) FROM t1;
 COUNT(*)
 0
@@ -96,7 +90,6 @@ CREATE TABLE t1 (a SET('1','2','3','4','5','6','7','8','9'));
 include/rpl_reset.inc
 INSERT INTO t1 VALUES ('4');
 include/wait_for_slave_sql_error.inc [errno=1677]
-Last_SQL_Error = 'Column 0 of table 'test.t1' cannot be converted from type 'set' to type 'set('4')''
 SELECT COUNT(*) FROM t1;
 COUNT(*)
 0
@@ -110,7 +103,6 @@ CREATE TABLE t1 (a CHAR(20));
 include/rpl_reset.inc
 INSERT INTO t1 VALUES ('This is a test.');
 include/wait_for_slave_sql_error.inc [errno=1677]
-Last_SQL_Error = 'Column 0 of table 'test.t1' cannot be converted from type 'char(20)' to type 'char(10)''
 SELECT COUNT(*) FROM t1;
 COUNT(*)
 0
@@ -155,7 +147,6 @@ CREATE TABLE t1 (a ENUM(
 include/rpl_reset.inc
 INSERT INTO t1 VALUES ('44');
 include/wait_for_slave_sql_error.inc [errno=1677]
-Last_SQL_Error = 'Column 0 of table 'test.t1' cannot be converted from type 'enum' to type 'enum('44','54')''
 SELECT COUNT(*) FROM t1;
 COUNT(*)
 0
@@ -169,7 +160,6 @@ CREATE TABLE t1 (a VARCHAR(2000));
 include/rpl_reset.inc
 INSERT INTO t1 VALUES ('This is a test.');
 include/wait_for_slave_sql_error.inc [errno=1677]
-Last_SQL_Error = 'Column 0 of table 'test.t1' cannot be converted from type 'varchar(2000)' to type 'varchar(100)''
 SELECT COUNT(*) FROM t1;
 COUNT(*)
 0
@@ -182,7 +172,6 @@ CREATE TABLE t1 (a VARCHAR(200));
 include/rpl_reset.inc
 INSERT INTO t1 VALUES ('This is a test.');
 include/wait_for_slave_sql_error.inc [errno=1677]
-Last_SQL_Error = 'Column 0 of table 'test.t1' cannot be converted from type 'varchar(200)' to type 'varchar(10)''
 SELECT COUNT(*) FROM t1;
 COUNT(*)
 0
@@ -195,7 +184,6 @@ CREATE TABLE t1 (a VARCHAR(2000));
 include/rpl_reset.inc
 INSERT INTO t1 VALUES ('This is a test.');
 include/wait_for_slave_sql_error.inc [errno=1677]
-Last_SQL_Error = 'Column 0 of table 'test.t1' cannot be converted from type 'varchar(2000)' to type 'varchar(1000)''
 SELECT COUNT(*) FROM t1;
 COUNT(*)
 0
@@ -209,7 +197,6 @@ CREATE TABLE t1 (a LONGBLOB);
 include/rpl_reset.inc
 INSERT INTO t1 VALUES ('This is a test.');
 include/wait_for_slave_sql_error.inc [errno=1677]
-Last_SQL_Error = 'Column 0 of table 'test.t1' cannot be converted from type 'tinyblob' to type 'tinyblob''
 SELECT COUNT(*) FROM t1;
 COUNT(*)
 0

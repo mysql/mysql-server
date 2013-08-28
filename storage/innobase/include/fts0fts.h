@@ -87,6 +87,7 @@ those defined in mysql file ft_global.h */
 #define FTS_EXPAND	4
 #define FTS_PROXIMITY	8
 #define FTS_PHRASE	16
+#define FTS_OPT_RANKING	32
 
 #define FTS_INDEX_TABLE_IND_NAME	"FTS_INDEX_TABLE_IND"
 
@@ -240,9 +241,10 @@ struct fts_ranking_t {
 
 	fts_rank_t	rank;		/*!< Rank is between 0 .. 1 */
 
-	ib_rbt_t*	words;		/*!< RB Tree of type byte*, this
-					contains the words that were queried
+	byte*		words;		/*!< this contains the words
+					that were queried
 					and found in this document */
+	ulint		words_len;	/*!< words len */
 };
 
 /** Query result. */
@@ -345,11 +347,21 @@ extern const char*	fts_default_stopword[];
 /** Variable specifying the maximum FTS cache size for each table */
 extern ulong		fts_max_cache_size;
 
+/** Variable specifying the total memory allocated for FTS cache */
+extern ulong		fts_max_total_cache_size;
+
+/** Variable specifying the FTS result cache limit for each query */
+extern ulong		fts_result_cache_limit;
+
 /** Variable specifying the maximum FTS max token size */
 extern ulong		fts_max_token_size;
 
 /** Variable specifying the minimum FTS max token size */
 extern ulong		fts_min_token_size;
+
+/** Whether the total memory used for FTS cache is exhausted, and we will
+need a sync to free some memory */
+extern bool		fts_need_sync;
 
 /** Maximum possible Fulltext word length */
 #define FTS_MAX_WORD_LEN	3 * HA_FT_MAXCHARLEN
@@ -1002,6 +1014,17 @@ fts_drop_index(
 	dict_index_t*	index,	/*!< in: Index to be dropped */
 	trx_t*		trx)	/*!< in: Transaction for the drop */
 	__attribute__((nonnull));
+
+/****************************************************************//**
+Rename auxiliary tables for all fts index for a table
+@return DB_SUCCESS or error code */
+
+dberr_t
+fts_rename_aux_tables(
+/*==================*/
+	dict_table_t*	table,		/*!< in: user Table */
+	const char*	new_name,	/*!< in: new table name */
+	trx_t*		trx);		/*!< in: transaction */
 
 /*******************************************************************//**
 Check indexes in the fts->indexes is also present in index cache and
