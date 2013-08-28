@@ -8914,7 +8914,7 @@ copy_data_between_tables(TABLE *from,TABLE *to,
     to->auto_increment_field_not_null= FALSE;
     if (error)
     {
-      if (to->file->is_fatal_error(error, HA_CHECK_DUP))
+      if (!to->file->is_ignorable_error(error))
       {
         /* Not a duplicate key error. */
 	to->file->print_error(error, MYF(0));
