@@ -6137,8 +6137,8 @@ static int handle_grant_struct(enum enum_acl_lists struct_no, bool drop,
                                LEX_USER *user_from, LEX_USER *user_to)
 {
   int result= 0;
-  uint idx;
-  uint elements;
+  int idx;
+  int elements;
   const char *user;
   const char *host;
   ACL_USER *acl_user= NULL;
@@ -6187,8 +6187,8 @@ static int handle_grant_struct(enum enum_acl_lists struct_no, bool drop,
     DBUG_PRINT("loop",("scan struct: %u  search    user: '%s'  host: '%s'",
                        struct_no, user_from->user.str, user_from->host.str));
 #endif
-  /* Loop over all elements. */
-  for (idx= 0; idx < elements; idx++)
+  /* Loop over all elements *backwards* (see the comment below). */
+  for (idx= elements - 1; idx >= 0; idx--)
   {
     /*
       Get a pointer to the element.
@@ -6239,6 +6239,7 @@ static int handle_grant_struct(enum enum_acl_lists struct_no, bool drop,
     result= 1; /* At least one element found. */
     if ( drop )
     {
+      elements--;
       switch ( struct_no ) {
       case USER_ACL:
         delete_dynamic_element(&acl_users, idx);
@@ -6252,6 +6253,15 @@ static int handle_grant_struct(enum enum_acl_lists struct_no, bool drop,
       case PROC_PRIVILEGES_HASH:
       case FUNC_PRIVILEGES_HASH:
         my_hash_delete(grant_name_hash, (uchar*) grant_name);
+        /*
+          In our HASH implementation on deletion one elements
+          is moved into a place where a deleted element was,
+          and the last element is moved into the empty space.
+          Thus we need to re-examine the current element, but
+          we don't have to restart the search from the beginning.
+        */
+        if (idx != elements)
+          idx++;
 	break;
 
       case PROXY_USERS_ACL:
@@ -6259,21 +6269,6 @@ static int handle_grant_struct(enum enum_acl_lists struct_no, bool drop,
         break;
 
       }
-      elements--;
-      /*
-        - If we are iterating through an array then we just have moved all
-          elements after the current element one position closer to its head.
-          This means that we have to take another look at the element at
-          current position as it is a new element from the array's tail.
-        - If we are iterating through a hash the current element was replaced
-          with one of elements from the tail. So we also have to take a look
-          at the new element in current position.
-          Note that in our HASH implementation hash_delete() won't move any
-          elements with position after current one to position before the
-          current (i.e. from the tail to the head), so it is safe to continue
-          iteration without re-starting.
-      */
-      idx--;
     }
     else if ( user_to )
     {
@@ -6314,15 +6309,15 @@ static int handle_grant_struct(enum enum_acl_lists struct_no, bool drop,
           my_hash_update(grant_name_hash, (uchar*) grant_name, (uchar*) old_key,
                          old_key_length);
           /*
-            hash_update() operation could have moved element from the tail
-            of the hash to the current position. So we need to take a look
-            at the element in current position once again.
-            Thanks to the fact that hash_update() for our HASH implementation
-            won't move any elements from the tail of the hash to the positions
-            before the current one (a.k.a. head) it is safe to continue
-            iteration without restarting.
+            hash_update() operation could have moved element from the tail or
+            the head of the hash to the current position.  But it can never
+            move an element from the head to the tail or from the tail to the
+            head over the current element.
+            So we need to examine the current element once again, but
+            we don't need to restart the search from the beginning.
           */
-          idx--;
+          if (idx != elements)
+            idx++;
           break;
         }
 
