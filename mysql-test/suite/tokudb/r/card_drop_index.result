@@ -1,3 +1,4 @@
+set default_storage_engine='tokudb';
 drop table if exists tt;
 create table tt (a int, b int, c int, key(b), key(c), primary key(a));
 insert into tt values (1,0,0),(2,0,0),(3,0,1),(4,0,1);
