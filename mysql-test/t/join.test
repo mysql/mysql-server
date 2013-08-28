@@ -1141,5 +1141,21 @@ DROP TABLE t1,t2,t3,t4,t5;
 --error ER_PARSE_ERROR
 SELECT * FROM t5 JOIN (t1 JOIN t2 UNION SELECT * FROM t3 JOIN t4);
 
+--echo #
+--echo # MDEV-4959: join of const table with NULL fields
+--echo #
+
+CREATE TABLE t1 (i1 int) ENGINE=MyISAM;
+INSERT INTO t1 VALUES (NULL);
+CREATE TABLE t2 (i2 int, a int, b int) ENGINE=MyISAM;
+CREATE ALGORITHM=TEMPTABLE VIEW v2 AS SELECT * FROM t2;
+INSERT INTO t2 VALUES (NULL,1,2),(NULL,2,3);
+
+SELECT * FROM t1 JOIN v2 ON i1 = i2 WHERE a < b;
+EXPLAIN EXTENDED
+SELECT * FROM t1 JOIN v2 ON i1 = i2 WHERE a < b;
+
+DROP VIEW v2;
+DROP TABLE t1,t2;
 
 SET optimizer_switch=@save_optimizer_switch;

@@ -8256,7 +8256,8 @@ static void add_not_null_conds(JOIN *join)
           Item *item= tab->ref.items[keypart];
           Item *notnull;
           Item *real= item->real_item();
-	  if (real->const_item() && !real->is_expensive())
+	  if (real->const_item() && real->type() != Item::FIELD_ITEM && 
+              !real->is_expensive())
           {
             /*
               It could be constant instead of field after constant
