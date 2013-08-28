@@ -2158,6 +2158,18 @@ SELECT * FROM t1 LEFT JOIN t2 ON i1 = j2 WHERE d1 IS NULL AND 1 OR i1 = i2;
 i1	d1	i2	j2
 2	0000-00-00	NULL	NULL
 DROP TABLE t1,t2;
+# Another testcase
+CREATE TABLE t1 (i1 INT) ENGINE=MyISAM;
+INSERT INTO t1 VALUES (NULL);
+CREATE TABLE t2 (i2 INT, a INT, b INT) ENGINE=MyISAM;
+CREATE ALGORITHM=TEMPTABLE VIEW v2 AS SELECT * FROM t2;
+INSERT INTO t2 VALUES (NULL,1,2),(NULL,2,3);
+SELECT * FROM t1 LEFT JOIN v2 ON i1 = i2 WHERE a < b;
+i1	i2	a	b
+SELECT * FROM t1 LEFT JOIN t2 ON i1 = i2 WHERE a < b;
+i1	i2	a	b
+drop view v2;
+drop table t1,t2;
 #
 # Bug mdev-4942: LEFT JOIN with conjunctive 
 #                <non-nullable datetime field> IS NULL in WHERE 
