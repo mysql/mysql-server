@@ -35,6 +35,10 @@ enum fts_ast_type_t {
 	FTS_AST_NUMB,				/*!< Number */
 	FTS_AST_TERM,				/*!< Term (or word) */
 	FTS_AST_TEXT,				/*!< Text string */
+	FTS_AST_PARSER_PHRASE_LIST,		/*!< Phase for plugin parser
+						The difference from text type
+						is that we tokenize text into
+						term list */
 	FTS_AST_LIST,				/*!< Expression list */
 	FTS_AST_SUBEXP_LIST			/*!< Sub-Expression list */
 };
@@ -140,7 +144,7 @@ fts_ast_term_set_wildcard(
 Set the proximity attribute of a text node. */
 
 void
-fts_ast_term_set_distance(
+fts_ast_text_set_distance(
 /*======================*/
 	fts_ast_node_t*	node,			/*!< in/out: text node */
 	ulint		distance);		/*!< in: the text proximity
@@ -263,6 +267,9 @@ struct fts_ast_node_t {
 	fts_ast_node_t*	next_alloc;		/*!< For tracking allocations */
 	bool		visited;		/*!< whether this node is
 						already processed */
+	/* Used by plugin parser */
+	fts_ast_node_t* up_node;		/*!< Direct up node */
+	bool		go_up;			/*!< Flag if go one level up */
 };
 
 /* To track state during parsing */
@@ -276,6 +283,29 @@ struct fts_ast_state_t {
 	fts_lexer_t*	lexer;			/*!< Lexer callback + arg */
 	CHARSET_INFO*	charset;		/*!< charset used for
 						tokenization */
+	/* Used by plugin parser */
+	fts_ast_node_t*	cur_node;		/*!< Current node into which
+						 we add new node */
+	ulint		depth;			/*!< Depth of parsing state */
 };
 
+/******************************************************************//**
+Create an AST term node, makes a copy of ptr for plugin parser
+@return node */
+extern
+fts_ast_node_t*
+fts_ast_create_node_term_for_parser(
+/*==========i=====================*/
+	void*		arg,			/*!< in: ast state */
+	const char*	ptr,			/*!< in: term string */
+	const ulint	len);			/*!< in: term string length */
+
+/******************************************************************//**
+Create an AST phrase list node for plugin parser
+@return node */
+extern
+fts_ast_node_t*
+fts_ast_create_node_phrase_list(
+/*============================*/
+	void*		arg);			/*!< in: ast state */
 #endif /* INNOBASE_FSTS0AST_H */
