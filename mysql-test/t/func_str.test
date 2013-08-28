@@ -6,6 +6,8 @@
 drop table if exists t1,t2;
 --enable_warnings
 
+let $mysqld_datadir= `select @@datadir`;
+
 set names latin1;
 
 select 'hello',"'hello'",'""hello""','''h''e''l''l''o''',"hel""lo",'hel\'lo';
@@ -1384,6 +1386,8 @@ SELECT insert( substring_index( 'a', 'a', 'b' ), 1, 0, 'x' );
 LOAD DATA INFILE 'bug58165.txt' INTO TABLE t1;
 SELECT * FROM t1;
 DROP TABLE t1;
+
+--remove_file $mysqld_datadir/test/bug58165.txt
 
 #
 # MDEV-759 lp:998340 - Valgrind complains on simple selects containing expression DAY(FROM_UNIXTIME(-1))

@@ -1,0 +1,12 @@
+set debug_dbug='+d,unstable_db_type';
+install soname 'ha_archive';
+create table t1 (a int) engine=archive;
+insert t1 values (1),(2),(3);
+flush tables;
+uninstall soname 'ha_archive';
+install soname 'ha_archive';
+t1.ARZ
+t1.frm
+drop table t1;
+uninstall soname 'ha_archive';
+set debug_dbug='-d,unstable_db_type';

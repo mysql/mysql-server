@@ -1,0 +1,25 @@
+
+--source include/have_debug.inc
+
+if (!$HA_ARCHIVE_SO) {
+  skip Needs Archive plugin;
+}
+
+let $mysqld_datadir= `select @@datadir`;
+
+set debug_dbug='+d,unstable_db_type';
+
+install soname 'ha_archive';
+create table t1 (a int) engine=archive;
+insert t1 values (1),(2),(3);
+flush tables;
+uninstall soname 'ha_archive';
+
+install soname 'ha_archive';
+--list_files $mysqld_datadir/test
+drop table t1;
+--list_files $mysqld_datadir/test
+uninstall soname 'ha_archive';
+
+set debug_dbug='-d,unstable_db_type';
+

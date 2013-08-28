@@ -486,6 +486,12 @@ int ha_initialize_handlerton(st_plugin_int *plugin)
     {
       uint tmp;
       ulong fslot;
+
+      DBUG_EXECUTE_IF("unstable_db_type", {
+                        static int i= (int) DB_TYPE_FIRST_DYNAMIC;
+                        hton->db_type= (enum legacy_db_type)++i;
+                      });
+
       /* now check the db_type for conflict */
       if (hton->db_type <= DB_TYPE_UNKNOWN ||
           hton->db_type >= DB_TYPE_DEFAULT ||
