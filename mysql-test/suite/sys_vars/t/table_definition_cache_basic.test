@@ -34,7 +34,7 @@
 ##############################################################################
 
 SET @start_value = @@global.table_definition_cache;
-SELECT @start_value;
+SELECT IF(@@open_files_limit < 5000, 1400, @start_value);
 
 --echo '#--------------------FN_DYNVARS_019_01------------------------#'
 #######################################################################
@@ -43,7 +43,7 @@ SELECT @start_value;
 
 SET @@global.table_definition_cache = 100;
 SET @@global.table_definition_cache = DEFAULT;
-SELECT @@global.table_definition_cache;
+SELECT IF(@@open_files_limit < 5000, 1400, @@global.table_definition_cache);
 
 
 --echo '#---------------------FN_DYNVARS_019_02-------------------------#'
@@ -52,7 +52,7 @@ SELECT @@global.table_definition_cache;
 ###############################################
 
 SET @@global.table_definition_cache = DEFAULT;
-SELECT @@global.table_definition_cache = 1400;
+SELECT IF(@@open_files_limit < 5000, 1400, @@global.table_definition_cache) = 1400;
 
 
 --echo '#--------------------FN_DYNVARS_019_03------------------------#'
@@ -149,7 +149,7 @@ SELECT table_definition_cache = @@session.table_definition_cache;
 ##############################
 
 SET @@global.table_definition_cache = @start_value;
-SELECT @@global.table_definition_cache;
+SELECT IF(@@open_files_limit < 5000, 1400, @@global.table_definition_cache);
 
 
 ################################################################

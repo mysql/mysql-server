@@ -5232,7 +5232,7 @@ CREATE TABLE b12809202_db.t1 (c1 INT);
 CREATE TABLE b12809202_db.t2 (c1 INT);
 INSERT INTO b12809202_db.t1 VALUES (1), (2), (3);
 INSERT INTO b12809202_db.t2 VALUES (1), (2), (3);
-# Starting mysqldump with --single-transaction & --flush-log options..
+# Starting mysqldump with --single-transaction & --flush-logs options..
 # Note : In the following dump the transaction
 #        should start only after the logs are
 #        flushed, as 'flush logs' causes implicit

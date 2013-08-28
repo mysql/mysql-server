@@ -2392,14 +2392,15 @@ create:
             lex->sql_command= SQLCOM_CREATE_TABLE;
             if (!lex->select_lex.add_table_to_list(thd, $5, NULL,
                                                    TL_OPTION_UPDATING,
-                                                   TL_WRITE, MDL_EXCLUSIVE))
+                                                   TL_WRITE, MDL_SHARED))
               MYSQL_YYABORT;
             /*
-              For CREATE TABLE, an non-existing table is not an error.
-              Instruct open_tables() to just take an MDL lock if the
-              table does not exist.
+              Instruct open_table() to acquire SHARED lock to check the
+              existance of table. If the table does not exist then
+              it will be upgraded EXCLUSIVE MDL lock. If table exist
+              then open_table() will return with an error or warning.
             */
-            lex->query_tables->open_strategy= TABLE_LIST::OPEN_IF_EXISTS;
+            lex->query_tables->open_strategy= TABLE_LIST::OPEN_FOR_CREATE;
             lex->alter_info.reset();
             lex->col_list.empty();
             lex->change=NullS;
@@ -11384,6 +11385,12 @@ olap_opt:
                        "global union parameters");
               MYSQL_YYABORT;
             }
+            if (lex->current_select->options & SELECT_DISTINCT)
+            {
+              // DISTINCT+ROLLUP does not work
+              my_error(ER_WRONG_USAGE, MYF(0), "WITH ROLLUP", "DISTINCT");
+              MYSQL_YYABORT;
+            }
             lex->current_select->olap= ROLLUP_TYPE;
           }
         ;
@@ -13317,10 +13324,17 @@ load_data_set_elem:
           simple_ident_nospvar equal remember_name expr_or_default remember_end
           {
             LEX *lex= Lex;
-            if (lex->update_list.push_back($1) || 
-                lex->value_list.push_back($4))
+            uint length= (uint) ($5 - $3);
+            String *val= new (YYTHD->mem_root) String($3,
+                                                      length,
+                                                      YYTHD->charset());
+            if (val == NULL)
+              MYSQL_YYABORT;
+            if (lex->update_list.push_back($1) ||
+                lex->value_list.push_back($4) ||
+                lex->load_set_str_list.push_back(val))
                 MYSQL_YYABORT;
-            $4->item_name.copy($3, (uint) ($5 - $3), YYTHD->charset());
+            $4->item_name.copy($3, length, YYTHD->charset());
           }
         ;
 

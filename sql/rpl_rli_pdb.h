@@ -164,7 +164,9 @@ typedef struct st_slave_job_group
   volatile uchar done;  // Flag raised by W,  read and reset by Coordinator
   ulong    shifted;     // shift the last CP bitmap at receiving a new CP
   time_t   ts;          // Group's timestampt to update Seconds_behind_master
-
+#ifndef DBUG_OFF
+  bool     notified;    // to debug group_master_log_name change notification
+#endif
   /*
     Coordinator fills the struct with defaults and options at starting of 
     a group distribution.
@@ -183,6 +185,9 @@ typedef struct st_slave_job_group
     checkpoint_relay_log_pos= 0;
     checkpoint_seqno= (uint) -1;
     done= 0;
+#ifndef DBUG_OFF
+    notified= false;
+#endif
   }
 } Slave_job_group;
 
@@ -320,6 +325,7 @@ public:
 
   volatile bool relay_log_change_notified; // Coord sets and resets, W can read
   volatile bool checkpoint_notified; // Coord sets and resets, W can read
+  volatile bool master_log_change_notified; // Coord sets and resets, W can read
   ulong bitmap_shifted;  // shift the last bitmap at receiving new CP
   // WQ current excess above the overrun level
   long wq_overrun_cnt;
@@ -368,6 +374,9 @@ public:
   int flush_info(bool force= FALSE);
   static size_t get_number_worker_fields();
   void slave_worker_ends_group(Log_event*, int);
+  const char *get_master_log_name();
+  ulonglong get_master_log_pos() { return master_log_pos; };
+  ulonglong set_master_log_pos(ulong val) { return master_log_pos= val; };
   bool commit_positions(Log_event *evt, Slave_job_group *ptr_g, bool force);
   bool reset_recovery_info();
   /**
@@ -389,12 +398,21 @@ public:
     rli_description_event= fdle;
   }
 
+  inline void reset_gaq_index() { gaq_index= c_rli->gaq->size; };
+  inline void set_gaq_index(ulong val)
+  { 
+    if (gaq_index == c_rli->gaq->size)
+      gaq_index= val;
+  };
+
 protected:
 
   virtual void do_report(loglevel level, int err_code,
                          const char *msg, va_list v_args) const;
 
 private:
+  ulong gaq_index;          // GAQ index of the current assignment 
+  ulonglong master_log_pos; // event's cached log_pos for possibile error report
   void end_info();
   bool read_info(Rpl_info_handler *from);
   bool write_info(Rpl_info_handler *to);

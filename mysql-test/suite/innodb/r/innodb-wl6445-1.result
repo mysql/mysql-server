@@ -63,7 +63,7 @@ i	LEFT(j,20)
 2	bbbbbbbbbbbbbbbbbbbb
 3	cccccccccccccccccccc
 CREATE TABLE t2 ( i int ,j blob) ENGINE = Innodb;
-ERROR HY000: Table 't2' is read only
+ERROR HY000: InnoDB is in read only mode.
 UPDATE t1 SET i = i+1;
 ERROR HY000: Can't lock file (errno: 165 - Table is read only)
 # disconnect con_test1_user
@@ -80,7 +80,7 @@ i	LEFT(j,20)
 2	bbbbbbbbbbbbbbbbbbbb
 3	cccccccccccccccccccc
 CREATE TABLE t2 ( i int , j blob) ENGINE = Innodb;
-ERROR HY000: Table 't2' is read only
+ERROR HY000: InnoDB is in read only mode.
 UPDATE t1 SET i = i+1;
 ERROR HY000: Can't lock file (errno: 165 - Table is read only)
 FLUSH STATUS;
@@ -99,7 +99,7 @@ i	LEFT(j,20)
 2	bbbbbbbbbbbbbbbbbbbb
 3	cccccccccccccccccccc
 CREATE TABLE t2 ( i int , j blob) ENGINE = Innodb;
-ERROR HY000: Table 't2' is read only
+ERROR HY000: InnoDB is in read only mode.
 UPDATE t1 SET i = i+1;
 ERROR HY000: Can't lock file (errno: 165 - Table is read only)
 INSERT INTO otherlocation VALUES (1),(2),(3);
@@ -153,7 +153,7 @@ i	LEFT(j,20)
 40	a40a40a40a40a40a40a4
 50	a50a50a50a50a50a50a5
 CREATE TABLE t2 ( i int , j blob) ENGINE = Innodb;
-ERROR HY000: Table 't2' is read only
+ERROR HY000: InnoDB is in read only mode.
 UPDATE t1 SET i = i+1;
 ERROR HY000: Can't lock file (errno: 165 - Table is read only)
 SELECT i,LEFT(j,20) FROM t1  WHERE i%10=0  ORDER BY i;
@@ -1180,7 +1180,7 @@ SELECT * FROM t3;
 i	j
 1	test1
 CREATE TEMPORARY TABLE temp_1 ( i INT ) ENGINE = Innodb;
-ERROR HY000: Table 'temp_1' is read only
+ERROR HY000: InnoDB is in read only mode.
 INSERT INTO testdb_wl6445.t4 VALUES (1),(2),(3),(4),(5),(6);
 ERROR HY000: Can't lock file (errno: 165 - Table is read only)
 SELECT * FROM testdb_wl6445.t4 ORDER BY val;
@@ -1276,7 +1276,7 @@ ERROR HY000: Can't lock file (errno: 165 - Table is read only)
 DELETE FROM t1;
 ERROR HY000: Can't lock file (errno: 165 - Table is read only)
 CREATE TABLE t2 ( i INT ) ENGINE = Innodb;
-ERROR HY000: Table 't2' is read only
+ERROR HY000: InnoDB is in read only mode.
 CREATE USER 'test5'@'localhost' IDENTIFIED BY '123';
 GRANT ALL ON testdb_wl6445.* TO 'test5'@'localhost';
 USE testdb_wl6445;

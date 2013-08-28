@@ -670,7 +670,7 @@ public:
       FALSE  Otherwise
   */
 
-  bool is_singlepoint()
+  bool is_singlepoint() const
   {
     /* 
       Check for NEAR_MIN ("strictly less") and NO_MIN_RANGE (-inf < field) 
@@ -929,12 +929,11 @@ static void print_ror_scans_arr(TABLE *table, const char *msg,
 static void print_quick(QUICK_SELECT_I *quick, const key_map *needed_reg);
 #endif
 
-#ifdef OPTIMIZER_TRACE
-static void trace_range_all_keyparts(Opt_trace_array &trace_range,
-                                     const String *range_so_far,
-                                     SEL_ARG *keypart_root,
-                                     const KEY_PART_INFO *key_parts);
-#endif
+static void append_range_all_keyparts(Opt_trace_array *range_trace,
+                                      String *range_string,
+                                      String *range_so_far,
+                                      SEL_ARG *keypart_root,
+                                      const KEY_PART_INFO *key_parts);
 static inline void dbug_print_tree(const char *tree_name,
                                    SEL_TREE *tree, 
                                    const RANGE_OPT_PARAM *param);
@@ -2214,7 +2213,7 @@ void TRP_RANGE::trace_basic_info(const PARAM *param,
 
   String range_info;
   range_info.set_charset(system_charset_info);
-  trace_range_all_keyparts(trace_range, &range_info, key, key_part);
+  append_range_all_keyparts(&trace_range, NULL, &range_info, key, key_part);
 
 #endif
 }
@@ -2488,7 +2487,8 @@ void TRP_GROUP_MIN_MAX::trace_basic_info(const PARAM *param,
   {
     String range_info;
     range_info.set_charset(system_charset_info);
-    trace_range_all_keyparts(trace_range, &range_info, index_tree, key_part);
+    append_range_all_keyparts(&trace_range, NULL,
+                              &range_info, index_tree, key_part);
   }
 #endif
 }
@@ -5559,7 +5559,8 @@ static TRP_RANGE *get_key_scans_params(PARAM *param, SEL_TREE *tree,
 
         String range_info;
         range_info.set_charset(system_charset_info);
-        trace_range_all_keyparts(trace_range, &range_info, *key, key_part);
+        append_range_all_keyparts(&trace_range, NULL,
+                                  &range_info, *key, key_part);
         trace_range.end(); // NOTE: ends the tracing scope
 
         trace_idx.add("index_dives_for_eq_ranges", !param->use_index_statistics).
@@ -9065,6 +9066,10 @@ void Sel_arg_range_sequence::stack_push_range(SEL_ARG *key_tree)
   RETURN
     0  Ok
     1  No more ranges in the sequence
+
+  NOTE: append_range_all_keyparts(), which is used to e.g. print
+  ranges to Optimizer Trace in a human readable format, mimics the
+  behavior of this function.
 */
 
 //psergey-merge-todo: support check_quick_keys:max_keypart
@@ -9263,6 +9268,11 @@ uint sel_arg_range_seq_next(range_seq_t rseq, KEY_MULTI_RANGE *range)
     range->start_key.length= min_key_length;
     range->start_key.keypart_map= make_prev_keypart_map(cur->min_key_parts);
     range->start_key.flag=  (ha_rkey_function) (cur->min_key_flag ^ GEOM_FLAG);
+    /*
+      Spatial operators are only allowed on spatial indexes, and no
+      spatial index can at the moment return rows in ROWID order
+    */
+    DBUG_ASSERT(!param->is_ror_scan);
   }
   else
   {
@@ -11785,8 +11795,8 @@ get_best_group_min_max(PARAM *param, SEL_TREE *tree, double read_time)
 
         String range_info;
         range_info.set_charset(system_charset_info);
-        trace_range_all_keyparts(trace_range, &range_info,
-                                 cur_index_tree, key_part);
+        append_range_all_keyparts(&trace_range, NULL, &range_info,
+                                  cur_index_tree, key_part);
       }
 #endif
     }
@@ -13819,74 +13829,14 @@ void append_range(String *out,
   }
 }
 
-
-#ifdef OPTIMIZER_TRACE
-
-/**
-  Traverse an R-B tree of range conditions and append all ranges for this
-  keypart and consecutive keyparts to the optimizer trace. See
-  description of R-B trees/SEL_ARG for details on how ranges are
-  linked.
-
-  @param[in,out] trace_range   Optimizer trace array ranges are appended to
-  @param[in]     range_so_far  String containing ranges for keyparts prior
-                               to this keypart.
-  @param[in]     keypart_root  The root of the R-B tree containing intervals
-                               for this keypart.
-  @param[in]     key_parts     Index components description, used when adding
-                               information to the optimizer trace
-*/
-static void trace_range_all_keyparts(Opt_trace_array &trace_range,
-                                     const String *range_so_far,
-                                     SEL_ARG *keypart_root,
-                                     const KEY_PART_INFO *key_parts)
-{
-  DBUG_ASSERT(keypart_root && keypart_root != &null_element);
-
-  // Navigate to first interval in red-black tree
-  const KEY_PART_INFO *cur_key_part= key_parts + keypart_root->part;
-  const SEL_ARG *keypart_range= keypart_root->first();
-
-  while (keypart_range)
-  {
-    String range_cur_keypart= String(*range_so_far);
-
-    // Append the current range to the range String
-    append_range(&range_cur_keypart, cur_key_part,
-                 keypart_range->min_value, keypart_range->max_value,
-                 keypart_range->min_flag | keypart_range->max_flag);
-
-    if (keypart_range->next_key_part)
-    {
-      // Not done - there are ranges in consecutive keyparts as well
-      trace_range_all_keyparts(trace_range, &range_cur_keypart,
-                               keypart_range->next_key_part, key_parts);
-    }
-    else
-    {
-      /*
-        This is the last keypart with a range. Print full range
-        info to the optimizer trace
-      */
-      trace_range.add_utf8(range_cur_keypart.ptr(),
-                           range_cur_keypart.length());
-    }
-    keypart_range= keypart_range->next;
-  }
-}
-
-#endif //OPTIMIZER_TRACE
-
-#ifndef DBUG_OFF
-
 /**
   Traverse an R-B tree of range conditions and append all ranges for
-  this keypart and consecutive keyparts to a String. See description
-  of R-B trees/SEL_ARG for details on how ranges are linked.
-
-  @see trace_range_all_keyparts
-
-  @param[in,out] range_result  The string where range predicates are
+  this keypart and consecutive keyparts to range_trace (if non-NULL)
+  or to range_string (if range_trace is NULL). See description of R-B
+  trees/SEL_ARG for details on how ranges are linked.
+ 
+  @param[in,out] range_trace   Optimizer trace array ranges are appended to
+  @param[in,out] range_string  The string where range predicates are
                                appended when the last keypart has
                                been reached.
   @param[in]     range_so_far  String containing ranges for keyparts prior
@@ -13895,13 +13845,21 @@ static void trace_range_all_keyparts(Opt_trace_array &trace_range,
                                for this keypart.
   @param[in]     key_parts     Index components description, used when adding
                                information to the optimizer trace
+
+  @note This function mimics the behavior of sel_arg_range_seq_next()
 */
-static void print_range_all_keyparts(String *range_result,
-                                     String *range_so_far,
-                                     SEL_ARG *keypart_root,
-                                     const KEY_PART_INFO *key_parts)
+static void append_range_all_keyparts(Opt_trace_array *range_trace,
+                                      String *range_string,
+                                      String *range_so_far,
+                                      SEL_ARG *keypart_root,
+                                      const KEY_PART_INFO *key_parts)
 {
   DBUG_ASSERT(keypart_root && keypart_root != &null_element);
+
+  const bool append_to_trace= (range_trace != NULL);
+
+  // Either add info to range_string or to range_trace
+  DBUG_ASSERT(append_to_trace ? !range_string : (range_string != NULL));
 
   // Navigate to first interval in red-black tree
   const KEY_PART_INFO *cur_key_part= key_parts + keypart_root->part;
@@ -13912,40 +13870,54 @@ static void print_range_all_keyparts(String *range_result,
   while (keypart_range)
   {
     /*
-      Skip the rest if the string becomes too long to avoid OOM.
-      Printing very long range conditions normally doesn't make sense
-      either.
+      Skip the rest of condition printing to avoid OOM if appending to
+      range_string and the string becomes too long. Printing very long
+      range conditions normally doesn't make sense either.
      */
-    if (range_result->length() > 500)
+    if (!append_to_trace && range_string->length() > 500)
     {
-      range_result->append(STRING_WITH_LEN("..."));
+      range_string->append(STRING_WITH_LEN("..."));
       break;
     }
 
-    // Append the current range to the range String
+    // Append the current range predicate to the range String
     append_range(range_so_far, cur_key_part,
                  keypart_range->min_value, keypart_range->max_value,
                  keypart_range->min_flag | keypart_range->max_flag);
 
-    if (keypart_range->next_key_part)
+    /* 
+      Print range predicates for consecutive keyparts if
+      1) There are predicates for later keyparts
+      2) There are no "holes" in the used keyparts (keypartX can only
+         be used if there is a range predicate on keypartX-1)
+      3) The current range is an equality range
+     */
+    if (keypart_range->next_key_part &&
+        keypart_range->next_key_part->part == keypart_range->part + 1 &&
+        keypart_range->is_singlepoint())
     {
-      // Not done - there are ranges in consecutive keyparts as well
-      print_range_all_keyparts(range_result, range_so_far,
-                               keypart_range->next_key_part, key_parts);
+      append_range_all_keyparts(range_trace, range_string, range_so_far,
+                                keypart_range->next_key_part, key_parts);
     }
     else
     {
       /*
-        This is the last keypart with a range. Print full range
-        info to range_result
+        This is the last keypart with a usable range predicate. Print
+        full range info to the optimizer trace or to the string
       */
-      if (range_result->length() == 0)
-        range_result->append(STRING_WITH_LEN("("));
+      if (append_to_trace)
+        range_trace->add_utf8(range_so_far->ptr(),
+                              range_so_far->length());
       else
-        range_result->append(STRING_WITH_LEN(" OR ("));
+      {
+        if (range_string->length() == 0)
+          range_string->append(STRING_WITH_LEN("("));
+        else
+          range_string->append(STRING_WITH_LEN(" OR ("));
 
-      range_result->append(range_so_far->ptr(), range_so_far->length());
-      range_result->append(STRING_WITH_LEN(")"));
+        range_string->append(range_so_far->ptr(), range_so_far->length());
+        range_string->append(STRING_WITH_LEN(")"));
+      }
     }
     keypart_range= keypart_range->next;
     /*
@@ -13956,8 +13928,6 @@ static void print_range_all_keyparts(String *range_result,
     range_so_far->length(save_range_so_far_length);
   }
 }
-
-#endif // DBUG_OFF
 
 /**
   Print the ranges in a SEL_TREE to debug log.
@@ -14033,7 +14003,7 @@ static inline void dbug_print_tree(const char *tree_name,
 
     /*
       String holding the final range description from
-      print_range_all_keyparts()
+      append_range_all_keyparts()
     */
     char buff1[512];
     String range_result(buff1, sizeof(buff1), system_charset_info);
@@ -14041,14 +14011,14 @@ static inline void dbug_print_tree(const char *tree_name,
 
     /*
       Range description up to a certain keypart - used internally in
-      print_range_all_keyparts()
+      append_range_all_keyparts()
     */
     char buff2[128];
     String range_so_far(buff2, sizeof(buff2), system_charset_info);
     range_so_far.length(0);
 
-    print_range_all_keyparts(&range_result, &range_so_far,
-                             tree->keys[i], key_part);
+    append_range_all_keyparts(NULL, &range_result, &range_so_far,
+                              tree->keys[i], key_part);
 
     DBUG_PRINT("info",
                ("sel_tree: %s->keys[%d(real_keynr: %d)]: %s",

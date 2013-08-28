@@ -144,13 +144,14 @@ int Slave_worker::init_worker(Relay_log_info * rli, ulong i)
   id= i;
   curr_group_exec_parts.elements= 0;
   relay_log_change_notified= FALSE; // the 1st group to contain relaylog name
-  checkpoint_notified= FALSE;
+  checkpoint_notified= FALSE;       // the same as above
+  master_log_change_notified= false;// W learns master log during 1st group exec
   bitmap_shifted= 0;
   workers= c_rli->workers; // shallow copying is sufficient
   wq_size_waits_cnt= groups_done= events_done= curr_jobs= 0;
   usage_partition= 0;
   end_group_sets_max_dbs= false;
-  last_group_done_index= c_rli->gaq->size; // out of range
+  gaq_index= last_group_done_index= c_rli->gaq->size; // out of range
 
   DBUG_ASSERT(!jobs.inited_queue);
   jobs.avail= 0;
@@ -399,10 +400,35 @@ size_t Slave_worker::get_number_worker_fields()
   return sizeof(info_slave_worker_fields)/sizeof(info_slave_worker_fields[0]);
 }
 
+const char* Slave_worker::get_master_log_name()
+{
+  Slave_job_group* ptr_g= c_rli->gaq->get_job_group(gaq_index);
+
+  return (ptr_g->checkpoint_log_name != NULL) ?
+    ptr_g->checkpoint_log_name : checkpoint_master_log_name;
+}
+
 bool Slave_worker::commit_positions(Log_event *ev, Slave_job_group* ptr_g, bool force)
 {
   DBUG_ENTER("Slave_worker::checkpoint_positions");
 
+  /*
+    Initial value of checkpoint_master_log_name is learned from
+    group_master_log_name. The latter can be passed to Worker
+    at rare event of master binlog rotation.
+    This initialization is needed to provide to Worker info
+    on physical coordiates during execution of the very first group
+    after a rotation.
+  */
+  if (ptr_g->group_master_log_name != NULL)
+  {
+    strmake(group_master_log_name, ptr_g->group_master_log_name,
+            sizeof(group_master_log_name) - 1);
+    my_free(ptr_g->group_master_log_name);
+    ptr_g->group_master_log_name= NULL;
+    strmake(checkpoint_master_log_name, group_master_log_name,
+            sizeof(checkpoint_master_log_name) - 1);
+  }
   if (ptr_g->checkpoint_log_name != NULL)
   {
     strmake(checkpoint_relay_log_name, ptr_g->checkpoint_relay_log_name,
@@ -1015,8 +1041,9 @@ void Slave_worker::slave_worker_ends_group(Log_event* ev, int error)
   if (!error)
   {
     Slave_committed_queue *gaq= c_rli->gaq;
-    ulong gaq_idx= ev->mts_group_idx;
-    Slave_job_group *ptr_g= gaq->get_job_group(gaq_idx);
+    Slave_job_group *ptr_g= gaq->get_job_group(gaq_index);
+
+    DBUG_ASSERT(gaq_index == ev->mts_group_idx);
 
     // first ever group must have relay log name
     DBUG_ASSERT(last_group_done_index != c_rli->gaq->size ||
@@ -1038,7 +1065,8 @@ void Slave_worker::slave_worker_ends_group(Log_event* ev, int error)
 
     ptr_g->done= 1;    // GAQ index is available to C now
 
-    last_group_done_index= gaq_idx;
+    last_group_done_index= gaq_index;
+    reset_gaq_index();
     groups_done++;
   }
   else
@@ -1434,6 +1462,10 @@ void Slave_committed_queue::free_dynamic_items()
     {
       my_free(ptr_g->checkpoint_relay_log_name);
     }
+    if (ptr_g->group_master_log_name)
+    {
+      my_free(ptr_g->group_master_log_name);
+    }
   }
   DBUG_ASSERT((avail == size /* full */ || entry == size /* empty */) ||
               i == avail /* all occupied are processed */);
@@ -1443,7 +1475,28 @@ void Slave_committed_queue::free_dynamic_items()
 void Slave_worker::do_report(loglevel level, int err_code, const char *msg,
                              va_list args) const
 {
-  c_rli->va_report(level, err_code, msg, args);
+  char buff_coord[MAX_SLAVE_ERRMSG];
+  char buff_gtid[Gtid::MAX_TEXT_LENGTH + 1];
+  const char* log_name= const_cast<Slave_worker*>(this)->get_master_log_name();
+  ulonglong log_pos= const_cast<Slave_worker*>(this)->get_master_log_pos();
+  const Gtid_specification *gtid_next= &info_thd->variables.gtid_next;
+
+  if (gtid_next->type == GTID_GROUP)
+  {
+    global_sid_lock->rdlock();
+    gtid_next->to_string(global_sid_map, buff_gtid);
+    global_sid_lock->unlock();
+  }
+  else
+  {
+    buff_gtid[0]= 0;
+  }
+ 
+  sprintf(buff_coord,
+          "Worker %lu failed executing transaction '%s' at "
+          "master log %s, end_log_pos %llu",
+          id, buff_gtid, log_name, log_pos);
+  c_rli->va_report(level, err_code, buff_coord, msg, args);
 }
 
 /**
@@ -1889,7 +1942,10 @@ int slave_worker_exec_job(Slave_worker *worker, Relay_log_info *rli)
       worker->end_group_sets_max_dbs= false;
     }
   }
+
   worker->set_future_event_relay_log_pos(ev->future_event_relay_log_pos);
+  worker->set_master_log_pos(ev->log_pos);
+  worker->set_gaq_index(ev->mts_group_idx);
   error= ev->do_apply_event_worker(worker);
   if (ev->ends_group() || (!worker->curr_group_seen_begin &&
                            /*

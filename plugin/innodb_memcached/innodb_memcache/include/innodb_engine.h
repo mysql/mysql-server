@@ -108,6 +108,9 @@ typedef struct innodb_engine {
 						initialized */
 	bool			connected;	/*!< whether connection
 						established */
+	bool			clean_stale_conn;
+						/*!< whether bk thread is
+						cleaning stale connections. */
 
 	/* following are InnoDB specific variables */
 	bool			enable_binlog;	/*!< whether binlog is enabled
