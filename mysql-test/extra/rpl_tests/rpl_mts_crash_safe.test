@@ -31,6 +31,8 @@
 #
 #  At the end, master and slave cannot diverge.
 ################################################################################
+#  Clean all configuration changes after running the test.
+--source include/force_restart.inc
 
 
 --echo ########################################################################

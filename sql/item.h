@@ -1338,7 +1338,13 @@ public:
   */
   virtual void no_rows_in_result() {}
   virtual Item *copy_or_same(THD *thd) { return this; }
-  virtual Item *copy_andor_structure(THD *thd) { return this; }
+  /**
+     @param real_items  True <=> in the copy, replace any Item_ref with its
+     real_item()
+     @todo this argument should be always false and removed in WL#7082.
+  */
+  virtual Item *copy_andor_structure(THD *thd, bool real_items= false)
+  { return real_items ? real_item() : this; }
   virtual Item *real_item() { return this; }
   virtual Item *get_tmp_table_item(THD *thd) { return copy_or_same(thd); }
 
@@ -3967,8 +3973,10 @@ public:
 
   bool walk(Item_processor processor, bool walk_subquery, uchar *args)
   {
-    return arg->walk(processor, walk_subquery, args) ||
-      (this->*processor)(args);
+    if (arg && arg->walk(processor, walk_subquery, args))
+      return true;
+
+    return (this->*processor)(args);
   }
 
   Item *transform(Item_transformer transformer, uchar *args);
@@ -4136,6 +4144,11 @@ public:
   }
 
   void set_used_tables(table_map map) { used_table_map= map; }
+
+  virtual table_map resolved_used_tables() const
+  {
+    return example ? example->resolved_used_tables() : used_table_map;
+  }
 
   virtual bool allocate(uint i) { return 0; }
   virtual bool setup(Item *item)

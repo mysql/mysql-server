@@ -230,9 +230,13 @@ CREATE TABLE t1(a LONGTEXT);
 INSERT INTO t1 VALUES (repeat('a',@@global.max_allowed_packet));
 INSERT INTO t1 VALUES (repeat('b',@@global.max_allowed_packet));
 EXPLAIN SELECT DISTINCT 1 FROM t1,
-(SELECT DISTINCTROW a AS away FROM t1 GROUP BY a WITH ROLLUP) as d1
+(SELECT a AS away FROM t1 GROUP BY a WITH ROLLUP) as d1
 WHERE t1.a = d1.a;
 ERROR 42S22: Unknown column 'd1.a' in 'where clause'
+EXPLAIN SELECT DISTINCT 1 FROM t1,
+(SELECT DISTINCTROW a AS away FROM t1 GROUP BY a WITH ROLLUP) as d1
+WHERE t1.a = d1.a;
+ERROR HY000: Incorrect usage of WITH ROLLUP and DISTINCT
 DROP TABLE t1;
 #
 # Bug#48295:

@@ -137,7 +137,7 @@ CREATE TABLE t1(a TEXT CHARSET ucs2 COLLATE ucs2_unicode_ci) ENGINE = InnoDB;
 INSERT INTO t1 VALUES('abcd');
 
 # INNODB_FTS: Please Note this table do not have FTS. InnoDB return 1214 error
---error ER_TABLE_HAS_NO_FT
+--error ER_FT_MATCHING_KEY_NOT_FOUND
 SELECT * FROM t1 WHERE MATCH(a) AGAINST ('+abcd' IN BOOLEAN MODE);
 DROP TABLE t1;
 

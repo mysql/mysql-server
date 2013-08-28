@@ -1857,24 +1857,19 @@ bool Item_in_optimizer::fix_left(THD *thd, Item **ref)
     return 1;
 
   cache->setup(args[0]);
+  used_tables_cache= args[0]->used_tables();
   if (cache->cols() == 1)
   {
-    if ((used_tables_cache= args[0]->used_tables()))
-      cache->set_used_tables(OUTER_REF_TABLE_BIT);
-    else
-      cache->set_used_tables(0);
+    cache->set_used_tables(used_tables_cache);
   }
   else
   {
     uint n= cache->cols();
     for (uint i= 0; i < n; i++)
     {
-      if (args[0]->element_index(i)->used_tables())
-	((Item_cache *)cache->element_index(i))->set_used_tables(OUTER_REF_TABLE_BIT);
-      else
-	((Item_cache *)cache->element_index(i))->set_used_tables(0);
+      ((Item_cache *)cache->element_index(i))->
+        set_used_tables(args[0]->element_index(i)->used_tables());
     }
-    used_tables_cache= args[0]->used_tables();
   }
   not_null_tables_cache= args[0]->not_null_tables();
   with_sum_func= args[0]->with_sum_func;
@@ -4739,11 +4734,12 @@ Item_cond::Item_cond(THD *thd, Item_cond *item)
 }
 
 
-void Item_cond::copy_andor_arguments(THD *thd, Item_cond *item)
+void Item_cond::copy_andor_arguments(THD *thd, Item_cond *item, bool real_items)
 {
   List_iterator_fast<Item> li(item->list);
   while (Item *it= li++)
-    list.push_back(it->real_item()->copy_andor_structure(thd));
+    list.push_back((real_items ? it->real_item() : it)->
+                   copy_andor_structure(thd, real_items));
 }
 
 

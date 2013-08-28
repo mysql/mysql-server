@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2000, 2011, 2013 Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2000, 2013 Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -5172,6 +5172,36 @@ Field_temporal_with_date::store_internal_with_round(MYSQL_TIME *ltime,
 }
 
 
+/**
+  Validate date value stored in the field.
+
+  Now we check whether date value is zero or has zero in date or not and set
+  warning/error message appropriately(depending on the sql_mode).
+*/
+type_conversion_status Field_temporal_with_date::validate_stored_val(THD *thd)
+{
+  MYSQL_TIME ltime;
+  type_conversion_status error= TYPE_OK;
+  int warnings= 0;
+
+  if (is_real_null())
+    return error;
+
+  memset(&ltime, 0, sizeof(MYSQL_TIME));
+  get_date_internal(&ltime);
+  if (check_date(&ltime, non_zero_date(&ltime), date_flags(), &warnings))
+    error= time_warning_to_type_conversion_status(warnings);
+
+  if (warnings)
+  {
+    ltime.time_type = field_type_to_timestamp_type(type());
+    set_warnings(ErrConvString(&ltime, dec), warnings);
+  }
+
+  return error;
+}
+
+
 /****************************************************************************
 ** Common code for data types with date and time: DATETIME, TIMESTAMP
 *****************************************************************************/
@@ -5477,6 +5507,20 @@ void Field_timestamp::sql_type(String &res) const
 }
 
 
+type_conversion_status Field_timestamp::validate_stored_val(THD *thd)
+{
+  /*
+    While deprecating "TIMESTAMP with implicit DEFAULT value", we can
+    remove this function implementation and depend directly on
+    "Field_temporal_with_date::validate_stored_val"
+  */
+  if (!thd->variables.explicit_defaults_for_timestamp)
+    return TYPE_OK;
+
+  return (Field_temporal_with_date::validate_stored_val(thd));
+}
+
+
 /****************************************************************************
 ** timestamp(N) type
 ** In string context: YYYY-MM-DD HH:MM:SS.FFFFFF
@@ -5589,6 +5633,20 @@ bool Field_timestampf::get_timestamp(struct timeval *tm, int *warnings)
   DBUG_ASSERT(!is_null());
   my_timestamp_from_binary(tm, ptr, dec);
   return false;
+}
+
+
+type_conversion_status Field_timestampf::validate_stored_val(THD *thd)
+{
+  /*
+    While deprecating "TIMESTAMP with implicit DEFAULT value", we can
+    remove this function implementation and depend directly on
+    "Field_temporal_with_date::validate_stored_val"
+  */
+  if (!thd->variables.explicit_defaults_for_timestamp)
+    return TYPE_OK;
+
+  return (Field_temporal_with_date::validate_stored_val(thd));
 }
 
 

@@ -31,7 +31,7 @@ drop view if exists v1, v2, v3;
 
 CREATE TABLE t1(a INT, KEY (a)) KEY_BLOCK_SIZE=1024;
 INSERT INTO t1 VALUES (1), (2);
---exec $MYSQL_DUMP --skip-create --skip-comments -X test t1
+--exec $MYSQL_DUMP --skip-create-options --skip-comments -X test t1
 DROP TABLE t1;
 
 --echo #
@@ -74,14 +74,14 @@ SET SQL_MODE=@OLD_SQL_MODE;
 
 # check how mysqldump make quoting
 --exec $MYSQL_DUMP --compact test t1
---exec $MYSQL_DUMP --compact --skip-create test t1
---exec $MYSQL_DUMP --skip-create --skip-comments test t1
+--exec $MYSQL_DUMP --compact --skip-create-options test t1
+--exec $MYSQL_DUMP --skip-create-options --skip-comments test t1
 --exec $MYSQL_DUMP --skip-opt --extended-insert --skip-comments test t1
 DROP TABLE t1;
 
 CREATE TABLE t1(a int, b text, c varchar(3));
 INSERT INTO t1 VALUES (1, "test", "tes"), (2, "TEST", "TES");
---exec $MYSQL_DUMP --skip-create --compact -X test t1
+--exec $MYSQL_DUMP --skip-create-options --compact -X test t1
 DROP TABLE t1;
 
 --echo #
@@ -90,7 +90,7 @@ DROP TABLE t1;
 
 CREATE TABLE t1 (`a"b"` char(2));
 INSERT INTO t1 VALUES ("1\""), ("\"2");
---exec $MYSQL_DUMP --compact --skip-create -X test t1
+--exec $MYSQL_DUMP --compact --skip-create-options -X test t1
 DROP TABLE t1;
 
 --echo #
@@ -577,8 +577,8 @@ INSERT INTO t1 VALUES (1), (2);
 INSERT INTO t2 VALUES (1), (2);
 --exec $MYSQL_DUMP --skip-comments --no-data mysqldump_test_db
 --exec $MYSQL_DUMP --skip-comments --no-data mysqldump_test_db t1 t2
---exec $MYSQL_DUMP --skip-comments --skip-create --xml --no-data mysqldump_test_db
---exec $MYSQL_DUMP --skip-comments --skip-create --xml --no-data mysqldump_test_db t1 t2
+--exec $MYSQL_DUMP --skip-comments --skip-create-options --xml --no-data mysqldump_test_db
+--exec $MYSQL_DUMP --skip-comments --skip-create-options --xml --no-data mysqldump_test_db t1 t2
 DROP TABLE t1, t2;
 DROP DATABASE mysqldump_test_db;
 
@@ -1600,7 +1600,7 @@ drop database mysqldump_test_db;
 
 CREATE TABLE t1 (c1 INT, c2 LONGBLOB);
 INSERT INTO t1 SET c1=11, c2=REPEAT('q',509);
---exec $MYSQL_DUMP --skip-create --compact --hex-blob test t1
+--exec $MYSQL_DUMP --skip-create-options --compact --hex-blob test t1
 DROP TABLE t1;
 
 --echo #
@@ -2189,7 +2189,7 @@ drop table t1;
 --echo #
 
 CREATE TABLE `comment_table` (i INT COMMENT 'FIELD COMMENT') COMMENT = 'TABLE COMMENT';
---exec $MYSQL_DUMP --compact --skip-create --xml test
+--exec $MYSQL_DUMP --compact --skip-create-options --xml test
 DROP TABLE `comment_table`;
 
 --echo #
@@ -2390,7 +2390,7 @@ CREATE TABLE b12809202_db.t2 (c1 INT);
 INSERT INTO b12809202_db.t1 VALUES (1), (2), (3);
 INSERT INTO b12809202_db.t2 VALUES (1), (2), (3);
 
---echo # Starting mysqldump with --single-transaction & --flush-log options..
+--echo # Starting mysqldump with --single-transaction & --flush-logs options..
 --echo # Note : In the following dump the transaction
 --echo #        should start only after the logs are
 --echo #        flushed, as 'flush logs' causes implicit
@@ -2401,7 +2401,7 @@ INSERT INTO b12809202_db.t2 VALUES (1), (2), (3);
 --echo
 --echo #### Dump starts here ####
 --replace_regex /-- Server version.*// /-- MySQL dump .*// /-- Dump completed on .*/-- Dump completed/
---exec $MYSQL_DUMP --verbose --single-transaction --flush-log b12809202_db 2> $MYSQLTEST_VARDIR/tmp/b12809202_stderr.sql
+--exec $MYSQL_DUMP --verbose --single-transaction --flush-logs b12809202_db 2> $MYSQLTEST_VARDIR/tmp/b12809202_stderr.sql
 --echo
 --echo ## stderr ##
 --cat_file $MYSQLTEST_VARDIR/tmp/b12809202_stderr.sql

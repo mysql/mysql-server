@@ -108,3 +108,55 @@ set session sql_mode=@old_sql_mode;
 set session old=bla;
 
 UNINSTALL PLUGIN example;
+
+--echo #
+--echo # Bug #16194302  SUPPORT FOR FLOATING-POINT SYSTEM
+--echo #                VARIABLES USING THE PLUGIN INTERFACE.
+--echo #
+
+--replace_regex /\.dll/.so/
+eval INSTALL PLUGIN example SONAME '$EXAMPLE_PLUGIN';
+
+SET GLOBAL example_double_var = -0.1;
+SELECT @@GLOBAL.example_double_var;
+
+SET GLOBAL example_double_var = 0.000001;
+SELECT @@GLOBAL.example_double_var;
+
+SET GLOBAL example_double_var = 0.4;
+SELECT @@GLOBAL.example_double_var;
+
+SET GLOBAL example_double_var = 123.456789;
+SELECT @@GLOBAL.example_double_var;
+
+SET GLOBAL example_double_var = 500;
+SELECT @@GLOBAL.example_double_var;
+
+SET GLOBAL example_double_var = 999.999999;
+SELECT @@GLOBAL.example_double_var;
+
+SET GLOBAL example_double_var = 1000.51;
+SELECT @@GLOBAL.example_double_var;
+
+SET SESSION example_double_thdvar = -0.1;
+SELECT @@SESSION.example_double_thdvar;
+
+SET SESSION example_double_thdvar = 0.000001;
+SELECT @@SESSION.example_double_thdvar;
+
+SET SESSION example_double_thdvar = 0.4;
+SELECT @@SESSION.example_double_thdvar;
+
+SET SESSION example_double_thdvar = 123.456789;
+SELECT @@SESSION.example_double_thdvar;
+
+SET SESSION example_double_thdvar = 500;
+SELECT @@SESSION.example_double_thdvar;
+
+SET SESSION example_double_thdvar = 999.999999;
+SELECT @@SESSION.example_double_thdvar;
+
+SET SESSION example_double_thdvar = 1000.51;
+SELECT @@SESSION.example_double_thdvar;
+
+UNINSTALL PLUGIN example;
