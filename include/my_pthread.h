@@ -50,30 +50,9 @@ typedef struct st_pthread_link {
 
 /**
   Implementation of Windows condition variables.
-  We use native conditions on Vista and later, and fallback to own 
-  implementation on earlier OS version.
+  We use native conditions as they are available on Vista and later.
 */
-typedef union
-{
-  /* Native condition (used on Vista and later) */
-  CONDITION_VARIABLE native_cond;
-
-  /* Own implementation (used on XP) */
-  struct
-  { 
-    uint32 waiting;
-    CRITICAL_SECTION lock_waiting;
-    enum 
-    {
-      SIGNAL= 0,
-      BROADCAST= 1,
-      MAX_EVENTS= 2
-    } EVENTS;
-    HANDLE events[MAX_EVENTS];
-    HANDLE broadcast_block_event;
-  };
-} pthread_cond_t;
-
+typedef CONDITION_VARIABLE pthread_cond_t;
 
 typedef int pthread_mutexattr_t;
 #define pthread_self() GetCurrentThreadId()
