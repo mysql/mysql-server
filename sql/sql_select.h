@@ -1160,6 +1160,11 @@ public:
   bool cleaned;
   DYNAMIC_ARRAY keyuse;
   Item::cond_result cond_value, having_value;
+  /**
+    Impossible where after reading const tables 
+    (set in make_join_statistics())
+  */
+  bool impossible_where; 
   List<Item> all_fields; ///< to store all fields that used in query
   ///Above list changed to use temporary table
   List<Item> tmp_all_fields1, tmp_all_fields2, tmp_all_fields3;

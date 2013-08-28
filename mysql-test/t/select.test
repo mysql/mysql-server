@@ -4563,5 +4563,24 @@ SELECT * FROM t1, t2 WHERE c=b AND (1=2 OR ((b='h' OR a=136) AND d=b));
 
 DROP TABLE t1,t2;
 
+--echo #
+--echo # Bug mdev-4944: range conditition in OR formula with fields
+--echo #                belonging to multiple equalities 
+--echo #
+
+CREATE TABLE t1 (i1 int, j1 int) ENGINE=MyISAM;
+INSERT INTO t1 VALUES (1,8);
+
+CREATE TABLE t2 (i2 int, INDEX idx (i2)) ENGINE=MyISAM;
+INSERT INTO t2 VALUES (8), (9);
+
+EXPLAIN EXTENDED
+SELECT * FROM t1, t2 
+  WHERE i1 = i2 AND ( FALSE OR ( j1 > 27 AND j1 < 100 OR j1 <= 3 ) AND j1 = i2 );
+SELECT * FROM t1, t2 
+  WHERE i1 = i2 AND ( FALSE OR ( j1 > 27 AND j1 < 100 OR j1 <= 3 ) AND j1 = i2 );
+
+DROP TABLE t1,t2;
+
 --echo End of 5.3 tests
 

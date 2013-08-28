@@ -1262,17 +1262,12 @@ JOIN::optimize()
     conds=new Item_int((longlong) 1,1);	// Always true
   }
 
-  if (const_tables && conds)
+  if (impossible_where)
   {
-    conds= remove_eq_conds(thd, conds, &cond_value);
-    if (cond_value == Item::COND_FALSE)
-    {
-      zero_result_cause=
-        "Impossible WHERE noticed after reading const tables";
-      select_lex->mark_const_derived(zero_result_cause);
-      conds=new Item_int((longlong) 0,1);
-      goto setup_subq_exit;
-    }
+    zero_result_cause=
+      "Impossible WHERE noticed after reading const tables";
+    select_lex->mark_const_derived(zero_result_cause);
+    goto setup_subq_exit;
   }
 
   select= make_select(*table, const_table_map,
@@ -3596,6 +3591,18 @@ make_join_statistics(JOIN *join, List<TABLE_LIST> &tables_list,
       if (is_const)
         join_tab[0].const_keys.merge(possible_keys);
     }
+  }
+
+  join->impossible_where= false;
+  if (conds && const_count)
+  { 
+    conds= remove_eq_conds(join->thd, conds, &join->cond_value);
+    if (join->cond_value == Item::COND_FALSE)
+    {
+      join->impossible_where= true;
+      conds=new Item_int((longlong) 0,1);
+    }
+    join->conds= conds;      
   }
 
   /* Calc how many (possible) matched records in each table */
@@ -13692,7 +13699,20 @@ internal_remove_eq_conds(THD *thd, COND *cond, Item::cond_result *cond_value)
         }
         else
 	{
-          li.replace(new_item);
+          if (new_item->type() == Item::COND_ITEM &&
+              ((Item_cond*) new_item)->functype() == 
+              ((Item_cond*) cond)->functype())
+	  {
+	    List<Item> *new_item_arg_list=
+              ((Item_cond *) new_item)->argument_list();
+            uint cnt= new_item_arg_list->elements;
+            li.replace(*new_item_arg_list);
+            /* Make iterator li ignore new items */
+            for (cnt--; cnt; cnt--)
+              li++;
+          }
+          else
+            li.replace(new_item);
           should_fix_fields= 1;
         } 
       }   

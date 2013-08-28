@@ -1941,7 +1941,7 @@ id	select_type	table	type	possible_keys	key	key_len	ref	rows	filtered	Extra
 1	PRIMARY	t2	system	NULL	NULL	NULL	NULL	1	100.00	
 2	SUBQUERY	t3	ALL	NULL	NULL	NULL	NULL	2	100.00	Using where
 Warnings:
-Note	1003	select NULL AS `a` from `test`.`t2`
+Note	1003	select NULL AS `a` from `test`.`t2` where 1
 DROP TABLE t1,t2,t3;
 #
 # LP bug #817384 Wrong result with outer join + subquery in ON
@@ -2160,6 +2160,20 @@ CREATE TABLE t2 ( i2 int, d2 date NOT NULL );
 INSERT INTO t2 VALUES (3,'2000-03-06'), (4,'2007-09-25');
 SELECT * FROM t1 LEFT JOIN t2 ON i1 = i2 WHERE d1 IS NULL AND d2 IS NULL;
 i1	d1	i2	d2
+DROP TABLE t1,t2;
+#
+# Bug mdev-4952: LEFT JOIN with disjunctive 
+#                <non-nullable datetime field> IS NULL in WHERE 
+#                causes an assert failure  
+#
+CREATE TABLE t1 (a1 int, b1 int NOT NULL) ENGINE=MyISAM;
+INSERT INTO t1 VALUES (1, 10), (2, 11);
+CREATE TABLE t2 (dt datetime NOT NULL, a2 int, b2 int) ENGINE=MyISAM;
+INSERT INTO t2 VALUES
+('2006-10-08 09:34:54', 1, 100), ('2001-01-19 01:04:43', 2, 200);
+SELECT * FROM t1 LEFT JOIN t2 ON a1 = a2
+WHERE ( dt IS NULL OR FALSE ) AND b2 IS NULL;
+a1	b1	dt	a2	b2
 DROP TABLE t1,t2;
 SET optimizer_switch=@save_optimizer_switch;
 set join_cache_level=default;
