@@ -206,7 +206,7 @@ bool select_union::send_data(List<Item> &values)
   if ((error= table->file->ha_write_row(table->record[0])))
   {
     /* create_myisam_from_heap will generate error if needed */
-    if (table->file->is_fatal_error(error, HA_CHECK_DUP) &&
+    if (!table->file->is_ignorable_error(error) &&
         create_myisam_from_heap(thd, table, tmp_table_param.start_recinfo, 
                                 &tmp_table_param.recinfo, error, TRUE, NULL))
       return 1;
