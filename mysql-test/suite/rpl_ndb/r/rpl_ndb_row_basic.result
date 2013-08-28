@@ -493,14 +493,12 @@ include/diff_tables.inc [master:t4, slave:t4]
 [expecting slave to stop]
 INSERT INTO t5 VALUES (1, "", 1);
 INSERT INTO t5 VALUES (2, repeat(_utf8'a', 255), 2);
-include/wait_for_slave_sql_error.inc [errno=1677 ]
-Last_SQL_Error = 'Column 1 of table 'test.t5' cannot be converted from type 'char(255)' to type 'char(16)''
+include/wait_for_slave_sql_error.inc [errno=1677]
 include/rpl_reset.inc
 [expecting slave to stop]
 INSERT INTO t6 VALUES (1, "", 1);
 INSERT INTO t6 VALUES (2, repeat(_utf8'a', 255), 2);
-include/wait_for_slave_sql_error.inc [errno=1677 ]
-Last_SQL_Error = 'Column 1 of table 'test.t6' cannot be converted from type 'char(255)' to type 'char(128)''
+include/wait_for_slave_sql_error.inc [errno=1677]
 include/rpl_reset.inc
 [expecting slave to replicate correctly]
 INSERT INTO t7 VALUES (1, "", 1);
