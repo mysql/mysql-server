@@ -3112,7 +3112,6 @@ int init_common_variables()
   if (ignore_db_dirs_init())
     return 1;
 
-#ifdef HAVE_TZNAME
   {
     struct tm tm_tmp;
     localtime_r(&server_start_time,&tm_tmp);
@@ -3120,7 +3119,7 @@ int init_common_variables()
             sizeof(system_time_zone)-1);
 
  }
-#endif
+
   /*
     We set SYSTEM time zone as reasonable default and
     also for failure of my_tz_init() and bootstrap mode.
