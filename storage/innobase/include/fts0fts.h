@@ -913,10 +913,27 @@ innobase_mysql_fts_get_token(
 	const byte*	start,			/*!< in: start of text */
 	const byte*	end,			/*!< in: one character past
 						end of text */
-	fts_string_t*	token,			/*!< out: token's text */
-	ulint*		offset);		/*!< out: offset to token,
-						measured as characters from
-						'start' */
+	fts_string_t*	token);			/*!< out: token's text */
+
+/*************************************************************//**
+Get token char size by charset
+@return the number of token char size */
+ulint
+fts_get_token_size(
+/*===============*/
+	const CHARSET_INFO*	cs,		/*!< in: Character set */
+	const char*		token,		/*!< in: token */
+	ulint			len);		/*!< in: token length */
+
+/*************************************************************//**
+FULLTEXT tokenizer internal in MYSQL_FTPARSER_SIMPLE_MODE
+@return 0 if tokenize sucessfully */
+int
+fts_tokenize_document_internal(
+/*===========================*/
+	MYSQL_FTPARSER_PARAM*	param,	/*!< in: parser parameter */
+	char*			doc,	/*!< in: document to tokenize */
+	int			len);	/*!< in: document length */
 
 /*********************************************************************//**
 Fetch COUNT(*) from specified table.

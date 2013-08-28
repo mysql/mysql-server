@@ -3209,6 +3209,8 @@ row_merge_create_index(
 
 		ut_a(index);
 
+		index->parser = index_def->parser;
+
 		/* Note the id of the transaction that created this
 		index, we use it to restrict readers from accessing
 		this index, to ensure read consistency. */
