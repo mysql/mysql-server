@@ -13534,6 +13534,57 @@ void propagate_new_equalities(THD *thd, Item *cond,
   }          
 } 
 
+/*
+  Check if cond_is_datetime_is_null() is true for the condition cond, or 
+  for any of its AND/OR-children
+*/
+bool cond_has_datetime_is_null(Item *cond)
+{
+  if (cond_is_datetime_is_null(cond))
+    return true;
+
+  if (cond->type() == Item::COND_ITEM)
+  {
+    List<Item> *cond_arg_list= ((Item_cond*) cond)->argument_list();
+    List_iterator<Item> li(*cond_arg_list);
+    Item *item;
+    while ((item= li++))
+    {
+      if (cond_has_datetime_is_null(item))
+        return true;
+    }
+  }
+  return false;
+}
+
+/*
+  Check if passed condtition has for of
+
+    not_null_date_col IS NULL
+
+  where not_null_date_col has a datte or datetime type
+*/
+
+bool cond_is_datetime_is_null(Item *cond)
+{
+  if (cond->type() == Item::FUNC_ITEM &&
+      ((Item_func*) cond)->functype() == Item_func::ISNULL_FUNC)
+  {
+    Item **args= ((Item_func_isnull*) cond)->arguments();
+    if (args[0]->type() == Item::FIELD_ITEM)
+    {
+      Field *field=((Item_field*) args[0])->field;
+
+      if (((field->type() == MYSQL_TYPE_DATE) ||
+           (field->type() == MYSQL_TYPE_DATETIME)) &&
+          (field->flags & NOT_NULL_FLAG))
+      {
+        return TRUE;
+      }
+    }
+  }
+  return FALSE;
+}
 
 
 /**
@@ -13802,53 +13853,45 @@ internal_remove_eq_conds(THD *thd, COND *cond, Item::cond_result *cond_value)
       return item;
     }
   }
-  else if (cond->type() == Item::FUNC_ITEM &&
-	   ((Item_func*) cond)->functype() == Item_func::ISNULL_FUNC)
+  else if (cond_is_datetime_is_null(cond))
   {
-    Item_func_isnull *func=(Item_func_isnull*) cond;
-    Item **args= func->arguments();
-    if (args[0]->type() == Item::FIELD_ITEM)
+    /* fix to replace 'NULL' dates with '0' (shreeve@uci.edu) */
+    /*
+      See BUG#12594011
+      Documentation says that
+      SELECT datetime_notnull d FROM t1 WHERE d IS NULL
+      shall return rows where d=='0000-00-00'
+
+      Thus, for DATE and DATETIME columns defined as NOT NULL,
+      "date_notnull IS NULL" has to be modified to
+      "date_notnull IS NULL OR date_notnull == 0" (if outer join)
+      "date_notnull == 0"                         (otherwise)
+
+    */
+    Item **args= ((Item_func_isnull*) cond)->arguments();
+    Field *field=((Item_field*) args[0])->field;
+
+    Item *item0= new(thd->mem_root) Item_int((longlong)0, 1);
+    Item *eq_cond= new(thd->mem_root) Item_func_eq(args[0], item0);
+    if (!eq_cond)
+      return cond;
+
+    if (field->table->pos_in_table_list->outer_join)
     {
-      Field *field=((Item_field*) args[0])->field;
-      /* fix to replace 'NULL' dates with '0' (shreeve@uci.edu) */
-      /*
-        See BUG#12594011
-        Documentation says that
-        SELECT datetime_notnull d FROM t1 WHERE d IS NULL
-        shall return rows where d=='0000-00-00'
-
-        Thus, for DATE and DATETIME columns defined as NOT NULL,
-        "date_notnull IS NULL" has to be modified to
-        "date_notnull IS NULL OR date_notnull == 0" (if outer join)
-        "date_notnull == 0"                         (otherwise)
-
-      */
-      if (((field->type() == MYSQL_TYPE_DATE) ||
-           (field->type() == MYSQL_TYPE_DATETIME)) &&
-          (field->flags & NOT_NULL_FLAG))
-      {
-        Item *item0= new(thd->mem_root) Item_int((longlong)0, 1);
-        Item *eq_cond= new(thd->mem_root) Item_func_eq(args[0], item0);
-        if (!eq_cond)
-          return cond;
-
-        if (field->table->pos_in_table_list->outer_join)
-        {
-          // outer join: transform "col IS NULL" to "col IS NULL or col=0"
-          Item *or_cond= new(thd->mem_root) Item_cond_or(eq_cond, cond);
-          if (!or_cond)
-            return cond;
-          cond= or_cond;
-        }
-        else
-        {
-          // not outer join: transform "col IS NULL" to "col=0"
-          cond= eq_cond;
-        }
-
-        cond->fix_fields(thd, &cond);
-      }
+      // outer join: transform "col IS NULL" to "col IS NULL or col=0"
+      Item *or_cond= new(thd->mem_root) Item_cond_or(eq_cond, cond);
+      if (!or_cond)
+        return cond;
+      cond= or_cond;
     }
+    else
+    {
+      // not outer join: transform "col IS NULL" to "col=0"
+      cond= eq_cond;
+    }
+
+    cond->fix_fields(thd, &cond);
+
     if (cond->const_item() && !cond->is_expensive())
     {
       *cond_value= eval_const_cond(cond) ? Item::COND_TRUE : Item::COND_FALSE;
