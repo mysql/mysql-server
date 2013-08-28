@@ -1,4 +1,4 @@
-/* Copyright (c) 2011, 2012, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2011, 2013, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -11,7 +11,7 @@
 
    You should have received a copy of the GNU General Public License
    along with this program; if not, write to the Free Software
-   Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA  02111-1307  USA */
+   Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA  02110-1301  USA */
 
 // First include (the generated) my_config.h, to get correct platform defines.
 #include "my_config.h"
@@ -145,12 +145,11 @@ TEST_F(GetDiagnosticsTest, Cmd)
 
 
 // Verifies death with a DBUG_ASSERT if target item is not settable.
-//
-// Although Google Test recommends DeathTest suffix for classes used
-// in death tests, this is not done to avoid the server being started
-// more than once.
+// Google Test recommends DeathTest suffix for classes used in death tests.
+typedef GetDiagnosticsTest GetDiagnosticsTestDeathTest;
+
 #if GTEST_HAS_DEATH_TEST && !defined(DBUG_OFF)
-TEST_F(GetDiagnosticsTest, DieWhenUnsettableItem)
+TEST_F(GetDiagnosticsTestDeathTest, DieWhenUnsettableItem)
 {
   Item *var;
   Sql_cmd *cmd;

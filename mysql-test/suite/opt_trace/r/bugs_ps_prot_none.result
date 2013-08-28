@@ -1025,12 +1025,6 @@ ON table2 .col_int_key = table1 .col_int_key
                             {
                               "transformation": "constant_propagation",
                               "subselect_evaluation": [
-                              ] /* subselect_evaluation */,
-                              "resulting_condition": "((<cache>(`where_subselect_20070`.`field1`) = `table2`.`col_int_key`) and (<cache>((/* select#2 */ select count(`t1`.`col_int_key`) from `t1`)) = (/* select#4 */ select count(`t1`.`col_int_key`) from `t1`)) and multiple equal(`table2`.`col_int_key`, `table1`.`col_int_key`))"
-                            },
-                            {
-                              "transformation": "trivial_condition_removal",
-                              "subselect_evaluation": [
                                 {
                                   "subselect_execution": {
                                     "select#": 4,
@@ -1118,7 +1112,13 @@ ON table2 .col_int_key = table1 .col_int_key
                                   } /* subselect_execution */
                                 }
                               ] /* subselect_evaluation */,
-                              "resulting_condition": "((<cache>(`where_subselect_20070`.`field1`) = `table2`.`col_int_key`) and multiple equal(`table2`.`col_int_key`, `table1`.`col_int_key`))"
+                              "resulting_condition": "((<cache>(`where_subselect_20070`.`field1`) = `table2`.`col_int_key`) and (<cache>((/* select#2 */ select count(`t1`.`col_int_key`) from `t1`)) = 4) and multiple equal(`table2`.`col_int_key`, `table1`.`col_int_key`))"
+                            },
+                            {
+                              "transformation": "trivial_condition_removal",
+                              "subselect_evaluation": [
+                              ] /* subselect_evaluation */,
+                              "resulting_condition": "((<cache>(`where_subselect_20070`.`field1`) = `table2`.`col_int_key`) and (<cache>((/* select#2 */ select count(`t1`.`col_int_key`) from `t1`)) = 4) and multiple equal(`table2`.`col_int_key`, `table1`.`col_int_key`))"
                             }
                           ] /* steps */
                         } /* condition_processing */
@@ -1301,13 +1301,13 @@ ON table2 .col_int_key = table1 .col_int_key
                       },
                       {
                         "attaching_conditions_to_tables": {
-                          "original_condition": "((`table2`.`col_int_key` = `table1`.`col_int_key`) and (<cache>(`where_subselect_20070`.`field1`) = `table1`.`col_int_key`))",
+                          "original_condition": "((`table2`.`col_int_key` = `table1`.`col_int_key`) and (<cache>(`where_subselect_20070`.`field1`) = `table1`.`col_int_key`) and (<cache>((/* select#2 */ select count(`t1`.`col_int_key`) from `t1`)) = 4))",
                           "attached_conditions_computation": [
                           ] /* attached_conditions_computation */,
                           "attached_conditions_summary": [
                             {
                               "table": "`t1` `table1`",
-                              "attached": null
+                              "attached": "(<cache>((/* select#2 */ select count(`t1`.`col_int_key`) from `t1`)) = 4)"
                             },
                             {
                               "table": "`t1` `table2`",

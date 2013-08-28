@@ -115,7 +115,7 @@ drop table t1, t2;
 CREATE TABLE t1(a TEXT CHARSET ucs2 COLLATE ucs2_unicode_ci) ENGINE = InnoDB;
 INSERT INTO t1 VALUES('abcd');
 SELECT * FROM t1 WHERE MATCH(a) AGAINST ('+abcd' IN BOOLEAN MODE);
-ERROR HY000: The table does not have FULLTEXT index to support this query
+ERROR HY000: Can't find FULLTEXT index matching the column list
 DROP TABLE t1;
 create table t1 (a varchar(10), key(a), fulltext (a)) ENGINE = InnoDB;
 insert into t1 values ("a"),("abc"),("abcd"),("hello"),("test");

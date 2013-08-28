@@ -1,6 +1,6 @@
 /*****************************************************************************
 
-Copyright (c) 2012, Oracle and/or its affiliates. All Rights Reserved.
+Copyright (c) 2013, Oracle and/or its affiliates. All Rights Reserved.
 
 This program is free software; you can redistribute it and/or modify it under
 the terms of the GNU General Public License as published by the Free Software
@@ -332,7 +332,13 @@ handler_close_thd(
 /*==============*/
 	void*		my_thd)		/*!< in: THD */
 {
-	delete (static_cast<THD*>(my_thd));
+	THD*	thd = static_cast<THD*>(my_thd);
+
+	/* destructor will not free it, because net.vio is 0. */
+	net_end(&thd->net);
+
+	thd->release_resources();
+	delete (thd);
 
 	/* Don't have a THD anymore */
 	my_pthread_setspecific_ptr(THR_THD,  0);

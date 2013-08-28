@@ -76,6 +76,7 @@ insert into t2 values (1, 'bword'), (3, 'aword'), (5, '');
 -- disable_result_log
 ANALYZE TABLE t2;
 -- enable_result_log
+--error ER_WRONG_ARGUMENTS
 select * from t1 left join t2 on m_id = id where match(d, e, f) against ('+aword +bword' in boolean mode);
 drop table t1,t2;
 
@@ -106,6 +107,7 @@ ANALYZE TABLE t1;
 ANALYZE TABLE t2;
 -- enable_result_log
 
+--error ER_WRONG_ARGUMENTS
 SELECT t1.*, MATCH(t1.name) AGAINST('string') AS relevance 
   FROM t1 LEFT JOIN t2 ON t1.link = t2.id
     WHERE MATCH(t1.name, t2.name) AGAINST('string' IN BOOLEAN MODE);

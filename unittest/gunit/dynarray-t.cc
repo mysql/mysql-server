@@ -1,4 +1,4 @@
-/* Copyright (c) 2011, Oracle and/or its affiliates. All rights reserved. 
+/* Copyright (c) 2011, 2013 Oracle and/or its affiliates. All rights reserved. 
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -162,6 +162,11 @@ public:
   {
     my_init_dynamic_array(&m_keyuse_dyn, sizeof(Key_use), num_elements, 64);
     m_keyuse_vec.reserve(num_elements);
+  }
+
+  virtual void TearDown()
+  {
+    delete_dynamic(&m_keyuse_dyn);
   }
 
   void insert_and_sort_dynamic()
