@@ -44,6 +44,7 @@
 #include <my_dir.h>
 #include "rpl_rli_pdb.h"
 #include "sql_show.h"    // append_identifier
+#include <mysql/psi/mysql_statement.h>
 
 #endif /* MYSQL_CLIENT */
 
@@ -177,6 +178,7 @@ static const char *HA_ERR(int i)
   case HA_ERR_LOGGING_IMPOSSIBLE: return "HA_ERR_LOGGING_IMPOSSIBLE";
   case HA_ERR_CORRUPT_EVENT: return "HA_ERR_CORRUPT_EVENT";
   case HA_ERR_ROWS_EVENT_APPLY : return "HA_ERR_ROWS_EVENT_APPLY";
+  case HA_ERR_INNODB_READ_ONLY: return "HA_ERR_INNODB_READ_ONLY";
   }
   return "No Error!";
 }
@@ -2655,7 +2657,7 @@ bool Log_event::contains_partition_info(bool end_group_sets_max_dbs)
 
 Slave_worker *Log_event::get_slave_worker(Relay_log_info *rli)
 {
-  Slave_job_group group, *ptr_group;
+  Slave_job_group group, *ptr_group= NULL;
   bool is_s_event;
   int  num_dbs= 0;
   Slave_worker *ret_worker= NULL;
@@ -2858,15 +2860,35 @@ Slave_worker *Log_event::get_slave_worker(Relay_log_info *rli)
     }
   }
 
+  DBUG_ASSERT(ret_worker);
+
+  /*
+    Preparing event physical coordinates info for Worker before any
+    event got scheduled so when Worker error-stopped at the first
+    event it would be aware of where exactly in the event stream.
+  */
+  if (!ret_worker->master_log_change_notified)
+  {
+    if (!ptr_group)
+      ptr_group= gaq->get_job_group(rli->gaq->assigned_group_index);
+    ptr_group->group_master_log_name=
+      my_strdup(rli->get_group_master_log_name(), MYF(MY_WME));
+    ret_worker->master_log_change_notified= true;
+
+    DBUG_ASSERT(!ptr_group->notified);
+#ifndef DBUG_OFF
+    ptr_group->notified= true;
+#endif
+  }
+
   // T-event: Commit, Xid, a DDL query or dml query of B-less group.
   if (ends_group() || !rli->curr_group_seen_begin)
   {
-    // index of GAQ that this terminal event belongs to
-    mts_group_idx= gaq->assigned_group_index;
     rli->mts_group_status= Relay_log_info::MTS_END_GROUP;
     if (rli->curr_group_isolated)
       set_mts_isolate_group();
-    ptr_group= gaq->get_job_group(rli->gaq->assigned_group_index);
+    if (!ptr_group)
+      ptr_group= gaq->get_job_group(rli->gaq->assigned_group_index);
 
     DBUG_ASSERT(ret_worker != NULL);
     
@@ -2901,17 +2923,13 @@ Slave_worker *Log_event::get_slave_worker(Relay_log_info *rli)
 
     if (!ret_worker->checkpoint_notified)
     {
-      ptr_group->checkpoint_log_name= (char *)
-        my_malloc(strlen(rli->
-                         get_group_master_log_name()) + 1, MYF(MY_WME));
-      strcpy(ptr_group->checkpoint_log_name,
-             rli->get_group_master_log_name());
+      if (!ptr_group)
+        ptr_group= gaq->get_job_group(rli->gaq->assigned_group_index);
+      ptr_group->checkpoint_log_name=
+        my_strdup(rli->get_group_master_log_name(), MYF(MY_WME));
       ptr_group->checkpoint_log_pos= rli->get_group_master_log_pos();
-      ptr_group->checkpoint_relay_log_name= (char *)
-        my_malloc(strlen(rli->
-                         get_group_relay_log_name()) + 1, MYF(MY_WME));
-      strcpy(ptr_group->checkpoint_relay_log_name,
-             rli->get_group_relay_log_name());
+      ptr_group->checkpoint_relay_log_name=
+        my_strdup(rli->get_group_relay_log_name(), MYF(MY_WME));
       ptr_group->checkpoint_relay_log_pos= rli->get_group_relay_log_pos();
       ptr_group->shifted= ret_worker->bitmap_shifted;
       ret_worker->bitmap_shifted= 0;
@@ -4732,6 +4750,13 @@ int Query_log_event::do_apply_event(Relay_log_info const *rli,
       Parser_state parser_state;
       if (!parser_state.init(thd, thd->query(), thd->query_length()))
       {
+        thd->m_statement_psi= MYSQL_START_STATEMENT(&thd->m_statement_state,
+                                                    stmt_info_rpl.m_key,
+                                                    thd->db, thd->db_length,
+                                                    thd->charset());
+        THD_STAGE_INFO(thd, stage_init);
+        MYSQL_SET_STATEMENT_TEXT(thd->m_statement_psi, thd->query(), thd->query_length());
+
         mysql_parse(thd, thd->query(), thd->query_length(), &parser_state);
         /* Finalize server status flags after executing a statement. */
         thd->update_server_status();
@@ -4927,6 +4952,11 @@ end:
   thd->reset_query();
   thd->lex->sql_command= SQLCOM_END;
   DBUG_PRINT("info", ("end: query= 0"));
+
+  /* Mark the statement completed. */
+  MYSQL_END_STATEMENT(thd->m_statement_psi, thd->get_stmt_da());
+  thd->m_statement_psi= NULL;
+
   /*
     As a disk space optimization, future masters will not log an event for
     LAST_INSERT_ID() if that function returned 0 (and thus they will be able

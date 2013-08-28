@@ -225,8 +225,8 @@ JOIN::create_intermediate_table(JOIN_TAB *tab, List<Item> *tmp_table_fields,
                                "");
   if (!table)
     DBUG_RETURN(true);
-  tmp_table_param.using_indirect_summary_function=
-    tab->tmp_table_param->using_indirect_summary_function;
+  tmp_table_param.using_outer_summary_function=
+    tab->tmp_table_param->using_outer_summary_function;
   tab->join= this;
   DBUG_ASSERT(tab > tab->join->join_tab);
   (tab - 1)->next_select= sub_select_op;
@@ -956,6 +956,7 @@ do_select(JOIN *join)
       sort_tab= join_tab + const_tables;
     }
     if (sort_tab->filesort &&
+        join->select_options & OPTION_FOUND_ROWS &&
         sort_tab->filesort->sortorder &&
         sort_tab->filesort->limit != HA_POS_ERROR)
     {
@@ -2812,7 +2813,6 @@ end_send(JOIN *join, JOIN_TAB *join_tab, bool end_of_records)
 	  /* Join over all rows in table;  Return number of found rows */
 	  TABLE *table=jt->table;
 
-	  join->select_options ^= OPTION_FOUND_ROWS;
 	  if (table->sort.record_pointers ||
 	      (table->sort.io_cache && my_b_inited(table->sort.io_cache)))
 	  {

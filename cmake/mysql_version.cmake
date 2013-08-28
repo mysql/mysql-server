@@ -1,4 +1,4 @@
-# Copyright (c) 2009, 2012, Oracle and/or its affiliates. All rights reserved.
+# Copyright (c) 2009, 2013, Oracle and/or its affiliates. All rights reserved.
 # 
 # This program is free software; you can redistribute it and/or modify
 # it under the terms of the GNU General Public License as published by
@@ -18,6 +18,7 @@
 #
 
 SET(SHARED_LIB_MAJOR_VERSION "18")
+SET(SHARED_LIB_MINOR_VERSION "1")
 SET(PROTOCOL_VERSION "10")
 SET(DOT_FRM_VERSION "6")
 

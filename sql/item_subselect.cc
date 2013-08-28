@@ -1601,8 +1601,15 @@ Item_in_subselect::single_value_transformer(JOIN *join,
     }
     if (upper_item)
       upper_item->set_subselect(this);
-    /* fix fields is already called for  left expression */
-    substitution= func->create(left_expr, subs);
+    /*
+      fix fields is already called for  left expression.
+      Note that real_item() should be used instead of
+      original left expression because left_expr can be
+      runtime created Ref item which is deleted at the end
+      of the statement. Thus one of 'substitution' arguments
+      can be broken in case of PS.
+    */
+    substitution= func->create(left_expr->real_item(), subs);
     DBUG_RETURN(RES_OK);
   }
 
@@ -1630,10 +1637,17 @@ Item_in_subselect::single_value_transformer(JOIN *join,
       As far as  Item_ref_in_optimizer do not substitute itself on fix_fields
       we can use same item for all selects.
     */
-    expr= new Item_direct_ref(&select_lex->context,
-                              (Item**)optimizer->get_cache(),
-			      (char *)"<no matter>",
-			      (char *)in_left_expr_name);
+    Item_ref *const left=
+      new Item_direct_ref(&select_lex->context, (Item**)optimizer->get_cache(),
+			 (char *)"<no matter>", (char *)in_left_expr_name);
+    if (left == NULL)
+      DBUG_RETURN(RES_ERROR);
+
+    // Make the left expression "outer" relative to the subquery
+    if (!left_expr->const_item())
+      left->depended_from= select_lex->outer_select();
+
+    expr= left;
 
     DBUG_ASSERT(in2exists_info == NULL);
     in2exists_info= new In2exists_info;
@@ -1886,9 +1900,16 @@ Item_in_subselect::single_value_in_to_exists_transformer(JOIN * join, Comp_creat
         // select and is not outer anymore.
         orig_item->walk(&Item::remove_dependence_processor, 0,
                         (uchar *) select_lex->outer_select());
-	Item_bool_func *item= func->create(left_expr, orig_item);
-	// fix_field of item will be done in time of substituting
-	substitution= item;
+        /*
+          fix_field of substitution item will be done in time of
+          substituting.
+          Note that real_item() should be used instead of
+          original left expression because left_expr can be
+          runtime created Ref item which is deleted at the end
+          of the statement. Thus one of 'substitution' arguments
+          can be broken in case of PS.
+        */
+	substitution= func->create(left_expr->real_item(), orig_item);
 	have_to_be_excluded= 1;
 	if (thd->lex->describe)
 	{
@@ -2114,13 +2135,19 @@ Item_in_subselect::row_value_in_to_exists_transformer(JOIN * join)
                    ((Item_ref*)(item_i))->ref_type() == Item_ref::OUTER_REF));
       if (item_i->check_cols(left_expr->element_index(i)->cols()))
         DBUG_RETURN(RES_ERROR);
+      Item_ref *const left=
+        new Item_direct_ref(&select_lex->context,
+                            (*optimizer->get_cache())->addr(i),
+                            (char *)"<no matter>", (char *)in_left_expr_name);
+      if (left == NULL)
+        DBUG_RETURN(RES_ERROR);
+
+      // Make the left expression "outer" relative to the subquery
+      if (!left_expr->element_index(i)->const_item())
+        left->depended_from= select_lex->outer_select();
+
       Item_bool_func *item=
-        new Item_func_eq(new
-                         Item_direct_ref(&select_lex->context,
-                                         (*optimizer->get_cache())->
-                                         addr(i),
-                                         (char *)"<no matter>",
-                                         (char *)in_left_expr_name),
+        new Item_func_eq(left,
                          new
                          Item_direct_ref(&select_lex->context,
                                          pitem_i,

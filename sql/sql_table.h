@@ -1,4 +1,4 @@
-/* Copyright (c) 2006, 2012, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2006, 2013, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -138,6 +138,8 @@ static const uint FRM_ONLY=        1 << 3;
 static const uint NO_HA_TABLE=     1 << 4;
 /** Don't resolve MySQL's fake "foo.sym" symbolic directory names. */
 static const uint SKIP_SYMDIR_ACCESS= 1 << 5;
+/** Don't check foreign key constraints while renaming table */
+static const uint NO_FK_CHECKS=    1 << 6;
 
 uint filename_to_tablename(const char *from, char *to, uint to_length
 #ifndef DBUG_OFF

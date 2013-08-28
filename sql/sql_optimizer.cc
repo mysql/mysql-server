@@ -193,37 +193,39 @@ JOIN::optimize()
   if (first_optimization)
   {
     /*
-      The following code will allocate the new items in a permanent
-      MEMROOT for prepared statements and stored procedures.
+      These are permanent transformations, so new items must be
+      allocated in the statement mem root
     */
-
-    Query_arena *arena= thd->stmt_arena, backup;
-    if (arena->is_conventional())
-      arena= 0;                                   // For easier test
-    else
-      thd->set_n_backup_active_arena(arena, &backup);
+    Prepared_stmt_arena_holder ps_arena_holder(thd);
 
     /* Convert all outer joins to inner joins if possible */
     if (simplify_joins(this, join_list, conds, true, false, &conds))
     {
       DBUG_PRINT("error",("Error from simplify_joins"));
-      thd->restore_active_arena(arena, &backup);
       DBUG_RETURN(1);
     }
     if (record_join_nest_info(select_lex, join_list))
     {
       DBUG_PRINT("error",("Error from record_join_nest_info"));
-      thd->restore_active_arena(arena, &backup);
       DBUG_RETURN(1);
     }
     build_bitmap_for_nested_joins(join_list, 0);
 
-    // Copied from st_select_lex::fix_prepare_information():
+    /*
+      After permanent transformations above, prep_where created in
+      st_select_lex::fix_prepare_information() is out-of-date, we need to
+      refresh it.
+      For that We must copy "conds" because it contains AND/OR items in a
+      non-permanent memroot. And this copy must contain real items only,
+      because the new AND/OR items will not have their argument pointers
+      restored by rollback_item_tree_changes().
+      @see st_select_lex::fix_prepare_information() for problems with this.
+      @todo in WL#7082 move transformations above to before
+      st_select_lex::fix_prepare_information(), and remove this second copy
+      below.
+    */
     sel->prep_where=
-      conds ? conds->real_item()->copy_andor_structure(thd) : NULL;
-
-    if (arena)
-      thd->restore_active_arena(arena, &backup);
+      conds ? conds->copy_andor_structure(thd, true) : NULL;
   }
 
   /*
@@ -598,7 +600,18 @@ JOIN::optimize()
   if (group_list || tmp_table_param.sum_func_count)
   {
     if (hidden_group_field_count == 0 && rollup.state == ROLLUP::STATE_NONE)
-      select_distinct=0;
+    {
+      /*
+        All GROUP expressions are in SELECT list, so resulting rows are
+        distinct. ROLLUP is not specified, so adds no row. So all rows in the
+        result set are distinct, DISTINCT is useless.
+        @todo could remove DISTINCT if ROLLUP were specified and all GROUP
+        expressions were non-nullable, because ROLLUP adds only NULL
+        values. Currently, ROLLUP+DISTINCT is rejected because executor
+        cannot handle it in all cases.
+      */
+      select_distinct= false;
+    }
   }
   else if (select_distinct &&
            plan_is_single_table() &&
@@ -2759,7 +2772,7 @@ static bool record_join_nest_info(st_select_lex *select,
   while ((table= li++))
   {
     table->prep_join_cond= table->join_cond() ?
-      table->join_cond()->copy_andor_structure(select->join->thd) : NULL;
+      table->join_cond()->copy_andor_structure(select->join->thd, true) : NULL;
 
     if (table->nested_join == NULL)
       continue;
@@ -5501,13 +5514,28 @@ static void add_key_fields_for_nj(JOIN *join, TABLE_LIST *nested_join_table,
   to loose index scan.
 
 
-  Check if the query is a subject to AGGFN(DISTINCT) using loose index scan 
+  Check if the query is a subject to AGGFN(DISTINCT) using loose index scan
   (QUICK_GROUP_MIN_MAX_SELECT).
-  Optionally (if out_args is supplied) will push the arguments of 
+  Optionally (if out_args is supplied) will push the arguments of
   AGGFN(DISTINCT) to the list
 
+  Check for every COUNT(DISTINCT), AVG(DISTINCT) or
+  SUM(DISTINCT). These can be resolved by Loose Index Scan as long
+  as all the aggregate distinct functions refer to the same
+  fields. Thus:
+
+  SELECT AGGFN(DISTINCT a, b), AGGFN(DISTINCT b, a)... => can use LIS
+  SELECT AGGFN(DISTINCT a),    AGGFN(DISTINCT a)   ... => can use LIS
+  SELECT AGGFN(DISTINCT a, b), AGGFN(DISTINCT a)   ... => cannot use LIS
+  SELECT AGGFN(DISTINCT a),    AGGFN(DISTINCT b)   ... => cannot use LIS
+  etc.
+
   @param      join       the join to check
-  @param[out] out_args   list of aggregate function arguments
+  @param[out] out_args   Collect the arguments of the aggregate functions
+                         to a list. We don't worry about duplicates as
+                         these will be sorted out later in
+                         get_best_group_min_max.
+
   @return                does the query qualify for indexed AGGFN(DISTINCT)
     @retval   true       it does
     @retval   false      AGGFN(DISTINCT) must apply distinct in it.
@@ -5518,6 +5546,7 @@ is_indexed_agg_distinct(JOIN *join, List<Item_field> *out_args)
 {
   Item_sum **sum_item_ptr;
   bool result= false;
+  Field_map first_aggdistinct_fields;
 
   if (join->primary_tables > 1 ||             /* reference more than 1 table */
       join->select_distinct ||                /* or a DISTINCT */
@@ -5530,6 +5559,7 @@ is_indexed_agg_distinct(JOIN *join, List<Item_field> *out_args)
   for (sum_item_ptr= join->sum_funcs; *sum_item_ptr; sum_item_ptr++)
   {
     Item_sum *sum_item= *sum_item_ptr;
+    Field_map cur_aggdistinct_fields;
     Item *expr;
     /* aggregate is not AGGFN(DISTINCT) or more than 1 argument to it */
     switch (sum_item->sum_func())
@@ -5546,12 +5576,7 @@ is_indexed_agg_distinct(JOIN *join, List<Item_field> *out_args)
         /* fall through */
       default: return false;
     }
-    /*
-      We arrive here for every COUNT(DISTINCT),AVG(DISTINCT) or SUM(DISTINCT).
-      Collect the arguments of the aggregate functions to a list.
-      We don't worry about duplicates as these will be sorted out later in 
-      get_best_group_min_max 
-    */
+
     for (uint i= 0; i < sum_item->get_arg_count(); i++)
     {
       expr= sum_item->get_arg(i);
@@ -5559,15 +5584,23 @@ is_indexed_agg_distinct(JOIN *join, List<Item_field> *out_args)
       if (expr->real_item()->type() != Item::FIELD_ITEM)
         return false;
 
-      /* 
-        If we came to this point the AGGFN(DISTINCT) loose index scan
-        optimization is applicable 
-      */
+      Item_field* item= static_cast<Item_field*>(expr->real_item());
       if (out_args)
-        out_args->push_back((Item_field *) expr->real_item());
+        out_args->push_back(item);
+
+      cur_aggdistinct_fields.set_bit(item->field->field_index);
       result= true;
     }
+    /*
+      If there are multiple aggregate functions, make sure that they all
+      refer to exactly the same set of columns.
+    */
+    if (first_aggdistinct_fields.is_clear_all())
+      first_aggdistinct_fields.merge(cur_aggdistinct_fields);
+    else if (first_aggdistinct_fields != cur_aggdistinct_fields)
+      return false;
   }
+
   return result;
 }
 
@@ -7781,57 +7814,57 @@ static bool make_join_select(JOIN *join, Item *cond)
             if (recheck_reason == LOW_LIMIT)
             {
               /*
-                If rechecking index usage due to a LIMIT lower than
-                the number of rows estimated to be read for this
-                table, it only makes sense to check the indexes that
-                provide the necessary order.
+                When optimizing for ORDER BY ... LIMIT, only indexes
+                that give correct ordering are of interest. The block
+                below removes all other indexes from usable_keys so
+                the range optimizer (see test_quick_select() below)
+                does not consider them.
               */
-              for (ORDER *tmp_order= join->order;
-                   tmp_order ;
-                   tmp_order=tmp_order->next)
+              for (uint idx= 0; idx < tab->table->s->keys; idx++)
               {
-                Item *item= (*tmp_order->item)->real_item();
-                if (item->type() != Item::FIELD_ITEM)
+                /*
+                  No need to check if indexes that we're not allowed
+                  to use can provide required ordering.
+                */
+                if (!usable_keys.is_set(idx))
+                  continue;
+
+                const int read_direction=
+                  test_if_order_by_key(join->order, tab->table, idx);
+                if (read_direction == 0)
                 {
-                  recheck_reason= DONT_RECHECK;
-                  break;
+                  // The index cannot provide required ordering
+                  usable_keys.clear_bit(idx);
+                  continue;
                 }
 
                 /*
-                  No index can provide the necessary order if ordering
-                  on fields that do not belong to 'tab' (the first
-                  non-const table)
+                  Currently, only ASC ordered indexes are availabe,
+                  which means that if ordering can be achieved by
+                  reading the index in forward direction, then we have
+                  ORDER BY... ASC. Likewise, if ordering can be
+                  achieved by reading the index in backward direction,
+                  then we have ORDER BY ... DESC.
+
+                  Furthermore, if correct order can be achieved by
+                  reading one index in either forward or backward
+                  direction, then all other applicable indexes will
+                  need to be read in the same direction (so no reason
+                  to check that read_direction is the same for all
+                  applicable indexes).
+
+                  If DESC/mixed ordered indexes will be possible in
+                  the future, the implied connection between index
+                  read direction and ASC/DESC ordering will no longer
+                  hold.
                 */
-                Item_field *fld_item= static_cast<Item_field*>(item);
-                if (fld_item->field->table != tab->table)
-                {
-                  recheck_reason= DONT_RECHECK;
-                  break;
-                }
-
-                if ((interesting_order != ORDER::ORDER_NOT_RELEVANT) &&
-                    (interesting_order != tmp_order->direction))
-                {
-                  /*
-                    MySQL currently does not support multi-column
-                    indexes with a mix of ASC and DESC ordering, so if
-                    ORDER BY contains both, no index can provide
-                    correct order.
-                  */
-                  recheck_reason= DONT_RECHECK;
-                  break;
-                }
-
-                usable_keys.intersect(fld_item->field->part_of_sortkey);
-                interesting_order= tmp_order->direction;
-
-                if (usable_keys.is_clear_all())
-                {
-                  // No usable keys
-                  recheck_reason= DONT_RECHECK;
-                  break;
-                }
+                interesting_order= (read_direction == -1 ? ORDER::ORDER_DESC :
+                                                           ORDER::ORDER_ASC);
               }
+
+              if (usable_keys.is_clear_all())
+                recheck_reason= DONT_RECHECK; // No usable keys
+
               /*
                 If the current plan is to use a range access on an
                 index that provides the order dictated by the ORDER BY
@@ -9686,12 +9719,15 @@ void JOIN::refine_best_rowcount()
     return;
 
   /*
-    Setting estimate to 1 row would mark a derived table as const.
+    If a derived table, or a member of a UNION which itself forms a derived
+    table:
+    setting estimate to 0 or 1 row would mark the derived table as const.
     The row count is bumped to the nearest higher value, so that the
     query block will not be evaluated during optimization.
   */
-  if (select_lex->linkage == DERIVED_TABLE_TYPE &&
-      best_rowcount <= 1)
+  if (best_rowcount <= 1 &&
+      select_lex->master_unit()->first_select()->linkage ==
+      DERIVED_TABLE_TYPE)
     best_rowcount= 2;
 
   /*

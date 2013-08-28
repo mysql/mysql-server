@@ -219,10 +219,17 @@ ROLLBACK;
 eval SET @@SESSION.GTID_NEXT = '$ida:13';
 --error ER_CANT_SET_GTID_NEXT_WHEN_OWNING_GTID
 eval SET @@SESSION.GTID_NEXT = '$ida:14';
+# the above error will clean owned_gtid
+eval SET @@SESSION.GTID_NEXT = 'AUTOMATIC';
+ROLLBACK;
+
+--echo # can't set while owning a GTID
+eval SET @@SESSION.GTID_NEXT = '$ida:13';
 --error ER_CANT_SET_GTID_NEXT_WHEN_OWNING_GTID
 eval SET @@SESSION.GTID_NEXT = 'AUTOMATIC';
 ROLLBACK;
 
+eval SET @@SESSION.GTID_NEXT = '$ida:14';
 --echo # can't do implicit commit while gtid_next=SID:GNO
 BEGIN;
 --error ER_CANT_DO_IMPLICIT_COMMIT_IN_TRX_WHEN_GTID_NEXT_IS_SET

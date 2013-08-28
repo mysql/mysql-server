@@ -1231,34 +1231,42 @@ int ha_partition::handle_opt_part(THD *thd, HA_CHECK_OPT *check_opt,
 
 
 /*
-   print a message row formatted for ANALYZE/CHECK/OPTIMIZE/REPAIR TABLE 
+   print a message row formatted for ANALYZE/CHECK/OPTIMIZE/REPAIR TABLE
    (modelled after mi_check_print_msg)
    TODO: move this into the handler, or rewrite mysql_admin_table.
 */
-static bool print_admin_msg(THD* thd, const char* msg_type,
+static bool print_admin_msg(THD* thd, uint len,
+                            const char* msg_type,
                             const char* db_name, const char* table_name,
                             const char* op_name, const char *fmt, ...)
-  ATTRIBUTE_FORMAT(printf, 6, 7);
-static bool print_admin_msg(THD* thd, const char* msg_type,
+  ATTRIBUTE_FORMAT(printf, 7, 8);
+static bool print_admin_msg(THD* thd, uint len,
+                            const char* msg_type,
                             const char* db_name, const char* table_name,
                             const char* op_name, const char *fmt, ...)
 {
   va_list args;
   Protocol *protocol= thd->protocol;
-  uint length, msg_length;
-  char msgbuf[MI_MAX_MSG_BUF];
+  uint length;
+  uint msg_length;
   char name[NAME_LEN*2+2];
+  char *msgbuf;
+  bool error= true;
 
+  if (!(msgbuf= (char*) my_malloc(len, MYF(0))))
+    return true;
   va_start(args, fmt);
-  msg_length= my_vsnprintf(msgbuf, sizeof(msgbuf), fmt, args);
+  msg_length= my_vsnprintf(msgbuf, len, fmt, args);
   va_end(args);
-  msgbuf[sizeof(msgbuf) - 1] = 0; // healthy paranoia
+  if (msg_length >= (len - 1))
+    goto err;
+  msgbuf[len - 1] = 0; // healthy paranoia
 
 
   if (!thd->vio_ok())
   {
     sql_print_error("%s", msgbuf);
-    return TRUE;
+    goto err;
   }
 
   length=(uint) (strxmov(name, db_name, ".", table_name,NullS) - name);
@@ -1281,9 +1289,12 @@ static bool print_admin_msg(THD* thd, const char* msg_type,
   {
     sql_print_error("Failed on my_net_write, writing to stderr instead: %s\n",
                     msgbuf);
-    return TRUE;
+    goto err;
   }
-  return FALSE;
+  error= false;
+err:
+  my_free(msgbuf);
+  return error;
 }
 
 
@@ -1340,7 +1351,8 @@ int ha_partition::handle_opt_partitions(THD *thd, HA_CHECK_OPT *check_opt,
                 error != HA_ADMIN_ALREADY_DONE &&
                 error != HA_ADMIN_TRY_ALTER)
             {
-              print_admin_msg(thd, "error", table_share->db.str, table->alias,
+	      print_admin_msg(thd, MI_MAX_MSG_BUF, "error",
+                              table_share->db.str, table->alias,
                               opt_op_name[flag],
                               "Subpartition %s returned error", 
                               sub_elem->partition_name);
@@ -1366,8 +1378,9 @@ int ha_partition::handle_opt_partitions(THD *thd, HA_CHECK_OPT *check_opt,
               error != HA_ADMIN_ALREADY_DONE &&
               error != HA_ADMIN_TRY_ALTER)
           {
-            print_admin_msg(thd, "error", table_share->db.str, table->alias,
-                            opt_op_name[flag], "Partition %s returned error", 
+	    print_admin_msg(thd, MI_MAX_MSG_BUF, "error",
+                            table_share->db.str, table->alias,
+                            opt_op_name[flag], "Partition %s returned error",
                             part_elem->partition_name);
           }
           /* reset part_state for the remaining partitions */
@@ -2225,12 +2238,12 @@ char *ha_partition::update_table_comment(const char *comment)
   names of the partitions and the underlying storage engines.
 */
 
-uint ha_partition::del_ren_table(const char *from, const char *to)
+int ha_partition::del_ren_table(const char *from, const char *to)
 {
   int save_error= 0;
-  int error;
+  int error= HA_ERR_INTERNAL_ERROR;
   char from_buff[FN_REFLEN], to_buff[FN_REFLEN], from_lc_buff[FN_REFLEN],
-       to_lc_buff[FN_REFLEN];
+       to_lc_buff[FN_REFLEN], buff[FN_REFLEN];
   char *name_buffer_ptr;
   const char *from_path;
   const char *to_path= NULL;
@@ -2238,21 +2251,25 @@ uint ha_partition::del_ren_table(const char *from, const char *to)
   handler **file, **abort_file;
   DBUG_ENTER("ha_partition::del_ren_table");
 
+  fn_format(buff,from, "", ha_par_ext, MY_APPEND_EXT);
+  /* Check if the  par file exists */
+  if (my_access(buff,F_OK))
+  {
+    /*
+      If the .par file does not exist, return HA_ERR_NO_SUCH_TABLE,
+      This will signal to the caller that it can remove the .frm
+      file.
+    */
+    error= HA_ERR_NO_SUCH_TABLE;
+    DBUG_RETURN(error);
+  }
+
   if (get_from_handler_file(from, ha_thd()->mem_root, false))
-    DBUG_RETURN(TRUE);
+    DBUG_RETURN(error);
   DBUG_ASSERT(m_file_buffer);
   DBUG_PRINT("enter", ("from: (%s) to: (%s)", from, to ? to : "(nil)"));
   name_buffer_ptr= m_name_buffer_ptr;
   file= m_file;
-  if (to == NULL)
-  {
-    /*
-      Delete table, start by delete the .par file. If error, break, otherwise
-      delete as much as possible.
-    */
-    if ((error= handler::delete_table(from)))
-      DBUG_RETURN(error);
-  }
   /*
     Since ha_partition has HA_FILE_BASED, it must alter underlying table names
     if they do not have HA_FILE_BASED and lower_case_table_names == 2.
@@ -2286,6 +2303,18 @@ uint ha_partition::del_ren_table(const char *from, const char *to)
       save_error= error;
     i++;
   } while (*(++file));
+
+  if (to == NULL)
+  {
+    DBUG_EXECUTE_IF("crash_before_deleting_par_file", DBUG_SUICIDE(););
+
+    /* Delete the .par file. If error, break.*/
+    if ((error= handler::delete_table(from)))
+      DBUG_RETURN(error);
+
+    DBUG_EXECUTE_IF("crash_after_deleting_par_file", DBUG_SUICIDE(););
+  }
+
   if (to != NULL)
   {
     if ((error= handler::rename_table(from, to)))
@@ -8518,7 +8547,8 @@ int ha_partition::check_misplaced_rows(uint read_part_id, bool repair)
 
       if (num_misplaced_rows > 0)
       {
-        print_admin_msg(ha_thd(), "warning", table_share->db.str, table->alias,
+	print_admin_msg(ha_thd(), MI_MAX_MSG_BUF, "warning",
+                        table_share->db.str, table->alias,
                         opt_op_name[REPAIR_PARTS],
                         "Moved %lld misplaced rows",
                         num_misplaced_rows);
@@ -8539,7 +8569,8 @@ int ha_partition::check_misplaced_rows(uint read_part_id, bool repair)
       if (!repair)
       {
         /* Check. */
-        print_admin_msg(ha_thd(), "error", table_share->db.str, table->alias,
+	print_admin_msg(ha_thd(), MI_MAX_MSG_BUF, "error",
+                        table_share->db.str, table->alias,
                         opt_op_name[CHECK_PARTS],
                         "Found a misplaced row");
         /* Break on first misplaced row! */
@@ -8586,7 +8617,8 @@ int ha_partition::check_misplaced_rows(uint read_part_id, bool repair)
                             correct_part_id,
                             str.c_ptr_safe());
           }
-          print_admin_msg(ha_thd(), "error", table_share->db.str, table->alias,
+	  print_admin_msg(ha_thd(), MI_MAX_MSG_BUF, "error",
+                          table_share->db.str, table->alias,
                           opt_op_name[REPAIR_PARTS],
                           "Failed to move/insert a row"
                           " from part %d into part %d:\n%s",
@@ -8718,26 +8750,24 @@ int ha_partition::check_for_upgrade(HA_CHECK_OPT *check_opt)
                                                     NULL,
                                                     NULL,
                                                     NULL)) ||
-          /* Also check that the length is smaller than the output field! */
-              (part_buf_len + db_name.length() + table_name.length()) >=
-                (SQL_ADMIN_MSG_TEXT_SIZE -
-                  (strlen(KEY_PARTITIONING_CHANGED_STR) - 3)))
-          {
-            print_admin_msg(thd, "error", table_share->db.str, table->alias,
+	      print_admin_msg(thd, SQL_ADMIN_MSG_TEXT_SIZE + 1, "error",
+	                      table_share->db.str,
+	                      table->alias,
+                              opt_op_name[CHECK_PARTS],
+                              KEY_PARTITIONING_CHANGED_STR,
+                              db_name.c_ptr_safe(),
+                              table_name.c_ptr_safe(),
+                              part_buf))
+	  {
+	    /* Error creating admin message (too long string?). */
+	    print_admin_msg(thd, MI_MAX_MSG_BUF, "error",
+                            table_share->db.str, table->alias,
                             opt_op_name[CHECK_PARTS],
                             KEY_PARTITIONING_CHANGED_STR,
                             db_name.c_ptr_safe(), table_name.c_ptr_safe(),
                             "<old partition clause>, but add ALGORITHM = 1"
                             " between 'KEY' and '(' to change the metadata"
                             " without the need of a full table rebuild.");
-          }
-          else
-          {
-            print_admin_msg(thd, "error", table_share->db.str, table->alias,
-                            opt_op_name[CHECK_PARTS],
-                            KEY_PARTITIONING_CHANGED_STR,
-                            db_name.c_ptr_safe(), table_name.c_ptr_safe(),
-                            part_buf);
           }
           m_part_info->key_algorithm= old_algorithm;
           DBUG_RETURN(error);

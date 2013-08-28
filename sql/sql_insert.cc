@@ -325,6 +325,41 @@ static int check_update_fields(THD *thd, TABLE_LIST *insert_table_list,
   return 0;
 }
 
+/**
+  Validates default value of fields which are not specified in
+  the column list of INSERT statement.
+
+  @Note table->record[0] should be be populated with default values
+        before calling this function.
+  @Note THD->abort_on_warning flag should be set to report an error
+        or a warning if default value is incorrect.
+
+  @param thd              thread context
+  @param table            table to which values are inserted.
+
+  @return
+    @retval false Success.
+    @retval true  Failure.
+*/
+bool validate_default_values_of_unset_fields(THD *thd, TABLE *table)
+{
+  MY_BITMAP *write_set= table->write_set;
+  DBUG_ENTER("validate_default_values_of_unset_fields");
+
+  for (Field **field= table->field; *field; field++)
+  {
+    if (!bitmap_is_set(write_set, (*field)->field_index) &&
+        !((*field)->flags & NO_DEFAULT_VALUE_FLAG))
+    {
+      if ((*field)->validate_stored_val(thd) && thd->is_error())
+        DBUG_RETURN(true);
+    }
+  }
+
+  DBUG_RETURN(false);
+}
+
+
 /*
   Prepare triggers  for INSERT-like statement.
 
@@ -947,6 +982,17 @@ bool mysql_insert(THD *thd,TABLE_LIST *table_list,
     if (fields.elements || !value_count)
     {
       restore_record(table,s->default_values);	// Get empty record
+
+      /*
+        Check whether default values of the fields not specified in column list
+        are correct or not.
+      */
+      if (validate_default_values_of_unset_fields(thd, table))
+      {
+        error= 1;
+        break;
+      }
+
       if (fill_record_n_invoke_before_triggers(thd, fields, *values, 0,
                                                table->triggers,
                                                TRG_EVENT_INSERT))
@@ -3694,8 +3740,12 @@ void select_insert::store_values(List<Item> &values)
 {
   const bool ignore_err= true;
   if (fields->elements)
-    fill_record_n_invoke_before_triggers(thd, *fields, values, ignore_err,
-                                         table->triggers, TRG_EVENT_INSERT);
+  {
+    restore_record(table, s->default_values);
+    if (!validate_default_values_of_unset_fields(thd, table))
+      fill_record_n_invoke_before_triggers(thd, *fields, values, ignore_err,
+                                           table->triggers, TRG_EVENT_INSERT);
+  }
   else
     fill_record_n_invoke_before_triggers(thd, table->field, values, ignore_err,
                                          table->triggers, TRG_EVENT_INSERT);

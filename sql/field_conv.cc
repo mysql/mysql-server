@@ -218,7 +218,8 @@ static void do_copy_null(Copy_field *copy)
 
 static void do_copy_not_null(Copy_field *copy)
 {
-  if (*copy->null_row || (*copy->from_null_ptr & copy->from_bit))
+  if (*copy->null_row ||
+      (copy->from_null_ptr && (*copy->from_null_ptr & copy->from_bit)))
   {
     copy->to_field->set_warning(Sql_condition::WARN_LEVEL_WARN,
                                 WARN_DATA_TRUNCATED, 1);
@@ -811,8 +812,10 @@ type_conversion_status field_conv(Field *to,Field *from)
         (!(to->table->in_use->variables.sql_mode &
            (MODE_NO_ZERO_IN_DATE | MODE_NO_ZERO_DATE | MODE_INVALID_DATES)) ||
          (to->type() != MYSQL_TYPE_DATE &&
-          to->type() != MYSQL_TYPE_DATETIME)) &&
-        (from->real_type() != MYSQL_TYPE_VARCHAR))
+          to->type() != MYSQL_TYPE_DATETIME &&
+          (!to->table->in_use->variables.explicit_defaults_for_timestamp ||
+           to->type() != MYSQL_TYPE_TIMESTAMP))) &&
+         (from->real_type() != MYSQL_TYPE_VARCHAR))
     {						// Identical fields
       // to->ptr==from->ptr may happen if one does 'UPDATE ... SET x=x'
       memmove(to->ptr, from->ptr, to->pack_length());
