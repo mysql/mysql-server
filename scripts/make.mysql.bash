@@ -209,6 +209,8 @@ if [ $build_tgz != 0 ] ; then
     mkdir -p build.$cmake_build_type
     pushd build.$cmake_build_type
 
+    export TOKUDB_VERSION=$tokudb_version
+
     # actually build
     cmd=$(generate_cmake_cmd)
     if [ $? != 0 ] ; then exit 1; fi
