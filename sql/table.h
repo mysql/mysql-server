@@ -1845,6 +1845,16 @@ struct TABLE_LIST
 
   bool single_table_updatable();
 
+  bool is_inner_table_of_outer_join()
+  {
+    for (TABLE_LIST *tbl= this; tbl; tbl= tbl->embedding)
+    {
+      if (tbl->outer_join)
+        return true;
+    }
+    return false;
+  } 
+
 private:
   bool prep_check_option(THD *thd, uint8 check_opt_type);
   bool prep_where(THD *thd, Item **conds, bool no_where_clause);
