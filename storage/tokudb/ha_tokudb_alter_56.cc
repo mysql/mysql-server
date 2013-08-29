@@ -491,6 +491,12 @@ bool ha_tokudb::inplace_alter_table(TABLE *altered_table, Alter_inplace_info *ha
     if (error == 0 && ctx->reset_card)
         tokudb::set_card_from_status(share->status_block, ctx->alter_txn, table->s, altered_table->s);
 
+#if 50600 <= MYSQL_VERSION_ID && MYSQL_VERSION_ID <= 50699
+    if (error == 0 && (TOKU_PARTITION_WRITE_FRM_DATA || altered_table->part_info == NULL)) {
+        error = write_frm_data(share->status_block, ctx->alter_txn, altered_table->s->path.str);
+    }
+#endif
+
     bool result = false; // success
     if (error) {
         print_error(error, MYF(0));
@@ -670,11 +676,9 @@ bool ha_tokudb::commit_inplace_alter_table(TABLE *altered_table, Alter_inplace_i
 #if 50613 <= MYSQL_VERSION_ID && MYSQL_VERSION_ID <= 50699
         if (ha_alter_info->group_commit_ctx) {
             ha_alter_info->group_commit_ctx = NULL;
-            assert(!(TOKU_PARTITION_WRITE_FRM_DATA || altered_table->part_info == NULL));
         }
-        // move the following to ha_tokudb::inplace_alter_table since commit_inplace_alter_table
-        // is not called for all partitions.  see ha_partition::commit_inplace_alter_table.
 #endif
+#if 50500 <= MYSQL_VERSION_ID && MYSQL_VERSION_ID <= 50599
         if (TOKU_PARTITION_WRITE_FRM_DATA || altered_table->part_info == NULL) {
             int error = write_frm_data(share->status_block, ctx->alter_txn, altered_table->s->path.str);
             if (error) {
@@ -683,6 +687,7 @@ bool ha_tokudb::commit_inplace_alter_table(TABLE *altered_table, Alter_inplace_i
                 print_error(error, MYF(0));
             }
         }
+#endif
     }
 
     if (!commit) {
