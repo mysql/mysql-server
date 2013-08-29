@@ -2164,4 +2164,30 @@ SELECT * FROM t1 LEFT JOIN t2 ON a1 = a2
 WHERE ( dt IS NULL OR FALSE ) AND b2 IS NULL;
 a1	b1	dt	a2	b2
 DROP TABLE t1,t2;
+#
+# Bug mdev-4962: nested outer join with 
+#                <non-nullable datetime field> IS NULL in WHERE 
+#                causes an assert failure  
+#
+CREATE TABLE t1 (i1 int) ENGINE=MyISAM;
+INSERT INTO t1 VALUES (1),(2);
+CREATE TABLE t2 (i2 int) ENGINE=MyISAM;
+INSERT INTO t2 VALUES (10),(20);
+CREATE TABLE t3 (i3 int, d3 datetime NOT NULL) ENGINE=MyISAM;
+INSERT INTO t3 VALUES (8,'2008-12-04 17:53:42'),(9,'2012-12-21 12:12:12');
+SELECT * FROM t1 LEFT JOIN t2 LEFT JOIN t3 ON i2 = i3 ON i1 = i3
+WHERE d3 IS NULL;
+i1	i2	i3	d3
+1	NULL	NULL	NULL
+2	NULL	NULL	NULL
+EXPLAIN EXTENDED
+SELECT * FROM t1 LEFT JOIN t2 LEFT JOIN t3 ON i2 = i3 ON i1 = i3
+WHERE d3 IS NULL;
+id	select_type	table	type	possible_keys	key	key_len	ref	rows	filtered	Extra
+1	SIMPLE	t1	ALL	NULL	NULL	NULL	NULL	2	100.00	
+1	SIMPLE	t2	ALL	NULL	NULL	NULL	NULL	2	100.00	Using where
+1	SIMPLE	t3	ALL	NULL	NULL	NULL	NULL	2	100.00	Using where
+Warnings:
+Note	1003	select `test`.`t1`.`i1` AS `i1`,`test`.`t2`.`i2` AS `i2`,`test`.`t3`.`i3` AS `i3`,`test`.`t3`.`d3` AS `d3` from `test`.`t1` left join (`test`.`t2` join `test`.`t3`) on(((`test`.`t2`.`i2` = `test`.`t1`.`i1`) and (`test`.`t3`.`i3` = `test`.`t1`.`i1`))) where ((`test`.`t3`.`d3` = 0) or isnull(`test`.`t3`.`d3`))
+DROP TABLE t1,t2,t3;
 SET optimizer_switch=@save_optimizer_switch;

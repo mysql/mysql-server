@@ -13832,7 +13832,7 @@ internal_remove_eq_conds(THD *thd, COND *cond, Item::cond_result *cond_value)
         if (!eq_cond)
           return cond;
 
-        if (field->table->pos_in_table_list->outer_join)
+        if (field->table->pos_in_table_list->is_inner_table_of_outer_join())
         {
           // outer join: transform "col IS NULL" to "col IS NULL or col=0"
           Item *or_cond= new(thd->mem_root) Item_cond_or(eq_cond, cond);

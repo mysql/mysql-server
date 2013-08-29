@@ -1721,4 +1721,27 @@ SELECT * FROM t1 LEFT JOIN t2 ON a1 = a2
 
 DROP TABLE t1,t2;
 
+--echo #
+--echo # Bug mdev-4962: nested outer join with 
+--echo #                <non-nullable datetime field> IS NULL in WHERE 
+--echo #                causes an assert failure  
+--echo #
+
+CREATE TABLE t1 (i1 int) ENGINE=MyISAM;
+INSERT INTO t1 VALUES (1),(2);
+
+CREATE TABLE t2 (i2 int) ENGINE=MyISAM;
+INSERT INTO t2 VALUES (10),(20);
+
+CREATE TABLE t3 (i3 int, d3 datetime NOT NULL) ENGINE=MyISAM;
+INSERT INTO t3 VALUES (8,'2008-12-04 17:53:42'),(9,'2012-12-21 12:12:12');
+
+SELECT * FROM t1 LEFT JOIN t2 LEFT JOIN t3 ON i2 = i3 ON i1 = i3
+  WHERE d3 IS NULL;
+EXPLAIN EXTENDED
+SELECT * FROM t1 LEFT JOIN t2 LEFT JOIN t3 ON i2 = i3 ON i1 = i3
+  WHERE d3 IS NULL;
+
+DROP TABLE t1,t2,t3;
+
 SET optimizer_switch=@save_optimizer_switch;
