@@ -425,8 +425,9 @@ void my_thread_end(void)
 
 struct st_my_thread_var *_my_thread_var(void)
 {
-  DBUG_ASSERT(THR_KEY_mysys_initialized);
-  return  my_pthread_getspecific(struct st_my_thread_var*,THR_KEY_mysys);
+  if (THR_KEY_mysys_initialized)
+    return  my_pthread_getspecific(struct st_my_thread_var*,THR_KEY_mysys);
+  return NULL;
 }
 
 int set_mysys_var(struct st_my_thread_var *mysys_var)
