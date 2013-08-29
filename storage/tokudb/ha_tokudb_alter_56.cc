@@ -667,6 +667,14 @@ bool ha_tokudb::commit_inplace_alter_table(TABLE *altered_table, Alter_inplace_i
     bool result = false; // success
 
     if (commit) {
+#if 50613 <= MYSQL_VERSION_ID && MYSQL_VERSION_ID <= 50699
+        if (ha_alter_info->group_commit_ctx) {
+            ha_alter_info->group_commit_ctx = NULL;
+            assert(!(TOKU_PARTITION_WRITE_FRM_DATA || altered_table->part_info == NULL));
+        }
+        // move the following to ha_tokudb::inplace_alter_table since commit_inplace_alter_table
+        // is not called for all partitions.  see ha_partition::commit_inplace_alter_table.
+#endif
         if (TOKU_PARTITION_WRITE_FRM_DATA || altered_table->part_info == NULL) {
             int error = write_frm_data(share->status_block, ctx->alter_txn, altered_table->s->path.str);
             if (error) {
