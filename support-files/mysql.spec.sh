@@ -643,7 +643,7 @@ then
 fi
 if [ -z "$PID_FILE_PATT" ]
 then
-  PID_FILE_PATT="$mysql_datadir/*.pid"
+  PID_FILE_PATT=`ls $mysql_datadir/*.pid 2>/dev/null | grep -v "mysqld_safe.pid"`
 fi
 
 # Check if we can safely upgrade.  An upgrade is only safe if it's from one
@@ -1194,6 +1194,9 @@ fi
 # merging BK trees)
 ##############################################################################
 %changelog
+* Thu Aug 29 2013 Balasubramanian Kandasamy <balasubramanian.kandasamy@oracle.com>
+- Added logic to ignore mysqld_safe.pid file created by mysqld_safe script
+
 * Tue Sep 11 2012 Joerg Bruehe <joerg.bruehe@oracle.com>
 
 - Disable "maintainer mode" in debug builds, there is a cast ulonglong -> int
