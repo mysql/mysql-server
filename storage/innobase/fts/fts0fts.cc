@@ -4633,8 +4633,8 @@ fts_get_token_size(
 	start = const_cast<char*>(token);
 	end = start + len;
 	while (start < end) {
-		int ctype;
-		int mbl;
+		int	ctype;
+		int	mbl;
 
 		mbl = cs->cset->ctype(
 			cs, &ctype,
@@ -4808,7 +4808,7 @@ fts_tokenize_document_next(
 	ut_a(doc->tokens);
 
 	if (parser) {
-		fts_tokenize_param_t      fts_param;
+		fts_tokenize_param_t	fts_param;
 
 		fts_param.result_doc = (result != NULL) ? result : doc;
 		fts_param.add_pos = add_pos;
