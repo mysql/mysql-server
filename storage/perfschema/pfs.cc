@@ -4687,7 +4687,7 @@ pfs_refine_statement_v1(PSI_statement_locker *locker,
   PFS_statement_class *klass;
   /* Only refine statements for mutable instrumentation */
   klass= reinterpret_cast<PFS_statement_class*> (state->m_class);
-  DBUG_ASSERT(klass->m_flags & PSI_FLAG_MUTABLE);
+  DBUG_ASSERT(klass->is_mutable());
   klass= find_statement_class(key);
 
   uint flags= state->m_flags;
