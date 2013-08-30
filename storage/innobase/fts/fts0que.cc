@@ -155,7 +155,7 @@ struct fts_query_t {
 
 	bool		multi_exist;	/*!< multiple FTS_EXIST oper */
 
-	st_mysql_ftparser*      parser; /*!< fts plugin parser */
+	st_mysql_ftparser*	parser;	/*!< fts plugin parser */
 };
 
 /** For phrase matching, first we collect the documents and the positions
@@ -1774,9 +1774,9 @@ fts_query_match_phrase_add_word_for_parser(
 	mem_heap_t*		heap;
 
 	phrase_param = static_cast<fts_phrase_param_t*>(param->mysql_ftparam);
-        heap = phrase_param->heap;
-        phrase = phrase_param->phrase;
-        tokens = phrase->tokens;
+	heap = phrase_param->heap;
+	phrase = phrase_param->phrase;
+	tokens = phrase->tokens;
 
 	/* In case plugin parser doesn't check return value */
 	if (phrase_param->token_index == ib_vector_size(tokens)) {
@@ -1828,7 +1828,7 @@ fts_query_match_phrase_terms_by_parser(
 	byte*			text,		/* in: text to check */
 	ulint			len)		/* in: text length */
 {
-	MYSQL_FTPARSER_PARAM    param;
+	MYSQL_FTPARSER_PARAM	param;
 
 	ut_a(parser);
 
