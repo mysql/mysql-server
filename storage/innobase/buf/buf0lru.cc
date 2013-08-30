@@ -142,7 +142,7 @@ If a compressed page is freed other compressed pages may be relocated.
 caller needs to free the page to the free list
 @retval false if BUF_BLOCK_ZIP_PAGE was removed from page_hash. In
 this case the block is already returned to the buddy allocator. */
-static __attribute__((nonnull, warn_unused_result))
+static __attribute__((warn_unused_result))
 bool
 buf_LRU_block_remove_hashed(
 /*========================*/
@@ -171,7 +171,9 @@ incr_LRU_size_in_bytes(
 	buf_pool_t*	buf_pool)	/*!< in: buffer pool instance */
 {
 	ut_ad(buf_pool_mutex_own(buf_pool));
+
 	ulint zip_size = page_zip_get_size(&bpage->zip);
+
 	buf_pool->stat.LRU_bytes += zip_size ? zip_size : UNIV_PAGE_SIZE;
 	ut_ad(buf_pool->stat.LRU_bytes <= buf_pool->curr_pool_size);
 }
@@ -186,9 +188,6 @@ buf_LRU_evict_from_unzip_LRU(
 /*=========================*/
 	buf_pool_t*	buf_pool)
 {
-	ulint	io_avg;
-	ulint	unzip_avg;
-
 	ut_ad(buf_pool_mutex_own(buf_pool));
 
 	/* If the unzip_LRU list is empty, we can only use the LRU. */
@@ -212,9 +211,10 @@ buf_LRU_evict_from_unzip_LRU(
 
 	/* Calculate the average over past intervals, and add the values
 	of the current interval. */
-	io_avg = buf_LRU_stat_sum.io / BUF_LRU_STAT_N_INTERVAL
+	ulint	io_avg = buf_LRU_stat_sum.io / BUF_LRU_STAT_N_INTERVAL
 		+ buf_LRU_stat_cur.io;
-	unzip_avg = buf_LRU_stat_sum.unzip / BUF_LRU_STAT_N_INTERVAL
+
+	ulint	unzip_avg = buf_LRU_stat_sum.unzip / BUF_LRU_STAT_N_INTERVAL
 		+ buf_LRU_stat_cur.unzip;
 
 	/* Decide based on our formula.  If the load is I/O bound
@@ -237,14 +237,10 @@ buf_LRU_drop_page_hash_batch(
 	const ulint*	arr,		/*!< in: array of page_no */
 	ulint		count)		/*!< in: number of entries in array */
 {
-	ulint	i;
-
-	ut_ad(arr != NULL);
 	ut_ad(count <= BUF_LRU_DROP_SEARCH_SIZE);
 
-	for (i = 0; i < count; ++i) {
-		btr_search_drop_page_hash_when_freed(space_id, zip_size,
-						     arr[i]);
+	for (ulint i = 0; i < count; ++i, ++arr) {
+		btr_search_drop_page_hash_when_freed(space_id, zip_size, *arr);
 	}
 }
 
@@ -260,12 +256,7 @@ buf_LRU_drop_page_hash_for_tablespace(
 	buf_pool_t*	buf_pool,	/*!< in: buffer pool instance */
 	ulint		id)		/*!< in: space id */
 {
-	buf_page_t*	bpage;
-	ulint*		page_arr;
-	ulint		num_entries;
-	ulint		zip_size;
-
-	zip_size = fil_space_get_zip_size(id);
+	ulint		zip_size = fil_space_get_zip_size(id);
 
 	if (zip_size == ULINT_UNDEFINED) {
 		/* Somehow, the tablespace does not exist.  Nothing to drop. */
@@ -273,20 +264,19 @@ buf_LRU_drop_page_hash_for_tablespace(
 		return;
 	}
 
-	page_arr = static_cast<ulint*>(ut_malloc(
-		sizeof(ulint) * BUF_LRU_DROP_SEARCH_SIZE));
+	ulint*	page_arr = static_cast<ulint*>(ut_malloc(
+			sizeof(ulint) * BUF_LRU_DROP_SEARCH_SIZE));
+
+	ulint	num_entries = 0;
 
 	buf_pool_mutex_enter(buf_pool);
-	num_entries = 0;
 
 scan_again:
-	bpage = UT_LIST_GET_LAST(buf_pool->LRU);
+	for (buf_page_t* bpage = UT_LIST_GET_LAST(buf_pool->LRU);
+	     bpage != NULL;
+	     /* No op */) {
 
-	while (bpage != NULL) {
-		buf_page_t*	prev_bpage;
-		ibool		is_fixed;
-
-		prev_bpage = UT_LIST_GET_PREV(LRU, bpage);
+		buf_page_t*	prev_bpage = UT_LIST_GET_PREV(LRU, bpage);
 
 		ut_a(buf_page_in_file(bpage));
 
@@ -303,13 +293,15 @@ next_page:
 
 		mutex_enter(&((buf_block_t*) bpage)->mutex);
 
-		is_fixed = bpage->buf_fix_count > 0
-			|| !((buf_block_t*) bpage)->index;
+		{
+			bool	is_fixed = bpage->buf_fix_count > 0
+				|| !((buf_block_t*) bpage)->index;
 
-		mutex_exit(&((buf_block_t*) bpage)->mutex);
+			mutex_exit(&((buf_block_t*) bpage)->mutex);
 
-		if (is_fixed) {
-			goto next_page;
+			if (is_fixed) {
+				goto next_page;
+			}
 		}
 
 		/* Store the page number so that we can drop the hash
@@ -349,8 +341,9 @@ next_page:
 		/* If, however, bpage has been removed from LRU list
 		to the free list then we should restart the scan.
 		bpage->state is protected by buf_pool mutex. */
-		if (bpage
+		if (bpage != NULL
 		    && buf_page_get_state(bpage) != BUF_BLOCK_FILE_PAGE) {
+
 			goto scan_again;
 		}
 	}
@@ -368,7 +361,7 @@ want to hog the CPU and resources. Release the buffer pool and block
 mutex and try to force a context switch. Then reacquire the same mutexes.
 The current page is "fixed" before the release of the mutexes and then
 "unfixed" again once we have reacquired the mutexes. */
-static	__attribute__((nonnull))
+static
 void
 buf_flush_yield(
 /*============*/
@@ -399,6 +392,7 @@ buf_flush_yield(
 	buf_pool_mutex_enter(buf_pool);
 
 	mutex_enter(block_mutex);
+
 	/* "Unfix" the block now that we have both the
 	buffer pool and block mutex again. */
 	buf_page_unset_sticky(bpage);
@@ -410,7 +404,7 @@ If we have hogged the resources for too long then release the buffer
 pool and flush list mutex and do a thread yield. Set the current page
 to "sticky" so that it is not relocated during the yield.
 @return true if yielded */
-static	__attribute__((nonnull(1), warn_unused_result))
+static	__attribute__((warn_unused_result))
 bool
 buf_flush_try_yield(
 /*================*/
@@ -453,7 +447,7 @@ buf_flush_try_yield(
 Removes a single page from a given tablespace inside a specific
 buffer pool instance.
 @return true if page was removed. */
-static	__attribute__((nonnull, warn_unused_result))
+static	__attribute__((warn_unused_result))
 bool
 buf_flush_or_remove_page(
 /*=====================*/
@@ -543,7 +537,7 @@ the list as they age towards the tail of the LRU.
 @retval DB_SUCCESS if all freed
 @retval DB_FAIL if not all freed
 @retval DB_INTERRUPTED if the transaction was interrupted */
-static	__attribute__((nonnull(1), warn_unused_result))
+static	__attribute__((warn_unused_result))
 dberr_t
 buf_flush_or_remove_pages(
 /*======================*/
@@ -649,7 +643,7 @@ Remove or flush all the dirty pages that belong to a given tablespace
 inside a specific buffer pool instance. The pages will remain in the LRU
 list and will be evicted from the LRU list as they age and move towards
 the tail of the LRU list. */
-static __attribute__((nonnull(1)))
+static
 void
 buf_flush_dirty_pages(
 /*==================*/
@@ -689,7 +683,7 @@ buf_flush_dirty_pages(
 /******************************************************************//**
 Remove all pages that belong to a given tablespace inside a specific
 buffer pool instance when we are DISCARDing the tablespace. */
-static __attribute__((nonnull))
+static
 void
 buf_LRU_remove_all_pages(
 /*=====================*/
@@ -833,7 +827,7 @@ buffer pool instance when we are deleting the data file(s) of that
 tablespace. The pages still remain a part of LRU and are evicted from
 the list as they age towards the tail of the LRU only if buf_remove
 is BUF_REMOVE_FLUSH_NO_WRITE. */
-static	__attribute__((nonnull(1)))
+static
 void
 buf_LRU_remove_pages(
 /*=================*/
@@ -919,7 +913,6 @@ buf_LRU_insert_zip_clean(
 /*=====================*/
 	buf_page_t*	bpage)	/*!< in: pointer to the block in question */
 {
-	buf_page_t*	b;
 	buf_pool_t*	buf_pool = buf_pool_from_bpage(bpage);
 
 	ut_ad(buf_pool_mutex_own(buf_pool));
@@ -927,17 +920,18 @@ buf_LRU_insert_zip_clean(
 
 	/* Find the first successor of bpage in the LRU list
 	that is in the zip_clean list. */
-	b = bpage;
+	buf_page_t*	b = bpage;
+
 	do {
 		b = UT_LIST_GET_NEXT(LRU, b);
 	} while (b && buf_page_get_state(b) != BUF_BLOCK_ZIP_PAGE);
 
 	/* Insert bpage before b, i.e., after the predecessor of b. */
-	if (b) {
+	if (b != NULL) {
 		b = UT_LIST_GET_PREV(list, b);
 	}
 
-	if (b) {
+	if (b != NULL) {
 		UT_LIST_INSERT_AFTER(buf_pool->zip_clean, b, bpage);
 	} else {
 		UT_LIST_ADD_FIRST(buf_pool->zip_clean, bpage);
