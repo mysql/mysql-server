@@ -315,8 +315,7 @@ bool Deadlock_detection_visitor::inspect_edge(MDL_context *node)
   Change the deadlock victim to a new one if it has lower deadlock
   weight.
 
-  @retval new_victim  Victim is not changed.
-  @retval !new_victim New victim became the current.
+  @param new_victim New candidate for deadlock victim.
 */
 
 void
@@ -1906,9 +1905,6 @@ MDL_context::find_ticket(MDL_request *mdl_request,
   Returns immediately without any side effect if encounters a lock
   conflict. Otherwise takes the lock.
 
-  FIXME: Compared to lock_table_name_if_not_cached() (from 5.1)
-         it gives slightly more false negatives.
-
   @param mdl_request [in/out] Lock request object for lock to be acquired
 
   @retval  FALSE   Success. The lock may have not been acquired.
@@ -2643,9 +2639,6 @@ bool MDL_context::visit_subgraph(MDL_wait_for_graph_visitor *gvisitor)
   @note If during deadlock resolution context which performs deadlock
         detection is chosen as a victim it will be informed about the
         fact by setting VICTIM status to its wait slot.
-
-  @retval TRUE  A deadlock is found.
-  @retval FALSE No deadlock found.
 */
 
 void MDL_context::find_deadlock()
