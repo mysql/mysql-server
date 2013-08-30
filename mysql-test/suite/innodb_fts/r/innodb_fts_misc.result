@@ -733,11 +733,9 @@ count(*)
 3
 DROP TABLE t1;
 "----------Test27---------"
-CREATE TABLE t1 (id INT,char_column VARCHAR(60)) ENGINE=InnoDB;
+CREATE TABLE t1 (id INT,char_column VARCHAR(60));
 SET @@autocommit=0;
 CREATE FULLTEXT INDEX i ON t1 (char_column);
-Warnings:
-Warning	124	InnoDB rebuilding table to add column FTS_DOC_ID
 INSERT INTO t1 values (1,'aaa');
 "restart server..."
 # Restart the server
