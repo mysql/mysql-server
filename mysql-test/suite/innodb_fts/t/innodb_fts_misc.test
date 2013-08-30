@@ -1,4 +1,7 @@
---source include/have_innodb.inc
+# The include statement below is a temp one for tests that are yet to
+#be ported to run with InnoDB,
+#but needs to be kept for tests that would need MyISAM in future.
+--source include/force_myisam_default.inc
 
 #------------------------------------------------------------------------------
 # Test With alter/create/drop index
@@ -664,7 +667,7 @@ DROP TABLE t1;
 
 --echo "----------Test27---------"
 #27 Crash after server restart
-CREATE TABLE t1 (id INT,char_column VARCHAR(60)) ENGINE=InnoDB;
+CREATE TABLE t1 (id INT,char_column VARCHAR(60));
 SET @@autocommit=0;
 CREATE FULLTEXT INDEX i ON t1 (char_column);
 INSERT INTO t1 values (1,'aaa');
