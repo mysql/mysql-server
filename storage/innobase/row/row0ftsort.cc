@@ -32,6 +32,7 @@ Created 10/13/2010 Jimmy Yang
 #include "row0merge.h"
 #include "row0row.h"
 #include "btr0cur.h"
+#include "fts0plugin.h"
 
 /** Read the next record to buffer N.
 @param N index into array of merge info structure */
@@ -88,6 +89,7 @@ row_merge_create_fts_sort_index(
 	new_index->n_uniq = FTS_NUM_FIELDS_SORT;
 	new_index->n_def = FTS_NUM_FIELDS_SORT;
 	new_index->cached = TRUE;
+	new_index->parser = index->parser;
 
 	idx_field = dict_index_get_nth_field(index, 0);
 	charset = fts_index_get_charset(index);
@@ -353,6 +355,87 @@ row_fts_free_pll_merge_buf(
 }
 
 /*********************************************************************//**
+FTS plugin parser 'myql_add_word' callback function for row merge.
+Refer to 'st_mysql_ftparser_param' for more detail.
+@return always returns 0 */
+static
+int
+row_merge_fts_doc_add_word_for_parser(
+/*==================================*/
+	MYSQL_FTPARSER_PARAM	*param,		/* in: parser paramter */
+	char			*word,		/* in: token word */
+	int			word_len,	/* in: word len */
+	MYSQL_FTPARSER_BOOLEAN_INFO* boolean_info) /* in: word boolean info */
+{
+	fts_string_t    str;
+	fts_tokenize_ctx_t*	t_ctx;
+	row_fts_token_t*	fts_token;
+	byte*			ptr;
+
+	ut_ad(param);
+	ut_ad(param->mysql_ftparam);
+	ut_ad(word);
+	ut_ad(boolean_info);
+
+	t_ctx = static_cast<fts_tokenize_ctx_t*>(param->mysql_ftparam);
+	ut_ad(t_ctx);
+
+	str.f_str = reinterpret_cast<byte*>(word);
+	str.f_len = word_len;
+	str.f_n_char = fts_get_token_size(
+		(CHARSET_INFO*)param->cs, word, word_len);
+
+	ut_ad(boolean_info->position >= 0);
+
+	ptr = static_cast<byte*>(ut_malloc(sizeof(row_fts_token_t)
+			+ sizeof(fts_string_t) + str.f_len));
+	fts_token = reinterpret_cast<row_fts_token_t*>(ptr);
+	fts_token->text = reinterpret_cast<fts_string_t*>(
+			ptr + sizeof(row_fts_token_t));
+	fts_token->text->f_str = static_cast<byte*>(
+			ptr + sizeof(row_fts_token_t) + sizeof(fts_string_t));
+
+	fts_token->text->f_len = str.f_len;
+	fts_token->text->f_n_char = str.f_n_char;
+	memcpy(fts_token->text->f_str, str.f_str, str.f_len);
+	fts_token->position = boolean_info->position;
+
+	/* Add token to list */
+	UT_LIST_ADD_LAST(t_ctx->fts_token_list, fts_token);
+
+	return(0);
+}
+
+/*********************************************************************//**
+Tokenize by fts plugin parser */
+static
+void
+row_merge_fts_doc_tokenize_by_parser(
+/*=================================*/
+	fts_doc_t*		doc,	/* in: doc to tokenize */
+	st_mysql_ftparser*	parser,	/* in: plugin parser instance */
+	fts_tokenize_ctx_t*	t_ctx)	/* in/out: tokenize ctx instance */
+{
+	MYSQL_FTPARSER_PARAM    param;
+
+	ut_a(parser);
+
+	/* Set paramters for param */
+	param.mysql_parse = fts_tokenize_document_internal;
+	param.mysql_add_word = row_merge_fts_doc_add_word_for_parser;
+	param.mysql_ftparam = t_ctx;
+	param.cs = doc->charset;
+	param.doc = reinterpret_cast<char*>(doc->text.f_str);
+	param.length = doc->text.f_len;
+	param.mode= MYSQL_FTPARSER_SIMPLE_MODE;
+
+	PARSER_INIT(parser, &param);
+	/* We assume parse returns successfully here. */
+	parser->parse(&param);
+	PARSER_DEINIT(parser, &param);
+}
+
+/*********************************************************************//**
 Tokenize incoming text data and add to the sort buffer.
 @return TRUE if the record passed, FALSE if out of space */
 static
@@ -370,8 +453,7 @@ row_merge_fts_doc_tokenize(
 						store Doc ID during sort*/
 	fts_tokenize_ctx_t*	t_ctx)          /*!< in/out: tokenize context */
 {
-	ulint		i;
-	ulint		inc;
+	ulint		inc = 0;
 	fts_string_t	str;
 	ulint		len;
 	row_merge_buf_t* buf;
@@ -381,6 +463,7 @@ row_merge_fts_doc_tokenize(
 	byte		str_buf[FTS_MAX_WORD_LEN + 1];
 	ulint		data_size[FTS_NUM_AUX_INDEX];
 	ulint		n_tuple[FTS_NUM_AUX_INDEX];
+	st_mysql_ftparser*	parser;
 
 	t_str.f_n_char = 0;
 	t_ctx->buf_used = 0;
@@ -388,28 +471,62 @@ row_merge_fts_doc_tokenize(
 	memset(n_tuple, 0, FTS_NUM_AUX_INDEX * sizeof(ulint));
 	memset(data_size, 0, FTS_NUM_AUX_INDEX * sizeof(ulint));
 
+	parser = sort_buf[0]->index->parser;
+
 	/* Tokenize the data and add each word string, its corresponding
 	doc id and position to sort buffer */
-	for (i = t_ctx->processed_len; i < doc->text.f_len; i += inc) {
+	while (t_ctx->processed_len < doc->text.f_len) {
 		ib_rbt_bound_t	parent;
 		ulint		idx = 0;
 		ib_uint32_t	position;
-		ulint           offset = 0;
 		ulint		cur_len = 0;
 		doc_id_t	write_doc_id;
+		row_fts_token_t* fts_token = NULL;
 
-		inc = innobase_mysql_fts_get_token(
-			doc->charset, doc->text.f_str + i,
-			doc->text.f_str + doc->text.f_len, &str, &offset);
+		if (parser != NULL) {
+			if (t_ctx->processed_len == 0) {
+				UT_LIST_INIT(t_ctx->fts_token_list, &row_fts_token_t::token_list);
 
-		ut_a(inc > 0);
+				/* Parse the whole doc and cache tokens */
+				row_merge_fts_doc_tokenize_by_parser(doc,
+					parser, t_ctx);
+
+				/* Just indictate we have parsed all the word */
+				t_ctx->processed_len += 1;
+			}
+
+			/* Then get a token */
+			fts_token = UT_LIST_GET_FIRST(t_ctx->fts_token_list);
+			if (fts_token) {
+				str.f_len = fts_token->text->f_len;
+				str.f_n_char = fts_token->text->f_n_char;
+				str.f_str = fts_token->text->f_str;
+			} else {
+				ut_ad(UT_LIST_GET_LEN(t_ctx->fts_token_list) == 0);
+				/* Reach the end of the list */
+				t_ctx->processed_len = doc->text.f_len;
+				break;
+			}
+		} else {
+			inc = innobase_mysql_fts_get_token(
+				doc->charset,
+				doc->text.f_str + t_ctx->processed_len,
+				doc->text.f_str + doc->text.f_len, &str);
+
+			ut_a(inc > 0);
+		}
 
 		/* Ignore string whose character number is less than
 		"fts_min_token_size" or more than "fts_max_token_size" */
 		if (str.f_n_char < fts_min_token_size
 		    || str.f_n_char > fts_max_token_size) {
+			if (parser != NULL) {
+				UT_LIST_REMOVE(t_ctx->fts_token_list, fts_token);
+				ut_free(fts_token);
+			} else {
+				t_ctx->processed_len += inc;
+			}
 
-			t_ctx->processed_len += inc;
 			continue;
 		}
 
@@ -425,7 +542,13 @@ row_merge_fts_doc_tokenize(
 		    && rbt_search(t_ctx->cached_stopword,
 				  &parent, &t_str) == 0) {
 
-			t_ctx->processed_len += inc;
+			if (parser != NULL) {
+				UT_LIST_REMOVE(t_ctx->fts_token_list, fts_token);
+				ut_free(fts_token);
+			} else {
+				t_ctx->processed_len += inc;
+			}
+
 			continue;
 		}
 
@@ -491,9 +614,15 @@ row_merge_fts_doc_tokenize(
 		++field;
 
 		/* The third field is the position */
-		mach_write_to_4(
-			(byte*) &position,
-			(i + offset + inc - str.f_len + t_ctx->init_pos));
+		if (parser != NULL) {
+			mach_write_to_4(
+				reinterpret_cast<byte*>(&position),
+				(fts_token->position + t_ctx->init_pos));
+		} else {
+			mach_write_to_4(
+				reinterpret_cast<byte*>(&position),
+				(t_ctx->processed_len + inc - str.f_len + t_ctx->init_pos));
+		}
 
 		dfield_set_data(field, &position, sizeof(position));
 		len = dfield_get_len(field);
@@ -513,20 +642,24 @@ row_merge_fts_doc_tokenize(
 		/* Reserve one byte for the end marker of row_merge_block_t. */
 		if (buf->total_size + data_size[idx] + cur_len
 		    >= srv_sort_buf_size - 1) {
-
 			buf_full = TRUE;
 			break;
 		}
 
 		/* Increment the number of tuples */
 		n_tuple[idx]++;
-		t_ctx->processed_len += inc;
+		if (parser != NULL) {
+			UT_LIST_REMOVE(t_ctx->fts_token_list, fts_token);
+			ut_free(fts_token);
+		} else {
+			t_ctx->processed_len += inc;
+		}
 		data_size[idx] += cur_len;
 	}
 
 	/* Update the data length and the number of new word tuples
 	added in this round of tokenization */
-	for (i = 0; i <  FTS_NUM_AUX_INDEX; i++) {
+	for (ulint i = 0; i <  FTS_NUM_AUX_INDEX; i++) {
 		/* The computation of total_size below assumes that no
 		delete-mark flags will be stored and that all fields
 		are NOT NULL and fixed-length. */
@@ -1033,7 +1166,7 @@ row_fts_insert_tuple(
 	token_word.f_str = static_cast<byte*>(dfield_get_data(dfield));
 
 	if (!word->text.f_str) {
-		fts_utf8_string_dup(&word->text, &token_word, ins_ctx->heap);
+		fts_string_dup(&word->text, &token_word, ins_ctx->heap);
 	}
 
 	/* compare to the last word, to see if they are the same
@@ -1055,7 +1188,7 @@ row_fts_insert_tuple(
 					 ins_ctx->charset);
 
 		/* Copy the new word */
-		fts_utf8_string_dup(&word->text, &token_word, ins_ctx->heap);
+		fts_string_dup(&word->text, &token_word, ins_ctx->heap);
 
 		num_item = ib_vector_size(positions);
 

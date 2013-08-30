@@ -33,6 +33,7 @@ Full Text Search interface
 #include "fts0types.h"
 #include "fts0types.ic"
 #include "fts0vlc.ic"
+#include "fts0plugin.h"
 #include "dict0priv.h"
 #include "dict0stats.h"
 #include "btr0pcur.h"
@@ -236,6 +237,12 @@ static const char* fts_config_table_insert_values_sql =
 	"INSERT INTO \"%s\" VALUES ('"
 		FTS_TABLE_STATE "', '0');\n";
 
+/** FTS tokenize parmameter for plugin parser */
+struct fts_tokenize_param_t {
+	fts_doc_t*	result_doc;	/*!< Result doc for tokens */
+	ulint		add_pos;	/*!< Added position for tokens */
+};
+
 /****************************************************************//**
 Run SYNC on the table, i.e., write out data from the cache to the
 FTS auxiliary INDEX table and clear the cache at the end.
@@ -403,7 +410,7 @@ fts_load_default_stopword(
 		str.f_len = ut_strlen(word);
 		str.f_str = reinterpret_cast<byte*>(word);
 
-		fts_utf8_string_dup(&new_word.text, &str, heap);
+		fts_string_dup(&new_word.text, &str, heap);
 
 		rbt_insert(stop_words, &new_word, &new_word);
 	}
@@ -1280,7 +1287,7 @@ fts_tokenizer_word_get(
 		new_word.nodes = ib_vector_create(
 			cache->sync_heap, sizeof(fts_node_t), 4);
 
-		fts_utf8_string_dup(&new_word.text, text, heap);
+		fts_string_dup(&new_word.text, text, heap);
 
 		parent.last = rbt_add_node(
 			index_cache->words, &parent, &new_word);
@@ -3308,9 +3315,11 @@ fts_query_expansion_fetch_doc(
 		}
 
 		if (field_no == 0) {
-			fts_tokenize_document(&doc, result_doc);
+			fts_tokenize_document(&doc, result_doc,
+					      result_doc->parser);
 		} else {
-			fts_tokenize_document_next(&doc, doc_len, result_doc);
+			fts_tokenize_document_next(&doc, doc_len, result_doc,
+						   result_doc->parser);
 		}
 
 		exp = que_node_get_next(exp);
@@ -3355,6 +3364,7 @@ fts_fetch_doc_from_rec(
 	ulint			i;
 	ulint			doc_len = 0;
 	ulint			processed_doc = 0;
+	st_mysql_ftparser*	parser;
 
 	if (!get_doc) {
 		return;
@@ -3362,6 +3372,7 @@ fts_fetch_doc_from_rec(
 
 	index = get_doc->index_cache->index;
 	table = get_doc->index_cache->index->table;
+	parser = get_doc->index_cache->index->parser;
 
 	clust_rec = btr_pcur_get_rec(pcur);
 
@@ -3400,9 +3411,9 @@ fts_fetch_doc_from_rec(
 		}
 
 		if (processed_doc == 0) {
-			fts_tokenize_document(doc, NULL);
+			fts_tokenize_document(doc, NULL, parser);
 		} else {
-			fts_tokenize_document_next(doc, doc_len, NULL);
+			fts_tokenize_document_next(doc, doc_len, NULL, parser);
 		}
 
 		processed_doc++;
@@ -4501,38 +4512,15 @@ fts_sync_table(
 }
 
 /********************************************************************
-Process next token from document starting at the given position, i.e., add
-the token's start position to the token's list of positions.
-@return number of characters handled in this call */
+Add the token and its start position to the token's list of positions. */
 static
-ulint
-fts_process_token(
-/*==============*/
-	fts_doc_t*	doc,		/* in/out: document to
-					tokenize */
-	fts_doc_t*	result,		/* out: if provided, save
-					result here */
-	ulint		start_pos,	/*!< in: start position in text */
-	ulint		add_pos)	/*!< in: add this position to all
-					tokens from this tokenization */
+void
+fts_add_token(
+/*==========*/
+	fts_doc_t*	result_doc,	/* in/out: save result here */
+	fts_string_t	str,		/* in: token string */
+	ulint		position)	/* in: token position */
 {
-	ulint		ret;
-	fts_string_t	str;
-	ulint		offset = 0;
-	fts_doc_t*	result_doc;
-	byte		buf[FTS_MAX_WORD_LEN + 1];
-
-	str.f_str = buf;
-
-	/* Determine where to save the result. */
-	result_doc = (result) ? result : doc;
-
-	/* The length of a string in characters is set here only. */
-
-	ret = innobase_mysql_fts_get_token(
-		doc->charset, doc->text.f_str + start_pos,
-		doc->text.f_str + doc->text.f_len, &str, &offset);
-
 	/* Ignore string whose character number is less than
 	"fts_min_token_size" or more than "fts_max_token_size" */
 
@@ -4549,14 +4537,15 @@ fts_process_token(
 
 		t_str.f_n_char = str.f_n_char;
 
-		t_str.f_len = str.f_len * doc->charset->casedn_multiply + 1;
+		t_str.f_len = str.f_len * result_doc->charset->casedn_multiply + 1;
 
 		t_str.f_str = static_cast<byte*>(
 			mem_heap_alloc(heap, t_str.f_len));
 
 		newlen = innobase_fts_casedn_str(
-			doc->charset, (char*) str.f_str, str.f_len,
-			(char*) t_str.f_str, t_str.f_len);
+			result_doc->charset,
+			reinterpret_cast<char*>(str.f_str), str.f_len,
+			reinterpret_cast<char*>(t_str.f_str), t_str.f_len);
 
 		t_str.f_len = newlen;
 
@@ -4581,17 +4570,190 @@ fts_process_token(
 			ut_ad(rbt_validate(result_doc->tokens));
 		}
 
-#ifdef	FTS_CHARSET_DEBUG
-		offset += start_pos + add_pos;
-#endif /* FTS_CHARSET_DEBUG */
-
-		offset += start_pos + ret - str.f_len + add_pos;
-
 		token = rbt_value(fts_token_t, parent.last);
-		ib_vector_push(token->positions, &offset);
+		ib_vector_push(token->positions, &position);
 	}
+}
+
+/********************************************************************
+Process next token from document starting at the given position, i.e., add
+the token's start position to the token's list of positions.
+@return number of characters handled in this call */
+static
+ulint
+fts_process_token(
+/*==============*/
+	fts_doc_t*	doc,		/* in/out: document to
+					tokenize */
+	fts_doc_t*	result,		/* out: if provided, save
+					result here */
+	ulint		start_pos,	/*!< in: start position in text */
+	ulint		add_pos)	/*!< in: add this position to all
+					tokens from this tokenization */
+{
+	ulint		ret;
+	fts_string_t	str;
+	ulint		position;
+	fts_doc_t*	result_doc;
+	byte		buf[FTS_MAX_WORD_LEN + 1];
+
+	str.f_str = buf;
+
+	/* Determine where to save the result. */
+	result_doc = (result != NULL) ? result : doc;
+
+	/* The length of a string in characters is set here only. */
+
+	ret = innobase_mysql_fts_get_token(
+		doc->charset, doc->text.f_str + start_pos,
+		doc->text.f_str + doc->text.f_len, &str);
+
+	position = start_pos + ret - str.f_len + add_pos;
+
+	fts_add_token(result_doc, str, position);
 
 	return(ret);
+}
+
+/*************************************************************//**
+Get token char size by charset
+@return token size */
+ulint
+fts_get_token_size(
+/*===============*/
+	const CHARSET_INFO*	cs,	/*!< in: Character set */
+	const char*		token,	/*!< in: token */
+	ulint			len)	/*!< in: token length */
+{
+	char*	start;
+	char*	end;
+	ulint	size = 0;
+
+	/* const_cast is for reinterpret_cast below, or it will fail. */
+	start = const_cast<char*>(token);
+	end = start + len;
+	while (start < end) {
+		int ctype;
+		int mbl;
+
+		mbl = cs->cset->ctype(
+			cs, &ctype,
+			reinterpret_cast<uchar*>(start),
+			reinterpret_cast<uchar*>(end));
+
+		size++;
+
+		start += mbl > 0 ? mbl : (mbl < 0 ? -mbl : 1);
+	}
+
+	return(size);
+}
+
+/*************************************************************//**
+FTS plugin parser 'myql_parser' callback function for document tokenize.
+Refer to 'st_mysql_ftparser_param' for more detail.
+@return always returns 0 */
+int
+fts_tokenize_document_internal(
+/*===========================*/
+	MYSQL_FTPARSER_PARAM*	param,	/*!< in: parser parameter */
+	char*			doc,	/*!< in/out: document */
+	int			len)	/*!< in: document length */
+{
+	fts_string_t	str;
+	byte		buf[FTS_MAX_WORD_LEN + 1];
+	MYSQL_FTPARSER_BOOLEAN_INFO bool_info =
+		{ FT_TOKEN_WORD, 0, 0, 0, 0, 0, ' ', 0 };
+
+	ut_ad(len >= 0);
+
+	str.f_str = buf;
+
+	for (int i = 0, inc = 0; i < len; i += inc) {
+		inc = innobase_mysql_fts_get_token(
+			const_cast<CHARSET_INFO*>(param->cs),
+			reinterpret_cast<byte*>(doc) + i,
+			reinterpret_cast<byte*>(doc) + len,
+			&str);
+
+		if (str.f_len > 0) {
+			bool_info.position = i + inc - str.f_len;
+			ut_ad(bool_info.position >= 0);
+
+			/* Stop when add word fails */
+			if (param->mysql_add_word(
+				param,
+				reinterpret_cast<char*>(str.f_str),
+				str.f_len, &bool_info)) {
+				break;
+			}
+		}
+	}
+
+	return(0);
+}
+
+/******************************************************************//**
+FTS plugin parser 'myql_add_word' callback function for document tokenize.
+Refer to 'st_mysql_ftparser_param' for more detail.
+@return always returns 0 */
+static
+int
+fts_tokenize_add_word_for_parser(
+/*=============================*/
+	MYSQL_FTPARSER_PARAM*	param,		/* in: parser paramter */
+	char*			word,		/* in: token word */
+	int			word_len,	/* in: word len */
+	MYSQL_FTPARSER_BOOLEAN_INFO* boolean_info) /* in: word boolean info */
+{
+	fts_string_t	str;
+	fts_tokenize_param_t*	fts_param;
+	fts_doc_t*	result_doc;
+	ulint		position;
+
+	fts_param = static_cast<fts_tokenize_param_t*>(param->mysql_ftparam);
+	result_doc = fts_param->result_doc;
+	ut_ad(result_doc != NULL);
+
+	str.f_str = reinterpret_cast<byte*>(word);
+	str.f_len = word_len;
+	str.f_n_char = fts_get_token_size(
+		const_cast<CHARSET_INFO*>(param->cs), word, word_len);
+
+	ut_ad(boolean_info->position >= 0);
+	position = boolean_info->position + fts_param->add_pos;
+
+	fts_add_token(result_doc, str, position);
+
+	return(0);
+}
+
+/******************************************************************//**
+Parse a document using an external / user supplied parser */
+static
+void
+fts_tokenize_by_parser(
+/*===================*/
+	fts_doc_t*		doc,	/* in/out: document to tokenize */
+	st_mysql_ftparser*	parser, /* in: plugin fts parser */
+	fts_tokenize_param_t*	fts_param) /* in: fts tokenize param */
+{
+	MYSQL_FTPARSER_PARAM	param;
+
+	ut_a(parser);
+
+	/* Set paramters for param */
+	param.mysql_parse = fts_tokenize_document_internal;
+	param.mysql_add_word = fts_tokenize_add_word_for_parser;
+	param.mysql_ftparam = fts_param;
+	param.cs = doc->charset;
+	param.doc = reinterpret_cast<char*>(doc->text.f_str);
+	param.length = doc->text.f_len;
+	param.mode= MYSQL_FTPARSER_SIMPLE_MODE;
+
+	PARSER_INIT(parser, &param);
+	parser->parse(&param);
+	PARSER_DEINIT(parser, &param);
 }
 
 /******************************************************************//**
@@ -4602,20 +4764,30 @@ fts_tokenize_document(
 /*==================*/
 	fts_doc_t*	doc,		/* in/out: document to
 					tokenize */
-	fts_doc_t*	result)		/* out: if provided, save
+	fts_doc_t*	result,		/* out: if provided, save
 					the result token here */
+	st_mysql_ftparser*	parser) /* in: plugin fts parser */
 {
-	ulint		inc;
-
 	ut_a(!doc->tokens);
 	ut_a(doc->charset);
 
 	doc->tokens = rbt_create_arg_cmp(
 		sizeof(fts_token_t), innobase_fts_text_cmp, doc->charset);
 
-	for (ulint i = 0; i < doc->text.f_len; i += inc) {
-		inc = fts_process_token(doc, result, i, 0);
-		ut_a(inc > 0);
+	if (parser != NULL) {
+		fts_tokenize_param_t	fts_param;
+
+		fts_param.result_doc = (result != NULL) ? result : doc;
+		fts_param.add_pos = 0;
+
+		fts_tokenize_by_parser(doc, parser, &fts_param);
+	} else {
+		ulint		inc;
+
+		for (ulint i = 0; i < doc->text.f_len; i += inc) {
+			inc = fts_process_token(doc, result, i, 0);
+			ut_a(inc > 0);
+		}
 	}
 }
 
@@ -4629,16 +4801,26 @@ fts_tokenize_document_next(
 					tokenize */
 	ulint		add_pos,	/*!< in: add this position to all
 					tokens from this tokenization */
-	fts_doc_t*	result)		/*!< out: if provided, save
+	fts_doc_t*	result,		/*!< out: if provided, save
 					the result token here */
+	st_mysql_ftparser*	parser) /* in: plugin fts parser */
 {
-	ulint		inc;
-
 	ut_a(doc->tokens);
 
-	for (ulint i = 0; i < doc->text.f_len; i += inc) {
-		inc = fts_process_token(doc, result, i, add_pos);
-		ut_a(inc > 0);
+	if (parser) {
+		fts_tokenize_param_t      fts_param;
+
+		fts_param.result_doc = (result != NULL) ? result : doc;
+		fts_param.add_pos = add_pos;
+
+		fts_tokenize_by_parser(doc, parser, &fts_param);
+	} else {
+		ulint		inc;
+
+		for (ulint i = 0; i < doc->text.f_len; i += inc) {
+			inc = fts_process_token(doc, result, i, add_pos);
+			ut_a(inc > 0);
+		}
 	}
 }
 
@@ -6396,6 +6578,7 @@ fts_init_recover_doc(
 	sel_node_t*	node = static_cast<sel_node_t*>(row);
 	que_node_t*	exp = node->select_list;
 	fts_cache_t*	cache = get_doc->cache;
+	st_mysql_ftparser*	parser = get_doc->index_cache->index->parser;
 
 	fts_doc_init(&doc);
 	doc.found = TRUE;
@@ -6452,9 +6635,9 @@ fts_init_recover_doc(
 		}
 
 		if (field_no == 1) {
-			fts_tokenize_document(&doc, NULL);
+			fts_tokenize_document(&doc, NULL, parser);
 		} else {
-			fts_tokenize_document_next(&doc, doc_len, NULL);
+			fts_tokenize_document_next(&doc, doc_len, NULL, parser);
 		}
 
 		exp = que_node_get_next(exp);
