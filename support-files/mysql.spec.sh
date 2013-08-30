@@ -30,7 +30,7 @@
 %global mysqld_group    mysql
 %global mysqldatadir    /var/lib/mysql
 
-%global release         2  
+%global release         1  
 
 
 #
@@ -624,7 +624,7 @@ then
 fi
 if [ -z "$PID_FILE_PATT" ]
 then
-  PID_FILE_PATT=`ls $mysql_datadir/*.pid 2>/dev/null | grep -v "mysqld_safe.pid"`
+  PID_FILE_PATT="$mysql_datadir/*.pid"
 fi
 
 # Check if we can safely upgrade.  An upgrade is only safe if it's from one
@@ -706,7 +706,7 @@ fi
 
 # We assume that if there is exactly one ".pid" file,
 # it contains the valid PID of a running MySQL server.
-NR_PID_FILES=`ls $PID_FILE_PATT 2>/dev/null | wc -l`
+NR_PID_FILES=`ls $PID_FILE_PATT 2>/dev/null | grep -v "mysqld_safe.pid" | wc -l`
 case $NR_PID_FILES in
 	0 ) SERVER_TO_START=''  ;;  # No "*.pid" file == no running server
 	1 ) SERVER_TO_START='true' ;;
