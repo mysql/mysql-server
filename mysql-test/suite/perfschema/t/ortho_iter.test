@@ -44,7 +44,8 @@ begin
 
   select count(name)
     from performance_schema.setup_instruments
-    where name like (concat(instr_name, "%"))
+    where (name like (concat(instr_name, "%")))
+    and (not name like "%/abstract/%")
     into count_expected;
 
   set cmd_1= "select count(*) from (select distinct event_name from performance_schema.";
@@ -138,6 +139,7 @@ call check_instrument("wait/");
 call check_instrument("stage/");
 call check_instrument("statement/com/");
 call check_instrument("statement/sql/");
+call check_instrument("statement/abstract/");
 call check_instrument("statement/");
 call check_instrument("idle/io/socket");
 call check_instrument("idle/");
