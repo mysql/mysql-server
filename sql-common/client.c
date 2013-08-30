@@ -4681,6 +4681,7 @@ mysql_options(MYSQL *mysql,enum mysql_option option, const void *arg)
     mysql->options.methods_to_use= option;
     break;
   case MYSQL_SET_CLIENT_IP:
+    my_free(mysql->options.ci.client_ip);
     mysql->options.ci.client_ip= my_strdup(key_memory_mysql_options,
                                            arg, MYF(MY_WME));
     break;
