@@ -58,15 +58,12 @@ static my_bool init_state_maps(CHARSET_INFO *cs)
   uchar *state_map;
   uchar *ident_map;
 
-  if (!(cs->state_map= (uchar*) my_once_alloc(256, MYF(MY_WME))))
-    return 1;
-    
-  if (!(cs->ident_map= (uchar*) my_once_alloc(256, MYF(MY_WME))))
+  if (!(cs->state_map= state_map= (uchar*) my_once_alloc(256, MYF(MY_WME))))
     return 1;
 
-  state_map= cs->state_map;
-  ident_map= cs->ident_map;
-  
+  if (!(cs->ident_map= ident_map= (uchar*) my_once_alloc(256, MYF(MY_WME))))
+    return 1;
+
   /* Fill state_map with states to get a faster parser */
   for (i=0; i < 256 ; i++)
   {
@@ -111,6 +108,7 @@ static my_bool init_state_maps(CHARSET_INFO *cs)
   state_map[(uchar)'x']= state_map[(uchar)'X']= (uchar) MY_LEX_IDENT_OR_HEX;
   state_map[(uchar)'b']= state_map[(uchar)'B']= (uchar) MY_LEX_IDENT_OR_BIN;
   state_map[(uchar)'n']= state_map[(uchar)'N']= (uchar) MY_LEX_IDENT_OR_NCHAR;
+
   return 0;
 }
 
@@ -288,7 +286,7 @@ static int add_collation(CHARSET_INFO *cs)
       }
       else
       {
-        uchar *sort_order= all_charsets[cs->number]->sort_order;
+        const uchar *sort_order= all_charsets[cs->number]->sort_order;
         simple_cs_init_functions(all_charsets[cs->number]);
         newcs->mbminlen= 1;
         newcs->mbmaxlen= 1;
