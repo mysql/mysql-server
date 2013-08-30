@@ -1,6 +1,6 @@
 #ifndef MDL_H
 #define MDL_H
-/* Copyright (c) 2009, 2012, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2009, 2013, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -773,14 +773,7 @@ public:
   /** @pre Only valid if we started waiting for lock. */
   inline uint get_deadlock_weight() const
   { return m_waiting_for->get_deadlock_weight(); }
-  /**
-    Post signal to the context (and wake it up if necessary).
 
-    @retval FALSE - Success, signal was posted.
-    @retval TRUE  - Failure, signal was not posted since context
-                    already has received some signal or closed
-                    signal slot.
-  */
   void init(MDL_context_owner *arg) { m_owner= arg; }
 
   void set_needs_thr_lock_abort(bool needs_thr_lock_abort)
