@@ -1518,7 +1518,7 @@ yyreduce:
 /* Line 1806 of yacc.c  */
 #line 136 "fts0pars.y"
     {
-		fts_ast_term_set_distance((yyvsp[(1) - (3)].node), strtoul((yyvsp[(3) - (3)].token), NULL, 10));
+		fts_ast_text_set_distance((yyvsp[(1) - (3)].node), strtoul((yyvsp[(3) - (3)].token), NULL, 10));
 		free((yyvsp[(3) - (3)].token));
 	}
     break;
@@ -1551,7 +1551,7 @@ yyreduce:
     {
 		(yyval.node) = fts_ast_create_node_list(state, (yyvsp[(1) - (4)].node));
 		fts_ast_add_node((yyval.node), (yyvsp[(2) - (4)].node));
-		fts_ast_term_set_distance((yyvsp[(2) - (4)].node), strtoul((yyvsp[(4) - (4)].token), NULL, 10));
+		fts_ast_text_set_distance((yyvsp[(2) - (4)].node), strtoul((yyvsp[(4) - (4)].token), NULL, 10));
 		free((yyvsp[(4) - (4)].token));
 	}
     break;

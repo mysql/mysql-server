@@ -201,6 +201,7 @@ typedef struct st_mysql_ftparser_boolean_info
   int weight_adjust;
   char wasign;
   char trunc;
+  int position;
   char prev;
   char *quot;
 } MYSQL_FTPARSER_BOOLEAN_INFO;
