@@ -83,7 +83,7 @@ Ssl_cipher	AES128-SHA
 SHOW STATUS LIKE 'Ssl_cipher';
 Variable_name	Value
 Ssl_cipher	AES128-SHA
-mysqltest: Could not open connection 'default': 2026 SSL connection error: SSL_CTX_new failed
+mysqltest: Could not open connection 'default': 2026 SSL connection error: Failed to set ciphers to use
 CREATE TABLE t1(a int);
 INSERT INTO t1 VALUES (1), (2);
 
