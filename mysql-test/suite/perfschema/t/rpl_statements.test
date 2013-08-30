@@ -18,7 +18,7 @@
 # 4. Copy statement events on master into a temporary table
 # 4. Replicate to slave
 # 5. Compare statement events on slave to those from the master
-# 6. Disable statement/rpl/relay_log on slave
+# 6. Disable statement/abstract/relay_log on slave
 # 7. Update some tables on the master then replicate
 # 8. Verify that the updates were replicated but no statement
 #    events were recorded
@@ -270,9 +270,9 @@ select thread_id, event_id, event_name, digest, digest_text, sql_text from perfo
 --source ../include/enable_instruments.inc
 
 update performance_schema.setup_instruments set enabled='no', timed='no'
-  where name like '%statement/rpl/relay_log%';
+  where name like '%statement/abstract/relay_log%';
 
-select * from performance_schema.setup_instruments where name like '%statement/rpl/relay_log%';
+select * from performance_schema.setup_instruments where name like '%statement/abstract/relay_log%';
 
 --echo
 --echo #
