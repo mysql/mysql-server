@@ -2064,10 +2064,11 @@ bool sp_head::add_used_tables_to_table_list(THD *thd,
         is safe to infer the type of metadata lock from the type of
         table lock.
       */
-      table->mdl_request.init(MDL_key::TABLE, table->db, table->table_name,
-                              table->lock_type >= TL_WRITE_ALLOW_WRITE ?
-                              MDL_SHARED_WRITE : MDL_SHARED_READ,
-                              MDL_TRANSACTION);
+      MDL_REQUEST_INIT(&table->mdl_request,
+                       MDL_key::TABLE, table->db, table->table_name,
+                       table->lock_type >= TL_WRITE_ALLOW_WRITE ?
+                         MDL_SHARED_WRITE : MDL_SHARED_READ,
+                       MDL_TRANSACTION);
 
       /* Everyting else should be zeroed */
 

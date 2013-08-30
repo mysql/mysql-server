@@ -266,7 +266,7 @@ enum enum_mdl_duration {
   or "name".
 */
 
-class MDL_key
+struct MDL_key
 {
 public:
 #ifdef HAVE_PSI_INTERFACE
@@ -342,6 +342,12 @@ public:
     memcpy(m_ptr, rhs->m_ptr, rhs->m_length);
     m_length= rhs->m_length;
     m_db_name_length= rhs->m_db_name_length;
+  }
+  void reset()
+  {
+    m_ptr[0]= NAMESPACE_END;
+    m_db_name_length= 0;
+    m_length= 0;
   }
   bool is_equal(const MDL_key *rhs) const
   {
@@ -428,17 +434,22 @@ public:
   /** A lock is requested based on a fully qualified name and type. */
   MDL_key key;
 
+  const char *m_src_file;
+  uint m_src_line;
+
 public:
   static void *operator new(size_t size, MEM_ROOT *mem_root) throw ()
   { return alloc_root(mem_root, size); }
   static void operator delete(void *ptr, MEM_ROOT *mem_root) {}
 
-  void init(MDL_key::enum_mdl_namespace namespace_arg,
+  void init_with_source(MDL_key::enum_mdl_namespace namespace_arg,
             const char *db_arg, const char *name_arg,
             enum_mdl_type mdl_type_arg,
-            enum_mdl_duration mdl_duration_arg);
-  void init(const MDL_key *key_arg, enum_mdl_type mdl_type_arg,
-            enum_mdl_duration mdl_duration_arg);
+            enum_mdl_duration mdl_duration_arg,
+            const char *src_file, uint src_line);
+  void init_by_key_with_source(const MDL_key *key_arg, enum_mdl_type mdl_type_arg,
+            enum_mdl_duration mdl_duration_arg,
+            const char *src_file, uint src_line);
   /** Set type of lock request. Can be only applied to pending locks. */
   inline void set_type(enum_mdl_type type_arg)
   {
@@ -476,6 +487,11 @@ public:
   {}
 };
 
+#define MDL_REQUEST_INIT(R, P1, P2, P3, P4, P5) \
+  (*R).init_with_source(P1, P2, P3, P4, P5, __FILE__, __LINE__)
+
+#define MDL_REQUEST_INIT_BY_KEY(R, P1, P2, P3) \
+  (*R).init_by_key_with_source(P1, P2, P3, __FILE__, __LINE__)
 
 typedef void (*mdl_cached_object_release_hook)(void *);
 
@@ -603,8 +619,14 @@ private:
      m_duration(duration_arg),
 #endif
      m_ctx(ctx_arg),
-     m_lock(NULL)
+     m_lock(NULL),
+     m_psi(NULL)
   {}
+
+  virtual ~MDL_ticket()
+  {
+    DBUG_ASSERT(m_psi == NULL);
+  }
 
   static MDL_ticket *create(MDL_context *ctx_arg, enum_mdl_type type_arg
 #ifndef DBUG_OFF
@@ -631,6 +653,8 @@ private:
     Pointer to the lock object for this lock ticket. Externally accessible.
   */
   MDL_lock *m_lock;
+
+  PSI_metadata_lock *m_psi;
 
 private:
   MDL_ticket(const MDL_ticket &);               /* not implemented */
@@ -691,6 +715,7 @@ public:
                               bool signal_timeout,
                               const PSI_stage_info *wait_state_name);
 private:
+
   /**
     Condvar which is used for waiting until this context's pending
     request can be satisfied or this thread has to perform actions

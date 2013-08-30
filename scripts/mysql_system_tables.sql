@@ -1951,6 +1951,50 @@ PREPARE stmt FROM @str;
 EXECUTE stmt;
 DROP PREPARE stmt;
 
+--
+-- TABLE TABLE_HANDLES
+--
+
+SET @cmd="CREATE TABLE performance_schema.table_handles("
+  "OBJECT_TYPE VARCHAR(64) not null,"
+  "OBJECT_SCHEMA VARCHAR(64) not null,"
+  "OBJECT_NAME VARCHAR(64) not null,"
+  "OBJECT_INSTANCE_BEGIN BIGINT unsigned not null,"
+  "OWNER_THREAD_ID BIGINT unsigned,"
+  "OWNER_EVENT_ID BIGINT unsigned,"
+  "INTERNAL_LOCK VARCHAR(64),"
+  "EXTERNAL_LOCK VARCHAR(64)"
+  ")ENGINE=PERFORMANCE_SCHEMA;";
+
+SET @str = IF(@have_pfs = 1, @cmd, 'SET @dummy = 0');
+PREPARE stmt FROM @str;
+EXECUTE stmt;
+DROP PREPARE stmt;
+
+--
+-- TABLE METADATA_LOCKS
+--
+
+SET @cmd="CREATE TABLE performance_schema.metadata_locks("
+  "OBJECT_TYPE VARCHAR(64) not null,"
+  "OBJECT_SCHEMA VARCHAR(64),"
+  "OBJECT_NAME VARCHAR(64),"
+  "OBJECT_INSTANCE_BEGIN BIGINT unsigned not null,"
+  "LOCK_TYPE VARCHAR(32) not null,"
+  "LOCK_DURATION VARCHAR(32) not null,"
+  "LOCK_STATUS VARCHAR(32) not null,"
+  "SOURCE VARCHAR(64),"
+  "OWNER_THREAD_ID BIGINT unsigned,"
+  "OWNER_EVENT_ID BIGINT unsigned"
+  ")ENGINE=PERFORMANCE_SCHEMA;";
+
+SET @str = IF(@have_pfs = 1, @cmd, 'SET @dummy = 0');
+PREPARE stmt FROM @str;
+EXECUTE stmt;
+DROP PREPARE stmt;
+
+
+
 CREATE TABLE IF NOT EXISTS proxies_priv (Host char(60) binary DEFAULT '' NOT NULL, User char(16) binary DEFAULT '' NOT NULL, Proxied_host char(60) binary DEFAULT '' NOT NULL, Proxied_user char(16) binary DEFAULT '' NOT NULL, With_grant BOOL DEFAULT 0 NOT NULL, Grantor char(77) DEFAULT '' NOT NULL, Timestamp timestamp NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP, PRIMARY KEY Host (Host,User,Proxied_host,Proxied_user), KEY Grantor (Grantor) ) engine=MyISAM CHARACTER SET utf8 COLLATE utf8_bin comment='User proxy privileges';
 
 -- Remember for later if proxies_priv table already existed
