@@ -1523,7 +1523,7 @@ innobase_create_index_def(
 					ut_ad(altered_table->key_info[j].flags
 					      & HA_USES_PARSER);
 
-					plugin_ref parser=
+					plugin_ref	parser=
 						altered_table->key_info[j].parser;
 					index->parser =
 						static_cast<st_mysql_ftparser*>(
