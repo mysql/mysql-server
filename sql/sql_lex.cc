@@ -1238,8 +1238,8 @@ static int lex_one_token(void *arg, void *yythd)
   LEX *lex= thd->lex;
   YYSTYPE *yylval=(YYSTYPE*) arg;
   const CHARSET_INFO *cs= thd->charset();
-  uchar *state_map= cs->state_map;
-  uchar *ident_map= cs->ident_map;
+  const uchar *state_map= cs->state_map;
+  const uchar *ident_map= cs->ident_map;
 
   lip->yylval=yylval;			// The global state
 
