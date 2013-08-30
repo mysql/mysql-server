@@ -30,7 +30,7 @@
 %global mysqld_group    mysql
 %global mysqldatadir    /var/lib/mysql
 
-%global release         2  
+%global release         1  
 
 
 #
@@ -636,7 +636,7 @@ then
 fi
 if [ -z "$PID_FILE_PATT" ]
 then
-  PID_FILE_PATT=`ls $mysql_datadir/*.pid 2>/dev/null | grep -v "mysqld_safe.pid"`
+  PID_FILE_PATT=`ls "$mysql_datadir/*.pid" 2> /dev/null | grep -v "mysqld_safe.pid"`
 fi
 
 # Check if we can safely upgrade.  An upgrade is only safe if it's from one
