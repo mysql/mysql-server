@@ -1148,3 +1148,5 @@ typescript
 mysql-test/collections/default.release.done
 sql/sql_yacc.hh
 packaging/solaris/postinstall-solaris
+extra/jemalloc/jemalloc-*
+extra/jemalloc/build

@@ -144,6 +144,7 @@ INCLUDE(ssl)
 INCLUDE(readline)
 INCLUDE(libutils)
 INCLUDE(dtrace)
+INCLUDE(jemalloc)
 INCLUDE(ctest)
 INCLUDE(plugin)
 INCLUDE(install_macros)
@@ -262,6 +263,8 @@ MYSQL_CHECK_ZLIB_WITH_COMPRESS()
 MYSQL_CHECK_SSL()
 # Add readline or libedit.
 MYSQL_CHECK_READLINE()
+
+CHECK_JEMALLOC()
 
 #
 # Setup maintainer mode options by the end. Platform checks are
