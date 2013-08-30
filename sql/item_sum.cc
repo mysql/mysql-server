@@ -1040,7 +1040,7 @@ bool Aggregator_distinct::add()
       return tree->unique_add(table->record[0] + table->s->null_bytes);
     }
     if ((error= table->file->ha_write_row(table->record[0])) &&
-        table->file->is_fatal_error(error, HA_CHECK_DUP))
+        !table->file->is_ignorable_error(error))
       return TRUE;
     return FALSE;
   }
@@ -3264,7 +3264,7 @@ void Item_func_group_concat::cleanup()
 }
 
 
-Field *Item_func_group_concat::make_string_field(TABLE *table)
+Field *Item_func_group_concat::make_string_field(TABLE *table_arg)
 {
   Field *field;
   DBUG_ASSERT(collation.collation);
@@ -3281,10 +3281,10 @@ Field *Item_func_group_concat::make_string_field(TABLE *table)
                           maybe_null, item_name.ptr(), collation.collation, TRUE);
   else
     field= new Field_varstring(max_characters * collation.collation->mbmaxlen,
-                               maybe_null, item_name.ptr(), table->s, collation.collation);
+                               maybe_null, item_name.ptr(), table_arg->s, collation.collation);
 
   if (field)
-    field->init(table);
+    field->init(table_arg);
   return field;
 }
 

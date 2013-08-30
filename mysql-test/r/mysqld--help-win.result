@@ -617,6 +617,9 @@ The following options may be given as the first argument:
  -1 for automated sizing.
  --performance-schema-max-memory-classes=# 
  Maximum number of memory pool instruments.
+ --performance-schema-max-metadata-locks=# 
+ Maximum number of metadata locks. Use 0 to disable, -1
+ for automated sizing.
  --performance-schema-max-mutex-classes=# 
  Maximum number of mutex instruments.
  --performance-schema-max-mutex-instances=# 
@@ -1204,6 +1207,7 @@ performance-schema-max-file-classes 50
 performance-schema-max-file-handles 32768
 performance-schema-max-file-instances -1
 performance-schema-max-memory-classes 250
+performance-schema-max-metadata-locks -1
 performance-schema-max-mutex-classes 200
 performance-schema-max-mutex-instances -1
 performance-schema-max-program-instances 5000

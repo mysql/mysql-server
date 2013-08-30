@@ -3040,7 +3040,7 @@ void init_com_statement_info()
     com_statement_info[index].m_flags= 0;
   }
 
-  /* "statement/com/query" can mutate into "statement/sql/..." */
+  /* "statement/abstract/query" can mutate into "statement/sql/..." */
   com_statement_info[(uint) COM_QUERY].m_flags= PSI_FLAG_MUTABLE;
 }
 #endif
@@ -3118,7 +3118,6 @@ int init_common_variables()
   if (ignore_db_dirs_init())
     return 1;
 
-#ifdef HAVE_TZNAME
   {
     struct tm tm_tmp;
     localtime_r(&server_start_time,&tm_tmp);
@@ -3126,7 +3125,7 @@ int init_common_variables()
             sizeof(system_time_zone)-1);
 
  }
-#endif
+
   /*
     We set SYSTEM time zone as reasonable default and
     also for failure of my_tz_init() and bootstrap mode.
@@ -8685,35 +8684,49 @@ void init_server_psi_keys(void)
 
   category= "com";
   init_com_statement_info();
-  count= array_elements(com_statement_info);
+
+  /*
+    Register [0 .. COM_QUERY - 1] as "statement/com/..."
+  */
+  count= (int) COM_QUERY;
   mysql_statement_register(category, com_statement_info, count);
 
   /*
+    Register [COM_QUERY + 1 .. COM_END] as "statement/com/..."
+  */
+  count= (int) COM_END - (int) COM_QUERY;
+  mysql_statement_register(category, & com_statement_info[(int) COM_QUERY + 1], count);
+
+  category= "abstract";
+  /*
+    Register [COM_QUERY] as "statement/abstract/com_query"
+  */
+  mysql_statement_register(category, & com_statement_info[(int) COM_QUERY], 1);
+
+  /*
     When a new packet is received,
-    it is instrumented as "statement/com/".
+    it is instrumented as "statement/abstract/new_packet".
     Based on the packet type found, it later mutates to the
     proper narrow type, for example
-    "statement/com/query" or "statement/com/ping".
-    In cases of "statement/com/query", SQL queries are given to
+    "statement/abstract/query" or "statement/com/ping".
+    In cases of "statement/abstract/query", SQL queries are given to
     the parser, which mutates the statement type to an even more
     narrow classification, for example "statement/sql/select".
   */
   stmt_info_new_packet.m_key= 0;
-  stmt_info_new_packet.m_name= "";
+  stmt_info_new_packet.m_name= "new_packet";
   stmt_info_new_packet.m_flags= PSI_FLAG_MUTABLE;
   mysql_statement_register(category, &stmt_info_new_packet, 1);
 
   /*
     Statements processed from the relay log are initially instrumented as
-    "statement/rpl/relay_log". The parser will mutate the statement type to
+    "statement/abstract/relay_log". The parser will mutate the statement type to
     a more specific classification, for example "statement/sql/insert".
   */
-  category= "rpl";
   stmt_info_rpl.m_key= 0;
   stmt_info_rpl.m_name= "relay_log";
   stmt_info_rpl.m_flags= PSI_FLAG_MUTABLE;
   mysql_statement_register(category, &stmt_info_rpl, 1);
-
 #endif
 
   /* Common client and server code. */

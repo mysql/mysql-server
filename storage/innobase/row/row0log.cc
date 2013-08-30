@@ -2353,7 +2353,7 @@ all_done:
 		posix_fadvise(index->online_log->fd,
 			      ofs, srv_sort_buf_size, POSIX_FADV_DONTNEED);
 #endif /* POSIX_FADV_DONTNEED */
-#ifdef FALLOC_FL_PUNCH_HOLE
+#if 0 //def FALLOC_FL_PUNCH_HOLE
 		/* Try to deallocate the space for the file on disk.
 		This should work on ext4 on Linux 2.6.39 and later,
 		and be ignored when the operation is unsupported. */
@@ -3144,7 +3144,7 @@ all_done:
 		posix_fadvise(index->online_log->fd,
 			      ofs, srv_sort_buf_size, POSIX_FADV_DONTNEED);
 #endif /* POSIX_FADV_DONTNEED */
-#ifdef FALLOC_FL_PUNCH_HOLE
+#if 0 //def FALLOC_FL_PUNCH_HOLE
 		/* Try to deallocate the space for the file on disk.
 		This should work on ext4 on Linux 2.6.39 and later,
 		and be ignored when the operation is unsupported. */

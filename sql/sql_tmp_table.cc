@@ -2016,7 +2016,7 @@ bool create_myisam_from_heap(THD *thd, TABLE *table,
   /* copy row that filled HEAP table */
   if ((write_err=new_table.file->ha_write_row(table->record[0])))
   {
-    if (new_table.file->is_fatal_error(write_err, HA_CHECK_DUP) ||
+    if (!new_table.file->is_ignorable_error(write_err) ||
 	!ignore_last_dup)
       goto err;
     if (is_duplicate)

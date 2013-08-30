@@ -347,7 +347,7 @@ Event_queue::drop_matching_events(THD *thd, LEX_STRING pattern,
       queue_remove(&queue, i);
 #ifdef HAVE_PSI_SP_INTERFACE
       /* Drop statistics for this stored program from performance schema. */
-      MYSQL_DROP_SP(SP_OBJECT_TYPE_EVENT,
+      MYSQL_DROP_SP(SP_TYPE_EVENT,
                     et->dbname.str, et->dbname.length,
                     et->name.str, et->name.length);
 #endif

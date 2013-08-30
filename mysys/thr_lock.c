@@ -838,6 +838,7 @@ void thr_unlock(THR_LOCK_DATA *data)
   if (lock_type == TL_READ_NO_INSERT)
     lock->read_no_write_count--;
   data->type=TL_UNLOCK;				/* Mark unlocked */
+  MYSQL_UNLOCK_TABLE(data->m_psi);
   check_locks(lock,"after releasing lock",1);
   wake_up_waiters(lock);
   mysql_mutex_unlock(&lock->mutex);

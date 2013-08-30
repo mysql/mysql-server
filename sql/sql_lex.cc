@@ -1238,8 +1238,8 @@ static int lex_one_token(void *arg, void *yythd)
   LEX *lex= thd->lex;
   YYSTYPE *yylval=(YYSTYPE*) arg;
   const CHARSET_INFO *cs= thd->charset();
-  uchar *state_map= cs->state_map;
-  uchar *ident_map= cs->ident_map;
+  const uchar *state_map= cs->state_map;
+  const uchar *ident_map= cs->ident_map;
 
   lip->yylval=yylval;			// The global state
 
@@ -3351,7 +3351,7 @@ void st_select_lex_unit::set_limit(st_select_lex *sl)
   DBUG_ASSERT(! thd->stmt_arena->is_stmt_prepare());
   if (sl->select_limit)
   {
-    Item *item = sl->select_limit;
+    Item *limit_item = sl->select_limit;
     /*
       fix_fields() has not been called for sl->select_limit. That's due to the
       historical reasons -- this item could be only of type Item_int, and
@@ -3379,13 +3379,13 @@ void st_select_lex_unit::set_limit(st_select_lex *sl)
       of fix_fields() in order to handle error condition in non-debug build.
     */
     bool fix_fields_successful= true;
-    if (!item->fixed)
+    if (!limit_item->fixed)
     {
-      fix_fields_successful= !item->fix_fields(thd, NULL);
+      fix_fields_successful= !limit_item->fix_fields(thd, NULL);
 
       DBUG_ASSERT(fix_fields_successful);
     }
-    val= fix_fields_successful ? item->val_uint() : HA_POS_ERROR;
+    val= fix_fields_successful ? limit_item->val_uint() : HA_POS_ERROR;
   }
   else
     val= HA_POS_ERROR;
@@ -3393,16 +3393,16 @@ void st_select_lex_unit::set_limit(st_select_lex *sl)
   select_limit_val= (ha_rows)val;
   if (sl->offset_limit)
   {
-    Item *item = sl->offset_limit;
+    Item *offset_item = sl->offset_limit;
     // see comment for sl->select_limit branch.
     bool fix_fields_successful= true;
-    if (!item->fixed)
+    if (!offset_item->fixed)
     {
-      fix_fields_successful= !item->fix_fields(thd, NULL);
+      fix_fields_successful= !offset_item->fix_fields(thd, NULL);
 
       DBUG_ASSERT(fix_fields_successful);
     }
-    val= fix_fields_successful ? item->val_uint() : HA_POS_ERROR;
+    val= fix_fields_successful ? offset_item->val_uint() : HA_POS_ERROR;
   }
   else
     val= ULL(0);

@@ -247,8 +247,9 @@ bool Sql_cmd_handler_open::execute(THD *thd)
     right from the start as open_tables() can't handle properly
     back-off for such locks.
   */
-  hash_tables->mdl_request.init(MDL_key::TABLE, db, name, MDL_SHARED,
-                                MDL_TRANSACTION);
+  MDL_REQUEST_INIT(&hash_tables->mdl_request,
+                   MDL_key::TABLE, db, name, MDL_SHARED,
+                   MDL_TRANSACTION);
   /* for now HANDLER can be used only for real TABLES */
   hash_tables->required_type= FRMTYPE_TABLE;
 

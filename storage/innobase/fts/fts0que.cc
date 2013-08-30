@@ -34,6 +34,7 @@ Completed 2011/7/10 Sunny and Jimmy Yang
 #include "fts0ast.h"
 #include "fts0pars.h"
 #include "fts0types.h"
+#include "fts0plugin.h"
 
 #ifdef UNIV_NONINL
 #include "fts0types.ic"
@@ -153,6 +154,8 @@ struct fts_query_t {
 					fts_word_freq_t */
 
 	bool		multi_exist;	/*!< multiple FTS_EXIST oper */
+
+	st_mysql_ftparser*	parser;	/*!< fts plugin parser */
 };
 
 /** For phrase matching, first we collect the documents and the positions
@@ -219,6 +222,14 @@ struct fts_phrase_t {
 	fts_proximity_t*proximity_pos;	/*!< position info for proximity
 					search verification. Records the min
 					and max position of words matched */
+	st_mysql_ftparser* parser;	/*!< fts plugin parser */
+};
+
+/** Paramter passed to fts phrase match by parser */
+struct fts_phrase_param_t {
+	fts_phrase_t*	phrase;		/*!< Match phrase instance */
+	ulint		token_index;	/*!< Index of token to match next */
+	mem_heap_t*	heap;		/*!< Heap for word processing */
 };
 
 /** For storing the frequncy of a word/term in a document */
@@ -1619,18 +1630,17 @@ fts_query_match_phrase_terms(
 		const fts_string_t*	token;
 		int			result;
 		ulint			ret;
-		ulint			offset;
 
 		ret = innobase_mysql_fts_get_token(
-			phrase->charset, ptr, (byte*) end,
-			&match, &offset);
+			phrase->charset, ptr,
+			const_cast<byte*>(end), &match);
 
 		if (match.f_len > 0) {
 			/* Get next token to match. */
 			token = static_cast<const fts_string_t*>(
 				ib_vector_get_const(tokens, i));
 
-			fts_utf8_string_dup(&cmp_str, &match, heap);
+			fts_string_dup(&cmp_str, &match, heap);
 
 			result = innobase_fts_text_case_cmp(
 				phrase->charset, token, &cmp_str);
@@ -1708,12 +1718,11 @@ fts_proximity_is_word_in_range(
 		while (cur_pos <= proximity_pos->max_pos[i]) {
 			ulint		len;
 			fts_string_t	str;
-			ulint           offset = 0;
 
 			len = innobase_mysql_fts_get_token(
 				phrase->charset,
 				start + cur_pos,
-				start + total_len, &str, &offset);
+				start + total_len, &str);
 
 			if (len == 0) {
 				break;
@@ -1740,6 +1749,103 @@ fts_proximity_is_word_in_range(
 	}
 
 	return(false);
+}
+
+/*****************************************************************//**
+FTS plugin parser 'myql_add_word' callback function for phrase match
+Refer to 'st_mysql_ftparser_param' for more detail.
+@return 0 if match, or return non-zero */
+static
+int
+fts_query_match_phrase_add_word_for_parser(
+/*=======================================*/
+	MYSQL_FTPARSER_PARAM*	param,		/*!< in: parser param */
+	char*			word,		/*!< in: token */
+	int			word_len,	/*!< in: token length */
+	MYSQL_FTPARSER_BOOLEAN_INFO* info)	/*!< in: token info */
+{
+	fts_phrase_param_t*	phrase_param;
+	fts_phrase_t*		phrase;
+	const ib_vector_t*	tokens;
+	fts_string_t		match;
+	fts_string_t		cmp_str;
+	const fts_string_t*	token;
+	int			result;
+	mem_heap_t*		heap;
+
+	phrase_param = static_cast<fts_phrase_param_t*>(param->mysql_ftparam);
+	heap = phrase_param->heap;
+	phrase = phrase_param->phrase;
+	tokens = phrase->tokens;
+
+	/* In case plugin parser doesn't check return value */
+	if (phrase_param->token_index == ib_vector_size(tokens)) {
+		return(1);
+	}
+
+	match.f_str = reinterpret_cast<byte*>(word);
+	match.f_len = word_len;
+	match.f_n_char = fts_get_token_size(phrase->charset, word, word_len);
+
+	if (match.f_len > 0) {
+		/* Get next token to match. */
+		ut_a(phrase_param->token_index < ib_vector_size(tokens));
+		token = static_cast<const fts_string_t*>(
+			ib_vector_get_const(tokens, phrase_param->token_index));
+
+		fts_string_dup(&cmp_str, &match, heap);
+
+		result = innobase_fts_text_case_cmp(
+			phrase->charset, token, &cmp_str);
+
+		if (result == 0) {
+			phrase_param->token_index++;
+		} else {
+			return(1);
+		}
+	}
+
+	/* Can't be greater than the number of elements. */
+	ut_a(phrase_param->token_index <= ib_vector_size(tokens));
+
+	/* This is the case for multiple words. */
+	if (phrase_param->token_index == ib_vector_size(tokens)) {
+		phrase->found = TRUE;
+	}
+
+	return (phrase->found);
+}
+
+/*****************************************************************//**
+Check whether the terms in the phrase match the text.
+@return TRUE if matched else FALSE */
+static
+ibool
+fts_query_match_phrase_terms_by_parser(
+/*===================================*/
+	fts_phrase_param_t*	phrase_param,	/* in/out: phrase param */
+	st_mysql_ftparser*	parser,		/* in: plugin fts parser */
+	byte*			text,		/* in: text to check */
+	ulint			len)		/* in: text length */
+{
+	MYSQL_FTPARSER_PARAM	param;
+
+	ut_a(parser);
+
+	/* Set paramters for param */
+	param.mysql_parse = fts_tokenize_document_internal;
+	param.mysql_add_word = fts_query_match_phrase_add_word_for_parser;
+	param.mysql_ftparam = phrase_param;
+	param.cs = phrase_param->phrase->charset;
+	param.doc = reinterpret_cast<char*>(text);
+	param.length = len;
+	param.mode= MYSQL_FTPARSER_WITH_STOPWORDS;
+
+	PARSER_INIT(parser, &param);
+	parser->parse(&param);
+	PARSER_DEINIT(parser, &param);
+
+	return(phrase_param->phrase->found);
 }
 
 /*****************************************************************//**
@@ -1776,11 +1882,7 @@ fts_query_match_phrase(
 
 	for (i = phrase->match->start; i < ib_vector_size(positions); ++i) {
 		ulint		pos;
-		fts_string_t	match;
-		fts_string_t	cmp_str;
 		byte*		ptr = start;
-		ulint		ret;
-		ulint		offset;
 
 		pos = *(ulint*) ib_vector_get_const(positions, i);
 
@@ -1797,39 +1899,60 @@ fts_query_match_phrase(
 		searched field to adjust the doc position when search
 		phrases. */
 		pos -= prev_len;
-		ptr = match.f_str = start + pos;
+		ptr = start + pos;
 
 		/* Within limits ? */
 		if (ptr >= end) {
 			break;
 		}
 
-		ret = innobase_mysql_fts_get_token(
-			phrase->charset, start + pos, (byte*) end,
-			&match, &offset);
+		if (phrase->parser) {
+			fts_phrase_param_t	phrase_param;
 
-		if (match.f_len == 0) {
-			break;
-		}
+			phrase_param.phrase = phrase;
+			phrase_param.token_index = 0;
+			phrase_param.heap = heap;
 
-		fts_utf8_string_dup(&cmp_str, &match, heap);
+			if (fts_query_match_phrase_terms_by_parser(
+				&phrase_param,
+				phrase->parser,
+				ptr,
+				(end - ptr))) {
+				break;
+			}
+		} else {
+			fts_string_t	match;
+			fts_string_t	cmp_str;
+			ulint		ret;
 
-		if (innobase_fts_text_case_cmp(
-			phrase->charset, first, &cmp_str) == 0) {
+			match.f_str = ptr;
+			ret = innobase_mysql_fts_get_token(
+				phrase->charset, start + pos,
+				const_cast<byte*>(end), &match);
 
-			/* This is the case for the single word
-			in the phrase. */
-			if (ib_vector_size(phrase->tokens) == 1) {
-				phrase->found = TRUE;
+			if (match.f_len == 0) {
 				break;
 			}
 
-			ptr += ret;
+			fts_string_dup(&cmp_str, &match, heap);
 
-			/* Match the remaining terms in the phrase. */
-			if (fts_query_match_phrase_terms(phrase, &ptr,
-							 end, heap)) {
-				break;
+			if (innobase_fts_text_case_cmp(
+				phrase->charset, first, &cmp_str) == 0) {
+
+				/* This is the case for the single word
+				in the phrase. */
+				if (ib_vector_size(phrase->tokens) == 1) {
+					phrase->found = TRUE;
+					break;
+				}
+
+				ptr += ret;
+
+				/* Match the remaining terms in the phrase. */
+				if (fts_query_match_phrase_terms(phrase, &ptr,
+								 end, heap)) {
+					break;
+				}
 			}
 		}
 	}
@@ -2310,6 +2433,7 @@ fts_query_match_document(
 	fts_get_doc_t*	get_doc,	/*!< in: table and prepared statements */
 	fts_match_t*	match,		/*!< in: doc id and positions */
 	ulint		distance,	/*!< in: proximity distance */
+	st_mysql_ftparser* parser,	/*!< in: fts plugin parser */
 	ibool*		found)		/*!< out: TRUE if phrase found */
 {
 	dberr_t		error;
@@ -2324,6 +2448,7 @@ fts_query_match_document(
 	phrase.zip_size = dict_table_zip_size(
 		get_doc->index_cache->index->table);
 	phrase.heap = mem_heap_create(512);
+	phrase.parser = parser;
 
 	*found = phrase.found = FALSE;
 
@@ -2455,8 +2580,8 @@ fts_query_search_phrase(
 		if (match->doc_id != 0) {
 
 			query->error = fts_query_match_document(
-				orig_tokens, &get_doc,
-				match, query->distance, &found);
+				orig_tokens, &get_doc, match,
+				query->distance, query->parser, &found);
 
 			if (query->error == DB_SUCCESS && found) {
 				ulint	z;
@@ -2490,56 +2615,76 @@ func_exit:
 }
 
 /*****************************************************************//**
-Text/Phrase search.
-@return DB_SUCCESS or error code */
-static __attribute__((nonnull, warn_unused_result))
-dberr_t
-fts_query_phrase_search(
-/*====================*/
+Split the phrase into tokens */
+static
+void
+fts_query_phrase_split(
+/*===================*/
 	fts_query_t*		query,	/*!< in: query instance */
-	const fts_string_t*	phrase)	/*!< in: token to search */
+	const fts_ast_node_t*	node,	/*!< in: node to search */
+	ib_vector_t*		tokens,	/*!< in/out: tokens */
+	ib_vector_t*		orig_tokens, /*!< in/out: original node
+					tokens include stopword,
+					< ft_min_token_size, etc. */
+	mem_heap_t*		heap)	/*!< in: mem heap */
 {
-	ib_vector_t*		tokens;
-	ib_vector_t*		orig_tokens;
-	mem_heap_t*		heap = mem_heap_create(sizeof(fts_string_t));
-	ulint			len = phrase->f_len;
-	ulint			cur_pos = 0;
-	ib_alloc_t*		heap_alloc;
-	ulint			num_token;
-	CHARSET_INFO*		charset;
+	fts_string_t		phrase;
+	ulint			len;
+	ulint			cur_pos;
+	fts_ast_node_t*		term_node;
 
-	charset = query->fts_index_table.charset;
-
-	heap_alloc = ib_heap_allocator_create(heap);
-
-	tokens = ib_vector_create(heap_alloc, sizeof(fts_string_t), 4);
-	orig_tokens = ib_vector_create(heap_alloc, sizeof(fts_string_t), 4);
-
-	if (query->distance != ULINT_UNDEFINED && query->distance > 0) {
-		query->flags = FTS_PROXIMITY;
+	if (node->type == FTS_AST_TEXT) {
+		phrase.f_str = node->text.ptr;
+		phrase.f_len = ut_strlen(reinterpret_cast<char*>(node->text.ptr));
+		len = phrase.f_len;
+		cur_pos = 0;
 	} else {
-		query->flags = FTS_PHRASE;
+		ut_ad(node->type == FTS_AST_PARSER_PHRASE_LIST);
+		term_node = node->list.head;
 	}
 
-	/* Split the phrase into tokens. */
-	while (cur_pos < len) {
+	while (true) {
 		fts_cache_t*	cache = query->index->table->fts->cache;
 		ib_rbt_bound_t	parent;
-		ulint		offset;
 		ulint		cur_len;
 		fts_string_t	result_str;
 
-                cur_len = innobase_mysql_fts_get_token(
-                        charset,
-                        reinterpret_cast<const byte*>(phrase->f_str) + cur_pos,
-                        reinterpret_cast<const byte*>(phrase->f_str) + len,
-			&result_str, &offset);
+		if (node->type == FTS_AST_TEXT) {
+			if (cur_pos >= len) {
+				break;
+			}
 
-		if (cur_len == 0) {
-			break;
+			cur_len = innobase_mysql_fts_get_token(
+				query->fts_index_table.charset,
+				reinterpret_cast<const byte*>(phrase.f_str)
+				+ cur_pos,
+				reinterpret_cast<const byte*>(phrase.f_str)
+				+ len,
+				&result_str);
+
+			if (cur_len == 0) {
+				break;
+			}
+
+			cur_pos += cur_len;
+		} else {
+			ut_ad(node->type == FTS_AST_PARSER_PHRASE_LIST);
+			/* Term node in parser phrase list */
+			if (term_node == NULL) {
+				break;
+			}
+
+			ut_a(term_node->type == FTS_AST_TERM);
+			result_str.f_str = term_node->term.ptr;
+			result_str.f_len =
+				ut_strlen(reinterpret_cast<char*>(term_node->term.ptr));
+			result_str.f_n_char = fts_get_token_size(
+				query->fts_index_table.charset,
+				reinterpret_cast<char*>(result_str.f_str),
+				result_str.f_len);
+
+			term_node = term_node->next;
 		}
-
-		cur_pos += cur_len;
 
 		if (result_str.f_n_char == 0) {
 			continue;
@@ -2557,7 +2702,7 @@ fts_query_phrase_search(
 
 		if (cache->stopword_info.cached_stopword
 		    && rbt_search(cache->stopword_info.cached_stopword,
-			       &parent, token) != 0
+				  &parent, token) != 0
 		    && result_str.f_n_char >= fts_min_token_size
 		    && result_str.f_n_char <= fts_max_token_size) {
 			/* Add the word to the RB tree so that we can
@@ -2578,6 +2723,37 @@ fts_query_phrase_search(
 			orig_token->f_len = token->f_len;
 		}
 	}
+}
+
+/*****************************************************************//**
+Text/Phrase search.
+@return DB_SUCCESS or error code */
+static __attribute__((warn_unused_result))
+dberr_t
+fts_query_phrase_search(
+/*====================*/
+	fts_query_t*		query,	/*!< in: query instance */
+	const fts_ast_node_t*	node)	/*!< in: node to search */
+{
+	ib_vector_t*		tokens;
+	ib_vector_t*		orig_tokens;
+	mem_heap_t*		heap = mem_heap_create(sizeof(fts_string_t));
+	ib_alloc_t*		heap_alloc;
+	ulint			num_token;
+
+	heap_alloc = ib_heap_allocator_create(heap);
+
+	tokens = ib_vector_create(heap_alloc, sizeof(fts_string_t), 4);
+	orig_tokens = ib_vector_create(heap_alloc, sizeof(fts_string_t), 4);
+
+	if (query->distance != ULINT_UNDEFINED && query->distance > 0) {
+		query->flags = FTS_PROXIMITY;
+	} else {
+		query->flags = FTS_PHRASE;
+	}
+
+	/* Split the phrase into tokens. */
+	fts_query_phrase_split(query, node, tokens, orig_tokens, heap);
 
 	num_token = ib_vector_size(tokens);
 	ut_ad(ib_vector_size(orig_tokens) >= num_token);
@@ -2830,8 +3006,7 @@ fts_query_visitor(
 
 	switch (node->type) {
 	case FTS_AST_TEXT:
-		token.f_str = node->text.ptr;
-		token.f_len = ut_strlen((char*) token.f_str);
+	case FTS_AST_PARSER_PHRASE_LIST:
 
 		if (query->oper == FTS_EXIST) {
 			ut_ad(query->intersection == NULL);
@@ -2845,7 +3020,7 @@ fts_query_visitor(
 		/* Force collection of doc ids and the positions. */
 		query->collect_positions = TRUE;
 
-		query->error = fts_query_phrase_search(query, &token);
+		query->error = fts_query_phrase_search(query, node);
 
 		query->collect_positions = FALSE;
 
@@ -3165,8 +3340,9 @@ fts_query_read_node(
 	byte			term[FTS_MAX_WORD_LEN + 1];
 	dberr_t			error = DB_SUCCESS;
 
-	ut_a(query->cur_node->type == FTS_AST_TERM ||
-	     query->cur_node->type == FTS_AST_TEXT);
+	ut_a(query->cur_node->type == FTS_AST_TERM
+	     || query->cur_node->type == FTS_AST_TEXT
+	     || query->cur_node->type == FTS_AST_PARSER_PHRASE_LIST);
 
 	memset(&node, 0, sizeof(node));
 
@@ -3635,7 +3811,8 @@ fts_query_free(
 }
 
 /*****************************************************************//**
-Parse the query using flex/bison. */
+Parse the query using flex/bison or plugin parser.
+@return parse tree node. */
 static
 fts_ast_node_t*
 fts_query_parse(
@@ -3650,12 +3827,24 @@ fts_query_parse(
 
 	memset(&state, 0x0, sizeof(state));
 
-	/* Setup the scanner to use, this depends on the mode flag. */
-	state.lexer = fts_lexer_create(mode, query_str, query_len);
 	state.charset = query->fts_index_table.charset;
-	error = fts_parse(&state);
-	fts_lexer_free(state.lexer);
-	state.lexer = NULL;
+
+	DBUG_EXECUTE_IF("fts_instrument_query_disable_parser",
+		query->parser = NULL;);
+
+	if (query->parser) {
+		state.root = state.cur_node =
+			fts_ast_create_node_list(&state, NULL);
+		error = fts_parse_by_parser(mode, query_str, query_len,
+					    query->parser, &state);
+	} else {
+		/* Setup the scanner to use, this depends on the mode flag. */
+		state.lexer = fts_lexer_create(mode, query_str, query_len);
+		state.charset = query->fts_index_table.charset;
+		error = fts_parse(&state);
+		fts_lexer_free(state.lexer);
+		state.lexer = NULL;
+	}
 
 	/* Error during parsing ? */
 	if (error) {
@@ -3663,6 +3852,10 @@ fts_query_parse(
 		fts_ast_state_free(&state);
 	} else {
 		query->root = state.root;
+
+		if (fts_enable_diag_print && query->root != NULL) {
+			fts_ast_node_print(query->root);
+		}
 	}
 
 	return(state.root);
@@ -3739,12 +3932,11 @@ fts_query_str_preprocess(
 	be taken care of in our CJK implementation */
         while (cur_pos < *result_len) {
                 fts_string_t    str;
-                ulint           offset;
                 ulint           cur_len;
 
                 cur_len = innobase_mysql_fts_get_token(
-                        charset, str_ptr + cur_pos, str_ptr + *result_len,
-			&str, &offset);
+                        charset, str_ptr + cur_pos,
+			str_ptr + *result_len, &str);
 
                 if (cur_len == 0) {
                         break;
@@ -3905,6 +4097,7 @@ fts_query(
 	/* Create the rb tree for the doc id (current) set. */
 	query.doc_ids = rbt_create(
 		sizeof(fts_ranking_t), fts_ranking_doc_id_cmp);
+	query.parser = index->parser;
 
 	query.total_size += SIZEOF_RBT_CREATE;
 
@@ -4108,6 +4301,7 @@ fts_expand_query(
 		index_cache->charset);
 
 	result_doc.charset = index_cache->charset;
+	result_doc.parser = index_cache->index->parser;
 
 	query->total_size += SIZEOF_RBT_CREATE;
 #ifdef UNIV_DEBUG

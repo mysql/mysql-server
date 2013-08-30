@@ -143,9 +143,11 @@ PFS_table_share *table_share_array= NULL;
 PFS_ALIGNED PFS_single_stat global_idle_stat;
 PFS_ALIGNED PFS_table_io_stat global_table_io_stat;
 PFS_ALIGNED PFS_table_lock_stat global_table_lock_stat;
+PFS_ALIGNED PFS_single_stat global_metadata_stat;
 PFS_ALIGNED PFS_instr_class global_table_io_class;
 PFS_ALIGNED PFS_instr_class global_table_lock_class;
 PFS_ALIGNED PFS_instr_class global_idle_class;
+PFS_ALIGNED PFS_instr_class global_metadata_class;
 
 /** Class-timer map */
 enum_timer_name *class_timers[] =
@@ -235,12 +237,20 @@ void register_global_classes()
                    0, PFS_CLASS_TABLE_LOCK);
   global_table_lock_class.m_event_name_index= GLOBAL_TABLE_LOCK_EVENT_INDEX;
   configure_instr_class(&global_table_lock_class);
-  
+
   /* Idle class */
   init_instr_class(&global_idle_class, "idle", 4,
                    0, PFS_CLASS_IDLE);
   global_idle_class.m_event_name_index= GLOBAL_IDLE_EVENT_INDEX;
   configure_instr_class(&global_idle_class);
+
+  /* Metadata class */
+  init_instr_class(&global_metadata_class, "wait/lock/metadata/sql/mdl", 26,
+                   0, PFS_CLASS_METADATA);
+  global_metadata_class.m_event_name_index= GLOBAL_METADATA_EVENT_INDEX;
+  global_metadata_class.m_enabled= false; /* Disabled by default */
+  global_metadata_class.m_timed= false;
+  configure_instr_class(&global_metadata_class);
 }
 
 /**
@@ -1282,6 +1292,20 @@ PFS_instr_class *sanitize_idle_class(PFS_instr_class *unsafe)
   return NULL;
 }
 
+PFS_instr_class *find_metadata_class(uint index)
+{
+  if (index == 1)
+    return & global_metadata_class;
+  return NULL;
+}
+
+PFS_instr_class *sanitize_metadata_class(PFS_instr_class *unsafe)
+{
+  if (likely(& global_metadata_class == unsafe))
+    return unsafe;
+  return NULL;
+}
+
 static void set_keys(PFS_table_share *pfs, const TABLE_SHARE *share)
 {
   int len;
@@ -1541,6 +1565,7 @@ void reset_events_waits_by_class()
   global_idle_stat.reset();
   global_table_io_stat.reset();
   global_table_lock_stat.reset();
+  global_metadata_stat.reset();
 }
 
 /** Reset the io statistics per file class. */

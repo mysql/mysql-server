@@ -7086,6 +7086,9 @@ ER_GCS_REPLICATION_CONFIGURATION
 ER_GCS_REPLICATION_RUNNING
   eng "The START GCS_REPLICATION failed since the cluster is already running."
 
+ER_ENGINE_OUT_OF_MEMORY
+  eng "Out of memory in storage engine '%-.64s'."
+
 #
 #  End of 5.7 error messages.
 #

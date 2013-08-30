@@ -7860,9 +7860,10 @@ bool mysql_alter_table(THD *thd,char *new_db, char *new_name,
       MDL_request_list mdl_requests;
       MDL_request target_db_mdl_request;
 
-      target_mdl_request.init(MDL_key::TABLE,
-                              alter_ctx.new_db, alter_ctx.new_name,
-                              MDL_EXCLUSIVE, MDL_TRANSACTION);
+      MDL_REQUEST_INIT(&target_mdl_request,
+                       MDL_key::TABLE,
+                       alter_ctx.new_db, alter_ctx.new_name,
+                       MDL_EXCLUSIVE, MDL_TRANSACTION);
       mdl_requests.push_front(&target_mdl_request);
 
       /*
@@ -7872,9 +7873,10 @@ bool mysql_alter_table(THD *thd,char *new_db, char *new_name,
       */
       if (alter_ctx.is_database_changed())
       {
-        target_db_mdl_request.init(MDL_key::SCHEMA, alter_ctx.new_db, "",
-                                   MDL_INTENTION_EXCLUSIVE,
-                                   MDL_TRANSACTION);
+        MDL_REQUEST_INIT(&target_db_mdl_request,
+                         MDL_key::SCHEMA, alter_ctx.new_db, "",
+                         MDL_INTENTION_EXCLUSIVE,
+                         MDL_TRANSACTION);
         mdl_requests.push_front(&target_db_mdl_request);
       }
 
@@ -8914,7 +8916,7 @@ copy_data_between_tables(TABLE *from,TABLE *to,
     to->auto_increment_field_not_null= FALSE;
     if (error)
     {
-      if (to->file->is_fatal_error(error, HA_CHECK_DUP))
+      if (!to->file->is_ignorable_error(error))
       {
         /* Not a duplicate key error. */
 	to->file->print_error(error, MYF(0));

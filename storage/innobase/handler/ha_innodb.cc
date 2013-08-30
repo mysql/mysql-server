@@ -96,6 +96,7 @@ this program; if not, write to the Free Software Foundation, Inc.,
 #include "trx0purge.h"
 #endif /* UNIV_DEBUG */
 #include "fts0priv.h"
+#include "fts0plugin.h"
 #include "page0zip.h"
 #include "row0trunc.h"
 
@@ -4925,6 +4926,22 @@ table_opened:
 		dict_table_autoinc_unlock(prebuilt->table);
 	}
 
+	/* Set plugin parser for fulltext index */
+	for (ulint i = 0; i < table->s->keys; i++) {
+		if (table->key_info[i].flags & HA_USES_PARSER) {
+			dict_index_t*	index = innobase_get_index(i);
+			plugin_ref	parser = table->key_info[i].parser;
+
+			ut_ad(index->type & DICT_FTS);
+			index->parser =
+				static_cast<st_mysql_ftparser *>(
+					plugin_decl(parser)->info);
+
+			DBUG_EXECUTE_IF("fts_instrument_use_default_parser",
+				index->parser = &fts_default_parser;);
+		}
+	}
+
 	info(HA_STATUS_NO_LOCK | HA_STATUS_VARIABLE | HA_STATUS_CONST);
 
 	DBUG_RETURN(0);
@@ -5164,10 +5181,7 @@ innobase_mysql_fts_get_token(
 	const byte*	start,		/*!< in: start of text */
 	const byte*	end,		/*!< in: one character past end of
 					text */
-	fts_string_t*	token,		/*!< out: token's text */
-	ulint*		offset)		/*!< out: offset to token,
-					measured as characters from
-					'start' */
+	fts_string_t*	token)		/*!< out: token's text */
 {
 	int		mbl;
 	const uchar*	doc = start;
@@ -9001,11 +9015,6 @@ innobase_table_flags(
 
 				my_error(ER_INNODB_NO_FT_TEMP_TABLE, MYF(0));
 				DBUG_RETURN(false);
-			}
-
-			if (key->flags & HA_USES_PARSER) {
-				my_error(ER_INNODB_NO_FT_USES_PARSER, MYF(0));
-                                DBUG_RETURN(false);
 			}
 
 			if (fts_doc_id_index_bad) {
@@ -16263,30 +16272,6 @@ ha_innobase::multi_range_read_info(
 {
 	ds_mrr.init(this, table);
 	return(ds_mrr.dsmrr_info(keyno, n_ranges, keys, bufsz, flags, cost));
-}
-
-/**
-@brief Determine whether an error is fatal or not. 
-    
-A deadlock error is not a fatal error.
-    
-@param error	error code received from the handler interface (HA_ERR_...)
-@param flags	indicate whether duplicate key errors should be ignorable
-    
-@return   whether the error is fatal or not
-@retval true  the error is fatal
-@retval false the error is not fatal */
-
-bool
-ha_innobase::is_fatal_error(int error, uint flags)
-{
-	if (!handler::is_fatal_error(error, flags)
-	    || error == HA_ERR_LOCK_DEADLOCK) {
-
-		return(false);
-	}
-
-	return(true);
 }
 
 /**
