@@ -176,8 +176,7 @@ static struct
 
   /* we disable few other plugins by default */
   { "ndbcluster", PLUGIN_OFF },
-  { "feedback", PLUGIN_OFF },
-  { "pbxt", PLUGIN_OFF }
+  { "feedback", PLUGIN_OFF }
 };
 
 /* support for Services */

@@ -12,7 +12,7 @@ AS "user_comment",
 FROM information_schema.tables
 WHERE table_schema = 'information_schema'
 AND table_name <> 'profiling' AND table_name not like 'innodb_%'
-AND table_name not like 'pbxt_%' AND table_name not like 'xtradb_%'
+AND table_name not like 'xtradb_%'
 ORDER BY table_schema,table_name;
 TABLE_CATALOG	def
 TABLE_SCHEMA	information_schema
@@ -812,7 +812,7 @@ AS "user_comment",
 FROM information_schema.tables
 WHERE table_schema = 'information_schema'
 AND table_name <> 'profiling' AND table_name not like 'innodb_%'
-AND table_name not like 'pbxt_%' AND table_name not like 'xtradb_%'
+AND table_name not like 'xtradb_%'
 ORDER BY table_schema,table_name;
 TABLE_CATALOG	def
 TABLE_SCHEMA	information_schema

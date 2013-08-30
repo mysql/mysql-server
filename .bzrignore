@@ -311,7 +311,6 @@ libmysqld/ha_ndbcluster.cc
 libmysqld/ha_ndbcluster_binlog.cc
 libmysqld/ha_ndbcluster_cond.cc
 libmysqld/ha_partition.cc
-libmysqld/ha_pbxt.cc
 libmysqld/ha_tina.cc
 libmysqld/handler.cc
 libmysqld/handlerton.cc
@@ -457,7 +456,6 @@ libmysqld/tztime.cc
 libmysqld/uniques.cc
 libmysqld/unireg.cc
 libmysqld/discover_xt.cc
-libmysqld/ha_pbxt.cc
 libmysqld/myxt_xt.cc
 libmysqld/rpl_reporting.cc
 libmysqld/rpl_utility.cc
@@ -930,7 +928,6 @@ storage/ndb/tools/ndb_select_count
 storage/ndb/tools/ndb_show_tables
 storage/ndb/tools/ndb_test_platform
 storage/ndb/tools/ndb_waiter
-storage/pbxt/bin/xtstat
 storage/xtradb/configure.lineno
 storage/xtradb/conftest.s1
 storage/xtradb/conftest.subs
@@ -1115,7 +1112,6 @@ client/rpl_filter.h
 client/sql_list.cc
 client/sql_list.h
 libmysqld/create_options.cc
-storage/pbxt/bin/xtstat
 libmysqld/sql_expression_cache.cc
 mysql-test/mtr_command
 scripts/convert-debug-for-diff

@@ -13,14 +13,6 @@ if (`SELECT @@storage_engine LIKE 'InnoDB' AND @@version LIKE '%6.%'`)
     --enable_query_log
 }
 
-if (`SELECT @@storage_engine LIKE 'PBXT' AND @@version LIKE '%5.1%'`)
-{
-    --disable_query_log
-    SET SESSION binlog_format = 'MIXED';
-    SET GLOBAL binlog_format = 'MIXED';
-    --enable_query_log
-}
-
 # Verify default storage engine.
 SHOW VARIABLES LIKE 'storage_engine';
 
