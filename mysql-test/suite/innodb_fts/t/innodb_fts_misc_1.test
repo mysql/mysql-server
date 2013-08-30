@@ -3,6 +3,7 @@
 #------------------------------------------------------------------------------
 # FTS with FK and update cascade
 #-------------------------------------------------------------------------------
+let $innodb_file_format_max_orig=`select @@innodb_file_format_max`;
 --disable_warnings
 drop table if exists t2,t1;
 --enable_warnings
@@ -431,7 +432,6 @@ DROP TABLE t2 , t1;
 # Save innodb variables
 let $innodb_file_format_orig=`select @@innodb_file_format`;
 let $innodb_file_per_table_orig=`select @@innodb_file_per_table`;
-let $innodb_file_format_max_orig=`select @@innodb_file_format_max`;
 let $innodb_large_prefix_orig=`select @@innodb_large_prefix`;
 
 # Set Innodb file format as feature works for Barracuda file format
