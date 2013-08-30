@@ -1363,7 +1363,6 @@ buf_free_from_unzip_LRU_list_batch(
 	ulint		max)		/*!< in: desired number of
 					blocks in the free_list */
 {
-	buf_block_t*	block;
 	ulint		scanned = 0;
 	ulint		count = 0;
 	ulint		free_len = UT_LIST_GET_LEN(buf_pool->free);
@@ -1371,7 +1370,8 @@ buf_free_from_unzip_LRU_list_batch(
 
 	ut_ad(buf_pool_mutex_own(buf_pool));
 
-	block = UT_LIST_GET_LAST(buf_pool->unzip_LRU);
+	buf_block_t*	block = UT_LIST_GET_LAST(buf_pool->unzip_LRU);
+
 	while (block != NULL && count < max
 	       && free_len < srv_LRU_scan_depth
 	       && lru_len > UT_LIST_GET_LEN(buf_pool->LRU) / 10) {
