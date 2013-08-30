@@ -58,7 +58,7 @@ is allowed. Note that the tolerance must be small enough such that for
 even the BUF_LRU_OLD_MIN_LEN long LRU list, the LRU_old pointer is not
 allowed to point to either end of the LRU list. */
 
-#define BUF_LRU_OLD_TOLERANCE	20
+static const ulint BUF_LRU_OLD_TOLERANCE = 20;
 
 /** The minimum amount of non-old blocks when the LRU_old list exists
 (that is, when there are more than BUF_LRU_OLD_MIN_LEN blocks).
@@ -75,15 +75,15 @@ We also release buf_pool->mutex after scanning this many pages of the
 flush_list when dropping a table. This is to ensure that other threads
 are not blocked for extended period of time when using very large
 buffer pools. */
-#define BUF_LRU_DROP_SEARCH_SIZE	1024
+static const ulint BUF_LRU_DROP_SEARCH_SIZE = 1024;
 
 /** We scan these many blocks when looking for a clean page to evict
 during LRU eviction. */
-#define BUF_LRU_SEARCH_SCAN_THRESHOLD	100
+static const ulint BUF_LRU_SEARCH_SCAN_THRESHOLD = 100;
 
 /** If we switch on the InnoDB monitor because there are too few available
 frames in the buffer pool, we set this to TRUE */
-static ibool	buf_lru_switched_on_innodb_mon	= FALSE;
+static bool buf_lru_switched_on_innodb_mon = false;
 
 /******************************************************************//**
 These statistics are not 'of' LRU but 'for' LRU.  We keep count of I/O
@@ -99,11 +99,11 @@ uncompressed and compressed data), which must be clean. */
 /** Number of intervals for which we keep the history of these stats.
 Each interval is 1 second, defined by the rate at which
 srv_error_monitor_thread() calls buf_LRU_stat_update(). */
-#define BUF_LRU_STAT_N_INTERVAL 50
+static const ulint BUF_LRU_STAT_N_INTERVAL = 50;
 
 /** Co-efficient with which we multiply I/O operations to equate them
 with page_zip_decompress() operations. */
-#define BUF_LRU_IO_TO_UNZIP_FACTOR 50
+static const ulint BUF_LRU_IO_TO_UNZIP_FACTOR = 50;
 
 /** Sampled values buf_LRU_stat_cur.
 Not protected by any mutex.  Updated by buf_LRU_stat_update(). */
@@ -949,7 +949,7 @@ buf_LRU_insert_zip_clean(
 Try to free an uncompressed page of a compressed block from the unzip
 LRU list.  The compressed page is preserved, and it need not be clean.
 @return true if freed */
-UNIV_INLINE
+static
 bool
 buf_LRU_free_from_unzip_LRU_list(
 /*=============================*/
@@ -958,24 +958,24 @@ buf_LRU_free_from_unzip_LRU_list(
 					if true, otherwise scan only
 					srv_LRU_scan_depth / 2 blocks. */
 {
-	buf_block_t*	block;
-	ibool		freed;
-	ulint		scanned;
-
 	ut_ad(buf_pool_mutex_own(buf_pool));
 
 	if (!buf_LRU_evict_from_unzip_LRU(buf_pool)) {
-		return(FALSE);
+		return(false);
 	}
 
-	for (block = UT_LIST_GET_LAST(buf_pool->unzip_LRU),
-	     scanned = 0, freed = FALSE;
-	     block != NULL && !freed
+	ulint	scanned = 0;
+	bool	freed = false;
+
+	for (buf_block_t* block = UT_LIST_GET_LAST(buf_pool->unzip_LRU);
+	     block != NULL
+	     && !freed
 	     && (scan_all || scanned < srv_LRU_scan_depth);
 	     ++scanned) {
 
-		buf_block_t*	prev_block = UT_LIST_GET_PREV(unzip_LRU,
-						block);
+		buf_block_t*	prev_block;
+
+		prev_block = UT_LIST_GET_PREV(unzip_LRU, block);
 
 		ut_ad(buf_block_get_state(block) == BUF_BLOCK_FILE_PAGE);
 		ut_ad(block->in_unzip_LRU_list);
@@ -1000,36 +1000,37 @@ buf_LRU_free_from_unzip_LRU_list(
 /******************************************************************//**
 Try to free a clean page from the common LRU list.
 @return true if freed */
-UNIV_INLINE
+static
 bool
 buf_LRU_free_from_common_LRU_list(
 /*==============================*/
 	buf_pool_t*	buf_pool,	/*!< in: buffer pool instance */
 	bool		scan_all)	/*!< in: scan whole LRU list
 					if true, otherwise scan only
-					srv_LRU_scan_depth / 2 blocks. */
+					up to BUF_LRU_SEARCH_SCAN_THRESHOLD */
 {
-	buf_page_t*	bpage;
-	bool		freed;
-	ulint		scanned;
-
 	ut_ad(buf_pool_mutex_own(buf_pool));
 
-	for (bpage = buf_pool->lru_scan_itr.start(),
-	     scanned = 0, freed = false; bpage != NULL && !freed
+	bool		scanned = 0;
+	bool		freed = false;
+
+	for (buf_page_t* bpage = buf_pool->lru_scan_itr.start();
+	     bpage != NULL
+	     && !freed
 	     && (scan_all || scanned < BUF_LRU_SEARCH_SCAN_THRESHOLD);
 	     ++scanned, bpage = buf_pool->lru_scan_itr.get()) {
 
-		buf_page_t* prev = UT_LIST_GET_PREV(LRU, bpage);
+		buf_page_t*	prev = UT_LIST_GET_PREV(LRU, bpage);
+		ib_mutex_t*	mutex = buf_page_get_mutex(bpage);
+
 		buf_pool->lru_scan_itr.set(prev);
- 
-		ib_mutex_t* mutex = buf_page_get_mutex(bpage);
+
 		mutex_enter(mutex);
 
 		ut_ad(buf_page_in_file(bpage));
 		ut_ad(bpage->in_LRU_list);
 
-		unsigned accessed = buf_page_is_accessed(bpage);
+		unsigned	accessed = buf_page_is_accessed(bpage);
 
 		if (buf_flush_ready_for_replace(bpage)) {
 			mutex_exit(mutex);
@@ -1070,13 +1071,13 @@ buf_LRU_scan_and_free_block(
 	buf_pool_t*	buf_pool,	/*!< in: buffer pool instance */
 	bool		scan_all)	/*!< in: scan whole LRU list
 					if true, otherwise scan only
-					'old' blocks. */
+					BUF_LRU_SEARCH_SCAN_THRESHOLD
+					blocks. */
 {
 	ut_ad(buf_pool_mutex_own(buf_pool));
 
 	return(buf_LRU_free_from_unzip_LRU_list(buf_pool, scan_all)
-	       || buf_LRU_free_from_common_LRU_list(
-			buf_pool, scan_all));
+	       || buf_LRU_free_from_common_LRU_list(buf_pool, scan_all));
 }
 
 /******************************************************************//**
@@ -1205,7 +1206,7 @@ buf_LRU_check_size_of_non_data_objects(
 				(ulong) (buf_pool->curr_size
 					 / (1024 * 1024 / UNIV_PAGE_SIZE)));
 
-			buf_lru_switched_on_innodb_mon = TRUE;
+			buf_lru_switched_on_innodb_mon = true;
 			srv_print_innodb_monitor = TRUE;
 			os_event_set(lock_sys->timeout_event);
 		}
@@ -1216,7 +1217,7 @@ buf_LRU_check_size_of_non_data_objects(
 		but may also surprise users if the user also switched on the
 		monitor! */
 
-		buf_lru_switched_on_innodb_mon = FALSE;
+		buf_lru_switched_on_innodb_mon = false;
 		srv_print_innodb_monitor = FALSE;
 	}
 }
@@ -1287,8 +1288,8 @@ loop:
 		If we are doing for the first time we'll scan only
 		tail of the LRU list otherwise we scan the whole LRU
 		list. */
-		freed = buf_LRU_scan_and_free_block(buf_pool,
-						    n_iterations > 0);
+		freed = buf_LRU_scan_and_free_block(
+			buf_pool, n_iterations > 0);
 
 		if (!freed && n_iterations == 0) {
 			/* Tell other threads that there is no point
