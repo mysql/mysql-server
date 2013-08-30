@@ -1103,9 +1103,10 @@ static bool find_db_tables_and_rm_known_files(THD *thd, MY_DIR *dirp,
 
       table_list->alias= table_list->table_name;	// If lower_case_table_names=2
       table_list->internal_tmp_table= is_prefix(file->name, tmp_file_prefix);
-      table_list->mdl_request.init(MDL_key::TABLE, table_list->db,
-                                   table_list->table_name, MDL_EXCLUSIVE,
-                                   MDL_TRANSACTION);
+      MDL_REQUEST_INIT(&table_list->mdl_request,
+                       MDL_key::TABLE, table_list->db,
+                       table_list->table_name, MDL_EXCLUSIVE,
+                       MDL_TRANSACTION);
       /* Link into list */
       (*tot_list_next_local)= table_list;
       (*tot_list_next_global)= table_list;

@@ -701,6 +701,49 @@ static void memory_free_noop(PSI_memory_key key NNN, size_t size NNN)
   return;
 }
 
+static void unlock_table_noop(PSI_table *table NNN)
+{
+  return;
+}
+
+static PSI_metadata_lock *
+create_metadata_lock_noop(void *identity NNN,
+                          const MDL_key *mdl_key NNN,
+                          opaque_mdl_type mdl_type NNN,
+                          opaque_mdl_duration mdl_duration NNN,
+                          opaque_mdl_status mdl_status NNN,
+                          const char *src_file NNN,
+                          uint src_line NNN)
+{
+  return NULL;
+}
+
+static void
+set_metadata_lock_status_noop(PSI_metadata_lock* lock NNN,
+                              opaque_mdl_status mdl_status NNN)
+{
+}
+
+static void
+destroy_metadata_lock_noop(PSI_metadata_lock* lock NNN)
+{
+}
+
+static PSI_metadata_locker *
+start_metadata_wait_noop(PSI_metadata_locker_state *state NNN,
+                         PSI_metadata_lock *mdl NNN,
+                         const char *src_file NNN,
+                         uint src_line NNN)
+{
+  return NULL;
+}
+
+static void
+end_metadata_wait_noop(PSI_metadata_locker *locker NNN,
+                       int rc NNN)
+{
+}
+
 static PSI PSI_noop=
 {
   register_mutex_noop,
@@ -808,7 +851,14 @@ static PSI PSI_noop=
   register_memory_noop,
   memory_alloc_noop,
   memory_realloc_noop,
-  memory_free_noop
+  memory_free_noop,
+
+  unlock_table_noop,
+  create_metadata_lock_noop,
+  set_metadata_lock_status_noop,
+  destroy_metadata_lock_noop,
+  start_metadata_wait_noop,
+  end_metadata_wait_noop
 };
 
 /**
