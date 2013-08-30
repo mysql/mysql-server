@@ -1,4 +1,4 @@
-/* Copyright (c) 2010, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2010, 2013, Oracle and/or its affiliates. All rights reserved.
 
   This program is free software; you can redistribute it and/or modify
   it under the terms of the GNU General Public License as published by
@@ -154,6 +154,9 @@ int table_ews_by_user_by_event_name::rnd_next(void)
         case pos_ews_by_user_by_event_name::VIEW_IDLE:
           instr_class= find_idle_class(m_pos.m_index_3);
           break;
+        case pos_ews_by_user_by_event_name::VIEW_METADATA:
+          instr_class= find_metadata_class(m_pos.m_index_3);
+          break;
         default:
           instr_class= NULL;
           DBUG_ASSERT(false);
@@ -208,6 +211,9 @@ table_ews_by_user_by_event_name::rnd_pos(const void *pos)
     break;
   case pos_ews_by_user_by_event_name::VIEW_IDLE:
     instr_class= find_idle_class(m_pos.m_index_3);
+    break;
+  case pos_ews_by_user_by_event_name::VIEW_METADATA:
+    instr_class= find_metadata_class(m_pos.m_index_3);
     break;
   default:
     instr_class= NULL;

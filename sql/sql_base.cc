@@ -2341,9 +2341,10 @@ open_table_get_mdl_lock(THD *thd, Open_table_context *ot_ctx,
     DBUG_ASSERT(!(flags & MYSQL_OPEN_FORCE_SHARED_MDL) ||
                 !(flags & MYSQL_OPEN_FORCE_SHARED_HIGH_PRIO_MDL));
 
-    mdl_request_shared.init(&mdl_request->key,
+    MDL_REQUEST_INIT_BY_KEY(&mdl_request_shared,
+                            &mdl_request->key,
                             (flags & MYSQL_OPEN_FORCE_SHARED_MDL) ?
-                            MDL_SHARED : MDL_SHARED_HIGH_PRIO,
+                              MDL_SHARED : MDL_SHARED_HIGH_PRIO,
                             MDL_TRANSACTION);
     mdl_request= &mdl_request_shared;
   }
@@ -2673,8 +2674,9 @@ bool open_table(THD *thd, TABLE_LIST *table_list, Open_table_context *ot_ctx)
       if (thd->global_read_lock.can_acquire_protection())
         DBUG_RETURN(TRUE);
 
-      protection_request.init(MDL_key::GLOBAL, "", "", MDL_INTENTION_EXCLUSIVE,
-                              MDL_STATEMENT);
+      MDL_REQUEST_INIT(&protection_request,
+                       MDL_key::GLOBAL, "", "", MDL_INTENTION_EXCLUSIVE,
+                       MDL_STATEMENT);
 
       /*
         Install error handler which if possible will convert deadlock error
@@ -4671,9 +4673,10 @@ lock_table_names(THD *thd,
       MDL_request *schema_request= new (thd->mem_root) MDL_request;
       if (schema_request == NULL)
         return TRUE;
-      schema_request->init(MDL_key::SCHEMA, table->db, "",
-                           MDL_INTENTION_EXCLUSIVE,
-                           MDL_TRANSACTION);
+      MDL_REQUEST_INIT(schema_request,
+                       MDL_key::SCHEMA, table->db, "",
+                       MDL_INTENTION_EXCLUSIVE,
+                       MDL_TRANSACTION);
       mdl_requests.push_front(schema_request);
     }
 
@@ -4684,8 +4687,9 @@ lock_table_names(THD *thd,
     */
     if (thd->global_read_lock.can_acquire_protection())
       return TRUE;
-    global_request.init(MDL_key::GLOBAL, "", "", MDL_INTENTION_EXCLUSIVE,
-                        MDL_STATEMENT);
+    MDL_REQUEST_INIT(&global_request,
+                     MDL_key::GLOBAL, "", "", MDL_INTENTION_EXCLUSIVE,
+                     MDL_STATEMENT);
     mdl_requests.push_front(&global_request);
   }
 

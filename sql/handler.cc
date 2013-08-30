@@ -1400,7 +1400,8 @@ int ha_commit_trans(THD *thd, bool all, bool ignore_global_read_lock)
         We allow the owner of FTWRL to COMMIT; we assume that it knows
         what it does.
       */
-      mdl_request.init(MDL_key::COMMIT, "", "", MDL_INTENTION_EXCLUSIVE,
+      MDL_REQUEST_INIT(&mdl_request,
+                       MDL_key::COMMIT, "", "", MDL_INTENTION_EXCLUSIVE,
                        MDL_EXPLICIT);
 
       DBUG_PRINT("debug", ("Acquire MDL commit lock"));

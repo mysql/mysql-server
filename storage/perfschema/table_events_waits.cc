@@ -1,4 +1,4 @@
-/* Copyright (c) 2008, 2011, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2008, 2013, Oracle and/or its affiliates. All rights reserved.
 
   This program is free software; you can redistribute it and/or modify
   it under the terms of the GNU General Public License as published by
@@ -198,7 +198,6 @@ void table_events_waits_common::clear_object_columns()
   m_row.m_object_schema_length= 0;
   m_row.m_object_name_length= 0;
   m_row.m_index_name_length= 0;
-  m_row.m_object_instance_addr= 0;
 }
 
 int table_events_waits_common::make_table_object_columns(volatile PFS_events_waits *wait)
@@ -347,6 +346,101 @@ int table_events_waits_common::make_socket_object_columns(volatile PFS_events_wa
   return 0;
 }
 
+int table_events_waits_common::make_metadata_lock_object_columns(volatile PFS_events_waits *wait)
+{
+  PFS_metadata_lock *safe_metadata_lock;
+
+  safe_metadata_lock= sanitize_metadata_lock(wait->m_weak_metadata_lock);
+  if (unlikely(safe_metadata_lock == NULL))
+    return 1;
+
+  if (safe_metadata_lock->get_version() == wait->m_weak_version)
+  {
+    MDL_key *mdl= & safe_metadata_lock->m_mdl_key;
+
+    switch(mdl->mdl_namespace())
+    {
+    case MDL_key::GLOBAL:
+      m_row.m_object_type= "GLOBAL";
+      m_row.m_object_type_length= 6;
+      m_row.m_object_schema_length= 0;
+      m_row.m_object_name_length= 0;
+      break;
+    case MDL_key::SCHEMA:
+      m_row.m_object_type= "SCHEMA";
+      m_row.m_object_type_length= 6;
+      m_row.m_object_schema_length= mdl->db_name_length();
+      m_row.m_object_name_length= 0;
+      break;
+    case MDL_key::TABLE:
+      m_row.m_object_type= "TABLE";
+      m_row.m_object_type_length= 5;
+      m_row.m_object_schema_length= mdl->db_name_length();
+      m_row.m_object_name_length= mdl->name_length();
+      break;
+    case MDL_key::FUNCTION:
+      m_row.m_object_type= "FUNCTION";
+      m_row.m_object_type_length= 8;
+      m_row.m_object_schema_length= mdl->db_name_length();
+      m_row.m_object_name_length= mdl->name_length();
+      break;
+    case MDL_key::PROCEDURE:
+      m_row.m_object_type= "PROCEDURE";
+      m_row.m_object_type_length= 9;
+      m_row.m_object_schema_length= mdl->db_name_length();
+      m_row.m_object_name_length= mdl->name_length();
+      break;
+    case MDL_key::TRIGGER:
+      m_row.m_object_type= "TRIGGER";
+      m_row.m_object_type_length= 7;
+      m_row.m_object_schema_length= mdl->db_name_length();
+      m_row.m_object_name_length= mdl->name_length();
+      break;
+    case MDL_key::EVENT:
+      m_row.m_object_type= "EVENT";
+      m_row.m_object_type_length= 5;
+      m_row.m_object_schema_length= mdl->db_name_length();
+      m_row.m_object_name_length= mdl->name_length();
+      break;
+    case MDL_key::COMMIT:
+      m_row.m_object_type= "COMMIT";
+      m_row.m_object_type_length= 6;
+      m_row.m_object_schema_length= 0;
+      m_row.m_object_name_length= 0;
+      break;
+    case MDL_key::NAMESPACE_END:
+    default:
+      m_row.m_object_type_length= 0;
+      m_row.m_object_schema_length= 0;
+      m_row.m_object_name_length= 0;
+      break;
+    }
+
+    if (m_row.m_object_schema_length > sizeof(m_row.m_object_schema))
+      return 1;
+    if (m_row.m_object_schema_length > 0)
+      memcpy(m_row.m_object_schema, mdl->db_name(), m_row.m_object_schema_length);
+
+    if (m_row.m_object_name_length > sizeof(m_row.m_object_name))
+      return 1;
+    if (m_row.m_object_name_length > 0)
+      memcpy(m_row.m_object_name, mdl->name(), m_row.m_object_name_length);
+
+    m_row.m_object_instance_addr= (intptr) wait->m_object_instance_addr;
+  }
+  else
+  {
+    m_row.m_object_schema_length= 0;
+    m_row.m_object_name_length= 0;
+    m_row.m_object_instance_addr= 0;
+  }
+
+  /* INDEX NAME */
+  m_row.m_index_name_length= 0;
+
+  return 0;
+}
+
 /**
   Build a row.
   @param thread_own_wait            True if the memory for the wait
@@ -398,20 +492,29 @@ void table_events_waits_common::make_row(bool thread_own_wait,
   */
   switch (wait->m_wait_class)
   {
+  case WAIT_CLASS_METADATA:
+    if (make_metadata_lock_object_columns(wait))
+      return;
+    safe_class= sanitize_metadata_class(wait->m_class);
+    break;
   case WAIT_CLASS_IDLE:
     clear_object_columns();
+    m_row.m_object_instance_addr= 0;
     safe_class= sanitize_idle_class(wait->m_class);
     break;
   case WAIT_CLASS_MUTEX:
     clear_object_columns();
+    m_row.m_object_instance_addr= (intptr) wait->m_object_instance_addr;
     safe_class= sanitize_mutex_class((PFS_mutex_class*) wait->m_class);
     break;
   case WAIT_CLASS_RWLOCK:
     clear_object_columns();
+    m_row.m_object_instance_addr= (intptr) wait->m_object_instance_addr;
     safe_class= sanitize_rwlock_class((PFS_rwlock_class*) wait->m_class);
     break;
   case WAIT_CLASS_COND:
     clear_object_columns();
+    m_row.m_object_instance_addr= (intptr) wait->m_object_instance_addr;
     safe_class= sanitize_cond_class((PFS_cond_class*) wait->m_class);
     break;
   case WAIT_CLASS_TABLE:
@@ -564,7 +667,10 @@ static const LEX_STRING operation_names_map[]=
   { C_STRING_WITH_LEN("select") },
 
   /* Idle operations */
-  { C_STRING_WITH_LEN("idle") }
+  { C_STRING_WITH_LEN("idle") },
+
+  /* Medatada lock operations */
+  { C_STRING_WITH_LEN("metadata lock") }
 };
 
 
