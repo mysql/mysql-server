@@ -365,9 +365,9 @@ row_merge_fts_doc_add_word_for_parser(
 	MYSQL_FTPARSER_PARAM	*param,		/* in: parser paramter */
 	char			*word,		/* in: token word */
 	int			word_len,	/* in: word len */
-	MYSQL_FTPARSER_BOOLEAN_INFO* boolean_info) /* in: word boolean info */
+	MYSQL_FTPARSER_BOOLEAN_INFO*	boolean_info)	/* in: boolean info */
 {
-	fts_string_t    str;
+	fts_string_t		str;
 	fts_tokenize_ctx_t*	t_ctx;
 	row_fts_token_t*	fts_token;
 	byte*			ptr;
@@ -416,7 +416,7 @@ row_merge_fts_doc_tokenize_by_parser(
 	st_mysql_ftparser*	parser,	/* in: plugin parser instance */
 	fts_tokenize_ctx_t*	t_ctx)	/* in/out: tokenize ctx instance */
 {
-	MYSQL_FTPARSER_PARAM    param;
+	MYSQL_FTPARSER_PARAM	param;
 
 	ut_a(parser);
 
