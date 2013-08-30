@@ -1380,7 +1380,7 @@ id	select_type	table	type	possible_keys	key	key_len	ref	rows	filtered	Extra
 2	MATERIALIZED	t2	ALL	NULL	NULL	NULL	NULL	2	100.00	Using where
 2	MATERIALIZED	t3	hash_ALL	NULL	#hash#$hj	5	test.t2.i2	3	100.00	Using where; Using join buffer (flat, BNLH join)
 Warnings:
-Note	1003	select `test`.`t1`.`i1` AS `i1` from `test`.`t1` semi join (`test`.`t2` join `test`.`t3`) where ((`test`.`t3`.`i3` = `test`.`t2`.`i2`) and (`test`.`t1`.`i1` = `test`.`t2`.`i2`) and (`test`.`t3`.`i3` > 0))
+Note	1003	select `test`.`t1`.`i1` AS `i1` from `test`.`t1` semi join (`test`.`t2` join `test`.`t3`) where ((`test`.`t3`.`i3` = `test`.`t2`.`i2`) and (`test`.`t1`.`i1` = `test`.`t2`.`i2`) and (`test`.`t2`.`i2` > 0))
 SELECT * FROM t1 
 WHERE i1 IN (SELECT i3 FROM t2, t3 WHERE i3 > 0 AND i3 = i2 OR 1=2);
 i1

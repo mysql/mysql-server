@@ -5265,6 +5265,31 @@ SELECT * FROM t1, t2
 WHERE i1 = i2 AND ( FALSE OR ( j1 > 27 AND j1 < 100 OR j1 <= 3 ) AND j1 = i2 );
 i1	j1	i2
 DROP TABLE t1,t2;
+#
+# Bug mdev-4971: equality propagation after merging degenerate 
+#                disjunction into embedding AND level 
+#
+CREATE TABLE t1 (pk1 int, a1 int, b1 int, PRIMARY KEY(pk1)) ENGINE=MyISAM;
+INSERT INTO t1 VALUES (1,10,100), (2,20,200) ;
+CREATE TABLE t2 (pk2 int, a2 int, PRIMARY KEY(pk2)) ENGINE=MyISAM;
+INSERT INTO t2 VALUES (1,1);
+SELECT * FROM t1, t2
+WHERE a1 = pk2 AND ( ( b1 = 6 OR a2 > 4 ) AND pk2 = a2 OR pk1 IS NULL );
+pk1	a1	b1	pk2	a2
+EXPLAIN EXTENDED
+SELECT * FROM t1, t2
+WHERE a1 = pk2 AND ( ( b1 = 6 OR a2 > 4 ) AND pk2 = a2 OR pk1 IS NULL );
+id	select_type	table	type	possible_keys	key	key_len	ref	rows	filtered	Extra
+1	SIMPLE	t2	system	PRIMARY	NULL	NULL	NULL	1	100.00	
+1	SIMPLE	t1	ALL	NULL	NULL	NULL	NULL	2	100.00	Using where
+Warnings:
+Note	1003	select `test`.`t1`.`pk1` AS `pk1`,`test`.`t1`.`a1` AS `a1`,`test`.`t1`.`b1` AS `b1`,1 AS `pk2`,1 AS `a2` from `test`.`t1` join `test`.`t2` where ((`test`.`t1`.`a1` = 1) and ((`test`.`t1`.`b1` = 6) or (1 > 4)))
+INSERT INTO t1 VALUES (3,1,6);
+SELECT * FROM t1, t2
+WHERE a1 = pk2 AND ( ( b1 = 6 OR a2 > 4 ) AND pk2 = a2 OR pk1 IS NULL );
+pk1	a1	b1	pk2	a2
+3	1	6	1	1
+DROP TABLE t1,t2;
 End of 5.3 tests
 set join_cache_level=default;
 show variables like 'join_cache_level';
