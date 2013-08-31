@@ -4582,5 +4582,28 @@ SELECT * FROM t1, t2
 
 DROP TABLE t1,t2;
 
+--echo #
+--echo # Bug mdev-4971: equality propagation after merging degenerate 
+--echo #                disjunction into embedding AND level 
+--echo #
+
+CREATE TABLE t1 (pk1 int, a1 int, b1 int, PRIMARY KEY(pk1)) ENGINE=MyISAM;
+INSERT INTO t1 VALUES (1,10,100), (2,20,200) ;
+
+CREATE TABLE t2 (pk2 int, a2 int, PRIMARY KEY(pk2)) ENGINE=MyISAM;
+INSERT INTO t2 VALUES (1,1);
+
+SELECT * FROM t1, t2
+  WHERE a1 = pk2 AND ( ( b1 = 6 OR a2 > 4 ) AND pk2 = a2 OR pk1 IS NULL );
+EXPLAIN EXTENDED
+SELECT * FROM t1, t2
+  WHERE a1 = pk2 AND ( ( b1 = 6 OR a2 > 4 ) AND pk2 = a2 OR pk1 IS NULL );
+
+INSERT INTO t1 VALUES (3,1,6);
+SELECT * FROM t1, t2
+  WHERE a1 = pk2 AND ( ( b1 = 6 OR a2 > 4 ) AND pk2 = a2 OR pk1 IS NULL );
+
+DROP TABLE t1,t2;
+
 --echo End of 5.3 tests
 
