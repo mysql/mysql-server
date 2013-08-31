@@ -13481,7 +13481,8 @@ void propagate_new_equalities(THD *thd, Item *cond,
     {
       Item_cond_and *cond_and= (Item_cond_and *) cond; 
       List<Item_equal> *cond_equalities= &cond_and->cond_equal.current_level;
-      inherited= cond_and->cond_equal.upper_levels;
+      cond_and->cond_equal.upper_levels= inherited;
+      inherited= &cond_and->cond_equal;
       if (!cond_equalities->is_empty() && cond_equalities != new_equalities)
       {
         Item_equal *equal_item;
@@ -13516,6 +13517,7 @@ void propagate_new_equalities(THD *thd, Item *cond,
     Item_equal *equal_item;
     List_iterator<Item_equal> it(*new_equalities);
     Item_equal *equality= (Item_equal *) cond;
+    equality->upper_levels= inherited;
     while ((equal_item= it++))
     {
       equality->merge_with_check(equal_item, true);
