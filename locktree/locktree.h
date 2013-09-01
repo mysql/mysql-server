@@ -186,6 +186,8 @@ public:
 
     int compare(const locktree *lt);
 
+    DICTIONARY_ID get_dict_id() const;
+
     struct lt_counters {
         uint64_t wait_count, wait_time;
         uint64_t long_wait_count, long_wait_time;
@@ -292,6 +294,17 @@ public:
         void run_escalation_for_test(void);
 
         void get_status(LTM_STATUS status);
+
+        // effect: calls the iterate function on each pending lock request
+        // note: holds the manager's mutex
+        typedef int (*lock_request_iterate_callback)(DICTIONARY_ID dict_id,
+                                                     TXNID txnid,
+                                                     const DBT *left_key,
+                                                     const DBT *right_key,
+                                                     TXNID blocking_txnid,
+                                                     uint64_t start_time,
+                                                     void *extra);
+        int iterate_pending_lock_requests(lock_request_iterate_callback cb, void *extra);
 
     private:
         static const uint64_t DEFAULT_MAX_LOCK_MEMORY = 64L * 1024 * 1024;
