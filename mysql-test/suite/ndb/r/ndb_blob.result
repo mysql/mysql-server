@@ -727,7 +727,7 @@ update t1 set b=concat(b,b,b,b,b);
 update t1 set b=concat(b,b,b,b,b);
 explain update `t1` set `a`=1 where `a`!= 1;
 id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
-1	SIMPLE	t1	range	PRIMARY	PRIMARY	4	const	4	Using where; Using temporary
+1	UPDATE	t1	range	PRIMARY	PRIMARY	4	const	4	Using where; Using temporary
 update `t1` set `a`=1 where `a`!= 1;
 select * from t1;
 a	b
