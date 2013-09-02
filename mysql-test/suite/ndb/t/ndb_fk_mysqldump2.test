@@ -1,0 +1,68 @@
+--source include/have_ndb.inc
+# test uses mysqldump, hence not in embedded
+--source include/not_embedded.inc
+
+#
+# Test restoring of .sql file created with mysqldump
+#  - somewhat more complex schema than ndb_fk_mysqldump.test
+
+--disable_query_log
+create table product (
+  category int not null,
+  id int not null,
+  price decimal,
+  primary key(category, id))
+engine=ndb;
+
+create table customer (
+  id int not null,
+  primary key (id))
+engine=ndb;
+
+create table address (
+  no int not null auto_increment,
+  type int not null default 37,
+  customer_id int not null,
+  street varchar(255),
+  country int,
+  primary key (no),
+  constraint ca_fk1
+    foreign key (customer_id) references customer(id)
+      on update restrict on delete cascade)
+engine=ndb;
+
+create table product_order (
+  no int not null auto_increment,
+  product_category int not null,
+  product_id int not null,
+  customer_id int not null,
+  primary key(no),
+  index (product_category, product_id),
+  constraint po_fk1
+    foreign key (product_category, product_id) references product(category, id)
+      on update restrict on delete cascade,
+  index (customer_id),
+  constraint po_fk2
+    foreign key (customer_id) references customer(id))
+engine=ndb;
+
+insert into product values (1,1,5);
+insert into customer value (1);
+insert into address (customer_id, street, country)
+  values (1, "Main st. 1215", 48);
+insert into product_order value (1,1,1,1);
+
+echo Creating dump...;
+let $dump_file = $MYSQLTEST_VARDIR/tmp/ndb_fk_dump2.sql;
+--exec $MYSQL_DUMP --databases test > $dump_file
+echo OK, dump created!;
+
+drop table product_order, address, customer, product;
+
+echo Restoring dump...;
+--exec $MYSQL test < $dump_file
+--remove_file $dump_file
+echo OK, dump restored!;
+
+drop table product_order, address, customer, product;
+--enable_query_log

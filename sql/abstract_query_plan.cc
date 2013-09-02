@@ -443,6 +443,26 @@ namespace AQP
   }
 
   /**
+    Check if 'FirstMatch' strategy is used for this table and return
+    the last table 'firstmatch' will skip over.
+    The tables ['last_skipped'..'this'] will form a range of tables
+    which we skipped when a 'firstmatch' is found
+  */
+  const Table_access* Table_access::get_firstmatch_last_skipped() const
+  {
+    const JOIN_TAB* const join_tab= get_join_tab();
+    if (join_tab->do_firstmatch())
+    {
+      DBUG_ASSERT(join_tab->firstmatch_return < join_tab);
+      const uint firstmatch_last_skipped= 
+        join_tab->firstmatch_return+1 - m_join_plan->get_join_tab(0);
+
+      return m_join_plan->get_table_access(firstmatch_last_skipped);
+    }
+    return NULL;
+  }
+
+  /**
    Check if this table will be presorted to an intermediate record storage
    before it is joined with its siblings.
   */

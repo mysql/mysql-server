@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2003, 2010, Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2003, 2013, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -20,6 +20,9 @@
 
 #include "SignalData.hpp"
 #include <transporter/TransporterDefinitions.hpp>
+
+#define JAM_FILE_ID 127
+
 
 /**
  * @class TcKeyReq
@@ -217,6 +220,12 @@ private:
   static void setDeferredConstraints(UintR & requestInfo, UintR val);
 
   /**
+   * Foreign key constraints disabled
+   */
+  static UintR getDisableFkConstraints(const UintR & requestInfo);
+  static void setDisableFkConstraints(UintR & requestInfo, UintR val);
+
+  /**
    * Set:ers for scanInfo
    */
   static void setTakeOverScanFlag(UintR & scanInfo, Uint8 flag);
@@ -283,6 +292,8 @@ private:
 
 #define TC_COORDINATED_SHIFT (16)
 #define TC_DEFERRED_CONSTAINTS_SHIFT (17)
+
+#define TC_DISABLE_FK_SHIFT (18)
 
 /**
  * Scan Info
@@ -653,5 +664,21 @@ TcKeyReq::getDeferredConstraints(const UintR & requestInfo){
   return (requestInfo >> TC_DEFERRED_CONSTAINTS_SHIFT) & 1;
 }
 
+inline
+void
+TcKeyReq::setDisableFkConstraints(UintR & requestInfo, UintR val){
+  ASSERT_BOOL(val, "TcKeyReq::setDisableFkConstraints");
+  requestInfo |= (val << TC_DISABLE_FK_SHIFT);
+}
+
+inline
+UintR
+TcKeyReq::getDisableFkConstraints(const UintR & requestInfo){
+  return (requestInfo >> TC_DISABLE_FK_SHIFT) & 1;
+}
+
+
+
+#undef JAM_FILE_ID
 
 #endif

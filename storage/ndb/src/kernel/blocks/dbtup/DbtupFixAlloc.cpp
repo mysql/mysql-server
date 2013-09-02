@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2003, 2010, Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2003, 2013, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -21,6 +21,9 @@
 #include <RefConvert.hpp>
 #include <ndb_limits.h>
 #include <pc.hpp>
+
+#define JAM_FILE_ID 421
+
 
 //
 // Fixed Allocator
@@ -73,7 +76,7 @@ Dbtup::alloc_fix_rec(Uint32 * err,
 /*       FAILED. TRY ALLOCATING FROM NORMAL PAGE.                   */
 /* ---------------------------------------------------------------- */
   PagePtr pagePtr;
-  pagePtr.i = regFragPtr->thFreeFirst.firstItem;
+  pagePtr.i = regFragPtr->thFreeFirst.getFirst();
   if (pagePtr.i == RNIL) {
 /* ---------------------------------------------------------------- */
 // No prepared tuple header page with free entries exists.

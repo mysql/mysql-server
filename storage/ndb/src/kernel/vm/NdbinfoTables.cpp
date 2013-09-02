@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2009, 2010, Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2009, 2013, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -16,6 +16,9 @@
 */
 
 #include "Ndbinfo.hpp"
+
+#define JAM_FILE_ID 239
+
 
 
 #define DECLARE_NDBINFO_TABLE(var, num)  \
@@ -317,3 +320,8 @@ const Ndbinfo::Table& Ndbinfo::getTable(Uint32 i)
 {
   return getTable((int)i);
 }
+
+/** 
+ * #undef is needed since this file is included by NdbInfoTables.cpp
+ */
+#undef JAM_FILE_ID

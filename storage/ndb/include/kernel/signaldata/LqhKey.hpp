@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2003, 2010, Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2003, 2013, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -20,6 +20,9 @@
 
 #include "SignalData.hpp"
 #include <trigger_definitions.h>
+
+#define JAM_FILE_ID 27
+
 
 class LqhKeyReq {
   /**
@@ -170,10 +173,16 @@ private:
   static void setCorrFactorFlag(UintR & requestInfo, UintR val);
 
   /**
-   * Include corr factor
+   * Include deferred constraints
    */
   static UintR getDeferredConstraints(const UintR & requestInfo);
   static void setDeferredConstraints(UintR & requestInfo, UintR val);
+
+  /**
+   * Include disable foreign keys
+   */
+  static UintR getDisableFkConstraints(const UintR & requestInfo);
+  static void setDisableFkConstraints(UintR & requestInfo, UintR val);
 };
 
 /**
@@ -204,6 +213,7 @@ private:
  * A = CorrFactor flag        - 1  Bit (24)
  * P = Do normal protocol even if dirty-read - 1 Bit (25)
  * D = Deferred constraints   - 1  Bit (26)
+ * F = Disable FK constraints - 1  Bit (0)
 
  * Short LQHKEYREQ :
  *             1111111111222222222233
@@ -214,7 +224,7 @@ private:
  * Long LQHKEYREQ :
  *             1111111111222222222233
  *   01234567890123456789012345678901
- *             llgnqpdisooorrAPDcumxz
+ *   F         llgnqpdisooorrAPDcumxz
  *
  */
 
@@ -245,6 +255,7 @@ private:
 #define RI_CORR_FACTOR_VALUE (24)
 #define RI_NORMAL_DIRTY      (25)
 #define RI_DEFERRED_CONSTAINTS (26)
+#define RI_DISABLE_FK        (0)
 
 /**
  * Scan Info
@@ -654,6 +665,19 @@ LqhKeyReq::getDeferredConstraints(const UintR & requestInfo){
 }
 
 inline
+void
+LqhKeyReq::setDisableFkConstraints(UintR & requestInfo, UintR val){
+  ASSERT_BOOL(val, "LqhKeyReq::setDisableFkConstraints");
+  requestInfo |= (val << RI_DISABLE_FK);
+}
+
+inline
+UintR
+LqhKeyReq::getDisableFkConstraints(const UintR & requestInfo){
+  return (requestInfo >> RI_DISABLE_FK) & 1;
+}
+
+inline
 Uint32
 table_version_major_lqhkeyreq(Uint32 x)
 {
@@ -725,8 +749,14 @@ private:
   static Uint32 getDeferredUKBit(Uint32 v) {
     return NoOfFiredTriggers::getDeferredUKBit(v);
   }
-  static void setDeferredBit(Uint32 & v) {
-    NoOfFiredTriggers::setDeferredBit(v);
+  static void setDeferredUKBit(Uint32 & v) {
+    NoOfFiredTriggers::setDeferredUKBit(v);
+  }
+  static Uint32 getDeferredFKBit(Uint32 v) {
+    return NoOfFiredTriggers::getDeferredFKBit(v);
+  }
+  static void setDeferredFKBit(Uint32 & v) {
+    NoOfFiredTriggers::setDeferredFKBit(v);
   }
 };
 
@@ -762,5 +792,8 @@ private:
   Uint32 transId1;
   Uint32 transId2;
 };
+
+
+#undef JAM_FILE_ID
 
 #endif

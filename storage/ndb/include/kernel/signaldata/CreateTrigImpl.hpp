@@ -1,4 +1,4 @@
-/* Copyright (c) 2007, 2010, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2007, 2013, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -19,6 +19,9 @@
 #include "SignalData.hpp"
 #include <Bitmask.hpp>
 #include <AttributeList.hpp>
+
+#define JAM_FILE_ID 104
+
 
 struct CreateTrigImplReq
 {
@@ -85,5 +88,8 @@ struct CreateTrigImplRef {
   Uint32 errorNodeId;
   Uint32 masterNodeId;
 };
+
+
+#undef JAM_FILE_ID
 
 #endif

@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2009, 2010, Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2009, 2013, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -19,6 +19,9 @@
 #define KERNEL_NDBINFO_HPP
 
 #include <signaldata/DbinfoScan.hpp>
+
+#define JAM_FILE_ID 230
+
 
 class Ndbinfo {
 public:
@@ -218,5 +221,8 @@ public:
     Uint64 val;
   };
 };
+
+
+#undef JAM_FILE_ID
 
 #endif

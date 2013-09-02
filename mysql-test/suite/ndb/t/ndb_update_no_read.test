@@ -155,10 +155,10 @@ update t1 set c = 11 where a = 3 or b = 7;
 select * from t1 where a = 3 or b = 7 order by a;
 
 --echo
---echo # expected result 5 roundtrips
+--echo # expected result 4 roundtrips
 --echo # 0 - info call
---echo # 1 - read the rows
---echo # 1 - read the row _again_ in complemented read
+--echo # 1 - read complete rows
+--echo # 0 - don't read the row _again_ - included in read above
 --echo # 1 - delete the row (pk update)
 --echo # 1 - insert the row (pk update)
 --echo # 1 - commit the transaction
@@ -170,10 +170,10 @@ update t1 set a = 13, b = 20 where a = 3;
 select * from t1 where a = 13 order by a;
 
 --echo
---echo # expected result 5 roundtrips
+--echo # expected result 4 roundtrips
 --echo # 0 - info call
---echo # 1 - read the rows
---echo # 1 - read the row _again_ in complemented read
+--echo # 1 - read complete rows
+--echo # 0 - don't read the row _again_ - included in read above
 --echo # 1 - delete the row (pk update)
 --echo # 1 - insert the row (pk update)
 --echo # 1 - commit the transaction

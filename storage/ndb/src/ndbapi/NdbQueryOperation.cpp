@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2011, Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2011, 2013, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -675,9 +675,6 @@ int NdbBulkAllocator::init(Uint32 maxObjs)
 void NdbBulkAllocator::reset(){
   // Overrun check.
   assert(m_buffer == NULL || m_buffer[m_maxObjs * m_objSize] == endMarker); 
-  // Overwrite with 0xff bytes to detect accidental use of released memory.
-  assert(m_buffer == NULL || 
-         memset(m_buffer, 0xff, m_maxObjs * m_objSize) != NULL);
   delete [] m_buffer;
   m_buffer = NULL;
   m_nextObjNo = 0;

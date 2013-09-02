@@ -122,7 +122,10 @@ public:
       Datafile = 22,          ///< Datafile
       Undofile = 23,          ///< Undofile
       ReorgTrigger = 19,
-      HashMap = 24
+      HashMap = 24,
+      ForeignKey = 25,
+      FKParentTrigger = 26,
+      FKChildTrigger = 27
     };
 
     /**
@@ -204,7 +207,6 @@ public:
   class Table; // forward declaration
   class Tablespace; // forward declaration
   class HashMap; // Forward
-//  class NdbEventOperation; // forward declaration
 
   /**
    * @class Column
@@ -2062,6 +2064,94 @@ public:
   };
 
   /**
+   * @class ForeignKey
+   * @brief Represents a foreign key in an NDB Cluster
+   *
+   */
+  class ForeignKey : public Object {
+  public:
+    ForeignKey();
+    ForeignKey(const ForeignKey&);
+    virtual ~ForeignKey();
+
+    enum FkAction
+    {
+      NoAction = NDB_FK_NO_ACTION, // deferred check
+      Restrict = NDB_FK_RESTRICT,
+      Cascade = NDB_FK_CASCADE,
+      SetNull = NDB_FK_SET_NULL,
+      SetDefault = NDB_FK_SET_DEFAULT
+    };
+
+    const char * getName() const;
+    const char * getParentTable() const;
+    const char * getChildTable() const;
+    unsigned getParentColumnCount() const;
+    unsigned getChildColumnCount() const;
+    int getParentColumnNo(unsigned no) const;
+    int getChildColumnNo(unsigned no) const;
+
+    /**
+     * return 0 if child referes to parent PK
+     */
+    const char * getParentIndex() const;
+
+    /**
+     * return 0 if child references are resolved using child PK
+     */
+    const char * getChildIndex() const;
+
+    FkAction getOnUpdateAction() const;
+    FkAction getOnDeleteAction() const;
+
+    /**
+     *
+     */
+    void setName(const char *);
+
+    /**
+     * specify parent/child table
+     * optionally an index
+     * and columns in parent/child table (optionally)
+     *
+     * if index is not specified primary key is used
+     *
+     * if columns is not specified, index order is used
+     *
+     * if columns and index is specified, and index is ordered index
+     *   column order must match given column order
+     *
+     */
+    void setParent(const Table&, const Index * index = 0,
+                   const Column * cols[] = 0);
+    void setChild(const Table&, const Index * index = 0,
+                  const Column * cols[] = 0);
+
+    void setOnUpdateAction(FkAction);
+    void setOnDeleteAction(FkAction);
+
+    /**
+     * Get object status
+     */
+    virtual Object::Status getObjectStatus() const;
+
+    /**
+     * Get object id
+     */
+    virtual int getObjectId() const;
+
+    /**
+     * Get object version
+     */
+    virtual int getObjectVersion() const;
+
+  private:
+    friend class NdbForeignKeyImpl;
+    class NdbForeignKeyImpl & m_impl;
+    ForeignKey(NdbForeignKeyImpl&);
+  };
+
+  /**
    * @class Dictionary
    * @brief Dictionary for defining and retreiving meta data
    */
@@ -2210,6 +2300,14 @@ public:
      * @return  0 if successful, otherwise -1
      */
     int listIndexes(List & list, const Table &table) const;
+
+    /**
+     * Fetch list of objects that table depend on
+     * @param list  Reference to list where to store the listed objects
+     * @param table  Reference to table that objects belongs to.
+     * @return  0 if successful, otherwise -1
+     */
+    int listDependentObjects(List & list, const Table &table) const;
 #endif
 
     /** @} *******************************************************************/
@@ -2498,6 +2596,39 @@ public:
 
     /** @} *******************************************************************/
 
+    /** @} *******************************************************************/
+    /**
+     * @name ForeignKey
+     * @{
+     */
+
+    enum CreateFKFlags
+    {
+      /**
+       * CreateFK_NoVerify
+       * - don't verify FK as part of Create.
+       * - @NOTE: This allows creation of inconsistent FK
+       */
+      CreateFK_NoVerify = 1
+    };
+
+    /**
+     * Create a ForeignKey in database
+     */
+    int createForeignKey(const ForeignKey&, ObjectId* = 0, int flags = 0);
+
+    /**
+     * Get a ForeignKey by name
+     */
+    int getForeignKey(ForeignKey& dst, const char* name);
+
+    /**
+     * Drop a ForeignKey
+     */
+    int dropForeignKey(const ForeignKey&);
+
+    /** @} *******************************************************************/
+
     /**
      * @name Schema transactions
      *
@@ -2601,6 +2732,21 @@ public:
     const Table * getTableGlobal(const char * tableName) const;
     int alterTableGlobal(const Table &f, const Table &t);
     int dropTableGlobal(const Table &ndbtab);
+    /* Flags for second variant of dropTableGlobal */
+    enum {
+      /*
+       * Drop any referring foreign keys on child tables.
+       * Named after oracle "drop table .. cascade constraints".
+       */
+      DropTableCascadeConstraints = 0x1
+
+      /*
+       * Drop any referring foreign keys within same DB
+       *   used when dropping database
+       */
+      ,DropTableCascadeConstraintsDropDB = 0x2
+    };
+    int dropTableGlobal(const Table &ndbtab, int flags);
     int dropIndexGlobal(const Index &index);
     int removeIndexGlobal(const Index &ndbidx, int invalidate) const;
     int removeTableGlobal(const Table &ndbtab, int invalidate) const;

@@ -1,24 +1,21 @@
 /*
-  Copyright (c) 2006, 2013, Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2000, 2013, Oracle and/or its affiliates. All rights reserved.
 
-  This program is free software; you can redistribute it and/or modify
-  it under the terms of the GNU General Public License as published by
-  the Free Software Foundation; version 2 of the License.
+   This program is free software; you can redistribute it and/or modify
+   it under the terms of the GNU General Public License as published by
+   the Free Software Foundation; version 2 of the License.
 
-  This program is distributed in the hope that it will be useful,
-  but WITHOUT ANY WARRANTY; without even the implied warranty of
-  MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
-  GNU General Public License for more details.
+   This program is distributed in the hope that it will be useful,
+   but WITHOUT ANY WARRANTY; without even the implied warranty of
+   MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+   GNU General Public License for more details.
 
-  You should have received a copy of the GNU General Public License
-  along with this program; if not, write to the Free Software
-  Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA
+   You should have received a copy of the GNU General Public License
+   along with this program; if not, write to the Free Software
+   Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA
 */
 
 #include "ha_ndbcluster_glue.h"
-
-#ifdef WITH_NDBCLUSTER_STORAGE_ENGINE
-
 #include "ha_ndbcluster.h"
 #include "ha_ndbcluster_connection.h"
 #include "ndb_local_connection.h"
@@ -187,7 +184,6 @@ extern my_bool opt_log_slave_updates;
 static my_bool g_ndb_log_slave_updates;
 
 #ifndef DBUG_OFF
-/* purecov: begin deadcode */
 static void print_records(TABLE *table, const uchar *record)
 {
   for (uint j= 0; j < table->s->fields; j++)
@@ -207,7 +203,6 @@ static void print_records(TABLE *table, const uchar *record)
     DBUG_PRINT("info",("[%u]field_ptr[0->%d]: %s", j, n, buf));
   }
 }
-/* purecov: end */
 #else
 #define print_records(a,b)
 #endif
@@ -510,6 +505,7 @@ static void ndbcluster_binlog_wait(THD *thd)
     if (thd)
       thd->proc_info= "Waiting for ndbcluster binlog update to "
 	"reach current position";
+    const Uint64 start_handled_epoch = ndb_latest_handled_binlog_epoch;
     pthread_mutex_lock(&injector_mutex);
     while (!(thd && thd->killed) && count && ndb_binlog_running &&
            (ndb_latest_handled_binlog_epoch == 0 ||
@@ -521,6 +517,20 @@ static void ndbcluster_binlog_wait(THD *thd)
       pthread_cond_timedwait(&injector_cond, &injector_mutex, &abstime);
     }
     pthread_mutex_unlock(&injector_mutex);
+
+    if (count == 0)
+    {
+      sql_print_warning("NDB: Thread id %llu timed out (30s) waiting for epoch %u/%u "
+                        "to be handled.  Progress : %u/%u -> %u/%u.",
+                        (ulonglong) thd->thread_id,
+                        Uint32((wait_epoch >> 32) & 0xffffffff),
+                        Uint32(wait_epoch & 0xffffffff),
+                        Uint32((start_handled_epoch >> 32) & 0xffffffff),
+                        Uint32(start_handled_epoch & 0xffffffff),
+                        Uint32((ndb_latest_handled_binlog_epoch >> 32) & 0xffffffff),
+                        Uint32(ndb_latest_handled_binlog_epoch & 0xffffffff));
+    }
+    
     if (thd)
       thd->proc_info= save_info;
     DBUG_VOID_RETURN;
@@ -615,42 +625,43 @@ ndb_create_thd(char * stackptr)
 */
 
 static int
-ndbcluster_binlog_index_purge_file(THD *thd, const char *file)
+ndbcluster_binlog_index_purge_file(THD *passed_thd, const char *file)
 {
+  int stack_base = 0;
   int error = 0;
-  THD * save_thd= thd;
   DBUG_ENTER("ndbcluster_binlog_index_purge_file");
   DBUG_PRINT("enter", ("file: %s", file));
 
-  if (!ndb_binlog_running || (thd && thd->slave_thread))
+  if (!ndb_binlog_running || (passed_thd && passed_thd->slave_thread))
     DBUG_RETURN(0);
 
   /**
-   * This function really really needs a THD object,
-   *   new/delete one if not available...yuck!
+   * This function cannot safely reuse the passed thd object
+   * due to the variety of places from which it is called.
+   *   new/delete one...yuck!
    */
-  if (thd == 0)
+  THD* my_thd;
+  if ((my_thd = ndb_create_thd((char*)&stack_base) /* stack ptr */) == 0)
   {
-    if ((thd = ndb_create_thd((char*)&save_thd)) == 0)
-    {
-      /**
-       * TODO return proper error code here,
-       * BUT! return code is not (currently) checked in
-       *      log.cc : purge_index_entry() so we settle for warning printout
-       */
-      sql_print_warning("NDB: Unable to purge "
-                        NDB_REP_DB "." NDB_REP_TABLE
-                        " File=%s (failed to setup thd)", file);
-      DBUG_RETURN(0);
-    }
+    /**
+     * TODO return proper error code here,
+     * BUT! return code is not (currently) checked in
+     *      log.cc : purge_index_entry() so we settle for warning printout
+     * Will sql_print_warning fail with no thd?
+     */
+    sql_print_warning("NDB: Unable to purge "
+                      NDB_REP_DB "." NDB_REP_TABLE
+                      " File=%s (failed to setup thd)", file);
+    DBUG_RETURN(0);
   }
+
 
   /*
     delete rows from mysql.ndb_binlog_index table for the given
     filename, if table does not exist ignore the error as it
     is a "consistent" behavior
   */
-  Ndb_local_connection mysqld(thd);
+  Ndb_local_connection mysqld(my_thd);
   const bool ignore_no_such_table = true;
   if(mysqld.delete_rows(STRING_WITH_LEN("mysql"),
                         STRING_WITH_LEN("ndb_binlog_index"),
@@ -661,9 +672,14 @@ ndbcluster_binlog_index_purge_file(THD *thd, const char *file)
     error = 1;
   }
 
-  if (save_thd == 0)
+  /* Cleanup links between thread and my_thd, then delete it */ 
+  my_thd->restore_globals();
+  delete my_thd;
+  
+  if (passed_thd)
   {
-    delete thd;
+    /* Relink passed THD with this thread */
+    passed_thd->store_globals();
   }
 
   DBUG_RETURN(error);
@@ -706,8 +722,21 @@ Ndb_dist_priv_util::priv_tables_are_in_ndb(THD* thd)
   DBUG_RETURN(distributed);
 }
 
+
+/*
+  ndbcluster_binlog_log_query
+
+   - callback function installed in handlerton->binlog_log_query
+   - called by MySQL Server in places where no other handlerton
+     function exists which can be used to notify about changes
+   - used by ndbcluster to detect when
+     -- databases are created or altered
+     -- privilege tables have been modified
+*/
+
 static void
-ndbcluster_binlog_log_query(handlerton *hton, THD *thd, enum_binlog_command binlog_command,
+ndbcluster_binlog_log_query(handlerton *hton, THD *thd,
+                            enum_binlog_command binlog_command,
                             const char *query, uint query_length,
                             const char *db, const char *table_name)
 {
@@ -715,53 +744,27 @@ ndbcluster_binlog_log_query(handlerton *hton, THD *thd, enum_binlog_command binl
   DBUG_PRINT("enter", ("db: %s  table_name: %s  query: %s",
                        db, table_name, query));
   enum SCHEMA_OP_TYPE type;
-  int log= 0;
-  uint32 table_id= 0, table_version= 0;
-  /*
-    Since databases aren't real ndb schema object
-    they don't have any id/version
-
-    But since that id/version is used to make sure that event's on SCHEMA_TABLE
-    is correct, we set random numbers
-  */
-  table_id = (uint32)rand();
-  table_version = (uint32)rand();
+  /* Use random table_id and table_version  */
+  const uint32 table_id = (uint32)rand();
+  const uint32 table_version = (uint32)rand();
   switch (binlog_command)
   {
-  case LOGCOM_CREATE_TABLE:
-    type= SOT_CREATE_TABLE;
-    DBUG_ASSERT(FALSE);
-    break;
-  case LOGCOM_ALTER_TABLE:
-    type= SOT_ALTER_TABLE_COMMIT;
-    //log= 1;
-    break;
-  case LOGCOM_RENAME_TABLE:
-    type= SOT_RENAME_TABLE;
-    DBUG_ASSERT(FALSE);
-    break;
-  case LOGCOM_DROP_TABLE:
-    type= SOT_DROP_TABLE;
-    DBUG_ASSERT(FALSE);
-    break;
   case LOGCOM_CREATE_DB:
+    DBUG_PRINT("info", ("New database '%s' created", db));
     type= SOT_CREATE_DB;
-    log= 1;
     break;
+
   case LOGCOM_ALTER_DB:
+    DBUG_PRINT("info", ("The database '%s' was altered", db));
     type= SOT_ALTER_DB;
-    log= 1;
     break;
-  case LOGCOM_DROP_DB:
-    type= SOT_DROP_DB;
-    DBUG_ASSERT(FALSE);
-    break;
+
   case LOGCOM_ACL_NOTIFY:
+    DBUG_PRINT("info", ("Privilege tables have been modified"));
     type= SOT_GRANT;
-    if (Ndb_dist_priv_util::priv_tables_are_in_ndb(thd))
+    if (!Ndb_dist_priv_util::priv_tables_are_in_ndb(thd))
     {
-      DBUG_PRINT("info", ("Privilege tables have been distributed, logging statement"));
-      log= 1;
+      DBUG_VOID_RETURN;
     }
     /*
       NOTE! Grant statements with db set to NULL is very rare but
@@ -777,14 +780,17 @@ ndbcluster_binlog_log_query(handlerton *hton, THD *thd, enum_binlog_command binl
     */
     if (!db)
       db = "mysql";
+    break;    
+
+  default:
+    DBUG_PRINT("info", ("Ignoring binlog_log_query notification"));
+    DBUG_VOID_RETURN;
     break;
+
   }
-  if (log)
-  {
-    ndbcluster_log_schema_op(thd, query, query_length,
-                             db, table_name, table_id, table_version, type,
-                             NULL, NULL);
-  }
+  ndbcluster_log_schema_op(thd, query, query_length,
+                           db, table_name, table_id, table_version, type,
+                           NULL, NULL);
   DBUG_VOID_RETURN;
 }
 
@@ -1189,15 +1195,24 @@ static void clean_away_stray_files(THD *thd)
     DBUG_PRINT("info", ("Found database %s", db_name->str));
     if (strcmp(NDB_REP_DB, db_name->str)) /* Skip system database */
     {
+      Thd_ndb *thd_ndb= get_thd_ndb(thd);
+      uint32 old_trans_options= thd_ndb->trans_options;
       sql_print_information("NDB: Cleaning stray tables from database '%s'",
                             db_name->str);
       build_table_filename(path, sizeof(path) - 1, db_name->str, "", "", 0);
+      
+      /* Require that no binlog setup is attempted yet, that will come later
+       * right now we just want to get rid of stray frms et al
+       */
+
+      thd_ndb->trans_options|= TNTO_NO_BINLOG_SETUP_IN_FIND_FILES;
       if (find_files(thd, &tab_names, db_name->str, path, NullS, 0)
           != FIND_FILES_OK)
       {
         thd->clear_error();
         DBUG_PRINT("info", ("Failed to find tables"));
       }
+      thd_ndb->trans_options= old_trans_options;
     }
   }
   DBUG_VOID_RETURN;
@@ -1522,6 +1537,19 @@ ndb_binlog_setup(THD *thd)
 {
   if (ndb_binlog_tables_inited)
     return true; // Already setup -> OK
+
+  /*
+    Can't proceed unless ndb binlog thread has setup
+    the schema_ndb pointer(since that pointer is used for
+    creating the event operations owned by ndb_schema_share)
+  */
+  pthread_mutex_lock(&injector_mutex);
+  if (!schema_ndb)
+  {
+    pthread_mutex_unlock(&injector_mutex);
+    return false;
+  }
+  pthread_mutex_unlock(&injector_mutex);
 
   /*
     Take the global schema lock to make sure that
@@ -2739,6 +2767,17 @@ class Ndb_schema_event_handler {
     Ndb *ndb= thd_ndb->ndb;
     Ndb_table_guard ndbtab_g(ndb->getDictionary(), table_name);
     const NDBTAB *ndbtab= ndbtab_g.get_table();
+    if (!ndbtab)
+    {
+      /*
+        Bug#14773491 reports crash in 'cmp_frm' due to
+        ndbtab* being NULL -> bail out here
+      */
+      sql_print_error("NDB schema: Could not find table '%s.%s' in NDB",
+                      db_name, table_name);
+      DBUG_ASSERT(false);
+      DBUG_VOID_RETURN;
+    }
 
     char key[FN_REFLEN];
     build_table_filename(key, sizeof(key)-1,
@@ -2797,14 +2836,31 @@ class Ndb_schema_event_handler {
     DBUG_PRINT("info", ("Looking for files in directory %s", dbname));
     List<LEX_STRING> files;
     char path[FN_REFLEN + 1];
+    THD* thd= current_thd;
+    ulong col_access= thd->col_access;
+
+    /*
+      Allow injector thread to read all tables.
+      This is needed to be able to find all tables
+      when calling find_files.
+    */
+    thd->col_access&= TABLE_ACLS;
 
     build_table_filename(path, sizeof(path) - 1, dbname, "", "", 0);
     if (find_files(m_thd, &files, dbname, path, NullS, 0) != FIND_FILES_OK)
     {
       m_thd->clear_error();
       DBUG_PRINT("info", ("Failed to find files"));
+      /*
+	Reset column access rights to default
+      */
+      thd->col_access= col_access;
       DBUG_RETURN(true);
     }
+    /*
+      Reset column access rights to default
+    */
+    thd->col_access= col_access;
     DBUG_PRINT("info",("found: %d files", files.elements));
 
     LEX_STRING *tabname;
@@ -4273,13 +4329,14 @@ slave_set_resolve_fn(THD *thd, NDB_SHARE *share,
   As an independent feature, phase 2 also saves the
   conflicts into the table's exceptions table.
 */
-int
+static int
 row_conflict_fn_old(NDB_CONFLICT_FN_SHARE* cfn_share,
                     enum_conflicting_op_type op_type,
                     const NdbRecord* data_record,
                     const uchar* old_data,
                     const uchar* new_data,
-                    const MY_BITMAP* write_set,
+                    const MY_BITMAP* bi_cols,
+                    const MY_BITMAP* ai_cols,
                     NdbInterpretedCode* code)
 {
   DBUG_ENTER("row_conflict_fn_old");
@@ -4292,10 +4349,12 @@ row_conflict_fn_old(NDB_CONFLICT_FN_SHARE* cfn_share,
 
   assert((resolve_size == 4) || (resolve_size == 8));
 
-  if (unlikely(!bitmap_is_set(write_set, resolve_column)))
+  if (unlikely(!bitmap_is_set(bi_cols, resolve_column)))
   {
-    sql_print_information("NDB Slave: missing data for %s",
-                          cfn_share->m_conflict_fn->name);
+    sql_print_information("NDB Slave: missing data for %s "
+                          "timestamp column %u.",
+                          cfn_share->m_conflict_fn->name,
+                          resolve_column);
     DBUG_RETURN(1);
   }
 
@@ -4353,13 +4412,14 @@ row_conflict_fn_old(NDB_CONFLICT_FN_SHARE* cfn_share,
   DBUG_RETURN(r);
 }
 
-int
+static int
 row_conflict_fn_max_update_only(NDB_CONFLICT_FN_SHARE* cfn_share,
                                 enum_conflicting_op_type op_type,
                                 const NdbRecord* data_record,
                                 const uchar* old_data,
                                 const uchar* new_data,
-                                const MY_BITMAP* write_set,
+                                const MY_BITMAP* bi_cols,
+                                const MY_BITMAP* ai_cols,
                                 NdbInterpretedCode* code)
 {
   DBUG_ENTER("row_conflict_fn_max_update_only");
@@ -4372,10 +4432,12 @@ row_conflict_fn_max_update_only(NDB_CONFLICT_FN_SHARE* cfn_share,
 
   assert((resolve_size == 4) || (resolve_size == 8));
 
-  if (unlikely(!bitmap_is_set(write_set, resolve_column)))
+  if (unlikely(!bitmap_is_set(ai_cols, resolve_column)))
   {
-    sql_print_information("NDB Slave: missing data for %s",
-                          cfn_share->m_conflict_fn->name);
+    sql_print_information("NDB Slave: missing data for %s "
+                          "timestamp column %u.",
+                          cfn_share->m_conflict_fn->name,
+                          resolve_column);
     DBUG_RETURN(1);
   }
 
@@ -4444,13 +4506,14 @@ row_conflict_fn_max_update_only(NDB_CONFLICT_FN_SHARE* cfn_share,
 
   Note that for delete, this algorithm reverts to the OLD algorithm.
 */
-int
+static int
 row_conflict_fn_max(NDB_CONFLICT_FN_SHARE* cfn_share,
                     enum_conflicting_op_type op_type,
                     const NdbRecord* data_record,
                     const uchar* old_data,
                     const uchar* new_data,
-                    const MY_BITMAP* write_set,
+                    const MY_BITMAP* bi_cols,
+                    const MY_BITMAP* ai_cols,
                     NdbInterpretedCode* code)
 {
   switch(op_type)
@@ -4464,7 +4527,8 @@ row_conflict_fn_max(NDB_CONFLICT_FN_SHARE* cfn_share,
                                            data_record,
                                            old_data,
                                            new_data,
-                                           write_set,
+                                           bi_cols,
+                                           ai_cols,
                                            code);
   case DELETE_ROW:
     /* Can't use max of new image, as there's no new image
@@ -4476,7 +4540,8 @@ row_conflict_fn_max(NDB_CONFLICT_FN_SHARE* cfn_share,
                                data_record,
                                old_data,
                                new_data,
-                               write_set,
+                               bi_cols,
+                               ai_cols,
                                code);
   default:
     abort();
@@ -4499,13 +4564,14 @@ row_conflict_fn_max(NDB_CONFLICT_FN_SHARE* cfn_share,
   to them.
 */
 
-int
+static int
 row_conflict_fn_max_del_win(NDB_CONFLICT_FN_SHARE* cfn_share,
                             enum_conflicting_op_type op_type,
                             const NdbRecord* data_record,
                             const uchar* old_data,
                             const uchar* new_data,
-                            const MY_BITMAP* write_set,
+                            const MY_BITMAP* bi_cols,
+                            const MY_BITMAP* ai_cols,
                             NdbInterpretedCode* code)
 {
   switch(op_type)
@@ -4519,18 +4585,19 @@ row_conflict_fn_max_del_win(NDB_CONFLICT_FN_SHARE* cfn_share,
                                            data_record,
                                            old_data,
                                            new_data,
-                                           write_set,
+                                           bi_cols,
+                                           ai_cols,
                                            code);
   case DELETE_ROW:
     /* This variant always lets a received DELETE_ROW
      * succeed.
      */
-    return 1;
+    return 0;
   default:
     abort();
     return 1;
   }
-};
+}
 
 
 /**
@@ -4538,13 +4605,14 @@ row_conflict_fn_max_del_win(NDB_CONFLICT_FN_SHARE* cfn_share,
 
 */
 
-int
+static int
 row_conflict_fn_epoch(NDB_CONFLICT_FN_SHARE* cfn_share,
                       enum_conflicting_op_type op_type,
                       const NdbRecord* data_record,
                       const uchar* old_data,
                       const uchar* new_data,
-                      const MY_BITMAP* write_set,
+                      const MY_BITMAP* bi_cols,
+                      const MY_BITMAP* ai_cols,
                       NdbInterpretedCode* code)
 {
   DBUG_ENTER("row_conflict_fn_epoch");
@@ -4598,7 +4666,7 @@ row_conflict_fn_epoch(NDB_CONFLICT_FN_SHARE* cfn_share,
     abort();
     DBUG_RETURN(1);
   }
-};
+}
 
 static const st_conflict_fn_arg_def resolve_col_args[]=
 {
@@ -6923,6 +6991,19 @@ restart_cluster_failure:
         pthread_mutex_unlock(&injector_mutex);
         goto err;
       }
+      if (thd->killed == THD::KILL_CONNECTION)
+      {
+        /*
+          Since the ndb binlog thread adds itself to the "global thread list"
+          it need to look at the "killed" flag and stop the thread to avoid
+          that the server hangs during shutdown while waiting for the "global
+          thread list" to be emtpy.
+        */
+        sql_print_information("NDB Binlog: Server shutdown detected while "
+                              "waiting for ndbcluster to start...");
+        pthread_mutex_unlock(&injector_mutex);
+        goto err;
+      }
     }
     pthread_mutex_unlock(&injector_mutex);
 
@@ -7073,6 +7154,24 @@ restart_cluster_failure:
         (ndb_latest_handled_binlog_epoch >= ndb_get_latest_trans_gci() ||
          !ndb_binlog_running))
       break; /* Shutting down server */
+
+    if (thd->killed == THD::KILL_CONNECTION)
+    {
+      /*
+        Since the ndb binlog thread adds itself to the "global thread list"
+        it need to look at the "killed" flag and stop the thread to avoid
+        that the server hangs during shutdown while waiting for the "global
+        thread list" to be emtpy.
+        In pre 5.6 versions the thread was also added to "global thread
+        list" but the "global thread *count*" variable was not incremented
+        and thus the same problem didn't exist.
+        The only reason for adding the ndb binlog thread to "global thread
+        list" is to be able to see the thread state using SHOW PROCESSLIST
+        and I_S.PROCESSLIST
+      */
+      sql_print_information("NDB Binlog: Server shutdown detected...");
+      break;
+    }
 
     MEM_ROOT **root_ptr= my_pthread_get_THR_MALLOC();
     MEM_ROOT *old_root= *root_ptr;
@@ -7380,6 +7479,7 @@ restart_cluster_failure:
 
         while (trans.good())
         {
+      commit_to_binlog:
           if (!ndb_log_empty_epochs())
           {
             /*
@@ -7409,7 +7509,6 @@ restart_cluster_failure:
               break;
             }
           }
-      commit_to_binlog:
           thd->proc_info= "Committing events to binlog";
           if (int r= trans.commit())
           {
@@ -7624,7 +7723,10 @@ restart_cluster_failure:
     goto restart_cluster_failure;
   }
 
-  net_end(&thd->net);
+  thd->release_resources();
+  mysql_mutex_lock(&LOCK_thread_count);
+  remove_global_thread(thd);
+  mysql_mutex_unlock(&LOCK_thread_count);
   delete thd;
 
   ndb_binlog_thread_running= -1;
@@ -7683,7 +7785,4 @@ ndbcluster_show_status_binlog(THD* thd, stat_print_fn *stat_print,
 /* No --server-id-bits=<bits> -> implement constant opt_server_id_mask */
 ulong opt_server_id_mask = ~0;
 
-#endif
-
-// #ifdef WITH_NDBCLUSTER_STORAGE_ENGINE
 #endif
