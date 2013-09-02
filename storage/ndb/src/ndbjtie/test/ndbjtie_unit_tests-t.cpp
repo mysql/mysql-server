@@ -1,5 +1,5 @@
 /*
- Copyright (c) 2012, Oracle and/or its affiliates. All rights reserved.
+ Copyright (c) 2012, 2013, Oracle and/or its affiliates. All rights reserved.
 
  This program is free software; you can redistribute it and/or modify
  it under the terms of the GNU General Public License as published by
@@ -147,9 +147,7 @@ int main(int argc, char **argv)
     run_test_script(this_dir, "ndbjtie_multilib");
     run_test_script(this_dir, "ndbjtie_smoke");
     // TAP: configured by MYTAP_CONFIG environment var
-    // XXX for initial testing: run all
-    //if (skip_big_tests) {
-    if (false) {
+    if (skip_big_tests) {
         printf("\n");
         skip(1, "big subtest unload_mutils");
         skip(1, "big subtest unload_ndbjtie_constants");

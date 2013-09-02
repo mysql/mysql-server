@@ -1,6 +1,5 @@
 /*
-   Copyright (C) 2006 MySQL AB
-    All rights reserved. Use is subject to license terms.
+   Copyright (c) 2006, 2013, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -20,6 +19,9 @@
 #define NDBD_SUPER_POOL_HPP
 
 #include "SuperPool.hpp"
+
+#define JAM_FILE_ID 306
+
 
 struct AllocArea;
 
@@ -53,5 +55,8 @@ private:
   AllocArea* m_currArea;
   AllocArea* m_firstArea;
 };
+
+
+#undef JAM_FILE_ID
 
 #endif

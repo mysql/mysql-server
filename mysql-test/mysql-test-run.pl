@@ -4426,6 +4426,15 @@ sub run_testcase ($) {
 	unlink($path_current_testlog);
       }
 
+      # Remove testcase .log file produce in var/log/ to save space since
+      # relevant part of logfile has already been appended to master log
+      {
+	my $log_file_name= $opt_vardir."/log/".$tinfo->{shortname}.".log";
+	if (-e $log_file_name) {
+	  unlink($log_file_name);
+	}
+      }
+
       return ($res == 62) ? 0 : $res;
 
     }
@@ -5365,13 +5374,18 @@ sub stop_all_servers () {
 }
 
 
+sub is_slave {
+  my ($server) = @_;
+  # There isn't really anything in a configuration which tells if
+  # a mysqld is master or slave. Best guess is to treat all which haven't
+  # got '#!use-slave-opt' as masters.
+  # At least be consistent
+  return $server->option('#!use-slave-opt');
+}
+
 # Find out if server should be restarted for this test
 sub server_need_restart {
-  my ($tinfo, $server)= @_;
-
-  # Mark the tinfo so slaves will restart if server restarts
-  # This assumes master will be considered first.
-  my $is_master= $server->option("#!run-master-sh");
+  my ($tinfo, $server, $master_restarted)= @_;
 
   if ( using_extern() )
   {
@@ -5381,34 +5395,29 @@ sub server_need_restart {
 
   if ( $tinfo->{'force_restart'} ) {
     mtr_verbose_restart($server, "forced in .opt file");
-    $tinfo->{master_restart}= 1 if $is_master;
     return 1;
   }
 
   if ( $opt_force_restart ) {
     mtr_verbose_restart($server, "forced restart turned on");
-    $tinfo->{master_restart}= 1 if $is_master;
     return 1;
   }
 
   if ( $tinfo->{template_path} ne $current_config_name)
   {
     mtr_verbose_restart($server, "using different config file");
-    $tinfo->{master_restart}= 1 if $is_master;
     return 1;
   }
 
   if ( $tinfo->{'master_sh'}  || $tinfo->{'slave_sh'} )
   {
     mtr_verbose_restart($server, "sh script to run");
-    $tinfo->{master_restart}= 1 if $is_master;
     return 1;
   }
 
   if ( ! started($server) )
   {
     mtr_verbose_restart($server, "not started");
-    $tinfo->{master_restart}= 1 if $is_master;
     return 1;
   }
 
@@ -5421,7 +5430,6 @@ sub server_need_restart {
     if ( timezone($started_tinfo) ne timezone($tinfo) )
     {
       mtr_verbose_restart($server, "different timezone");
-      $tinfo->{master_restart}= 1 if $is_master;
       return 1;
     }
   }
@@ -5446,7 +5454,6 @@ sub server_need_restart {
 	mtr_verbose_restart($server, "running with different options '" .
 			    join(" ", @{$extra_opts}) . "' != '" .
 			    join(" ", @{$started_opts}) . "'" );
-	$tinfo->{master_restart}= 1 if $is_master;
 	return 1;
       }
 
@@ -5463,18 +5470,19 @@ sub server_need_restart {
 	mtr_verbose("Restart: running with different options '" .
 		    join(" ", @{$extra_opts}) . "' != '" .
 		    join(" ", @{$started_opts}) . "'" );
-	$tinfo->{master_restart}= 1 if $is_master;
 	return 1;
       }
 
       # Remember the dynamically set options
       $server->{'started_opts'}= $extra_opts;
     }
-  }
 
-  if ($server->option("#!use-slave-opt") && $tinfo->{master_restart}) {
-    mtr_verbose_restart($server, "master will be restarted");
-    return 1;
+    if (is_slave($server) && $master_restarted)
+    {
+      # At least one master restarted and this is a slave, restart
+      mtr_verbose_restart($server, " master restarted");
+      return 1;
+    }
   }
 
   # Default, no restart
@@ -5484,7 +5492,55 @@ sub server_need_restart {
 
 sub servers_need_restart($) {
   my ($tinfo)= @_;
-  return grep { server_need_restart($tinfo, $_); } all_servers();
+
+  my @restart_servers;
+
+  # Build list of master and slave mysqlds to be able to restart
+  # all slaves whenever a master restarts.
+  my @masters;
+  my @slaves;
+  foreach my $server (mysqlds())
+  {
+    if (is_slave($server))
+    {
+      push(@slaves, $server);
+    }
+    else
+    {
+      push(@masters, $server);
+    }
+  }
+
+  # Check masters
+  my $master_restarted = 0;
+  foreach my $master (@masters)
+  {
+    if (server_need_restart($tinfo, $master, $master_restarted))
+    {
+      $master_restarted = 1;
+      push(@restart_servers, $master);
+    }
+  }
+
+  # Check slaves
+  foreach my $slave (@slaves)
+  {
+    if (server_need_restart($tinfo, $slave, $master_restarted))
+    {
+      push(@restart_servers, $slave);
+    }
+  }
+
+  # Check if any remaining servers need restart
+  foreach my $server (ndb_mgmds(), ndbds(), memcacheds())
+  {
+    if (server_need_restart($tinfo, $server, $master_restarted))
+    {
+      push(@restart_servers, $server);
+    }
+  }
+
+  return @restart_servers;
 }
 
 

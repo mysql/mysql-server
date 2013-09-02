@@ -480,7 +480,7 @@ i	j	f	d
 * Test that online alter of default values fails
 *************************************************************
 ALTER ONLINE TABLE t2 MODIFY COLUMN j INT DEFAULT 888;
-ERROR 42000: This version of MySQL doesn't yet support 'ALTER ONLINE TABLE t2 MODIFY COLUMN j INT DEFAULT 888'
+ERROR 0A000: ALGORITHM=INPLACE is not supported for this operation. Try ALGORITHM=COPY.
 DROP TABLE IF EXISTS t2;
 **************************************************************
 * Test not null-after-defaults example that failed previously

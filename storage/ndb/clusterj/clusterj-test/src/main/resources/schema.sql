@@ -10,6 +10,13 @@ CREATE TABLE IF NOT EXISTS twopk (
   name varchar(30)
 ) ENGINE = ndbcluster;
 
+DROP TABLE IF EXISTS hashpk;
+CREATE TABLE IF NOT EXISTS hashpk (
+  id int not null,
+  name varchar(30),
+    CONSTRAINT PK_hashpk PRIMARY KEY (id) USING HASH  
+) ENGINE = ndbcluster;
+
 DROP TABLE IF EXISTS subscriber ;
 
 CREATE TABLE IF NOT EXISTS subscriber (

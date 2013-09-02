@@ -25,6 +25,7 @@
 #include <kernel/ndb_limits.h>
 #include <ndb_version.h>
 #include <NodeBitmask.hpp>
+#include <ndb_cluster_connection.hpp>
 
 #define MGMERR(h) \
   ndbout << "latest_error="<<ndb_mgm_get_latest_error(h) \
@@ -34,11 +35,12 @@
 	 << endl;
 
 
-NdbRestarter::NdbRestarter(const char* _addr): 
+NdbRestarter::NdbRestarter(const char* _addr, Ndb_cluster_connection * con):
   handle(NULL),
   connected(false),
   m_config(0),
-  m_reconnect(false)
+  m_reconnect(false),
+  m_cluster_connection(con)
 {
   if (_addr == NULL){
     addr.assign("");
@@ -132,6 +134,11 @@ NdbRestarter::restartNodes(int * nodes, int cnt,
         }
       }
     }
+  }
+
+  if ((flags & NRRF_NOSTART) == 0)
+  {
+    wait_until_ready(nodes, cnt);
   }
 
   return 0;
@@ -315,7 +322,12 @@ NdbRestarter::waitConnected(unsigned int _timeout){
 
 int 
 NdbRestarter::waitClusterStarted(unsigned int _timeout){
-  return waitClusterState(NDB_MGM_NODE_STATUS_STARTED, _timeout);
+  int res = waitClusterState(NDB_MGM_NODE_STATUS_STARTED, _timeout);
+  if (res == 0)
+  {
+    wait_until_ready();
+  }
+  return res;
 }
 
 int 
@@ -391,7 +403,11 @@ NdbRestarter::waitNodesState(const int * _nodes, int _num_nodes,
 	for (unsigned n = 0; n < ndbNodes.size(); n++){
 	  if (ndbNodes[n].node_status != NDB_MGM_NODE_STATUS_STARTED &&
 	      ndbNodes[n].node_status != NDB_MGM_NODE_STATUS_STARTING)
+	  {
+            // Found one not starting node, don't wait anymore
 	    waitMore = false;
+            break;
+          }
 
 	}
       } 
@@ -420,15 +436,17 @@ NdbRestarter::waitNodesState(const int * _nodes, int _num_nodes,
       return -1;
     }
 
-    // ndbout << "waitNodeState; _num_nodes = " << _num_nodes << endl;
-    // for (int i = 0; i < _num_nodes; i++)
-    //   ndbout << " node["<<i<<"] =" <<_nodes[i] << endl;
-
-    for (int i = 0; i < _num_nodes; i++){
+    for (int i = 0; i < _num_nodes; i++)
+    {
+      // Find node with given node id
       ndb_mgm_node_state* ndbNode = NULL;
-      for (unsigned n = 0; n < ndbNodes.size(); n++){
-	if (ndbNodes[n].node_id == _nodes[i])
-	  ndbNode = &ndbNodes[n];
+      for (unsigned n = 0; n < ndbNodes.size(); n++)
+      {
+        if (ndbNodes[n].node_id == _nodes[i])
+        {
+          ndbNode = &ndbNodes[n];
+          break;
+        }
       }
 
       if(ndbNode == NULL){
@@ -477,8 +495,14 @@ NdbRestarter::waitNodesState(const int * _nodes, int _num_nodes,
 
 int NdbRestarter::waitNodesStarted(const int * _nodes, int _num_nodes,
 		     unsigned int _timeout){
-  return waitNodesState(_nodes, _num_nodes, 
-			NDB_MGM_NODE_STATUS_STARTED, _timeout);  
+  int res = waitNodesState(_nodes, _num_nodes,
+                           NDB_MGM_NODE_STATUS_STARTED, _timeout);
+  if (res == 0)
+  {
+    wait_until_ready(_nodes, _num_nodes);
+  }
+
+  return res;
 }
 
 int NdbRestarter::waitNodesStartPhase(const int * _nodes, int _num_nodes, 
@@ -716,6 +740,42 @@ int NdbRestarter::insertErrorInAllNodes(int _error){
   for(unsigned i = 0; i < ndbNodes.size(); i++){     
     g_debug << "inserting error in node " << ndbNodes[i].node_id << endl;
     if (insertErrorInNode(ndbNodes[i].node_id, _error) == -1)
+      result = -1;
+  }
+  return result;
+
+}
+
+int
+NdbRestarter::insertError2InNode(int _nodeId, int _error, int extra){
+  if (!isConnected())
+    return -1;
+
+  ndb_mgm_reply reply;
+  reply.return_code = 0;
+
+  if (ndb_mgm_insert_error2(handle, _nodeId, _error, extra, &reply) == -1){
+    MGMERR(handle);
+    g_err << "Could not insert error in node with id = "<< _nodeId << endl;
+  }
+  if(reply.return_code != 0){
+    g_err << "Error: " << reply.message << endl;
+  }
+  return 0;
+}
+
+int NdbRestarter::insertError2InAllNodes(int _error, int extra){
+  if (!isConnected())
+    return -1;
+
+  if (getStatus() != 0)
+    return -1;
+
+  int result = 0;
+
+  for(unsigned i = 0; i < ndbNodes.size(); i++){
+    g_debug << "inserting error in node " << ndbNodes[i].node_id << endl;
+    if (insertError2InNode(ndbNodes[i].node_id, _error, extra) == -1)
       result = -1;
   }
   return result;
@@ -1024,6 +1084,35 @@ NdbRestarter::splitNodes()
     result.push_back(part0);
   }
   return result;
+}
+
+int
+NdbRestarter::wait_until_ready(const int * nodes, int cnt, int timeout)
+{
+  if (m_cluster_connection == 0)
+  {
+    // no cluster connection, skip wait
+    return 0;
+  }
+
+  Vector<int> allNodes;
+  if (cnt == 0)
+  {
+    if (!isConnected())
+      return -1;
+
+    if (getStatus() != 0)
+      return -1;
+
+    for(unsigned i = 0; i < ndbNodes.size(); i++)
+    {
+      allNodes.push_back(ndbNodes[i].node_id);
+    }
+    cnt = (int)allNodes.size();
+    nodes = allNodes.getBase();
+  }
+
+  return m_cluster_connection->wait_until_ready(nodes, cnt, timeout);
 }
 
 template class Vector<ndb_mgm_node_state>;

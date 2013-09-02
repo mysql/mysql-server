@@ -1,0 +1,9 @@
+
+
+/* Entry point into the Database Storage Service Provider Interface.
+
+   Get a DBServiceProvider with a given name.
+   Returns the DBServiceProvider, or null.
+*/
+DBServiceProvider getDBServiceProvider(name);
+

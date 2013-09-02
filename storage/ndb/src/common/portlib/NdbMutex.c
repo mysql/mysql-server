@@ -137,7 +137,7 @@ int NdbMutex_InitWithName(NdbMutex* pNdbMutex, const char * name)
   DBUG_RETURN(result);
 }
 
-int NdbMutex_Destroy(NdbMutex* p_mutex)
+int NdbMutex_Deinit(NdbMutex* p_mutex)
 {
   int result;
 
@@ -154,8 +154,17 @@ int NdbMutex_Destroy(NdbMutex* p_mutex)
   result = pthread_mutex_destroy(p_mutex);
 #endif
 
-  NdbMem_Free(p_mutex);
+  return result;
+}
 
+int NdbMutex_Destroy(NdbMutex* p_mutex)
+{
+  int result;
+
+  if (p_mutex == NULL)
+    return -1;
+  result = NdbMutex_Deinit(p_mutex);
+  NdbMem_Free(p_mutex);
   return result;
 }
 
@@ -316,6 +325,13 @@ int NdbMutex_Trylock(NdbMutex* p_mutex)
   result = pthread_mutex_trylock(&p_mutex->mutex);
 #else
   result = pthread_mutex_trylock(p_mutex);
+#endif
+#ifndef NDEBUG
+  if (result && result != EBUSY)
+  {
+    fprintf(stderr, "NdbMutex_TryLock, unexpected result %d returned from "
+            "pthread_mutex_trylock: '%s'\n", result, strerror(result));
+  }
 #endif
   assert(result == 0 || result == EBUSY);
 

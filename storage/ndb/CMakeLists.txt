@@ -63,7 +63,8 @@ ENDIF()
 # if the compiler supports the flag
 IF(CMAKE_COMPILER_IS_GNUCXX)
   INCLUDE(CheckCXXCompilerFlag)
-  FOREACH(warning "unused-but-set-variable")
+  FOREACH(warning "unused-but-set-variable" "strict-aliasing")
+    UNSET(flag_supported CACHE)
     CHECK_CXX_COMPILER_FLAG("-Wno-${warning}" flag_supported)
     IF(flag_supported)
       MESSAGE(STATUS "Disabling -W${warning} warning")
@@ -83,6 +84,7 @@ SET(NDBCLUSTER_SOURCES
   ../../sql/ha_ndbcluster_connection.cc
   ../../sql/ha_ndbcluster_binlog.cc
   ../../sql/ha_ndb_index_stat.cc
+  ../../sql/ha_ndb_ddl_fk.cc
   ../../sql/ha_ndbinfo.cc
   ../../sql/ndb_local_connection.cc
   ../../sql/ndb_share.cc
@@ -251,7 +253,7 @@ OPTION(WITH_NDB_JAVA
   "Include NDB Cluster Java components" ${WITH_NDB_JAVA_DEFAULT})
 IF(WITH_NDB_JAVA)
   # Check for Java and JDK needed by ndbjtie and clusterj
-  FIND_PACKAGE(Java 1.6 REQUIRED)
+  FIND_PACKAGE(Java 1.6 REQUIRED COMPONENTS Development)
   MESSAGE(STATUS "Java_VERSION: ${Java_VERSION}")
   MESSAGE(STATUS "Java_VERSION_STRING: ${Java_VERSION_STRING}")
   MESSAGE(STATUS "JAVA_RUNTIME: ${JAVA_RUNTIME}")
@@ -300,7 +302,24 @@ IF (HAVE_JAVA AND HAVE_JDK)
   ADD_SUBDIRECTORY(clusterj)
 ENDIF()
 ADD_SUBDIRECTORY(memcache)
+ADD_SUBDIRECTORY(mcc)
+
+SET(WITH_NDB_NODEJS_DEFAULT ON)
+
+# Check if the default for WITH_NDB_NODEJS should be overriden
+# by environment variable
+IF(DEFINED ENV{WITH_NDB_NODEJS_DEFAULT})
+  SET(WITH_NDB_NODEJS_DEFAULT $ENV{WITH_NDB_NODEJS_DEFAULT})
+  MESSAGE(STATUS "Default value for WITH_NDB_NODEJS set to ${WITH_NDB_NODEJS_DEFAULT}")
+ENDIF(DEFINED ENV{WITH_NDB_NODEJS_DEFAULT})
+OPTION(WITH_NDB_NODEJS
+  "Include NDB Cluster node.js components" ${WITH_NDB_NODEJS_DEFAULT})
+IF(WITH_NDB_NODEJS)
+  ADD_SUBDIRECTORY(nodejs)
+ENDIF(WITH_NDB_NODEJS)
 
 IF(WITHOUT_PARTITION_STORAGE_ENGINE)
   MESSAGE(FATAL_ERROR "NDBCLUSTER can't be compiled without PARTITION")
 ENDIF(WITHOUT_PARTITION_STORAGE_ENGINE)
+
+ADD_SUBDIRECTORY(wix)

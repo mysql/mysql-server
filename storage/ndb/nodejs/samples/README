@@ -1,0 +1,12 @@
+This sample directory contains programs with examples of insert, delete, and find.
+
+To run the programs, use the node command with one of the program names, e.g.
+
+node insert author "this is a great little program"
+
+The programs require a database table to exist. To create the table,
+run the create.sql script with the standard mysql command, e.g. 
+
+mysql < create.sql
+
+
