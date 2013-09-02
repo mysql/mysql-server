@@ -103,13 +103,13 @@ setup_db(atrt_config& config)
   atrt_process* atrt_client = 0;
   {
     atrt_cluster* cluster = 0;
-    for (size_t i = 0; i<config.m_clusters.size(); i++)
+    for (unsigned i = 0; i<config.m_clusters.size(); i++)
     {
       if (strcmp(config.m_clusters[i]->m_name.c_str(), ".atrt") == 0)
       {
 	cluster = config.m_clusters[i];
 
-	for (size_t i = 0; i<cluster->m_processes.size(); i++)
+        for (unsigned i = 0; i<cluster->m_processes.size(); i++)
 	{
 	  if (cluster->m_processes[i]->m_type == atrt_process::AP_CLIENT)
 	  {
@@ -241,7 +241,7 @@ BINDS(MYSQL_BIND& bind, const char * s, unsigned long * len)
 {
   bind.buffer_type= MYSQL_TYPE_STRING;
   bind.buffer= (char*)s;
-  bind.buffer_length= * len = strlen(s);
+  bind.buffer_length= * len = (unsigned long)strlen(s);
   bind.length= len;
   bind.is_null= 0;
 }
@@ -250,7 +250,7 @@ template <typename T>
 int
 find(T* obj, Vector<T*>& arr)
 {
-  for (size_t i = 0; i<arr.size(); i++)
+  for (unsigned i = 0; i<arr.size(); i++)
     if (arr[i] == obj)
       return (int)i;
   abort();
@@ -303,18 +303,18 @@ populate_db(atrt_config& config, atrt_process* mysqld)
   {
     const char * sql = "INSERT INTO host (id, name, port) values (?, ?, ?)";
     MYSQL_STMT * stmt = mysql_stmt_init(&mysqld->m_mysql);
-    if (mysql_stmt_prepare(stmt, sql, strlen(sql)))
+    if (mysql_stmt_prepare(stmt, sql, (unsigned long)strlen(sql)))
     {
       g_logger.error("Failed to prepare: %s", mysql_error(&mysqld->m_mysql));
       return false;
     }
 
-    for (size_t i = 0; i<config.m_hosts.size(); i++)
+    for (unsigned i = 0; i<config.m_hosts.size(); i++)
     {
       unsigned long l0;
       MYSQL_BIND bind[3];
       bzero(bind, sizeof(bind));
-      int id = i;
+      int id = (int)i;
       int port = config.m_hosts[i]->m_cpcd->getPort();
       BINDI(bind[0], &id);
       BINDS(bind[1], config.m_hosts[i]->m_hostname.c_str(), &l0);
@@ -337,18 +337,18 @@ populate_db(atrt_config& config, atrt_process* mysqld)
   {
     const char * sql = "INSERT INTO cluster (id, name) values (?, ?)";
     MYSQL_STMT * stmt = mysql_stmt_init(&mysqld->m_mysql);
-    if (mysql_stmt_prepare(stmt, sql, strlen(sql)))
+    if (mysql_stmt_prepare(stmt, sql, (unsigned long)strlen(sql)))
     {
       g_logger.error("Failed to prepare: %s", mysql_error(&mysqld->m_mysql));
       return false;
     }
 
-    for (size_t i = 0; i<config.m_clusters.size(); i++)
+    for (unsigned i = 0; i<config.m_clusters.size(); i++)
     {
       unsigned long l0;
       MYSQL_BIND bind[2];
       bzero(bind, sizeof(bind));
-      int id = i;
+      int id = (int)i;
       BINDI(bind[0], &id);
       BINDS(bind[1], config.m_clusters[i]->m_name.c_str(), &l0);
 
@@ -375,26 +375,26 @@ populate_db(atrt_config& config, atrt_process* mysqld)
       "INSERT INTO options (id, process_id, name, value) values (?,?,?,?)";
 
     MYSQL_STMT * stmt = mysql_stmt_init(&mysqld->m_mysql);
-    if (mysql_stmt_prepare(stmt, sql, strlen(sql)))
+    if (mysql_stmt_prepare(stmt, sql, (unsigned long)strlen(sql)))
     {
       g_logger.error("Failed to prepare: %s", mysql_error(&mysqld->m_mysql));
       return false;
     }
 
     MYSQL_STMT * stmtopt = mysql_stmt_init(&mysqld->m_mysql);
-    if (mysql_stmt_prepare(stmtopt, sqlopt, strlen(sqlopt)))
+    if (mysql_stmt_prepare(stmtopt, sqlopt, (unsigned long)strlen(sqlopt)))
     {
       g_logger.error("Failed to prepare: %s", mysql_error(&mysqld->m_mysql));
       return false;
     }
 
     int option_id = 0;
-    for (size_t i = 0; i<config.m_processes.size(); i++)
+    for (unsigned i = 0; i<config.m_processes.size(); i++)
     {
       unsigned long l0, l1;
       MYSQL_BIND bind[6];
       bzero(bind, sizeof(bind));
-      int id = i;
+      int id = (int)i;
       atrt_process* proc = config.m_processes[i];
       int host_id = find(proc->m_host, config.m_hosts);
       int cluster_id = find(proc->m_cluster, config.m_clusters);
@@ -500,7 +500,7 @@ setup_repl(atrt_process* dst, atrt_process* src)
 bool
 setup_repl(atrt_config& config)
 {
-  for (size_t i = 0; i<config.m_processes.size(); i++)
+  for (unsigned i = 0; i<config.m_processes.size(); i++)
   {
     atrt_process * dst = config.m_processes[i];
     if (dst->m_rep_src)

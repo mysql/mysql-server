@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2003, 2010, Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2003, 2013, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -39,7 +39,12 @@
 #include <ndbapi_limits.h>
 #include "mt.hpp"
 
+#include "../../common/util/parse_mask.hpp"
+
 #include <EventLogger.hpp>
+
+#define JAM_FILE_ID 301
+
 extern EventLogger * g_eventLogger;
 
 extern Uint32 g_start_type;
@@ -272,8 +277,6 @@ static char * get_and_validate_path(ndb_mgm_configuration_iterator &iter,
   
   return strdup(buf2);
 }
-
-#include "../../common/util/parse_mask.hpp"
 
 void
 Configuration::setupConfiguration(){
@@ -856,6 +859,7 @@ Configuration::calcSizeAlt(ConfigValues * ownConfig){
 	    (noOfLocalScanRecords * noBatchSize) +
 	    NODE_RECOVERY_SCAN_OP_RECORDS);
     
+    /* TODO: remove. CFG_ACC_OVERFLOW_RECS obsoleted ... */
     cfg.put(CFG_ACC_OVERFLOW_RECS,
 	    noOfIndexPages + 
 	    NO_OF_FRAG_PER_NODE * noOfAccTables* noOfReplicas);

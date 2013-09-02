@@ -1,6 +1,5 @@
 /*
-   Copyright (C) 2003, 2005-2007 MySQL AB
-    All rights reserved. Use is subject to license terms.
+   Copyright (c) 2003, 2013, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -20,6 +19,9 @@
 #define HOT_SPAREREP_HPP
 
 #include <NodeBitmask.hpp>
+
+#define JAM_FILE_ID 111
+
 
 /**
  * This signals is sent by Dbdih to Dbdict
@@ -46,5 +48,8 @@ private:
   Uint32 noHotSpareNodes;
   Uint32 theHotSpareNodes[NdbNodeBitmask::Size];
 };
+
+
+#undef JAM_FILE_ID
 
 #endif

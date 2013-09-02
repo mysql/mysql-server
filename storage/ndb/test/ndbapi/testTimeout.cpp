@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2003, 2010, Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2003, 2010, 2011, 2013, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -52,7 +52,11 @@ int
 resetTransactionTimeout(NDBT_Context* ctx, NDBT_Step* step){
   NdbRestarter restarter;
   
-  int val[] = { DumpStateOrd::TcSetApplTransactionTimeout, g_org_timeout };
+  // g_org_timeout will be passed as printed int to mgm,
+  // then converted to Uint32 before sent to tc.
+  // Check convert Uint32 -> int -> Uint32 is safe
+  NDB_STATIC_ASSERT(UINT_MAX32 == (Uint32)(int)UINT_MAX32);
+  int val[] = { DumpStateOrd::TcSetApplTransactionTimeout, (int)g_org_timeout };
   if(restarter.dumpStateAllNodes(val, 2) != 0){
     return NDBT_FAILED;
   }
@@ -104,7 +108,11 @@ int
 resetDeadlockTimeout(NDBT_Context* ctx, NDBT_Step* step){
   NdbRestarter restarter;
   
-  int val[] = { DumpStateOrd::TcSetTransactionTimeout, g_org_deadlock };
+  // g_org_deadlock will be passed as printed int to mgm,
+  // then converted to Uint32 before sent to tc.
+  // Check convert Uint32 -> int -> Uint32 is safe
+  NDB_STATIC_ASSERT(UINT_MAX32 == (Uint32)(int)UINT_MAX32);
+  int val[] = { DumpStateOrd::TcSetTransactionTimeout, (int)g_org_deadlock };
   if(restarter.dumpStateAllNodes(val, 2) != 0){
     return NDBT_FAILED;
   }
@@ -475,7 +483,7 @@ int runScanRefreshNoTimeout(NDBT_Context* ctx, NDBT_Step* step){
         }
 
         int res;
-        for (size_t j = 0; j < ops.size(); j++)
+        for (unsigned j = 0; j < ops.size(); j++)
         {
           while((res = ops[j]->nextResult()) == 0);
           CHECK(res != -1);

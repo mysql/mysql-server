@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2003, 2011, Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2003, 2013, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -28,7 +28,11 @@
 #include <Interpreter.hpp>
 #include <signaldata/TupKey.hpp>
 #include <signaldata/AttrInfo.hpp>
+#include <signaldata/TuxMaint.hpp>
 #include <NdbSqlUtil.hpp>
+
+#define JAM_FILE_ID 422
+
 
 // #define TRACE_INTERPRETER
 
@@ -170,11 +174,12 @@ int
 Dbtup::corruptedTupleDetected(KeyReqStruct *req_struct)
 {
   ndbout_c("Tuple corruption detected."); 
-  if (c_crashOnCorruptedTuple)
+  if (c_crashOnCorruptedTuple && !ERROR_INSERTED(4036))
   {
     ndbout_c(" Exiting."); 
     ndbrequire(false);
   }
+  (void)ERROR_INSERTED_CLEAR(4036);
   terrorCode= ZTUPLE_CORRUPTED_ERROR;
   tupkeyErrorLab(req_struct);
   return -1;
@@ -624,8 +629,11 @@ void Dbtup::execTUPKEYREQ(Signal* signal)
    regOperPtr->op_struct.delete_insert_flag = false;
    regOperPtr->op_struct.m_reorg = (TrequestInfo >> 12) & 3;
 
+   regOperPtr->op_struct.m_disable_fk_checks = tupKeyReq->disable_fk_checks;
+
    regOperPtr->m_copy_tuple_location.setNull();
    regOperPtr->tupVersion= ZNIL;
+   regOperPtr->op_struct.m_physical_only_op = 0;
 
    sig1= tupKeyReq->savePointId;
    sig2= tupKeyReq->primaryReplica;
@@ -664,10 +672,12 @@ void Dbtup::execTUPKEYREQ(Signal* signal)
    sig1 = tupKeyReq->m_row_id_page_no;
    sig2 = tupKeyReq->m_row_id_page_idx;
    sig3 = tupKeyReq->deferred_constraints;
+   sig4 = tupKeyReq->disable_fk_checks;
 
    req_struct.m_row_id.m_page_no = sig1;
    req_struct.m_row_id.m_page_idx = sig2;
    req_struct.m_deferred_constraints = sig3;
+   req_struct.m_disable_fk_checks = sig4;
 
    /* Get AttrInfo section if this is a long TUPKEYREQ */
    Uint32 attrInfoIVal= tupKeyReq->attrInfoIVal;
@@ -804,10 +814,11 @@ void Dbtup::execTUPKEYREQ(Signal* signal)
             *
             * Therefore we call TUP_ABORTREQ already now.  Diskdata etc
             * should be in memory and timeslicing cannot occur.  We must
-            * skip TUX abort triggers since TUX is already aborted.
+            * skip TUX abort triggers since TUX is already aborted.  We
+            * will dealloc the fixed and var parts if necessary.
             */
            signal->theData[0] = operPtr.i;
-           do_tup_abortreq(signal, ZSKIP_TUX_TRIGGERS);
+           do_tup_abortreq(signal, ZSKIP_TUX_TRIGGERS | ZABORT_DEALLOC);
            tupkeyErrorLab(&req_struct);
            return;
          }
@@ -1032,8 +1043,9 @@ int Dbtup::handleReadReq(Signal* signal,
   Uint32 *dst;
   Uint32 dstLen, start_index;
   const BlockReference sendBref= req_struct->rec_blockref;
-  if ((regTabPtr->m_bits & Tablerec::TR_Checksum) &&
-      (calculateChecksum(req_struct->m_tuple_ptr, regTabPtr) != 0)) {
+  if (((regTabPtr->m_bits & Tablerec::TR_Checksum) &&
+       (calculateChecksum(req_struct->m_tuple_ptr, regTabPtr) != 0)) ||
+      ERROR_INSERTED(4036)) {
     jam();
     return corruptedTupleDetected(req_struct);
   }
@@ -2051,10 +2063,17 @@ update_error:
     regOperPtr.p->m_tuple_location.setNull();
   }
 exit_error:
+  if (!regOperPtr.p->m_tuple_location.isNull())
+  {
+    jam();
+    /* Memory allocated, abort insert, releasing memory if appropriate */
+    do_tup_abortreq(signal, ZSKIP_TUX_TRIGGERS | ZABORT_DEALLOC);
+  }
   tupkeyErrorLab(req_struct);
   return -1;
 
 disk_prealloc_error:
+  jam();
   base->m_header_bits |= Tuple_header::FREED;
   goto exit_error;
 }
@@ -4273,8 +4292,6 @@ Dbtup::nr_read_pk(Uint32 fragPtrI,
   }
   return ret;
 }
-
-#include <signaldata/TuxMaint.hpp>
 
 int
 Dbtup::nr_delete(Signal* signal, Uint32 senderData,

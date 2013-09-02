@@ -113,7 +113,7 @@ static void populateServers(UserHandle *uh, int count)
    for(i = 0; i < count; i++) {
       sprintf(tmp, "-Server %d-", i);
 
-      len = strlen(tmp);
+      len = (int)strlen(tmp);
       for(j = 0; j < SERVER_NAME_LENGTH; j++){
          serverName[j] = tmp[j % len];
       }
@@ -211,7 +211,7 @@ static void populateGroups(UserHandle *uh, int count)
    for(i = 0; i < NO_OF_GROUPS; i++) {
       sprintf(tmp, "-Group %d-", i);
 
-      len = strlen(tmp);
+      len = (int)strlen(tmp);
 
       for(j = 0; j < GROUP_NAME_LENGTH; j++) {
         groupName[j] = tmp[j % len];

@@ -20,17 +20,17 @@
 
 # NOTE: "vendor" is used in upgrade/downgrade check, so you can't
 # change these, has to be exactly as is.
-%define mysql_old_vendor        MySQL AB
-%define mysql_vendor_2          Sun Microsystems, Inc.
-%define mysql_vendor            Oracle and/or its affiliates
+%global mysql_old_vendor        MySQL AB
+%global mysql_vendor_2          Sun Microsystems, Inc.
+%global mysql_vendor            Oracle and/or its affiliates
 
-%define mysql_version   @NDBVERSION@
+%global mysql_version   @NDBVERSION@
 
-%define mysqld_user     mysql
-%define mysqld_group    mysql
-%define mysqldatadir    /var/lib/mysql
+%global mysqld_user     mysql
+%global mysqld_group    mysql
+%global mysqldatadir    /var/lib/mysql
 
-%define release         1
+%global release         1  
 
 #
 # Macros we use which are not available in all supported versions of RPM
@@ -292,7 +292,7 @@ Obsoletes:      MySQL-Cluster-management MySQL-Cluster-storage
 Obsoletes:      MySQL-Cluster-extra MySQL-Cluster-tools
 Obsoletes:      mysql MySQL mysql-server MySQL-server
 %if 0%{?commercial}
-Obsoletes:      MySQL-server
+Obsoletes:      MySQL-Cluster-server
 %else
 Obsoletes:      MySQL-server-advanced
 %endif
@@ -328,10 +328,8 @@ package "MySQL-Cluster-client%{product_suffix}" as well!
 %package -n MySQL-Cluster-client%{product_suffix}
 Summary:        MySQL Cluster - Client
 Group:          Applications/Databases
-Provides:       MySQL-Cluster-client
-Obsoletes:      MySQL-Cluster-client
 %if 0%{?commercial}
-Obsoletes:      MySQL-client
+Obsoletes:      MySQL-Cluster-client
 %else
 Obsoletes:      MySQL-client-advanced
 %endif
@@ -351,11 +349,9 @@ For a description of MySQL see the base MySQL RPM or http://www.mysql.com/
 Requires:       MySQL-Cluster-client%{product_suffix} perl
 Summary:        MySQL Cluster - Test suite
 Group:          Applications/Databases
-Provides:       MySQL-Cluster-test
-Obsoletes:      MySQL-Cluster-test
 %if 0%{?commercial}
 Requires:       MySQL-client-advanced perl
-Obsoletes:      MySQL-test
+Obsoletes:      MySQL-Cluster-test
 %else
 Requires:       MySQL-client perl
 Obsoletes:      MySQL-test-advanced
@@ -377,7 +373,7 @@ Group:          Applications/Databases
 Provides:       MySQL-Cluster-devel
 Obsoletes:      MySQL-Cluster-devel
 %if 0%{?commercial}
-Obsoletes:      MySQL-devel
+Obsoletes:      MySQL-Cluster-devel
 %else
 Obsoletes:      MySQL-devel-advanced
 %endif
@@ -398,7 +394,7 @@ Group:          Applications/Databases
 Provides:       MySQL-Cluster-shared
 Obsoletes:      MySQL-Cluster-shared
 %if 0%{?commercial}
-Obsoletes:      MySQL-shared
+Obsoletes:      MySQL-Cluster-shared
 %else
 Obsoletes:      MySQL-shared-advanced
 %endif
@@ -421,7 +417,7 @@ Provides:       MySQL-Cluster-embedded
 Obsoletes:      MySQL-Cluster-embedded
 %if 0%{?commercial}
 Requires:       MySQL-devel-advanced
-Obsoletes:      MySQL-embedded
+Obsoletes:      MySQL-Cluster-embedded
 %else
 Requires:       MySQL-devel
 Obsoletes:      MySQL-embedded-advanced
@@ -1084,35 +1080,38 @@ echo "====="                                                       >> $STATUS_HI
 %doc %attr(644, root, man) %{_mandir}/man1/mysql_tzinfo_to_sql.1*
 %doc %attr(644, root, man) %{_mandir}/man1/mysql_zap.1*
 %doc %attr(644, root, man) %{_mandir}/man1/mysqlbug.1*
-%doc %attr(644, root, man) %{_mandir}/man1/ndb_config.1*
-%doc %attr(644, root, man) %{_mandir}/man1/ndb_cpcd.1*
-%doc %attr(644, root, man) %{_mandir}/man1/ndb_delete_all.1*
-%doc %attr(644, root, man) %{_mandir}/man1/ndb_desc.1*
-%doc %attr(644, root, man) %{_mandir}/man1/ndb_drop_index.1*
-%doc %attr(644, root, man) %{_mandir}/man1/ndb_drop_table.1*
-%doc %attr(644, root, man) %{_mandir}/man1/ndb_error_reporter.1*
-%doc %attr(644, root, man) %{_mandir}/man1/ndb_index_stat.1*
-%doc %attr(644, root, man) %{_mandir}/man1/ndb_mgm.1*
-%doc %attr(644, root, man) %{_mandir}/man1/ndb_print_backup_file.1*
-%doc %attr(644, root, man) %{_mandir}/man1/ndb_print_schema_file.1*
-%doc %attr(644, root, man) %{_mandir}/man1/ndb_print_sys_file.1*
-%doc %attr(644, root, man) %{_mandir}/man1/ndb_restore.1*
-%doc %attr(644, root, man) %{_mandir}/man1/ndb_select_all.1*
-%doc %attr(644, root, man) %{_mandir}/man1/ndb_select_count.1*
-%doc %attr(644, root, man) %{_mandir}/man1/ndb_show_tables.1*
-%doc %attr(644, root, man) %{_mandir}/man1/ndb_size.pl.1*
-%doc %attr(644, root, man) %{_mandir}/man1/ndb_waiter.1*
-%doc %attr(644, root, man) %{_mandir}/man1/ndbd_redo_log_reader.1*
-%doc %attr(644, root, man) %{_mandir}/man8/ndb_mgmd.8*
-%doc %attr(644, root, man) %{_mandir}/man8/ndbd.8*
-%doc %attr(644, root, man) %{_mandir}/man8/ndbmtd.8*
-%doc %attr(644, root, man) %{_mandir}/man1/ndbinfo_select_all.1*
+# commenting out ndb docs temporarily #Bug #16303451 	
+#%doc %attr(644, root, man) %{_mandir}/man1/ndb_blob_tool.1*
+#%doc %attr(644, root, man) %{_mandir}/man1/ndb_config.1*
+#%doc %attr(644, root, man) %{_mandir}/man1/ndb_cpcd.1*
+#%doc %attr(644, root, man) %{_mandir}/man1/ndb_delete_all.1*
+#%doc %attr(644, root, man) %{_mandir}/man1/ndb_desc.1*
+#%doc %attr(644, root, man) %{_mandir}/man1/ndb_drop_index.1*
+#%doc %attr(644, root, man) %{_mandir}/man1/ndb_drop_table.1*
+#%doc %attr(644, root, man) %{_mandir}/man1/ndb_error_reporter.1*
+#%doc %attr(644, root, man) %{_mandir}/man1/ndb_index_stat.1*
+#%doc %attr(644, root, man) %{_mandir}/man1/ndb_mgm.1*
+#%doc %attr(644, root, man) %{_mandir}/man1/ndb_print_backup_file.1*
+#%doc %attr(644, root, man) %{_mandir}/man1/ndb_print_schema_file.1*
+#%doc %attr(644, root, man) %{_mandir}/man1/ndb_print_sys_file.1*
+#%doc %attr(644, root, man) %{_mandir}/man1/ndb_restore.1*
+#%doc %attr(644, root, man) %{_mandir}/man1/ndb_select_all.1*
+#%doc %attr(644, root, man) %{_mandir}/man1/ndb_select_count.1*
+#%doc %attr(644, root, man) %{_mandir}/man1/ndb_show_tables.1*
+#%doc %attr(644, root, man) %{_mandir}/man1/ndb_size.pl.1*
+#%doc %attr(644, root, man) %{_mandir}/man1/ndb_waiter.1*
+#%doc %attr(644, root, man) %{_mandir}/man1/ndbd_redo_log_reader.1*
+#%doc %attr(644, root, man) %{_mandir}/man8/ndb_mgmd.8*
+#%doc %attr(644, root, man) %{_mandir}/man8/ndbd.8*
+#%doc %attr(644, root, man) %{_mandir}/man8/ndbmtd.8*
+#%doc %attr(644, root, man) %{_mandir}/man1/ndbinfo_select_all.1*
+#%doc %attr(644, root, man) %{_mandir}/man1/ndb-common-options.1*
+
 %doc %attr(644, root, man) %{_mandir}/man1/perror.1*
 %doc %attr(644, root, man) %{_mandir}/man1/replace.1*
 %doc %attr(644, root, man) %{_mandir}/man1/resolve_stack_dump.1*
 %doc %attr(644, root, man) %{_mandir}/man1/resolveip.1*
 
-%doc %attr(644, root, man) %{_mandir}/man1/ndb-common-options.1*
 
 %ghost %config(noreplace,missingok) %{_sysconfdir}/my.cnf
 
@@ -1163,6 +1162,7 @@ echo "====="                                                       >> $STATUS_HI
 %attr(755, root, root) %{_bindir}/ndb_select_count
 %attr(755, root, root) %{_bindir}/ndb_show_tables
 %attr(755, root, root) %{_bindir}/ndb_waiter
+%attr(755, root, root) %{_bindir}/ndb_setup.py
 
 %if %(test "@MEMCACHED_ROOT_DIR@" '!=' "MEMCACHED_ROOT_DIR-NOTFOUND" && echo 1 || echo 0)
 %attr(755, root, root) %{_sbindir}/memcached
@@ -1210,6 +1210,7 @@ echo "====="                                                       >> $STATUS_HI
 %attr(755, root, root) %{_bindir}/mysqlshow
 %attr(755, root, root) %{_bindir}/mysqlslap
 %attr(755, root, root) %{_bindir}/mysql_config_editor
+%attr(755, root, root) %{_bindir}/memclient
 
 %doc %attr(644, root, man) %{_mandir}/man1/msql2mysql.1*
 %doc %attr(644, root, man) %{_mandir}/man1/mysql.1*

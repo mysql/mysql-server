@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2003, 2010, Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2003, 2013, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -19,6 +19,9 @@
 #define DATA_BUFFER_HPP
 
 #include "ArrayPool.hpp"
+
+#define JAM_FILE_ID 274
+
 
 /**
  * @class  DataBuffer
@@ -51,6 +54,10 @@ public:
     Uint32 used;       // Words used
     Uint32 firstItem;  // First segment (or RNIL)
     Uint32 lastItem;   // Last segment (or RNIL)
+
+#if defined VM_TRACE || defined ERROR_INSERT
+    bool in_use;
+#endif
 
     /** 
      * Get size of databuffer, in words
@@ -176,11 +183,21 @@ public:
 		  typename DataBuffer<sz>::Head & _src)
     : DataBuffer<sz>(thePool), src(_src)
   {
+#if defined VM_TRACE || defined ERROR_INSERT
+    if (src.in_use == true)
+      abort();
+    src.in_use = true;
+#endif
     this->head = src;
   }
-  
+
   ~LocalDataBuffer(){
     src = this->head;
+#if defined VM_TRACE || defined ERROR_INSERT
+    if (src.in_use == false)
+      abort();
+    src.in_use = false;
+#endif
   }
 private:
   typename DataBuffer<sz>::Head & src;
@@ -192,6 +209,9 @@ DataBuffer<sz>::Head::Head(){
   used = 0;
   firstItem = RNIL;
   lastItem = RNIL;
+#if defined VM_TRACE || defined ERROR_INSERT
+  in_use = false;
+#endif
 }
 
 template<Uint32 sz>
@@ -603,6 +623,9 @@ bool
 DataBuffer<sz>::isEmpty() const {
   return (head.used == 0);
 }
+
+
+#undef JAM_FILE_ID
 
 #endif
 

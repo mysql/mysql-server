@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2003, 2010, Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2003, 2013, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -27,6 +27,9 @@
 #include <AttributeHeader.hpp>
 #include <signaldata/TuxMaint.hpp>
 #include <signaldata/AlterIndxImpl.hpp>
+
+#define JAM_FILE_ID 418
+
 
 // methods used by ordered index
 
@@ -428,7 +431,7 @@ Dbtup::execBUILD_INDX_IMPL_REQ(Signal* signal)
     (const BuildIndxImplReq*)signal->getDataPtr();
   // get new operation
   BuildIndexPtr buildPtr;
-  if (ERROR_INSERTED(4031) || ! c_buildIndexList.seize(buildPtr)) {
+  if (ERROR_INSERTED(4031) || ! c_buildIndexList.seizeFirst(buildPtr)) {
     jam();
     BuildIndexRec buildRec;
     buildRec.m_request = *req;

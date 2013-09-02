@@ -1,4 +1,4 @@
-/* Copyright (c) 2008, 2011, 2012, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2008, 2011, 2013, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -37,6 +37,13 @@
 
 #include "mt-asm.h"
 #include "mt-lock.hpp"
+
+#include "ThreadConfig.hpp"
+#include <signaldata/StartOrd.hpp>
+
+#include <NdbMutex.h>
+#include <NdbCondition.h>
+
 
 inline
 SimulatedBlock*
@@ -204,8 +211,6 @@ wakeup(struct thr_wait* wait)
   return 0;
 }
 #else
-#include <NdbMutex.h>
-#include <NdbCondition.h>
 
 struct thr_wait
 {
@@ -213,7 +218,7 @@ struct thr_wait
   NdbCondition *m_cond;
   bool m_need_wakeup;
   char padding[NDB_CL_PADSZ(sizeof(bool) + (2*sizeof(void*)))];
-  thr_wait() : m_need_wakeup(false), m_mutex(0), m_cond(0) {}
+  thr_wait() : m_mutex(0), m_cond(0), m_need_wakeup(false) {}
 
   void init() {
     m_mutex = NdbMutex_Create();
@@ -264,6 +269,9 @@ wakeup(struct thr_wait* wait)
 }
 
 #endif
+
+#define JAM_FILE_ID 236
+
 
 /**
  * thr_safe_pool
@@ -976,9 +984,6 @@ struct trp_callback : public TransporterCallback
 
 extern trp_callback g_trp_callback;             // Forward declaration
 extern struct thr_repository g_thr_repository;
-
-#include <NdbMutex.h>
-#include <NdbCondition.h>
 
 struct thr_repository
 {
@@ -3462,8 +3467,6 @@ init_thread(thr_data *selfptr)
 {
   selfptr->m_waiter.init();
   selfptr->m_jam.theEmulatedJamIndex = 0;
-  selfptr->m_jam.theEmulatedJamBlockNumber = 0;
-  bzero(selfptr->m_jam.theEmulatedJam, sizeof(selfptr->m_jam.theEmulatedJam));
   NdbThread_SetTlsKey(NDB_THREAD_TLS_JAM, &selfptr->m_jam);
   NdbThread_SetTlsKey(NDB_THREAD_TLS_THREAD, selfptr);
 
@@ -4289,9 +4292,6 @@ rep_init(struct thr_repository* rep, unsigned int cnt, Ndbd_mem_manager *mm)
  * Thread Config
  */
 
-#include "ThreadConfig.hpp"
-#include <signaldata/StartOrd.hpp>
-
 static Uint32
 get_total_number_of_block_threads(void)
 {
@@ -4695,15 +4695,14 @@ FastScheduler::traceDumpGetNumThreads()
 }
 
 bool
-FastScheduler::traceDumpGetJam(Uint32 thr_no, Uint32 & jamBlockNumber,
-                               const Uint32 * & thrdTheEmulatedJam,
+FastScheduler::traceDumpGetJam(Uint32 thr_no,
+                               const JamEvent * & thrdTheEmulatedJam,
                                Uint32 & thrdTheEmulatedJamIndex)
 {
   if (thr_no >= num_threads)
     return false;
 
 #ifdef NO_EMULATED_JAM
-  jamBlockNumber = 0;
   thrdTheEmulatedJam = NULL;
   thrdTheEmulatedJamIndex = 0;
 #else
@@ -4711,7 +4710,6 @@ FastScheduler::traceDumpGetJam(Uint32 thr_no, Uint32 & jamBlockNumber,
     &g_thr_repository.m_thread[thr_no].m_thr_data.m_jam;
   thrdTheEmulatedJam = jamBuffer->theEmulatedJam;
   thrdTheEmulatedJamIndex = jamBuffer->theEmulatedJamIndex;
-  jamBlockNumber = jamBuffer->theEmulatedJamBlockNumber;
 #endif
   return true;
 }

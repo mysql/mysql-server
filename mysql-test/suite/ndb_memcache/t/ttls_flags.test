@@ -11,6 +11,7 @@
 use strict;
 use lib "lib/";
 use My::Memcache;
+use Data::Dumper;
 
 my $port = $ENV{NDB_MEMCACHED_1_PORT} or die "Need NDB_MEMCACHED_1_PORT";
 
@@ -48,10 +49,12 @@ $mc->set("t:13", "Sul ponticello");
 $mc->set_flags(0);
 
 $mc->get("t:12");
-($mc->{flags} == 100)  || Carp::confess("Expected flags = 100");
+my $result = $mc->next_result();
+($result->{flags} == 100)  || Carp::confess("Expected flags = 100");
 
 $mc->get("t:13");
-($mc->{flags} == 200)  || Carp::confess("Expected flags = 200");
+$result = $mc->next_result();
+($result->{flags} == 200)  || Carp::confess("Expected flags = 200");
 
 print "Flags Test OK \n";
 

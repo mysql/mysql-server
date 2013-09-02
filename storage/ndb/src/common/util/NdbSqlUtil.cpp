@@ -997,7 +997,7 @@ NdbSqlUtil::ndb_strnxfrm(struct charset_info_st * cs,
     defaults for those and can thus easily calculate them from
     existing params
   */
-  return  (*cs->coll->strnxfrm)(cs, dst, dstlen, dstlen,
+  return  (*cs->coll->strnxfrm)(cs, dst, dstlen, (uint)dstlen,
                                 src, srclen, MY_STRXFRM_PAD_WITH_SPACE);
 #endif
 }
@@ -1352,7 +1352,7 @@ NdbSqlUtil::unpack_datetime(Datetime& s, const uchar* d)
   w /= f;
   s.month = (w % f);
   w /= f;
-  s.year = w;
+  s.year = (uint)w;
 }
 
 void
