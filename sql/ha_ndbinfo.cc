@@ -189,6 +189,7 @@ enum ndbinfo_error_codes {
   ERR_INCOMPAT_TABLE_DEF = 40001
 };
 
+static
 struct error_message {
   int error;
   const char* message;
