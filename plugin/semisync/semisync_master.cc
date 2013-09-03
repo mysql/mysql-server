@@ -676,15 +676,11 @@ int ReplSemiSyncMaster::commitTrx(const char* trx_wait_binlog_name,
       }
 
       /* Calcuate the waiting period. */
-      unsigned long long diff_nsecs =
-        start_ts.tv_nsec + (unsigned long long)wait_timeout_ * TIME_MILLION;
-      abstime.tv_sec = start_ts.tv_sec;
-      while (diff_nsecs >= TIME_BILLION)
-      {
-        abstime.tv_sec++;
-        diff_nsecs -= TIME_BILLION;
-      }
-      abstime.tv_nsec = (long)diff_nsecs;
+      long diff_secs = (long) (wait_timeout_ / TIME_THOUSAND); 
+      long diff_nsecs = (long) ((wait_timeout_ % TIME_THOUSAND) * TIME_MILLION);
+      long nsecs = start_ts.tv_nsec + diff_nsecs;
+      abstime.tv_sec = start_ts.tv_sec + diff_secs + nsecs/TIME_BILLION;
+      abstime.tv_nsec = nsecs % TIME_BILLION;
       
       /* In semi-synchronous replication, we wait until the binlog-dump
        * thread has received the reply on the relevant binlog segment from the
