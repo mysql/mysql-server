@@ -4302,7 +4302,8 @@ Item_cond::fix_fields(THD *thd, Item **ref)
     used_tables_cache|=     item->used_tables();
     if (item->const_item())
     {
-      if (!item->is_expensive() && item->val_int() == 0)
+      if (!item->is_expensive() && !cond_has_datetime_is_null(item) && 
+          item->val_int() == 0)
       {
         /* 
           This is "... OR false_cond OR ..." 
@@ -4314,27 +4315,18 @@ Item_cond::fix_fields(THD *thd, Item **ref)
         /* 
           This is  "... OR const_cond OR ..."
           In this case, cond_or->not_null_tables()=0, because the condition
-          some_cond_or might be true regardless of what tables are 
-          NULL-complemented.
+          const_cond might evaluate to true (regardless of whether some tables
+          were NULL-complemented).
         */
         and_tables_cache= (table_map) 0;
       }
     }
     else
     {
-      /*
-        If an item is a 
-         - constant
-         - inexpensive 
-         - its value is 0
-        then we don't need to account it in not_null_tables_cache
-      */
-      //if (!(item->const_item() && !item->is_expensive() ))
-      {
-        table_map tmp_table_map= item->not_null_tables();
-        not_null_tables_cache|= tmp_table_map;
-        and_tables_cache&= tmp_table_map;
-      }
+      table_map tmp_table_map= item->not_null_tables();
+      not_null_tables_cache|= tmp_table_map;
+      and_tables_cache&= tmp_table_map;
+
       const_item_cache= FALSE;
     } 
   
@@ -4363,7 +4355,8 @@ Item_cond::eval_not_null_tables(uchar *opt_arg)
     table_map tmp_table_map;
     if (item->const_item())
     {
-      if (!item->is_expensive() && item->val_int() == 0)
+      if (!item->is_expensive() && !cond_has_datetime_is_null(item) && 
+          item->val_int() == 0)
       {
         /* 
           This is "... OR false_cond OR ..." 

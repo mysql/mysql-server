@@ -2139,6 +2139,38 @@ id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
 1	SIMPLE	t1	eq_ref	PRIMARY	PRIMARY	4	test.t0.a	1	Using index
 drop table t0, t1;
 #
+# MDEV-4836: Wrong result on <not null date column> IS NULL (old documented hack stopped working)
+#  (this is a regression after fix for MDEV-4817)
+#
+CREATE TABLE t1 (id INT, d DATE NOT NULL);
+INSERT INTO t1 VALUES (1,'0000-00-00'),(2,'0000-00-00');
+CREATE TABLE t2 (i INT);
+SELECT * FROM t1 LEFT JOIN t2 ON (id=i) WHERE NULL OR d IS NULL;
+id	d	i
+1	0000-00-00	NULL
+2	0000-00-00	NULL
+DROP TABLE t1,t2;
+CREATE TABLE t1 (i1 INT, d1 DATE NOT NULL);
+INSERT INTO t1 VALUES (1,'2012-12-21'),(2,'0000-00-00');
+CREATE TABLE t2 (i2 INT, j2 INT);
+INSERT INTO t2 VALUES (1,10),(2,20);
+SELECT * FROM t1 LEFT JOIN t2 ON i1 = j2 WHERE d1 IS NULL AND 1 OR i1 = i2;
+i1	d1	i2	j2
+2	0000-00-00	NULL	NULL
+DROP TABLE t1,t2;
+# Another testcase
+CREATE TABLE t1 (i1 INT) ENGINE=MyISAM;
+INSERT INTO t1 VALUES (NULL);
+CREATE TABLE t2 (i2 INT, a INT, b INT) ENGINE=MyISAM;
+CREATE ALGORITHM=TEMPTABLE VIEW v2 AS SELECT * FROM t2;
+INSERT INTO t2 VALUES (NULL,1,2),(NULL,2,3);
+SELECT * FROM t1 LEFT JOIN v2 ON i1 = i2 WHERE a < b;
+i1	i2	a	b
+SELECT * FROM t1 LEFT JOIN t2 ON i1 = i2 WHERE a < b;
+i1	i2	a	b
+drop view v2;
+drop table t1,t2;
+#
 # Bug mdev-4942: LEFT JOIN with conjunctive 
 #                <non-nullable datetime field> IS NULL in WHERE 
 #                causes an assert failure  
