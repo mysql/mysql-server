@@ -442,7 +442,7 @@ drop table t1_c,t3_c,t4_c,t5_c,t6_c,t7_c,t8_c,t9_c,t10_c,t11_c;
 # ndb_restore should now fail, table t2_c already exists
 --replace_regex /Backup Id = [0-9]+/Backup Id = the_backup_id/
 --error 1
---exec $NDB_RESTORE --no-defaults --core=0 -b $the_backup_id -n 1 -m -r --ndb-nodegroup_map "(0,1)" --verbose=0 $NDB_BACKUPS-$the_backup_id 2>&1 
+--exec $NDB_RESTORE --no-defaults --core-file=0 -b $the_backup_id -n 1 -m -r --ndb-nodegroup_map "(0,1)" --verbose=0 $NDB_BACKUPS-$the_backup_id 2>&1 
 
 CREATE TABLE t11_c (
   c1 int primary key, c2 char(10), c3 varchar(10)
@@ -483,13 +483,13 @@ source include/ndb_backup_id.inc;
 #
 
 # ensure correct restore of epoch numbers in old versions
---exec $NDB_RESTORE --no-defaults --core=0 -e -b 1 -n 1 $backup_data_dir/50 >> $NDB_TOOLS_OUTPUT
+--exec $NDB_RESTORE --no-defaults --core-file=0 -e -b 1 -n 1 $backup_data_dir/50 >> $NDB_TOOLS_OUTPUT
 select epoch from mysql.ndb_apply_status where server_id=0;
---exec $NDB_RESTORE --no-defaults --core=0 -e -b 1 -n 1 $backup_data_dir/51 >> $NDB_TOOLS_OUTPUT
+--exec $NDB_RESTORE --no-defaults --core-file=0 -e -b 1 -n 1 $backup_data_dir/51 >> $NDB_TOOLS_OUTPUT
 select epoch from mysql.ndb_apply_status where server_id=0;
 # ensure correct restore of epoch numbers in current version
 # number hould be "big"
---exec $NDB_RESTORE --no-defaults --core=0 -e -b $the_backup_id -n 1 $NDB_BACKUPS-$the_backup_id >> $NDB_TOOLS_OUTPUT
+--exec $NDB_RESTORE --no-defaults --core-file=0 -e -b $the_backup_id -n 1 $NDB_BACKUPS-$the_backup_id >> $NDB_TOOLS_OUTPUT
 # should evaluate to true == 1
 select epoch > (1 << 32) from mysql.ndb_apply_status where server_id=0;
 
@@ -560,7 +560,7 @@ drop table ndb_show_tables_results;
 #
 # Bug#51432
 #
---exec $NDB_RESTORE --no-defaults --core=0 -e -b 1 -n 2 -m $backup_data_dir/hashmap >> $NDB_TOOLS_OUTPUT
+--exec $NDB_RESTORE --no-defaults --core-file=0 -e -b 1 -n 2 -m $backup_data_dir/hashmap >> $NDB_TOOLS_OUTPUT
 
 #
 # Bug#56285
