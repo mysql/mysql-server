@@ -3370,7 +3370,9 @@ bool Item_param::convert_str_value(THD *thd)
     /* Here str_value is guaranteed to be in final_character_set_of_str_value */
 
     max_length= str_value.numchars() * str_value.charset()->mbmaxlen;
-    decimals= 0;
+
+    /* For the strings converted to numeric form within some functions */
+    decimals= NOT_FIXED_DEC;
     /*
       str_value_ptr is returned from val_str(). It must be not alloced
       to prevent it's modification by val_str() invoker.

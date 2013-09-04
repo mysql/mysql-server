@@ -12,7 +12,7 @@
 
    You should have received a copy of the GNU General Public License
    along with this program; if not, write to the Free Software
-   Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA
+   Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA  02110-1301, USA
 */
 
 /* mysqldump.c  - Dump a tables contents and format to an ASCII file
@@ -4838,7 +4838,7 @@ static int do_show_slave_status(MYSQL *mysql_con)
         if (row[1])
           fprintf(md_result_file, "MASTER_HOST='%s', ", row[1]);
         if (row[3])
-          fprintf(md_result_file, "MASTER_PORT='%s', ", row[3]);
+          fprintf(md_result_file, "MASTER_PORT=%s, ", row[3]);
       }
       fprintf(md_result_file,
               "MASTER_LOG_FILE='%s', MASTER_LOG_POS=%s;\n", row[9], row[21]);
