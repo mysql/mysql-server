@@ -1,5 +1,6 @@
 #!/usr/bin/perl
-# Copyright (C) 2000-2002, 2004 MySQL AB
+# Copyright (c) 2000-2002, 2004, 2006 MySQL AB, 2009 Sun Microsystems, Inc.
+# Use is subject to license terms.
 # 
 # This program is free software; you can redistribute it and/or modify
 # it under the terms of the GNU General Public License as published by
