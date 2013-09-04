@@ -28,6 +28,10 @@
 #include <stdlib.h>
 #endif
 
+#ifdef __cplusplus
+extern "C" {
+#endif
+
 /* known plugin types */
 #define MYSQL_CLIENT_reserved1               0
 #define MYSQL_CLIENT_reserved2               1
@@ -160,5 +164,11 @@ mysql_client_register_plugin(struct st_mysql *mysql,
 **/
 int mysql_plugin_options(struct st_mysql_client_plugin *plugin,
                          const char *option, const void *value);
+
+
+#ifdef __cplusplus
+}
+#endif
+
 #endif
 

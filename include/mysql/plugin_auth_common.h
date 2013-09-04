@@ -83,6 +83,17 @@
 */
 #define CR_OK_HANDSHAKE_COMPLETE -2
 
+/*
+  We need HANDLE definition if on Windows. Define WIN32_LEAN_AND_MEAN (if
+  not already done) to minimize amount of imported declarations.
+*/
+#ifdef _WIN32
+#ifndef WIN32_LEAN_AND_MEAN
+#define WIN32_LEAN_AND_MEAN
+#endif
+#include <windows.h>
+#endif
+
 typedef struct st_plugin_vio_info
 {
   enum { MYSQL_VIO_INVALID, MYSQL_VIO_TCP, MYSQL_VIO_SOCKET,
