@@ -7832,7 +7832,6 @@ static bool make_join_select(JOIN *join, Item *cond)
           {
             DBUG_ASSERT(tab->quick->is_valid());
 	    sel->quick=tab->quick;		// Use value from get_quick_...
-	    sel->quick_keys.clear_all();
 	    sel->needed_reg.clear_all();
 	  }
 	  else
@@ -8029,24 +8028,51 @@ static bool make_join_select(JOIN *join, Item *cond)
 	    /* Fix for EXPLAIN */
 	    if (sel->quick)
 	      tab->position->records_read= (double)sel->quick->records;
-	  }
-	  else
-	  {
-	    sel->needed_reg=tab->needed_reg;
-	    sel->quick_keys.clear_all();
-	  }
-	  if (!sel->quick_keys.is_subset(tab->checked_keys) ||
+          } // end of "if (recheck_reason != DONT_RECHECK)"
+          else
+            sel->needed_reg= tab->needed_reg;
+
+          if (!tab->table->quick_keys.is_subset(tab->checked_keys) ||
               !sel->needed_reg.is_subset(tab->checked_keys))
-	  {
-	    tab->keys=sel->quick_keys;
+          {
+            tab->keys.merge(tab->table->quick_keys);
             tab->keys.merge(sel->needed_reg);
-	    tab->use_quick= (!sel->needed_reg.is_clear_all() &&
-			     (sel->quick_keys.is_clear_all() ||
-			      (sel->quick &&
-			       (sel->quick->records >= 100L)))) ?
-	      QS_DYNAMIC_RANGE : QS_RANGE;
-	    sel->read_tables= used_tables & ~current_map;
-	  }
+
+            /*
+              The logic below for assigning tab->use_quick is strange.
+              It bases the decision of which access method to use
+              (dynamic range, range, scan) based on seemingly
+              unrelated information like the presense of another index
+              with too bad selectivity to be used.
+
+              Consider the following scenario:
+
+              The join optimizer has decided to use join order
+              (t1,t2), and 'tab' is currently t2. Further, assume that
+              there is a join condition between t1 and t2 using some
+              range operator (e.g. "t1.x < t2.y").
+
+              It has been decided that a table scan is best for t2.
+              make_join_select() then reran the range optimizer a few
+              lines up because there is an index 't2.good_idx'
+              covering the t2.y column. If 'good_idx' is the only
+              index in t2, the decision below will be to use dynamic
+              range. However, if t2 also has another index 't2.other'
+              which the range access method can be used on but
+              selectivity is bad (#rows estimate is high), then table
+              scan is chosen instead.
+
+              Thus, the choice of DYNAMIC RANGE vs SCAN depends on the
+              presense of an index that has so bad selectivity that it
+              will not be used anyway.
+            */
+            tab->use_quick= (!sel->needed_reg.is_clear_all() &&
+                             (tab->table->quick_keys.is_clear_all() ||
+                              (sel->quick &&
+                               (sel->quick->records >= 100L)))) ?
+              QS_DYNAMIC_RANGE : QS_RANGE;
+            sel->read_tables= used_tables & ~current_map;
+          }
 	  if (i != join->const_tables && tab->use_quick != QS_DYNAMIC_RANGE &&
               !tab->first_inner)
 	  {					/* Read with cache */
