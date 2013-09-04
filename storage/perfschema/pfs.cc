@@ -1816,7 +1816,10 @@ pfs_rebind_table_v1(PSI_table_share *share, const void *identity, PSI_table *tab
     /* The table handle was already instrumented, reuse it for this thread. */
     PFS_thread *thread= my_pthread_get_THR_PFS();
     pfs->m_thread_owner= thread;
-    pfs->m_owner_event_id= thread->m_event_id;
+    if (thread != NULL)
+      pfs->m_owner_event_id= thread->m_event_id;
+    else
+      pfs->m_owner_event_id= 0;
     return table;
   }
 
