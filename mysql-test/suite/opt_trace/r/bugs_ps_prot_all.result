@@ -2713,7 +2713,7 @@ ON table2 .col_int_key = table1 .col_int_key
                           {
                             "index": "col_int_key",
                             "chosen": false,
-                            "cause": "unknown"
+                            "cause": "depends_on_unread_values"
                           }
                         ] /* range_scan_alternatives */,
                         "analyzing_roworder_intersect": {
