@@ -1715,7 +1715,8 @@ srv_suspend_mysql_thread(
 			finish_time = (ib_int64_t) sec * 1000000 + ms;
 		}
 
-		diff_time = (ulint) (finish_time - start_time);
+		diff_time = (finish_time > start_time) ?
+			    (ulint) (finish_time - start_time) : 0;
 
 		srv_n_lock_wait_current_count--;
 		srv_n_lock_wait_time = srv_n_lock_wait_time + diff_time;
