@@ -11,7 +11,7 @@
 
    You should have received a copy of the GNU General Public License
    along with this program; if not, write to the Free Software
-   Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA */
+   Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA  02110-1301, USA */
 
 
 #ifndef SQL_CLASS_INCLUDED
@@ -3715,6 +3715,11 @@ inline bool add_value_to_list(THD *thd, Item *value)
 inline bool add_order_to_list(THD *thd, Item *item, bool asc)
 {
   return thd->lex->current_select->add_order_to_list(thd, item, asc);
+}
+
+inline bool add_gorder_to_list(THD *thd, Item *item, bool asc)
+{
+  return thd->lex->current_select->add_gorder_to_list(thd, item, asc);
 }
 
 inline bool add_group_to_list(THD *thd, Item *item, bool asc)

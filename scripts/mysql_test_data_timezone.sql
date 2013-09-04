@@ -11,7 +11,7 @@
 -- 
 -- You should have received a copy of the GNU General Public License
 -- along with this program; if not, write to the Free Software
--- Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA
+-- Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA  02110-1301, USA
 
 INSERT INTO time_zone_name (Name, Time_Zone_id) VALUES   ('MET', 1), ('UTC', 2), ('Universal', 2),    ('Europe/Moscow',3), ('leap/Europe/Moscow',4),    ('Japan', 5);
 INSERT INTO time_zone (Time_zone_id, Use_leap_seconds)   VALUES (1,'N'), (2,'N'), (3,'N'), (4,'Y'), (5,'N');

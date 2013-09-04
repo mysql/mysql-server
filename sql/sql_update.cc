@@ -1,4 +1,4 @@
-/* Copyright (c) 2000, 2011, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2000, 2013, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -588,7 +588,10 @@ int mysql_update(THD *thd,
 
       /* If quick select is used, initialize it before retrieving rows. */
       if (select && select->quick && select->quick->reset())
+      {
+        close_cached_file(&tempfile);
         goto err;
+      }
       table->file->try_semi_consistent_read(1);
 
       /*
@@ -617,7 +620,10 @@ int mysql_update(THD *thd,
         if (select && select->skip_record(thd, &skip_record))
         {
           error= 1;
-          table->file->unlock_row();
+          /*
+            Don't try unlocking the row if skip_record reported an error since
+            in this case the transaction might have been rolled back already.
+          */
           break;
         }
         if (!skip_record)
@@ -880,8 +886,17 @@ int mysql_update(THD *thd,
         }
       }
     }
-    else
+    /*
+      Don't try unlocking the row if skip_record reported an error since in
+      this case the transaction might have been rolled back already.
+    */
+    else if (!thd->is_error())
       table->file->unlock_row();
+    else
+    {
+      error= 1;
+      break;
+    }
     thd->warning_info->inc_current_row_for_warning();
     if (thd->is_error())
     {

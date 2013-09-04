@@ -1,6 +1,6 @@
 /*****************************************************************************
 
-Copyright (c) 1996, 2010, Innobase Oy. All Rights Reserved.
+Copyright (c) 1996, 2013, Innobase Oy. All Rights Reserved.
 
 This program is free software; you can redistribute it and/or modify it under
 the terms of the GNU General Public License as published by the Free Software
@@ -352,8 +352,10 @@ dict_process_sys_tables_rec(
 
 		/* Update statistics if DICT_TABLE_UPDATE_STATS
 		is set */
-		dict_update_statistics(*table, FALSE /* update even if
-				       initialized */);
+		dict_update_statistics(
+			*table,
+			FALSE, /* update even if initialized */
+			FALSE /* update even if not changed too much */);
 	}
 
 	return(NULL);

@@ -1,6 +1,6 @@
 /*****************************************************************************
 
-Copyright (c) 1996, 2012, Oracle and/or its affiliates. All Rights Reserved.
+Copyright (c) 1996, 2013, Oracle and/or its affiliates. All Rights Reserved.
 
 This program is free software; you can redistribute it and/or modify it under
 the terms of the GNU General Public License as published by the Free Software
@@ -1124,6 +1124,18 @@ ulint
 dict_index_calc_min_rec_len(
 /*========================*/
 	const dict_index_t*	index);	/*!< in: index */
+
+/** Calculate new statistics if 1 / 16 of table has been modified
+since the last time a statistics batch was run.
+We calculate statistics at most every 16th round, since we may have
+a counter table which is very small and updated very often.
+@param t table
+@return true if the table has changed too much and stats need to be
+recalculated
+*/
+#define DICT_TABLE_CHANGED_TOO_MUCH(t) \
+	((ib_int64_t) (t)->stat_modified_counter > 16 + (t)->stat_n_rows / 16)
+
 /*********************************************************************//**
 Calculates new estimates for table and index statistics. The statistics
 are used in query optimization. */
@@ -1132,10 +1144,14 @@ void
 dict_update_statistics(
 /*===================*/
 	dict_table_t*	table,		/*!< in/out: table */
-	ibool		only_calc_if_missing_stats);/*!< in: only
+	ibool		only_calc_if_missing_stats,/*!< in: only
 					update/recalc the stats if they have
 					not been initialized yet, otherwise
 					do nothing */
+	ibool		only_calc_if_changed_too_much);/*!< in: only
+					update/recalc the stats if the table
+					has been changed too much since the
+					last stats update/recalc */
 /********************************************************************//**
 Reserves the dictionary system mutex for MySQL. */
 UNIV_INTERN

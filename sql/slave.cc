@@ -158,6 +158,37 @@ static int terminate_slave_thread(THD *thd,
                                   volatile uint *slave_running,
                                   bool skip_lock);
 static bool check_io_slave_killed(THD *thd, Master_info *mi, const char *info);
+/*
+  Function to set the slave's max_allowed_packet based on the value
+  of slave_max_allowed_packet.
+
+    @in_param    thd    Thread handler for slave
+    @in_param    mysql  MySQL connection handle
+*/
+
+static void set_slave_max_allowed_packet(THD *thd, MYSQL *mysql)
+{
+  DBUG_ENTER("set_slave_max_allowed_packet");
+  // thd and mysql must be valid
+  DBUG_ASSERT(thd && mysql);
+
+  thd->variables.max_allowed_packet= slave_max_allowed_packet;
+  thd->net.max_packet_size= slave_max_allowed_packet;
+  /*
+    Adding MAX_LOG_EVENT_HEADER_LEN to the max_packet_size on the I/O
+    thread and the mysql->option max_allowed_packet, since a
+    replication event can become this much  larger than
+    the corresponding packet (query) sent from client to master.
+  */
+  thd->net.max_packet_size+= MAX_LOG_EVENT_HEADER;
+  /*
+    Skipping the setting of mysql->net.max_packet size to slave
+    max_allowed_packet since this is done during mysql_real_connect.
+  */
+  mysql->options.max_allowed_packet=
+    slave_max_allowed_packet+MAX_LOG_EVENT_HEADER;
+  DBUG_VOID_RETURN;
+}
 
 /*
   Find out which replications threads are running
@@ -2207,12 +2238,6 @@ static int init_slave_thread(THD* thd, SLAVE_THD_TYPE thd_type)
     SYSTEM_THREAD_SLAVE_SQL : SYSTEM_THREAD_SLAVE_IO;
   thd->security_ctx->skip_grants();
   my_net_init(&thd->net, 0);
-/*
-  Adding MAX_LOG_EVENT_HEADER_LEN to the max_allowed_packet on all
-  slave threads, since a replication event can become this much larger
-  than the corresponding packet (query) sent from client to master.
-*/
-  thd->variables.max_allowed_packet= slave_max_allowed_packet;
   thd->slave_thread = 1;
   thd->enable_slow_log= opt_log_slow_slave_statements;
   set_slave_thread_options(thd);
@@ -2968,13 +2993,6 @@ pthread_handler_t handle_slave_io(void *arg)
                           mi->user, mi->host, mi->port,
 			  IO_RPL_LOG_NAME,
 			  llstr(mi->master_log_pos,llbuff));
-  /*
-    Adding MAX_LOG_EVENT_HEADER_LEN to the max_packet_size on the I/O
-    thread, since a replication event can become this much larger than
-    the corresponding packet (query) sent from client to master.
-  */
-    thd->net.max_packet_size= slave_max_allowed_packet;
-    mysql->net.max_packet_size= thd->net.max_packet_size+= MAX_LOG_EVENT_HEADER;
   }
   else
   {
@@ -4390,7 +4408,7 @@ static int connect_to_master(THD* thd, MYSQL* mysql, Master_info* mi,
   ulong err_count=0;
   char llbuff[22];
   DBUG_ENTER("connect_to_master");
-
+  set_slave_max_allowed_packet(thd, mysql);
 #ifndef DBUG_OFF
   mi->events_till_disconnect = disconnect_slave_event_count;
 #endif

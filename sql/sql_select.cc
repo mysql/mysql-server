@@ -11,7 +11,7 @@
 
    You should have received a copy of the GNU General Public License
    along with this program; if not, write to the Free Software
-   Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA */
+   Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA  02110-1301, USA */
 
 /**
   @file
@@ -2829,6 +2829,8 @@ make_join_statistics(JOIN *join, TABLE_LIST *tables_arg, COND *conds,
     s->const_keys.init();
     s->checked_keys.init();
     s->needed_reg.init();
+    s->filesort_used_loose_index_scan= false;
+    s->filesort_used_loose_index_scan_agg_distinct= false;
     table_vector[i]=s->table=table=tables->table;
     table->pos_in_table_list= tables;
     error= table->file->info(HA_STATUS_VARIABLE | HA_STATUS_NO_LOCK);
@@ -6817,6 +6819,8 @@ JOIN::make_simple_join(JOIN *parent, TABLE *temp_table)
   join_tab->read_first_record= join_init_read_record;
   join_tab->join= this;
   join_tab->ref.key_parts= 0;
+  join_tab->filesort_used_loose_index_scan= false;
+  join_tab->filesort_used_loose_index_scan_agg_distinct= false;
   bzero((char*) &join_tab->read_record,sizeof(join_tab->read_record));
   temp_table->status=0;
   temp_table->null_row=0;
@@ -10657,7 +10661,7 @@ static Field *create_tmp_field_from_item(THD *thd, Item *item, TABLE *table,
   if (new_field)
     new_field->init(table);
     
-  if (copy_func && item->is_result_field())
+  if (copy_func && item->real_item()->is_result_field())
     *((*copy_func)++) = item;			// Save for copy_funcs
   if (modify_item)
     item->set_result_field(new_field);
@@ -15074,6 +15078,17 @@ create_sort_index(THD *thd, JOIN *join, ORDER *order,
 
     tablesort_result_cache= table->sort.io_cache;
     table->sort.io_cache= NULL;
+
+    if (select->quick &&
+        select->quick->get_type() == QUICK_SELECT_I::QS_TYPE_GROUP_MIN_MAX)
+    {
+      tab->filesort_used_loose_index_scan= true;
+
+      QUICK_GROUP_MIN_MAX_SELECT *minmax_quick=
+        static_cast<QUICK_GROUP_MIN_MAX_SELECT*>(select->quick);
+      if (minmax_quick->is_agg_distinct())
+        tab->filesort_used_loose_index_scan_agg_distinct= true;
+    }
 
     /*
       If a quick object was created outside of create_sort_index()
