@@ -150,7 +150,7 @@ int check_change_password(THD *thd, const char *host, const char *user,
     if (check_access(thd, UPDATE_ACL, "mysql", NULL, NULL, 1, 0))
       return(1);
   }
-  if (!thd->slave_thread && !strcmp(thd->security_ctx->priv_user,""))
+  if (!thd->slave_thread && !thd->security_ctx->user[0])
   {
     my_message(ER_PASSWORD_ANONYMOUS_USER, ER(ER_PASSWORD_ANONYMOUS_USER),
                MYF(0));
@@ -1266,7 +1266,6 @@ bool mysql_rename_user(THD *thd, List <LEX_USER> &list)
 bool mysql_user_password_expire(THD *thd, List <LEX_USER> &list)
 {
   bool result= false;
-  bool is_anonymous_user= false;
   String wrong_users;
   LEX_USER *user_from, *tmp_user_from;
   List_iterator <LEX_USER> user_list(list);
@@ -1344,16 +1343,6 @@ bool mysql_user_password_expire(THD *thd, List <LEX_USER> &list)
       continue;
     }
 
-    if (!acl_user->user)
-    {
-      result= true;
-      is_anonymous_user= true;
-      append_user(thd, &wrong_users, user_from, wrong_users.length() > 0,
-                  false);
-      continue;
-    }
-
-
     /* Check if the user's authentication method supports expiration */
     if (!auth_plugin_supports_expiration(acl_user->plugin.str))
     {
@@ -1386,12 +1375,7 @@ bool mysql_user_password_expire(THD *thd, List <LEX_USER> &list)
   mysql_mutex_unlock(&acl_cache->lock);
 
   if (result)
-  {
-    if (is_anonymous_user)
-      my_error(ER_PASSWORD_EXPIRE_ANONYMOUS_USER, MYF(0));
-    else
-      my_error(ER_CANNOT_USER, MYF(0), "ALTER USER", wrong_users.c_ptr_safe());
-  }
+    my_error(ER_CANNOT_USER, MYF(0), "ALTER USER", wrong_users.c_ptr_safe());
 
   if (!result && some_passwords_expired)
   {
