@@ -1192,8 +1192,7 @@ void trans_register_ha(THD *thd, bool all, handlerton *ht_arg)
   ha_info->register_ha(trans, ht_arg);
 
   trans->no_2pc|=(ht_arg->prepare==0);
-  if (thd->transaction.xid_state.xid.is_null())
-    thd->transaction.xid_state.xid.set(thd->query_id);
+  thd->transaction.xid_state.set_query_id(thd->query_id);
   DBUG_VOID_RETURN;
 }
 
@@ -1205,9 +1204,8 @@ void trans_register_ha(THD *thd, bool all, handlerton *ht_arg)
 */
 int ha_prepare(THD *thd)
 {
-  int error=0, all=1;
-  THD_TRANS *trans=all ? &thd->transaction.all : &thd->transaction.stmt;
-  Ha_trx_info *ha_info= trans->ha_list;
+  int error=0;
+  Ha_trx_info *ha_info= thd->transaction.all.ha_list;
   DBUG_ENTER("ha_prepare");
 
   if (ha_info)
@@ -1219,10 +1217,10 @@ int ha_prepare(THD *thd)
       thd->status_var.ha_prepare_count++;
       if (ht->prepare)
       {
-        if ((err= ht->prepare(ht, thd, all)))
+        if ((err= ht->prepare(ht, thd, true)))
         {
           my_error(ER_ERROR_DURING_COMMIT, MYF(0), err);
-          ha_rollback_trans(thd, all);
+          ha_rollback_trans(thd, true);
           error=1;
           break;
         }
@@ -1559,9 +1557,8 @@ int ha_rollback_low(THD *thd, bool all)
     Thanks to possibility of MDL deadlock rollback request can come even if
     transaction hasn't been started in any transactional storage engine.
   */
-  if (all && thd->transaction_rollback_request &&
-      thd->transaction.xid_state.xa_state != XA_NOTR)
-    thd->transaction.xid_state.rm_error= thd->get_stmt_da()->mysql_errno();
+  if (all && thd->transaction_rollback_request)
+    thd->transaction.xid_state.set_error(thd);
 
   (void) RUN_HOOK(transaction, after_rollback, (thd, all));
   return error;
@@ -1612,7 +1609,7 @@ int ha_rollback_trans(THD *thd, bool all)
   }
 
   if (tc_log)
-    tc_log->rollback(thd, all);
+    error= tc_log->rollback(thd, all);
 
   /* Always cleanup. Even if nht==0. There may be savepoints. */
   if (is_real_trans)
@@ -1644,374 +1641,6 @@ int ha_rollback_trans(THD *thd, bool all)
       !thd->slave_thread && thd->killed != THD::KILL_CONNECTION)
     thd->transaction.push_unsafe_rollback_warnings(thd);
   DBUG_RETURN(error);
-}
-
-
-struct xahton_st {
-  XID *xid;
-  int result;
-};
-
-static my_bool xacommit_handlerton(THD *unused1, plugin_ref plugin,
-                                   void *arg)
-{
-  handlerton *hton= plugin_data(plugin, handlerton *);
-  if (hton->state == SHOW_OPTION_YES && hton->recover)
-  {
-    hton->commit_by_xid(hton, ((struct xahton_st *)arg)->xid);
-    ((struct xahton_st *)arg)->result= 0;
-  }
-  return FALSE;
-}
-
-static my_bool xarollback_handlerton(THD *unused1, plugin_ref plugin,
-                                     void *arg)
-{
-  handlerton *hton= plugin_data(plugin, handlerton *);
-  if (hton->state == SHOW_OPTION_YES && hton->recover)
-  {
-    hton->rollback_by_xid(hton, ((struct xahton_st *)arg)->xid);
-    ((struct xahton_st *)arg)->result= 0;
-  }
-  return FALSE;
-}
-
-
-int ha_commit_or_rollback_by_xid(THD *thd, XID *xid, bool commit)
-{
-  struct xahton_st xaop;
-  xaop.xid= xid;
-  xaop.result= 1;
-
-  plugin_foreach(NULL, commit ? xacommit_handlerton : xarollback_handlerton,
-                 MYSQL_STORAGE_ENGINE_PLUGIN, &xaop);
-
-  gtid_rollback(thd);
-
-  return xaop.result;
-}
-
-
-/**
-  This function converts the XID to HEX string form prefixed by '0x' 
-
-  @buf has to be atleast (XIDDATASIZE*2+2+1) in size
-*/
-static uint xid_to_hex_str(char *buf, size_t buf_len, XID *xid)
-{
-  *buf++= '0';
-  *buf++= 'x';
-
-  return bin_to_hex_str(buf, buf_len-2, (char*)&xid->data,
-                        xid->gtrid_length+xid->bqual_length) + 2;
-}
-
-
-#ifndef DBUG_OFF
-/**
-  @note
-    This does not need to be multi-byte safe or anything
-*/
-static char* xid_to_str(char *buf, XID *xid)
-{
-  int i;
-  char *s=buf;
-  *s++='\'';
-  for (i=0; i < xid->gtrid_length+xid->bqual_length; i++)
-  {
-    uchar c=(uchar)xid->data[i];
-    /* is_next_dig is set if next character is a number */
-    bool is_next_dig= FALSE;
-    if (i < XIDDATASIZE)
-    {
-      char ch= xid->data[i+1];
-      is_next_dig= (ch >= '0' && ch <='9');
-    }
-    if (i == xid->gtrid_length)
-    {
-      *s++='\'';
-      if (xid->bqual_length)
-      {
-        *s++='.';
-        *s++='\'';
-      }
-    }
-    if (c < 32 || c > 126)
-    {
-      *s++='\\';
-      /*
-        If next character is a number, write current character with
-        3 octal numbers to ensure that the next number is not seen
-        as part of the octal number
-      */
-      if (c > 077 || is_next_dig)
-        *s++=_dig_vec_lower[c >> 6];
-      if (c > 007 || is_next_dig)
-        *s++=_dig_vec_lower[(c >> 3) & 7];
-      *s++=_dig_vec_lower[c & 7];
-    }
-    else
-    {
-      if (c == '\'' || c == '\\')
-        *s++='\\';
-      *s++=c;
-    }
-  }
-  *s++='\'';
-  *s=0;
-  return buf;
-}
-#endif
-
-/**
-  recover() step of xa.
-
-  @note
-    there are three modes of operation:
-    - automatic recover after a crash
-    in this case commit_list != 0, tc_heuristic_recover==0
-    all xids from commit_list are committed, others are rolled back
-    - manual (heuristic) recover
-    in this case commit_list==0, tc_heuristic_recover != 0
-    DBA has explicitly specified that all prepared transactions should
-    be committed (or rolled back).
-    - no recovery (MySQL did not detect a crash)
-    in this case commit_list==0, tc_heuristic_recover == 0
-    there should be no prepared transactions in this case.
-*/
-struct xarecover_st
-{
-  int len, found_foreign_xids, found_my_xids;
-  XID *list;
-  HASH *commit_list;
-  bool dry_run;
-};
-
-static my_bool xarecover_handlerton(THD *unused, plugin_ref plugin,
-                                    void *arg)
-{
-  handlerton *hton= plugin_data(plugin, handlerton *);
-  struct xarecover_st *info= (struct xarecover_st *) arg;
-  int got;
-
-  if (hton->state == SHOW_OPTION_YES && hton->recover)
-  {
-    while ((got= hton->recover(hton, info->list, info->len)) > 0 )
-    {
-      sql_print_information("Found %d prepared transaction(s) in %s",
-                            got, ha_resolve_storage_engine_name(hton));
-      for (int i=0; i < got; i ++)
-      {
-        my_xid x=info->list[i].get_my_xid();
-        if (!x) // not "mine" - that is generated by external TM
-        {
-#ifndef DBUG_OFF
-          char buf[XIDDATASIZE*4+6]; // see xid_to_str
-          sql_print_information("ignore xid %s", xid_to_str(buf, info->list+i));
-#endif
-          xid_cache_insert(info->list+i, XA_PREPARED);
-          info->found_foreign_xids++;
-          continue;
-        }
-        if (info->dry_run)
-        {
-          info->found_my_xids++;
-          continue;
-        }
-        // recovery mode
-        if (info->commit_list ?
-            my_hash_search(info->commit_list, (uchar *)&x, sizeof(x)) != 0 :
-            tc_heuristic_recover == TC_HEURISTIC_RECOVER_COMMIT)
-        {
-#ifndef DBUG_OFF
-          char buf[XIDDATASIZE*4+6]; // see xid_to_str
-          sql_print_information("commit xid %s", xid_to_str(buf, info->list+i));
-#endif
-          hton->commit_by_xid(hton, info->list+i);
-        }
-        else
-        {
-#ifndef DBUG_OFF
-          char buf[XIDDATASIZE*4+6]; // see xid_to_str
-          sql_print_information("rollback xid %s",
-                                xid_to_str(buf, info->list+i));
-#endif
-          hton->rollback_by_xid(hton, info->list+i);
-        }
-      }
-      if (got < info->len)
-        break;
-    }
-  }
-  return FALSE;
-}
-
-int ha_recover(HASH *commit_list)
-{
-  struct xarecover_st info;
-  DBUG_ENTER("ha_recover");
-  info.found_foreign_xids= info.found_my_xids= 0;
-  info.commit_list= commit_list;
-  info.dry_run= (info.commit_list==0 && tc_heuristic_recover==0);
-  info.list= NULL;
-
-  /* commit_list and tc_heuristic_recover cannot be set both */
-  DBUG_ASSERT(info.commit_list==0 || tc_heuristic_recover==0);
-  /* if either is set, total_ha_2pc must be set too */
-  DBUG_ASSERT(info.dry_run || total_ha_2pc>(ulong)opt_bin_log);
-
-  if (total_ha_2pc <= (ulong)opt_bin_log)
-    DBUG_RETURN(0);
-
-  if (info.commit_list)
-    sql_print_information("Starting crash recovery...");
-
-  if (total_ha_2pc > (ulong)opt_bin_log + 1)
-  {
-    if (tc_heuristic_recover == TC_HEURISTIC_RECOVER_ROLLBACK)
-    {
-      sql_print_error("--tc-heuristic-recover rollback strategy is not safe "
-                      "on systems with more than one 2-phase-commit-capable "
-                      "storage engine. Aborting crash recovery.");
-      DBUG_RETURN(1);
-    }
-  }
-  else
-  {
-    /*
-      If there is only one 2pc capable storage engine it is always safe
-      to rollback. This setting will be ignored if we are in automatic
-      recovery mode.
-    */
-    tc_heuristic_recover= TC_HEURISTIC_RECOVER_ROLLBACK; // forcing ROLLBACK
-    info.dry_run= false;
-  }
-
-  for (info.len= MAX_XID_LIST_SIZE ; 
-       info.list==0 && info.len > MIN_XID_LIST_SIZE; info.len/=2)
-  {
-    info.list=(XID *)my_malloc(key_memory_XID,
-                               info.len*sizeof(XID), MYF(0));
-  }
-  if (!info.list)
-  {
-    sql_print_error(ER(ER_OUTOFMEMORY),
-                    static_cast<int>(info.len*sizeof(XID)));
-    DBUG_RETURN(1);
-  }
-
-  plugin_foreach(NULL, xarecover_handlerton, 
-                 MYSQL_STORAGE_ENGINE_PLUGIN, &info);
-
-  my_free(info.list);
-  if (info.found_foreign_xids)
-    sql_print_warning("Found %d prepared XA transactions", 
-                      info.found_foreign_xids);
-  if (info.dry_run && info.found_my_xids)
-  {
-    sql_print_error("Found %d prepared transactions! It means that mysqld was "
-                    "not shut down properly last time and critical recovery "
-                    "information (last binlog or %s file) was manually deleted "
-                    "after a crash. You have to start mysqld with "
-                    "--tc-heuristic-recover switch to commit or rollback "
-                    "pending transactions.",
-                    info.found_my_xids, opt_tc_log_file);
-    DBUG_RETURN(1);
-  }
-  if (info.commit_list)
-    sql_print_information("Crash recovery finished.");
-  DBUG_RETURN(0);
-}
-
-
-/**
-  This function checks if the XID consists of all printable charaters
-  i.e ASCII 32 - 127 and returns true if it is so.
-
-  @xid has to be pointer to a valid XID
-*/
-static bool is_printable_xid(XID *xid)
-{
-  int i;
-  unsigned char *c= (unsigned char*)&xid->data;
-  int xid_len= xid->gtrid_length+xid->bqual_length;
-
-  for (i=0; i < xid_len; i++, c++)
-  {
-    if(*c < 32 || *c > 127)
-    {
-      return false;
-    }
-  }
-
-  return true;
-}
-
-
-/**
-  return the list of XID's to a client, the same way SHOW commands do.
-
-  @note
-    I didn't find in XA specs that an RM cannot return the same XID twice,
-    so mysql_xa_recover does not filter XID's to ensure uniqueness.
-    It can be easily fixed later, if necessary.
-*/
-bool mysql_xa_recover(THD *thd)
-{
-  List<Item> field_list;
-  Protocol *protocol= thd->protocol;
-  int i=0;
-  XID_STATE *xs;
-  DBUG_ENTER("mysql_xa_recover");
-
-  field_list.push_back(new Item_int(NAME_STRING("formatID"), 0, MY_INT32_NUM_DECIMAL_DIGITS));
-  field_list.push_back(new Item_int(NAME_STRING("gtrid_length"), 0, MY_INT32_NUM_DECIMAL_DIGITS));
-  field_list.push_back(new Item_int(NAME_STRING("bqual_length"), 0, MY_INT32_NUM_DECIMAL_DIGITS));
-  field_list.push_back(new Item_empty_string("data", XIDDATASIZE*2+2));
-
-  if (protocol->send_result_set_metadata(&field_list,
-                            Protocol::SEND_NUM_ROWS | Protocol::SEND_EOF))
-    DBUG_RETURN(1);
-
-  mysql_mutex_lock(&LOCK_xid_cache);
-  while ((xs= (XID_STATE*) my_hash_element(&xid_cache, i++)))
-  {
-    if (xs->xa_state==XA_PREPARED)
-    {
-      protocol->prepare_for_resend();
-      protocol->store_longlong((longlong)xs->xid.formatID, FALSE);
-      protocol->store_longlong((longlong)xs->xid.gtrid_length, FALSE);
-      protocol->store_longlong((longlong)xs->xid.bqual_length, FALSE);
-      
-      if(is_printable_xid(&xs->xid) == true)
-      {
-        protocol->store(xs->xid.data, xs->xid.gtrid_length+xs->xid.bqual_length,
-                        &my_charset_bin);
-      }
-      else
-      {
-        uint xid_str_len;
-        /* 
-          xid_buf contains enough space for 0x followed by HEX representation of
-          the binary XID data and one null termination character.
-        */
-        char xid_buf[XIDDATASIZE*2+2+1];
-
-        xid_str_len= xid_to_hex_str(xid_buf, sizeof(xid_buf), &xs->xid);
-        protocol->store(xid_buf, xid_str_len, &my_charset_bin);
-      }
-      
-      if (protocol->write())
-      {
-        mysql_mutex_unlock(&LOCK_xid_cache);
-        DBUG_RETURN(1);
-      }
-    }
-  }
-
-  mysql_mutex_unlock(&LOCK_xid_cache);
-  my_eof(thd);
-  DBUG_RETURN(0);
 }
 
 

@@ -1342,7 +1342,7 @@ void *thd_memdup(MYSQL_THD thd, const void* str, unsigned int size)
 extern "C"
 void thd_get_xid(const MYSQL_THD thd, MYSQL_XID *xid)
 {
-  *xid = *(MYSQL_XID *) &thd->transaction.xid_state.xid;
+  *xid = *(MYSQL_XID *) thd->transaction.xid_state.get_xid();
 }
 
 #if defined(_WIN32)
@@ -1418,8 +1418,7 @@ void THD::init_for_queries(Relay_log_info *rli)
   reset_root_defaults(&transaction.mem_root,
                       variables.trans_alloc_block_size,
                       variables.trans_prealloc_size);
-  transaction.xid_state.xid.null();
-  transaction.xid_state.in_thd=1;
+  transaction.xid_state.reset();
 #if defined(MYSQL_SERVER) && defined(HAVE_REPLICATION)
   if (rli)
   {
@@ -1476,13 +1475,13 @@ void THD::cleanup(void)
 
   killed= KILL_CONNECTION;
 #ifdef ENABLE_WHEN_BINLOG_WILL_BE_ABLE_TO_PREPARE
-  if (transaction.xid_state.xa_state == XA_PREPARED)
+  if (transaction.xid_state.has_state(XA_STATE::XA_PREPARED))
   {
 #error xid_state in the cache should be replaced by the allocated value
   }
 #endif
   {
-    transaction.xid_state.xa_state= XA_NOTR;
+    transaction.xid_state.set_state(XID_STATE::XA_NOTR);
     trans_rollback(this);
     xid_cache_delete(&transaction.xid_state);
   }
@@ -4508,122 +4507,6 @@ void mark_transaction_to_rollback(THD *thd, bool all)
     if (thd->lex->current_select())
       thd->lex->current_select()->no_error= FALSE;
   }
-}
-/***************************************************************************
-  Handling of XA id cacheing
-***************************************************************************/
-
-mysql_mutex_t LOCK_xid_cache;
-HASH xid_cache;
-
-extern "C" uchar *xid_get_hash_key(const uchar *, size_t *, my_bool);
-extern "C" void xid_free_hash(void *);
-
-uchar *xid_get_hash_key(const uchar *ptr, size_t *length,
-                                  my_bool not_used __attribute__((unused)))
-{
-  *length=((XID_STATE*)ptr)->xid.key_length();
-  return ((XID_STATE*)ptr)->xid.key();
-}
-
-void xid_free_hash(void *ptr)
-{
-  if (!((XID_STATE*)ptr)->in_thd)
-    my_free(ptr);
-}
-
-#ifdef HAVE_PSI_INTERFACE
-static PSI_mutex_key key_LOCK_xid_cache;
-
-static PSI_mutex_info all_xid_mutexes[]=
-{
-  { &key_LOCK_xid_cache, "LOCK_xid_cache", PSI_FLAG_GLOBAL}
-};
-
-static void init_xid_psi_keys(void)
-{
-  const char* category= "sql";
-  int count;
-
-  count= array_elements(all_xid_mutexes);
-  mysql_mutex_register(category, all_xid_mutexes, count);
-}
-#endif /* HAVE_PSI_INTERFACE */
-
-bool xid_cache_init()
-{
-#ifdef HAVE_PSI_INTERFACE
-  init_xid_psi_keys();
-#endif
-
-  mysql_mutex_init(key_LOCK_xid_cache, &LOCK_xid_cache, MY_MUTEX_INIT_FAST);
-  return my_hash_init(&xid_cache, &my_charset_bin, 100, 0, 0,
-                      xid_get_hash_key, xid_free_hash, 0) != 0;
-}
-
-void xid_cache_free()
-{
-  if (my_hash_inited(&xid_cache))
-  {
-    my_hash_free(&xid_cache);
-    mysql_mutex_destroy(&LOCK_xid_cache);
-  }
-}
-
-XID_STATE *xid_cache_search(XID *xid)
-{
-  mysql_mutex_lock(&LOCK_xid_cache);
-  XID_STATE *res=(XID_STATE *)my_hash_search(&xid_cache, xid->key(),
-                                             xid->key_length());
-  mysql_mutex_unlock(&LOCK_xid_cache);
-  return res;
-}
-
-
-bool xid_cache_insert(XID *xid, enum xa_states xa_state)
-{
-  XID_STATE *xs;
-  my_bool res;
-  mysql_mutex_lock(&LOCK_xid_cache);
-  if (my_hash_search(&xid_cache, xid->key(), xid->key_length()))
-    res=0;
-  else if (!(xs=(XID_STATE *)my_malloc(key_memory_XID_STATE,
-                                       sizeof(*xs), MYF(MY_WME))))
-    res=1;
-  else
-  {
-    xs->xa_state=xa_state;
-    xs->xid.set(xid);
-    xs->in_thd=0;
-    xs->rm_error=0;
-    res=my_hash_insert(&xid_cache, (uchar*)xs);
-  }
-  mysql_mutex_unlock(&LOCK_xid_cache);
-  return res;
-}
-
-
-bool xid_cache_insert(XID_STATE *xid_state)
-{
-  mysql_mutex_lock(&LOCK_xid_cache);
-  if (my_hash_search(&xid_cache, xid_state->xid.key(),
-      xid_state->xid.key_length()))
-  {
-    mysql_mutex_unlock(&LOCK_xid_cache);
-    my_error(ER_XAER_DUPID, MYF(0));
-    return true;
-  }
-  bool res= my_hash_insert(&xid_cache, (uchar*)xid_state);
-  mysql_mutex_unlock(&LOCK_xid_cache);
-  return res;
-}
-
-
-void xid_cache_delete(XID_STATE *xid_state)
-{
-  mysql_mutex_lock(&LOCK_xid_cache);
-  my_hash_delete(&xid_cache, (uchar *)xid_state);
-  mysql_mutex_unlock(&LOCK_xid_cache);
 }
 
 

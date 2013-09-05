@@ -89,6 +89,7 @@
 #include "events.h"
 #include "sql_trigger.h"      // mysql_create_or_drop_trigger
 #include "transaction.h"
+#include "xa.h"
 #include "sql_audit.h"
 #include "sql_prepare.h"
 #include "debug_sync.h"
@@ -158,10 +159,6 @@ const LEX_STRING command_name[]={
   { C_STRING_WITH_LEN("Daemon") },
   { C_STRING_WITH_LEN("Binlog Dump GTID") },
   { C_STRING_WITH_LEN("Error") }  // Last command number
-};
-
-const char *xa_state_names[]={
-  "NON-EXISTING", "ACTIVE", "IDLE", "PREPARED", "ROLLBACK ONLY"
 };
 
 #ifdef HAVE_REPLICATION
@@ -4664,7 +4661,8 @@ end_with_restore_list:
     my_ok(thd);
     break;
   case SQLCOM_XA_RECOVER:
-    res= mysql_xa_recover(thd);
+    res= trans_xa_recover(thd);
+    DBUG_EXECUTE_IF("crash_after_xa_recover", {DBUG_SUICIDE();});
     break;
   case SQLCOM_ALTER_TABLESPACE:
     if (check_global_access(thd, CREATE_TABLESPACE_ACL))
