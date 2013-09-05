@@ -377,7 +377,8 @@ uint filename_to_tablename(const char *from, char *to, uint to_length
   DBUG_ENTER("filename_to_tablename");
   DBUG_PRINT("enter", ("from '%s'", from));
 
-  if (!memcmp(from, tmp_file_prefix, tmp_file_prefix_length))
+  if (strlen(from) >= tmp_file_prefix_length &&
+      !memcmp(from, tmp_file_prefix, tmp_file_prefix_length))
   {
     /* Temporary table name. */
     res= (strnmov(to, from, to_length) - to);
@@ -4514,6 +4515,8 @@ make_unique_key_name(const char *field_name,KEY *start,KEY *end)
                                 FN_TO_IS_TMP   new_name is temporary.
                                 NO_FRM_RENAME  Don't rename the FRM file
                                 but only the table in the storage engine.
+                                NO_FK_CHECKS   Don't check FK constraints
+                                during rename.
 
   RETURN
     FALSE   OK
@@ -4532,9 +4535,14 @@ mysql_rename_table(handlerton *base, const char *old_db,
   char tmp_name[NAME_LEN+1];
   handler *file;
   int error=0;
+  ulonglong save_bits= thd->variables.option_bits;
   DBUG_ENTER("mysql_rename_table");
   DBUG_PRINT("enter", ("old: '%s'.'%s'  new: '%s'.'%s'",
                        old_db, old_name, new_db, new_name));
+  
+  // Temporarily disable foreign key checks
+  if (flags & NO_FK_CHECKS) 
+    thd->variables.option_bits|= OPTION_NO_FOREIGN_KEY_CHECKS;
 
   file= (base == NULL ? 0 :
          get_new_handler((TABLE_SHARE*) 0, thd->mem_root, base));
@@ -4598,6 +4606,10 @@ mysql_rename_table(handlerton *base, const char *old_db,
     my_error(ER_NOT_SUPPORTED_YET, MYF(0), "ALTER TABLE");
   else if (error)
     my_error(ER_ERROR_ON_RENAME, MYF(0), from, to, error);
+  
+  // Restore options bits to the original value
+  thd->variables.option_bits= save_bits;
+
   DBUG_RETURN(error != 0);
 }
 
@@ -7153,7 +7165,7 @@ bool mysql_alter_table(THD *thd,char *new_db, char *new_name,
                                                         new_db, new_alias))
         {
           (void) mysql_rename_table(old_db_type, new_db, new_alias, db,
-                                    table_name, 0);
+                                    table_name, NO_FK_CHECKS);
           error= -1;
         }
       }
@@ -8129,7 +8141,7 @@ bool mysql_alter_table(THD *thd,char *new_db, char *new_name,
     (void) quick_rm_table(new_db_type, new_db, new_alias, 0);
     (void) quick_rm_table(new_db_type, new_db, tmp_name, FN_IS_TMP);
     (void) mysql_rename_table(old_db_type, db, old_name, db, alias,
-                            FN_FROM_IS_TMP);
+                            FN_FROM_IS_TMP | NO_FK_CHECKS);
   }
   else if (new_name != table_name || new_db != db)
   {
@@ -8142,7 +8154,7 @@ bool mysql_alter_table(THD *thd,char *new_db, char *new_name,
       error= 1;
       (void) quick_rm_table(new_db_type, new_db, new_alias, 0);
       (void) mysql_rename_table(old_db_type, db, old_name, db, alias,
-                                FN_FROM_IS_TMP);
+                                FN_FROM_IS_TMP | NO_FK_CHECKS);
     }
     else
 #endif /* MCP_WL3749 */
@@ -8154,7 +8166,7 @@ bool mysql_alter_table(THD *thd,char *new_db, char *new_name,
       error= 1;
       (void) quick_rm_table(new_db_type, new_db, new_alias, 0);
       (void) mysql_rename_table(old_db_type, db, old_name, db,
-                                alias, FN_FROM_IS_TMP);
+                                alias, FN_FROM_IS_TMP | NO_FK_CHECKS);
 #ifdef MCP_WL3749
       /*
         If we were performing "fast"/in-place ALTER TABLE we also need
@@ -8164,7 +8176,8 @@ bool mysql_alter_table(THD *thd,char *new_db, char *new_name,
       if (need_copy_table == ALTER_TABLE_METADATA_ONLY)
       {
         (void) mysql_rename_table(save_old_db_type, new_db, new_alias,
-                                  db, table_name, NO_FRM_RENAME); 
+                                  db, table_name, 
+                                  NO_FRM_RENAME | NO_FK_CHECKS); 
       }
 #endif
     }

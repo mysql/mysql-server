@@ -11911,10 +11911,17 @@ load_data_set_elem:
           simple_ident_nospvar equal remember_name expr_or_default remember_end
           {
             LEX *lex= Lex;
+            uint length= (uint) ($5 - $3);
+            String *val= new (YYTHD->mem_root) String($3,
+                                                      length,
+                                                      YYTHD->charset());
+            if (val == NULL)
+              MYSQL_YYABORT;
             if (lex->update_list.push_back($1) || 
-                lex->value_list.push_back($4))
+                lex->value_list.push_back($4) ||
+                lex->load_set_str_list.push_back(val))
                 MYSQL_YYABORT;
-            $4->set_name($3, (uint) ($5 - $3), YYTHD->charset());
+            $4->set_name($3, length, YYTHD->charset());
           }
         ;
 
