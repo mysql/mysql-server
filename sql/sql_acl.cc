@@ -2449,7 +2449,11 @@ bool change_password(THD *thd, const char *host, const char *user,
     plugin_temp= (table->s->fields > MYSQL_USER_FIELD_PLUGIN) ?
                  get_field(&global_acl_memory, table->field[MYSQL_USER_FIELD_PLUGIN]) : NULL;
   else
-    DBUG_ASSERT(FALSE);
+  {
+    my_message(ER_PASSWORD_NO_MATCH, ER(ER_PASSWORD_NO_MATCH), MYF(0));
+    mysql_mutex_unlock(&acl_cache->lock);
+    goto end;
+  }
 
   plugin_empty= plugin_temp ? false: true;
 
