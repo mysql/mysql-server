@@ -74,9 +74,8 @@ public:
   my_bool is_subset(const Bitmap& map2) const { return bitmap_is_subset(&map, &map2.map); }
   my_bool is_overlapping(const Bitmap& map2) const { return bitmap_is_overlapping(&map, &map2.map); }
   my_bool operator==(const Bitmap& map2) const { return bitmap_cmp(&map, &map2.map); }
+  my_bool operator!=(const Bitmap& map2) const { return !(*this == map2); }
 #ifndef MCP_WL3749
-    my_bool operator!=(const Bitmap& map2) const { return !bitmap_cmp(&map, &map2.
-map); }
   Bitmap operator&=(uint n)
   {
     if (bitmap_is_set(&map, n))
