@@ -2858,9 +2858,10 @@ COUNT(DISTINCT a, b + 0)
 16
 EXPLAIN SELECT COUNT(DISTINCT a) FROM t1 HAVING COUNT(DISTINCT b) < 10;
 id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
-1	SIMPLE	t1	range	NULL	a	10	NULL	9	Using index for group-by
+1	SIMPLE	t1	index	NULL	a	10	NULL	16	Using index
 SELECT COUNT(DISTINCT a) FROM t1 HAVING COUNT(DISTINCT b) < 10;
 COUNT(DISTINCT a)
+2
 EXPLAIN SELECT COUNT(DISTINCT a) FROM t1 HAVING COUNT(DISTINCT c) < 10;
 id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
 1	SIMPLE	t1	ALL	NULL	NULL	NULL	NULL	16	
@@ -2994,7 +2995,7 @@ WHERE b = 13 AND c = 42 GROUP BY a;
 a	COUNT(DISTINCT a)	SUM(DISTINCT a)
 EXPLAIN SELECT COUNT(DISTINCT a, b), SUM(DISTINCT a) FROM t2 WHERE b = 42;
 id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
-1	SIMPLE	t2	range	NULL	a	10	NULL	9	Using where; Using index for group-by
+1	SIMPLE	t2	index	NULL	a	15	NULL	16	Using where; Using index
 SELECT COUNT(DISTINCT a, b), SUM(DISTINCT a) FROM t2 WHERE b = 42;
 COUNT(DISTINCT a, b)	SUM(DISTINCT a)
 0	NULL
