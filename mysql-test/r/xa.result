@@ -254,3 +254,141 @@ xa recover;
 formatID	gtrid_length	bqual_length	data
 2	5	1	ABCDEF
 xa rollback 0x4142434445, 0x46, 0x02 ;
+#
+# WL#7155: Test 1: check that prepared transaction branch
+# is recovered after abnormal server termination.
+#
+CREATE TABLE t1 (a INT) ENGINE=INNODB;
+XA START 'xid1';
+INSERT INTO t1 VALUES (1);
+XA END 'xid1';
+XA PREPARE 'xid1';
+XA RECOVER;
+ERROR HY000: Lost connection to MySQL server during query
+XA RECOVER;
+formatID	gtrid_length	bqual_length	data
+1	4	0	xid1
+SELECT * FROM t1;
+a
+XA COMMIT 'xid1';
+SELECT * FROM t1;
+a
+1
+DROP TABLE t1;
+#
+# WL#7155: Test 2: check that in case of abnormal server termination
+# the changes done by unprepared transaction branch will be rolled back
+# after the server restart.
+# 
+CREATE TABLE t1 (a INT) ENGINE=INNODB;
+XA START 'xid1';
+INSERT INTO t1 VALUES (1);
+XA END 'xid1';
+XA RECOVER;
+ERROR HY000: Lost connection to MySQL server during query
+XA RECOVER;
+formatID	gtrid_length	bqual_length	data
+SELECT * FROM t1;
+a
+DROP TABLE t1;
+#
+# WL#7155: Test 3: check that if a thread of control terminates then 
+# the Resource Manager dissociate and rollback any associated 
+# transaction branch (see ref. 3.6 on page 18 of XA spec)
+#
+CREATE TABLE t1 (a INT) ENGINE=INNODB;
+XA START 'xid1';
+INSERT INTO t1 VALUES (1);
+XA END 'xid1';
+SELECT * FROM t1;
+a
+DROP TABLE t1;
+#
+# WL#7155: Test 4: Check that if the Resource Manager is doing work outside
+# any global transaction on behalf of the application,
+# xa_start() returns XAER_OUTSIDE (see xa_start description on page 52 of XA spec)  
+#
+SET SESSION autocommit=0;
+START TRANSACTION;
+XA START 'xid1';
+ERROR XAE09: XAER_OUTSIDE: Some work is done outside global transaction
+COMMIT;
+#
+# WL#7155: Test 5: Check that the Resource Manager returns error
+# if the Transaction Manager tries to resume non-existent transaction. 
+#
+XA START 'xid1' RESUME;
+ERROR XAE05: XAER_INVAL: Invalid arguments (or unsupported command)
+#
+# WL#7155: Test 6: Check that the Resource Manager returns ok
+# if the Transaction Manager tries to resume transaction
+# that has been ended before. 
+#
+XA START 'xid1';
+XA END 'xid1';
+XA START 'xid1' RESUME;
+XA END 'xid1';
+#
+# WL#7155: Test 7: Check that the Resource Manager returns error
+# if the Transaction Manager ends some XA transaction and
+# starts another one with RESUME clause right after that.
+#
+XA START 'xid1';
+XA END 'xid1';
+XA START 'xid2' RESUME;
+ERROR XAE04: XAER_NOTA: Unknown XID
+#
+# WL#7155: Test 8: Check that the SUSPEND clause isn't supported for XA END. 
+#
+XA START 'xid1';
+XA END 'xid1' SUSPEND;
+ERROR XAE05: XAER_INVAL: Invalid arguments (or unsupported command)
+XA END 'xid1';
+#
+# WL#7155: Test 9: Check that attempt to end non-existent XA transaction 
+# while another XA transaction is active leads to an error 
+#
+XA START 'xid1';
+XA END 'xid2';
+ERROR XAE04: XAER_NOTA: Unknown XID
+XA END 'xid1';
+#
+# WL#7155: Test 10: Check that XA ROLLBACK can't be called for active XA transaction
+#
+XA START 'xid1';
+XA ROLLBACK 'xid1';
+ERROR XAE07: XAER_RMFAIL: The command cannot be executed when global transaction is in the  ACTIVE state
+XA END 'xid1';
+#
+# WL#7155: Test 11: Check that XA PREPARE returns error for unknown xid
+#
+XA START 'xid1';
+XA END 'xid1';
+XA PREPARE 'xid2';
+ERROR XAE04: XAER_NOTA: Unknown XID
+#
+# WL#7155: Test 12: Check that escaped "'" symbol for xid value
+# is handled correctly during recovering XA transaction. 
+#
+CREATE TABLE t1 (a INT) ENGINE=INNODB;
+XA START 'xid1', 'br\'_1';
+INSERT INTO t1 VALUES (1);
+XA END 'xid1', 'br\'_1';
+XA PREPARE 'xid1', 'br\'_1';
+XA RECOVER;
+ERROR HY000: Lost connection to MySQL server during query
+XA RECOVER;
+formatID	gtrid_length	bqual_length	data
+1	4	5	xid1br'_1
+XA ROLLBACK 'xid1', 'br\'_1';
+DROP TABLE t1;
+#
+# WL#7155: Test 13: Check that rollback of XA transaction with unknown xid 
+# leads to an error when there is other prepared XA transaction. 
+#
+XA START 'xid1';
+XA END 'xid1';
+XA PREPARE 'xid1';
+XA ROLLBACK 'xid2';
+ERROR XAE04: XAER_NOTA: Unknown XID
+XA ROLLBACK 'xid1';

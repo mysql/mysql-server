@@ -178,6 +178,7 @@ SET(SQL_SHARED_SOURCES
   tztime.cc
   uniques.cc
   unireg.cc
+  xa.cc
 )
 
 IF(WIN32)
