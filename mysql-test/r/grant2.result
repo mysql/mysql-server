@@ -334,7 +334,7 @@ delete from mysql.user where user like 'mysqltest\_1';
 flush privileges;
 drop database mysqltest_1;
 set password = password("changed");
-ERROR 42000: You are using MySQL as an anonymous user and anonymous users are not allowed to change passwords
+ERROR 42000: Can't find any matching row in the user table
 lock table mysql.user write;
 flush privileges;
 grant all on *.* to 'mysqltest_1'@'localhost';
