@@ -1,6 +1,6 @@
 /*****************************************************************************
 
-Copyright (c) 1996, 2012, Oracle and/or its affiliates. All Rights Reserved.
+Copyright (c) 1996, 2013, Oracle and/or its affiliates. All Rights Reserved.
 
 This program is free software; you can redistribute it and/or modify it under
 the terms of the GNU General Public License as published by the Free Software
@@ -241,7 +241,8 @@ row_upd_check_references_constraints(
 
 			if (foreign->foreign_table == NULL) {
 				dict_table_get(foreign->foreign_table_name_lookup,
-					       FALSE);
+					       FALSE,
+					       DICT_ERR_IGNORE_NONE);
 			}
 
 			if (foreign->foreign_table) {

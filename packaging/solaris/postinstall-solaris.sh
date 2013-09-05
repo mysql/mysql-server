@@ -1,6 +1,6 @@
 #!/bin/sh
 #
-# Copyright (c) 2008, 2012, Oracle and/or its affiliates. All rights reserved.
+# Copyright (c) 2008, 2013, Oracle and/or its affiliates. All rights reserved.
 # 
 # This program is free software; you can redistribute it and/or modify
 # it under the terms of the GNU General Public License as published by
@@ -75,10 +75,6 @@ if [ -n "$TMPDIR" ] ; then
   chown $myuser:$mygroup "$TMPDIR"
 fi
 
-
-# BUG# 16812255: Removing the option --random-passwords
-# as this is supported only for MYSQL releases 5.6 and above.
- 
 if [ -n "$INSTALL" ] ; then
   # We install/update the system tables
   (

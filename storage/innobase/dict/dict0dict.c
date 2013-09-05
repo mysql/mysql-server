@@ -23,6 +23,8 @@ Data dictionary system
 Created 1/8/1996 Heikki Tuuri
 ***********************************************************************/
 
+#include <my_sys.h>
+
 #include "dict0dict.h"
 
 #ifdef UNIV_NONINL
@@ -750,15 +752,18 @@ UNIV_INTERN
 dict_table_t*
 dict_table_get(
 /*===========*/
-	const char*	table_name,	/*!< in: table name */
-	ibool		inc_mysql_count)/*!< in: whether to increment the open
-					handle count on the table */
+	const char*		table_name,	/*!< in: table name */
+	ibool			inc_mysql_count,/*!< in: whether to increment
+						the open handle count on the
+						table */
+	dict_err_ignore_t	ignore_err)	/*!< in: errors to ignore when
+						loading the table */
 {
 	dict_table_t*	table;
 
 	mutex_enter(&(dict_sys->mutex));
 
-	table = dict_table_get_low(table_name);
+	table = dict_table_get_low(table_name, ignore_err);
 
 	if (inc_mysql_count && table) {
 		table->n_mysql_handles_opened++;
@@ -1832,6 +1837,11 @@ undo_size_ok:
 		       dict_index_is_ibuf(index)
 		       ? SYNC_IBUF_INDEX_TREE : SYNC_INDEX_TREE);
 
+	DBUG_EXECUTE_IF(
+		"index_partially_created_should_kick",
+		DEBUG_SYNC_C("index_partially_created");
+	);
+
 	if (!UNIV_UNLIKELY(new_index->type & DICT_UNIVERSAL)) {
 
 		new_index->stat_n_diff_key_vals = mem_heap_alloc(
@@ -2745,9 +2755,11 @@ UNIV_INTERN
 ulint
 dict_foreign_add_to_cache(
 /*======================*/
-	dict_foreign_t*	foreign,	/*!< in, own: foreign key constraint */
-	ibool		check_charsets)	/*!< in: TRUE=check charset
-					compatibility */
+	dict_foreign_t*		foreign,	/*!< in, own: foreign key
+						constraint */
+	ibool			check_charsets,	/*!< in: TRUE=check charset
+						compatibility */
+	dict_err_ignore_t	ignore_err)	/*!< in: error to be ignored */
 {
 	dict_table_t*	for_table;
 	dict_table_t*	ref_table;
@@ -2787,7 +2799,8 @@ dict_foreign_add_to_cache(
 			for_in_cache->n_fields, for_in_cache->foreign_index,
 			check_charsets, FALSE);
 
-		if (index == NULL) {
+		if (index == NULL
+		    && !(ignore_err & DICT_ERR_IGNORE_FK_NOKEY)) {
 			dict_foreign_error_report(
 				ef, for_in_cache,
 				"there is no index in referenced table"
@@ -2822,7 +2835,8 @@ dict_foreign_add_to_cache(
 			& (DICT_FOREIGN_ON_DELETE_SET_NULL
 			   | DICT_FOREIGN_ON_UPDATE_SET_NULL));
 
-		if (index == NULL) {
+		if (index == NULL
+		    && !(ignore_err & DICT_ERR_IGNORE_FK_NOKEY)) {
 			dict_foreign_error_report(
 				ef, for_in_cache,
 				"there is no index in the table"
@@ -2872,14 +2886,27 @@ dict_scan_to(
 	const char*	string)	/*!< in: look for this */
 {
 	char	quote	= '\0';
+	ibool	escape	= FALSE;
 
 	for (; *ptr; ptr++) {
 		if (*ptr == quote) {
 			/* Closing quote character: do not look for
 			starting quote or the keyword. */
-			quote = '\0';
+
+			/* If the quote character is escaped by a
+			backslash, ignore it. */
+			if (escape) {
+				escape = FALSE;
+			} else {
+				quote = '\0';
+			}
 		} else if (quote) {
 			/* Within quotes: do nothing. */
+			if (escape) {
+				escape = FALSE;
+			} else if (*ptr == '\\') {
+				escape = TRUE;
+			}
 		} else if (*ptr == '`' || *ptr == '"' || *ptr == '\'') {
 			/* Starting quote: remember the quote character. */
 			quote = *ptr;
@@ -3198,7 +3225,7 @@ dict_scan_table_name(
 	            2 = Store as given, compare in lower; case semi-sensitive */
 	if (innobase_get_lower_case_table_names() == 2) {
 		innobase_casedn_str(ref);
-		*table = dict_table_get_low(ref);
+		*table = dict_table_get_low(ref, DICT_ERR_IGNORE_NONE);
 		memcpy(ref, database_name, database_name_len);
 		ref[database_name_len] = '/';
 		memcpy(ref + database_name_len + 1, table_name, table_name_len + 1);
@@ -3211,7 +3238,7 @@ dict_scan_table_name(
 #else
 		innobase_casedn_str(ref);
 #endif /* !__WIN__ */
-		*table = dict_table_get_low(ref);
+		*table = dict_table_get_low(ref, DICT_ERR_IGNORE_NONE);
 	}
 
 	*success = TRUE;
@@ -3265,6 +3292,11 @@ dict_strip_comments(
 	char*		ptr;
 	/* unclosed quote character (0 if none) */
 	char		quote	= 0;
+	ibool		escape = FALSE;
+
+	DBUG_ENTER("dict_strip_comments");
+
+	DBUG_PRINT("dict_strip_comments", ("%s", sql_string));
 
 	str = mem_alloc(sql_length + 1);
 
@@ -3279,16 +3311,29 @@ end_of_string:
 
 			ut_a(ptr <= str + sql_length);
 
-			return(str);
+			DBUG_PRINT("dict_strip_comments", ("%s", str));
+			DBUG_RETURN(str);
 		}
 
 		if (*sptr == quote) {
 			/* Closing quote character: do not look for
 			starting quote or comments. */
-			quote = 0;
+
+			/* If the quote character is escaped by a
+			backslash, ignore it. */
+			if (escape) {
+				escape = FALSE;
+			} else {
+				quote = 0;
+			}
 		} else if (quote) {
 			/* Within quotes: do not look for
 			starting quotes or comments. */
+			if (escape) {
+				escape = FALSE;
+			} else if (*sptr == '\\') {
+				escape = TRUE;
+			}
 		} else if (*sptr == '"' || *sptr == '`' || *sptr == '\'') {
 			/* Starting quote: remember the quote character. */
 			quote = *sptr;
@@ -3461,7 +3506,7 @@ dict_create_foreign_constraints_low(
 
 	ut_ad(mutex_own(&(dict_sys->mutex)));
 
-	table = dict_table_get_low(name);
+	table = dict_table_get_low(name, DICT_ERR_IGNORE_NONE);
 
 	if (table == NULL) {
 		mutex_enter(&dict_foreign_err_mutex);
@@ -4468,7 +4513,13 @@ dict_update_statistics(
 		return;
 	}
 
-	do {
+	for (; index != NULL; index = dict_table_get_next_index(index)) {
+
+		/* Skip incomplete indexes. */
+		if (index->name[0] == TEMP_INDEX_PREFIX) {
+			continue;
+		}
+
 		if (UNIV_LIKELY
 		    (srv_force_recovery < SRV_FORCE_NO_IBUF_MERGE
 		     || (srv_force_recovery < SRV_FORCE_NO_LOG_REDO
@@ -4522,9 +4573,7 @@ fake_statistics:
 			       (1 + dict_index_get_n_unique(index))
                                * sizeof(*index->stat_n_non_null_key_vals));
 		}
-
-		index = dict_table_get_next_index(index);
-	} while (index);
+	}
 
 	index = dict_table_get_first_index(table);
 
@@ -4600,7 +4649,7 @@ dict_table_print_by_name(
 
 	mutex_enter(&(dict_sys->mutex));
 
-	table = dict_table_get_low(name);
+	table = dict_table_get_low(name, DICT_ERR_IGNORE_NONE);
 
 	ut_a(table);
 

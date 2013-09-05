@@ -1,4 +1,4 @@
-/* Copyright (c) 2009, 2011, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2009, 2013, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -1737,7 +1737,7 @@ static void debug_sync_execute(THD *thd, st_debug_sync_action *action)
     if (action->wait_for.length())
     {
       mysql_mutex_t *old_mutex;
-      mysql_cond_t  *old_cond;
+      mysql_cond_t  *old_cond= NULL;
       int             error= 0;
       struct timespec abstime;
 

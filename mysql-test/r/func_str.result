@@ -2620,13 +2620,13 @@ Warning	1292	Truncated incorrect DECIMAL value: ''
 # and other crashes
 #
 CREATE TABLE t1 ( a TEXT );
-SELECT 'aaaaaaaaaaaaaa' INTO OUTFILE 'bug58165.txt';
+SELECT 'aaaaaaaaaaaaaa' INTO OUTFILE 'MYSQLTEST_VARDIR/tmp/bug58165.txt';;
 SELECT insert( substring_index( 'a', 'a', 'b' ), 1, 0, 'x' );
 insert( substring_index( 'a', 'a', 'b' ), 1, 0, 'x' )
 x
 Warnings:
 Warning	1292	Truncated incorrect INTEGER value: 'b'
-LOAD DATA INFILE 'bug58165.txt' INTO TABLE t1;
+LOAD DATA INFILE 'MYSQLTEST_VARDIR/tmp/bug58165.txt' INTO TABLE t1;;
 SELECT * FROM t1;
 a
 aaaaaaaaaaaaaa
