@@ -43,22 +43,22 @@ show create table child;
 --disable_result_log
 
 --error ER_CANNOT_ADD_FOREIGN
-alter offline table child add constraint fk7 foreign key (a) references parent(c);
+alter table child algorithm=copy, add constraint fk7 foreign key (a) references parent(c);
 --error ER_CANNOT_ADD_FOREIGN
-alter offline table child add constraint fk8 foreign key (a) references parent(c);
+alter table child algorithm=copy, add constraint fk8 foreign key (a) references parent(c);
 --error ER_CANNOT_ADD_FOREIGN
-alter offline table child add constraint fk9 foreign key (a) references parent(c);
+alter table child algorithm=copy, add constraint fk9 foreign key (a) references parent(c);
 
 --enable_result_log
 
 --error ER_CANNOT_ADD_FOREIGN
-alter online table child add constraint fk7 foreign key (a) references parent(c);
+alter table child algorithm=inplace, add constraint fk7 foreign key (a) references parent(c);
 show warnings;
 --error ER_CANNOT_ADD_FOREIGN
-alter online table child add constraint fk8 foreign key (a) references parent(c);
+alter table child algorithm=inplace, add constraint fk8 foreign key (a) references parent(c);
 show warnings;
 --error ER_CANNOT_ADD_FOREIGN
-alter online table child add constraint fk9 foreign key (a) references parent(c);
+alter table child algorithm=inplace, add constraint fk9 foreign key (a) references parent(c);
 show warnings;
 
 drop table child, parent;

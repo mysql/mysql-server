@@ -28,19 +28,19 @@ insert into child values (3,4,5);
 --let oiname=c
 
 --error 1452
-alter online table child add constraint fkname foreign key (a) references parent(a);
+alter table child algorithm=inplace, add constraint fkname foreign key (a) references parent(a);
 
 --error 1452
-alter online table child add constraint fkname foreign key(b) references parent(a);
+alter table child algorithm=inplace, add constraint fkname foreign key(b) references parent(a);
 --error 1452
-alter online table child add constraint fkname foreign key(c) references parent(a);
+alter table child algorithm=inplace, add constraint fkname foreign key(c) references parent(a);
 
 --error 1452
-alter online table child add constraint fkname foreign key(a) references parent(b);
+alter table child algorithm=inplace, add constraint fkname foreign key(a) references parent(b);
 --error 1452
-alter online table child add constraint fkname foreign key(b) references parent(b);
+alter table child algorithm=inplace, add constraint fkname foreign key(b) references parent(b);
 --error 1452
-alter online table child add constraint fkname foreign key(c) references parent(b);
+alter table child algorithm=inplace, add constraint fkname foreign key(c) references parent(b);
 
 #
 # Now it should work...
@@ -50,14 +50,14 @@ insert into parent values (3,4,5);
 insert into parent values (4,5,6);
 insert into parent values (5,6,7);
 
-alter online table child add constraint fk1 foreign key(a) references parent(a);
-alter online table child add constraint fk2 foreign key(b) references parent(a);
-alter online table child add constraint fk3 foreign key(c) references parent(a);
-alter online table child add constraint fk4 foreign key(a) references parent(b);
-alter online table child add constraint fk5 foreign key(b) references parent(b);
-alter online table child add constraint fk6 foreign key(c) references parent(b);
+alter table child algorithm=inplace, add constraint fk1 foreign key(a) references parent(a);
+alter table child algorithm=inplace, add constraint fk2 foreign key(b) references parent(a);
+alter table child algorithm=inplace, add constraint fk3 foreign key(c) references parent(a);
+alter table child algorithm=inplace, add constraint fk4 foreign key(a) references parent(b);
+alter table child algorithm=inplace, add constraint fk5 foreign key(b) references parent(b);
+alter table child algorithm=inplace, add constraint fk6 foreign key(c) references parent(b);
 
-alter online table child
+alter table child algorithm=inplace,
 drop foreign key fk1,
 drop foreign key fk2,
 drop foreign key fk3,

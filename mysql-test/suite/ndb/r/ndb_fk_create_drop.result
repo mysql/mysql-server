@@ -45,28 +45,25 @@ child	CREATE TABLE `child` (
  CONSTRAINT `fk5` FOREIGN KEY(`b`) REFERENCES `parent` (`b`) ON DELETE NO ACTION ON UPDATE NO ACTION,
  CONSTRAINT `fk6` FOREIGN KEY(`c`) REFERENCES `parent` (`b`) ON DELETE NO ACTION ON UPDATE NO ACTION
 ) ENGINE=ndbcluster DEFAULT CHARSET=latin1
-alter offline table child add constraint fk7 foreign key (a) references parent(c);
-alter offline table child add constraint fk8 foreign key (a) references parent(c);
-alter offline table child add constraint fk9 foreign key (a) references parent(c);
-alter online table child add constraint fk7 foreign key (a) references parent(c);
+alter table child algorithm=copy, add constraint fk7 foreign key (a) references parent(c);
+alter table child algorithm=copy, add constraint fk8 foreign key (a) references parent(c);
+alter table child algorithm=copy, add constraint fk9 foreign key (a) references parent(c);
+alter table child algorithm=inplace, add constraint fk7 foreign key (a) references parent(c);
 ERROR HY000: Cannot add foreign key constraint
 show warnings;
 Level	Code	Message
-Warning	1287	'ONLINE' is deprecated and will be removed in a future release. Please use ALGORITHM=INPLACE instead
 Warning	1296	Got error 21026 'Create foreign key failed in NDB - parent index is not unique index' from NDB
 Error	1215	Cannot add foreign key constraint
-alter online table child add constraint fk8 foreign key (a) references parent(c);
+alter table child algorithm=inplace, add constraint fk8 foreign key (a) references parent(c);
 ERROR HY000: Cannot add foreign key constraint
 show warnings;
 Level	Code	Message
-Warning	1287	'ONLINE' is deprecated and will be removed in a future release. Please use ALGORITHM=INPLACE instead
 Warning	1296	Got error 21026 'Create foreign key failed in NDB - parent index is not unique index' from NDB
 Error	1215	Cannot add foreign key constraint
-alter online table child add constraint fk9 foreign key (a) references parent(c);
+alter table child algorithm=inplace, add constraint fk9 foreign key (a) references parent(c);
 ERROR HY000: Cannot add foreign key constraint
 show warnings;
 Level	Code	Message
-Warning	1287	'ONLINE' is deprecated and will be removed in a future release. Please use ALGORITHM=INPLACE instead
 Warning	1296	Got error 21026 'Create foreign key failed in NDB - parent index is not unique index' from NDB
 Error	1215	Cannot add foreign key constraint
 drop table child, parent;
