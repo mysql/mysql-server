@@ -7977,4 +7977,43 @@ Warning	1329	No data - zero rows fetched, selected, or processed
 drop procedure p1;
 drop procedure p2;
 drop table t1;
+#
+# MDEV-4978 - Server cursor is broken with blobs in the select list,
+#             ORDER BY does not work
+#
+CREATE TABLE t1(a INT, b BLOB);
+INSERT INTO t1 VALUES(1,REPEAT('a',4835)),(2,'b'),(3,'c'),(4,'d'),(5,REPEAT('e',805)),(6,'f');
+CREATE PROCEDURE p1()
+BEGIN
+DECLARE done INT DEFAULT 0;
+DECLARE v1 INT;
+DECLARE v2 BLOB;
+DECLARE c1 CURSOR FOR SELECT * FROM t1 ORDER BY a;
+DECLARE CONTINUE HANDLER FOR SQLSTATE '02000' SET done=1;
+OPEN c1;
+REPEAT
+FETCH c1 INTO v1, v2;
+IF NOT done THEN
+SELECT v1;
+END IF;
+UNTIL done END REPEAT;
+CLOSE c1;
+END|
+CALL p1;
+v1
+1
+v1
+2
+v1
+3
+v1
+4
+v1
+5
+v1
+6
+Warnings:
+Error	1329	No data - zero rows fetched, selected, or processed
+DROP PROCEDURE p1;
+DROP TABLE t1;
 # End of 5.5 test

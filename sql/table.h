@@ -1149,6 +1149,10 @@ public:
   */
   bool force_index_group;
   bool distinct,const_table,no_rows, used_for_duplicate_elimination;
+  /**
+    Forces DYNAMIC Aria row format for internal temporary tables.
+  */
+  bool keep_row_order;
 
   /**
      If set, the optimizer has found that row retrieval should access index 

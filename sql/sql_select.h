@@ -1821,7 +1821,8 @@ void push_index_cond(JOIN_TAB *tab, uint keyno);
 TABLE *create_tmp_table(THD *thd,TMP_TABLE_PARAM *param,List<Item> &fields,
 			ORDER *group, bool distinct, bool save_sum_fields,
 			ulonglong select_options, ha_rows rows_limit,
-			const char* alias, bool do_not_open=FALSE);
+			const char* alias, bool do_not_open=FALSE,
+                        bool keep_row_order= FALSE);
 void free_tmp_table(THD *thd, TABLE *entry);
 bool create_internal_tmp_table_from_heap(THD *thd, TABLE *table,
                                          ENGINE_COLUMNDEF *start_recinfo,

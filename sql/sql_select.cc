@@ -14572,7 +14572,8 @@ TABLE *
 create_tmp_table(THD *thd, TMP_TABLE_PARAM *param, List<Item> &fields,
 		 ORDER *group, bool distinct, bool save_sum_fields,
 		 ulonglong select_options, ha_rows rows_limit,
-                 const char *table_alias, bool do_not_open)
+                 const char *table_alias, bool do_not_open,
+                 bool keep_row_order)
 {
   MEM_ROOT *mem_root_save, own_root;
   TABLE *table;
@@ -15375,6 +15376,7 @@ create_tmp_table(THD *thd, TMP_TABLE_PARAM *param, List<Item> &fields,
   share->db_record_offset= 1;
   table->used_for_duplicate_elimination= (param->sum_func_count == 0 &&
                                           (table->group || table->distinct));
+  table->keep_row_order= keep_row_order;
 
   if (!do_not_open)
   {
@@ -15712,7 +15714,8 @@ bool create_internal_tmp_table(TABLE *table, KEY *keyinfo,
                            table->no_rows ? NO_RECORD :
                            (share->reclength < 64 &&
                             !share->blob_fields ? STATIC_RECORD :
-                            table->used_for_duplicate_elimination ?
+                            table->used_for_duplicate_elimination ||
+                            table->keep_row_order ?
                             DYNAMIC_RECORD : BLOCK_RECORD),
                            share->keys, &keydef,
                            (uint) (*recinfo-start_recinfo),
