@@ -260,6 +260,29 @@ DROP TABLE t1,t2,t3;
 set optimizer_switch=@tmp_mdev567;
 
 --echo #
+--echo # MDEV-4996: degenerate OR formula in WHERE of a subquery
+--echo #
+
+CREATE TABLE t1 (a int, c1 varchar(1)) ENGINE=MyISAM;
+INSERT INTO t1 VALUES (2,'x'), (8,'d');
+
+CREATE TABLE t2 (m int, n int, c2 varchar(1)) ENGINE=MyISAM;
+INSERT INTO t2 VALUES (0, 5, 'x'), (1, 4,'p');
+
+SELECT * FROM t1 WHERE c1 NOT IN (
+  SELECT t2a.c2 FROM t2 AS t2a, t2 AS t2b, t2 AS t2c
+        WHERE t2c.c2 = t2b.c2 AND ( t2a.m = t2b.n OR 0 ) AND
+                          ( t2b.m != a OR t2b.m = t2a.m ));
+
+EXPLAIN EXTENDED
+SELECT * FROM t1 WHERE c1 NOT IN (
+  SELECT t2a.c2 FROM t2 AS t2a, t2 AS t2b, t2 AS t2c
+        WHERE t2c.c2 = t2b.c2 AND ( t2a.m = t2b.n OR 0 ) AND
+                          ( t2b.m != a OR t2b.m = t2a.m ));
+
+DROP TABLE t1,t2;
+
+--echo #
 --echo # MDEV-614, also MDEV-536, also LP:1050806:
 --echo #  different result for a query using subquery between 5.5.25 and 5.5.27
 --echo #
