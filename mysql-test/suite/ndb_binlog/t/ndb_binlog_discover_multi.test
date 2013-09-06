@@ -49,7 +49,7 @@ shutdown_server 30;
 # Alter table while server 1 is down
 #
 
-alter online table t1 add column b varchar(16);
+alter table t1 algorithm=inplace, add column b varchar(16);
 
 #
 # Startup server1

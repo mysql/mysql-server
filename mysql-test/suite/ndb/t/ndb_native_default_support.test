@@ -303,7 +303,7 @@ SELECT * FROM t2 ORDER BY i;
 --echo * Test that online alter of default values fails
 --echo *************************************************************
 --error ER_ALTER_OPERATION_NOT_SUPPORTED 
-ALTER ONLINE TABLE t2 MODIFY COLUMN j INT DEFAULT 888;
+ALTER TABLE t2 algorithm=inplace, MODIFY COLUMN j INT DEFAULT 888;
 
 DROP TABLE IF EXISTS t2;
 

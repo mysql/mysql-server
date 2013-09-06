@@ -26,10 +26,8 @@ child	CREATE TABLE `child` (
   KEY `c` (`c`),
  CONSTRAINT `fk1` FOREIGN KEY(`a`) REFERENCES `mydb0`.`parent` (`a`) ON DELETE NO ACTION ON UPDATE NO ACTION
 ) ENGINE=ndbcluster DEFAULT CHARSET=latin1
-alter offline table child add constraint fk2 foreign key (b)
+alter table child algorithm=copy, add constraint fk2 foreign key (b)
 references mydb0.parent(a);
-Warnings:
-Warning	1287	'OFFLINE' is deprecated and will be removed in a future release. Please use ALGORITHM=COPY instead
 show create table child;
 Table	Create Table
 child	CREATE TABLE `child` (
@@ -42,10 +40,8 @@ child	CREATE TABLE `child` (
  CONSTRAINT `fk1` FOREIGN KEY(`a`) REFERENCES `mydb0`.`parent` (`a`) ON DELETE NO ACTION ON UPDATE NO ACTION,
  CONSTRAINT `fk2` FOREIGN KEY(`b`) REFERENCES `mydb0`.`parent` (`a`) ON DELETE NO ACTION ON UPDATE NO ACTION
 ) ENGINE=ndbcluster DEFAULT CHARSET=latin1
-alter online table child add constraint fk3 foreign key (c)
+alter table child algorithm=inplace, add constraint fk3 foreign key (c)
 references mydb0.parent(a);
-Warnings:
-Warning	1287	'ONLINE' is deprecated and will be removed in a future release. Please use ALGORITHM=INPLACE instead
 show create table child;
 Table	Create Table
 child	CREATE TABLE `child` (
@@ -59,9 +55,7 @@ child	CREATE TABLE `child` (
  CONSTRAINT `fk2` FOREIGN KEY(`b`) REFERENCES `mydb0`.`parent` (`a`) ON DELETE NO ACTION ON UPDATE NO ACTION,
  CONSTRAINT `fk3` FOREIGN KEY(`c`) REFERENCES `mydb0`.`parent` (`a`) ON DELETE NO ACTION ON UPDATE NO ACTION
 ) ENGINE=ndbcluster DEFAULT CHARSET=latin1
-alter offline table child drop foreign key fk2;
-Warnings:
-Warning	1287	'OFFLINE' is deprecated and will be removed in a future release. Please use ALGORITHM=COPY instead
+alter table child algorithm=copy, drop foreign key fk2;
 show create table child;
 Table	Create Table
 child	CREATE TABLE `child` (
@@ -74,9 +68,7 @@ child	CREATE TABLE `child` (
  CONSTRAINT `fk1` FOREIGN KEY(`a`) REFERENCES `mydb0`.`parent` (`a`) ON DELETE NO ACTION ON UPDATE NO ACTION,
  CONSTRAINT `fk3` FOREIGN KEY(`c`) REFERENCES `mydb0`.`parent` (`a`) ON DELETE NO ACTION ON UPDATE NO ACTION
 ) ENGINE=ndbcluster DEFAULT CHARSET=latin1
-alter online table child drop foreign key fk3;
-Warnings:
-Warning	1287	'ONLINE' is deprecated and will be removed in a future release. Please use ALGORITHM=INPLACE instead
+alter table child algorithm=inplace, drop foreign key fk3;
 show create table child;
 Table	Create Table
 child	CREATE TABLE `child` (
@@ -88,9 +80,7 @@ child	CREATE TABLE `child` (
   KEY `c` (`c`),
  CONSTRAINT `fk1` FOREIGN KEY(`a`) REFERENCES `mydb0`.`parent` (`a`) ON DELETE NO ACTION ON UPDATE NO ACTION
 ) ENGINE=ndbcluster DEFAULT CHARSET=latin1
-alter offline table mydb0.parent rename mydb1.parent;
-Warnings:
-Warning	1287	'OFFLINE' is deprecated and will be removed in a future release. Please use ALGORITHM=COPY instead
+alter table mydb0.parent algorithm=copy, rename mydb1.parent;
 show create table child;
 Table	Create Table
 child	CREATE TABLE `child` (
@@ -102,9 +92,7 @@ child	CREATE TABLE `child` (
   KEY `c` (`c`),
  CONSTRAINT `fk1` FOREIGN KEY(`a`) REFERENCES `parent` (`a`) ON DELETE NO ACTION ON UPDATE NO ACTION
 ) ENGINE=ndbcluster DEFAULT CHARSET=latin1
-alter online table mydb1.parent rename mydb0.parent;
-Warnings:
-Warning	1287	'ONLINE' is deprecated and will be removed in a future release. Please use ALGORITHM=INPLACE instead
+alter table mydb1.parent algorithm=inplace, rename mydb0.parent;
 show create table child;
 Table	Create Table
 child	CREATE TABLE `child` (
@@ -117,10 +105,8 @@ child	CREATE TABLE `child` (
  CONSTRAINT `fk1` FOREIGN KEY(`a`) REFERENCES `mydb0`.`parent` (`a`) ON DELETE NO ACTION ON UPDATE NO ACTION
 ) ENGINE=ndbcluster DEFAULT CHARSET=latin1
 use test;
-alter offline table mydb1.child add constraint fk2 foreign key (b)
+alter table mydb1.child algorithm=copy, add constraint fk2 foreign key (b)
 references mydb0.parent(a);
-Warnings:
-Warning	1287	'OFFLINE' is deprecated and will be removed in a future release. Please use ALGORITHM=COPY instead
 use mydb1;
 show create table child;
 Table	Create Table
@@ -135,10 +121,8 @@ child	CREATE TABLE `child` (
  CONSTRAINT `fk2` FOREIGN KEY(`b`) REFERENCES `mydb0`.`parent` (`a`) ON DELETE NO ACTION ON UPDATE NO ACTION
 ) ENGINE=ndbcluster DEFAULT CHARSET=latin1
 use test;
-alter online table mydb1.child add constraint fk3 foreign key (c)
+alter table mydb1.child algorithm=inplace, add constraint fk3 foreign key (c)
 references mydb0.parent(a);
-Warnings:
-Warning	1287	'ONLINE' is deprecated and will be removed in a future release. Please use ALGORITHM=INPLACE instead
 use mydb1;
 show create table child;
 Table	Create Table

@@ -115,12 +115,11 @@ b char(10) not null,
 primary key using hash (a),
 key (b)
 ) engine ndb;
-alter online table t2
+alter table t2 algorithm=inplace,
 add constraint fk1 foreign key (b) references t1 (b);
 ERROR HY000: Cannot add foreign key constraint
 show warnings;
 Level	Code	Message
-Warning	1287	'ONLINE' is deprecated and will be removed in a future release. Please use ALGORITHM=INPLACE instead
 Warning	1215	Parent column t1.b is incompatible with child column t2.b in NDB
 Error	1215	Cannot add foreign key constraint
 drop table t2, t1;
@@ -143,12 +142,11 @@ b int not null,
 primary key using hash (a),
 key (b)
 ) engine ndb;
-alter online table t2
+alter table t2 algorithm=inplace,
 add constraint fk1 foreign key (b) references t1 (b);
 ERROR HY000: Cannot add foreign key constraint
 show warnings;
 Level	Code	Message
-Warning	1287	'ONLINE' is deprecated and will be removed in a future release. Please use ALGORITHM=INPLACE instead
 Warning	1215	Parent table t1 not found in NDB: 723: No such table existed
 Error	1215	Cannot add foreign key constraint
 drop table t2;
@@ -175,12 +173,11 @@ b int not null,
 primary key using hash (a),
 key (b)
 ) engine ndb;
-alter online table t2
+alter table t2 algorithm=inplace,
 add constraint fk1 foreign key (b) references t1 (b);
 ERROR HY000: Cannot add foreign key constraint
 show warnings;
 Level	Code	Message
-Warning	1287	'ONLINE' is deprecated and will be removed in a future release. Please use ALGORITHM=INPLACE instead
 Warning	1215	Parent table t1 has no column b in NDB
 Error	1215	Cannot add foreign key constraint
 drop table t2, t1;
@@ -208,12 +205,11 @@ b int not null,
 primary key using hash (a),
 key (b)
 ) engine ndb;
-alter online table t2
+alter table t2 algorithm=inplace,
 add constraint fk1 foreign key (b) references t1 (b);
 ERROR HY000: Cannot add foreign key constraint
 show warnings;
 Level	Code	Message
-Warning	1287	'ONLINE' is deprecated and will be removed in a future release. Please use ALGORITHM=INPLACE instead
 Warning	1215	Parent table t1 foreign key columns match no index in NDB
 Error	1215	Cannot add foreign key constraint
 drop table t2, t1;
@@ -242,12 +238,11 @@ b int not null,
 primary key using hash (a),
 key (b)
 ) engine ndb;
-alter online table t2
+alter table t2 algorithm=inplace,
 add constraint fk1 foreign key (b) references t1 (b);
 ERROR HY000: Cannot add foreign key constraint
 show warnings;
 Level	Code	Message
-Warning	1287	'ONLINE' is deprecated and will be removed in a future release. Please use ALGORITHM=INPLACE instead
 Warning	1296	Got error 21026 'Create foreign key failed in NDB - parent index is not unique index' from NDB
 Error	1215	Cannot add foreign key constraint
 drop table t2, t1;
@@ -275,12 +270,11 @@ b int not null,
 primary key using hash (a),
 key (b)
 ) engine ndb;
-alter online table t2
+alter table t2 algorithm=inplace,
 add constraint fk1 foreign key (c) references t1 (b);
 ERROR 42000: Key column 'c' doesn't exist in table
 show warnings;
 Level	Code	Message
-Warning	1287	'ONLINE' is deprecated and will be removed in a future release. Please use ALGORITHM=INPLACE instead
 Error	1072	Key column 'c' doesn't exist in table
 drop table t2, t1;
 # test: child column no index
@@ -303,10 +297,8 @@ a int not null,
 b int not null,
 primary key using hash (a)
 ) engine ndb;
-alter online table t2
+alter table t2 algorithm=inplace,
 add constraint fk1 foreign key (b) references t1 (b);
-Warnings:
-Warning	1287	'ONLINE' is deprecated and will be removed in a future release. Please use ALGORITHM=INPLACE instead
 drop table t2, t1;
 # test: child vs parent column count
 create table t1 (
@@ -334,12 +326,11 @@ b int not null,
 primary key using hash (a),
 key (b)
 ) engine ndb;
-alter online table t2
+alter table t2 algorithm=inplace,
 add constraint fk1 foreign key (b) references t1 (b);
 ERROR HY000: Cannot add foreign key constraint
 show warnings;
 Level	Code	Message
-Warning	1287	'ONLINE' is deprecated and will be removed in a future release. Please use ALGORITHM=INPLACE instead
 Warning	1215	Parent table t1 foreign key columns match no index in NDB
 Error	1215	Cannot add foreign key constraint
 drop table t2, t1;

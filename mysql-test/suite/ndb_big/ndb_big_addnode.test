@@ -147,11 +147,11 @@ insert into t4(id, data) VALUES
 
 connection ddl;
 
-alter online table t1 reorganize partition;
-alter online table t2 reorganize partition;
-alter online table t5 max_rows=150000000;
-#alter online table t6 reorganize partition;
-send alter online table t6 reorganize partition;
+alter table t1 algorithm=inplace, reorganize partition;
+alter table t2 algorithm=inplace, reorganize partition;
+alter table t5 algorithm=inplace, max_rows=150000000;
+#alter table t6 algorithm=inplace, reorganize partition;
+send alter table t6 algorithm=inplace, reorganize partition;
 
 connection default;
 #send call updateload(300,0);

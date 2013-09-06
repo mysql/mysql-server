@@ -107,21 +107,13 @@ insert into t4(id, data) VALUES
 
 connection ddl;
 
-alter online table t1 reorganize partition;
-Warnings:
-Warning	1287	'ONLINE' is deprecated and will be removed in a future release. Please use ALGORITHM=INPLACE instead
-alter online table t2 reorganize partition;
-Warnings:
-Warning	1287	'ONLINE' is deprecated and will be removed in a future release. Please use ALGORITHM=INPLACE instead
-alter online table t5 max_rows=150000000;
-Warnings:
-Warning	1287	'ONLINE' is deprecated and will be removed in a future release. Please use ALGORITHM=INPLACE instead
-alter online table t6 reorganize partition;
+alter table t1 algorithm=inplace, reorganize partition;
+alter table t2 algorithm=inplace, reorganize partition;
+alter table t5 algorithm=inplace, max_rows=150000000;
+alter table t6 algorithm=inplace, reorganize partition;
 
 connection default;
 connection ddl;
-Warnings:
-Warning	1287	'ONLINE' is deprecated and will be removed in a future release. Please use ALGORITHM=INPLACE instead
 select count(1) as t1_part_count from information_schema.partitions where table_schema='test' and table_name='t1';
 t1_part_count
 4

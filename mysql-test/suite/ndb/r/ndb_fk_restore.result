@@ -415,14 +415,10 @@ select count(*) from t2;
 count(*)
 0
 # TEST: rebuild indexes data
-alter online table t2
+alter table t2 algorithm=inplace,
 drop foreign key fkb2c2c1b1;
-Warnings:
-Warning	1287	'ONLINE' is deprecated and will be removed in a future release. Please use ALGORITHM=INPLACE instead
-alter online table t2
+alter table t2 algorithm=inplace,
 add foreign key fkb2c2b1c1 (b2,c2) references t1 (b1,c1);
-Warnings:
-Warning	1287	'ONLINE' is deprecated and will be removed in a future release. Please use ALGORITHM=INPLACE instead
 insert into t1 (a1,b1,c1) values
 (1,11,12),(2,21,22),(3,31,32),(4,41,42),(5,51,52),(6,61,62);
 insert into t2 (b2,c2) select x.b1,x.c1 from t1 x,t1 y;
