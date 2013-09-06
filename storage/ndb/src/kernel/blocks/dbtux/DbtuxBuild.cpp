@@ -48,8 +48,10 @@ Dbtux::mt_buildIndexFragment_wrapper(void * obj)
     Uint32 * ptr = reinterpret_cast<Uint32*>(req->mem_buffer);
     ptr += (sizeof(* tux_ctx) + 3) / 4;
 
-    tux_ctx->jamBuffer = (EmulatedJamBuffer*)ptr;
+    tux_ctx->jamBuffer = new (ptr) EmulatedJamBuffer; // placement new.
     tux_ctx->jamBuffer->theEmulatedJamIndex = 0;
+    // The TLS key is needed by the jamNoBlock() macro.
+    NdbThread_SetTlsKey(NDB_THREAD_TLS_JAM, tux_ctx->jamBuffer);
     ptr += (sizeof(EmulatedJamBuffer) + 3) / 4;
     tux_ctx->c_searchKey = ptr;
     ptr += MaxAttrDataSize;
@@ -73,7 +75,12 @@ Dbtux::mt_buildIndexFragment_wrapper(void * obj)
   ctx.tup_ptr = reinterpret_cast<Dbtup*>(req->tup_ptr);
 
   Dbtux* tux = reinterpret_cast<Dbtux*>(req->tux_ptr);
-  return tux->mt_buildIndexFragment(&ctx);
+  const Uint32 result = tux->mt_buildIndexFragment(&ctx);
+  // Set to NULL now to avoid refrering released object.
+  NdbThread_SetTlsKey(NDB_THREAD_TLS_JAM, NULL);
+  // jamBuffer was created via placement new, so call desctructor now.
+  tux_ctx->jamBuffer->~EmulatedJamBuffer();
+  return result;
 }
 
 Uint32 // error code
