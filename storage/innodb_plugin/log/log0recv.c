@@ -1238,7 +1238,7 @@ recv_parse_or_apply_log_rec_body(
 	case MLOG_FILE_CREATE:
 	case MLOG_FILE_DELETE:
 	case MLOG_FILE_CREATE2:
-		ptr = fil_op_log_parse_or_replay(ptr, end_ptr, type, space_id, 0);
+		ptr = fil_op_log_parse_or_replay(ptr, end_ptr, type, 0, 0);
 		break;
 	case MLOG_ZIP_WRITE_NODE_PTR:
 		ut_ad(!page || page_type == FIL_PAGE_INDEX);
