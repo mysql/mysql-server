@@ -13189,7 +13189,6 @@ void propagate_new_equalities(THD *thd, Item *cond,
       Item_cond_and *cond_and= (Item_cond_and *) cond; 
       List<Item_equal> *cond_equalities= &cond_and->cond_equal.current_level;
       cond_and->cond_equal.upper_levels= inherited;
-      inherited= &cond_and->cond_equal;
       if (!cond_equalities->is_empty() && cond_equalities != new_equalities)
       {
         Item_equal *equal_item;
@@ -13214,7 +13213,10 @@ void propagate_new_equalities(THD *thd, Item *cond,
     List_iterator<Item> li(*((Item_cond*) cond)->argument_list());
     while ((item= li++))
     {
-      propagate_new_equalities(thd, item, new_equalities, inherited,
+      COND_EQUAL *new_inherited= and_level && item->type() == Item::COND_ITEM ?
+	                           &((Item_cond_and *) cond)->cond_equal :
+                                   inherited;
+      propagate_new_equalities(thd, item, new_equalities, new_inherited,
                                is_simplifiable_cond);
     }
   }
@@ -13467,6 +13469,7 @@ remove_eq_conds(THD *thd, COND *cond, Item::cond_result *cond_value)
       List_iterator_fast<Item_equal> it(new_equalities);
       while ((equality= it++))
       {
+	equality->upper_levels= cond_equal->upper_levels;
         equality->merge_into_list(cond_equalities, false, false);
         List_iterator_fast<Item_equal> ei(*cond_equalities);
         while ((equality= ei++))
