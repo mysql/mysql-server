@@ -63,13 +63,7 @@ struct NdbThread*
 AsyncIoThread::doStart()
 {
   // Stacksize for filesystem threads
-#if !defined(DBUG_OFF) && defined (__hpux)
-  // Empirical evidence indicates at least 32k
-  const NDB_THREAD_STACKSIZE stackSize = 32768;
-#else
-  // Otherwise an 8k stack should be enough
-  const NDB_THREAD_STACKSIZE stackSize = 8192;
-#endif
+  const NDB_THREAD_STACKSIZE stackSize = 128*1024;
 
   char buf[16];
   numAsyncFiles++;
