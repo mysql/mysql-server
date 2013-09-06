@@ -7,8 +7,8 @@ NoOfFragmentLogFiles = 64
 FragmentLogFileSize = 48M
 MinFreePct = 0
 
-# Artificially small SendBuffer (to hit error)
-SendBuffer = 512K
+# Artificially small SendBufferMemory (to hit error)
+SendBufferMemory = 512K
 # Larger LongMessageBuffer (to avoid hitting this)
 LongMessageBuffer = 16M
 
