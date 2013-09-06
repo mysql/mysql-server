@@ -6,9 +6,8 @@ reset master;
 reset master;
 create table t1 (a int unsigned auto_increment not null primary key)
 engine=ndbcluster;
-alter online table t1 add column b varchar(16);
+alter table t1 algorithm=inplace, add column b varchar(16);
 Warnings:
-Warning	1287	'ONLINE' is deprecated and will be removed in a future release. Please use ALGORITHM=INPLACE instead
 Warning	1478	Converted FIXED field to DYNAMIC to enable on-line ADD COLUMN
 show tables;
 Tables_in_test

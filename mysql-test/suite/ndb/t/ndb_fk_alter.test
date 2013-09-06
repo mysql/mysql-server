@@ -19,21 +19,21 @@ create table child (
 
 # Parent pk
 # child pk, uk, oi
-alter online table child add constraint fk1 foreign key (a) references parent(a);
-alter online table child add constraint fk2 foreign key (b) references parent(a);
-alter online table child add constraint fk3 foreign key (c) references parent(a);
+alter table child algorithm=inplace, add constraint fk1 foreign key (a) references parent(a);
+alter table child algorithm=inplace, add constraint fk2 foreign key (b) references parent(a);
+alter table child algorithm=inplace, add constraint fk3 foreign key (c) references parent(a);
 
 show create table child;
 
-alter online table child drop foreign key fk1;
+alter table child algorithm=inplace, drop foreign key fk1;
 
 show create table child;
 
-alter online table child drop foreign key fk2;
+alter table child algorithm=inplace, drop foreign key fk2;
 
 show create table child;
 
-alter online table child drop foreign key fk3;
+alter table child algorithm=inplace, drop foreign key fk3;
 
 show create table child;
 

@@ -135,9 +135,9 @@ create table t2 (
 
 # there may be a bug with add FK and reversed column order
 
-alter online table t2
+alter table t2 algorithm=inplace,
   drop foreign key fkb2c2c1b1;
-alter online table t2
+alter table t2 algorithm=inplace,
   add foreign key fkb2c2b1c1 (b2,c2) references t1 (b1,c1);
 
 insert into t1 (a1,b1,c1) values
