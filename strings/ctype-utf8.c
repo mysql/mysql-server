@@ -1,5 +1,5 @@
-/* Copyright (c) 2000, 2012, Oracle and/or its affiliates.
-   Copyright (c) 2009, 2011, Monty Program Ab
+/* Copyright (c) 2000, 2013, Oracle and/or its affiliates.
+   Copyright (c) 2009, 2013, Monty Program Ab
 
    This library is free software; you can redistribute it and/or
    modify it under the terms of the GNU Library General Public
@@ -4392,7 +4392,9 @@ my_mb_wc_filename(CHARSET_INFO *cs __attribute__((unused)),
     return MY_CS_TOOSMALL3;
   
   byte1= s[1];
-  byte2= byte1 ? s[2] : 0;
+  if (byte1 == 0)
+    return MY_CS_ILSEQ; /* avoid possible out-of-bounds read */
+  byte2= s[2];
   
   if (byte1 >= 0x30 && byte1 <= 0x7F &&
       byte2 >= 0x30 && byte2 <= 0x7F)

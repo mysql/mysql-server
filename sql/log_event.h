@@ -40,7 +40,6 @@
 #include "rpl_utility.h"
 #include "hash.h"
 #include "rpl_tblmap.h"
-#include "rpl_tblmap.cc"
 #endif
 
 #ifdef MYSQL_SERVER

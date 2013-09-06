@@ -11,8 +11,8 @@ ANY WARRANTY; without even the implied warranty of MERCHANTABILITY or FITNESS
 FOR A PARTICULAR PURPOSE. See the GNU General Public License for more details.
 
 You should have received a copy of the GNU General Public License along with
-this program; if not, write to the Free Software Foundation, Inc., 59 Temple
-Place, Suite 330, Boston, MA 02111-1307 USA
+this program; if not, write to the Free Software Foundation, Inc., 
+51 Franklin St, Fifth Floor, Boston, MA 02110-1301 USA
 
 *****************************************************************************/
 
@@ -378,7 +378,7 @@ dict_create_sys_indexes_tuple(
 
 	sys_indexes = dict_sys->sys_indexes;
 
-	table = dict_table_get_low(index->table_name);
+	table = dict_table_get_low(index->table_name, DICT_ERR_IGNORE_NONE);
 
 	entry = dtuple_create(heap, 7 + DATA_N_SYS_COLS);
 
@@ -580,7 +580,7 @@ dict_build_index_def_step(
 
 	index = node->index;
 
-	table = dict_table_get_low(index->table_name);
+	table = dict_table_get_low(index->table_name, DICT_ERR_IGNORE_NONE);
 
 	if (table == NULL) {
 		return(DB_TABLE_NOT_FOUND);
@@ -1215,8 +1215,8 @@ dict_create_or_check_foreign_constraint_tables(void)
 
 	mutex_enter(&(dict_sys->mutex));
 
-	table1 = dict_table_get_low("SYS_FOREIGN");
-	table2 = dict_table_get_low("SYS_FOREIGN_COLS");
+	table1 = dict_table_get_low("SYS_FOREIGN", DICT_ERR_IGNORE_NONE);
+	table2 = dict_table_get_low("SYS_FOREIGN_COLS", DICT_ERR_IGNORE_NONE);
 
 	if (table1 && table2
 	    && UT_LIST_GET_LEN(table1->indexes) == 3
@@ -1546,7 +1546,7 @@ dict_create_add_foreigns_to_dictionary(
 
 	ut_ad(mutex_own(&(dict_sys->mutex)));
 
-	if (NULL == dict_table_get_low("SYS_FOREIGN")) {
+	if (NULL == dict_table_get_low("SYS_FOREIGN", DICT_ERR_IGNORE_NONE)) {
 		fprintf(stderr,
 			"InnoDB: table SYS_FOREIGN not found"
 			" in internal data dictionary\n");

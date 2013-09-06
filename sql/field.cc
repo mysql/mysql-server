@@ -1,6 +1,6 @@
 /*
-   Copyright (c) 2000, 2012, Oracle and/or its affiliates.
-   Copyright (c) 2008, 2011, Monty Program Ab
+   Copyright (c) 2000, 2013, Oracle and/or its affiliates.
+   Copyright (c) 2008, 2013, Monty Program Ab
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -7077,7 +7077,7 @@ int Field_blob::store(const char *from,uint length,CHARSET_INFO *cs)
     if (!String::needs_conversion(length, cs, field_charset, &dummy_offset))
     {
       Field_blob::store_length(length);
-      bmove(ptr+packlength,(char*) &from,sizeof(char*));
+      bmove(ptr+packlength, &from, sizeof(char*));
       return 0;
     }
     if (tmpstr.copy(from, length, cs))
@@ -7595,7 +7595,7 @@ int Field_geom::store(const char *from, uint length, CHARSET_INFO *cs)
       value.copy(from, length, cs);
       from= value.ptr();
     }
-    bmove(ptr + packlength, (char*) &from, sizeof(char*));
+    bmove(ptr + packlength, &from, sizeof(char*));
   }
   return 0;
 

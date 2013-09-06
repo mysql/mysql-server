@@ -1,4 +1,4 @@
-/* Copyright (c) 2006, 2010, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2006, 2013, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -118,6 +118,8 @@ enum enum_explain_filename_mode
 #define FN_IS_TMP       (FN_FROM_IS_TMP | FN_TO_IS_TMP)
 #define NO_FRM_RENAME   (1 << 2)
 #define FRM_ONLY        (1 << 3)
+/** Don't check foreign key constraints while renaming table */
+#define NO_FK_CHECKS    (1 << 4)
 
 uint filename_to_tablename(const char *from, char *to, uint to_length
 #ifndef DBUG_OFF

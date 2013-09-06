@@ -1,6 +1,6 @@
 /*****************************************************************************
 
-Copyright (c) 2005, 2012, Oracle and/or its affiliates. All Rights Reserved.
+Copyright (c) 2005, 2013, Oracle and/or its affiliates. All Rights Reserved.
 
 This program is free software; you can redistribute it and/or modify it under
 the terms of the GNU General Public License as published by the Free Software
@@ -702,7 +702,8 @@ ha_innobase::add_index(
 		DBUG_RETURN(-1);
 	}
 
-	indexed_table = dict_table_get(prebuilt->table->name, FALSE);
+	indexed_table = dict_table_get(prebuilt->table->name, FALSE,
+				       DICT_ERR_IGNORE_NONE);
 
 	if (UNIV_UNLIKELY(!indexed_table)) {
 		DBUG_RETURN(HA_ERR_NO_SUCH_TABLE);

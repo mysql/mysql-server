@@ -5038,8 +5038,23 @@ static void optimize_keyuse(JOIN *join, DYNAMIC_ARRAY *keyuse_array)
   Optionally (if out_args is supplied) will push the arguments of 
   AGGFN(DISTINCT) to the list
 
+  Check for every COUNT(DISTINCT), AVG(DISTINCT) or
+  SUM(DISTINCT). These can be resolved by Loose Index Scan as long
+  as all the aggregate distinct functions refer to the same
+  fields. Thus:
+
+  SELECT AGGFN(DISTINCT a, b), AGGFN(DISTINCT b, a)... => can use LIS
+  SELECT AGGFN(DISTINCT a),    AGGFN(DISTINCT a)   ... => can use LIS
+  SELECT AGGFN(DISTINCT a, b), AGGFN(DISTINCT a)   ... => cannot use LIS
+  SELECT AGGFN(DISTINCT a),    AGGFN(DISTINCT b)   ... => cannot use LIS
+  etc.
+
   @param      join       the join to check
-  @param[out] out_args   list of aggregate function arguments
+  @param[out] out_args   Collect the arguments of the aggregate functions
+                         to a list. We don't worry about duplicates as
+                         these will be sorted out later in
+                         get_best_group_min_max.
+
   @return                does the query qualify for indexed AGGFN(DISTINCT)
     @retval   true       it does
     @retval   false      AGGFN(DISTINCT) must apply distinct in it.
@@ -5050,6 +5065,7 @@ is_indexed_agg_distinct(JOIN *join, List<Item_field> *out_args)
 {
   Item_sum **sum_item_ptr;
   bool result= false;
+  Field_map first_aggdistinct_fields;
 
   if (join->table_count != 1 ||                    /* reference more than 1 table */
       join->select_distinct ||                /* or a DISTINCT */
@@ -5062,6 +5078,7 @@ is_indexed_agg_distinct(JOIN *join, List<Item_field> *out_args)
   for (sum_item_ptr= join->sum_funcs; *sum_item_ptr; sum_item_ptr++)
   {
     Item_sum *sum_item= *sum_item_ptr;
+    Field_map cur_aggdistinct_fields;
     Item *expr;
     /* aggregate is not AGGFN(DISTINCT) or more than 1 argument to it */
     switch (sum_item->sum_func())
@@ -5091,15 +5108,23 @@ is_indexed_agg_distinct(JOIN *join, List<Item_field> *out_args)
       if (expr->real_item()->type() != Item::FIELD_ITEM)
         return false;
 
-      /* 
-        If we came to this point the AGGFN(DISTINCT) loose index scan
-        optimization is applicable 
-      */
+      Item_field* item= static_cast<Item_field*>(expr->real_item());
       if (out_args)
-        out_args->push_back((Item_field *) expr->real_item());
+        out_args->push_back(item);
+
+      cur_aggdistinct_fields.set_bit(item->field->field_index);
       result= true;
     }
+    /*
+      If there are multiple aggregate functions, make sure that they all
+      refer to exactly the same set of columns.
+    */
+    if (first_aggdistinct_fields.is_clear_all())
+      first_aggdistinct_fields.merge(cur_aggdistinct_fields);
+    else if (first_aggdistinct_fields != cur_aggdistinct_fields)
+      return false;
   }
+
   return result;
 }
 
@@ -21169,22 +21194,20 @@ change_to_use_tmp_fields(THD *thd, Item **ref_pointer_array,
       if (field != NULL)
       {
         /*
-          Replace "@:=<expression>" with "@:=<tmp table column>". Otherwise,
-          we would re-evaluate <expression>, and if expression were
-          a subquery, this would access already-unlocked tables.
-        */
+          Replace "@:=<expression>" with "@:=<tmp table column>". Otherwise, we
+          would re-evaluate <expression>, and if expression were a subquery, this
+          would access already-unlocked tables.
+         */
         Item_func_set_user_var* suv=
-          new Item_func_set_user_var((Item_func_set_user_var*) item);
+          new Item_func_set_user_var(thd, (Item_func_set_user_var*) item);
         Item_field *new_field= new Item_field(field);
-        if (!suv || !new_field || suv->fix_fields(thd, (Item**)&suv))
+        if (!suv || !new_field)
           DBUG_RETURN(true);                  // Fatal error
-        ((Item *)suv)->name= item->name;
         /*
-          We are replacing the argument of Item_func_set_user_var after its
-          value has been read. The argument's null_value should be set by
-          now, so we must set it explicitly for the replacement argument
-          since the null_value may be read without any preceeding call to
-          val_*().
+         We are replacing the argument of Item_func_set_user_var after its value
+         has been read.  The argument's null_value should be set by now, so we
+         must set it explicitly for the replacement argument since the null_value
+         may be read without any preceeding call to val_*().
         */
         new_field->update_null_value();
         List<Item> list;
@@ -21215,15 +21238,15 @@ change_to_use_tmp_fields(THD *thd, Item **ref_pointer_array,
         ifield->db_name= iref->db_name;
       }
 #ifndef DBUG_OFF
-	if (!item_field->name)
-	{
-	  char buff[256];
-	  String str(buff,sizeof(buff),&my_charset_bin);
-	  str.length(0);
-          str.extra_allocation(1024);
-	  item->print(&str, QT_ORDINARY);
-	  item_field->name= sql_strmake(str.ptr(),str.length());
-	}
+      if (!item_field->name)
+      {
+        char buff[256];
+        String str(buff,sizeof(buff),&my_charset_bin);
+        str.length(0);
+        str.extra_allocation(1024);
+        item->print(&str, QT_ORDINARY);
+        item_field->name= sql_strmake(str.ptr(),str.length());
+      }
 #endif
     }
     else

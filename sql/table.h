@@ -953,8 +953,12 @@ enum index_hint_type
   INDEX_HINT_FORCE
 };
 
+
 #define      CHECK_ROW_FOR_NULLS_TO_REJECT   (1 << 0)
 #define      REJECT_ROW_DUE_TO_NULL_FIELDS   (1 << 1)
+
+/* Bitmap of table's fields */
+typedef Bitmap<MAX_FIELDS> Field_map;
 
 struct TABLE
 {

@@ -1,5 +1,6 @@
 /*
-   Copyright (c) 2002, 2011, Oracle and/or its affiliates
+   Copyright (c) 2002, 2013, Oracle and/or its affiliates
+   Copyright (c) 2009, 2013, Monty Program Ab
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -92,6 +93,35 @@ static my_getopt_value getopt_get_addr;
 void my_getopt_register_get_addr(my_getopt_value func_addr)
 {
   getopt_get_addr= func_addr;
+}
+
+union ull_dbl
+{
+  ulonglong ull;
+  double dbl;
+};
+
+/**
+  Returns an ulonglong value containing a raw
+  representation of the given double value.
+*/
+ulonglong getopt_double2ulonglong(double v)
+{
+  union ull_dbl u;
+  u.dbl= v;
+  compile_time_assert(sizeof(ulonglong) >= sizeof(double));
+  return u.ull;
+}
+
+/**
+  Returns the double value which corresponds to
+  the given raw representation.
+*/
+double getopt_ulonglong2double(ulonglong v)
+{
+  union ull_dbl u;
+  u.ull= v;
+  return u.dbl;
 }
 
 /**
@@ -810,6 +840,7 @@ static int findopt(char *optpat, uint length,
 {
   uint count;
   const struct my_option *opt= *opt_res;
+  my_bool is_prefix= FALSE;
   DBUG_ENTER("findopt");
 
   for (count= 0; opt->name; opt++)
@@ -819,11 +850,14 @@ static int findopt(char *optpat, uint length,
       (*opt_res)= opt;
       if (!opt->name[length])		/* Exact match */
 	DBUG_RETURN(1);
+
       if (!count)
       {
         /* We only need to know one prev */
 	count= 1;
 	*ffname= opt->name;
+        if (opt->name[length])
+          is_prefix= TRUE;
       }
       else if (strcmp(*ffname, opt->name))
       {
@@ -835,6 +869,12 @@ static int findopt(char *optpat, uint length,
       }
     }
   }
+  if (is_prefix && count == 1)
+    my_getopt_error_reporter(WARNING_LEVEL,
+                             "Using unique option prefix %.*s instead of %s "
+                             "is deprecated and will be removed in a future "
+                             "release. Please use the full name instead.",
+                             length, optpat, *ffname);
   DBUG_RETURN(count);
 }
 
@@ -1061,16 +1101,19 @@ double getopt_double_limit_value(double num, const struct my_option *optp,
 {
   my_bool adjusted= FALSE;
   double old= num;
+  double min, max;
   DBUG_ENTER("getopt_double_limit_value");
 
-  if (optp->max_value && num > (double) optp->max_value)
+  max= getopt_ulonglong2double(optp->max_value);
+  min= getopt_ulonglong2double(optp->min_value);
+  if (max && num > max)
   {
-    num= (double) optp->max_value;
+    num= max;
     adjusted= TRUE;
   }
-  if (num < (double) optp->min_value)
+  if (num < min)
   {
-    num= (double) optp->min_value;
+    num= min;
     adjusted= TRUE;
   }
   if (fix)
@@ -1153,7 +1196,7 @@ static void init_one_value(const struct my_option *option, void *variable,
     *((ulonglong*) variable)= (ulonglong) value;
     break;
   case GET_DOUBLE:
-    *((double*) variable)= ulonglong2double(value);
+    *((double*) variable)= getopt_ulonglong2double(value);
     break;
   case GET_STR:
     /*

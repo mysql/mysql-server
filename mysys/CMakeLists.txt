@@ -1,4 +1,4 @@
-# Copyright (c) 2006, 2011, Oracle and/or its affiliates
+# Copyright (c) 2006, 2013, Oracle and/or its affiliates
 # 
 # This program is free software; you can redistribute it and/or modify
 # it under the terms of the GNU General Public License as published by
@@ -77,6 +77,11 @@ ENDIF(HAVE_BFD_H)
 IF (WIN32)
   TARGET_LINK_LIBRARIES(mysys IPHLPAPI)  
 ENDIF(WIN32)
+
+# Need explicit pthread for gcc -fsanitize=address
+IF(CMAKE_USE_PTHREADS_INIT AND CMAKE_C_FLAGS MATCHES "-fsanitize=")
+  TARGET_LINK_LIBRARIES(mysys pthread)
+ENDIF()
 
 ADD_EXECUTABLE(thr_lock thr_lock.c)
 TARGET_LINK_LIBRARIES(thr_lock mysys)

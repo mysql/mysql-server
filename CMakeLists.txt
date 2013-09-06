@@ -282,6 +282,7 @@ IF(WITH_UNIT_TESTS)
  ADD_SUBDIRECTORY(unittest/strings)
  ADD_SUBDIRECTORY(unittest/examples)
  ADD_SUBDIRECTORY(unittest/mysys)
+ ADD_SUBDIRECTORY(unittest/my_decimal)
 ENDIF()
 
 IF(NOT WITHOUT_SERVER)

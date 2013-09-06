@@ -274,7 +274,7 @@ private:
     delete_table, rename_table and create uses very similar logic which
     is packed into this routine.
   */
-  uint del_ren_cre_table(const char *from, const char *to,
+  int del_ren_cre_table(const char *from, const char *to,
                          TABLE *table_arg, HA_CREATE_INFO *create_info);
   /*
     One method to create the table_name.par file containing the names of the
