@@ -191,7 +191,7 @@ function onExecute(dbTxHandler, execMode, err, execId, userCallback) {
       apiCall.description = "close " + dbTxHandler.moniker;
       apiCall.run = function closeNdbTransaction() {
         this.ndbTransaction.close(this.callback);
-      }
+      };
       apiCall.enqueue();
     }
   }

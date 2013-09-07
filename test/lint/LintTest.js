@@ -201,6 +201,7 @@ checkDirectory(suites_dir, "autoincrement");
 // checkDirectory(suites_dir, "multidb");  
 checkDirectory(suites_dir, "t_basic");
 
+checkDirectory(parent_dir, "samples/tweet");
 
 /**** ERRORS TO IGNORE:
    ignore(filename, startpos, message) 
