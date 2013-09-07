@@ -32,6 +32,8 @@ var mysql  = require("mysql"),
     op_stats = stats_module.getWriter(["spi","mysql","DBOperation"]),
     mysql_code_to_sqlstate_map = require("../common/MysqlErrToSQLStateMap");
     
+/** MAX_INT is used to define the upper LIMIT for queries */
+var MAX_INT = Math.pow(2, 32) - 1;
 
 /** MySQLConnection wraps a mysql connection and implements the DBSession contract.
  *  @param pooledConnection the felix connection to wrap
@@ -57,6 +59,24 @@ exports.DBSession = function(pooledConnection, connectionPool, index) {
     this.index = index;
     session_stats.incr("created");
   }
+};
+
+/** Construct an operation that when executed reports the error code */
+var ErrorOperation = function (err, callback) {
+  this.err = err;
+  this.result = {};
+  this.result.error = err;
+  this.result.success = false;
+  this.callback = callback;
+};
+
+ErrorOperation.prototype.execute = function(connection, operationCompleteCallback) {
+  // call UserContext callback
+  if (typeof(this.callback) == 'function') {
+    this.callback(null, this);
+  }
+  // call execute callback
+  operationCompleteCallback(this);
 };
 
 /**
@@ -847,6 +867,11 @@ exports.DBSession.prototype.buildScanOperation = function(queryDomainType, param
   udebug.log_detail('dbSession.buildScanOperation with queryDomainType:', queryDomainType,
       'parameterValues', parameterValues);
   var dbTableHandler = queryDomainType.mynode_query_domain_type.dbTableHandler;
+  var order = parameterValues.order;
+  var skip = parameterValues.skip;
+  var limit = parameterValues.limit;
+  var queryHandler = queryDomainType.mynode_query_domain_type.queryHandler;
+  var err;
   getMetadata(dbTableHandler);
   // add the WHERE clause to the sql
   var whereSQL = ' WHERE ' + queryDomainType.mynode_query_domain_type.predicate.getSQL().sqlText;
@@ -862,6 +887,53 @@ exports.DBSession.prototype.buildScanOperation = function(queryDomainType, param
     var parameterName = formalParameters[i].name;
     var value = parameterValues[parameterName];
     sqlParameters.push(value);
+  }
+  // handle order: must be an index scan and specify ignoreCase 'Asc' or 'Desc' 
+  if (order) {
+    // validate this is an index scan
+    if (queryHandler.queryType !== 2) {
+      err = new Error('Bad order parameter; must be used only with index scans');
+      return new ErrorOperation(err, callback);
+    }
+    // validate parameter; must be ignoreCase Asc or Desc
+    if (typeof(order) === 'string') {
+      if (order.toUpperCase() === 'ASC') {
+        scanSQL += ' ORDER BY ';
+        scanSQL += queryHandler.dbIndexHandler.fieldNumberToColumnMap[0].name;
+        scanSQL += ' ASC ';
+      } else if (order.toUpperCase() === 'DESC') {
+        scanSQL += ' ORDER BY ';
+        scanSQL += queryHandler.dbIndexHandler.fieldNumberToColumnMap[0].name;
+        scanSQL += ' DESC ';
+      } else {
+        err = new Error('Bad order parameter \'' + order + '\': must be ignoreCase Asc or Desc');
+        return new ErrorOperation(err, callback);
+      }
+    } else {
+      // bad order parameter; not ASC or DESC
+      err = new Error('Bad order parameter; must be ASC or DESC');
+      return new ErrorOperation(err, callback);
+    }
+  }
+  // handle SKIP and LIMIT; must use index
+  if (typeof(skip) !== 'undefined' || typeof(limit) !== 'undefined') {
+    if (queryHandler.queryType !== 2 || typeof(order) !== 'string') {
+      err = new Error('Bad skip \'' + skip + '\' or limit \'' + limit + '\' parameter; must be used only with order');
+      return new ErrorOperation(err, callback);
+    }
+    // set default values if not provided
+    if (typeof(skip) === 'undefined') skip = 0;
+    if (typeof(limit) === 'undefined') limit = MAX_INT;
+    if (skip < 0 || skip > MAX_INT) {
+      err = new Error('Bad skip parameter \'' + skip + '\'; must be >= 0 and <= ' + MAX_INT);
+      return new ErrorOperation(err, callback);
+    }
+    if (limit < 0 || limit > MAX_INT) {
+      err = new Error('Bad limit parameter \'' + limit + '\'; must be >= 0 and <= ' + MAX_INT);
+      return new ErrorOperation(err, callback);
+    }
+
+    scanSQL += ' LIMIT ' + skip + ' , ' + limit;
   }
   return new ScanOperation(this, dbTableHandler, scanSQL, sqlParameters, callback);
 };
