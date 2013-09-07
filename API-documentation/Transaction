@@ -4,26 +4,27 @@
      */
 
     /** Begin a transaction.
-     * 
+     * IMMEDIATE
      * If a transaction is already active, an exception is thrown.
      * 
      */
     begin();
 
     /** Commit a transaction. Errors are reported in the callback.
+     *  Extra arguments are passed to the callback.
+     * ASYNC
      * 
      * @param callback 
      */
-    commit(Function(Object error) callback);
+    commit(Function(Object error, ... ) callback, ... );
 
 
-    /** Roll back a transaction. Errors are reported in the callback.
-     * 
+    /** Roll back a transaction. Errors are reported in the callback. 
      *  ASYNC
      *
      * @param callback 
      */
-    rollback(Function(Object error) callback);
+    rollback(Function(Object error, ... ) callback, ... );
 
 
     /** Is there a transaction currently active?
@@ -38,11 +39,13 @@
      * rollback() will roll back the transaction and not throw an exception.
      *
      * If in autocommit mode, an exception is thrown.
+     * IMMEDIATE
      */
     setRollbackOnly();
 
 
     /** Has this transaction been marked for rollback only?
      * @return true if the transaction has been marked for rollback only
+     * IMMEDIATE
      */
     boolean getRollbackOnly();

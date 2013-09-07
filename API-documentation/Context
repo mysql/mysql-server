@@ -64,7 +64,7 @@
    * will be used. If no complete primary or unique key properties
    * are found, an error is reported.
    * 
-   * @method find
+   * @method load
    * @param instance the instance to load from the database
    * @param callback function to be called when operation has completed, with parameters:
    * err: the node.js Error object)
