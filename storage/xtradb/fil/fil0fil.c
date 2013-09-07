@@ -11,8 +11,8 @@ ANY WARRANTY; without even the implied warranty of MERCHANTABILITY or FITNESS
 FOR A PARTICULAR PURPOSE. See the GNU General Public License for more details.
 
 You should have received a copy of the GNU General Public License along with
-this program; if not, write to the Free Software Foundation, Inc., 59 Temple
-Place, Suite 330, Boston, MA 02111-1307 USA
+this program; if not, write to the Free Software Foundation, Inc., 
+51 Franklin St, Fifth Floor, Boston, MA 02110-1301 USA
 
 *****************************************************************************/
 
@@ -1884,7 +1884,7 @@ fil_write_flushed_lsn_to_data_files(
 }
 
 /*******************************************************************//**
-Checks the consistency of the first data page of a data file
+Checks the consistency of the first data page of a tablespace
 at database startup.
 @retval NULL on success, or if innodb_force_recovery is set
 @return pointer to an error message string */
@@ -1892,9 +1892,7 @@ static __attribute__((warn_unused_result))
 const char*
 fil_check_first_page(
 /*=================*/
-	const page_t*	page,		/*!< in: data page */
-	ibool		first_page)	/*!< in: TRUE if this is the
-					first page of the tablespace */
+	const page_t*	page)		/*!< in: data page */
 {
 	ulint	space_id;
 	ulint	flags;
@@ -1906,7 +1904,7 @@ fil_check_first_page(
 	space_id = mach_read_from_4(FSP_HEADER_OFFSET + FSP_SPACE_ID + page);
 	flags = mach_read_from_4(FSP_HEADER_OFFSET + FSP_SPACE_FLAGS + page);
 
-	if (first_page && !space_id && !flags) {
+	if (!space_id && !flags) {
 		ulint		nonzero_bytes	= UNIV_PAGE_SIZE;
 		const byte*	b		= page;
 
@@ -1924,9 +1922,8 @@ fil_check_first_page(
 		return("checksum mismatch");
 	}
 
-	if (!first_page
-	    || (page_get_space_id(page) == space_id
-		&& page_get_page_no(page) == 0)) {
+	if (page_get_space_id(page) == space_id
+	    && page_get_page_no(page) == 0) {
 		return(NULL);
 	}
 
@@ -1961,7 +1958,7 @@ fil_read_first_page(
 	byte*		buf;
 	page_t*		page;
 	ib_uint64_t	flushed_lsn;
-	const char*	check_msg;
+	const char*	check_msg = NULL;
 
 	buf = ut_malloc(2 * UNIV_PAGE_SIZE);
 	/* Align the memory for a possible read from a raw device */
@@ -1973,7 +1970,9 @@ fil_read_first_page(
 
 	flushed_lsn = mach_read_from_8(page + FIL_PAGE_FILE_FLUSH_LSN);
 
-	check_msg = fil_check_first_page(page, !one_read_already);
+	if (!one_read_already) {
+		check_msg = fil_check_first_page(page);
+	}
 
 	ut_free(buf);
 
@@ -3392,7 +3391,7 @@ fil_open_single_table_tablespace(
 
 	success = os_file_read(file, page, 0, 0, UNIV_PAGE_SIZE);
 
-	check_msg = fil_check_first_page(page, TRUE);
+	check_msg = fil_check_first_page(page);
 
 	/* We have to read the tablespace id and flags from the file. */
 
@@ -3475,7 +3474,7 @@ fil_open_single_table_tablespace(
 		}
 
 		/* get cruster index information */
-		table = dict_table_get_low(name);
+		table = dict_table_get_low(name, DICT_ERR_IGNORE_NONE);
 		index = dict_table_get_first_index(table);
 		ut_a(index->page==3);
 
@@ -3922,7 +3921,7 @@ func_exit:
 
 		zip_size = dict_table_flags_to_zip_size(flags);
 
-		table = dict_table_get_low(name);
+		table = dict_table_get_low(name, DICT_ERR_IGNORE_NONE);
 		index = dict_table_get_first_index(table);
 		page_no = dict_index_get_page(index);
 		ut_a(page_no == 3);
@@ -4361,7 +4360,7 @@ fil_load_single_table_tablespace(
 
 		/* We have to read the tablespace id from the file */
 
-		check_msg = fil_check_first_page(page, TRUE);
+		check_msg = fil_check_first_page(page);
 
 		if (check_msg) {
 			fprintf(stderr,

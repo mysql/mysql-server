@@ -11,8 +11,8 @@ ANY WARRANTY; without even the implied warranty of MERCHANTABILITY or FITNESS
 FOR A PARTICULAR PURPOSE. See the GNU General Public License for more details.
 
 You should have received a copy of the GNU General Public License along with
-this program; if not, write to the Free Software Foundation, Inc., 59 Temple
-Place, Suite 330, Boston, MA 02111-1307 USA
+this program; if not, write to the Free Software Foundation, Inc., 
+51 Franklin St, Fifth Floor, Boston, MA 02110-1301 USA
 
 *****************************************************************************/
 
@@ -220,7 +220,7 @@ trx_create(
 	ut_ad(mutex_own(&kernel_mutex));
 	ut_ad(sess);
 
-	trx = ut_malloc(sizeof(trx_t));
+	trx = mem_alloc(sizeof(trx_t));
 
 	trx->magic_n = TRX_MAGIC_N;
 
@@ -488,7 +488,7 @@ trx_free(
 
 	trx_release_descriptor(trx);
 
-	ut_free(trx);
+	mem_free(trx);
 }
 
 /********************************************************************//**
@@ -546,7 +546,7 @@ trx_free_prepared(
 
 	ut_ad(trx_sys->descr_n_used <= UT_LIST_GET_LEN(trx_sys->trx_list));
 
-	ut_free(trx);
+	mem_free(trx);
 }
 
 /********************************************************************//**
