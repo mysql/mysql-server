@@ -233,6 +233,13 @@ Test.prototype.errorIfNotTrue = function(message, o1) {
   }
 };
 
+Test.prototype.errorIfNotError = function(message, o1) {
+  if (!o1) {
+    message += ' did not occur.\n';
+    this.errorMessages += message;
+  }
+};
+
 Test.prototype.errorIfNull = function(message, val) {
   if(val === null) {
     this.errorMessages += message;
