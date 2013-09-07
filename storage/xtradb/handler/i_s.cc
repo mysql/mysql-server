@@ -47,15 +47,19 @@ Created July 18, 2007 Vasil Dimov
 extern "C" {
 #include "btr0pcur.h"	/* for file sys_tables related info. */
 #include "btr0types.h"
+#include "dict0load.h" /* for file sys_tables related info. */
 #include "buf0buddy.h"
 #include "buf0buf.h"
 #include "ibuf0ibuf.h"
 #include "dict0mem.h"
 #include "dict0types.h"
+#include "srv0srv.h" /* for srv_max_changed_pages */
 #include "dict0boot.h"
 #include "ha_prototypes.h"
 #include "srv0start.h"
 #include "trx0i_s.h"
+#include "trx0trx.h" /* for TRX_QUE_STATE_STR_MAX_LEN */
+#include "buf0lru.h" /* for XTRA_LRU_[DUMP/RESTORE] */
 #include "trx0rseg.h"
 #include "trx0undo.h"
 #include "log0online.h"
