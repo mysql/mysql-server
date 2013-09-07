@@ -8,8 +8,6 @@
   * Query can be executed, passing a parameters object that governs how the
   * query will be executed.
   * 
-  * Currently the implementation of Query supports only queries that
-  * resolve to exactly one row in the table. 
   */
   function Query()
 
@@ -25,9 +23,6 @@
    * 'order' value: 'asc' or 'desc'; default: no order
    * 'skip' value: number of rows to skip from the result; default: 0
    * 'limit' value: number of rows to return; default: a couple of billion
-   *
-   * NOTE: The current implementation supports only queries that completely specify
-   * either the primary key or a unique key and thus return either one or no results.
    *
    * The results of the query are returned in the callback.
    * The query is executed in the context of the session's current state:

@@ -40,18 +40,16 @@ TableMapping(tableName_or_tableMapping);
  * The "implementation" member of the properties object determines the 
  * implementation of the SessionFactory.
  *
- * If mappings is undefined, null, or an empty array, no mappings are loaded
- * or validated. When needed during the execution of a method, any required
- * mappings will be loaded and validated.
- *
- * If mappings contains a string or a constructor function, the metadata for the
- * table (or mapped table) is loaded from the database and validated against the
- * requirements of the mapping.
- *
- * Multiple tables and constructors may be passed as elements in an array.
- * 
+ * The "mappings" parameter can be used preload metadata for application tables
+ * and to validate the defind mappings between stored data and JavaScript 
+ * objects.  If mappings contains a string table name, a Domain Object Cnstructor 
+ * function, or an array of these, then metadata is loaded from the database and
+ * validated against the requirements of the mapping.  If mappings is undefined, 
+ * null, or an empty array, no mappings will be loaded or validated; this means 
+ * validation is deferred until tables are used in application code.
+ *  
  *  @param properties  properties object describing the session
- *  @param mappings    Table Mappings to validated when connection is made
+ *  @param mappings    mappings to validate when connection is made
  *  @param callback    function called after connection is complete.
  *  @return void
  */
@@ -73,18 +71,16 @@ connect(properties, mappings, Function(err, SessionFactory[, ...]) callback[, ..
  * The "implementation" member of the properties object determines the 
  * implementation of the Session.
  *
- * If mappings is undefined, null, or an empty array, no mappings are loaded
- * or validated. When needed during the execution of a method, any required
- * mappings will be loaded and validated.
- *
- * If mappings contains a string or a constructor function, the metadata for the
- * table (or mapped table) is loaded from the database and validated against the
- * requirements of the mapping.
- *
- * Multiple tables and constructors may be passed as elements in an array.
- * 
+ * The "mappings" parameter can be used preload metadata for application tables
+ * and to validate the defind mappings between stored data and JavaScript 
+ * objects.  If mappings contains a string table name, a Domain Object Cnstructor 
+ * function, or an array of these, then metadata is loaded from the database and
+ * validated against the requirements of the mapping.  If mappings is undefined, 
+ * null, or an empty array, no mappings will be loaded or validated; this means 
+ * validation is deferred until tables are used in application code.
+ *  
  *  @param properties  properties object describing the session
- *  @param mappings    Table Mappings to validated when session is opened
+ *  @param mappings    mappings to validate when connection is made
  *  @param callback    function called after connection is complete.
  *  @async
  */
