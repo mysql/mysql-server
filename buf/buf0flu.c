@@ -11,8 +11,8 @@ ANY WARRANTY; without even the implied warranty of MERCHANTABILITY or FITNESS
 FOR A PARTICULAR PURPOSE. See the GNU General Public License for more details.
 
 You should have received a copy of the GNU General Public License along with
-this program; if not, write to the Free Software Foundation, Inc., 59 Temple
-Place, Suite 330, Boston, MA 02111-1307 USA
+this program; if not, write to the Free Software Foundation, Inc., 
+51 Franklin St, Fifth Floor, Boston, MA 02110-1301 USA
 
 *****************************************************************************/
 
@@ -494,11 +494,12 @@ buf_flush_ready_for_flush(
 	//ut_ad(buf_pool_mutex_own(buf_pool));
 #endif
 	//ut_a(buf_page_in_file(bpage));
-	ut_ad(mutex_own(buf_page_get_mutex(bpage)));
-	ut_ad(flush_type == BUF_FLUSH_LRU || BUF_FLUSH_LIST);
+	ut_ad(flush_type == BUF_FLUSH_LRU || flush_type == BUF_FLUSH_LIST);
+	ut_ad(mutex_own(buf_page_get_mutex(bpage))
+	      || flush_type == BUF_FLUSH_LIST);
 
 	if (buf_page_in_file(bpage) && bpage->oldest_modification != 0
-	    && buf_page_get_io_fix(bpage) == BUF_IO_NONE) {
+	    && buf_page_get_io_fix_unlocked(bpage) == BUF_IO_NONE) {
 		ut_ad(bpage->in_flush_list);
 
 		if (flush_type != BUF_FLUSH_LRU) {
@@ -529,8 +530,11 @@ buf_flush_remove(
 	buf_pool_t*	buf_pool = buf_pool_from_bpage(bpage);
 	ulint		zip_size;
 
-	//ut_ad(buf_pool_mutex_own(buf_pool));
 	ut_ad(mutex_own(buf_page_get_mutex(bpage)));
+#if defined UNIV_DEBUG || defined UNIV_BUF_DEBUG
+	ut_ad(buf_page_get_state(bpage) != BUF_BLOCK_ZIP_DIRTY
+	      || mutex_own(&buf_pool->LRU_list_mutex));
+#endif
 	ut_ad(bpage->in_flush_list);
 
 	buf_flush_list_mutex_enter(buf_pool);
@@ -1585,21 +1589,25 @@ buf_flush_page_and_try_neighbors(
 	ulint*		count)		/*!< in/out: number of pages
 					flushed */
 {
-	mutex_t*	block_mutex;
+	mutex_t*	block_mutex = NULL;
 	ibool		flushed = FALSE;
 #ifdef UNIV_DEBUG
 	buf_pool_t*	buf_pool = buf_pool_from_bpage(bpage);
 #endif /* UNIV_DEBUG */
 
-	//ut_ad(buf_pool_mutex_own(buf_pool));
-	ut_ad(flush_type != BUF_FLUSH_LRU
-	      || mutex_own(&buf_pool->LRU_list_mutex));
+	ut_ad((flush_type == BUF_FLUSH_LRU
+	       && mutex_own(&buf_pool->LRU_list_mutex))
+	      || (flush_type == BUF_FLUSH_LIST
+		  && buf_flush_list_mutex_own(buf_pool)));
 
-	block_mutex = buf_page_get_mutex_enter(bpage);
+	if (flush_type == BUF_FLUSH_LRU) {
+		block_mutex = buf_page_get_mutex_enter(bpage);
+		ut_ad(block_mutex);
+	}
 
-	//ut_a(buf_page_in_file(bpage));
+	ut_a(buf_page_in_file(bpage));
 
-	if (block_mutex && buf_flush_ready_for_flush(bpage, flush_type)) {
+	if (buf_flush_ready_for_flush(bpage, flush_type)) {
 		ulint		space;
 		ulint		offset;
 		buf_pool_t*	buf_pool;
@@ -1616,7 +1624,11 @@ buf_flush_page_and_try_neighbors(
 		space = buf_page_get_space(bpage);
 		offset = buf_page_get_page_no(bpage);
 
-		mutex_exit(block_mutex);
+		if (flush_type == BUF_FLUSH_LRU) {
+			mutex_exit(block_mutex);
+		} else {
+			buf_flush_list_mutex_exit(buf_pool);
+		}
 
 		/* Try to flush also all the neighbors */
 		*count += buf_flush_try_neighbors(space,
@@ -1625,18 +1637,19 @@ buf_flush_page_and_try_neighbors(
 						  *count,
 						  n_to_flush);
 
-		//buf_pool_mutex_enter(buf_pool);
 		if (flush_type == BUF_FLUSH_LRU) {
 			mutex_enter(&buf_pool->LRU_list_mutex);
+		} else {
+			buf_flush_list_mutex_enter(buf_pool);
 		}
 		flushed = TRUE;
 	} else if (block_mutex) {
 		mutex_exit(block_mutex);
 	}
 
-	//ut_ad(buf_pool_mutex_own(buf_pool));
-	ut_ad(flush_type != BUF_FLUSH_LRU
-	      || mutex_own(&buf_pool->LRU_list_mutex));
+	ut_ad((flush_type == BUF_FLUSH_LRU
+	       && mutex_own(&buf_pool->LRU_list_mutex))
+	      || buf_flush_list_mutex_own(buf_pool));
 
 	return(flushed);
 }
@@ -1709,7 +1722,6 @@ buf_flush_flush_list_batch(
 {
 	ulint		len;
 	buf_page_t*	bpage;
-	buf_page_t*	prev_bpage = NULL;
 	ulint		count = 0;
 
 	//ut_ad(buf_pool_mutex_own(buf_pool));
@@ -1731,7 +1743,6 @@ buf_flush_flush_list_batch(
 
 		if (bpage) {
 			ut_a(bpage->oldest_modification > 0);
-			prev_bpage = UT_LIST_GET_PREV(flush_list, bpage);
 		}
 
 		if (!bpage || bpage->oldest_modification >= lsn_limit) {
@@ -1745,8 +1756,6 @@ buf_flush_flush_list_batch(
 
 		ut_ad(bpage->in_flush_list);
 
-		buf_flush_list_mutex_exit(buf_pool);
-
 		/* The list may change during the flushing and we cannot
 		safely preserve within this function a pointer to a
 		block in the list! */
@@ -1754,8 +1763,6 @@ buf_flush_flush_list_batch(
 		       && len > 0
 		       && !buf_flush_page_and_try_neighbors(
 				bpage, BUF_FLUSH_LIST, min_n, &count)) {
-
-			buf_flush_list_mutex_enter(buf_pool);
 
 			/* If we are here that means that buf_pool->mutex
 			 was not released in buf_flush_page_and_try_neighbors()
@@ -1775,20 +1782,12 @@ buf_flush_flush_list_batch(
 
 			bpage = UT_LIST_GET_PREV(flush_list, bpage);
 
-			//ut_ad(!bpage || bpage->in_flush_list);
-			if (bpage != prev_bpage) {
-				/* the search might warp.. retrying */
-				buf_flush_list_mutex_exit(buf_pool);
-				break;
-			}
-			if (bpage) {
-				prev_bpage = UT_LIST_GET_PREV(flush_list, bpage);
-			}
-
-			buf_flush_list_mutex_exit(buf_pool);
+			ut_ad(!bpage || bpage->in_flush_list);
 
 			--len;
 		}
+
+		buf_flush_list_mutex_exit(buf_pool);
 
 	} while (count < min_n && bpage != NULL && len > 0);
 

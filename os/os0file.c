@@ -1677,7 +1677,7 @@ try_again:
 #endif /* USE_FILE_LOCK */
 
 	if (srv_use_atomic_writes && type == OS_DATA_FILE
-	    && os_file_set_atomic_writes(name, file)) {
+	    && !os_file_set_atomic_writes(name, file)) {
 
 		*success = FALSE;
 		close(file);

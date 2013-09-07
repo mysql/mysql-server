@@ -121,7 +121,6 @@ static mysql_mutex_t innobase_share_mutex;
 /** to force correct commit order in binlog */
 static mysql_mutex_t prepare_commit_mutex;
 static ulong commit_threads = 0;
-static mysql_mutex_t commit_threads_m;
 static mysql_cond_t commit_cond;
 static mysql_mutex_t commit_cond_m;
 static bool innodb_inited = 0;
@@ -256,12 +255,10 @@ static const char* innobase_change_buffering_values[IBUF_USE_COUNT] = {
 performance schema */
 static mysql_pfs_key_t	innobase_share_mutex_key;
 static mysql_pfs_key_t	prepare_commit_mutex_key;
-static mysql_pfs_key_t	commit_threads_m_key;
 static mysql_pfs_key_t	commit_cond_mutex_key;
 static mysql_pfs_key_t	commit_cond_key;
 
 static PSI_mutex_info	all_pthread_mutexes[] = {
-        {&commit_threads_m_key, "commit_threads_m", 0},
         {&commit_cond_mutex_key, "commit_cond_mutex", 0},
         {&innobase_share_mutex_key, "innobase_share_mutex", 0},
         {&prepare_commit_mutex_key, "prepare_commit_mutex", 0}
@@ -461,6 +458,19 @@ my_bool
 innobase_purge_changed_page_bitmaps(
 /*================================*/
 	ulonglong lsn);	/*!< in: LSN to purge files up to */
+
+
+/*****************************************************************//**
+Check whether this is a fake change transaction.
+@return TRUE if a fake change transaction */
+static
+my_bool
+innobase_is_fake_change(
+/*====================*/
+	handlerton	*hton,  /*!< in: InnoDB handlerton */
+	THD*		thd);	/*!< in: MySQL thread handle of the user for
+				  whom the transaction is being committed */
+
 
 static const char innobase_hton_name[]= "InnoDB";
 
@@ -946,22 +956,18 @@ innodb_srv_conc_exit_innodb(
 }
 
 /******************************************************************//**
-Releases possible search latch and InnoDB thread FIFO ticket. These should
-be released at each SQL statement end, and also when mysqld passes the
-control to the client. It does no harm to release these also in the middle
-of an SQL statement. */
+Force a thread to leave InnoDB even if it has spare tickets. */
 static inline
 void
-innobase_release_stat_resources(
-/*============================*/
-	trx_t*	trx)	/*!< in: transaction object */
+innodb_srv_conc_force_exit_innodb(
+/*==============================*/
+	trx_t*	trx)	/*!< in: transaction handle */
 {
-	if (trx->has_search_latch) {
-		trx_search_latch_release_if_reserved(trx);
-	}
+#ifdef UNIV_SYNC_DEBUG
+	ut_ad(!sync_thread_levels_nonempty_trx(trx->has_search_latch));
+#endif /* UNIV_SYNC_DEBUG */
 
 	if (trx->declared_to_be_inside_innodb) {
-		/* Release our possible ticket in the FIFO */
 
 		srv_conc_force_exit_innodb(trx);
 	}
@@ -1117,9 +1123,10 @@ innobase_release_temporary_latches(
 
 	trx = thd_to_trx(thd);
 
-	if (trx) {
-		innobase_release_stat_resources(trx);
+	if (trx != NULL) {
+		trx_search_latch_release_if_reserved(trx);
 	}
+
 	return(0);
 }
 
@@ -1428,6 +1435,23 @@ innobase_convert_from_id(
 	uint	errors;
 
 	strconvert(cs, from, system_charset_info, to, (uint) len, &errors);
+}
+
+/**********************************************************************
+Converts an identifier from my_charset_filename to UTF-8 charset. */
+extern "C"
+uint
+innobase_convert_to_system_charset(
+/*===============================*/
+	char*		to,	/* out: converted identifier */
+	const char*	from,	/* in: identifier to convert */
+	ulint		len,	/* in: length of 'to', in bytes */
+	uint*		errors)	/* out: error return */
+{
+	CHARSET_INFO*	cs1 = &my_charset_filename;
+	CHARSET_INFO*	cs2 = system_charset_info;
+
+	return(strconvert(cs1, from, cs2, to, len, errors));
 }
 
 /******************************************************************//**
@@ -2136,7 +2160,8 @@ innobase_query_caching_of_table_permitted(
 		mutex_exit(&kernel_mutex);
 	}
 
-	innobase_release_stat_resources(trx);
+	trx_search_latch_release_if_reserved(trx);
+	innodb_srv_conc_force_exit_innodb(trx);
 
 	if (!thd_test_options(thd, OPTION_NOT_AUTOCOMMIT | OPTION_BEGIN)) {
 
@@ -2449,7 +2474,8 @@ ha_innobase::init_table_handle_for_HANDLER(void)
 	/* Initialize the prebuilt struct much like it would be inited in
 	external_lock */
 
-	innobase_release_stat_resources(prebuilt->trx);
+	trx_search_latch_release_if_reserved(prebuilt->trx);
+	innodb_srv_conc_force_exit_innodb(prebuilt->trx);
 
 	/* If the transaction is not started yet, start it */
 
@@ -2646,6 +2672,7 @@ innobase_init(
 		= innobase_flush_changed_page_bitmaps;
 	innobase_hton->purge_changed_page_bitmaps
 		= innobase_purge_changed_page_bitmaps;
+	innobase_hton->is_fake_change = innobase_is_fake_change;
 
 	ut_a(DATA_MYSQL_TRUE_VARCHAR == (ulint)MYSQL_TYPE_VARCHAR);
 
@@ -3210,8 +3237,6 @@ innobase_change_buffering_inited_ok:
 			 MY_MUTEX_INIT_FAST);
 	mysql_mutex_init(prepare_commit_mutex_key,
 			 &prepare_commit_mutex, MY_MUTEX_INIT_FAST);
-	mysql_mutex_init(commit_threads_m_key,
-			 &commit_threads_m, MY_MUTEX_INIT_FAST);
 	mysql_mutex_init(commit_cond_mutex_key,
 			 &commit_cond_m, MY_MUTEX_INIT_FAST);
 	mysql_cond_init(commit_cond_key, &commit_cond, NULL);
@@ -3260,7 +3285,6 @@ innobase_end(
 		my_free(internal_innobase_data_file_path);
 		mysql_mutex_destroy(&innobase_share_mutex);
 		mysql_mutex_destroy(&prepare_commit_mutex);
-		mysql_mutex_destroy(&commit_threads_m);
 		mysql_mutex_destroy(&commit_cond_m);
 		mysql_cond_destroy(&commit_cond);
 	}
@@ -3335,6 +3359,23 @@ innobase_purge_changed_page_bitmaps(
 	return (my_bool)log_online_purge_changed_page_bitmaps(lsn);
 }
 
+/*****************************************************************//**
+Check whether this is a fake change transaction.
+@return TRUE if a fake change transaction */
+static
+my_bool
+innobase_is_fake_change(
+/*====================*/
+	handlerton	*hton __attribute__((unused)),
+				/*!< in: InnoDB handlerton */
+	THD*		thd)	/*!< in: MySQL thread handle of the user for
+				whom the transaction is being committed */
+{
+	trx_t*	trx = check_trx_exists(thd);
+	return trx->fake_changes;
+}
+
+
 /****************************************************************//**
 Copy the current replication position from MySQL to a transaction. */
 static
@@ -3408,7 +3449,8 @@ innobase_start_trx_and_assign_read_view(
 	search latch. Since we will reserve the kernel mutex, we have to
 	release the search system latch first to obey the latching order. */
 
-	innobase_release_stat_resources(trx);
+	trx_search_latch_release_if_reserved(trx);
+	innodb_srv_conc_force_exit_innodb(trx);
 
 	/* If the transaction is not started yet, start it */
 
@@ -3726,7 +3768,8 @@ innobase_rollback(
 	reserve the kernel mutex, we have to release the search system latch
 	first to obey the latching order. */
 
-	innobase_release_stat_resources(trx);
+	trx_search_latch_release_if_reserved(trx);
+	innodb_srv_conc_force_exit_innodb(trx);
 
 	trx->n_autoinc_rows = 0; /* Reset the number AUTO-INC rows required */
 
@@ -3740,6 +3783,9 @@ innobase_rollback(
 	    || !thd_test_options(thd, OPTION_NOT_AUTOCOMMIT | OPTION_BEGIN)) {
 
 		error = trx_rollback_for_mysql(trx);
+                if (trx_has_prepare_commit_mutex(trx)) {
+                  mysql_mutex_unlock(&prepare_commit_mutex);
+                }
 		trx_deregister_from_2pc(trx);
 	} else {
 		error = trx_rollback_last_sql_stat_for_mysql(trx);
@@ -3766,7 +3812,8 @@ innobase_rollback_trx(
 	reserve the kernel mutex, we have to release the search system latch
 	first to obey the latching order. */
 
-	innobase_release_stat_resources(trx);
+	trx_search_latch_release_if_reserved(trx);
+	innodb_srv_conc_force_exit_innodb(trx);
 
 	/* If we had reserved the auto-inc lock for some table (if
 	we come here to roll back the latest SQL statement) we
@@ -3806,7 +3853,8 @@ innobase_rollback_to_savepoint(
 	reserve the kernel mutex, we have to release the search system latch
 	first to obey the latching order. */
 
-	innobase_release_stat_resources(trx);
+	trx_search_latch_release_if_reserved(trx);
+	innodb_srv_conc_force_exit_innodb(trx);
 
 	/* TODO: use provided savepoint data area to store savepoint data */
 
@@ -3881,7 +3929,8 @@ innobase_savepoint(
 	reserve the kernel mutex, we have to release the search system latch
 	first to obey the latching order. */
 
-	innobase_release_stat_resources(trx);
+	trx_search_latch_release_if_reserved(trx);
+	innodb_srv_conc_force_exit_innodb(trx);
 
 	/* Cannot happen outside of transaction */
 	DBUG_ASSERT(trx_is_registered_for_2pc(trx));
@@ -4636,16 +4685,17 @@ UNIV_INTERN
 int
 ha_innobase::open(
 /*==============*/
-	const char*	name,		/*!< in: table name */
-	int		mode,		/*!< in: not used */
-	uint		test_if_locked)	/*!< in: not used */
+	const char*		name,		/*!< in: table name */
+	int			mode,		/*!< in: not used */
+	uint			test_if_locked)	/*!< in: not used */
 {
-	dict_table_t*	ib_table;
-	char		norm_name[1000];
-	THD*		thd;
-	char*		is_part = NULL;
-	ibool		par_case_name_set = FALSE;
-	char		par_case_name[MAX_FULL_NAME_LEN + 1];
+	dict_table_t*		ib_table;
+	char			norm_name[1000];
+	THD*			thd;
+	char*			is_part = NULL;
+	ibool			par_case_name_set = FALSE;
+	char			par_case_name[MAX_FULL_NAME_LEN + 1];
+	dict_err_ignore_t	ignore_err = DICT_ERR_IGNORE_NONE;
 
 	DBUG_ENTER("ha_innobase::open");
 
@@ -4689,8 +4739,15 @@ ha_innobase::open(
 	is_part = strstr(norm_name, "#P#");
 #endif /* __WIN__ */
 
+	/* Check whether FOREIGN_KEY_CHECKS is set to 0. If so, the table
+	can be opened even if some FK indexes are missing. If not, the table
+	can't be opened in the same situation */
+	if (thd_test_options(thd, OPTION_NO_FOREIGN_KEY_CHECKS)) {
+		ignore_err = DICT_ERR_IGNORE_FK_NOKEY;
+	}
+
 	/* Get pointer to a table object in InnoDB dictionary cache */
-	ib_table = dict_table_get(norm_name, TRUE);
+	ib_table = dict_table_get(norm_name, TRUE, ignore_err);
 
 	if (UNIV_UNLIKELY(ib_table && ib_table->is_corrupt &&
 			  srv_pass_corrupt_table <= 1)) {
@@ -4746,7 +4803,7 @@ ha_innobase::open(
 				}
 
 				ib_table = dict_table_get(
-					par_case_name, FALSE);
+					par_case_name, FALSE, ignore_err);
 			}
 			if (ib_table) {
 #ifndef __WIN__
@@ -8240,7 +8297,8 @@ ha_innobase::create(
 
 	log_buffer_flush_to_disk();
 
-	innobase_table = dict_table_get(norm_name, FALSE);
+	innobase_table = dict_table_get(norm_name, FALSE,
+					DICT_ERR_IGNORE_NONE);
 
 	DBUG_ASSERT(innobase_table != 0);
 
@@ -9134,6 +9192,8 @@ ha_innobase::info_low(
 
 			prebuilt->trx->op_info = "updating table statistics";
 
+			DEBUG_SYNC_C("info_before_stats_update");
+
 			dict_update_statistics(
 				ib_table,
 				FALSE, /* update even if initialized */
@@ -9613,6 +9673,9 @@ ha_innobase::check(
 					    (ulong) n_rows,
 					    (ulong) n_rows_in_table);
 			is_ok = FALSE;
+			row_mysql_lock_data_dictionary(prebuilt->trx);
+			dict_set_corrupted(index);
+			row_mysql_unlock_data_dictionary(prebuilt->trx);
 		}
 	}
 
@@ -10161,7 +10224,8 @@ ha_innobase::start_stmt(
 	that may not be the case. We MUST release the search latch before an
 	INSERT, for example. */
 
-	innobase_release_stat_resources(trx);
+	trx_search_latch_release_if_reserved(trx);
+	innodb_srv_conc_force_exit_innodb(trx);
 
 	/* Reset the AUTOINC statement level counter for multi-row INSERTs. */
 	trx->n_autoinc_rows = 0;
@@ -10356,7 +10420,8 @@ ha_innobase::external_lock(
 	may reserve the kernel mutex, we have to release the search
 	system latch first to obey the latching order. */
 
-	innobase_release_stat_resources(trx);
+	trx_search_latch_release_if_reserved(trx);
+	innodb_srv_conc_force_exit_innodb(trx);
 
 	/* If the MySQL lock count drops to zero we know that the current SQL
 	statement has ended */
@@ -10535,7 +10600,8 @@ innodb_show_status(
 
 	trx = check_trx_exists(thd);
 
-	innobase_release_stat_resources(trx);
+	trx_search_latch_release_if_reserved(trx);
+	innodb_srv_conc_force_exit_innodb(trx);
 
 	/* We let the InnoDB Monitor to output at most MAX_STATUS_SIZE
 	bytes of text. */
@@ -11519,7 +11585,14 @@ innobase_xa_prepare(
 		return(0);
 	}
 
-	if (trx->fake_changes) {
+	if (UNIV_UNLIKELY(trx->fake_changes)) {
+
+		if (all || (!thd_test_options(thd, OPTION_NOT_AUTOCOMMIT
+					      | OPTION_BEGIN))) {
+
+			thd->stmt_da->reset_diagnostics_area();
+			return(HA_ERR_WRONG_COMMAND);
+		}
 		return(0);
 	}
 
@@ -11529,7 +11602,8 @@ innobase_xa_prepare(
 	reserve the kernel mutex, we have to release the search system latch
 	first to obey the latching order. */
 
-	innobase_release_stat_resources(trx);
+	trx_search_latch_release_if_reserved(trx);
+	innodb_srv_conc_force_exit_innodb(trx);
 
 	if (!trx_is_registered_for_2pc(trx) && trx_is_started(trx)) {
 
@@ -13491,7 +13565,6 @@ test_innobase_convert_name()
 		}
 	}
 }
-
 #endif /* UNIV_COMPILE_TEST_FUNCS */
 
 /**********************************************************************
@@ -13505,43 +13578,8 @@ innobase_convert_to_filename_charset(
 	ulint		len)	/* in: length of 'to', in bytes */
 {
 	uint		errors;
-	uint		rlen;
 	CHARSET_INFO*	cs_to = &my_charset_filename;
 	CHARSET_INFO*	cs_from = system_charset_info;
 
-	rlen = strconvert(cs_from, from, cs_to, to, len, &errors);
-
-	if (errors) {
-		fprintf(stderr, "InnoDB: There was a problem in converting"
-			"'%s' in charset %s to charset %s", from, cs_from->name,
-			cs_to->name);
-	}
-
-	return(rlen);
-}
-
-/**********************************************************************
-Converts an identifier from my_charset_filename to UTF-8 charset. */
-extern "C"
-uint
-innobase_convert_to_system_charset(
-/*===============================*/
-	char*		to,	/* out: converted identifier */
-	const char*	from,	/* in: identifier to convert */
-	ulint		len,	/* in: length of 'to', in bytes */
-	uint*		errors)	/* out: error return */
-{
-	uint		rlen;
-	CHARSET_INFO*	cs1 = &my_charset_filename;
-	CHARSET_INFO*	cs2 = system_charset_info;
-
-	rlen = strconvert(cs1, from, cs2, to, len, errors);
-
-	if (*errors) {
-		fprintf(stderr, "InnoDB: There was a problem in converting"
-			"'%s' in charset %s to charset %s", from, cs1->name,
-			cs2->name);
-	}
-
-	return(rlen);
+	return(strconvert(cs_from, from, cs_to, to, len, &errors));
 }

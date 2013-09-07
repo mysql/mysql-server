@@ -26,8 +26,8 @@ ANY WARRANTY; without even the implied warranty of MERCHANTABILITY or FITNESS
 FOR A PARTICULAR PURPOSE. See the GNU General Public License for more details.
 
 You should have received a copy of the GNU General Public License along with
-this program; if not, write to the Free Software Foundation, Inc., 59 Temple
-Place, Suite 330, Boston, MA 02111-1307 USA
+this program; if not, write to the Free Software Foundation, Inc., 
+51 Franklin St, Fifth Floor, Boston, MA 02110-1301 USA
 
 *****************************************************************************/
 
@@ -179,7 +179,7 @@ UNIV_INTERN char*	srv_doublewrite_file = NULL;
 
 UNIV_INTERN ibool	srv_recovery_stats = FALSE;
 
-UNIV_INTERN my_bool	srv_track_changed_pages = TRUE;
+UNIV_INTERN my_bool	srv_track_changed_pages = FALSE;
 
 UNIV_INTERN ib_uint64_t	srv_max_bitmap_file_size = 100 * 1024 * 1024;
 
@@ -3932,14 +3932,18 @@ background_loop:
 flush_loop:
 	srv_main_thread_op_info = "flushing buffer pool pages";
 	srv_main_flush_loops++;
-	if (srv_fast_shutdown < 2) {
+	if (srv_fast_shutdown < 2 || srv_shutdown_state == SRV_SHUTDOWN_NONE) {
 		n_pages_flushed = buf_flush_list(
 			  PCT_IO(100), IB_ULONGLONG_MAX);
 	} else {
 		/* In the fastest shutdown we do not flush the buffer pool
 		to data files: we set n_pages_flushed to 0 artificially. */
+		ut_ad(srv_fast_shutdown == 2);
+		ut_ad(srv_shutdown_state > 0);
 
 		n_pages_flushed = 0;
+
+		DBUG_PRINT("master", ("doing very fast shutdown"));
 	}
 
 	srv_main_thread_op_info = "reserving kernel mutex";
@@ -3961,7 +3965,12 @@ flush_loop:
 
 	log_checkpoint(TRUE, FALSE);
 
-	if (buf_get_modified_ratio_pct() > srv_max_buf_pool_modified_pct) {
+	if (!(srv_fast_shutdown == 2 && srv_shutdown_state > 0)
+	    && (buf_get_modified_ratio_pct()
+		> srv_max_buf_pool_modified_pct)) {
+
+		/* If the server is doing a very fast shutdown, then
+		we will not come here. */
 
 		/* Try to keep the number of modified pages in the
 		buffer pool under the limit wished by the user */
