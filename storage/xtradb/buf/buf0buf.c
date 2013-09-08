@@ -4065,14 +4065,14 @@ retry_mutex:
 		mutex_enter(&buf_pool->LRU_list_mutex);
 	block_mutex = buf_page_get_mutex_enter(bpage);
 	ut_a(block_mutex);
-	if (UNIV_UNLIKELY(io_type == BUF_IO_WRITE
+	if (io_type == BUF_IO_WRITE
 			  && (
 #if defined UNIV_DEBUG || defined UNIV_BUF_DEBUG
 			      buf_page_get_state(bpage) == BUF_BLOCK_ZIP_DIRTY
 			      ||
 #endif
 			      buf_page_get_flush_type(bpage) == BUF_FLUSH_LRU)
-			  && !have_LRU_mutex)) {
+			  && !have_LRU_mutex) {
 
 		mutex_exit(block_mutex);
 		have_LRU_mutex = TRUE;
