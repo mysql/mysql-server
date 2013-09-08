@@ -7089,6 +7089,9 @@ ER_GCS_REPLICATION_RUNNING
 ER_ENGINE_OUT_OF_MEMORY
   eng "Out of memory in storage engine '%-.64s'."
 
+ER_PASSWORD_EXPIRE_ANONYMOUS_USER
+  eng "The password for anonymous user cannot be expired."
+
 #
 #  End of 5.7 error messages.
 #

@@ -2067,7 +2067,7 @@ TC_LOG::enum_result TC_LOG_MMAP::commit(THD *thd, bool all)
 {
   DBUG_ENTER("TC_LOG_MMAP::commit");
   ulong cookie= 0;
-  my_xid xid= thd->transaction.xid_state.xid.get_my_xid();
+  my_xid xid= thd->transaction.xid_state.get_xid()->get_my_xid();
 
   if (all && xid)
     if (!(cookie= log_xid(xid)))

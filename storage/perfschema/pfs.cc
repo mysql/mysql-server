@@ -1189,9 +1189,9 @@ static inline int mysql_mutex_lock(...)
 @endverbatim
 
   Implemented as:
-  - [1] @c memory_alloc_v1(),
-        @c memory_realloc_v1(),
-        @c memory_free_v1().
+  - [1] @c pfs_memory_alloc_v1(),
+        @c pfs_memory_realloc_v1(),
+        @c pfs_memory_free_v1().
   - [1+] are overflows that can happen during [1a],
         implemented with @c carry_memory_stat_delta()
   - [2] @c delete_thread_v1(), @c aggregate_thread_memory()
@@ -1816,7 +1816,10 @@ pfs_rebind_table_v1(PSI_table_share *share, const void *identity, PSI_table *tab
     /* The table handle was already instrumented, reuse it for this thread. */
     PFS_thread *thread= my_pthread_get_THR_PFS();
     pfs->m_thread_owner= thread;
-    pfs->m_owner_event_id= thread->m_event_id;
+    if (thread != NULL)
+      pfs->m_owner_event_id= thread->m_event_id;
+    else
+      pfs->m_owner_event_id= 0;
     return table;
   }
 
@@ -5499,12 +5502,10 @@ void pfs_register_memory_v1(const char *category,
                    register_memory_class)
 }
 
-static PSI_memory_key memory_alloc_v1(PSI_memory_key key, size_t size)
+static PSI_memory_key pfs_memory_alloc_v1(PSI_memory_key key, size_t size)
 {
   PFS_memory_class *klass= find_memory_class(key);
   if (klass == NULL)
-    return PSI_NOT_INSTRUMENTED;
-  if (! klass->m_enabled)
     return PSI_NOT_INSTRUMENTED;
 
   PFS_memory_stat *event_name_array;
@@ -5542,12 +5543,10 @@ static PSI_memory_key memory_alloc_v1(PSI_memory_key key, size_t size)
   return key;
 }
 
-static PSI_memory_key memory_realloc_v1(PSI_memory_key key, size_t old_size, size_t new_size)
+static PSI_memory_key pfs_memory_realloc_v1(PSI_memory_key key, size_t old_size, size_t new_size)
 {
   PFS_memory_class *klass= find_memory_class(key);
   if (klass == NULL)
-    return PSI_NOT_INSTRUMENTED;
-  if (! klass->m_enabled)
     return PSI_NOT_INSTRUMENTED;
 
   PFS_memory_stat *event_name_array;
@@ -5559,39 +5558,58 @@ static PSI_memory_key memory_realloc_v1(PSI_memory_key key, size_t old_size, siz
   if (flag_thread_instrumentation)
   {
     PFS_thread *pfs_thread= my_pthread_getspecific_ptr(PFS_thread*, THR_PFS);
-    if (unlikely(pfs_thread == NULL))
-      return PSI_NOT_INSTRUMENTED;
-    if (! pfs_thread->m_enabled)
-      return PSI_NOT_INSTRUMENTED;
-
-    /* Aggregate to MEMORY_SUMMARY_BY_THREAD_BY_EVENT_NAME */
-    event_name_array= pfs_thread->m_instr_class_memory_stats;
-    stat= & event_name_array[index];
-    delta= stat->count_realloc(old_size, new_size, &delta_buffer);
-
-    if (delta != NULL)
+    if (likely(pfs_thread != NULL))
     {
-      pfs_thread->carry_memory_stat_delta(delta, index);
+      /* Aggregate to MEMORY_SUMMARY_BY_THREAD_BY_EVENT_NAME */
+      event_name_array= pfs_thread->m_instr_class_memory_stats;
+      stat= & event_name_array[index];
+
+      if (klass->m_enabled)
+      {
+        delta= stat->count_realloc(old_size, new_size, &delta_buffer);
+      }
+      else
+      {
+        delta= stat->count_free(old_size, &delta_buffer);
+        key= PSI_NOT_INSTRUMENTED;
+      }
+
+      if (delta != NULL)
+      {
+        pfs_thread->carry_memory_stat_delta(delta, index);
+      }
+      return key;
     }
+  }
+
+  /* Aggregate to MEMORY_SUMMARY_GLOBAL_BY_EVENT_NAME */
+  event_name_array= global_instr_class_memory_array;
+  stat= & event_name_array[index];
+
+  if (klass->m_enabled)
+  {
+    (void) stat->count_realloc(old_size, new_size, &delta_buffer);
   }
   else
   {
-    /* Aggregate to MEMORY_SUMMARY_GLOBAL_BY_EVENT_NAME */
-    event_name_array= global_instr_class_memory_array;
-    stat= & event_name_array[index];
-    (void) stat->count_realloc(old_size, new_size, &delta_buffer);
+    (void) stat->count_free(old_size, &delta_buffer);
+    key= PSI_NOT_INSTRUMENTED;
   }
 
   return key;
 }
 
-static void memory_free_v1(PSI_memory_key key, size_t size)
+static void pfs_memory_free_v1(PSI_memory_key key, size_t size)
 {
   PFS_memory_class *klass= find_memory_class(key);
   if (klass == NULL)
     return;
-  if (! klass->m_enabled)
-    return;
+
+  /*
+    Do not check klass->m_enabled.
+    If a memory alloc was instrumented,
+    the corresponding free must be instrumented.
+  */
 
   PFS_memory_stat *event_name_array;
   PFS_memory_stat *stat;
@@ -5602,28 +5620,30 @@ static void memory_free_v1(PSI_memory_key key, size_t size)
   if (flag_thread_instrumentation)
   {
     PFS_thread *pfs_thread= my_pthread_getspecific_ptr(PFS_thread*, THR_PFS);
-    if (unlikely(pfs_thread == NULL))
-      return;
-    if (! pfs_thread->m_enabled)
-      return;
-
-    /* Aggregate to MEMORY_SUMMARY_BY_THREAD_BY_EVENT_NAME */
-    event_name_array= pfs_thread->m_instr_class_memory_stats;
-    stat= & event_name_array[index];
-    delta= stat->count_free(size, &delta_buffer);
-
-    if (delta != NULL)
+    if (likely(pfs_thread != NULL))
     {
-      pfs_thread->carry_memory_stat_delta(delta, index);
+      /*
+        Do not check pfs_thread->m_enabled.
+        If a memory alloc was instrumented,
+        the corresponding free must be instrumented.
+      */
+      /* Aggregate to MEMORY_SUMMARY_BY_THREAD_BY_EVENT_NAME */
+      event_name_array= pfs_thread->m_instr_class_memory_stats;
+      stat= & event_name_array[index];
+      delta= stat->count_free(size, &delta_buffer);
+
+      if (delta != NULL)
+      {
+        pfs_thread->carry_memory_stat_delta(delta, index);
+      }
+      return;
     }
   }
-  else
-  {
-    /* Aggregate to MEMORY_SUMMARY_GLOBAL_BY_EVENT_NAME */
-    event_name_array= global_instr_class_memory_array;
-    stat= & event_name_array[index];
-    (void) stat->count_free(size, &delta_buffer);
-  }
+
+  /* Aggregate to MEMORY_SUMMARY_GLOBAL_BY_EVENT_NAME */
+  event_name_array= global_instr_class_memory_array;
+  stat= & event_name_array[index];
+  (void) stat->count_free(size, &delta_buffer);
 
   return;
 }
@@ -5954,9 +5974,9 @@ PSI_v1 PFS_v1=
   pfs_get_sp_share_v1,
   pfs_release_sp_share_v1,
   pfs_register_memory_v1,
-  memory_alloc_v1,
-  memory_realloc_v1,
-  memory_free_v1,
+  pfs_memory_alloc_v1,
+  pfs_memory_realloc_v1,
+  pfs_memory_free_v1,
   pfs_unlock_table_v1,
   pfs_create_metadata_lock_v1,
   pfs_set_metadata_lock_status_v1,
