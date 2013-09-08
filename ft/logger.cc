@@ -1112,7 +1112,7 @@ int toku_logprint_TXNID_PAIR (FILE *outf, FILE *inf, const char *fieldname, stru
     TXNID_PAIR v;
     int r = toku_fread_TXNID_PAIR(inf, &v, checksum, len);
     if (r!=0) return r;
-    fprintf(outf, " %s=%" PRIu64 "%" PRIu64, fieldname, v.parent_id64, v.child_id64);
+    fprintf(outf, " %s=%" PRIu64 ",%" PRIu64, fieldname, v.parent_id64, v.child_id64);
     return 0;
 }
 
