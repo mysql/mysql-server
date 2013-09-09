@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2000, 2011, Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2000, 2013, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -2928,7 +2928,9 @@ String *Item_func_conv::val_str(String *str)
   int to_base= (int) args[2]->val_int();
   int err;
 
+  // Note that abs(INT_MIN) is undefined.
   if (args[0]->null_value || args[1]->null_value || args[2]->null_value ||
+      from_base == INT_MIN || to_base == INT_MIN ||
       abs(to_base) > 36 || abs(to_base) < 2 ||
       abs(from_base) > 36 || abs(from_base) < 2 || !(res->length()))
   {
