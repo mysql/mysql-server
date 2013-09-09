@@ -518,32 +518,6 @@ else
 fi
 plugin_dir="${plugin_dir}${PLUGIN_VARIANT}"
 
-# A pid file is created for the mysqld_safe process. This file protects the
-# server instance resources during race conditions.
-safe_pid="$DATADIR/mysqld_safe.pid"
-if test -f $safe_pid
-then
-  PID=`cat "$safe_pid"`
-  if @CHECK_PID@
-  then
-    if @FIND_PROC@
-    then
-      log_error "A mysqld_safe process already exists"
-      exit 1
-    fi
-  fi
-  rm -f "$safe_pid"
-  if test -f "$safe_pid"
-  then
-    log_error "Fatal error: Can't remove the mysqld_safe pid file"
-    exit 1
-  fi
-fi
-
-# Insert pid proerply into the pid file.
-ps -e | grep  [m]ysqld_safe | awk '{print $1}' | sed -n 1p > $safe_pid
-# End of mysqld_safe pid(safe_pid) check.
-
 # Determine what logging facility to use
 
 # Ensure that 'logger' exists, if it's requested
@@ -553,7 +527,6 @@ then
   if [ $? -ne 0 ]
   then
     log_error "--syslog requested, but no 'logger' program found.  Please ensure that 'logger' is in your PATH, or do not specify the --syslog option to mysqld_safe."
-    rm -f "$safe_pid"                 # Clean Up of mysqld_safe.pid file.
     exit 1
   fi
 fi
@@ -659,7 +632,6 @@ does not exist or is not executable. Please cd to the mysql installation
 directory and restart this script from there as follows:
 ./bin/mysqld_safe&
 See http://dev.mysql.com/doc/mysql/en/mysqld-safe.html for more information"
-  rm -f "$safe_pid"                 # Clean Up of mysqld_safe.pid file.
   exit 1
 fi
 
@@ -753,7 +725,6 @@ then
     if @FIND_PROC@
     then    # The pid contains a mysqld process
       log_error "A mysqld process already exists"
-      rm -f "$safe_pid"                 # Clean Up of mysqld_safe.pid file.
       exit 1
     fi
   fi
@@ -764,7 +735,6 @@ then
 $pid_file
 Please remove it manually and start $0 again;
 mysqld daemon not started"
-    rm -f "$safe_pid"                 # Clean Up of mysqld_safe.pid file.
     exit 1
   fi
 fi
@@ -888,5 +858,3 @@ done
 
 log_notice "mysqld from pid file $pid_file ended"
 
-rm -f "$safe_pid"                       # Some Extra Safety. File is deleted
-                                        # once the mysqld process ends.
