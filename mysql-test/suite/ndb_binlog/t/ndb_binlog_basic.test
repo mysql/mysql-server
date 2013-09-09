@@ -55,6 +55,7 @@ select inserts,updates,deletes from
 #
 flush logs;
 --sleep 1
+--replace_regex /\.[\\\/]mysqld/.\/mysqld/;
 purge master logs before now();
 --disable_parsing
 select count(*) from mysql.ndb_binlog_index;
