@@ -116,6 +116,7 @@
 #include "opt_trace.h"
 #include "filesort.h"         // filesort_free_buffers
 #include "sql_optimizer.h"    // is_indexed_agg_distinct,field_time_cmp_date
+#include "uniques.h"
 
 using std::min;
 using std::max;
