@@ -1,0 +1,21 @@
+set autocommit=off;
+drop table if exists t;
+create table t (a int, b int, primary key (a)) engine=tokudb;
+start transaction;
+insert into t values (1,2),(2,4),(3,8);
+commit;
+start transaction;
+select * from t;
+a	b
+1	2
+2	4
+3	8
+commit;
+start transaction;
+truncate table t;
+rollback;
+start transaction;
+select * from t;
+a	b
+commit;
+drop table t;

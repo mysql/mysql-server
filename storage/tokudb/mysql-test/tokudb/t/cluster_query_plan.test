@@ -1,0 +1,37 @@
+#--source include/have_tokudb.inc
+SET DEFAULT_STORAGE_ENGINE='tokudb';
+
+--disable_warnings
+DROP TABLE IF EXISTS t1;
+--enable_warnings
+
+create table t1(a int, b int, c int, d int, primary key(a), key(b) clustering=yes, key (c))engine=tokudb;
+
+insert into t1 values (1,1,1,1),(2,2,2,2),(3,3,3,3),(4,4,4,4),(5,5,5,5),(6,6,6,6),(7,7,7,7),(8,8,8,8),(9,9,9,9);
+
+# ignore rows column
+--replace_column 9 NULL;
+explain select * from t1 where b > 2;
+# ignore rows column
+--replace_column 9 NULL;
+explain select * from t1 where c > 2;
+
+# ignore rows column
+--replace_column 9 NULL;
+explain select * from t1 where a > 4;
+
+# ignore rows column
+--replace_column 9 NULL;
+explain select * from t1 where c > 7;
+# ignore rows column
+--replace_column 9 NULL;
+explain select * from t1 where b > 7;
+
+# ignore rows column
+--replace_column 9 NULL;
+explain select a from t1 where b > 0;
+# ignore rows column
+--replace_column 9 NULL;
+explain select a from t1 where c > 0;
+
+drop table t1;

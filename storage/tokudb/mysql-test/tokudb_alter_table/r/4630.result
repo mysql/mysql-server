@@ -1,0 +1,25 @@
+SET DEFAULT_STORAGE_ENGINE = 'tokudb';
+DROP TABLE IF EXISTS foo;
+set session tokudb_disable_slow_alter=ON;
+create table foo (a int);
+insert into foo values (1),(2),(3);
+alter table foo add column b blob;
+select * from foo;
+a	b
+1	NULL
+2	NULL
+3	NULL
+alter table foo add column c blob NOT NULL;
+select * from foo;
+a	b	c
+1	NULL	
+2	NULL	
+3	NULL	
+alter table foo add column d blob DEFAULT="asdf";
+ERROR 42000: You have an error in your SQL syntax; check the manual that corresponds to your XYZ server version for the right syntax to use near '="asdf"' at line 1
+select * from foo;
+a	b	c
+1	NULL	
+2	NULL	
+3	NULL	
+DROP TABLE foo;

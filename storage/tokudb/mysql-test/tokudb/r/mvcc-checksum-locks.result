@@ -1,0 +1,55 @@
+SET DEFAULT_STORAGE_ENGINE = 'tokudb';
+# Establish connection conn1 (user = root)
+DROP TABLE IF EXISTS foo;
+create table foo (a int)engine=TokuDB;
+show create table foo;
+Table	Create Table
+foo	CREATE TABLE `foo` (
+  `a` int(11) DEFAULT NULL
+) ENGINE=TokuDB DEFAULT CHARSET=latin1
+insert into foo values (1),(2),(3);
+begin;
+insert into foo values (4);
+set session transaction isolation level repeatable read;
+# 1,2,3
+select * from foo;
+a
+1
+2
+3
+checksum table foo;
+Table	Checksum
+test.foo	251493421
+set session transaction isolation level read committed;
+# 1,2,3
+select * from foo;
+a
+1
+2
+3
+checksum table foo;
+Table	Checksum
+test.foo	251493421
+set session transaction isolation level read uncommitted;
+# 1,2,3,4
+select * from foo;
+a
+1
+2
+3
+4
+checksum table foo;
+Table	Checksum
+test.foo	149057747
+set session transaction isolation level serializable;
+begin;
+select * from foo;
+ERROR HY000: Lock wait timeout exceeded; try restarting transaction
+commit;
+# should be NULL
+checksum table foo;
+Table	Checksum
+test.foo	NULL
+commit;
+set session transaction isolation level serializable;
+DROP TABLE foo;

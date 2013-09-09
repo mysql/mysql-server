@@ -1,0 +1,68 @@
+--source include/have_innodb.inc
+--source include/have_tokudb.inc
+
+--disable_warnings
+drop table if exists t1, t2;
+--enable_warnings
+
+set local default_storage_engine=innodb;
+set local storage_engine=innodb;
+
+create table t1 (
+  file_id bigint unsigned not null auto_increment primary key,
+  file_number bigint not null);
+
+insert into t1 values (1,1), (2,2), (3,3), (4,4), (5,5), (6,6), (7,7), (8,8), (9,9), (10,10);
+insert into t1 select t1.file_id+10, t1.file_number+10 from t1;
+insert into t1 select t1.file_id+20, t1.file_number+20 from t1;
+insert into t1 select t1.file_id+40, t1.file_number+40 from t1;
+insert into t1 select t1.file_id+100, t1.file_number+100 from t1;
+insert into t1 select t1.file_id+200, t1.file_number+200 from t1;
+insert into t1 select t1.file_id+400, t1.file_number+400 from t1;
+insert into t1 select t1.file_id+1000, t1.file_number+1000 from t1;
+insert into t1 select t1.file_id+10000, t1.file_number+10000 from t1;
+insert into t1 select t1.file_id+100000, t1.file_number+100000 from t1;
+insert into t1 select t1.file_id+1000000, t1.file_number+1000000 from t1;
+insert into t1 select t1.file_id+10000000, t1.file_number+10000000 from t1;
+insert into t1 select t1.file_id+100000000, t1.file_number+100000000 from t1;
+
+create table t2 (
+  file_id bigint unsigned not null,
+  country char(2) not null,
+  hits bigint not null,
+  insert_ts date not null,
+  primary key (file_id, insert_ts, country),
+  key idx2 (insert_ts, country));
+  
+insert into t2 select t1.file_id, 'US', 5, now() from t1;
+insert into t2 select t1.file_id, 'CA', 5, now() from t1;
+insert into t2 select t1.file_id, 'JP', 5, now() from t1;
+#insert into t2 select t1.file_id, 'MX', 5, now() from t1;
+#insert into t2 select t1.file_id, 'FR', 5, now() from t1;
+
+insert into t2 select t2.file_id, t2.country, 5, date_sub(t2.insert_ts,interval 1 day) from t2;
+insert into t2 select t2.file_id, t2.country, 5, date_sub(t2.insert_ts,interval 2 day) from t2;
+insert into t2 select t2.file_id, t2.country, 5, date_sub(t2.insert_ts,interval 4 day) from t2;
+insert into t2 select t2.file_id, t2.country, 5, date_sub(t2.insert_ts,interval 8 day) from t2;
+insert into t2 select t2.file_id, t2.country, 5, date_sub(t2.insert_ts,interval 16 day) from t2;
+
+
+# ignore rows column
+--replace_column 9 NULL;
+explain
+select t1.file_id, 
+       t1.file_number, 
+       (select hits from t2 where t2.file_id = t1.file_id and t2.insert_ts = date(date_sub(now(),interval 1 day))) as d
+from t1;
+
+alter table t2 engine=tokudb;
+
+# ignore rows column
+--replace_column 9 NULL;
+explain
+select t1.file_id, 
+       t1.file_number, 
+       (select hits from t2 where t2.file_id = t1.file_id and t2.insert_ts = date(date_sub(now(),interval 1 day))) as d
+from t1;
+
+drop table if exists t1, t2;

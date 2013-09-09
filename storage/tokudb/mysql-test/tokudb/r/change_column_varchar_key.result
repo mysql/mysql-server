@@ -1,0 +1,22 @@
+DROP TABLE IF EXISTS t;
+SET SESSION TOKUDB_DISABLE_SLOW_ALTER=ON;
+CREATE TABLE t (a VARCHAR(100), b VARCHAR(256), KEY(a), KEY(b)) ENGINE=TokuDB;
+ALTER TABLE t CHANGE COLUMN a a VARCHAR(100);
+ALTER TABLE t CHANGE COLUMN a a VARCHAR(1);
+ERROR 42000: Table 't' uses an extension that doesn't exist in this XYZ version
+ALTER TABLE t CHANGE COLUMN a a VARCHAR(255);
+ERROR 42000: Table 't' uses an extension that doesn't exist in this XYZ version
+ALTER TABLE t CHANGE COLUMN a a VARCHAR(256);
+ERROR 42000: Table 't' uses an extension that doesn't exist in this XYZ version
+ALTER TABLE t CHANGE COLUMN b b VARCHAR(256);
+ALTER TABLE t CHANGE COLUMN b b VARCHAR(255);
+ERROR 42000: Table 't' uses an extension that doesn't exist in this XYZ version
+ALTER TABLE t CHANGE COLUMN b b VARCHAR(1024);
+ERROR 42000: Table 't' uses an extension that doesn't exist in this XYZ version
+DROP TABLE t;
+CREATE TABLE t (a VARCHAR(1), b VARCHAR(2), KEY(a,b)) ENGINE=TokuDB;
+ALTER TABLE t CHANGE COLUMN a a VARCHAR(3);
+ERROR 42000: Table 't' uses an extension that doesn't exist in this XYZ version
+ALTER TABLE t CHANGE COLUMN b b VARCHAR(3);
+ERROR 42000: Table 't' uses an extension that doesn't exist in this XYZ version
+DROP TABLE t;

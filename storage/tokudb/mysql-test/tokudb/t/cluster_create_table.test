@@ -1,0 +1,32 @@
+#--source include/have_tokudb.inc
+SET DEFAULT_STORAGE_ENGINE='tokudb';
+
+--disable_warnings
+DROP TABLE IF EXISTS t1;
+--enable_warnings
+
+#setting tokudb_prelock_empty to off
+# so that after insertions, data is cached
+# and row estimates are accurate
+set tokudb_prelock_empty=off;
+
+create table t1(a int, b int, c int, d int, primary key(a), key(b) clustering=yes)engine=tokudb;
+
+show create table t1;
+
+create index foo on t1(c,d) clustering=yes;
+
+show create table t1;
+
+alter table t1 drop primary key;
+alter table t1 add primary key (a,b,c,d);
+alter table t1 add key bar(d,c,b,a) clustering=yes;
+show create table t1;
+insert into t1 value (1,1,1,1),(2,2,2,2),(3,3,3,3),(4,4,4,4),(32,54,12,56);
+explain select * from t1;
+select * from t1;
+explain select d from t1 where d > 30;
+select * from t1 where d > 30;
+
+
+drop table t1;

@@ -1,0 +1,216 @@
+# ticket 895 is a query optimization problem with the primary key
+
+--source include/have_tokudb.inc
+SET DEFAULT_STORAGE_ENGINE = 'TokuDB';
+
+--disable_warnings
+DROP TABLE IF EXISTS t1;
+--enable_warnings
+set autocommit=0;
+
+set session transaction isolation level read uncommitted;
+
+create table t1 (n int);
+#
+# savepoints
+#
+begin;
+savepoint `my_savepoint`;
+insert into t1 values (7);
+savepoint `savept2`;
+insert into t1 values (3);
+select n from t1;
+savepoint savept3;
+rollback to savepoint savept2;
+--error 1305
+rollback to savepoint savept3;
+rollback to savepoint savept2;
+release savepoint `my_savepoint`;
+select n from t1;
+-- error 1305
+rollback to savepoint `my_savepoint`;
+--error 1305
+rollback to savepoint savept2;
+insert into t1 values (8);
+savepoint sv;
+commit;
+savepoint sv;
+set autocommit=1;
+# nop
+rollback;
+drop table t1;
+
+#
+# test rollback to savepoint (that is not last savepoint)
+#
+create table t1 (a int, b int, primary key (a));
+begin;
+insert into t1 values (1,10);
+select * from t1;
+savepoint a;
+insert into t1 values (2,20);
+select * from t1;
+savepoint b;
+insert into t1 values (3,30);
+rollback to savepoint a;
+select * From t1;
+rollback;
+select * from t1;
+drop table t1;
+
+#
+# test release of savepoint (that is not last savepoint)
+#
+create table t1 (a int, b int, primary key (a));
+begin;
+insert into t1 values (1,10);
+select * from t1;
+savepoint a;
+insert into t1 values (2,20);
+select * from t1;
+savepoint b;
+insert into t1 values (3,30);
+release savepoint a;
+select * From t1;
+rollback;
+select * from t1;
+drop table t1;
+
+#
+# test rollback to savepoints when doing work on same key
+#
+create table t1 (a int, b int, primary key (a));
+begin;
+insert into t1 values (1,10);
+select * from t1;
+savepoint a;
+replace into t1 values (1,100);
+select * from t1;
+savepoint b;
+delete from t1 where a=1;
+select * from t1;
+savepoint c;
+update t1 set b=1000 where a=1;
+select * from t1;
+rollback to savepoint c;
+select * From t1;
+rollback to savepoint b;
+select * from t1;
+rollback to savepoint a;
+select * from t1;
+rollback;
+select * from t1;
+drop table t1;
+
+#
+# test rollback to savepoints when doing work on same key
+#
+create table t1 (a int, b int, primary key (a));
+insert into t1 values (1,1);
+select * from t1;
+begin;
+replace into t1 values (1,10);
+select * from t1;
+savepoint a;
+replace into t1 values (1,100);
+select * from t1;
+savepoint b;
+delete from t1 where a=1;
+select * from t1;
+savepoint c;
+update t1 set b=1000 where a=1;
+select * from t1;
+rollback to savepoint c;
+select * From t1;
+rollback to savepoint b;
+select * from t1;
+rollback to savepoint a;
+select * from t1;
+rollback;
+select * from t1;
+drop table t1;
+
+
+
+#
+# test release of savepoints when doing work on same key
+#
+create table t1 (a int, b int, primary key (a));
+begin;
+insert into t1 values (1,10);
+select * from t1;
+savepoint a;
+replace into t1 values (1,100);
+select * from t1;
+savepoint b;
+delete from t1 where a=1;
+select * from t1;
+savepoint c;
+insert into t1 values (2,20);
+select * from t1;
+release savepoint c;
+select * From t1;
+release savepoint b;
+select * from t1;
+release savepoint a;
+select * from t1;
+commit;
+select * from t1;
+drop table t1;
+
+#
+# test release of savepoints and then rollback of savepoint when doing work on same key
+#
+create table t1 (a int, b int, primary key (a));
+begin;
+insert into t1 values (1,10);
+select * from t1;
+savepoint a;
+replace into t1 values (1,100);
+select * from t1;
+savepoint b;
+delete from t1 where a=1;
+select * from t1;
+savepoint c;
+insert into t1 values (2,20);
+select * from t1;
+release savepoint c;
+select * From t1;
+rollback to savepoint b;
+select * from t1;
+release savepoint a;
+select * from t1;
+rollback;
+select * from t1;
+drop table t1;
+
+
+
+#
+# get statement transactions to abort
+#
+create table t1 (a int, b int, primary key (a));
+begin;
+insert into t1 values (1,10);
+insert into t1 values (2,20);
+savepoint a;
+insert into t1 values (3,30),(4,40);
+--error ER_DUP_ENTRY
+insert into t1 values (5,50),(6,60), (3,333), (7,70);
+select * from t1;
+savepoint b;
+insert ignore into t1 values (8,80),(1,100),(9,90);
+select * from t1;
+rollback to savepoint b;
+select * from t1;
+rollback to savepoint a;
+select * from t1;
+insert into t1 value (10,100);
+savepoint c;
+select * from t1;
+release savepoint a;
+--error 1305
+rollback to savepoint c;
+commit;
+select * from t1;
+drop table t1;

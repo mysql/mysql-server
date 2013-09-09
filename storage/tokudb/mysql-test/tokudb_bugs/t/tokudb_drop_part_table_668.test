@@ -1,0 +1,69 @@
+# verify that we can drop partitioned tokudb tables created in tokudb 6.6.8
+
+source include/have_tokudb.inc;
+source include/have_partition.inc;
+
+# capture the datadir
+let $MYSQLD_DATADIR= `SELECT @@datadir`;
+
+# shutdown mysqld (code stolen from mysql_plugin.test)
+let $expect_file= $MYSQLTEST_VARDIR/tmp/mysqld.1.expect;
+# MTR will remove this file later, but this might be too late.
+--error 0,1
+--remove_file $expect_file
+--write_file $expect_file
+wait
+EOF
+--shutdown_server 10
+--source include/wait_until_disconnected.inc
+
+# remove all tokudb file in the datadir
+system mkdir $MYSQLD_DATADIR/save;
+system mv $MYSQLD_DATADIR/*toku* $MYSQLD_DATADIR/test $MYSQLD_DATADIR/save;
+system mkdir $MYSQLD_DATADIR/test;
+
+# install 6.6.8 tokudb test files
+system cp -r std_data/tokudb_drop_part_table_668/data/* $MYSQLD_DATADIR;
+
+# restart mysqld
+--append_file $expect_file
+restart
+EOF
+--enable_reconnect
+--source include/wait_until_connected_again.inc
+
+create table tc (a int, b int, c int, primary key(a), key(b)) partition by hash(a) partitions 2;
+
+# check that the tokudb meta data gets dropped when the table is dropped
+select dictionary_name from information_schema.tokudb_file_map;
+drop table ta;
+select dictionary_name from information_schema.tokudb_file_map;
+drop table tc;
+select dictionary_name from information_schema.tokudb_file_map;
+
+# check that the test dir is empty
+list_files $MYSQLD_DATADIR/test *.frm;
+
+# shutdown mysqld (code stolen from mysql_plugin.test)
+let $expect_file= $MYSQLTEST_VARDIR/tmp/mysqld.1.expect;
+# MTR will remove this file later, but this might be too late.
+--error 0,1
+--remove_file $expect_file
+--write_file $expect_file
+wait
+EOF
+--shutdown_server 10
+--source include/wait_until_disconnected.inc
+
+# restore saved datadir
+system rm -rf $MYSQLD_DATADIR/*toku* $MYSQLD_DATADIR/test;
+system mv $MYSQLD_DATADIR/save/* $MYSQLD_DATADIR;
+system rmdir $MYSQLD_DATADIR/save;
+
+# restart mysqld
+--append_file $expect_file
+restart
+EOF
+--enable_reconnect
+--source include/wait_until_connected_again.inc
+

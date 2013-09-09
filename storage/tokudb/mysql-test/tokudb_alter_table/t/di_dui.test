@@ -1,0 +1,10 @@
+# ensure that we can drop a key and a unique key simultaneously
+--source include/have_tokudb.inc
+SET DEFAULT_STORAGE_ENGINE='tokudb';
+--disable_warnings
+drop table if exists t;
+--enable_warnings
+create table t (a int, b int, c int, primary key(a), key(b), unique key(c));
+set session tokudb_disable_slow_alter=1;
+alter table t drop key b, drop key c;
+drop table t;

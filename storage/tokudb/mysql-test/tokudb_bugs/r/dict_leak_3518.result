@@ -1,0 +1,108 @@
+SET DEFAULT_STORAGE_ENGINE = 'tokudb';
+DROP TABLE IF EXISTS fooff, foo, bar;
+create table bar (a int);
+insert into bar values(1),(2),(3);
+create table foo (a int, primary key (a)) engine=TokuDB;
+show create table foo;
+Table	Create Table
+foo	CREATE TABLE `foo` (
+  `a` int(11) NOT NULL DEFAULT '0',
+  PRIMARY KEY (`a`)
+) ENGINE=TokuDB DEFAULT CHARSET=latin1
+insert into foo values(1);
+select * from foo;
+a
+1
+drop table foo;
+create table foo (a int, primary key (a)) engine=TokuDB select * from bar;
+show create table foo;
+Table	Create Table
+foo	CREATE TABLE `foo` (
+  `a` int(11) NOT NULL DEFAULT '0',
+  PRIMARY KEY (`a`)
+) ENGINE=TokuDB DEFAULT CHARSET=latin1
+select * from foo;
+a
+1
+2
+3
+flush tables;
+select * from foo;
+a
+1
+2
+3
+drop table foo;
+begin;
+select * from bar;
+a
+1
+2
+3
+create table foo (a int, primary key (a)) engine=TokuDB select * from bar;
+show create table foo;
+Table	Create Table
+foo	CREATE TABLE `foo` (
+  `a` int(11) NOT NULL DEFAULT '0',
+  PRIMARY KEY (`a`)
+) ENGINE=TokuDB DEFAULT CHARSET=latin1
+select * from foo;
+a
+1
+2
+3
+insert into foo values(1010101);
+select * from foo;
+a
+1
+2
+3
+1010101
+drop table foo;
+commit;
+insert into bar values (2);
+create table foo (a int, primary key (a)) engine=TokuDB;
+show create table foo;
+Table	Create Table
+foo	CREATE TABLE `foo` (
+  `a` int(11) NOT NULL DEFAULT '0',
+  PRIMARY KEY (`a`)
+) ENGINE=TokuDB DEFAULT CHARSET=latin1
+insert into foo values(1);
+select * from foo;
+a
+1
+flush tables;
+select * from foo;
+a
+1
+drop table foo;
+create table fooff (a int, primary key (a)) engine=TokuDB select * from bar;
+ERROR 23000: Duplicate entry '2' for key 'PRIMARY'
+create table fooff (a int)engine=TokuDB;
+show create table fooff;
+Table	Create Table
+fooff	CREATE TABLE `fooff` (
+  `a` int(11) DEFAULT NULL
+) ENGINE=TokuDB DEFAULT CHARSET=latin1
+drop table fooff;
+begin;
+select * from bar;
+a
+1
+2
+3
+2
+create table foo (a int, primary key (a)) engine=TokuDB select * from bar;
+ERROR 23000: Duplicate entry '2' for key 'PRIMARY'
+create table foo (abra int)engine=TokuDB;
+show create table foo;
+Table	Create Table
+foo	CREATE TABLE `foo` (
+  `abra` int(11) DEFAULT NULL
+) ENGINE=TokuDB DEFAULT CHARSET=latin1
+select * from foo;
+abra
+drop table foo;
+commit;
+DROP TABLE bar;

@@ -1,0 +1,17 @@
+# alter table
+hcad_tmp_tables: tmp tables bypass hot alter, we run hcad_tmp_tables_56 instead
+hcad_with_locks: cant alter table concurrent with reading a table in 5.5
+
+frm_discover_partition: No partition discovery in MariaDB 5.5
+auto_inc: No online ALTER in MariaDB 5.5
+fractional_time_alter_table: No online ALTER in MariaDB 5.5
+hcad_indexing_mix: No online ALTER in MariaDB 5.5
+hcad_null_bits: No online ALTER in MariaDB 5.5
+hcr: No online ALTER in MariaDB 5.5
+hcr_binary1: No online ALTER in MariaDB 5.5
+hcr_blob: No online ALTER in MariaDB 5.5
+hcr_char1: No online ALTER in MariaDB 5.5
+hcr_text: No online ALTER in MariaDB 5.5
+hcr_time: No online ALTER in MariaDB 5.5
+hot_row_format_alter: No online ALTER in MariaDB 5.5
+other_alter: No online ALTER in MariaDB 5.5

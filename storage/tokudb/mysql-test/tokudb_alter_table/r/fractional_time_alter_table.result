@@ -1,0 +1,174 @@
+SET DEFAULT_STORAGE_ENGINE = 'tokudb';
+DROP TABLE IF EXISTS foo;
+set tokudb_disable_slow_alter=on;
+create table foo (
+a timestamp, 
+b timestamp(1), 
+c timestamp(2),
+d timestamp(3),
+e timestamp(4),
+f timestamp(5),
+g timestamp(6)
+) engine=TokuDB;
+alter table foo change a a timestamp(1);
+ERROR 42000: Table 'foo' uses an extension that doesn't exist in this MariaDB version
+alter table foo change a a timestamp(2);
+ERROR 42000: Table 'foo' uses an extension that doesn't exist in this MariaDB version
+alter table foo change a a timestamp(3);
+ERROR 42000: Table 'foo' uses an extension that doesn't exist in this MariaDB version
+alter table foo change a a timestamp(4);
+ERROR 42000: Table 'foo' uses an extension that doesn't exist in this MariaDB version
+alter table foo change a a timestamp(5);
+ERROR 42000: Table 'foo' uses an extension that doesn't exist in this MariaDB version
+alter table foo change a a timestamp(6);
+ERROR 42000: Table 'foo' uses an extension that doesn't exist in this MariaDB version
+alter table foo change b b timestamp(2);
+show create table foo;
+Table	Create Table
+foo	CREATE TABLE `foo` (
+  `a` timestamp NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+  `b` timestamp(2) NOT NULL DEFAULT '0000-00-00 00:00:00.00',
+  `c` timestamp(2) NOT NULL DEFAULT '0000-00-00 00:00:00.00',
+  `d` timestamp(3) NOT NULL DEFAULT '0000-00-00 00:00:00.000',
+  `e` timestamp(4) NOT NULL DEFAULT '0000-00-00 00:00:00.0000',
+  `f` timestamp(5) NOT NULL DEFAULT '0000-00-00 00:00:00.00000',
+  `g` timestamp(6) NOT NULL DEFAULT '0000-00-00 00:00:00.000000'
+) ENGINE=TokuDB DEFAULT CHARSET=latin1
+alter table foo change b b timestamp(1);
+alter table foo change b b timestamp(3);
+ERROR 42000: Table 'foo' uses an extension that doesn't exist in this MariaDB version
+alter table foo change b b timestamp(4);
+ERROR 42000: Table 'foo' uses an extension that doesn't exist in this MariaDB version
+alter table foo change b b timestamp(5);
+ERROR 42000: Table 'foo' uses an extension that doesn't exist in this MariaDB version
+alter table foo change b b timestamp(6);
+ERROR 42000: Table 'foo' uses an extension that doesn't exist in this MariaDB version
+alter table foo change d d timestamp(2);
+ERROR 42000: Table 'foo' uses an extension that doesn't exist in this MariaDB version
+alter table foo change d d timestamp(5);
+ERROR 42000: Table 'foo' uses an extension that doesn't exist in this MariaDB version
+alter table foo change d d timestamp(6);
+ERROR 42000: Table 'foo' uses an extension that doesn't exist in this MariaDB version
+alter table foo change f f timestamp(6);
+alter table foo change f f timestamp(5);
+alter table foo change f f timestamp(4);
+ERROR 42000: Table 'foo' uses an extension that doesn't exist in this MariaDB version
+drop table foo;
+create table foo (
+a datetime, 
+b datetime(1), 
+c datetime(2),
+d datetime(3),
+e datetime(4),
+f datetime(5),
+g datetime(6)
+) engine=TokuDB;
+alter table foo change a a datetime(1);
+ERROR 42000: Table 'foo' uses an extension that doesn't exist in this MariaDB version
+alter table foo change a a datetime(2);
+ERROR 42000: Table 'foo' uses an extension that doesn't exist in this MariaDB version
+alter table foo change a a datetime(3);
+ERROR 42000: Table 'foo' uses an extension that doesn't exist in this MariaDB version
+alter table foo change a a datetime(4);
+ERROR 42000: Table 'foo' uses an extension that doesn't exist in this MariaDB version
+alter table foo change a a datetime(5);
+ERROR 42000: Table 'foo' uses an extension that doesn't exist in this MariaDB version
+alter table foo change a a datetime(6);
+ERROR 42000: Table 'foo' uses an extension that doesn't exist in this MariaDB version
+alter table foo change b b datetime(2);
+show create table foo;
+Table	Create Table
+foo	CREATE TABLE `foo` (
+  `a` datetime DEFAULT NULL,
+  `b` datetime(2) DEFAULT NULL,
+  `c` datetime(2) DEFAULT NULL,
+  `d` datetime(3) DEFAULT NULL,
+  `e` datetime(4) DEFAULT NULL,
+  `f` datetime(5) DEFAULT NULL,
+  `g` datetime(6) DEFAULT NULL
+) ENGINE=TokuDB DEFAULT CHARSET=latin1
+alter table foo change b b datetime(1);
+alter table foo change b b datetime(3);
+ERROR 42000: Table 'foo' uses an extension that doesn't exist in this MariaDB version
+alter table foo change b b datetime(4);
+ERROR 42000: Table 'foo' uses an extension that doesn't exist in this MariaDB version
+alter table foo change b b datetime(5);
+ERROR 42000: Table 'foo' uses an extension that doesn't exist in this MariaDB version
+alter table foo change b b datetime(6);
+ERROR 42000: Table 'foo' uses an extension that doesn't exist in this MariaDB version
+alter table foo change d d datetime(2);
+ERROR 42000: Table 'foo' uses an extension that doesn't exist in this MariaDB version
+alter table foo change d d datetime(5);
+alter table foo change d d datetime(6);
+ERROR 42000: Table 'foo' uses an extension that doesn't exist in this MariaDB version
+alter table foo change g g datetime(5);
+ERROR 42000: Table 'foo' uses an extension that doesn't exist in this MariaDB version
+drop table foo;
+create table foo (
+a time, 
+b time(1), 
+c time(2),
+d time(3),
+e time(4),
+f time(5),
+g time(6)
+) engine=TokuDB;
+alter table foo change a a time(1);
+ERROR 42000: Table 'foo' uses an extension that doesn't exist in this MariaDB version
+alter table foo change a a time(2);
+ERROR 42000: Table 'foo' uses an extension that doesn't exist in this MariaDB version
+alter table foo change a a time(3);
+ERROR 42000: Table 'foo' uses an extension that doesn't exist in this MariaDB version
+alter table foo change a a time(4);
+ERROR 42000: Table 'foo' uses an extension that doesn't exist in this MariaDB version
+alter table foo change a a time(5);
+ERROR 42000: Table 'foo' uses an extension that doesn't exist in this MariaDB version
+alter table foo change a a time(6);
+ERROR 42000: Table 'foo' uses an extension that doesn't exist in this MariaDB version
+alter table foo change b b time(2);
+show create table foo;
+Table	Create Table
+foo	CREATE TABLE `foo` (
+  `a` time DEFAULT NULL,
+  `b` time(2) DEFAULT NULL,
+  `c` time(2) DEFAULT NULL,
+  `d` time(3) DEFAULT NULL,
+  `e` time(4) DEFAULT NULL,
+  `f` time(5) DEFAULT NULL,
+  `g` time(6) DEFAULT NULL
+) ENGINE=TokuDB DEFAULT CHARSET=latin1
+alter table foo change b b time(1);
+alter table foo change b b time(3);
+ERROR 42000: Table 'foo' uses an extension that doesn't exist in this MariaDB version
+alter table foo change b b time(4);
+ERROR 42000: Table 'foo' uses an extension that doesn't exist in this MariaDB version
+alter table foo change b b time(5);
+ERROR 42000: Table 'foo' uses an extension that doesn't exist in this MariaDB version
+alter table foo change b b time(6);
+ERROR 42000: Table 'foo' uses an extension that doesn't exist in this MariaDB version
+alter table foo change d d time(2);
+ERROR 42000: Table 'foo' uses an extension that doesn't exist in this MariaDB version
+alter table foo change d d time(5);
+alter table foo change d d time(6);
+ERROR 42000: Table 'foo' uses an extension that doesn't exist in this MariaDB version
+alter table foo change g g time(5);
+ERROR 42000: Table 'foo' uses an extension that doesn't exist in this MariaDB version
+drop table foo;
+create table foo (a int, b int) engine=TokuDB;
+insert into foo values (1,2);
+alter table foo add column tt timestamp(3) NOT NULL Default '1981-11-01 10:11:13.123' after a;
+select * from foo;
+a	tt	b
+1	1981-11-01 10:11:13.123	2
+alter table foo drop column tt;
+alter table foo add column tt datetime(3) NOT NULL Default '1981-11-01 10:11:13.123' after a;
+select * from foo;
+a	tt	b
+1	1981-11-01 10:11:13.123	2
+alter table foo drop column tt;
+alter table foo add column tt time(3) NOT NULL Default '10:11:13.123' after a;
+select * from foo;
+a	tt	b
+1	10:11:13.123	2
+alter table foo drop column tt;
+drop table foo;

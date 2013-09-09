@@ -1,0 +1,178 @@
+drop table if exists a,b,c,foo;
+create table a (a int auto_increment, primary key (a)) engine=TokuDB;
+create table b (a int auto_increment, primary key (a)) engine=TokuDB;
+create table c (a int auto_increment, primary key (a)) engine=TokuDB;
+insert into a values (),(),(),(),(),(),(),(),(),(),(),(),(),(),(),(),(),(),(),();
+insert into b values (),(),(),(),(),(),(),(),(),(),(),(),(),(),(),(),(),(),(),();
+insert into c values (),(),(),(),(),(),(),(),(),(),(),(),(),(),(),(),(),(),(),();
+create table foo (a int, b int, c int, d int, e int, key(a,b,c)) engine=TokuDB;
+insert into foo (a,b,c) select * from a,b,c;
+flush status;
+show status like '%Handler_read_next%';
+Variable_name	Value
+Handler_read_next	0
+explain select * from foo where a between 5 and 6 and c=10;
+id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
+1	SIMPLE	foo	range	a	a	5	NULL	800	Using where
+select * from foo where a between 5 and 6 and c=10;
+a	b	c	d	e
+5	1	10	NULL	NULL
+5	2	10	NULL	NULL
+5	3	10	NULL	NULL
+5	4	10	NULL	NULL
+5	5	10	NULL	NULL
+5	6	10	NULL	NULL
+5	7	10	NULL	NULL
+5	8	10	NULL	NULL
+5	9	10	NULL	NULL
+5	10	10	NULL	NULL
+5	11	10	NULL	NULL
+5	12	10	NULL	NULL
+5	13	10	NULL	NULL
+5	14	10	NULL	NULL
+5	15	10	NULL	NULL
+5	16	10	NULL	NULL
+5	17	10	NULL	NULL
+5	18	10	NULL	NULL
+5	19	10	NULL	NULL
+5	20	10	NULL	NULL
+6	1	10	NULL	NULL
+6	2	10	NULL	NULL
+6	3	10	NULL	NULL
+6	4	10	NULL	NULL
+6	5	10	NULL	NULL
+6	6	10	NULL	NULL
+6	7	10	NULL	NULL
+6	8	10	NULL	NULL
+6	9	10	NULL	NULL
+6	10	10	NULL	NULL
+6	11	10	NULL	NULL
+6	12	10	NULL	NULL
+6	13	10	NULL	NULL
+6	14	10	NULL	NULL
+6	15	10	NULL	NULL
+6	16	10	NULL	NULL
+6	17	10	NULL	NULL
+6	18	10	NULL	NULL
+6	19	10	NULL	NULL
+6	20	10	NULL	NULL
+show status like '%Handler_read_next%';
+Variable_name	Value
+Handler_read_next	41
+flush status;
+show status like '%Handler_read_prev%';
+Variable_name	Value
+Handler_read_prev	0
+explain select * from foo where a between 5 and 6 and c=10;
+id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
+1	SIMPLE	foo	range	a	a	5	NULL	800	Using where
+select * from foo where a between 5 and 6 and c=10 order by a desc;
+a	b	c	d	e
+6	20	10	NULL	NULL
+6	19	10	NULL	NULL
+6	18	10	NULL	NULL
+6	17	10	NULL	NULL
+6	16	10	NULL	NULL
+6	15	10	NULL	NULL
+6	14	10	NULL	NULL
+6	13	10	NULL	NULL
+6	12	10	NULL	NULL
+6	11	10	NULL	NULL
+6	10	10	NULL	NULL
+6	9	10	NULL	NULL
+6	8	10	NULL	NULL
+6	7	10	NULL	NULL
+6	6	10	NULL	NULL
+6	5	10	NULL	NULL
+6	4	10	NULL	NULL
+6	3	10	NULL	NULL
+6	2	10	NULL	NULL
+6	1	10	NULL	NULL
+5	20	10	NULL	NULL
+5	19	10	NULL	NULL
+5	18	10	NULL	NULL
+5	17	10	NULL	NULL
+5	16	10	NULL	NULL
+5	15	10	NULL	NULL
+5	14	10	NULL	NULL
+5	13	10	NULL	NULL
+5	12	10	NULL	NULL
+5	11	10	NULL	NULL
+5	10	10	NULL	NULL
+5	9	10	NULL	NULL
+5	8	10	NULL	NULL
+5	7	10	NULL	NULL
+5	6	10	NULL	NULL
+5	5	10	NULL	NULL
+5	4	10	NULL	NULL
+5	3	10	NULL	NULL
+5	2	10	NULL	NULL
+5	1	10	NULL	NULL
+show status like '%Handler_read_prev%';
+Variable_name	Value
+Handler_read_prev	41
+flush status;
+show status like '%Handler_read_prev%';
+Variable_name	Value
+Handler_read_prev	0
+explain select * from foo where a > 19 and c=10;
+id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
+1	SIMPLE	foo	range	a	a	5	NULL	3000	Using where
+select * from foo where a > 19 and c=10 order by a desc;
+a	b	c	d	e
+20	20	10	NULL	NULL
+20	19	10	NULL	NULL
+20	18	10	NULL	NULL
+20	17	10	NULL	NULL
+20	16	10	NULL	NULL
+20	15	10	NULL	NULL
+20	14	10	NULL	NULL
+20	13	10	NULL	NULL
+20	12	10	NULL	NULL
+20	11	10	NULL	NULL
+20	10	10	NULL	NULL
+20	9	10	NULL	NULL
+20	8	10	NULL	NULL
+20	7	10	NULL	NULL
+20	6	10	NULL	NULL
+20	5	10	NULL	NULL
+20	4	10	NULL	NULL
+20	3	10	NULL	NULL
+20	2	10	NULL	NULL
+20	1	10	NULL	NULL
+show status like '%Handler_read_prev%';
+Variable_name	Value
+Handler_read_prev	21
+flush status;
+show status like '%Handler_read_next%';
+Variable_name	Value
+Handler_read_next	0
+explain select * from foo where a > 19 and c=10;
+id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
+1	SIMPLE	foo	range	a	a	5	NULL	2263	Using where
+select * from foo where a > 19 and c=10;
+a	b	c	d	e
+20	1	10	NULL	NULL
+20	2	10	NULL	NULL
+20	3	10	NULL	NULL
+20	4	10	NULL	NULL
+20	5	10	NULL	NULL
+20	6	10	NULL	NULL
+20	7	10	NULL	NULL
+20	8	10	NULL	NULL
+20	9	10	NULL	NULL
+20	10	10	NULL	NULL
+20	11	10	NULL	NULL
+20	12	10	NULL	NULL
+20	13	10	NULL	NULL
+20	14	10	NULL	NULL
+20	15	10	NULL	NULL
+20	16	10	NULL	NULL
+20	17	10	NULL	NULL
+20	18	10	NULL	NULL
+20	19	10	NULL	NULL
+20	20	10	NULL	NULL
+show status like '%Handler_read_next%';
+Variable_name	Value
+Handler_read_next	21
+drop table foo,a,b,c;

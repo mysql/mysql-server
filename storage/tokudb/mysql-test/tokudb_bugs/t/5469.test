@@ -1,0 +1,38 @@
+#
+# Bug #23945: crash during drop table, AUTOCOMMIT=0, CREATE TABLE .. AS SELECT
+#
+--echo *** Bug #23945 ***
+
+
+# --source include/have_innodb.inc
+# SET DEFAULT_STORAGE_ENGINE = InnoDB;
+--source include/have_tokudb.inc
+SET DEFAULT_STORAGE_ENGINE = tokudb;
+
+--disable_warnings
+DROP TABLE IF EXISTS t1;
+--enable_warnings
+
+SET AUTOCOMMIT = 1;
+--error ER_DUP_ENTRY
+CREATE TABLE t1 (PRIMARY KEY (a)) SELECT 1 AS a UNION ALL SELECT 1;
+--error ER_NO_SUCH_TABLE
+SELECT * FROM t1;
+--error ER_BAD_TABLE_ERROR
+DROP TABLE t1;
+
+SET AUTOCOMMIT = 0;
+--error ER_DUP_ENTRY
+CREATE TABLE t1 (PRIMARY KEY (a)) SELECT 1 AS a UNION ALL SELECT 1;
+--error ER_NO_SUCH_TABLE
+SELECT * FROM t1;
+# Here comes a server crash.
+--error ER_BAD_TABLE_ERROR
+DROP TABLE t1;
+
+
+create table t1 (a int, b int) engine=MyISAM;
+insert into t1 values (1,1),(1,2);
+--error ER_DUP_ENTRY
+alter table t1 engine=TokuDB, add unique key (a);
+drop table t1;

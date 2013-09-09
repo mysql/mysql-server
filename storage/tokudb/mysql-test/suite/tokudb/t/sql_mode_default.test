@@ -1,6 +1,0 @@
-# Tokutek
-# Test that the default sql_mode is NO_ENGINE_SUBSTITUTION
-
-SELECT @@global.sql_mode;
-SELECT @@session.sql_mode;
-

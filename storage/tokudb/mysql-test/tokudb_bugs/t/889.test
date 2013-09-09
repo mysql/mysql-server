@@ -1,0 +1,26 @@
+--source include/have_tokudb.inc
+#
+# Record inconsistency.
+#
+#
+SET DEFAULT_STORAGE_ENGINE = 'tokudb';
+
+--disable_warnings
+DROP TABLE IF EXISTS t1;
+--enable_warnings
+
+CREATE TABLE t1 (c1 INT PRIMARY KEY);
+INSERT INTO t1 VALUES (0);
+INSERT INTO t1 VALUES (256);
+COMMIT;
+
+--disable_query_log
+BEGIN;
+UPDATE t1 SET c1 = c1 + 2;
+COMMIT;
+--enable_query_log
+SELECT c1 from t1;
+ 
+# Final cleanup.
+DROP TABLE t1;
+

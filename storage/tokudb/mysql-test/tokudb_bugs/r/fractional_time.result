@@ -1,0 +1,62 @@
+SET DEFAULT_STORAGE_ENGINE = 'tokudb';
+DROP TABLE IF EXISTS foo;
+create table foo (a timestamp(6), b timestamp(4), c timestamp(5), primary key (a))engine=tokudb;
+insert into foo values ('2010-12-10 14:12:09.123452', '2010-12-10 14:12:09.123416', '2010-12-10 14:12:09.123451');
+insert into foo values ('2010-12-10 14:12:09.123454', '2010-12-10 14:12:09.123416', '2010-12-10 14:12:09.123451');
+insert into foo values ('2010-12-10 14:12:09.123451', '2010-12-10 14:12:09.123416', '2010-12-10 14:12:09.123451');
+insert into foo values ('2010-12-10 14:12:09.123453', '2010-12-10 14:12:09.123416', '2010-12-10 14:12:09.123451');
+select * from foo;
+a	b	c
+2010-12-10 14:12:09.123451	2010-12-10 14:12:09.1234	2010-12-10 14:12:09.12345
+2010-12-10 14:12:09.123452	2010-12-10 14:12:09.1234	2010-12-10 14:12:09.12345
+2010-12-10 14:12:09.123453	2010-12-10 14:12:09.1234	2010-12-10 14:12:09.12345
+2010-12-10 14:12:09.123454	2010-12-10 14:12:09.1234	2010-12-10 14:12:09.12345
+explain select * from foo where a > '2010-12-10 14:12:09.123452';
+id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
+1	SIMPLE	foo	range	PRIMARY	PRIMARY	7	NULL	2	Using where
+select * from foo where a > '2010-12-10 14:12:09.123452';
+a	b	c
+2010-12-10 14:12:09.123453	2010-12-10 14:12:09.1234	2010-12-10 14:12:09.12345
+2010-12-10 14:12:09.123454	2010-12-10 14:12:09.1234	2010-12-10 14:12:09.12345
+alter table foo change a a datetime(6), change b b datetime(4), change c c datetime(5);
+show create table foo;
+Table	Create Table
+foo	CREATE TABLE `foo` (
+  `a` datetime(6) NOT NULL DEFAULT '0000-00-00 00:00:00.000000',
+  `b` datetime(4) DEFAULT NULL,
+  `c` datetime(5) DEFAULT NULL,
+  PRIMARY KEY (`a`)
+) ENGINE=TokuDB DEFAULT CHARSET=latin1
+select * from foo;
+a	b	c
+2010-12-10 14:12:09.123451	2010-12-10 14:12:09.1234	2010-12-10 14:12:09.12345
+2010-12-10 14:12:09.123452	2010-12-10 14:12:09.1234	2010-12-10 14:12:09.12345
+2010-12-10 14:12:09.123453	2010-12-10 14:12:09.1234	2010-12-10 14:12:09.12345
+2010-12-10 14:12:09.123454	2010-12-10 14:12:09.1234	2010-12-10 14:12:09.12345
+explain select * from foo where a > '2010-12-10 14:12:09.123452';
+id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
+1	SIMPLE	foo	range	PRIMARY	PRIMARY	8	NULL	2	Using where
+select * from foo where a > '2010-12-10 14:12:09.123452';
+a	b	c
+2010-12-10 14:12:09.123453	2010-12-10 14:12:09.1234	2010-12-10 14:12:09.12345
+2010-12-10 14:12:09.123454	2010-12-10 14:12:09.1234	2010-12-10 14:12:09.12345
+drop table foo;
+create table foo (a time(6), b time(4), c time(5), primary key (a))engine=TokuDB;
+insert into foo values ('14:12:09.123452', '14:12:09.123416', '14:12:09.123451');
+insert into foo values ('14:12:09.123454', '14:12:09.123416', '14:12:09.123451');
+insert into foo values ('14:12:09.123451', '14:12:09.123416', '14:12:09.123451');
+insert into foo values ('14:12:09.123453', '14:12:09.123416', '14:12:09.123451');
+select * from foo;
+a	b	c
+14:12:09.123451	14:12:09.1234	14:12:09.12345
+14:12:09.123452	14:12:09.1234	14:12:09.12345
+14:12:09.123453	14:12:09.1234	14:12:09.12345
+14:12:09.123454	14:12:09.1234	14:12:09.12345
+explain select * from foo where a > '14:12:09.123452';
+id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
+1	SIMPLE	foo	range	PRIMARY	PRIMARY	6	NULL	2	Using where
+select * from foo where a > '14:12:09.123452';
+a	b	c
+14:12:09.123453	14:12:09.1234	14:12:09.12345
+14:12:09.123454	14:12:09.1234	14:12:09.12345
+DROP TABLE foo;

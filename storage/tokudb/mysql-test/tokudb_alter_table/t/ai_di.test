@@ -1,0 +1,38 @@
+#--source include/have_tokudb.inc
+set default_storage_engine='tokudb';
+
+--disable_warnings
+drop table if exists foo;
+--enable_warnings
+
+set session tokudb_disable_slow_alter=ON;
+
+create table foo (a int, b int, c int, key(a))engine=TokuDB;
+
+insert into foo values (1,10,100),(2,20,200),(3,30,300),(3,30,300);
+
+select * from foo;
+explain select sum(a) from foo;
+select sum(a) from foo;
+
+--error ER_DUP_ENTRY
+alter table foo add unique index b(b), drop index a;
+
+select * from foo;
+explain select sum(a) from foo;
+select sum(a) from foo;
+
+--echo #test that we can still add an index named 'b'
+alter table foo add index b(b);
+explain select sum(b) from foo;
+select sum(b) from foo;
+
+set autocommit=0;
+drop index b on foo;
+create index b on foo (b);
+explain select sum(b) from foo;
+select sum(b) from foo;
+set autocommit=1;
+
+
+drop table foo;

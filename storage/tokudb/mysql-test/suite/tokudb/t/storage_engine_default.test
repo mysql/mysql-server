@@ -1,6 +1,0 @@
-# Tokutek
-# Test that the default storage engine is TokuDB
-
-SELECT @@global.storage_engine;
-SELECT @@session.storage_engine;
-

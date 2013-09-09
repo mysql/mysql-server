@@ -1,0 +1,92 @@
+SET DEFAULT_STORAGE_ENGINE='TokuDB';
+DROP TABLE IF EXISTS t1, t2;
+create table t1 (a int, b int, primary key (a));
+begin;
+insert into t1 values (1,10), (2,20);
+create table t2 (a int);
+rollback;
+select * from t1;
+a	b
+1	10
+2	20
+delete from t1;
+begin;
+insert into t1 values (1,10),(2,20);
+select * from t1;
+a	b
+1	10
+2	20
+alter table t1 add index (b);
+rollback;
+select * From t1;
+a	b
+1	10
+2	20
+begin;
+insert into t1 values (3,30);
+lock tables t1 write;
+rollback;
+select * from t1;
+a	b
+1	10
+2	20
+3	30
+unlock tables;
+lock tables t1 write;
+insert into t1 values (4,40);
+select * From t1;
+a	b
+1	10
+2	20
+3	30
+4	40
+rollback;
+select * from t1;
+a	b
+1	10
+2	20
+3	30
+4	40
+insert into t2 values (1);
+ERROR HY000: Table 't2' was not locked with LOCK TABLES
+commit;
+insert into t2 values (1);
+ERROR HY000: Table 't2' was not locked with LOCK TABLES
+unlock tables;
+insert into t2 values (1);
+select * from t1;
+a	b
+1	10
+2	20
+3	30
+4	40
+select * from t2;
+a
+1
+lock tables t1 write;
+insert into t1 values (5,50);
+begin;
+insert into t2 values (2);
+select * from t1;
+a	b
+1	10
+2	20
+3	30
+4	40
+5	50
+select * from t2;
+a
+1
+2
+rollback;
+select * from t1;
+a	b
+1	10
+2	20
+3	30
+4	40
+5	50
+select * from t2;
+a
+1
+drop table t1,t2;

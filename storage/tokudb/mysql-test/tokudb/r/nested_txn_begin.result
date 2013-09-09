@@ -1,0 +1,164 @@
+SET DEFAULT_STORAGE_ENGINE='TokuDB';
+DROP TABLE IF EXISTS t1, t2;
+CREATE TABLE t1 (a int);
+begin;
+insert into t1 values(1);
+delete from t1 where a=1;
+rollback;
+select * from t1;
+a
+DROP table t1;
+create table t1 (a int, b int, primary key (a));
+begin;
+insert into t1 values (1,10);
+select * From t1;
+a	b
+1	10
+rollback;
+select * From t1;
+a	b
+begin;
+insert into t1 values (1,10);
+select * From t1;
+a	b
+1	10
+update t1 set b=b+5;
+select * From t1;
+a	b
+1	15
+update t1 set b=b+5 where a=1;
+select * from t1;
+a	b
+1	20
+rollback;
+select * from t1;
+a	b
+begin;
+insert into t1 values (1,10),(2,20);
+select * From t1;
+a	b
+1	10
+2	20
+delete from t1 where a > 1;
+select * from t1;
+a	b
+1	10
+rollback;
+select * from t1;
+a	b
+insert into t1 values (1,10),(2,20),(3,30);
+select * from t1;
+a	b
+1	10
+2	20
+3	30
+rollback;
+select * From t1;
+a	b
+1	10
+2	20
+3	30
+begin;
+insert into t1 values (4,40),(5,50),(6,60);
+select * from t1;
+a	b
+1	10
+2	20
+3	30
+4	40
+5	50
+6	60
+commit;
+select * from t1;
+a	b
+1	10
+2	20
+3	30
+4	40
+5	50
+6	60
+begin;
+insert into t1 values (7,70);
+insert into t1 values (8,80), (9,90), (1,10), (10,100);
+ERROR 23000: Duplicate entry '1' for key 'PRIMARY'
+insert into t1 values (11,110);
+rollback;
+select * From t1;
+a	b
+1	10
+2	20
+3	30
+4	40
+5	50
+6	60
+begin;
+insert into t1 values (7,70);
+insert into t1 values (8,80), (9,90), (1,10), (10,100);
+ERROR 23000: Duplicate entry '1' for key 'PRIMARY'
+insert into t1 values (11,110);
+commit;
+select * From t1;
+a	b
+1	10
+2	20
+3	30
+4	40
+5	50
+6	60
+7	70
+11	110
+delete from t1;
+alter table t1 add index (b);
+insert ignore into t1 values (1,10),(2,20),(3,30),(1,10),(4,40);
+Warnings:
+Warning	1062	Duplicate entry '1' for key 'PRIMARY'
+select * From t1;
+a	b
+1	10
+2	20
+3	30
+4	40
+begin;
+insert ignore into t1 values (5,50),(3,30),(6,60),(7,70);
+Warnings:
+Warning	1062	Duplicate entry '3' for key 'PRIMARY'
+select * From t1;
+a	b
+1	10
+2	20
+3	30
+4	40
+5	50
+6	60
+7	70
+rollback;
+select * from t1;
+a	b
+1	10
+2	20
+3	30
+4	40
+begin;
+insert ignore into t1 values (5,50),(3,30),(6,60),(7,70);
+Warnings:
+Warning	1062	Duplicate entry '3' for key 'PRIMARY'
+select * From t1;
+a	b
+1	10
+2	20
+3	30
+4	40
+5	50
+6	60
+7	70
+commit;
+select * From t1;
+a	b
+1	10
+2	20
+3	30
+4	40
+5	50
+6	60
+7	70
+drop table t1;

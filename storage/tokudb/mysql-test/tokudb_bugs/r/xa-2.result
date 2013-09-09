@@ -1,0 +1,40 @@
+drop table if exists t1;
+CREATE TABLE t1 (a INT PRIMARY KEY) ENGINE=tokudb;
+xa begin 'a','ab';
+insert into t1 values (1);
+select * from t1;
+a
+1
+xa end 'a','ab';
+select * from t1;
+a
+1
+xa prepare 'a','ab';
+select * from t1;
+a
+1
+xa commit 'a','ab';
+select * from t1;
+a
+1
+xa begin 'a','ab';
+insert into t1 values (2);
+select * from t1;
+a
+1
+2
+xa end 'a','ab';
+select * from t1;
+a
+1
+2
+xa prepare 'a','ab';
+select * from t1;
+a
+1
+2
+xa rollback 'a','ab';
+select * from t1;
+a
+1
+drop table t1;

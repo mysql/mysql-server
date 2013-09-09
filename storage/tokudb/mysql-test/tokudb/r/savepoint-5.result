@@ -1,0 +1,245 @@
+SET DEFAULT_STORAGE_ENGINE = tokudb;
+*** Bug #22161 ***
+DROP TABLE IF EXISTS t1;
+CREATE TABLE t1 (a longtext);
+begin;
+INSERT INTO t1 VALUES (repeat('1',1000000));
+select left(a,10),md5(a),length(a) from t1;
+left(a,10)	md5(a)	length(a)
+1111111111	f8f157ccec2b134dc35b566ef1d5e197	1000000
+select count(*) from t1;
+count(*)
+1
+savepoint x_1;
+update t1 set a=(repeat('2',1000000));
+select left(a,10),md5(a),length(a) from t1;
+left(a,10)	md5(a)	length(a)
+2222222222	647cbb844d2e3f8d33da67e9f13f27a3	1000000
+select count(*) from t1;
+count(*)
+1
+savepoint x_2;
+update t1 set a=(repeat('3',1000000));
+select left(a,10),md5(a),length(a) from t1;
+left(a,10)	md5(a)	length(a)
+3333333333	10e67c350aebeb8651fb02c9e9f9e84f	1000000
+select count(*) from t1;
+count(*)
+1
+savepoint x_3;
+update t1 set a=(repeat('4',1000000));
+select left(a,10),md5(a),length(a) from t1;
+left(a,10)	md5(a)	length(a)
+4444444444	8d5c3da00bc9439977dda58e70983954	1000000
+select count(*) from t1;
+count(*)
+1
+savepoint x_4;
+update t1 set a=(repeat('5',1000000));
+select left(a,10),md5(a),length(a) from t1;
+left(a,10)	md5(a)	length(a)
+5555555555	4b6a049cb4c4fe7ba5fd9d5134c785d0	1000000
+select count(*) from t1;
+count(*)
+1
+savepoint x_5;
+update t1 set a=(repeat('6',1000000));
+select left(a,10),md5(a),length(a) from t1;
+left(a,10)	md5(a)	length(a)
+6666666666	5bb83b75070e1a8afd57bec687dbcc61	1000000
+select count(*) from t1;
+count(*)
+1
+savepoint x_6;
+update t1 set a=(repeat('7',1000000));
+select left(a,10),md5(a),length(a) from t1;
+left(a,10)	md5(a)	length(a)
+7777777777	5d0bbe94ff78dc08e028050bc1e3d998	1000000
+select count(*) from t1;
+count(*)
+1
+savepoint x_7;
+update t1 set a=(repeat('8',1000000));
+select left(a,10),md5(a),length(a) from t1;
+left(a,10)	md5(a)	length(a)
+8888888888	56b7aeb6999e0f00e802f4364c304bdb	1000000
+select count(*) from t1;
+count(*)
+1
+savepoint x_8;
+update t1 set a=(repeat('9',1000000));
+select left(a,10),md5(a),length(a) from t1;
+left(a,10)	md5(a)	length(a)
+9999999999	fe5f372019579147fca29ce44e297973	1000000
+select count(*) from t1;
+count(*)
+1
+savepoint x_9;
+update t1 set a=(repeat('a',1000000));
+select left(a,10),md5(a),length(a) from t1;
+left(a,10)	md5(a)	length(a)
+aaaaaaaaaa	7707d6ae4e027c70eea2a935c2296f21	1000000
+select count(*) from t1;
+count(*)
+1
+savepoint x_a;
+update t1 set a=(repeat('b',1000000));
+select left(a,10),md5(a),length(a) from t1;
+left(a,10)	md5(a)	length(a)
+bbbbbbbbbb	05093f151ce1ea141547d73845a46f5e	1000000
+select count(*) from t1;
+count(*)
+1
+savepoint x_b;
+update t1 set a=(repeat('c',1000000));
+select left(a,10),md5(a),length(a) from t1;
+left(a,10)	md5(a)	length(a)
+cccccccccc	ae180c7cf2d66b51d89fcd5689e29e54	1000000
+select count(*) from t1;
+count(*)
+1
+savepoint x_c;
+update t1 set a=(repeat('d',1000000));
+select left(a,10),md5(a),length(a) from t1;
+left(a,10)	md5(a)	length(a)
+dddddddddd	20104faf202d39a9a2bf9d5cbc0d21b8	1000000
+select count(*) from t1;
+count(*)
+1
+savepoint x_d;
+update t1 set a=(repeat('e',1000000));
+select left(a,10),md5(a),length(a) from t1;
+left(a,10)	md5(a)	length(a)
+eeeeeeeeee	896e9049fa8ad45fc41e820da4716370	1000000
+select count(*) from t1;
+count(*)
+1
+savepoint x_e;
+update t1 set a=(repeat('f',1000000));
+select left(a,10),md5(a),length(a) from t1;
+left(a,10)	md5(a)	length(a)
+ffffffffff	1e564bcb311defca607529ce14bc99a3	1000000
+select count(*) from t1;
+count(*)
+1
+savepoint x_f;
+update t1 set a=(repeat('g',1000000));
+select left(a,10),md5(a),length(a) from t1;
+left(a,10)	md5(a)	length(a)
+gggggggggg	038227892c01909832540b6412c889ab	1000000
+select count(*) from t1;
+count(*)
+1
+savepoint x_g;
+rollback to savepoint x_f;
+select left(a,10),md5(a),length(a) from t1;
+left(a,10)	md5(a)	length(a)
+ffffffffff	1e564bcb311defca607529ce14bc99a3	1000000
+select count(*) from t1;
+count(*)
+1
+rollback to savepoint x_e;
+select left(a,10),md5(a),length(a) from t1;
+left(a,10)	md5(a)	length(a)
+eeeeeeeeee	896e9049fa8ad45fc41e820da4716370	1000000
+select count(*) from t1;
+count(*)
+1
+rollback to savepoint x_d;
+select left(a,10),md5(a),length(a) from t1;
+left(a,10)	md5(a)	length(a)
+dddddddddd	20104faf202d39a9a2bf9d5cbc0d21b8	1000000
+select count(*) from t1;
+count(*)
+1
+rollback to savepoint x_c;
+select left(a,10),md5(a),length(a) from t1;
+left(a,10)	md5(a)	length(a)
+cccccccccc	ae180c7cf2d66b51d89fcd5689e29e54	1000000
+select count(*) from t1;
+count(*)
+1
+rollback to savepoint x_b;
+select left(a,10),md5(a),length(a) from t1;
+left(a,10)	md5(a)	length(a)
+bbbbbbbbbb	05093f151ce1ea141547d73845a46f5e	1000000
+select count(*) from t1;
+count(*)
+1
+rollback to savepoint x_a;
+select left(a,10),md5(a),length(a) from t1;
+left(a,10)	md5(a)	length(a)
+aaaaaaaaaa	7707d6ae4e027c70eea2a935c2296f21	1000000
+select count(*) from t1;
+count(*)
+1
+rollback to savepoint x_9;
+select left(a,10),md5(a),length(a) from t1;
+left(a,10)	md5(a)	length(a)
+9999999999	fe5f372019579147fca29ce44e297973	1000000
+select count(*) from t1;
+count(*)
+1
+rollback to savepoint x_8;
+select left(a,10),md5(a),length(a) from t1;
+left(a,10)	md5(a)	length(a)
+8888888888	56b7aeb6999e0f00e802f4364c304bdb	1000000
+select count(*) from t1;
+count(*)
+1
+rollback to savepoint x_7;
+select left(a,10),md5(a),length(a) from t1;
+left(a,10)	md5(a)	length(a)
+7777777777	5d0bbe94ff78dc08e028050bc1e3d998	1000000
+select count(*) from t1;
+count(*)
+1
+rollback to savepoint x_6;
+select left(a,10),md5(a),length(a) from t1;
+left(a,10)	md5(a)	length(a)
+6666666666	5bb83b75070e1a8afd57bec687dbcc61	1000000
+select count(*) from t1;
+count(*)
+1
+rollback to savepoint x_5;
+select left(a,10),md5(a),length(a) from t1;
+left(a,10)	md5(a)	length(a)
+5555555555	4b6a049cb4c4fe7ba5fd9d5134c785d0	1000000
+select count(*) from t1;
+count(*)
+1
+rollback to savepoint x_4;
+select left(a,10),md5(a),length(a) from t1;
+left(a,10)	md5(a)	length(a)
+4444444444	8d5c3da00bc9439977dda58e70983954	1000000
+select count(*) from t1;
+count(*)
+1
+rollback to savepoint x_3;
+select left(a,10),md5(a),length(a) from t1;
+left(a,10)	md5(a)	length(a)
+3333333333	10e67c350aebeb8651fb02c9e9f9e84f	1000000
+select count(*) from t1;
+count(*)
+1
+rollback to savepoint x_2;
+select left(a,10),md5(a),length(a) from t1;
+left(a,10)	md5(a)	length(a)
+2222222222	647cbb844d2e3f8d33da67e9f13f27a3	1000000
+select count(*) from t1;
+count(*)
+1
+rollback to savepoint x_1;
+select left(a,10),md5(a),length(a) from t1;
+left(a,10)	md5(a)	length(a)
+1111111111	f8f157ccec2b134dc35b566ef1d5e197	1000000
+select count(*) from t1;
+count(*)
+1
+rollback;
+select left(a,10),md5(a),length(a) from t1;
+left(a,10)	md5(a)	length(a)
+select count(*) from t1;
+count(*)
+0
+DROP TABLE t1;

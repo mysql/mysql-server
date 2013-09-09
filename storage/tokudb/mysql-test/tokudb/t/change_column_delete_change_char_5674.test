@@ -1,0 +1,17 @@
+# see #5684 for details 
+
+source include/have_tokudb.inc;
+
+disable_warnings;
+drop table if exists t;
+enable_warnings;
+
+set default_storage_engine='tokudb';
+
+create table t (x char(4));
+insert into t values ('hi');
+delete from t where x='hi';
+# the following statment crashes the expand callback function
+alter table t change column x x char(5);
+
+drop table t;

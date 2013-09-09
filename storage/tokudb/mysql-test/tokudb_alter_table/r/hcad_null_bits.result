@@ -1,0 +1,128 @@
+SET DEFAULT_STORAGE_ENGINE='tokudb';
+DROP TABLE IF EXISTS foo,bar;
+set session tokudb_disable_slow_alter=ON;
+create table foo (a int NOT NULL, b bigint NOT NULL, c tinyint NOT NULL, d int NOT NULL, primary key (b))engine=TokuDB;
+insert into foo values (122,10,1,1000),(1,110,1,0),(0,3234,0,657),(0,0,0,0),(99,99,0,99), (-1,-1,-1,-1);
+create table bar like foo;
+alter table bar engine=MyISAM;
+insert into bar select * from foo;
+include/diff_tables.inc [test.foo, test.bar]
+alter table foo add column e int default NULL first;
+alter table bar add column e int default NULL first;
+select * from foo;
+e	a	b	c	d
+NULL	-1	-1	-1	-1
+NULL	0	0	0	0
+NULL	122	10	1	1000
+NULL	99	99	0	99
+NULL	1	110	1	0
+NULL	0	3234	0	657
+include/diff_tables.inc [test.foo, test.bar]
+alter table foo drop column e;
+alter table bar drop column e;
+include/diff_tables.inc [test.foo, test.bar]
+alter table foo add column e int default -1 first;
+alter table bar add column e int default -1 first;
+include/diff_tables.inc [test.foo, test.bar]
+alter table foo drop column e;
+alter table bar drop column e;
+include/diff_tables.inc [test.foo, test.bar]
+alter table foo add column e int NOT NULL default -1 first;
+alter table bar add column e int NOT NULL default -1 first;
+include/diff_tables.inc [test.foo, test.bar]
+select * from foo;
+e	a	b	c	d
+-1	-1	-1	-1	-1
+-1	0	0	0	0
+-1	122	10	1	1000
+-1	99	99	0	99
+-1	1	110	1	0
+-1	0	3234	0	657
+drop table foo;
+drop table bar;
+create table foo (a int, b int not null, c int, d int not null, e int, primary key (e))engine=TokuDB;
+alter table foo drop column e;
+ERROR 42000: Table 'foo' uses an extension that doesn't exist in this XYZ version
+create table bar like foo;
+alter table bar engine=MyISAM;
+insert into foo values (NULL, -1, NULL, -1,1),(0,0,0,0,0),(NULL,234,234,324,234),(98567,76,NULL,7668,90909);
+insert into bar select * from foo;
+include/diff_tables.inc [test.foo, test.bar]
+alter table foo drop column b;
+alter table bar drop column b;
+include/diff_tables.inc [test.foo, test.bar]
+alter table foo drop column d;
+alter table bar drop column d;
+include/diff_tables.inc [test.foo, test.bar]
+alter table foo drop column a;
+alter table bar drop column a;
+include/diff_tables.inc [test.foo, test.bar]
+drop table foo;
+drop table bar;
+create table foo (a varchar(20), b varchar(20) not null, c varchar(20), d varchar(20) not null, e int, primary key (e))engine=TokuDB;
+alter table foo drop column e;
+ERROR 42000: Table 'foo' uses an extension that doesn't exist in this XYZ version
+create table bar like foo;
+alter table bar engine=MyISAM;
+insert into foo values (NULL, "-1", NULL, "-1",1),("dfg0","0rrr","eee0","qwert",0),(NULL,"234","234","324",234),("98567","76",NULL,"7668","90909");
+insert into bar select * from foo;
+include/diff_tables.inc [test.foo, test.bar]
+alter table foo drop column b;
+alter table bar drop column b;
+include/diff_tables.inc [test.foo, test.bar]
+alter table foo drop column d;
+alter table bar drop column d;
+include/diff_tables.inc [test.foo, test.bar]
+alter table foo drop column a;
+alter table bar drop column a;
+include/diff_tables.inc [test.foo, test.bar]
+drop table foo;
+drop table bar;
+create table foo(
+a int,
+b int,
+c int,
+d int,
+e int,
+f int,
+g int,
+h int,
+aa int,
+bb int,
+cc int,
+dd int
+)engine = TokuDB;
+create table bar like foo;
+alter table bar engine=MyISAM;
+insert into foo values (NULL,-1,NULL,-1,NULL,-1,NULL,-1,NULL,-1,NULL,-1);
+insert into foo values (-1,NULL,-1,NULL,-1,NULL,-1,NULL,-1,NULL,-1,NULL);
+insert into foo values (NULL,NULL,NULL,NULL,NULL,NULL,NULL,NULL,NULL,NULL,NULL,NULL);
+insert into foo values (-1,-1,-1,-1,-1,-1,-1,-1,-1,-1,-1,-1);
+insert into bar select * from foo;
+include/diff_tables.inc [test.foo, test.bar]
+select * from foo;
+a	b	c	d	e	f	g	h	aa	bb	cc	dd
+NULL	-1	NULL	-1	NULL	-1	NULL	-1	NULL	-1	NULL	-1
+-1	NULL	-1	NULL	-1	NULL	-1	NULL	-1	NULL	-1	NULL
+NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL
+-1	-1	-1	-1	-1	-1	-1	-1	-1	-1	-1	-1
+alter table foo drop column a, drop column aa, drop column c, drop column cc, drop column e, drop column f;
+alter table bar drop column a, drop column aa, drop column c, drop column cc, drop column e, drop column f;
+include/diff_tables.inc [test.foo, test.bar]
+select * from foo;
+b	d	g	h	bb	dd
+-1	-1	NULL	-1	-1	-1
+NULL	NULL	-1	NULL	NULL	NULL
+NULL	NULL	NULL	NULL	NULL	NULL
+-1	-1	-1	-1	-1	-1
+alter table foo add column a int default -1 first, add column aa int NOT NULL default -1 after h, add column c int default NULL after b, add column cc int default 0 after bb, add column f int default NULL after d, add column e int NOT NULL default 12345 after d;
+alter table bar add column a int default -1 first, add column aa int NOT NULL default -1 after h, add column c int default NULL after b, add column cc int default 0 after bb, add column f int default NULL after d, add column e int NOT NULL default 12345 after d;
+include/diff_tables.inc [test.foo, test.bar]
+select * from foo;
+a	b	c	d	e	f	g	h	aa	bb	cc	dd
+-1	-1	NULL	-1	12345	NULL	NULL	-1	-1	-1	0	-1
+-1	NULL	NULL	NULL	12345	NULL	-1	NULL	-1	NULL	0	NULL
+-1	NULL	NULL	NULL	12345	NULL	NULL	NULL	-1	NULL	0	NULL
+-1	-1	NULL	-1	12345	NULL	-1	-1	-1	-1	0	-1
+drop table foo;
+drop table bar;

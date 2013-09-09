@@ -1,0 +1,72 @@
+SET DEFAULT_STORAGE_ENGINE = 'tokudb';
+# Establish connection conn1 (user = root)
+DROP TABLE IF EXISTS foo;
+create table foo (a int, b varchar (100), primary key (a)) engine=TokuDB;
+show create table foo;
+Table	Create Table
+foo	CREATE TABLE `foo` (
+  `a` int(11) NOT NULL DEFAULT '0',
+  `b` varchar(100) DEFAULT NULL,
+  PRIMARY KEY (`a`)
+) ENGINE=TokuDB DEFAULT CHARSET=latin1
+set session transaction isolation level repeatable read;
+begin;
+select * from foo;
+a	b
+replace into foo values (1, "a");
+set session transaction isolation level repeatable read;
+begin;
+select * from foo;
+a	b
+1	a
+replace into foo values (1,"ab"), (2, "ab");
+set session transaction isolation level repeatable read;
+begin;
+select * from foo;
+a	b
+1	ab
+2	ab
+replace into foo values (1,"abc"),(2,"abc"),(3, "abc");
+set session transaction isolation level repeatable read;
+begin;
+select * from foo;
+a	b
+1	abc
+2	abc
+3	abc
+replace into foo values (1,"abcd"),(2,"abcd"),(3, "abcd"),(4, "abcd");
+set session transaction isolation level repeatable read;
+begin;
+select * from foo;
+a	b
+1	abcd
+2	abcd
+3	abcd
+4	abcd
+select * from foo;
+a	b
+commit;
+select * from foo;
+a	b
+1	a
+commit;
+select * from foo;
+a	b
+1	ab
+2	ab
+commit;
+select * from foo;
+a	b
+1	abc
+2	abc
+3	abc
+commit;
+select * from foo;
+a	b
+1	abcd
+2	abcd
+3	abcd
+4	abcd
+commit;
+set session transaction isolation level serializable;
+DROP TABLE foo;

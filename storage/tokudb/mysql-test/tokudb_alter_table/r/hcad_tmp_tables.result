@@ -1,0 +1,24 @@
+SET DEFAULT_STORAGE_ENGINE='tokudb';
+DROP TABLE IF EXISTS bar;
+set session tokudb_disable_slow_alter=ON;
+create temporary table bar (a int, key(a))engine=TOkuDB;
+alter table bar add column c int;
+ERROR 42000: Table 'bar' uses an extension that doesn't exist in this MySQL version
+create index blah on bar(a);
+ERROR 42000: Table 'bar' uses an extension that doesn't exist in this MySQL version
+drop index a on bar;
+ERROR 42000: Table 'bar' uses an extension that doesn't exist in this MySQL version
+set session tokudb_disable_slow_alter=OFF;
+insert into bar values (1),(2),(3);
+alter table bar add column b int default 1 first;
+select * from bar;
+b	a
+1	1
+1	2
+1	3
+create index blah on bar (b);
+select sum(b) from bar;
+sum(b)
+3
+drop index a on bar;
+drop table bar;
