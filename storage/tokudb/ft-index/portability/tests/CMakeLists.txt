@@ -10,7 +10,7 @@ if(BUILD_TESTING)
 
   foreach(src ${srcs})
     get_filename_component(test ${src} NAME_WE)
-    add_executable(${test} ${test})
+    add_executable(${test} ${test}.cc)
     target_link_libraries(${test} ${LIBTOKUPORTABILITY})
     set_target_properties(${test} PROPERTIES POSITION_INDEPENDENT_CODE ON)
     add_space_separated_property(TARGET ${test} COMPILE_FLAGS -fvisibility=hidden)

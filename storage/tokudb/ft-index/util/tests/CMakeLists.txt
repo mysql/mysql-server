@@ -6,7 +6,7 @@ if(BUILD_TESTING)
   endforeach(src)
 
   foreach(test ${tests})
-    add_executable(${test} ${test})
+    add_executable(${test} ${test}.cc)
     target_link_libraries(${test} util ${LIBTOKUPORTABILITY})
   endforeach(test)
 

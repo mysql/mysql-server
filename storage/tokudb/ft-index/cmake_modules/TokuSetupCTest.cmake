@@ -9,6 +9,7 @@ macro(real_executable_name filename_input out)
     execute_process(
       COMMAND which ${filename}
       RESULT_VARIABLE res
+      ERROR_QUIET
       OUTPUT_VARIABLE full_filename
       OUTPUT_STRIP_TRAILING_WHITESPACE)
     if(NOT(res))
@@ -84,7 +85,7 @@ include(CTest)
 set(TOKUDB_DATA "${TokuDB_SOURCE_DIR}/../tokudb.data" CACHE FILEPATH "Path to data files for tests")
 
 if (BUILD_TESTING OR BUILD_FT_TESTS OR BUILD_SRC_TESTS)
-  set(WARNED_ABOUT_DATA 0)
+  set(WARNED_ABOUT_DATA 1) # disable the warning below
   if (NOT EXISTS "${TOKUDB_DATA}/" AND NOT WARNED_ABOUT_DATA)
     message(WARNING "Test data files are missing from ${TOKUDB_DATA}, which will cause some tests to fail.  Please put them there or modify TOKUDB_DATA to avoid this.")
     set(WARNED_ABOUT_DATA 1)
@@ -152,5 +153,5 @@ if (BUILD_TESTING OR BUILD_FT_TESTS OR BUILD_SRC_TESTS)
   option(RUN_STRESS_TESTS "If set, run the stress tests." OFF)
   option(RUN_PERF_TESTS "If set, run the perf tests." OFF)
 
-  configure_file(CTestCustom.cmake . @ONLY)
+  configure_file(CTestCustom.cmake.in CTestCustom.cmake @ONLY)
 endif (BUILD_TESTING OR BUILD_FT_TESTS OR BUILD_SRC_TESTS)

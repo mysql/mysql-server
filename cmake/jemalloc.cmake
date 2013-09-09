@@ -3,7 +3,7 @@ INCLUDE(ExternalProject)
 MACRO (USE_BUNDLED_JEMALLOC)
   SET(SOURCE_DIR "${CMAKE_SOURCE_DIR}/extra/jemalloc")
   SET(BINARY_DIR "${CMAKE_BINARY_DIR}/${CMAKE_CFG_INTDIR}/extra/jemalloc/build")
-  SET(LIBJEMALLOC "${BINARY_DIR}/lib/libjemalloc_pic.a")
+  SET(LIBJEMALLOC "libjemalloc")
   SET(JEMALLOC_CONFIGURE_OPTS "CC=${CMAKE_C_COMPILER}" "--with-private-namespace=jemalloc_internal_" "--enable-cc-silence")
   IF (CMAKE_BUILD_TYPE MATCHES "Debug" AND NOT APPLE) # see the comment in CMakeLists.txt
     LIST(APPEND JEMALLOC_CONFIGURE_OPTS --enable-debug)
@@ -18,7 +18,7 @@ MACRO (USE_BUNDLED_JEMALLOC)
     INSTALL_COMMAND ""
   )
   ADD_LIBRARY(libjemalloc STATIC IMPORTED)
-  SET_TARGET_PROPERTIES(libjemalloc PROPERTIES IMPORTED_LOCATION ${LIBJEMALLOC})
+  SET_TARGET_PROPERTIES(libjemalloc PROPERTIES IMPORTED_LOCATION "${BINARY_DIR}/lib/libjemalloc_pic.a")
   ADD_DEPENDENCIES(libjemalloc jemalloc)
 ENDMACRO()
 

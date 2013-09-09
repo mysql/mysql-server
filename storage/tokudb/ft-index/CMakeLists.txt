@@ -53,7 +53,7 @@ add_subdirectory(utils)
 ## subdirectories that just install things
 add_subdirectory(include)
 add_subdirectory(toku_include)
-add_subdirectory(examples)
+#add_subdirectory(examples)
 
 install(
   FILES README.md README-TOKUDB

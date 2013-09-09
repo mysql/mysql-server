@@ -4,7 +4,7 @@ file(WRITE "${CMAKE_CURRENT_BINARY_DIR}/runcat.sh" "#!/bin/bash
 out=$1; shift
 exec \"$@\" >$out")
 
-add_executable(make_tdb make_tdb)
+add_executable(make_tdb make_tdb.cc)
 set_property(TARGET make_tdb APPEND PROPERTY COMPILE_DEFINITIONS _GNU_SOURCE)
 add_custom_command(
   OUTPUT "${CMAKE_CURRENT_BINARY_DIR}/db.h"

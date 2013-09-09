@@ -92,7 +92,7 @@ target_link_libraries(ft_static LINK_PRIVATE lzma)
 
 ## build the bins in this directory
 foreach(tool tokuftdump tdb_logprint tdb-recover ftverify)
-  add_executable(${tool} ${tool})
+  add_executable(${tool} ${tool}.cc)
   add_dependencies(${tool} install_tdb_h)
   target_link_libraries(${tool} ft_static util_static z lzma ${LIBTOKUPORTABILITY}_static ${CMAKE_THREAD_LIBS_INIT} ${EXTRA_SYSTEM_LIBS})
   add_space_separated_property(TARGET ${tool} COMPILE_FLAGS -fvisibility=hidden)

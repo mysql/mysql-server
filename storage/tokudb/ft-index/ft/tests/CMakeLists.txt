@@ -29,7 +29,7 @@ if(BUILD_TESTING OR BUILD_FT_TESTS)
   add_test(ft/logcursor-bw echo "logcursor-bw must be run manually (needs logs to iterate over).")
 
   foreach(test ${tests})
-    add_executable(${test} ${test})
+    add_executable(${test} ${test}.cc)
     target_link_libraries(${test} ft ${LIBTOKUPORTABILITY})
     set_target_properties(${test} PROPERTIES POSITION_INDEPENDENT_CODE ON)
     add_space_separated_property(TARGET ${test} COMPILE_FLAGS -fvisibility=hidden)
