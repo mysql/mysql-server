@@ -458,9 +458,9 @@ private:
         KEY_AND_COL_INFO* kc_info, 
         uint32_t keynr, 
         bool is_hot_index,
-        enum row_type row_type
+        srv_row_format_t row_type
         );
-    int create_main_dictionary(const char* name, TABLE* form, DB_TXN* txn, KEY_AND_COL_INFO* kc_info, enum row_type row_type);
+    int create_main_dictionary(const char* name, TABLE* form, DB_TXN* txn, KEY_AND_COL_INFO* kc_info, srv_row_format_t row_type);
     void trace_create_table_info(const char *name, TABLE * form);
     int is_index_unique(bool* is_unique, DB_TXN* txn, DB* db, KEY* key_info);
     int is_val_unique(bool* is_unique, uchar* record, KEY* key_info, uint dict_index, DB_TXN* txn);
@@ -746,12 +746,6 @@ public:
         uchar* buf,
         DBT* key_to_compare
         );
-
-#if MYSQL_VERSION_ID >= 50521
-    enum row_type get_row_type() const;
-#else
-    enum row_type get_row_type();
-#endif
 
 private:
     int read_full_row(uchar * buf);

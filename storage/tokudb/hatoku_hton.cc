@@ -411,6 +411,14 @@ extern "C" {
 }
 #endif
 
+ha_create_table_option tokudb_table_options[]=
+{
+  HA_TOPTION_ENUM("compression", row_format,
+                  "TOKUDB_UNCOMPRESSED,TOKUDB_ZLIB,TOKUDB_QUICKLZ,"
+                  "TOKUDB_LZMA,TOKUDB_FAST,TOKUDB_SMALL", 0),
+  HA_TOPTION_END
+};
+
 ha_create_table_option tokudb_index_options[]=
 {
   HA_IOPTION_BOOL("clustering", clustering, 0),
@@ -500,6 +508,7 @@ static int tokudb_init_func(void *p) {
     tokudb_hton->rollback_by_xid=tokudb_rollback_by_xid;
 #endif
 
+    tokudb_hton->table_options= tokudb_table_options;
     tokudb_hton->index_options= tokudb_index_options;
 
     tokudb_hton->panic = tokudb_end;

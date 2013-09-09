@@ -281,6 +281,11 @@ typedef struct st_tokudb_trx_data {
     bool checkpoint_lock_taken;
 } tokudb_trx_data;
 
+struct ha_table_option_struct
+{
+  uint row_format;
+};
+
 struct ha_index_option_struct
 {
   bool clustering;

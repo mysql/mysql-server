@@ -6459,33 +6459,33 @@ THR_LOCK_DATA **ha_tokudb::store_lock(THD * thd, THR_LOCK_DATA ** to, enum thr_l
     DBUG_RETURN(to);
 }
 
-static inline enum row_type
+static inline srv_row_format_t
 compression_method_to_row_type(enum toku_compression_method method)
 {
     switch (method) {
 #if TOKU_INCLUDE_ROW_TYPE_COMPRESSION
     case TOKU_NO_COMPRESSION:
-        return ROW_TYPE_TOKU_UNCOMPRESSED;
+        return SRV_ROW_FORMAT_UNCOMPRESSED;
     case TOKU_ZLIB_METHOD:
     case TOKU_ZLIB_WITHOUT_CHECKSUM_METHOD:
-        return ROW_TYPE_TOKU_ZLIB;
+        return SRV_ROW_FORMAT_ZLIB;
     case TOKU_QUICKLZ_METHOD:
-        return ROW_TYPE_TOKU_QUICKLZ;
+        return SRV_ROW_FORMAT_QUICKLZ;
     case TOKU_LZMA_METHOD:
-        return ROW_TYPE_TOKU_LZMA;
+        return SRV_ROW_FORMAT_LZMA;
     case TOKU_FAST_COMPRESSION_METHOD:
-        return ROW_TYPE_TOKU_FAST;
+        return SRV_ROW_FORMAT_FAST;
     case TOKU_SMALL_COMPRESSION_METHOD:
-        return ROW_TYPE_TOKU_SMALL;
+        return SRV_ROW_FORMAT_SMALL;
 #endif
     case TOKU_DEFAULT_COMPRESSION_METHOD:
-        return ROW_TYPE_DEFAULT;
+        return SRV_ROW_FORMAT_DEFAULT;
     default:
         assert(false);
     }
 }
 
-static enum row_type
+static srv_row_format_t
 get_row_type_for_key(DB *file)
 {
     enum toku_compression_method method;
@@ -6494,37 +6494,27 @@ get_row_type_for_key(DB *file)
     return compression_method_to_row_type(method);
 }
 
-enum row_type
-#if MYSQL_VERSION_ID >= 50521
-ha_tokudb::get_row_type(void) const
-#else
-ha_tokudb::get_row_type(void)
-#endif
-{
-    return get_row_type_for_key(share->file);
-}
-
 static inline enum toku_compression_method
-row_type_to_compression_method(enum row_type type)
+row_type_to_compression_method(srv_row_format_t type)
 {
     switch (type) {
 #if TOKU_INCLUDE_ROW_TYPE_COMPRESSION
-    case ROW_TYPE_TOKU_UNCOMPRESSED:
+    case SRV_ROW_FORMAT_UNCOMPRESSED:
         return TOKU_NO_COMPRESSION;
-    case ROW_TYPE_TOKU_ZLIB:
+    case SRV_ROW_FORMAT_ZLIB:
         return TOKU_ZLIB_WITHOUT_CHECKSUM_METHOD;
-    case ROW_TYPE_TOKU_QUICKLZ:
+    case SRV_ROW_FORMAT_QUICKLZ:
         return TOKU_QUICKLZ_METHOD;
-    case ROW_TYPE_TOKU_LZMA:
+    case SRV_ROW_FORMAT_LZMA:
         return TOKU_LZMA_METHOD;
-    case ROW_TYPE_TOKU_SMALL:
+    case SRV_ROW_FORMAT_SMALL:
         return TOKU_SMALL_COMPRESSION_METHOD;
-    case ROW_TYPE_TOKU_FAST:
+    case SRV_ROW_FORMAT_FAST:
         return TOKU_FAST_COMPRESSION_METHOD;
 #endif
     default:
         DBUG_PRINT("info", ("Ignoring ROW_FORMAT not used by TokuDB, using TOKUDB_FAST by default instead"));
-    case ROW_TYPE_DEFAULT:
+    case SRV_ROW_FORMAT_DEFAULT:
         return TOKU_DEFAULT_COMPRESSION_METHOD;
     }
 }
@@ -6602,11 +6592,6 @@ void ha_tokudb::update_create_info(HA_CREATE_INFO* create_info) {
             create_info->auto_increment_value < stats.auto_increment_value) {
             create_info->auto_increment_value = stats.auto_increment_value;
         }
-    }
-    if (!(create_info->used_fields & HA_CREATE_USED_ROW_FORMAT)) {
-        // show create table asks us to update this create_info, this makes it
-        // so we'll always show what compression type we're using
-        create_info->row_type = get_row_type();
     }
 }
 
@@ -6756,7 +6741,7 @@ int ha_tokudb::create_secondary_dictionary(
     KEY_AND_COL_INFO* kc_info, 
     uint32_t keynr,
     bool is_hot_index,
-    enum row_type row_type
+    srv_row_format_t row_type
     ) 
 {
     int error;
@@ -6856,7 +6841,7 @@ static uint32_t create_main_key_descriptor(
 // create and close the main dictionarr with name of "name" using table form, all within
 // transaction txn.
 //
-int ha_tokudb::create_main_dictionary(const char* name, TABLE* form, DB_TXN* txn, KEY_AND_COL_INFO* kc_info, enum row_type row_type) {
+int ha_tokudb::create_main_dictionary(const char* name, TABLE* form, DB_TXN* txn, KEY_AND_COL_INFO* kc_info, srv_row_format_t row_type) {
     int error;
     DBT row_descriptor;
     uchar* row_desc_buff = NULL;
@@ -6914,31 +6899,6 @@ cleanup:
     return error;
 }
 
-static inline enum row_type
-row_format_to_row_type(srv_row_format_t row_format)
-{
-#if TOKU_INCLUDE_ROW_TYPE_COMPRESSION
-    switch (row_format) {
-    case SRV_ROW_FORMAT_UNCOMPRESSED:
-        return ROW_TYPE_TOKU_UNCOMPRESSED;
-    case SRV_ROW_FORMAT_ZLIB:
-        return ROW_TYPE_TOKU_ZLIB;
-    case SRV_ROW_FORMAT_QUICKLZ:
-        return ROW_TYPE_TOKU_QUICKLZ;
-    case SRV_ROW_FORMAT_LZMA:
-        return ROW_TYPE_TOKU_LZMA;
-    case SRV_ROW_FORMAT_SMALL:
-        return ROW_TYPE_TOKU_SMALL;
-    case SRV_ROW_FORMAT_FAST:
-        return ROW_TYPE_TOKU_FAST;
-    case SRV_ROW_FORMAT_DEFAULT:
-        return ROW_TYPE_DEFAULT;
-    }
-    assert(0);
-#endif
-    return ROW_TYPE_DEFAULT;;
-}
-
 //
 // Creates a new table
 // Parameters:
@@ -6968,9 +6928,7 @@ int ha_tokudb::create(const char *name, TABLE * form, HA_CREATE_INFO * create_in
 
     trx = (tokudb_trx_data *) thd_data_get(ha_thd(), tokudb_hton->slot);
 
-    const enum row_type row_type = ((create_info->used_fields & HA_CREATE_USED_ROW_FORMAT)
-                                    ? create_info->row_type
-                                    : row_format_to_row_type(get_row_format(thd)));
+    const srv_row_format_t row_type= (srv_row_format_t)form->s->option_struct->row_format;
 
     if (create_from_engine) {
         // table already exists, nothing to do
@@ -7709,7 +7667,7 @@ int ha_tokudb::tokudb_add_index(
     //
     // get the row type to use for the indexes we're adding
     //
-    const enum row_type row_type = get_row_type_for_key(share->file);
+    const srv_row_format_t row_type = get_row_type_for_key(share->file);
 
     //
     // status message to be shown in "show process list"
@@ -8184,7 +8142,7 @@ int ha_tokudb::truncate_dictionary( uint keynr, DB_TXN* txn ) {
     int error;
     bool is_pk = (keynr == primary_key);
 
-    const enum row_type row_type = get_row_type_for_key(share->key_file[keynr]);
+    const srv_row_format_t row_type = get_row_type_for_key(share->key_file[keynr]);
     error = share->key_file[keynr]->close(share->key_file[keynr], 0);
     assert(error == 0);
 

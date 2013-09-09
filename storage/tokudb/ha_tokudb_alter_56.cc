@@ -462,7 +462,7 @@ bool ha_tokudb::inplace_alter_table(TABLE *altered_table, Alter_inplace_info *ha
         assert(error == 0);
 
         // Set the new compression
-        enum toku_compression_method method = row_type_to_compression_method(create_info->row_type);
+        enum toku_compression_method method = row_type_to_compression_method(create_info->option_struct->row_format);
         uint32_t curr_num_DBs = table->s->keys + test(hidden_primary_key);
         for (uint32_t i = 0; i < curr_num_DBs; i++) {
             db = share->key_file[i];
