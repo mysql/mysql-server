@@ -87,6 +87,7 @@ struct fts_psort_t {
 	ulint			state;		/*!< child thread state */
 	fts_doc_list_t		fts_doc_list;	/*!< doc list to process */
 	fts_psort_common_t*	psort_common;	/*!< ptr to all psort info */
+	dberr_t			error;		/*!< db error during psort */
 };
 
 /** Row fts token for plugin parser */
@@ -134,6 +135,7 @@ typedef struct fts_psort_insert	fts_psort_insert_t;
 
 /** status bit used for communication between parent and child thread */
 #define FTS_PARENT_COMPLETE	1
+#define FTS_PARENT_EXITING	2
 #define FTS_CHILD_COMPLETE	1
 #define FTS_CHILD_EXITING	2
 

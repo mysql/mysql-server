@@ -1502,9 +1502,23 @@ write_buffers:
 				continue;
 			}
 
-			if ((buf->index->type & DICT_FTS)
-			    && (!row || !doc_id)) {
-				continue;
+			if (buf->index->type & DICT_FTS) {
+				if (!row || !doc_id) {
+					continue;
+				}
+
+				/* Check if error occurs in child thread */
+				for (ulint j = 0; j < fts_sort_pll_degree; j++) {
+					if (psort_info[j].error != DB_SUCCESS) {
+						err = psort_info[j].error;
+						trx->error_key_num = i;
+						break;
+					}
+				}
+
+				if (err != DB_SUCCESS) {
+					break;
+				}
 			}
 
 			/* The buffer must be sufficiently large
@@ -1562,7 +1576,7 @@ write_buffers:
 
 			if (!row_merge_write(file->fd, file->offset++,
 					     block)) {
-				err = DB_OUT_OF_FILE_SPACE;
+				err = DB_TEMP_FILE_WRITE_FAILURE;
 				trx->error_key_num = i;
 				break;
 			}
@@ -1617,11 +1631,25 @@ all_done:
 		ulint	trial_count = 0;
 		const ulint max_trial_count = 10000;
 
+wait_again:
+                /* Check if error occurs in child thread */
+		for (ulint j = 0; j < fts_sort_pll_degree; j++) {
+			if (psort_info[j].error != DB_SUCCESS) {
+				err = psort_info[j].error;
+				trx->error_key_num = j;
+				break;
+			}
+		}
+
 		/* Tell all children that parent has done scanning */
 		for (ulint i = 0; i < fts_sort_pll_degree; i++) {
-			psort_info[i].state = FTS_PARENT_COMPLETE;
+			if (err == DB_SUCCESS) {
+				psort_info[i].state = FTS_PARENT_COMPLETE;
+			} else {
+				psort_info[i].state = FTS_PARENT_EXITING;
+			}
 		}
-wait_again:
+
 		/* Now wait all children to report back to be completed */
 		os_event_wait_time_low(fts_parallel_sort_event,
 				       1000000, sig_count);

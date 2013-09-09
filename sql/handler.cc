@@ -558,6 +558,7 @@ int ha_init_errors(void)
   SETMSG(HA_ERR_TABLE_IN_FK_CHECK,	ER_DEFAULT(ER_TABLE_IN_FK_CHECK));
   SETMSG(HA_ERR_TABLESPACE_EXISTS,      "Tablespace already exists");
   SETMSG(HA_ERR_FTS_EXCEED_RESULT_CACHE_LIMIT,  "FTS query exceeds result cache limit");
+  SETMSG(HA_ERR_TEMP_FILE_WRITE_FAILURE,	ER_DEFAULT(ER_TEMP_FILE_WRITE_FAILURE));
 
   /* Register the error messages for use with my_error(). */
   return my_error_register(get_handler_errmsgs, HA_ERR_FIRST, HA_ERR_LAST);
@@ -3504,6 +3505,9 @@ void handler::print_error(int error, myf errflag)
     break;
   case HA_ERR_INNODB_READ_ONLY:
     textno= ER_INNODB_READ_ONLY;
+    break;
+  case HA_ERR_TEMP_FILE_WRITE_FAILURE:
+    textno= ER_TEMP_FILE_WRITE_FAILURE;
     break;
   default:
     {
