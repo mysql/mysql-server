@@ -716,7 +716,7 @@ fi
 
 # We assume that if there is exactly one ".pid" file,
 # it contains the valid PID of a running MySQL server.
-NR_PID_FILES=`ls $PID_FILE_PATT 2>/dev/null | grep -v "mysqld_safe.pid" | wc -l`
+NR_PID_FILES=`ls -1 $PID_FILE_PATT 2>/dev/null | wc -l`
 case $NR_PID_FILES in
 	0 ) SERVER_TO_START=''  ;;  # No "*.pid" file == no running server
 	1 ) SERVER_TO_START='true' ;;
@@ -1195,8 +1195,8 @@ fi
 # merging BK trees)
 ##############################################################################
 %changelog
-* Thu Aug 29 2013 Balasubramanian Kandasamy <balasubramanian.kandasamy@oracle.com>
-- Added logic to ignore mysqld_safe.pid file created by mysqld_safe script
+* Mon Sep 09 2013 Balasubramanian Kandasamy <balasubramanian.kandasamy@oracle.com>
+- Updated logic to get the correct count of PID files
 
 * Tue Sep 11 2012 Joerg Bruehe <joerg.bruehe@oracle.com>
 
