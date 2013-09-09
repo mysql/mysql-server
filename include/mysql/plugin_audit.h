@@ -25,7 +25,7 @@
 
 #define MYSQL_AUDIT_CLASS_MASK_SIZE 1
 
-#define MYSQL_AUDIT_INTERFACE_VERSION 0x0301
+#define MYSQL_AUDIT_INTERFACE_VERSION 0x0302
 
 
 /*************************************************************************
@@ -59,6 +59,10 @@ struct mysql_event_general
   struct charset_info_st *general_charset;
   unsigned long long general_time;
   unsigned long long general_rows;
+  /* Added in version 0x302 */
+  unsigned long long query_id;
+  const char *database;
+  unsigned int database_length;
 };
 
 
@@ -140,6 +144,8 @@ struct mysql_event_table
   unsigned int new_database_length;
   const char *new_table;
   unsigned int new_table_length;
+  /* Added in version 0x302 */
+  unsigned long long query_id;
 };
 
 /*************************************************************************

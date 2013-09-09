@@ -92,6 +92,28 @@ extern struct kill_statement_service_st {
   enum thd_kill_levels (*thd_kill_level_func)(const void*);
 } *thd_kill_statement_service;
 enum thd_kill_levels thd_kill_level(const void*);
+#include <mysql/service_logger.h>
+typedef struct logger_handle_st LOGGER_HANDLE;
+extern struct logger_service_st {
+  void (*logger_init_mutexes)();
+  LOGGER_HANDLE* (*open)(const char *path,
+                         unsigned long long size_limit,
+                         unsigned int rotations);
+  int (*close)(LOGGER_HANDLE *log);
+  int (*vprintf)(LOGGER_HANDLE *log, const char *fmt, va_list argptr);
+  int (*printf)(LOGGER_HANDLE *log, const char *fmt, ...);
+  int (*write)(LOGGER_HANDLE *log, const char *buffer, size_t size);
+  int (*rotate)(LOGGER_HANDLE *log);
+} *logger_service;
+  void logger_init_mutexes();
+  LOGGER_HANDLE *logger_open(const char *path,
+                             unsigned long long size_limit,
+                             unsigned int rotations);
+  int logger_close(LOGGER_HANDLE *log);
+  int logger_vprintf(LOGGER_HANDLE *log, const char *fmt, va_list argptr);
+  int logger_printf(LOGGER_HANDLE *log, const char *fmt, ...);
+  int logger_write(LOGGER_HANDLE *log, const char *buffer, size_t size);
+  int logger_rotate(LOGGER_HANDLE *log);
 struct st_mysql_xid {
   long formatID;
   long gtrid_length;

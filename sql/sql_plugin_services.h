@@ -58,6 +58,16 @@ static struct kill_statement_service_st thd_kill_statement_handler= {
   thd_kill_level
 };
 
+static struct logger_service_st logger_service_handler= {
+  logger_init_mutexes,
+  logger_open,
+  logger_close,
+  logger_vprintf,
+  logger_printf,
+  logger_write,
+  logger_rotate
+};
+
 static struct st_service_ref list_of_services[]=
 {
   { "my_snprintf_service",         VERSION_my_snprintf,         &my_snprintf_handler },
@@ -66,6 +76,7 @@ static struct st_service_ref list_of_services[]=
   { "my_thread_scheduler_service", VERSION_my_thread_scheduler, &my_thread_scheduler_handler },
   { "progress_report_service",     VERSION_progress_report,     &progress_report_handler },
   { "debug_sync_service",          VERSION_debug_sync,          0 }, // updated in plugin_init()
-  { "thd_kill_statement_service",  VERSION_kill_statement,      &thd_kill_statement_handler }
+  { "thd_kill_statement_service",  VERSION_kill_statement,      &thd_kill_statement_handler },
+  { "logger_service",              VERSION_logger,              &logger_service_handler },
 };
 

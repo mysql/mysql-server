@@ -16,10 +16,8 @@
 
 #include "my_global.h"
 #include <my_sys.h>
-#include "service_logger.h"
+#include <mysql/service_logger.h>
 #include <my_pthread.h>
-
-extern MYSQL_PLUGIN_IMPORT char  *mysql_data_home;
 
 #ifdef HAVE_PSI_INTERFACE
 /* These belong to the service initialization */
@@ -51,7 +49,6 @@ LOGGER_HANDLE *logger_open(const char *path,
                            unsigned int rotations)
 {
   LOGGER_HANDLE new_log, *l_perm;
-
   /*
     I don't think we ever need more rotations,
     but if it's so, the rotation procedure should be adapted to it.
@@ -114,6 +111,9 @@ static int do_rotate(LOGGER_HANDLE *log)
   unsigned int i;
   char *buf_old, *buf_new, *tmp;
 
+  if (log->rotations == 0)
+    return 0;
+
   memcpy(namebuf, log->path, log->path_len);
 
   buf_new= logname(log, namebuf, log->rotations);
@@ -147,20 +147,45 @@ int logger_vprintf(LOGGER_HANDLE *log, const char* fmt, va_list ap)
   size_t n_bytes;
 
   mysql_mutex_lock(&log->lock);
-  if ((filesize= my_tell(log->file, MYF(0))) == (my_off_t) -1 ||
-      ((unsigned long long)filesize >= log->size_limit &&
+  if (log->rotations > 0)
+    if ((filesize= my_tell(log->file, MYF(0))) == (my_off_t) -1 ||
+        ((unsigned long long)filesize >= log->size_limit &&
          do_rotate(log)))
-  {
-    result= -1;
-    errno= my_errno;
-    goto exit; /* Log rotation needed but failed */
-  }
+    {
+      result= -1;
+      errno= my_errno;
+      goto exit; /* Log rotation needed but failed */
+    }
 
   n_bytes= my_vsnprintf(cvtbuf, sizeof(cvtbuf), fmt, ap);
   if (n_bytes >= sizeof(cvtbuf))
     n_bytes= sizeof(cvtbuf) - 1;
 
   result= my_write(log->file, (uchar *) cvtbuf, n_bytes, MYF(0));
+
+exit:
+  mysql_mutex_unlock(&log->lock);
+  return result;
+}
+
+
+int logger_write(LOGGER_HANDLE *log, const char *buffer, size_t size)
+{
+  int result;
+  my_off_t filesize;
+
+  mysql_mutex_lock(&log->lock);
+  if (log->rotations > 0)
+    if ((filesize= my_tell(log->file, MYF(0))) == (my_off_t) -1 ||
+        ((unsigned long long)filesize >= log->size_limit &&
+         do_rotate(log)))
+    {
+      result= -1;
+      errno= my_errno;
+      goto exit; /* Log rotation needed but failed */
+    }
+
+  result= my_write(log->file, (uchar *) buffer, size, MYF(0));
 
 exit:
   mysql_mutex_unlock(&log->lock);
@@ -188,7 +213,7 @@ int logger_printf(LOGGER_HANDLE *log, const char *fmt, ...)
   return result;
 }
 
-void init_logger_mutexes()
+void logger_init_mutexes()
 {
 #ifdef HAVE_PSI_INTERFACE
   if (PSI_server)

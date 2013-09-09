@@ -26,4 +26,5 @@
 #define VERSION_progress_report         0x0100
 #define VERSION_debug_sync              0x1000
 #define VERSION_kill_statement          0x1000
+#define VERSION_logger                  0x0100
 

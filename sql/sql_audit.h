@@ -93,7 +93,8 @@ void mysql_audit_general_log(THD *thd, time_t time,
 
     mysql_audit_notify(thd, MYSQL_AUDIT_GENERAL_CLASS, MYSQL_AUDIT_GENERAL_LOG,
                        0, time, user, userlen, cmd, cmdlen,
-                       query, querylen, clientcs, 0);
+                       query, querylen, clientcs, (ha_rows) 0,
+                       thd->db, thd->db_length);
   }
 }
 
@@ -139,7 +140,8 @@ void mysql_audit_general(THD *thd, uint event_subtype,
 
     mysql_audit_notify(thd, MYSQL_AUDIT_GENERAL_CLASS, event_subtype,
                        error_code, time, user, userlen, msg, msglen,
-                       query.str(), query.length(), query.charset(), rows);
+                       query.str(), query.length(), query.charset(), rows,
+                       thd->db, thd->db_length);
   }
 }
 
@@ -162,7 +164,11 @@ void mysql_audit_general(THD *thd, uint event_subtype,
 #define MYSQL_AUDIT_NOTIFY_CONNECTION_DISCONNECT(thd, errcode)\
   mysql_audit_notify(\
   (thd), MYSQL_AUDIT_CONNECTION_CLASS, MYSQL_AUDIT_CONNECTION_DISCONNECT,\
-  (errcode), (thd)->thread_id, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0)
+  (errcode), (thd)->thread_id, (thd)->security_ctx->user,\
+        (thd)->security_ctx->user ? strlen((thd)->security_ctx->user) : 0,\
+         0, 0, 0, 0, 0, 0, (thd)->security_ctx->host,\
+         (thd)->security_ctx->host ? strlen((thd)->security_ctx->host) : 0,\
+         0, 0, 0, 0)
 
 #define MYSQL_AUDIT_NOTIFY_CONNECTION_CHANGE_USER(thd) mysql_audit_notify(\
   (thd), MYSQL_AUDIT_CONNECTION_CLASS, MYSQL_AUDIT_CONNECTION_CHANGE_USER,\

@@ -16,7 +16,7 @@
 #include <mysql/plugin_audit.h>
 #include <stdio.h>
 #include <time.h>
-#include "service_logger.h"
+#include <mysql/service_logger.h>
 
 /*
  Disable __attribute__() on non-gcc compilers.
@@ -106,7 +106,7 @@ static void log_sql_errors(MYSQL_THD thd __attribute__((unused)),
 
 static int sql_error_log_init(void *p __attribute__((unused)))
 {
-  init_logger_mutexes();
+  logger_init_mutexes();
 
   logfile= logger_open(filename, size_limit, rotations);
   if (logfile == NULL) {

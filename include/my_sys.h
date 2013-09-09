@@ -198,6 +198,7 @@ extern int errno;			/* declare errno */
 #endif
 #endif					/* #ifndef errno */
 extern char *home_dir;			/* Home directory for user */
+extern MYSQL_PLUGIN_IMPORT char  *mysql_data_home;
 extern const char *my_progname;		/* program-name (printed in errors) */
 extern const char *my_progname_short;	/* like above but without directory */
 extern char curr_dir[];		/* Current directory for user */
