@@ -1025,9 +1025,9 @@ fi
 %attr(755, root, root) %{_sbindir}/mysqld-debug
 %attr(755, root, root) %{_sbindir}/mysqlmanager
 %attr(755, root, root) %{_sbindir}/rcmysql
-%attr(755, root, root) %{_libdir}/mysql/plugin
 %if %{INNODB_BUILD}
 %if %{WITH_INNODB_PLUGIN}
+%attr(755, root, root) %{_libdir}/mysql/plugin/
 %attr(755, root, root) %{_libdir}/mysql/plugin/ha_innodb_plugin.so*
 %endif
 %endif
