@@ -1385,7 +1385,8 @@ static inline my_bool read_fixed_header(DYNAMIC_COLUMN *str,
   @return ER_DYNCOL_* return code
 */
 
-int dynamic_column_get(DYNAMIC_COLUMN *str, uint column_nr,
+enum enum_dyncol_func_result
+dynamic_column_get(DYNAMIC_COLUMN *str, uint column_nr,
                        DYNAMIC_COLUMN_VALUE *store_it_here)
 {
   uchar *data;
@@ -1457,7 +1458,8 @@ err:
   @return ER_DYNCOL_* return code
 */
 
-int dynamic_column_delete(DYNAMIC_COLUMN *str, uint column_nr)
+enum enum_dyncol_func_result
+dynamic_column_delete(DYNAMIC_COLUMN *str, uint column_nr)
 {
   uchar *data, *header_entry, *read, *write;
   size_t offset_size, new_offset_size, length, entry_size, new_entry_size,
@@ -2111,7 +2113,8 @@ create_new_string:
 */
 
 
-int dynamic_column_update(DYNAMIC_COLUMN *str, uint column_nr,
+enum enum_dyncol_func_result
+dynamic_column_update(DYNAMIC_COLUMN *str, uint column_nr,
                           DYNAMIC_COLUMN_VALUE *value)
 {
   return dynamic_column_update_many(str, 1, &column_nr, value);

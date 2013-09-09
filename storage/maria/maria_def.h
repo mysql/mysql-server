@@ -563,7 +563,6 @@ typedef struct st_maria_block_scan
   ulonglong row_changes;
 } MARIA_BLOCK_SCAN;
 
-//typedef ICP_RESULT (*index_cond_func_t)(void *param);
 
 struct st_maria_handler
 {

@@ -225,7 +225,6 @@ typedef struct st_mi_isam_share
   mysql_rwlock_t mmap_lock;
 } MYISAM_SHARE;
 
-//typedef ICP_RESULT (*index_cond_func_t)(void *param);
 
 struct st_myisam_info
 {

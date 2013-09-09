@@ -297,7 +297,7 @@ C_MODE_END
 #define ulonglong2double(A) my_ulonglong2double(A)
 #define my_off_t2double(A)  my_ulonglong2double(A)
 C_MODE_START
-inline double my_ulonglong2double(unsigned long long A) { return (double A); }
+inline double my_ulonglong2double(unsigned long long A) { return (double)A; }
 C_MODE_END
 #endif /* _AIX */
 
