@@ -1,3 +1,10 @@
+# old cmake does not have ExternalProject file
+IF(CMAKE_VERSION VERSION_LESS "2.8.6")
+  MACRO (CHECK_JEMALLOC)
+  ENDMACRO()
+  RETURN()
+ENDIF()
+
 INCLUDE(ExternalProject)
 
 MACRO (USE_BUNDLED_JEMALLOC)
@@ -27,6 +34,9 @@ SET(WITH_JEMALLOC "yes" CACHE STRING
 #"Which jemalloc to use (possible values are 'no', 'bundled', 'system', 'yes' (system if possible, otherwise bundled)")
 
 MACRO (CHECK_JEMALLOC)
+  IF(WIN32)
+    SET(WITH_JEMALLOC "no")
+  ENDIF()
   IF(WITH_JEMALLOC STREQUAL "bundled" OR WITH_JEMALLOC STREQUAL "yes")
     USE_BUNDLED_JEMALLOC()
   ENDIF()

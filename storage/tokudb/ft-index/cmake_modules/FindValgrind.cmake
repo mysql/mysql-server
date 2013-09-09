@@ -11,7 +11,7 @@
 find_path(VALGRIND_INCLUDE_DIR valgrind/memcheck.h)
 find_program(VALGRIND_PROGRAM NAMES valgrind)
 
-find_package_handle_standard_args(VALGRIND DEFAULT_MSG
+find_package_handle_standard_args(Valgrind DEFAULT_MSG
     VALGRIND_INCLUDE_DIR
     VALGRIND_PROGRAM)
 

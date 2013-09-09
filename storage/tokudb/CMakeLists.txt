@@ -1,17 +1,22 @@
-# ft-index can be compiled only with gcc-4.7+, cmake-2.8.8+
-# and supports only x86-64 platform
-IF(NOT CMAKE_SYSTEM_PROCESSOR STREQUAL "x86_64" OR
-    CMAKE_VERSION VERSION_LESS "2.8.8" OR
-    NOT CMAKE_COMPILER_IS_GNUCXX OR
-    CMAKE_CXX_COMPILER_VERSION VERSION_LESS "4.7")
-  IF (NOT WITHOUT_TOKUDB)
-    MESSAGE("TokuDB is disabled: not supported
-    (${CMAKE_SYSTEM_PROCESSOR}-${CMAKE_VERSION}-<${CMAKE_COMPILER_IS_GNUCXX}>-${CMAKE_CXX_COMPILER_VERSION}")
-  ENDIF()
+# ft-index only supports x86-64 and cmake-2.8.8+
+IF(CMAKE_SYSTEM_PROCESSOR STREQUAL "x86_64" AND
+   NOT CMAKE_VERSION VERSION_LESS "2.8.8")
+CHECK_CXX_SOURCE_COMPILES(
+"
+struct a {int b; int c; };
+struct a d = { .b=1, .c=2 };
+int main() { return 0; }
+" TOKUDB_OK)
+ENDIF()
+
+IF(NOT TOKUDB_OK)
   RETURN()
 ENDIF()
-SET(ENV{TOKUDB_VERSION} "7.0.2")
+SET(ENV{TOKUDB_VERSION} "7.0.4")
+
 SET(USE_BDB OFF CACHE BOOL "")
+SET(USE_VALGRIND OFF CACHE BOOL "")
+SET(BUILD_TESTING  OFF CACHE BOOL "")
 ############################################
 
 IF(DEFINED ENV{TOKUDB_VERSION})
