@@ -103,7 +103,8 @@ target_link_libraries(ftverify m)
 
 install(
   TARGETS tokuftdump
-  DESTINATION bin
+  COMPONENT "tokudb-engine"
+  DESTINATION ${INSTALL_BINDIR}
   )
 
 add_subdirectory(tests)
