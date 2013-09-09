@@ -45,6 +45,14 @@ struct TABLE_LIST;
 void item_init(void);			/* Init item functions */
 class Item_field;
 
+static inline uint32
+char_to_byte_length_safe(uint32 char_length_arg, uint32 mbmaxlen_arg)
+{
+   ulonglong tmp= ((ulonglong) char_length_arg) * mbmaxlen_arg;
+   return (tmp > UINT_MAX32) ? (uint32) UINT_MAX32 : (uint32) tmp;
+}
+
+
 /*
    "Declared Type Collation"
    A combination of collation and its derivation.
@@ -1287,6 +1295,11 @@ public:
     { return Field::GEOM_GEOMETRY; };
   String *check_well_formed_result(String *str, bool send_error= 0);
   bool eq_by_collation(Item *item, bool binary_cmp, CHARSET_INFO *cs); 
+  void fix_char_length(uint32 max_char_length_arg)
+  {
+    max_length= char_to_byte_length_safe(max_char_length_arg,
+                                         collation.collation->mbmaxlen);
+  }
   Item* set_expr_cache(THD *thd);
   virtual Item *get_cached_item() { return NULL; }
 

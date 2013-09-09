@@ -930,6 +930,17 @@ mysql_type_to_time_type(enum enum_field_types mysql_type)
   }
 }
 
+
+static inline uint
+mysql_temporal_int_part_length(enum enum_field_types mysql_type)
+{
+  static uint max_time_type_width[5]=
+  { MAX_DATETIME_WIDTH, MAX_DATETIME_WIDTH, MAX_DATE_WIDTH,
+    MAX_DATETIME_WIDTH, MIN_TIME_WIDTH };
+  return max_time_type_width[mysql_type_to_time_type(mysql_type)+2];
+}
+
+
 #include "sql_list.h"
 #include "sql_map.h"
 #include "handler.h"

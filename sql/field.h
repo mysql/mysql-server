@@ -52,6 +52,19 @@ inline uint get_set_pack_length(int elements)
   return len > 4 ? 8 : len;
 }
 
+/**
+  Tests if field type is temporal, i.e. represents
+  DATE, TIME, DATETIME or TIMESTAMP types in SQL.
+     
+  @param type    Field type, as returned by field->type().
+  @retval true   If field type is temporal
+  @retval false  If field type is not temporal
+*/
+inline bool is_temporal_type(enum_field_types type)
+{
+  return mysql_type_to_time_type(type) != MYSQL_TIMESTAMP_ERROR;
+}
+
 /*
   Virtual_column_info is the class to contain additional
   characteristics that is specific for a virtual/computed

@@ -724,24 +724,19 @@ public:
 };
 
 
-class Item_func_coalesce :public Item_func_numhybrid
+class Item_func_coalesce :public Item_func_hybrid_field_type
 {
-protected:
-  enum_field_types cached_field_type;
-  Item_func_coalesce(Item *a, Item *b) :Item_func_numhybrid(a, b) {}
 public:
-  Item_func_coalesce(List<Item> &list) :Item_func_numhybrid(list) {}
+  Item_func_coalesce(Item *a, Item *b) :Item_func_hybrid_field_type(a, b) {}
+  Item_func_coalesce(List<Item> &list) :Item_func_hybrid_field_type(list) {}
   double real_op();
   longlong int_op();
   String *str_op(String *);
   my_decimal *decimal_op(my_decimal *);
+  bool date_op(MYSQL_TIME *ltime,uint fuzzydate);
   void fix_length_and_dec();
-  void find_num_type() {}
-  enum Item_result result_type () const { return hybrid_type; }
   const char *func_name() const { return "coalesce"; }
   table_map not_null_tables() const { return 0; }
-  enum_field_types field_type() const { return cached_field_type; }
-  bool get_date(MYSQL_TIME *ltime,uint fuzzydate);
 };
 
 
@@ -755,7 +750,7 @@ public:
   longlong int_op();
   String *str_op(String *str);
   my_decimal *decimal_op(my_decimal *);
-  enum_field_types field_type() const;
+  bool date_op(MYSQL_TIME *ltime,uint fuzzydate);
   void fix_length_and_dec();
   void update_used_tables()
   {
@@ -768,20 +763,17 @@ public:
 };
 
 
-class Item_func_if :public Item_func
+class Item_func_if :public Item_func_hybrid_field_type
 {
-  enum Item_result cached_result_type;
-  enum_field_types cached_field_type;
 public:
   Item_func_if(Item *a,Item *b,Item *c)
-    :Item_func(a,b,c), cached_result_type(INT_RESULT)
+    :Item_func_hybrid_field_type(a,b,c)
   {}
-  double val_real();
-  longlong val_int();
-  String *val_str(String *str);
-  my_decimal *val_decimal(my_decimal *);
-  enum Item_result result_type () const { return cached_result_type; }
-  enum_field_types field_type() const { return cached_field_type; }
+  bool date_op(MYSQL_TIME *ltime, uint fuzzydate);
+  longlong int_op();
+  double real_op();
+  my_decimal *decimal_op(my_decimal *);
+  String *str_op(String *);
   bool fix_fields(THD *, Item **);
   void fix_length_and_dec();
   void update_used_tables()
@@ -1216,21 +1208,20 @@ public:
   function and only comparators for there result types are used.
 */
 
-class Item_func_case :public Item_func
+class Item_func_case :public Item_func_hybrid_field_type
 {
   int first_expr_num, else_expr_num;
-  enum Item_result cached_result_type, left_result_type;
+  enum Item_result left_result_type;
   String tmp_value;
   uint ncases;
   Item_result cmp_type;
   DTCollation cmp_collation;
-  enum_field_types cached_field_type;
   cmp_item *cmp_items[6]; /* For all result types */
   cmp_item *case_item;
 public:
   Item_func_case(List<Item> &list, Item *first_expr_arg, Item *else_expr_arg)
-    :Item_func(), first_expr_num(-1), else_expr_num(-1),
-    cached_result_type(INT_RESULT), left_result_type(INT_RESULT), case_item(0)
+    :Item_func_hybrid_field_type(), first_expr_num(-1), else_expr_num(-1),
+    left_result_type(INT_RESULT), case_item(0)
   {
     ncases= list.elements;
     if (first_expr_arg)
@@ -1246,10 +1237,11 @@ public:
     set_arguments(list);
     bzero(&cmp_items, sizeof(cmp_items));
   }
-  double val_real();
-  longlong val_int();
-  String *val_str(String *);
-  my_decimal *val_decimal(my_decimal *);
+  double real_op();
+  longlong int_op();
+  String *str_op(String *);
+  my_decimal *decimal_op(my_decimal *);
+  bool date_op(MYSQL_TIME *ltime, uint fuzzydate);
   bool fix_fields(THD *thd, Item **ref);
   void fix_length_and_dec();
   void update_used_tables()
@@ -1260,8 +1252,6 @@ public:
   }
   uint decimal_precision() const;
   table_map not_null_tables() const { return 0; }
-  enum Item_result result_type () const { return cached_result_type; }
-  enum_field_types field_type() const { return cached_field_type; }
   const char *func_name() const { return "case"; }
   virtual void print(String *str, enum_query_type query_type);
   Item *find_item(String *str);
