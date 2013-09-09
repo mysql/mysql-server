@@ -95,7 +95,7 @@ static const char *handler_error_messages[]=
   "Foreign key cascade delete/update exceeds max depth",
   "Required Create option missing",
   "Out of memory in storage engine",
-  "Temp file write failure"
+  "Temporary file write failure"
 };
 
 extern void my_handler_error_register(void);

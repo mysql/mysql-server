@@ -7031,7 +7031,7 @@ ER_TABLE_CORRUPT
   eng "Operation cannot be performed. The table '%-.64s.%-.64s' is missing, corrupt or contains bad data."
 
 ER_TEMP_FILE_WRITE_FAILURE
-  eng "Temp file write failure."
+  eng "Temporary file write failure."
 
 #
 #  End of 5.6 error messages.
