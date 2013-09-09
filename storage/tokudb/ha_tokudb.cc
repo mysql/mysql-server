@@ -4612,6 +4612,9 @@ int ha_tokudb::index_init(uint keynr, bool sorted) {
         keynr = primary_key;
     }
     tokudb_active_index = keynr;
+    
+    if (keynr < table->s->keys && table->key_info[keynr].option_struct->clustering)
+      key_read = false;
 
     last_cursor_error = 0;
     range_lock_grabbed = false;
@@ -5937,6 +5940,11 @@ int ha_tokudb::info(uint flag) {
     DB_TXN* txn = NULL;
     uint curr_num_DBs = table->s->keys + test(hidden_primary_key);
     DB_BTREE_STAT64 dict_stats;
+
+    for (uint i=0; i < table->s->keys; i++)
+      if (table->key_info[i].option_struct->clustering)
+        table->covering_keys.set_bit(i);
+
     if (flag & HA_STATUS_VARIABLE) {
         // Just to get optimizations right
         stats.records = share->rows + share->rows_from_locked_table;

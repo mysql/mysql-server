@@ -4,14 +4,14 @@ create table foo (a int, b int, c int, primary key (a), key (b) clustering=yes);
 replace into foo values (1,10,100), (2,20,200), (1,10,1000);
 explain select * from foo;
 id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
-1	SIMPLE	foo	ALL	NULL	NULL	NULL	NULL	2	
+1	SIMPLE	foo	index	NULL	b	5	NULL	2	Using index
 select * from foo;
 a	b	c
 1	10	1000
 2	20	200
 explain select * from foo order by b desc;
 id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
-1	SIMPLE	foo	index	NULL	b	5	NULL	2	
+1	SIMPLE	foo	index	NULL	b	5	NULL	2	Using index
 select * from foo order by b desc;
 a	b	c
 2	20	200
@@ -21,7 +21,7 @@ Warnings:
 Warning	1062	Duplicate entry '1' for key 'PRIMARY'
 explain select * from foo;
 id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
-1	SIMPLE	foo	ALL	NULL	NULL	NULL	NULL	3	
+1	SIMPLE	foo	index	NULL	b	5	NULL	3	Using index
 select * from foo;
 a	b	c
 1	10	1000
@@ -29,7 +29,7 @@ a	b	c
 3	30	300
 explain select * from foo order by b desc;
 id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
-1	SIMPLE	foo	index	NULL	b	5	NULL	3	
+1	SIMPLE	foo	index	NULL	b	5	NULL	3	Using index
 select * from foo order by b desc;
 a	b	c
 3	30	300

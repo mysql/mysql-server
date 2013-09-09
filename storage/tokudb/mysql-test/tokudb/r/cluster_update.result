@@ -13,7 +13,7 @@ a	b	c	d
 9	90	900	9000
 explain select * from t1 where b > 30;
 id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
-1	SIMPLE	t1	range	b	b	5	NULL	NULL;	Using where
+1	SIMPLE	t1	range	b	b	5	NULL	NULL;	Using where; Using index
 select * from t1 where b > 30;
 a	b	c	d
 4	40	400	4000
@@ -65,7 +65,7 @@ a	b	c	d
 9	95	905	9000
 explain select * from t1 where b > 30;
 id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
-1	SIMPLE	t1	range	b	b	5	NULL	NULL;	Using where
+1	SIMPLE	t1	range	b	b	5	NULL	NULL;	Using where; Using index
 select * from t1 where b > 30;
 a	b	c	d
 4	45	405	4000
@@ -76,7 +76,7 @@ a	b	c	d
 9	95	905	9000
 explain select * from t1 where c > 750;
 id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
-1	SIMPLE	t1	range	c	c	5	NULL	NULL;	Using where
+1	SIMPLE	t1	ALL	c	NULL	NULL	NULL	NULL;	Using where
 select * from t1 where c > 750;
 a	b	c	d
 8	85	805	8000
@@ -100,7 +100,7 @@ a	b
 9	95
 explain select a,b from t1 where c > 750;
 id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
-1	SIMPLE	t1	range	c	c	5	NULL	NULL;	Using where
+1	SIMPLE	t1	ALL	c	NULL	NULL	NULL	NULL;	Using where
 select a,c from t1 where c > 750;
 a	c
 8	805
@@ -117,7 +117,7 @@ a	b	c	d
 9	95	905	9000
 explain select * from t1 where b > 30;
 id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
-1	SIMPLE	t1	range	b	b	5	NULL	NULL;	Using where
+1	SIMPLE	t1	range	b	b	5	NULL	NULL;	Using where; Using index
 select * from t1 where b > 30;
 a	b	c	d
 4	45	405	4000
@@ -144,7 +144,7 @@ a
 9
 explain select a,b from t1 where b > 30;
 id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
-1	SIMPLE	t1	range	b	b	5	NULL	NULL;	Using where
+1	SIMPLE	t1	range	b	b	5	NULL	NULL;	Using where; Using index
 select a,b from t1 where b > 30;
 a	b
 4	45
@@ -183,7 +183,7 @@ a	b	c	d
 9	100	910	9000
 explain select * from t1 where b > 30;
 id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
-1	SIMPLE	t1	range	b	b	5	NULL	NULL;	Using where
+1	SIMPLE	t1	range	b	b	5	NULL	NULL;	Using where; Using index
 select * from t1 where b > 30;
 a	b	c	d
 4	50	410	4000
@@ -194,7 +194,7 @@ a	b	c	d
 9	100	910	9000
 explain select * from t1 where c > 750;
 id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
-1	SIMPLE	t1	range	c	c	5	NULL	NULL;	Using where
+1	SIMPLE	t1	ALL	c	NULL	NULL	NULL	NULL;	Using where
 select * from t1 where c > 750;
 a	b	c	d
 8	90	810	8000
@@ -210,7 +210,7 @@ a
 9
 explain select a,b from t1 where b > 30;
 id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
-1	SIMPLE	t1	range	b	b	5	NULL	NULL;	Using where
+1	SIMPLE	t1	range	b	b	5	NULL	NULL;	Using where; Using index
 select a,b from t1 where b > 30;
 a	b
 4	50
@@ -221,7 +221,7 @@ a	b
 9	100
 explain select a,b from t1 where c > 750;
 id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
-1	SIMPLE	t1	range	c	c	5	NULL	NULL;	Using where
+1	SIMPLE	t1	ALL	c	NULL	NULL	NULL	NULL;	Using where
 select a,c from t1 where c > 750;
 a	c
 8	810

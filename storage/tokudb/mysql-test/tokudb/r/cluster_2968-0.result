@@ -1041,6 +1041,6 @@ t	CREATE TABLE `t` (
 ) ENGINE=TokuDB DEFAULT CHARSET=latin1
 explain select straight_join * from s,t where s.b = t.b;
 id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
-1	SIMPLE	s	index	b	b	5	NULL	1000	Using where
-1	SIMPLE	t	ref	b	b	5	test.s.b	11	
+1	SIMPLE	s	index	b	b	5	NULL	1000	Using where; Using index
+1	SIMPLE	t	ref	b	b	5	test.s.b	11	Using index
 drop table s,t;

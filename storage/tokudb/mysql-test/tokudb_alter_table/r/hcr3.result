@@ -24,7 +24,7 @@ aa	b	c	d	e
 1	10	cc	dddd	eeeee
 explain select * from foo where aa > 0;
 id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
-1	SIMPLE	foo	range	PRIMARY	PRIMARY	4	NULL	1	Using where
+1	SIMPLE	foo	index	PRIMARY	d	13	NULL	1	Using where; Using index
 select * from foo where aa > 0;
 aa	b	c	d	e
 1	10	cc	dddd	eeeee
@@ -62,7 +62,7 @@ foo	CREATE TABLE `foo` (
 ) ENGINE=TokuDB DEFAULT CHARSET=latin1
 explain select * from foo where dd > "d";
 id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
-1	SIMPLE	foo	range	d	d	13	NULL	1	Using where
+1	SIMPLE	foo	index	d	d	13	NULL	1	Using where; Using index
 select * from foo where dd > "d";
 aa	bb	c	dd	e
 1	10	cc	dddd	eeeee

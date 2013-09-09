@@ -62,7 +62,7 @@ c
 600
 explain select * from foo where c > 300;
 id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
-1	SIMPLE	foo	range	c	c	5	NULL	3	Using where
+1	SIMPLE	foo	range	c	c	5	NULL	3	Using where; Using index
 select * from foo where c > 300;
 a	b	c
 4	40	400

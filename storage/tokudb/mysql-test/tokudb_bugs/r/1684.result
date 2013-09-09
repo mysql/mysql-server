@@ -9,7 +9,7 @@ insert into foo values (4,"four");
 alter table foo add key a(a) clustering=yes;
 explain select * From foo where a > 0;
 id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
-1	SIMPLE	foo	range	a	a	5	NULL	NULL;	Using where
+1	SIMPLE	foo	index	a	a	5	NULL	NULL;	Using where; Using index
 select * From foo where a > 0;
 a	b
 1	one

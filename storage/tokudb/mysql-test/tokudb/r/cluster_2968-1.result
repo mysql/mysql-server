@@ -1065,8 +1065,8 @@ t	CREATE TABLE `t` (
 ) ENGINE=TokuDB DEFAULT CHARSET=latin1
 explain select straight_join * from s,t where s.b = t.b;
 id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
-1	SIMPLE	s	index	b,b_2	b_2	5	NULL	1000	Using where
-1	SIMPLE	t	ref	b,b_2	b_2	5	test.s.b	11	
+1	SIMPLE	s	index	b,b_2	b_2	5	NULL	1000	Using where; Using index
+1	SIMPLE	t	ref	b,b_2	b_2	5	test.s.b	11	Using index
 alter table s drop key b;
 alter table t drop key b;
 show create table s;
@@ -1087,8 +1087,8 @@ t	CREATE TABLE `t` (
 ) ENGINE=TokuDB DEFAULT CHARSET=latin1
 explain select straight_join * from s,t where s.b = t.b;
 id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
-1	SIMPLE	s	index	b_2	b_2	5	NULL	1000	Using where
-1	SIMPLE	t	ref	b_2	b_2	5	test.s.b	11	
+1	SIMPLE	s	index	b_2	b_2	5	NULL	1000	Using where; Using index
+1	SIMPLE	t	ref	b_2	b_2	5	test.s.b	11	Using index
 alter table s add key(b);
 alter table t add key(b);
 show create table s;
@@ -1111,6 +1111,6 @@ t	CREATE TABLE `t` (
 ) ENGINE=TokuDB DEFAULT CHARSET=latin1
 explain select straight_join * from s,t where s.b = t.b;
 id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
-1	SIMPLE	s	index	b_2,b	b_2	5	NULL	1000	Using where
-1	SIMPLE	t	ref	b_2,b	b_2	5	test.s.b	11	
+1	SIMPLE	s	index	b_2,b	b_2	5	NULL	1000	Using where; Using index
+1	SIMPLE	t	ref	b_2,b	b_2	5	test.s.b	11	Using index
 drop table s,t;
