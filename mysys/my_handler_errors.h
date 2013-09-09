@@ -91,7 +91,8 @@ static const char *handler_error_messages[]=
   "Too many columns",
   "Row in wrong partition",
   "InnoDB is in read only mode",
-  "FTS query exceeds result cache memory limit"
+  "FTS query exceeds result cache memory limit",
+  "Temporary file write failure"
 };
 
 extern void my_handler_error_register(void);
