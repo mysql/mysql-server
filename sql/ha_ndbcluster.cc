@@ -1210,6 +1210,7 @@ uchar *thd_ndb_share_get_key(THD_NDB_SHARE *thd_ndb_share, size_t *length,
 Thd_ndb::Thd_ndb(THD* thd) :
   m_thd(thd),
   m_slave_thread(thd->slave_thread),
+  m_skip_binlog_setup_in_find_files(false),
   schema_locks_count(0)
 {
   connection= ndb_get_cluster_connection();
@@ -11916,9 +11917,9 @@ ndbcluster_find_files(handlerton *hton, THD *thd,
     }
   }
 
-  /* setup logging to binlog for all discovered tables */
-  if (!(thd_ndb->trans_options & TNTO_NO_BINLOG_SETUP_IN_FIND_FILES))
+  if (!thd_ndb->skip_binlog_setup_in_find_files())
   {
+    /* setup logging to binlog for all discovered tables */
     char *end, *end1= name +
       build_table_filename(name, sizeof(name) - 1, db, "", "", 0);
     for (i= 0; i < ok_tables.records; i++)
