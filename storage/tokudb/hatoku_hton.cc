@@ -932,16 +932,17 @@ static int tokudb_commit(handlerton * hton, THD * thd, bool all) {
     uint32_t syncflag = THDVAR(thd, commit_sync) ? 0 : DB_TXN_NOSYNC;
     tokudb_trx_data *trx = (tokudb_trx_data *) thd_data_get(thd, hton->slot);
     DB_TXN **txn = all ? &trx->all : &trx->stmt;
-    if (*txn) {
+    DB_TXN *this_txn = *txn;
+    if (this_txn) {
         if (tokudb_debug & TOKUDB_DEBUG_TXN) {
-            TOKUDB_TRACE("doing txn commit:%d:%p\n", all, *txn);
+            TOKUDB_TRACE("commit %d %p\n", all, this_txn);
         }
         // test hook to induce a crash on a debug build
         DBUG_EXECUTE_IF("tokudb_crash_commit_before", DBUG_SUICIDE(););
-        commit_txn_with_progress(*txn, syncflag, thd);
+        commit_txn_with_progress(this_txn, syncflag, thd);
         // test hook to induce a crash on a debug build
         DBUG_EXECUTE_IF("tokudb_crash_commit_after", DBUG_SUICIDE(););
-        if (*txn == trx->sp_level) {
+        if (this_txn == trx->sp_level) {
             trx->sp_level = 0;
         }
         *txn = 0;
@@ -959,11 +960,12 @@ static int tokudb_rollback(handlerton * hton, THD * thd, bool all) {
     DBUG_PRINT("trans", ("aborting transaction %s", all ? "all" : "stmt"));
     tokudb_trx_data *trx = (tokudb_trx_data *) thd_data_get(thd, hton->slot);
     DB_TXN **txn = all ? &trx->all : &trx->stmt;
-    if (*txn) {
+    DB_TXN *this_txn = *txn;
+    if (this_txn) {
         if (tokudb_debug & TOKUDB_DEBUG_TXN) {
-            TOKUDB_TRACE("rollback:%p\n", *txn);
+            TOKUDB_TRACE("rollback %d %p\n", all, this_txn);
         }
-        abort_txn_with_progress(*txn, thd);
+        abort_txn_with_progress(this_txn, thd);
         if (*txn == trx->sp_level) {
             trx->sp_level = 0;
         }
@@ -1067,7 +1069,7 @@ static int tokudb_savepoint(handlerton * hton, THD * thd, void *savepoint) {
     tokudb_trx_data *trx = (tokudb_trx_data *) thd_data_get(thd, hton->slot);
     if (thd->in_sub_stmt) {
         assert(trx->stmt);
-        error = db_env->txn_begin(db_env, trx->sub_sp_level, &(save_info->txn), DB_INHERIT_ISOLATION);
+        error = txn_begin(db_env, trx->sub_sp_level, &(save_info->txn), DB_INHERIT_ISOLATION);
         if (error) {
             goto cleanup;
         }
@@ -1075,7 +1077,7 @@ static int tokudb_savepoint(handlerton * hton, THD * thd, void *savepoint) {
         save_info->in_sub_stmt = true;
     }
     else {
-        error = db_env->txn_begin(db_env, trx->sp_level, &(save_info->txn), DB_INHERIT_ISOLATION);
+        error = txn_begin(db_env, trx->sp_level, &(save_info->txn), DB_INHERIT_ISOLATION);
         if (error) {
             goto cleanup;
         }
@@ -1147,7 +1149,7 @@ static int tokudb_discover2(handlerton *hton, THD* thd, const char *db, const ch
     memset(&key, 0, sizeof(key));
     memset(&value, 0, sizeof(&value));
     
-    error = db_env->txn_begin(db_env, 0, &txn, 0);
+    error = txn_begin(db_env, 0, &txn, 0);
     if (error) { goto cleanup; }
 
     build_table_filename(path, sizeof(path) - 1, db, name, "", translate_name ? 0 : FN_IS_TMP);
@@ -1215,7 +1217,7 @@ static int tokudb_dictionary_info(TABLE *table, THD *thd) {
     DBT curr_val;
     memset(&curr_key, 0, sizeof curr_key); 
     memset(&curr_val, 0, sizeof curr_val);
-    error = db_env->txn_begin(db_env, 0, &txn, DB_READ_UNCOMMITTED);
+    error = txn_begin(db_env, 0, &txn, DB_READ_UNCOMMITTED);
     if (error) {
         goto cleanup;
     }
@@ -1332,7 +1334,7 @@ static int tokudb_fractal_tree_info(TABLE *table, THD *thd) {
     DBT curr_val;
     memset(&curr_key, 0, sizeof curr_key);
     memset(&curr_val, 0, sizeof curr_val);
-    error = db_env->txn_begin(db_env, 0, &txn, DB_READ_UNCOMMITTED);
+    error = txn_begin(db_env, 0, &txn, DB_READ_UNCOMMITTED);
     if (error) {
         goto cleanup;
     }
@@ -1496,7 +1498,7 @@ static int tokudb_fractal_tree_block_map(TABLE *table, THD *thd) {
     DBT curr_val;
     memset(&curr_key, 0, sizeof curr_key);
     memset(&curr_val, 0, sizeof curr_val);
-    error = db_env->txn_begin(db_env, 0, &txn, DB_READ_UNCOMMITTED);
+    error = txn_begin(db_env, 0, &txn, DB_READ_UNCOMMITTED);
     if (error) {
         goto cleanup;
     }
@@ -1542,7 +1544,7 @@ static int tokudb_get_user_data_size(TABLE *table, THD *thd, bool exact) {
     memset(&curr_val, 0, sizeof curr_val);
     pthread_mutex_lock(&tokudb_meta_mutex);
 
-    error = db_env->txn_begin(db_env, 0, &txn, DB_READ_UNCOMMITTED);
+    error = txn_begin(db_env, 0, &txn, DB_READ_UNCOMMITTED);
     if (error) {
         goto cleanup;
     }
@@ -1559,7 +1561,7 @@ static int tokudb_get_user_data_size(TABLE *table, THD *thd, bool exact) {
         if (thd->killed) {
             break;
         }
-        error = db_env->txn_begin(db_env, 0, &tmp_txn, DB_READ_UNCOMMITTED);
+        error = txn_begin(db_env, 0, &tmp_txn, DB_READ_UNCOMMITTED);
         if (error) {
             goto cleanup;
         }
