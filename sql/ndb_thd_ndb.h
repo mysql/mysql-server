@@ -47,10 +47,6 @@ enum THD_NDB_TRANS_OPTIONS
   ,TNTO_NO_LOGGING=           1 << 1
   ,TNTO_TRANSACTIONS_OFF=     1 << 2
   ,TNTO_NO_REMOVE_STRAY_FILES=  1 << 3
-  /*
-    Skip Binlog setup when performing find_files()
-  */
-  ,TNTO_NO_BINLOG_SETUP_IN_FIND_FILES= 1 << 4
 };
 
 class Thd_ndb 
@@ -60,6 +56,10 @@ class Thd_ndb
   Thd_ndb(THD*);
   ~Thd_ndb();
   const bool m_slave_thread; // cached value of thd->slave_thread
+
+  /* Skip binlog setup in ndbcluster_find_files() */
+  bool m_skip_binlog_setup_in_find_files;
+
 public:
   static Thd_ndb* seize(THD*);
   static void release(Thd_ndb* thd_ndb);
@@ -140,6 +140,19 @@ public:
   bool recycle_ndb(void);
 
   bool is_slave_thread(void) const { return m_slave_thread; }
+
+  void set_skip_binlog_setup_in_find_files(bool value)
+  {
+    // Only alloow toggeling the value
+    assert(m_skip_binlog_setup_in_find_files != value);
+
+    m_skip_binlog_setup_in_find_files = value;
+  }
+
+  bool skip_binlog_setup_in_find_files(void) const
+  {
+    return m_skip_binlog_setup_in_find_files;
+  }
 };
 
 #endif
