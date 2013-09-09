@@ -1,0 +1,55 @@
+SET DEFAULT_STORAGE_ENGINE = 'tokudb';
+# Establish connection conn1 (user = root)
+DROP TABLE IF EXISTS foo;
+set session transaction isolation level repeatable read;
+set session transaction isolation level repeatable read;
+create table foo (a int, b int, primary key (a))engine=TokUDB;
+insert into foo values (1,1),(2,2),(3,3),(4,4),(5,5),(10,10),(20,20),(30,30),(40,40),(50,50);
+begin;
+select * from foo;
+a	b
+1	1
+2	2
+3	3
+4	4
+5	5
+10	10
+20	20
+30	30
+40	40
+50	50
+# number of rows should be 9
+explain select * from foo where a < 50;
+id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
+1	SIMPLE	foo	range	PRIMARY	PRIMARY	4	NULL	9	Using where
+delete from foo where a < 10;
+# number of rows should be 9
+explain select * from foo where a < 50;
+id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
+1	SIMPLE	foo	range	PRIMARY	PRIMARY	4	NULL	9	Using where
+# should have just 4 values
+select * from foo where a < 50;
+a	b
+10	10
+20	20
+30	30
+40	40
+# number of rows should be 9
+explain select * from foo where a < 50;
+id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
+1	SIMPLE	foo	range	PRIMARY	PRIMARY	4	NULL	9	Using where
+# 9 values
+select * From foo where a < 50;
+a	b
+1	1
+2	2
+3	3
+4	4
+5	5
+10	10
+20	20
+30	30
+40	40
+commit;
+set session transaction isolation level serializable;
+DROP TABLE foo;

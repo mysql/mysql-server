@@ -1,0 +1,53 @@
+source include/master-slave.inc;
+source include/have_binlog_format_mixed.inc;
+source include/have_tokudb.inc;
+
+set default_storage_engine='tokudb';
+create table tt (id int primary key, x int);
+
+set session tokudb_disable_slow_upsert=1;
+
+connection master;
+show variables like 'binlog_format';
+show variables like 'server_id';
+
+connection slave;
+show variables like 'binlog_format';
+show variables like 'server_id';
+
+connection master;
+
+let $n=100;
+
+# insert a bunch of new rows
+let $i=0;
+while ($i < $n) {
+        eval insert into tt values ($i,0) on duplicate key update x=x+1;
+        inc $i;
+}
+
+# upsert a bunch of rows
+let $i=0;
+while ($i < $n) {
+        eval insert into tt values ($i,0) on duplicate key update x=x+1;
+        inc $i;
+}
+
+# update a bunch of rows
+let $i=0;
+while ($i < $n) {
+        eval update noar tt set x=x+1 where id=$i;
+        inc $i;
+}
+select * from tt where x != 2;
+
+sync_slave_with_master;
+
+let $diff_tables= master:test.tt, slave:test.tt;
+source include/diff_tables.inc;
+
+connection master;
+drop table tt;
+
+source include/rpl_end.inc;
+

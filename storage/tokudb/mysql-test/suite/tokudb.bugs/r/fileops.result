@@ -1,0 +1,161 @@
+SET DEFAULT_STORAGE_ENGINE = 'tokudb';
+DROP TABLE IF EXISTS t1,t2;
+create table t1 (a int, b int, c int, key(a), key(b));
+DROP TABLE t1;
+create table t1 (a int, b int, c int, primary key(a), key(b));
+DROP TABLE t1;
+create table t1 (a int, b int, c int, key(a), key(b));
+insert into t1 values (1,10,100);
+select * from t1;
+a	b	c
+1	10	100
+DROP TABLE t1;
+create table t1 (a int, b int, c int, primary key(a), key(b));
+insert into t1 values (1,10,100);
+select * from t1;
+a	b	c
+1	10	100
+DROP TABLE t1;
+create table t1 (a int, b int, c int, key(a), key(b));
+rename table t1 to t2;
+DROP TABLE t2;
+create table t1 (a int, b int, c int, primary key(a), key(b));
+rename table t1 to t2;
+DROP TABLE t2;
+create table t1 (a int, b int, c int, key(a), key(b));
+insert into t1 values (1,10,100);
+select * from t1;
+a	b	c
+1	10	100
+rename table t1 to t2;
+select * from t2;
+a	b	c
+1	10	100
+DROP TABLE t2;
+create table t1 (a int, b int, c int, primary key(a), key(b));
+insert into t1 values (1,10,100);
+select * from t1;
+a	b	c
+1	10	100
+rename table t1 to t2;
+select * from t2;
+a	b	c
+1	10	100
+DROP TABLE t2;
+create table t1 (a int, b int, c int, key(a), key(b));
+rename table t1 to t2;
+insert into t2 values (1,10,100);
+select * from t2;
+a	b	c
+1	10	100
+DROP TABLE t2;
+create table t1 (a int, b int, c int, primary key(a), key(b));
+rename table t1 to t2;
+insert into t2 values (1,10,100);
+select * from t2;
+a	b	c
+1	10	100
+DROP TABLE t2;
+create table t1 (a int, b int, c int, key(a), key(b));
+alter table t1 add index (c), add index (a,b);
+DROP TABLE t1;
+create table t1 (a int, b int, c int, primary key(a), key(b));
+alter table t1 add index (c), add index (a,b);
+DROP TABLE t1;
+create table t1 (a int, b int, c int, key(a), key(b));
+alter table t1 drop index b;
+DROP TABLE t1;
+create table t1 (a int, b int, c int, primary key(a), key(b));
+alter table t1 drop index b;
+DROP TABLE t1;
+create table t1 (a int, b int, c int, key(a), key(b));
+insert into t1 values (1,10,100);
+alter table t1 add index (c), add index (a,b);
+select c from t1;
+c
+100
+select a,b from t1;
+a	b
+1	10
+DROP TABLE t1;
+create table t1 (a int, b int, c int, primary key(a), key(b));
+insert into t1 values (1,10,100);
+alter table t1 add index (c), add index (a,b);
+select c from t1;
+c
+100
+select a,b from t1;
+a	b
+1	10
+DROP TABLE t1;
+create table t1 (a int, b int, c int, key(a), key(b));
+alter table t1 add index (c), add index (a,b), drop index b;
+DROP TABLE t1;
+create table t1 (a int, b int, c int, primary key(a), key(b));
+alter table t1 add index (c), add index (a,b), drop index b;
+DROP TABLE t1;
+create table t1 (a int, b int, c int, key(a), key(b));
+insert into t1 values (1,10,100);
+alter table t1 add index (c), add index foo (a,b), drop index b;
+select c from t1;
+c
+100
+select a,b from t1 use index (foo);
+a	b
+1	10
+DROP TABLE t1;
+create table t1 (a int, b int, c int, primary key(a), key(b));
+insert into t1 values (1,10,100);
+alter table t1 add index (c), add index foo (a,b), drop index b;
+select c from t1;
+c
+100
+select a,b from t1 use index (foo);
+a	b
+1	10
+DROP TABLE t1;
+create table t1 (a int, b int, c int, key(a), key(b));
+insert into t1 values (1,10,100);
+select * from t1;
+a	b	c
+1	10	100
+truncate table t1;
+insert into t1 values (2,20,200);
+select * from t1;
+a	b	c
+2	20	200
+DROP TABLE t1;
+create table t1 (a int, b int, c int, primary key(a), key(b));
+insert into t1 values (1,10,100);
+select * from t1;
+a	b	c
+1	10	100
+truncate table t1;
+insert into t1 values (2,20,200);
+select * from t1;
+a	b	c
+2	20	200
+DROP TABLE t1;
+create table t1 (a int, b int, c int, key(a), key(b));
+insert into t1 values (1,10,100);
+select * from t1;
+a	b	c
+1	10	100
+alter table t1 add index (c), drop index b;
+select c from t1;
+c
+100
+rename table t1 to t2;
+select * from t2;
+a	b	c
+1	10	100
+alter table t2 add index (b), drop index c;
+select b from t2;
+b
+10
+truncate table t2;
+insert into t2 values (2,20,200);
+select * From t2;
+a	b	c
+2	20	200
+drop table t2;

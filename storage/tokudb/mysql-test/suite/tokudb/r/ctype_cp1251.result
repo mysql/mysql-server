@@ -1,0 +1,73 @@
+SET DEFAULT_STORAGE_ENGINE='tokudb';
+drop table if exists t1;
+SET NAMES cp1251;
+create table t1 (a varchar(10) not null) character set cp1251;
+insert into t1 values ("a"),("ab"),("abc");
+select * from t1;
+a
+a
+ab
+abc
+select a, left(a,1) as b from t1;
+a	b
+a	a
+ab	a
+abc	a
+select a, left(a,1) as b from t1 group by a;
+a	b
+a	a
+ab	a
+abc	a
+SELECT DISTINCT RIGHT(a,1) from t1;
+RIGHT(a,1)
+a
+b
+c
+drop table t1;
+create table t1 (a char(3) binary, b binary(3)) character set cp1251;
+insert into t1 values ('aaa','bbb'),('AAA','BBB');
+select upper(a),upper(b) from t1;
+upper(a)	upper(b)
+AAA	bbb
+AAA	BBB
+select lower(a),lower(b) from t1;
+lower(a)	lower(b)
+aaa	bbb
+aaa	BBB
+select * from t1 where upper(a)='AAA';
+a	b
+aaa	bbb
+AAA	BBB
+select * from t1 where lower(a)='aaa';
+a	b
+aaa	bbb
+AAA	BBB
+select * from t1 where upper(b)='BBB';
+a	b
+AAA	BBB
+select * from t1 where lower(b)='bbb';
+a	b
+aaa	bbb
+select charset(a), charset(b), charset(binary 'ccc') from t1 limit 1;
+charset(a)	charset(b)	charset(binary 'ccc')
+cp1251	binary	binary
+select collation(a), collation(b), collation(binary 'ccc') from t1 limit 1;
+collation(a)	collation(b)	collation(binary 'ccc')
+cp1251_bin	binary	binary
+drop table t1;
+create table t1 (
+a varchar(16) character set cp1251 collate cp1251_bin not null,
+b int(10) default null,
+primary key(a)
+) charset=cp1251;
+insert into t1 (a) values ('air'),
+('we'),('g'),('we_toshko'), ('s0urce'),('we_ivo'),('we_iliyan'),
+('we_martin'),('vw_grado'),('vw_vasko'),('tn_vili'),('tn_kalina'),
+('tn_fakira'),('vw_silvia'),('vw_starshi'),('vw_geo'),('vw_b0x1');
+select * from t1 where a like 'we_%';
+a	b
+we_iliyan	NULL
+we_ivo	NULL
+we_martin	NULL
+we_toshko	NULL
+drop table t1;

@@ -1,0 +1,196 @@
+SET DEFAULT_STORAGE_ENGINE = 'TokuDB';
+drop function if exists bug13825_0|
+drop function if exists bug13825_1|
+drop function if exists bug13825_2|
+drop function if exists bug13825_3|
+drop function if exists bug13825_4|
+drop function if exists bug13825_5|
+drop procedure if exists bug13825_0|
+drop procedure if exists bug13825_1|
+drop procedure if exists bug13825_2|
+drop table if exists t1,t2|
+create table t1 (i int) |
+create table t2 (i int) |
+create function bug13825_0() returns int
+begin
+rollback to savepoint x;
+return 1;
+end|
+create function bug13825_1() returns int
+begin
+release savepoint x;
+return 1;
+end|
+create function bug13825_2() returns int
+begin
+insert into t1 values (2);
+savepoint x;
+insert into t1 values (3);
+rollback to savepoint x;
+insert into t1 values (4);
+return 1;
+end|
+create procedure bug13825_0()
+begin
+rollback to savepoint x;
+end|
+create procedure bug13825_1()
+begin
+release savepoint x;
+end|
+create procedure bug13825_2()
+begin
+savepoint x;
+end|
+insert into t2 values (1)|
+create trigger t2_bi before insert on t2 for each row
+rollback to savepoint x|
+create trigger t2_bu before update on t2 for each row
+release savepoint x|
+create trigger t2_bd before delete on t2 for each row
+begin
+insert into t1 values (2);
+savepoint x;
+insert into t1 values (3);
+rollback to savepoint x;
+insert into t1 values (4);
+end|
+create function bug13825_3(rb int) returns int
+begin
+insert into t1 values(1);
+savepoint x;
+insert into t1 values(2);
+if rb then
+rollback to savepoint x;
+end if;
+insert into t1 values(3);
+return rb;
+end|
+create function bug13825_4() returns int
+begin
+savepoint x;
+insert into t1 values(2);
+rollback to savepoint x;
+return 0;
+end|
+create function bug13825_5(p int) returns int
+begin
+savepoint x;
+insert into t2 values(p);
+rollback to savepoint x;
+insert into t2 values(p+1);
+return p;
+end|
+set autocommit= 0|
+begin |
+insert into t1 values (1)|
+savepoint x|
+set @a:= bug13825_0()|
+ERROR 42000: SAVEPOINT x does not exist
+insert into t2 values (2)|
+ERROR 42000: SAVEPOINT x does not exist
+set @a:= bug13825_1()|
+ERROR 42000: SAVEPOINT x does not exist
+update t2 set i = 2|
+ERROR 42000: SAVEPOINT x does not exist
+set @a:= bug13825_2()|
+select * from t1|
+i
+1
+2
+4
+rollback to savepoint x|
+select * from t1|
+i
+1
+delete from t2|
+select * from t1|
+i
+1
+2
+4
+rollback to savepoint x|
+select * from t1|
+i
+1
+release savepoint x|
+set @a:= bug13825_2()|
+select * from t1|
+i
+1
+2
+4
+rollback to savepoint x|
+ERROR 42000: SAVEPOINT x does not exist
+delete from t1|
+commit|
+begin|
+insert into t1 values (5)|
+savepoint x|
+insert into t1 values (6)|
+call bug13825_0()|
+select * from t1|
+i
+5
+call bug13825_1()|
+rollback to savepoint x|
+ERROR 42000: SAVEPOINT x does not exist
+savepoint x|
+insert into t1 values (7)|
+call bug13825_2()|
+rollback to savepoint x|
+select * from t1|
+i
+5
+7
+delete from t1|
+commit|
+set autocommit= 1|
+select bug13825_3(0)|
+bug13825_3(0)
+0
+select * from t1|
+i
+1
+2
+3
+delete from t1|
+select bug13825_3(1)|
+bug13825_3(1)
+1
+select * from t1|
+i
+1
+3
+delete from t1|
+set autocommit= 0|
+begin|
+insert into t1 values (1)|
+set @a:= bug13825_4()|
+select * from t1|
+i
+1
+delete from t1|
+commit|
+set autocommit= 1|
+drop table t2|
+create table t2 (i int) |
+insert into t1 values (1), (bug13825_5(2)), (3)|
+select * from t1|
+i
+1
+2
+3
+select * from t2|
+i
+3
+drop function bug13825_0|
+drop function bug13825_1|
+drop function bug13825_2|
+drop function bug13825_3|
+drop function bug13825_4|
+drop function bug13825_5|
+drop procedure bug13825_0|
+drop procedure bug13825_1|
+drop procedure bug13825_2|
+drop table t1, t2|

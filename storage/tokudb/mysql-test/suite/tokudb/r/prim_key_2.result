@@ -1,0 +1,365 @@
+SET DEFAULT_STORAGE_ENGINE='tokudb';
+*** Bug #22169 ***
+DROP TABLE IF EXISTS t1;
+CREATE TABLE t1 (a int, b bigint, c varchar(10), d date, e int, primary key (a));
+INSERT into t1 values (1,54,"zardosht", '1986-08-30', 3287);
+INSERT into t1 values (2,8709,"Alaadin", '1789-01-31', 8327);
+INSERT into t1 values (3,234,"Gilbert", '1325-05-21', 871233);
+INSERT into t1 values (4,563,"Lois", '1981-11-06', 654);
+INSERT into t1 values (5,587,"Lexington", '1844-03-01', 75);
+INSERT into t1 values (6,934764,"Goliath", '1161-11-01', 453);
+INSERT into t1 values (7,109234,"Peter", '2005-11-01', 5);
+INSERT into t1 values (8,9438,"Bart", '1472-11-01', 234);
+INSERT into t1 values (9,111111111,"Superman", '1776-07-04', 65);
+INSERT into t1 values (10,50000004,"Batman", '1981-11-01', 87423);
+SELECT * from t1;
+a	b	c	d	e
+1	54	zardosht	1986-08-30	3287
+2	8709	Alaadin	1789-01-31	8327
+3	234	Gilbert	1325-05-21	871233
+4	563	Lois	1981-11-06	654
+5	587	Lexington	1844-03-01	75
+6	934764	Goliath	1161-11-01	453
+7	109234	Peter	2005-11-01	5
+8	9438	Bart	1472-11-01	234
+9	111111111	Superman	1776-07-04	65
+10	50000004	Batman	1981-11-01	87423
+alter table t1 drop primary key;
+SELECT * from t1;
+a	b	c	d	e
+1	54	zardosht	1986-08-30	3287
+2	8709	Alaadin	1789-01-31	8327
+3	234	Gilbert	1325-05-21	871233
+4	563	Lois	1981-11-06	654
+5	587	Lexington	1844-03-01	75
+6	934764	Goliath	1161-11-01	453
+7	109234	Peter	2005-11-01	5
+8	9438	Bart	1472-11-01	234
+9	111111111	Superman	1776-07-04	65
+10	50000004	Batman	1981-11-01	87423
+alter table t1 add primary key (b);
+SELECT * from t1;
+a	b	c	d	e
+1	54	zardosht	1986-08-30	3287
+3	234	Gilbert	1325-05-21	871233
+4	563	Lois	1981-11-06	654
+5	587	Lexington	1844-03-01	75
+2	8709	Alaadin	1789-01-31	8327
+8	9438	Bart	1472-11-01	234
+7	109234	Peter	2005-11-01	5
+6	934764	Goliath	1161-11-01	453
+10	50000004	Batman	1981-11-01	87423
+9	111111111	Superman	1776-07-04	65
+alter table t1 drop primary key;
+SELECT * from t1;
+a	b	c	d	e
+1	54	zardosht	1986-08-30	3287
+3	234	Gilbert	1325-05-21	871233
+4	563	Lois	1981-11-06	654
+5	587	Lexington	1844-03-01	75
+2	8709	Alaadin	1789-01-31	8327
+8	9438	Bart	1472-11-01	234
+7	109234	Peter	2005-11-01	5
+6	934764	Goliath	1161-11-01	453
+10	50000004	Batman	1981-11-01	87423
+9	111111111	Superman	1776-07-04	65
+alter table t1 add primary key (c);
+SELECT * from t1;
+a	b	c	d	e
+2	8709	Alaadin	1789-01-31	8327
+8	9438	Bart	1472-11-01	234
+10	50000004	Batman	1981-11-01	87423
+3	234	Gilbert	1325-05-21	871233
+6	934764	Goliath	1161-11-01	453
+5	587	Lexington	1844-03-01	75
+4	563	Lois	1981-11-06	654
+7	109234	Peter	2005-11-01	5
+9	111111111	Superman	1776-07-04	65
+1	54	zardosht	1986-08-30	3287
+alter table t1 drop primary key;
+SELECT * from t1;
+a	b	c	d	e
+2	8709	Alaadin	1789-01-31	8327
+8	9438	Bart	1472-11-01	234
+10	50000004	Batman	1981-11-01	87423
+3	234	Gilbert	1325-05-21	871233
+6	934764	Goliath	1161-11-01	453
+5	587	Lexington	1844-03-01	75
+4	563	Lois	1981-11-06	654
+7	109234	Peter	2005-11-01	5
+9	111111111	Superman	1776-07-04	65
+1	54	zardosht	1986-08-30	3287
+alter table t1 add primary key (d);
+SELECT * from t1;
+a	b	c	d	e
+6	934764	Goliath	1161-11-01	453
+3	234	Gilbert	1325-05-21	871233
+8	9438	Bart	1472-11-01	234
+9	111111111	Superman	1776-07-04	65
+2	8709	Alaadin	1789-01-31	8327
+5	587	Lexington	1844-03-01	75
+10	50000004	Batman	1981-11-01	87423
+4	563	Lois	1981-11-06	654
+1	54	zardosht	1986-08-30	3287
+7	109234	Peter	2005-11-01	5
+alter table t1 drop primary key;
+SELECT * from t1;
+a	b	c	d	e
+6	934764	Goliath	1161-11-01	453
+3	234	Gilbert	1325-05-21	871233
+8	9438	Bart	1472-11-01	234
+9	111111111	Superman	1776-07-04	65
+2	8709	Alaadin	1789-01-31	8327
+5	587	Lexington	1844-03-01	75
+10	50000004	Batman	1981-11-01	87423
+4	563	Lois	1981-11-06	654
+1	54	zardosht	1986-08-30	3287
+7	109234	Peter	2005-11-01	5
+alter table t1 add primary key (e);
+SELECT * from t1;
+a	b	c	d	e
+7	109234	Peter	2005-11-01	5
+9	111111111	Superman	1776-07-04	65
+5	587	Lexington	1844-03-01	75
+8	9438	Bart	1472-11-01	234
+6	934764	Goliath	1161-11-01	453
+4	563	Lois	1981-11-06	654
+1	54	zardosht	1986-08-30	3287
+2	8709	Alaadin	1789-01-31	8327
+10	50000004	Batman	1981-11-01	87423
+3	234	Gilbert	1325-05-21	871233
+alter table t1 drop primary key;
+SELECT * from t1;
+a	b	c	d	e
+7	109234	Peter	2005-11-01	5
+9	111111111	Superman	1776-07-04	65
+5	587	Lexington	1844-03-01	75
+8	9438	Bart	1472-11-01	234
+6	934764	Goliath	1161-11-01	453
+4	563	Lois	1981-11-06	654
+1	54	zardosht	1986-08-30	3287
+2	8709	Alaadin	1789-01-31	8327
+10	50000004	Batman	1981-11-01	87423
+3	234	Gilbert	1325-05-21	871233
+alter table t1 add primary key (a,b);
+SELECT * from t1;
+a	b	c	d	e
+1	54	zardosht	1986-08-30	3287
+2	8709	Alaadin	1789-01-31	8327
+3	234	Gilbert	1325-05-21	871233
+4	563	Lois	1981-11-06	654
+5	587	Lexington	1844-03-01	75
+6	934764	Goliath	1161-11-01	453
+7	109234	Peter	2005-11-01	5
+8	9438	Bart	1472-11-01	234
+9	111111111	Superman	1776-07-04	65
+10	50000004	Batman	1981-11-01	87423
+alter table t1 drop primary key;
+SELECT * from t1;
+a	b	c	d	e
+1	54	zardosht	1986-08-30	3287
+2	8709	Alaadin	1789-01-31	8327
+3	234	Gilbert	1325-05-21	871233
+4	563	Lois	1981-11-06	654
+5	587	Lexington	1844-03-01	75
+6	934764	Goliath	1161-11-01	453
+7	109234	Peter	2005-11-01	5
+8	9438	Bart	1472-11-01	234
+9	111111111	Superman	1776-07-04	65
+10	50000004	Batman	1981-11-01	87423
+alter table t1 add primary key (a,c);
+SELECT * from t1;
+a	b	c	d	e
+1	54	zardosht	1986-08-30	3287
+2	8709	Alaadin	1789-01-31	8327
+3	234	Gilbert	1325-05-21	871233
+4	563	Lois	1981-11-06	654
+5	587	Lexington	1844-03-01	75
+6	934764	Goliath	1161-11-01	453
+7	109234	Peter	2005-11-01	5
+8	9438	Bart	1472-11-01	234
+9	111111111	Superman	1776-07-04	65
+10	50000004	Batman	1981-11-01	87423
+alter table t1 drop primary key;
+SELECT * from t1;
+a	b	c	d	e
+1	54	zardosht	1986-08-30	3287
+2	8709	Alaadin	1789-01-31	8327
+3	234	Gilbert	1325-05-21	871233
+4	563	Lois	1981-11-06	654
+5	587	Lexington	1844-03-01	75
+6	934764	Goliath	1161-11-01	453
+7	109234	Peter	2005-11-01	5
+8	9438	Bart	1472-11-01	234
+9	111111111	Superman	1776-07-04	65
+10	50000004	Batman	1981-11-01	87423
+alter table t1 add primary key (b,d);
+SELECT * from t1;
+a	b	c	d	e
+1	54	zardosht	1986-08-30	3287
+3	234	Gilbert	1325-05-21	871233
+4	563	Lois	1981-11-06	654
+5	587	Lexington	1844-03-01	75
+2	8709	Alaadin	1789-01-31	8327
+8	9438	Bart	1472-11-01	234
+7	109234	Peter	2005-11-01	5
+6	934764	Goliath	1161-11-01	453
+10	50000004	Batman	1981-11-01	87423
+9	111111111	Superman	1776-07-04	65
+alter table t1 drop primary key;
+SELECT * from t1;
+a	b	c	d	e
+1	54	zardosht	1986-08-30	3287
+3	234	Gilbert	1325-05-21	871233
+4	563	Lois	1981-11-06	654
+5	587	Lexington	1844-03-01	75
+2	8709	Alaadin	1789-01-31	8327
+8	9438	Bart	1472-11-01	234
+7	109234	Peter	2005-11-01	5
+6	934764	Goliath	1161-11-01	453
+10	50000004	Batman	1981-11-01	87423
+9	111111111	Superman	1776-07-04	65
+alter table t1 add primary key (d,e);
+SELECT * from t1;
+a	b	c	d	e
+6	934764	Goliath	1161-11-01	453
+3	234	Gilbert	1325-05-21	871233
+8	9438	Bart	1472-11-01	234
+9	111111111	Superman	1776-07-04	65
+2	8709	Alaadin	1789-01-31	8327
+5	587	Lexington	1844-03-01	75
+10	50000004	Batman	1981-11-01	87423
+4	563	Lois	1981-11-06	654
+1	54	zardosht	1986-08-30	3287
+7	109234	Peter	2005-11-01	5
+alter table t1 drop primary key;
+SELECT * from t1;
+a	b	c	d	e
+6	934764	Goliath	1161-11-01	453
+3	234	Gilbert	1325-05-21	871233
+8	9438	Bart	1472-11-01	234
+9	111111111	Superman	1776-07-04	65
+2	8709	Alaadin	1789-01-31	8327
+5	587	Lexington	1844-03-01	75
+10	50000004	Batman	1981-11-01	87423
+4	563	Lois	1981-11-06	654
+1	54	zardosht	1986-08-30	3287
+7	109234	Peter	2005-11-01	5
+alter table t1 add primary key (d,b);
+SELECT * from t1;
+a	b	c	d	e
+6	934764	Goliath	1161-11-01	453
+3	234	Gilbert	1325-05-21	871233
+8	9438	Bart	1472-11-01	234
+9	111111111	Superman	1776-07-04	65
+2	8709	Alaadin	1789-01-31	8327
+5	587	Lexington	1844-03-01	75
+10	50000004	Batman	1981-11-01	87423
+4	563	Lois	1981-11-06	654
+1	54	zardosht	1986-08-30	3287
+7	109234	Peter	2005-11-01	5
+alter table t1 drop primary key;
+SELECT * from t1;
+a	b	c	d	e
+6	934764	Goliath	1161-11-01	453
+3	234	Gilbert	1325-05-21	871233
+8	9438	Bart	1472-11-01	234
+9	111111111	Superman	1776-07-04	65
+2	8709	Alaadin	1789-01-31	8327
+5	587	Lexington	1844-03-01	75
+10	50000004	Batman	1981-11-01	87423
+4	563	Lois	1981-11-06	654
+1	54	zardosht	1986-08-30	3287
+7	109234	Peter	2005-11-01	5
+alter table t1 add primary key (e,a,c);
+SELECT * from t1;
+a	b	c	d	e
+7	109234	Peter	2005-11-01	5
+9	111111111	Superman	1776-07-04	65
+5	587	Lexington	1844-03-01	75
+8	9438	Bart	1472-11-01	234
+6	934764	Goliath	1161-11-01	453
+4	563	Lois	1981-11-06	654
+1	54	zardosht	1986-08-30	3287
+2	8709	Alaadin	1789-01-31	8327
+10	50000004	Batman	1981-11-01	87423
+3	234	Gilbert	1325-05-21	871233
+alter table t1 drop primary key;
+SELECT * from t1;
+a	b	c	d	e
+7	109234	Peter	2005-11-01	5
+9	111111111	Superman	1776-07-04	65
+5	587	Lexington	1844-03-01	75
+8	9438	Bart	1472-11-01	234
+6	934764	Goliath	1161-11-01	453
+4	563	Lois	1981-11-06	654
+1	54	zardosht	1986-08-30	3287
+2	8709	Alaadin	1789-01-31	8327
+10	50000004	Batman	1981-11-01	87423
+3	234	Gilbert	1325-05-21	871233
+alter table t1 add primary key (a,b,c,d,e);
+SELECT * from t1;
+a	b	c	d	e
+1	54	zardosht	1986-08-30	3287
+2	8709	Alaadin	1789-01-31	8327
+3	234	Gilbert	1325-05-21	871233
+4	563	Lois	1981-11-06	654
+5	587	Lexington	1844-03-01	75
+6	934764	Goliath	1161-11-01	453
+7	109234	Peter	2005-11-01	5
+8	9438	Bart	1472-11-01	234
+9	111111111	Superman	1776-07-04	65
+10	50000004	Batman	1981-11-01	87423
+alter table t1 drop primary key;
+SELECT * from t1;
+a	b	c	d	e
+1	54	zardosht	1986-08-30	3287
+2	8709	Alaadin	1789-01-31	8327
+3	234	Gilbert	1325-05-21	871233
+4	563	Lois	1981-11-06	654
+5	587	Lexington	1844-03-01	75
+6	934764	Goliath	1161-11-01	453
+7	109234	Peter	2005-11-01	5
+8	9438	Bart	1472-11-01	234
+9	111111111	Superman	1776-07-04	65
+10	50000004	Batman	1981-11-01	87423
+alter table t1 add primary key (e,d,c,b,a);
+SELECT * from t1;
+a	b	c	d	e
+7	109234	Peter	2005-11-01	5
+9	111111111	Superman	1776-07-04	65
+5	587	Lexington	1844-03-01	75
+8	9438	Bart	1472-11-01	234
+6	934764	Goliath	1161-11-01	453
+4	563	Lois	1981-11-06	654
+1	54	zardosht	1986-08-30	3287
+2	8709	Alaadin	1789-01-31	8327
+10	50000004	Batman	1981-11-01	87423
+3	234	Gilbert	1325-05-21	871233
+alter table t1 drop primary key;
+SELECT * from t1;
+a	b	c	d	e
+7	109234	Peter	2005-11-01	5
+9	111111111	Superman	1776-07-04	65
+5	587	Lexington	1844-03-01	75
+8	9438	Bart	1472-11-01	234
+6	934764	Goliath	1161-11-01	453
+4	563	Lois	1981-11-06	654
+1	54	zardosht	1986-08-30	3287
+2	8709	Alaadin	1789-01-31	8327
+10	50000004	Batman	1981-11-01	87423
+3	234	Gilbert	1325-05-21	871233
+alter table t1 add primary key (e,a,d,b,c);
+SELECT * from t1;
+a	b	c	d	e
+7	109234	Peter	2005-11-01	5
+9	111111111	Superman	1776-07-04	65
+5	587	Lexington	1844-03-01	75
+8	9438	Bart	1472-11-01	234
+6	934764	Goliath	1161-11-01	453
+4	563	Lois	1981-11-06	654
+1	54	zardosht	1986-08-30	3287
+2	8709	Alaadin	1789-01-31	8327
+10	50000004	Batman	1981-11-01	87423
+3	234	Gilbert	1325-05-21	871233
+DROP TABLE t1;

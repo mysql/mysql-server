@@ -1,0 +1,6 @@
+SELECT @@global.sql_mode;
+@@global.sql_mode
+NO_ENGINE_SUBSTITUTION
+SELECT @@session.sql_mode;
+@@session.sql_mode
+NO_ENGINE_SUBSTITUTION

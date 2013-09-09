@@ -1,0 +1,53 @@
+# ticket 895 is a query optimization problem with the primary key
+
+--source include/have_tokudb.inc
+SET DEFAULT_STORAGE_ENGINE = 'tokudb';
+
+--disable_warnings
+DROP TABLE IF EXISTS foo;
+--enable_warnings
+
+create table foo ( a int, b int, c int);
+insert into foo values (1,1,1),(1,2,2),(1,3,3),(2,1,1),(2,2,2),(2,3,3),(3,1,1),(3,2,2),(3,3,3);
+insert into foo values (4,4,1),(4,5,2),(4,6,3),(5,4,1),(5,5,2),(5,6,3),(6,4,1),(6,5,2),(6,6,3);
+insert into foo select * from foo;
+insert into foo select * from foo;
+insert into foo select * from foo;
+insert into foo select * from foo;
+insert into foo select * from foo;
+insert into foo select * from foo;
+insert into foo select * from foo;
+insert into foo select * from foo;
+insert into foo select * from foo;
+insert into foo select * from foo;
+insert into foo select * from foo;
+select count(*) from foo;
+
+alter table foo add index (a), add index (b);
+# ignore rows column
+--replace_column 9 NULL;
+explain select * from foo where a=2 and b=2;
+
+alter table foo drop index a;
+alter table foo add clustering index (a);
+# ignore rows column
+--replace_column 9 NULL;
+explain select * from foo where a=2 and b=2;
+
+alter table foo drop index a;
+alter table foo drop index b;
+alter table foo add index (a);
+alter table foo add clustering index(b);
+# ignore rows column
+--replace_column 9 NULL;
+explain select * from foo where a=2 and b=2;
+
+alter table foo drop index a;
+alter table foo drop index b;
+alter table foo add clustering index (a), add clustering index (b);
+# ignore rows column
+--replace_column 9 NULL;
+explain select * from foo where a=2 and b=2;
+
+# Final cleanup.
+DROP TABLE foo;

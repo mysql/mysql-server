@@ -1,0 +1,59 @@
+--source include/have_tokudb.inc
+SET DEFAULT_STORAGE_ENGINE = 'TokuDB';
+
+--disable_warnings
+DROP TABLE IF EXISTS t1;
+--enable_warnings
+
+#
+# Test rollback
+#
+
+create table t1 (n int not null primary key) engine=tokudb;
+set autocommit=0;
+insert into t1 values (4);
+rollback;
+select n, "after rollback" from t1;
+insert into t1 values (4);
+commit;
+select n, "after commit" from t1;
+commit;
+insert into t1 values (5);
+-- error ER_DUP_ENTRY
+insert into t1 values (4);
+commit;
+select n, "after commit" from t1;
+set autocommit=1;
+insert into t1 values (6);
+-- error ER_DUP_ENTRY
+insert into t1 values (4);
+select n from t1;
+set autocommit=0;
+#
+# savepoints
+#
+begin;
+savepoint `my_savepoint`;
+insert into t1 values (7);
+savepoint `savept2`;
+insert into t1 values (3);
+select n from t1;
+savepoint savept3;
+rollback to savepoint savept2;
+--error 1305
+rollback to savepoint savept3;
+rollback to savepoint savept2;
+release savepoint `my_savepoint`;
+select n from t1;
+-- error 1305
+rollback to savepoint `my_savepoint`;
+--error 1305
+rollback to savepoint savept2;
+insert into t1 values (8);
+savepoint sv;
+commit;
+savepoint sv;
+set autocommit=1;
+# nop
+rollback;
+drop table t1;

@@ -1,0 +1,21 @@
+SET DEFAULT_STORAGE_ENGINE = 'tokudb';
+DROP TABLE IF EXISTS foo;
+create table foo (a int auto_increment, primary key (a))engine=TokuDB, auto_increment=5;
+insert into foo values (),(),(),();
+select * from foo;
+a
+5
+6
+7
+8
+truncate table foo;
+select * from foo;
+a
+insert into foo values (),(),(),();
+select * from foo;
+a
+5
+6
+7
+8
+DROP TABLE foo;

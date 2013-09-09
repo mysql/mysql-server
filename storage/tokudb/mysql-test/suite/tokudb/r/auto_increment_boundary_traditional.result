@@ -1,0 +1,454 @@
+drop table if exists t;
+set sql_mode=traditional;
+create table t (id tinyint unsigned not null auto_increment, key(id));
+insert into t set id=0xf8;
+show warnings;
+Level	Code	Message
+select * from t;
+id
+248
+select last_insert_id() from t limit 1;
+last_insert_id()
+0
+insert into t set id=null;
+show warnings;
+Level	Code	Message
+select * from t;
+id
+248
+249
+select last_insert_id() from t limit 1;
+last_insert_id()
+249
+insert into t set id=null;
+show warnings;
+Level	Code	Message
+select * from t;
+id
+248
+249
+250
+select last_insert_id() from t limit 1;
+last_insert_id()
+250
+insert into t set id=null;
+show warnings;
+Level	Code	Message
+select * from t;
+id
+248
+249
+250
+251
+select last_insert_id() from t limit 1;
+last_insert_id()
+251
+insert into t set id=null;
+show warnings;
+Level	Code	Message
+select * from t;
+id
+248
+249
+250
+251
+252
+select last_insert_id() from t limit 1;
+last_insert_id()
+252
+insert into t set id=null;
+show warnings;
+Level	Code	Message
+select * from t;
+id
+248
+249
+250
+251
+252
+253
+select last_insert_id() from t limit 1;
+last_insert_id()
+253
+insert into t set id=null;
+show warnings;
+Level	Code	Message
+select * from t;
+id
+248
+249
+250
+251
+252
+253
+254
+select last_insert_id() from t limit 1;
+last_insert_id()
+254
+insert into t set id=null;
+show warnings;
+Level	Code	Message
+select * from t;
+id
+248
+249
+250
+251
+252
+253
+254
+255
+select last_insert_id() from t limit 1;
+last_insert_id()
+255
+insert into t set id=null;
+Got one of the listed errors
+select last_insert_id() from t limit 1;
+last_insert_id()
+255
+insert into t set id=null;
+Got one of the listed errors
+select last_insert_id() from t limit 1;
+last_insert_id()
+255
+insert into t set id=null;
+Got one of the listed errors
+select last_insert_id() from t limit 1;
+last_insert_id()
+255
+drop table t;
+create table t (id smallint unsigned not null auto_increment, key(id));
+insert into t set id=0xfff8;
+show warnings;
+Level	Code	Message
+select * from t;
+id
+65528
+select last_insert_id() from t limit 1;
+last_insert_id()
+255
+insert into t set id=null;
+show warnings;
+Level	Code	Message
+select * from t;
+id
+65528
+65529
+select last_insert_id() from t limit 1;
+last_insert_id()
+65529
+insert into t set id=null;
+show warnings;
+Level	Code	Message
+select * from t;
+id
+65528
+65529
+65530
+select last_insert_id() from t limit 1;
+last_insert_id()
+65530
+insert into t set id=null;
+show warnings;
+Level	Code	Message
+select * from t;
+id
+65528
+65529
+65530
+65531
+select last_insert_id() from t limit 1;
+last_insert_id()
+65531
+insert into t set id=null;
+show warnings;
+Level	Code	Message
+select * from t;
+id
+65528
+65529
+65530
+65531
+65532
+select last_insert_id() from t limit 1;
+last_insert_id()
+65532
+insert into t set id=null;
+show warnings;
+Level	Code	Message
+select * from t;
+id
+65528
+65529
+65530
+65531
+65532
+65533
+select last_insert_id() from t limit 1;
+last_insert_id()
+65533
+insert into t set id=null;
+show warnings;
+Level	Code	Message
+select * from t;
+id
+65528
+65529
+65530
+65531
+65532
+65533
+65534
+select last_insert_id() from t limit 1;
+last_insert_id()
+65534
+insert into t set id=null;
+show warnings;
+Level	Code	Message
+select * from t;
+id
+65528
+65529
+65530
+65531
+65532
+65533
+65534
+65535
+select last_insert_id() from t limit 1;
+last_insert_id()
+65535
+insert into t set id=null;
+Got one of the listed errors
+select last_insert_id() from t limit 1;
+last_insert_id()
+65535
+insert into t set id=null;
+Got one of the listed errors
+select last_insert_id() from t limit 1;
+last_insert_id()
+65535
+insert into t set id=null;
+Got one of the listed errors
+select last_insert_id() from t limit 1;
+last_insert_id()
+65535
+drop table t;
+create table t (id int unsigned not null auto_increment, key(id));
+insert into t set id=0xfffffff8;
+show warnings;
+Level	Code	Message
+select * from t;
+id
+4294967288
+select last_insert_id() from t limit 1;
+last_insert_id()
+65535
+insert into t set id=null;
+show warnings;
+Level	Code	Message
+select * from t;
+id
+4294967288
+4294967289
+select last_insert_id() from t limit 1;
+last_insert_id()
+4294967289
+insert into t set id=null;
+show warnings;
+Level	Code	Message
+select * from t;
+id
+4294967288
+4294967289
+4294967290
+select last_insert_id() from t limit 1;
+last_insert_id()
+4294967290
+insert into t set id=null;
+show warnings;
+Level	Code	Message
+select * from t;
+id
+4294967288
+4294967289
+4294967290
+4294967291
+select last_insert_id() from t limit 1;
+last_insert_id()
+4294967291
+insert into t set id=null;
+show warnings;
+Level	Code	Message
+select * from t;
+id
+4294967288
+4294967289
+4294967290
+4294967291
+4294967292
+select last_insert_id() from t limit 1;
+last_insert_id()
+4294967292
+insert into t set id=null;
+show warnings;
+Level	Code	Message
+select * from t;
+id
+4294967288
+4294967289
+4294967290
+4294967291
+4294967292
+4294967293
+select last_insert_id() from t limit 1;
+last_insert_id()
+4294967293
+insert into t set id=null;
+show warnings;
+Level	Code	Message
+select * from t;
+id
+4294967288
+4294967289
+4294967290
+4294967291
+4294967292
+4294967293
+4294967294
+select last_insert_id() from t limit 1;
+last_insert_id()
+4294967294
+insert into t set id=null;
+show warnings;
+Level	Code	Message
+select * from t;
+id
+4294967288
+4294967289
+4294967290
+4294967291
+4294967292
+4294967293
+4294967294
+4294967295
+select last_insert_id() from t limit 1;
+last_insert_id()
+4294967295
+insert into t set id=null;
+Got one of the listed errors
+select last_insert_id() from t limit 1;
+last_insert_id()
+4294967295
+insert into t set id=null;
+Got one of the listed errors
+select last_insert_id() from t limit 1;
+last_insert_id()
+4294967295
+insert into t set id=null;
+Got one of the listed errors
+select last_insert_id() from t limit 1;
+last_insert_id()
+4294967295
+drop table t;
+create table t (id bigint unsigned not null auto_increment, key(id));
+insert into t set id=0xfffffffffffffff8;
+show warnings;
+Level	Code	Message
+select * from t;
+id
+18446744073709551608
+select last_insert_id() from t limit 1;
+last_insert_id()
+4294967295
+insert into t set id=null;
+show warnings;
+Level	Code	Message
+select * from t;
+id
+18446744073709551608
+18446744073709551609
+select last_insert_id() from t limit 1;
+last_insert_id()
+-7
+insert into t set id=null;
+show warnings;
+Level	Code	Message
+select * from t;
+id
+18446744073709551608
+18446744073709551609
+18446744073709551610
+select last_insert_id() from t limit 1;
+last_insert_id()
+-6
+insert into t set id=null;
+show warnings;
+Level	Code	Message
+select * from t;
+id
+18446744073709551608
+18446744073709551609
+18446744073709551610
+18446744073709551611
+select last_insert_id() from t limit 1;
+last_insert_id()
+-5
+insert into t set id=null;
+show warnings;
+Level	Code	Message
+select * from t;
+id
+18446744073709551608
+18446744073709551609
+18446744073709551610
+18446744073709551611
+18446744073709551612
+select last_insert_id() from t limit 1;
+last_insert_id()
+-4
+insert into t set id=null;
+show warnings;
+Level	Code	Message
+select * from t;
+id
+18446744073709551608
+18446744073709551609
+18446744073709551610
+18446744073709551611
+18446744073709551612
+18446744073709551613
+select last_insert_id() from t limit 1;
+last_insert_id()
+-3
+insert into t set id=null;
+show warnings;
+Level	Code	Message
+select * from t;
+id
+18446744073709551608
+18446744073709551609
+18446744073709551610
+18446744073709551611
+18446744073709551612
+18446744073709551613
+18446744073709551614
+select last_insert_id() from t limit 1;
+last_insert_id()
+-2
+insert into t set id=null;
+Got one of the listed errors
+select last_insert_id() from t limit 1;
+last_insert_id()
+-2
+insert into t set id=null;
+Got one of the listed errors
+select last_insert_id() from t limit 1;
+last_insert_id()
+-2
+insert into t set id=null;
+Got one of the listed errors
+select last_insert_id() from t limit 1;
+last_insert_id()
+-2
+drop table t;

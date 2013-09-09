@@ -1,0 +1,23 @@
+SET DEFAULT_STORAGE_ENGINE = 'tokudb';
+DROP TABLE IF EXISTS foo;
+set session tokudb_prelock_empty=0;
+create table foo (a int, b int, c int, primary key (a), clustering key (b));
+insert into foo values (1,1,1),(2,2,2),(3,3,3),(4,4,4),(5,5,5);
+# Both explains should use primary key;
+explain select * from foo;
+id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
+1	SIMPLE	foo	ALL	NULL	NULL	NULL	NULL	5	
+explain select a from foo;
+id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
+1	SIMPLE	foo	index	NULL	PRIMARY	4	NULL	5	Using index
+DROP table foo;
+create table foo (a int, b int, c int, clustering key (b), primary key (a));
+insert into foo values (1,1,1),(2,2,2),(3,3,3),(4,4,4),(5,5,5);
+# Both explains should use primary key;
+explain select * from foo;
+id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
+1	SIMPLE	foo	ALL	NULL	NULL	NULL	NULL	5	
+explain select a from foo;
+id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
+1	SIMPLE	foo	index	NULL	PRIMARY	4	NULL	5	Using index
+DROP TABLE foo;

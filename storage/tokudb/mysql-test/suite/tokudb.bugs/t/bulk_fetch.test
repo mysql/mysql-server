@@ -1,0 +1,60 @@
+--source include/have_tokudb.inc
+#
+# Record inconsistency.
+#
+#
+SET DEFAULT_STORAGE_ENGINE = 'tokudb';
+
+--disable_warnings
+DROP TABLE IF EXISTS foo;
+--enable_warnings
+
+create table foo (a int, b bigint, c int, primary key (a))engine=TokuDB;
+insert into foo values (1,10,100),(2,20,200),(3,30,300),(4,40,400),(5,50,500),(6,60,600);
+
+select * from foo;
+select a from foo;
+select * from foo where a > 2;
+select a from foo where a > 2;
+select count(*) from foo;
+
+alter table foo add index b(b);
+select b from foo;
+explain select * from foo where b > 30;
+select * from foo where b > 30;
+alter table foo drop index b;
+
+alter table foo add clustering index c(c);
+select c from foo;
+explain select * from foo where c > 300;
+select * from foo where c > 300;
+drop table foo;
+
+# simple test on hidden primary key
+create table foo (a int, b int);
+insert into foo values (1,10),(2,20),(3,30),(4,40),(5,50),(6,60);
+select * from foo;
+select a from foo;
+select b from foo;
+select count(*) from foo;
+drop table foo;
+
+create table foo (a int, b varchar(10), c blob, d bigint, e varchar(10), f mediumblob)engine=TokuDB;
+insert into foo values(1,"bb","ccccc",100,"eee","fffffffffffffffffffff");
+select * from foo;
+select a,d from foo;
+select b,e from foo;
+select c,f from foo;
+select d from foo;
+select e from foo;
+select f from foo;
+select a from foo;
+select b from foo;
+select c from foo;
+select b,c,e,f from foo;
+select a,b,d,e from foo;
+select a,d,c,f from foo;
+ 
+# Final cleanup.
+DROP TABLE foo;
+

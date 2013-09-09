@@ -1,0 +1,28 @@
+--source include/have_tokudb.inc
+#
+# Record inconsistency.
+#
+#
+SET DEFAULT_STORAGE_ENGINE = 'tokudb';
+
+--disable_warnings
+DROP TABLE IF EXISTS foo;
+--enable_warnings
+create table foo (a int, b blob)engine=tokudb;
+
+insert into foo values (1,"one");
+insert into foo values (3,"three");
+insert into foo values (5,"five");
+insert into foo values (2,"two");
+insert into foo values (4,"four");
+
+alter table foo add clustering key a(a);
+
+#ignore rows column
+--replace_column 9 NULL;
+explain select * From foo where a > 0;
+select * From foo where a > 0;
+ 
+# Final cleanup.
+DROP TABLE foo;
+

@@ -1,0 +1,608 @@
+SET DEFAULT_STORAGE_ENGINE='tokudb';
+DROP TABLE IF EXISTS t1;
+DROP TABLE IF EXISTS t2;
+CREATE TABLE t1 (
+latin1_f CHAR(32) CHARACTER SET latin1 NOT NULL
+);
+CREATE TABLE t2 (
+latin1_f CHAR(32) CHARACTER SET latin1 COLLATE koi8r_general_ci NOT NULL
+);
+ERROR 42000: COLLATION 'koi8r_general_ci' is not valid for CHARACTER SET 'latin1'
+CREATE TABLE t2 (
+latin1_f CHAR(32) CHARACTER SET latin1 COLLATE some_non_existing_col NOT NULL
+);
+ERROR HY000: Unknown collation: 'some_non_existing_col'
+INSERT INTO t1 (latin1_f) VALUES (_latin1'A');
+INSERT INTO t1 (latin1_f) VALUES (_latin1'a');
+INSERT INTO t1 (latin1_f) VALUES (_latin1'AD');
+INSERT INTO t1 (latin1_f) VALUES (_latin1'ad');
+INSERT INTO t1 (latin1_f) VALUES (_latin1'AE');
+INSERT INTO t1 (latin1_f) VALUES (_latin1'ae');
+INSERT INTO t1 (latin1_f) VALUES (_latin1'AF');
+INSERT INTO t1 (latin1_f) VALUES (_latin1'af');
+INSERT INTO t1 (latin1_f) VALUES (_latin1'Ä');
+INSERT INTO t1 (latin1_f) VALUES (_latin1'ä');
+INSERT INTO t1 (latin1_f) VALUES (_latin1'Å');
+INSERT INTO t1 (latin1_f) VALUES (_latin1'å');
+INSERT INTO t1 (latin1_f) VALUES (_latin1'B');
+INSERT INTO t1 (latin1_f) VALUES (_latin1'b');
+INSERT INTO t1 (latin1_f) VALUES (_latin1'U');
+INSERT INTO t1 (latin1_f) VALUES (_latin1'u');
+INSERT INTO t1 (latin1_f) VALUES (_latin1'UE');
+INSERT INTO t1 (latin1_f) VALUES (_latin1'ue');
+INSERT INTO t1 (latin1_f) VALUES (_latin1'Ü');
+INSERT INTO t1 (latin1_f) VALUES (_latin1'ü');
+INSERT INTO t1 (latin1_f) VALUES (_latin1'SS');
+INSERT INTO t1 (latin1_f) VALUES (_latin1'ss');
+INSERT INTO t1 (latin1_f) VALUES (_latin1'ß');
+INSERT INTO t1 (latin1_f) VALUES (_latin1'Y');
+INSERT INTO t1 (latin1_f) VALUES (_latin1'y');
+INSERT INTO t1 (latin1_f) VALUES (_latin1'Z');
+INSERT INTO t1 (latin1_f) VALUES (_latin1'z');
+SELECT latin1_f FROM t1 ORDER BY latin1_f;
+latin1_f
+A
+a
+AD
+ad
+ae
+AE
+AF
+af
+b
+B
+SS
+ss
+u
+U
+UE
+ue
+Y
+y
+ü
+Ü
+Z
+z
+å
+Å
+Ä
+ä
+ß
+SELECT latin1_f FROM t1 ORDER BY latin1_f COLLATE latin1_swedish_ci;
+latin1_f
+A
+a
+AD
+ad
+ae
+AE
+AF
+af
+b
+B
+SS
+ss
+u
+U
+UE
+ue
+Y
+y
+ü
+Ü
+Z
+z
+å
+Å
+Ä
+ä
+ß
+SELECT latin1_f FROM t1 ORDER BY latin1_f COLLATE latin1_german2_ci;
+latin1_f
+A
+a
+Å
+å
+AD
+ad
+Ä
+ae
+AE
+ä
+af
+AF
+b
+B
+ß
+ss
+SS
+U
+u
+ue
+UE
+ü
+Ü
+Y
+y
+Z
+z
+SELECT latin1_f FROM t1 ORDER BY latin1_f COLLATE latin1_general_ci;
+latin1_f
+A
+a
+AD
+ad
+AE
+ae
+af
+AF
+Ä
+ä
+Å
+å
+b
+B
+ss
+SS
+ß
+U
+u
+UE
+ue
+ü
+Ü
+Y
+y
+Z
+z
+SELECT latin1_f FROM t1 ORDER BY latin1_f COLLATE latin1_bin;
+latin1_f
+A
+AD
+AE
+AF
+B
+SS
+U
+UE
+Y
+Z
+a
+ad
+ae
+af
+b
+ss
+u
+ue
+y
+z
+Ä
+Å
+Ü
+ß
+ä
+å
+ü
+SELECT latin1_f FROM t1 ORDER BY latin1_f COLLATE koi8r_general_ci;
+ERROR 42000: COLLATION 'koi8r_general_ci' is not valid for CHARACTER SET 'latin1'
+SELECT latin1_f COLLATE latin1_swedish_ci AS latin1_f_as FROM t1 ORDER BY latin1_f_as;
+latin1_f_as
+A
+a
+AD
+ad
+ae
+AE
+AF
+af
+b
+B
+SS
+ss
+u
+U
+UE
+ue
+Y
+y
+ü
+Ü
+Z
+z
+å
+Å
+Ä
+ä
+ß
+SELECT latin1_f COLLATE latin1_german2_ci AS latin1_f_as FROM t1 ORDER BY latin1_f_as;
+latin1_f_as
+A
+a
+Å
+å
+AD
+ad
+Ä
+ae
+AE
+ä
+af
+AF
+b
+B
+ß
+ss
+SS
+U
+u
+ue
+UE
+ü
+Ü
+Y
+y
+Z
+z
+SELECT latin1_f COLLATE latin1_general_ci AS latin1_f_as FROM t1 ORDER BY latin1_f_as;
+latin1_f_as
+A
+a
+AD
+ad
+AE
+ae
+af
+AF
+Ä
+ä
+Å
+å
+b
+B
+ss
+SS
+ß
+U
+u
+UE
+ue
+ü
+Ü
+Y
+y
+Z
+z
+SELECT latin1_f COLLATE latin1_bin        AS latin1_f_as FROM t1 ORDER BY latin1_f_as;
+latin1_f_as
+A
+AD
+AE
+AF
+B
+SS
+U
+UE
+Y
+Z
+a
+ad
+ae
+af
+b
+ss
+u
+ue
+y
+z
+Ä
+Å
+Ü
+ß
+ä
+å
+ü
+SELECT latin1_f COLLATE koi8r_general_ci  AS latin1_f_as FROM t1 ORDER BY latin1_f_as;
+ERROR 42000: COLLATION 'koi8r_general_ci' is not valid for CHARACTER SET 'latin1'
+SELECT latin1_f,count(*) FROM t1 GROUP BY latin1_f;
+latin1_f	count(*)
+A	2
+AD	2
+AE	2
+AF	2
+B	2
+SS	2
+U	2
+UE	2
+Ü	4
+Z	2
+Å	2
+Ä	2
+ß	1
+SELECT latin1_f,count(*) FROM t1 GROUP BY latin1_f COLLATE latin1_swedish_ci;
+latin1_f	count(*)
+A	2
+AD	2
+AE	2
+AF	2
+B	2
+SS	2
+U	2
+UE	2
+Ü	4
+Z	2
+Å	2
+Ä	2
+ß	1
+SELECT latin1_f,count(*) FROM t1 GROUP BY latin1_f COLLATE latin1_german2_ci;
+latin1_f	count(*)
+A	4
+AD	2
+AE	4
+AF	2
+B	2
+SS	3
+U	2
+UE	4
+Y	2
+Z	2
+SELECT latin1_f,count(*) FROM t1 GROUP BY latin1_f COLLATE latin1_general_ci;
+latin1_f	count(*)
+A	2
+AD	2
+AE	2
+AF	2
+Ä	2
+Å	2
+B	2
+SS	2
+ß	1
+U	2
+UE	2
+Ü	2
+Y	2
+Z	2
+SELECT latin1_f,count(*) FROM t1 GROUP BY latin1_f COLLATE latin1_bin;
+latin1_f	count(*)
+A	1
+AD	1
+AE	1
+AF	1
+B	1
+SS	1
+U	1
+UE	1
+Y	1
+Z	1
+a	1
+ad	1
+ae	1
+af	1
+b	1
+ss	1
+u	1
+ue	1
+y	1
+z	1
+Ä	1
+Å	1
+Ü	1
+ß	1
+ä	1
+å	1
+ü	1
+SELECT latin1_f,count(*) FROM t1 GROUP BY latin1_f COLLATE koi8r_general_ci;
+ERROR 42000: COLLATION 'koi8r_general_ci' is not valid for CHARACTER SET 'latin1'
+SELECT DISTINCT latin1_f                           FROM t1;
+latin1_f
+A
+AD
+AE
+AF
+Ä
+Å
+B
+U
+UE
+Ü
+SS
+ß
+Z
+SELECT DISTINCT latin1_f COLLATE latin1_swedish_ci FROM t1;
+latin1_f COLLATE latin1_swedish_ci
+A
+AD
+AE
+AF
+Ä
+Å
+B
+U
+UE
+Ü
+SS
+ß
+Z
+SELECT DISTINCT latin1_f COLLATE latin1_german2_ci FROM t1;
+latin1_f COLLATE latin1_german2_ci
+A
+AD
+AE
+AF
+B
+U
+UE
+SS
+Y
+Z
+SELECT DISTINCT latin1_f COLLATE latin1_general_ci FROM t1;
+latin1_f COLLATE latin1_general_ci
+A
+AD
+AE
+AF
+Ä
+Å
+B
+U
+UE
+Ü
+SS
+ß
+Y
+Z
+SELECT DISTINCT latin1_f COLLATE latin1_bin        FROM t1;
+latin1_f COLLATE latin1_bin
+A
+a
+AD
+ad
+AE
+ae
+AF
+af
+Ä
+ä
+Å
+å
+B
+b
+U
+u
+UE
+ue
+Ü
+ü
+SS
+ss
+ß
+Y
+y
+Z
+z
+SELECT DISTINCT latin1_f COLLATE koi8r             FROM t1;
+ERROR HY000: Unknown collation: 'koi8r'
+SHOW CREATE TABLE t1;
+Table	Create Table
+t1	CREATE TABLE `t1` (
+  `latin1_f` char(32) NOT NULL
+) ENGINE=TokuDB DEFAULT CHARSET=latin1
+SHOW FIELDS FROM  t1;
+Field	Type	Null	Key	Default	Extra
+latin1_f	char(32)	NO		NULL	
+ALTER TABLE t1 CHANGE latin1_f 
+latin1_f CHAR(32) CHARACTER SET latin1 COLLATE latin1_bin;
+SHOW CREATE TABLE t1;
+Table	Create Table
+t1	CREATE TABLE `t1` (
+  `latin1_f` char(32) CHARACTER SET latin1 COLLATE latin1_bin DEFAULT NULL
+) ENGINE=TokuDB DEFAULT CHARSET=latin1
+SHOW FIELDS FROM  t1;
+Field	Type	Null	Key	Default	Extra
+latin1_f	char(32)	YES		NULL	
+ALTER TABLE t1 CHARACTER SET latin1 COLLATE latin1_bin;
+SHOW CREATE TABLE t1;
+Table	Create Table
+t1	CREATE TABLE `t1` (
+  `latin1_f` char(32) COLLATE latin1_bin DEFAULT NULL
+) ENGINE=TokuDB DEFAULT CHARSET=latin1 COLLATE=latin1_bin
+SHOW FIELDS FROM  t1;
+Field	Type	Null	Key	Default	Extra
+latin1_f	char(32)	YES		NULL	
+SET CHARACTER SET 'latin1';
+SHOW VARIABLES LIKE 'character_set_client';
+Variable_name	Value
+character_set_client	latin1
+SELECT charset('a'),collation('a'),coercibility('a'),'a'='A';
+charset('a')	collation('a')	coercibility('a')	'a'='A'
+latin1	latin1_swedish_ci	4	1
+explain extended SELECT charset('a'),collation('a'),coercibility('a'),'a'='A';
+id	select_type	table	type	possible_keys	key	key_len	ref	rows	filtered	Extra
+1	SIMPLE	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	No tables used
+Warnings:
+Note	1003	select charset('a') AS `charset('a')`,collation('a') AS `collation('a')`,coercibility('a') AS `coercibility('a')`,('a' = 'A') AS `'a'='A'`
+SET CHARACTER SET koi8r;
+SHOW VARIABLES LIKE 'collation_client';
+Variable_name	Value
+SELECT charset('a'),collation('a'),coercibility('a'),'a'='A';
+charset('a')	collation('a')	coercibility('a')	'a'='A'
+latin1	latin1_swedish_ci	4	1
+SET CHARACTER SET 'DEFAULT';
+ERROR 42000: Unknown character set: 'DEFAULT'
+DROP TABLE t1;
+CREATE TABLE t1 
+(s1 CHAR(5) COLLATE latin1_german1_ci,
+s2 CHAR(5) COLLATE latin1_swedish_ci);
+SELECT * FROM t1 WHERE s1 = s2;
+ERROR HY000: Illegal mix of collations (latin1_german1_ci,IMPLICIT) and (latin1_swedish_ci,IMPLICIT) for operation '='
+DROP TABLE t1;
+CREATE TABLE t1
+(s1 CHAR(5) COLLATE latin1_german1_ci,
+s2 CHAR(5) COLLATE latin1_swedish_ci,
+s3 CHAR(5) COLLATE latin1_bin);
+INSERT INTO t1 VALUES ('a','A','A');
+SELECT * FROM t1 WHERE s1 = s2;
+ERROR HY000: Illegal mix of collations (latin1_german1_ci,IMPLICIT) and (latin1_swedish_ci,IMPLICIT) for operation '='
+SELECT * FROM t1 WHERE s1 = s3;
+s1	s2	s3
+SELECT * FROM t1 WHERE s2 = s3;
+s1	s2	s3
+a	A	A
+DROP TABLE t1;
+SET NAMES latin1;
+CREATE TABLE t1 
+(s1 char(10) COLLATE latin1_german1_ci,
+s2 char(10) COLLATE latin1_swedish_ci,
+KEY(s1),
+KEY(s2));
+INSERT INTO t1 VALUES ('a','a');
+INSERT INTO t1 VALUES ('b','b');
+INSERT INTO t1 VALUES ('c','c');
+INSERT INTO t1 VALUES ('d','d');
+INSERT INTO t1 VALUES ('e','e');
+INSERT INTO t1 VALUES ('f','f');
+INSERT INTO t1 VALUES ('g','g');
+INSERT INTO t1 VALUES ('h','h');
+INSERT INTO t1 VALUES ('i','i');
+INSERT INTO t1 VALUES ('j','j');
+EXPLAIN SELECT * FROM t1 WHERE s1='a';
+id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
+1	SIMPLE	t1	ref	s1	s1	11	const	1	Using where
+EXPLAIN SELECT * FROM t1 WHERE s2='a';
+id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
+1	SIMPLE	t1	ref	s2	s2	11	const	1	Using where
+EXPLAIN SELECT * FROM t1 WHERE s1='a' COLLATE latin1_german1_ci;
+id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
+1	SIMPLE	t1	ref	s1	s1	11	const	1	Using where
+EXPLAIN SELECT * FROM t1 WHERE s2='a' COLLATE latin1_german1_ci;
+id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
+1	SIMPLE	t1	ALL	s2	NULL	NULL	NULL	10	Using where
+EXPLAIN SELECT * FROM t1 WHERE s1 BETWEEN 'a' AND 'b' COLLATE latin1_german1_ci;
+id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
+1	SIMPLE	t1	range	s1	s1	11	NULL	2	Using where
+EXPLAIN SELECT * FROM t1 WHERE s2 BETWEEN 'a' AND 'b' COLLATE latin1_german1_ci;
+id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
+1	SIMPLE	t1	ALL	s2	NULL	NULL	NULL	10	Using where
+EXPLAIN SELECT * FROM t1 WHERE s1 IN  ('a','b' COLLATE latin1_german1_ci);
+id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
+1	SIMPLE	t1	range	s1	s1	11	NULL	2	Using where
+EXPLAIN SELECT * FROM t1 WHERE s2 IN  ('a','b' COLLATE latin1_german1_ci);
+id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
+1	SIMPLE	t1	ALL	s2	NULL	NULL	NULL	10	Using where
+EXPLAIN SELECT * FROM t1 WHERE s1 LIKE 'a' COLLATE latin1_german1_ci;
+id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
+1	SIMPLE	t1	range	s1	s1	11	NULL	1	Using where
+EXPLAIN SELECT * FROM t1 WHERE s2 LIKE 'a' COLLATE latin1_german1_ci;
+id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
+1	SIMPLE	t1	ALL	s2	NULL	NULL	NULL	10	Using where
+DROP TABLE t1;
+create table t1(f1 varchar(10) character set latin2 collate latin2_hungarian_ci, key(f1));
+insert into t1 set f1=0x3F3F9DC73F;
+insert into t1 set f1=0x3F3F1E563F;
+insert into t1 set f1=0x3F3F;
+drop table t1;
+create table t1 (a varchar(2) character set latin7 collate latin7_general_ci,key(a));
+insert into t1 set a=0x4c20;
+insert into t1 set a=0x6c;
+insert into t1 set a=0x4c98;
+drop table t1;

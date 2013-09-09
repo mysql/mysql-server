@@ -1,0 +1,35 @@
+--source include/have_tokudb.inc
+SET DEFAULT_STORAGE_ENGINE = 'tokudb';
+
+--disable_warnings
+DROP TABLE IF EXISTS foo;
+--enable_warnings
+#
+# Some simple tests for read only transactions
+#
+
+set session autocommit=on;
+create table foo (a int);
+
+# simple insert then select
+insert into foo values (1);
+select * from foo;
+
+#simple insert then select in a begin/commit block
+begin;
+select * from foo;
+insert into foo values(2);
+select * from foo;
+commit;
+
+#simple insert then select when autocommit is off
+set session autocommit=off;
+select * from foo;
+insert into foo values(2);
+select * from foo;
+commit;
+
+ 
+# Final cleanup.
+DROP TABLE foo;
+

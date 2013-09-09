@@ -1,0 +1,18 @@
+drop table if exists t;
+set default_storage_engine='tokudb';
+create table t (id bigint primary key, b bigint not null default 0);
+insert into t (id) values (1),(2);
+begin;
+update noar t set b=b+1 where id=1;
+begin;
+update noar t set b=b-1 where id=2;
+update noar t set b=b+1 where id=2;
+update noar t set b=b-1 where id=1;
+Got one of the listed errors
+rollback;
+commit;
+select * from t;
+id	b
+1	1
+2	1
+drop table t;

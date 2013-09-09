@@ -1,0 +1,55 @@
+DROP TABLE IF EXISTS t;
+SET SESSION TOKUDB_DISABLE_SLOW_ALTER=1;
+SET SESSION DEFAULT_STORAGE_ENGINE='TokuDB';
+CREATE TABLE t (a VARCHAR(1),b VARBINARY(1),c INT,d CHAR(1),e BINARY(1));
+ALTER TABLE t CHANGE COLUMN a a VARCHAR(2),CHANGE COLUMN b b VARBINARY(2);
+ERROR 42000: Table 't' uses an extension that doesn't exist in this XYZ version
+ALTER TABLE t CHANGE COLUMN a a VARCHAR(2),CHANGE COLUMN c c BIGINT;
+ERROR 42000: Table 't' uses an extension that doesn't exist in this XYZ version
+ALTER TABLE t CHANGE COLUMN a a VARCHAR(2),CHANGE COLUMN d d CHAR(2);
+ERROR 42000: Table 't' uses an extension that doesn't exist in this XYZ version
+ALTER TABLE t CHANGE COLUMN a a VARCHAR(2),CHANGE COLUMN e e BINARY(2);
+ERROR 42000: Table 't' uses an extension that doesn't exist in this XYZ version
+ALTER TABLE t CHANGE COLUMN b b VARBINARY(2),CHANGE COLUMN c c BIGINT;
+ERROR 42000: Table 't' uses an extension that doesn't exist in this XYZ version
+ALTER TABLE t CHANGE COLUMN b b VARBINARY(2),CHANGE COLUMN d d CHAR(2);
+ERROR 42000: Table 't' uses an extension that doesn't exist in this XYZ version
+ALTER TABLE t CHANGE COLUMN b b VARBINARY(2),CHANGE COLUMN e e BINARY(2);
+ERROR 42000: Table 't' uses an extension that doesn't exist in this XYZ version
+ALTER TABLE t CHANGE COLUMN c c BIGINT,CHANGE COLUMN d d CHAR(2);
+ERROR 42000: Table 't' uses an extension that doesn't exist in this XYZ version
+ALTER TABLE t CHANGE COLUMN c c BIGINT,CHANGE COLUMN e e BINARY(2);
+ERROR 42000: Table 't' uses an extension that doesn't exist in this XYZ version
+ALTER TABLE t CHANGE COLUMN d d CHAR(2),CHANGE COLUMN e e BINARY(2);
+ERROR 42000: Table 't' uses an extension that doesn't exist in this XYZ version
+ALTER TABLE t CHANGE COLUMN a a VARCHAR(2),CHANGE COLUMN b b VARBINARY(2),CHANGE COLUMN c c BIGINT;
+ERROR 42000: Table 't' uses an extension that doesn't exist in this XYZ version
+ALTER TABLE t CHANGE COLUMN a a VARCHAR(2),CHANGE COLUMN b b VARBINARY(2),CHANGE COLUMN d d CHAR(2);
+ERROR 42000: Table 't' uses an extension that doesn't exist in this XYZ version
+ALTER TABLE t CHANGE COLUMN a a VARCHAR(2),CHANGE COLUMN b b VARBINARY(2),CHANGE COLUMN e e BINARY(2);
+ERROR 42000: Table 't' uses an extension that doesn't exist in this XYZ version
+ALTER TABLE t CHANGE COLUMN a a VARCHAR(2),CHANGE COLUMN c c BIGINT,CHANGE COLUMN d d CHAR(2);
+ERROR 42000: Table 't' uses an extension that doesn't exist in this XYZ version
+ALTER TABLE t CHANGE COLUMN a a VARCHAR(2),CHANGE COLUMN c c BIGINT,CHANGE COLUMN e e BINARY(2);
+ERROR 42000: Table 't' uses an extension that doesn't exist in this XYZ version
+ALTER TABLE t CHANGE COLUMN a a VARCHAR(2),CHANGE COLUMN d d CHAR(2),CHANGE COLUMN e e BINARY(2);
+ERROR 42000: Table 't' uses an extension that doesn't exist in this XYZ version
+ALTER TABLE t CHANGE COLUMN b b VARBINARY(2),CHANGE COLUMN c c BIGINT,CHANGE COLUMN d d CHAR(2);
+ERROR 42000: Table 't' uses an extension that doesn't exist in this XYZ version
+ALTER TABLE t CHANGE COLUMN b b VARBINARY(2),CHANGE COLUMN c c BIGINT,CHANGE COLUMN e e BINARY(2);
+ERROR 42000: Table 't' uses an extension that doesn't exist in this XYZ version
+ALTER TABLE t CHANGE COLUMN b b VARBINARY(2),CHANGE COLUMN d d CHAR(2),CHANGE COLUMN e e BINARY(2);
+ERROR 42000: Table 't' uses an extension that doesn't exist in this XYZ version
+ALTER TABLE t CHANGE COLUMN c c BIGINT,CHANGE COLUMN d d CHAR(2),CHANGE COLUMN e e BINARY(2);
+ERROR 42000: Table 't' uses an extension that doesn't exist in this XYZ version
+ALTER TABLE t CHANGE COLUMN a a VARCHAR(2),CHANGE COLUMN b b VARBINARY(2),CHANGE COLUMN c c BIGINT,CHANGE COLUMN d d CHAR(2);
+ERROR 42000: Table 't' uses an extension that doesn't exist in this XYZ version
+ALTER TABLE t CHANGE COLUMN a a VARCHAR(2),CHANGE COLUMN b b VARBINARY(2),CHANGE COLUMN c c BIGINT,CHANGE COLUMN e e BINARY(2);
+ERROR 42000: Table 't' uses an extension that doesn't exist in this XYZ version
+ALTER TABLE t CHANGE COLUMN a a VARCHAR(2),CHANGE COLUMN b b VARBINARY(2),CHANGE COLUMN d d CHAR(2),CHANGE COLUMN e e BINARY(2);
+ERROR 42000: Table 't' uses an extension that doesn't exist in this XYZ version
+ALTER TABLE t CHANGE COLUMN a a VARCHAR(2),CHANGE COLUMN c c BIGINT,CHANGE COLUMN d d CHAR(2),CHANGE COLUMN e e BINARY(2);
+ERROR 42000: Table 't' uses an extension that doesn't exist in this XYZ version
+ALTER TABLE t CHANGE COLUMN b b VARBINARY(2),CHANGE COLUMN c c BIGINT,CHANGE COLUMN d d CHAR(2),CHANGE COLUMN e e BINARY(2);
+ERROR 42000: Table 't' uses an extension that doesn't exist in this XYZ version
+DROP TABLE t;

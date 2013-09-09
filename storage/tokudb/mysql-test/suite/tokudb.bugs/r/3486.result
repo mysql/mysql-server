@@ -1,0 +1,11 @@
+SET DEFAULT_STORAGE_ENGINE = 'tokudb';
+DROP TABLE IF EXISTS foo;
+set session tokudb_disable_slow_alter=ON;
+create table foo (a blob, clustering key (a(3)))engine=TokuDB;
+insert into foo values("");
+alter table foo add column b blob;
+update foo set b="bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb";
+select * from foo;
+a	b
+	bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb
+drop table foo;

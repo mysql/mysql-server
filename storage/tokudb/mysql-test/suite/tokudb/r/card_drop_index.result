@@ -1,0 +1,30 @@
+drop table if exists tt;
+create table tt (a int, b int, c int, key(b), key(c), primary key(a));
+insert into tt values (1,0,0),(2,0,0),(3,0,1),(4,0,1);
+show indexes from tt;
+Table	Non_unique	Key_name	Seq_in_index	Column_name	Collation	Cardinality	Sub_part	Packed	Null	Index_type	Comment	Index_comment
+tt	0	PRIMARY	1	a	A	4	NULL	NULL		BTREE		
+tt	1	b	1	b	A	NULL	NULL	NULL	YES	BTREE		
+tt	1	c	1	c	A	NULL	NULL	NULL	YES	BTREE		
+analyze table tt;
+Table	Op	Msg_type	Msg_text
+test.tt	analyze	status	OK
+show indexes from tt;
+Table	Non_unique	Key_name	Seq_in_index	Column_name	Collation	Cardinality	Sub_part	Packed	Null	Index_type	Comment	Index_comment
+tt	0	PRIMARY	1	a	A	4	NULL	NULL		BTREE		
+tt	1	b	1	b	A	1	NULL	NULL	YES	BTREE		
+tt	1	c	1	c	A	2	NULL	NULL	YES	BTREE		
+alter table tt drop key b;
+show indexes from tt;
+Table	Non_unique	Key_name	Seq_in_index	Column_name	Collation	Cardinality	Sub_part	Packed	Null	Index_type	Comment	Index_comment
+tt	0	PRIMARY	1	a	A	4	NULL	NULL		BTREE		
+tt	1	c	1	c	A	2	NULL	NULL	YES	BTREE		
+alter table tt drop key c;
+show indexes from tt;
+Table	Non_unique	Key_name	Seq_in_index	Column_name	Collation	Cardinality	Sub_part	Packed	Null	Index_type	Comment	Index_comment
+tt	0	PRIMARY	1	a	A	4	NULL	NULL		BTREE		
+flush tables;
+show indexes from tt;
+Table	Non_unique	Key_name	Seq_in_index	Column_name	Collation	Cardinality	Sub_part	Packed	Null	Index_type	Comment	Index_comment
+tt	0	PRIMARY	1	a	A	4	NULL	NULL		BTREE		
+drop table tt;

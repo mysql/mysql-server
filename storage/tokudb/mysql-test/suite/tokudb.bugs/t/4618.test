@@ -1,0 +1,61 @@
+--source include/have_tokudb.inc
+#
+# Record inconsistency.
+#
+#
+SET DEFAULT_STORAGE_ENGINE = 'tokudb';
+
+--disable_warnings
+drop table if exists t1;
+--enable_warnings
+
+create table t1 (
+    c1 int not null auto_increment primary key, c2 varchar(128) not null , c3 int, index key_c2 (c2)
+) engine=tokudb collate=latin1_general_ci;
+
+insert into t1 (c1,c2) values (1,'THIS IS A TEST');
+
+select c2 from t1;
+select * from t1;
+update t1 set c2 = 'this is a test' where c1 = 1;
+
+select c2 from t1;
+select * from t1; 
+
+
+drop table if exists t1;
+
+create table t1 (
+
+    c1 int not null auto_increment primary key, c2 varchar(128) not null , index key_c2 (c2)
+
+) engine=tokudb collate=latin1_general_cs;
+
+insert into t1 (c1,c2) values (1,'THIS IS A TEST');
+
+select c2 from t1;
+select * from t1;
+
+update t1 set c2 = 'this is a test' where c1 = 1;
+
+select c2 from t1;
+select * from t1;
+
+drop table t1;
+CREATE TABLE t1 (a char(2) not null primary key, b varchar(20) not null, key (b))engine=TokuDB;
+INSERT INTO t1 values ('AB','MySQLAB'),('JA','Sun Microsystems'),('MS','Microsoft'),('IB','IBM- Inc.'),('GO','Google Inc.');
+select * from t1;
+update t1 set t1.a=LCASE(t1.a);
+select * from t1;
+
+drop table t1;
+create table t1 (a char(2) not null, b varchar(20) not null);
+INSERT INTO t1 values ('AB','MySQLAB'),('JA','Sun Microsystems'),('MS','Microsoft'),('IB','IBM- Inc.'),('GO','Google Inc.');
+select * from t1;
+update t1 set t1.a=LCASE(t1.a);
+select * from t1;
+
+
+# Final cleanup.
+DROP TABLE t1;
+

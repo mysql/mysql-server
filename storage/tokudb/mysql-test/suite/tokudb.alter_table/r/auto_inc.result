@@ -1,0 +1,69 @@
+SET DEFAULT_STORAGE_ENGINE='tokudb';
+DROP TABLE IF EXISTS foo;
+set session tokudb_disable_slow_alter=ON;
+create table foo(a int auto_increment, b int, primary key (a));
+insert into foo (b) values (11),(21),(32);
+select * from foo;
+a	b
+1	11
+2	21
+3	32
+alter table foo auto_increment=1000;
+show create table foo;
+Table	Create Table
+foo	CREATE TABLE `foo` (
+  `a` int(11) NOT NULL AUTO_INCREMENT,
+  `b` int(11) DEFAULT NULL,
+  PRIMARY KEY (`a`)
+) ENGINE=TokuDB AUTO_INCREMENT=4 DEFAULT CHARSET=latin1
+insert into foo (b) values (11),(21),(32);
+select * from foo;
+a	b
+1	11
+2	21
+3	32
+1000	11
+1001	21
+1002	32
+show create table foo;
+Table	Create Table
+foo	CREATE TABLE `foo` (
+  `a` int(11) NOT NULL AUTO_INCREMENT,
+  `b` int(11) DEFAULT NULL,
+  PRIMARY KEY (`a`)
+) ENGINE=TokuDB AUTO_INCREMENT=1003 DEFAULT CHARSET=latin1
+alter table foo auto_increment=10;
+insert into foo (b) values (11),(21),(32);
+select * from foo;
+a	b
+1	11
+2	21
+3	32
+1000	11
+1001	21
+1002	32
+1003	11
+1004	21
+1005	32
+show create table foo;
+Table	Create Table
+foo	CREATE TABLE `foo` (
+  `a` int(11) NOT NULL AUTO_INCREMENT,
+  `b` int(11) DEFAULT NULL,
+  PRIMARY KEY (`a`)
+) ENGINE=TokuDB AUTO_INCREMENT=1006 DEFAULT CHARSET=latin1
+alter table foo auto_increment=100000, add column c int;
+ERROR 42000: Table 'foo' uses an extension that doesn't exist in this XYZ version
+alter table foo auto_increment=100000, drop column b;
+ERROR 42000: Table 'foo' uses an extension that doesn't exist in this XYZ version
+alter table foo auto_increment=100000, add key b(b);
+ERROR 42000: Table 'foo' uses an extension that doesn't exist in this XYZ version
+alter table foo auto_increment=100000, change b b bigint;
+ERROR 42000: Table 'foo' uses an extension that doesn't exist in this XYZ version
+alter table foo auto_increment=100000, change b c int;
+ERROR 42000: Table 'foo' uses an extension that doesn't exist in this XYZ version
+alter table foo auto_increment=100000, ROW_FORMAT=TOKUDB_LZMA;
+ERROR 42000: Table 'foo' uses an extension that doesn't exist in this XYZ version
+alter table foo auto_increment=100000, change b b int DEFAULT 111;
+ERROR 42000: Table 'foo' uses an extension that doesn't exist in this XYZ version
+DROP TABLE foo;

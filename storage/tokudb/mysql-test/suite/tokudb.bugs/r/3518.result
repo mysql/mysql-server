@@ -1,0 +1,36 @@
+SET DEFAULT_STORAGE_ENGINE = 'tokudb';
+DROP TABLE IF EXISTS foo;
+set session tokudb_prelock_empty=off;
+create table foo (a int, b bigint, primary key (a))engine=TokuDB;
+insert into foo values (1,10),(2,20);
+select * from foo;
+a	b
+1	10
+2	20
+alter table foo add clustering index (b);
+insert into foo values (3,30);
+select * from foo where b >=10;
+a	b
+1	10
+2	20
+3	30
+drop table foo;
+create table foo (a int, b bigint)engine=TokuDB;
+insert into foo values (1,10),(2,20);
+select * from foo;
+a	b
+1	10
+2	20
+alter table foo add clustering index (b);
+insert into foo values (3,30);
+select * from foo where b >=10;
+a	b
+1	10
+2	20
+3	30
+drop table foo;
+create table foo (a int, b longblob, clustering key (a));
+insert into foo values (1,"aa");
+insert into foo values (2,repeat('b', 100000));
+insert into foo values (3,"bbb");
+DROP TABLE foo;

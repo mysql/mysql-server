@@ -1,0 +1,28 @@
+--source include/have_tokudb.inc
+#
+# Record inconsistency.
+#
+#
+SET DEFAULT_STORAGE_ENGINE = 'tokudb';
+
+--disable_warnings
+DROP TABLE IF EXISTS foo, bar;
+--enable_warnings
+
+create table foo (a int, b int, primary key (a), key (b))engine=tokudb;
+create table bar like foo;
+insert into bar values (1,1),(2,2);
+set session tokudb_load_save_space=1;
+
+insert ignore into foo select * from bar;
+
+truncate table foo;
+insert into foo select * from bar on duplicate key update b=100;
+
+truncate table foo;
+replace into foo select * from bar;
+
+ 
+# Final cleanup.
+DROP TABLE foo;
+drop table bar;

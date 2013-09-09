@@ -1,0 +1,22 @@
+SET DEFAULT_STORAGE_ENGINE='tokudb';
+drop table if exists t;
+create table t (a int primary key, b int);
+insert into t values (1,0);
+set session transaction isolation level repeatable read;
+begin;
+select * from t where a=1 for update;
+a	b
+1	0
+update t set b=b+1 where a=1;
+set session transaction isolation level repeatable read;
+begin;
+select * from t where a=1 for update;
+commit;
+a	b
+1	1
+update t set b=b+1 where a=1;
+select * from t;
+a	b
+1	2
+commit;
+drop table t;
