@@ -1,0 +1,22 @@
+#include <cilk.h>
+#include <stdio.h>
+#include "foo2.h"
+
+extern "Cilk++"
+int foo2 (int i) {
+    return i+1;
+}
+
+int foo (int i) {
+    int r;
+    r = cilk_spawn foo2 (i+1);
+    cilk_sync;
+    return r+1;
+}
+
+extern "C++"
+void do_foo (void) {
+    printf("Running cilk\n");
+    int r = cilk::run(&foo, 3);
+    printf("Done r =%d\n", r);
+}

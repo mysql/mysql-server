@@ -1,0 +1,3 @@
+insert_committed [0] v10 k1 
+delete_provisional [100] v10 
+lock [100] v10 

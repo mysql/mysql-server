@@ -1,0 +1,4 @@
+xid 100 committing
+key k1
+delete committed 0
+insert provisional 100 v100

@@ -1,0 +1,52 @@
+#!/usr/bin/env bash 
+
+function usage() {
+    echo "check for valgrind error and set the exit code"
+}
+
+function cleanup() {
+    if [ "$logfile" != "" ] ; then rm $logfile; fi
+    exit 1
+}
+
+args=$*
+
+logfile=
+createlogfile=0
+errorexitcode=1
+
+while [ $# -gt 0 ] ; do
+    arg=$1; shift
+    if [[ $arg =~ "--" ]] ; then
+	if [[ $arg =~ --log-file=(.*) ]] ; then
+	    logfile=${BASH_REMATCH[1]}
+	elif [[ $arg =~ --error-exitcode=(.*) ]] ; then
+	    errorexitcode=${BASH_REMATCH[1]}
+	fi
+    else
+	break
+    fi
+done
+
+if [ "$logfile" = "" ] ; then
+    createlogfile=1
+    trap cleanup SIGINT
+    logfile=`mktemp /tmp/$(whoami).tokugrind.XXXXXXXX`
+    args="--log-file=$logfile $args"
+fi
+
+valgrind $args
+exitcode=$?
+if [ $exitcode = 0 ] ; then
+    lines=$(wc -l <$logfile)
+    if [ $lines -ne 0 ] ; then
+	exitcode=$errorexitcode
+    fi
+fi
+
+if [ $createlogfile != 0 ] ; then
+    cat $logfile >>/dev/stderr
+    rm $logfile
+fi
+
+exit $exitcode

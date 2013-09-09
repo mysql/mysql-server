@@ -1,0 +1,6 @@
+live 200
+live 201
+key k1
+insert committed 0 v0
+delete provisional 200
+delete provisional 201

@@ -1,0 +1,85 @@
+The examples includes a pair of programs that can be compiled to use either the Berkeley DB library or the Tokutek Fractal Tree index library.
+
+Note: The file formats are different from TokuDB and Berkley DB.  Thus
+you cannot access a database created by Berkeley DB using the Tokutek
+DB, or vice-versa.
+
+db-insert is a program that inserts random key-value pairs into a database.
+
+db-scan is a program that scans through the key-value pairs, reading every row, from a database.
+
+db-update is a program that upserts key-value pairs into a database.  If the key already exists it increment a count in the value.
+
+db-insert-multiple is a program and inserts key-value pairs into multiple databases.  This is is now TokuDB maintains consistent
+secondary databases.
+
+To build it and run it (it's been tested on Fedora 10):
+$ make                                           (Makes the binaries)
+Run the insertion workload under TokuDB:
+$ ./db-insert
+Run the insertion workload under BDB:
+$ ./db-insert-bdb
+
+Here is what the output looks like (this on a Thinkpad X61s laptop
+running Fedora 10).  BDB is a little faster for sequential insertions
+(the first three columns), but much much slower for random insertions
+(the next 3 columns), so that TokuDB is faster on combined workload.
+
+$ ./db-insert
+serial and random insertions of 1048576 per batch
+serial  2.609965s   401759/s    random 10.983798s    95466/s    cumulative 13.593869s   154272/s
+serial  3.053433s   343409/s    random 12.008670s    87318/s    cumulative 28.656115s   146367/s
+serial  5.198312s   201715/s    random 15.087426s    69500/s    cumulative 48.954605s   128516/s
+serial  6.096396s   171999/s    random 13.550688s    77382/s    cumulative 68.638321s   122215/s
+Shutdown  4.025110s
+Total time 72.677498s for 8388608 insertions =   115422/s
+$ ./db-insert-bdb 
+serial and random insertions of 1048576 per batch
+serial  2.623888s   399627/s    random  8.770850s   119552/s    cumulative 11.394805s   184045/s
+serial  3.081946s   340232/s    random 21.046589s    49822/s    cumulative 35.523434s   118071/s
+serial 14.160498s    74049/s    random 497.117523s     2109/s    cumulative 546.804504s    11506/s
+serial  1.534212s   683462/s    random 1128.525146s      929/s    cumulative 1676.863892s     5003/s
+Shutdown 195.879242s
+Total time 1872.746582s for 8388608 insertions =     4479/s
+
+The files are smaller for TokuDB than BDB.
+
+$ ls -lh bench.tokudb/
+total 39M
+-rwxrwxr-x 1 bradley bradley 39M 2009-07-28 15:36 bench.db
+$ ls -lh bench.bdb/
+total 322M
+-rw-r--r-- 1 bradley bradley 322M 2009-07-28 16:14 bench.db
+
+When scanning the table, one can run out of locks with BDB.  There are ways around it (increase the lock table size).
+
+$ ./db-scan-bdb --nox
+Lock table is out of available object entries
+db-scan-bdb: db-scan.c:177: scanscan_hwc: Assertion `r==(-30988)' failed.
+Aborted
+
+TokuDB is fine on a big table scan.
+
+$ ./db-scan --nox
+Scan    33162304 bytes (2072644 rows) in  7.924463s at  4.184801MB/s
+Scan    33162304 bytes (2072644 rows) in  3.062239s at 10.829431MB/s
+0:3 1:53 2:56 
+miss=3 hit=53 wait_reading=0 wait=0
+VmPeak:	  244668 kB
+VmHWM:	   68096 kB
+VmRSS:	    1232 kB
+
+The update-bdb program upserts 1B rows into a BDB database. When the database gets larger than memory, the throughput
+should tank since every update needs to read a block from the storage system.  The storage system becomes the performance
+bottleneck.  The program uses 1 1GB cache in front of the kernel's file system buffer cache.  The program should hit the wall
+at about 300M rows on a machine with 16GB of memory since keys are 8 bytes and values are 8 bytes in size.
+
+$ ./db-update-bdb
+
+The update program upserts 1B rows into a TokuDB database.  Throughput should be not degrade significantly since the cost
+of the storage system reads is amortized over 1000's of update operations.  One should expect TokuDB to be at least 50 times
+faster than BDB.
+
+$ ./db-update
+
+There isn't much documentation for the Tokutek Fractal Tree index library, but most of the API is like Berkeley DB's.
