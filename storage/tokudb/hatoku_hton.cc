@@ -462,7 +462,7 @@ static int tokudb_init_func(void *p) {
 
     tokudb_hton->state = SHOW_OPTION_YES;
     // tokudb_hton->flags= HTON_CAN_RECREATE;  // QQQ this came from skeleton
-    tokudb_hton->flags = HTON_CLOSE_CURSORS_AT_COMMIT;
+    tokudb_hton->flags = HTON_CLOSE_CURSORS_AT_COMMIT | HTON_EXTENDED_KEYS;
 
 #if TOKU_INCLUDE_OTHER_DB_TYPE
     // we have historically been a dynamic storage engine, so we set db_type according.
