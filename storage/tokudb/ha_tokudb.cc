@@ -3341,7 +3341,8 @@ void ha_tokudb::start_bulk_insert(ha_rows rows) {
     
     if (share->try_table_lock) {
         if (get_prelock_empty(thd) && may_table_be_empty(transaction)) {
-            if (using_ignore || is_insert_ignore(thd) || thd->lex->duplicates != DUP_ERROR) {
+            if (using_ignore || is_insert_ignore(thd) || thd->lex->duplicates != DUP_ERROR
+                || table->s->next_number_key_offset) {
                 acquire_table_lock(transaction, lock_write);
             }
             else {
@@ -7588,6 +7589,12 @@ void ha_tokudb::get_auto_increment(ulonglong offset, ulonglong increment, ulongl
     TOKUDB_DBUG_ENTER("ha_tokudb::get_auto_increment");
     ulonglong nr;
     bool over;
+
+    if (table->s->next_number_key_offset)
+    {
+      handler::get_auto_increment(offset, increment, nb_desired_values, first_value, nb_reserved_values);
+      DBUG_VOID_RETURN;
+    }
 
     pthread_mutex_lock(&share->mutex);
 
