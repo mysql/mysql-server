@@ -444,6 +444,7 @@ void lex_start(THD *thd)
   lex->select_lex.order_list.empty();
   if (lex->select_lex.order_list_ptrs)
     lex->select_lex.order_list_ptrs->clear();
+  lex->select_lex.gorder_list.empty();
   lex->duplicates= DUP_ERROR;
   lex->ignore= 0;
   lex->spname= NULL;
