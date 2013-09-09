@@ -17291,6 +17291,11 @@ join_read_always_key(JOIN_TAB *tab)
 
   if (cp_buffer_from_ref(tab->join->thd, table, &tab->ref))
     return -1;
+  if ((error= table->file->prepare_index_key_scan_map(tab->ref.key_buff, make_prev_keypart_map(tab->ref.key_parts)))) 
+  {
+    report_error(table,error);
+    return -1;
+  }
   if ((error= table->file->ha_index_read_map(table->record[0],
                                              tab->ref.key_buff,
                                              make_prev_keypart_map(tab->ref.key_parts),
@@ -17324,6 +17329,11 @@ join_read_last_key(JOIN_TAB *tab)
 
   if (cp_buffer_from_ref(tab->join->thd, table, &tab->ref))
     return -1;
+  if ((error= table->file->prepare_index_key_scan_map(tab->ref.key_buff, make_prev_keypart_map(tab->ref.key_parts)))) 
+  {
+    report_error(table,error);
+    return -1;
+  }
   if ((error= table->file->ha_index_read_map(table->record[0],
                                             tab->ref.key_buff,
                                      make_prev_keypart_map(tab->ref.key_parts),

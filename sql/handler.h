@@ -1868,6 +1868,16 @@ public:
   }
   /* This is called after index_init() if we need to do a index scan */
   virtual int prepare_index_scan() { return 0; }
+  virtual int prepare_index_key_scan_map(const uchar * key, key_part_map keypart_map)
+  {
+    uint key_len= calculate_key_len(table, active_index, key, keypart_map);
+    return  prepare_index_key_scan(key, key_len);
+  }
+  virtual int prepare_index_key_scan( const uchar * key, uint key_len )
+  { return 0; }
+  virtual int prepare_range_scan(const key_range *start_key, const key_range *end_key)
+  { return 0; }
+
   int ha_rnd_init(bool scan) __attribute__ ((warn_unused_result))
   {
     DBUG_EXECUTE_IF("ha_rnd_init_fail", return HA_ERR_TABLE_DEF_CHANGED;);
