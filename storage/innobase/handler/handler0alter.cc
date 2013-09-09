@@ -126,6 +126,9 @@ my_error_innodb(
 	case DB_OUT_OF_FILE_SPACE:
 		my_error(ER_RECORD_FILE_FULL, MYF(0), table);
 		break;
+	case DB_TEMP_FILE_WRITE_FAILURE:
+		my_error(ER_TEMP_FILE_WRITE_FAILURE, MYF(0));
+		break;
 	case DB_TOO_BIG_INDEX_COL:
 		my_error(ER_INDEX_COLUMN_TOO_LONG, MYF(0),
 			 DICT_MAX_FIELD_LEN_BY_FORMAT_FLAG(flags));
