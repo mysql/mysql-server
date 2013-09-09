@@ -27,6 +27,7 @@
 #include "sql_tmp_table.h"                 // create_tmp_table
 #include "sql_resolver.h"                  // setup_order, fix_inner_refs
 #include "sql_optimizer.h"                 // JOIN
+#include "uniques.h"
 
 using std::min;
 using std::max;
