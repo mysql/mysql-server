@@ -337,7 +337,7 @@ int my_pthread_fastmutex_lock(my_pthread_fastmutex_t *mp);
 
 	/* READ-WRITE thread locking */
 
-#if defined(HAVE_PTHREAD_RWLOCK_RDLOCK)
+#ifndef _WIN32  /* read/write locks using pthread */
 #define rw_lock_t pthread_rwlock_t
 #define my_rwlock_init(A,B) pthread_rwlock_init((A),(B))
 #define rw_rdlock(A) pthread_rwlock_rdlock(A)
@@ -346,14 +346,8 @@ int my_pthread_fastmutex_lock(my_pthread_fastmutex_t *mp);
 #define rw_trywrlock(A) pthread_rwlock_trywrlock((A))
 #define rw_unlock(A) pthread_rwlock_unlock(A)
 #define rwlock_destroy(A) pthread_rwlock_destroy(A)
-#elif defined(HAVE_RWLOCK_INIT)
-#ifdef HAVE_RWLOCK_T				/* For example Solaris 2.6-> */
-#define rw_lock_t rwlock_t
-#endif
-#define my_rwlock_init(A,B) rwlock_init((A),USYNC_THREAD,0)
-#else
+#else /* _WIN32 */
 /* Use our own version of read/write locks */
-#define NEED_MY_RW_LOCK 1
 #define rw_lock_t my_rw_lock_t
 #define my_rwlock_init(A,B) my_rw_init((A))
 #define rw_rdlock(A) my_rw_rdlock((A))
@@ -362,9 +356,50 @@ int my_pthread_fastmutex_lock(my_pthread_fastmutex_t *mp);
 #define rw_trywrlock(A) my_rw_trywrlock((A))
 #define rw_unlock(A) my_rw_unlock((A))
 #define rwlock_destroy(A) my_rw_destroy((A))
-#define rw_lock_assert_write_owner(A) my_rw_lock_assert_write_owner((A))
-#define rw_lock_assert_not_write_owner(A) my_rw_lock_assert_not_write_owner((A))
-#endif /* USE_MUTEX_INSTEAD_OF_RW_LOCKS */
+
+/**
+  Implementation of Windows rwlock.
+
+  We use native (slim) rwlocks on Win7 and later, and fallback to  portable
+  implementation on earlier Windows.
+
+  slim rwlock are also available on Vista/WS2008, but we do not use it
+  ("trylock" APIs are missing on Vista)
+*/
+typedef union
+{
+  /* Native rwlock (is_srwlock == TRUE) */
+  struct
+  {
+    SRWLOCK srwlock;             /* native reader writer lock */
+    BOOL have_exclusive_srwlock; /* used for unlock */
+  };
+
+  /*
+    Portable implementation (is_srwlock == FALSE)
+    Fields are identical with Unix my_rw_lock_t fields.
+  */
+  struct
+  {
+    pthread_mutex_t lock;       /* lock for structure		*/
+    pthread_cond_t  readers;    /* waiting readers		*/
+    pthread_cond_t  writers;    /* waiting writers		*/
+    int state;                  /* -1:writer,0:free,>0:readers	*/
+    int waiters;                /* number of waiting writers	*/
+#ifdef SAFE_MUTEX
+    pthread_t  write_thread;
+#endif
+  };
+} my_rw_lock_t;
+
+extern int my_rw_init(my_rw_lock_t *);
+extern int my_rw_destroy(my_rw_lock_t *);
+extern int my_rw_rdlock(my_rw_lock_t *);
+extern int my_rw_wrlock(my_rw_lock_t *);
+extern int my_rw_unlock(my_rw_lock_t *);
+extern int my_rw_tryrdlock(my_rw_lock_t *);
+extern int my_rw_trywrlock(my_rw_lock_t *);
+#endif /* _WIN32 */
 
 
 /**
@@ -437,87 +472,6 @@ extern int rw_pr_destroy(rw_pr_lock_t *);
 #define rw_pr_lock_assert_write_owner(A)
 #define rw_pr_lock_assert_not_write_owner(A)
 #endif /* SAFE_MUTEX */
-
-
-#ifdef NEED_MY_RW_LOCK
-
-#ifdef _WIN32
-
-/**
-  Implementation of Windows rwlock.
-
-  We use native (slim) rwlocks on Win7 and later, and fallback to  portable
-  implementation on earlier Windows.
-
-  slim rwlock are also available on Vista/WS2008, but we do not use it
-  ("trylock" APIs are missing on Vista)
-*/
-typedef union
-{
-  /* Native rwlock (is_srwlock == TRUE) */
-  struct 
-  {
-    SRWLOCK srwlock;             /* native reader writer lock */
-    BOOL have_exclusive_srwlock; /* used for unlock */
-  };
-
-  /*
-    Portable implementation (is_srwlock == FALSE)
-    Fields are identical with Unix my_rw_lock_t fields.
-  */
-  struct 
-  {
-    pthread_mutex_t lock;       /* lock for structure		*/
-    pthread_cond_t  readers;    /* waiting readers		*/
-    pthread_cond_t  writers;    /* waiting writers		*/
-    int state;                  /* -1:writer,0:free,>0:readers	*/
-    int waiters;                /* number of waiting writers	*/
-#ifdef SAFE_MUTEX
-    pthread_t  write_thread;
-#endif
-  };
-} my_rw_lock_t;
-
-
-#else /* _WIN32 */
-
-/*
-  On systems which don't support native read/write locks we have
-  to use own implementation.
-*/
-typedef struct st_my_rw_lock_t {
-	pthread_mutex_t lock;		/* lock for structure		*/
-	pthread_cond_t	readers;	/* waiting readers		*/
-	pthread_cond_t	writers;	/* waiting writers		*/
-	int		state;		/* -1:writer,0:free,>0:readers	*/
-	int             waiters;        /* number of waiting writers	*/
-#ifdef SAFE_MUTEX
-        pthread_t       write_thread;
-#endif
-} my_rw_lock_t;
-
-#endif /*! _WIN32 */
-
-extern int my_rw_init(my_rw_lock_t *);
-extern int my_rw_destroy(my_rw_lock_t *);
-extern int my_rw_rdlock(my_rw_lock_t *);
-extern int my_rw_wrlock(my_rw_lock_t *);
-extern int my_rw_unlock(my_rw_lock_t *);
-extern int my_rw_tryrdlock(my_rw_lock_t *);
-extern int my_rw_trywrlock(my_rw_lock_t *);
-#ifdef SAFE_MUTEX
-#define my_rw_lock_assert_write_owner(A) \
-  DBUG_ASSERT((A)->state == -1 && pthread_equal(pthread_self(), \
-                                                (A)->write_thread))
-#define my_rw_lock_assert_not_write_owner(A) \
-  DBUG_ASSERT((A)->state >= 0 || ! pthread_equal(pthread_self(), \
-                                                 (A)->write_thread))
-#else
-#define my_rw_lock_assert_write_owner(A)
-#define my_rw_lock_assert_not_write_owner(A)
-#endif
-#endif /* NEED_MY_RW_LOCK */
-
 
 #define GETHOSTBYADDR_BUFF_SIZE 2048
 
