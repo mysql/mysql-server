@@ -538,7 +538,7 @@ static bool check_point_update(Item *conds, TABLE *table) {
 // Precompute this when the table is opened.
 static bool clustering_keys_exist(TABLE *table) {
     for (uint keynr = 0; keynr < table->s->keys; keynr++) {
-        if (keynr != table->s->primary_key && (table->s->key_info[keynr].flags & HA_CLUSTERING))
+        if (keynr != table->s->primary_key && (table->s->key_info[keynr].option_struct->clustering))
             return true;
     }
     return false;

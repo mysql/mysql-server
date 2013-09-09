@@ -126,7 +126,7 @@ static bool tables_have_same_keys(TABLE* table, TABLE* altered_table, bool print
             retval = false;
             goto cleanup;
         }
-        if (((curr_orig_key->flags & HA_CLUSTERING) == 0) != ((curr_altered_key->flags & HA_CLUSTERING) == 0)) {
+        if (curr_orig_key->option_struct->clustering != curr_altered_key->option_struct->clustering) {
             if (print_error) {
                 sql_print_error(
                     "keys disagree on if they are clustering, %d, %d",

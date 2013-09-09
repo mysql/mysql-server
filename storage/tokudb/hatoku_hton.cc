@@ -411,6 +411,12 @@ extern "C" {
 }
 #endif
 
+ha_create_table_option tokudb_index_options[]=
+{
+  HA_IOPTION_BOOL("clustering", clustering, 0),
+  HA_IOPTION_END
+};
+
 // A flag set if the handlerton is in an initialized, usable state,
 // plus a reader-write lock to protect it without serializing reads.
 // Since we don't have static initializers for the opaque rwlock type,
@@ -493,6 +499,8 @@ static int tokudb_init_func(void *p) {
     tokudb_hton->commit_by_xid=tokudb_commit_by_xid;
     tokudb_hton->rollback_by_xid=tokudb_rollback_by_xid;
 #endif
+
+    tokudb_hton->index_options= tokudb_index_options;
 
     tokudb_hton->panic = tokudb_end;
     tokudb_hton->flush_logs = tokudb_flush_logs;
