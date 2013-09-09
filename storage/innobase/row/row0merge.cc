@@ -1574,9 +1574,23 @@ write_buffers:
 				continue;
 			}
 
-			if ((buf->index->type & DICT_FTS)
-			    && (!row || !doc_id)) {
-				continue;
+			if (buf->index->type & DICT_FTS) {
+				if (!row || !doc_id) {
+					continue;
+				}
+
+				/* Check if error occurs in child thread */
+				for (ulint j = 0; j < fts_sort_pll_degree; j++) {
+					if (psort_info[j].error != DB_SUCCESS) {
+						err = psort_info[j].error;
+						trx->error_key_num = i;
+						break;
+					}
+				}
+
+				if (err != DB_SUCCESS) {
+					break;
+				}
 			}
 
 			/* The buffer must be sufficiently large
@@ -1634,7 +1648,7 @@ write_buffers:
 
 			if (!row_merge_write(file->fd, file->offset++,
 					     block)) {
-				err = DB_OUT_OF_FILE_SPACE;
+				err = DB_TEMP_FILE_WRITE_FAILURE;
 				trx->error_key_num = i;
 				break;
 			}
@@ -1689,11 +1703,25 @@ all_done:
 		ulint	trial_count = 0;
 		const ulint max_trial_count = 10000;
 
+wait_again:
+                /* Check if error occurs in child thread */
+		for (ulint j = 0; j < fts_sort_pll_degree; j++) {
+			if (psort_info[j].error != DB_SUCCESS) {
+				err = psort_info[j].error;
+				trx->error_key_num = j;
+				break;
+			}
+		}
+
 		/* Tell all children that parent has done scanning */
 		for (ulint i = 0; i < fts_sort_pll_degree; i++) {
-			psort_info[i].state = FTS_PARENT_COMPLETE;
+			if (err == DB_SUCCESS) {
+				psort_info[i].state = FTS_PARENT_COMPLETE;
+			} else {
+				psort_info[i].state = FTS_PARENT_EXITING;
+			}
 		}
-wait_again:
+
 		/* Now wait all children to report back to be completed */
 		os_event_wait_time_low(fts_parallel_sort_event,
 				       1000000, sig_count);
@@ -3389,6 +3417,7 @@ row_merge_build_indexes(
 	fts_psort_t*		psort_info = NULL;
 	fts_psort_t*		merge_info = NULL;
 	ib_int64_t		sig_count = 0;
+	bool			fts_psort_initiated = false;
 	DBUG_ENTER("row_merge_build_indexes");
 
 	ut_ad(!srv_read_only_mode);
@@ -3445,6 +3474,10 @@ row_merge_build_indexes(
 			row_fts_psort_info_init(
 				trx, dup, new_table, opt_doc_id_size,
 				&psort_info, &merge_info);
+
+			/* "We need to ensure that we free the resources
+			allocated */
+			fts_psort_initiated = true;
 		}
 	}
 
@@ -3567,6 +3600,7 @@ wait_again:
 
 		if (indexes[i]->type & DICT_FTS) {
 			row_fts_psort_info_destroy(psort_info, merge_info);
+			fts_psort_initiated = false;
 		} else if (error != DB_SUCCESS || !online) {
 			/* Do not apply any online log. */
 		} else if (old_table != new_table) {
@@ -3602,6 +3636,12 @@ func_exit:
 		"ib_build_indexes_too_many_concurrent_trxs",
 		error = DB_TOO_MANY_CONCURRENT_TRXS;
 		trx->error_state = error;);
+
+	if (fts_psort_initiated) {
+		/* Clean up FTS psort related resource */
+		row_fts_psort_info_destroy(psort_info, merge_info);
+		fts_psort_initiated = false;
+	}
 
 	row_merge_file_destroy_low(tmpfd);
 
