@@ -327,6 +327,7 @@ Unique::~Unique()
 bool Unique::flush()
 {
   BUFFPEK file_ptr;
+  memset(&file_ptr, 0, sizeof(file_ptr));
   elements+= tree.elements_in_tree;
   file_ptr.count=tree.elements_in_tree;
   file_ptr.file_pos=my_b_tell(&file);
