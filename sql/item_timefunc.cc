@@ -1435,12 +1435,8 @@ bool get_interval_value(Item *args,interval_type int_type, INTERVAL *interval)
 
 void Item_temporal_func::fix_length_and_dec()
 { 
-  static const uint max_time_type_width[5]=
-  { MAX_DATETIME_WIDTH, MAX_DATETIME_WIDTH, MAX_DATE_WIDTH,
-    MAX_DATETIME_WIDTH, MIN_TIME_WIDTH };
-
   set_persist_maybe_null(1);
-  max_length= max_time_type_width[mysql_type_to_time_type(field_type())+2];
+  max_length= mysql_temporal_int_part_length(field_type());
   if (decimals)
   {
     if (decimals == NOT_FIXED_DEC)

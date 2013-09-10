@@ -149,13 +149,16 @@ public:
   void print_op(String *str, enum_query_type query_type);
   void print_args(String *str, uint from, enum_query_type query_type);
   virtual void fix_num_length_and_dec();
-  void count_only_length();
+  void count_only_length(Item **item, uint nitems);
   void count_real_length();
   void count_decimal_length();
   inline bool get_arg0_date(MYSQL_TIME *ltime, ulonglong fuzzy_date)
   {
     return (null_value=args[0]->get_date(ltime, fuzzy_date));
   }
+  void count_datetime_length(Item **item, uint nitems);
+  bool count_string_result_length(enum_field_types field_type,
+                                  Item **item, uint nitems);
   inline bool get_arg0_time(MYSQL_TIME *ltime)
   {
     return (null_value=args[0]->get_time(ltime));
@@ -410,38 +413,33 @@ public:
 };
 
 
-class Item_func_numhybrid: public Item_func
+class Item_func_hybrid_result_type: public Item_func
 {
 protected:
-  Item_result hybrid_type;
+  Item_result cached_result_type;
+
 public:
-  Item_func_numhybrid() :Item_func(), hybrid_type(REAL_RESULT)
-  {}
-  Item_func_numhybrid(Item *a) :Item_func(a), hybrid_type(REAL_RESULT)
+  Item_func_hybrid_result_type() :Item_func(), cached_result_type(REAL_RESULT)
   { collation.set_numeric(); }
-  Item_func_numhybrid(Item *a,Item *b)
-    :Item_func(a,b), hybrid_type(REAL_RESULT)
+  Item_func_hybrid_result_type(Item *a) :Item_func(a), cached_result_type(REAL_RESULT)
   { collation.set_numeric(); }
-  Item_func_numhybrid(List<Item> &list)
-    :Item_func(list), hybrid_type(REAL_RESULT)
+  Item_func_hybrid_result_type(Item *a,Item *b)
+    :Item_func(a,b), cached_result_type(REAL_RESULT)
+  { collation.set_numeric(); }
+  Item_func_hybrid_result_type(Item *a,Item *b,Item *c)
+    :Item_func(a,b,c), cached_result_type(REAL_RESULT)
+  { collation.set_numeric(); }
+  Item_func_hybrid_result_type(List<Item> &list)
+    :Item_func(list), cached_result_type(REAL_RESULT)
   { collation.set_numeric(); }
 
-  enum Item_result result_type () const { return hybrid_type; }
-  void fix_length_and_dec();
-  void fix_num_length_and_dec();
-  virtual void find_num_type()= 0; /* To be called from fix_length_and_dec */
-
-  inline void fix_decimals()
-  {
-    DBUG_ASSERT(result_type() == DECIMAL_RESULT);
-    if (decimals == NOT_FIXED_DEC)
-      set_if_smaller(decimals, max_length - 1);
-  }
+  enum Item_result result_type () const { return cached_result_type; }
 
   double val_real();
   longlong val_int();
   my_decimal *val_decimal(my_decimal *);
   String *val_str(String*str);
+  bool get_date(MYSQL_TIME *res, ulonglong fuzzy_date);
 
   /**
      @brief Performs the operation that this functions implements when the
@@ -478,8 +476,74 @@ public:
      @return The result of the operation.
   */
   virtual String *str_op(String *)= 0;
-  bool is_null() { update_null_value(); return null_value; }
+
+  /**
+     @brief Performs the operation that this functions implements when
+     field type is a temporal type.
+     @return The result of the operation.
+  */
+  virtual bool date_op(MYSQL_TIME *res, uint fuzzy_date)= 0;
+
 };
+
+
+
+class Item_func_hybrid_field_type :public Item_func_hybrid_result_type
+{
+protected:
+  enum_field_types cached_field_type;
+public:
+  Item_func_hybrid_field_type()
+    :Item_func_hybrid_result_type(), cached_field_type(MYSQL_TYPE_DOUBLE)
+  {}
+  Item_func_hybrid_field_type(Item *a, Item *b)
+    :Item_func_hybrid_result_type(a, b), cached_field_type(MYSQL_TYPE_DOUBLE)
+  {}
+  Item_func_hybrid_field_type(Item *a, Item *b, Item *c)
+    :Item_func_hybrid_result_type(a, b, c),
+    cached_field_type(MYSQL_TYPE_DOUBLE)
+  {}
+  Item_func_hybrid_field_type(List<Item> &list)
+    :Item_func_hybrid_result_type(list),
+    cached_field_type(MYSQL_TYPE_DOUBLE)
+  {}
+  enum_field_types field_type() const { return cached_field_type; }
+};
+
+
+
+class Item_func_numhybrid: public Item_func_hybrid_result_type
+{
+protected:
+
+  inline void fix_decimals()
+  {
+    DBUG_ASSERT(result_type() == DECIMAL_RESULT);
+    if (decimals == NOT_FIXED_DEC)
+      set_if_smaller(decimals, max_length - 1);
+  }
+
+public:
+  Item_func_numhybrid() :Item_func_hybrid_result_type()
+  { }
+  Item_func_numhybrid(Item *a) :Item_func_hybrid_result_type(a)
+  { }
+  Item_func_numhybrid(Item *a,Item *b)
+    :Item_func_hybrid_result_type(a,b)
+  { }
+  Item_func_numhybrid(Item *a,Item *b,Item *c)
+    :Item_func_hybrid_result_type(a,b,c)
+  { }
+  Item_func_numhybrid(List<Item> &list)
+    :Item_func_hybrid_result_type(list)
+  { }
+  void fix_length_and_dec();
+  void fix_num_length_and_dec();
+  virtual void find_num_type()= 0; /* To be called from fix_length_and_dec */
+  String *str_op(String *str) { DBUG_ASSERT(0); return 0; }
+  bool date_op(MYSQL_TIME *ltime, uint fuzzydate) { DBUG_ASSERT(0); return true; }
+};
+
 
 /* function where type of result detected by first argument */
 class Item_func_num1: public Item_func_numhybrid
@@ -490,7 +554,6 @@ public:
 
   void fix_num_length_and_dec();
   void find_num_type();
-  String *str_op(String *str) { DBUG_ASSERT(0); return 0; }
 };
 
 
@@ -507,7 +570,6 @@ class Item_num_op :public Item_func_numhybrid
   }
 
   void find_num_type();
-  String *str_op(String *str) { DBUG_ASSERT(0); return 0; }
 };
 
 

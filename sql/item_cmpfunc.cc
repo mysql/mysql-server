@@ -2376,12 +2376,13 @@ void
 Item_func_ifnull::fix_length_and_dec()
 {
   uint32 char_length;
-  agg_result_type(&hybrid_type, args, 2);
+  agg_result_type(&cached_result_type, args, 2);
+  cached_field_type= agg_field_type(args, 2);
   maybe_null=args[1]->maybe_null;
   decimals= max(args[0]->decimals, args[1]->decimals);
   unsigned_flag= args[0]->unsigned_flag && args[1]->unsigned_flag;
 
-  if (hybrid_type == DECIMAL_RESULT || hybrid_type == INT_RESULT) 
+  if (cached_result_type == DECIMAL_RESULT || cached_result_type == INT_RESULT) 
   {
     int len0= args[0]->max_char_length() - args[0]->decimals
       - (args[0]->unsigned_flag ? 0 : 1);
@@ -2394,9 +2395,9 @@ Item_func_ifnull::fix_length_and_dec()
   else
     char_length= max(args[0]->max_char_length(), args[1]->max_char_length());
 
-  switch (hybrid_type) {
+  switch (cached_result_type) {
   case STRING_RESULT:
-    if (agg_arg_charsets_for_comparison(collation, args, arg_count))
+    if (count_string_result_length(cached_field_type, args, arg_count))
       return;
     break;
   case DECIMAL_RESULT:
@@ -2411,7 +2412,6 @@ Item_func_ifnull::fix_length_and_dec()
     DBUG_ASSERT(0);
   }
   fix_char_length(char_length);
-  cached_field_type= agg_field_type(args, 2);
 }
 
 
@@ -2424,11 +2424,6 @@ uint Item_func_ifnull::decimal_precision() const
   return min(precision, DECIMAL_MAX_PRECISION);
 }
 
-
-enum_field_types Item_func_ifnull::field_type() const 
-{
-  return cached_field_type;
-}
 
 Field *Item_func_ifnull::tmp_table_field(TABLE *table)
 {
@@ -2500,6 +2495,18 @@ Item_func_ifnull::str_op(String *str)
     return 0;
   res->set_charset(collation.collation);
   return res;
+}
+
+
+bool Item_func_ifnull::date_op(MYSQL_TIME *ltime, uint fuzzydate)
+{
+  DBUG_ASSERT(fixed == 1);
+  if (!args[0]->get_date(ltime, fuzzydate & ~TIME_FUZZY_DATES))
+    return (null_value= false);
+  if (!args[1]->get_date(ltime, fuzzydate & ~TIME_FUZZY_DATES))
+    return (null_value= false);
+  bzero((char*) ltime,sizeof(*ltime));
+  return null_value= !(fuzzydate & TIME_FUZZY_DATES);
 }
 
 
@@ -2597,20 +2604,20 @@ Item_func_if::fix_length_and_dec()
   }
 
   agg_result_type(&cached_result_type, args + 1, 2);
+  cached_field_type= agg_field_type(args + 1, 2);
   maybe_null= args[1]->maybe_null || args[2]->maybe_null;
   decimals= max(args[1]->decimals, args[2]->decimals);
   unsigned_flag=args[1]->unsigned_flag && args[2]->unsigned_flag;
 
   if (cached_result_type == STRING_RESULT)
   {
-    if (agg_arg_charsets_for_string_result(collation, args + 1, 2))
-      return;
+    count_string_result_length(cached_field_type, args + 1, 2);
+    return;
   }
   else
   {
     collation.set_numeric(); // Number
   }
-  cached_field_type= agg_field_type(args + 1, 2);
 
   uint32 char_length;
   if ((cached_result_type == DECIMAL_RESULT )
@@ -2640,7 +2647,7 @@ uint Item_func_if::decimal_precision() const
 
 
 double
-Item_func_if::val_real()
+Item_func_if::real_op()
 {
   DBUG_ASSERT(fixed == 1);
   Item *arg= args[0]->val_bool() ? args[1] : args[2];
@@ -2650,7 +2657,7 @@ Item_func_if::val_real()
 }
 
 longlong
-Item_func_if::val_int()
+Item_func_if::int_op()
 {
   DBUG_ASSERT(fixed == 1);
   Item *arg= args[0]->val_bool() ? args[1] : args[2];
@@ -2660,7 +2667,7 @@ Item_func_if::val_int()
 }
 
 String *
-Item_func_if::val_str(String *str)
+Item_func_if::str_op(String *str)
 {
   DBUG_ASSERT(fixed == 1);
   Item *arg= args[0]->val_bool() ? args[1] : args[2];
@@ -2673,13 +2680,21 @@ Item_func_if::val_str(String *str)
 
 
 my_decimal *
-Item_func_if::val_decimal(my_decimal *decimal_value)
+Item_func_if::decimal_op(my_decimal *decimal_value)
 {
   DBUG_ASSERT(fixed == 1);
   Item *arg= args[0]->val_bool() ? args[1] : args[2];
   my_decimal *value= arg->val_decimal(decimal_value);
   null_value= arg->null_value;
   return value;
+}
+
+
+bool Item_func_if::date_op(MYSQL_TIME *ltime, uint fuzzydate)
+{
+  DBUG_ASSERT(fixed == 1);
+  Item *arg= args[0]->val_bool() ? args[1] : args[2];
+  return (null_value= arg->get_date(ltime, fuzzydate));
 }
 
 
@@ -2841,7 +2856,7 @@ Item *Item_func_case::find_item(String *str)
 }
 
 
-String *Item_func_case::val_str(String *str)
+String *Item_func_case::str_op(String *str)
 {
   DBUG_ASSERT(fixed == 1);
   String *res;
@@ -2859,7 +2874,7 @@ String *Item_func_case::val_str(String *str)
 }
 
 
-longlong Item_func_case::val_int()
+longlong Item_func_case::int_op()
 {
   DBUG_ASSERT(fixed == 1);
   char buff[MAX_FIELD_WIDTH];
@@ -2877,7 +2892,7 @@ longlong Item_func_case::val_int()
   return res;
 }
 
-double Item_func_case::val_real()
+double Item_func_case::real_op()
 {
   DBUG_ASSERT(fixed == 1);
   char buff[MAX_FIELD_WIDTH];
@@ -2896,7 +2911,7 @@ double Item_func_case::val_real()
 }
 
 
-my_decimal *Item_func_case::val_decimal(my_decimal *decimal_value)
+my_decimal *Item_func_case::decimal_op(my_decimal *decimal_value)
 {
   DBUG_ASSERT(fixed == 1);
   char buff[MAX_FIELD_WIDTH];
@@ -2913,6 +2928,18 @@ my_decimal *Item_func_case::val_decimal(my_decimal *decimal_value)
   res= item->val_decimal(decimal_value);
   null_value= item->null_value;
   return res;
+}
+
+
+bool Item_func_case::date_op(MYSQL_TIME *ltime, uint fuzzydate)
+{
+  DBUG_ASSERT(fixed == 1);
+  char buff[MAX_FIELD_WIDTH];
+  String dummy_str(buff, sizeof(buff), default_charset());
+  Item *item= find_item(&dummy_str);
+  if (!item)
+    return (null_value= true);
+  return (null_value= item->get_date(ltime, fuzzydate));
 }
 
 
@@ -2983,7 +3010,10 @@ void Item_func_case::fix_length_and_dec()
 
   if (!(agg= (Item**) sql_alloc(sizeof(Item*)*(ncases+1))))
     return;
-  
+
+  if (else_expr_num == -1 || args[else_expr_num]->maybe_null)
+    maybe_null= 1;
+
   /*
     Aggregate all THEN and ELSE expression types
     and collations when string result
@@ -2996,9 +3026,11 @@ void Item_func_case::fix_length_and_dec()
     agg[nagg++]= args[else_expr_num];
   
   agg_result_type(&cached_result_type, agg, nagg);
+  cached_field_type= agg_field_type(agg, nagg);
+
   if (cached_result_type == STRING_RESULT)
   {
-    if (agg_arg_charsets_for_string_result(collation, agg, nagg))
+    if (count_string_result_length(cached_field_type, agg, nagg))
       return;
     /*
       Copy all THEN and ELSE items back to args[] array.
@@ -3011,11 +3043,22 @@ void Item_func_case::fix_length_and_dec()
       change_item_tree_if_needed(thd, &args[else_expr_num], agg[nagg++]);
   }
   else
+  {
     collation.set_numeric();
+    max_length=0;
+    decimals=0;
+    unsigned_flag= TRUE;
+    for (uint i= 0; i < ncases; i+= 2)
+      agg_num_lengths(args[i + 1]);
+    if (else_expr_num != -1) 
+      agg_num_lengths(args[else_expr_num]);
+    max_length= my_decimal_precision_to_length_no_truncation(max_length +
+                                                             decimals, decimals,
+                                               unsigned_flag);
+  }
   
-  cached_field_type= agg_field_type(agg, nagg);
   /*
-    Aggregate first expression and all THEN expression types
+    Aggregate first expression and all WHEN expression types
     and collations when string comparison
   */
   if (first_expr_num != -1)
@@ -3100,30 +3143,6 @@ void Item_func_case::fix_length_and_dec()
     for (i= 0; i < ncases; i+= 2)
       args[i]->cmp_context= item_cmp_type(left_result_type,
                                           args[i]->result_type());
-  }
-
-  if (else_expr_num == -1 || args[else_expr_num]->maybe_null)
-    maybe_null=1;
-  
-  max_length=0;
-  decimals=0;
-  unsigned_flag= TRUE;
-  if (cached_result_type == STRING_RESULT)
-  {
-    for (uint i= 0; i < ncases; i+= 2)
-      agg_str_lengths(args[i + 1]);
-    if (else_expr_num != -1)
-      agg_str_lengths(args[else_expr_num]);
-  }
-  else
-  {
-    for (uint i= 0; i < ncases; i+= 2)
-      agg_num_lengths(args[i + 1]);
-    if (else_expr_num != -1) 
-      agg_num_lengths(args[else_expr_num]);
-    max_length= my_decimal_precision_to_length_no_truncation(max_length +
-                                                             decimals, decimals,
-                                               unsigned_flag);
   }
 }
 
@@ -3232,7 +3251,7 @@ double Item_func_coalesce::real_op()
 }
 
 
-bool Item_func_coalesce::get_date(MYSQL_TIME *ltime,ulonglong fuzzydate)
+bool Item_func_coalesce::date_op(MYSQL_TIME *ltime,uint fuzzydate)
 {
   DBUG_ASSERT(fixed == 1);
   null_value= 0;
@@ -3265,21 +3284,11 @@ my_decimal *Item_func_coalesce::decimal_op(my_decimal *decimal_value)
 void Item_func_coalesce::fix_length_and_dec()
 {
   cached_field_type= agg_field_type(args, arg_count);
-  agg_result_type(&hybrid_type, args, arg_count);
-  Item_result cmp_type;
-  agg_cmp_type(&cmp_type, args, arg_count);
-  ///< @todo let result_type() return TIME_RESULT and remove this special case
-  if (cmp_type == TIME_RESULT)
-  {
-    count_real_length();
-    return;
-  }
-  switch (hybrid_type) {
+  agg_result_type(&cached_result_type, args, arg_count);
+  switch (cached_result_type) {
   case STRING_RESULT:
-    decimals= NOT_FIXED_DEC;
-    if (agg_arg_charsets_for_string_result(collation, args, arg_count))
-      return;
-    count_only_length();
+    if (count_string_result_length(cached_field_type, args, arg_count))
+      return;          
     break;
   case DECIMAL_RESULT:
     count_decimal_length();
@@ -3288,7 +3297,7 @@ void Item_func_coalesce::fix_length_and_dec()
     count_real_length();
     break;
   case INT_RESULT:
-    count_only_length();
+    count_only_length(args, arg_count);
     decimals= 0;
     break;
   case ROW_RESULT:

@@ -30,18 +30,16 @@ enum date_time_format_types
   TIME_ONLY= 0, TIME_MICROSECOND, DATE_ONLY, DATE_TIME, DATE_TIME_MICROSECOND
 };
 
-static inline enum enum_mysql_timestamp_type
-mysql_type_to_time_type(enum enum_field_types mysql_type)
+
+static inline uint
+mysql_temporal_int_part_length(enum enum_field_types mysql_type)
 {
-  switch(mysql_type) {
-  case MYSQL_TYPE_TIME: return MYSQL_TIMESTAMP_TIME;
-  case MYSQL_TYPE_TIMESTAMP:
-  case MYSQL_TYPE_DATETIME: return MYSQL_TIMESTAMP_DATETIME;
-  case MYSQL_TYPE_NEWDATE:
-  case MYSQL_TYPE_DATE: return MYSQL_TIMESTAMP_DATE;
-  default: return MYSQL_TIMESTAMP_ERROR;
-  }
+  static uint max_time_type_width[5]=
+  { MAX_DATETIME_WIDTH, MAX_DATETIME_WIDTH, MAX_DATE_WIDTH,
+    MAX_DATETIME_WIDTH, MIN_TIME_WIDTH };
+  return max_time_type_width[mysql_type_to_time_type(mysql_type)+2];
 }
+
 
 bool get_interval_value(Item *args,interval_type int_type, INTERVAL *interval);
 
@@ -421,9 +419,11 @@ public:
     max_length=17 + (decimals ? decimals + 1 : 0);
     set_persist_maybe_null(1);
   }
-  void find_num_type() { hybrid_type= decimals ? DECIMAL_RESULT : INT_RESULT; }
+  void find_num_type()
+  { cached_result_type= decimals ? DECIMAL_RESULT : INT_RESULT; }
   double real_op() { DBUG_ASSERT(0); return 0; }
   String *str_op(String *str) { DBUG_ASSERT(0); return 0; }
+  bool date_op(MYSQL_TIME *ltime, uint fuzzydate) { DBUG_ASSERT(0); return true; }
 };
 
 
