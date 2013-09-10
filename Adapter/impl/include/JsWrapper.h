@@ -40,7 +40,7 @@ using v8::String;
  are unwrapped back to the original type.
  This can be disabled.
  ******************************************************************/
-#define ENABLE_WRAPPER_TYPE_CHECKS 1
+#define ENABLE_WRAPPER_TYPE_CHECKS 0
 
 #if ENABLE_WRAPPER_TYPE_CHECKS
 #include <typeinfo>
