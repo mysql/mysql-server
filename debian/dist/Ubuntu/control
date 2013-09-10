@@ -14,6 +14,7 @@ Package: libmariadbclient18
 Section: libs
 Architecture: any
 Depends: mariadb-common, libmysqlclient18 (= ${source:Version}), ${shlibs:Depends}, ${misc:Depends}
+Conflicts: mariadb-server-5.5 (<< 5.5.32)
 Description: MariaDB database client library
  MariaDB is a fast, stable and true multi-user, multi-threaded SQL database
  server. SQL (Structured Query Language) is the most popular database query
@@ -158,10 +159,11 @@ Description: MariaDB database core server files
 
 Package: mariadb-test-5.5
 Section: database
-Architecture: all
+Architecture: any
 Depends: mariadb-server-5.5 (= ${source:Version}), mariadb-client-5.5 (= ${source:Version})
 Conflicts: mariadb-test (<< ${source:Version}),
-    mariadb-test-5.1, mariadb-test-5.2, mariadb-test-5.3
+    mariadb-test-5.1, mariadb-test-5.2, mariadb-test-5.3,
+    mariadb-server-5.5 (<< 5.5.32)
 Replaces: mariadb-test (<< ${source:Version}),
     mariadb-test-5.1, mariadb-test-5.2, mariadb-test-5.3
 Description: MariaDB database regression test suite
@@ -229,3 +231,12 @@ Description: MariaDB database regression test suite (metapackage depending on th
  This is an empty package that depends on the current "best" version of
  mariadb-test (currently mariadb-test-5.5), as determined by the MariaDB
  maintainers.
+
+Package: mariadb-tokudb-engine-5.5
+Section: database
+Architecture: all
+Depends: mariadb-server-5.5
+Description: TokuDB storage engine for MariaDB
+ TokuDB is a highly scalable, zero maintenance downtime, ACID and MVCC
+ compliant MariaDB Storage Engine that offers powerful indexing-based query
+ acceleration. http://www.tokutek.com/products/tokudb-for-mysql/

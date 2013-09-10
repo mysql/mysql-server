@@ -1,3 +1,13 @@
+usr/lib/mysql/plugin/dialog_examples.so
+usr/lib/mysql/plugin/auth_test_plugin.so
+usr/lib/mysql/plugin/qa_auth_interface.so
+usr/lib/mysql/plugin/qa_auth_server.so
+usr/lib/mysql/plugin/qa_auth_client.so
+usr/lib/mysql/plugin/auth_0x0100.so
+usr/lib/mysql/plugin/mypluglib.so
+usr/lib/mysql/plugin/daemon_example.ini
+usr/lib/mysql/plugin/libdaemon_example.so
+usr/lib/mysql/plugin/adt_null.so
 usr/bin/mysql_client_test
 usr/bin/mysql_client_test_embedded
 usr/bin/mysqltest_embedded

@@ -15,6 +15,8 @@ set -e
 # Buildbot, running the test suite from installed .debs on a clean VM.
 export DEB_BUILD_OPTIONS="nocheck"
 
+export MARIADB_OPTIONAL_DEBS="tokudb-engine"
+
 # Find major.minor version.
 #
 source ./VERSION
@@ -75,6 +77,8 @@ echo "Creating package version ${UPSTREAM}${PATCHLEVEL}-${RELEASE_NAME}${RELEASE
 # Build the package.
 #
 fakeroot dpkg-buildpackage -us -uc
+
+[ -e debian/autorm-file ] && rm -vf `cat debian/autorm-file`
 
 echo "Build complete"
 

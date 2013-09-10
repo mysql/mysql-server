@@ -184,8 +184,8 @@ SET(INSTALL_PLUGINDIR_DEB               "lib/mysql/plugin")
 #
 SET(INSTALL_INCLUDEDIR_DEB              "include/mysql")
 #
-SET(INSTALL_DOCDIR_DEB                  "docs")
-SET(INSTALL_DOCREADMEDIR_DEB            ".")
+SET(INSTALL_DOCDIR_DEB                  "share/doc/mariadb-server-5.5")
+SET(INSTALL_DOCREADMEDIR_DEB            "share/doc/mariadb-server-5.5")
 SET(INSTALL_MANDIR_DEB                  "share/man")
 SET(INSTALL_INFODIR_DEB                 "share/info")
 #

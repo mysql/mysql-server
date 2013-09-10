@@ -206,7 +206,15 @@ install: build
 	# install Apport hook
 	install -D -m 644 debian/mariadb-server-5.5.py $(TMP)/usr/share/apport/package-hooks/source_mariadb-5.5.py
 
-	dh_movefiles
+	autorm=debian/autorm-file;                                      \
+	rm -f $$autorm;                                                 \
+	ignore='';                                                      \
+	for p in $$MARIADB_OPTIONAL_DEBS; do                            \
+	  p=mariadb-$$p-5.5;                                            \
+	  dh_movefiles --package=$$p || echo "../$$p*.deb" >> $$autorm; \
+	  ignore="$$ignore --no-package=$$p";                           \
+	done;                                                           \
+	sh -c "dh_movefiles $$ignore"
 
 # Build architecture-independent files here.
 binary-indep: build install
