@@ -4,6 +4,7 @@
 
 --source include/have_innodb.inc
 --source include/have_debug.inc
+--source include/have_debug_sync.inc
 
 # Valgrind would complain about memory leaks when we crash on purpose.
 --source include/not_valgrind.inc
@@ -25,6 +26,7 @@
 #    recover successfully.
 # 8. OOM error/File writing error while writing truncate log.
 # 9. Failure before flushing the truncate log but immediate after writing it.
+# 10. Test for concurrent truncate.
 #
 ################################################################################
 
@@ -420,6 +422,52 @@ truncate table t;
 # truncate action should be complete as magic_number if already written
 select * from t;
 drop table t;
+
+#-----------------------------------------------------------------------------
+#
+# 10. Test for concurrent truncate.
+#
+use test;
+set global innodb_file_per_table = 0;
+create table t1 (i int, primary key pk(i)) engine=innodb;
+create table t2 (j int) engine=innodb;
+insert into t1 values (1), (2), (3), (4), (5);
+insert into t2 values (1), (2), (3), (4), (5);
+select * from t1;
+select * from t2;
+#
+connect (con1,localhost,root,,);
+connect (con2,localhost,root,,);
+#
+connection con1;
+use test;
+connection con2;
+use test;
+#
+connection con1;
+select * from t1;
+set DEBUG_SYNC='RESET';
+set DEBUG_SYNC='ib_trunc_table_trunc_completing SIGNAL trunc_completing WAIT_FOR trunc_continue';
+--send
+truncate table t1;
+#
+connection con2;
+set DEBUG_SYNC='now WAIT_FOR trunc_completing';
+select * from t2;
+truncate table t2;
+select * from t2;
+set DEBUG_SYNC='now SIGNAL trunc_continue';
+#
+connection con1;
+--reap
+select * from t1;
+#
+connection default;
+set DEBUG_SYNC='RESET';
+disconnect con1;
+disconnect con2;
+drop table t1;
+drop table t2;
 
 #-----------------------------------------------------------------------------
 #

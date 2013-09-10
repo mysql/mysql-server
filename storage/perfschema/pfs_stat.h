@@ -498,7 +498,9 @@ enum PFS_TL_LOCK_TYPE
 
   /* Locks for handler::ha_external_lock() */
   PFS_TL_READ_EXTERNAL= 8,
-  PFS_TL_WRITE_EXTERNAL= 9
+  PFS_TL_WRITE_EXTERNAL= 9,
+
+  PFS_TL_NONE= 99
 };
 
 #define COUNT_PFS_TL_LOCK_TYPE 10

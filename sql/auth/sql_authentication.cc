@@ -502,17 +502,14 @@ static void login_failed_error(MPVIO_EXT *mpvio, int passwd_used)
                                    ER(ER_ACCESS_DENIED_NO_PASSWORD_ERROR),
                                    mpvio->auth_info.user_name,
                                    mpvio->auth_info.host_or_ip);
-    /* 
+    /*
       Log access denied messages to the error log when log-warnings = 2
-      so that the overhead of the general query log is not required to track 
+      so that the overhead of the general query log is not required to track
       failed connections.
     */
-    if (log_warnings > 1)
-    {
-      sql_print_warning(ER(ER_ACCESS_DENIED_NO_PASSWORD_ERROR),
-                        mpvio->auth_info.user_name,
-                        mpvio->auth_info.host_or_ip);      
-    }
+    sql_print_information(ER(ER_ACCESS_DENIED_NO_PASSWORD_ERROR),
+                          mpvio->auth_info.user_name,
+                          mpvio->auth_info.host_or_ip);
   }
   else
   {
@@ -524,18 +521,15 @@ static void login_failed_error(MPVIO_EXT *mpvio, int passwd_used)
                                    mpvio->auth_info.user_name,
                                    mpvio->auth_info.host_or_ip,
                                    passwd_used ? ER(ER_YES) : ER(ER_NO));
-    /* 
+    /*
       Log access denied messages to the error log when log-warnings = 2
-      so that the overhead of the general query log is not required to track 
+      so that the overhead of the general query log is not required to track
       failed connections.
     */
-    if (log_warnings > 1)
-    {
-      sql_print_warning(ER(ER_ACCESS_DENIED_ERROR),
-                        mpvio->auth_info.user_name,
-                        mpvio->auth_info.host_or_ip,
-                        passwd_used ? ER(ER_YES) : ER(ER_NO));      
-    }
+    sql_print_information(ER(ER_ACCESS_DENIED_ERROR),
+                          mpvio->auth_info.user_name,
+                          mpvio->auth_info.host_or_ip,
+                          passwd_used ? ER(ER_YES) : ER(ER_NO));
   }
 }
 
@@ -545,7 +539,7 @@ static void login_failed_error(MPVIO_EXT *mpvio, int passwd_used)
   after the connection was established
 
   Packet format:
-   
+
     Bytes       Content
     -----       ----
     1           protocol version (always 10)
@@ -980,7 +974,7 @@ read_client_connect_attrs(char **ptr, size_t *max_bytes_available,
     return true;
 
 #ifdef HAVE_PSI_THREAD_INTERFACE
-  if (PSI_THREAD_CALL(set_thread_connect_attrs)(*ptr, length, from_cs) && log_warnings)
+  if (PSI_THREAD_CALL(set_thread_connect_attrs)(*ptr, length, from_cs))
     sql_print_warning("Connection attributes of length %lu were truncated",
                       (unsigned long) length);
 #endif /* HAVE_PSI_THREAD_INTERFACE */
@@ -1036,9 +1030,8 @@ static bool acl_check_ssl(THD *thd, const ACL_USER *acl_user)
                          acl_user->ssl_cipher, SSL_get_cipher(ssl)));
       if (strcmp(acl_user->ssl_cipher, SSL_get_cipher(ssl)))
       {
-        if (log_warnings)
-          sql_print_information("X509 ciphers mismatch: should be '%s' but is '%s'",
-                            acl_user->ssl_cipher, SSL_get_cipher(ssl));
+        sql_print_information("X509 ciphers mismatch: should be '%s' but is '%s'",
+                              acl_user->ssl_cipher, SSL_get_cipher(ssl));
         return 1;
       }
     }
@@ -1053,9 +1046,8 @@ static bool acl_check_ssl(THD *thd, const ACL_USER *acl_user)
                          acl_user->x509_issuer, ptr));
       if (strcmp(acl_user->x509_issuer, ptr))
       {
-        if (log_warnings)
-          sql_print_information("X509 issuer mismatch: should be '%s' "
-                            "but is '%s'", acl_user->x509_issuer, ptr);
+        sql_print_information("X509 issuer mismatch: should be '%s' "
+                              "but is '%s'", acl_user->x509_issuer, ptr);
         OPENSSL_free(ptr);
         X509_free(cert);
         return 1;
@@ -1070,8 +1062,7 @@ static bool acl_check_ssl(THD *thd, const ACL_USER *acl_user)
                          acl_user->x509_subject, ptr));
       if (strcmp(acl_user->x509_subject, ptr))
       {
-        if (log_warnings)
-          sql_print_information("X509 subject mismatch: should be '%s' but is '%s'",
+        sql_print_information("X509 subject mismatch: should be '%s' but is '%s'",
                           acl_user->x509_subject, ptr);
         OPENSSL_free(ptr);
         X509_free(cert);
@@ -2384,8 +2375,7 @@ acl_authenticate(THD *thd, uint com_change_user_pkt_len)
       my_error(ER_MUST_CHANGE_PASSWORD_LOGIN, MYF(0));
       query_logger.general_log_print(thd, COM_CONNECT,
                                      ER(ER_MUST_CHANGE_PASSWORD_LOGIN));
-      if (log_warnings > 1)
-        sql_print_warning("%s", ER(ER_MUST_CHANGE_PASSWORD_LOGIN));
+      sql_print_information("%s", ER(ER_MUST_CHANGE_PASSWORD_LOGIN));
 
       errors.m_authentication= 1;
       inc_host_errors(mpvio.ip, &errors);
@@ -2395,7 +2385,7 @@ acl_authenticate(THD *thd, uint com_change_user_pkt_len)
     /* Don't allow the user to connect if he has done too many queries */
     if ((acl_user->user_resource.questions || acl_user->user_resource.updates ||
          acl_user->user_resource.conn_per_hour ||
-         acl_user->user_resource.user_conn || 
+         acl_user->user_resource.user_conn ||
          global_system_variables.max_user_connections) &&
         get_or_create_user_conn(thd,
           (opt_old_style_user_limits ? sctx->user : sctx->priv_user),

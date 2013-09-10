@@ -991,6 +991,12 @@ sync_latch_meta_init()
 		  rw_lock_debug_mutex_key);
 #endif /* UNIV_SYNC_DEBUG */
 
+#ifdef UNIV_MEM_DEBUG
+	LATCH_ADD(SrvLatches, "innorwlock_mem_hash_mutex",
+		  SYNC_NO_ORDER_CHECK,
+		  PFS_NOT_INSTRUMENTED);
+#endif /* UNIV_MEM_DEBUG */
+
 	LATCH_ADD(SrvLatches, "rw_lock_list",
 		  SYNC_NO_ORDER_CHECK,
 		  rw_lock_list_mutex_key);

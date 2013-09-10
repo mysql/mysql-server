@@ -1,4 +1,4 @@
-/* Copyright (c) 2010, 2011, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2010, 2013, Oracle and/or its affiliates. All rights reserved.
 
   This program is free software; you can redistribute it and/or modify
   it under the terms of the GNU General Public License as published by
@@ -271,6 +271,9 @@ void table_esms_by_thread_by_event_name
 {
   pfs_lock lock;
   m_row_exists= false;
+
+  if (klass->is_mutable())
+    return;
 
   /* Protect this reader against a thread termination */
   thread->m_lock.begin_optimistic_lock(&lock);

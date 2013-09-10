@@ -306,6 +306,11 @@ The following options may be given as the first argument:
  version of events are written.  This option is useful
  during some upgrades.
  --log-error[=name]  Error log file
+ --log-error-verbosity=# 
+ How detailed the error log should be. 1, log errors only.
+ 2, log errors and warnings. 3, log errors, warnings, and
+ notes. Messages sent to the client are unaffected by this
+ setting.
  --log-isam[=name]   Log all MyISAM changes to file.
  --log-output=name   Syntax: log-output=value[,value...], where "value" could
  be TABLE, FILE or NONE
@@ -336,6 +341,13 @@ The following options may be given as the first argument:
  condensed into a single summary line. A value of 0
  disables throttling. Option has no effect unless
  --log_queries_not_using_indexes is set.
+ --log-timestamps=name 
+ UTC to timestamp log files in zulu time, for more concise
+ timestamps and easier correlation of logs from servers
+ from multiple time zones, or SYSTEM to use the system's
+ local time. This affects only log files, not log tables,
+ as the timestamp columns of the latter can be converted
+ at will.
  -W, --log-warnings[=#] 
  Log some not critical warnings to the log file
  --long-query-time=# Log all queries that have taken more than long_query_time
@@ -605,6 +617,9 @@ The following options may be given as the first argument:
  -1 for automated sizing.
  --performance-schema-max-memory-classes=# 
  Maximum number of memory pool instruments.
+ --performance-schema-max-metadata-locks=# 
+ Maximum number of metadata locks. Use 0 to disable, -1
+ for automated sizing.
  --performance-schema-max-mutex-classes=# 
  Maximum number of mutex instruments.
  --performance-schema-max-mutex-instances=# 
@@ -1083,6 +1098,7 @@ log-bin-index (No default value)
 log-bin-trust-function-creators FALSE
 log-bin-use-v1-row-events FALSE
 log-error stderr
+log-error-verbosity 1
 log-isam myisam.log
 log-output FILE
 log-queries-not-using-indexes FALSE
@@ -1094,7 +1110,8 @@ log-slow-slave-statements FALSE
 log-tc tc.log
 log-tc-size 24576
 log-throttle-queries-not-using-indexes 0
-log-warnings 1
+log-timestamps UTC
+log-warnings 0
 long-query-time 10
 low-priority-updates FALSE
 lower-case-table-names 1
@@ -1182,6 +1199,7 @@ performance-schema-max-file-classes 50
 performance-schema-max-file-handles 32768
 performance-schema-max-file-instances -1
 performance-schema-max-memory-classes 250
+performance-schema-max-metadata-locks -1
 performance-schema-max-mutex-classes 200
 performance-schema-max-mutex-instances -1
 performance-schema-max-program-instances 5000

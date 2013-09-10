@@ -412,15 +412,27 @@ ulong get_access(TABLE *form, uint fieldnr, uint *next_field)
 
   @note We assume that we have only read from the tables so commit
         can't fail. @sa close_mysql_tables().
+
+  @note This function also rollbacks the transaction if rollback was
+        requested (e.g. as result of deadlock).
 */
 
 void close_acl_tables(THD *thd)
 {
+  /* Transaction rollback request by SE is unlikely. Still we handle it. */
+  if (thd->transaction_rollback_request)
+  {
+    trans_rollback_stmt(thd);
+    trans_rollback_implicit(thd);
+  }
+  else
+  {
 #ifndef DBUG_OFF
-  bool res=
+    bool res=
 #endif
-    trans_commit_stmt(thd);
-  DBUG_ASSERT(res == false);
+      trans_commit_stmt(thd);
+    DBUG_ASSERT(res == false);
+  }
 
   close_mysql_tables(thd);
 }
@@ -441,6 +453,7 @@ void close_acl_tables(THD *thd)
 bool acl_trans_commit_and_close_tables(THD *thd)
 {
   bool result;
+  bool rollback= false;
 
   /*
     Try to commit a transaction even if we had some failures.
@@ -459,12 +472,25 @@ bool acl_trans_commit_and_close_tables(THD *thd)
   */
   DBUG_ASSERT(stmt_causes_implicit_commit(thd, CF_IMPLICIT_COMMIT_END));
 
-  result= trans_commit_stmt(thd);
-  result|= trans_commit_implicit(thd);
+  if (thd->transaction_rollback_request)
+  {
+    /*
+      Transaction rollback request by SE is unlikely. Still let us
+      handle it and also do ACL reload if it happens.
+    */
+    result= trans_rollback_stmt(thd);
+    result|= trans_rollback_implicit(thd);
+    rollback= true;
+  }
+  else
+  {
+    result= trans_commit_stmt(thd);
+    result|= trans_commit_implicit(thd);
+  }
   close_thread_tables(thd);
   thd->mdl_context.release_transactional_locks();
 
-  if (result)
+  if (result || rollback)
   {
     /*
       Try to bring in-memory structures back in sync with on-disk data if we
@@ -1003,7 +1029,7 @@ int replace_user_table(THD *thd, TABLE *table, LEX_USER *combo,
   }
   else if ((error=table->file->ha_write_row(table->record[0]))) // insert
   {						// This should never happen
-    if (table->file->is_fatal_error(error, HA_CHECK_DUP))
+    if (!table->file->is_ignorable_error(error))
     {
       table->file->print_error(error,MYF(0));	/* purecov: deadcode */
       error= -1;				/* purecov: deadcode */
@@ -1130,7 +1156,7 @@ int replace_db_table(TABLE *table, const char *db,
   }
   else if (rights && (error= table->file->ha_write_row(table->record[0])))
   {
-    if (table->file->is_fatal_error(error, HA_CHECK_DUP_KEY))
+    if (!table->file->is_ignorable_error(error))
       goto table_error; /* purecov: deadcode */
   }
 
@@ -1236,7 +1262,7 @@ int replace_proxies_priv_table(THD *thd, TABLE *table, const LEX_USER *user,
   else if ((error= table->file->ha_write_row(table->record[0])))
   {
     DBUG_PRINT("info", ("error inserting the row"));
-    if (table->file->is_fatal_error(error, HA_CHECK_DUP_KEY))
+    if (!table->file->is_ignorable_error(error))
       goto table_error; /* purecov: inspected */
   }
 
@@ -1577,7 +1603,7 @@ int replace_table_table(THD *thd, GRANT_TABLE *grant_table,
   else
   {
     error=table->file->ha_write_row(table->record[0]);
-    if (table->file->is_fatal_error(error, HA_CHECK_DUP_KEY))
+    if (!table->file->is_ignorable_error(error))
       goto table_error;                         /* purecov: deadcode */
   }
 
@@ -1697,7 +1723,7 @@ int replace_routine_table(THD *thd, GRANT_NAME *grant_name,
   else
   {
     error=table->file->ha_write_row(table->record[0]);
-    if (table->file->is_fatal_error(error, HA_CHECK_DUP_KEY))
+    if (!table->file->is_ignorable_error(error))
       goto table_error;
   }
 

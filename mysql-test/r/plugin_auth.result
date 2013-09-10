@@ -17,10 +17,8 @@ test_plugin_server	plug_dest
 ERROR 28000: Access denied for user 'plug'@'localhost' (using password: YES)
 GRANT PROXY ON plug_dest TO plug;
 test proxies_priv columns
-SELECT * FROM mysql.proxies_priv;
+SELECT * FROM mysql.proxies_priv WHERE user !='root';
 Host	User	Proxied_host	Proxied_user	With_grant	Grantor	Timestamp
-xx	root			1		xx
-xx	root			1		xx
 xx	plug	%	plug_dest	0	root@localhost	xx
 test mysql.proxies_priv;
 SHOW CREATE TABLE mysql.proxies_priv;
@@ -315,8 +313,8 @@ REVOKE ALL PRIVILEGES ON *.* FROM u1@localhost, u2@localhost;
 DROP USER u1@localhost,u2@localhost;
 # test if FLUSH PRIVILEGES works without the proxies_priv table
 FLUSH PRIVILEGES;
-Warning: Using a password on the command line interface can be insecure.
-Warning: Using a password on the command line interface can be insecure.
+mysqlcheck: [Warning] Using a password on the command line interface can be insecure.
+mysqlcheck: [Warning] Using a password on the command line interface can be insecure.
 mysql.columns_priv                                 OK
 mysql.db                                           OK
 mysql.event                                        OK
@@ -344,9 +342,9 @@ mysql.time_zone_name                               OK
 mysql.time_zone_transition                         OK
 mysql.time_zone_transition_type                    OK
 mysql.user                                         OK
-Warning: Using a password on the command line interface can be insecure.
-Warning: Using a password on the command line interface can be insecure.
-Warning: Using a password on the command line interface can be insecure.
+mysql: [Warning] Using a password on the command line interface can be insecure.
+mysqlcheck: [Warning] Using a password on the command line interface can be insecure.
+mysqlcheck: [Warning] Using a password on the command line interface can be insecure.
 mtr.global_suppressions                            OK
 mtr.test_suppressions                              OK
 SELECT Host,User,Proxied_host,Proxied_user,With_grant FROM mysql.proxies_priv;
@@ -452,8 +450,8 @@ NO	plugin
 ALTER TABLE mysql.user MODIFY plugin char(64) DEFAULT '' NOT NULL;
 ALTER TABLE mysql.user MODIFY authentication_string TEXT NOT NULL;
 Run mysql_upgrade on a 5.5.10 external authentication column layout
-Warning: Using a password on the command line interface can be insecure.
-Warning: Using a password on the command line interface can be insecure.
+mysqlcheck: [Warning] Using a password on the command line interface can be insecure.
+mysqlcheck: [Warning] Using a password on the command line interface can be insecure.
 mysql.columns_priv                                 OK
 mysql.db                                           OK
 mysql.event                                        OK
@@ -482,9 +480,9 @@ mysql.time_zone_name                               OK
 mysql.time_zone_transition                         OK
 mysql.time_zone_transition_type                    OK
 mysql.user                                         OK
-Warning: Using a password on the command line interface can be insecure.
-Warning: Using a password on the command line interface can be insecure.
-Warning: Using a password on the command line interface can be insecure.
+mysql: [Warning] Using a password on the command line interface can be insecure.
+mysqlcheck: [Warning] Using a password on the command line interface can be insecure.
+mysqlcheck: [Warning] Using a password on the command line interface can be insecure.
 mtr.global_suppressions                            OK
 mtr.test_suppressions                              OK
 SELECT IS_NULLABLE, COLUMN_NAME FROM INFORMATION_SCHEMA.COLUMNS
@@ -505,7 +503,7 @@ DROP USER bug12610784@localhost;
 # Bug # 11766641: 59792: BIN/MYSQL -UUNKNOWN -PUNKNOWN 
 #  .-> USING PASSWORD: NO 
 # shoud contain "using password=yes"
-Warning: Using a password on the command line interface can be insecure.
+mysql: [Warning] Using a password on the command line interface can be insecure.
 ERROR 1045 (28000): Access denied for user 'unknown'@'localhost' (using password: YES)
 # shoud contain "using password=no"
 ERROR 1045 (28000): Access denied for user 'unknown'@'localhost' (using password: NO)

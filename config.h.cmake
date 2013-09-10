@@ -197,7 +197,6 @@
 #cmakedefine HAVE_TIMES 1
 #cmakedefine HAVE_VASPRINTF 1
 #cmakedefine HAVE_FTRUNCATE 1
-#cmakedefine HAVE_TZNAME 1
 /* Symbols we may use */
 /* used by stacktrace functions */
 #cmakedefine HAVE_BSS_START 1

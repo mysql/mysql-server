@@ -104,6 +104,7 @@ Full-text indexes	are called collections
 select * from t1 where MATCH(a,b) AGAINST("support +collections" IN BOOLEAN MODE);
 a	b
 Only MyISAM tables	support collections
+Full-text indexes	are called collections
 select * from t1 where MATCH(a,b) AGAINST("sear*" IN BOOLEAN MODE);
 a	b
 MySQL has now support	for full-text search
@@ -443,7 +444,6 @@ CREATE TABLE t1(a VARCHAR(20), FULLTEXT(a)) ENGINE = InnoDB;
 INSERT INTO t1 VALUES('Offside'),('City Of God');
 SELECT a FROM t1 WHERE MATCH a AGAINST ('+city of*' IN BOOLEAN MODE);
 a
-Offside
 City Of God
 SELECT a FROM t1 WHERE MATCH a AGAINST ('+city (of*)' IN BOOLEAN MODE);
 a
@@ -451,7 +451,6 @@ Offside
 City Of God
 SELECT a FROM t1 WHERE MATCH a AGAINST ('+city* of*' IN BOOLEAN MODE);
 a
-Offside
 City Of God
 DROP TABLE t1;
 create table t1(a text,b date,fulltext index(a)) ENGINE = InnoDB;

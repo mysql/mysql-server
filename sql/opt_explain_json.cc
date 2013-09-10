@@ -579,7 +579,7 @@ static void add_string_array(Opt_trace_context *json, const char *list_name,
 
 static void print_cost(char *buf, uint buf_len, double cost)
 {
-  if (cost < 100000000000000)
+  if (cost < 100000000000000.0)
     my_snprintf(buf, buf_len, "%.2f", cost);
   else
     my_snprintf(buf, buf_len, "%.14g", cost);

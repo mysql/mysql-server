@@ -264,7 +264,7 @@ public:
 	{
 		/* Construct log file name. */
 		ulint	log_file_name_buf_sz =
-			strlen(srv_log_group_home_dir) + 22 + 1 /* NUL */
+			strlen(srv_log_group_home_dir) + 22 + 22 + 1 /* NUL */
 			+ strlen(TruncateLogger::s_log_prefix)
 			+ strlen(TruncateLogger::s_log_ext);
 
@@ -286,9 +286,10 @@ public:
 
 		ut_snprintf(m_log_file_name + log_file_name_len,
 			    log_file_name_buf_sz - log_file_name_len,
-			    "%s%lu_%s",
+			    "%s%lu_%lu_%s",
 			    TruncateLogger::s_log_prefix,
 			    (ulong) m_table->space,
+			    (ulong) m_table->id,
 			    TruncateLogger::s_log_ext);
 
 		return(DB_SUCCESS);
@@ -537,7 +538,7 @@ TruncateLogParser::scan(
 			}
 
 			/* Construct file name by appending directory path */
-			ulint	sz = dir_len + 22 + 1 + ext_len + prefix_len;
+			ulint	sz = dir_len + 22 + 22 + 1 + ext_len + prefix_len;
 			char*	log_file_name = new (std::nothrow) char[sz];
 			if (log_file_name == 0) {
 				err = DB_OUT_OF_MEMORY;
@@ -1150,6 +1151,8 @@ row_truncate_complete(
 	dberr_t			err)
 {
 	row_mysql_unlock_data_dictionary(trx);
+
+	DEBUG_SYNC_C("ib_trunc_table_trunc_completing");
 
 	if (!dict_table_is_temporary(table)) {
 

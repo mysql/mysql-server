@@ -60,6 +60,7 @@ SET(INNOBASE_SOURCES
 	fts/fts0que.cc
 	fts/fts0sql.cc
 	fts/fts0tlex.cc
+	fts/fts0plugin.cc
 	handler/ha_innodb.cc
 	handler/handler0alter.cc
 	handler/i_s.cc

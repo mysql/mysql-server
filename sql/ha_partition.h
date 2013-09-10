@@ -487,13 +487,13 @@ public:
   */
   int truncate_partition(Alter_info *, bool *binlog_stmt);
 
-  virtual bool is_fatal_error(int error, uint flags)
+  virtual bool is_ignorable_error(int error)
   {
-    if (!handler::is_fatal_error(error, flags) ||
+    if (handler::is_ignorable_error(error) ||
         error == HA_ERR_NO_PARTITION_FOUND ||
         error == HA_ERR_NOT_IN_LOCK_PARTITIONS)
-      return FALSE;
-    return TRUE;
+      return true;
+    return false;
   }
 
 

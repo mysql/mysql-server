@@ -379,6 +379,7 @@ bool opt_using_transactions;
 bool volatile abort_loop;
 bool volatile shutdown_in_progress;
 ulong log_warnings;
+ulong log_error_verbosity= 3; // have a non-zero value during early start-up
 #if defined(_WIN32) && !defined(EMBEDDED_LIBRARY)
 ulong slow_start_timeout;
 #endif
@@ -474,6 +475,8 @@ TYPELIB gtid_mode_typelib=
 #ifdef HAVE_INITGROUPS
 volatile sig_atomic_t calling_initgroups= 0; /**< Used in SIGSEGV handler. */
 #endif
+const char *timestamp_type_names[]= {"UTC", "SYSTEM", NullS};
+ulong opt_log_timestamps;
 uint mysqld_port, test_flags, select_errors, dropping_tables, ha_open_options;
 uint mysqld_port_timeout;
 ulong delay_key_write_options;
@@ -919,6 +922,9 @@ Buffered_log::Buffered_log(enum loglevel level, const char *message)
 */
 void Buffered_log::print()
 {
+  if (!(static_cast<ulong>(m_level) < log_error_verbosity))
+    return;
+
   /*
     Since messages are buffered, they can be printed out
     of order with other entries in the log.
@@ -927,21 +933,17 @@ void Buffered_log::print()
   switch(m_level)
   {
   case ERROR_LEVEL:
-    sql_print_error("Buffered error: %s\n", m_message.c_ptr_safe());
+    sql_print_error("Buffered error: %s", m_message.c_ptr_safe());
     break;
   case WARNING_LEVEL:
-    sql_print_warning("Buffered warning: %s\n", m_message.c_ptr_safe());
+    sql_print_warning("Buffered warning: %s", m_message.c_ptr_safe());
     break;
   case INFORMATION_LEVEL:
     /*
       Messages printed as "information" still end up in the mysqld *error* log,
       but with a [Note] tag instead of an [ERROR] tag.
-      While this is probably fine for a human reading the log,
-      it is upsetting existing automated scripts used to parse logs,
-      because such scripts are likely to not already handle [Note] properly.
-      INFORMATION_LEVEL messages are simply silenced, on purpose,
-      to avoid un needed verbosity.
     */
+    sql_print_information("Buffered note: %s", m_message.c_ptr_safe());
     break;
   }
 }
@@ -1182,6 +1184,8 @@ static void close_connections(void)
   /* Kill blocked pthreads */
   Per_thread_connection_handler::kill_blocked_pthreads();
 
+  uint dump_thread_count= 0;
+  uint dump_thread_kill_retries= 8;
   /* kill connection thread */
 #if !defined(_WIN32)
   DBUG_PRINT("quit", ("waiting for select thread: 0x%lx",
@@ -1256,8 +1260,19 @@ static void close_connections(void)
     /* We skip slave threads & scheduler on this first loop through. */
     if (tmp->slave_thread)
       continue;
+    if (tmp->get_command() == COM_BINLOG_DUMP ||
+        tmp->get_command() == COM_BINLOG_DUMP_GTID)
+    {
+      ++dump_thread_count;
+      continue;
+    }
 
     tmp->killed= THD::KILL_CONNECTION;
+    DBUG_EXECUTE_IF("Check_dump_thread_is_alive",
+                    {
+                      DBUG_ASSERT(tmp->get_command() != COM_BINLOG_DUMP &&
+                                  tmp->get_command() != COM_BINLOG_DUMP_GTID);
+                    };);
     MYSQL_CALLBACK(Connection_handler_manager::callback,
                    post_kill_notification, (tmp));
     mysql_mutex_lock(&tmp->LOCK_thd_data);
@@ -1280,6 +1295,47 @@ static void close_connections(void)
   sql_print_information("Shutting down slave threads");
   end_slave();
 
+  if (dump_thread_count)
+  {
+    /*
+      Replication dump thread should be terminated after the clients are
+      terminated. Wait for few more seconds for other sessions to end.
+     */
+    while (get_thread_count() > dump_thread_count && dump_thread_kill_retries)
+    {
+      sleep(1);
+      dump_thread_kill_retries--;
+    }
+    mysql_mutex_lock(&LOCK_thread_count);
+    for (it= global_thread_list->begin(); it != global_thread_list->end(); ++it)
+    {
+      THD *tmp= *it;
+      DBUG_PRINT("quit",("Informing dump thread %ld that it's time to die",
+                         tmp->thread_id));
+      if (tmp->get_command() == COM_BINLOG_DUMP ||
+          tmp->get_command() == COM_BINLOG_DUMP_GTID)
+      {
+        tmp->killed= THD::KILL_CONNECTION;
+        MYSQL_CALLBACK(Connection_handler_manager::callback,
+                       post_kill_notification, (tmp));
+        mysql_mutex_lock(&tmp->LOCK_thd_data);
+        if (tmp->mysys_var)
+        {
+          tmp->mysys_var->abort= 1;
+          mysql_mutex_lock(&tmp->mysys_var->mutex);
+          if (tmp->mysys_var->current_cond)
+          {
+            mysql_mutex_lock(tmp->mysys_var->current_mutex);
+            mysql_cond_broadcast(tmp->mysys_var->current_cond);
+            mysql_mutex_unlock(tmp->mysys_var->current_mutex);
+          }
+          mysql_mutex_unlock(&tmp->mysys_var->mutex);
+        }
+        mysql_mutex_unlock(&tmp->LOCK_thd_data);
+      }
+    }
+    mysql_mutex_unlock(&LOCK_thread_count);
+  }
   if (get_thread_count() > 0)
     sleep(2);         // Give threads time to die
 
@@ -1299,11 +1355,10 @@ static void close_connections(void)
     THD *tmp= *it;
     if (tmp->vio_ok())
     {
-      if (log_warnings)
-        sql_print_warning(ER_DEFAULT(ER_FORCING_CLOSE),my_progname,
-                          tmp->thread_id,
-                          (tmp->main_security_ctx.user ?
-                           tmp->main_security_ctx.user : ""));
+      sql_print_warning(ER_DEFAULT(ER_FORCING_CLOSE),my_progname,
+                        tmp->thread_id,
+                        (tmp->main_security_ctx.user ?
+                         tmp->main_security_ctx.user : ""));
       close_connection(tmp);
     }
   }
@@ -1439,8 +1494,7 @@ pthread_handler_t kill_server_thread(void *arg __attribute__((unused)))
 
 extern "C" sig_handler print_signal_warning(int sig)
 {
-  if (log_warnings)
-    sql_print_warning("Got signal %d from thread %ld", sig,my_thread_id());
+  sql_print_warning("Got signal %d from thread %ld", sig,my_thread_id());
 #ifdef SIGNAL_HANDLER_RESET_ON_DELIVERY
   my_sigset(sig,print_signal_warning);    /* int. thread system calls */
 #endif
@@ -1501,11 +1555,12 @@ static void mysqld_exit(int exit_code)
   wait_for_signal_thread_to_end();
   mysql_audit_finalize();
   clean_up_mutexes();
-  clean_up_error_log_mutex();
 #ifdef WITH_PERFSCHEMA_STORAGE_ENGINE
   shutdown_performance_schema();
 #endif
   my_end(opt_endinfo ? MY_CHECK_ERROR | MY_GIVE_INFO : 0);
+  local_message_hook= my_message_local_stderr;
+  clean_up_error_log_mutex();
   exit(exit_code); /* purecov: inspected */
 }
 
@@ -1663,14 +1718,14 @@ void clean_up(bool print_message)
 
   if (THR_THD_initialized)
   {
-    (void) pthread_key_delete(THR_THD);
     THR_THD_initialized= false;
+    (void) pthread_key_delete(THR_THD);
   }
 
   if (THR_MALLOC_initialized)
   {
-    (void) pthread_key_delete(THR_MALLOC);
     THR_MALLOC_initialized= false;
+    (void) pthread_key_delete(THR_MALLOC);
   }
 
   /*
@@ -1798,13 +1853,10 @@ static struct passwd *check_user(const char *user)
     if (user)
     {
       /* Don't give a warning, if real user is same as given with --user */
-      /* purecov: begin tested */
       tmp_user_info= getpwnam(user);
-      if ((!tmp_user_info || user_id != tmp_user_info->pw_uid) &&
-    log_warnings)
+      if ((!tmp_user_info || user_id != tmp_user_info->pw_uid))
         sql_print_warning(
                     "One can only use the --user switch if running as root\n");
-      /* purecov: end */
     }
     return NULL;
   }
@@ -2393,7 +2445,7 @@ void my_init_signals(void)
     /* Change limits so that we will get a core file */
     STRUCT_RLIMIT rl;
     rl.rlim_cur = rl.rlim_max = RLIM_INFINITY;
-    if (setrlimit(RLIMIT_CORE, &rl) && log_warnings)
+    if (setrlimit(RLIMIT_CORE, &rl))
       sql_print_warning("setrlimit could not change the size of core files to 'infinity';  We may not be able to generate a core file on signals");
   }
 #endif
@@ -2754,8 +2806,8 @@ static bool init_global_datetime_format(timestamp_type format_type,
 
   if (parse_date_time_format(format_type, format))
   {
-    fprintf(stderr, "Wrong date/time format specifier: %s\n",
-            format->format.str);
+    my_message_local(ERROR_LEVEL, "Wrong date/time format specifier: %s",
+                     format->format.str);
     return true;
   }
   return false;
@@ -2982,7 +3034,7 @@ void init_com_statement_info()
     com_statement_info[index].m_flags= 0;
   }
 
-  /* "statement/com/query" can mutate into "statement/sql/..." */
+  /* "statement/abstract/query" can mutate into "statement/sql/..." */
   com_statement_info[(uint) COM_QUERY].m_flags= PSI_FLAG_MUTABLE;
 }
 #endif
@@ -3060,7 +3112,6 @@ int init_common_variables()
   if (ignore_db_dirs_init())
     return 1;
 
-#ifdef HAVE_TZNAME
   {
     struct tm tm_tmp;
     localtime_r(&server_start_time,&tm_tmp);
@@ -3068,7 +3119,7 @@ int init_common_variables()
             sizeof(system_time_zone)-1);
 
  }
-#endif
+
   /*
     We set SYSTEM time zone as reasonable default and
     also for failure of my_tz_init() and bootstrap mode.
@@ -3196,6 +3247,12 @@ int init_common_variables()
   }
 
   set_server_version();
+
+  log_warnings= log_error_verbosity - 1; // backward compatibility
+
+  sql_print_information("%s (mysqld %s) starting as process %lu ...",
+                        my_progname, server_version, (ulong) getpid());
+
 
 #ifndef EMBEDDED_LIBRARY
   if (opt_help && !opt_verbose)
@@ -3464,8 +3521,7 @@ int init_common_variables()
   {
     if (lower_case_table_names_used)
     {
-      if (log_warnings)
-  sql_print_warning("\
+      sql_print_warning("\
 You have forced lower_case_table_names to 0 through a command-line \
 option, even though your file system '%s' is case insensitive.  This means \
 that you can corrupt a MyISAM table by accessing it with different cases. \
@@ -3474,8 +3530,7 @@ You should consider changing lower_case_table_names to 1 or 2",
     }
     else
     {
-      if (log_warnings)
-  sql_print_warning("Setting lower_case_table_names=2 because file system for %s is case insensitive", mysql_real_data_home);
+      sql_print_warning("Setting lower_case_table_names=2 because file system for %s is case insensitive", mysql_real_data_home);
       lower_case_table_names= 2;
     }
   }
@@ -3483,8 +3538,7 @@ You should consider changing lower_case_table_names to 1 or 2",
            !(lower_case_file_system=
              (test_if_case_insensitive(mysql_real_data_home) == 1)))
   {
-    if (log_warnings)
-      sql_print_warning("lower_case_table_names was set to 2, even though your "
+    sql_print_warning("lower_case_table_names was set to 2, even though your "
                         "the file system '%s' is case sensitive.  Now setting "
                         "lower_case_table_names to 0 to avoid future problems.",
       mysql_real_data_home);
@@ -4239,9 +4293,10 @@ a file name for --log-bin-index option", opt_binlog_index_name);
 
     if (remaining_argc > 1)
     {
-      fprintf(stderr, "%s: Too many arguments (first extra is '%s').\n"
-              "Use --verbose --help to get a list of available options\n",
-              my_progname, remaining_argv[1]);
+      my_message_local(ERROR_LEVEL, "Too many arguments (first extra is '%s').",
+                       remaining_argv[1]);
+      my_message_local(INFORMATION_LEVEL, "Use --verbose --help to get a list "
+                       "of available options!");
       unireg_abort(1);
     }
   }
@@ -4264,7 +4319,14 @@ a file name for --log-bin-index option", opt_binlog_index_name);
   }
 
   if (opt_bootstrap)
+  {
     log_output_options= LOG_FILE;
+    /*
+      Show errors during bootstrap, but gag everything else so critical
+      info isn't lost during install.  WL#6661 et al.
+    */
+    log_error_verbosity= 1;
+  }
 
   /*
     Issue a warning if there were specified additional options to the
@@ -4390,8 +4452,7 @@ a file name for --log-bin-index option", opt_binlog_index_name);
     }
     if (mlockall(MCL_CURRENT))
     {
-      if (log_warnings)
-  sql_print_warning("Failed to lock memory. Errno: %d\n",errno);
+      sql_print_warning("Failed to lock memory. Errno: %d\n",errno); /* purecov: inspected */
       locked_in_memory= 0;
     }
     if (user_info)
@@ -4485,10 +4546,11 @@ int mysqld_main(int argc, char **argv)
 #ifdef WITH_PERFSCHEMA_STORAGE_ENGINE
   pre_initialize_performance_schema();
 #endif /*WITH_PERFSCHEMA_STORAGE_ENGINE */
+
   // For windows, my_init() is called from the win specific mysqld_main
   if (my_init())                 // init my_sys library & pthreads
   {
-    fprintf(stderr, "my_init() failed.");
+    my_message_local(ERROR_LEVEL, "my_init() failed.");
     return 1;
   }
 #endif /* _WIN32 */
@@ -4591,6 +4653,7 @@ int mysqld_main(int argc, char **argv)
 #endif /* HAVE_PSI_INTERFACE */
 
   init_error_log_mutex();
+  local_message_hook= error_log_print;  // we never change this in embedded
 
   /* Set signal used to kill MySQL */
 #if defined(SIGUSR2)
@@ -4658,9 +4721,8 @@ int mysqld_main(int argc, char **argv)
     /* We must check if stack_size = 0 as Solaris 2.9 can return 0 here */
     if (stack_size && stack_size < (my_thread_stack_size + guardize))
     {
-      if (log_warnings)
-        sql_print_warning("Asked for %lu thread stack, but got %ld",
-                          my_thread_stack_size + guardize, (long) stack_size);
+      sql_print_warning("Asked for %lu thread stack, but got %ld",
+                        my_thread_stack_size + guardize, (long) stack_size);
 #if defined(__ia64__) || defined(__ia64)
       my_thread_stack_size= stack_size / 2;
 #else
@@ -4819,7 +4881,6 @@ int mysqld_main(int argc, char **argv)
   */
   error_handler_hook= my_message_sql;
   start_signal_handler();       // Creates pidfile
-  sql_print_warning_hook = sql_print_warning;
 
   if (mysql_rm_tmp_tables() || acl_init(opt_noacl) ||
       my_tz_init((THD *)0, default_tz_name, opt_bootstrap))
@@ -4915,7 +4976,9 @@ int mysqld_main(int argc, char **argv)
   create_shutdown_thread();
   start_handle_manager();
 
-  sql_print_information(ER_DEFAULT(ER_STARTUP),my_progname,server_version,
+  sql_print_information(ER_DEFAULT(ER_STARTUP),
+                        my_progname,
+                        server_version,
 #ifdef HAVE_SYS_UN_H
                         (opt_bootstrap ? (char*) "" : mysqld_unix_port),
 #else
@@ -5123,7 +5186,7 @@ int mysqld_main(int argc, char **argv)
 
   if (my_init())
   {
-    fprintf(stderr, "my_init() failed.");
+    my_message_local(ERROR_LEVEL, "my_init() failed.");
     return 1;
   }
 
@@ -6893,12 +6956,14 @@ mysqld_get_one_option(int optid,
     exit(0);
 #endif /*EMBEDDED_LIBRARY*/
   case 'W':
+    WARN_DEPRECATED(NULL, "--log_warnings/-W", "'--log_error_verbosity'");
     if (!argument)
-      log_warnings++;
+      log_error_verbosity++;
     else if (argument == disabled_my_option)
-      log_warnings= 0L;
+     log_error_verbosity= 1L;
     else
-      log_warnings= atoi(argument);
+      log_error_verbosity= 1 + atoi(argument);
+    log_error_verbosity= min(3UL, log_error_verbosity);
     break;
   case 'T':
     test_flags= argument ? (uint) atoi(argument) : 0;
@@ -7254,7 +7319,7 @@ static void option_error_reporter(enum loglevel level, const char *format, ...)
 
   /* Don't print warnings for --loose options during bootstrap */
   if (level == ERROR_LEVEL || !opt_bootstrap ||
-      log_warnings)
+      (log_error_verbosity > 1))
   {
     error_log_print(level, format, args);
   }
@@ -7311,6 +7376,20 @@ static int get_options(int *argc_ptr, char ***argv_ptr)
     between options, setting of multiple variables, etc.
     Do them here.
   */
+
+  if (opt_help)
+  {
+    /*
+      Show errors during --help, but gag everything else so the info the
+      user actually wants isn't lost in the spam.  (For --help --verbose,
+      we need to set up far enough to be able to print variables provided
+      by plugins.)
+    */
+    log_error_verbosity= 1;
+  }
+  else if (opt_verbose)
+    sql_print_error("--verbose is for use with --help; "
+                    "did you mean --log-error-verbosity?");
 
   if ((opt_log_slow_admin_statements || opt_log_queries_not_using_indexes ||
        opt_log_slow_slave_statements) &&
@@ -8595,35 +8674,49 @@ void init_server_psi_keys(void)
 
   category= "com";
   init_com_statement_info();
-  count= array_elements(com_statement_info);
+
+  /*
+    Register [0 .. COM_QUERY - 1] as "statement/com/..."
+  */
+  count= (int) COM_QUERY;
   mysql_statement_register(category, com_statement_info, count);
 
   /*
+    Register [COM_QUERY + 1 .. COM_END] as "statement/com/..."
+  */
+  count= (int) COM_END - (int) COM_QUERY;
+  mysql_statement_register(category, & com_statement_info[(int) COM_QUERY + 1], count);
+
+  category= "abstract";
+  /*
+    Register [COM_QUERY] as "statement/abstract/com_query"
+  */
+  mysql_statement_register(category, & com_statement_info[(int) COM_QUERY], 1);
+
+  /*
     When a new packet is received,
-    it is instrumented as "statement/com/".
+    it is instrumented as "statement/abstract/new_packet".
     Based on the packet type found, it later mutates to the
     proper narrow type, for example
-    "statement/com/query" or "statement/com/ping".
-    In cases of "statement/com/query", SQL queries are given to
+    "statement/abstract/query" or "statement/com/ping".
+    In cases of "statement/abstract/query", SQL queries are given to
     the parser, which mutates the statement type to an even more
     narrow classification, for example "statement/sql/select".
   */
   stmt_info_new_packet.m_key= 0;
-  stmt_info_new_packet.m_name= "";
+  stmt_info_new_packet.m_name= "new_packet";
   stmt_info_new_packet.m_flags= PSI_FLAG_MUTABLE;
   mysql_statement_register(category, &stmt_info_new_packet, 1);
 
   /*
     Statements processed from the relay log are initially instrumented as
-    "statement/rpl/relay_log". The parser will mutate the statement type to
+    "statement/abstract/relay_log". The parser will mutate the statement type to
     a more specific classification, for example "statement/sql/insert".
   */
-  category= "rpl";
   stmt_info_rpl.m_key= 0;
   stmt_info_rpl.m_name= "relay_log";
   stmt_info_rpl.m_flags= PSI_FLAG_MUTABLE;
   mysql_statement_register(category, &stmt_info_rpl, 1);
-
 #endif
 
   /* Common client and server code. */

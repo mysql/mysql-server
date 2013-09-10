@@ -1302,13 +1302,13 @@ bool JOIN::get_best_combination()
     Up to 2 tmp tables are actually used, but it's hard to tell exact number
     at this stage.
   */
-  uint tmp_tables= (group_list ? 1 : 0) +
-                   (select_distinct ?
-                    (tmp_table_param.outer_sum_func_count ? 2 : 1) : 0) +
-                   (order ? 1 : 0) +
+  uint num_tmp_tables= (group_list ? 1 : 0) +
+                       (select_distinct ?
+                        (tmp_table_param.outer_sum_func_count ? 2 : 1) : 0) +
+                       (order ? 1 : 0) +
        (select_options & (SELECT_BIG_RESULT | OPTION_BUFFER_RESULT) ? 1 : 0) ;
-  if (tmp_tables > 2)
-    tmp_tables= 2;
+  if (num_tmp_tables > 2)
+    num_tmp_tables= 2;
 
   /*
     Rearrange queries with materialized semi-join nests so that the semi-join
@@ -1319,30 +1319,36 @@ bool JOIN::get_best_combination()
     table, and will later be used to track the position of any materialized
     temporary tables. 
   */
+  const bool has_semijoin= !select_lex->sj_nests.is_empty();
   uint outer_target= 0;                   
-  uint inner_target= primary_tables + tmp_tables;
+  uint inner_target= primary_tables + num_tmp_tables;
   uint sjm_nests= 0;
 
-  for (uint tableno= 0; tableno < primary_tables; )
+  if (has_semijoin)
   {
-    if (sj_is_materialize_strategy(best_positions[tableno].sj_strategy))
+    for (uint tableno= 0; tableno < primary_tables; )
     {
-      sjm_nests++;
-      inner_target-= (best_positions[tableno].n_sj_tables - 1);
-      tableno+= best_positions[tableno].n_sj_tables;
+      if (sj_is_materialize_strategy(best_positions[tableno].sj_strategy))
+      {
+        sjm_nests++;
+        inner_target-= (best_positions[tableno].n_sj_tables - 1);
+        tableno+= best_positions[tableno].n_sj_tables;
+      }
+      else
+        tableno++;
     }
-    else
-      tableno++;
   }
 
-  if (!(join_tab= new(thd->mem_root) JOIN_TAB[tables + sjm_nests + tmp_tables]))
+  if (!(join_tab= 
+        new(thd->mem_root) JOIN_TAB[tables + sjm_nests + num_tmp_tables]))
     DBUG_RETURN(true);
 
   int sjm_index= tables;  // Number assigned to materialized temporary table
   int remaining_sjm_inner= 0;
   for (uint tableno= 0; tableno < tables; tableno++)
   {
-    if (sj_is_materialize_strategy(best_positions[tableno].sj_strategy))
+    if (has_semijoin &&
+        sj_is_materialize_strategy(best_positions[tableno].sj_strategy))
     {
       DBUG_ASSERT(outer_target < inner_target);
 
@@ -1393,16 +1399,18 @@ bool JOIN::get_best_combination()
   }
 
   // Count the materialized semi-join tables as regular input tables
-  tables+= sjm_nests + tmp_tables;
+  tables+= sjm_nests + num_tmp_tables;
   // Set the number of non-materialized tables:
   primary_tables= outer_target;
 
-  set_semijoin_info();
+  if (has_semijoin)
+  {
+    set_semijoin_info();
 
-  // Update equalities and keyuses after having added semi-join materialization
-  if (update_equalities_for_sjm())
-    DBUG_RETURN(true);
-
+    // Update equalities and keyuses after having added SJ materialization
+    if (update_equalities_for_sjm())
+      DBUG_RETURN(true);
+  }
   // sjm is no longer needed, trash it. To reuse it, reset its members!
   List_iterator<TABLE_LIST> sj_list_it(select_lex->sj_nests);
   TABLE_LIST *sj_nest;
@@ -1435,7 +1443,7 @@ bool JOIN::set_access_methods()
 
   full_join= false;
 
-  for (uint tableno= 0; tableno < tables; tableno++)
+  for (uint tableno= const_tables; tableno < tables; tableno++)
   {
     JOIN_TAB *const tab= join_tab + tableno;
 
@@ -5373,8 +5381,8 @@ bool JOIN::make_tmp_tables_info()
 /**
   @brief Add Filesort object to the given table to sort if with filesort
 
-  @param tab   the JOIN_TAB object to attach created Filesort object to
-  @param order List of expressions to sort the table by
+  @param tab        the JOIN_TAB object to attach created Filesort object to
+  @param sort_order List of expressions to sort the table by
 
   @note This function moves tab->select, if any, to filesort->select
 
@@ -5382,10 +5390,11 @@ bool JOIN::make_tmp_tables_info()
 */
 
 bool
-JOIN::add_sorting_to_table(JOIN_TAB *tab, ORDER_with_src *order)
+JOIN::add_sorting_to_table(JOIN_TAB *tab, ORDER_with_src *sort_order)
 {
-  explain_flags.set(order->src, ESP_USING_FILESORT);
-  tab->filesort= new (thd->mem_root) Filesort(*order, HA_POS_ERROR, tab->select);
+  explain_flags.set(sort_order->src, ESP_USING_FILESORT);
+  tab->filesort= 
+    new (thd->mem_root) Filesort(*sort_order, HA_POS_ERROR, tab->select);
   if (!tab->filesort)
     return true;
   /*

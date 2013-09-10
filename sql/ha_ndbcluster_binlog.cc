@@ -4042,6 +4042,12 @@ add_ndb_binlog_index_err:
   // Close the tables this thread has opened
   close_thread_tables(thd);
 
+  /*
+    There should be no need for rolling back transaction due to deadlock
+    (since ndb_binlog_index is non transactional).
+  */
+  DBUG_ASSERT(! thd->transaction_rollback_request);
+
   // Release MDL locks on the opened table
   thd->mdl_context.release_transactional_locks();
 

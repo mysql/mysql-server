@@ -1122,9 +1122,10 @@ static bool find_db_tables_and_rm_known_files(THD *thd, MY_DIR *dirp,
 
       table_list->alias= table_list->table_name;	// If lower_case_table_names=2
       table_list->internal_tmp_table= is_prefix(file->name, tmp_file_prefix);
-      table_list->mdl_request.init(MDL_key::TABLE, table_list->db,
-                                   table_list->table_name, MDL_EXCLUSIVE,
-                                   MDL_TRANSACTION);
+      MDL_REQUEST_INIT(&table_list->mdl_request,
+                       MDL_key::TABLE, table_list->db,
+                       table_list->table_name, MDL_EXCLUSIVE,
+                       MDL_TRANSACTION);
       /* Link into list */
       (*tot_list_next_local)= table_list;
       (*tot_list_next_global)= table_list;
@@ -1331,9 +1332,12 @@ static void mysql_change_db_impl(THD *thd,
       we just call THD::reset_db(). Since THD::reset_db() does not releases
       the previous database name, we should do it explicitly.
     */
-    my_free(thd->db);
-
+    mysql_mutex_lock(&thd->LOCK_thd_data);
+    if (thd->db)
+      my_free(thd->db);
+    DEBUG_SYNC(thd, "after_freeing_thd_db");
     thd->reset_db(new_db_name->str, new_db_name->length);
+    mysql_mutex_unlock(&thd->LOCK_thd_data);
   }
 
   /* 2. Update security context. */

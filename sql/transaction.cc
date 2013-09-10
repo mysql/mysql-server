@@ -339,6 +339,48 @@ bool trans_rollback(THD *thd)
 
 
 /**
+  Implicitly rollback the current transaction, typically
+  after deadlock was discovered.
+
+  @param thd     Current thread
+
+  @retval False Success
+  @retval True  Failure
+
+  @note ha_rollback_low() which is indirectly called by this
+        function will mark XA transaction for rollback by
+        setting appropriate RM error status if there was
+        transaction rollback request.
+*/
+
+bool trans_rollback_implicit(THD *thd)
+{
+  int res;
+  DBUG_ENTER("trans_rollback_implict");
+
+  /*
+    Always commit/rollback statement transaction before manipulating
+    with the normal one.
+    Don't perform rollback in the middle of sub-statement, wait till
+    its end.
+  */
+  DBUG_ASSERT(thd->transaction.stmt.is_empty() && !thd->in_sub_stmt);
+
+  thd->server_status&=
+    ~(SERVER_STATUS_IN_TRANS | SERVER_STATUS_IN_TRANS_READONLY);
+  DBUG_PRINT("info", ("clearing SERVER_STATUS_IN_TRANS"));
+  res= ha_rollback_trans(thd, true);
+  thd->variables.option_bits&= ~OPTION_BEGIN;
+  thd->transaction.all.reset_unsafe_rollback_flags();
+
+  /* Rollback should clear transaction_rollback_request flag. */
+  DBUG_ASSERT(! thd->transaction_rollback_request);
+
+  DBUG_RETURN(test(res));
+}
+
+
+/**
   Commit the single statement transaction.
 
   @note Note that if the autocommit is on, then the following call
@@ -436,8 +478,6 @@ bool trans_rollback_stmt(THD *thd)
   if (thd->transaction.stmt.ha_list)
   {
     ha_rollback_trans(thd, FALSE);
-    if (thd->transaction_rollback_request && !thd->in_sub_stmt)
-      ha_rollback_trans(thd, TRUE);
     if (! thd->in_active_multi_stmt_transaction())
     {
       thd->tx_isolation= (enum_tx_isolation) thd->variables.tx_isolation;
@@ -823,7 +863,8 @@ bool trans_xa_commit(THD *thd)
 
       We allow FLUSHer to COMMIT; we assume FLUSHer knows what it does.
     */
-    mdl_request.init(MDL_key::COMMIT, "", "", MDL_INTENTION_EXCLUSIVE,
+    MDL_REQUEST_INIT(&mdl_request,
+                     MDL_key::COMMIT, "", "", MDL_INTENTION_EXCLUSIVE,
                      MDL_TRANSACTION);
 
     if (thd->mdl_context.acquire_lock(&mdl_request,

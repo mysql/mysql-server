@@ -488,7 +488,7 @@ btr_cur_pessimistic_delete(
 				stays valid: it points to successor of
 				deleted record on function exit */
 	ulint		flags,	/*!< in: BTR_CREATE_FLAG or 0 */
-	enum trx_rb_ctx	rb_ctx,	/*!< in: rollback context */
+	bool		rollback,/*!< in: performing rollback? */
 	mtr_t*		mtr)	/*!< in: mtr */
 	__attribute__((nonnull));
 #endif /* !UNIV_HOTBACKUP */
@@ -645,7 +645,7 @@ btr_free_externally_stored_field(
 					to rec, or NULL if rec == NULL */
 	ulint		i,		/*!< in: field number of field_ref;
 					ignored if rec == NULL */
-	enum trx_rb_ctx	rb_ctx,		/*!< in: rollback context */
+	bool		rollback,	/*!< in: performing rollback? */
 	mtr_t*		local_mtr);	/*!< in: mtr containing the latch to
 					data an an X-latch to the index
 					tree */

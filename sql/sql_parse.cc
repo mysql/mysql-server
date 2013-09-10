@@ -1263,7 +1263,9 @@ bool dispatch_command(enum enum_server_command command, THD *thd,
       if (save_user_connect)
 	decrease_user_connections(save_user_connect);
 #endif /* NO_EMBEDDED_ACCESS_CHECKS */
+      mysql_mutex_lock(&thd->LOCK_thd_data);
       my_free(save_db);
+      mysql_mutex_unlock(&thd->LOCK_thd_data);
       my_free(save_security_ctx.user);
 
     }
@@ -1504,6 +1506,18 @@ bool dispatch_command(enum enum_server_command command, THD *thd,
     DBUG_ASSERT(thd->transaction.stmt.is_empty());
     close_thread_tables(thd);
     thd->mdl_context.rollback_to_savepoint(mdl_savepoint);
+
+    if (thd->transaction_rollback_request)
+    {
+      /*
+        Transaction rollback was requested since MDL deadlock was
+        discovered while trying to open tables. Rollback transaction
+        in all storage engines including binary log and release all
+        locks.
+      */
+      trans_rollback_implicit(thd);
+      thd->mdl_context.release_transactional_locks();
+    }
 
     thd->cleanup_after_query();
     break;
@@ -2106,7 +2120,7 @@ err:
     can free its locks if LOCK TABLES locked some tables before finding
     that it can't lock a table in its list
   */
-  trans_commit_implicit(thd);
+  trans_rollback(thd);
   /* Close tables and release metadata locks. */
   close_thread_tables(thd);
   DBUG_ASSERT(!thd->locked_tables_mode);
@@ -2173,6 +2187,13 @@ mysql_execute_command(THD *thd)
 #endif
 
   DBUG_ASSERT(thd->transaction.stmt.is_empty() || thd->in_sub_stmt);
+  /*
+    Each statement or replication event which might produce deadlock
+    should handle transaction rollback on its own. So by the start of
+    the next statement transaction rollback request should be fulfilled
+    already.
+  */
+  DBUG_ASSERT(! thd->transaction_rollback_request || thd->in_sub_stmt);
   /*
     In many cases first table of main SELECT_LEX have special meaning =>
     check that it is first table in global list and relink it first in
@@ -2374,8 +2395,8 @@ mysql_execute_command(THD *thd)
       or triggers as all such statements prohibited there.
     */
     DBUG_ASSERT(! thd->in_sub_stmt);
-    /* Commit or rollback the statement transaction. */
-    thd->is_error() ? trans_rollback_stmt(thd) : trans_commit_stmt(thd);
+    /* Statement transaction still should not be started. */
+    DBUG_ASSERT(thd->transaction.stmt.is_empty());
 
     /*
       Implicit commit is not allowed with an active XA transaction.
@@ -4790,7 +4811,17 @@ finish:
     DEBUG_SYNC(thd, "execute_command_after_close_tables");
 #endif
 
-  if (stmt_causes_implicit_commit(thd, CF_IMPLICIT_COMMIT_END))
+  if (! thd->in_sub_stmt && thd->transaction_rollback_request)
+  {
+    /*
+      We are not in sub-statement and transaction rollback was requested by
+      one of storage engines (e.g. due to deadlock). Rollback transaction in
+      all storage engines including binary log.
+    */
+    trans_rollback_implicit(thd);
+    thd->mdl_context.release_transactional_locks();
+  }
+  else if (stmt_causes_implicit_commit(thd, CF_IMPLICIT_COMMIT_END))
   {
     /* No transaction control allowed in sub-statements. */
     DBUG_ASSERT(! thd->in_sub_stmt);
@@ -5693,8 +5724,9 @@ TABLE_LIST *st_select_lex::add_table_to_list(THD *thd,
   // Pure table aliases do not need to be locked:
   if (!test(table_options & TL_OPTION_ALIAS))
   {
-    ptr->mdl_request.init(MDL_key::TABLE, ptr->db, ptr->table_name, mdl_type,
-                          MDL_TRANSACTION);
+    MDL_REQUEST_INIT(& ptr->mdl_request,
+                     MDL_key::TABLE, ptr->db, ptr->table_name, mdl_type,
+                     MDL_TRANSACTION);
   }
   if (table->is_derived_table())
   {

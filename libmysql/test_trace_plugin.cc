@@ -41,7 +41,7 @@
 #include <my_global.h>
 #include "mysql.h"
 #include "mysql_trace.h"
-
+#include <mysql/service_my_snprintf.h>          /* my_snprintf() */
 
 /*
   Definition of the plugin

@@ -172,12 +172,15 @@ enum enum_operation_type
   OPERATION_TYPE_SOCKETSELECT = 54,
 
   /* Idle operation */
-  OPERATION_TYPE_IDLE= 55
+  OPERATION_TYPE_IDLE= 55,
+
+  /* Metadata lock operation */
+  OPERATION_TYPE_METADATA= 56
 };
 /** Integer, first value of @sa enum_operation_type. */
 #define FIRST_OPERATION_TYPE (static_cast<int> (OPERATION_TYPE_LOCK))
 /** Integer, last value of @sa enum_operation_type. */
-#define LAST_OPERATION_TYPE (static_cast<int> (OPERATION_TYPE_IDLE))
+#define LAST_OPERATION_TYPE (static_cast<int> (OPERATION_TYPE_METADATA))
 /** Integer, number of values of @sa enum_operation_type. */
 #define COUNT_OPERATION_TYPE (LAST_OPERATION_TYPE - FIRST_OPERATION_TYPE + 1)
 
@@ -186,18 +189,27 @@ enum enum_operation_type
 */
 enum enum_object_type
 {
+  NO_OBJECT_TYPE= 0,
+
+  /* Advertised in SQL ENUM */
+
   OBJECT_TYPE_EVENT= 1,
   OBJECT_TYPE_FUNCTION= 2,
   OBJECT_TYPE_PROCEDURE= 3,
   OBJECT_TYPE_TABLE= 4,
   OBJECT_TYPE_TRIGGER= 5,
+
+  /* Not advertised in SQL ENUM, only displayed as VARCHAR */
+
   OBJECT_TYPE_TEMPORARY_TABLE= 6,
-  OBJECT_TYPE_NONE= 7
+  OBJECT_TYPE_GLOBAL= 7,
+  OBJECT_TYPE_SCHEMA= 8,
+  OBJECT_TYPE_COMMIT= 9
 };
 /** Integer, first value of @sa enum_object_type. */
 #define FIRST_OBJECT_TYPE (static_cast<int> (OBJECT_TYPE_EVENT))
 /** Integer, last value of @sa enum_object_type. */
-#define LAST_OBJECT_TYPE (static_cast<int> (OBJECT_TYPE_NONE))
+#define LAST_OBJECT_TYPE (static_cast<int> (OBJECT_TYPE_COMMIT))
 /** Integer, number of values of @sa enum_object_type. */
 #define COUNT_OBJECT_TYPE (LAST_OBJECT_TYPE - FIRST_OBJECT_TYPE + 1)
 

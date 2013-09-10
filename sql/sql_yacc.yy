@@ -2019,6 +2019,16 @@ prepare:
             LEX *lex= thd->lex;
             lex->sql_command= SQLCOM_PREPARE;
             lex->prepared_stmt_name= $2;
+            /*
+              We don't know know at this time whether there's a password
+              in prepare_src, so we err on the side of caution.  Setting
+              the flag will force a rewrite which will obscure all of
+              prepare_src in the "Query" log line.  We'll see the actual
+              query (with just the passwords obscured, if any) immediately
+              afterwards in the "Prepare" log lines anyway, and then again
+              in the "Execute" log line if and when prepare_src is executed.
+            */
+            lex->contains_plaintext_password= true;
           }
         ;
 
