@@ -1400,7 +1400,8 @@ int ha_commit_trans(THD *thd, bool all, bool ignore_global_read_lock)
         We allow the owner of FTWRL to COMMIT; we assume that it knows
         what it does.
       */
-      mdl_request.init(MDL_key::COMMIT, "", "", MDL_INTENTION_EXCLUSIVE,
+      MDL_REQUEST_INIT(&mdl_request,
+                       MDL_key::COMMIT, "", "", MDL_INTENTION_EXCLUSIVE,
                        MDL_EXPLICIT);
 
       DBUG_PRINT("debug", ("Acquire MDL commit lock"));
@@ -1552,10 +1553,15 @@ int ha_rollback_low(THD *thd, bool all)
     trans->ha_list= 0;
     trans->no_2pc=0;
     trans->rw_ha_count= 0;
-    if (all && thd->transaction_rollback_request &&
-        thd->transaction.xid_state.xa_state != XA_NOTR)
-      thd->transaction.xid_state.rm_error= thd->get_stmt_da()->mysql_errno();
   }
+
+  /*
+    Thanks to possibility of MDL deadlock rollback request can come even if
+    transaction hasn't been started in any transactional storage engine.
+  */
+  if (all && thd->transaction_rollback_request &&
+      thd->transaction.xid_state.xa_state != XA_NOTR)
+    thd->transaction.xid_state.rm_error= thd->get_stmt_da()->mysql_errno();
 
   (void) RUN_HOOK(transaction, after_rollback, (thd, all));
   return error;
@@ -3583,34 +3589,59 @@ void print_keydup_error(TABLE *table, KEY *key, myf errflag)
 
 /**
   This method is used to analyse the error to see whether the error
-  is ignorable or not. Further comments in header file. 
+  is ignorable or not. Further comments in header file.
 */
 
-bool handler::is_fatal_error(int error, uint flags)
+bool handler::is_ignorable_error(int error)
+{
+  DBUG_ENTER("is_ignorable_error");
+
+  // Catch errors that are ignorable
+  switch (error)
+  {
+    // Error code 0 is not an error.
+    case 0:
+    // Dup key errors may be explicitly ignored.
+    case HA_ERR_FOUND_DUPP_KEY:
+    case HA_ERR_FOUND_DUPP_UNIQUE:
+    // Foreign key constraint violations are ignorable.
+    case HA_ERR_ROW_IS_REFERENCED:
+    case HA_ERR_NO_REFERENCED_ROW:
+      DBUG_RETURN(true);
+  }
+
+  // Default is that an error is not ignorable.
+  DBUG_RETURN(false);
+}
+
+
+/**
+  This method is used to analyse the error to see whether the error
+  is fatal or not. Further comments in header file.
+*/
+
+bool handler::is_fatal_error(int error)
 {
   DBUG_ENTER("is_fatal_error");
-  // Error code 0 is not fatal, dup key errors may be explicitly ignored
-  if (!error || ((flags & HA_CHECK_DUP_KEY) &&
-       (error == HA_ERR_FOUND_DUPP_KEY ||
-        error == HA_ERR_FOUND_DUPP_UNIQUE)))
+
+  // No ignorable errors are fatal
+  if (is_ignorable_error(error))
     DBUG_RETURN(false);
-  
+
   // Catch errors that are not fatal
   switch (error)
   {
     /*
-      Lock wait timeout was treated as 'non-fatal' by e.g. insert code,
-      and as 'fatal' by update code prior to fix of bug#16587369. 
-      In order to change current behavior as little as possible, we 
-      for now treat lock wait timeout as non-fatal rather than fatal.
+      Deadlock and lock timeout cause transaction/statement rollback so that
+      THD::is_fatal_sub_stmt_error will be set. This means that they will not
+      be possible to handle by stored program handlers inside stored functions
+      and triggers even if non-fatal.
     */
     case HA_ERR_LOCK_WAIT_TIMEOUT:
-    // Foreign key constraint violations are not fatal:
-    case HA_ERR_ROW_IS_REFERENCED:
-    case HA_ERR_NO_REFERENCED_ROW:
+    case HA_ERR_LOCK_DEADLOCK:
       DBUG_RETURN(false);
   }
-  
+
   // Default is that an error is fatal
   DBUG_RETURN(true);
 }
@@ -3726,6 +3757,12 @@ void handler::print_error(int error, myf errflag)
   case HA_ERR_OUT_OF_MEM:
     textno=ER_OUT_OF_RESOURCES;
     break;
+  case HA_ERR_SE_OUT_OF_MEMORY:
+    my_error(ER_ENGINE_OUT_OF_MEMORY, errflag,
+             table->part_info ? ha_resolve_storage_engine_name
+             (table->part_info->default_engine_type) :
+             table->file->table_type());
+    DBUG_VOID_RETURN;
   case HA_ERR_WRONG_COMMAND:
     textno=ER_ILLEGAL_HA;
     break;
@@ -6426,14 +6463,16 @@ end:
 */
 ha_rows DsMrr_impl::dsmrr_info(uint keyno, uint n_ranges, uint rows,
                                uint *bufsz, uint *flags, Cost_estimate *cost)
-{  
-  ha_rows res;
+{
   uint def_flags= *flags;
   uint def_bufsz= *bufsz;
 
   /* Get cost/flags/mem_usage of default MRR implementation */
-  res= h->handler::multi_range_read_info(keyno, n_ranges, rows, &def_bufsz,
-                                         &def_flags, cost);
+#ifndef DBUG_OFF
+  ha_rows res=
+#endif
+    h->handler::multi_range_read_info(keyno, n_ranges, rows, &def_bufsz,
+                                      &def_flags, cost);
   DBUG_ASSERT(!res);
 
   if ((*flags & HA_MRR_USE_DEFAULT_IMPL) || 
@@ -7416,7 +7455,8 @@ int handler::ha_write_row(uchar *buf)
   DBUG_ENTER("handler::ha_write_row");
   DBUG_EXECUTE_IF("inject_error_ha_write_row",
                   DBUG_RETURN(HA_ERR_INTERNAL_ERROR); );
-
+  DBUG_EXECUTE_IF("simulate_storage_engine_out_of_memory",
+                  DBUG_RETURN(HA_ERR_SE_OUT_OF_MEMORY); );
   MYSQL_INSERT_ROW_START(table_share->db.str, table_share->table_name.str);
   mark_trx_read_write();
 

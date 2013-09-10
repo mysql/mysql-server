@@ -63,7 +63,6 @@ void *
 my_realloc(PSI_memory_key key, void *ptr, size_t size, myf flags)
 {
   my_memory_header *old_mh;
-  my_memory_header *new_mh;
   size_t old_size;
   size_t min_size;
   void *new_ptr;
@@ -83,7 +82,9 @@ my_realloc(PSI_memory_key key, void *ptr, size_t size, myf flags)
   new_ptr= my_malloc(key, size, flags);
   if (likely(new_ptr != NULL))
   {
-    new_mh= USER_TO_HEADER(new_ptr);
+#ifndef DBUG_OFF
+    my_memory_header *new_mh= USER_TO_HEADER(new_ptr);
+#endif
 
     DBUG_ASSERT((new_mh->m_key == key) || (new_mh->m_key == PSI_NOT_INSTRUMENTED));
     DBUG_ASSERT(new_mh->m_magic == MAGIC);

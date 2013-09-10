@@ -141,7 +141,7 @@ TEST_join(JOIN *join)
       if (tab->use_quick == QS_DYNAMIC_RANGE)
 	fprintf(DBUG_FILE,
 		"                  quick select checked for each record (keys: %s)\n",
-		tab->select->quick_keys.print(buf));
+                form->quick_keys.print(buf));
       else if (tab->select->quick)
       {
 	fprintf(DBUG_FILE, "                  quick select used:\n");

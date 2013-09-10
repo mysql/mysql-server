@@ -73,7 +73,7 @@ int sys_var_init()
   DBUG_RETURN(0);
 
 error:
-  fprintf(stderr, "failed to initialize System variables");
+  my_message_local(ERROR_LEVEL, "failed to initialize system variables");
   DBUG_RETURN(1);
 }
 
@@ -90,7 +90,7 @@ int sys_var_add_options(std::vector<my_option> *long_options, int parse_flags)
   DBUG_RETURN(0);
 
 error:
-  fprintf(stderr, "failed to initialize System variables");
+  my_message_local(ERROR_LEVEL, "failed to initialize system variables");
   DBUG_RETURN(1);
 }
 
@@ -406,7 +406,8 @@ int mysql_add_sys_var_chain(sys_var *first)
     /* this fails if there is a conflicting variable name. see HASH_UNIQUE */
     if (my_hash_insert(&system_variable_hash, (uchar*) var))
     {
-      fprintf(stderr, "*** duplicate variable name '%s' ?\n", var->name.str);
+      my_message_local(ERROR_LEVEL, "duplicate variable name '%s'!?",
+                       var->name.str);
       goto error;
     }
   }

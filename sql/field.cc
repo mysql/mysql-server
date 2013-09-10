@@ -5380,7 +5380,7 @@ longlong Field_temporal_with_date_and_timef::val_int()
 }
 
 
-my_decimal *Field_temporal_with_date_and_timef::val_decimal(my_decimal *dec)
+my_decimal *Field_temporal_with_date_and_timef::val_decimal(my_decimal *dec_arg)
 {
   ASSERT_COLUMN_MARKED_FOR_READ;
   MYSQL_TIME ltime;
@@ -5390,7 +5390,7 @@ my_decimal *Field_temporal_with_date_and_timef::val_decimal(my_decimal *dec)
     DBUG_ASSERT(type() == MYSQL_TYPE_TIMESTAMP);
     set_zero_time(&ltime, MYSQL_TIMESTAMP_DATETIME);
   }
-  return date2my_decimal(&ltime, dec);
+  return date2my_decimal(&ltime, dec_arg);
 }
 
 

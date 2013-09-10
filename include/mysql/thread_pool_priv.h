@@ -77,6 +77,8 @@ Thread_iterator thd_get_global_thread_list_end();
 
 /* Print to the MySQL error log */
 void sql_print_error(const char *format, ...);
+void sql_print_warning(const char *format, ...);
+void sql_print_information(const char *format, ...);
 
 /* Store a table record */
 bool schema_table_store_record(THD *thd, TABLE *table);

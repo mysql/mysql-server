@@ -23009,7 +23009,7 @@ MY_COLLATION_HANDLER my_collation_any_uca_handler =
   expressions. Note, there is no need to mark byte 255  as a
   letter, it is illegal byte in UTF8.
 */
-static uchar ctype_utf8[] = {
+static const uchar ctype_utf8[] = {
     0,
    32, 32, 32, 32, 32, 32, 32, 32, 32, 40, 40, 40, 40, 40, 32, 32,
    32, 32, 32, 32, 32, 32, 32, 32, 32, 32, 32, 32, 32, 32, 32, 32,

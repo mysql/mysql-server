@@ -39,6 +39,7 @@
 #include "pfs_setup_object.h"
 #include "sql_error.h"
 #include "sp_head.h"
+#include "mdl.h" /* mdl_key_init */
 #include "pfs_digest.h"
 #include "pfs_program.h"
 
@@ -1188,9 +1189,9 @@ static inline int mysql_mutex_lock(...)
 @endverbatim
 
   Implemented as:
-  - [1] @c memory_alloc_v1(),
-        @c memory_realloc_v1(),
-        @c memory_free_v1().
+  - [1] @c pfs_memory_alloc_v1(),
+        @c pfs_memory_realloc_v1(),
+        @c pfs_memory_free_v1().
   - [1+] are overflows that can happen during [1a],
         implemented with @c carry_memory_stat_delta()
   - [2] @c delete_thread_v1(), @c aggregate_thread_memory()
@@ -1778,6 +1779,7 @@ void pfs_unbind_table_v1(PSI_table *table)
   if (likely(pfs != NULL))
   {
     pfs->m_thread_owner= NULL;
+    pfs->m_owner_event_id= 0;
   }
 }
 
@@ -1814,6 +1816,10 @@ pfs_rebind_table_v1(PSI_table_share *share, const void *identity, PSI_table *tab
     /* The table handle was already instrumented, reuse it for this thread. */
     PFS_thread *thread= my_pthread_get_THR_PFS();
     pfs->m_thread_owner= thread;
+    if (thread != NULL)
+      pfs->m_owner_event_id= thread->m_event_id;
+    else
+      pfs->m_owner_event_id= 0;
     return table;
   }
 
@@ -2805,6 +2811,7 @@ pfs_start_table_lock_wait_v1(PSI_table_locker_state *state,
   {
     case PSI_TABLE_LOCK:
       lock_type= lock_flags_to_lock_type(op_flags);
+      pfs_table->m_internal_lock= lock_type;
       break;
     case PSI_TABLE_EXTERNAL_LOCK:
       /*
@@ -2812,8 +2819,12 @@ pfs_start_table_lock_wait_v1(PSI_table_locker_state *state,
         there is no handler::external_unlock().
       */
       if (op_flags == F_UNLCK)
+      {
+        pfs_table->m_external_lock= PFS_TL_NONE;
         return NULL;
+      }
       lock_type= external_lock_flags_to_lock_type(op_flags);
+      pfs_table->m_external_lock= lock_type;
       break;
     default:
       lock_type= PFS_TL_READ;
@@ -4621,7 +4632,7 @@ pfs_get_thread_statement_locker_v1(PSI_statement_locker_state *state,
       }
       else
       {
-        pfs->m_sp_type= OBJECT_TYPE_NONE;
+        pfs->m_sp_type= NO_OBJECT_TYPE;
         pfs->m_schema_name_length= 0;
         pfs->m_object_name_length= 0;
       }
@@ -4687,7 +4698,7 @@ pfs_refine_statement_v1(PSI_statement_locker *locker,
   PFS_statement_class *klass;
   /* Only refine statements for mutable instrumentation */
   klass= reinterpret_cast<PFS_statement_class*> (state->m_class);
-  DBUG_ASSERT(klass->m_flags & PSI_FLAG_MUTABLE);
+  DBUG_ASSERT(klass->is_mutable());
   klass= find_statement_class(key);
 
   uint flags= state->m_flags;
@@ -5185,11 +5196,32 @@ void pfs_end_statement_v1(PSI_statement_locker *locker, void *stmt_da)
   }
 }
 
+static inline enum_object_type sp_type_to_object_type(uint sp_type)
+{
+  enum enum_sp_type value= static_cast<enum enum_sp_type> (sp_type);
+
+  switch (value)
+  {
+    case SP_TYPE_FUNCTION:
+      return OBJECT_TYPE_FUNCTION;
+    case SP_TYPE_PROCEDURE:
+      return OBJECT_TYPE_PROCEDURE;
+    case SP_TYPE_TRIGGER:
+      return OBJECT_TYPE_TRIGGER;
+    case SP_TYPE_EVENT:
+      return OBJECT_TYPE_EVENT;
+    default:
+      DBUG_ASSERT(false);
+      /* Dead code */
+      return NO_OBJECT_TYPE;
+  }
+}
+
 /**                                                                             
   Implementation of the stored program instrumentation interface.                         
   @sa PSI_v1::get_sp_share.                                      
 */                                                                              
-PSI_sp_share *pfs_get_sp_share_v1(uint object_type,
+PSI_sp_share *pfs_get_sp_share_v1(uint sp_type,
                                   const char* schema_name,
                                   uint schema_name_length,
                                   const char* object_name,
@@ -5202,7 +5234,7 @@ PSI_sp_share *pfs_get_sp_share_v1(uint object_type,
 
   PFS_program *pfs_program;
   pfs_program= find_or_create_program(pfs_thread,
-                                      (enum_object_type)object_type,
+                                      sp_type_to_object_type(sp_type),
                                       object_name,
                                       object_name_length,
                                       schema_name,
@@ -5280,7 +5312,7 @@ void pfs_end_sp_v1(PSI_sp_locker *locker)
   }
 }
 
-void pfs_drop_sp_v1(uint object_type,
+void pfs_drop_sp_v1(uint sp_type,
                     const char* schema_name,
                     uint schema_name_length,
                     const char* object_name,
@@ -5291,7 +5323,7 @@ void pfs_drop_sp_v1(uint object_type,
     return;
 
   drop_program(pfs_thread,
-               (enum_object_type)object_type,
+               sp_type_to_object_type(sp_type),
                object_name, object_name_length,
                schema_name, schema_name_length);
 }
@@ -5470,12 +5502,10 @@ void pfs_register_memory_v1(const char *category,
                    register_memory_class)
 }
 
-static PSI_memory_key memory_alloc_v1(PSI_memory_key key, size_t size)
+static PSI_memory_key pfs_memory_alloc_v1(PSI_memory_key key, size_t size)
 {
   PFS_memory_class *klass= find_memory_class(key);
   if (klass == NULL)
-    return PSI_NOT_INSTRUMENTED;
-  if (! klass->m_enabled)
     return PSI_NOT_INSTRUMENTED;
 
   PFS_memory_stat *event_name_array;
@@ -5513,12 +5543,10 @@ static PSI_memory_key memory_alloc_v1(PSI_memory_key key, size_t size)
   return key;
 }
 
-static PSI_memory_key memory_realloc_v1(PSI_memory_key key, size_t old_size, size_t new_size)
+static PSI_memory_key pfs_memory_realloc_v1(PSI_memory_key key, size_t old_size, size_t new_size)
 {
   PFS_memory_class *klass= find_memory_class(key);
   if (klass == NULL)
-    return PSI_NOT_INSTRUMENTED;
-  if (! klass->m_enabled)
     return PSI_NOT_INSTRUMENTED;
 
   PFS_memory_stat *event_name_array;
@@ -5530,39 +5558,58 @@ static PSI_memory_key memory_realloc_v1(PSI_memory_key key, size_t old_size, siz
   if (flag_thread_instrumentation)
   {
     PFS_thread *pfs_thread= my_pthread_getspecific_ptr(PFS_thread*, THR_PFS);
-    if (unlikely(pfs_thread == NULL))
-      return PSI_NOT_INSTRUMENTED;
-    if (! pfs_thread->m_enabled)
-      return PSI_NOT_INSTRUMENTED;
-
-    /* Aggregate to MEMORY_SUMMARY_BY_THREAD_BY_EVENT_NAME */
-    event_name_array= pfs_thread->m_instr_class_memory_stats;
-    stat= & event_name_array[index];
-    delta= stat->count_realloc(old_size, new_size, &delta_buffer);
-
-    if (delta != NULL)
+    if (likely(pfs_thread != NULL))
     {
-      pfs_thread->carry_memory_stat_delta(delta, index);
+      /* Aggregate to MEMORY_SUMMARY_BY_THREAD_BY_EVENT_NAME */
+      event_name_array= pfs_thread->m_instr_class_memory_stats;
+      stat= & event_name_array[index];
+
+      if (klass->m_enabled)
+      {
+        delta= stat->count_realloc(old_size, new_size, &delta_buffer);
+      }
+      else
+      {
+        delta= stat->count_free(old_size, &delta_buffer);
+        key= PSI_NOT_INSTRUMENTED;
+      }
+
+      if (delta != NULL)
+      {
+        pfs_thread->carry_memory_stat_delta(delta, index);
+      }
+      return key;
     }
+  }
+
+  /* Aggregate to MEMORY_SUMMARY_GLOBAL_BY_EVENT_NAME */
+  event_name_array= global_instr_class_memory_array;
+  stat= & event_name_array[index];
+
+  if (klass->m_enabled)
+  {
+    (void) stat->count_realloc(old_size, new_size, &delta_buffer);
   }
   else
   {
-    /* Aggregate to MEMORY_SUMMARY_GLOBAL_BY_EVENT_NAME */
-    event_name_array= global_instr_class_memory_array;
-    stat= & event_name_array[index];
-    (void) stat->count_realloc(old_size, new_size, &delta_buffer);
+    (void) stat->count_free(old_size, &delta_buffer);
+    key= PSI_NOT_INSTRUMENTED;
   }
 
   return key;
 }
 
-static void memory_free_v1(PSI_memory_key key, size_t size)
+static void pfs_memory_free_v1(PSI_memory_key key, size_t size)
 {
   PFS_memory_class *klass= find_memory_class(key);
   if (klass == NULL)
     return;
-  if (! klass->m_enabled)
-    return;
+
+  /*
+    Do not check klass->m_enabled.
+    If a memory alloc was instrumented,
+    the corresponding free must be instrumented.
+  */
 
   PFS_memory_stat *event_name_array;
   PFS_memory_stat *stat;
@@ -5573,30 +5620,249 @@ static void memory_free_v1(PSI_memory_key key, size_t size)
   if (flag_thread_instrumentation)
   {
     PFS_thread *pfs_thread= my_pthread_getspecific_ptr(PFS_thread*, THR_PFS);
-    if (unlikely(pfs_thread == NULL))
-      return;
-    if (! pfs_thread->m_enabled)
-      return;
-
-    /* Aggregate to MEMORY_SUMMARY_BY_THREAD_BY_EVENT_NAME */
-    event_name_array= pfs_thread->m_instr_class_memory_stats;
-    stat= & event_name_array[index];
-    delta= stat->count_free(size, &delta_buffer);
-
-    if (delta != NULL)
+    if (likely(pfs_thread != NULL))
     {
-      pfs_thread->carry_memory_stat_delta(delta, index);
+      /*
+        Do not check pfs_thread->m_enabled.
+        If a memory alloc was instrumented,
+        the corresponding free must be instrumented.
+      */
+      /* Aggregate to MEMORY_SUMMARY_BY_THREAD_BY_EVENT_NAME */
+      event_name_array= pfs_thread->m_instr_class_memory_stats;
+      stat= & event_name_array[index];
+      delta= stat->count_free(size, &delta_buffer);
+
+      if (delta != NULL)
+      {
+        pfs_thread->carry_memory_stat_delta(delta, index);
+      }
+      return;
+    }
+  }
+
+  /* Aggregate to MEMORY_SUMMARY_GLOBAL_BY_EVENT_NAME */
+  event_name_array= global_instr_class_memory_array;
+  stat= & event_name_array[index];
+  (void) stat->count_free(size, &delta_buffer);
+
+  return;
+}
+
+void pfs_unlock_table_v1(PSI_table *table)
+{
+  PFS_table *pfs_table= reinterpret_cast<PFS_table*> (table);
+
+  DBUG_ASSERT(pfs_table != NULL);
+
+  pfs_table->m_internal_lock= PFS_TL_NONE;
+  return;
+}
+
+PSI_metadata_lock *
+pfs_create_metadata_lock_v1(
+  void *identity,
+  const MDL_key *mdl_key,
+  opaque_mdl_type mdl_type,
+  opaque_mdl_duration mdl_duration,
+  opaque_mdl_status mdl_status,
+  const char *src_file,
+  uint src_line)
+{
+  if (! flag_global_instrumentation)
+    return NULL;
+
+  if (! global_metadata_class.m_enabled)
+    return NULL;
+
+  PFS_thread *pfs_thread= my_pthread_getspecific_ptr(PFS_thread*, THR_PFS);
+  if (pfs_thread == NULL)
+    return NULL;
+
+  PFS_metadata_lock *pfs;
+  pfs= create_metadata_lock(identity, mdl_key,
+                            mdl_type, mdl_duration, mdl_status,
+                            src_file, src_line);
+
+  if (pfs != NULL)
+  {
+    pfs->m_owner_thread_id= pfs_thread->m_thread_internal_id;
+    pfs->m_owner_event_id= pfs_thread->m_event_id;
+  }
+
+  return reinterpret_cast<PSI_metadata_lock *> (pfs);
+}
+
+void
+pfs_set_metadata_lock_status_v1(PSI_metadata_lock *lock, opaque_mdl_status mdl_status)
+{
+  PFS_metadata_lock *pfs= reinterpret_cast<PFS_metadata_lock*> (lock);
+  DBUG_ASSERT(pfs != NULL);
+  pfs->m_mdl_status= mdl_status;
+}
+
+void
+pfs_destroy_metadata_lock_v1(PSI_metadata_lock *lock)
+{
+  PFS_metadata_lock *pfs= reinterpret_cast<PFS_metadata_lock*> (lock);
+  DBUG_ASSERT(pfs != NULL);
+  destroy_metadata_lock(pfs);
+}
+
+PSI_metadata_locker *
+pfs_start_metadata_wait_v1(PSI_metadata_locker_state *state,
+                           PSI_metadata_lock *lock,
+                           const char *src_file,
+                           uint src_line)
+{
+  PFS_metadata_lock *pfs_lock= reinterpret_cast<PFS_metadata_lock*> (lock);
+  DBUG_ASSERT(state != NULL);
+  DBUG_ASSERT(pfs_lock != NULL);
+
+  if (! pfs_lock->m_enabled)
+    return NULL;
+
+  uint flags;
+  ulonglong timer_start= 0;
+
+  if (flag_thread_instrumentation)
+  {
+    PFS_thread *pfs_thread= my_pthread_getspecific_ptr(PFS_thread*, THR_PFS);
+    if (unlikely(pfs_thread == NULL))
+      return NULL;
+    if (! pfs_thread->m_enabled)
+      return NULL;
+    state->m_thread= reinterpret_cast<PSI_thread *> (pfs_thread);
+    flags= STATE_FLAG_THREAD;
+
+    if (pfs_lock->m_timed)
+    {
+      timer_start= get_timer_raw_value_and_function(wait_timer, & state->m_timer);
+      state->m_timer_start= timer_start;
+      flags|= STATE_FLAG_TIMED;
+    }
+
+    if (flag_events_waits_current)
+    {
+      if (unlikely(pfs_thread->m_events_waits_current >=
+                   & pfs_thread->m_events_waits_stack[WAIT_STACK_SIZE]))
+      {
+        locker_lost++;
+        return NULL;
+      }
+      PFS_events_waits *wait= pfs_thread->m_events_waits_current;
+      state->m_wait= wait;
+      flags|= STATE_FLAG_EVENT;
+
+      PFS_events_waits *parent_event= wait - 1;
+      wait->m_event_type= EVENT_TYPE_WAIT;
+      wait->m_nesting_event_id= parent_event->m_event_id;
+      wait->m_nesting_event_type= parent_event->m_event_type;
+
+      wait->m_thread= pfs_thread;
+      wait->m_class= &global_metadata_class;
+      wait->m_timer_start= timer_start;
+      wait->m_timer_end= 0;
+      wait->m_object_instance_addr= pfs_lock->m_identity;
+      wait->m_event_id= pfs_thread->m_event_id++;
+      wait->m_end_event_id= 0;
+      wait->m_weak_metadata_lock= pfs_lock;
+      wait->m_weak_version= pfs_lock->get_version();
+      wait->m_operation= OPERATION_TYPE_METADATA;
+      wait->m_source_file= src_file;
+      wait->m_source_line= src_line;
+      wait->m_wait_class= WAIT_CLASS_METADATA;
+
+      pfs_thread->m_events_waits_current++;
     }
   }
   else
   {
-    /* Aggregate to MEMORY_SUMMARY_GLOBAL_BY_EVENT_NAME */
-    event_name_array= global_instr_class_memory_array;
-    stat= & event_name_array[index];
-    (void) stat->count_free(size, &delta_buffer);
+    if (pfs_lock->m_timed)
+    {
+      timer_start= get_timer_raw_value_and_function(wait_timer, & state->m_timer);
+      state->m_timer_start= timer_start;
+      flags= STATE_FLAG_TIMED;
+      state->m_thread= NULL;
+    }
+    else
+    {
+      /*
+        Complete shortcut.
+      */
+      /* Aggregate to EVENTS_WAITS_SUMMARY_GLOBAL_BY_EVENT_NAME (counted) */
+      global_metadata_stat.aggregate_counted();
+      return NULL;
+    }
   }
 
-  return;
+  state->m_flags= flags;
+  state->m_metadata_lock= lock;
+  return reinterpret_cast<PSI_metadata_locker*> (state);
+}
+
+void
+pfs_end_metadata_wait_v1(PSI_metadata_locker *locker,
+                         int rc)
+{
+  PSI_metadata_locker_state *state= reinterpret_cast<PSI_metadata_locker_state*> (locker);
+  DBUG_ASSERT(state != NULL);
+
+  ulonglong timer_end= 0;
+  ulonglong wait_time= 0;
+
+  PFS_thread *thread= reinterpret_cast<PFS_thread *> (state->m_thread);
+
+  uint flags= state->m_flags;
+
+  if (flags & STATE_FLAG_TIMED)
+  {
+    timer_end= state->m_timer();
+    wait_time= timer_end - state->m_timer_start;
+  }
+
+  if (flags & STATE_FLAG_THREAD)
+  {
+    PFS_single_stat *event_name_array;
+    event_name_array= thread->m_instr_class_waits_stats;
+
+    if (flags & STATE_FLAG_TIMED)
+    {
+      /* Aggregate to EVENTS_WAITS_SUMMARY_BY_THREAD_BY_EVENT_NAME (timed) */
+      event_name_array[GLOBAL_METADATA_EVENT_INDEX].aggregate_value(wait_time);
+    }
+    else
+    {
+      /* Aggregate to EVENTS_WAITS_SUMMARY_BY_THREAD_BY_EVENT_NAME (counted) */
+      event_name_array[GLOBAL_METADATA_EVENT_INDEX].aggregate_counted();
+    }
+
+    if (flags & STATE_FLAG_EVENT)
+    {
+      PFS_events_waits *wait= reinterpret_cast<PFS_events_waits*> (state->m_wait);
+      DBUG_ASSERT(wait != NULL);
+
+      wait->m_timer_end= timer_end;
+      wait->m_end_event_id= thread->m_event_id;
+      if (flag_events_waits_history)
+        insert_events_waits_history(thread, wait);
+      if (flag_events_waits_history_long)
+        insert_events_waits_history_long(wait);
+      thread->m_events_waits_current--;
+    }
+  }
+  else
+  {
+    if (flags & STATE_FLAG_TIMED)
+    {
+      /* Aggregate to EVENTS_WAITS_SUMMARY_GLOBAL_BY_EVENT_NAME (timed) */
+      global_metadata_stat.aggregate_value(wait_time);
+    }
+    else
+    {
+      /* Aggregate to EVENTS_WAITS_SUMMARY_GLOBAL_BY_EVENT_NAME (counted) */
+      global_metadata_stat.aggregate_counted();
+    }
+  }
 }
 
 /**
@@ -5708,9 +5974,15 @@ PSI_v1 PFS_v1=
   pfs_get_sp_share_v1,
   pfs_release_sp_share_v1,
   pfs_register_memory_v1,
-  memory_alloc_v1,
-  memory_realloc_v1,
-  memory_free_v1
+  pfs_memory_alloc_v1,
+  pfs_memory_realloc_v1,
+  pfs_memory_free_v1,
+  pfs_unlock_table_v1,
+  pfs_create_metadata_lock_v1,
+  pfs_set_metadata_lock_status_v1,
+  pfs_destroy_metadata_lock_v1,
+  pfs_start_metadata_wait_v1,
+  pfs_end_metadata_wait_v1
 };
 
 static void* get_interface(int version)

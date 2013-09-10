@@ -1484,7 +1484,7 @@ row_log_table_apply_delete_low(
 	}
 
 	btr_cur_pessimistic_delete(&error, FALSE, btr_pcur_get_btr_cur(pcur),
-				   BTR_CREATE_FLAG, RB_NONE, mtr);
+				   BTR_CREATE_FLAG, false, mtr);
 	mtr_commit(mtr);
 
 	if (error != DB_SUCCESS) {
@@ -1531,7 +1531,7 @@ flag_ok:
 
 		btr_cur_pessimistic_delete(&error, FALSE,
 					   btr_pcur_get_btr_cur(pcur),
-					   BTR_CREATE_FLAG, RB_NONE, mtr);
+					   BTR_CREATE_FLAG, false, mtr);
 		mtr_commit(mtr);
 	}
 
@@ -1886,7 +1886,7 @@ delete_insert:
 
 		btr_cur_pessimistic_delete(
 			&error, FALSE, btr_pcur_get_btr_cur(&pcur),
-			BTR_CREATE_FLAG, RB_NONE, &mtr);
+			BTR_CREATE_FLAG, false, &mtr);
 
 		if (error != DB_SUCCESS) {
 			break;
@@ -2353,7 +2353,7 @@ all_done:
 		posix_fadvise(index->online_log->fd,
 			      ofs, srv_sort_buf_size, POSIX_FADV_DONTNEED);
 #endif /* POSIX_FADV_DONTNEED */
-#ifdef FALLOC_FL_PUNCH_HOLE
+#if 0 //def FALLOC_FL_PUNCH_HOLE
 		/* Try to deallocate the space for the file on disk.
 		This should work on ext4 on Linux 2.6.39 and later,
 		and be ignored when the operation is unsupported. */
@@ -2805,11 +2805,11 @@ row_log_apply_op_low(
 
 			/* As there are no externally stored fields in
 			a secondary index record, the parameter
-			rb_ctx = RB_NONE will be ignored. */
+			rollback=false will be ignored. */
 
 			btr_cur_pessimistic_delete(
 				error, FALSE, &cursor,
-				BTR_CREATE_FLAG, RB_NONE, &mtr);
+				BTR_CREATE_FLAG, false, &mtr);
 			break;
 		case ROW_OP_INSERT:
 			if (exists) {
@@ -3144,7 +3144,7 @@ all_done:
 		posix_fadvise(index->online_log->fd,
 			      ofs, srv_sort_buf_size, POSIX_FADV_DONTNEED);
 #endif /* POSIX_FADV_DONTNEED */
-#ifdef FALLOC_FL_PUNCH_HOLE
+#if 0 //def FALLOC_FL_PUNCH_HOLE
 		/* Try to deallocate the space for the file on disk.
 		This should work on ext4 on Linux 2.6.39 and later,
 		and be ignored when the operation is unsupported. */

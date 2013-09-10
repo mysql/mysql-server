@@ -214,6 +214,9 @@ struct PFS_global_param
     @sa memory_class_lost.
   */
   ulong m_memory_class_sizing;
+
+  long m_metadata_lock_sizing;
+
   /** Sizing hints, for auto tuning. */
   PFS_sizing_hints m_hints;
 };

@@ -567,6 +567,7 @@ trx_rollback_active(
 	dict_table_t*	table;
 	ib_int64_t	rows_to_undo;
 	const char*	unit		= "";
+	trx_id_t	trx_id;
 	ibool		dictionary_locked = FALSE;
 
 	heap = mem_heap_create(512);
@@ -603,11 +604,10 @@ trx_rollback_active(
 	}
 
 	ut_print_timestamp(stderr);
-	fprintf(stderr,
-		"  InnoDB: Rolling back trx with id " TRX_ID_FMT ", %lu%s"
-		" rows to undo\n",
-		trx->id,
-		(ulong) rows_to_undo, unit);
+	trx_id = trx->id;
+	ib_logf(IB_LOG_LEVEL_INFO,
+		"Rolling back trx with id " TRX_ID_FMT ", %lu%s"
+		" rows to undo", trx_id, (ulong) rows_to_undo, unit);
 
 	if (trx_get_dict_operation(trx) != TRX_DICT_OP_NONE) {
 		row_mysql_lock_data_dictionary(trx);
@@ -656,7 +656,7 @@ trx_rollback_active(
 	}
 
 	ib_logf(IB_LOG_LEVEL_INFO,
-		"Rollback of trx with id " TRX_ID_FMT " completed", trx->id);
+		"Rollback of trx with id " TRX_ID_FMT " completed", trx_id);
 
 	mem_heap_free(heap);
 

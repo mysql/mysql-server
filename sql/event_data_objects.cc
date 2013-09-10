@@ -1454,7 +1454,7 @@ Event_job_data::execute(THD *thd, bool drop)
 
     sphead->m_type= SP_TYPE_EVENT;
 #ifdef HAVE_PSI_SP_INTERFACE
-    sphead->m_sp_share= MYSQL_GET_SP_SHARE(SP_OBJECT_TYPE_EVENT,
+    sphead->m_sp_share= MYSQL_GET_SP_SHARE(SP_TYPE_EVENT,
                                            dbname.str, dbname.length,
                                            name.str, name.length);
 #endif

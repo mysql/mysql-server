@@ -2341,9 +2341,10 @@ open_table_get_mdl_lock(THD *thd, Open_table_context *ot_ctx,
     DBUG_ASSERT(!(flags & MYSQL_OPEN_FORCE_SHARED_MDL) ||
                 !(flags & MYSQL_OPEN_FORCE_SHARED_HIGH_PRIO_MDL));
 
-    mdl_request_shared.init(&mdl_request->key,
+    MDL_REQUEST_INIT_BY_KEY(&mdl_request_shared,
+                            &mdl_request->key,
                             (flags & MYSQL_OPEN_FORCE_SHARED_MDL) ?
-                            MDL_SHARED : MDL_SHARED_HIGH_PRIO,
+                              MDL_SHARED : MDL_SHARED_HIGH_PRIO,
                             MDL_TRANSACTION);
     mdl_request= &mdl_request_shared;
   }
@@ -2673,8 +2674,9 @@ bool open_table(THD *thd, TABLE_LIST *table_list, Open_table_context *ot_ctx)
       if (thd->global_read_lock.can_acquire_protection())
         DBUG_RETURN(TRUE);
 
-      protection_request.init(MDL_key::GLOBAL, "", "", MDL_INTENTION_EXCLUSIVE,
-                              MDL_STATEMENT);
+      MDL_REQUEST_INIT(&protection_request,
+                       MDL_key::GLOBAL, "", "", MDL_INTENTION_EXCLUSIVE,
+                       MDL_STATEMENT);
 
       /*
         Install error handler which if possible will convert deadlock error
@@ -3874,7 +3876,8 @@ end_unlock:
 /** Open_table_context */
 
 Open_table_context::Open_table_context(THD *thd, uint flags)
-  :m_failed_table(NULL),
+  :m_thd(thd),
+   m_failed_table(NULL),
    m_start_of_statement_svp(thd->mdl_context.mdl_savepoint()),
    m_timeout(flags & MYSQL_LOCK_IGNORE_TIMEOUT ?
              LONG_TIMEOUT : thd->variables.lock_wait_timeout),
@@ -3951,6 +3954,7 @@ request_backoff_action(enum_open_table_action action_arg,
   if (action_arg != OT_REOPEN_TABLES && m_has_locks)
   {
     my_error(ER_LOCK_DEADLOCK, MYF(0));
+    mark_transaction_to_rollback(m_thd, true);
     return TRUE;
   }
   /*
@@ -3960,7 +3964,7 @@ request_backoff_action(enum_open_table_action action_arg,
   if (table)
   {
     DBUG_ASSERT(action_arg == OT_DISCOVER || action_arg == OT_REPAIR);
-    m_failed_table= (TABLE_LIST*) current_thd->alloc(sizeof(TABLE_LIST));
+    m_failed_table= (TABLE_LIST*) m_thd->alloc(sizeof(TABLE_LIST));
     if (m_failed_table == NULL)
       return TRUE;
     m_failed_table->init_one_table(table->db, table->db_length,
@@ -3977,8 +3981,6 @@ request_backoff_action(enum_open_table_action action_arg,
 /**
    Recover from failed attempt of open table by performing requested action.
 
-   @param  thd     Thread context
-
    @pre This function should be called only with "action" != OT_NO_ACTION
         and after having called @sa close_tables_for_reopen().
 
@@ -3988,7 +3990,7 @@ request_backoff_action(enum_open_table_action action_arg,
 
 bool
 Open_table_context::
-recover_from_failed_open(THD *thd)
+recover_from_failed_open()
 {
   bool result= FALSE;
   /* Execute the action. */
@@ -4000,31 +4002,31 @@ recover_from_failed_open(THD *thd)
       break;
     case OT_DISCOVER:
       {
-        if ((result= lock_table_names(thd, m_failed_table, NULL,
+        if ((result= lock_table_names(m_thd, m_failed_table, NULL,
                                       get_timeout(), 0)))
           break;
 
-        tdc_remove_table(thd, TDC_RT_REMOVE_ALL, m_failed_table->db,
+        tdc_remove_table(m_thd, TDC_RT_REMOVE_ALL, m_failed_table->db,
                          m_failed_table->table_name, FALSE);
-        ha_create_table_from_engine(thd, m_failed_table->db,
+        ha_create_table_from_engine(m_thd, m_failed_table->db,
                                     m_failed_table->table_name);
 
-        thd->get_stmt_da()->reset_condition_info(thd);
-        thd->clear_error();                 // Clear error message
-        thd->mdl_context.release_transactional_locks();
+        m_thd->get_stmt_da()->reset_condition_info(m_thd);
+        m_thd->clear_error();                 // Clear error message
+        m_thd->mdl_context.release_transactional_locks();
         break;
       }
     case OT_REPAIR:
       {
-        if ((result= lock_table_names(thd, m_failed_table, NULL,
+        if ((result= lock_table_names(m_thd, m_failed_table, NULL,
                                       get_timeout(), 0)))
           break;
 
-        tdc_remove_table(thd, TDC_RT_REMOVE_ALL, m_failed_table->db,
+        tdc_remove_table(m_thd, TDC_RT_REMOVE_ALL, m_failed_table->db,
                          m_failed_table->table_name, FALSE);
 
-        result= auto_repair_table(thd, m_failed_table);
-        thd->mdl_context.release_transactional_locks();
+        result= auto_repair_table(m_thd, m_failed_table);
+        m_thd->mdl_context.release_transactional_locks();
         break;
       }
     default:
@@ -4671,9 +4673,10 @@ lock_table_names(THD *thd,
       MDL_request *schema_request= new (thd->mem_root) MDL_request;
       if (schema_request == NULL)
         return TRUE;
-      schema_request->init(MDL_key::SCHEMA, table->db, "",
-                           MDL_INTENTION_EXCLUSIVE,
-                           MDL_TRANSACTION);
+      MDL_REQUEST_INIT(schema_request,
+                       MDL_key::SCHEMA, table->db, "",
+                       MDL_INTENTION_EXCLUSIVE,
+                       MDL_TRANSACTION);
       mdl_requests.push_front(schema_request);
     }
 
@@ -4684,8 +4687,9 @@ lock_table_names(THD *thd,
     */
     if (thd->global_read_lock.can_acquire_protection())
       return TRUE;
-    global_request.init(MDL_key::GLOBAL, "", "", MDL_INTENTION_EXCLUSIVE,
-                        MDL_STATEMENT);
+    MDL_REQUEST_INIT(&global_request,
+                     MDL_key::GLOBAL, "", "", MDL_INTENTION_EXCLUSIVE,
+                     MDL_STATEMENT);
     mdl_requests.push_front(&global_request);
   }
 
@@ -4927,7 +4931,7 @@ restart:
             TABLE_LIST element. Altough currently this assumption is valid
             it may change in future.
           */
-          if (ot_ctx.recover_from_failed_open(thd))
+          if (ot_ctx.recover_from_failed_open())
             goto err;
 
           /* Re-open temporary tables after close_tables_for_reopen(). */
@@ -4987,7 +4991,7 @@ restart:
           {
             close_tables_for_reopen(thd, start,
                                     ot_ctx.start_of_statement_svp());
-            if (ot_ctx.recover_from_failed_open(thd))
+            if (ot_ctx.recover_from_failed_open())
               goto err;
 
             /* Re-open temporary tables after close_tables_for_reopen(). */
@@ -5461,7 +5465,7 @@ TABLE *open_ltable(THD *thd, TABLE_LIST *table_list, thr_lock_type lock_type,
     */
     thd->mdl_context.rollback_to_savepoint(ot_ctx.start_of_statement_svp());
     table_list->mdl_request.ticket= 0;
-    if (ot_ctx.recover_from_failed_open(thd))
+    if (ot_ctx.recover_from_failed_open())
       break;
   }
 

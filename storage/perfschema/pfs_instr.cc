@@ -105,6 +105,11 @@ ulong session_connect_attrs_size_per_thread;
 /** Number of connection attributes lost */
 ulong session_connect_attrs_lost= 0;
 
+ulong metadata_lock_max;
+ulong metadata_lock_lost;
+/** True when @c metadata_lock_array is full. */
+bool metadata_lock_full;
+
 /**
   Mutex instrumentation instances array.
   @sa mutex_max
@@ -161,6 +166,8 @@ PFS_table *table_array= NULL;
   @sa socket_lost
 */
 PFS_socket *socket_array= NULL;
+
+PFS_metadata_lock *metadata_lock_array= NULL;
 
 PFS_stage_stat *global_instr_class_stages_array= NULL;
 PFS_statement_stat *global_instr_class_statements_array= NULL;
@@ -229,6 +236,9 @@ int init_instruments(const PFS_global_param *param)
   socket_max= param->m_socket_sizing;
   socket_full= false;
   socket_lost= 0;
+  metadata_lock_max= param->m_metadata_lock_sizing;
+  metadata_lock_full= false;
+  metadata_lock_lost= 0;
 
   events_waits_history_per_thread= param->m_events_waits_history_sizing;
   thread_waits_history_sizing= param->m_thread_sizing
@@ -269,6 +279,7 @@ int init_instruments(const PFS_global_param *param)
   file_handle_array= NULL;
   table_array= NULL;
   socket_array= NULL;
+  metadata_lock_array= NULL;
   thread_array= NULL;
   thread_waits_history_array= NULL;
   thread_stages_history_array= NULL;
@@ -326,6 +337,13 @@ int init_instruments(const PFS_global_param *param)
   {
     socket_array= PFS_MALLOC_ARRAY(socket_max, PFS_socket, MYF(MY_ZEROFILL));
     if (unlikely(socket_array == NULL))
+      return 1;
+  }
+
+  if (metadata_lock_max > 0)
+  {
+    metadata_lock_array= PFS_MALLOC_ARRAY(metadata_lock_max, PFS_metadata_lock, MYF(MY_ZEROFILL));
+    if (unlikely(metadata_lock_array == NULL))
       return 1;
   }
 
@@ -513,6 +531,9 @@ void cleanup_instruments(void)
   pfs_free(socket_array);
   socket_array= NULL;
   socket_max= 0;
+  pfs_free(metadata_lock_array);
+  metadata_lock_array= NULL;
+  metadata_lock_max= 0;
   pfs_free(thread_array);
   thread_array= NULL;
   thread_max= 0;
@@ -1122,6 +1143,11 @@ PFS_socket *sanitize_socket(PFS_socket *unsafe)
   SANITIZE_ARRAY_BODY(PFS_socket, socket_array, socket_max, unsafe);
 }
 
+PFS_metadata_lock *sanitize_metadata_lock(PFS_metadata_lock *unsafe)
+{
+  SANITIZE_ARRAY_BODY(PFS_metadata_lock, metadata_lock_array, metadata_lock_max, unsafe);
+}
+
 /**
   Destroy instrumentation for a thread instance.
   @param pfs                          the thread to destroy
@@ -1374,7 +1400,7 @@ search:
         pfs->m_identity= (const void *)pfs;
 
         int res;
-        res= lf_hash_insert(&filename_hash, thread->m_filename_hash_pins,
+        res= lf_hash_insert(&filename_hash, pins,
                             &pfs);
         if (likely(res == 0))
         {
@@ -1490,9 +1516,12 @@ PFS_table* create_table(PFS_table_share *share, PFS_thread *opening_thread,
         pfs->m_lock_timed= share->m_timed && global_table_lock_class.m_timed;
         pfs->m_has_io_stats= false;
         pfs->m_has_lock_stats= false;
+        pfs->m_internal_lock= PFS_TL_NONE;
+        pfs->m_external_lock= PFS_TL_NONE;
         share->inc_refcount();
         pfs->m_table_stat.fast_reset();
         pfs->m_thread_owner= opening_thread;
+        pfs->m_owner_event_id= opening_thread->m_event_id;
         pfs->m_lock.dirty_to_allocated();
         return pfs;
       }
@@ -1711,6 +1740,63 @@ void destroy_socket(PFS_socket *pfs)
   pfs->m_addr_len= 0;
   pfs->m_lock.allocated_to_free();
   socket_full= false;
+}
+
+PFS_metadata_lock* create_metadata_lock(void *identity,
+                                        const MDL_key *mdl_key,
+                                        opaque_mdl_type mdl_type,
+                                        opaque_mdl_duration mdl_duration,
+                                        opaque_mdl_status mdl_status,
+                                        const char *src_file,
+                                        uint src_line)
+{
+  static uint PFS_ALIGNED metadata_lock_monotonic_index= 0;
+  uint index;
+  uint attempts= 0;
+  PFS_metadata_lock *pfs;
+
+  if (metadata_lock_full)
+  {
+    metadata_lock_lost++;
+    return NULL;
+  }
+
+  while (++attempts <= metadata_lock_max)
+  {
+    /* See create_mutex() */
+    index= PFS_atomic::add_u32(& metadata_lock_monotonic_index, 1) % metadata_lock_max;
+    pfs= metadata_lock_array + index;
+
+    if (pfs->m_lock.is_free())
+    {
+      if (pfs->m_lock.free_to_dirty())
+      {
+        pfs->m_identity= identity;
+        pfs->m_enabled= global_metadata_class.m_enabled && flag_global_instrumentation;
+        pfs->m_timed= global_metadata_class.m_timed;
+        pfs->m_mdl_key.mdl_key_init(mdl_key);
+        pfs->m_mdl_type= mdl_type;
+        pfs->m_mdl_duration= mdl_duration;
+        pfs->m_mdl_status= mdl_status;
+        pfs->m_src_file= src_file;
+        pfs->m_src_line= src_line;
+        pfs->m_owner_thread_id= 0;
+        pfs->m_owner_event_id= 0;
+        pfs->m_lock.dirty_to_allocated();
+        return pfs;
+      }
+    }
+  }
+
+  metadata_lock_lost++;
+  metadata_lock_full= true;
+  return NULL;
+}
+
+void destroy_metadata_lock(PFS_metadata_lock *pfs)
+{
+  DBUG_ASSERT(pfs != NULL);
+  pfs->m_lock.allocated_to_free();
 }
 
 static void reset_mutex_waits_by_instance(void)
@@ -2456,6 +2542,18 @@ void update_socket_derived_flags()
   }
 }
 
+void update_metadata_derived_flags()
+{
+  PFS_metadata_lock *pfs= metadata_lock_array;
+  PFS_metadata_lock *pfs_last= metadata_lock_array + metadata_lock_max;
+
+  for ( ; pfs < pfs_last; pfs++)
+  {
+    pfs->m_enabled= global_metadata_class.m_enabled && flag_global_instrumentation;
+    pfs->m_timed= global_metadata_class.m_timed;
+  }
+}
+
 void update_instruments_derived_flags()
 {
   update_mutex_derived_flags();
@@ -2464,6 +2562,7 @@ void update_instruments_derived_flags()
   update_file_derived_flags();
   update_table_derived_flags();
   update_socket_derived_flags();
+  update_metadata_derived_flags();
   /* nothing for stages and statements (no instances) */
 }
 

@@ -253,12 +253,12 @@ public:
   int get_default_no_partitions(HA_CREATE_INFO *info);
   bool get_no_parts(const char *name, uint *no_parts);
   void set_auto_partitions(partition_info *part_info);
-  virtual bool is_fatal_error(int error, uint flags)
+  virtual bool is_ignorable_error(int error)
   {
-    if (!handler::is_fatal_error(error, flags) ||
+    if (handler::is_ignorable_error(error) ||
         error == HA_ERR_NO_PARTITION_FOUND)
-      return FALSE;
-    return TRUE;
+      return true;
+    return false;
   }
 
   THR_LOCK_DATA **store_lock(THD *thd,

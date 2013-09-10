@@ -43,6 +43,7 @@ Smart ALTER TABLE
 #include "handler0alter.h"
 #include "srv0mon.h"
 #include "fts0priv.h"
+#include "fts0plugin.h"
 #include "pars0pars.h"
 #include "ha_innodb.h"
 
@@ -1483,6 +1484,7 @@ innobase_create_index_def(
 		mem_heap_alloc(heap, n_fields * sizeof *index->fields));
 
 	index->ind_type = 0;
+	index->parser = NULL;
 	index->key_number = key_number;
 	index->n_fields = n_fields;
 	len = strlen(key->name) + 1;
@@ -1510,6 +1512,30 @@ innobase_create_index_def(
 		DBUG_ASSERT(!(key->flags & HA_NOSAME));
 		DBUG_ASSERT(!index->ind_type);
 		index->ind_type |= DICT_FTS;
+
+		/* Set plugin parser */
+		/* Note: key->parser is only parser name,
+			 we need to get parser from altered_table instead */
+		if (key->flags & HA_USES_PARSER) {
+			for (ulint j = 0; j < altered_table->s->keys; j++) {
+				if (ut_strcmp(altered_table->key_info[j].name,
+					      key->name) == 0) {
+					ut_ad(altered_table->key_info[j].flags
+					      & HA_USES_PARSER);
+
+					plugin_ref	parser=
+						altered_table->key_info[j].parser;
+					index->parser =
+						static_cast<st_mysql_ftparser*>(
+						plugin_decl(parser)->info);
+					break;
+				}
+			}
+
+			DBUG_EXECUTE_IF("fts_instrument_use_default_parser",
+				index->parser = &fts_default_parser;);
+			ut_ad(index->parser);
+		}
 	}
 
 	if (!new_clustered) {

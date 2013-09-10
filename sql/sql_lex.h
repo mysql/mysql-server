@@ -669,6 +669,8 @@ public:
 #else
   void assert_not_fully_clean() {}
 #endif
+private:
+  void invalidate();
 };
 
 typedef class st_select_lex_unit SELECT_LEX_UNIT;
@@ -818,6 +820,12 @@ public:
   /// Array of pointers to top elements of all_fields list
   Ref_ptr_array ref_pointer_array;
 
+  /// Number of derived tables and views
+  uint derived_table_count;
+  /// Number of materialized derived tables and views
+  uint materialized_table_count;
+  /// Number of partitioned tables
+  uint partitioned_table_count;
   /*
     number of items in select_list and HAVING clause used to get number
     bigger then can be number of entries that will be added to all item
@@ -949,6 +957,7 @@ public:
   SELECT_LEX *next_select_in_list() const { return link_next; }
 
   void mark_as_dependent(SELECT_LEX *last);
+  void invalidate();
 
   bool set_braces(bool value);
   bool inc_in_sum_expr();

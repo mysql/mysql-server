@@ -153,10 +153,7 @@ retry:
 			&node->pcur, &mtr);
 	ut_a(success);
 
-	btr_cur_pessimistic_delete(&err, FALSE, btr_cur, 0,
-				   trx_is_recv(node->trx)
-				   ? RB_RECOVERY
-				   : RB_NORMAL, &mtr);
+	btr_cur_pessimistic_delete(&err, FALSE, btr_cur, 0, true, &mtr);
 
 	/* The delete operation may fail if we have little
 	file space left: TODO: easiest to crash the database
@@ -238,14 +235,13 @@ row_undo_ins_remove_sec_low(
 		err = btr_cur_optimistic_delete(btr_cur, 0, &mtr)
 			? DB_SUCCESS : DB_FAIL;
 	} else {
-		/* No need to distinguish RB_RECOVERY here, because we
-		are deleting a secondary index record: the distinction
-		between RB_NORMAL and RB_RECOVERY only matters when
-		deleting a record that contains externally stored
-		columns. */
+		/* Passing rollback=false here, because we are
+		deleting a secondary index record: the distinction
+		only matters when deleting a record that contains
+		externally stored columns. */
 		ut_ad(!dict_index_is_clust(index));
 		btr_cur_pessimistic_delete(&err, FALSE, btr_cur, 0,
-					   RB_NORMAL, &mtr);
+					   false, &mtr);
 	}
 func_exit:
 	btr_pcur_close(&pcur);

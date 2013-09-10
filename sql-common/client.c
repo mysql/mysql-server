@@ -109,6 +109,10 @@ PSI_memory_key key_memory_MYSQL;
 PSI_memory_key key_memory_MYSQL_RES;
 PSI_memory_key key_memory_MYSQL_ROW;
 
+#if defined (_WIN32) && !defined (EMBEDDED_LIBRARY)
+PSI_memory_key key_memory_create_shared_memory;
+#endif /* _WIN32 && ! EMBEDDED_LIBRARY */
+
 #ifdef HAVE_PSI_INTERFACE
 /*
   This code is common to the client and server,
@@ -116,10 +120,6 @@ PSI_memory_key key_memory_MYSQL_ROW;
   for example with replication.
   Therefore, the code is also instrumented.
 */
-
-#if defined (_WIN32) && !defined (EMBEDDED_LIBRARY)
-PSI_memory_key key_memory_create_shared_memory;
-#endif /* _WIN32 && ! EMBEDDED_LIBRARY */
 
 static PSI_memory_info all_client_memory[]=
 {
@@ -1443,7 +1443,8 @@ void mysql_read_default_options(struct st_mysql_options *options,
           if ((options->protocol= find_type(opt_arg, &sql_protocol_typelib,
                                             FIND_TYPE_BASIC)) <= 0)
           {
-            fprintf(stderr, "Unknown option to protocol: %s\n", opt_arg);
+            my_message_local(ERROR_LEVEL,
+                             "Unknown option to protocol: %s", opt_arg);
             exit(1);
           }
           break;
@@ -3751,6 +3752,9 @@ CLI_MYSQL_REAL_CONNECT(MYSQL *mysql,const char *host, const char *user,
         {
           set_mysql_error(mysql, CR_OUT_OF_MEMORY, unknown_sqlstate);
           closesocket(sock);
+          freeaddrinfo(res_lst);
+          if (client_bind_ai_lst)
+            freeaddrinfo(client_bind_ai_lst);
           goto error;
         }
       }
@@ -3759,6 +3763,9 @@ CLI_MYSQL_REAL_CONNECT(MYSQL *mysql,const char *host, const char *user,
       {
         set_mysql_error(mysql, CR_UNKNOWN_ERROR, unknown_sqlstate);
         closesocket(sock);
+        freeaddrinfo(res_lst);
+        if (client_bind_ai_lst)
+          freeaddrinfo(client_bind_ai_lst);
         goto error;
       }
 
@@ -4674,6 +4681,7 @@ mysql_options(MYSQL *mysql,enum mysql_option option, const void *arg)
     mysql->options.methods_to_use= option;
     break;
   case MYSQL_SET_CLIENT_IP:
+    my_free(mysql->options.ci.client_ip);
     mysql->options.ci.client_ip= my_strdup(key_memory_mysql_options,
                                            arg, MYF(MY_WME));
     break;

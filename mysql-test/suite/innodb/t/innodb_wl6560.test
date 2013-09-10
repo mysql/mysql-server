@@ -5,7 +5,7 @@
 --source include/have_innodb.inc
 # Embedded server does not restart of server
 --source include/not_embedded.inc
-
+--source include/no_valgrind_without_big.inc
 
 call mtr.add_suppression("Please add another temp-data file or use 'autoextend' for the last data file");
 call mtr.add_suppression("The table 't1' is full");

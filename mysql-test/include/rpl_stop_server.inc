@@ -47,8 +47,8 @@ if ($rpl_debug)
 --exec echo "wait" > $MYSQLTEST_VARDIR/tmp/mysqld.$rpl_server_number.expect
 
 # Send shutdown to the connected server and give
-# it 10 seconds to die before zapping it
-shutdown_server 10;
+# it 14 seconds to die before zapping it
+shutdown_server 14;
 
 --source include/wait_until_disconnected.inc
 

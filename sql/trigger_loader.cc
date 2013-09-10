@@ -938,7 +938,7 @@ bool Trigger_loader::drop_all_triggers(const char *db_name,
 #ifdef HAVE_PSI_SP_INTERFACE                                                    
     LEX_STRING db_name= t->get_db_name();
     /* Drop statistics for this stored program from performance schema. */      
-    MYSQL_DROP_SP(SP_OBJECT_TYPE_TRIGGER,                                       
+    MYSQL_DROP_SP(SP_TYPE_TRIGGER,                                       
                   db_name.str, db_name.length,    
                   trigger_name.str, trigger_name.length);
 #endif

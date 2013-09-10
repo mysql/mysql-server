@@ -104,6 +104,7 @@ table_ews_by_thread_by_event_name.h
 table_ews_by_user_by_event_name.h
 table_ews_global_by_event_name.h
 table_file_instances.h
+table_md_locks.h
 table_mems_global_by_event_name.h
 table_mems_by_account_by_event_name.h
 table_mems_by_host_by_event_name.h
@@ -125,6 +126,7 @@ table_setup_instruments.h
 table_setup_objects.h
 table_setup_timers.h
 table_sync_instances.h
+table_table_handles.h
 table_threads.h
 table_tiws_by_index_usage.h
 table_tiws_by_table.h
@@ -194,6 +196,7 @@ table_ews_by_thread_by_event_name.cc
 table_ews_by_user_by_event_name.cc
 table_ews_global_by_event_name.cc
 table_file_instances.cc
+table_md_locks.cc
 table_mems_global_by_event_name.cc
 table_mems_by_account_by_event_name.cc
 table_mems_by_host_by_event_name.cc
@@ -215,6 +218,7 @@ table_setup_instruments.cc
 table_setup_objects.cc
 table_setup_timers.cc
 table_sync_instances.cc
+table_table_handles.cc
 table_threads.cc
 table_tiws_by_index_usage.cc
 table_tiws_by_table.cc

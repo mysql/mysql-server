@@ -2111,7 +2111,7 @@ void mysqld_list_processes(THD *thd,const char *user, bool verbose)
         thd_info->user= thd->strdup(tmp_sctx->user ? tmp_sctx->user :
                                     (tmp->system_thread ?
                                      "system user" : "unauthenticated user"));
-	if (tmp->peer_port && (tmp_sctx->get_host()->length() || 
+	if (tmp->peer_port && (tmp_sctx->get_host()->length() ||
             tmp_sctx->get_ip()->length()) && thd->security_ctx->host_or_ip[0])
 	{
 	  if ((thd_info->host= (char*) thd->alloc(LIST_PROCESS_HOST_LEN+1)))
@@ -2123,10 +2123,10 @@ void mysqld_list_processes(THD *thd,const char *user, bool verbose)
                                       tmp_sctx->host_or_ip : 
                                       tmp_sctx->get_host()->length() ?
                                       tmp_sctx->get_host()->ptr() : "");
-        if ((thd_info->db=tmp->db))             // Safe test
-          thd_info->db=thd->strdup(thd_info->db);
         thd_info->command=(int) tmp->get_command();
         mysql_mutex_lock(&tmp->LOCK_thd_data);
+        if ((thd_info->db= tmp->db))             // Safe test
+          thd_info->db= thd->strdup(thd_info->db);
         if ((mysys_var= tmp->mysys_var))
           mysql_mutex_lock(&mysys_var->mutex);
         thd_info->proc_info= (char*) (tmp->killed == THD::KILL_CONNECTION? "Killed" : 0);
@@ -2202,7 +2202,7 @@ int fill_schema_processlist(THD* thd, TABLE_LIST* tables, Item* cond)
       THD* tmp= *it;
       Security_context *tmp_sctx= tmp->security_ctx;
       struct st_my_thread_var *mysys_var;
-      const char *val;
+      const char *val, *db;
 
       if ((!tmp->vio_ok() && !tmp->system_thread) ||
           (user && (!tmp_sctx->user || strcmp(tmp_sctx->user, user))))
@@ -2217,7 +2217,7 @@ int fill_schema_processlist(THD* thd, TABLE_LIST* tables, Item* cond)
             (tmp->system_thread ? "system user" : "unauthenticated user");
       table->field[1]->store(val, strlen(val), cs);
       /* HOST */
-      if (tmp->peer_port && (tmp_sctx->get_host()->length() || 
+      if (tmp->peer_port && (tmp_sctx->get_host()->length() ||
           tmp_sctx->get_ip()->length()) && thd->security_ctx->host_or_ip[0])
       {
         char host[LIST_PROCESS_HOST_LEN + 1];
@@ -2229,13 +2229,13 @@ int fill_schema_processlist(THD* thd, TABLE_LIST* tables, Item* cond)
         table->field[2]->store(tmp_sctx->host_or_ip,
                                strlen(tmp_sctx->host_or_ip), cs);
       /* DB */
-      if (tmp->db)
+      mysql_mutex_lock(&tmp->LOCK_thd_data);
+      if ((db= tmp->db))
       {
-        table->field[3]->store(tmp->db, strlen(tmp->db), cs);
+        table->field[3]->store(db, strlen(db), cs);
         table->field[3]->set_notnull();
       }
 
-      mysql_mutex_lock(&tmp->LOCK_thd_data);
       if ((mysys_var= tmp->mysys_var))
         mysql_mutex_lock(&mysys_var->mutex);
       /* COMMAND */
@@ -3647,8 +3647,9 @@ try_acquire_high_prio_shared_mdl_lock(THD *thd, TABLE_LIST *table,
                                       bool can_deadlock)
 {
   bool error;
-  table->mdl_request.init(MDL_key::TABLE, table->db, table->table_name,
-                          MDL_SHARED_HIGH_PRIO, MDL_TRANSACTION);
+  MDL_REQUEST_INIT(&table->mdl_request,
+                   MDL_key::TABLE, table->db, table->table_name,
+                   MDL_SHARED_HIGH_PRIO, MDL_TRANSACTION);
 
   if (can_deadlock)
   {
