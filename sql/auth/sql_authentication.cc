@@ -1867,6 +1867,13 @@ wrap_plguin_data_into_proper_command(NET *net,
   return net_write_command(net, 1, (uchar *) "", 0, packet, packet_len);
 }
 
+/*
+  Note: The following functions are declared inside extern "C" because
+  they are used to initialize C structure MPVIO (see
+  server_mpvio_initialize()).
+*/
+
+extern "C" {
 
 /**
   vio->write_packet() callback method for server authentication plugins
@@ -2016,6 +2023,7 @@ static void server_mpvio_info(MYSQL_PLUGIN_VIO *vio,
   mpvio_info(mpvio->net->vio, info);
 }
 
+} // extern "C"
 
 static int do_auth_once(THD *thd, LEX_STRING *auth_plugin_name,
                         MPVIO_EXT *mpvio)
