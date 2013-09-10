@@ -24,7 +24,7 @@
 #include "AsyncNdbContext.h"
 #include "AsyncMethodCall.h"
 
-char * NDB_MAGIC_TICKET = "NDB Magic Ticket";
+static const char * NDB_MAGIC_TICKET = "NDB Magic Ticket";
 
 /* Thread starter, for pthread_create()
 */
@@ -110,7 +110,7 @@ int AsyncNdbContext::executeAsynch(NdbTransaction *tx,
               mcallptr->native_obj, execType, abortOption, ndb);
 
   /* send the transaction to NDB */
-  ndb->setCustomData(NDB_MAGIC_TICKET);
+  ndb->setCustomData((void *)NDB_MAGIC_TICKET);
   tx->executeAsynch((NdbTransaction::ExecType) execType,
                     ndbTxCompleted,
                     mcallptr,

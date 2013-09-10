@@ -796,14 +796,14 @@ Handle<Value> CharReader(const NdbDictionary::Column *col,
     len /= 2;
     stats.read_strings_externalized++;
     uint16_t * buf = (uint16_t *) str;
-    while(buf[--len] == ' ') ; len++;  // skip padding, then undo 1
+    while(buf[--len] == ' ') {}; len++;  // skip padding, then undo 1
     ExternalizedUnicodeString * ext = new ExternalizedUnicodeString(buf, len);
     string = String::NewExternal(ext);
     //DEBUG_PRINT("(B): External UTF-16-LE");
   }
   else if(csinfo->isUtf8) {
     stats.read_strings_created++;
-    while(str[--len] == ' ') ; len++; // skip padding, then undo 1
+    while(str[--len] == ' ') {}; len++; // skip padding, then undo 1
     string = String::New(str, len);
     //DEBUG_PRINT("(C): New From UTF-8");
   }
@@ -825,7 +825,7 @@ Handle<Value> CharReader(const NdbDictionary::Column *col,
                  csmap.getUTF8CharsetNumber(),
                  str, recode_buffer);
     len = lengths[1];
-    while(recode_buffer[--len] == ' ') ; len++; // skip padding, then undo 1
+    while(recode_buffer[--len] == ' ') {}; len++; // skip padding, then undo 1
 
     /* Create a new JS String from the UTF-8 recode buffer */
     string = String::New(recode_buffer, len);
