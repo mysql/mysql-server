@@ -518,7 +518,9 @@ set sql_mode='error_for_division_by_zero';
 --echo #
 --enable_info
 insert t1 (data) values ('letter'), (1/0);
+--disable_ps_protocol
 update t1 set data='envelope' where 1/0 or 1;
+--enable_ps_protocol
 insert t1 (data) values (default), (1/0), ('dead beef');
 --disable_info
 
