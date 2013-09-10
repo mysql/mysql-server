@@ -49,6 +49,7 @@ class DBScanHelper : public Operation {
 public:
   DBScanHelper(const Arguments &);
   NdbScanOperation * prepareScan();
+  const NdbError & getNdbError();
 private:
   NdbTransaction *tx;
   NdbIndexScanOperation::IndexBound *bound;
@@ -149,6 +150,10 @@ NdbScanOperation * DBScanHelper::prepareScan() {
   return scan_op;
 }
 
+const NdbError & DBScanHelper::getNdbError() {
+  return tx->getNdbError();
+}
+
 
 //// DBScanHelper Wrapper
 
@@ -181,6 +186,7 @@ Handle<Value> prepareScan_wrapper(const Arguments &args) {
   typedef NativeMethodCall_0_<NdbScanOperation *, DBScanHelper> MCALL;
   MCALL * mcallptr = new MCALL(& DBScanHelper::prepareScan, args);
   mcallptr->wrapReturnValueAs(getNdbScanOperationEnvelope());
+  mcallptr->errorHandler = getNdbErrorIfNull<NdbScanOperation *, DBScanHelper>;
   mcallptr->runAsync();
   
   return Undefined();

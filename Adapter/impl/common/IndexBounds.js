@@ -422,36 +422,36 @@ function createNumberLine(operator, value) {
   var s;
   var l = null;
 
-  if(operator < COND_EQ) {
-    switch(operator) {
-      case COND_LE:
-        hp.inclusive = true;
-        /* fall through */
-      case COND_LT:
-        hp.value = value;
-        break;
-
-      case COND_GE:
-        lp.inclusive = true;
-        /* fall through */
-      case COND_GT:
-        lp.value = value;
-        break;
-    
-    }
-    s = new Segment(lp, hp);
-    return createNumberLineFromSegment(s);
-  }
-
-  if(operator < COND_LIKE) { /* EQ and NE */
-    lp.value = value;
-    lp.inclusive = (operator === COND_EQ);
-    l = new LineNumber();
-    l.list.push(lp);
-    l.list.push(lp);  /* Push it twice */
-    l.hasNegInf = (operator === COND_NE);
-    return l;
-  }
+//  if(operator < COND_EQ) {
+//    switch(operator) {
+//      case COND_LE:
+//        hp.inclusive = true;
+//        /* fall through */
+//      case COND_LT:
+//        hp.value = value;
+//        break;
+//
+//      case COND_GE:
+//        lp.inclusive = true;
+//        /* fall through */
+//      case COND_GT:
+//        lp.value = value;
+//        break;
+//    
+//    }
+//    s = new Segment(lp, hp);
+//    return createNumberLineFromSegment(s);
+//  }
+//
+//  if(operator < COND_LIKE) { /* EQ and NE */
+//    lp.value = value;
+//    lp.inclusive = (operator === COND_EQ);
+//    l = new LineNumber();
+//    l.list.push(lp);
+//    l.list.push(lp);  /* Push it twice */
+//    l.hasNegInf = (operator === COND_NE);
+//    return l;
+//  }
 }
 
 
@@ -493,8 +493,7 @@ function getBoundingSegmentForDataType(columnMetadata) {
     }
   }
 
-  return new Segment(new Endpoint(lowBound, 
-  , highBound);
+  return new Segment(new Endpoint(lowBound, highBound));
 }
 
 
