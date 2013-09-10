@@ -41,7 +41,8 @@
 # - INSTALL_BINDIR          (directory with client executables and scripts)
 # - INSTALL_SBINDIR         (directory with mysqld)
 # - INSTALL_SCRIPTDIR       (several scripts, rarely used)
-# - INSTALL_SYSCONFDIR	    (config files. Usually /etc or nothing)
+# - INSTALL_SYSCONFDIR	    (my.cnf config file. Usually /etc or nothing)
+# - INSTALL_SYSCONF2DIR     (additional config files, e.g. /etc/mysql/conf.d)
 #
 # - INSTALL_LIBDIR          (directory with client end embedded libraries)
 # - INSTALL_PLUGINDIR       (directory for plugins)
@@ -145,6 +146,7 @@ SET(INSTALL_BINDIR_RPM                  "bin")
 SET(INSTALL_SBINDIR_RPM                 "sbin")
 SET(INSTALL_SCRIPTDIR_RPM               "bin")
 SET(INSTALL_SYSCONFDIR_RPM		"/etc")
+SET(INSTALL_SYSCONF2DIR_RPM             "/etc/my.cnf.d")
 #
 IF(CMAKE_SYSTEM_PROCESSOR MATCHES "x86_64")
   SET(INSTALL_LIBDIR_RPM                "lib64")
@@ -178,6 +180,7 @@ SET(INSTALL_UNIX_ADDRDIR_RPM            "${INSTALL_MYSQLDATADIR_RPM}/mysql.sock"
 SET(INSTALL_BINDIR_DEB                  "bin")
 SET(INSTALL_SBINDIR_DEB                 "sbin")
 SET(INSTALL_SCRIPTDIR_DEB               "bin")
+SET(INSTALL_SYSCONF2DIR_DEB             "/etc/mysql/conf.d")
 #
 SET(INSTALL_LIBDIR_DEB                  "lib")
 SET(INSTALL_PLUGINDIR_DEB               "lib/mysql/plugin")
@@ -238,7 +241,7 @@ SET(OLD_INSTALL_LAYOUT ${INSTALL_LAYOUT} CACHE INTERNAL "")
 # Set INSTALL_FOODIR variables for chosen layout (for example, INSTALL_BINDIR
 # will be defined  as ${INSTALL_BINDIR_STANDALONE} by default if STANDALONE
 # layout is chosen)
-FOREACH(var BIN SBIN LIB MYSQLSHARE SHARE PLUGIN INCLUDE SCRIPT DOC MAN SYSCONF
+FOREACH(var BIN SBIN LIB MYSQLSHARE SHARE PLUGIN INCLUDE SCRIPT DOC MAN SYSCONF SYSCONF2
     INFO MYSQLTEST SQLBENCH DOCREADME SUPPORTFILES MYSQLDATA PLUGINTEST UNIX_ADDR)
   SET(INSTALL_${var}DIR  ${INSTALL_${var}DIR_${INSTALL_LAYOUT}}
   CACHE STRING "${var} installation directory" ${FORCE})

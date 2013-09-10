@@ -1,0 +1,9 @@
+[mariadb]
+# See https://mariadb.com/kb/en/how-to-enable-tokudb-in-mariadb/
+# for instructions how to enable TokuDB
+#
+# See https://mariadb.com/kb/en/tokudb-differences/ for differences
+# between TokuDB in MariaDB and TokuDB from http://www.tokutek.com/
+
+#plugin-load=ha_tokudb.so
+
