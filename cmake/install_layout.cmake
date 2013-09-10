@@ -156,8 +156,8 @@ ENDIF()
 #
 SET(INSTALL_INCLUDEDIR_RPM              "include/mysql")
 #
-SET(INSTALL_DOCDIR_RPM                  "share/doc/${CPACK_SOURCE_PACKAGE_FILE_NAME}")
-SET(INSTALL_DOCREADMEDIR_RPM            "share/doc/${CPACK_SOURCE_PACKAGE_FILE_NAME}")
+SET(INSTALL_DOCDIR_RPM                  "share/doc")
+SET(INSTALL_DOCREADMEDIR_RPM            "share/doc")
 SET(INSTALL_INFODIR_RPM                 "share/info")
 SET(INSTALL_MANDIR_RPM                  "share/man")
 #
@@ -184,8 +184,8 @@ SET(INSTALL_PLUGINDIR_DEB               "lib/mysql/plugin")
 #
 SET(INSTALL_INCLUDEDIR_DEB              "include/mysql")
 #
-SET(INSTALL_DOCDIR_DEB                  "share/doc/mariadb-server-5.5")
-SET(INSTALL_DOCREADMEDIR_DEB            "share/doc/mariadb-server-5.5")
+SET(INSTALL_DOCDIR_DEB                  "share/doc")
+SET(INSTALL_DOCREADMEDIR_DEB            "share/doc")
 SET(INSTALL_MANDIR_DEB                  "share/man")
 SET(INSTALL_INFODIR_DEB                 "share/info")
 #

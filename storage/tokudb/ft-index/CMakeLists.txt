@@ -57,11 +57,7 @@ add_subdirectory(include)
 add_subdirectory(toku_include)
 #add_subdirectory(examples)
 
-install(
-  FILES README.md README-TOKUDB
-  COMPONENT "tokudb-engine"
-  DESTINATION "${INSTALL_DOCREADMEDIR}/tokudb"
-  )
+INSTALL_DOCUMENTATION(README.md README-TOKUDB COMPONENT "tokudb-engine")
 
 ## build tags
 #include(TokuBuildTagDatabases)
