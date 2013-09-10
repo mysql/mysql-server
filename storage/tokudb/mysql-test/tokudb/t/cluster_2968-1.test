@@ -1,0 +1,65 @@
+# test that the query planner picks clustering keys for joins
+
+# create table s
+--disable_warnings
+drop table if exists s;
+--enable_warnings
+create table s (a int, b int, c int) engine=tokudb;
+
+# populate table s
+let $a = 10;
+while ($a) {
+    let $b = 10;
+    while ($b) {
+        let $c = 10;
+        while ($c) {
+            eval insert into s values ($a,$b,$c);
+	    dec $c;
+	}
+	dec $b;
+    }
+    dec $a;
+}
+    
+# create table t
+--disable_warnings
+drop table if exists t;
+--enable_warnings
+create table t like s;
+insert into t select * from s;
+
+# join with no keys
+show create table s;
+show create table t;
+explain select straight_join * from s,t where s.b = t.b;
+
+# join with uncovered keys
+alter table s add key(b);
+alter table t add key(b);
+show create table s;
+show create table t;
+explain select straight_join * from s,t where s.b = t.b;
+
+# join with uncovered keys and clustering keys
+alter table s add key(b) clustering=yes;
+alter table t add key(b) clustering=yes;
+show create table s;
+show create table t;
+explain select straight_join * from s,t where s.b = t.b;
+
+# join with clustering keys
+alter table s drop key b;
+alter table t drop key b;
+show create table s;
+show create table t;
+explain select straight_join * from s,t where s.b = t.b;
+
+# put the uncovered keys back
+alter table s add key(b);
+alter table t add key(b);
+show create table s;
+show create table t;
+explain select straight_join * from s,t where s.b = t.b;
+
+# cleanup
+drop table s,t;

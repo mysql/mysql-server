@@ -158,11 +158,6 @@ for eng in $MARIA_BINARIES ; do
   cp storage/maria/$TARGET/$eng.{exe,pdb} $DESTDIR/bin
 done
 
-# PBXT
-if [ -f "storage/pbxt/bin/xtstat.exe" ] ; then
-  cp storage/pbxt/bin/xtstat.{exe,pdb} $DESTDIR/bin
-fi
-
 if [ x"$TARGET" != x"release" ] ; then
   cp client/$TARGET/mysql.pdb                            $DESTDIR/bin/
   cp client/$TARGET/mysqladmin.pdb                       $DESTDIR/bin/

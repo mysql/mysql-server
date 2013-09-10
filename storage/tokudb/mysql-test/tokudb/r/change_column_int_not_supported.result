@@ -1,0 +1,1543 @@
+DROP TABLE IF EXISTS t;
+SET SESSION DEFAULT_STORAGE_ENGINE="TokuDB";
+SET SESSION TOKUDB_DISABLE_SLOW_ALTER=1;
+CREATE TABLE t (a TINYINT );
+ALTER TABLE t CHANGE COLUMN a a TINYINT ;
+DROP TABLE t;
+CREATE TABLE t (a TINYINT );
+ALTER TABLE t CHANGE COLUMN a a TINYINT NOT NULL;
+ERROR 42000: Table 't' uses an extension that doesn't exist in this XYZ version
+DROP TABLE t;
+CREATE TABLE t (a TINYINT );
+ALTER TABLE t CHANGE COLUMN a a TINYINT UNSIGNED;
+ERROR 42000: Table 't' uses an extension that doesn't exist in this XYZ version
+DROP TABLE t;
+CREATE TABLE t (a TINYINT );
+ALTER TABLE t CHANGE COLUMN a a TINYINT UNSIGNED NOT NULL;
+ERROR 42000: Table 't' uses an extension that doesn't exist in this XYZ version
+DROP TABLE t;
+CREATE TABLE t (a TINYINT );
+ALTER TABLE t CHANGE COLUMN a a SMALLINT ;
+DROP TABLE t;
+CREATE TABLE t (a TINYINT );
+ALTER TABLE t CHANGE COLUMN a a SMALLINT NOT NULL;
+ERROR 42000: Table 't' uses an extension that doesn't exist in this XYZ version
+DROP TABLE t;
+CREATE TABLE t (a TINYINT );
+ALTER TABLE t CHANGE COLUMN a a SMALLINT UNSIGNED;
+ERROR 42000: Table 't' uses an extension that doesn't exist in this XYZ version
+DROP TABLE t;
+CREATE TABLE t (a TINYINT );
+ALTER TABLE t CHANGE COLUMN a a SMALLINT UNSIGNED NOT NULL;
+ERROR 42000: Table 't' uses an extension that doesn't exist in this XYZ version
+DROP TABLE t;
+CREATE TABLE t (a TINYINT );
+ALTER TABLE t CHANGE COLUMN a a MEDIUMINT ;
+DROP TABLE t;
+CREATE TABLE t (a TINYINT );
+ALTER TABLE t CHANGE COLUMN a a MEDIUMINT NOT NULL;
+ERROR 42000: Table 't' uses an extension that doesn't exist in this XYZ version
+DROP TABLE t;
+CREATE TABLE t (a TINYINT );
+ALTER TABLE t CHANGE COLUMN a a MEDIUMINT UNSIGNED;
+ERROR 42000: Table 't' uses an extension that doesn't exist in this XYZ version
+DROP TABLE t;
+CREATE TABLE t (a TINYINT );
+ALTER TABLE t CHANGE COLUMN a a MEDIUMINT UNSIGNED NOT NULL;
+ERROR 42000: Table 't' uses an extension that doesn't exist in this XYZ version
+DROP TABLE t;
+CREATE TABLE t (a TINYINT );
+ALTER TABLE t CHANGE COLUMN a a INT ;
+DROP TABLE t;
+CREATE TABLE t (a TINYINT );
+ALTER TABLE t CHANGE COLUMN a a INT NOT NULL;
+ERROR 42000: Table 't' uses an extension that doesn't exist in this XYZ version
+DROP TABLE t;
+CREATE TABLE t (a TINYINT );
+ALTER TABLE t CHANGE COLUMN a a INT UNSIGNED;
+ERROR 42000: Table 't' uses an extension that doesn't exist in this XYZ version
+DROP TABLE t;
+CREATE TABLE t (a TINYINT );
+ALTER TABLE t CHANGE COLUMN a a INT UNSIGNED NOT NULL;
+ERROR 42000: Table 't' uses an extension that doesn't exist in this XYZ version
+DROP TABLE t;
+CREATE TABLE t (a TINYINT );
+ALTER TABLE t CHANGE COLUMN a a BIGINT ;
+DROP TABLE t;
+CREATE TABLE t (a TINYINT );
+ALTER TABLE t CHANGE COLUMN a a BIGINT NOT NULL;
+ERROR 42000: Table 't' uses an extension that doesn't exist in this XYZ version
+DROP TABLE t;
+CREATE TABLE t (a TINYINT );
+ALTER TABLE t CHANGE COLUMN a a BIGINT UNSIGNED;
+ERROR 42000: Table 't' uses an extension that doesn't exist in this XYZ version
+DROP TABLE t;
+CREATE TABLE t (a TINYINT );
+ALTER TABLE t CHANGE COLUMN a a BIGINT UNSIGNED NOT NULL;
+ERROR 42000: Table 't' uses an extension that doesn't exist in this XYZ version
+DROP TABLE t;
+CREATE TABLE t (a TINYINT NOT NULL);
+ALTER TABLE t CHANGE COLUMN a a TINYINT ;
+ERROR 42000: Table 't' uses an extension that doesn't exist in this XYZ version
+DROP TABLE t;
+CREATE TABLE t (a TINYINT NOT NULL);
+ALTER TABLE t CHANGE COLUMN a a TINYINT NOT NULL;
+DROP TABLE t;
+CREATE TABLE t (a TINYINT NOT NULL);
+ALTER TABLE t CHANGE COLUMN a a TINYINT UNSIGNED;
+ERROR 42000: Table 't' uses an extension that doesn't exist in this XYZ version
+DROP TABLE t;
+CREATE TABLE t (a TINYINT NOT NULL);
+ALTER TABLE t CHANGE COLUMN a a TINYINT UNSIGNED NOT NULL;
+ERROR 42000: Table 't' uses an extension that doesn't exist in this XYZ version
+DROP TABLE t;
+CREATE TABLE t (a TINYINT NOT NULL);
+ALTER TABLE t CHANGE COLUMN a a SMALLINT ;
+ERROR 42000: Table 't' uses an extension that doesn't exist in this XYZ version
+DROP TABLE t;
+CREATE TABLE t (a TINYINT NOT NULL);
+ALTER TABLE t CHANGE COLUMN a a SMALLINT NOT NULL;
+DROP TABLE t;
+CREATE TABLE t (a TINYINT NOT NULL);
+ALTER TABLE t CHANGE COLUMN a a SMALLINT UNSIGNED;
+ERROR 42000: Table 't' uses an extension that doesn't exist in this XYZ version
+DROP TABLE t;
+CREATE TABLE t (a TINYINT NOT NULL);
+ALTER TABLE t CHANGE COLUMN a a SMALLINT UNSIGNED NOT NULL;
+ERROR 42000: Table 't' uses an extension that doesn't exist in this XYZ version
+DROP TABLE t;
+CREATE TABLE t (a TINYINT NOT NULL);
+ALTER TABLE t CHANGE COLUMN a a MEDIUMINT ;
+ERROR 42000: Table 't' uses an extension that doesn't exist in this XYZ version
+DROP TABLE t;
+CREATE TABLE t (a TINYINT NOT NULL);
+ALTER TABLE t CHANGE COLUMN a a MEDIUMINT NOT NULL;
+DROP TABLE t;
+CREATE TABLE t (a TINYINT NOT NULL);
+ALTER TABLE t CHANGE COLUMN a a MEDIUMINT UNSIGNED;
+ERROR 42000: Table 't' uses an extension that doesn't exist in this XYZ version
+DROP TABLE t;
+CREATE TABLE t (a TINYINT NOT NULL);
+ALTER TABLE t CHANGE COLUMN a a MEDIUMINT UNSIGNED NOT NULL;
+ERROR 42000: Table 't' uses an extension that doesn't exist in this XYZ version
+DROP TABLE t;
+CREATE TABLE t (a TINYINT NOT NULL);
+ALTER TABLE t CHANGE COLUMN a a INT ;
+ERROR 42000: Table 't' uses an extension that doesn't exist in this XYZ version
+DROP TABLE t;
+CREATE TABLE t (a TINYINT NOT NULL);
+ALTER TABLE t CHANGE COLUMN a a INT NOT NULL;
+DROP TABLE t;
+CREATE TABLE t (a TINYINT NOT NULL);
+ALTER TABLE t CHANGE COLUMN a a INT UNSIGNED;
+ERROR 42000: Table 't' uses an extension that doesn't exist in this XYZ version
+DROP TABLE t;
+CREATE TABLE t (a TINYINT NOT NULL);
+ALTER TABLE t CHANGE COLUMN a a INT UNSIGNED NOT NULL;
+ERROR 42000: Table 't' uses an extension that doesn't exist in this XYZ version
+DROP TABLE t;
+CREATE TABLE t (a TINYINT NOT NULL);
+ALTER TABLE t CHANGE COLUMN a a BIGINT ;
+ERROR 42000: Table 't' uses an extension that doesn't exist in this XYZ version
+DROP TABLE t;
+CREATE TABLE t (a TINYINT NOT NULL);
+ALTER TABLE t CHANGE COLUMN a a BIGINT NOT NULL;
+DROP TABLE t;
+CREATE TABLE t (a TINYINT NOT NULL);
+ALTER TABLE t CHANGE COLUMN a a BIGINT UNSIGNED;
+ERROR 42000: Table 't' uses an extension that doesn't exist in this XYZ version
+DROP TABLE t;
+CREATE TABLE t (a TINYINT NOT NULL);
+ALTER TABLE t CHANGE COLUMN a a BIGINT UNSIGNED NOT NULL;
+ERROR 42000: Table 't' uses an extension that doesn't exist in this XYZ version
+DROP TABLE t;
+CREATE TABLE t (a TINYINT UNSIGNED);
+ALTER TABLE t CHANGE COLUMN a a TINYINT ;
+ERROR 42000: Table 't' uses an extension that doesn't exist in this XYZ version
+DROP TABLE t;
+CREATE TABLE t (a TINYINT UNSIGNED);
+ALTER TABLE t CHANGE COLUMN a a TINYINT NOT NULL;
+ERROR 42000: Table 't' uses an extension that doesn't exist in this XYZ version
+DROP TABLE t;
+CREATE TABLE t (a TINYINT UNSIGNED);
+ALTER TABLE t CHANGE COLUMN a a TINYINT UNSIGNED;
+DROP TABLE t;
+CREATE TABLE t (a TINYINT UNSIGNED);
+ALTER TABLE t CHANGE COLUMN a a TINYINT UNSIGNED NOT NULL;
+ERROR 42000: Table 't' uses an extension that doesn't exist in this XYZ version
+DROP TABLE t;
+CREATE TABLE t (a TINYINT UNSIGNED);
+ALTER TABLE t CHANGE COLUMN a a SMALLINT ;
+ERROR 42000: Table 't' uses an extension that doesn't exist in this XYZ version
+DROP TABLE t;
+CREATE TABLE t (a TINYINT UNSIGNED);
+ALTER TABLE t CHANGE COLUMN a a SMALLINT NOT NULL;
+ERROR 42000: Table 't' uses an extension that doesn't exist in this XYZ version
+DROP TABLE t;
+CREATE TABLE t (a TINYINT UNSIGNED);
+ALTER TABLE t CHANGE COLUMN a a SMALLINT UNSIGNED;
+DROP TABLE t;
+CREATE TABLE t (a TINYINT UNSIGNED);
+ALTER TABLE t CHANGE COLUMN a a SMALLINT UNSIGNED NOT NULL;
+ERROR 42000: Table 't' uses an extension that doesn't exist in this XYZ version
+DROP TABLE t;
+CREATE TABLE t (a TINYINT UNSIGNED);
+ALTER TABLE t CHANGE COLUMN a a MEDIUMINT ;
+ERROR 42000: Table 't' uses an extension that doesn't exist in this XYZ version
+DROP TABLE t;
+CREATE TABLE t (a TINYINT UNSIGNED);
+ALTER TABLE t CHANGE COLUMN a a MEDIUMINT NOT NULL;
+ERROR 42000: Table 't' uses an extension that doesn't exist in this XYZ version
+DROP TABLE t;
+CREATE TABLE t (a TINYINT UNSIGNED);
+ALTER TABLE t CHANGE COLUMN a a MEDIUMINT UNSIGNED;
+DROP TABLE t;
+CREATE TABLE t (a TINYINT UNSIGNED);
+ALTER TABLE t CHANGE COLUMN a a MEDIUMINT UNSIGNED NOT NULL;
+ERROR 42000: Table 't' uses an extension that doesn't exist in this XYZ version
+DROP TABLE t;
+CREATE TABLE t (a TINYINT UNSIGNED);
+ALTER TABLE t CHANGE COLUMN a a INT ;
+ERROR 42000: Table 't' uses an extension that doesn't exist in this XYZ version
+DROP TABLE t;
+CREATE TABLE t (a TINYINT UNSIGNED);
+ALTER TABLE t CHANGE COLUMN a a INT NOT NULL;
+ERROR 42000: Table 't' uses an extension that doesn't exist in this XYZ version
+DROP TABLE t;
+CREATE TABLE t (a TINYINT UNSIGNED);
+ALTER TABLE t CHANGE COLUMN a a INT UNSIGNED;
+DROP TABLE t;
+CREATE TABLE t (a TINYINT UNSIGNED);
+ALTER TABLE t CHANGE COLUMN a a INT UNSIGNED NOT NULL;
+ERROR 42000: Table 't' uses an extension that doesn't exist in this XYZ version
+DROP TABLE t;
+CREATE TABLE t (a TINYINT UNSIGNED);
+ALTER TABLE t CHANGE COLUMN a a BIGINT ;
+ERROR 42000: Table 't' uses an extension that doesn't exist in this XYZ version
+DROP TABLE t;
+CREATE TABLE t (a TINYINT UNSIGNED);
+ALTER TABLE t CHANGE COLUMN a a BIGINT NOT NULL;
+ERROR 42000: Table 't' uses an extension that doesn't exist in this XYZ version
+DROP TABLE t;
+CREATE TABLE t (a TINYINT UNSIGNED);
+ALTER TABLE t CHANGE COLUMN a a BIGINT UNSIGNED;
+DROP TABLE t;
+CREATE TABLE t (a TINYINT UNSIGNED);
+ALTER TABLE t CHANGE COLUMN a a BIGINT UNSIGNED NOT NULL;
+ERROR 42000: Table 't' uses an extension that doesn't exist in this XYZ version
+DROP TABLE t;
+CREATE TABLE t (a TINYINT UNSIGNED NOT NULL);
+ALTER TABLE t CHANGE COLUMN a a TINYINT ;
+ERROR 42000: Table 't' uses an extension that doesn't exist in this XYZ version
+DROP TABLE t;
+CREATE TABLE t (a TINYINT UNSIGNED NOT NULL);
+ALTER TABLE t CHANGE COLUMN a a TINYINT NOT NULL;
+ERROR 42000: Table 't' uses an extension that doesn't exist in this XYZ version
+DROP TABLE t;
+CREATE TABLE t (a TINYINT UNSIGNED NOT NULL);
+ALTER TABLE t CHANGE COLUMN a a TINYINT UNSIGNED;
+ERROR 42000: Table 't' uses an extension that doesn't exist in this XYZ version
+DROP TABLE t;
+CREATE TABLE t (a TINYINT UNSIGNED NOT NULL);
+ALTER TABLE t CHANGE COLUMN a a TINYINT UNSIGNED NOT NULL;
+DROP TABLE t;
+CREATE TABLE t (a TINYINT UNSIGNED NOT NULL);
+ALTER TABLE t CHANGE COLUMN a a SMALLINT ;
+ERROR 42000: Table 't' uses an extension that doesn't exist in this XYZ version
+DROP TABLE t;
+CREATE TABLE t (a TINYINT UNSIGNED NOT NULL);
+ALTER TABLE t CHANGE COLUMN a a SMALLINT NOT NULL;
+ERROR 42000: Table 't' uses an extension that doesn't exist in this XYZ version
+DROP TABLE t;
+CREATE TABLE t (a TINYINT UNSIGNED NOT NULL);
+ALTER TABLE t CHANGE COLUMN a a SMALLINT UNSIGNED;
+ERROR 42000: Table 't' uses an extension that doesn't exist in this XYZ version
+DROP TABLE t;
+CREATE TABLE t (a TINYINT UNSIGNED NOT NULL);
+ALTER TABLE t CHANGE COLUMN a a SMALLINT UNSIGNED NOT NULL;
+DROP TABLE t;
+CREATE TABLE t (a TINYINT UNSIGNED NOT NULL);
+ALTER TABLE t CHANGE COLUMN a a MEDIUMINT ;
+ERROR 42000: Table 't' uses an extension that doesn't exist in this XYZ version
+DROP TABLE t;
+CREATE TABLE t (a TINYINT UNSIGNED NOT NULL);
+ALTER TABLE t CHANGE COLUMN a a MEDIUMINT NOT NULL;
+ERROR 42000: Table 't' uses an extension that doesn't exist in this XYZ version
+DROP TABLE t;
+CREATE TABLE t (a TINYINT UNSIGNED NOT NULL);
+ALTER TABLE t CHANGE COLUMN a a MEDIUMINT UNSIGNED;
+ERROR 42000: Table 't' uses an extension that doesn't exist in this XYZ version
+DROP TABLE t;
+CREATE TABLE t (a TINYINT UNSIGNED NOT NULL);
+ALTER TABLE t CHANGE COLUMN a a MEDIUMINT UNSIGNED NOT NULL;
+DROP TABLE t;
+CREATE TABLE t (a TINYINT UNSIGNED NOT NULL);
+ALTER TABLE t CHANGE COLUMN a a INT ;
+ERROR 42000: Table 't' uses an extension that doesn't exist in this XYZ version
+DROP TABLE t;
+CREATE TABLE t (a TINYINT UNSIGNED NOT NULL);
+ALTER TABLE t CHANGE COLUMN a a INT NOT NULL;
+ERROR 42000: Table 't' uses an extension that doesn't exist in this XYZ version
+DROP TABLE t;
+CREATE TABLE t (a TINYINT UNSIGNED NOT NULL);
+ALTER TABLE t CHANGE COLUMN a a INT UNSIGNED;
+ERROR 42000: Table 't' uses an extension that doesn't exist in this XYZ version
+DROP TABLE t;
+CREATE TABLE t (a TINYINT UNSIGNED NOT NULL);
+ALTER TABLE t CHANGE COLUMN a a INT UNSIGNED NOT NULL;
+DROP TABLE t;
+CREATE TABLE t (a TINYINT UNSIGNED NOT NULL);
+ALTER TABLE t CHANGE COLUMN a a BIGINT ;
+ERROR 42000: Table 't' uses an extension that doesn't exist in this XYZ version
+DROP TABLE t;
+CREATE TABLE t (a TINYINT UNSIGNED NOT NULL);
+ALTER TABLE t CHANGE COLUMN a a BIGINT NOT NULL;
+ERROR 42000: Table 't' uses an extension that doesn't exist in this XYZ version
+DROP TABLE t;
+CREATE TABLE t (a TINYINT UNSIGNED NOT NULL);
+ALTER TABLE t CHANGE COLUMN a a BIGINT UNSIGNED;
+ERROR 42000: Table 't' uses an extension that doesn't exist in this XYZ version
+DROP TABLE t;
+CREATE TABLE t (a TINYINT UNSIGNED NOT NULL);
+ALTER TABLE t CHANGE COLUMN a a BIGINT UNSIGNED NOT NULL;
+DROP TABLE t;
+CREATE TABLE t (a SMALLINT );
+ALTER TABLE t CHANGE COLUMN a a TINYINT ;
+ERROR 42000: Table 't' uses an extension that doesn't exist in this XYZ version
+DROP TABLE t;
+CREATE TABLE t (a SMALLINT );
+ALTER TABLE t CHANGE COLUMN a a TINYINT NOT NULL;
+ERROR 42000: Table 't' uses an extension that doesn't exist in this XYZ version
+DROP TABLE t;
+CREATE TABLE t (a SMALLINT );
+ALTER TABLE t CHANGE COLUMN a a TINYINT UNSIGNED;
+ERROR 42000: Table 't' uses an extension that doesn't exist in this XYZ version
+DROP TABLE t;
+CREATE TABLE t (a SMALLINT );
+ALTER TABLE t CHANGE COLUMN a a TINYINT UNSIGNED NOT NULL;
+ERROR 42000: Table 't' uses an extension that doesn't exist in this XYZ version
+DROP TABLE t;
+CREATE TABLE t (a SMALLINT );
+ALTER TABLE t CHANGE COLUMN a a SMALLINT ;
+DROP TABLE t;
+CREATE TABLE t (a SMALLINT );
+ALTER TABLE t CHANGE COLUMN a a SMALLINT NOT NULL;
+ERROR 42000: Table 't' uses an extension that doesn't exist in this XYZ version
+DROP TABLE t;
+CREATE TABLE t (a SMALLINT );
+ALTER TABLE t CHANGE COLUMN a a SMALLINT UNSIGNED;
+ERROR 42000: Table 't' uses an extension that doesn't exist in this XYZ version
+DROP TABLE t;
+CREATE TABLE t (a SMALLINT );
+ALTER TABLE t CHANGE COLUMN a a SMALLINT UNSIGNED NOT NULL;
+ERROR 42000: Table 't' uses an extension that doesn't exist in this XYZ version
+DROP TABLE t;
+CREATE TABLE t (a SMALLINT );
+ALTER TABLE t CHANGE COLUMN a a MEDIUMINT ;
+DROP TABLE t;
+CREATE TABLE t (a SMALLINT );
+ALTER TABLE t CHANGE COLUMN a a MEDIUMINT NOT NULL;
+ERROR 42000: Table 't' uses an extension that doesn't exist in this XYZ version
+DROP TABLE t;
+CREATE TABLE t (a SMALLINT );
+ALTER TABLE t CHANGE COLUMN a a MEDIUMINT UNSIGNED;
+ERROR 42000: Table 't' uses an extension that doesn't exist in this XYZ version
+DROP TABLE t;
+CREATE TABLE t (a SMALLINT );
+ALTER TABLE t CHANGE COLUMN a a MEDIUMINT UNSIGNED NOT NULL;
+ERROR 42000: Table 't' uses an extension that doesn't exist in this XYZ version
+DROP TABLE t;
+CREATE TABLE t (a SMALLINT );
+ALTER TABLE t CHANGE COLUMN a a INT ;
+DROP TABLE t;
+CREATE TABLE t (a SMALLINT );
+ALTER TABLE t CHANGE COLUMN a a INT NOT NULL;
+ERROR 42000: Table 't' uses an extension that doesn't exist in this XYZ version
+DROP TABLE t;
+CREATE TABLE t (a SMALLINT );
+ALTER TABLE t CHANGE COLUMN a a INT UNSIGNED;
+ERROR 42000: Table 't' uses an extension that doesn't exist in this XYZ version
+DROP TABLE t;
+CREATE TABLE t (a SMALLINT );
+ALTER TABLE t CHANGE COLUMN a a INT UNSIGNED NOT NULL;
+ERROR 42000: Table 't' uses an extension that doesn't exist in this XYZ version
+DROP TABLE t;
+CREATE TABLE t (a SMALLINT );
+ALTER TABLE t CHANGE COLUMN a a BIGINT ;
+DROP TABLE t;
+CREATE TABLE t (a SMALLINT );
+ALTER TABLE t CHANGE COLUMN a a BIGINT NOT NULL;
+ERROR 42000: Table 't' uses an extension that doesn't exist in this XYZ version
+DROP TABLE t;
+CREATE TABLE t (a SMALLINT );
+ALTER TABLE t CHANGE COLUMN a a BIGINT UNSIGNED;
+ERROR 42000: Table 't' uses an extension that doesn't exist in this XYZ version
+DROP TABLE t;
+CREATE TABLE t (a SMALLINT );
+ALTER TABLE t CHANGE COLUMN a a BIGINT UNSIGNED NOT NULL;
+ERROR 42000: Table 't' uses an extension that doesn't exist in this XYZ version
+DROP TABLE t;
+CREATE TABLE t (a SMALLINT NOT NULL);
+ALTER TABLE t CHANGE COLUMN a a TINYINT ;
+ERROR 42000: Table 't' uses an extension that doesn't exist in this XYZ version
+DROP TABLE t;
+CREATE TABLE t (a SMALLINT NOT NULL);
+ALTER TABLE t CHANGE COLUMN a a TINYINT NOT NULL;
+ERROR 42000: Table 't' uses an extension that doesn't exist in this XYZ version
+DROP TABLE t;
+CREATE TABLE t (a SMALLINT NOT NULL);
+ALTER TABLE t CHANGE COLUMN a a TINYINT UNSIGNED;
+ERROR 42000: Table 't' uses an extension that doesn't exist in this XYZ version
+DROP TABLE t;
+CREATE TABLE t (a SMALLINT NOT NULL);
+ALTER TABLE t CHANGE COLUMN a a TINYINT UNSIGNED NOT NULL;
+ERROR 42000: Table 't' uses an extension that doesn't exist in this XYZ version
+DROP TABLE t;
+CREATE TABLE t (a SMALLINT NOT NULL);
+ALTER TABLE t CHANGE COLUMN a a SMALLINT ;
+ERROR 42000: Table 't' uses an extension that doesn't exist in this XYZ version
+DROP TABLE t;
+CREATE TABLE t (a SMALLINT NOT NULL);
+ALTER TABLE t CHANGE COLUMN a a SMALLINT NOT NULL;
+DROP TABLE t;
+CREATE TABLE t (a SMALLINT NOT NULL);
+ALTER TABLE t CHANGE COLUMN a a SMALLINT UNSIGNED;
+ERROR 42000: Table 't' uses an extension that doesn't exist in this XYZ version
+DROP TABLE t;
+CREATE TABLE t (a SMALLINT NOT NULL);
+ALTER TABLE t CHANGE COLUMN a a SMALLINT UNSIGNED NOT NULL;
+ERROR 42000: Table 't' uses an extension that doesn't exist in this XYZ version
+DROP TABLE t;
+CREATE TABLE t (a SMALLINT NOT NULL);
+ALTER TABLE t CHANGE COLUMN a a MEDIUMINT ;
+ERROR 42000: Table 't' uses an extension that doesn't exist in this XYZ version
+DROP TABLE t;
+CREATE TABLE t (a SMALLINT NOT NULL);
+ALTER TABLE t CHANGE COLUMN a a MEDIUMINT NOT NULL;
+DROP TABLE t;
+CREATE TABLE t (a SMALLINT NOT NULL);
+ALTER TABLE t CHANGE COLUMN a a MEDIUMINT UNSIGNED;
+ERROR 42000: Table 't' uses an extension that doesn't exist in this XYZ version
+DROP TABLE t;
+CREATE TABLE t (a SMALLINT NOT NULL);
+ALTER TABLE t CHANGE COLUMN a a MEDIUMINT UNSIGNED NOT NULL;
+ERROR 42000: Table 't' uses an extension that doesn't exist in this XYZ version
+DROP TABLE t;
+CREATE TABLE t (a SMALLINT NOT NULL);
+ALTER TABLE t CHANGE COLUMN a a INT ;
+ERROR 42000: Table 't' uses an extension that doesn't exist in this XYZ version
+DROP TABLE t;
+CREATE TABLE t (a SMALLINT NOT NULL);
+ALTER TABLE t CHANGE COLUMN a a INT NOT NULL;
+DROP TABLE t;
+CREATE TABLE t (a SMALLINT NOT NULL);
+ALTER TABLE t CHANGE COLUMN a a INT UNSIGNED;
+ERROR 42000: Table 't' uses an extension that doesn't exist in this XYZ version
+DROP TABLE t;
+CREATE TABLE t (a SMALLINT NOT NULL);
+ALTER TABLE t CHANGE COLUMN a a INT UNSIGNED NOT NULL;
+ERROR 42000: Table 't' uses an extension that doesn't exist in this XYZ version
+DROP TABLE t;
+CREATE TABLE t (a SMALLINT NOT NULL);
+ALTER TABLE t CHANGE COLUMN a a BIGINT ;
+ERROR 42000: Table 't' uses an extension that doesn't exist in this XYZ version
+DROP TABLE t;
+CREATE TABLE t (a SMALLINT NOT NULL);
+ALTER TABLE t CHANGE COLUMN a a BIGINT NOT NULL;
+DROP TABLE t;
+CREATE TABLE t (a SMALLINT NOT NULL);
+ALTER TABLE t CHANGE COLUMN a a BIGINT UNSIGNED;
+ERROR 42000: Table 't' uses an extension that doesn't exist in this XYZ version
+DROP TABLE t;
+CREATE TABLE t (a SMALLINT NOT NULL);
+ALTER TABLE t CHANGE COLUMN a a BIGINT UNSIGNED NOT NULL;
+ERROR 42000: Table 't' uses an extension that doesn't exist in this XYZ version
+DROP TABLE t;
+CREATE TABLE t (a SMALLINT UNSIGNED);
+ALTER TABLE t CHANGE COLUMN a a TINYINT ;
+ERROR 42000: Table 't' uses an extension that doesn't exist in this XYZ version
+DROP TABLE t;
+CREATE TABLE t (a SMALLINT UNSIGNED);
+ALTER TABLE t CHANGE COLUMN a a TINYINT NOT NULL;
+ERROR 42000: Table 't' uses an extension that doesn't exist in this XYZ version
+DROP TABLE t;
+CREATE TABLE t (a SMALLINT UNSIGNED);
+ALTER TABLE t CHANGE COLUMN a a TINYINT UNSIGNED;
+ERROR 42000: Table 't' uses an extension that doesn't exist in this XYZ version
+DROP TABLE t;
+CREATE TABLE t (a SMALLINT UNSIGNED);
+ALTER TABLE t CHANGE COLUMN a a TINYINT UNSIGNED NOT NULL;
+ERROR 42000: Table 't' uses an extension that doesn't exist in this XYZ version
+DROP TABLE t;
+CREATE TABLE t (a SMALLINT UNSIGNED);
+ALTER TABLE t CHANGE COLUMN a a SMALLINT ;
+ERROR 42000: Table 't' uses an extension that doesn't exist in this XYZ version
+DROP TABLE t;
+CREATE TABLE t (a SMALLINT UNSIGNED);
+ALTER TABLE t CHANGE COLUMN a a SMALLINT NOT NULL;
+ERROR 42000: Table 't' uses an extension that doesn't exist in this XYZ version
+DROP TABLE t;
+CREATE TABLE t (a SMALLINT UNSIGNED);
+ALTER TABLE t CHANGE COLUMN a a SMALLINT UNSIGNED;
+DROP TABLE t;
+CREATE TABLE t (a SMALLINT UNSIGNED);
+ALTER TABLE t CHANGE COLUMN a a SMALLINT UNSIGNED NOT NULL;
+ERROR 42000: Table 't' uses an extension that doesn't exist in this XYZ version
+DROP TABLE t;
+CREATE TABLE t (a SMALLINT UNSIGNED);
+ALTER TABLE t CHANGE COLUMN a a MEDIUMINT ;
+ERROR 42000: Table 't' uses an extension that doesn't exist in this XYZ version
+DROP TABLE t;
+CREATE TABLE t (a SMALLINT UNSIGNED);
+ALTER TABLE t CHANGE COLUMN a a MEDIUMINT NOT NULL;
+ERROR 42000: Table 't' uses an extension that doesn't exist in this XYZ version
+DROP TABLE t;
+CREATE TABLE t (a SMALLINT UNSIGNED);
+ALTER TABLE t CHANGE COLUMN a a MEDIUMINT UNSIGNED;
+DROP TABLE t;
+CREATE TABLE t (a SMALLINT UNSIGNED);
+ALTER TABLE t CHANGE COLUMN a a MEDIUMINT UNSIGNED NOT NULL;
+ERROR 42000: Table 't' uses an extension that doesn't exist in this XYZ version
+DROP TABLE t;
+CREATE TABLE t (a SMALLINT UNSIGNED);
+ALTER TABLE t CHANGE COLUMN a a INT ;
+ERROR 42000: Table 't' uses an extension that doesn't exist in this XYZ version
+DROP TABLE t;
+CREATE TABLE t (a SMALLINT UNSIGNED);
+ALTER TABLE t CHANGE COLUMN a a INT NOT NULL;
+ERROR 42000: Table 't' uses an extension that doesn't exist in this XYZ version
+DROP TABLE t;
+CREATE TABLE t (a SMALLINT UNSIGNED);
+ALTER TABLE t CHANGE COLUMN a a INT UNSIGNED;
+DROP TABLE t;
+CREATE TABLE t (a SMALLINT UNSIGNED);
+ALTER TABLE t CHANGE COLUMN a a INT UNSIGNED NOT NULL;
+ERROR 42000: Table 't' uses an extension that doesn't exist in this XYZ version
+DROP TABLE t;
+CREATE TABLE t (a SMALLINT UNSIGNED);
+ALTER TABLE t CHANGE COLUMN a a BIGINT ;
+ERROR 42000: Table 't' uses an extension that doesn't exist in this XYZ version
+DROP TABLE t;
+CREATE TABLE t (a SMALLINT UNSIGNED);
+ALTER TABLE t CHANGE COLUMN a a BIGINT NOT NULL;
+ERROR 42000: Table 't' uses an extension that doesn't exist in this XYZ version
+DROP TABLE t;
+CREATE TABLE t (a SMALLINT UNSIGNED);
+ALTER TABLE t CHANGE COLUMN a a BIGINT UNSIGNED;
+DROP TABLE t;
+CREATE TABLE t (a SMALLINT UNSIGNED);
+ALTER TABLE t CHANGE COLUMN a a BIGINT UNSIGNED NOT NULL;
+ERROR 42000: Table 't' uses an extension that doesn't exist in this XYZ version
+DROP TABLE t;
+CREATE TABLE t (a SMALLINT UNSIGNED NOT NULL);
+ALTER TABLE t CHANGE COLUMN a a TINYINT ;
+ERROR 42000: Table 't' uses an extension that doesn't exist in this XYZ version
+DROP TABLE t;
+CREATE TABLE t (a SMALLINT UNSIGNED NOT NULL);
+ALTER TABLE t CHANGE COLUMN a a TINYINT NOT NULL;
+ERROR 42000: Table 't' uses an extension that doesn't exist in this XYZ version
+DROP TABLE t;
+CREATE TABLE t (a SMALLINT UNSIGNED NOT NULL);
+ALTER TABLE t CHANGE COLUMN a a TINYINT UNSIGNED;
+ERROR 42000: Table 't' uses an extension that doesn't exist in this XYZ version
+DROP TABLE t;
+CREATE TABLE t (a SMALLINT UNSIGNED NOT NULL);
+ALTER TABLE t CHANGE COLUMN a a TINYINT UNSIGNED NOT NULL;
+ERROR 42000: Table 't' uses an extension that doesn't exist in this XYZ version
+DROP TABLE t;
+CREATE TABLE t (a SMALLINT UNSIGNED NOT NULL);
+ALTER TABLE t CHANGE COLUMN a a SMALLINT ;
+ERROR 42000: Table 't' uses an extension that doesn't exist in this XYZ version
+DROP TABLE t;
+CREATE TABLE t (a SMALLINT UNSIGNED NOT NULL);
+ALTER TABLE t CHANGE COLUMN a a SMALLINT NOT NULL;
+ERROR 42000: Table 't' uses an extension that doesn't exist in this XYZ version
+DROP TABLE t;
+CREATE TABLE t (a SMALLINT UNSIGNED NOT NULL);
+ALTER TABLE t CHANGE COLUMN a a SMALLINT UNSIGNED;
+ERROR 42000: Table 't' uses an extension that doesn't exist in this XYZ version
+DROP TABLE t;
+CREATE TABLE t (a SMALLINT UNSIGNED NOT NULL);
+ALTER TABLE t CHANGE COLUMN a a SMALLINT UNSIGNED NOT NULL;
+DROP TABLE t;
+CREATE TABLE t (a SMALLINT UNSIGNED NOT NULL);
+ALTER TABLE t CHANGE COLUMN a a MEDIUMINT ;
+ERROR 42000: Table 't' uses an extension that doesn't exist in this XYZ version
+DROP TABLE t;
+CREATE TABLE t (a SMALLINT UNSIGNED NOT NULL);
+ALTER TABLE t CHANGE COLUMN a a MEDIUMINT NOT NULL;
+ERROR 42000: Table 't' uses an extension that doesn't exist in this XYZ version
+DROP TABLE t;
+CREATE TABLE t (a SMALLINT UNSIGNED NOT NULL);
+ALTER TABLE t CHANGE COLUMN a a MEDIUMINT UNSIGNED;
+ERROR 42000: Table 't' uses an extension that doesn't exist in this XYZ version
+DROP TABLE t;
+CREATE TABLE t (a SMALLINT UNSIGNED NOT NULL);
+ALTER TABLE t CHANGE COLUMN a a MEDIUMINT UNSIGNED NOT NULL;
+DROP TABLE t;
+CREATE TABLE t (a SMALLINT UNSIGNED NOT NULL);
+ALTER TABLE t CHANGE COLUMN a a INT ;
+ERROR 42000: Table 't' uses an extension that doesn't exist in this XYZ version
+DROP TABLE t;
+CREATE TABLE t (a SMALLINT UNSIGNED NOT NULL);
+ALTER TABLE t CHANGE COLUMN a a INT NOT NULL;
+ERROR 42000: Table 't' uses an extension that doesn't exist in this XYZ version
+DROP TABLE t;
+CREATE TABLE t (a SMALLINT UNSIGNED NOT NULL);
+ALTER TABLE t CHANGE COLUMN a a INT UNSIGNED;
+ERROR 42000: Table 't' uses an extension that doesn't exist in this XYZ version
+DROP TABLE t;
+CREATE TABLE t (a SMALLINT UNSIGNED NOT NULL);
+ALTER TABLE t CHANGE COLUMN a a INT UNSIGNED NOT NULL;
+DROP TABLE t;
+CREATE TABLE t (a SMALLINT UNSIGNED NOT NULL);
+ALTER TABLE t CHANGE COLUMN a a BIGINT ;
+ERROR 42000: Table 't' uses an extension that doesn't exist in this XYZ version
+DROP TABLE t;
+CREATE TABLE t (a SMALLINT UNSIGNED NOT NULL);
+ALTER TABLE t CHANGE COLUMN a a BIGINT NOT NULL;
+ERROR 42000: Table 't' uses an extension that doesn't exist in this XYZ version
+DROP TABLE t;
+CREATE TABLE t (a SMALLINT UNSIGNED NOT NULL);
+ALTER TABLE t CHANGE COLUMN a a BIGINT UNSIGNED;
+ERROR 42000: Table 't' uses an extension that doesn't exist in this XYZ version
+DROP TABLE t;
+CREATE TABLE t (a SMALLINT UNSIGNED NOT NULL);
+ALTER TABLE t CHANGE COLUMN a a BIGINT UNSIGNED NOT NULL;
+DROP TABLE t;
+CREATE TABLE t (a MEDIUMINT );
+ALTER TABLE t CHANGE COLUMN a a TINYINT ;
+ERROR 42000: Table 't' uses an extension that doesn't exist in this XYZ version
+DROP TABLE t;
+CREATE TABLE t (a MEDIUMINT );
+ALTER TABLE t CHANGE COLUMN a a TINYINT NOT NULL;
+ERROR 42000: Table 't' uses an extension that doesn't exist in this XYZ version
+DROP TABLE t;
+CREATE TABLE t (a MEDIUMINT );
+ALTER TABLE t CHANGE COLUMN a a TINYINT UNSIGNED;
+ERROR 42000: Table 't' uses an extension that doesn't exist in this XYZ version
+DROP TABLE t;
+CREATE TABLE t (a MEDIUMINT );
+ALTER TABLE t CHANGE COLUMN a a TINYINT UNSIGNED NOT NULL;
+ERROR 42000: Table 't' uses an extension that doesn't exist in this XYZ version
+DROP TABLE t;
+CREATE TABLE t (a MEDIUMINT );
+ALTER TABLE t CHANGE COLUMN a a SMALLINT ;
+ERROR 42000: Table 't' uses an extension that doesn't exist in this XYZ version
+DROP TABLE t;
+CREATE TABLE t (a MEDIUMINT );
+ALTER TABLE t CHANGE COLUMN a a SMALLINT NOT NULL;
+ERROR 42000: Table 't' uses an extension that doesn't exist in this XYZ version
+DROP TABLE t;
+CREATE TABLE t (a MEDIUMINT );
+ALTER TABLE t CHANGE COLUMN a a SMALLINT UNSIGNED;
+ERROR 42000: Table 't' uses an extension that doesn't exist in this XYZ version
+DROP TABLE t;
+CREATE TABLE t (a MEDIUMINT );
+ALTER TABLE t CHANGE COLUMN a a SMALLINT UNSIGNED NOT NULL;
+ERROR 42000: Table 't' uses an extension that doesn't exist in this XYZ version
+DROP TABLE t;
+CREATE TABLE t (a MEDIUMINT );
+ALTER TABLE t CHANGE COLUMN a a MEDIUMINT ;
+DROP TABLE t;
+CREATE TABLE t (a MEDIUMINT );
+ALTER TABLE t CHANGE COLUMN a a MEDIUMINT NOT NULL;
+ERROR 42000: Table 't' uses an extension that doesn't exist in this XYZ version
+DROP TABLE t;
+CREATE TABLE t (a MEDIUMINT );
+ALTER TABLE t CHANGE COLUMN a a MEDIUMINT UNSIGNED;
+ERROR 42000: Table 't' uses an extension that doesn't exist in this XYZ version
+DROP TABLE t;
+CREATE TABLE t (a MEDIUMINT );
+ALTER TABLE t CHANGE COLUMN a a MEDIUMINT UNSIGNED NOT NULL;
+ERROR 42000: Table 't' uses an extension that doesn't exist in this XYZ version
+DROP TABLE t;
+CREATE TABLE t (a MEDIUMINT );
+ALTER TABLE t CHANGE COLUMN a a INT ;
+DROP TABLE t;
+CREATE TABLE t (a MEDIUMINT );
+ALTER TABLE t CHANGE COLUMN a a INT NOT NULL;
+ERROR 42000: Table 't' uses an extension that doesn't exist in this XYZ version
+DROP TABLE t;
+CREATE TABLE t (a MEDIUMINT );
+ALTER TABLE t CHANGE COLUMN a a INT UNSIGNED;
+ERROR 42000: Table 't' uses an extension that doesn't exist in this XYZ version
+DROP TABLE t;
+CREATE TABLE t (a MEDIUMINT );
+ALTER TABLE t CHANGE COLUMN a a INT UNSIGNED NOT NULL;
+ERROR 42000: Table 't' uses an extension that doesn't exist in this XYZ version
+DROP TABLE t;
+CREATE TABLE t (a MEDIUMINT );
+ALTER TABLE t CHANGE COLUMN a a BIGINT ;
+DROP TABLE t;
+CREATE TABLE t (a MEDIUMINT );
+ALTER TABLE t CHANGE COLUMN a a BIGINT NOT NULL;
+ERROR 42000: Table 't' uses an extension that doesn't exist in this XYZ version
+DROP TABLE t;
+CREATE TABLE t (a MEDIUMINT );
+ALTER TABLE t CHANGE COLUMN a a BIGINT UNSIGNED;
+ERROR 42000: Table 't' uses an extension that doesn't exist in this XYZ version
+DROP TABLE t;
+CREATE TABLE t (a MEDIUMINT );
+ALTER TABLE t CHANGE COLUMN a a BIGINT UNSIGNED NOT NULL;
+ERROR 42000: Table 't' uses an extension that doesn't exist in this XYZ version
+DROP TABLE t;
+CREATE TABLE t (a MEDIUMINT NOT NULL);
+ALTER TABLE t CHANGE COLUMN a a TINYINT ;
+ERROR 42000: Table 't' uses an extension that doesn't exist in this XYZ version
+DROP TABLE t;
+CREATE TABLE t (a MEDIUMINT NOT NULL);
+ALTER TABLE t CHANGE COLUMN a a TINYINT NOT NULL;
+ERROR 42000: Table 't' uses an extension that doesn't exist in this XYZ version
+DROP TABLE t;
+CREATE TABLE t (a MEDIUMINT NOT NULL);
+ALTER TABLE t CHANGE COLUMN a a TINYINT UNSIGNED;
+ERROR 42000: Table 't' uses an extension that doesn't exist in this XYZ version
+DROP TABLE t;
+CREATE TABLE t (a MEDIUMINT NOT NULL);
+ALTER TABLE t CHANGE COLUMN a a TINYINT UNSIGNED NOT NULL;
+ERROR 42000: Table 't' uses an extension that doesn't exist in this XYZ version
+DROP TABLE t;
+CREATE TABLE t (a MEDIUMINT NOT NULL);
+ALTER TABLE t CHANGE COLUMN a a SMALLINT ;
+ERROR 42000: Table 't' uses an extension that doesn't exist in this XYZ version
+DROP TABLE t;
+CREATE TABLE t (a MEDIUMINT NOT NULL);
+ALTER TABLE t CHANGE COLUMN a a SMALLINT NOT NULL;
+ERROR 42000: Table 't' uses an extension that doesn't exist in this XYZ version
+DROP TABLE t;
+CREATE TABLE t (a MEDIUMINT NOT NULL);
+ALTER TABLE t CHANGE COLUMN a a SMALLINT UNSIGNED;
+ERROR 42000: Table 't' uses an extension that doesn't exist in this XYZ version
+DROP TABLE t;
+CREATE TABLE t (a MEDIUMINT NOT NULL);
+ALTER TABLE t CHANGE COLUMN a a SMALLINT UNSIGNED NOT NULL;
+ERROR 42000: Table 't' uses an extension that doesn't exist in this XYZ version
+DROP TABLE t;
+CREATE TABLE t (a MEDIUMINT NOT NULL);
+ALTER TABLE t CHANGE COLUMN a a MEDIUMINT ;
+ERROR 42000: Table 't' uses an extension that doesn't exist in this XYZ version
+DROP TABLE t;
+CREATE TABLE t (a MEDIUMINT NOT NULL);
+ALTER TABLE t CHANGE COLUMN a a MEDIUMINT NOT NULL;
+DROP TABLE t;
+CREATE TABLE t (a MEDIUMINT NOT NULL);
+ALTER TABLE t CHANGE COLUMN a a MEDIUMINT UNSIGNED;
+ERROR 42000: Table 't' uses an extension that doesn't exist in this XYZ version
+DROP TABLE t;
+CREATE TABLE t (a MEDIUMINT NOT NULL);
+ALTER TABLE t CHANGE COLUMN a a MEDIUMINT UNSIGNED NOT NULL;
+ERROR 42000: Table 't' uses an extension that doesn't exist in this XYZ version
+DROP TABLE t;
+CREATE TABLE t (a MEDIUMINT NOT NULL);
+ALTER TABLE t CHANGE COLUMN a a INT ;
+ERROR 42000: Table 't' uses an extension that doesn't exist in this XYZ version
+DROP TABLE t;
+CREATE TABLE t (a MEDIUMINT NOT NULL);
+ALTER TABLE t CHANGE COLUMN a a INT NOT NULL;
+DROP TABLE t;
+CREATE TABLE t (a MEDIUMINT NOT NULL);
+ALTER TABLE t CHANGE COLUMN a a INT UNSIGNED;
+ERROR 42000: Table 't' uses an extension that doesn't exist in this XYZ version
+DROP TABLE t;
+CREATE TABLE t (a MEDIUMINT NOT NULL);
+ALTER TABLE t CHANGE COLUMN a a INT UNSIGNED NOT NULL;
+ERROR 42000: Table 't' uses an extension that doesn't exist in this XYZ version
+DROP TABLE t;
+CREATE TABLE t (a MEDIUMINT NOT NULL);
+ALTER TABLE t CHANGE COLUMN a a BIGINT ;
+ERROR 42000: Table 't' uses an extension that doesn't exist in this XYZ version
+DROP TABLE t;
+CREATE TABLE t (a MEDIUMINT NOT NULL);
+ALTER TABLE t CHANGE COLUMN a a BIGINT NOT NULL;
+DROP TABLE t;
+CREATE TABLE t (a MEDIUMINT NOT NULL);
+ALTER TABLE t CHANGE COLUMN a a BIGINT UNSIGNED;
+ERROR 42000: Table 't' uses an extension that doesn't exist in this XYZ version
+DROP TABLE t;
+CREATE TABLE t (a MEDIUMINT NOT NULL);
+ALTER TABLE t CHANGE COLUMN a a BIGINT UNSIGNED NOT NULL;
+ERROR 42000: Table 't' uses an extension that doesn't exist in this XYZ version
+DROP TABLE t;
+CREATE TABLE t (a MEDIUMINT UNSIGNED);
+ALTER TABLE t CHANGE COLUMN a a TINYINT ;
+ERROR 42000: Table 't' uses an extension that doesn't exist in this XYZ version
+DROP TABLE t;
+CREATE TABLE t (a MEDIUMINT UNSIGNED);
+ALTER TABLE t CHANGE COLUMN a a TINYINT NOT NULL;
+ERROR 42000: Table 't' uses an extension that doesn't exist in this XYZ version
+DROP TABLE t;
+CREATE TABLE t (a MEDIUMINT UNSIGNED);
+ALTER TABLE t CHANGE COLUMN a a TINYINT UNSIGNED;
+ERROR 42000: Table 't' uses an extension that doesn't exist in this XYZ version
+DROP TABLE t;
+CREATE TABLE t (a MEDIUMINT UNSIGNED);
+ALTER TABLE t CHANGE COLUMN a a TINYINT UNSIGNED NOT NULL;
+ERROR 42000: Table 't' uses an extension that doesn't exist in this XYZ version
+DROP TABLE t;
+CREATE TABLE t (a MEDIUMINT UNSIGNED);
+ALTER TABLE t CHANGE COLUMN a a SMALLINT ;
+ERROR 42000: Table 't' uses an extension that doesn't exist in this XYZ version
+DROP TABLE t;
+CREATE TABLE t (a MEDIUMINT UNSIGNED);
+ALTER TABLE t CHANGE COLUMN a a SMALLINT NOT NULL;
+ERROR 42000: Table 't' uses an extension that doesn't exist in this XYZ version
+DROP TABLE t;
+CREATE TABLE t (a MEDIUMINT UNSIGNED);
+ALTER TABLE t CHANGE COLUMN a a SMALLINT UNSIGNED;
+ERROR 42000: Table 't' uses an extension that doesn't exist in this XYZ version
+DROP TABLE t;
+CREATE TABLE t (a MEDIUMINT UNSIGNED);
+ALTER TABLE t CHANGE COLUMN a a SMALLINT UNSIGNED NOT NULL;
+ERROR 42000: Table 't' uses an extension that doesn't exist in this XYZ version
+DROP TABLE t;
+CREATE TABLE t (a MEDIUMINT UNSIGNED);
+ALTER TABLE t CHANGE COLUMN a a MEDIUMINT ;
+ERROR 42000: Table 't' uses an extension that doesn't exist in this XYZ version
+DROP TABLE t;
+CREATE TABLE t (a MEDIUMINT UNSIGNED);
+ALTER TABLE t CHANGE COLUMN a a MEDIUMINT NOT NULL;
+ERROR 42000: Table 't' uses an extension that doesn't exist in this XYZ version
+DROP TABLE t;
+CREATE TABLE t (a MEDIUMINT UNSIGNED);
+ALTER TABLE t CHANGE COLUMN a a MEDIUMINT UNSIGNED;
+DROP TABLE t;
+CREATE TABLE t (a MEDIUMINT UNSIGNED);
+ALTER TABLE t CHANGE COLUMN a a MEDIUMINT UNSIGNED NOT NULL;
+ERROR 42000: Table 't' uses an extension that doesn't exist in this XYZ version
+DROP TABLE t;
+CREATE TABLE t (a MEDIUMINT UNSIGNED);
+ALTER TABLE t CHANGE COLUMN a a INT ;
+ERROR 42000: Table 't' uses an extension that doesn't exist in this XYZ version
+DROP TABLE t;
+CREATE TABLE t (a MEDIUMINT UNSIGNED);
+ALTER TABLE t CHANGE COLUMN a a INT NOT NULL;
+ERROR 42000: Table 't' uses an extension that doesn't exist in this XYZ version
+DROP TABLE t;
+CREATE TABLE t (a MEDIUMINT UNSIGNED);
+ALTER TABLE t CHANGE COLUMN a a INT UNSIGNED;
+DROP TABLE t;
+CREATE TABLE t (a MEDIUMINT UNSIGNED);
+ALTER TABLE t CHANGE COLUMN a a INT UNSIGNED NOT NULL;
+ERROR 42000: Table 't' uses an extension that doesn't exist in this XYZ version
+DROP TABLE t;
+CREATE TABLE t (a MEDIUMINT UNSIGNED);
+ALTER TABLE t CHANGE COLUMN a a BIGINT ;
+ERROR 42000: Table 't' uses an extension that doesn't exist in this XYZ version
+DROP TABLE t;
+CREATE TABLE t (a MEDIUMINT UNSIGNED);
+ALTER TABLE t CHANGE COLUMN a a BIGINT NOT NULL;
+ERROR 42000: Table 't' uses an extension that doesn't exist in this XYZ version
+DROP TABLE t;
+CREATE TABLE t (a MEDIUMINT UNSIGNED);
+ALTER TABLE t CHANGE COLUMN a a BIGINT UNSIGNED;
+DROP TABLE t;
+CREATE TABLE t (a MEDIUMINT UNSIGNED);
+ALTER TABLE t CHANGE COLUMN a a BIGINT UNSIGNED NOT NULL;
+ERROR 42000: Table 't' uses an extension that doesn't exist in this XYZ version
+DROP TABLE t;
+CREATE TABLE t (a MEDIUMINT UNSIGNED NOT NULL);
+ALTER TABLE t CHANGE COLUMN a a TINYINT ;
+ERROR 42000: Table 't' uses an extension that doesn't exist in this XYZ version
+DROP TABLE t;
+CREATE TABLE t (a MEDIUMINT UNSIGNED NOT NULL);
+ALTER TABLE t CHANGE COLUMN a a TINYINT NOT NULL;
+ERROR 42000: Table 't' uses an extension that doesn't exist in this XYZ version
+DROP TABLE t;
+CREATE TABLE t (a MEDIUMINT UNSIGNED NOT NULL);
+ALTER TABLE t CHANGE COLUMN a a TINYINT UNSIGNED;
+ERROR 42000: Table 't' uses an extension that doesn't exist in this XYZ version
+DROP TABLE t;
+CREATE TABLE t (a MEDIUMINT UNSIGNED NOT NULL);
+ALTER TABLE t CHANGE COLUMN a a TINYINT UNSIGNED NOT NULL;
+ERROR 42000: Table 't' uses an extension that doesn't exist in this XYZ version
+DROP TABLE t;
+CREATE TABLE t (a MEDIUMINT UNSIGNED NOT NULL);
+ALTER TABLE t CHANGE COLUMN a a SMALLINT ;
+ERROR 42000: Table 't' uses an extension that doesn't exist in this XYZ version
+DROP TABLE t;
+CREATE TABLE t (a MEDIUMINT UNSIGNED NOT NULL);
+ALTER TABLE t CHANGE COLUMN a a SMALLINT NOT NULL;
+ERROR 42000: Table 't' uses an extension that doesn't exist in this XYZ version
+DROP TABLE t;
+CREATE TABLE t (a MEDIUMINT UNSIGNED NOT NULL);
+ALTER TABLE t CHANGE COLUMN a a SMALLINT UNSIGNED;
+ERROR 42000: Table 't' uses an extension that doesn't exist in this XYZ version
+DROP TABLE t;
+CREATE TABLE t (a MEDIUMINT UNSIGNED NOT NULL);
+ALTER TABLE t CHANGE COLUMN a a SMALLINT UNSIGNED NOT NULL;
+ERROR 42000: Table 't' uses an extension that doesn't exist in this XYZ version
+DROP TABLE t;
+CREATE TABLE t (a MEDIUMINT UNSIGNED NOT NULL);
+ALTER TABLE t CHANGE COLUMN a a MEDIUMINT ;
+ERROR 42000: Table 't' uses an extension that doesn't exist in this XYZ version
+DROP TABLE t;
+CREATE TABLE t (a MEDIUMINT UNSIGNED NOT NULL);
+ALTER TABLE t CHANGE COLUMN a a MEDIUMINT NOT NULL;
+ERROR 42000: Table 't' uses an extension that doesn't exist in this XYZ version
+DROP TABLE t;
+CREATE TABLE t (a MEDIUMINT UNSIGNED NOT NULL);
+ALTER TABLE t CHANGE COLUMN a a MEDIUMINT UNSIGNED;
+ERROR 42000: Table 't' uses an extension that doesn't exist in this XYZ version
+DROP TABLE t;
+CREATE TABLE t (a MEDIUMINT UNSIGNED NOT NULL);
+ALTER TABLE t CHANGE COLUMN a a MEDIUMINT UNSIGNED NOT NULL;
+DROP TABLE t;
+CREATE TABLE t (a MEDIUMINT UNSIGNED NOT NULL);
+ALTER TABLE t CHANGE COLUMN a a INT ;
+ERROR 42000: Table 't' uses an extension that doesn't exist in this XYZ version
+DROP TABLE t;
+CREATE TABLE t (a MEDIUMINT UNSIGNED NOT NULL);
+ALTER TABLE t CHANGE COLUMN a a INT NOT NULL;
+ERROR 42000: Table 't' uses an extension that doesn't exist in this XYZ version
+DROP TABLE t;
+CREATE TABLE t (a MEDIUMINT UNSIGNED NOT NULL);
+ALTER TABLE t CHANGE COLUMN a a INT UNSIGNED;
+ERROR 42000: Table 't' uses an extension that doesn't exist in this XYZ version
+DROP TABLE t;
+CREATE TABLE t (a MEDIUMINT UNSIGNED NOT NULL);
+ALTER TABLE t CHANGE COLUMN a a INT UNSIGNED NOT NULL;
+DROP TABLE t;
+CREATE TABLE t (a MEDIUMINT UNSIGNED NOT NULL);
+ALTER TABLE t CHANGE COLUMN a a BIGINT ;
+ERROR 42000: Table 't' uses an extension that doesn't exist in this XYZ version
+DROP TABLE t;
+CREATE TABLE t (a MEDIUMINT UNSIGNED NOT NULL);
+ALTER TABLE t CHANGE COLUMN a a BIGINT NOT NULL;
+ERROR 42000: Table 't' uses an extension that doesn't exist in this XYZ version
+DROP TABLE t;
+CREATE TABLE t (a MEDIUMINT UNSIGNED NOT NULL);
+ALTER TABLE t CHANGE COLUMN a a BIGINT UNSIGNED;
+ERROR 42000: Table 't' uses an extension that doesn't exist in this XYZ version
+DROP TABLE t;
+CREATE TABLE t (a MEDIUMINT UNSIGNED NOT NULL);
+ALTER TABLE t CHANGE COLUMN a a BIGINT UNSIGNED NOT NULL;
+DROP TABLE t;
+CREATE TABLE t (a INT );
+ALTER TABLE t CHANGE COLUMN a a TINYINT ;
+ERROR 42000: Table 't' uses an extension that doesn't exist in this XYZ version
+DROP TABLE t;
+CREATE TABLE t (a INT );
+ALTER TABLE t CHANGE COLUMN a a TINYINT NOT NULL;
+ERROR 42000: Table 't' uses an extension that doesn't exist in this XYZ version
+DROP TABLE t;
+CREATE TABLE t (a INT );
+ALTER TABLE t CHANGE COLUMN a a TINYINT UNSIGNED;
+ERROR 42000: Table 't' uses an extension that doesn't exist in this XYZ version
+DROP TABLE t;
+CREATE TABLE t (a INT );
+ALTER TABLE t CHANGE COLUMN a a TINYINT UNSIGNED NOT NULL;
+ERROR 42000: Table 't' uses an extension that doesn't exist in this XYZ version
+DROP TABLE t;
+CREATE TABLE t (a INT );
+ALTER TABLE t CHANGE COLUMN a a SMALLINT ;
+ERROR 42000: Table 't' uses an extension that doesn't exist in this XYZ version
+DROP TABLE t;
+CREATE TABLE t (a INT );
+ALTER TABLE t CHANGE COLUMN a a SMALLINT NOT NULL;
+ERROR 42000: Table 't' uses an extension that doesn't exist in this XYZ version
+DROP TABLE t;
+CREATE TABLE t (a INT );
+ALTER TABLE t CHANGE COLUMN a a SMALLINT UNSIGNED;
+ERROR 42000: Table 't' uses an extension that doesn't exist in this XYZ version
+DROP TABLE t;
+CREATE TABLE t (a INT );
+ALTER TABLE t CHANGE COLUMN a a SMALLINT UNSIGNED NOT NULL;
+ERROR 42000: Table 't' uses an extension that doesn't exist in this XYZ version
+DROP TABLE t;
+CREATE TABLE t (a INT );
+ALTER TABLE t CHANGE COLUMN a a MEDIUMINT ;
+ERROR 42000: Table 't' uses an extension that doesn't exist in this XYZ version
+DROP TABLE t;
+CREATE TABLE t (a INT );
+ALTER TABLE t CHANGE COLUMN a a MEDIUMINT NOT NULL;
+ERROR 42000: Table 't' uses an extension that doesn't exist in this XYZ version
+DROP TABLE t;
+CREATE TABLE t (a INT );
+ALTER TABLE t CHANGE COLUMN a a MEDIUMINT UNSIGNED;
+ERROR 42000: Table 't' uses an extension that doesn't exist in this XYZ version
+DROP TABLE t;
+CREATE TABLE t (a INT );
+ALTER TABLE t CHANGE COLUMN a a MEDIUMINT UNSIGNED NOT NULL;
+ERROR 42000: Table 't' uses an extension that doesn't exist in this XYZ version
+DROP TABLE t;
+CREATE TABLE t (a INT );
+ALTER TABLE t CHANGE COLUMN a a INT ;
+DROP TABLE t;
+CREATE TABLE t (a INT );
+ALTER TABLE t CHANGE COLUMN a a INT NOT NULL;
+ERROR 42000: Table 't' uses an extension that doesn't exist in this XYZ version
+DROP TABLE t;
+CREATE TABLE t (a INT );
+ALTER TABLE t CHANGE COLUMN a a INT UNSIGNED;
+ERROR 42000: Table 't' uses an extension that doesn't exist in this XYZ version
+DROP TABLE t;
+CREATE TABLE t (a INT );
+ALTER TABLE t CHANGE COLUMN a a INT UNSIGNED NOT NULL;
+ERROR 42000: Table 't' uses an extension that doesn't exist in this XYZ version
+DROP TABLE t;
+CREATE TABLE t (a INT );
+ALTER TABLE t CHANGE COLUMN a a BIGINT ;
+DROP TABLE t;
+CREATE TABLE t (a INT );
+ALTER TABLE t CHANGE COLUMN a a BIGINT NOT NULL;
+ERROR 42000: Table 't' uses an extension that doesn't exist in this XYZ version
+DROP TABLE t;
+CREATE TABLE t (a INT );
+ALTER TABLE t CHANGE COLUMN a a BIGINT UNSIGNED;
+ERROR 42000: Table 't' uses an extension that doesn't exist in this XYZ version
+DROP TABLE t;
+CREATE TABLE t (a INT );
+ALTER TABLE t CHANGE COLUMN a a BIGINT UNSIGNED NOT NULL;
+ERROR 42000: Table 't' uses an extension that doesn't exist in this XYZ version
+DROP TABLE t;
+CREATE TABLE t (a INT NOT NULL);
+ALTER TABLE t CHANGE COLUMN a a TINYINT ;
+ERROR 42000: Table 't' uses an extension that doesn't exist in this XYZ version
+DROP TABLE t;
+CREATE TABLE t (a INT NOT NULL);
+ALTER TABLE t CHANGE COLUMN a a TINYINT NOT NULL;
+ERROR 42000: Table 't' uses an extension that doesn't exist in this XYZ version
+DROP TABLE t;
+CREATE TABLE t (a INT NOT NULL);
+ALTER TABLE t CHANGE COLUMN a a TINYINT UNSIGNED;
+ERROR 42000: Table 't' uses an extension that doesn't exist in this XYZ version
+DROP TABLE t;
+CREATE TABLE t (a INT NOT NULL);
+ALTER TABLE t CHANGE COLUMN a a TINYINT UNSIGNED NOT NULL;
+ERROR 42000: Table 't' uses an extension that doesn't exist in this XYZ version
+DROP TABLE t;
+CREATE TABLE t (a INT NOT NULL);
+ALTER TABLE t CHANGE COLUMN a a SMALLINT ;
+ERROR 42000: Table 't' uses an extension that doesn't exist in this XYZ version
+DROP TABLE t;
+CREATE TABLE t (a INT NOT NULL);
+ALTER TABLE t CHANGE COLUMN a a SMALLINT NOT NULL;
+ERROR 42000: Table 't' uses an extension that doesn't exist in this XYZ version
+DROP TABLE t;
+CREATE TABLE t (a INT NOT NULL);
+ALTER TABLE t CHANGE COLUMN a a SMALLINT UNSIGNED;
+ERROR 42000: Table 't' uses an extension that doesn't exist in this XYZ version
+DROP TABLE t;
+CREATE TABLE t (a INT NOT NULL);
+ALTER TABLE t CHANGE COLUMN a a SMALLINT UNSIGNED NOT NULL;
+ERROR 42000: Table 't' uses an extension that doesn't exist in this XYZ version
+DROP TABLE t;
+CREATE TABLE t (a INT NOT NULL);
+ALTER TABLE t CHANGE COLUMN a a MEDIUMINT ;
+ERROR 42000: Table 't' uses an extension that doesn't exist in this XYZ version
+DROP TABLE t;
+CREATE TABLE t (a INT NOT NULL);
+ALTER TABLE t CHANGE COLUMN a a MEDIUMINT NOT NULL;
+ERROR 42000: Table 't' uses an extension that doesn't exist in this XYZ version
+DROP TABLE t;
+CREATE TABLE t (a INT NOT NULL);
+ALTER TABLE t CHANGE COLUMN a a MEDIUMINT UNSIGNED;
+ERROR 42000: Table 't' uses an extension that doesn't exist in this XYZ version
+DROP TABLE t;
+CREATE TABLE t (a INT NOT NULL);
+ALTER TABLE t CHANGE COLUMN a a MEDIUMINT UNSIGNED NOT NULL;
+ERROR 42000: Table 't' uses an extension that doesn't exist in this XYZ version
+DROP TABLE t;
+CREATE TABLE t (a INT NOT NULL);
+ALTER TABLE t CHANGE COLUMN a a INT ;
+ERROR 42000: Table 't' uses an extension that doesn't exist in this XYZ version
+DROP TABLE t;
+CREATE TABLE t (a INT NOT NULL);
+ALTER TABLE t CHANGE COLUMN a a INT NOT NULL;
+DROP TABLE t;
+CREATE TABLE t (a INT NOT NULL);
+ALTER TABLE t CHANGE COLUMN a a INT UNSIGNED;
+ERROR 42000: Table 't' uses an extension that doesn't exist in this XYZ version
+DROP TABLE t;
+CREATE TABLE t (a INT NOT NULL);
+ALTER TABLE t CHANGE COLUMN a a INT UNSIGNED NOT NULL;
+ERROR 42000: Table 't' uses an extension that doesn't exist in this XYZ version
+DROP TABLE t;
+CREATE TABLE t (a INT NOT NULL);
+ALTER TABLE t CHANGE COLUMN a a BIGINT ;
+ERROR 42000: Table 't' uses an extension that doesn't exist in this XYZ version
+DROP TABLE t;
+CREATE TABLE t (a INT NOT NULL);
+ALTER TABLE t CHANGE COLUMN a a BIGINT NOT NULL;
+DROP TABLE t;
+CREATE TABLE t (a INT NOT NULL);
+ALTER TABLE t CHANGE COLUMN a a BIGINT UNSIGNED;
+ERROR 42000: Table 't' uses an extension that doesn't exist in this XYZ version
+DROP TABLE t;
+CREATE TABLE t (a INT NOT NULL);
+ALTER TABLE t CHANGE COLUMN a a BIGINT UNSIGNED NOT NULL;
+ERROR 42000: Table 't' uses an extension that doesn't exist in this XYZ version
+DROP TABLE t;
+CREATE TABLE t (a INT UNSIGNED);
+ALTER TABLE t CHANGE COLUMN a a TINYINT ;
+ERROR 42000: Table 't' uses an extension that doesn't exist in this XYZ version
+DROP TABLE t;
+CREATE TABLE t (a INT UNSIGNED);
+ALTER TABLE t CHANGE COLUMN a a TINYINT NOT NULL;
+ERROR 42000: Table 't' uses an extension that doesn't exist in this XYZ version
+DROP TABLE t;
+CREATE TABLE t (a INT UNSIGNED);
+ALTER TABLE t CHANGE COLUMN a a TINYINT UNSIGNED;
+ERROR 42000: Table 't' uses an extension that doesn't exist in this XYZ version
+DROP TABLE t;
+CREATE TABLE t (a INT UNSIGNED);
+ALTER TABLE t CHANGE COLUMN a a TINYINT UNSIGNED NOT NULL;
+ERROR 42000: Table 't' uses an extension that doesn't exist in this XYZ version
+DROP TABLE t;
+CREATE TABLE t (a INT UNSIGNED);
+ALTER TABLE t CHANGE COLUMN a a SMALLINT ;
+ERROR 42000: Table 't' uses an extension that doesn't exist in this XYZ version
+DROP TABLE t;
+CREATE TABLE t (a INT UNSIGNED);
+ALTER TABLE t CHANGE COLUMN a a SMALLINT NOT NULL;
+ERROR 42000: Table 't' uses an extension that doesn't exist in this XYZ version
+DROP TABLE t;
+CREATE TABLE t (a INT UNSIGNED);
+ALTER TABLE t CHANGE COLUMN a a SMALLINT UNSIGNED;
+ERROR 42000: Table 't' uses an extension that doesn't exist in this XYZ version
+DROP TABLE t;
+CREATE TABLE t (a INT UNSIGNED);
+ALTER TABLE t CHANGE COLUMN a a SMALLINT UNSIGNED NOT NULL;
+ERROR 42000: Table 't' uses an extension that doesn't exist in this XYZ version
+DROP TABLE t;
+CREATE TABLE t (a INT UNSIGNED);
+ALTER TABLE t CHANGE COLUMN a a MEDIUMINT ;
+ERROR 42000: Table 't' uses an extension that doesn't exist in this XYZ version
+DROP TABLE t;
+CREATE TABLE t (a INT UNSIGNED);
+ALTER TABLE t CHANGE COLUMN a a MEDIUMINT NOT NULL;
+ERROR 42000: Table 't' uses an extension that doesn't exist in this XYZ version
+DROP TABLE t;
+CREATE TABLE t (a INT UNSIGNED);
+ALTER TABLE t CHANGE COLUMN a a MEDIUMINT UNSIGNED;
+ERROR 42000: Table 't' uses an extension that doesn't exist in this XYZ version
+DROP TABLE t;
+CREATE TABLE t (a INT UNSIGNED);
+ALTER TABLE t CHANGE COLUMN a a MEDIUMINT UNSIGNED NOT NULL;
+ERROR 42000: Table 't' uses an extension that doesn't exist in this XYZ version
+DROP TABLE t;
+CREATE TABLE t (a INT UNSIGNED);
+ALTER TABLE t CHANGE COLUMN a a INT ;
+ERROR 42000: Table 't' uses an extension that doesn't exist in this XYZ version
+DROP TABLE t;
+CREATE TABLE t (a INT UNSIGNED);
+ALTER TABLE t CHANGE COLUMN a a INT NOT NULL;
+ERROR 42000: Table 't' uses an extension that doesn't exist in this XYZ version
+DROP TABLE t;
+CREATE TABLE t (a INT UNSIGNED);
+ALTER TABLE t CHANGE COLUMN a a INT UNSIGNED;
+DROP TABLE t;
+CREATE TABLE t (a INT UNSIGNED);
+ALTER TABLE t CHANGE COLUMN a a INT UNSIGNED NOT NULL;
+ERROR 42000: Table 't' uses an extension that doesn't exist in this XYZ version
+DROP TABLE t;
+CREATE TABLE t (a INT UNSIGNED);
+ALTER TABLE t CHANGE COLUMN a a BIGINT ;
+ERROR 42000: Table 't' uses an extension that doesn't exist in this XYZ version
+DROP TABLE t;
+CREATE TABLE t (a INT UNSIGNED);
+ALTER TABLE t CHANGE COLUMN a a BIGINT NOT NULL;
+ERROR 42000: Table 't' uses an extension that doesn't exist in this XYZ version
+DROP TABLE t;
+CREATE TABLE t (a INT UNSIGNED);
+ALTER TABLE t CHANGE COLUMN a a BIGINT UNSIGNED;
+DROP TABLE t;
+CREATE TABLE t (a INT UNSIGNED);
+ALTER TABLE t CHANGE COLUMN a a BIGINT UNSIGNED NOT NULL;
+ERROR 42000: Table 't' uses an extension that doesn't exist in this XYZ version
+DROP TABLE t;
+CREATE TABLE t (a INT UNSIGNED NOT NULL);
+ALTER TABLE t CHANGE COLUMN a a TINYINT ;
+ERROR 42000: Table 't' uses an extension that doesn't exist in this XYZ version
+DROP TABLE t;
+CREATE TABLE t (a INT UNSIGNED NOT NULL);
+ALTER TABLE t CHANGE COLUMN a a TINYINT NOT NULL;
+ERROR 42000: Table 't' uses an extension that doesn't exist in this XYZ version
+DROP TABLE t;
+CREATE TABLE t (a INT UNSIGNED NOT NULL);
+ALTER TABLE t CHANGE COLUMN a a TINYINT UNSIGNED;
+ERROR 42000: Table 't' uses an extension that doesn't exist in this XYZ version
+DROP TABLE t;
+CREATE TABLE t (a INT UNSIGNED NOT NULL);
+ALTER TABLE t CHANGE COLUMN a a TINYINT UNSIGNED NOT NULL;
+ERROR 42000: Table 't' uses an extension that doesn't exist in this XYZ version
+DROP TABLE t;
+CREATE TABLE t (a INT UNSIGNED NOT NULL);
+ALTER TABLE t CHANGE COLUMN a a SMALLINT ;
+ERROR 42000: Table 't' uses an extension that doesn't exist in this XYZ version
+DROP TABLE t;
+CREATE TABLE t (a INT UNSIGNED NOT NULL);
+ALTER TABLE t CHANGE COLUMN a a SMALLINT NOT NULL;
+ERROR 42000: Table 't' uses an extension that doesn't exist in this XYZ version
+DROP TABLE t;
+CREATE TABLE t (a INT UNSIGNED NOT NULL);
+ALTER TABLE t CHANGE COLUMN a a SMALLINT UNSIGNED;
+ERROR 42000: Table 't' uses an extension that doesn't exist in this XYZ version
+DROP TABLE t;
+CREATE TABLE t (a INT UNSIGNED NOT NULL);
+ALTER TABLE t CHANGE COLUMN a a SMALLINT UNSIGNED NOT NULL;
+ERROR 42000: Table 't' uses an extension that doesn't exist in this XYZ version
+DROP TABLE t;
+CREATE TABLE t (a INT UNSIGNED NOT NULL);
+ALTER TABLE t CHANGE COLUMN a a MEDIUMINT ;
+ERROR 42000: Table 't' uses an extension that doesn't exist in this XYZ version
+DROP TABLE t;
+CREATE TABLE t (a INT UNSIGNED NOT NULL);
+ALTER TABLE t CHANGE COLUMN a a MEDIUMINT NOT NULL;
+ERROR 42000: Table 't' uses an extension that doesn't exist in this XYZ version
+DROP TABLE t;
+CREATE TABLE t (a INT UNSIGNED NOT NULL);
+ALTER TABLE t CHANGE COLUMN a a MEDIUMINT UNSIGNED;
+ERROR 42000: Table 't' uses an extension that doesn't exist in this XYZ version
+DROP TABLE t;
+CREATE TABLE t (a INT UNSIGNED NOT NULL);
+ALTER TABLE t CHANGE COLUMN a a MEDIUMINT UNSIGNED NOT NULL;
+ERROR 42000: Table 't' uses an extension that doesn't exist in this XYZ version
+DROP TABLE t;
+CREATE TABLE t (a INT UNSIGNED NOT NULL);
+ALTER TABLE t CHANGE COLUMN a a INT ;
+ERROR 42000: Table 't' uses an extension that doesn't exist in this XYZ version
+DROP TABLE t;
+CREATE TABLE t (a INT UNSIGNED NOT NULL);
+ALTER TABLE t CHANGE COLUMN a a INT NOT NULL;
+ERROR 42000: Table 't' uses an extension that doesn't exist in this XYZ version
+DROP TABLE t;
+CREATE TABLE t (a INT UNSIGNED NOT NULL);
+ALTER TABLE t CHANGE COLUMN a a INT UNSIGNED;
+ERROR 42000: Table 't' uses an extension that doesn't exist in this XYZ version
+DROP TABLE t;
+CREATE TABLE t (a INT UNSIGNED NOT NULL);
+ALTER TABLE t CHANGE COLUMN a a INT UNSIGNED NOT NULL;
+DROP TABLE t;
+CREATE TABLE t (a INT UNSIGNED NOT NULL);
+ALTER TABLE t CHANGE COLUMN a a BIGINT ;
+ERROR 42000: Table 't' uses an extension that doesn't exist in this XYZ version
+DROP TABLE t;
+CREATE TABLE t (a INT UNSIGNED NOT NULL);
+ALTER TABLE t CHANGE COLUMN a a BIGINT NOT NULL;
+ERROR 42000: Table 't' uses an extension that doesn't exist in this XYZ version
+DROP TABLE t;
+CREATE TABLE t (a INT UNSIGNED NOT NULL);
+ALTER TABLE t CHANGE COLUMN a a BIGINT UNSIGNED;
+ERROR 42000: Table 't' uses an extension that doesn't exist in this XYZ version
+DROP TABLE t;
+CREATE TABLE t (a INT UNSIGNED NOT NULL);
+ALTER TABLE t CHANGE COLUMN a a BIGINT UNSIGNED NOT NULL;
+DROP TABLE t;
+CREATE TABLE t (a BIGINT );
+ALTER TABLE t CHANGE COLUMN a a TINYINT ;
+ERROR 42000: Table 't' uses an extension that doesn't exist in this XYZ version
+DROP TABLE t;
+CREATE TABLE t (a BIGINT );
+ALTER TABLE t CHANGE COLUMN a a TINYINT NOT NULL;
+ERROR 42000: Table 't' uses an extension that doesn't exist in this XYZ version
+DROP TABLE t;
+CREATE TABLE t (a BIGINT );
+ALTER TABLE t CHANGE COLUMN a a TINYINT UNSIGNED;
+ERROR 42000: Table 't' uses an extension that doesn't exist in this XYZ version
+DROP TABLE t;
+CREATE TABLE t (a BIGINT );
+ALTER TABLE t CHANGE COLUMN a a TINYINT UNSIGNED NOT NULL;
+ERROR 42000: Table 't' uses an extension that doesn't exist in this XYZ version
+DROP TABLE t;
+CREATE TABLE t (a BIGINT );
+ALTER TABLE t CHANGE COLUMN a a SMALLINT ;
+ERROR 42000: Table 't' uses an extension that doesn't exist in this XYZ version
+DROP TABLE t;
+CREATE TABLE t (a BIGINT );
+ALTER TABLE t CHANGE COLUMN a a SMALLINT NOT NULL;
+ERROR 42000: Table 't' uses an extension that doesn't exist in this XYZ version
+DROP TABLE t;
+CREATE TABLE t (a BIGINT );
+ALTER TABLE t CHANGE COLUMN a a SMALLINT UNSIGNED;
+ERROR 42000: Table 't' uses an extension that doesn't exist in this XYZ version
+DROP TABLE t;
+CREATE TABLE t (a BIGINT );
+ALTER TABLE t CHANGE COLUMN a a SMALLINT UNSIGNED NOT NULL;
+ERROR 42000: Table 't' uses an extension that doesn't exist in this XYZ version
+DROP TABLE t;
+CREATE TABLE t (a BIGINT );
+ALTER TABLE t CHANGE COLUMN a a MEDIUMINT ;
+ERROR 42000: Table 't' uses an extension that doesn't exist in this XYZ version
+DROP TABLE t;
+CREATE TABLE t (a BIGINT );
+ALTER TABLE t CHANGE COLUMN a a MEDIUMINT NOT NULL;
+ERROR 42000: Table 't' uses an extension that doesn't exist in this XYZ version
+DROP TABLE t;
+CREATE TABLE t (a BIGINT );
+ALTER TABLE t CHANGE COLUMN a a MEDIUMINT UNSIGNED;
+ERROR 42000: Table 't' uses an extension that doesn't exist in this XYZ version
+DROP TABLE t;
+CREATE TABLE t (a BIGINT );
+ALTER TABLE t CHANGE COLUMN a a MEDIUMINT UNSIGNED NOT NULL;
+ERROR 42000: Table 't' uses an extension that doesn't exist in this XYZ version
+DROP TABLE t;
+CREATE TABLE t (a BIGINT );
+ALTER TABLE t CHANGE COLUMN a a INT ;
+ERROR 42000: Table 't' uses an extension that doesn't exist in this XYZ version
+DROP TABLE t;
+CREATE TABLE t (a BIGINT );
+ALTER TABLE t CHANGE COLUMN a a INT NOT NULL;
+ERROR 42000: Table 't' uses an extension that doesn't exist in this XYZ version
+DROP TABLE t;
+CREATE TABLE t (a BIGINT );
+ALTER TABLE t CHANGE COLUMN a a INT UNSIGNED;
+ERROR 42000: Table 't' uses an extension that doesn't exist in this XYZ version
+DROP TABLE t;
+CREATE TABLE t (a BIGINT );
+ALTER TABLE t CHANGE COLUMN a a INT UNSIGNED NOT NULL;
+ERROR 42000: Table 't' uses an extension that doesn't exist in this XYZ version
+DROP TABLE t;
+CREATE TABLE t (a BIGINT );
+ALTER TABLE t CHANGE COLUMN a a BIGINT ;
+DROP TABLE t;
+CREATE TABLE t (a BIGINT );
+ALTER TABLE t CHANGE COLUMN a a BIGINT NOT NULL;
+ERROR 42000: Table 't' uses an extension that doesn't exist in this XYZ version
+DROP TABLE t;
+CREATE TABLE t (a BIGINT );
+ALTER TABLE t CHANGE COLUMN a a BIGINT UNSIGNED;
+ERROR 42000: Table 't' uses an extension that doesn't exist in this XYZ version
+DROP TABLE t;
+CREATE TABLE t (a BIGINT );
+ALTER TABLE t CHANGE COLUMN a a BIGINT UNSIGNED NOT NULL;
+ERROR 42000: Table 't' uses an extension that doesn't exist in this XYZ version
+DROP TABLE t;
+CREATE TABLE t (a BIGINT NOT NULL);
+ALTER TABLE t CHANGE COLUMN a a TINYINT ;
+ERROR 42000: Table 't' uses an extension that doesn't exist in this XYZ version
+DROP TABLE t;
+CREATE TABLE t (a BIGINT NOT NULL);
+ALTER TABLE t CHANGE COLUMN a a TINYINT NOT NULL;
+ERROR 42000: Table 't' uses an extension that doesn't exist in this XYZ version
+DROP TABLE t;
+CREATE TABLE t (a BIGINT NOT NULL);
+ALTER TABLE t CHANGE COLUMN a a TINYINT UNSIGNED;
+ERROR 42000: Table 't' uses an extension that doesn't exist in this XYZ version
+DROP TABLE t;
+CREATE TABLE t (a BIGINT NOT NULL);
+ALTER TABLE t CHANGE COLUMN a a TINYINT UNSIGNED NOT NULL;
+ERROR 42000: Table 't' uses an extension that doesn't exist in this XYZ version
+DROP TABLE t;
+CREATE TABLE t (a BIGINT NOT NULL);
+ALTER TABLE t CHANGE COLUMN a a SMALLINT ;
+ERROR 42000: Table 't' uses an extension that doesn't exist in this XYZ version
+DROP TABLE t;
+CREATE TABLE t (a BIGINT NOT NULL);
+ALTER TABLE t CHANGE COLUMN a a SMALLINT NOT NULL;
+ERROR 42000: Table 't' uses an extension that doesn't exist in this XYZ version
+DROP TABLE t;
+CREATE TABLE t (a BIGINT NOT NULL);
+ALTER TABLE t CHANGE COLUMN a a SMALLINT UNSIGNED;
+ERROR 42000: Table 't' uses an extension that doesn't exist in this XYZ version
+DROP TABLE t;
+CREATE TABLE t (a BIGINT NOT NULL);
+ALTER TABLE t CHANGE COLUMN a a SMALLINT UNSIGNED NOT NULL;
+ERROR 42000: Table 't' uses an extension that doesn't exist in this XYZ version
+DROP TABLE t;
+CREATE TABLE t (a BIGINT NOT NULL);
+ALTER TABLE t CHANGE COLUMN a a MEDIUMINT ;
+ERROR 42000: Table 't' uses an extension that doesn't exist in this XYZ version
+DROP TABLE t;
+CREATE TABLE t (a BIGINT NOT NULL);
+ALTER TABLE t CHANGE COLUMN a a MEDIUMINT NOT NULL;
+ERROR 42000: Table 't' uses an extension that doesn't exist in this XYZ version
+DROP TABLE t;
+CREATE TABLE t (a BIGINT NOT NULL);
+ALTER TABLE t CHANGE COLUMN a a MEDIUMINT UNSIGNED;
+ERROR 42000: Table 't' uses an extension that doesn't exist in this XYZ version
+DROP TABLE t;
+CREATE TABLE t (a BIGINT NOT NULL);
+ALTER TABLE t CHANGE COLUMN a a MEDIUMINT UNSIGNED NOT NULL;
+ERROR 42000: Table 't' uses an extension that doesn't exist in this XYZ version
+DROP TABLE t;
+CREATE TABLE t (a BIGINT NOT NULL);
+ALTER TABLE t CHANGE COLUMN a a INT ;
+ERROR 42000: Table 't' uses an extension that doesn't exist in this XYZ version
+DROP TABLE t;
+CREATE TABLE t (a BIGINT NOT NULL);
+ALTER TABLE t CHANGE COLUMN a a INT NOT NULL;
+ERROR 42000: Table 't' uses an extension that doesn't exist in this XYZ version
+DROP TABLE t;
+CREATE TABLE t (a BIGINT NOT NULL);
+ALTER TABLE t CHANGE COLUMN a a INT UNSIGNED;
+ERROR 42000: Table 't' uses an extension that doesn't exist in this XYZ version
+DROP TABLE t;
+CREATE TABLE t (a BIGINT NOT NULL);
+ALTER TABLE t CHANGE COLUMN a a INT UNSIGNED NOT NULL;
+ERROR 42000: Table 't' uses an extension that doesn't exist in this XYZ version
+DROP TABLE t;
+CREATE TABLE t (a BIGINT NOT NULL);
+ALTER TABLE t CHANGE COLUMN a a BIGINT ;
+ERROR 42000: Table 't' uses an extension that doesn't exist in this XYZ version
+DROP TABLE t;
+CREATE TABLE t (a BIGINT NOT NULL);
+ALTER TABLE t CHANGE COLUMN a a BIGINT NOT NULL;
+DROP TABLE t;
+CREATE TABLE t (a BIGINT NOT NULL);
+ALTER TABLE t CHANGE COLUMN a a BIGINT UNSIGNED;
+ERROR 42000: Table 't' uses an extension that doesn't exist in this XYZ version
+DROP TABLE t;
+CREATE TABLE t (a BIGINT NOT NULL);
+ALTER TABLE t CHANGE COLUMN a a BIGINT UNSIGNED NOT NULL;
+ERROR 42000: Table 't' uses an extension that doesn't exist in this XYZ version
+DROP TABLE t;
+CREATE TABLE t (a BIGINT UNSIGNED);
+ALTER TABLE t CHANGE COLUMN a a TINYINT ;
+ERROR 42000: Table 't' uses an extension that doesn't exist in this XYZ version
+DROP TABLE t;
+CREATE TABLE t (a BIGINT UNSIGNED);
+ALTER TABLE t CHANGE COLUMN a a TINYINT NOT NULL;
+ERROR 42000: Table 't' uses an extension that doesn't exist in this XYZ version
+DROP TABLE t;
+CREATE TABLE t (a BIGINT UNSIGNED);
+ALTER TABLE t CHANGE COLUMN a a TINYINT UNSIGNED;
+ERROR 42000: Table 't' uses an extension that doesn't exist in this XYZ version
+DROP TABLE t;
+CREATE TABLE t (a BIGINT UNSIGNED);
+ALTER TABLE t CHANGE COLUMN a a TINYINT UNSIGNED NOT NULL;
+ERROR 42000: Table 't' uses an extension that doesn't exist in this XYZ version
+DROP TABLE t;
+CREATE TABLE t (a BIGINT UNSIGNED);
+ALTER TABLE t CHANGE COLUMN a a SMALLINT ;
+ERROR 42000: Table 't' uses an extension that doesn't exist in this XYZ version
+DROP TABLE t;
+CREATE TABLE t (a BIGINT UNSIGNED);
+ALTER TABLE t CHANGE COLUMN a a SMALLINT NOT NULL;
+ERROR 42000: Table 't' uses an extension that doesn't exist in this XYZ version
+DROP TABLE t;
+CREATE TABLE t (a BIGINT UNSIGNED);
+ALTER TABLE t CHANGE COLUMN a a SMALLINT UNSIGNED;
+ERROR 42000: Table 't' uses an extension that doesn't exist in this XYZ version
+DROP TABLE t;
+CREATE TABLE t (a BIGINT UNSIGNED);
+ALTER TABLE t CHANGE COLUMN a a SMALLINT UNSIGNED NOT NULL;
+ERROR 42000: Table 't' uses an extension that doesn't exist in this XYZ version
+DROP TABLE t;
+CREATE TABLE t (a BIGINT UNSIGNED);
+ALTER TABLE t CHANGE COLUMN a a MEDIUMINT ;
+ERROR 42000: Table 't' uses an extension that doesn't exist in this XYZ version
+DROP TABLE t;
+CREATE TABLE t (a BIGINT UNSIGNED);
+ALTER TABLE t CHANGE COLUMN a a MEDIUMINT NOT NULL;
+ERROR 42000: Table 't' uses an extension that doesn't exist in this XYZ version
+DROP TABLE t;
+CREATE TABLE t (a BIGINT UNSIGNED);
+ALTER TABLE t CHANGE COLUMN a a MEDIUMINT UNSIGNED;
+ERROR 42000: Table 't' uses an extension that doesn't exist in this XYZ version
+DROP TABLE t;
+CREATE TABLE t (a BIGINT UNSIGNED);
+ALTER TABLE t CHANGE COLUMN a a MEDIUMINT UNSIGNED NOT NULL;
+ERROR 42000: Table 't' uses an extension that doesn't exist in this XYZ version
+DROP TABLE t;
+CREATE TABLE t (a BIGINT UNSIGNED);
+ALTER TABLE t CHANGE COLUMN a a INT ;
+ERROR 42000: Table 't' uses an extension that doesn't exist in this XYZ version
+DROP TABLE t;
+CREATE TABLE t (a BIGINT UNSIGNED);
+ALTER TABLE t CHANGE COLUMN a a INT NOT NULL;
+ERROR 42000: Table 't' uses an extension that doesn't exist in this XYZ version
+DROP TABLE t;
+CREATE TABLE t (a BIGINT UNSIGNED);
+ALTER TABLE t CHANGE COLUMN a a INT UNSIGNED;
+ERROR 42000: Table 't' uses an extension that doesn't exist in this XYZ version
+DROP TABLE t;
+CREATE TABLE t (a BIGINT UNSIGNED);
+ALTER TABLE t CHANGE COLUMN a a INT UNSIGNED NOT NULL;
+ERROR 42000: Table 't' uses an extension that doesn't exist in this XYZ version
+DROP TABLE t;
+CREATE TABLE t (a BIGINT UNSIGNED);
+ALTER TABLE t CHANGE COLUMN a a BIGINT ;
+ERROR 42000: Table 't' uses an extension that doesn't exist in this XYZ version
+DROP TABLE t;
+CREATE TABLE t (a BIGINT UNSIGNED);
+ALTER TABLE t CHANGE COLUMN a a BIGINT NOT NULL;
+ERROR 42000: Table 't' uses an extension that doesn't exist in this XYZ version
+DROP TABLE t;
+CREATE TABLE t (a BIGINT UNSIGNED);
+ALTER TABLE t CHANGE COLUMN a a BIGINT UNSIGNED;
+DROP TABLE t;
+CREATE TABLE t (a BIGINT UNSIGNED);
+ALTER TABLE t CHANGE COLUMN a a BIGINT UNSIGNED NOT NULL;
+ERROR 42000: Table 't' uses an extension that doesn't exist in this XYZ version
+DROP TABLE t;
+CREATE TABLE t (a BIGINT UNSIGNED NOT NULL);
+ALTER TABLE t CHANGE COLUMN a a TINYINT ;
+ERROR 42000: Table 't' uses an extension that doesn't exist in this XYZ version
+DROP TABLE t;
+CREATE TABLE t (a BIGINT UNSIGNED NOT NULL);
+ALTER TABLE t CHANGE COLUMN a a TINYINT NOT NULL;
+ERROR 42000: Table 't' uses an extension that doesn't exist in this XYZ version
+DROP TABLE t;
+CREATE TABLE t (a BIGINT UNSIGNED NOT NULL);
+ALTER TABLE t CHANGE COLUMN a a TINYINT UNSIGNED;
+ERROR 42000: Table 't' uses an extension that doesn't exist in this XYZ version
+DROP TABLE t;
+CREATE TABLE t (a BIGINT UNSIGNED NOT NULL);
+ALTER TABLE t CHANGE COLUMN a a TINYINT UNSIGNED NOT NULL;
+ERROR 42000: Table 't' uses an extension that doesn't exist in this XYZ version
+DROP TABLE t;
+CREATE TABLE t (a BIGINT UNSIGNED NOT NULL);
+ALTER TABLE t CHANGE COLUMN a a SMALLINT ;
+ERROR 42000: Table 't' uses an extension that doesn't exist in this XYZ version
+DROP TABLE t;
+CREATE TABLE t (a BIGINT UNSIGNED NOT NULL);
+ALTER TABLE t CHANGE COLUMN a a SMALLINT NOT NULL;
+ERROR 42000: Table 't' uses an extension that doesn't exist in this XYZ version
+DROP TABLE t;
+CREATE TABLE t (a BIGINT UNSIGNED NOT NULL);
+ALTER TABLE t CHANGE COLUMN a a SMALLINT UNSIGNED;
+ERROR 42000: Table 't' uses an extension that doesn't exist in this XYZ version
+DROP TABLE t;
+CREATE TABLE t (a BIGINT UNSIGNED NOT NULL);
+ALTER TABLE t CHANGE COLUMN a a SMALLINT UNSIGNED NOT NULL;
+ERROR 42000: Table 't' uses an extension that doesn't exist in this XYZ version
+DROP TABLE t;
+CREATE TABLE t (a BIGINT UNSIGNED NOT NULL);
+ALTER TABLE t CHANGE COLUMN a a MEDIUMINT ;
+ERROR 42000: Table 't' uses an extension that doesn't exist in this XYZ version
+DROP TABLE t;
+CREATE TABLE t (a BIGINT UNSIGNED NOT NULL);
+ALTER TABLE t CHANGE COLUMN a a MEDIUMINT NOT NULL;
+ERROR 42000: Table 't' uses an extension that doesn't exist in this XYZ version
+DROP TABLE t;
+CREATE TABLE t (a BIGINT UNSIGNED NOT NULL);
+ALTER TABLE t CHANGE COLUMN a a MEDIUMINT UNSIGNED;
+ERROR 42000: Table 't' uses an extension that doesn't exist in this XYZ version
+DROP TABLE t;
+CREATE TABLE t (a BIGINT UNSIGNED NOT NULL);
+ALTER TABLE t CHANGE COLUMN a a MEDIUMINT UNSIGNED NOT NULL;
+ERROR 42000: Table 't' uses an extension that doesn't exist in this XYZ version
+DROP TABLE t;
+CREATE TABLE t (a BIGINT UNSIGNED NOT NULL);
+ALTER TABLE t CHANGE COLUMN a a INT ;
+ERROR 42000: Table 't' uses an extension that doesn't exist in this XYZ version
+DROP TABLE t;
+CREATE TABLE t (a BIGINT UNSIGNED NOT NULL);
+ALTER TABLE t CHANGE COLUMN a a INT NOT NULL;
+ERROR 42000: Table 't' uses an extension that doesn't exist in this XYZ version
+DROP TABLE t;
+CREATE TABLE t (a BIGINT UNSIGNED NOT NULL);
+ALTER TABLE t CHANGE COLUMN a a INT UNSIGNED;
+ERROR 42000: Table 't' uses an extension that doesn't exist in this XYZ version
+DROP TABLE t;
+CREATE TABLE t (a BIGINT UNSIGNED NOT NULL);
+ALTER TABLE t CHANGE COLUMN a a INT UNSIGNED NOT NULL;
+ERROR 42000: Table 't' uses an extension that doesn't exist in this XYZ version
+DROP TABLE t;
+CREATE TABLE t (a BIGINT UNSIGNED NOT NULL);
+ALTER TABLE t CHANGE COLUMN a a BIGINT ;
+ERROR 42000: Table 't' uses an extension that doesn't exist in this XYZ version
+DROP TABLE t;
+CREATE TABLE t (a BIGINT UNSIGNED NOT NULL);
+ALTER TABLE t CHANGE COLUMN a a BIGINT NOT NULL;
+ERROR 42000: Table 't' uses an extension that doesn't exist in this XYZ version
+DROP TABLE t;
+CREATE TABLE t (a BIGINT UNSIGNED NOT NULL);
+ALTER TABLE t CHANGE COLUMN a a BIGINT UNSIGNED;
+ERROR 42000: Table 't' uses an extension that doesn't exist in this XYZ version
+DROP TABLE t;
+CREATE TABLE t (a BIGINT UNSIGNED NOT NULL);
+ALTER TABLE t CHANGE COLUMN a a BIGINT UNSIGNED NOT NULL;
+DROP TABLE t;

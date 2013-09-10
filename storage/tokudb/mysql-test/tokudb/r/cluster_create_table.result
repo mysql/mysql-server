@@ -1,0 +1,59 @@
+SET DEFAULT_STORAGE_ENGINE='tokudb';
+DROP TABLE IF EXISTS t1;
+set tokudb_prelock_empty=off;
+create table t1(a int, b int, c int, d int, primary key(a), key(b) clustering=yes)engine=tokudb;
+show create table t1;
+Table	Create Table
+t1	CREATE TABLE `t1` (
+  `a` int(11) NOT NULL DEFAULT '0',
+  `b` int(11) DEFAULT NULL,
+  `c` int(11) DEFAULT NULL,
+  `d` int(11) DEFAULT NULL,
+  PRIMARY KEY (`a`),
+  KEY `b` (`b`) `clustering`=yes
+) ENGINE=TokuDB DEFAULT CHARSET=latin1
+create index foo on t1(c,d) clustering=yes;
+show create table t1;
+Table	Create Table
+t1	CREATE TABLE `t1` (
+  `a` int(11) NOT NULL DEFAULT '0',
+  `b` int(11) DEFAULT NULL,
+  `c` int(11) DEFAULT NULL,
+  `d` int(11) DEFAULT NULL,
+  PRIMARY KEY (`a`),
+  KEY `b` (`b`) `clustering`=yes,
+  KEY `foo` (`c`,`d`) `clustering`=yes
+) ENGINE=TokuDB DEFAULT CHARSET=latin1
+alter table t1 drop primary key;
+alter table t1 add primary key (a,b,c,d);
+alter table t1 add key bar(d,c,b,a) clustering=yes;
+show create table t1;
+Table	Create Table
+t1	CREATE TABLE `t1` (
+  `a` int(11) NOT NULL DEFAULT '0',
+  `b` int(11) NOT NULL DEFAULT '0',
+  `c` int(11) NOT NULL DEFAULT '0',
+  `d` int(11) NOT NULL DEFAULT '0',
+  PRIMARY KEY (`a`,`b`,`c`,`d`),
+  KEY `b` (`b`) `clustering`=yes,
+  KEY `foo` (`c`,`d`) `clustering`=yes,
+  KEY `bar` (`d`,`c`,`b`,`a`) `clustering`=yes
+) ENGINE=TokuDB DEFAULT CHARSET=latin1
+insert into t1 value (1,1,1,1),(2,2,2,2),(3,3,3,3),(4,4,4,4),(32,54,12,56);
+explain select * from t1;
+id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
+1	SIMPLE	t1	index	NULL	PRIMARY	16	NULL	5	Using index
+select * from t1;
+a	b	c	d
+1	1	1	1
+2	2	2	2
+3	3	3	3
+4	4	4	4
+32	54	12	56
+explain select d from t1 where d > 30;
+id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
+1	SIMPLE	t1	range	bar	bar	4	NULL	1	Using where; Using index
+select * from t1 where d > 30;
+a	b	c	d
+32	54	12	56
+drop table t1;

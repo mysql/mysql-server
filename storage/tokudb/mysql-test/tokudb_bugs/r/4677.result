@@ -1,0 +1,11 @@
+drop table if exists t;
+create table t (a int primary key) engine='tokudb';
+begin;
+insert into t values (1);
+insert into t values (3);
+begin;
+insert into t values (2);
+insert into t values (4);
+commit;
+commit;
+drop table t;

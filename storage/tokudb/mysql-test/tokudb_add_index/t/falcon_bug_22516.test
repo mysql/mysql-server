@@ -1,0 +1,78 @@
+# Testcase derived from mix2_falcon
+--source include/have_tokudb.inc
+let $engine_type= tokudb;
+
+--disable_abort_on_error
+
+--disable_warnings
+DROP TABLE IF EXISTS t1;
+--enable_warnings
+
+set session tokudb_disable_slow_alter=ON;
+
+# Slightly simplified testcase
+#
+# Test of index only reads
+#
+eval CREATE TABLE t1 (
+   sca_code char(6) NOT NULL,
+   cat_code char(6) NOT NULL,
+   lan_code char(2) NOT NULL,
+   sca_pic varchar(100),
+   sca_sdesc varchar(50),
+   sca_sch_desc varchar(16)
+  , PRIMARY KEY (sca_code, cat_code, lan_code)
+) Engine = $engine_type ;
+
+INSERT INTO t1 ( sca_code, cat_code, lan_code, sca_pic, sca_sdesc, sca_sch_desc) VALUES
+ ( 'PD', 'J', 'EN', NULL, NULL, 'PENDANT'),
+ ( 'RI', 'J', 'EN', NULL, NULL, 'RING'),
+ ( 'QQ', 'N', 'EN', 'not null', NULL, 'RING');
+alter table t1 add index sca_pic (cat_code, sca_pic);
+select count(*) from t1 where sca_pic >= 'n';
+
+--replace_regex /MariaDB/XYZ/ /MySQL/XYZ/
+alter table t1 drop index sca_pic, add index (sca_pic, cat_code);
+# alter table t1 drop index sca_pic;
+# alter table t1 add index (sca_pic, cat_code);
+select count(*) from t1 where sca_pic >= 'n';
+DROP TABLE t1;
+
+# The original testcase
+DROP TABLE t1;
+
+#
+# Test of index only reads
+#
+eval CREATE TABLE t1 (
+   sca_code char(6) NOT NULL,
+   cat_code char(6) NOT NULL,
+   sca_desc varchar(50),
+   lan_code char(2) NOT NULL,
+   sca_pic varchar(100),
+   sca_sdesc varchar(50),
+   sca_sch_desc varchar(16),
+   PRIMARY KEY (sca_code, cat_code, lan_code),
+   INDEX sca_pic (sca_pic)
+) Engine = $engine_type ;
+
+INSERT INTO t1 ( sca_code, cat_code, sca_desc, lan_code, sca_pic, sca_sdesc, sca_sch_desc) VALUES ( 'PD', 'J', 'PENDANT', 'EN', NULL, NULL, 'PENDANT'
+),( 'RI', 'J', 'RING', 'EN', NULL, NULL, 'RING'),( 'QQ', 'N', 'RING', 'EN', 'not null', NULL, 'RING');
+select count(*) from t1 where sca_code = 'PD';
+select count(*) from t1 where sca_code <= 'PD';
+select count(*) from t1 where sca_pic is null;
+--replace_regex /MariaDB/XYZ/ /MySQL/XYZ/
+alter table t1 drop index sca_pic, add index sca_pic (cat_code, sca_pic);
+select count(*) from t1 where sca_code='PD' and sca_pic is null;
+select count(*) from t1 where cat_code='E';
+
+--replace_regex /MariaDB/XYZ/ /MySQL/XYZ/
+alter table t1 drop index sca_pic, add index (sca_pic, cat_code);
+select count(*) from t1 where sca_code='PD' and sca_pic is null;
+select count(*) from t1 where sca_pic >= 'n';
+select sca_pic from t1 where sca_pic is null;
+update t1 set sca_pic="test" where sca_pic is null;
+delete from t1 where sca_code='pd';
+
+# Final cleanup
+DROP TABLE t1;

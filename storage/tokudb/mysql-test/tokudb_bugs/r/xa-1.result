@@ -1,0 +1,17 @@
+drop table if exists t1, t2;
+CREATE TABLE t1 (a INT PRIMARY KEY) ENGINE=innodb;
+CREATE TABLE t2 (b INT PRIMARY KEY) ENGINE=tokudb;
+BEGIN;
+SELECT @@log_bin;
+@@log_bin
+0
+INSERT INTO t1 VALUES (1);
+INSERT INTO t2 VALUES (2);
+COMMIT;
+select * from t1;
+a
+1
+select * from t2;
+b
+2
+drop table t1, t2;

@@ -1,0 +1,241 @@
+SET DEFAULT_STORAGE_ENGINE='tokudb';
+drop table if exists t1;
+DROP TABLE IF EXISTS t1;
+SHOW COLLATION LIKE 'cp1250_czech_cs';
+Collation	Charset	Id	Default	Compiled	Sortlen
+cp1250_czech_cs	cp1250	34		Yes	2
+SET @test_character_set= 'cp1250';
+SET @test_collation= 'cp1250_general_ci';
+SET @safe_character_set_server= @@character_set_server;
+SET @safe_collation_server= @@collation_server;
+SET @safe_character_set_client= @@character_set_client;
+SET @safe_character_set_results= @@character_set_results;
+SET character_set_server= @test_character_set;
+SET collation_server= @test_collation;
+CREATE DATABASE d1;
+USE d1;
+CREATE TABLE t1 (c CHAR(10), KEY(c));
+SHOW FULL COLUMNS FROM t1;
+Field	Type	Collation	Null	Key	Default	Extra	Privileges	Comment
+c	char(10)	cp1250_general_ci	YES	MUL	NULL			
+INSERT INTO t1 VALUES ('aaa'),('aaaa'),('aaaaa');
+SELECT c as want3results FROM t1 WHERE c LIKE 'aaa%';
+want3results
+aaa
+aaaa
+aaaaa
+DROP TABLE t1;
+CREATE TABLE t1 (c1 varchar(15), KEY c1 (c1(2)));
+SHOW FULL COLUMNS FROM t1;
+Field	Type	Collation	Null	Key	Default	Extra	Privileges	Comment
+c1	varchar(15)	cp1250_general_ci	YES	MUL	NULL			
+INSERT INTO t1 VALUES ('location'),('loberge'),('lotre'),('boabab');
+SELECT c1 as want3results from t1 where c1 like 'l%';
+want3results
+location
+loberge
+lotre
+SELECT c1 as want3results from t1 where c1 like 'lo%';
+want3results
+location
+loberge
+lotre
+SELECT c1 as want1result  from t1 where c1 like 'loc%';
+want1result
+location
+SELECT c1 as want1result  from t1 where c1 like 'loca%';
+want1result
+location
+SELECT c1 as want1result  from t1 where c1 like 'locat%';
+want1result
+location
+SELECT c1 as want1result  from t1 where c1 like 'locati%';
+want1result
+location
+SELECT c1 as want1result  from t1 where c1 like 'locatio%';
+want1result
+location
+SELECT c1 as want1result  from t1 where c1 like 'location%';
+want1result
+location
+DROP TABLE t1;
+create table t1 (a set('a') not null);
+insert into t1 values (),();
+Warnings:
+Warning	1364	Field 'a' doesn't have a default value
+select cast(a as char(1)) from t1;
+cast(a as char(1))
+
+
+select a sounds like a from t1;
+a sounds like a
+1
+1
+select 1 from t1 order by cast(a as char(1));
+1
+1
+1
+drop table t1;
+set names utf8;
+create table t1 (
+name varchar(10),
+level smallint unsigned);
+show create table t1;
+Table	Create Table
+t1	CREATE TABLE `t1` (
+  `name` varchar(10) DEFAULT NULL,
+  `level` smallint(5) unsigned DEFAULT NULL
+) ENGINE=TokuDB DEFAULT CHARSET=cp1250
+insert into t1 values ('string',1);
+select concat(name,space(level)), concat(name, repeat(' ',level)) from t1;
+concat(name,space(level))	concat(name, repeat(' ',level))
+string 	string 
+drop table t1;
+DROP DATABASE d1;
+USE test;
+SET character_set_server= @safe_character_set_server;
+SET collation_server= @safe_collation_server;
+SET character_set_client= @safe_character_set_client;
+SET character_set_results= @safe_character_set_results;
+SET @test_character_set= 'cp1250';
+SET @test_collation= 'cp1250_czech_cs';
+SET @safe_character_set_server= @@character_set_server;
+SET @safe_collation_server= @@collation_server;
+SET @safe_character_set_client= @@character_set_client;
+SET @safe_character_set_results= @@character_set_results;
+SET character_set_server= @test_character_set;
+SET collation_server= @test_collation;
+CREATE DATABASE d1;
+USE d1;
+CREATE TABLE t1 (c CHAR(10), KEY(c));
+SHOW FULL COLUMNS FROM t1;
+Field	Type	Collation	Null	Key	Default	Extra	Privileges	Comment
+c	char(10)	cp1250_czech_cs	YES	MUL	NULL			
+INSERT INTO t1 VALUES ('aaa'),('aaaa'),('aaaaa');
+SELECT c as want3results FROM t1 WHERE c LIKE 'aaa%';
+want3results
+aaa
+aaaa
+aaaaa
+DROP TABLE t1;
+CREATE TABLE t1 (c1 varchar(15), KEY c1 (c1(2)));
+SHOW FULL COLUMNS FROM t1;
+Field	Type	Collation	Null	Key	Default	Extra	Privileges	Comment
+c1	varchar(15)	cp1250_czech_cs	YES	MUL	NULL			
+INSERT INTO t1 VALUES ('location'),('loberge'),('lotre'),('boabab');
+SELECT c1 as want3results from t1 where c1 like 'l%';
+want3results
+location
+loberge
+lotre
+SELECT c1 as want3results from t1 where c1 like 'lo%';
+want3results
+location
+loberge
+lotre
+SELECT c1 as want1result  from t1 where c1 like 'loc%';
+want1result
+location
+SELECT c1 as want1result  from t1 where c1 like 'loca%';
+want1result
+location
+SELECT c1 as want1result  from t1 where c1 like 'locat%';
+want1result
+location
+SELECT c1 as want1result  from t1 where c1 like 'locati%';
+want1result
+location
+SELECT c1 as want1result  from t1 where c1 like 'locatio%';
+want1result
+location
+SELECT c1 as want1result  from t1 where c1 like 'location%';
+want1result
+location
+DROP TABLE t1;
+create table t1 (a set('a') not null);
+insert into t1 values (),();
+Warnings:
+Warning	1364	Field 'a' doesn't have a default value
+select cast(a as char(1)) from t1;
+cast(a as char(1))
+
+
+select a sounds like a from t1;
+a sounds like a
+1
+1
+select 1 from t1 order by cast(a as char(1));
+1
+1
+1
+drop table t1;
+set names utf8;
+create table t1 (
+name varchar(10),
+level smallint unsigned);
+show create table t1;
+Table	Create Table
+t1	CREATE TABLE `t1` (
+  `name` varchar(10) COLLATE cp1250_czech_cs DEFAULT NULL,
+  `level` smallint(5) unsigned DEFAULT NULL
+) ENGINE=TokuDB DEFAULT CHARSET=cp1250 COLLATE=cp1250_czech_cs
+insert into t1 values ('string',1);
+select concat(name,space(level)), concat(name, repeat(' ',level)) from t1;
+concat(name,space(level))	concat(name, repeat(' ',level))
+string 	string 
+drop table t1;
+DROP DATABASE d1;
+USE test;
+SET character_set_server= @safe_character_set_server;
+SET collation_server= @safe_collation_server;
+SET character_set_client= @safe_character_set_client;
+SET character_set_results= @safe_character_set_results;
+CREATE TABLE t1 (a char(16)) character set cp1250 collate cp1250_czech_cs;
+INSERT INTO t1 VALUES ('');
+SELECT a, length(a), a='', a=' ', a='  ' FROM t1;
+a	length(a)	a=''	a=' '	a='  '
+	0	1	1	1
+DROP TABLE t1;
+CREATE TABLE t1 (
+popisek varchar(30) collate cp1250_general_ci NOT NULL default '',
+PRIMARY KEY  (`popisek`)
+);
+INSERT INTO t1 VALUES ('2005-01-1');
+SELECT * FROM t1 WHERE popisek = '2005-01-1';
+popisek
+2005-01-1
+SELECT * FROM t1 WHERE popisek LIKE '2005-01-1';
+popisek
+2005-01-1
+drop table t1;
+set names cp1250;
+CREATE TABLE t1
+(
+id  INT AUTO_INCREMENT PRIMARY KEY,
+str VARCHAR(32)  CHARACTER SET cp1250 COLLATE cp1250_czech_cs NOT NULL default '',
+UNIQUE KEY (str)
+);
+INSERT INTO t1 VALUES (NULL, 'a');
+INSERT INTO t1 VALUES (NULL, 'aa');
+INSERT INTO t1 VALUES (NULL, 'aaa');
+INSERT INTO t1 VALUES (NULL, 'aaaa');
+INSERT INTO t1 VALUES (NULL, 'aaaaa');
+INSERT INTO t1 VALUES (NULL, 'aaaaaa');
+INSERT INTO t1 VALUES (NULL, 'aaaaaaa');
+select * from t1 where str like 'aa%';
+id	str
+2	aa
+3	aaa
+4	aaaa
+5	aaaaa
+6	aaaaaa
+7	aaaaaaa
+drop table t1;
+set names cp1250;
+create table t1 (a varchar(15) collate cp1250_czech_cs NOT NULL, primary key(a));
+insert into t1 values("abcdefgh·");
+insert into t1 values("··ËË");
+select a from t1 where a like "abcdefgh·";
+a
+abcdefgh·
+drop table t1;

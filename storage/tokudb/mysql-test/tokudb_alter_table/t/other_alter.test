@@ -1,0 +1,165 @@
+#--source include/have_tokudb.inc
+SET DEFAULT_STORAGE_ENGINE='tokudb';
+
+--disable_warnings
+DROP TABLE IF EXISTS foo,bar;
+--enable_warnings
+
+set session tokudb_disable_slow_alter=ON;
+
+
+create table foo (aa int, bb int, cc int, dd int, ee int, a int, b varchar(20), c int, d int, e int, primary key (e), key(d), unique key(c), key (b) clustering=yes)engine=TokuDB;
+create table bar (a int) engine=TokuDB;
+
+--replace_regex /MariaDB/XYZ/ /MySQL/XYZ/
+--error ER_UNSUPPORTED_EXTENSION
+alter table foo drop primary key;
+--replace_regex /MariaDB/XYZ/ /MySQL/XYZ/
+--error ER_UNSUPPORTED_EXTENSION
+alter table foo drop primary key, add column z int;
+--replace_regex /MariaDB/XYZ/ /MySQL/XYZ/
+--error ER_UNSUPPORTED_EXTENSION
+alter table foo drop primary key, drop column aa;
+--replace_regex /MariaDB/XYZ/ /MySQL/XYZ/
+--error ER_UNSUPPORTED_EXTENSION
+alter table bar add primary key (a);
+--replace_regex /MariaDB/XYZ/ /MySQL/XYZ/
+--error ER_UNSUPPORTED_EXTENSION
+alter table bar add primary key (a), add column z int;
+
+--replace_regex /MariaDB/XYZ/ /MySQL/XYZ/
+--error ER_UNSUPPORTED_EXTENSION
+alter table foo drop primary key, add primary key (b);
+--replace_regex /MariaDB/XYZ/ /MySQL/XYZ/
+--error ER_UNSUPPORTED_EXTENSION
+alter table foo drop primary key, add primary key (b), add column z int;
+--replace_regex /MariaDB/XYZ/ /MySQL/XYZ/
+--error ER_UNSUPPORTED_EXTENSION
+alter table foo drop primary key, add primary key (b), drop column aa;
+
+--replace_regex /MariaDB/XYZ/ /MySQL/XYZ/
+--error ER_TABLE_CANT_HANDLE_FT
+alter table foo add fulltext key(b);
+--replace_regex /MariaDB/XYZ/ /MySQL/XYZ/
+--error ER_TABLE_CANT_HANDLE_SPKEYS
+alter table foo add spatial key (aa);
+
+# change default
+alter table foo alter column cc set default 101010;
+alter table foo alter column cc set default NULL;
+alter table foo alter column cc drop default;
+
+# Supporting these should be trivial
+--replace_regex /MariaDB/XYZ/ /MySQL/XYZ/
+--error ER_UNSUPPORTED_EXTENSION
+alter table foo alter column cc set default 101010, add column z int;
+--replace_regex /MariaDB/XYZ/ /MySQL/XYZ/
+--error ER_UNSUPPORTED_EXTENSION
+alter table foo alter column cc set default NULL, add column z int;
+--replace_regex /MariaDB/XYZ/ /MySQL/XYZ/
+--error ER_UNSUPPORTED_EXTENSION
+alter table foo alter column cc drop default, add column z int;
+--replace_regex /MariaDB/XYZ/ /MySQL/XYZ/
+--error ER_UNSUPPORTED_EXTENSION
+alter table foo alter column cc set default 101010, drop column aa;
+--replace_regex /MariaDB/XYZ/ /MySQL/XYZ/
+--error ER_UNSUPPORTED_EXTENSION
+alter table foo alter column cc set default NULL, drop column aa;
+--replace_regex /MariaDB/XYZ/ /MySQL/XYZ/
+--error ER_UNSUPPORTED_EXTENSION
+alter table foo alter column cc drop default, drop column aa;
+
+# these one day MAY be supported
+--replace_regex /MariaDB/XYZ/ /MySQL/XYZ/
+--error ER_UNSUPPORTED_EXTENSION
+alter table foo change column aa aaa int, add column z int;
+--replace_regex /MariaDB/XYZ/ /MySQL/XYZ/
+--error ER_UNSUPPORTED_EXTENSION
+alter table foo change column e epk int, add column z int;
+--replace_regex /MariaDB/XYZ/ /MySQL/XYZ/
+--error ER_UNSUPPORTED_EXTENSION
+alter table foo change column aa aaa int, drop column bb;
+--replace_regex /MariaDB/XYZ/ /MySQL/XYZ/
+--error ER_UNSUPPORTED_EXTENSION
+alter table foo change column e epk int, drop column bb;
+show create table foo;
+
+# the following changes of a column should be slow
+--replace_regex /MariaDB/XYZ/ /MySQL/XYZ/
+--error ER_UNSUPPORTED_EXTENSION
+alter table foo change column aa aa int NOT NULL;
+#--error ER_UNSUPPORTED_EXTENSION
+#alter table foo change column aa aa bigint;
+--replace_regex /MariaDB/XYZ/ /MySQL/XYZ/
+--error ER_UNSUPPORTED_EXTENSION
+alter table foo change column aa aa varchar(20);
+--replace_regex /MariaDB/XYZ/ /MySQL/XYZ/
+--error ER_UNSUPPORTED_EXTENSION
+alter table foo change column aa aa int after cc;
+--replace_regex /MariaDB/XYZ/ /MySQL/XYZ/
+--error ER_UNSUPPORTED_EXTENSION
+alter table foo modify column aa int NOT NULL;
+#--error ER_UNSUPPORTED_EXTENSION
+#alter table foo modify column aa bigint;
+--replace_regex /MariaDB/XYZ/ /MySQL/XYZ/
+--error ER_UNSUPPORTED_EXTENSION
+alter table foo modify column aa varchar(20);
+--replace_regex /MariaDB/XYZ/ /MySQL/XYZ/
+--error ER_UNSUPPORTED_EXTENSION
+alter table foo modify column aa int after cc;
+
+--replace_regex /MariaDB/XYZ/ /MySQL/XYZ/
+--error ER_UNSUPPORTED_EXTENSION
+alter table foo change column aa aa int NOT NULL, add column z int;
+--replace_regex /MariaDB/XYZ/ /MySQL/XYZ/
+--error ER_UNSUPPORTED_EXTENSION
+alter table foo change column aa aa bigint, add column z int;
+--replace_regex /MariaDB/XYZ/ /MySQL/XYZ/
+--error ER_UNSUPPORTED_EXTENSION
+alter table foo change column aa aa varchar(20), add column z int;
+--replace_regex /MariaDB/XYZ/ /MySQL/XYZ/
+--error ER_UNSUPPORTED_EXTENSION
+alter table foo change column aa aa int after cc, add column z int;
+--replace_regex /MariaDB/XYZ/ /MySQL/XYZ/
+--error ER_UNSUPPORTED_EXTENSION
+alter table foo modify column aa int NOT NULL, add column z int;
+--replace_regex /MariaDB/XYZ/ /MySQL/XYZ/
+--error ER_UNSUPPORTED_EXTENSION
+alter table foo modify column aa bigint, add column z int;
+--replace_regex /MariaDB/XYZ/ /MySQL/XYZ/
+--error ER_UNSUPPORTED_EXTENSION
+alter table foo modify column aa varchar(20), add column z int;
+--replace_regex /MariaDB/XYZ/ /MySQL/XYZ/
+--error ER_UNSUPPORTED_EXTENSION
+alter table foo modify column aa int after cc, add column z int;
+
+--replace_regex /MariaDB/XYZ/ /MySQL/XYZ/
+--error ER_UNSUPPORTED_EXTENSION
+alter table foo change column aa aa int NOT NULL, drop column bb;
+--replace_regex /MariaDB/XYZ/ /MySQL/XYZ/
+--error ER_UNSUPPORTED_EXTENSION
+alter table foo change column aa aa bigint, drop column bb;
+--replace_regex /MariaDB/XYZ/ /MySQL/XYZ/
+--error ER_UNSUPPORTED_EXTENSION
+alter table foo change column aa aa varchar(20), drop column bb;
+--replace_regex /MariaDB/XYZ/ /MySQL/XYZ/
+--error ER_UNSUPPORTED_EXTENSION
+alter table foo change column aa aa int after cc, drop column bb;
+--replace_regex /MariaDB/XYZ/ /MySQL/XYZ/
+--error ER_UNSUPPORTED_EXTENSION
+alter table foo modify column aa int NOT NULL, drop column bb;
+--replace_regex /MariaDB/XYZ/ /MySQL/XYZ/
+--error ER_UNSUPPORTED_EXTENSION
+alter table foo modify column aa bigint, drop column bb;
+--replace_regex /MariaDB/XYZ/ /MySQL/XYZ/
+--error ER_UNSUPPORTED_EXTENSION
+alter table foo modify column aa varchar(20), drop column bb;
+--replace_regex /MariaDB/XYZ/ /MySQL/XYZ/
+--error ER_UNSUPPORTED_EXTENSION
+alter table foo modify column aa int after cc, drop column bb;
+
+
+
+drop table foo;
+drop table bar;
+

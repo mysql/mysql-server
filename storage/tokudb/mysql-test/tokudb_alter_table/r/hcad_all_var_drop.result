@@ -1,0 +1,283 @@
+SET DEFAULT_STORAGE_ENGINE='tokudb';
+DROP TABLE IF EXISTS foo,bar;
+set session tokudb_disable_slow_alter=ON;
+create table foo (aaa varchar(12), bbb varbinary(20), ccc varchar(50), ddd varchar(3000)) engine=TokuDB;
+create table bar like foo;
+alter table bar engine=MyISAM;
+insert into foo values (NULL,NULL,NULL,NULL);
+insert into foo values (-1,NULL,'2008-1-1',NULL);
+insert into foo values (NULL,12345678987,NULL,1);
+insert into foo values (2,20,'1999-11-11',0);
+insert into bar select * from foo;
+include/diff_tables.inc [test.foo, test.bar]
+alter table foo drop column aaa;
+alter table bar drop column aaa;
+include/diff_tables.inc [test.foo, test.bar]
+drop table foo;
+drop table bar;
+create table foo (aaa varchar(12), bbb varbinary(20), ccc varchar(50), ddd varchar(3000)) engine=TokuDB;
+create table bar like foo;
+alter table bar engine=MyISAM;
+insert into foo values (NULL,NULL,NULL,NULL);
+insert into foo values (-1,NULL,'2008-1-1',NULL);
+insert into foo values (NULL,12345678987,NULL,1);
+insert into foo values (2,20,'1999-11-11',0);
+insert into bar select * from foo;
+include/diff_tables.inc [test.foo, test.bar]
+alter table foo drop column bbb;
+alter table bar drop column bbb;
+include/diff_tables.inc [test.foo, test.bar]
+drop table foo;
+drop table bar;
+create table foo (aaa varchar(12), bbb varbinary(20), ccc varchar(50), ddd varchar(3000)) engine=TokuDB;
+create table bar like foo;
+alter table bar engine=MyISAM;
+insert into foo values (NULL,NULL,NULL,NULL);
+insert into foo values (-1,NULL,'2008-1-1',NULL);
+insert into foo values (NULL,12345678987,NULL,1);
+insert into foo values (2,20,'1999-11-11',0);
+insert into bar select * from foo;
+include/diff_tables.inc [test.foo, test.bar]
+alter table foo drop column ccc;
+alter table bar drop column ccc;
+include/diff_tables.inc [test.foo, test.bar]
+drop table foo;
+drop table bar;
+create table foo (aaa varchar(12), bbb varbinary(20), ccc varchar(50), ddd varchar(3000)) engine=TokuDB;
+create table bar like foo;
+alter table bar engine=MyISAM;
+insert into foo values (NULL,NULL,NULL,NULL);
+insert into foo values (-1,NULL,'2008-1-1',NULL);
+insert into foo values (NULL,12345678987,NULL,1);
+insert into foo values (2,20,'1999-11-11',0);
+insert into bar select * from foo;
+include/diff_tables.inc [test.foo, test.bar]
+alter table foo drop column ddd;
+alter table bar drop column ddd;
+include/diff_tables.inc [test.foo, test.bar]
+drop table foo;
+drop table bar;
+create table foo (aaa varchar(12), bbb varbinary(20), ccc varchar(50), ddd varchar(3000)) engine=TokuDB;
+create table bar like foo;
+alter table bar engine=MyISAM;
+insert into foo values (NULL,NULL,NULL,NULL);
+insert into foo values (-1,NULL,'2008-1-1',NULL);
+insert into foo values (NULL,12345678987,NULL,1);
+insert into foo values (2,20,'1999-11-11',0);
+insert into bar select * from foo;
+include/diff_tables.inc [test.foo, test.bar]
+alter table foo drop column aaa, drop column bbb;
+alter table bar drop column aaa, drop column bbb;
+include/diff_tables.inc [test.foo, test.bar]
+drop table foo;
+drop table bar;
+create table foo (aaa varchar(12), bbb varbinary(20), ccc varchar(50), ddd varchar(3000)) engine=TokuDB;
+create table bar like foo;
+alter table bar engine=MyISAM;
+insert into foo values (NULL,NULL,NULL,NULL);
+insert into foo values (-1,NULL,'2008-1-1',NULL);
+insert into foo values (NULL,12345678987,NULL,1);
+insert into foo values (2,20,'1999-11-11',0);
+insert into bar select * from foo;
+include/diff_tables.inc [test.foo, test.bar]
+alter table foo drop column aaa, drop column ccc;
+alter table bar drop column aaa, drop column ccc;
+include/diff_tables.inc [test.foo, test.bar]
+drop table foo;
+drop table bar;
+create table foo (aaa varchar(12), bbb varbinary(20), ccc varchar(50), ddd varchar(3000)) engine=TokuDB;
+create table bar like foo;
+alter table bar engine=MyISAM;
+insert into foo values (NULL,NULL,NULL,NULL);
+insert into foo values (-1,NULL,'2008-1-1',NULL);
+insert into foo values (NULL,12345678987,NULL,1);
+insert into foo values (2,20,'1999-11-11',0);
+insert into bar select * from foo;
+include/diff_tables.inc [test.foo, test.bar]
+alter table foo drop column aaa, drop column ddd;
+alter table bar drop column aaa, drop column ddd;
+include/diff_tables.inc [test.foo, test.bar]
+drop table foo;
+drop table bar;
+create table foo (aaa varchar(12), bbb varbinary(20), ccc varchar(50), ddd varchar(3000)) engine=TokuDB;
+create table bar like foo;
+alter table bar engine=MyISAM;
+insert into foo values (NULL,NULL,NULL,NULL);
+insert into foo values (-1,NULL,'2008-1-1',NULL);
+insert into foo values (NULL,12345678987,NULL,1);
+insert into foo values (2,20,'1999-11-11',0);
+insert into bar select * from foo;
+include/diff_tables.inc [test.foo, test.bar]
+alter table foo drop column bbb, drop column aaa;
+alter table bar drop column bbb, drop column aaa;
+include/diff_tables.inc [test.foo, test.bar]
+drop table foo;
+drop table bar;
+create table foo (aaa varchar(12), bbb varbinary(20), ccc varchar(50), ddd varchar(3000)) engine=TokuDB;
+create table bar like foo;
+alter table bar engine=MyISAM;
+insert into foo values (NULL,NULL,NULL,NULL);
+insert into foo values (-1,NULL,'2008-1-1',NULL);
+insert into foo values (NULL,12345678987,NULL,1);
+insert into foo values (2,20,'1999-11-11',0);
+insert into bar select * from foo;
+include/diff_tables.inc [test.foo, test.bar]
+alter table foo drop column bbb, drop column ccc;
+alter table bar drop column bbb, drop column ccc;
+include/diff_tables.inc [test.foo, test.bar]
+drop table foo;
+drop table bar;
+create table foo (aaa varchar(12), bbb varbinary(20), ccc varchar(50), ddd varchar(3000)) engine=TokuDB;
+create table bar like foo;
+alter table bar engine=MyISAM;
+insert into foo values (NULL,NULL,NULL,NULL);
+insert into foo values (-1,NULL,'2008-1-1',NULL);
+insert into foo values (NULL,12345678987,NULL,1);
+insert into foo values (2,20,'1999-11-11',0);
+insert into bar select * from foo;
+include/diff_tables.inc [test.foo, test.bar]
+alter table foo drop column bbb, drop column ddd;
+alter table bar drop column bbb, drop column ddd;
+include/diff_tables.inc [test.foo, test.bar]
+drop table foo;
+drop table bar;
+create table foo (aaa varchar(12), bbb varbinary(20), ccc varchar(50), ddd varchar(3000)) engine=TokuDB;
+create table bar like foo;
+alter table bar engine=MyISAM;
+insert into foo values (NULL,NULL,NULL,NULL);
+insert into foo values (-1,NULL,'2008-1-1',NULL);
+insert into foo values (NULL,12345678987,NULL,1);
+insert into foo values (2,20,'1999-11-11',0);
+insert into bar select * from foo;
+include/diff_tables.inc [test.foo, test.bar]
+alter table foo drop column ccc, drop column aaa;
+alter table bar drop column ccc, drop column aaa;
+include/diff_tables.inc [test.foo, test.bar]
+drop table foo;
+drop table bar;
+create table foo (aaa varchar(12), bbb varbinary(20), ccc varchar(50), ddd varchar(3000)) engine=TokuDB;
+create table bar like foo;
+alter table bar engine=MyISAM;
+insert into foo values (NULL,NULL,NULL,NULL);
+insert into foo values (-1,NULL,'2008-1-1',NULL);
+insert into foo values (NULL,12345678987,NULL,1);
+insert into foo values (2,20,'1999-11-11',0);
+insert into bar select * from foo;
+include/diff_tables.inc [test.foo, test.bar]
+alter table foo drop column ccc, drop column bbb;
+alter table bar drop column ccc, drop column bbb;
+include/diff_tables.inc [test.foo, test.bar]
+drop table foo;
+drop table bar;
+create table foo (aaa varchar(12), bbb varbinary(20), ccc varchar(50), ddd varchar(3000)) engine=TokuDB;
+create table bar like foo;
+alter table bar engine=MyISAM;
+insert into foo values (NULL,NULL,NULL,NULL);
+insert into foo values (-1,NULL,'2008-1-1',NULL);
+insert into foo values (NULL,12345678987,NULL,1);
+insert into foo values (2,20,'1999-11-11',0);
+insert into bar select * from foo;
+include/diff_tables.inc [test.foo, test.bar]
+alter table foo drop column ccc, drop column ddd;
+alter table bar drop column ccc, drop column ddd;
+include/diff_tables.inc [test.foo, test.bar]
+drop table foo;
+drop table bar;
+create table foo (aaa varchar(12), bbb varbinary(20), ccc varchar(50), ddd varchar(3000)) engine=TokuDB;
+create table bar like foo;
+alter table bar engine=MyISAM;
+insert into foo values (NULL,NULL,NULL,NULL);
+insert into foo values (-1,NULL,'2008-1-1',NULL);
+insert into foo values (NULL,12345678987,NULL,1);
+insert into foo values (2,20,'1999-11-11',0);
+insert into bar select * from foo;
+include/diff_tables.inc [test.foo, test.bar]
+alter table foo drop column ddd, drop column aaa;
+alter table bar drop column ddd, drop column aaa;
+include/diff_tables.inc [test.foo, test.bar]
+drop table foo;
+drop table bar;
+create table foo (aaa varchar(12), bbb varbinary(20), ccc varchar(50), ddd varchar(3000)) engine=TokuDB;
+create table bar like foo;
+alter table bar engine=MyISAM;
+insert into foo values (NULL,NULL,NULL,NULL);
+insert into foo values (-1,NULL,'2008-1-1',NULL);
+insert into foo values (NULL,12345678987,NULL,1);
+insert into foo values (2,20,'1999-11-11',0);
+insert into bar select * from foo;
+include/diff_tables.inc [test.foo, test.bar]
+alter table foo drop column ddd, drop column bbb;
+alter table bar drop column ddd, drop column bbb;
+include/diff_tables.inc [test.foo, test.bar]
+drop table foo;
+drop table bar;
+create table foo (aaa varchar(12), bbb varbinary(20), ccc varchar(50), ddd varchar(3000)) engine=TokuDB;
+create table bar like foo;
+alter table bar engine=MyISAM;
+insert into foo values (NULL,NULL,NULL,NULL);
+insert into foo values (-1,NULL,'2008-1-1',NULL);
+insert into foo values (NULL,12345678987,NULL,1);
+insert into foo values (2,20,'1999-11-11',0);
+insert into bar select * from foo;
+include/diff_tables.inc [test.foo, test.bar]
+alter table foo drop column ddd, drop column ccc;
+alter table bar drop column ddd, drop column ccc;
+include/diff_tables.inc [test.foo, test.bar]
+drop table foo;
+drop table bar;
+create table foo (aaa varchar(12), bbb varbinary(20), ccc varchar(50), ddd varchar(3000)) engine=TokuDB;
+create table bar like foo;
+alter table bar engine=MyISAM;
+insert into foo values (NULL,NULL,NULL,NULL);
+insert into foo values (-1,NULL,'2008-1-1',NULL);
+insert into foo values (NULL,12345678987,NULL,1);
+insert into foo values (2,20,'1999-11-11',0);
+insert into bar select * from foo;
+include/diff_tables.inc [test.foo, test.bar]
+alter table foo drop column aaa, drop column bbb, drop column ccc;
+alter table bar drop column aaa, drop column bbb, drop column ccc;
+include/diff_tables.inc [test.foo, test.bar]
+drop table foo;
+drop table bar;
+create table foo (aaa varchar(12), bbb varbinary(20), ccc varchar(50), ddd varchar(3000)) engine=TokuDB;
+create table bar like foo;
+alter table bar engine=MyISAM;
+insert into foo values (NULL,NULL,NULL,NULL);
+insert into foo values (-1,NULL,'2008-1-1',NULL);
+insert into foo values (NULL,12345678987,NULL,1);
+insert into foo values (2,20,'1999-11-11',0);
+insert into bar select * from foo;
+include/diff_tables.inc [test.foo, test.bar]
+alter table foo drop column aaa, drop column bbb, drop column ddd;
+alter table bar drop column aaa, drop column bbb, drop column ddd;
+include/diff_tables.inc [test.foo, test.bar]
+drop table foo;
+drop table bar;
+create table foo (aaa varchar(12), bbb varbinary(20), ccc varchar(50), ddd varchar(3000)) engine=TokuDB;
+create table bar like foo;
+alter table bar engine=MyISAM;
+insert into foo values (NULL,NULL,NULL,NULL);
+insert into foo values (-1,NULL,'2008-1-1',NULL);
+insert into foo values (NULL,12345678987,NULL,1);
+insert into foo values (2,20,'1999-11-11',0);
+insert into bar select * from foo;
+include/diff_tables.inc [test.foo, test.bar]
+alter table foo drop column aaa, drop column ccc, drop column ddd;
+alter table bar drop column aaa, drop column ccc, drop column ddd;
+include/diff_tables.inc [test.foo, test.bar]
+drop table foo;
+drop table bar;
+create table foo (aaa varchar(12), bbb varbinary(20), ccc varchar(50), ddd varchar(3000)) engine=TokuDB;
+create table bar like foo;
+alter table bar engine=MyISAM;
+insert into foo values (NULL,NULL,NULL,NULL);
+insert into foo values (-1,NULL,'2008-1-1',NULL);
+insert into foo values (NULL,12345678987,NULL,1);
+insert into foo values (2,20,'1999-11-11',0);
+insert into bar select * from foo;
+include/diff_tables.inc [test.foo, test.bar]
+alter table foo drop column bbb, drop column ccc, drop column ddd;
+alter table bar drop column bbb, drop column ccc, drop column ddd;
+include/diff_tables.inc [test.foo, test.bar]
+drop table foo;
+drop table bar;

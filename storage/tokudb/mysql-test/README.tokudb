@@ -1,0 +1,26 @@
+The MySQL tests for TokuDB are divided into common tests and tests specific to a
+particular MySQL distribution.
+
+The tests that are common for all MySQL distributions can be found in the
+svn:tokudb/mysql/tests/mysql-test directory.
+
+The tests that are specific to a particular distribution can be found in that
+distribution's mysql-test directory.  For example, tests that are specific to
+MySQL 5.5.21 are found in the svn:tokudb/mysql.com/mysql-5.5.21/mysql-test directory.
+
+When we run tests on a particular MySQL distribution, we run the union of the common
+tests and the tests that are in that distributions mysql-test directory.  The union
+is formed by overlaying the common tests with the distribution specific tests.  
+
+Here is an example.  There are a bunch of alter table tests in that should be common
+to all MySQL distributions.  These tests are in the 
+svn:tokudb/mysql/tests/mysql-test/suite/tokudb.alter_table directory.
+However, the ai_di.test has behaviour that is different on MySQL 5.5 than previous 
+MySQL distributions.  There is another version of this test in the MySQL 5.5.21 source
+directory.  This version replaces the common test since it has the same test name.
+
+It is easy to disable a test.  Just add the test name to the "disabled.def" file in the
+test directory.
+
+We use the run.mysql.tests.bash script from the mysql/scripts directory to run the tests.
+

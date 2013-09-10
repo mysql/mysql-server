@@ -1,0 +1,69 @@
+SET DEFAULT_STORAGE_ENGINE='tokudb';
+DROP TABLE IF EXISTS foo;
+set session tokudb_disable_slow_alter=ON;
+create table foo (a int, b bigint, c char(10), d varchar(10), e text, primary key (a), key(b), key (d) clustering=yes)engine=TOkuDB;
+insert into foo values (1,10,"cc","dddd","eeeee");
+select * from foo;
+a	b	c	d	e
+1	10	cc	dddd	eeeee
+alter table foo change a aa int;
+show create table foo;
+Table	Create Table
+foo	CREATE TABLE `foo` (
+  `aa` int(11) NOT NULL DEFAULT '0',
+  `b` bigint(20) DEFAULT NULL,
+  `c` char(10) DEFAULT NULL,
+  `d` varchar(10) DEFAULT NULL,
+  `e` text,
+  PRIMARY KEY (`aa`),
+  KEY `b` (`b`),
+  KEY `d` (`d`) `clustering`=yes
+) ENGINE=TokuDB DEFAULT CHARSET=latin1
+select * from foo;
+aa	b	c	d	e
+1	10	cc	dddd	eeeee
+explain select * from foo where aa > 0;
+id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
+1	SIMPLE	foo	index	PRIMARY	d	13	NULL	1	Using where; Using index
+select * from foo where aa > 0;
+aa	b	c	d	e
+1	10	cc	dddd	eeeee
+alter table foo change b bb bigint;
+show create table foo;
+Table	Create Table
+foo	CREATE TABLE `foo` (
+  `aa` int(11) NOT NULL DEFAULT '0',
+  `bb` bigint(20) DEFAULT NULL,
+  `c` char(10) DEFAULT NULL,
+  `d` varchar(10) DEFAULT NULL,
+  `e` text,
+  PRIMARY KEY (`aa`),
+  KEY `b` (`bb`),
+  KEY `d` (`d`) `clustering`=yes
+) ENGINE=TokuDB DEFAULT CHARSET=latin1
+explain select bb from foo FORCE INDEX (b) where bb > 5;
+id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
+1	SIMPLE	foo	index	b	b	9	NULL	1	Using where; Using index
+select bb from foo FORCE INDEX (b) where bb > 5;
+bb
+10
+alter table foo change d dd varchar(10);
+show create table foo;
+Table	Create Table
+foo	CREATE TABLE `foo` (
+  `aa` int(11) NOT NULL DEFAULT '0',
+  `bb` bigint(20) DEFAULT NULL,
+  `c` char(10) DEFAULT NULL,
+  `dd` varchar(10) DEFAULT NULL,
+  `e` text,
+  PRIMARY KEY (`aa`),
+  KEY `b` (`bb`),
+  KEY `d` (`dd`) `clustering`=yes
+) ENGINE=TokuDB DEFAULT CHARSET=latin1
+explain select * from foo where dd > "d";
+id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
+1	SIMPLE	foo	index	d	d	13	NULL	1	Using where; Using index
+select * from foo where dd > "d";
+aa	bb	c	dd	e
+1	10	cc	dddd	eeeee
+drop table foo;

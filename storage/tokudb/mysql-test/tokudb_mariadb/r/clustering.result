@@ -1,0 +1,31 @@
+create table t1 (a int, b int, c text, key (a) clustering=yes, key (b)) engine=tokudb;
+show create table t1;
+Table	Create Table
+t1	CREATE TABLE `t1` (
+  `a` int(11) DEFAULT NULL,
+  `b` int(11) DEFAULT NULL,
+  `c` text,
+  KEY `a` (`a`) `clustering`=yes,
+  KEY `b` (`b`)
+) ENGINE=TokuDB DEFAULT CHARSET=latin1
+insert t1 values (1, 1, 1);
+insert t1 select a+1, a+1, a+1 from t1;
+insert t1 select a+2, a+2, a+2 from t1;
+insert t1 select a+4, a+4, a+4 from t1;
+select * from t1;
+a	b	c
+1	1	1
+2	2	2
+3	3	3
+4	4	4
+5	5	5
+6	6	6
+7	7	7
+8	8	8
+explain select a,c from t1 where a > 2;
+id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
+1	SIMPLE	t1	range	a	a	5	NULL	6	Using where; Using index
+explain select b,c from t1 where b > 2;
+id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
+1	SIMPLE	t1	ALL	b	NULL	NULL	NULL	8	Using where
+drop table t1;

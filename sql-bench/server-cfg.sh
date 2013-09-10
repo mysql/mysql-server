@@ -192,11 +192,6 @@ sub new
     $self->{'transactions'}	= 1;	# Transactions enabled
   }
   if (defined($main::opt_create_options) &&
-      $main::opt_create_options =~ /engine=pbxt/i)
-  {
-    $self->{'transactions'}	= 1;	# Transactions enabled
-  }
-  if (defined($main::opt_create_options) &&
       $main::opt_create_options =~ /engine=ndb/i)
   {
     $self->{'transactions'}	= 1;	# Transactions enabled

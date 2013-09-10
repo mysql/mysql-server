@@ -1,0 +1,43 @@
+#-- source include/have_tokudb.inc
+
+--disable_warnings
+drop table if exists a,b,c,foo;
+--enable_warnings
+
+create table a (a int auto_increment, primary key (a)) engine=TokuDB;
+create table b (a int auto_increment, primary key (a)) engine=TokuDB;
+create table c (a int auto_increment, primary key (a)) engine=TokuDB;
+
+insert into a values (),(),(),(),(),(),(),(),(),(),(),(),(),(),(),(),(),(),(),();
+insert into b values (),(),(),(),(),(),(),(),(),(),(),(),(),(),(),(),(),(),(),();
+insert into c values (),(),(),(),(),(),(),(),(),(),(),(),(),(),(),(),(),(),(),();
+
+create table foo (a int, b int, c int, d int, e int, key(a,b,c)) engine=TokuDB;
+
+insert into foo (a,b,c) select * from a,b,c;
+
+flush status;
+show status like '%Handler_read_next%';
+explain select * from foo where a between 5 and 6 and c=10;
+select * from foo where a between 5 and 6 and c=10;
+show status like '%Handler_read_next%';
+
+flush status;
+show status like '%Handler_read_prev%';
+explain select * from foo where a between 5 and 6 and c=10;
+select * from foo where a between 5 and 6 and c=10 order by a desc;
+show status like '%Handler_read_prev%';
+
+flush status;
+show status like '%Handler_read_prev%';
+explain select * from foo where a > 19 and c=10;
+select * from foo where a > 19 and c=10 order by a desc;
+show status like '%Handler_read_prev%';
+
+flush status;
+show status like '%Handler_read_next%';
+explain select * from foo where a > 19 and c=10;
+select * from foo where a > 19 and c=10;
+show status like '%Handler_read_next%';
+
+drop table foo,a,b,c;

@@ -1,0 +1,29 @@
+# test that tokudb discover on partitioned tokudb tables works when there is an frm mismatch
+
+--source include/have_partition.inc
+
+--disable_warnings
+DROP TABLE IF EXISTS foo, bar;
+--enable_warnings
+
+SET SESSION DEFAULT_STORAGE_ENGINE='TokuDB';
+
+let $MYSQLD_DATADIR= `SELECT @@datadir`;
+
+CREATE TABLE foo (id INT PRIMARY KEY) PARTITION BY HASH(id) PARTITIONS 2;
+SHOW CREATE TABLE foo;
+CREATE TABLE bar LIKE foo;
+SHOW CREATE TABLE bar;
+
+ALTER TABLE foo ADD COLUMN a INT;
+SHOW CREATE TABLE foo;
+
+FLUSH TABLES;
+
+remove_file $MYSQLD_DATADIR/test/foo.frm;
+copy_file $MYSQLD_DATADIR/test/bar.frm $MYSQLD_DATADIR/test/foo.frm;
+
+# frm discovery happens here
+SHOW CREATE TABLE foo;
+
+DROP TABLE foo, bar;

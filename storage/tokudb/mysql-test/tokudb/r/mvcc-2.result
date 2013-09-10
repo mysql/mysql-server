@@ -1,0 +1,22 @@
+SET DEFAULT_STORAGE_ENGINE = 'tokudb';
+set session transaction isolation level repeatable read;
+# Establish connection conn1 (user = root)
+DROP TABLE IF EXISTS foo;
+set session transaction isolation level repeatable read;
+create table foo (a int) engine=TokuDB;
+insert into foo values (1);
+begin;
+select * from foo;
+a
+1
+insert into foo values (1000000);
+select * From foo;
+a
+1
+select * from foo;
+a
+1
+1000000
+commit;
+set session transaction isolation level serializable;
+DROP TABLE foo;

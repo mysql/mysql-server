@@ -105,11 +105,11 @@ IF(UNIX)
 
     INSTALL(FILES rpm/my.cnf DESTINATION ${INSTALL_SYSCONFDIR}
             COMPONENT Common)
-    INSTALL(FILES rpm/client.cnf DESTINATION ${INSTALL_SYSCONFDIR}/my.cnf.d
+    INSTALL(FILES rpm/client.cnf DESTINATION ${INSTALL_SYSCONF2DIR}
             COMPONENT SharedLibraries)
-    INSTALL(FILES rpm/mysql-clients.cnf DESTINATION ${INSTALL_SYSCONFDIR}/my.cnf.d
+    INSTALL(FILES rpm/mysql-clients.cnf DESTINATION ${INSTALL_SYSCONF2DIR}
             COMPONENT Client)
-    INSTALL(FILES rpm/server.cnf DESTINATION ${INSTALL_SYSCONFDIR}/my.cnf.d
+    INSTALL(FILES rpm/server.cnf DESTINATION ${INSTALL_SYSCONF2DIR}
             COMPONENT IniFiles)
 
     # This is for SuSE:

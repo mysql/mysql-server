@@ -1,0 +1,15 @@
+if(BUILD_TESTING)
+  function(add_locktree_test bin)
+    add_toku_test(locktree ${bin} ${ARGN})
+  endfunction(add_locktree_test)
+
+  file(GLOB srcs *.cc)
+  foreach(src ${srcs})
+    get_filename_component(base ${src} NAME_WE)
+
+    add_executable(${base} ${base}.cc)
+    add_space_separated_property(TARGET ${base} COMPILE_FLAGS -fvisibility=hidden)
+    target_link_libraries(${base} locktree ft ${LIBTOKUPORTABILITY})
+    add_locktree_test(${base})
+  endforeach(src)
+endif(BUILD_TESTING)

@@ -1,0 +1,76 @@
+SET DEFAULT_STORAGE_ENGINE = 'TokuDB';
+drop function if exists bug13825_2|
+drop function if exists f_2|
+drop function if exists f_3|
+drop function if exists f_4|
+drop table if exists t1,t2|
+create table t1 (i int, primary key (i)) |
+create function bug13825_2() returns int
+begin
+savepoint x;
+insert into t1 values (2);
+savepoint y;
+insert into t1 values (3);
+#rollback to savepoint x;
+insert into t1 values (4);
+insert into t1 values (2);
+return 1;
+end|
+create function f_2() returns int
+begin
+insert into t1 values (2);
+savepoint y;
+insert into t1 values (3);
+rollback to savepoint y;
+insert into t1 values (4);
+return 1;
+end|
+create function f_3() returns int
+begin
+insert into t1 values (20);
+savepoint y;
+insert into t1 values (30);
+release savepoint y;
+insert into t1 values (40);
+insert into t1 values (20);
+return 1;
+end|
+create function f_4() returns int
+begin
+insert into t1 values (20);
+savepoint y;
+insert into t1 values (30);
+release savepoint y;
+insert into t1 values (40);
+return 1;
+end|
+set autocommit= 0|
+set @a:= bug13825_2()|
+ERROR 23000: Duplicate entry '2' for key 'PRIMARY'
+select * from t1|
+i
+set @a:= f_2()|
+select * from t1|
+i
+2
+4
+set @a:= f_3()|
+ERROR 23000: Duplicate entry '20' for key 'PRIMARY'
+select * from t1|
+i
+2
+4
+set @a:= f_4()|
+select * from t1|
+i
+2
+4
+20
+30
+40
+set autocommit= 1|
+drop function bug13825_2|
+drop function f_2|
+drop function f_3|
+drop function f_4|
+drop table t1|

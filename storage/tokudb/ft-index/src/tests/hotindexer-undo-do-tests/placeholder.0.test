@@ -1,0 +1,6 @@
+key k1
+delete committed 0
+placeholder 300
+placeholder 301
+insert provisional 302 v10
+

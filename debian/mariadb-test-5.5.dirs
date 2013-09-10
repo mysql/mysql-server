@@ -67,9 +67,6 @@ usr/share/mysql/mysql-test/suite/ndb_team
 usr/share/mysql/mysql-test/suite/ndb_team/t
 usr/share/mysql/mysql-test/suite/ndb_team/r
 usr/share/mysql/mysql-test/suite/federated
-usr/share/mysql/mysql-test/suite/pbxt
-usr/share/mysql/mysql-test/suite/pbxt/t
-usr/share/mysql/mysql-test/suite/pbxt/r
 usr/share/mysql/mysql-test/suite/funcs_1
 usr/share/mysql/mysql-test/suite/funcs_1/cursors
 usr/share/mysql/mysql-test/suite/funcs_1/bitdata

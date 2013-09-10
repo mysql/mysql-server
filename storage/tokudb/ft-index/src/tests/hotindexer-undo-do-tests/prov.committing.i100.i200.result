@@ -1,0 +1,4 @@
+insert_committed [0] v100 k1 
+delete_committed [100] v100 
+insert_committed [100] v200 k1 
+commit_any [100] v100 

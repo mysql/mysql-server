@@ -1,0 +1,74 @@
+SET DEFAULT_STORAGE_ENGINE='tokudb';
+DROP TABLE IF EXISTS foo,bar;
+set session tokudb_disable_slow_alter=ON;
+create table foo (aa int, bb int, cc int, dd int, ee int, a int, b varchar(20), c int, d int, e int, primary key (e), key(d), unique key(c), clustering key (b));
+alter table foo drop column e;
+ERROR 42000: Table 'foo' uses an extension that doesn't exist in this XYZ version
+alter table foo drop column d;
+ERROR 42000: Table 'foo' uses an extension that doesn't exist in this XYZ version
+alter table foo drop column c;
+ERROR 42000: Table 'foo' uses an extension that doesn't exist in this XYZ version
+alter table foo drop column b;
+ERROR 42000: Table 'foo' uses an extension that doesn't exist in this XYZ version
+alter table foo add column aaa int first;
+alter table foo drop column aaa;
+alter table foo add column aaa int first;
+alter table foo drop column aaa, drop index d;
+ERROR 42000: Table 'foo' uses an extension that doesn't exist in this XYZ version
+alter table foo drop column aaa, add index (bb);
+ERROR 42000: Table 'foo' uses an extension that doesn't exist in this XYZ version
+alter table foo drop index b, add index b(b);
+ERROR 42000: Table 'foo' uses an extension that doesn't exist in this XYZ version
+alter table foo drop column aaa, drop index b, add index b(d);
+ERROR 42000: Table 'foo' uses an extension that doesn't exist in this XYZ version
+alter table foo drop column aaa, drop index b, add index b(b);
+ERROR 42000: Table 'foo' uses an extension that doesn't exist in this XYZ version
+alter table foo drop column aaa, drop index b, add clustering index b(b(5));
+ERROR 42000: Table 'foo' uses an extension that doesn't exist in this XYZ version
+alter table foo drop column aaa, drop index b, add clustering index b(b);
+alter table foo add column aaa int, drop index d;
+ERROR 42000: Table 'foo' uses an extension that doesn't exist in this XYZ version
+alter table foo add column aaa int, add index (bb);
+ERROR 42000: Table 'foo' uses an extension that doesn't exist in this XYZ version
+alter table foo add column aaa int, drop index b, add index b(b);
+ERROR 42000: Table 'foo' uses an extension that doesn't exist in this XYZ version
+alter table foo add column aaa int, drop index b, add index b(d);
+ERROR 42000: Table 'foo' uses an extension that doesn't exist in this XYZ version
+alter table foo add column aaa int, drop index b, add unique index b(b);
+ERROR 42000: Table 'foo' uses an extension that doesn't exist in this XYZ version
+alter table foo add column aaa int, drop index b, add index b(b);
+ERROR 42000: Table 'foo' uses an extension that doesn't exist in this XYZ version
+alter table foo add column aaa int, drop index b, add clustering index b(b(5));
+ERROR 42000: Table 'foo' uses an extension that doesn't exist in this XYZ version
+alter table foo add column aaa int, drop index b, add clustering index b(b);
+alter table foo drop column aaa, drop index c;
+ERROR 42000: Table 'foo' uses an extension that doesn't exist in this XYZ version
+alter table foo drop column aaa, add index (bb);
+ERROR 42000: Table 'foo' uses an extension that doesn't exist in this XYZ version
+alter table foo drop index c, add index c(c);
+ERROR 42000: Table 'foo' uses an extension that doesn't exist in this XYZ version
+alter table foo drop column aaa, drop index c, add index c(d);
+ERROR 42000: Table 'foo' uses an extension that doesn't exist in this XYZ version
+alter table foo drop column aaa, drop index c, add index c(c);
+ERROR 42000: Table 'foo' uses an extension that doesn't exist in this XYZ version
+alter table foo drop column aaa, drop index c, add unique index c(c);
+alter table foo add column aaa int, drop index c;
+ERROR 42000: Table 'foo' uses an extension that doesn't exist in this XYZ version
+alter table foo add column aaa int, add index (bb);
+ERROR 42000: Table 'foo' uses an extension that doesn't exist in this XYZ version
+alter table foo add column aaa int, drop index c, add index c(c);
+ERROR 42000: Table 'foo' uses an extension that doesn't exist in this XYZ version
+alter table foo add column aaa int, drop index c, add index c(d);
+ERROR 42000: Table 'foo' uses an extension that doesn't exist in this XYZ version
+alter table foo add column aaa int, drop index c, add clustering index c(c);
+ERROR 42000: Table 'foo' uses an extension that doesn't exist in this XYZ version
+alter table foo add column aaa int, drop index c, add index c(c);
+ERROR 42000: Table 'foo' uses an extension that doesn't exist in this XYZ version
+alter table foo add column aaa int, drop index c, add unique index c(c);
+alter table foo add column aaaa int, drop column c;
+ERROR 42000: Table 'foo' uses an extension that doesn't exist in this XYZ version
+alter table foo add column aaaa int, add column bbbb int, drop column c;
+ERROR 42000: Table 'foo' uses an extension that doesn't exist in this XYZ version
+alter table foo add column aaaa int, drop column c, drop column b;
+ERROR 42000: Table 'foo' uses an extension that doesn't exist in this XYZ version
+drop table foo;

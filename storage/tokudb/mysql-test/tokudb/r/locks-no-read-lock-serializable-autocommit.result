@@ -1,0 +1,45 @@
+drop table if exists t;
+set global tokudb_lock_timeout = 100;
+set global transaction isolation level serializable;
+create table t (a int primary key) engine = tokudb;
+insert t values (1),(2),(3);
+begin;
+select * from t for update;
+a
+1
+2
+3
+select * from t;
+a
+1
+2
+3
+select * from t where a=1;
+a
+1
+select * from t where a=2;
+a
+2
+select * from t where a=3;
+a
+3
+replace into t values (1);
+ERROR HY000: Lock wait timeout exceeded; try restarting transaction
+insert ignore t values (3);
+ERROR HY000: Lock wait timeout exceeded; try restarting transaction
+commit;
+begin;
+select * from t;
+a
+1
+2
+3
+select * from t for update;
+a
+1
+2
+3
+commit;
+drop table t;
+set global transaction isolation level repeatable read;
+set global tokudb_lock_timeout = 4000;

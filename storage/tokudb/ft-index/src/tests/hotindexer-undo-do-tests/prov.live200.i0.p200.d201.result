@@ -1,0 +1,3 @@
+insert_committed [0] v0 k1 
+delete_provisional [200] v0 
+lock [200] v0 

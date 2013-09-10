@@ -1,0 +1,40 @@
+SET DEFAULT_STORAGE_ENGINE = 'tokudb';
+# Establish connection conn1 (user = root)
+DROP TABLE IF EXISTS foo;
+set session transaction isolation level repeatable read;
+create table foo (a int, b int, primary key (a))engine=TokuDB;
+show create table foo;
+Table	Create Table
+foo	CREATE TABLE `foo` (
+  `a` int(11) NOT NULL DEFAULT '0',
+  `b` int(11) DEFAULT NULL,
+  PRIMARY KEY (`a`)
+) ENGINE=TokuDB DEFAULT CHARSET=latin1
+insert into foo values (1,100);
+select * from foo;
+a	b
+1	100
+begin;
+insert into foo values (100,100);
+# should see (1,100)
+select * from foo;
+a	b
+1	100
+100	100
+set session transaction isolation level repeatable read;
+# should NOT see (1,100)
+select * from foo;
+a	b
+1	100
+# should see (1,100)
+select * from foo;
+a	b
+1	100
+100	100
+rollback;
+# should NOT see (1,100)
+select * from foo;
+a	b
+1	100
+set session transaction isolation level serializable;
+DROP TABLE foo;

@@ -1,0 +1,12 @@
+memcache_dirty : #4609 memcache patch from facebook not ported to mysql 5.5
+4472 : #4521 MDL for alter table in 5.5 prohibits this test from having any chance of working
+
+tokudb_drop_part_table_668:
+tokudb_drop_simple_table_668:
+5585: times out
+2952: Not for 5.5
+fileops-2: Not for 5.5
+fileops-3: Not for 5.5
+fileops-4: Not for 5.5
+xa-2: Not for 5.5
+6053: N/A

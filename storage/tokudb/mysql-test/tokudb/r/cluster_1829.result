@@ -1,0 +1,30 @@
+SET DEFAULT_STORAGE_ENGINE='tokudb';
+*** Bug #22169 ***
+DROP TABLE IF EXISTS z1;
+create table z1 (a int, b int, c int, d int, e int, key (a) clustering=yes);
+insert into z1 values (1,1,1,1,1),(7,7,7,7,7),(4,4,4,4,4),(3,3,3,3,3),(5,5,5,5,5),(2,2,2,2,2),(6,6,6,6,6);
+explain select * From z1 order by a;
+id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
+1	SIMPLE	z1	index	NULL	a	5	NULL	7	Using index
+select * from z1 order by a;
+a	b	c	d	e
+1	1	1	1	1
+2	2	2	2	2
+3	3	3	3	3
+4	4	4	4	4
+5	5	5	5	5
+6	6	6	6	6
+7	7	7	7	7
+explain select * From z1 order by a desc;
+id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
+1	SIMPLE	z1	index	NULL	a	5	NULL	7	Using index
+select * from z1 order by a desc;
+a	b	c	d	e
+7	7	7	7	7
+6	6	6	6	6
+5	5	5	5	5
+4	4	4	4	4
+3	3	3	3	3
+2	2	2	2	2
+1	1	1	1	1
+DROP TABLE z1;

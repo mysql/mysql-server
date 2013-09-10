@@ -1,0 +1,19 @@
+#!/usr/bin/env bash
+
+# exit 1 if cilkscreen finds errors
+
+function cleanup() {
+    if [ "$logfile" != "" ] ; then rm $logfile; logfile=; fi
+}
+
+trap cleanup SIGINT
+logfile=$(mktemp /tmp/toku_cilkscreen.XXXXXXXX)
+cilkscreen $* 2>$logfile
+exitcode=$?
+if [ $exitcode = 0 ] ; then
+    cat $logfile >>/dev/fd/2
+    grep "No errors found by Cilkscreen" $logfile >/dev/null 2>&1
+    exitcode=$?
+fi
+rm $logfile
+exit $exitcode

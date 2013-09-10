@@ -1,0 +1,16 @@
+#--source include/have_tokudb.inc
+SET DEFAULT_STORAGE_ENGINE='tokudb';
+
+--disable_warnings
+DROP TABLE IF EXISTS t1;
+--enable_warnings
+
+create table t1 (a int, b int) engine=tokudb;
+
+insert into t1 values (1,1),(1,2),(2,1),(2,2);
+select count(*) from t1 where b > 0;
+alter table t1 add index b(b) clustering=yes;
+--replace_column 4 NA 8 NA 9 NA 10 NA
+explain select count(*) from t1 where b > 0;
+select count(*) from t1 where b > 0;
+DROP TABLE t1;

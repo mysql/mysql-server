@@ -1,0 +1,3 @@
+# this test runs the undo do function on a leaf entry that consists of a single committed delete
+key k1
+delete committed 0

@@ -1,0 +1,180 @@
+SET DEFAULT_STORAGE_ENGINE = 'tokudb';
+DROP TABLE IF EXISTS foo;
+create table foo (a int, b int, c int, primary key (a,b));
+insert into foo values (1,10,100),(2,20,200),(3,30,300),(4,40,400),(5,50,500),(6,60,600);
+insert into foo values (1,100,100),(2,200,200),(3,300,300),(4,400,400),(5,500,500),(6,600,600);
+select * from foo;
+a	b	c
+1	10	100
+1	100	100
+2	20	200
+2	200	200
+3	30	300
+3	300	300
+4	40	400
+4	400	400
+5	50	500
+5	500	500
+6	60	600
+6	600	600
+explain select * from foo where a=4;
+id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
+1	SIMPLE	foo	ref	PRIMARY	PRIMARY	4	const	NULL;	
+select * from foo where a=4;
+a	b	c
+4	40	400
+4	400	400
+explain select * from foo where a>4;
+id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
+1	SIMPLE	foo	range	PRIMARY	PRIMARY	4	NULL	NULL;	Using where
+select * from foo where a>4;
+a	b	c
+5	50	500
+5	500	500
+6	60	600
+6	600	600
+explain select * from foo where a<3 order by a desc;
+id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
+1	SIMPLE	foo	range	PRIMARY	PRIMARY	4	NULL	NULL;	Using where
+select * from foo where a<3 order by a desc;
+a	b	c
+2	200	200
+2	20	200
+1	100	100
+1	10	100
+explain select * from foo where a>=4;
+id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
+1	SIMPLE	foo	range	PRIMARY	PRIMARY	4	NULL	NULL;	Using where
+select * from foo where a>=4;
+a	b	c
+4	40	400
+4	400	400
+5	50	500
+5	500	500
+6	60	600
+6	600	600
+explain select * from foo where a<=2 order by a desc;
+id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
+1	SIMPLE	foo	range	PRIMARY	PRIMARY	4	NULL	NULL;	Using where
+select * from foo where a<=2 order by a desc;
+a	b	c
+2	200	200
+2	20	200
+1	100	100
+1	10	100
+explain select * from foo where a=4 order by b desc;
+id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
+1	SIMPLE	foo	ref	PRIMARY	PRIMARY	4	const	NULL;	Using where
+select * from foo where a=4 order by b desc;
+a	b	c
+4	400	400
+4	40	400
+alter table foo drop primary key;
+alter table foo add index clst_a(a,b) clustering=yes;
+explain select * from foo where a=4;
+id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
+1	SIMPLE	foo	ref	clst_a	clst_a	4	const	NULL;	Using index
+select * from foo where a=4;
+a	b	c
+4	40	400
+4	400	400
+explain select * from foo where a>4;
+id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
+1	SIMPLE	foo	range	clst_a	clst_a	4	NULL	NULL;	Using where; Using index
+select * from foo where a>4;
+a	b	c
+5	50	500
+5	500	500
+6	60	600
+6	600	600
+explain select * from foo where a<3 order by a desc;
+id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
+1	SIMPLE	foo	range	clst_a	clst_a	4	NULL	NULL;	Using where; Using index
+select * from foo where a<3 order by a desc;
+a	b	c
+2	200	200
+2	20	200
+1	100	100
+1	10	100
+explain select * from foo where a>=4;
+id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
+1	SIMPLE	foo	range	clst_a	clst_a	4	NULL	NULL;	Using where; Using index
+select * from foo where a>=4;
+a	b	c
+4	40	400
+4	400	400
+5	50	500
+5	500	500
+6	60	600
+6	600	600
+explain select * from foo where a<=2 order by a desc;
+id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
+1	SIMPLE	foo	range	clst_a	clst_a	4	NULL	NULL;	Using where; Using index
+select * from foo where a<=2 order by a desc;
+a	b	c
+2	200	200
+2	20	200
+1	100	100
+1	10	100
+explain select * from foo where a=4 order by b desc;
+id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
+1	SIMPLE	foo	ref	clst_a	clst_a	4	const	NULL;	Using where; Using index
+select * from foo where a=4 order by b desc;
+a	b	c
+4	400	400
+4	40	400
+alter table foo drop index clst_a;
+alter table foo add index (a,b);
+explain select * from foo where a=4;
+id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
+1	SIMPLE	foo	ref	a	a	4	const	NULL;	
+select * from foo where a=4;
+a	b	c
+4	40	400
+4	400	400
+explain select * from foo where a>4;
+id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
+1	SIMPLE	foo	range	a	a	4	NULL	NULL;	Using where
+select * from foo where a>4;
+a	b	c
+5	50	500
+5	500	500
+6	60	600
+6	600	600
+explain select * from foo where a<3 order by a desc;
+id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
+1	SIMPLE	foo	range	a	a	4	NULL	NULL;	Using where
+select * from foo where a<3 order by a desc;
+a	b	c
+2	200	200
+2	20	200
+1	100	100
+1	10	100
+explain select * from foo where a>=4;
+id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
+1	SIMPLE	foo	range	a	a	4	NULL	NULL;	Using where
+select * from foo where a>=4;
+a	b	c
+4	40	400
+4	400	400
+5	50	500
+5	500	500
+6	60	600
+6	600	600
+explain select * from foo where a<=2 order by a desc;
+id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
+1	SIMPLE	foo	range	a	a	4	NULL	NULL;	Using where
+select * from foo where a<=2 order by a desc;
+a	b	c
+2	200	200
+2	20	200
+1	100	100
+1	10	100
+explain select * from foo where a=4 order by b desc;
+id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
+1	SIMPLE	foo	ref	a	a	4	const	NULL;	Using where
+select * from foo where a=4 order by b desc;
+a	b	c
+4	400	400
+4	40	400
+DROP TABLE foo;

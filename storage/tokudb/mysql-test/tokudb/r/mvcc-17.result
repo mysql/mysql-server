@@ -1,0 +1,41 @@
+SET DEFAULT_STORAGE_ENGINE = 'tokudb';
+# Establish connection conn1 (user = root)
+DROP TABLE IF EXISTS foo;
+set session tokudb_load_save_space=0;
+set session transaction isolation level repeatable read;
+create table foo (a int)engine=TokuDB;
+show create table foo;
+Table	Create Table
+foo	CREATE TABLE `foo` (
+  `a` int(11) DEFAULT NULL
+) ENGINE=TokuDB DEFAULT CHARSET=latin1
+set session tokudb_load_save_space=0;
+set session transaction isolation level repeatable read;
+begin;
+select * from foo;
+a
+begin;
+insert into foo values (1),(2),(3);
+# should return 1,2,3
+select * from foo;
+a
+1
+2
+3
+# should be empty
+select * from foo;
+a
+# verify that a bulk load was done, by trying to insert and fail due to ER_LOCK_WAIT_TIMEOUT
+insert into foo values (10000);
+ERROR HY000: Lock wait timeout exceeded; try restarting transaction
+commit;
+commit;
+# should see 1,2,3
+select * from foo;
+a
+1
+2
+3
+commit;
+set session transaction isolation level serializable;
+DROP TABLE foo;

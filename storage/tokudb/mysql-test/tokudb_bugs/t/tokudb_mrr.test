@@ -1,0 +1,462 @@
+#-- source include/have_tokudb.inc
+
+--disable_warnings
+drop table if exists t1,t2,t3,t4;
+--enable_warnings
+
+set @save_storage_engine= @@storage_engine;
+set storage_engine=TokuDB;
+
+set @innodb_mrr_tmp=@@optimizer_switch;
+set optimizer_switch='mrr=on,mrr_sort_keys=on,index_condition_pushdown=on';
+
+--source include/mrr_tests.inc 
+
+set storage_engine= @save_storage_engine;
+
+# Try big rowid sizes
+set @mrr_buffer_size_save= @@mrr_buffer_size;
+set mrr_buffer_size=64;
+
+# By default InnoDB will fill values only for key parts used by the query,
+# which will cause DS-MRR to supply an invalid tuple on scan restoration. 
+# Verify that DS-MRR's code extra(HA_EXTRA_RETRIEVE_ALL_COLS) call has effect:
+create table t1(a int);
+insert into t1 values (0),(1),(2),(3),(4),(5),(6),(7),(8),(9);
+create table t2(a char(8), b char(8), c char(8), filler char(100), key(a,b,c) ) engine=TokuDB;
+
+insert into t2 select 
+  concat('a-', 1000 + A.a, '-a'),
+  concat('b-', 1000 + B.a, '-b'),
+  concat('c-', 1000 + C.a, '-c'),
+  'filler'
+from t1 A, t1 B, t1 C;
+
+explain
+select count(length(a) + length(filler)) from t2 where a>='a-1000-a' and a <'a-1001-a';
+select count(length(a) + length(filler)) from t2 where a>='a-1000-a' and a <'a-1001-a';
+drop table t2;
+
+# Try a very big rowid
+create table t2 (a char(100), b char(100), c char(100), d int, 
+                 filler char(10), key(d), primary key (a,b,c)) engine= tokudb;
+insert into t2 select A.a, B.a, B.a, A.a, 'filler' from t1 A, t1 B;
+--replace_column 9 #
+explain select * from t2 force index (d) where d < 10;
+drop table t2;
+
+drop table t1;
+set @@mrr_buffer_size= @mrr_buffer_size_save;
+
+#
+# BUG#33033 "MySQL/InnoDB crashes with simple select range query"
+#
+create table t1 (f1 int not null, f2 int not null,f3 int not null, f4 char(1), primary key (f1,f2), key ix(f3))Engine=tokuDB;
+
+--disable_query_log
+let $1=55;
+
+while ($1)
+{
+  eval insert into t1(f1,f2,f3,f4) values ($1,$1,$1,'A');
+  dec $1;
+}
+--enable_query_log
+
+# The following must not crash:
+select * from t1 where (f3>=5 and f3<=10) or (f3>=1 and f3<=4);
+
+drop table t1;
+
+--echo
+--echo BUG#37977: Wrong result returned on GROUP BY + OR + innodb
+--echo
+CREATE TABLE t1 (
+  `pk` int(11) NOT NULL AUTO_INCREMENT,
+  `int_nokey` int(11) NOT NULL,
+  `int_key` int(11) NOT NULL,
+  `date_key` date NOT NULL,
+  `date_nokey` date NOT NULL,
+  `time_key` time NOT NULL,
+  `time_nokey` time NOT NULL,
+  `datetime_key` datetime NOT NULL,
+  `datetime_nokey` datetime NOT NULL,
+  `varchar_key` varchar(5) DEFAULT NULL,
+  `varchar_nokey` varchar(5) DEFAULT NULL,
+  PRIMARY KEY (`pk`),
+  KEY `int_key` (`int_key`),
+  KEY `date_key` (`date_key`),
+  KEY `time_key` (`time_key`),
+  KEY `datetime_key` (`datetime_key`),
+  KEY `varchar_key` (`varchar_key`)
+) ENGINE=TokuDB;
+
+INSERT INTO t1 VALUES 
+(1,5,5,'2009-10-16','2009-10-16','09:28:15','09:28:15','2007-09-14 05:34:08','2007-09-14 05:34:08','qk','qk'),
+(2,6,6,'0000-00-00','0000-00-00','23:06:39','23:06:39','0000-00-00 00:00:00','0000-00-00 00:00:00','j','j'),
+(3,10,10,'2000-12-18','2000-12-18','22:16:19','22:16:19','2006-11-04 15:42:50','2006-11-04 15:42:50','aew','aew'),
+(4,0,0,'2001-09-18','2001-09-18','00:00:00','00:00:00','2004-03-23 13:23:35','2004-03-23 13:23:35',NULL,NULL),
+(5,6,6,'2007-08-16','2007-08-16','22:13:38','22:13:38','2004-08-19 11:01:28','2004-08-19 11:01:28','qu','qu');
+select pk from t1 WHERE `varchar_key` > 'kr' group by pk;
+select pk from t1 WHERE `int_nokey` IS NULL OR  `varchar_key` > 'kr' group by pk;
+drop table t1;
+
+--echo #
+--echo # BUG#39447: Error with NOT NULL condition and LIMIT 1
+--echo #
+CREATE TABLE t1 (                 
+   id int(11) NOT NULL,                
+   parent_id int(11) DEFAULT NULL,     
+   name varchar(10) DEFAULT NULL,      
+   PRIMARY KEY (id),                   
+   KEY ind_parent_id (parent_id)     
+) ENGINE=TokuDB;
+
+insert into t1 (id, parent_id, name) values
+(10,NULL,'A'),
+(20,10,'B'),
+(30,10,'C'),
+(40,NULL,'D'),
+(50,40,'E'),
+(60,40,'F'),
+(70,NULL,'J');
+
+SELECT id FROM t1 WHERE parent_id IS NOT NULL ORDER BY id DESC LIMIT 1;
+--echo This must show type=index, extra=Using where
+explain SELECT * FROM t1 FORCE INDEX (PRIMARY) WHERE parent_id IS NOT NULL ORDER BY id DESC LIMIT 1;
+SELECT * FROM t1 WHERE parent_id IS NOT NULL ORDER BY id DESC LIMIT 1;
+drop table t1;
+
+
+-- echo #
+-- echo # BUG#628785: multi_range_read.cc:430: int DsMrr_impl::dsmrr_init(): Assertion `do_sort_keys || do_rowid_fetch' failed 
+-- echo #
+set @save_join_cache_level= @@join_cache_level;
+set @save_optimizer_switch= @@optimizer_switch;
+SET SESSION join_cache_level=9;
+SET SESSION optimizer_switch='mrr_sort_keys=off';
+
+CREATE TABLE `t1` (
+  `pk` int(11) NOT NULL AUTO_INCREMENT,
+  `col_int_nokey` int(11) DEFAULT NULL,
+  `col_int_key` int(11) DEFAULT NULL,
+  `col_varchar_key` varchar(1) DEFAULT NULL,
+  `col_varchar_nokey` varchar(1) DEFAULT NULL,
+  PRIMARY KEY (`pk`),
+  KEY `col_varchar_key` (`col_varchar_key`,`col_int_key`)
+) ENGINE=TokuDB AUTO_INCREMENT=101 DEFAULT CHARSET=latin1;
+INSERT INTO `t1` VALUES (1,6,NULL,'r','r');
+INSERT INTO `t1` VALUES (2,8,0,'c','c');
+INSERT INTO `t1` VALUES (97,7,0,'z','z');
+INSERT INTO `t1` VALUES (98,1,1,'j','j');
+INSERT INTO `t1` VALUES (99,7,8,'c','c');
+INSERT INTO `t1` VALUES (100,2,5,'f','f');
+SELECT table1 .`col_varchar_key`
+FROM t1 table1 STRAIGHT_JOIN ( t1 table3 JOIN t1 table4 ON table4 .`pk` = table3 .`col_int_nokey` ) ON table4 .`col_varchar_nokey` ;
+DROP TABLE t1;
+set join_cache_level=@save_join_cache_level;
+set optimizer_switch=@save_optimizer_switch;
+
+--echo # 
+--echo # BUG#623300: Query with join_cache_level = 6 returns extra rows in maria-5.3-dsmrr-cpk
+--echo # 
+CREATE TABLE t1 (
+  pk int(11) NOT NULL AUTO_INCREMENT,
+  col_int_nokey int(11) DEFAULT NULL,
+  PRIMARY KEY (pk)
+) ENGINE=TokuDB;
+
+INSERT INTO t1 VALUES (10,7);
+INSERT INTO t1 VALUES (11,1);
+INSERT INTO t1 VALUES (12,5);
+INSERT INTO t1 VALUES (13,3);
+INSERT INTO t1 VALUES (14,6);
+INSERT INTO t1 VALUES (15,92);
+INSERT INTO t1 VALUES (16,7);
+INSERT INTO t1 VALUES (17,NULL);
+INSERT INTO t1 VALUES (18,3);
+INSERT INTO t1 VALUES (19,5);
+INSERT INTO t1 VALUES (20,1);
+INSERT INTO t1 VALUES (21,2);
+INSERT INTO t1 VALUES (22,NULL);
+INSERT INTO t1 VALUES (23,1);
+INSERT INTO t1 VALUES (24,0);
+INSERT INTO t1 VALUES (25,210);
+INSERT INTO t1 VALUES (26,8);
+INSERT INTO t1 VALUES (27,7);
+INSERT INTO t1 VALUES (28,5);
+INSERT INTO t1 VALUES (29,NULL);
+
+CREATE TABLE t2 (
+  pk int(11) NOT NULL AUTO_INCREMENT,
+  col_int_nokey int(11) DEFAULT NULL,
+  PRIMARY KEY (pk)
+) ENGINE=TokuDB;
+INSERT INTO t2 VALUES (1,NULL);
+INSERT INTO t2 VALUES (2,7);
+INSERT INTO t2 VALUES (3,9);
+INSERT INTO t2 VALUES (4,7);
+INSERT INTO t2 VALUES (5,4);
+INSERT INTO t2 VALUES (6,2);
+INSERT INTO t2 VALUES (7,6);
+INSERT INTO t2 VALUES (8,8);
+INSERT INTO t2 VALUES (9,NULL);
+INSERT INTO t2 VALUES (10,5);
+INSERT INTO t2 VALUES (11,NULL);
+INSERT INTO t2 VALUES (12,6);
+INSERT INTO t2 VALUES (13,188);
+INSERT INTO t2 VALUES (14,2);
+INSERT INTO t2 VALUES (15,1);
+INSERT INTO t2 VALUES (16,1);
+INSERT INTO t2 VALUES (17,0);
+INSERT INTO t2 VALUES (18,9);
+INSERT INTO t2 VALUES (19,NULL);
+INSERT INTO t2 VALUES (20,4);
+
+set @my_save_join_cache_level= @@join_cache_level;
+SET join_cache_level = 0;
+
+--sorted_result
+SELECT table2.col_int_nokey
+FROM t1 table1 JOIN t2 table2 ON table2.pk = table1.col_int_nokey
+WHERE table1.pk ;
+
+SET join_cache_level = 6;
+
+--sorted_result
+SELECT table2.col_int_nokey
+FROM t1 table1 JOIN t2 table2 ON table2.pk = table1.col_int_nokey
+WHERE table1.pk ;
+
+set join_cache_level= @my_save_join_cache_level;
+drop table t1, t2;
+
+--echo #
+--echo # BUG#623315: Query returns less rows when run with join_cache_level=6 on maria-5.3-dsmrr-cpk
+--echo #
+CREATE TABLE t1 (
+  pk int(11) NOT NULL AUTO_INCREMENT,
+  col_int_nokey int(11) DEFAULT NULL,
+  col_int_key int(11) DEFAULT NULL,
+  col_varchar_key varchar(1) DEFAULT NULL,
+  PRIMARY KEY (pk),
+  KEY col_int_key (col_int_key),
+  KEY col_varchar_key (col_varchar_key,col_int_key)
+) ENGINE=TokuDB;
+INSERT INTO t1 VALUES (10,7,8,'v');
+INSERT INTO t1 VALUES (11,1,9,'r');
+INSERT INTO t1 VALUES (12,5,9,'a');
+INSERT INTO t1 VALUES (13,3,186,'m');
+INSERT INTO t1 VALUES (14,6,NULL,'y');
+INSERT INTO t1 VALUES (15,92,2,'j');
+INSERT INTO t1 VALUES (16,7,3,'d');
+INSERT INTO t1 VALUES (17,NULL,0,'z');
+INSERT INTO t1 VALUES (18,3,133,'e');
+INSERT INTO t1 VALUES (19,5,1,'h');
+INSERT INTO t1 VALUES (20,1,8,'b');
+INSERT INTO t1 VALUES (21,2,5,'s');
+INSERT INTO t1 VALUES (22,NULL,5,'e');
+INSERT INTO t1 VALUES (23,1,8,'j');
+INSERT INTO t1 VALUES (24,0,6,'e');
+INSERT INTO t1 VALUES (25,210,51,'f');
+INSERT INTO t1 VALUES (26,8,4,'v');
+INSERT INTO t1 VALUES (27,7,7,'x');
+INSERT INTO t1 VALUES (28,5,6,'m');
+INSERT INTO t1 VALUES (29,NULL,4,'c');
+
+set @my_save_join_cache_level= @@join_cache_level;
+SET join_cache_level=6;
+select count(*) from 
+(SELECT table2.pk FROM
+   t1 LEFT JOIN t1 table2 JOIN t1 table3 ON table3.col_varchar_key = table2.col_varchar_key 
+    ON table3.col_int_nokey) foo;
+
+SET join_cache_level=0;
+select count(*) from 
+(SELECT table2.pk FROM
+   t1 LEFT JOIN t1 table2 JOIN t1 table3 ON table3.col_varchar_key = table2.col_varchar_key 
+    ON table3.col_int_nokey) foo;
+
+set join_cache_level= @my_save_join_cache_level;
+drop table t1;
+
+
+--echo #
+--echo # BUG#671340: Diverging results in with mrr_sort_keys=ON|OFF and join_cache_level=5
+--echo #
+CREATE TABLE t1 (
+  pk int(11) NOT NULL AUTO_INCREMENT,
+  col_int_key int(11) NOT NULL,
+  col_varchar_key varchar(1) NOT NULL,
+  col_varchar_nokey varchar(1) NOT NULL,
+  PRIMARY KEY (pk),
+  KEY col_int_key (col_int_key),
+  KEY col_varchar_key (col_varchar_key,col_int_key)
+) ENGINE=TokuDB;
+INSERT INTO t1 VALUES 
+  (10,8,'v','v'),
+  (11,8,'f','f'),
+  (12,5,'v','v'),
+  (13,8,'s','s'),
+  (14,8,'a','a'),
+  (15,6,'p','p'),
+  (16,7,'z','z'),
+  (17,2,'a','a'),
+  (18,5,'h','h'),
+  (19,7,'h','h'),
+  (20,2,'v','v'),
+  (21,9,'v','v'),
+  (22,142,'b','b'),
+  (23,3,'y','y'),
+  (24,0,'v','v'),
+  (25,3,'m','m'),
+  (26,5,'z','z'),
+  (27,9,'n','n'),
+  (28,1,'d','d'),
+  (29,107,'a','a');
+
+CREATE TABLE t2 (
+  pk int(11) NOT NULL AUTO_INCREMENT,
+  col_int_key int(11) NOT NULL,
+  col_varchar_key varchar(1) NOT NULL,
+  col_varchar_nokey varchar(1) NOT NULL,
+  PRIMARY KEY (pk),
+  KEY col_int_key (col_int_key),
+  KEY col_varchar_key (col_varchar_key,col_int_key)
+) ENGINE=TokuDB;
+INSERT INTO t2 VALUES 
+  (1,9,'x','x'),
+  (2,5,'g','g'),
+  (3,1,'o','o'),
+  (4,0,'g','g'),
+  (5,1,'v','v'),
+  (6,190,'m','m'),
+  (7,6,'x','x'),
+  (8,3,'c','c'),
+  (9,4,'z','z'),
+  (10,3,'i','i'),
+  (11,186,'x','x'),
+  (12,1,'g','g'),
+  (13,8,'q','q'),
+  (14,226,'m','m'),
+  (15,133,'p','p'),
+  (16,6,'e','e'),
+  (17,3,'t','t'),
+  (18,8,'j','j'),
+  (19,5,'h','h'),
+  (20,7,'w','w');
+
+SELECT count(*), sum(table1.col_int_key*table2.pk) 
+FROM 
+  t2 AS table1, t1 AS table2, t2 AS table3 
+WHERE 
+  table3.col_varchar_nokey = table2.col_varchar_key AND table3.pk > table2.col_varchar_nokey ;
+
+set @my_save_join_cache_level= @@join_cache_level;
+set @my_save_join_buffer_size= @@join_buffer_size;
+set join_cache_level=6;
+set join_buffer_size=1536;
+--disable_warnings
+SELECT count(*), sum(table1.col_int_key*table2.pk) 
+FROM 
+  t2 AS table1, t1 AS table2, t2 AS table3 
+WHERE 
+  table3.col_varchar_nokey = table2.col_varchar_key AND table3.pk > table2.col_varchar_nokey ;
+--enable_warnings
+drop table t1,t2;
+set join_cache_level=@my_save_join_cache_level;
+set join_buffer_size=@my_save_join_buffer_size;
+
+
+--echo #
+--echo # BUG#665669: Result differences on query re-execution
+--echo #
+create table t1 (pk int primary key, b int, c int default 0, index idx(b)) engine=Tokudb;
+insert into t1(pk,b) values (3, 30), (2, 20), (9, 90), (7, 70), (4, 40), (5, 50), (10, 100), (12, 120);
+set @bug665669_tmp=@@optimizer_switch;
+set optimizer_switch='mrr=off';
+explain select * from t1 where b > 1000;
+--echo # The following two must produce indentical results:
+select * from t1 where pk < 2 or pk between 3 and 4;
+select * from t1 where pk < 2 or pk between 3 and 4;   
+drop table t1;
+set optimizer_switch = @bug665669_tmp;
+--echo #
+--echo # Bug#43360 - Server crash with a simple multi-table update
+--echo #
+CREATE TABLE t1 (
+  a CHAR(2) NOT NULL PRIMARY KEY,
+  b VARCHAR(20) NOT NULL,
+  KEY (b)
+) ENGINE=TokuDB;
+
+CREATE TABLE t2 (
+  a CHAR(2) NOT NULL PRIMARY KEY,
+  b VARCHAR(20) NOT NULL,
+  KEY (b)
+) ENGINE=TokuDB;
+
+INSERT INTO t1 VALUES
+('AB','MySQLAB'),
+('JA','Sun Microsystems'),
+('MS','Microsoft'),
+('IB','IBM- Inc.'),
+('GO','Google Inc.');
+
+INSERT INTO t2 VALUES
+('AB','Sweden'),
+('JA','USA'),
+('MS','United States of America'),
+('IB','North America'),
+('GO','South America');
+
+UPDATE t1,t2 SET t1.b=UPPER(t1.b) WHERE t1.b LIKE 'United%';
+
+SELECT * FROM t1;
+
+SELECT * FROM t2;
+
+DROP TABLE t1,t2;
+
+--echo #
+--echo # Testcase backport: Bug#43249
+--echo # (Note: Fixed by patch for BUG#42580)
+--echo #
+CREATE TABLE t1(c1 TIME NOT NULL, c2 TIME NULL, c3 DATE, PRIMARY KEY(c1), UNIQUE INDEX(c2)) engine=Tokudb;
+INSERT INTO t1 VALUES('8:29:45',NULL,'2009-02-01');
+# first time, good results:
+SELECT * FROM t1 WHERE c2 <=> NULL ORDER BY c2 LIMIT 2;
+# second time, bad results:
+SELECT * FROM t1 WHERE c2 <=> NULL ORDER BY c2 LIMIT 2;
+drop table `t1`;
+
+--echo #
+--echo # BUG#707925: Wrong result with join_cache_level=6 optimizer_use_mrr =
+--echo #   force (incremental, BKA join)
+--echo #
+set @_save_join_cache_level= @@join_cache_level;
+set join_cache_level = 6;
+CREATE TABLE t1 ( 
+  f1 int(11), f2 int(11), f3 varchar(1), f4 varchar(1), 
+  PRIMARY KEY (f1), 
+  KEY (f3), 
+  KEY (f2)
+) ENGINE=TokuDB;
+INSERT INTO t1 VALUES ('11','8','f','f'),('12','5','v','v'),('13','8','s','s'),
+('14','8','a','a'),('15','6','p','p'),('16','7','z','z'),('17','2','a','a'),
+('18','5','h','h'),('19','7','h','h'),('20','2','v','v'),('21','9','v','v'),
+('22','142','b','b'),('23','3','y','y'),('24','0','v','v'),('25','3','m','m'),
+('26','5','z','z'),('27','9','n','n'),('28','1','d','d'),('29','107','a','a');
+
+select count(*) from (
+  SELECT alias1.f2 
+  FROM 
+    t1 AS alias1 JOIN ( 
+      t1 AS alias2 FORCE KEY (f3) JOIN 
+      t1 AS alias3 FORCE KEY (f2) ON alias3.f2 = alias2.f2 AND alias3.f4 = alias2.f3 
+    ) ON alias3.f1 <= alias2.f1
+) X;
+
+set join_cache_level=@_save_join_cache_level;
+set optimizer_switch= @innodb_mrr_tmp;
+drop table t1;

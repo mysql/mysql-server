@@ -1,0 +1,126 @@
+{
+   helgrind_3.5.0_false_positive_against_pthread_create
+   Helgrind:Race
+   fun:mythread_wrapper
+}
+{
+   ignore_race_on_toku_checkpointing_user_data_status
+   Helgrind:Race
+   fun:toku_set_checkpointing_user_data_status.*
+}
+{
+   ignore_race_on_toku_checkpointing_user_data_status
+   Helgrind:Race
+   fun:toku_get_checkpointing_user_data_status
+}
+{
+   ignore_race_inside_pthread_mutex_lock
+   Helgrind:Race
+   fun:pthread_mutex_lock
+}
+{
+   ignore_race_inside_pthread_mutex_unlock
+   Helgrind:Race
+   ...
+   fun:pthread_mutex_unlock
+}
+{
+   ignore_race_inside_pthread_join
+   Helgrind:Race
+   fun:pthread_join
+}
+{
+   unsafe_touch_clock
+   Helgrind:Race
+   fun:_ZL18unsafe_touch_clockP6ftnodei
+}
+{
+   unsafe_read_single_txnid_optimization_possible
+   Helgrind:Race
+   fun:_ZNK4toku8locktree46unsafe_read_single_txnid_optimization_possibleEv
+}
+{
+   unsafe_read_size_current
+   Helgrind:Race
+   fun:_ZNK7evictor24unsafe_read_size_currentEv
+}
+{
+   kde_bug_307082_cond_destroy_without_signal
+   Helgrind:Misc
+   ...
+   fun:pthread_cond_destroy@*
+   ...
+   fun:_ZL14ctpair_destroyP6ctpair
+}
+{
+   kde_bug_307082_cond_destroy_without_signal
+   Helgrind:Misc
+   ...
+   fun:pthread_cond_destroy@*
+   ...
+   fun:_Z23toku_blocktable_destroyPP11block_table
+}
+{
+   kde_bug_307082_cond_destroy_without_signal
+   Helgrind:Misc
+   ...
+   fun:pthread_cond_destroy@*
+   ...
+   fun:_Z11bjm_destroyP29background_job_manager_struct
+}
+{
+   kde_bug_307082_cond_destroy_without_signal
+   Helgrind:Misc
+   ...
+   fun:pthread_cond_destroy@*
+   ...
+   fun:_Z24toku_txn_manager_destroyP11txn_manager
+}
+{
+   kde_bug_307082_cond_destroy_without_signal
+   Helgrind:Misc
+   ...
+   fun:pthread_cond_destroy@*
+   ...
+   fun:_Z24toku_thread_pool_destroyPP16toku_thread_pool
+}
+{
+   kde_bug_307082_cond_destroy_without_signal
+   Helgrind:Misc
+   ...
+   fun:pthread_cond_destroy@*
+   ...
+   fun:_Z22toku_minicron_shutdownP8minicron
+}
+{
+   kde_bug_307082_cond_destroy_without_signal
+   Helgrind:Misc
+   ...
+   fun:pthread_cond_destroy@*
+   ...
+   fun:_ZN4toku12lock_request7destroyEv
+}
+{
+   kde_bug_307082_cond_destroy_without_signal
+   Helgrind:Misc
+   ...
+   fun:pthread_cond_destroy@*
+   ...
+   fun:_Z17toku_logger_closePP10tokulogger
+}
+{
+   kde_bug_307082_cond_destroy_without_signal
+   Helgrind:Misc
+   ...
+   fun:pthread_cond_destroy@*
+   ...
+   fun:_ZL20cachetable_free_pairP6ctpair
+}
+{
+   kde_bug_307082_cond_destroy_without_signal
+   Helgrind:Misc
+   ...
+   fun:pthread_cond_destroy@*
+   ...
+   fun:_ZN7evictor7destroyEv
+}

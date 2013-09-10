@@ -1,0 +1,25 @@
+--source include/master-slave.inc
+--source include/have_tokudb.inc
+--source include/have_innodb.inc
+
+eval CREATE TABLE t1(`a` INT) ENGINE=TokuDB;
+eval CREATE TABLE t2(`a` INT) ENGINE=InnoDB;
+
+connection master;
+begin;
+insert into t1 values (1);
+insert into t2 values (1);
+commit;
+
+sync_slave_with_master;
+
+--echo TABLES t1 and t2 must be equal otherwise an error will be thrown.
+let $diff_tables= master:test.t1, slave:test.t1;
+source include/diff_tables.inc;
+
+let $diff_tables= master:test.t2, slave:test.t2;
+source include/diff_tables.inc;
+
+connection master;
+drop table t1,t2;
+--source include/rpl_end.inc

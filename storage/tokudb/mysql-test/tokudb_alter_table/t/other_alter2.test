@@ -1,0 +1,101 @@
+#--source include/have_tokudb.inc
+SET DEFAULT_STORAGE_ENGINE='tokudb';
+
+--disable_warnings
+DROP TABLE IF EXISTS foo,bar, foo_isam, bar_isam;
+--enable_warnings
+
+set session tokudb_disable_slow_alter=OFF;
+let $diff_tables= test.foo, test.foo_isam;
+
+create table foo (aa int, bb int, cc int, dd int, ee int, a int, b varchar(20), c int, d int, e int, primary key (e), key(d), unique key(c), key (b) clustering=yes)engine=TokuDB;
+create table foo_isam like foo;
+alter table foo_isam engine=MyISAM;
+create table bar (a int) engine=TokuDB;
+create table bar_isam like bar;
+alter table bar_isam engine=MyISAM;
+
+insert into foo values (1,10,100,1000,10000,1,"bb",10,100,1000);
+insert into foo values (2,20,200,2000,20000,2,"bbb",20,200,2000);
+insert into foo values (3,30,300,3000,30000,3,"bbbb",30,300,3000);
+insert into foo_isam select * from foo;
+
+
+alter table foo drop primary key;
+alter table foo_isam drop primary key;
+source include/diff_tables.inc;
+alter table foo add primary key (e);
+alter table foo_isam add primary key (e);
+source include/diff_tables.inc;
+alter table foo drop primary key, add primary key(a);
+alter table foo_isam drop primary key, add primary key (a);
+source include/diff_tables.inc;
+
+--error ER_TABLE_CANT_HANDLE_FT
+alter table foo add fulltext key(b);
+--error ER_TABLE_CANT_HANDLE_SPKEYS
+alter table foo add spatial key (aa);
+
+# Supporting these should be trivial
+alter table foo alter column cc set default 101010;
+alter table foo_isam alter column cc set default 101010;
+source include/diff_tables.inc;
+alter table foo alter column cc set default NULL;
+alter table foo_isam alter column cc set default NULL;
+source include/diff_tables.inc;
+alter table foo alter column cc drop default;
+alter table foo_isam alter column cc drop default;
+source include/diff_tables.inc;
+
+
+alter table foo change column aa aaa int;
+alter table foo_isam change column aa aaa int;
+source include/diff_tables.inc;
+alter table foo change column aaa aa int;
+alter table foo_isam change column aaa aa int;
+source include/diff_tables.inc;
+
+
+alter table foo change column e epk int;
+alter table foo_isam change column e epk int;
+source include/diff_tables.inc;
+alter table foo change column epk e int;
+alter table foo_isam change column epk e int;
+source include/diff_tables.inc;
+
+show create table foo;
+show create table foo_isam;
+
+# the following changes of a column should be slow
+alter table foo change column aa aa int NOT NULL;
+alter table foo_isam change column aa aa int NOT NULL;
+source include/diff_tables.inc;
+alter table foo change column aa aa bigint;
+alter table foo_isam change column aa aa bigint;
+source include/diff_tables.inc;
+alter table foo change column aa aa varchar(20);
+alter table foo_isam change column aa aa varchar(20);
+source include/diff_tables.inc;
+alter table foo change column aa aa int after cc;
+alter table foo_isam change column aa aa int after cc;
+source include/diff_tables.inc;
+
+
+alter table foo modify column aa int NOT NULL;
+alter table foo_isam modify column aa int NOT NULL;
+source include/diff_tables.inc;
+alter table foo modify column aa bigint;
+alter table foo_isam modify column aa bigint;
+source include/diff_tables.inc;
+alter table foo modify column aa varchar(20);
+alter table foo_isam modify column aa varchar(20);
+source include/diff_tables.inc;
+alter table foo modify column aa int after cc;
+alter table foo_isam modify column aa int after cc;
+source include/diff_tables.inc;
+
+
+drop table foo;
+drop table bar;
+drop table foo_isam;
+drop table bar_isam;

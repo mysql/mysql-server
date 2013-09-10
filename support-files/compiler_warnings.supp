@@ -132,23 +132,9 @@ signal\.c : .*unused parameter.*
 storage/maria/ma_pagecache.c: .*'info_check_pin' defined but not used
 
 #
-# Pbxt
-#
-xaction_xt\.cc: may be used uninitialized in this function
-lock_xt\.cc : uninitialized local variable .* used
-restart_xt\.cc : dereferencing pointer .* does break strict-aliasing
-
-#
 # oqgraph errors that are hard to fix
 #
 oqgraph/graphcore\.cc : may be used uninitialized in this function
-
-#
-# I think these are due to mix of C and C++.
-#
-storage/pbxt/ : typedef.*was ignored in this declaration
-ha_pbxt\.cc : variable.*might be clobbered by.*longjmp
-table_xt\.cc : variable.*might be clobbered by.*longjmp
 
 #
 # Yassl

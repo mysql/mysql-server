@@ -1,0 +1,56 @@
+
+XZ Utils To-Do List
+===================
+
+Known bugs
+----------
+
+    The test suite is too incomplete.
+
+    If the memor usage limit is less than about 13 MiB, xz is unable to
+    automatically scale down the compression settings enough even though
+    it would be  possible by switching from BT2/BT3/BT4 match finder to
+    HC3/HC4.
+
+    The code to detect number of CPU cores doesn't count hyperthreading
+    as multiple cores. In context of xz, it probably should.
+    Hyperthreading is good at least with p7zip.
+
+    XZ Utils compress some files significantly worse than LZMA Utils.
+    This is due to faster compression presets used by XZ Utils, and
+    can be worked around by using "xz --extreme". However, the presets
+    need some tweaking and maybe this issue can be minimized without
+    making the typical case too much slower.
+
+
+Missing features
+----------------
+
+    "xz --list"
+
+    xz could create sparse files when decompressing. (Some prototyping
+    has been done.)
+
+    xz doesn't support copying extended attributes, access control
+    lists etc. from source to target file.
+
+    Multithreaded compression
+
+    Multithreaded decompression
+
+    Buffer-to-buffer coding could use less RAM (especially when
+    decompressing LZMA1 or LZMA2).
+
+    I/O library is not implemented. It will possibly be named libzzf.
+
+
+Documentation
+-------------
+
+    Some tutorial is needed for liblzma. I have planned to write some
+    extremely well commented example programs, which would work as
+    a tutorial. I suppose the Doxygen tags are quite OK as a quick
+    reference once one is familiar with the liblzma API.
+
+    Document the LZMA1 and LZMA2 algorithms.
+

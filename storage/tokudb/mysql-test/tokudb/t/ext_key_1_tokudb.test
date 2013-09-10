@@ -1,0 +1,44 @@
+#source include/have_tokudb.inc;
+
+disable_warnings;
+drop table if exists t;
+enable_warnings;
+
+set session optimizer_switch='extended_keys=on';
+select @@optimizer_switch;
+
+create table t (id int not null, x int not null, y int not null, primary key(id), key(x)) engine=tokudb;
+
+insert into t values (0,0,0),(1,1,1),(2,2,2),(3,2,3),(4,2,4);
+
+explain select x,id from t force index (x) where x=0 and id=0;
+flush status;
+select x,id from t force index (x) where x=0 and id=0;
+show status like 'handler_read%';
+
+explain select y,id from t force index (x) where x=0 and id=0;
+flush status;
+select y,id from t force index (x) where x=0 and id=0;
+show status like 'handler_read%';
+
+explain select x,id from t force index (x) where x=0 and id=1;
+flush status;
+select x,id from t force index (x) where x=0 and id=1;
+show status like 'handler_read%';
+
+explain select y,id from t force index (x)where x=0 and id=1;
+flush status;
+select y,id from t force index(x) where x=0 and id=1;
+show status like 'handler_read%';
+
+explain select x,id from t force index (x) where x=2 and id=3;
+flush status;
+select x,id from t force index (x) where x=2 and id=3;
+show status like 'handler_read%';
+
+explain select x,id from t force index (x) where x=2 and id=0;
+flush status;
+select x,id from t force index (x) where x=2 and id=0;
+show status like 'handler_read%';
+
+drop table t;

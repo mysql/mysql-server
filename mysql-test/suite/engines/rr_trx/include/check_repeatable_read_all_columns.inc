@@ -104,8 +104,6 @@ if (`SELECT IF($query_count > 1, 1, 0)`)
         # Detect extra rows:
         # Allow phantoms in some configurations:
         #   - InnoDB default settings
-        #   - Falcon's falcon_consistent_read=0 (non-default setting)
-        #   (TODO: What about PBXT?)
         #
         ###########################
         # TODO: Execute a query against tmp1 and tmp2 which selects new rows (rows

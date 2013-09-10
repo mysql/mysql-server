@@ -130,6 +130,36 @@ FUNCTION(INSTALL_SCRIPT)
   INSTALL_MANPAGE(${script})
 ENDFUNCTION()
 
+
+FUNCTION(INSTALL_DOCUMENTATION)
+  MYSQL_PARSE_ARGUMENTS(ARG "COMPONENT" "" ${ARGN})
+  SET(files ${ARG_DEFAULT_ARGS})
+  IF(NOT ARG_COMPONENT)
+    SET(ARG_COMPONENT Server)
+  ENDIF()
+  IF (ARG_COMPONENT MATCHES "Readme")
+    SET(destination ${INSTALL_DOCREADMEDIR})
+  ELSE()
+    SET(destination ${INSTALL_DOCDIR})
+  ENDIF()
+
+  STRING(TOUPPER ${ARG_COMPONENT} COMPUP)
+  IF(CPACK_COMPONENT_${COMPUP}_GROUP)
+    SET(group ${CPACK_COMPONENT_${COMPUP}_GROUP})
+  ELSE()
+    SET(group ${ARG_COMPONENT})
+  ENDIF()
+
+  IF(RPM)
+    SET(destination "${destination}/MariaDB-${group}-${VERSION}")
+  ELSEIF(DEB)
+    SET(destination "${destination}/mariadb-${group}-${MAJOR_VERSION}.${MINOR_VERSION}")
+  ENDIF()
+
+  INSTALL(FILES ${files} DESTINATION ${destination} COMPONENT ${ARG_COMPONENT})
+ENDFUNCTION()
+
+
 # Install symbolic link to CMake target. 
 # the link is created in the same directory as target
 # and extension will be the same as for target file.

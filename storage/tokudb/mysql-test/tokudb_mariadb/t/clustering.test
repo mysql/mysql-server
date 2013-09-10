@@ -1,0 +1,16 @@
+create table t1 (a int, b int, c text, key (a) clustering=yes, key (b)) engine=tokudb;
+
+show create table t1;
+
+insert t1 values (1, 1, 1);
+insert t1 select a+1, a+1, a+1 from t1;
+insert t1 select a+2, a+2, a+2 from t1;
+insert t1 select a+4, a+4, a+4 from t1;
+select * from t1;
+
+explain select a,c from t1 where a > 2;
+explain select b,c from t1 where b > 2;
+
+
+drop table t1;
+

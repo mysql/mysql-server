@@ -201,7 +201,15 @@ install: build
 	cp debian/mariadb-server-5.5.mysql-server.logrotate $$d/_etc_logrotate.d_mysql-server; \
 	cp debian/additions/debian-start $$d/_etc_mysql_debian-start;
 
-	dh_movefiles
+	autorm=debian/autorm-file;                                      \
+	rm -f $$autorm;                                                 \
+	ignore='';                                                      \
+	for p in $$MARIADB_OPTIONAL_DEBS; do                            \
+	  p=mariadb-$$p-5.5;                                            \
+	  dh_movefiles --package=$$p || echo "../$$p*.deb" >> $$autorm; \
+	  ignore="$$ignore --no-package=$$p";                           \
+	done;                                                           \
+	sh -c "dh_movefiles $$ignore"
 
 # Build architecture-independent files here.
 binary-indep: build install

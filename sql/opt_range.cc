@@ -11390,6 +11390,26 @@ int QUICK_SELECT_DESC::get_next()
     if (!(last_range= rev_it++))
       DBUG_RETURN(HA_ERR_END_OF_FILE);		// All ranges used
 
+    key_range       start_key;
+    start_key.key=    (const uchar*) last_range->min_key;
+    start_key.length= last_range->min_length;
+    start_key.flag=   ((last_range->flag & NEAR_MIN) ? HA_READ_AFTER_KEY :
+                       (last_range->flag & EQ_RANGE) ?
+                       HA_READ_KEY_EXACT : HA_READ_KEY_OR_NEXT);
+    start_key.keypart_map= last_range->min_keypart_map;
+    key_range       end_key;
+    end_key.key=      (const uchar*) last_range->max_key;
+    end_key.length=   last_range->max_length;
+    end_key.flag=     (last_range->flag & NEAR_MAX ? HA_READ_BEFORE_KEY :
+                       HA_READ_AFTER_KEY);
+    end_key.keypart_map= last_range->max_keypart_map;
+    result= file->prepare_range_scan((last_range->flag & NO_MIN_RANGE) ? NULL : &start_key,
+                                     (last_range->flag & NO_MAX_RANGE) ? NULL : &end_key);
+    if (result)
+    {
+      DBUG_RETURN(result);
+    }
+
     if (last_range->flag & NO_MAX_RANGE)        // Read last record
     {
       int local_error;
