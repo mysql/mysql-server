@@ -292,7 +292,7 @@ DBOperation.prototype.prepareScan = function(ndbTransaction, callback) {
 
   if(this.query.queryType == 2) {  /* Index Scan */
     scanSpec[ScanHelper.index_record] = this.query.dbIndexHandler.dbIndex.record;
-//    boundHelper = getBoundHelper(this.query, this.keys);
+//    boundHelper = getBoundHelper(this.query, this.params);
 //    if(boundHelper) {
 //      scanHelper[bounds] = adapter.impl.IndexBound.create(boundHelper);
 //      this.scan.bounds = scanHelper[bounds];
@@ -301,9 +301,9 @@ DBOperation.prototype.prepareScan = function(ndbTransaction, callback) {
 
   scanSpec[ScanHelper.lock_mode] = constants.LockModes[this.lockMode];
 
-  if(typeof this.keys.order !== 'undefined') {
+  if(typeof this.params.order !== 'undefined') {
     var flags = constants.Scan.flags.SF_OrderBy;
-    if(this.keys.order == 'desc') {
+    if(this.params.order == 'desc') {
       flags |= constants.Scan.flags.SF_Descending;
     }
     scanSpec[ScanHelper.flags] = flags;  
@@ -311,7 +311,7 @@ DBOperation.prototype.prepareScan = function(ndbTransaction, callback) {
 
   if(this.query.ndbFilterSpec) {
     scanSpec[ScanHelper.filter_code] = 
-      this.query.ndbFilterSpec.getScanFilterCode(this.keys);  // call them params?
+      this.query.ndbFilterSpec.getScanFilterCode(this.params); 
     this.scan.filter = scanSpec[ScanHelper.filter_code];
   }
 
@@ -405,12 +405,20 @@ function getScanResults(scanop, userCallback) {
   var results;
   var dbSession = scanop.transaction.dbSession;
   var ResultConstructor = scanop.tableHandler.ValueObject;
+  var nSkip, maxRow, rowCount;
   var postScanCallback = {
     fn  : userCallback,
     arg0: null,
     arg1: null  
   };
   var i = 0;
+
+  nSkip = 0;
+  maxRow = 100000000000;
+  if(scanop.params) {
+    if(scanop.params.skip > 0)  {  nSkip = scanop.params.skip;         }
+    if(scanop.params.limit > 0) { maxRow = nSkip + scanop.params.limit; }
+  }
 
   if(ResultConstructor == null) {
     storeNativeConstructorInMapping(scanop.tableHandler);
@@ -466,7 +474,8 @@ function getScanResults(scanop, userCallback) {
       status = scanop.ndbop.nextResult(buffer);
       if(status === 0) {
         results.push(new ResultConstructor(buffer));
-      }    
+      }
+      if(rowCount > maxRow) status = 1; // finished
     }
     
     if(status == 2) {  // No more locally cached results
@@ -475,6 +484,7 @@ function getScanResults(scanop, userCallback) {
     }
     else {  // end of scan.
       // assert(status === 1);
+      for(i = 0 ; i < nSkip ; i++) results.shift();  // fixme, do something more efficient
       udebug.log("gather() 1 End_Of_Scan.  Final length:", results.length);
       scanop.result.success = true;
       scanop.result.value = results;
@@ -674,7 +684,7 @@ function newScanOperation(tx, QueryTree, properties) {
                            queryHandler.dbTableHandler);
   prepareFilterSpec(queryHandler);
   op.query = queryHandler;
-  op.keys = properties;
+  op.params = properties;
   return op;
 }
 
