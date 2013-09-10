@@ -8071,15 +8071,16 @@ get_quick_keys(PARAM *param,QUICK_RANGE_SELECT *quick,KEY_PART *key,
     {
       KEY *table_key=quick->head->key_info+quick->index;
       flag=EQ_RANGE;
-      if ((table_key->flags & HA_NOSAME) && key->part == table_key->key_parts-1)
+      if ((table_key->flags & HA_NOSAME) &&
+          key_tree->part == table_key->key_parts-1)
       {
-	if (!(table_key->flags & HA_NULL_PART_KEY) ||
-	    !null_part_in_key(key,
-			      param->min_key,
-			      (uint) (tmp_min_key - param->min_key)))
-	  flag|= UNIQUE_RANGE;
-	else
-	  flag|= NULL_RANGE;
+        if ((table_key->flags & HA_NULL_PART_KEY) &&
+            null_part_in_key(key,
+                             param->min_key,
+                             (uint) (tmp_min_key - param->min_key)))
+          flag|= NULL_RANGE;
+        else
+          flag|= UNIQUE_RANGE;
       }
     }
   }
@@ -8109,7 +8110,7 @@ get_quick_keys(PARAM *param,QUICK_RANGE_SELECT *quick,KEY_PART *key,
 }
 
 /*
-  Return 1 if there is only one range and this uses the whole primary key
+  Return 1 if there is only one range and this uses the whole unique key
 */
 
 bool QUICK_RANGE_SELECT::unique_key_range()
