@@ -163,11 +163,12 @@ function releaseRowBuffer(op) {
 
 function encodeRowBuffer(op) {
   udebug.log("encodeRowBuffer");
-  var i, offset, value, err;
-  var record = op.tableHandler.dbTable.record;
-  var nfields = op.tableHandler.getMappedFieldCount();
+  var i, offset, value, err, errors, record, nfields, col;
+  errors = {};
+  record = op.tableHandler.dbTable.record;
+  nfields = op.tableHandler.getMappedFieldCount();
   udebug.log("encodeRowBuffer nfields", nfields);
-  var col = op.tableHandler.getColumnMetadata();
+  col = op.tableHandler.getColumnMetadata();
   
   for(i = 0 ; i < nfields ; i++) {  
     value = op.tableHandler.get(op.values, i);
@@ -182,10 +183,12 @@ function encodeRowBuffer(op) {
         value = col[i].typeConverter.ndb.toDB(value);
       }
       err = adapter.impl.encoderWrite(col[i], value, op.buffers.row, offset);
-      if(err) { udebug.log("encoderWrite: ", err); }
-      // FIXME: What to do with this error?
+      if(err) { 
+        errors[col[i].name] = err;
+      }
     }
   }
+  return Object.keys(errors).length ? errors : null;
 }
 
 function HelperSpec() {
@@ -225,6 +228,7 @@ var scanSpec = new ScanHelperSpec();
 DBOperation.prototype.prepare = function(ndbTransaction) {
   var code = this.opcode;
   var isVOwrite = (this.values && adapter.impl.isValueObject(this.values));
+  var error = null;
 
   /* There is one global helperSpec */
   helperSpec.clear();
@@ -259,7 +263,7 @@ DBOperation.prototype.prepare = function(ndbTransaction) {
         helperSpec[OpHelper.lock_mode]  = constants.LockModes[this.lockMode];
       }
       else { 
-        encodeRowBuffer(this);
+        error = encodeRowBuffer(this);
       }
     }
   }
@@ -268,6 +272,7 @@ DBOperation.prototype.prepare = function(ndbTransaction) {
   this.ndbop = 
     adapter.impl.DBOperationHelper(helperSpec, code, ndbTransaction, isVOwrite);
   this.state = doc.OperationStates[1];  // PREPARED
+  return error;
 };
 
 

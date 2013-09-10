@@ -286,9 +286,11 @@ function executeNonScan(self, execMode, abortFlag, dbOperationList, callback) {
     var i, op, fatalError;
     for(i = 0 ; i < dbOperationList.length; i++) {
       op = dbOperationList[i];
-      op.prepare(self.ndbtx);
+      fatalError = op.prepare(self.ndbtx);
       if(! op.ndbop) {
         fatalError = self.ndbtx.getNdbError();
+      }
+      if(fatalError) {
         callback(new ndboperation.DBOperationError(fatalError), self);
         return;  /* is that correct? */
       }
