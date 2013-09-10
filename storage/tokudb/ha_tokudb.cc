@@ -1717,7 +1717,7 @@ int ha_tokudb::initialize_share(
     }
     else {
         do_commit = true;
-        error = txn_begin(db_env, 0, &txn, 0);
+        error = txn_begin(db_env, 0, &txn, 0, thd);
         if (error) { goto exit; }
     }
 
@@ -2002,7 +2002,7 @@ int ha_tokudb::estimate_num_rows(DB* db, uint64_t* num_rows, DB_TXN* txn) {
     DB_TXN* txn_to_use = NULL;
 
     if (txn == NULL) {
-        error = txn_begin(db_env, 0, &txn_to_use, DB_READ_UNCOMMITTED);
+        error = txn_begin(db_env, 0, &txn_to_use, DB_READ_UNCOMMITTED, ha_thd());
         if (error) goto cleanup;
         do_commit = true;
     }
@@ -2050,7 +2050,7 @@ int ha_tokudb::remove_metadata(DB* db, void* key_data, uint key_size, DB_TXN* tr
     // transaction to be used for putting metadata into status.tokudb
     //
     if (transaction == NULL) {
-        error = txn_begin(db_env, 0, &txn, 0);
+        error = txn_begin(db_env, 0, &txn, 0, ha_thd());
         if (error) { 
             goto cleanup;
         }
@@ -2094,7 +2094,7 @@ int ha_tokudb::write_metadata(DB* db, void* key_data, uint key_size, void* val_d
     // transaction to be used for putting metadata into status.tokudb
     //
     if (transaction == NULL) {
-        error = txn_begin(db_env, 0, &txn, 0);
+        error = txn_begin(db_env, 0, &txn, 0, ha_thd());
         if (error) { 
             goto cleanup;
         }
@@ -3073,7 +3073,7 @@ void ha_tokudb::init_hidden_prim_key_info() {
         }
         else {
             do_commit = true;
-            error = txn_begin(db_env, 0, &txn, 0);
+            error = txn_begin(db_env, 0, &txn, 0, thd);
             assert(error == 0);
         }
         
@@ -3290,7 +3290,7 @@ bool ha_tokudb::may_table_be_empty(DB_TXN *txn) {
     DB_TXN* tmp_txn = NULL;
 
     if (txn == NULL) {
-        error = txn_begin(db_env, 0, &tmp_txn, 0);
+        error = txn_begin(db_env, 0, &tmp_txn, 0, ha_thd());
         if (error) {
             goto cleanup;
         }
@@ -4074,7 +4074,7 @@ int ha_tokudb::write_row(uchar * record) {
 
     create_sub_trans = (using_ignore && !(do_ignore_flag_optimization(thd,table,share->replace_into_fast)));
     if (create_sub_trans) {
-        error = txn_begin(db_env, transaction, &sub_trans, DB_INHERIT_ISOLATION);
+        error = txn_begin(db_env, transaction, &sub_trans, DB_INHERIT_ISOLATION, thd);
         if (error) {
             goto cleanup;
         }
@@ -4238,7 +4238,7 @@ int ha_tokudb::update_row(const uchar * old_row, uchar * new_row) {
     curr_num_DBs = share->num_DBs;
 
     if (using_ignore) {
-        error = txn_begin(db_env, transaction, &sub_trans, DB_INHERIT_ISOLATION);
+        error = txn_begin(db_env, transaction, &sub_trans, DB_INHERIT_ISOLATION, thd);
         if (error) {
             goto cleanup;
         }
@@ -5936,7 +5936,7 @@ int ha_tokudb::info(uint flag) {
             TOKU_DB_FRAGMENTATION_S frag_info;
             memset(&frag_info, 0, sizeof frag_info);
 
-            error = txn_begin(db_env, NULL, &txn, DB_READ_UNCOMMITTED);
+            error = txn_begin(db_env, NULL, &txn, DB_READ_UNCOMMITTED, ha_thd());
             if (error) { goto cleanup; }
 
             // we should always have a primary key
@@ -6150,7 +6150,7 @@ int ha_tokudb::create_txn(THD* thd, tokudb_trx_data* trx) {
          (thd_sql_command(thd) != SQLCOM_ALTER_TABLE)) {
         /* QQQ We have to start a master transaction */
         // DBUG_PRINT("trans", ("starting transaction all "));
-        if ((error = txn_begin(db_env, NULL, &trx->all, toku_iso_to_txn_flag(toku_iso_level)))) {
+        if ((error = txn_begin(db_env, NULL, &trx->all, toku_iso_to_txn_flag(toku_iso_level), thd))) {
             trx->tokudb_lock_count--;      // We didn't get the lock
             goto cleanup;
         }
@@ -6186,7 +6186,7 @@ int ha_tokudb::create_txn(THD* thd, tokudb_trx_data* trx) {
     else {
         txn_begin_flags = DB_INHERIT_ISOLATION;
     }
-    if ((error = txn_begin(db_env, trx->sp_level, &trx->stmt, txn_begin_flags))) {
+    if ((error = txn_begin(db_env, trx->sp_level, &trx->stmt, txn_begin_flags, thd))) {
         /* We leave the possible master transaction open */
         trx->tokudb_lock_count--;  // We didn't get the lock
         goto cleanup;
@@ -6993,7 +6993,7 @@ int ha_tokudb::create(const char *name, TABLE * form, HA_CREATE_INFO * create_in
     }
     else {
         do_commit = true;
-        error = txn_begin(db_env, 0, &txn, 0);
+        error = txn_begin(db_env, 0, &txn, 0, thd);
         if (error) { goto cleanup; }        
     }
     
@@ -7179,7 +7179,7 @@ int ha_tokudb::delete_or_rename_table (const char* from_name, const char* to_nam
     memset(&curr_val, 0, sizeof(curr_val));
     pthread_mutex_lock(&tokudb_meta_mutex);
 
-    error = txn_begin(db_env, 0, &txn, 0);
+    error = txn_begin(db_env, 0, &txn, 0, ha_thd());
     if (error) { goto cleanup; }
 
     //
@@ -7524,7 +7524,7 @@ void ha_tokudb::init_auto_increment() {
     value.flags = DB_DBT_USERMEM;
     DB_TXN* txn = NULL;
 
-    error = txn_begin(db_env, 0, &txn, 0);
+    error = txn_begin(db_env, 0, &txn, 0, ha_thd());
     if (error) {
         share->last_auto_increment = 0;    
     }
@@ -8255,7 +8255,7 @@ int ha_tokudb::delete_all_rows_internal() {
     uint curr_num_DBs = 0;
     DB_TXN* txn = NULL;
 
-    error = txn_begin(db_env, 0, &txn, 0);
+    error = txn_begin(db_env, 0, &txn, 0, ha_thd());
     if (error) { goto cleanup; }
 
     curr_num_DBs = table->s->keys + test(hidden_primary_key);
