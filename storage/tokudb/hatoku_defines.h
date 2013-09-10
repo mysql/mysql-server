@@ -329,7 +329,7 @@ static inline void make_name(char *newname, const char *tablename, const char *d
     nn += sprintf(nn, "-%s", dictname);
 }
 
-static inline int txn_begin(DB_ENV *env, DB_TXN *parent, DB_TXN **txn, uint32_t flags) {
+static inline int txn_begin(DB_ENV *env, DB_TXN *parent, DB_TXN **txn, uint32_t flags, THD *thd) {
     int r = env->txn_begin(env, parent, txn, flags);
     if ((tokudb_debug & TOKUDB_DEBUG_TXN) && r == 0) {
         TOKUDB_TRACE("begin txn %p %p %u\n", parent, *txn, flags);
