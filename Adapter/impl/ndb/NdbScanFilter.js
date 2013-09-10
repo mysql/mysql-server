@@ -154,6 +154,7 @@ function FilterBuildingVisitor(filterSpec, paramBuffer) {
   this.paramBuffer        = paramBuffer;
   this.ndbInterpretedCode = NdbInterpretedCode.create(filterSpec.dbTable);
   this.ndbScanFilter      = NdbScanFilter.create(this.ndbInterpretedCode);
+  this.ndbScanFilter.begin(1);  // implicit top-level AND group
 }
 
 /** Handle nodes QueryAnd, QueryOr */
@@ -193,6 +194,9 @@ FilterBuildingVisitor.prototype.visitQueryBetweenOperator = function(node) {
   blah("visitQueryBetweenOperator", node);
 };
 
+FilterBuildingVisitor.prototype.finalise = function() {
+  this.ndbScanFilter.end();
+};
 
 /*************************************************/
 
@@ -259,6 +263,7 @@ FilterSpec.prototype.getScanFilterCode = function(params) {
   /* Build the NdbScanFilter for this operation */
   var filterBuildingVisitor = new FilterBuildingVisitor(this, paramBuffer);
   this.predicate.visit(filterBuildingVisitor);
+  filterBuildingVisitor.finalise();
   
   return filterBuildingVisitor.ndbInterpretedCode;
 };
