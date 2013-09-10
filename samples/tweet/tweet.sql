@@ -3,7 +3,7 @@ use test;
 --  Simple twitter-like appliction
 --
 --  Supports Users (author table); Tweets (tweet table); 
---  @user references (atref table); Hashtags (hashtag table); 
+--  @user references (mention table); Hashtags (hashtag table); 
 --  Followers (follow table).
 --
 --  Some notes about this schema:
@@ -17,7 +17,7 @@ use test;
 
 DROP TABLE if exists follow;
 DROP TABLE if exists hashtag;
-DROP TABLE if exists atref;
+DROP TABLE if exists mention;
 DROP TABLE if exists tweet;
 DROP TABLE if exists author;
 
@@ -51,7 +51,7 @@ CREATE TABLE hashtag (
 ) ENGINE=ndbcluster;
 
 
-CREATE TABLE atref (
+CREATE TABLE mention (
   at_user varchar(20) CHARACTER SET UTF16LE,
   tweet_id bigint unsigned, 
   PRIMARY KEY (at_user, tweet_id),

@@ -37,7 +37,7 @@ var http   = require('http'),
     udebug = unified_debug.getLogger("tweet.js"),
     getProperties = require("./tweet.properties.js").getProperties,
     adapter = "ndb",
-    mainLoopComplete, parse_command, keyWordToOperationMap;
+    mainLoopComplete, parse_command, allOperations, operationMap;
 
 //////////////////////////////////////////
 /*  User Domain Object Constructors.
@@ -75,7 +75,7 @@ function HashtagEntry(tag, tweet) {
   }
 }
 
-function AtRef(at_user, tweet) {
+function Mention(at_user, tweet) {
   if(at_user !== undefined) {
     this.at_user = at_user;
     this.tweet_id = tweet.id;
@@ -100,6 +100,7 @@ function ConsoleOperationResponder(operation) {
   this.operation  = operation;
   this.error      = false;
   this.setError   = function(e) { this.error = e; };
+  this.write      = function(x) { console.log(x); };
   this.close      = function()  { 
     if(this.error) { console.log("Error", this.error); }
     else           { console.log("Success", this.operation.result); }
@@ -115,10 +116,13 @@ function HttpOperationResponder(operation, httpResponse) {
     this.statusCode = 500;
     this.operation.result = e;
   };
+  this.write        = function(x) {
+    this.httpResponse.write(x);
+  }
   this.close        = function() {
     this.httpResponse.statusCode = this.statusCode;
-    this.httpResponse.write(JSON.stringify(this.operation.result));
-    this.httpResponse.write("\n");
+    this.write(JSON.stringify(this.operation.result));
+    this.write("\n");
     this.httpResponse.end();
     this.operation.session.close();
   }; 
@@ -194,7 +198,7 @@ function increment(operation, object, counterProperty, callback) {
 }
 
 
-/* extractTags() returns arrays of #hashtags and @atrefs present in a message 
+/* extractTags() returns arrays of #hashtags and @mentions present in a message 
 */
 function extractTags(message) {
   var words, word, tags, tag;
@@ -246,22 +250,25 @@ function Operation() {
 
 
 // Each Operation constructor takes (params, data), where "params" is an array
-// of URL or command-line parameters, starting at 1 (as params[0] specified the 
-// operation itself) 
-// "data" is the HTTP POST data.  (In the command line version, the POST data 
-// comes from the final parameter).
+// of URL or command-line parameters.  "data" is the HTTP POST data.
+// In the command line version, the POST data comes from the final parameter
+//
+// An Operation Constructor also has a signature property, which is an array
+// of [ verb, noun, parameters, data ] used in the API.  "verb" is an HTTP
+// verb; noun and parameters are separated by slashes in the URL.
+
 
 /* Add a user 
 */
 function AddUserOperation(params, data) {
-  var author = new Author(params[1], data);
+  var author = new Author(params[0], data);
   Operation.call(this);    /* inherit */
 
   this.run = function() {
     this.session.persist(author, onComplete, author, this, onFinal);
   };
 }
-AddUserOperation.help = "<user_name> <full_name>";
+AddUserOperation.signature = [ "put", "user", "<user_name>", " << Full Name >>" ];
 
 
 /* Profile a user based on username.
@@ -271,30 +278,30 @@ function LookupUserOperation(params, data) {
   Operation.call(this);    /* inherit */
   
   this.run = function() {
-    this.session.find(Author, params[1], onComplete, this, onFinal);
+    this.session.find(Author, params[0], onComplete, this, onFinal);
   };
 }
-LookupUserOperation.help = "<user_name>";
+LookupUserOperation.signature = [ "get", "user", "<user_name>" ]; 
 
 
-/* Delete a user, with cascading delete of tweets, atrefs, and followers
+/* Delete a user, with cascading delete of tweets, mentions, and followers
 */
 function DeleteUserOperation(params, data) { 
   Operation.call(this);    /* inherit */
-  var author_name = params[1];
+  var author_name = params[0];
 
   this.run = function() {
     this.session.remove(Author, author_name, onComplete, 
                         {"deleted": author_name},  this, onFinal);
   };
 }
-DeleteUserOperation.help = "<user_name>";
+DeleteUserOperation.signature = [ "delete", "user", "<user_name>" ];
 
 
 /* Insert a tweet.
      - Start a transaction.
      - Persist the tweet.  After persist, the tweet's auto-increment id 
-       is available (and will be used by the HashtagEntry and AtRef constructors).
+       is available (and will be used by the HashtagEntry and Mention constructors).
      - Create & persist #hashtag & @user records (all in a single batch).
      - Increment the author's tweet count.
      - Then commit the transaction. 
@@ -303,7 +310,7 @@ function InsertTweetOperation(params, data) {
   Operation.call(this);    /* inherit */
 
   var session;
-  var author = params[1];
+  var author = params[0];
   var message = data;
   var tweet = new Tweet(author, message);
 
@@ -328,7 +335,7 @@ function InsertTweetOperation(params, data) {
       doRollback(self);
     }
     else {
-      /* Store all #hashtag and @atref entries in a single batch */
+      /* Store all #hashtag and @mention entries in a single batch */
 
       tags = extractTags(message);
       batch = session.createBatch();
@@ -342,7 +349,7 @@ function InsertTweetOperation(params, data) {
       
       tag = tags.at.pop();   // @ mentions
       while(tag != undefined) {
-        tagEntry = new AtRef(tag, tweet);
+        tagEntry = new Mention(tag, tweet);
         batch.persist(tagEntry, onComplete, null, self);
         tag = tags.at.pop();
       }
@@ -357,7 +364,7 @@ function InsertTweetOperation(params, data) {
     session.persist(tweet, onComplete, tweet, this, onTweetCreateTagEntries);
   };
 }
-InsertTweetOperation.help = "<author> <message>";
+InsertTweetOperation.signature = [ "post", "tweet", "<author>", " << Message >>" ];
 
 
 /* Delete a tweet.
@@ -365,14 +372,14 @@ InsertTweetOperation.help = "<author> <message>";
 */
 function DeleteTweetOperation(params, data) { 
   Operation.call(this);    /* inherit */
-  var tweet_id = params[1];
+  var tweet_id = params[0];
 
   this.run = function() {
     this.session.remove(Tweet, tweet_id, onComplete, 
                         {"deleted": tweet_id},  this, onFinal);
   };
 }
-DeleteTweetOperation.help = "<tweet_id>";
+DeleteTweetOperation.signature = [ "delete", "tweet", "<tweet_id>" ];
 
 
 /* Get a tweet by id.
@@ -381,10 +388,10 @@ function ReadTweetOperation(params, data) {
   Operation.call(this);
 
   this.run = function() {
-    this.session.find(Tweet, params[1], onComplete, this, onFinal);
+    this.session.find(Tweet, params[0], onComplete, this, onFinal);
   };
 }
-ReadTweetOperation.help = "<tweet_id>";
+ReadTweetOperation.signature = [ "get", "tweet", "<tweet_id>" ];
 
 
 /* Make user A a follower of user B
@@ -393,12 +400,12 @@ function FollowOperation(params, data) {
   Operation.call(this);
   
   this.run = function() {
-    var record = new Follow(params[1], params[2]);
+    var record = new Follow(params[0], params[1]);
     this.session.persist(Follow, record, onComplete, record.toString(), 
                          this, onFinal);
   };
 }
-FollowOperation.help = "<user_follower> <user_followed>";
+FollowOperation.signature = [ "put", "follow", "<user_follower> <user_followed>"];
 
 
 /* Common callback for queries on field=value
@@ -420,11 +427,11 @@ function FollowersOperation(params, data) {
   Operation.call(this);
   
   this.run = function() {
-    var qp = {"followed" : params[1] };
+    var qp = {"followed" : params[0] };
     this.session.createQuery(Follow, buildQueryEq, this, qp, onComplete);
   };
 }
-FollowersOperation.help = "<user_name>";
+FollowersOperation.signature = [ "get", "followers", "<user_name>" ];
 
 
 /* Whom does a user follow?
@@ -433,11 +440,11 @@ function FollowingOperation(params, data) {
   Operation.call(this);
   
   this.run = function() {
-    var qp = {"follower" : params[1] };
+    var qp = {"follower" : params[0] };
     this.session.createQuery(Follow, buildQueryEq, this, qp, onComplete);
   };
 }
-FollowingOperation.help = "<user_name>";
+FollowingOperation.signature = [ "get", "following" , "<user_name>" ];
 
 
 /* Last 20 tweets from a user
@@ -446,11 +453,11 @@ function TweetsByUserOperation(params, data) {
   Operation.call(this);
 
   this.run = function() {
-    var qp = {"author" : params[1] , "order" : "desc" , "limit" : 20 };
+    var qp = {"author" : params[0] , "order" : "desc" , "limit" : 20 };
     this.session.createQuery(Tweet, buildQueryEq, this, qp, onComplete);
   };
 }
-TweetsByUserOperation.help = "<user_name>";
+TweetsByUserOperation.signature = [ "get" , "tweets-by" , "<user_name>" ];
 
 
 /* Common callback for @user and #hashtag queries 
@@ -484,13 +491,13 @@ function TweetsAtUserOperation(params, data) {
   Operation.call(this);
   
   this.run = function() {
-    var tag = params[1];
+    var tag = params[0];
     if(tag.charAt(0) == "@") {    tag = tag.substring(1);   }
     var qp = {"at_user" : tag, "order" : "desc" , "limit" : 20 };
-    this.session.createQuery(AtRef, buildQueryEq, this, qp, fetchTweetsInBatch);
+    this.session.createQuery(Mention, buildQueryEq, this, qp, fetchTweetsInBatch);
   };
 }
-TweetsAtUserOperation.help = "<user_name>";
+TweetsAtUserOperation.signature = [ "get" , "tweets-at" , "<user_name>" ];
 
 
 /* Last 20 tweets with hashtag
@@ -499,13 +506,13 @@ function TweetsByHashtagOperation(params, data) {
   Operation.call(this);
   
   this.run = function() {
-    var tag = params[1];
+    var tag = params[0];
     if(tag.charAt(0) == "#") {    tag = tag.substring(1);   }
     var qp = {"hashtag" : tag, "order" : "desc" , "limit" : 20 };
     this.session.createQuery(HashtagEntry, buildQueryEq, this, qp, fetchTweetsInBatch);
   };
 }
-TweetsByHashtagOperation.help = "<hashtag>";
+TweetsByHashtagOperation.signature = [ "get" , "tweets-about", "<hashtag>" ];
 
 
 /* The web server Operation is just slightly different; 
@@ -513,7 +520,7 @@ TweetsByHashtagOperation.help = "<hashtag>";
    and it defines a runServer() method, which takes the SessionFactory.
 */
 function RunWebServerOperation(cli_params, cli_data) {
-  var port = cli_params[1];
+  var port = cli_params[0];
   var sessionFactory;
   this.isServer = true;
   
@@ -526,55 +533,56 @@ function RunWebServerOperation(cli_params, cli_data) {
     }
 
     function runOperation() {
-      var operation = parse_command(params, data);
+      var operation = parse_command(request.method, params, data);
       if(operation && ! operation.isServer) {
         operation.setResponder(new HttpOperationResponder(operation, response));
         sessionFactory.openSession(null, onOpenSession, operation);  
       } 
       else hangup(400);
     }
-    
-    function gatherData(chunk) {
-      data += chunk;
-    }
-
-    request.setEncoding('utf8');
-    request.on('data', gatherData);  
-    request.on('end', runOperation);
 
     data = "";
     params = url.parse(request.url).pathname.split("/");
     params.shift();
-  
-    switch(request.method) {
-      case 'GET':
-        runOperation();
-        break;
-      case 'POST':
-        /* runOperation() is called by the 'end' event handler */
-        break;
-      default:
-        hangup(405);
-    }    
+    
+    request.setEncoding('utf8');
+    function gatherData(chunk) {    data += chunk;    }
+    request.on('data', gatherData);  
+    request.on('end', runOperation);
   }
-
+  
   this.runServer = function(_sessionFactory) {
     sessionFactory = _sessionFactory;
     http.createServer(serverRequestLoop).listen(port);
     console.log("Server started on port", port);  
   };
 }
-RunWebServerOperation.help = "<server_port_number>";
+RunWebServerOperation.signature = [ "start" , "server" , "<server_port_number>" ];
 
 
-function parse_command(params, data) {
-  var opConstructor, operation;
+function HelpOperation(params, data) {
+  Operation.call(this);
+  
+  this.run = function() {
+    this.responder.write(operationMap.http_help);
+    this.responder.close();
+  }
+}
+HelpOperation.signature = [ "get" , "help" ];
+
+
+function parse_command(method, params, data) {
+  var verb, noun, opIdx, opConstructor, operation;
+  verb = method.toLocaleLowerCase();
+  noun = params.shift();
   operation = null;
-
-  opConstructor = keyWordToOperationMap[params[0]];
-  if(opConstructor) {
-    operation = {};
-    opConstructor.call(operation, params, data);
+  if(operationMap.verbs[verb] && operationMap.verbs[verb][noun]) {
+    opIdx = operationMap.verbs[verb][noun][0]
+    opConstructor = allOperations[opIdx];
+    if(opConstructor) {
+      operation = {};
+      opConstructor.call(operation, params, data);
+    }
   }
   
   return operation;
@@ -582,7 +590,7 @@ function parse_command(params, data) {
 
 
 function get_cmdline_args() { 
-  var i, k, spaces, val, operation;
+  var i, k, spaces, val, verb, operation;
   var cmdList = [];
   var usageMessage = 
     "Usage: node tweet {options} {command} {command arguments}\n" +
@@ -592,11 +600,7 @@ function get_cmdline_args() {
     "               --detail: set the detail debug flag\n" +
     "               -df <file>: enable debug output from <file>\n" +
     "\n" +
-    "  COMMANDS:\n";
-  for(k in keyWordToOperationMap) {
-    spaces = Array(20 - k.length).join(" ");  
-    usageMessage += "         " + k + spaces + keyWordToOperationMap[k].help + "\n";
-  }
+    "  COMMANDS:\n" + operationMap.cli_help;
   
   for(i = 2; i < process.argv.length ; i++) {
     val = process.argv[i];
@@ -625,8 +629,9 @@ function get_cmdline_args() {
   }
 
   if(cmdList.length) {
-    /* Use final command line argument as "data" */
-    operation = parse_command(cmdList, cmdList[cmdList.length-1]);
+    verb = cmdList.shift();
+    /* Use final command line argument as "data" */    
+    operation = parse_command(verb, cmdList, cmdList[cmdList.length-1]);
   }
 
   if(operation) {
@@ -655,26 +660,47 @@ function runCmdlineOperation(err, sessionFactory, operation) {
   }
 }
 
-// *** Main program starts here ***
+var allOperations = [ 
+  AddUserOperation,
+  LookupUserOperation,
+  DeleteUserOperation,
+  InsertTweetOperation,
+  ReadTweetOperation,
+  DeleteTweetOperation,
+  FollowOperation,
+  FollowersOperation, 
+  FollowingOperation,
+  TweetsByUserOperation,
+  TweetsAtUserOperation,
+  TweetsByHashtagOperation,
+  RunWebServerOperation,
+  HelpOperation
+];
 
-var keyWordToOperationMap = { 
-  'newuser'     :    AddUserOperation          ,
-  'whois'       :    LookupUserOperation       ,
-  'delete'      :    DeleteUserOperation       ,
-  'tweet'       :    InsertTweetOperation      ,
-  'untweet'     :    DeleteTweetOperation      ,
-  'read'        :    ReadTweetOperation        ,
-  'follow'      :    FollowOperation           ,
-  'followers'   :    FollowersOperation        ,
-  'following'   :    FollowingOperation        ,
-  'server'      :    RunWebServerOperation     , 
-  'from'        :    TweetsByUserOperation     ,
-  'to'          :    TweetsAtUserOperation     ,
-  'about'       :    TweetsByHashtagOperation 
-};
+function prepareOperationMap() {
+  var idx, sig, verb, data;
+  operationMap = {};
+  operationMap.cli_help = "";
+  operationMap.http_help = "";
+  operationMap.verbs = { "get":{}, "post":{}, "put":{}, "delete":{} , "start":{} };
+  
+  for(idx in allOperations) {
+    sig = allOperations[idx].signature;
+    operationMap.verbs[sig[0]][sig[1]] = [ idx, sig[2], sig[3] ];
+    operationMap.cli_help += "         " + sig.join(" ") + "\n";
+    verb = sig.shift().toLocaleUpperCase();
+    data = sig[2];
+    operationMap.http_help += verb +" /"+ sig[0] +"/"+ sig[1];
+    operationMap.http_help += data ? data + "\n" : "\n";
+  }
+}
+
+// *** Main program starts here ***
 
 /* Global Variable Declarations */
 var mappings, dbProperties, operation;
+
+prepareOperationMap();
 
 /* This may have the side effect of changing the adapter */
 operation = get_cmdline_args();
@@ -688,7 +714,7 @@ mappings.push(new nosql.TableMapping('tweet').applyToClass(Tweet));
 mappings.push(new nosql.TableMapping('author').applyToClass(Author));
 mappings.push(new nosql.TableMapping('hashtag').applyToClass(HashtagEntry));
 mappings.push(new nosql.TableMapping('follow').applyToClass(Follow));
-mappings.push(new nosql.TableMapping('atref').applyToClass(AtRef));
+mappings.push(new nosql.TableMapping('mention').applyToClass(Mention));
 
 nosql.connect(dbProperties, mappings, runCmdlineOperation, operation);
 
