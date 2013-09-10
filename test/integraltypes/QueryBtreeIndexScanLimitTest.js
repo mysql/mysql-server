@@ -87,7 +87,6 @@ testQueries.run = function() {
 
     function onExecute(err, results, queryTest) {
       if (queryTest.expectedError) {
-        console.log(err);
         testCase.errorIfNotError(queryTest.name + ' Expected error: ' + queryTest.expectedError, err);
       } else {
         testCase.errorIfError(err);
