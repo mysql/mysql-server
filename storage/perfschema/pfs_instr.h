@@ -45,6 +45,8 @@ struct PFS_socket_class;
 #include "pfs_server.h"
 #include "lf.h"
 #include "pfs_con_slice.h"
+#include "pfs_column_types.h"
+#include "mdl.h"
 
 /**
   @addtogroup Performance_schema_buffers
@@ -220,14 +222,20 @@ public:
 
   /** Internal lock. */
   pfs_lock m_lock;
-  /** Owner. */
+  /** Thread Owner. */
   PFS_thread *m_thread_owner;
+  /** Event Owner. */
+  ulonglong m_owner_event_id;
   /** Table share. */
   PFS_table_share *m_share;
   /** Table identity, typically a handler. */
   const void *m_identity;
   /** Table statistics. */
   PFS_table_stat m_table_stat;
+  /** Current internal lock. */
+  PFS_TL_LOCK_TYPE m_internal_lock;
+  /** Current external lock. */
+  PFS_TL_LOCK_TYPE m_external_lock;
 
 private:
   static void safe_aggregate(PFS_table_stat *stat,
@@ -260,6 +268,24 @@ struct PFS_ALIGNED PFS_socket : public PFS_instr
   PFS_socket_class *m_class;
   /** Socket usage statistics. */
   PFS_socket_stat m_socket_stat;
+};
+
+/** Instrumented metadata lock implementation. @see PSI_metadata_lock. */
+struct PFS_ALIGNED PFS_metadata_lock : public PFS_instr
+{
+  uint32 get_version()
+  { return m_lock.get_version(); }
+
+  /** Lock identity. */
+  const void *m_identity;
+  MDL_key m_mdl_key;
+  opaque_mdl_type m_mdl_type;
+  opaque_mdl_duration m_mdl_duration;
+  opaque_mdl_status m_mdl_status;
+  const char *m_src_file;
+  uint m_src_line;
+  ulonglong m_owner_thread_id;
+  ulonglong m_owner_event_id;
 };
 
 /**
@@ -571,6 +597,7 @@ PFS_cond *sanitize_cond(PFS_cond *unsafe);
 PFS_thread *sanitize_thread(PFS_thread *unsafe);
 PFS_file *sanitize_file(PFS_file *unsafe);
 PFS_socket *sanitize_socket(PFS_socket *unsafe);
+PFS_metadata_lock *sanitize_metadata_lock(PFS_metadata_lock *unsafe);
 
 int init_instruments(const PFS_global_param *param);
 void cleanup_instruments();
@@ -603,6 +630,15 @@ PFS_socket* create_socket(PFS_socket_class *socket_class,
                           socklen_t addr_len);
 void destroy_socket(PFS_socket *pfs);
 
+PFS_metadata_lock* create_metadata_lock(void *identity,
+                                        const MDL_key *mdl_key,
+                                        opaque_mdl_type mdl_type,
+                                        opaque_mdl_duration mdl_duration,
+                                        opaque_mdl_status mdl_status,
+                                        const char *src_file,
+                                        uint src_line);
+void destroy_metadata_lock(PFS_metadata_lock *pfs);
+
 /* For iterators and show status. */
 
 extern ulong mutex_max;
@@ -628,6 +664,8 @@ extern ulong locker_lost;
 extern ulong statement_lost;
 extern ulong session_connect_attrs_lost;
 extern ulong session_connect_attrs_size_per_thread;
+extern ulong metadata_lock_max;
+extern ulong metadata_lock_lost;
 
 /* Exposing the data directly, for iterators. */
 
@@ -639,6 +677,7 @@ extern PFS_file *file_array;
 extern PFS_file **file_handle_array;
 extern PFS_table *table_array;
 extern PFS_socket *socket_array;
+extern PFS_metadata_lock *metadata_lock_array;
 
 void reset_events_waits_by_instance();
 void reset_file_instance_io();
@@ -690,6 +729,7 @@ void aggregate_thread_memory(bool alive, PFS_thread *thread,
                              PFS_account *safe_account,
                              PFS_user *safe_user,
                              PFS_host *safe_host);
+
 void clear_thread_account(PFS_thread *thread);
 void set_thread_account(PFS_thread *thread);
 
@@ -705,6 +745,8 @@ void update_file_derived_flags();
 void update_table_derived_flags();
 /** Update derived flags for all socket instances. */
 void update_socket_derived_flags();
+/** Update derived flags for all metadata instances. */
+void update_metadata_derived_flags();
 /** Update derived flags for all instruments. */
 void update_instruments_derived_flags();
 

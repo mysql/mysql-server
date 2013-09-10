@@ -47,7 +47,7 @@ void soundex(CHARSET_INFO * cs, char * out_pntr, char * in_pntr,
 {
   char ch,last_ch;
   char *end;
-  uchar *map=cs->to_upper;
+  const uchar *map=cs->to_upper;
 
   if (remove_garbage)
   {

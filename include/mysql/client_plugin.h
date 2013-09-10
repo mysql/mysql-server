@@ -1,5 +1,5 @@
 #ifndef MYSQL_CLIENT_PLUGIN_INCLUDED
-/* Copyright (c) 2010, 2012, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2010, 2013, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -26,6 +26,10 @@
 #ifndef MYSQL_ABI_CHECK
 #include <stdarg.h>
 #include <stdlib.h>
+#endif
+
+#ifdef __cplusplus
+extern "C" {
 #endif
 
 /* known plugin types */
@@ -160,5 +164,11 @@ mysql_client_register_plugin(struct st_mysql *mysql,
 **/
 int mysql_plugin_options(struct st_mysql_client_plugin *plugin,
                          const char *option, const void *value);
+
+
+#ifdef __cplusplus
+}
+#endif
+
 #endif
 

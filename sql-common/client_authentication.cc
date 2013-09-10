@@ -99,12 +99,12 @@ RSA *rsa_init(MYSQL *mysql)
       If a key path was submitted but no key located then we print an error
       message. Else we just report that there is no public key.
     */
-    fprintf(stderr,"Can't locate server public key '%s'\n",
-              mysql->options.extension->server_public_key_path);
+    my_message_local(WARNING_LEVEL, "Can't locate server public key '%s'",
+                     mysql->options.extension->server_public_key_path);
 
     return 0;
   }
-  
+
   mysql_mutex_lock(&g_public_key_mutex);
   key= g_public_key= PEM_read_RSA_PUBKEY(pub_key_file, 0, 0, 0);
   mysql_mutex_unlock(&g_public_key_mutex);
@@ -112,8 +112,8 @@ RSA *rsa_init(MYSQL *mysql)
   if (g_public_key == NULL)
   {
     ERR_clear_error();
-    fprintf(stderr, "Public key is not in PEM format: '%s'\n",
-            mysql->options.extension->server_public_key_path);
+    my_message_local(WARNING_LEVEL, "Public key is not in PEM format: '%s'",
+                     mysql->options.extension->server_public_key_path);
     return 0;
   }
 

@@ -155,6 +155,14 @@
 #endif
 
 #ifdef HAVE_PSI_TABLE_INTERFACE
+  #define MYSQL_UNLOCK_TABLE(T) \
+    inline_mysql_unlock_table(T)
+#else
+  #define MYSQL_UNLOCK_TABLE(T) \
+    do {} while (0)
+#endif
+
+#ifdef HAVE_PSI_TABLE_INTERFACE
 /**
   Instrumentation calls for MYSQL_START_TABLE_LOCK_WAIT.
   @sa MYSQL_END_TABLE_LOCK_WAIT.
@@ -184,6 +192,13 @@ inline_mysql_end_table_lock_wait(struct PSI_table_locker *locker)
 {
   if (locker != NULL)
     PSI_TABLE_CALL(end_table_lock_wait)(locker);
+}
+
+static inline void
+inline_mysql_unlock_table(struct PSI_table *table)
+{
+  if (table != NULL)
+    PSI_TABLE_CALL(unlock_table)(table);
 }
 #endif
 

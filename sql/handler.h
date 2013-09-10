@@ -363,11 +363,6 @@ static const uint MYSQL_START_TRANS_OPT_READ_ONLY          = 2;
 // READ WRITE option
 static const uint MYSQL_START_TRANS_OPT_READ_WRITE         = 4;
 
-/* Flags for method is_fatal_error */
-#define HA_CHECK_DUP_KEY 1
-#define HA_CHECK_DUP_UNIQUE 2
-#define HA_CHECK_DUP (HA_CHECK_DUP_KEY + HA_CHECK_DUP_UNIQUE)
-
 enum legacy_db_type
 {
   DB_TYPE_UNKNOWN=0,DB_TYPE_DIAB_ISAM=1,
@@ -2196,26 +2191,42 @@ public:
   virtual uint extra_rec_buf_length() const { return 0; }
 
   /**
-    @brief Determine whether an error is fatal or not. 
-    
-    @details This method is used to analyze the error to see whether the 
-    error is fatal or not. Handlers can have different sets of fatal errors, 
-    e.g. the partition handler can get inserts into a range where there 
-    is no partition, and this is an ignorable error.
-    
+    @brief Determine whether an error can be ignored or not.
+
+    @details This method is used to analyze the error to see whether the
+    error is ignorable or not. Such errors will be reported as warnings
+    instead of errors for IGNORE statements. This means that the statement
+    will not abort, but instead continue to the next row.
+
     HA_ERR_FOUND_DUP_UNIQUE is a special case in MyISAM that means the
     same thing as HA_ERR_FOUND_DUP_KEY, but can in some cases lead to
     a slightly different error message.
-     
+
     @param error  error code received from the handler interface (HA_ERR_...)
-    @param flags  indicate whether duplicate key errors should be ignorable
-    
+
+    @return   whether the error is ignorablel or not
+      @retval true  the error is ignorable
+      @retval false the error is not ignorable
+  */
+
+  virtual bool is_ignorable_error(int error);
+
+  /**
+    @brief Determine whether an error is fatal or not.
+
+    @details This method is used to analyze the error to see whether the
+    error is fatal or not. A fatal error is an error that will not be
+    possible to handle with SP handlers and will not be subject to
+    retry attempts on the slave.
+
+    @param error  error code received from the handler interface (HA_ERR_...)
+
     @return   whether the error is fatal or not
       @retval true  the error is fatal
       @retval false the error is not fatal
   */
-  
-  virtual bool is_fatal_error(int error, uint flags);
+
+  virtual bool is_fatal_error(int error);
 
   /**
     Number of rows in table. It will only be called if

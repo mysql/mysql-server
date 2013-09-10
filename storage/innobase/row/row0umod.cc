@@ -159,7 +159,6 @@ dberr_t
 row_undo_mod_remove_clust_low(
 /*==========================*/
 	undo_node_t*	node,	/*!< in: row undo node */
-	que_thr_t*	thr,	/*!< in: query thread */
 	mtr_t*		mtr,	/*!< in/out: mini-transaction */
 	ulint		mode)	/*!< in: BTR_MODIFY_LEAF or BTR_MODIFY_TREE */
 {
@@ -224,12 +223,14 @@ row_undo_mod_remove_clust_low(
 		ut_ad(mode == (BTR_MODIFY_TREE | BTR_LATCH_FOR_DELETE));
 
 		/* This operation is analogous to purge, we can free also
-		inherited externally stored fields */
+		inherited externally stored fields.
+		We can also assume that the record was complete
+		(including BLOBs), because it had been delete-marked
+		after it had been completely inserted. Therefore, we
+		are passing rollback=false, just like purge does. */
 
 		btr_cur_pessimistic_delete(&err, FALSE, btr_cur, 0,
-					   thr_is_recv(thr)
-					   ? RB_RECOVERY_PURGE_REC
-					   : RB_NONE, mtr);
+					   false, mtr);
 
 		/* The delete operation may fail if we have little
 		file space left: TODO: easiest to crash the database
@@ -352,7 +353,7 @@ row_undo_mod_clust(
 		because the record is delete-marked and would thus
 		be omitted from the rebuilt copy of the table. */
 		err = row_undo_mod_remove_clust_low(
-			node, thr, &mtr, BTR_MODIFY_LEAF);
+			node, &mtr, BTR_MODIFY_LEAF);
 		if (err != DB_SUCCESS) {
 			btr_pcur_commit_specify_mtr(pcur, &mtr);
 
@@ -363,7 +364,7 @@ row_undo_mod_clust(
 			dict_disable_redo_if_temporary(index->table, &mtr);
 
 			err = row_undo_mod_remove_clust_low(
-				node, thr, &mtr,
+				node, &mtr,
 				BTR_MODIFY_TREE | BTR_LATCH_FOR_DELETE);
 
 			ut_ad(err == DB_SUCCESS
@@ -488,15 +489,13 @@ row_undo_mod_del_mark_or_remove_sec_low(
 				err = DB_FAIL;
 			}
 		} else {
-			/* No need to distinguish RB_RECOVERY_PURGE here,
+			/* Passing rollback=false,
 			because we are deleting a secondary index record:
-			the distinction between RB_NORMAL and
-			RB_RECOVERY_PURGE only matters when deleting a
-			record that contains externally stored
-			columns. */
+			the distinction only matters when deleting a
+			record that contains externally stored columns. */
 			ut_ad(!dict_index_is_clust(index));
 			btr_cur_pessimistic_delete(&err, FALSE, btr_cur, 0,
-						   RB_NORMAL, &mtr);
+						   false, &mtr);
 
 			/* The delete operation may fail if we have little
 			file space left: TODO: easiest to crash the database

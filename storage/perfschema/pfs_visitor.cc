@@ -661,12 +661,22 @@ PFS_connection_wait_visitor::~PFS_connection_wait_visitor()
 void PFS_connection_wait_visitor::visit_global()
 {
   /*
-    This visitor is used only for idle instruments.
+    This visitor is used only for global instruments
+    that do not have instances.
     For waits, do not sum by connection but by instances,
     it is more efficient.
   */
-  DBUG_ASSERT(m_index == global_idle_class.m_event_name_index);
-  m_stat.aggregate(& global_idle_stat);
+  DBUG_ASSERT(   (m_index == global_idle_class.m_event_name_index)
+              || (m_index == global_metadata_class.m_event_name_index));
+
+  if (m_index == global_idle_class.m_event_name_index)
+  {
+    m_stat.aggregate(& global_idle_stat);
+  }
+  else
+  {
+    m_stat.aggregate(& global_metadata_stat);
+  }
 }
 
 void PFS_connection_wait_visitor::visit_host(PFS_host *pfs)

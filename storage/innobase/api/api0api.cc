@@ -2542,7 +2542,9 @@ ib_col_copy_value_low(
 						 data_len, usign);
 
 			if (usign) {
-				if (len == 2) {
+				if (len == 1) {
+					*(ib_i8_t*)dst = (ib_i8_t)ret;
+				} else if (len == 2) {
 					*(ib_i16_t*)dst = (ib_i16_t)ret;
 				} else if (len == 4) {
 					*(ib_i32_t*)dst = (ib_i32_t)ret;
@@ -2550,7 +2552,9 @@ ib_col_copy_value_low(
 					*(ib_i64_t*)dst = (ib_i64_t)ret;
 				}
 			} else {
-				if (len == 2) {
+				if (len == 1) {
+					*(ib_u8_t*)dst = (ib_i8_t)ret;
+				} else if (len == 2) {
 					*(ib_u16_t*)dst = (ib_i16_t)ret;
 				} else if (len == 4) {
 					*(ib_u32_t*)dst = (ib_i32_t)ret;

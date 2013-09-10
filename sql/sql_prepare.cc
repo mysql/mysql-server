@@ -115,6 +115,7 @@ When one supplies long data for a placeholder:
 #include "opt_trace.h"                          // Opt_trace_object
 #include "sql_analyse.h"
 #include "sql_rewrite.h"
+#include "transaction.h"                        // trans_rollback_implicit
 
 #include <algorithm>
 using std::max;
@@ -283,6 +284,16 @@ private:
   Implementation
 ******************************************************************************/
 
+/**
+  Rewrite the current query (to obfuscate passwords etc.) if needed
+  (i.e. only if we'll be writing the query to any of our logs).
+
+  Side-effect: thd->rewritten_query() may be populated with a rewritten
+               query.  If the query is not of a rewritable type,
+               thd->rewritten_query() will be empty.
+
+  @param thd                thread handle
+*/
 static inline void rewrite_query_if_needed(THD *thd)
 {
   bool general= (opt_general_log &&
@@ -293,6 +304,15 @@ static inline void rewrite_query_if_needed(THD *thd)
     mysql_rewrite_query(thd);
 }
 
+/**
+  Unless we're doing dynamic SQL, write the current query to the
+  general query log if it's open.  If we have a rewritten version
+  of the query, use that instead of the "raw" one.
+
+  Side-effect: query may be written to general log if it's open.
+
+  @param thd                thread handle
+*/
 static inline void log_execute_line(THD *thd)
 {
   /*
@@ -911,7 +931,7 @@ static bool insert_params_with_log(Prepared_statement *stmt, uchar *null_array,
         if (param->state == Item_param::NO_VALUE)
           DBUG_RETURN(1);
 
-        if (param->limit_clause_param && param->item_type != Item::INT_ITEM)
+        if (param->limit_clause_param && param->state != Item_param::INT_VALUE)
         {
           param->set_int(param->val_int(), MY_INT64_NUM_DECIMAL_DIGITS);
           param->item_type= Item::INT_ITEM;
@@ -3147,13 +3167,18 @@ Execute_sql_statement::execute_server_code(THD *thd)
 
   parent_locker= thd->m_statement_psi;
   thd->m_statement_psi= NULL;
+  /*
+    Rewrite first (if needed); execution might replace passwords
+    with hashes in situ without flagging it, and then we'd make
+    a hash of that hash.
+  */
+  rewrite_query_if_needed(thd);
   error= mysql_execute_command(thd) ;
   thd->m_statement_psi= parent_locker;
 
   /* report error issued during command execution */
-  if (error == 0 && thd->sp_runtime_ctx == NULL)
-    query_logger.general_log_write(thd, COM_STMT_EXECUTE,
-                                   thd->query(), thd->query_length());
+  if (error == 0)
+    log_execute_line(thd);
 
 end:
   lex_end(thd->lex);
@@ -3426,7 +3451,7 @@ bool Prepared_statement::prepare(const char *packet, uint packet_len)
   */
   MDL_savepoint mdl_savepoint= thd->mdl_context.mdl_savepoint();
 
-  /* 
+  /*
    The only case where we should have items in the thd->free_list is
    after stmt->set_params_from_vars(), which may in some cases create
    Item_null objects.
@@ -3449,7 +3474,26 @@ bool Prepared_statement::prepare(const char *packet, uint packet_len)
 
   close_thread_tables(thd);
   thd->mdl_context.rollback_to_savepoint(mdl_savepoint);
+
+  /*
+    Transaction rollback was requested since MDL deadlock was discovered
+    while trying to open tables. Rollback transaction in all storage
+    engines including binary log and release all locks.
+
+    Once dynamic SQL is allowed as substatements the below if-statement
+    has to be adjusted to not do rollback in substatement.
+  */
+  DBUG_ASSERT(! thd->in_sub_stmt);
+  if (thd->transaction_rollback_request)
+  {
+    trans_rollback_implicit(thd);
+    thd->mdl_context.release_transactional_locks();
+  }
+
   lex_end(lex);
+
+  rewrite_query_if_needed(thd);
+
   cleanup_stmt();
   thd->restore_backup_statement(this, &stmt_backup);
   thd->stmt_arena= old_stmt_arena;
@@ -3461,15 +3505,27 @@ bool Prepared_statement::prepare(const char *packet, uint packet_len)
     state= Query_arena::STMT_PREPARED;
     flags&= ~ (uint) IS_IN_USE;
 
-    /* 
-      Log COM_EXECUTE to the general log. Note, that in case of SQL
+    /*
+      Log COM_STMT_PREPARE to the general log. Note, that in case of SQL
       prepared statements this causes two records to be output:
 
       Query       PREPARE stmt from @user_variable
       Prepare     <statement SQL text>
 
-      This is considered user-friendly, since in the
-      second log entry we output the actual statement text.
+      This is considered user-friendly, since in the  second log Entry
+      we output the actual statement text rather than the variable name.
+
+      Rewriting/password obfuscation:
+
+      - If we're preparing from a string literal rather than from a
+        variable, the literal is elided in the "Query" log line, as
+        it may contain a password.  (As we've parsed the PREPARE statement,
+        but not the statement to prepare yet, we don't know at that point.)
+        Eliding the literal is fine, as we'll print it in the next log line
+        ("Prepare"), anyway.
+
+      - Any passwords in the "Prepare" line should be substituted with their
+        hashes, or a notice.
 
       Do not print anything if this is an SQL prepared statement and
       we're inside a stored procedure (also called Dynamic SQL) --
@@ -3994,6 +4050,13 @@ bool Prepared_statement::execute(String *expanded_query, bool open_cursor)
                              1);
       parent_locker= thd->m_statement_psi;
       thd->m_statement_psi= NULL;
+      /*
+        Rewrite first (if needed); execution might replace passwords
+        with hashes in situ without flagging it, and then we'd make
+        a hash of that hash.
+      */
+      rewrite_query_if_needed(thd);
+
       error= mysql_execute_command(thd);
       thd->m_statement_psi= parent_locker;
       MYSQL_QUERY_EXEC_DONE(error);
@@ -4032,7 +4095,7 @@ bool Prepared_statement::execute(String *expanded_query, bool open_cursor)
   }
 
   /*
-    Log COM_EXECUTE to the general log. Note, that in case of SQL
+    Log COM_STMT_EXECUTE to the general log. Note, that in case of SQL
     prepared statements this causes two records to be output:
 
     Query       EXECUTE <statement name>
@@ -4041,14 +4104,14 @@ bool Prepared_statement::execute(String *expanded_query, bool open_cursor)
     This is considered user-friendly, since in the
     second log entry we output values of parameter markers.
 
-    Do not print anything if this is an SQL prepared statement and
-    we're inside a stored procedure (also called Dynamic SQL) --
-    sub-statements inside stored procedures are not logged into
-    the general log.
+    Rewriting/password obfuscation:
+
+    - Any passwords in the "Execute" line should be substituted with
+      their hashes, or a notice.
+
   */
-  if (error == 0 && thd->sp_runtime_ctx == NULL)
-    query_logger.general_log_write(thd, COM_STMT_EXECUTE,
-                                   thd->query(), thd->query_length());
+  if (error == 0)
+    log_execute_line(thd);
 
 error:
   flags&= ~ (uint) IS_IN_USE;

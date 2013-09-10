@@ -559,6 +559,15 @@ static Sys_var_long Sys_pfs_connect_attrs_size(
        DEFAULT(-1),
        BLOCK_SIZE(1), PFS_TRAILING_PROPERTIES);
 
+static Sys_var_long Sys_pfs_max_metadata_locks(
+       "performance_schema_max_metadata_locks",
+       "Maximum number of metadata locks."
+         " Use 0 to disable, -1 for automated sizing.",
+       READ_ONLY GLOBAL_VAR(pfs_param.m_metadata_lock_sizing),
+       CMD_LINE(REQUIRED_ARG), VALID_RANGE(-1, 100*1024*1024),
+       DEFAULT(-1),
+       BLOCK_SIZE(1), PFS_TRAILING_PROPERTIES);
+
 #endif /* EMBEDDED_LIBRARY */
 #endif /* WITH_PERFSCHEMA_STORAGE_ENGINE */
 
@@ -1633,12 +1642,55 @@ static Sys_var_ulong Sys_log_throttle_queries_not_using_indexes(
        ON_CHECK(0),
        ON_UPDATE(update_log_throttle_queries_not_using_indexes));
 
+static bool update_log_warnings(sys_var *self, THD *thd, enum_var_type type)
+{
+  // log_warnings is deprecated, but for now, we'll set the
+  // new log_error_verbosity from it for backward compatibility.
+  log_error_verbosity= std::min(3UL, 1UL + log_warnings);
+  return false;
+}
+
 static Sys_var_ulong Sys_log_warnings(
        "log_warnings",
        "Log some not critical warnings to the log file",
        GLOBAL_VAR(log_warnings),
        CMD_LINE(OPT_ARG, 'W'),
-       VALID_RANGE(0, ULONG_MAX), DEFAULT(1), BLOCK_SIZE(1));
+       VALID_RANGE(0, 2), DEFAULT(2), BLOCK_SIZE(1), NO_MUTEX_GUARD,
+       NOT_IN_BINLOG, ON_CHECK(0), ON_UPDATE(update_log_warnings),
+       DEPRECATED("log_error_verbosity"));
+
+static bool update_log_error_verbosity(sys_var *self, THD *thd,
+                                       enum_var_type type)
+{
+  // log_warnings is deprecated, but for now, we'll set it from
+  // the new log_error_verbosity for backward compatibility.
+  log_warnings= log_error_verbosity - 1;
+  return false;
+}
+
+static Sys_var_ulong Sys_log_error_verbosity(
+       "log_error_verbosity",
+       "How detailed the error log should be. "
+       "1, log errors only. "
+       "2, log errors and warnings. "
+       "3, log errors, warnings, and notes. "
+       "Messages sent to the client are unaffected by this setting.",
+       GLOBAL_VAR(log_error_verbosity),
+       CMD_LINE(REQUIRED_ARG),
+       VALID_RANGE(1, 3), DEFAULT(3), BLOCK_SIZE(1), NO_MUTEX_GUARD,
+       NOT_IN_BINLOG, ON_CHECK(0), ON_UPDATE(update_log_error_verbosity));
+
+static Sys_var_enum Sys_log_timestamps(
+       "log_timestamps",
+       "UTC to timestamp log files in zulu time, for more concise timestamps "
+       "and easier correlation of logs from servers from multiple time zones, "
+       "or SYSTEM to use the system's local time. "
+       "This affects only log files, not log tables, as the timestamp columns "
+       "of the latter can be converted at will.",
+       GLOBAL_VAR(opt_log_timestamps),
+       CMD_LINE(REQUIRED_ARG, OPT_BINLOG_FORMAT),
+       timestamp_type_names, DEFAULT(0),
+       NO_MUTEX_GUARD, NOT_IN_BINLOG);
 
 static bool update_cached_long_query_time(sys_var *self, THD *thd,
                                           enum_var_type type)

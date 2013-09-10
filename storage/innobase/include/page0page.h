@@ -328,30 +328,6 @@ page_get_middle_rec(
 /*================*/
 	page_t*	page)	/*!< in: page */
 	__attribute__((nonnull, warn_unused_result));
-# ifdef UNIV_SEARCH_DEBUG
-/*************************************************************//**
-Compares a data tuple to a physical record. Differs from the function
-cmp_dtuple_rec_with_match in the way that the record must reside on an
-index page, and also page infimum and supremum records can be given in
-the parameter rec. These are considered as the negative infinity and
-the positive infinity in the alphabetical order.
-@return 1, 0, -1, if dtuple is greater, equal, less than rec,
-respectively, when only the common first fields are compared */
-UNIV_INLINE
-int
-page_cmp_dtuple_rec_with_match(
-/*===========================*/
-	const dtuple_t*	dtuple,	/*!< in: data tuple */
-	const rec_t*	rec,	/*!< in: physical record on a page; may also
-				be page infimum or supremum, in which case
-				matched-parameter values below are not
-				affected */
-	const ulint*	offsets,/*!< in: array returned by rec_get_offsets() */
-	ulint*		matched_fields);
-				/*!< in/out: number of already completely
-				matched fields; when function returns
-				contains the value for current comparison */
-# endif /* UNIV_SEARCH_DEBUG */
 #endif /* !UNIV_HOTBACKUP */
 /*************************************************************//**
 Gets the page number.

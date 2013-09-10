@@ -617,7 +617,7 @@ bool mysql_update(THD *thd,
         if (select && select->quick && (error= select->quick->reset()))
         {
           close_cached_file(&tempfile);
-          if (table->file->is_fatal_error(error, HA_CHECK_DUP_KEY))
+          if (table->file->is_fatal_error(error))
             error_flags|= ME_FATALERROR;
 
           table->file->print_error(error, error_flags);
@@ -712,7 +712,7 @@ bool mysql_update(THD *thd,
   
     if (select && select->quick && (error= select->quick->reset()))
     {
-      if (table->file->is_fatal_error(error, HA_CHECK_DUP_KEY))
+      if (table->file->is_fatal_error(error))
         error_flags|= ME_FATALERROR;
 
       table->file->print_error(error, error_flags);
@@ -762,7 +762,6 @@ bool mysql_update(THD *thd,
       bool skip_record;
       if (!select || (!select->skip_record(thd, &skip_record) && !skip_record))
       {
-        bool is_fatal= false;
         if (table->file->was_semi_consistent_read())
           continue;  /* repeat the read of the same row if it still exists */
 
@@ -843,15 +842,13 @@ bool mysql_update(THD *thd,
             else
               error= 0;
           }
-          else if ((is_fatal= 
-                  table->file->is_fatal_error(error, HA_CHECK_DUP_KEY)) || 
-                  !ignore)
+          else if ((!table->file->is_ignorable_error(error)) || !ignore)
           {
             /*
               If (ignore && error is ignorable) we don't have to
               do anything; otherwise...
             */
-            if (is_fatal)
+            if (table->file->is_fatal_error(error))
               error_flags|= ME_FATALERROR;
 
             table->file->print_error(error, error_flags);
@@ -890,9 +887,9 @@ bool mysql_update(THD *thd,
                 The handler should not report error of duplicate keys if they
                 are ignored. This is a requirement on batching handlers.
               */
-              if (table->file->is_fatal_error(error, HA_CHECK_DUP_KEY))
+              if (table->file->is_fatal_error(error))
                 error_flags|= ME_FATALERROR;
-               
+
               table->file->print_error(error, error_flags);
               error= 1;
               break;
@@ -963,7 +960,7 @@ bool mysql_update(THD *thd,
     {
       /* purecov: begin inspected */
       error_flags= MYF(0);
-      if (table->file->is_fatal_error(loc_error, HA_CHECK_DUP_KEY))
+      if (table->file->is_fatal_error(loc_error))
         error_flags|= ME_FATALERROR;
 
       table->file->print_error(loc_error, error_flags);
@@ -1990,6 +1987,14 @@ loop_end:
     tmp_tables[cnt]=create_tmp_table(thd, tmp_param, temp_fields,
                                      (ORDER*) &group, 0, 0,
                                      TMP_TABLE_ALL_COLUMNS, HA_POS_ERROR, "");
+    /*
+      Pass a table triggers pointer (Table_trigger_dispatcher *) from
+      the original table to the new temporary table. This pointer will be used
+      inside the method multi_update::send_data() to determine temporary
+      nullability flag for the temporary table's fields. It will be done before
+      calling fill_record() to assign values to the temporary table's fields.
+    */
+    tmp_tables[cnt]->triggers= table->triggers;
     thd->variables.big_tables= save_big_tables;
     if (!tmp_tables[cnt])
       DBUG_RETURN(1);
@@ -2101,17 +2106,15 @@ bool multi_update::send_data(List<Item> &not_used_values)
                                               table->record[0])) &&
             error != HA_ERR_RECORD_IS_THE_SAME)
         {
-          bool is_fatal= false;
           updated--;
-          if ((is_fatal= table->file->is_fatal_error(error, HA_CHECK_DUP_KEY)) 
-                  || !ignore)
+          if (!table->file->is_ignorable_error(error) || !ignore)
           {
             /*
               If (ignore && error == is ignorable) we don't have to
               do anything; otherwise...
             */
             myf error_flags= MYF(0);
-            if (is_fatal)
+            if (table->file->is_fatal_error(error))
               error_flags|= ME_FATALERROR;
 
             table->file->print_error(error, error_flags);
@@ -2167,13 +2170,17 @@ bool multi_update::send_data(List<Item> &not_used_values)
       } while ((tbl= tbl_it++));
 
       /*
-        Enable temporary nullability for temporary table fields.
+        If there are triggers in an original table the temporary table based on
+        then enable temporary nullability for temporary table's fields.
       */
-      for (Field** modified_fields= tmp_table->field + 1 +
-                                    unupdated_check_opt_tables.elements;
-           *modified_fields; ++modified_fields)
+      if (tmp_table->triggers)
       {
-        (*modified_fields)->set_tmp_nullable();
+        for (Field** modified_fields= tmp_table->field + 1 +
+                                      unupdated_check_opt_tables.elements;
+            *modified_fields; ++modified_fields)
+        {
+          (*modified_fields)->set_tmp_nullable();
+        }
       }
 
       /* Store regular updated fields in the row. */
@@ -2287,7 +2294,7 @@ int multi_update::do_updates()
     tmp_table->file->extra(HA_EXTRA_CACHE);	// Change to read cache
     if ((local_error= table->file->ha_rnd_init(0)))
     {
-      if (table->file->is_fatal_error(local_error, HA_CHECK_DUP_KEY))
+      if (table->file->is_fatal_error(local_error))
         error_flags|= ME_FATALERROR;
 
       table->file->print_error(local_error, error_flags);
@@ -2321,7 +2328,7 @@ int multi_update::do_updates()
 
     if ((local_error = tmp_table->file->ha_rnd_init(1)))
     {
-      if (table->file->is_fatal_error(local_error, HA_CHECK_DUP_KEY))
+      if (table->file->is_fatal_error(local_error))
         error_flags|= ME_FATALERROR;
 
       table->file->print_error(local_error, error_flags);
@@ -2339,7 +2346,7 @@ int multi_update::do_updates()
           break;
         if (local_error == HA_ERR_RECORD_DELETED)
           continue;                             // May happen on dup key
-        if (table->file->is_fatal_error(local_error, HA_CHECK_DUP_KEY))
+        if (table->file->is_fatal_error(local_error))
           error_flags|= ME_FATALERROR;
 
         table->file->print_error(local_error, error_flags);
@@ -2356,7 +2363,7 @@ int multi_update::do_updates()
               tbl->file->ha_rnd_pos(tbl->record[0],
                                     (uchar *) tmp_table->field[field_num]->ptr)))
         {
-          if (table->file->is_fatal_error(local_error, HA_CHECK_DUP_KEY))
+          if (table->file->is_fatal_error(local_error))
             error_flags|= ME_FATALERROR;
 
           table->file->print_error(local_error, error_flags);
@@ -2381,7 +2388,6 @@ int multi_update::do_updates()
 
       if (!records_are_comparable(table) || compare_records(table))
       {
-        bool is_fatal= false;
         update_operations[offset]->set_function_defaults(table);
         int error;
         if ((error= cur_table->view_check_option(thd, ignore)) !=
@@ -2399,11 +2405,9 @@ int multi_update::do_updates()
           updated++;
         else if (local_error == HA_ERR_RECORD_IS_THE_SAME)
           local_error= 0;
-        else if ((is_fatal= 
-                table->file->is_fatal_error(local_error, HA_CHECK_DUP_KEY)) || 
-                !ignore)
+        else if (!table->file->is_ignorable_error(local_error) || !ignore)
 	{
-          if (is_fatal)
+          if (table->file->is_fatal_error(local_error))
             error_flags|= ME_FATALERROR;
 
           table->file->print_error(local_error, error_flags);

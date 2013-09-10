@@ -265,29 +265,11 @@ JOIN::optimize()
   }
 
 #ifdef WITH_PARTITION_STORAGE_ENGINE
+  if (select_lex->partitioned_table_count && prune_table_partitions(thd))
   {
-    TABLE_LIST *tbl;
-    for (tbl= select_lex->leaf_tables; tbl; tbl= tbl->next_leaf)
-    {
-      /* 
-        If tbl->embedding!=NULL that means that this table is in the inner
-        part of the nested outer join, and we can't do partition pruning
-        (TODO: check if this limitation can be lifted. 
-               This also excludes semi-joins.  Is that intentional?)
-        This will try to prune non-static conditions, which can
-        be used after the tables are locked.
-      */
-      if (!tbl->embedding)
-      {
-        Item *prune_cond= tbl->join_cond() ? tbl->join_cond() : conds;
-        if (prune_partitions(thd, tbl->table, prune_cond))
-        {
-          error= 1;
-          DBUG_PRINT("error", ("Error from prune_partitions"));
-          DBUG_RETURN(1);
-        }
-      }
-    }
+    error= 1;
+    DBUG_PRINT("error", ("Error from prune_partitions"));
+    DBUG_RETURN(1);
   }
 #endif
 
@@ -439,11 +421,14 @@ JOIN::optimize()
   }
 
   error= 0;
-  reset_nj_counters(join_list);
-  make_outerjoin_info(this);
-
+  if (outer_join)
+  {
+    reset_nj_counters(join_list);
+    make_outerjoin_info(this);
+  }
   // Assign map of "available" tables to all tables belonging to query block
-  set_prefix_tables();
+  if (!plan_is_const())
+    set_prefix_tables();
 
   /*
     Among the equal fields belonging to the same multiple equality
@@ -487,7 +472,8 @@ JOIN::optimize()
     }
   }
 
-  drop_unused_derived_keys();
+  if (select_lex->materialized_table_count)
+    drop_unused_derived_keys();
 
   if (set_access_methods())
   {
@@ -797,7 +783,7 @@ JOIN::optimize()
   }
 
   /* Cache constant expressions in WHERE, HAVING, ON clauses. */
-  if (cache_const_exprs())
+  if (!plan_is_const() && cache_const_exprs())
     DBUG_RETURN(1);
 
   // See if this subquery can be evaluated with subselect_indexsubquery_engine
@@ -1077,6 +1063,45 @@ void JOIN::set_plan_state(enum_plan_state plan_state_arg)
   plan_state= plan_state_arg;
   mysql_mutex_unlock(&thd->LOCK_query_plan);
 }
+
+
+#ifdef WITH_PARTITION_STORAGE_ENGINE
+
+/**
+  Prune partitions for all tables of a join (query block).
+
+  Requires that tables have been locked.
+
+  @param thd Thread pointer
+
+  @returns false if success, true if error
+*/
+bool JOIN::prune_table_partitions(THD *thd)
+{
+  DBUG_ASSERT(select_lex->partitioned_table_count);
+
+  for (TABLE_LIST *tbl= select_lex->leaf_tables; tbl; tbl= tbl->next_leaf)
+  {
+    /* 
+      If tbl->embedding!=NULL that means that this table is in the inner
+      part of the nested outer join, and we can't do partition pruning
+      (TODO: check if this limitation can be lifted. 
+             This also excludes semi-joins.  Is that intentional?)
+      This will try to prune non-static conditions, which can
+      be used after the tables are locked.
+    */
+    if (!tbl->embedding)
+    {
+      if (prune_partitions(thd, tbl->table,
+                           tbl->join_cond() ? tbl->join_cond() : conds))
+        return true;
+    }
+  }
+
+  return false;
+}
+
+#endif
 
 
 /**
@@ -3048,6 +3073,7 @@ bool JOIN::update_equalities_for_sjm()
 
 void JOIN::set_prefix_tables()
 {
+  DBUG_ASSERT(!plan_is_const());
   /*
     The const tables are available together with the first non-const table in
     the join order.
@@ -3182,7 +3208,7 @@ make_join_statistics(JOIN *join, TABLE_LIST *tables_arg, Item *conds,
     DBUG_RETURN(true);
 
   // Up to one extra slot per semi-join nest is needed (if materialized)
-  const uint sj_nests= join->select_lex->sj_nests.elements;
+  uint sj_nests= join->select_lex->sj_nests.elements;
   if (!(join->best_positions=
       new (thd->mem_root) POSITION[table_count + sj_nests + 1]))
     DBUG_RETURN(true);
@@ -3346,10 +3372,11 @@ make_join_statistics(JOIN *join, TABLE_LIST *tables_arg, Item *conds,
     throughout the lifetime of a query, so this operation can be performed
     on the first optimization only.
   */
-  if (first_optimization)
+  if (first_optimization && sj_nests)
   {
     if (pull_out_semijoin_tables(join))
       DBUG_RETURN(true);
+    sj_nests= join->select_lex->sj_nests.elements;
   }
 
   /*
@@ -3756,39 +3783,19 @@ const_table_extraction_done:
     }
   }
 
-  /*
-    Set pointer to embedding semi-join nest for all semi-joined tables.
-    Note that this must be done for every table inside all semi-join nests,
-    even for tables within outer join nests embedded in semi-join nests.
-    A table can never be part of multiple semi-join nests, hence no
-    ambiguities can ever occur.
-    Note also that the pointer is not set for TABLE_LIST objects that
-    are outer join nests within semi-join nests.
-  */
-  for (s= stat; s < stat_end; s++)
-  {
-    for (TABLE_LIST *tables= s->table->pos_in_table_list;
-         tables->embedding;
-         tables= tables->embedding)
-    {
-      if (tables->embedding->sj_on_expr)
-      {
-        s->emb_sj_nest= tables->embedding;
-        break;
-      }
-    }
-  }
-
   join->join_tab=stat;
   join->map2table=stat_ref;
   join->const_tables=const_count;
+
+  if (sj_nests)
+    join->set_semijoin_embedding();
 
   if (!join->plan_is_const())
     optimize_keyuse(join, keyuse_array);
 
   join->allow_outer_refs= true;
 
-  if (optimize_semijoin_nests_for_materialization(join))
+  if (sj_nests && optimize_semijoin_nests_for_materialization(join))
     DBUG_RETURN(true);
 
   if (Optimize_table_order(thd, join, NULL).choose_table_order())
@@ -3798,7 +3805,7 @@ const_table_extraction_done:
   if (thd->killed || thd->is_error())
     DBUG_RETURN(true);
 
-  if (join->decide_subquery_strategy())
+  if (join->unit->item && join->decide_subquery_strategy())
     DBUG_RETURN(true);
 
   join->refine_best_rowcount();
@@ -3839,6 +3846,40 @@ error:
   for (tables= tables_arg; tables; tables= tables->next_leaf)
     tables->table->reginfo.join_tab= NULL;
   DBUG_RETURN(true);
+}
+
+
+/**
+  Set semi-join embedding join nest pointers.
+
+  Set pointer to embedding semi-join nest for all semi-joined tables.
+  Note that this must be done for every table inside all semi-join nests,
+  even for tables within outer join nests embedded in semi-join nests.
+  A table can never be part of multiple semi-join nests, hence no
+  ambiguities can ever occur.
+  Note also that the pointer is not set for TABLE_LIST objects that
+  are outer join nests within semi-join nests.
+*/
+
+void JOIN::set_semijoin_embedding()
+{
+  DBUG_ASSERT(!select_lex->sj_nests.is_empty());
+
+  JOIN_TAB *const tab_end= join_tab + primary_tables;
+
+  for (JOIN_TAB *tab= join_tab; tab < tab_end; tab++)
+  {
+    for (TABLE_LIST *tr= tab->table->pos_in_table_list;
+         tr->embedding;
+         tr= tr->embedding)
+    {
+      if (tr->embedding->sj_on_expr)
+      {
+        tab->emb_sj_nest= tr->embedding;
+        break;
+      }
+    }
+  }
 }
 
 
@@ -4490,8 +4531,7 @@ static bool pull_out_semijoin_tables(JOIN *join)
   TABLE_LIST *sj_nest;
   DBUG_ENTER("pull_out_semijoin_tables");
 
-  if (join->select_lex->sj_nests.is_empty())
-    DBUG_RETURN(FALSE);
+  DBUG_ASSERT(!join->select_lex->sj_nests.is_empty());
 
   List_iterator<TABLE_LIST> sj_list_it(join->select_lex->sj_nests);
   Opt_trace_context * const trace= &join->thd->opt_trace;
@@ -5903,20 +5943,22 @@ update_ref_and_keys(THD *thd, Key_use_array *keyuse,JOIN_TAB *join_tab,
   }
 
   /* Generate keys descriptions for derived tables */
-  if (select_lex->join->generate_derived_keys())
-    return TRUE;
-
+  if (select_lex->materialized_table_count)
+  {
+    if (select_lex->join->generate_derived_keys())
+      return true;
+  }
   /* fill keyuse with found key parts */
   for ( ; field != end ; field++)
   {
     if (add_key_part(keyuse,field))
-      return TRUE;
+      return true;
   }
 
   if (select_lex->ftfunc_list->elements)
   {
     if (add_ft_keys(keyuse,join_tab,cond,normal_tables))
-      return TRUE;
+      return true;
   }
 
   /*
@@ -5981,7 +6023,8 @@ update_ref_and_keys(THD *thd, Key_use_array *keyuse,JOIN_TAB *join_tab,
     keyuse->chop(i);
   }
   print_keyuse_array(&thd->opt_trace, keyuse);
-  return FALSE;
+
+  return false;
 }
 
 
@@ -6102,6 +6145,9 @@ static void
 make_outerjoin_info(JOIN *join)
 {
   DBUG_ENTER("make_outerjoin_info");
+
+  DBUG_ASSERT(join->outer_join);
+
   for (uint i= join->const_tables; i < join->tables; i++)
   {
     JOIN_TAB   *const tab= join->join_tab + i;
@@ -6764,6 +6810,11 @@ static bool convert_subquery_to_semijoin(JOIN *parent_join,
   parent_join->tables+= subq_select->join->tables;
   parent_join->primary_tables+= subq_select->join->tables;
 
+  parent_select->derived_table_count+= subq_select->derived_table_count;
+  parent_select->materialized_table_count+=
+    subq_select->materialized_table_count;
+  parent_select->partitioned_table_count+= subq_select->partitioned_table_count;
+
   nested_join->sj_outer_exprs.empty();
   nested_join->sj_inner_exprs.empty();
 
@@ -7174,6 +7225,8 @@ void JOIN::remove_subq_pushed_predicates(Item **where)
 
 bool JOIN::generate_derived_keys()
 {
+  DBUG_ASSERT(select_lex->materialized_table_count);
+
   for (TABLE_LIST *table= select_lex->leaf_tables;
        table;
        table= table->next_leaf)
@@ -7200,6 +7253,8 @@ bool JOIN::generate_derived_keys()
 
 void JOIN::drop_unused_derived_keys()
 {
+  DBUG_ASSERT(select_lex->materialized_table_count);
+
   for (uint i= 0 ; i < tables ; i++)
   {
     JOIN_TAB *tab= join_tab + i;
@@ -7257,8 +7312,7 @@ void JOIN::drop_unused_derived_keys()
 bool JOIN::cache_const_exprs()
 {
   /* No need in cache if all tables are constant. */
-  if (plan_is_const())
-    return false;
+  DBUG_ASSERT(!plan_is_const());
 
   for (uint i= const_tables; i < tables; i++)
   {
@@ -7778,7 +7832,6 @@ static bool make_join_select(JOIN *join, Item *cond)
           {
             DBUG_ASSERT(tab->quick->is_valid());
 	    sel->quick=tab->quick;		// Use value from get_quick_...
-	    sel->quick_keys.clear_all();
 	    sel->needed_reg.clear_all();
 	  }
 	  else
@@ -7975,24 +8028,51 @@ static bool make_join_select(JOIN *join, Item *cond)
 	    /* Fix for EXPLAIN */
 	    if (sel->quick)
 	      tab->position->records_read= (double)sel->quick->records;
-	  }
-	  else
-	  {
-	    sel->needed_reg=tab->needed_reg;
-	    sel->quick_keys.clear_all();
-	  }
-	  if (!sel->quick_keys.is_subset(tab->checked_keys) ||
+          } // end of "if (recheck_reason != DONT_RECHECK)"
+          else
+            sel->needed_reg= tab->needed_reg;
+
+          if (!tab->table->quick_keys.is_subset(tab->checked_keys) ||
               !sel->needed_reg.is_subset(tab->checked_keys))
-	  {
-	    tab->keys=sel->quick_keys;
+          {
+            tab->keys.merge(tab->table->quick_keys);
             tab->keys.merge(sel->needed_reg);
-	    tab->use_quick= (!sel->needed_reg.is_clear_all() &&
-			     (sel->quick_keys.is_clear_all() ||
-			      (sel->quick &&
-			       (sel->quick->records >= 100L)))) ?
-	      QS_DYNAMIC_RANGE : QS_RANGE;
-	    sel->read_tables= used_tables & ~current_map;
-	  }
+
+            /*
+              The logic below for assigning tab->use_quick is strange.
+              It bases the decision of which access method to use
+              (dynamic range, range, scan) based on seemingly
+              unrelated information like the presense of another index
+              with too bad selectivity to be used.
+
+              Consider the following scenario:
+
+              The join optimizer has decided to use join order
+              (t1,t2), and 'tab' is currently t2. Further, assume that
+              there is a join condition between t1 and t2 using some
+              range operator (e.g. "t1.x < t2.y").
+
+              It has been decided that a table scan is best for t2.
+              make_join_select() then reran the range optimizer a few
+              lines up because there is an index 't2.good_idx'
+              covering the t2.y column. If 'good_idx' is the only
+              index in t2, the decision below will be to use dynamic
+              range. However, if t2 also has another index 't2.other'
+              which the range access method can be used on but
+              selectivity is bad (#rows estimate is high), then table
+              scan is chosen instead.
+
+              Thus, the choice of DYNAMIC RANGE vs SCAN depends on the
+              presense of an index that has so bad selectivity that it
+              will not be used anyway.
+            */
+            tab->use_quick= (!sel->needed_reg.is_clear_all() &&
+                             (tab->table->quick_keys.is_clear_all() ||
+                              (sel->quick &&
+                               (sel->quick->records >= 100L)))) ?
+              QS_DYNAMIC_RANGE : QS_RANGE;
+            sel->read_tables= used_tables & ~current_map;
+          }
 	  if (i != join->const_tables && tab->use_quick != QS_DYNAMIC_RANGE &&
               !tab->first_inner)
 	  {					/* Read with cache */
@@ -9500,8 +9580,7 @@ static void calculate_materialization_costs(JOIN *join,
  */
 bool JOIN::decide_subquery_strategy()
 {
-  if (!unit->item)
-    return false;
+  DBUG_ASSERT(unit->item);
 
   switch (unit->item->substype())
   {

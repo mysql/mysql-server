@@ -2220,7 +2220,6 @@ static my_bool grant_reload_procs_priv(THD *thd)
   }
   mysql_rwlock_unlock(&LOCK_grant);
 
-  close_acl_tables(thd);
   DBUG_RETURN(return_val);
 }
 
@@ -2306,6 +2305,7 @@ my_bool grant_reload(THD *thd)
   mysql_rwlock_unlock(&LOCK_grant);
 
 end:
+  close_acl_tables(thd);
   DBUG_RETURN(return_val);
 }
 

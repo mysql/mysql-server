@@ -59,7 +59,7 @@ def	mysql	func	ret	2	0	NO	tinyint	NULL	NULL	3	0	NULL	NULL	NULL	tinyint(1)
 def	mysql	func	type	4	NULL	NO	enum	9	27	NULL	NULL	NULL	utf8	utf8_general_ci	enum('function','aggregate')				
 def	mysql	general_log	argument	6	NULL	NO	mediumtext	16777215	16777215	NULL	NULL	NULL	utf8	utf8_general_ci	mediumtext				
 def	mysql	general_log	command_type	5	NULL	NO	varchar	64	192	NULL	NULL	NULL	utf8	utf8_general_ci	varchar(64)				
-def	mysql	general_log	event_time	1	CURRENT_TIMESTAMP	NO	timestamp	NULL	NULL	NULL	NULL	0	NULL	NULL	timestamp		on update CURRENT_TIMESTAMP		
+def	mysql	general_log	event_time	1	CURRENT_TIMESTAMP(6)	NO	timestamp	NULL	NULL	NULL	NULL	6	NULL	NULL	timestamp(6)		on update CURRENT_TIMESTAMP(6)		
 def	mysql	general_log	server_id	4	NULL	NO	int	NULL	NULL	10	0	NULL	NULL	NULL	int(10) unsigned				
 def	mysql	general_log	thread_id	3	NULL	NO	bigint	NULL	NULL	20	0	NULL	NULL	NULL	bigint(21) unsigned				
 def	mysql	general_log	user_host	2	NULL	NO	mediumtext	16777215	16777215	NULL	NULL	NULL	utf8	utf8_general_ci	mediumtext				
@@ -195,13 +195,13 @@ def	mysql	slave_worker_info	Relay_log_pos	3	NULL	NO	bigint	NULL	NULL	20	0	NULL	N
 def	mysql	slow_log	db	7	NULL	NO	varchar	512	1536	NULL	NULL	NULL	utf8	utf8_general_ci	varchar(512)				
 def	mysql	slow_log	insert_id	9	NULL	NO	int	NULL	NULL	10	0	NULL	NULL	NULL	int(11)				
 def	mysql	slow_log	last_insert_id	8	NULL	NO	int	NULL	NULL	10	0	NULL	NULL	NULL	int(11)				
-def	mysql	slow_log	lock_time	4	NULL	NO	time	NULL	NULL	NULL	NULL	0	NULL	NULL	time				
-def	mysql	slow_log	query_time	3	NULL	NO	time	NULL	NULL	NULL	NULL	0	NULL	NULL	time				
+def	mysql	slow_log	lock_time	4	NULL	NO	time	NULL	NULL	NULL	NULL	6	NULL	NULL	time(6)				
+def	mysql	slow_log	query_time	3	NULL	NO	time	NULL	NULL	NULL	NULL	6	NULL	NULL	time(6)				
 def	mysql	slow_log	rows_examined	6	NULL	NO	int	NULL	NULL	10	0	NULL	NULL	NULL	int(11)				
 def	mysql	slow_log	rows_sent	5	NULL	NO	int	NULL	NULL	10	0	NULL	NULL	NULL	int(11)				
 def	mysql	slow_log	server_id	10	NULL	NO	int	NULL	NULL	10	0	NULL	NULL	NULL	int(10) unsigned				
 def	mysql	slow_log	sql_text	11	NULL	NO	mediumtext	16777215	16777215	NULL	NULL	NULL	utf8	utf8_general_ci	mediumtext				
-def	mysql	slow_log	start_time	1	CURRENT_TIMESTAMP	NO	timestamp	NULL	NULL	NULL	NULL	0	NULL	NULL	timestamp		on update CURRENT_TIMESTAMP		
+def	mysql	slow_log	start_time	1	CURRENT_TIMESTAMP(6)	NO	timestamp	NULL	NULL	NULL	NULL	6	NULL	NULL	timestamp(6)		on update CURRENT_TIMESTAMP(6)		
 def	mysql	slow_log	thread_id	12	NULL	NO	bigint	NULL	NULL	20	0	NULL	NULL	NULL	bigint(21) unsigned				
 def	mysql	slow_log	user_host	2	NULL	NO	mediumtext	16777215	16777215	NULL	NULL	NULL	utf8	utf8_general_ci	mediumtext				
 def	mysql	tables_priv	Column_priv	8		NO	set	31	93	NULL	NULL	NULL	utf8	utf8_general_ci	set('Select','Insert','Update','References')				
@@ -396,7 +396,7 @@ NULL	mysql	event	originator	int	NULL	NULL	NULL	NULL	int(10) unsigned
 NULL	mysql	func	ret	tinyint	NULL	NULL	NULL	NULL	tinyint(1)
 3.0000	mysql	func	dl	char	128	384	utf8	utf8_bin	char(128)
 3.0000	mysql	func	type	enum	9	27	utf8	utf8_general_ci	enum('function','aggregate')
-NULL	mysql	general_log	event_time	timestamp	NULL	NULL	NULL	NULL	timestamp
+NULL	mysql	general_log	event_time	timestamp	NULL	NULL	NULL	NULL	timestamp(6)
 1.0000	mysql	general_log	user_host	mediumtext	16777215	16777215	utf8	utf8_general_ci	mediumtext
 NULL	mysql	general_log	thread_id	bigint	NULL	NULL	NULL	NULL	bigint(21) unsigned
 NULL	mysql	general_log	server_id	int	NULL	NULL	NULL	NULL	int(10) unsigned
@@ -531,10 +531,10 @@ NULL	mysql	slave_worker_info	Checkpoint_master_log_pos	bigint	NULL	NULL	NULL	NUL
 NULL	mysql	slave_worker_info	Checkpoint_seqno	int	NULL	NULL	NULL	NULL	int(10) unsigned
 NULL	mysql	slave_worker_info	Checkpoint_group_size	int	NULL	NULL	NULL	NULL	int(10) unsigned
 1.0000	mysql	slave_worker_info	Checkpoint_group_bitmap	blob	65535	65535	NULL	NULL	blob
-NULL	mysql	slow_log	start_time	timestamp	NULL	NULL	NULL	NULL	timestamp
+NULL	mysql	slow_log	start_time	timestamp	NULL	NULL	NULL	NULL	timestamp(6)
 1.0000	mysql	slow_log	user_host	mediumtext	16777215	16777215	utf8	utf8_general_ci	mediumtext
-NULL	mysql	slow_log	query_time	time	NULL	NULL	NULL	NULL	time
-NULL	mysql	slow_log	lock_time	time	NULL	NULL	NULL	NULL	time
+NULL	mysql	slow_log	query_time	time	NULL	NULL	NULL	NULL	time(6)
+NULL	mysql	slow_log	lock_time	time	NULL	NULL	NULL	NULL	time(6)
 NULL	mysql	slow_log	rows_sent	int	NULL	NULL	NULL	NULL	int(11)
 NULL	mysql	slow_log	rows_examined	int	NULL	NULL	NULL	NULL	int(11)
 3.0000	mysql	slow_log	db	varchar	512	1536	utf8	utf8_general_ci	varchar(512)

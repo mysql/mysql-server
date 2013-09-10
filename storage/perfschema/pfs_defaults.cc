@@ -18,6 +18,7 @@
   Default setup (implementation).
 */
 
+#include "my_global.h"
 #include "pfs.h"
 #include "pfs_defaults.h"
 #include "pfs_instr.h"

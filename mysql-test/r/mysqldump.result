@@ -5304,7 +5304,7 @@ RESET MASTER;
 #
 DROP DATABASE IF EXISTS b12688860_db;
 CREATE DATABASE b12688860_db;
-Warning: Using a password on the command line interface can be insecure.
+mysqldump: [Warning] Using a password on the command line interface can be insecure.
 
 /*!40101 SET @OLD_CHARACTER_SET_CLIENT=@@CHARACTER_SET_CLIENT */;
 /*!40101 SET @OLD_CHARACTER_SET_RESULTS=@@CHARACTER_SET_RESULTS */;
@@ -5344,7 +5344,7 @@ Error	1146	Table 'mysql.event' doesn't exist
 SHOW CREATE TABLE mysql.general_log;
 Table	Create Table
 general_log	CREATE TABLE `general_log` (
-  `event_time` timestamp NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+  `event_time` timestamp(6) NOT NULL DEFAULT CURRENT_TIMESTAMP(6) ON UPDATE CURRENT_TIMESTAMP(6),
   `user_host` mediumtext NOT NULL,
   `thread_id` bigint(21) unsigned NOT NULL,
   `server_id` int(10) unsigned NOT NULL,
@@ -5354,10 +5354,10 @@ general_log	CREATE TABLE `general_log` (
 SHOW CREATE TABLE mysql.slow_log;
 Table	Create Table
 slow_log	CREATE TABLE `slow_log` (
-  `start_time` timestamp NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+  `start_time` timestamp(6) NOT NULL DEFAULT CURRENT_TIMESTAMP(6) ON UPDATE CURRENT_TIMESTAMP(6),
   `user_host` mediumtext NOT NULL,
-  `query_time` time NOT NULL,
-  `lock_time` time NOT NULL,
+  `query_time` time(6) NOT NULL,
+  `lock_time` time(6) NOT NULL,
   `rows_sent` int(11) NOT NULL,
   `rows_examined` int(11) NOT NULL,
   `db` varchar(512) NOT NULL,

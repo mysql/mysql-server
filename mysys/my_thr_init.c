@@ -144,8 +144,10 @@ my_bool my_thread_global_init(void)
 
   DBUG_ASSERT(! THR_KEY_mysys_initialized);
   if ((pth_ret= pthread_key_create(&THR_KEY_mysys, NULL)) != 0)
-  {
-    fprintf(stderr, "Can't initialize threads: error %d\n", pth_ret);
+  { /* purecov: begin inspected */
+    my_message_local(ERROR_LEVEL, "Can't initialize threads: error %d",
+                     pth_ret);
+    /* purecov: end */
     return 1;
   }
 
@@ -193,9 +195,10 @@ void my_thread_global_end(void)
         are killed when we enter here.
       */
       if (THR_thread_count)
-        fprintf(stderr,
-                "Error in my_thread_global_end(): %d threads didn't exit\n",
-                THR_thread_count);
+        /* purecov: begin inspected */
+        my_message_local(ERROR_LEVEL, "Error in my_thread_global_end(): "
+                         "%d threads didn't exit", THR_thread_count);
+        /* purecov: end */
 #endif
       all_threads_killed= 0;
       break;
@@ -257,15 +260,16 @@ my_bool my_thread_init(void)
   my_bool error=0;
 
 #ifdef EXTRA_DEBUG_THREADS
-  fprintf(stderr,"my_thread_init(): thread_id: 0x%lx\n",
-          (ulong) pthread_self());
+  my_message_local(INFORMATION_LEVEL, "my_thread_init(): thread_id: 0x%lx",
+                   (ulong) pthread_self());
 #endif  
 
   if (_my_thread_var())
   {
 #ifdef EXTRA_DEBUG_THREADS
-    fprintf(stderr,"my_thread_init() called more than once in thread 0x%lx\n",
-            (long) pthread_self());
+    my_message_local(WARNING_LEVEL,
+                     "my_thread_init() called more than once in thread 0x%lx",
+                     (long) pthread_self());
 #endif    
     goto end;
   }
@@ -320,9 +324,11 @@ void my_thread_end(void)
   tmp= _my_thread_var();
 
 #ifdef EXTRA_DEBUG_THREADS
-  fprintf(stderr,"my_thread_end(): tmp: 0x%lx  pthread_self: 0x%lx  thread_id: %ld\n",
-	  (long) tmp, (long) pthread_self(), tmp ? (long) tmp->id : 0L);
-#endif  
+    my_message_local(INFORMATION_LEVEL, "my_thread_end(): tmp: 0x%lx  "
+                     "pthread_self: 0x%lx  thread_id: %ld",
+                     (long) tmp, (long) pthread_self(),
+                     tmp ? (long) tmp->id : 0L);
+#endif
 
 #ifdef HAVE_PSI_INTERFACE
   /*
@@ -365,8 +371,9 @@ void my_thread_end(void)
 
 struct st_my_thread_var *_my_thread_var(void)
 {
-  DBUG_ASSERT(THR_KEY_mysys_initialized);
-  return  my_pthread_getspecific(struct st_my_thread_var*,THR_KEY_mysys);
+  if (THR_KEY_mysys_initialized)
+    return  my_pthread_getspecific(struct st_my_thread_var*,THR_KEY_mysys);
+  return NULL;
 }
 
 int set_mysys_var(struct st_my_thread_var *mysys_var)

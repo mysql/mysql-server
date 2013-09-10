@@ -78,7 +78,7 @@ ssl_error_string[] =
   "No error",
   "Unable to get certificate",
   "Unable to get private key",
-  "Private key does not match the certificate public key"
+  "Private key does not match the certificate public key",
   "SSL_CTX_set_default_verify_paths failed",
   "Failed to set ciphers to use",
   "SSL_CTX_new failed"
@@ -111,9 +111,8 @@ vio_set_cert_stuff(SSL_CTX *ctx, const char *cert_file, const char *key_file,
     *error= SSL_INITERR_CERT;
     DBUG_PRINT("error",("%s from file '%s'", sslGetErrString(*error), cert_file));
     DBUG_EXECUTE("error", ERR_print_errors_fp(DBUG_FILE););
-    fprintf(stderr, "SSL error: %s from '%s'\n", sslGetErrString(*error),
-            cert_file);
-    fflush(stderr);
+    my_message_local(ERROR_LEVEL, "SSL error: %s from '%s'",
+                     sslGetErrString(*error), cert_file);
     DBUG_RETURN(1);
   }
 
@@ -123,9 +122,8 @@ vio_set_cert_stuff(SSL_CTX *ctx, const char *cert_file, const char *key_file,
     *error= SSL_INITERR_KEY;
     DBUG_PRINT("error", ("%s from file '%s'", sslGetErrString(*error), key_file));
     DBUG_EXECUTE("error", ERR_print_errors_fp(DBUG_FILE););
-    fprintf(stderr, "SSL error: %s from '%s'\n", sslGetErrString(*error),
-            key_file);
-    fflush(stderr);
+    my_message_local(ERROR_LEVEL, "SSL error: %s from '%s'",
+                     sslGetErrString(*error), key_file);
     DBUG_RETURN(1);
   }
 
@@ -138,8 +136,7 @@ vio_set_cert_stuff(SSL_CTX *ctx, const char *cert_file, const char *key_file,
     *error= SSL_INITERR_NOMATCH;
     DBUG_PRINT("error", ("%s",sslGetErrString(*error)));
     DBUG_EXECUTE("error", ERR_print_errors_fp(DBUG_FILE););
-    fprintf(stderr, "SSL error: %s\n", sslGetErrString(*error));
-    fflush(stderr);
+    my_message_local(ERROR_LEVEL, "SSL error: %s", sslGetErrString(*error));
     DBUG_RETURN(1);
   }
 

@@ -1413,13 +1413,15 @@ search_done:
 		assert(option_length > 0 && option_delimiter);
 
 		for (i = 0; i < result.n_extra_col; i++) {
+			mci_column_t*	col_value;
 
-			if (result.extra_col_value[i].value_len != 0) {
+			col_value = &result.extra_col_value[i];
+
+			if (col_value->value_len != 0) {
 				memcpy(c_value,
-				       result.extra_col_value[i].value_str,
-				       result.extra_col_value[i].value_len);
-
-				c_value += result.extra_col_value[i].value_len;
+				       col_value->value_str,
+				       col_value->value_len);
+				c_value += col_value->value_len;
 			}
 
 			if (i < result.n_extra_col - 1 ) {
@@ -1437,7 +1439,8 @@ search_done:
 		       >= (int) it->nbytes);
 
 		memcpy(hash_item_get_data(it),
-		       result.col_value[MCI_COL_VALUE].value_str, it->nbytes);
+		       result.col_value[MCI_COL_VALUE].value_str,
+		       it->nbytes);
 
 		if (result.col_value[MCI_COL_VALUE].allocated) {
 			free(result.col_value[MCI_COL_VALUE].value_str);

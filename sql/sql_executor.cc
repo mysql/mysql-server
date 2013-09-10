@@ -614,7 +614,7 @@ end_sj_materialize(JOIN *join, JOIN_TAB *join_tab, bool end_of_records)
     if ((error= table->file->ha_write_row(table->record[0])))
     {
       /* create_myisam_from_heap will generate error if needed */
-      if (table->file->is_fatal_error(error, HA_CHECK_DUP) &&
+      if (!table->file->is_ignorable_error(error) &&
           create_myisam_from_heap(thd, table,
                                   sjm->table_param.start_recinfo, 
                                   &sjm->table_param.recinfo, error,
@@ -1393,7 +1393,7 @@ int do_sj_dups_weedout(THD *thd, SJ_TMP_TABLE *sjtbl)
   if (error)
   {
     /* If this is a duplicate error, return immediately */
-    if (!sjtbl->tmp_table->file->is_fatal_error(error, HA_CHECK_DUP))
+    if (sjtbl->tmp_table->file->is_ignorable_error(error))
       DBUG_RETURN(1);
     /*
       Other error than duplicate error: Attempt to create a temporary table.
@@ -3008,7 +3008,7 @@ end_write(JOIN *join, JOIN_TAB *join_tab, bool end_of_records)
       join->found_records++;
       if ((error=table->file->ha_write_row(table->record[0])))
       {
-        if (!table->file->is_fatal_error(error, HA_CHECK_DUP))
+        if (table->file->is_ignorable_error(error))
 	  goto end;
 	if (create_myisam_from_heap(join->thd, table,
                                     join_tab->tmp_table_param->start_recinfo,
@@ -3383,7 +3383,7 @@ JOIN_TAB::remove_duplicates()
   bool error;
   ulong reclength,offset;
   uint field_count;
-  List<Item> *fields= (this-1)->fields;
+  List<Item> *field_list= (this-1)->fields;
   DBUG_ENTER("remove_duplicates");
 
   DBUG_ASSERT(join->tmp_tables > 0 && table->s->tmp_table != NO_TMP_TABLE);
@@ -3393,7 +3393,7 @@ JOIN_TAB::remove_duplicates()
 
   /* Calculate how many saved fields there is in list */
   field_count=0;
-  List_iterator<Item> it(*fields);
+  List_iterator<Item> it(*field_list);
   Item *item;
   while ((item=it++))
   {

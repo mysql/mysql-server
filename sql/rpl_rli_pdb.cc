@@ -1359,7 +1359,6 @@ ulong Slave_committed_queue::move_queue_head(DYNAMIC_ARRAY *ws)
     Slave_worker *w_i;
     Slave_job_group *ptr_g, g;
     char grl_name[FN_REFLEN];
-    ulong ind;
 
 #ifndef DBUG_OFF
     if (DBUG_EVALUATE_IF("check_slave_debug_group", 1, 0) &&
@@ -1398,7 +1397,10 @@ ulong Slave_committed_queue::move_queue_head(DYNAMIC_ARRAY *ws)
     /*
       Removes the job from the (G)lobal (A)ssigned (Q)ueue.
     */
-    ind= de_queue((uchar*) &g);
+#ifndef DBUG_OFF
+    ulong ind=
+#endif
+      de_queue((uchar*) &g);
 
     /*
       Stores the memorized name into the result struct. Note that we
@@ -1651,7 +1653,7 @@ bool append_item_to_jobs(slave_job_item *job_item,
     thd->EXIT_COND(&old_stage);
     if (thd->killed)
       return true;
-    if (log_warnings > 1 && (rli->wq_size_waits_cnt % 10 == 1))
+    if (rli->wq_size_waits_cnt % 10 == 1)
       sql_print_information("Multi-threaded slave: Coordinator has waited "
                             "%lu times hitting slave_pending_jobs_size_max; "
                             "current event size = %lu.",
@@ -1984,11 +1986,10 @@ int slave_worker_exec_job(Slave_worker *worker, Relay_log_info *rli)
 err:
   if (error)
   {
-    if (log_warnings > 1)
-      sql_print_information("Worker %lu is exiting: killed %i, error %i, "
-                            "running_status %d",
-                            worker->id, thd->killed, thd->is_error(),
-                            worker->running_status);
+    sql_print_information("Worker %lu is exiting: killed %i, error %i, "
+                          "running_status %d",
+                          worker->id, thd->killed, thd->is_error(),
+                          worker->running_status);
     worker->slave_worker_ends_group(ev, error);
   }
 

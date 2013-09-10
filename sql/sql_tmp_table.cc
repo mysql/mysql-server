@@ -592,9 +592,11 @@ create_tmp_table(THD *thd,TMP_TABLE_PARAM *param,List<Item> &fields,
   memset(default_field, 0, sizeof(Field*) * (field_count));
   memset(from_field, 0, sizeof(Field*)*field_count);
 
+  // This invokes (the synthesized) st_mem_root &operator=(const st_mem_root&)
   table->mem_root= own_root;
   mem_root_save= thd->mem_root;
   thd->mem_root= &table->mem_root;
+  copy_func->set_mem_root(&table->mem_root);
 
   table->field=reg_field;
   table->alias= table_alias;
@@ -2016,7 +2018,7 @@ bool create_myisam_from_heap(THD *thd, TABLE *table,
   /* copy row that filled HEAP table */
   if ((write_err=new_table.file->ha_write_row(table->record[0])))
   {
-    if (new_table.file->is_fatal_error(write_err, HA_CHECK_DUP) ||
+    if (!new_table.file->is_ignorable_error(write_err) ||
 	!ignore_last_dup)
       goto err;
     if (is_duplicate)

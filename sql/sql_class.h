@@ -1237,8 +1237,8 @@ void xid_cache_delete(XID_STATE *xid_state);
 class Security_context {
 private:
 
-String host; 
-String ip; 
+String host;
+String ip;
 String external_user;
 public:
   Security_context() {}                       /* Remove gcc warning */
@@ -3658,6 +3658,12 @@ public:
   bool set_db(const char *new_db, size_t new_db_len)
   {
     bool result;
+    /*
+      Acquiring mutex LOCK_thd_data as we either free the memory allocated
+      for the database and reallocating the memory for the new db or memcpy
+      the new_db to the db.
+    */
+    mysql_mutex_lock(&LOCK_thd_data);
     /* Do not reallocate memory if current chunk is big enough. */
     if (db && new_db && db_length >= new_db_len)
       memcpy(db, new_db, new_db_len+1);
@@ -3671,6 +3677,7 @@ public:
         db= NULL;
     }
     db_length= db ? new_db_len : 0;
+    mysql_mutex_unlock(&LOCK_thd_data);
     result= new_db && !db;
 #ifdef HAVE_PSI_THREAD_INTERFACE
     if (result)

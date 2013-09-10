@@ -40,6 +40,8 @@ Created 2/16/1996 Heikki Tuuri
 
 #include "ha_prototypes.h"
 
+#include "mysqld.h"
+#include "row0ftsort.h"
 #include "ut0mem.h"
 #include "mem0mem.h"
 #include "data0data.h"
@@ -1235,22 +1237,10 @@ innobase_start_or_create_for_mysql(void)
 # endif
 #endif
 
-#ifdef UNIV_BLOB_DEBUG
-	fprintf(stderr,
-		"InnoDB: !!!!!!!! UNIV_BLOB_DEBUG switched on !!!!!!!!!\n"
-		"InnoDB: Server restart may fail with UNIV_BLOB_DEBUG\n");
-#endif /* UNIV_BLOB_DEBUG */
-
 #ifdef UNIV_SYNC_DEBUG
 	ut_print_timestamp(stderr);
 	fprintf(stderr,
 		" InnoDB: !!!!!!!! UNIV_SYNC_DEBUG switched on !!!!!!!!!\n");
-#endif
-
-#ifdef UNIV_SEARCH_DEBUG
-	ut_print_timestamp(stderr);
-	fprintf(stderr,
-		" InnoDB: !!!!!!!! UNIV_SEARCH_DEBUG switched on !!!!!!!!!\n");
 #endif
 
 #ifdef UNIV_LOG_LSN_DEBUG
@@ -1411,9 +1401,26 @@ innobase_start_or_create_for_mysql(void)
 	their time to enter InnoDB. */
 
 #define BUF_POOL_SIZE_THRESHOLD	(1024 * 1024 * 1024)
+	srv_max_n_threads = max_connections + srv_n_read_io_threads
+				+ srv_n_write_io_threads + srv_n_purge_threads
+				/* FTS Parallel Sort */
+				+ fts_sort_pll_degree * FTS_NUM_AUX_INDEX
+				+ 128 /* added as margin */
+				+ 1 /* io_ibuf_thread */
+				+ 1 /* io_log_thread */
+				+ 1 /* lock_wait_timeout_thread */
+				+ 1 /* srv_error_monitor_thread */
+				+ 1 /* srv_monitor_thread */
+				+ 1 /* srv_master_thread */
+				+ 1 /* srv_purge_coordinator_thread */
+				+ 1 /* buf_dump_thread */
+				+ 1 /* dict_stats_thread */
+				+ 1 /* fts_optimize_thread */
+				+ 1 /* recv_writer_thread */
+				+ 1 /* buf_flush_page_cleaner_thread */
+				+ 1; /* trx_rollback_or_clean_all_recovered */
 
 	if (srv_buf_pool_size >= BUF_POOL_SIZE_THRESHOLD) {
-		srv_max_n_threads = 50000;
 
 		if (srv_buf_pool_instances == SRV_BUF_POOL_INSTANCES_NOT_SET) {
 #if defined(_WIN32) && !defined(_WIN64)
@@ -1450,14 +1457,6 @@ innobase_start_or_create_for_mysql(void)
 		}
 
 		srv_buf_pool_instances = 1;
-
-		if (srv_buf_pool_size >= 8 * 1024 * 1024) {
-			srv_max_n_threads = 10000;
-		} else {
-			/* Saves several MB of memory, especially in
-			64-bit computers */
-			srv_max_n_threads = 1000;
-		}
 	}
 
 	srv_boot();

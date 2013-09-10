@@ -35,7 +35,7 @@ public:
                   uint max_num_field, enum thr_lock_type lock_type,
                   TABLE** table, Open_tables_backup* backup);
   bool close_table(THD* thd, TABLE* table, Open_tables_backup* backup,
-                   bool error, bool force_commit= false);
+                   bool error);
   enum enum_return_id find_info(Rpl_info_values *field_values, TABLE *table);
   enum enum_return_id scan_info(TABLE *table, uint instance);
   bool count_info(TABLE *table, uint* counter);

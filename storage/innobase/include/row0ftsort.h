@@ -89,6 +89,16 @@ struct fts_psort_t {
 	fts_psort_common_t*	psort_common;	/*!< ptr to all psort info */
 };
 
+/** Row fts token for plugin parser */
+struct row_fts_token_t {
+	fts_string_t*	text;		/*!< token */
+	ulint		position;	/*!< token position in the document */
+	UT_LIST_NODE_T(row_fts_token_t)
+			token_list;	/*!< next token link */
+};
+
+typedef UT_LIST_BASE_NODE_T(row_fts_token_t)     fts_token_list_t;
+
 /** Structure stores information from string tokenization operation */
 struct fts_tokenize_ctx {
 	ulint			processed_len;  /*!< processed string length */
@@ -102,6 +112,7 @@ struct fts_tokenize_ctx {
 	ib_rbt_t*		cached_stopword;/*!< in: stopword list */
 	dfield_t		sort_field[FTS_NUM_FIELDS_SORT];
 						/*!< in: sort field */
+	fts_token_list_t	fts_token_list;
 };
 
 typedef struct fts_tokenize_ctx fts_tokenize_ctx_t;

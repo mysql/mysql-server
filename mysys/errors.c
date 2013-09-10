@@ -71,11 +71,13 @@ void wait_for_free_space(const char *filename, int errors)
   if (!(errors % MY_WAIT_GIVE_USER_A_MESSAGE))
   {
     char errbuf[MYSYS_STRERROR_SIZE];
-    my_printf_warning(EE(EE_DISK_FULL),
-             filename,my_errno,my_strerror(errbuf, sizeof(errbuf), my_errno));
-    my_printf_warning("Retry in %d secs. Message reprinted in %d secs",
-                    MY_WAIT_FOR_USER_TO_FIX_PANIC,
-                    MY_WAIT_GIVE_USER_A_MESSAGE * MY_WAIT_FOR_USER_TO_FIX_PANIC );
+    my_message_local(ERROR_LEVEL, EE(EE_DISK_FULL),
+                     filename,my_errno,
+                     my_strerror(errbuf, sizeof(errbuf), my_errno));
+    my_message_local(ERROR_LEVEL,
+                     "Retry in %d secs. Message reprinted in %d secs",
+                     MY_WAIT_FOR_USER_TO_FIX_PANIC,
+                     MY_WAIT_GIVE_USER_A_MESSAGE * MY_WAIT_FOR_USER_TO_FIX_PANIC );
   }
   DBUG_EXECUTE_IF("simulate_no_free_space_error",
                  {
