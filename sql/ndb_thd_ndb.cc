@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2011, Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2011, 2013 Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -36,7 +36,7 @@ Thd_ndb::seize(THD* thd)
 
   if (thd_ndb->ndb->init(MAX_TRANSACTIONS) != 0)
   {
-    DBUG_PRINT("error", ("Ndb::init failed, eror: %d  message: %s",
+    DBUG_PRINT("error", ("Ndb::init failed, error: %d  message: %s",
                          thd_ndb->ndb->getNdbError().code,
                          thd_ndb->ndb->getNdbError().message));
     
