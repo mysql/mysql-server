@@ -16,6 +16,7 @@
 #include <stdlib.h>
 #include <ctype.h>
 #include <mysql/plugin.h>
+#include <m_ctype.h>
 
 #if !defined(__attribute__) && (defined(__cplusplus) || !defined(__GNUC__)  || __GNUC__ == 2 && __GNUC_MINOR__ < 8)
 #define __attribute__(A)
@@ -181,7 +182,7 @@ static int simple_parser_parse(MYSQL_FTPARSER_PARAM *param)
         add_word(param, start, end - start);
       break;
     }
-    else if (isspace(*end))
+    else if (my_isspace(param->cs, *end))
     {
       if (end > start)
         add_word(param, start, end - start);
