@@ -117,7 +117,7 @@ sub collect_test_cases ($$$$) {
   if ( @$opt_cases )
   {
     # A list of tests was specified on the command line
-    # Check that the tests specified was found
+    # Check that the tests specified were found
     # in at least one suite
     foreach my $test_name_spec ( @$opt_cases )
     {
@@ -189,30 +189,33 @@ sub collect_test_cases ($$$$) {
 }
 
 
-# Returns (suitename, testname)
+# Returns (suitename, testname, combinations....)
 sub split_testname {
   my ($test_name)= @_;
 
   # If .test file name is used, get rid of directory part
   $test_name= basename($test_name) if $test_name =~ /\.test$/;
 
+  # Then, get the combinations:
+  my ($test_name, @combs) = split /,/, $test_name;
+
   # Now split name on .'s
   my @parts= split(/\./, $test_name);
 
   if (@parts == 1){
     # Only testname given, ex: alias
-    return (undef , $parts[0]);
+    return (undef , $parts[0], @combs);
   } elsif (@parts == 2) {
     # Either testname.test or suite.testname given
     # Ex. main.alias or alias.test
 
     if ($parts[1] eq "test")
     {
-      return (undef , $parts[0]);
+      return (undef , $parts[0], @combs);
     }
     else
     {
-      return ($parts[0], $parts[1]);
+      return ($parts[0], $parts[1], @combs);
     }
   }
 
@@ -499,14 +502,14 @@ sub process_suite {
     # Collect in specified order
     foreach my $test_name_spec ( @$opt_cases )
     {
-      my ($sname, $tname)= split_testname($test_name_spec);
+      my ($sname, $tname, @combs)= split_testname($test_name_spec);
 
       # Check correct suite if suitename is defined
       next if defined $sname and $sname ne $suitename
                              and $sname ne "$basename-";
 
       next unless $all_cases{$tname};
-      push @cases, collect_one_test_case($suite, $all_cases{$tname}, $tname);
+      push @cases, collect_one_test_case($suite, $all_cases{$tname}, $tname, @combs);
     }
   } else {
     for (sort keys %all_cases)
@@ -559,9 +562,9 @@ sub process_opts {
   }
 }
 
-sub make_combinations($@)
+sub make_combinations($$@)
 {
-  my ($test, @combinations) = @_;
+  my ($test, $test_combs, @combinations) = @_;
 
   return ($test) if $test->{'skip'} or not @combinations;
   if ($combinations[0]->{skip}) {
@@ -578,10 +581,18 @@ sub make_combinations($@)
     if (My::Options::is_set($test->{master_opt}, $comb->{comb_opt}) &&
         My::Options::is_set($test->{slave_opt}, $comb->{comb_opt}) ){
 
+      delete $test_combs->{$comb->{name}};
+
       # Add combination name short name
       push @{$test->{combinations}}, $comb->{name};
 
       return ($test);
+    }
+
+    # Skip all other combinations, if this combination is forced
+    if (delete $test_combs->{$comb->{name}}) {
+      @combinations = ($comb); # run the loop below only for this combination
+      last;
     }
   }
 
@@ -635,6 +646,8 @@ sub collect_one_test_case {
   my $suite     =  shift;
   my $tpath     =  shift;
   my $tname     =  shift;
+  my %test_combs = map { $_ => 1 } @_;
+
 
   my $suitename =  $suite->{name};
   my $name      = "$suitename.$tname";
@@ -829,7 +842,11 @@ sub collect_one_test_case {
   my @cases = ($tinfo);
   for my $comb ($suite->{combinations}, @{$file_combinations{$filename}})
   {
-    @cases = map make_combinations($_, @{$comb}), @cases;
+    @cases = map make_combinations($_, \%test_combs, @{$comb}), @cases;
+  }
+  if (keys %test_combs) {
+    mtr_error("Could not run $name with '".(
+        join(',', sort keys %test_combs))."' combination(s)");
   }
 
   for $tinfo (@cases) {
