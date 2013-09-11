@@ -4,7 +4,6 @@
 -- source include/have_innodb.inc
 
 --source include/not_embedded.inc
---source include/not_valgrind.inc
 
 # Save the initial number of concurrent sessions
 --source include/count_sessions.inc
