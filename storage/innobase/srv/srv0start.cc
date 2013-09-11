@@ -468,7 +468,9 @@ create_log_files(
 
 	fil_open_log_and_system_tablespace_files();
 
-	redo_log->reset_logs(lsn);
+	os_offset_t	size = srv_log_file_size * UNIV_PAGE_SIZE;
+
+	redo_log->reset_logs(size, lsn);
 
 	return(DB_SUCCESS);
 }

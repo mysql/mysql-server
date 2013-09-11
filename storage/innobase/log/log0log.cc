@@ -3544,12 +3544,18 @@ RedoLog::recovery_start(
 
 /**
 Resets the logs. The contents of log files will be lost!
+@param size		Size of the log file, 0 if it shouldn't be
+			changed
 @param lsn 		reset to this lsn rounded up to be divisible by
 			IOBlock::SIZE, after which we add
 			BLOCK_HDR_SIZE */
 void
-RedoLog::reset_logs(lsn_t lsn)
+RedoLog::reset_logs(os_offset_t size, lsn_t lsn)
 {
+	if (size > 0) {
+		m_file_size = size;
+	}
+
 	if (m_group != NULL) {
 		delete m_group;
 		m_group = NULL;

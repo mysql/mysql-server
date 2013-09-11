@@ -438,10 +438,12 @@ struct RedoLog {
 
 	/**
 	Resets the logs. The contents of log files will be lost!
+	@param size		Size of the log file, 0 if it shouldn't be
+				changed
 	@param lsn 		reset to this lsn rounded up to be divisible by
 				OS_FILE_LOG_BLOCK_SIZE, after which we add
 				LOG_BLOCK_HDR_SIZE */
-	void reset_logs(lsn_t lsn);
+	void reset_logs(os_offset_t size, lsn_t lsn);
 
 #ifndef UNIV_HOTBACK
 	/**
