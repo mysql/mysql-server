@@ -24,7 +24,7 @@ mysqld = 192.168.0.1
 NoOfReplicas=1
 ndbd = localhost
 ndb_mgmd = localhost
-mysql = localhost, localhost
+mysqld = localhost, localhost
 
 [cluster_config.ndbd.1.bug56185]
 LockExecuteThreadToCPU=0-65535
@@ -34,7 +34,7 @@ Arbitration=Disabled
 NoOfReplicas=2
 ndbd = localhost, localhost
 ndb_mgmd = localhost
-mysql = localhost, localhost
+mysqld = localhost, localhost
 ExtraSendBufferMemory=3M
 
 # cluster_config.ndbd.1.bug14555359 gets 3M for ExtraSendBufferMemory
