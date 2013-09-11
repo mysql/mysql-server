@@ -49,6 +49,8 @@ ALTER TABLE articles ADD FULLTEXT INDEX (body2,body3);
 ALTER TABLE articles ADD FULLTEXT INDEX (body) WITH PARSER simple_parser;
 
 ANALYZE TABLE articles;
+
+--replace_regex /\.dll/.so/
 SELECT
   PLUGIN_NAME, PLUGIN_STATUS, PLUGIN_TYPE,
   PLUGIN_LIBRARY
