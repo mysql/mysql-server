@@ -873,7 +873,6 @@ void Open_tables_state::reset_open_tables_state()
   lock= NULL;
   extra_lock= NULL;
   locked_tables_mode= LTM_NONE;
-  // JOH: What about resetting current_tablenr?
   state_flags= 0U;
   reset_reprepare_observers();
 }
