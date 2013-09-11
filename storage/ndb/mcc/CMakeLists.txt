@@ -57,7 +57,7 @@ set(MCC_INSTALL_BINDIR "${CMAKE_CURRENT_SOURCE_DIR}")
 set(MCC_INSTALL_FRONTENDDIR "frontend")
 configure_file("${CMAKE_CURRENT_SOURCE_DIR}/${MCC_SCRIPT_NAME}" "${CMAKE_CURRENT_BINARY_DIR}/${MCC_SCRIPT_NAME}" COPYONLY)
 if(NOT WIN32)
-  execute_process(COMMAND "chmod" "u+x" "${MCC_SCRIPT_NAME}")
+  execute_process(COMMAND "chmod" "u+x" "${CMAKE_CURRENT_BINARY_DIR}/${MCC_SCRIPT_NAME}")
 endif(NOT WIN32)
 configure_file("${CMAKE_CURRENT_SOURCE_DIR}/mcc_config.py.in" "${CMAKE_CURRENT_BINARY_DIR}/mcc_config.py")
 
