@@ -326,6 +326,20 @@ btr_cur_update_in_place(
 				mtr_commit(mtr) before latching any
 				further pages */
 	__attribute__((warn_unused_result, nonnull));
+/***********************************************************//**
+Writes a redo log record of updating a record in-place. */
+UNIV_INTERN
+void
+btr_cur_update_in_place_log(
+/*========================*/
+	ulint		flags,		/*!< in: flags */
+	const rec_t*	rec,		/*!< in: record */
+	dict_index_t*	index,		/*!< in: index of the record */
+	const upd_t*	update,		/*!< in: update vector */
+	trx_id_t	trx_id,		/*!< in: transaction id */
+	roll_ptr_t	roll_ptr,	/*!< in: roll ptr */
+	mtr_t*		mtr)		/*!< in: mtr */
+	__attribute__((nonnull));
 /*************************************************************//**
 Tries to update a record on a page in an index tree. It is assumed that mtr
 holds an x-latch on the page. The operation does not succeed if there is too
