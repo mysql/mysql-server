@@ -1,4 +1,4 @@
-/* Copyright (c) 2000, 2011, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2000, 2013, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -711,7 +711,7 @@ int Gcalc_scan_iterator::handle_intersections()
 }
 
 
-void Gcalc_scan_iterator::pop_suitable_intersection()
+int Gcalc_scan_iterator::pop_suitable_intersection()
 {
   intersection *prev_i= m_cur_intersection;
   intersection *cur_i= prev_i->get_next();
@@ -739,11 +739,11 @@ void Gcalc_scan_iterator::pop_suitable_intersection()
 	  m_cur_intersection= cur_i;
 	  cur_i->next= tmp;
 	}
-	return;
+	return 0;
       }
     }
   }
-  DBUG_ASSERT(0);
+  return 1;
 }
 
 
@@ -800,7 +800,8 @@ redo_loop:
 	   there's two intersections with the same Y
 	   Move suitable one to the beginning of the list
 	*/
-	pop_suitable_intersection();
+	if (pop_suitable_intersection())
+          return 1;
 	goto redo_loop;
       }
       m_pre_intersection_hook= psp1;
