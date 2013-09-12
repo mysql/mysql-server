@@ -1,6 +1,6 @@
-# ft-index only supports x86-64 and cmake-2.8.8+
+# ft-index only supports x86-64 and cmake-2.8.9+
 IF(CMAKE_SYSTEM_PROCESSOR STREQUAL "x86_64" AND
-   NOT CMAKE_VERSION VERSION_LESS "2.8.8")
+   NOT CMAKE_VERSION VERSION_LESS "2.8.9")
 CHECK_CXX_SOURCE_COMPILES(
 "
 struct a {int b; int c; };

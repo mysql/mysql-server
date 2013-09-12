@@ -1,32 +1,8 @@
 #!/bin/sh
+# used for sol10-64 builder in buildbot, don't use it elsewhere
+export LDFLAGS='-m64'
+export CFLAGS='-D__sun -m64 -mtune=athlon64'
+export CXXFLAGS='-D__sun -m64 -mtune=athlon64'
+cmake -DBUILD_CONFIG=mysql_release -DWITH_JEMALLOC=NO .
+gmake -j6
 
-# Build setup for Solaris 10
-
-# Make the Sun Freeware packages use the bundled Perl, instead of their own:
-#     ln -s `which perl` /usr/local/bin
-# Your $PATH needs to include (in this order):
-#     /usr/local/bin:/usr/sfw/bin:/usr/ccs/bin
-# (For Sun Freeware, bundled GNU utilities, Solaris ar, etc.)
-#
-# Required packages from http://sunfreeware.com/indexintel10.html :
-# (The GNU m4 bundled with Solaris is too old.)
-#     automake-1.10.2-sol10-x86-local.gz
-#     autoconf-2.63-sol10-x86-local.gz
-#     m4-1.4.12-sol10-x86-local.gz
-#     libsigsegv-2.6-sol10-x86-local.gz
-#     libtool-1.5.24-sol10-x86-local.gz
-# ( how to install these packages:
-      # wget ftp://ftp.sunfreeware.com/pub/freeware/intel/10/automake-1.10.2-sol10-x86-local.gz
-      # gunzip automake-1.10.2-sol10-x86-local.gz 
-      # pkgadd -d automake-1.10.2-sol10-x86-local 
-# )
-
-path=`dirname $0`
-. "$path/SETUP.sh"
-extra_flags="$amd64_cflags -D__sun -m64 -mtune=athlon64"
-extra_configs="$amd64_configs $max_configs --with-libevent"
-
-LDFLAGS="-m64 -lmtmalloc -R/usr/sfw/lib/64"
-export LDFLAGS
-
-. "$path/FINISH.sh"

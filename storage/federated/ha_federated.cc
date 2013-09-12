@@ -828,7 +828,7 @@ static int parse_url(MEM_ROOT *mem_root, FEDERATED_SHARE *share, TABLE *table,
         user:@hostname:port/db/table
         Then password is a null string, so set to NULL
       */
-      if ((share->password[0] == '\0'))
+      if (share->password[0] == '\0')
         share->password= NULL;
     }
     else
