@@ -1149,18 +1149,23 @@ exports.UserContext.prototype.executeBatch = function(operationContexts) {
   };
 
   // executeBatch starts here
-  // make sure all operations are defined
-  operationContexts.forEach(function(operationContext) {
-    // is the operation already defined?
-    if (typeof(operationContext.operation) !== 'undefined') {
-      userContext.numberOfOperationsDefined++;
-    } else {
-      // the operation has not been defined yet; set a callback for when the operation is defined
-      operationContext.operationDefinedCallback = executeBatchOnOperationDefined;
-    }
-  });
-  // now execute the operations
-  executeBatchOnOperationDefined(0);
+  // if no operations in the batch, just call the user callback
+  if (operationContexts.length == 0) {
+    executeBatchOnExecute(null);
+  } else {
+    // make sure all operations are defined
+    operationContexts.forEach(function(operationContext) {
+      // is the operation already defined?
+      if (typeof(operationContext.operation) !== 'undefined') {
+        userContext.numberOfOperationsDefined++;
+      } else {
+        // the operation has not been defined yet; set a callback for when the operation is defined
+        operationContext.operationDefinedCallback = executeBatchOnOperationDefined;
+      }
+    });
+    // now execute the operations
+    executeBatchOnOperationDefined(0);
+  }
 };
 
 /** Commit an active transaction. 
