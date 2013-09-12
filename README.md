@@ -16,7 +16,7 @@ To build the full MySQL product, see the instructions for
 Building
 --------
 
-TokuKV is built using CMake >= 2.8.8.  Out-of-source builds are
+TokuKV is built using CMake >= 2.8.9.  Out-of-source builds are
 recommended.  You need a C++11 compiler, though only GCC >= 4.7 and
 Apple's Clang are tested.  You also need zlib and valgrind development
 packages (`yum install valgrind-devel zlib-devel` or `apt-get install
