@@ -5174,6 +5174,12 @@ bool setup_jtbm_semi_joins(JOIN *join, List<TABLE_LIST> *join_list,
           DBUG_RETURN(1);
         table->table= dummy_table;
         table->table->pos_in_table_list= table;
+        /*
+          Note: the table created above may be freed by:
+          1. JOIN_TAB::cleanup(), when the parent join is a regular join.
+          2. cleanup_empty_jtbm_semi_joins(), when the parent join is a
+             degenerate join (e.g. one with "Impossible where").
+        */
         setup_table_map(table->table, table, table->jtbm_table_no);
       }
       else
@@ -5203,6 +5209,42 @@ bool setup_jtbm_semi_joins(JOIN *join, List<TABLE_LIST> *join_list,
     }
   }
   DBUG_RETURN(FALSE);
+}
+
+
+/*
+  Cleanup non-merged semi-joins (JBMs) that have empty.
+
+  This function is to cleanups for a special case:  
+  Consider a query like 
+
+    select * from t1 where 1=2 AND t1.col IN (select max(..) ... having 1=2)
+
+  For this query, optimization of subquery will short-circuit, and 
+  setup_jtbm_semi_joins() will call create_dummy_tmp_table() so that we have
+  empty, constant temp.table to stand in as materialized temp. table.
+
+  Now, suppose that the upper join is also found to be degenerate. In that
+  case, no JOIN_TAB array will be produced, and hence, JOIN::cleanup() will
+  have a problem with cleaning up empty JTBMs (non-empty ones are cleaned up
+  through Item::cleanup() calls).
+*/
+
+void cleanup_empty_jtbm_semi_joins(JOIN *join)
+{
+  List_iterator<TABLE_LIST> li(*join->join_list);
+  TABLE_LIST *table;
+  while ((table= li++))
+  {
+    if ((table->jtbm_subselect && table->jtbm_subselect->is_jtbm_const_tab))
+    {
+      if (table->table)
+      {
+        free_tmp_table(join->thd, table->table);
+        table->table= NULL;
+      }
+    }
+  }
 }
 
 

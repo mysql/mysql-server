@@ -1698,4 +1698,12 @@ SELECT * FROM t1 WHERE 8 IN ( SELECT MIN(pk) FROM t1 ) AND ( pk = a OR pk = b );
 drop table t1;
 SET optimizer_switch=@save_optimizer_switch;
 
+--echo #
+--echo # MDEV-5011: ERROR Plugin 'MEMORY' has ref_count=1 after shutdown for SJM queries
+--echo #
+CREATE TABLE t1 (pk INT, a INT, b INT, PRIMARY KEY(pk)) ENGINE=MyISAM;
+INSERT INTO t1 VALUES (1,3,5),(2,4,6);
+SELECT * FROM t1 WHERE 8 IN (SELECT MIN(pk) FROM t1) AND (pk = a OR pk = b);
+DROP TABLE t1;
+
 --echo # End of 5.3 tests

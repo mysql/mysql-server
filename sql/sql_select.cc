@@ -10125,6 +10125,11 @@ void JOIN_TAB::cleanup()
     {
       if (table->pos_in_table_list->jtbm_subselect->is_jtbm_const_tab)
       {
+        /*
+          Set this to NULL so that cleanup_empty_jtbm_semi_joins() doesn't
+          attempt to make another free_tmp_table call.
+        */
+        table->pos_in_table_list->table= NULL;
         free_tmp_table(join->thd, table);
         table= NULL;
       }
@@ -10461,6 +10466,7 @@ void JOIN::cleanup(bool full)
   }
   if (full)
   {
+    cleanup_empty_jtbm_semi_joins(this);
     /* 
       Ensure that the following delete_elements() would not be called
       twice for the same list.
