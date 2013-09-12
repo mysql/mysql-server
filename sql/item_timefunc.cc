@@ -1201,7 +1201,19 @@ bool get_interval_value(Item *args,interval_type int_type,
   CHARSET_INFO *cs=str_value->charset();
 
   bzero((char*) interval,sizeof(*interval));
-  if ((int) int_type <= INTERVAL_MICROSECOND)
+  if (int_type == INTERVAL_SECOND && args->decimals)
+  {
+    my_decimal decimal_value, *val;
+    ulonglong second;
+    ulong second_part;
+    if (!(val= args->val_decimal(&decimal_value)))
+      return true;
+    interval->neg= my_decimal2seconds(val, &second, &second_part);
+    interval->second= second;
+    interval->second_part= second_part;
+    return false;
+  }
+  else if ((int) int_type <= INTERVAL_MICROSECOND)
   {
     value= args->val_int();
     if (args->null_value)
@@ -1815,7 +1827,7 @@ bool Item_func_from_unixtime::get_date(MYSQL_TIME *ltime,
 
 void Item_func_convert_tz::fix_length_and_dec()
 {
-  decimals= args[0]->decimals;
+  decimals= args[0]->temporal_precision(MYSQL_TYPE_DATETIME);
   Item_temporal_func::fix_length_and_dec();
 }
 
@@ -1890,28 +1902,40 @@ void Item_date_add_interval::fix_length_and_dec()
   */
   cached_field_type= MYSQL_TYPE_STRING;
   arg0_field_type= args[0]->field_type();
+  uint interval_dec= 0;
+  if (int_type == INTERVAL_MICROSECOND ||
+      (int_type >= INTERVAL_DAY_MICROSECOND &&
+       int_type <= INTERVAL_SECOND_MICROSECOND))
+    interval_dec= TIME_SECOND_PART_DIGITS;
+  else if (int_type == INTERVAL_SECOND && args[1]->decimals > 0)
+    interval_dec= min(args[1]->decimals, TIME_SECOND_PART_DIGITS);
+
   if (arg0_field_type == MYSQL_TYPE_DATETIME ||
       arg0_field_type == MYSQL_TYPE_TIMESTAMP)
+  {
+    decimals= max(args[0]->temporal_precision(MYSQL_TYPE_DATETIME), interval_dec);
     cached_field_type= MYSQL_TYPE_DATETIME;
+  }
   else if (arg0_field_type == MYSQL_TYPE_DATE)
   {
     if (int_type <= INTERVAL_DAY || int_type == INTERVAL_YEAR_MONTH)
       cached_field_type= arg0_field_type;
     else
+    {
+      decimals= interval_dec;
       cached_field_type= MYSQL_TYPE_DATETIME;
+    }
   }
   else if (arg0_field_type == MYSQL_TYPE_TIME)
   {
+    decimals= max(args[0]->temporal_precision(MYSQL_TYPE_TIME), interval_dec);
     if (int_type >= INTERVAL_DAY && int_type != INTERVAL_YEAR_MONTH)
       cached_field_type= arg0_field_type;
     else
       cached_field_type= MYSQL_TYPE_DATETIME;
   }
-  if (int_type == INTERVAL_MICROSECOND || int_type >= INTERVAL_DAY_MICROSECOND)
-    decimals= 6;
   else
-    decimals= args[0]->decimals;
-
+    decimals= max(args[0]->temporal_precision(MYSQL_TYPE_DATETIME), interval_dec);
   Item_temporal_func::fix_length_and_dec();
   value.alloc(max_length);
 }
@@ -2412,9 +2436,17 @@ void Item_func_add_time::fix_length_and_dec()
   if (arg0_field_type == MYSQL_TYPE_DATE ||
       arg0_field_type == MYSQL_TYPE_DATETIME ||
       arg0_field_type == MYSQL_TYPE_TIMESTAMP)
+  {
     cached_field_type= MYSQL_TYPE_DATETIME;
+    decimals= max(args[0]->temporal_precision(MYSQL_TYPE_DATETIME),
+                  args[1]->temporal_precision(MYSQL_TYPE_TIME));
+  }
   else if (arg0_field_type == MYSQL_TYPE_TIME)
+  {
     cached_field_type= MYSQL_TYPE_TIME;
+    decimals= max(args[0]->temporal_precision(MYSQL_TYPE_TIME),
+                  args[1]->temporal_precision(MYSQL_TYPE_TIME));
+  }
   Item_temporal_func::fix_length_and_dec();
 }
 
@@ -2598,16 +2630,17 @@ bool Item_func_maketime::get_date(MYSQL_TIME *ltime, uint fuzzy_date)
 {
   DBUG_ASSERT(fixed == 1);
   bool overflow= 0;
-
   longlong hour=   args[0]->val_int();
   longlong minute= args[1]->val_int();
-  longlong second= args[2]->val_int();
+  ulonglong second;
+  ulong microsecond;
+  bool neg= args[2]->get_seconds(&second, &microsecond);
 
   if ((null_value=(args[0]->null_value || 
                    args[1]->null_value ||
                    args[2]->null_value ||
                    minute < 0 || minute > 59 ||
-                   second < 0 || second > 59)))
+                   neg || second > 59)))
     return 1;
 
   bzero(ltime, sizeof(*ltime));
@@ -2629,6 +2662,7 @@ bool Item_func_maketime::get_date(MYSQL_TIME *ltime, uint fuzzy_date)
     ltime->hour=   (uint) ((hour < 0 ? -hour : hour));
     ltime->minute= (uint) minute;
     ltime->second= (uint) second;
+    ltime->second_part= microsecond;
   }
   else
   {
