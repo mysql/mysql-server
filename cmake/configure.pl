@@ -234,28 +234,6 @@ foreach my $option (@ARGV)
     $cmakeargs = $cmakeargs." \"-DWITH_COMMENT=".substr($option,13)."\""; 
     next;
   }
-#ifndef MCP_NDB_BUILD_INTEGRATION
-  if ($option =~ /with-classpath=/)
-  {
-    $cmakeargs = $cmakeargs." \"-DWITH_CLASSPATH=".substr($option,15)."\"";
-    next;
-  }
-  if ($option =~ /with-debug=/)
-  {
-    $cmakeargs = $cmakeargs." -DWITH_DEBUG=1";
-    next;
-  }
-  if ($option =~ /with-ndb-ccflags=/)
-  {
-    $cmakeargs = $cmakeargs." \"-DWITH_NDB_CCFLAGS=".substr($option,17)."\"";
-    next;
-  }
-  if ($option =~ /cmake-args=/)
-  {
-    $cmakeargs = $cmakeargs." ".substr($option,11);
-    next;
-  }
-#endif
   if ($option =~ /with-gcov/)
   {
       $cmakeargs = $cmakeargs." -DENABLE_GCOV=ON"; 
