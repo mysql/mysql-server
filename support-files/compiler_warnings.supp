@@ -33,9 +33,6 @@ kernel_types.h : .*'struct Local_key' only defines private constructors and has 
 lgman.hpp : .*'struct Lgman::Buffer_idx' only defines private constructors and has no friends.*
 SchemaFile.hpp : .*'struct SchemaFile::TableEntry' only defines private constructors and has no friends.*
 sql_yacc.cc : .*switch statement contains 'default' but no 'case' labels.*
-pwdbased.hpp : .*comparison of unsigned expression < 0 is always false.*
-
-tests/mysql_client_fw.c : .* defined but not used.*
 
 #
 # Things that can be ignored in InnoDB
@@ -62,23 +59,23 @@ db_vrfy.c : .*comparison is always false due to limited range of data type.*
 # Ignore all conversion warnings on windows 64
 # (Is safe as we are not yet supporting strings >= 2G)
 #
-^(?:(?!ndb).)*$ : conversion from '__int64' to .*int'.*
-^(?:(?!ndb).)*$ : conversion from '__int64' to 'uint8'.*
-^(?:(?!ndb).)*$ : conversion from '__int64' to 'uint32'.*
-^(?:(?!ndb).)*$ : conversion from '__int64' to 'u.*long'.*
-^(?:(?!ndb).)*$ : conversion from '__int64' to 'long'.*
-^(?:(?!ndb).)*$ : conversion from '__int64' to 'off_t'.*
-^(?:(?!ndb).)*$ : conversion from '.*size_t' to .*int'.*
-^(?:(?!ndb).)*$ : conversion from '.*size_t' to 'TaoCrypt::word32'.*
-^(?:(?!ndb).)*$ : conversion from '.*size_t' to 'u.*long'.*
-^(?:(?!ndb).)*$ : conversion from '.*size_t' to 'uint32'.*
-^(?:(?!ndb).)*$ : conversion from '.*size_t' to 'off_t'.*
-^(?:(?!ndb).)*$ : conversion from '.*size_t' to 'size_s'.*
-^(?:(?!ndb).)*$ : conversion from '.*size_t' to 'DWORD'.*
-^(?:(?!ndb).)*$ : conversion from '.*size_t' to 'uLongf'.*
-^(?:(?!ndb).)*$ : conversion from '.*size_t' to 'UINT'.*
-^(?:(?!ndb).)*$ : conversion from '.*size_t' to 'uInt'.*
-^(?:(?!ndb).)*$ : conversion from '.*size_t' to 'uint16'.*
+.* : conversion from '__int64' to .*int'.*
+.* : conversion from '__int64' to 'uint8'.*
+.* : conversion from '__int64' to 'uint32'.*
+.* : conversion from '__int64' to 'u.*long'.*
+.* : conversion from '__int64' to 'long'.*
+.* : conversion from '__int64' to 'off_t'.*
+.* : conversion from '.*size_t' to .*int'.*
+.* : conversion from '.*size_t' to 'TaoCrypt::word32'.*
+.* : conversion from '.*size_t' to 'u.*long'.*
+.* : conversion from '.*size_t' to 'uint32'.*
+.* : conversion from '.*size_t' to 'off_t'.*
+.* : conversion from '.*size_t' to 'size_s'.*
+.* : conversion from '.*size_t' to 'DWORD'.*
+.* : conversion from '.*size_t' to 'uLongf'.*
+.* : conversion from '.*size_t' to 'UINT'.*
+.* : conversion from '.*size_t' to 'uInt'.*
+.* : conversion from '.*size_t' to 'uint16'.*
 
 #
 # The following should be fixed by the ndb team
@@ -101,79 +98,3 @@ mi_packrec.c : .*result of 32-bit shift implicitly converted to 64 bits.* : 560-
 #
 .* : .*no matching operator delete found; memory will not be freed if initialization throws an exception.*
 ctype-simple.c : .*unary minus operator applied to unsigned type, result still unsigned.*
-
-### MCP_COMPILER_WARN_SUPPRESSIONS start ###
-# warnings ingnored by Cluster team
-#
-extra/perror.c : .*strerror.*
-plugin/semisync/semisync_master.cc : .*may be used uninitialized in this function.*
-.*/innobase/.* : .*
-client/mysqldump.c : .*may be used uninitialized in this function.*
-
-# windows
-mysqlslap/mysqlslap.c : .*
-yassl/.* : C4005: 'WIN32_LEAN_AND_MEAN' : macro redefinition
-mytap/tap.c : C4028: formal parameter .* different from declaration
-.*/readline.cc : C4101: 'input_file_stat' : unreferenced local variable
-
-#
-.*/sys_vars.h             : .*C4244.* conversion .* possible loss of data
-.*/mi_dynrec.c            : .*C4244.* conversion .* possible loss of data
-.*/mi_check.c             : .*C4244.* conversion .* possible loss of data
-.*/sys_vars.cc            : .*C4244.* conversion .* possible loss of data
-.*/partition_info.cc      : .*C4244.* conversion .* possible loss of data
-.*/sql_time.cc            : .*C4244.* conversion .* possible loss of data
-.*/sql_view.cc            : .*C4244.* conversion .* possible loss of data
-.*/event_db_repository.cc : .*C4244.* conversion .* possible loss of data
-.*/sql_trigger.cc         : .*C4244.* conversion .* possible loss of data
-.*/sql_table.cc           : .*C4244.* conversion .* possible loss of data
-.*/sql_show.cc            : .*C4244.* conversion .* possible loss of data
-.*/myisamchk.c            : .*C4244.* conversion .* possible loss of data
-.*/log_event.cc           : .*C4244.* conversion .* possible loss of data
-.*/log.cc                 : .*C4244.* conversion .* possible loss of data
-.*/item_timefunc.cc       : .*C4244.* conversion .* possible loss of data
-.*/mysqld.cc              : .*C4244.* conversion .* possible loss of data
-.*/item.cc                : .*C4244.* conversion .* possible loss of data
-.*/ha_partition.cc        : .*C4244.* conversion .* possible loss of data
-.*/sql_db.cc              : .*C4305.*
-.*/sql_cache.cc           : .*C4244.* conversion .* possible loss of data
-.*/sp.cc                  : .*C4244.* conversion .* possible loss of data
-.*/sp_head.cc             : .*C4244.* conversion .* possible loss of data
-.*/sql_insert.cc          : .*C4244.* conversion .* possible loss of data
-.*/parse_file.cc          : .*C4244.* conversion .* possible loss of data
-.*/sql_acl.cc             : .*C4244.* conversion .* possible loss of data
-.*/handler.cc             : .*C4244.* conversion .* possible loss of data
-.*/discover.cc            : .*C4244.* conversion .* possible loss of data
-.*/ha_archive.cc          : .*C4244.* conversion .* possible loss of data
-.*/client.c               : .*C4244.* conversion .* possible loss of data
-.*/sql_update.cc          : .*C4244.* conversion .* possible loss of data
-.*/sort.c                 : .*C4244.* conversion .* possible loss of data
-.*/i_mysql_client_test.c  : .*C4305.*
-
-# const qualifiers
-replace/replace.c                     : .*C4090.*
-my_print_defaults/my_print_defaults.c : .*C4090.*
-comp_err/comp_err.c                   : .*C4090.*
-.*/mi_unique.c                        : .*C4090.*
-.*/ft_update.c                        : .*C4090.*
-mysqlshow/mysqlshow.c                 : .*C4090.*
-mysqldump/mysqldump.c                 : .*C4090.*
-.*/mysql_client_test.c                : .*C4090.*
-myisampack/myisampack.c               : .*C4090.*
-my_print_defaults/my_print_defaults.c : .*C4090.*
-myisamchk/myisamchk.c                 : .*C4090.*
-mysqlimport/mysqlimport.c             : .*C4090.*
-mysqlcheck/mysqlcheck.c               : .*C4090.*
-
-#
-# Bundled memcached and libevent
-#
-.*/ndb/memcache/extra/.* : .*
-
-
-#
-# yassl
-#
-extra/yassl/.* : .*
-
-### MCP_COMPILE_WARN_SUPPRESSIONS end ###
