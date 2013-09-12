@@ -61,6 +61,7 @@ Created 10/16/1994 Heikki Tuuri
 #include "row0upd.h"
 #include "trx0rec.h"
 #include "trx0roll.h" /* trx_is_recv() */
+#include "trx0undo.h"
 #include "que0que.h"
 #include "row0row.h"
 #include "srv0srv.h"
