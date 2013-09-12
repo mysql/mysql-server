@@ -685,8 +685,9 @@ var runSQL = function(sqlPath, source, callback) {
     }
   }
 
-///work here
-  var cmd = 'cat ./' + global.engine + '.sql ' + sqlPath + ' | mysql';
+  // prepend the file containing the engine.sql (ndb.sql or innodb.sql) to the file containing the sql commands 
+  var enginesqlPath = path.join(suites_dir, global.engine + '.sql ');
+  var cmd = 'cat ' + enginesqlPath + ' ' + sqlPath + ' | mysql';
   
   var p = test_conn_properties;
   if(p) {
