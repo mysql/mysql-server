@@ -638,7 +638,7 @@ btr_push_update_extern_fields(
 
 /***********************************************************//**
 Writes a redo log record of updating a record in-place. */
-UNIV_INLINE
+UNIV_INTERN
 void
 btr_cur_update_in_place_log(
 /*========================*/
