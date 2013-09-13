@@ -3769,10 +3769,7 @@ void SELECT_LEX::mark_as_belong_to_derived(TABLE_LIST *derived)
   TABLE_LIST *tl;
   List_iterator<TABLE_LIST> ti(leaf_tables);
   while ((tl= ti++))
-  {
-    tl->open_type= OT_BASE_ONLY;
     tl->belong_to_derived= derived;
-  }
 }
 
 
