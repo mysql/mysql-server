@@ -27,7 +27,9 @@
 #    x IO thread fails when reading Gtid_log_event.
 #    x IO thread converts Previous_gtids_log_event to Rotate_log_event.
 #    - Server fails to start if there are Previous_gtids_log_events or
-#      Gtid_log_events in the binary or relay log.
+#    Gtid_log_events in the binary or relay log.
+#    - If Server finds AUTO_POSITION= 1 in master info file, it forcefully
+#    resets to 0 as the server is started with GTID_MODE= OFF.
 #
 #   Option values and combinations:
 #    - Default is GTID_MODE = OFF
@@ -55,9 +57,8 @@
 call mtr.add_suppression("Slave I/O: The slave IO thread stops because the master has @@GLOBAL.GTID_MODE");
 call mtr.add_suppression("Error reading packet from server: Lost connection to MySQL");
 call mtr.add_suppression("Aborting");
-call mtr.add_suppression(".* CHANGE MASTER TO MASTER_AUTO_POSITION = 1 can only be executed when @@GLOBAL.GTID_MODE = ON.");
 call mtr.add_suppression(".* Found a Gtid_log_event or Previous_gtids_log_event when @@GLOBAL.GTID_MODE = OFF.");
-call mtr.add_suppression(".* Failed to initialize the master info structure");
+call mtr.add_suppression("MASTER_AUTO_POSITION in the master info file was 1 but server is started with @@GLOBAL.GTID_MODE = OFF. Forcing MASTER_AUTO_POSITION to 0.");
 
 --sync_slave_with_master
 --source include/stop_slave.inc
@@ -277,7 +278,6 @@ INSERT INTO t1 VALUES (3);
 --let $rpl_server_number= 2
 --let $rpl_start_with_gtids= 0
 --source include/rpl_start_server.inc
---error ER_AUTO_POSITION_REQUIRES_GTID_MODE_ON
 START SLAVE;
 --let $rpl_server_number= 2
 --let $rpl_skip_start_slave= 1
