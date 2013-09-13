@@ -23,7 +23,7 @@ use Getopt::Long;
 sub usage
 {
     print STDERR "Usage:\n";
-    print STDERR "\tndb_error_reporter config.ini [username] [--fs] [--connection-timeout=#] [--skip-nodegroup=#] [--dry-scp]\n\n";
+    print STDERR "\tndb_error_reporter config.ini [username] [--fs] [--connection-timeout=#] [--skip-nodegroup=#] [--dry-scp] [--help]\n\n";
     print STDERR "\tusername is a user that you can use to ssh into\n";
     print STDERR "\t  all of your nodes with.\n\n";
     print STDERR "\t--fs means include the filesystems in the report\n";
@@ -35,6 +35,7 @@ sub usage
     print STDERR "\t  belonging to a specific nodegroup\n\n";
     print STDERR "\t--dry-scp allows running the script for testing without\n";
     print STDERR "\t  scp from the remote hosts\n\n";
+    print STDERR "\t--help prints this message and exits\n\n";
     exit(1);
 }
 
@@ -42,15 +43,24 @@ my $config_get_fs= 0;
 my $config_connect_timeout;
 my @config_skip_nodegroups;
 my $config_dry_scp= 0;
+my $config_help= 0;
 
 my %options= (
     "--fs"                      => \$config_get_fs,
     "--connection-timeout=i"    => \$config_connect_timeout,
     "--skip-nodegroup=i@"       => \@config_skip_nodegroups,
     "--dry-scp"                 => \$config_dry_scp,
+    "--help|usage|?"            => \$config_help,
 );
 
 GetOptions(%options) or usage();
+
+# If --help provided, print usage and exit
+if($config_help)
+{
+  print STDERR "This program creates an archive from data node and management node files.\n\n";
+  usage();
+}
 
 # At least one positional argument must be given
 # but never more than 2
@@ -64,7 +74,7 @@ my $config_file= $ARGV[0];
 if(!stat($config_file))
 {
     print STDERR "Cannot open configuration file.\n\n";
-    exit(1);
+    usage(); 
 }
 
 # Second positional argument may contain scp username
