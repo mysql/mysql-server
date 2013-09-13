@@ -1,5 +1,4 @@
 drop table if exists t1,t2;
-call mtr.add_suppression("Did not write failed .*");
 show tables;
 Tables_in_mysql
 columns_priv
