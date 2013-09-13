@@ -18,6 +18,7 @@
 drop table if exists t1,t2;
 --enable_warnings
 
+call mtr.add_suppression("Did not write failed .*");
 #connect (con1,localhost,root,,"");
 #show tables;
 connect (con1,localhost,root,,mysql);
