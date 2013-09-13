@@ -642,6 +642,10 @@ exports.UserContext.prototype.createQuery = function() {
   getTableHandler(userContext.user_arguments[0], userContext.session, createQueryOnTableHandler);
 };
 
+/** maximum skip and limit parameters are some large number */
+var MAX_SKIP = Math.pow(2, 52);
+var MAX_LIMIT = Math.pow(2, 52);
+
 /** Execute a query. 
  * 
  */
@@ -690,15 +694,51 @@ exports.UserContext.prototype.executeQuery = function(queryDomainType) {
 
   // executeScanQuery is used by both index scan and table scan
   var executeScanQuery = function() {
-    dbSession = userContext.session.dbSession;
-    transactionHandler = dbSession.getTransactionHandler();
-    userContext.operation = dbSession.buildScanOperation(
-        queryDomainType, userContext.user_arguments[0], transactionHandler,
-        executeQueryScanOnResult);
-    // TODO: this currently does not support batching
-    transactionHandler.execute([userContext.operation], function() {
-      udebug.log_detail('executeQueryPK transactionHandler.execute callback.');
-    });
+    // validate order, skip, and limit parameters
+    var params = userContext.user_arguments[0];
+    var orderToUpperCase;
+    var order = params.order, skip = params.skip, limit = params.limit;
+    var error;
+    if (typeof(limit) !== 'undefined') {
+      if (typeof(limit) !== 'number' || limit < 0 || limit > MAX_LIMIT) {
+        // limit is out of valid range
+        error = new Error('Bad limit parameter \'' + limit + '\'; limit must be >= 0 and <= ' + MAX_LIMIT + '.');
+      }
+    }
+    if (typeof(skip) !== 'undefined') {
+      if (typeof(skip) !== 'number' || skip < 0 || skip > MAX_SKIP) {
+        // skip is out of valid range
+        error = new Error('Bad skip parameter \'' + skip + '\'; skip must be >= 0 and <= ' + MAX_SKIP + '.');
+      } else {
+        if (!order) {
+          // skip is in range but order is not specified
+          error = new Error('Bad skip parameter \'' + skip + '\'; if skip is specified, then order must be specified.');
+        }
+      }
+    }
+    if (typeof(order) !== 'undefined') {
+      if (typeof(order) !== 'string') {
+        error = new Error('Bad order parameter \'' + order + '\'; order must be ignoreCase asc or desc.');
+      } else {
+        orderToUpperCase = order.toUpperCase();
+        if (!(orderToUpperCase === 'ASC' || orderToUpperCase === 'DESC')) {
+          error = new Error('Bad order parameter \'' + order + '\'; order must be ignoreCase asc or desc.');
+        }
+      }
+    }
+    if (error) {
+      userContext.applyCallback(error, null);
+    } else {
+      dbSession = userContext.session.dbSession;
+      transactionHandler = dbSession.getTransactionHandler();
+      userContext.operation = dbSession.buildScanOperation(
+          queryDomainType, userContext.user_arguments[0], transactionHandler,
+          executeQueryScanOnResult);
+      // TODO: this currently does not support batching
+      transactionHandler.execute([userContext.operation], function() {
+        udebug.log_detail('executeQueryPK transactionHandler.execute callback.');
+      });
+    }
 //  if (userContext.execute) {
 //  transactionHandler.execute([userContext.operation], function() {
 //    udebug.log_detail('find transactionHandler.execute callback.');
