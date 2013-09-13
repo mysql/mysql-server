@@ -456,6 +456,26 @@ function FollowingOperation(params, data) {
 FollowingOperation.signature = [ "get", "following" , "<user_name>" ];
 
 
+/* Get the N most recent tweets
+*/
+function RecentTweetsOperation(params, data) {
+  Operation.call(this);
+  var limit = params && params[0] ? Number(params[0]) : 20;
+  
+  function buildQuery(error, query, self) {
+    var params = {"zero" : 0, "order" : "desc", "limit" : limit};
+    /* use id > 0 to coerce a descending index scan on id */
+    query.where(query.id.gt(query.param("zero")));
+    query.execute(params, onComplete, self, onFinal);
+  }
+
+  this.run = function() {
+    this.session.createQuery(Tweet, buildQuery, this);
+  };
+}
+RecentTweetsOperation.signature = [ "get", "tweets-recent" , "<count>" ];
+
+
 /* Last 20 tweets from a user
 */
 function TweetsByUserOperation(params, data) {
@@ -585,6 +605,7 @@ function parse_command(method, params, data) {
   verb = method.toLocaleLowerCase();
   noun = params.shift();
   operation = null;
+  udebug.log("parse_command", verb, noun, params);
   if(operationMap.verbs[verb] && operationMap.verbs[verb][noun]) {
     opIdx = operationMap.verbs[verb][noun][0]
     opConstructor = allOperations[opIdx];
@@ -682,6 +703,7 @@ var allOperations = [
   TweetsByUserOperation,
   TweetsAtUserOperation,
   TweetsByHashtagOperation,
+  RecentTweetsOperation,
   RunWebServerOperation,
   HelpOperation
 ];
