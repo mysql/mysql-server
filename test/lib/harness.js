@@ -654,9 +654,7 @@ Result.prototype.pass = function(t) {
 };
 
 Result.prototype.fail = function(t, e) {
-  if(t.phase > 0) {  // i.e. not a SmokeTest
-    this.failed.push(t.name);
-  }
+  this.failed.push(t.name);
   this.listener.fail(t, e);
   this.driver.testCompleted(t);
 };
