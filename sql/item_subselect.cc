@@ -1746,7 +1746,7 @@ Item_in_subselect::single_value_transformer(JOIN *join)
       of the statement. Thus one of 'substitution' arguments
       can be broken in case of PS.
     */ 
-    substitution= func->create(left_expr->real_item(), where_item);
+    substitution= func->create(left_expr, where_item);
     have_to_be_excluded= 1;
     if (thd->lex->describe)
     {
