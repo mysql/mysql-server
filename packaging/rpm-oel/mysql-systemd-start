@@ -1,0 +1,46 @@
+#! /bin/bash
+#
+# Scripts to run by MySQL systemd service.
+# 
+# Needed argument: pre | post
+# 
+# pre mode  :  try to run mysql_install_db and fix perms and SELinux contexts.
+# post mode :  ping server until answer is received
+# 
+
+install_db () {    
+    # Note: something different than datadir=/var/lib/mysql requires SELinux policy changes (in enforcing mode)
+    datadir=$(/usr/bin/my_print_defaults server mysqld | grep '^--datadir=' | sed -n 's/--datadir=//p')
+    
+    # Restore log, dir, perms and SELinux contexts
+    install -d -m 0755 -omysql -gmysql "$datadir" || exit 1
+    touch /var/log/mysqld.log
+    chmod 0640 /var/log/mysqld.log
+    chown mysql:mysql /var/log/mysqld.log || exit 1
+    if [ -x /usr/sbin/restorecon ]; then
+        /usr/sbin/restorecon "$datadir"
+        /usr/sbin/restorecon /var/log/mysqld.log
+    fi
+    # Create initial db
+    /usr/bin/mysql_install_db --rpm --datadir="$datadir" --user=mysql 
+    exit 0
+}
+
+# MySQL systemd service will timeout script if no answer
+pinger () {
+    while /bin/true ; do
+	sleep 1
+	mysqladmin ping >/dev/null 2>&1 && break
+    done
+    exit 0
+}
+
+# main
+case $1 in
+    "pre") install_db ;;
+    "post") pinger ;;
+esac
+
+exit 0
+
+
