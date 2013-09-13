@@ -37,9 +37,11 @@
 
 #include "schedulers/Stockholm.h"
 #include "schedulers/S_sched.h"
+#include "schedulers/Scheduler73.h"
+
 #include "ndb_error_logger.h"
 
-#define DEFAULT_SCHEDULER S::SchedulerWorker
+#define DEFAULT_SCHEDULER Scheduler73::Worker
 
 /* globals (exported; also used by workitem.c) */
 int workitem_class_id;
@@ -183,6 +185,10 @@ void * scheduler_initialize(ndb_pipeline *self, scheduler_options *options) {
   else if(!strncasecmp(cf,"S", 1)) {
     s = new S::SchedulerWorker;
     options->config_string = & cf[1];
+  }
+  else if(!strncasecmp(cf,"73", 2)) {
+    s = new Scheduler73::Worker;
+    options->config_string = & cf[2];
   }
   else {
     return NULL;
