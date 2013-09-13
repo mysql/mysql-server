@@ -203,6 +203,10 @@ exports.DataDictionary.prototype.getTableMetadata = function(databaseName, table
         // TODO found engine; get default charset
         break;
 
+      case 'CONSTRAINT':
+        // we can ignore constraints for now
+        break;
+
       default:
         // found column definition
         nullable = true; // default if no 'NOT NULL' clause
