@@ -537,6 +537,44 @@ uint Item::decimal_precision() const
 }
 
 
+#if MARIADB_VERSION_ID < 1000000
+static uint ms_to_precision(uint ms)
+{
+  uint cut, precision;
+  for (cut= 10, precision= 6 ; precision > 0 ; cut*= 10, precision--)
+  {
+    if (ms % cut)
+      return precision;
+  }
+  return 0;
+}
+#else
+#error Change the code to use MYSQL_TIME_STATUS::precision instead.
+#endif
+
+
+uint Item::temporal_precision(enum_field_types type)
+{
+  if (const_item() && result_type() == STRING_RESULT &&
+      !is_temporal_type(field_type()))
+  {
+    MYSQL_TIME ltime;
+    String buf, *tmp;
+    int was_cut;
+    DBUG_ASSERT(fixed);
+    if ((tmp= val_str(&buf)) &&
+        (type == MYSQL_TYPE_TIME ?
+         str_to_time(tmp->charset(), tmp->ptr(), tmp->length(),
+                     &ltime, TIME_TIME_ONLY, &was_cut) :
+         str_to_datetime(tmp->charset(), tmp->ptr(), tmp->length(),
+                         &ltime, TIME_FUZZY_DATES, &was_cut)) >
+        MYSQL_TIMESTAMP_ERROR)
+      return min(ms_to_precision(ltime.second_part), TIME_SECOND_PART_DIGITS);
+  }
+  return min(decimals, TIME_SECOND_PART_DIGITS);
+}
+
+
 void Item::print_item_w_name(String *str, enum_query_type query_type)
 {
   print(str, query_type);

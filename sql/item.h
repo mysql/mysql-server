@@ -1009,6 +1009,10 @@ public:
   virtual uint decimal_precision() const;
   inline int decimal_int_part() const
   { return my_decimal_int_part(decimal_precision(), decimals); }
+  /**
+    TIME or DATETIME precision of the item: 0..6
+  */
+  uint temporal_precision(enum_field_types type);
   /* 
     Returns true if this is constant (during query execution, i.e. its value
     will not change until next fix_fields) and its value is known.

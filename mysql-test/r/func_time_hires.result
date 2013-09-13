@@ -15,11 +15,11 @@ current_time(3)	01:01:01.123
 current_timestamp(4)	2011-01-01 01:01:01.1234
 localtime(5)	2011-01-01 01:01:01.12345
 localtimestamp(6)	2011-01-01 01:01:01.123456
-time_to_sec('12:34:56')	45296.000000
-time_to_sec('12:34:56.789')	45296.789000
+time_to_sec('12:34:56')	45296
+time_to_sec('12:34:56.789')	45296.789
 select sec_to_time(time_to_sec('1:2:3')), sec_to_time(time_to_sec('2:3:4.567890'));
-sec_to_time(time_to_sec('1:2:3'))	01:02:03.000000
-sec_to_time(time_to_sec('2:3:4.567890'))	02:03:04.567890
+sec_to_time(time_to_sec('1:2:3'))	01:02:03
+sec_to_time(time_to_sec('2:3:4.567890'))	02:03:04.56789
 select time_to_sec(sec_to_time(11111)), time_to_sec(sec_to_time(11111.22222));
 time_to_sec(sec_to_time(11111))	11111
 time_to_sec(sec_to_time(11111.22222))	11111.22222
@@ -48,7 +48,7 @@ t1	CREATE TABLE `t1` (
   `localtime(5)` datetime(5) NOT NULL DEFAULT '0000-00-00 00:00:00.00000',
   `localtimestamp(6)` datetime(6) NOT NULL DEFAULT '0000-00-00 00:00:00.000000',
   `time_to_sec(123456)` bigint(17) DEFAULT NULL,
-  `time_to_sec('12:34:56.789')` decimal(22,6) DEFAULT NULL
+  `time_to_sec('12:34:56.789')` decimal(19,3) DEFAULT NULL
 ) ENGINE=MyISAM DEFAULT CHARSET=latin1
 select * from t1;
 sec_to_time(12345)	03:25:45
@@ -63,15 +63,15 @@ current_timestamp(4)	2011-01-01 01:01:01.1234
 localtime(5)	2011-01-01 01:01:01.12345
 localtimestamp(6)	2011-01-01 01:01:01.123456
 time_to_sec(123456)	45296
-time_to_sec('12:34:56.789')	45296.789000
+time_to_sec('12:34:56.789')	45296.789
 drop table t1;
 select unix_timestamp('2011-01-01 01:01:01'), unix_timestamp('2011-01-01 01:01:01.123456'), unix_timestamp(cast('2011-01-01 01:01:01.123456' as datetime(0))), unix_timestamp(cast('2011-01-01 01:01:01.123456' as datetime(4)));;
-unix_timestamp('2011-01-01 01:01:01')	1293832861.000000
+unix_timestamp('2011-01-01 01:01:01')	1293832861
 unix_timestamp('2011-01-01 01:01:01.123456')	1293832861.123456
 unix_timestamp(cast('2011-01-01 01:01:01.123456' as datetime(0)))	1293832861
 unix_timestamp(cast('2011-01-01 01:01:01.123456' as datetime(4)))	1293832861.1234
 select from_unixtime(unix_timestamp('2011/1/1 1:1:1')), from_unixtime(unix_timestamp('2011/1/1 1:1:1.123456')), from_unixtime(unix_timestamp(cast('2011/1/1 1:1:1.123456' as datetime(0)))), from_unixtime(unix_timestamp(cast('2011/1/1 1:1:1.123456' as datetime(4))));;
-from_unixtime(unix_timestamp('2011/1/1 1:1:1'))	2011-01-01 01:01:01.000000
+from_unixtime(unix_timestamp('2011/1/1 1:1:1'))	2011-01-01 01:01:01
 from_unixtime(unix_timestamp('2011/1/1 1:1:1.123456'))	2011-01-01 01:01:01.123456
 from_unixtime(unix_timestamp(cast('2011/1/1 1:1:1.123456' as datetime(0))))	2011-01-01 01:01:01
 from_unixtime(unix_timestamp(cast('2011/1/1 1:1:1.123456' as datetime(4))))	2011-01-01 01:01:01.1234
@@ -167,7 +167,7 @@ CONVERT_TZ('2011-01-02 12:00:00', '+00:00', '+03:00')
 2011-01-02 15:00:00
 SELECT CONVERT_TZ('2011-01-02 12:00:00.123', '+00:00', '+03:00');
 CONVERT_TZ('2011-01-02 12:00:00.123', '+00:00', '+03:00')
-2011-01-02 15:00:00.123000
+2011-01-02 15:00:00.123
 SELECT CONVERT_TZ('2011-01-02 12:00:00.123456', '+00:00', '+03:00');
 CONVERT_TZ('2011-01-02 12:00:00.123456', '+00:00', '+03:00')
 2011-01-02 15:00:00.123456
@@ -200,7 +200,7 @@ time(f1)
 alter table t1 modify f1 varchar(100);
 select time(f1) from t1;
 time(f1)
-21:00:00
+21:00:00.000000
 select time(f1) from t1 union all select time(f1 + interval 1 second) from t1;
 time(f1)
 21:00:00.000000

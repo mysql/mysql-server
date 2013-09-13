@@ -1809,6 +1809,8 @@ public:
   double val_real();
   longlong val_int();
   String* val_str(String*);
+  my_decimal *val_decimal(my_decimal *dec_buf)
+  { return val_decimal_from_real(dec_buf); }
   /* TODO: fix to support views */
   const char *func_name() const { return "get_system_var"; }
   /**

@@ -408,13 +408,15 @@ class Item_func_dayname :public Item_func_weekday
 
 class Item_func_seconds_hybrid: public Item_func_numhybrid
 {
+protected:
+  virtual enum_field_types arg0_expected_type() const = 0;
 public:
   Item_func_seconds_hybrid() :Item_func_numhybrid() {}
   Item_func_seconds_hybrid(Item *a) :Item_func_numhybrid(a) {}
   void fix_num_length_and_dec()
   {
     if (arg_count)
-      decimals= args[0]->decimals;
+      decimals= args[0]->temporal_precision(arg0_expected_type());
     set_if_smaller(decimals, TIME_SECOND_PART_DIGITS);
     max_length=17 + (decimals ? decimals + 1 : 0);
     set_persist_maybe_null(1);
@@ -430,6 +432,8 @@ public:
 class Item_func_unix_timestamp :public Item_func_seconds_hybrid
 {
   bool get_timestamp_value(my_time_t *seconds, ulong *second_part);
+protected:
+  enum_field_types arg0_expected_type() const { return MYSQL_TYPE_DATETIME; }
 public:
   Item_func_unix_timestamp() :Item_func_seconds_hybrid() {}
   Item_func_unix_timestamp(Item *a) :Item_func_seconds_hybrid(a) {}
@@ -461,6 +465,8 @@ public:
 
 class Item_func_time_to_sec :public Item_func_seconds_hybrid
 {
+protected:
+  enum_field_types arg0_expected_type() const { return MYSQL_TYPE_TIME; }
 public:
   Item_func_time_to_sec(Item *item) :Item_func_seconds_hybrid(item) {}
   const char *func_name() const { return "time_to_sec"; }
@@ -860,7 +866,7 @@ public:
   void fix_length_and_dec()
   {
     if (decimals == NOT_FIXED_DEC)
-      decimals= args[0]->decimals;
+      decimals= args[0]->temporal_precision(field_type());
     Item_temporal_func::fix_length_and_dec();
   }
 };
@@ -934,7 +940,8 @@ public:
   const char *func_name() const { return "timediff"; }
   void fix_length_and_dec()
   {
-    decimals= max(args[0]->decimals, args[1]->decimals);
+    decimals= max(args[0]->temporal_precision(MYSQL_TYPE_TIME),
+                  args[1]->temporal_precision(MYSQL_TYPE_TIME));
     Item_timefunc::fix_length_and_dec();
   }
   bool get_date(MYSQL_TIME *ltime, ulonglong fuzzy_date);
@@ -946,6 +953,11 @@ public:
   Item_func_maketime(Item *a, Item *b, Item *c)
     :Item_timefunc(a, b, c) 
   {}
+  void fix_length_and_dec()
+  {
+    decimals= min(args[2]->decimals, TIME_SECOND_PART_DIGITS);
+    Item_timefunc::fix_length_and_dec();
+  }
   const char *func_name() const { return "maketime"; }
   bool get_date(MYSQL_TIME *ltime, ulonglong fuzzy_date);
 };

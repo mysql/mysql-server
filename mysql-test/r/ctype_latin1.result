@@ -1840,12 +1840,12 @@ t1	CREATE TABLE `t1` (
 drop table t1;
 select hex(concat(time_to_sec('10:11:12')));
 hex(concat(time_to_sec('10:11:12')))
-33363637322E303030303030
+3336363732
 create table t1 as select concat(time_to_sec('10:11:12')) as c1;
 show create table t1;
 Table	Create Table
 t1	CREATE TABLE `t1` (
-  `c1` varchar(24) DEFAULT NULL
+  `c1` varchar(17) DEFAULT NULL
 ) ENGINE=MyISAM DEFAULT CHARSET=latin1
 drop table t1;
 select hex(concat(extract(year from 20090702)));
@@ -1952,7 +1952,7 @@ create table t1 as select concat(timediff('2001-01-02 00:00:00', '2001-01-01 00:
 show create table t1;
 Table	Create Table
 t1	CREATE TABLE `t1` (
-  `c1` varchar(17) DEFAULT NULL
+  `c1` varchar(10) DEFAULT NULL
 ) ENGINE=MyISAM DEFAULT CHARSET=latin1
 drop table t1;
 select hex(concat(maketime(10,11,12)));
@@ -1992,7 +1992,7 @@ create table t1 as select concat(convert_tz('2004-01-01 12:00:00','+10:00','-6:0
 show create table t1;
 Table	Create Table
 t1	CREATE TABLE `t1` (
-  `c1` varchar(26) DEFAULT NULL
+  `c1` varchar(19) DEFAULT NULL
 ) ENGINE=MyISAM DEFAULT CHARSET=latin1
 drop table t1;
 select hex(concat(date_add('2004-01-01 12:00:00', interval 1 day)));
@@ -2002,7 +2002,7 @@ create table t1 as select concat(date_add('2004-01-01 12:00:00', interval 1 day)
 show create table t1;
 Table	Create Table
 t1	CREATE TABLE `t1` (
-  `c1` varchar(26) DEFAULT NULL
+  `c1` varchar(19) DEFAULT NULL
 ) ENGINE=MyISAM DEFAULT CHARSET=latin1
 select * from t1;
 c1
@@ -3205,8 +3205,8 @@ DATE_SUB(CAST('2007-08-03 17:33:00' AS DATETIME), INTERVAL 1 MINUTE) AS field_da
 SHOW CREATE TABLE t1;
 Table	Create Table
 t1	CREATE TABLE `t1` (
-  `field_str1` varchar(26) DEFAULT NULL,
-  `field1_str2` varchar(26) DEFAULT NULL,
+  `field_str1` varchar(19) DEFAULT NULL,
+  `field1_str2` varchar(19) DEFAULT NULL,
   `field_date` date DEFAULT NULL,
   `field_datetime` datetime DEFAULT NULL
 ) ENGINE=MyISAM DEFAULT CHARSET=latin1
@@ -3217,8 +3217,8 @@ DATE_SUB('2007-08-03 17:33:00', INTERVAL 1 MINUTE) AS field1_str2,
 DATE_SUB(DATE('2007-08-03'), INTERVAL 1 DAY) AS field_date,
 DATE_SUB(CAST('2007-08-03 17:33:00' AS DATETIME), INTERVAL 1 MINUTE) AS field_datetime;
 Catalog	Database	Table	Table_alias	Column	Column_alias	Type	Length	Max length	Is_null	Flags	Decimals	Charsetnr
-def					field_str1	254	26	10	Y	128	31	63
-def					field1_str2	254	26	19	Y	128	31	63
+def					field_str1	254	19	10	Y	128	0	63
+def					field1_str2	254	19	19	Y	128	0	63
 def					field_date	10	10	10	Y	128	0	63
 def					field_datetime	12	19	19	Y	128	0	63
 field_str1	field1_str2	field_date	field_datetime
@@ -3273,7 +3273,7 @@ CREATE TABLE t1(a char(215) CHARACTER SET utf8 NOT NULL DEFAULT '', KEY(a));
 INSERT INTO t1 VALUES ();
 SELECT maketime(`a`,`a`,`a`) FROM t1 GROUP BY 1;
 maketime(`a`,`a`,`a`)
-00:00:00
+00:00:00.000000
 DROP TABLE t1;
 SET sql_mode=default;
 #
