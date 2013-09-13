@@ -23,6 +23,10 @@
 
 var nosql = require("../..");
 
+function getDefaultAdapter() {
+  // return "ndb";
+  return "mysql";
+}
 function getProperties(adapter) {
   var properties = new nosql.ConnectionProperties(adapter);
 
@@ -37,4 +41,4 @@ function getProperties(adapter) {
 }
 
 exports.getProperties = getProperties;
-
+exports.getDefaultAdapter = getDefaultAdapter;

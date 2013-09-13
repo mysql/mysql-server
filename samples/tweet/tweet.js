@@ -36,7 +36,8 @@ var http   = require('http'),
     nosql  = require('../..'),
     udebug = unified_debug.getLogger("tweet.js"),
     getProperties = require("./tweet.properties.js").getProperties,
-    adapter = "ndb",
+    getDefaultAdapter = require("./tweet.properties.js").getDefaultAdapter,
+    adapter = getDefaultAdapter(),
     mainLoopComplete, parse_command, allOperations, operationMap;
 
 //////////////////////////////////////////
@@ -61,7 +62,6 @@ function Author(user_name, full_name) {
 
 function Tweet(author, message) {
   if(author !== undefined) {
-    this.id = null;
     this.date_created = new Date();
     this.author = author;
     this.message = message;
@@ -87,11 +87,11 @@ function Follow(follower, followed) {
     this.follower = follower;
     this.followed = followed;
   }
-  this.toString = function() {
-    return this.follower + " follows " + this.followed;
-  };
 }
 
+Follow.prototype.toString = function() {
+  return this.follower + " follows " + this.followed;
+};
 
 // OperationResponder is a common interface over 
 // two sorts of responses (console and HTTP)
@@ -99,35 +99,45 @@ function Follow(follower, followed) {
 function ConsoleOperationResponder(operation) {
   this.operation  = operation;
   this.error      = false;
-  this.setError   = function(e) { this.error = e; };
-  this.write      = function(x) { console.log(x); };
-  this.close      = function()  { 
+}
+
+ConsoleOperationResponder.prototype.setError = function(e) {
+ this.error = e;
+}
+
+ConsoleOperationResponder.prototype.write = function(x) {
+  console.log(x);
+}
+
+ConsoleOperationResponder.prototype.close = function() {
     if(this.error) { console.log("Error", this.error); }
     else           { console.log("Success", this.operation.result); }
     this.operation.session.close(mainLoopComplete);
-  };
 }
+
 
 function HttpOperationResponder(operation, httpResponse) {
   this.operation    = operation;
   this.httpResponse = httpResponse;
   this.statusCode   = 200;
-  this.setError     = function(e) { 
-    this.statusCode = 500;
-    this.operation.result = e;
-  };
-  this.write        = function(x) {
-    this.httpResponse.write(x);
-  }
-  this.close        = function() {
-    this.httpResponse.statusCode = this.statusCode;
-    this.write(JSON.stringify(this.operation.result));
-    this.write("\n");
-    this.httpResponse.end();
-    this.operation.session.close();
-  }; 
 }
 
+HttpOperationResponder.prototype.setError = function(e) { 
+  this.statusCode = 500;
+  this.operation.result = e;
+};
+
+HttpOperationResponder.prototype.write = function(x) {
+  this.httpResponse.write(x);
+};
+
+HttpOperationResponder.prototype.close = function() {
+  this.httpResponse.statusCode = this.statusCode;
+  this.write(JSON.stringify(this.operation.result));
+  this.write("\n");
+  this.httpResponse.end();
+  this.operation.session.close();
+}; 
 
 // ======== Callbacks run at various phases of a database operation ======= //
 
@@ -245,7 +255,6 @@ function Operation() {
   this.result       = {};    // Result object to be returned to the user
   this.data         = {};    // HTTP POST data
   this.isServer     = false; // True only for the start-HTTP-server operation
-  this.setResponder = function(x) { this.responder = x; };
 }
 
 
@@ -263,7 +272,7 @@ function Operation() {
 function AddUserOperation(params, data) {
   var author = new Author(params[0], data);
   Operation.call(this);    /* inherit */
-
+  
   this.run = function() {
     this.session.persist(author, onComplete, author, this, onFinal);
   };
@@ -535,7 +544,7 @@ function RunWebServerOperation(cli_params, cli_data) {
     function runOperation() {
       var operation = parse_command(request.method, params, data);
       if(operation && ! operation.isServer) {
-        operation.setResponder(new HttpOperationResponder(operation, response));
+        operation.responder = new HttpOperationResponder(operation, response);
         sessionFactory.openSession(null, onOpenSession, operation);  
       } 
       else hangup(400);
@@ -594,7 +603,7 @@ function get_cmdline_args() {
   var cmdList = [];
   var usageMessage = 
     "Usage: node tweet {options} {command} {command arguments}\n" +
-    "         -a <adapter>:  run using the named adapter (default: ndb)\n" + 
+    "         -a <adapter>:  run using the named adapter (default: "+adapter+")\n"+
     "         -h or --help: print this message\n" +
     "         -d or --debug: set the debug flag\n" +
     "               --detail: set the detail debug flag\n" +
@@ -655,7 +664,7 @@ function runCmdlineOperation(err, sessionFactory, operation) {
     operation.runServer(sessionFactory);
   }
   else {
-    operation.setResponder(new ConsoleOperationResponder(operation));
+    operation.responder = new ConsoleOperationResponder(operation);
     sessionFactory.openSession(null, onOpenSession, operation);
   }
 }
