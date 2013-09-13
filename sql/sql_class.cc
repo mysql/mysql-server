@@ -3322,7 +3322,7 @@ void Query_arena::cleanup_stmt()
 */
 
 Statement::Statement(LEX *lex_arg, MEM_ROOT *mem_root_arg,
-                     enum enum_state state_arg, ulong id_arg)
+                     enum_state state_arg, ulong id_arg)
   :Query_arena(mem_root_arg, state_arg),
   id(id_arg),
   mark_used_columns(MARK_COLUMNS_READ),

@@ -883,7 +883,7 @@ public:
   Statement() {}
 
   Statement(LEX *lex_arg, MEM_ROOT *mem_root_arg,
-            enum enum_state state_arg, ulong id_arg);
+            enum_state state_arg, ulong id_arg);
   virtual ~Statement();
 
   /* Assign execution context (note: not all members) of given stmt to self */
