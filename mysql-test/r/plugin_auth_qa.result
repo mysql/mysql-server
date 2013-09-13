@@ -1,3 +1,5 @@
+call mtr.add_suppression("Did not write failed .* into binary log while "
+                         "granting/revoking privileges in databases.");
 CREATE DATABASE test_user_db;
 SELECT user,plugin,authentication_string FROM mysql.user WHERE user != 'root';
 user	plugin	authentication_string
