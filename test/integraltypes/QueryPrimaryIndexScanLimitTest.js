@@ -99,7 +99,7 @@ testQueries.run = function() {
           queryTest.resultIds[j] = results[j].id;
         }
         if (queryTest.expected.length !== results.length) {
-          testCase.errorIfNotEqual('q' + i + ' wrong results: expected ' + 
+          testCase.errorIfNotEqual(queryTest.name + ' wrong results: expected ' + 
               queryTest.expected + '; actual: ' + queryTest.resultIds,
               queryTest.expected.length, results.length);
         } else {
