@@ -485,8 +485,10 @@ bool Master_info::read_info(Rpl_info_handler *from)
 
   if (auto_position != 0 && gtid_mode != 3)
   {
-    my_error(ER_AUTO_POSITION_REQUIRES_GTID_MODE_ON, MYF(0));
-    DBUG_RETURN(true);
+    auto_position = 0;
+    sql_print_warning("MASTER_AUTO_POSITION in the master info file was 1 but "
+                      "server is started with @@GLOBAL.GTID_MODE = OFF. Forcing "
+                      "MASTER_AUTO_POSITION to 0.");
   }
 
 #ifndef HAVE_OPENSSL
