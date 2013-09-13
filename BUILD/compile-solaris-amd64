@@ -1,8 +1,8 @@
 #!/bin/sh
 # used for sol10-64 builder in buildbot, don't use it elsewhere
-export LDFLAGS='-m64'
-export CFLAGS='-D__sun -m64 -mtune=athlon64'
-export CXXFLAGS='-D__sun -m64 -mtune=athlon64'
-cmake -DBUILD_CONFIG=mysql_release -DWITH_JEMALLOC=NO .
-gmake -j6
+export LDFLAGS='-m64 -lmtmalloc -R/usr/sfw/lib/64'
+export CFLAGS='-mtune=i386 -D__sun -m64 -mtune=athlon64'
+export CXXFLAGS='-mtune=i386 -D__sun -m64 -mtune=athlon64'
+cmake . -DCMAKE_INSTALL_PREFIX=/usr/local/mysql -DWITH_EXTRA_CHARSETS=complex -DWITH_READLINE=ON -DWITH_SSL=bundled -DWITH_MAX=ON -DWITH_EMBEDDED_SERVER=ON -DWITH_JEMALLOC=NO
+gmake -j6 VERBOSE=1
 
