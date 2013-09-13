@@ -93,6 +93,8 @@ PATENT RIGHTS GRANT:
 #include <portability/toku_pthread.h>
 
 #include "locktree.h"
+#include "lock_request.h"
+
 #include <util/status.h>
 
 namespace toku {
@@ -373,6 +375,35 @@ bool locktree::manager::memory_tracker::out_of_locks(void) const {
     return m_mgr->m_current_lock_memory >= m_mgr->m_max_lock_memory;
 }
 
+int locktree::manager::iterate_pending_lock_requests(
+        lock_request_iterate_callback callback, void *extra) {
+    mutex_lock();
+    int r = 0;
+    size_t num_locktrees = m_locktree_map.size();
+    for (size_t i = 0; i < num_locktrees && r == 0; i++) {
+        locktree *lt;
+        r = m_locktree_map.fetch(i, &lt);
+        invariant_zero(r);
+
+        struct lt_lock_request_info *info = &lt->m_lock_request_info;
+        toku_mutex_lock(&info->mutex);
+
+        size_t num_requests = info->pending_lock_requests.size();
+        for (size_t k = 0; k < num_requests && r == 0; k++) {
+            lock_request *req;
+            r = info->pending_lock_requests.fetch(k, &req);
+            invariant_zero(r);
+            r = callback(lt->m_dict_id, req->get_txnid(),
+                         req->get_left_key(), req->get_right_key(),
+                         req->get_conflicting_txnid(), req->get_start_time(), extra);
+        }
+
+        toku_mutex_unlock(&info->mutex);
+    }
+    mutex_unlock();
+    return r;
+}
+
 #define STATUS_INIT(k,c,t,l,inc) TOKUDB_STATUS_INIT(status, k, c, t, "locktree: " l, inc)
 
 void locktree::manager::status_init(void) {
@@ -451,6 +482,5 @@ void locktree::manager::get_status(LTM_STATUS statp) {
     *statp = status;
 }
 #undef STATUS_VALUE
-
 
 } /* namespace toku */

@@ -100,6 +100,8 @@ namespace toku {
 // initialize a lock request's internals
 void lock_request::create(uint64_t wait_time) {
     m_txnid = TXNID_NONE;
+    m_conflicting_txnid = TXNID_NONE;
+    m_start_time = 0;
     m_left_key = nullptr;
     m_right_key = nullptr;
     toku_init_dbt(&m_left_key_copy);
@@ -215,8 +217,10 @@ int lock_request::start(void) {
     // and check for a deadlock. if there is one, complete it as failed
     if (r == DB_LOCK_NOTGRANTED) {
         copy_keys();
-        toku_mutex_lock(&m_info->mutex);
         m_state = state::PENDING;
+        m_start_time = toku_current_time_microsec() / 1000;
+        m_conflicting_txnid = conflicts.get(0);
+        toku_mutex_lock(&m_info->mutex);
         insert_into_lock_requests();
         if (deadlock_exists(conflicts)) {
             remove_from_lock_requests();
@@ -287,6 +291,18 @@ const DBT *lock_request::get_left_key(void) const {
 
 const DBT *lock_request::get_right_key(void) const {
     return m_right_key;
+}
+
+TXNID lock_request::get_txnid(void) const {
+    return m_txnid;
+}
+
+uint64_t lock_request::get_start_time(void) const {
+    return m_start_time;
+}
+
+TXNID lock_request::get_conflicting_txnid(void) const {
+    return m_conflicting_txnid;
 }
 
 int lock_request::retry(void) {

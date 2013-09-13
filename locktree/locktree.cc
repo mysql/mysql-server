@@ -770,4 +770,8 @@ int locktree::compare(const locktree *lt) {
     }
 }
 
+DICTIONARY_ID locktree::get_dict_id() const {
+    return m_dict_id;
+}
+
 } /* namespace toku */

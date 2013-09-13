@@ -725,6 +725,17 @@ toku_db_stat64(DB * db, DB_TXN *txn, DB_BTREE_STAT64 *s) {
     return 0;
 }
 
+static const char *
+toku_db_get_dname(DB *db) {
+    if (!db_opened(db)) {
+        return nullptr;
+    }
+    if (db->i->dname == nullptr) {
+        return ""; 
+    }
+    return db->i->dname;
+}
+
 static int 
 toku_db_keys_range64(DB* db, DB_TXN* txn __attribute__((__unused__)), DBT* keyleft, DBT* keyright, uint64_t* less, uint64_t* left, uint64_t* between, uint64_t *right, uint64_t *greater, bool* middle_3_exact) {
     HANDLE_PANICKED_DB(db);
@@ -1036,6 +1047,7 @@ toku_db_create(DB ** db, DB_ENV * env, uint32_t flags) {
     USDB(stat64);
     USDB(get_fractal_tree_info64);
     USDB(iterate_fractal_tree_block_map);
+    USDB(get_dname);
     USDB(verify_with_progress);
     USDB(cursor);
     USDB(dbt_pos_infty);

@@ -284,6 +284,7 @@ struct tokutxn {
     TOKUTXN_STATE state;
     uint32_t num_pin; // number of threads (all hot indexes) that want this
                       // txn to not transition to commit or abort
+    uint64_t client_id;
 };
 
 static inline int
