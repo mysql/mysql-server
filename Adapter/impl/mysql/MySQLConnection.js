@@ -32,9 +32,6 @@ var mysql  = require("mysql"),
     op_stats = stats_module.getWriter(["spi","mysql","DBOperation"]),
     mysql_code_to_sqlstate_map = require("../common/MysqlErrToSQLStateMap");
     
-/** MAX_INT is used to define the upper LIMIT for queries */
-var MAX_INT = Math.pow(2, 32) - 1;
-
 /** MySQLConnection wraps a mysql connection and implements the DBSession contract.
  *  @param pooledConnection the felix connection to wrap
  *  @param connectionPool the associated connection pool
@@ -862,7 +859,8 @@ exports.DBSession.prototype.buildReadOperation = function(dbIndexHandler, keys, 
   return new ReadOperation(this, dbTableHandler, selectSQL, keysArray, callback);
 };
 
-
+/** maximum limit parameter is some large number */
+var MAX_LIMIT = Math.pow(2, 52);
 exports.DBSession.prototype.buildScanOperation = function(queryDomainType, parameterValues, transaction, callback) {
   udebug.log_detail('dbSession.buildScanOperation with queryDomainType:', queryDomainType,
       'parameterValues', parameterValues);
@@ -906,32 +904,24 @@ exports.DBSession.prototype.buildScanOperation = function(queryDomainType, param
         scanSQL += queryHandler.dbIndexHandler.fieldNumberToColumnMap[0].name;
         scanSQL += ' DESC ';
       } else {
-        err = new Error('Bad order parameter \'' + order + '\': must be ignoreCase Asc or Desc');
+        err = new Error('Bad order parameter \'' + order + '\'; order must be ignoreCase asc or desc.');
         return new ErrorOperation(err, callback);
       }
     } else {
       // bad order parameter; not ASC or DESC
-      err = new Error('Bad order parameter; must be ASC or DESC');
+      err = new Error('Bad order parameter \'' + order + '\'; order must be ignoreCase asc or desc.');
       return new ErrorOperation(err, callback);
     }
   }
   // handle SKIP and LIMIT; must use index
   if (typeof(skip) !== 'undefined' || typeof(limit) !== 'undefined') {
-    if (queryHandler.queryType !== 2 || typeof(order) !== 'string') {
-      err = new Error('Bad skip \'' + skip + '\' or limit \'' + limit + '\' parameter; must be used only with order');
+    if (typeof(skip) !== 'undefined' && (queryHandler.queryType !== 2 || typeof(order) !== 'string')) {
+      err = new Error('Bad skip parameter \'' + skip + '\'; must be used only with index scan.');
       return new ErrorOperation(err, callback);
     }
     // set default values if not provided
     if (typeof(skip) === 'undefined') skip = 0;
-    if (typeof(limit) === 'undefined') limit = MAX_INT;
-    if (skip < 0 || skip > MAX_INT) {
-      err = new Error('Bad skip parameter \'' + skip + '\'; must be >= 0 and <= ' + MAX_INT);
-      return new ErrorOperation(err, callback);
-    }
-    if (limit < 0 || limit > MAX_INT) {
-      err = new Error('Bad limit parameter \'' + limit + '\'; must be >= 0 and <= ' + MAX_INT);
-      return new ErrorOperation(err, callback);
-    }
+    if (typeof(limit) === 'undefined') limit = MAX_LIMIT;
 
     scanSQL += ' LIMIT ' + skip + ' , ' + limit;
   }

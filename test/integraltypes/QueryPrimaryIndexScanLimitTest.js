@@ -27,8 +27,8 @@ t0.run = function() {
   this.pass();
 };
 
-/** limit cannot be used without order */
-var q1 = {name: 'q1', p1: 4, p2: 6, expected: [], limit: 0, expectedError: 'Bad limit parameter', queryType: 2, ordered: false, predicate: function(qdt) {
+/** limit can be used without order */
+var q1 = {name: 'q1', p1: 4, p2: 6, expected: [], limit: 0, queryType: 2, ordered: false, predicate: function(qdt) {
   return qdt.id.ge(qdt.param('p1')).and(qdt.id.le(qdt.param('p2')));
 }};
 
@@ -37,7 +37,7 @@ var q2 = {name: 'q2', p1: 4, p2: 6, expected: [], limit: 0, order: 'ASC', queryT
   return qdt.id.ge(qdt.param('p1')).and(qdt.id.le(qdt.param('p2')));
 }};
 
-/** limit must be between 0 and MAX_INT */
+/** limit must be between 0 and MAX_LIMIT */
 var q3 = {name: 'q3', p1: 4, p2: 6, expected: [], limit: -1, order: 'ASC', expectedError: 'Bad limit parameter', queryType: 2, ordered: false, predicate: function(qdt) {
   return qdt.id.ge(qdt.param('p1')).and(qdt.id.le(qdt.param('p2')));
 }};
@@ -57,7 +57,7 @@ var q6 = {name: 'q6', p1: 4, p2: 6, expected: [], skip: 0, expectedError: 'Bad s
   return qdt.id.ge(qdt.param('p1')).and(qdt.id.le(qdt.param('p2')));
 }};
 
-/** skip must be between 0 and MAX_INT */
+/** skip must be between 0 and MAX_SKIP */
 var q7 = {name: 'q7', p1: 4, p2: 6, expected: [], skip: -1, order: 'ASC', expectedError: 'Bad skip parameter', queryType: 2, ordered: false, predicate: function(qdt) {
   return qdt.id.ge(qdt.param('p1')).and(qdt.id.le(qdt.param('p2')));
 }};
