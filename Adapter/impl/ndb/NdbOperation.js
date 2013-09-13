@@ -37,6 +37,7 @@ prepareFilterSpec = require("./NdbScanFilter.js").prepareFilterSpec,
     opcodes       = doc.OperationCodes,
     udebug        = unified_debug.getLogger("NdbOperation.js");
 
+var storeNativeConstructorInMapping;
 
 /* Constructors.
    All of these use prototypes directly from the documentation.
@@ -184,6 +185,7 @@ function encodeRowBuffer(op) {
       }
       err = adapter.impl.encoderWrite(col[i], value, op.buffers.row, offset);
       if(err) { 
+        udebug.log("encoderWrite:", err);
         errors[col[i].name] = err;
       }
     }
@@ -306,9 +308,9 @@ DBOperation.prototype.prepareScan = function(ndbTransaction, callback) {
 
   scanSpec[ScanHelper.lock_mode] = constants.LockModes[this.lockMode];
 
-  if(typeof this.params.order !== 'undefined') {
+  if(this.params.order !== undefined) {
     var flags = constants.Scan.flags.SF_OrderBy;
-    if(this.params.order == 'desc') {
+    if(this.params.order.toLocaleLowerCase() == 'desc') {
       flags |= constants.Scan.flags.SF_Descending;
     }
     scanSpec[ScanHelper.flags] = flags;  
@@ -406,11 +408,9 @@ function buildValueObject(op) {
 
 
 function getScanResults(scanop, userCallback) {
-  var buffer;
-  var results;
-  var dbSession = scanop.transaction.dbSession;
-  var ResultConstructor = scanop.tableHandler.ValueObject;
-  var nSkip, maxRow, rowCount;
+  var buffer, results, dbSession, ResultConstructor, nSkip, maxRow;
+  dbSession = scanop.transaction.dbSession;
+  ResultConstructor = scanop.tableHandler.ValueObject;
   var postScanCallback = {
     fn  : userCallback,
     arg0: null,
@@ -421,9 +421,10 @@ function getScanResults(scanop, userCallback) {
   nSkip = 0;
   maxRow = 100000000000;
   if(scanop.params) {
-    if(scanop.params.skip > 0)  {  nSkip = scanop.params.skip;         }
-    if(scanop.params.limit > 0) { maxRow = nSkip + scanop.params.limit; }
+    if(scanop.params.skip > 0)   { nSkip = scanop.params.skip;           }
+    if(scanop.params.limit >= 0) { maxRow = nSkip + scanop.params.limit; }
   }
+  udebug.log("skip", nSkip, "+ limit", scanop.params.limit, "=", maxRow);
 
   if(ResultConstructor == null) {
     storeNativeConstructorInMapping(scanop.tableHandler);
@@ -473,23 +474,26 @@ function getScanResults(scanop, userCallback) {
     }
     
     /* Gather more results. */
-    while(status === 0) {
+    while(status === 0 && results.length < maxRow) {
       udebug.log("gather() 0 Result_Ready");
       buffer = new Buffer(recordSize);
       status = scanop.ndbop.nextResult(buffer);
       if(status === 0) {
         results.push(new ResultConstructor(buffer));
       }
-      if(rowCount > maxRow) status = 1; // finished
     }
     
-    if(status == 2) {  // No more locally cached results
+    if(status == 2 && results.length < maxRow) { 
       udebug.log("gather() 2 Cache_Empty");
       fetch();
     }
     else {  // end of scan.
-      // assert(status === 1);
-      for(i = 0 ; i < nSkip ; i++) results.shift();  // fixme, do something more efficient
+      /* It is possible to have one row too many, due to the optimistic fetch */
+      if(results.length > maxRow) results.pop();
+      /* Now remove the rows that should have been skipped 
+         (fixme: do something more efficient) */
+      for(i = 0 ; i < nSkip ; i++) results.shift();
+    
       udebug.log("gather() 1 End_Of_Scan.  Final length:", results.length);
       scanop.result.success = true;
       scanop.result.value = results;
