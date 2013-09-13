@@ -2,6 +2,7 @@
 --source include/not_embedded.inc
 --source include/mysql_upgrade_preparation.inc
 CALL mtr.add_suppression("Plugin test_plugin_server reported: 'Wrong password supplied for plug_dest'");
+call mtr.add_suppression("Did not write failed .*");
 
 query_vertical SELECT PLUGIN_STATUS, PLUGIN_TYPE, PLUGIN_DESCRIPTION
   FROM INFORMATION_SCHEMA.PLUGINS WHERE PLUGIN_NAME='test_plugin_server';

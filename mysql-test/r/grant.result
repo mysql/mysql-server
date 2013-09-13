@@ -2,6 +2,7 @@ SET @old_log_bin_trust_function_creators= @@global.log_bin_trust_function_creato
 SET GLOBAL log_bin_trust_function_creators = 1;
 drop table if exists t1;
 drop database if exists mysqltest;
+call mtr.add_suppression("Did not write failed .* ");
 SET NAMES binary;
 delete from mysql.user where user='mysqltest_1';
 delete from mysql.db where user='mysqltest_1';
