@@ -7,6 +7,11 @@ source include/not_embedded.inc;
 source include/have_log_bin.inc;
 
 CALL mtr.add_suppression("Unsafe statement written to the binary log using statement format since BINLOG_FORMAT = STATEMENT.");
+call mtr.add_suppression("Did not write failed .* into binary log while "
+                         "granting/revoking privileges in databases.");
+call mtr.add_suppression("Did not write failed .* into binary log while "
+                         "storing table level and column level grants "
+                         "in the privilege tables.");
 
 --disable_warnings
 drop table if exists t1,t2,t3;
