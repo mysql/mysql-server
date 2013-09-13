@@ -41,6 +41,35 @@ node tweet post tweet caligula '@agrippina Rome is terrible!!!'
 node tweet get tweets-at agrippina
 node tweet get tweets-about carthage
 node tweet get tweets-by nero
+node tweet get tweets-recent 5
 
 node tweet get followers uncle_claudius # nobody
 node tweet get following agrippina
+
+node tweet start server 7800 & 
+
+# Note that with curl -d 'data' you cannot start data with an @ sign
+(
+  sleep 2
+  curl http://localhost:7800/tweets-at/agrippina 
+  curl http://localhost:7800/tweets-about/carthage 
+  curl http://localhost:7800/tweets-about/aqueduct
+  curl http://localhost:7800/tweet/nero -d \
+   'help! my #aqueduct has run dry again! @uncle_claudius!'
+  curl http://localhost:7800/tweets-about/aqueduct
+  curl http://localhost:7800/tweets-at/uncle_claudius 
+
+  # Now delete everyone.  Afterwards the database will be empty
+  # due to cascading deletes.
+  curl -X DELETE http://localhost:7800/user/caligula
+  curl -X DELETE http://localhost:7800/user/uncle_claudius
+  curl -X DELETE http://localhost:7800/user/agrippina
+  curl -X DELETE http://localhost:7800/user/nero
+
+  # Try to delete someone a second time & you get an error:
+  curl -X DELETE http://localhost:7800/user/uncle_claudius
+
+  curl http://localhost:7800/tweets-recent/10  # empty
+)
+
+kill %1
