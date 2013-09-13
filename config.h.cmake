@@ -119,7 +119,6 @@
 #cmakedefine HAVE_FSEEKO 1
 #cmakedefine HAVE_FSYNC 1
 #cmakedefine HAVE_GETADDRINFO 1
-#cmakedefine HAVE_GETCWD 1
 #cmakedefine HAVE_GETHOSTBYADDR_R 1
 #cmakedefine HAVE_GETHRTIME 1
 #cmakedefine HAVE_GETNAMEINFO 1
@@ -131,7 +130,6 @@
 #cmakedefine HAVE_GETRLIMIT 1
 #cmakedefine HAVE_GETRUSAGE 1
 #cmakedefine HAVE_GETTIMEOFDAY 1
-#cmakedefine HAVE_GETWD 1
 #cmakedefine HAVE_INITGROUPS 1
 #cmakedefine HAVE_ISSETUGID 1
 #cmakedefine HAVE_GETUID 1
@@ -151,7 +149,6 @@
 #cmakedefine HAVE_DECL_TGOTO 1
 #cmakedefine HAVE_DECL_MHA_MAPSIZE_VA
 #cmakedefine HAVE_MALLOC_INFO 1
-#cmakedefine HAVE_MKSTEMP 1
 #cmakedefine HAVE_MLOCKALL 1
 #cmakedefine HAVE_MMAP 1
 #cmakedefine HAVE_MMAP64 1
@@ -164,7 +161,6 @@
 #cmakedefine HAVE_RDTSCLL 1
 #cmakedefine HAVE_PTHREAD_ATTR_GETGUARDSIZE 1
 #cmakedefine HAVE_PTHREAD_CONDATTR_SETCLOCK 1
-#cmakedefine HAVE_PTHREAD_RWLOCK_RDLOCK 1
 #cmakedefine HAVE_PTHREAD_SETSCHEDPARAM 1
 #cmakedefine HAVE_PTHREAD_SIGMASK 1
 #cmakedefine HAVE_PTHREAD_YIELD_NP 1
@@ -174,7 +170,6 @@
 #cmakedefine HAVE_READLINK 1
 #cmakedefine HAVE_REALPATH 1
 #cmakedefine HAVE_RINT 1
-#cmakedefine HAVE_RWLOCK_INIT 1
 #cmakedefine HAVE_SCHED_YIELD 1
 #cmakedefine HAVE_SELECT 1
 #cmakedefine HAVE_SETFD 1
@@ -192,7 +187,6 @@
 #cmakedefine HAVE_STRTOK_R 1
 #cmakedefine HAVE_STRTOLL 1
 #cmakedefine HAVE_TELL 1
-#cmakedefine HAVE_TEMPNAM 1
 #cmakedefine HAVE_THR_YIELD 1
 #cmakedefine HAVE_TIMES 1
 #cmakedefine HAVE_VASPRINTF 1
