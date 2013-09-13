@@ -4664,6 +4664,7 @@ int mysql_table_grant(THD *thd, TABLE_LIST *table_list,
   if (!revoke_grant)
     create_new_users= test_if_create_new_users(thd);
   bool result= FALSE;
+  bool is_partial_execution= false;
   mysql_rwlock_wrlock(&LOCK_grant);
   mysql_mutex_lock(&acl_cache->lock);
   MEM_ROOT *old_root= thd->mem_root;
@@ -4673,6 +4674,7 @@ int mysql_table_grant(THD *thd, TABLE_LIST *table_list,
   while ((tmp_Str = str_list++))
   {
     int error;
+    bool is_user_applied= true;
     GRANT_TABLE *grant_table;
     if (!(Str= get_current_user(thd, tmp_Str)))
     {
@@ -4767,6 +4769,7 @@ int mysql_table_grant(THD *thd, TABLE_LIST *table_list,
     {
       /* Should only happen if table is crashed */
       result= TRUE;			       /* purecov: deadcode */
+      is_user_applied= false;
     }
     else if (tables[2].table)
     {
@@ -4776,8 +4779,11 @@ int mysql_table_grant(THD *thd, TABLE_LIST *table_list,
 				rights, revoke_grant)))
       {
 	result= TRUE;
+	is_user_applied= false;
       }
     }
+    if (is_user_applied)
+      is_partial_execution= true;
   }
   thd->mem_root= old_root;
   mysql_mutex_unlock(&acl_cache->lock);
@@ -4790,11 +4796,20 @@ int mysql_table_grant(THD *thd, TABLE_LIST *table_list,
     the master will mismatch the error code on the slave), the
     operation will already be executed (thence revoking or granting
     additional privileges on the slave).
-    When some error happens, even partial, a incident event is logged
-    instead stating that manual reconciliation is needed.
+    Before ACLs are changed to execute fully or none at all, when
+    some error happens, write an incident if one or more users are
+    granted/revoked successfully (it has a partial execution), a
+    warning if no user is granted/revoked successfully.
   */
   if (result)
-    mysql_bin_log.write_incident(thd, true /* need_lock_log=true */);
+  {
+    if (is_partial_execution)
+      mysql_bin_log.write_incident(thd, true /* need_lock_log=true */);
+    else
+      sql_print_warning("Did not write failed '%s' into binary log while "
+                        "storing table level and column level grants in "
+                        "the privilege tables.", thd->query());
+  }
   else
     result= result |
             write_bin_log(thd, FALSE, thd->query(), thd->query_length(),
@@ -4923,6 +4938,7 @@ bool mysql_routine_grant(THD *thd, TABLE_LIST *table_list, bool is_proc,
 
   DBUG_PRINT("info",("now time to iterate and add users"));
 
+  bool is_partial_execution= false;
   while ((tmp_Str= str_list++))
   {
     int error;
@@ -4978,14 +4994,28 @@ bool mysql_routine_grant(THD *thd, TABLE_LIST *table_list, bool is_proc,
       result= TRUE;
       continue;
     }
+    is_partial_execution= true;
   }
   thd->mem_root= old_root;
   mysql_mutex_unlock(&acl_cache->lock);
 
   if (write_to_binlog)
   {
+    /*
+      Before ACLs are changed to execute fully or none at all, when
+      some error happens, write an incident if one or more users are
+      granted/revoked successfully (it has a partial execution), a
+      warning if no user is granted/revoked successfully.
+    */
     if (result)
-      mysql_bin_log.write_incident(thd, true /* need_lock_log=true */);
+    {
+      if (is_partial_execution)
+        mysql_bin_log.write_incident(thd, true /* need_lock_log=true */);
+      else
+        sql_print_warning("Did not write failed '%s' into binary log while "
+                          "storing routine level grants in the privilege "
+                          "tables.", thd->query());
+    }
     else
     {
       /*
@@ -5194,9 +5224,11 @@ bool mysql_grant(THD *thd, const char *db, List <LEX_USER> &list,
   mysql_mutex_lock(&acl_cache->lock);
   grant_version++;
 
-  int result=0;
+  int result= 0;
+  bool is_partial_execution= false;
   while ((tmp_Str = str_list++))
   {
+    bool is_user_applied= true;
     if (!(Str= get_current_user(thd, tmp_Str)))
     {
       result= TRUE;
@@ -5215,7 +5247,10 @@ bool mysql_grant(THD *thd, const char *db, List <LEX_USER> &list,
                            (!db ? rights : 0), revoke_grant, create_new_users,
                            test(thd->variables.sql_mode &
                                 MODE_NO_AUTO_CREATE_USER)))
+    {
       result= -1;
+      is_user_applied= false;
+    }
     else if (db)
     {
       ulong db_rights= rights & DB_ACLS;
@@ -5223,12 +5258,16 @@ bool mysql_grant(THD *thd, const char *db, List <LEX_USER> &list,
       {
 	if (replace_db_table(tables[1].table, db, *Str, db_rights,
 			     revoke_grant))
+        {
 	  result= -1;
+	  is_user_applied= false;
+        }
       }
       else
       {
 	my_error(ER_WRONG_USAGE, MYF(0), "DB GRANT", "GLOBAL PRIVILEGES");
 	result= -1;
+	is_user_applied= false;
       }
       thd->add_to_binlog_accessed_dbs(db);
     }
@@ -5237,13 +5276,31 @@ bool mysql_grant(THD *thd, const char *db, List <LEX_USER> &list,
       if (replace_proxies_priv_table (thd, tables[1].table, Str, proxied_user,
                                     rights & GRANT_ACL ? TRUE : FALSE, 
                                     revoke_grant))
+      {
         result= -1;
+        is_user_applied= false;
+      }
     }
+    if (is_user_applied)
+      is_partial_execution= true;
   }
   mysql_mutex_unlock(&acl_cache->lock);
 
+  /*
+    Before ACLs are changed to execute fully or none at all, when
+    some error happens, write an incident if one or more users are
+    granted/revoked successfully (it has a partial execution), a
+    warning if no user is granted/revoked successfully.
+  */
   if (result)
-    mysql_bin_log.write_incident(thd, true /* need_lock_log=true */);
+  {
+    if (is_partial_execution)
+      mysql_bin_log.write_incident(thd, true /* need_lock_log=true */);
+    else
+      sql_print_warning("Did not write failed '%s' into binary log while "
+                        "granting/revoking privileges in databases.",
+                        thd->query());
+  }
   else
   {
     if (thd->rewritten_query.length())
@@ -8217,8 +8274,11 @@ bool mysql_revoke_all(THD *thd,  List <LEX_USER> &list)
 
   LEX_USER *lex_user, *tmp_lex_user;
   List_iterator <LEX_USER> user_list(list);
+
+  bool is_partial_execution= false;
   while ((tmp_lex_user= user_list++))
   {
+    bool is_user_applied= true;
     if (!(lex_user= get_current_user(thd, tmp_lex_user)))
     {
       result= -1;
@@ -8269,6 +8329,7 @@ bool mysql_revoke_all(THD *thd,  List <LEX_USER> &list)
 	    continue;
 	  }
 	  result= -1; // Something went wrong
+	  is_user_applied= false;
 	}
 	counter++;
       }
@@ -8296,6 +8357,7 @@ bool mysql_revoke_all(THD *thd,  List <LEX_USER> &list)
 				  ~(ulong)0, 0, 1))
 	  {
 	    result= -1;
+	    is_user_applied= false;
 	  }
 	  else
 	  {
@@ -8315,6 +8377,7 @@ bool mysql_revoke_all(THD *thd,  List <LEX_USER> &list)
 	      continue;
 	    }
 	    result= -1;
+	    is_user_applied= false;
 	  }
 	}
 	counter++;
@@ -8346,10 +8409,13 @@ bool mysql_revoke_all(THD *thd,  List <LEX_USER> &list)
 	    continue;
 	  }
 	  result= -1;	// Something went wrong
+	  is_user_applied= false;
 	}
 	counter++;
       }
     } while (revoked);
+    if (is_user_applied)
+      is_partial_execution= true;
   }
 
   mysql_mutex_unlock(&acl_cache->lock);
@@ -8357,8 +8423,21 @@ bool mysql_revoke_all(THD *thd,  List <LEX_USER> &list)
   if (result)
     my_message(ER_REVOKE_GRANTS, ER(ER_REVOKE_GRANTS), MYF(0));
 
+  /*
+    Before ACLs are changed to execute fully or none at all, when
+    some error happens, write an incident if one or more users are
+    revoked successfully (it has a partial execution), a warning
+    if no user is revoked successfully.
+  */
   if (result)
-    mysql_bin_log.write_incident(thd, true /* need_lock_log=true */);
+  {
+    if (is_partial_execution)
+      mysql_bin_log.write_incident(thd, true /* need_lock_log=true */);
+    else
+      sql_print_warning("Did not write failed '%s' into binary log while "
+                        "revoking all_privileges from a list of users.",
+                        thd->query());
+  }
   else
   {
     result= result |
