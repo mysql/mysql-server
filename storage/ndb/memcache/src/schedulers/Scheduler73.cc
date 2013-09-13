@@ -532,7 +532,7 @@ Scheduler73::Cluster::Cluster(Global *global, int _id) :
   ndb_conn->set_max_adaptive_send_time(1);
 
   /* How many NDB objects are needed for the desired performance? */
-  instances.initial = conf->figureInFlightTransactions(id);
+  instances.initial = (int) conf->figureInFlightTransactions(id);
   while(instances.initial % global->nthreads) instances.initial++; // round up
 
   /* Get a multi-wait Poll Group */
