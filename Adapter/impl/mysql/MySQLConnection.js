@@ -532,7 +532,7 @@ function ScanOperation(dbSession, dbTableHandler, sql, parameters, callback) {
       op.result.success = true;
       // convert the felix result into the user result
       for (i = 0; i < rows.length; ++i) {
-        rows[i] = dbTableHandler.applyMappingToResult(rows[i]);
+        rows[i] = dbTableHandler.applyMappingToResult(rows[i], 'mysql');
       }
       op.callback(err, op);
     }
@@ -545,7 +545,7 @@ function ScanOperation(dbSession, dbTableHandler, sql, parameters, callback) {
     connection.query(
         {sql: this.sql, 
           values: this.parameters,
-          typeCase: this.typeCase
+          typeCast: this.typeCast
         },
         onScan);
   };
