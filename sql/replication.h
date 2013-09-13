@@ -37,6 +37,7 @@ enum Trans_flags {
 */
 typedef struct Trans_param {
   uint32 server_id;
+  my_thread_id thread_id;
   uint32 flags;
 
   /*
@@ -55,6 +56,31 @@ typedef struct Trans_param {
 */
 typedef struct Trans_observer {
   uint32 len;
+
+  /**
+     This callback is called before transaction commit
+
+     This callback is called right before write binlog cache to
+     binary log.
+
+     @param param The parameter for transaction observers
+
+     @retval 0 Sucess
+     @retval 1 Failure
+  */
+  int (*before_commit)(Trans_param *param);
+
+  /**
+     This callback is called before transaction rollback
+
+     This callback is called before rollback to storage engines.
+
+     @param param The parameter for transaction observers
+
+     @retval 0 Sucess
+     @retval 1 Failure
+  */
+  int (*before_rollback)(Trans_param *param);
 
   /**
      This callback is called after transaction commit

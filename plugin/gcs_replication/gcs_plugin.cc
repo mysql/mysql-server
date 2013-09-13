@@ -76,6 +76,40 @@ Server_state_observer server_state_observer = {
   gcs_after_server_shutdown,     //after shutdown
 };
 
+int gcs_trans_before_commit(Trans_param *param)
+{
+  DBUG_ENTER("gcs_trans_before_commit");
+  DBUG_RETURN(0);
+}
+
+int gcs_trans_before_rollback(Trans_param *param)
+{
+  DBUG_ENTER("gcs_trans_before_rollback");
+  DBUG_RETURN(0);
+}
+
+int gcs_trans_after_commit(Trans_param *param)
+{
+  DBUG_ENTER("gcs_trans_after_commit");
+  DBUG_RETURN(0);
+}
+
+int gcs_trans_after_rollback(Trans_param *param)
+{
+  DBUG_ENTER("gcs_trans_after_rollback");
+  DBUG_RETURN(0);
+}
+
+
+Trans_observer trans_observer = {
+  sizeof(Trans_observer),
+
+  gcs_trans_before_commit,
+  gcs_trans_before_rollback,
+  gcs_trans_after_commit,
+  gcs_trans_after_rollback,
+};
+
 struct st_mysql_gcs_rpl gcs_rpl_descriptor =
 {
   MYSQL_GCS_REPLICATION_INTERFACE_VERSION,
@@ -108,6 +142,12 @@ int gcs_replication_init(MYSQL_PLUGIN plugin_info)
   if(register_server_state_observer(&server_state_observer, (void *)plugin_info_ptr))
     return 1;
 
+  if (register_trans_observer(&trans_observer, (void *)plugin_info_ptr))
+  {
+    sql_print_error("Failure on GCS cluster during registering the transactions state observers");
+    return 1;
+  }
+
   if (gcs_replication_boot)
   {
     if (start_gcs_rpl())
@@ -122,11 +162,19 @@ int gcs_replication_deinit(void *p)
 {
   if (cleanup_gcs_rpl())
     return 1;
+
   if (unregister_server_state_observer(&server_state_observer, p))
   {
     sql_print_error("Failure on GCS cluster during unregistering the server state observers");
     return 1;
   }
+
+  if (unregister_trans_observer(&trans_observer, p))
+  {
+    sql_print_error("Failure on GCS cluster during unregistering the transactions state observers");
+    return 1;
+  }
+
   sql_print_information("The observers in GCS cluster have been successfully unregistered");
   return 0;
 }

@@ -225,14 +225,47 @@ void delegates_destroy()
   delete_dynamic(plugins)
 
 
+int Trans_delegate::before_commit(THD *thd, bool all)
+{
+  DBUG_ENTER("Trans_delegate::before_commit");
+  Trans_param param = { 0, 0, 0, 0, 0 };
+  param.server_id= thd->server_id;
+  param.thread_id= thd->thread_id;
+
+  bool is_real_trans= (all || thd->transaction.all.ha_list == 0);
+  if (is_real_trans)
+    param.flags|= TRANS_IS_REAL_TRANS;
+
+  int ret= 0;
+  FOREACH_OBSERVER(ret, before_commit, thd, (&param));
+  DBUG_RETURN(ret);
+}
+
+int Trans_delegate::before_rollback(THD *thd, bool all)
+{
+  DBUG_ENTER("Trans_delegate::before_rollback");
+  Trans_param param = { 0, 0, 0, 0, 0 };
+  param.server_id= thd->server_id;
+  param.thread_id= thd->thread_id;
+
+  bool is_real_trans= (all || thd->transaction.all.ha_list == 0);
+  if (is_real_trans)
+    param.flags|= TRANS_IS_REAL_TRANS;
+
+  int ret= 0;
+  FOREACH_OBSERVER(ret, before_rollback, thd, (&param));
+  DBUG_RETURN(ret);
+}
+
 int Trans_delegate::after_commit(THD *thd, bool all)
 {
   DBUG_ENTER("Trans_delegate::after_commit");
-  Trans_param param = { 0, 0, 0, 0 };
-  bool is_real_trans= (all || thd->transaction.all.ha_list == 0);
+  Trans_param param = { 0, 0, 0, 0, 0 };
+  param.thread_id= thd->thread_id;
 
+  bool is_real_trans= (all || thd->transaction.all.ha_list == 0);
   if (is_real_trans)
-    param.flags = true;
+    param.flags|= TRANS_IS_REAL_TRANS;
 
   thd->get_trans_fixed_pos(&param.log_file, &param.log_pos);
   param.server_id= thd->server_id;
@@ -247,9 +280,11 @@ int Trans_delegate::after_commit(THD *thd, bool all)
 
 int Trans_delegate::after_rollback(THD *thd, bool all)
 {
-  Trans_param param = { 0, 0, 0, 0 };
-  bool is_real_trans= (all || thd->transaction.all.ha_list == 0);
+  DBUG_ENTER("Trans_delegate::after_rollback");
+  Trans_param param = { 0, 0, 0, 0, 0 };
+  param.thread_id= thd->thread_id;
 
+  bool is_real_trans= (all || thd->transaction.all.ha_list == 0);
   if (is_real_trans)
     param.flags|= TRANS_IS_REAL_TRANS;
   thd->get_trans_fixed_pos(&param.log_file, &param.log_pos);
@@ -257,7 +292,7 @@ int Trans_delegate::after_rollback(THD *thd, bool all)
 
   int ret= 0;
   FOREACH_OBSERVER(ret, after_rollback, thd, (&param));
-  return ret;
+  DBUG_RETURN(ret);
 }
 
 int Binlog_storage_delegate::after_flush(THD *thd,

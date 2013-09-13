@@ -1513,7 +1513,12 @@ int ha_commit_low(THD *thd, bool all, bool run_after_commit)
     was called.
   */
   thd->transaction.flags.commit_low= false;
-  if (run_after_commit)
+  /*
+    FIXME: This change is needed while BUG#16240131 is not fixed, to
+    avoid duplicate calls of hooks on DDL and hooks being called by
+    transactions which do not log anything to binary log.
+  */
+  if (run_after_commit && thd->transaction.flags.run_hooks)
   {
     /* If commit succeeded, we call the after_commit hook */
     if (!error)
@@ -1529,6 +1534,8 @@ int ha_rollback_low(THD *thd, bool all)
   THD_TRANS *trans=all ? &thd->transaction.all : &thd->transaction.stmt;
   Ha_trx_info *ha_info= trans->ha_list, *ha_info_next;
   int error= 0;
+
+  (void) RUN_HOOK(transaction, before_rollback, (thd, all));
 
   if (ha_info)
   {
