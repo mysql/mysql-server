@@ -1,0 +1,36 @@
+# Copyright (c) 2012, 2013, Oracle and/or its affiliates. All rights reserved.
+# 
+# This program is free software; you can redistribute it and/or modify
+# it under the terms of the GNU General Public License as published by
+# the Free Software Foundation; version 2 of the License.
+# 
+# This program is distributed in the hope that it will be useful,
+# but WITHOUT ANY WARRANTY; without even the implied warranty of
+# MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+# GNU General Public License for more details.
+# 
+# You should have received a copy of the GNU General Public License
+# along with this program; if not, write to the Free Software
+# Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA  02110-1301 USA
+
+
+IF(UNIX)
+  SET(prefix ${CMAKE_INSTALL_PREFIX})
+
+  SET(SPECFILENAME "mysql.${VERSION}.spec")
+  IF("${VERSION}" MATCHES "-ndb-")
+    STRING(REGEX REPLACE "^.*-ndb-" "" NDBVERSION "${VERSION}")
+    SET(SPECFILENAME "mysql-cluster-${NDBVERSION}.spec")
+  ENDIF()
+
+  # Left in current directory, to be taken during build
+  CONFIGURE_FILE(mysql.spec.in ${CMAKE_CURRENT_BINARY_DIR}/${SPECFILENAME} @ONLY)
+
+  FOREACH(fedfile my.cnf mysql-log-rotate.sh mysql-systemd-start 
+          mysql.server.sh my-default.cnf.sh  mysql-5.6.11-mysql-install.patch my_config.h
+          mysql-5.6-libmysqlclient-symbols.patch mysql-multi.server.sh mysql.conf 
+          mysql.service mysqld_multi.server.sh mysql-embedded-check.c mysql_config.sh)
+    CONFIGURE_FILE(${fedfile} ${CMAKE_CURRENT_BINARY_DIR}/${fedfile} COPYONLY)
+  ENDFOREACH()
+ENDIF()
+
