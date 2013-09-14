@@ -452,16 +452,24 @@ QueryBetween = function(queryField, parameter1, parameter2) {
   this.formalParameters = [];
   this.formalParameters[0] = parameter1;
   this.formalParameters[1] = parameter2;
+  this.parameter1 = parameter1;
+  this.parameter2 = parameter2;
 };
 
 QueryBetween.prototype = new AbstractQueryComparator();
 
 QueryBetween.prototype.mark = function(candidateIndex) {
-  // TODO this needs work to keep two parameters and one column
   var columnNumber = this.queryField.field.columnNumber;
-  var parameterName = this.parameter.name;
-  udebug.log_detail('QueryBetween.mark with columnNumber:', columnNumber, 'parameterName:', parameterName);
-  candidateIndex.markGt(columnNumber, parameterName);
+  var parameterName1 = this.parameter1.name;
+  var parameterName2 = this.parameter2.name;
+  udebug.log_detail('QueryBetween.mark with columnNumber:', columnNumber,
+      'parameterNames:', parameterName1, parameterName2);
+  candidateIndex.markGe(columnNumber, parameterName1);
+  candidateIndex.markLe(columnNumber, parameterName2);
+};
+
+QueryBetween.prototype.toString = function() {
+  return this.queryField.toString() + ' BETWEEN ' + this.parameter1.toString() + ' AND ' + this.parameter2.toString();
 };
 
 QueryBetween.prototype.visit = function(visitor) {
