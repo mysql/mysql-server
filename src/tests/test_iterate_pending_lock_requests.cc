@@ -147,7 +147,7 @@ int test_main(int UU(argc), char *const UU(argv[])) {
 
     r = db_env_create(&env, 0); CKERR(r);
     r = env->open(env, TOKU_TEST_FILENAME, env_flags, 0755); CKERR(r);
-    r = env->set_lock_timeout(env, 2000);
+    r = env->set_lock_timeout(env, 4000);
 
     r = db_create(&db, env, 0); CKERR(r);
     r = db->open(db, NULL, dname, NULL, DB_BTREE, DB_CREATE, 0777); CKERR(r);
@@ -168,7 +168,7 @@ int test_main(int UU(argc), char *const UU(argv[])) {
     acquire_lock_extra e2(txn3, magic_key);
     r = toku_pthread_create(&thread2, NULL, acquire_lock_thread, &e2); CKERR(r);
 
-    usleep(100000);
+    sleep(1);
     r = env->iterate_pending_lock_requests(env, iterate_callback, NULL); CKERR(r);
     invariant(iterate_callback_called == 2);
 
