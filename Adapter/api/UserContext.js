@@ -700,13 +700,13 @@ exports.UserContext.prototype.executeQuery = function(queryDomainType) {
     var order = params.order, skip = params.skip, limit = params.limit;
     var error;
     if (typeof(limit) !== 'undefined') {
-      if (typeof(limit) !== 'number' || limit < 0 || limit > MAX_LIMIT) {
+      if (limit < 0 || limit > MAX_LIMIT) {
         // limit is out of valid range
         error = new Error('Bad limit parameter \'' + limit + '\'; limit must be >= 0 and <= ' + MAX_LIMIT + '.');
       }
     }
     if (typeof(skip) !== 'undefined') {
-      if (typeof(skip) !== 'number' || skip < 0 || skip > MAX_SKIP) {
+      if (skip < 0 || skip > MAX_SKIP) {
         // skip is out of valid range
         error = new Error('Bad skip parameter \'' + skip + '\'; skip must be >= 0 and <= ' + MAX_SKIP + '.');
       } else {
