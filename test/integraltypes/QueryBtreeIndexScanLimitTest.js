@@ -43,7 +43,7 @@ var q3 = {name: 'q3', p1: 4, p2: 6, expected: [], limit: -1, order: 'ASC', expec
 }};
 
 /** limit 2 ascending */
-var q4 = {name: 'q4', p1: 4, p2: 6, expected: [4, 5], limit: 2, order: 'ASC', queryType: 2, ordered: true, predicate: function(qdt) {
+var q4 = {name: 'q4', p1: 4, p2: 6, expected: [4, 5], limit: '2', order: 'ASC', queryType: 2, ordered: true, predicate: function(qdt) {
   return qdt.tsmallint.ge(qdt.param('p1')).and(qdt.tsmallint.le(qdt.param('p2')));
 }};
 
@@ -63,7 +63,7 @@ var q7 = {name: 'q7', p1: 4, p2: 6, expected: [], skip: -1, order: 'ASC', expect
 }};
 
 /** skip 1 limit 2 */
-var q8 = {name: 'q8', p1: 4, p2: 6, expected: [5, 4], skip: 1, limit: 2, order: 'deSC', queryType: 2, ordered: true, predicate: function(qdt) {
+var q8 = {name: 'q8', p1: 4, p2: 6, expected: [5, 4], skip: '1', limit: 2, order: 'deSC', queryType: 2, ordered: true, predicate: function(qdt) {
   return qdt.tsmallint.ge(qdt.param('p1')).and(qdt.tsmallint.le(qdt.param('p2')));
 }};
 
