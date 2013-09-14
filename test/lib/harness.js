@@ -588,14 +588,18 @@ Listener.prototype.fail = function(t, e) {
   var message = "";
   this.ended++;
   delete this.runningTests[t.fullName()];
-  if(e) {
-    message = e.toString();
+  if (e) {
+    if (typeof(e.stack) !== 'undefined') {
+      t.stack = e.stack;
+    }
     if (typeof(e.message) !== 'undefined') {
       message = e.message;
-    } 
+    } else {
+      message = e.toString();
+    }
   }
-  if ((this.printStackTraces) && typeof(e.stack) !== 'undefined') {
-    message = e.stack;
+  if ((this.printStackTraces) && typeof(t.stack) !== 'undefined') {
+    message = t.stack;
   }
 
   if(t.phase === 0) {
