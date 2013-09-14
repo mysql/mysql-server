@@ -72,8 +72,15 @@ var q9 = {name: 'q9', p1: 4, p2: 6, expected: [5, 6], skip: 1, limit: 2, order: 
   return qdt.tsmallint.ge(qdt.param('p1')).and(qdt.tsmallint.le(qdt.param('p2')));
 }};
 
+var q10 = {name: 'q10', p1: 4, p2: 6, expected: [5, 6], skip: 1, limit: 2, order: 'asc', queryType: 2, ordered: true, predicate: function(qdt) {
+  return qdt.tsmallint.between(qdt.param('p1'), qdt.param('p2'));
+}};
 
-var queryTests = [q1, q2, q3, q4, q5, q6, q7, q8, q9];
+var q11 = {name: 'q11', p1: 4, p2: 6, expected: [5, 4], skip: 1, limit: 2, order: 'desc', queryType: 2, ordered: true, predicate: function(qdt) {
+  return qdt.tsmallint.between(qdt.param('p1'), qdt.param('p2'));
+}};
+
+var queryTests = [q1, q2, q3, q4, q5, q6, q7, q8, q9, q10, q11];
 
 /***** Build and run queries ***/
 var testQueries = new harness.ConcurrentTest("testQueries");
