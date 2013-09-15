@@ -330,9 +330,14 @@ static inline void make_name(char *newname, const char *tablename, const char *d
 }
 
 static inline int txn_begin(DB_ENV *env, DB_TXN *parent, DB_TXN **txn, uint32_t flags, THD *thd) {
+    *txn = NULL;
     int r = env->txn_begin(env, parent, txn, flags);
-    if ((tokudb_debug & TOKUDB_DEBUG_TXN) && r == 0) {
-        TOKUDB_TRACE("begin txn %p %p %u\n", parent, *txn, flags);
+    if (r == 0 && thd) {
+        DB_TXN *this_txn = *txn;
+        this_txn->set_client_id(this_txn, thd_get_thread_id(thd));
+    }
+    if ((tokudb_debug & TOKUDB_DEBUG_TXN)) {
+        TOKUDB_TRACE("begin txn %p %p %u r=%d\n", parent, *txn, flags, r);
     }
     return r;
 }

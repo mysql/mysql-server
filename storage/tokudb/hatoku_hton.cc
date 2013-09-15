@@ -311,6 +311,10 @@ srv_row_format_t get_row_format(THD *thd)
     return (srv_row_format_t) THDVAR(thd, row_format);
 }
 
+static MYSQL_THDVAR_UINT(lock_timeout_debug, 0, "TokuDB lock timeout debug", NULL, NULL, 0, 0, ~0U, 1);
+
+static MYSQL_THDVAR_STR(last_lock_timeout, PLUGIN_VAR_MEMALLOC, "last TokuDB lock timeout", NULL, NULL, NULL);
+
 static void tokudb_print_error(const DB_ENV * db_env, const char *db_errpfx, const char *buffer);
 static void tokudb_cleanup_log_files(void);
 static int tokudb_end(handlerton * hton, ha_panic_function type);
@@ -354,6 +358,7 @@ void toku_hton_update_primary_key_bytes_inserted(uint64_t row_size) {
 }
 
 static ulonglong tokudb_lock_timeout;
+static void tokudb_lock_timeout_callback(DB *db, uint64_t requesting_txnid, const DBT *left_key, const DBT *right_key, uint64_t blocking_txnid);
 static ulong tokudb_cleaner_period;
 static ulong tokudb_cleaner_iterations;
 
@@ -437,6 +442,7 @@ static void destroy_tokudb_hton_initialized_lock(void)
 static SHOW_VAR *toku_global_status_variables = NULL;
 static uint64_t toku_global_status_max_rows;
 static TOKU_ENGINE_STATUS_ROW_S* toku_global_status_rows = NULL;
+
 
 static int tokudb_init_func(void *p) {
     TOKUDB_DBUG_ENTER("tokudb_init_func");
@@ -624,6 +630,8 @@ static int tokudb_init_func(void *p) {
     db_env->set_update(db_env, tokudb_update_fun);
     db_env_set_direct_io(tokudb_directio == TRUE);
     db_env->change_fsync_log_period(db_env, tokudb_fsync_log_period);
+    db_env->set_lock_timeout_callback(db_env, tokudb_lock_timeout_callback);
+
     r = db_env->open(db_env, tokudb_home, tokudb_init_flags, S_IRUSR|S_IWUSR|S_IRGRP|S_IWGRP|S_IROTH|S_IWOTH);
 
     if (tokudb_debug & TOKUDB_DEBUG_INIT) TOKUDB_TRACE("%s:env opened:return=%d\n", __FUNCTION__, r);
@@ -856,53 +864,18 @@ typedef struct txn_progress_info {
     THD* thd;
 } *TXN_PROGRESS_INFO;
 
-
-void txn_progress_func(TOKU_TXN_PROGRESS progress, void* extra) {
+static void txn_progress_func(TOKU_TXN_PROGRESS progress, void* extra) {
     TXN_PROGRESS_INFO progress_info = (TXN_PROGRESS_INFO)extra;
-    int r;
-    if (progress->stalled_on_checkpoint) {
-        if (progress->is_commit) {
-            r = sprintf(
-                progress_info->status, 
-                "Writing committed changes to disk, processing commit of transaction, %"PRId64" out of %"PRId64, 
-                progress->entries_processed, 
-                progress->entries_total
-                ); 
-            assert(r >= 0);
-        }
-        else {
-            r = sprintf(
-                progress_info->status, 
-                "Writing committed changes to disk, processing abort of transaction, %"PRId64" out of %"PRId64, 
-                progress->entries_processed, 
-                progress->entries_total
-                ); 
-            assert(r >= 0);
-        }
-    }
-    else {
-        if (progress->is_commit) {
-            r = sprintf(
-                progress_info->status, 
-                "processing commit of transaction, %"PRId64" out of %"PRId64, 
-                progress->entries_processed, 
-                progress->entries_total
-                ); 
-            assert(r >= 0);
-        }
-        else {
-            r = sprintf(
-                progress_info->status, 
-                "processing abort of transaction, %"PRId64" out of %"PRId64, 
-                progress->entries_processed, 
-                progress->entries_total
-                ); 
-            assert(r >= 0);
-        }
-    }
+    int r = sprintf(progress_info->status, 
+                    "%sprocessing %s of transaction, %" PRId64 " out of %" PRId64,
+                    progress->stalled_on_checkpoint ? "Writing committed changes to disk, " : "",
+                    progress->is_commit ? "commit" : "abort",
+                    progress->entries_processed, 
+                    progress->entries_total
+                    ); 
+    assert(r >= 0);
     thd_proc_info(progress_info->thd, progress_info->status);
 }
-
 
 static void commit_txn_with_progress(DB_TXN* txn, uint32_t flags, THD* thd) {
     int r;
@@ -1551,6 +1524,8 @@ static struct st_mysql_sys_var *tokudb_system_variables[] = {
     MYSQL_SYSVAR(fsync_log_period),
     MYSQL_SYSVAR(gdb_path),
     MYSQL_SYSVAR(gdb_on_fatal),
+    MYSQL_SYSVAR(last_lock_timeout),
+    MYSQL_SYSVAR(lock_timeout_debug),
     NULL
 };
 
@@ -2290,6 +2265,280 @@ static int tokudb_fractal_tree_block_map_done(void *p) {
     return 0;
 }
 
+static void tokudb_pretty_key(const DB *db, const DBT *key, const char *default_key, String *out) {
+    if (key->data == NULL) {
+        out->append(default_key);
+    } else {
+        bool do_hexdump = true;
+        if (do_hexdump) {
+            // hexdump the key
+            const unsigned char *data = reinterpret_cast<const unsigned char *>(key->data);
+            for (size_t i = 0; i < key->size; i++) {
+                char str[3];
+                snprintf(str, sizeof str, "%2.2x", data[i]);
+                out->append(str);
+            }
+        }
+    }
+}
+
+static void tokudb_pretty_left_key(const DB *db, const DBT *key, String *out) {
+    tokudb_pretty_key(db, key, "-infinity", out);
+}
+
+static void tokudb_pretty_right_key(const DB *db, const DBT *key, String *out) {
+    tokudb_pretty_key(db, key, "+infinity", out);
+}
+
+static const char *tokudb_get_index_name(DB *db) {
+    if (db != NULL) {
+        return db->get_dname(db);
+    } else {
+        return "$ydb_internal";
+    }
+}
+
+static void tokudb_lock_timeout_callback(DB *db, uint64_t requesting_txnid, const DBT *left_key, const DBT *right_key, uint64_t blocking_txnid) {
+    THD *thd = current_thd;
+    if (!thd)
+        return;
+    ulong lock_timeout_debug = THDVAR(thd, lock_timeout_debug);
+    if (lock_timeout_debug != 0) {
+        // generate a JSON document with the lock timeout info
+        String log_str;
+        log_str.append("{");
+        log_str.append("\"mysql_thread_id\":");
+        log_str.append_ulonglong(thd->thread_id);
+        log_str.append(", \"dbname\":\"");
+        log_str.append(tokudb_get_index_name(db));
+        log_str.append("\", \"requesting_txnid\":");
+        log_str.append_ulonglong(requesting_txnid);
+        log_str.append(", \"blocking_txnid\":");
+        log_str.append_ulonglong(blocking_txnid);        
+        String left_str;
+        tokudb_pretty_left_key(db, left_key, &left_str);
+        log_str.append(", \"left\":\"");
+        log_str.append(left_str);
+        String right_str;
+        tokudb_pretty_right_key(db, right_key, &right_str);
+        log_str.append("\", \"right\":\"");
+        log_str.append(right_str);
+        log_str.append("\"}");
+        // set last_lock_timeout
+        if (lock_timeout_debug & 1) {
+            char *old_lock_timeout = THDVAR(thd, last_lock_timeout);
+            char *new_lock_timeout = my_strdup(log_str.c_ptr(), MY_FAE);
+            THDVAR(thd, last_lock_timeout) = new_lock_timeout;
+            my_free(old_lock_timeout);
+        }
+        // dump to stderr
+        if (lock_timeout_debug & 2) {
+            fprintf(stderr, "tokudb_lock_timeout: %s\n", log_str.c_ptr());
+        }
+    }
+}
+
+static struct st_mysql_information_schema tokudb_trx_information_schema = { MYSQL_INFORMATION_SCHEMA_INTERFACE_VERSION };
+
+static ST_FIELD_INFO tokudb_trx_field_info[] = {
+    {"trx_id", 0, MYSQL_TYPE_LONGLONG, 0, 0, NULL, SKIP_OPEN_TABLE },
+    {"trx_mysql_thread_id", 0, MYSQL_TYPE_LONGLONG, 0, 0, NULL, SKIP_OPEN_TABLE },
+    {NULL, 0, MYSQL_TYPE_NULL, 0, 0, NULL, SKIP_OPEN_TABLE}
+};
+
+struct tokudb_trx_extra {
+    THD *thd;
+    TABLE *table;
+};
+
+static int tokudb_trx_callback(uint64_t txn_id, uint64_t client_id, iterate_row_locks_callback iterate_locks, void *locks_extra, void *extra) {
+    struct tokudb_trx_extra *e = reinterpret_cast<struct tokudb_trx_extra *>(extra);
+    THD *thd = e->thd;
+    TABLE *table = e->table;
+    table->field[0]->store(txn_id, false);
+    table->field[1]->store(client_id, false);
+    int error = schema_table_store_record(thd, table);
+    return error;
+}
+
+#if MYSQL_VERSION_ID >= 50600
+static int tokudb_trx_fill_table(THD *thd, TABLE_LIST *tables, Item *cond) {
+#else
+static int tokudb_trx_fill_table(THD *thd, TABLE_LIST *tables, COND *cond) {
+#endif
+    int error;
+    
+    rw_rdlock(&tokudb_hton_initialized_lock);
+
+    if (!tokudb_hton_initialized) {
+        my_error(ER_PLUGIN_IS_NOT_LOADED, MYF(0), "TokuDB");
+        error = -1;
+    } else {
+        struct tokudb_trx_extra e = { thd, tables->table };
+        error = db_env->iterate_live_transactions(db_env, tokudb_trx_callback, &e);
+    }
+
+    rw_unlock(&tokudb_hton_initialized_lock);
+    return error;
+}
+
+static int tokudb_trx_init(void *p) {
+    ST_SCHEMA_TABLE *schema = (ST_SCHEMA_TABLE *) p;
+    schema->fields_info = tokudb_trx_field_info;
+    schema->fill_table = tokudb_trx_fill_table;
+    return 0;
+}
+
+static int tokudb_trx_done(void *p) {
+    return 0;
+}
+
+static struct st_mysql_information_schema tokudb_lock_waits_information_schema = { MYSQL_INFORMATION_SCHEMA_INTERFACE_VERSION };
+
+static ST_FIELD_INFO tokudb_lock_waits_field_info[] = {
+    {"requesting_trx_id", 0, MYSQL_TYPE_LONGLONG, 0, 0, NULL, SKIP_OPEN_TABLE },
+    {"blocking_trx_id", 0, MYSQL_TYPE_LONGLONG, 0, 0, NULL, SKIP_OPEN_TABLE },
+    {"lock_waits_dname", 256, MYSQL_TYPE_STRING, 0, 0, NULL, SKIP_OPEN_TABLE },
+    {"lock_waits_left", 256, MYSQL_TYPE_STRING, 0, 0, NULL, SKIP_OPEN_TABLE },
+    {"lock_waits_right", 256, MYSQL_TYPE_STRING, 0, 0, NULL, SKIP_OPEN_TABLE },
+    {"lock_waits_start_time", 0, MYSQL_TYPE_LONGLONG, 0, 0, NULL, SKIP_OPEN_TABLE },
+    {NULL, 0, MYSQL_TYPE_NULL, 0, 0, NULL, SKIP_OPEN_TABLE}
+};
+
+struct tokudb_lock_waits_extra {
+    THD *thd;
+    TABLE *table;
+};
+
+static int tokudb_lock_waits_callback(DB *db, uint64_t requesting_txnid, const DBT *left_key, const DBT *right_key, 
+                                      uint64_t blocking_txnid, uint64_t start_time, void *extra) {
+    struct tokudb_lock_waits_extra *e = reinterpret_cast<struct tokudb_lock_waits_extra *>(extra);
+    THD *thd = e->thd;
+    TABLE *table = e->table;
+    table->field[0]->store(requesting_txnid, false);
+    table->field[1]->store(blocking_txnid, false);
+    const char *dname = tokudb_get_index_name(db);
+    size_t dname_length = strlen(dname);
+    table->field[2]->store(dname, dname_length, system_charset_info);
+    String left_str;
+    tokudb_pretty_left_key(db, left_key, &left_str);
+    table->field[3]->store(left_str.ptr(), left_str.length(), system_charset_info);
+    String right_str;
+    tokudb_pretty_right_key(db, right_key, &right_str);
+    table->field[4]->store(right_str.ptr(), right_str.length(), system_charset_info);
+    table->field[5]->store(start_time, false);
+    int error = schema_table_store_record(thd, table);
+    return error;
+}
+
+#if MYSQL_VERSION_ID >= 50600
+static int tokudb_lock_waits_fill_table(THD *thd, TABLE_LIST *tables, Item *cond) {
+#else
+static int tokudb_lock_waits_fill_table(THD *thd, TABLE_LIST *tables, COND *cond) {
+#endif
+    int error;
+    
+    rw_rdlock(&tokudb_hton_initialized_lock);
+
+    if (!tokudb_hton_initialized) {
+        my_error(ER_PLUGIN_IS_NOT_LOADED, MYF(0), "TokuDB");
+        error = -1;
+    } else {
+        struct tokudb_lock_waits_extra e = { thd, tables->table };
+        error = db_env->iterate_pending_lock_requests(db_env, tokudb_lock_waits_callback, &e);
+    }
+
+    rw_unlock(&tokudb_hton_initialized_lock);
+    return error;
+}
+
+static int tokudb_lock_waits_init(void *p) {
+    ST_SCHEMA_TABLE *schema = (ST_SCHEMA_TABLE *) p;
+    schema->fields_info = tokudb_lock_waits_field_info;
+    schema->fill_table = tokudb_lock_waits_fill_table;
+    return 0;
+}
+
+static int tokudb_lock_waits_done(void *p) {
+    return 0;
+}
+
+static struct st_mysql_information_schema tokudb_locks_information_schema = { MYSQL_INFORMATION_SCHEMA_INTERFACE_VERSION };
+
+static ST_FIELD_INFO tokudb_locks_field_info[] = {
+    {"locks_trx_id", 0, MYSQL_TYPE_LONGLONG, 0, 0, NULL, SKIP_OPEN_TABLE },
+    {"locks_mysql_thread_id", 0, MYSQL_TYPE_LONGLONG, 0, 0, NULL, SKIP_OPEN_TABLE },
+    {"locks_dname", 256, MYSQL_TYPE_STRING, 0, 0, NULL, SKIP_OPEN_TABLE },
+    {"locks_left", 256, MYSQL_TYPE_STRING, 0, 0, NULL, SKIP_OPEN_TABLE },
+    {"locks_right", 256, MYSQL_TYPE_STRING, 0, 0, NULL, SKIP_OPEN_TABLE },
+    {NULL, 0, MYSQL_TYPE_NULL, 0, 0, NULL, SKIP_OPEN_TABLE}
+};
+
+struct tokudb_locks_extra {
+    THD *thd;
+    TABLE *table;
+};
+
+static int tokudb_locks_callback(uint64_t txn_id, uint64_t client_id, iterate_row_locks_callback iterate_locks, void *locks_extra, void *extra) {
+    struct tokudb_locks_extra *e = reinterpret_cast<struct tokudb_locks_extra *>(extra);
+    THD *thd = e->thd;
+    TABLE *table = e->table;
+    int error = 0;
+    DB *db;
+    DBT left_key, right_key;
+    while (error == 0 && iterate_locks(&db, &left_key, &right_key, locks_extra) == 0) {
+        table->field[0]->store(txn_id, false);
+        table->field[1]->store(client_id, false);
+
+        const char *dname = tokudb_get_index_name(db);
+        size_t dname_length = strlen(dname);
+        table->field[2]->store(dname, dname_length, system_charset_info);
+
+        String left_str;
+        tokudb_pretty_left_key(db, &left_key, &left_str);
+        table->field[3]->store(left_str.ptr(), left_str.length(), system_charset_info);
+
+        String right_str;
+        tokudb_pretty_right_key(db, &right_key, &right_str);
+        table->field[4]->store(right_str.ptr(), right_str.length(), system_charset_info);
+
+        error = schema_table_store_record(thd, table);
+    }
+    return error;
+}
+
+#if MYSQL_VERSION_ID >= 50600
+static int tokudb_locks_fill_table(THD *thd, TABLE_LIST *tables, Item *cond) {
+#else
+static int tokudb_locks_fill_table(THD *thd, TABLE_LIST *tables, COND *cond) {
+#endif
+    int error;
+    
+    rw_rdlock(&tokudb_hton_initialized_lock);
+
+    if (!tokudb_hton_initialized) {
+        my_error(ER_PLUGIN_IS_NOT_LOADED, MYF(0), "TokuDB");
+        error = -1;
+    } else {
+        struct tokudb_locks_extra e = { thd, tables->table };
+        error = db_env->iterate_live_transactions(db_env, tokudb_locks_callback, &e);
+    }
+
+    rw_unlock(&tokudb_hton_initialized_lock);
+    return error;
+}
+
+static int tokudb_locks_init(void *p) {
+    ST_SCHEMA_TABLE *schema = (ST_SCHEMA_TABLE *) p;
+    schema->fields_info = tokudb_locks_field_info;
+    schema->fill_table = tokudb_locks_fill_table;
+    return 0;
+}
+
+static int tokudb_locks_done(void *p) {
+    return 0;
+}
+
 enum { TOKUDB_PLUGIN_VERSION = 0x0400 };
 #define TOKUDB_PLUGIN_VERSION_STR "1024"
 
@@ -2434,6 +2683,57 @@ mysql_declare_plugin(tokudb)
 },
 {
     MYSQL_INFORMATION_SCHEMA_PLUGIN, 
+    &tokudb_trx_information_schema,
+    "TokuDB_trx", 
+    "Tokutek Inc", 
+    "Tokutek TokuDB Storage Engine with Fractal Tree(tm) Technology",
+    PLUGIN_LICENSE_GPL,
+    tokudb_trx_init,     /* plugin init */
+    tokudb_trx_done,     /* plugin deinit */
+    TOKUDB_PLUGIN_VERSION,     /* 4.0.0 */
+    NULL,                      /* status variables */
+    NULL,                      /* system variables */
+    NULL,                      /* config options */
+#if MYSQL_VERSION_ID >= 50521
+    0,                         /* flags */
+#endif
+},
+{
+    MYSQL_INFORMATION_SCHEMA_PLUGIN, 
+    &tokudb_lock_waits_information_schema,
+    "TokuDB_lock_waits", 
+    "Tokutek Inc", 
+    "Tokutek TokuDB Storage Engine with Fractal Tree(tm) Technology",
+    PLUGIN_LICENSE_GPL,
+    tokudb_lock_waits_init,     /* plugin init */
+    tokudb_lock_waits_done,     /* plugin deinit */
+    TOKUDB_PLUGIN_VERSION,     /* 4.0.0 */
+    NULL,                      /* status variables */
+    NULL,                      /* system variables */
+    NULL,                      /* config options */
+#if MYSQL_VERSION_ID >= 50521
+    0,                         /* flags */
+#endif
+},
+{
+    MYSQL_INFORMATION_SCHEMA_PLUGIN, 
+    &tokudb_locks_information_schema,
+    "TokuDB_locks", 
+    "Tokutek Inc", 
+    "Tokutek TokuDB Storage Engine with Fractal Tree(tm) Technology",
+    PLUGIN_LICENSE_GPL,
+    tokudb_locks_init,     /* plugin init */
+    tokudb_locks_done,     /* plugin deinit */
+    TOKUDB_PLUGIN_VERSION,     /* 4.0.0 */
+    NULL,                      /* status variables */
+    NULL,                      /* system variables */
+    NULL,                      /* config options */
+#if MYSQL_VERSION_ID >= 50521
+    0,                         /* flags */
+#endif
+},
+{
+    MYSQL_INFORMATION_SCHEMA_PLUGIN, 
     &tokudb_user_data_information_schema, 
     "TokuDB_user_data", 
     "Tokutek Inc", 
@@ -2534,6 +2834,51 @@ maria_declare_plugin(tokudb)
     TOKUDB_PLUGIN_VERSION,     /* 4.0.0 */
     toku_global_status_variables_export,  /* status variables */
     tokudb_system_variables,   /* system variables */
+    TOKUDB_PLUGIN_VERSION_STR, /* string version */
+    MariaDB_PLUGIN_MATURITY_STABLE /* maturity */
+},
+{
+    MYSQL_INFORMATION_SCHEMA_PLUGIN, 
+    &tokudb_trx_information_schema,
+    "TokuDB_trx", 
+    "Tokutek Inc", 
+    "Tokutek TokuDB Storage Engine with Fractal Tree(tm) Technology",
+    PLUGIN_LICENSE_GPL,
+    tokudb_trx_init,     /* plugin init */
+    tokudb_trx_done,     /* plugin deinit */
+    TOKUDB_PLUGIN_VERSION,     /* 4.0.0 */
+    NULL,                      /* status variables */
+    NULL,                      /* system variables */
+    TOKUDB_PLUGIN_VERSION_STR, /* string version */
+    MariaDB_PLUGIN_MATURITY_STABLE /* maturity */
+},
+{
+    MYSQL_INFORMATION_SCHEMA_PLUGIN, 
+    &tokudb_lock_waits_information_schema,
+    "TokuDB_lock_waits", 
+    "Tokutek Inc", 
+    "Tokutek TokuDB Storage Engine with Fractal Tree(tm) Technology",
+    PLUGIN_LICENSE_GPL,
+    tokudb_lock_waits_init,     /* plugin init */
+    tokudb_lock_waits_done,     /* plugin deinit */
+    TOKUDB_PLUGIN_VERSION,     /* 4.0.0 */
+    NULL,                      /* status variables */
+    NULL,                      /* system variables */
+    TOKUDB_PLUGIN_VERSION_STR, /* string version */
+    MariaDB_PLUGIN_MATURITY_STABLE /* maturity */
+},
+{
+    MYSQL_INFORMATION_SCHEMA_PLUGIN, 
+    &tokudb_locks_information_schema,
+    "TokuDB_locks", 
+    "Tokutek Inc", 
+    "Tokutek TokuDB Storage Engine with Fractal Tree(tm) Technology",
+    PLUGIN_LICENSE_GPL,
+    tokudb_locks_init,     /* plugin init */
+    tokudb_locks_done,     /* plugin deinit */
+    TOKUDB_PLUGIN_VERSION,     /* 4.0.0 */
+    NULL,                      /* status variables */
+    NULL,                      /* system variables */
     TOKUDB_PLUGIN_VERSION_STR, /* string version */
     MariaDB_PLUGIN_MATURITY_STABLE /* maturity */
 },
