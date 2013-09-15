@@ -1403,4 +1403,24 @@ select z from (select count(*) as z from t1) v;
 select z from (select count(*) as z from t1) v group by 1; 
 drop table t1;
 
+#
+# Bug mdev-5015: Degenerate OR condition in an aggregated join
+#
+
+CREATE TABLE t1 (i1 int, INDEX(i1));
+INSERT INTO t1 VALUES (9),(8);
+
+CREATE TABLE t2 (i2 int);
+INSERT INTO t2 VALUES (8),(4);
+
+
+CREATE TABLE t3 (i3 int, INDEX(i3));
+INSERT INTO t3 VALUES (9),(8);
+
+SELECT MAX(t3.i3) FROM t3, t2, t1 WHERE t1.i1 = t2.i2 AND ( 0 OR t3.i3 = t2.i2 );
+
+SELECT MAX(t3.i3) FROM t3, t2, t1 WHERE t1.i1 = t2.i2 AND  t3.i3 = t2.i2;
+
+DROP TABLE  t1,t2,t3;
+
 --echo # end of 5.3 tests
