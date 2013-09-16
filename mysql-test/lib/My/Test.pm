@@ -70,7 +70,7 @@ sub write_test {
 
   my $serialized= Storable::freeze($test);
   $serialized =~ s/([\x0d\x0a\\])/sprintf("\\%02x", ord($1))/eg;
-  print $sock $header, "\n", $serialized, "\n";
+  send $sock,$header. "\n". $serialized. "\n", 0;
 }
 
 
