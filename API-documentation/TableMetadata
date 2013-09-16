@@ -5,11 +5,11 @@
    indexes[0] will *ALWAYS* represent the intrinsic primary key.
 */
 TableMetadata = {
-  database         : ""    ,  // Database name
-  name             : ""    ,  // Table Name
-  columns          : {}    ,  // ordered array of ColumnMetadata objects
-  indexes          : {}    ,  // array of IndexMetadata objects 
-  partitionKey     : {}    ,  // ordered array of column numbers in the partition key
+  database         : "", // Database name
+  name             : "", // Table Name
+  columns          : {}, // ordered array of ColumnMetadata objects
+  indexes          : {}, // array of IndexMetadata objects 
+  partitionKey     : {}, // ordered array of column numbers in the partition key
 };
 
 
@@ -17,31 +17,31 @@ TableMetadata = {
 */
 ColumnMetadata = {
   /* Required Properties */
-  name             : ""    ,  // column name
-  columnNumber     : -1    ,  // position of column in table, and in columns array
-  columnType       : ""    ,  // a ColumnType
-  isIntegral       : false ,  // true if column is some variety of INTEGER type
-  isNullable       : false ,  // true if NULLABLE
-  isInPrimaryKey   : false ,  // true if column is part of PK
-  isInPartitionKey : false ,  // true if column is part of partition key
-  columnSpace      : 0     ,  // buffer space required for encoded stored value
-  defaultValue     : null  ,  // default value for column: null for default NULL; 
-                              // undefined for no default; or a type-appropriate
-                              // value for column
+  name             : ""   , // column name
+  columnNumber     : -1   , // position of column in table, and in columns array
+  columnType       : ""   , // a ColumnType
+  isIntegral       : false, // true if column is some variety of INTEGER type
+  isNullable       : false, // true if NULLABLE
+  isInPrimaryKey   : false, // true if column is part of PK
+  isInPartitionKey : false, // true if column is part of partition key
+  columnSpace      : 0    , // buffer space required for encoded stored value
+  defaultValue     : null , // default value for column: null for default NULL; 
+                            // undefined for no default; or a type-appropriate
+                            // value for column
   
   /* Optional Properties, depending on columnType */
   /* Group A: Numeric */
-  isUnsigned       : false ,  //  true for UNSIGNED
-  intSize          : null  ,  //  1,2,3,4, or 8 if column type is INT
-  scale            : 0     ,  //  DECIMAL scale
-  precision        : 0     ,  //  DECIMAL precision
-  isAutoincrement  : false ,  //  true for AUTO_INCREMENT columns
+  isUnsigned       : false,  //  true for UNSIGNED
+  intSize          : null ,  //  1,2,3,4, or 8 if column type is INT
+  scale            : 0    ,  //  DECIMAL scale
+  precision        : 0    ,  //  DECIMAL precision
+  isAutoincrement  : false,  //  true for AUTO_INCREMENT columns
 
   /* Group B: Non-numeric */
-  length           : 0     ,  //  CHAR or VARCHAR length in characters
-  isBinary         : false ,  //  true for BLOB/BINARY/VARBINARY
-  charsetNumber    : 0     ,  //  internal number of charset
-  charsetName      : ""    ,  //  name of charset
+  length           : 0    ,  //  CHAR or VARCHAR length in characters
+  isBinary         : false,  //  true for BLOB/BINARY/VARBINARY
+  charsetNumber    : 0    ,  //  internal number of charset
+  charsetName      : ""   ,  //  name of charset
 };
 
 
