@@ -427,7 +427,7 @@ row_merge_fts_doc_tokenize_by_parser(
 	param.mysql_ftparam = t_ctx;
 	param.cs = doc->charset;
 	param.doc = reinterpret_cast<char*>(doc->text.f_str);
-	param.length = doc->text.f_len;
+	param.length = static_cast<int>(doc->text.f_len);
 	param.mode= MYSQL_FTPARSER_SIMPLE_MODE;
 
 	PARSER_INIT(parser, &param);
