@@ -1,5 +1,6 @@
+
 /*
- Copyright (c) 2012, Oracle and/or its affiliates. All rights
+ Copyright (c) 2013, Oracle and/or its affiliates. All rights
  reserved.
  
  This program is free software; you can redistribute it and/or
@@ -18,27 +19,26 @@
  02110-1301  USA
  */
 
-#include "uv.h"
-#include "compat_uv.h"
+'use strict';
 
-#ifdef __cplusplus
-extern "C" {
-#endif
+var nosql = require("../..");
 
-  void work_thd_run(uv_work_t *);
-  void main_thd_complete(uv_work_t *);
-  void main_thd_complete_newapi(uv_work_t *, int);
+function getDefaultAdapter() {
+  // return "ndb";
+  return "mysql";
+}
+function getProperties(adapter) {
+  var properties = new nosql.ConnectionProperties(adapter);
 
-#ifdef __cplusplus
+  // properties.ndb_connectstring = "localhost:1186";
+  // properties.mysql_socket = null;
+  // properties.mysql_port = null;
+  // properties.mysql_user = null;
+  // properties.mysql_host = null;
+  // properties.mysql_password = null;
+
+  return properties;
 }
 
-  class AsyncCall;
-  void main_thd_complete_async_call(AsyncCall *);
-
-#endif
-
-#ifdef OLDER_UV_AFTER_WORK_CB
-#define ASYNC_COMMON_MAIN_THD_CALLBACK main_thd_complete
-#else
-#define ASYNC_COMMON_MAIN_THD_CALLBACK main_thd_complete_newapi
-#endif
+exports.getProperties = getProperties;
+exports.getDefaultAdapter = getDefaultAdapter;
