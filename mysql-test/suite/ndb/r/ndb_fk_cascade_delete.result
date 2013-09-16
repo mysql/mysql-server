@@ -1,0 +1,132 @@
+create table parent (
+a int primary key auto_increment,
+b int not null,
+c int not null,
+unique(b) using hash,
+index(c)) engine = ndb;
+create table child (
+a int primary key auto_increment,
+b int not null,
+c int not null,
+unique(b) using hash,
+index(c)) engine = ndb;
+alter table child add constraint fkname foreign key (a) references parent (a) on delete cascade on update restrict;
+insert into parent values (1,1,1),(2,2,2);
+insert into child values (1,1,1),(2,2,2);
+insert into child values (3,3,3);
+ERROR 23000: Cannot add or update a child row: a foreign key constraint fails (Unknown error code)
+begin;
+delete from parent where a = 1;
+select * from child order by 1,2,3;
+a	b	c
+2	2	2
+commit;
+delete from child;
+delete from parent;
+alter table child drop foreign key fkname;
+alter table child add constraint fkname foreign key (b) references parent (a) on delete cascade on update restrict;
+insert into parent values (1,1,1),(2,2,2);
+insert into child values (1,1,1),(2,2,2);
+insert into child values (3,3,3);
+ERROR 23000: Cannot add or update a child row: a foreign key constraint fails (Unknown error code)
+update child set b = 3 where a = 1;
+ERROR 23000: Cannot add or update a child row: a foreign key constraint fails (Unknown error code)
+begin;
+delete from parent where a = 1;
+select * from child order by 1,2,3;
+a	b	c
+2	2	2
+commit;
+delete from child;
+delete from parent;
+alter table child drop foreign key fkname;
+alter table child add constraint fkname foreign key (a) references parent (b) on delete cascade on update restrict;
+insert into parent values (1,1,1),(2,2,2);
+insert into child values (1,1,1),(2,2,2);
+insert into child values (3,3,3);
+ERROR 23000: Cannot add or update a child row: a foreign key constraint fails (Unknown error code)
+update parent set b = 3 where a = 1;
+ERROR 23000: Cannot delete or update a parent row: a foreign key constraint fails (Unknown error code)
+begin;
+delete from parent where a = 1;
+select * from child order by 1,2,3;
+a	b	c
+2	2	2
+commit;
+delete from child;
+delete from parent;
+alter table child drop foreign key fkname;
+alter table child add constraint fkname foreign key (b) references parent (b) on delete cascade on update restrict;
+insert into parent values (1,1,1),(2,2,2);
+insert into child values (1,1,1),(2,2,2);
+update child set b = 3 where a = 1;
+ERROR 23000: Cannot add or update a child row: a foreign key constraint fails (Unknown error code)
+insert into child values (3,3,3);
+ERROR 23000: Cannot add or update a child row: a foreign key constraint fails (Unknown error code)
+update parent set b = 3 where a = 1;
+ERROR 23000: Cannot delete or update a parent row: a foreign key constraint fails (Unknown error code)
+begin;
+delete from parent where a = 1;
+select * from child order by 1,2,3;
+a	b	c
+2	2	2
+commit;
+delete from child;
+delete from parent;
+alter table child drop foreign key fkname;
+alter table child add constraint fkname foreign key (c) references parent (a) on delete cascade on update restrict;
+insert into parent values (1,1,1),(2,2,2);
+insert into child values (1,1,1),(2,2,2);
+update child set c = 3 where a = 1;
+ERROR 23000: Cannot add or update a child row: a foreign key constraint fails (Unknown error code)
+insert into child values (3,3,3);
+ERROR 23000: Cannot add or update a child row: a foreign key constraint fails (Unknown error code)
+begin;
+delete from parent where a = 1;
+select * from child order by 1,2,3;
+a	b	c
+2	2	2
+commit;
+delete from child;
+delete from parent;
+alter table child drop foreign key fkname;
+alter table child add constraint fkname foreign key (c) references parent (b) on delete cascade on update restrict;
+insert into parent values (1,1,1),(2,2,2);
+insert into child values (1,1,1),(2,2,2);
+update child set c = 3 where a = 1;
+ERROR 23000: Cannot add or update a child row: a foreign key constraint fails (Unknown error code)
+insert into child values (3,3,3);
+ERROR 23000: Cannot add or update a child row: a foreign key constraint fails (Unknown error code)
+update parent set b = 3 where a = 1;
+ERROR 23000: Cannot delete or update a parent row: a foreign key constraint fails (Unknown error code)
+begin;
+delete from parent where a = 1;
+select * from child order by 1,2,3;
+a	b	c
+2	2	2
+commit;
+insert into parent values (1,1,1);
+insert into child values (1,1,1);
+insert into child select a+2,a+2,1+(a % 2) from child;
+insert into child select a+4,a+4,1+(a % 2) from child;
+insert into child select a+8,a+8,1+(a % 2) from child;
+insert into child select a+16,a+16,1+(a % 2) from child;
+insert into child select a+32,a+32,1+(a % 2) from child;
+insert into child select a+64,a+64,1+(a % 2) from child;
+select c, count(*) from child
+group by c
+order by 1,2;
+c	count(*)
+1	64
+2	64
+delete from parent where a = 1;
+select c, count(*) from child
+group by c
+order by 1,2;
+c	count(*)
+2	64
+delete from parent where a = 2;
+delete from child;
+delete from parent;
+alter table child drop foreign key fkname;
+drop table parent, child;

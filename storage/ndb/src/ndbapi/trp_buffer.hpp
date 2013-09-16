@@ -20,6 +20,7 @@
 
 #include <ndb_global.h>
 #include <ndb_socket.h> // struct iovec
+#include <portlib/NdbMutex.h>
 
 struct TFPage
 {
@@ -39,6 +40,12 @@ struct TFPage
     m_bytes = 0;
     m_start = 0;
     m_ref_count = 0;
+    /*
+      Ensure compiler and developer not adds any fields without
+      ensuring alignment still holds.
+    */
+    STATIC_ASSERT(sizeof(TFPage) ==
+      (sizeof(void*) + 4 * sizeof(Uint16) + 8));
   }
 
   static TFPage* ptr(struct iovec p) {
@@ -75,6 +82,10 @@ struct TFPage
 
   /**
    * The data...
+   * NOTE: This structure is tightly coupled with its allocation.
+   * So changing this data structure requires careful consideration.
+   * m_data actually houses a full page that is allocated when the
+   * data structure is malloc'ed.
    */
   char m_data[8];
 };
@@ -98,9 +109,9 @@ struct TFSentinel
 struct TFBuffer
 {
   TFBuffer() { m_bytes_in_buffer = 0; m_head = m_tail = 0;}
-  Uint32 m_bytes_in_buffer;
   struct TFPage * m_head;
   struct TFPage * m_tail;
+  Uint32 m_bytes_in_buffer;
 
   void validate() const;
 };
@@ -137,6 +148,37 @@ public:
 
   void release(TFPage* first, TFPage* last);
   void release_list(TFPage*);
+};
+
+class TFMTPool : private TFPool
+{
+  NdbMutex m_mutex;
+public:
+  explicit TFMTPool(const char * name = 0);
+
+  bool init(size_t total_memory, size_t page_sz = 32768) {
+    return TFPool::init(total_memory, page_sz);
+  }
+  bool inited() const {
+    return TFPool::inited();
+  }
+
+  TFPage* try_alloc(Uint32 N) {
+    Guard g(&m_mutex);
+    return TFPool::try_alloc(N);
+  }
+
+  void release(TFPage* first, TFPage* last) {
+    Guard g(&m_mutex);
+    TFPool::release(first, last);
+  }
+
+  void release_list(TFPage* head) {
+    TFPage * tail = head;
+    while (tail->m_next != 0)
+      tail = tail->m_next;
+    release(head, tail);
+  }
 };
 
 inline

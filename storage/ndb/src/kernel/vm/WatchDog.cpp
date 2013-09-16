@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2003, 2010, Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2003, 2013, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -18,6 +18,7 @@
 
 #include <ndb_global.h>
 
+#include "mt-asm.h"
 #include "WatchDog.hpp"
 #include "GlobalData.hpp"
 #include <NdbOut.hpp>
@@ -155,8 +156,11 @@ const char *get_action(Uint32 IPValue)
   case 9:
     action = "Allocating memory";
     break;
+  case 11:
+    action = "Packing Send Buffers";
+    break;
   default:
-    action = "Unknown place";
+    action = NULL;
     break;
   }//switch
   return action;
@@ -214,6 +218,9 @@ times(struct tms *buf)
 #include <sys/times.h>
 #endif
 
+#define JAM_FILE_ID 235
+
+
 void 
 WatchDog::run()
 {
@@ -242,10 +249,19 @@ WatchDog::run()
     if (NdbTick_getMicrosPassed(last_time, now)/1000 > sleep_time*2)
     {
       struct tms my_tms;
-      times(&my_tms);
-      g_eventLogger->info("Watchdog: User time: %llu  System time: %llu",
+      if (times(&my_tms) != (clock_t)-1)
+      {
+        g_eventLogger->info("Watchdog: User time: %llu  System time: %llu",
                           (Uint64)my_tms.tms_utime,
                           (Uint64)my_tms.tms_stime);
+      }
+      else
+      {
+        g_eventLogger->info("Watchdog: User time: %llu System time: %llu (errno=%d)",
+                          (Uint64)my_tms.tms_utime,
+                          (Uint64)my_tms.tms_stime,
+                          errno);
+      }
       g_eventLogger->warning("Watchdog: Warning overslept %llu ms, expected %u ms.",
                              NdbTick_getMicrosPassed(last_time, now)/1000,
                              sleep_time);
@@ -260,13 +276,20 @@ WatchDog::run()
     numThreads = m_watchedCount;
     for (Uint32 i = 0; i < numThreads; i++)
     {
+#ifdef NDB_HAVE_XCNG
+      /* atomically read and clear watchdog counter */
+      counterValue[i] = xcng(m_watchedList[i].m_watchCounter, 0);
+#else
       counterValue[i] = *(m_watchedList[i].m_watchCounter);
-      if (counterValue[i] != 0)
+#endif
+      if (likely(counterValue[i] != 0))
       {
         /*
           The thread responded since last check, so just update state until
           next check.
-
+         */
+#ifndef NDB_HAVE_XCNG
+        /*
           There is a small race here. If the thread changes the counter
           in-between the read and setting to zero here in the watchdog
           thread, then gets stuck immediately after, we may report the
@@ -275,6 +298,7 @@ WatchDog::run()
           this race, nor will there be missed reporting.
         */
         *(m_watchedList[i].m_watchCounter) = 0;
+#endif
         m_watchedList[i].m_startTime = now;
         m_watchedList[i].m_slowWarnDelay = theInterval;
         m_watchedList[i].m_lastCounterValue = counterValue[i];
@@ -309,15 +333,33 @@ WatchDog::run()
       if (oldCounterValue[i] != 9 || elapsed[i] >= theIntervalCheck[i])
       {
         const char *last_stuck_action = get_action(oldCounterValue[i]);
-        g_eventLogger->warning("Ndb kernel thread %u is stuck in: %s "
-                              "elapsed=%u",
-                              threadId[i], last_stuck_action, elapsed[i]);
+        if (last_stuck_action != NULL)
+        {
+          g_eventLogger->warning("Ndb kernel thread %u is stuck in: %s "
+                                 "elapsed=%u",
+                                 threadId[i], last_stuck_action, elapsed[i]);
+        }
+        else
+        {
+          g_eventLogger->warning("Ndb kernel thread %u is stuck in: Unknown place %u "
+                                 "elapsed=%u",
+                                 threadId[i],  oldCounterValue[i], elapsed[i]);
+        }
         {
           struct tms my_tms;
-          times(&my_tms);
-          g_eventLogger->info("Watchdog: User time: %llu  System time: %llu",
+          if (times(&my_tms) != (clock_t)-1)
+          {
+            g_eventLogger->info("Watchdog: User time: %llu  System time: %llu",
                               (Uint64)my_tms.tms_utime,
                               (Uint64)my_tms.tms_stime);
+          }
+          else
+          {
+            g_eventLogger->info("Watchdog: User time: %llu System time: %llu (errno=%d)",
+                              (Uint64)my_tms.tms_utime,
+                              (Uint64)my_tms.tms_stime,
+                              errno);
+          }
         }
         if (elapsed[i] > 3 * theInterval)
         {

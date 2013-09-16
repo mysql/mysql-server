@@ -124,6 +124,19 @@ echo Request memoryusage from illegal nodeid 49;
 --error 255
 exec $mgm_cmd -e "49 REPORT MEMORYUSAGE";
 
+--echo For the following, we want to be running ndbmtd with multiple
+--echo LQH threads
+--echo NDBD (1 instance) is ok, but 2 instances indicates ndbmtd
+--echo with proxy and only 1 real instance, not interesting.
+--echo cnf file should make this impossible
+
+--echo Following query should have no results
+select   node_id, count(1) as instances 
+  from   ndbinfo.threadblocks 
+ where   block_name="BACKUP" 
+group by node_id 
+having   instances=2;
+
 echo ALL REPORT BACKUPSTATUS;
 exec $mgm_cmd -e "ALL REPORT BACKUPSTATUS";
 
@@ -151,6 +164,10 @@ echo Illegal argument -1;
 --error 255
 exec $mgm_cmd -e "1 DUMP -1";
 
+echo Robustness issue with bug#14537622;
+echo Data node must not crash here;
+exec $mgm_cmd -e "ALL DUMP 1000 1000";
+
 echo ALL DUMP 1;
 exec $mgm_cmd -e "ALL DUMP 1 ";
 
@@ -169,3 +186,78 @@ exec $mgm_cmd -e "1 DUMP 1 2 3 4 5 6 7 8 9 10 11 12 13 14 15 16 17 18 19 20 21 2
 --exec $mgm_cmd -e "1 report eventlog" >> $NDB_TOOLS_OUTPUT
 --exec $mgm_cmd -e "2 report eventlog" >> $NDB_TOOLS_OUTPUT
 --exec $mgm_cmd -e "all report eventlog" >> $NDB_TOOLS_OUTPUT
+
+#
+# Test CLUSTERLOG command
+#
+echo Missing argument;
+--error 255
+exec $mgm_cmd -e "CLUSTERLOG";
+
+echo # Unknown argument;
+--error 255
+exec $mgm_cmd -e "CLUSTERLOG unknown_argument";
+
+echo # CLUSTERLOG INFO;
+exec $mgm_cmd -e "CLUSTERLOG INFO";
+
+echo # CLUSTERLOG OFF;
+exec $mgm_cmd -e "CLUSTERLOG OFF";
+
+echo # Should be OFF now;
+exec $mgm_cmd -e "CLUSTERLOG INFO";
+
+echo # CLUSTERLOG ON;
+exec $mgm_cmd -e "CLUSTERLOG ON";
+
+echo # Should be ON now;
+exec $mgm_cmd -e "CLUSTERLOG INFO";
+
+echo # CLUSTERLOG TOGGLE;
+exec $mgm_cmd -e "CLUSTERLOG TOGGLE";
+
+echo # Should be OFF now;
+exec $mgm_cmd -e "CLUSTERLOG INFO";
+
+echo # CLUSTERLOG TOGGLE;
+exec $mgm_cmd -e "CLUSTERLOG TOGGLE";
+
+echo # Should be ON now;
+exec $mgm_cmd -e "CLUSTERLOG INFO";
+
+echo # Turn off severity INFO, ERROR and ALERT;
+exec $mgm_cmd -e "CLUSTERLOG FILTER ALERT INFO ERROR";
+
+echo # Should not list ALERT, INFO or ERROR;
+exec $mgm_cmd -e "CLUSTERLOG INFO";
+
+echo # Turn off reaining severities;
+exec $mgm_cmd -e "CLUSTERLOG FILTER WARNING CRITICAL";
+
+echo # Should not list anything;
+exec $mgm_cmd -e "CLUSTERLOG INFO";
+
+echo # Back to default severity;
+exec $mgm_cmd -e "CLUSTERLOG FILTER WARNING CRITICAL ALERT INFO ERROR";
+
+echo # Should list default;
+exec $mgm_cmd -e "CLUSTERLOG INFO";
+
+echo # Bogus severity;
+--error 255
+exec $mgm_cmd -e "CLUSTERLOG FILTER bogus1";
+
+echo # Should list default;
+exec $mgm_cmd -e "CLUSTERLOG INFO";
+
+echo # Bug 16585455: start backup with backup ID out of range;
+--error 255
+exec $mgm_cmd -e "START BACKUP 201303271430 WAIT COMPLETED";
+
+echo # Test 1/2 for Bug#16585497: abort backup with backup ID > 2^31;
+exec $mgm_cmd -e "ABORT BACKUP 2147483648";
+
+echo # Test 2/2 for Bug#16585497: abort backup with backup ID out of range;
+--error 255
+exec $mgm_cmd -e "ABORT BACKUP 1000000000000000000";
+

@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2005, 2011, Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2005, 2013, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -20,14 +20,17 @@
 
 #include <SimulatedBlock.hpp>
 
-#include <SLList.hpp>
-#include <DLList.hpp>
+#include <IntrusiveList.hpp>
 #include <NodeBitmask.hpp>
 #include <signaldata/GetTabInfo.hpp>
+#include <signaldata/Extent.hpp>
 #include <SafeMutex.hpp>
 
 #include "lgman.hpp"
 #include "pgman.hpp"
+
+#define JAM_FILE_ID 456
+
 
 class Tsman : public SimulatedBlock
 {
@@ -390,8 +393,6 @@ public:
   int update_lsn(Local_key* key, Uint64 lsn);
 };
 
-#include <signaldata/Extent.hpp>
-
 inline
 int
 Tablespace_client::alloc_extent(Local_key* key)
@@ -488,5 +489,8 @@ Tablespace_client::restart_undo_page_free_bits(Local_key* key,
 					      key, 
 					      committed_bits);
 }
+
+
+#undef JAM_FILE_ID
 
 #endif

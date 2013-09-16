@@ -997,7 +997,7 @@ NdbSqlUtil::ndb_strnxfrm(struct charset_info_st * cs,
     defaults for those and can thus easily calculate them from
     existing params
   */
-  return  (*cs->coll->strnxfrm)(cs, dst, dstlen, dstlen,
+  return  (*cs->coll->strnxfrm)(cs, dst, dstlen, (uint)dstlen,
                                 src, srclen, MY_STRXFRM_PAD_WITH_SPACE);
 #endif
 }
@@ -1352,7 +1352,7 @@ NdbSqlUtil::unpack_datetime(Datetime& s, const uchar* d)
   w /= f;
   s.month = (w % f);
   w /= f;
-  s.year = w;
+  s.year = (uint)w;
 }
 
 void
@@ -1605,18 +1605,6 @@ static const uint maxprec = 6;
 static uint maxfrac[1 + maxprec] = {
   0, 9, 99, 999, 9999, 99999, 999999
 };
-
-static uint
-getrand()
-{
-  union {
-    uint32 n;
-    uchar b[4];
-  };
-  for (int i = 0; i < 4; i++)
-    b[i] = (uchar)ndb_rand();
-  return n;
-}
 
 static uint
 getrand(uint m)
@@ -2010,7 +1998,7 @@ static int
 testmain()
 {
   ndb_init();
-  struct { char* env; int* val; } opt[] = {
+  struct { const char* env; int* val; } opt[] = {
     { "TEST_NDB_SQL_UTIL_SEED", &seed },
     { "TEST_NDB_SQL_UTIL_LOOPS", &loops },
     { "TEST_NDB_SQL_UTIL_VERBOSE", &verbose },

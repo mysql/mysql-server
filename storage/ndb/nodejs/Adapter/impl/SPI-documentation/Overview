@@ -1,0 +1,58 @@
+The goal of the API is to provide a productive environment for creating 
+database applications; the goal of the SPI is to make it easy to provide 
+those applications with some backend database adapter.  We mean to 
+describe a simple set of abstractions and then to state that if you implement
+them as described, your adapter will work without surprises.
+
+Concepts
+--------
+
+1. DBServiceProvider
+  
+   DBServiceProvider is able to do a few crucial things.
+    * Supply the list of prerequisite modules required for the adapter to function
+    * Supply a set of default connection properties
+    * Given a set of connection properties, return a DBConnectionPool
+    * Given a set of properties, return a string factoryKey. 
+      If two sets of properties result in the same factoryKey, then they can 
+      use the same DBConnectionPool.
+
+
+2. DBConnectionPool 
+
+   DBConnectionPool is able to open and close a "master" connection (or pool
+   of connections) to the database.
+   
+   Most importantly, DBConnectionPool implements getDBSession().  While the 
+   DBConnectionPool itself represents a master connection for, say, a whole
+   web application, the DBSession represents an individual session for an 
+   individual user's request.  
+   
+   DBConnectionPool is also responsible for some data dictionary operations.
+   It implements the two fundamental data dictionary lookups, listTables() 
+   and getTableMetadata().  And, finally, it implements 
+   registerTypeConverter(), which can establish a default conversion between
+   a SQL type anywhere in the database (such as BIGINT) and some JavaScript
+   class (such as a BigInteger utility class).
+   
+
+3. DBSession
+
+   A DBSession encapsulates a user's session and one single active database
+   transaction in that session.  DBSession implements a Builder pattern, 
+   allowing various operations to be built and then executed.  
+
+  
+4. DBOperation
+
+   DBOperation encapsulates a particular database operation, including the 
+   details that define it (such as search keys and lock mode), its indexed 
+   access path, its result, and any errors encountered during its execution.
+
+
+5. DBTableHandler 
+
+   DBTableHandler encapsulates the relationship between a DBTable -- which is a 
+   metadata object obtained from the data dictionary -- and a class of domain
+   objects mapped to that table. 
+   

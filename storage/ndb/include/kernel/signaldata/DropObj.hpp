@@ -1,6 +1,5 @@
 /*
-   Copyright (C) 2005, 2006 MySQL AB
-    All rights reserved. Use is subject to license terms.
+   Copyright (c) 2005, 2013, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -21,6 +20,9 @@
 
 #include "DictObjOp.hpp"
 #include "SignalData.hpp"
+
+#define JAM_FILE_ID 25
+
 
 struct DropObjReq 
 {
@@ -116,5 +118,8 @@ private:
   Uint32 objId;
   Uint32 errorCode;
 };
+
+
+#undef JAM_FILE_ID
 
 #endif
