@@ -19,6 +19,7 @@
 #define WakeupHandler_H
 
 #include <ndb_types.h>
+#include <NdbMutex.h>
 class Ndb;
 class Ndb_cluster_connection;
 class PollGuard;
@@ -47,16 +48,22 @@ class MultiNdbWakeupHandler : public WakeupHandler
 public:
   MultiNdbWakeupHandler(Ndb* _wakeNdb);
   ~MultiNdbWakeupHandler();
-  bool unregisterNdb(Ndb *);
-  bool ndbIsRegistered(Ndb *);
   void notifyTransactionCompleted(Ndb* from);
   void notifyWakeup();
-  Uint32 getNumReadyNdbs() const;
   /** returns 0 on success, -1 on timeout: */
-  int waitForInput(Ndb **objs, int cnt, int min_requested,
-                   PollGuard* pg, int timeout_millis);
+  int waitForInput(Ndb **objs,
+                   int cnt,
+                   int min_requested,
+                   int timeout_millis,
+                   int *nready);
 
 private:   // private methods
+  void ignore_wakeups();
+  bool is_wakeups_ignored();
+  void set_wakeup(Uint32 wakeup_count);
+  void finalize_wait(int *nready);
+  void registerNdb(Ndb *, Uint32);
+  void unregisterNdb(Ndb *);
   void swapNdbsInArray(Uint32 indexA, Uint32 indexB);
   bool isReadyToWake() const;
 
@@ -66,13 +73,7 @@ private:   // private instance variables
   Ndb* wakeNdb;
   Ndb** objs;
   Uint32 cnt;
+  NdbMutex* localWakeupMutexPtr;
   volatile bool woken;
 };
-
-
-inline bool MultiNdbWakeupHandler::isReadyToWake() const
-{
-  return (numNdbsWithCompletedTrans >= minNdbsToWake) || woken;
-}
-
 #endif

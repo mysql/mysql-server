@@ -146,4 +146,13 @@
 #define NDB_INFO_OP_SCAN_SH      (256 + 2)
 #define NDB_INFO_OP_SCAN_EX      (256 + 3)
 
+/**
+ * FK actions
+ */
+#define NDB_FK_NO_ACTION   0
+#define NDB_FK_RESTRICT    1
+#define NDB_FK_CASCADE     2
+#define NDB_FK_SET_NULL    3
+#define NDB_FK_SET_DEFAULT 4
+
 #endif

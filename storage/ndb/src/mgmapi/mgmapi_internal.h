@@ -42,6 +42,28 @@ extern "C" {
 					   struct ndb_mgm_reply* reply);
 
   /**
+   * Send list of dynamic ports to use when setting up connections
+   * between nodes in the cluster.
+   *
+   * NOTE! Currently only ndbd's set up dynamic listening ports
+   * and all other node types are clients or have static server ports.
+   *
+   * @param handle the NDB management handle.
+   * @param nodeid the node which has openened the ports
+   * @param ports pointer to an array of ndb_mgm_dynamic_port structs
+   * @param num_ports the number of ndb_mgm_dynamic_ports passed
+   * @return 0 on success. < 0 on error.
+   */
+  struct ndb_mgm_dynamic_port {
+   int nodeid; /* The node which should use below port */
+   int port; /* The port to use */
+  };
+  int ndb_mgm_set_dynamic_ports(NdbMgmHandle handle,
+                                int nodeid,
+                                struct ndb_mgm_dynamic_port* ports,
+                                unsigned num_ports);
+
+  /**
    * Get an integer parameter for a connection
    *
    * @param handle the NDB management handle.

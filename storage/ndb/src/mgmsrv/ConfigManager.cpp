@@ -34,6 +34,13 @@ extern EventLogger * g_eventLogger;
 extern "C" const char* opt_ndb_connectstring;
 extern "C" int opt_ndb_nodeid;
 
+#if defined VM_TRACE || defined ERROR_INSERT
+extern int g_errorInsert;
+#define ERROR_INSERTED(x) (g_errorInsert == x)
+#else
+#define ERROR_INSERTED(x) false
+#endif
+
 ConfigManager::ConfigManager(const MgmtSrvr::MgmtOpts& opts,
                              const char* configdir) :
   MgmtThread("ConfigManager"),
@@ -333,9 +340,21 @@ ConfigManager::init(void)
   if (!init_nodeid())
     DBUG_RETURN(false);
 
-  if (m_opts.initial && !delete_saved_configs())
-    DBUG_RETURN(false);
-
+  if (m_opts.initial)
+  {
+    /**
+     * Verify valid -f before delete_saved_configs()
+     */
+    Config* conf = load_config();
+    if (conf == NULL)
+      DBUG_RETURN(false);
+    
+    delete conf;
+    
+    if (!delete_saved_configs())
+      DBUG_RETURN(false);
+  }
+    
   if (failed_config_change_exists())
     DBUG_RETURN(false);
 
@@ -1339,6 +1358,12 @@ ConfigManager::execCONFIG_CHECK_REQ(SignalSender& ss, SimpleSignal* sig)
 
   Uint32 generation = m_config->getGeneration();
 
+  if (ERROR_INSERTED(100) && nodeId != ss.getOwnNodeId())
+  {
+    g_eventLogger->debug("execCONFIG_CHECK_REQ() ERROR_INSERTED(100) => exit()");
+    exit(0);
+  }
+
   // checksum
   Uint32 checksum = config_check_checksum(m_config);
   Uint32 other_checksum = req->checksum;
@@ -1921,7 +1946,7 @@ ConfigManager::run()
         CAST_CONSTPTR(NFCompleteRep, sig->getDataPtr());
       NodeId nodeId= rep->failedNodeId;
 
-      if (m_all_mgm.get(nodeId)) // Not mgm node
+      if (!m_all_mgm.get(nodeId)) // Not mgm node
         break;
 
       ndbout_c("Node %d failed", nodeId);
@@ -2078,7 +2103,7 @@ ConfigManager::fetch_config(void)
 
   if (tmp == NULL) {
     g_eventLogger->error("%s", m_config_retriever.getErrorString());
-    DBUG_RETURN(false);
+    DBUG_RETURN(NULL);
   }
 
   DBUG_RETURN(new Config(tmp));
@@ -2549,24 +2574,51 @@ check_dynamic_port_configured(const Config* config,
 
 bool
 ConfigManager::set_dynamic_port(int node1, int node2, int value,
-                                BaseString& msg){
+                                BaseString& msg)
+{
+  MgmtSrvr::DynPortSpec port = { node2, value };
 
+  return set_dynamic_ports(node1, &port, 1, msg);
+}
+
+
+bool
+ConfigManager::set_dynamic_ports(int node, MgmtSrvr::DynPortSpec ports[],
+                                 unsigned num_ports, BaseString &msg)
+{
   Guard g(m_config_mutex);
-  if (!check_dynamic_port_configured(m_config,
-                                     node1, node2, msg))
-    return false;
 
-  if (!m_dynamic_ports.set(node1, node2, value))
+  // Check that all ports to set are configured as dynamic
+  for(unsigned i = 0; i < num_ports; i++)
   {
-    msg.assfmt("Could not set dynamic port for %d -> %d", node1, node2);
-    return false;
+    const int node2 = ports[i].node;
+    if (!check_dynamic_port_configured(m_config,
+                                       node, node2, msg))
+    {
+      return false;
+    }
+  }
+
+  // Set the dynamic ports
+  bool result = true;
+  for(unsigned i = 0; i < num_ports; i++)
+  {
+    const int node2 = ports[i].node;
+    const int value = ports[i].port;
+    if (!m_dynamic_ports.set(node, node2, value))
+    {
+      // Failed to set one port, report problem but since it's very unlikley
+      // that this step fails, continue and attempt to set remaining ports.
+      msg.assfmt("Failed to set dynamic port(s)");
+      result =  false;
+    }
   }
 
   // Removed cache of packed config, need to be recreated
   // to include the new dynamic port
   m_packed_config.clear();
 
-  return true;
+  return result;
 }
 
 

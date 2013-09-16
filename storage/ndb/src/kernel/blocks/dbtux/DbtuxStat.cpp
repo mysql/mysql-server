@@ -1,6 +1,5 @@
 /*
-   Copyright (C) 2005-2007 MySQL AB, 2009 Sun Microsystems, Inc.
-    All rights reserved. Use is subject to license terms.
+   Copyright (c) 2005, 2013, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -19,6 +18,9 @@
 #define DBTUX_STAT_CPP
 #include "Dbtux.hpp"
 #include <math.h>
+
+#define JAM_FILE_ID 367
+
 
 // debug note: uses new-style debug macro "D" unlike rest of DBTUX
 // there is no filtering feature (yet) like "DebugStat"
