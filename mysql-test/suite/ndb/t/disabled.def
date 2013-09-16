@@ -16,3 +16,5 @@ ndb_partition_error2 : Bug#11750448 ndb_partition_error2 needs maintenance
 ndb_cache_trans           : Bug#42197 Query cache and autocommit
 ndb_disconnect_ddl        : Bug#31853 flaky testcase...
 
+clusterj_jpa              : Bug #17460574 CLUSTERJ_JPA.TEST FAILS PB2 7.1
+
