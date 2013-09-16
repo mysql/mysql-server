@@ -2435,7 +2435,8 @@ void Item_func_add_time::fix_length_and_dec()
   arg0_field_type= args[0]->field_type();
   if (arg0_field_type == MYSQL_TYPE_DATE ||
       arg0_field_type == MYSQL_TYPE_DATETIME ||
-      arg0_field_type == MYSQL_TYPE_TIMESTAMP)
+      arg0_field_type == MYSQL_TYPE_TIMESTAMP ||
+      is_date)
   {
     cached_field_type= MYSQL_TYPE_DATETIME;
     decimals= max(args[0]->temporal_precision(MYSQL_TYPE_DATETIME),
