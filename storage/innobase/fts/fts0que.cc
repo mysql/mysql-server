@@ -1813,7 +1813,7 @@ fts_query_match_phrase_add_word_for_parser(
 		phrase->found = TRUE;
 	}
 
-	return (phrase->found);
+	return(static_cast<int>(phrase->found));
 }
 
 /*****************************************************************//**
@@ -1838,7 +1838,7 @@ fts_query_match_phrase_terms_by_parser(
 	param.mysql_ftparam = phrase_param;
 	param.cs = phrase_param->phrase->charset;
 	param.doc = reinterpret_cast<char*>(text);
-	param.length = len;
+	param.length = static_cast<int>(len);
 	param.mode= MYSQL_FTPARSER_WITH_STOPWORDS;
 
 	PARSER_INIT(parser, &param);
@@ -3930,17 +3930,17 @@ fts_query_str_preprocess(
 	immediately proceeded and followed by valid search word.
 	NOTE: we should not do so for CJK languages, this should
 	be taken care of in our CJK implementation */
-        while (cur_pos < *result_len) {
-                fts_string_t    str;
-                ulint           cur_len;
+	while (cur_pos < *result_len) {
+		fts_string_t	str;
+		ulint		cur_len;
 
-                cur_len = innobase_mysql_fts_get_token(
-                        charset, str_ptr + cur_pos,
+		cur_len = innobase_mysql_fts_get_token(
+			charset, str_ptr + cur_pos,
 			str_ptr + *result_len, &str);
 
-                if (cur_len == 0) {
-                        break;
-                }
+		if (cur_len == 0) {
+			break;
+		}
 
 		/* Check if we are in a phrase, if so, no need to do
 		replacement of '-/+'. */
