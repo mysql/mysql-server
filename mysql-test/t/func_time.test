@@ -1387,3 +1387,9 @@ CREATE TABLE t1 AS SELECT
 SHOW COLUMNS FROM t1;
 SELECT * FROM t1;
 DROP TABLE t1;
+
+--echo #
+--echo # MDEV-4869 Wrong result of MAKETIME(0, 0, -0.1)
+--echo #
+SELECT MAKETIME(0, 0, -0.1);
+
