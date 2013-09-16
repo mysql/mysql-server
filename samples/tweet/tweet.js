@@ -103,17 +103,17 @@ function ConsoleOperationResponder(operation) {
 
 ConsoleOperationResponder.prototype.setError = function(e) {
  this.error = e;
-}
+};
 
 ConsoleOperationResponder.prototype.write = function(x) {
   console.log(x);
-}
+};
 
 ConsoleOperationResponder.prototype.close = function() {
     if(this.error) { console.log("Error", this.error); }
     else           { console.log("Success", this.operation.result); }
     this.operation.session.close(mainLoopComplete);
-}
+};
 
 
 function HttpOperationResponder(operation, httpResponse) {
@@ -422,7 +422,7 @@ FollowOperation.signature = [ "put", "follow", "<user_follower> <user_followed>"
 function buildQueryEq(error, query, self, qparams, nextCallback) {
   var field;
   for(field in qparams) {
-    if(query[field]) {
+    if(qparams.hasOwnProperty(field) && query[field]) {
       query.where(query[field].eq(query.param(field)));
     }
   }
@@ -595,7 +595,7 @@ function HelpOperation(params, data) {
   this.run = function() {
     this.responder.write(operationMap.http_help);
     this.responder.close();
-  }
+  };
 }
 HelpOperation.signature = [ "get" , "help" ];
 
@@ -607,7 +607,7 @@ function parse_command(method, params, data) {
   operation = null;
   udebug.log("parse_command", verb, noun, params);
   if(operationMap.verbs[verb] && operationMap.verbs[verb][noun]) {
-    opIdx = operationMap.verbs[verb][noun][0]
+    opIdx = operationMap.verbs[verb][noun][0];
     opConstructor = allOperations[opIdx];
     if(opConstructor) {
       operation = {};
@@ -716,13 +716,15 @@ function prepareOperationMap() {
   operationMap.verbs = { "get":{}, "post":{}, "put":{}, "delete":{} , "start":{} };
   
   for(idx in allOperations) {
-    sig = allOperations[idx].signature;
-    operationMap.verbs[sig[0]][sig[1]] = [ idx, sig[2], sig[3] ];
-    operationMap.cli_help += "         " + sig.join(" ") + "\n";
-    verb = sig.shift().toLocaleUpperCase();
-    data = sig[2];
-    operationMap.http_help += verb +" /"+ sig[0] +"/"+ sig[1];
-    operationMap.http_help += data ? data + "\n" : "\n";
+    if(allOperations.hasOwnProperty(idx)) {
+      sig = allOperations[idx].signature;
+      operationMap.verbs[sig[0]][sig[1]] = [ idx, sig[2], sig[3] ];
+      operationMap.cli_help += "         " + sig.join(" ") + "\n";
+      verb = sig.shift().toLocaleUpperCase();
+      data = sig[2];
+      operationMap.http_help += verb +" /"+ sig[0] +"/"+ sig[1];
+      operationMap.http_help += data ? data + "\n" : "\n";
+    }
   }
 }
 

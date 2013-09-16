@@ -215,7 +215,6 @@ ignore("IndexBounds.js", 11, "Expected a conditional expression and instead saw 
 ignore("IndexBounds.js", 13, "Expected a conditional expression and instead saw an assignment.");
 
 // Adapter/impl/ndb
-ignore("NdbOperation.js",5,"\'storeNativeConstructorInMapping\' was used before it was defined.");
 ignore("NdbOperation.js",27,"\'gather\' was used before it was defined.");
 ignore("NdbOperation.js",7,"Empty block.");
 ignore("NdbConnectionPool.js",15,"Expected a conditional expression and instead saw an assignment.");
