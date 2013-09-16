@@ -1329,7 +1329,7 @@ sub output
 	printf $f, 'Varsize NULL Bytes/Row';
 	printf $v, $t->vdm_null_bytes->{$_}||0 foreach @{$t->dm_versions};
 	print "\n";
-	printf $f, 'Avg Varside DM/Row';
+	printf $f, 'Avg Varsize DM/Row';
 	printf $v, (exists($t->row_vdm_size->{$_})?
 		    $t->row_vdm_size->{$_}: 0)
 		    foreach @{$r->versions};
@@ -1732,7 +1732,7 @@ ENDHTML
 	    push @r, (exists($t->row_vdm_size->{$_})?
 		      $t->row_vdm_size->{$_}: 0)
 		foreach @{$r->versions};
-	    print $self->tr('Avg Varside DM/Row',@r);
+	    print $self->tr('Avg Varsize DM/Row',@r);
 	}
 	print "</table>\n";
 	print $self->h4("Memory Calculations");
