@@ -4930,7 +4930,7 @@ table_opened:
 	}
 
 	/* Set plugin parser for fulltext index */
-	for (ulint i = 0; i < table->s->keys; i++) {
+	for (uint i = 0; i < table->s->keys; i++) {
 		if (table->key_info[i].flags & HA_USES_PARSER) {
 			dict_index_t*	index = innobase_get_index(i);
 			plugin_ref	parser = table->key_info[i].parser;

@@ -4669,7 +4669,7 @@ fts_tokenize_document_internal(
 
 	str.f_str = buf;
 
-	for (int i = 0, inc = 0; i < len; i += inc) {
+	for (ulint i = 0, inc = 0; i < len; i += inc) {
 		inc = innobase_mysql_fts_get_token(
 			const_cast<CHARSET_INFO*>(param->cs),
 			reinterpret_cast<byte*>(doc) + i,
@@ -4677,14 +4677,16 @@ fts_tokenize_document_internal(
 			&str);
 
 		if (str.f_len > 0) {
-			bool_info.position = i + inc - str.f_len;
+			bool_info.position =
+				static_cast<int>(i + inc - str.f_len);
 			ut_ad(bool_info.position >= 0);
 
 			/* Stop when add word fails */
 			if (param->mysql_add_word(
 				param,
 				reinterpret_cast<char*>(str.f_str),
-				str.f_len, &bool_info)) {
+				static_cast<int>(str.f_len),
+				&bool_info)) {
 				break;
 			}
 		}
@@ -4748,7 +4750,7 @@ fts_tokenize_by_parser(
 	param.mysql_ftparam = fts_param;
 	param.cs = doc->charset;
 	param.doc = reinterpret_cast<char*>(doc->text.f_str);
-	param.length = doc->text.f_len;
+	param.length = static_cast<int>(doc->text.f_len);
 	param.mode= MYSQL_FTPARSER_SIMPLE_MODE;
 
 	PARSER_INIT(parser, &param);
