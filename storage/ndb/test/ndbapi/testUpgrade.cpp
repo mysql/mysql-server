@@ -24,6 +24,7 @@
 #include <Bitmask.hpp>
 #include <NdbBackup.hpp>
 #include <ndb_version.h>
+#include <random.h>
 
 static Vector<BaseString> table_list;
 
@@ -439,6 +440,19 @@ runUpgrade_Half(NDBT_Context* ctx, NDBT_Step* step)
       return NDBT_FAILED;
     }
 
+    ndbout << "Half started" << endl;
+
+    if (ctx->getProperty("HalfStartedHold", (Uint32)0) != 0)
+    {
+      while (ctx->getProperty("HalfStartedHold", (Uint32)0) != 0)
+      {
+        ndbout << "Half started holding..." << endl;
+        ctx->setProperty("HalfStartedDone", (Uint32)1);
+        NdbSleep_SecSleep(30);
+      }
+      ndbout << "Got half started continue..." << endl;
+    }
+
     // Restart the remaining nodes
     cnt= 0;
     for (Uint32 i = 0; (i<nodes.size() && restartCount); i++)
@@ -764,7 +778,24 @@ runBasic(NDBT_Context* ctx, NDBT_Step* step)
             }
           }
           g_info << "range scan T1 with " << bound_cnt << " bounds" << endl;
-          trans.scanReadRecords(pNdb, pInd, records, 0, 0, NdbOperation::LM_Read, 0, bound_cnt, bound_arr);
+          if (trans.scanReadRecords(pNdb, pInd, records, 0, 0,
+              NdbOperation::LM_Read, 0, bound_cnt, bound_arr) != 0)
+          {
+            const NdbError& err = trans.getNdbError();
+            /*
+             * bug#13834481 symptoms include timeouts and error 1231.
+             * Check for any non-temporary error.
+             */
+            if (err.status == NdbError::TemporaryError)
+            {
+              g_info << "range scan T1 temporary error: " << err << endl;
+            }
+            if (err.status != NdbError::TemporaryError)
+            {
+              g_err << "range scan T1 permanent error: " << err << endl;
+              return NDBT_FAILED;
+            }
+          }
         }
         trans.clearTable(pNdb, records/2);
         trans.loadTable(pNdb, records/2);
@@ -785,6 +816,133 @@ runBasic(NDBT_Context* ctx, NDBT_Step* step)
     l++;
   }
   
+  return result;
+}
+
+#define CHK2(b, e) \
+  if (!(b)) { \
+    g_err << "ERR: " << #b << " failed at line " << __LINE__ \
+          << ": " << e << endl; \
+    result = NDBT_FAILED; \
+    break; \
+  }
+
+static int
+runBug14702377(NDBT_Context* ctx, NDBT_Step* step)
+{
+  Ndb* pNdb = GETNDB(step);
+  NdbDictionary::Dictionary * pDict = pNdb->getDictionary();
+  int records = ctx->getNumRecords();
+  int result = NDBT_OK;
+
+  while (ctx->getProperty("HalfStartedDone", (Uint32)0) == 0)
+  {
+    ndbout << "Wait for half started..." << endl;
+    NdbSleep_SecSleep(15);
+  }
+  ndbout << "Got half started" << endl;
+
+  while (1)
+  {
+    assert(table_list.size() == 1);
+    const char* tabname = table_list[0].c_str();
+    const NdbDictionary::Table* tab = 0;
+    CHK2((tab = pDict->getTable(tabname)) != 0,
+          tabname << ": " << pDict->getNdbError());
+    const int ncol = tab->getNoOfColumns();
+
+    {
+      HugoTransactions trans(*tab);
+      CHK2(trans.loadTable(pNdb, records) == 0, trans.getNdbError());
+    }
+
+    for (int r = 0; r < records; r++)
+    {
+      // with 1000 records will surely hit bug case
+      const int lm = myRandom48(4); // 2
+      const int nval = myRandom48(ncol + 1); // most
+      const bool exist = myRandom48(2); // false
+
+      NdbTransaction* pTx = 0;
+      NdbOperation* pOp = 0;
+      CHK2((pTx = pNdb->startTransaction()) != 0,
+           pNdb->getNdbError());
+      CHK2((pOp = pTx->getNdbOperation(tab)) != 0,
+           pTx->getNdbError());
+      CHK2((pOp->readTuple((NdbOperation::LockMode)lm)) == 0,
+           pOp->getNdbError());
+
+      for (int id = 0; id <= 0; id++)
+      {
+        const NdbDictionary::Column* c = tab->getColumn(id);
+        assert(c != 0 && c->getPrimaryKey() &&
+               c->getType() == NdbDictionary::Column::Unsigned);
+        Uint32 val = myRandom48(records);
+        if (!exist)
+          val = 0xaaaa0000 + myRandom48(0xffff + 1);
+        const char* valp = (const char*)&val;
+        CHK2(pOp->equal(id, valp) == 0, pOp->getNdbError());
+      }
+      CHK2(result == NDBT_OK, "failed");
+
+      for (int id = 0; id < nval; id++)
+      {
+        const NdbDictionary::Column* c = tab->getColumn(id);
+        assert(c != 0 && (id == 0 || !c->getPrimaryKey()));
+        CHK2(pOp->getValue(id) != 0, pOp->getNdbError());
+      }
+      CHK2(result == NDBT_OK, "failed");
+
+      char info1[200];
+      sprintf(info1, "lm=%d nval=%d exist=%d",
+                      lm, nval, exist);
+      g_info << "PK read T1 exec: " << info1 << endl;
+      NDB_TICKS t1 = NdbTick_CurrentMillisecond();
+      int ret = pTx->execute(NdbTransaction::NoCommit);
+      NDB_TICKS t2 = NdbTick_CurrentMillisecond();
+      int msec = (int)(t2-t1);
+      const NdbError& txerr = pTx->getNdbError();
+      const NdbError& operr = pOp->getNdbError();
+      char info2[200];
+      sprintf(info2, "%s msec=%d ret=%d txerr=%d operr=%d",
+                      info1, msec, ret, txerr.code, operr.code);
+      g_info << "PK read T1 done: " << info2 << endl;
+
+      if (ret == 0 && txerr.code == 0 && operr.code == 0)
+      {
+        CHK2(exist, "row should not be found: " << info2);
+      }
+      else
+      if (ret == 0 && txerr.code == 626 && operr.code == 626)
+      {
+        CHK2(!exist, "row should be found: " << info2);
+      }
+      else
+      if (txerr.status == NdbError::TemporaryError)
+      {
+        g_err << "PK read T1 temporary error (tx): " << info2 << endl;
+        NdbSleep_MilliSleep(50);
+      }
+      else
+      if (operr.status == NdbError::TemporaryError)
+      {
+        g_err << "PK read T1 temporary error (op): " << info2 << endl;
+        NdbSleep_MilliSleep(50);
+      }
+      else
+      {
+        // gets 4012 before bugfix
+        CHK2(false, "unexpected error: " << info2);
+      }
+      pNdb->closeTransaction(pTx);
+      pTx = 0;
+    }
+
+    break;
+  }
+
+  g_err << "Clear half started hold..." << endl;
+  ctx->setProperty("HalfStartedHold", (Uint32)0);
   return result;
 }
 
@@ -1254,6 +1412,19 @@ POSTUPGRADE("Upgrade_Mixed_MGMD_API_NDBD")
   FINALIZER(runPostUpgradeChecks);
   FINALIZER(runClearAll);
 }
+TESTCASE("Bug14702377",
+         "Dirty PK read of non-existent tuple  6.3->7.x hangs"){
+  TC_PROPERTY("HalfStartedHold", (Uint32)1);
+  INITIALIZER(runCheckStarted);
+  INITIALIZER(runCreateOneTable);
+  STEP(runUpgrade_Half);
+  STEP(runBug14702377);
+}
+POSTUPGRADE("Bug14702377")
+{
+  INITIALIZER(runCheckStarted);
+  INITIALIZER(runPostUpgradeChecks);
+}
   
 NDBT_TESTSUITE_END(testUpgrade);
 
@@ -1261,6 +1432,12 @@ int main(int argc, const char** argv){
   ndb_init();
   NDBT_TESTSUITE_INSTANCE(testUpgrade);
   testUpgrade.setCreateAllTables(true);
+  if (0)
+  {
+    static char env[100];
+    strcpy(env, "API_SIGNAL_LOG=-"); // stdout
+    putenv(env);
+  }
   return testUpgrade.execute(argc, argv);
 }
 

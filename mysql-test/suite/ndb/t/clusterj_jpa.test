@@ -11,11 +11,11 @@
 --source include/have_utf8.inc
 --source include/have_sjis.inc
 --source include/not_embedded.inc
---source suite/ndb/include/have_java.inc
---source suite/ndb/include/have_connectorj.inc
 --source suite/ndb/include/have_clusterj.inc
 --source suite/ndb/include/have_clusterj_jpa.inc
 --source suite/ndb/include/have_openjpa.inc
+--source suite/ndb/include/have_connectorj.inc
+--source suite/ndb/include/have_java.inc
 
 # workaround for http://issues.apache.org/jira/browse/OPENJPA-1224
 # OpenJPA MySQL BigDecimal ignoring Precision/Scale column Annotation when generating tables

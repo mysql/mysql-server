@@ -1,54 +1,89 @@
 #!/bin/sh
 
-prefix=@CMAKE_INSTALL_PREFIX@
+sourcedir=@PROJECT_SOURCE_DIR@
+builddir=@PROJECT_BINARY_DIR@
+installdir=@CMAKE_INSTALL_PREFIX@
+
+# Install Trees:
 bindir=@INSTALL_BINDIR@
 libexecdir=@INSTALL_SBINDIR@
 libdir=@INSTALL_LIBDIR@
 scriptsdir=@INSTALL_SCRIPTDIR@
-memcachedir=@MEMCACHED_ROOT_DIR@
-sourcetree=@CMAKE_CURRENT_SOURCE_DIR@
-installtree=@CMAKE_INSTALL_PREFIX@/memcache-api
-memcached_binary=@MEMCACHED_BIN_PATH@
+sharedir=@INSTALL_MYSQLSHAREDIR@
+memcachedbin=@MEMCACHED_BIN_PATH@
+
+SOURCE_DIR=$sourcedir
+BUILD_DIR=$builddir
+INSTALL_DIR=$installdir
 
 MYSELF=`who am i | awk '{print $1}'`
-MYSQL_PREFIX=$prefix
-MYSQL_BIN=$prefix/$bindir
-MYSQL_LIBEXEC=$prefix/$libexecdir
-MYSQL_SCRIPTS=$prefix/$scriptsdir
-MYSQL_LIB=$prefix/$libdir
-MEMCACHE_BASE=$memcachedir
-SOURCE_TREE=$sourcetree
-HOME_BASE=$sourcetree   # fallback to source tree 
+WORKING_DIR=`pwd`
 
-if test `pwd` = $SOURCE_TREE
+if test -w $WORKING_DIR 
  then
-   # If we are in the source tree, use the memcached and engine there
-   memcached_binary=$MEMCACHE_BASE/memcached
-   NDB_ENGINE_SO=$SOURCE_TREE/ndb_engine.so
+   HOME_BASE=$WORKING_DIR
  else
-   test -d $installtree && HOME_BASE=$installtree
-   NDB_ENGINE_SO=$MYSQL_LIB/ndb_engine.so
+   HOME_BASE=$HOME 
 fi
 
+# In an in-source build, BUILD_DIR = SOURCE_DIR.
+# Try BUILD_DIR first.  If it does not exist, we assume this is an install,
+# so we use INSTALL_DIR.
+if test -d $BUILD_DIR
+ then
+  # Use build dir
+  MEMCACHED_DIR=$BUILD_DIR/storage/ndb/memcache/extra/memcached
+  MGM_CLIENT_DIR=$BUILD_DIR/storage/ndb/src/mgmclient
+  MGM_SERVER_DIR=$BUILD_DIR/storage/ndb/src/mgmsrv
+  NDBD_DIR=$BUILD_DIR/storage/ndb/src/kernel
+  MYSQL_CLIENT_DIR=$BUILD_DIR/client
+  MYSQL_SERVER_DIR=$BUILD_DIR/scripts
+  ENGINE_SO_DIR=$BUILD_DIR/storage/ndb/memcache
+  METADATA_DIR=$BUILD_DIR/scripts/
+  SCRIPTS_DIR=$INSTALL_DIR/$scriptsdir    # See NOTE below
+ else
+  # Use install dir
+  MEMCACHED_DIR=`dirname $memcachedbin`
+  MGM_CLIENT_DIR=$INSTALL_DIR/$libexecdir
+  MGM_SERVER_DIR=$INSTALL_DIR/$libexecdir
+  NDBD_DIR=$INSTALL_DIR/$libexecdir
+  MYSQL_CLIENT_DIR=$INSTALL_DIR/$bindir
+  MYSQL_SERVER_DIR=$INSTALL_DIR/$libexecdir
+  ENGINE_SO_DIR=$INSTALL_DIR/$libdir
+  METADATA_DIR=$sharedir/memcache-api
+  SCRIPTS_DIR=$INSTALL_DIR/$scriptsdir
+fi
+
+## NOTE.
+##  mysql_install_db only works from an installed copy.
+##  mtr fixes this by reimplementing mysql_install_db internally.
+##  Our solution for now is to hope we find a copy in the install_dir
+ 
 test_paths() {
-  test_path $MYSQL_BIN ndb_mgm
-  test_path $MYSQL_BIN mysql
-  test_path $MYSQL_BIN mysqladmin
-  test_path $MYSQL_LIBEXEC ndb_mgmd
-  test_path $MYSQL_LIBEXEC ndbd
-  test_path $MYSQL_LIBEXEC mysqld_safe
-  test_path $MYSQL_SCRIPTS mysql_install_db
-  if [ ! -x $memcached_binary ] 
-    then 
-      echo "Cannot execute $memcached_binary"
-      exit
-  fi
+  test_exec_path $MGM_CLIENT_DIR ndb_mgm
+  test_exec_path $MGM_SERVER_DIR ndb_mgmd
+  test_exec_path $MYSQL_CLIENT_DIR mysql
+  test_exec_path $MYSQL_CLIENT_DIR mysqladmin
+  test_exec_path $MYSQL_SERVER_DIR mysqld_safe
+  test_exec_path $NDBD_DIR ndbd
+  test_exec_path $MEMCACHED_DIR memcached
+  test_exec_path $SCRIPTS_DIR mysql_install_db
+  test_read_path $ENGINE_SO_DIR ndb_engine.so
+  test_read_path $METADATA_DIR ndb_memcache_metadata.sql
 }
 
-test_path() {
+test_exec_path() {
   if [ ! -x $1/$2 ] 
    then
     echo "Fatal error: cannot execute $2 at $1"
+    exit
+  fi
+}
+
+test_read_path() {
+  if [ ! -r $1/$2 ] 
+   then
+    echo "Fatal error: cannot read $2 at $1"
     exit
   fi
 }
@@ -100,33 +135,48 @@ write_cluster_ini() {
 }
 
 do_install_db() {
-  $MYSQL_SCRIPTS/mysql_install_db \
-    --basedir=$MYSQL_PREFIX --datadir=$HOME_BASE/sandbox/data \
-    --skip-name-resolve --user=$MYSELF > /dev/null
-  if test ! -d sandbox/data/mysql 
-    then echo "Failed: mysql_install_db did not work." && exit
+  OUTFILE=`mktemp`
+  $SCRIPTS_DIR/mysql_install_db \
+    --basedir=$INSTALL_DIR --datadir=$HOME_BASE/sandbox/data \
+    --skip-name-resolve --user=$MYSELF > $OUTFILE
+  if test ! -d $HOME_BASE/sandbox/data/mysql 
+    then echo "Failed: mysql_install_db did not work:"
+    cat $OUTFILE
+    rm $OUTFILE
+    exit    
     else echo "Created MySQL System Tables"
+    rm $OUTFILE
   fi
 }
 
+wait_for_mysql_ready() {
+  while ! $MYSQL_CLIENT_DIR/mysqladmin -s ping 
+    do
+      sleep 1
+      echo waiting
+  done
+}
+
+
 start_mgm_server() {
   INITIAL="--initial"
-  test -f sandbox/ndb-config/ndb_1_config.bin.1 && INITIAL=""
+  test -f $HOME_BASE/sandbox/ndb-config/ndb_1_config.bin.1 && INITIAL=""
 
-  $MYSQL_LIBEXEC/ndb_mgmd -f $HOME_BASE/sandbox/cluster.ini \
+  $MGM_SERVER_DIR/ndb_mgmd -f $HOME_BASE/sandbox/cluster.ini \
     --config-dir=$HOME_BASE/sandbox/ndb-config $INITIAL
     
   sleep 5
 }
 
 start_ndbd() {
-  $MYSQL_LIBEXEC/ndbd 
+  $NDBD_DIR/ndbd 
   sleep 5
 }
 
 start_mysql_server() {
-  $MYSQL_LIBEXEC/mysqld_safe --defaults-file=$HOME_BASE/sandbox/my.cnf &
-  sleep 5
+  $MYSQL_SERVER_DIR/mysqld_safe --defaults-file=$HOME_BASE/sandbox/my.cnf &
+  sleep 3
+  wait_for_mysql_ready
 }
 
 mysqld_is_running() {  
@@ -154,16 +204,16 @@ test_pid() {
 
 load_metadata() {
   echo Loading NDB Memcache configuration data
-  DDL_SCRIPT=$SOURCE_TREE/scripts/ndb_memcache_metadata.sql
-  $MYSQL_BIN/mysql --connect-timeout=10 -u root < $DDL_SCRIPT || TRY_AGAIN=1
-  test "$TRY_AGAIN" = "1" && $MYSQL_BIN/mysql --connect-timeout=10 \
+  DDL_SCRIPT=$METADATA_DIR/ndb_memcache_metadata.sql
+  $MYSQL_CLIENT_DIR/mysql --connect-timeout=10 -u root < $DDL_SCRIPT || TRY_AGAIN=1
+  test "$TRY_AGAIN" = "1" && $MYSQL_CLIENT_DIR/mysql --connect-timeout=10 \
     -u root < $DDL_SCRIPT
 }
 
 start_memcached() {
-    $memcached_binary -d -v \
+    $MEMCACHED_DIR/memcached -d -v \
     -P $HOME_BASE/sandbox/memcached.pid \
-    -E $NDB_ENGINE_SO $1 $2
+    -E $ENGINE_SO_DIR/ndb_engine.so $1 $2
 }
 
 stop_memcached() {
@@ -172,18 +222,18 @@ stop_memcached() {
 }
 
 stop_mysqld() {
-  $MYSQL_BIN/mysqladmin -u root shutdown
+  $MYSQL_CLIENT_DIR/mysqladmin -u root shutdown
 }
 
 stop_mgm_server() {
-  $MYSQL_BIN/ndb_mgm -e shutdown
+  $MGM_CLIENT_DIR/ndb_mgm -e shutdown
 }
 
 final_message() {
   sleep 2
   echo
   echo "Sandbox directory is $HOME_BASE/sandbox"
-  echo "Memcached is $memcached_binary"
+  echo "Memcached is $MEMCACHED_DIR/memcached"
   echo 
   echo "Use \"sh sandbox.sh stop\" to stop memcached & MySQL Cluster"
   echo 

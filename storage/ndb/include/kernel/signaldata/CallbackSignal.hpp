@@ -1,5 +1,4 @@
-/* Copyright 2008 Sun Microsystems, Inc.
-    All rights reserved. Use is subject to license terms.
+/* Copyright (c) 2008, 2013, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -19,6 +18,9 @@
 
 #include "SignalData.hpp"
 
+#define JAM_FILE_ID 22
+
+
 struct CallbackConf {
   STATIC_CONST( SignalLength = 5 );
   Uint32 senderData;
@@ -32,5 +34,8 @@ struct CallbackAck {
   STATIC_CONST( SignalLength = 1 );
   Uint32 senderData;
 };
+
+
+#undef JAM_FILE_ID
 
 #endif

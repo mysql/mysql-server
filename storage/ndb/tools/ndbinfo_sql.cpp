@@ -67,7 +67,9 @@ struct view {
     "  WHEN 3 THEN \"DISCONNECTING\""
     "  ELSE NULL "
     " END AS status, "
-    " remote_address, bytes_sent, bytes_received "
+    " remote_address, bytes_sent, bytes_received, "
+    " connect_count, "
+    " overloaded, overload_count, slowdown, slowdown_count "
     "FROM `<NDBINFO_DB>`.`<TABLE_PREFIX>transporters`"
   },
   { "logspaces",
@@ -137,6 +139,12 @@ struct view {
     "  WHEN 23 THEN \"CONST_PRUNED_RANGE_SCANS_RECEIVED\""
     "  WHEN 24 THEN \"LOCAL_READS\""
     "  WHEN 25 THEN \"LOCAL_WRITES\""
+    "  WHEN 26 THEN \"LQHKEY_OVERLOAD\""
+    "  WHEN 27 THEN \"LQHKEY_OVERLOAD_TC\""
+    "  WHEN 28 THEN \"LQHKEY_OVERLOAD_READER\""
+    "  WHEN 29 THEN \"LQHKEY_OVERLOAD_NODE_PEER\""
+    "  WHEN 30 THEN \"LQHKEY_OVERLOAD_SUBSCRIBER\""
+    "  WHEN 31 THEN \"LQHSCAN_SLOWDOWNS\""
     "  ELSE \"<unknown>\" "
     " END AS counter_name, "
     "val "

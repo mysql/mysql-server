@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2003, 2010, Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2003, 2013, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -27,6 +27,10 @@
 
 #include <RefConvert.hpp>
 #include <TransporterDefinitions.hpp>
+#include <SignalCounter.hpp>
+
+#define JAM_FILE_ID 314
+
 
 extern void getSections(Uint32 secCount, SegmentedSectionPtr ptr[3]);
 
@@ -227,8 +231,6 @@ NodeReceiverGroup::NodeReceiverGroup(Uint32 blockNo,
   m_nodes = nodes;
 }
 
-#include "SignalCounter.hpp"
-
 inline
 NodeReceiverGroup::NodeReceiverGroup(Uint32 blockNo, 
 				     const SignalCounter & nodes){
@@ -292,5 +294,19 @@ SectionHandle::getSection(SegmentedSectionPtr& ptr, Uint32 no)
 
   return false;
 }
+
+inline
+SectionHandle::~SectionHandle()
+{
+  if (unlikely(m_cnt))
+  {
+    ErrorReporter::handleError(NDBD_EXIT_BLOCK_BNR_ZERO,
+                               "Unhandled sections(handle) after execute",
+                               "");
+  }
+}
+
+
+#undef JAM_FILE_ID
 
 #endif

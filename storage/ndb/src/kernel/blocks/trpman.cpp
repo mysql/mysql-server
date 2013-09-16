@@ -1,5 +1,5 @@
 /*
-  Copyright (c) 2011, Oracle and/or its affiliates. All rights reserved.
+  Copyright (c) 2011, 2013, Oracle and/or its affiliates. All rights reserved.
 
   This program is free software; you can redistribute it and/or modify
   it under the terms of the GNU General Public License as published by
@@ -24,6 +24,9 @@
 #include <signaldata/DumpStateOrd.hpp>
 
 #include <mt.hpp>
+
+#define JAM_FILE_ID 430
+
 
 Trpman::Trpman(Block_context & ctx, Uint32 instanceno) :
   SimulatedBlock(TRPMAN, ctx, instanceno)
@@ -404,27 +407,44 @@ Trpman::execDBINFO_SCANREQ(Signal *signal)
         row.write_uint32(rnode); // Remote node id
         row.write_uint32(globalTransporterRegistry.getPerformState(rnode)); // State
 
-        /* Connect address */
-        if (globalTransporterRegistry.get_transporter(rnode) != NULL &&
-            globalTransporterRegistry.get_connect_address(rnode).s_addr != 0)
-        {
-          row.write_string(inet_ntoa(globalTransporterRegistry.get_connect_address(rnode)));
-        }
-        else
-        {
-          row.write_string("-");
-        }
-
-        /* Bytes sent/received */
         if (globalTransporterRegistry.get_transporter(rnode) != NULL)
         {
+          jam();
+          /* Connect address */
+          if (globalTransporterRegistry.get_connect_address(rnode).s_addr != 0)
+          {
+            jam();
+            row.write_string(inet_ntoa(globalTransporterRegistry.get_connect_address(rnode)));
+          }
+          else
+          {
+            jam();
+            row.write_string("-");
+          }
+          
+          /* Bytes sent/received */
           row.write_uint64(globalTransporterRegistry.get_bytes_sent(rnode));
           row.write_uint64(globalTransporterRegistry.get_bytes_received(rnode));
+          
+          /* Connect count, overload and Slowdown states */
+          row.write_uint32(globalTransporterRegistry.get_connect_count(rnode));
+          row.write_uint32(globalTransporterRegistry.get_status_overloaded().get(rnode));
+          row.write_uint32(globalTransporterRegistry.get_overload_count(rnode));
+          row.write_uint32(globalTransporterRegistry.get_status_slowdown().get(rnode));
+          row.write_uint32(globalTransporterRegistry.get_slowdown_count(rnode));
         }
         else
         {
-          row.write_uint64(0);
-          row.write_uint64(0);
+          /* Null transporter */
+          jam();
+          row.write_string("-");  /* Remote address */
+          row.write_uint64(0);    /* Bytes sent */
+          row.write_uint64(0);    /* Bytes received */
+          row.write_uint32(0);    /* Connect count */
+          row.write_uint32(0);    /* Overloaded */
+          row.write_uint32(0);    /* Overload_count */
+          row.write_uint32(0);    /* Slowdown */
+          row.write_uint32(0);    /* Slowdown_count */
         }
 
         ndbinfo_send_row(signal, req, row, rl);

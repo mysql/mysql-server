@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2011, Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2011, 2013, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -22,6 +22,9 @@ struct NdbThread;
 #include <Vector.hpp>
 #include <SparseBitmask.hpp>
 #include <BaseString.hpp>
+
+#define JAM_FILE_ID 272
+
 
 /**
  * This class contains thread configuration
@@ -137,5 +140,8 @@ protected:
   void appendInfo(BaseString&, const T_Thread*) const;
   int do_bind(NdbThread*, const T_Thread*);
 };
+
+
+#undef JAM_FILE_ID
 
 #endif // IPCConfig_H

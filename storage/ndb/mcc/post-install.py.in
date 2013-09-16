@@ -1,0 +1,16 @@
+import zipfile
+import sys
+import platform
+import os.path
+
+def main(cfgdir):
+    frontend = os.path.join(cfgdir, 'frontend')
+    if not os.path.exists(os.path.join(frontend, 'dojo')):
+        print 'Running post-install script. This may take a few minutes...'
+        dojoz = zipfile.ZipFile(os.path.join(frontend, 'dojo.zip'), 'r')
+        dojoz.extractall(path=frontend)
+        dojoz.close()
+                        
+if __name__ == '__main__':
+    abs_install_dir = os.path.dirname(os.path.abspath(sys.argv[0]))
+    main(abs_install_dir)
