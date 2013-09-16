@@ -1,5 +1,5 @@
 /*
- Copyright (c) 2012, Oracle and/or its affiliates. All rights
+ Copyright (c) 2013, Oracle and/or its affiliates. All rights
  reserved.
  
  This program is free software; you can redistribute it and/or
@@ -18,27 +18,37 @@
  02110-1301  USA
  */
 
-#include "uv.h"
-#include "compat_uv.h"
+/* Compatibility wrappers for changing NDBAPI 
+*/
 
-#ifdef __cplusplus
-extern "C" {
+#include <ndb_version.h>
+
+// 7.1 
+#if (NDB_VERSION_MAJOR == 7 && NDB_VERSION_MINOR == 1)
+
+#define MULTIWAIT_ENABLED 1
+#define USE_OLD_MULTIWAIT_API 1
+
+// 7.2
+#elif (NDB_VERSION_MAJOR == 7) && (NDB_VERSION_MINOR == 2)
+#define MULTIWAIT_ENABLED 1
+
+#if NDB_VERSION_BUILD < 14
+#define USE_OLD_MULTIWAIT_API 1
 #endif
 
-  void work_thd_run(uv_work_t *);
-  void main_thd_complete(uv_work_t *);
-  void main_thd_complete_newapi(uv_work_t *, int);
+// 7.3
+#elif (NDB_VERSION_MAJOR == 7) && (NDB_VERSION_MINOR == 3)
 
-#ifdef __cplusplus
-}
-
-  class AsyncCall;
-  void main_thd_complete_async_call(AsyncCall *);
-
-#endif
-
-#ifdef OLDER_UV_AFTER_WORK_CB
-#define ASYNC_COMMON_MAIN_THD_CALLBACK main_thd_complete
+#if NDB_VERSION_BUILD < 3
+#define USE_OLD_MULTIWAIT_API 1
+#define MULTIWAIT_ENABLED 0
 #else
-#define ASYNC_COMMON_MAIN_THD_CALLBACK main_thd_complete_newapi
+#define MULTIWAIT_ENABLED 1
 #endif
+
+#else
+#error "What NDB Version?"
+
+#endif
+
