@@ -13874,7 +13874,8 @@ internal_remove_eq_conds(THD *thd, COND *cond, Item::cond_result *cond_value)
       {
         if (!(cond= internal_remove_eq_conds(thd, cond, cond_value)))
           return cond;
-      }          
+      } 
+      should_fix_fields= 1;
     }
     if (should_fix_fields)
       cond->update_used_tables();
