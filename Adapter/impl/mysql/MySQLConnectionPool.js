@@ -33,36 +33,6 @@ var stats_module = require(path.join(api_dir, "stats.js"));
 var stats = stats_module.getWriter(["spi","mysql","DBConnectionPool"]);
 var MySQLTime = require("../common/MySQLTime.js");
 
-/** Convert the raw data in the driver to the type expected by the adapter.
- * @param field the field being processed in the driver
- * @param next the next type converter in the chain
- * @return the value to be passed to the adapter from the driver
- */
-function driverTypeConverter(field, next) {
-//  console.log('MySQLConnectionPool.driverTypeConverter with field', util.inspect(field));
-  var type = field.type;
-  var name = field.name;
-  var value;
-  switch (type) {
-  case 'DATE':
-    value = field.string();
-    return value;
-  case 'TIMESTAMP':
-    value = field.string();
-    if (value === null) {
-      return null;
-    }
-    return value;
-  case 'DATETIME':
-    value = field.string();
-    if (value === null) {
-      return null;
-    }
-    return value;
-  default:
-    return next();
-  }
-}
 /* Translate our properties to the driver's */
 function getDriverProperties(props) {
   var driver = {};
@@ -164,7 +134,6 @@ exports.DBConnectionPool = function(props) {
   this.domainTypeConverterMap = {};
   this.domainTypeConverterMap.TIMESTAMP = new DomainTypeConverterDateTime();
   this.domainTypeConverterMap.DATETIME = new DomainTypeConverterDateTime();
-  this.driverTypeConverter = driverTypeConverter;
   stats.incr( [ "created" ]);
 };
 
