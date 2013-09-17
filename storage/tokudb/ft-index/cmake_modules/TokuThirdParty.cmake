@@ -7,7 +7,7 @@ if (APPLE)
   list(APPEND xz_configure_opts --disable-assembler)
 endif ()
 
-list(APPEND xz_configure_opts CC=${CMAKE_C_COMPILER})
+list(APPEND xz_configure_opts "CC=${CMAKE_C_COMPILER} ${CMAKE_C_COMPILER_ARG1}")
 if (CMAKE_BUILD_TYPE STREQUAL Debug OR CMAKE_BUILD_TYPE STREQUAL drd)
   list(APPEND xz_configure_opts --enable-debug)
 endif ()
