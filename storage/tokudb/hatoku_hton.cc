@@ -349,8 +349,10 @@ HASH tokudb_open_tables;
 pthread_mutex_t tokudb_mutex;
 pthread_mutex_t tokudb_meta_mutex;
 
+#if TOKU_INCLUDE_HANDLERTON_HANDLE_FATAL_SIGNAL
 static my_bool tokudb_gdb_on_fatal;
 static char *tokudb_gdb_path;
+#endif
 
 static PARTITIONED_COUNTER tokudb_primary_key_bytes_inserted;
 void toku_hton_update_primary_key_bytes_inserted(uint64_t row_size) {
@@ -1333,9 +1335,7 @@ static bool tokudb_show_status(handlerton * hton, THD * thd, stat_print_fn * sta
 }
 
 #if TOKU_INCLUDE_HANDLERTON_HANDLE_FATAL_SIGNAL
-static void tokudb_handle_fatal_signal(handlerton *hton __attribute__ ((__unused__)),
-                                       THD *thd __attribute__ ((__unused__)),
-                                       int sig) {
+static void tokudb_handle_fatal_signal(handlerton *hton __attribute__ ((__unused__)), THD *thd __attribute__ ((__unused__)), int sig) {
     if (tokudb_gdb_on_fatal) {
         db_env_try_gdb_stack_trace(tokudb_gdb_path);
     }
@@ -1472,9 +1472,10 @@ static MYSQL_SYSVAR_UINT(read_status_frequency, tokudb_read_status_frequency, 0,
 static MYSQL_SYSVAR_INT(fs_reserve_percent, tokudb_fs_reserve_percent, PLUGIN_VAR_READONLY, "TokuDB file system space reserve (percent free required)", NULL, NULL, 5, 0, 100, 0);
 static MYSQL_SYSVAR_STR(tmp_dir, tokudb_tmp_dir, PLUGIN_VAR_READONLY, "Tokudb Tmp Dir", NULL, NULL, NULL);
 
+#if TOKU_INCLUDE_HANDLERTON_HANDLE_FATAL_SIGNAL
 static MYSQL_SYSVAR_STR(gdb_path, tokudb_gdb_path, PLUGIN_VAR_READONLY|PLUGIN_VAR_RQCMDARG, "TokuDB path to gdb for extra debug info on fatal signal", NULL, NULL, "/usr/bin/gdb");
-
 static MYSQL_SYSVAR_BOOL(gdb_on_fatal, tokudb_gdb_on_fatal, 0, "TokuDB enable gdb debug info on fatal signal", NULL, NULL, true);
+#endif
 
 static void tokudb_fsync_log_period_update(THD *thd, struct st_mysql_sys_var *sys_var, void *var, const void *save) {
     uint32 *period = (uint32 *) var;
@@ -1522,8 +1523,10 @@ static struct st_mysql_sys_var *tokudb_system_variables[] = {
 #endif
     MYSQL_SYSVAR(analyze_time),
     MYSQL_SYSVAR(fsync_log_period),
+#if TOKU_INCLUDE_HANDLERTON_HANDLE_FATAL_SIGNAL
     MYSQL_SYSVAR(gdb_path),
     MYSQL_SYSVAR(gdb_on_fatal),
+#endif
     MYSQL_SYSVAR(last_lock_timeout),
     MYSQL_SYSVAR(lock_timeout_debug),
     NULL
