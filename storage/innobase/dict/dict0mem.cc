@@ -139,10 +139,12 @@ dict_mem_table_free(
             || DICT_TF2_FLAG_IS_SET(table, DICT_TF2_FTS_HAS_DOC_ID)
             || DICT_TF2_FLAG_IS_SET(table, DICT_TF2_FTS_ADD_DOC_ID)) {
 		if (table->fts) {
+			if (table->cached) {
+				fts_optimize_remove_table(table);
+			}
+
 			fts_free(table);
 		}
-
-		fts_optimize_remove_table(table);
 	}
 #ifndef UNIV_HOTBACKUP
 	mutex_free(&(table->autoinc_mutex));
