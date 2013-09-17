@@ -289,14 +289,17 @@ public abstract class PredicateImpl implements Predicate {
                 candidateIndex.score();
                 int score = candidateIndex.getScore();
                 
-                if (score != 0 && candidateIndex.isUnique()) {
-                    // there can be only one unique index for a given predicate
-                    uniqueIndex = candidateIndex;
-                } else {
-                    // add possible indices to ordered map
-                    scoredCandidateIndices.add(candidateIndex);
+                if (score != 0) {
+                    if (candidateIndex.isUnique()) {
+                        // there can be only one unique index for a given predicate
+                        uniqueIndex = candidateIndex;
+                    } else {
+                        // add possible indices to ordered map
+                        scoredCandidateIndices.add(candidateIndex);
+                    }
                 }
-            if (logger.isDetailEnabled()) logger.detail("Score: " + score + " from " + candidateIndex.getIndexName());
+                if (logger.isDetailEnabled()) 
+                    logger.detail("Score: " + score + " from " + candidateIndex.getIndexName());
             }
         }
     }

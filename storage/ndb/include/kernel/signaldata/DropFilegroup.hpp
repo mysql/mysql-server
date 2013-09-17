@@ -1,6 +1,5 @@
 /*
-   Copyright (C) 2005-2008 MySQL AB
-    All rights reserved. Use is subject to license terms.
+   Copyright (c) 2005, 2013, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -20,6 +19,9 @@
 #define DROP_FILEGROUP_HPP
 
 #include "SignalData.hpp"
+
+#define JAM_FILE_ID 135
+
 
 struct DropFilegroupReq {
   /**
@@ -216,5 +218,8 @@ struct DropFileConf {
   Uint32 fileVersion;
   Uint32 transId;
 };
+
+
+#undef JAM_FILE_ID
 
 #endif

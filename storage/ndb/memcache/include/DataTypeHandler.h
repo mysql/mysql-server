@@ -81,8 +81,10 @@ enum {  /* These can be returned by readFromNdb() or writeToNdb() */
    All functions return 1 on success and DTH_xxx values on error 
 */
 typedef struct {
-  int (*read_int32)(Int32 & result, const void * const buf);
-  int (*write_int32)(Int32 value, void * const buf);
+  int (*read_int32)(Int32 & result, const void * const buf, 
+                    const NdbDictionary::Column *);
+  int (*write_int32)(Int32 value, void * const buf,
+                     const NdbDictionary::Column *);
 } NumericHandler;
 
 
