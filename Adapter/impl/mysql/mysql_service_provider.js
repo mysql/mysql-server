@@ -70,13 +70,6 @@ exports.getDefaultConnectionProperties = function() {
 };
 
 
-exports.connectSync = function(properties) {
-  var connectionPool = new mysqlconnection.DBConnectionPool(properties);
-  connectionPool.connectSync();
-  return connectionPool;
-};
-
-
 exports.getFactoryKey = function(properties) {
   var socket = properties.mysql_socket;
   if (!socket) {

@@ -12,14 +12,6 @@
   function getDefaultConnectionProperties() {};
 
 
-/* DBConnectionPool connectSync(Object properties)
-   SYNC.
-   Blocking connect.  
-   RETURNS a DBConnectionPool object
-*/
-  function connectSync(properties) {};
-
-
 /* connect(Object properties, Function(err, DBConnectionPool) callback)
    ASYNC.
    Async connect.

@@ -193,25 +193,6 @@ exports.DBConnectionPool.prototype.getDomainTypeConverter = function(typeName) {
   return this.domainTypeConverterMap[typeName];
 };
 
-exports.DBConnectionPool.prototype.connectSync = function() {
-  var pooledConnection;
-  stats.incr( [ "connect","sync" ]);
-
-  if (this.is_connected) {
-    return;
-  }
-  pooledConnection = mysql.createConnection(this.driverproperties);
-  if (typeof(pooledConnection) === 'undefined') {
-    throw new Error('Fatal internal exception: got undefined pooledConnection for createConnection');
-  }
-  if (pooledConnection === null) {
-    throw new Error('Fatal internal exception: got null pooledConnection for createConnection');
-  }
-  
-  this.pooledConnections[0] = pooledConnection;
-  this.is_connected = true;
-};
-
 exports.DBConnectionPool.prototype.connect = function(user_callback) {
   var callback = user_callback;
   var connectionPool = this;
