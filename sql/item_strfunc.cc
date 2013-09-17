@@ -3422,6 +3422,8 @@ String *Item_func_weight_string::val_str(String *str)
                                    nweights ? nweights : tmp_length,
                                    (const uchar *) res->ptr(), res->length(),
                                    flags);
+  DBUG_ASSERT(frm_length <= tmp_length);
+
   tmp_value.length(frm_length);
   null_value= 0;
   return &tmp_value;
