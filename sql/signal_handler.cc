@@ -133,7 +133,7 @@ extern "C" sig_handler handle_fatal_signal(int sig)
     "Hope that's ok; if not, decrease some variables in the equation.\n\n");
 
 #ifdef HAVE_STACKTRACE
-  THD *thd=current_thd;
+  THD *thd= my_pthread_getspecific(THD *, THR_THD);
 
   if (!(test_flags & TEST_NO_STACKTRACE))
   {
