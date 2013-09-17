@@ -4669,7 +4669,7 @@ fts_tokenize_document_internal(
 
 	str.f_str = buf;
 
-	for (ulint i = 0, inc = 0; i < len; i += inc) {
+	for (ulint i = 0, inc = 0; i < static_cast<ulint>(len); i += inc) {
 		inc = innobase_mysql_fts_get_token(
 			const_cast<CHARSET_INFO*>(param->cs),
 			reinterpret_cast<byte*>(doc) + i,
