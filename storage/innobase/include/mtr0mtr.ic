@@ -1,6 +1,6 @@
 /*****************************************************************************
 
-Copyright (c) 1995, 2012, Oracle and/or its affiliates. All Rights Reserved.
+Copyright (c) 1995, 2013, Oracle and/or its affiliates. All Rights Reserved.
 
 This program is free software; you can redistribute it and/or modify it under
 the terms of the GNU General Public License as published by the Free Software
@@ -158,37 +158,38 @@ mtr_release_s_latch_at_savepoint(
 Checks if memo contains the given item.
 @return	TRUE if contains */
 UNIV_INLINE
-ibool
+bool
 mtr_memo_contains(
 /*==============*/
 	mtr_t*		mtr,	/*!< in: mtr */
 	const void*	object,	/*!< in: object to search */
 	ulint		type)	/*!< in: type of object */
 {
-	mtr_memo_slot_t* slot;
-	dyn_array_t*	memo;
-	ulint		offset;
-
 	ut_ad(mtr);
 	ut_ad(mtr->magic_n == MTR_MAGIC_N);
 	ut_ad(mtr->state == MTR_ACTIVE || mtr->state == MTR_COMMITTING);
 
-	memo = &(mtr->memo);
+	for (const dyn_block_t* block = dyn_array_get_last_block(&mtr->memo);
+	     block;
+	     block = dyn_array_get_prev_block(&mtr->memo, block)) {
+		const mtr_memo_slot_t*	start
+			= reinterpret_cast<mtr_memo_slot_t*>(
+				dyn_block_get_data(block));
+		mtr_memo_slot_t*	slot
+			= reinterpret_cast<mtr_memo_slot_t*>(
+				dyn_block_get_data(block)
+				+ dyn_block_get_used(block));
 
-	offset = dyn_array_get_data_size(memo);
+		ut_ad(!(dyn_block_get_used(block) % sizeof(mtr_memo_slot_t)));
 
-	while (offset > 0) {
-		offset -= sizeof(mtr_memo_slot_t);
-
-		slot = (mtr_memo_slot_t*) dyn_array_get_element(memo, offset);
-
-		if ((object == slot->object) && (type == slot->type)) {
-
-			return(TRUE);
+		while (slot-- != start) {
+			if (object == slot->object && type == slot->type) {
+				return(true);
+			}
 		}
 	}
 
-	return(FALSE);
+	return(false);
 }
 # endif /* UNIV_DEBUG */
 #endif /* !UNIV_HOTBACKUP */
