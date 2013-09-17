@@ -300,55 +300,55 @@ hex(weight_string('abc' as char(5)))
 A4A5A6020202
 select hex(weight_string('abc', 1, 2, 0xC0));
 hex(weight_string('abc', 1, 2, 0xC0))
-A4A5
+A4
 select hex(weight_string('abc', 2, 2, 0xC0));
 hex(weight_string('abc', 2, 2, 0xC0))
-A4A5A6
+A4A5
 select hex(weight_string('abc', 3, 2, 0xC0));
 hex(weight_string('abc', 3, 2, 0xC0))
-A4A5A602
+A4A5A6
 select hex(weight_string('abc', 4, 2, 0xC0));
 hex(weight_string('abc', 4, 2, 0xC0))
-A4A5A60202
+A4A5A602
 select hex(weight_string('abc', 5, 2, 0xC0));
 hex(weight_string('abc', 5, 2, 0xC0))
-A4A5A6020202
+A4A5A60202
 select hex(weight_string('abc',25, 2, 0xC0));
 hex(weight_string('abc',25, 2, 0xC0))
 A4A5A602020200000000000000000000000000000000000000
 select hex(weight_string('abc', 1, 3, 0xC0));
 hex(weight_string('abc', 1, 3, 0xC0))
-A4A5
+A4
 select hex(weight_string('abc', 2, 3, 0xC0));
 hex(weight_string('abc', 2, 3, 0xC0))
-A4A5A6
+A4A5
 select hex(weight_string('abc', 3, 3, 0xC0));
 hex(weight_string('abc', 3, 3, 0xC0))
-A4A5A602
+A4A5A6
 select hex(weight_string('abc', 4, 3, 0xC0));
 hex(weight_string('abc', 4, 3, 0xC0))
-A4A5A60202
+A4A5A602
 select hex(weight_string('abc', 5, 3, 0xC0));
 hex(weight_string('abc', 5, 3, 0xC0))
-A4A5A6020202
+A4A5A60202
 select hex(weight_string('abc',25, 3, 0xC0));
 hex(weight_string('abc',25, 3, 0xC0))
 A4A5A602020200000000000000000000000000000000000000
 select hex(weight_string('abc', 1, 4, 0xC0));
 hex(weight_string('abc', 1, 4, 0xC0))
-A4A5
+A4
 select hex(weight_string('abc', 2, 4, 0xC0));
 hex(weight_string('abc', 2, 4, 0xC0))
-A4A5A6
+A4A5
 select hex(weight_string('abc', 3, 4, 0xC0));
 hex(weight_string('abc', 3, 4, 0xC0))
-A4A5A602
+A4A5A6
 select hex(weight_string('abc', 4, 4, 0xC0));
 hex(weight_string('abc', 4, 4, 0xC0))
-A4A5A60202
+A4A5A602
 select hex(weight_string('abc', 5, 4, 0xC0));
 hex(weight_string('abc', 5, 4, 0xC0))
-A4A5A6020202
+A4A5A60202
 select hex(weight_string('abc',25, 4, 0xC0));
 hex(weight_string('abc',25, 4, 0xC0))
 A4A5A602020200000000000000000000000000000000000000
@@ -372,55 +372,55 @@ hex(weight_string(cast(_latin1 0x808080 as char) as char(5)))
 818181232323
 select hex(weight_string(cast(_latin1 0x808080 as char), 1, 2, 0xC0));
 hex(weight_string(cast(_latin1 0x808080 as char), 1, 2, 0xC0))
-8181
+81
 select hex(weight_string(cast(_latin1 0x808080 as char), 2, 2, 0xC0));
 hex(weight_string(cast(_latin1 0x808080 as char), 2, 2, 0xC0))
-818181
+8181
 select hex(weight_string(cast(_latin1 0x808080 as char), 3, 2, 0xC0));
 hex(weight_string(cast(_latin1 0x808080 as char), 3, 2, 0xC0))
-81818123
+818181
 select hex(weight_string(cast(_latin1 0x808080 as char), 4, 2, 0xC0));
 hex(weight_string(cast(_latin1 0x808080 as char), 4, 2, 0xC0))
-8181812323
+81818123
 select hex(weight_string(cast(_latin1 0x808080 as char), 5, 2, 0xC0));
 hex(weight_string(cast(_latin1 0x808080 as char), 5, 2, 0xC0))
-818181232323
+8181812323
 select hex(weight_string(cast(_latin1 0x808080 as char),25, 2, 0xC0));
 hex(weight_string(cast(_latin1 0x808080 as char),25, 2, 0xC0))
 81818123232300000000000000000000000000000000000000
 select hex(weight_string(cast(_latin1 0x808080 as char), 1, 3, 0xC0));
 hex(weight_string(cast(_latin1 0x808080 as char), 1, 3, 0xC0))
-8181
+81
 select hex(weight_string(cast(_latin1 0x808080 as char), 2, 3, 0xC0));
 hex(weight_string(cast(_latin1 0x808080 as char), 2, 3, 0xC0))
-818181
+8181
 select hex(weight_string(cast(_latin1 0x808080 as char), 3, 3, 0xC0));
 hex(weight_string(cast(_latin1 0x808080 as char), 3, 3, 0xC0))
-81818123
+818181
 select hex(weight_string(cast(_latin1 0x808080 as char), 4, 3, 0xC0));
 hex(weight_string(cast(_latin1 0x808080 as char), 4, 3, 0xC0))
-8181812323
+81818123
 select hex(weight_string(cast(_latin1 0x808080 as char), 5, 3, 0xC0));
 hex(weight_string(cast(_latin1 0x808080 as char), 5, 3, 0xC0))
-818181232323
+8181812323
 select hex(weight_string(cast(_latin1 0x808080 as char),25, 3, 0xC0));
 hex(weight_string(cast(_latin1 0x808080 as char),25, 3, 0xC0))
 81818123232300000000000000000000000000000000000000
 select hex(weight_string(cast(_latin1 0x808080 as char), 1, 4, 0xC0));
 hex(weight_string(cast(_latin1 0x808080 as char), 1, 4, 0xC0))
-8181
+81
 select hex(weight_string(cast(_latin1 0x808080 as char), 2, 4, 0xC0));
 hex(weight_string(cast(_latin1 0x808080 as char), 2, 4, 0xC0))
-818181
+8181
 select hex(weight_string(cast(_latin1 0x808080 as char), 3, 4, 0xC0));
 hex(weight_string(cast(_latin1 0x808080 as char), 3, 4, 0xC0))
-81818123
+818181
 select hex(weight_string(cast(_latin1 0x808080 as char), 4, 4, 0xC0));
 hex(weight_string(cast(_latin1 0x808080 as char), 4, 4, 0xC0))
-8181812323
+81818123
 select hex(weight_string(cast(_latin1 0x808080 as char), 5, 4, 0xC0));
 hex(weight_string(cast(_latin1 0x808080 as char), 5, 4, 0xC0))
-818181232323
+8181812323
 select hex(weight_string(cast(_latin1 0x808080 as char),25, 4, 0xC0));
 hex(weight_string(cast(_latin1 0x808080 as char),25, 4, 0xC0))
 81818123232300000000000000000000000000000000000000
@@ -483,13 +483,13 @@ hex(weight_string(cast(_latin1 0xDF6368 as char) as char(4)))
 BBAD0103
 select hex(weight_string(cast(_latin1 0x6368DF as char), 1, 2, 0xC0));
 hex(weight_string(cast(_latin1 0x6368DF as char), 1, 2, 0xC0))
-ADBB
+AD
 select hex(weight_string(cast(_latin1 0x6368DF as char), 2, 2, 0xC0));
 hex(weight_string(cast(_latin1 0x6368DF as char), 2, 2, 0xC0))
-ADBB03
+ADBB
 select hex(weight_string(cast(_latin1 0x6368DF as char), 3, 2, 0xC0));
 hex(weight_string(cast(_latin1 0x6368DF as char), 3, 2, 0xC0))
-ADBB0301
+ADBB03
 select hex(weight_string(cast(_latin1 0x6368DF as char), 4, 2, 0xC0));
 hex(weight_string(cast(_latin1 0x6368DF as char), 4, 2, 0xC0))
 ADBB0301
@@ -498,13 +498,13 @@ hex(weight_string(cast(_latin1 0x6368DF as char),25, 2, 0xC0))
 ADBB0301000000000000000000000000000000000000000000
 select hex(weight_string(cast(_latin1 0x6368DF as char), 1, 3, 0xC0));
 hex(weight_string(cast(_latin1 0x6368DF as char), 1, 3, 0xC0))
-ADBB
+AD
 select hex(weight_string(cast(_latin1 0x6368DF as char), 2, 3, 0xC0));
 hex(weight_string(cast(_latin1 0x6368DF as char), 2, 3, 0xC0))
-ADBB03
+ADBB
 select hex(weight_string(cast(_latin1 0x6368DF as char), 3, 3, 0xC0));
 hex(weight_string(cast(_latin1 0x6368DF as char), 3, 3, 0xC0))
-ADBB0301
+ADBB03
 select hex(weight_string(cast(_latin1 0x6368DF as char), 4, 3, 0xC0));
 hex(weight_string(cast(_latin1 0x6368DF as char), 4, 3, 0xC0))
 ADBB0301
@@ -513,13 +513,13 @@ hex(weight_string(cast(_latin1 0x6368DF as char),25, 3, 0xC0))
 ADBB0301000000000000000000000000000000000000000000
 select hex(weight_string(cast(_latin1 0x6368DF as char), 1, 4, 0xC0));
 hex(weight_string(cast(_latin1 0x6368DF as char), 1, 4, 0xC0))
-ADBB
+AD
 select hex(weight_string(cast(_latin1 0x6368DF as char), 2, 4, 0xC0));
 hex(weight_string(cast(_latin1 0x6368DF as char), 2, 4, 0xC0))
-ADBB03
+ADBB
 select hex(weight_string(cast(_latin1 0x6368DF as char), 3, 4, 0xC0));
 hex(weight_string(cast(_latin1 0x6368DF as char), 3, 4, 0xC0))
-ADBB0301
+ADBB03
 select hex(weight_string(cast(_latin1 0x6368DF as char), 4, 4, 0xC0));
 hex(weight_string(cast(_latin1 0x6368DF as char), 4, 4, 0xC0))
 ADBB0301
@@ -528,13 +528,13 @@ hex(weight_string(cast(_latin1 0x6368DF as char),25, 4, 0xC0))
 ADBB0301000000000000000000000000000000000000000000
 select hex(weight_string(cast(_latin1 0xDF6368 as char), 1, 2,0xC0));
 hex(weight_string(cast(_latin1 0xDF6368 as char), 1, 2,0xC0))
-BBAD
+BB
 select hex(weight_string(cast(_latin1 0xDF6368 as char), 2, 2,0xC0));
 hex(weight_string(cast(_latin1 0xDF6368 as char), 2, 2,0xC0))
-BBAD01
+BBAD
 select hex(weight_string(cast(_latin1 0xDF6368 as char), 3, 2,0xC0));
 hex(weight_string(cast(_latin1 0xDF6368 as char), 3, 2,0xC0))
-BBAD0103
+BBAD01
 select hex(weight_string(cast(_latin1 0xDF6368 as char), 4, 2,0xC0));
 hex(weight_string(cast(_latin1 0xDF6368 as char), 4, 2,0xC0))
 BBAD0103
@@ -543,13 +543,13 @@ hex(weight_string(cast(_latin1 0xDF6368 as char),25, 2,0xC0))
 BBAD0103000000000000000000000000000000000000000000
 select hex(weight_string(cast(_latin1 0xDF6368 as char), 1, 3,0xC0));
 hex(weight_string(cast(_latin1 0xDF6368 as char), 1, 3,0xC0))
-BBAD
+BB
 select hex(weight_string(cast(_latin1 0xDF6368 as char), 2, 3,0xC0));
 hex(weight_string(cast(_latin1 0xDF6368 as char), 2, 3,0xC0))
-BBAD01
+BBAD
 select hex(weight_string(cast(_latin1 0xDF6368 as char), 3, 3,0xC0));
 hex(weight_string(cast(_latin1 0xDF6368 as char), 3, 3,0xC0))
-BBAD0103
+BBAD01
 select hex(weight_string(cast(_latin1 0xDF6368 as char), 4, 3,0xC0));
 hex(weight_string(cast(_latin1 0xDF6368 as char), 4, 3,0xC0))
 BBAD0103
@@ -558,13 +558,13 @@ hex(weight_string(cast(_latin1 0xDF6368 as char),25, 3,0xC0))
 BBAD0103000000000000000000000000000000000000000000
 select hex(weight_string(cast(_latin1 0xDF6368 as char), 1, 4,0xC0));
 hex(weight_string(cast(_latin1 0xDF6368 as char), 1, 4,0xC0))
-BBAD
+BB
 select hex(weight_string(cast(_latin1 0xDF6368 as char), 2, 4,0xC0));
 hex(weight_string(cast(_latin1 0xDF6368 as char), 2, 4,0xC0))
-BBAD01
+BBAD
 select hex(weight_string(cast(_latin1 0xDF6368 as char), 3, 4,0xC0));
 hex(weight_string(cast(_latin1 0xDF6368 as char), 3, 4,0xC0))
-BBAD0103
+BBAD01
 select hex(weight_string(cast(_latin1 0xDF6368 as char), 4, 4,0xC0));
 hex(weight_string(cast(_latin1 0xDF6368 as char), 4, 4,0xC0))
 BBAD0103
