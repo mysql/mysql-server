@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2009, 2010, Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2009, 2013, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -19,6 +19,9 @@
 #define ALLOC_MEM_HPP
 
 #include "SignalData.hpp"
+
+#define JAM_FILE_ID 116
+
 
 struct AllocMemReq
 {
@@ -59,5 +62,8 @@ struct AllocMemConf
   Uint32 bytes_hi;
   Uint32 bytes_lo;
 };
+
+
+#undef JAM_FILE_ID
 
 #endif

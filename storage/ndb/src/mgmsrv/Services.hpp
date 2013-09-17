@@ -127,6 +127,8 @@ public:
   void show_variables(Parser_t::Context &ctx, Properties const &args);
 
   void dump_events(Parser_t::Context &ctx, Properties const &args);
+
+  void set_ports(Parser_t::Context &, Properties const &args);
 };
 
 class MgmApiService : public SocketServer::Service {

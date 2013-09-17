@@ -1,6 +1,5 @@
 /*
-   Copyright (C) 2004-2006 MySQL AB, 2009 Sun Microsystems, Inc.
-    All rights reserved. Use is subject to license terms.
+   Copyright (c) 2004, 2013, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -18,6 +17,9 @@
 
 #define DBTUX_SEARCH_CPP
 #include "Dbtux.hpp"
+
+#define JAM_FILE_ID 368
+
 
 /*
  * Search down non-empty tree for node to update.  Compare search key to

@@ -1,0 +1,769 @@
+<!DOCTYPE HTML PUBLIC "-//W3C//DTD HTML 4.01//EN" "http://www.w3.org/TR/html4/strict.dtd">
+<!--
+Copyright (c) 2012, 2013, Oracle and/or its affiliates. All rights reserved.
+
+This program is free software; you can redistribute it and/or modify
+it under the terms of the GNU General Public License as published by
+the Free Software Foundation; version 2 of the License.
+
+This program is distributed in the hope that it will be useful,
+but WITHOUT ANY WARRANTY; without even the implied warranty of
+MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+GNU General Public License for more details.
+
+You should have received a copy of the GNU General Public License
+along with this program; if not, write to the Free Software
+Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA  02110-1301 USA
+-->
+
+<html dir="ltr">
+    <head>
+        <meta http-equiv="Content-Type" content="text/html;charset=iso-8859-1">
+        <title>MySQL Cluster Configuration User Guide</title>
+        <link href="img/favicon.ico" rel="icon" type="image/x-icon">
+        <link rel="stylesheet" type="text/css" href="../css/help.css">
+
+        <script  type="text/javascript" src="../../dojo/dojo/dojo.js" djConfig="parseOnLoad: true"></script>
+
+        <script type="text/javascript">
+            // Path to top level mcc module
+            dojo.registerModulePath("mcc", "../../../../js/mcc");
+
+            // Get the util module for retrieving doc root
+            dojo.require("mcc.util");
+            dojo.ready(function() {
+                dojo.byId("docUrlRoot").innerHTML = 
+                    "<a href=\"" + mcc.util.getDocUrlRoot() + 
+                    "mysql-cluster-installation.html\">MySQL Cluster documentation</a>";
+            });
+        </script>
+    </head>
+
+<!--Note: The browser has size 1043 x 755 in the images -->
+
+<!--
+********************************************************************************
+***                                                                          ***
+***                            Introduction                                  ***
+***                                                                          ***
+********************************************************************************
+-->
+
+<h2><a name="introduction">Introduction</a></h2>
+<p>This is the user guide for the MySQL Cluster configuration tool. You can read 
+    the user guide sequentially, or you can get help regarding the wizard page 
+    you are currently at by choosing the proper entry in the Help menu. This 
+    user guide is divided into the following main parts: </p>
+
+<ul>
+<li><i>Installing and Starting</i> will describe what the system requirements 
+    are for running the configuration tool. How to install and start it will 
+    also be explained.</li>
+<li>The <i>Wizard Overview</i> will provide a high level description of the 
+    main parts of the system and how they interact. How to use the configuration 
+    tool in terms of navigation, settings, etc. will also be covered. </li>
+<li>In <i>Wizard Pages</i>, the individual pages of the wizard will be examined. 
+    The various input widgets will be explained in detail. </li>
+<!--
+<li>Finally, the <i>Troubleshooting</i> section will present various topics 
+    that deserve further attention in terms of potentially leading to problems, 
+    in particular when starting the MySQL Cluster. </li>
+-->
+</ul>
+
+<h3>Tool Name</h3>
+<p>The configuration tool is a part of the MySQL Cluster Software, and hence, it 
+    does not have a particular name. In this user guide, we refer to the 
+    <i>installer</i>, <i>configurator</i>, <i>configuration tool</i>, 
+    <i>configuration wizard</i> or simply <i>wizard</i>. </p>
+
+
+<!--
+********************************************************************************
+***                                                                          ***
+***                       Installing and starting                            ***
+***                                                                          ***
+********************************************************************************
+-->
+
+<h2><a name="installingAndStarting">Installing and Starting</a></h2>
+<p>The configuration tool is installed together with the MySQL Cluster software. 
+    Please refer to the <span id="docUrlRoot"></span> 
+    regarding installation. This section describes the requirements to the 
+    environment of the tool, important information about security, and explains 
+    how to start the wizard. </p>
+
+<!-- ======================= Installation layout =========================== -->
+
+<h3><a name="installationLayout">Installation Layout</a></h3>
+
+<p>The configuration tool may end up in various locations depending on the 
+    context (note that the default paths may be overridden at install time for 
+    some package formats). </p>
+
+<!--
+<ul>
+<li><b>Part of MySQL Cluster package: </b></li>
+<ul>
+<li><b>ZIP: </b>
+Default path to wizard startup command: <tt>./MySQL_blabla/bin/ndb_setup</tt>
+</li>
+<li><b>RPM: </b>
+Default path to wizard startup command: <tt>/usr/local/bin/ndb_setup</tt>
+</li>
+<li><b>MSI: </b>
+Default path to wizard startup command: <tt>C:\Program Files\MySQL_blabla\bin\ndb_setup.exe</tt>
+</li>
+</ul>
+<li><b>Separate installer package: </b></li>
+<ul>
+<li><b>TBD</b></li>
+</ul>
+<li><b>Built from source: </b></li>
+<ul>
+<li><b>TBD</b></li>
+</ul>
+</ul>
+-->
+
+<!-- ======================== Wizard options =============================== -->
+
+<h3><a name="wizardOptions">Wizard Options</a></h3>
+<p>The wizard supports the following command line options: </p>
+
+<ul>
+<li><b>-h, --help </b> show this help message and exit</li>
+<li><b>-N SERVER_NAME, --server_name=SERVER_NAME </b> server name: [default: localhost]</li>
+<li><b>-p PORT, --port=PORT </b> port for the web server: [default: 8081]</li>
+<li><b>-n, --no-browser </b> do not open the server's start page in a browser</li>
+<li><b>-s BROWSER_START_PAGE, --browser-start-page=BROWSER_START_PAGE </b> start 
+    page for browser: [default: index.html]</li>
+<li><b>-d DEBUG_LEVEL, --debug-level=DEBUG_LEVEL </b> Python logging module 
+    debug level (DEBUG, INFO, WARNING, ERROR or CRITICAL). [default: WARNING]</li>
+<li><b>-o SERVER_LOG_FILE, --server-log-file=SERVER_LOG_FILE </b> log requests to 
+    this file. The value - means log to stderr: [default: ndb_setup-1541.log]</li>
+<li><b>-S, --use-https </b> use https to secure communication with browser</li>
+<li><b>-c CERT_FILE, --cert-file=CERT_FILE </b> file containing X509 certificate 
+    which identifies the server (possibly self-signed): [default: cfg.pem]</li>
+<li><b>-k KEY_FILE, --key-file=KEY_FILE </b> file containing private key when if 
+    not included in cert-file: [default: none]</li>
+<li><b>-a CA_CERTS_FILE, --ca-certs-file=CA_CERTS_FILE </b> file containing list 
+    of client certificates allowed to connect to the server [default: none (no 
+    client authentication)]</li>
+</ul>
+
+<!-- ====================== Starting the wizard ============================ -->
+
+<h3><a name="startingTheWizard">Starting the Wizard</a></h3>
+<p>First, you need to identify the directory where the <tt>ndb_setup</tt> tool 
+    is located. This location depends on which package was downloaded and how 
+    it was installed. Then, you can start in the following ways: </p>
+
+<ul>
+<li><b>From the command line: </b> Either change current directory to the one 
+    identified above, or enter the command prefixed by its absolute or relative 
+    path. </li>
+<li><b>Double clicking the appropriate icon: </b> Open the file browser, go to 
+    the appropriate directory, identify the <tt>ndb_setup</tt> executable, and 
+    double click it. </li>
+</ul>
+
+<!-- ====================== Supported platforms ============================ -->
+
+<h3><a name="supportedPlatforms">Supported Platforms</a></h3>
+<p>The configuration tool makes it a top priority to support the 
+    following platforms: </p>
+
+<ul>
+<li>Generic Linux</li>
+<li>Linux OL6</li>
+<li>SUSE Linux 11</li>
+<li>Windows 7</li>
+<li>Windows 2008</li>
+<li>Windows XP</li>
+</ul>
+
+<p>Additionally, the tool will attempt, as far as possible, to support the 
+    following platforms: </p>
+
+<ul>
+<li>Ubuntu 11</li>
+<li>Windows Vista</li>
+<li>Solaris 11 Sparc</li>
+<li>Solaris 11 x86</li>
+<li>Mac OS x 10.7</li>
+</ul>
+
+<!-- ======================= Supported browsers ============================ -->
+
+<h3><a name="supportedBrowsers">Supported Browsers</a></h3>
+<p>The configuration tool makes it a top priority to support the following 
+    browsers: </p>
+
+<ul>
+<li>Firefox</li>
+<li>Microsoft Internet Explorer</li>
+</ul>
+
+<p>Additionally, the following browsers are supported as far as possible: </p>
+
+<ul>
+<li>Chrome</li>
+<li>Opera</li>
+<li>Safari</li>
+</ul>
+
+<!-- ======================== Required software ============================ -->
+
+<h3><a name="requiredSoftware">Required Software</a></h3>
+
+<p>The following software must be installed on the host where the configuration 
+    tool is started: </p>
+
+<ul>
+<li><b>Python: </b> Interpreter and libraries for the configuration tool. 
+    Version 2.6 or higher is required, and can be downloaded from 
+    <a href="http://python.org/download/">http://python.org/download/</a></li>
+<li><b>Paramiko: </b> SSH implementation required to communicate with remote hosts. 
+    Version 1.7.7.1 or higher is required, and can be downloaded from 
+    <a href="http://www.lag.net/paramiko/">http://www.lag.net/paramiko/</a></li>
+<li><b>Pycrypto: </b> Cryptography module required by Paramiko. Version 2.6 or 
+    higher is required, and can be downloaded from 
+    <a href="https://www.dlitz.net/software/pycrypto/">https://www.dlitz.net/software/pycrypto/</a></li>
+</ul>
+
+<p>If you install the Windows version of the configuration tool, the above 
+    software comes bundled and is installed automatically. If you intend to 
+    deploy MySQL Cluster only on the same host as the configuration tool is 
+    running, you will not need the Paramiko and Pycrypto software. </p>
+
+<p>The following software must be installed on the remote hosts that will be 
+    used to deploy the MySQL Cluster: </p>
+<ul>
+<li><b>SSH server: </b>Most Linux and Solaris distributions run this as default. 
+    For Windows users, see e.g. <a href="http://en.wikipedia.org/wiki/Comparison_of_SSH_servers">
+        http://en.wikipedia.org/wiki/Comparison_of_SSH_servers</a> 
+    for an overview of SSH servers. </li>
+<li><b>User authentication: </b> This is no particular software, of course, but 
+    the user wanting to access the remote host must be able to authenticate 
+    himself through SSH by means of user credentials or keys. </li>
+</ul>
+
+<!-- ============================ Security ================================= -->
+
+<h3><a name="security">Security</a></h3>
+<p>Three basic security mechanisms may be utilized by the configuration tool: </p>
+
+<ul>
+<li><b>SSH: </b>Secure shell is used to enable the back end to perform actions 
+    on remote hosts. Thus, the remote host being accessed must have an SSH server 
+    up and running. Additionally, the configuration tool user must have access 
+    to the remote server by means of a <i>user name and password</i>, or by <i>keys</i>. </li>
+<li><b>https: </b>Communication between the front end and the back end is not 
+    encrypted by default. This means that e.g. the SSH password is transmitted 
+    in a format that is readable to anyone. For communication to be encrypted, 
+    the back end must have a <i>certificate</i>, and the front end must 
+    communicate with the back end using <i>https</i> rather than <i>http</i>. 
+    The easiest way to enable this is to issue a <i>self signed certificate</i>. 
+    After the certificate is issued, it must be made available to, and used by, 
+    the back end. This can be done by starting the wizard with the options 
+    <tt>--use-https</tt> and <tt>--cert-file=&lt;certificate file name&gt;</tt>.</li>
+<li><b>Authentication: </b>The back end process can execute commands on its 
+    local host as well as remote hosts. Thus, anyone connecting to the back end 
+    can take charge of how commands are executed. To reject unwanted connections 
+    to the back end, certificates may be used for authentication of the client. 
+    Thus, a certificate must be issued by the user, installed in the browser, 
+    and made available to the back end for authentication purposes. This can be 
+    done by starting the back end with the option 
+    <tt>--ca-certs-file=&lt;certificate list file name&gt;</tt>.</li>
+</ul>
+
+
+<!--
+********************************************************************************
+***                                                                          ***
+***                          Wizard Overview                                 ***
+***                                                                          ***
+********************************************************************************
+-->
+
+<h2><a name="wizardOverview">Wizard overview</a></h2>
+<p>Two main components comprise the cluster configuration tool: </p>
+
+<ul>
+<li>The <i>front end</i> is a client implemented in Javascript, running in your favorite web browser.
+<li>The <i>back end</i> is a server implemented in Python, running on your desktop or on another host. 
+</ul>
+
+<p>The two main components communicate using messages wrapped in http. The back 
+    end can manage MySQL cluster software on any host. If the software is on the 
+    same host as the back end itself, the Python interfaces are used for file 
+    system operations, process manipulation, etc. If the MySQL Cluster software 
+    is on another host, the back end relies on SSH access the hosts, using the 
+    Paramiko package for executing commands remotely. </p>
+
+<p>The remainder of this section will describe overall usage of the wizard in 
+    terms of navigating between pages, various settings, and how to get help. </p>
+
+<!-- =========================== Navigation ================================ -->
+
+<h3><a name="navigation">Navigation</a></h3>
+<p>The configuration tool is implemented as a wizard with a number of pages 
+    covering different steps. There are two ways to navigate between pages. 
+    First, the <i>navigation toolbar</i> or <i>breadcrumb trail</i> displays the 
+    titles of the various pages. A specific page can be selected by clicking the 
+    page title: </p>
+
+<p style="text-align: center">
+    <img src="../img/breadcrumb_trail.png" alt="Breadcrumb trail">
+</p>
+
+<p>In the breadcrumb trail, the title of the current page is highlighted. The 
+    advantage of the breadcrumb trail is that you can jump more than one page 
+    in either direction. </p>
+
+<p style="text-align: center">
+    <img src="../img/page_buttons.png" alt="Page buttons">
+</p>
+
+<p>The second navigation mechanism is to use the three navigation buttons at the 
+    bottom of the page. These can be used to advance to the next or previous 
+    page, or to go to the very last page. The buttons are disabled as needed, 
+    e.g., if you are at the last page, the <i>Next</i> and <i>Finish</i> buttons 
+    are disabled, while if you are on the first page, the <i>Prev</i> button is 
+    disabled. </p>
+
+<!-- =========================== Settings ================================== -->
+
+<h3><a name="settings">Settings</a></h3>
+<p>At the top right in the wizard window, next to the <i>Help</i> menu, you will 
+    find the <i>Settings</i> menu: </p>
+
+<p style="text-align: center">
+    <img src="../img/settings_menu.png" alt="Settings menu">
+</p>
+
+<p>The various menu entries in the Settings menu are: </p>
+
+<ul>
+<li><i>Clear configuration and restart: </i> This will remove all hosts and 
+    processes, reset parameter values to the default, and start the wizard over 
+    at the first page. </li>
+<li><i>Automatically save configuration as cookies: </i>This will save your 
+    configuration information (host names, processes, parameter values etc.) as 
+    a cookie in the browser you are using. All information <b>except the SSH password</b> 
+    will be saved. Hence, you can quit and restart you browser, and continue 
+    working on the same configuration. </li>
+<li><i>Show advanced configuration options: </i>This setting means that advanced 
+    configuration parameters will be visible in the wizard and editable for the 
+    user. The advanced parameters will always be used in the configuration file, 
+    this setting just controls whether they are visible in the wizard. </li>
+<li><i>Automatically get resource information for new hosts: </i>With this setting 
+    checked, new hosts that are added will be queried automatically for hardware 
+    resource information. The information can be overridden afterwards if desired. </li>
+</ul>
+
+<p>Some of the entries in the menu might be disabled if they are irrelevant due 
+    to choices you have made in the wizard. We will come back to that later in 
+    this user guide. </p>
+
+<!-- ========================= Getting help ================================ -->
+
+<h3><a name="gettingHelp">Getting Help</a></h3>
+<p>At the very top right in the wizard window, next to the <i>Settings</i> menu, 
+    you will find the <i>Help</i> menu: </p>
+
+<p style="text-align: center">
+    <img src="../img/help_menu.png" alt="Help menu">
+</p>
+
+<p>The various menu entries in the Help menu are: </p>
+
+<ul>
+<li><i>Content: </i> This will show the user guide (i.e., the document you are 
+    currently reading) in a separate window, so you can read it while using the 
+    wizard. </li>
+<li><i>Current page: </i> This will open the user guide at the section describing 
+    the page currently displayed in the wizard. </li>
+<li><i>About: </i>This will show a small dialog displaying the tool name and 
+    version number. </li>
+</ul>
+
+<p>In addition to the help menu, there are tool tips for most of the input widgets. 
+    They are displayed when you hover the widget, or there is a small orange 
+    question mark next to the widget's label which can be hovered for help. 
+    For the configuration parameters, the parameter names are linked to the 
+    MySQL Cluster documentation, so if you click the parameter name, the 
+    appropriate documentation is displayed in a separate frame. </p>
+
+
+<!--
+********************************************************************************
+***                                                                          ***
+***                           Wizard Pages                                   ***
+***                                                                          ***
+********************************************************************************
+-->
+
+<h2><a name="wizardPages">Wizard Pages</a></h2>
+<p>This section will describe the various wizard pages in detail. </p>
+
+<!--============================ Welcome =================================== -->
+
+<h3><a name="welcome">Welcome</a></h3>
+
+<p>The first page displayed after the <tt>ndb_setup</tt> command is invoked is 
+    the <i>welcome</i> page. Here, you get two alternatives: </p>
+
+<ul>
+<li><b>Create New MySQL Cluster: </b> Start the wizard with a new cluster configuration</li>
+<li><b>Continue Previous Cluster Configuration: </b> Start the wizard, continuing 
+    where you left the last time. </li>
+</ul>
+
+<p>It is worth noticing that in the latter case, you must use the same web 
+    browser as you did the last time you were using the wizard. Additionally, 
+    the <tt>ndb_setup</tt> tool must run at the same host as it did the last 
+    time. The reason for this is that the configuration details are stored in 
+    the web browser as cookies. </p>
+
+<p style="text-align: center">
+    <img src="../img/welcome.png" width="800" alt="Welcome page">
+</p>
+
+<!-- ======================== Define cluster =============================== -->
+
+<h3><a name="configWizardDefineCluster">Define Cluster</a></h3>
+<p>Once you select one of the alternatives on the welcome page, you will be 
+    taken to the <i>define cluster</i> page. Here, you can decide on overall 
+    settings for the cluster you are going to configure. </p>
+
+<p style="text-align: center">
+    <img src="../img/define_cluster.png" width="800" alt="Define cluster">
+</p>
+
+<p>The page contains the following input fields: </p>
+
+<ul>
+<li><b>Cluster name: </b>This field can be used as a label reflecting the purpose 
+    of the cluster you are configuring. </li>
+<li><b>Host list: </b>Here, a comma separated list of host names can be added. 
+    The default is to list only <i>127.0.0.1</i>, which means the host where 
+    the <tt>ndb_setup</tt> command was issued. Host names can be added to or 
+    deleted from this list. If a host name is deleted, the processes configured 
+    to run on that host will also be deleted. </li>
+<li><b>Application area: </b>This describes the overall way the cluster will be 
+    used. You can choose between the following three alternatives: 
+    <ul>
+    <li><b>Simple testing: </b>Here, the cluster will require little hardware 
+        resources, but this will also make the cluster performance suffer greatly. 
+        This application area should not be used in a production context. </li>
+    <li><b>Web application: </b>For a web application, the configuration parameters 
+        will be defined in a way that maximizes performance, given the host hardware 
+        resources. </li>
+    <li><b>Realtime: </b>The realtime configuration is much the same as the web 
+        application, the difference is that the realtime configuration is more 
+        sensitive to timeouts in the heartbeat mechanism to detect failing 
+        processes faster. </li>
+    </ul>
+    </li>
+<li><b>Write load: </b>You get to choose among the following settings: 
+    <ul>
+    <li><b>Low: </b>This is assumed to be less than 100 write transactions per 
+        second for the entire cluster. </li>
+    <li><b>Medium: </b>This is assumed to be between 100 and 1000 write transactions 
+        per second for the entire cluster. </li>
+    <li><b>High: </b>This is assumed to be more than than 1000 write transactions 
+        per second for the entire cluster. </li>
+    </ul>
+    </li>
+<li><b>SSH Property: </b>Here you can specify the SSH credentials needed to 
+    access a remote host. If your host list (see above) only contains <i>127.0.0.1</i>, 
+    no SSH credentials are required. The credentials that can be specified are: 
+    <ul>
+    <li><b>Key based SSH: </b>Check this box if you have enabled key based login 
+        on the remote host. This will disable the two fields below. </li>
+    <li><b>User name: </b>Submit your remote SSH user name here. </li>
+    <li><b>Password: </b>Submit your remote SSH password here. The password will 
+        not be stored by the configurator except in main memory, so if the 
+        configuration tool is restarted, continuing with the same configuration, 
+        the password must be re-entered. </li>
+    </ul>
+    </li>
+</ul>
+
+<!-- ========================= Define hosts ================================ -->
+
+<h3><a name="configWizardDefineHosts">Define Hosts</a></h3>
+<p>After the overall cluster properties have been defined, you can refine the 
+    host details. The wizard page is shown below: </p>
+
+<p style="text-align: center">
+    <img src="../img/define_hosts.png" width="800" alt="Define hosts">
+</p>
+
+<p>Here, hosts can be added by pressing the <i>Add hosts</i> button and entering 
+    a list of comma separated host names or ip addresses. This works in the same 
+    way as the host list on the <i>define cluster</i> page. The hosts currently 
+    entered are displayed in the grid with various pieces of information. A host, 
+    or a selection of several hosts, can be removed from the configuration by 
+    pressing the <i>Remove selected host(s)</i> button. If processes have been 
+    configured to run on these hosts, the processes will be removed from the 
+    configuration too. </p>
+
+<p>If the setting <i>Automatically get resource information for new hosts</i> is 
+    checked in the settings menu (see previous section), the platform name, RAM 
+    size and number of CPU cores will be filled in automatically and displayed 
+    in the grid. Otherwise, an ellipsis in the grid will indicate that the 
+    information was not obtained. The status of the automated resourced 
+    information fetching is displayed in the <i>Resource info</i> column. Please 
+    note that fetching the information may take some time, particularly on remote 
+    Windows hosts. </p>
+
+<p>If the SSH user credentials on the <i>define cluster</i> page are changed, 
+    the tool will try to re-fetch the hardware information for hosts where a 
+    piece of information is missing. When the information is re-fetched, the 
+    various fields will be updated. If a field has been edited by the user, the 
+    information will <i>not</i> be overwritten by the re-fetched value.</p>
+
+<p>The hardware resource information, platform name, install directory and data 
+    directory  can be edited by the user by clicking the appropriate cell in the 
+    grid. It is also possible to select a set of hosts and press the button 
+    <i>Edit selected host(s)</i>. Then, a dialog will appear where the various 
+    fields can be edited. The edited values will be applied to all hosts that 
+    were selected: </p>
+
+<p style="text-align: center">
+    <img src="../img/edit_selected_hosts.png" width="800" alt="Edit selected hosts">
+</p>
+
+<!-- ======================= Define processes ============================== -->
+
+<h3><a name="configWizardDefineProcesses">Define Processes</a></h3>
+<p>After the hosts have been defined, the next step is to define which processes 
+    should be part of the cluster. This page is shown below: </p>
+
+<p style="text-align: center">
+    <img src="../img/define_processes.png" width="800" alt="Define processes">
+</p>
+
+<p>There are two main areas here, there is a <i>process tree</i> to the left, 
+    with the various hosts and the processes configured to run on them. To the 
+    right is an information pane which displays information about the currently 
+    selected item in the tree. When the user enters this page the first time for 
+    a cluster configuration, a set of processes is defined as default. The 
+    processes defined depend on the number of hosts. If the user goes back to 
+    the previous page, removes all hosts, and adds other hosts, then a new set 
+    of processes will also be defined. </p>
+
+<p>The processes are of the following main types: </p>
+
+<ul>
+<li><b>Management node: </b>Node for administrative tasks such as stopping 
+    individual data nodes, querying status, running backup, etc. </li>
+<li><b>Single threaded data node: </b>Node for storing the actual data and 
+    executing queries. </li>
+<li><b>Multi threaded data node: </b>Same as above, but with several working 
+    threads executing in parallel. </li>
+<li><b>SQL node: </b>MySQL server for executing SQL queries against the database. </li>
+<li><b>API node: </b>Node accessing the database through a proprietary API rather than SQL. </li>
+</ul>
+
+<p> In the process tree to the left, each node has a numeric suffix, which is 
+    incremented for each new process of that type. This is just to be able to 
+    tell the different processes apart. In the tree, in addition to the hosts 
+    you enter, there is a special entry <i>Any host</i>. This special "host" is 
+    really just a placeholder where processes that should be allowed to run on 
+    an arbitrary host may be located. Usually, a process is configured to run 
+    on a specific host, and thus will not be allowed to run on an arbitrary host. 
+    If this is desirable, the process should be added to the <i>Any host</i> 
+    entry. Please note that only API processes may be located on the special 
+    entry<i>Any host</i>. </p>
+
+<p>In the process tree, you can right click a host for a pop up menu displaying 
+    an entry <i>Add process</i>. Selecting this entry will take you to the 
+    <i>add process dialog</i>. Alternatively, you can select a host, and press 
+    the <i>Add process</i> button below the process tree. The 
+    <i>add process dialog</i> lets you select among the available process types, 
+    and you can also enter an arbitrary process name instead of the default 
+    suggestion:  </p>
+
+<p style="text-align: center">
+    <img src="../img/add_process.png" width="800" alt="Add process">
+</p>
+
+<p>In the tree, you can also right click a process and select <i>delete process</i> 
+    from the pop up menu, or select a process and press the <i>delete process</i> 
+    button below the process tree. If a process is selected in the process tree, 
+    information about that process is displayed in the information pane to the 
+    right. You may edit the process name, and you may change the process type to 
+    another compatible type. Currently, the only compatible process types are 
+    the two variants of the data node; single threaded or multi threaded. If you 
+    want to change to an entirely different type, you need to delete the process 
+    first, and then add a new process with the desired type. </p>
+
+<!-- ======================= Define parameters ============================= -->
+
+<h3><a name="configWizardDefineParameters">Define Parameters</a></h3>
+<p>The page for defining parameters looks somewhat similar to the previous page 
+    for defining processes. To the left is a tree with the processes, to the 
+    right is a pane with information regarding the currently selected tree item: </p>
+
+<p style="text-align: center">
+    <img src="../img/define_parameters.png" width="800" alt="Define parameters">
+</p>
+
+<p>However, looking at this in more detail, we see that the process tree is 
+    organized differently. On the previous page, it reflected which hosts the 
+    processes were running on, whereas on this page, it shows the processes 
+    grouped by process type. Thus, the root nodes in the tree are the process 
+    types, and the children are the process instances. You may notice that the 
+    compatible processes are grouped into the same process type, hence, the two 
+    data node processes will both be in the <i>Data layer</i> process type. </p>
+
+<p>Below the process tree, you will see a check box labeled 
+    <i>Show advanced configuration parameters</i>. This check box will make advanced 
+    parameters visible or hidden in the information pane to the right. If you, 
+    e.g., select the <i>Data layer</i> process group, you will see that toggling 
+    the check box makes a lot of parameters appear or disappear in the pane to 
+    the right. The significance of this visibility is only that the parameters 
+    need to be visible for you to be able to change them. The parameters will be 
+    set anyway and used in the configuration of the cluster. </p>
+
+<p>Now, the purpose of this page is to define the various configuration parameters 
+    for the processes. This can be done in two main ways: </p>
+
+<ul>
+<li>If a <i>process instance</i> is selected in the tree to the left, a list of 
+    available configuration parameters is displayed in the information pane to 
+    the right. If a parameter is changed, then it will apply <i>only to the selected process</i>.</li>
+<li>If a <i>process group</i> is selected in the tree to the left, you will also 
+    see a list of available configuration parameters in the pane to the right. 
+    However, if you change a parameter in this pane, the changed value will 
+    apply to <i>all process instances  in that process group unless the instance 
+    also has an overridden value for the parameter that was changed</i>. Thus, 
+    parameter changes done for a process instance will overrule changes done for 
+    the process group. </li>
+</ul>
+
+<p>When a process group or process instance is selected, you will see, e.g., the 
+    following information in the pane to the right (if an SQL process is selected): </p>
+
+<p style="text-align: center">
+    <img src="../img/mysqld_parameters.png" width="800" alt="Parameters for mysqld">
+</p>
+
+<p>In the information pane shown above, you see the various parameter names, their 
+    values, and for some of them, there is also a green button with a plus sign 
+    to the right. That button means that the parameter can be overridden. Thus, 
+    if you push the button, the input widget for the parameter will be enabled, 
+    and you will be able to change its value. The various parameters will have 
+    predefined values. If you, e.g., look at the parameter <i>DataDir</i> you 
+    will see it is a predefined path. This path is constructed based on the host 
+    on which the process will run, taking the data directory you entered for 
+    this host on the <i>define hosts</i> page, and appending the node id. All 
+    configuration parameters displayed by the tool will have predefined values, 
+    and usually, the values may just be left as they are. It is highly 
+    recommended that you read the documentation before making changes to the 
+    parameter values. Each parameter name is a hyper link into the MySQL 
+    documentation, so it is easy to find the relevant information. </p>
+
+<p>If a configuration parameter has been changed, you may revert the change and 
+    go back to the predefined value: When the value has been overridden, the 
+    green button with a plus sign turns into a big red X, as shown below: </p>
+
+<p style="text-align: center">
+    <img src="../img/mysqld_parameters_overridden.png" width="800" alt="Overriding parameters">
+</p>
+
+<p>Now, if you press this red X, the change is reverted, and the parameter is 
+    reset to the predefined value. </p>
+
+<!-- ======================== Deploy configuration ========================= -->
+
+<h3><a name="configWizardDeployConfig">Deploy Configuration</a></h3>
+<p>The last page in the wizard is the <i>deployment page</i>. Here, you can 
+    inspect the startup commands and actual configuration files that will be 
+    applied, you can distribute the configuration files and create the necessary 
+    files and directories on the hosts involved, and you can start and stop the 
+    cluster you have configured. The page looks similar to the previous one: </p>
+
+<p style="text-align: center">
+    <img src="../img/deploy.png" width="800" alt="Deploy configuration">
+
+<p>To the left, you will find the same process tree as on the previous page. The 
+    processes are listed grouped by the process type they belong to. To the right 
+    of the process tree, there are two information panes. The upper one will 
+    display the startup commands necessary to start the process. For some 
+    processes, more than one command may be required, e.g. if initialization is 
+    needed. The lower pane will show the contents of the configuration file for 
+    the given process. Currently, the only processes having a configuration file 
+    are the <i>management nodes</i>. The other processes are configured by means 
+    of command line parameters submitted with the startup command, or by getting 
+    their configuration parameters by asking the management nodes dynamically. </p>
+
+<p>In the process tree, the icons in front of the processes will change 
+    depending on the status of the processes. I.e., when the cluster starts or 
+    stops, the icons will turn red (stopped), yellow (starting or stopping) or 
+    green (running). This status information is based on querying the management 
+    daemon. </p>
+
+<p>Below the process three, you will find three buttons: </p>
+
+<ul>
+<li><b>Deploy cluster: </b>First, the configuration is verified, e.g., if you 
+    have specified the same value for two different data directories, you will 
+    not be allowed to deploy the configuration. Secondly, the required directories 
+    are created on the hosts involved, and the configuration files are distributed 
+    onto the hosts. A progress bar will show how the deployment proceeds. </li>
+<li><b>Start cluster: </b>First, the configuration is deployed and the 
+    directories are created, i.e., the same as the above. Then, the processes 
+    that are defined are started in the correct order. Please note that starting 
+    the processes may take some time. If the estimated time usage is large, you 
+    will be alerted and asked to cancel or confirm continuation of the startup 
+    procedure. A progress bar will inform you about the current status of the 
+    startup procedure, and the icons in the process tree will also indicate how 
+    the start progresses. </li>
+<li><b>Stop cluster: </b>When the cluster has been started, you may stop it 
+    using the <i>Stop</i> button. Here, you will also see a progress bar displaying 
+    the current status of the stopping procedure, and the icons the process tree 
+    are also updated regularly.</li>
+</ul>
+
+<p>Below is an example of a progress bar displayed while starting the cluster: </p>
+
+<p style="text-align: center">
+    <img src="../img/starting_cluster.png" width="800" alt="Starting cluster">
+</p>
+
+<p>It is worth noticing that the configuration tool cannot guarantee that the 
+    cluster is available for usage when it has been started. Hence, after the 
+    processes have been started, you will be informed that the processes are 
+    starting, but may need some time to initialize before they are ready for 
+    usage.  </p>
+
+
+<!--
+********************************************************************************
+***                                                                          ***
+***                          Troubleshooting                                 ***
+***                                                                          ***
+********************************************************************************
+
+<a name=""><h2>Troubleshooting</h2></a>
+
+<a name=""><h3>Viewing Logs</h3></a>
+
+<a name=""><h3>Starting and Stopping MySQL Cluster</h3></a>
+
+<a name=""><h3>Manually Killing Processes</h3></a>
+
+<a name=""><h3>Excessive Memory Usage</h3></a>
+
+<a name=""><h3>Time to Initialize</h3></a>
+-->
+
+    </body>
+</html>
+
+

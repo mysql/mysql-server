@@ -3,7 +3,6 @@
 #but needs to be kept for tests that would need MyISAM in future.
 --source include/force_myisam_default.inc
 
---source include/ndb_have_online_alter.inc
 -- source include/have_ndb.inc
 
 --disable_warnings
@@ -33,8 +32,8 @@ drop database mysqltest;
 #
 create database `mysqltest.db`;
 create table `mysqltest.db`.t1 (a int primary key, b int) engine=ndb;
-alter offline table `mysqltest.db`.t1 add column c int;
-alter online table `mysqltest.db`.t1 add column d int column_format dynamic;
+alter table `mysqltest.db`.t1 algorithm=copy, add column c int;
+alter table `mysqltest.db`.t1 algorithm=inplace, add column d int column_format dynamic;
 drop table `mysqltest.db`.t1;
 drop database `mysqltest.db`;
 #

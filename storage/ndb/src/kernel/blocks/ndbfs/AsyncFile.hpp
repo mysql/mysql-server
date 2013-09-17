@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2003, 2010, Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2003, 2013, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -21,6 +21,9 @@
 #include <kernel_types.h>
 #include "AsyncIoThread.hpp"
 #include "Filename.hpp"
+
+#define JAM_FILE_ID 391
+
 
 class AsyncFile
 {
@@ -143,5 +146,8 @@ AsyncFile::clear_buffer(Uint32 & rg, Ptr<GlobalPage> & ptr, Uint32 & cnt)
   theWriteBuffer = 0;
   theWriteBufferSize = 0;
 }
+
+
+#undef JAM_FILE_ID
 
 #endif

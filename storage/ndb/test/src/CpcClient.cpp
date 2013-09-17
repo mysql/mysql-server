@@ -49,7 +49,7 @@
 #define CPC_END() \
  { 0, \
    0, \
-   ParserRow_t::Arg, \
+   ParserRow_t::End, \
    ParserRow_t::Int, \
    ParserRow_t::Optional, \
    ParserRow_t::IgnoreMinMax, \
@@ -424,7 +424,7 @@ SimpleCpcClient::cpc_send(const char *cmd,
 			  const Properties &args) {
   SocketOutputStream cpc_out(cpc_sock);
 
-  cpc_out.println(cmd);
+  cpc_out.println("%s", cmd);
 
   Properties::Iterator iter(&args);
   const char *name;
@@ -475,7 +475,7 @@ SimpleCpcClient::cpc_recv(const ParserRow_t *syntax,
 
   Parser_t::Context ctx;
   ParserDummy session(cpc_sock);
-  Parser_t parser(syntax, cpc_in, true, true, true);
+  Parser_t parser(syntax, cpc_in);
   *reply = parser.parse(ctx, session);
   if(user_value != NULL)
     *user_value = ctx.m_currentCmd->user_value;

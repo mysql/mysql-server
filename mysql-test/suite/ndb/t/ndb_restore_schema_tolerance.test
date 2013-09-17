@@ -71,10 +71,10 @@ show create table t1; #REMOVE!
 --error 1
 --exec $NDB_RESTORE --no-defaults --core-file=false -b $the_backup_id -n 1 -r  $NDB_BACKUP_DIR/BACKUP/BACKUP-$the_backup_id >> $NDB_TOOLS_OUTPUT
 
---echo Retry with --promote-attribute
+--echo Retry with --promote-attributes
 
---exec $NDB_RESTORE --no-defaults --core-file=false -b $the_backup_id -n 1 -r --promote-attribute $NDB_BACKUP_DIR/BACKUP/BACKUP-$the_backup_id >> $NDB_TOOLS_OUTPUT
---exec $NDB_RESTORE --no-defaults --core-file=false -b $the_backup_id -n 2 -r --promote-attribute $NDB_BACKUP_DIR/BACKUP/BACKUP-$the_backup_id >> $NDB_TOOLS_OUTPUT
+--exec $NDB_RESTORE --no-defaults --core-file=false -b $the_backup_id -n 1 -r --promote-attributes $NDB_BACKUP_DIR/BACKUP/BACKUP-$the_backup_id >> $NDB_TOOLS_OUTPUT
+--exec $NDB_RESTORE --no-defaults --core-file=false -b $the_backup_id -n 2 -r --promote-attributes $NDB_BACKUP_DIR/BACKUP/BACKUP-$the_backup_id >> $NDB_TOOLS_OUTPUT
 
 select * from t1 order by a;
 truncate t1;

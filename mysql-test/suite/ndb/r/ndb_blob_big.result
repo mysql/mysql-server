@@ -27,7 +27,7 @@ end %
 Set unlimited batch size for reads+writes
 set ndb_blob_read_batch_bytes = 0;
 set ndb_blob_write_batch_bytes = 0;
-Now try a heavy insert - idea is to show SendBuffer overload on insert
+Now try a heavy insert - idea is to show SendBufferMemory overload on insert
 call heavy_insert(20, 5*1024*1024);
 delete from t1;
 set ndb_blob_write_batch_bytes=100 * 1024;
