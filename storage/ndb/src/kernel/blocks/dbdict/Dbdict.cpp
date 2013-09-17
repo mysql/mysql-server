@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2003, 2010, Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2003, 2010-2013, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -86,7 +86,7 @@
 #include <signaldata/ApiBroadcast.hpp>
 #include <signaldata/DictLock.hpp>
 #include <signaldata/BackupLockTab.hpp>
-#include <SLList.hpp>
+#include <IntrusiveList.hpp>
 
 #include <signaldata/DumpStateOrd.hpp>
 #include <signaldata/CheckNodeGroups.hpp>
@@ -122,6 +122,9 @@ static const char EVENT_SYSTEM_TABLE_NAME[] = "sys/def/NDB$EVENTS_0";
 #define DIV(x,y) (((x)+(y)-1)/(y))
 #define WORDS2PAGES(x) DIV(x, (ZSIZE_OF_PAGES_IN_WORDS - ZPAGE_HEADER_SIZE))
 #include <ndb_version.h>
+
+#define JAM_FILE_ID 465
+
 
 static
 Uint32
@@ -588,6 +591,12 @@ void Dbdict::packTableIntoPages(Signal* signal)
     packHashMapIntoPages(w, hm_ptr);
     break;
   }
+  case DictTabInfo::ForeignKey: {
+    Ptr<ForeignKeyRec> fk_ptr;
+    ndbrequire(find_object(fk_ptr, tableId));
+    packFKIntoPages(w, fk_ptr);
+    break;
+  }
   case DictTabInfo::UndefTableType:
   case DictTabInfo::HashIndexTrigger:
   case DictTabInfo::SubscriptionTrigger:
@@ -595,6 +604,8 @@ void Dbdict::packTableIntoPages(Signal* signal)
   case DictTabInfo::IndexTrigger:
   case DictTabInfo::SchemaTransaction:
   case DictTabInfo::ReorgTrigger:
+  case DictTabInfo::FKParentTrigger:
+  case DictTabInfo::FKChildTrigger:
     ndbrequire(false);
   }
 
@@ -1984,7 +1995,8 @@ Dbdict::Dbdict(Block_context& ctx):
   c_opSubEvent(c_opRecordPool),
   c_opDropEvent(c_opRecordPool),
   c_opSignalUtil(c_opRecordPool),
-  c_opRecordSequence(0)
+  c_opRecordSequence(0),
+  c_restart_enable_fks(false)
 {
   BLOCK_CONSTRUCTOR(Dbdict);
 
@@ -2197,6 +2209,23 @@ Dbdict::Dbdict(Block_context& ctx):
   addRecSignal(GSN_INDEX_STAT_IMPL_CONF, &Dbdict::execINDEX_STAT_IMPL_CONF);
   addRecSignal(GSN_INDEX_STAT_IMPL_REF, &Dbdict::execINDEX_STAT_IMPL_REF);
   addRecSignal(GSN_INDEX_STAT_REP, &Dbdict::execINDEX_STAT_REP);
+
+  // fk
+  addRecSignal(GSN_CREATE_FK_REQ, &Dbdict::execCREATE_FK_REQ);
+  addRecSignal(GSN_CREATE_FK_IMPL_REF, &Dbdict::execCREATE_FK_IMPL_REF);
+  addRecSignal(GSN_CREATE_FK_IMPL_CONF, &Dbdict::execCREATE_FK_IMPL_CONF);
+  addRecSignal(GSN_CREATE_FK_REF, &Dbdict::execCREATE_FK_REF);
+  addRecSignal(GSN_CREATE_FK_CONF, &Dbdict::execCREATE_FK_CONF);
+
+  addRecSignal(GSN_BUILD_FK_REQ, &Dbdict::execBUILD_FK_REQ);
+  addRecSignal(GSN_BUILD_FK_REF, &Dbdict::execBUILD_FK_REF);
+  addRecSignal(GSN_BUILD_FK_CONF, &Dbdict::execBUILD_FK_CONF);
+  addRecSignal(GSN_BUILD_FK_IMPL_REF, &Dbdict::execBUILD_FK_IMPL_REF);
+  addRecSignal(GSN_BUILD_FK_IMPL_CONF, &Dbdict::execBUILD_FK_IMPL_CONF);
+
+  addRecSignal(GSN_DROP_FK_REQ, &Dbdict::execDROP_FK_REQ);
+  addRecSignal(GSN_DROP_FK_IMPL_REF, &Dbdict::execDROP_FK_IMPL_REF);
+  addRecSignal(GSN_DROP_FK_IMPL_CONF, &Dbdict::execDROP_FK_IMPL_CONF);
 }//Dbdict::Dbdict()
 
 Dbdict::~Dbdict()
@@ -2460,6 +2489,7 @@ bool Dbdict::seizeTableRecord(TableRecordPtr& tablePtr, Uint32& schemaFileId)
     jam();
     return false;
   }
+  D("seizeTableRecord " << schemaFileId);
   initialiseTableRecord(tablePtr, schemaFileId);
   return true;
 }
@@ -2682,6 +2712,13 @@ void Dbdict::execREAD_CONFIG_REQ(Signal* signal)
   ndb_mgm_get_int_parameter(p, CFG_DB_INDEX_STAT_AUTO_UPDATE,
                             &c_indexStatAutoUpdate);
 
+  c_default_hashmap_size = 0;
+  ndb_mgm_get_int_parameter(p, CFG_DEFAULT_HASHMAP_SIZE, &c_default_hashmap_size);
+  if (c_default_hashmap_size == 0)
+  {
+    c_default_hashmap_size = NDB_DEFAULT_HASHMAP_BUCKETS;
+  }
+
   Pool_context pc;
   pc.m_block = this;
 
@@ -2715,6 +2752,8 @@ void Dbdict::execREAD_CONFIG_REQ(Signal* signal)
   c_file_pool.init(RT_DBDICT_FILE, pc);
   c_filegroup_pool.init(RT_DBDICT_FILEGROUP, pc);
 
+  c_fk_pool.init(RT_DBDICT_FILE, pc); // TODO
+
   // new OpRec pools
   /**
    * one mysql index can be 2 ndb indexes
@@ -2745,6 +2784,18 @@ void Dbdict::execREAD_CONFIG_REQ(Signal* signal)
 
   c_createNodegroupRecPool.arena_pool_init(&c_arenaAllocator, RT_DBDICT_CREATE_NODEGROUP, pc);
   c_dropNodegroupRecPool.arena_pool_init(&c_arenaAllocator, RT_DBDICT_DROP_NODEGROUP, pc);
+
+// TODO
+#define RT_DBDICT_CREATE_FK RT_DBDICT_CREATE_NODEGROUP
+#define RT_DBDICT_BUILD_FK RT_DBDICT_DROP_NODEGROUP
+#define RT_DBDICT_DROP_FK RT_DBDICT_DROP_NODEGROUP
+
+  c_createFKRecPool.arena_pool_init(&c_arenaAllocator,
+                                    RT_DBDICT_CREATE_FK, pc);
+  c_buildFKRecPool.arena_pool_init(&c_arenaAllocator,
+                                   RT_DBDICT_BUILD_FK, pc);
+  c_dropFKRecPool.arena_pool_init(&c_arenaAllocator,
+                                  RT_DBDICT_DROP_FK, pc);
 
   c_opRecordPool.setSize(256);   // XXX need config params
   c_opCreateEvent.setSize(2);
@@ -2811,9 +2862,9 @@ void Dbdict::execREAD_CONFIG_REQ(Signal* signal)
   {
     DictObjectPtr ptr;
     DictObject_list objs(c_obj_pool);
-    while(objs.seize(ptr))
+    while (objs.seizeFirst(ptr))
       new (ptr.p) DictObject();
-    objs.release();
+    while (objs.releaseFirst());
   }
 
   unsigned trace = 0;
@@ -2872,7 +2923,8 @@ void Dbdict::execNDB_STTOR(Signal* signal)
     sendNDB_STTORRY(signal);
     break;
   case 7:
-    sendNDB_STTORRY(signal);
+    jam();
+    enableFKs(signal, 0);
     break;
   default:
     jam();
@@ -3335,6 +3387,181 @@ Dbdict::rebuildIndex_fromEndTrans(Signal* signal, Uint32 tx_key, Uint32 ret)
   rebuildIndexes(signal, id + 1);
 }
 
+/*
+ * Activate FKs i.e. create child and parent triggers.
+ * This is done as a local trans in both NR and SR.
+ * There is no AlterFK so just re-run parts of CreateFK.
+ * Existing data is not validated.
+ */
+
+void
+Dbdict::enableFKs(Signal* signal, Uint32 id)
+{
+  if (id == 0)
+  {
+    D("enableFKs start");
+    ndbrequire(c_restart_enable_fks == false);
+    c_restart_enable_fks = true;
+  }
+  
+  Uint32 requestFlags = 0;
+  requestFlags |= DictSignal::RF_LOCAL_TRANS;
+  requestFlags |= DictSignal::RF_NO_BUILD;
+
+  Ptr<ForeignKeyRec> fk_ptr;
+  for (; id < c_noOfMetaTables; id++)
+  {
+    bool ok = find_object(fk_ptr, id);
+    D(V(id) << V(ok));
+    if (!ok)
+    {
+      jam();
+      continue;
+    }
+    if (check_read_obj(id))
+    {
+      jam();
+      continue;
+    }
+
+    D("enableFKs id=" << id);
+
+    TxHandlePtr tx_ptr;
+    seizeTxHandle(tx_ptr);
+    ndbrequire(!tx_ptr.isNull());
+
+    tx_ptr.p->m_requestInfo = 0;
+    tx_ptr.p->m_requestInfo |= requestFlags;
+    tx_ptr.p->m_userData = fk_ptr.i;
+
+    Callback c = {
+      safe_cast(&Dbdict::enableFK_fromBeginTrans),
+      tx_ptr.p->tx_key
+    };
+    tx_ptr.p->m_callback = c;
+    beginSchemaTrans(signal, tx_ptr);
+    return;
+  }
+
+  c_restart_enable_fks = false;
+  D("enableFKs done");
+  sendNDB_STTORRY(signal);
+}
+
+void
+Dbdict::enableFK_fromBeginTrans(Signal* signal, Uint32 tx_key, Uint32 ret)
+{
+  D("enableFK_fromBeginTrans" << V(tx_key) << V(ret));
+
+  ndbrequire(ret == 0); //wl6244_todo
+
+  TxHandlePtr tx_ptr;
+  findTxHandle(tx_ptr, tx_key);
+  ndbrequire(!tx_ptr.isNull());
+
+  Ptr<ForeignKeyRec> fk_ptr;
+  c_fk_pool.getPtr(fk_ptr, tx_ptr.p->m_userData);
+  ndbrequire(!fk_ptr.isNull());
+  DictObjectPtr fk_obj_ptr;
+  c_obj_pool.getPtr(fk_obj_ptr, fk_ptr.p->m_obj_ptr_i);
+
+  CreateFKReq* req = (CreateFKReq*)signal->getDataPtrSend();
+
+  Uint32 requestInfo = 0;
+  DictSignal::addRequestFlagsGlobal(requestInfo, tx_ptr.p->m_requestInfo);
+
+  req->clientData =tx_ptr.p->tx_key;
+  req->clientRef = reference();
+  req->requestInfo = requestInfo;
+  req->transId = tx_ptr.p->m_transId;
+  req->transKey = tx_ptr.p->m_transKey;
+
+  Uint32* wbuffer = &c_indexPage.word[0];
+  LinearWriter w(wbuffer, sizeof(c_indexPage) >> 2);
+  packFKIntoPages(w, fk_ptr);
+  LinearSectionPtr lsPtr[3];
+  lsPtr[0].p = wbuffer;
+  lsPtr[0].sz = w.getWordsUsed();
+
+  Callback c = {
+    safe_cast(&Dbdict::enableFK_fromCreateFK),
+    tx_ptr.p->tx_key
+  };
+  tx_ptr.p->m_callback = c;
+
+  sendSignal(reference(), GSN_CREATE_FK_REQ, signal,
+             CreateFKReq::SignalLength, JBB, lsPtr, 1);
+}
+
+void
+Dbdict::enableFK_fromCreateFK(Signal* signal, Uint32 tx_key, Uint32 ret)
+{
+  D("enableFK_fromCreateFK");
+
+  ndbrequire(ret == 0); //wl6244_todo
+
+  TxHandlePtr tx_ptr;
+  findTxHandle(tx_ptr, tx_key);
+  ndbrequire(!tx_ptr.isNull());
+
+  if (ret != 0)
+    setError(tx_ptr.p->m_error, ret, __LINE__);
+
+  Callback c = {
+    safe_cast(&Dbdict::enableFK_fromEndTrans),
+    tx_ptr.p->tx_key
+  };
+  tx_ptr.p->m_callback = c;
+
+  Uint32 flags = 0;
+  if (hasError(tx_ptr.p->m_error))
+    flags |= SchemaTransEndReq::SchemaTransAbort;
+  endSchemaTrans(signal, tx_ptr, flags);
+}
+
+void
+Dbdict::enableFK_fromEndTrans(Signal* signal, Uint32 tx_key, Uint32 ret)
+{
+  D("enableFK_fromEndTrans" << V(tx_key) << V(ret));
+
+  ndbrequire(ret == 0); //wl6244_todo
+
+  TxHandlePtr tx_ptr;
+  findTxHandle(tx_ptr, tx_key);
+  ndbrequire(!tx_ptr.isNull());
+
+  Ptr<ForeignKeyRec> fk_ptr;
+  c_fk_pool.getPtr(fk_ptr, tx_ptr.p->m_userData);
+  DictObjectPtr fk_obj_ptr;
+  c_obj_pool.getPtr(fk_obj_ptr, fk_ptr.p->m_obj_ptr_i);
+
+  char fk_name[MAX_TAB_NAME_SIZE];
+  {
+    LocalRope name(c_rope_pool, fk_obj_ptr.p->m_name);
+    name.copy(fk_name);
+  }
+
+  ErrorInfo error = tx_ptr.p->m_error;
+  if (!hasError(error))
+  {
+    jam();
+    infoEvent("DICT: enable FK %u done (%s)",
+             fk_obj_ptr.p->m_id, fk_name);
+  }
+  else
+  {
+    jam();
+    warningEvent("DICT: enable FK %u error: code=%u line=%u node=%u (%s)",
+                 fk_obj_ptr.p->m_id,
+		 error.errorCode, error.errorLine, error.errorNodeId,
+		 fk_name);
+  }
+
+  Uint32 id = fk_obj_ptr.p->m_id;
+  releaseTxHandle(tx_ptr);
+  enableFKs(signal, id + 1);
+}
+
 /* **************************************************************** */
 /* ---------------------------------------------------------------- */
 /* MODULE:          SYSTEM RESTART MODULE ------------------------- */
@@ -3594,31 +3821,33 @@ checkSchemaStatus(Uint32 tableType, Uint32 pass)
   case DictTabInfo::IndexTrigger:
     return false;
   case DictTabInfo::LogfileGroup:
-    return pass == 0 || pass == 11 || pass == 12;
+    return pass == 0 || pass == 13 || pass == 14;
   case DictTabInfo::Tablespace:
-    return pass == 1 || pass == 10 || pass == 13;
+    return pass == 1 || pass == 12 || pass == 15;
   case DictTabInfo::Datafile:
   case DictTabInfo::Undofile:
-    return pass == 2 || pass == 9 || pass == 14;
+    return pass == 2 || pass == 11 || pass == 16;
   case DictTabInfo::HashMap:
-    return pass == 3 || pass == 8 || pass == 15;
+    return pass == 3 || pass == 10 || pass == 17;
   case DictTabInfo::SystemTable:
   case DictTabInfo::UserTable:
-    return /* pass == 3 || pass == 7 || */ pass == 16;
+    return /* pass == 4 || pass == 9 || */ pass == 18;
   case DictTabInfo::UniqueHashIndex:
   case DictTabInfo::HashIndex:
   case DictTabInfo::UniqueOrderedIndex:
   case DictTabInfo::OrderedIndex:
-    return /* pass == 4 || pass == 6 || */ pass == 17;
+    return /* pass == 5 || pass == 8 || */ pass == 19;
+  case DictTabInfo::ForeignKey:
+    return pass == 6 || pass == 7 || pass == 20;
   }
 
   return false;
 }
 
-static const Uint32 CREATE_OLD_PASS = 5;
-static const Uint32 DROP_OLD_PASS = 11;
-static const Uint32 CREATE_NEW_PASS = 17;
-static const Uint32 LAST_PASS = 17;
+static const Uint32 CREATE_OLD_PASS = 6;
+static const Uint32 DROP_OLD_PASS = 13;
+static const Uint32 CREATE_NEW_PASS = 20;
+static const Uint32 LAST_PASS = 20;
 
 NdbOut&
 operator<<(NdbOut& out, const SchemaFile::TableEntry entry)
@@ -3665,20 +3894,23 @@ void Dbdict::initRestartRecord(Uint32 startpass, Uint32 lastpass,
  * Pass 3 Create old HashMap
  * Pass 4 Create old Table           // NOT DONE DUE TO DIH
  * Pass 5 Create old Index           // NOT DONE DUE TO DIH
+ * Pass 6 Create old ForeignKey
 
- * Pass 6 Drop old Index             // NOT DONE DUE TO DIH
- * Pass 7 Drop old Table             // NOT DONE DUE TO DIH
- * Pass 8 Drop old HashMap
- * Pass 9 Drop old Datafile/Undofile
- * Pass 10 Drop old Tablespace
- * Pass 11 Drop old Logfilegroup
+ * Pass 7 Drop old ForeignKey
+ * Pass 8 Drop old Index             // NOT DONE DUE TO DIH
+ * Pass 9 Drop old Table             // NOT DONE DUE TO DIH
+ * Pass 10 Drop old HashMap
+ * Pass 11 Drop old Datafile/Undofile
+ * Pass 12 Drop old Tablespace
+ * Pass 13 Drop old Logfilegroup
 
- * Pass 12 Create new LogfileGroup
- * Pass 13 Create new Tablespace
- * Pass 14 Create new Datafile/Undofile
- * Pass 15 Create new HashMap
- * Pass 16 Create new Table
- * Pass 17 Create new Index
+ * Pass 14 Create new LogfileGroup
+ * Pass 15 Create new Tablespace
+ * Pass 16 Create new Datafile/Undofile
+ * Pass 17 Create new HashMap
+ * Pass 18 Create new Table
+ * Pass 19 Create new Index
+ * Pass 20 Create new ForeignKey
  */
 
 void Dbdict::checkSchemaStatus(Signal* signal)
@@ -3712,7 +3944,9 @@ void Dbdict::checkSchemaStatus(Signal* signal)
       continue;
     }//if
 
-    D("checkSchemaStatus" << V(*ownEntry) << V(*masterEntry));
+    D("checkSchemaStatus" << V(c_restartRecord.m_pass) << V(c_restartRecord.activeTable));
+    D("own" << *ownEntry);
+    D("mst" << *masterEntry);
 
 //#define PRINT_SCHEMA_RESTART
 #ifdef PRINT_SCHEMA_RESTART
@@ -4408,6 +4642,12 @@ Dbdict::restartCreateObj_parse(Signal* signal,
     seizeSchemaOp(trans_ptr, op_ptr, opRecPtr);
     break;
   }
+  case DictTabInfo::ForeignKey:
+  {
+    CreateFKRecPtr opRecPtr;
+    seizeSchemaOp(trans_ptr, op_ptr, opRecPtr);
+    break;
+  }
   }
 
   op_ptr.p->m_restart = file ? 1 : 2;
@@ -5004,7 +5244,7 @@ void Dbdict::handleTabInfoInit(Signal * signal, SchemaTransPtr & trans_ptr,
 
     char buf[MAX_TAB_NAME_SIZE+1];
     BaseString::snprintf(buf, sizeof(buf), "DEFAULT-HASHMAP-%u-%u",
-                         NDB_DEFAULT_HASHMAP_BUCKETS,
+                         c_default_hashmap_size,
                          fragments);
     DictObject* dictObj = get_object(buf);
     if (dictObj && dictObj->m_type == DictTabInfo::HashMap)
@@ -5311,7 +5551,7 @@ void Dbdict::handleTabInfo(SimpleProperties::Reader & it,
       }
     }
 
-    list.seize(attrPtr);
+    list.seizeLast(attrPtr);
     if(attrPtr.i == RNIL){
       jam();
       parseP->errorCode = CreateTableRef::NoMoreAttributeRecords;
@@ -6343,7 +6583,7 @@ Dbdict::execCREATE_TAB_CONF(Signal* signal)
   TableRecordPtr tabPtr;
   bool ok = find_object(tabPtr, createTabPtr.p->m_request.tableId);
   ndbrequire(ok);
-  sendLQHADDATTRREQ(signal, op_ptr, tabPtr.p->m_attributes.firstItem);
+  sendLQHADDATTRREQ(signal, op_ptr, tabPtr.p->m_attributes.getFirst());
 }
 
 
@@ -6971,7 +7211,7 @@ Dbdict::createTable_commit(Signal* signal, SchemaOpPtr op_ptr)
     ndbrequire(ok);
 
     LocalTableRecord_list list(c_tableRecordPool_, basePtr.p->m_indexes);
-    list.add(tabPtr);
+    list.addLast(tabPtr);
   }
 }
 
@@ -7294,7 +7534,7 @@ void Dbdict::releaseTableObject(Uint32 table_ptr_i, bool removeFromHash)
     name.erase();
     def.erase();
   }
-  list.release();
+  while (list.releaseFirst());
 
   {
     if (tablePtr.p->m_upgrade_trigger_handling.m_upgrade)
@@ -10537,6 +10777,7 @@ void Dbdict::sendLIST_TABLES_CONF(Signal* signal, ListTablesReq* req)
   const Uint32 reqTableType = req->getTableType();
   const bool reqListNames = req->getListNames();
   const bool reqListIndexes = req->getListIndexes();
+  const bool reqListDependent = req->getListDependent();
   XSchemaFile * xsf = &c_schemaFile[SchemaRecord::NEW_SCHEMA_FILE];
   NodeReceiverGroup rg(senderRef);
 
@@ -10591,6 +10832,9 @@ void Dbdict::sendLIST_TABLES_CONF(Signal* signal, ListTablesReq* req)
 
       if(reqListIndexes && (reqTableId != tablePtr.p->primaryTableId))
 	goto flush;
+
+      if (reqListDependent && (reqTableId != tablePtr.p->primaryTableId))
+        goto flush;
 
       ltd.requestData = 0; // clear
       ltd.setTableId(iter.curr.p->m_id); // id
@@ -10667,6 +10911,9 @@ void Dbdict::sendLIST_TABLES_CONF(Signal* signal, ListTablesReq* req)
       TriggerRecordPtr triggerPtr;
       bool ok = find_object(triggerPtr, iter.curr.p->m_id);
 
+      if (reqListDependent && (reqTableId != triggerPtr.p->tableId))
+        goto flush;
+
       ltd.requestData = 0;
       ltd.setTableId(iter.curr.p->m_id);
       ltd.setTableType(type);
@@ -10695,6 +10942,10 @@ void Dbdict::sendLIST_TABLES_CONF(Signal* signal, ListTablesReq* req)
     }
     if (DictTabInfo::isFilegroup(type)){
       jam();
+
+      if (reqListDependent)
+        goto flush;
+
       ltd.requestData = 0;
       ltd.setTableId(iter.curr.p->m_id);
       ltd.setTableType(type); // type
@@ -10702,6 +10953,10 @@ void Dbdict::sendLIST_TABLES_CONF(Signal* signal, ListTablesReq* req)
     }
     if (DictTabInfo::isFile(type)){
       jam();
+
+      if (reqListDependent)
+        goto flush;
+
       ltd.requestData = 0;
       ltd.setTableId(iter.curr.p->m_id);
       ltd.setTableType(type); // type
@@ -10710,6 +10965,30 @@ void Dbdict::sendLIST_TABLES_CONF(Signal* signal, ListTablesReq* req)
     if (DictTabInfo::isHashMap(type))
     {
       jam();
+
+      if (reqListDependent)
+        goto flush;
+
+      ltd.setTableId(iter.curr.p->m_id);
+      ltd.setTableType(type); // type
+      ltd.setTableState(DictTabInfo::StateOnline); // XXX todo
+    }
+
+    if (DictTabInfo::isForeignKey(type))
+    {
+      jam();
+
+      Ptr<ForeignKeyRec> fk_ptr;
+      ndbrequire(find_object(fk_ptr, iter.curr.p->m_id));
+
+      if (reqListDependent &&
+          (reqTableId != fk_ptr.p->m_parentTableId &&
+           reqTableId != fk_ptr.p->m_parentIndexId &&
+           reqTableId != fk_ptr.p->m_childTableId  &&
+           reqTableId != fk_ptr.p->m_childIndexId ))
+        goto flush;
+
+      ltd.requestData = 0;
       ltd.setTableId(iter.curr.p->m_id);
       ltd.setTableType(type); // type
       ltd.setTableState(DictTabInfo::StateOnline); // XXX todo
@@ -11256,6 +11535,14 @@ Dbdict::createIndex_toCreateTable(Signal* signal, SchemaOpPtr op_ptr)
     w.add(DictTabInfo::TableTemporaryFlag, (Uint32)flag);
   }
   w.add(DictTabInfo::FragmentTypeVal, createIndexPtr.p->m_fragmentType);
+  // Inherit fragment count if main table is also hashmap partitioned.
+  // Otherwise better do use default.
+  if ((DictTabInfo::FragmentType)createIndexPtr.p->m_fragmentType == tablePtr.p->fragmentType &&
+      tablePtr.p->fragmentType == DictTabInfo::HashMapPartition)
+  {
+    w.add(DictTabInfo::FragmentCount, tablePtr.p->fragmentCount);
+  }
+
   w.add(DictTabInfo::TableTypeVal, createIndexPtr.p->m_request.indexType);
   { LocalRope name(c_rope_pool, tablePtr.p->tableName);
     char tableName[MAX_TAB_NAME_SIZE];
@@ -12195,6 +12482,27 @@ Dbdict::g_reorgTriggerTmpl[1] = {
   }
 };
 
+const Dbdict::TriggerTmpl
+Dbdict::g_fkTriggerTmpl[2] = {
+  { "NDB$FK_%u_PARENT_%u",
+    {
+      TriggerType::FK_PARENT,
+      TriggerActionTime::TA_AFTER,
+      TriggerEvent::TE_CUSTOM,
+      false, false, true // monitor replicas, monitor all, report all
+    }
+  },
+
+  { "NDB$FK_%u_CHILD_%u",
+    {
+      TriggerType::FK_CHILD,
+      TriggerActionTime::TA_AFTER,
+      TriggerEvent::TE_CUSTOM,
+      false, false, true // monitor replicas, monitor all, report all
+    }
+  }
+};
+
 // AlterIndex: PARSE
 
 void
@@ -12917,7 +13225,10 @@ Dbdict::alterIndex_prepare(Signal* signal, SchemaOpPtr op_ptr)
         alterIndex_toCreateLocal(signal, op_ptr);
         break;
       case AlterIndxImplReq::AlterIndexOffline:
-        alterIndex_toDropLocal(signal, op_ptr);
+        /**
+         * Defer to complete (e.g after triggers has been dropped)
+         */
+        sendTransConf(signal, op_ptr);
         break;
       default:
         ndbrequire(false);
@@ -13138,6 +13449,24 @@ void
 Dbdict::alterIndex_complete(Signal* signal, SchemaOpPtr op_ptr)
 {
   jam();
+  AlterIndexRecPtr alterIndexPtr;
+  getOpRec(op_ptr, alterIndexPtr);
+  const AlterIndxImplReq* impl_req = &alterIndexPtr.p->m_request;
+
+  if (impl_req->requestType == AlterIndxImplReq::AlterIndexOffline)
+  {
+    jam();
+    TableRecordPtr indexPtr;
+    bool ok = find_object(indexPtr, impl_req->indexId);
+    ndbrequire(ok);
+    if (indexPtr.p->tableType == DictTabInfo::UniqueHashIndex)
+    {
+      jam();
+      alterIndex_toDropLocal(signal, op_ptr);
+      return;
+    }
+  }
+
   sendTransConf(signal, op_ptr);
 }
 
@@ -15441,6 +15770,8 @@ Dbdict::prepareTransactionEventSysTable (Callback *pcallback,
     jam();
     noAttr = 1; // only involves Primary key which should be the first
     break;
+  case UtilPrepareReq::Probe:
+    ndbrequire(false);
   }
   prepareUtilTransaction(pcallback, signal, senderData, tableId, NULL,
 		      prepReq, noAttr, NULL, NULL);
@@ -18205,6 +18536,8 @@ Dbdict::createTrigger_parse(Signal* signal, bool master,
       jam();
       createTrigger_create_drop_trigger_operation(signal, op_ptr, error);
     case TriggerType::SECONDARY_INDEX:
+    case TriggerType::FK_PARENT:
+    case TriggerType::FK_CHILD:
       jam();
       createTriggerPtr.p->m_sub_dst = false;
       createTriggerPtr.p->m_sub_src = false;
@@ -18232,13 +18565,34 @@ Dbdict::createTrigger_parse(Signal* signal, bool master,
     return;
   }
 
+  triggerPtr.p->indexId = impl_req->indexId;
   if (impl_req->indexId != RNIL)
   {
+    jam();
     TableRecordPtr indexPtr;
-    bool ok = find_object(indexPtr, impl_req->indexId);
-    ndbrequire(ok);
-    triggerPtr.p->indexId = impl_req->indexId;
-    indexPtr.p->triggerId = impl_req->triggerId;
+    if (find_object(indexPtr, impl_req->indexId))
+    {
+      jam();
+      indexPtr.p->triggerId = impl_req->triggerId;
+    }
+    ForeignKeyRecPtr fk_ptr;
+    if (find_object(fk_ptr, impl_req->indexId))
+    {
+      jam();
+      switch (impl_req->triggerNo) {
+      case 0:
+        fk_ptr.p->m_parentTriggerId = impl_req->triggerId;
+        D("fk: parent" << V(impl_req->triggerId));
+        break;
+      case 1:
+        fk_ptr.p->m_childTriggerId = impl_req->triggerId;
+        D("fk: child" << V(impl_req->triggerId));
+        break;
+      default:
+        ndbrequire(false);
+        break;
+      }
+    }
   }
 }
 
@@ -18788,7 +19142,10 @@ Dbdict::send_create_trig_req(Signal* signal,
     tmp[2] = triggerPtr.p->triggerId;
 
     TableRecordPtr indexPtr;
-    if (triggerPtr.p->indexId != RNIL)
+    TriggerType::Value type =
+      TriggerInfo::getTriggerType(triggerPtr.p->triggerInfo);
+
+    if (type == TriggerType::SECONDARY_INDEX)
     {
       jam();
       bool ok = find_object(indexPtr, triggerPtr.p->indexId);
@@ -19076,6 +19433,7 @@ Dbdict::dropTrigger_parse(Signal* signal, bool master,
   {
     if (impl_req->indexId != triggerPtr.p->indexId) {
       jam();  // wl3600_todo wrong error code
+      D("mismatch" << V(impl_req->indexId) << V(triggerPtr.p->indexId));
       setError(error, DropTrigRef::InvalidTable, __LINE__);
       return;
     }
@@ -19086,6 +19444,8 @@ Dbdict::dropTrigger_parse(Signal* signal, bool master,
       TriggerInfo::getTriggerType(triggerPtr.p->triggerInfo);
     switch(type){
     case TriggerType::SECONDARY_INDEX:
+    case TriggerType::FK_PARENT:
+    case TriggerType::FK_CHILD:
       jam();
       dropTriggerPtr.p->m_sub_dst = false;
       dropTriggerPtr.p->m_sub_src = false;
@@ -19547,24 +19907,47 @@ Dbdict::getIndexAttrList(TableRecordPtr indexPtr, IndexAttributeList& list)
   jam();
   list.sz = 0;
   memset(list.id, 0, sizeof(list.id));
-  ndbrequire(indexPtr.p->noOfAttributes >= 2);
 
   LocalAttributeRecord_list alist(c_attributeRecordPool,
-                                         indexPtr.p->m_attributes);
+                                  indexPtr.p->m_attributes);
   AttributeRecordPtr attrPtr;
-  for (alist.first(attrPtr); !attrPtr.isNull(); alist.next(attrPtr)) {
-    // skip last
-    AttributeRecordPtr tempPtr = attrPtr;
-    if (! alist.next(tempPtr))
-      break;
-    /**
-     * Post-increment moved out of original expression &list.id[list.sz++]
-     * due to Intel compiler bug on ia64 (BUG#34208).
-     */
-    getIndexAttr(indexPtr, attrPtr.i, &list.id[list.sz]);
-    list.sz++;
+  if (indexPtr.p->isIndex())
+  {
+    jam();
+    ndbrequire(indexPtr.p->noOfAttributes >= 2);
+    for (alist.first(attrPtr); !attrPtr.isNull(); alist.next(attrPtr))
+    {
+      // skip last
+      AttributeRecordPtr tempPtr = attrPtr;
+      if (! alist.next(tempPtr))
+        break;
+      /**
+       * Post-increment moved out of original expression &list.id[list.sz++]
+       * due to Intel compiler bug on ia64 (BUG#34208).
+       */
+      getIndexAttr(indexPtr, attrPtr.i, &list.id[list.sz]);
+      list.sz++;
+    }
+    ndbrequire(indexPtr.p->noOfAttributes == list.sz + 1);
   }
-  ndbrequire(indexPtr.p->noOfAttributes == list.sz + 1);
+  else
+  {
+    jam();
+    for (alist.first(attrPtr); !attrPtr.isNull(); alist.next(attrPtr))
+    {
+      if (attrPtr.p->tupleKey)
+      {
+        jam();
+        list.id[list.sz] = attrPtr.p->attributeId;
+        /**
+         * Post-increment moved out of original expression &list.id[list.sz++]
+         * due to Intel compiler bug on ia64 (BUG#34208).
+         */
+        list.sz++;
+      }
+    }
+    ndbrequire(indexPtr.p->noOfPrimkey == list.sz);
+  }
 }
 
 void
@@ -21366,7 +21749,7 @@ Dbdict::createFile_parse(Signal* signal, bool master,
   {
     jam();
     Local_file_list list(c_file_pool, fg_ptr.p->m_logfilegroup.m_files);
-    list.add(filePtr);
+    list.addFirst(filePtr);
     break;
   }
   default:
@@ -23020,7 +23403,7 @@ Dbdict::dropFilegroup_commit(Signal* signal, SchemaOpPtr op_ptr)
 
       release_object(objPtr.i, objPtr.p);
     }
-    list.release();
+    while (list.releaseFirst());
   }
   else if(fg_ptr.p->m_type == DictTabInfo::Tablespace)
   {
@@ -23279,7 +23662,7 @@ Dbdict::createNodegroup_subOps(Signal* signal, SchemaOpPtr op_ptr)
      *   and still continue transaction
      *   but that i dont know how
      */
-    Uint32 buckets = NDB_DEFAULT_HASHMAP_BUCKETS;
+    Uint32 buckets = c_default_hashmap_size;
     Uint32 fragments = get_default_fragments(signal, 1);
     char buf[MAX_TAB_NAME_SIZE+1];
     BaseString::snprintf(buf, sizeof(buf), "DEFAULT-HASHMAP-%u-%u",
@@ -24215,6 +24598,2001 @@ Dbdict::execDROP_NODEGROUP_IMPL_CONF(Signal* signal)
 
 // DropNodegroup: END
 
+// MODULE: CreateFK
+
+const Dbdict::OpInfo
+Dbdict::CreateFKRec::g_opInfo = {
+  { 'C', 'F', 'K', 0 },
+  ~RT_DBDICT_CREATE_FK,
+  GSN_CREATE_FK_IMPL_REQ,
+  CreateFKImplReq::SignalLength,
+
+  //
+  &Dbdict::createFK_seize,
+  &Dbdict::createFK_release,
+  //
+  &Dbdict::createFK_parse,
+  &Dbdict::createFK_subOps,
+  &Dbdict::createFK_reply,
+  //
+  &Dbdict::createFK_prepare,
+  &Dbdict::createFK_commit,
+  &Dbdict::createFK_complete,
+  //
+  &Dbdict::createFK_abortParse,
+  &Dbdict::createFK_abortPrepare
+};
+
+void
+Dbdict::execCREATE_FK_REQ(Signal* signal)
+{
+  jamEntry();
+  if (!assembleFragments(signal)) {
+    jam();
+    return;
+  }
+  SectionHandle handle(this, signal);
+
+  const CreateFKReq req_copy =
+    *(const CreateFKReq*)signal->getDataPtr();
+  const CreateFKReq* req = &req_copy;
+
+  ErrorInfo error;
+  do {
+    SchemaOpPtr op_ptr;
+    CreateFKRecPtr createFKRecPtr;
+    CreateFKImplReq* impl_req;
+
+    startClientReq(op_ptr, createFKRecPtr, req, impl_req, error);
+    if (hasError(error)) {
+      jam();
+      break;
+    }
+
+    handleClientReq(signal, op_ptr, handle);
+    return;
+  } while (0);
+
+  releaseSections(handle);
+
+  CreateFKRef* ref = (CreateFKRef*)signal->getDataPtrSend();
+  ref->senderRef = reference();
+  ref->transId = req->transId;
+  ref->senderData = req->senderData;
+  getError(error, ref);
+
+  sendSignal(req->senderRef, GSN_CREATE_FK_REF, signal,
+	     CreateFKRef::SignalLength, JBB);
+}
+
+bool
+Dbdict::createFK_seize(SchemaOpPtr op_ptr)
+{
+  return seizeOpRec<CreateFKRec>(op_ptr);
+}
+
+void
+Dbdict::createFK_release(SchemaOpPtr op_ptr)
+{
+  releaseOpRec<CreateFKRec>(op_ptr);
+}
+
+// CreateFK: PARSE
+
+void
+Dbdict::createFK_parse(Signal* signal, bool master,
+                              SchemaOpPtr op_ptr,
+                              SectionHandle& handle, ErrorInfo& error)
+{
+  D("createFK_parse");
+  SchemaTransPtr trans_ptr = op_ptr.p->m_trans_ptr;
+  CreateFKRecPtr createFKRecPtr;
+  getOpRec(op_ptr, createFKRecPtr);
+  CreateFKImplReq* impl_req = &createFKRecPtr.p->m_request;
+
+  SegmentedSectionPtr objInfoPtr;
+  {
+    bool ok = handle.getSection(objInfoPtr, 0);
+    if (!ok)
+    {
+      jam();
+      setError(error, CreateTableRef::InvalidFormat, __LINE__);
+      return;
+    }
+  }
+  SimplePropertiesSectionReader it(objInfoPtr, getSectionSegmentPool());
+
+  DictForeignKeyInfo::ForeignKey fk; fk.init();
+  SimpleProperties::UnpackStatus status =
+    SimpleProperties::unpack(it, &fk,
+                             DictForeignKeyInfo::Mapping,
+                             DictForeignKeyInfo::MappingSize,
+                             true, true);
+
+  if(status != SimpleProperties::Eof)
+  {
+    jam();
+    setError(error, CreateFKRef::InvalidFormat, __LINE__);
+    return;
+  }
+
+  /**
+   * validate
+   */
+  if (fk.ParentTableId == RNIL || fk.ChildTableId == RNIL)
+  {
+    jam();
+    setError(error, CreateFKRef::InvalidFormat, __LINE__);
+    return;
+  }
+
+  if (fk.ParentColumnsLength != fk.ChildColumnsLength)
+  {
+    jam();
+    setError(error, CreateFKRef::InvalidFormat, __LINE__);
+    return;
+  }
+
+  const Uint32 colCount = (fk.ParentColumnsLength / 4);
+
+  Uint32 bits = 0;
+
+  {
+    const SchemaFile::TableEntry * parentEntry= getTableEntry(fk.ParentTableId);
+    if (parentEntry == 0 || !DictTabInfo::isTable(parentEntry->m_tableType))
+    {
+      jam();
+      setError(error, CreateFKRef::ParentTableIsNotATable, __LINE__);
+      return;
+    }
+
+    /*
+     * See comment below about child table version.
+     */
+    if (table_version_major(fk.ParentTableVersion) !=
+        table_version_major(parentEntry->m_tableVersion))
+    {
+      jam();
+      setError(error, CreateFKRef::InvalidParentTableVersion, __LINE__);
+      return;
+    }
+  }
+
+  {
+    const SchemaFile::TableEntry * childEntry= getTableEntry(fk.ChildTableId);
+    if (childEntry == 0 || !DictTabInfo::isTable(childEntry->m_tableType))
+    {
+      jam();
+      setError(error, CreateFKRef::ChildTableIsNotATable, __LINE__);
+      return;
+    }
+
+    /*
+     * We cannot keep table version fully synced with FKs.
+     * Even handler does create FK, alter table (in this order)
+     * so version is instantly out-of-date.  Checking major version
+     * should be good enough (or even the right thing).
+     *
+     * A test case is NR/SR create FKs.
+     */
+    if (table_version_major(fk.ChildTableVersion) !=
+        table_version_major(childEntry->m_tableVersion))
+    {
+      jam();
+      setError(error, CreateFKRef::InvalidChildTableVersion, __LINE__);
+      return;
+    }
+  }
+
+  /*
+   * Table/index may not yet exist on restart so in the following
+   * check op_ptr.p->m_restart before find_object().
+   */
+
+  if (fk.ParentIndexId != RNIL)
+  {
+    const SchemaFile::TableEntry * parentIndexEntry=
+      getTableEntry(fk.ParentIndexId);
+    if (parentIndexEntry == 0 ||
+        !DictTabInfo::isUniqueIndex(parentIndexEntry->m_tableType))
+    {
+      jam();
+      setError(error, CreateFKRef::ParentIndexIsNotAnUniqueIndex, __LINE__);
+      return;
+    }
+
+    if (fk.ParentIndexVersion != parentIndexEntry->m_tableVersion)
+    {
+      jam();
+      setError(error, CreateFKRef::InvalidParentIndexVersion, __LINE__);
+      return;
+    }
+
+    if (DictTabInfo::isUniqueIndex(parentIndexEntry->m_tableType))
+    {
+      bits |= CreateFKImplReq::FK_PARENT_UI;
+    }
+    else
+    {
+      bits |= CreateFKImplReq::FK_PARENT_OI;
+    }
+
+    if (!op_ptr.p->m_restart)
+    {
+      jam();
+      TableRecordPtr parentIndexPtr;
+      ndbrequire(find_object(parentIndexPtr, fk.ParentIndexId));
+      if (parentIndexPtr.p->noOfAttributes != colCount + 1)
+      {
+        jam();
+        setError(error, CreateFKRef::InvalidFormat, __LINE__);
+        ndbassert(false);
+        return;
+      }
+    }
+  }
+  else
+  {
+    if (!op_ptr.p->m_restart)
+    {
+      jam();
+      TableRecordPtr parentTablePtr;
+      ndbrequire(find_object(parentTablePtr, fk.ParentTableId));
+      if (parentTablePtr.p->noOfPrimkey  != colCount)
+      {
+        jam();
+        setError(error, CreateFKRef::InvalidFormat, __LINE__);
+        return;
+      }
+    }
+  }
+
+  if (fk.ChildIndexId != RNIL)
+  {
+    const SchemaFile::TableEntry * childIndexEntry=
+      getTableEntry(fk.ChildIndexId);
+    if (childIndexEntry == 0 ||
+        !DictTabInfo::isIndex(childIndexEntry->m_tableType))
+    {
+      jam();
+      setError(error, CreateFKRef::ChildIndexIsNotAnIndex, __LINE__);
+      return;
+    }
+
+    if (fk.ChildIndexVersion != childIndexEntry->m_tableVersion)
+    {
+      jam();
+      setError(error, CreateFKRef::InvalidChildIndexVersion, __LINE__);
+      return;
+    }
+
+    if (DictTabInfo::isUniqueIndex(childIndexEntry->m_tableType))
+    {
+      jam();
+      bits |= CreateFKImplReq::FK_CHILD_UI;
+    }
+    else
+    {
+      jam();
+      bits |= CreateFKImplReq::FK_CHILD_OI;
+    }
+
+    if (!op_ptr.p->m_restart)
+    {
+      jam();
+      TableRecordPtr childIndexPtr;
+      ndbrequire(find_object(childIndexPtr, fk.ChildIndexId));
+      if (DictTabInfo::isUniqueIndex(childIndexEntry->m_tableType) &&
+          childIndexPtr.p->noOfAttributes != colCount + 1)
+      {
+        jam();
+        setError(error, CreateFKRef::InvalidFormat, __LINE__);
+        return;
+      }
+    }
+  }
+  else
+  {
+    jam();
+    if (!op_ptr.p->m_restart)
+    {
+      jam();
+      TableRecordPtr childTablePtr;
+      ndbrequire(find_object(childTablePtr, fk.ChildTableId));
+      if (childTablePtr.p->noOfPrimkey  != colCount)
+      {
+        jam();
+        setError(error, CreateFKRef::InvalidFormat, __LINE__);
+        ndbassert(false);
+        return;
+      }
+    }
+  }
+
+  /**
+   * TODO verify column data-types etc...
+   */
+  switch(fk.OnUpdateAction){
+  case NDB_FK_NO_ACTION:
+    break;
+  case NDB_FK_RESTRICT:
+    bits |= CreateFKImplReq::FK_UPDATE_RESTRICT;
+    break;
+  case NDB_FK_CASCADE:
+    bits |= CreateFKImplReq::FK_UPDATE_CASCADE;
+    break;
+  case NDB_FK_SET_NULL:
+    bits |= CreateFKImplReq::FK_UPDATE_SET_NULL;
+    break;
+  case NDB_FK_SET_DEFAULT:
+    bits |= CreateFKImplReq::FK_UPDATE_SET_DEFAULT;
+    break;
+  }
+
+  switch(fk.OnDeleteAction){
+  case NDB_FK_NO_ACTION:
+    break;
+  case NDB_FK_RESTRICT:
+    bits |= CreateFKImplReq::FK_DELETE_RESTRICT;
+    break;
+  case NDB_FK_CASCADE:
+    bits |= CreateFKImplReq::FK_DELETE_CASCADE;
+    break;
+  case NDB_FK_SET_NULL:
+    bits |= CreateFKImplReq::FK_DELETE_SET_NULL;
+    break;
+  case NDB_FK_SET_DEFAULT:
+    bits |= CreateFKImplReq::FK_DELETE_SET_DEFAULT;
+    break;
+  }
+
+  /*
+   * Handle SR/NR activate FK in late SP. The FK object was already
+   * created without triggers in early SP.
+   */
+  if (c_restart_enable_fks)
+  {
+    jam();
+    ndbrequire(fk.ForeignKeyId != RNIL && fk.ForeignKeyVersion != RNIL);
+    impl_req->fkId = fk.ForeignKeyId;
+    impl_req->fkVersion = fk.ForeignKeyVersion;
+
+    Ptr<ForeignKeyRec> fk_ptr; fk_ptr.setNull();
+    if (!find_object(fk_ptr, impl_req->fkId))
+    {
+      jam();
+      setError(error, CreateFKRef::InvalidFormat, __LINE__);
+      return;
+    }
+
+    saveOpSection(op_ptr, handle, 0);
+    return;
+  }
+
+  Uint32 len = Uint32(strlen(fk.Name) + 1);
+  Uint32 hash = LocalRope::hash(fk.Name, len);
+  if (get_object(fk.Name, len, hash) != 0)
+  {
+    jam();
+    setError(error, CreateFKRef::ObjectAlreadyExist, __LINE__);
+    return;
+  }
+
+  Ptr<DictObject> obj_ptr; obj_ptr.setNull();
+  if(!c_obj_pool.seize(obj_ptr))
+  {
+    jam();
+    setError(error, CreateFKRef::NoMoreTableRecords, __LINE__);
+    return;
+  }
+  new (obj_ptr.p) DictObject;
+
+  Ptr<ForeignKeyRec> fk_ptr; fk_ptr.setNull();
+  if(!c_fk_pool.seize(fk_ptr))
+  {
+    jam();
+    setError(error, CreateFKRef::NoMoreTableRecords, __LINE__);
+    goto error;
+  }
+
+  new (fk_ptr.p) ForeignKeyRec();
+
+  {
+    LocalRope name(c_rope_pool, obj_ptr.p->m_name);
+    if(!name.assign(fk.Name, len, hash))
+    {
+      jam();
+      setError(error, CreateFKRef::OutOfStringBuffer, __LINE__);
+      goto error;
+    }
+  }
+
+  if (master)
+  {
+    jam();
+
+    Uint32 objId = getFreeObjId(0);
+    if (objId == RNIL)
+    {
+      jam();
+      setError(error, CreateFKRef::NoMoreObjectRecords, __LINE__);
+      goto error;
+    }
+    Uint32 version = getTableEntry(objId)->m_tableVersion;
+
+    impl_req->fkId = objId;
+    impl_req->fkVersion = create_obj_inc_schema_version(version);
+  }
+  else if (op_ptr.p->m_restart)
+  {
+    jam();
+    impl_req->fkId = c_restartRecord.activeTable;
+    impl_req->fkVersion = c_restartRecord.m_entry.m_tableVersion;
+  }
+
+  fk_ptr.p->m_fk_id = impl_req->fkId;
+  fk_ptr.p->m_obj_ptr_i = obj_ptr.i;
+  fk_ptr.p->m_version = impl_req->fkVersion;
+  fk_ptr.p->m_name = obj_ptr.p->m_name;
+  fk_ptr.p->m_parentTableId = fk.ParentTableId;
+  fk_ptr.p->m_childTableId = fk.ChildTableId;
+  fk_ptr.p->m_parentIndexId = fk.ParentIndexId;
+  fk_ptr.p->m_childIndexId = fk.ChildIndexId;
+  fk_ptr.p->m_bits = bits;
+  fk_ptr.p->m_columnCount = (fk.ParentColumnsLength / 4);
+
+  for (Uint32 i = 0; i < fk_ptr.p->m_columnCount; i++)
+  {
+    fk_ptr.p->m_parentColumns[i] = fk.ParentColumns[i];
+  }
+
+  for (Uint32 i = 0; i < fk_ptr.p->m_columnCount; i++)
+  {
+    fk_ptr.p->m_childColumns[i] = fk.ChildColumns[i];
+  }
+
+  obj_ptr.p->m_id = impl_req->fkId;
+  obj_ptr.p->m_type = DictTabInfo::ForeignKey;
+  obj_ptr.p->m_ref_count = 0;
+
+  if (master)
+  {
+    jam();
+    releaseSections(handle);
+    SimplePropertiesSectionWriter w(*this);
+    packFKIntoPages(w, fk_ptr);
+    w.getPtr(objInfoPtr);
+    handle.m_ptr[0] = objInfoPtr;
+    handle.m_cnt = 1;
+  }
+
+  {
+    SchemaFile::TableEntry te; te.init();
+    te.m_tableState = SchemaFile::SF_CREATE;
+    te.m_tableVersion = fk_ptr.p->m_version;
+    te.m_tableType = DictTabInfo::ForeignKey;
+    te.m_info_words = objInfoPtr.sz;
+    te.m_gcp = 0;
+    te.m_transId = trans_ptr.p->m_transId;
+
+    Uint32 err = trans_log_schema_op(op_ptr, impl_req->fkId, &te);
+    if (err)
+    {
+      jam();
+      setError(error, err, __LINE__);
+      goto error;
+    }
+  }
+
+  ndbrequire(link_object(obj_ptr, fk_ptr));
+  c_obj_name_hash.add(obj_ptr);
+  c_obj_id_hash.add(obj_ptr);
+
+  // save sections to DICT memory
+  saveOpSection(op_ptr, handle, 0);
+
+  createFKRecPtr.p->m_parsed = true;
+
+#if defined VM_TRACE || defined ERROR_INSERT
+  ndbout_c("Dbdict: create name=%s,id=%u,obj_ptr_i=%d",
+           fk.Name, impl_req->fkId, fk_ptr.p->m_obj_ptr_i);
+#endif
+
+  return;
+
+error:
+  jam();
+  if (!fk_ptr.isNull())
+  {
+    jam();
+    c_fk_pool.release(fk_ptr);
+  }
+
+  if (!obj_ptr.isNull())
+  {
+    jam();
+    release_object(obj_ptr.i, obj_ptr.p);
+  }
+}
+
+void
+Dbdict::packFKIntoPages(SimpleProperties::Writer & w,
+                        Ptr<ForeignKeyRec> fk_ptr)
+{
+  D("packFKIntoPages");
+  DictForeignKeyInfo::ForeignKey fk; fk.init();
+  ConstRope r(c_rope_pool, fk_ptr.p->m_name);
+  r.copy(fk.Name);
+
+  fk.ForeignKeyId = fk_ptr.p->m_fk_id;
+  fk.ForeignKeyVersion = fk_ptr.p->m_version;
+  fk.ParentTableId = fk_ptr.p->m_parentTableId;
+  {
+    TableRecordPtr tablePtr;
+    ndbrequire(find_object(tablePtr, fk_ptr.p->m_parentTableId));
+    fk.ParentTableVersion = tablePtr.p->tableVersion;
+    ConstRope name(c_rope_pool, tablePtr.p->tableName);
+    name.copy(fk.ParentTableName);
+  }
+  fk.ChildTableId = fk_ptr.p->m_childTableId;
+  {
+    TableRecordPtr tablePtr;
+    ndbrequire(find_object(tablePtr, fk_ptr.p->m_childTableId));
+    fk.ChildTableVersion = tablePtr.p->tableVersion;
+    ConstRope name(c_rope_pool, tablePtr.p->tableName);
+    name.copy(fk.ChildTableName);
+  }
+
+  fk.ParentIndexId = fk_ptr.p->m_parentIndexId;
+  if (fk.ParentIndexId != RNIL)
+  {
+    TableRecordPtr tablePtr;
+    ndbrequire(find_object(tablePtr, fk_ptr.p->m_parentIndexId));
+    fk.ParentIndexVersion = tablePtr.p->tableVersion;
+    ConstRope name(c_rope_pool, tablePtr.p->tableName);
+    name.copy(fk.ParentIndexName);
+  }
+  fk.ChildIndexId = fk_ptr.p->m_childIndexId;
+  if (fk.ChildIndexId != RNIL)
+  {
+    TableRecordPtr tablePtr;
+    ndbrequire(find_object(tablePtr, fk_ptr.p->m_childIndexId));
+    fk.ChildIndexVersion = tablePtr.p->tableVersion;
+    ConstRope name(c_rope_pool, tablePtr.p->tableName);
+    name.copy(fk.ChildIndexName);
+  }
+
+  // bytes...
+  fk.ParentColumnsLength = 4 * fk_ptr.p->m_columnCount;
+  fk.ChildColumnsLength = 4 * fk_ptr.p->m_columnCount;
+  for (Uint32 i = 0; i < fk_ptr.p->m_columnCount; i++)
+  {
+    fk.ParentColumns[i] = fk_ptr.p->m_parentColumns[i];
+    fk.ChildColumns[i] = fk_ptr.p->m_childColumns[i];
+  }
+
+  fk.OnUpdateAction = NDB_FK_NO_ACTION;
+  if (fk_ptr.p->m_bits & CreateFKImplReq::FK_UPDATE_RESTRICT)
+    fk.OnUpdateAction = NDB_FK_RESTRICT;
+  else if (fk_ptr.p->m_bits & CreateFKImplReq::FK_UPDATE_CASCADE)
+    fk.OnUpdateAction = NDB_FK_CASCADE;
+  else if (fk_ptr.p->m_bits & CreateFKImplReq::FK_UPDATE_SET_NULL)
+    fk.OnUpdateAction = NDB_FK_SET_NULL;
+  else if (fk_ptr.p->m_bits & CreateFKImplReq::FK_UPDATE_SET_DEFAULT)
+    fk.OnUpdateAction = NDB_FK_SET_DEFAULT;
+
+  fk.OnDeleteAction = NDB_FK_NO_ACTION;
+  if (fk_ptr.p->m_bits & CreateFKImplReq::FK_DELETE_RESTRICT)
+    fk.OnDeleteAction = NDB_FK_RESTRICT;
+  else if (fk_ptr.p->m_bits & CreateFKImplReq::FK_DELETE_CASCADE)
+    fk.OnDeleteAction = NDB_FK_CASCADE;
+  else if (fk_ptr.p->m_bits & CreateFKImplReq::FK_DELETE_SET_NULL)
+    fk.OnDeleteAction = NDB_FK_SET_NULL;
+  else if (fk_ptr.p->m_bits & CreateFKImplReq::FK_DELETE_SET_DEFAULT)
+    fk.OnDeleteAction = NDB_FK_SET_DEFAULT;
+
+  SimpleProperties::UnpackStatus s;
+  s = SimpleProperties::pack(w,
+			     &fk,
+			     DictForeignKeyInfo::Mapping,
+			     DictForeignKeyInfo::MappingSize, true);
+  ndbrequire(s == SimpleProperties::Eof);
+}
+
+void
+Dbdict::createFK_abortParse(Signal* signal, SchemaOpPtr op_ptr)
+{
+  D("createFK_abortParse");
+  jam();
+
+  CreateFKRecPtr createFKPtr;
+  getOpRec(op_ptr, createFKPtr);
+
+  if (createFKPtr.p->m_parsed)
+  {
+    jam();
+    CreateFKImplReq* impl_req = &createFKPtr.p->m_request;
+
+    Ptr<ForeignKeyRec> fk_ptr;
+    ndbrequire(find_object(fk_ptr, impl_req->fkId));
+
+    release_object(fk_ptr.p->m_obj_ptr_i);
+  }
+
+  sendTransConf(signal, op_ptr);
+}
+
+bool
+Dbdict::createFK_subOps(Signal* signal, SchemaOpPtr op_ptr)
+{
+  D("createFK_subOps");
+  SchemaTransPtr trans_ptr = op_ptr.p->m_trans_ptr;
+  CreateFKRecPtr createFKRecPtr;
+  getOpRec(op_ptr, createFKRecPtr);
+  CreateFKImplReq* impl_req = &createFKRecPtr.p->m_request;
+
+  if (createFKRecPtr.p->m_sub_create_trigger < 2)
+  {
+    jam();
+
+    /**
+     * 0 - trigger on parent table
+     * 1 - trigger on child table
+     */
+    Callback c = {
+      safe_cast(&Dbdict::createFK_fromCreateTrigger),
+      op_ptr.p->op_key
+    };
+    op_ptr.p->m_callback = c;
+
+    createFK_toCreateTrigger(signal, op_ptr);
+    return true;
+  }
+
+  if (createFKRecPtr.p->m_sub_build_fk == false)
+  {
+    jam();
+    Callback c = {
+      safe_cast(&Dbdict::createFK_fromBuildFK),
+      op_ptr.p->op_key
+    };
+    op_ptr.p->m_callback = c;
+
+    BuildFKReq* req = (BuildFKReq*)signal->getDataPtrSend();
+    Uint32 requestInfo = 0;
+    DictSignal::addRequestFlagsGlobal(requestInfo, op_ptr.p->m_requestInfo);
+
+    req->clientRef = reference();
+    req->clientData = op_ptr.p->op_key;
+    req->transId = trans_ptr.p->m_transId;
+    req->transKey = trans_ptr.p->trans_key;
+    req->requestInfo = requestInfo;
+    req->fkId = impl_req->fkId;
+    req->fkVersion = impl_req->fkVersion;
+
+    sendSignal(reference(), GSN_BUILD_FK_REQ, signal,
+               BuildFKReq::SignalLength, JBB);
+    return true;
+  }
+
+  return false;
+}
+
+void
+Dbdict::createFK_toCreateTrigger(Signal* signal,
+                                 SchemaOpPtr op_ptr)
+{
+  D("createFK_toCreateTrigger");
+  jam();
+
+  SchemaTransPtr trans_ptr = op_ptr.p->m_trans_ptr;
+  CreateFKRecPtr createFKPtr;
+  getOpRec(op_ptr, createFKPtr);
+  const CreateFKImplReq* impl_req = &createFKPtr.p->m_request;
+
+  Ptr<ForeignKeyRec> fk_ptr;
+  ndbrequire(find_object(fk_ptr, impl_req->fkId));
+
+  TriggerTmpl triggerTmpl =
+    g_fkTriggerTmpl[createFKPtr.p->m_sub_create_trigger];
+
+  Uint32 tableId = RNIL;
+  Uint32 indexId = RNIL;
+  Uint32 triggerNo = RNIL;
+  switch(createFKPtr.p->m_sub_create_trigger) {
+  case 0:
+    tableId = fk_ptr.p->m_parentTableId;
+    indexId = fk_ptr.p->m_parentIndexId;
+    triggerNo = 0;
+    break;
+  case 1:
+    tableId = fk_ptr.p->m_childTableId;
+    indexId = fk_ptr.p->m_childIndexId;
+    triggerNo = 1;
+    break;
+  default:
+    ndbrequire(false);
+  }
+
+  TableRecordPtr tablePtr;
+  ndbrequire(find_object(tablePtr, tableId));
+  CreateTrigReq* req = (CreateTrigReq*)signal->getDataPtrSend();
+
+  Uint32 requestInfo = 0;
+  DictSignal::setRequestType(requestInfo, CreateTrigReq::CreateTriggerOnline);
+  DictSignal::addRequestFlagsGlobal(requestInfo, op_ptr.p->m_requestInfo);
+
+  req->clientRef = reference();
+  req->clientData = op_ptr.p->op_key;
+  req->transId = trans_ptr.p->m_transId;
+  req->transKey = trans_ptr.p->trans_key;
+  req->requestInfo = requestInfo;
+  req->tableId = tableId;
+  req->tableVersion = tablePtr.p->tableVersion;
+  req->indexId = fk_ptr.p->m_fk_id;
+  req->indexVersion = fk_ptr.p->m_version;
+  req->triggerNo = triggerNo;
+  req->forceTriggerId = RNIL;
+
+  if ((fk_ptr.p->m_bits & CreateFKImplReq::FK_ACTION_MASK) == 0)
+  {
+    jam();
+    triggerTmpl.triggerInfo.triggerActionTime = TriggerActionTime::TA_DEFERRED;
+  }
+
+  TriggerInfo::packTriggerInfo(req->triggerInfo, triggerTmpl.triggerInfo);
+
+  req->receiverRef = 0;
+
+  char triggerName[MAX_TAB_NAME_SIZE];
+  sprintf(triggerName, triggerTmpl.nameFormat, fk_ptr.p->m_fk_id, tableId);
+
+  // name section
+  Uint32 buffer[2 + ((MAX_TAB_NAME_SIZE + 3) >> 2)];    // SP string
+  LinearWriter w(buffer, sizeof(buffer) >> 2);
+  w.reset();
+  w.add(DictTabInfo::TableName, triggerName);
+  LinearSectionPtr lsPtr[3];
+  lsPtr[0].p = buffer;
+  lsPtr[0].sz = w.getWordsUsed();
+
+  AttributeMask mask;
+  mask.clear();
+
+  if (createFKPtr.p->m_sub_create_trigger == 0)
+  {
+    for (Uint32 i = 0; i < fk_ptr.p->m_columnCount; i++)
+      mask.set(fk_ptr.p->m_parentColumns[i]);
+  }
+  else
+  {
+    for (Uint32 i = 0; i < fk_ptr.p->m_columnCount; i++)
+      mask.set(fk_ptr.p->m_childColumns[i]);
+  }
+
+  lsPtr[1].p = mask.rep.data;
+  lsPtr[1].sz = mask.getSizeInWords();
+
+  sendSignal(reference(), GSN_CREATE_TRIG_REQ, signal,
+             CreateTrigReq::SignalLength, JBB, lsPtr, 2);
+}
+
+void
+Dbdict::createFK_fromCreateTrigger(Signal* signal, Uint32 op_key, Uint32 ret)
+{
+  D("createFK_fromCreateTrigger");
+  jamEntry();
+
+  SchemaOpPtr op_ptr;
+  CreateFKRecPtr createFKRecPtr;
+
+  findSchemaOp(op_ptr, createFKRecPtr, op_key);
+  ndbrequire(!op_ptr.isNull());
+  SchemaTransPtr trans_ptr = op_ptr.p->m_trans_ptr;
+  CreateFKImplReq* impl_req = &createFKRecPtr.p->m_request;
+
+  if (ret == 0)
+  {
+    jam();
+
+    const CreateTrigConf* conf = CAST_CONSTPTR(CreateTrigConf,
+                                               signal->getDataPtr());
+    Ptr<ForeignKeyRec> fk_ptr;
+    ndbrequire(find_object(fk_ptr, impl_req->fkId));
+    switch(createFKRecPtr.p->m_sub_create_trigger) {
+    case 0:
+      fk_ptr.p->m_parentTriggerId = conf->triggerId;
+      break;
+    case 1:
+      fk_ptr.p->m_childTriggerId = conf->triggerId;
+      break;
+    default:
+      ndbrequire(false);
+    }
+
+    createFKRecPtr.p->m_sub_create_trigger++;
+    createSubOps(signal, op_ptr);
+  }
+  else
+  {
+    jam();
+    const CreateTrigRef* ref = CAST_CONSTPTR(CreateTrigRef,
+                                             signal->getDataPtr());
+    ErrorInfo error;
+    setError(error, ref);
+    abortSubOps(signal, op_ptr, error);
+  }
+}
+
+void
+Dbdict::createFK_fromBuildFK(Signal* signal, Uint32 op_key, Uint32 ret)
+{
+  D("createFK_fromBuildFK");
+  jamEntry();
+
+  SchemaOpPtr op_ptr;
+  CreateFKRecPtr createFKRecPtr;
+
+  findSchemaOp(op_ptr, createFKRecPtr, op_key);
+  ndbrequire(!op_ptr.isNull());
+  SchemaTransPtr trans_ptr = op_ptr.p->m_trans_ptr;
+  CreateFKImplReq* impl_req = &createFKRecPtr.p->m_request;
+
+  if (ret == 0)
+  {
+    jam();
+
+    Ptr<ForeignKeyRec> fk_ptr;
+    ndbrequire(find_object(fk_ptr, impl_req->fkId));
+    createFKRecPtr.p->m_sub_build_fk = true;
+    createSubOps(signal, op_ptr);
+  }
+  else
+  {
+    jam();
+    const BuildFKRef* ref = CAST_CONSTPTR(BuildFKRef,
+                                          signal->getDataPtr());
+    ErrorInfo error;
+    setError(error, ref);
+    abortSubOps(signal, op_ptr, error);
+  }
+}
+
+void
+Dbdict::createFK_reply(Signal* signal, SchemaOpPtr op_ptr, ErrorInfo error)
+{
+  D("createFK_reply");
+  jam();
+  SchemaTransPtr trans_ptr = op_ptr.p->m_trans_ptr;
+  CreateFKRecPtr createFKRecPtr;
+  getOpRec(op_ptr, createFKRecPtr);
+  CreateFKImplReq* impl_req = &createFKRecPtr.p->m_request;
+
+  if (!hasError(error))
+  {
+    jam();
+    CreateFKConf* conf = (CreateFKConf*)signal->getDataPtrSend();
+    conf->senderRef = reference();
+    conf->senderData = op_ptr.p->m_clientData;
+    conf->transId = trans_ptr.p->m_transId;
+    conf->fkId = impl_req->fkId;
+    conf->fkVersion = impl_req->fkVersion;
+    Uint32 clientRef = op_ptr.p->m_clientRef;
+    sendSignal(clientRef, GSN_CREATE_FK_CONF, signal,
+               CreateFKConf::SignalLength, JBB);
+  }
+  else
+  {
+    jam();
+    CreateFKRef* ref = (CreateFKRef*)signal->getDataPtrSend();
+    ref->senderRef = reference();
+    ref->senderData = op_ptr.p->m_clientData;
+    ref->transId = trans_ptr.p->m_transId;
+    getError(error, ref);
+
+    Uint32 clientRef = op_ptr.p->m_clientRef;
+    sendSignal(clientRef, GSN_CREATE_FK_REF, signal,
+               CreateFKRef::SignalLength, JBB);
+  }
+}
+
+static
+int
+cmp_uint(const void * _p1, const void * _p2)
+{
+  Uint32 * p1 = (Uint32*)_p1;
+  Uint32 * p2 = (Uint32*)_p2;
+
+  if (* p1 < * p2)
+    return -1;
+  else if (* p2 < * p1)
+    return 1;
+  return 0;
+}
+
+// CreateFK: PREPARE
+void
+Dbdict::createFK_prepare(Signal* signal, SchemaOpPtr op_ptr)
+{
+  D("createFK_prepare");
+  jam();
+  SchemaTransPtr trans_ptr = op_ptr.p->m_trans_ptr;
+  CreateFKRecPtr createFKRecPtr;
+  getOpRec(op_ptr, createFKRecPtr);
+  const CreateFKImplReq* impl_req = &createFKRecPtr.p->m_request;
+
+  Callback cb;
+  cb.m_callbackData = op_ptr.p->op_key;
+  cb.m_callbackFunction = safe_cast(&Dbdict::createFK_writeTableConf);
+
+  /*
+   * On restart from disk there is no need to rewrite schemafile.
+   */
+  if (ZRESTART_NO_WRITE_AFTER_READ && op_ptr.p->m_restart == 1)
+  {
+    jam();
+    execute(signal, cb, 0);
+    return;
+  }
+
+  /*
+   * On SR/NR activate FK there is no need to rewrite schemafile.
+   */
+  if (c_restart_enable_fks)
+  {
+    jam();
+    execute(signal, cb, 0);
+    return;
+  }
+
+  const OpSection& sec = getOpSection(op_ptr, 0);
+  writeTableFile(signal, op_ptr, impl_req->fkId, sec, &cb);
+}
+
+void
+Dbdict::createFK_writeTableConf(Signal* signal,
+                                Uint32 op_key,
+                                Uint32 ret)
+{
+  D("createFK_writeTableConf");
+  jam();
+  SchemaOpPtr op_ptr;
+  CreateFKRecPtr createFKRecPtr;
+  findSchemaOp(op_ptr, createFKRecPtr, op_key);
+  ndbrequire(!op_ptr.isNull());
+
+  CreateFKImplReq* impl_req = &createFKRecPtr.p->m_request;
+  impl_req->requestType = CreateFKImplReq::RT_PREPARE;
+
+  Ptr<ForeignKeyRec> fk_ptr;
+  ndbrequire(find_object(fk_ptr, impl_req->fkId));
+
+  Callback c = {
+    safe_cast(&Dbdict::createFK_prepareFromLocal),
+    op_ptr.p->op_key
+  };
+  op_ptr.p->m_callback = c;
+
+  /*
+   * Restart does not call subOps (for reasons such as indexes).
+   * Prepare here would create DBTC triggers with no DICT counterpart.
+   * In any case, we do not want any triggers before data copy.
+   *
+   * op_ptr.p->m_restart is not set when we come from enable fks.
+   * Check also c_restart_enable_fks to be more robust.
+   */
+  if (op_ptr.p->m_restart && !c_restart_enable_fks)
+  {
+    jam();
+    D("no DBTC triggers" << V(op_ptr.p->m_restart) << V(c_restart_enable_fks));
+    execute(signal, c, 0);
+    return;
+  }
+  D("do DBTC triggers" << V(op_ptr.p->m_restart) << V(c_restart_enable_fks));
+
+  CreateFKImplReq* req = (CreateFKImplReq*)signal->getDataPtrSend();
+  req->senderRef = reference();
+  req->senderData = op_ptr.p->op_key;
+  req->requestType = CreateFKImplReq::RT_PREPARE;
+  req->fkId = impl_req->fkId;
+  req->fkVersion = impl_req->fkVersion;
+  req->bits = fk_ptr.p->m_bits;
+  req->parentTableId = fk_ptr.p->m_parentTableId;
+  req->childTableId = fk_ptr.p->m_childTableId;
+  req->parentIndexId = fk_ptr.p->m_parentIndexId;
+  req->childIndexId = fk_ptr.p->m_childIndexId;
+
+  /**
+   * How do I transform input data from a parent row
+   *  into access on a child row
+   */
+  Uint32 parent_to_child[MAX_ATTRIBUTES_IN_INDEX];
+  memcpy(parent_to_child, fk_ptr.p->m_parentColumns, 4*fk_ptr.p->m_columnCount);
+  if ((fk_ptr.p->m_bits & CreateFKImplReq::FK_CHILD_OI) == 0)
+  {
+    jam();
+    Uint32 tmp[MAX_ATTRIBUTES_IN_INDEX];
+    memcpy(tmp, fk_ptr.p->m_childColumns, 4*fk_ptr.p->m_columnCount);
+    qsort(tmp, fk_ptr.p->m_columnCount, sizeof(Uint32), cmp_uint);
+    for (Uint32 i = 0; i < fk_ptr.p->m_columnCount; i++)
+    {
+      Uint32 col = tmp[i];
+      for (Uint32 j = 0; j < fk_ptr.p->m_columnCount; j++)
+      {
+        if (fk_ptr.p->m_childColumns[j] == col)
+        {
+          parent_to_child[i] = fk_ptr.p->m_parentColumns[j];
+          break;
+        }
+      }
+    }
+  }
+
+  Uint32 child_to_parent[MAX_ATTRIBUTES_IN_INDEX];
+  memcpy(child_to_parent, fk_ptr.p->m_childColumns, 4*fk_ptr.p->m_columnCount);
+  if ((fk_ptr.p->m_bits & CreateFKImplReq::FK_PARENT_OI) == 0)
+  {
+    jam();
+    /**
+     * PK/UI are stored in attribute id order...so sort child columns
+     *   in parent order...
+     */
+    Uint32 tmp[MAX_ATTRIBUTES_IN_INDEX];
+    memcpy(tmp, fk_ptr.p->m_parentColumns, 4*fk_ptr.p->m_columnCount);
+    qsort(tmp, fk_ptr.p->m_columnCount, sizeof(Uint32), cmp_uint);
+    for (Uint32 i = 0; i < fk_ptr.p->m_columnCount; i++)
+    {
+      Uint32 col = tmp[i];
+      for (Uint32 j = 0; j < fk_ptr.p->m_columnCount; j++)
+      {
+        if (fk_ptr.p->m_parentColumns[j] == col)
+        {
+          child_to_parent[i] = fk_ptr.p->m_childColumns[j];
+          break;
+        }
+      }
+    }
+  }
+
+  BlockReference ref = DBTC_REF;
+  LinearSectionPtr ptr[3];
+  ptr[CreateFKImplReq::PARENT_COLUMNS].p = parent_to_child;
+  ptr[CreateFKImplReq::PARENT_COLUMNS].sz = fk_ptr.p->m_columnCount;
+
+  ptr[CreateFKImplReq::CHILD_COLUMNS].p = child_to_parent;
+  ptr[CreateFKImplReq::CHILD_COLUMNS].sz = fk_ptr.p->m_columnCount;
+  sendSignal(ref, GSN_CREATE_FK_IMPL_REQ, signal,
+             CreateFKImplReq::SignalLength, JBB,
+             ptr, 2);
+}
+
+void
+Dbdict::createFK_prepareFromLocal(Signal* signal, Uint32 op_key, Uint32 ret)
+{
+  D("createFK_prepareFromLocal");
+  jamEntry();
+
+  SchemaOpPtr op_ptr;
+  CreateFKRecPtr createFKRecPtr;
+  findSchemaOp(op_ptr, createFKRecPtr, op_key);
+  ndbrequire(!op_ptr.isNull());
+
+  if (ret == 0)
+  {
+    jam();
+    createFKRecPtr.p->m_prepared = true;
+    sendTransConf(signal, op_ptr);
+  }
+  else
+  {
+    jam();
+    setError(op_ptr, ret, __LINE__);
+    sendTransRef(signal, op_ptr);
+  }
+}
+
+void
+Dbdict::createFK_abortPrepare(Signal* signal, SchemaOpPtr op_ptr)
+{
+  D("createFK_abortPrepare");
+  SchemaTransPtr trans_ptr = op_ptr.p->m_trans_ptr;
+  CreateFKRecPtr createFKRecPtr;
+  getOpRec(op_ptr, createFKRecPtr);
+  CreateFKImplReq* impl_req = &createFKRecPtr.p->m_request;
+
+  if (createFKRecPtr.p->m_prepared)
+  {
+    Callback c = {
+      safe_cast(&Dbdict::createFK_abortPrepareFromLocal),
+      op_ptr.p->op_key
+    };
+    op_ptr.p->m_callback = c;
+
+    CreateFKImplReq* req = CAST_PTR(CreateFKImplReq, signal->getDataPtrSend());
+    req->senderRef = reference();
+    req->senderData = op_ptr.p->op_key;
+    req->requestType = CreateFKImplReq::RT_ABORT;
+    req->fkId = impl_req->fkId;
+    req->fkVersion = impl_req->fkVersion;
+    sendSignal(DBTC_REF, GSN_CREATE_FK_IMPL_REQ, signal,
+               CreateFKImplReq::SignalLength, JBB);
+    return;
+  }
+
+  sendTransConf(signal, op_ptr);
+}
+
+void
+Dbdict::createFK_abortPrepareFromLocal(Signal* signal,
+                                       Uint32 op_key, Uint32 ret)
+{
+  D("createFK_abortPrepareFromLocal");
+  jamEntry();
+
+  SchemaOpPtr op_ptr;
+  CreateFKRecPtr createFKRecPtr;
+  findSchemaOp(op_ptr, createFKRecPtr, op_key);
+  ndbrequire(!op_ptr.isNull());
+
+  if (ret == 0)
+  {
+    jam();
+    createFKRecPtr.p->m_prepared = false;
+    sendTransConf(signal, op_ptr);
+  }
+  else
+  {
+    jam();
+    setError(op_ptr, ret, __LINE__);
+    sendTransRef(signal, op_ptr);
+  }
+}
+
+// CreateFK: COMMIT
+
+void
+Dbdict::createFK_commit(Signal* signal, SchemaOpPtr op_ptr)
+{
+  D("createFK_commit");
+  jam();
+  SchemaTransPtr trans_ptr = op_ptr.p->m_trans_ptr;
+  CreateFKRecPtr createFKRecPtr;
+  getOpRec(op_ptr, createFKRecPtr);
+  CreateFKImplReq* impl_req = &createFKRecPtr.p->m_request;
+  impl_req->requestType = CreateFKImplReq::RT_COMMIT;
+  sendTransConf(signal, op_ptr);
+}
+
+// CreateFK: COMPLETE
+
+void
+Dbdict::createFK_complete(Signal* signal, SchemaOpPtr op_ptr)
+{
+  D("createFK_complete");
+  jam();
+  SchemaTransPtr trans_ptr = op_ptr.p->m_trans_ptr;
+  CreateFKRecPtr createFKRecPtr;
+  getOpRec(op_ptr, createFKRecPtr);
+  CreateFKImplReq* impl_req = &createFKRecPtr.p->m_request;
+  impl_req->requestType = CreateFKImplReq::RT_COMPLETE;
+  sendTransConf(signal, op_ptr);
+}
+
+void
+Dbdict::execCREATE_FK_REF(Signal* signal)
+{
+  jamEntry();
+  CreateFKRef * ref = (CreateFKRef*)signal->getDataPtr();
+  handleDictRef(signal, ref);
+}
+
+void
+Dbdict::execCREATE_FK_CONF(Signal* signal)
+{
+  jamEntry();
+  CreateFKConf * conf = (CreateFKConf*)signal->getDataPtr();
+  handleDictConf(signal, conf);
+}
+
+void
+Dbdict::execCREATE_FK_IMPL_REF(Signal* signal)
+{
+  jamEntry();
+  CreateFKImplRef * ref = (CreateFKImplRef*)signal->getDataPtr();
+  handleDictRef(signal, ref);
+}
+
+void
+Dbdict::execCREATE_FK_IMPL_CONF(Signal* signal)
+{
+  jamEntry();
+  CreateFKImplConf * conf = (CreateFKImplConf*)signal->getDataPtr();
+  handleDictConf(signal, conf);
+}
+
+// CreateFK: END
+
+// MODULE: BuildFK
+
+const Dbdict::OpInfo
+Dbdict::BuildFKRec::g_opInfo = {
+  { 'B', 'F', 'K', 0 },
+  ~RT_DBDICT_DROP_NODEGROUP, // TODO
+  GSN_BUILD_FK_IMPL_REQ,
+  BuildFKImplReq::SignalLength,
+
+  //
+  &Dbdict::buildFK_seize,
+  &Dbdict::buildFK_release,
+  //
+  &Dbdict::buildFK_parse,
+  &Dbdict::buildFK_subOps,
+  &Dbdict::buildFK_reply,
+  //
+  &Dbdict::buildFK_prepare,
+  &Dbdict::buildFK_commit,
+  &Dbdict::buildFK_complete,
+  //
+  &Dbdict::buildFK_abortParse,
+  &Dbdict::buildFK_abortPrepare
+};
+
+void
+Dbdict::execBUILD_FK_REQ(Signal* signal)
+{
+  jamEntry();
+  if (!assembleFragments(signal)) {
+    jam();
+    return;
+  }
+  SectionHandle handle(this, signal);
+
+  const BuildFKReq req_copy =
+    *(const BuildFKReq*)signal->getDataPtr();
+  const BuildFKReq* req = &req_copy;
+
+  ErrorInfo error;
+  do {
+    SchemaOpPtr op_ptr;
+    BuildFKRecPtr buildFKRecPtr;
+    BuildFKImplReq* impl_req;
+
+    startClientReq(op_ptr, buildFKRecPtr, req, impl_req, error);
+    if (hasError(error)) {
+      jam();
+      break;
+    }
+
+    impl_req->fkId = req->fkId;
+    impl_req->fkVersion = req->fkVersion;
+
+    handleClientReq(signal, op_ptr, handle);
+    return;
+  } while (0);
+
+  releaseSections(handle);
+
+  BuildFKRef* ref = (BuildFKRef*)signal->getDataPtrSend();
+  ref->senderRef = reference();
+  ref->transId = req->transId;
+  ref->senderData = req->senderData;
+  getError(error, ref);
+
+  sendSignal(req->senderRef, GSN_BUILD_FK_REF, signal,
+	     BuildFKRef::SignalLength, JBB);
+}
+
+bool
+Dbdict::buildFK_seize(SchemaOpPtr op_ptr)
+{
+  return seizeOpRec<BuildFKRec>(op_ptr);
+}
+
+void
+Dbdict::buildFK_release(SchemaOpPtr op_ptr)
+{
+  releaseOpRec<BuildFKRec>(op_ptr);
+}
+
+// BuildFK: PARSE
+
+void
+Dbdict::buildFK_parse(Signal* signal, bool master,
+                              SchemaOpPtr op_ptr,
+                              SectionHandle& handle, ErrorInfo& error)
+{
+  D("buildFK_parse");
+  SchemaTransPtr trans_ptr = op_ptr.p->m_trans_ptr;
+  BuildFKRecPtr buildFKRecPtr;
+  getOpRec(op_ptr, buildFKRecPtr);
+  BuildFKImplReq* impl_req = &buildFKRecPtr.p->m_request;
+
+  jam();
+
+  Ptr<ForeignKeyRec> fk_ptr;
+  if (!find_object(fk_ptr, impl_req->fkId))
+  {
+    jam();
+    setError(error, BuildFKRef::FKNotFound, __LINE__);
+    return;
+  }
+
+  if (fk_ptr.p->m_version != impl_req->fkVersion)
+  {
+    jam();
+    setError(error, BuildFKRef::InvalidFKVersion, __LINE__);
+    return;
+  }
+ }
+
+void
+Dbdict::buildFK_abortParse(Signal* signal, SchemaOpPtr op_ptr)
+{
+  D("buildFK_abortParse");
+  jam();
+  sendTransConf(signal, op_ptr);
+}
+
+bool
+Dbdict::buildFK_subOps(Signal* signal, SchemaOpPtr op_ptr)
+{
+  D("buildFK_subOps");
+  SchemaTransPtr trans_ptr = op_ptr.p->m_trans_ptr;
+  BuildFKRecPtr buildFKRecPtr;
+  getOpRec(op_ptr, buildFKRecPtr);
+  //BuildFKImplReq* impl_req = &buildFKRecPtr.p->m_request;
+
+
+  return false;
+}
+
+void
+Dbdict::buildFK_reply(Signal* signal, SchemaOpPtr op_ptr, ErrorInfo error)
+{
+  D("buildFK_reply");
+  jam();
+  SchemaTransPtr trans_ptr = op_ptr.p->m_trans_ptr;
+  BuildFKRecPtr buildFKRecPtr;
+  getOpRec(op_ptr, buildFKRecPtr);
+  //BuildFKImplReq* impl_req = &buildFKRecPtr.p->m_request;
+
+  if (!hasError(error))
+  {
+    jam();
+    BuildFKConf* conf = (BuildFKConf*)signal->getDataPtrSend();
+    conf->senderRef = reference();
+    conf->senderData = op_ptr.p->m_clientData;
+    conf->transId = trans_ptr.p->m_transId;
+    Uint32 clientRef = op_ptr.p->m_clientRef;
+    sendSignal(clientRef, GSN_BUILD_FK_CONF, signal,
+               BuildFKConf::SignalLength, JBB);
+  }
+  else
+  {
+    jam();
+    BuildFKRef* ref = (BuildFKRef*)signal->getDataPtrSend();
+    ref->senderRef = reference();
+    ref->senderData = op_ptr.p->m_clientData;
+    ref->transId = trans_ptr.p->m_transId;
+    getError(error, ref);
+
+    Uint32 clientRef = op_ptr.p->m_clientRef;
+    sendSignal(clientRef, GSN_BUILD_FK_REF, signal,
+               BuildFKRef::SignalLength, JBB);
+  }
+}
+
+// BuildFK: PREPARE
+
+void
+Dbdict::buildFK_prepare(Signal* signal, SchemaOpPtr op_ptr)
+{
+  D("buildFK_prepare");
+  jam();
+  SchemaTransPtr trans_ptr = op_ptr.p->m_trans_ptr;
+  BuildFKRecPtr buildFKRecPtr;
+  getOpRec(op_ptr, buildFKRecPtr);
+  BuildFKImplReq* impl_req = &buildFKRecPtr.p->m_request;
+
+  Ptr<ForeignKeyRec> fk_ptr;
+  ndbrequire(find_object(fk_ptr, impl_req->fkId));
+
+  bool noBuild = (op_ptr.p->m_requestInfo & DictSignal::RF_NO_BUILD);
+  if (noBuild)
+  {
+    jam();
+    D("FK: no build" << V(noBuild) << V(c_restart_enable_fks));
+    sendTransConf(signal, op_ptr);
+    return;
+  }
+  D("FK: do build" << V(noBuild) << V(c_restart_enable_fks));
+
+  BuildFKImplReq* req = CAST_PTR(BuildFKImplReq, signal->getDataPtrSend());
+  * req = * impl_req;
+  req->senderRef = reference();
+  req->senderData = op_ptr.p->op_key;
+  req->transId = trans_ptr.p->m_transId;
+  req->parentTableId = fk_ptr.p->m_parentTableId;
+  req->childTableId = fk_ptr.p->m_childTableId;
+  if (fk_ptr.p->m_parentIndexId != RNIL)
+  {
+    jam();
+    req->parentTableId = fk_ptr.p->m_parentIndexId;
+  }
+
+  Callback c = {
+    safe_cast(&Dbdict::buildFK_fromLocal),
+    op_ptr.p->op_key
+  };
+  op_ptr.p->m_callback = c;
+
+  IndexAttributeList parentColumns;
+  if (fk_ptr.p->m_parentIndexId == RNIL)
+  {
+    jam();
+    TableRecordPtr parentPtr;
+    ndbrequire(find_object(parentPtr, req->parentTableId));
+    getIndexAttrList(parentPtr, parentColumns);
+  }
+  else
+  {
+    jam();
+    /**
+     * Unique index has key columns 0...N
+     */
+    TableRecordPtr parentPtr;
+    ndbrequire(find_object(parentPtr, req->parentTableId));
+    parentColumns.sz = fk_ptr.p->m_columnCount;
+    for (Uint32 i = 0; i < parentColumns.sz ; i++)
+      parentColumns.id[i] = i;
+  }
+
+  LinearSectionPtr ptr[3];
+  ptr[0].p = parentColumns.id;
+  ptr[0].sz = parentColumns.sz;
+  ptr[1].p = fk_ptr.p->m_childColumns;
+  ptr[1].sz = fk_ptr.p->m_columnCount;
+
+  sendSignal(TRIX_REF, GSN_BUILD_FK_IMPL_REQ, signal,
+             BuildFKImplReq::SignalLength, JBB, ptr, 2);
+}
+
+void
+Dbdict::buildFK_fromLocal(Signal* signal, Uint32 op_key, Uint32 ret)
+{
+  D("buildFK_fromLocal");
+  jam();
+  SchemaOpPtr op_ptr;
+  BuildFKRecPtr buildFKPtr;
+  findSchemaOp(op_ptr, buildFKPtr, op_key);
+  ndbrequire(!op_ptr.isNull());
+
+  if (ret == 0)
+  {
+    jam();
+    sendTransConf(signal, op_ptr);
+  }
+  else
+  {
+    jam();
+    setError(op_ptr, ret, __LINE__);
+    sendTransRef(signal, op_ptr);
+  }
+}
+
+void
+Dbdict::buildFK_abortPrepare(Signal* signal, SchemaOpPtr op_ptr)
+{
+  D("buildFK_abortPrepare");
+  jam();
+  sendTransConf(signal, op_ptr);
+}
+
+// BuildFK: COMMIT
+
+void
+Dbdict::buildFK_commit(Signal* signal, SchemaOpPtr op_ptr)
+{
+  D("buildFK_commit");
+  jam();
+  sendTransConf(signal, op_ptr);
+}
+
+// BuildFK: COMPLETE
+
+void
+Dbdict::buildFK_complete(Signal* signal, SchemaOpPtr op_ptr)
+{
+  D("buildFK_complete");
+  jam();
+  sendTransConf(signal, op_ptr);
+}
+
+void
+Dbdict::execBUILD_FK_REF(Signal* signal)
+{
+  jamEntry();
+  const BuildFKRef* ref = (const BuildFKRef*)signal->getDataPtr();
+  handleDictRef(signal, ref);
+}
+
+void
+Dbdict::execBUILD_FK_CONF(Signal* signal)
+{
+  jamEntry();
+  const BuildFKConf* conf = (const BuildFKConf*)signal->getDataPtr();
+  handleDictConf(signal, conf);
+}
+
+void
+Dbdict::execBUILD_FK_IMPL_REF(Signal* signal)
+{
+  jamEntry();
+  BuildFKImplRef * ref = (BuildFKImplRef*)signal->getDataPtr();
+  handleDictRef(signal, ref);
+}
+
+void
+Dbdict::execBUILD_FK_IMPL_CONF(Signal* signal)
+{
+  jamEntry();
+  BuildFKImplConf * conf = (BuildFKImplConf*)signal->getDataPtr();
+  handleDictConf(signal, conf);
+}
+
+// BuildFK: END
+
+// MODULE: DropFK
+
+const Dbdict::OpInfo
+Dbdict::DropFKRec::g_opInfo = {
+  { 'D', 'F', 'K', 0 },
+  ~RT_DBDICT_DROP_FK,
+  GSN_DROP_FK_IMPL_REQ,
+  DropFKImplReq::SignalLength,
+  //
+  &Dbdict::dropFK_seize,
+  &Dbdict::dropFK_release,
+  //
+  &Dbdict::dropFK_parse,
+  &Dbdict::dropFK_subOps,
+  &Dbdict::dropFK_reply,
+  //
+  &Dbdict::dropFK_prepare,
+  &Dbdict::dropFK_commit,
+  &Dbdict::dropFK_complete,
+  //
+  &Dbdict::dropFK_abortParse,
+  &Dbdict::dropFK_abortPrepare
+};
+
+void
+Dbdict::execDROP_FK_REQ(Signal* signal)
+{
+  jamEntry();
+  if (!assembleFragments(signal)) {
+    jam();
+    return;
+  }
+  SectionHandle handle(this, signal);
+
+  const DropFKReq req_copy =
+    *(const DropFKReq*)signal->getDataPtr();
+  const DropFKReq* req = &req_copy;
+
+  ErrorInfo error;
+  do {
+    SchemaOpPtr op_ptr;
+    DropFKRecPtr dropFKRecPtr;
+    DropFKImplReq* impl_req;
+
+    startClientReq(op_ptr, dropFKRecPtr, req, impl_req, error);
+    if (hasError(error)) {
+      jam();
+      break;
+    }
+
+    impl_req->fkId = req->fkId;
+    impl_req->fkVersion = req->fkVersion;
+
+    handleClientReq(signal, op_ptr, handle);
+    return;
+  } while (0);
+
+  releaseSections(handle);
+
+  DropFKRef* ref = (DropFKRef*)signal->getDataPtrSend();
+  ref->senderRef = reference();
+  ref->transId = req->transId;
+  ref->senderData = req->senderData;
+  getError(error, ref);
+
+  sendSignal(req->senderRef, GSN_DROP_FK_REF, signal,
+	     DropFKRef::SignalLength, JBB);
+}
+
+bool
+Dbdict::dropFK_seize(SchemaOpPtr op_ptr)
+{
+  return seizeOpRec<DropFKRec>(op_ptr);
+}
+
+void
+Dbdict::dropFK_release(SchemaOpPtr op_ptr)
+{
+  releaseOpRec<DropFKRec>(op_ptr);
+}
+
+// DropFK: PARSE
+
+void
+Dbdict::dropFK_parse(Signal* signal, bool master,
+                     SchemaOpPtr op_ptr,
+                     SectionHandle& handle, ErrorInfo& error)
+{
+  D("dropFK_parse");
+  SchemaTransPtr trans_ptr = op_ptr.p->m_trans_ptr;
+  DropFKRecPtr dropFKRecPtr;
+  getOpRec(op_ptr, dropFKRecPtr);
+  DropFKImplReq* impl_req = &dropFKRecPtr.p->m_request;
+
+  Ptr<ForeignKeyRec> fk_ptr;
+  if (!find_object(fk_ptr, impl_req->fkId))
+  {
+    jam();
+    setError(error, DropFKRef::FKNotFound, __LINE__);
+    return;
+  }
+
+  if (fk_ptr.p->m_version != impl_req->fkVersion)
+  {
+    jam();
+    setError(error, DropFKRef::InvalidFKVersion, __LINE__);
+    return;
+  }
+
+  if (check_write_obj(impl_req->fkId, trans_ptr.p->m_transId,
+                      SchemaFile::SF_DROP, error))
+  {
+    jam();
+    return;
+  }
+
+  SchemaFile::TableEntry te; te.init();
+  te.m_tableState = SchemaFile::SF_DROP;
+  te.m_transId = trans_ptr.p->m_transId;
+  Uint32 err = trans_log_schema_op(op_ptr, impl_req->fkId, &te);
+  if (err)
+  {
+    jam();
+    setError(error, err, __LINE__);
+    return;
+  }
+
+#if defined VM_TRACE || defined ERROR_INSERT
+  {
+    char buf[1024];
+    LocalRope name(c_rope_pool, fk_ptr.p->m_name);
+    name.copy(buf);
+    ndbout_c("Dbdict: drop name=%s,id=%u,obj_id=%u", buf,
+             impl_req->fkId,
+             fk_ptr.p->m_obj_ptr_i);
+  }
+#endif
+}
+
+void
+Dbdict::dropFK_abortParse(Signal* signal, SchemaOpPtr op_ptr)
+{
+  D("dropFK_abortParse");
+  jam();
+  sendTransConf(signal, op_ptr);
+}
+
+bool
+Dbdict::dropFK_subOps(Signal* signal, SchemaOpPtr op_ptr)
+{
+  D("dropFK_subOps");
+  DropFKRecPtr dropFKRecPtr;
+  getOpRec(op_ptr, dropFKRecPtr);
+
+  if (dropFKRecPtr.p->m_sub_drop_trigger < 2)
+  {
+    jam();
+
+    /**
+     * 0 - trigger on parent table
+     * 1 - trigger on child table
+     */
+    Callback c = {
+      safe_cast(&Dbdict::dropFK_fromDropTrigger),
+      op_ptr.p->op_key
+    };
+    op_ptr.p->m_callback = c;
+
+    dropFK_toDropTrigger(signal, op_ptr, dropFKRecPtr.p->m_sub_drop_trigger);
+    return true;
+  }
+
+  return false;
+}
+
+void
+Dbdict::dropFK_toDropTrigger(Signal* signal,
+                             SchemaOpPtr op_ptr,
+                             Uint32 no)
+{
+  D("dropFK_toDropTrigger");
+  jam();
+
+  SchemaTransPtr trans_ptr = op_ptr.p->m_trans_ptr;
+  DropFKRecPtr dropFKPtr;
+  getOpRec(op_ptr, dropFKPtr);
+  const DropFKImplReq* impl_req = &dropFKPtr.p->m_request;
+
+  Ptr<ForeignKeyRec> fk_ptr;
+  ndbrequire(find_object(fk_ptr, impl_req->fkId));
+
+  Uint32 triggerId = RNIL;
+  TableRecordPtr tablePtr;
+  if (no == 0)
+  {
+    jam();
+    ndbrequire(find_object(tablePtr, fk_ptr.p->m_parentTableId));
+    triggerId = fk_ptr.p->m_parentTriggerId;
+  }
+  else if (no == 1)
+  {
+    jam();
+    ndbrequire(find_object(tablePtr, fk_ptr.p->m_childTableId));
+    triggerId = fk_ptr.p->m_childTriggerId;
+  }
+  else
+  {
+    ndbrequire(false);
+  }
+
+  DropTrigReq* req = (DropTrigReq*)signal->getDataPtrSend();
+
+  Uint32 requestInfo = 0;
+  DictSignal::setRequestType(requestInfo, 0);
+  DictSignal::addRequestFlagsGlobal(requestInfo, op_ptr.p->m_requestInfo);
+
+  req->clientRef = reference();
+  req->clientData = op_ptr.p->op_key;
+  req->transId = trans_ptr.p->m_transId;
+  req->transKey = trans_ptr.p->trans_key;
+  req->requestInfo = requestInfo;
+  req->tableId = tablePtr.p->tableId;
+  req->tableVersion = tablePtr.p->tableVersion;
+  req->indexId = impl_req->fkId;
+  req->indexVersion = impl_req->fkVersion;
+  req->triggerNo = 0;
+  req->triggerId = triggerId;
+
+  sendSignal(reference(), GSN_DROP_TRIG_REQ, signal,
+             DropTrigReq::SignalLength, JBB);
+}
+
+void
+Dbdict::dropFK_fromDropTrigger(Signal* signal, Uint32 op_key, Uint32 ret)
+{
+  D("dropFK_fromDropTrigger");
+  jamEntry();
+
+  SchemaOpPtr op_ptr;
+  DropFKRecPtr dropFKRecPtr;
+
+  findSchemaOp(op_ptr, dropFKRecPtr, op_key);
+  ndbrequire(!op_ptr.isNull());
+  SchemaTransPtr trans_ptr = op_ptr.p->m_trans_ptr;
+  DropFKImplReq* impl_req = &dropFKRecPtr.p->m_request;
+
+  if (ret == 0)
+  {
+    jam();
+
+    const DropTrigConf* conf = CAST_CONSTPTR(DropTrigConf,
+                                             signal->getDataPtr());
+    (void)conf;
+    Ptr<ForeignKeyRec> fk_ptr;
+    ndbrequire(find_object(fk_ptr, impl_req->fkId));
+    switch(dropFKRecPtr.p->m_sub_drop_trigger) {
+    case 0:
+      fk_ptr.p->m_parentTriggerId = RNIL;
+      break;
+    case 1:
+      fk_ptr.p->m_childTriggerId = RNIL;
+      break;
+    default:
+      ndbrequire(false);
+    }
+
+    dropFKRecPtr.p->m_sub_drop_trigger++;
+    createSubOps(signal, op_ptr);
+  }
+  else
+  {
+    jam();
+    const DropTrigRef* ref = CAST_CONSTPTR(DropTrigRef,
+                                             signal->getDataPtr());
+    ErrorInfo error;
+    setError(error, ref);
+    abortSubOps(signal, op_ptr, error);
+  }
+}
+
+void
+Dbdict::dropFK_reply(Signal* signal, SchemaOpPtr op_ptr, ErrorInfo error)
+{
+  D("dropFK_reply");
+  jam();
+  SchemaTransPtr trans_ptr = op_ptr.p->m_trans_ptr;
+  DropFKRecPtr dropFKRecPtr;
+  getOpRec(op_ptr, dropFKRecPtr);
+  //DropFKImplReq* impl_req = &dropFKRecPtr.p->m_request;
+
+  if (!hasError(error))
+  {
+    jam();
+    DropFKConf* conf = (DropFKConf*)signal->getDataPtrSend();
+    conf->senderRef = reference();
+    conf->senderData = op_ptr.p->m_clientData;
+    conf->transId = trans_ptr.p->m_transId;
+    Uint32 clientRef = op_ptr.p->m_clientRef;
+    sendSignal(clientRef, GSN_DROP_FK_CONF, signal,
+               DropFKConf::SignalLength, JBB);
+  }
+  else
+  {
+    jam();
+    DropFKRef* ref = (DropFKRef*)signal->getDataPtrSend();
+    ref->senderRef = reference();
+    ref->senderData = op_ptr.p->m_clientData;
+    ref->transId = trans_ptr.p->m_transId;
+    getError(error, ref);
+
+    Uint32 clientRef = op_ptr.p->m_clientRef;
+    sendSignal(clientRef, GSN_DROP_FK_REF, signal,
+               DropFKRef::SignalLength, JBB);
+  }
+}
+
+// DropFK: PREPARE
+
+void
+Dbdict::dropFK_prepare(Signal* signal, SchemaOpPtr op_ptr)
+{
+  D("dropFK_prepare");
+  jam();
+  SchemaTransPtr trans_ptr = op_ptr.p->m_trans_ptr;
+  DropFKRecPtr dropFKRecPtr;
+  getOpRec(op_ptr, dropFKRecPtr);
+  DropFKImplReq* impl_req = &dropFKRecPtr.p->m_request;
+  impl_req->requestType = DropFKImplReq::RT_PREPARE;
+
+  sendTransConf(signal, op_ptr);
+}
+
+void
+Dbdict::dropFK_abortPrepare(Signal* signal, SchemaOpPtr op_ptr)
+{
+  D("dropFK_abortPrepare");
+  SchemaTransPtr trans_ptr = op_ptr.p->m_trans_ptr;
+  DropFKRecPtr dropFKRecPtr;
+  getOpRec(op_ptr, dropFKRecPtr);
+  DropFKImplReq* impl_req = &dropFKRecPtr.p->m_request;
+  impl_req->requestType = DropFKImplReq::RT_ABORT;
+
+  sendTransConf(signal, op_ptr);
+}
+
+// DropFK: COMMIT
+
+void
+Dbdict::dropFK_fromLocal(Signal* signal, Uint32 op_key, Uint32 ret)
+{
+  D("dropFK_fromLocal");
+  jamEntry();
+
+  SchemaOpPtr op_ptr;
+  DropFKRecPtr dropFKRecPtr;
+  findSchemaOp(op_ptr, dropFKRecPtr, op_key);
+  ndbrequire(!op_ptr.isNull());
+
+  if (ret == 0)
+  {
+    jam();
+    DropFKImplReq* impl_req = &dropFKRecPtr.p->m_request;
+    Ptr<ForeignKeyRec> fk_ptr;
+    ndbrequire(find_object(fk_ptr, impl_req->fkId));
+
+    release_object(fk_ptr.p->m_obj_ptr_i);
+
+    sendTransConf(signal, op_ptr);
+  } else {
+    jam();
+    setError(op_ptr, ret, __LINE__);
+    sendTransRef(signal, op_ptr);
+  }
+}
+
+void
+Dbdict::dropFK_commit(Signal* signal, SchemaOpPtr op_ptr)
+{
+  D("dropFK_commit");
+  jam();
+  SchemaTransPtr trans_ptr = op_ptr.p->m_trans_ptr;
+  DropFKRecPtr dropFKRecPtr;
+  getOpRec(op_ptr, dropFKRecPtr);
+  DropFKImplReq* impl_req = &dropFKRecPtr.p->m_request;
+  impl_req->requestType = DropFKImplReq::RT_COMMIT;
+  sendTransConf(signal, trans_ptr);
+}
+
+void
+Dbdict::send_drop_fk_req(Signal* signal, SchemaOpPtr op_ptr)
+{
+  DropFKRecPtr dropFKPtr;
+  getOpRec(op_ptr, dropFKPtr);
+  const DropFKImplReq* impl_req = &dropFKPtr.p->m_request;
+
+  DropFKImplReq* req = (DropFKImplReq*)signal->getDataPtrSend();
+
+  req->senderRef = reference();
+  req->senderData = op_ptr.p->op_key;
+  req->requestType = impl_req->requestType;
+  req->fkId = impl_req->fkId;
+  req->fkVersion = impl_req->fkVersion;
+
+  sendSignal(DBTC_REF, GSN_DROP_FK_IMPL_REQ, signal,
+             DropFKImplReq::SignalLength, JBB);
+}
+
+// DropFK: COMPLETE
+
+void
+Dbdict::dropFK_complete(Signal* signal, SchemaOpPtr op_ptr)
+{
+  D("dropFK_complete");
+  jam();
+
+  SchemaTransPtr trans_ptr = op_ptr.p->m_trans_ptr;
+  DropFKRecPtr dropFKRecPtr;
+  getOpRec(op_ptr, dropFKRecPtr);
+  DropFKImplReq* impl_req = &dropFKRecPtr.p->m_request;
+
+  impl_req->requestType = DropFKImplReq::RT_COMPLETE;
+
+  /**
+   * drop the FK in complete...as it needs to be done after
+   *   triggers are dropped...which they are in commit
+   */
+  Callback c =  { safe_cast(&Dbdict::dropFK_fromLocal), op_ptr.p->op_key };
+  op_ptr.p->m_callback = c;
+
+  send_drop_fk_req(signal, op_ptr);
+}
+
+void
+Dbdict::execDROP_FK_IMPL_REF(Signal* signal)
+{
+  jamEntry();
+  DropFKImplRef * ref = (DropFKImplRef*)signal->getDataPtr();
+  handleDictRef(signal, ref);
+}
+
+void
+Dbdict::execDROP_FK_IMPL_CONF(Signal* signal)
+{
+  jamEntry();
+  DropFKImplConf * conf = (DropFKImplConf*)signal->getDataPtr();
+  handleDictConf(signal, conf);
+}
+
+// DropFK: END
+
+
 /*
   return 1 if all of the below is true
   a) node in single user mode
@@ -24388,6 +26766,9 @@ Dbdict::g_opInfoList[] = {
   &Dbdict::CopyDataRec::g_opInfo,
   &Dbdict::CreateNodegroupRec::g_opInfo,
   &Dbdict::DropNodegroupRec::g_opInfo,
+  &Dbdict::CreateFKRec::g_opInfo,
+  &Dbdict::DropFKRec::g_opInfo,
+  &Dbdict::BuildFKRec::g_opInfo,
   0
 };
 
@@ -27200,6 +29581,22 @@ Dbdict::trans_end_start(Signal* signal, SchemaTransPtr trans_ptr)
 			5000, 2);
   }
 
+  if (ERROR_INSERTED(6050))
+  {
+    /**
+     * Simulate only next master getting the RT_END
+     */
+    infoEvent("Simulating only node %u getting RT_END",
+              ERROR_INSERT_EXTRA);
+    rg.m_nodes.clear();
+    rg.m_nodes.set(ERROR_INSERT_EXTRA);
+    signal->theData[0] = 9999;
+    signal->theData[1] = ERROR_INSERT_VALUE;
+    sendSignalWithDelay(reference(), GSN_CONTINUEB, signal,
+			5000, 2);
+    CLEAR_ERROR_INSERT_VALUE;
+  }
+
   SchemaTransImplReq* req = (SchemaTransImplReq*)signal->getDataPtrSend();
   req->senderRef = reference();
   req->transKey = trans_ptr.p->trans_key;
@@ -27208,33 +29605,6 @@ Dbdict::trans_end_start(Signal* signal, SchemaTransPtr trans_ptr)
   req->transId = trans_ptr.p->m_transId;
   sendSignal(rg, GSN_SCHEMA_TRANS_IMPL_REQ, signal,
              SchemaTransImplReq::SignalLength, JBB);
-}
-
-void
-Dbdict::check_partial_trans_end_recv_reply(SchemaTransPtr trans_ptr)
-{
-  jam();
-  NodeRecordPtr ownNodePtr;
-  c_nodes.getPtr(ownNodePtr, getOwnNodeId());
-  if (ownNodePtr.p->nodeState == NodeRecord::NDB_MASTER_TAKEOVER &&
-      trans_ptr.p->check_partial_rollforward &&
-      trans_ptr.p->ressurected_op)
-  {
-    /*
-      We created an operation in new master just to able to
-      complete operation on other slaves. We need to release
-      this ressurected operation explictely.
-     */
-    jam();
-    SchemaOpPtr op_ptr;
-    LocalSchemaOp_list list(c_schemaOpPool, trans_ptr.p->m_op_list);
-    list.remove(op_ptr);
-#ifdef VM_TRACE
-    ndbout_c("Releasing ressurected op %u", op_ptr.p->op_key);
-#endif
-    releaseSchemaOp(op_ptr);
-    trans_ptr.p->check_partial_rollforward = false;
-  }
 }
 
 void
@@ -27248,7 +29618,6 @@ Dbdict::trans_end_recv_reply(Signal* signal, SchemaTransPtr trans_ptr)
                 rc);
 
   sendTransClientReply(signal, trans_ptr);
-  check_partial_trans_end_recv_reply(trans_ptr);
   releaseSchemaTrans(trans_ptr);
 }
 
@@ -28896,7 +31265,7 @@ Dbdict::createHashMap_parse(Signal* signal, bool master,
     if (impl_req->requestType & CreateHashMapReq::CreateDefault)
     {
       jam();
-      impl_req->buckets = NDB_DEFAULT_HASHMAP_BUCKETS;
+      impl_req->buckets = c_default_hashmap_size;
       impl_req->fragments = 0;
     }
 
@@ -29031,8 +31400,6 @@ Dbdict::createHashMap_parse(Signal* signal, bool master,
 
   Uint32 objId = RNIL;
   Uint32 objVersion = RNIL;
-  Uint32 errCode = 0;
-  Uint32 errLine = 0;
   DictObjectPtr obj_ptr; obj_ptr.setNull();
   HashMapRecordPtr hm_ptr; hm_ptr.setNull();
   Ptr<Hash2FragmentMap> map_ptr; map_ptr.setNull();
@@ -29053,8 +31420,7 @@ Dbdict::createHashMap_parse(Signal* signal, bool master,
     if (objId == RNIL)
     {
       jam();
-      errCode = CreateTableRef::NoMoreTableRecords;
-      errLine = __LINE__;
+      setError(error, CreateTableRef::NoMoreTableRecords, __LINE__);
       goto error;
     }
 
@@ -29081,8 +31447,7 @@ Dbdict::createHashMap_parse(Signal* signal, bool master,
   if(!c_obj_pool.seize(obj_ptr))
   {
     jam();
-    errCode = CreateTableRef::NoMoreTableRecords;
-    errLine = __LINE__;
+    setError(error, CreateTableRef::NoMoreTableRecords, __LINE__);
     goto error;
   }
 
@@ -29105,8 +31470,7 @@ Dbdict::createHashMap_parse(Signal* signal, bool master,
   if (!g_hash_map.seize(map_ptr))
   {
     jam();
-    errCode = CreateTableRef::NoMoreTableRecords;
-    errLine = __LINE__;
+    setError(error, CreateTableRef::NoMoreHashmapRecords, __LINE__);
     goto error;
   }
 
@@ -29121,8 +31485,7 @@ Dbdict::createHashMap_parse(Signal* signal, bool master,
   if(!c_hash_map_pool.seize(hm_ptr))
   {
     jam();
-    errCode = CreateTableRef::NoMoreTableRecords;
-    errLine = __LINE__;
+    setError(error, CreateTableRef::NoMoreHashmapRecords, __LINE__);
     goto error;
   }
 
@@ -29715,25 +32078,37 @@ Dbdict::check_consistency_trigger(TriggerRecordPtr triggerPtr)
   if (triggerPtr.p->indexId != RNIL)
   {
     jam();
-    TableRecordPtr indexPtr;
-    ndbrequire(check_read_obj(triggerPtr.p->indexId) == 0);
-    bool ok = find_object(indexPtr, triggerPtr.p->indexId);
-    ndbrequire(ok);
-    ndbrequire(indexPtr.p->indexState == TableRecord::IS_ONLINE);
     TriggerInfo ti;
     TriggerInfo::unpackTriggerInfo(triggerPtr.p->triggerInfo, ti);
-    switch (ti.triggerEvent) {
-    case TriggerEvent::TE_CUSTOM:
-      if (! (triggerPtr.p->triggerState == TriggerRecord::TS_FAKE_UPGRADE))
-      {
-        ndbrequire(triggerPtr.p->triggerId == indexPtr.p->triggerId);
-      }
-      break;
-    default:
-      ndbrequire(false);
-      break;
+    ndbrequire(check_read_obj(triggerPtr.p->indexId) == 0);
+    if (ti.triggerType == TriggerType::FK_PARENT ||
+        ti.triggerType == TriggerType::FK_CHILD)
+    {
+      jam();
+      Ptr<ForeignKeyRec> fk_ptr;
+      ndbrequire(find_object(fk_ptr, triggerPtr.p->indexId));
     }
-  } else {
+    else
+    {
+      TableRecordPtr indexPtr;
+      bool ok = find_object(indexPtr, triggerPtr.p->indexId);
+      ndbrequire(ok);
+      ndbrequire(indexPtr.p->indexState == TableRecord::IS_ONLINE);
+      switch (ti.triggerEvent) {
+      case TriggerEvent::TE_CUSTOM:
+        if (! (triggerPtr.p->triggerState == TriggerRecord::TS_FAKE_UPGRADE))
+        {
+          ndbrequire(triggerPtr.p->triggerId == indexPtr.p->triggerId);
+        }
+        break;
+      default:
+        ndbrequire(false);
+        break;
+      }
+    }
+  }
+  else
+  {
     TriggerInfo ti;
     TriggerInfo::unpackTriggerInfo(triggerPtr.p->triggerInfo, ti);
     ndbrequire(ti.triggerType == TriggerType::REORG_TRIGGER);

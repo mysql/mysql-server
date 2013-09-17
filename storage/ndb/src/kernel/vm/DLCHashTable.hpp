@@ -1,6 +1,5 @@
 /*
-   Copyright (C) 2005, 2006 MySQL AB
-    All rights reserved. Use is subject to license terms.
+   Copyright (c) 2005, 2013, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -21,6 +20,9 @@
 
 #include <ndb_global.h>
 #include "DLHashTable.hpp"
+
+#define JAM_FILE_ID 257
+
 
 // Adds "count" to DLHashTable
 template <class T, class U = T>
@@ -80,5 +82,8 @@ public:
 private:
   Uint32 m_count;
 };
+
+
+#undef JAM_FILE_ID
 
 #endif

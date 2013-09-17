@@ -28,7 +28,7 @@ mysqld = local1,local1
 NoOfReplicas= 1
 
 [mysqld]
-skip-innodb
+innodb
 skip-bdb
 
 #

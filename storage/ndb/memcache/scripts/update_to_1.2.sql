@@ -16,7 +16,14 @@
 -- Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA
 -- 02110-1301  USA
 
+
 -- Upgrade from configuration version 1.1 to version 1.2
+
+-- This update adds schema support for externalized large values
+
+-- Config version 1.2 became current with MySQL Cluster release 7.2.4
+-- It remained current through release 7.2.11 
+-- and was then replaced by config version 1.2a
 
 
 USE ndbmemcache;

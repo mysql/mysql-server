@@ -1092,6 +1092,56 @@
    fun:buf_buddy_free
 }
 
+#
+# NDB packfrm vs deflate
+#
+{
+   NDB packfrm case 1
+   Memcheck:Cond
+   fun:deflate_slow
+   fun:deflate
+   fun:compress
+   fun:my_compress_alloc
+   fun:my_compress
+   fun:packfrm
+}
+
+{
+   NDB packfrm case 2
+   Memcheck:Cond
+   fun:longest_match
+   fun:deflate_slow
+   fun:deflate
+   fun:compress
+   fun:my_compress_alloc
+   fun:my_compress
+   fun:packfrm
+}
+
+#
+# pfs vs compress
+#
+{
+   pfs vs. compress case 1
+   Memcheck:Cond
+   fun:longest_match
+   fun:deflate_slow
+   fun:deflate
+   fun:compress
+   fun:my_compress_alloc
+   fun:my_compress
+}
+
+{
+   pfs vs. compress case 2
+   Memcheck:Cond
+   fun:deflate_slow
+   fun:deflate
+   fun:compress
+   fun:my_compress_alloc
+   fun:my_compress
+}
+
 # Note the wildcard in the (mangled) function signatures of
 # write_keys() and find_all_keys().
 # They both return ha_rows, which is platform dependent.

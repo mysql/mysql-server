@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2003, 2010, Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2003, 2011, 2013, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -110,7 +110,7 @@
 #if NDB_VERSION_D < NDB_MAKE_VERSION(7,2,0)
 #define MAX_NDB_PARTITIONS 240
 #else
-#define MAX_NDB_PARTITIONS 1024
+#define MAX_NDB_PARTITIONS 2048
 #endif
 
 #define NDB_PARTITION_BITS 16
@@ -211,20 +211,36 @@
 
 
 /**
- * Support at least one partition per LDM. And
- * also try to make size a multiple of all possible
- * data node counts, so that all partitions are
- * related to the same number of hashmap buckets
- * as possible, otherwise some partitions will be
- * bigger than others.
+ * The hashmap size should support at least one
+ * partition per LDM. And also try to make size
+ * a multiple of all possible data node counts,
+ * so that all partitions are related to the same
+ * number of hashmap buckets as possible,
+ * otherwise some partitions will be bigger than
+ * others.
+ *
+ * The historical size of hashmaps supported by old
+ * versions of NDB is 240.  This guarantees at most
+ * 1/6 of unusable data memory for some nodes, since
+ * one can have atmost 48 data nodes so each node
+ * will relate to at least 5 hashmap buckets.  Also
+ * 240 is a multiple of 2, 3, 4, 5, 6, 8, 10, 12,
+ * 15, 16, 20, 24, 30, 32, 40, and 48 so having any
+ * of these number of nodes guarantees near no
+ * unusable data memory.
+ *
+ * The current value 3840 is 16 times 240, and so gives
+ * at least the same guarantees as the old value above,
+ * also if up to 16 ldm threads per node is used.
  */
+
+#define NDB_MAX_HASHMAP_BUCKETS (3840 * 2 * 3)
 
 #if NDB_VERSION_D < NDB_MAKE_VERSION(7,2,0)
 #define NDB_DEFAULT_HASHMAP_BUCKETS 240
 #else
-#define NDB_DEFAULT_HASHMAP_BUCKETS (48 * 16 * 5) /* 3840 */
+#define NDB_DEFAULT_HASHMAP_BUCKETS 3840
 #endif
-#define NDB_DEFAULT_HASHMAP_BUCKETS_BYTES (2 * NDB_DEFAULT_HASHMAP_BUCKETS)
 
 /**
  * Bits/mask used for coding/decoding blockno/blockinstance
@@ -242,10 +258,10 @@
 #define MAX_NDBMT_RECEIVE_THREADS  1
 #define MAX_NDBMT_SEND_THREADS     0
 #else
-#define NDB_MAX_LOG_PARTS         16
-#define MAX_NDBMT_TC_THREADS      16
-#define MAX_NDBMT_RECEIVE_THREADS  8
-#define MAX_NDBMT_SEND_THREADS     8
+#define NDB_MAX_LOG_PARTS         32
+#define MAX_NDBMT_TC_THREADS      32
+#define MAX_NDBMT_RECEIVE_THREADS 16 
+#define MAX_NDBMT_SEND_THREADS    16 
 #endif
 
 #define MAX_NDBMT_LQH_WORKERS NDB_MAX_LOG_PARTS
@@ -260,7 +276,7 @@
 #if NDB_VERSION_D < NDB_MAKE_VERSION(7,2,0)
 #define NDB_FS_RW_PAGES 32
 #else
-#define NDB_FS_RW_PAGES 134
+#define NDB_FS_RW_PAGES 268
 #endif
 
 /**
@@ -304,7 +320,9 @@
 
 static inline void ndb_limits_constraints()
 {
-  NDB_STATIC_ASSERT(MAX_NDB_PARTITIONS <= NDB_DEFAULT_HASHMAP_BUCKETS);
+  NDB_STATIC_ASSERT(NDB_DEFAULT_HASHMAP_BUCKETS <= NDB_MAX_HASHMAP_BUCKETS);
+
+  NDB_STATIC_ASSERT(MAX_NDB_PARTITIONS <= NDB_MAX_HASHMAP_BUCKETS);
 
   NDB_STATIC_ASSERT(MAX_NDB_PARTITIONS - 1 <= NDB_PARTITION_MASK);
 
@@ -313,7 +331,10 @@ static inline void ndb_limits_constraints()
   NDB_STATIC_ASSERT(MAX_NDB_NODES == MAX_NDB_DATA_NODES + 1);
 
   // Default partitioning is 1 partition per LDM
-  NDB_STATIC_ASSERT(MAX_NDB_DATA_NODES * MAX_NDBMT_LQH_THREADS <= MAX_NDB_PARTITIONS);
+  NDB_STATIC_ASSERT(MAX_NDB_DATA_NODES * MAX_NDBMT_LQH_WORKERS <= MAX_NDB_PARTITIONS);
+
+  // The default hashmap should atleast support the maximum default partitioning
+  NDB_STATIC_ASSERT(MAX_NDB_DATA_NODES * MAX_NDBMT_LQH_WORKERS <= NDB_DEFAULT_HASHMAP_BUCKETS);
 }
 
 #endif

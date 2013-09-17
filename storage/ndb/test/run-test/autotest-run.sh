@@ -323,7 +323,9 @@ echo "host=$HOST" >> info.txt
 if [ "$clone1" ]
 then
     echo "clone1=$clone1" >> info.txt
+    [ ! -f $install_dir1/code1.txt ] || cp $install_dir1/code1.txt .
 fi
+[ ! -f $install_dir0/code0.txt ] || cp $install_dir0/code0.txt .
 if [ "$clonename" ]
 then
     echo "clonename=$clonename" >> info.txt
