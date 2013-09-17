@@ -1,6 +1,5 @@
 /*
-   Copyright (C) 2003, 2005, 2006 MySQL AB
-    All rights reserved. Use is subject to license terms.
+   Copyright (c) 2003, 2013, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -20,6 +19,9 @@
 #define UTIL_RELEASE_HPP
 
 #include "SignalData.hpp"
+
+#define JAM_FILE_ID 119
+
 
 /**
  * @class UtilReleaseReq
@@ -81,5 +83,8 @@ private:
   Uint32 prepareId;
   Uint32 errorCode;
 };
+
+
+#undef JAM_FILE_ID
 
 #endif

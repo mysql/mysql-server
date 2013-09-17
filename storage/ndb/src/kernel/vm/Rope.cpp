@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2005, 2010, Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2005, 2013, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -17,6 +17,9 @@
 
 #include "Rope.hpp"
 #include "DataBuffer2.hpp"
+
+#define JAM_FILE_ID 330
+
 
 #define DEBUG_ROPE 0
 

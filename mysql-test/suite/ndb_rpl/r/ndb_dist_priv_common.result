@@ -1,7 +1,7 @@
 include/master-slave.inc
 Warnings:
 Note	####	Sending passwords in plain text without SSL/TLS is extremely insecure.
-Note	####	Storing MySQL user name or password information in the master.info repository is not secure and is therefore not recommended. Please see the MySQL Manual for more about this issue and possible alternatives.
+Note	####	Storing MySQL user name or password information in the master info repository is not secure and is therefore not recommended. Please consider using the USER and PASSWORD connection options for START SLAVE; see the 'START SLAVE Syntax' in the MySQL Manual for more information.
 [connection master]
 CREATE DATABASE mysqltest1;
 CREATE DATABASE mysqltest2;
@@ -76,7 +76,7 @@ GRANT SELECT(c,b), UPDATE(a) ON mysqltest2.t2 TO testuser1@localhost;
 ERROR 42S22: Unknown column 'c' in 't2'
 OK
 
-CREATE USER testuser2@localhost IDENTIFIED BY PASSWORD 'pass4';
+CREATE USER testuser2@localhost IDENTIFIED BY 'pass4';
 OK
 
 DROP USER testuser2@localhost;

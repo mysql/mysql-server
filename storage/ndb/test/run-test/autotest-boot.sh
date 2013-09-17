@@ -50,6 +50,8 @@ verbose=0
 do_clone=yes
 build=yes
 
+patch0=
+patch1=
 tag0=
 tag1=
 conf=
@@ -82,6 +84,9 @@ do
 	        --tag0=*) tag0=`echo $1 | sed s/--tag0=//`;;
 	        --tag1=*) tag1=`echo $1 | sed s/--tag1=//`;;
 	        --clonename=*) clonename=`echo $1 | sed s/--clonename=//`;;
+	        --patch=*) patch=`echo $1 | sed s/--patch=//` ; patch0="$patch0$patch " ; patch1="$patch1$patch " ;;
+	        --patch0=*) patch=`echo $1 | sed s/--patch0=//` ; patch0="$patch0$patch " ;;
+	        --patch1=*) patch=`echo $1 | sed s/--patch1=//` ; patch1="$patch1$patch " ;;
 	        --*) echo "Unknown arg: $1";;
                 *) RUN="$RUN $1";;
         esac
@@ -225,13 +230,27 @@ then
 			cp -r $clone_dir/$clone0 $dst_place0
 		fi
 	else
-		bzr export $dst_place0 $extra_clone0 $src_clone0    
+		bzr export $dst_place0 $extra_clone0 $src_clone0
+		for patch in $patch0 ; do
+			( cd $dst_place0 && patch -p0 ) < $patch
+		done
+                {
+	          bzr version-info $extra_clone0 $src_clone0
+	          if [ $patch0 ] ; then echo patches: $patch0 ; cat $patch0 ; fi
+                } > $dst_place0/code0.txt
 	fi
 
 	if [ "$clone1" ]
 	then
 	    rm -rf $dst_place1
 	    bzr export $dst_place1 $extra_clone1 $src_clone1
+	    for patch in $patch1 ; do
+		( cd $dst_place1 && patch -p0 ) < $patch
+	    done
+            {
+	      bzr version-info $extra_clone1 $src_clone1
+	      if [ $patch1 ] ; then echo patches: $patch1 ; cat $patch1 ; fi
+            } > $dst_place1/code1.txt
 	fi
 fi
 
@@ -239,6 +258,16 @@ fi
 # Build the source, make installs, and   #
 # create the database to be rsynced	 #
 ##########################################
+
+function build_cluster()
+{
+    if grep -qc autotest storage/ndb/compile-cluster 2>/dev/null
+    then
+        storage/ndb/compile-cluster --autotest $*
+    else
+        BUILD/compile-ndb-autotest $*
+    fi
+}
 
 if [ "$build" ]
 then
@@ -255,17 +284,20 @@ then
             cmd /c devenv.com MySql.sln /Build RelWithDebInfo
             cmd /c devenv.com MySql.sln /Project INSTALL /Build
         else
-	    BUILD/compile-ndb-autotest --prefix=$install_dir0
+	    build_cluster --prefix=$install_dir0
 	    make install
+	    [ ! -f code0.txt ] || cp code0.txt $install_dir0/
         fi
     else
 	cd $dst_place0
-	BUILD/compile-ndb-autotest --prefix=$install_dir0
+	build_cluster --prefix=$install_dir0
 	make install
+	[ ! -f code0.txt ] || cp code0.txt $install_dir0/
 	
 	cd $dst_place1
-	BUILD/compile-ndb-autotest --prefix=$install_dir1
+	build_cluster --prefix=$install_dir1
 	make install
+	[ ! -f code1.txt ] || cp code1.txt $install_dir1/
     fi
     cd $p
 fi

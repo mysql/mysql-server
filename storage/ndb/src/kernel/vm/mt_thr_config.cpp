@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2011, Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2011, 2013, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -145,10 +145,10 @@ computeThreadConfig(Uint32 MaxNoOfExecutionThreads,
     { 9, 4, 2, 0, 1 },
     { 10, 4, 2, 1, 1 },
     { 11, 4, 3, 1, 1 },
-    { 12, 4, 3, 1, 2 },
-    { 13, 4, 3, 2, 2 },
-    { 14, 4, 4, 2, 2 },
-    { 15, 4, 5, 2, 2 },
+    { 12, 6, 2, 1, 1 },
+    { 13, 6, 3, 1, 1 },
+    { 14, 6, 3, 1, 2 },
+    { 15, 6, 3, 2, 2 },
     { 16, 8, 3, 1, 2 },
     { 17, 8, 4, 1, 2 },
     { 18, 8, 4, 2, 2 },
@@ -177,7 +177,35 @@ computeThreadConfig(Uint32 MaxNoOfExecutionThreads,
     { 41, 16, 12, 5, 6 },
     { 42, 16, 13, 5, 6 },
     { 43, 16, 13, 6, 6 },
-    { 44, 16, 14, 6, 6 }
+    { 44, 16, 14, 6, 6 },
+    { 45, 16, 14, 6, 7 },
+    { 46, 16, 15, 6, 7 },
+    { 47, 16, 15, 7, 7 },
+    { 48, 24, 12, 5, 5 },
+    { 49, 24, 12, 5, 6 },
+    { 50, 24, 13, 5, 6 },
+    { 51, 24, 13, 6, 6 },
+    { 52, 24, 14, 6, 6 },
+    { 53, 24, 14, 6, 7 },
+    { 54, 24, 15, 6, 7 },
+    { 55, 24, 15, 7, 7 },
+    { 56, 24, 16, 7, 7 },
+    { 57, 24, 16, 7, 8 },
+    { 58, 24, 17, 7, 8 },
+    { 59, 24, 17, 8, 8 },
+    { 60, 24, 18, 8, 8 },
+    { 61, 24, 18, 8, 9 },
+    { 62, 24, 19, 8, 9 },
+    { 63, 24, 19, 9, 9 },
+    { 64, 32, 16, 7, 7 },
+    { 65, 32, 16, 7, 8 },
+    { 66, 32, 17, 7, 8 },
+    { 67, 32, 17, 8, 8 },
+    { 68, 32, 18, 8, 8 },
+    { 69, 32, 18, 8, 9 },
+    { 70, 32, 19, 8, 9 },
+    { 71, 32, 20, 8, 9 },
+    { 72, 32, 20, 8, 10 }
   };
 
   Uint32 P = MaxNoOfExecutionThreads - 9;
@@ -537,16 +565,19 @@ THRConfig::do_validate()
   }
 
   /**
-   * LDM can be 1 2 4 8 12 16
+   * LDM can be 1 2 4 6 8 12 16 24 32
    */
   if (m_threads[T_LDM].size() != 1 &&
       m_threads[T_LDM].size() != 2 &&
       m_threads[T_LDM].size() != 4 &&
+      m_threads[T_LDM].size() != 6 &&
       m_threads[T_LDM].size() != 8 &&
       m_threads[T_LDM].size() != 12 &&
-      m_threads[T_LDM].size() != 16)
+      m_threads[T_LDM].size() != 16 &&
+      m_threads[T_LDM].size() != 24 &&
+      m_threads[T_LDM].size() != 32)
   {
-    m_err_msg.assfmt("No of LDM-instances can be 1,2,4,8,12,16. Specified: %u",
+    m_err_msg.assfmt("No of LDM-instances can be 1,2,4,6,8,12,16,24 or 32. Specified: %u",
                      m_threads[T_LDM].size());
     return -1;
   }
@@ -1176,7 +1207,7 @@ TAPTEST(mt_thr_config)
         "main={ keso=88, count=23},ldm,ldm",
         "main={ cpuset=1-3 }, ldm={cpuset=3-4}",
         "main={ cpuset=1-3 }, ldm={cpubind=2}",
-        "tc,tc,tc={count=25}",
+        "tc,tc,tc={count=31}",
         0
       };
 
@@ -1299,7 +1330,6 @@ TAPTEST(mt_thr_config)
 }
 
 #endif
-
 #if 0
 
 /**
@@ -1416,9 +1446,36 @@ define_num_threads_per_type(Uint32 max_no_exec_threads,
   /* Baseline to start calculations at */
   num_threads[MAIN_THREAD_INDEX] = 1; /* Fixed */
   num_threads[REP_THREAD_INDEX] = 1; /* Fixed */
-  num_lqh_threads = (max_no_exec_threads / 8) * 4;
-  if (num_lqh_threads > 16)
-    num_lqh_threads = 16;
+  num_lqh_threads = (max_no_exec_threads / 4) * 2;
+  if (num_lqh_threads > 32)
+    num_lqh_threads = 32;
+  switch (num_lqh_threads)
+  {
+    case 4:
+    case 6:
+    case 8:
+    case 12:
+    case 16:
+    case 24:
+    case 32:
+      break;
+    case 10:
+      num_lqh_threads = 8;
+      break;
+    case 14:
+      num_lqh_threads = 12;
+      break;
+    case 18:
+    case 20:
+    case 22:
+      num_lqh_threads = 16;
+      break;
+    case 26:
+    case 28:
+    case 30:
+      num_lqh_threads = 24;
+      break;
+  }
   num_threads[LQH_THREAD_INDEX] = num_lqh_threads;
 
   /**
@@ -1455,7 +1512,7 @@ int main(int argc, char *argv)
   Uint32 i;
 
   printf("MaxNoOfExecutionThreads,LQH,TC,send,recv\n");
-  for (i = 9; i < 45; i++)
+  for (i = 9; i <= 72; i++)
   {
     define_num_threads_per_type(i, num_threads);
     printf("{ %u, %u, %u, %u, %u },\n",
@@ -1469,3 +1526,6 @@ int main(int argc, char *argv)
 }
 
 #endif
+
+#define JAM_FILE_ID 297
+

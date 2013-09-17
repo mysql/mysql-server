@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2003, 2010, Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2003, 2010, 2011, 2013, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -562,6 +562,45 @@ public:
 
 };
 
+class NdbForeignKeyImpl : public NdbDictionary::ForeignKey,
+                          public NdbDictObjectImpl
+{
+public:
+  NdbForeignKeyImpl();
+  NdbForeignKeyImpl(NdbDictionary::ForeignKey &);
+  ~NdbForeignKeyImpl();
+
+  void init();
+  int assign(const NdbForeignKeyImpl& src);
+
+  BaseString m_name;
+
+  struct References
+  {
+    References() {
+      m_objectId = RNIL;
+      m_objectVersion = RNIL;
+    }
+    BaseString m_name;
+    Uint32 m_objectId;
+    Uint32 m_objectVersion;
+  } m_references[4]; //
+  Vector<Uint32> m_parent_columns;
+  Vector<Uint32> m_child_columns;
+  NdbDictionary::ForeignKey::FkAction m_on_update_action;
+  NdbDictionary::ForeignKey::FkAction m_on_delete_action;
+
+  NdbDictionary::ForeignKey * m_facade;
+
+  static NdbForeignKeyImpl & getImpl(NdbDictionary::ForeignKey & t){
+    return t.m_impl;
+  }
+
+  static const NdbForeignKeyImpl & getImpl(const NdbDictionary::ForeignKey & t){
+    return t.m_impl;
+  }
+};
+
 class NdbDictInterface {
 public:
   // one transaction per Dictionary instance is supported
@@ -687,6 +726,9 @@ public:
   static int parseHashMapInfo(NdbHashMapImpl& dst,
                               const Uint32 * data, Uint32 len);
 
+  static int parseForeignKeyInfo(NdbForeignKeyImpl& dst,
+                                 const Uint32 * data, Uint32 len);
+
   int create_file(const NdbFileImpl &, const NdbFilegroupImpl&, 
 		  bool overwrite, NdbDictObjectImpl*);
   int drop_file(const NdbFileImpl &);
@@ -705,6 +747,11 @@ public:
   int create_hashmap(const NdbHashMapImpl&, NdbDictObjectImpl*, Uint32 flags);
   int get_hashmap(NdbHashMapImpl&, Uint32 id);
   int get_hashmap(NdbHashMapImpl&, const char * name);
+
+  int create_fk(const NdbForeignKeyImpl&, NdbDictObjectImpl*, Uint32 flags);
+  int get_fk(NdbForeignKeyImpl&, Uint32 id);
+  int get_fk(NdbForeignKeyImpl&, const char * name);
+  int drop_fk(const NdbDictObjectImpl&);
 
   int beginSchemaTrans(bool retry711 = true);
   int endSchemaTrans(Uint32 flags);
@@ -793,6 +840,16 @@ private:
   void execCREATE_HASH_MAP_CONF(const NdbApiSignal*,
 				const LinearSectionPtr ptr[3]);
 
+  void execCREATE_FK_REF(const NdbApiSignal*,
+                         const LinearSectionPtr ptr[3]);
+  void execCREATE_FK_CONF(const NdbApiSignal*,
+                          const LinearSectionPtr ptr[3]);
+
+  void execDROP_FK_REF(const NdbApiSignal*,
+                         const LinearSectionPtr ptr[3]);
+  void execDROP_FK_CONF(const NdbApiSignal*,
+                          const LinearSectionPtr ptr[3]);
+
   Uint32 m_fragmentId;
   UtilBuffer m_buffer;
 
@@ -843,7 +900,7 @@ public:
   int dropTable(const char * name);
   int dropTable(NdbTableImpl &);
   int dropBlobTables(NdbTableImpl &);
-  int renameBlobTables(const NdbTableImpl &old_impl, const NdbTableImpl &impl);
+  int alterBlobTables(const NdbTableImpl &old_impl, const NdbTableImpl &impl, Uint32 tabChangeMask);
   int invalidateObject(NdbTableImpl &);
   int removeCachedObject(NdbTableImpl &);
 
@@ -876,6 +933,7 @@ public:
   int listObjects(List& list, NdbDictionary::Object::Type type, 
                   bool fullyQualified);
   int listIndexes(List& list, Uint32 indexId);
+  int listDependentObjects(List& list, Uint32 tableId);
 
   NdbTableImpl * getTableGlobal(const char * tableName);
   NdbIndexImpl * getIndexGlobal(const char * indexName,
@@ -884,6 +942,7 @@ public:
                                 const char * tableName);
   int alterTableGlobal(NdbTableImpl &orig_impl, NdbTableImpl &impl);
   int dropTableGlobal(NdbTableImpl &);
+  int dropTableGlobal(NdbTableImpl &, int flags);
   int dropIndexGlobal(NdbIndexImpl & impl);
   int releaseTableGlobal(const NdbTableImpl & impl, int invalidate);
   int releaseIndexGlobal(const NdbIndexImpl & impl, int invalidate);
@@ -994,6 +1053,7 @@ public:
   /* Empty NdbRecord column mask for user convenience */
   static const Uint32 m_emptyMask[MAXNROFATTRIBUTESINWORDS];
 
+  int getDefaultHashmapSize() const;
 private:
   NdbTableImpl * fetchGlobalTableImplRef(const GlobalCacheInitObject &obj);
 };
