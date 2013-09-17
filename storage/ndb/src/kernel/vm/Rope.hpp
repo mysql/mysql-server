@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2005, 2010, Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2005, 2013, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -19,6 +19,9 @@
 #define NDB_ROPE_HPP
 
 #include "DataBuffer.hpp"
+
+#define JAM_FILE_ID 316
+
 
 typedef DataBuffer<7> RopeBase;
 typedef DataBuffer<7>::DataBufferPool RopePool;
@@ -115,6 +118,9 @@ bool
 ConstRope::empty() const {
   return head.used == 0;
 }
+
+
+#undef JAM_FILE_ID
 
 #endif
 

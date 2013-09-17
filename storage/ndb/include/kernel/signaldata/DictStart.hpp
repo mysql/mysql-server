@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2003, 2010, Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2003, 2013, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -17,6 +17,9 @@
 
 #ifndef DICT_START_HPP
 #define DICT_START_HPP
+
+#define JAM_FILE_ID 126
+
 
 class DictStartReq {
   /**
@@ -36,5 +39,8 @@ private:
   Uint32 senderRef;
   Uint32 senderData;
 };
+
+
+#undef JAM_FILE_ID
 
 #endif

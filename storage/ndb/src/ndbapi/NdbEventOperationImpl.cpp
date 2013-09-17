@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2003, 2011, Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2003, 2011, 2013, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -38,7 +38,7 @@
 #include <EventLogger.hpp>
 extern EventLogger * g_eventLogger;
 
-#define TOTAL_BUCKETS_INIT (1 << 15)
+#define TOTAL_BUCKETS_INIT (1U << 15)
 static Gci_container_pod g_empty_gci_container;
 
 #if defined(VM_TRACE) && defined(NOT_USED)
@@ -1046,7 +1046,7 @@ NdbDictionary::Event::TableEvent
 NdbEventOperationImpl::getEventType()
 {
   return (NdbDictionary::Event::TableEvent)
-    (1 << SubTableData::getOperation(m_data_item->sdata->requestInfo));
+    (1U << SubTableData::getOperation(m_data_item->sdata->requestInfo));
 }
 
 
@@ -2322,6 +2322,10 @@ NdbEventBuffer::set_total_buckets(Uint32 cnt)
 void
 NdbEventBuffer::report_node_failure_completed(Uint32 node_id)
 {
+  assert(node_id < 32 * m_alive_node_bit_mask.Size); // only data-nodes
+  if (! (node_id < 32 * m_alive_node_bit_mask.Size))
+    return;
+
   m_alive_node_bit_mask.clear(node_id);
 
   NdbEventOperation* op= m_ndb->getEventOperation(0);
@@ -2494,7 +2498,7 @@ NdbEventBuffer::insertDataL(NdbEventOperationImpl *op,
     }
   }
   
-  if ( likely((Uint32)op->mi_type & (1 << operation)))
+  if ( likely((Uint32)op->mi_type & (1U << operation)))
   {
     Gci_container* bucket= find_bucket(gci);
     
@@ -2599,13 +2603,13 @@ NdbEventBuffer::insertDataL(NdbEventOperationImpl *op,
         // since the flags represent multiple ops on multiple PKs
         // XXX fix by doing merge at end of epoch (extra mem cost)
         {
-          EventBufData_list::Gci_op g = { op, (1 << operation) };
+          EventBufData_list::Gci_op g = { op, (1U << operation) };
           bucket->m_data.add_gci_op(g);
         }
         {
           EventBufData_list::Gci_op 
 	    g = { op, 
-		  (1 << SubTableData::getOperation(data->sdata->requestInfo))};
+		  (1U << SubTableData::getOperation(data->sdata->requestInfo))};
           bucket->m_data.add_gci_op(g);
         }
       }
@@ -2617,7 +2621,7 @@ NdbEventBuffer::insertDataL(NdbEventOperationImpl *op,
   }
   
 #ifdef VM_TRACE
-  if ((Uint32)op->m_eventImpl->mi_type & (1 << operation))
+  if ((Uint32)op->m_eventImpl->mi_type & (1U << operation))
   {
     DBUG_PRINT_EVENT("info",("Data arrived before ready eventId", op->m_eventId));
     DBUG_RETURN_EVENT(0);

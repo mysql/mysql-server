@@ -114,7 +114,7 @@ send_eval $query3;
 --enable_query_log
 
 connection server2;
-alter online table child drop key b;
+alter table child algorithm=inplace, drop key b;
 commit;
 
 connection server1;
@@ -136,7 +136,7 @@ send_eval $query3;
 
 connection server2;
 sleep 0.1;
-alter online table child drop key b;
+alter table child algorithm=inplace, drop key b;
 commit;
 
 connection server1;
@@ -204,7 +204,7 @@ send_eval $query1;
 
 connection server2;
 sleep 0.1;
-alter online table child rename to child_orig;
+alter table child algorithm=inplace, rename to child_orig;
 commit;
 
 connection server1;
@@ -226,7 +226,7 @@ send_eval $query1;
 
 connection server2;
 sleep 0.1;
-alter offline table child rename to child_orig;
+alter table child algorithm=copy, rename to child_orig;
 commit;
 
 connection server1;
@@ -249,7 +249,7 @@ send_eval $query3;
 
 connection server2;
 sleep 0.1;
-alter online table child drop key b;
+alter table child algorithm=inplace, drop key b;
 
 connection server1;
 --disable_result_log
@@ -271,7 +271,7 @@ send_eval $query1;
 
 connection server2;
 sleep 0.1;
-alter online table parent drop key b;
+alter table parent algorithm=inplace, drop key b;
 
 connection server1;
 --disable_result_log
@@ -293,7 +293,7 @@ send_eval $query1;
 
 connection server2;
 sleep 0.1;
-alter offline table child add column c int;
+alter table child algorithm=copy, add column c int;
 
 connection server1;
 --disable_result_log
@@ -315,7 +315,7 @@ send_eval $query2;
 
 connection server2;
 sleep 0.01;
-alter offline table child drop primary key;
+alter table child algorithm=copy, drop primary key;
 
 connection server1;
 --disable_result_log
