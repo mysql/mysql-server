@@ -315,7 +315,7 @@ mtr_memo_release(
 Checks if memo contains the given item.
 @return	TRUE if contains */
 UNIV_INLINE
-ibool
+bool
 mtr_memo_contains(
 /*==============*/
 	mtr_t*		mtr,	/*!< in: mtr */
