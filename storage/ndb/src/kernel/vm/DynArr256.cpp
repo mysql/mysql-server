@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2006, 2010, Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2006, 2010, 2013, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -181,7 +181,7 @@ DA256Page::get(Uint32 node, Uint32 idx, Uint32 type_id, Uint32*& val_ptr) const
   return ((magic & (1 << p)) && (magic >> 16) == type_id);
 }
 
-static const Uint32 g_max_sizes[5] = { 0, 256, 65536, 16777216, ~0 };
+static const Uint32 g_max_sizes[5] = { 0, 256, 65536, 16777216, 4294967295U };
 
 /**
  * sz = 0     =     1 - 0 level
@@ -1163,3 +1163,6 @@ main(int argc, char** argv)
 }
 
 #endif
+
+#define JAM_FILE_ID 233
+

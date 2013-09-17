@@ -1,4 +1,4 @@
-/* Copyright (C) 2008 MySQL AB
+/* Copyright (c) 2008, 2013, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -16,3 +16,6 @@
 /* This stub file defines the SimulatedBlock class for singlethreaded NDBD. */
 #undef NDBD_MULTITHREADED
 #include "SimulatedBlock.cpp"
+
+#define JAM_FILE_ID 285
+

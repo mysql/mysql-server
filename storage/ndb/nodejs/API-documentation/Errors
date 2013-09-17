@@ -1,0 +1,39 @@
+
+
+
+/* These are the errors 
+   Reference: 
+   Gulutzan & Pelzer, "SQL 99 Complete Really", chapter 47
+*/
+var Errors;
+
+Errors = {
+  /* Standard-defined classes, SQL-99 */
+  "02000" : "No Data",
+
+  // connection errors
+  "08000" : "Connection error",
+  "08001" : "Unable to connect to server",
+  "08004" : "Connection refused",
+
+  // data errors
+  "22000" : "Data error",
+  "22001" : "String too long",
+  "22003" : "Numeric value out of range",
+  "22008" : "Invalid datetime",
+  
+  // Constraint violations
+  // 23000 includes both duplicate primary key and duplicate unique key
+  "23000" : "Integrity Constraint Violation",
+
+  // misc. errors
+  "25000" : "Invalid Transaction State",  
+  "2C000" : "Invalid character set name",  
+  "42S02" : "Table not found",
+  "IM001" : "Driver does not support this function",  
+  
+  /* Implementation-defined classes (NDB) */
+  "NDB00" : "Refer to ndb_error for details",
+  "WCTOR" : "Object clobbered by Domain Object Constructor"
+};
+

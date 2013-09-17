@@ -1,6 +1,5 @@
 /*
-   Copyright (C) 2005-2008 MySQL AB
-    All rights reserved. Use is subject to license terms.
+   Copyright (c) 2005, 2013, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -21,6 +20,9 @@
 
 #include <ndb_global.h>
 #include <kernel_types.h>
+
+#define JAM_FILE_ID 404
+
 
 struct Undo_buffer 
 {
@@ -55,5 +57,8 @@ private:
   class Ndbd_mem_manager* m_mm;
   Uint32 m_first_free;
 };
+
+
+#undef JAM_FILE_ID
 
 #endif

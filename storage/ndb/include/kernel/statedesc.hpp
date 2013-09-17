@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2011, Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2011, 2013, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -18,6 +18,9 @@
 #ifndef NDB_STATE_DESC_H
 #define NDB_STATE_DESC_H
 
+#define JAM_FILE_ID 216
+
+
 struct ndbkernel_state_desc
 {
   unsigned value;
@@ -28,5 +31,8 @@ struct ndbkernel_state_desc
 
 extern struct ndbkernel_state_desc g_dbtc_apiconnect_state_desc[];
 extern struct ndbkernel_state_desc g_dblqh_tcconnect_state_desc[];
+
+
+#undef JAM_FILE_ID
 
 #endif

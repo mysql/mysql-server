@@ -3,7 +3,6 @@
 #but needs to be kept for tests that would need MyISAM in future.
 --source include/force_myisam_default.inc
 
---source include/ndb_have_online_alter.inc
 -- source include/have_multi_ndb.inc
 -- source include/have_binlog_format_mixed_or_row.inc
 
@@ -106,7 +105,7 @@ begin;
 insert into t1 (col0) values (1);
 
 connection server2;
-alter online table t1 add column col32 int COLUMN_FORMAT DYNAMIC;
+alter table t1 algorithm=inplace, add column col32 int COLUMN_FORMAT DYNAMIC;
 
 connection server1;
 commit;

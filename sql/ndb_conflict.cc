@@ -16,9 +16,6 @@
 */
 #include <my_global.h> /* For config defines */
 
-#ifdef WITH_NDBCLUSTER_STORAGE_ENGINE
-/* distcheck does not compile from here... */
-
 #include "ha_ndbcluster_glue.h"
 #include "ndb_conflict.h"
 
@@ -222,7 +219,7 @@ st_ndb_slave_state::st_ndb_slave_state()
   const size_t CONFLICT_MEMROOT_BLOCK_SIZE = 32768;
   init_alloc_root(PSI_INSTRUMENT_ME,
                   &conflict_mem_root, CONFLICT_MEMROOT_BLOCK_SIZE, 0);
-};
+}
 
 /**
    resetPerAttemptCounters
@@ -384,7 +381,7 @@ st_ndb_slave_state::atStartSlave()
     trans_conflict_apply_state = SAS_NORMAL;
   }
 #endif
-};
+}
 
 #ifdef HAVE_NDB_BINLOG
 
@@ -406,7 +403,7 @@ st_ndb_slave_state::atEndTransConflictHandling()
     free_root(&conflict_mem_root, MY_MARK_BLOCKS_FREE);
   }
   DBUG_VOID_RETURN;
-};
+}
 
 /**
    atBeginTransConflictHandling()
@@ -425,7 +422,7 @@ st_ndb_slave_state::atBeginTransConflictHandling()
   assert(trans_dependency_tracker == NULL);
   trans_dependency_tracker = DependencyTracker::newDependencyTracker(&conflict_mem_root);
   DBUG_VOID_RETURN;
-};
+}
 
 /**
    atPrepareConflictDetection
@@ -805,8 +802,4 @@ st_ndb_slave_state::atConflictPreCommit(bool& retry_slave_trans)
   DBUG_RETURN(0);
 }
 
-/* HAVE_NDB_BINLOG */
-#endif
-
-/* WITH_NDBCLUSTER_STORAGE_ENGINE */
 #endif
