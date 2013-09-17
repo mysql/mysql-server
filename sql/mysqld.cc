@@ -4319,14 +4319,7 @@ a file name for --log-bin-index option", opt_binlog_index_name);
   }
 
   if (opt_bootstrap)
-  {
     log_output_options= LOG_FILE;
-    /*
-      Show errors during bootstrap, but gag everything else so critical
-      info isn't lost during install.  WL#6661 et al.
-    */
-    log_error_verbosity= 1;
-  }
 
   /*
     Issue a warning if there were specified additional options to the
@@ -7356,6 +7349,23 @@ static int get_options(int *argc_ptr, char ***argv_ptr)
   sys_var_add_options(&all_options, sys_var::PARSE_NORMAL);
   add_terminator(&all_options);
 
+  struct my_option *opt_lev= NULL;
+
+  if (opt_help || opt_bootstrap)
+  {
+    /*
+      Show errors during --help, but gag everything else so the info the
+      user actually wants isn't lost in the spam.  (For --help --verbose,
+      we need to set up far enough to be able to print variables provided
+      by plugins, so a good number of warnings/notes might get printed.)
+      Likewise for --bootstrap.
+    */
+    struct my_option *opt= &all_options[0];
+    for (; opt->name; opt++)
+      if (!strcmp("log_error_verbosity", opt->name))
+        (opt_lev= opt)->def_value= 1;
+  }
+
   /* Skip unknown options so that they may be processed later by plugins */
   my_getopt_skip_unknown= TRUE;
 
@@ -7365,6 +7375,13 @@ static int get_options(int *argc_ptr, char ***argv_ptr)
 
   if (!opt_help)
     vector<my_option>().swap(all_options);  // Deletes the vector contents.
+
+  /*
+    If we changed the default log_error_verbosity because of
+    --help / --bootstrap, change the default back here.
+  */
+  if (opt_lev)
+    opt_lev->def_value= 3;
 
   /* Add back the program name handle_options removes */
   (*argc_ptr)++;
@@ -7377,17 +7394,7 @@ static int get_options(int *argc_ptr, char ***argv_ptr)
     Do them here.
   */
 
-  if (opt_help)
-  {
-    /*
-      Show errors during --help, but gag everything else so the info the
-      user actually wants isn't lost in the spam.  (For --help --verbose,
-      we need to set up far enough to be able to print variables provided
-      by plugins.)
-    */
-    log_error_verbosity= 1;
-  }
-  else if (opt_verbose)
+  if (!opt_help && opt_verbose)
     sql_print_error("--verbose is for use with --help; "
                     "did you mean --log-error-verbosity?");
 
