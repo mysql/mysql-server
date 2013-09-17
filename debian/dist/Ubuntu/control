@@ -234,7 +234,7 @@ Description: MariaDB database regression test suite (metapackage depending on th
 
 Package: mariadb-tokudb-engine-5.5
 Section: database
-Architecture: all
+Architecture: any
 Depends: mariadb-server-5.5
 Description: TokuDB storage engine for MariaDB
  TokuDB is a highly scalable, zero maintenance downtime, ACID and MVCC
