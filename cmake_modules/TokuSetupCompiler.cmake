@@ -87,6 +87,7 @@ set_cflags_if_supported(
   -Wmissing-format-attribute
   -Wno-error=missing-format-attribute
   -Wno-error=address-of-array-temporary
+  -Wno-error=tautological-constant-out-of-range-compare
   -fno-rtti
   -fno-exceptions
   )
@@ -128,7 +129,7 @@ set(CMAKE_CXX_FLAGS_DRD "-g3 -O1 ${CMAKE_CXX_FLAGS_DRD}")
 
 ## set extra release flags
 ## need to set flags for RelWithDebInfo as well because we want the MySQL/MariaDB builds to use them
-if (APPLE AND CMAKE_CXX_COMPILER_ID STREQUAL Clang)
+if (CMAKE_CXX_COMPILER_ID STREQUAL Clang)
   # have tried -flto and -O4, both make our statically linked executables break apple's linker
   set(CMAKE_C_FLAGS_RELWITHDEBINFO "${CMAKE_C_FLAGS_RELWITHDEBINFO} -g -O3 -UNDEBUG")
   set(CMAKE_CXX_FLAGS_RELWITHDEBINFO "${CMAKE_CXX_FLAGS_RELWITHDEBINFO} -g -O3 -UNDEBUG")
