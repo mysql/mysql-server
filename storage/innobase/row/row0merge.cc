@@ -1703,9 +1703,15 @@ wait_again:
 
 	/* Update the next Doc ID we used. Table should be locked, so
 	no concurrent DML */
-	if (max_doc_id) {
-		fts_update_next_doc_id(
-			0, new_table, old_table->name, max_doc_id);
+	if (max_doc_id && err == DB_SUCCESS) {
+		/* Sync fts cache for other fts indexes to keep all
+		fts indexes consistent in sync_doc_id. */
+		err = fts_sync_table(const_cast<dict_table_t*>(new_table));
+
+		if (err == DB_SUCCESS) {
+			fts_update_next_doc_id(
+				0, new_table, old_table->name, max_doc_id);
+		}
 	}
 
 	trx->op_info = "";
