@@ -452,6 +452,19 @@ RestoreMetaData::readMetaTableDesc() {
     return true;
     break;
   }
+  case DictTabInfo::ForeignKey:
+  {
+    NdbDictionary::ForeignKey * dst = new NdbDictionary::ForeignKey;
+    errcode =
+      NdbDictInterface::parseForeignKeyInfo(NdbForeignKeyImpl::getImpl(* dst),
+                                            (const Uint32*)ptr, len);
+    if (errcode)
+      delete dst;
+    obj.m_objPtr = dst;
+    debug << hex << obj.m_objPtr << " " 
+	   << dec << dst->getObjectId() << " " << dst->getName() << endl;
+    break;
+  }
   default:
     if (ga_skip_unknown_objects)
     {

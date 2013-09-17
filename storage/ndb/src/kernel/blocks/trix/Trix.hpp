@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2003, 2010, Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2003, 2013, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -28,6 +28,9 @@
 #include <signaldata/IndexStatSignal.hpp>
 #include <signaldata/GetTabInfo.hpp>
 #include <signaldata/TuxBound.hpp>
+
+#define JAM_FILE_ID 432
+
 #define ZNOT_FOUND 626
 
 // Error codes
@@ -53,6 +56,7 @@ public:
     ,STAT_UTIL = 3  // PK op of HEAD table directly via DBUTIL
     ,STAT_CLEAN = 4
     ,STAT_SCAN = 5
+    ,FK_BUILD = 6
     //ALTER_TABLE
   };
   typedef DataBuffer<11> AttrOrderBuffer;
@@ -305,6 +309,9 @@ private:
 
   void execCOPY_DATA_IMPL_REQ(Signal* signal);
 
+  // Build FK
+  void execBUILD_FK_IMPL_REQ(Signal*);
+
   void execUTIL_PREPARE_CONF(Signal* signal);
   void execUTIL_PREPARE_REF(Signal* signal);
   void execUTIL_EXECUTE_CONF(Signal* signal);
@@ -332,6 +339,7 @@ private:
   void prepareInsertTransactions(Signal* signal, SubscriptionRecPtr subRecPtr);
   void executeBuildInsertTransaction(Signal* signal, SubscriptionRecPtr);
   void executeReorgTransaction(Signal*, SubscriptionRecPtr, Uint32);
+  void executeBuildFKTransaction(Signal* signal, SubscriptionRecPtr);
   void buildComplete(Signal* signal, SubscriptionRecPtr subRecPtr);
   void wait_gcp(Signal*, SubscriptionRecPtr subRecPtr, Uint32 delay = 0);
   void buildFailed(Signal* signal, 
@@ -417,5 +425,8 @@ private:
   // debug
   friend class NdbOut& operator<<(NdbOut&, const StatOp& stat);
 };
+
+
+#undef JAM_FILE_ID
 
 #endif

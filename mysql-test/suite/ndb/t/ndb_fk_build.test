@@ -1,0 +1,68 @@
+-- source include/have_ndb.inc
+
+create table parent (
+  a int primary key,
+  b int not null,
+  c int not null,
+  unique(b) using hash,
+  index(c)) engine = ndb;
+
+create table child (
+  a int primary key,
+  b int not null,
+  c int not null,
+  unique(b) using hash,
+  index(c)) engine = ndb;
+
+###
+# Test that you can't create a FK that violates constraint to start off
+#
+# NOTE: these tests use ndb_tools to create/drop FK
+#       as doing it by alter table, would currently mean an offline alter
+#       which doesnt test the same code path
+#
+insert into parent values (1,2,3);
+insert into child values (3,4,5);
+
+--let ukname=b\$unique
+--let oiname=c
+
+--error 1452
+alter table child algorithm=inplace, add constraint fkname foreign key (a) references parent(a);
+
+--error 1452
+alter table child algorithm=inplace, add constraint fkname foreign key(b) references parent(a);
+--error 1452
+alter table child algorithm=inplace, add constraint fkname foreign key(c) references parent(a);
+
+--error 1452
+alter table child algorithm=inplace, add constraint fkname foreign key(a) references parent(b);
+--error 1452
+alter table child algorithm=inplace, add constraint fkname foreign key(b) references parent(b);
+--error 1452
+alter table child algorithm=inplace, add constraint fkname foreign key(c) references parent(b);
+
+#
+# Now it should work...
+#
+insert into parent values (2,3,4);
+insert into parent values (3,4,5);
+insert into parent values (4,5,6);
+insert into parent values (5,6,7);
+
+alter table child algorithm=inplace, add constraint fk1 foreign key(a) references parent(a);
+alter table child algorithm=inplace, add constraint fk2 foreign key(b) references parent(a);
+alter table child algorithm=inplace, add constraint fk3 foreign key(c) references parent(a);
+alter table child algorithm=inplace, add constraint fk4 foreign key(a) references parent(b);
+alter table child algorithm=inplace, add constraint fk5 foreign key(b) references parent(b);
+alter table child algorithm=inplace, add constraint fk6 foreign key(c) references parent(b);
+
+alter table child algorithm=inplace,
+drop foreign key fk1,
+drop foreign key fk2,
+drop foreign key fk3,
+drop foreign key fk4,
+drop foreign key fk5,
+drop foreign key fk6;
+
+drop table parent, child;

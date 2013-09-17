@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2011, Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2011, 2013, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -26,6 +26,11 @@
 #include <signaldata/AlterIndxImpl.hpp>
 #include <signaldata/DropIndxImpl.hpp>
 #include <signaldata/AbortAll.hpp>
+#include <signaldata/CreateFKImpl.hpp>
+#include <signaldata/DropFKImpl.hpp>
+
+#define JAM_FILE_ID 348
+
 
 
 class DbtcProxy : public DbgdmProxy {
@@ -90,6 +95,7 @@ protected:
   // GSN_GCP_NOMORETRANS
   struct Ss_GCP_NOMORETRANS : SsParallel {
     GCPNoMoreTrans m_req;
+    Uint32 m_minTcFailNo;
     Ss_GCP_NOMORETRANS() {
       m_sendREQ = (SsFUNCREQ)&DbtcProxy::sendGCP_NOMORETRANS;
       m_sendCONF = (SsFUNCREP)&DbtcProxy::sendGCP_TCFINISHED;
@@ -184,6 +190,48 @@ protected:
   void execABORT_ALL_REF(Signal*);
   void execABORT_ALL_CONF(Signal*);
   void sendABORT_ALL_CONF(Signal*, Uint32 ssId);
+
+  // GSN_CREATE_FK_IMPL_REQ
+  struct Ss_CREATE_FK_IMPL_REQ : SsParallel {
+    CreateFKImplReq m_req;
+
+    Ss_CREATE_FK_IMPL_REQ() {
+      m_sendREQ = (SsFUNCREQ)&DbtcProxy::sendCREATE_FK_IMPL_REQ;
+      m_sendCONF = (SsFUNCREP)&DbtcProxy::sendCREATE_FK_IMPL_CONF;
+    }
+    enum { poolSize = 1 };
+    static SsPool<Ss_CREATE_FK_IMPL_REQ>& pool(LocalProxy* proxy) {
+      return ((DbtcProxy*)proxy)->c_ss_CREATE_FK_IMPL_REQ;
+    }
+  };
+  SsPool<Ss_CREATE_FK_IMPL_REQ> c_ss_CREATE_FK_IMPL_REQ;
+  void execCREATE_FK_IMPL_REQ(Signal*);
+  void sendCREATE_FK_IMPL_REQ(Signal*, Uint32 ssId, SectionHandle*);
+  void execCREATE_FK_IMPL_CONF(Signal*);
+  void execCREATE_FK_IMPL_REF(Signal*);
+  void sendCREATE_FK_IMPL_CONF(Signal*, Uint32 ssId);
+
+  // GSN_DROP_FK_IMPL_REQ
+  struct Ss_DROP_FK_IMPL_REQ : SsParallel {
+    DropFKImplReq m_req;
+    Ss_DROP_FK_IMPL_REQ() {
+      m_sendREQ = (SsFUNCREQ)&DbtcProxy::sendDROP_FK_IMPL_REQ;
+      m_sendCONF = (SsFUNCREP)&DbtcProxy::sendDROP_FK_IMPL_CONF;
+    }
+    enum { poolSize = 1 };
+    static SsPool<Ss_DROP_FK_IMPL_REQ>& pool(LocalProxy* proxy) {
+      return ((DbtcProxy*)proxy)->c_ss_DROP_FK_IMPL_REQ;
+    }
+  };
+  SsPool<Ss_DROP_FK_IMPL_REQ> c_ss_DROP_FK_IMPL_REQ;
+  void execDROP_FK_IMPL_REQ(Signal*);
+  void sendDROP_FK_IMPL_REQ(Signal*, Uint32 ssId, SectionHandle*);
+  void execDROP_FK_IMPL_CONF(Signal*);
+  void execDROP_FK_IMPL_REF(Signal*);
+  void sendDROP_FK_IMPL_CONF(Signal*, Uint32 ssId);
 };
+
+
+#undef JAM_FILE_ID
 
 #endif

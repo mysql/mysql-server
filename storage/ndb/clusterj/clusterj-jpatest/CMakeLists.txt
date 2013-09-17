@@ -35,7 +35,8 @@ ENDFOREACH()
 
 SET ( CLASSPATH 
   target/classes
-  ${CMAKE_BINARY_DIR}/storage/ndb/clusterj/clusterj-core/target/classes
+  ${CMAKE_SOURCE_DIR}/storage/ndb/clusterj/clusterj-core/target/classes
+  ${CMAKE_SOURCE_DIR}/storage/ndb/clusterj/clusterj-test/target/classes
   ${WITH_CLASSPATH})
 
 SET(CLUSTERJ_JPATEST_EXPORTS com.mysql.clusterj.jpatest,com.mysql.clusterj.jpatest.model,junit.framework,junit.textui,org.junit)
