@@ -4463,6 +4463,10 @@ fts_sync(
 		index_cache = static_cast<fts_index_cache_t*>(
 			ib_vector_get(cache->indexes, i));
 
+		if (index_cache->index->to_be_dropped) {
+			continue;
+		}
+
 		error = fts_sync_index(sync, index_cache);
 
 		if (error != DB_SUCCESS && !sync->interrupted) {
@@ -4472,7 +4476,8 @@ fts_sync(
 	}
 
 	DBUG_EXECUTE_IF("fts_instrument_sync_interrupted",
-			 sync->interrupted = true;
+			sync->interrupted = true;
+			error = DB_INTERRUPTED;
 	);
 
 	if (error == DB_SUCCESS && !sync->interrupted) {
@@ -4498,17 +4503,20 @@ fts_sync(
 /****************************************************************//**
 Run SYNC on the table, i.e., write out data from the cache to the
 FTS auxiliary INDEX table and clear the cache at the end. */
-
-void
+dberr_t
 fts_sync_table(
 /*===========*/
 	dict_table_t*	table)		/*!< in: table */
 {
+	dberr_t	err = DB_SUCCESS;
+
 	ut_ad(table->fts);
 
 	if (table->fts->cache) {
-		fts_sync(table->fts->cache->sync);
+		err = fts_sync(table->fts->cache->sync);
 	}
+
+	return(err);
 }
 
 /********************************************************************

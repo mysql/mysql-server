@@ -833,8 +833,7 @@ fts_drop_index_split_tables(
 /****************************************************************//**
 Run SYNC on the table, i.e., write out data from the cache to the
 FTS auxiliary INDEX table and clear the cache at the end. */
-
-void
+dberr_t
 fts_sync_table(
 /*===========*/
 	dict_table_t*	table)			/*!< in: table */
