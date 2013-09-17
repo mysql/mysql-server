@@ -11,7 +11,7 @@ MACRO (USE_BUNDLED_JEMALLOC)
   SET(SOURCE_DIR "${CMAKE_SOURCE_DIR}/extra/jemalloc")
   SET(BINARY_DIR "${CMAKE_BINARY_DIR}/${CMAKE_CFG_INTDIR}/extra/jemalloc/build")
   SET(LIBJEMALLOC "libjemalloc")
-  SET(JEMALLOC_CONFIGURE_OPTS "CC=${CMAKE_C_COMPILER}" "--with-private-namespace=jemalloc_internal_" "--enable-cc-silence")
+  SET(JEMALLOC_CONFIGURE_OPTS "CC=${CMAKE_C_COMPILER} ${CMAKE_C_COMPILER_ARG1}" "--with-private-namespace=jemalloc_internal_" "--enable-cc-silence")
   IF (CMAKE_BUILD_TYPE MATCHES "Debug" AND NOT APPLE) # see the comment in CMakeLists.txt
     LIST(APPEND JEMALLOC_CONFIGURE_OPTS --enable-debug)
   ENDIF()
