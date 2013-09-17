@@ -73,3 +73,10 @@ DROP DATABASE bug58090;
 
 --replace_regex /queries: [0-9]+.[0-9]+/queries: TIME/
 --exec $MYSQL_SLAP
+
+--echo #
+--echo # MDEV-4684 - Enhancement request: --init-command support for mysqlslap
+--echo #
+
+--exec $MYSQL_SLAP --create-schema=test --init-command="CREATE TABLE t1(a INT)" --silent --concurrency=1 --iterations=1
+DROP TABLE t1;

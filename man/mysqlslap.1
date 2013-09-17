@@ -578,6 +578,21 @@ Connect to the MySQL server on the given host\&.
 .sp -1
 .IP \(bu 2.3
 .\}
+.\" mysqlslap: init-command option
+.\" init-command option: mysqlslap
+\fB\-\-init\-command=str\fR
+.sp
+SQL Command to execute when connecting to MySQL server\&. Will automatically be re\-executed when reconnecting\&.
+.RE
+.sp
+.RS 4
+.ie n \{\
+\h'-04'\(bu\h'+03'\c
+.\}
+.el \{\
+.sp -1
+.IP \(bu 2.3
+.\}
 .\" mysqlslap: iterations option
 .\" iterations option: mysqlslap
 \fB\-\-iterations=\fR\fB\fIN\fR\fR,

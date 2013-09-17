@@ -251,3 +251,7 @@ Benchmark
 	Number of clients running queries: 1
 	Average number of queries per client: 0
 
+#
+# MDEV-4684 - Enhancement request: --init-command support for mysqlslap
+#
+DROP TABLE t1;
