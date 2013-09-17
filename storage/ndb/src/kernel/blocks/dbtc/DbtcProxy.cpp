@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2011, Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2011, 2013, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -17,6 +17,9 @@
 
 #include "DbtcProxy.hpp"
 #include "Dbtc.hpp"
+
+#define JAM_FILE_ID 352
+
 
 DbtcProxy::DbtcProxy(Block_context& ctx) :
   DbgdmProxy(DBTC, ctx)
@@ -58,6 +61,17 @@ DbtcProxy::DbtcProxy(Block_context& ctx) :
   addRecSignal(GSN_ABORT_ALL_REQ,&DbtcProxy::execABORT_ALL_REQ);
   addRecSignal(GSN_ABORT_ALL_REF,&DbtcProxy::execABORT_ALL_REF);
   addRecSignal(GSN_ABORT_ALL_CONF,&DbtcProxy::execABORT_ALL_CONF);
+
+  // GSN_CREATE_FK_IMPL_REQ
+  addRecSignal(GSN_CREATE_FK_IMPL_REQ, &DbtcProxy::execCREATE_FK_IMPL_REQ);
+  addRecSignal(GSN_CREATE_FK_IMPL_CONF,&DbtcProxy::execCREATE_FK_IMPL_CONF);
+  addRecSignal(GSN_CREATE_FK_IMPL_REF, &DbtcProxy::execCREATE_FK_IMPL_REF);
+
+  // GSN_DROP_FK_IMPL_REQ
+  addRecSignal(GSN_DROP_FK_IMPL_REQ, &DbtcProxy::execDROP_FK_IMPL_REQ);
+  addRecSignal(GSN_DROP_FK_IMPL_CONF,&DbtcProxy::execDROP_FK_IMPL_CONF);
+  addRecSignal(GSN_DROP_FK_IMPL_REF, &DbtcProxy::execDROP_FK_IMPL_REF);
+
 
   m_tc_seize_req_instance = 0;
 }
@@ -226,6 +240,7 @@ DbtcProxy::execGCP_NOMORETRANS(Signal* signal)
   Ss_GCP_NOMORETRANS& ss = ssSeize<Ss_GCP_NOMORETRANS>(1);
 
   ss.m_req = *(GCPNoMoreTrans*)signal->getDataPtr();
+  ss.m_minTcFailNo = ~Uint32(0);
   sendREQ(signal, ss);
 }
 
@@ -249,6 +264,11 @@ DbtcProxy::execGCP_TCFINISHED(Signal* signal)
   GCPTCFinished* conf = (GCPTCFinished*)signal->getDataPtr();
   Uint32 ssId = conf->senderData;
   Ss_GCP_NOMORETRANS& ss = ssFind<Ss_GCP_NOMORETRANS>(ssId);
+
+  /* Record minimum handled failure number seen from TC workers */
+  if (conf->tcFailNo < ss.m_minTcFailNo)
+    ss.m_minTcFailNo = conf->tcFailNo;
+  
   recvCONF(signal, ss);
 }
 
@@ -264,6 +284,7 @@ DbtcProxy::sendGCP_TCFINISHED(Signal* signal, Uint32 ssId)
   conf->senderData = ss.m_req.senderData;
   conf->gci_hi = ss.m_req.gci_hi;
   conf->gci_lo = ss.m_req.gci_lo;
+  conf->tcFailNo = ss.m_minTcFailNo;
   sendSignal(ss.m_req.senderRef, GSN_GCP_TCFINISHED,
              signal, GCPTCFinished::SignalLength, JBB);
 
@@ -581,6 +602,166 @@ DbtcProxy::sendABORT_ALL_CONF(Signal* signal, Uint32 ssId)
   }
 
   ssRelease<Ss_ABORT_ALL_REQ>(ssId);
+}
+
+// GSN_CREATE_FK_IMPL_REQ
+
+void
+DbtcProxy::execCREATE_FK_IMPL_REQ(Signal* signal)
+{
+  jamEntry();
+  if (!assembleFragments(signal))
+  {
+    jam();
+    return;
+  }
+
+  const CreateFKImplReq* req = (const CreateFKImplReq*)signal->getDataPtr();
+  Ss_CREATE_FK_IMPL_REQ& ss = ssSeize<Ss_CREATE_FK_IMPL_REQ>();
+  ss.m_req = *req;
+  SectionHandle handle(this, signal);
+  saveSections(ss, handle);
+  sendREQ(signal, ss);
+}
+
+void
+DbtcProxy::sendCREATE_FK_IMPL_REQ(Signal* signal, Uint32 ssId,
+                                  SectionHandle * handle)
+{
+  Ss_CREATE_FK_IMPL_REQ& ss = ssFind<Ss_CREATE_FK_IMPL_REQ>(ssId);
+
+  CreateFKImplReq* req = (CreateFKImplReq*)signal->getDataPtrSend();
+  *req = ss.m_req;
+  req->senderRef = reference();
+  req->senderData = ssId;
+  sendSignalNoRelease(workerRef(ss.m_worker), GSN_CREATE_FK_IMPL_REQ,
+                      signal, CreateFKImplReq::SignalLength, JBB,
+                      handle);
+}
+
+void
+DbtcProxy::execCREATE_FK_IMPL_CONF(Signal* signal)
+{
+  const CreateFKImplConf* conf = (const CreateFKImplConf*)signal->getDataPtr();
+  Uint32 ssId = conf->senderData;
+  Ss_CREATE_FK_IMPL_REQ& ss = ssFind<Ss_CREATE_FK_IMPL_REQ>(ssId);
+  recvCONF(signal, ss);
+}
+
+void
+DbtcProxy::execCREATE_FK_IMPL_REF(Signal* signal)
+{
+  const CreateFKImplRef* ref = (const CreateFKImplRef*)signal->getDataPtr();
+  Uint32 ssId = ref->senderData;
+  Ss_CREATE_FK_IMPL_REQ& ss = ssFind<Ss_CREATE_FK_IMPL_REQ>(ssId);
+  recvREF(signal, ss, ref->errorCode);
+}
+
+void
+DbtcProxy::sendCREATE_FK_IMPL_CONF(Signal* signal, Uint32 ssId)
+{
+  Ss_CREATE_FK_IMPL_REQ& ss = ssFind<Ss_CREATE_FK_IMPL_REQ>(ssId);
+  BlockReference dictRef = ss.m_req.senderRef;
+
+  if (!lastReply(ss))
+    return;
+
+  if (ss.m_error == 0)
+  {
+    jam();
+    CreateFKImplConf* conf = (CreateFKImplConf*)signal->getDataPtrSend();
+    conf->senderRef = reference();
+    conf->senderData = ss.m_req.senderData;
+    sendSignal(dictRef, GSN_CREATE_FK_IMPL_CONF,
+               signal, CreateFKImplConf::SignalLength, JBB);
+  }
+  else
+  {
+    jam();
+    CreateFKImplRef* ref = (CreateFKImplRef*)signal->getDataPtrSend();
+    ref->senderRef = reference();
+    ref->senderData = ss.m_req.senderData;
+    ref->errorCode = ss.m_error;
+    sendSignal(dictRef, GSN_CREATE_FK_IMPL_REF,
+               signal, CreateFKImplRef::SignalLength, JBB);
+  }
+
+  ssRelease<Ss_CREATE_FK_IMPL_REQ>(ssId);
+}
+
+// GSN_DROP_FK_IMPL_REQ
+
+void
+DbtcProxy::execDROP_FK_IMPL_REQ(Signal* signal)
+{
+  const DropFKImplReq* req = (const DropFKImplReq*)signal->getDataPtr();
+  Ss_DROP_FK_IMPL_REQ& ss = ssSeize<Ss_DROP_FK_IMPL_REQ>();
+  ss.m_req = *req;
+  ndbrequire(signal->getLength() == DropFKImplReq::SignalLength);
+  sendREQ(signal, ss);
+}
+
+void
+DbtcProxy::sendDROP_FK_IMPL_REQ(Signal* signal, Uint32 ssId, SectionHandle*)
+{
+  Ss_DROP_FK_IMPL_REQ& ss = ssFind<Ss_DROP_FK_IMPL_REQ>(ssId);
+
+  DropFKImplReq* req = (DropFKImplReq*)signal->getDataPtrSend();
+  *req = ss.m_req;
+  req->senderRef = reference();
+  req->senderData = ssId;
+  sendSignal(workerRef(ss.m_worker), GSN_DROP_FK_IMPL_REQ,
+             signal, DropFKImplReq::SignalLength, JBB);
+}
+
+void
+DbtcProxy::execDROP_FK_IMPL_CONF(Signal* signal)
+{
+  const DropFKImplConf* conf = (const DropFKImplConf*)signal->getDataPtr();
+  Uint32 ssId = conf->senderData;
+  Ss_DROP_FK_IMPL_REQ& ss = ssFind<Ss_DROP_FK_IMPL_REQ>(ssId);
+  recvCONF(signal, ss);
+}
+
+void
+DbtcProxy::execDROP_FK_IMPL_REF(Signal* signal)
+{
+  const DropFKImplRef* ref = (const DropFKImplRef*)signal->getDataPtr();
+  Uint32 ssId = ref->senderData;
+  Ss_DROP_FK_IMPL_REQ& ss = ssFind<Ss_DROP_FK_IMPL_REQ>(ssId);
+  recvREF(signal, ss, ref->errorCode);
+}
+
+void
+DbtcProxy::sendDROP_FK_IMPL_CONF(Signal* signal, Uint32 ssId)
+{
+  Ss_DROP_FK_IMPL_REQ& ss = ssFind<Ss_DROP_FK_IMPL_REQ>(ssId);
+  BlockReference dictRef = ss.m_req.senderRef;
+
+  if (!lastReply(ss))
+    return;
+
+  if (ss.m_error == 0)
+  {
+    jam();
+    DropFKImplConf* conf = (DropFKImplConf*)signal->getDataPtrSend();
+    conf->senderRef = reference();
+    conf->senderData = ss.m_req.senderData;
+    sendSignal(dictRef, GSN_DROP_FK_IMPL_CONF,
+               signal, DropFKImplConf::SignalLength, JBB);
+  }
+  else
+  {
+    jam();
+    DropFKImplRef* ref = (DropFKImplRef*)signal->getDataPtrSend();
+    ref->senderRef = reference();
+    ref->senderData = ss.m_req.senderData;
+    ref->errorCode = ss.m_error;
+    sendSignal(dictRef, GSN_DROP_FK_IMPL_REF,
+               signal, DropFKImplRef::SignalLength, JBB);
+  }
+
+  ssRelease<Ss_DROP_FK_IMPL_REQ>(ssId);
 }
 
 BLOCK_FUNCTIONS(DbtcProxy)

@@ -23,10 +23,13 @@ if($r == 0) {
   print STDERR "DID NOT CONNECT TO MEMCACHE AT PORT $port \n";
 }
 else {
+  # Flush all
+  $mc->flush();
 
   # SET a new key
   $r = $mc->set("lib_test_1", 1501);
   if($r) { print "OK: Test 1\n"; } 
+  else   { $mc->fail("[Test 1]"); }
     
   # REPLACE an existing key
   $r = $mc->replace("lib_test_1", 1502);

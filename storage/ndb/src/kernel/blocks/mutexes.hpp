@@ -1,6 +1,5 @@
 /*
-   Copyright (C) 2003, 2005-2007 MySQL AB
-    All rights reserved. Use is subject to license terms.
+   Copyright (c) 2003, 2013, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -20,6 +19,9 @@
 #define KERNEL_MUTEXES_HPP
 
 #include <ndb_types.h>
+
+#define JAM_FILE_ID 461
+
 
 /**
  * This mutex is used by:
@@ -43,5 +45,8 @@
  */
 #define DIH_FRAGMENT_INFO 2
 
+
+
+#undef JAM_FILE_ID
 
 #endif

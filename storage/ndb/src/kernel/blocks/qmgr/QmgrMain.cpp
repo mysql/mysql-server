@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2003, 2010, Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2003, 2013, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -60,6 +60,9 @@ extern EventLogger * g_eventLogger;
 #define DEBUG_START2(gsn, rg, msg)
 #define DEBUG_START3(signal, msg)
 #endif
+
+#define JAM_FILE_ID 360
+
 
 /**
  * c_start.m_gsn = GSN_CM_REGREQ
@@ -2054,6 +2057,8 @@ void Qmgr::execCM_ADD(Signal* signal)
   nodePtr.i = getOwnNodeId();
   ptrCheckGuard(nodePtr, MAX_NDB_NODES, nodeRec);
 
+  CRASH_INSERTION(940);
+
   CmAdd * const cmAdd = (CmAdd*)signal->getDataPtr();
   const CmAdd::RequestType type = (CmAdd::RequestType)cmAdd->requestType;
   addNodePtr.i = cmAdd->startingNodeId;
@@ -3078,12 +3083,18 @@ void Qmgr::execAPI_FAILCONF(Signal* signal)
   if (is_empty_failconf_block(failedNodePtr))
   {
     jam();
-    failedNodePtr.p->failState = NORMAL;
-
     /**
      * When we set this state, connection will later be opened
      *   in checkStartInterface
      */
+    failedNodePtr.p->failState = NORMAL;
+
+    /**
+     * Reset m_version only after all blocks has responded with API_FAILCONF
+     *   so that no block risks reading 0 as node-version
+     */
+    setNodeInfo(failedNodePtr.i).m_version = 0;
+    recompute_version_info(getNodeInfo(failedNodePtr.i).m_type);
   }
   return;
 }//Qmgr::execAPI_FAILCONF()
@@ -3208,6 +3219,13 @@ void Qmgr::execNDB_FAILCONF(Signal* signal)
     
     CRASH_INSERTION(936);
   }
+
+  /**
+   * Reset node version only after all blocks has handled the failure
+   *   so that no block risks reading 0 as node version
+   */
+  setNodeInfo(failedNodePtr.i).m_version = 0;
+  recompute_version_info(NodeInfo::DB);
 
   /** 
    * Prepare a NFCompleteRep and send to all connected API's
@@ -3335,6 +3353,15 @@ void Qmgr::execDISCONNECT_REP(Signal* signal)
     ndbrequire(false);
   }
   }
+
+  if (ERROR_INSERTED(939) && ERROR_INSERT_EXTRA == nodeId)
+  {
+    ndbout_c("Ignoring DISCONNECT_REP for node %u that was force disconnected",
+             nodeId);
+    CLEAR_ERROR_INSERT_VALUE;
+    return;
+  }
+
   node_failed(signal, nodeId);
 }//DISCONNECT_REP
 
@@ -3450,9 +3477,7 @@ Qmgr::api_failed(Signal* signal, Uint32 nodeId)
   failedNodePtr.p->failState = initialState;
   failedNodePtr.p->phase = ZFAIL_CLOSING;
   set_hb_count(failedNodePtr.i) = 0;
-  setNodeInfo(failedNodePtr.i).m_version = 0;
-  recompute_version_info(getNodeInfo(failedNodePtr.i).m_type);
-  
+
   CloseComReqConf * const closeCom = (CloseComReqConf *)&signal->theData[0];
   closeCom->xxxBlockRef = reference();
   closeCom->requestType = CloseComReqConf::RT_API_FAILURE;
@@ -3954,6 +3979,17 @@ void Qmgr::failReportLab(Signal* signal, Uint16 aFailedNode,
     ndbrequire(false);
   }
 
+  /**
+   * If any node is starting now (c_start.startNode != 0)
+   *   sendPrepFailReq to that too
+   */
+  if (c_start.m_startNode != 0)
+  {
+    jam();
+    cfailedNodes[cnoFailedNodes++] = c_start.m_startNode;
+    c_start.reset();
+  }
+
   TnoFailedNodes = cnoFailedNodes;
   failReport(signal, failedNodePtr.i, (UintR)ZTRUE, aFailCause, sourceNode);
   if (cpresident == getOwnNodeId()) {
@@ -3984,7 +4020,7 @@ void Qmgr::failReportLab(Signal* signal, Uint16 aFailedNode,
         }//for
       }//if
     }//if
-  }//if
+  }
   return;
 }//Qmgr::failReportLab()
 
@@ -4529,10 +4565,9 @@ void Qmgr::execCOMMIT_FAILREQ(Signal* signal)
       nodePtr.p->phase = ZFAIL_CLOSING;
       nodePtr.p->failState = WAITING_FOR_NDB_FAILCONF;
       set_hb_count(nodePtr.i) = 0;
-      setNodeInfo(nodePtr.i).m_version = 0;
       c_clusterNodes.clear(nodePtr.i);
     }//for
-    recompute_version_info(NodeInfo::DB);
+
     /*----------------------------------------------------------------------*/
     /*       WE INFORM THE API'S WE HAVE CONNECTED ABOUT THE FAILED NODES.  */
     /*----------------------------------------------------------------------*/
@@ -6243,8 +6278,26 @@ Qmgr::execDUMP_STATE_ORD(Signal* signal)
     m_connectivity_check.m_enabled = true;
   }
 #endif
-}//Qmgr::execDUMP_STATE_ORD()
 
+  if (signal->theData[0] == 939 && signal->getLength() == 2)
+  {
+    jam();
+    Uint32 nodeId = signal->theData[1];
+    ndbout_c("Force close communication to %u", nodeId);
+    SET_ERROR_INSERT_VALUE2(939, nodeId);
+    CloseComReqConf * closeCom = CAST_PTR(CloseComReqConf,
+                                          signal->getDataPtrSend());
+
+    closeCom->xxxBlockRef = reference();
+    closeCom->requestType = CloseComReqConf::RT_NO_REPLY;
+    closeCom->failNo      = 0;
+    closeCom->noOfNodes   = 1;
+    NodeBitmask::clear(closeCom->theNodes);
+    NodeBitmask::set(closeCom->theNodes, nodeId);
+    sendSignal(TRPMAN_REF, GSN_CLOSE_COMREQ, signal,
+               CloseComReqConf::SignalLength, JBB);
+  }
+}//Qmgr::execDUMP_STATE_ORD()
 
 void
 Qmgr::execAPI_BROADCAST_REP(Signal* signal)

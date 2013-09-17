@@ -211,6 +211,9 @@ ENGINE_ERROR_CODE Scheduler_stockholm::schedule(workitem *newitem) {
     case op_overflow:
       response_code = ENGINE_E2BIG;  // ENGINE_FAILED ?
       break;
+    default:
+      DEBUG_PRINT("UNEXPECTED: op_status is %d", op_status);
+      response_code = ENGINE_FAILED;
   }
 
   return response_code;

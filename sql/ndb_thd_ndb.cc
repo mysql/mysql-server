@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2011, Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2011, 2013 Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -36,7 +36,7 @@ Thd_ndb::seize(THD* thd)
 
   if (thd_ndb->ndb->init(MAX_TRANSACTIONS) != 0)
   {
-    DBUG_PRINT("error", ("Ndb::init failed, eror: %d  message: %s",
+    DBUG_PRINT("error", ("Ndb::init failed, error: %d  message: %s",
                          thd_ndb->ndb->getNdbError().code,
                          thd_ndb->ndb->getNdbError().message));
     
@@ -119,4 +119,22 @@ Thd_ndb::init_open_tables()
   count= 0;
   m_error= FALSE;
   my_hash_reset(&open_tables);
+}
+
+
+/*
+  Used for every additional row operation, to update the guesstimate
+  of pending bytes to send, and to check if it is now time to flush a batch.
+*/
+
+bool
+Thd_ndb::add_row_check_if_batch_full(uint size)
+{
+  if (m_unsent_bytes == 0)
+    free_root(&m_batch_mem_root, MY_MARK_BLOCKS_FREE);
+
+  uint unsent= m_unsent_bytes;
+  unsent+= size;
+  m_unsent_bytes= unsent;
+  return unsent >= m_batch_size;
 }
