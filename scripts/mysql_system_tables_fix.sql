@@ -1,4 +1,4 @@
--- Copyright (c) 2003, 2011, Oracle and/or its affiliates. All rights reserved.
+-- Copyright (c) 2003, 2013, Oracle and/or its affiliates. All rights reserved.
 --
 -- This program is free software; you can redistribute it and/or modify
 -- it under the terms of the GNU General Public License as published by
@@ -659,8 +659,15 @@ ALTER TABLE slave_master_info ADD Ssl_crlpath TEXT CHARACTER SET utf8 COLLATE ut
 ALTER TABLE slave_master_info STATS_PERSISTENT=0;
 ALTER TABLE slave_worker_info STATS_PERSISTENT=0;
 ALTER TABLE slave_relay_log_info STATS_PERSISTENT=0;
-ALTER TABLE innodb_table_stats STATS_PERSISTENT=0;
-ALTER TABLE innodb_index_stats STATS_PERSISTENT=0;
+
+set @have_innodb= (select count(engine) from information_schema.engines where engine='InnoDB' and support != 'NO');
+SET @str=IF(@have_innodb <> 0, "ALTER TABLE innodb_table_stats STATS_PERSISTENT=0", "SET @dummy = 0");
+PREPARE stmt FROM @str;
+EXECUTE stmt;
+
+SET @str=IF(@have_innodb <> 0, "ALTER TABLE innodb_index_stats STATS_PERSISTENT=0", "SET @dummy = 0");
+PREPARE stmt FROM @str;
+EXECUTE stmt;
 
 --
 -- Check for accounts with old pre-4.1 passwords and issue a warning
