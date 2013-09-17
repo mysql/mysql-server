@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2012, Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2010, 2013, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -41,6 +41,19 @@ import junit.framework.TestResult;
 public class TestRunner {
     static public TestResult run(Test test) {
         final TestResult result = new TestResult();
+        ResultPrinter resultPrinter = new ResultPrinter(System.out);
+        result.addListener(resultPrinter);
+        test.run(result);
+        if (result.wasSuccessful()) {
+            // nothing to see here; move along
+            System.out.println("All tests suceeded.");
+            System.exit(0);
+        } else {
+            // Print report saying which tests failed
+            System.out.println(resultPrinter.toString());
+            System.out.println("\nSome tests failed.");
+            System.exit(1);
+        }
         test.run(result);
         return result;
     }

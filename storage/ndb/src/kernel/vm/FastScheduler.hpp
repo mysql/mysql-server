@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2003, 2010, Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2003, 2013, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -27,6 +27,9 @@
 #include <GlobalData.hpp>
 #include <TransporterDefinitions.hpp>
 #include <portlib/ndb_prefetch.h>
+
+#define JAM_FILE_ID 244
+
 
 #define MAX_OCCUPANCY 1024
 
@@ -131,8 +134,8 @@ public:
   int traceDumpGetCurrentThread(); // returns -1 if not found
 
   /* Get jam() buffers etc. for specific thread. */
-  bool traceDumpGetJam(Uint32 thr_no, Uint32 & jamBlockNumber,
-                       const Uint32 * & thrdTheEmulatedJam,
+  bool traceDumpGetJam(Uint32 thr_no,
+                       const JamEvent * & thrdTheEmulatedJam,
                        Uint32 & thrdTheEmulatedJamIndex);
   /* Produce a signal dump. */
   void dumpSignalMemory(Uint32 thr_no, FILE * output);
@@ -363,5 +366,8 @@ APZJobBuffer::insert(Signal* signal, BlockNumber bnr,
   register BufferEntry& buf = buffer[myWPtr];
   signal2buffer(signal, bnr, gsn, buf);
 }
+
+
+#undef JAM_FILE_ID
 
 #endif

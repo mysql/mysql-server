@@ -47,6 +47,10 @@ ExpireTime::ExpireTime(workitem *i) :
 }
 
 
+/*  stored_item_has_expired() 
+    If the timestamp is a MySQL 5.6 fractional-second timestamp,
+    only the integer part is considered.
+*/
 bool ExpireTime::stored_item_has_expired(Operation &op) {  
   SERVER_CORE_API * SERVER = item->pipeline->engine->server.core;
   time_t stored_exptime;

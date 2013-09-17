@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2003, 2010, Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2003, 2013, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -20,6 +20,9 @@
 
 #include <Bitmask.hpp>
 #include "SignalData.hpp"
+
+#define JAM_FILE_ID 55
+
 
 struct ListTablesData
 {
@@ -76,6 +79,12 @@ struct ListTablesData
   }
   void setListIndexes(Uint32 val) {
     BitmaskImpl::setField(1, &requestData, 29, 1, val);
+  }
+  Uint32 getListDependent() const {
+    return BitmaskImpl::getField(1, &requestData, 30, 1);
+  }
+  void setListDependent(Uint32 val) {
+    BitmaskImpl::setField(1, &requestData, 30, 1, val);
   }
 };
 
@@ -181,6 +190,12 @@ public:
   void setListIndexes(Uint32 val) {
     data.setListIndexes(val);
   }
+  Uint32 getListDependent() const {
+    return data.getListDependent();
+  }
+  void setListDependent(Uint32 val) {
+    data.setListDependent(val);
+  }
 
 
   /* For backwards compatility */
@@ -277,5 +292,8 @@ public:
     OldListTablesData::setTableTemp(tableData[pos], val);
   }
 };
+
+
+#undef JAM_FILE_ID
 
 #endif
