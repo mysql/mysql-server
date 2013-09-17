@@ -119,30 +119,6 @@ NdbConnection.prototype.connect = function(properties, callback) {
 };
 
 
-NdbConnection.prototype.connectSync = function(properties) {
-  if(this.isConnected) {
-    stats.incr( [ "connect", "join" ] );
-    return true;
-  }
-
-  stats.incr( [ "connect", "sync" ] );
-  var r, nnodes;
-  r = this.ndb_cluster_connection.connect(properties.ndb_connect_retries,
-                                          properties.ndb_connect_delay,
-                                          properties.ndb_connect_verbose);
-  if(r === 0) {
-    stats.incr( [ "connections","successful" ]);
-    nnodes = this.ndb_cluster_connection.wait_until_ready(1, 1);
-    logReadyNodes(this.ndb_cluster_connection, nnodes);
-    if(nnodes >= 0) {
-      this.isConnected = true;
-    }
-  }
-  
-  return this.isConnected;
-};
-
-
 NdbConnection.prototype.getAsyncContext = function() {
   var AsyncNdbContext = adapter.ndb.impl.AsyncNdbContext;
 

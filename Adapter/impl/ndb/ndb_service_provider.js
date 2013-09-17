@@ -80,15 +80,6 @@ function registerDefaultTypeConverters(dbConnectionPool) {
 }
 
 
-exports.connectSync = function(properties) {
-  udebug.log("connectSync");
-  var dbconn = new DBConnectionPool(properties);
-  registerDefaultTypeConverters(dbconn);
-  dbconn.connectSync();
-  return dbconn;
-};
-
-
 exports.connect = function(properties, user_callback) {
   udebug.log("connect");
   var dbconn = new DBConnectionPool(properties);
