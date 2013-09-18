@@ -1,0 +1,2 @@
+show create table t1;
+ERROR 42000: Unknown storage engine 'InnoDB'

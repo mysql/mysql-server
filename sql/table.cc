@@ -890,6 +890,9 @@ static bool create_key_infos(uchar *strpos, uint keys, KEY *keyinfo, uint new_fr
     DBUG_ASSERT(test(keyinfo->flags & HA_USES_COMMENT) == 
                (keyinfo->comment.length > 0));
   }
+
+  share->keys= keys; // do it *after* all key_info's are initialized
+
   return 0;
 }
 
@@ -1020,12 +1023,12 @@ static int open_binary_frm(THD *thd, TABLE_SHARE *share, uchar *head,
     goto err;                                   /* purecov: inspected */
   if (disk_buff[0] & 0x80)
   {
-    share->keys=      keys=      (disk_buff[1] << 7) | (disk_buff[0] & 0x7f);
+    keys=      (disk_buff[1] << 7) | (disk_buff[0] & 0x7f);
     share->key_parts= key_parts= uint2korr(disk_buff+2);
   }
   else
   {
-    share->keys=      keys=      disk_buff[0];
+    keys=      disk_buff[0];
     share->key_parts= key_parts= disk_buff[1];
   }
   share->keys_for_keyread.init(0);
@@ -1283,7 +1286,7 @@ static int open_binary_frm(THD *thd, TABLE_SHARE *share, uchar *head,
                                      share->comment.length);
   }
 
-  DBUG_PRINT("info",("i_count: %d  i_parts: %d  index: %d  n_length: %d  int_length: %d  com_length: %d  vcol_screen_length: %d", interval_count,interval_parts, share->keys,n_length,int_length, com_length, vcol_screen_length));
+  DBUG_PRINT("info",("i_count: %d  i_parts: %d  index: %d  n_length: %d  int_length: %d  com_length: %d  vcol_screen_length: %d", interval_count,interval_parts, keys,n_length,int_length, com_length, vcol_screen_length));
 
 
   if (!(field_ptr = (Field **)
@@ -1671,7 +1674,7 @@ static int open_binary_frm(THD *thd, TABLE_SHARE *share, uchar *head,
       }   
     }
 
-    for (uint key=0 ; key < share->keys ; key++,keyinfo++)
+    for (uint key=0 ; key < keys ; key++,keyinfo++)
     {
       uint usable_parts= 0;
       keyinfo->name=(char*) share->keynames.type_names[key];
@@ -1945,7 +1948,7 @@ static int open_binary_frm(THD *thd, TABLE_SHARE *share, uchar *head,
   {
     reg_field= *share->found_next_number_field;
     if ((int) (share->next_number_index= (uint)
-	       find_ref_key(share->key_info, share->keys,
+	       find_ref_key(share->key_info, keys,
                             share->default_values, reg_field,
 			    &share->next_number_key_offset,
                             &share->next_number_keypart)) < 0)

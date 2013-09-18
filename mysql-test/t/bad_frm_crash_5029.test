@@ -1,0 +1,11 @@
+#
+# MDEV-5029 Crash in MariaDB 5.5.33 with .frm from older MariaDB release
+#
+# a.k.a. fail to open an frm with indexes:
+
+let $datadir=`select @@datadir`;
+copy_file std_data/mdev5029.frm $datadir/test/t1.frm;
+--error ER_UNKNOWN_STORAGE_ENGINE
+show create table t1;
+remove_file $datadir/test/t1.frm;
+
