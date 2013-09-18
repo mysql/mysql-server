@@ -319,10 +319,10 @@ ha_innobase::check_if_supported_inplace_alter(
 	only go through the "Copy" method.*/
 	if ((ha_alter_info->handler_flags
 	     & Alter_inplace_info::ALTER_COLUMN_NULLABLE)) {
-		uint primary_key = altered_table->s->primary_key;
+		const uint my_primary_key = altered_table->s->primary_key;
 
 		/* See if MYSQL table has no pk but we do.*/
-		if (UNIV_UNLIKELY(primary_key >= MAX_KEY)
+		if (UNIV_UNLIKELY(my_primary_key >= MAX_KEY)
 		    && !row_table_got_default_clust_index(prebuilt->table)) {
 			ha_alter_info->unsupported_reason = innobase_get_err_msg(
 				ER_PRIMARY_CANT_HAVE_NULL);

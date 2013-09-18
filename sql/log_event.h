@@ -2991,7 +2991,7 @@ private:
   virtual int do_apply_event(Relay_log_info const *rli);
   virtual int do_apply_event_worker(Slave_worker *rli);
   enum_skip_reason do_shall_skip(Relay_log_info *rli);
-  bool do_commit(THD *thd);
+  bool do_commit(THD *thd_arg);
 #endif
 };
 
@@ -3909,7 +3909,7 @@ public:
   flag_set get_flags(flag_set flag) const { return m_flags & flag; }
 
 #ifdef MYSQL_SERVER
-  Table_map_log_event(THD *thd, TABLE *tbl, const Table_id& tid,
+  Table_map_log_event(THD *thd_arg, TABLE *tbl, const Table_id& tid,
                       bool is_transactional);
 #endif
 #ifdef HAVE_REPLICATION
