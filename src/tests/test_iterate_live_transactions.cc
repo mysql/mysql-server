@@ -91,6 +91,7 @@ PATENT RIGHTS GRANT:
 #include "test.h"
 
 static DB_TXN *txn1, *txn2, *txn3;
+static uint64_t txnid1, txnid2, txnid3;
 
 struct iterate_extra {
     iterate_extra() : n(0) {
@@ -110,15 +111,15 @@ static int iterate_callback(uint64_t txnid, uint64_t client_id,
     DBT left_key, right_key;
     int r = iterate_locks(&db, &left_key, &right_key, locks_extra);
     invariant(r == DB_NOTFOUND);
-    if (txnid == txn1->id64(txn1)) {
+    if (txnid == txnid1) {
         assert(!info->visited_txn[0]);
         invariant(client_id == 0);
         info->visited_txn[0] = true;
-    } else if (txnid == txn2->id64(txn2)) {
+    } else if (txnid == txnid2) {
         assert(!info->visited_txn[1]);
         invariant(client_id == 1);
         info->visited_txn[1] = true;
-    } else if (txnid == txn3->id64(txn3)) {
+    } else if (txnid == txnid3) {
         assert(!info->visited_txn[2]);
         invariant(client_id == 2);
         info->visited_txn[2] = true;
@@ -143,10 +144,13 @@ int test_main(int UU(argc), char *const UU(argv[])) {
 
     r = env->txn_begin(env, NULL, &txn1, 0); CKERR(r);
     txn1->set_client_id(txn1, 0);
+    txnid1 = txn1->id64(txn1);
     r = env->txn_begin(env, NULL, &txn2, 0); CKERR(r);
     txn2->set_client_id(txn2, 1);
+    txnid2 = txn2->id64(txn2);
     r = env->txn_begin(env, NULL, &txn3, 0); CKERR(r);
     txn3->set_client_id(txn3, 2);
+    txnid3 = txn3->id64(txn3);
 
     {
         iterate_extra e;
