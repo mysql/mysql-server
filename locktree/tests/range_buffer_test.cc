@@ -90,6 +90,10 @@ PATENT RIGHTS GRANT:
 
 #include "test.h"
 
+#include <string.h>
+
+#include <toku_include/memory.h>
+
 #include <locktree/range_buffer.h>
 
 namespace toku {
@@ -215,8 +219,8 @@ static void test_small_and_large_points(void) {
     // a subsequent large append.
     const size_t small_size = 32;
     const size_t large_size = 16 * 1024;
-    char *small_buf = toku_xmalloc(small_size);
-    char *large_buf = toku_xmalloc(large_size);
+    char *small_buf = (char *) toku_xmalloc(small_size);
+    char *large_buf = (char *) toku_xmalloc(large_size);
     DBT small_dbt, large_dbt;
     memset(&small_dbt, 0, sizeof(DBT));
     memset(&large_dbt, 0, sizeof(DBT));
@@ -229,7 +233,7 @@ static void test_small_and_large_points(void) {
     buffer.append(&small_dbt, &small_dbt);
     invariant(buffer.m_buf_size >= small_dbt.size);
     // Append a large dbt, the buf should be able to fit it.
-    buffer.append(&small_dbt, &small_dbt);
+    buffer.append(&large_dbt, &large_dbt);
     invariant(buffer.m_buf_size >= (small_dbt.size + large_dbt.size));
 
     toku_free(small_buf);
