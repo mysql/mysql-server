@@ -104,6 +104,10 @@ void locktree::manager::create(lt_create_cb create_cb, lt_destroy_cb destroy_cb,
     m_current_lock_memory = 0;
     m_escalation_count = 0;
     m_escalation_time = 0;
+    m_wait_escalation_count = 0;
+    m_wait_escalation_time = 0;
+    m_long_wait_escalation_count = 0;
+    m_long_wait_escalation_time = 0;
     m_escalation_latest_result = 0;
     m_lock_wait_time_ms = DEFAULT_LOCK_WAIT_TIME;
     m_mem_tracker.set_manager(this);
@@ -350,6 +354,7 @@ int locktree::manager::memory_tracker::check_current_lock_constraints(void) {
     // mutex and check again. if we're still out of locks, run escalation.
     // return an error if we're still out of locks after escalation.
     if (out_of_locks()) {
+        uint64_t t0 = toku_current_time_microsec();
         m_mgr->mutex_lock();
         if (out_of_locks()) {
             m_mgr->run_escalation();
@@ -357,6 +362,8 @@ int locktree::manager::memory_tracker::check_current_lock_constraints(void) {
                 r = TOKUDB_OUT_OF_LOCKS;
             }
         }
+        uint64_t t1 = toku_current_time_microsec();
+        m_mgr->escalation_wait(t1 - t0);
         m_mgr->mutex_unlock();
     }
     return r;
@@ -404,6 +411,15 @@ int locktree::manager::iterate_pending_lock_requests(
     return r;
 }
 
+void locktree::manager::escalation_wait(uint64_t t) {
+    m_wait_escalation_count += 1;
+    m_wait_escalation_time += t;
+    if (t >= 1000000) {
+        m_long_wait_escalation_count += 1;
+        m_long_wait_escalation_time += t;
+    }
+}
+
 #define STATUS_INIT(k,c,t,l,inc) TOKUDB_STATUS_INIT(status, k, c, t, "locktree: " l, inc)
 
 void locktree::manager::status_init(void) {
@@ -420,9 +436,14 @@ void locktree::manager::status_init(void) {
 
     STATUS_INIT(LTM_WAIT_COUNT,               LOCKTREE_WAIT_COUNT, UINT64, "number of wait locks", TOKU_ENGINE_STATUS|TOKU_GLOBAL_STATUS);
     STATUS_INIT(LTM_WAIT_TIME,                LOCKTREE_WAIT_TIME, UINT64, "time waiting for locks", TOKU_ENGINE_STATUS|TOKU_GLOBAL_STATUS);
-    STATUS_INIT(LTM_LONG_WAIT_COUNT,          LOCKTREE_LONG_WAIT_COUNT, UINT64, "number of long wait locks ", TOKU_ENGINE_STATUS|TOKU_GLOBAL_STATUS);
+    STATUS_INIT(LTM_LONG_WAIT_COUNT,          LOCKTREE_LONG_WAIT_COUNT, UINT64, "number of long wait locks", TOKU_ENGINE_STATUS|TOKU_GLOBAL_STATUS);
     STATUS_INIT(LTM_LONG_WAIT_TIME,           LOCKTREE_LONG_WAIT_TIME, UINT64, "long time waiting for locks", TOKU_ENGINE_STATUS|TOKU_GLOBAL_STATUS);
     STATUS_INIT(LTM_TIMEOUT_COUNT,            LOCKTREE_TIMEOUT_COUNT, UINT64, "number of lock timeouts", TOKU_ENGINE_STATUS|TOKU_GLOBAL_STATUS);
+
+    STATUS_INIT(LTM_WAIT_ESCALATION_COUNT,    LOCKTREE_WAIT_ESCALATION_COUNT, UINT64, "number of waits on lock escalation", TOKU_ENGINE_STATUS|TOKU_GLOBAL_STATUS);
+    STATUS_INIT(LTM_WAIT_ESCALATION_TIME,     LOCKTREE_WAIT_ESCALATION_TIME, UINT64, "time waiting on lock escalation", TOKU_ENGINE_STATUS|TOKU_GLOBAL_STATUS);
+    STATUS_INIT(LTM_LONG_WAIT_ESCALATION_COUNT,    LOCKTREE_LONG_WAIT_ESCALATION_COUNT, UINT64, "number of long waits on lock escalation", TOKU_ENGINE_STATUS|TOKU_GLOBAL_STATUS);
+    STATUS_INIT(LTM_LONG_WAIT_ESCALATION_TIME,     LOCKTREE_LONG_WAIT_ESCALATION_TIME, UINT64, "long time waiting on lock escalation", TOKU_ENGINE_STATUS|TOKU_GLOBAL_STATUS);
 
     status.initialized = true;
 }
@@ -441,6 +462,10 @@ void locktree::manager::get_status(LTM_STATUS statp) {
     STATUS_VALUE(LTM_ESCALATION_COUNT) = m_escalation_count;
     STATUS_VALUE(LTM_ESCALATION_TIME) = m_escalation_time;
     STATUS_VALUE(LTM_ESCALATION_LATEST_RESULT) = m_escalation_latest_result;
+    STATUS_VALUE(LTM_WAIT_ESCALATION_COUNT) = m_wait_escalation_count;
+    STATUS_VALUE(LTM_WAIT_ESCALATION_TIME) = m_wait_escalation_time;
+    STATUS_VALUE(LTM_LONG_WAIT_ESCALATION_COUNT) = m_long_wait_escalation_count;
+    STATUS_VALUE(LTM_LONG_WAIT_ESCALATION_TIME) = m_long_wait_escalation_time;    
 
     mutex_lock();
 
