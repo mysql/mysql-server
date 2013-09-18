@@ -110,7 +110,7 @@ extern "C" sig_handler handle_fatal_signal(int sig)
 
   uint max_threads= 1;
 #ifndef EMBEDDED_LIBRARY
-  max_threads= Connection_handler_manager::get_instance()->get_max_threads();
+  max_threads= Connection_handler_manager::max_threads;
 #endif
   my_safe_printf_stderr("max_threads=%u\n", max_threads);
 

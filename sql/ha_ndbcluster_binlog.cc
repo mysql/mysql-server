@@ -6845,9 +6845,7 @@ ndb_binlog_thread_func(void *arg)
 
   pthread_detach_this_thread();
   thd->real_id= pthread_self();
-  mysql_mutex_lock(&LOCK_thread_count);
   add_global_thread(thd);
-  mysql_mutex_unlock(&LOCK_thread_count);
   thd->lex->start_transaction_opt= 0;
 
 
