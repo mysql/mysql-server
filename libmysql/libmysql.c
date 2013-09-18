@@ -1,4 +1,4 @@
-/* Copyright (c) 2000, 2012, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2000, 2013, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -357,10 +357,13 @@ my_bool	STDCALL mysql_change_user(MYSQL *mysql, const char *user,
     DBUG_RETURN(TRUE);
   }
 
-  /* Use an empty string instead of NULL. */
-
-  mysql->user= (char*)(user ? user : "");
-  mysql->passwd= (char*)(passwd ? passwd : "");
+  /*
+    Use an empty string instead of NULL.
+    Alloc user and password on heap because mysql_reconnect()
+    calls mysql_close() on success.
+  */
+  mysql->user= my_strdup(user ? user : "", MYF(MY_WME));
+  mysql->passwd= my_strdup(passwd ? passwd : "", MYF(MY_WME));
   mysql->db= 0;
 
   rc= run_plugin_auth(mysql, 0, 0, 0, db);
@@ -378,12 +381,16 @@ my_bool	STDCALL mysql_change_user(MYSQL *mysql, const char *user,
     my_free(saved_db);
 
     /* alloc new connect information */
-    mysql->user= my_strdup(mysql->user, MYF(MY_WME));
-    mysql->passwd= my_strdup(mysql->passwd, MYF(MY_WME));
     mysql->db= db ? my_strdup(db, MYF(MY_WME)) : 0;
   }
   else
   {
+    /* Free temporary connect information */
+    my_free(mysql->user);
+    my_free(mysql->passwd);
+    my_free(mysql->db);
+
+    /* Restore saved state */
     mysql->charset= saved_cs;
     mysql->user= saved_user;
     mysql->passwd= saved_passwd;
