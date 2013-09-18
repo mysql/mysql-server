@@ -266,11 +266,7 @@ enum THD_NDB_OPTIONS
     In participating mysqld, do not remove stray files
     when dropping tables
   */
-  TNO_NO_REMOVE_STRAY_FILES= 1 << 3,
-  /*
-    Skip Binlog setup when performing find_files()
-  */
-  TNO_NO_BINLOG_SETUP_IN_FIND_FILES= 1 << 4
+  TNO_NO_REMOVE_STRAY_FILES= 1 << 3
 };
 
 enum THD_NDB_TRANS_OPTIONS
@@ -289,6 +285,8 @@ struct Ndb_local_table_statistics {
 
 class Thd_ndb 
 {
+  /* Skip binlog setup in ndbcluster_find_files() */
+  bool m_skip_binlog_setup_in_find_files;
  public:
   Thd_ndb();
   ~Thd_ndb();
@@ -341,6 +339,19 @@ class Thd_ndb
   unsigned m_connect_count;
   bool valid_ndb(void);
   bool recycle_ndb(THD* thd);
+
+  void set_skip_binlog_setup_in_find_files(bool value)
+  {
+    // Only allow toggeling the value
+    assert(m_skip_binlog_setup_in_find_files != value);
+
+    m_skip_binlog_setup_in_find_files = value;
+  }
+
+  bool skip_binlog_setup_in_find_files(void) const
+  {
+    return m_skip_binlog_setup_in_find_files;
+  }
 };
 
 struct st_ndb_status {
