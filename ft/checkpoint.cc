@@ -165,8 +165,8 @@ status_init(void) {
     STATUS_INIT(CP_CLIENT_WAIT_ON_CS,                   nullptr, UINT64,   "non-checkpoint client wait on cs lock", TOKU_ENGINE_STATUS);
 
     STATUS_INIT(CP_BEGIN_TIME,                          nullptr, UINT64,   "checkpoint begin time", TOKU_ENGINE_STATUS);
-    STATUS_INIT(CP_LONG_BEGIN_COUNT,                    nullptr, UINT64,   "long checkpoint begin count", TOKU_ENGINE_STATUS);
-    STATUS_INIT(CP_LONG_BEGIN_TIME,                     nullptr, UINT64,   "long checkpoint begin time", TOKU_ENGINE_STATUS);
+    STATUS_INIT(CP_LONG_BEGIN_COUNT,                    nullptr, UINT64,   "long checkpoint begin count", TOKU_ENGINE_STATUS|TOKU_GLOBAL_STATUS);
+    STATUS_INIT(CP_LONG_BEGIN_TIME,                     nullptr, UINT64,   "long checkpoint begin time", TOKU_ENGINE_STATUS|TOKU_GLOBAL_STATUS);
 
     cp_status.initialized = true;
 }
