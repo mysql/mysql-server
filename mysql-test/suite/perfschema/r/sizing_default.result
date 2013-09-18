@@ -255,4 +255,4 @@ performance_schema	memory_summary_by_host_by_event_name.memory	1600000
 performance_schema	metadata_locks.row_size	512
 performance_schema	metadata_locks.row_count	10000
 performance_schema	metadata_locks.memory	5120000
-performance_schema	performance_schema.memory	461694136
+performance_schema	performance_schema.memory	461953224

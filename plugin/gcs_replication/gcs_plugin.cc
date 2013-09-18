@@ -35,7 +35,7 @@ extern char gcs_replication_boot;
 char *gcs_group_pointer=NULL;
 bool gcs_running= false;
 
-int gcs_before_handle_conncection(Server_state_param *param)
+int gcs_before_handle_connection(Server_state_param *param)
 {
   return 0;
 }
@@ -68,7 +68,7 @@ int gcs_after_server_shutdown(Server_state_param *param)
 Server_state_observer server_state_observer = {
   sizeof(Server_state_observer),
 
-  gcs_before_handle_conncection, //before the client connect the node
+  gcs_before_handle_connection, //before the client connect the node
   gcs_before_recovery,           //before_recovery
   gcs_after_engine_recovery,     //after engine recovery
   gcs_after_recovery,            //after_recovery
