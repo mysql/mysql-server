@@ -146,6 +146,11 @@ status_init(void) {
     STATUS_INIT(CT_CLEANER_EXECUTIONS,     CACHETABLE_CLEANER_EXECUTIONS, UINT64, "cleaner executions", TOKU_ENGINE_STATUS|TOKU_GLOBAL_STATUS);
     STATUS_INIT(CT_CLEANER_PERIOD,         CACHETABLE_CLEANER_PERIOD, UINT64, "cleaner period", TOKU_ENGINE_STATUS|TOKU_GLOBAL_STATUS);
     STATUS_INIT(CT_CLEANER_ITERATIONS,     CACHETABLE_CLEANER_ITERATIONS, UINT64, "cleaner iterations", TOKU_ENGINE_STATUS|TOKU_GLOBAL_STATUS);
+    
+    STATUS_INIT(CT_WAIT_PRESSURE_COUNT,    CACHETABLE_WAIT_PRESSURE_COUNT, UINT64, "number of waits on cache pressure", TOKU_ENGINE_STATUS|TOKU_GLOBAL_STATUS);
+    STATUS_INIT(CT_WAIT_PRESSURE_TIME,    CACHETABLE_WAIT_PRESSURE_COUNT, UINT64, "time waiting on cache pressure", TOKU_ENGINE_STATUS|TOKU_GLOBAL_STATUS);
+    STATUS_INIT(CT_LONG_WAIT_PRESSURE_COUNT,    CACHETABLE_WAIT_PRESSURE_COUNT, UINT64, "number of long waits on cache pressure", TOKU_ENGINE_STATUS|TOKU_GLOBAL_STATUS);
+    STATUS_INIT(CT_LONG_WAIT_PRESSURE_TIME,    CACHETABLE_WAIT_PRESSURE_COUNT, UINT64, "long time waiting on cache pressure", TOKU_ENGINE_STATUS|TOKU_GLOBAL_STATUS);
     ct_status.initialized = true;
 }
 #undef STATUS_INIT
@@ -3652,6 +3657,10 @@ void evictor::init(long _size_limit, pair_list* _pl, KIBBUTZ _kibbutz, uint32_t 
     m_size_leaf = create_partitioned_counter();
     m_size_rollback = create_partitioned_counter();
     m_size_cachepressure = create_partitioned_counter();
+    m_wait_pressure_count = create_partitioned_counter();
+    m_wait_pressure_time = create_partitioned_counter();
+    m_long_wait_pressure_count = create_partitioned_counter();
+    m_long_wait_pressure_time = create_partitioned_counter();
 
     m_pl = _pl;
     m_kibbutz = _kibbutz;    
@@ -3705,6 +3714,11 @@ void evictor::destroy() {
     m_size_rollback = NULL;
     destroy_partitioned_counter(m_size_cachepressure);    
     m_size_cachepressure = NULL;
+
+    destroy_partitioned_counter(m_wait_pressure_count); m_wait_pressure_count = NULL;
+    destroy_partitioned_counter(m_wait_pressure_time); m_wait_pressure_time = NULL;
+    destroy_partitioned_counter(m_long_wait_pressure_count); m_long_wait_pressure_count = NULL;
+    destroy_partitioned_counter(m_long_wait_pressure_time); m_long_wait_pressure_time = NULL;
 
     toku_cond_destroy(&m_flow_control_cond);
     toku_cond_destroy(&m_ev_thread_cond);
@@ -4173,13 +4187,21 @@ void evictor::decrease_size_evicting(long size_evicting_estimate) {
 // size_evicting is number of bytes queued up to be evicted
 //
 void evictor::wait_for_cache_pressure_to_subside() {
+    uint64_t t0 = toku_current_time_microsec();
     toku_mutex_lock(&m_ev_thread_lock);
     m_num_sleepers++;
     this->signal_eviction_thread();
     toku_cond_wait(&m_flow_control_cond, &m_ev_thread_lock);    
     m_num_sleepers--;
     toku_mutex_unlock(&m_ev_thread_lock);
-    
+    uint64_t t1 = toku_current_time_microsec();
+    increment_partitioned_counter(m_wait_pressure_count, 1);
+    uint64_t tdelta = t1 - t0;
+    increment_partitioned_counter(m_wait_pressure_time, tdelta);
+    if (tdelta > 1000000) {
+        increment_partitioned_counter(m_long_wait_pressure_count, 1);
+        increment_partitioned_counter(m_long_wait_pressure_time, tdelta);
+    }
 }
 
 //
@@ -4267,6 +4289,10 @@ void evictor::fill_engine_status() {
     STATUS_VALUE(CT_SIZE_LEAF) = read_partitioned_counter(m_size_leaf);
     STATUS_VALUE(CT_SIZE_ROLLBACK) = read_partitioned_counter(m_size_rollback);
     STATUS_VALUE(CT_SIZE_CACHEPRESSURE) = read_partitioned_counter(m_size_cachepressure);
+    STATUS_VALUE(CT_WAIT_PRESSURE_COUNT) = read_partitioned_counter(m_wait_pressure_count);
+    STATUS_VALUE(CT_WAIT_PRESSURE_TIME) = read_partitioned_counter(m_wait_pressure_time);
+    STATUS_VALUE(CT_LONG_WAIT_PRESSURE_COUNT) = read_partitioned_counter(m_long_wait_pressure_count);
+    STATUS_VALUE(CT_LONG_WAIT_PRESSURE_TIME) = read_partitioned_counter(m_long_wait_pressure_time);
 }
 
 ////////////////////////////////////////////////////////////////////////////////

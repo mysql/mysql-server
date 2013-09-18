@@ -120,6 +120,10 @@ enum {
     LTM_LONG_WAIT_COUNT,
     LTM_LONG_WAIT_TIME,
     LTM_TIMEOUT_COUNT,
+    LTM_WAIT_ESCALATION_COUNT,
+    LTM_WAIT_ESCALATION_TIME,
+    LTM_LONG_WAIT_ESCALATION_COUNT,
+    LTM_LONG_WAIT_ESCALATION_TIME,
     LTM_STATUS_NUM_ROWS // must be last
 };
 
@@ -306,6 +310,8 @@ public:
                                                      void *extra);
         int iterate_pending_lock_requests(lock_request_iterate_callback cb, void *extra);
 
+        void escalation_wait(uint64_t t);
+
     private:
         static const uint64_t DEFAULT_MAX_LOCK_MEMORY = 64L * 1024 * 1024;
         static const uint64_t DEFAULT_LOCK_WAIT_TIME = 0;
@@ -319,6 +325,10 @@ public:
         uint64_t m_escalation_count;
         tokutime_t m_escalation_time;
         uint64_t m_escalation_latest_result;
+        uint64_t m_wait_escalation_count;
+        uint64_t m_wait_escalation_time;
+        uint64_t m_long_wait_escalation_count;
+        uint64_t m_long_wait_escalation_time;
 
         struct lt_counters m_lt_counters;
 
