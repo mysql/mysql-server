@@ -1208,8 +1208,7 @@ static void clean_away_stray_files(THD *thd)
     DBUG_PRINT("info", ("Found database %s", db_name->str));
     if (strcmp(NDB_REP_DB, db_name->str)) /* Skip system database */
     {
-      Thd_ndb *thd_ndb= get_thd_ndb(thd);
-      uint32 old_trans_options= thd_ndb->trans_options;
+
       sql_print_information("NDB: Cleaning stray tables from database '%s'",
                             db_name->str);
       build_table_filename(path, sizeof(path) - 1, db_name->str, "", "", 0);
@@ -1218,14 +1217,15 @@ static void clean_away_stray_files(THD *thd)
        * right now we just want to get rid of stray frms et al
        */
 
-      thd_ndb->trans_options|= TNTO_NO_BINLOG_SETUP_IN_FIND_FILES;
+      Thd_ndb *thd_ndb= get_thd_ndb(thd);
+      thd_ndb->set_skip_binlog_setup_in_find_files(true);
       if (find_files(thd, &tab_names, db_name->str, path, NullS, 0)
           != FIND_FILES_OK)
       {
         thd->clear_error();
         DBUG_PRINT("info", ("Failed to find tables"));
       }
-      thd_ndb->trans_options= old_trans_options;
+      thd_ndb->set_skip_binlog_setup_in_find_files(false);
     }
   }
   DBUG_VOID_RETURN;
