@@ -213,9 +213,7 @@ pthread_handler_t handle_connection(void *arg)
     mysql_thread_set_psi_id(thd->thread_id);
     mysql_socket_set_thread_owner(thd->net.vio->mysql_socket);
 
-    mysql_mutex_lock(&LOCK_thread_count);
     add_global_thread(thd);
-    mysql_mutex_unlock(&LOCK_thread_count);
 
     if (thd_prepare_connection(thd))
       inc_aborted_connects();
@@ -356,20 +354,12 @@ void Per_thread_connection_handler::remove_connection(THD* thd)
 {
   thd->get_stmt_da()->reset_diagnostics_area();
   thd->release_resources();
-  mysql_mutex_lock(&LOCK_thread_count);
-
-  /*
-    Used by binlog_reset_master.  It would be cleaner to use
-    DEBUG_SYNC here, but that's not possible because the THD's debug
-    sync feature has been shut down at this point.
-  */
-  DBUG_EXECUTE_IF("sleep_after_lock_thread_count_before_delete_thd", sleep(5););
-  remove_global_thread(thd);
 
   // Clean up errors now, before possibly waiting for a new connection.
   ERR_remove_state(0);
 
-  mysql_mutex_unlock(&LOCK_thread_count);
+  remove_global_thread(thd);
+
   delete thd;
 }
 

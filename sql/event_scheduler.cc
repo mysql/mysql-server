@@ -146,9 +146,7 @@ post_init_event_thread(THD *thd)
   }
 
   inc_thread_running();
-  mysql_mutex_lock(&LOCK_thread_count);
   add_global_thread(thd);
-  mysql_mutex_unlock(&LOCK_thread_count);
   return FALSE;
 }
 
@@ -171,9 +169,7 @@ deinit_event_thread(THD *thd)
 
   dec_thread_running();
   thd->release_resources();
-  mysql_mutex_lock(&LOCK_thread_count);
   remove_global_thread(thd);
-  mysql_mutex_unlock(&LOCK_thread_count);
   delete thd;
 }
 
