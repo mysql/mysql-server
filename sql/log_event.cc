@@ -2942,7 +2942,7 @@ Slave_worker *Log_event::get_slave_worker(Relay_log_info *rli)
   Slave_worker *ret_worker= NULL;
   char llbuff[22];
 #ifndef DBUG_OFF
-  THD *thd= rli->info_thd;
+  THD *rli_thd= rli->info_thd;
 #endif
   Slave_committed_queue *gaq= rli->gaq;
   DBUG_ENTER("Log_event::get_slave_worker");
@@ -3114,7 +3114,7 @@ Slave_worker *Log_event::get_slave_worker(Relay_log_info *rli)
         DBUG_RETURN(ret_worker);
       }
       // all temporary tables are transferred from Coordinator in over-max case
-      DBUG_ASSERT(num_dbs != OVER_MAX_DBS_IN_EVENT_MTS || !thd->temporary_tables);
+      DBUG_ASSERT(num_dbs != OVER_MAX_DBS_IN_EVENT_MTS || !rli_thd->temporary_tables);
       DBUG_ASSERT(!strcmp(mts_assigned_partitions[i]->db, *ref_cur_db));
       DBUG_ASSERT(ret_worker == mts_assigned_partitions[i]->worker);
       DBUG_ASSERT(mts_assigned_partitions[i]->usage >= 0);
@@ -3280,7 +3280,7 @@ int Log_event::apply_event(Relay_log_info *rli)
   DBUG_ENTER("LOG_EVENT:apply_event");
   bool parallel= FALSE;
   enum enum_mts_event_exec_mode actual_exec_mode= EVENT_EXEC_PARALLEL;
-  THD *thd= rli->info_thd;
+  THD *rli_thd= rli->info_thd;
 
   worker= rli;
 
@@ -3412,7 +3412,7 @@ int Log_event::apply_event(Relay_log_info *rli)
 #endif
 
 err:
-  if (thd->is_error())
+  if (rli_thd->is_error())
   {
     DBUG_ASSERT(!worker);
 
@@ -3435,7 +3435,7 @@ err:
     DBUG_ASSERT(worker || rli->curr_group_assigned_parts.elements == 0);
   }
 
-  DBUG_RETURN((!thd->is_error() ||
+  DBUG_RETURN((!rli_thd->is_error() ||
                DBUG_EVALUATE_IF("fault_injection_get_slave_worker", 1, 0)) ?
               0 : -1);
 }
@@ -3460,20 +3460,20 @@ err:
 int Query_log_event::pack_info(Protocol *protocol)
 {
   // TODO: show the catalog ??
-  String temp_buf;
+  String str_buf;
   // Add use `DB` to the string if required
   if (!(flags & LOG_EVENT_SUPPRESS_USE_F)
       && db && db_len)
   {
-    temp_buf.append("use ");
-    append_identifier(this->thd, &temp_buf, db, db_len);
-    temp_buf.append("; ");
+    str_buf.append("use ");
+    append_identifier(this->thd, &str_buf, db, db_len);
+    str_buf.append("; ");
   }
   // Add the query to the string
   if (query && q_len)
-    temp_buf.append(query);
+    str_buf.append(query);
  // persist the buffer in protocol
-  protocol->store(temp_buf.ptr(), temp_buf.length(), &my_charset_bin);
+  protocol->store(str_buf.ptr(), str_buf.length(), &my_charset_bin);
   return 0;
 }
 #endif
@@ -3654,31 +3654,31 @@ bool Query_log_event::write(IO_CACHE* file)
 
   if (thd && thd->need_binlog_invoker())
   {
-    LEX_STRING user;
-    LEX_STRING host;
-    memset(&user, 0, sizeof(user));
-    memset(&host, 0, sizeof(host));
+    LEX_STRING invoker_user;
+    LEX_STRING invoker_host;
+    memset(&invoker_user, 0, sizeof(invoker_user));
+    memset(&invoker_host, 0, sizeof(invoker_host));
 
     if (thd->slave_thread && thd->has_invoker())
     {
       /* user will be null, if master is older than this patch */
-      user= thd->get_invoker_user();
-      host= thd->get_invoker_host();
+      invoker_user= thd->get_invoker_user();
+      invoker_host= thd->get_invoker_host();
     }
     else if (thd->security_ctx->priv_user)
     {
       Security_context *ctx= thd->security_ctx;
 
-      user.length= strlen(ctx->priv_user);
-      user.str= ctx->priv_user;
+      invoker_user.length= strlen(ctx->priv_user);
+      invoker_user.str= ctx->priv_user;
       if (ctx->priv_host[0] != '\0')
       {
-        host.str= ctx->priv_host;
-        host.length= strlen(ctx->priv_host);
+        invoker_host.str= ctx->priv_host;
+        invoker_host.length= strlen(ctx->priv_host);
       }
     }
 
-    if (user.length > 0)
+    if (invoker_user.length > 0)
     {
       *start++= Q_INVOKER;
 
@@ -3686,17 +3686,17 @@ bool Query_log_event::write(IO_CACHE* file)
         Store user length and user. The max length of use is 16, so 1 byte is
         enough to store the user's length.
        */
-      *start++= (uchar)user.length;
-      memcpy(start, user.str, user.length);
-      start+= user.length;
+      *start++= (uchar)invoker_user.length;
+      memcpy(start, invoker_user.str, invoker_user.length);
+      start+= invoker_user.length;
 
       /*
         Store host length and host. The max length of host is 60, so 1 byte is
         enough to store the host's length.
        */
-      *start++= (uchar)host.length;
-      memcpy(start, host.str, host.length);
-      start+= host.length;
+      *start++= (uchar)invoker_host.length;
+      memcpy(start, invoker_host.str, invoker_host.length);
+      start+= invoker_host.length;
     }
   }
 
@@ -4713,13 +4713,13 @@ void Query_log_event::print(FILE* file, PRINT_EVENT_INFO* print_event_info)
 /**
    Associating slave Worker thread to a subset of temporary tables.
 
-   @param thd   THD instance pointer
-   @param rli   Relay_log_info of the worker
+   @param thd_arg THD instance pointer
+   @param rli     Relay_log_info of the worker
 */
-void Query_log_event::attach_temp_tables_worker(THD *thd,
+void Query_log_event::attach_temp_tables_worker(THD *thd_arg,
                                                 const Relay_log_info* rli)
 {
-  rli->current_mts_submode->attach_temp_tables(thd, rli, this);
+  rli->current_mts_submode->attach_temp_tables(thd_arg, rli, this);
 }
 
 /**
@@ -4727,13 +4727,13 @@ void Query_log_event::attach_temp_tables_worker(THD *thd,
    to possibly update the involved entries of db-to-worker hash
    with new values of temporary_tables.
 
-   @param thd   THD instance pointer
-   @param rli   relay log info of the worker thread
+   @param thd_arg THD instance pointer
+   @param rli     relay log info of the worker thread
 */
-void Query_log_event::detach_temp_tables_worker(THD *thd,
+void Query_log_event::detach_temp_tables_worker(THD *thd_arg,
                                                 const Relay_log_info *rli)
 {
-  rli->current_mts_submode->detach_temp_tables(thd, rli, this);
+  rli->current_mts_submode->detach_temp_tables(thd_arg, rli, this);
 }
 
 /*
@@ -6418,7 +6418,7 @@ void Load_log_event::print(FILE* file_arg, PRINT_EVENT_INFO* print_event_info,
 {
   IO_CACHE *const head= &print_event_info->head_cache;
   size_t id_len= 0;
-  char temp_buf[1 + 2*FN_REFLEN + 2];
+  char str_buf[1 + 2*FN_REFLEN + 2];
 
   DBUG_ENTER("Load_log_event::print");
   if (!print_event_info->short_form)
@@ -6445,13 +6445,13 @@ void Load_log_event::print(FILE* file_arg, PRINT_EVENT_INFO* print_event_info,
   if (db && db[0] && different_db)
   {
 #ifdef MYSQL_SERVER
-    id_len= my_strmov_quoted_identifier(this->thd, temp_buf, db, 0);
+    id_len= my_strmov_quoted_identifier(this->thd, str_buf, db, 0);
 #else
-    id_len= my_strmov_quoted_identifier(temp_buf, db);
+    id_len= my_strmov_quoted_identifier(str_buf, db);
 #endif
-    temp_buf[id_len]= '\0';
+    str_buf[id_len]= '\0';
     my_b_printf(head, "%suse %s%s\n",
-                commented ? "# " : "", temp_buf, print_event_info->delimiter);
+                commented ? "# " : "", str_buf, print_event_info->delimiter);
   }
   if (flags & LOG_EVENT_THREAD_SPECIFIC_F)
     my_b_printf(head,"%sSET @@session.pseudo_thread_id=%lu%s\n",
@@ -6469,12 +6469,12 @@ void Load_log_event::print(FILE* file_arg, PRINT_EVENT_INFO* print_event_info,
     my_b_printf(head,"IGNORE ");
 
 #ifdef MYSQL_SERVER
-    id_len= my_strmov_quoted_identifier(this->thd, temp_buf, table_name, 0);
+    id_len= my_strmov_quoted_identifier(this->thd, str_buf, table_name, 0);
 #else
-    id_len= my_strmov_quoted_identifier(temp_buf, table_name);
+    id_len= my_strmov_quoted_identifier(str_buf, table_name);
 #endif
-  temp_buf[id_len]= '\0';
-  my_b_printf(head, "INTO TABLE %s", temp_buf);
+  str_buf[id_len]= '\0';
+  my_b_printf(head, "INTO TABLE %s", str_buf);
 
   my_b_printf(head, " FIELDS TERMINATED BY ");
   pretty_print_str(head, sql_ex.field_term, sql_ex.field_term_len);
@@ -6508,9 +6508,9 @@ void Load_log_event::print(FILE* file_arg, PRINT_EVENT_INFO* print_event_info,
     {
       if (i)
         my_b_printf(head, ",");
-      id_len= my_strmov_quoted_identifier((char *) temp_buf, field);
-      temp_buf[id_len]= '\0';
-      my_b_printf(head, "%s", temp_buf);
+      id_len= my_strmov_quoted_identifier((char *) str_buf, field);
+      str_buf[id_len]= '\0';
+      my_b_printf(head, "%s", str_buf);
 
       field += field_lens[i]  + 1;
     }
@@ -7464,31 +7464,31 @@ void Xid_log_event::print(FILE* file, PRINT_EVENT_INFO* print_event_info)
    The methods combines few commit actions to make it useable
    as in the single- so multi- threaded case.
 
-   @param  thd    a pointer to THD handle
+   @param  thd_arg a pointer to THD handle
    @return false  as success and
            true   as an error 
 */
 
-bool Xid_log_event::do_commit(THD *thd)
+bool Xid_log_event::do_commit(THD *thd_arg)
 {
-  bool error= trans_commit(thd); /* Automatically rolls back on error. */
+  bool error= trans_commit(thd_arg); /* Automatically rolls back on error. */
   DBUG_EXECUTE_IF("crash_after_apply", 
                   sql_print_information("Crashing crash_after_apply.");
                   DBUG_SUICIDE(););
-  thd->mdl_context.release_transactional_locks();
+  thd_arg->mdl_context.release_transactional_locks();
 
-  if (thd->variables.gtid_next.type == GTID_GROUP &&
-      thd->owned_gtid.sidno != 0)
+  if (thd_arg->variables.gtid_next.type == GTID_GROUP &&
+      thd_arg->owned_gtid.sidno != 0)
   {
     // GTID logging and cleanup runs regardless of the current res
-    error |= gtid_empty_group_log_and_cleanup(thd);
+    error |= gtid_empty_group_log_and_cleanup(thd_arg);
   }
 
   /*
     Increment the global status commit count variable
   */
   if (!error)
-    thd->status_var.com_stat[SQLCOM_COMMIT]++;
+    thd_arg->status_var.com_stat[SQLCOM_COMMIT]++;
 
   return error;
 }
@@ -11889,10 +11889,10 @@ int Table_map_log_event::save_field_metadata()
   (tbl->s->db etc) and not pointer content.
  */
 #if !defined(MYSQL_CLIENT)
-Table_map_log_event::Table_map_log_event(THD *thd, TABLE *tbl,
+Table_map_log_event::Table_map_log_event(THD *thd_arg, TABLE *tbl,
                                          const Table_id& tid,
                                          bool using_trans)
-  : Log_event(thd, 0,
+  : Log_event(thd_arg, 0,
               using_trans ? Log_event::EVENT_TRANSACTIONAL_CACHE :
                             Log_event::EVENT_STMT_CACHE,
               Log_event::EVENT_NORMAL_LOGGING),
@@ -11984,11 +11984,11 @@ Table_map_log_event::Table_map_log_event(THD *thd, TABLE *tbl,
     Unlike Query_log_event where this fact is encoded through 
     the accessed db list in the Table_map case m_flags is exploited.
   */
-  uchar dbs= thd->get_binlog_accessed_db_names() ?
-    thd->get_binlog_accessed_db_names()->elements : 0;
+  uchar dbs= thd_arg->get_binlog_accessed_db_names() ?
+    thd_arg->get_binlog_accessed_db_names()->elements : 0;
   if (dbs == 1)
   {
-    char *db_name= thd->get_binlog_accessed_db_names()->head();
+    char *db_name= thd_arg->get_binlog_accessed_db_names()->head();
     if (!strcmp(db_name, ""))
       m_flags |= TM_REFERRED_FK_DB_F;
   }
@@ -13645,10 +13645,10 @@ int Gtid_log_event::do_apply_event(Relay_log_info const *rli)
     performance_schema.replication_execute_status_by_worker
     to show the GTID of last transaction picked up by this worker thread.
   */
-  const Slave_worker* worker;
-  worker= dynamic_cast<const Slave_worker* >(rli);
+  const Slave_worker* my_worker;
+  my_worker= dynamic_cast<const Slave_worker* >(rli);
   if (is_mts_worker(thd))
-    worker->currently_executing_gtid= thd->variables.gtid_next.gtid;
+    my_worker->currently_executing_gtid= thd->variables.gtid_next.gtid;
   DBUG_PRINT("info", ("setting gtid_next=%d:%lld",
                       sidno, spec.gtid.gno));
 
