@@ -161,8 +161,16 @@ foreach my $node (@nodes)
     print "\n\n Copying data from node $node".
 	(($config_get_fs)?" with filesystem":"").
 	"\n\n";
-    scp(config($node,'host'),
-	config($node,'datadir')."/ndb_".$node."* ",
+    
+    my $from_path = "ndb_$node*"; # Copy everything starting with ndb_<nodeid>
+    my $datadir = config($node,'datadir');
+    if ($datadir)
+    {
+      # Prepend datadir
+      $from_path = "$datadir/$from_path";
+    }
+
+    scp(config($node,'host'), $from_path,  
 	"$reportdir/", $config_get_fs);
 
     # Extract cluster log name from LogDestination(if any)
