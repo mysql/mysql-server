@@ -205,11 +205,44 @@ static void test_mixed(void) {
     buffer.destroy();
 }
 
+static void test_small_and_large_points(void) {
+    range_buffer buffer;
+    buffer.create();
+    buffer.destroy();
+
+    // Test a bug where a small append would cause
+    // the range buffer to not grow properly for
+    // a subsequent large append.
+    const size_t small_size = 32;
+    const size_t large_size = 16 * 1024;
+    char *small_buf = toku_xmalloc(small_size);
+    char *large_buf = toku_xmalloc(large_size);
+    DBT small_dbt, large_dbt;
+    memset(&small_dbt, 0, sizeof(DBT));
+    memset(&large_dbt, 0, sizeof(DBT));
+    small_dbt.data = small_buf;
+    small_dbt.size = small_size;
+    large_dbt.data = large_buf;
+    large_dbt.size = large_size;
+
+    // Append a small dbt, the buf should be able to fit it.
+    buffer.append(&small_dbt, &small_dbt);
+    invariant(buffer.m_buf_size >= small_dbt.size);
+    // Append a large dbt, the buf should be able to fit it.
+    buffer.append(&small_dbt, &small_dbt);
+    invariant(buffer.m_buf_size >= (small_dbt.size + large_dbt.size));
+
+    toku_free(small_buf);
+    toku_free(large_buf);
+    buffer.destroy();
+}
+
 } /* namespace toku */
 
 int main(void) {
     toku::test_points();
     toku::test_ranges();
     toku::test_mixed();
+    toku::test_small_and_large_points();
     return 0;
 }
