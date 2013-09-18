@@ -265,7 +265,7 @@ JOIN::optimize()
   }
 
 #ifdef WITH_PARTITION_STORAGE_ENGINE
-  if (select_lex->partitioned_table_count && prune_table_partitions(thd))
+  if (select_lex->partitioned_table_count && prune_table_partitions())
   {
     error= 1;
     DBUG_PRINT("error", ("Error from prune_partitions"));
@@ -1071,11 +1071,10 @@ void JOIN::set_plan_state(enum_plan_state plan_state_arg)
 
   Requires that tables have been locked.
 
-  @param thd Thread pointer
-
   @returns false if success, true if error
 */
-bool JOIN::prune_table_partitions(THD *thd)
+
+bool JOIN::prune_table_partitions()
 {
   DBUG_ASSERT(select_lex->partitioned_table_count);
 

@@ -3122,7 +3122,7 @@ bool MYSQL_BIN_LOG::find_first_log_not_in_gtid_set(char *binlog_file_name,
   int error;
 
   list<string>::reverse_iterator rit;
-  Gtid_set previous_gtid_set(gtid_set->get_sid_map());
+  Gtid_set binlog_previous_gtid_set(gtid_set->get_sid_map());
 
   mysql_mutex_lock(&LOCK_index);
   for (error= find_log_pos(&linfo, NULL, false/*need_lock_index=false*/);
@@ -3167,7 +3167,7 @@ bool MYSQL_BIN_LOG::find_first_log_not_in_gtid_set(char *binlog_file_name,
     const char *filename= rit->c_str();
     DBUG_PRINT("info", ("Read Previous_gtids_log_event from filename='%s'",
                         filename));
-    switch (read_gtids_from_binlog(filename, NULL, &previous_gtid_set,
+    switch (read_gtids_from_binlog(filename, NULL, &binlog_previous_gtid_set,
                                    opt_master_verify_checksum))
     {
     case ERROR:
@@ -3184,7 +3184,7 @@ bool MYSQL_BIN_LOG::find_first_log_not_in_gtid_set(char *binlog_file_name,
       goto end;
     case GOT_GTIDS:
     case GOT_PREVIOUS_GTIDS:
-      if (previous_gtid_set.is_subset(gtid_set))
+      if (binlog_previous_gtid_set.is_subset(gtid_set))
       {
         strcpy(binlog_file_name, filename);
         /*
@@ -3198,7 +3198,7 @@ bool MYSQL_BIN_LOG::find_first_log_not_in_gtid_set(char *binlog_file_name,
     case TRUNCATED:
       break;
     }
-    previous_gtid_set.clear();
+    binlog_previous_gtid_set.clear();
 
     rit++;
   }
