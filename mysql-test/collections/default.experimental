@@ -15,4 +15,3 @@ rpl.rpl_innodb_bug28430                  # Bug#11754425
 rpl.rpl_show_slave_running               # BUG#12346048 2011-04-11 sven fails sporadically on pb2
 rpl.rpl_gtid_logs_without_rotate_or_stop_event @windows    # Bug#16207800 2013-02-09 anitha Fails very frequently on windows
 i_perfschema.truncate_stress                    # BUG#17267760 2013-08-09 Tanjot Failing frequently on PB2
-parts.partition_basic_symlink_myisam                    # BUG#16453203 2013-08-13 Akhila Failing frequently on PB2
