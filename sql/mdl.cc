@@ -25,6 +25,7 @@
 #include <mysql/psi/mysql_mdl.h>
 #include <pfs_stage_provider.h>
 #include <mysql/psi/mysql_stage.h>
+#include <my_murmur3.h>
 
 static PSI_memory_key key_memory_MDL_context_acquire_locks;
 
@@ -730,13 +731,33 @@ void MDL_map::init()
 }
 
 
+/**
+  Adapter function which allows to use murmur3 with our HASH implementation.
+*/
+
+extern "C" my_hash_value_type murmur3_adapter(const HASH*, const uchar *key,
+                                              size_t length)
+{
+  return murmur3_32(key, length, 0);
+}
+
+
 /** Initialize the partition in the container with all MDL locks. */
 
 MDL_map_partition::MDL_map_partition()
 {
   mysql_mutex_init(key_MDL_map_mutex, &m_mutex, NULL);
-  my_hash_init(&m_locks, &my_charset_bin, 16 /* FIXME */, 0, 0,
-               mdl_locks_key, 0, 0);
+  /*
+    Lower bits of values produced by hash function which is used in 'm_locks'
+    HASH container are also to select specific MDL_map_partition instance.
+    This means that this hash function needs to hash key value in such
+    a way that lower bits in result are sufficiently random. Since standard
+    hash function from 'my_charset_bin' doesn't satisfy this criteria we use
+    MurmurHash3 instead.
+  */
+  my_hash_init3(&m_locks, 0, &my_charset_bin, murmur3_adapter,
+                16 /* FIXME */, 0, 0, mdl_locks_key,
+                0, 0);
 };
 
 
