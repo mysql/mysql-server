@@ -1093,7 +1093,10 @@ static int open_binary_frm(THD *thd, TABLE_SHARE *share, uchar *head,
                 plugin_data(tmp_plugin, handlerton *)))
         {
           /* bad file, legacy_db_type did not match the name */
-          goto err;
+          sql_print_warning("%s.frm is inconsistent: engine typecode %d, engine name %s (%d)",
+                        share->normalized_path.str, legacy_db_type,
+                        plugin_name(tmp_plugin)->str,
+                        ha_legacy_type(plugin_data(tmp_plugin, handlerton *)));
         }
         /*
           tmp_plugin is locked with a local lock.
