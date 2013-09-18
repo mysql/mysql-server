@@ -81,17 +81,17 @@ Running ndb_error_reporter with username
 
  Copying data from node 2
 
-scp  -p  mysql@10.255.255.1:./ndb_2*  ndb_error_report_x/
+scp  -p  mysql@10.255.255.1:./ndb_2* ndb_error_report_x/
 
 
  Copying data from node 4
 
-scp  -p  mysql@10.255.255.1:./ndb_4*  ndb_error_report_x/
+scp  -p  mysql@10.255.255.1:./ndb_4* ndb_error_report_x/
 
 
  Copying data from node 1
 
-scp  -p  mysql@10.255.255.1:/ndb_1*  ndb_error_report_x/
+scp  -p  mysql@10.255.255.1:ndb_1* ndb_error_report_x/
 
 
  Copying configuration file...
@@ -108,17 +108,17 @@ Running ndb_error_reporter with filesystem
 
  Copying data from node 2 with filesystem
 
-scp  -p  -r  10.255.255.1:./ndb_2*  ndb_error_report_x/
+scp  -p  -r  10.255.255.1:./ndb_2* ndb_error_report_x/
 
 
  Copying data from node 4 with filesystem
 
-scp  -p  -r  10.255.255.1:./ndb_4*  ndb_error_report_x/
+scp  -p  -r  10.255.255.1:./ndb_4* ndb_error_report_x/
 
 
  Copying data from node 1 with filesystem
 
-scp  -p  -r  10.255.255.1:/ndb_1*  ndb_error_report_x/
+scp  -p  -r  10.255.255.1:ndb_1* ndb_error_report_x/
 
 
  Copying configuration file...
@@ -135,17 +135,17 @@ Running ndb_error_reporter with connection timeout
 
  Copying data from node 2
 
-scp  -p  -o ConnectTimeout=1  10.255.255.1:./ndb_2*  ndb_error_report_x/
+scp  -p  -o ConnectTimeout=1  10.255.255.1:./ndb_2* ndb_error_report_x/
 
 
  Copying data from node 4
 
-scp  -p  -o ConnectTimeout=1  10.255.255.1:./ndb_4*  ndb_error_report_x/
+scp  -p  -o ConnectTimeout=1  10.255.255.1:./ndb_4* ndb_error_report_x/
 
 
  Copying data from node 1
 
-scp  -p  -o ConnectTimeout=1  10.255.255.1:/ndb_1*  ndb_error_report_x/
+scp  -p  -o ConnectTimeout=1  10.255.255.1:ndb_1* ndb_error_report_x/
 
 
  Copying configuration file...
@@ -164,12 +164,12 @@ Running ndb_error_reporter to skip one data node
 
  Copying data from node 4
 
-scp  -p  10.255.255.1:./ndb_4*  ndb_error_report_x/
+scp  -p  10.255.255.1:./ndb_4* ndb_error_report_x/
 
 
  Copying data from node 1
 
-scp  -p  10.255.255.1:/ndb_1*  ndb_error_report_x/
+scp  -p  10.255.255.1:ndb_1* ndb_error_report_x/
 
 
  Copying configuration file...
@@ -190,7 +190,7 @@ Running ndb_error_reporter to skip both data nodes
 
  Copying data from node 1
 
-scp  -p  10.255.255.1:/ndb_1*  ndb_error_report_x/
+scp  -p  10.255.255.1:ndb_1* ndb_error_report_x/
 
 
  Copying configuration file...
@@ -207,14 +207,14 @@ Running ndb_error_reporter with all options used
 
  Copying data from node 2 with filesystem
 
-scp  -p  -o ConnectTimeout=1  -r  mysql@10.255.255.1:./ndb_2*  ndb_error_report_x/
+scp  -p  -o ConnectTimeout=1  -r  mysql@10.255.255.1:./ndb_2* ndb_error_report_x/
 
 
  Node 4 belongs to nodegroup 0: skipping.
 
  Copying data from node 1 with filesystem
 
-scp  -p  -o ConnectTimeout=1  -r  mysql@10.255.255.1:/ndb_1*  ndb_error_report_x/
+scp  -p  -o ConnectTimeout=1  -r  mysql@10.255.255.1:ndb_1* ndb_error_report_x/
 
 
  Copying configuration file...
