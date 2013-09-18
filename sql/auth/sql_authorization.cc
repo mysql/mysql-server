@@ -1391,7 +1391,12 @@ int mysql_table_grant(THD *thd, TABLE_LIST *table_list,
   if (result)
   {
     if (is_partial_execution)
-      mysql_bin_log.write_incident(thd, true /* need_lock_log=true */);
+    {
+      const char* err_msg= "REVOKE/GRANT failed while storing table level "
+                           "and column level grants in the privilege tables.";
+      mysql_bin_log.write_incident(thd, true /* need_lock_log=true */,
+                                   err_msg);
+    }
     else
       sql_print_warning("Did not write failed '%s' into binary log while "
                         "storing table level and column level grants in "
@@ -1600,7 +1605,12 @@ bool mysql_routine_grant(THD *thd, TABLE_LIST *table_list, bool is_proc,
     if (result)
     {
       if (is_partial_execution)
-        mysql_bin_log.write_incident(thd, true /* need_lock_log=true */);
+      {
+        const char* err_msg= "REVOKE/GRANT failed while storing routine "
+                             "level grants in the privilege tables.";
+        mysql_bin_log.write_incident(thd, true /* need_lock_log=true */,
+                                     err_msg);
+      }
       else
         sql_print_warning("Did not write failed '%s' into binary log while "
                           "storing routine level grants in the privilege "
@@ -1815,7 +1825,12 @@ bool mysql_grant(THD *thd, const char *db, List <LEX_USER> &list,
   if (result)
   {
     if (is_partial_execution)
-      mysql_bin_log.write_incident(thd, true /* need_lock_log=true */);
+    {
+      const char* err_msg= "REVOKE/GRANT failed while granting/revoking "
+                           "privileges in databases.";
+      mysql_bin_log.write_incident(thd, true /* need_lock_log=true */,
+                                   err_msg);
+    }
     else
       sql_print_warning("Did not write failed '%s' into binary log while "
                         "granting/revoking privileges in databases.",
@@ -3297,7 +3312,12 @@ bool mysql_revoke_all(THD *thd,  List <LEX_USER> &list)
   if (result)
   {
     if (is_partial_execution)
-      mysql_bin_log.write_incident(thd, true /* need_lock_log=true */);
+    {
+      const char* err_msg= "REVOKE failed while revoking all_privileges "
+                           "from a list of users.";
+      mysql_bin_log.write_incident(thd, true /* need_lock_log=true */,
+                                   err_msg);
+    }
     else
       sql_print_warning("Did not write failed '%s' into binary log while "
                         "revoking all_privileges from a list of users.",

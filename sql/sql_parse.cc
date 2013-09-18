@@ -3290,7 +3290,11 @@ end_with_restore_list:
       if (incident)
       {
         Incident_log_event ev(thd, incident);
-        if (mysql_bin_log.write_incident(&ev, true/*need_lock_log=true*/))
+        const char* err_msg= "Generate an incident log event before "
+                             "writing the real event to the binary "
+                             "log for testing purposes.";
+        if (mysql_bin_log.write_incident(&ev, true/*need_lock_log=true*/,
+                                         err_msg))
         {
           res= 1;
           break;
