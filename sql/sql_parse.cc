@@ -815,10 +815,8 @@ void do_handle_bootstrap(THD *thd)
     goto end;
   }
 
-  mysql_mutex_lock(&LOCK_thread_count);
   thd_added= true;
   add_global_thread(thd);
-  mysql_mutex_unlock(&LOCK_thread_count);
 
   handle_bootstrap_impl(thd);
 
@@ -827,11 +825,8 @@ end:
   thd->release_resources();
 
   if (thd_added)
-  {
-    mysql_mutex_lock(&LOCK_thread_count);
     remove_global_thread(thd);
-    mysql_mutex_unlock(&LOCK_thread_count);
-  }
+
   /*
     For safety we delete the thd before signalling that bootstrap is done,
     since the server will be taken down immediately.
