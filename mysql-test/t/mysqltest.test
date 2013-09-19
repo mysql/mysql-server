@@ -2968,3 +2968,6 @@ disconnect $y;
 connection default;
 # Wait till we reached the initial number of concurrent sessions
 --source include/wait_until_count_sessions.inc
+
+# To test \r\n in cat_file
+--cat_file std_data/cat_file.txt

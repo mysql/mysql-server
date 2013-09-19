@@ -1,4 +1,4 @@
-/* Copyright (c) 2012, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2012, 2013, Oracle and/or its affiliates. All rights reserved.
 
   This program is free software; you can redistribute it and/or modify
   it under the terms of the GNU General Public License as published by
@@ -334,6 +334,11 @@ static void apply_heuristic(PFS_global_param *p, PFS_sizing_data *h)
 
     p->m_thread_sizing= apply_load_factor(count, h->m_load_factor_volatile);
   }
+
+  if (p->m_metadata_lock_sizing < 0)
+  {
+    p->m_metadata_lock_sizing= 10000;
+  }
 }
 
 void pfs_automated_sizing(PFS_global_param *param)
@@ -363,5 +368,6 @@ void pfs_automated_sizing(PFS_global_param *param)
   DBUG_ASSERT(param->m_thread_sizing >= 0);
   DBUG_ASSERT(param->m_table_sizing >= 0);
   DBUG_ASSERT(param->m_table_share_sizing >= 0);
+  DBUG_ASSERT(param->m_metadata_lock_sizing >= 0);
 }
 

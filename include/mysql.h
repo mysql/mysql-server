@@ -43,6 +43,7 @@ typedef char my_bool;
 
 #ifndef my_socket_defined
 #ifdef _WIN32
+#include <winsock2.h>
 #define my_socket SOCKET
 #else
 typedef int my_socket;
@@ -55,6 +56,9 @@ typedef int my_socket;
 #include "mysql_time.h"
 
 #include "my_list.h" /* for LISTs used in 'MYSQL' and 'MYSQL_STMT' */
+
+/* Include declarations of plug-in API */
+#include "mysql/client_plugin.h"
 
 extern unsigned int mysql_port;
 extern char *mysql_unix_port;

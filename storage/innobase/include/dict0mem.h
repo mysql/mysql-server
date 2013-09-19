@@ -586,7 +586,7 @@ struct dict_index_t{
 				dict_sys->mutex. Other changes are
 				protected by index->lock. */
 	dict_field_t*	fields;	/*!< array of field descriptions */
-	st_mysql_ftparser*	parser; /*!< fulltext plugin parser */
+	st_mysql_ftparser*	parser;/*!< fulltext plugin parser */
 #ifndef UNIV_HOTBACKUP
 	UT_LIST_NODE_T(dict_index_t)
 			indexes;/*!< list of indexes of the table */

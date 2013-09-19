@@ -18,9 +18,8 @@ ${CMAKE_SOURCE_DIR}/include
 ${ZLIB_INCLUDE_DIR}
 # Following is for perror, in case NDB is compiled in.
 ${CMAKE_SOURCE_DIR}/storage/ndb/include
-${CMAKE_SOURCE_DIR}/storage/ndb/include/util  
+${CMAKE_BINARY_DIR}/storage/ndb/include
 ${CMAKE_SOURCE_DIR}/storage/ndb/include/ndbapi
-${CMAKE_SOURCE_DIR}/storage/ndb/include/portlib
 ${CMAKE_SOURCE_DIR}/storage/ndb/include/mgmapi)
 
 # Default install component for the files is Server here

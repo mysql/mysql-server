@@ -97,7 +97,7 @@ int runTestMaxNdb(NDBT_Context* ctx, NDBT_Step* step){
     oldi = i;
       
     
-    for(size_t j = 0;  j < ndbVector.size(); j++){
+    for(unsigned j = 0;  j < ndbVector.size(); j++){
       delete ndbVector[j];
       if(((j+1) % 250) == 0){
 	ndbout << "Deleted " << (Uint64) j << " ndb objects " << endl;
@@ -184,7 +184,7 @@ int runTestMaxTransaction(NDBT_Context* ctx, NDBT_Step* step){
     oldi = i;
       
     
-    for(size_t j = 0; j < conVector.size(); j++){
+    for(unsigned j = 0; j < conVector.size(); j++){
       pNdb->closeTransaction(conVector[j]);
     }
     conVector.clear();
@@ -544,7 +544,7 @@ int runTestDeleteNdb(NDBT_Context* ctx, NDBT_Step* step){
     }
     
     // Delete the ndb objects
-    for(size_t j = 0;  j < ndbVector.size(); j++)
+    for(unsigned j = 0;  j < ndbVector.size(); j++)
       delete ndbVector[j];
     ndbVector.clear();
     l++;
@@ -553,7 +553,7 @@ int runTestDeleteNdb(NDBT_Context* ctx, NDBT_Step* step){
   
  end_test:
   
-  for(size_t i = 0;  i < ndbVector.size(); i++)
+  for(unsigned i = 0;  i < ndbVector.size(); i++)
     delete ndbVector[i];
   ndbVector.clear();
   
@@ -2793,7 +2793,8 @@ runBug44065_org(NDBT_Context* ctx, NDBT_Step* step)
         ndbout << "Execute failed, error is " 
                << err.code << " " << endl;
         CHECK((err.classification == NdbError::TemporaryResourceError ||
-               err.classification == NdbError::OverloadError));
+               err.classification == NdbError::OverloadError ||
+               err.classification == NdbError::TimeoutExpired));
         NdbSleep_MilliSleep(50);
       }
       
@@ -5435,7 +5436,7 @@ public:
       (sizes[2] ? 1 : 0);
     const Uint32 testType = 40;
     const Uint32 fragmentLength = 1;
-    const Uint32 print = 1;
+    const Uint32 print = 0;
     const Uint32 len = 5 + numSections;
     SimpleSignal request(false);
     

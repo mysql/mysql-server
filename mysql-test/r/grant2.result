@@ -6,6 +6,10 @@ delete from mysql.db where user like 'mysqltest\_%';
 delete from mysql.tables_priv where user like 'mysqltest\_%';
 delete from mysql.columns_priv where user like 'mysqltest\_%';
 flush privileges;
+call mtr.add_suppression("Did not write failed .* into binary log while "
+                         "granting/revoking privileges in databases.");
+call mtr.add_suppression("Did not write failed .* into binary log while "
+                         "revoking all_privileges from a list of users.");
 grant all privileges on `my\_1`.* to mysqltest_1@localhost with grant option;
 grant create user on *.* to mysqltest_1@localhost;
 create user mysqltest_2@localhost;
@@ -334,7 +338,7 @@ delete from mysql.user where user like 'mysqltest\_1';
 flush privileges;
 drop database mysqltest_1;
 set password = password("changed");
-ERROR 42000: Can't find any matching row in the user table
+ERROR 42000: You are using MySQL as an anonymous user and anonymous users are not allowed to change passwords
 lock table mysql.user write;
 flush privileges;
 grant all on *.* to 'mysqltest_1'@'localhost';

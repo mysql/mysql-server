@@ -704,30 +704,29 @@ QUERY: SELECT    CONCAT( table1.col_varchar_nokey , table1.col_varchar_key ) AS 
 STATUS:NOT_EQUAL
 SYNC_POINT:before_reset_query_plan
 Diff: EXPLAIN NORMAL vs OTHER
-@@ -38,7 +38,7 @@
+@@ -47,3 +47,4 @@
+           "filtered": 100,
+-          "index_condition": "(`test`.`table3`.`col_varchar_key` is not null)",
++          "index_condition": true,
++          "using_where": true,
+           "using_join_buffer": "Block Nested Loop",
+@@ -60,3 +61,2 @@
            ],
--          "key": "col_varchar_key",
-+          "key": "col_int_key",
-           "used_key_parts": [
--            "col_varchar_key"
-+            "col_int_key"
-           ],
--          "key_length": "4",
-+          "key_length": "5",
-           "rows_examined_per_scan": 1,
-@@ -105,2 +105,3 @@
+-          "attached_condition": "(((`test`.`table3`.`col_varchar_key` <= (/* select#3 */ select 'r' from `test`.`dummy`)) and (`test`.`table1`.`pk` > `test`.`table3`.`col_int_key`)) and (`test`.`table3`.`col_varchar_nokey` is not null))",
+           "attached_subqueries": [
+@@ -108,2 +108,3 @@
            "filtered": 100,
 +          "using_where": true,
            "cost_info": {
-@@ -124,3 +125,2 @@
+@@ -127,3 +128,2 @@
            ],
 -          "attached_condition": "(`test`.`table1`.`pk` <= `table2`.`col_int_key`)",
            "materialized_from_subquery": {
-@@ -202,2 +202,3 @@
+@@ -205,2 +205,3 @@
                      "filtered": 100,
 +                    "using_where": true,
                      "cost_info": {
-@@ -220,4 +221,3 @@
+@@ -223,4 +224,3 @@
                        "col_varchar_nokey"
 -                    ],
 -                    "attached_condition": "<if>(is_not_null_compl(subquery1_t3..subquery1_t2), (`test`.`subquery1_t3`.`col_int_key` = `test`.`subquery1_t2`.`col_int_key`), true)"
@@ -1089,24 +1088,16 @@ Diff: EXPLAIN NORMAL vs OTHER
              ],
 -            "attached_condition": "(not(exists(/* select#3 */ select `test`.`sq2_alias1`.`col_int_nokey` AS `sq2_field1` from `test`.`c` `sq2_alias1` where ((`test`.`sq2_alias1`.`col_varchar_key` > `test`.`alias2`.`col_varchar_nokey`) and (`test`.`sq2_alias1`.`pk` >= 8)))))",
              "attached_subqueries": [
-@@ -135,3 +135,3 @@
-                     "table_name": "sq2_alias1",
--                    "access_type": "range",
-+                    "access_type": "ALL",
-                     "possible_keys": [
-@@ -139,10 +139,5 @@
-                     ],
--                    "key": "PRIMARY",
--                    "used_key_parts": [
--                      "pk"
+@@ -148,2 +148,3 @@
+                     "filtered": 100,
++                    "using_where": true,
+                     "cost_info": {
+@@ -158,4 +159,3 @@
+                       "col_varchar_key"
 -                    ],
--                    "key_length": "4",
--                    "rows_examined_per_scan": 13,
-+                    "rows_examined_per_scan": 20,
-                     "rows_produced_per_join": 13,
--                    "filtered": 100,
-+                    "filtered": 65,
-                     "range_checked_for_each_record": "index map: 0x20",
+-                    "attached_condition": "((`test`.`sq2_alias1`.`col_varchar_key` > `test`.`alias2`.`col_varchar_nokey`) and (`test`.`sq2_alias1`.`pk` >= 8))"
++                    ]
+                   }
 QUERY: SELECT    MAX(  alias1.pk ) AS field1 FROM ( ( SELECT DISTINCT  sq1_alias1.* FROM bb AS sq1_alias1  ) AS alias1 RIGHT OUTER JOIN ( SELECT   sq2_alias1.* FROM cc AS sq2_alias1 WHERE sq2_alias1.pk < sq2_alias1.col_int_nokey ) AS alias2 ON (alias2.col_varchar_key = alias1.col_varchar_nokey  ) ) WHERE  alias2.col_varchar_nokey > (SELECT   SUM(  sq3_alias1.col_varchar_key ) AS sq3_field1 FROM ( cc AS sq3_alias1 INNER JOIN b AS sq3_alias2 ON (sq3_alias2.col_varchar_key = sq3_alias1.col_varchar_key  AND sq3_alias2.pk > ALL (SELECT 7 UNION SELECT 7 ) ) )  )  HAVING ( ( 7, 8 ) NOT IN (SELECT   sq4_alias1.col_int_nokey AS sq4_field1 , MAX(  sq4_alias1.pk ) AS sq4_field2 FROM ( view_bb AS sq4_alias1 LEFT OUTER JOIN ( cc AS sq4_alias2 RIGHT  JOIN c AS sq4_alias3 ON (sq4_alias3.col_varchar_key = sq4_alias2.col_varchar_nokey  ) ) ON (sq4_alias3.col_varchar_key = sq4_alias2.col_varchar_key  ) )    ) AND field1 >= 2) ORDER BY alias1.col_int_key  , field1 
 STATUS:NOT_EQUAL
 SYNC_POINT:before_reset_query_plan

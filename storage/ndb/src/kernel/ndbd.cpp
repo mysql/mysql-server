@@ -1,4 +1,4 @@
-/* Copyright (c) 2009, 2010, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2009, 2013, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -39,6 +39,9 @@
 #endif
 
 #include <EventLogger.hpp>
+
+#define JAM_FILE_ID 484
+
 extern EventLogger * g_eventLogger;
 
 static void
@@ -658,26 +661,36 @@ ndbd_run(bool foreground, int report_fd,
   globalEmulatorData.theThreadConfig->init();
 
 #ifdef VM_TRACE
-  // Create a signal logger before block constructors
-  char *buf= NdbConfig_SignalLogFileName(globalData.ownId);
-  NdbAutoPtr<char> tmp_aptr(buf);
-  FILE * signalLog = fopen(buf, "a");
-  globalSignalLoggers.setOwnNodeId(globalData.ownId);
-  globalSignalLoggers.setOutputStream(signalLog);
-#if 1 // to log startup
-  { const char* p = NdbEnv_GetEnv("NDB_SIGNAL_LOG", (char*)0, 0);
-    if (p != 0) {
-      char buf[200];
-      BaseString::snprintf(buf, sizeof(buf), "BLOCK=%s", p);
-      for (char* q = buf; *q != 0; q++) *q = toupper(toascii(*q));
-      globalSignalLoggers.log(SignalLoggerManager::LogInOut, buf);
-      globalData.testOn = 1;
-      assert(signalLog != 0);
+  // Initialize signal logger before block constructors
+  char *signal_log_name = NdbConfig_SignalLogFileName(globalData.ownId);
+  FILE * signalLog = fopen(signal_log_name, "a");
+  if (signalLog)
+  {
+    globalSignalLoggers.setOutputStream(signalLog);
+    globalSignalLoggers.setOwnNodeId(globalData.ownId);
+
+    const char* p = NdbEnv_GetEnv("NDB_SIGNAL_LOG", (char*)0, 0);
+    if (p != 0)
+    {
       fprintf(signalLog, "START\n");
       fflush(signalLog);
+
+      char buf[200];
+      BaseString::snprintf(buf, sizeof(buf), "BLOCK=%s", p);
+      for (char* q = buf; *q != 0; q++)
+        *q = toupper(toascii(*q));
+      ndbout_c("Turning on signal logging using block spec.: '%s'", buf);
+      globalSignalLoggers.log(SignalLoggerManager::LogInOut, buf);
+      globalData.testOn = 1;
     }
   }
-#endif
+  else
+  {
+    // Failed to open signal log, print an error and ignore
+    ndbout_c("Failed to open signal logging file '%s', errno: %d",
+             signal_log_name, errno);
+  }
+  NdbMem_Free(signal_log_name);
 #endif
 
   // Load blocks (both main and workers)

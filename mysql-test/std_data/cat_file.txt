@@ -1,0 +1,15 @@
+# To test cat_file command can handle \r\n at the 256th place
+# This test file will contain \r at the 256th position and in its
+# multiples.Extra characters to fill space,some more extra characters
+###############
+# inserting carraige return and line feed
+# Next in line is to add \r followed by \n but \r not being in 256th
+# position but in 255th position followed by \n 
+###### ###### ###### ######
+###### ###### ###### ######
+######## ###### ###### ###### ######
+# inserting carraige return and line feed
+
+# just a random carriage return and line feed
+
+# just a random carriage return only

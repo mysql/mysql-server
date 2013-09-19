@@ -790,9 +790,11 @@ bool lock_schema_name(THD *thd, const char *db)
 
   if (thd->global_read_lock.can_acquire_protection())
     return TRUE;
-  global_request.init(MDL_key::GLOBAL, "", "", MDL_INTENTION_EXCLUSIVE,
-                      MDL_STATEMENT);
-  mdl_request.init(MDL_key::SCHEMA, db, "", MDL_EXCLUSIVE, MDL_TRANSACTION);
+  MDL_REQUEST_INIT(&global_request,
+                   MDL_key::GLOBAL, "", "", MDL_INTENTION_EXCLUSIVE,
+                   MDL_STATEMENT);
+  MDL_REQUEST_INIT(&mdl_request,
+                   MDL_key::SCHEMA, db, "", MDL_EXCLUSIVE, MDL_TRANSACTION);
 
   mdl_requests.push_front(&mdl_request);
   mdl_requests.push_front(&global_request);
@@ -847,11 +849,14 @@ bool lock_object_name(THD *thd, MDL_key::enum_mdl_namespace mdl_type,
 
   if (thd->global_read_lock.can_acquire_protection())
     return TRUE;
-  global_request.init(MDL_key::GLOBAL, "", "", MDL_INTENTION_EXCLUSIVE,
-                      MDL_STATEMENT);
-  schema_request.init(MDL_key::SCHEMA, db, "", MDL_INTENTION_EXCLUSIVE,
-                      MDL_TRANSACTION);
-  mdl_request.init(mdl_type, db, name, MDL_EXCLUSIVE, MDL_TRANSACTION);
+  MDL_REQUEST_INIT(&global_request,
+                   MDL_key::GLOBAL, "", "", MDL_INTENTION_EXCLUSIVE,
+                   MDL_STATEMENT);
+  MDL_REQUEST_INIT(&schema_request,
+                   MDL_key::SCHEMA, db, "", MDL_INTENTION_EXCLUSIVE,
+                   MDL_TRANSACTION);
+  MDL_REQUEST_INIT(&mdl_request,
+                   mdl_type, db, name, MDL_EXCLUSIVE, MDL_TRANSACTION);
 
   mdl_requests.push_front(&mdl_request);
   mdl_requests.push_front(&schema_request);
@@ -974,7 +979,8 @@ bool Global_read_lock::lock_global_read_lock(THD *thd)
 
     DBUG_ASSERT(! thd->mdl_context.is_lock_owner(MDL_key::GLOBAL, "", "",
                                                  MDL_SHARED));
-    mdl_request.init(MDL_key::GLOBAL, "", "", MDL_SHARED, MDL_EXPLICIT);
+    MDL_REQUEST_INIT(&mdl_request,
+                     MDL_key::GLOBAL, "", "", MDL_SHARED, MDL_EXPLICIT);
 
     if (thd->mdl_context.acquire_lock(&mdl_request,
                                       thd->variables.lock_wait_timeout))
@@ -1050,7 +1056,8 @@ bool Global_read_lock::make_global_read_lock_block_commit(THD *thd)
   if (m_state != GRL_ACQUIRED)
     DBUG_RETURN(0);
 
-  mdl_request.init(MDL_key::COMMIT, "", "", MDL_SHARED, MDL_EXPLICIT);
+  MDL_REQUEST_INIT(&mdl_request,
+                   MDL_key::COMMIT, "", "", MDL_SHARED, MDL_EXPLICIT);
 
   if (thd->mdl_context.acquire_lock(&mdl_request,
                                     thd->variables.lock_wait_timeout))

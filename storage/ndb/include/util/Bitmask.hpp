@@ -34,8 +34,14 @@ public:
 
   /**
    * get - Check if bit n is set.
+   *       assert(n < (32 * size))
    */
   static bool get(unsigned size, const Uint32 data[], unsigned n);
+
+  /**
+   * safe_get - Check if bit N is set, accept any value for N
+   */
+  static bool safe_get(unsigned size, const Uint32 data[], unsigned n);
 
   /**
    * set - Set bit n to given value (true/false).
@@ -249,6 +255,16 @@ BitmaskImpl::get(unsigned size, const Uint32 data[], unsigned n)
 {
   assert(n < (size << 5));
   return (data[n >> 5] & (1 << (n & 31))) != 0;
+}
+
+inline bool
+BitmaskImpl::safe_get(unsigned size, const Uint32 data[], unsigned n)
+{
+  if (n < (size << 5))
+  {
+    return (data[n >> 5] & (1 << (n & 31))) != 0;
+  }
+  return false;
 }
 
 inline void
@@ -861,11 +877,18 @@ public:
   /**
    * start of static members
    */
+
   /**
    * get - Check if bit n is set.
    */
   static bool get(const Uint32 data[], unsigned n);
   bool get(unsigned n) const;
+
+  /**
+   * safe_get - Check if bit N is set, accept any value for N
+   */
+  static bool safe_get(const Uint32 data[], unsigned n);
+  bool safe_get(unsigned n) const;
 
   /**
    * set - Set bit n to given value (true/false).
@@ -1075,6 +1098,20 @@ inline bool
 BitmaskPOD<size>::get(unsigned n) const
 {
   return BitmaskPOD<size>::get(rep.data, n);
+}
+
+template <unsigned size>
+inline bool
+BitmaskPOD<size>::safe_get(const Uint32 data[], unsigned n)
+{
+  return BitmaskImpl::safe_get(size, data, n);
+}
+
+template <unsigned size>
+inline bool
+BitmaskPOD<size>::safe_get(unsigned n) const
+{
+  return BitmaskPOD<size>::safe_get(rep.data, n);
 }
 
 template <unsigned size>

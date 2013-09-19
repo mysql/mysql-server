@@ -11,8 +11,8 @@ count(*)
 select count(*) from performance_schema.setup_consumers;
 count(*)
 12
-select count(*) > 3 from performance_schema.setup_instruments;
-count(*) > 3
+select count(*) > 4 from performance_schema.setup_instruments;
+count(*) > 4
 1
 select count(*) from performance_schema.setup_timers;
 count(*)
@@ -55,6 +55,12 @@ select * from performance_schema.file_summary_by_event_name;
 select * from performance_schema.file_summary_by_instance;
 select * from performance_schema.host_cache;
 select * from performance_schema.hosts;
+select * from performance_schema.memory_summary_by_account_by_event_name;
+select * from performance_schema.memory_summary_by_host_by_event_name;
+select * from performance_schema.memory_summary_by_thread_by_event_name;
+select * from performance_schema.memory_summary_by_user_by_event_name;
+select * from performance_schema.memory_summary_global_by_event_name;
+select * from performance_schema.metadata_locks;
 select * from performance_schema.mutex_instances;
 select * from performance_schema.objects_summary_global_by_type;
 select * from performance_schema.performance_timers;
@@ -69,6 +75,7 @@ select * from performance_schema.setup_timers;
 select * from performance_schema.socket_instances;
 select * from performance_schema.socket_summary_by_instance;
 select * from performance_schema.socket_summary_by_event_name;
+select * from performance_schema.table_handles;
 select * from performance_schema.table_io_waits_summary_by_index_usage;
 select * from performance_schema.table_io_waits_summary_by_table;
 select * from performance_schema.table_lock_waits_summary_by_table;
@@ -98,6 +105,7 @@ performance_schema_max_file_classes	50
 performance_schema_max_file_handles	32768
 performance_schema_max_file_instances	10000
 performance_schema_max_memory_classes	250
+performance_schema_max_metadata_locks	10000
 performance_schema_max_mutex_classes	200
 performance_schema_max_mutex_instances	5000
 performance_schema_max_program_instances	5000
@@ -130,6 +138,7 @@ Performance_schema_file_instances_lost	0
 Performance_schema_hosts_lost	0
 Performance_schema_locker_lost	0
 Performance_schema_memory_classes_lost	0
+Performance_schema_metadata_lock_lost	0
 Performance_schema_mutex_classes_lost	0
 Performance_schema_mutex_instances_lost	0
 Performance_schema_nested_statement_lost	0

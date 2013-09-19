@@ -1,4 +1,4 @@
-# Copyright (c) 2008, 2010, Oracle and/or its affiliates. All rights reserved.
+# Copyright (c) 2008, 2013, Oracle and/or its affiliates. All rights reserved.
 #
 # This program is free software; you can redistribute it and/or modify
 # it under the terms of the GNU General Public License as published by
@@ -109,6 +109,11 @@ ADD_EXECUTABLE(LinkedStack-t LinkedStack.cpp)
 SET_TARGET_PROPERTIES(LinkedStack-t
                       PROPERTIES COMPILE_FLAGS "-DTEST_LINKEDSTACK")
 TARGET_LINK_LIBRARIES(LinkedStack-t ndbgeneral)
+
+ADD_EXECUTABLE(mysql_utils_test-t mysql_utils_test.cpp)
+SET_TARGET_PROPERTIES(mysql_utils_test-t
+                      PROPERTIES COMPILE_FLAGS "-DTEST_MYSQL_UTILS")
+TARGET_LINK_LIBRARIES(mysql_utils_test-t ndbgeneral  ndbportlib)
 
 ADD_EXECUTABLE(NdbSqlUtil-t NdbSqlUtil.cpp)
 SET_TARGET_PROPERTIES(NdbSqlUtil-t

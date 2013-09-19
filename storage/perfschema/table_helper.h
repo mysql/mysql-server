@@ -40,6 +40,7 @@
 struct PFS_host;
 struct PFS_user;
 struct PFS_account;
+struct PFS_object_name;
 
 /**
   @file storage/perfschema/table_helper.h
@@ -62,7 +63,8 @@ struct PFS_instrument_view_constants
   static const uint VIEW_TABLE= 5;
   static const uint VIEW_SOCKET= 6;
   static const uint VIEW_IDLE= 7;
-  static const uint LAST_VIEW= 7;
+  static const uint VIEW_METADATA= 8;
+  static const uint LAST_VIEW= 8;
 };
 
 /** Namespace, internal views used within object summaries. */
@@ -184,8 +186,10 @@ struct PFS_object_row
 
   /** Build a row from a memory buffer. */
   int make_row(PFS_table_share *pfs);
+  int make_row(const MDL_key *pfs);
   /** Set a table field from the row. */
   void set_field(uint index, Field *f);
+  void set_nullable_field(uint index, Field *f);
 };
 
 /** Row fragment for columns OBJECT_TYPE, SCHEMA_NAME, OBJECT_NAME, INDEX_NAME. */
@@ -481,6 +485,10 @@ struct PFS_connection_stat_row
 };
 
 void set_field_object_type(Field *f, enum_object_type object_type);
+void set_field_lock_type(Field *f, PFS_TL_LOCK_TYPE lock_type);
+void set_field_mdl_type(Field *f, opaque_mdl_type mdl_type);
+void set_field_mdl_duration(Field *f, opaque_mdl_duration mdl_duration);
+void set_field_mdl_status(Field *f, opaque_mdl_status mdl_status);
 
 /** Row fragment for socket io statistics columns. */
 struct PFS_socket_io_stat_row

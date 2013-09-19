@@ -1365,7 +1365,7 @@ makedata(const Col& c, Data& d, Uint32 pk1, Op::Type optype)
         char* p = &d.ptr[i].ch[1];
         sprintf(p, "%-u", pk1);
         uint len = pk1 % g_charlen;
-        uint j = strlen(p);
+        uint j = (uint)strlen(p);
         while (j < len) {
           p[j] = 'a' + j % 26;
           j++;
@@ -1408,7 +1408,7 @@ makedata(const Col& c, Data& d, Uint32 pk1, Op::Type optype)
           u = urandom(g_charlen); // 2x bias for non-empty
         uint j;
         for (j = 0; j < g_charlen; j++) {
-          uint v = urandom(strlen(g_charval));
+          uint v = urandom((uint)strlen(g_charval));
           p[j] = j < u ? g_charval[v] : 0x20;
         }
       }
@@ -1422,7 +1422,7 @@ makedata(const Col& c, Data& d, Uint32 pk1, Op::Type optype)
         txt.val = 0;
         if (g_opts.tweak & 1) {
           uint u = g_blobinlinesize + (tinyblob ? 0 : g_blobpartsize);
-          uint v = (g_opts.tweak & 2) ? 0 : urandom(strlen(g_charval));
+          uint v = (g_opts.tweak & 2) ? 0 : urandom((uint)strlen(g_charval));
           txt.val = new char [u];
           txt.len = u;
           memset(txt.val, g_charval[v], u);
@@ -1439,7 +1439,7 @@ makedata(const Col& c, Data& d, Uint32 pk1, Op::Type optype)
           uint k = 1 + urandom(u - 1);
           if (k > u - j)
             k = u - j;
-          uint v = urandom(strlen(g_charval));
+          uint v = urandom((uint)strlen(g_charval));
           memset(&txt.val[j], g_charval[v], k);
           j += k;
         }
@@ -1548,7 +1548,7 @@ makeops(Run& r)
                  (tot_op->type == Op::INS && optype == Op::INS));
       } else {
         const char* str = g_opstringpart[g_loop % g_opstringparts];
-        uint m = strlen(str);
+        uint m = (uint)strlen(str);
         uint k = tot_op->num_com + tot_op->num_op;
         assert(k < m);
         char c = str[k];
@@ -2310,7 +2310,7 @@ checkopts()
     g_maxcom = 1;
   }
   if (g_opts.opstring != 0) {
-    uint len = strlen(g_opts.opstring);
+    uint len = (uint)strlen(g_opts.opstring);
     char* str = new char [len + 1];
     memcpy(str, g_opts.opstring, len + 1);
     char* s = str;

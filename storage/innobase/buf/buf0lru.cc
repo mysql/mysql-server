@@ -1005,7 +1005,7 @@ buf_LRU_free_from_common_LRU_list(
 {
 	ut_ad(buf_pool_mutex_own(buf_pool));
 
-	bool		scanned = 0;
+	ulint		scanned = 0;
 	bool		freed = false;
 
 	for (buf_page_t* bpage = buf_pool->lru_scan_itr.start();

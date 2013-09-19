@@ -1987,6 +1987,14 @@ loop_end:
     tmp_tables[cnt]=create_tmp_table(thd, tmp_param, temp_fields,
                                      (ORDER*) &group, 0, 0,
                                      TMP_TABLE_ALL_COLUMNS, HA_POS_ERROR, "");
+    /*
+      Pass a table triggers pointer (Table_trigger_dispatcher *) from
+      the original table to the new temporary table. This pointer will be used
+      inside the method multi_update::send_data() to determine temporary
+      nullability flag for the temporary table's fields. It will be done before
+      calling fill_record() to assign values to the temporary table's fields.
+    */
+    tmp_tables[cnt]->triggers= table->triggers;
     thd->variables.big_tables= save_big_tables;
     if (!tmp_tables[cnt])
       DBUG_RETURN(1);
@@ -2162,13 +2170,17 @@ bool multi_update::send_data(List<Item> &not_used_values)
       } while ((tbl= tbl_it++));
 
       /*
-        Enable temporary nullability for temporary table fields.
+        If there are triggers in an original table the temporary table based on
+        then enable temporary nullability for temporary table's fields.
       */
-      for (Field** modified_fields= tmp_table->field + 1 +
-                                    unupdated_check_opt_tables.elements;
-           *modified_fields; ++modified_fields)
+      if (tmp_table->triggers)
       {
-        (*modified_fields)->set_tmp_nullable();
+        for (Field** modified_fields= tmp_table->field + 1 +
+                                      unupdated_check_opt_tables.elements;
+            *modified_fields; ++modified_fields)
+        {
+          (*modified_fields)->set_tmp_nullable();
+        }
       }
 
       /* Store regular updated fields in the row. */

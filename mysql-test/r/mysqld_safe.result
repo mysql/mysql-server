@@ -1,0 +1,15 @@
+Database
+information_schema
+mtr
+mysql
+performance_schema
+test
+Table	Create Table
+t1	CREATE TABLE `t1` (\n  `a` int(11) DEFAULT NULL\n) ENGINE=InnoDB DEFAULT CHARSET=latin1
+Database
+information_schema
+mtr
+mysql
+performance_schema
+test
+drop table t1;

@@ -125,6 +125,9 @@ my_error_innodb(
 	case DB_OUT_OF_FILE_SPACE:
 		my_error(ER_RECORD_FILE_FULL, MYF(0), table);
 		break;
+	case DB_TEMP_FILE_WRITE_FAILURE:
+		my_error(ER_TEMP_FILE_WRITE_FAILURE, MYF(0));
+		break;
 	case DB_TOO_BIG_INDEX_COL:
 		my_error(ER_INDEX_COLUMN_TOO_LONG, MYF(0),
 			 DICT_MAX_FIELD_LEN_BY_FORMAT_FLAG(flags));
@@ -316,10 +319,10 @@ ha_innobase::check_if_supported_inplace_alter(
 	only go through the "Copy" method.*/
 	if ((ha_alter_info->handler_flags
 	     & Alter_inplace_info::ALTER_COLUMN_NULLABLE)) {
-		uint primary_key = altered_table->s->primary_key;
+		const uint my_primary_key = altered_table->s->primary_key;
 
 		/* See if MYSQL table has no pk but we do.*/
-		if (UNIV_UNLIKELY(primary_key >= MAX_KEY)
+		if (UNIV_UNLIKELY(my_primary_key >= MAX_KEY)
 		    && !row_table_got_default_clust_index(prebuilt->table)) {
 			ha_alter_info->unsupported_reason = innobase_get_err_msg(
 				ER_PRIMARY_CANT_HAVE_NULL);
@@ -1523,7 +1526,7 @@ innobase_create_index_def(
 					ut_ad(altered_table->key_info[j].flags
 					      & HA_USES_PARSER);
 
-					plugin_ref parser=
+					plugin_ref	parser=
 						altered_table->key_info[j].parser;
 					index->parser =
 						static_cast<st_mysql_ftparser*>(

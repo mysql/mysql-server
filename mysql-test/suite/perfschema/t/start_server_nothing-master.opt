@@ -38,3 +38,6 @@
 
 --loose-performance_schema_session_connect_attrs_size=0
 
+--loose-performance_schema_digests_size=0
+--loose-performance_schema_max_metadata_locks=0
+

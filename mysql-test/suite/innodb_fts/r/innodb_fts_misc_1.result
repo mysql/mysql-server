@@ -633,7 +633,6 @@ id	a	b
 DROP TABLE t1;
 SET GLOBAL innodb_file_format=Antelope;
 SET GLOBAL innodb_file_per_table=1;
-SET GLOBAL innodb_file_format_max=Antelope;
 SET GLOBAL innodb_large_prefix=0;
 set names utf8;
 CREATE TABLE t1 (

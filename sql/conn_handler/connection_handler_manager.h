@@ -27,11 +27,11 @@ class THD;
 
 
 /**
-  Callback functions to notify interested connection handlers
+  Functions to notify interested connection handlers
   of events like begining of wait and end of wait and post-kill
   notification events.
 */
-struct Connection_handler_callback
+struct THD_event_functions
 {
   void (*thd_wait_begin)(THD* thd, int wait_type);
   void (*thd_wait_end)(THD* thd);
@@ -111,10 +111,16 @@ public:
   static ulong thread_created;           // Protected by LOCK_thread_created
   // System variable
   static ulong thread_handling;
-  // Callback for lock wait and post-kill notification events
-  static Connection_handler_callback* callback;
-  // Saved callback
-  static Connection_handler_callback* saved_callback;
+  // Functions for lock wait and post-kill notification events
+  static THD_event_functions *event_functions;
+  // Saved event functions
+  static THD_event_functions *saved_event_functions;
+  /**
+     Maximum number of threads that can be created by the current
+     connection handler
+  */
+  static uint max_threads;
+
 
   /**
     Singleton method to return an instance of this class.
@@ -153,13 +159,6 @@ public:
   }
 
   /**
-    @return Maximum number of threads that can be created by the current
-            connection handler.
-  */
-  uint get_max_threads() const
-  { return m_connection_handler->get_max_threads(); }
-
-  /**
     Dynamically load a connection handler implemented as a plugin.
     The current connection handler will be saved so that it can
     later be restored by unload_connection_handler().
@@ -191,6 +190,10 @@ public:
 // Functions needed by plugins (thread pool)
 /////////////////////////////////////////////////
 
+#ifdef __cplusplus
+extern "C" {
+#endif
+
 /**
   Create a THD object from channel_info.
 
@@ -208,5 +211,9 @@ void dec_connection_count();
 void inc_thread_created();
 
 void inc_aborted_connects();
+
+#ifdef __cplusplus
+}
+#endif
 
 #endif // CONNECTION_HANDLER_MANAGER_INCLUDED.
