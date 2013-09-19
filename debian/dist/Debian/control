@@ -14,7 +14,8 @@ Package: libmariadbclient18
 Section: libs
 Architecture: any
 Depends: mariadb-common, libmysqlclient18 (= ${source:Version}), ${shlibs:Depends}, ${misc:Depends}
-Conflicts: mariadb-server-5.5 (<< 5.5.33), mariadb-galera-server-5.5 (<< 5.5.33)
+Conflicts: mariadb-server-5.5 (<< 5.5.33), mariadb-galera-server-5.5 (<< 5.5.33),
+           mariadb-server-5.1, mariadb-server-5.2, mariadb-server-5.3
 Description: MariaDB database client library
  MariaDB is a fast, stable and true multi-user, multi-threaded SQL database
  server. SQL (Structured Query Language) is the most popular database query
