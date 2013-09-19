@@ -2766,10 +2766,8 @@ void Dbtc::execTCKEYREQ(Signal* signal)
   /*                                                                        */
   /* ---------------------------------------------------------------------- */
 
-  UintR TapiVersionNo = TcKeyReq::getAPIVersion(tcKeyReq->attrLen);
   UintR Tlqhkeyreqrec = regApiPtr->lqhkeyreqrec;
   regApiPtr->lqhkeyreqrec = Tlqhkeyreqrec + 1;
-  regCachePtr->apiVersionNo = TapiVersionNo;
 
   /* If we have any sections at all then this is a long TCKEYREQ */
   regCachePtr->isLongTcKeyReq= ( handle.m_cnt != 0 );
@@ -3656,7 +3654,7 @@ void Dbtc::sendlqhkeyreq(Signal* signal,
 #endif
   Uint32 Tdeferred = tc_testbit(regApiPtr->m_flags,
                                 ApiConnectRecord::TF_DEFERRED_CONSTRAINTS);
-  Uint32 reorg = 0;
+  Uint32 reorg = ScanFragReq::REORG_ALL;
   Uint32 Tspecial_op = regTcPtr->m_special_op_flags;
   if (Tspecial_op == 0)
   {
@@ -3664,11 +3662,11 @@ void Dbtc::sendlqhkeyreq(Signal* signal,
   else if (Tspecial_op & (TcConnectRecord::SOF_REORG_TRIGGER_BASE |
                           TcConnectRecord::SOF_REORG_DELETE))
   {
-    reorg = 1;
+    reorg = ScanFragReq::REORG_NOT_MOVED;
   }
   else if (Tspecial_op & TcConnectRecord::SOF_REORG_MOVING)
   {
-    reorg = 2;
+    reorg = ScanFragReq::REORG_MOVED;
   }
 
   Uint32 inlineKeyLen= 0;
@@ -3744,7 +3742,6 @@ void Dbtc::sendlqhkeyreq(Signal* signal,
    * Bit 27 == 0 since TC record is the same as the client record.
    * Bit 28 == 0 since readLenAi can only be set after reading in LQH.
    * ----------------------------------------------------------------------- */
-  //LqhKeyReq::setAPIVersion(Tdata10, regCachePtr->apiVersionNo);
   LqhKeyReq::setMarkerFlag(Tdata10, regTcPtr->commitAckMarker != RNIL ? 1 : 0);
   
   /* ************************************************************> */
@@ -11075,7 +11072,7 @@ void Dbtc::execDIH_SCAN_TAB_CONF(Signal* signal)
   if (conf->reorgFlag)
   {
     jam();
-    ScanFragReq::setReorgFlag(scanptr.p->scanRequestInfo, 1);
+    ScanFragReq::setReorgFlag(scanptr.p->scanRequestInfo, ScanFragReq::REORG_NOT_MOVED);
   }
   if (regApiPtr->apiFailState == ZTRUE) {
     jam();

@@ -2592,11 +2592,6 @@ private:
                             Operationrec* regOperPtr,
                             bool disk);
 
-  void executeTriggers(KeyReqStruct *req_struct,
-                       DLList<TupTriggerData>& triggerList,
-                       Operationrec* regOperPtr,
-                       bool disk);
-
   void executeTrigger(KeyReqStruct *req_struct,
                       TupTriggerData* trigPtr, 
                       Operationrec* regOperPtr,
