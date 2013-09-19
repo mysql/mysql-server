@@ -1800,6 +1800,7 @@ int ha_tokudb::initialize_share(
         primary_key
         );
         
+    share->pk_has_string = false;
     if (!hidden_primary_key) {
         //
         // We need to set the ref_length to start at 5, to account for
@@ -1810,6 +1811,14 @@ int ha_tokudb::initialize_share(
         KEY_PART_INFO *end = key_part + get_key_parts(&table->key_info[primary_key]);
         for (; key_part != end; key_part++) {
             ref_length += key_part->field->max_packed_col_length(key_part->length);
+            TOKU_TYPE toku_type = mysql_to_toku_type(key_part->field);
+            if (toku_type == toku_type_fixstring ||
+                toku_type == toku_type_varstring ||
+                toku_type == toku_type_blob
+                )
+            {
+                share->pk_has_string = true;
+            }
         }
         share->status |= STATUS_PRIMARY_KEY_INIT;
     }
@@ -2882,7 +2891,14 @@ DBT* ha_tokudb::create_dbt_key_for_lookup(
     )
 {
     TOKUDB_DBUG_ENTER("ha_tokudb::create_dbt_key_from_lookup");
-    DBUG_RETURN(create_dbt_key_from_key(key, key_info, buff, record, has_null, true, key_length));    
+    DBT* ret = create_dbt_key_from_key(key, key_info, buff, record, has_null, true, key_length);
+    // override the infinity byte, needed in case the pk is a string
+    // to make sure that the cursor that uses this key properly positions
+    // it at the right location. If the table stores "D", but we look up for "d",
+    // and the infinity byte is 0, then we will skip the "D", because 
+    // in bytes, "d" > "D".
+    buff[0] = COL_NEG_INF;
+    DBUG_RETURN(ret);    
 }
 
 //
@@ -3236,6 +3252,7 @@ ha_rows ha_tokudb::estimate_rows_upper_bound() {
 //
 int ha_tokudb::cmp_ref(const uchar * ref1, const uchar * ref2) {
     int ret_val = 0;
+    bool read_string = false;
     ret_val = tokudb_compare_two_keys(
         ref1 + sizeof(uint32_t),
         *(uint32_t *)ref1,
@@ -3243,7 +3260,8 @@ int ha_tokudb::cmp_ref(const uchar * ref1, const uchar * ref2) {
         *(uint32_t *)ref2,
         (uchar *)share->file->descriptor->dbt.data + 4,
         *(uint32_t *)share->file->descriptor->dbt.data - 4,
-        false
+        false,
+        &read_string
         );
     return ret_val;
 }
@@ -3418,7 +3436,7 @@ int ha_tokudb::end_bulk_insert(bool abort) {
             for (uint i = 0; i < table_share->keys; i++) {
                 if (table_share->key_info[i].flags & HA_NOSAME) {
                     bool is_unique;
-                    if (i == primary_key) {
+                    if (i == primary_key && !share->pk_has_string) {
                         continue;
                     }
                     error = is_index_unique(
@@ -3707,12 +3725,12 @@ int ha_tokudb::do_uniqueness_checks(uchar* record, DB_TXN* txn, THD* thd) {
     //
     if (share->has_unique_keys && !thd_test_options(thd, OPTION_RELAXED_UNIQUE_CHECKS)) {
         for (uint keynr = 0; keynr < table_share->keys; keynr++) {
-            bool is_unique_key = table->key_info[keynr].flags & HA_NOSAME;
+            bool is_unique_key = (table->key_info[keynr].flags & HA_NOSAME) || (keynr == primary_key);
             bool is_unique = false;
             //
-            // don't need to do check for primary key
+            // don't need to do check for primary key that don't have strings
             //
-            if (keynr == primary_key) {
+            if (keynr == primary_key && !share->pk_has_string) {
                 continue;
             }
             if (!is_unique_key) {
@@ -4094,39 +4112,38 @@ int ha_tokudb::write_row(uchar * record) {
         }
     }
     else {
+        error = do_uniqueness_checks(record, txn, thd);
+        if (error) {
+            // for #4633
+            // if we have a duplicate key error, let's check the primary key to see
+            // if there is a duplicate there. If so, set last_dup_key to the pk
+            if (error == DB_KEYEXIST && !test(hidden_primary_key) && last_dup_key != primary_key) {
+                int r = share->file->getf_set(
+                    share->file, 
+                    txn, 
+                    0, 
+                    &prim_key, 
+                    smart_dbt_do_nothing, 
+                    NULL
+                    );
+                if (r == 0) {
+                    // if we get no error, that means the row
+                    // was found and this is a duplicate key,
+                    // so we set last_dup_key
+                    last_dup_key = primary_key;
+                }
+                else if (r != DB_NOTFOUND) {
+                    // if some other error is returned, return that to the user.
+                    error = r;
+                }
+            }
+            goto cleanup; 
+        }
         if (curr_num_DBs == 1) {
             error = insert_row_to_main_dictionary(record,&prim_key, &row, txn);
             if (error) { goto cleanup; }
         }
         else {
-            error = do_uniqueness_checks(record, txn, thd);
-            if (error) {
-                // for #4633
-                // if we have a duplicate key error, let's check the primary key to see
-                // if there is a duplicate there. If so, set last_dup_key to the pk
-                if (error == DB_KEYEXIST && !test(hidden_primary_key)) {
-                    int r = share->file->getf_set(
-                        share->file, 
-                        txn, 
-                        0, 
-                        &prim_key, 
-                        smart_dbt_do_nothing, 
-                        NULL
-                        );
-                    if (r == 0) {
-                        // if we get no error, that means the row
-                        // was found and this is a duplicate key,
-                        // so we set last_dup_key
-                        last_dup_key = primary_key;
-                    }
-                    else if (r != DB_NOTFOUND) {
-                        // if some other error is returned, return that to the user.
-                        error = r;
-                    }
-                }
-                goto cleanup; 
-            }
-
             error = insert_rows_to_dictionaries_mult(&prim_key, &row, txn, thd);
             if (error) { goto cleanup; }
         }
@@ -4262,8 +4279,8 @@ int ha_tokudb::update_row(const uchar * old_row, uchar * new_row) {
     //
     if (share->has_unique_keys && !thd_test_options(thd, OPTION_RELAXED_UNIQUE_CHECKS)) {
         for (uint keynr = 0; keynr < table_share->keys; keynr++) {
-            bool is_unique_key = table->key_info[keynr].flags & HA_NOSAME;
-            if (keynr == primary_key) {
+            bool is_unique_key = (table->key_info[keynr].flags & HA_NOSAME) || (keynr == primary_key);
+            if (keynr == primary_key && !share->pk_has_string) {
                 continue;
             }
             if (is_unique_key) {

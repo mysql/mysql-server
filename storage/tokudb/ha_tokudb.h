@@ -164,6 +164,10 @@ public:
     // index of auto increment column in table->field, if auto_inc exists
     //
     uint ai_field_index;
+    //
+    // whether the primary key has a string
+    //
+    bool pk_has_string;
 
     KEY_AND_COL_INFO kc_info;
     
