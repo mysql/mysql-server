@@ -797,7 +797,6 @@ void Dblqh::execNDB_STTOR(Signal* signal)
     // Dont setSeqNoReplica
     // Dont setSameClientAndTcFlag
     // Dont setReturnedReadLenAIFlag
-    // Dont setAPIVersion
     LqhKeyReq::setMarkerFlag(preComputedRequestInfoMask, 1);
     LqhKeyReq::setQueueOnRedoProblemFlag(preComputedRequestInfoMask, 1);
     //preComputedRequestInfoMask = 0x003d7fff;
