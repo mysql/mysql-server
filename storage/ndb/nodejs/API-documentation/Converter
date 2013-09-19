@@ -1,0 +1,40 @@
+
+/*   
+   Converter classes convert between JavaScript types and MySQL types.
+   If a user supplies a javascript converter, and it will be used to read 
+   and write the database.
+
+   Converters have several purposes:
+    - To convert between MySQL DECIMAL types and a user's preferred JavaScript
+      fixed-precision utility library
+    - To convert between MySQL BIGINT types and a user's preferred JavaScript 
+      big number utility library
+    - To serialize arbitrary application objects into character or binary columns
+    - The NDB adapter supplies default converters for DATETIME and TIME columns,
+      which provide an easy conversion to JavaScript date, but allow you to 
+      override them when higher precision is required.
+    - The NDB adapter (but not the MySQL adapter) also requries Converters 
+      for dealing with SET and ENUM columns.
+ 
+   A converter class implements two functions: 
+      toDB(obj)  : convert obj, an application object, into a simple form 
+                   which will be stored in the database 
+      fromDB(val): convert val, a value read from the database,
+                   into an application object form
+   Each function returns the result of the conversion.   
+   
+   Converter invocations are chained in the following way:
+   
+   When writing to the database, first the registered FieldConverter, if any,
+   is invoked.  Later, any registered TypeConverter is invoked.
+
+   When reading from the database, first the registered TypeConverter, if any,
+   is invoked.  Later, any registered FieldConverter is invoked.   
+*/ 
+
+function Converter() {}:
+
+Converter.prototype = {
+  "toDB"    : function(obj) {  },
+  "fromDB"  : function(val) {  }
+};

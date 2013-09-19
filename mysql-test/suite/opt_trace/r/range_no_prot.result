@@ -3912,7 +3912,7 @@ EXPLAIN SELECT 1 FROM
                                 {
                                   "index": "b",
                                   "chosen": false,
-                                  "cause": "unknown"
+                                  "cause": "depends_on_unread_values"
                                 }
                               ] /* range_scan_alternatives */,
                               "analyzing_roworder_intersect": {
@@ -4237,7 +4237,7 @@ EXPLAIN SELECT 1 FROM
                                 {
                                   "index": "b",
                                   "chosen": false,
-                                  "cause": "unknown"
+                                  "cause": "depends_on_unread_values"
                                 }
                               ] /* range_scan_alternatives */,
                               "analyzing_roworder_intersect": {

@@ -27,6 +27,7 @@
 #include "sql_tmp_table.h"                 // create_tmp_table
 #include "sql_resolver.h"                  // setup_order, fix_inner_refs
 #include "sql_optimizer.h"                 // JOIN
+#include "uniques.h"
 
 using std::min;
 using std::max;
@@ -1547,8 +1548,12 @@ void Item_sum_count::clear()
 
 bool Item_sum_count::add()
 {
-  if (!args[0]->maybe_null || !args[0]->is_null())
-    count++;
+  for (uint i=0; i<arg_count; i++)
+  {
+    if (args[i]->maybe_null && args[i]->is_null())
+      return 0;
+  }
+  count++;
   return 0;
 }
 

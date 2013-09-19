@@ -916,7 +916,6 @@ class SQL_SELECT :public Sql_alloc {
   IO_CACHE file;		// Positions to used records
   ha_rows records;		// Records in use if read from file
   double read_time;		// Time to read rows
-  key_map quick_keys;		// Possible quick keys
   key_map needed_reg;		// Possible quick keys after prev tables.
   table_map const_tables,read_tables;
   bool	free_cond;

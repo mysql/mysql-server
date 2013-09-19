@@ -411,13 +411,14 @@ static PSI_cond_info all_semisync_conds[]=
 PSI_stage_info stage_waiting_for_semi_sync_ack_from_slave=
 { 0, "Waiting for semi-sync ACK from slave", 0};
 
+/* Always defined. */
+PSI_memory_key key_ss_memory_TranxNodeAllocator_block;
+
 #ifdef HAVE_PSI_INTERFACE
 PSI_stage_info *all_semisync_stages[]=
 {
   & stage_waiting_for_semi_sync_ack_from_slave
 };
-
-PSI_memory_key key_ss_memory_TranxNodeAllocator_block;
 
 PSI_memory_info all_semisync_memory[]=
 {

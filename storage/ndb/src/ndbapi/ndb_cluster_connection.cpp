@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2004, 2010, Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2004, 2010, 2011, 2013, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -89,6 +89,51 @@ const char *Ndb_cluster_connection::get_connected_host() const
   if (m_impl.m_config_retriever)
     return m_impl.m_config_retriever->get_mgmd_host();
   return 0;
+}
+
+int
+Ndb_cluster_connection::unset_recv_thread_cpu(Uint32 recv_thread_id)
+{
+  if (m_impl.m_transporter_facade)
+  {
+    return m_impl.m_transporter_facade->unset_recv_thread_cpu(recv_thread_id);
+  }
+  return -1;
+}
+
+int
+Ndb_cluster_connection::set_recv_thread_cpu(Uint16 *cpuid_array,
+                                            Uint32 array_len,
+                                            Uint32 recv_thread_id)
+{
+  if (m_impl.m_transporter_facade)
+  {
+    return m_impl.m_transporter_facade->set_recv_thread_cpu(cpuid_array,
+                                                            array_len,
+                                                            recv_thread_id);
+  }
+  return -1;
+}
+
+int
+Ndb_cluster_connection::set_recv_thread_activation_threshold(Uint32 threshold)
+{
+  TransporterFacade *fac = m_impl.m_transporter_facade;
+  if (fac)
+  {
+    return fac->set_recv_thread_activation_threshold(threshold);
+  }
+  return -1;
+}
+
+int
+Ndb_cluster_connection::get_recv_thread_activation_threshold() const
+{
+  if (m_impl.m_transporter_facade)
+  {
+    return m_impl.m_transporter_facade->get_recv_thread_activation_threshold();
+  }
+  return -1;
 }
 
 const char *Ndb_cluster_connection::get_connectstring(char *buf,
@@ -204,13 +249,13 @@ Ndb_cluster_connection_impl::get_next_alive_node(Ndb_cluster_connection_node_ite
 
   while ((id = get_next_node(iter)))
   {
-    tp->lock_mutex();
+    tp->lock_poll_mutex();
     if (tp->get_node_alive(id) != 0)
     {
-      tp->unlock_mutex();
+      tp->unlock_poll_mutex();
       return id;
     }
-    tp->unlock_mutex();
+    tp->unlock_poll_mutex();
   }
   return 0;
 }
@@ -235,7 +280,7 @@ Ndb_cluster_connection::max_nodegroup()
     return 0;
 
   Bitmask<MAX_NDB_NODES> ng;
-  tp->lock_mutex();
+  tp->lock_poll_mutex();
   for(unsigned i= 0; i < no_db_nodes(); i++)
   {
     //************************************************
@@ -245,7 +290,7 @@ Ndb_cluster_connection::max_nodegroup()
     if (n.is_confirmed() && n.m_state.nodeGroup <= MAX_NDB_NODES)
       ng.set(n.m_state.nodeGroup);
   }
-  tp->unlock_mutex();
+  tp->unlock_poll_mutex();
 
   if (ng.isclear())
     return 0;
@@ -267,7 +312,7 @@ int Ndb_cluster_connection::get_no_ready()
     return -1;
 
   unsigned int foundAliveNode = 0;
-  tp->lock_mutex();
+  tp->lock_poll_mutex();
   for(unsigned i= 0; i < no_db_nodes(); i++)
   {
     //************************************************
@@ -277,7 +322,7 @@ int Ndb_cluster_connection::get_no_ready()
       foundAliveNode++;
     }
   }
-  tp->unlock_mutex();
+  tp->unlock_poll_mutex();
 
   return foundAliveNode;
 }
@@ -731,6 +776,36 @@ Ndb_cluster_connection_impl::configure(Uint32 nodeId,
       m_config.m_default_queue_option = queue;
     }
 
+    Uint32 default_hashmap_size = 0;
+    if (!iter.get(CFG_DEFAULT_HASHMAP_SIZE, &default_hashmap_size) &&
+        default_hashmap_size != 0)
+    {
+      m_config.m_default_hashmap_size = default_hashmap_size;
+    }
+    // If DefaultHashmapSize is not set or zero, use the minimum
+    // value set (not zero) for any other node, since this size
+    // should be supported by the other nodes.  Also this allows
+    // the DefaultHashmapSize to be set for the entire cluster
+    // if set for a single node or node type.
+    // Otherwise use NDB_DEFAULT_HASHMAP_BUCKETS
+    if (default_hashmap_size == 0)
+    {
+      // Use new iterator to leave iter valid.
+      ndb_mgm_configuration_iterator iterall(config, CFG_SECTION_NODE);
+      for (; iterall.valid(); iterall.next())
+      {
+        Uint32 tmp = 0;
+        if (!iterall.get(CFG_DEFAULT_HASHMAP_SIZE, &tmp) &&
+            tmp != 0 &&
+            ((default_hashmap_size == 0) || (tmp < default_hashmap_size)))
+          default_hashmap_size = tmp;
+      }
+      if (default_hashmap_size == 0)
+        default_hashmap_size = NDB_DEFAULT_HASHMAP_BUCKETS;
+
+      m_config.m_default_hashmap_size = default_hashmap_size;
+    }
+
     // Configure timeouts
     {
       Uint32 timeout = 120000;
@@ -1046,5 +1121,76 @@ Ndb_cluster_connection::release_ndb_wait_group(NdbWaitGroup *group)
   }
 }
 
-
 template class Vector<Ndb_cluster_connection_impl::Node>;
+
+int
+Ndb_cluster_connection::wait_until_ready(const int * nodes, int cnt,
+                                         int timeout)
+{
+  DBUG_ENTER("Ndb_cluster_connection::wait_until_ready(nodelist)");
+
+  NodeBitmask mask;
+  for (int i = 0; i < cnt; i++)
+  {
+    if (nodes[i] <= 0 || nodes[i] > (int)mask.max_size())
+    {
+      DBUG_RETURN(-1);
+    }
+    mask.set(nodes[i]);
+  }
+
+  TransporterFacade *tp = m_impl.m_transporter_facade;
+  if (tp == 0)
+  {
+    DBUG_RETURN(-1);
+  }
+  if (tp->ownId() == 0)
+  {
+    DBUG_RETURN(-1);
+  }
+
+  timeout *= 10; // try each 100ms
+
+  NodeBitmask dead;
+  NodeBitmask alive;
+  do
+  {
+    dead.clear();
+    alive.clear();
+    tp->lock_poll_mutex();
+    for(unsigned i= 0; i < no_db_nodes(); i++)
+    {
+      //************************************************
+      // If any node is answering, ndb is answering
+      //************************************************
+      if (tp->get_node_alive(m_impl.m_all_nodes[i].id) != 0)
+        alive.set(m_impl.m_all_nodes[i].id);
+      else
+        dead.set(m_impl.m_all_nodes[i].id);
+    }
+    tp->unlock_poll_mutex();
+
+    if (alive.contains(mask))
+    {
+      DBUG_RETURN(mask.count());
+    }
+
+    NodeBitmask all;
+    all.bitOR(alive);
+    all.bitOR(dead);
+    if (!all.contains(mask))
+    {
+      DBUG_RETURN(-1);
+    }
+
+    if (timeout == 0)
+      break;
+
+    timeout--;
+    NdbSleep_MilliSleep(100);
+  } while (true);
+
+  mask.bitAND(alive);
+  DBUG_RETURN(mask.count());
+}
+

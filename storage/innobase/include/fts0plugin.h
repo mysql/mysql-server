@@ -43,7 +43,7 @@ fts_parse_by_parser(
 /*================*/
 	ibool			mode,	/*!< in: query boolean mode */
 	uchar*			query,	/*!< in: query string */
-	uint			len,	/*!< in: query string length */
+	ulint			len,	/*!< in: query string length */
 	st_mysql_ftparser*	parse,	/*!< in: fts plugin parser */
 	fts_ast_state_t*	state);	/*!< in: query parser state */
 

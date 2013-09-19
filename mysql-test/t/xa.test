@@ -420,3 +420,158 @@ xa prepare 0x4142434445, 0x46, 0x02 ;
 xa recover;
 xa rollback 0x4142434445, 0x46, 0x02 ;
 
+--disable_query_log
+call mtr.add_suppression("Found 1 prepared XA transactions");
+--enable_query_log
+
+--echo #
+--echo # WL#7155: Test 1: check that if a thread of control terminates then 
+--echo # the Resource Manager dissociate and rollback any associated 
+--echo # transaction branch (see ref. 3.6 on page 18 of XA spec)
+--echo #
+
+connect (con1,localhost,root,,);
+
+CREATE TABLE t1 (a INT) ENGINE=INNODB;
+XA START 'xid1';
+INSERT INTO t1 VALUES (1);
+XA END 'xid1';
+
+disconnect con1;
+--source include/wait_until_disconnected.inc
+connection default;
+
+SELECT * FROM t1;
+DROP TABLE t1;
+
+--echo #
+--echo # WL#7155: Test 2: Check that if the Resource Manager is doing work outside
+--echo # any global transaction on behalf of the application,
+--echo # xa_start() returns XAER_OUTSIDE (see xa_start description on page 52 of XA spec)  
+--echo #
+
+connect (con1,localhost,root,,);
+
+SET SESSION autocommit=0;
+START TRANSACTION;
+--error ER_XAER_OUTSIDE
+XA START 'xid1';
+COMMIT;
+
+disconnect con1;
+--source include/wait_until_disconnected.inc
+connection default;
+
+--echo #
+--echo # WL#7155: Test 3: Check that the Resource Manager returns error
+--echo # if the Transaction Manager tries to resume non-existent transaction. 
+--echo #
+
+--error ER_XAER_INVAL
+XA START 'xid1' RESUME;
+
+--echo #
+--echo # WL#7155: Test 4: Check that the Resource Manager returns ok
+--echo # if the Transaction Manager tries to resume transaction
+--echo # that has been ended before. 
+--echo #
+
+connect (con1,localhost,root,,);
+
+XA START 'xid1';
+XA END 'xid1';
+XA START 'xid1' RESUME;
+XA END 'xid1';
+
+disconnect con1;
+--source include/wait_until_disconnected.inc
+connection default;
+
+--echo #
+--echo # WL#7155: Test 5: Check that the Resource Manager returns error
+--echo # if the Transaction Manager ends some XA transaction and
+--echo # starts another one with RESUME clause right after that.
+--echo #
+
+connect (con1,localhost,root,,);
+
+XA START 'xid1';
+XA END 'xid1';
+--error ER_XAER_NOTA
+XA START 'xid2' RESUME;
+disconnect con1;
+--source include/wait_until_disconnected.inc
+connection default;
+
+--echo #
+--echo # WL#7155: Test 6: Check that the SUSPEND clause isn't supported for XA END. 
+--echo #
+
+connect (con1,localhost,root,,);
+
+XA START 'xid1';
+--error ER_XAER_INVAL
+XA END 'xid1' SUSPEND;
+XA END 'xid1';
+
+disconnect con1;
+--source include/wait_until_disconnected.inc
+connection default;
+
+--echo #
+--echo # WL#7155: Test 7: Check that attempt to end non-existent XA transaction 
+--echo # while another XA transaction is active leads to an error 
+--echo #
+
+connect (con1,localhost,root,,);
+
+XA START 'xid1';
+--error ER_XAER_NOTA
+XA END 'xid2';
+XA END 'xid1';
+
+disconnect con1;
+--source include/wait_until_disconnected.inc
+connection default;
+
+--echo #
+--echo # WL#7155: Test 8: Check that XA ROLLBACK can't be called for active XA transaction
+--echo #
+
+connect (con1,localhost,root,,);
+
+XA START 'xid1';
+--error ER_XAER_RMFAIL
+XA ROLLBACK 'xid1';
+XA END 'xid1';
+
+disconnect con1;
+--source include/wait_until_disconnected.inc
+connection default;
+
+--echo #
+--echo # WL#7155: Test 9: Check that XA PREPARE returns error for unknown xid
+--echo #
+
+connect (con1,localhost,root,,);
+
+XA START 'xid1';
+XA END 'xid1';
+--error ER_XAER_NOTA
+XA PREPARE 'xid2';
+
+disconnect con1;
+--source include/wait_until_disconnected.inc
+connection default;
+
+--echo #
+--echo # WL#7155: Test 10: Check that rollback of XA transaction with unknown xid 
+--echo # leads to an error when there is other prepared XA transaction. 
+--echo #
+
+XA START 'xid1';
+XA END 'xid1';
+XA PREPARE 'xid1';
+--error ER_XAER_NOTA
+XA ROLLBACK 'xid2';
+XA ROLLBACK 'xid1';

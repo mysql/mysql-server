@@ -1,3 +1,5 @@
+call mtr.add_suppression("Did not write failed .* into binary log while "
+                         "granting/revoking privileges in databases.");
 SET NAMES binary;
 drop table if exists t1;
 delete from mysql.user where user like 'mysqltest\_%';

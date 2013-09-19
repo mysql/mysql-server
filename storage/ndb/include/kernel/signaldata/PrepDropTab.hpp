@@ -1,6 +1,5 @@
 /*
-   Copyright (C) 2003-2006, 2008 MySQL AB
-    All rights reserved. Use is subject to license terms.
+   Copyright (c) 2003, 2013, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -20,6 +19,9 @@
 #define PREP_DROP_TAB_HPP
 
 #include "SignalData.hpp"
+
+#define JAM_FILE_ID 161
+
 
 class PrepDropTabReq {
   /**
@@ -109,5 +111,8 @@ private:
   Uint32 tableId;
   Uint32 errorCode;
 };
+
+
+#undef JAM_FILE_ID
 
 #endif

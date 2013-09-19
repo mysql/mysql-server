@@ -1,6 +1,5 @@
 /*
-   Copyright (C) 2003, 2005-2007 MySQL AB, 2009 Sun Microsystems, Inc.
-    All rights reserved. Use is subject to license terms.
+   Copyright (c) 2003, 2013, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -24,6 +23,9 @@
 #include <ndb_limits.h>
 #include <pc.hpp>
 #include <signaldata/RestoreImpl.hpp>
+
+#define JAM_FILE_ID 415
+
 
 #define DBUG_PAGE_MAP 0
 

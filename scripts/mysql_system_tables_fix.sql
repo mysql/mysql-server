@@ -661,8 +661,17 @@ ALTER TABLE slave_master_info ADD Ssl_crlpath TEXT CHARACTER SET utf8 COLLATE ut
 ALTER TABLE slave_master_info STATS_PERSISTENT=0;
 ALTER TABLE slave_worker_info STATS_PERSISTENT=0;
 ALTER TABLE slave_relay_log_info STATS_PERSISTENT=0;
-ALTER TABLE innodb_table_stats STATS_PERSISTENT=0;
-ALTER TABLE innodb_index_stats STATS_PERSISTENT=0;
+
+SET @have_innodb= (SELECT COUNT(engine) FROM information_schema.engines WHERE engine='InnoDB' AND support != 'NO');
+SET @str=IF(@have_innodb <> 0, "ALTER TABLE innodb_table_stats STATS_PERSISTENT=0", "SET @dummy = 0");
+PREPARE stmt FROM @str;
+EXECUTE stmt;
+DROP PREPARE stmt;
+
+SET @str=IF(@have_innodb <> 0, "ALTER TABLE innodb_index_stats STATS_PERSISTENT=0", "SET @dummy = 0");
+PREPARE stmt FROM @str;
+EXECUTE stmt;
+DROP PREPARE stmt;
 
 --
 -- Check for accounts with old pre-4.1 passwords and issue a warning

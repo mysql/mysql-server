@@ -328,24 +328,16 @@ QUERY: SELECT s.oxid FROM t1 v, t1 s  WHERE s.oxrootid = 'd8c4177d09f8b11f5.5272
 STATUS:NOT_EQUAL
 SYNC_POINT:before_reset_query_plan
 Diff: EXPLAIN NORMAL vs OTHER
-@@ -44,3 +44,3 @@
-           "table_name": "s",
--          "access_type": "ALL",
-+          "access_type": "range",
-           "possible_keys": [
-@@ -48,5 +48,10 @@
-           ],
--          "rows_examined_per_scan": 6,
-+          "key": "OXLEFT",
-+          "used_key_parts": [
-+            "OXLEFT"
-+          ],
-+          "key_length": "4",
-+          "rows_examined_per_scan": 1,
-           "rows_produced_per_join": 25,
--          "filtered": 83.333,
-+          "filtered": 500,
-           "range_checked_for_each_record": "index map: 0x4",
+@@ -52,2 +52,3 @@
+           "filtered": 83.333,
++          "using_where": true,
+           "using_join_buffer": "Block Nested Loop",
+@@ -63,4 +64,3 @@
+             "OXROOTID"
+-          ],
+-          "attached_condition": "((`test`.`s`.`OXROOTID` = 'd8c4177d09f8b11f5.52725521') and (`test`.`s`.`OXLEFT` > `test`.`v`.`OXLEFT`) and (`test`.`s`.`OXLEFT` < `test`.`v`.`OXRIGHT`))"
++          ]
+         }
 QUERY: SELECT * from t1 where b = (select b from t2 where t1.a = t2.a) 
 STATUS:NOT_EQUAL
 SYNC_POINT:before_reset_query_plan

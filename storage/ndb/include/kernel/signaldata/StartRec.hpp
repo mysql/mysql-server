@@ -1,6 +1,5 @@
 /*
-   Copyright (C) 2003, 2005-2008 MySQL AB
-    All rights reserved. Use is subject to license terms.
+   Copyright (c) 2003, 2013, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -21,6 +20,9 @@
 
 #include "SignalData.hpp"
 #include <NodeBitmask.hpp>
+
+#define JAM_FILE_ID 105
+
 
 class StartRecReq {
   /**
@@ -66,4 +68,7 @@ private:
   Uint32 startingNodeId;
   Uint32 senderData;
 };
+
+#undef JAM_FILE_ID
+
 #endif

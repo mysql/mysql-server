@@ -37,7 +37,7 @@
 
 // type alias for mapping the 2-element int array in CharsetMap::recode();
 // provides basic error checking by jtie requiring array length >= 2.
-typedef ttrait< _jintArray *, int32_t *, _jtie_j_ArrayMapper< _jtie_j_BoundedArray< _jintArray, 2 > > * > ttrait_int32_2p_a;
+typedef ttrait< _jintArray *, Int32 *, _jtie_j_ArrayMapper< _jtie_j_BoundedArray< _jintArray, 2 > > * > ttrait_Int32_2p_a;
 
 JTIE_DEFINE_PEER_CLASS_MAPPING(CharsetMap,
                                c_m_n_m_CharsetMap)
@@ -201,9 +201,9 @@ Java_com_mysql_ndbjtie_mysql_CharsetMap_recode(JNIEnv * env, jobject obj, jintAr
 {
     TRACE("jint Java_com_mysql_ndbjtie_mysql_CharsetMap_recode(JNIEnv *, jobject, jintArray, jint, jint, jobject, jobject)");
 #ifndef NDBJTIE_USE_WRAPPED_VARIANT_FOR_FUNCTION
-    return gcall_mfr< ttrait_c_m_n_m_CharsetMap_ct, ttrait_c_m_n_m_CharsetMap_RecodeStatus_iv/*_enum_*/, ttrait_int32_2p_a, ttrait_int, ttrait_int, ttrait_void_0cp_bb, ttrait_void_0p_bb, &CharsetMap::recode >(env, obj, p0, p1, p2, p3, p4);
+    return gcall_mfr< ttrait_c_m_n_m_CharsetMap_ct, ttrait_c_m_n_m_CharsetMap_RecodeStatus_iv/*_enum_*/, ttrait_Int32_2p_a, ttrait_int, ttrait_int, ttrait_void_0cp_bb, ttrait_void_0p_bb, &CharsetMap::recode >(env, obj, p0, p1, p2, p3, p4);
 #else
-    return gcall_fr< ttrait_c_m_n_m_CharsetMap_RecodeStatus_iv/*_enum_*/, ttrait_c_m_n_m_CharsetMap_cr, ttrait_int32_2p_a, ttrait_int, ttrait_int, ttrait_void_0cp_bb, ttrait_void_0p_bb, &MysqlUtilsWrapper::CharsetMap__recode >(env, NULL, obj, p0, p1, p2, p3, p4);
+    return gcall_fr< ttrait_c_m_n_m_CharsetMap_RecodeStatus_iv/*_enum_*/, ttrait_c_m_n_m_CharsetMap_cr, ttrait_Int32_2p_a, ttrait_int, ttrait_int, ttrait_void_0cp_bb, ttrait_void_0p_bb, &MysqlUtilsWrapper::CharsetMap__recode >(env, NULL, obj, p0, p1, p2, p3, p4);
 #endif // NDBJTIE_USE_WRAPPED_VARIANT_FOR_FUNCTION
 }
 

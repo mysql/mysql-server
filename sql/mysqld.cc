@@ -828,7 +828,7 @@ void copy_global_thread_list(std::set<THD*> *new_copy)
 void add_global_thread(THD *thd)
 {
   DBUG_PRINT("info", ("add_global_thread %p", thd));
-  mysql_mutex_assert_owner(&LOCK_thread_count);
+  mysql_mutex_lock(&LOCK_thread_count);
   const bool have_thread=
     global_thread_list->find(thd) != global_thread_list->end();
   if (!have_thread)
@@ -838,14 +838,22 @@ void add_global_thread(THD *thd)
   }
   // Adding the same THD twice is an error.
   DBUG_ASSERT(!have_thread);
+  mysql_mutex_unlock(&LOCK_thread_count);
 }
 
 void remove_global_thread(THD *thd)
 {
   DBUG_PRINT("info", ("remove_global_thread %p current_linfo %p",
                       thd, thd->current_linfo));
-  mysql_mutex_assert_owner(&LOCK_thread_count);
+  mysql_mutex_lock(&LOCK_thread_count);
   DBUG_ASSERT(thd->release_resources_done());
+
+  /*
+    Used by binlog_reset_master.  It would be cleaner to use
+    DEBUG_SYNC here, but that's not possible because the THD's debug
+    sync feature has been shut down at this point.
+  */
+  DBUG_EXECUTE_IF("sleep_after_lock_thread_count_before_delete_thd", sleep(5););
 
   mysql_mutex_lock(&LOCK_thread_remove);
   const size_t num_erased= global_thread_list->erase(thd);
@@ -856,6 +864,7 @@ void remove_global_thread(THD *thd)
   DBUG_ASSERT(1 == num_erased);
 
   mysql_cond_broadcast(&COND_thread_count);
+  mysql_mutex_unlock(&LOCK_thread_count);
 }
 
 uint get_thread_count()
@@ -1273,7 +1282,7 @@ static void close_connections(void)
                       DBUG_ASSERT(tmp->get_command() != COM_BINLOG_DUMP &&
                                   tmp->get_command() != COM_BINLOG_DUMP_GTID);
                     };);
-    MYSQL_CALLBACK(Connection_handler_manager::callback,
+    MYSQL_CALLBACK(Connection_handler_manager::event_functions,
                    post_kill_notification, (tmp));
     mysql_mutex_lock(&tmp->LOCK_thd_data);
     if (tmp->mysys_var)
@@ -1316,7 +1325,7 @@ static void close_connections(void)
           tmp->get_command() == COM_BINLOG_DUMP_GTID)
       {
         tmp->killed= THD::KILL_CONNECTION;
-        MYSQL_CALLBACK(Connection_handler_manager::callback,
+        MYSQL_CALLBACK(Connection_handler_manager::event_functions,
                        post_kill_notification, (tmp));
         mysql_mutex_lock(&tmp->LOCK_thd_data);
         if (tmp->mysys_var)
@@ -2535,8 +2544,7 @@ pthread_handler_t signal_hand(void *arg __attribute__((unused)))
     This should actually be '+ max_number_of_slaves' instead of +10,
     but the +10 should be quite safe.
   */
-  init_thr_alarm(Connection_handler_manager::get_instance()->get_max_threads()
-                 + 10);
+  init_thr_alarm(Connection_handler_manager::max_threads + 10);
   if (test_flags & TEST_SIGINT)
   {
     (void) sigemptyset(&set);     // Setup up SIGINT for debug
@@ -3034,7 +3042,7 @@ void init_com_statement_info()
     com_statement_info[index].m_flags= 0;
   }
 
-  /* "statement/com/query" can mutate into "statement/sql/..." */
+  /* "statement/abstract/query" can mutate into "statement/sql/..." */
   com_statement_info[(uint) COM_QUERY].m_flags= PSI_FLAG_MUTABLE;
 }
 #endif
@@ -4319,14 +4327,7 @@ a file name for --log-bin-index option", opt_binlog_index_name);
   }
 
   if (opt_bootstrap)
-  {
     log_output_options= LOG_FILE;
-    /*
-      Show errors during bootstrap, but gag everything else so critical
-      info isn't lost during install.  WL#6661 et al.
-    */
-    log_error_verbosity= 1;
-  }
 
   /*
     Issue a warning if there were specified additional options to the
@@ -7356,6 +7357,23 @@ static int get_options(int *argc_ptr, char ***argv_ptr)
   sys_var_add_options(&all_options, sys_var::PARSE_NORMAL);
   add_terminator(&all_options);
 
+  struct my_option *opt_lev= NULL;
+
+  if (opt_help || opt_bootstrap)
+  {
+    /*
+      Show errors during --help, but gag everything else so the info the
+      user actually wants isn't lost in the spam.  (For --help --verbose,
+      we need to set up far enough to be able to print variables provided
+      by plugins, so a good number of warnings/notes might get printed.)
+      Likewise for --bootstrap.
+    */
+    struct my_option *opt= &all_options[0];
+    for (; opt->name; opt++)
+      if (!strcmp("log_error_verbosity", opt->name))
+        (opt_lev= opt)->def_value= 1;
+  }
+
   /* Skip unknown options so that they may be processed later by plugins */
   my_getopt_skip_unknown= TRUE;
 
@@ -7365,6 +7383,13 @@ static int get_options(int *argc_ptr, char ***argv_ptr)
 
   if (!opt_help)
     vector<my_option>().swap(all_options);  // Deletes the vector contents.
+
+  /*
+    If we changed the default log_error_verbosity because of
+    --help / --bootstrap, change the default back here.
+  */
+  if (opt_lev)
+    opt_lev->def_value= 3;
 
   /* Add back the program name handle_options removes */
   (*argc_ptr)++;
@@ -7377,17 +7402,7 @@ static int get_options(int *argc_ptr, char ***argv_ptr)
     Do them here.
   */
 
-  if (opt_help)
-  {
-    /*
-      Show errors during --help, but gag everything else so the info the
-      user actually wants isn't lost in the spam.  (For --help --verbose,
-      we need to set up far enough to be able to print variables provided
-      by plugins.)
-    */
-    log_error_verbosity= 1;
-  }
-  else if (opt_verbose)
+  if (!opt_help && opt_verbose)
     sql_print_error("--verbose is for use with --help; "
                     "did you mean --log-error-verbosity?");
 
@@ -8674,35 +8689,49 @@ void init_server_psi_keys(void)
 
   category= "com";
   init_com_statement_info();
-  count= array_elements(com_statement_info);
+
+  /*
+    Register [0 .. COM_QUERY - 1] as "statement/com/..."
+  */
+  count= (int) COM_QUERY;
   mysql_statement_register(category, com_statement_info, count);
 
   /*
+    Register [COM_QUERY + 1 .. COM_END] as "statement/com/..."
+  */
+  count= (int) COM_END - (int) COM_QUERY;
+  mysql_statement_register(category, & com_statement_info[(int) COM_QUERY + 1], count);
+
+  category= "abstract";
+  /*
+    Register [COM_QUERY] as "statement/abstract/com_query"
+  */
+  mysql_statement_register(category, & com_statement_info[(int) COM_QUERY], 1);
+
+  /*
     When a new packet is received,
-    it is instrumented as "statement/com/".
+    it is instrumented as "statement/abstract/new_packet".
     Based on the packet type found, it later mutates to the
     proper narrow type, for example
-    "statement/com/query" or "statement/com/ping".
-    In cases of "statement/com/query", SQL queries are given to
+    "statement/abstract/query" or "statement/com/ping".
+    In cases of "statement/abstract/query", SQL queries are given to
     the parser, which mutates the statement type to an even more
     narrow classification, for example "statement/sql/select".
   */
   stmt_info_new_packet.m_key= 0;
-  stmt_info_new_packet.m_name= "";
+  stmt_info_new_packet.m_name= "new_packet";
   stmt_info_new_packet.m_flags= PSI_FLAG_MUTABLE;
   mysql_statement_register(category, &stmt_info_new_packet, 1);
 
   /*
     Statements processed from the relay log are initially instrumented as
-    "statement/rpl/relay_log". The parser will mutate the statement type to
+    "statement/abstract/relay_log". The parser will mutate the statement type to
     a more specific classification, for example "statement/sql/insert".
   */
-  category= "rpl";
   stmt_info_rpl.m_key= 0;
   stmt_info_rpl.m_name= "relay_log";
   stmt_info_rpl.m_flags= PSI_FLAG_MUTABLE;
   mysql_statement_register(category, &stmt_info_rpl, 1);
-
 #endif
 
   /* Common client and server code. */

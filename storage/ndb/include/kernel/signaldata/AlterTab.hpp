@@ -1,6 +1,5 @@
 /*
-   Copyright (C) 2003, 2005-2008 MySQL AB, 2010 Sun Microsystems, Inc.
-    All rights reserved. Use is subject to license terms.
+   Copyright (c) 2003, 2013, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -21,6 +20,9 @@
 
 #include "SignalData.hpp"
 #include "GlobalSignalNumbers.h"
+
+#define JAM_FILE_ID 72
+
 
 struct AlterTabReq {
   STATIC_CONST( SignalLength = 12 );
@@ -95,5 +97,8 @@ union AlterTabAll {
   AlterTabRef ref;
   AlterTabConf conf;
 };
+
+
+#undef JAM_FILE_ID
 
 #endif

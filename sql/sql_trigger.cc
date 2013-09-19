@@ -289,7 +289,7 @@ end:
   {
 #ifdef HAVE_PSI_SP_INTERFACE
     /* Drop statistics for this stored program from performance schema. */
-    MYSQL_DROP_SP(SP_OBJECT_TYPE_TRIGGER,
+    MYSQL_DROP_SP(SP_TYPE_TRIGGER,
                   thd->lex->spname->m_db.str, thd->lex->spname->m_db.length,
                   thd->lex->spname->m_name.str, thd->lex->spname->m_name.length);
 #endif

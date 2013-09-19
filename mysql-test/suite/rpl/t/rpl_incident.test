@@ -7,6 +7,11 @@
 --source include/have_debug.inc
 --source include/force_restart.inc
 
+CALL mtr.add_suppression("Generate an incident log event before writing the "
+                         "real event to the binary log for testing purposes. "
+                         "An incident event has been written to the binary "
+                         "log which will stop the slaves.");
+
 --let @old_debug= @@global.debug
 SET GLOBAL DEBUG="+d,incident_database_resync_on_replace";
 

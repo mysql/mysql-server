@@ -670,7 +670,7 @@ private:
   void replace_item_field(const char* field_name, Item* new_item);
 
 #ifdef WITH_PARTITION_STORAGE_ENGINE
-  bool prune_table_partitions(THD *thd);
+  bool prune_table_partitions();
 #endif
   /**
     TRUE if the query contains an aggregate function but has no GROUP
@@ -692,6 +692,10 @@ private:
   void set_plan_state(enum_plan_state plan_state_arg);
   bool compare_costs_of_subquery_strategies(
          Item_exists_subselect::enum_exec_method *method);
+  /**
+    Recount temp table field types recursively.
+  */
+  void recount_field_types();
 };
 
 /// RAII class to ease the call of LEX::mark_broken() if error.

@@ -32,13 +32,14 @@ static uint opt_protocol= 0;
 static char *opt_mysql_unix_port= 0;
 static MYSQL mysql;
 static char *password= 0;
+static bool password_provided= FALSE;
 #ifdef HAVE_SMEM
 static char *shared_memory_base_name= 0;
 #endif
 
 #include "sslopt-vars.h"
 
-static const char *load_default_groups[]= { "mysql", "client", 0 };
+static const char *load_default_groups[]= { "client", "mysql_secure_installation", 0 };
 
 static struct my_option my_connection_options[]=
 {
@@ -47,6 +48,9 @@ static struct my_option my_connection_options[]=
   {"host", 'h', "Connect to host.", &opt_host,
    &opt_host, 0, GET_STR_ALLOC, REQUIRED_ARG,
    (longlong) "localhost", 0, 0, 0, 0, 0},
+  {"password", 'p', "Password to connect to the server. If password is not "
+   "given it's asked from the tty.", 0, 0, 0, GET_PASSWORD, OPT_ARG , 0, 0, 0,
+   0, 0, 0},
 #ifdef __WIN__
   {"pipe", 'W', "Use named pipes to connect to server.", 0, 0, 0, GET_NO_ARG,
    NO_ARG, 0, 0, 0, 0, 0, 0},
@@ -114,6 +118,25 @@ my_arguments_get_one_option(int optid,
     usage();
     free_resources();
     exit(0);
+  case 'p':
+    if (argument)
+    {
+      char *start= argument;
+      my_free(password);
+      password= my_strdup(PSI_NOT_INSTRUMENTED,
+			  argument, MYF(MY_FAE));
+      while (*argument)
+      {
+	*argument++= 'x';               // Destroy argument
+      }
+      if (*start)
+	start[1]= 0 ;
+    }
+    else
+      password= get_tty_password(NullS);
+    password_provided= TRUE;
+    break;
+
 #include <sslopt-case.h>
   case OPT_MYSQL_PROTOCOL:
 #ifndef EMBEDDED_LIBRARY
@@ -483,15 +506,18 @@ int get_root_password()
 {
   int res;
   fprintf(stdout, "\n\n\n"
-                  "NOTE: RUNNING ALL THE STEPS FOLLOWING THIS IS RECOMMENDED\n"
-                  "FOR ALL MySQL SERVERS IN PRODUCTION USE!  PLEASE READ EACH\n"
-                  "STEP CAREFULLY!\n\n\n\n\n"
-                  "In order to log into MySQL to secure it, we'll need the\n"
-                  "current password for the root user. If you've just installed"
-                  "\nMySQL, and you haven't set the root password yet, the \n"
-                  "password will be blank, so you should just press enter here."
-                  "\n\n");
-  password= get_tty_password(NullS);
+		  "NOTE: RUNNING ALL THE STEPS FOLLOWING THIS IS RECOMMENDED\n"
+		  "FOR ALL MySQL SERVERS IN PRODUCTION USE!  PLEASE READ EACH\n"
+		  "STEP CAREFULLY!\n\n\n\n\n");
+  if (!password_provided)
+  {
+    fprintf(stdout, "In order to log into MySQL to secure it, we'll need the\n"
+		    "current password for the root user. If you've just installed"
+		    "\nMySQL, and you haven't set the root password yet, the \n"
+		    "password will be blank, so you should just press enter here."
+		    "\n\n");
+    password= get_tty_password(NullS);
+  }
   if (!mysql_real_connect(&mysql, opt_host, opt_user,
 			  password, "", opt_port, opt_mysql_unix_port, 0))
   {

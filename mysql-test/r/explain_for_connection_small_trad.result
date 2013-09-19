@@ -89,13 +89,7 @@ Diff: EXPLAIN NORMAL vs OTHER
 QUERY: UPDATE t1, t2 SET t1.b = CONCAT(t1.b, ', t2.b:', t2.b), t2.b = CONCAT(t2.b, ', t1.b:', t1.b) WHERE t2.b = t1.b and t2.a = 4 
 STATUS: EQUAL
 QUERY: SELECT s.oxid FROM t1 v, t1 s  WHERE s.oxrootid = 'd8c4177d09f8b11f5.52725521' AND v.oxrootid ='d8c4177d09f8b11f5.52725521' AND s.oxleft > v.oxleft AND s.oxleft < v.oxright 
-STATUS:NOT_EQUAL
-SYNC_POINT:before_reset_query_plan
-Diff: EXPLAIN NORMAL vs OTHER
-@@ -2,2 +2,2 @@
- 1	SIMPLE	v	ref	OXLEFT,OXRIGHT,OXROOTID	OXROOTID	34	const	5	NULL
--1	SIMPLE	s	ALL	OXLEFT	NULL	NULL	NULL	6	Range checked for each record (index map: 0x4)
-+1	SIMPLE	s	range	OXLEFT	OXLEFT	4	NULL	1	Range checked for each record (index map: 0x4)
+STATUS: EQUAL
 QUERY: SELECT * from t1 where b = (select b from t2 where t1.a = t2.a) 
 STATUS: EQUAL
 QUERY: DELETE from t1 where b = (select b from t2 where t1.a = t2.a) 

@@ -4463,6 +4463,10 @@ fts_sync(
 		index_cache = static_cast<fts_index_cache_t*>(
 			ib_vector_get(cache->indexes, i));
 
+		if (index_cache->index->to_be_dropped) {
+			continue;
+		}
+
 		error = fts_sync_index(sync, index_cache);
 
 		if (error != DB_SUCCESS && !sync->interrupted) {
@@ -4472,7 +4476,8 @@ fts_sync(
 	}
 
 	DBUG_EXECUTE_IF("fts_instrument_sync_interrupted",
-			 sync->interrupted = true;
+			sync->interrupted = true;
+			error = DB_INTERRUPTED;
 	);
 
 	if (error == DB_SUCCESS && !sync->interrupted) {
@@ -4498,17 +4503,20 @@ fts_sync(
 /****************************************************************//**
 Run SYNC on the table, i.e., write out data from the cache to the
 FTS auxiliary INDEX table and clear the cache at the end. */
-
-void
+dberr_t
 fts_sync_table(
 /*===========*/
 	dict_table_t*	table)		/*!< in: table */
 {
+	dberr_t	err = DB_SUCCESS;
+
 	ut_ad(table->fts);
 
 	if (table->fts->cache) {
-		fts_sync(table->fts->cache->sync);
+		err = fts_sync(table->fts->cache->sync);
 	}
+
+	return(err);
 }
 
 /********************************************************************
@@ -4633,8 +4641,8 @@ fts_get_token_size(
 	start = const_cast<char*>(token);
 	end = start + len;
 	while (start < end) {
-		int ctype;
-		int mbl;
+		int	ctype;
+		int	mbl;
 
 		mbl = cs->cset->ctype(
 			cs, &ctype,
@@ -4669,7 +4677,7 @@ fts_tokenize_document_internal(
 
 	str.f_str = buf;
 
-	for (int i = 0, inc = 0; i < len; i += inc) {
+	for (ulint i = 0, inc = 0; i < static_cast<ulint>(len); i += inc) {
 		inc = innobase_mysql_fts_get_token(
 			const_cast<CHARSET_INFO*>(param->cs),
 			reinterpret_cast<byte*>(doc) + i,
@@ -4677,14 +4685,16 @@ fts_tokenize_document_internal(
 			&str);
 
 		if (str.f_len > 0) {
-			bool_info.position = i + inc - str.f_len;
+			bool_info.position =
+				static_cast<int>(i + inc - str.f_len);
 			ut_ad(bool_info.position >= 0);
 
 			/* Stop when add word fails */
 			if (param->mysql_add_word(
 				param,
 				reinterpret_cast<char*>(str.f_str),
-				str.f_len, &bool_info)) {
+				static_cast<int>(str.f_len),
+				&bool_info)) {
 				break;
 			}
 		}
@@ -4748,7 +4758,7 @@ fts_tokenize_by_parser(
 	param.mysql_ftparam = fts_param;
 	param.cs = doc->charset;
 	param.doc = reinterpret_cast<char*>(doc->text.f_str);
-	param.length = doc->text.f_len;
+	param.length = static_cast<int>(doc->text.f_len);
 	param.mode= MYSQL_FTPARSER_SIMPLE_MODE;
 
 	PARSER_INIT(parser, &param);
@@ -4808,7 +4818,7 @@ fts_tokenize_document_next(
 	ut_a(doc->tokens);
 
 	if (parser) {
-		fts_tokenize_param_t      fts_param;
+		fts_tokenize_param_t	fts_param;
 
 		fts_param.result_doc = (result != NULL) ? result : doc;
 		fts_param.add_pos = add_pos;

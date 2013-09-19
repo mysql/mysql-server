@@ -83,9 +83,10 @@ static int prepare_for_repair(THD *thd, TABLE_LIST *table_list,
     */
     my_hash_value_type hash_value;
 
-    table_list->mdl_request.init(MDL_key::TABLE,
-                                 table_list->db, table_list->table_name,
-                                 MDL_EXCLUSIVE, MDL_TRANSACTION);
+    MDL_REQUEST_INIT(&table_list->mdl_request,
+                     MDL_key::TABLE,
+                     table_list->db, table_list->table_name,
+                     MDL_EXCLUSIVE, MDL_TRANSACTION);
 
     if (lock_table_names(thd, table_list, table_list->next_global,
                          thd->variables.lock_wait_timeout, 0))
