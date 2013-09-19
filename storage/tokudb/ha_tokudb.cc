@@ -8145,16 +8145,6 @@ void ha_tokudb::print_error(int error, myf errflag) {
         error = HA_ERR_UNSUPPORTED;
     }
 #endif
-    // TODO: should rename debug code to something better
-    // just reusing this so that tests don' start complaining
-#if MYSQL_VERSION_ID < 50500
-    if ((tokudb_debug & TOKUDB_DEBUG_HIDE_DDL_LOCK_ERRORS) == 0) {
-        THD* thd = ha_thd();
-        if (get_log_client_errors(thd)) {
-            sql_print_error("query \"%s\" returned handler error %d", thd->query_string.str, error);
-        }
-    }
-#endif
     handler::print_error(error, errflag);
 }
 
