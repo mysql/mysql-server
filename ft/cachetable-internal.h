@@ -558,6 +558,10 @@ private:
     PARTITIONED_COUNTER m_size_leaf;
     PARTITIONED_COUNTER m_size_rollback;
     PARTITIONED_COUNTER m_size_cachepressure;
+    PARTITIONED_COUNTER m_wait_pressure_count;
+    PARTITIONED_COUNTER m_wait_pressure_time;
+    PARTITIONED_COUNTER m_long_wait_pressure_count;
+    PARTITIONED_COUNTER m_long_wait_pressure_time;
     
     KIBBUTZ m_kibbutz;
 
