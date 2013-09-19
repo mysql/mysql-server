@@ -1086,24 +1086,6 @@ Dbtup::fireDetachedTriggers(KeyReqStruct *req_struct,
   }
 }
 
-void Dbtup::executeTriggers(KeyReqStruct *req_struct,
-                            DLList<TupTriggerData>& triggerList, 
-                            Operationrec* regOperPtr,
-                            bool disk)
-{
-  TriggerPtr trigPtr;
-  triggerList.first(trigPtr);
-  while (trigPtr.i != RNIL) {
-    jam();
-    executeTrigger(req_struct,
-                   trigPtr.p,
-                   regOperPtr,
-                   disk);
-    triggerList.next(trigPtr);
-
-  }
-}
-
 bool
 Dbtup::check_fire_trigger(const Fragrecord * fragPtrP,
                           const TupTriggerData* trigPtrP,
