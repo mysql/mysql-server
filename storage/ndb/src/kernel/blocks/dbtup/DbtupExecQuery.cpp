@@ -603,8 +603,8 @@ void Dbtup::execTUPKEYREQ(Signal* signal)
    req_struct.fragPtrP = fragptr.p;
    req_struct.operPtrP = operPtr.p;
    req_struct.signal= signal;
-   req_struct.dirty_op= TrequestInfo & 1;
-   req_struct.interpreted_exec= (TrequestInfo >> 10) & 1;
+   req_struct.dirty_op= TupKeyReq::getDirtyFlag(TrequestInfo);
+   req_struct.interpreted_exec= TupKeyReq::getInterpretedFlag(TrequestInfo);
    req_struct.no_fired_triggers= 0;
    req_struct.read_length= 0;
    req_struct.last_row= false;
@@ -626,9 +626,9 @@ void Dbtup::execTUPKEYREQ(Signal* signal)
    Uint32 Rstoredid= tupKeyReq->storedProcedure;
 
    regOperPtr->fragmentPtr= Rfragptr;
-   regOperPtr->op_struct.op_type= (TrequestInfo >> 6) & 0x7;
+   regOperPtr->op_struct.op_type= TupKeyReq::getOperation(TrequestInfo);
    regOperPtr->op_struct.delete_insert_flag = false;
-   regOperPtr->op_struct.m_reorg = (TrequestInfo >> 12) & 3;
+   regOperPtr->op_struct.m_reorg = TupKeyReq::getReorgFlag(TrequestInfo);
 
    regOperPtr->m_copy_tuple_location.setNull();
    regOperPtr->tupVersion= ZNIL;
@@ -651,8 +651,8 @@ void Dbtup::execTUPKEYREQ(Signal* signal)
    req_struct.TC_index= sig2;
    req_struct.TC_ref= sig3;
    Uint32 pageid = req_struct.frag_page_id= sig4;
-   req_struct.m_use_rowid = (TrequestInfo >> 11) & 1;
-   req_struct.m_reorg = (TrequestInfo >> 12) & 3;
+   req_struct.m_use_rowid = TupKeyReq::getRowidFlag(TrequestInfo);
+   req_struct.m_reorg = TupKeyReq::getReorgFlag(TrequestInfo);
 
    sig1= tupKeyReq->attrBufLen;
    sig2= tupKeyReq->applRef;
