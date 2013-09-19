@@ -20,9 +20,10 @@
 #include <mysql/plugin.h>
 #include <mysql/plugin_gcs_rpl.h>
 #include <../include/mysql_com.h>
+#include <mysqld.h>               // UUID_LENGTH
 
 typedef st_mysql_sys_var SYS_VAR;
-char gcs_replication_group[NAME_CHAR_LEN];
+char gcs_replication_group[UUID_LENGTH+1];
 char gcs_replication_boot;
 
 int gcs_replication_init(MYSQL_PLUGIN plugin_info);

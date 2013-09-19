@@ -30,10 +30,12 @@
 */
 
 static MYSQL_PLUGIN plugin_info_ptr;
-extern char gcs_replication_group[NAME_CHAR_LEN];
+extern char gcs_replication_group[UUID_LENGTH+1];
 extern char gcs_replication_boot;
 char *gcs_group_pointer=NULL;
 bool gcs_running= false;
+
+static int check_group_name_string(const char *str);
 
 int gcs_before_handle_connection(Server_state_param *param)
 {
@@ -121,7 +123,7 @@ int gcs_rpl_start()
 {
   if (gcs_running)
     return 2;
-  if (strcmp(gcs_group_pointer, "NULL") == 0)
+  if (check_group_name_string(gcs_group_pointer))
     return 1;
   gcs_running= true;
   return 0;
@@ -189,6 +191,24 @@ static void update_boot(MYSQL_THD thd, SYS_VAR *var, void *ptr, const void *val)
   DBUG_VOID_RETURN;
 }
 
+static int check_group_name_string(const char *str)
+{
+  DBUG_ENTER("check_group_name_string");
+
+  if (!str)
+  {
+    sql_print_error("The group name option is mandatory");
+    DBUG_RETURN(1);
+  }
+  if (!Uuid::is_valid(str))
+  {
+    sql_print_error("The group name '%s' is not a valid UUID", str);
+    DBUG_RETURN(1);
+  }
+
+  DBUG_RETURN(0);
+}
+
 static int check_group_name(MYSQL_THD thd, SYS_VAR *var, void* prt,
                             struct st_mysql_value *value)
 {
@@ -199,14 +219,8 @@ static int check_group_name(MYSQL_THD thd, SYS_VAR *var, void* prt,
 
   int length= sizeof(buff);
   str= value->val_str(value, buff, &length);
-  if (!str)
+  if (check_group_name_string(str))
     DBUG_RETURN(1);
-  if (length > NAME_CHAR_LEN-1)
-  {
-    sql_print_error("The group name '%s' is too long, it can have a maximum of %d characters.",
-                    str, NAME_CHAR_LEN-1);
-    DBUG_RETURN(1);
-  }
 
   *(const char**)prt= str;
   DBUG_RETURN(0);
@@ -218,7 +232,7 @@ static void update_group_name(MYSQL_THD thd, SYS_VAR *var, void *ptr, const
   DBUG_ENTER("update_group_name");
 
   const char *newGroup= *(const char**)val;
-  strncpy(gcs_replication_group, newGroup, NAME_CHAR_LEN-1);
+  strncpy(gcs_replication_group, newGroup, UUID_LENGTH);
   gcs_group_pointer= &gcs_replication_group[0];
 
   DBUG_VOID_RETURN;
@@ -236,7 +250,7 @@ static MYSQL_SYSVAR_STR(group_name, gcs_group_pointer,
   "The cluster name this server has joined.",
   check_group_name,
   update_group_name,
-  "NULL");
+  NULL);
 
 static SYS_VAR* gcs_system_vars[]= {
   MYSQL_SYSVAR(group_name),

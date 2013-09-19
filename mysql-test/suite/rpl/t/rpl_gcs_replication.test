@@ -8,26 +8,23 @@
 --source include/install_gcs_replication.inc
 
 call mtr.add_suppression("The group name *.*");
---let $gcs_group_name="GCS_CLUSTER"
+--let $gcs_group_name= 8a94f357-aab4-11df-86ab-c80aa9429562
 --echo [ON THE NODE]
 
 --error ER_WRONG_VALUE_FOR_VAR
-SET GLOBAL gcs_replication_plugin_group_name= "abcdefabcdefabcdefabcdefabcdefabcdefabcdefabcdefabcdefabcdefabcdefabcdefabcdefabcdefabcdefabcdefabcdefabcdefabcdefabcdefabcdefabcdefabcdefabcdefabcdefabcdefabcdef";
+SET GLOBAL gcs_replication_plugin_group_name= "8a94f357-aab4-11df-86ab-invalid";
 
 # This is a valid name being given to the group name
 
---eval SET GLOBAL gcs_replication_plugin_group_name= $gcs_group_name
+--eval SET GLOBAL gcs_replication_plugin_group_name= "$gcs_group_name"
 --eval SET GLOBAL gcs_replication_plugin_start_on_boot= 1
 
---let $group_name= `SELECT @@gcs_replication_plugin_group_name`
---let $gcs_boot= `SELECT @@gcs_replication_plugin_start_on_boot`
-
---let $assert_text= The value of group name should be GCS_CLUSTER
---let $assert_cond= STRCMP("$group_name", "GCS_CLUSTER") = 0
+--let $assert_text= The value of group name should be $gcs_group_name
+--let $assert_cond= "[SELECT @@gcs_replication_plugin_group_name]" = "$gcs_group_name"
 --source include/assert.inc
 
 --let $assert_text= The value of gcs_boot should be 1
---let $assert_cond= $gcs_boot = 1
+--let $assert_cond= [SELECT @@gcs_replication_plugin_start_on_boot] = 1
 --source include/assert.inc
 
 # This restart tests that the plugin is still loaded on the server restart
@@ -39,7 +36,7 @@ SET GLOBAL gcs_replication_plugin_group_name= "abcdefabcdefabcdefabcdefabcdefabc
 --error ER_GCS_REPLICATION_CONFIGURATION
 START GCS_REPLICATION;
 
---eval SET GLOBAL gcs_replication_plugin_group_name= $gcs_group_name
+--eval SET GLOBAL gcs_replication_plugin_group_name= "$gcs_group_name"
 
 # TODO:This command and the START one need a similar include like start_slave.inc,
 # which will only possible with WL#6841
