@@ -1559,9 +1559,10 @@ struct TABLE_LIST
     table_name_length= table_name_length_arg;
     alias= (char*) alias_arg;
     lock_type= lock_type_arg;
-    mdl_request.init(MDL_key::TABLE, db, table_name,
+    MDL_REQUEST_INIT(&mdl_request,
+                     MDL_key::TABLE, db, table_name,
                      (lock_type >= TL_WRITE_ALLOW_WRITE) ?
-                     MDL_SHARED_WRITE : MDL_SHARED_READ,
+                       MDL_SHARED_WRITE : MDL_SHARED_READ,
                      MDL_TRANSACTION);
     callback_func= 0;
   }

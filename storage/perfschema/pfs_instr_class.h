@@ -88,7 +88,8 @@ enum PFS_class_type
   PFS_CLASS_TABLE_LOCK= 10,
   PFS_CLASS_IDLE=       11,
   PFS_CLASS_MEMORY=     12,
-  PFS_CLASS_LAST=       PFS_CLASS_MEMORY,
+  PFS_CLASS_METADATA=   13,
+  PFS_CLASS_LAST=       PFS_CLASS_METADATA,
   PFS_CLASS_MAX=        PFS_CLASS_LAST + 1
 };
 
@@ -151,6 +152,12 @@ struct PFS_instr_class
   {
     return m_flags & PSI_FLAG_GLOBAL;
   }
+
+  bool is_mutable() const
+  {
+    return m_flags & PSI_FLAG_MUTABLE;
+  }
+
   static void set_enabled(PFS_instr_class *pfs, bool enabled);
   static void set_timed(PFS_instr_class *pfs, bool timed);
 
@@ -323,6 +330,8 @@ extern PFS_single_stat global_idle_stat;
 extern PFS_table_io_stat global_table_io_stat;
 /** Statistics for dropped table lock. */
 extern PFS_table_lock_stat global_table_lock_stat;
+/** Statistics for the METADATA instrument. */
+extern PFS_single_stat global_metadata_stat;
 
 inline uint sanitize_index_count(uint count)
 {
@@ -334,8 +343,9 @@ inline uint sanitize_index_count(uint count)
 #define GLOBAL_TABLE_IO_EVENT_INDEX 0
 #define GLOBAL_TABLE_LOCK_EVENT_INDEX 1
 #define GLOBAL_IDLE_EVENT_INDEX 2
+#define GLOBAL_METADATA_EVENT_INDEX 3
 /** Number of global events. */
-#define COUNT_GLOBAL_EVENT_INDEX 3
+#define COUNT_GLOBAL_EVENT_INDEX 4
 
 /**
   Instrument controlling all table io.
@@ -353,6 +363,8 @@ extern PFS_instr_class global_table_lock_class;
   Instrument controlling all idle waits.
 */
 extern PFS_instr_class global_idle_class;
+
+extern PFS_instr_class global_metadata_class;
 
 struct PFS_file;
 
@@ -475,6 +487,8 @@ PFS_memory_class *find_memory_class(PSI_memory_key key);
 PFS_memory_class *sanitize_memory_class(PFS_memory_class *unsafe);
 PFS_instr_class *find_idle_class(uint index);
 PFS_instr_class *sanitize_idle_class(PFS_instr_class *unsafe);
+PFS_instr_class *find_metadata_class(uint index);
+PFS_instr_class *sanitize_metadata_class(PFS_instr_class *unsafe);
 
 PFS_table_share *find_or_create_table_share(PFS_thread *thread,
                                             bool temporary,

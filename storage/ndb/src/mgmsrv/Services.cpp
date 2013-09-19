@@ -90,7 +90,7 @@ extern EventLogger * g_eventLogger;
 #define MGM_END() \
  { 0, \
    0, \
-   ParserRow<MgmApiSession>::Arg, \
+   ParserRow<MgmApiSession>::End, \
    ParserRow<MgmApiSession>::Int, \
    ParserRow<MgmApiSession>::Optional, \
    ParserRow<MgmApiSession>::IgnoreMinMax, \
@@ -170,6 +170,7 @@ ParserRow<MgmApiSession> commands[] = {
   MGM_CMD("insert error", &MgmApiSession::insertError, ""),
     MGM_ARG("node", Int, Mandatory, "Node to receive error"),
     MGM_ARG("error", Int, Mandatory, "Errorcode to insert"),
+    MGM_ARG("extra", Int, Optional, "Extra info to error insert"),
 
   MGM_CMD("set trace", &MgmApiSession::setTrace, ""),
     MGM_ARG("node", Int, Mandatory, "Node"),
@@ -310,6 +311,10 @@ ParserRow<MgmApiSession> commands[] = {
     MGM_ARG("type", Int, Mandatory, "Type of event"),
     MGM_ARG("nodes", String, Optional, "Nodes to include"),
 
+  MGM_CMD("set ports", &MgmApiSession::set_ports, ""),
+    MGM_ARG("node", Int, Mandatory, "Node which port list concerns"),
+    MGM_ARG("num_ports", Int, Mandatory, "Number of ports being set"),
+
   MGM_END()
 };
 
@@ -325,7 +330,7 @@ MgmApiSession::MgmApiSession(class MgmtSrvr & mgm, NDB_SOCKET_TYPE sock, Uint64 
   DBUG_ENTER("MgmApiSession::MgmApiSession");
   m_input = new SocketInputStream(sock, SOCKET_TIMEOUT);
   m_output = new BufferedSockOutputStream(sock, SOCKET_TIMEOUT);
-  m_parser = new Parser_t(commands, *m_input, true, true, true);
+  m_parser = new Parser_t(commands, *m_input);
   m_stopSelf= 0;
   m_ctx= NULL;
   m_mutex= NdbMutex_Create();
@@ -616,11 +621,14 @@ MgmApiSession::getConfig(Parser_t::Context &,
 void
 MgmApiSession::insertError(Parser<MgmApiSession>::Context &,
 			   Properties const &args) {
+  Uint32 extra = 0;
   Uint32 node = 0, error = 0;
   int result= 0;
 
   args.get("node", &node);
   args.get("error", &error);
+  const bool hasExtra = args.get("extra", &extra);
+  Uint32 * extraptr = hasExtra ? &extra : 0;
 
   if(node==m_mgmsrv.getOwnNodeId()
      && error < MGM_ERROR_MAX_INJECT_SESSION_ONLY)
@@ -631,7 +639,7 @@ MgmApiSession::insertError(Parser<MgmApiSession>::Context &,
   }
   else
   {
-    result= m_mgmsrv.insertError(node, error);
+    result= m_mgmsrv.insertError(node, error, extraptr);
   }
 
   m_output->println("insert error reply");
@@ -773,9 +781,11 @@ MgmApiSession::getClusterLogLevel(Parser<MgmApiSession>::Context &			, Propertie
 			  "error", 
 			  "congestion", 
 			  "debug", 
-			  "backup" };
+                          "backup",
+                          "schema" };
 
-  int loglevel_count = (CFG_MAX_LOGLEVEL - CFG_MIN_LOGLEVEL + 1) ;
+  int const loglevel_count = (CFG_MAX_LOGLEVEL - CFG_MIN_LOGLEVEL + 1);
+  NDB_STATIC_ASSERT(NDB_ARRAY_SIZE(names) == loglevel_count);
   LogLevel::EventCategory category;
 
   m_output->println("get cluster loglevel");
@@ -2072,6 +2082,13 @@ void MgmApiSession::setConfig(Parser_t::Context &ctx, Properties const &args)
     int decoded_len= ndb_base64_decode(buf64, len64-1, decoded, NULL);
     delete[] buf64;
 
+    if (decoded_len == -1)
+    {
+      result.assfmt("Failed to unpack config");
+      delete[] decoded;
+      goto done;
+    }
+
     ConfigValuesFactory cvf;
     if(!cvf.unpack(decoded, decoded_len))
     {
@@ -2289,6 +2306,186 @@ MgmApiSession::dump_events(Parser_t::Context &,
   }
 }
 
+
+/*
+  Read and discard the "bulk data" until
+   - nothing more to read
+   - empty line found
+
+  When error detected, the command part is already read, but the bulk data
+  is still pending on the socket, it need to be consumed(read and discarded).
+
+  Example:
+  set ports
+  nodeid: 1 // << Error detected here
+  num_ports: 2
+  <new_line> // Parser always reads to first new line
+  bulk line 1
+  bulk line 2
+  <new line> // discard_bulk_data() discards until here
+*/
+
+static
+void
+discard_bulk_data(InputStream* in)
+{
+  char buf[256];
+  while (true)
+  {
+    if (in->gets(buf, sizeof(buf)) == 0)
+    {
+      // Nothing more to read
+      break;
+    }
+
+    if (buf[0] == 0)
+    {
+      // Got eof
+      break;
+    }
+
+    if (buf[0] == '\n')
+    {
+      // Found empty line
+      break;
+    }
+  }
+  return;
+}
+
+
+static
+bool
+read_dynamic_ports(InputStream* in,
+                   Uint32 num_ports,
+                   MgmtSrvr::DynPortSpec ports[],
+                   Uint32& ports_read,
+                   BaseString& msg)
+{
+  char buf[256];
+  Uint32 counter = 0;
+  while (counter < num_ports)
+  {
+    if (in->gets(buf, sizeof(buf)) == 0)
+    {
+      msg.assign("Read of ports failed");
+      return false;
+    }
+
+    if (buf[0] == 0)
+    {
+      msg.assign("Got eof instead of port");
+      return false;
+    }
+
+    if (buf[0] == '\n')
+    {
+      // Found empty line, list of ports ended too early
+      msg.assign("Failed to parse line, expected name=value pair");
+      return false;
+    }
+
+    int node, port;
+    if (sscanf(buf, "%d=%d", &node, &port) != 2)
+    {
+      msg.assign("Failed to parse line, expected name=value pair");
+      discard_bulk_data(in);
+      return false;
+    }
+
+    ports[counter].port = port;
+    ports[counter].node = node;
+    counter++;
+  }
+
+  // Read ending empty line
+  if (in->gets(buf, sizeof(buf)) == 0)
+  {
+    msg.assign("Read of ending empty line failed");
+    return false;
+  }
+
+  if (buf[0] == 0)
+  {
+    msg.assign("Got eof instead of ending new line");
+    return false;
+  }
+
+  if (buf[0] != '\n')
+  {
+    msg.assign("Failed to parse line, expected empty line");
+    discard_bulk_data(in);
+    return false;
+  }
+
+  ports_read= counter;
+  return true;
+}
+
+
+void
+MgmApiSession::set_ports(Parser_t::Context &,
+                         Properties const &args)
+{  
+  m_output->println("set ports reply");
+
+  // Check node argument
+  Uint32 node;
+  args.get("node", &node);
+  if (node == 0 || node >= MAX_NODES)
+  {
+    m_output->println("result: Illegal value for argument node: %u", node);
+    m_output->println("%s", "");
+    discard_bulk_data(m_input);
+    return;
+  }
+
+  Uint32 num_ports;
+  args.get("num_ports", &num_ports);
+  if (num_ports == 0 || num_ports >= MAX_NODES)
+  {
+    m_output->println("result: Illegal value for argument num_ports: %u",
+                      num_ports);
+    m_output->println("%s", "");
+    discard_bulk_data(m_input);
+    return;
+  }
+
+  // Read the name value pair list of ports to set from bulk data
+  MgmtSrvr::DynPortSpec ports[MAX_NODES];
+  {
+    Uint32 ports_read;
+    BaseString msg;
+    if (!read_dynamic_ports(m_input, num_ports, ports, ports_read, msg))
+    {
+      m_output->println("result: %s", msg.c_str());
+      m_output->println("%s", "");
+      return;
+    }
+
+    if (ports_read != num_ports)
+    {
+      m_output->println("result: Only read %d ports of expected %d",
+                        ports_read, num_ports);
+      m_output->println("%s", "");
+      return;
+    }
+  }
+  // All bulk data consumed!
+
+  // Set all the received ports
+  BaseString msg;
+  if (!m_mgmsrv.setDynamicPorts(node, ports, num_ports, msg))
+  {
+    m_output->println("result: %s", msg.c_str());
+    m_output->println("%s", "");
+    return;
+  }
+
+  m_output->println("result: Ok");
+  m_output->println("%s", "");
+  return;
+}
 
 template class MutexVector<int>;
 template class Vector<ParserRow<MgmApiSession> const*>;

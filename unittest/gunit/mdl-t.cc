@@ -1,4 +1,4 @@
-/* Copyright (c) 2009, 2012, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2009, 2013, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -103,8 +103,9 @@ protected:
     mdl_init();
     m_mdl_context.init(this);
     EXPECT_FALSE(m_mdl_context.has_locks());
-    m_global_request.init(MDL_key::GLOBAL, "", "", MDL_INTENTION_EXCLUSIVE,
-                          MDL_TRANSACTION);
+    MDL_REQUEST_INIT(&m_global_request,
+                     MDL_key::GLOBAL, "", "", MDL_INTENTION_EXCLUSIVE,
+                     MDL_TRANSACTION);
   }
 
   void TearDown()
@@ -221,10 +222,12 @@ void MDL_thread::run()
   MDL_request request;
   MDL_request global_request;
   MDL_request_list request_list;
-  global_request.init(MDL_key::GLOBAL, "", "", MDL_INTENTION_EXCLUSIVE,
-                      MDL_TRANSACTION);
-  request.init(MDL_key::TABLE, db_name, m_table_name, m_mdl_type,
-               MDL_TRANSACTION);
+  MDL_REQUEST_INIT(&global_request,
+                   MDL_key::GLOBAL, "", "", MDL_INTENTION_EXCLUSIVE,
+                   MDL_TRANSACTION);
+  MDL_REQUEST_INIT(&request,
+                   MDL_key::TABLE, db_name, m_table_name, m_mdl_type,
+                   MDL_TRANSACTION);
 
   request_list.push_front(&request);
   if (m_mdl_type >= MDL_SHARED_UPGRADABLE)
@@ -257,8 +260,9 @@ typedef MDLTest MDLDeathTest;
 TEST_F(MDLDeathTest, DieWhenMTicketsNonempty)
 {
   ::testing::FLAGS_gtest_death_test_style = "threadsafe";
-  m_request.init(MDL_key::TABLE, db_name, table_name1, MDL_SHARED,
-                 MDL_TRANSACTION);
+  MDL_REQUEST_INIT(&m_request,
+                   MDL_key::TABLE, db_name, table_name1, MDL_SHARED,
+                   MDL_TRANSACTION);
 
   EXPECT_FALSE(m_mdl_context.try_acquire_lock(&m_request));
   EXPECT_DEATH(m_mdl_context.destroy(),
@@ -279,8 +283,9 @@ TEST_F(MDLTest, ConstructAndDestruct)
 
 void MDLTest::test_one_simple_shared_lock(enum_mdl_type lock_type)
 {
-  m_request.init(MDL_key::TABLE, db_name, table_name1, lock_type,
-                 MDL_TRANSACTION);
+  MDL_REQUEST_INIT(&m_request,
+                   MDL_key::TABLE, db_name, table_name1, lock_type,
+                   MDL_TRANSACTION);
 
   EXPECT_EQ(lock_type, m_request.type);
   EXPECT_EQ(m_null_ticket, m_request.ticket);
@@ -292,7 +297,7 @@ void MDLTest::test_one_simple_shared_lock(enum_mdl_type lock_type)
               is_lock_owner(MDL_key::TABLE, db_name, table_name1, lock_type));
 
   MDL_request request_2;
-  request_2.init(&m_request.key, lock_type, MDL_TRANSACTION);
+  MDL_REQUEST_INIT_BY_KEY(&request_2, &m_request.key, lock_type, MDL_TRANSACTION);
   EXPECT_FALSE(m_mdl_context.try_acquire_lock(&request_2));
   EXPECT_EQ(m_request.ticket, request_2.ticket);
 
@@ -343,8 +348,9 @@ TEST_F(MDLTest, OneSharedWrite)
 TEST_F(MDLTest, OneExclusive)
 {
   const enum_mdl_type lock_type= MDL_EXCLUSIVE;
-  m_request.init(MDL_key::TABLE, db_name, table_name1, lock_type,
-                 MDL_TRANSACTION);
+  MDL_REQUEST_INIT(&m_request,
+                   MDL_key::TABLE, db_name, table_name1, lock_type,
+                   MDL_TRANSACTION);
   EXPECT_EQ(m_null_ticket, m_request.ticket);
 
   m_request_list.push_front(&m_request);
@@ -373,8 +379,10 @@ TEST_F(MDLTest, OneExclusive)
 TEST_F(MDLTest, TwoShared)
 {
   MDL_request request_2;
-  m_request.init(MDL_key::TABLE, db_name, table_name1, MDL_SHARED, MDL_EXPLICIT);
-  request_2.init(MDL_key::TABLE, db_name, table_name2, MDL_SHARED, MDL_EXPLICIT);
+  MDL_REQUEST_INIT(&m_request,
+                   MDL_key::TABLE, db_name, table_name1, MDL_SHARED, MDL_EXPLICIT);
+  MDL_REQUEST_INIT(&request_2,
+                   MDL_key::TABLE, db_name, table_name2, MDL_SHARED, MDL_EXPLICIT);
 
   EXPECT_FALSE(m_mdl_context.try_acquire_lock(&m_request));
   EXPECT_FALSE(m_mdl_context.try_acquire_lock(&request_2));
@@ -410,11 +418,13 @@ TEST_F(MDLTest, SharedLocksBetweenContexts)
   MDL_context  mdl_context2;
   mdl_context2.init(this);
   MDL_request request_2;
-  m_request.init(MDL_key::TABLE, db_name, table_name1, MDL_SHARED,
-                 MDL_TRANSACTION);
-  request_2.init(MDL_key::TABLE, db_name, table_name1, MDL_SHARED,
-                 MDL_TRANSACTION);
-  
+  MDL_REQUEST_INIT(&m_request,
+                   MDL_key::TABLE, db_name, table_name1, MDL_SHARED,
+                   MDL_TRANSACTION);
+  MDL_REQUEST_INIT(&request_2,
+                   MDL_key::TABLE, db_name, table_name1, MDL_SHARED,
+                   MDL_TRANSACTION);
+
   EXPECT_FALSE(m_mdl_context.try_acquire_lock(&m_request));
   EXPECT_FALSE(mdl_context2.try_acquire_lock(&request_2));
 
@@ -433,8 +443,9 @@ TEST_F(MDLTest, SharedLocksBetweenContexts)
  */
 TEST_F(MDLTest, UpgradeSharedUpgradable)
 {
-  m_request.init(MDL_key::TABLE, db_name, table_name1, MDL_SHARED_UPGRADABLE,
-                 MDL_TRANSACTION);
+  MDL_REQUEST_INIT(&m_request,
+                   MDL_key::TABLE, db_name, table_name1, MDL_SHARED_UPGRADABLE,
+                   MDL_TRANSACTION);
 
   m_request_list.push_front(&m_request);
   m_request_list.push_front(&m_global_request);
@@ -461,14 +472,18 @@ TEST_F(MDLTest, SavePoint)
   MDL_request request_2;
   MDL_request request_3;
   MDL_request request_4;
-  m_request.init(MDL_key::TABLE, db_name, table_name1, MDL_SHARED,
-                 MDL_TRANSACTION);
-  request_2.init(MDL_key::TABLE, db_name, table_name2, MDL_SHARED,
-                 MDL_TRANSACTION);
-  request_3.init(MDL_key::TABLE, db_name, table_name3, MDL_SHARED,
-                 MDL_TRANSACTION);
-  request_4.init(MDL_key::TABLE, db_name, table_name4, MDL_SHARED,
-                 MDL_TRANSACTION);
+  MDL_REQUEST_INIT(&m_request,
+                   MDL_key::TABLE, db_name, table_name1, MDL_SHARED,
+                   MDL_TRANSACTION);
+  MDL_REQUEST_INIT(&request_2,
+                   MDL_key::TABLE, db_name, table_name2, MDL_SHARED,
+                   MDL_TRANSACTION);
+  MDL_REQUEST_INIT(&request_3,
+                   MDL_key::TABLE, db_name, table_name3, MDL_SHARED,
+                   MDL_TRANSACTION);
+  MDL_REQUEST_INIT(&request_4,
+                   MDL_key::TABLE, db_name, table_name4, MDL_SHARED,
+                   MDL_TRANSACTION);
 
   EXPECT_FALSE(m_mdl_context.try_acquire_lock(&m_request));
   EXPECT_FALSE(m_mdl_context.try_acquire_lock(&request_2));
@@ -515,8 +530,9 @@ TEST_F(MDLTest, ConcurrentShared)
   mdl_thread.start();
   lock_grabbed.wait_for_notification();
 
-  m_request.init(MDL_key::TABLE, db_name, table_name1, MDL_SHARED,
-                 MDL_TRANSACTION);
+  MDL_REQUEST_INIT(&m_request,
+                   MDL_key::TABLE, db_name, table_name1, MDL_SHARED,
+                   MDL_TRANSACTION);
 
   EXPECT_FALSE(m_mdl_context.acquire_lock(&m_request, long_timeout));
   EXPECT_TRUE(m_mdl_context.
@@ -545,8 +561,9 @@ TEST_F(MDLTest, ConcurrentSharedExclusive)
   mdl_thread.start();
   lock_grabbed.wait_for_notification();
 
-  m_request.init(MDL_key::TABLE, db_name, table_name1, MDL_EXCLUSIVE,
-                 MDL_TRANSACTION);
+  MDL_REQUEST_INIT(&m_request,
+                   MDL_key::TABLE, db_name, table_name1, MDL_EXCLUSIVE,
+                   MDL_TRANSACTION);
 
   m_request_list.push_front(&m_request);
   m_request_list.push_front(&m_global_request);
@@ -581,8 +598,9 @@ TEST_F(MDLTest, ConcurrentExclusiveShared)
   mdl_thread.start();
   lock_grabbed.wait_for_notification();
 
-  m_request.init(MDL_key::TABLE, db_name, table_name1, MDL_SHARED,
-                 MDL_TRANSACTION);
+  MDL_REQUEST_INIT(&m_request,
+                   MDL_key::TABLE, db_name, table_name1, MDL_SHARED,
+                   MDL_TRANSACTION);
 
   // We should *not* be able to grab the lock here.
   EXPECT_FALSE(m_mdl_context.try_acquire_lock(&m_request));
@@ -609,8 +627,9 @@ TEST_F(MDLTest, ConcurrentExclusiveShared)
  */
 TEST_F(MDLTest, ConcurrentUpgrade)
 {
-  m_request.init(MDL_key::TABLE, db_name, table_name1, MDL_SHARED_UPGRADABLE,
-                 MDL_TRANSACTION);
+  MDL_REQUEST_INIT(&m_request,
+                   MDL_key::TABLE, db_name, table_name1, MDL_SHARED_UPGRADABLE,
+                   MDL_TRANSACTION);
   m_request_list.push_front(&m_request);
   m_request_list.push_front(&m_global_request);
 
@@ -652,15 +671,17 @@ TEST_F(MDLTest, UpgradableConcurrency)
   lock_grabbed.wait_for_notification();
 
   // We should be able to take a SW lock.
-  m_request.init(MDL_key::TABLE, db_name, table_name1, MDL_SHARED_WRITE,
-                 MDL_TRANSACTION);
+  MDL_REQUEST_INIT(&m_request,
+                   MDL_key::TABLE, db_name, table_name1, MDL_SHARED_WRITE,
+                   MDL_TRANSACTION);
   EXPECT_FALSE(m_mdl_context.try_acquire_lock(&m_request));
   EXPECT_NE(m_null_ticket, m_request.ticket);
 
   // But SHARED_UPGRADABLE is not compatible with itself
   expected_error= ER_LOCK_WAIT_TIMEOUT;
-  request_2.init(MDL_key::TABLE, db_name, table_name1, MDL_SHARED_UPGRADABLE,
-                 MDL_TRANSACTION);
+  MDL_REQUEST_INIT(&request_2,
+                   MDL_key::TABLE, db_name, table_name1, MDL_SHARED_UPGRADABLE,
+                   MDL_TRANSACTION);
   request_list.push_front(&m_global_request);
   request_list.push_front(&request_2);
   EXPECT_TRUE(m_mdl_context.acquire_locks(&request_list, zero_timeout));

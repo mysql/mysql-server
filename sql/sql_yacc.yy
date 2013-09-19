@@ -1854,6 +1854,8 @@ END_OF_INPUT
         ',' '!' '{' '}' '&' '|' AND_SYM OR_SYM OR_OR_SYM BETWEEN_SYM CASE_SYM
         THEN_SYM WHEN_SYM DIV_SYM MOD_SYM OR2_SYM AND_AND_SYM DELETE_SYM
 
+%type<NONE> SHOW DESC DESCRIBE describe_command
+
 /*
   A bit field of SLAVE_IO, SLAVE_SQL flags.
 */

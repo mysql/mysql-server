@@ -2815,6 +2815,8 @@ static int send_client_reply_packet(MCPVIO_EXT *mpvio,
 #endif /* HAVE_OPENSSL && !EMBEDDED_LIBRARY*/
   if (mpvio->db)
     mysql->client_flag|= CLIENT_CONNECT_WITH_DB;
+  else
+    mysql->client_flag&= ~CLIENT_CONNECT_WITH_DB;
 
   /* Remove options that server doesn't support */
   mysql->client_flag= mysql->client_flag &
@@ -4681,6 +4683,7 @@ mysql_options(MYSQL *mysql,enum mysql_option option, const void *arg)
     mysql->options.methods_to_use= option;
     break;
   case MYSQL_SET_CLIENT_IP:
+    my_free(mysql->options.ci.client_ip);
     mysql->options.ci.client_ip= my_strdup(key_memory_mysql_options,
                                            arg, MYF(MY_WME));
     break;

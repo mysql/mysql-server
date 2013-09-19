@@ -36,6 +36,7 @@
 #include <keycache.h>
 
 class Alter_info;
+typedef struct xid_t XID;
 
 // the following is for checking tables
 
@@ -486,14 +487,6 @@ struct st_system_tablename
   const char *tablename;
 };
 
-
-typedef ulonglong my_xid; // this line is the same as in log_event.h
-#define MYSQL_XID_PREFIX "MySQLXid"
-#define MYSQL_XID_PREFIX_LEN 8 // must be a multiple of 8
-#define MYSQL_XID_OFFSET (MYSQL_XID_PREFIX_LEN+sizeof(server_id))
-#define MYSQL_XID_GTRID_LEN (MYSQL_XID_OFFSET+sizeof(my_xid))
-
-#define XIDDATASIZE MYSQL_XIDDATASIZE
 #define MAXGTRIDSIZE 64
 #define MAXBQUALSIZE 64
 
@@ -503,84 +496,6 @@ typedef ulonglong my_xid; // this line is the same as in log_event.h
 namespace AQP {
   class Join_plan;
 };
-
-/**
-  struct xid_t is binary compatible with the XID structure as
-  in the X/Open CAE Specification, Distributed Transaction Processing:
-  The XA Specification, X/Open Company Ltd., 1991.
-  http://www.opengroup.org/bookstore/catalog/c193.htm
-
-  @see MYSQL_XID in mysql/plugin.h
-*/
-struct xid_t {
-  long formatID;
-  long gtrid_length;
-  long bqual_length;
-  char data[XIDDATASIZE];  // not \0-terminated !
-
-  xid_t() {}                                /* Remove gcc warning */  
-  bool eq(struct xid_t *xid)
-  { return eq(xid->gtrid_length, xid->bqual_length, xid->data); }
-  bool eq(long g, long b, const char *d)
-  { return g == gtrid_length && b == bqual_length && !memcmp(d, data, g+b); }
-  void set(struct xid_t *xid)
-  { memcpy(this, xid, xid->length()); }
-  void set(long f, const char *g, long gl, const char *b, long bl)
-  {
-    formatID= f;
-    memcpy(data, g, gtrid_length= gl);
-    memcpy(data+gl, b, bqual_length= bl);
-  }
-  void set(ulonglong xid)
-  {
-    my_xid tmp;
-    formatID= 1;
-    set(MYSQL_XID_PREFIX_LEN, 0, MYSQL_XID_PREFIX);
-    memcpy(data+MYSQL_XID_PREFIX_LEN, &server_id, sizeof(server_id));
-    tmp= xid;
-    memcpy(data+MYSQL_XID_OFFSET, &tmp, sizeof(tmp));
-    gtrid_length=MYSQL_XID_GTRID_LEN;
-  }
-  void set(long g, long b, const char *d)
-  {
-    formatID= 1;
-    gtrid_length= g;
-    bqual_length= b;
-    memcpy(data, d, g+b);
-  }
-  bool is_null() { return formatID == -1; }
-  void null() { formatID= -1; }
-  my_xid quick_get_my_xid()
-  {
-    my_xid tmp;
-    memcpy(&tmp, data+MYSQL_XID_OFFSET, sizeof(tmp));
-    return tmp;
-  }
-  my_xid get_my_xid()
-  {
-    return gtrid_length == MYSQL_XID_GTRID_LEN && bqual_length == 0 &&
-           !memcmp(data, MYSQL_XID_PREFIX, MYSQL_XID_PREFIX_LEN) ?
-           quick_get_my_xid() : 0;
-  }
-  uint length()
-  {
-    return sizeof(formatID)+sizeof(gtrid_length)+sizeof(bqual_length)+
-           gtrid_length+bqual_length;
-  }
-  uchar *key()
-  {
-    return (uchar *)&gtrid_length;
-  }
-  uint key_length()
-  {
-    return sizeof(gtrid_length)+sizeof(bqual_length)+gtrid_length+bqual_length;
-  }
-};
-typedef struct xid_t XID;
-
-/* for recover() handlerton call */
-#define MIN_XID_LIST_SIZE  128
-#define MAX_XID_LIST_SIZE  (1024*128)
 
 /*
   These structures are used to pass information from a set of SQL commands
@@ -3490,10 +3405,28 @@ int ha_release_temporary_latches(THD *thd);
 
 /* transactions: interface to handlerton functions */
 int ha_start_consistent_snapshot(THD *thd);
-int ha_commit_or_rollback_by_xid(THD *thd, XID *xid, bool commit);
 int ha_commit_trans(THD *thd, bool all, bool ignore_global_read_lock= false);
 int ha_rollback_trans(THD *thd, bool all);
 int ha_prepare(THD *thd);
+
+
+/**
+  recover() step of xa.
+
+  @note
+    there are three modes of operation:
+    - automatic recover after a crash
+    in this case commit_list != 0, tc_heuristic_recover==0
+    all xids from commit_list are committed, others are rolled back
+    - manual (heuristic) recover
+    in this case commit_list==0, tc_heuristic_recover != 0
+    DBA has explicitly specified that all prepared transactions should
+    be committed (or rolled back).
+    - no recovery (MySQL did not detect a crash)
+    in this case commit_list==0, tc_heuristic_recover == 0
+    there should be no prepared transactions in this case.
+*/
+
 int ha_recover(HASH *commit_list);
 
 /*
@@ -3542,8 +3475,6 @@ int ha_binlog_end(THD *thd);
 const char *ha_legacy_type_name(legacy_db_type legacy_type);
 const char *get_canonical_filename(handler *file, const char *path,
                                    char *tmp_path);
-bool mysql_xa_recover(THD *thd);
-
 
 inline const char *table_case_name(HA_CREATE_INFO *info, const char *name)
 {

@@ -89,6 +89,7 @@
 #include "events.h"
 #include "sql_trigger.h"      // mysql_create_or_drop_trigger
 #include "transaction.h"
+#include "xa.h"
 #include "sql_audit.h"
 #include "sql_prepare.h"
 #include "debug_sync.h"
@@ -158,10 +159,6 @@ const LEX_STRING command_name[]={
   { C_STRING_WITH_LEN("Daemon") },
   { C_STRING_WITH_LEN("Binlog Dump GTID") },
   { C_STRING_WITH_LEN("Error") }  // Last command number
-};
-
-const char *xa_state_names[]={
-  "NON-EXISTING", "ACTIVE", "IDLE", "PREPARED", "ROLLBACK ONLY"
 };
 
 #ifdef HAVE_REPLICATION
@@ -818,10 +815,8 @@ void do_handle_bootstrap(THD *thd)
     goto end;
   }
 
-  mysql_mutex_lock(&LOCK_thread_count);
   thd_added= true;
   add_global_thread(thd);
-  mysql_mutex_unlock(&LOCK_thread_count);
 
   handle_bootstrap_impl(thd);
 
@@ -830,11 +825,8 @@ end:
   thd->release_resources();
 
   if (thd_added)
-  {
-    mysql_mutex_lock(&LOCK_thread_count);
     remove_global_thread(thd);
-    mysql_mutex_unlock(&LOCK_thread_count);
-  }
+
   /*
     For safety we delete the thd before signalling that bootstrap is done,
     since the server will be taken down immediately.
@@ -3293,7 +3285,11 @@ end_with_restore_list:
       if (incident)
       {
         Incident_log_event ev(thd, incident);
-        if (mysql_bin_log.write_incident(&ev, true/*need_lock_log=true*/))
+        const char* err_msg= "Generate an incident log event before "
+                             "writing the real event to the binary "
+                             "log for testing purposes.";
+        if (mysql_bin_log.write_incident(&ev, true/*need_lock_log=true*/,
+                                         err_msg))
         {
           res= 1;
           break;
@@ -4075,16 +4071,20 @@ end_with_restore_list:
     {
       my_error(ER_NOT_SUPPORTED_YET, MYF(0), "Usage of subqueries or stored "
                "function calls as part of this statement");
-      break;
+      goto error;
     }
 
     if ((!it->fixed && it->fix_fields(lex->thd, &it)) || it->check_cols(1))
     {
-      my_message(ER_SET_CONSTANTS_ONLY, ER(ER_SET_CONSTANTS_ONLY),
-		 MYF(0));
+      my_error(ER_SET_CONSTANTS_ONLY, MYF(0));
       goto error;
     }
-    sql_kill(thd, (ulong)it->val_int(), lex->type & ONLY_KILL_QUERY);
+
+    ulong thread_id= static_cast<ulong>(it->val_int());
+    if (thd->is_error())
+      goto error;
+
+    sql_kill(thd, thread_id, lex->type & ONLY_KILL_QUERY);
     break;
   }
 #ifndef NO_EMBEDDED_ACCESS_CHECKS
@@ -4664,7 +4664,8 @@ end_with_restore_list:
     my_ok(thd);
     break;
   case SQLCOM_XA_RECOVER:
-    res= mysql_xa_recover(thd);
+    res= trans_xa_recover(thd);
+    DBUG_EXECUTE_IF("crash_after_xa_recover", {DBUG_SUICIDE();});
     break;
   case SQLCOM_ALTER_TABLESPACE:
     if (check_global_access(thd, CREATE_TABLESPACE_ACL))
@@ -5718,8 +5719,9 @@ TABLE_LIST *st_select_lex::add_table_to_list(THD *thd,
   // Pure table aliases do not need to be locked:
   if (!test(table_options & TL_OPTION_ALIAS))
   {
-    ptr->mdl_request.init(MDL_key::TABLE, ptr->db, ptr->table_name, mdl_type,
-                          MDL_TRANSACTION);
+    MDL_REQUEST_INIT(& ptr->mdl_request,
+                     MDL_key::TABLE, ptr->db, ptr->table_name, mdl_type,
+                     MDL_TRANSACTION);
   }
   if (table->is_derived_table())
   {

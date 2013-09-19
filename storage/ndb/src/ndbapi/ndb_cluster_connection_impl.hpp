@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2004, 2010, Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2004, 2010, 2011, 2013, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -44,7 +44,8 @@ struct NdbApiConfig
     m_batch_byte_size(SCAN_BATCH_SIZE),
     m_batch_size(DEF_BATCH_SIZE),
     m_waitfor_timeout(120000),
-    m_default_queue_option(0)
+    m_default_queue_option(0),
+    m_default_hashmap_size(0)
     {}
 
   Uint32 m_scan_batch_size;
@@ -52,6 +53,7 @@ struct NdbApiConfig
   Uint32 m_batch_size;
   Uint32 m_waitfor_timeout; // in milli seconds...
   Uint32 m_default_queue_option;
+  Uint32 m_default_hashmap_size;
 };
 
 class Ndb_cluster_connection_impl : public Ndb_cluster_connection

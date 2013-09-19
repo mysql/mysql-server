@@ -60,6 +60,7 @@ select inserts,updates,deletes from
 #
 flush logs;
 --sleep 1
+--replace_regex /\.[\\\/]mysqld/.\/mysqld/;
 purge master logs before now();
 --disable_parsing
 select count(*) from mysql.ndb_binlog_index;
@@ -84,3 +85,98 @@ drop table t1;
 drop database mysqltest;
 select inserts,updates,deletes from 
   mysql.ndb_binlog_index where epoch > @max_epoch and inserts > 0;
+
+#
+# Check optimize table does not send any event to binlog
+#
+
+create table t1 (c1 int not null primary key, c2 blob default null) engine=ndbcluster default charset=latin1;
+insert into t1 values (1, null), (2, null), (3, null), (4, null);
+insert into t1 select c1+4,c2 from t1;
+insert into t1 select c1+8,c2 from t1;
+insert into t1 select c1+16,c2 from t1;
+insert into t1 select c1+32,c2 from t1;
+insert into t1 select c1+64,c2 from t1;
+insert into t1 select c1+128,c2 from t1;
+insert into t1 select c1+256,c2 from t1;
+insert into t1 select c1+512,c2 from t1;
+
+# wait for last gcp to complete, ensuring that we have
+# the expected data in the binlog
+save_master_pos;
+
+let $before = `select count(*)
+  from mysql.ndb_binlog_index
+  where epoch > @max_epoch and
+    (inserts > 0 or updates > 0 or deletes > 0)`;
+
+optimize table t1;
+save_master_pos;
+
+# Ensure that optimize have not sent any event to binlog
+let $optimize_diff = `select count(*) <> $before
+  from mysql.ndb_binlog_index
+  where epoch > @max_epoch and
+    (inserts > 0 or updates > 0 or deletes > 0)`;
+
+if ($optimize_diff)
+{
+  die Optimize table should not send any events to binlog;
+}
+
+drop table t1;
+
+#
+# Make binlog to ignore an empty blob column update
+# having before- and after-values 'null'
+# when performed in a separate epoch and
+# empty epochs are not logged.
+# Run the test twice, with ndb_log_empty_epochs ON and OFF.
+#  
+
+let $repetitions=2;
+SET GLOBAL ndb_log_empty_epochs=ON;
+while ($repetitions)
+{
+  SHOW VARIABLES LIKE 'ndb_log_empty_epochs';
+  create table t1 (c1 int not null primary key, c2 blob default null) engine=ndbcluster default charset=latin1;
+  insert into t1 values (1, null);
+
+  # Avoid the following update being performed within the same epoch by
+  # synchronising with Binlog
+  --disable_result_log
+  show binlog events;
+  --enable_result_log
+
+  update t1 set c2=null;
+  select * from t1;
+
+  --disable_result_log
+  show binlog events;
+  --enable_result_log
+
+  optimize table t1;
+  select * from t1;
+  drop table t1;
+
+  create table t1 (c1 int not null primary key, c2 varchar(1024) default null) engine=ndbcluster default charset=latin1;
+  insert into t1 values (3, null);
+  select * from t1;
+
+  --disable_result_log
+  show binlog events;
+  --enable_result_log
+
+  optimize table t1;
+  select * from t1;
+  drop table t1;
+
+  # Repeat the test with
+  SET GLOBAL ndb_log_empty_epochs=OFF;
+
+  --disable_result_log
+  show binlog events;
+  --enable_result_log
+
+  dec $repetitions;
+}

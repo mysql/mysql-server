@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2005, 2011, Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2005, 2013, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -31,6 +31,9 @@
 #include <signaldata/GetTabInfo.hpp>
 #include <signaldata/NodeFailRep.hpp>
 #include <dbtup/Dbtup.hpp>
+
+#define JAM_FILE_ID 359
+
 
 #define JONAS 0
 
@@ -417,7 +420,7 @@ Tsman::execCREATE_FILEGROUP_IMPL_REQ(Signal* signal){
 
     new (ptr.p) Tablespace(this, req);
     m_tablespace_hash.add(ptr);
-    m_tablespace_list.add(ptr);
+    m_tablespace_list.addFirst(ptr);
 
     ptr.p->m_state = Tablespace::TS_ONLINE;
 
@@ -645,7 +648,7 @@ Tsman::execCREATE_FILE_IMPL_REQ(Signal* signal){
  
     new (file_ptr.p) Datafile(req);
     Local_datafile_list tmp(m_file_pool, ptr.p->m_meta_files);
-    tmp.add(file_ptr);
+    tmp.addFirst(file_ptr);
 
     file_ptr.p->m_state = Datafile::FS_CREATING;
     file_ptr.p->m_tablespace_ptr_i = ptr.i;
@@ -1255,7 +1258,7 @@ Tsman::load_extent_page_callback(Signal* signal,
     Local_datafile_list free(m_file_pool, ts_ptr.p->m_free_files);
     Local_datafile_list meta(m_file_pool, ts_ptr.p->m_meta_files);
     meta.remove(ptr);
-    free.add(ptr);
+    free.addFirst(ptr);
   }
   m_file_hash.add(ptr);
   
@@ -1407,13 +1410,13 @@ Tsman::scan_extent_headers(Signal* signal, Ptr<Datafile> ptr)
   {
     Local_datafile_list free(m_file_pool, lg_ptr.p->m_free_files);
     meta.remove(ptr);
-    free.add(ptr);
+    free.addFirst(ptr);
   }
   else
   {
     Local_datafile_list full(m_file_pool, lg_ptr.p->m_full_files);
     meta.remove(ptr);
-    full.add(ptr);
+    full.addFirst(ptr);
   }
   
   signal->theData[0] = TsmanContinueB::SCAN_DATAFILE_EXTENT_HEADERS;
@@ -1473,7 +1476,7 @@ Tsman::execDROP_FILE_IMPL_REQ(Signal* signal)
       }
       
       Local_datafile_list meta(m_file_pool, fg_ptr.p->m_meta_files);
-      meta.add(file_ptr);
+      meta.addFirst(file_ptr);
       
       if (file_ptr.p->m_online.m_used_extent_cnt || 
 	  file_ptr.p->m_state != Datafile::FS_ONLINE)
@@ -1510,12 +1513,12 @@ Tsman::execDROP_FILE_IMPL_REQ(Signal* signal)
       if (file_ptr.p->m_online.m_first_free_extent != RNIL)
       {
 	Local_datafile_list free(m_file_pool, fg_ptr.p->m_free_files);
-	free.add(file_ptr);
+        free.addFirst(file_ptr);
       }
       else
       {
 	Local_datafile_list full(m_file_pool, fg_ptr.p->m_full_files);
-	full.add(file_ptr);
+        full.addFirst(file_ptr);
       }
       break;
     }
@@ -1631,7 +1634,7 @@ Tsman::execALLOC_EXTENT_REQ(Signal* signal)
 	jam();
 	Local_datafile_list full(m_file_pool, ts_ptr.p->m_full_files);
 	tmp.remove(file_ptr);
-	full.add(file_ptr);
+        full.addFirst(file_ptr);
       }
       
       /**
@@ -1737,7 +1740,7 @@ Tsman::execFREE_EXTENT_REQ(Signal* signal)
 	Local_datafile_list free(m_file_pool, ptr.p->m_free_files);
 	Local_datafile_list full(m_file_pool, ptr.p->m_full_files);
 	full.remove(file_ptr);
-	free.add(file_ptr);
+        free.addFirst(file_ptr);
       }
       file_ptr.p->m_online.m_first_free_extent = extent;
     }
@@ -2234,7 +2237,7 @@ Tsman::end_lcp(Signal* signal, Uint32 ptrI, Uint32 list, Uint32 filePtrI)
       Local_datafile_list free(m_file_pool, ptr.p->m_free_files);
       Local_datafile_list full(m_file_pool, ptr.p->m_full_files);
       full.remove(file);
-      free.add(file);
+      free.addFirst(file);
     }
     else
     {

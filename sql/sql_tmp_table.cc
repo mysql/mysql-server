@@ -592,9 +592,11 @@ create_tmp_table(THD *thd,TMP_TABLE_PARAM *param,List<Item> &fields,
   memset(default_field, 0, sizeof(Field*) * (field_count));
   memset(from_field, 0, sizeof(Field*)*field_count);
 
+  // This invokes (the synthesized) st_mem_root &operator=(const st_mem_root&)
   table->mem_root= own_root;
   mem_root_save= thd->mem_root;
   thd->mem_root= &table->mem_root;
+  copy_func->set_mem_root(&table->mem_root);
 
   table->field=reg_field;
   table->alias= table_alias;

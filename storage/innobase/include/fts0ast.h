@@ -286,7 +286,7 @@ struct fts_ast_state_t {
 	/* Used by plugin parser */
 	fts_ast_node_t*	cur_node;		/*!< Current node into which
 						 we add new node */
-	ulint		depth;			/*!< Depth of parsing state */
+	int		depth;			/*!< Depth of parsing state */
 };
 
 /******************************************************************//**

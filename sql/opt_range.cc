@@ -116,6 +116,7 @@
 #include "opt_trace.h"
 #include "filesort.h"         // filesort_free_buffers
 #include "sql_optimizer.h"    // is_indexed_agg_distinct,field_time_cmp_date
+#include "uniques.h"
 
 using std::min;
 using std::max;
@@ -391,15 +392,31 @@ public:
   enum leaf_color { BLACK,RED } color;
 
   /**
-    Starting an effort to document this field:
-
-    IMPOSSIBLE: if the range predicate for this index is always false.
-
-    ALWAYS: if the range predicate for this index is always true.
-
-    KEY_RANGE: if there is a range predicate that can be used on this index.
+    Used to indicate if the range predicate for an index is always
+    true/false, depends on values from other tables or can be
+    evaluated as is.
   */
-  enum Type { IMPOSSIBLE, ALWAYS, MAYBE, MAYBE_KEY, KEY_RANGE } type;
+  enum Type {
+    /** The range predicate for this index is always false. */
+    IMPOSSIBLE,
+    /** The range predicate for this index is always true.*/
+    ALWAYS,
+    /** 
+      There is a range predicate that refers to another table. The
+      range access method cannot be used on this index unless that
+      other table is earlier in the join sequence. The bit
+      representing the index is set in SQL_SELECT::needed_reg to
+      notify the join optimizer that there is a table dependency.
+      After deciding on join order, the optimizer may chose to rerun
+      the range optimizer for tables with such dependencies.
+    */
+    MAYBE_KEY,
+    /**
+      There is a range condition that can be used on this index. The
+      range conditions for this index in stored in the SEL_ARG tree.
+    */
+    KEY_RANGE
+  } type;
 
   enum { MAX_SEL_ARGS = 16000 };
 
@@ -2626,7 +2643,6 @@ int SQL_SELECT::test_quick_select(THD *thd, key_map keys_to_use,
 
   set_quick(NULL);
   needed_reg.clear_all();
-  quick_keys.clear_all();
   if (keys_to_use.is_clear_all())
     DBUG_RETURN(0);
   records= head->file->stats.records;
@@ -5603,9 +5619,16 @@ static TRP_RANGE *get_key_scans_params(PARAM *param, SEL_TREE *tree,
         best_buf_size=  buf_size;
       }
       else
-        trace_idx.add("chosen", false).
-          add_alnum("cause",
-                    (found_records == HA_POS_ERROR) ? "unknown" : "cost");
+      {
+        trace_idx.add("chosen", false);
+        if (found_records == HA_POS_ERROR)
+          if ((*key)->type == SEL_ARG::MAYBE_KEY)
+            trace_idx.add_alnum("cause", "depends_on_unread_values");
+          else
+            trace_idx.add_alnum("cause", "unknown");
+        else 
+          trace_idx.add_alnum("cause", "cost");
+      }
 
     }
   }
@@ -7125,18 +7148,6 @@ end:
   DBUG_RETURN(tree);
 }
 
-
-/******************************************************************************
-** Tree manipulation functions
-** If tree is 0 it means that the condition can't be tested. It refers
-** to a non existent table or to a field in current table with isn't a key.
-** The different tree flags:
-** IMPOSSIBLE:	 Condition is never TRUE
-** ALWAYS:	 Condition is always TRUE
-** MAYBE:	 Condition may exists when tables are read
-** MAYBE_KEY:	 Condition refers to a key that may be used in join loop
-** KEY_RANGE:	 Condition uses a key
-******************************************************************************/
 
 /*
   Add a new key test to a key when scanning through all keys
@@ -9752,15 +9763,15 @@ get_quick_keys(PARAM *param,QUICK_RANGE_SELECT *quick,KEY_PART *key,
         HA_NOSAME flag. So we can use user_defined_key_parts.
       */
       if ((table_key->flags & HA_NOSAME) &&
-          key->part == table_key->user_defined_key_parts - 1)
+          key_tree->part == table_key->user_defined_key_parts - 1)
       {
-	if (!(table_key->flags & HA_NULL_PART_KEY) ||
-	    !null_part_in_key(key,
-			      param->min_key,
-			      (uint) (tmp_min_key - param->min_key)))
-	  flag|= UNIQUE_RANGE;
-	else
-	  flag|= NULL_RANGE;
+        if ((table_key->flags & HA_NULL_PART_KEY) &&
+            null_part_in_key(key,
+                             param->min_key,
+                             (uint) (tmp_min_key - param->min_key)))
+          flag|= NULL_RANGE;
+        else
+          flag|= UNIQUE_RANGE;
       }
     }
   }
@@ -9790,7 +9801,7 @@ get_quick_keys(PARAM *param,QUICK_RANGE_SELECT *quick,KEY_PART *key,
 }
 
 /*
-  Return 1 if there is only one range and this uses the whole primary key
+  Return 1 if there is only one range and this uses the whole unique key
 */
 
 bool QUICK_RANGE_SELECT::unique_key_range()

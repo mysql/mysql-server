@@ -706,10 +706,13 @@ public class NdbRecordImpl {
                 case Blob:
                 case Date:
                 case Datetime:
+                case Datetime2:
                 case Double:
                 case Text:
                 case Time:
+                case Time2:
                 case Timestamp:
+                case Timestamp2:
                     align8.add(storeColumn);
                     break;
                 case Binary:

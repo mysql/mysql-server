@@ -27,6 +27,7 @@ Created 2013/06/04 Shaohua Wang
 #include "fts0plugin.h"
 
 #include "ft_global.h"
+#include "m_ctype.h"
 
 /** Macros and structs below are from ftdefs.h in MYISAM */
 /** Check a char is true word */
@@ -123,10 +124,11 @@ ft_get_word(
 	FT_WORD*		word,		/*!< in/out: token */
 	MYSQL_FTPARSER_BOOLEAN_INFO*	info)	/*!< in/out: token info*/
 {
-	uchar* doc = *start;
-	int ctype;
-	uint mwc, length;
-	int mbl;
+	uchar*	doc = *start;
+	int	ctype;
+	uint	mwc;
+	uint	length;
+	int	mbl;
 
 	info->yesno = (FTB_YES ==' ') ? 1 : (info->quot != 0);
 	info->weight_adjust = info->wasign = 0;
@@ -239,7 +241,7 @@ fts_query_get_oper_node(
 	MYSQL_FTPARSER_BOOLEAN_INFO*	info,	/*!< in: token info */
 	fts_ast_state_t*		state)	/*!< in/out: query parse state*/
 {
-	fts_ast_node_t* oper_node = NULL;
+	fts_ast_node_t*	oper_node = NULL;
 
 	if (info->yesno > 0) {
 		oper_node = fts_ast_create_node_oper(state, FTS_EXIST);
@@ -269,14 +271,14 @@ fts_query_add_word_for_parser(
 	MYSQL_FTPARSER_PARAM*	param,		/*!< in: parser param */
 	char*			word,		/*!< in: token */
 	int			word_len,	/*!< in: token length */
-	MYSQL_FTPARSER_BOOLEAN_INFO* info)	/*!< in: token info */
+	MYSQL_FTPARSER_BOOLEAN_INFO*	info)	/*!< in: token info */
 {
 	fts_ast_state_t* state =
 		static_cast<fts_ast_state_t*>(param->mysql_ftparam);
-	fts_ast_node_t* cur_node = state->cur_node;
-	fts_ast_node_t* oper_node = NULL;
-	fts_ast_node_t* term_node = NULL;
-	fts_ast_node_t* node = NULL;
+	fts_ast_node_t*	cur_node = state->cur_node;
+	fts_ast_node_t*	oper_node = NULL;
+	fts_ast_node_t*	term_node = NULL;
+	fts_ast_node_t*	node = NULL;
 
 	switch (info->type) {
 	case FT_TOKEN_STOPWORD:
@@ -394,11 +396,11 @@ fts_parse_query_internal(
 	char*			query,	/*!< in: query string */
 	int			len)	/*!< in: query length */
 {
-	MYSQL_FTPARSER_BOOLEAN_INFO info;
-	const CHARSET_INFO *cs = param->cs;
-	uchar** start = reinterpret_cast<uchar**>(&query);
-	uchar* end = reinterpret_cast<uchar*>(query + len);
-	FT_WORD w;
+	MYSQL_FTPARSER_BOOLEAN_INFO	info;
+	const CHARSET_INFO*		cs = param->cs;
+	uchar**	start = reinterpret_cast<uchar**>(&query);
+	uchar*	end = reinterpret_cast<uchar*>(query + len);
+	FT_WORD	w;
 
 	info.prev = ' ';
 	info.quot = 0;
@@ -425,11 +427,11 @@ fts_parse_by_parser(
 /*================*/
 	ibool			mode,		/*!< in: parse boolean mode */
 	uchar*			query_str,	/*!< in: query string */
-	uint			query_len,	/*!< in: query string length */
+	ulint			query_len,	/*!< in: query string length */
 	st_mysql_ftparser*	parser,		/*!< in: fts plugin parser */
 	fts_ast_state_t*	state)		/*!< in/out: parser state */
 {
-	MYSQL_FTPARSER_PARAM param;
+	MYSQL_FTPARSER_PARAM	param;
 	int	ret;
 
 	ut_ad(parser);
@@ -440,7 +442,7 @@ fts_parse_by_parser(
 	param.mysql_ftparam = static_cast<void*>(state);
 	param.cs = state->charset;
 	param.doc = reinterpret_cast<char*>(query_str);
-	param.length = query_len;
+	param.length = static_cast<int>(query_len);
 	param.flags = 0;
 	param.mode = mode ?
 		     MYSQL_FTPARSER_FULL_BOOLEAN_INFO :

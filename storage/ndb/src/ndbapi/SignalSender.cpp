@@ -120,6 +120,7 @@ SignalSender::SignalSender(TransporterFacade *facade, int blockNo)
   Uint32 res = open(theFacade, blockNo);
   assert(res != 0);
   m_blockNo = refToBlock(res);
+  m_locked = false;
 }
 
 SignalSender::SignalSender(Ndb_cluster_connection* connection)
@@ -128,11 +129,13 @@ SignalSender::SignalSender(Ndb_cluster_connection* connection)
   Uint32 res = open(theFacade, -1);
   assert(res != 0);
   m_blockNo = refToBlock(res);
+  m_locked = false;
 }
 
 SignalSender::~SignalSender(){
   int i;
-  unlock();
+  if (m_locked)
+    unlock();
   close();
 
   // free these _after_ closing theFacade to ensure that
@@ -146,12 +149,19 @@ SignalSender::~SignalSender(){
 int SignalSender::lock()
 {
   start_poll();
+  assert(m_locked == false);
+  m_locked = true;
   return 0;
 }
 
 int SignalSender::unlock()
 {
-  complete_poll();
+  assert(m_locked == true);
+  if (m_locked)
+  {
+    complete_poll();
+    m_locked = false;
+  }
   return 0;
 }
 
@@ -291,6 +301,11 @@ void
 SignalSender::trp_deliver_signal(const NdbApiSignal* signal,
                                  const struct LinearSectionPtr ptr[3])
 {
+  if (signal->theVerId_signalNumber == GSN_CLOSE_COMREQ)
+  {
+    theFacade->perform_close_clnt(this);
+    return;
+  }
   SimpleSignal * s = new SimpleSignal(true);
   s->header = * signal;
   for(Uint32 i = 0; i<s->header.m_noOfSections; i++){

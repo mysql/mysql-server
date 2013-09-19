@@ -1,6 +1,5 @@
 /* 
-   Copyright (C) 2007, 2008 MySQL AB
-    All rights reserved. Use is subject to license terms.
+   Copyright (c) 2007, 2013, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -20,9 +19,12 @@
 #define BLOCK_MUTEX_IMPL_HPP
 
 #include "ArrayPool.hpp"
-#include "DLFifoList.hpp"
+#include "IntrusiveList.hpp"
 #include "KeyTable.hpp"
 #include <signaldata/UtilLock.hpp>
+
+#define JAM_FILE_ID 283
+
 
 class LockQueue
 {
@@ -89,5 +91,8 @@ private:
    */
   DLFifoList<LockQueueElement>::Head m_queue;
 };
+
+
+#undef JAM_FILE_ID
 
 #endif

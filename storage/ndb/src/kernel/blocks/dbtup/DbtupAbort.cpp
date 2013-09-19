@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2003, 2010, Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2003, 2013, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -21,6 +21,9 @@
 #include <RefConvert.hpp>
 #include <ndb_limits.h>
 #include <pc.hpp>
+
+#define JAM_FILE_ID 409
+
 
 /**
  * Abort abort this operation and all after (nextActiveOp's)
@@ -231,9 +234,13 @@ void Dbtup::do_tup_abortreq(Signal* signal, Uint32 flags)
       }
     }
   }
-  
-  if(regOperPtr.p->is_first_operation() && regOperPtr.p->is_last_operation())
+
+  bool first_and_last = false;
+  if (regOperPtr.p->is_first_operation() && regOperPtr.p->is_last_operation())
   {
+    jam();
+    /* Abort of only (remaining) op on this row */
+    first_and_last = true;
     if (regOperPtr.p->m_undo_buffer_space)
     {
       jam();
@@ -244,6 +251,28 @@ void Dbtup::do_tup_abortreq(Signal* signal, Uint32 flags)
   }
 
   removeActiveOpList(regOperPtr.p, tuple_ptr);
+
+  if (first_and_last &&
+      (flags & ZABORT_DEALLOC) &&
+      (tuple_ptr->m_header_bits & Tuple_header::FREED))
+  {
+    jam();
+    /* Free var and fixed records for this row */
+    Local_key tmp = regOperPtr.p->m_tuple_location;
+    if (regTabPtr.p->m_attributes[MM].m_no_of_varsize +
+        regTabPtr.p->m_attributes[MM].m_no_of_dynamic)
+    {
+      jam();
+      free_var_rec(regFragPtr.p, regTabPtr.p, &tmp, page);
+    }
+    else
+    {
+      jam();
+      free_fix_rec(regFragPtr.p, regTabPtr.p, &tmp, (Fix_page*)page.p);
+    }
+    regOperPtr.p->m_tuple_location.setNull();
+  }
+
   initOpConnection(regOperPtr.p);
 }
 

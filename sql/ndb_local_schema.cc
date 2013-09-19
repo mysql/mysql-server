@@ -38,11 +38,14 @@ bool Ndb_local_schema::Base::mdl_try_lock(void) const
   MDL_request schema_request;
   MDL_request mdl_request;
 
-  global_request.init(MDL_key::GLOBAL, "", "", MDL_INTENTION_EXCLUSIVE,
-                      MDL_STATEMENT);
-  schema_request.init(MDL_key::SCHEMA, m_db, "", MDL_INTENTION_EXCLUSIVE,
-                      MDL_TRANSACTION);
-  mdl_request.init(MDL_key::TABLE, m_db, m_name, MDL_EXCLUSIVE,
+  MDL_REQUEST_INIT(&global_request,
+                   MDL_key::GLOBAL, "", "", MDL_INTENTION_EXCLUSIVE,
+                   MDL_STATEMENT);
+  MDL_REQUEST_INIT(&schema_request,
+                   MDL_key::SCHEMA, m_db, "", MDL_INTENTION_EXCLUSIVE,
+                   MDL_TRANSACTION);
+  MDL_REQUEST_INIT(&mdl_request,
+                   MDL_key::TABLE, m_db, m_name, MDL_EXCLUSIVE,
                    MDL_TRANSACTION);
 
   mdl_requests.push_front(&mdl_request);

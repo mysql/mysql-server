@@ -301,3 +301,44 @@ IF(NOT DISABLE_SHARED)
     ENDFOREACH()
   ENDIF()
 ENDIF()
+
+#
+#  Basic application for testing linking against dynamic client library.
+#
+
+#
+# TODO: Consider whether these mysys functions should be exported as C API
+# calls. At the moment they are not defined in <mysql.h>
+#
+LIST(REMOVE_ITEM CLIENT_API_FUNCTIONS
+     handle_options 
+     load_defaults 
+     my_init)
+
+#
+# Generate a comma separated list of C API functions which is used
+# to initialize api_calls[] array in api_test.c
+#
+SET(CLIENT_API_FUNCTION_LIST "")
+FOREACH(api ${CLIENT_API_FUNCTIONS})
+  SET(CLIENT_API_FUNCTION_LIST "${CLIENT_API_FUNCTION_LIST} ${api},")
+ENDFOREACH()
+
+#
+# Generate api_test.c source, substituting @CLIENT_API_FUNCTION_LIST@
+# with the list of API functions.
+#
+CONFIGURE_FILE(api_test.c.in ${CMAKE_CURRENT_BINARY_DIR}/api_test.c)
+
+#
+# Note: Compiling this test application will fail if not all symbols
+# from @CLIENT_API_FUNCTIONS@ are declared by <mysql.h>. It will fail
+# to run if not all of these symbols are exported by the library.
+#
+ADD_EXECUTABLE(libmysql_api_test ${CMAKE_CURRENT_BINARY_DIR}/api_test.c)
+
+IF(DISABLE_SHARED)
+  TARGET_LINK_LIBRARIES(libmysql_api_test ${LIBS})
+ELSE()
+  TARGET_LINK_LIBRARIES(libmysql_api_test libmysql)
+ENDIF()
