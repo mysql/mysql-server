@@ -6268,13 +6268,14 @@ Dblqh::acckeyconf_tupkeyreq(Signal* signal, TcConnectionrec* regTcPtr,
    * ----------------------------------------------------------------------- */
   Uint32 page_idx = lkey2;
   Uint32 page_no = lkey1;
-  Uint32 Ttupreq = regTcPtr->dirtyOp;
+  Uint32 Ttupreq = 0;
   Uint32 flags = regTcPtr->m_flags;
-  Ttupreq = Ttupreq + (regTcPtr->opSimple << 1);
-  Ttupreq = Ttupreq + (op << 6);
-  Ttupreq = Ttupreq + (regTcPtr->opExec << 10);
-  Ttupreq = Ttupreq + (regTcPtr->m_use_rowid << 11);
-  Ttupreq = Ttupreq + (regTcPtr->m_reorg << 12);
+  TupKeyReq::setDirtyFlag(Ttupreq, regTcPtr->dirtyOp);
+  TupKeyReq::setSimpleFlag(Ttupreq, regTcPtr->opSimple);
+  TupKeyReq::setOperation(Ttupreq, op);
+  TupKeyReq::setInterpretedFlag(Ttupreq, regTcPtr->opExec);
+  TupKeyReq::setRowidFlag(Ttupreq, regTcPtr->m_use_rowid);
+  TupKeyReq::setReorgFlag(Ttupreq, regTcPtr->m_reorg);
 
   /* --------------------------------------------------------------------- 
    * Clear interpreted mode bit since we do not want the next replica to
@@ -11476,10 +11477,13 @@ Dblqh::next_scanconf_tupkeyreq(Signal* signal,
 			       Uint32 disk_page)
 {
   jam();
-  Uint32 reqinfo = (scanPtr.p->scanLockHold == ZFALSE);
-  reqinfo = reqinfo + (regTcPtr->operation << 6);
-  reqinfo = reqinfo + (regTcPtr->opExec << 10);
-  reqinfo = reqinfo + (regTcPtr->m_reorg << 12);
+  Uint32 reqinfo = 0;
+  TupKeyReq::setDirtyFlag(reqinfo, (scanPtr.p->scanLockHold == ZFALSE));
+  TupKeyReq::setSimpleFlag(reqinfo, 0);
+  TupKeyReq::setOperation(reqinfo, regTcPtr->operation);
+  TupKeyReq::setInterpretedFlag(reqinfo, regTcPtr->opExec);
+  TupKeyReq::setRowidFlag(reqinfo, 0);
+  TupKeyReq::setReorgFlag(reqinfo, regTcPtr->m_reorg);
 
   TupKeyReq * const tupKeyReq = (TupKeyReq *)signal->getDataPtrSend(); 
   
