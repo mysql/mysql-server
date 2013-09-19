@@ -387,9 +387,9 @@ SELECT b DIV 900 y FROM t1 GROUP BY y;
 y
 0
 Warnings:
-Warning	1366	Incorrect decimal value: '' for column '' at row -1
+Warning	1366	Incorrect DECIMAL value: '0' for column '' at row -1
 Warning	1292	Truncated incorrect DECIMAL value: 'str1'
-Warning	1366	Incorrect decimal value: '' for column '' at row -1
+Warning	1366	Incorrect DECIMAL value: '0' for column '' at row -1
 Warning	1292	Truncated incorrect DECIMAL value: 'str2'
 SELECT c DIV 900 y FROM t1 GROUP BY y;
 y
@@ -503,7 +503,7 @@ select "123456789012345678901234567890.123456789012345678901234567890" div 1 as 
 ERROR 22003: BIGINT value is out of range in '('123456789012345678901234567890.123456789012345678901234567890' DIV 1)'
 SHOW WARNINGS;
 Level	Code	Message
-Warning	1292	Truncated incorrect DECIMAL value: ''
+Warning	1292	Truncated incorrect DECIMAL value: '123456789012345678901234567890'
 Error	1690	BIGINT value is out of range in '('123456789012345678901234567890.123456789012345678901234567890' DIV 1)'
 #
 # Bug#57810 case/when/then : Assertion failed: length || !scale
@@ -688,7 +688,7 @@ SELECT ((@a:=@b:=1.0) div (@b:=@a:=get_format(datetime, 'usa')));
 ((@a:=@b:=1.0) div (@b:=@a:=get_format(datetime, 'usa')))
 NULL
 Warnings:
-Warning	1366	Incorrect decimal value: '' for column '' at row -1
+Warning	1366	Incorrect DECIMAL value: '0' for column '' at row -1
 #
 # Bug #59498 div function broken in mysql-trunk
 #
@@ -702,7 +702,7 @@ select (1.175494351E-37 div 1.7976931348623157E+308);
 (1.175494351E-37 div 1.7976931348623157E+308)
 0
 Warnings:
-Warning	1292	Truncated incorrect DECIMAL value: ''
+Warning	1292	Truncated incorrect DECIMAL value: '1.7976931348623157'
 #
 # Bug#12744991 - DECIMAL_ROUND(X,D) GIVES WRONG RESULTS WHEN D == N*(-9)
 #
