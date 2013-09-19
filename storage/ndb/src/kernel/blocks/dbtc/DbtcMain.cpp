@@ -3654,7 +3654,7 @@ void Dbtc::sendlqhkeyreq(Signal* signal,
 #endif
   Uint32 Tdeferred = tc_testbit(regApiPtr->m_flags,
                                 ApiConnectRecord::TF_DEFERRED_CONSTRAINTS);
-  Uint32 reorg = 0;
+  Uint32 reorg = ScanFragReq::REORG_ALL;
   Uint32 Tspecial_op = regTcPtr->m_special_op_flags;
   if (Tspecial_op == 0)
   {
@@ -3662,11 +3662,11 @@ void Dbtc::sendlqhkeyreq(Signal* signal,
   else if (Tspecial_op & (TcConnectRecord::SOF_REORG_TRIGGER_BASE |
                           TcConnectRecord::SOF_REORG_DELETE))
   {
-    reorg = 1;
+    reorg = ScanFragReq::REORG_NOT_MOVED;
   }
   else if (Tspecial_op & TcConnectRecord::SOF_REORG_MOVING)
   {
-    reorg = 2;
+    reorg = ScanFragReq::REORG_MOVED;
   }
 
   Uint32 inlineKeyLen= 0;
@@ -11072,7 +11072,7 @@ void Dbtc::execDIH_SCAN_TAB_CONF(Signal* signal)
   if (conf->reorgFlag)
   {
     jam();
-    ScanFragReq::setReorgFlag(scanptr.p->scanRequestInfo, 1);
+    ScanFragReq::setReorgFlag(scanptr.p->scanRequestInfo, ScanFragReq::REORG_NOT_MOVED);
   }
   if (regApiPtr->apiFailState == ZTRUE) {
     jam();

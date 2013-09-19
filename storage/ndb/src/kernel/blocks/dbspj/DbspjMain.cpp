@@ -3487,7 +3487,7 @@ Dbspj::lookup_build(Build_context& ctx,
        */
       ndbassert(LqhKeyReq::getAttrLen(attrLen) == 0);         // Only long
       ndbassert(LqhKeyReq::getScanTakeOverFlag(attrLen) == 0);// Not supported
-      ndbassert(LqhKeyReq::getReorgFlag(attrLen) == 0);       // Not supported
+      ndbassert(LqhKeyReq::getReorgFlag(attrLen) == ScanFragReq::REORG_ALL);       // Not supported
       ndbassert(LqhKeyReq::getOperation(requestInfo) == ZREAD);
       ndbassert(LqhKeyReq::getKeyLen(requestInfo) == 0);      // Only long
       ndbassert(LqhKeyReq::getMarkerFlag(requestInfo) == 0);  // Only read
@@ -4831,7 +4831,7 @@ Dbspj::scanFrag_build(Build_context& ctx,
       ndbassert(ScanFragReq::getReadCommittedFlag(requestInfo) == 1);
       ndbassert(ScanFragReq::getLcpScanFlag(requestInfo) == 0);
       //ScanFragReq::getAttrLen(requestInfo); // ignore
-      ndbassert(ScanFragReq::getReorgFlag(requestInfo) == 0);
+      ndbassert(ScanFragReq::getReorgFlag(requestInfo) == ScanFragReq::REORG_ALL);
 
       Uint32 tupScanFlag = ScanFragReq::getTupScanFlag(requestInfo);
       Uint32 rangeScanFlag = ScanFragReq::getRangeScanFlag(requestInfo);
@@ -5588,7 +5588,7 @@ Dbspj::execDIH_SCAN_TAB_CONF(Signal* signal)
   {
     jam();
     ScanFragReq * dst = (ScanFragReq*)data.m_scanFragReq;
-    ScanFragReq::setReorgFlag(dst->requestInfo, 1);
+    ScanFragReq::setReorgFlag(dst->requestInfo, ScanFragReq::REORG_NOT_MOVED);
   }
   if (treeNodePtr.p->m_bits & TreeNode::T_CONST_PRUNE)
   {

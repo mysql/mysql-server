@@ -12106,9 +12106,15 @@ void Dblqh::initScanTc(const ScanFragReq* req,
   tTablePtr.i = tabptr.p->primaryTableId;
   ptrCheckGuard(tTablePtr, ctabrecFileSize, tablerec);
   tcConnectptr.p->m_disk_table = tTablePtr.p->m_disk_table &&
-    (!req || !ScanFragReq::getNoDiskFlag(req->requestInfo));  
-  tcConnectptr.p->m_reorg = 
-    req ? ScanFragReq::getReorgFlag(req->requestInfo) : 0;
+    (!req || !ScanFragReq::getNoDiskFlag(req->requestInfo));
+  if (req == NULL)
+  {
+    tcConnectptr.p->m_reorg = ScanFragReq::REORG_ALL;
+  }
+  else
+  {
+    tcConnectptr.p->m_reorg = ScanFragReq::getReorgFlag(req->requestInfo);
+  }
 
   tabptr.p->usageCountR++;
 }//Dblqh::initScanTc()
@@ -21368,7 +21374,7 @@ void Dblqh::initReqinfoExecSr(Signal* signal)
   regTcPtr->nodeAfterNext[1] = ZNIL;
   regTcPtr->dirtyOp = ZFALSE;
   regTcPtr->tcBlockref = cownref;
-  regTcPtr->m_reorg = 0;
+  regTcPtr->m_reorg = ScanFragReq::REORG_ALL;
 }//Dblqh::initReqinfoExecSr()
 
 /* -------------------------------------------------------------------------- 
