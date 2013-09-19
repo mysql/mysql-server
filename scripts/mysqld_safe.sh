@@ -509,7 +509,7 @@ then
   SET_USER=0
 fi
 
-parse_arguments `$print_defaults $defaults --loose-verbose mysqld_safe safe_mysqld`
+parse_arguments `$print_defaults $defaults --loose-verbose mysqld_safe safe_mysqld mariadb_safe`
 parse_arguments PICK-ARGS-FROM-ARGV "$@"
 
 

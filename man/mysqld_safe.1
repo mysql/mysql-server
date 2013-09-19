@@ -83,15 +83,15 @@ Options unknown to
 are passed to
 \fBmysqld\fR
 if they are specified on the command line, but ignored if they are specified in the
-[mysqld_safe]
-group of an option file\&. See
+[mysqld_safe] or [mariadb_safe]
+groups of an option file\&. See
 Section\ \&4.2.3.3, \(lqUsing Option Files\(rq\&.
 .PP
 \fBmysqld_safe\fR
 reads all options from the
 [mysqld],
-[server], and
-[mysqld_safe]
+[server],
+[mysqld_safe], and [mariadb_safe]
 sections in option files\&. For example, if you specify a
 [mysqld]
 section like this,
@@ -136,40 +136,6 @@ Section\ \&4.2.3.3.1, \(lqCommand-Line Options that Affect Option-File Handling\
 \fB\-\-help\fR
 .sp
 Display a help message and exit\&.
-.RE
-.sp
-.RS 4
-.ie n \{\
-\h'-04'\(bu\h'+03'\c
-.\}
-.el \{\
-.sp -1
-.IP \(bu 2.3
-.\}
-.\" mysqld_safe: autoclose option
-.\" autoclose option: mysqld_safe
-\fB\-\-autoclose\fR
-.sp
-(NetWare only) On NetWare,
-\fBmysqld_safe\fR
-provides a screen presence\&. When you unload (shut down) the
-\fBmysqld_safe\fR
-NLM, the screen does not by default go away\&. Instead, it prompts for user input:
-.sp
-.if n \{\
-.RS 4
-.\}
-.nf
-*<NLM has terminated; Press any key to close the screen>*
-.fi
-.if n \{\
-.RE
-.\}
-.sp
-If you want NetWare to close the screen automatically instead, use the
-\fB\-\-autoclose\fR
-option to
-\fBmysqld_safe\fR\&.
 .RE
 .sp
 .RS 4
