@@ -16,6 +16,7 @@ parts.partition_debug_innodb             # Bug#14150368 2013-03-07 anitha Failin
 rpl.rpl_delayed_slave                    # BUG#11764654 rpl_delayed_slave fails sporadically in pb
 rpl.rpl_innodb_bug28430                  # Bug#11754425
 rpl.rpl_show_slave_running               # BUG#12346048 2011-04-11 sven fails sporadically on pb2
+rpl.rpl_spec_variables @solaris          # Bug #17337114 2013-08-20 Luis Soares failing on pb2 with timeout for 'CHECK WARNINGS'
 rpl.rpl_gtid_logs_without_rotate_or_stop_event @windows    # Bug#16207800 2013-02-09 anitha Fails very frequently on windows
 
 perfschema.socket_summary_by_instance_func  # bug#16274580
