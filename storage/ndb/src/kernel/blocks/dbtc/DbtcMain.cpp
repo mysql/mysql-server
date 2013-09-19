@@ -2766,10 +2766,8 @@ void Dbtc::execTCKEYREQ(Signal* signal)
   /*                                                                        */
   /* ---------------------------------------------------------------------- */
 
-  UintR TapiVersionNo = TcKeyReq::getAPIVersion(tcKeyReq->attrLen);
   UintR Tlqhkeyreqrec = regApiPtr->lqhkeyreqrec;
   regApiPtr->lqhkeyreqrec = Tlqhkeyreqrec + 1;
-  regCachePtr->apiVersionNo = TapiVersionNo;
 
   /* If we have any sections at all then this is a long TCKEYREQ */
   regCachePtr->isLongTcKeyReq= ( handle.m_cnt != 0 );
@@ -3744,7 +3742,6 @@ void Dbtc::sendlqhkeyreq(Signal* signal,
    * Bit 27 == 0 since TC record is the same as the client record.
    * Bit 28 == 0 since readLenAi can only be set after reading in LQH.
    * ----------------------------------------------------------------------- */
-  //LqhKeyReq::setAPIVersion(Tdata10, regCachePtr->apiVersionNo);
   LqhKeyReq::setMarkerFlag(Tdata10, regTcPtr->commitAckMarker != RNIL ? 1 : 0);
   
   /* ************************************************************> */
