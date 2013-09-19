@@ -29,6 +29,7 @@
 #include <signaldata/TupKey.hpp>
 #include <signaldata/AttrInfo.hpp>
 #include <signaldata/TuxMaint.hpp>
+#include <signaldata/ScanFrag.hpp>
 #include <NdbSqlUtil.hpp>
 
 #define JAM_FILE_ID 422
@@ -277,11 +278,11 @@ Dbtup::setup_read(KeyReqStruct *req_struct,
   currOpPtr.i= req_struct->m_tuple_ptr->m_operation_ptr_i;
   Uint32 bits = req_struct->m_tuple_ptr->m_header_bits;
 
-  if (unlikely(req_struct->m_reorg))
+  if (unlikely(req_struct->m_reorg != ScanFragReq::REORG_ALL))
   {
     Uint32 moved = bits & Tuple_header::REORG_MOVE;
-    if (! ((req_struct->m_reorg == 1 && moved == 0) ||
-           (req_struct->m_reorg == 2 && moved != 0)))
+    if (! ((req_struct->m_reorg == ScanFragReq::REORG_NOT_MOVED && moved == 0) ||
+           (req_struct->m_reorg == ScanFragReq::REORG_MOVED && moved != 0)))
     {
       terrorCode= ZTUPLE_DELETED_ERROR;
       return false;
@@ -1107,11 +1108,11 @@ handle_reorg(Dbtup::KeyReqStruct * req_struct,
     return;
   case Dbtup::Fragrecord::FS_REORG_COMMIT:
   case Dbtup::Fragrecord::FS_REORG_COMPLETE:
-    if (reorg != 1)
+    if (reorg != ScanFragReq::REORG_NOT_MOVED)
       return;
     break;
   case Dbtup::Fragrecord::FS_ONLINE:
-    if (reorg != 2)
+    if (reorg != ScanFragReq::REORG_MOVED)
       return;
     break;
   default:
@@ -1267,7 +1268,7 @@ int Dbtup::handleUpdateReq(Signal* signal,
     }
   }
 
-  if (req_struct->m_reorg)
+  if (req_struct->m_reorg != ScanFragReq::REORG_ALL)
   {
     handle_reorg(req_struct, regFragPtr->fragStatus);
   }
@@ -1983,7 +1984,7 @@ int Dbtup::handleInsertReq(Signal* signal,
     disk_ptr->m_base_record_ref= ref.ref();
   }
 
-  if (req_struct->m_reorg)
+  if (req_struct->m_reorg != ScanFragReq::REORG_ALL)
   {
     handle_reorg(req_struct, regFragPtr->fragStatus);
   }
