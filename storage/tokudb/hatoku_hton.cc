@@ -1295,15 +1295,18 @@ static struct st_mysql_sys_var *tokudb_system_variables[] = {
 
 struct st_mysql_storage_engine tokudb_storage_engine = { MYSQL_HANDLERTON_INTERFACE_VERSION };
 
-static struct st_mysql_information_schema tokudb_dictionary_info_information_schema = { MYSQL_INFORMATION_SCHEMA_INTERFACE_VERSION };
+static struct st_mysql_information_schema tokudb_file_map_information_schema = { MYSQL_INFORMATION_SCHEMA_INTERFACE_VERSION };
 
-static ST_FIELD_INFO tokudb_dictionary_field_info[] = {
+static ST_FIELD_INFO tokudb_file_map_field_info[] = {
     {"dictionary_name", 256, MYSQL_TYPE_STRING, 0, 0, NULL, SKIP_OPEN_TABLE },
     {"internal_file_name", 256, MYSQL_TYPE_STRING, 0, 0, NULL, SKIP_OPEN_TABLE },
+    {"database", 256, MYSQL_TYPE_STRING, 0, 0, NULL, SKIP_OPEN_TABLE },
+    {"table", 256, MYSQL_TYPE_STRING, 0, 0, NULL, SKIP_OPEN_TABLE },
+    {"dictionary", 256, MYSQL_TYPE_STRING, 0, 0, NULL, SKIP_OPEN_TABLE },
     {NULL, 0, MYSQL_TYPE_NULL, 0, 0, NULL, SKIP_OPEN_TABLE}
 };
 
-static int tokudb_dictionary_info(TABLE *table, THD *thd) {
+static int tokudb_file_map(TABLE *table, THD *thd) {
     int error;
     DB_TXN* txn = NULL;
     DBC* tmp_cursor = NULL;
@@ -1320,30 +1323,47 @@ static int tokudb_dictionary_info(TABLE *table, THD *thd) {
         goto cleanup;
     }
     while (error == 0) {
-        error = tmp_cursor->c_get(
-            tmp_cursor, 
-            &curr_key, 
-            &curr_val, 
-            DB_NEXT
-            );
+        error = tmp_cursor->c_get(tmp_cursor, &curr_key, &curr_val, DB_NEXT);
         if (!error) {
             // We store the NULL terminator in the directory so it's included in the size.
             // See #5789
             // Recalculate and check just to be safe.
-            size_t dname_len = strlen((const char *)curr_key.data);
-            size_t iname_len = strlen((const char *)curr_val.data);
+            const char *dname = (const char *) curr_key.data;
+            size_t dname_len = strlen(dname);
             assert(dname_len == curr_key.size - 1);
+            table->field[0]->store(dname, dname_len, system_charset_info);
+
+            const char *iname = (const char *) curr_val.data;
+            size_t iname_len = strlen(iname);
             assert(iname_len == curr_val.size - 1);
-            table->field[0]->store(
-                (char *)curr_key.data,
-                dname_len,
-                system_charset_info
-                );
-            table->field[1]->store(
-                (char *)curr_val.data,
-                iname_len,
-                system_charset_info
-                );
+            table->field[1]->store(iname, iname_len, system_charset_info);
+
+            // denormalize the dname
+            const char *database_name = NULL;
+            size_t database_len = 0;
+            const char *table_name = NULL;
+            size_t table_len = 0;
+            const char *dictionary_name = NULL;
+            size_t dictionary_len = 0;
+            database_name = strchr(dname, '/');
+            if (database_name) {
+                database_name += 1;
+                table_name = strchr(database_name, '/');
+                if (table_name) {
+                    database_len = table_name - database_name;
+                    table_name += 1;
+                    dictionary_name = strchr(table_name, '-');
+                    if (dictionary_name) {
+                        table_len = dictionary_name - table_name;
+                        dictionary_name += 1;
+                        dictionary_len = strlen(dictionary_name);
+                    }
+                }
+            }
+            table->field[2]->store(database_name, database_len, system_charset_info);
+            table->field[3]->store(table_name, table_len, system_charset_info);
+            table->field[4]->store(dictionary_name, dictionary_len, system_charset_info);
+
             error = schema_table_store_record(thd, table);
         }
     }
@@ -1362,37 +1382,34 @@ cleanup:
 }
 
 #if MYSQL_VERSION_ID >= 50600
-static int tokudb_dictionary_info_fill_table(THD *thd, TABLE_LIST *tables, Item *cond) {
+static int tokudb_file_map_fill_table(THD *thd, TABLE_LIST *tables, Item *cond) {
 #else
-static int tokudb_dictionary_info_fill_table(THD *thd, TABLE_LIST *tables, COND *cond) {
+static int tokudb_file_map_fill_table(THD *thd, TABLE_LIST *tables, COND *cond) {
 #endif
     int error;
     TABLE *table = tables->table;
 
-    // 3938: Get a read lock on the status flag, since we must
-    // read it before safely proceeding
     rw_rdlock(&tokudb_hton_initialized_lock);
 
     if (!tokudb_hton_initialized) {
         my_error(ER_PLUGIN_IS_NOT_LOADED, MYF(0), "TokuDB");
         error = -1;
     } else {
-        error = tokudb_dictionary_info(table, thd);
+        error = tokudb_file_map(table, thd);
     }
 
-    //3938: unlock the status flag lock
     rw_unlock(&tokudb_hton_initialized_lock);
     return error;
 }
 
-static int tokudb_dictionary_info_init(void *p) {
+static int tokudb_file_map_init(void *p) {
     ST_SCHEMA_TABLE *schema = (ST_SCHEMA_TABLE *) p;
-    schema->fields_info = tokudb_dictionary_field_info;
-    schema->fill_table = tokudb_dictionary_info_fill_table;
+    schema->fields_info = tokudb_file_map_field_info;
+    schema->fill_table = tokudb_file_map_fill_table;
     return 0;
 }
 
-static int tokudb_dictionary_info_done(void *p) {
+static int tokudb_file_map_done(void *p) {
     return 0;
 }
 
@@ -2223,13 +2240,13 @@ mysql_declare_plugin(tokudb)
 },
 {
     MYSQL_INFORMATION_SCHEMA_PLUGIN, 
-    &tokudb_dictionary_info_information_schema, 
+    &tokudb_file_map_information_schema, 
     "TokuDB_file_map", 
     "Tokutek Inc", 
     "Tokutek TokuDB Storage Engine with Fractal Tree(tm) Technology",
     PLUGIN_LICENSE_GPL,
-    tokudb_dictionary_info_init,     /* plugin init */
-    tokudb_dictionary_info_done,     /* plugin deinit */
+    tokudb_file_map_init,     /* plugin init */
+    tokudb_file_map_done,     /* plugin deinit */
     TOKUDB_PLUGIN_VERSION,     /* 4.0.0 */
     NULL,                      /* status variables */
     NULL,                      /* system variables */
@@ -2339,13 +2356,13 @@ maria_declare_plugin(tokudb)
 },
 {
     MYSQL_INFORMATION_SCHEMA_PLUGIN, 
-    &tokudb_dictionary_info_information_schema, 
+    &tokudb_file_map_information_schema, 
     "TokuDB_file_map", 
     "Tokutek Inc", 
     "Tokutek TokuDB Storage Engine with Fractal Tree(tm) Technology",
     PLUGIN_LICENSE_GPL,
-    tokudb_dictionary_info_init,     /* plugin init */
-    tokudb_dictionary_info_done,     /* plugin deinit */
+    tokudb_file_map_init,     /* plugin init */
+    tokudb_file_map_done,     /* plugin deinit */
     TOKUDB_PLUGIN_VERSION,     /* 4.0.0 */
     NULL,                      /* status variables */
     NULL,                      /* system variables */
