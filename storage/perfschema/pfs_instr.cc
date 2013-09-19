@@ -2099,10 +2099,21 @@ void aggregate_thread(PFS_thread *thread,
                       PFS_user *safe_user,
                       PFS_host *safe_host)
 {
+  /* No HAVE_PSI_???_INTERFACE flag, waits cover multiple instrumentations */
   aggregate_thread_waits(thread, safe_account, safe_user, safe_host);
+
+#ifdef HAVE_PSI_STAGE_INTERFACE
   aggregate_thread_stages(thread, safe_account, safe_user, safe_host);
+#endif
+
+#ifdef HAVE_PSI_STATEMENT_INTERFACE
   aggregate_thread_statements(thread, safe_account, safe_user, safe_host);
+#endif
+
+#ifdef HAVE_PSI_MEMORY_INTERFACE
   aggregate_thread_memory(false, thread, safe_account, safe_user, safe_host);
+#endif
+
   aggregate_thread_stats(thread, safe_account, safe_user, safe_host);
 }
 
