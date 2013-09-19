@@ -2169,7 +2169,6 @@ public:
     Uint16 nodeAfterNext[3];
 
     Uint8 activeCreat;
-    Uint8 apiVersionNo;
     Uint8 dirtyOp;
     Uint8 indTakeOver;
     Uint8 lastReplicaNo;

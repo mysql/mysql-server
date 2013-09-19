@@ -4809,7 +4809,6 @@ void Dblqh::execLQHKEYREQ(Signal* signal)
   regTcPtr->opExec        = LqhKeyReq::getInterpretedFlag(Treqinfo);
   regTcPtr->opSimple      = LqhKeyReq::getSimpleFlag(Treqinfo);
   regTcPtr->seqNoReplica  = LqhKeyReq::getSeqNoReplica(Treqinfo);
-  regTcPtr->apiVersionNo  = 0; 
   regTcPtr->m_use_rowid   = LqhKeyReq::getRowidFlag(Treqinfo);
   regTcPtr->m_dealloc     = 0;
   if (unlikely(senderVersion < NDBD_ROWID_VERSION))
@@ -5447,7 +5446,6 @@ Dblqh::exec_acckeyreq(Signal* signal, TcConnectionrecPtr regTcPtr)
   taccreq = taccreq + (regTcPtr.p->lockType << 4);
   taccreq = taccreq + (regTcPtr.p->dirtyOp << 6);
   taccreq = taccreq + (regTcPtr.p->replicaType << 7);
-  taccreq = taccreq + (regTcPtr.p->apiVersionNo << 9);
 /* ************ */
 /*  ACCKEYREQ < */
 /* ************ */
@@ -6276,7 +6274,6 @@ Dblqh::acckeyconf_tupkeyreq(Signal* signal, TcConnectionrec* regTcPtr,
   Ttupreq = Ttupreq + (regTcPtr->opSimple << 1);
   Ttupreq = Ttupreq + (op << 6);
   Ttupreq = Ttupreq + (regTcPtr->opExec << 10);
-  Ttupreq = Ttupreq + (regTcPtr->apiVersionNo << 11);
   Ttupreq = Ttupreq + (regTcPtr->m_use_rowid << 11);
   Ttupreq = Ttupreq + (regTcPtr->m_reorg << 12);
 
@@ -13743,7 +13740,6 @@ void Dblqh::execCOPY_STATEREQ(Signal* signal)
 void Dblqh::initCopyTc(Signal* signal, Operation_t op) 
 {
   tcConnectptr.p->operation = ZREAD;
-  tcConnectptr.p->apiVersionNo = 0;
   tcConnectptr.p->opExec = 0;	/* NOT INTERPRETED MODE */
   tcConnectptr.p->schemaVersion = scanptr.p->scanSchemaVersion;
   Uint32 reqinfo = 0;
@@ -21365,7 +21361,6 @@ void Dblqh::initReqinfoExecSr(Signal* signal)
 /*       SET REPLICA TYPE TO PRIMARY AND NUMBER OF REPLICA TO ONE            */
 /* ------------------------------------------------------------------------- */
   regTcPtr->lastReplicaNo = 0;
-  regTcPtr->apiVersionNo = 0;
   regTcPtr->nextSeqNoReplica = 0;
   regTcPtr->opExec = 0;
   regTcPtr->storedProcId = ZNIL;
