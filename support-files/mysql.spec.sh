@@ -716,7 +716,7 @@ fi
 
 # We assume that if there is exactly one ".pid" file,
 # it contains the valid PID of a running MySQL server.
-NR_PID_FILES=`ls $PID_FILE_PATT 2>/dev/null | wc -l`
+NR_PID_FILES=`ls -1 $PID_FILE_PATT 2>/dev/null | wc -l`
 case $NR_PID_FILES in
 	0 ) SERVER_TO_START=''  ;;  # No "*.pid" file == no running server
 	1 ) SERVER_TO_START='true' ;;
@@ -1027,6 +1027,7 @@ fi
 %attr(755, root, root) %{_sbindir}/rcmysql
 %if %{INNODB_BUILD}
 %if %{WITH_INNODB_PLUGIN}
+%attr(755, root, root) %{_libdir}/mysql/plugin/
 %attr(755, root, root) %{_libdir}/mysql/plugin/ha_innodb_plugin.so*
 %endif
 %endif
@@ -1194,6 +1195,9 @@ fi
 # merging BK trees)
 ##############################################################################
 %changelog
+* Mon Sep 09 2013 Balasubramanian Kandasamy <balasubramanian.kandasamy@oracle.com>
+- Updated logic to get the correct count of PID files
+
 * Tue Sep 11 2012 Joerg Bruehe <joerg.bruehe@oracle.com>
 
 - Disable "maintainer mode" in debug builds, there is a cast ulonglong -> int
