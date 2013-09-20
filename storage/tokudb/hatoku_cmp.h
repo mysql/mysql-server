@@ -362,7 +362,8 @@ int tokudb_compare_two_keys(
     const uint32_t saved_key_size,
     const void*  row_desc,
     const uint32_t row_desc_size,
-    bool cmp_prefix
+    bool cmp_prefix,
+    bool* read_string
     );
 
 int tokudb_cmp_dbt_key(DB* db, const DBT *keya, const DBT *keyb);
