@@ -1919,7 +1919,7 @@ pars_create_table(
 		on global variables. There is an inherent race here but
 		that has always existed around this variable. */
 		if (srv_file_per_table) {
-			flags2 |= DICT_TF2_USE_TABLESPACE;
+			flags2 |= DICT_TF2_USE_FILE_PER_TABLE;
 		}
 	}
 

@@ -3928,7 +3928,7 @@ skip_watch:
 
 /********************************************************************//**
 During merge, inserts to an index page a secondary index entry extracted
-from the insert buffer. 
+from the insert buffer.
 @return newly inserted record */
 static __attribute__((nonnull))
 rec_t*
