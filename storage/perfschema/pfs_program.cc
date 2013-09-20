@@ -88,6 +88,7 @@ void cleanup_program(void)
   /*  Free memory allocated to program_array. */
   pfs_free(program_array);
   program_array= NULL;
+  program_max= 0;
 }
 
 C_MODE_START
