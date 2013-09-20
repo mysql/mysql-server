@@ -41,6 +41,7 @@ struct PFS_host;
 struct PFS_user;
 struct PFS_account;
 struct PFS_object_name;
+struct PFS_program;
 
 /**
   @file storage/perfschema/table_helper.h
@@ -72,12 +73,8 @@ struct PFS_object_view_constants
 {
   static const uint FIRST_VIEW= 1;
   static const uint VIEW_TABLE= 1;
-  static const uint LAST_VIEW= 1;
-
-  /* Future use */
-  static const uint VIEW_EVENT= 2;
-  static const uint VIEW_PROCEDURE= 3;
-  static const uint VIEW_FUNCTION= 4;
+  static const uint VIEW_PROGRAM= 2;
+  static const uint LAST_VIEW= 2;
 };
 
 /** Row fragment for column HOST. */
@@ -186,6 +183,7 @@ struct PFS_object_row
 
   /** Build a row from a memory buffer. */
   int make_row(PFS_table_share *pfs);
+  int make_row(PFS_program *pfs);
   int make_row(const MDL_key *pfs);
   /** Set a table field from the row. */
   void set_field(uint index, Field *f);
