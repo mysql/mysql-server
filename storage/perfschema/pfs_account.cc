@@ -125,14 +125,19 @@ int init_account(const PFS_global_param *param)
   return 0;
 }
 
-/** Cleanup all the user buffers. */
+/** Cleanup all the account buffers. */
 void cleanup_account(void)
 {
-  // FIXME, seems incomplete
   pfs_free(account_array);
   account_array= NULL;
   pfs_free(account_instr_class_waits_array);
   account_instr_class_waits_array= NULL;
+  pfs_free(account_instr_class_stages_array);
+  account_instr_class_stages_array= NULL;
+  pfs_free(account_instr_class_statements_array);
+  account_instr_class_statements_array= NULL;
+  pfs_free(account_instr_class_memory_array);
+  account_instr_class_memory_array= NULL;
   account_max= 0;
 }
 

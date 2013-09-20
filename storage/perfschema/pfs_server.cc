@@ -168,9 +168,62 @@ static void destroy_pfs_thread(void *key)
 
 static void cleanup_performance_schema(void)
 {
+  /*
+    my.cnf options
+  */
+
   cleanup_instrument_config();
-/*  Disabled: Bug#5666
-  cleanup_instruments();
+
+// Waiting for Bug#56666 / WL#6407
+//
+// #define HAVE_WL6407
+
+#ifdef HAVE_WL6407
+
+  /*
+    All the LF_HASH
+  */
+
+  cleanup_setup_actor_hash();
+  cleanup_setup_object_hash();
+  cleanup_account_hash();
+  cleanup_host_hash();
+  cleanup_user_hash();
+  cleanup_program_hash();
+  cleanup_table_share_hash();
+  cleanup_file_hash();
+
+  /*
+    Then the lookup tables
+  */
+
+  cleanup_setup_actor();
+  cleanup_setup_object();
+
+  /*
+    Then the history tables
+  */
+
+  cleanup_events_waits_history_long();
+  cleanup_events_stages_history_long();
+  cleanup_events_statements_history_long();
+
+  /*
+    Then the various aggregations
+  */
+
+  cleanup_digest();
+  cleanup_account();
+  cleanup_host();
+  cleanup_user();
+
+  /*
+    Then the instrument classes.
+    Once a class is cleaned up,
+    find_XXX_class(key)
+    will return PSI_NOT_INSTRUMENTED
+  */
+  cleanup_program();
   cleanup_sync_class();
   cleanup_thread_class();
   cleanup_table_share();
@@ -178,29 +231,37 @@ static void cleanup_performance_schema(void)
   cleanup_stage_class();
   cleanup_statement_class();
   cleanup_socket_class();
-  cleanup_events_waits_history_long();
-  cleanup_events_stages_history_long();
-  cleanup_events_statements_history_long();
-  cleanup_table_share_hash();
-  cleanup_file_hash();
-  cleanup_setup_actor();
-  cleanup_setup_actor_hash();
-  cleanup_setup_object();
-  cleanup_setup_object_hash();
-  cleanup_host();
-  cleanup_host_hash();
-  cleanup_user();
-  cleanup_user_hash();
-  cleanup_account();
-  cleanup_account_hash();
-  cleanup_digest();
+  cleanup_memory_class();
+
+  cleanup_instruments();
+
   PFS_atomic::cleanup();
-*/
+#endif
 }
 
 void shutdown_performance_schema(void)
 {
   pfs_initialized= false;
+
+  /* disable everything, especially for this thread. */
+  flag_events_stages_current= false;
+  flag_events_stages_history= false;
+  flag_events_stages_history_long= false;
+  flag_events_statements_current= false;
+  flag_events_statements_history= false;
+  flag_events_statements_history_long= false;
+  flag_events_waits_current= false;
+  flag_events_waits_history= false;
+  flag_events_waits_history_long= false;
+  flag_global_instrumentation= false;
+  flag_thread_instrumentation= false;
+  flag_statements_digest= false;
+
+  global_table_io_class.m_enabled= false;
+  global_table_lock_class.m_enabled= false;
+  global_idle_class.m_enabled= false;
+  global_metadata_class.m_enabled= false;
+
   cleanup_performance_schema();
 #if 0
   /*
