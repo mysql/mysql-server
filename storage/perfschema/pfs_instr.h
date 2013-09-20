@@ -365,7 +365,7 @@ public:
   */
   void next_pass()
   { m_pass++; }
-  
+
   /** First index for this pass. */
   uint first() const
   { return m_first[m_pass]; }

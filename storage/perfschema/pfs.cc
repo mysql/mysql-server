@@ -2933,7 +2933,7 @@ pfs_get_thread_file_name_locker_v1(PSI_file_locker_state *state,
   if (! klass->m_enabled)
     return NULL;
 
-  /* Needed for the LF_HASH */ 
+  /* Needed for the LF_HASH */
   PFS_thread *pfs_thread= my_pthread_get_THR_PFS();
   if (unlikely(pfs_thread == NULL))
     return NULL;
@@ -4951,7 +4951,7 @@ void pfs_end_statement_v1(PSI_statement_locker *locker, void *stmt_da)
   PFS_statement_stat *event_name_array;
   uint index= klass->m_event_name_index;
   PFS_statement_stat *stat;
-  
+
   /*
    Capture statement stats by digest.
   */
@@ -5020,8 +5020,8 @@ void pfs_end_statement_v1(PSI_statement_locker *locker, void *stmt_da)
         */
         digest_copy(& pfs->m_digest_storage, digest_storage);
       }
-    
-      pfs_program= reinterpret_cast<PFS_program*>(state->m_parent_sp_share); 
+
+      pfs_program= reinterpret_cast<PFS_program*>(state->m_parent_sp_share);
 
       if (flag_events_statements_history)
         insert_events_statements_history(thread, pfs);
@@ -5093,7 +5093,7 @@ void pfs_end_statement_v1(PSI_statement_locker *locker, void *stmt_da)
     {
       digest_stat->aggregate_counted();
     }
-  
+
     digest_stat->m_lock_time+= state->m_lock_time;
     digest_stat->m_rows_sent+= state->m_rows_sent;
     digest_stat->m_rows_examined+= state->m_rows_examined;
@@ -5126,7 +5126,7 @@ void pfs_end_statement_v1(PSI_statement_locker *locker, void *stmt_da)
       {
         sub_stmt_stat->aggregate_counted();
       }
-    
+
       sub_stmt_stat->m_lock_time+= state->m_lock_time;
       sub_stmt_stat->m_rows_sent+= state->m_rows_sent;
       sub_stmt_stat->m_rows_examined+= state->m_rows_examined;
@@ -5217,10 +5217,10 @@ static inline enum_object_type sp_type_to_object_type(uint sp_type)
   }
 }
 
-/**                                                                             
-  Implementation of the stored program instrumentation interface.                         
-  @sa PSI_v1::get_sp_share.                                      
-*/                                                                              
+/**
+  Implementation of the stored program instrumentation interface.
+  @sa PSI_v1::get_sp_share.
+*/
 PSI_sp_share *pfs_get_sp_share_v1(uint sp_type,
                                   const char* schema_name,
                                   uint schema_name_length,
@@ -5228,8 +5228,8 @@ PSI_sp_share *pfs_get_sp_share_v1(uint sp_type,
                                   uint object_name_length)
 {
 
-  PFS_thread *pfs_thread= my_pthread_get_THR_PFS();                             
-  if (unlikely(pfs_thread == NULL))                                             
+  PFS_thread *pfs_thread= my_pthread_get_THR_PFS();
+  if (unlikely(pfs_thread == NULL))
     return NULL;
 
   PFS_program *pfs_program;
@@ -5265,7 +5265,7 @@ PSI_sp_locker* pfs_start_sp_v1(PSI_sp_locker_state *state,
       return NULL;
   }
 
-  /* 
+  /*
     sp share might be null in case when stat array is full and no new
     stored program stats are being inserted into it.
   */
@@ -5278,7 +5278,7 @@ PSI_sp_locker* pfs_start_sp_v1(PSI_sp_locker_state *state,
   if(pfs_program->m_timed)
   {
     state->m_flags|= STATE_FLAG_TIMED;
-    state->m_timer_start= get_timer_raw_value_and_function(statement_timer, 
+    state->m_timer_start= get_timer_raw_value_and_function(statement_timer,
                                                   & state->m_timer);
   }
 
@@ -5318,8 +5318,8 @@ void pfs_drop_sp_v1(uint sp_type,
                     const char* object_name,
                     uint object_name_length)
 {
-  PFS_thread *pfs_thread= my_pthread_get_THR_PFS();                             
-  if (unlikely(pfs_thread == NULL))                                             
+  PFS_thread *pfs_thread= my_pthread_get_THR_PFS();
+  if (unlikely(pfs_thread == NULL))
     return;
 
   drop_program(pfs_thread,
