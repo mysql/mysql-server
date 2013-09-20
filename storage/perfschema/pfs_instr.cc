@@ -547,6 +547,12 @@ void cleanup_instruments(void)
   thread_statements_stack_array= NULL;
   pfs_free(thread_instr_class_waits_array);
   thread_instr_class_waits_array= NULL;
+  pfs_free(thread_instr_class_stages_array);
+  thread_instr_class_stages_array= NULL;
+  pfs_free(thread_instr_class_statements_array);
+  thread_instr_class_statements_array= NULL;
+  pfs_free(thread_instr_class_memory_array);
+  thread_instr_class_memory_array= NULL;
   pfs_free(global_instr_class_stages_array);
   global_instr_class_stages_array= NULL;
   pfs_free(global_instr_class_statements_array);
