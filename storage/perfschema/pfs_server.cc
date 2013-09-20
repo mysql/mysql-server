@@ -192,6 +192,7 @@ static void cleanup_performance_schema(void)
   cleanup_program_hash();
   cleanup_table_share_hash();
   cleanup_file_hash();
+  cleanup_digest_hash();
 
   /*
     Then the lookup tables
