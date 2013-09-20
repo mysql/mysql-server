@@ -133,7 +133,6 @@ static uint get_pk_insert_mode(THD* thd) {
     return THDVAR(thd, pk_insert_mode);
 }
 
-
 static MYSQL_THDVAR_BOOL(load_save_space,
     0,
     "if on, intial loads are slower but take less space",
@@ -260,10 +259,6 @@ static MYSQL_THDVAR_BOOL(disable_slow_update,
     false // default
 );
 
-static bool get_disable_slow_update(THD *thd) {
-    return (THDVAR(thd, disable_slow_update) != 0);
-}
-
 static MYSQL_THDVAR_BOOL(disable_slow_upsert, 
     PLUGIN_VAR_THDLOCAL, 
     "disable slow upsert",
@@ -271,10 +266,6 @@ static MYSQL_THDVAR_BOOL(disable_slow_upsert,
     NULL, // update
     false // default
 );
-
-static bool get_disable_slow_upsert(THD *thd) {
-    return (THDVAR(thd, disable_slow_upsert) != 0);
-}
 #endif
 
 static MYSQL_THDVAR_UINT(analyze_time,
@@ -347,12 +338,6 @@ static srv_row_format_t get_row_format(THD *thd)
 static MYSQL_THDVAR_UINT(lock_timeout_debug, 0, "TokuDB lock timeout debug", NULL, NULL, 0, 0, ~0U, 1);
 
 static MYSQL_THDVAR_STR(last_lock_timeout, PLUGIN_VAR_MEMALLOC, "last TokuDB lock timeout", NULL, NULL, NULL);
-
-
-
-
-
-
 
 extern HASH tokudb_open_tables;
 extern pthread_mutex_t tokudb_mutex;
