@@ -718,7 +718,7 @@ fi
 
 # We assume that if there is exactly one ".pid" file,
 # it contains the valid PID of a running MySQL server.
-NR_PID_FILES=`ls $PID_FILE_PATT 2>/dev/null | wc -l`
+NR_PID_FILES=`ls -1 $PID_FILE_PATT 2>/dev/null | wc -l`
 case $NR_PID_FILES in
 	0 ) SERVER_TO_START=''  ;;  # No "*.pid" file == no running server
 	1 ) SERVER_TO_START='true' ;;
@@ -1215,6 +1215,9 @@ echo "====="                                     >> $STATUS_HISTORY
 # merging BK trees)
 ##############################################################################
 %changelog
+* Mon Sep 09 2013 Balasubramanian Kandasamy <balasubramanian.kandasamy@oracle.com>
+- Updated logic to get the correct count of PID files 
+
 * Fri Aug 16 2013 Balasubramanian Kandasamy <balasubramanian.kandasamy@oracle.com>
 - Added provides lowercase mysql tags  
 
