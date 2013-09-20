@@ -76,7 +76,7 @@ static bool digest_hash_inited= false;
 
 /**
   Initialize table EVENTS_STATEMENTS_SUMMARY_BY_DIGEST.
-  @param param performance schema sizing      
+  @param param performance schema sizing
 */
 int init_digest(const PFS_global_param *param)
 {
