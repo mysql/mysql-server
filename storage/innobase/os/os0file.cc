@@ -1153,7 +1153,7 @@ os_file_create_simple_func(
 				"Unable to create subdirectories '%s'",
 				name);
 
-			return((os_file_t) -1);
+			return(OS_FILE_CLOSED);
 		}
 
 		create_flag = CREATE_NEW;
@@ -1164,7 +1164,7 @@ os_file_create_simple_func(
 			"Unknown file create mode (%lu) for file '%s'",
 			create_mode, name);
 
-		return((os_file_t) -1);
+		return(OS_FILE_CLOSED);
 	}
 
 	if (access_type == OS_FILE_READ_ONLY) {
@@ -1184,7 +1184,7 @@ os_file_create_simple_func(
 			"Unknown file access type (%lu) for file '%s'",
 			access_type, name);
 
-		return((os_file_t) -1);
+		return(OS_FILE_CLOSED);
 	}
 
 	do {
@@ -1245,7 +1245,7 @@ os_file_create_simple_func(
 				"Unable to create subdirectories '%s'",
 				name);
 
-			return((os_file_t) -1);
+			return(OS_FILE_CLOSED);
 		}
 
 		create_flag = O_RDWR | O_CREAT | O_EXCL;
@@ -1256,7 +1256,7 @@ os_file_create_simple_func(
 			"Unknown file create mode (%lu) for file '%s'",
 			create_mode, name);
 
-		return((os_file_t) -1);
+		return(OS_FILE_CLOSED);
 	}
 
 	do {
@@ -1338,7 +1338,7 @@ os_file_create_simple_no_error_handling_func(
 			"Unknown file create mode (%lu) for file '%s'",
 			create_mode, name);
 
-		return((os_file_t) -1);
+		return(OS_FILE_CLOSED);
 	}
 
 	if (access_type == OS_FILE_READ_ONLY) {
@@ -1362,7 +1362,7 @@ os_file_create_simple_no_error_handling_func(
 			"Unknown file access type (%lu) for file '%s'",
 			access_type, name);
 
-		return((os_file_t) -1);
+		return(OS_FILE_CLOSED);
 	}
 
 	file = CreateFile((LPCTSTR) name,
@@ -1413,7 +1413,7 @@ os_file_create_simple_no_error_handling_func(
 			"Unknown file create mode (%lu) for file '%s'",
 			create_mode, name);
 
-		return((os_file_t) -1);
+		return(OS_FILE_CLOSED);
 	}
 
 	file = ::open(name, create_flag, os_innodb_umask);
@@ -1517,14 +1517,14 @@ os_file_create_func(
 		"ib_create_table_fail_disk_full",
 		*success = FALSE;
 		SetLastError(ERROR_DISK_FULL);
-		return((os_file_t) -1);
+		return(OS_FILE_CLOSED);
 	);
 #else /* _WIN32 */
 	DBUG_EXECUTE_IF(
 		"ib_create_table_fail_disk_full",
 		*success = FALSE;
 		errno = ENOSPC;
-		return((os_file_t) -1);
+		return(OS_FILE_CLOSED);
 	);
 #endif /* _WIN32 */
 
@@ -1575,7 +1575,7 @@ os_file_create_func(
 			"Unknown file create mode (%lu) for file '%s'",
 			create_mode, name);
 
-		return((os_file_t) -1);
+		return(OS_FILE_CLOSED);
 	}
 
 	DWORD		attributes = 0;
@@ -1601,7 +1601,7 @@ os_file_create_func(
 			"Unknown purpose flag (%lu) while opening file '%s'",
 			purpose, name);
 
-		return((os_file_t)(-1));
+		return(OS_FILE_CLOSED);
 	}
 
 #ifdef UNIV_NON_BUFFERED_IO
@@ -1695,7 +1695,7 @@ os_file_create_func(
 			"Unknown file create mode (%lu) for file '%s'",
 			create_mode, name);
 
-		return((os_file_t) -1);
+		return(OS_FILE_CLOSED);
 	}
 
 	ut_a(type == OS_LOG_FILE
@@ -3355,7 +3355,7 @@ os_file_make_new_pathname(
 
 	/* Find the offset of the last slash. We will strip off the
 	old basename.ibd which starts after that slash. */
-	last_slash = strrchr((char*) old_path, OS_FILE_PATH_SEPARATOR);
+	last_slash = strrchr((char*) old_path, OS_PATH_SEPARATOR);
 	dir_len = last_slash ? last_slash - old_path : strlen(old_path);
 
 	/* allocate a new path and move the old directory path to it. */
@@ -3366,7 +3366,7 @@ os_file_make_new_pathname(
 	ut_snprintf(new_path + dir_len,
 		    new_path_len - dir_len,
 		    "%c%s.ibd",
-		    OS_FILE_PATH_SEPARATOR,
+		    OS_PATH_SEPARATOR,
 		    base_name);
 
 	return(new_path);
@@ -3402,7 +3402,7 @@ os_file_make_remote_pathname(
 
 	/* Find the offset of the last slash. We will strip off the
 	old basename or tablename which starts after that slash. */
-	last_slash = strrchr((char*) data_dir_path, OS_FILE_PATH_SEPARATOR);
+	last_slash = strrchr((char*) data_dir_path, OS_PATH_SEPARATOR);
 	data_dir_len = last_slash ? last_slash - data_dir_path : strlen(data_dir_path);
 
 	/* allocate a new path and move the old directory path to it. */
@@ -3413,7 +3413,7 @@ os_file_make_remote_pathname(
 	ut_snprintf(new_path + data_dir_len,
 		    new_path_len - data_dir_len,
 		    "%c%s.%s",
-		    OS_FILE_PATH_SEPARATOR,
+		    OS_PATH_SEPARATOR,
 		    tablename,
 		    extention);
 
@@ -3452,7 +3452,7 @@ os_file_make_data_dir_path(
 	ptr[0] = '\0';
 
 	/* The tablename starts after the last slash. */
-	ptr = strrchr((char*) data_dir_path, OS_FILE_PATH_SEPARATOR);
+	ptr = strrchr((char*) data_dir_path, OS_PATH_SEPARATOR);
 	if (!ptr) {
 		return;
 	}
@@ -3460,7 +3460,7 @@ os_file_make_data_dir_path(
 	tablename = ptr + 1;
 
 	/* The databasename starts after the next to last slash. */
-	ptr = strrchr((char*) data_dir_path, OS_FILE_PATH_SEPARATOR);
+	ptr = strrchr((char*) data_dir_path, OS_PATH_SEPARATOR);
 	if (!ptr) {
 		return;
 	}
@@ -3506,7 +3506,7 @@ os_file_dirname(
 	const char*	path)	/*!< in: pathname */
 {
 	/* Find the offset of the last slash */
-	const char* last_slash = strrchr(path, OS_FILE_PATH_SEPARATOR);
+	const char* last_slash = strrchr(path, OS_PATH_SEPARATOR);
 	if (!last_slash) {
 		/* No slash in the path, return "." */
 
@@ -3548,7 +3548,7 @@ os_file_create_subdirs_if_needed(
 	char*	subdir = os_file_dirname(path);
 
 	if (strlen(subdir) == 1
-	    && (*subdir == OS_FILE_PATH_SEPARATOR || *subdir == '.')) {
+	    && (*subdir == OS_PATH_SEPARATOR || *subdir == '.')) {
 		/* subdir is root or cwd, nothing to do */
 		mem_free(subdir);
 
@@ -3720,8 +3720,8 @@ os_aio_native_aio_supported(void)
 		memcpy(name, srv_log_group_home_dir, dirnamelen);
 
 		/* Add a path separator if needed. */
-		if (dirnamelen && name[dirnamelen - 1] != SRV_PATH_SEPARATOR) {
-			name[dirnamelen++] = SRV_PATH_SEPARATOR;
+		if (dirnamelen && name[dirnamelen - 1] != OS_PATH_SEPARATOR) {
+			name[dirnamelen++] = OS_PATH_SEPARATOR;
 		}
 
 		strcpy(name + dirnamelen, "ib_logfile0");

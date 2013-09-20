@@ -69,13 +69,6 @@ extern ulint	os_n_pending_writes;
 
 #endif
 
-/* path name separator character */
-#ifdef _WIN32
-#  define OS_FILE_PATH_SEPARATOR	'\\'
-#else
-#  define OS_FILE_PATH_SEPARATOR	'/'
-#endif /* _WIN32 */
-
 /** File offset in bytes */
 typedef ib_uint64_t os_offset_t;
 #ifdef _WIN32
@@ -93,6 +86,8 @@ typedef int	os_file_t;
 @return native file handle */
 # define OS_FILE_FROM_FD(fd) fd
 #endif
+
+static const os_file_t OS_FILE_CLOSED = os_file_t(~0);
 
 /** Umask for creating files */
 extern ulint	os_innodb_umask;

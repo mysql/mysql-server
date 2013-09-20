@@ -993,7 +993,7 @@ btr_create(
 						pages */
 	index_id_t		index_id,	/*!< in: index id */
 	dict_index_t*		index,		/*!< in: index, or NULL when
-						applying TRUNCATE log 
+						applying TRUNCATE log
 						record during recovery */
 	const btr_create_t*	btr_redo_create_info,
 						/*!< in: used for applying

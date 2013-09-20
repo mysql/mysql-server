@@ -2390,11 +2390,11 @@ err_exit:
 
 	err = trx->error_state;
 
+	/* Update SYS_TABLESPACES and SYS_DATAFILES if a new file-per-table
+	tablespace was created. */
 	if (!Tablespace::is_system_tablespace(table->space)) {
-		ut_a(DICT_TF2_FLAG_IS_SET(table, DICT_TF2_USE_TABLESPACE));
+		ut_a(dict_table_use_file_per_table(table));
 
-		/* Update SYS_TABLESPACES and SYS_DATAFILES if a new
-		tablespace was created. */
 		if (err == DB_SUCCESS) {
 			char*	path;
 			path = fil_space_get_first_path(table->space);
@@ -3833,7 +3833,7 @@ check_next_foreign:
 		space_id = table->space;
 		ibd_file_missing = table->ibd_file_missing;
 
-		is_temp = DICT_TF2_FLAG_IS_SET(table, DICT_TF2_TEMPORARY);
+		is_temp = dict_table_is_temporary(table);
 
 		/* If there is a temp path then the temp flag is set.
 		However, during recovery, we might have a temp flag but
