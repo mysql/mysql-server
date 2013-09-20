@@ -2715,6 +2715,7 @@ public:
   virtual bool check_if_supported_virtual_columns(void) { return FALSE;}
   
   TABLE* get_table() { return table; }
+  TABLE_SHARE* get_table_share() { return table_share; }
 protected:
   /* deprecated, don't use in new engines */
   inline void ha_statistic_increment(ulong SSV::*offset) const { }
@@ -2968,7 +2969,7 @@ public:
 
 #include "multi_range_read.h"
 
-bool key_uses_partial_cols(TABLE *table, uint keyno);
+bool key_uses_partial_cols(TABLE_SHARE *table, uint keyno);
 
 	/* Some extern variables used with handlers */
 

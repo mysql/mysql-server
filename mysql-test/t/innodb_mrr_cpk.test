@@ -165,3 +165,30 @@ SELECT * FROM t1, t2 WHERE g = b AND ( a < 7 OR a > e );
 DROP TABLE t1, t2;
 set optimizer_switch=@tmp_mdev3817;
 
+--echo #
+--echo # MDEV-5037: Server crash on a JOIN on a derived table with join_cache_level > 2
+--echo #
+create table  t0 (a int);
+insert into t0 values (0),(1),(2),(3),(4),(5),(6),(7),(8),(9);
+
+CREATE TABLE t1 (
+  id char(8) CHARACTER SET utf8 NOT NULL
+) ENGINE=InnoDB DEFAULT CHARSET=latin1;
+
+CREATE TABLE t2 (
+  id char(8) CHARACTER SET utf8 DEFAULT NULL,
+  url text CHARACTER SET utf8
+) ENGINE=InnoDB DEFAULT CHARSET=latin1;
+
+insert into t1 select '03b2ca8c' from t0 A, t0 B limit 80;
+insert into t2 select '03b2ca8c','' from t0 A, t0 B, t0 C;
+
+set @tmp_mdev5037=@@join_cache_level;
+set join_cache_level=3;
+
+--replace_column 9 #
+explain SELECT 1 FROM (SELECT url, id FROM t2 LIMIT 1 OFFSET 20) derived RIGHT JOIN t1 ON t1.id = derived.id;
+
+set join_cache_level= @tmp_mdev5037;
+
+drop table t0,t1,t2;
