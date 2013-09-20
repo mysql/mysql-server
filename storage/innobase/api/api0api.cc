@@ -1345,9 +1345,9 @@ ib_cursor_new_trx(
 
 	trx_assign_read_view(prebuilt->trx);
 
-        ib_qry_proc_free(&cursor->q_proc);
+	ib_qry_proc_free(&cursor->q_proc);
 
-        mem_heap_empty(cursor->query_heap);
+	mem_heap_empty(cursor->query_heap);
 
 	return(err);
 }
@@ -3304,13 +3304,6 @@ ib_index_get_id(
 
 	return(err);
 }
-
-#ifdef _WIN32
-#define SRV_PATH_SEPARATOR      '\\'
-#else
-#define SRV_PATH_SEPARATOR      '/'
-#endif
-
 
 /*****************************************************************//**
 Check if cursor is positioned.

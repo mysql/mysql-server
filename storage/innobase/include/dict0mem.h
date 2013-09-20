@@ -204,7 +204,7 @@ This is a transient bit for index build */
 #define DICT_TF2_FTS_ADD_DOC_ID		8
 /** This bit is used during table creation to indicate that it will
 use its own tablespace instead of the system tablespace. */
-#define DICT_TF2_USE_TABLESPACE		16
+#define DICT_TF2_USE_FILE_PER_TABLE	16
 
 /** Set when we discard/detach the tablespace */
 #define DICT_TF2_DISCARDED		32

@@ -601,25 +601,18 @@ fsp_init_file_page_low(
 	block->check_index_page_at_flush = FALSE;
 #endif /* !UNIV_HOTBACKUP */
 
-	if (page_zip) {
-		memset(page, 0, UNIV_PAGE_SIZE);
-		memset(page_zip->data, 0, page_zip_get_size(page_zip));
-		mach_write_to_4(page + FIL_PAGE_OFFSET,
-				buf_block_get_page_no(block));
-		mach_write_to_4(page
-				+ FIL_PAGE_ARCH_LOG_NO_OR_SPACE_ID,
-				buf_block_get_space(block));
-		memcpy(page_zip->data + FIL_PAGE_OFFSET,
-		       page + FIL_PAGE_OFFSET, 4);
-		memcpy(page_zip->data + FIL_PAGE_ARCH_LOG_NO_OR_SPACE_ID,
-		       page + FIL_PAGE_ARCH_LOG_NO_OR_SPACE_ID, 4);
-		return;
-	}
-
 	memset(page, 0, UNIV_PAGE_SIZE);
 	mach_write_to_4(page + FIL_PAGE_OFFSET, buf_block_get_page_no(block));
 	mach_write_to_4(page + FIL_PAGE_ARCH_LOG_NO_OR_SPACE_ID,
 			buf_block_get_space(block));
+
+	if (page_zip) {
+		memset(page_zip->data, 0, page_zip_get_size(page_zip));
+		memcpy(page_zip->data + FIL_PAGE_OFFSET,
+		       page + FIL_PAGE_OFFSET, 4);
+		memcpy(page_zip->data + FIL_PAGE_ARCH_LOG_NO_OR_SPACE_ID,
+		       page + FIL_PAGE_ARCH_LOG_NO_OR_SPACE_ID, 4);
+	}
 }
 
 #ifndef UNIV_HOTBACKUP
