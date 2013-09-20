@@ -295,7 +295,7 @@ void init_pfs_instrument_array()
 void cleanup_instrument_config()
 {
   int desired_state= PFS_INSTR_CONFIG_ALLOCATED;
-  
+
   /* Ignore if another thread has already deallocated the array */
   if (my_atomic_cas32(&pfs_instr_config_state, &desired_state, PFS_INSTR_CONFIG_DEALLOCATED))
     delete_dynamic(&pfs_instr_config_array);
@@ -321,13 +321,13 @@ int add_pfs_instr_to_array(const char* name, const char* value)
                                                      sizeof(PFS_instr_config)
                        + name_length + 1 + value_length + 1, MYF(MY_WME));
   if (!e) return 1;
-  
+
   /* Copy the instrument name */
   e->m_name= (char*)e + sizeof(PFS_instr_config);
   memcpy(e->m_name, name, name_length);
   e->m_name_length= name_length;
   e->m_name[name_length]= '\0';
-  
+
   /* Set flags accordingly */
   if (!my_strcasecmp(&my_charset_latin1, value, "counted"))
   {

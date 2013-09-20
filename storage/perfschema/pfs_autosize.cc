@@ -103,7 +103,7 @@ struct PFS_sizing_data
     Load factor for 'normal' objects (files).
     Instrumented objects that:
     - use a medium amount of memory
-    - are created/destroyed 
+    - are created/destroyed
     should be stored in a medium density memory buffer,
     as a trade off between space and speed.
   */

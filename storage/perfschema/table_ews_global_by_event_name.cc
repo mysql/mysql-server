@@ -370,7 +370,7 @@ void table_ews_global_by_event_name
 
   PFS_table_lock_wait_visitor visitor;
   PFS_object_iterator::visit_all_tables(& visitor);
-  
+
   get_normalizer(klass);
   m_row.m_stat.set(m_normalizer, & visitor.m_stat);
   m_row_exists= true;

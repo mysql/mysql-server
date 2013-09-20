@@ -50,7 +50,7 @@ struct PFS_events_statements : public PFS_events
 
   /** Locked time. */
   ulonglong m_lock_time;
-  
+
   /** Diagnostics area, message text. */
   char m_message_text[MYSQL_ERRMSG_SIZE+1];
   /** Diagnostics area, error number. */

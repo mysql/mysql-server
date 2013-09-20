@@ -134,7 +134,7 @@ struct PFS_byte_stat : public PFS_single_stat
     PFS_single_stat::aggregate_counted();
     m_bytes+= bytes;
   }
-    
+
   PFS_byte_stat()
   {
     reset();

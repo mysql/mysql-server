@@ -24,7 +24,7 @@
 #include "pfs_digest.h"
 
 /*
-  Write MD5 hash value in a string to be used 
+  Write MD5 hash value in a string to be used
   as DIGEST for the statement.
 */
 #define MD5_HASH_TO_STRING(_hash, _str)                    \
@@ -495,7 +495,7 @@ struct PFS_socket_io_stat_row
   PFS_byte_stat_row m_write;
   PFS_byte_stat_row m_misc;
   PFS_byte_stat_row m_all;
-  
+
   inline void set(time_normalizer *normalizer, const PFS_socket_io_stat *stat)
   {
     PFS_byte_stat all;
@@ -503,7 +503,7 @@ struct PFS_socket_io_stat_row
     m_read.set(normalizer, &stat->m_read);
     m_write.set(normalizer, &stat->m_write);
     m_misc.set(normalizer, &stat->m_misc);
-    
+
     /* Combine stats for all operations */
     all.aggregate(&stat->m_read);
     all.aggregate(&stat->m_write);
@@ -520,7 +520,7 @@ struct PFS_file_io_stat_row
   PFS_byte_stat_row m_write;
   PFS_byte_stat_row m_misc;
   PFS_byte_stat_row m_all;
-  
+
   inline void set(time_normalizer *normalizer, const PFS_file_io_stat *stat)
   {
     PFS_byte_stat all;
@@ -528,7 +528,7 @@ struct PFS_file_io_stat_row
     m_read.set(normalizer, &stat->m_read);
     m_write.set(normalizer, &stat->m_write);
     m_misc.set(normalizer, &stat->m_misc);
-    
+
     /* Combine stats for all operations */
     all.aggregate(&stat->m_read);
     all.aggregate(&stat->m_write);

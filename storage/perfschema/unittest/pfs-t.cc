@@ -785,7 +785,7 @@ void test_init_disabled()
   ok(socket_A1 == NULL, "socket key 0 not instrumented");
   socket_A1= psi->init_socket(99, NULL, NULL, 0);
   ok(socket_A1 == NULL, "broken socket key not instrumented");
-  
+
   /* Pretend thread T-1 is enabled */
   /* ----------------------------- */
 
@@ -1022,7 +1022,7 @@ void test_init_disabled()
   ok(socket_A1 == NULL, "socket key 0 not instrumented");
   socket_A1= psi->init_socket(99, NULL, NULL, 0);
   ok(socket_A1 == NULL, "broken socket key not instrumented");
-  
+
   shutdown_performance_schema();
 }
 
@@ -1329,7 +1329,7 @@ void test_locker_disabled()
   /* Socket thread owner has not been set */
   socket_locker= psi->start_socket_wait(&socket_state, socket_A1, PSI_SOCKET_SEND, 12, "foo.cc", 12);
   ok(socket_locker == NULL, "no locker (no thread owner)");
-  
+
   /* Pretend the running thread is not instrumented */
   /* ---------------------------------------------- */
 
