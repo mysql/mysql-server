@@ -7357,8 +7357,6 @@ static int get_options(int *argc_ptr, char ***argv_ptr)
   sys_var_add_options(&all_options, sys_var::PARSE_NORMAL);
   add_terminator(&all_options);
 
-  struct my_option *opt_lev= NULL;
-
   if (opt_help || opt_bootstrap)
   {
     /*
@@ -7371,7 +7369,7 @@ static int get_options(int *argc_ptr, char ***argv_ptr)
     struct my_option *opt= &all_options[0];
     for (; opt->name; opt++)
       if (!strcmp("log_error_verbosity", opt->name))
-        (opt_lev= opt)->def_value= 1;
+        opt->def_value= 1;
   }
 
   /* Skip unknown options so that they may be processed later by plugins */
@@ -7383,13 +7381,6 @@ static int get_options(int *argc_ptr, char ***argv_ptr)
 
   if (!opt_help)
     vector<my_option>().swap(all_options);  // Deletes the vector contents.
-
-  /*
-    If we changed the default log_error_verbosity because of
-    --help / --bootstrap, change the default back here.
-  */
-  if (opt_lev)
-    opt_lev->def_value= 3;
 
   /* Add back the program name handle_options removes */
   (*argc_ptr)++;
