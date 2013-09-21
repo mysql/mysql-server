@@ -22,6 +22,7 @@
 #include "sql_const.h"
 #include "pfs_server.h"
 
+#include <my_pthread.h> /* For pthread_t */
 /* Make sure HAVE_PSI_XXX_INTERFACE flags are set */
 #include "mysql/psi/psi.h"
 
