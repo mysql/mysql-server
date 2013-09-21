@@ -117,14 +117,16 @@ Endpoint.prototype.isEndpoint = true;
 
 Endpoint.prototype.asString = function(close) {
   var s = "";
+  var value = this.value.isEncodedValue ? "<ENCODED>" : this.value;
   if(close) {
-    s += this.value;
+    s += value;
     s += (this.inclusive ? "]" : ")");
   }
   else {
     s += (this.inclusive ? "[" : "(");
-    s += this.value;
+    s += value;
   }
+  return s;
 };
 
 /* Compare two points.
@@ -195,7 +197,7 @@ function Segment(point1, point2) {
 
 Segment.prototype.isSegment = true;
 
-Segment.prototype.toString = function() {
+Segment.prototype.asString = function() {
   var s = "";
   s += this.low.asString(0) + "," + this.high.asString(1);
   return s;
@@ -255,6 +257,40 @@ Segment.prototype.span = function(that) {
   return s;
 };
 
+/* Create a segment for a comparison expression */
+function createSegmentForComparator(operator, value) {
+  var pt, segment, line;
+  /* OperationCodes, from api/Query.js:
+     LE: 0, LT: 1, GE: 2, GT: 3, EQ: 4, NE: 5 
+  */
+  switch(operator) {
+    case 0:   // LE
+      return new Segment(negInf, new Endpoint(value, true));
+    case 1:   // LT 
+      return new Segment(negInf, new Endpoint(value, false));
+    case 2:   // GE
+      return new Segment(new Endpoint(value, true), posInf);
+    case 3:   // GT
+      return new Segment(new Endpoint(value, false), posInf);
+    case 4:   // EQ
+    case 5:   // NE
+      pt = new Endpoint(value);
+      segment = new Segment(pt, pt);
+      line = createNumberLineFromSegment(segment);
+      return (operator == 5 ? line.complement() : line);
+    default:
+      return null;
+  }
+}
+
+/* Process an inclusive BETWEEN operator 
+*/
+function createSegmentBetween(a, b) {
+  var p1 = new Endpoint(a);
+  var p2 = new Endpoint(b);
+  return new Segment(p1, p2);
+}
+
 
 //////// NumberLine                 /////////////////
 
@@ -265,23 +301,37 @@ Segment.prototype.span = function(that) {
    
    The segments on the line are from P0 to P1, P2 to P3, etc.
  
-   The constructor "new NumberLine()" returns the full line from
-   -Infinity +Infinity.
+   The constructor "new NumberLine()" returns an empty NumberLine
 */
 
 function NumberLine() {
-  this.transitions = [negInf, posInf];
+  this.transitions = [];
 } 
 
 NumberLine.prototype.isNumberLine = true;
 
-NumberLine.prototype.setEmpty = function() {
-  this.transitions = [];
-  return this;
+NumberLine.prototype.asString = function() {
+  var i, close;  
+  var list = this.transitions;
+  var str = "";
+  for(i = 0 ; i < list.length ; i ++) {
+    if(i) str += ",";
+    str += list[i].asString(i % 2);
+  }
+  return str;
 };
 
 NumberLine.prototype.isEmpty = function() {
   return (this.transitions.length == 0);
+};
+
+NumberLine.prototype.setAll = function() {
+  this.transitions = [ negInf, posInf ];
+  return this;
+};
+
+NumberLine.prototype.setEqualTo = function(that) {
+  this.transitions = that.transitions;
 };
 
 NumberLine.prototype.upperBound = function() {
@@ -292,17 +342,6 @@ NumberLine.prototype.upperBound = function() {
 NumberLine.prototype.lowerBound = function() {
   if(this.isEmpty()) return posInf;
   return this.transitions[0];
-};
-
-NumberLine.prototype.toString = function() {
-  var i, close;  
-  var list = this.transitions;
-  var str = "";
-  for(i = 0 ; i < list.length ; i ++) {
-    if(i) str += ",";
-    str += list[i].asString(i % 2);
-  }
-  return str;
 };
 
 /* A NumberLineIterator can iterate over the segments of a NumberLine 
@@ -331,7 +370,7 @@ NumberLineIterator.prototype.getSplicePoint = function() {
   if(this.n >= 2) {  
     idx = this.n - 2;
   }
-  return idx;
+  return idx; 
 };
 
 NumberLine.prototype.getIterator = function() { 
@@ -363,21 +402,6 @@ NumberLine.prototype.complement = function() {
 };
 
 
-/* A NumberLine intersects segment S if any of its segments intersects S.
-   Returns false if no segment intersects S.
-    
-*/
-NumberLine.prototype.intersects = function(segment) {
-  var i = this.getIterator(); 
-  var s;
-  while(s = i.next()) {
-    if(segment.intersects(s)) {
-      return i.getSplicePoint();   //!!!!!!
-    }
-  }
-  return false;
-};
-
 /* Insert a segment into a number line.
    Assume as a given that the segment does not intersect any existing one.
 */
@@ -391,7 +415,7 @@ NumberLine.prototype.insertSegment = function(segment) {
   else { 
     /* Sorted Insertion */
     i = this.getIterator();
-    while(s = i.next()) {
+    while((s = i.next()) !== null) {
       if(s.compare(segment) == 1) { 
         sp = i.getSplicePoint(); 
         this.transitions = 
@@ -404,6 +428,64 @@ NumberLine.prototype.insertSegment = function(segment) {
   }
 };
 
+/* Mutable: sets line equal to the intersection of line with segment
+*/
+NumberLine.prototype.intersectWithSegment = function(segment) {
+  var it, line, s;
+  it = this.getIterator();
+  line = new NumberLine();
+  while((s = it.next()) !== null) {
+    if(s.intersects(segment)) {
+      line.insertSegment(s.intersection(segment));
+    }
+  }
+  this.setEqualTo(line);
+};
+
+/* Mutable: sets line equal to the intersection of line and that 
+*/
+NumberLine.prototype.intersection = function(that) {
+  var it, s;
+  it = that.getIterator();
+  while((s = it.next()) !== null) {
+    this.intersectWithSegment(s);
+  }
+};
+
+/* UNION, "X < 4 OR X > 6" 
+   Mutable.
+*/
+NumberLine.prototype.unionWithSegment = function(segment) {
+  var it, line, s, overlaps;
+  it = this.getIterator();
+  line = new NumberLine();
+  overlaps = [];
+  /* Include every segment that does not intersect */
+  while((s = it.next()) !== null) {
+    if(s.intersects(segment)) {
+      overlaps.push(s);
+    }
+    else {
+      line.insertSegment(s);
+    }
+  }
+  /* Then add the span of all overlapping segments */
+  s = segment.span(overlaps.shift());
+  if(overlaps.length) s = s.span(overlaps.pop());
+  line.insertSegment(s);
+  this.setEqualTo(line);
+};
+
+NumberLine.prototype.union = function(that) {
+  var it, s;
+  it = that.getIterator();
+  while((s = it.next()) !== null) {
+    this.unionWithSegment(s);
+  }
+};
+
+
+
 // With this much we can do union of Line with non-intersecting Segment.
 // To do union of line and intersecting Segment we need to sort and span.
 // (coalesce?) 
@@ -415,53 +497,13 @@ function createNumberLineFromSegment(segment) {
   return line;
 }
 
-/* Create a segment for a comparison expression */
-function createNumberLine(operator, value) {
-  var lp = new Endpoint(-Infinity, false);
-  var hp = new Endpoint(Infinity, false);
-  var s;
-  var l = null;
+Segment.prototype.complement = function() {
+  return createNumberLineFromSegment(this).complement();
+};
 
-//  if(operator < COND_EQ) {
-//    switch(operator) {
-//      case COND_LE:
-//        hp.inclusive = true;
-//        /* fall through */
-//      case COND_LT:
-//        hp.value = value;
-//        break;
-//
-//      case COND_GE:
-//        lp.inclusive = true;
-//        /* fall through */
-//      case COND_GT:
-//        lp.value = value;
-//        break;
-//    
-//    }
-//    s = new Segment(lp, hp);
-//    return createNumberLineFromSegment(s);
-//  }
-//
-//  if(operator < COND_LIKE) { /* EQ and NE */
-//    lp.value = value;
-//    lp.inclusive = (operator === COND_EQ);
-//    l = new LineNumber();
-//    l.list.push(lp);
-//    l.list.push(lp);  /* Push it twice */
-//    l.hasNegInf = (operator === COND_NE);
-//    return l;
-//  }
-}
-
-
-/* Process an inclusive BETWEEN operator 
-*/
-function createSegmentBetween(a, b) {
-  var p1 = new Endpoint(a);
-  var p2 = new Endpoint(b);
-  return new Segment(p1, p2);
-}
+Segment.prototype.getIterator = function() {
+  return createNumberLineFromSegment(this).getIterator();
+};
 
 
 /* Certain data types imply a set of bounds
@@ -493,7 +535,7 @@ function getBoundingSegmentForDataType(columnMetadata) {
     }
   }
 
-  return new Segment(new Endpoint(lowBound, highBound));
+  return new Segment(new Endpoint(lowBound), new Endpoint(highBound));
 }
 
 
@@ -506,40 +548,113 @@ function getBoundingSegmentForDataType(columnMetadata) {
 function IndexBoundVisitor(column, params) {
   this.column = column;
   this.params = params;
+  this.boundingSegment = getBoundingSegmentForDataType(column);
 }
 
-/** Handle nodes QueryAnd, QueryOr */
+/** Store the index bounds for a particular column inside the node */
+IndexBoundVisitor.prototype.markNode = function(node, bounds) {
+  if(node.boundingSegment === undefined) {
+    node.boundingSegment = new NumberLine();
+  }
+  node.boundingSegment = bounds;
+};
+
+/** Handle nodes QueryAnd, QueryOr 
+    OperationCode = 1 for AND, 2 for OR
+*/
 IndexBoundVisitor.prototype.visitQueryNaryPredicate = function(node) {
-  var i;  
+  var i, line, segment;
   for(i = 0 ; i < node.predicates.length ; i++) {
     node.predicates[i].visit(this);
   }
-  
+  line = new NumberLine();
+
+  if(node.operationCode == 1) { // AND
+    line.insertSegment(this.boundingSegment);
+    for(i = 0 ; i < node.predicates.length ; i++) {
+      segment = node.predicates[i].boundingSegment;
+      line.intersection(segment);
+    }
+  }
+  else {                        // OR
+    if(node.operationCode != 2) {
+      blah(node);
+    }
+    for(i = 0 ; i < node.predicates.length ; i++) {
+      segment = node.predicates[i].boundingSegment;
+      line.union(segment);
+      console.log("OR",i,segment.asString(),"=>",line.asString());
+    }
+  }  
+  this.markNode(node, line);
 };
 
 /** Handle nodes QueryEq, QueryNe, QueryLt, QueryLe, QueryGt, QueryGe */
 IndexBoundVisitor.prototype.visitQueryComparator = function(node) {
-  blah(node);
+  // node.queryField is the column being compared
+  // node.operationCode is the comparator
+  // node.parameter.name is the index into this.params 
+  var segment; 
+
+  if(node.queryField.field.columnNumber == this.column.columnNumber) {
+    /* This node is a comparison on my column */
+    segment = createSegmentForComparator(node.operationCode, 
+                                         this.params[node.parameter.name]);
+  }
+  else {
+    /* This node is a comparison on some other column */
+    segment = this.boundingSegment;
+  }
+  
+  /* Store it in the node */
+  this.markNode(node, segment);
 };
 
 /** Handle node QueryNot */
 IndexBoundVisitor.prototype.visitQueryUnaryPredicate = function(node) {
+  node.predicates[0].visit(this);
+  this.markNode(node, node.predicates[0].boundingSegment.complement());
 };
 
 /** Handle node QueryBetween */
 IndexBoundVisitor.prototype.visitQueryBetweenOperator = function(node) {
+  var ep1, ep2, segment;
+  
+  if(node.queryField.field.columnNumber == this.column.columnNumber) {
+    ep1 = this.params[node.parameter1.name];
+    ep2 = this.params[node.parameter2.name];
+    segment = createSegmentBetween(ep1, ep2);
+  }
+  else {
+    segment = this.boundingSegment;
+  }
+  this.markNode(node, segment);    
 };
 
 /** Handle nodes QueryIsNull, QueryIsNotNull */
 IndexBoundVisitor.prototype.visitQueryUnaryOperator = function(node) {
+  this.markNode(node, this.boundingSegment);
 };
 
 
-function getBoundHelper(queryHander, keys) {
-  
-
-
+function getBoundHelper(queryHandler, params) {
+  /* 
+    The chosen dbIndex is queryHandler.dbIndexHandler.dbIndex
+    Its first column is n = dbIndex.columnNumbers[0] 
+    The column record is queryHandler.dbTableHandler.dbTable.columns[n]      
+  */
+  var colNumber = queryHandler.dbIndexHandler.dbIndex.columnNumbers[0];
+  var column = queryHandler.dbTableHandler.dbTable.columns[colNumber];
+  var idxVisitor0 = new IndexBoundVisitor(column, params);
+  queryHandler.predicate.visit(idxVisitor0);
+  console.log("Query Bounds", queryHandler.predicate.boundingSegment.asString());
+  var helper = {
+    "bounds" : queryHandler.predicate.boundingSegment,
+    "column" : column,
+    "index"  : queryHandler.dbIndexHandler.dbIndex
+  };
+  return helper;
 }
 
-exports.getBoundHJelper = getBoundHelper;
- 
+exports.getBoundHelper = getBoundHelper;
+

@@ -23,9 +23,9 @@
 var adapter       = require(path.join(build_dir, "ndb_adapter.node")).ndb,
     doc           = require(path.join(spi_doc_dir, "DBOperation")),
     stats_module  = require(path.join(api_dir,"stats.js")),
-  QueuedAsyncCall = require("../common/QueuedAsyncCall.js").QueuedAsyncCall,
-prepareFilterSpec = require("./NdbScanFilter.js").prepareFilterSpec,
-//   getBoundHelper = require("./IndexBounds.js").getBoundHelper, 
+    QueuedAsyncCall = require("../common/QueuedAsyncCall.js").QueuedAsyncCall,
+    prepareFilterSpec = require("./NdbScanFilter.js").prepareFilterSpec,
+    getBoundHelper = require("../common/IndexBounds.js").getBoundHelper,
     stats         = stats_module.getWriter(["spi","ndb","DBOperation"]),
     index_stats   = stats_module.getWriter(["spi","ndb","key_access"]),
     COMMIT        = adapter.ndbapi.Commit,
@@ -299,7 +299,7 @@ DBOperation.prototype.prepareScan = function(ndbTransaction, callback) {
 
   if(this.query.queryType == 2) {  /* Index Scan */
     scanSpec[ScanHelper.index_record] = this.query.dbIndexHandler.dbIndex.record;
-//    boundHelper = getBoundHelper(this.query, this.params);
+    boundHelper = getBoundHelper(this.query, this.params);
 //    if(boundHelper) {
 //      scanHelper[bounds] = adapter.impl.IndexBound.create(boundHelper);
 //      this.scan.bounds = scanHelper[bounds];
