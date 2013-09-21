@@ -1214,7 +1214,7 @@ echo "====="                                     >> $STATUS_HISTORY
 ##############################################################################
 %changelog
 * Mon Sep 09 2013 Balasubramanian Kandasamy <balasubramanian.kandasamy@oracle.com>
-- Updated logic to get the correct count of PID files 
+- Updated logic to get the correct count of PID files
 
 * Fri Aug 16 2013 Balasubramanian Kandasamy <balasubramanian.kandasamy@oracle.com>
 - Added provides lowercase mysql tags  
