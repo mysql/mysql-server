@@ -196,7 +196,7 @@ page_size_to_ssize(
 	     ((ulint) 1 << ssize) < page_size;
 	     ssize++) {};
 
-	return(ssize - UNIV_ZIP_SIZE_SHIFT_MIN);
+	return(ssize - UNIV_ZIP_SIZE_SHIFT_MIN + 1);
 }
 
 /********************************************************************//**
