@@ -22,6 +22,9 @@
 #include "sql_const.h"
 #include "pfs_server.h"
 
+/* Make sure HAVE_PSI_XXX_INTERFACE flags are set */
+#include "mysql/psi/psi.h"
+
 #include <algorithm>
 using std::min;
 using std::max;
