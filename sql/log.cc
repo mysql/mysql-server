@@ -120,8 +120,8 @@ static const TABLE_FIELD_TYPE slow_query_log_table_fields[SQLT_FIELD_COUNT] =
   },
   {
     { C_STRING_WITH_LEN("sql_text") },
-    { C_STRING_WITH_LEN("mediumtext") },
-    { C_STRING_WITH_LEN("utf8") }
+    { C_STRING_WITH_LEN("mediumblob") },
+    { NULL, 0 }
   },
   {
     { C_STRING_WITH_LEN("thread_id") },
@@ -174,8 +174,8 @@ static const TABLE_FIELD_TYPE general_log_table_fields[GLT_FIELD_COUNT] =
   },
   {
     { C_STRING_WITH_LEN("argument") },
-    { C_STRING_WITH_LEN("mediumtext") },
-    { C_STRING_WITH_LEN("utf8") }
+    { C_STRING_WITH_LEN("mediumblob") },
+    { NULL, 0 }
   }
 };
 
@@ -690,7 +690,6 @@ bool Log_to_csv_event_handler::log_general(THD *thd, ulonglong event_utime,
     A positive return value in store() means truncation.
     Still logging a message in the log in this case.
   */
-  table->field[GLT_FIELD_ARGUMENT]->flags|= FIELDFLAG_HEX_ESCAPE;
   if (table->field[GLT_FIELD_ARGUMENT]->store(sql_text, sql_text_len,
                                               client_cs) < 0)
     goto err;
