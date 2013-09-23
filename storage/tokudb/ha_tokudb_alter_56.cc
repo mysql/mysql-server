@@ -632,7 +632,7 @@ int ha_tokudb::alter_table_add_or_drop_column(TABLE *altered_table, Alter_inplac
         if (error)
             goto cleanup;
         
-        if (i == primary_key || table_share->key_info[i].flags & HA_CLUSTERING) {
+        if (i == primary_key || key_is_clustering(&table_share->key_info[i])) {
             num_column_extra = fill_row_mutator(
                                                 column_extra,
                                                 columns,
@@ -757,7 +757,7 @@ int ha_tokudb::alter_table_expand_varchar_offsets(TABLE *altered_table, Alter_in
             break;
 
         // for all trees that have values, make an update variable offsets message and broadcast it into the tree
-        if (i == primary_key || (table_share->key_info[i].flags & HA_CLUSTERING)) {
+        if (i == primary_key || key_is_clustering(&table_share->key_info[i])) {
             uint32_t offset_start = table_share->null_bytes + share->kc_info.mcp_info[i].fixed_field_size;
             uint32_t offset_end = offset_start + share->kc_info.mcp_info[i].len_of_offsets;
             uint32_t number_of_offsets = offset_end - offset_start;
@@ -939,7 +939,7 @@ int ha_tokudb::alter_table_expand_one_column(TABLE *altered_table, Alter_inplace
             break;
 
         // for all trees that have values, make an expand update message and broadcast it into the tree
-        if (i == primary_key || (table_share->key_info[i].flags & HA_CLUSTERING)) {
+        if (i == primary_key || key_is_clustering(&table_share->key_info[i])) {
             uint32_t old_offset = alter_table_field_offset(table_share->null_bytes, ctx->table_kc_info, i, expand_field_num);
             uint32_t new_offset = alter_table_field_offset(table_share->null_bytes, ctx->altered_table_kc_info, i, expand_field_num);
             assert(old_offset <= new_offset);
@@ -1018,7 +1018,7 @@ int ha_tokudb::alter_table_expand_blobs(TABLE *altered_table, Alter_inplace_info
             break;
 
         // for all trees that have values, make an update blobs message and broadcast it into the tree
-        if (i == primary_key || (table_share->key_info[i].flags & HA_CLUSTERING)) {
+        if (i == primary_key || key_is_clustering(&table_share->key_info[i])) {
             tokudb::buffer b;
             uint8_t op = UPDATE_OP_EXPAND_BLOB;
             b.append(&op, sizeof op);

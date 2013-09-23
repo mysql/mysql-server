@@ -408,7 +408,7 @@ ulong ha_tokudb::index_flags(uint idx, uint part, bool all_parts) const {
 #if defined(MARIADB_BASE_VERSION) || (50600 <= MYSQL_VERSION_ID && MYSQL_VERSION_ID <= 50699)
     flags |= HA_DO_INDEX_COND_PUSHDOWN;
 #endif
-    if (table_share->key_info[idx].flags & HA_CLUSTERING) {
+    if (key_is_clustering(&table_share->key_info[idx])) {
         flags |= HA_CLUSTERED_INDEX;
     }
     DBUG_RETURN(flags);
@@ -1658,7 +1658,7 @@ static int initialize_key_and_col_info(TABLE_SHARE* table_share, TABLE* table, K
                 }
             }
         }
-        if (i == primary_key || table_share->key_info[i].flags & HA_CLUSTERING) {
+        if (i == primary_key || key_is_clustering(&table_share->key_info[i])) {
             error = initialize_col_pack_info(kc_info,table_share,i);
             if (error) {
                 goto exit;
@@ -3817,7 +3817,7 @@ void ha_tokudb::test_row_packing(uchar* record, DBT* pk_key, DBT* pk_val) {
         //
         // test key packing of clustering keys
         //
-        if (table->key_info[keynr].flags & HA_CLUSTERING) {
+        if (key_is_clustering(&table->key_info[keynr])) {
             error = pack_row(&row, (const uchar *) record, keynr);
             assert(error == 0);
             uchar* tmp_buff = NULL;
@@ -4444,7 +4444,7 @@ void ha_tokudb::set_query_columns(uint keynr) {
         key_index = primary_key;
     }
     else {
-        key_index = (table->key_info[keynr].flags & HA_CLUSTERING ? keynr : primary_key);
+        key_index = (key_is_clustering(&table->key_info[keynr]) ? keynr : primary_key);
     }
     for (uint i = 0; i < table_share->fields; i++) {
         if (bitmap_is_set(table->read_set,i) || 
@@ -4779,7 +4779,7 @@ int ha_tokudb::read_primary_key(uchar * buf, uint keynr, DBT const *row, DBT con
     //
     // case where we read from secondary table that is not clustered
     //
-    if (keynr != primary_key && !(table->key_info[keynr].flags & HA_CLUSTERING)) {
+    if (keynr != primary_key && !key_is_clustering(&table->key_info[keynr])) {
         bool has_null;
         //
         // create a DBT that has the same data as row, this is inefficient
@@ -4993,7 +4993,7 @@ int ha_tokudb::index_read(uchar * buf, const uchar * key, uint key_len, enum ha_
         break;
     }
     error = handle_cursor_error(error,HA_ERR_KEY_NOT_FOUND,tokudb_active_index);
-    if (!error && !key_read && tokudb_active_index != primary_key && !(table->key_info[tokudb_active_index].flags & HA_CLUSTERING)) {
+    if (!error && !key_read && tokudb_active_index != primary_key && !key_is_clustering(&table->key_info[tokudb_active_index])) {
         error = read_full_row(buf);
     }
     
@@ -5398,7 +5398,7 @@ int ha_tokudb::get_next(uchar* buf, int direction, DBT* key_to_compare) {
     // key
     need_val = (this->key_read == 0) && 
                 (tokudb_active_index == primary_key || 
-                 table->key_info[tokudb_active_index].flags & HA_CLUSTERING
+                 key_is_clustering(&table->key_info[tokudb_active_index])
                        );
 
     if ((bytes_used_in_range_query_buff - curr_range_query_buff_offset) > 0) {
@@ -5478,7 +5478,7 @@ int ha_tokudb::get_next(uchar* buf, int direction, DBT* key_to_compare) {
     // main table.
     //
     
-    if (!error && !key_read && (tokudb_active_index != primary_key) && !(table->key_info[tokudb_active_index].flags & HA_CLUSTERING) ) {
+    if (!error && !key_read && (tokudb_active_index != primary_key) && !key_is_clustering(&table->key_info[tokudb_active_index])) {
         error = read_full_row(buf);
     }
     trx->stmt_progress.queried++;
@@ -5559,7 +5559,7 @@ int ha_tokudb::index_first(uchar * buf) {
     // still need to get entire contents of the row if operation done on
     // secondary DB and it was NOT a covering index
     //
-    if (!error && !key_read && (tokudb_active_index != primary_key) && !(table->key_info[tokudb_active_index].flags & HA_CLUSTERING) ) {
+    if (!error && !key_read && (tokudb_active_index != primary_key) && !key_is_clustering(&table->key_info[tokudb_active_index])) {
         error = read_full_row(buf);
     }
     trx->stmt_progress.queried++;
@@ -5601,7 +5601,7 @@ int ha_tokudb::index_last(uchar * buf) {
     // still need to get entire contents of the row if operation done on
     // secondary DB and it was NOT a covering index
     //
-    if (!error && !key_read && (tokudb_active_index != primary_key) && !(table->key_info[tokudb_active_index].flags & HA_CLUSTERING) ) {
+    if (!error && !key_read && (tokudb_active_index != primary_key) && !key_is_clustering(&table->key_info[tokudb_active_index])) {
         error = read_full_row(buf);
     }
 
@@ -6754,7 +6754,7 @@ static uint32_t create_secondary_key_descriptor(
         form->s,
         kc_info,
         keynr,
-        key_info->flags & HA_CLUSTERING
+        key_is_clustering(key_info)
         );
     return ptr - buf;
 }
@@ -7342,7 +7342,7 @@ double ha_tokudb::keyread_time(uint index, uint ranges, ha_rows rows)
 {
     TOKUDB_DBUG_ENTER("ha_tokudb::keyread_time");
     double ret_val;
-    if ((table->key_info[index].flags & HA_CLUSTERING) || (index == primary_key)) {
+    if (index == primary_key || key_is_clustering(&table->key_info[index])) {
         ret_val = read_time(index, ranges, rows);
         DBUG_RETURN(ret_val);
     }
@@ -7392,7 +7392,7 @@ double ha_tokudb::read_time(
         goto cleanup;
     }
     
-    is_clustering = (table->key_info[index].flags & HA_CLUSTERING);
+    is_clustering = key_is_clustering(&table->key_info[index]);
 
 
     //
@@ -7757,7 +7757,7 @@ int ha_tokudb::tokudb_add_index(
     curr_index = curr_num_DBs;
     *modified_DBs = true;
     for (uint i = 0; i < num_of_keys; i++, curr_index++) {
-        if (key_info[i].flags & HA_CLUSTERING) {
+        if (key_is_clustering(&key_info[i])) {
             set_key_filter(
                 &share->kc_info.key_filters[curr_index],
                 &key_info[i],
