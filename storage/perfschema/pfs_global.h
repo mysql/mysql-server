@@ -27,7 +27,9 @@
 /** True when the performance schema is initialized. */
 extern bool pfs_initialized;
 /** Total memory allocated by the performance schema, in bytes. */
-extern size_t pfs_allocated_memory;
+extern size_t pfs_allocated_memory_size;
+/** Total memory allocated by the performance schema, in number of blocks. */
+extern size_t pfs_allocated_memory_count;
 
 #if defined(HAVE_POSIX_MEMALIGN) || defined(HAVE_MEMALIGN) || defined(HAVE_ALIGNED_MALLOC)
 #define PFS_ALIGNEMENT 64
