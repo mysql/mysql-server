@@ -4892,7 +4892,8 @@ row_scan_index_for_mysql(
 		return(DB_SUCCESS);
 	}
 
-	buf = static_cast<byte*>(mem_alloc(UNIV_PAGE_SIZE));
+	ulint bufsize = ut_max(UNIV_PAGE_SIZE, prebuilt->mysql_row_len);
+	buf = static_cast<byte*>(mem_alloc(bufsize));
 	heap = mem_heap_create(100);
 
 	cnt = 1000;
