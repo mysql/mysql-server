@@ -87,14 +87,14 @@ add_dependencies(ft_static install_tdb_h generate_log_code build_lzma)
 
 ## link with lzma (which should be static) and link dependers with zlib
 target_link_libraries(ft LINK_PRIVATE util_static lzma ${LIBTOKUPORTABILITY})
-target_link_libraries(ft LINK_PUBLIC z)
+target_link_libraries(ft LINK_PUBLIC ${ZLIB_LIBRARY} )
 target_link_libraries(ft_static LINK_PRIVATE lzma)
 
 ## build the bins in this directory
 foreach(tool tokuftdump tdb_logprint tdb-recover ftverify)
   add_executable(${tool} ${tool}.cc)
   add_dependencies(${tool} install_tdb_h)
-  target_link_libraries(${tool} ft_static util_static z lzma ${LIBTOKUPORTABILITY}_static ${CMAKE_THREAD_LIBS_INIT} ${EXTRA_SYSTEM_LIBS})
+  target_link_libraries(${tool} ft_static util_static ${ZLIB_LIBRARY} lzma ${LIBTOKUPORTABILITY}_static ${CMAKE_THREAD_LIBS_INIT} ${EXTRA_SYSTEM_LIBS})
   add_space_separated_property(TARGET ${tool} COMPILE_FLAGS -fvisibility=hidden)
 endforeach(tool)
 

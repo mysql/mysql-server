@@ -46,7 +46,7 @@ SET(TOKUDB_PLUGIN_DYNAMIC "ha_tokudb")
 SET(TOKUDB_SOURCES ha_tokudb.cc)
 MYSQL_ADD_PLUGIN(tokudb ${TOKUDB_SOURCES} STORAGE_ENGINE MODULE_ONLY
     COMPONENT "tokudb-engine"
-    LINK_LIBRARIES tokufractaltree_static tokuportability_static z stdc++)
+    LINK_LIBRARIES tokufractaltree_static tokuportability_static ${ZLIB_LIBRARY} stdc++)
 SET(CMAKE_MODULE_LINKER_FLAGS_RELEASE "${CMAKE_MODULE_LINKER_FLAGS_RELEASE} -flto -fuse-linker-plugin")
 
 IF (INSTALL_SYSCONF2DIR)
