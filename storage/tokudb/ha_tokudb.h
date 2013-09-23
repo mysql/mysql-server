@@ -787,5 +787,9 @@ private:
 #endif
 };
 
+static inline bool key_is_clustering(const KEY *key) {
+    return key->flags & HA_CLUSTERING;
+}
+
 #endif
 
