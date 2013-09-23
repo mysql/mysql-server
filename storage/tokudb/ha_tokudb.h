@@ -789,10 +789,6 @@ private:
 
 #if MYSQL_VERSION_ID >= 50506
 
-static inline void my_free(void *p, int arg) {
-    my_free(p);
-}
-
 static inline void *memcpy_fixed(void *a, const void *b, size_t n) {
     return memcpy(a, b, n);
 }

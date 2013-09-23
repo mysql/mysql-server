@@ -224,14 +224,12 @@ extern ulong tokudb_debug;
 #define TOKUDB_DEBUG_ANALYZE (1<<15)
 
 #define TOKUDB_TRACE(f, ...) \
-    printf("%d:%s:%d:" f, my_tid(), __FILE__, __LINE__, ##__VA_ARGS__);
+    fprintf(stderr, "%d:%s:%d:" f, my_tid(), __FILE__, __LINE__, ##__VA_ARGS__);
 
 
 static inline unsigned int my_tid() {
     return (unsigned int)toku_os_gettid();
 }
-
-
 
 #define TOKUDB_DBUG_ENTER(f, ...)      \
 { \
@@ -256,9 +254,9 @@ static inline unsigned int my_tid() {
     TOKUDB_TRACE("%s:%s", __FUNCTION__, s); \
     uint i;                                                             \
     for (i=0; i<len; i++) {                                             \
-        printf("%2.2x", ((uchar*)p)[i]);                                \
+        fprintf(stderr, "%2.2x", ((uchar*)p)[i]);                       \
     }                                                                   \
-    printf("\n");                                                       \
+    fprintf(stderr, "\n");                                              \
 }
 
 
