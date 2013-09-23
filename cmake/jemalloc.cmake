@@ -15,13 +15,20 @@ MACRO (USE_BUNDLED_JEMALLOC)
   IF (CMAKE_BUILD_TYPE MATCHES "Debug" AND NOT APPLE) # see the comment in CMakeLists.txt
     LIST(APPEND JEMALLOC_CONFIGURE_OPTS --enable-debug)
   ENDIF()
+  
+  IF(CMAKE_GENERATOR MATCHES "Makefiles")
+    SET(MAKE_COMMAND ${CMAKE_MAKE_PROGRAM})
+  ELSE() # Xcode/Ninja generators
+    SET(MAKE_COMMAND make)
+  ENDIF()
+  
   ExternalProject_Add(jemalloc
     PREFIX extra/jemalloc
     SOURCE_DIR ${SOURCE_DIR}
     BINARY_DIR ${BINARY_DIR}
     STAMP_DIR  ${BINARY_DIR}
     CONFIGURE_COMMAND "${SOURCE_DIR}/configure" ${JEMALLOC_CONFIGURE_OPTS}
-    BUILD_COMMAND ${CMAKE_MAKE_PROGRAM} "build_lib_static"
+    BUILD_COMMAND  ${MAKE_COMMAND} "build_lib_static"
     INSTALL_COMMAND ""
   )
   ADD_LIBRARY(libjemalloc STATIC IMPORTED)
