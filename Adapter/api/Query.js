@@ -524,6 +524,7 @@ AbstractQueryUnaryOperator.prototype.visit = function(visitor) {
  *****************************************************************************/
 QueryIsNull = function(queryField) {
   this.operator = ' IS NULL';
+  this.operationCode = 7;
   this.queryField = queryField;
 };
 
@@ -534,6 +535,7 @@ QueryIsNull.prototype = new AbstractQueryUnaryOperator();
  *****************************************************************************/
 QueryIsNotNull = function(queryField) {
   this.operator = ' IS NOT NULL';
+  this.operationCode = 8;
   this.queryField = queryField;
 };
 
