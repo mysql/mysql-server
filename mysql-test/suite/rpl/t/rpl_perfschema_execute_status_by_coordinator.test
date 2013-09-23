@@ -65,15 +65,11 @@ source include/wait_for_slave_param.inc;
 --echo # Testing on fresh slave.
 --echo
 
-# To verify that the SQL thread_id is correctly shown by PS table, find the
-# row in INFORMATION_SCHEMA.PROCESSLIST that corresponds to SQL thread and
-# extract the Id field shown in that row.
-# Due to a fake event  the sql thread could still be found reading from relay
-# log. So, we search for "Reading event from the relay log" as well.
---let $sp_value= `SELECT ID FROM INFORMATION_SCHEMA.PROCESSLIST where STATE like "Slave has read all relay log; waiting for the slave I/O thread%" OR STATE= "Reading event from the relay log"`
-let $ps_value= query_get_value(select Thread_Id from performance_schema.replication_execute_status_by_coordinator, Thread_Id, 1);
-let $assert_text= Value returned by INFORMATION_SCHEMA.PROCESSLIST and PS table for thread_id should be same.;
-let $assert_cond= "$sp_value" = "$ps_value";
+# To verify the correctness of thread_id field, we check for the name of
+# the thread.
+let $thread_name= `select name from performance_schema.threads where thread_id= (select Thread_Id from performance_schema.replication_execute_status_by_coordinator)`;
+let $assert_text= thread_name should should indicate sql thread.;
+let $assert_cond= "$thread_name" = "thread/sql/slave_sql";
 source include/assert.inc;
 
 let $sss_value= query_get_value(SHOW SLAVE STATUS, Slave_SQL_Running, 1);
@@ -291,15 +287,11 @@ source include/start_slave.inc;
 --let $slave_param_value= Slave has read all relay log; waiting for the slave I/O thread to update it
 source include/wait_for_slave_param.inc;
 
-# To verify that the coordinator's thread_id is correctly shown by PS table,
-# find the row in INFORMATION_SCHEMA.PROCESSLIST that corresponds to coordinator
-# thread and extract the Id field shown in that row.
-# Due to a fake event  the sql thread could still be found reading from relay
-# log. So, we search for "Reading event from the relay log" as well.
---let $sp_value= `SELECT ID FROM INFORMATION_SCHEMA.PROCESSLIST where STATE like "Slave has read all relay log; waiting for the slave I/O thread%" OR STATE= "Reading event from the relay log"`
-let $ps_value= query_get_value(select Thread_Id from performance_schema.replication_execute_status_by_coordinator, Thread_Id, 1);
-let $assert_text= Value returned by INFORMATION_SCHEMA.PROCESSLIST and PS table for thread_id should be same.;
-let $assert_cond= "$sp_value" = "$ps_value";
+# To verify the correctness of thread_id field, we check for the name of
+# the thread.
+let $thread_name= `select name from performance_schema.threads where thread_id= (select Thread_Id from performance_schema.replication_execute_status_by_coordinator)`;
+let $assert_text= thread_name should should indicate sql thread.;
+let $assert_cond= "$thread_name" = "thread/sql/slave_sql";
 source include/assert.inc;
 
 let $sss_value= query_get_value(SHOW SLAVE STATUS, Slave_SQL_Running, 1);
