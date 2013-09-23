@@ -659,7 +659,7 @@ int ha_tokudb::alter_table_add_or_drop_column(TABLE *altered_table, Alter_inplac
 
     error = 0;
  cleanup:
-    my_free(column_extra, MYF(MY_ALLOW_ZERO_PTR));
+    my_free(column_extra);
     return error;
 }
 

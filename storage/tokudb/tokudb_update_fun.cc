@@ -814,7 +814,7 @@ static int tokudb_hcad_update_fun(
     
     error = 0;
 cleanup:
-    my_free(new_val_data, MYF(MY_ALLOW_ZERO_PTR));
+    my_free(new_val_data);
     return error;    
 }
 
@@ -892,8 +892,7 @@ static int tokudb_expand_variable_offsets(
     error = 0;
 
 cleanup:
-    my_free(new_val.data, MYF(MY_ALLOW_ZERO_PTR));        
-
+    my_free(new_val.data);
     return error;
 }
 
@@ -980,8 +979,7 @@ static int tokudb_expand_int_field(
     error = 0;
 
 cleanup:
-    my_free(new_val.data, MYF(MY_ALLOW_ZERO_PTR));        
-
+    my_free(new_val.data);
     return error;
 }
 
@@ -1063,8 +1061,7 @@ static int tokudb_expand_char_field(
     error = 0;
 
 cleanup:
-    my_free(new_val.data, MYF(MY_ALLOW_ZERO_PTR));        
-
+    my_free(new_val.data);
     return error;
 }
 

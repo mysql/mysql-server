@@ -535,13 +535,10 @@ error:
 
 static int tokudb_done_func(void *p) {
     TOKUDB_DBUG_ENTER("tokudb_done_func");
-    {
-        const myf mem_flags = MY_FAE|MY_WME|MY_ZEROFILL|MY_ALLOW_ZERO_PTR|MY_FREE_ON_ERROR;
-        my_free(toku_global_status_variables, mem_flags);
-        my_free(toku_global_status_rows, mem_flags);
-        toku_global_status_variables = NULL;
-        toku_global_status_rows = NULL;
-    }
+    my_free(toku_global_status_variables);
+    toku_global_status_variables = NULL;
+    my_free(toku_global_status_rows);
+    toku_global_status_rows = NULL;
     my_hash_free(&tokudb_open_tables);
     pthread_mutex_destroy(&tokudb_mutex);
     pthread_mutex_destroy(&tokudb_meta_mutex);
@@ -592,7 +589,7 @@ static int tokudb_close_connection(handlerton * hton, THD * thd) {
     if (trx && trx->checkpoint_lock_taken) {
         error = db_env->checkpointing_resume(db_env);
     }
-    my_free(trx, MYF(0));
+    my_free(trx);
     return error;
 }
 
@@ -1677,19 +1674,19 @@ static int tokudb_report_fractal_tree_block_map_for_db(const DBT *dname, const D
 
 exit:
     if (e.checkpoint_counts != NULL) {
-        my_free(e.checkpoint_counts, MYF(0));
+        my_free(e.checkpoint_counts);
         e.checkpoint_counts = NULL;
     }
     if (e.blocknums != NULL) {
-        my_free(e.blocknums, MYF(0));
+        my_free(e.blocknums);
         e.blocknums = NULL;
     }
     if (e.diskoffs != NULL) {
-        my_free(e.diskoffs, MYF(0));
+        my_free(e.diskoffs);
         e.diskoffs = NULL;
     }
     if (e.sizes != NULL) {
-        my_free(e.sizes, MYF(0));
+        my_free(e.sizes);
         e.sizes = NULL;
     }
     return error;

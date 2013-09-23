@@ -197,9 +197,9 @@ exit:
         for (uint i = 0; MAX_KEY + 1; i++) {
             bitmap_free(&kc_info->key_filters[i]);
         }
-        my_free(kc_info->field_lengths, MYF(MY_ALLOW_ZERO_PTR));
-        my_free(kc_info->length_bytes, MYF(MY_ALLOW_ZERO_PTR));
-        my_free(kc_info->blob_fields, MYF(MY_ALLOW_ZERO_PTR));
+        my_free(kc_info->field_lengths);
+        my_free(kc_info->length_bytes);
+        my_free(kc_info->blob_fields);
     }
     return error;
 }
@@ -257,7 +257,7 @@ static TOKUDB_SHARE *get_share(const char *table_name, TABLE_SHARE* table_share)
 exit:
     if (error) {
         pthread_mutex_destroy(&share->mutex);
-        my_free((uchar *) share, MYF(0));
+        my_free((uchar *) share);
         share = NULL;
     }
     return share;
@@ -270,13 +270,13 @@ static void free_key_and_col_info (KEY_AND_COL_INFO* kc_info) {
     }
     
     for (uint i = 0; i < MAX_KEY+1; i++) {
-        my_free(kc_info->cp_info[i], MYF(MY_ALLOW_ZERO_PTR));
+        my_free(kc_info->cp_info[i]);
         kc_info->cp_info[i] = NULL; // 3144
     }
     
-    my_free(kc_info->field_lengths, MYF(MY_ALLOW_ZERO_PTR));
-    my_free(kc_info->length_bytes, MYF(MY_ALLOW_ZERO_PTR));
-    my_free(kc_info->blob_fields, MYF(MY_ALLOW_ZERO_PTR));
+    my_free(kc_info->field_lengths);
+    my_free(kc_info->length_bytes);
+    my_free(kc_info->blob_fields);
 }
 
 //
@@ -321,7 +321,7 @@ static int free_share(TOKUDB_SHARE * share, bool mutex_is_locked) {
         pthread_mutex_destroy(&share->mutex);
         rwlock_destroy(&share->num_DBs_lock);
 
-        my_free((uchar *) share, MYF(0));
+        my_free((uchar *) share);
     }
 
     return result;
@@ -1082,7 +1082,7 @@ static int rename_table_in_metadata(const char *from, const char *to, DB_TXN* tx
     error = 0;
 
 cleanup:
-    my_free(val.data, MYF(MY_ALLOW_ZERO_PTR));
+    my_free(val.data);
 
     return error;
 }
@@ -1408,7 +1408,7 @@ static int open_status_dictionary(DB** ptr, const char* name, DB_TXN* txn) {
 
     error = tokudb::open_status(db_env, ptr, newname, txn);
 cleanup:
-    my_free(newname, MYF(MY_ALLOW_ZERO_PTR));
+    my_free(newname);
     return error;
 }
 
@@ -1458,7 +1458,7 @@ exit:
             share->key_file[primary_key] = NULL;
         }
     }
-    my_free(newname, MYF(MY_ALLOW_ZERO_PTR));
+    my_free(newname);
     return error;
 }
 
@@ -1504,7 +1504,7 @@ cleanup:
             *ptr = NULL;
         }
     }
-    my_free(newname, MYF(MY_ALLOW_ZERO_PTR));
+    my_free(newname);
     return error;
 }
 
@@ -1566,7 +1566,7 @@ exit:
 // reset the kc_info state at keynr
 static void reset_key_and_col_info(KEY_AND_COL_INFO *kc_info, uint keynr) {
     bitmap_clear_all(&kc_info->key_filters[keynr]);
-    my_free(kc_info->cp_info[keynr], MYF(MY_ALLOW_ZERO_PTR));
+    my_free(kc_info->cp_info[keynr]);
     kc_info->cp_info[keynr] = NULL;
     kc_info->mcp_info[keynr] = (MULTI_COL_PACK_INFO) { 0, 0 };
 }
@@ -1978,13 +1978,13 @@ int ha_tokudb::open(const char *name, int mode, uint test_if_locked) {
 
 exit:
     if (ret_val) {
-        my_free(range_query_buff, MYF(MY_ALLOW_ZERO_PTR));
+        my_free(range_query_buff);
         range_query_buff = NULL;
-        my_free(alloc_ptr, MYF(MY_ALLOW_ZERO_PTR));
+        my_free(alloc_ptr);
         alloc_ptr = NULL;
-        my_free(rec_buff, MYF(MY_ALLOW_ZERO_PTR));
+        my_free(rec_buff);
         rec_buff = NULL;
-        my_free(rec_update_buff, MYF(MY_ALLOW_ZERO_PTR));
+        my_free(rec_update_buff);
         rec_update_buff = NULL;
         
         if (error) {
@@ -2152,7 +2152,7 @@ int ha_tokudb::write_frm_data(DB* db, DB_TXN* txn, const char* frm_name) {
 
     error = 0;
 cleanup:
-    my_free(frm_data, MYF(MY_ALLOW_ZERO_PTR));
+    my_free(frm_data);
     TOKUDB_DBUG_RETURN(error);
 }
 
@@ -2216,8 +2216,8 @@ int ha_tokudb::verify_frm_data(const char* frm_name, DB_TXN* txn) {
 
     error = 0;
 cleanup:
-    my_free(mysql_frm_data, MYF(MY_ALLOW_ZERO_PTR));
-    my_free(stored_frm.data, MYF(MY_ALLOW_ZERO_PTR));
+    my_free(mysql_frm_data);
+    my_free(stored_frm.data);
     TOKUDB_DBUG_RETURN(error);
 }
 
@@ -2262,11 +2262,11 @@ int ha_tokudb::__close() {
     TOKUDB_DBUG_ENTER("ha_tokudb::__close %p", this);
     if (tokudb_debug & TOKUDB_DEBUG_OPEN) 
         TOKUDB_TRACE("close:%p\n", this);
-    my_free(rec_buff, MYF(MY_ALLOW_ZERO_PTR));
-    my_free(rec_update_buff, MYF(MY_ALLOW_ZERO_PTR));
-    my_free(blob_buff, MYF(MY_ALLOW_ZERO_PTR));
-    my_free(alloc_ptr, MYF(MY_ALLOW_ZERO_PTR));
-    my_free(range_query_buff, MYF(MY_ALLOW_ZERO_PTR));
+    my_free(rec_buff);
+    my_free(rec_update_buff);
+    my_free(blob_buff);
+    my_free(alloc_ptr);
+    my_free(range_query_buff);
     for (uint32_t i = 0; i < sizeof(mult_key_dbt_array)/sizeof(mult_key_dbt_array[0]); i++) {
         toku_dbt_array_destroy(&mult_key_dbt_array[i]);
     }
@@ -3837,7 +3837,7 @@ void ha_tokudb::test_row_packing(uchar* record, DBT* pk_key, DBT* pk_val) {
             assert(tmp_num_bytes == row.size);
             cmp = memcmp(tmp_buff,rec_buff,tmp_num_bytes);
             assert(cmp == 0);
-            my_free(tmp_buff,MYF(MY_ALLOW_ZERO_PTR));
+            my_free(tmp_buff);
         }
     }
 
@@ -3849,8 +3849,8 @@ void ha_tokudb::test_row_packing(uchar* record, DBT* pk_key, DBT* pk_val) {
     cmp = memcmp(pk_val->data, tmp_pk_val_data, pk_val->size);    
     assert( cmp == 0);
 
-    my_free(tmp_pk_key_data,MYF(MY_ALLOW_ZERO_PTR));
-    my_free(tmp_pk_val_data,MYF(MY_ALLOW_ZERO_PTR));
+    my_free(tmp_pk_key_data);
+    my_free(tmp_pk_val_data);
 }
 
 //
@@ -6824,8 +6824,8 @@ int ha_tokudb::create_secondary_dictionary(
 
     error = create_sub_table(newname, &row_descriptor, txn, block_size, read_block_size, row_type_to_compression_method(row_type), is_hot_index);
 cleanup:    
-    my_free(newname, MYF(MY_ALLOW_ZERO_PTR));
-    my_free(row_desc_buff, MYF(MY_ALLOW_ZERO_PTR));
+    my_free(newname);
+    my_free(row_desc_buff);
     return error;
 }
 
@@ -6915,8 +6915,8 @@ int ha_tokudb::create_main_dictionary(const char* name, TABLE* form, DB_TXN* txn
     /* Create the main table that will hold the real rows */
     error = create_sub_table(newname, &row_descriptor, txn, block_size, read_block_size, row_type_to_compression_method(row_type), false);
 cleanup:    
-    my_free(newname, MYF(MY_ALLOW_ZERO_PTR));
-    my_free(row_desc_buff, MYF(MY_ALLOW_ZERO_PTR));
+    my_free(newname);
+    my_free(row_desc_buff);
     return error;
 }
 
@@ -7098,7 +7098,7 @@ cleanup:
             commit_txn(txn,0);
         }
     }
-    my_free(newname, MYF(MY_ALLOW_ZERO_PTR));
+    my_free(newname);
     pthread_mutex_unlock(&tokudb_meta_mutex);
     TOKUDB_DBUG_RETURN(error);
 }
@@ -7175,8 +7175,8 @@ int ha_tokudb::delete_or_rename_dictionary( const char* from_name, const char* t
     if (error) { goto cleanup; }
 
 cleanup:
-    my_free(new_from_name, MYF(MY_ALLOW_ZERO_PTR));
-    my_free(new_to_name, MYF(MY_ALLOW_ZERO_PTR));
+    my_free(new_from_name);
+    my_free(new_to_name);
     return error;
 }
 
