@@ -340,7 +340,7 @@ void table_events_statements_common::make_row(PFS_events_statements *statement)
   if (m_row.m_current_schema_name_length > 0)
     memcpy(m_row.m_current_schema_name, statement->m_current_schema_name, m_row.m_current_schema_name_length);
 
-  m_row.m_object_type= statement->m_sp_type; 
+  m_row.m_object_type= statement->m_sp_type;
 
   m_row.m_schema_name_length= statement->m_schema_name_length;
   if (m_row.m_schema_name_length > 0)
@@ -382,7 +382,7 @@ void table_events_statements_common::make_row(PFS_events_statements *statement)
   m_row.m_sort_scan= statement->m_sort_scan;
   m_row.m_no_index_used= statement->m_no_index_used;
   m_row.m_no_good_index_used= statement->m_no_good_index_used;
-  /* 
+  /*
     Filling up statement digest information.
   */
   PSI_digest_storage *digest= & statement->m_digest_storage;

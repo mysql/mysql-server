@@ -207,18 +207,59 @@ typedef struct PSI_bootstrap PSI_bootstrap;
 #ifdef HAVE_PSI_INTERFACE
 
 #ifdef DISABLE_ALL_PSI
+
+#ifndef DISABLE_PSI_MUTEX
 #define DISABLE_PSI_MUTEX
+#endif
+
+#ifndef DISABLE_PSI_RWLOCK
 #define DISABLE_PSI_RWLOCK
+#endif
+
+#ifndef DISABLE_PSI_COND
 #define DISABLE_PSI_COND
+#endif
+
+#ifndef DISABLE_PSI_FILE
 #define DISABLE_PSI_FILE
+#endif
+
+#ifndef DISABLE_PSI_TABLE
 #define DISABLE_PSI_TABLE
+#endif
+
+#ifndef DISABLE_PSI_SOCKET
 #define DISABLE_PSI_SOCKET
+#endif
+
+#ifndef DISABLE_PSI_STAGE
 #define DISABLE_PSI_STAGE
+#endif
+
+#ifndef DISABLE_PSI_STATEMENT
 #define DISABLE_PSI_STATEMENT
+#endif
+
+#ifndef DISABLE_PSI_SP
 #define DISABLE_PSI_SP
+#endif
+
+#ifndef DISABLE_PSI_IDLE
 #define DISABLE_PSI_IDLE
+#endif
+
+#ifndef DISABLE_PSI_STATEMENT_DIGEST
 #define DISABLE_PSI_STATEMENT_DIGEST
+#endif
+
+#ifndef DISABLE_PSI_METADATA
 #define DISABLE_PSI_METADATA
+#endif
+
+#ifndef DISABLE_PSI_MEMORY
+#define DISABLE_PSI_MEMORY
+#endif
+
 #endif
 
 /**
@@ -227,8 +268,6 @@ typedef struct PSI_bootstrap PSI_bootstrap;
   This option is mostly intended to be used during development,
   when doing special builds with only a subset of the performance schema instrumentation,
   for code analysis / profiling / performance tuning of a specific instrumentation alone.
-  For this reason, DISABLE_PSI_MUTEX is not advertised in the cmake general options.
-  To disable mutexes, add -DDISABLE_PSI_MUTEX to CFLAGS.
   @sa DISABLE_PSI_RWLOCK
   @sa DISABLE_PSI_COND
   @sa DISABLE_PSI_FILE
@@ -236,8 +275,12 @@ typedef struct PSI_bootstrap PSI_bootstrap;
   @sa DISABLE_PSI_TABLE
   @sa DISABLE_PSI_STAGE
   @sa DISABLE_PSI_STATEMENT
+  @sa DISABLE_PSI_SP
+  @sa DISABLE_PSI_STATEMENT_DIGEST
   @sa DISABLE_PSI_SOCKET
+  @sa DISABLE_PSI_MEMORY
   @sa DISABLE_PSI_IDLE
+  @sa DISABLE_PSI_METADATA
 */
 
 #ifndef DISABLE_PSI_MUTEX

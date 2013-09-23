@@ -1,6 +1,5 @@
 /*
-   Copyright (C) 2003, 2005-2008 MySQL AB
-    All rights reserved. Use is subject to license terms.
+   Copyright (c) 2003, 2013, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -20,6 +19,9 @@
 #include "SimulatedBlock.hpp"
 #include "SafeCounter.hpp"
 #include <signaldata/NodeFailRep.hpp>
+
+#define JAM_FILE_ID 266
+
 
 SafeCounterManager::SafeCounterManager(class SimulatedBlock & block)
   : m_block(block),
@@ -43,7 +45,7 @@ SafeCounterManager::getNoOfFree() const {
 
 bool
 SafeCounterManager::seize(ActiveCounterPtr& ptr){
-  return m_activeCounters.seize(ptr);
+  return m_activeCounters.seizeFirst(ptr);
 }
 
 void

@@ -1,4 +1,4 @@
-/* Copyright (C) 2003 MySQL AB
+/* Copyright (c) 2011-2013, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -2574,6 +2574,7 @@ NdbIndexStatImpl::drop_listener(Ndb* ndb)
   }
   if (ndb->dropEventOperation(m_eventOp) != 0)
   {
+    // NOTE! dropEventoperation always return 0
     setError(ndb->getNdbError().code, __LINE__);
     return -1;
   }

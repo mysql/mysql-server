@@ -1,4 +1,4 @@
-/* Copyright (c) 2008, 2010, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2008, 2013, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -20,6 +20,9 @@
 #include <signaldata/AlterIndxImpl.hpp>
 #include <signaldata/DropTab.hpp>
 #include <signaldata/IndexStatSignal.hpp>
+
+#define JAM_FILE_ID 376
+
 
 class DbtuxProxy : public LocalProxy {
 public:
@@ -71,5 +74,8 @@ protected:
   // GSN_INDEX_STAT_REP
   void execINDEX_STAT_REP(Signal*);
 };
+
+
+#undef JAM_FILE_ID
 
 #endif

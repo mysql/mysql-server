@@ -1,6 +1,5 @@
 /*
-   Copyright (C) 2003, 2005-2008 MySQL AB
-    All rights reserved. Use is subject to license terms.
+   Copyright (c) 2003, 2013, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -22,6 +21,9 @@
 #include <ndb_types.h>
 #include <ndb_version.h>
 #include <string.h>
+
+#define JAM_FILE_ID 466
+
 
 #define NDB_SF_MAGIC                    "NDBSCHMA"
 
@@ -126,5 +128,8 @@ struct SchemaFile {
   TableEntry_old TableEntries_old[1];
   };
 };
+
+
+#undef JAM_FILE_ID
 
 #endif

@@ -1,6 +1,5 @@
 /*
-   Copyright (C) 2003-2006, 2008 MySQL AB
-    All rights reserved. Use is subject to license terms.
+   Copyright (c) 2003, 2013, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -21,6 +20,9 @@
 
 #include "SignalData.hpp"
 
+#define JAM_FILE_ID 57
+
+
 class TupKeyReq {
   /**
    * Reciver(s)
@@ -38,7 +40,7 @@ class TupKeyReq {
   friend bool printTUPKEYREQ(FILE * output, const Uint32 * theData, Uint32 len, Uint16 receiverBlockNo);
 
 public:
-  STATIC_CONST( SignalLength = 20 );
+  STATIC_CONST( SignalLength = 21 );
 
 private:
 
@@ -65,6 +67,7 @@ private:
   Uint32 m_row_id_page_idx;
   Uint32 attrInfoIVal;
   Uint32 deferred_constraints;
+  Uint32 disable_fk_checks;
 };
 
 class TupKeyConf {
@@ -126,5 +129,8 @@ private:
   Uint32 userRef;
   Uint32 errorCode;
 };
+
+
+#undef JAM_FILE_ID
 
 #endif

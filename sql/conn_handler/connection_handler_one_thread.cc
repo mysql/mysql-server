@@ -27,16 +27,6 @@
 #include "sql_parse.h"                   // do_command
 
 
-static inline void remove_and_destroy_thd(THD *thd)
-{
-  thd->release_resources();
-  mysql_mutex_lock(&LOCK_thread_count);
-  remove_global_thread(thd);
-  mysql_mutex_unlock(&LOCK_thread_count);
-  delete thd;
-}
-
-
 bool One_thread_connection_handler::add_connection(Channel_info* channel_info)
 {
   if (init_new_connection_handler_thread())
@@ -79,14 +69,14 @@ bool One_thread_connection_handler::add_connection(Channel_info* channel_info)
   mysql_thread_set_psi_id(thd->thread_id);
   mysql_socket_set_thread_owner(thd->net.vio->mysql_socket);
 
-  mysql_mutex_lock(&LOCK_thread_count);
   add_global_thread(thd);
-  mysql_mutex_unlock(&LOCK_thread_count);
 
   if (thd_prepare_connection(thd))
   {
     close_connection(thd);
-    remove_and_destroy_thd(thd);
+    thd->release_resources();
+    remove_global_thread(thd);
+    delete thd;
     return true;
   }
 
@@ -107,5 +97,7 @@ bool One_thread_connection_handler::add_connection(Channel_info* channel_info)
 
 void One_thread_connection_handler::remove_connection(THD* thd)
 {
-  remove_and_destroy_thd(thd);
+  thd->release_resources();
+  remove_global_thread(thd);
+  delete thd;
 }

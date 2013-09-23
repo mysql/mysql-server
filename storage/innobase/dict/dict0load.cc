@@ -1945,7 +1945,7 @@ dict_load_indexes(
 		}
 
 		if (index->type & DICT_FTS
-		    && !DICT_TF2_FLAG_IS_SET(table, DICT_TF2_FTS)) {
+		    && !dict_table_has_fts_index(table)) {
 			/* This should have been created by now. */
 			ut_a(table->fts != NULL);
 			DICT_TF2_FLAG_SET(table, DICT_TF2_FTS);
@@ -2034,7 +2034,7 @@ next_rec:
 	}
 
 	/* If the table contains FTS indexes, populate table->fts->indexes */
-	if (DICT_TF2_FLAG_IS_SET(table, DICT_TF2_FTS)) {
+	if (dict_table_has_fts_index(table)) {
 		/* table->fts->indexes should have been created. */
 		ut_a(table->fts->indexes != NULL);
 		dict_table_get_all_fts_indexes(table, table->fts->indexes);
@@ -2440,7 +2440,7 @@ err_exit:
 	} else if (!fil_space_for_table_exists_in_mem(
 			   table->space, name, false, true, heap, table->id)) {
 
-		if (DICT_TF2_FLAG_IS_SET(table, DICT_TF2_TEMPORARY)) {
+		if (dict_table_is_temporary(table)) {
 			/* Do not bother to retry opening temporary tables. */
 			table->ibd_file_missing = TRUE;
 

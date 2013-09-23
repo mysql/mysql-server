@@ -22,8 +22,6 @@
 #include <my_alloc.h>        // MEM_ROOT
 #include <thr_lock.h>        // THR_LOCK
 #include <my_bitmap.h>       // MY_BITMAP
-#include <mysql_com.h>       // NAME_CHAR_LEN
-#include <sql_const.h>       // MAX_REF_PARTS
 
 #include <ndbapi/Ndb.hpp>    // Ndb::TupleIdRange
 #include "ndb_conflict.h"

@@ -24,7 +24,7 @@
 #include "pfs_digest.h"
 
 /*
-  Write MD5 hash value in a string to be used 
+  Write MD5 hash value in a string to be used
   as DIGEST for the statement.
 */
 #define MD5_HASH_TO_STRING(_hash, _str)                    \
@@ -41,6 +41,7 @@ struct PFS_host;
 struct PFS_user;
 struct PFS_account;
 struct PFS_object_name;
+struct PFS_program;
 
 /**
   @file storage/perfschema/table_helper.h
@@ -72,12 +73,8 @@ struct PFS_object_view_constants
 {
   static const uint FIRST_VIEW= 1;
   static const uint VIEW_TABLE= 1;
-  static const uint LAST_VIEW= 1;
-
-  /* Future use */
-  static const uint VIEW_EVENT= 2;
-  static const uint VIEW_PROCEDURE= 3;
-  static const uint VIEW_FUNCTION= 4;
+  static const uint VIEW_PROGRAM= 2;
+  static const uint LAST_VIEW= 2;
 };
 
 /** Row fragment for column HOST. */
@@ -186,6 +183,7 @@ struct PFS_object_row
 
   /** Build a row from a memory buffer. */
   int make_row(PFS_table_share *pfs);
+  int make_row(PFS_program *pfs);
   int make_row(const MDL_key *pfs);
   /** Set a table field from the row. */
   void set_field(uint index, Field *f);
@@ -497,7 +495,7 @@ struct PFS_socket_io_stat_row
   PFS_byte_stat_row m_write;
   PFS_byte_stat_row m_misc;
   PFS_byte_stat_row m_all;
-  
+
   inline void set(time_normalizer *normalizer, const PFS_socket_io_stat *stat)
   {
     PFS_byte_stat all;
@@ -505,7 +503,7 @@ struct PFS_socket_io_stat_row
     m_read.set(normalizer, &stat->m_read);
     m_write.set(normalizer, &stat->m_write);
     m_misc.set(normalizer, &stat->m_misc);
-    
+
     /* Combine stats for all operations */
     all.aggregate(&stat->m_read);
     all.aggregate(&stat->m_write);
@@ -522,7 +520,7 @@ struct PFS_file_io_stat_row
   PFS_byte_stat_row m_write;
   PFS_byte_stat_row m_misc;
   PFS_byte_stat_row m_all;
-  
+
   inline void set(time_normalizer *normalizer, const PFS_file_io_stat *stat)
   {
     PFS_byte_stat all;
@@ -530,7 +528,7 @@ struct PFS_file_io_stat_row
     m_read.set(normalizer, &stat->m_read);
     m_write.set(normalizer, &stat->m_write);
     m_misc.set(normalizer, &stat->m_misc);
-    
+
     /* Combine stats for all operations */
     all.aggregate(&stat->m_read);
     all.aggregate(&stat->m_write);

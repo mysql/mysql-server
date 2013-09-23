@@ -142,7 +142,7 @@ struct fil_node_t {
 	os_file_t	handle;	/*!< OS handle to the file, if file open */
 	os_event_t	sync_event;/*!< Condition event to group and
 				serialize calls to fsync */
-	ibool		is_raw_disk;/*!< TRUE if the 'file' is actually a raw
+	bool		is_raw_disk;/*!< TRUE if the 'file' is actually a raw
 				device or a raw disk partition */
 	ulint		size;	/*!< size of the file in database pages, 0 if
 				not known yet; the possible last incomplete
@@ -630,7 +630,7 @@ fil_node_create(
 	ulint		size,	/*!< in: file size in database blocks, rounded
 				downwards to an integer */
 	ulint		id,	/*!< in: space id where to append */
-	ibool		is_raw)	/*!< in: TRUE if a raw device or
+	bool		is_raw)	/*!< in: TRUE if a raw device or
 				a raw disk partition */
 {
 	fil_node_t*	node;
@@ -2600,7 +2600,7 @@ fil_op_log_parse_or_replay(
 
 			if (fil_create_new_single_table_tablespace(
 				    space_id, name, path, tablespace_flags,
-				    DICT_TF2_USE_TABLESPACE,
+				    DICT_TF2_USE_FILE_PER_TABLE,
 				    FIL_IBD_FILE_INITIAL_SIZE) != DB_SUCCESS) {
 				ut_error;
 			}
@@ -3613,7 +3613,7 @@ Opens a handle to the file linked to in an InnoDB Symbolic Link file.
 
 ibool
 fil_open_linked_file(
-/*===============*/
+/*=================*/
 	const char*	tablename,	/*!< in: database/tablename */
 	char**		remote_filepath,/*!< out: remote filepath */
 	os_file_t*	remote_file)	/*!< out: remote file handle */
@@ -3832,7 +3832,7 @@ fil_create_new_single_table_tablespace(
 	}
 
 	success = fil_space_create(tablename, space_id, flags, FIL_TABLESPACE);
-	if (!success || !fil_node_create(path, size, space_id, FALSE)) {
+	if (!success || !fil_node_create(path, size, space_id, false)) {
 		err = DB_ERROR;
 		goto error_exit_1;
 	}

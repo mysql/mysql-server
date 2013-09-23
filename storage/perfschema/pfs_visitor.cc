@@ -978,7 +978,7 @@ void PFS_instance_wait_visitor::visit_cond(PFS_cond *pfs)
   m_stat.aggregate(& pfs->m_cond_stat.m_wait_stat);
 }
 
-void PFS_instance_wait_visitor::visit_file(PFS_file *pfs) 
+void PFS_instance_wait_visitor::visit_file(PFS_file *pfs)
 {
   /* Combine per-operation file wait stats before aggregating */
   PFS_single_stat stat;
@@ -986,7 +986,7 @@ void PFS_instance_wait_visitor::visit_file(PFS_file *pfs)
   m_stat.aggregate(&stat);
 }
 
-void PFS_instance_wait_visitor::visit_socket(PFS_socket *pfs) 
+void PFS_instance_wait_visitor::visit_socket(PFS_socket *pfs)
 {
   /* Combine per-operation socket wait stats before aggregating */
   PFS_single_stat stat;
@@ -1176,13 +1176,13 @@ PFS_instance_socket_io_stat_visitor::PFS_instance_socket_io_stat_visitor()
 PFS_instance_socket_io_stat_visitor::~PFS_instance_socket_io_stat_visitor()
 {}
 
-void PFS_instance_socket_io_stat_visitor::visit_socket_class(PFS_socket_class *pfs) 
+void PFS_instance_socket_io_stat_visitor::visit_socket_class(PFS_socket_class *pfs)
 {
   /* Aggregate wait times, event counts and byte counts */
   m_socket_io_stat.aggregate(&pfs->m_socket_stat.m_io_stat);
 }
 
-void PFS_instance_socket_io_stat_visitor::visit_socket(PFS_socket *pfs) 
+void PFS_instance_socket_io_stat_visitor::visit_socket(PFS_socket *pfs)
 {
   /* Aggregate wait times, event counts and byte counts */
   m_socket_io_stat.aggregate(&pfs->m_socket_stat.m_io_stat);
@@ -1194,13 +1194,13 @@ PFS_instance_file_io_stat_visitor::PFS_instance_file_io_stat_visitor()
 PFS_instance_file_io_stat_visitor::~PFS_instance_file_io_stat_visitor()
 {}
 
-void PFS_instance_file_io_stat_visitor::visit_file_class(PFS_file_class *pfs) 
+void PFS_instance_file_io_stat_visitor::visit_file_class(PFS_file_class *pfs)
 {
   /* Aggregate wait times, event counts and byte counts */
   m_file_io_stat.aggregate(&pfs->m_file_stat.m_io_stat);
 }
 
-void PFS_instance_file_io_stat_visitor::visit_file(PFS_file *pfs) 
+void PFS_instance_file_io_stat_visitor::visit_file(PFS_file *pfs)
 {
   /* Aggregate wait times, event counts and byte counts */
   m_file_io_stat.aggregate(&pfs->m_file_stat.m_io_stat);

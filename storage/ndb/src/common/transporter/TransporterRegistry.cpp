@@ -361,7 +361,8 @@ void TransporterRegistry::set_mgm_handle(NdbMgmHandle h)
 TransporterRegistry::~TransporterRegistry()
 {
   DBUG_ENTER("TransporterRegistry::~TransporterRegistry");
-  
+ 
+  disconnectAll(); 
   removeAll();
   
   delete[] theTCPTransporters;
@@ -801,7 +802,8 @@ TransporterRegistry::prepareSend(TransporterSendBufferHandle *sendHandle,
 	 */
 	for(int i = 0; i<50; i++){
 	  if((nSHMTransporters+nSCITransporters) == 0)
-	    NdbSleep_MilliSleep(sleepTime); 
+	    NdbSleep_MilliSleep(sleepTime);
+          /* FC : Consider counting sleeps here */
 	  insertPtr = getWritePtr(sendHandle, nodeId, lenBytes, prio);
 	  if(insertPtr != 0){
 	    t->m_packer.pack(insertPtr, prio, signalHeader, signalData, ptr);
@@ -1326,6 +1328,7 @@ TransporterRegistry::performReceive(TransporterReceiveHandle& recvdata)
   assert((receiveHandle == &recvdata) || (receiveHandle == 0));
 
   bool hasReceived = false;
+  bool stopReceiving = false;
 
   if (recvdata.m_recv_transporters.get(0))
   {
@@ -1383,7 +1386,7 @@ TransporterRegistry::performReceive(TransporterReceiveHandle& recvdata)
    * Handle data either received above or pending from prev rounds.
    */
   for(Uint32 id = recvdata.m_has_data_transporters.find_first();
-      id != BitmaskImpl::NotFound;
+      id != BitmaskImpl::NotFound && !stopReceiving;
       id = recvdata.m_has_data_transporters.find_next(id + 1))
   {
     bool hasdata = false;
@@ -1400,7 +1403,7 @@ TransporterRegistry::performReceive(TransporterReceiveHandle& recvdata)
         hasReceived = true;
         Uint32 * ptr;
         Uint32 sz = t->getReceiveData(&ptr);
-        Uint32 szUsed = unpack(recvdata, ptr, sz, id, ioStates[id]);
+        Uint32 szUsed = unpack(recvdata, ptr, sz, id, ioStates[id], stopReceiving);
         if (likely(szUsed))
         {
           t->updateReceiveDataPtr(szUsed);
@@ -1419,7 +1422,7 @@ TransporterRegistry::performReceive(TransporterReceiveHandle& recvdata)
 #ifdef NDB_SCI_TRANSPORTER
   //performReceive
   //do prepareReceive on the SCI transporters  (prepareReceive(t,,,,))
-  for (int i=0; i<nSCITransporters; i++) 
+  for (int i=0; i<nSCITransporters && !stopReceiving; i++)
   {
     SCI_Transporter  *t = theSCITransporters[i];
     const NodeId nodeId = t->getRemoteNodeId();
@@ -1434,14 +1437,14 @@ TransporterRegistry::performReceive(TransporterReceiveHandle& recvdata)
         Uint32 * readPtr, * eodPtr;
         t->getReceivePtr(&readPtr, &eodPtr);
         callbackObj->transporter_recv_from(nodeId);
-        Uint32 *newPtr = unpack(readPtr, eodPtr, nodeId, ioStates[nodeId]);
+        Uint32 *newPtr = unpack(readPtr, eodPtr, nodeId, ioStates[nodeId], stopReceiving);
         t->updateReceivePtr(newPtr);
       }
     } 
   }
 #endif
 #ifdef NDB_SHM_TRANSPORTER
-  for (int i=0; i<nSHMTransporters; i++) 
+  for (int i=0; i<nSHMTransporters && !stopReceiving; i++)
   {
     SHM_Transporter *t = theSHMTransporters[i];
     const NodeId nodeId = t->getRemoteNodeId();
@@ -1456,7 +1459,8 @@ TransporterRegistry::performReceive(TransporterReceiveHandle& recvdata)
         t->getReceivePtr(&readPtr, &eodPtr);
         recvdata.transporter_recv_from(nodeId);
         Uint32 *newPtr = unpack(recvdata,
-                                readPtr, eodPtr, nodeId, ioStates[nodeId]);
+                                readPtr, eodPtr, nodeId, ioStates[nodeId],
+				stopReceiving);
         t->updateReceivePtr(newPtr);
       }
     } 
@@ -2128,12 +2132,6 @@ TransporterRegistry::startReceiving()
 
 void
 TransporterRegistry::stopReceiving(){
-  /**
-   * Disconnect all transporters, this includes detach from remote node
-   * and since that must be done from the same process that called attach
-   * it's done here in the receive thread
-   */
-  disconnectAll();
 }
 
 void
@@ -2190,6 +2188,42 @@ bool TransporterRegistry::connect_client(NdbMgmHandle *h)
 }
 
 
+bool TransporterRegistry::report_dynamic_ports(NdbMgmHandle h) const
+{
+  // Fill array of nodeid/port pairs for those ports which are dynamic
+  unsigned num_ports = 0;
+  ndb_mgm_dynamic_port ports[MAX_NODES];
+  for(unsigned i = 0; i < m_transporter_interface.size(); i++)
+  {
+    const Transporter_interface& ti = m_transporter_interface[i];
+    if (ti.m_s_service_port >= 0)
+      continue; // Not a dynamic port
+
+    assert(num_ports < NDB_ARRAY_SIZE(ports));
+    ports[num_ports].nodeid = ti.m_remote_nodeId;
+    ports[num_ports].port = ti.m_s_service_port;
+    num_ports++;
+  }
+
+  if (num_ports == 0)
+  {
+    // No dynamic ports in use, nothing to report
+    return true;
+  }
+
+  // Send array of nodeid/port pairs to mgmd
+  if (ndb_mgm_set_dynamic_ports(h, localNodeId,
+                                ports, num_ports) < 0)
+  {
+    g_eventLogger->error("Failed to register dynamic ports, error: %d  - '%s'",
+                         ndb_mgm_get_latest_error(h),
+                         ndb_mgm_get_latest_error_desc(h));
+    return false;
+  }
+
+  return true;
+}
+
 
 /**
  * Given a connected NdbMgmHandle, turns it into a transporter
@@ -2197,7 +2231,6 @@ bool TransporterRegistry::connect_client(NdbMgmHandle *h)
  */
 NDB_SOCKET_TYPE TransporterRegistry::connect_ndb_mgmd(NdbMgmHandle *h)
 {
-  struct ndb_mgm_reply mgm_reply;
   NDB_SOCKET_TYPE sockfd;
   my_socket_invalidate(&sockfd);
 
@@ -2209,29 +2242,10 @@ NDB_SOCKET_TYPE TransporterRegistry::connect_ndb_mgmd(NdbMgmHandle *h)
     DBUG_RETURN(sockfd);
   }
 
-  for(unsigned int i=0;i < m_transporter_interface.size();i++)
+  if (!report_dynamic_ports(*h))
   {
-    if (m_transporter_interface[i].m_s_service_port >= 0)
-      continue;
-
-    DBUG_PRINT("info", ("Setting dynamic port %d for connection from node %d",
-                        m_transporter_interface[i].m_s_service_port,
-                        m_transporter_interface[i].m_remote_nodeId));
-
-    if (ndb_mgm_set_connection_int_parameter(*h,
-                                   localNodeId,
-				   m_transporter_interface[i].m_remote_nodeId,
-				   CFG_CONNECTION_SERVER_PORT,
-				   m_transporter_interface[i].m_s_service_port,
-				   &mgm_reply) < 0)
-    {
-      g_eventLogger->error("Could not set dynamic port for %d->%d (%s:%d)",
-                           localNodeId,
-                           m_transporter_interface[i].m_remote_nodeId,
-                           __FILE__, __LINE__);
-      ndb_mgm_destroy_handle(h);
-      DBUG_RETURN(sockfd);
-    }
+    ndb_mgm_destroy_handle(h);
+    DBUG_RETURN(sockfd);
   }
 
   /**
@@ -2561,6 +2575,46 @@ TransporterRegistry::print_transporters(const char* where, NdbOut& out)
         << " port: " << tf.m_s_service_port
         << " interface: " << tf.m_interface << endl;
   }
+}
+
+void 
+TransporterRegistry::inc_overload_count(Uint32 nodeId)
+{
+  assert(nodeId < MAX_NODES);
+  assert(theTransporters[nodeId] != NULL);
+  theTransporters[nodeId]->inc_overload_count();
+}
+
+void 
+TransporterRegistry::inc_slowdown_count(Uint32 nodeId)
+{
+  assert(nodeId < MAX_NODES);
+  assert(theTransporters[nodeId] != NULL);
+  theTransporters[nodeId]->inc_slowdown_count();
+}
+
+Uint32
+TransporterRegistry::get_overload_count(Uint32 nodeId)
+{
+  assert(nodeId < MAX_NODES);
+  assert(theTransporters[nodeId] != NULL);
+  return theTransporters[nodeId]->get_overload_count();
+}
+
+Uint32
+TransporterRegistry::get_slowdown_count(Uint32 nodeId)
+{
+  assert(nodeId < MAX_NODES);
+  assert(theTransporters[nodeId] != NULL);
+  return theTransporters[nodeId]->get_slowdown_count();
+}
+
+Uint32
+TransporterRegistry::get_connect_count(Uint32 nodeId)
+{
+  assert(nodeId < MAX_NODES);
+  assert(theTransporters[nodeId] != NULL);
+  return theTransporters[nodeId]->get_connect_count();
 }
 
 
