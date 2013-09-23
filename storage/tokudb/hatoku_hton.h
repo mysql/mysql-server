@@ -273,10 +273,10 @@ static MYSQL_THDVAR_UINT(analyze_time,
     "analyze time",
     NULL, 
     NULL, 
-    60, // default
+    5, // default
     0,  // min
     ~0U,   // max
-    1      // blocksize???
+    1      // blocksize
 );
 
 static void tokudb_checkpoint_lock(THD * thd);
