@@ -982,7 +982,7 @@ static uchar* pack_toku_field_blob(
     }
 
     if (length > 0) {
-        memcpy_fixed((uchar *)(&data_ptr), from_mysql + len_bytes, sizeof(uchar*));
+        memcpy((uchar *)(&data_ptr), from_mysql + len_bytes, sizeof(uchar*));
         memcpy(to_tokudb + len_bytes, data_ptr, length);
     }
     return (to_tokudb + len_bytes + length);
@@ -2824,7 +2824,7 @@ DBT* ha_tokudb::create_dbt_key_from_key(
     if (!dont_pack_pk) {
         tmp_buff = buff + size;
         if (hidden_primary_key) {
-            memcpy_fixed(tmp_buff, current_ident, TOKUDB_HIDDEN_PRIMARY_KEY_LENGTH);
+            memcpy(tmp_buff, current_ident, TOKUDB_HIDDEN_PRIMARY_KEY_LENGTH);
             size += TOKUDB_HIDDEN_PRIMARY_KEY_LENGTH;
         }
         else {
@@ -4718,13 +4718,13 @@ void ha_tokudb::extract_hidden_primary_key(uint keynr, DBT const *found_key) {
     //
     if (hidden_primary_key) {
         if (keynr == primary_key) {
-            memcpy_fixed(current_ident, (char *) found_key->data, TOKUDB_HIDDEN_PRIMARY_KEY_LENGTH);
+            memcpy(current_ident, (char *) found_key->data, TOKUDB_HIDDEN_PRIMARY_KEY_LENGTH);
         }
         //
         // if secondary key, hidden primary key is at end of found_key
         //
         else {
-            memcpy_fixed(
+            memcpy(
                 current_ident, 
                 (char *) found_key->data + found_key->size - TOKUDB_HIDDEN_PRIMARY_KEY_LENGTH, 
                 TOKUDB_HIDDEN_PRIMARY_KEY_LENGTH
@@ -5912,7 +5912,7 @@ void ha_tokudb::position(const uchar * record) {
     DBT key;
     if (hidden_primary_key) {
         DBUG_ASSERT(ref_length == (TOKUDB_HIDDEN_PRIMARY_KEY_LENGTH + sizeof(uint32_t)));
-        memcpy_fixed(ref + sizeof(uint32_t), current_ident, TOKUDB_HIDDEN_PRIMARY_KEY_LENGTH);
+        memcpy(ref + sizeof(uint32_t), current_ident, TOKUDB_HIDDEN_PRIMARY_KEY_LENGTH);
         *(uint32_t *)ref = TOKUDB_HIDDEN_PRIMARY_KEY_LENGTH;
     } 
     else {
