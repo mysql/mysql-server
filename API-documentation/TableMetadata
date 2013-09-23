@@ -57,7 +57,7 @@ IndexMetadata = {
   isPrimaryKey     : true  ,  // true for PK; otherwise undefined
   isUnique         : true  ,  // true or false
   isOrdered        : true  ,  // true or false; can scan if true
-  columns          : null  ,  // an ordered array of column numbers
+  columnNumbers    : null  ,  // an ordered array of column numbers
 };
 
 
