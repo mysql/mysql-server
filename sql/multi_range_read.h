@@ -627,7 +627,7 @@ private:
                        COST_VECT *cost);
   bool get_disk_sweep_mrr_cost(uint keynr, ha_rows rows, uint flags, 
                                uint *buffer_size, COST_VECT *cost);
-  bool check_cpk_scan(THD *thd, uint keyno, uint mrr_flags);
+  bool check_cpk_scan(THD *thd, TABLE_SHARE *share, uint keyno, uint mrr_flags);
 
   bool setup_buffer_sharing(uint key_size_in_keybuf, key_part_map key_tuple_map);
 
