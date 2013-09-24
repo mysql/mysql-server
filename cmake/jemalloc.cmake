@@ -36,13 +36,19 @@ MACRO (USE_BUNDLED_JEMALLOC)
   ADD_DEPENDENCIES(libjemalloc jemalloc)
 ENDMACRO()
 
-SET(WITH_JEMALLOC "yes" CACHE STRING
+IF(CMAKE_SYSTEM_NAME MATCHES "Linux" OR APPLE)
+ # Linux and OSX are the only systems where bundled jemalloc can be built without problems, 
+ # as they both have GNU make and jemalloc actually compiles.
+ # Also, BSDs use jemalloc as malloc already
+ SET(WITH_JEMALLOC_DEFAULT "yes")
+ELSE()
+ SET(WITH_JEMALLOC_DEFAULT "no")
+ENDIF()
+
+SET(WITH_JEMALLOC ${WITH_JEMALLOC_DEFAULT} CACHE STRING
     "Which jemalloc to use (possible values are 'no', 'bundled', 'system', 'yes' (system if possible, otherwise bundled)")
 
 MACRO (CHECK_JEMALLOC)
-  IF(WIN32)
-    SET(WITH_JEMALLOC "no")
-  ENDIF()
   IF(WITH_JEMALLOC STREQUAL "system" OR WITH_JEMALLOC STREQUAL "yes")
     CHECK_LIBRARY_EXISTS(jemalloc malloc_stats_print "" HAVE_JEMALLOC)
     IF (HAVE_JEMALLOC)
