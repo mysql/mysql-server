@@ -296,6 +296,14 @@ search:
           pfs->reset_stats();
           pfs->m_disconnected_count= 0;
 
+          if (username_length > 0 && hostname_length > 0)
+          {
+            lookup_setup_actor(thread, username, username_length, hostname, hostname_length,
+                               & pfs->m_enabled);
+          }
+          else
+            pfs->m_enabled= true;
+
           int res;
           res= lf_hash_insert(&account_hash, pins, &pfs);
           if (likely(res == 0))
@@ -671,6 +679,28 @@ void purge_all_account(void)
 
       if (pfs->get_refcount() == 0)
         purge_account(thread, pfs);
+    }
+  }
+}
+
+void update_accounts_derived_flags(PFS_thread *thread)
+{
+  PFS_account *pfs= account_array;
+  PFS_account *pfs_last= account_array + account_max;
+
+  for ( ; pfs < pfs_last; pfs++)
+  {
+    if (pfs->m_lock.is_populated())
+    {
+      if (pfs->m_username_length > 0 && pfs->m_hostname_length > 0)
+      {
+        lookup_setup_actor(thread,
+                           pfs->m_username, pfs->m_username_length,
+                           pfs->m_hostname, pfs->m_hostname_length,
+                           & pfs->m_enabled);
+      }
+      else
+        pfs->m_enabled= true;
     }
   }
 }

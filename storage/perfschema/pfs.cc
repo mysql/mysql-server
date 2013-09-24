@@ -2111,25 +2111,28 @@ void pfs_set_thread_user_v1(const char *user, int user_len)
 
   set_thread_account(pfs);
 
-  bool enabled= true;
-  if (flag_thread_instrumentation)
+  bool enabled;
+  if (pfs->m_account != NULL)
+  {
+    enabled= pfs->m_account->m_enabled;
+  }
+  else
   {
     if ((pfs->m_username_length > 0) && (pfs->m_hostname_length > 0))
     {
-      /*
-        TODO: performance improvement.
-        Once performance_schema.USERS is exposed,
-        we can use PFS_user::m_enabled instead of looking up
-        SETUP_ACTORS every time.
-      */
       lookup_setup_actor(pfs,
                          pfs->m_username, pfs->m_username_length,
                          pfs->m_hostname, pfs->m_hostname_length,
                          &enabled);
     }
+    else
+    {
+      /* There is no setting for background threads */
+      enabled= true;
+    }
   }
 
-  pfs->m_enabled= enabled;
+  pfs->set_enabled(enabled);
 
   pfs->m_session_lock.dirty_to_allocated();
 }
@@ -2167,24 +2170,27 @@ void pfs_set_thread_account_v1(const char *user, int user_len,
 
   set_thread_account(pfs);
 
-  bool enabled= true;
-  if (flag_thread_instrumentation)
+  bool enabled;
+  if (pfs->m_account != NULL)
+  {
+    enabled= pfs->m_account->m_enabled;
+  }
+  else
   {
     if ((pfs->m_username_length > 0) && (pfs->m_hostname_length > 0))
     {
-      /*
-        TODO: performance improvement.
-        Once performance_schema.USERS is exposed,
-        we can use PFS_user::m_enabled instead of looking up
-        SETUP_ACTORS every time.
-      */
       lookup_setup_actor(pfs,
                          pfs->m_username, pfs->m_username_length,
                          pfs->m_hostname, pfs->m_hostname_length,
                          &enabled);
     }
+    else
+    {
+      /* There is no setting for background threads */
+      enabled= true;
+    }
   }
-  pfs->m_enabled= enabled;
+  pfs->set_enabled(enabled);
 
   pfs->m_session_lock.dirty_to_allocated();
 }
