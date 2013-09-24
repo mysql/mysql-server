@@ -1256,11 +1256,13 @@ run_synchronously:
 	ut_a(purge_sys->n_submitted == purge_sys->n_completed);
 
 #ifdef UNIV_DEBUG
+	rw_lock_x_lock(&purge_sys->latch);
 	if (purge_sys->limit.trx_no == 0) {
 		purge_sys->done = purge_sys->iter;
 	} else {
 		purge_sys->done = purge_sys->limit;
 	}
+	rw_lock_x_unlock(&purge_sys->latch);
 #endif /* UNIV_DEBUG */
 
 	if (truncate) {
