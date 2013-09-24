@@ -40,8 +40,51 @@ var q2 = {
   }
 };
 
-var queryTests = [q1, q2];
+var q3 = { 
+  name: 'q3',
+  queryType: 2, 
+  expected: [8,9,10,11,12,13,14,15,16,17,18,19,20],
+  p1: 1,
+  predicate: function(q) {
+    return q.k1.gt(q.param("p1"));
+  }
+};
 
+var q4 = { 
+  name: 'q4',
+  queryType: 2,
+  expected: [11,12,13,14,15],
+  p1: 1010,
+  predicate: function(q) {
+    return q.k3.gt(q.param("p1"));
+  }
+};
+
+var q5 = {
+  name: 'q5',
+  queryType: 2,
+  expected: [6,7,10,11,14,15,18,19],
+  p1: 1,
+  predicate: function(q) {
+    return q.k1.ge(q.param("p1")).and(q.k2.gt(q.param("p1")));
+  }
+};
+
+var q6 = {
+  // (k1 = 1 and k2 = 1) OR (k1 >= 2 and k2 >= 2)
+  // We can do this as a multi-range index scan
+  name: 'q6',
+  queryType: 2,
+  expected: [5,6,10,11,14,15,18,19],
+  p1: 1, p2: 2,
+  predicate: function(q) {
+    return (q.k1.eq(q.param("p1")).and(q.k2.eq(q.param("p1"))))
+           .or(q.k1.ge(q.param("p2")).and(q.k2.ge(q.param("p2"))));
+  }
+};
+
+//var queryTests = [q1, q2, q3];
+var queryTests = [ q5 , q6 ];
 
 /** Set up domain type */
 function mpk1() {};
