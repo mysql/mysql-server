@@ -19,6 +19,8 @@
 #include <string.h>
 
 bool pfs_initialized= false;
+size_t pfs_allocated_memory_size= 0;
+size_t pfs_allocated_memory_count= 0;
 
 bool stub_alloc_always_fails= true;
 int stub_alloc_fails_after_count= 0;
