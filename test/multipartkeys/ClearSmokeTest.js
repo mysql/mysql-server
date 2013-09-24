@@ -17,28 +17,19 @@
  Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA
  02110-1301  USA
  */
-
-/** This is the smoke test for the multidb suite.
- */
-
 "use strict";
 
-try {
-  require("./suite_config.js");
-} catch (e) {}
-
-var test = new harness.SmokeTest("SmokeTest");
+var test = new harness.ClearSmokeTest("ClearSmokeTest");
 
 test.run = function() {
-  var testCase = this;
-  harness.SQL.create(this.suite, function(error) {
+  var t = this;
+  harness.SQL.drop(this.suite, function(error) {
     if (error) {
-      testCase.fail('createSQL failed: ' + error);
+      t.fail('dropSQL failed: ' + error);
     } else {
-      testCase.pass();
+      t.pass();
     }
   });
 };
 
-
-exports.tests = [test];
+module.exports.tests = [test];

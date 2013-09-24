@@ -526,18 +526,24 @@ exports.UserContext.prototype.connect = function() {
 };
 
 function checkOperation(err, dbOperation) {
+  var sqlstate, message, result, result_code;
+  result = null;
+  result_code = null;
+  message = 'Unknown Error';
+  sqlstate = '22000';
   if (err) {
     return err;
-  } else if (!dbOperation.result.success) {
-    var sqlstate = dbOperation.result.error.sqlstate;
-    var message = dbOperation.result.error.message || 'Operation error';
-    var result = new Error(message);
-    result.code = dbOperation.result.error.code;
+  } else if (dbOperation.result.success !== true) {
+    if(dbOperation.result.error) {
+      sqlstate = dbOperation.result.error.sqlstate;
+      message = dbOperation.result.error.message || 'Operation error';
+      result_code = dbOperation.result.error.code;
+    }
+    result = new Error(message);
+    result.code = result_code;
     result.sqlstate = sqlstate;
-    return result;
-  } else {
-    return null;
   }
+  return result;
 }
 
 /** Find the object by key.

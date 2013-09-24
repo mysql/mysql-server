@@ -18,14 +18,7 @@
  02110-1301  USA
  */
 
-/** This is the smoke test for the multidb suite.
- */
-
 "use strict";
-
-try {
-  require("./suite_config.js");
-} catch (e) {}
 
 var test = new harness.SmokeTest("SmokeTest");
 

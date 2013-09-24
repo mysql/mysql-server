@@ -510,7 +510,8 @@ var AbstractQueryUnaryOperator = function() {
 AbstractQueryUnaryOperator.prototype = new AbstractQueryPredicate();
 
 AbstractQueryUnaryOperator.prototype.toString = function() {
-  return this.queryField.toString() + this.comparator + this.parameter.toString();
+  return util.format(this);
+//  return this.queryField.toString() + this.comparator + this.parameter.toString();
 };
 
 AbstractQueryUnaryOperator.prototype.visit = function(visitor) {
