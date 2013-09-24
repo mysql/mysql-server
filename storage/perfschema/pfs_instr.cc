@@ -926,6 +926,16 @@ void PFS_thread::reset_session_connect_attrs()
   }
 }
 
+void PFS_thread::set_enabled(bool enabled)
+{
+  m_enabled= enabled;
+  if (flag_global_instrumentation && flag_thread_instrumentation && m_enabled)
+  {
+    /* Only arm this flag, never disarm it. */
+    m_aggregate_on_disconnect= true;
+  }
+}
+
 void PFS_thread::carry_memory_stat_delta(PFS_memory_stat_delta *delta, uint index)
 {
   if (m_account != NULL)
@@ -999,6 +1009,7 @@ PFS_thread* create_thread(PFS_thread_class *klass, const void *identity,
         pfs->m_stmt_lock.set_allocated();
         pfs->m_session_lock.set_allocated();
         pfs->m_enabled= true;
+        pfs->m_aggregate_on_disconnect= flag_global_instrumentation && flag_thread_instrumentation;
         pfs->m_class= klass;
         pfs->m_events_waits_current= & pfs->m_events_waits_stack[WAIT_STACK_BOTTOM];
         pfs->m_waits_history_full= false;
@@ -2105,18 +2116,26 @@ void aggregate_thread(PFS_thread *thread,
                       PFS_user *safe_user,
                       PFS_host *safe_host)
 {
-  /* No HAVE_PSI_???_INTERFACE flag, waits cover multiple instrumentations */
-  aggregate_thread_waits(thread, safe_account, safe_user, safe_host);
+  if (thread->m_aggregate_on_disconnect)
+  {
+    /* No HAVE_PSI_???_INTERFACE flag, waits cover multiple instrumentations */
+    aggregate_thread_waits(thread, safe_account, safe_user, safe_host);
 
 #ifdef HAVE_PSI_STAGE_INTERFACE
-  aggregate_thread_stages(thread, safe_account, safe_user, safe_host);
+    aggregate_thread_stages(thread, safe_account, safe_user, safe_host);
 #endif
 
 #ifdef HAVE_PSI_STATEMENT_INTERFACE
-  aggregate_thread_statements(thread, safe_account, safe_user, safe_host);
+    aggregate_thread_statements(thread, safe_account, safe_user, safe_host);
 #endif
+  }
 
 #ifdef HAVE_PSI_MEMORY_INTERFACE
+  /*
+    Do not check m_aggregate_on_disconnect,
+    because pfs_memory_free_v1() may collect data even when the thread
+    instrumentation is turned off.
+  */
   aggregate_thread_memory(false, thread, safe_account, safe_user, safe_host);
 #endif
 
@@ -2568,6 +2587,21 @@ void update_metadata_derived_flags()
   {
     pfs->m_enabled= global_metadata_class.m_enabled && flag_global_instrumentation;
     pfs->m_timed= global_metadata_class.m_timed;
+  }
+}
+
+void update_thread_derived_flags()
+{
+  if (flag_global_instrumentation && flag_thread_instrumentation)
+  {
+    PFS_thread *pfs= thread_array;
+    PFS_thread *pfs_last= thread_array + thread_max;
+
+    for ( ; pfs < pfs_last; pfs++)
+    {
+      if (pfs->m_enabled)
+        pfs->m_aggregate_on_disconnect= true;
+    }
   }
 }
 
