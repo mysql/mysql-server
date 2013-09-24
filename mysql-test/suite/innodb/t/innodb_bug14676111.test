@@ -22,10 +22,6 @@ set global innodb_stats_persistent = false;
 
 CREATE TABLE t1 (a int not null primary key) engine=InnoDB;
 
-let $wait_condition=
-  SELECT VARIABLE_VALUE < 1 FROM INFORMATION_SCHEMA.GLOBAL_STATUS
-  WHERE VARIABLE_NAME = 'INNODB_PURGE_TRX_ID_AGE';
-
 #
 # make 4 leveled straight tree
 #
@@ -60,7 +56,7 @@ select CLUST_INDEX_SIZE from information_schema.INNODB_SYS_TABLESTATS where NAME
 delete from t1 where a=4;
 set global innodb_purge_stop_now=ON;
 set global innodb_purge_run_now=ON;
---source include/wait_condition.inc
+--source include/wait_innodb_all_purged.inc
 #deleting 1 record of 2 records don't cause merge artificially.
 #current tree form
 #      (1, 5)
@@ -74,7 +70,7 @@ select CLUST_INDEX_SIZE from information_schema.INNODB_SYS_TABLESTATS where NAME
 delete from t1 where a=5;
 set global innodb_purge_stop_now=ON;
 set global innodb_purge_run_now=ON;
---source include/wait_condition.inc
+--source include/wait_innodb_all_purged.inc
 #deleting 1 record of 2 records don't cause merge artificially.
 #current tree form
 #      (1)
@@ -94,7 +90,7 @@ set global innodb_limit_optimistic_insert_debug = 0;
 delete from t1 where a=2;
 set global innodb_purge_stop_now=ON;
 set global innodb_purge_run_now=ON;
---source include/wait_condition.inc
+--source include/wait_innodb_all_purged.inc
 #merge page occurs. and lift up occurs.
 #current tree form
 #      (1)
@@ -113,7 +109,7 @@ insert into t1 values (2);
 delete from t1 where a=2;
 set global innodb_purge_stop_now=ON;
 set global innodb_purge_run_now=ON;
---source include/wait_condition.inc
+--source include/wait_innodb_all_purged.inc
 #current tree form
 #      (1)
 #    (1, 3)
@@ -129,7 +125,7 @@ insert into t1 values (2);
 delete from t1 where a=2;
 set global innodb_purge_stop_now=ON;
 set global innodb_purge_run_now=ON;
---source include/wait_condition.inc
+--source include/wait_innodb_all_purged.inc
 #current tree form
 #      (1, 3)
 
