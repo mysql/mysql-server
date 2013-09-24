@@ -17,28 +17,38 @@
  Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA
  02110-1301  USA
  */
-
-/** This is the smoke test for the multidb suite.
- */
-
 "use strict";
 
-try {
-  require("./suite_config.js");
-} catch (e) {}
+var udebug = unified_debug.getLogger("multipartkeys/QueryScanTest.js");
+var QueryTest = require('../lib/QueryTest.js');
 
-var test = new harness.SmokeTest("SmokeTest");
-
-test.run = function() {
-  var testCase = this;
-  harness.SQL.create(this.suite, function(error) {
-    if (error) {
-      testCase.fail('createSQL failed: ' + error);
-    } else {
-      testCase.pass();
-    }
-  });
+var q1 = { 
+  name: 'q1',
+  queryType: 3,  /* table scan */
+  expected: [1,2,3,4,5,6,7,8,9,10,11,12,13,14,15,16,17,18,19,20],
+  predicate: function(q) {
+    return q;
+  }
 };
 
+var q2 = {
+  name: 'q2',
+  queryType: 2,  /* index scan */
+  expected: [16, 17, 18, 19, 20], 
+  predicate: function(q) {
+    return q.k3.isNull();
+  }
+};
 
-exports.tests = [test];
+var queryTests = [q1, q2];
+
+
+/** Set up domain type */
+function mpk1() {};
+new mynode.TableMapping('mpk1').applyToClass(mpk1);
+
+/** Define test */
+var testQueries = new QueryTest("QueryScanTest", mpk1, queryTests);
+
+module.exports.tests = [testQueries];
+
