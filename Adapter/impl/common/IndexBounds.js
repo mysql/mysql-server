@@ -102,17 +102,12 @@ function isBoolean(x) {
 
 /* An Endpoint holds a value (either EncodedValue or plain JavaScript value), 
    and, as the endpoint of a range of values, is either inclusive of the point 
-   value itself or not.  
-   "inclusive" defaults to true for values other than Infinity and -Infinity
+   value itself or not.  "inclusive" defaults to true.
 */
 function Endpoint(value, inclusive) {
   this.value = value;
+  this.inclusive = (inclusive === false) ? false : true;
   this.isFinite = (typeof value === 'number') ? isFinite(value) : true;
-  
-  if(typeof inclusive === 'boolean') 
-    this.inclusive = inclusive;
-  else 
-    this.inclusive = this.isFinite;
 }
 
 Endpoint.prototype.isEndpoint = true;
@@ -167,7 +162,7 @@ Endpoint.prototype.compare = function(that) {
 
 /* complement flips Endpoint between inclusive and exclusive
    Used in complementing number lines.
-   e.g. the complement of [4,10] is (-Inf, 4) and (10, Inf)
+   e.g. the complement of [4,10] is [-Inf, 4) and (10, Inf]
 */
 Endpoint.prototype.complement = function() {
   if(this.isFinite) 
@@ -531,27 +526,6 @@ function getBoundingSegmentForDataType(columnMetadata) {
   else if(columnMetadata.isNullable) lowBound = null;
   else lowBound = -Infinity;
 
-  if(columnMetadata.isIntegral) {
-    if(columnMetadata.isUnsigned) {
-      switch(columnMetadata.intSize) {
-        case 1:   highBound = 255;        break;
-        case 2:   highBound = 65535;      break;
-        case 3:   highBound = 16777215;   break;
-        case 4:   highBound = 4294967295; break;
-        default:  break;
-      }
-    }
-    else {
-      switch(columnMetadata.intSize) {
-        case 1:   highBound = 127;        lowBound = -128;        break;
-        case 2:   highBound = 32767;      lowBound = -32768;      break;
-        case 3:   highBound = 8338607;    lowBound = -8338608;    break;
-        case 4:   highBound = 2147483647; lowBound = -2147483648; break;
-        default:  break;
-      }
-    }
-  }
-
   return new Segment(new Endpoint(lowBound), new Endpoint(highBound));
 }
 
@@ -693,13 +667,25 @@ function CompositeEndpoint() {
 CompositeEndpoint.prototype.copy = function(that) {
   that.inclusive = this.inclusive;
   that.key = this.key.slice(0);  // slice() makes a copy
-}
+};
 
 CompositeEndpoint.prototype.push = function(endpoint) {
   this.key.push(endpoint.value);
   this.inclusive = endpoint.inclusive;
-}
+};
 
+CompositeEndpoint.prototype.asString = function() {
+  var open, close, result, i;
+  open = this.inclusive ? "[" : "(";
+  close = this.inclusive ? "]" : ")";
+  result = open;
+  for(i = 0 ; i < this.key.length ; i++) {
+    if(i) result += ",";
+    result += this.key[i];
+  }
+  result += close;
+  return result;
+};
 
 //////// IndexBounds               /////////////////
 
@@ -713,7 +699,11 @@ IndexBounds.prototype.copy = function() {
   this.low.copy(that.low);
   this.high.copy(that.high);
   return that;
-}
+};
+
+IndexBounds.prototype.asString = function() {
+  return "{ " + this.low.asString() + " -- " + this.high.asString() + " }";
+};
 
 
 //////// IndexColumn               /////////////////
@@ -743,11 +733,11 @@ IndexColumn.prototype.consolidate = function(partialBounds, doLow, doHigh) {
 
     if(doLow) {
       idxBounds.low.push(segment.low);
-      doLow = segment.low.inclusive;
+      doLow = segment.low.inclusive && segment.low.isFinite;
     }
     if(doHigh) {
       idxBounds.high.push(segment.high);
-      doHigh = segment.high.inclusive;
+      doHigh = segment.high.inclusive && segment.high.isFinite;
     }
     if(this.nextColumn && (doLow || doHigh)) {
       this.nextColumn.consolidate(idxBounds, doLow, doHigh);
@@ -766,6 +756,12 @@ function consolidateRanges(predicate) {
   allBounds = [];    // array of IndexBounds    
   nextColumn = null;
 
+  function stringify() {
+    var i, str='';
+    for(i = 0 ; i < allBounds.length ; i++) str += allBounds[i].asString();
+    return str;
+  }
+
   for(i = predicate.indexRanges.length - 1; i >= 0 ; i--) {
     columnBounds = predicate.indexRanges[i];
     thisColumn = new IndexColumn(allBounds, columnBounds, nextColumn);
@@ -774,7 +770,7 @@ function consolidateRanges(predicate) {
 
   /* nextColumn is now the first column */  
   nextColumn.consolidate(new IndexBounds(), true, true);
-  
+console.log("Bounds:", stringify());
   return allBounds;
 }
 
