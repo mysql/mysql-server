@@ -298,10 +298,10 @@ static int free_share(TOKUDB_SHARE * share, bool mutex_is_locked) {
         // It is imperative that we reset a DB to NULL once we are done with it.
         //
         for (uint i = 0; i < sizeof(share->key_file)/sizeof(share->key_file[0]); i++) {
-            if (tokudb_debug & TOKUDB_DEBUG_OPEN) {
-                TOKUDB_TRACE("dbclose:%p\n", share->key_file[i]);
-            }
             if (share->key_file[i]) { 
+                if (tokudb_debug & TOKUDB_DEBUG_OPEN) {
+                    TOKUDB_TRACE("dbclose:%p\n", share->key_file[i]);
+                }
                 error = share->key_file[i]->close(share->key_file[i], 0);
                 assert(error == 0);
                 if (error) {
@@ -7186,6 +7186,7 @@ cleanup:
 // if is_delete is false, then to_name must be non-NULL, as we are renaming the table.
 //
 int ha_tokudb::delete_or_rename_table (const char* from_name, const char* to_name, bool is_delete) {
+    THD *thd = ha_thd();
     int error;
     DB* status_db = NULL;
     DBC* status_cursor = NULL;
@@ -7196,7 +7197,14 @@ int ha_tokudb::delete_or_rename_table (const char* from_name, const char* to_nam
     memset(&curr_val, 0, sizeof(curr_val));
     pthread_mutex_lock(&tokudb_meta_mutex);
 
-    error = txn_begin(db_env, 0, &txn, 0, ha_thd());
+    DB_TXN *parent_txn = NULL;
+    tokudb_trx_data *trx = NULL;
+    trx = (tokudb_trx_data *) thd_data_get(thd, tokudb_hton->slot);
+    if (thd_sql_command(ha_thd()) == SQLCOM_CREATE_TABLE && trx && trx->sub_sp_level) {
+        parent_txn = trx->sub_sp_level;
+    }
+
+    error = txn_begin(db_env, parent_txn, &txn, 0, thd);
     if (error) { goto cleanup; }
 
     //
