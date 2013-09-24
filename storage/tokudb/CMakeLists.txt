@@ -23,6 +23,6 @@ INCLUDE_DIRECTORIES(${CMAKE_CURRENT_BINARY_DIR}/ft-index/toku_include)
 SET(TOKUDB_PLUGIN_DYNAMIC "ha_tokudb")
 SET(TOKUDB_SOURCES ha_tokudb.cc)
 MYSQL_ADD_PLUGIN(tokudb ${TOKUDB_SOURCES} STORAGE_ENGINE MODULE_ONLY
-    LINK_LIBRARIES tokufractaltree_static tokuportability_static z stdc++)
+    LINK_LIBRARIES tokufractaltree_static tokuportability_static ${ZLIB_LIBRARY} stdc++)
 SET_PROPERTY(TARGET tokudb APPEND PROPERTY LINK_FLAGS_RELEASE "-flto -fuse-linker-plugin")
 SET_PROPERTY(TARGET tokudb APPEND PROPERTY LINK_FLAGS_RELWITHDEBINFO "-flto -fuse-linker-plugin")
