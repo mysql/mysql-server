@@ -112,7 +112,7 @@ void Item_func::set_arguments(List<Item> &list)
 }
 
 Item_func::Item_func(List<Item> &list)
-  :allowed_arg_cols(1), persistent_maybe_null(0)
+  :allowed_arg_cols(1)
 {
   set_arguments(list);
 }
@@ -120,7 +120,6 @@ Item_func::Item_func(List<Item> &list)
 Item_func::Item_func(THD *thd, Item_func *item)
   :Item_result_field(thd, item),
    allowed_arg_cols(item->allowed_arg_cols),
-   persistent_maybe_null(0),
    arg_count(item->arg_count),
    used_tables_cache(item->used_tables_cache),
    not_null_tables_cache(item->not_null_tables_cache),
@@ -448,8 +447,6 @@ void Item_func::update_used_tables()
     args[i]->update_used_tables();
     used_tables_cache|=args[i]->used_tables();
     const_item_cache&=args[i]->const_item();
-    if (!persistent_maybe_null && args[i]->maybe_null)
-      maybe_null= 1;
   }
 }
 
@@ -1875,7 +1872,7 @@ void Item_func_div::fix_length_and_dec()
   case IMPOSSIBLE_RESULT:
     DBUG_ASSERT(0);
   }
-  set_persist_maybe_null(1); // devision by zero
+  maybe_null= 1; // devision by zero
   DBUG_VOID_RETURN;
 }
 
@@ -1959,7 +1956,7 @@ void Item_func_int_div::fix_length_and_dec()
   max_length=args[0]->max_length -
     (argtype == DECIMAL_RESULT || argtype == INT_RESULT ?
      args[0]->decimals : 0);
-  set_persist_maybe_null(1);
+  maybe_null=1;
   unsigned_flag=args[0]->unsigned_flag | args[1]->unsigned_flag;
 }
 
@@ -2046,7 +2043,7 @@ void Item_func_mod::result_precision()
 void Item_func_mod::fix_length_and_dec()
 {
   Item_num_op::fix_length_and_dec();
-  set_persist_maybe_null(1);
+  maybe_null= 1;
   unsigned_flag= args[0]->unsigned_flag;
 }
 
@@ -3264,7 +3261,7 @@ longlong Item_func_field::val_int()
 
 void Item_func_field::fix_length_and_dec()
 {
-  set_persist_maybe_null(0); max_length=3;
+  maybe_null=0; max_length=3;
   cmp_type= args[0]->result_type();
   for (uint i=1; i < arg_count ; i++)
     cmp_type= item_cmp_type(cmp_type, args[i]->result_type());
@@ -5469,7 +5466,7 @@ void Item_func_get_user_var::fix_length_and_dec()
 {
   THD *thd=current_thd;
   int error;
-  set_persist_maybe_null(1);
+  maybe_null=1;
   decimals=NOT_FIXED_DEC;
   max_length=MAX_BLOB_WIDTH;
 
@@ -5668,7 +5665,7 @@ void Item_func_get_system_var::update_null_value()
 void Item_func_get_system_var::fix_length_and_dec()
 {
   char *cptr;
-  set_persist_maybe_null(1);
+  maybe_null= TRUE;
   max_length= 0;
 
   if (var->check_type(var_type))
@@ -6236,7 +6233,7 @@ bool Item_func_match::fix_fields(THD *thd, Item **ref)
 
   status_var_increment(thd->status_var.feature_fulltext);
 
-  set_persist_maybe_null(1);
+  maybe_null=1;
   join_key=0;
 
   /*
@@ -6577,7 +6574,7 @@ longlong Item_func_row_count::val_int()
 Item_func_sp::Item_func_sp(Name_resolution_context *context_arg, sp_name *name)
   :Item_func(), context(context_arg), m_name(name), m_sp(NULL), sp_result_field(NULL)
 {
-  set_persist_maybe_null(1);
+  maybe_null= 1;
   m_name->init_qname(current_thd);
   dummy_table= (TABLE*) sql_calloc(sizeof(TABLE)+ sizeof(TABLE_SHARE));
   dummy_table->s= (TABLE_SHARE*) (dummy_table+1);
@@ -6588,7 +6585,7 @@ Item_func_sp::Item_func_sp(Name_resolution_context *context_arg,
                            sp_name *name, List<Item> &list)
   :Item_func(list), context(context_arg), m_name(name), m_sp(NULL),sp_result_field(NULL)
 {
-  set_persist_maybe_null(1);
+  maybe_null= 1;
   m_name->init_qname(current_thd);
   dummy_table= (TABLE*) sql_calloc(sizeof(TABLE)+ sizeof(TABLE_SHARE));
   dummy_table->s= (TABLE_SHARE*) (dummy_table+1);
@@ -6742,7 +6739,7 @@ void Item_func_sp::fix_length_and_dec()
   decimals= sp_result_field->decimals();
   max_length= sp_result_field->field_length;
   collation.set(sp_result_field->charset());
-  set_persist_maybe_null(1);
+  maybe_null= 1;
   unsigned_flag= test(sp_result_field->flags & UNSIGNED_FLAG);
 
   DBUG_VOID_RETURN;

@@ -2071,8 +2071,6 @@ public:
   void update_used_tables()
   {
     update_table_bitmaps();
-    if (field && field->table)
-      maybe_null|= field->maybe_null();
   }
   Item *get_tmp_table_item(THD *thd);
   bool collect_item_field_processor(uchar * arg);
@@ -3211,7 +3209,6 @@ public:
   void update_used_tables()
   {
     orig_item->update_used_tables();
-    maybe_null|= orig_item->maybe_null;
   }
   bool const_item() const { return orig_item->const_item(); }
   table_map not_null_tables() const { return orig_item->not_null_tables(); }
@@ -3304,7 +3301,6 @@ public:
   Item *replace_equal_field(uchar *arg);
   table_map used_tables() const;	
   table_map not_null_tables() const;
-  void update_used_tables();
   bool walk(Item_processor processor, bool walk_subquery, uchar *arg)
   { 
     return (*ref)->walk(processor, walk_subquery, arg) ||

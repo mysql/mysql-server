@@ -8457,7 +8457,7 @@ make_outerjoin_info(JOIN *join)
     TABLE_LIST *tbl= table->pos_in_table_list;
     TABLE_LIST *embedding= tbl->embedding;
 
-    if (tbl->outer_join)
+    if (tbl->outer_join & (JOIN_TYPE_LEFT | JOIN_TYPE_RIGHT))
     {
       /* 
         Table tab is the only one inner table for outer join.
@@ -12904,7 +12904,8 @@ simplify_joins(JOIN *join, List<TABLE_LIST> *join_list, COND *conds, bool top,
       table->embedding->nested_join->not_null_tables|= not_null_tables;
     }
 
-    if (!table->outer_join || (used_tables & not_null_tables))
+    if (!(table->outer_join & (JOIN_TYPE_LEFT | JOIN_TYPE_RIGHT)) ||
+        (used_tables & not_null_tables))
     {
       /* 
         For some of the inner tables there are conjunctive predicates
