@@ -376,7 +376,7 @@ DBOperation.prototype.prepareScan = function(ndbTransaction, callback) {
   var opcode = 33;  // How to tell from operation?
   var indexBounds = null;
   var execQueue = this.transaction.dbSession.execQueue;
-  var scanHelper, apiCall, boundsHelpers;
+  var scanHelper, apiCall, boundsHelpers, dbIndex;
  
   /* There is one global ScanHelperSpec */
   scanSpec.clear();
@@ -384,8 +384,9 @@ DBOperation.prototype.prepareScan = function(ndbTransaction, callback) {
   scanSpec[ScanHelper.table_record] = this.query.dbTableHandler.dbTable.record;
 
   if(this.query.queryType == 2) {  /* Index Scan */
-    scanSpec[ScanHelper.index_record] = this.query.dbIndexHandler.dbIndex.record;
-    indexBounds = getIndexBounds(this.query, this.params);
+    dbIndex = this.query.dbIndexHandler.dbIndex;
+    scanSpec[ScanHelper.index_record] = dbIndex.record;
+    indexBounds = getIndexBounds(this.query, dbIndex, this.params);
     if(indexBounds.length) {
       boundsHelpers = this.buildBoundHelpers(indexBounds);
       scanSpec[ScanHelper.bounds] = [];

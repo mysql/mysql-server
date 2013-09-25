@@ -780,17 +780,21 @@ console.log("Bounds:", stringify());
    Then consolidate the column bounds into a set of bounds on the index.
 
    Returns an array of IndexBounds   
+
+   @arg queryHandler 
+   @arg dbIndex -- IndexMetadata of index to evaluate
+   @arg params  -- params to substitute into query
    
    The chosen dbIndex is queryHandler.dbIndexHandler.dbIndex
    Its first column is dbIndex.columnNumbers[0] 
    The column record is queryHandler.dbTableHandler.dbTable.columns[n]      
 */
-function getIndexBounds(queryHandler, params) {
+function getIndexBounds(queryHandler, dbIndex, params) {
   var nparts, i, columnNumber, column, visitors;
   visitors = [];
-  nparts = queryHandler.dbIndexHandler.dbIndex.columnNumbers.length;
+  nparts = dbIndex.columnNumbers.length;
   for(i = 0  ; i < nparts ; i++) {
-    columnNumber = queryHandler.dbIndexHandler.dbIndex.columnNumbers[i];
+    columnNumber = dbIndex.columnNumbers[i];
     column = queryHandler.dbTableHandler.dbTable.columns[columnNumber];
     visitors[i] = new ColumnBoundVisitor(column, i, params);
     queryHandler.predicate.visit(visitors[i]);
