@@ -44,7 +44,7 @@ btr_pcur_create_for_mysql(void)
 	btr_pcur_t*	pcur;
 	DBUG_ENTER("btr_pcur_create_for_mysql");
 
-	pcur = (btr_pcur_t*) mem_alloc(sizeof(btr_pcur_t));
+	pcur = (btr_pcur_t*) ut_malloc(sizeof(btr_pcur_t));
 
 	pcur->btr_cur.index = NULL;
 	btr_pcur_init(pcur);
@@ -62,13 +62,8 @@ btr_pcur_reset(
 /*===========*/
 	btr_pcur_t*	cursor)	/*!< in, out: persistent cursor */
 {
-	if (cursor->old_rec_buf != NULL) {
-
-		mem_free(cursor->old_rec_buf);
-
-		cursor->old_rec_buf = NULL;
-	}
-
+	ut_free(cursor->old_rec_buf);
+	cursor->old_rec_buf = NULL;
 	cursor->btr_cur.index = NULL;
 	cursor->btr_cur.page_cur.rec = NULL;
 	cursor->old_rec = NULL;
@@ -91,7 +86,7 @@ btr_pcur_free_for_mysql(
 	DBUG_PRINT("btr_pcur_free_for_mysql", ("pcur: %p", cursor));
 
 	btr_pcur_reset(cursor);
-	mem_free(cursor);
+	ut_free(cursor);
 	DBUG_VOID_RETURN;
 }
 
@@ -189,16 +184,13 @@ btr_pcur_copy_stored_position(
 	btr_pcur_t*	pcur_donate)	/*!< in: pcur from which the info is
 					copied */
 {
-	if (pcur_receive->old_rec_buf) {
-		mem_free(pcur_receive->old_rec_buf);
-	}
-
+	ut_free(pcur_receive->old_rec_buf);
 	ut_memcpy(pcur_receive, pcur_donate, sizeof(btr_pcur_t));
 
 	if (pcur_donate->old_rec_buf) {
 
 		pcur_receive->old_rec_buf = (byte*)
-			mem_alloc(pcur_donate->buf_size);
+			ut_malloc(pcur_donate->buf_size);
 
 		ut_memcpy(pcur_receive->old_rec_buf, pcur_donate->old_rec_buf,
 			  pcur_donate->buf_size);

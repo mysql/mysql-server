@@ -857,7 +857,7 @@ srv_init(void)
 		srv_sys_sz += n_sys_threads * sizeof(*srv_sys->sys_threads);
 	}
 
-	srv_sys = static_cast<srv_sys_t*>(mem_zalloc(srv_sys_sz));
+	srv_sys = static_cast<srv_sys_t*>(ut_zalloc(srv_sys_sz));
 
 	srv_sys->n_sys_threads = n_sys_threads;
 
@@ -940,7 +940,7 @@ srv_free(void)
 
 	trx_i_s_cache_free(trx_i_s_cache);
 
-	mem_free(srv_sys);
+	ut_free(srv_sys);
 
 	srv_sys = 0;
 }
