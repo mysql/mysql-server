@@ -1472,7 +1472,7 @@ trx_undo_mem_create(
 			"undo->id is %lu", (ulong) id);
 	}
 
-	undo = static_cast<trx_undo_t*>(mem_alloc(sizeof(*undo)));
+	undo = static_cast<trx_undo_t*>(ut_malloc(sizeof(*undo)));
 
 	if (undo == NULL) {
 
@@ -1548,7 +1548,7 @@ trx_undo_mem_free(
 			"undo->id is %lu\n", (ulong) undo->id);
 	}
 
-	mem_free(undo);
+	ut_free(undo);
 }
 
 /**********************************************************************//**

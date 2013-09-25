@@ -553,7 +553,7 @@ fil_rename_tablespace(
 
 /*******************************************************************//**
 Allocates a file name for a single-table tablespace. The string must be freed
-by caller with mem_free().
+by caller with ut_free().
 @return own: file name */
 
 char*
@@ -563,7 +563,7 @@ fil_make_ibd_name(
 	bool		is_full_path);	/*!< in: TRUE if it is a dir path */
 /*******************************************************************//**
 Allocates a file name for a tablespace ISL file (InnoDB Symbolic Link).
-The string must be freed by caller with mem_free().
+The string must be freed by caller with ut_free().
 @return own: file name */
 
 char*

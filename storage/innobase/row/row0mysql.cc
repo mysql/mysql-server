@@ -927,9 +927,7 @@ row_prebuilt_free(
 	btr_pcur_reset(&prebuilt->pcur);
 	btr_pcur_reset(&prebuilt->clust_pcur);
 
-	if (prebuilt->mysql_template) {
-		mem_free(prebuilt->mysql_template);
-	}
+	ut_free(prebuilt->mysql_template);
 
 	if (prebuilt->ins_graph) {
 		que_graph_free_recursive(prebuilt->ins_graph);
@@ -982,7 +980,7 @@ row_prebuilt_free(
 			}
 		}
 
-		mem_free(base);
+		ut_free(base);
 	}
 
 	dict_table_close(prebuilt->table, dict_locked, TRUE);
@@ -2404,7 +2402,7 @@ err_exit:
 				fil_space_get_flags(table->space),
 				path, trx, commit);
 
-			mem_free(path);
+			ut_free(path);
 		}
 
 		if (err != DB_SUCCESS) {
@@ -2635,8 +2633,8 @@ error_handling:
 
 	trx->op_info = "";
 
-	mem_free(table_name);
-	mem_free(index_name);
+	ut_free(table_name);
+	ut_free(index_name);
 
 	return(err);
 }
@@ -2838,9 +2836,9 @@ already_dropped:
 	ut_print_name(stderr, NULL, TRUE, drop->table_name);
 	fputs(" in background drop queue.\n", stderr);
 
-	mem_free(drop->table_name);
+	ut_free(drop->table_name);
 
-	mem_free(drop);
+	ut_free(drop);
 
 	mutex_exit(&row_drop_list_mutex);
 
@@ -2903,7 +2901,7 @@ row_add_table_to_background_drop_list(
 	}
 
 	drop = static_cast<row_mysql_drop_t*>(
-		mem_alloc(sizeof(row_mysql_drop_t)));
+		ut_malloc(sizeof(row_mysql_drop_t)));
 
 	drop->table_name = mem_strdup(name);
 
@@ -4019,9 +4017,8 @@ funct_exit:
 	if (heap) {
 		mem_heap_free(heap);
 	}
-	if (filepath) {
-		mem_free(filepath);
-	}
+
+	ut_free(filepath);
 
 	if (locked_dictionary) {
 		if (trx->state != TRX_STATE_NOT_STARTED) {
@@ -4235,7 +4232,7 @@ loop:
 				"Cannot load table %s from InnoDB internal "
 				"data dictionary during drop database",
 				table_name);
-			mem_free(table_name);
+			ut_free(table_name);
 			err = DB_TABLE_NOT_FOUND;
 			break;
 
@@ -4284,7 +4281,7 @@ loop:
 
 			os_thread_sleep(1000000);
 
-			mem_free(table_name);
+			ut_free(table_name);
 
 			goto loop;
 		}
@@ -4299,11 +4296,11 @@ loop:
 				ut_strerr(err));
 			ut_print_name(stderr, trx, TRUE, table_name);
 			putc('\n', stderr);
-			mem_free(table_name);
+			ut_free(table_name);
 			break;
 		}
 
-		mem_free(table_name);
+		ut_free(table_name);
 	}
 
 	if (err == DB_SUCCESS) {
@@ -4567,7 +4564,7 @@ row_rename_table_for_mysql(
 				   "END;\n"
 				   , FALSE, trx);
 
-		mem_free(new_path);
+		ut_free(new_path);
 	}
 	if (err != DB_SUCCESS) {
 		goto end;
@@ -4893,7 +4890,7 @@ row_scan_index_for_mysql(
 	}
 
 	ulint bufsize = ut_max(UNIV_PAGE_SIZE, prebuilt->mysql_row_len);
-	buf = static_cast<byte*>(mem_alloc(bufsize));
+	buf = static_cast<byte*>(ut_malloc(bufsize));
 	heap = mem_heap_create(100);
 
 	cnt = 1000;
@@ -4928,7 +4925,7 @@ loop:
 	case DB_END_OF_INDEX:
 		ret = DB_SUCCESS;
 func_exit:
-		mem_free(buf);
+		ut_free(buf);
 		mem_heap_free(heap);
 
 		return(ret);

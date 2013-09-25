@@ -1605,7 +1605,7 @@ fts_rename_aux_tables(
 
 		err = fts_rename_one_aux_table(new_name, old_table_name, trx);
 
-		mem_free(old_table_name);
+		ut_free(old_table_name);
 
 		if (err != DB_SUCCESS) {
 			return(err);
@@ -1638,7 +1638,7 @@ fts_rename_aux_tables(
 			DBUG_EXECUTE_IF("fts_rename_failure",
 					err = DB_DEADLOCK;);
 
-			mem_free(old_table_name);
+			ut_free(old_table_name);
 
 			if (err != DB_SUCCESS) {
 				return(err);
@@ -1680,7 +1680,7 @@ fts_drop_common_tables(
 			error = err;
 		}
 
-		mem_free(table_name);
+		ut_free(table_name);
 	}
 
 	return(error);
@@ -1719,7 +1719,7 @@ fts_drop_index_split_tables(
 			error = err;
 		}
 
-		mem_free(table_name);
+		ut_free(table_name);
 	}
 
 	return(error);
@@ -1769,7 +1769,7 @@ fts_drop_index_tables(
 			error = err;
 		}
 
-		mem_free(table_name);
+		ut_free(table_name);
 	}
 #endif /* FTS_DOC_STATS_DEBUG */
 
@@ -1840,7 +1840,7 @@ fts_drop_tables(
 
 /*********************************************************************//**
 Prepare the SQL, so that all '%s' are replaced by the common prefix.
-@return sql string, use mem_free() to free the memory */
+@return sql string, use ut_free() to free the memory */
 static
 char*
 fts_prepare_sql(
@@ -1853,7 +1853,7 @@ fts_prepare_sql(
 
 	name_prefix = fts_get_table_name_prefix(fts_table);
 	sql = ut_strreplace(my_template, "%s", name_prefix);
-	mem_free(name_prefix);
+	ut_free(name_prefix);
 
 	return(sql);
 }
@@ -1891,7 +1891,7 @@ fts_create_common_tables(
 	/* Create the FTS tables that are common to an FTS index. */
 	sql = fts_prepare_sql(&fts_table, fts_create_common_tables_sql);
 	graph = fts_parse_sql_no_dict_lock(NULL, NULL, sql);
-	mem_free(sql);
+	ut_free(sql);
 
 	error = fts_eval_sql(trx, graph);
 
@@ -2011,7 +2011,7 @@ fts_create_one_index_table(
 			"Fail to create FTS index table %s", table_name);
 	}
 
-	mem_free(table_name);
+	ut_free(table_name);
 
 	return(new_table);
 }
@@ -2051,7 +2051,7 @@ fts_create_index_tables_low(
 	sql = fts_prepare_sql(&fts_table, fts_create_index_tables_sql);
 
 	graph = fts_parse_sql_no_dict_lock(NULL, NULL, sql);
-	mem_free(sql);
+	ut_free(sql);
 
 	error = fts_eval_sql(trx, graph);
 	que_graph_free(graph);
@@ -6201,7 +6201,7 @@ fts_check_and_drop_orphaned_tables(
 				os_file_delete_if_exists(innodb_data_file_key,
 							 path, NULL);
 
-				mem_free(path);
+				ut_free(path);
 			}
 		}
 	}
