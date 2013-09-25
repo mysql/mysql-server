@@ -875,7 +875,7 @@ void Item_func_monthname::fix_length_and_dec()
   collation.set(cs, DERIVATION_COERCIBLE, repertoire);
   decimals=0;
   max_length= locale->max_month_name_length * collation.collation->mbmaxlen;
-  set_persist_maybe_null(1);
+  maybe_null=1; 
 }
 
 
@@ -1025,7 +1025,7 @@ void Item_func_dayname::fix_length_and_dec()
   collation.set(cs, DERIVATION_COERCIBLE, repertoire);
   decimals=0;
   max_length= locale->max_day_name_length * collation.collation->mbmaxlen;
-  set_persist_maybe_null(1);
+  maybe_null=1; 
 }
 
 
@@ -1407,7 +1407,7 @@ void Item_func_curdate::fix_length_and_dec()
   ltime.hour= ltime.minute= ltime.second= 0;
   ltime.time_type= MYSQL_TIMESTAMP_DATE;
   Item_datefunc::fix_length_and_dec();
-  set_persist_maybe_null(0);
+  maybe_null= false;
 }
 
 /**
@@ -1646,7 +1646,7 @@ void Item_func_date_format::fix_length_and_dec()
                    collation.collation->mbmaxlen;
     set_if_smaller(max_length,MAX_BLOB_WIDTH);
   }
-  set_persist_maybe_null(1);				// If wrong date
+  maybe_null=1;					// If wrong date
 }
 
 
@@ -2014,7 +2014,7 @@ void Item_extract::print(String *str, enum_query_type query_type)
 
 void Item_extract::fix_length_and_dec()
 {
-  set_persist_maybe_null(1);					// If wrong date
+  maybe_null=1;					// If wrong date
   switch (int_type) {
   case INTERVAL_YEAR:		max_length=4; date_value=1; break;
   case INTERVAL_YEAR_MONTH:	max_length=6; date_value=1; break;

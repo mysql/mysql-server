@@ -38,8 +38,6 @@ protected:
     0 means get this number from first argument
   */
   uint allowed_arg_cols;
-  /* maybe_null can't be changed by parameters or used table state */
-  bool persistent_maybe_null;
 public:
   uint arg_count;
   table_map used_tables_cache, not_null_tables_cache;
@@ -65,13 +63,13 @@ public:
   enum Type type() const { return FUNC_ITEM; }
   virtual enum Functype functype() const   { return UNKNOWN_FUNC; }
   Item_func(void):
-    allowed_arg_cols(1), persistent_maybe_null(0), arg_count(0)
+    allowed_arg_cols(1), arg_count(0)
   {
     with_sum_func= 0;
     with_field= 0;
   }
   Item_func(Item *a):
-    allowed_arg_cols(1), persistent_maybe_null(0), arg_count(1)
+    allowed_arg_cols(1), arg_count(1)
   {
     args= tmp_arg;
     args[0]= a;
@@ -79,7 +77,7 @@ public:
     with_field= a->with_field;
   }
   Item_func(Item *a,Item *b):
-    allowed_arg_cols(1), persistent_maybe_null(0), arg_count(2)
+    allowed_arg_cols(1), arg_count(2)
   {
     args= tmp_arg;
     args[0]= a; args[1]= b;
@@ -87,7 +85,7 @@ public:
     with_field= a->with_field || b->with_field;
   }
   Item_func(Item *a,Item *b,Item *c):
-    allowed_arg_cols(1), persistent_maybe_null(0)
+    allowed_arg_cols(1)
   {
     arg_count= 0;
     if ((args= (Item**) sql_alloc(sizeof(Item*)*3)))
@@ -99,7 +97,7 @@ public:
     }
   }
   Item_func(Item *a,Item *b,Item *c,Item *d):
-    allowed_arg_cols(1), persistent_maybe_null(0)
+    allowed_arg_cols(1)
   {
     arg_count= 0;
     if ((args= (Item**) sql_alloc(sizeof(Item*)*4)))
@@ -113,7 +111,7 @@ public:
     }
   }
   Item_func(Item *a,Item *b,Item *c,Item *d,Item* e):
-    allowed_arg_cols(1), persistent_maybe_null(0)
+    allowed_arg_cols(1)
   {
     arg_count= 5;
     if ((args= (Item**) sql_alloc(sizeof(Item*)*5)))
@@ -304,11 +302,6 @@ public:
     info.original_func_item= this;
     info.bool_function= &Item::restore_to_before_no_rows_in_result;
     walk(&Item::call_bool_func_processor, FALSE, (uchar*) &info);
-  }
-  inline void set_persist_maybe_null(bool mb_null)
-  {
-    maybe_null= mb_null;
-    persistent_maybe_null= 1;
   }
 };
 
@@ -582,7 +575,7 @@ public:
   }
   double val_real();
   enum_field_types field_type() const { return MYSQL_TYPE_DOUBLE; }
-  void fix_length_and_dec() { set_persist_maybe_null(1); }
+  void fix_length_and_dec() { maybe_null= 1; }
   const char *func_name() const { return "double_typecast"; }
   virtual void print(String *str, enum_query_type query_type);
 };
@@ -723,7 +716,7 @@ class Item_dec_func :public Item_real_func
   void fix_length_and_dec()
   {
     decimals=NOT_FIXED_DEC; max_length=float_length(decimals);
-    set_persist_maybe_null(1);
+    maybe_null=1;
   }
 };
 
@@ -1047,7 +1040,7 @@ public:
   Item_func_coercibility(Item *a) :Item_int_func(a) {}
   longlong val_int();
   const char *func_name() const { return "coercibility"; }
-  void fix_length_and_dec() { max_length=10; set_persist_maybe_null(0); }
+  void fix_length_and_dec() { max_length=10; maybe_null= 0; }
   table_map not_null_tables() const { return 0; }
 };
 
@@ -1209,7 +1202,7 @@ public:
   {}
   longlong val_int();
   const char *func_name() const { return "benchmark"; }
-  void fix_length_and_dec() { max_length=1; set_persist_maybe_null(0); }
+  void fix_length_and_dec() { max_length=1; maybe_null=0; }
   virtual void print(String *str, enum_query_type query_type);
   bool check_vcol_func_processor(uchar *int_arg) 
   {
@@ -1462,7 +1455,7 @@ public:
   double val_real() { DBUG_ASSERT(fixed == 1); null_value= 1; return 0.0; }
   longlong val_int() { DBUG_ASSERT(fixed == 1); null_value=1; return 0; }
   enum Item_result result_type () const { return STRING_RESULT; }
-  void fix_length_and_dec() { set_persist_maybe_null(1); max_length=0; }
+  void fix_length_and_dec() { maybe_null=1; max_length=0; }
 };
 
 #endif /* HAVE_DLOPEN */
@@ -1483,7 +1476,7 @@ class Item_func_get_lock :public Item_int_func
   Item_func_get_lock(Item *a,Item *b) :Item_int_func(a,b) {}
   longlong val_int();
   const char *func_name() const { return "get_lock"; }
-  void fix_length_and_dec() { max_length=1; set_persist_maybe_null(1);}
+  void fix_length_and_dec() { max_length=1; maybe_null=1;}
   bool check_vcol_func_processor(uchar *int_arg) 
   {
     return trace_unsupported_by_check_vcol_func_processor(func_name());
@@ -1497,7 +1490,7 @@ public:
   Item_func_release_lock(Item *a) :Item_int_func(a) {}
   longlong val_int();
   const char *func_name() const { return "release_lock"; }
-  void fix_length_and_dec() { max_length=1; set_persist_maybe_null(1);}
+  void fix_length_and_dec() { max_length=1; maybe_null=1;}
   bool check_vcol_func_processor(uchar *int_arg) 
   {
     return trace_unsupported_by_check_vcol_func_processor(func_name());
@@ -1514,7 +1507,7 @@ public:
   Item_master_pos_wait(Item *a,Item *b,Item *c) :Item_int_func(a,b,c) {}
   longlong val_int();
   const char *func_name() const { return "master_pos_wait"; }
-  void fix_length_and_dec() { max_length=21; set_persist_maybe_null(1);}
+  void fix_length_and_dec() { max_length=21; maybe_null=1;}
   bool check_vcol_func_processor(uchar *int_arg) 
   {
     return trace_unsupported_by_check_vcol_func_processor(func_name());
@@ -1732,8 +1725,7 @@ public:
   Item_func_inet_aton(Item *a) :Item_int_func(a) {}
   longlong val_int();
   const char *func_name() const { return "inet_aton"; }
-  void fix_length_and_dec()
-  { decimals= 0; max_length= 21; set_persist_maybe_null(1); unsigned_flag= 1; }
+  void fix_length_and_dec() { decimals= 0; max_length= 21; maybe_null= 1; unsigned_flag= 1;}
 };
 
 
@@ -1801,8 +1793,7 @@ public:
   Item_func_is_free_lock(Item *a) :Item_int_func(a) {}
   longlong val_int();
   const char *func_name() const { return "is_free_lock"; }
-  void fix_length_and_dec()
-  { decimals= 0; max_length= 1; set_persist_maybe_null(1); }
+  void fix_length_and_dec() { decimals=0; max_length=1; maybe_null=1;}
   bool check_vcol_func_processor(uchar *int_arg) 
   {
     return trace_unsupported_by_check_vcol_func_processor(func_name());
@@ -1816,8 +1807,7 @@ public:
   Item_func_is_used_lock(Item *a) :Item_int_func(a) {}
   longlong val_int();
   const char *func_name() const { return "is_used_lock"; }
-  void fix_length_and_dec()
-  { decimals= 0; max_length= 10; set_persist_maybe_null(1);}
+  void fix_length_and_dec() { decimals=0; max_length=10; maybe_null=1;}
   bool check_vcol_func_processor(uchar *int_arg) 
   {
     return trace_unsupported_by_check_vcol_func_processor(func_name());
@@ -1840,7 +1830,7 @@ public:
   Item_func_row_count() :Item_int_func() {}
   longlong val_int();
   const char *func_name() const { return "row_count"; }
-  void fix_length_and_dec() { decimals= 0; set_persist_maybe_null(0); }
+  void fix_length_and_dec() { decimals= 0; maybe_null=0; }
   bool check_vcol_func_processor(uchar *int_arg) 
   {
 
@@ -1975,7 +1965,7 @@ public:
   Item_func_found_rows() :Item_int_func() {}
   longlong val_int();
   const char *func_name() const { return "found_rows"; }
-  void fix_length_and_dec() { decimals= 0; set_persist_maybe_null(0); }
+  void fix_length_and_dec() { decimals= 0; maybe_null=0; }
   bool check_vcol_func_processor(uchar *int_arg) 
   {
     return trace_unsupported_by_check_vcol_func_processor(func_name());

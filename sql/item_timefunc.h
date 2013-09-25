@@ -67,7 +67,7 @@ public:
   { 
     decimals=0; 
     max_length=6*MY_CHARSET_BIN_MB_MAXLEN;
-    set_persist_maybe_null(1);
+    maybe_null=1; 
   }
   enum_monotonicity_info get_monotonicity_info() const;
   longlong val_int_endpoint(bool left_endp, bool *incl_endp);
@@ -90,7 +90,7 @@ public:
   { 
     decimals=0; 
     max_length=2*MY_CHARSET_BIN_MB_MAXLEN;
-    set_persist_maybe_null(1);
+    maybe_null=1; 
   }
   bool check_partition_func_processor(uchar *int_arg) {return FALSE;}
   bool check_vcol_func_processor(uchar *int_arg) { return FALSE;}
@@ -123,7 +123,7 @@ public:
     collation.set(&my_charset_bin);
     decimals=0;
     max_length=2*MY_CHARSET_BIN_MB_MAXLEN;
-    set_persist_maybe_null(1);
+    maybe_null=1; 
   }
   bool check_partition_func_processor(uchar *int_arg) {return FALSE;}
   bool check_vcol_func_processor(uchar *int_arg) { return FALSE;}
@@ -158,7 +158,7 @@ public:
   { 
     decimals=0;
     max_length=3*MY_CHARSET_BIN_MB_MAXLEN;
-    set_persist_maybe_null(1);
+    maybe_null=1; 
   }
   bool check_partition_func_processor(uchar *int_arg) {return FALSE;}
   bool check_vcol_func_processor(uchar *int_arg) { return FALSE;}
@@ -179,7 +179,7 @@ public:
   {
     decimals=0;
     max_length=2*MY_CHARSET_BIN_MB_MAXLEN;
-    set_persist_maybe_null(1);
+    maybe_null=1;
   }
   bool check_partition_func_processor(uchar *int_arg) {return FALSE;}
   bool check_vcol_func_processor(uchar *int_arg) { return FALSE;}
@@ -200,7 +200,7 @@ public:
   {
     decimals=0;
     max_length=2*MY_CHARSET_BIN_MB_MAXLEN;
-    set_persist_maybe_null(1);
+    maybe_null=1;
   }
   bool check_partition_func_processor(uchar *int_arg) {return FALSE;}
   bool check_vcol_func_processor(uchar *int_arg) { return FALSE;}
@@ -221,7 +221,7 @@ public:
   { 
      decimals=0;
      max_length=1*MY_CHARSET_BIN_MB_MAXLEN;
-     set_persist_maybe_null(1);
+     maybe_null=1;
   }
   bool check_partition_func_processor(uchar *int_arg) {return FALSE;}
   bool check_vcol_func_processor(uchar *int_arg) { return FALSE;}
@@ -242,7 +242,7 @@ public:
   { 
     decimals=0;
     max_length=2*MY_CHARSET_BIN_MB_MAXLEN;
-    set_persist_maybe_null(1);
+    maybe_null=1;
   }
   bool check_partition_func_processor(uchar *int_arg) {return FALSE;}
   bool check_vcol_func_processor(uchar *int_arg) { return FALSE;}
@@ -263,7 +263,7 @@ public:
   { 
     decimals=0;
     max_length=2*MY_CHARSET_BIN_MB_MAXLEN;
-    set_persist_maybe_null(1);
+    maybe_null=1;
   }
 };
 
@@ -277,7 +277,7 @@ public:
   { 
     decimals=0;
     max_length=6*MY_CHARSET_BIN_MB_MAXLEN;
-    set_persist_maybe_null(1);
+    maybe_null=1;
   }
   bool check_partition_func_processor(uchar *int_arg) {return FALSE;}
   bool check_vcol_func_processor(uchar *int_arg) { return FALSE;}
@@ -300,7 +300,7 @@ public:
   { 
     decimals=0;
     max_length=4*MY_CHARSET_BIN_MB_MAXLEN;
-    set_persist_maybe_null(1);
+    maybe_null=1;
   }
   bool check_partition_func_processor(uchar *int_arg) {return FALSE;}
   bool check_vcol_func_processor(uchar *int_arg) { return FALSE;}
@@ -335,7 +335,7 @@ public:
     collation.set(&my_charset_bin);
     decimals=0;
     max_length=1*MY_CHARSET_BIN_MB_MAXLEN;
-    set_persist_maybe_null(1);
+    maybe_null=1;
   }
   bool check_partition_func_processor(uchar *int_arg) {return FALSE;}
   bool check_vcol_func_processor(uchar *int_arg) { return FALSE;}
@@ -372,7 +372,7 @@ public:
       decimals= args[0]->temporal_precision(arg0_expected_type());
     set_if_smaller(decimals, TIME_SECOND_PART_DIGITS);
     max_length=17 + (decimals ? decimals + 1 : 0);
-    set_persist_maybe_null(1);
+    maybe_null= true;
   }
   void find_num_type()
   { cached_result_type= decimals ? DECIMAL_RESULT : INT_RESULT; }
@@ -424,7 +424,7 @@ public:
   const char *func_name() const { return "time_to_sec"; }
   void fix_num_length_and_dec()
   {
-    set_persist_maybe_null(1);
+    maybe_null= true;
     Item_func_seconds_hybrid::fix_num_length_and_dec();
   }
   bool check_partition_func_processor(uchar *int_arg) {return FALSE;}
@@ -458,8 +458,8 @@ public:
   int save_in_field(Field *field, bool no_conversions)
   { return save_date_in_field(field); }
   void fix_length_and_dec()
-  { 
-    set_persist_maybe_null(1);
+  {
+    maybe_null= true;
     max_length= mysql_temporal_int_part_length(field_type());
     if (decimals)
     {
@@ -475,7 +475,7 @@ public:
       We set maybe_null to 1 as default as any bad argument with date or
       time can get us to return NULL.
     */ 
-    set_persist_maybe_null(1);
+    maybe_null= 1;
   }
 };
 
@@ -512,7 +512,7 @@ public:
   {
     store_now_in_TIME(&ltime);
     Item_timefunc::fix_length_and_dec();
-    set_persist_maybe_null(0);
+    maybe_null= false;
   }
   bool get_date(MYSQL_TIME *res, uint fuzzy_date);
   /* 
@@ -594,7 +594,7 @@ public:
   {
     store_now_in_TIME(&ltime);
     Item_temporal_func::fix_length_and_dec();
-    set_persist_maybe_null(0);
+    maybe_null= false;
   }
   bool get_date(MYSQL_TIME *res, uint fuzzy_date);
   virtual void store_now_in_TIME(MYSQL_TIME *now_time)=0;
@@ -941,7 +941,7 @@ public:
   void fix_length_and_dec() 
   { 
     decimals=0;
-    set_persist_maybe_null(1);
+    maybe_null=1;
   }
   bool check_partition_func_processor(uchar *int_arg) {return FALSE;}
   bool check_vcol_func_processor(uchar *int_arg) { return FALSE;}
@@ -963,7 +963,7 @@ public:
   void fix_length_and_dec()
   {
     decimals=0;
-    set_persist_maybe_null(1);
+    maybe_null=1;
   }
   virtual void print(String *str, enum_query_type query_type);
 };
@@ -985,7 +985,7 @@ public:
   const char *func_name() const { return "get_format"; }
   void fix_length_and_dec()
   {
-    set_persist_maybe_null(1);
+    maybe_null= 1;
     decimals=0;
     max_length=17*MY_CHARSET_BIN_MB_MAXLEN;
   }

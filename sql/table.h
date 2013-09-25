@@ -1202,6 +1202,7 @@ typedef struct st_schema_table
 
 #define JOIN_TYPE_LEFT	1
 #define JOIN_TYPE_RIGHT	2
+#define JOIN_TYPE_OUTER 4	/* Marker that this is an outer join */
 
 #define VIEW_SUID_INVOKER               0
 #define VIEW_SUID_DEFINER               1
