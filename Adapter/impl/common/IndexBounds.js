@@ -263,7 +263,7 @@ function SegmentIterator(segment) {
 
 SegmentIterator.prototype.next = function() {
   var s = this.item;
-  this.item = null
+  this.item = null;
   return s;
 };
 
@@ -282,7 +282,7 @@ function createSegmentBetween(a, b) {
 
 /* Create a segment for a comparison expression */
 function createSegmentForComparator(operator, value) {
-  var pt, segment, line;
+  var pt, segment;
   /* OperationCodes, from api/Query.js:
      LE: 0, LT: 1, GE: 2, GT: 3, EQ: 4, NE: 5 
   */
@@ -299,8 +299,7 @@ function createSegmentForComparator(operator, value) {
     case 5:   // NE
       pt = new Endpoint(value);
       segment = new Segment(pt, pt);
-      line = createNumberLineFromSegment(segment);
-      return (operator == 5 ? line.complement() : line);
+      return (operator == 5 ? segment.complement() : segment);
     default:
       return null;
   }
@@ -747,7 +746,7 @@ IndexColumn.prototype.consolidate = function(partialBounds, doLow, doHigh) {
     }
     segment = boundsIterator.next();
   }
-}
+};
 
 
 function consolidateRanges(predicate) {
@@ -791,8 +790,8 @@ function getIndexBounds(queryHandler, params) {
   visitors = [];
   nparts = queryHandler.dbIndexHandler.dbIndex.columnNumbers.length;
   for(i = 0  ; i < nparts ; i++) {
-    var columnNumber = queryHandler.dbIndexHandler.dbIndex.columnNumbers[i];
-    var column = queryHandler.dbTableHandler.dbTable.columns[columnNumber];
+    columnNumber = queryHandler.dbIndexHandler.dbIndex.columnNumbers[i];
+    column = queryHandler.dbTableHandler.dbTable.columns[columnNumber];
     visitors[i] = new ColumnBoundVisitor(column, i, params);
     queryHandler.predicate.visit(visitors[i]);
   }
