@@ -317,6 +317,11 @@ static void ft_close(CACHEFILE cachefile, int fd, void *header_v, bool oplsn_val
         ft_end_checkpoint(cachefile, fd, header_v);
         assert(!ft->h->dirty); // dirty bit should be cleared by begin_checkpoint and never set again (because we're closing the dictionary)
     }
+}
+
+// maps to cf->free_userdata
+static void ft_free(CACHEFILE cachefile UU(), void *header_v) {
+    FT ft = (FT) header_v;
     toku_ft_free(ft);
 }
 
@@ -392,6 +397,7 @@ static void ft_init(FT ft, FT_OPTIONS options, CACHEFILE cf) {
                                 ft,
                                 ft_log_fassociate_during_checkpoint,
                                 ft_close,
+                                ft_free,
                                 ft_checkpoint,
                                 ft_begin_checkpoint,
                                 ft_end_checkpoint,
@@ -494,6 +500,7 @@ int toku_read_ft_and_store_in_cachefile (FT_HANDLE brt, CACHEFILE cf, LSN max_ac
                                 (void*)h,
                                 ft_log_fassociate_during_checkpoint,
                                 ft_close,
+                                ft_free,
                                 ft_checkpoint,
                                 ft_begin_checkpoint,
                                 ft_end_checkpoint,

@@ -184,7 +184,7 @@ struct cachefile {
     // they are managed whenever we add or remove a pair from
     // the cachetable. As of Riddler, this linked list is only used to
     // make cachetable_flush_cachefile more efficient
-    PAIR cf_head;
+    PAIR cf_head; // doubly linked list that is NOT circular
     uint32_t num_pairs; // count on number of pairs in the cachetable belong to this cachefile
 
     bool for_checkpoint; //True if part of the in-progress checkpoint
@@ -209,6 +209,7 @@ struct cachefile {
     void *userdata;
     void (*log_fassociate_during_checkpoint)(CACHEFILE cf, void *userdata); // When starting a checkpoint we must log all open files.
     void (*close_userdata)(CACHEFILE cf, int fd, void *userdata, bool lsnvalid, LSN); // when closing the last reference to a cachefile, first call this function. 
+    void (*free_userdata)(CACHEFILE cf, void *userdata); // when closing the last reference to a cachefile, first call this function. 
     void (*begin_checkpoint_userdata)(LSN lsn_of_checkpoint, void *userdata); // before checkpointing cachefiles call this function.
     void (*checkpoint_userdata)(CACHEFILE cf, int fd, void *userdata); // when checkpointing a cachefile, call this function.
     void (*end_checkpoint_userdata)(CACHEFILE cf, int fd, void *userdata); // after checkpointing cachefiles call this function.
@@ -427,11 +428,13 @@ public:
     void add_cf_unlocked(CACHEFILE newcf);
     void remove_cf(CACHEFILE cf);
     FILENUM reserve_filenum();
+    uint32_t get_new_hash_id_unlocked();
     CACHEFILE find_cachefile_unlocked(struct fileid* fileid);
     void verify_unused_filenum(FILENUM filenum);
     // access to these fields are protected by the lock
-    CACHEFILE m_head;
+    CACHEFILE m_active_head; // head of CACHEFILEs that are active
     FILENUM m_next_filenum_to_use;
+    uint32_t m_next_hash_id_to_use;
     toku_pthread_rwlock_t m_lock; // this field is publoc so we are still POD
 };
 
