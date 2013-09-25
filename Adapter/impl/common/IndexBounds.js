@@ -534,7 +534,8 @@ function getBoundingSegmentForDataType(columnMetadata) {
  * Given a set of actual parameter values, 
  * calculate the bounding interval for a column
  */
-function ColumnBoundVisitor(column, idxPartNo, params) {
+function ColumnBoundVisitor(indexName, column, idxPartNo, params) {
+  this.ixName = indexName;
   this.column = column;
   this.id     = idxPartNo;
   this.params = params;
@@ -544,14 +545,17 @@ function ColumnBoundVisitor(column, idxPartNo, params) {
 /** Store the index bounds inside the query node */
 ColumnBoundVisitor.prototype.storeRange = function(node, bounds) {
   if(node.indexRanges === undefined) {
-    node.indexRanges = [];
+    node.indexRanges = {};
   }
-  node.indexRanges[this.id] = bounds;
+  if(node.indexRanges[this.ixName] === undefined) {
+    node.indexRanges[this.ixName] = [];
+  }
+  node.indexRanges[this.ixName][this.id] = bounds;
 };
 
 /** Fetch index bounds stored in a query node */
 ColumnBoundVisitor.prototype.fetchRange = function(node) {
-  return node.indexRanges[this.id];
+  return node.indexRanges[this.ixName][this.id];
 };
 
 
@@ -717,7 +721,7 @@ function IndexColumn(resultContainer, columnBounds, nextColumn) {
    building its part of the bound and then passing the result along
    to the next column.
    Take the partially completed bounds object that is passed in.
-   For each segment in this columns NumberLine, make a copy of
+   For each segment in this column's NumberLine, make a copy of
    the partialBounds, and try to add the segment to it.  If the 
    segment endpoint is exclusive, we have to stop there; otherwise,
    pass the partialBounds along to the next column.
@@ -749,7 +753,7 @@ IndexColumn.prototype.consolidate = function(partialBounds, doLow, doHigh) {
 };
 
 
-function consolidateRanges(predicate) {
+function consolidateRanges(indexName, predicate) {
   var i, allBounds, columnBounds, thisColumn, nextColumn;
 
   allBounds = [];    // array of IndexBounds    
@@ -761,8 +765,8 @@ function consolidateRanges(predicate) {
     return str;
   }
 
-  for(i = predicate.indexRanges.length - 1; i >= 0 ; i--) {
-    columnBounds = predicate.indexRanges[i];
+  for(i = predicate.indexRanges[indexName].length - 1; i >= 0 ; i--) {
+    columnBounds = predicate.indexRanges[indexName][i];
     thisColumn = new IndexColumn(allBounds, columnBounds, nextColumn);
     nextColumn = thisColumn;
   }
@@ -796,11 +800,11 @@ function getIndexBounds(queryHandler, dbIndex, params) {
   for(i = 0  ; i < nparts ; i++) {
     columnNumber = dbIndex.columnNumbers[i];
     column = queryHandler.dbTableHandler.dbTable.columns[columnNumber];
-    visitors[i] = new ColumnBoundVisitor(column, i, params);
+    visitors[i] = new ColumnBoundVisitor(dbIndex.name, column, i, params);
     queryHandler.predicate.visit(visitors[i]);
   }
   
-  return consolidateRanges(queryHandler.predicate);
+  return consolidateRanges(dbIndex.name, queryHandler.predicate);
 }
 
 exports.getIndexBounds = getIndexBounds;
