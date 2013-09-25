@@ -136,7 +136,7 @@ void checkpointer_test::test_begin_checkpoint() {
     struct cachefile cf;
     cf.next = NULL;
     cf.for_checkpoint = false;
-    m_cp.m_cf_list->m_head = &cf;
+    m_cp.m_cf_list->m_active_head = &cf;
     create_dummy_functions(&cf);
 
     m_cp.begin_checkpoint();
@@ -146,7 +146,7 @@ void checkpointer_test::test_begin_checkpoint() {
     // 3. Call checkpoint with MANY cachefiles.
     const uint32_t count = 3;
     struct cachefile cfs[count];
-    m_cp.m_cf_list->m_head = &cfs[0];
+    m_cp.m_cf_list->m_active_head = &cfs[0];
     for (uint32_t i = 0; i < count; ++i) {
         cfs[i].for_checkpoint = false;
         create_dummy_functions(&cfs[i]);
@@ -196,7 +196,7 @@ void checkpointer_test::test_pending_bits() {
     memset(&cf, 0, sizeof(cf));
     cf.next = NULL;
     cf.for_checkpoint = true;
-    m_cp.m_cf_list->m_head = &cf;
+    m_cp.m_cf_list->m_active_head = &cf;
     create_dummy_functions(&cf);
 
     CACHEKEY k;
@@ -341,7 +341,7 @@ void checkpointer_test::test_end_checkpoint() {
 
     ZERO_STRUCT(m_cp);
     m_cp.init(&ctbl.list, NULL, &ctbl.ev, &cfl);
-    m_cp.m_cf_list->m_head = &cf;
+    m_cp.m_cf_list->m_active_head = &cf;
 
     // 2. Add data before running checkpoint.
     const uint32_t count = 6;

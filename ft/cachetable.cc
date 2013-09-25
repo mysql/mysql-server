@@ -378,10 +378,11 @@ static void create_new_cachefile(
     CACHEFILE newcf = NULL;
     XCALLOC(newcf);
     newcf->cachetable = ct;
-    newcf->filenum = filenum;
     newcf->hash_id = hash_id;
-    newcf->fd = fd;
     newcf->fileid = fileid;
+
+    newcf->filenum = filenum;
+    newcf->fd = fd;
     newcf->fname_in_env = toku_xstrdup(fname_in_env);
     bjm_init(&newcf->bjm);
     *cfptr = newcf;
@@ -413,8 +414,15 @@ int toku_cachetable_openfd_with_filenum (CACHEFILE *cfptr, CACHETABLE ct, int fd
         goto exit;        
     }
     ct->cf_list.verify_unused_filenum(filenum);
-
-    create_new_cachefile(ct, filenum, filenum.fileid, fd, fname_in_env, fileid, &newcf);
+    create_new_cachefile(
+        ct,
+        filenum,
+        ct->cf_list.get_new_hash_id_unlocked(),
+        fd,
+        fname_in_env,
+        fileid,
+        &newcf
+        );
 
     ct->cf_list.add_cf_unlocked(newcf);
 
@@ -468,7 +476,9 @@ void toku_cachefile_close(CACHEFILE *cfp, bool oplsn_valid, LSN oplsn) {
     // Call the close userdata callback to notify the client this cachefile
     // and its underlying file are going to be closed
     if (cf->close_userdata) {
+        invariant(cf->free_userdata);
         cf->close_userdata(cf, cf->fd, cf->userdata, oplsn_valid, oplsn);
+        cf->free_userdata(cf, cf->userdata);
     }
 
     ct->cf_list.remove_cf(cf);
@@ -2381,6 +2391,77 @@ static void remove_pair_for_close(PAIR p, CACHETABLE ct) {
     cachetable_maybe_remove_and_free_pair(&ct->list, &ct->ev, p);
 }
 
+// helper function for cachetable_flush_cachefile, which happens on a close
+// writes out the dirty pairs on background threads and returns when
+// the writing is done
+static void write_dirty_pairs_for_close(CACHETABLE ct, CACHEFILE cf) {
+    BACKGROUND_JOB_MANAGER bjm = NULL;
+    bjm_init(&bjm);
+    ct->list.write_list_lock(); // TODO: (Zardosht), verify that this lock is unnecessary to take here
+    PAIR p = NULL;
+    // write out dirty PAIRs
+    uint32_t i;
+    if (cf) {
+        for (i = 0, p = cf->cf_head;
+            i < cf->num_pairs;
+            i++, p = p->cf_next)
+        {
+            flush_pair_for_close_on_background_thread(p, bjm, ct);
+        }
+    }
+    else {
+        for (i = 0, p = ct->list.m_checkpoint_head;
+            i < ct->list.m_n_in_table;
+            i++, p = p->clock_next)
+        {
+            flush_pair_for_close_on_background_thread(p, bjm, ct);
+        }
+    }
+    ct->list.write_list_unlock();
+    bjm_wait_for_jobs_to_finish(bjm);
+    bjm_destroy(bjm);
+}
+
+static void remove_all_pairs_for_close(CACHETABLE ct, CACHEFILE cf) {
+    ct->list.write_list_lock();
+    if (cf) {
+        while (cf->num_pairs > 0) {
+            PAIR p = cf->cf_head;
+            remove_pair_for_close(p, ct);
+        } 
+    }
+    else {
+        while (ct->list.m_n_in_table > 0) {
+            PAIR p = ct->list.m_checkpoint_head;
+            remove_pair_for_close(p, ct);
+        } 
+    }
+    ct->list.write_list_unlock();
+}
+
+static void verify_cachefile_flushed(CACHETABLE ct, CACHEFILE cf) {
+    // assert here that cachefile is flushed by checking
+    // pair_list and finding no pairs belonging to this cachefile
+    // Make a list of pairs that belong to this cachefile.
+#ifdef TOKU_DEBUG_PARANOID
+    if (cf) {
+        ct->list.write_list_lock();
+        // assert here that cachefile is flushed by checking
+        // pair_list and finding no pairs belonging to this cachefile
+        // Make a list of pairs that belong to this cachefile.
+        uint32_t i;
+        PAIR p = NULL;
+        for (i = 0, p = ct->list.m_checkpoint_head; 
+             i < ct->list.m_n_in_table; 
+             i++, p = p->clock_next) 
+         {
+             assert(p->cachefile != cf);
+         }
+         ct->list.write_list_unlock();
+    }
+#endif
+}
+
 // Flush (write to disk) all of the pairs that belong to a cachefile (or all pairs if 
 // the cachefile is NULL.
 // Must be holding cachetable lock on entry.
@@ -2405,67 +2486,13 @@ static void cachetable_flush_cachefile(CACHETABLE ct, CACHEFILE cf) {
     // no jobs added to the kibbutz. This implies that the only work other 
     // threads may be doing is work by the writer threads.
     //
-    
     // first write out dirty PAIRs
-    BACKGROUND_JOB_MANAGER bjm = NULL;
-    bjm_init(&bjm);
-    ct->list.write_list_lock(); // TODO: (Zardosht), verify that this lock is unnecessary to take here
-    PAIR p = NULL;
-    uint32_t i;
-    // write out dirty PAIRs
-    if (cf) {
-        for (i = 0, p = cf->cf_head; 
-            i < cf->num_pairs; 
-            i++, p = p->cf_next) 
-        {
-            flush_pair_for_close_on_background_thread(p, bjm, ct);
-        }
-    }
-    else {
-        for (i = 0, p = ct->list.m_checkpoint_head; 
-            i < ct->list.m_n_in_table; 
-            i++, p = p->clock_next) 
-        {
-            flush_pair_for_close_on_background_thread(p, bjm, ct);
-        }
-    }
-    ct->list.write_list_unlock();
-    bjm_wait_for_jobs_to_finish(bjm);
-    bjm_destroy(bjm);
+    write_dirty_pairs_for_close(ct, cf);
     
     // now that everything is clean, get rid of everything
-    ct->list.write_list_lock();
-    if (cf) {
-        while (cf->num_pairs > 0) {
-            p = cf->cf_head;
-            remove_pair_for_close(p, ct);
-        } 
-    }
-    else {
-        while (ct->list.m_n_in_table > 0) {
-            p = ct->list.m_checkpoint_head;
-            remove_pair_for_close(p, ct);
-        } 
-    }
-
-    // assert here that cachefile is flushed by checking
-    // pair_list and finding no pairs belonging to this cachefile
-    // Make a list of pairs that belong to this cachefile.
-#ifdef TOKU_DEBUG_PARANOID
-    if (cf) {
-        // assert here that cachefile is flushed by checking
-        // pair_list and finding no pairs belonging to this cachefile
-        // Make a list of pairs that belong to this cachefile.        
-        for (i = 0, p = ct->list.m_checkpoint_head; 
-             i < ct->list.m_n_in_table; 
-             i++, p = p->clock_next) 
-         {
-             assert(p->cachefile != cf);
-         }
-    }
-#endif
+    remove_all_pairs_for_close(ct, cf);
     
-    ct->list.write_list_unlock();
+    verify_cachefile_flushed(ct, cf);
     if (cf) {
         bjm_reset(cf->bjm);
     }
@@ -2871,6 +2898,7 @@ toku_cachefile_set_userdata (CACHEFILE cf,
                              void *userdata,
                              void (*log_fassociate_during_checkpoint)(CACHEFILE, void*),
                              void (*close_userdata)(CACHEFILE, int, void*, bool, LSN),
+                             void (*free_userdata)(CACHEFILE, void*),
                              void (*checkpoint_userdata)(CACHEFILE, int, void*),
                              void (*begin_checkpoint_userdata)(LSN, void*),
                              void (*end_checkpoint_userdata)(CACHEFILE, int, void*),
@@ -2879,6 +2907,7 @@ toku_cachefile_set_userdata (CACHEFILE cf,
     cf->userdata = userdata;
     cf->log_fassociate_during_checkpoint = log_fassociate_during_checkpoint;
     cf->close_userdata = close_userdata;
+    cf->free_userdata = free_userdata;
     cf->checkpoint_userdata = checkpoint_userdata;
     cf->begin_checkpoint_userdata = begin_checkpoint_userdata;
     cf->end_checkpoint_userdata = end_checkpoint_userdata;
@@ -4286,7 +4315,7 @@ void checkpointer::increment_num_txns() {
 //
 void checkpointer::update_cachefiles() {
     CACHEFILE cf;
-    for(cf = m_cf_list->m_head; cf; cf=cf->next) {
+    for(cf = m_cf_list->m_active_head; cf; cf=cf->next) {
         assert(cf->begin_checkpoint_userdata);
         if (cf->for_checkpoint) {
             cf->begin_checkpoint_userdata(m_lsn_of_checkpoint_in_progress,
@@ -4306,7 +4335,7 @@ void checkpointer::begin_checkpoint() {
     // 2. Make list of cachefiles to be included in the checkpoint.
     // TODO: <CER> How do we remove the non-lock cachetable reference here?
     m_cf_list->read_lock();
-    for (CACHEFILE cf = m_cf_list->m_head; cf; cf = cf->next) {
+    for (CACHEFILE cf = m_cf_list->m_active_head; cf; cf = cf->next) {
         // The caller must serialize open, close, and begin checkpoint.
         // So we should never see a closing cachefile here.
         // <CER> Is there an assert we can add here?
@@ -4365,7 +4394,7 @@ void checkpointer::log_begin_checkpoint() {
     m_lsn_of_checkpoint_in_progress = begin_lsn;
 
     // Log the list of open dictionaries.
-    for (CACHEFILE cf = m_cf_list->m_head; cf; cf = cf->next) {
+    for (CACHEFILE cf = m_cf_list->m_active_head; cf; cf = cf->next) {
         assert(cf->log_fassociate_during_checkpoint);
         cf->log_fassociate_during_checkpoint(cf, cf->userdata);
     }
@@ -4446,7 +4475,7 @@ void checkpointer::end_checkpoint(void (*testcallback_f)(void*),  void* testextr
 void checkpointer::fill_checkpoint_cfs(CACHEFILE* checkpoint_cfs) {
     m_cf_list->read_lock();
     uint32_t curr_index = 0;
-    for (CACHEFILE cf = m_cf_list->m_head; cf; cf = cf->next) {
+    for (CACHEFILE cf = m_cf_list->m_active_head; cf; cf = cf->next) {
         if (cf->for_checkpoint) {
             assert(curr_index < m_checkpoint_num_files);
             checkpoint_cfs[curr_index] = cf;
@@ -4538,8 +4567,9 @@ void checkpointer::remove_cachefiles(CACHEFILE* checkpoint_cfs) {
 static_assert(std::is_pod<cachefile_list>::value, "cachefile_list isn't POD");
 
 void cachefile_list::init() {
-    m_head = NULL;
+    m_active_head = NULL;
     m_next_filenum_to_use.fileid = 0;
+    m_next_hash_id_to_use = 0;
     toku_pthread_rwlock_init(&m_lock, NULL);
 }
 
@@ -4567,7 +4597,7 @@ int cachefile_list::cachefile_of_iname_in_env(const char *iname_in_env, CACHEFIL
     CACHEFILE extant;
     int r;
     r = ENOENT;
-    for (extant = m_head; extant; extant = extant->next) {
+    for (extant = m_active_head; extant; extant = extant->next) {
         if (extant->fname_in_env &&
             !strcmp(extant->fname_in_env, iname_in_env)) {
             *cf = extant;
@@ -4584,7 +4614,7 @@ int cachefile_list::cachefile_of_filenum(FILENUM filenum, CACHEFILE *cf) {
     CACHEFILE extant;
     int r = ENOENT;
     *cf = NULL;
-    for (extant = m_head; extant; extant = extant->next) {
+    for (extant = m_active_head; extant; extant = extant->next) {
         if (extant->filenum.fileid==filenum.fileid) {
             *cf = extant;
             r = 0;
@@ -4596,27 +4626,27 @@ int cachefile_list::cachefile_of_filenum(FILENUM filenum, CACHEFILE *cf) {
 }
 
 void cachefile_list::add_cf_unlocked(CACHEFILE cf) {
-    cf->next = m_head;
+    cf->next = m_active_head;
     cf->prev = NULL;
-    if (m_head) {
-        m_head->prev = cf;
+    if (m_active_head) {
+        m_active_head->prev = cf;
     }
-    m_head = cf;
+    m_active_head = cf;
 }
 
 
 void cachefile_list::remove_cf(CACHEFILE cf) {
     write_lock();
-    invariant(m_head != NULL);
+    invariant(m_active_head != NULL);
     if (cf->next) {
         cf->next->prev = cf->prev;
     }
     if (cf->prev) {
         cf->prev->next = cf->next;
     }
-    if (cf == m_head) {
+    if (cf == m_active_head) {
         invariant(cf->prev == NULL);
-        m_head = cf->next;
+        m_active_head = cf->next;
     }
     write_unlock();
 }
@@ -4627,7 +4657,7 @@ FILENUM cachefile_list::reserve_filenum() {
     // taking a write lock because we are modifying next_filenum_to_use
     write_lock();
 try_again:
-    for (extant = m_head; extant; extant = extant->next) {
+    for (extant = m_active_head; extant; extant = extant->next) {
         if (m_next_filenum_to_use.fileid==extant->filenum.fileid) {
             m_next_filenum_to_use.fileid++;
             goto try_again;
@@ -4639,9 +4669,15 @@ try_again:
     return filenum;
 }
 
+uint32_t cachefile_list::get_new_hash_id_unlocked() {
+    uint32_t retval = m_next_hash_id_to_use;
+    m_next_hash_id_to_use++;
+    return retval;
+}
+
 CACHEFILE cachefile_list::find_cachefile_unlocked(struct fileid* fileid) {
     CACHEFILE retval = NULL;
-    for (CACHEFILE extant = m_head; extant; extant = extant->next) {
+    for (CACHEFILE extant = m_active_head; extant; extant = extant->next) {
         if (toku_fileids_are_equal(&extant->fileid, fileid)) {
             // Clients must serialize cachefile open, close, and unlink
             // So, during open, we should never see a closing cachefile 
@@ -4656,7 +4692,7 @@ exit:
 }
 
 void cachefile_list::verify_unused_filenum(FILENUM filenum) {
-    for (CACHEFILE extant = m_head; extant; extant = extant->next) {
+    for (CACHEFILE extant = m_active_head; extant; extant = extant->next) {
         invariant(extant->filenum.fileid != filenum.fileid);
     }
 }

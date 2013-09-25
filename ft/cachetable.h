@@ -275,6 +275,7 @@ typedef void (*CACHETABLE_REMOVE_KEY)(CACHEKEY* cachekey, bool for_checkpoint, v
 void toku_cachefile_set_userdata(CACHEFILE cf, void *userdata,
     void (*log_fassociate_during_checkpoint)(CACHEFILE, void*),
     void (*close_userdata)(CACHEFILE, int, void*, bool, LSN),
+    void (*free_userdata)(CACHEFILE, void*),
     void (*checkpoint_userdata)(CACHEFILE, int, void*),
     void (*begin_checkpoint_userdata)(LSN, void*),
     void (*end_checkpoint_userdata)(CACHEFILE, int, void*),

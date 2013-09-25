@@ -422,6 +422,7 @@ cachetable_test (void) {
         NULL,
         &dummy_log_fassociate,
         &dummy_close_usr,
+        &dummy_free_usr,
         &dummy_chckpnt_usr,
         &test_begin_checkpoint,
         &dummy_end,
