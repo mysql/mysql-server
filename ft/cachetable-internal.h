@@ -197,7 +197,13 @@ struct cachefile {
     int fd;       /* Bug: If a file is opened read-only, then it is stuck in read-only.  If it is opened read-write, then subsequent writers can write to it too. */
     CACHETABLE cachetable;
     struct fileid fileid;
+    // the filenum is used as an identifer of the cachefile
+    // for logging and recovery
     FILENUM filenum;
+    // number used to generate hashes for blocks in the cachefile
+    // used in toku_cachetable_hash
+    // this used to be the filenum.fileid, but now it is separate
+    uint32_t hash_id;
     char *fname_in_env; /* Used for logging */
 
     void *userdata;
@@ -398,9 +404,10 @@ public:
 private:
     void pair_remove (PAIR p);
     void cf_pairs_remove (PAIR p);
+    void remove_from_hash_chain(PAIR p);
     void add_to_cf_list (PAIR p);
     void add_to_clock (PAIR p);
-    PAIR remove_from_hash_chain (PAIR remove_me, PAIR list);
+    void add_to_hash_chain(PAIR p);
 };
 
 ///////////////////////////////////////////////////////////////////////////////
@@ -415,6 +422,13 @@ public:
     void read_unlock();
     void write_lock();
     void write_unlock();
+    int cachefile_of_iname_in_env(const char *iname_in_env, CACHEFILE *cf);
+    int cachefile_of_filenum(FILENUM filenum, CACHEFILE *cf);
+    void add_cf_unlocked(CACHEFILE newcf);
+    void remove_cf(CACHEFILE cf);
+    FILENUM reserve_filenum();
+    CACHEFILE find_cachefile_unlocked(struct fileid* fileid);
+    void verify_unused_filenum(FILENUM filenum);
     // access to these fields are protected by the lock
     CACHEFILE m_head;
     FILENUM m_next_filenum_to_use;

@@ -542,12 +542,6 @@ int toku_cachefile_get_fd (CACHEFILE);
 // Return the filename
 char * toku_cachefile_fname_in_env (CACHEFILE cf);
 
-// For test programs only.
-// Set the cachefile's fd and fname.
-// Effect: Bind the cachefile to a new fd and fname. The old fd is closed.
-// Returns: 0 if success, otherwise an error number
-int toku_cachefile_set_fd (CACHEFILE cf, int fd, const char *fname_relative_to_env);
-
 // Make it so when the cachefile closes, the underlying file is unlinked
 void toku_cachefile_unlink_on_close(CACHEFILE cf);
 

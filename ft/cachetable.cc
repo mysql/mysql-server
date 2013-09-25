@@ -342,45 +342,14 @@ toku_cachetable_set_env_dir(CACHETABLE ct, const char *env_dir) {
 // Once the close has finished, there must not be a cachefile with that name
 // in the cachetable.
 int toku_cachefile_of_iname_in_env (CACHETABLE ct, const char *iname_in_env, CACHEFILE *cf) {
-    ct->cf_list.read_lock();
-    CACHEFILE extant;
-    int r;
-    r = ENOENT;
-    for (extant = ct->cf_list.m_head; extant; extant = extant->next) {
-        if (extant->fname_in_env &&
-            !strcmp(extant->fname_in_env, iname_in_env)) {
-            *cf = extant;
-            r = 0;
-            break;
-        }
-    }
-    ct->cf_list.read_unlock();
-    return r;
+    return ct->cf_list.cachefile_of_iname_in_env(iname_in_env, cf);
 }
 
 // What cachefile goes with particular fd?
 // This function can only be called if the brt is still open, so file must 
 // still be open
 int toku_cachefile_of_filenum (CACHETABLE ct, FILENUM filenum, CACHEFILE *cf) {
-    ct->cf_list.read_lock();
-    CACHEFILE extant;
-    int r = ENOENT;
-    *cf = NULL;
-    for (extant = ct->cf_list.m_head; extant; extant = extant->next) {
-        if (extant->filenum.fileid==filenum.fileid) {
-            *cf = extant;
-            r = 0;
-            break;
-        }
-    }
-    ct->cf_list.read_unlock();
-    return r;
-}
-
-static void cachefile_init_filenum(CACHEFILE cf, int fd, const char *fname_in_env, struct fileid fileid) {
-    cf->fd = fd;
-    cf->fileid = fileid;
-    cf->fname_in_env = toku_xstrdup(fname_in_env);
+    return ct->cf_list.cachefile_of_filenum(filenum, cf);
 }
 
 // TEST-ONLY function
@@ -393,30 +362,36 @@ int toku_cachetable_openfd (CACHEFILE *cfptr, CACHETABLE ct, int fd, const char 
 // Get a unique filenum from the cachetable
 FILENUM
 toku_cachetable_reserve_filenum(CACHETABLE ct) {
-    CACHEFILE extant;
-    FILENUM filenum;
-    invariant(ct);
-    // TODO: (Zardosht) make this function a method on the cf_list
-    // taking a write lock because we are modifying next_filenum_to_use
-    ct->cf_list.write_lock();
-try_again:
-    for (extant = ct->cf_list.m_head; extant; extant = extant->next) {
-        if (ct->cf_list.m_next_filenum_to_use.fileid==extant->filenum.fileid) {
-            ct->cf_list.m_next_filenum_to_use.fileid++;
-            goto try_again;
-        }
-    }
-    filenum = ct->cf_list.m_next_filenum_to_use;
-    ct->cf_list.m_next_filenum_to_use.fileid++;
-    ct->cf_list.write_unlock();
-    return filenum;
+    return ct->cf_list.reserve_filenum();
+}
+
+static void create_new_cachefile(
+    CACHETABLE ct,
+    FILENUM filenum,
+    uint32_t hash_id,
+    int fd,
+    const char *fname_in_env,
+    struct fileid fileid,
+    CACHEFILE *cfptr
+    ) {
+    // File is not open.  Make a new cachefile.
+    CACHEFILE newcf = NULL;
+    XCALLOC(newcf);
+    newcf->cachetable = ct;
+    newcf->filenum = filenum;
+    newcf->hash_id = hash_id;
+    newcf->fd = fd;
+    newcf->fileid = fileid;
+    newcf->fname_in_env = toku_xstrdup(fname_in_env);
+    bjm_init(&newcf->bjm);
+    *cfptr = newcf;
 }
 
 int toku_cachetable_openfd_with_filenum (CACHEFILE *cfptr, CACHETABLE ct, int fd, 
                                          const char *fname_in_env,
                                          FILENUM filenum) {
     int r;
-    CACHEFILE extant, newcf;
+    CACHEFILE newcf;
     struct fileid fileid;
     
     assert(filenum.fileid != FILENUM_NONE.fileid);
@@ -427,41 +402,22 @@ int toku_cachetable_openfd_with_filenum (CACHEFILE *cfptr, CACHETABLE ct, int fd
         return r;
     }
     ct->cf_list.write_lock();
-    for (extant = ct->cf_list.m_head; extant; extant = extant->next) {
-        if (toku_fileids_are_equal(&extant->fileid, &fileid)) {
-            // Clients must serialize cachefile open, close, and unlink
-            // So, during open, we should never see a closing cachefile 
-            // or one that has been marked as unlink on close.
-            assert(!extant->unlink_on_close);
-
-            // Reuse an existing cachefile and close the caller's fd, whose
-            // responsibility has been passed to us.
-            r = close(fd);
-            assert(r == 0);
-            *cfptr = extant;
-            r = 0;
-            goto exit;
-        }
+    CACHEFILE existing_cf = ct->cf_list.find_cachefile_unlocked(&fileid);
+    if (existing_cf) {
+        // Reuse an existing cachefile and close the caller's fd, whose
+        // responsibility has been passed to us.
+        r = close(fd);
+        assert(r == 0);
+        *cfptr = existing_cf;
+        r = 0;
+        goto exit;        
     }
+    ct->cf_list.verify_unused_filenum(filenum);
 
-    // assert that the filenum is not in use
-    for (extant = ct->cf_list.m_head; extant; extant = extant->next) {
-        invariant(extant->filenum.fileid != filenum.fileid);
-    }
+    create_new_cachefile(ct, filenum, filenum.fileid, fd, fname_in_env, fileid, &newcf);
 
-    // File is not open.  Make a new cachefile.
-    XCALLOC(newcf);
-    newcf->cachetable = ct;
-    newcf->filenum = filenum;
-    cachefile_init_filenum(newcf, fd, fname_in_env, fileid);
-    newcf->next = ct->cf_list.m_head;
-    newcf->prev = NULL;
-    if (ct->cf_list.m_head) {
-        ct->cf_list.m_head->prev = newcf;
-    }
-    ct->cf_list.m_head = newcf;
+    ct->cf_list.add_cf_unlocked(newcf);
 
-    bjm_init(&newcf->bjm);
     *cfptr = newcf;
     r = 0;
  exit:
@@ -485,38 +441,6 @@ int toku_cachetable_openf (CACHEFILE *cfptr, CACHETABLE ct, const char *fname_in
     return r;
 }
 
-//Test-only function
-int toku_cachefile_set_fd (CACHEFILE cf, int fd, const char *fname_in_env) {
-    struct fileid fileid;
-    int r = toku_os_get_unique_file_id(fd, &fileid);
-    if (r != 0) { 
-        r = get_error_errno();
-        close(fd);
-        goto cleanup;
-    }
-    if (cf->close_userdata) {
-        cf->close_userdata(cf, cf->fd, cf->userdata, false, ZERO_LSN);
-    }
-    cf->close_userdata = NULL;
-    cf->checkpoint_userdata = NULL;
-    cf->begin_checkpoint_userdata = NULL;
-    cf->end_checkpoint_userdata = NULL;
-    cf->userdata = NULL;
-
-    close(cf->fd);
-    cf->fd = -1;
-    if (cf->fname_in_env) {
-        toku_free(cf->fname_in_env);
-        cf->fname_in_env = NULL;
-    }
-    //It is safe to have the name repeated since this is a ft-only test function.
-    //There isn't an environment directory so its both env/cwd.
-    cachefile_init_filenum(cf, fd, fname_in_env, fileid);
-    r = 0;
-cleanup:
-    return r;
-}
-
 char *
 toku_cachefile_fname_in_env (CACHEFILE cf) {
     return cf->fname_in_env;
@@ -525,23 +449,6 @@ toku_cachefile_fname_in_env (CACHEFILE cf) {
 int 
 toku_cachefile_get_fd (CACHEFILE cf) {
     return cf->fd;
-}
-
-static void remove_cf_from_cachefiles_list (CACHEFILE cf) {
-    CACHETABLE ct = cf->cachetable;
-    ct->cf_list.write_lock();
-    invariant(ct->cf_list.m_head != NULL);
-    if (cf->next) {
-        cf->next->prev = cf->prev;
-    }
-    if (cf->prev) {
-        cf->prev->next = cf->next;
-    }
-    if (cf == ct->cf_list.m_head) {
-        invariant(cf->prev == NULL);
-        ct->cf_list.m_head = cf->next;
-    }
-    ct->cf_list.write_unlock();
 }
 
 void toku_cachefile_close(CACHEFILE *cfp, bool oplsn_valid, LSN oplsn) {
@@ -564,7 +471,8 @@ void toku_cachefile_close(CACHEFILE *cfp, bool oplsn_valid, LSN oplsn) {
         cf->close_userdata(cf, cf->fd, cf->userdata, oplsn_valid, oplsn);
     }
 
-    remove_cf_from_cachefiles_list(cf);
+    ct->cf_list.remove_cf(cf);
+
     bjm_destroy(cf->bjm);
     cf->bjm = NULL;
 
@@ -617,7 +525,7 @@ static inline uint32_t final (uint32_t a, uint32_t b, uint32_t c) {
 uint32_t toku_cachetable_hash (CACHEFILE cachefile, BLOCKNUM key)
 // Effect: Return a 32-bit hash key.  The hash key shall be suitable for using with bitmasking for a table of size power-of-two.
 {
-    return final(cachefile->filenum.fileid, (uint32_t)(key.b>>32), (uint32_t)key.b);
+    return final(cachefile->hash_id, (uint32_t)(key.b>>32), (uint32_t)key.b);
 }
 
 #define CLOCK_SATURATION 15
@@ -3324,9 +3232,7 @@ void pair_list::put(PAIR p) {
 
     this->add_to_clock(p);
     this->add_to_cf_list(p);
-    uint32_t h = p->fullhash & (m_table_size - 1);
-    p->hash_chain = m_table[h];
-    m_table[h] = p;
+    this->add_to_hash_chain(p);
     m_n_in_table++;
 }
 
@@ -3338,21 +3244,10 @@ void pair_list::evict(PAIR p) {
     this->pair_remove(p);
     this->pending_pairs_remove(p);
     this->cf_pairs_remove(p);
+    this->remove_from_hash_chain(p);
     
     assert(m_n_in_table > 0);
-    m_n_in_table--;
-    
-    // Remove it from the hash chain.
-    unsigned int h = p->fullhash&(m_table_size - 1);
-    m_table[h] = this->remove_from_hash_chain(p, m_table[h]);
-}
-
-PAIR pair_list::remove_from_hash_chain (PAIR remove_me, PAIR list) {
-    if (remove_me == list) {
-        return list->hash_chain;
-    }
-    list->hash_chain = this->remove_from_hash_chain(remove_me, list->hash_chain);
-    return list;
+    m_n_in_table--;    
 }
 
 // 
@@ -3423,6 +3318,22 @@ void pair_list::cf_pairs_remove(PAIR p) {
     cf->num_pairs--;
 }
 
+void pair_list::remove_from_hash_chain(PAIR p) {
+    // Remove it from the hash chain.
+    unsigned int h = p->fullhash&(m_table_size - 1);
+    paranoid_invariant(m_table[h] != NULL);
+    if (m_table[h] == p) {
+        m_table[h] = p->hash_chain;
+    }
+    else {
+        PAIR curr = m_table[h];
+        while (curr->hash_chain != p) {
+            curr = curr->hash_chain;
+        }
+        // remove p from the singular linked list
+        curr->hash_chain = p->hash_chain;
+    }
+}
 
 // Returns a pair from the pair list, using the given 
 // pair.  If the pair cannot be found, null is returned.
@@ -3486,6 +3397,15 @@ void pair_list::add_to_cf_list(PAIR p) {
     cf->num_pairs++;
 }
 
+// Add PAIR to the hashtable
+//
+// requires caller to have grabbed write lock on list
+// and to have grabbed the p->mutex.
+void pair_list::add_to_hash_chain(PAIR p) {
+    uint32_t h = p->fullhash & (m_table_size - 1);
+    p->hash_chain = m_table[h];
+    m_table[h] = p;
+}
 
 // test function
 //
@@ -4642,6 +4562,105 @@ void cachefile_list::write_lock() {
 void cachefile_list::write_unlock() {
     toku_pthread_rwlock_wrunlock(&m_lock);
 }
+int cachefile_list::cachefile_of_iname_in_env(const char *iname_in_env, CACHEFILE *cf) {
+    read_lock();
+    CACHEFILE extant;
+    int r;
+    r = ENOENT;
+    for (extant = m_head; extant; extant = extant->next) {
+        if (extant->fname_in_env &&
+            !strcmp(extant->fname_in_env, iname_in_env)) {
+            *cf = extant;
+            r = 0;
+            break;
+        }
+    }
+    read_unlock();
+    return r;
+}
+
+int cachefile_list::cachefile_of_filenum(FILENUM filenum, CACHEFILE *cf) {
+    read_lock();
+    CACHEFILE extant;
+    int r = ENOENT;
+    *cf = NULL;
+    for (extant = m_head; extant; extant = extant->next) {
+        if (extant->filenum.fileid==filenum.fileid) {
+            *cf = extant;
+            r = 0;
+            break;
+        }
+    }
+    read_unlock();
+    return r;
+}
+
+void cachefile_list::add_cf_unlocked(CACHEFILE cf) {
+    cf->next = m_head;
+    cf->prev = NULL;
+    if (m_head) {
+        m_head->prev = cf;
+    }
+    m_head = cf;
+}
+
+
+void cachefile_list::remove_cf(CACHEFILE cf) {
+    write_lock();
+    invariant(m_head != NULL);
+    if (cf->next) {
+        cf->next->prev = cf->prev;
+    }
+    if (cf->prev) {
+        cf->prev->next = cf->next;
+    }
+    if (cf == m_head) {
+        invariant(cf->prev == NULL);
+        m_head = cf->next;
+    }
+    write_unlock();
+}
+
+FILENUM cachefile_list::reserve_filenum() {
+    CACHEFILE extant;
+    FILENUM filenum;
+    // taking a write lock because we are modifying next_filenum_to_use
+    write_lock();
+try_again:
+    for (extant = m_head; extant; extant = extant->next) {
+        if (m_next_filenum_to_use.fileid==extant->filenum.fileid) {
+            m_next_filenum_to_use.fileid++;
+            goto try_again;
+        }
+    }
+    filenum = m_next_filenum_to_use;
+    m_next_filenum_to_use.fileid++;
+    write_unlock();
+    return filenum;
+}
+
+CACHEFILE cachefile_list::find_cachefile_unlocked(struct fileid* fileid) {
+    CACHEFILE retval = NULL;
+    for (CACHEFILE extant = m_head; extant; extant = extant->next) {
+        if (toku_fileids_are_equal(&extant->fileid, fileid)) {
+            // Clients must serialize cachefile open, close, and unlink
+            // So, during open, we should never see a closing cachefile 
+            // or one that has been marked as unlink on close.
+            assert(!extant->unlink_on_close);
+            retval = extant;
+            goto exit;
+        }
+    }
+exit:
+    return retval;
+}
+
+void cachefile_list::verify_unused_filenum(FILENUM filenum) {
+    for (CACHEFILE extant = m_head; extant; extant = extant->next) {
+        invariant(extant->filenum.fileid != filenum.fileid);
+    }
+}
+
 
 void __attribute__((__constructor__)) toku_cachetable_helgrind_ignore(void);
 void
