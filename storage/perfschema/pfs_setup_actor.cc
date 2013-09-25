@@ -1,4 +1,4 @@
-/* Copyright (c) 2010, 2011, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2010, 2013, Oracle and/or its affiliates. All rights reserved.
 
   This program is free software; you can redistribute it and/or modify
   it under the terms of the GNU General Public License as published by
@@ -25,6 +25,7 @@
 #include "pfs_stat.h"
 #include "pfs_instr.h"
 #include "pfs_setup_actor.h"
+#include "pfs_account.h"
 #include "pfs_global.h"
 
 /**
@@ -199,6 +200,7 @@ int insert_setup_actor(const String *user, const String *host, const String *rol
         if (likely(res == 0))
         {
           pfs->m_lock.dirty_to_allocated();
+          update_setup_actors_derived_flags(thread);
           return 0;
         }
 
@@ -242,6 +244,8 @@ int delete_setup_actor(const String *user, const String *host, const String *rol
 
   lf_hash_search_unpin(pins);
 
+  update_setup_actors_derived_flags(thread);
+
   return 0;
 }
 
@@ -267,6 +271,8 @@ int reset_setup_actor()
       pfs->m_lock.allocated_to_free();
     }
   }
+
+  update_setup_actors_derived_flags(thread);
 
   return 0;
 }
@@ -332,6 +338,11 @@ void lookup_setup_actor(PFS_thread *thread,
   }
   *enabled= false;
   return;
+}
+
+void update_setup_actors_derived_flags(PFS_thread *thread)
+{
+  update_accounts_derived_flags(thread);
 }
 
 /** @} */
