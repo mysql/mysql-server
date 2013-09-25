@@ -273,50 +273,10 @@ ulint
 mem_heap_get_size(
 /*==============*/
 	mem_heap_t*	heap);		/*!< in: heap */
-/**************************************************************//**
-Use this macro instead of the corresponding function!
-Macro for memory buffer allocation */
-
-#define mem_zalloc(N)	memset(mem_alloc(N), 0, (N))
-
-#define mem_alloc(N)	mem_alloc_func((N), NULL, __FILE__, __LINE__)
-#define mem_alloc2(N,S)	mem_alloc_func((N), (S), __FILE__, __LINE__)
-/***************************************************************//**
-NOTE: Use the corresponding macro instead of this function.
-Allocates a single buffer of memory from the dynamic memory of
-the C compiler. Is like malloc of C. The buffer must be freed
-with mem_free.
-@return own: free storage */
-UNIV_INLINE
-void*
-mem_alloc_func(
-/*===========*/
-	ulint		n,		/*!< in: requested size in bytes */
-	ulint*		size,		/*!< out: allocated size in bytes,
-					or NULL */
-	const char*	file_name,	/*!< in: file name where created */
-	ulint		line);		/*!< in: line where created */
-
-/**************************************************************//**
-Use this macro instead of the corresponding function!
-Macro for memory buffer freeing */
-
-#define mem_free(PTR)	mem_free_func((PTR), __FILE__, __LINE__)
-/***************************************************************//**
-NOTE: Use the corresponding macro instead of this function.
-Frees a single buffer of storage from
-the dynamic memory of C compiler. Similar to free of C. */
-UNIV_INLINE
-void
-mem_free_func(
-/*==========*/
-	void*		ptr,		/*!< in, own: buffer to be freed */
-	const char*	file_name,	/*!< in: file name where created */
-	ulint		line);		/*!< in: line where created */
 
 /**********************************************************************//**
 Duplicates a NUL-terminated string.
-@return own: a copy of the string, must be deallocated with mem_free */
+@return own: a copy of the string, must be deallocated with ut_free */
 UNIV_INLINE
 char*
 mem_strdup(
@@ -324,7 +284,7 @@ mem_strdup(
 	const char*	str);	/*!< in: string to be copied */
 /**********************************************************************//**
 Makes a NUL-terminated copy of a nonterminated string.
-@return own: a copy of the string, must be deallocated with mem_free */
+@return own: a copy of the string, must be deallocated with ut_free */
 UNIV_INLINE
 char*
 mem_strdupl(

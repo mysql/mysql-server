@@ -1477,7 +1477,7 @@ fts_optimize_write_word(
 	fts_que_graph_free(graph);
 	graph = NULL;
 
-	mem_free(table_name);
+	ut_free(table_name);
 
 	/* Even if the operation needs to be rolled back and redone,
 	we iterate over the nodes in order to free the ilist. */
@@ -1728,7 +1728,7 @@ fts_optimize_free(
 	fts_doc_ids_free(optim->to_delete);
 	fts_optimize_graph_free(&optim->graph);
 
-	mem_free(optim->name_prefix);
+	ut_free(optim->name_prefix);
 
 	/* This will free the heap from which optim itself was allocated. */
 	mem_heap_free(heap);
@@ -2092,7 +2092,7 @@ fts_optimize_purge_deleted_doc_ids(
 
 	graph = fts_parse_sql(NULL, info, sql_str);
 
-	mem_free(sql_str);
+	ut_free(sql_str);
 
 	/* Delete the doc ids that were copied at the start. */
 	for (i = 0; i < ib_vector_size(optim->to_delete->doc_ids); ++i) {
@@ -2143,7 +2143,7 @@ fts_optimize_purge_deleted_doc_id_snapshot(
 	the start of optimize. */
 	graph = fts_parse_sql(NULL, NULL, sql_str);
 
-	mem_free(sql_str);
+	ut_free(sql_str);
 
 	error = fts_eval_sql(optim->trx, graph);
 	fts_que_graph_free(graph);
@@ -2192,7 +2192,7 @@ fts_optimize_create_deleted_doc_id_snapshot(
 	/* Move doc_ids that are to be deleted to state being deleted. */
 	graph = fts_parse_sql(NULL, NULL, sql_str);
 
-	mem_free(sql_str);
+	ut_free(sql_str);
 
 	error = fts_eval_sql(optim->trx, graph);
 

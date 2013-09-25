@@ -216,7 +216,7 @@ trx_purge_sys_create(
 	purge_pq_t*	purge_queue)		/*!< in, own: UNDO log min
 						binary heap */
 {
-	purge_sys = static_cast<trx_purge_t*>(mem_zalloc(sizeof(*purge_sys)));
+	purge_sys = static_cast<trx_purge_t*>(ut_zalloc(sizeof(*purge_sys)));
 
 	purge_sys->state = PURGE_STATE_INIT;
 	purge_sys->event = os_event_create(0);
@@ -298,7 +298,7 @@ trx_purge_sys_close(void)
 
 	delete purge_sys->rseg_iter;
 
-	mem_free(purge_sys);
+	ut_free(purge_sys);
 
 	purge_sys = NULL;
 }

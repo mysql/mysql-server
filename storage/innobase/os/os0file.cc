@@ -3374,7 +3374,7 @@ os_file_make_new_pathname(
 
 	/* allocate a new path and move the old directory path to it. */
 	new_path_len = dir_len + strlen(base_name) + sizeof "/.ibd";
-	new_path = static_cast<char*>(mem_alloc(new_path_len));
+	new_path = static_cast<char*>(ut_malloc(new_path_len));
 	memcpy(new_path, old_path, dir_len);
 
 	ut_snprintf(new_path + dir_len,
@@ -3422,7 +3422,7 @@ os_file_make_remote_pathname(
 	/* allocate a new path and move the old directory path to it. */
 	new_path_len = data_dir_len + strlen(tablename)
 		       + sizeof "/." + strlen(extention);
-	new_path = static_cast<char*>(mem_alloc(new_path_len));
+	new_path = static_cast<char*>(ut_malloc(new_path_len));
 	memcpy(new_path, data_dir_path, data_dir_len);
 	ut_snprintf(new_path + data_dir_len,
 		    new_path_len - data_dir_len,
@@ -3564,7 +3564,7 @@ os_file_create_subdirs_if_needed(
 	if (strlen(subdir) == 1
 	    && (*subdir == OS_PATH_SEPARATOR || *subdir == '.')) {
 		/* subdir is root or cwd, nothing to do */
-		mem_free(subdir);
+		ut_free(subdir);
 
 		return(TRUE);
 	}
@@ -3580,7 +3580,7 @@ os_file_create_subdirs_if_needed(
 		success = os_file_create_subdirs_if_needed(subdir);
 
 		if (!success) {
-			mem_free(subdir);
+			ut_free(subdir);
 
 			return(FALSE);
 		}
@@ -3588,7 +3588,7 @@ os_file_create_subdirs_if_needed(
 		success = os_file_create_directory(subdir, FALSE);
 	}
 
-	mem_free(subdir);
+	ut_free(subdir);
 
 	return(success);
 }

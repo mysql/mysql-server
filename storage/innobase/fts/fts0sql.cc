@@ -90,7 +90,7 @@ fts_get_table_id(
 
 /******************************************************************//**
 Construct the prefix name of an FTS table.
-@return own: table name, must be freed with mem_free() */
+@return own: table name, must be freed with ut_free() */
 
 char*
 fts_get_table_name_prefix(
@@ -117,7 +117,7 @@ fts_get_table_name_prefix(
 
 	prefix_name_len = dbname_len + 4 + len + 1;
 
-	prefix_name = static_cast<char*>(mem_alloc(prefix_name_len));
+	prefix_name = static_cast<char*>(ut_malloc(prefix_name_len));
 
 	len = sprintf(prefix_name, "%.*sFTS_%s",
 		      dbname_len, fts_table->parent, table_id);
@@ -130,7 +130,7 @@ fts_get_table_name_prefix(
 
 /******************************************************************//**
 Construct the name of an ancillary FTS table.
-@return own: table name, must be freed with mem_free() */
+@return own: table name, must be freed with ut_free() */
 
 char*
 fts_get_table_name(
@@ -148,14 +148,14 @@ fts_get_table_name(
 	name_len = (int) strlen(prefix_name) + 1
 		 + (int) strlen(fts_table->suffix) + 1;
 
-	name = static_cast<char*>(mem_alloc(name_len));
+	name = static_cast<char*>(ut_malloc(name_len));
 
 	len = sprintf(name, "%s_%s", prefix_name, fts_table->suffix);
 
 	ut_a(len > 0);
 	ut_a(len == name_len - 1);
 
-	mem_free(prefix_name);
+	ut_free(prefix_name);
 
 	return(name);
 }
@@ -181,16 +181,16 @@ fts_parse_sql(
 
 		table_name = fts_get_table_name(fts_table);
 		str_tmp = ut_strreplace(sql, "%s", table_name);
-		mem_free(table_name);
+		ut_free(table_name);
 	} else {
 		ulint	sql_len = strlen(sql) + 1;
 
-		str_tmp = static_cast<char*>(mem_alloc(sql_len));
+		str_tmp = static_cast<char*>(ut_malloc(sql_len));
 		strcpy(str_tmp, sql);
 	}
 
 	str = ut_str3cat(fts_sql_begin, str_tmp, fts_sql_end);
-	mem_free(str_tmp);
+	ut_free(str_tmp);
 
 	dict_locked = (fts_table && fts_table->table
 		       && (fts_table->table->fts->fts_status
@@ -210,7 +210,7 @@ fts_parse_sql(
 		mutex_exit(&dict_sys->mutex);
 	}
 
-	mem_free(str);
+	ut_free(str);
 
 	return(graph);
 }
@@ -239,12 +239,12 @@ fts_parse_sql_no_dict_lock(
 
 		table_name = fts_get_table_name(fts_table);
 		str_tmp = ut_strreplace(sql, "%s", table_name);
-		mem_free(table_name);
+		ut_free(table_name);
 	}
 
 	if (str_tmp != NULL) {
 		str = ut_str3cat(fts_sql_begin, str_tmp, fts_sql_end);
-		mem_free(str_tmp);
+		ut_free(str_tmp);
 	} else {
 		str = ut_str3cat(fts_sql_begin, sql, fts_sql_end);
 	}
@@ -254,7 +254,7 @@ fts_parse_sql_no_dict_lock(
 	graph = pars_sql(info, str);
 	ut_a(graph);
 
-	mem_free(str);
+	ut_free(str);
 
 	return(graph);
 }

@@ -469,7 +469,7 @@ ibuf_close(void)
 	mutex_free(&ibuf_bitmap_mutex);
 	memset(&ibuf_bitmap_mutex, 0x0, sizeof(ibuf_mutex));
 
-	mem_free(ibuf);
+	ut_free(ibuf);
 	ibuf = NULL;
 }
 
@@ -511,7 +511,7 @@ ibuf_init_at_db_start(void)
 	page_t*		header_page;
 	dberr_t		error;
 
-	ibuf = static_cast<ibuf_t*>(mem_zalloc(sizeof(ibuf_t)));
+	ibuf = static_cast<ibuf_t*>(ut_zalloc(sizeof(ibuf_t)));
 
 	/* At startup we intialize ibuf to have a maximum of
 	CHANGE_BUFFER_DEFAULT_SIZE in terms of percentage of the

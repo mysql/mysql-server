@@ -641,7 +641,7 @@ fil_node_create(
 
 	mutex_enter(&fil_system->mutex);
 
-	node = static_cast<fil_node_t*>(mem_zalloc(sizeof(fil_node_t)));
+	node = static_cast<fil_node_t*>(ut_zalloc(sizeof(fil_node_t)));
 
 	node->name = mem_strdup(name);
 
@@ -661,9 +661,9 @@ fil_node_create(
 			"InnoDB: file ", (ulong) id);
 		ut_print_filename(stderr, name);
 		fputs(" in the tablespace memory cache.\n", stderr);
-		mem_free(node->name);
+		ut_free(node->name);
 
-		mem_free(node);
+		ut_free(node);
 
 		mutex_exit(&fil_system->mutex);
 
@@ -1169,8 +1169,8 @@ fil_node_free(
 	UT_LIST_REMOVE(space->chain, node);
 
 	os_event_destroy(node->sync_event);
-	mem_free(node->name);
-	mem_free(node);
+	ut_free(node->name);
+	ut_free(node);
 }
 
 /*******************************************************************//**
@@ -1240,7 +1240,7 @@ fil_space_create(
 		return(FALSE);
 	}
 
-	space = static_cast<fil_space_t*>(mem_zalloc(sizeof(*space)));
+	space = static_cast<fil_space_t*>(ut_zalloc(sizeof(*space)));
 
 	space->name = mem_strdup(name);
 	space->id = id;
@@ -1416,8 +1416,8 @@ fil_space_free(
 
 	rw_lock_free(&(space->latch));
 
-	mem_free(space->name);
-	mem_free(space);
+	ut_free(space->name);
+	ut_free(space);
 
 	return(TRUE);
 }
@@ -1636,7 +1636,7 @@ fil_init(
 	ut_a(max_n_open > 0);
 
 	fil_system = static_cast<fil_system_t*>(
-		mem_zalloc(sizeof(*fil_system)));
+		ut_zalloc(sizeof(*fil_system)));
 
 	mutex_create("fil_system", &fil_system->mutex);
 
@@ -1844,7 +1844,7 @@ fil_write_lsn_and_arch_no_to_file(
 	byte*	buf;
 	dberr_t	err;
 
-	buf1 = static_cast<byte*>(mem_alloc(2 * UNIV_PAGE_SIZE));
+	buf1 = static_cast<byte*>(ut_malloc(2 * UNIV_PAGE_SIZE));
 	buf = static_cast<byte*>(ut_align(buf1, UNIV_PAGE_SIZE));
 
 	err = fil_read(TRUE, space, 0, sum_of_sizes, 0,
@@ -1856,7 +1856,7 @@ fil_write_lsn_and_arch_no_to_file(
 				UNIV_PAGE_SIZE, buf, NULL);
 	}
 
-	mem_free(buf1);
+	ut_free(buf1);
 
 	return(err);
 }
@@ -2116,7 +2116,7 @@ fil_create_directory_for_tablename(
 	len = strlen(fil_path_to_mysql_datadir);
 	namend = strchr(name, '/');
 	ut_a(namend);
-	path = static_cast<char*>(mem_alloc(len + (namend - name) + 2));
+	path = static_cast<char*>(ut_malloc(len + (namend - name) + 2));
 
 	memcpy(path, fil_path_to_mysql_datadir, len);
 	path[len] = '/';
@@ -2128,7 +2128,7 @@ fil_create_directory_for_tablename(
 	ibool	success = os_file_create_directory(path, FALSE);
 	ut_a(success);
 
-	mem_free(path);
+	ut_free(path);
 }
 
 #ifndef UNIV_HOTBACKUP
@@ -2308,7 +2308,7 @@ fil_recreate_tablespace(
 		byte*	buf;
 		page_t*	page;
 
-		buf = static_cast<byte*>(mem_zalloc(3 * UNIV_PAGE_SIZE));
+		buf = static_cast<byte*>(ut_zalloc(3 * UNIV_PAGE_SIZE));
 
 		/* Align the memory for file i/o */
 		page = static_cast<byte*>(ut_align(buf, UNIV_PAGE_SIZE));
@@ -2334,15 +2334,14 @@ fil_recreate_tablespace(
 			TRUE, space_id, zip_size, 0, 0, zip_size,
 			page_zip.data, NULL);
 
+		ut_free(buf);
+
 		if (err != DB_SUCCESS) {
 			ib_logf(IB_LOG_LEVEL_INFO,
 				"Failed to clean header of the table '%s' with"
 				" tablespace %lu", name, space_id);
-			mem_free(buf);
 			return(err);
 		}
-
-		mem_free(buf);
 	}
 
 	mtr_start(&mtr);
@@ -2617,7 +2616,7 @@ fil_op_log_parse_or_replay(
 
 /*******************************************************************//**
 Allocates a file name for the EXPORT/IMPORT config file name.  The
-string must be freed by caller with mem_free().
+string must be freed by caller with ut_free().
 @return own: file name */
 static
 char*
@@ -2864,8 +2863,8 @@ fil_close_tablespace(
 
 	os_file_delete_if_exists(innodb_data_file_key, cfg_name, NULL);
 
-	mem_free(path);
-	mem_free(cfg_name);
+	ut_free(path);
+	ut_free(cfg_name);
 
 	return(err);
 }
@@ -2947,7 +2946,7 @@ fil_delete_tablespace(
 	{
 		char*	cfg_name = fil_make_cfg_name(path);
 		os_file_delete_if_exists(innodb_data_file_key, cfg_name, NULL);
-		mem_free(cfg_name);
+		ut_free(cfg_name);
 	}
 
 	/* Delete the link file pointing to the ibd file we are deleting. */
@@ -3003,7 +3002,7 @@ fil_delete_tablespace(
 		err = DB_SUCCESS;
 	}
 
-	mem_free(path);
+	ut_free(path);
 
 	return(err);
 }
@@ -3065,7 +3064,7 @@ fil_prepare_for_truncate(
 	dberr_t	err = fil_check_pending_operations(
 		id, FIL_OPERATION_TRUNCATE, &space, &path);
 
-	mem_free(path);
+	ut_free(path);
 
 	if (err == DB_TABLESPACE_NOT_FOUND) {
 		ib_logf(IB_LOG_LEVEL_ERROR,
@@ -3231,8 +3230,8 @@ fil_rename_tablespace_in_mem(
 
 	HASH_DELETE(fil_space_t, name_hash, fil_system->name_hash,
 		    ut_fold_string(space->name), space);
-	mem_free(space->name);
-	mem_free(node->name);
+	ut_free(space->name);
+	ut_free(node->name);
 
 	space->name = mem_strdup(new_name);
 	node->name = mem_strdup(new_path);
@@ -3244,7 +3243,7 @@ fil_rename_tablespace_in_mem(
 
 /*******************************************************************//**
 Allocates a file name for a single-table tablespace. The string must be freed
-by caller with mem_free().
+by caller with ut_free().
 @return own: file name */
 
 char*
@@ -3258,7 +3257,7 @@ fil_make_ibd_name(
 	ulint	dirlen		= strlen(fil_path_to_mysql_datadir);
 	ulint	pathlen		= dirlen + namelen + sizeof "/.ibd";
 
-	filename = static_cast<char*>(mem_alloc(pathlen));
+	filename = static_cast<char*>(ut_malloc(pathlen));
 
 	if (is_full_path) {
 		memcpy(filename, name, namelen);
@@ -3276,7 +3275,7 @@ fil_make_ibd_name(
 
 /*******************************************************************//**
 Allocates a file name for a tablespace ISL file (InnoDB Symbolic Link).
-The string must be freed by caller with mem_free().
+The string must be freed by caller with ut_free().
 @return own: file name */
 
 char*
@@ -3289,7 +3288,7 @@ fil_make_isl_name(
 	ulint	dirlen		= strlen(fil_path_to_mysql_datadir);
 	ulint	pathlen		= dirlen + namelen + sizeof "/.isl";
 
-	filename = static_cast<char*>(mem_alloc(pathlen));
+	filename = static_cast<char*>(ut_malloc(pathlen));
 
 	ut_snprintf(filename, pathlen, "%s/%s.isl",
 		fil_path_to_mysql_datadir, name);
@@ -3466,9 +3465,9 @@ skip_second_rename:
 	}
 #endif /* !UNIV_HOTBACKUP */
 
-	mem_free(new_path);
-	mem_free(old_path);
-	mem_free(old_name);
+	ut_free(new_path);
+	ut_free(old_path);
+	ut_free(old_name);
 
 	return(success);
 }
@@ -3496,11 +3495,11 @@ fil_create_link_file(
 	if (prev_filepath) {
 		/* Truncate will call this with an existing
 		link file which contains the same filepath. */
-		if (0 == strcmp(prev_filepath, filepath)) {
-			mem_free(prev_filepath);
+		bool same = !strcmp(prev_filepath, filepath);
+		ut_free(prev_filepath);
+		if (same) {
 			return(DB_SUCCESS);
 		}
-		mem_free(prev_filepath);
 	}
 
 	link_filepath = fil_make_isl_name(tablename);
@@ -3532,7 +3531,7 @@ fil_create_link_file(
 		}
 
 		/* file is not open, no need to close it. */
-		mem_free(link_filepath);
+		ut_free(link_filepath);
 		return(err);
 	}
 
@@ -3544,7 +3543,7 @@ fil_create_link_file(
 	/* Close the file, we only need it at startup */
 	os_file_close(file);
 
-	mem_free(link_filepath);
+	ut_free(link_filepath);
 
 	return(err);
 }
@@ -3561,7 +3560,7 @@ fil_delete_link_file(
 
 	os_file_delete_if_exists(innodb_data_file_key, link_filepath, NULL);
 
-	mem_free(link_filepath);
+	ut_free(link_filepath);
 }
 
 /*******************************************************************//**
@@ -3586,10 +3585,10 @@ fil_read_link_file(
 
 	file = fopen(link_filepath, "r+b");
 
-	mem_free(link_filepath);
+	ut_free(link_filepath);
 
 	if (file) {
-		filepath = static_cast<char*>(mem_alloc(OS_FILE_MAX_PATH));
+		filepath = static_cast<char*>(ut_malloc(OS_FILE_MAX_PATH));
 
 		os_file_read_string(file, filepath, OS_FILE_MAX_PATH);
 		fclose(file);
@@ -3645,8 +3644,8 @@ fil_open_linked_file(
 			"could not be opened.",
 			link_filepath, *remote_filepath);
 
-		mem_free(link_filepath);
-		mem_free(*remote_filepath);
+		ut_free(link_filepath);
+		ut_free(*remote_filepath);
 		*remote_filepath = NULL;
 	}
 
@@ -3872,7 +3871,7 @@ error_exit_2:
 		os_file_delete(innodb_data_file_key, path);
 	}
 error_exit_3:
-	mem_free(path);
+	ut_free(path);
 
 	return(err);
 }
@@ -4021,7 +4020,7 @@ fil_open_single_table_tablespace(
 		    && (0 == strcmp(dict.filepath, remote.filepath))) {
 			remote.success = FALSE;
 			os_file_close(remote.file);
-			mem_free(remote.filepath);
+			ut_free(remote.filepath);
 			remote.filepath = NULL;
 			tablespaces_found--;
 		}
@@ -4207,7 +4206,7 @@ fil_open_single_table_tablespace(
 		if (remote.success && !remote.valid) {
 			remote.success = false;
 			os_file_close(remote.file);
-			mem_free(remote.filepath);
+			ut_free(remote.filepath);
 			remote.filepath = NULL;
 			tablespaces_found--;
 		}
@@ -4276,19 +4275,15 @@ cleanup_and_exit:
 	if (remote.success) {
 		os_file_close(remote.file);
 	}
-	if (remote.filepath) {
-		mem_free(remote.filepath);
-	}
 	if (dict.success) {
 		os_file_close(dict.file);
-	}
-	if (dict.filepath) {
-		mem_free(dict.filepath);
 	}
 	if (def.success) {
 		os_file_close(def.file);
 	}
-	mem_free(def.filepath);
+	ut_free(remote.filepath);
+	ut_free(dict.filepath);
+	ut_free(def.filepath);
 
 	return(err);
 }
@@ -4297,7 +4292,7 @@ cleanup_and_exit:
 #ifdef UNIV_HOTBACKUP
 /*******************************************************************//**
 Allocates a file name for an old version of a single-table tablespace.
-The string must be freed by caller with mem_free()!
+The string must be freed by caller with ut_free()!
 @return own: file name */
 static
 char*
@@ -4309,7 +4304,7 @@ fil_make_ibbackup_old_name(
 	char*	path;
 	ulint	len	= strlen(name);
 
-	path = static_cast<char*>(mem_alloc(len + (15 + sizeof suffix)));
+	path = static_cast<char*>(ut_malloc(len + (15 + sizeof suffix)));
 
 	memcpy(path, name, len);
 	memcpy(path + len, suffix, (sizeof suffix) - 1);
@@ -4363,7 +4358,7 @@ fil_validate_single_table_tablespace(
 			space->name, (ulong) space->id, prev_filepath,
 			tablename, (ulong) fsp->id, fsp->filepath);
 
-		mem_free(prev_filepath);
+		ut_free(prev_filepath);
 		fsp->success = FALSE;
 		return;
 	}
@@ -4403,7 +4398,7 @@ fil_load_single_table_tablespace(
 
 	/* Build up the tablename in the standard form database/table. */
 	tablename = static_cast<char*>(
-		mem_alloc(dbname_len + filename_len + 2));
+		ut_malloc(dbname_len + filename_len + 2));
 	sprintf(tablename, "%s/%s", dbname, filename);
 	tablename_len = strlen(tablename) - strlen(".ibd");
 	tablename[tablename_len] = '\0';
@@ -4415,7 +4410,7 @@ fil_load_single_table_tablespace(
 	already been loaded, there is nothing to do.*/
 	mutex_enter(&fil_system->mutex);
 	if (fil_space_get_by_name(tablename)) {
-		mem_free(tablename);
+		ut_free(tablename);
 		mutex_exit(&fil_system->mutex);
 		return;
 	}
@@ -4446,7 +4441,7 @@ fil_load_single_table_tablespace(
 		fil_validate_single_table_tablespace(tablename, &remote);
 		if (!remote.success) {
 			os_file_close(remote.file);
-			mem_free(remote.filepath);
+			ut_free(remote.filepath);
 		}
 	}
 
@@ -4474,13 +4469,9 @@ fil_load_single_table_tablespace(
 		if (!strncmp(filename,
 			     TEMP_FILE_PREFIX, TEMP_FILE_PREFIX_LENGTH)) {
 			/* Ignore errors for #sql tablespaces. */
-			mem_free(tablename);
-			if (remote.filepath) {
-				mem_free(remote.filepath);
-			}
-			if (def.filepath) {
-				mem_free(def.filepath);
-			}
+			ut_free(tablename);
+			ut_free(remote.filepath);
+			ut_free(def.filepath);
 			return;
 		}
 no_good_file:
@@ -4506,13 +4497,9 @@ no_good_file:
 			"InnoDB: and force InnoDB to continue crash"
 			" recovery here.\n");
 will_not_choose:
-		mem_free(tablename);
-		if (remote.filepath) {
-			mem_free(remote.filepath);
-		}
-		if (def.filepath) {
-			mem_free(def.filepath);
-		}
+		ut_free(tablename);
+		ut_free(remote.filepath);
+		ut_free(def.filepath);
 
 		if (srv_force_recovery > 0) {
 			ib_logf(IB_LOG_LEVEL_INFO,
@@ -4602,7 +4589,7 @@ will_not_choose:
 
 		ut_a(success);
 
-		mem_free(new_path);
+		ut_free(new_path);
 
 		goto func_exit_after_close;
 	}
@@ -4641,7 +4628,7 @@ will_not_choose:
 
 		ut_a(success);
 
-		mem_free(new_path);
+		ut_free(new_path);
 
 		goto func_exit_after_close;
 	}
@@ -4681,11 +4668,11 @@ func_exit_after_close:
 #else
 	ut_ad(!mutex_own(&fil_system->mutex));
 #endif
-	mem_free(tablename);
+	ut_free(tablename);
 	if (remote.success) {
-		mem_free(remote.filepath);
+		ut_free(remote.filepath);
 	}
-	mem_free(def.filepath);
+	ut_free(def.filepath);
 }
 
 /***********************************************************************//**
@@ -4755,7 +4742,7 @@ fil_load_single_table_tablespaces(void)
 		return(DB_ERROR);
 	}
 
-	dbpath = static_cast<char*>(mem_alloc(dbpath_len));
+	dbpath = static_cast<char*>(ut_malloc(dbpath_len));
 
 	/* Scan all directories under the datadir. They are the database
 	directories of MySQL. */
@@ -4779,12 +4766,8 @@ fil_load_single_table_tablespaces(void)
 			+ strlen (dbinfo.name) + 2;
 		if (len > dbpath_len) {
 			dbpath_len = len;
-
-			if (dbpath) {
-				mem_free(dbpath);
-			}
-
-			dbpath = static_cast<char*>(mem_alloc(dbpath_len));
+			ut_free(dbpath);
+			dbpath = static_cast<char*>(ut_malloc(dbpath_len));
 		}
 		ut_snprintf(dbpath, dbpath_len,
 			    "%s/%s", fil_path_to_mysql_datadir, dbinfo.name);
@@ -4841,7 +4824,7 @@ next_datadir_item:
 						 dir, &dbinfo);
 	}
 
-	mem_free(dbpath);
+	ut_free(dbpath);
 
 	if (0 != os_file_closedir(dir)) {
 		fprintf(stderr,
@@ -5212,7 +5195,7 @@ retry:
 
 	/* Extend at most 64 pages at a time */
 	buf_size = ut_min(64, size_after_extend - start_page_no) * page_size;
-	buf2 = static_cast<byte*>(mem_alloc(buf_size + page_size));
+	buf2 = static_cast<byte*>(ut_malloc(buf_size + page_size));
 	buf = static_cast<byte*>(ut_align(buf2, page_size));
 
 	memset(buf, 0, buf_size);
@@ -5257,7 +5240,7 @@ retry:
 				DBUG_SUICIDE(););
 	}
 
-	mem_free(buf2);
+	ut_free(buf2);
 
 	mutex_enter(&fil_system->mutex);
 
@@ -5312,7 +5295,7 @@ fil_extend_tablespaces_to_stored_len(void)
 	dberr_t		error;
 	ibool		success;
 
-	buf = mem_alloc(UNIV_PAGE_SIZE);
+	buf = ut_malloc(UNIV_PAGE_SIZE);
 
 	mutex_enter(&fil_system->mutex);
 
@@ -5353,7 +5336,7 @@ fil_extend_tablespaces_to_stored_len(void)
 
 	mutex_exit(&fil_system->mutex);
 
-	mem_free(buf);
+	ut_free(buf);
 }
 #endif
 
@@ -6078,7 +6061,7 @@ fil_flush_file_spaces(
 	on a space that was just removed from the list by fil_flush().
 	Thus, the space could be dropped and the memory overwritten. */
 	space_ids = static_cast<ulint*>(
-		mem_alloc(n_space_ids * sizeof *space_ids));
+		ut_malloc(n_space_ids * sizeof *space_ids));
 
 	n_space_ids = 0;
 
@@ -6103,7 +6086,7 @@ fil_flush_file_spaces(
 		fil_flush(space_ids[i]);
 	}
 
-	mem_free(space_ids);
+	ut_free(space_ids);
 }
 
 /** Functor to validate the space list. */
@@ -6256,7 +6239,7 @@ fil_close(void)
 
 	mutex_free(&fil_system->mutex);
 
-	mem_free(fil_system);
+	ut_free(fil_system);
 
 	fil_system = NULL;
 }
@@ -6463,7 +6446,7 @@ fil_tablespace_iterate(
 				"Trying to import a tablespace, but could not "
 				"open the tablespace file %s", filepath);
 
-			mem_free(filepath);
+			ut_free(filepath);
 
 			return(DB_TABLESPACE_NOT_FOUND);
 
@@ -6480,7 +6463,7 @@ fil_tablespace_iterate(
 	/* The block we will use for every physical page */
 	buf_block_t*	block;
 
-	block = reinterpret_cast<buf_block_t*>(mem_zalloc(sizeof(*block)));
+	block = reinterpret_cast<buf_block_t*>(ut_zalloc(sizeof(*block)));
 
 	mutex_create("buf_block_mutex", &block->mutex);
 
@@ -6489,7 +6472,7 @@ fil_tablespace_iterate(
 	We allocate an extra page in case it is a compressed table. One
 	page is to ensure alignement. */
 
-	void*	page_ptr = mem_alloc(3 * UNIV_PAGE_SIZE);
+	void*	page_ptr = ut_malloc(3 * UNIV_PAGE_SIZE);
 	byte*	page = static_cast<byte*>(ut_align(page_ptr, UNIV_PAGE_SIZE));
 
 	fil_buf_block_init(block, page);
@@ -6521,7 +6504,7 @@ fil_tablespace_iterate(
 
 		/** Add an extra page for compressed page scratch area. */
 
-		void*	io_buffer = mem_alloc(
+		void*	io_buffer = ut_malloc(
 			(2 + iter.n_io_buffers) * UNIV_PAGE_SIZE);
 
 		iter.io_buffer = static_cast<byte*>(
@@ -6529,7 +6512,7 @@ fil_tablespace_iterate(
 
 		err = fil_iterate(iter, block, callback);
 
-		mem_free(io_buffer);
+		ut_free(io_buffer);
 	}
 
 	if (err == DB_SUCCESS) {
@@ -6546,12 +6529,12 @@ fil_tablespace_iterate(
 
 	os_file_close(file);
 
-	mem_free(page_ptr);
-	mem_free(filepath);
+	ut_free(page_ptr);
+	ut_free(filepath);
 
 	mutex_free(&block->mutex);
 
-	mem_free(block);
+	ut_free(block);
 
 	return(err);
 }
@@ -6591,7 +6574,7 @@ fil_delete_file(
 
 	os_file_delete_if_exists(innodb_data_file_key, cfg_name, NULL);
 
-	mem_free(cfg_name);
+	ut_free(cfg_name);
 }
 
 /**
@@ -6731,7 +6714,7 @@ truncate_t::truncate(
 			ib_logf(IB_LOG_LEVEL_ERROR,
 				"Failed to open tablespace file %s.", path);
 
-			mem_free(path);
+			ut_free(path);
 
 			return(DB_ERROR);
 		}
@@ -6779,7 +6762,7 @@ truncate_t::truncate(
 		}
 	}
 
-	mem_free(path);
+	ut_free(path);
 
 	return(err);
 }

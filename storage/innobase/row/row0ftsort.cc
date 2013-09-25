@@ -198,7 +198,7 @@ row_fts_psort_info_init(
 
 	block_size = 3 * srv_sort_buf_size;
 
-	*psort = psort_info = static_cast<fts_psort_t*>(mem_zalloc(
+	*psort = psort_info = static_cast<fts_psort_t*>(ut_zalloc(
 		 fts_sort_pll_degree * sizeof *psort_info));
 
 	if (!psort_info) {
@@ -208,11 +208,11 @@ row_fts_psort_info_init(
 
 	/* Common Info for all sort threads */
 	common_info = static_cast<fts_psort_common_t*>(
-		mem_alloc(sizeof *common_info));
+		ut_malloc(sizeof *common_info));
 
 	if (!common_info) {
 		ut_free(dup);
-		mem_free(psort_info);
+		ut_free(psort_info);
 		return(FALSE);
 	}
 
@@ -236,7 +236,7 @@ row_fts_psort_info_init(
 
 			psort_info[j].merge_file[i] =
 				 static_cast<merge_file_t*>(
-					mem_zalloc(sizeof(merge_file_t)));
+					ut_zalloc(sizeof(merge_file_t)));
 
 			if (!psort_info[j].merge_file[i]) {
 				ret = FALSE;
@@ -276,7 +276,7 @@ row_fts_psort_info_init(
 	/* Initialize merge_info structures parallel merge and insert
 	into auxiliary FTS tables (FTS_INDEX_TABLE) */
 	*merge = merge_info = static_cast<fts_psort_t*>(
-		mem_alloc(FTS_NUM_AUX_INDEX * sizeof *merge_info));
+		ut_malloc(FTS_NUM_AUX_INDEX * sizeof *merge_info));
 
 	for (j = 0; j < FTS_NUM_AUX_INDEX; j++) {
 
@@ -313,23 +313,19 @@ row_fts_psort_info_destroy(
 						psort_info[j].merge_file[i]);
 				}
 
-				if (psort_info[j].block_alloc[i]) {
-					ut_free(psort_info[j].block_alloc[i]);
-				}
-				mem_free(psort_info[j].merge_file[i]);
+				ut_free(psort_info[j].block_alloc[i]);
+				ut_free(psort_info[j].merge_file[i]);
 			}
 		}
 
 		os_event_destroy(merge_info[0].psort_common->sort_event);
 		os_event_destroy(merge_info[0].psort_common->merge_event);
 		ut_free(merge_info[0].psort_common->dup);
-		mem_free(merge_info[0].psort_common);
-		mem_free(psort_info);
+		ut_free(merge_info[0].psort_common);
+		ut_free(psort_info);
 	}
 
-	if (merge_info) {
-		mem_free(merge_info);
-	}
+	ut_free(merge_info);
 }
 /*********************************************************************//**
 Free up merge buffers when merge sort is done */
