@@ -28,6 +28,7 @@ try {
   var DBConnectionPool = require("./NdbConnectionPool.js").DBConnectionPool;
 }
 catch(e) {
+  console.log(e.stack);
   /* Let unmet module dependencies be caught by loadRequiredModules() */
 }
 

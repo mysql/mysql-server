@@ -103,7 +103,7 @@ Test.prototype.test = function(result) {
     runReturnCode = this.run();
   }
   catch(e) {
-    console.log(this.name, 'threw exception & failed');
+    console.log(this.name, 'threw exception & failed\n', e.stack);
     this.failed = true;
     result.fail(this, e);
     return;
