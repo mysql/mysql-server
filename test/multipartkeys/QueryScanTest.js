@@ -25,7 +25,7 @@ var QueryTest = require('../lib/QueryTest.js');
 var q1 = { 
   name: 'q1',
   queryType: 3,  /* table scan */
-  expected: [1,2,3,4,5,6,7,8,9,10,11,12,13,14,15,16,17,18,19,20],
+  expected: [1,2,3,4,5,6,7,8,9,10,11,12,13,14,15,16,17,18,19,20,21],
   predicate: function(q) {
     return q;
   }
@@ -75,7 +75,7 @@ var q6 = {
   // We can do this as a multi-range index scan
   name: 'q6',
   queryType: 2,
-  expected: [5,6,10,11,14,15,18,19],
+  expected: [5,10,11,14,15,18,19],
   p1: 1, p2: 2,
   predicate: function(q) {
     return (q.k1.eq(q.param("p1")).and(q.k2.eq(q.param("p1"))))
@@ -84,7 +84,7 @@ var q6 = {
 };
 
 //var queryTests = [q1, q2, q3];
-var queryTests = [ q5 , q6 ];
+var queryTests = [ q5 ];
 
 /** Set up domain type */
 function mpk1() {};
