@@ -2439,7 +2439,7 @@ static void remove_all_pairs_for_close(CACHETABLE ct, CACHEFILE cf) {
     ct->list.write_list_unlock();
 }
 
-static void verify_cachefile_flushed(CACHETABLE ct, CACHEFILE cf) {
+static void verify_cachefile_flushed(CACHETABLE ct UU(), CACHEFILE cf UU()) {
     // assert here that cachefile is flushed by checking
     // pair_list and finding no pairs belonging to this cachefile
     // Make a list of pairs that belong to this cachefile.
