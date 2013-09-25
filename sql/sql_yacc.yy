@@ -69,6 +69,7 @@
 #include "set_var.h"
 #include "opt_explain_traditional.h"
 #include "opt_explain_json.h"
+#include "rpl_slave.h"                       // Sql_cmd_change_repl_filter
 
 /* this is to get the bison compilation windows warnings out */
 #ifdef _MSC_VER
@@ -1140,6 +1141,7 @@ bool my_yyoverflow(short **a, YYSTYPE **b, YYLTYPE **c, ulong *yystacksize);
 %token  FAULTS_SYM
 %token  FETCH_SYM                     /* SQL-2003-R */
 %token  FILE_SYM
+%token  FILTER_SYM
 %token  FIRST_SYM                     /* SQL-2003-N */
 %token  FIXED_SYM
 %token  FLOAT_NUM
@@ -1404,6 +1406,13 @@ bool my_yyoverflow(short **a, YYSTYPE **b, YYLTYPE **c, ulong *yystacksize);
 %token  REPEAT_SYM                    /* MYSQL-FUNC */
 %token  REPLACE                       /* MYSQL-FUNC */
 %token  REPLICATION
+%token  REPLICATE_DO_DB
+%token  REPLICATE_IGNORE_DB
+%token  REPLICATE_DO_TABLE
+%token  REPLICATE_IGNORE_TABLE
+%token  REPLICATE_WILD_DO_TABLE
+%token  REPLICATE_WILD_IGNORE_TABLE
+%token  REPLICATE_REWRITE_DB
 %token  REQUIRE_SYM
 %token  RESET_SYM
 %token  RESIGNAL_SYM                  /* SQL-2003-R */
@@ -1687,6 +1696,9 @@ bool my_yyoverflow(short **a, YYSTYPE **b, YYLTYPE **c, ulong *yystacksize);
         signal_allowed_expr
         simple_target_specification
         condition_number
+        filter_db_ident
+        filter_table_ident
+        filter_string
 
 %type <item_num>
         NUM_literal
@@ -1694,6 +1706,10 @@ bool my_yyoverflow(short **a, YYSTYPE **b, YYLTYPE **c, ulong *yystacksize);
 %type <item_list>
         expr_list opt_udf_expr_list udf_expr_list when_list
         ident_list ident_list_arg opt_expr_list
+        opt_filter_db_list filter_db_list
+        opt_filter_table_list filter_table_list
+        opt_filter_string_list filter_string_list
+        opt_filter_db_pair_list filter_db_pair_list
 
 %type <var_type>
         option_type opt_var_type opt_var_ident_type
@@ -1763,7 +1779,7 @@ bool my_yyoverflow(short **a, YYSTYPE **b, YYLTYPE **c, ulong *yystacksize);
         show describe load alter optimize keycache preload flush
         reset purge begin commit rollback savepoint release
         slave master_def master_defs master_file_def slave_until_opts
-        repair analyze check start checksum
+        repair analyze check start checksum filter_def filter_defs
         field_list field_list_item field_spec kill column_def key_def
         keycache_list keycache_list_or_parts assign_to_keycache
         assign_to_keycache_parts
@@ -2120,6 +2136,223 @@ change:
           }
           master_defs
           {}
+        | CHANGE REPLICATION FILTER_SYM
+          {
+            THD *thd= YYTHD;
+            LEX* lex= thd->lex;
+            DBUG_ASSERT(!lex->m_sql_cmd);
+            lex->sql_command = SQLCOM_CHANGE_REPLICATION_FILTER;
+            lex->m_sql_cmd= new (thd->mem_root) Sql_cmd_change_repl_filter();
+            if (lex->m_sql_cmd == NULL)
+              MYSQL_YYABORT;
+          }
+          filter_defs
+          {}
+        ;
+
+filter_defs:
+          filter_def
+        | filter_defs ',' filter_def
+        ;
+filter_def:
+          REPLICATE_DO_DB EQ opt_filter_db_list
+          {
+            Sql_cmd_change_repl_filter * filter_sql_cmd=
+              (Sql_cmd_change_repl_filter*) Lex->m_sql_cmd;
+            DBUG_ASSERT(filter_sql_cmd);
+            filter_sql_cmd->set_filter_value($3, OPT_REPLICATE_DO_DB);
+          }
+        | REPLICATE_IGNORE_DB EQ opt_filter_db_list
+          {
+            Sql_cmd_change_repl_filter * filter_sql_cmd=
+              (Sql_cmd_change_repl_filter*) Lex->m_sql_cmd;
+            DBUG_ASSERT(filter_sql_cmd);
+            filter_sql_cmd->set_filter_value($3, OPT_REPLICATE_IGNORE_DB);
+          }
+        | REPLICATE_DO_TABLE EQ opt_filter_table_list
+          {
+            Sql_cmd_change_repl_filter * filter_sql_cmd=
+              (Sql_cmd_change_repl_filter*) Lex->m_sql_cmd;
+            DBUG_ASSERT(filter_sql_cmd);
+           filter_sql_cmd->set_filter_value($3, OPT_REPLICATE_DO_TABLE);
+          }
+        | REPLICATE_IGNORE_TABLE EQ opt_filter_table_list
+          {
+            Sql_cmd_change_repl_filter * filter_sql_cmd=
+              (Sql_cmd_change_repl_filter*) Lex->m_sql_cmd;
+            DBUG_ASSERT(filter_sql_cmd);
+            filter_sql_cmd->set_filter_value($3, OPT_REPLICATE_IGNORE_TABLE);
+          }
+        | REPLICATE_WILD_DO_TABLE EQ opt_filter_string_list
+          {
+            Sql_cmd_change_repl_filter * filter_sql_cmd=
+              (Sql_cmd_change_repl_filter*) Lex->m_sql_cmd;
+            DBUG_ASSERT(filter_sql_cmd);
+            filter_sql_cmd->set_filter_value($3, OPT_REPLICATE_WILD_DO_TABLE);
+          }
+        | REPLICATE_WILD_IGNORE_TABLE EQ opt_filter_string_list
+          {
+            Sql_cmd_change_repl_filter * filter_sql_cmd=
+              (Sql_cmd_change_repl_filter*) Lex->m_sql_cmd;
+            DBUG_ASSERT(filter_sql_cmd);
+            filter_sql_cmd->set_filter_value($3,
+                                             OPT_REPLICATE_WILD_IGNORE_TABLE);
+          }
+        | REPLICATE_REWRITE_DB EQ opt_filter_db_pair_list
+          {
+            Sql_cmd_change_repl_filter * filter_sql_cmd=
+              (Sql_cmd_change_repl_filter*) Lex->m_sql_cmd;
+            DBUG_ASSERT(filter_sql_cmd);
+            filter_sql_cmd->set_filter_value($3, OPT_REPLICATE_REWRITE_DB);
+          }
+        ;
+opt_filter_db_list:
+          '(' ')'
+          {
+            $$= new (YYTHD->mem_root) List<Item>;
+            if ($$ == NULL)
+              MYSQL_YYABORT;
+          }
+        | '(' filter_db_list ')'
+          {
+            $$= $2;
+          }
+        ;
+
+filter_db_list:
+          filter_db_ident
+          {
+            $$= new (YYTHD->mem_root) List<Item>;
+            if ($$ == NULL)
+              MYSQL_YYABORT;
+            $$->push_back($1);
+          }
+        | filter_db_list ',' filter_db_ident
+          {
+            $1->push_back($3);
+            $$= $1;
+          }
+        ;
+
+filter_db_ident:
+          ident /* DB name */
+          {
+            THD *thd= YYTHD;
+            Item *db_item= new (thd->mem_root) Item_string($1.str,
+                                                           $1.length,
+                                                           thd->charset());
+            $$= db_item;
+          }
+        ;
+opt_filter_db_pair_list:
+          '(' ')'
+          {
+            $$= new (YYTHD->mem_root) List<Item>;
+            if ($$ == NULL)
+              MYSQL_YYABORT;
+          }
+        |'(' filter_db_pair_list ')'
+          {
+            $$= $2;
+          }
+        ;
+filter_db_pair_list:
+          '(' filter_db_ident ',' filter_db_ident ')'
+          {
+            $$= new (YYTHD->mem_root) List<Item>;
+            if ($$ == NULL)
+              MYSQL_YYABORT;
+            $$->push_back($2);
+            $$->push_back($4);
+          }
+        | filter_db_pair_list ',' '(' filter_db_ident ',' filter_db_ident ')'
+          {
+            $1->push_back($4);
+            $1->push_back($6);
+            $$= $1;
+          }
+        ;
+opt_filter_table_list:
+          '(' ')'
+          {
+            $$= new (YYTHD->mem_root) List<Item>;
+            if ($$ == NULL)
+              MYSQL_YYABORT;
+          }
+        |'(' filter_table_list ')'
+          {
+            $$= $2;
+          }
+        ;
+
+filter_table_list:
+          filter_table_ident
+          {
+            $$= new (YYTHD->mem_root) List<Item>;
+            if ($$ == NULL)
+              MYSQL_YYABORT;
+            $$->push_back($1);
+          }
+        | filter_table_list ',' filter_table_ident
+          {
+            $1->push_back($3);
+            $$= $1;
+          }
+        ;
+
+filter_table_ident:
+          ident '.' ident /* qualified table name */
+          {
+            THD *thd= YYTHD;
+            String *str = new (thd->mem_root) String($1.str,
+                                                     $1.length,
+                                                     thd->charset());
+            str->append('.');
+            str->append($3.str, $3.length, thd->charset());
+            Item *table_item= new (thd->mem_root) Item_string(str->c_ptr(),
+                                                              str->length(),
+                                                              thd->charset());
+            $$= table_item;
+          }
+        ;
+
+opt_filter_string_list:
+          '(' ')'
+          {
+            $$= new (YYTHD->mem_root) List<Item>;
+            if ($$ == NULL)
+              MYSQL_YYABORT;
+          }
+        |'(' filter_string_list ')'
+          {
+            $$= $2;
+          }
+        ;
+
+filter_string_list:
+          filter_string
+          {
+            $$= new (YYTHD->mem_root) List<Item>;
+            if ($$ == NULL)
+              MYSQL_YYABORT;
+            $$->push_back($1);
+          }
+        | filter_string_list ',' filter_string
+          {
+            $1->push_back($3);
+            $$= $1;
+          }
+        ;
+
+filter_string:
+          TEXT_STRING_sys_nonewline
+          {
+            THD *thd= YYTHD;
+            Item *string_item= new (thd->mem_root) Item_string($1.str,
+                                                               $1.length,
+                                                               thd->charset());
+            $$= string_item;
+          }
         ;
 
 master_defs:
@@ -14193,6 +14426,7 @@ keyword_sp:
         | ENABLE_SYM               {}
         | FULL                     {}
         | FILE_SYM                 {}
+        | FILTER_SYM               {}
         | FIRST_SYM                {}
         | FIXED_SYM                {}
         | GENERAL                  {}
@@ -14323,6 +14557,13 @@ keyword_sp:
         | REORGANIZE_SYM           {}
         | REPEATABLE_SYM           {}
         | REPLICATION              {}
+        | REPLICATE_DO_DB          {}
+        | REPLICATE_IGNORE_DB      {}
+        | REPLICATE_DO_TABLE       {}
+        | REPLICATE_IGNORE_TABLE   {}
+        | REPLICATE_WILD_DO_TABLE  {}
+        | REPLICATE_WILD_IGNORE_TABLE {}
+        | REPLICATE_REWRITE_DB     {}
         | RESOURCES                {}
         | RESUME_SYM               {}
         | RETURNED_SQLSTATE_SYM    {}

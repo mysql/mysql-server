@@ -78,10 +78,11 @@ if ($tmp)
   --echo Retrieved_Gtid_Set	#
   --echo Executed_Gtid_Set	#
   --echo Auto_Position	0
+  --echo Replicate_Rewrite_DB	#
 }
 if (!$tmp) {
   # Note: after WL#5177, fields 13-18 shall not be filtered-out.
-  --replace_column 4 # 5 # 6 # 7 # 8 # 9 # 10 # 13 # 14 # 15 # 16 # 17 # 18 # 22 # 23 # 24 # 25 # 26 # 40 # 41 # 42 # 46 # 52 # 53 #
+  --replace_column 4 # 5 # 6 # 7 # 8 # 9 # 10 # 13 # 14 # 15 # 16 # 17 # 18 # 22 # 23 # 24 # 25 # 26 # 40 # 41 # 42 # 46 # 52 # 53 # 55 #
   query_vertical
   SHOW SLAVE STATUS;
 }

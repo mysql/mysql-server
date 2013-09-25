@@ -507,6 +507,7 @@ extern PSI_memory_key key_memory_MYSQL_BIN_LOG_basename;
 extern PSI_memory_key key_memory_MYSQL_BIN_LOG_index;
 extern PSI_memory_key key_memory_MYSQL_RELAY_LOG_basename;
 extern PSI_memory_key key_memory_MYSQL_RELAY_LOG_index;
+extern PSI_memory_key key_memory_rpl_filter;
 extern PSI_memory_key key_memory_Security_context;
 extern PSI_memory_key key_memory_NET_buff;
 extern PSI_memory_key key_memory_NET_compress_packet;

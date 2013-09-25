@@ -2665,6 +2665,7 @@ bool show_slave_status(THD* thd, Master_info* mi)
                                              sql_gtid_set_size));
   field_list.push_back(new Item_return_int("Auto_Position", sizeof(ulong),
                                            MYSQL_TYPE_LONG));
+  field_list.push_back(new Item_empty_string("Replicate_Rewrite_DB", 24));
 
   if (protocol->send_result_set_metadata(&field_list,
                             Protocol::SEND_NUM_ROWS | Protocol::SEND_EOF))
@@ -2911,6 +2912,9 @@ bool show_slave_status(THD* thd, Master_info* mi)
     protocol->store(sql_gtid_set_buffer, &my_charset_bin);
     // Auto_Position
     protocol->store(mi->is_auto_position() ? 1 : 0);
+    // Replicate_Rewrite_DB
+    rpl_filter->get_rewrite_db(&tmp);
+    protocol->store(&tmp);
 
     mysql_mutex_unlock(&mi->rli->err_lock);
     mysql_mutex_unlock(&mi->err_lock);
