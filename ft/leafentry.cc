@@ -91,10 +91,6 @@ PATENT RIGHTS GRANT:
 #include "wbuf.h"
 #include "leafentry.h"
 
-void wbuf_LEAFENTRY(struct wbuf *w, LEAFENTRY le) {
-    wbuf_literal_bytes(w, le, leafentry_disksize(le));
-}
-
 void wbuf_nocrc_LEAFENTRY(struct wbuf *w, LEAFENTRY le) {
     wbuf_nocrc_literal_bytes(w, le, leafentry_disksize(le));
 }

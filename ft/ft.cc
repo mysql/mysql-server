@@ -1028,11 +1028,12 @@ struct garbage_helper_extra {
 };
 
 static int
-garbage_leafentry_helper(OMTVALUE v, uint32_t UU(idx), void *extra) {
-    struct garbage_helper_extra *CAST_FROM_VOIDP(info, extra);
-    LEAFENTRY CAST_FROM_VOIDP(le, v);
-    info->total_space += leafentry_disksize(le);
-    info->used_space += LE_CLEAN_MEMSIZE(le_latest_keylen(le), le_latest_vallen(le));
+garbage_leafentry_helper(const void* key UU(), const uint32_t keylen, const LEAFENTRY & le, uint32_t UU(idx), struct garbage_helper_extra * const info) {
+    //TODO #warning need to reanalyze for split
+    info->total_space += leafentry_disksize(le) + keylen + sizeof(keylen);
+    if (!le_latest_is_del(le)) {
+        info->used_space += LE_CLEAN_MEMSIZE(le_latest_vallen(le)) + keylen + sizeof(keylen);
+    }
     return 0;
 }
 
@@ -1052,8 +1053,8 @@ garbage_helper(BLOCKNUM blocknum, int64_t UU(size), int64_t UU(address), void *e
         goto exit;
     }
     for (int i = 0; i < node->n_children; ++i) {
-        BASEMENTNODE bn = BLB(node, i);
-        r = toku_omt_iterate(bn->buffer, garbage_leafentry_helper, info);
+        BN_DATA bd = BLB_DATA(node, i);
+        r = bd->omt_iterate<struct garbage_helper_extra, garbage_leafentry_helper>(info);
         if (r != 0) {
             goto exit;
         }

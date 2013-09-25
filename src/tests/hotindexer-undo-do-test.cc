@@ -171,25 +171,15 @@ static ULE
 ule_init(ULE ule) {
     ule->num_puxrs = 0;
     ule->num_cuxrs = 0;
-    ule->keyp = NULL;
-    ule->keylen = 0;
     ule->uxrs = ule->uxrs_static;
     return ule;
 }
 
 static void
-ule_set_key(ULE ule, void *key, uint32_t keylen) {
-    ule->keyp = toku_realloc(ule->keyp, keylen);
-    memcpy(ule->keyp, key, keylen);
-    ule->keylen = keylen;
-}
-
-static void
 ule_destroy(ULE ule) {
-    for (unsigned int i = 0; i < ule->num_cuxrs + ule->num_puxrs; i++) 
+    for (unsigned int i = 0; i < ule->num_cuxrs + ule->num_puxrs; i++) {
         uxr_destroy(&ule->uxrs[i]);
-    toku_free(ule->keyp);
-    ule->keyp = NULL;
+    }
 }
 
 static void
@@ -427,8 +417,27 @@ read_line(char **line_ptr, size_t *len_ptr, FILE *f) {
     return len == 0 ? -1 : 0;
 }
 
+struct saved_lines_t {
+    char** savedlines;
+    uint32_t capacity;
+    uint32_t used;
+};
+
+static void
+save_line(char** line, saved_lines_t* saved) {
+    if (saved->capacity == saved->used) {
+        if (saved->capacity == 0) {
+            saved->capacity = 1;
+        }
+        saved->capacity *= 2;
+        XREALLOC_N(saved->capacity, saved->savedlines);
+    }
+    saved->savedlines[saved->used++] = *line;
+    *line = nullptr;
+}
+
 static int
-read_test(char *testname, ULE ule) {
+read_test(char *testname, ULE ule, DBT* key, saved_lines_t* saved) {
     int r = 0;
     FILE *f = fopen(testname, "r");
     if (f) {
@@ -469,11 +478,13 @@ read_test(char *testname, ULE ule) {
             }
             // key KEY
             if (strcmp(fields[0], "key") == 0 && nfields == 2) {
-                ule_set_key(ule, fields[1], strlen(fields[1]));
+                save_line(&line, saved);
+                dbt_init(key, fields[1], strlen(fields[1]));
                 continue;
             }
             // insert committed|provisional XID DATA
             if (strcmp(fields[0], "insert") == 0 && nfields == 4) {
+                save_line(&line, saved);
                 UXR_S uxr_s; 
                 uxr_init(&uxr_s, XR_INSERT, fields[3], strlen(fields[3]), atoll(fields[2]));
                 if (fields[1][0] == 'p')
@@ -566,14 +577,24 @@ run_test(char *envdir, char *testname) {
     ULE ule = ule_create(); 
     ule_init(ule);
 
+    saved_lines_t saved;
+    ZERO_STRUCT(saved);
     // read the test
-    r = read_test(testname, ule);
+    DBT key;
+    ZERO_STRUCT(key);
+    r = read_test(testname, ule, &key, &saved);
     if (r != 0)
         return r;
 
-    r = indexer->i->undo_do(indexer, dest_db, ule); assert_zero(r);
+    r = indexer->i->undo_do(indexer, dest_db, &key, ule); assert_zero(r);
 
     ule_free(ule);
+    key.data = NULL;
+
+    for (uint32_t i = 0; i < saved.used; i++) {
+        toku_free(saved.savedlines[i]);
+    }
+    toku_free(saved.savedlines);
 
     r = indexer->close(indexer); assert_zero(r);
 
