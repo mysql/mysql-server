@@ -34,6 +34,7 @@ var adapter       = require(path.join(build_dir, "ndb_adapter.node")).ndb,
     constants     = adapter.impl,
     OpHelper      = constants.OpHelper,
     ScanHelper    = constants.Scan.helper,
+    BoundHelper   = constants.IndexBound.helper,
     opcodes       = doc.OperationCodes,
     udebug        = unified_debug.getLogger("NdbOperation.js");
 
@@ -128,28 +129,56 @@ function releaseKeyBuffer(op) {
   }
 }
 
-function encodeKeyBuffer(op) {
-  udebug.log("encodeKeyBuffer with keys", op.keys);
-  var i, offset, value, nfields, col;
-  var record = op.index.record;
 
-  nfields = op.indexHandler.getMappedFieldCount();
-  col = op.indexHandler.getColumnMetadata();
+function encodeFieldsInBuffer(fields, nfields, metadata, 
+                              ndbRecord, buffer, definedColumnList) {
+  var i, value, err, errors, offset;
+  errors = {};
   for(i = 0 ; i < nfields ; i++) {
-    value = op.keys[i];
-    if(value !== null) {
-      record.setNotNull(i, op.buffers.key);
-      offset = record.getColumnOffset(i);
-      if(col.typeConverter && col.typeConverter.ndb) {
-        value = col.typeConverter.ndb.toDB(value);
+    value = fields[i];
+    if(typeof value !== 'undefined') {
+      definedColumnList.push(metadata[i].columnNumber);
+      offset = ndbRecord.getColumnOffset(i);
+      if(value === null) {
+        ndbRecord.setNull(i, buffer);
       }
-      adapter.impl.encoderWrite(col[i], value, op.buffers.key, offset);
-    }
-    else {
-      udebug.log("encodeKeyBuffer ", i, "NULL.");
-      record.setNull(i, op.buffers.key);
+      else {
+        ndbRecord.setNotNull(i, buffer);
+        if(metadata[i].typeConverter && metadata[i].typeConverter.ndb) {
+          value = metadata[i].typeConverter.ndb.toDB(value);
+        }
+        err = adapter.impl.encoderWrite(metadata[i], value, buffer, offset);
+        if(err) { 
+          udebug.log("encoderWrite:", err);
+          errors[metadata[i].name] = err;
+        }
+      }
     }
   }
+  return Object.keys(errors).length ? errors : null;
+}
+
+
+function encodeKeyBuffer(op) {
+  return encodeFieldsInBuffer(op.keys, 
+                              op.indexHandler.getMappedFieldCount(),
+                              op.indexHandler.getColumnMetadata(),
+                              op.index.record,
+                              op.buffers.key, []);
+}
+
+
+/* encode indexBounds into Buffer formatted for indexRecord.
+   Returns buffer if values were encoded,
+   or null if first index column value was infinite.
+*/
+function encodeBounds(key, nfields, dbIndexHandler, buffer) {  
+  if(nfields == 0) {
+    return null;
+  }
+  encodeFieldsInBuffer(key, nfields, dbIndexHandler.getColumnMetadata(), 
+                       dbIndexHandler.dbIndex.record, buffer, []);
+  return buffer;
 }
 
 
@@ -164,33 +193,26 @@ function releaseRowBuffer(op) {
 
 function encodeRowBuffer(op) {
   udebug.log("encodeRowBuffer");
-  var i, offset, value, err, errors, record, nfields, col;
-  errors = {};
-  record = op.tableHandler.dbTable.record;
-  nfields = op.tableHandler.getMappedFieldCount();
-  udebug.log("encodeRowBuffer nfields", nfields);
-  col = op.tableHandler.getColumnMetadata();
-  
-  for(i = 0 ; i < nfields ; i++) {  
-    value = op.tableHandler.get(op.values, i);
-    if(value === null) {
-      record.setNull(i, op.buffers.row);
+  return encodeFieldsInBuffer(op.tableHandler.getFields(op.values),
+                              op.tableHandler.getMappedFieldCount(),
+                              op.tableHandler.getColumnMetadata(),
+                              op.tableHandler.dbTable.record,
+                              op.buffers.row,
+                              op.columnMask);
+}
+
+/* Count the consecutive finite parts of key
+*/
+function countFiniteKeyParts(key) {
+  var i, n;
+  n = 0;
+  for(i = 0; i < key.length ; i++) {
+    if((key[0] == Infinity) || (key[0] == -Infinity)) {
+      return n;
     }
-    else if(typeof value !== 'undefined') {
-      record.setNotNull(i, op.buffers.row);
-      op.columnMask.push(col[i].columnNumber);
-      offset = record.getColumnOffset(i);
-      if(col[i].typeConverter && col[i].typeConverter.ndb) {
-        value = col[i].typeConverter.ndb.toDB(value);
-      }
-      err = adapter.impl.encoderWrite(col[i], value, op.buffers.row, offset);
-      if(err) { 
-        udebug.log("encoderWrite:", err);
-        errors[col[i].name] = err;
-      }
-    }
+    n += 1;
   }
-  return Object.keys(errors).length ? errors : null;
+  return n;
 }
 
 function HelperSpec() {
@@ -226,6 +248,70 @@ ScanHelperSpec.prototype.clear = function() {
 
 var scanSpec = new ScanHelperSpec();
 
+function BoundHelperSpec() {
+  this[BoundHelper.low_key]        = null;
+  this[BoundHelper.low_key_count]  = 0;
+  this[BoundHelper.low_inclusive]  = true;
+  this[BoundHelper.high_key]       = null;
+  this[BoundHelper.high_key_count] = 0;
+  this[BoundHelper.high_inclusive] = true;
+  this[BoundHelper.range_no]       = 0;
+}
+
+/* Create part of of a bound spec 
+*/
+BoundHelperSpec.prototype.buildPartialSpec = function(isLow, bound, 
+                                                      dbIndexHandler, buffer) {
+  var base, nparts;
+  base = isLow ? BoundHelper.low_key : BoundHelper.high_key;
+  nparts = countFiniteKeyParts(bound.key);
+  if(nparts) {
+    this[base    ] = encodeBounds(bound.key, nparts, dbIndexHandler, buffer);
+    this[base + 1] = nparts;
+    this[base + 2] = bound.inclusive;
+  }
+};
+
+BoundHelperSpec.prototype.setLow = function(bound, dbIndexHandler, buffer) {
+  this.buildPartialSpec(true, bound.low, dbIndexHandler, buffer);
+};
+
+BoundHelperSpec.prototype.setHigh = function(bound, dbIndexHandler, buffer) {
+  this.buildPartialSpec(false, bound.high, dbIndexHandler, buffer);
+};
+
+
+/* Takes an array of IndexBounds;
+   Returns an array of BoundHelpers which will be used to build NdbIndexBounds.
+   Builds a buffer of encoded parameters used in index bounds and 
+   stores a reference to it in op.scan.
+*/
+DBOperation.prototype.buildBoundHelpers = function(indexBounds) {
+  var dbIndexHandler, bound, sz, n, helper, allHelpers, mainBuffer, offset, i;
+  dbIndexHandler = this.indexHandler;
+  sz = dbIndexHandler.dbIndex.record.getBufferSize();
+  n  = indexBounds.length;
+  if(sz && n) {
+    allHelpers = [];
+    mainBuffer = new Buffer(sz * n * 2);
+    offset = 0;
+    this.scan.bound_param_buffer = mainBuffer; // maintain a reference!
+    for(i = 0 ; i < n ; i++) {
+      bound = indexBounds[i];
+      helper = new BoundHelperSpec();
+      helper.setLow(bound, dbIndexHandler, mainBuffer.slice(offset, offset+sz));
+      offset += sz;
+      helper.setHigh(bound, dbIndexHandler, mainBuffer.slice(offset, offset+sz));
+      offset += sz;
+      helper[BoundHelper.range_no] = i;  
+      allHelpers.push(helper);
+    }
+  }
+  
+  this.scan.index_bound_helpers = allHelpers;  // maintain a reference 
+  return allHelpers;
+};
+       
 
 DBOperation.prototype.prepare = function(ndbTransaction) {
   var code = this.opcode;
@@ -288,9 +374,9 @@ DBOperation.prototype.prepare = function(ndbTransaction) {
 */
 DBOperation.prototype.prepareScan = function(ndbTransaction, callback) {
   var opcode = 33;  // How to tell from operation?
-  var boundHelper = null;
+  var indexBounds = null;
   var execQueue = this.transaction.dbSession.execQueue;
-  var scanHelper, apiCall;
+  var scanHelper, apiCall, boundsHelpers;
  
   /* There is one global ScanHelperSpec */
   scanSpec.clear();
@@ -299,11 +385,18 @@ DBOperation.prototype.prepareScan = function(ndbTransaction, callback) {
 
   if(this.query.queryType == 2) {  /* Index Scan */
     scanSpec[ScanHelper.index_record] = this.query.dbIndexHandler.dbIndex.record;
-    boundHelper = getIndexBounds(this.query, this.params);
-//    if(boundHelper) {
-//      scanHelper[bounds] = adapter.impl.IndexBound.create(boundHelper);
-//      this.scan.bounds = scanHelper[bounds];
-//    }
+    indexBounds = getIndexBounds(this.query, this.params);
+    if(indexBounds.length) {
+      boundsHelpers = this.buildBoundHelpers(indexBounds);
+      scanSpec[ScanHelper.bounds] = [];
+      if(indexBounds.length > 1) {
+        scanSpec[ScanHelper.flags] |= constants.Scan.flags.SF_MultiRange;
+      }
+      boundsHelpers.forEach(function(helper) {
+        var b = adapter.impl.IndexBound.create(helper);
+        scanSpec[ScanHelper.bounds].push(b);
+      });
+    }
   }
 
   scanSpec[ScanHelper.lock_mode] = constants.LockModes[this.lockMode];
@@ -313,7 +406,7 @@ DBOperation.prototype.prepareScan = function(ndbTransaction, callback) {
     if(this.params.order.toLocaleLowerCase() == 'desc') {
       flags |= constants.Scan.flags.SF_Descending;
     }
-    scanSpec[ScanHelper.flags] = flags;  
+    scanSpec[ScanHelper.flags] |= flags;  
   }
 
   if(this.query.ndbFilterSpec) {
