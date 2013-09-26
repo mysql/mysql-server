@@ -2048,13 +2048,6 @@ MDL_context::try_acquire_lock_impl(MDL_request *mdl_request,
                                    )))
     return TRUE;
 
-  /* The below call implicitly locks MDL_lock::m_rwlock on success. */
-  if (!(lock= mdl_locks.find_or_insert(key)))
-  {
-    MDL_ticket::destroy(ticket);
-    return TRUE;
-  }
-
   DBUG_ASSERT(ticket->m_psi == NULL);
   ticket->m_psi= mysql_mdl_create(ticket, key,
                                   mdl_request->type,
@@ -2062,6 +2055,13 @@ MDL_context::try_acquire_lock_impl(MDL_request *mdl_request,
                                   MDL_wait::EMPTY,
                                   mdl_request->m_src_file,
                                   mdl_request->m_src_line);
+
+  /* The below call implicitly locks MDL_lock::m_rwlock on success. */
+  if (!(lock= mdl_locks.find_or_insert(key)))
+  {
+    MDL_ticket::destroy(ticket);
+    return TRUE;
+  }
 
   ticket->m_lock= lock;
 
