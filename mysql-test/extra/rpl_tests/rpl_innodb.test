@@ -114,7 +114,7 @@ FLUSH LOGS;
 --echo -------- switch to master --------
 connection master;
 FLUSH LOGS;
-
+DROP TEMPORARY TABLE IF EXISTS mysqltest1.tmp2;
 DROP DATABASE mysqltest1;
 
 --echo End of 5.1 tests

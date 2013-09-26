@@ -121,16 +121,26 @@ while($n)
 #
 # cleanup
 #
-# Temp tables are removed two ways explicitly and implicitly by disconnecting.
+# All temp tables are removed explicitly.
 #
 
 connection master;
-
-let $i= `select round($temp_tables/2)`;
-while($i)
+let $n= `select round($workers/2)`;
+let $n1= `select $n`;
+while($n)
 {
-  eval drop temporary table tt_$i;
-  dec $i;
+  eval use d$n1;
+  let $i= $temp_tables;
+
+--disable_query_log
+  while($i)
+  {
+    eval drop temporary table tt_$i;
+    dec $i;
+  }
+--enable_query_log
+  dec $n;
+  dec $n1;
 }
 
 let $n= `select round($workers/2)`;
@@ -142,14 +152,23 @@ while ($n)
   dec $n1;
 }
 
-
 connection master1;
 
-let $i= `select round($temp_tables/2)`;
-while($i)
+let $n= `select round($workers/2)`;
+let $n1= `select 2*$n`;
+while ($n)
 {
-  eval drop temporary table tt_$i;
-  dec $i;
+  eval use d$n1;
+  let $i= $temp_tables;
+--disable_query_log
+  while($i)
+  {
+    eval drop temporary table tt_$i;
+    dec $i;
+  }
+--enable_query_log
+  dec $n;
+  dec $n1;
 }
 
 sync_slave_with_master;
