@@ -464,7 +464,7 @@ void toku_ft_create(FT *ftp, FT_OPTIONS options, CACHEFILE cf, TOKUTXN txn) {
 }
 
 // TODO: (Zardosht) get rid of brt parameter
-int toku_read_ft_and_store_in_cachefile (FT_HANDLE brt, CACHEFILE cf, LSN max_acceptable_lsn, FT *header, bool* was_open)
+int toku_read_ft_and_store_in_cachefile (FT_HANDLE brt, CACHEFILE cf, LSN max_acceptable_lsn, FT *header)
 // If the cachefile already has the header, then just get it.
 // If the cachefile has not been initialized, then don't modify anything.
 // max_acceptable_lsn is the latest acceptable checkpointed version of the file.
@@ -473,13 +473,11 @@ int toku_read_ft_and_store_in_cachefile (FT_HANDLE brt, CACHEFILE cf, LSN max_ac
         FT h;
         if ((h = (FT) toku_cachefile_get_userdata(cf))!=0) {
             *header = h;
-            *was_open = true;
             assert(brt->options.update_fun == h->update_fun);
             assert(brt->options.compare_fun == h->compare_fun);
             return 0;
         }
     }
-    *was_open = false;
     FT h = nullptr;
     int r;
     {

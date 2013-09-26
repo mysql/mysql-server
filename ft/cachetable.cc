@@ -305,7 +305,7 @@ void toku_cachetable_create(CACHETABLE *result, long size_limit, LSN UU(initial_
     int checkpointing_nworkers = (num_processors/4) ? num_processors/4 : 1;
     ct->checkpointing_kibbutz = toku_kibbutz_create(checkpointing_nworkers);
     // must be done after creating ct_kibbutz
-    ct->ev.init(size_limit, &ct->list, ct->ct_kibbutz, EVICTION_PERIOD);
+    ct->ev.init(size_limit, &ct->list, &ct->cf_list, ct->ct_kibbutz, EVICTION_PERIOD);
     ct->cp.init(&ct->list, logger, &ct->ev, &ct->cf_list);
     ct->cl.init(1, &ct->list, ct); // by default, start with one iteration
     ct->env_dir = toku_xstrdup(".");
@@ -356,7 +356,8 @@ int toku_cachefile_of_filenum (CACHETABLE ct, FILENUM filenum, CACHEFILE *cf) {
 // If something goes wrong, close the fd.  After this, the caller shouldn't close the fd, but instead should close the cachefile.
 int toku_cachetable_openfd (CACHEFILE *cfptr, CACHETABLE ct, int fd, const char *fname_in_env) {
     FILENUM filenum = toku_cachetable_reserve_filenum(ct);
-    return toku_cachetable_openfd_with_filenum(cfptr, ct, fd, fname_in_env, filenum);
+    bool was_open;
+    return toku_cachetable_openfd_with_filenum(cfptr, ct, fd, fname_in_env, filenum, &was_open);
 }
 
 // Get a unique filenum from the cachetable
@@ -390,7 +391,7 @@ static void create_new_cachefile(
 
 int toku_cachetable_openfd_with_filenum (CACHEFILE *cfptr, CACHETABLE ct, int fd, 
                                          const char *fname_in_env,
-                                         FILENUM filenum) {
+                                         FILENUM filenum, bool* was_open) {
     int r;
     CACHEFILE newcf;
     struct fileid fileid;
@@ -405,6 +406,7 @@ int toku_cachetable_openfd_with_filenum (CACHEFILE *cfptr, CACHETABLE ct, int fd
     ct->cf_list.write_lock();
     CACHEFILE existing_cf = ct->cf_list.find_cachefile_unlocked(&fileid);
     if (existing_cf) {
+        *was_open = true;
         // Reuse an existing cachefile and close the caller's fd, whose
         // responsibility has been passed to us.
         r = close(fd);
@@ -413,7 +415,32 @@ int toku_cachetable_openfd_with_filenum (CACHEFILE *cfptr, CACHETABLE ct, int fd
         r = 0;
         goto exit;        
     }
+    *was_open = false;
     ct->cf_list.verify_unused_filenum(filenum);
+    // now let's try to find it in the stale cachefiles
+    existing_cf = ct->cf_list.find_stale_cachefile_unlocked(&fileid);
+    // found the stale file, 
+    if (existing_cf) {
+        // fix up the fields in the cachefile
+        existing_cf->filenum = filenum;
+        existing_cf->fd = fd;
+        existing_cf->fname_in_env = toku_xstrdup(fname_in_env);
+        bjm_init(&existing_cf->bjm);
+
+        // now we need to move all the PAIRs in it back into the cachetable
+        for (PAIR curr_pair = existing_cf->cf_head; curr_pair; curr_pair = curr_pair->cf_next) {
+            pair_lock(curr_pair);
+            ct->list.add_to_cachetable_only(curr_pair);
+            pair_unlock(curr_pair);
+        }
+        // move the cachefile back to the list of active cachefiles
+        ct->cf_list.remove_stale_cf_unlocked(existing_cf);
+        ct->cf_list.add_cf_unlocked(existing_cf);
+        *cfptr = existing_cf;
+        r = 0;
+        goto exit;
+    }
+
     create_new_cachefile(
         ct,
         filenum,
@@ -433,7 +460,7 @@ int toku_cachetable_openfd_with_filenum (CACHEFILE *cfptr, CACHETABLE ct, int fd
     return r;
 }
 
-static void cachetable_flush_cachefile (CACHETABLE, CACHEFILE cf);
+static void cachetable_flush_cachefile (CACHETABLE, CACHEFILE cf, bool evict_completely);
 
 //TEST_ONLY_FUNCTION
 int toku_cachetable_openf (CACHEFILE *cfptr, CACHETABLE ct, const char *fname_in_env, int flags, mode_t mode) {
@@ -459,6 +486,13 @@ toku_cachefile_get_fd (CACHEFILE cf) {
     return cf->fd;
 }
 
+static void cachefile_destroy(CACHEFILE cf) {
+    if (cf->free_userdata) {
+        cf->free_userdata(cf, cf->userdata);
+    }
+    toku_free(cf);
+}
+
 void toku_cachefile_close(CACHEFILE *cfp, bool oplsn_valid, LSN oplsn) {
     CACHEFILE cf = *cfp;
     CACHETABLE ct = cf->cachetable;
@@ -470,26 +504,34 @@ void toku_cachefile_close(CACHEFILE *cfp, bool oplsn_valid, LSN oplsn) {
     // note_pin_by_checkpoint callback.
     assert(!cf->for_checkpoint);
 
-    // Flush the cachefile and remove all of its pairs from the cachetable
-    cachetable_flush_cachefile(ct, cf);
+    // Flush the cachefile and remove all of its pairs from the cachetable,
+    // but keep the PAIRs linked in the cachefile. We will store the cachefile
+    // away in case it gets opened immedietely
+    //
+    // if we are unlinking on close, then we want to evict completely,
+    // otherwise, we will keep the PAIRs and cachefile around in case
+    // a subsequent open comes soon
+    cachetable_flush_cachefile(ct, cf, cf->unlink_on_close);
 
     // Call the close userdata callback to notify the client this cachefile
     // and its underlying file are going to be closed
     if (cf->close_userdata) {
-        invariant(cf->free_userdata);
         cf->close_userdata(cf, cf->fd, cf->userdata, oplsn_valid, oplsn);
-        cf->free_userdata(cf, cf->userdata);
     }
-
-    ct->cf_list.remove_cf(cf);
-
-    bjm_destroy(cf->bjm);
-    cf->bjm = NULL;
-
     // fsync and close the fd. 
     toku_file_fsync_without_accounting(cf->fd);
     int r = close(cf->fd);
     assert(r == 0);
+    cf->fd = -1;
+
+    // destroy the parts of the cachefile
+    // that do not persist across opens/closes
+    bjm_destroy(cf->bjm);
+    cf->bjm = NULL;
+    cf->filenum = FILENUM_NONE;
+
+    // remove the cf from the list of active cachefiles
+    ct->cf_list.remove_cf(cf);
 
     // Unlink the file if the bit was set
     if (cf->unlink_on_close) {
@@ -499,7 +541,17 @@ void toku_cachefile_close(CACHEFILE *cfp, bool oplsn_valid, LSN oplsn) {
         toku_free(fname_in_cwd);
     }
     toku_free(cf->fname_in_env);
-    toku_free(cf);
+    cf->fname_in_env = NULL;
+
+    // we destroy the cf if the unlink bit was set or if no PAIRs exist
+    // if no PAIRs exist, there is no sense in keeping the cachefile around
+    bool destroy_cf = cf->unlink_on_close || (cf->cf_head == NULL);
+    if (destroy_cf) {
+        cachefile_destroy(cf);
+    }
+    else {
+        ct->cf_list.add_stale_cf(cf);
+    }
 }
 
 // This hash function comes from Jenkins:  http://burtleburtle.net/bob/c/lookup3.c
@@ -534,12 +586,12 @@ static void pair_touch (PAIR p) {
     p->count = (p->count < CLOCK_SATURATION) ? p->count+1 : CLOCK_SATURATION;
 }
 
-// Remove a pair from the cachetable
+// Remove a pair from the cachetable, requires write list lock to be held and p->mutex to be held
 // Effects: the pair is removed from the LRU list and from the cachetable's hash table.
 // The size of the objects in the cachetable is adjusted by the size of the pair being
 // removed.
 static void cachetable_remove_pair (pair_list* list, evictor* ev, PAIR p) {
-    list->evict(p);
+    list->evict_completely(p);
     ev->remove_pair_attr(p->attr);
 }
 
@@ -2366,17 +2418,29 @@ static void flush_pair_for_close_on_background_thread(
     pair_unlock(p);
 }
 
-static void remove_pair_for_close(PAIR p, CACHETABLE ct) {
+static void remove_pair_for_close(PAIR p, CACHETABLE ct, bool completely) {
     pair_lock(p);
     assert(p->value_rwlock.users() == 0);
     assert(nb_mutex_users(&p->disk_nb_mutex) == 0);
     assert(!p->cloned_value_data);
     assert(p->dirty == CACHETABLE_CLEAN);
     assert(p->refcount == 0);
-    // TODO: maybe break up this function
-    // so that write lock does not need to be held for entire
-    // free
-    cachetable_maybe_remove_and_free_pair(&ct->list, &ct->ev, p);
+    if (completely) {
+        // TODO: maybe break up this function
+        // so that write lock does not need to be held for entire
+        // free
+        cachetable_maybe_remove_and_free_pair(&ct->list, &ct->ev, p);
+    }
+    else {
+        // if we are not evicting completely,
+        // we only want to remove the PAIR from the cachetable,
+        // that is, remove from the hashtable and various linked
+        // list, but we will keep the PAIRS and the linked list
+        // in the cachefile intact, as they will be cached away
+        // in case an open comes soon.
+        ct->list.evict_from_cachetable(p);
+        pair_unlock(p);
+    }
 }
 
 // helper function for cachetable_flush_cachefile, which happens on a close
@@ -2410,18 +2474,37 @@ static void write_dirty_pairs_for_close(CACHETABLE ct, CACHEFILE cf) {
     bjm_destroy(bjm);
 }
 
-static void remove_all_pairs_for_close(CACHETABLE ct, CACHEFILE cf) {
+static void remove_all_pairs_for_close(CACHETABLE ct, CACHEFILE cf, bool evict_completely) {
     ct->list.write_list_lock();
     if (cf) {
-        while (cf->num_pairs > 0) {
-            PAIR p = cf->cf_head;
-            remove_pair_for_close(p, ct);
-        } 
+        if (evict_completely) {
+            // if we are evicting completely, then the PAIRs will
+            // be removed from the linked list managed by the
+            // cachefile, so this while loop works
+            while (cf->num_pairs > 0) {
+                PAIR p = cf->cf_head;
+                remove_pair_for_close(p, ct, evict_completely);
+            }
+        }
+        else {
+            // on the other hand, if we are not evicting completely,
+            // then the cachefile's linked list stays intact, and we must
+            // iterate like this.
+            for (PAIR p = cf->cf_head; p; p = p->cf_next) {
+                remove_pair_for_close(p, ct, evict_completely);
+            }
+        }
     }
     else {
         while (ct->list.m_n_in_table > 0) {
             PAIR p = ct->list.m_checkpoint_head;
-            remove_pair_for_close(p, ct);
+            // if there is no cachefile, then we better
+            // be evicting completely because we have no
+            // cachefile to save the PAIRs to. At least,
+            // we have no guarantees that the cachefile
+            // will remain good
+            invariant(evict_completely);
+            remove_pair_for_close(p, ct, true);
         } 
     }
     ct->list.write_list_unlock();
@@ -2463,7 +2546,7 @@ static void verify_cachefile_flushed(CACHETABLE ct UU(), CACHEFILE cf UU()) {
 // of being used by a checkpoint. If a checkpoint is currently happening,
 // it does NOT include this cachefile.
 //
-static void cachetable_flush_cachefile(CACHETABLE ct, CACHEFILE cf) {
+static void cachetable_flush_cachefile(CACHETABLE ct, CACHEFILE cf, bool evict_completely) {
     //
     // Because work on a kibbutz is always done by the client thread,
     // and this function assumes that no client thread is doing any work
@@ -2478,7 +2561,7 @@ static void cachetable_flush_cachefile(CACHETABLE ct, CACHEFILE cf) {
     write_dirty_pairs_for_close(ct, cf);
 
     // now that everything is clean, get rid of everything
-    remove_all_pairs_for_close(ct, cf);
+    remove_all_pairs_for_close(ct, cf, evict_completely);
 
     verify_cachefile_flushed(ct, cf);
 }
@@ -2496,7 +2579,8 @@ void toku_cachetable_close (CACHETABLE *ctp) {
     CACHETABLE ct = *ctp;
     ct->cp.destroy();
     ct->cl.destroy();
-    cachetable_flush_cachefile(ct, NULL);
+    ct->cf_list.free_stale_data(&ct->ev);
+    cachetable_flush_cachefile(ct, NULL, true);
     ct->ev.destroy();
     ct->list.destroy();
     ct->cf_list.destroy();
@@ -3185,6 +3269,21 @@ void toku_pair_list_set_lock_size(uint32_t num_locks) {
     PAIR_LOCK_SIZE = num_locks;
 }
 
+static void evict_pair_from_cachefile(PAIR p) {
+    CACHEFILE cf = p->cachefile;
+    if (p->cf_next) {
+        p->cf_next->cf_prev = p->cf_prev;
+    }
+    if (p->cf_prev) {
+        p->cf_prev->cf_next = p->cf_next;
+    }
+    else if (p->cachefile->cf_head == p) {
+        cf->cf_head = p->cf_next;
+    }
+    p->cf_prev = p->cf_next = NULL;
+    cf->num_pairs--;
+}
+
 // Allocates the hash table of pairs inside this pair list.
 //
 void pair_list::init() {
@@ -3234,34 +3333,52 @@ void pair_list::destroy() {
     toku_free(m_mutexes);
 }
 
+// adds a PAIR to the cachetable's structures,
+// but does NOT add it to the list maintained by
+// the cachefile
+void pair_list::add_to_cachetable_only(PAIR p) {
+    // sanity check to make sure that the PAIR does not already exist
+    PAIR pp = this->find_pair(p->cachefile, p->key, p->fullhash);
+    assert(pp == NULL);
+
+    this->add_to_clock(p);
+    this->add_to_hash_chain(p);
+    m_n_in_table++;
+}
+
 // This places the given pair inside of the pair list.
 //
 // requires caller to have grabbed write lock on list.
 // requires caller to have p->mutex held as well
 //
 void pair_list::put(PAIR p) {
-    // sanity check to make sure that the PAIR does not already exist
-    PAIR pp = this->find_pair(p->cachefile, p->key, p->fullhash);
-    assert(pp == NULL);
-
-    this->add_to_clock(p);
+    this->add_to_cachetable_only(p);
     this->add_to_cf_list(p);
-    this->add_to_hash_chain(p);
-    m_n_in_table++;
 }
 
-// This removes the given pair from the pair list.
+// This removes the given pair from completely from the pair list.
 //
-// requires caller to have grabbed write lock on list.
+// requires caller to have grabbed write lock on list, and p->mutex held
 //
-void pair_list::evict(PAIR p) {
+void pair_list::evict_completely(PAIR p) {
+    this->evict_from_cachetable(p);
+    this->evict_from_cachefile(p);
+}
+
+// Removes the PAIR from the cachetable's lists,
+// but does NOT impact the list maintained by the cachefile
+void pair_list::evict_from_cachetable(PAIR p) {
     this->pair_remove(p);
     this->pending_pairs_remove(p);
-    this->cf_pairs_remove(p);
     this->remove_from_hash_chain(p);
     
     assert(m_n_in_table > 0);
     m_n_in_table--;    
+}
+
+// Removes the PAIR from the cachefile's list of PAIRs
+void pair_list::evict_from_cachefile(PAIR p) {
+    evict_pair_from_cachefile(p);
 }
 
 // 
@@ -3292,8 +3409,8 @@ void pair_list::pair_remove (PAIR p) {
         }
         p->clock_prev->clock_next = p->clock_next;
         p->clock_next->clock_prev = p->clock_prev;
-        
     }
+    p->clock_prev = p->clock_next = NULL;
 }
 
 //Remove a pair from the list of pairs that were marked with the
@@ -3315,23 +3432,6 @@ void pair_list::pending_pairs_remove (PAIR p) {
     p->pending_prev = p->pending_next = NULL;
 }
 
-// add the pair to the linked list that of PAIRs belonging 
-// to the same cachefile.
-void pair_list::cf_pairs_remove(PAIR p) {
-    CACHEFILE cf = p->cachefile;
-    if (p->cf_next) {
-        p->cf_next->cf_prev = p->cf_prev;
-    }
-    if (p->cf_prev) {
-        p->cf_prev->cf_next = p->cf_next;
-    }
-    else if (p->cachefile->cf_head == p) {
-        cf->cf_head = p->cf_next;
-    }
-    p->cf_prev = p->cf_next = NULL;
-    cf->num_pairs--;
-}
-
 void pair_list::remove_from_hash_chain(PAIR p) {
     // Remove it from the hash chain.
     unsigned int h = p->fullhash&(m_table_size - 1);
@@ -3347,6 +3447,7 @@ void pair_list::remove_from_hash_chain(PAIR p) {
         // remove p from the singular linked list
         curr->hash_chain = p->hash_chain;
     }
+    p->hash_chain = NULL;
 }
 
 // Returns a pair from the pair list, using the given 
@@ -3559,7 +3660,7 @@ static void *eviction_thread(void *evictor_v) {
 // Starts the eviction thread, assigns external object references,
 // and initializes all counters and condition variables.
 //
-void evictor::init(long _size_limit, pair_list* _pl, KIBBUTZ _kibbutz, uint32_t eviction_period) {
+void evictor::init(long _size_limit, pair_list* _pl, cachefile_list* _cf_list, KIBBUTZ _kibbutz, uint32_t eviction_period) {
     TOKU_VALGRIND_HG_DISABLE_CHECKING(&m_ev_thread_is_running, sizeof m_ev_thread_is_running);
     TOKU_VALGRIND_HG_DISABLE_CHECKING(&m_size_evicting, sizeof m_size_evicting);
 
@@ -3597,6 +3698,7 @@ void evictor::init(long _size_limit, pair_list* _pl, KIBBUTZ _kibbutz, uint32_t 
     m_long_wait_pressure_time = create_partitioned_counter();
 
     m_pl = _pl;
+    m_cf_list = _cf_list;
     m_kibbutz = _kibbutz;    
     toku_mutex_init(&m_ev_thread_lock, NULL);
     toku_cond_init(&m_flow_control_cond, NULL);
@@ -3806,41 +3908,44 @@ void evictor::run_eviction(){
         // release ev_thread_lock so that eviction may run without holding mutex
         toku_mutex_unlock(&m_ev_thread_lock);
 
-        m_pl->read_list_lock();
-        PAIR curr_in_clock = m_pl->m_clock_head;
-        // if nothing to evict, we need to exit
-        if (!curr_in_clock) {
+        // first try to do an eviction from stale cachefiles
+        bool some_eviction_ran = m_cf_list->evict_some_stale_pair(this);
+        if (!some_eviction_ran) {
+            m_pl->read_list_lock();
+            PAIR curr_in_clock = m_pl->m_clock_head;
+            // if nothing to evict, we need to exit
+            if (!curr_in_clock) {
+                m_pl->read_list_unlock();
+                toku_mutex_lock(&m_ev_thread_lock);
+                exited_early = true;
+                goto exit;
+            }
+            if (num_pairs_examined_without_evicting > m_pl->m_n_in_table) {
+                // we have a cycle where everything in the clock is in use
+                // do not return an error
+                // just let memory be overfull
+                m_pl->read_list_unlock();
+                toku_mutex_lock(&m_ev_thread_lock);
+                exited_early = true;
+                goto exit;
+            }
+            bool eviction_run = run_eviction_on_pair(curr_in_clock);
+            if (eviction_run) {
+                // reset the count
+                num_pairs_examined_without_evicting = 0;
+            }
+            else {
+                num_pairs_examined_without_evicting++;
+            }
+            // at this point, either curr_in_clock is still in the list because it has not been fully evicted,
+            // and we need to move ct->m_clock_head over. Otherwise, curr_in_clock has been fully evicted
+            // and we do NOT need to move ct->m_clock_head, as the removal of curr_in_clock
+            // modified ct->m_clock_head
+            if (m_pl->m_clock_head && (m_pl->m_clock_head == curr_in_clock)) {
+                m_pl->m_clock_head = m_pl->m_clock_head->clock_next;
+            }
             m_pl->read_list_unlock();
-            toku_mutex_lock(&m_ev_thread_lock);
-            exited_early = true;
-            goto exit;
         }
-        if (num_pairs_examined_without_evicting > m_pl->m_n_in_table) {
-            // we have a cycle where everything in the clock is in use
-            // do not return an error
-            // just let memory be overfull
-            m_pl->read_list_unlock();
-            toku_mutex_lock(&m_ev_thread_lock);
-            exited_early = true;
-            goto exit;
-        }
-        bool eviction_run = run_eviction_on_pair(curr_in_clock);
-        if (eviction_run) {
-            // reset the count
-            num_pairs_examined_without_evicting = 0;
-        }
-        else {
-            num_pairs_examined_without_evicting++;
-        }
-        // at this point, either curr_in_clock is still in the list because it has not been fully evicted,
-        // and we need to move ct->m_clock_head over. Otherwise, curr_in_clock has been fully evicted
-        // and we do NOT need to move ct->m_clock_head, as the removal of curr_in_clock
-        // modified ct->m_clock_head
-        if (m_pl->m_clock_head && (m_pl->m_clock_head == curr_in_clock)) {
-            m_pl->m_clock_head = m_pl->m_clock_head->clock_next;
-        }
-        m_pl->read_list_unlock();
-
         toku_mutex_lock(&m_ev_thread_lock);
     }
 
@@ -4553,6 +4658,8 @@ static_assert(std::is_pod<cachefile_list>::value, "cachefile_list isn't POD");
 
 void cachefile_list::init() {
     m_active_head = NULL;
+    m_stale_head = NULL;
+    m_stale_tail = NULL;
     m_next_filenum_to_use.fileid = 0;
     m_next_hash_id_to_use = 0;
     toku_pthread_rwlock_init(&m_lock, NULL);
@@ -4611,6 +4718,8 @@ int cachefile_list::cachefile_of_filenum(FILENUM filenum, CACHEFILE *cf) {
 }
 
 void cachefile_list::add_cf_unlocked(CACHEFILE cf) {
+    invariant(cf->next == NULL);
+    invariant(cf->prev == NULL);
     cf->next = m_active_head;
     cf->prev = NULL;
     if (m_active_head) {
@@ -4619,6 +4728,22 @@ void cachefile_list::add_cf_unlocked(CACHEFILE cf) {
     m_active_head = cf;
 }
 
+void cachefile_list::add_stale_cf(CACHEFILE cf) {
+    write_lock();
+    invariant(cf->next == NULL);
+    invariant(cf->prev == NULL);
+
+    cf->next = m_stale_head;
+    cf->prev = NULL;
+    if (m_stale_head) {
+        m_stale_head->prev = cf;
+    }
+    m_stale_head = cf;
+    if (m_stale_tail == NULL) {
+        m_stale_tail = cf;
+    }
+    write_unlock();
+}
 
 void cachefile_list::remove_cf(CACHEFILE cf) {
     write_lock();
@@ -4633,7 +4758,30 @@ void cachefile_list::remove_cf(CACHEFILE cf) {
         invariant(cf->prev == NULL);
         m_active_head = cf->next;
     }
+    cf->prev = NULL;
+    cf->next = NULL;
     write_unlock();
+}
+
+void cachefile_list::remove_stale_cf_unlocked(CACHEFILE cf) {
+    invariant(m_stale_head != NULL);
+    invariant(m_stale_tail != NULL);
+    if (cf->next) {
+        cf->next->prev = cf->prev;
+    }
+    if (cf->prev) {
+        cf->prev->next = cf->next;
+    }
+    if (cf == m_stale_head) {
+        invariant(cf->prev == NULL);
+        m_stale_head = cf->next;
+    }
+    if (cf == m_stale_tail) {
+        invariant(cf->next == NULL);
+        m_stale_tail = cf->prev;
+    }
+    cf->prev = NULL;
+    cf->next = NULL;
 }
 
 FILENUM cachefile_list::reserve_filenum() {
@@ -4660,9 +4808,13 @@ uint32_t cachefile_list::get_new_hash_id_unlocked() {
     return retval;
 }
 
-CACHEFILE cachefile_list::find_cachefile_unlocked(struct fileid* fileid) {
+CACHEFILE cachefile_list::find_cachefile_in_list_unlocked(
+    CACHEFILE start,
+    struct fileid* fileid
+    )
+{
     CACHEFILE retval = NULL;
-    for (CACHEFILE extant = m_active_head; extant; extant = extant->next) {
+    for (CACHEFILE extant = start; extant; extant = extant->next) {
         if (toku_fileids_are_equal(&extant->fileid, fileid)) {
             // Clients must serialize cachefile open, close, and unlink
             // So, during open, we should never see a closing cachefile 
@@ -4676,12 +4828,75 @@ exit:
     return retval;
 }
 
+CACHEFILE cachefile_list::find_cachefile_unlocked(struct fileid* fileid) {
+    return find_cachefile_in_list_unlocked(m_active_head, fileid);
+}
+
+CACHEFILE cachefile_list::find_stale_cachefile_unlocked(struct fileid* fileid) {
+    return find_cachefile_in_list_unlocked(m_stale_head, fileid);
+}
+
 void cachefile_list::verify_unused_filenum(FILENUM filenum) {
     for (CACHEFILE extant = m_active_head; extant; extant = extant->next) {
         invariant(extant->filenum.fileid != filenum.fileid);
     }
 }
 
+// returns true if some eviction ran, false otherwise
+bool cachefile_list::evict_some_stale_pair(evictor* ev) {
+    PAIR p = NULL;
+    CACHEFILE cf_to_destroy = NULL;
+    write_lock();
+    if (m_stale_tail == NULL) {
+        write_unlock();
+        return false;
+    }
+    p = m_stale_tail->cf_head;
+    // we should not have a cf in the stale list
+    // that does not have any pairs
+    paranoid_invariant(p != NULL);
+
+    evict_pair_from_cachefile(p);
+
+    // now that we have evicted something,
+    // let's check if the cachefile is needed anymore
+    if (m_stale_tail->cf_head == NULL) {
+        cf_to_destroy = m_stale_tail;
+        remove_stale_cf_unlocked(m_stale_tail);
+    }
+
+    write_unlock();
+    
+    ev->remove_pair_attr(p->attr);
+    cachetable_free_pair(p);
+    if (cf_to_destroy) {
+        cachefile_destroy(cf_to_destroy);
+    }
+    return true;
+}
+
+void cachefile_list::free_stale_data(evictor* ev) {
+    write_lock();
+    while (m_stale_tail != NULL) {
+        PAIR p = m_stale_tail->cf_head;
+        // we should not have a cf in the stale list
+        // that does not have any pairs
+        paranoid_invariant(p != NULL);
+        
+        evict_pair_from_cachefile(p);
+        ev->remove_pair_attr(p->attr);
+        cachetable_free_pair(p);
+        
+        // now that we have evicted something,
+        // let's check if the cachefile is needed anymore
+        if (m_stale_tail->cf_head == NULL) {
+            CACHEFILE cf_to_destroy = m_stale_tail;
+            remove_stale_cf_unlocked(m_stale_tail);
+            cachefile_destroy(cf_to_destroy);
+        }
+    }
+    write_unlock();
+}
 
 void __attribute__((__constructor__)) toku_cachetable_helgrind_ignore(void);
 void

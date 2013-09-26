@@ -380,7 +380,10 @@ public:
     toku_pthread_rwlock_t m_pending_lock_cheap;
     void init();
     void destroy();
-    void evict(PAIR pair);
+    void evict_completely(PAIR pair);
+    void evict_from_cachetable(PAIR pair);
+    void evict_from_cachefile(PAIR pair);
+    void add_to_cachetable_only(PAIR p);
     void put(PAIR pair);
     PAIR find_pair(CACHEFILE file, CACHEKEY key, uint32_t hash);
     void pending_pairs_remove (PAIR p);
@@ -404,7 +407,6 @@ public:
 
 private:
     void pair_remove (PAIR p);
-    void cf_pairs_remove (PAIR p);
     void remove_from_hash_chain(PAIR p);
     void add_to_cf_list (PAIR p);
     void add_to_clock (PAIR p);
@@ -426,16 +428,25 @@ public:
     int cachefile_of_iname_in_env(const char *iname_in_env, CACHEFILE *cf);
     int cachefile_of_filenum(FILENUM filenum, CACHEFILE *cf);
     void add_cf_unlocked(CACHEFILE newcf);
+    void add_stale_cf(CACHEFILE newcf);
     void remove_cf(CACHEFILE cf);
+    void remove_stale_cf_unlocked(CACHEFILE cf);
     FILENUM reserve_filenum();
     uint32_t get_new_hash_id_unlocked();
     CACHEFILE find_cachefile_unlocked(struct fileid* fileid);
+    CACHEFILE find_stale_cachefile_unlocked(struct fileid* fileid);
     void verify_unused_filenum(FILENUM filenum);
+    bool evict_some_stale_pair(evictor* ev);
+    void free_stale_data(evictor* ev);
     // access to these fields are protected by the lock
     CACHEFILE m_active_head; // head of CACHEFILEs that are active
+    CACHEFILE m_stale_head; // head of CACHEFILEs that are stale
+    CACHEFILE m_stale_tail; // tail of CACHEFILEs that are stale
     FILENUM m_next_filenum_to_use;
     uint32_t m_next_hash_id_to_use;
     toku_pthread_rwlock_t m_lock; // this field is publoc so we are still POD
+private:    
+    CACHEFILE find_cachefile_in_list_unlocked(CACHEFILE start, struct fileid* fileid);
 };
 
 
@@ -500,7 +511,7 @@ const int EVICTION_PERIOD = 1;
 //
 class evictor {
 public:
-    void init(long _size_limit, pair_list* _pl, KIBBUTZ _kibbutz, uint32_t eviction_period);
+    void init(long _size_limit, pair_list* _pl, cachefile_list* _cf_list, KIBBUTZ _kibbutz, uint32_t eviction_period);
     void destroy();
     void add_pair_attr(PAIR_ATTR attr);
     void remove_pair_attr(PAIR_ATTR attr);    
@@ -533,6 +544,7 @@ private:
     int64_t unsafe_read_size_evicting(void) const;
 
     pair_list* m_pl;
+    cachefile_list* m_cf_list;
     int64_t m_size_current;            // the sum of the sizes of the pairs in the cachetable
     // changes to these two values are protected
     // by ev_thread_lock

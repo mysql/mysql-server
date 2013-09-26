@@ -116,6 +116,27 @@ PATENT RIGHTS GRANT:
 // update operations.
 //
 
+static int remove_and_recreate_me(DB_TXN *UU(txn), ARG arg, void* UU(operation_extra), void *UU(stats_extra)) {
+    int r;
+    int db_index = myrandom_r(arg->random_data)%arg->cli->num_DBs;
+    DB* db = arg->dbp[db_index];
+    r = (db)->close(db, 0); CKERR(r);
+
+    char name[30];
+    ZERO_ARRAY(name);
+    get_ith_table_name(name, sizeof(name), db_index);
+
+    r = arg->env->dbremove(arg->env, null_txn, name, nullptr, 0);
+    CKERR(r);
+
+    r = db_create(&(arg->dbp[db_index]), arg->env, 0);
+    assert(r == 0);
+    // TODO: Need to call before_db_open_hook() and after_db_open_hook()
+    r = arg->dbp[db_index]->open(arg->dbp[db_index], null_txn, name, nullptr, DB_BTREE, DB_CREATE, 0666);
+    assert(r == 0);
+    return 0;
+}
+
 static void
 stress_table(DB_ENV *env, DB **dbp, struct cli_args *cli_args) {
     //
