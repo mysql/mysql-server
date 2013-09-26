@@ -208,6 +208,8 @@ find_or_create_program(PFS_thread *thread,
                       const char *schema_name,
                       uint schema_name_length)
 {
+  static PFS_ALIGNED PFS_cacheline_uint32 monotonic;
+
   bool is_enabled, is_timed;
 
   if (program_array == NULL || program_max == 0 ||
@@ -228,7 +230,6 @@ find_or_create_program(PFS_thread *thread,
   PFS_program *pfs= NULL;
   uint retry_count= 0;
   const uint retry_max= 3;
-  static uint PFS_ALIGNED program_monotonic_index= 0;
   ulong index= 0;
   ulong attempts= 0;
 
@@ -265,7 +266,7 @@ search:
   /* Else create a new record in program stat array. */
   while (++attempts <= program_max)
   {
-    index= PFS_atomic::add_u32(& program_monotonic_index, 1) % program_max;
+    index= PFS_atomic::add_u32(& monotonic.m_u32, 1) % program_max;
     pfs= program_array + index;
 
     if (pfs->m_lock.is_free())
