@@ -870,7 +870,7 @@ int table_events_statements_history_long::rnd_next(void)
   if (events_statements_history_long_full)
     limit= events_statements_history_long_size;
   else
-    limit= events_statements_history_long_index % events_statements_history_long_size;
+    limit= events_statements_history_long_index.m_u32 % events_statements_history_long_size;
 
   for (m_pos.set_at(&m_next_pos); m_pos.m_index < limit; m_pos.next())
   {
@@ -901,7 +901,7 @@ int table_events_statements_history_long::rnd_pos(const void *pos)
   if (events_statements_history_long_full)
     limit= events_statements_history_long_size;
   else
-    limit= events_statements_history_long_index % events_statements_history_long_size;
+    limit= events_statements_history_long_index.m_u32 % events_statements_history_long_size;
 
   if (m_pos.m_index >= limit)
     return HA_ERR_RECORD_DELETED;
