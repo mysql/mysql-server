@@ -534,12 +534,12 @@ static void pair_touch (PAIR p) {
     p->count = (p->count < CLOCK_SATURATION) ? p->count+1 : CLOCK_SATURATION;
 }
 
-// Remove a pair from the cachetable
+// Remove a pair from the cachetable, requires write list lock to be held and p->mutex to be held
 // Effects: the pair is removed from the LRU list and from the cachetable's hash table.
 // The size of the objects in the cachetable is adjusted by the size of the pair being
 // removed.
 static void cachetable_remove_pair (pair_list* list, evictor* ev, PAIR p) {
-    list->evict(p);
+    list->evict_completely(p);
     ev->remove_pair_attr(p->attr);
 }
 
@@ -3250,18 +3250,29 @@ void pair_list::put(PAIR p) {
     m_n_in_table++;
 }
 
-// This removes the given pair from the pair list.
+// This removes the given pair from completely from the pair list.
 //
-// requires caller to have grabbed write lock on list.
+// requires caller to have grabbed write lock on list, and p->mutex held
 //
-void pair_list::evict(PAIR p) {
+void pair_list::evict_completely(PAIR p) {
+    this->evict_from_cachetable(p);
+    this->evict_from_cachefile(p);
+}
+
+// Removes the PAIR from the cachetable's lists,
+// but does NOT impact the list maintained by the cachefile
+void pair_list::evict_from_cachetable(PAIR p) {
     this->pair_remove(p);
     this->pending_pairs_remove(p);
-    this->cf_pairs_remove(p);
     this->remove_from_hash_chain(p);
     
     assert(m_n_in_table > 0);
     m_n_in_table--;    
+}
+
+// Removes the PAIR from the cachefile's list of PAIRs
+void pair_list::evict_from_cachefile(PAIR p) {
+    this->cf_pairs_remove(p);
 }
 
 // 

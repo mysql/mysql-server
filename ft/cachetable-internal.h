@@ -380,7 +380,9 @@ public:
     toku_pthread_rwlock_t m_pending_lock_cheap;
     void init();
     void destroy();
-    void evict(PAIR pair);
+    void evict_completely(PAIR pair);
+    void evict_from_cachetable(PAIR pair);
+    void evict_from_cachefile(PAIR pair);
     void put(PAIR pair);
     PAIR find_pair(CACHEFILE file, CACHEKEY key, uint32_t hash);
     void pending_pairs_remove (PAIR p);
