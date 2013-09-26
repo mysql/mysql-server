@@ -1361,6 +1361,8 @@ PFS_table_share* find_or_create_table_share(PFS_thread *thread,
                                             bool temporary,
                                             const TABLE_SHARE *share)
 {
+  static PFS_ALIGNED PFS_cacheline_uint32 monotonic;
+
   /* See comments in register_mutex_class */
   PFS_table_share_key key;
 
@@ -1385,7 +1387,6 @@ PFS_table_share* find_or_create_table_share(PFS_thread *thread,
   const uint retry_max= 3;
   bool enabled= true;
   bool timed= true;
-  static uint PFS_ALIGNED table_share_monotonic_index= 0;
   uint index;
   uint attempts= 0;
   PFS_table_share *pfs;
@@ -1428,7 +1429,7 @@ search:
   while (++attempts <= table_share_max)
   {
     /* See create_mutex() */
-    index= PFS_atomic::add_u32(& table_share_monotonic_index, 1) % table_share_max;
+    index= PFS_atomic::add_u32(& monotonic.m_u32, 1) % table_share_max;
     pfs= table_share_array + index;
 
     if (pfs->m_lock.is_free())
