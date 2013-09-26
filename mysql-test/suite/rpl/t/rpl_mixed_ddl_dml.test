@@ -43,6 +43,7 @@ show create table t3;
 show create table t5;
 connection master;
 drop table t2,t3,t5;
+drop temporary table t4;
 sync_slave_with_master;
 
 # End of 4.1 tests

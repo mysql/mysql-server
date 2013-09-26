@@ -42,4 +42,5 @@ t5	CREATE TABLE `t5` (
   `created` datetime DEFAULT NULL
 ) ENGINE=MyISAM DEFAULT CHARSET=latin1
 drop table t2,t3,t5;
+drop temporary table t4;
 include/rpl_end.inc
