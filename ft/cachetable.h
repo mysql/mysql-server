@@ -524,12 +524,6 @@ int toku_cachefile_count_pinned (CACHEFILE, int /*printthem*/ );
 // If oplsn_valid is true then use oplsn as the LSN of the close instead of asking the logger.  oplsn_valid being true is only allowed during recovery, and requires that you are removing the last reference (otherwise the lsn wouldn't make it in.)
 void toku_cachefile_close (CACHEFILE*, bool oplsn_valid, LSN oplsn);
 
-// Flush the cachefile.
-// Effect: Flush everything owned by the cachefile from the cachetable. All dirty
-// blocks are written.  All unpinned blocks are evicted from the cachetable.
-// Returns: 0 if success, otherwise returns an error number.
-void toku_cachefile_flush(CACHEFILE);
-
 // Return on success (different from pread and pwrite)
 //int cachefile_pwrite (CACHEFILE, const void *buf, size_t count, toku_off_t offset);
 //int cachefile_pread  (CACHEFILE, void *buf, size_t count, toku_off_t offset);

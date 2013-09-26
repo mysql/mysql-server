@@ -502,18 +502,6 @@ void toku_cachefile_close(CACHEFILE *cfp, bool oplsn_valid, LSN oplsn) {
     toku_free(cf);
 }
 
-//
-// This client calls this function to flush all PAIRs belonging to
-// a cachefile from the cachetable. The client must ensure that
-// while this function is called, no other thread does work on the 
-// cachefile.
-//
-void toku_cachefile_flush (CACHEFILE cf) {
-    bjm_wait_for_jobs_to_finish(cf->bjm);
-    CACHETABLE ct = cf->cachetable;
-    cachetable_flush_cachefile(ct, cf);
-}
-
 // This hash function comes from Jenkins:  http://burtleburtle.net/bob/c/lookup3.c
 // The idea here is to mix the bits thoroughly so that we don't have to do modulo by a prime number.
 // Instead we can use a bitmask on a table of size power of two.
@@ -2440,10 +2428,10 @@ static void remove_all_pairs_for_close(CACHETABLE ct, CACHEFILE cf) {
 }
 
 static void verify_cachefile_flushed(CACHETABLE ct UU(), CACHEFILE cf UU()) {
+#ifdef TOKU_DEBUG_PARANOID
     // assert here that cachefile is flushed by checking
     // pair_list and finding no pairs belonging to this cachefile
     // Make a list of pairs that belong to this cachefile.
-#ifdef TOKU_DEBUG_PARANOID
     if (cf) {
         ct->list.write_list_lock();
         // assert here that cachefile is flushed by checking
@@ -2488,14 +2476,11 @@ static void cachetable_flush_cachefile(CACHETABLE ct, CACHEFILE cf) {
     //
     // first write out dirty PAIRs
     write_dirty_pairs_for_close(ct, cf);
-    
+
     // now that everything is clean, get rid of everything
     remove_all_pairs_for_close(ct, cf);
-    
+
     verify_cachefile_flushed(ct, cf);
-    if (cf) {
-        bjm_reset(cf->bjm);
-    }
 }
 
 /* Requires that no locks be held that are used by the checkpoint logic */
