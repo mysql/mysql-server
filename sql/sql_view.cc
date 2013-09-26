@@ -866,12 +866,25 @@ static int mysql_register_view(THD *thd, TABLE_LIST *view,
                   system_charset_info);
 
   char md5[MD5_BUFF_LENGTH];
-  bool can_be_merged;
   char dir_buff[FN_REFLEN + 1], path_buff[FN_REFLEN + 1];
   LEX_STRING dir, file, path;
   int error= 0;
   bool was_truncated;
   DBUG_ENTER("mysql_register_view");
+
+  /*
+    A view can be merged if it is technically possible and if the user didn't
+    ask that we create a temporary table instead.
+  */
+  const bool can_be_merged= lex->can_be_merged() &&
+    lex->create_view_algorithm != VIEW_ALGORITHM_TMPTABLE;
+
+  if (can_be_merged)
+  {
+    for (ORDER *order= lex->select_lex.order_list.first ;
+         order; order= order->next)
+      order->used_alias= false;               /// @see Item::print_for_order()
+  }
 
   /* Generate view definition and IS queries. */
   view_query.length(0);
@@ -909,9 +922,8 @@ static int mysql_register_view(THD *thd, TABLE_LIST *view,
     goto err;   
   }
   view->md5.length= 32;
-  can_be_merged= lex->can_be_merged();
   if (lex->create_view_algorithm == VIEW_ALGORITHM_MERGE &&
-      !lex->can_be_merged())
+      !can_be_merged)
   {
     push_warning(thd, Sql_condition::WARN_LEVEL_WARN, ER_WARN_VIEW_MERGE,
                  ER(ER_WARN_VIEW_MERGE));
@@ -922,8 +934,8 @@ static int mysql_register_view(THD *thd, TABLE_LIST *view,
   view->definer.host= lex->definer->host;
   view->view_suid= lex->create_view_suid;
   view->with_check= lex->create_view_check;
-  if ((view->updatable_view= (can_be_merged &&
-                              view->algorithm != VIEW_ALGORITHM_TMPTABLE)))
+
+  if ((view->updatable_view= can_be_merged))
   {
     /* TODO: change here when we will support UNIONs */
     for (TABLE_LIST *tbl= lex->select_lex.table_list.first;
