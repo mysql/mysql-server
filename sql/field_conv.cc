@@ -798,14 +798,18 @@ Copy_field::get_copy_func(Field *to,Field *from)
   return do_field_eq;
 }
 
+static inline bool is_blob_type(Field *to)
+{
+  return (to->type() == MYSQL_TYPE_BLOB || to->type() == MYSQL_TYPE_GEOMETRY);
+}
 
 /** Simple quick field convert that is called on insert. */
 
 type_conversion_status field_conv(Field *to,Field *from)
 {
   if (to->real_type() == from->real_type() &&
-      !(to->type() == MYSQL_TYPE_BLOB && to->table->copy_blobs) &&
-      to->charset() == from->charset())
+      !((is_blob_type(to)) &&
+        to->table->copy_blobs) && to->charset() == from->charset())
   {
     if (to->real_type() == MYSQL_TYPE_VARCHAR &&
         from->real_type() == MYSQL_TYPE_VARCHAR)
