@@ -681,10 +681,6 @@ public:
     // Returns true of the 5.6 inplace alter table interface is used.
     bool try_hot_alter_table();
 
-    // We need a txn in the mysql_alter_table function to write new frm data, so this function
-    // gets called to sometimes create one.
-    void prepare_for_alter();
-
     // Used by the partition storage engine to provide new frm data for the table.
     int new_alter_table_frm_data(const uchar *frm_data, size_t frm_len);
 #endif
