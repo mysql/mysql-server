@@ -158,6 +158,8 @@ static void set_setup_actor_key(PFS_setup_actor_key *key,
 
 int insert_setup_actor(const String *user, const String *host, const String *role)
 {
+  static PFS_ALIGNED PFS_cacheline_uint32 monotonic;
+
   if (setup_actor_max == 0)
     return HA_ERR_RECORD_FILE_FULL;
 
@@ -169,7 +171,6 @@ int insert_setup_actor(const String *user, const String *host, const String *rol
   if (unlikely(pins == NULL))
     return HA_ERR_OUT_OF_MEM;
 
-  static uint PFS_ALIGNED setup_actor_monotonic_index= 0;
   uint index;
   uint attempts= 0;
   PFS_setup_actor *pfs;
@@ -177,7 +178,7 @@ int insert_setup_actor(const String *user, const String *host, const String *rol
   while (++attempts <= setup_actor_max)
   {
     /* See create_mutex() */
-    index= PFS_atomic::add_u32(& setup_actor_monotonic_index, 1) % setup_actor_max;
+    index= PFS_atomic::add_u32(& monotonic.m_u32, 1) % setup_actor_max;
     pfs= setup_actor_array + index;
 
     if (pfs->m_lock.is_free())

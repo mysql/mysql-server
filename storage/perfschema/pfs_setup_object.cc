@@ -1,4 +1,4 @@
-/* Copyright (c) 2010, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2010, 2013, Oracle and/or its affiliates. All rights reserved.
 
   This program is free software; you can redistribute it and/or modify
   it under the terms of the GNU General Public License as published by
@@ -151,6 +151,8 @@ static void set_setup_object_key(PFS_setup_object_key *key,
 int insert_setup_object(enum_object_type object_type, const String *schema,
                         const String *object, bool enabled, bool timed)
 {
+  static PFS_ALIGNED PFS_cacheline_uint32 monotonic;
+
   if (setup_object_max == 0)
     return HA_ERR_RECORD_FILE_FULL;
 
@@ -162,7 +164,6 @@ int insert_setup_object(enum_object_type object_type, const String *schema,
   if (unlikely(pins == NULL))
     return HA_ERR_OUT_OF_MEM;
 
-  static uint PFS_ALIGNED setup_object_monotonic_index= 0;
   uint index;
   uint attempts= 0;
   PFS_setup_object *pfs;
@@ -170,7 +171,7 @@ int insert_setup_object(enum_object_type object_type, const String *schema,
   while (++attempts <= setup_object_max)
   {
     /* See create_mutex() */
-    index= PFS_atomic::add_u32(& setup_object_monotonic_index, 1) % setup_object_max;
+    index= PFS_atomic::add_u32(& monotonic.m_u32, 1) % setup_object_max;
     pfs= setup_object_array + index;
 
     if (pfs->m_lock.is_free())
