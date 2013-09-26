@@ -79,6 +79,7 @@ COUNT(*)
 FLUSH LOGS;
 -------- switch to master --------
 FLUSH LOGS;
+DROP TEMPORARY TABLE IF EXISTS mysqltest1.tmp2;
 DROP DATABASE mysqltest1;
 End of 5.1 tests
 #
