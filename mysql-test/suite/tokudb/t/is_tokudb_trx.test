@@ -1,0 +1,42 @@
+# verify that information_schema.tokudb_trx gets populated with transactions
+
+source include/have_tokudb.inc;
+set default_storage_engine='tokudb';
+set tokudb_prelock_empty=false;
+disable_warnings;
+drop table if exists t;
+enable_warnings;
+
+# should be empty
+select * from information_schema.tokudb_trx;
+
+# should have my txn
+let $default_id=`select connection_id()`;
+set autocommit=0;
+create table t (id int primary key);
+insert into t values (1);
+replace_column 1 TXN_ID_DEFAULT 2 CLIENT_ID_DEFAULT;
+eval select * from information_schema.tokudb_trx;
+
+# should be empty
+commit;
+select * from information_schema.tokudb_trx;
+
+connect(conn_a,localhost,root,,);
+let a_id=`select connection_id()`;
+set autocommit=0;
+insert into t values (2);
+
+connection default;
+replace_column 1 TXN_ID_A 2 CLIENT_ID_A;
+eval select * from information_schema.tokudb_trx;
+connection conn_a;
+commit;
+connection default;
+
+# should be empty
+select * from information_schema.tokudb_trx;
+
+disconnect conn_a;
+
+drop table t;
