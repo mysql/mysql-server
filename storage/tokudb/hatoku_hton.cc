@@ -1782,6 +1782,13 @@ static const char *tokudb_get_index_name(DB *db) {
     }
 }
 
+static int tokudb_equal_key(const DBT *left_key, const DBT *right_key) {
+    if (left_key->data == NULL || right_key->data == NULL || left_key->size != right_key->size)
+        return 0;
+    else
+        return memcmp(left_key->data, right_key->data, left_key->size) == 0;
+}
+
 static void tokudb_lock_timeout_callback(DB *db, uint64_t requesting_txnid, const DBT *left_key, const DBT *right_key, uint64_t blocking_txnid) {
     THD *thd = current_thd;
     if (!thd)
@@ -1798,15 +1805,22 @@ static void tokudb_lock_timeout_callback(DB *db, uint64_t requesting_txnid, cons
         log_str.append("\", \"requesting_txnid\":");
         log_str.append_ulonglong(requesting_txnid);
         log_str.append(", \"blocking_txnid\":");
-        log_str.append_ulonglong(blocking_txnid);        
-        String left_str;
-        tokudb_pretty_left_key(db, left_key, &left_str);
-        log_str.append(", \"left\":\"");
-        log_str.append(left_str);
-        String right_str;
-        tokudb_pretty_right_key(db, right_key, &right_str);
-        log_str.append("\", \"right\":\"");
-        log_str.append(right_str);
+        log_str.append_ulonglong(blocking_txnid);
+        if (tokudb_equal_key(left_key, right_key)) {
+            String key_str;
+            tokudb_pretty_key(db, left_key, "?", &key_str);
+            log_str.append(", \"key\":");
+            log_str.append(key_str);
+        } else {
+            String left_str;
+            tokudb_pretty_left_key(db, left_key, &left_str);
+            log_str.append(", \"key_left\":\"");
+            log_str.append(left_str);
+            String right_str;
+            tokudb_pretty_right_key(db, right_key, &right_str);
+            log_str.append("\", \"key_right\":\"");
+            log_str.append(right_str);
+        }
         log_str.append("\"}");
         // set last_lock_timeout
         if (lock_timeout_debug & 1) {
@@ -1883,8 +1897,8 @@ static ST_FIELD_INFO tokudb_lock_waits_field_info[] = {
     {"requesting_trx_id", 0, MYSQL_TYPE_LONGLONG, 0, 0, NULL, SKIP_OPEN_TABLE },
     {"blocking_trx_id", 0, MYSQL_TYPE_LONGLONG, 0, 0, NULL, SKIP_OPEN_TABLE },
     {"lock_waits_dname", 256, MYSQL_TYPE_STRING, 0, 0, NULL, SKIP_OPEN_TABLE },
-    {"lock_waits_left", 256, MYSQL_TYPE_STRING, 0, 0, NULL, SKIP_OPEN_TABLE },
-    {"lock_waits_right", 256, MYSQL_TYPE_STRING, 0, 0, NULL, SKIP_OPEN_TABLE },
+    {"lock_waits_key_left", 256, MYSQL_TYPE_STRING, 0, 0, NULL, SKIP_OPEN_TABLE },
+    {"lock_waits_key_right", 256, MYSQL_TYPE_STRING, 0, 0, NULL, SKIP_OPEN_TABLE },
     {"lock_waits_start_time", 0, MYSQL_TYPE_LONGLONG, 0, 0, NULL, SKIP_OPEN_TABLE },
     {NULL, 0, MYSQL_TYPE_NULL, 0, 0, NULL, SKIP_OPEN_TABLE}
 };
@@ -1953,8 +1967,8 @@ static ST_FIELD_INFO tokudb_locks_field_info[] = {
     {"locks_trx_id", 0, MYSQL_TYPE_LONGLONG, 0, 0, NULL, SKIP_OPEN_TABLE },
     {"locks_mysql_thread_id", 0, MYSQL_TYPE_LONGLONG, 0, 0, NULL, SKIP_OPEN_TABLE },
     {"locks_dname", 256, MYSQL_TYPE_STRING, 0, 0, NULL, SKIP_OPEN_TABLE },
-    {"locks_left", 256, MYSQL_TYPE_STRING, 0, 0, NULL, SKIP_OPEN_TABLE },
-    {"locks_right", 256, MYSQL_TYPE_STRING, 0, 0, NULL, SKIP_OPEN_TABLE },
+    {"locks_key_left", 256, MYSQL_TYPE_STRING, 0, 0, NULL, SKIP_OPEN_TABLE },
+    {"locks_key_right", 256, MYSQL_TYPE_STRING, 0, 0, NULL, SKIP_OPEN_TABLE },
     {NULL, 0, MYSQL_TYPE_NULL, 0, 0, NULL, SKIP_OPEN_TABLE}
 };
 
