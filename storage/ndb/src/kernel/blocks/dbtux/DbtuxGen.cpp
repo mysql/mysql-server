@@ -338,7 +338,7 @@ Dbtux::readKeyAttrs(TuxCtx& ctx, const Frag& frag, TreeEnt ent, KeyData& keyData
 
   int ret;
   ret = c_tup->tuxReadAttrs(ctx.jamBuffer, tableFragPtrI, pageId, pageOffset, tupVersion, keyAttrs32, count, outputBuffer, false);
-  jamEntry();
+  thrjam(ctx.jamBuffer);
   ndbrequire(ret > 0);
   keyData.reset();
   Uint32 len;
@@ -392,13 +392,14 @@ Dbtux::unpackBound(TuxCtx& ctx, const ScanBound& scanBound, KeyBoundC& searchBou
 }
 
 void
-Dbtux::findFrag(const Index& index, Uint32 fragId, FragPtr& fragPtr)
+Dbtux::findFrag(EmulatedJamBuffer* jamBuf, const Index& index, 
+                Uint32 fragId, FragPtr& fragPtr)
 {
   const Uint32 numFrags = index.m_numFrags;
   for (Uint32 i = 0; i < numFrags; i++) {
-    jam();
+    thrjam(jamBuf);
     if (index.m_fragId[i] == fragId) {
-      jam();
+      thrjam(jamBuf);
       fragPtr.i = index.m_fragPtrI[i];
       c_fragPool.getPtr(fragPtr);
       return;
