@@ -330,14 +330,13 @@ static MYSQL_THDVAR_ENUM(row_format, PLUGIN_VAR_OPCMDARG,
                          "TOKUDB_LZMA, TOKUDB_FAST, TOKUDB_SMALL and TOKUDB_DEFAULT",
                          NULL, NULL, SRV_ROW_FORMAT_DEFAULT, &tokudb_row_format_typelib);
 
-static srv_row_format_t get_row_format(THD *thd)
-{
+static srv_row_format_t get_row_format(THD *thd) {
     return (srv_row_format_t) THDVAR(thd, row_format);
 }
 
-static MYSQL_THDVAR_UINT(lock_timeout_debug, 0, "TokuDB lock timeout debug", NULL, NULL, 0, 0, ~0U, 1);
+static MYSQL_THDVAR_UINT(lock_timeout_debug, 0, "TokuDB lock timeout debug", NULL /*check*/, NULL /*update*/, 1 /*default*/, 0 /*min*/, ~0U /*max*/, 1);
 
-static MYSQL_THDVAR_STR(last_lock_timeout, PLUGIN_VAR_MEMALLOC, "last TokuDB lock timeout", NULL, NULL, NULL);
+static MYSQL_THDVAR_STR(last_lock_timeout, PLUGIN_VAR_MEMALLOC, "last TokuDB lock timeout", NULL /*check*/, NULL /*update*/, NULL /*default*/);
 
 extern HASH tokudb_open_tables;
 extern pthread_mutex_t tokudb_mutex;
