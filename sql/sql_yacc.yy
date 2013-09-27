@@ -2304,14 +2304,11 @@ filter_table_ident:
           ident '.' ident /* qualified table name */
           {
             THD *thd= YYTHD;
-            String *str = new (thd->mem_root) String($1.str,
-                                                     $1.length,
-                                                     thd->charset());
-            str->append('.');
-            str->append($3.str, $3.length, thd->charset());
-            Item *table_item= new (thd->mem_root) Item_string(str->c_ptr(),
-                                                              str->length(),
+            Item_string *table_item= new (thd->mem_root) Item_string($1.str,
+                                                              $1.length,
                                                               thd->charset());
+            table_item->append(thd->strmake(".", 1), 1);
+            table_item->append($3.str, $3.length);
             $$= table_item;
           }
         ;
