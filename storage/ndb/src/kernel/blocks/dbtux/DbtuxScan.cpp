@@ -42,7 +42,7 @@ Dbtux::execACC_SCANREQ(Signal* signal)
     c_indexPool.getPtr(indexPtr, req->tableId);
     // get the fragment
     FragPtr fragPtr;
-    findFrag(*indexPtr.p, req->fragmentNo, fragPtr);
+    findFrag(jamBuffer(), *indexPtr.p, req->fragmentNo, fragPtr);
     ndbrequire(fragPtr.i != RNIL);
     Frag& frag = *fragPtr.p;
     // check for index not Online (i.e. Dropping)

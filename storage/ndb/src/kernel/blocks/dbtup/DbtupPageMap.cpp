@@ -210,7 +210,9 @@ void Dbtup::check_page_map(Fragrecord*) {}
 #endif
 
 Uint32 
-Dbtup::allocFragPage(Uint32 * err, Fragrecord* regFragPtr)
+Dbtup::allocFragPage(EmulatedJamBuffer* jamBuf,
+                     Uint32 * err, 
+                     Fragrecord* regFragPtr)
 {
   PagePtr pagePtr;
   Uint32 noOfPagesAllocated = 0;
@@ -218,10 +220,10 @@ Dbtup::allocFragPage(Uint32 * err, Fragrecord* regFragPtr)
   Uint32 max = regFragPtr->m_max_page_no;
   Uint32 cnt = regFragPtr->noOfPages;
 
-  allocConsPages(1, noOfPagesAllocated, pagePtr.i);
+  allocConsPages(jamBuf, 1, noOfPagesAllocated, pagePtr.i);
   if (noOfPagesAllocated == 0) 
   {
-    jam();
+    thrjam(jamBuf);
     * err = ZMEM_NOMEM_ERROR;
     return RNIL;
   }//if
@@ -230,21 +232,21 @@ Dbtup::allocFragPage(Uint32 * err, Fragrecord* regFragPtr)
   DynArr256 map(c_page_map_pool, regFragPtr->m_page_map);
   if (list == FREE_PAGE_RNIL)
   {
-    jam();
+    thrjam(jamBuf);
     pageId = max;
     if (!Local_key::isShort(pageId))
     {
       /**
        * TODO: remove when ACC supports 48 bit references
        */
-      jam();
+      thrjam(jamBuf);
       * err = 889;
       return RNIL;
     }
     Uint32 * ptr = map.set(2 * pageId);
     if (unlikely(ptr == 0))
     {
-      jam();
+      thrjam(jamBuf);
       returnCommonArea(pagePtr.i, noOfPagesAllocated);
       * err = ZMEM_NOMEM_ERROR;
       return RNIL;
@@ -255,7 +257,7 @@ Dbtup::allocFragPage(Uint32 * err, Fragrecord* regFragPtr)
   }
   else
   {
-    jam();
+    thrjam(jamBuf);
     pageId = list;
     Uint32 * ptr = map.set(2 * pageId);
     ndbrequire(ptr != 0);
@@ -264,7 +266,7 @@ Dbtup::allocFragPage(Uint32 * err, Fragrecord* regFragPtr)
     
     if (next != FREE_PAGE_RNIL)
     {
-      jam();
+      thrjam(jamBuf);
       ndbrequire((next & FREE_PAGE_BIT) != 0);
       next &= ~FREE_PAGE_BIT;
       Uint32 * nextPrevPtr = map.set(2 * next + 1);
@@ -315,7 +317,7 @@ Dbtup::allocFragPage(Uint32 * err,
   Uint32 noOfPagesAllocated = 0;
   Uint32 next = pagePtr.i;
 
-  allocConsPages(1, noOfPagesAllocated, pagePtr.i);
+  allocConsPages(jamBuffer(), 1, noOfPagesAllocated, pagePtr.i);
   if (unlikely(noOfPagesAllocated == 0))
   {
     jam();

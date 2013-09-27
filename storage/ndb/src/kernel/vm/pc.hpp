@@ -22,6 +22,7 @@
 #include "Emulator.hpp"
 #include <NdbOut.hpp>
 #include <ndb_limits.h>
+#include <NdbThread.h>
 
 #define JAM_FILE_ID 282
 
@@ -59,6 +60,9 @@
     Uint32 jamIndex = jamBuffer->theEmulatedJamIndex; \
     jamBuffer->theEmulatedJam[jamIndex++] = JamEvent((JAM_FILE_ID), (line)); \
     jamBuffer->theEmulatedJamIndex = jamIndex & JAM_MASK; \
+    /* Occasionally check that the jam buffer belongs to this thread.*/ \
+    assert((jamIndex & 3) != 0 || \
+           jamBuffer == NdbThread_GetTlsKey(NDB_THREAD_TLS_JAM));       \
     /* Occasionally check that jamFileNames[JAM_FILE_ID] matches __FILE__.*/ \
     assert((jamIndex & 0xff) != 0 ||                     \
            JamEvent::verifyId((JAM_FILE_ID), __FILE__)); \
@@ -253,6 +257,12 @@
 #define MEMCOPY_NO_WORDS(to, from, no_of_words) \
   memcpy((to), (void*)(from), (size_t)((no_of_words) << 2));
 
+// Get the jam buffer for the current thread.
+inline EmulatedJamBuffer* getThrJamBuf()
+{
+  return reinterpret_cast<EmulatedJamBuffer*>
+    (NdbThread_GetTlsKey(NDB_THREAD_TLS_JAM));
+}
 
 #undef JAM_FILE_ID
 
