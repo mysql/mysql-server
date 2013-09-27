@@ -475,7 +475,8 @@ DbtupProxy::disk_restart_alloc_extent(Uint32 tableId, Uint32 fragId,
 
   Uint32 i = workerIndex(instanceNo);
   Dbtup* dbtup = (Dbtup*)workerBlock(i);
-  return dbtup->disk_restart_alloc_extent(tableId, fragId, key, pages);
+  return dbtup->disk_restart_alloc_extent(jamBuffer(), tableId, fragId, key, 
+                                          pages);
 }
 
 void
@@ -490,7 +491,7 @@ DbtupProxy::disk_restart_page_bits(Uint32 tableId, Uint32 fragId,
 
   Uint32 i = workerIndex(instanceNo);
   Dbtup* dbtup = (Dbtup*)workerBlock(i);
-  dbtup->disk_restart_page_bits(tableId, fragId, key, bits);
+  dbtup->disk_restart_page_bits(jamBuffer(), tableId, fragId, key, bits);
 }
 
 BLOCK_FUNCTIONS(DbtupProxy)
