@@ -15,7 +15,8 @@ SET @innodb_change_buffering_debug_orig = @@innodb_change_buffering_debug;
 SET GLOBAL innodb_change_buffering_debug = 1;
 -- enable_query_log
 
-CREATE TABLE bug59733(a INT AUTO_INCREMENT PRIMARY KEY,b CHAR(1))ENGINE=InnoDB;
+CREATE TABLE bug59733(a INT AUTO_INCREMENT PRIMARY KEY,b CHAR(1)) ENGINE=InnoDB
+STATS_PERSISTENT=0;
 
 # Create enough rows for the table, so that the insert buffer will be
 # used. There must be multiple index pages, because changes to the
