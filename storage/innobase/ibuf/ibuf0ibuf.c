@@ -193,11 +193,6 @@ access order rules. */
 /** Operations that can currently be buffered. */
 UNIV_INTERN ibuf_use_t	ibuf_use		= IBUF_USE_ALL;
 
-#if defined UNIV_DEBUG || defined UNIV_IBUF_DEBUG
-/** Flag to control insert buffer debugging. */
-UNIV_INTERN uint	ibuf_debug;
-#endif /* UNIV_DEBUG || UNIV_IBUF_DEBUG */
-
 /** The insert buffer control structure */
 UNIV_INTERN ibuf_t*	ibuf			= NULL;
 
@@ -2648,6 +2643,12 @@ ibuf_contract_ext(
 	    && UNIV_LIKELY(!srv_shutdown_state)) {
 		return(0);
 	}
+
+#if defined UNIV_DEBUG || defined UNIV_IBUF_DEBUG
+	if (ibuf_debug) {
+		return(0);
+	}
+#endif /* UNIV_DEBUG || UNIV_IBUF_DEBUG */
 
 	ibuf_mtr_start(&mtr);
 
