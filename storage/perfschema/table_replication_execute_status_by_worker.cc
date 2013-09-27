@@ -194,7 +194,7 @@ void table_replication_execute_status_by_worker::make_row(Slave_worker *w)
 {
   m_row_exists= false;
 
-  m_row.worker_id= w->id;
+  m_row.worker_id= w->get_internal_id();
 
   m_row.thread_id= 0;
   mysql_mutex_lock(&w->jobs_lock);
