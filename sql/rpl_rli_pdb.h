@@ -400,6 +400,7 @@ public:
   void slave_worker_ends_group(Log_event*, int);
   const char *get_master_log_name();
   ulonglong get_master_log_pos() { return master_log_pos; };
+  uint get_internal_id() {return internal_id;}
   ulonglong set_master_log_pos(ulong val) { return master_log_pos= val; };
   bool commit_positions(Log_event *evt, Slave_job_group *ptr_g, bool force);
   bool reset_recovery_info();
