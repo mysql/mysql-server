@@ -2748,6 +2748,10 @@ ibuf_merge(
 
 	if (ibuf->empty && !srv_shutdown_state) {
 		return(0);
+#if defined UNIV_DEBUG || defined UNIV_IBUF_DEBUG
+	} else if (ibuf_debug) {
+		return(0);
+#endif /* UNIV_DEBUG || UNIV_IBUF_DEBUG */
 	} else if (table_id == 0) {
 		return(ibuf_merge_pages(n_pages, sync));
 	} else if ((table = ibuf_get_table(table_id)) == 0) {
