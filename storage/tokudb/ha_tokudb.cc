@@ -1873,7 +1873,7 @@ exit:
 //      1 on error
 //
 int ha_tokudb::open(const char *name, int mode, uint test_if_locked) {
-    TOKUDB_DBUG_ENTER("ha_tokudb::open %p %s", this, name);
+    TOKUDB_DBUG_ENTER("ha_tokudb::open %p %s %o %u", this, name, mode, test_if_locked);
     THD* thd = ha_thd();
 
     int error = 0;
@@ -3341,7 +3341,7 @@ cleanup:
 }
 
 void ha_tokudb::start_bulk_insert(ha_rows rows) {
-    TOKUDB_DBUG_ENTER("ha_tokudb::start_bulk_insert");
+    TOKUDB_DBUG_ENTER("ha_tokudb::start_bulk_insert %p txn %p", this, transaction);
     THD* thd = ha_thd();
     tokudb_trx_data* trx = (tokudb_trx_data *) thd_data_get(thd, tokudb_hton->slot);
     delay_updating_ai_metadata = true;
@@ -6956,7 +6956,7 @@ row_format_to_row_type(srv_row_format_t row_format)
 //      error otherwise
 //
 int ha_tokudb::create(const char *name, TABLE * form, HA_CREATE_INFO * create_info) {
-    TOKUDB_DBUG_ENTER("ha_tokudb::create");
+    TOKUDB_DBUG_ENTER("ha_tokudb::create %p %s", this, name);
     int error;
     DB *status_block = NULL;
     uint version;
@@ -7005,7 +7005,7 @@ int ha_tokudb::create(const char *name, TABLE * form, HA_CREATE_INFO * create_in
     newname = (char *)my_malloc(get_max_dict_name_path_length(name),MYF(MY_WME));
     if (newname == NULL){ error = ENOMEM; goto cleanup;}
 
-    if (thd_sql_command(thd) == SQLCOM_CREATE_TABLE && trx && trx->sub_sp_level) {
+    if (trx && trx->sub_sp_level && thd_sql_command(thd) == SQLCOM_CREATE_TABLE) {
         txn = trx->sub_sp_level;
     }
     else {

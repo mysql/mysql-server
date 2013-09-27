@@ -331,16 +331,7 @@ static int tokudb_init_func(void *p) {
     if (!tokudb_home)
         tokudb_home = mysql_real_data_home;
     DBUG_PRINT("info", ("tokudb_home: %s", tokudb_home));
-#if 0
-    if (!tokudb_log_buffer_size) { // QQQ
-        tokudb_log_buffer_size = max(table_cache_size * 512, 32 * 1024);
-        DBUG_PRINT("info", ("computing tokudb_log_buffer_size %ld\n", tokudb_log_buffer_size));
-    }
-    tokudb_log_file_size = tokudb_log_buffer_size * 4;
-    tokudb_log_file_size = MY_ALIGN(tokudb_log_file_size, 1024 * 1024L);
-    tokudb_log_file_size = max(tokudb_log_file_size, 10 * 1024 * 1024L);
-    DBUG_PRINT("info", ("computing tokudb_log_file_size: %ld\n", tokudb_log_file_size));
-#endif
+
     if ((r = db_env_create(&db_env, 0))) {
         DBUG_PRINT("info", ("db_env_create %d\n", r));
         goto error;
@@ -424,16 +415,6 @@ static int tokudb_init_func(void *p) {
     if (r == 0) 
         if (tokudb_debug & TOKUDB_DEBUG_INIT) 
             TOKUDB_TRACE("%s:tokudb_cache_size=%lld\n", __FUNCTION__, ((unsigned long long) gbytes << 30) + bytes);
-
-#if 0
-    // QQQ config the logs
-    DBUG_PRINT("info", ("tokudb_log_file_size: %ld\n", tokudb_log_file_size));
-    db_env->set_lg_max(db_env, tokudb_log_file_size);
-    DBUG_PRINT("info", ("tokudb_log_buffer_size: %ld\n", tokudb_log_buffer_size));
-    db_env->set_lg_bsize(db_env, tokudb_log_buffer_size);
-    // DBUG_PRINT("info",("tokudb_region_size: %ld\n", tokudb_region_size));
-    // db_env->set_lg_regionmax(db_env, tokudb_region_size);
-#endif
 
     if (db_env->set_redzone) {
         r = db_env->set_redzone(db_env, tokudb_fs_reserve_percent);
@@ -2059,39 +2040,9 @@ static int show_tokudb_vars(THD *thd, SHOW_VAR *var, char *buff) {
     uint64_t num_rows;
     error = db_env->get_engine_status (db_env, toku_global_status_rows, toku_global_status_max_rows, &num_rows, &redzone_state, &panic, panic_string, panic_string_len, TOKU_GLOBAL_STATUS);
     //TODO: Maybe do something with the panic output?
-#if 0
-    if (strlen(panic_string)) {
-        STATPRINT("Environment panic string", panic_string);
-    }
-#endif
     if (error == 0) {
         assert(num_rows <= toku_global_status_max_rows);
         //TODO: Maybe enable some of the items here: (copied from engine status
-#if 0
-        if (panic) {
-            snprintf(buf, bufsiz, "%" PRIu64, panic);
-            STATPRINT("Environment panic", buf);
-        }
-
-        if(redzone_state == FS_BLOCKED) {
-            STATPRINT("*** URGENT WARNING ***", "FILE SYSTEM IS COMPLETELY FULL");
-            snprintf(buf, bufsiz, "FILE SYSTEM IS COMPLETELY FULL");
-        }
-        else if (redzone_state == FS_GREEN) {
-            snprintf(buf, bufsiz, "more than %d percent of total file system space", 2*tokudb_fs_reserve_percent);
-        }
-        else if (redzone_state == FS_YELLOW) {
-            snprintf(buf, bufsiz, "*** WARNING *** FILE SYSTEM IS GETTING FULL (less than %d percent free)", 2*tokudb_fs_reserve_percent);
-        }
-        else if (redzone_state == FS_RED){
-            snprintf(buf, bufsiz, "*** WARNING *** FILE SYSTEM IS GETTING VERY FULL (less than %d percent free): INSERTS ARE PROHIBITED", tokudb_fs_reserve_percent);
-        }
-        else {
-            snprintf(buf, bufsiz, "information unavailable, unknown redzone state %d", redzone_state);
-        }
-        STATPRINT ("disk free space", buf);
-#endif
-
 
         //TODO: (optionally) add redzone state, panic, panic string, etc. Right now it's being ignored.
 
