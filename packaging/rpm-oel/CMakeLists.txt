@@ -17,7 +17,7 @@
 IF(UNIX)
   SET(prefix ${CMAKE_INSTALL_PREFIX})
 
-  SET(SPECFILENAME "mysql.${VERSION}.spec")
+  SET(SPECFILENAME "mysql.spec")
   IF("${VERSION}" MATCHES "-ndb-")
     STRING(REGEX REPLACE "^.*-ndb-" "" NDBVERSION "${VERSION}")
     SET(SPECFILENAME "mysql-cluster-${NDBVERSION}.spec")
@@ -26,10 +26,11 @@ IF(UNIX)
   # Left in current directory, to be taken during build
   CONFIGURE_FILE(mysql.spec.in ${CMAKE_CURRENT_BINARY_DIR}/${SPECFILENAME} @ONLY)
 
-  FOREACH(fedfile my.cnf mysql-log-rotate.sh mysql-systemd-start 
-          mysql.server.sh my-default.cnf.sh  mysql-5.6.11-mysql-install.patch my_config.h
-          mysql-multi.server.sh mysql.conf filter-requires.sh filter-provides.sh
-          mysql.service mysqld_multi.server.sh mysql-5.1.70.tar.gz mysql-embedded-check.c mysql_config.sh)
+  FOREACH(fedfile my.cnf my_config.h mysql_config.sh
+          mysqld.service mysql-systemd-start mysql.conf
+          mysql-5.6.14-mysql-install.patch
+          filter-requires.sh filter-provides.sh
+          mysql-5.1.70.tar.gz mysql-embedded-check.c)
     CONFIGURE_FILE(${fedfile} ${CMAKE_CURRENT_BINARY_DIR}/${fedfile} COPYONLY)
   ENDFOREACH()
 ENDIF()
