@@ -1859,7 +1859,8 @@ int Dbtup::handleInsertReq(Signal* signal,
       if (!varalloc)
       {
 	jam();
-	ptr= alloc_fix_rec(&terrorCode,
+	ptr= alloc_fix_rec(jamBuffer(),
+                           &terrorCode,
                            regFragPtr,
 			   regTabPtr,
 			   &regOperPtr.p->m_tuple_location,
