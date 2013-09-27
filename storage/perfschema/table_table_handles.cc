@@ -186,7 +186,7 @@ void table_table_handles::make_row(PFS_table *table)
   m_row.m_internal_lock= table->m_internal_lock;
   m_row.m_external_lock= table->m_external_lock;
 
-  if (! share->m_lock.end_optimistic_lock(&lock))
+  if (! table->m_lock.end_optimistic_lock(&lock))
     return;
 
   m_row_exists= true;
