@@ -28,7 +28,7 @@ perl mysql-test-run.pl --force --timer --testcase-timeout=60 --debug-server --pa
 
 
 # Additional  replication configurations
-perl mysql-test-run.pl --timer --force --big-test --testcase-timeout=60 --parallel=auto --comment=rpl_binlog_checksum-debug --experimental=collections/default.experimental --mysqld=--binlog-checksum=CRC32 --vardir=var-rpl_binlog_checksum-debug --suite=binlog,rpl --skip-test-list=collections/disabled-weekly.list
+perl mysql-test-run.pl --timer --force  --debug-server --big-test --testcase-timeout=60 --parallel=auto --comment=rpl_binlog_checksum-debug --experimental=collections/default.experimental --mysqld=--binlog-checksum=CRC32 --vardir=var-rpl_binlog_checksum-debug --suite=binlog,rpl --skip-test-list=collections/disabled-weekly.list
 perl mysql-test-run.pl --force --timer --big-test --testcase-timeout=60 --debug-server --parallel=auto --experimental=collections/default.experimental --comment=rpl_crash_safe_relay-debug --vardir=var-rpl_crash_safe_relay-debug --suite=rpl --mysqld=--relay-log-info-repository=TABLE --skip-test-list=collections/disabled-weekly.list
 perl mysql-test-run.pl --force --timer --big-test --testcase-timeout=60 --debug-server --parallel=auto --experimental=collections/default.experimental --comment=rpl_crash_safe_master-debug --vardir=var-rpl_crash_safe_master-debug --suite=rpl --mysqld=--master-info-repository=TABLE --skip-test-list=collections/disabled-weekly.list
 
