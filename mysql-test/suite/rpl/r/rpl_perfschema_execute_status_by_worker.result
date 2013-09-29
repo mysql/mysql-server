@@ -21,7 +21,7 @@ SET @@global.slave_parallel_workers=1;
 set @save.slave_transaction_retries= @@global.slave_transaction_retries;
 include/start_slave.inc
 include/assert.inc [Worker_Id should be 0]
-worker thread id extracted from SHOW PROCESSLIST and PS table match.
+include/assert.inc [thread_name should should indicate worker thread.]
 include/assert.inc [Service_State should be "ON" on a fresh slave server.]
 include/assert.inc [Last_Seen_Transaction should show "ANONYMOUS" if gtid-mode=off.]
 include/assert.inc [Value returned by SSS and PS table for Last_Error_Number should be same.]

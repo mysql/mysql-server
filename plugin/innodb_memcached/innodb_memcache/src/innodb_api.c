@@ -1926,22 +1926,22 @@ innodb_reset_conn(
 		}
 
 		if (commit) {
-			ib_cb_cursor_commit_trx(
-				ib_crsr, conn_data->crsr_trx);
-
 			if (has_binlog && conn_data->thd
 			    && conn_data->mysql_tbl) {
 				handler_binlog_commit(conn_data->thd,
 						      conn_data->mysql_tbl);
 			}
-		} else {
-			ib_cb_trx_rollback(conn_data->crsr_trx);
 
+			ib_cb_cursor_commit_trx(
+				ib_crsr, conn_data->crsr_trx);
+		} else {
 			if (has_binlog && conn_data->thd
 			    && conn_data->mysql_tbl) {
 				handler_binlog_rollback(conn_data->thd,
 							conn_data->mysql_tbl);
 			}
+
+			ib_cb_trx_rollback(conn_data->crsr_trx);
 		}
 
 		conn_data->crsr_trx = NULL;

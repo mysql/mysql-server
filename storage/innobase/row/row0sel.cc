@@ -502,7 +502,7 @@ sel_col_prefetch_buf_alloc(
 	ut_ad(que_node_get_type(column) == QUE_NODE_SYMBOL);
 
 	column->prefetch_buf = static_cast<sel_buf_t*>(
-		mem_alloc(SEL_MAX_N_PREFETCH * sizeof(sel_buf_t)));
+		ut_malloc(SEL_MAX_N_PREFETCH * sizeof(sel_buf_t)));
 
 	for (i = 0; i < SEL_MAX_N_PREFETCH; i++) {
 		sel_buf = column->prefetch_buf + i;
@@ -530,11 +530,11 @@ sel_col_prefetch_buf_free(
 
 		if (sel_buf->val_buf_size > 0) {
 
-			mem_free(sel_buf->data);
+			ut_free(sel_buf->data);
 		}
 	}
 
-	mem_free(prefetch_buf);
+	ut_free(prefetch_buf);
 }
 
 /*********************************************************************//**
@@ -3395,7 +3395,7 @@ row_sel_prefetch_cache_init(
 
 	/* Reserve space for the magic number. */
 	sz = UT_ARR_SIZE(prebuilt->fetch_cache) * (prebuilt->mysql_row_len + 8);
-	ptr = static_cast<byte*>(mem_alloc(sz));
+	ptr = static_cast<byte*>(ut_malloc(sz));
 
 	for (i = 0; i < UT_ARR_SIZE(prebuilt->fetch_cache); i++) {
 

@@ -1472,7 +1472,7 @@ innobase_start_or_create_for_mysql(void)
 		if (srv_innodb_status) {
 
 			srv_monitor_file_name = static_cast<char*>(
-				mem_alloc(
+				ut_malloc(
 					strlen(fil_path_to_mysql_datadir)
 					+ 20 + sizeof "/innodb_status."));
 
@@ -2534,7 +2534,7 @@ innobase_shutdown_for_mysql(void)
 		srv_monitor_file = 0;
 		if (srv_monitor_file_name) {
 			unlink(srv_monitor_file_name);
-			mem_free(srv_monitor_file_name);
+			ut_free(srv_monitor_file_name);
 		}
 	}
 
@@ -2738,7 +2738,7 @@ srv_get_meta_data_filename(
 		strcpy(suffix, ".cfg");
 	}
 
-	mem_free(path);
+	ut_free(path);
 
 	srv_normalize_path_for_win(filename);
 }

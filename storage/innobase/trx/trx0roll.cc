@@ -317,8 +317,8 @@ trx_roll_savepoint_free(
 {
 	UT_LIST_REMOVE(trx->trx_savepoints, savep);
 
-	mem_free(savep->name);
-	mem_free(savep);
+	ut_free(savep->name);
+	ut_free(savep);
 }
 
 /*******************************************************************//**
@@ -477,13 +477,13 @@ trx_savepoint_for_mysql(
 
 		UT_LIST_REMOVE(trx->trx_savepoints, savep);
 
-		mem_free(savep->name);
-		mem_free(savep);
+		ut_free(savep->name);
+		ut_free(savep);
 	}
 
 	/* Create a new savepoint and add it as the last in the list */
 
-	savep = static_cast<trx_named_savept_t*>(mem_alloc(sizeof(*savep)));
+	savep = static_cast<trx_named_savept_t*>(ut_malloc(sizeof(*savep)));
 
 	savep->name = mem_strdup(savepoint_name);
 

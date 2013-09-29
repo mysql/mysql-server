@@ -2480,7 +2480,7 @@ func_start:
 insert_empty:
 		ut_ad(!split_rec);
 		ut_ad(!insert_left);
-		buf = (byte*) mem_alloc(rec_get_converted_size(cursor->index,
+		buf = (byte*) ut_malloc(rec_get_converted_size(cursor->index,
 							       tuple, n_ext));
 
 		first_rec = rec_convert_dtuple_to_rec(buf, cursor->index,
@@ -2504,7 +2504,7 @@ insert_empty:
 						offsets, tuple, n_ext, heap);
 	} else {
 		if (!insert_left) {
-			mem_free(buf);
+			ut_free(buf);
 			buf = NULL;
 		}
 

@@ -204,7 +204,7 @@ rw_lock_debug_t*
 rw_lock_debug_create(void)
 /*======================*/
 {
-	return((rw_lock_debug_t*) mem_alloc(sizeof(rw_lock_debug_t)));
+	return((rw_lock_debug_t*) ut_malloc(sizeof(rw_lock_debug_t)));
 }
 
 /******************************************************************//**
@@ -215,7 +215,7 @@ rw_lock_debug_free(
 /*===============*/
 	rw_lock_debug_t* info)
 {
-	mem_free(info);
+	ut_free(info);
 }
 #endif /* UNIV_SYNC_DEBUG */
 

@@ -1076,7 +1076,7 @@ loop:
 				"Table '%s' in InnoDB data dictionary"
 				" has unknown type %lx", table_name, flags);
 
-			mem_free(name);
+			ut_free(name);
 			goto loop;
 		}
 
@@ -1181,10 +1181,7 @@ loop:
 					"ignored.", table_name);
 			}
 
-			if (filepath) {
-				mem_free(filepath);
-			}
-
+			ut_free(filepath);
 			break;
 		}
 
@@ -1193,7 +1190,7 @@ loop:
 		}
 
 next_tablespace:
-		mem_free(name);
+		ut_free(name);
 		mtr_start(&mtr);
 
 		btr_pcur_restore_position(BTR_SEARCH_LEAF, &pcur, &mtr);
@@ -2231,7 +2228,7 @@ dict_save_data_dir_path(
 		but it makes dict_table_t consistent */
 		table->flags &= ~DICT_TF_MASK_DATA_DIR;
 	}
-	mem_free(default_filepath);
+	ut_free(default_filepath);
 }
 
 /*****************************************************************//**
@@ -2259,7 +2256,7 @@ dict_get_and_save_data_dir_path(
 
 		if (path) {
 			dict_save_data_dir_path(table, path);
-			mem_free(path);
+			ut_free(path);
 		}
 
 		if (!dict_mutex_own) {
@@ -2481,9 +2478,8 @@ err_exit:
 
 				table->ibd_file_missing = TRUE;
 			}
-			if (filepath) {
-				mem_free(filepath);
-			}
+
+			ut_free(filepath);
 		}
 	}
 

@@ -165,8 +165,15 @@ void table_replication_execute_status_by_coordinator::make_row()
 
   if (active_mi->rli->slave_running)
   {
-    m_row.thread_id_is_null= false;
-    m_row.thread_id= (ulonglong)active_mi->rli->info_thd->thread_id;
+    PSI_thread *psi= thd_get_psi(active_mi->rli->info_thd);
+    PFS_thread *pfs= reinterpret_cast<PFS_thread *> (psi);
+    if(pfs)
+    {
+      m_row.thread_id= pfs->m_thread_internal_id;
+      m_row.thread_id_is_null= false;
+    }
+    else
+      m_row.thread_id_is_null= true;
   }
   else
     m_row.thread_id_is_null= true;

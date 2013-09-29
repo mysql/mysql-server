@@ -917,7 +917,7 @@ row_ins_invalidate_query_cache(
 	*ptr = '\0';
 
 	innobase_invalidate_query_cache(thr_get_trx(thr), buf, len);
-	mem_free(buf);
+	ut_free(buf);
 }
 
 /*********************************************************************//**

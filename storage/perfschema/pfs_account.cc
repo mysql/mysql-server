@@ -36,8 +36,9 @@
   @{
 */
 
-ulong account_max;
-ulong account_lost;
+ulong account_max= 0;
+ulong account_lost= 0;
+bool account_full;
 
 PFS_account *account_array= NULL;
 
@@ -59,6 +60,8 @@ int init_account(const PFS_global_param *param)
   uint index;
 
   account_max= param->m_account_sizing;
+  account_lost= 0;
+  account_full= false;
 
   account_array= NULL;
   account_instr_class_waits_array= NULL;
@@ -225,11 +228,7 @@ find_or_create_account(PFS_thread *thread,
                          const char *username, uint username_length,
                          const char *hostname, uint hostname_length)
 {
-  if (account_max == 0)
-  {
-    account_lost++;
-    return NULL;
-  }
+  static PFS_ALIGNED PFS_cacheline_uint32 monotonic;
 
   LF_PINS *pins= get_account_hash_pins(thread);
   if (unlikely(pins == NULL))
@@ -243,8 +242,11 @@ find_or_create_account(PFS_thread *thread,
                     hostname, hostname_length);
 
   PFS_account **entry;
+  PFS_account *pfs;
   uint retry_count= 0;
   const uint retry_max= 3;
+  uint index;
+  uint attempts= 0;
 
 search:
   entry= reinterpret_cast<PFS_account**>
@@ -252,7 +254,6 @@ search:
                     key.m_hash_key, key.m_key_length));
   if (entry && (entry != MY_ERRPTR))
   {
-    PFS_account *pfs;
     pfs= *entry;
     pfs->inc_refcount();
     lf_hash_search_unpin(pins);
@@ -261,80 +262,88 @@ search:
 
   lf_hash_search_unpin(pins);
 
-  PFS_scan scan;
-  uint random= randomized_index(username, account_max);
-
-  for (scan.init(random, account_max);
-       scan.has_pass();
-       scan.next_pass())
+  if (account_full)
   {
-    PFS_account *pfs= account_array + scan.first();
-    PFS_account *pfs_last= account_array + scan.last();
-    for ( ; pfs < pfs_last; pfs++)
+    account_lost++;
+    return NULL;
+  }
+
+  while (++attempts <= account_max)
+  {
+    index= PFS_atomic::add_u32(& monotonic.m_u32, 1) % account_max;
+    pfs= account_array + index;
+
+    if (pfs->m_lock.is_free())
     {
-      if (pfs->m_lock.is_free())
+      if (pfs->m_lock.free_to_dirty())
       {
-        if (pfs->m_lock.free_to_dirty())
+        pfs->m_key= key;
+        if (username_length > 0)
+          pfs->m_username= &pfs->m_key.m_hash_key[0];
+        else
+          pfs->m_username= NULL;
+        pfs->m_username_length= username_length;
+
+        if (hostname_length > 0)
+          pfs->m_hostname= &pfs->m_key.m_hash_key[username_length + 1];
+        else
+          pfs->m_hostname= NULL;
+        pfs->m_hostname_length= hostname_length;
+
+        pfs->m_user= find_or_create_user(thread, username, username_length);
+        pfs->m_host= find_or_create_host(thread, hostname, hostname_length);
+
+        pfs->init_refcount();
+        pfs->reset_stats();
+        pfs->m_disconnected_count= 0;
+
+        if (username_length > 0 && hostname_length > 0)
         {
-          pfs->m_key= key;
-          if (username_length > 0)
-            pfs->m_username= &pfs->m_key.m_hash_key[0];
-          else
-            pfs->m_username= NULL;
-          pfs->m_username_length= username_length;
-
-          if (hostname_length > 0)
-            pfs->m_hostname= &pfs->m_key.m_hash_key[username_length + 1];
-          else
-            pfs->m_hostname= NULL;
-          pfs->m_hostname_length= hostname_length;
-
-          pfs->m_user= find_or_create_user(thread, username, username_length);
-          pfs->m_host= find_or_create_host(thread, hostname, hostname_length);
-
-          pfs->init_refcount();
-          pfs->reset_stats();
-          pfs->m_disconnected_count= 0;
-
-          int res;
-          res= lf_hash_insert(&account_hash, pins, &pfs);
-          if (likely(res == 0))
-          {
-            pfs->m_lock.dirty_to_allocated();
-            return pfs;
-          }
-
-          if (pfs->m_user)
-          {
-            pfs->m_user->release();
-            pfs->m_user= NULL;
-          }
-          if (pfs->m_host)
-          {
-            pfs->m_host->release();
-            pfs->m_host= NULL;
-          }
-
-          pfs->m_lock.dirty_to_free();
-
-          if (res > 0)
-          {
-            if (++retry_count > retry_max)
-            {
-              account_lost++;
-              return NULL;
-            }
-            goto search;
-          }
-
-          account_lost++;
-          return NULL;
+          lookup_setup_actor(thread, username, username_length, hostname, hostname_length,
+                             & pfs->m_enabled);
         }
+        else
+          pfs->m_enabled= true;
+
+        int res;
+        res= lf_hash_insert(&account_hash, pins, &pfs);
+        if (likely(res == 0))
+        {
+          pfs->m_lock.dirty_to_allocated();
+          return pfs;
+        }
+
+        if (pfs->m_user)
+        {
+          pfs->m_user->release();
+          pfs->m_user= NULL;
+        }
+        if (pfs->m_host)
+        {
+          pfs->m_host->release();
+          pfs->m_host= NULL;
+        }
+
+        pfs->m_lock.dirty_to_free();
+
+        if (res > 0)
+        {
+          if (++retry_count > retry_max)
+          {
+            account_lost++;
+            return NULL;
+          }
+          goto search;
+        }
+
+        account_lost++;
+        return NULL;
       }
     }
   }
 
   account_lost++;
+  account_full= true;
   return NULL;
 }
 
@@ -643,6 +652,7 @@ void purge_account(PFS_thread *thread, PFS_account *account)
         account->m_host= NULL;
       }
       account->m_lock.allocated_to_free();
+      account_full= false;
     }
   }
 
@@ -671,6 +681,28 @@ void purge_all_account(void)
 
       if (pfs->get_refcount() == 0)
         purge_account(thread, pfs);
+    }
+  }
+}
+
+void update_accounts_derived_flags(PFS_thread *thread)
+{
+  PFS_account *pfs= account_array;
+  PFS_account *pfs_last= account_array + account_max;
+
+  for ( ; pfs < pfs_last; pfs++)
+  {
+    if (pfs->m_lock.is_populated())
+    {
+      if (pfs->m_username_length > 0 && pfs->m_hostname_length > 0)
+      {
+        lookup_setup_actor(thread,
+                           pfs->m_username, pfs->m_username_length,
+                           pfs->m_hostname, pfs->m_hostname_length,
+                           & pfs->m_enabled);
+      }
+      else
+        pfs->m_enabled= true;
     }
   }
 }
