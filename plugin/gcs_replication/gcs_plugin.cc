@@ -13,105 +13,33 @@
    along with this program; if not, write to the Free Software Foundation,
    51 Franklin Street, Suite 500, Boston, MA 02110-1335 USA */
 
-#ifdef HAVE_CONFIG_H
-#include "config.h"
-#endif
-
-#include <string.h>
-#include "./include/gcs_plugin.h"
+#include "gcs_plugin.h"
+#include "observer_server_state.h"
+#include "observer_trans.h"
 #include <sql_class.h>                          // THD
-#include <replication.h>
 #include <log.h>
 #include <gcs_replication.h>
 
-/**
-  Handle assigned when loading the plugin.
-  Used with the error reporting functions.
-*/
 
 static MYSQL_PLUGIN plugin_info_ptr;
-extern char gcs_replication_group[UUID_LENGTH+1];
-extern char gcs_replication_boot;
+char gcs_replication_group[UUID_LENGTH+1];
+rpl_sidno gcs_cluster_sidno;
+char gcs_replication_boot;
 char *gcs_group_pointer=NULL;
 bool gcs_running= false;
 
+
+/*
+  Internal auxiliary functions signatures.
+*/
 static int check_group_name_string(const char *str);
 
-int gcs_before_handle_connection(Server_state_param *param)
-{
-  return 0;
-}
-
-int gcs_before_recovery(Server_state_param *param)
-{
-  return 0;
-}
-
-int gcs_after_engine_recovery(Server_state_param *param)
-{
-  return 0;
-}
-
-int gcs_after_recovery(Server_state_param *param)
-{
-  return 0;
-}
-
-int gcs_before_server_shutdown(Server_state_param *param)
-{
-  return 0;
-}
-
-int gcs_after_server_shutdown(Server_state_param *param)
-{
-  return 0;
-}
-
-Server_state_observer server_state_observer = {
-  sizeof(Server_state_observer),
-
-  gcs_before_handle_connection, //before the client connect the node
-  gcs_before_recovery,           //before_recovery
-  gcs_after_engine_recovery,     //after engine recovery
-  gcs_after_recovery,            //after_recovery
-  gcs_before_server_shutdown,    //before shutdown
-  gcs_after_server_shutdown,     //after shutdown
-};
-
-int gcs_trans_before_commit(Trans_param *param)
-{
-  DBUG_ENTER("gcs_trans_before_commit");
-  DBUG_RETURN(0);
-}
-
-int gcs_trans_before_rollback(Trans_param *param)
-{
-  DBUG_ENTER("gcs_trans_before_rollback");
-  DBUG_RETURN(0);
-}
-
-int gcs_trans_after_commit(Trans_param *param)
-{
-  DBUG_ENTER("gcs_trans_after_commit");
-  DBUG_RETURN(0);
-}
-
-int gcs_trans_after_rollback(Trans_param *param)
-{
-  DBUG_ENTER("gcs_trans_after_rollback");
-  DBUG_RETURN(0);
-}
+static bool init_cluster_sidno();
 
 
-Trans_observer trans_observer = {
-  sizeof(Trans_observer),
-
-  gcs_trans_before_commit,
-  gcs_trans_before_rollback,
-  gcs_trans_after_commit,
-  gcs_trans_after_rollback,
-};
-
+/*
+  Plugin interface.
+*/
 struct st_mysql_gcs_rpl gcs_rpl_descriptor =
 {
   MYSQL_GCS_REPLICATION_INTERFACE_VERSION,
@@ -124,6 +52,8 @@ int gcs_rpl_start()
   if (gcs_running)
     return 2;
   if (check_group_name_string(gcs_group_pointer))
+    return 1;
+  if (init_cluster_sidno())
     return 1;
   gcs_running= true;
   return 0;
@@ -142,7 +72,10 @@ int gcs_replication_init(MYSQL_PLUGIN plugin_info)
     return 1;
 
   if(register_server_state_observer(&server_state_observer, (void *)plugin_info_ptr))
+  {
+    sql_print_error("Failure on GCS cluster during registering the server state observers");
     return 1;
+  }
 
   if (register_trans_observer(&trans_observer, (void *)plugin_info_ptr))
   {
@@ -191,6 +124,21 @@ static void update_boot(MYSQL_THD thd, SYS_VAR *var, void *ptr, const void *val)
   DBUG_VOID_RETURN;
 }
 
+static bool init_cluster_sidno()
+{
+  DBUG_ENTER("init_cluster_sid");
+  rpl_sid cluster_sid;
+
+  if (cluster_sid.parse(gcs_group_pointer) != RETURN_STATUS_OK)
+    DBUG_RETURN(true);
+
+  gcs_cluster_sidno = get_sidno_from_global_sid_map(cluster_sid);
+  if (gcs_cluster_sidno <= 0)
+    DBUG_RETURN(true);
+
+  DBUG_RETURN(false);
+}
+
 static int check_group_name_string(const char *str)
 {
   DBUG_ENTER("check_group_name_string");
@@ -216,6 +164,12 @@ static int check_group_name(MYSQL_THD thd, SYS_VAR *var, void* prt,
 
   char buff[NAME_CHAR_LEN];
   const char *str;
+
+  if (gcs_running)
+  {
+    sql_print_error("The group name cannot be changed when cluster is running");
+    DBUG_RETURN(1);
+  }
 
   int length= sizeof(buff);
   str= value->val_str(value, buff, &length);

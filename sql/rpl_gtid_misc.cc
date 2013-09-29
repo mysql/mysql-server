@@ -159,3 +159,28 @@ void check_return_status(enum_return_status status, const char *action,
   }
 }
 #endif // ! DBUG_OFF
+
+
+#ifndef MYSQL_CLIENT
+rpl_sidno get_sidno_from_global_sid_map(rpl_sid sid)
+{
+  DBUG_ENTER("get_sidno_from_global_sid_map(rpl_sid)");
+
+  global_sid_lock->wrlock();
+  rpl_sidno sidno= global_sid_map->add_sid(sid);
+  global_sid_lock->unlock();
+
+  DBUG_RETURN(sidno);
+}
+
+rpl_gno get_last_gno_without_gaps(rpl_sidno sidno)
+{
+  DBUG_ENTER("get_last_gno_without_gaps(rpl_sidno)");
+
+  global_sid_lock->rdlock();
+  rpl_gno gno= gtid_state->get_last_gno_without_gaps(sidno);
+  global_sid_lock->unlock();
+
+  DBUG_RETURN(gno);
+}
+#endif // ifndef MYSQL_CLIENT

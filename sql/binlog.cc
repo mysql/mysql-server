@@ -6725,7 +6725,11 @@ TC_LOG::enum_result MYSQL_BIN_LOG::commit(THD *thd, bool all)
   */
   if (stuff_logged)
   {
-    if (RUN_HOOK(transaction, before_commit, (thd, all)))
+    if (RUN_HOOK(transaction,
+                 before_commit,
+                 (thd, all,
+                  thd_get_cache_mngr(thd)->get_binlog_cache_log(true),
+                  max_binlog_cache_size)))
       DBUG_RETURN(RESULT_ABORTED);
 
     if (ordered_commit(thd, all))

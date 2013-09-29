@@ -843,6 +843,7 @@ const char* Log_event::get_type_str(Log_event_type type)
   case ANONYMOUS_GTID_LOG_EVENT: return "Anonymous_Gtid";
   case PREVIOUS_GTIDS_LOG_EVENT: return "Previous_gtids";
   case HEARTBEAT_LOG_EVENT: return "Heartbeat";
+  case TRANSACTION_CONTEXT_EVENT: return "Transaction_context";
   default: return "Unknown";				/* impossible */
   }
 }
@@ -980,6 +981,16 @@ Log_event::Log_event(const char* buf,
     return;
   }
   /* otherwise, go on with reading the header from buf (nothing now) */
+}
+
+/*
+  This method is not on header file to avoid using key_memory_log_event
+  outside log_event.cc, allowing header file to be included on plugins.
+*/
+void* Log_event::operator new(size_t size)
+{
+  return (void*) my_malloc(key_memory_log_event,
+                           (uint)size, MYF(MY_WME|MY_FAE));
 }
 
 #ifndef MYSQL_CLIENT
@@ -1801,6 +1812,9 @@ Log_event* Log_event::read_log_event(const char* buf, uint event_len,
       break;
     case DELETE_ROWS_EVENT:
       ev = new Delete_rows_log_event(buf, event_len, description_event);
+      break;
+    case TRANSACTION_CONTEXT_EVENT:
+      ev = new Transaction_context_log_event(buf, event_len, description_event);
       break;
 #endif
     default:
@@ -5590,6 +5604,8 @@ Format_description_log_event(uint8 binlog_ver, const char* server_ver)
         post_header_len[ANONYMOUS_GTID_LOG_EVENT-1]=
         Gtid_log_event::POST_HEADER_LENGTH;
       post_header_len[PREVIOUS_GTIDS_LOG_EVENT-1]= IGNORABLE_HEADER_LEN;
+      post_header_len[TRANSACTION_CONTEXT_EVENT-1]=
+        Transaction_context_log_event::POST_HEADER_LENGTH;
 
       // Sanity-check that all post header lengths are initialized.
       int i;
@@ -13804,6 +13820,229 @@ int Previous_gtids_log_event::do_update_pos(Relay_log_info *rli)
   return 0;
 }
 #endif
+
+
+/**************************************************************************
+	Transaction_context_log_event methods
+**************************************************************************/
+#ifndef MYSQL_CLIENT
+Transaction_context_log_event::Transaction_context_log_event(const char *server_uuid_arg,
+                                                             my_thread_id thread_id_arg,
+                                                             rpl_gno snapshot_timestamp_arg)
+  : Log_event(Log_event::EVENT_TRANSACTIONAL_CACHE, Log_event::EVENT_NORMAL_LOGGING),
+    thread_id(thread_id_arg),
+    snapshot_timestamp(snapshot_timestamp_arg)
+{
+  DBUG_ENTER("Transaction_context_log_event::Transaction_context_log_event(THD *, const char *, ulonglong)");
+  server_uuid= my_strdup(key_memory_log_event, server_uuid_arg, MYF(MY_WME));
+  DBUG_VOID_RETURN;
+}
+#endif
+
+Transaction_context_log_event::Transaction_context_log_event(const char *buffer,
+                                                             uint event_len,
+                                                             const Format_description_log_event *descr_event)
+  : Log_event(buffer, descr_event)
+{
+  DBUG_ENTER("Transaction_context_log_event::Transaction_context_log_event(const char *, uint, const Format_description_log_event*)");
+  const char* data_head = buffer + descr_event->common_header_len;
+
+  uint8 server_uuid_len= (uint) data_head[ENCODED_SERVER_UUID_LEN_OFFSET];
+  thread_id= uint8korr(data_head + ENCODED_THREAD_ID_OFFSET);
+  snapshot_timestamp= uint8korr(data_head + ENCODED_SNAPSHOT_TIMESTAMP_OFFSET);
+  uint16 write_set_len= uint2korr(data_head + ENCODED_WRITE_SET_ITEMS_OFFSET);
+  uint16 read_set_len= uint2korr(data_head + ENCODED_READ_SET_ITEMS_OFFSET);
+  char *pos = (char*) data_head + POST_HEADER_LENGTH;
+
+  server_uuid= my_strndup(key_memory_log_event,
+                          pos, server_uuid_len, MYF(MY_WME));
+  if (server_uuid == NULL)
+    goto err;
+  pos += server_uuid_len;
+
+  pos= read_data_set(pos, write_set_len, &write_set);
+  if (pos == NULL)
+    goto err;
+  pos= read_data_set(pos, read_set_len, &read_set);
+  if (pos == NULL)
+    goto err;
+
+  DBUG_VOID_RETURN;
+
+err:
+  // Make is_valid() return false.
+  clear_set(&write_set);
+  DBUG_VOID_RETURN;
+}
+
+Transaction_context_log_event::~Transaction_context_log_event()
+{
+  DBUG_ENTER("Transaction_context_log_event::~Transaction_context_log_event");
+  my_free(server_uuid);
+  clear_set(&write_set);
+  clear_set(&read_set);
+  DBUG_VOID_RETURN;
+}
+
+void Transaction_context_log_event::clear_set(std::list<const char*> *set)
+{
+  DBUG_ENTER("Transaction_context_log_event::clear_set");
+  for (std::list<const char*>::iterator it=set->begin();
+       it != set->end();
+       ++it)
+    my_free((char*)*it);
+  set->clear();
+  DBUG_VOID_RETURN;
+}
+
+size_t Transaction_context_log_event::to_string(char *buf, ulong len) const
+{
+  DBUG_ENTER("Transaction_context_log_event::to_string");
+  DBUG_RETURN(my_snprintf(buf, len,
+                          "server_uuid=%s\tthread_id=%lu\tsnapshot_timestamp=%lld",
+                          server_uuid, thread_id, snapshot_timestamp));
+}
+
+#ifndef MYSQL_CLIENT
+int Transaction_context_log_event::pack_info(Protocol *protocol)
+{
+  DBUG_ENTER("Transaction_context_log_event::pack_info");
+  char buf[256];
+  size_t bytes= to_string(buf, 256);
+  protocol->store(buf, bytes, &my_charset_bin);
+  DBUG_RETURN(0);
+}
+#endif
+
+#ifdef MYSQL_CLIENT
+void Transaction_context_log_event::print(FILE *file,
+                                          PRINT_EVENT_INFO *print_event_info)
+{
+  DBUG_ENTER("Transaction_context_log_event::print");
+  char buf[256];
+  IO_CACHE *const head= &print_event_info->head_cache;
+
+  if (!print_event_info->short_form)
+  {
+    to_string(buf, 256);
+    print_header(head, print_event_info, FALSE);
+    my_b_printf(head, "Transaction_context: %s\n", buf);
+  }
+  DBUG_VOID_RETURN;
+}
+#endif
+
+#if defined(MYSQL_SERVER) && defined(HAVE_REPLICATION)
+int Transaction_context_log_event::do_update_pos(Relay_log_info *rli)
+{
+  DBUG_ENTER("Transaction_context_log_event::do_update_pos");
+  rli->inc_event_relay_log_pos();
+  DBUG_RETURN(0);
+}
+#endif
+
+int Transaction_context_log_event::get_data_size()
+{
+  DBUG_ENTER("Transaction_context_log_event::get_data_size");
+
+  int size= POST_HEADER_LENGTH;
+  size += strlen(server_uuid);
+
+  for (std::list<const char*>::iterator it=write_set.begin();
+       it != write_set.end();
+       ++it)
+    size += ENCODED_READ_WRITE_SET_ITEM_LEN + strlen(*it);
+
+  DBUG_RETURN(size);
+}
+
+#ifndef MYSQL_CLIENT
+bool Transaction_context_log_event::write_data_header(IO_CACHE* file)
+{
+  DBUG_ENTER("Transaction_context_log_event::write_data_header");
+  char buf[POST_HEADER_LENGTH];
+
+  buf[ENCODED_SERVER_UUID_LEN_OFFSET] = (char) strlen(server_uuid);
+  int8store(buf + ENCODED_THREAD_ID_OFFSET, thread_id);
+  int8store(buf + ENCODED_SNAPSHOT_TIMESTAMP_OFFSET, snapshot_timestamp);
+  int2store(buf + ENCODED_WRITE_SET_ITEMS_OFFSET, write_set.size());
+  int2store(buf + ENCODED_READ_SET_ITEMS_OFFSET, read_set.size());
+  DBUG_RETURN(wrapper_my_b_safe_write(file,
+                                      (const uchar *) buf,
+                                      POST_HEADER_LENGTH));
+}
+
+bool Transaction_context_log_event::write_data_body(IO_CACHE* file)
+{
+  DBUG_ENTER("Transaction_context_log_event::write_data_body");
+
+  if (wrapper_my_b_safe_write(file,
+                              (const uchar*) server_uuid,
+                              strlen(server_uuid)) ||
+      write_data_set(file, &write_set) ||
+      write_data_set(file, &read_set))
+    DBUG_RETURN(true);
+
+  DBUG_RETURN(false);
+}
+
+bool Transaction_context_log_event::write_data_set(IO_CACHE* file,
+                                                   std::list<const char*> *set)
+{
+  DBUG_ENTER("Transaction_context_log_event::write_data_set");
+  for (std::list<const char*>::iterator it=set->begin();
+       it != set->end();
+       ++it)
+  {
+    char buf[ENCODED_READ_WRITE_SET_ITEM_LEN];
+    const char* hash= *it;
+    uint16 len= strlen(hash);
+
+    int2store(buf, len);
+    if (wrapper_my_b_safe_write(file,
+                                (const uchar*) buf,
+                                ENCODED_READ_WRITE_SET_ITEM_LEN) ||
+        wrapper_my_b_safe_write(file, (const uchar*) hash, len))
+      DBUG_RETURN(true);
+  }
+
+  DBUG_RETURN(false);
+}
+#endif
+
+char *Transaction_context_log_event::read_data_set(char *pos,
+                                                   uint16 set_len,
+                                                   std::list<const char*> *set)
+{
+  DBUG_ENTER("Transaction_context_log_event::read_data_set");
+  for (int i=0; i < set_len; i++)
+  {
+    uint16 len= uint2korr(pos);
+    pos += ENCODED_READ_WRITE_SET_ITEM_LEN;
+    char *hash= my_strndup(key_memory_log_event,
+                           pos, len, MYF(MY_WME));
+    if (hash == NULL)
+      DBUG_RETURN(NULL);
+    pos += len;
+    set->push_back(hash);
+  }
+
+  DBUG_RETURN(pos);
+}
+
+void Transaction_context_log_event::add_write_set(const char *hash)
+{
+  DBUG_ENTER("Transaction_context_log_event::add_write_set");
+  write_set.push_back(hash);
+  DBUG_VOID_RETURN;
+}
+
+void Transaction_context_log_event::add_read_set(const char *hash)
+{
+  DBUG_ENTER("Transaction_context_log_event::add_read_set");
+  read_set.push_back(hash);
+  DBUG_VOID_RETURN;
+}
 
 
 #ifdef MYSQL_CLIENT

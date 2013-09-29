@@ -1,0 +1,37 @@
+--source include/have_gcs_replication_plugin.inc
+--source include/install_gcs_replication.inc
+
+# This test is only checking that capture code does not cause
+# errors, for complete testing it will need to be completed when
+# WL#6826, WL#6833, WL#6834, WL#6842, WL#6829, WL#6855 and WL#7237
+# are finished.
+
+SET GLOBAL gcs_replication_plugin_group_name= "8a94f357-aab4-11df-86ab-c80aa9429562";
+START GCS_REPLICATION;
+
+CREATE TABLE t1 (c1 INT NOT NULL PRIMARY KEY) ENGINE=InnoDB;
+CREATE TABLE t2 (c1 INT NOT NULL PRIMARY KEY) ENGINE=InnoDB;
+
+BEGIN;
+INSERT INTO t1 VALUES (1);
+INSERT INTO t2 VALUES (2);
+COMMIT;
+
+INSERT INTO t1 VALUES (3);
+
+BEGIN;
+INSERT INTO t1 VALUES (4);
+ROLLBACK;
+
+BEGIN;
+INSERT INTO t1 VALUES (5);
+INSERT INTO t1 VALUES (6);
+COMMIT;
+
+CREATE TEMPORARY TABLE t3 (c1 INT NOT NULL PRIMARY KEY) ENGINE=InnoDB;
+
+DROP TABLE t1, t2, t3;
+
+STOP GCS_REPLICATION;
+
+--source include/uninstall_gcs_replication.inc

@@ -14,7 +14,9 @@
 # Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA  02110-1301 USA
 
 SET(GCS_SOURCES
- gcs_plugin.cc include/gcs_plugin.h)
+ gcs_plugin.cc gcs_plugin.h
+ observer_server_state.cc observer_server_state.h
+ observer_trans.cc observer_trans.h)
 
 MYSQL_ADD_PLUGIN(gcs_replication ${GCS_SOURCES}
   MODULE_ONLY MODULE_OUTPUT_NAME "gcs_replication_plugin")

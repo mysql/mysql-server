@@ -7,6 +7,7 @@
 --source include/have_binlog_format_row.inc
 --source include/not_embedded.inc
 --source include/have_innodb.inc
+--source include/have_gtid.inc
 --source include/have_gcs_replication_plugin.inc
 
 --disable_query_log

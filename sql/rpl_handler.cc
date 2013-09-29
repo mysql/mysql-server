@@ -225,12 +225,17 @@ void delegates_destroy()
   delete_dynamic(plugins)
 
 
-int Trans_delegate::before_commit(THD *thd, bool all)
+int Trans_delegate::before_commit(THD *thd, bool all,
+                                  IO_CACHE *trx_cache_log,
+                                  ulonglong trx_cache_log_max_size)
 {
   DBUG_ENTER("Trans_delegate::before_commit");
-  Trans_param param = { 0, 0, 0, 0, 0 };
+  Trans_param param = { 0, 0, 0, 0, 0, 0, 0, 0 };
   param.server_id= thd->server_id;
+  param.server_uuid= server_uuid;
   param.thread_id= thd->thread_id;
+  param.trx_cache_log= trx_cache_log;
+  param.trx_cache_log_max_size= trx_cache_log_max_size;
 
   bool is_real_trans= (all || thd->transaction.all.ha_list == 0);
   if (is_real_trans)
@@ -244,8 +249,9 @@ int Trans_delegate::before_commit(THD *thd, bool all)
 int Trans_delegate::before_rollback(THD *thd, bool all)
 {
   DBUG_ENTER("Trans_delegate::before_rollback");
-  Trans_param param = { 0, 0, 0, 0, 0 };
+  Trans_param param = { 0, 0, 0, 0, 0, 0, 0, 0 };
   param.server_id= thd->server_id;
+  param.server_uuid= server_uuid;
   param.thread_id= thd->thread_id;
 
   bool is_real_trans= (all || thd->transaction.all.ha_list == 0);
@@ -260,7 +266,8 @@ int Trans_delegate::before_rollback(THD *thd, bool all)
 int Trans_delegate::after_commit(THD *thd, bool all)
 {
   DBUG_ENTER("Trans_delegate::after_commit");
-  Trans_param param = { 0, 0, 0, 0, 0 };
+  Trans_param param = { 0, 0, 0, 0, 0, 0, 0, 0 };
+  param.server_uuid= server_uuid;
   param.thread_id= thd->thread_id;
 
   bool is_real_trans= (all || thd->transaction.all.ha_list == 0);
@@ -281,7 +288,8 @@ int Trans_delegate::after_commit(THD *thd, bool all)
 int Trans_delegate::after_rollback(THD *thd, bool all)
 {
   DBUG_ENTER("Trans_delegate::after_rollback");
-  Trans_param param = { 0, 0, 0, 0, 0 };
+  Trans_param param = { 0, 0, 0, 0, 0, 0, 0, 0 };
+  param.server_uuid= server_uuid;
   param.thread_id= thd->thread_id;
 
   bool is_real_trans= (all || thd->transaction.all.ha_list == 0);

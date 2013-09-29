@@ -13,22 +13,27 @@
    along with this program; if not, write to the Free Software Foundation,
    51 Franklin Street, Suite 500, Boston, MA 02110-1335 USA */
 
-#ifndef MYPLUGIN_REPLICATION_H
-#define MYPLUGIN_REPLICATION_H
+#ifndef OBSERVER_SERVER_STATE
+#define OBSERVER_SERVER_STATE
 
-#include "my_global.h"
-#include <mysql/plugin.h>
-#include <mysql/plugin_gcs_rpl.h>
-#include <../include/mysql_com.h>
-#include <mysqld.h>               // UUID_LENGTH
+#include "gcs_plugin.h"
+#include <replication.h>
 
-typedef st_mysql_sys_var SYS_VAR;
-char gcs_replication_group[UUID_LENGTH+1];
-char gcs_replication_boot;
+/*
+  DBMS lifecycle events observers.
+*/
+int gcs_before_handle_connection(Server_state_param *param);
 
-int gcs_replication_init(MYSQL_PLUGIN plugin_info);
-int gcs_replication_deinit(void *p);
-int gcs_rpl_start();
-int gcs_rpl_stop();
+int gcs_before_recovery(Server_state_param *param);
 
-#endif /* MYPLUGIN_REPLICATION_H */
+int gcs_after_engine_recovery(Server_state_param *param);
+
+int gcs_after_recovery(Server_state_param *param);
+
+int gcs_before_server_shutdown(Server_state_param *param);
+
+int gcs_after_server_shutdown(Server_state_param *param);
+
+extern Server_state_observer server_state_observer;
+
+#endif /* OBSERVER_SERVER_STATE */

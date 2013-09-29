@@ -265,6 +265,20 @@ rpl_gno Gtid_state::get_automatic_gno(rpl_sidno sidno) const
 }
 
 
+rpl_gno Gtid_state::get_last_gno_without_gaps(rpl_sidno sidno) const
+{
+  DBUG_ENTER("Gtid_state::get_last_gno_without_gaps");
+  gtid_state->lock_sidno(sidno);
+
+  Gtid_set::Const_interval_iterator ivit(&logged_gtids, sidno);
+  const Gtid_set::Interval *iv= ivit.get();
+  rpl_gno gno= iv != NULL ? iv->end-1 : 0;
+
+  gtid_state->unlock_sidno(sidno);
+  DBUG_RETURN(gno);
+}
+
+
 void Gtid_state::wait_for_gtid(THD *thd, const Gtid &gtid)
 {
   DBUG_ENTER("Gtid_state::wait_for_gtid");

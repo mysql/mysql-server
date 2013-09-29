@@ -42,7 +42,7 @@ include/wait_for_slave_sql_error.inc [errno=1146]
 
 include/assert.inc [Value returned by SSS and PS table for Last_Error_Number should be same.]
 Last_Error_Message
-Worker 0 failed executing transaction '' at master log master-bin.000001, end_log_pos 1705; Error 'Table 'test.t' doesn't exist' on query. Default database: 'test'. Query: 'insert into t values(1)'
+Worker 0 failed executing transaction '' at master log master-bin.000001, end_log_pos 1706; Error 'Table 'test.t' doesn't exist' on query. Default database: 'test'. Query: 'insert into t values(1)'
 include/assert.inc [Value returned by SSS and PS table for Last_Error_Timestamp should be same.]
 
 # Verify that the error fields are preserved after STOP SLAVE.
@@ -60,7 +60,7 @@ include/assert.inc [So, Service_State after STOP SLAVE should be "OFF".]
 include/assert.inc [Worker_Id should be 0]
 include/assert.inc [Value returned by SSS and PS table for Last_Error_Number should be same.]
 Last_Error_Message
-Worker 0 failed executing transaction '' at master log master-bin.000001, end_log_pos 1705; Error 'Table 'test.t' doesn't exist' on query. Default database: 'test'. Query: 'insert into t values(1)'
+Worker 0 failed executing transaction '' at master log master-bin.000001, end_log_pos 1706; Error 'Table 'test.t' doesn't exist' on query. Default database: 'test'. Query: 'insert into t values(1)'
 include/assert.inc [Value returned by SSS and PS table for Last_Error_Timestamp should be same.]
 stop slave;
 reset slave;

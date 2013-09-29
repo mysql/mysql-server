@@ -13,6 +13,8 @@ SET GLOBAL gcs_replication_plugin_group_name= "8a94f357-aab4-11df-86ab-c80aa9429
 START GCS_REPLICATION;
 START GCS_REPLICATION;
 ERROR HY000: The START GCS_REPLICATION failed since the cluster is already running.
+SET GLOBAL gcs_replication_plugin_group_name= "8a94f357-aab4-11df-86ab-c80aa9429562";
+ERROR 42000: Variable 'gcs_replication_plugin_group_name' can't be set to the value of '8a94f357-aab4-11df-86ab-c80aa9429562'
 STOP GCS_REPLICATION;
 include/uninstall_gcs_replication.inc
 UNINSTALL PLUGIN gcs_replication_plugin;

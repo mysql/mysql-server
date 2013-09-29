@@ -46,6 +46,12 @@ START GCS_REPLICATION;
 --error ER_GCS_REPLICATION_RUNNING
 START GCS_REPLICATION;
 
+
+# We cannot set group name when cluster is running.
+# Proper message will be logged on error log.
+--error ER_WRONG_VALUE_FOR_VAR
+--eval SET GLOBAL gcs_replication_plugin_group_name= "$gcs_group_name"
+
 STOP GCS_REPLICATION;
 
 --source include/uninstall_gcs_replication.inc

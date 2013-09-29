@@ -2,3 +2,4 @@
 $GCS_RPL_PLUGIN_OPT
 --loose-gcs_replication_plugin_start_on_boot=1
 --loose-gcs_replication_plugin_group_name=8a94f357-aab4-11df-86ab-c80aa9429562
+--gtid-mode=on --enforce-gtid-consistency --log-slave-updates

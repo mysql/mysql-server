@@ -37,6 +37,7 @@ enum Trans_flags {
 */
 typedef struct Trans_param {
   uint32 server_id;
+  const char *server_uuid;
   my_thread_id thread_id;
   uint32 flags;
 
@@ -49,6 +50,12 @@ typedef struct Trans_param {
   */
   const char *log_file;
   my_off_t log_pos;
+
+  /*
+    Set on before_commit hook.
+  */
+  IO_CACHE *trx_cache_log;
+  ulonglong trx_cache_log_max_size;
 } Trans_param;
 
 /**

@@ -34,6 +34,7 @@
 #include "sql_list.h"                           /* I_List */
 #include "hash.h"
 #include "table_id.h"
+#include <list>
 
 #ifdef MYSQL_CLIENT
 #include "sql_const.h"
@@ -744,6 +745,8 @@ enum Log_event_type
   ANONYMOUS_GTID_LOG_EVENT= 34,
 
   PREVIOUS_GTIDS_LOG_EVENT= 35,
+
+  TRANSACTION_CONTEXT_EVENT= 36,
   /*
     Add new events here - right above this comment!
     Existing events (except ENUM_END_EVENT) should never change their numbers
@@ -1290,11 +1293,7 @@ public:
   */
   uint8 checksum_alg;
 
-  static void *operator new(size_t size)
-  {
-    return (void*) my_malloc(key_memory_log_event,
-                             (uint)size, MYF(MY_WME|MY_FAE));
-  }
+  void *operator new(size_t size);
 
   static void operator delete(void *ptr, size_t)
   {
@@ -5161,6 +5160,124 @@ private:
   int buf_size;
   const uchar *buf;
 };
+
+
+/**
+  @class Transaction_context_log_event
+*/
+class Transaction_context_log_event: public Log_event
+{
+private:
+  char *server_uuid;
+  int64 thread_id;
+  int64 snapshot_timestamp;
+  std::list<const char*> write_set;
+  std::list<const char*> read_set;
+
+  // 1 byte length.
+  static const int ENCODED_SERVER_UUID_LEN_OFFSET= 0;
+  // 8 bytes length.
+  static const int ENCODED_THREAD_ID_OFFSET= 1;
+  // 8 bytes length.
+  static const int ENCODED_SNAPSHOT_TIMESTAMP_OFFSET= 9;
+  // 2 bytes length.
+  static const int ENCODED_WRITE_SET_ITEMS_OFFSET= 17;
+  // 2 bytes length.
+  static const int ENCODED_READ_SET_ITEMS_OFFSET= 19;
+  static const int ENCODED_READ_WRITE_SET_ITEM_LEN= 2;
+
+  size_t to_string(char *buf, ulong len) const;
+
+#ifndef MYSQL_CLIENT
+  bool write_data_header(IO_CACHE* file);
+
+  bool write_data_body(IO_CACHE* file);
+
+  bool write_data_set(IO_CACHE* file, std::list<const char*> *set);
+#endif
+
+  char *read_data_set(char *pos, uint16 set_len, std::list<const char*> *set);
+
+  void clear_set(std::list<const char*> *set);
+
+public:
+  static const int POST_HEADER_LENGTH= 21;
+
+#ifndef MYSQL_CLIENT
+  Transaction_context_log_event(const char *server_uuid_arg,
+                                my_thread_id thread_id_arg,
+                                rpl_gno snapshot_timestamp_arg);
+#endif
+
+  Transaction_context_log_event(const char *buffer,
+                                uint event_len,
+                                const Format_description_log_event *descr_event);
+
+  virtual ~Transaction_context_log_event();
+
+  Log_event_type get_type_code() { return TRANSACTION_CONTEXT_EVENT; }
+
+  bool is_valid() const
+  {
+    return server_uuid != NULL && write_set.size() > 0;
+  }
+
+  int get_data_size();
+
+#ifndef MYSQL_CLIENT
+  int pack_info(Protocol *protocol);
+#endif
+
+#ifdef MYSQL_CLIENT
+  void print(FILE *file, PRINT_EVENT_INFO *print_event_info);
+#endif
+
+#if defined(MYSQL_SERVER) && defined(HAVE_REPLICATION)
+  int do_apply_event(Relay_log_info const *rli) { return 0; }
+  int do_update_pos(Relay_log_info *rli);
+#endif
+
+  /**
+    Add a hash which identifies a inserted/updated/deleted row on the
+    ongoing transaction.
+
+    @param[in] hash  row identifier
+   */
+  void add_write_set(const char *hash);
+
+  /**
+    Return a pointer to write-set list.
+   */
+  std::list<const char*> *get_write_set() { return &write_set; }
+
+  /**
+    Add a hash which identifies a read row on the ongoing transaction.
+
+    @param[in] hash  row identifier
+   */
+  void add_read_set(const char *hash);
+
+  /**
+    Return a pointer to read-set list.
+   */
+  std::list<const char*> *get_read_set() { return &read_set; }
+
+  /**
+    Return the transaction snapshot timestamp.
+   */
+  rpl_gno get_snapshot_timestamp() { return snapshot_timestamp; }
+
+  /**
+    Return the server uuid.
+   */
+  const char* get_server_uuid() { return server_uuid; }
+
+  /**
+    Return the id of the committing thread.
+   */
+  my_thread_id get_thread_id() { return thread_id; }
+};
+
 
 inline bool is_gtid_event(Log_event* evt)
 {

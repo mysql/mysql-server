@@ -2186,6 +2186,16 @@ public:
     @retval other The GNO for the group.
   */
   rpl_gno get_automatic_gno(rpl_sidno sidno) const;
+  /**
+    Return the last GNO for a given SIDNO without gaps, e.g.
+    for the following set: UUID:1-10, UUID:12, UUID:15-20
+    10 will be returned.
+
+    @param sidno The group's SIDNO.
+
+    @retval The GNO or 0 if set is empty.
+  */
+  rpl_gno get_last_gno_without_gaps(rpl_sidno sidno) const;
   /// Locks a mutex for the given SIDNO.
   void lock_sidno(rpl_sidno sidno) { sid_locks.lock(sidno); }
   /// Unlocks a mutex for the given SIDNO.
@@ -2781,6 +2791,17 @@ int gtid_acquire_ownership_single(THD *thd);
 #ifdef HAVE_GTID_NEXT_LIST
 int gtid_acquire_ownership_multiple(THD *thd);
 #endif
+
+/**
+  Return sidno for a given sid, see Sid_map::add_sid() for details.
+*/
+rpl_sidno get_sidno_from_global_sid_map(rpl_sid sid);
+
+/**
+  Return last gno without gaps for a given sidno, see
+  Gtid_state::get_last_gno_without_gaps() for details.
+*/
+rpl_gno get_last_gno_without_gaps(rpl_sidno sidno);
 
 #endif // ifndef MYSQL_CLIENT
 
