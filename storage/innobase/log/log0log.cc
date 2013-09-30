@@ -243,7 +243,7 @@ log_buffer_extend(
 	srv_log_buffer_size = len / UNIV_PAGE_SIZE + 1;
 	mem_free(log_sys->buf_ptr);
 	log_sys->buf_ptr = static_cast<byte*>(
-		mem_alloc(LOG_BUFFER_SIZE + OS_FILE_LOG_BLOCK_SIZE));
+		mem_zalloc(LOG_BUFFER_SIZE + OS_FILE_LOG_BLOCK_SIZE));
 	log_sys->buf = static_cast<byte*>(
 		ut_align(log_sys->buf_ptr, OS_FILE_LOG_BLOCK_SIZE));
 	log_sys->buf_size = LOG_BUFFER_SIZE;
