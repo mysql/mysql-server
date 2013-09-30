@@ -4,7 +4,7 @@ drop table if exists t;
 create table t (id int primary key);
 set autocommit=0;
 select * from information_schema.tokudb_locks;
-locks_trx_id	locks_mysql_thread_id	locks_dname	locks_left	locks_right
+locks_trx_id	locks_mysql_thread_id	locks_dname	locks_key_left	locks_key_right
 insert into t values (1);
 insert into t values (3);
 insert into t values (5);
@@ -13,7 +13,7 @@ insert into t values (2);
 insert into t values (4);
 insert into t values (6);
 select * from information_schema.tokudb_locks order by locks_trx_id;
-locks_trx_id	locks_mysql_thread_id	locks_dname	locks_left	locks_right
+locks_trx_id	locks_mysql_thread_id	locks_dname	locks_key_left	locks_key_right
 TRX_ID	MYSQL_ID	./test/t-main	0001000000	0001000000
 TRX_ID	MYSQL_ID	./test/t-main	0003000000	0003000000
 TRX_ID	MYSQL_ID	./test/t-main	0005000000	0005000000
@@ -23,6 +23,6 @@ TRX_ID	MYSQL_ID	./test/t-main	0006000000	0006000000
 commit;
 commit;
 select * from information_schema.tokudb_locks;
-locks_trx_id	locks_mysql_thread_id	locks_dname	locks_left	locks_right
+locks_trx_id	locks_mysql_thread_id	locks_dname	locks_key_left	locks_key_right
 commit;
 drop table t;
