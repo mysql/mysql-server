@@ -1024,7 +1024,9 @@ struct PolicyMutex
 		it has to be in the same scope during pfs_end(). */
 
 		PSI_mutex_locker_state	state;
-		PSI_mutex_locker* locker = pfs_begin(&state, name, line);
+		PSI_mutex_locker*	locker;
+
+		locker = pfs_begin_lock(&state, name, line);
 #endif /* UNIV_PFS_MUTEX */
 
 		policy().enter(m_impl, name, line);
@@ -1048,7 +1050,9 @@ struct PolicyMutex
 		it has to be in the same scope during pfs_end(). */
 
 		PSI_mutex_locker_state	state;
-		PSI_mutex_locker* locker = pfs_begin(&state, name, line);
+		PSI_mutex_locker*	locker;
+
+		locker = pfs_begin_trylock(&state, name, line);
 #endif /* UNIV_PFS_MUTEX */
 
 		/* There is a subtlety here, we check the mutex ordering
@@ -1133,7 +1137,7 @@ private:
 	@param state - PFS locker state
 	@param name - file name where locked
 	@param line - line number in file where locked */
-	PSI_mutex_locker* pfs_begin(
+	PSI_mutex_locker* pfs_begin_lock(
 		PSI_mutex_locker_state*	state,
 		const char*		name,
 		ulint			line) UNIV_NOTHROW
@@ -1142,6 +1146,24 @@ private:
 			return(PSI_MUTEX_CALL(start_mutex_wait)(
 					state, m_ptr,
 					PSI_MUTEX_LOCK, name, (uint) line));
+		}
+
+		return(0);
+	}
+
+	/** Performance schema monitoring.
+	@param state - PFS locker state
+	@param name - file name where locked
+	@param line - line number in file where locked */
+	PSI_mutex_locker* pfs_begin_trylock(
+		PSI_mutex_locker_state*	state,
+		const char*		name,
+		ulint			line) UNIV_NOTHROW
+	{
+		if (m_ptr != 0) {
+			return(PSI_MUTEX_CALL(start_mutex_wait)(
+					state, m_ptr,
+					PSI_MUTEX_TRYLOCK, name, (uint) line));
 		}
 
 		return(0);
