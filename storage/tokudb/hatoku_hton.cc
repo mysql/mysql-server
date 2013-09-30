@@ -247,15 +247,12 @@ static int tokudb_hton_initialized;
 static rw_lock_t tokudb_hton_initialized_lock;
 
 static void create_tokudb_hton_intialized_lock(void)  __attribute__((constructor));
-static void destroy_tokudb_hton_initialized_lock(void) __attribute__((destructor));
-
-static void create_tokudb_hton_intialized_lock(void)
-{
+static void create_tokudb_hton_intialized_lock(void) {
     my_rwlock_init(&tokudb_hton_initialized_lock, 0);
 }
 
-static void destroy_tokudb_hton_initialized_lock(void)
-{
+static void destroy_tokudb_hton_initialized_lock(void) __attribute__((destructor));
+static void destroy_tokudb_hton_initialized_lock(void) {
     rwlock_destroy(&tokudb_hton_initialized_lock);
 }
 
@@ -263,14 +260,40 @@ static SHOW_VAR *toku_global_status_variables = NULL;
 static uint64_t toku_global_status_max_rows;
 static TOKU_ENGINE_STATUS_ROW_S* toku_global_status_rows = NULL;
 
+static void handle_ydb_error(int error) {
+    switch (error) {
+    case TOKUDB_HUGE_PAGES_ENABLED:
+        fprintf(stderr, "************************************************************\n");
+        fprintf(stderr, "                                                            \n");
+        fprintf(stderr, "                        @@@@@@@@@@@                         \n");
+        fprintf(stderr, "                      @@'         '@@                       \n");
+        fprintf(stderr, "                     @@    _     _  @@                      \n");
+        fprintf(stderr, "                     |    (.)   (.)  |                      \n");
+        fprintf(stderr, "                     |             ` |                      \n");
+        fprintf(stderr, "                     |        >    ' |                      \n");
+        fprintf(stderr, "                     |     .----.    |                      \n");
+        fprintf(stderr, "                     ..   |.----.|  ..                      \n");
+        fprintf(stderr, "                      ..  '      ' ..                       \n");
+        fprintf(stderr, "                        .._______,.                         \n");
+        fprintf(stderr, "                                                            \n");
+        fprintf(stderr, " %s will not run with transparent huge pages enabled.       \n", tokudb_hton_name);
+        fprintf(stderr, " Please disable them to continue.                           \n");
+        fprintf(stderr, " (echo never > /sys/kernel/mm/transparent_hugepage/enabled) \n");
+        fprintf(stderr, "                                                            \n");
+        fprintf(stderr, "************************************************************\n");
+        fflush(stderr);
+        break;
+    }
+}
 
 static int tokudb_init_func(void *p) {
     TOKUDB_DBUG_ENTER("tokudb_init_func");
     int r;
+
 #if defined(_WIN64)
         r = toku_ydb_init();
         if (r) {
-            printf("got error %d\n", r);
+            fprintf(stderr, "got error %d\n", r);
             goto error;
         }
 #endif
@@ -334,6 +357,7 @@ static int tokudb_init_func(void *p) {
 
     if ((r = db_env_create(&db_env, 0))) {
         DBUG_PRINT("info", ("db_env_create %d\n", r));
+        handle_ydb_error(r);
         goto error;
     }
 
@@ -347,7 +371,7 @@ static int tokudb_init_func(void *p) {
 
     // config error handling
     db_env->set_errcall(db_env, tokudb_print_error);
-    db_env->set_errpfx(db_env, "TokuDB");
+    db_env->set_errpfx(db_env, tokudb_hton_name);
 
     //
     // set default comparison functions
