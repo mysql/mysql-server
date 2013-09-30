@@ -186,6 +186,7 @@ int mysql_load(THD *thd,sql_exchange *ex,TABLE_LIST *table_list,
   LOAD_FILE_INFO lf_info;
   THD::killed_state killed_status= THD::NOT_KILLED;
   bool is_concurrent;
+  bool transactional_table;
 #endif
   char *db = table_list->db;			// This is never null
   /*
@@ -195,7 +196,6 @@ int mysql_load(THD *thd,sql_exchange *ex,TABLE_LIST *table_list,
   */
   char *tdb= thd->db ? thd->db : db;		// Result is never null
   ulong skip_lines= ex->skip_lines;
-  bool transactional_table;
   DBUG_ENTER("mysql_load");
 
   /*
@@ -267,8 +267,8 @@ int mysql_load(THD *thd,sql_exchange *ex,TABLE_LIST *table_list,
   for (Field **cur_field= table->field; *cur_field; ++cur_field)
     (*cur_field)->reset_warnings();
 
-  transactional_table= table->file->has_transactions();
 #ifndef EMBEDDED_LIBRARY
+  transactional_table= table->file->has_transactions();
   is_concurrent= (table_list->lock_type == TL_WRITE_CONCURRENT_INSERT);
 #endif
 
@@ -658,7 +658,7 @@ int mysql_load(THD *thd,sql_exchange *ex,TABLE_LIST *table_list,
   /* ok to client sent only after binlog write and engine commit */
   my_ok(thd, info.stats.copied + info.stats.deleted, 0L, name);
 err:
-  DBUG_ASSERT(transactional_table ||
+  DBUG_ASSERT(table->file->has_transactions() ||
               !(info.stats.copied || info.stats.deleted) ||
               thd->transaction.stmt.cannot_safely_rollback());
   table->file->ha_release_auto_increment();
