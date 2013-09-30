@@ -96,6 +96,7 @@ popd
 if [ $dbname = "atc" -a $engine != "tokudb" ] ; then dbname="atc_$engine"; fi
 
 runfile=$testresultsdir/$dbname-$tblname-$mysqlbuild-$mysqlserver
+if [ $tokudb_load_save_space != 0 ] ; then runfile=$runfile-compress; fi
 rm -rf $runfile
 
 testresult="PASS"
@@ -173,11 +174,7 @@ fi
 if [ $load -ne 0 -a $testresult = "PASS" ] ; then
     echo `date` load data >>$runfile
     start=$(date +%s)
-    if [ $tokudb_load_save_space -ne 0 ] ; then
-        mysql -S $mysqlsocket -u $mysqluser -D $dbname -e "set tokudb_load_save_space=$tokudb_load_save_space; load data infile '$basedir/atc_On_Time_Performance.mysql.csv' into table $tblname" >>$runfile 2>&1
-    else
-        mysql -S $mysqlsocket -u $mysqluser -D $dbname -e "load data infile '$basedir/atc_On_Time_Performance.mysql.csv' into table $tblname"  >>$runfile 2>&1
-    fi
+    mysql -S $mysqlsocket -u $mysqluser -D $dbname -e "set tokudb_load_save_space=$tokudb_load_save_space; load data infile '$basedir/atc_On_Time_Performance.mysql.csv' into table $tblname" >>$runfile 2>&1
     exitcode=$?
     let loadtime=$(date +%s)-$start
     echo `date` load data loadtime=$loadtime $exitcode >>$runfile

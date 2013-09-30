@@ -135,10 +135,10 @@ static uint get_pk_insert_mode(THD* thd) {
 
 static MYSQL_THDVAR_BOOL(load_save_space,
     0,
-    "if on, intial loads are slower but take less space",
+    "compress intermediate bulk loader files to save space",
     NULL, 
     NULL, 
-    false
+    true
 );
 
 static bool get_load_save_space(THD* thd) {
