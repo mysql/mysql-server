@@ -314,7 +314,7 @@ fi
 # commit results
 if [ $commit != 0 ] ; then
     svn add $runfile
-    retry svn commit -m \"$testresult $dbname $mysqlbuild $mysqlserver compress=$tokudb_load_save_space\" $runfile
+    retry svn commit -m \"$testresult $dbname $mysqlbuild $mysqlserver\" $runfile
 fi
 
 popd
