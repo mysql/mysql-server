@@ -7011,7 +7011,9 @@ get_mm_leaf(RANGE_OPT_PARAM *param, Item *conf_func, Field *field,
 
   switch (type) {
   case Item_func::LT_FUNC:
-    if (stored_field_cmp_to_item(param->thd, field, value) == 0)
+    /* Don't use open ranges for partial key_segments */
+    if ((!(key_part->flag & HA_PART_KEY_SEG)) &&
+        stored_field_cmp_to_item(param->thd, field, value) == 0)
       tree->max_flag=NEAR_MAX;
     /* fall through */
   case Item_func::LE_FUNC:
@@ -13748,7 +13750,11 @@ print_key_value(String *out, const KEY_PART_INFO *key_part, const uchar *key)
 
   if (field->flags & BLOB_FLAG)
   {
-    out->append(STRING_WITH_LEN("unprintable_blob_value"));    
+    // Byte 0 of a nullable key is the null-byte. If set, key is NULL.
+    if (field->real_maybe_null() && *key)
+      out->append(STRING_WITH_LEN("NULL"));
+    else
+      out->append(STRING_WITH_LEN("unprintable_blob_value"));    
     return;
   }
 
