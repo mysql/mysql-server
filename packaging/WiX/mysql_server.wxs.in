@@ -83,10 +83,10 @@
         Installed
       </Custom>
     </InstallExecuteSequence>
-	<InstallUISequence>
+    <InstallUISequence>
       <!-- App search is what does FindInstallLocation, and it is dependent on FindRelatedProducts -->
       <AppSearch After="FindRelatedProducts"/>
-	</InstallUISequence>
+    </InstallUISequence>
  
     <!-- Find previous installation -->
     <Property Id="INSTALLDIR">
@@ -96,31 +96,43 @@
           Name="InstallLocation"
           Type="raw" />
     </Property>
-	 <Property Id="OLDERVERSION">
-      <RegistrySearch Id="FindOlderVersion"
-          Root="HKLM"
-          Key="Software\Microsoft\Windows\CurrentVersion\Uninstall\[OLDERVERSIONBEINGUPGRADED]"
-          Name="DisplayVersion"
-          Type="raw" />
-    </Property>
-	 <Property Id="DATADIR">
+    <?if @Platform@ != "x64" ?>
+        <Property Id="OLDERVERSION"> 
+          <RegistrySearch Id="FindOlderVersion"
+            Root="HKLM"
+            Win64 = "no"
+            Key="Software\Microsoft\Windows\CurrentVersion\Uninstall\[OLDERVERSIONBEINGUPGRADED]"
+            Name="DisplayVersion"
+            Type="raw" />
+        </Property>
+    <?else ?>
+        <Property Id="OLDERVERSION"> 
+          <RegistrySearch Id="FindOlderVersion"
+            Root="HKLM"
+            Win64 = "yes"
+            Key="Software\Microsoft\Windows\CurrentVersion\Uninstall\[OLDERVERSIONBEINGUPGRADED]"
+            Name="DisplayVersion"
+            Type="raw" />
+        </Property>
+    <?endif ?>
+    <Property Id="DATADIR">
       <RegistrySearch Id="FindDataDir"
           Root="HKLM"
           Key="SOFTWARE\MySQL AB\[ProductName]"
           Name="DataLocation"
           Type="raw" />
     </Property>
-	 <Property Id="INSTALLDIR2">
+    <Property Id="INSTALLDIR2">
        <RegistrySearch Id="FindInstallLocation2"
           Root="HKLM"
           Key="SOFTWARE\MySQL AB\[ProductName]"
           Name="Location"
           Type="raw" />
     </Property>
-	<CustomAction Id="SetInstallDir2" Property="INSTALLDIR" Value="[INSTALLDIR2]" /> 
-	<InstallUISequence>
-	 <Custom Action="SetInstallDir2" After="AppSearch">INSTALLDIR2</Custom> 
-	</InstallUISequence>
+    <CustomAction Id="SetInstallDir2" Property="INSTALLDIR" Value="[INSTALLDIR2]" /> 
+    <InstallUISequence>
+    <Custom Action="SetInstallDir2" After="AppSearch">INSTALLDIR2</Custom> 
+    </InstallUISequence>
 
 
     <!-- UI -->
