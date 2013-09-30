@@ -372,7 +372,7 @@ bool opt_error_log= IF_WIN(1,0);
 bool opt_disable_networking=0, opt_skip_show_db=0;
 bool opt_skip_name_resolve=0;
 my_bool opt_character_set_client_handshake= 1;
-bool server_id_supplied = 0;
+bool server_id_supplied = false;
 bool opt_endinfo, using_udf_functions;
 my_bool locked_in_memory;
 bool opt_using_transactions;
@@ -4763,15 +4763,13 @@ int mysqld_main(int argc, char **argv)
       set_user(mysqld_user, user_info);
   }
 
-  if (opt_bin_log && server_id == 0)
+  //If the binlog is enabled, one needs to provide a server-id
+  if (opt_bin_log && !(server_id_supplied) )
   {
-    server_id= 1;
-#ifdef EXTRA_DEBUG
-    sql_print_warning("You have enabled the binary log, but you haven't set "
-                      "server-id to a non-zero value: we force server id to 1; "
-                      "updates will be logged to the binary log, but "
-                      "connections from slaves will not be accepted.");
-#endif
+    sql_print_error("You have enabled the binary log, but you haven't provided "
+                    "the mandatory server-id. Please refer to the proper "
+                    "server start-up parameters documentation");
+    unireg_abort(1);
   }
 
   /* 
@@ -6743,7 +6741,7 @@ static int mysql_init_variables(void)
   mqh_used= 0;
   kill_in_progress= 0;
   cleanup_done= 0;
-  server_id_supplied= 0;
+  server_id_supplied= false;
   test_flags= select_errors= dropping_tables= ha_open_options=0;
   global_thread_count= num_thread_running= 0;
   slave_open_temp_tables= 0;
@@ -7099,7 +7097,13 @@ mysqld_get_one_option(int optid,
     opt_bootstrap=1;
     break;
   case OPT_SERVER_ID:
-    server_id_supplied = 1;
+    /*
+     Consider that one received a Server Id when 2 conditions are present:
+     1) The argument is on the list
+     2) There is a value present
+    */
+    server_id_supplied= (*argument != 0);
+
     break;
   case OPT_LOWER_CASE_TABLE_NAMES:
     lower_case_table_names_used= 1;
