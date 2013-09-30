@@ -275,6 +275,7 @@ log_buffer_extend(
 	log_sys->buf_ptr = mem_alloc(LOG_BUFFER_SIZE + OS_FILE_LOG_BLOCK_SIZE);
 	log_sys->buf = ut_align(log_sys->buf_ptr, OS_FILE_LOG_BLOCK_SIZE);
 	log_sys->buf_size = LOG_BUFFER_SIZE;
+	memset(log_sys->buf, '\0', LOG_BUFFER_SIZE);
 	log_sys->max_buf_free = log_sys->buf_size / LOG_BUF_FLUSH_RATIO
 		- LOG_BUF_FLUSH_MARGIN;
 
