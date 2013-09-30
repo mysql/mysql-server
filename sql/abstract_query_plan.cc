@@ -161,15 +161,15 @@ namespace AQP
 
       case AT_ORDERED_INDEX_SCAN:
         DBUG_ASSERT(get_join_tab()->position);
-        DBUG_ASSERT(get_join_tab()->position->records_read>0.0);
-        return get_join_tab()->position->records_read;
+        DBUG_ASSERT(get_join_tab()->position->fanout>0.0);
+        return get_join_tab()->position->fanout;
 
       case AT_MULTI_PRIMARY_KEY:
       case AT_MULTI_UNIQUE_KEY:
       case AT_MULTI_MIXED:
         DBUG_ASSERT(get_join_tab()->position);
-        DBUG_ASSERT(get_join_tab()->position->records_read>0.0);
-        return get_join_tab()->position->records_read;
+        DBUG_ASSERT(get_join_tab()->position->fanout>0.0);
+        return get_join_tab()->position->fanout;
 
       case AT_TABLE_SCAN:
         DBUG_ASSERT(get_join_tab()->table->file->stats.records>0.0);

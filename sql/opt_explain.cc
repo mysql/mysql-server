@@ -1457,7 +1457,7 @@ bool Explain_join::explain_rows_and_filtered()
   else if (tab->type == JT_INDEX_SCAN || tab->type == JT_ALL)
     examined_rows= rows2double(tab->rowcount);
   else
-    examined_rows= tab->position->records_read;
+    examined_rows= tab->position->fanout;
 
   fmt->entry()->col_rows.set(static_cast<ulonglong>(examined_rows));
 
@@ -1466,7 +1466,7 @@ bool Explain_join::explain_rows_and_filtered()
   {
     float f= 0.0;
     if (examined_rows)
-      f= 100.0 * tab->position->records_read / examined_rows;
+      f= 100.0 * tab->position->fanout / examined_rows;
     fmt->entry()->col_filtered.set(f);
   }
   // Print cost-related info
@@ -1475,8 +1475,8 @@ bool Explain_join::explain_rows_and_filtered()
   double const cond_cost= prefix_rows * ROW_EVALUATE_COST;
   fmt->entry()->col_cond_cost.set(cond_cost < 0 ? 0 : cond_cost);
 
-  fmt->entry()->col_read_cost.set(tab->position->read_time < 0.0 ?
-                                  0.0 : tab->position->read_time);
+  fmt->entry()->col_read_cost.set(tab->position->read_cost < 0.0 ?
+                                  0.0 : tab->position->read_cost);
   fmt->entry()->col_prefix_cost.set(tab->position->prefix_cost.get_io_cost());
 
   // Calculate amount of data from this table per query
