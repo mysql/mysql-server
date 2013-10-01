@@ -943,7 +943,8 @@ innobase_convert_from_id(
 }
 
 /**********************************************************************
-Converts an identifier from my_charset_filename to UTF-8 charset. */
+Converts an identifier from my_charset_filename to UTF-8 charset.
+@return	result string length, as returned by strconvert() */
 extern "C"
 uint
 innobase_convert_to_system_charset(
@@ -953,23 +954,15 @@ innobase_convert_to_system_charset(
 	ulint		len,	/* in: length of 'to', in bytes */
 	uint*		errors)	/* out: error return */
 {
-	uint		rlen;
 	CHARSET_INFO*	cs1 = &my_charset_filename;
 	CHARSET_INFO*	cs2 = system_charset_info;
 
-	rlen = strconvert(cs1, from, cs2, to, len, errors);
-
-	if (*errors) {
-		fprintf(stderr, "InnoDB: There was a problem in converting"
-			"'%s' in charset %s to charset %s", from, cs1->name,
-			cs2->name);
-	}
-
-	return(rlen);
+	return(strconvert(cs1, from, cs2, to, len, errors));
 }
 
 /**********************************************************************
-Converts an identifier from my_charset_filename to UTF-8 charset. */
+Converts an identifier from my_charset_filename to UTF-8 charset.
+@return	result string length, as returned by strconvert() */
 extern "C"
 uint
 innobase_convert_to_filename_charset(
@@ -979,19 +972,10 @@ innobase_convert_to_filename_charset(
 	ulint		len)	/* in: length of 'to', in bytes */
 {
 	uint		errors;
-	uint		rlen;
 	CHARSET_INFO*	cs_to = &my_charset_filename;
 	CHARSET_INFO*	cs_from = system_charset_info;
 
-	rlen = strconvert(cs_from, from, cs_to, to, len, &errors);
-
-	if (errors) {
-		fprintf(stderr, "InnoDB: There was a problem in converting"
-			"'%s' in charset %s to charset %s", from, cs_from->name,
-			cs_to->name);
-	}
-
-	return(rlen);
+	return(strconvert(cs_from, from, cs_to, to, len, &errors));
 }
 
 
