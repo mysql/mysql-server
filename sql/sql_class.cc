@@ -605,6 +605,7 @@ THD::THD()
    Open_tables_state(refresh_version), rli_fake(NULL), rli_slave(NULL),
    lock_id(&main_lock_id),
    user_time(0), in_sub_stmt(0),
+   fill_status_recursion_level(0),
    sql_log_bin_toplevel(false),
 #ifndef MCP_WL5353
    binlog_row_event_extra_data(NULL),

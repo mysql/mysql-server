@@ -20,4 +20,3 @@ sys_vars.identity_basic : bug#16295418 2013-02-09 veduggir
 sys_vars.key_buffer_size_basic_64 : bug#16295418 2013-02-09 veduggir
 sys_vars.key_buffer_size_func : bug#16295418 2013-02-09 veduggir
 sys_vars.timestamp_basic_64 : bug#16295457 2013-02-09 veduggir
-sys_vars.rpl_init_slave_func : bug#16295518 2013-02-09 veduggir
