@@ -75,14 +75,14 @@ Performance_schema_thread_instances_lost	0
 Performance_schema_users_lost	0
 show engine performance_schema status;
 Type	Name	Status
-performance_schema	events_waits_current.size	192
+performance_schema	events_waits_current.size	176
 performance_schema	events_waits_current.count	1734
-performance_schema	events_waits_history.size	192
+performance_schema	events_waits_history.size	176
 performance_schema	events_waits_history.count	2890
-performance_schema	events_waits_history.memory	554880
-performance_schema	events_waits_history_long.size	192
+performance_schema	events_waits_history.memory	508640
+performance_schema	events_waits_history_long.size	176
 performance_schema	events_waits_history_long.count	1000
-performance_schema	events_waits_history_long.memory	192000
+performance_schema	events_waits_history_long.memory	176000
 performance_schema	(pfs_mutex_class).size	256
 performance_schema	(pfs_mutex_class).count	200
 performance_schema	(pfs_mutex_class).memory	51200
@@ -107,9 +107,9 @@ performance_schema	rwlock_instances.memory	426624
 performance_schema	cond_instances.size	128
 performance_schema	cond_instances.count	1079
 performance_schema	cond_instances.memory	138112
-performance_schema	threads.size	2944
+performance_schema	threads.size	2816
 performance_schema	threads.count	289
-performance_schema	threads.memory	850816
+performance_schema	threads.memory	813824
 performance_schema	file_instances.size	704
 performance_schema	file_instances.count	1754
 performance_schema	file_instances.memory	1234816
@@ -255,17 +255,17 @@ performance_schema	memory_summary_by_host_by_event_name.memory	1800000
 performance_schema	metadata_locks.row_size	512
 performance_schema	metadata_locks.row_count	10000
 performance_schema	metadata_locks.memory	5120000
-performance_schema	performance_schema.memory	102843920
+performance_schema	performance_schema.memory	102744688
 select * from performance_schema.memory_summary_global_by_event_name
 where event_name='memory/performance_schema/internal_buffers';
 EVENT_NAME	memory/performance_schema/internal_buffers
 COUNT_ALLOC	53
 COUNT_FREE	0
-SUM_NUMBER_OF_BYTES_ALLOC	102843920
+SUM_NUMBER_OF_BYTES_ALLOC	102744688
 SUM_NUMBER_OF_BYTES_FREE	0
 LOW_COUNT_USED	53
 CURRENT_COUNT_USED	53
 HIGH_COUNT_USED	53
-LOW_NUMBER_OF_BYTES_USED	102843920
-CURRENT_NUMBER_OF_BYTES_USED	102843920
-HIGH_NUMBER_OF_BYTES_USED	102843920
+LOW_NUMBER_OF_BYTES_USED	102744688
+CURRENT_NUMBER_OF_BYTES_USED	102744688
+HIGH_NUMBER_OF_BYTES_USED	102744688
