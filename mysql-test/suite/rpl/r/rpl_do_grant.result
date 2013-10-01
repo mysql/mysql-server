@@ -8,6 +8,10 @@ call mtr.add_suppression("Did not write failed .* into binary log while "
 call mtr.add_suppression("Did not write failed .* into binary log while "
                          "storing routine level grants in the privilege "
                          "tables.");
+call mtr.add_suppression("REVOKE/GRANT failed while storing routine level "
+                         "grants in the privilege tables. An incident event "
+                         "has been written to the binary log which will "
+                         "stop the slaves.");
 delete from mysql.user where user=_binary'rpl_do_grant';
 delete from mysql.db where user=_binary'rpl_do_grant';
 flush privileges;
