@@ -589,7 +589,10 @@ retry:
     /*
       Always close statement transaction explicitly,
       so that the engine doesn't have to count locks.
+      There should be no need to perform transaction
+      rollback due to deadlock.
     */
+    DBUG_ASSERT(! thd->transaction_rollback_request);
     trans_rollback_stmt(thd);
     mysql_ha_close_table(thd, hash_tables);
     goto retry;

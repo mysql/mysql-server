@@ -1087,8 +1087,7 @@ connection con1;
 connection default;
 --echo #
 --echo # Demonstrate that HANDLER locks and transaction locks
---echo # reside in the same context, and we don't back-off
---echo # when have transaction or handler locks.
+--echo # reside in the same context.
 --echo #
 create table t1 (a int, key a (a));
 insert into t1 (a) values (1), (2), (3), (4), (5);
@@ -1109,9 +1108,9 @@ let $wait_condition=select count(*)=1 from information_schema.processlist
 --source include/wait_condition.inc
 --echo # --> connection default
 connection default;
+--echo # We back-off on hitting deadlock condition.
 --error ER_LOCK_DEADLOCK
 handler t0 open;
---error ER_LOCK_DEADLOCK
 select * from t0;
 handler t1 open;
 commit;

@@ -1100,8 +1100,7 @@ handler t1 close;
 # --> connection default
 #
 # Demonstrate that HANDLER locks and transaction locks
-# reside in the same context, and we don't back-off
-# when have transaction or handler locks.
+# reside in the same context.
 #
 create table t1 (a int, key a (a));
 insert into t1 (a) values (1), (2), (3), (4), (5);
@@ -1121,10 +1120,16 @@ rename table t0 to t3, t1 to t0, t3 to t1;
 # --> connection con1 
 # Waiting for 'rename table ...' to get blocked...
 # --> connection default
+# We back-off on hitting deadlock condition.
 handler t0 open;
 ERROR 40001: Deadlock found when trying to get lock; try restarting transaction
 select * from t0;
-ERROR 40001: Deadlock found when trying to get lock; try restarting transaction
+a
+1
+2
+3
+4
+5
 handler t1 open;
 commit;
 handler t1 close;
