@@ -1675,7 +1675,7 @@ bool mysql_grant(THD *thd, const char *db, List <LEX_USER> &list,
 
   if (lower_case_table_names && db)
   {
-    strnmov(tmp_db,db,NAME_LEN);
+    my_stpnmov(tmp_db,db,NAME_LEN);
     tmp_db[NAME_LEN]= '\0';
     my_casedn_str(files_charset_info, tmp_db);
     db=tmp_db;
@@ -2348,12 +2348,12 @@ bool check_grant_db(THD *thd,const char *db)
                  strlen(db ? db : ""));
 
   /*
-    Make sure that strmov() operations do not result in buffer overflow.
+    Make sure that my_stpcpy() operations do not result in buffer overflow.
   */
   if (copy_length >= (NAME_LEN+USERNAME_LENGTH+2))
     return 1;
 
-  len= (uint) (strmov(strmov(helping, sctx->priv_user) + 1, db) - helping) + 1;
+  len= (uint) (my_stpcpy(my_stpcpy(helping, sctx->priv_user) + 1, db) - helping) + 1;
 
   mysql_rwlock_rdlock(&LOCK_grant);
 
@@ -2713,7 +2713,7 @@ void get_privilege_desc(char *to, uint max_length, ulong access)
       if ((access & 1) &&
           command_lengths[pos] + (uint) (to-start) < max_length)
       {
-        to= strmov(to, command_array[pos]);
+        to= my_stpcpy(to, command_array[pos]);
         *to++= ',';
         *to++= ' ';
       }

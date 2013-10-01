@@ -850,7 +850,7 @@ Slave_worker *map_db_to_worker(const char *dbname, Relay_log_info *rli,
       my_free(db);
       goto err;
     }
-    strmov(db, dbname);
+    my_stpcpy(db, dbname);
     entry->db= db;
     entry->db_len= strlen(db);
     entry->usage= 1;

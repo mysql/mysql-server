@@ -1954,7 +1954,7 @@ static Exit_status dump_log_entries(const char* logname)
   {
     fprintf(result_file, "DELIMITER /*!*/;\n");
   }
-  strmov(print_event_info.delimiter, "/*!*/;");
+  my_stpcpy(print_event_info.delimiter, "/*!*/;");
   
   print_event_info.verbose= short_form ? 0 : verbose;
 
@@ -1997,7 +1997,7 @@ static Exit_status dump_log_entries(const char* logname)
       fprintf(result_file, "COMMIT /* added by mysqlbinlog */%s\n", print_event_info.delimiter);
 
     fprintf(result_file, "DELIMITER ;\n");
-    strmov(print_event_info.delimiter, ";");
+    my_stpcpy(print_event_info.delimiter, ";");
   }
   DBUG_RETURN(rc);
 }
@@ -2311,7 +2311,7 @@ static Exit_status dump_remote_log_entries(PRINT_EVENT_INFO *print_event_info,
           }
           else
           {
-            strmov(log_file_name, rev->new_log_ident);
+            my_stpcpy(log_file_name, rev->new_log_ident);
           }
         }
 

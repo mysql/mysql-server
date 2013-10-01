@@ -2539,7 +2539,7 @@ bool ha_partition::create_handler_file(const char *name)
     if (!m_is_sub_partitioned)
     {
       tablename_to_filename(part_elem->partition_name, part_name, FN_REFLEN);
-      name_buffer_ptr= strmov(name_buffer_ptr, part_name)+1;
+      name_buffer_ptr= my_stpcpy(name_buffer_ptr, part_name)+1;
       *engine_array= (uchar) ha_legacy_type(part_elem->engine_type);
       DBUG_PRINT("info", ("engine: %u", *engine_array));
       engine_array++;

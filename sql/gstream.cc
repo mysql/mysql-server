@@ -101,7 +101,7 @@ bool Gis_read_stream::check_next_symbol(char symbol)
   if ((m_cur >= m_limit) || (*m_cur != symbol))
   {
     char buff[32];
-    strmov(buff, "'?' expected");
+    my_stpcpy(buff, "'?' expected");
     buff[2]= symbol;
     set_error_msg(buff);
     return 1;

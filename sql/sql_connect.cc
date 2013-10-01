@@ -80,7 +80,7 @@ int get_or_create_user_conn(THD *thd, const char *user,
   DBUG_ASSERT(host != 0);
 
   user_len= strlen(user);
-  temp_len= (strmov(strmov(temp_user, user)+1, host) - temp_user)+1;
+  temp_len= (my_stpcpy(my_stpcpy(temp_user, user)+1, host) - temp_user)+1;
   mysql_mutex_lock(&LOCK_user_conn);
   if (!(uc = (struct  user_conn *) my_hash_search(&hash_user_connections,
                  (uchar*) temp_user, temp_len)))
