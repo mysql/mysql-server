@@ -1,10 +1,10 @@
 #! /bin/bash
 #
-# Scripts to run by MySQL systemd service.
+# Scripts to run by MySQL systemd service
 # 
 # Needed argument: pre | post
 # 
-# pre mode  :  try to run mysql_install_db and fix perms and SELinux contexts.
+# pre mode  :  try to run mysql_install_db and fix perms and SELinux contexts
 # post mode :  ping server until answer is received
 # 
 
@@ -13,24 +13,31 @@ install_db () {
     datadir=$(/usr/bin/my_print_defaults server mysqld | grep '^--datadir=' | sed -n 's/--datadir=//p')
     
     # Restore log, dir, perms and SELinux contexts
-    install -d -m 0755 -omysql -gmysql "$datadir" || exit 1
-    touch /var/log/mysqld.log
-    chmod 0640 /var/log/mysqld.log
-    chown mysql:mysql /var/log/mysqld.log || exit 1
+    [ -d "$datadir" ] || install -d -m 0755 -omysql -gmysql "$datadir" || exit 1
+    log=/var/log/mysqld.log
+    [ -e $log ] || touch $log
+    chmod 0640 $log
+    chown mysql:mysql $log || exit 1
     if [ -x /usr/sbin/restorecon ]; then
         /usr/sbin/restorecon "$datadir"
-        /usr/sbin/restorecon /var/log/mysqld.log
+        /usr/sbin/restorecon $log
     fi
+
+    # If special mysql dir is in place, skip db install 
+    [ -d "$datadir/mysql" ] && exit 0
+
     # Create initial db
     /usr/bin/mysql_install_db --rpm --datadir="$datadir" --user=mysql
     exit 0
 }
 
-# MySQL systemd service will timeout script if no answer
 pinger () {
+    # Wait for ping to answer to signal startup completed,
+    # might take a while in case of e.g. crash recovery
+    # MySQL systemd service will timeout script if no answer
     while /bin/true ; do
-	sleep 1
-	mysqladmin ping >/dev/null 2>&1 && break
+        sleep 1
+        mysqladmin ping >/dev/null 2>&1 && break
     done
     exit 0
 }
@@ -42,5 +49,4 @@ case $1 in
 esac
 
 exit 0
-
 
