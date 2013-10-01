@@ -444,7 +444,7 @@ bool net_send_error_packet(NET* net, uint sql_errno, const char *err,
   {
     /* The first # is to make the protocol backward compatible */
     buff[2]= '#';
-    pos= strmov(buff+3, sqlstate);
+    pos= my_stpcpy(buff+3, sqlstate);
   }
 
   convert_error_message(converted_err, sizeof(converted_err),

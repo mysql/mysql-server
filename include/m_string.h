@@ -38,6 +38,8 @@
 #define bfill please_use_memset_rather_than_bfill()
 #define bzero please_use_memset_rather_than_bzero()
 #define bmove please_use_memmove_rather_than_bmove()
+#define strmov please_use_my_stpcpy_or_my_stpmov_rather_than_strmov()
+#define strnmov please_use_my_stpncpy_or_my_stpnmov_rather_than_strnmov()
 
 #if defined(__cplusplus)
 extern "C" {
@@ -52,20 +54,9 @@ extern void *(*my_str_malloc)(size_t);
 extern void *(*my_str_realloc)(void *, size_t);
 extern void (*my_str_free)(void *);
 
-#if defined(HAVE_STPCPY) && MY_GNUC_PREREQ(3, 4)
-#define strmov(A,B) __builtin_stpcpy((A),(B))
-#elif defined(HAVE_STPCPY)
-#define strmov(A,B) stpcpy((A),(B))
-#endif
-
 /* Declared in int2str() */
 extern char _dig_vec_upper[];
 extern char _dig_vec_lower[];
-
-#ifndef strmov
-#define strmov_overlapp(A,B) strmov(A,B)
-#define strmake_overlapp(A,B,C) strmake(A,B,C)
-#endif
 
 	/* Prototypes for string functions */
 
@@ -77,15 +68,58 @@ extern  char *strcend(const char *, pchar);
 extern	char *strfill(char * s,size_t len,pchar fill);
 extern	char *strmake(char *dst,const char *src,size_t length);
 
-#ifndef strmov
-extern	char *strmov(char *dst,const char *src);
-#else
-extern	char *strmov_overlapp(char *dst,const char *src);
-#endif
-extern	char *strnmov(char *dst, const char *src, size_t n);
+extern	char *my_stpmov(char *dst,const char *src);
+extern	char *my_stpnmov(char *dst, const char *src, size_t n);
 extern	char *strcont(const char *src, const char *set);
 extern	char *strxmov(char *dst, const char *src, ...);
 extern	char *strxnmov(char *dst, size_t len, const char *src, ...);
+
+/**
+   Copy a string from src to dst until (and including) terminating null byte.
+
+   @param dst   Destination
+   @param src   Source
+
+   @note src and dst cannot overlap.
+         Use my_stpmov() if src and dst overlaps.
+
+   @note Unsafe, consider using my_stpnpy() instead.
+
+   @return pointer to terminating null byte.
+*/
+static inline char *my_stpcpy(char *dst, const char *src)
+{
+#if defined(HAVE_STPCPY) && MY_GNUC_PREREQ(3, 4)
+  return __builtin_stpcpy(dst, src);
+#elif defined(HAVE_STPCPY)
+  return stpcpy(dst, src);
+#else
+  /* Fallback to implementation supporting overlap. */
+  return my_stpmov(dst, src);
+#endif
+}
+
+/**
+   Copy fixed-size string from src to dst.
+
+   @param dst   Destination
+   @param src   Source
+   @param n     Maximum number of characters to copy.
+
+   @note src and dst cannot overlap
+         Use my_stpnmov() if src and dst overlaps.
+
+   @return pointer to terminating null byte.
+*/
+static inline char *my_stpncpy(char *dst, const char *src, size_t n)
+{
+#if defined(HAVE_STPNCPY)
+  return stpncpy(dst, src, n);
+#else
+  /* Fallback to implementation supporting overlap. */
+  return my_stpnmov(dst, src, n);
+#endif
+}
 
 /* Prototypes of normal stringfunctions (with may ours) */
 #ifndef HAVE_STRNLEN

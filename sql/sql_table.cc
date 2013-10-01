@@ -114,7 +114,7 @@ static char* add_identifier(THD* thd, char *to_p, const char * end_p,
     conv_name= name;
   else
   {
-    strnmov(tmp_name, name, name_len);
+    my_stpnmov(tmp_name, name, name_len);
     tmp_name[name_len]= 0;
     conv_name= tmp_name;
   }
@@ -150,7 +150,7 @@ static char* add_identifier(THD* thd, char *to_p, const char * end_p,
       }
       else if (((long) length) < (end_p - to_p))
       {
-        to_p= strnmov(to_p, conv_name, length);
+        to_p= my_stpnmov(to_p, conv_name, length);
         conv_name+= length;
       }
       else
@@ -163,7 +163,7 @@ static char* add_identifier(THD* thd, char *to_p, const char * end_p,
     }
   }
   else
-    to_p= strnmov(to_p, conv_name, end_p - to_p);
+    to_p= my_stpnmov(to_p, conv_name, end_p - to_p);
   DBUG_RETURN(to_p);
 }
 
@@ -305,21 +305,21 @@ uint explain_filename(THD* thd,
   {
     if (explain_mode == EXPLAIN_ALL_VERBOSE)
     {
-      to_p= strnmov(to_p, ER_THD_OR_DEFAULT(thd, ER_DATABASE_NAME),
+      to_p= my_stpncpy(to_p, ER_THD_OR_DEFAULT(thd, ER_DATABASE_NAME),
                                             end_p - to_p);
       *(to_p++)= ' ';
       to_p= add_identifier(thd, to_p, end_p, db_name, db_name_len);
-      to_p= strnmov(to_p, ", ", end_p - to_p);
+      to_p= my_stpncpy(to_p, ", ", end_p - to_p);
     }
     else
     {
       to_p= add_identifier(thd, to_p, end_p, db_name, db_name_len);
-      to_p= strnmov(to_p, ".", end_p - to_p);
+      to_p= my_stpncpy(to_p, ".", end_p - to_p);
     }
   }
   if (explain_mode == EXPLAIN_ALL_VERBOSE)
   {
-    to_p= strnmov(to_p, ER_THD_OR_DEFAULT(thd, ER_TABLE_NAME), end_p - to_p);
+    to_p= my_stpncpy(to_p, ER_THD_OR_DEFAULT(thd, ER_TABLE_NAME), end_p - to_p);
     *(to_p++)= ' ';
     to_p= add_identifier(thd, to_p, end_p, table_name, table_name_len);
   }
@@ -328,35 +328,35 @@ uint explain_filename(THD* thd,
   if (part_name)
   {
     if (explain_mode == EXPLAIN_PARTITIONS_AS_COMMENT)
-      to_p= strnmov(to_p, " /* ", end_p - to_p);
+      to_p= my_stpncpy(to_p, " /* ", end_p - to_p);
     else if (explain_mode == EXPLAIN_PARTITIONS_VERBOSE)
-      to_p= strnmov(to_p, " ", end_p - to_p);
+      to_p= my_stpncpy(to_p, " ", end_p - to_p);
     else
-      to_p= strnmov(to_p, ", ", end_p - to_p);
+      to_p= my_stpncpy(to_p, ", ", end_p - to_p);
     if (part_type != NORMAL)
     {
       if (part_type == TEMP)
-        to_p= strnmov(to_p, ER_THD_OR_DEFAULT(thd, ER_TEMPORARY_NAME),
+        to_p= my_stpncpy(to_p, ER_THD_OR_DEFAULT(thd, ER_TEMPORARY_NAME),
                       end_p - to_p);
       else
-        to_p= strnmov(to_p, ER_THD_OR_DEFAULT(thd, ER_RENAMED_NAME),
+        to_p= my_stpncpy(to_p, ER_THD_OR_DEFAULT(thd, ER_RENAMED_NAME),
                       end_p - to_p);
-      to_p= strnmov(to_p, " ", end_p - to_p);
+      to_p= my_stpncpy(to_p, " ", end_p - to_p);
     }
-    to_p= strnmov(to_p, ER_THD_OR_DEFAULT(thd, ER_PARTITION_NAME),
+    to_p= my_stpncpy(to_p, ER_THD_OR_DEFAULT(thd, ER_PARTITION_NAME),
                   end_p - to_p);
     *(to_p++)= ' ';
     to_p= add_identifier(thd, to_p, end_p, part_name, part_name_len);
     if (subpart_name)
     {
-      to_p= strnmov(to_p, ", ", end_p - to_p);
-      to_p= strnmov(to_p, ER_THD_OR_DEFAULT(thd, ER_SUBPARTITION_NAME),
+      to_p= my_stpncpy(to_p, ", ", end_p - to_p);
+      to_p= my_stpncpy(to_p, ER_THD_OR_DEFAULT(thd, ER_SUBPARTITION_NAME),
                     end_p - to_p);
       *(to_p++)= ' ';
       to_p= add_identifier(thd, to_p, end_p, subpart_name, subpart_name_len);
     }
     if (explain_mode == EXPLAIN_PARTITIONS_AS_COMMENT)
-      to_p= strnmov(to_p, " */", end_p - to_p);
+      to_p= my_stpncpy(to_p, " */", end_p - to_p);
   }
   DBUG_PRINT("exit", ("to '%s'", to));
   DBUG_RETURN(to_p - to);
@@ -391,7 +391,7 @@ uint filename_to_tablename(const char *from, char *to, uint to_length
       !memcmp(from, tmp_file_prefix, tmp_file_prefix_length))
   {
     /* Temporary table name. */
-    res= (strnmov(to, from, to_length) - to);
+    res= (my_stpnmov(to, from, to_length) - to);
   }
   else
   {
@@ -553,7 +553,7 @@ uint build_table_filename(char *buff, size_t bufflen, const char *db,
                        db, table_name, ext, flags));
 
   if (flags & FN_IS_TMP) // FN_FROM_IS_TMP | FN_TO_IS_TMP
-    tab_len= strnmov(tbbuff, table_name, sizeof(tbbuff)) - tbbuff;
+    tab_len= my_stpnmov(tbbuff, table_name, sizeof(tbbuff)) - tbbuff;
   else
     tab_len= tablename_to_filename(table_name, tbbuff, sizeof(tbbuff));
 
@@ -561,11 +561,11 @@ uint build_table_filename(char *buff, size_t bufflen, const char *db,
 
   char *end = buff + bufflen;
   /* Don't add FN_ROOTDIR if mysql_data_home already includes it */
-  char *pos = strnmov(buff, mysql_data_home, bufflen);
+  char *pos = my_stpnmov(buff, mysql_data_home, bufflen);
   size_t rootdir_len= strlen(FN_ROOTDIR);
   if (pos - rootdir_len >= buff &&
       memcmp(pos - rootdir_len, FN_ROOTDIR, rootdir_len) != 0)
-    pos= strnmov(pos, FN_ROOTDIR, end - pos);
+    pos= my_stpnmov(pos, FN_ROOTDIR, end - pos);
   else
       rootdir_len= 0;
   pos= strxnmov(pos, end - pos, dbbuff, FN_ROOTDIR, NullS);
@@ -607,7 +607,7 @@ uint build_tmptable_filename(THD* thd, char *buff, size_t bufflen)
 {
   DBUG_ENTER("build_tmptable_filename");
 
-  char *p= strnmov(buff, mysql_tmpdir, bufflen);
+  char *p= my_stpnmov(buff, mysql_tmpdir, bufflen);
   my_snprintf(p, bufflen - (p - buff), "/%s%lx_%lx_%x",
               tmp_file_prefix, current_pid,
               thd->thread_id, thd->tmp_table++);
@@ -2472,7 +2472,7 @@ int mysql_rm_table_no_locks(THD *thd, TABLE_LIST *tables, bool if_exists,
       {
         int new_error;
         /* Delete the table definition file */
-        strmov(end,reg_ext);
+        my_stpcpy(end,reg_ext);
         if (!(new_error= mysql_file_delete(key_file_frm, path, MYF(MY_WME))))
         {
           non_tmp_table_deleted= TRUE;
@@ -5110,13 +5110,13 @@ mysql_rename_table(handlerton *base, const char *old_db,
   if (lower_case_table_names == 2 && file &&
       !(file->ha_table_flags() & HA_FILE_BASED))
   {
-    strmov(tmp_name, old_name);
+    my_stpcpy(tmp_name, old_name);
     my_casedn_str(files_charset_info, tmp_name);
     build_table_filename(lc_from, sizeof(lc_from) - 1, old_db, tmp_name, "",
                          flags & FN_FROM_IS_TMP);
     from_base= lc_from;
 
-    strmov(tmp_name, new_name);
+    my_stpcpy(tmp_name, new_name);
     my_casedn_str(files_charset_info, tmp_name);
     build_table_filename(lc_to, sizeof(lc_to) - 1, new_db, tmp_name, "",
                          flags & FN_TO_IS_TMP);
@@ -8130,7 +8130,7 @@ bool mysql_alter_table(THD *thd,char *new_db, char *new_name,
     if (create_info->index_file_name)
     {
       /* Fix index_file_name to have 'tmp_name' as basename */
-      strmov(index_file, alter_ctx.tmp_name);
+      my_stpcpy(index_file, alter_ctx.tmp_name);
       create_info->index_file_name=fn_same(index_file,
                                            create_info->index_file_name,
                                            1);
@@ -8138,7 +8138,7 @@ bool mysql_alter_table(THD *thd,char *new_db, char *new_name,
     if (create_info->data_file_name)
     {
       /* Fix data_file_name to have 'tmp_name' as basename */
-      strmov(data_file, alter_ctx.tmp_name);
+      my_stpcpy(data_file, alter_ctx.tmp_name);
       create_info->data_file_name=fn_same(data_file,
                                           create_info->data_file_name,
                                           1);

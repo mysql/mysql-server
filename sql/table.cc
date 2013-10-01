@@ -364,7 +364,7 @@ TABLE_SHARE *alloc_table_share(TABLE_LIST *table_list, const char *key,
 
     share->path.str= path_buff;
     share->path.length= path_length;
-    strmov(share->path.str, path);
+    my_stpcpy(share->path.str, path);
     share->normalized_path.str=    share->path.str;
     share->normalized_path.length= path_length;
 
@@ -718,7 +718,7 @@ int open_table_def(THD *thd, TABLE_SHARE *share, uint db_flags)
 
     /* Unencoded 5.0 table name found */
     path[length]= '\0'; // Remove .frm extension
-    strmov(share->normalized_path.str, path);
+    my_stpcpy(share->normalized_path.str, path);
     share->normalized_path.length= length;
   }
 
@@ -1220,7 +1220,7 @@ static int open_binary_frm(THD *thd, TABLE_SHARE *share, uchar *head,
     }
   }
   keynames=(char*) key_part;
-  strpos+= (strmov(keynames, (char *) strpos) - keynames)+1;
+  strpos+= (my_stpcpy(keynames, (char *) strpos) - keynames)+1;
 
   //reading index comments
   for (keyinfo= share->key_info, i=0; i < keys; i++, keyinfo++)
