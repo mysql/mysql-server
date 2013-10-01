@@ -1467,7 +1467,7 @@ bool mysql_make_view(THD *thd, File_parser *parser, TABLE_LIST *table,
         objects of the view.
       */
       if (!(table->view_sctx= (Security_context *)
-            thd->stmt_arena->alloc(sizeof(Security_context))))
+            thd->stmt_arena->calloc(sizeof(Security_context))))
         goto err;
       security_ctx= table->view_sctx;
     }

@@ -1,4 +1,4 @@
-/* Copyright (c) 2000, 2011, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2000, 2013, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -1730,7 +1730,12 @@ def_week_frmt: %lu, in_trans: %d, autocommit: %d",
       }
       else
         thd->lex->safe_to_cache_query= 0;       // Don't try to cache this
-      /* End the statement transaction potentially started by engine. */
+      /*
+        End the statement transaction potentially started by engine.
+        Currently our engines do not request rollback from callbacks.
+        If this is going to change code needs to be reworked.
+      */
+      DBUG_ASSERT(! thd->transaction_rollback_request);
       trans_rollback_stmt(thd);
       goto err_unlock;				// Parse query
     }
