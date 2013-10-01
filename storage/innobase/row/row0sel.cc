@@ -3240,6 +3240,13 @@ sel_restore_position_for_mysql(
 		return(TRUE);
 	}
 
+	/* success can only be TRUE for BTR_PCUR_ON! */
+	ut_ad(!success);
+
+	/* BTR_PCUR_BEFORE -> the position is now set to the record before
+	pcur->old_rec.
+	BTR_PCUR_AFTER-> positioned to record after pcur->old_rec. */
+
 	if (relative_position == BTR_PCUR_AFTER
 	    || relative_position == BTR_PCUR_AFTER_LAST_IN_TREE) {
 
@@ -4353,6 +4360,14 @@ wrong_offs:
 
 			btr_pcur_store_position(pcur, &mtr);
 
+			/* The found record was not a match, but may be used
+			as NEXT record (index_next). Set the relative position
+			to BTR_PCUR_BEFORE, to reflect that the position of
+			the persistent cursor is before the found/stored row
+			(pcur->old_rec). */
+			ut_ad(pcur->rel_pos == BTR_PCUR_ON);
+			pcur->rel_pos = BTR_PCUR_BEFORE;
+
 			err = DB_RECORD_NOT_FOUND;
 #if 0
 			ut_print_name(stderr, trx, FALSE, index->name);
@@ -4393,6 +4408,14 @@ wrong_offs:
 			}
 
 			btr_pcur_store_position(pcur, &mtr);
+
+			/* The found record was not a match, but may be used
+			as NEXT record (index_next). Set the relative position
+			to BTR_PCUR_BEFORE, to reflect that the position of
+			the persistent cursor is before the found/stored row
+			(pcur->old_rec). */
+			ut_ad(pcur->rel_pos == BTR_PCUR_ON);
+			pcur->rel_pos = BTR_PCUR_BEFORE;
 
 			err = DB_RECORD_NOT_FOUND;
 #if 0
@@ -5092,6 +5115,7 @@ normal_return:
 		pre-fetch queue, but we definitely wrote to the record
 		buffer passed to use by MySQL. */
 
+		DEBUG_SYNC_C("row_search_cached_row");
 		err = DB_SUCCESS;
 	}
 
