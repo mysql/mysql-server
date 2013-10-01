@@ -97,7 +97,7 @@ static DB_ENV *env;
 static DB *db;
 static DB_TXN *txn1, *txn2;
 static const int magic_key = 100;
-static bool callback_calls;
+static int callback_calls;
 toku_pthread_t thread1;
 
 static void lock_not_granted(DB *_db, uint64_t requesting_txnid,
