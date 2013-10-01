@@ -361,7 +361,7 @@ int set_plugin()
       query= (char *)my_malloc(PSI_NOT_INSTRUMENTED,
 	                       (strength_length * 2 + tmp) * sizeof(char),
 	                       MYF(MY_WME));
-      end= strmov(query, "SET GLOBAL validate_password_policy = ");
+      end= my_stpcpy(query, "SET GLOBAL validate_password_policy = ");
       *end++ = '\'';
       end+= mysql_real_escape_string(&mysql, end, strength, strength_length);
       *end++ = '\'';
@@ -394,7 +394,7 @@ void estimate_password_strength(char *password_string)
   query= (char *)my_malloc(PSI_NOT_INSTRUMENTED,
                            (password_length * 2 + tmp) * sizeof(char),
                            MYF(MY_WME));
-  end= strmov(query, "SELECT validate_password_strength(");
+  end= my_stpcpy(query, "SELECT validate_password_strength(");
   *end++ = '\'';
   end+= mysql_real_escape_string(&mysql, end, password_string, password_length);
   *end++ = '\'';
@@ -475,7 +475,7 @@ static void set_root_password(int plugin_set)
       */
       query= (char *)my_malloc(PSI_NOT_INSTRUMENTED,
 	                       (pass_length*2 + tmp)*sizeof(char), MYF(MY_WME));
-      end= strmov(query, "SET PASSWORD=PASSWORD(");
+      end= my_stpcpy(query, "SET PASSWORD=PASSWORD(");
       *end++ = '\'';
       end+= mysql_real_escape_string(&mysql, end, password1, pass_length);
       *end++ = '\'';
@@ -574,7 +574,7 @@ void drop_users(MYSQL_RES *result)
     query= (char *)my_malloc(PSI_NOT_INSTRUMENTED,
 	                     ((user_length + host_length)*2 + tmp) *
 	                     sizeof(char), MYF(MY_WME));
-    end= strmov(query, "DROP USER ");
+    end= my_stpcpy(query, "DROP USER ");
     *end++ = '\'';
     end+= mysql_real_escape_string(&mysql, end, user_tmp, user_length);
     *end++ = '\'';

@@ -3187,7 +3187,7 @@ int init_common_variables()
       sizeof(default_logfile_name)-5);
 
   strmake(pidfile_name, default_logfile_name, sizeof(pidfile_name)-5);
-  strmov(fn_ext(pidfile_name),".pid");    // Add proper extension
+  my_stpcpy(fn_ext(pidfile_name),".pid");    // Add proper extension
 
 
   /*
@@ -5135,7 +5135,7 @@ default_service_handling(char **argv,
     if (opt_delim= strchr(extra_opt, '='))
     {
       size_t length= ++opt_delim - extra_opt;
-      pos= strnmov(pos, extra_opt, length);
+      pos= my_stpnmov(pos, extra_opt, length);
     }
     else
       opt_delim= extra_opt;
@@ -5174,7 +5174,7 @@ int mysqld_main(int argc, char **argv)
     need to have an  unique  named  hEventShudown  through the
     application PID e.g.: MySQLShutdown1890; MySQLShutdown2342
   */
-  int10_to_str((int) GetCurrentProcessId(),strmov(shutdown_event_name,
+  int10_to_str((int) GetCurrentProcessId(),my_stpcpy(shutdown_event_name,
                                                   "MySQLShutdown"), 10);
 
   /* Must be initialized early for comparison of service name */
@@ -6313,7 +6313,7 @@ static int show_ssl_get_cipher_list(THD *thd, SHOW_VAR *var, char *buff)
     for (i=0; (p= SSL_get_cipher_list((SSL*) thd->net.vio->ssl_arg,i)) &&
                buff < end; i++)
     {
-      buff= strnmov(buff, p, end-buff-1);
+      buff= my_stpnmov(buff, p, end-buff-1);
       *buff++= ':';
     }
     if (i)
@@ -6786,7 +6786,7 @@ static int mysql_init_variables(void)
   my_atomic_rwlock_init(&opt_binlog_max_flush_queue_time_lock);
   my_atomic_rwlock_init(&global_query_id_lock);
   my_atomic_rwlock_init(&thread_running_lock);
-  strmov(server_version, MYSQL_SERVER_VERSION);
+  my_stpcpy(server_version, MYSQL_SERVER_VERSION);
   global_thread_list= new std::set<THD*>;
   key_caches.empty();
   if (!(dflt_key_cache= get_or_create_key_cache(default_key_cache_base.str,
@@ -7555,14 +7555,14 @@ static void set_server_version(void)
   char *end= strxmov(server_version, MYSQL_SERVER_VERSION,
                      MYSQL_SERVER_SUFFIX_STR, NullS);
 #ifdef EMBEDDED_LIBRARY
-  end= strmov(end, "-embedded");
+  end= my_stpcpy(end, "-embedded");
 #endif
 #ifndef DBUG_OFF
   if (!strstr(MYSQL_SERVER_SUFFIX_STR, "-debug"))
-    end= strmov(end, "-debug");
+    end= my_stpcpy(end, "-debug");
 #endif
   if (opt_general_log || opt_slow_log || opt_bin_log)
-    strmov(end, "-log");                        // This may slow down system
+    my_stpcpy(end, "-log");                        // This may slow down system
 }
 
 

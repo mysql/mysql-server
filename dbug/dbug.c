@@ -1042,7 +1042,7 @@ void _db_pop_()
       } while (0)
 #define str_to_buf(S)    do {                   \
         char_to_buf(',');                       \
-        buf=strnmov(buf, (S), end-buf);         \
+        buf=my_stpnmov(buf, (S), end-buf);      \
         if (buf >= end) goto overflow;          \
       } while (0)
 #define list_to_buf(l, f)  do {                 \
@@ -2103,7 +2103,7 @@ static void DBUGOpenFile(CODE_STATE *cs,
       cs->stack->name[len]=0;
     }
     else
-    strmov(cs->stack->name,name);
+    my_stpcpy(cs->stack->name,name);
     name=cs->stack->name;
     if (strcmp(name, "-") == 0)
     {

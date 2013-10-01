@@ -277,7 +277,7 @@ get_one_option(int optid, const struct my_option *opt,
     break;
 
   case 't':
-    strnmov(opt_tmpdir, argument, sizeof(opt_tmpdir));
+    my_stpnmov(opt_tmpdir, argument, sizeof(opt_tmpdir));
     add_option= FALSE;
     break;
 

@@ -1931,7 +1931,7 @@ const char *get_canonical_filename(handler *file, const char *path,
 
   /* Ensure that table handler get path in lower case */
   if (tmp_path != path)
-    strmov(tmp_path, path);
+    my_stpcpy(tmp_path, path);
 
   /*
     we only should turn into lowercase database/table part
