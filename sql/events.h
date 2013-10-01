@@ -79,7 +79,7 @@ public:
   /* Protected using LOCK_global_system_variables only. */
   static ulong opt_event_scheduler;
   static bool check_if_system_tables_error();
-  static bool start();
+  static bool start(int *err_no);
   static bool stop();
 
 public:

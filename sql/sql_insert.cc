@@ -1893,7 +1893,7 @@ public:
   {
     DBUG_ENTER("Delayed_insert constructor");
     thd.security_ctx->user=(char*) delayed_user;
-    thd.security_ctx->host=(char*) my_localhost;
+    thd.security_ctx->set_host(my_localhost);
     strmake(thd.security_ctx->priv_user, thd.security_ctx->user,
             USERNAME_LENGTH);
     thd.current_tablenr=0;
@@ -1939,7 +1939,8 @@ public:
     mysql_cond_destroy(&cond_client);
     thd.unlink();				// Must be unlinked under lock
     my_free(thd.query());
-    thd.security_ctx->user= thd.security_ctx->host=0;
+    thd.security_ctx->set_host("");
+    thd.security_ctx->user= 0;
     thread_count--;
     delayed_insert_threads--;
     mysql_mutex_unlock(&LOCK_thread_count);

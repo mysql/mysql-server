@@ -19,7 +19,7 @@ connect(plug_con,localhost,plug,plug_dest);
 GRANT PROXY ON plug_dest TO plug;
 --echo test proxies_priv columns
 --replace_column 1 xx 7 xx
-SELECT * FROM mysql.proxies_priv;
+SELECT * FROM mysql.proxies_priv WHERE user !='root';
 --echo test mysql.proxies_priv;
 SHOW CREATE TABLE mysql.proxies_priv;
 
