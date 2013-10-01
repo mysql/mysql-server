@@ -1,3 +1,27 @@
+2013-08-21	The InnoDB Team
+
+	* buf/buf0buf.c:
+	Fix Bug#12560151 61132: infinite loop in buf_page_get_gen()
+	when handling compressed pages
+
+2013-08-16	The InnoDB Team
+
+	* row/row0sel.c:
+	Fix Bug#17312846 CHECK TABLE ASSERTION FAILURE
+	DICT_TABLE_GET_FORMAT(CLUST_INDEX->TABLE) >= 1
+
+2013-08-15	The InnoDB Team
+
+	* row/row0umod.c:
+	Fix Bug#17302896 DOUBLE PURGE ON ROLLBACK OF UPDATING
+	A DELETE-MARKED RECORD
+
+2013-08-14	The InnoDB Team
+
+	* btr/btr0cur.c, row/row0uins.c:
+	Fix Bug#16971045 ASSERTION FAILURES ON ROLLBACK OF AN INSERT AFTER
+	A FAILED BLOB WRITE
+
 2013-05-15	The InnoDB Team
 
 	* page/page0zip.c:
