@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2000, 2012, Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2000, 2013, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -1475,10 +1475,12 @@ static void mysql_change_db_impl(THD *thd,
       we just call THD::reset_db(). Since THD::reset_db() does not releases
       the previous database name, we should do it explicitly.
     */
-
-    x_free(thd->db);
-
+    pthread_mutex_lock(&thd->LOCK_thd_data);
+    if (thd->db)
+      x_free(thd->db);
+    DEBUG_SYNC(thd, "after_freeing_thd_db");
     thd->reset_db(new_db_name->str, new_db_name->length);
+    pthread_mutex_unlock(&thd->LOCK_thd_data);
   }
 
   /* 2. Update security context. */
