@@ -273,13 +273,15 @@ btr_pcur_restore_position_func(
 
 	if (UNIV_LIKELY(latch_mode == BTR_SEARCH_LEAF)
 	    || UNIV_LIKELY(latch_mode == BTR_MODIFY_LEAF)) {
-		/* Try optimistic restoration */
+		/* Try optimistic restoration if cursor is expected to be
+		positioned on the same btr record as before (BTR_PCUR_ON). */
 
-		if (UNIV_LIKELY(buf_page_optimistic_get(
+		if (cursor->rel_pos == BTR_PCUR_ON
+		    && buf_page_optimistic_get(
 					latch_mode,
 					cursor->block_when_stored,
 					cursor->modify_clock,
-					file, line, mtr))) {
+					file, line, mtr)) {
 			cursor->pos_state = BTR_PCUR_IS_POSITIONED;
 
 			buf_block_dbg_add_level(
@@ -287,7 +289,7 @@ btr_pcur_restore_position_func(
 				dict_index_is_ibuf(index)
 				? SYNC_IBUF_TREE_NODE : SYNC_TREE_NODE);
 
-			if (cursor->rel_pos == BTR_PCUR_ON) {
+			{
 #ifdef UNIV_DEBUG
 				const rec_t*	rec;
 				const ulint*	offsets1;
@@ -312,8 +314,6 @@ btr_pcur_restore_position_func(
 #endif /* UNIV_DEBUG */
 				return(TRUE);
 			}
-
-			return(FALSE);
 		}
 	}
 
