@@ -1,4 +1,4 @@
-/* Copyright (c) 2010, 2011, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2010, 2013, Oracle and/or its affiliates. All rights reserved.
 
   This program is free software; you can redistribute it and/or modify
   it under the terms of the GNU General Public License as published by
@@ -103,16 +103,23 @@ void PFS_account_row::set_field(uint index, Field *f)
 
 int PFS_digest_row::make_row(PFS_statements_digest_stat* pfs)
 {
+  m_schema_name_length= pfs->m_digest_key.m_schema_name_length;
+  if (m_schema_name_length > sizeof(m_schema_name))
+    m_schema_name_length= 0;
+  if (m_schema_name_length > 0)
+    memcpy(m_schema_name, pfs->m_digest_key.m_schema_name, m_schema_name_length);
+
+  int safe_byte_count= pfs->m_digest_storage.m_byte_count;
+  if (safe_byte_count > PSI_MAX_DIGEST_STORAGE_SIZE)
+    safe_byte_count= 0;
+
   /*
     "0" value for byte_count indicates special entry i.e. aggregated
     stats at index 0 of statements_digest_stat_array. So do not calculate
     digest/digest_text as it should always be "NULL".
   */
-  if (pfs->m_digest_storage.m_byte_count != 0)
+  if (safe_byte_count > 0)
   {
-    m_schema_name_length= pfs->m_digest_key.m_schema_name_length;
-    if (m_schema_name_length > 0)
-      memcpy(m_schema_name, pfs->m_digest_key.m_schema_name, m_schema_name_length);
     /*
       Calculate digest from MD5 HASH collected to be shown as
       DIGEST in this row.
@@ -126,10 +133,12 @@ int PFS_digest_row::make_row(PFS_statements_digest_stat* pfs)
     */
     get_digest_text(m_digest_text, &pfs->m_digest_storage);
     m_digest_text_length= strlen(m_digest_text);
+
+    if (m_digest_text_length == 0)
+      m_digest_length= 0;
   }
   else
   {
-    m_schema_name_length= 0;
     m_digest_length= 0;
     m_digest_text_length= 0;
   }

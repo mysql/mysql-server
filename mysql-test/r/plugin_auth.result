@@ -17,10 +17,8 @@ test_plugin_server	plug_dest
 ERROR 28000: Access denied for user 'plug'@'localhost' (using password: YES)
 GRANT PROXY ON plug_dest TO plug;
 test proxies_priv columns
-SELECT * FROM mysql.proxies_priv;
+SELECT * FROM mysql.proxies_priv WHERE user !='root';
 Host	User	Proxied_host	Proxied_user	With_grant	Grantor	Timestamp
-xx	root			1		xx
-xx	root			1		xx
 xx	plug	%	plug_dest	0	root@localhost	xx
 test mysql.proxies_priv;
 SHOW CREATE TABLE mysql.proxies_priv;

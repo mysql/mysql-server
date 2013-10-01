@@ -45,9 +45,17 @@ id2
 SELECT id1 FROM t1 WHERE MATCH (a1,b1) AGAINST ('tutorial (+mysql -VÐƷWİ)' IN BOOLEAN MODE) ;
 id1
 3
+6
+2
+4
+5
 SELECT id2 FROM t2 WHERE MATCH (a2,b2) AGAINST ('tutorial (+mysql -VÐƷWİ)' IN BOOLEAN MODE) ;
 id2
 3
+6
+2
+4
+5
 SELECT id1 FROM t1 WHERE MATCH (a1,b1) AGAINST ('tutorial' WITH QUERY EXPANSION) ;
 id1
 1
@@ -81,15 +89,28 @@ SELECT id1 FROM t1 WHERE MATCH (a1,b1) AGAINST ('tutorial (+mysql -VÐƷWİ)' IN
 id1
 SELECT id2 FROM t2 WHERE MATCH (a2,b2) AGAINST ('tutorial (+mysql -VÐƷWİ)' IN BOOLEAN MODE) ;
 id2
+6
 SELECT id1 FROM t1 WHERE MATCH (a1,b1) AGAINST ('+update +cascade' IN BOOLEAN MODE) ;
 id1
+4
+2
+6
+5
 3
 SELECT id2 FROM t2 WHERE MATCH (a2,b2) AGAINST ('+update +cascade' IN BOOLEAN MODE) ;
 id2
+4
+2
+6
+5
 3
 SELECT id2 FROM t2 WHERE a2 LIKE '%UPDATE CASCADE%';
 id2
+2
 3
+4
+5
+6
 DROP TABLE t2 , t1;
 create table t1 (s1 int, s2 varchar(200), primary key (s1,s2)) ENGINE = InnoDB;
 create table t2 (s1 int, s2 varchar(200),
@@ -244,9 +265,11 @@ id2	a2	b2
 SELECT * FROM t1 WHERE MATCH (a1,b1) AGAINST ('tutorial (+mysql -VÐƷWİ)' IN BOOLEAN MODE) ;
 id1	a1	b1
 3	Optimizing MySQL	In this tutorial we will show ...
+2	How To Use MySQL Well	After you went through a ...
 SELECT * FROM t2 WHERE MATCH (a2,b2) AGAINST ('tutorial (+mysql -VÐƷWİ)' IN BOOLEAN MODE) ;
 id2	a2	b2
 3	Optimizing MySQL	In this tutorial we will show ...
+2	How To Use MySQL Well	After you went through a ...
 SELECT * FROM t1 WHERE MATCH (a1,b1) AGAINST ('tutorial' WITH QUERY EXPANSION) ;
 id1	a1	b1
 1	MySQL Tutorial	DBMS stands for DataBase VÐƷWİ...
@@ -304,15 +327,28 @@ SELECT * FROM t1 WHERE MATCH (a1,b1) AGAINST ('tutorial (+mysql -VÐƷWİ)' IN B
 id1	a1	b1
 SELECT * FROM t2 WHERE MATCH (a2,b2) AGAINST ('tutorial (+mysql -VÐƷWİ)' IN BOOLEAN MODE) ;
 id2	a2	b2
+6	changing column - on UPDATE cascade	When configured properly, MySQL ...
 SELECT * FROM t1 WHERE MATCH (a1,b1) AGAINST ('+UPDATE +cascade' IN BOOLEAN MODE) ;
 id1	a1	b1
+4	changing column - on UPDATE cascade	to check foreign constraint
+2	changing column - on UPDATE cascade	to check foreign constraint
+6	changing column - on UPDATE cascade	to check foreign constraint
+5	changing column - on UPDATE cascade	to check foreign constraint
 3	changing column - on UPDATE cascade	to check foreign constraint
 SELECT * FROM t2 WHERE MATCH (a2,b2) AGAINST ('+UPDATE +cascade' IN BOOLEAN MODE) ;
 id2	a2	b2
+4	changing column - on UPDATE cascade	1. Never run mysqld as root. 2. ...
+2	changing column - on UPDATE cascade	After you went through a ...
+6	changing column - on UPDATE cascade	When configured properly, MySQL ...
+5	changing column - on UPDATE cascade	In the following database comparison ...
 3	changing column - on UPDATE cascade	In this tutorial we will show ...
 SELECT * FROM t2 WHERE a2 LIKE '%UPDATE CASCADE%';
 id2	a2	b2
+2	changing column - on UPDATE cascade	After you went through a ...
 3	changing column - on UPDATE cascade	In this tutorial we will show ...
+4	changing column - on UPDATE cascade	1. Never run mysqld as root. 2. ...
+5	changing column - on UPDATE cascade	In the following database comparison ...
+6	changing column - on UPDATE cascade	When configured properly, MySQL ...
 DROP TABLE t2 , t1;
 CREATE TABLE t1 (s1 INT, s2 VARCHAR(200), PRIMARY KEY (s1,s2)) ENGINE = InnoDB;
 CREATE TABLE t2 (s1 INT, s2 VARCHAR(200),

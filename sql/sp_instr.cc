@@ -1,4 +1,4 @@
-/* Copyright (c) 2012, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2012, 2013, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -372,10 +372,18 @@ bool sp_lex_instr::reset_lex_and_exec_core(THD *thd,
     close_thread_tables(thd);
     thd_proc_info(thd, 0);
 
-    if (! thd->in_sub_stmt && ! thd->in_multi_stmt_transaction_mode())
-      thd->mdl_context.release_transactional_locks();
-    else if (! thd->in_sub_stmt)
-      thd->mdl_context.release_statement_locks();
+    if (! thd->in_sub_stmt)
+    {
+      if (thd->transaction_rollback_request)
+      {
+        trans_rollback_implicit(thd);
+        thd->mdl_context.release_transactional_locks();
+      }
+      else if (! thd->in_multi_stmt_transaction_mode())
+        thd->mdl_context.release_transactional_locks();
+      else
+        thd->mdl_context.release_statement_locks();
+    }
   }
   else
   {
@@ -458,6 +466,25 @@ LEX *sp_lex_instr::parse_expr(THD *thd, sp_head *sp)
     return NULL;
   }
 
+  // Cleanup current THD from previously held objects before new parsing.
+  cleanup_before_parsing(thd);
+
+  // Cleanup and re-init the lex mem_root for re-parse.
+  free_root(&m_lex_mem_root, MYF(0));
+  init_sql_alloc(&m_lex_mem_root, MEM_ROOT_BLOCK_SIZE, MEM_ROOT_PREALLOC);
+
+  /*
+    Switch mem-roots. We store the new LEX and its Items in the
+    m_lex_mem_root since it is freed before reparse triggered due to
+    invalidation. This avoids the memory leak in case re-parse is
+    initiated. Also set the statement query arena to the lex mem_root.
+  */
+  MEM_ROOT *execution_mem_root= thd->mem_root;
+  Query_arena parse_arena(&m_lex_mem_root, thd->stmt_arena->state);
+
+  thd->mem_root= &m_lex_mem_root;
+  thd->stmt_arena->set_query_arena(&parse_arena);
+
   // Prepare parser state. It can be done just before parse_sql(), do it here
   // only to simplify exit in case of failure (out-of-memory error).
 
@@ -465,17 +492,6 @@ LEX *sp_lex_instr::parse_expr(THD *thd, sp_head *sp)
 
   if (parser_state.init(thd, sql_query.c_ptr(), sql_query.length()))
     return NULL;
-
-  // Cleanup current THD from previously held objects before new parsing.
-
-  cleanup_before_parsing(thd);
-
-  // Switch mem-roots. We need to store new LEX and its Items in the persistent
-  // SP-memory (memory which is not freed between executions).
-
-  MEM_ROOT *execution_mem_root= thd->mem_root;
-
-  thd->mem_root= thd->sp_runtime_ctx->sp->get_persistent_mem_root();
 
   // Switch THD::free_list. It's used to remember the newly created set of Items
   // during parsing. We should clean those items after each execution.

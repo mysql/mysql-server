@@ -98,6 +98,9 @@ SELECT argument FROM mysql.general_log WHERE argument LIKE 'SET NAMES %';
 SELECT argument FROM mysql.general_log WHERE argument LIKE 'GRANT %';
 --echo ------ done ------ see log_tables.test for more proof! :)
 
+# Sanity check -- prove we log the correct hash.  Must return one row.
+SELECT argument FROM mysql.general_log WHERE argument LIKE 'GRANT SELECT%' AND argument LIKE CONCAT('%', PASSWORD('azundris1'), '%');
+
 --echo Bug#13958454 -- show we print SET @a:=5, but SELECT (@a:=5)
 # We need the () in EXPLAIN extended, for (@e:=80)+5.
 # In SET however, they'd break syntax.

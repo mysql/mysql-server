@@ -132,7 +132,7 @@ struct fts_query_t {
 
 	doc_id_t	upper_doc_id;	/*!< Highest doc id in doc_ids */
 
-	ibool		boolean_mode;	/*!< TRUE if boolean mode query */
+	bool		boolean_mode;	/*!< TRUE if boolean mode query */
 
 	ib_vector_t*	matched;	/*!< Array of matching documents
 					(fts_match_t) to search for a phrase */
@@ -152,9 +152,7 @@ struct fts_query_t {
 					document, its elements are of type
 					fts_word_freq_t */
 
-	ibool		inited;		/*!< Flag to test whether the query
-					processing has started or not */
-	ibool		multi_exist;	/*!< multiple FTS_EXIST oper */
+	bool		multi_exist;	/*!< multiple FTS_EXIST oper */
 };
 
 /** For phrase matching, first we collect the documents and the positions
@@ -849,35 +847,45 @@ fts_query_intersect_doc_id(
 	fts_update_t*	array = (fts_update_t*) query->deleted->doc_ids->data;
 	fts_ranking_t*	ranking= NULL;
 
+	/* There are three types of intersect:
+	   1. '+a': doc_ids is empty, add doc into intersect if it matches 'a'.
+	   2. 'a +b': docs match 'a' is in doc_ids, add doc into intersect
+	      if it matches 'b'. if the doc is also in  doc_ids, then change the
+	      doc's rank, and add 'a' in doc's words.
+	   3. '+a +b': docs matching '+a' is in doc_ids, add doc into intsersect
+	      if it matches 'b' and it's in doc_ids.(multi_exist = true). */
+
 	/* Check if the doc id is deleted and it's in our set */
 	if (fts_bsearch(array, 0, size, doc_id) < 0) {
 		fts_ranking_t	new_ranking;
 
-		/* Check doc_id in doc_ids:
-		   1. if doc_ids is empty, add doc_id into intersection;
-		   2. if doc_ids contains doc_id, add doc_id into intersection.
-		*/
-		if (rbt_empty(query->doc_ids)) {
-			new_ranking.words = NULL;
-		} else if (rbt_search(query->doc_ids, &parent, &doc_id) == 0) {
-			ranking = rbt_value(fts_ranking_t, parent.last);
-			rank += (ranking->rank > 0)
-				? ranking->rank : RANK_UPGRADE;
-			if (rank >= 1.0F) {
-				rank = 1.0F;
+		if (rbt_search(query->doc_ids, &parent, &doc_id) != 0) {
+			if (query->multi_exist) {
+				return;
+			} else {
+				new_ranking.words = NULL;
 			}
+		} else {
+			ranking = rbt_value(fts_ranking_t, parent.last);
 
 			/* We've just checked the doc id before */
 			if (ranking->words == NULL) {
 				ut_ad(rbt_search(query->intersection, &parent,
-				      ranking) == 0);
+					ranking) == 0);
 				return;
 			}
 
+			/* Merge rank */
+			rank += ranking->rank;
+			if (rank >= 1.0F) {
+				rank = 1.0F;
+			} else if (rank <= -1.0F) {
+				rank = -1.0F;
+			}
+
+			/* Take words */
 			new_ranking.words = ranking->words;
 			new_ranking.words_len = ranking->words_len;
-		} else {
-			return;
 		}
 
 		new_ranking.rank = rank;
@@ -1213,7 +1221,6 @@ fts_query_intersect(
 	fts_query_t*		query,	/*!< in: query instance */
 	const fts_string_t*	token)	/*!< in: the token to search */
 {
-	ulint			n_doc_ids = 0;
 	trx_t*			trx = query->trx;
 	dict_table_t*		table = query->index->table;
 
@@ -1224,24 +1231,10 @@ fts_query_intersect(
 		(int) token->f_len, token->f_str);
 #endif
 
-	if (!query->inited) {
-
-		ut_a(rbt_empty(query->doc_ids));
-
-		/* Since this is the first time we need to convert this
-		intersection query into a union query. Otherwise we
-		will end up with an empty set. */
-		query->oper = FTS_NONE;
-		query->inited = TRUE;
-	}
-
-	if (query->doc_ids) {
-		n_doc_ids = rbt_size(query->doc_ids);
-	}
-
-	/* If the words set is not empty or this is the first time. */
-
-	if (!rbt_empty(query->doc_ids) || query->oper == FTS_NONE) {
+	/* If the words set is not empty and multi exist is true,
+	we know the intersection set is empty in advance. */
+	if (!(rbt_empty(query->doc_ids) && query->multi_exist)) {
+		ulint                   n_doc_ids = 0;
 		ulint			i;
 		fts_fetch_t		fetch;
 		const ib_vector_t*	nodes;
@@ -1252,16 +1245,14 @@ fts_query_intersect(
 
 		ut_a(!query->intersection);
 
-		/* Only if this is not the first time. */
-		if (query->oper != FTS_NONE) {
+		n_doc_ids = rbt_size(query->doc_ids);
 
-			/* Create the rb tree that will hold the doc ids of
-			the intersection. */
-			query->intersection = rbt_create(
-				sizeof(fts_ranking_t), fts_ranking_doc_id_cmp);
+		/* Create the rb tree that will hold the doc ids of
+		the intersection. */
+		query->intersection = rbt_create(
+			sizeof(fts_ranking_t), fts_ranking_doc_id_cmp);
 
-			query->total_size += SIZEOF_RBT_CREATE;
-		}
+		query->total_size += SIZEOF_RBT_CREATE;
 
 		/* This is to avoid decompressing the ilist if the
 		node's ilist doc ids are out of range. */
@@ -1334,27 +1325,15 @@ fts_query_intersect(
 		fts_que_graph_free(graph);
 
 		if (query->error == DB_SUCCESS) {
-			if (query->oper == FTS_EXIST) {
-
-				/* The size can't increase. */
-				ut_a(rbt_size(query->doc_ids) <= n_doc_ids);
-			}
-
 			/* Make the intesection (rb tree) the current doc id
 			set and free the old set. */
-			if (query->intersection) {
-				fts_query_free_doc_ids(query, query->doc_ids);
-				query->doc_ids = query->intersection;
-				query->intersection = NULL;
-			}
+			fts_query_free_doc_ids(query, query->doc_ids);
+			query->doc_ids = query->intersection;
+			query->intersection = NULL;
 
-			/* Reset the set operation to intersect. */
-			query->oper = FTS_EXIST;
+			ut_a(!query->multi_exist || (query->multi_exist
+			     && rbt_size(query->doc_ids) <= n_doc_ids));
 		}
-	}
-
-	if (!query->multi_exist) {
-		query->multi_exist = TRUE;
 	}
 
 	return(query->error);
@@ -1474,13 +1453,6 @@ fts_query_union(
 		the current doc id set. */
 		if (query->doc_ids) {
 			n_doc_ids = rbt_size(query->doc_ids) - n_doc_ids;
-		}
-
-		/* In case there were no matching docs then we reset the
-		state, otherwise intersection will not be able to detect
-		that it's being called for the first time. */
-		if (!rbt_empty(query->doc_ids)) {
-			query->inited = TRUE;
 		}
 	}
 
@@ -2620,19 +2592,6 @@ fts_query_phrase_search(
 		ulint		i;
 		dberr_t		error;
 
-		/* Create the rb tree for storing the words read form disk. */
-		if (!query->inited) {
-
-			/* Since this is the first time, we need to convert
-			this intersection query into a union query. Otherwise
-			we will end up with an empty set. */
-			if (query->oper == FTS_EXIST) {
-				query->oper = FTS_NONE;
-			}
-
-			query->inited = TRUE;
-		}
-
 		/* Create the vector for storing matching document ids
 		and the positions of the first token of the phrase. */
 		if (!query->matched) {
@@ -2874,19 +2833,10 @@ fts_query_visitor(
 		token.f_str = node->text.ptr;
 		token.f_len = ut_strlen((char*) token.f_str);
 
-		/* If the query is initiated, create the rb tree that
-		will hold the doc ids of the intersection. Please
-		note, if the first operator is FTS_EXIST operation,
-		it will be put to query->doc_id instead of
-		query->intersection since nothing to intersect */
-		if (!query->intersection
-		    && query->oper == FTS_EXIST
-		    && query->inited) {
-
+		if (query->oper == FTS_EXIST) {
+			ut_ad(query->intersection == NULL);
 			query->intersection = rbt_create(
 				sizeof(fts_ranking_t), fts_ranking_doc_id_cmp);
-
-			query->total_size += SIZEOF_RBT_CREATE;
 		}
 
 		/* Set the current proximity distance. */
@@ -2899,9 +2849,7 @@ fts_query_visitor(
 
 		query->collect_positions = FALSE;
 
-		/* Make the intesection (rb tree) the current doc id
-		set and free the old set. */
-		if (query->intersection) {
+		if (query->oper == FTS_EXIST) {
 			fts_query_free_doc_ids(query, query->doc_ids);
 			query->doc_ids = query->intersection;
 			query->intersection = NULL;
@@ -2927,6 +2875,10 @@ fts_query_visitor(
 		ut_error;
 	}
 
+	if (query->oper == FTS_EXIST) {
+		query->multi_exist = true;
+	}
+
 	return(query->error);
 }
 
@@ -2948,8 +2900,8 @@ fts_ast_visit_sub_exp(
 	ib_rbt_t*		parent_doc_ids;
 	ib_rbt_t*		subexpr_doc_ids;
 	dberr_t			error = DB_SUCCESS;
-	ibool			inited = query->inited;
 	bool			will_be_ignored = false;
+	bool			multi_exist;
 
 	ut_a(node->type == FTS_AST_SUBEXP_LIST);
 
@@ -2971,33 +2923,20 @@ fts_ast_visit_sub_exp(
 
 	query->total_size += SIZEOF_RBT_CREATE;
 
-	/* Reset the query start flag because the sub-expression result
-	set is independent of any previous results. The state flag
-	reset is needed for not making an intersect operation on an empty
-	set in the first call to fts_query_intersect() for the first term. */
-	query->inited = FALSE;
-
+	multi_exist = query->multi_exist;
+	query->multi_exist = false;
 	/* Process nodes in current sub-expression and store its
 	result set in query->doc_ids we created above. */
 	error = fts_ast_visit(FTS_NONE, node->next, visitor,
 			      arg, &will_be_ignored);
 
 	/* Reinstate parent node state and prepare for merge. */
-	query->inited = inited;
+	query->multi_exist = multi_exist;
 	query->oper = cur_oper;
 	subexpr_doc_ids = query->doc_ids;
 
 	/* Restore current result set. */
 	query->doc_ids = parent_doc_ids;
-
-	if (query->oper == FTS_EXIST && !query->inited) {
-		ut_a(rbt_empty(query->doc_ids));
-		/* Since this is the first time we need to convert this
-		intersection query into a union query. Otherwise we
-		will end up with an empty set. */
-		query->oper = FTS_NONE;
-		query->inited = TRUE;
-	}
 
 	/* Merge the sub-expression result with the parent result set. */
 	if (error == DB_SUCCESS && !rbt_empty(subexpr_doc_ids)) {
@@ -3005,7 +2944,7 @@ fts_ast_visit_sub_exp(
 	}
 
 	if (query->oper == FTS_EXIST) {
-		query->multi_exist = TRUE;
+		query->multi_exist = true;
 	}
 
 	/* Free current result set. Result already merged into parent. */
@@ -3708,7 +3647,7 @@ fts_query_parse(
 {
 	int		error;
 	fts_ast_state_t state;
-	ibool		mode = query->boolean_mode;
+	bool		mode = query->boolean_mode;
 
 	memset(&state, 0x0, sizeof(state));
 
@@ -3755,6 +3694,89 @@ fts_query_can_optimize(
 }
 
 /*******************************************************************//**
+Pre-process the query string
+1) make it lower case
+2) in boolean mode, if there is '-' or '+' that is immediately proceeded
+and followed by valid word, make it a space
+@return the processed string */
+static
+byte*
+fts_query_str_preprocess(
+/*=====================*/
+	const byte*	query_str,	/*!< in: FTS query */
+	ulint		query_len,	/*!< in: FTS query string len */
+	ulint		*result_len,	/*!< out: result string length */
+	CHARSET_INFO*	charset,	/*!< in: string charset */
+	bool		boolean_mode)	/*!< in: is boolean mode */
+{
+	ulint	cur_pos = 0;
+	ulint	str_len;
+	byte*	str_ptr;
+	bool	in_phrase = false;
+
+	/* Convert the query string to lower case before parsing. We own
+	the ut_malloc'ed result and so remember to free it before return. */
+
+	str_len = query_len * charset->casedn_multiply + 1;
+	str_ptr = static_cast<byte*>(ut_malloc(str_len));
+
+	*result_len = innobase_fts_casedn_str(
+		charset, const_cast<char*>(reinterpret_cast<const char*>(
+			query_str)), query_len,
+		reinterpret_cast<char*>(str_ptr), str_len);
+
+	ut_ad(*result_len < str_len);
+
+	str_ptr[*result_len] = 0;
+
+	/* If it is boolean mode, no need to check for '-/+' */
+	if (!boolean_mode) {
+		return(str_ptr);
+	}
+
+	/* Otherwise, we travese the string to find any '-/+' that are
+	immediately proceeded and followed by valid search word.
+	NOTE: we should not do so for CJK languages, this should
+	be taken care of in our CJK implementation */
+        while (cur_pos < *result_len) {
+                fts_string_t    str;
+                ulint           offset;
+                ulint           cur_len;
+
+                cur_len = innobase_mysql_fts_get_token(
+                        charset, str_ptr + cur_pos, str_ptr + *result_len,
+			&str, &offset);
+
+                if (cur_len == 0) {
+                        break;
+                }
+
+		/* Check if we are in a phrase, if so, no need to do
+		replacement of '-/+'. */
+		for (byte* ptr = str_ptr + cur_pos; ptr < str.f_str; ptr++) {
+			if ((char) (*ptr) == '"' ) {
+				in_phrase = !in_phrase;
+			}
+		}
+
+		/* Find those are not leading '-/+' and also not in a phrase */
+		if (cur_pos > 0 && str.f_str - str_ptr - cur_pos == 1
+		    && !in_phrase) {
+			char*	last_op = reinterpret_cast<char*>(
+						str_ptr + cur_pos);
+
+			if (*last_op == '-' || *last_op == '+') {
+				*last_op = ' ';
+			}
+		}
+
+                cur_pos += cur_len;
+	}
+
+	return(str_ptr);
+}
+
+/*******************************************************************//**
 FTS Query entry point.
 @return DB_SUCCESS if successful otherwise error code */
 UNIV_INTERN
@@ -3772,9 +3794,8 @@ fts_query(
 	fts_query_t	query;
 	dberr_t		error = DB_SUCCESS;
 	byte*		lc_query_str;
-	ulint		lc_query_str_len;
 	ulint		result_len;
-	ibool		boolean_mode;
+	bool		boolean_mode;
 	trx_t*		query_trx;
 	CHARSET_INFO*	charset;
 	ulint		start_time_ms;
@@ -3791,7 +3812,6 @@ fts_query(
 
 	query.trx = query_trx;
 	query.index = index;
-	query.inited = FALSE;
 	query.boolean_mode = boolean_mode;
 	query.deleted = fts_doc_ids_create();
 	query.cur_node = NULL;
@@ -3861,6 +3881,7 @@ fts_query(
 	/* Sort the vector so that we can do a binary search over the ids. */
 	ib_vector_sort(query.deleted->doc_ids, fts_update_doc_id_cmp);
 
+#if 0
 	/* Convert the query string to lower case before parsing. We own
 	the ut_malloc'ed result and so remember to free it before return. */
 
@@ -3874,6 +3895,11 @@ fts_query(
 	ut_ad(result_len < lc_query_str_len);
 
 	lc_query_str[result_len] = 0;
+
+#endif
+
+	lc_query_str = fts_query_str_preprocess(
+		query_str, query_len, &result_len, charset, boolean_mode);
 
 	query.heap = mem_heap_create(128);
 

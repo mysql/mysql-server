@@ -284,6 +284,7 @@ extern ulong connection_errors_internal;
 extern ulong connection_errors_max_connection;
 extern ulong connection_errors_peer_addr;
 extern ulong log_warnings;
+void init_sql_statement_names();
 
 /*
   THR_MALLOC is a key which will be used to set/get MEM_ROOT** for a thread,

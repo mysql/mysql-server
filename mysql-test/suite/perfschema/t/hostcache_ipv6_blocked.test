@@ -19,9 +19,12 @@
 
 select @@global.max_connect_errors into @saved_max_connect_errors;
 
-set global max_connect_errors = 2;
+set global max_connect_errors = 3;
 
 grant select on test.* to 'root'@'santa.claus.ipv6.example.com';
+
+create user 'quota'@'santa.claus.ipv6.example.com';
+grant select on test.* to 'quota'@'santa.claus.ipv6.example.com';
 
 connect (con1,"::1",root,,test,$MASTER_MYPORT,);
 select "Con1 is alive";
@@ -32,7 +35,7 @@ disconnect con1;
 set global debug= "+d,vio_peer_addr_fake_ipv6,getnameinfo_fake_ipv6,getaddrinfo_fake_good_ipv6,native_password_bad_reply";
 
 --disable_query_log
---error ER_ACCESS_DENIED_ERROR
+--error ER_HANDSHAKE_ERROR
 connect (con2a,"::1",quota,,test,$MASTER_MYPORT,);
 --enable_query_log
 
@@ -40,7 +43,7 @@ connect (con2a,"::1",quota,,test,$MASTER_MYPORT,);
 --source ../include/hostcache_dump.inc
 
 --disable_query_log
---error ER_ACCESS_DENIED_ERROR
+--error ER_HANDSHAKE_ERROR
 connect (con2b,"::1",quota,,test,$MASTER_MYPORT,);
 --enable_query_log
 
@@ -48,7 +51,7 @@ connect (con2b,"::1",quota,,test,$MASTER_MYPORT,);
 --source ../include/hostcache_dump.inc
 
 --disable_query_log
---error ER_ACCESS_DENIED_ERROR
+--error ER_HANDSHAKE_ERROR
 connect (con2c,"::1",quota,,test,$MASTER_MYPORT,);
 --enable_query_log
 
@@ -75,8 +78,71 @@ connect (con2e,"::1",quota,,test,$MASTER_MYPORT,);
 flush hosts;
 
 --disable_query_log
---error ER_ACCESS_DENIED_ERROR
-connect (con2c,"::1",quota,,test,$MASTER_MYPORT,);
+--error ER_HANDSHAKE_ERROR
+connect (con3a,"::1",quota,,test,$MASTER_MYPORT,);
+--enable_query_log
+
+--connection default
+--source ../include/hostcache_dump.inc
+
+--disable_query_log
+--error ER_HANDSHAKE_ERROR
+connect (con3b,"::1",quota,,test,$MASTER_MYPORT,);
+--enable_query_log
+
+--connection default
+--source ../include/hostcache_dump.inc
+
+--connection default
+set global debug= "-d,native_password_bad_reply";
+
+--disable_query_log
+connect (con4,"::1",quota,,test,$MASTER_MYPORT,);
+select "Valid connection should reset SUM_CONNECT_ERROR counter" as message;
+--disconnect con4
+--enable_query_log
+
+--connection default
+set global debug= "+d,native_password_bad_reply";
+
+--connection default
+--source ../include/hostcache_dump.inc
+
+--disable_query_log
+--error ER_HANDSHAKE_ERROR
+connect (con5a,"::1",quota,,test,$MASTER_MYPORT,);
+--enable_query_log
+
+--connection default
+--source ../include/hostcache_dump.inc
+
+--disable_query_log
+--error ER_HANDSHAKE_ERROR
+connect (con5b,"::1",quota,,test,$MASTER_MYPORT,);
+--enable_query_log
+
+--connection default
+--source ../include/hostcache_dump.inc
+
+--disable_query_log
+--error ER_HANDSHAKE_ERROR
+connect (con5c,"::1",quota,,test,$MASTER_MYPORT,);
+--enable_query_log
+
+--connection default
+--source ../include/hostcache_dump.inc
+
+--disable_query_log
+--error ER_HOST_IS_BLOCKED
+connect (con5d,"::1",quota,,test,$MASTER_MYPORT,);
+--enable_query_log
+
+--connection default
+--source ../include/hostcache_dump.inc
+
+--disable_query_log
+--error ER_HOST_IS_BLOCKED
+connect (con5e,"::1",quota,,test,$MASTER_MYPORT,);
 --enable_query_log
 
 --connection default
@@ -84,6 +150,9 @@ connect (con2c,"::1",quota,,test,$MASTER_MYPORT,);
 
 revoke select on test.* from 'root'@'santa.claus.ipv6.example.com';
 drop user 'root'@'santa.claus.ipv6.example.com';
+
+revoke select on test.* from 'quota'@'santa.claus.ipv6.example.com';
+drop user 'quota'@'santa.claus.ipv6.example.com';
 
 set global max_connect_errors = @saved_max_connect_errors;
 set global debug= default;

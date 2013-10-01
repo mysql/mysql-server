@@ -1,4 +1,4 @@
-/* Copyright (c) 2002, 2012, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2002, 2013, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -23,6 +23,7 @@
 #include "sql_tmp_table.h"                     // create_virtual_tmp_table
 #include "sp_instr.h"
 
+extern "C" void sql_alloc_error_handler(void);
 
 ///////////////////////////////////////////////////////////////////////////
 // sp_rcontext implementation.
@@ -51,8 +52,12 @@ sp_rcontext::~sp_rcontext()
   while (m_activated_handlers.elements())
     delete m_activated_handlers.pop();
 
-  // Leave m_visible_handlers, m_var_items, m_cstack
-  // and m_case_expr_holders untouched.
+  while (m_visible_handlers.elements())
+    delete m_visible_handlers.pop();
+   
+  pop_all_cursors();
+
+  // Leave m_var_items and m_case_expr_holders untouched.
   // They are allocated in mem roots and will be freed accordingly.
 }
 
@@ -158,13 +163,19 @@ bool sp_rcontext::set_return_value(THD *thd, Item **return_value_item)
 bool sp_rcontext::push_cursor(sp_instr_cpush *i)
 {
   /*
-    We should create cursors in the callers arena, as
-    it could be (and usually is) used in several instructions.
+    We should create cursors on the system heap because:
+     - they could be (and usually are) used in several instructions,
+       thus they can not be stored on an execution mem-root;
+     - a cursor can be pushed/popped many times in a loop, having these objects
+       on callers' mem-root would lead to a memory leak in every iteration.
   */
-  sp_cursor *c= new (callers_arena->mem_root) sp_cursor(i);
+  sp_cursor *c= new (std::nothrow) sp_cursor(i);
 
-  if (c == NULL)
+  if (!c)
+  {
+    sql_alloc_error_handler();
     return true;
+  }
 
   m_cstack[m_ccount++]= c;
   return false;
@@ -183,14 +194,22 @@ void sp_rcontext::pop_cursors(uint count)
 bool sp_rcontext::push_handler(sp_handler *handler, uint first_ip)
 {
   /*
-    We should create handler entries in the callers arena, as
-    they could be (and usually are) used in several instructions.
+    We should create handler entries on the system heap because:
+      - they could be (and usually are) used in several instructions,
+        thus they can not be stored on an execution mem-root;
+      - a handler can be pushed/popped many times in a loop, having these
+        objects on callers' mem-root would lead to a memory leak in every
+        iteration.
   */
-  sp_handler_entry *he=
-    new (callers_arena->mem_root) sp_handler_entry(handler, first_ip);
 
-  if (he == NULL)
+  sp_handler_entry *he=
+    new (std::nothrow) sp_handler_entry(handler, first_ip);
+
+  if (!he)
+  {
+    sql_alloc_error_handler();
     return true;
+  }
 
   return m_visible_handlers.append(he);
 }
@@ -203,7 +222,7 @@ void sp_rcontext::pop_handlers(sp_pcontext *current_scope)
     int handler_level= m_visible_handlers.at(i)->handler->scope->get_level();
 
     if (handler_level >= current_scope->get_level())
-      m_visible_handlers.pop();
+      delete m_visible_handlers.pop();
   }
 }
 
@@ -249,8 +268,13 @@ bool sp_rcontext::handle_sql_condition(THD *thd,
 
   Diagnostics_area *da= thd->get_stmt_da();
   const sp_handler *found_handler= NULL;
-  const Sql_condition *found_condition= NULL;
 
+  uint condition_sql_errno= 0;
+  Sql_condition::enum_warning_level condition_level=  
+                                    Sql_condition::WARN_LEVEL_NOTE;
+  const char *condition_sqlstate= NULL;
+  const char *condition_message= NULL;
+ 
   if (thd->is_error())
   {
     sp_pcontext *cur_pctx= cur_spi->get_parsing_ctx();
@@ -259,24 +283,29 @@ bool sp_rcontext::handle_sql_condition(THD *thd,
                                           da->sql_errno(),
                                           Sql_condition::WARN_LEVEL_ERROR);
 
-    if (found_handler)
-      found_condition= da->get_error_condition();
+    if (!found_handler)
+      DBUG_RETURN(false);
 
-    /*
-      Found condition can be NULL if the diagnostics area was full
-      when the error was raised. It can also be NULL if
-      Diagnostics_area::set_error_status(uint sql_error) was used.
-      In these cases, make a temporary Sql_condition here so the
-      error can be handled.
-    */
-    if (!found_condition)
+    if (da->get_error_condition())
     {
-      Sql_condition *condition=
-        new (callers_arena->mem_root) Sql_condition(callers_arena->mem_root);
-      condition->set(da->sql_errno(), da->get_sqlstate(),
-                     Sql_condition::WARN_LEVEL_ERROR,
-                     da->message());
-      found_condition= condition;
+      const Sql_condition *c= da->get_error_condition();
+      condition_sql_errno= c->get_sql_errno();
+      condition_level= c->get_level();
+      condition_sqlstate= c->get_sqlstate();
+      condition_message= c->get_message_text();
+    }
+    else
+    {
+      /*
+        SQL condition can be NULL if the diagnostics area was full
+        when the error was raised. It can also be NULL if
+        Diagnostics_area::set_error_status(uint sql_error) was used.
+      */
+
+      condition_sql_errno= da->sql_errno();
+      condition_level= Sql_condition::WARN_LEVEL_ERROR;
+      condition_sqlstate= da->get_sqlstate();
+      condition_message= da->message();
     }
   }
   else if (da->current_statement_warn_count())
@@ -301,7 +330,11 @@ bool sp_rcontext::handle_sql_condition(THD *thd,
         if (handler)
         {
           found_handler= handler;
-          found_condition= c;
+
+          condition_sql_errno= c->get_sql_errno();
+          condition_level= c->get_level();
+          condition_sqlstate= c->get_sqlstate();
+          condition_message= c->get_message_text();
         }
       }
     }
@@ -314,7 +347,7 @@ bool sp_rcontext::handle_sql_condition(THD *thd,
   //  - there is a pending SQL-condition (error or warning);
   //  - there is an SQL-handler for it.
 
-  DBUG_ASSERT(found_condition);
+  DBUG_ASSERT(condition_sql_errno != 0);
 
   sp_handler_entry *handler_entry= NULL;
   for (int i= 0; i < m_visible_handlers.elements(); ++i)
@@ -357,15 +390,26 @@ bool sp_rcontext::handle_sql_condition(THD *thd,
   if (end_partial_result_set)
     thd->protocol->end_partial_result_set(thd);
 
+  /* Add a frame to handler-call-stack. */
+  Handler_call_frame *frame=
+    new (std::nothrow) Handler_call_frame(found_handler,
+                                          condition_sql_errno,
+                                          condition_sqlstate,
+                                          condition_level,
+                                          condition_message,
+                                          continue_ip);
+
   /* Reset error state. */
   thd->clear_error();
   thd->killed= THD::NOT_KILLED; // Some errors set thd->killed
                                 // (e.g. "bad data").
 
-  /* Add a frame to handler-call-stack. */
-  Handler_call_frame *frame= new Handler_call_frame(found_handler,
-                                                    found_condition,
-                                                    continue_ip);
+  if (!frame)
+  {
+    sql_alloc_error_handler();
+    DBUG_RETURN(false);
+  }
+
   m_activated_handlers.append(frame);
 
   *ip= handler_entry->first_ip;
