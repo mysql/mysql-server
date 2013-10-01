@@ -96,7 +96,7 @@ row_merge_create_fts_sort_index(
 	field->prefix_len = 0;
 	field->col = static_cast<dict_col_t*>(
 		mem_heap_alloc(new_index->heap, sizeof(dict_col_t)));
-	field->col->len = fts_max_token_size;
+	field->col->len = FTS_MAX_WORD_LEN;
 
 	if (strcmp(charset->name, "latin1_swedish_ci") == 0) {
 		field->col->mtype = DATA_VARCHAR;
@@ -450,7 +450,7 @@ row_merge_fts_doc_tokenize(
 		field->type.prtype = word_dtype->prtype | DATA_NOT_NULL;
 
 		/* Variable length field, set to max size. */
-		field->type.len = fts_max_token_size;
+		field->type.len = FTS_MAX_WORD_LEN;
 		field->type.mbminmaxlen = word_dtype->mbminmaxlen;
 
 		cur_len += len;

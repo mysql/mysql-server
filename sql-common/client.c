@@ -3500,6 +3500,9 @@ CLI_MYSQL_REAL_CONNECT(MYSQL *mysql,const char *host, const char *user,
         {
           set_mysql_error(mysql, CR_OUT_OF_MEMORY, unknown_sqlstate);
           closesocket(sock);
+          freeaddrinfo(res_lst);
+          if (client_bind_ai_lst)
+            freeaddrinfo(client_bind_ai_lst);
           goto error;
         }
       }
@@ -3508,6 +3511,9 @@ CLI_MYSQL_REAL_CONNECT(MYSQL *mysql,const char *host, const char *user,
       {
         set_mysql_error(mysql, CR_UNKNOWN_ERROR, unknown_sqlstate);
         closesocket(sock);
+        freeaddrinfo(res_lst);
+        if (client_bind_ai_lst)
+          freeaddrinfo(client_bind_ai_lst);
         goto error;
       }
 

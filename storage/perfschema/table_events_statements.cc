@@ -1,4 +1,4 @@
-/* Copyright (c) 2010, 2011, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2010, 2013, Oracle and/or its affiliates. All rights reserved.
 
   This program is free software; you can redistribute it and/or modify
   it under the terms of the GNU General Public License as published by
@@ -370,12 +370,15 @@ void table_events_statements_common::make_row(PFS_events_statements *statement)
     Filling up statement digest information.
   */
   PSI_digest_storage *digest= & statement->m_digest_storage;
-  if (digest->m_byte_count > 0)
+
+  int safe_byte_count= digest->m_byte_count;
+  if (safe_byte_count > 0 &&
+      safe_byte_count <= PSI_MAX_DIGEST_STORAGE_SIZE)
   {
     PFS_digest_key md5;
     compute_md5_hash((char *) md5.m_md5,
                      (char *) digest->m_token_array,
-                     digest->m_byte_count);
+                     safe_byte_count);
 
     /* Generate the DIGEST string from the MD5 digest  */
     MD5_HASH_TO_STRING(md5.m_md5,
@@ -385,6 +388,9 @@ void table_events_statements_common::make_row(PFS_events_statements *statement)
     /* Generate the DIGEST_TEXT string from the token array */
     get_digest_text(m_row.m_digest.m_digest_text, digest);
     m_row.m_digest.m_digest_text_length= strlen(m_row.m_digest.m_digest_text);
+
+    if (m_row.m_digest.m_digest_text_length == 0)
+      m_row.m_digest.m_digest_length= 0;
   }
   else
   {

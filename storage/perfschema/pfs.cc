@@ -1967,7 +1967,7 @@ static void set_thread_user_v1(const char *user, int user_len)
   if (unlikely(pfs == NULL))
     return;
 
-  aggregate_thread(pfs);
+  aggregate_thread(pfs, pfs->m_account, pfs->m_user, pfs->m_host);
 
   pfs->m_session_lock.allocated_to_dirty();
 
@@ -2169,7 +2169,7 @@ static void delete_current_thread_v1(void)
   PFS_thread *thread= my_pthread_getspecific_ptr(PFS_thread*, THR_PFS);
   if (thread != NULL)
   {
-    aggregate_thread(thread);
+    aggregate_thread(thread, thread->m_account, thread->m_user, thread->m_host);
     my_pthread_setspecific_ptr(THR_PFS, NULL);
     destroy_thread(thread);
   }
@@ -2185,7 +2185,7 @@ static void delete_thread_v1(PSI_thread *thread)
 
   if (pfs != NULL)
   {
-    aggregate_thread(pfs);
+    aggregate_thread(pfs, pfs->m_account, pfs->m_user, pfs->m_host);
     destroy_thread(pfs);
   }
 }

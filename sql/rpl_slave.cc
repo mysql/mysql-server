@@ -506,6 +506,7 @@ int global_init_info(Master_info* mi, bool ignore_if_no_info, int thread_mask)
   DBUG_ASSERT(mi != NULL && mi->rli != NULL);
   int init_error= 0;
   enum_return_check check_return= ERROR_CHECKING_REPOSITORY;
+  THD *thd= current_thd;
 
   /*
     We need a mutex while we are changing master info parameters to
@@ -513,6 +514,20 @@ int global_init_info(Master_info* mi, bool ignore_if_no_info, int thread_mask)
   */
   mysql_mutex_lock(&mi->data_lock);
   mysql_mutex_lock(&mi->rli->data_lock);
+
+  /*
+    When info tables are used and autocommit= 0 we force a new
+    transaction start to avoid table access deadlocks when START SLAVE
+    is executed after RESET SLAVE.
+  */
+  if (thd && thd->in_multi_stmt_transaction_mode() &&
+      (opt_mi_repository_id == INFO_REPOSITORY_TABLE ||
+       opt_rli_repository_id == INFO_REPOSITORY_TABLE))
+    if (trans_begin(thd))
+    {
+      init_error= 1;
+      goto end;
+    }
 
   /*
     This takes care of the startup dependency between the master_info
@@ -542,6 +557,17 @@ int global_init_info(Master_info* mi, bool ignore_if_no_info, int thread_mask)
   }
 
 end:
+  /*
+    When info tables are used and autocommit= 0 we force transaction
+    commit to avoid table access deadlocks when START SLAVE is executed
+    after RESET SLAVE.
+  */
+  if (thd && thd->in_multi_stmt_transaction_mode() &&
+      (opt_mi_repository_id == INFO_REPOSITORY_TABLE ||
+       opt_rli_repository_id == INFO_REPOSITORY_TABLE))
+    if (trans_commit(thd))
+      init_error= 1;
+
   mysql_mutex_unlock(&mi->rli->data_lock);
   mysql_mutex_unlock(&mi->data_lock);
   DBUG_RETURN(check_return == ERROR_CHECKING_REPOSITORY || init_error);
@@ -1054,6 +1080,7 @@ int start_slave_thread(
 {
   pthread_t th;
   ulong start_id;
+  int error;
   DBUG_ENTER("start_slave_thread");
 
   if (start_lock)
@@ -1078,9 +1105,10 @@ int start_slave_thread(
   }
   start_id= *slave_run_id;
   DBUG_PRINT("info",("Creating new slave thread"));
-  if (mysql_thread_create(thread_key,
-                          &th, &connection_attrib, h_func, (void*)mi))
+  if ((error= mysql_thread_create(thread_key,
+                          &th, &connection_attrib, h_func, (void*)mi)))
   {
+    sql_print_error("Can't create slave thread (errno= %d).", error);
     if (start_lock)
       mysql_mutex_unlock(start_lock);
     DBUG_RETURN(ER_SLAVE_THREAD);
@@ -1601,6 +1629,13 @@ static int get_master_uuid(MYSQL *mysql, Master_info *mi)
                                                        STRING_WITH_LEN(act)));
                   };);
 
+  DBUG_EXECUTE_IF("dbug.simulate_busy_io",
+                  {
+                    const char act[]= "now signal Reached wait_for signal.got_stop_slave";
+                    DBUG_ASSERT(opt_debug_sync_timeout > 0);
+                    DBUG_ASSERT(!debug_sync_set_action(current_thd,
+                                                       STRING_WITH_LEN(act)));
+                  };);
   if (!mysql_real_query(mysql,
                         STRING_WITH_LEN("SHOW VARIABLES LIKE 'SERVER_UUID'")) &&
       (master_res= mysql_store_result(mysql)) &&
@@ -2896,6 +2931,22 @@ void set_slave_thread_options(THD* thd)
     options&= ~OPTION_BIN_LOG;
   thd->variables.option_bits= options;
   thd->variables.completion_type= 0;
+
+  /*
+    Set autocommit= 1 when info tables are used and autocommit == 0 to
+    avoid trigger asserts on mysql_execute_command(THD *thd) caused by
+    info tables updates which do not commit, like Rotate, Stop and
+    skipped events handling.
+  */
+  if ((thd->variables.option_bits & OPTION_NOT_AUTOCOMMIT) &&
+      (opt_mi_repository_id == INFO_REPOSITORY_TABLE ||
+       opt_rli_repository_id == INFO_REPOSITORY_TABLE))
+  {
+    thd->variables.option_bits|= OPTION_AUTOCOMMIT;
+    thd->variables.option_bits&= ~OPTION_NOT_AUTOCOMMIT;
+    thd->server_status|= SERVER_STATUS_AUTOCOMMIT;
+  }
+
   DBUG_VOID_RETURN;
 }
 
@@ -3074,7 +3125,7 @@ static int request_dump(THD *thd, MYSQL* mysql, Master_info* mi,
     ptr_buffer+= ::BINLOG_NAME_SIZE_INFO_SIZE;
     memset(ptr_buffer, 0, BINLOG_NAME_INFO_SIZE);
     ptr_buffer+= BINLOG_NAME_INFO_SIZE;
-    int8store(ptr_buffer, 4);
+    int8store(ptr_buffer, 4LL);
     ptr_buffer+= ::BINLOG_POS_INFO_SIZE;
 
     int4store(ptr_buffer, encoded_data_size);
@@ -3705,6 +3756,22 @@ static int exec_relay_log_event(THD* thd, Relay_log_info* rli)
    */
   mysql_mutex_lock(&rli->data_lock);
 
+  /*
+    UNTIL_SQL_AFTER_GTIDS requires special handling since we have to check
+    whether the until_condition is satisfied *before* the SQL threads goes on
+    a wait inside next_event() for the relay log to grow. This is reuired since
+    if we have already applied the last event in the waiting set but since he
+    check happens only at the start of the next event we may end up waiting
+    forever the next event is not available or is delayed.
+  */
+  if (rli->until_condition == Relay_log_info::UNTIL_SQL_AFTER_GTIDS &&
+       rli->is_until_satisfied(thd, NULL))
+  {
+    rli->abort_slave= 1;
+    mysql_mutex_unlock(&rli->data_lock);
+    DBUG_RETURN(1);
+  }
+
   Log_event *ev = next_event(rli), **ptr_ev;
 
   DBUG_ASSERT(rli->info_thd==thd);
@@ -3746,6 +3813,7 @@ static int exec_relay_log_event(THD* thd, Relay_log_info* rli)
       temporarily (see is_until_satisfied todo).
     */
     if (rli->until_condition != Relay_log_info::UNTIL_NONE &&
+        rli->until_condition != Relay_log_info::UNTIL_SQL_AFTER_GTIDS &&
         rli->is_until_satisfied(thd, ev))
     {
       /*
@@ -5083,10 +5151,12 @@ int slave_start_single_worker(Relay_log_info *rli, ulong i)
   set_dynamic(&rli->workers, (uchar*) &w, i);
 
   if (DBUG_EVALUATE_IF("mts_worker_thread_fails", i == 1, 0) ||
-      mysql_thread_create(key_thread_slave_worker, &th, &connection_attrib,
-                          handle_slave_worker, (void*) w))
+      (error= mysql_thread_create(key_thread_slave_worker, &th,
+                                  &connection_attrib,
+                                  handle_slave_worker, (void*) w)))
   {
-    sql_print_error("Failed during slave worker thread create");
+    sql_print_error("Failed during slave worker thread create (errno= %d)",
+                    error);
     error= 1;
     goto err;
   }
@@ -7819,6 +7889,17 @@ int start_slave(THD* thd , Master_info* mi,  bool net_report)
               LEX_MASTER_INFO::UNTIL_SQL_BEFORE_GTIDS == thd->lex->mi.gtid_until_condition
               ? Relay_log_info::UNTIL_SQL_BEFORE_GTIDS
               : Relay_log_info::UNTIL_SQL_AFTER_GTIDS;
+            if ((mi->rli->until_condition ==
+               Relay_log_info::UNTIL_SQL_AFTER_GTIDS) &&
+               mi->rli->opt_slave_parallel_workers != 0)
+            {
+              mi->rli->opt_slave_parallel_workers= 0;
+              push_warning_printf(thd, Sql_condition::WARN_LEVEL_NOTE,
+                                  ER_MTS_FEATURE_IS_NOT_SUPPORTED,
+                                  ER(ER_MTS_FEATURE_IS_NOT_SUPPORTED),
+                                  "UNTIL condtion",
+                                  "Slave is started in the sequential execution mode.");
+            }
           }
           global_sid_lock->unlock();
         }

@@ -531,6 +531,7 @@ row_log_table_delete(
 		ut_ad(dfield_get_type(dfield)->prtype
 		      == (DATA_NOT_NULL | DATA_TRX_ID));
 		ut_ad(dfield_get_len(dfield) == DATA_TRX_ID_LEN);
+		dfield_dup(dfield, heap);
 		trx_write_trx_id(static_cast<byte*>(dfield->data), trx_id);
 	}
 
@@ -646,7 +647,8 @@ row_log_table_low_redundant(
 
 	ut_ad(!page_is_comp(page_align(rec)));
 	ut_ad(dict_index_get_n_fields(index) == rec_get_n_fields_old(rec));
-	ut_ad(!index->table->flags);
+	ut_ad(dict_tf_is_valid(index->table->flags));
+	ut_ad(!dict_table_is_comp(index->table));  /* redundant row format */
 	ut_ad(dict_index_is_clust(new_index));
 
 	heap = mem_heap_create(DTUPLE_EST_ALLOC(index->n_fields));
@@ -2358,7 +2360,7 @@ all_done:
 		posix_fadvise(index->online_log->fd,
 			      ofs, srv_sort_buf_size, POSIX_FADV_DONTNEED);
 #endif /* POSIX_FADV_DONTNEED */
-#ifdef FALLOC_FL_PUNCH_HOLE
+#if 0 //def FALLOC_FL_PUNCH_HOLE
 		/* Try to deallocate the space for the file on disk.
 		This should work on ext4 on Linux 2.6.39 and later,
 		and be ignored when the operation is unsupported. */
@@ -3147,7 +3149,7 @@ all_done:
 		posix_fadvise(index->online_log->fd,
 			      ofs, srv_sort_buf_size, POSIX_FADV_DONTNEED);
 #endif /* POSIX_FADV_DONTNEED */
-#ifdef FALLOC_FL_PUNCH_HOLE
+#if 0 //def FALLOC_FL_PUNCH_HOLE
 		/* Try to deallocate the space for the file on disk.
 		This should work on ext4 on Linux 2.6.39 and later,
 		and be ignored when the operation is unsupported. */

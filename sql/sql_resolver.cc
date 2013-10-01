@@ -127,13 +127,24 @@ JOIN::prepare(TABLE_LIST *tables_init,
                                     tables_list, &select_lex->leaf_tables,
                                     FALSE, SELECT_ACL, SELECT_ACL))
       DBUG_RETURN(-1);
- 
+
+  select_lex->derived_table_count= 0; 
+  select_lex->materialized_table_count= 0;
+  select_lex->partitioned_table_count= 0;
+
   TABLE_LIST *table_ptr;
   for (table_ptr= select_lex->leaf_tables;
        table_ptr;
        table_ptr= table_ptr->next_leaf)
+  {
     primary_tables++;           // Count the primary input tables of the query
-
+    if (table_ptr->derived)
+      select_lex->derived_table_count++;
+    if (table_ptr->uses_materialization())
+      select_lex->materialized_table_count++;
+    if (table_ptr->table->part_info)
+      select_lex->partitioned_table_count++;
+  }
   tables= primary_tables;       // This is currently the total number of tables
 
   /*
@@ -360,16 +371,16 @@ JOIN::prepare(TABLE_LIST *tables_init,
     DBUG_RETURN(-1); /* purecov: inspected */
 
 #ifdef WITH_PARTITION_STORAGE_ENGINE
+  if (select_lex->partitioned_table_count)
   {
-    TABLE_LIST *tbl;
-    for (tbl= select_lex->leaf_tables; tbl; tbl= tbl->next_leaf)
+    for (TABLE_LIST *tbl= select_lex->leaf_tables; tbl; tbl= tbl->next_leaf)
     {
       /* 
         This will only prune constant conditions, which will be used for
         lock pruning.
       */
-      Item *prune_cond= tbl->join_cond() ? tbl->join_cond() : conds;
-      if (prune_partitions(thd, tbl->table, prune_cond))
+      if (prune_partitions(thd, tbl->table,
+                           tbl->join_cond() ? tbl->join_cond() : conds))
         DBUG_RETURN(-1); /* purecov: inspected */
     }
   }
@@ -850,7 +861,8 @@ void remove_redundant_subquery_clauses(st_select_lex *subq_select_lex,
     for (ORDER *o= subq_select_lex->order_list.first; o != NULL; o= o->next)
     {
       if (*o->item == o->item_ptr)
-        (*o->item)->walk(&Item::clean_up_after_removal, true, NULL);
+        (*o->item)->walk(&Item::clean_up_after_removal, true,
+                      static_cast<uchar*>(static_cast<void*>(subq_select_lex)));
     }
     subq_select_lex->join->order= NULL;
     subq_select_lex->order_list.empty();
@@ -879,7 +891,8 @@ void remove_redundant_subquery_clauses(st_select_lex *subq_select_lex,
     for (ORDER *g= subq_select_lex->group_list.first; g != NULL; g= g->next)
     {
       if (*g->item == g->item_ptr)
-        (*g->item)->walk(&Item::clean_up_after_removal, true, NULL);
+        (*g->item)->walk(&Item::clean_up_after_removal, true,
+                      static_cast<uchar*>(static_cast<void*>(subq_select_lex)));
     }
     subq_select_lex->join->group_list= NULL;
     subq_select_lex->group_list.empty();

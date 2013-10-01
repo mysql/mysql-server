@@ -1,4 +1,4 @@
-/* Copyright (c) 2006, 2011, 2012 Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2006, 2013 Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -86,7 +86,6 @@ Relay_log_info::Relay_log_info(bool is_slave_recovery
    abort_pos_wait(0), until_condition(UNTIL_NONE),
    until_log_pos(0),
    until_sql_gtids(global_sid_map),
-   until_sql_gtids_seen(global_sid_map),
    until_sql_gtids_first_event(true),
    retried_trans(0),
    tables_to_lock(0), tables_to_lock_count(0),
@@ -369,7 +368,6 @@ void Relay_log_info::clear_until_condition()
   until_log_name[0]= 0;
   until_log_pos= 0;
   until_sql_gtids.clear();
-  until_sql_gtids_seen.clear();
   until_sql_gtids_first_event= true;
   DBUG_VOID_RETURN;
 }
@@ -1261,6 +1259,25 @@ bool Relay_log_info::is_until_satisfied(THD *thd, Log_event *ev)
   }
 
   case UNTIL_SQL_BEFORE_GTIDS:
+    // We only need to check once if logged_gtids set contains any of the until_sql_gtids.
+    if (until_sql_gtids_first_event)
+    {
+      until_sql_gtids_first_event= false;
+      global_sid_lock->wrlock();
+      /* Check if until GTIDs were already applied. */
+      const Gtid_set* logged_gtids= gtid_state->get_logged_gtids();
+      if (until_sql_gtids.is_intersection_nonempty(logged_gtids))
+      {
+        char *buffer= until_sql_gtids.to_string();
+        global_sid_lock->unlock();
+        sql_print_information("Slave SQL thread stopped because "
+                              "UNTIL SQL_BEFORE_GTIDS %s is already "
+                              "applied", buffer);
+        my_free(buffer);
+        DBUG_RETURN(true);
+      }
+      global_sid_lock->unlock();
+    }
     if (ev != NULL && ev->get_type_code() == GTID_LOG_EVENT)
     {
       Gtid_log_event *gev= (Gtid_log_event *)ev;
@@ -1275,41 +1292,15 @@ bool Relay_log_info::is_until_satisfied(THD *thd, Log_event *ev)
         DBUG_RETURN(true);
       }
       global_sid_lock->unlock();
-      // We only need to check once if logged_gtids set contains any of the until_sql_gtids.
-      if (until_sql_gtids_first_event)
-      {
-        until_sql_gtids_first_event= false;
-        global_sid_lock->wrlock();
-        /* Check if until GTIDs were already applied. */
-        const Gtid_set* logged_gtids= gtid_state->get_logged_gtids();
-        if (until_sql_gtids.is_intersection_nonempty(logged_gtids))
-        {
-          char *buffer= until_sql_gtids.to_string();
-          global_sid_lock->unlock();
-          sql_print_information("Slave SQL thread stopped because "
-                                "UNTIL SQL_BEFORE_GTIDS %s is already "
-                                "applied", buffer);
-          my_free(buffer);
-          DBUG_RETURN(true);
-        }
-        global_sid_lock->unlock();
-      }
     }
     DBUG_RETURN(false);
     break;
 
   case UNTIL_SQL_AFTER_GTIDS:
-    if (ev != NULL && ev->get_type_code() == GTID_LOG_EVENT)
     {
       global_sid_lock->wrlock();
-      // We only need to compute until_sql_gtids_seen once.
-      if (until_sql_gtids_first_event)
-      {
-        until_sql_gtids_first_event= false;
-        const Gtid_set* logged_gtids= gtid_state->get_logged_gtids();
-        until_sql_gtids.intersection(logged_gtids, &until_sql_gtids_seen);
-      }
-      if (until_sql_gtids.is_subset(const_cast<Gtid_set *>(&until_sql_gtids_seen)))
+      const Gtid_set* logged_gtids= gtid_state->get_logged_gtids();
+      if (until_sql_gtids.is_subset(logged_gtids))
       {
         char *buffer= until_sql_gtids.to_string();
         global_sid_lock->unlock();
@@ -1318,12 +1309,9 @@ bool Relay_log_info::is_until_satisfied(THD *thd, Log_event *ev)
         my_free(buffer);
         DBUG_RETURN(true);
       }
-      Gtid_log_event *gev= (Gtid_log_event *)ev;
-      until_sql_gtids_seen.ensure_sidno(gev->get_sidno(false));
-      until_sql_gtids_seen._add_gtid(gev->get_sidno(false), gev->get_gno());
       global_sid_lock->unlock();
+      DBUG_RETURN(false);
     }
-    DBUG_RETURN(false);
     break;
 
   case UNTIL_SQL_AFTER_MTS_GAPS:
@@ -1562,6 +1550,8 @@ void Relay_log_info::slave_close_thread_tables(THD *thd)
 
   close_thread_tables(thd);
   /*
+    - If transaction rollback was requested due to deadlock
+    perform it and release metadata locks.
     - If inside a multi-statement transaction,
     defer the release of metadata locks until the current
     transaction is either committed or rolled back. This prevents
@@ -1571,7 +1561,12 @@ void Relay_log_info::slave_close_thread_tables(THD *thd)
     - If in autocommit mode, or outside a transactional context,
     automatically release metadata locks of the current statement.
   */
-  if (! thd->in_multi_stmt_transaction_mode())
+  if (thd->transaction_rollback_request)
+  {
+    trans_rollback_implicit(thd);
+    thd->mdl_context.release_transactional_locks();
+  }
+  else if (! thd->in_multi_stmt_transaction_mode())
     thd->mdl_context.release_transactional_locks();
   else
     thd->mdl_context.release_statement_locks();

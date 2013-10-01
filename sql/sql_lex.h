@@ -632,6 +632,7 @@ public:
   bool exec();
   bool explain();
   bool cleanup();
+  bool cleanup_level();
   inline void unclean() { cleaned= 0; }
   void reinit_exec_mechanism();
 
@@ -651,6 +652,8 @@ public:
 
   List<Item> *get_unit_column_types();
   List<Item> *get_field_list();
+private:
+  void invalidate();
 };
 
 typedef class st_select_lex_unit SELECT_LEX_UNIT;
@@ -759,6 +762,12 @@ public:
   /// Array of pointers to top elements of all_fields list
   Ref_ptr_array ref_pointer_array;
 
+  /// Number of derived tables and views
+  uint derived_table_count;
+  /// Number of materialized derived tables and views
+  uint materialized_table_count;
+  /// Number of partitioned tables
+  uint partitioned_table_count;
   /*
     number of items in select_list and HAVING clause used to get number
     bigger then can be number of entries that will be added to all item
@@ -893,6 +902,7 @@ public:
   {
     return &link_next;
   }
+  void invalidate();
   void mark_as_dependent(st_select_lex *last);
 
   bool set_braces(bool value);
@@ -958,6 +968,7 @@ public:
     SELECT_LEX and all nested SELECT_LEXes and SELECT_LEX_UNITs).
   */
   bool cleanup();
+  bool cleanup_level();
   /*
     Recursively cleanup the join of this select lex and of all nested
     select lexes.

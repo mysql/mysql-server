@@ -73,8 +73,13 @@ while ($i != 11)
 --source include/assert.inc
 
 --echo SQL thread must stop *after* INSERT 5
+# SQL_AFTER_GTIDS is not working fine with MTS which is 'TODO'.  Hence post
+# BUG14767986 fix 'ER_MTS_FEATURE_IS_NOT_SUPPORTED' warning will be thrown
+# when MTS is enabled and server will be started in single threaded mode.
+--disable_warnings
 --replace_result $master_uuid MASTER_UUID
 --eval START SLAVE SQL_THREAD UNTIL SQL_AFTER_GTIDS= "$master_uuid:4-5"
+--enable_warnings
 --source include/wait_for_slave_sql_to_stop.inc
 --let $assert_cond= MAX(c1)=5 FROM t1
 --let $assert_text= Rows until 5 in t1 must be replicated now
@@ -90,8 +95,13 @@ while ($i != 11)
 
 --echo SQL thread must stop *after* INSERT 5
 --echo 1-5 are already applied so it will stop immediately
+# SQL_AFTER_GTIDS is not working fine with MTS which is 'TODO'.  Hence post
+# BUG14767986 fix 'ER_MTS_FEATURE_IS_NOT_SUPPORTED' warning will be thrown
+# when MTS is enabled and server will be started in single threaded mode.
+--disable_warnings
 --replace_result $master_uuid MASTER_UUID
 --eval START SLAVE SQL_THREAD, IO_THREAD UNTIL SQL_AFTER_GTIDS= "$master_uuid:1-5"
+--enable_warnings
 --source include/wait_for_slave_sql_to_stop.inc
 --let $assert_cond= MAX(c1)=5 FROM t1
 --let $assert_text= Rows until 5 in t1 must be replicated now

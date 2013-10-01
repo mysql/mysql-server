@@ -245,22 +245,22 @@ static	const char* fts_init_delete_sql =
 	"BEGIN\n"
 	"\n"
 	"INSERT INTO %s_BEING_DELETED\n"
-		"SELECT doc_id FROM %s_DELETED;\n"
+		"SELECT doc_id FROM \"%s_DELETED\";\n"
 	"\n"
 	"INSERT INTO %s_BEING_DELETED_CACHE\n"
-		"SELECT doc_id FROM %s_DELETED_CACHE;\n";
+		"SELECT doc_id FROM \"%s_DELETED_CACHE\";\n";
 
 static const char* fts_delete_doc_ids_sql =
 	"BEGIN\n"
 	"\n"
-	"DELETE FROM %s_DELETED WHERE doc_id = :doc_id1;\n"
-	"DELETE FROM %s_DELETED_CACHE WHERE doc_id = :doc_id2;\n";
+	"DELETE FROM \"%s_DELETED\" WHERE doc_id = :doc_id1;\n"
+	"DELETE FROM \"%s_DELETED_CACHE\" WHERE doc_id = :doc_id2;\n";
 
 static const char* fts_end_delete_sql =
 	"BEGIN\n"
 	"\n"
-	"DELETE FROM %s_BEING_DELETED;\n"
-	"DELETE FROM %s_BEING_DELETED_CACHE;\n";
+	"DELETE FROM \"%s_BEING_DELETED\";\n"
+	"DELETE FROM \"%s_BEING_DELETED_CACHE\";\n";
 
 /**********************************************************************//**
 Initialize fts_zip_t. */
@@ -503,7 +503,7 @@ fts_index_fetch_nodes(
 			"DECLARE CURSOR c IS"
 			" SELECT word, doc_count, first_doc_id, last_doc_id, "
 				"ilist\n"
-			" FROM %s\n"
+			" FROM \"%s\"\n"
 			" WHERE word LIKE :word\n"
 			" ORDER BY first_doc_id;\n"
 			"BEGIN\n"
@@ -827,7 +827,7 @@ fts_index_fetch_words(
 			"DECLARE FUNCTION my_func;\n"
 			"DECLARE CURSOR c IS"
 			" SELECT word\n"
-			" FROM %s\n"
+			" FROM \"%s\"\n"
 			" WHERE word > :word\n"
 			" ORDER BY word;\n"
 			"BEGIN\n"
@@ -987,7 +987,7 @@ fts_table_fetch_doc_ids(
 		info,
 		"DECLARE FUNCTION my_func;\n"
 		"DECLARE CURSOR c IS"
-		" SELECT doc_id FROM %s;\n"
+		" SELECT doc_id FROM \"%s\";\n"
 		"BEGIN\n"
 		"\n"
 		"OPEN c;\n"
@@ -1460,7 +1460,7 @@ fts_optimize_write_word(
 	graph = fts_parse_sql(
 		fts_table,
 		info,
-		"BEGIN DELETE FROM %s WHERE word = :word;");
+		"BEGIN DELETE FROM \"%s\" WHERE word = :word;");
 
 	error = fts_eval_sql(trx, graph);
 

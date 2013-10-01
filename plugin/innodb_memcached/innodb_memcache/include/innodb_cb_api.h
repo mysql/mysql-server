@@ -1,6 +1,6 @@
 /***********************************************************************
 
-Copyright (c) 2012, Oracle and/or its affiliates. All Rights Reserved.
+Copyright (c) 2013, Oracle and/or its affiliates. All Rights Reserved.
 
 This program is free software; you can redistribute it and/or modify it
 under the terms of the GNU General Public License as published by the
@@ -101,19 +101,27 @@ ib_err_t
 
 typedef
 ib_err_t
+(*cb_tuple_read_u8_t)(
+/*==================*/
+	ib_tpl_t	ib_tpl,
+	ib_ulint_t	i,
+	ib_u8_t*	ival) ;
+
+typedef
+ib_err_t
+(*cb_tuple_read_u16_t)(
+/*===================*/
+	ib_tpl_t	ib_tpl,
+	ib_ulint_t	i,
+	ib_u16_t*	ival) ;
+
+typedef
+ib_err_t
 (*cb_tuple_read_u32_t)(
 /*===================*/
 	ib_tpl_t	ib_tpl,
 	ib_ulint_t	i,
 	ib_u32_t*	ival) ;
-
-typedef
-ib_err_t
-(*cb_tuple_write_u32_t)(
-/*====================*/
-	ib_tpl_t	ib_tpl,
-	int		col_no,
-	ib_u32_t	val) ;
 
 typedef
 ib_err_t
@@ -125,11 +133,51 @@ ib_err_t
 
 typedef
 ib_err_t
+(*cb_tuple_write_u8_t)(
+/*===================*/
+	ib_tpl_t	ib_tpl,
+	int		col_no,
+	ib_u8_t		val) ;
+
+typedef
+ib_err_t
+(*cb_tuple_write_u16_t)(
+/*====================*/
+	ib_tpl_t	ib_tpl,
+	int		col_no,
+	ib_u16_t	val) ;
+
+typedef
+ib_err_t
+(*cb_tuple_write_u32_t)(
+/*====================*/
+	ib_tpl_t	ib_tpl,
+	int		col_no,
+	ib_u32_t	val) ;
+
+typedef
+ib_err_t
 (*cb_tuple_write_u64_t)(
 /*====================*/
 	ib_tpl_t	ib_tpl,
 	int		col_no,
 	ib_u64_t	val);
+
+typedef
+ib_err_t
+(*cb_tuple_read_i8_t)(
+/*==================*/
+	ib_tpl_t	ib_tpl,
+	ib_ulint_t	i,
+	ib_i8_t*	ival);
+
+typedef
+ib_err_t
+(*cb_tuple_read_i16_t)(
+/*===================*/
+	ib_tpl_t	ib_tpl,
+	ib_ulint_t	i,
+	ib_i16_t*	ival);
 
 typedef
 ib_err_t
@@ -141,19 +189,35 @@ ib_err_t
 
 typedef
 ib_err_t
-(*cb_tuple_write_i32_t)(
-/*====================*/
-	ib_tpl_t	ib_tpl,
-	int		col_no,
-	ib_i32_t	val);
-
-typedef
-ib_err_t
 (*cb_tuple_read_i64_t)(
 /*===================*/
 	ib_tpl_t	ib_tpl,
 	ib_ulint_t	i,
 	ib_i64_t*	ival);
+
+typedef
+ib_err_t
+(*cb_tuple_write_i8_t)(
+/*===================*/
+	ib_tpl_t	ib_tpl,
+	int		col_no,
+	ib_i8_t		val);
+
+typedef
+ib_err_t
+(*cb_tuple_write_i16_t)(
+/*====================*/
+	ib_tpl_t	ib_tpl,
+	int		col_no,
+	ib_i16_t	val);
+
+typedef
+ib_err_t
+(*cb_tuple_write_i32_t)(
+/*====================*/
+	ib_tpl_t	ib_tpl,
+	int		col_no,
+	ib_i32_t	val);
 
 typedef
 ib_err_t
@@ -170,7 +234,8 @@ ib_err_t
 	ib_tpl_t	ib_tpl,
 	ib_ulint_t	col_no,
 	const void*	src,
-	ib_ulint_t	len) ;
+	ib_ulint_t	len,
+	bool		need_cpy) ;
 
 typedef
 const void*
@@ -388,14 +453,22 @@ cb_sec_search_tuple_create_t	ib_cb_search_tuple_create;
 cb_sec_read_tuple_create_t	ib_cb_read_tuple_create;
 cb_tuple_delete_t		ib_cb_tuple_delete;
 cb_tuple_copy_t			ib_cb_tuple_copy;
+cb_tuple_read_u8_t		ib_cb_tuple_read_u8;
+cb_tuple_read_u16_t		ib_cb_tuple_read_u16;
 cb_tuple_read_u32_t		ib_cb_tuple_read_u32;
+cb_tuple_read_u64_t		ib_cb_tuple_read_u64;
+cb_tuple_write_u8_t		ib_cb_tuple_write_u8;
+cb_tuple_write_u16_t		ib_cb_tuple_write_u16;
 cb_tuple_write_u32_t		ib_cb_tuple_write_u32;
 cb_tuple_write_u64_t		ib_cb_tuple_write_u64;
+cb_tuple_read_i8_t		ib_cb_tuple_read_i8;
+cb_tuple_read_i16_t		ib_cb_tuple_read_i16;
 cb_tuple_read_i32_t		ib_cb_tuple_read_i32;
+cb_tuple_read_i64_t		ib_cb_tuple_read_i64;
+cb_tuple_write_i8_t		ib_cb_tuple_write_i8;
+cb_tuple_write_i16_t		ib_cb_tuple_write_i16;
 cb_tuple_write_i32_t		ib_cb_tuple_write_i32;
 cb_tuple_write_i64_t		ib_cb_tuple_write_i64;
-cb_tuple_read_i64_t		ib_cb_tuple_read_i64;
-cb_tuple_read_u64_t		ib_cb_tuple_read_u64;
 cb_col_set_value_t		ib_cb_col_set_value;
 cb_col_get_value_t		ib_cb_col_get_value;
 cb_col_get_meta_t		ib_cb_col_get_meta;

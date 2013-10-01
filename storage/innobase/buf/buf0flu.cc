@@ -2310,9 +2310,9 @@ page_cleaner_flush_pages_if_needed(void)
 
 	oldest_lsn = buf_pool_get_oldest_modification();
 
-	ut_ad(oldest_lsn <= cur_lsn);
+	ut_ad(oldest_lsn <= log_get_lsn());
 
-	age = cur_lsn - oldest_lsn;
+	age = cur_lsn > oldest_lsn ? cur_lsn - oldest_lsn : 0;
 
 	pct_for_dirty = af_get_pct_for_dirty();
 	pct_for_lsn = af_get_pct_for_lsn(age);

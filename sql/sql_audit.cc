@@ -83,6 +83,10 @@ static void general_class_handler(THD *thd, uint event_subtype, va_list ap)
   event.general_query_length= va_arg(ap, unsigned int);
   event.general_charset= va_arg(ap, struct charset_info_st *);
   event.general_rows= (unsigned long long) va_arg(ap, ha_rows);
+  event.general_sql_command= va_arg(ap, MYSQL_LEX_STRING);
+  event.general_host= va_arg(ap, MYSQL_LEX_STRING);
+  event.general_external_user= va_arg(ap, MYSQL_LEX_STRING);
+  event.general_ip= va_arg(ap, MYSQL_LEX_STRING);
   event_class_dispatch(thd, MYSQL_AUDIT_GENERAL_CLASS, &event);
 }
 
@@ -346,7 +350,7 @@ int initialize_audit_plugin(st_plugin_int *plugin)
     return 1;
   }
   
-  if (plugin->plugin->init && plugin->plugin->init(NULL))
+  if (plugin->plugin->init && plugin->plugin->init(plugin))
   {
     sql_print_error("Plugin '%s' init function returned error.",
                     plugin->name.str);

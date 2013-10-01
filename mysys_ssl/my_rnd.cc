@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2012, Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2012, 2013, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -26,6 +26,7 @@
 
 #elif defined(HAVE_OPENSSL)
 #include <openssl/rand.h>
+#include <openssl/err.h>
 #endif /* HAVE_YASSL */
 
 
@@ -65,22 +66,32 @@ double my_rnd(struct rand_struct *rand_st)
 
 double my_rnd_ssl(struct rand_struct *rand_st)
 {
-
 #if defined(HAVE_YASSL) || defined(HAVE_OPENSSL)
   int rc;
   unsigned int res;
 
-#if defined(HAVE_YASSL)
+#if defined(HAVE_YASSL) /* YaSSL */
   rc= yaSSL::RAND_bytes((unsigned char *) &res, sizeof (unsigned int));
-#else
+
+  if (!rc)
+    return my_rnd(rand_st);
+#else                   /* OpenSSL */
   rc= RAND_bytes((unsigned char *) &res, sizeof (unsigned int));
+
+  if (!rc)
+  {
+    ERR_clear_error();
+    return my_rnd(rand_st);
+  }
 #endif /* HAVE_YASSL */
 
-  if (rc)
-    return (double)res / (double)UINT_MAX;
-  else
+  return (double)res / (double)UINT_MAX;
+
+#else /* !defined(HAVE_YASSL) && !defined(HAVE_OPENSSL) */
+
+  return my_rnd(rand_st);
+
 #endif /* defined(HAVE_YASSL) || defined(HAVE_OPENSSL) */
-    return my_rnd(rand_st);
 }
 
 #ifdef __cplusplus
