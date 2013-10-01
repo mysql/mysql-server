@@ -68,8 +68,6 @@ struct PFS_events_waits : public PFS_events
     - TRUNCATE EVENTS_WAITS_HISTORY_LONG
   */
   events_waits_class m_wait_class;
-  /** Executing thread. */
-  PFS_thread *m_thread;
   /** Object type */
   enum_object_type m_object_type;
   /** Table share, for table operations only. */
