@@ -582,13 +582,17 @@ IF(NOT INSTALL_LAYOUT MATCHES "RPM")
        ${CMAKE_BINARY_DIR}/libmysql/${CMAKE_BUILD_TYPE}/clientlib.pdb
        ${CMAKE_BINARY_DIR}/strings/${CMAKE_BUILD_TYPE}/strings.pdb
        ${CMAKE_BINARY_DIR}/mysys/${CMAKE_BUILD_TYPE}/mysys.pdb
+       ${CMAKE_BINARY_DIR}/mysys_ssl/${CMAKE_BUILD_TYPE}/mysys_ssl.pdb
        ${CMAKE_BINARY_DIR}/vio/${CMAKE_BUILD_TYPE}/vio.pdb
        ${CMAKE_BINARY_DIR}/zlib/${CMAKE_BUILD_TYPE}/zlib.pdb
        ${CMAKE_BINARY_DIR}/extra/yassl/${CMAKE_BUILD_TYPE}/yassl.pdb
        ${CMAKE_BINARY_DIR}/extra/yassl/taocrypt/${CMAKE_BUILD_TYPE}/taocrypt.pdb
      )  
-     INSTALL(FILES ${EXTRA_PDB_FILES} DESTINATION ${INSTALL_LIBDIR} COMPONENT DebugBinaries)
+     #INSTALL(FILES ${EXTRA_PDB_FILES} DESTINATION ${INSTALL_LIBDIR} COMPONENT DebugBinaries)
      FOREACH(f ${EXTRA_PDB_FILES})
+        IF(EXISTS ${f})
+          INSTALL(FILES ${f} DESTINATION ${INSTALL_LIBDIR} COMPONENT DebugBinaries)
+        ENDIF()
         STRING(REPLACE "RelWithDebInfo" "Debug" df ${f})
         IF(EXISTS ${df})
           INSTALL(FILES ${df} DESTINATION ${INSTALL_LIBDIR}/debug COMPONENT DebugBinaries)
