@@ -1,4 +1,4 @@
-/* Copyright (c) 2000, 2011, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2000, 2013, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -456,12 +456,12 @@ int ip_to_hostname(struct sockaddr_storage *ip_storage,
     if (entry)
     {
       entry->m_last_seen= now;
+      *connect_errors= entry->m_errors.m_connect;
 
-      if (entry->m_errors.m_connect > max_connect_errors)
+      if (entry->m_errors.m_connect >= max_connect_errors)
       {
         entry->m_errors.m_host_blocked++;
         entry->set_error_timestamps(now);
-        *connect_errors= entry->m_errors.m_connect;
         mysql_mutex_unlock(&hostname_cache->lock);
         DBUG_RETURN(RC_BLOCKED_HOST);
       }

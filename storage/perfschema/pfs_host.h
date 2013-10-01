@@ -1,4 +1,4 @@
-/* Copyright (c) 2010, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2010, 2013, Oracle and/or its affiliates. All rights reserved.
 
   This program is free software; you can redistribute it and/or modify
   it under the terms of the GNU General Public License as published by
@@ -94,6 +94,7 @@ void cleanup_host_hash(void);
 PFS_host *find_or_create_host(PFS_thread *thread,
                               const char *hostname, uint hostname_length);
 
+PFS_host *sanitize_host(PFS_host *unsafe);
 void purge_all_host(void);
 
 /* For iterators and show status. */

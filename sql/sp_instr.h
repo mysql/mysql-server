@@ -1,4 +1,4 @@
-/* Copyright (c) 2012, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2012, 2013, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -177,10 +177,21 @@ public:
     m_lex_query_tables_own_last(NULL)
   {
     set_lex(lex, is_lex_owner);
+    memset(&m_lex_mem_root, 0, sizeof (MEM_ROOT));
   }
 
   virtual ~sp_lex_instr()
-  { free_lex(); }
+  {
+    free_lex();
+    /*
+      If the instruction is reparsed, m_lex_mem_root was used to allocate the
+      items, then freeing the memroot, frees the items. Hence set the free_list
+      pointer to NULL.
+    */
+    if (alloc_root_inited(&m_lex_mem_root))
+      free_list= NULL;
+    free_root(&m_lex_mem_root, MYF(0));
+  }
 
   /**
     Make a few attempts to execute the instruction.
@@ -334,6 +345,13 @@ protected:
   virtual void cleanup_before_parsing(THD *thd);
 
 private:
+  /** 
+    Mem-root for storing the LEX-tree during reparse. This
+    mem-root is freed when a reparse is triggered or the stored
+    routine is dropped.
+  */
+  MEM_ROOT m_lex_mem_root;
+
   /// LEX-object.
   LEX *m_lex;
 

@@ -39,6 +39,9 @@ call mtr.add_suppression("Can't generate a unique log-filename");
 call mtr.add_suppression("Writing one row to the row-based binary log failed.*");
 call mtr.add_suppression("Warning: [+-]?\d+ files and [+-]?\d+ streams is left open");
 call mtr.add_suppression("Error writing file .*");
+call mtr.add_suppression("The server was unable to create a new log file. "
+                         "An incident event has been written to the binary "
+                         "log which will stop the slaves.");
 --enable_query_log
 
 --let $old_debug = `select @@global.debug`

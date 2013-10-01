@@ -1,4 +1,4 @@
-/* Copyright (c) 2010, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2010, 2013, Oracle and/or its affiliates. All rights reserved.
 
   This program is free software; you can redistribute it and/or modify
   it under the terms of the GNU General Public License as published by
@@ -319,17 +319,17 @@ search:
   return NULL;
 }
 
-void PFS_account::aggregate()
+void PFS_account::aggregate(PFS_user *safe_user, PFS_host *safe_host)
 {
-  aggregate_waits();
-  aggregate_stages();
-  aggregate_statements();
-  aggregate_stats();
+  aggregate_waits(safe_user, safe_host);
+  aggregate_stages(safe_user, safe_host);
+  aggregate_statements(safe_user, safe_host);
+  aggregate_stats(safe_user, safe_host);
 }
 
-void PFS_account::aggregate_waits()
+void PFS_account::aggregate_waits(PFS_user *safe_user, PFS_host *safe_host)
 {
-  if (likely(m_user != NULL && m_host != NULL))
+  if (likely(safe_user != NULL && safe_host != NULL))
   {
     /*
       Aggregate EVENTS_WAITS_SUMMARY_BY_ACCOUNT_BY_EVENT_NAME to:
@@ -338,30 +338,30 @@ void PFS_account::aggregate_waits()
       in parallel.
     */
     aggregate_all_event_names(m_instr_class_waits_stats,
-                              m_user->m_instr_class_waits_stats,
-                              m_host->m_instr_class_waits_stats);
+                              safe_user->m_instr_class_waits_stats,
+                              safe_host->m_instr_class_waits_stats);
     return;
   }
 
-  if (m_user != NULL)
+  if (safe_user != NULL)
   {
     /*
       Aggregate EVENTS_WAITS_SUMMARY_BY_ACCOUNT_BY_EVENT_NAME to:
       -  EVENTS_WAITS_SUMMARY_BY_USER_BY_EVENT_NAME
     */
     aggregate_all_event_names(m_instr_class_waits_stats,
-                              m_user->m_instr_class_waits_stats);
+                              safe_user->m_instr_class_waits_stats);
     return;
   }
 
-  if (m_host != NULL)
+  if (safe_host != NULL)
   {
     /*
       Aggregate EVENTS_WAITS_SUMMARY_BY_ACCOUNT_BY_EVENT_NAME to:
       -  EVENTS_WAITS_SUMMARY_BY_HOST_BY_EVENT_NAME
     */
     aggregate_all_event_names(m_instr_class_waits_stats,
-                              m_host->m_instr_class_waits_stats);
+                              safe_host->m_instr_class_waits_stats);
     return;
   }
 
@@ -370,9 +370,9 @@ void PFS_account::aggregate_waits()
   return;
 }
 
-void PFS_account::aggregate_stages()
+void PFS_account::aggregate_stages(PFS_user *safe_user, PFS_host *safe_host)
 {
-  if (likely(m_user != NULL && m_host != NULL))
+  if (likely(safe_user != NULL && safe_host != NULL))
   {
     /*
       Aggregate EVENTS_STAGES_SUMMARY_BY_ACCOUNT_BY_EVENT_NAME to:
@@ -381,12 +381,12 @@ void PFS_account::aggregate_stages()
       in parallel.
     */
     aggregate_all_stages(m_instr_class_stages_stats,
-                         m_user->m_instr_class_stages_stats,
-                         m_host->m_instr_class_stages_stats);
+                         safe_user->m_instr_class_stages_stats,
+                         safe_host->m_instr_class_stages_stats);
     return;
   }
 
-  if (m_user != NULL)
+  if (safe_user != NULL)
   {
     /*
       Aggregate EVENTS_STAGES_SUMMARY_BY_ACCOUNT_BY_EVENT_NAME to:
@@ -395,19 +395,19 @@ void PFS_account::aggregate_stages()
       in parallel.
     */
     aggregate_all_stages(m_instr_class_stages_stats,
-                         m_user->m_instr_class_stages_stats,
+                         safe_user->m_instr_class_stages_stats,
                          global_instr_class_stages_array);
     return;
   }
 
-  if (m_host != NULL)
+  if (safe_host != NULL)
   {
     /*
       Aggregate EVENTS_STAGES_SUMMARY_BY_ACCOUNT_BY_EVENT_NAME to:
       -  EVENTS_STAGES_SUMMARY_BY_HOST_BY_EVENT_NAME
     */
     aggregate_all_stages(m_instr_class_stages_stats,
-                         m_host->m_instr_class_stages_stats);
+                         safe_host->m_instr_class_stages_stats);
     return;
   }
 
@@ -420,9 +420,9 @@ void PFS_account::aggregate_stages()
   return;
 }
 
-void PFS_account::aggregate_statements()
+void PFS_account::aggregate_statements(PFS_user *safe_user, PFS_host *safe_host)
 {
-  if (likely(m_user != NULL && m_host != NULL))
+  if (likely(safe_user != NULL && safe_host != NULL))
   {
     /*
       Aggregate EVENTS_STATEMENTS_SUMMARY_BY_ACCOUNT_BY_EVENT_NAME to:
@@ -431,12 +431,12 @@ void PFS_account::aggregate_statements()
       in parallel.
     */
     aggregate_all_statements(m_instr_class_statements_stats,
-                             m_user->m_instr_class_statements_stats,
-                             m_host->m_instr_class_statements_stats);
+                             safe_user->m_instr_class_statements_stats,
+                             safe_host->m_instr_class_statements_stats);
     return;
   }
 
-  if (m_user != NULL)
+  if (safe_user != NULL)
   {
     /*
       Aggregate EVENTS_STATEMENTS_SUMMARY_BY_ACCOUNT_BY_EVENT_NAME to:
@@ -445,19 +445,19 @@ void PFS_account::aggregate_statements()
       in parallel.
     */
     aggregate_all_statements(m_instr_class_statements_stats,
-                             m_user->m_instr_class_statements_stats,
+                             safe_user->m_instr_class_statements_stats,
                              global_instr_class_statements_array);
     return;
   }
 
-  if (m_host != NULL)
+  if (safe_host != NULL)
   {
     /*
       Aggregate EVENTS_STATEMENTS_SUMMARY_BY_ACCOUNT_BY_EVENT_NAME to:
       -  EVENTS_STATEMENTS_SUMMARY_BY_HOST_BY_EVENT_NAME
     */
     aggregate_all_statements(m_instr_class_statements_stats,
-                             m_host->m_instr_class_statements_stats);
+                             safe_host->m_instr_class_statements_stats);
     return;
   }
 
@@ -470,26 +470,26 @@ void PFS_account::aggregate_statements()
   return;
 }
 
-void PFS_account::aggregate_stats()
+void PFS_account::aggregate_stats(PFS_user *safe_user, PFS_host *safe_host)
 {
-  if (likely(m_user != NULL && m_host != NULL))
+  if (likely(safe_user != NULL && safe_host != NULL))
   {
-    m_user->m_disconnected_count+= m_disconnected_count;
-    m_host->m_disconnected_count+= m_disconnected_count;
+    safe_user->m_disconnected_count+= m_disconnected_count;
+    safe_host->m_disconnected_count+= m_disconnected_count;
     m_disconnected_count= 0;
     return;
   }
 
-  if (m_user != NULL)
+  if (safe_user != NULL)
   {
-    m_user->m_disconnected_count+= m_disconnected_count;
+    safe_user->m_disconnected_count+= m_disconnected_count;
     m_disconnected_count= 0;
     return;
   }
 
-  if (m_host != NULL)
+  if (safe_host != NULL)
   {
-    m_host->m_disconnected_count+= m_disconnected_count;
+    safe_host->m_disconnected_count+= m_disconnected_count;
     m_disconnected_count= 0;
     return;
   }
@@ -511,9 +511,10 @@ PFS_account *sanitize_account(PFS_account *unsafe)
   return NULL;
 }
 
-void purge_account(PFS_thread *thread, PFS_account *account)
+void purge_account(PFS_thread *thread, PFS_account *account,
+                   PFS_user *safe_user, PFS_host *safe_host)
 {
-  account->aggregate();
+  account->aggregate(safe_user, safe_host);
 
   LF_PINS *pins= get_account_hash_pins(thread);
   if (unlikely(pins == NULL))
@@ -560,15 +561,19 @@ void purge_all_account(void)
 
   PFS_account *pfs= account_array;
   PFS_account *pfs_last= account_array + account_max;
+  PFS_user *user;
+  PFS_host *host;
 
   for ( ; pfs < pfs_last; pfs++)
   {
     if (pfs->m_lock.is_populated())
     {
-      pfs->aggregate_stats();
+      user= sanitize_user(pfs->m_user);
+      host= sanitize_host(pfs->m_host);
+      pfs->aggregate_stats(user, host);
 
       if (pfs->get_refcount() == 0)
-        purge_account(thread, pfs);
+        purge_account(thread, pfs, user, host);
     }
   }
 }

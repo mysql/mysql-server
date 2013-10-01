@@ -691,7 +691,6 @@ Warning	124	InnoDB rebuilding table to add column FTS_DOC_ID
 INSERT INTO t1 VALUES (2, 'ğė Daśi      p          ');
 SELECT * FROM t1 WHERE MATCH(s2) AGAINST ('+p +"ğė Daśi*"' IN BOOLEAN MODE);
 s1	s2
-2	ğė Daśi      p          
 DROP TABLE t1;
 "----------Test19---------"
 CREATE TABLE t1 ( id INT , char_column VARCHAR(60) CHARACTER SET UTF8) ENGINE = InnoDB;
@@ -1328,10 +1327,9 @@ INSERT INTO articles (title,body) VALUES
 ('MySQL vs. YourSQL','In the following database comparison ...'),
 ('( that''s me )','When configured properly, MySQL ...');
 SELECT * FROM articles WHERE MATCH (title,body)
-AGAINST ('( that''s* )' IN BOOLEAN MODE);
+AGAINST ('( yours''s* )' IN BOOLEAN MODE);
 id	title	body
-1	MySQL Tutorial	DBMS stands for DataBase ...
-3	Optimizing MySQL	In this tutorial we will show ...
+5	MySQL vs. YourSQL	In the following database comparison ...
 SELECT * FROM articles WHERE MATCH (title,body)
 AGAINST ('s*' IN BOOLEAN MODE);
 id	title	body

@@ -54,6 +54,10 @@ select @@global.secure_auth;
 @@global.secure_auth
 0
 0 Expected
+**** connecting client using the ssl credentials
+**** connecting client using the ssl credentials
+**** connecting client using the ssl credentials
+**** connecting client using the ssl credentials
 DROP USER 'Tanjotuser1'@'localhost';
 
 
@@ -249,10 +253,6 @@ set @@global.secure_auth=0;
 2 for GLOBAL Expected
 1 for SESSION Expected
 **** connecting client using the ssl credentials
-@@Global.old_passwords
-2
-@@session.old_passwords
-1
 2 for GLOBAL Expected
 1 for SESSION Expected
 The mysql_old_password plugin client should not connect with secure auth enabled at the client side.
@@ -260,6 +260,10 @@ select @@global.secure_auth;
 @@global.secure_auth
 0
 0 Expected
+**** connecting client using the ssl credentials
+**** connecting client using the ssl credentials
+**** connecting client using the ssl credentials
+**** connecting client using the ssl credentials
 DROP USER 'Tanjotuser1'@'localhost';
 
 
@@ -298,10 +302,6 @@ select @@global.secure_auth;
 2 for GLOBAL Expected
 0 for SESSION Expected
 **** connecting client using the ssl credentials
-@@Global.old_passwords
-2
-@@session.old_passwords
-0
 2 for GLOBAL Expected
 0 for SESSION Expected
 The client should connect with secure auth disabled.
@@ -328,10 +328,6 @@ set @@global.secure_auth=0;
 2 for GLOBAL Expected
 0 for SESSION Expected
 **** connecting client using the ssl credentials
-@@Global.old_passwords
-2
-@@session.old_passwords
-0
 2 for GLOBAL Expected
 0 for SESSION Expected
 The mysql_native_password plugin client should  connect with secure auth enabled at the client side.
@@ -361,10 +357,6 @@ select @@global.secure_auth;
 2 for GLOBAL Expected
 0 for SESSION Expected
 **** connecting client using the ssl credentials
-@@Global.old_passwords
-2
-@@session.old_passwords
-0
 2 for GLOBAL Expected
 0 for SESSION Expected
 DROP USER 'Tanjotuser1'@'localhost';

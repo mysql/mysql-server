@@ -1,4 +1,4 @@
-/* Copyright (c) 2010, 2011, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2010, 2013, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -307,6 +307,7 @@ int Rpl_info_table::do_reset_info(uint nparam,
   Open_tables_backup backup;
   Rpl_info_table *info= NULL;
   THD *thd= NULL;
+  enum enum_return_id scan_retval= FOUND_ID;
 
   DBUG_ENTER("Rpl_info_table::do_reset_info");
 
@@ -327,15 +328,18 @@ int Rpl_info_table::do_reset_info(uint nparam,
     goto end;
 
   /*
-    Deletes a row in the rpl_info table.
+    Delete all rows in the rpl_info table. We cannot use truncate() since it
+    is a non-transactional DDL operation.
   */
-  if ((error= table->file->truncate()))
+  while ((scan_retval= info->access->scan_info(table, 1)) == FOUND_ID)
   {
-     table->file->print_error(error, MYF(0));
-     goto end;
+    if ((error= table->file->ha_delete_row(table->record[0])))
+    {
+       table->file->print_error(error, MYF(0));
+       goto end;
+    }
   }
-
-  error= 0;
+  error= (scan_retval == ERROR_ID);
 
 end:
   /*

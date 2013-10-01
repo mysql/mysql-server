@@ -1,4 +1,4 @@
-/* Copyright (c) 2000, 2012, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2000, 2013, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -797,6 +797,15 @@ extern void my_thread_end(void);
 extern const char *my_thread_name(void);
 extern my_thread_id my_thread_dbug_id(void);
 extern int pthread_dummy(int);
+
+#ifndef HAVE_PTHREAD_ATTR_GETGUARDSIZE
+static inline int pthread_attr_getguardsize(pthread_attr_t *attr,
+                                            size_t *guardsize)
+{
+  *guardsize= 0;
+  return 0;
+}
+#endif
 
 /* All thread specific variables are in the following struct */
 

@@ -959,6 +959,7 @@ init_lex_with_single_table(THD *thd, TABLE *table, LEX *lex)
   table->map= 1; //To ensure correct calculation of const item
   table->get_fields_in_item_tree= TRUE;
   table_list->table= table;
+  table_list->cacheable_table= false;
   return FALSE;
 }
 

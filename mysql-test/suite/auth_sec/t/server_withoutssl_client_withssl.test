@@ -15,10 +15,10 @@
 ###############################################################################
 
 --source include/not_embedded.inc
---source include/not_openssl.inc
---source include/not_ssl.inc
+#--source include/not_openssl.inc
+#--source include/not_ssl.inc
 --source include/not_sha256_rsa_auth.inc
---source include/have_ssl_communication.inc
+#--source include/have_ssl_communication.inc
 
 # This test will intentionally generate errors in the server error log
 # when a broken password is inserted into the mysql.user table.

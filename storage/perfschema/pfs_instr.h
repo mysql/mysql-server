@@ -655,10 +655,22 @@ void aggregate_all_statements(PFS_statement_stat *from_array,
                               PFS_statement_stat *to_array_1,
                               PFS_statement_stat *to_array_2);
 
-void aggregate_thread(PFS_thread *thread);
-void aggregate_thread_waits(PFS_thread *thread);
-void aggregate_thread_stages(PFS_thread *thread);
-void aggregate_thread_statements(PFS_thread *thread);
+void aggregate_thread(PFS_thread *thread,
+                      PFS_account *safe_account,
+                      PFS_user *safe_user,
+                      PFS_host *safe_host);
+void aggregate_thread_waits(PFS_thread *thread,
+                            PFS_account *safe_account,
+                            PFS_user *safe_user,
+                            PFS_host *safe_host);
+void aggregate_thread_stages(PFS_thread *thread,
+                             PFS_account *safe_account,
+                             PFS_user *safe_user,
+                             PFS_host *safe_host);
+void aggregate_thread_statements(PFS_thread *thread,
+                                 PFS_account *safe_account,
+                                 PFS_user *safe_user,
+                                 PFS_host *safe_host);
 void clear_thread_account(PFS_thread *thread);
 void set_thread_account(PFS_thread *thread);
 
