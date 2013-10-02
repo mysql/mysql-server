@@ -1824,9 +1824,9 @@ static void tokudb_lock_timeout_callback(DB *db, uint64_t requesting_txnid, cons
         log_str.append("{");
         log_str.append("\"mysql_thread_id\":");
         log_str.append_ulonglong(thd->thread_id);
-        log_str.append(", \"dbname\":\"");
-        log_str.append(tokudb_get_index_name(db));
-        log_str.append("\", \"requesting_txnid\":");
+        log_str.append(", \"dbname\":");
+        log_str.append("\""); log_str.append(tokudb_get_index_name(db)); log_str.append("\"");
+        log_str.append(", \"requesting_txnid\":");
         log_str.append_ulonglong(requesting_txnid);
         log_str.append(", \"blocking_txnid\":");
         log_str.append_ulonglong(blocking_txnid);
@@ -1834,18 +1834,18 @@ static void tokudb_lock_timeout_callback(DB *db, uint64_t requesting_txnid, cons
             String key_str;
             tokudb_pretty_key(db, left_key, "?", &key_str);
             log_str.append(", \"key\":");
-            log_str.append(key_str);
+            log_str.append("\""); log_str.append(key_str); log_str.append("\"");
         } else {
             String left_str;
             tokudb_pretty_left_key(db, left_key, &left_str);
-            log_str.append(", \"key_left\":\"");
-            log_str.append(left_str);
+            log_str.append(", \"key_left\":");
+            log_str.append("\""); log_str.append(left_str); log_str.append("\"");
             String right_str;
             tokudb_pretty_right_key(db, right_key, &right_str);
-            log_str.append("\", \"key_right\":\"");
-            log_str.append(right_str);
+            log_str.append(", \"key_right\":");
+            log_str.append("\""); log_str.append(right_str); log_str.append("\"");
         }
-        log_str.append("\"}");
+        log_str.append("}");
         // set last_lock_timeout
         if (lock_timeout_debug & 1) {
             char *old_lock_timeout = THDVAR(thd, last_lock_timeout);
