@@ -187,6 +187,13 @@ static inline void wbuf_uint (struct wbuf *w, uint32_t i) {
     wbuf_int(w, (int32_t)i);
 }
 
+static inline uint8_t* wbuf_nocrc_reserve_literal_bytes(struct wbuf *w, uint32_t nbytes) {
+    assert(w->ndone + nbytes <= w->size);
+    uint8_t * dest = w->buf + w->ndone;
+    w->ndone += nbytes;
+    return dest;
+}
+
 static inline void wbuf_nocrc_literal_bytes(struct wbuf *w, bytevec bytes_bv, uint32_t nbytes) {
     const unsigned char *bytes = (const unsigned char *) bytes_bv;
 #if 0

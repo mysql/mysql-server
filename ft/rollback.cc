@@ -146,7 +146,7 @@ PAIR_ATTR
 rollback_memory_size(ROLLBACK_LOG_NODE log) {
     size_t size = sizeof(*log);
     if (log->rollentry_arena) {
-        size += memarena_total_memory_size(log->rollentry_arena);
+        size += memarena_total_footprint(log->rollentry_arena);
     }
     return make_rollback_pair_attr(size);
 }
