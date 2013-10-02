@@ -16,7 +16,7 @@ if ($rpl_inited)
 # patch to allow restarting different server than the one currently
 # connected to, actually one where suffix is not .serverid but
 # .serverid.clusterid
-if (`SELECT LENGTH("$mysqld_name")`)
+if ($mysqld_name)
 {
   let $_expect_file_name= $MYSQLTEST_VARDIR/tmp/$mysqld_name.expect;
   # echo expect_file_name: $_expect_file_name;
