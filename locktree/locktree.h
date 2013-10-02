@@ -310,8 +310,6 @@ public:
                                                      void *extra);
         int iterate_pending_lock_requests(lock_request_iterate_callback cb, void *extra);
 
-        void escalation_wait(uint64_t t);
-
     private:
         static const uint64_t DEFAULT_MAX_LOCK_MEMORY = 64L * 1024 * 1024;
         static const uint64_t DEFAULT_LOCK_WAIT_TIME = 0;
@@ -320,15 +318,6 @@ public:
         uint64_t m_max_lock_memory;
         uint64_t m_current_lock_memory;
         memory_tracker m_mem_tracker;
-
-        // statistics about lock escalation.
-        uint64_t m_escalation_count;
-        tokutime_t m_escalation_time;
-        uint64_t m_escalation_latest_result;
-        uint64_t m_wait_escalation_count;
-        uint64_t m_wait_escalation_time;
-        uint64_t m_long_wait_escalation_count;
-        uint64_t m_long_wait_escalation_time;
 
         struct lt_counters m_lt_counters;
 
@@ -367,12 +356,40 @@ public:
         void locktree_map_remove(locktree *lt);
 
         // effect: Runs escalation on all locktrees.
-        // requires: Manager's mutex is held
         void run_escalation(void);
 
         static int find_by_dict_id(locktree *const &lt, const DICTIONARY_ID &dict_id);
 
+        void escalator_init(void);
+
+        void escalator_destroy(void);
+
+        // effect: Add time t to the escalator's wait time statistics
+        void add_escalator_wait_time(uint64_t t);
+
+        // effect: escalate's the locks in each locktree
+        // requires: manager's mutex is held
+        void escalate_all_locktrees(void);
+
+        // statistics about lock escalation.
+        uint64_t m_escalation_count;
+        tokutime_t m_escalation_time;
+        uint64_t m_escalation_latest_result;
+        uint64_t m_wait_escalation_count;
+        uint64_t m_wait_escalation_time;
+        uint64_t m_long_wait_escalation_count;
+        uint64_t m_long_wait_escalation_time;
+
+        toku_mutex_t m_escalator_mutex;
+        toku_cond_t m_escalator_work;    // signal the escalator to run
+        toku_cond_t m_escalator_done;    // signal that escalation is done
+        bool m_escalator_killed;
+        toku_pthread_t m_escalator_id;
+
         friend class manager_unit_test;
+
+    public:
+        void escalator_work(void);
     };
     ENSURE_POD(manager);
 
