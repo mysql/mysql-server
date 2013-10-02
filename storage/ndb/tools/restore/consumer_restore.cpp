@@ -588,7 +588,8 @@ check_rewrite_database(BaseString & db_name) {
 }
 
 const NdbDictionary::Table*
-BackupRestore::get_table(const NdbDictionary::Table* tab){
+BackupRestore::get_table(const TableS & tableS){
+  const NdbDictionary::Table * tab = tableS.m_dictTable;
   if(m_cache.m_old_table == tab)
     return m_cache.m_new_table;
   m_cache.m_old_table = tab;
@@ -606,9 +607,18 @@ BackupRestore::get_table(const NdbDictionary::Table* tab){
                         db, schema, &id1, &id2)) == 4){
     m_ndb->setDatabaseName(db);
     m_ndb->setSchemaName(schema);
+
+    assert(tableS.getMainTable() != NULL);
+    const TableS & mainTableS = *tableS.getMainTable();
+
+    int mainColumnId = (int)tableS.getMainColumnId();
+    assert(mainColumnId >= 0 && mainColumnId < mainTableS.getNoOfAttributes());
+
+    const AttributeDesc & attr_desc =
+      *mainTableS.getAttributeDesc(mainColumnId);
     
     BaseString::snprintf(db, sizeof(db), "NDB$BLOB_%d_%d", 
-			 m_new_tables[id1]->getTableId(), id2);
+			 m_new_tables[id1]->getTableId(), attr_desc.attrId);
     
     m_cache.m_new_table = m_ndb->getDictionary()->getTable(db);
     
@@ -631,7 +641,7 @@ BackupRestore::finalize_table(const TableS & table){
   do
   {
     Uint64 auto_val = ~(Uint64)0;
-    int r= m_ndb->readAutoIncrementValue(get_table(table.m_dictTable), auto_val);
+    int r= m_ndb->readAutoIncrementValue(get_table(table), auto_val);
     if (r == -1 && m_ndb->getNdbError().status == NdbError::TemporaryError)
     {
       NdbSleep_MilliSleep(50);
@@ -644,7 +654,7 @@ BackupRestore::finalize_table(const TableS & table){
     else if ((r == -1 && m_ndb->getNdbError().code == 626) ||
              max_val+1 > auto_val || auto_val == ~(Uint64)0)
     {
-      r= m_ndb->setAutoIncrementValue(get_table(table.m_dictTable),
+      r= m_ndb->setAutoIncrementValue(get_table(table),
                                       max_val+1, false);
       if (r == -1 &&
             m_ndb->getNdbError().status == NdbError::TemporaryError)
@@ -663,7 +673,7 @@ BackupRestore::rebuild_indexes(const TableS& table)
 {
   const char *tablename = table.getTableName();
 
-  const NdbDictionary::Table * tab = get_table(table.m_dictTable);
+  const NdbDictionary::Table * tab = get_table(table);
   Uint32 id = tab->getObjectId();
   if (m_index_per_table.size() <= id)
     return true;
@@ -2133,7 +2143,7 @@ void BackupRestore::tuple_a(restore_callback_t *cb)
     } // if
     
     const TupleS &tup = cb->tup;
-    const NdbDictionary::Table * table = get_table(tup.getTable()->m_dictTable);
+    const NdbDictionary::Table * table = get_table(*tup.getTable());
 
     NdbOperation * op = cb->connection->getNdbOperation(table);
     
@@ -2530,7 +2540,7 @@ retry:
   } // if
   
   TransGuard g(trans);
-  const NdbDictionary::Table * table = get_table(tup.m_table->m_dictTable);
+  const NdbDictionary::Table * table = get_table(*tup.m_table);
   NdbOperation * op = trans->getNdbOperation(table);
   if (op == NULL) 
   {
