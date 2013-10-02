@@ -292,6 +292,10 @@ public:
   const TableS *getMainTable() const {
     return m_main_table;
   }
+ 
+  Uint32 getMainColumnId() const {
+    return m_main_column_id;
+  }
 
   TableS& operator=(TableS& org) ;
 

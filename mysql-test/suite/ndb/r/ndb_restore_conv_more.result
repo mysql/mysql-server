@@ -9,3 +9,26 @@ select sum(1),sum(isnull(b)),min(b),max(b) from t1;
 sum(1)	sum(isnull(b))	min(b)	max(b)
 100	15	+z3kg	ZOOa2
 drop table t1;
+# bug#17395298
+create table t1 (
+a int primary key,
+b text,
+c int
+) engine=ndb;
+insert into t1 values (1,repeat('a',1000),10);
+insert into t1 values (2,repeat('b',2000),20);
+insert into t1 values (3,repeat('c',3000),30);
+# run backup
+rename table t1 to t1old;
+create table t1 (
+a int primary key,
+c int,
+b text
+) engine=ndb;
+# run restore
+select count(*) from t1 x, t1old y
+where x.a = y.a and x.b = y.b and x.c = y.c;
+count(*)
+3
+drop table t1old;
+drop table t1;
