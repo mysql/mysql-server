@@ -206,7 +206,7 @@ public:
     const NdbDictionary::Table* m_old_table;
     const NdbDictionary::Table* m_new_table;
   } m_cache;
-  const NdbDictionary::Table* get_table(const NdbDictionary::Table* );
+  const NdbDictionary::Table* get_table(const TableS &);
 
   Vector<const NdbDictionary::Table*> m_indexes;
   Vector<Vector<NdbDictionary::Index *> > m_index_per_table; //
