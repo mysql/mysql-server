@@ -3612,6 +3612,7 @@ ft_handle_open(FT_HANDLE ft_h, const char *fname_in_env, int is_create, int only
     FILENUM reserved_filenum;
     reserved_filenum = use_filenum;
     fname_in_cwd = toku_cachetable_get_fname_in_cwd(cachetable, fname_in_env);
+    bool was_already_open;
     {
         int fd = -1;
         r = ft_open_file(fname_in_cwd, &fd);
@@ -3631,13 +3632,12 @@ ft_handle_open(FT_HANDLE ft_h, const char *fname_in_env, int is_create, int only
             if (r) { goto exit; }
         }
         if (r) { goto exit; }
-        r=toku_cachetable_openfd_with_filenum(&cf, cachetable, fd, fname_in_env, reserved_filenum);
+        r=toku_cachetable_openfd_with_filenum(&cf, cachetable, fd, fname_in_env, reserved_filenum, &was_already_open);
         if (r) { goto exit; }
     }
     assert(ft_h->options.nodesize>0);
-    bool was_already_open;
     if (is_create) {
-        r = toku_read_ft_and_store_in_cachefile(ft_h, cf, max_acceptable_lsn, &ft, &was_already_open);
+        r = toku_read_ft_and_store_in_cachefile(ft_h, cf, max_acceptable_lsn, &ft);
         if (r==TOKUDB_DICTIONARY_NO_HEADER) {
             toku_ft_create(&ft, &ft_h->options, cf, txn);
         }
@@ -3653,7 +3653,7 @@ ft_handle_open(FT_HANDLE ft_h, const char *fname_in_env, int is_create, int only
         // so it is ok for toku_read_ft_and_store_in_cachefile to have read
         // the header via toku_read_ft_and_store_in_cachefile
     } else {
-        r = toku_read_ft_and_store_in_cachefile(ft_h, cf, max_acceptable_lsn, &ft, &was_already_open);
+        r = toku_read_ft_and_store_in_cachefile(ft_h, cf, max_acceptable_lsn, &ft);
         if (r) { goto exit; }
     }
     if (!ft_h->did_set_flags) {

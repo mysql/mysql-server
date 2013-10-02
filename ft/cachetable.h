@@ -164,10 +164,10 @@ int toku_cachetable_openf(CACHEFILE *,CACHETABLE, const char *fname_in_env, int 
 
 // Bind a file to a new cachefile object.
 int toku_cachetable_openfd(CACHEFILE *,CACHETABLE, int fd, 
-			    const char *fname_relative_to_env);
+                            const char *fname_relative_to_env);
 int toku_cachetable_openfd_with_filenum (CACHEFILE *,CACHETABLE, int fd, 
-					 const char *fname_in_env,
-					 FILENUM filenum);
+                                         const char *fname_in_env,
+                                         FILENUM filenum, bool* was_open);
 
 // reserve a unique filenum
 FILENUM toku_cachetable_reserve_filenum(CACHETABLE ct);

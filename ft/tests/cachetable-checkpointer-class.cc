@@ -230,7 +230,7 @@ void checkpointer_test::test_pending_bits() {
 
     m_cp.turn_on_pending_bits();
     assert(p.checkpoint_pending);
-    m_cp.m_list->evict(&p);
+    m_cp.m_list->evict_completely(&p);
 
     //
     // 3. Many hash chain entries.
@@ -251,7 +251,7 @@ void checkpointer_test::test_pending_bits() {
         uint32_t full_hash = toku_cachetable_hash(&cf, key);
         PAIR pp = m_cp.m_list->find_pair(&cf, key, full_hash);
         assert(pp);
-        m_cp.m_list->evict(pp);
+        m_cp.m_list->evict_completely(pp);
     }
 
     ctbl.list.destroy();
@@ -389,7 +389,7 @@ void checkpointer_test::test_end_checkpoint() {
         uint32_t full_hash = toku_cachetable_hash(&cf, key);
         PAIR pp = m_cp.m_list->find_pair(&cf, key, full_hash);
         assert(pp);
-        m_cp.m_list->evict(pp);
+        m_cp.m_list->evict_completely(pp);
     }
     m_cp.destroy();
     ctbl.list.destroy();

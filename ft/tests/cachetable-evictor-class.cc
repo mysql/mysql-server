@@ -94,6 +94,7 @@ class evictor_unit_test {
 public:
     evictor m_ev;
     pair_list m_pl;
+    cachefile_list m_cf_list;
     KIBBUTZ m_kb;
     void init();
     void destroy();
@@ -111,13 +112,16 @@ public:
 // initialize this class to run tests
 void evictor_unit_test::init() {
     ZERO_STRUCT(m_pl);
+    ZERO_STRUCT(m_cf_list);
     m_pl.init();
+    m_cf_list.init();
     m_kb = toku_kibbutz_create(1);
 }
 
 // destroy class after tests have run
 void evictor_unit_test::destroy() {
     m_pl.destroy();
+    m_cf_list.destroy();
     toku_kibbutz_destroy(m_kb);
 }
 
@@ -125,6 +129,7 @@ void evictor_unit_test::destroy() {
 void evictor_unit_test::verify_ev_init(long limit) {
     assert(m_ev.m_kibbutz == m_kb);
     assert(m_ev.m_pl == &m_pl);
+    assert(m_ev.m_cf_list == &m_cf_list);
     assert(m_ev.m_low_size_watermark == limit);
     assert(m_ev.m_num_sleepers == 0);
     assert(m_ev.m_run_thread == true);
@@ -161,7 +166,7 @@ void evictor_unit_test::verify_ev_counts() {
     long limit = 10;
     long expected_m_size_reserved = limit/4;
     ZERO_STRUCT(m_ev);
-    m_ev.init(limit, &m_pl, m_kb, 0);
+    m_ev.init(limit, &m_pl, &m_cf_list, m_kb, 0);
     this->verify_ev_init(limit);
 
     m_ev.add_to_size_current(1);
@@ -227,7 +232,7 @@ void evictor_unit_test::verify_ev_m_size_reserved() {
     long limit = 400;
     long expected_m_size_reserved = 100; //limit/4
     ZERO_STRUCT(m_ev);
-    m_ev.init(limit, &m_pl, m_kb, 0);
+    m_ev.init(limit, &m_pl, &m_cf_list, m_kb, 0);
     this->verify_ev_init(limit);
     assert(m_ev.m_size_reserved == expected_m_size_reserved);
     m_ev.m_num_eviction_thread_runs = 0;
@@ -250,7 +255,7 @@ void evictor_unit_test::verify_ev_m_size_reserved() {
 void evictor_unit_test::verify_ev_handling_cache_pressure() {
     long limit = 400;
     ZERO_STRUCT(m_ev);
-    m_ev.init(limit, &m_pl, m_kb, 0);
+    m_ev.init(limit, &m_pl, &m_cf_list, m_kb, 0);
     this->verify_ev_init(limit);
     m_ev.m_low_size_watermark = 400;
     m_ev.m_low_size_hysteresis = 400;
