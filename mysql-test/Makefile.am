@@ -87,6 +87,7 @@ TEST_DIRS = t r include std_data std_data/parts collections \
 	suite/ndb/backups/hashmap \
 	suite/ndb/backups/before_native_default \
 	suite/ndb/backups/bug54613 \
+	suite/ndb/backups/bug17275798 \
 	std_data/funcs_1 \
 	extra/binlog_tests/ extra/rpl_tests \
 	suite/binlog suite/binlog/t suite/binlog/r suite/binlog/std_data \

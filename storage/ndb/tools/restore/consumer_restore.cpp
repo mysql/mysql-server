@@ -2228,7 +2228,9 @@ void BackupRestore::tuple_a(restore_callback_t *cb)
                                                     truncated);
             if (!dataPtr)
             {
-              err << "Error: Convert data failed when restoring tuples!" << endl;
+              const char* tabname = tup.getTable()->m_dictTable->getName();
+              err << "Error: Convert data failed when restoring tuples!"
+                  << " Data part, table " << tabname << endl;
               exitHandler();
             }
             if (truncated)
@@ -2590,7 +2592,8 @@ retry:
     const Uint32 length = (size / 8) * arraySize;
     n_bytes+= length;
 
-    if (attr->Desc->convertFunc)
+    if (attr->Desc->convertFunc &&
+        dataPtr != NULL) // NULL will not be converted
     {
       bool truncated = true; // assume data truncation until overridden
       dataPtr = (char*)attr->Desc->convertFunc(dataPtr,
@@ -2598,7 +2601,10 @@ retry:
                                                truncated);
       if (!dataPtr)
       {
-        err << "Error: Convert data failed when restoring tuples!" << endl;
+        const char* tabname = tup.m_table->m_dictTable->getName();
+        err << "Error: Convert data failed when restoring tuples!"
+            << " Log part, table " << tabname
+            << ", entry type " << tup.m_type << endl;
         exitHandler();
       }            
       if (truncated)
