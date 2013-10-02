@@ -1,4 +1,4 @@
-INCLUDE("${NDB_SOURCE_DIR}/config/type_mcc_utils.cmake")
+INCLUDE(mcc_utils)
 
 PY_INSTALL(FILES python.exe python27.dll msvcr100.dll 
 	SRC_DIR "${MCC_PYTHON_TO_BUNDLE}"
