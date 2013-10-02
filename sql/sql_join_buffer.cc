@@ -755,6 +755,13 @@ bool JOIN_CACHE_BKA::check_emb_key_usage()
       return FALSE;
     if (!key_part->field->eq_def(((Item_field *) item)->field))
       return FALSE;
+#ifndef MCP_BUG16853897
+    if (((Item_field *) item)->field->table->s->db_low_byte_first !=
+        table->s->db_low_byte_first)
+    {
+      return FALSE;
+    }
+#endif 
     if (key_part->field->maybe_null())
     {
       return FALSE;
