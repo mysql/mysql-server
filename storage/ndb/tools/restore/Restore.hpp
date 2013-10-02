@@ -29,6 +29,8 @@
 #include <ndb_version.h>
 #include <version.h>
 
+#define NDB_RESTORE_STAGING_SUFFIX "$ST"
+
 enum TableChangesMask
 {
   /**
@@ -99,6 +101,7 @@ struct AttributeDesc {
   AttrConvertFunc convertFunc;
   void *parameter;
   bool truncation_detected;
+  bool staging;
 
 public:
   
@@ -307,7 +310,11 @@ public:
   bool isBroken() const {
     return m_broken || (m_main_table && m_main_table->isBroken());
   }
-  
+
+  bool m_staging;
+  BaseString m_stagingName;
+  NdbDictionary::Table* m_stagingTable;
+  int m_stagingFlags;
 }; // TableS;
 
 class RestoreLogIterator;
@@ -406,6 +413,7 @@ public:
   Uint32 getNoOfTables() const { return allTables.size();}
   
   const TableS * operator[](int i) const { return allTables[i];}
+  TableS * operator[](int i) { return allTables[i];}
   TableS * getTable(Uint32 tableId) const;
 
   Uint32 getNoOfObjects() const { return m_objects.size();}
