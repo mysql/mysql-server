@@ -1355,6 +1355,8 @@ bool mysql_make_view(THD *thd, TABLE_SHARE *share, TABLE_LIST *table,
 
     lex_start(thd);
     view_select= lex->select_lex;
+    // Correctly mark unit for explain
+    lex->unit->explain_marker= CTX_DERIVED;
 
     // Needed for correct units markup for EXPLAIN
     lex->describe= old_lex->describe;
