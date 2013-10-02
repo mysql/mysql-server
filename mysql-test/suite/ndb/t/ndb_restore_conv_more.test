@@ -1,0 +1,18 @@
+-- source include/have_ndb.inc
+-- source include/not_embedded.inc
+
+--echo # bug#17275798
+# use a canned backup with NULL char(10) log entries promoted to char(20)
+
+create table t1 (
+  a int unsigned primary key,
+  b char(20),
+  c int unsigned
+) engine=ndb;
+
+--echo # restore canned backup
+--exec $NDB_RESTORE --no-defaults -b 1 -n 21 -r --promote-attributes $MYSQL_TEST_DIR/suite/ndb/backups/bug17275798 >> $NDB_TOOLS_OUTPUT
+
+select sum(1),sum(isnull(b)),min(b),max(b) from t1;
+
+drop table t1;

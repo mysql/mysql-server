@@ -1,0 +1,11 @@
+# bug#17275798
+create table t1 (
+a int unsigned primary key,
+b char(20),
+c int unsigned
+) engine=ndb;
+# restore canned backup
+select sum(1),sum(isnull(b)),min(b),max(b) from t1;
+sum(1)	sum(isnull(b))	min(b)	max(b)
+100	15	+z3kg	ZOOa2
+drop table t1;
