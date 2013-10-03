@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2010, 2012, Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2010, 2013, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -168,6 +168,8 @@ public class DomainFieldHandlerImpl extends AbstractDomainFieldHandlerImpl {
                 objectOperationHandlerDelegate = objectOperationHandlerKeyString;
             } else if (type.equals(byte[].class)) {
                 objectOperationHandlerDelegate = objectOperationHandlerKeyBytes;
+            } else if (type.equals(short.class)) {
+                objectOperationHandlerDelegate = objectOperationHandlerKeyShort;
             } else {
                 objectOperationHandlerDelegate = objectOperationHandlerUnsupportedType;
                 error(
@@ -354,6 +356,11 @@ public class DomainFieldHandlerImpl extends AbstractDomainFieldHandlerImpl {
                 case Longvarbinary:
                     this.objectOperationHandlerDelegate = objectOperationHandlerKeyBytes;
                     this.type = byte[].class;
+                    break;
+                case Smallint:
+                case Smallunsigned:
+                    this.objectOperationHandlerDelegate = objectOperationHandlerKeyShort;
+                    this.type = short.class;
                     break;
                 default:
                     error(local.message("ERR_Primary_Column_Type", domainTypeHandler.getName(), name, this.storeColumnType));
