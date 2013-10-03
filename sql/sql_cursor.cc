@@ -398,7 +398,7 @@ Sensitive_cursor::open(JOIN *join_arg)
 #ifndef DBUG_OFF
   JOIN_TAB *first_tab= first_linear_tab(join, WITHOUT_CONST_TABLES);
   DBUG_ASSERT(first_tab->table->reginfo.not_exists_optimize == 0);
-  DBUG_ASSERT(first_tab->not_used_in_distinct == 0);
+  DBUG_ASSERT(first_tab->shortcut_for_distinct == 0);
   /*
     null_row is set only if row not found and it's outer join: should never
     happen for the first table in join_tab list

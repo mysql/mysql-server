@@ -1811,9 +1811,10 @@ int JOIN::init_execution()
       JOIN_TAB *last_join_tab= join_tab + top_join_tab_count - 1;
       do
       {
-	if (used_tables & last_join_tab->table->map)
+	if (used_tables & last_join_tab->table->map ||
+            last_join_tab->use_join_cache)
 	  break;
-	last_join_tab->not_used_in_distinct=1;
+	last_join_tab->shortcut_for_distinct= true;
       } while (last_join_tab-- != join_tab);
       /* Optimize "select distinct b from t1 order by key_part_1 limit #" */
       if (order && skip_sort_order)
@@ -7983,7 +7984,7 @@ JOIN::make_simple_join(JOIN *parent, TABLE *temp_table)
   join_tab->last_inner= 0;
   join_tab->first_unmatched= 0;
   join_tab->ref.key = -1;
-  join_tab->not_used_in_distinct=0;
+  join_tab->shortcut_for_distinct= false;
   join_tab->read_first_record= join_init_read_record;
   join_tab->preread_init_done= FALSE;
   join_tab->join= this;
@@ -16223,7 +16224,7 @@ static enum_nested_loop_state
 evaluate_join_record(JOIN *join, JOIN_TAB *join_tab,
                      int error)
 {
-  bool not_used_in_distinct=join_tab->not_used_in_distinct;
+  bool shortcut_for_distinct= join_tab->shortcut_for_distinct;
   ha_rows found_records=join->found_records;
   COND *select_cond= join_tab->select_cond;
   bool select_cond_result= TRUE;
@@ -16362,7 +16363,7 @@ evaluate_join_record(JOIN *join, JOIN_TAB *join_tab,
         was not in the field list;  In this case we can abort if
         we found a row, as no new rows can be added to the result.
       */
-      if (not_used_in_distinct && found_records != join->found_records)
+      if (shortcut_for_distinct && found_records != join->found_records)
         DBUG_RETURN(NESTED_LOOP_NO_MORE_ROWS);
     }
     else
