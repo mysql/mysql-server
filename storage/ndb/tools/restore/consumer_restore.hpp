@@ -39,7 +39,8 @@ Uint32 n_new;
 char new_row[1];
 };
 
-enum AttrConvType { ACT_UNSUPPORTED = 0, ACT_PRESERVING = 1, ACT_LOSSY =-1 };
+enum AttrConvType { ACT_UNSUPPORTED = 0, ACT_PRESERVING = 1, ACT_LOSSY =-1,
+                    ACT_STAGING_PRESERVING = 2, ACT_STAGING_LOSSY = -2 };
 typedef  AttrConvType (*AttrCheckCompatFunc)(const NDBCOL &old_col,
                                              const NDBCOL &new_col);
 
@@ -57,6 +58,7 @@ public:
                 int ndb_nodeid,
                 NODE_GROUP_MAP *ng_map,
                 uint ng_map_len,
+                int backup_nodeid,
                 Uint32 parallelism=1) :
     m_ndb(NULL),
     m_cluster_connection(NULL),
@@ -76,6 +78,7 @@ public:
     m_restore_meta = false;
     m_no_restore_disk = false;
     m_restore_epoch = false;
+    m_backup_nodeid = backup_nodeid;
     m_parallelism = parallelism;
     m_callback = 0;
     m_free_callback = 0;
@@ -107,11 +110,13 @@ public:
   virtual void endOfTuples();
   virtual void logEntry(const LogEntry &);
   virtual void endOfLogEntrys();
+  virtual bool prepare_staging(const TableS &);
+  virtual bool finalize_staging(const TableS &);
   virtual bool finalize_table(const TableS &);
   virtual bool rebuild_indexes(const TableS&);
   virtual bool has_temp_error();
   virtual bool createSystable(const TableS & table);
-  virtual bool table_compatible_check(const TableS & tableS);
+  virtual bool table_compatible_check(TableS & tableS);
   virtual bool column_compatible_check(const char* tableName,
                                        const NDBCOL* backupCol, 
                                        const NDBCOL* dbCol);
@@ -133,6 +138,12 @@ public:
 
   static AttrConvType check_compat_sizes(const NDBCOL &old_col,
                                          const NDBCOL &new_col);
+  static AttrConvType check_compat_char_binary(const NDBCOL &old_col,
+                                               const NDBCOL &new_col);
+  static AttrConvType check_compat_char_to_text(const NDBCOL &old_col,
+                                                const NDBCOL &new_col);
+  static AttrConvType check_compat_text_to_char(const NDBCOL &old_col,
+                                                const NDBCOL &new_col);
   static AttrConvType check_compat_promotion(const NDBCOL &old_col,
                                              const NDBCOL &new_col);
   static AttrConvType check_compat_lossy(const NDBCOL &old_col,
@@ -189,6 +200,7 @@ public:
   Uint32 m_logCount;
   Uint32 m_dataCount;
 
+  int m_backup_nodeid;
   Uint32 m_parallelism;
   volatile Uint32 m_transactions;
 
@@ -206,7 +218,7 @@ public:
     const NdbDictionary::Table* m_old_table;
     const NdbDictionary::Table* m_new_table;
   } m_cache;
-  const NdbDictionary::Table* get_table(const NdbDictionary::Table* );
+  const NdbDictionary::Table* get_table(const TableS &);
 
   Vector<const NdbDictionary::Table*> m_indexes;
   Vector<Vector<NdbDictionary::Index *> > m_index_per_table; //
