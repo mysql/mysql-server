@@ -680,6 +680,12 @@ sub suppress_warning {
     return 1;
   }
 
+  if ($w->file() =~ /memcache\/extra/)
+  {
+    $w->suppress('Warning in imported memcache code');
+    return 1; 
+  }
+
   # List of supressions consisting of one regex for the dir+file name
   # and one for the warning text. The suppression is stored as a
   # list of arrays, where each array contains two precompiled
