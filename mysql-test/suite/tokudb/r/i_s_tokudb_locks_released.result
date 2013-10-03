@@ -1,0 +1,24 @@
+set default_storage_engine='tokudb';
+set tokudb_prelock_empty=false;
+drop table if exists t;
+create table t (id int primary key);
+set autocommit=0;
+select * from information_schema.tokudb_locks;
+locks_trx_id	locks_mysql_thread_id	locks_dname	locks_key_left	locks_key_right
+set autocommit=0;
+insert into t values (1);
+set autocommit=0;
+insert into t values (1);
+select * from information_schema.tokudb_locks;
+locks_trx_id	locks_mysql_thread_id	locks_dname	locks_key_left	locks_key_right
+TRX_ID	MYSQL_ID	./test/t-main	0001000000	0001000000
+commit;
+select * from information_schema.tokudb_locks;
+locks_trx_id	locks_mysql_thread_id	locks_dname	locks_key_left	locks_key_right
+TRX_ID	MYSQL_ID	./test/t-main	0001000000	0001000000
+TRX_ID	MYSQL_ID	./test/t-main	0001000000	0001000000
+ERROR 23000: Duplicate entry '1' for key 'PRIMARY'
+commit;
+select * from information_schema.tokudb_locks;
+locks_trx_id	locks_mysql_thread_id	locks_dname	locks_key_left	locks_key_right
+drop table t;
