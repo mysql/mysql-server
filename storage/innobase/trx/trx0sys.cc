@@ -1,6 +1,6 @@
 /*****************************************************************************
 
-Copyright (c) 1996, 2012, Oracle and/or its affiliates. All Rights Reserved.
+Copyright (c) 1996, 2013, Oracle and/or its affiliates. All Rights Reserved.
 
 This program is free software; you can redistribute it and/or modify it under
 the terms of the GNU General Public License as published by the Free Software
@@ -882,7 +882,7 @@ trx_sys_create_rsegs(
 	ut_a(n_spaces < TRX_SYS_N_RSEGS);
 	ut_a(n_rsegs <= TRX_SYS_N_RSEGS);
 
-	if (srv_force_recovery >= SRV_FORCE_NO_TRX_UNDO || srv_read_only_mode) {
+	if (srv_read_only_mode) {
 		return(ULINT_UNDEFINED);
 	}
 

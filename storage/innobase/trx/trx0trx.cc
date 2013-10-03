@@ -741,7 +741,7 @@ trx_assign_rseg_low(
 	trx_rseg_t*	rseg;
 	static ulint	latest_rseg = 0;
 
-	if (srv_force_recovery >= SRV_FORCE_NO_TRX_UNDO || srv_read_only_mode) {
+	if (srv_read_only_mode) {
 		ut_a(max_undo_logs == ULONG_UNDEFINED);
 		return(NULL);
 	}
@@ -757,7 +757,9 @@ trx_assign_rseg_low(
 	the array. Once we implement more flexible rollback segment
 	management this may not hold. The assertion checks for that case. */
 
-	ut_a(trx_sys->rseg_array[0] != NULL);
+	if (trx_sys->rseg_array[0] == NULL) {
+		return(NULL);
+	}
 
 	/* Skip the system tablespace if we have more than one tablespace
 	defined for rollback segments. We want all UNDO records to be in
