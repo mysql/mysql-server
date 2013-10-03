@@ -606,6 +606,7 @@ o verify nodegroup mapping
                                              opt_ndb_nodeid,
                                              opt_nodegroup_map,
                                              opt_nodegroup_map_len,
+                                             ga_nodeId,
                                              ga_nParallelism);
   if (restore == NULL) 
   {
@@ -1443,14 +1444,22 @@ main(int argc, char** argv)
         if (checkSysTable(metaData, i) &&
             checkDbAndTableName(metaData[i]))
         {
+          TableS & tableS = *metaData[i]; // not const
           for(Uint32 j= 0; j < g_consumers.size(); j++)
           {
-            if (!g_consumers[j]->table_compatible_check(*metaData[i]))
+            if (!g_consumers[j]->table_compatible_check(tableS))
             {
               err << "Restore: Failed to restore data, ";
-              err << metaData[i]->getTableName() << " table structure incompatible with backup's ... Exiting " << endl;
+              err << tableS.getTableName() << " table structure incompatible with backup's ... Exiting " << endl;
               exitHandler(NDBT_FAILED);
             } 
+            if (tableS.m_staging &&
+                !g_consumers[j]->prepare_staging(tableS))
+            {
+              err << "Restore: Failed to restore data, ";
+              err << tableS.getTableName() << " failed to prepare staging table for data conversion ... Exiting " << endl;
+              exitHandler(NDBT_FAILED);
+            }
           } 
         }
       }
@@ -1554,6 +1563,28 @@ main(int argc, char** argv)
       }
     }
     
+    /* move data from staging table to real table */
+    if(_restore_data)
+    {
+      for (i = 0; i < metaData.getNoOfTables(); i++)
+      {
+        const TableS* table = metaData[i];
+        if (table->m_staging)
+        {
+          for(Uint32 j= 0; j < g_consumers.size(); j++)
+          {
+            if (!g_consumers[j]->finalize_staging(*table))
+            {
+              err << "Restore: Failed staging data to table: ";
+              err << table->getTableName() << ". ";
+              err << "Exiting... " << endl;
+              exitHandler(NDBT_FAILED);
+            }
+          }
+        }
+      }
+    }
+
     if(_restore_data)
     {
       for(i = 0; i < metaData.getNoOfTables(); i++)
