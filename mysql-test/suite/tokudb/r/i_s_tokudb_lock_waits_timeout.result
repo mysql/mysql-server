@@ -1,0 +1,38 @@
+set default_storage_engine='tokudb';
+set tokudb_prelock_empty=false;
+drop table if exists t;
+create table t (id int primary key);
+select * from information_schema.tokudb_trx;
+trx_id	trx_mysql_thread_id
+select * from information_schema.tokudb_locks;
+locks_trx_id	locks_mysql_thread_id	locks_dname	locks_key_left	locks_key_right
+select * from information_schema.tokudb_lock_waits;
+requesting_trx_id	blocking_trx_id	lock_waits_dname	lock_waits_key_left	lock_waits_key_right	lock_waits_start_time
+set autocommit=0;
+insert into t values (1);
+set autocommit=0;
+insert into t values (1);
+select * from information_schema.tokudb_locks;
+locks_trx_id	locks_mysql_thread_id	locks_dname	locks_key_left	locks_key_right
+TRX_ID	MYSQL_ID	./test/t-main	0001000000	0001000000
+select * from information_schema.tokudb_lock_waits;
+requesting_trx_id	blocking_trx_id	lock_waits_dname	lock_waits_key_left	lock_waits_key_right	lock_waits_start_time
+REQUEST_TRX_ID	BLOCK_TRX_ID	./test/t-main	0001000000	0001000000	LOCK_WAITS_START_TIME
+select * from information_schema.tokudb_trx;
+trx_id	trx_mysql_thread_id
+TRX_ID	MYSQL_ID
+TRX_ID	MYSQL_ID
+commit;
+select * from information_schema.tokudb_locks;
+locks_trx_id	locks_mysql_thread_id	locks_dname	locks_key_left	locks_key_right
+select * from information_schema.tokudb_lock_waits;
+requesting_trx_id	blocking_trx_id	lock_waits_dname	lock_waits_key_left	lock_waits_key_right	lock_waits_start_time
+ERROR HY000: Lock wait timeout exceeded; try restarting transaction
+commit;
+select * from information_schema.tokudb_trx;
+trx_id	trx_mysql_thread_id
+select * from information_schema.tokudb_locks;
+locks_trx_id	locks_mysql_thread_id	locks_dname	locks_key_left	locks_key_right
+select * from information_schema.tokudb_lock_waits;
+requesting_trx_id	blocking_trx_id	lock_waits_dname	lock_waits_key_left	lock_waits_key_right	lock_waits_start_time
+drop table t;
