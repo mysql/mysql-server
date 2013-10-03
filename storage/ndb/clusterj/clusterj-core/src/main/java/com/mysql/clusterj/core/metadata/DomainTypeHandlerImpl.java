@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2010, 2012, Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2010, 2013, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -598,9 +598,11 @@ public class DomainTypeHandlerImpl<T> extends AbstractDomainTypeHandlerImpl<T> {
         Class<?> valueType = keys.getClass();
         if (keyType.isAssignableFrom(valueType) ||
                 (keyType == int.class && valueType == Integer.class) ||
-                (keyType == Integer.class & valueType == int.class) ||
-                (keyType == Long.class & valueType == long.class) ||
-                (keyType == long.class & valueType == Long.class)) {
+                (keyType == Integer.class && valueType == int.class) ||
+                (keyType == Long.class && valueType == long.class) ||
+                (keyType == long.class && valueType == Long.class) ||
+                (keyType == short.class && valueType == Short.class) ||
+                (keyType == Short.class && valueType == short.class)) {
             return;
         } else {
                 throw new ClusterJUserException(
