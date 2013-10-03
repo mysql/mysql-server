@@ -1203,6 +1203,10 @@ innobase_start_or_create_for_mysql(void)
 	/* Reset the start state. */
 	srv_start_state = SRV_START_STATE_NONE;
 
+	if (srv_force_recovery > SRV_FORCE_NO_TRX_UNDO) {
+		srv_read_only_mode = true;
+	}
+
 	if (srv_read_only_mode) {
 		ib_logf(IB_LOG_LEVEL_INFO, "Started in read only mode");
 	}
@@ -2211,9 +2215,8 @@ files_checked:
 		srv_undo_tablespaces, srv_undo_logs, srv_tmp_undo_logs);
 
 	if (srv_available_undo_logs == ULINT_UNDEFINED) {
-		/* Can only happen if force recovery is set. */
-		ut_a(srv_force_recovery >= SRV_FORCE_NO_TRX_UNDO
-		     || srv_read_only_mode);
+		/* Can only happen if server is read only. */
+		ut_a(srv_read_only_mode);
 		srv_undo_logs = ULONG_UNDEFINED;
 	}
 
