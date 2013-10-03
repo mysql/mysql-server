@@ -27,6 +27,7 @@
 #include <ndb_internal.hpp>
 #include <ndb_logevent.h>
 #include "../src/ndbapi/NdbDictionaryImpl.hpp"
+#include "../ndb_lib_move_data.hpp"
 
 #define NDB_ANYVALUE_FOR_NOLOGGING 0x8000007f
 
@@ -547,6 +548,62 @@ BackupRestore::m_allowed_promotion_attrs[] = {
   {NDBCOL::Longvarbinary,  NDBCOL::Longvarbinary,  check_compat_sizes,
    convert_array< Hlongvarbinary, Hlongvarbinary >},
 
+  // char to binary promotions/demotions
+  {NDBCOL::Char,           NDBCOL::Binary,         check_compat_char_binary,
+   convert_array< Hchar, Hbinary >},
+  {NDBCOL::Char,           NDBCOL::Varbinary,      check_compat_char_binary,
+   convert_array< Hchar, Hvarbinary >},
+  {NDBCOL::Char,           NDBCOL::Longvarbinary,  check_compat_char_binary,
+   convert_array< Hchar, Hlongvarbinary >},
+  {NDBCOL::Varchar,        NDBCOL::Binary,         check_compat_char_binary,
+   convert_array< Hvarchar, Hbinary >},
+  {NDBCOL::Varchar,        NDBCOL::Varbinary,      check_compat_char_binary,
+   convert_array< Hvarchar, Hvarbinary >},
+  {NDBCOL::Varchar,        NDBCOL::Longvarbinary,  check_compat_char_binary,
+   convert_array< Hvarchar, Hlongvarbinary >},
+  {NDBCOL::Longvarchar,    NDBCOL::Binary,         check_compat_char_binary,
+   convert_array< Hlongvarchar, Hbinary >},
+  {NDBCOL::Longvarchar,    NDBCOL::Varbinary,      check_compat_char_binary,
+   convert_array< Hlongvarchar, Hvarbinary >},
+  {NDBCOL::Longvarchar,    NDBCOL::Longvarbinary,  check_compat_char_binary,
+   convert_array< Hlongvarchar, Hlongvarbinary >},
+
+  // binary to char promotions/demotions
+  {NDBCOL::Binary,         NDBCOL::Char,           check_compat_char_binary,
+   convert_array< Hbinary, Hchar >},
+  {NDBCOL::Binary,         NDBCOL::Varchar,        check_compat_char_binary,
+   convert_array< Hbinary, Hvarchar >},
+  {NDBCOL::Binary,         NDBCOL::Longvarchar,    check_compat_char_binary,
+   convert_array< Hbinary, Hlongvarchar >},
+  {NDBCOL::Varbinary,      NDBCOL::Char,           check_compat_char_binary,
+   convert_array< Hvarbinary, Hchar >},
+  {NDBCOL::Varbinary,      NDBCOL::Varchar,        check_compat_char_binary,
+   convert_array< Hvarbinary, Hvarchar >},
+  {NDBCOL::Varbinary,      NDBCOL::Longvarchar,    check_compat_char_binary,
+   convert_array< Hvarbinary, Hlongvarchar >},
+  {NDBCOL::Longvarbinary,  NDBCOL::Char,           check_compat_char_binary,
+   convert_array< Hlongvarbinary, Hchar >},
+  {NDBCOL::Longvarbinary,  NDBCOL::Varchar,        check_compat_char_binary,
+   convert_array< Hlongvarbinary, Hvarchar >},
+  {NDBCOL::Longvarbinary,  NDBCOL::Longvarchar,    check_compat_char_binary,
+   convert_array< Hlongvarbinary, Hlongvarchar >},
+ 
+  // char to text promotions (uses staging table)
+  {NDBCOL::Char,           NDBCOL::Text,           check_compat_char_to_text,
+   NULL},
+  {NDBCOL::Varchar,        NDBCOL::Text,           check_compat_char_to_text,
+   NULL},
+  {NDBCOL::Longvarchar,    NDBCOL::Text,           check_compat_char_to_text,
+   NULL},
+ 
+  // text to char promotions (uses staging table)
+  {NDBCOL::Text,           NDBCOL::Char,           check_compat_text_to_char,
+   NULL},
+  {NDBCOL::Text,           NDBCOL::Varchar,        check_compat_text_to_char,
+   NULL},
+  {NDBCOL::Text,           NDBCOL::Longvarchar,    check_compat_text_to_char,
+   NULL},
+
   // integral promotions
   {NDBCOL::Tinyint,        NDBCOL::Smallint,       check_compat_promotion,
    convert_integral< Hint8, Hint16>},
@@ -911,7 +968,8 @@ check_rewrite_database(BaseString & db_name) {
 }
 
 const NdbDictionary::Table*
-BackupRestore::get_table(const NdbDictionary::Table* tab){
+BackupRestore::get_table(const TableS & tableS){
+  const NdbDictionary::Table * tab = tableS.m_dictTable;
   if(m_cache.m_old_table == tab)
     return m_cache.m_new_table;
   m_cache.m_old_table = tab;
@@ -929,9 +987,18 @@ BackupRestore::get_table(const NdbDictionary::Table* tab){
                         db, schema, &id1, &id2)) == 4){
     m_ndb->setDatabaseName(db);
     m_ndb->setSchemaName(schema);
+
+    assert(tableS.getMainTable() != NULL);
+    const TableS & mainTableS = *tableS.getMainTable();
+
+    int mainColumnId = (int)tableS.getMainColumnId();
+    assert(mainColumnId >= 0 && mainColumnId < mainTableS.getNoOfAttributes());
+
+    const AttributeDesc & attr_desc =
+      *mainTableS.getAttributeDesc(mainColumnId);
     
     BaseString::snprintf(db, sizeof(db), "NDB$BLOB_%d_%d", 
-			 m_new_tables[id1]->getTableId(), id2);
+			 m_new_tables[id1]->getTableId(), attr_desc.attrId);
     
     m_cache.m_new_table = m_ndb->getDictionary()->getTable(db);
     
@@ -942,6 +1009,223 @@ BackupRestore::get_table(const NdbDictionary::Table* tab){
   return m_cache.m_new_table;
 }
 
+// create staging table
+bool
+BackupRestore::prepare_staging(const TableS & tableS)
+{
+  NdbDictionary::Dictionary* dict = m_ndb->getDictionary();
+
+  NdbDictionary::Table* stagingTable = tableS.m_stagingTable;
+  const BaseString& stagingName = tableS.m_stagingName;
+
+  const char* tablename = stagingName.c_str();
+  BaseString db_name, schema_name, table_name;
+  if (!dissect_table_name(tablename, db_name, schema_name, table_name)) {
+    return false;
+  }
+  stagingTable->setName(table_name.c_str());
+
+  // using defaults
+  const Ndb_move_data::Opts::Tries ot;
+  int createtries = 0;
+  int createdelay = 0;
+  while (1)
+  {
+    if (!(ot.maxtries == 0 || createtries < ot.maxtries))
+    {
+      err << "Create table " << tablename
+          << ": too many temporary errors: " << createtries << endl;
+      return false;
+    }
+    createtries++;
+
+    m_ndb->setDatabaseName(db_name.c_str());
+    m_ndb->setSchemaName(schema_name.c_str());
+    if (dict->createTable(*stagingTable) != 0)
+    {
+      const NdbError& error = dict->getNdbError();
+      if (error.status != NdbError::TemporaryError)
+      {
+        err << "Error: Failed to create staging source " << tablename
+            << ": " << error << endl;
+        return false;
+      }
+      err << "Temporary: Failed to create staging source " << tablename
+          << ": " << error << endl;
+
+      createdelay *= 2;
+      if (createdelay < ot.mindelay)
+        createdelay = ot.mindelay;
+      if (createdelay > ot.maxdelay)
+        createdelay = ot.maxdelay;
+
+      info << "Sleeping " << createdelay << "ms" << endl;
+      NdbSleep_MilliSleep(createdelay);
+      continue;
+    }
+    info << "Created staging source " << tablename << endl;
+    break;
+  }
+
+  const NdbDictionary::Table* tab = dict->getTable(table_name.c_str());
+  if (tab == NULL)
+  {
+    err << "Unable to find table '" << tablename << "'"
+        << " error : " << dict->getNdbError() << endl;
+  }
+
+  const NdbDictionary::Table* null = 0;
+  m_new_tables.fill(tableS.m_dictTable->getTableId(), null);
+  m_new_tables[tableS.m_dictTable->getTableId()] = tab;
+  m_n_tables++; //??
+  return true;
+}
+
+// move rows from staging to real and drop staging
+bool
+BackupRestore::finalize_staging(const TableS & tableS)
+{
+  NdbDictionary::Dictionary* dict = m_ndb->getDictionary();
+
+  const NdbDictionary::Table* source = 0;
+  const NdbDictionary::Table* target = 0;
+
+  const char* stablename = tableS.m_stagingName.c_str();
+  BaseString sdb_name, sschema_name, stable_name;
+  if (!dissect_table_name(stablename, sdb_name, sschema_name, stable_name)) {
+    return false;
+  }
+  m_ndb->setDatabaseName(sdb_name.c_str());
+  m_ndb->setSchemaName(sschema_name.c_str());
+  source = dict->getTable(stable_name.c_str());
+  if (source == 0)
+  {
+    err << "Failed to find staging source " << stablename
+        << ": " << dict->getNdbError() << endl;
+    return false;
+  }
+
+  const char* ttablename = tableS.getTableName();
+  BaseString tdb_name, tschema_name, ttable_name;
+  if (!dissect_table_name(ttablename, tdb_name, tschema_name, ttable_name)) {
+    return false;
+  }
+  m_ndb->setDatabaseName(tdb_name.c_str());
+  m_ndb->setSchemaName(tschema_name.c_str());
+  target = dict->getTable(ttable_name.c_str());
+  if (target == 0)
+  {
+    err << "Failed to find staging target " << ttablename
+        << ": " << dict->getNdbError() << endl;
+    return false;
+  }
+
+  Ndb_move_data md;
+  const Ndb_move_data::Stat& stat = md.get_stat();
+
+  if (md.init(source, target) != 0)
+  {
+    const Ndb_move_data::Error& error = md.get_error();
+    err << "Move data " << stablename << " to " << ttablename
+        << ": " << error << endl;
+    return false;
+  }
+
+  md.set_opts_flags(tableS.m_stagingFlags);
+
+  // using defaults
+  const Ndb_move_data::Opts::Tries ot;
+  int tries = 0;
+  int delay = 0;
+  while (1)
+  {
+    if (!(ot.maxtries == 0 || tries < ot.maxtries))
+    {
+      err << "Move data " << stablename << " to " << ttablename
+          << ": too many temporary errors: " << tries << endl;
+      return false;
+    }
+    tries++;
+
+    if (md.move_data(m_ndb) != 0)
+    {
+      const Ndb_move_data::Error& error = md.get_error();
+      err
+          << "Move data " << stablename << " to " << ttablename << " "
+          << (error.is_temporary() ? "temporary error" : "permanent error")
+          << " at try " << tries // default is no limit
+          << " at rows moved " << stat.rows_moved
+          << " total " << stat.rows_total
+          << ": " << error << endl;
+
+      if (!error.is_temporary())
+        return false;
+
+      if (stat.rows_moved == 0) // this try
+        delay *= 2;
+      else
+        delay /= 2;
+      if (delay < ot.mindelay)
+        delay = ot.mindelay;
+      if (delay > ot.maxdelay)
+        delay = ot.maxdelay;
+
+      info << "Sleeping " << delay << "ms" << endl;
+      NdbSleep_MilliSleep(delay);
+      continue;
+    }
+
+    info << "Successfully staged " << ttablename << ","
+         << " moved all " << stat.rows_total << " rows" << endl;
+    if ((tableS.m_stagingFlags & Ndb_move_data::Opts::MD_ATTRIBUTE_DEMOTION)
+        || stat.truncated != 0) // just in case
+      info << "Truncated " << stat.truncated << " attribute values" << endl;
+    break;
+  }
+
+  int droptries = 0;
+  int dropdelay = 0;
+  while (1)
+  {
+    if (!(ot.maxtries == 0 || droptries < ot.maxtries))
+    {
+      err << "Drop table " << stablename
+          << ": too many temporary errors: " << droptries << endl;
+      return false;
+    }
+    droptries++;
+
+    // dropTable(const Table&) is not defined ...
+    m_ndb->setDatabaseName(sdb_name.c_str());
+    m_ndb->setSchemaName(sschema_name.c_str());
+    if (dict->dropTable(stable_name.c_str()) != 0)
+    {
+      const NdbError& error = dict->getNdbError();
+      if (error.status != NdbError::TemporaryError)
+      {
+        err << "Error: Failed to drop staging source " << stablename
+            << ": " << error << endl;
+        return false;
+      }
+      err << "Temporary: Failed to drop staging source " << stablename
+          << ": " << error << endl;
+
+      dropdelay *= 2;
+      if (dropdelay < ot.mindelay)
+        dropdelay = ot.mindelay;
+      if (dropdelay > ot.maxdelay)
+        dropdelay = ot.maxdelay;
+
+      info << "Sleeping " << dropdelay << "ms" << endl;
+      NdbSleep_MilliSleep(dropdelay);
+      continue;
+    }
+    info << "Dropped staging source " << stablename << endl;
+    break;
+  }
+  return true;
+}
+
 bool
 BackupRestore::finalize_table(const TableS & table){
   bool ret= true;
@@ -949,12 +1233,15 @@ BackupRestore::finalize_table(const TableS & table){
     return ret;
   if (!table.have_auto_inc())
     return ret;
+  // no point for staging table and below code as such would crash
+  if (table.m_staging)
+    return ret;
 
   Uint64 max_val= table.get_max_auto_val();
   do
   {
     Uint64 auto_val = ~(Uint64)0;
-    int r= m_ndb->readAutoIncrementValue(get_table(table.m_dictTable), auto_val);
+    int r= m_ndb->readAutoIncrementValue(get_table(table), auto_val);
     if (r == -1 && m_ndb->getNdbError().status == NdbError::TemporaryError)
     {
       NdbSleep_MilliSleep(50);
@@ -967,7 +1254,7 @@ BackupRestore::finalize_table(const TableS & table){
     else if ((r == -1 && m_ndb->getNdbError().code == 626) ||
              max_val+1 > auto_val || auto_val == ~(Uint64)0)
     {
-      r= m_ndb->setAutoIncrementValue(get_table(table.m_dictTable),
+      r= m_ndb->setAutoIncrementValue(get_table(table),
                                       max_val+1, false);
       if (r == -1 &&
             m_ndb->getNdbError().status == NdbError::TemporaryError)
@@ -986,7 +1273,7 @@ BackupRestore::rebuild_indexes(const TableS& table)
 {
   const char *tablename = table.getTableName();
 
-  const NdbDictionary::Table * tab = get_table(table.m_dictTable);
+  const NdbDictionary::Table * tab = get_table(table);
   Uint32 id = tab->getObjectId();
   if (m_index_per_table.size() <= id)
     return true;
@@ -1856,7 +2143,7 @@ BackupRestore::column_compatible_check(const char* tableName,
 }
 
 bool
-BackupRestore::table_compatible_check(const TableS & tableS)
+BackupRestore::table_compatible_check(TableS & tableS)
 {
   if (!m_restore)
     return true;
@@ -1975,6 +2262,7 @@ BackupRestore::table_compatible_check(const TableS & tableS)
   for(int i = 0; i<tableS.m_dictTable->getNoOfColumns(); i++)
   {
     AttributeDesc * attr_desc = tableS.getAttributeDesc(i);
+    attr_desc->staging = false;
     if (attr_desc->m_exclude)
       continue;
 
@@ -2022,6 +2310,32 @@ BackupRestore::table_compatible_check(const TableS & tableS)
             << " lossy-conversions not specified" << endl;
         return false;
       }
+      break;
+    case ACT_STAGING_PRESERVING:
+      if ((m_tableChangesMask & TCM_ATTRIBUTE_PROMOTION) == 0)
+      {
+        err << "Table: "<< tablename
+            << " column: " << col_in_backup->getName()
+            << " promotable to kernel's definition via staging but option"
+            << " promote-attributes not specified" << endl;
+        return false;
+      }
+      attr_desc->staging = true;
+      tableS.m_staging = true;
+      tableS.m_stagingFlags |= Ndb_move_data::Opts::MD_ATTRIBUTE_PROMOTION;
+      break;
+    case ACT_STAGING_LOSSY:
+      if ((m_tableChangesMask & TCM_ATTRIBUTE_DEMOTION) == 0)
+      {
+        err << "Table: "<< tablename
+            << " column: " << col_in_backup->getName()
+            << " convertable to kernel's definition via staging but option"
+            << " lossy-conversions not specified" << endl;
+        return false;
+      }
+      attr_desc->staging = true;
+      tableS.m_staging = true;
+      tableS.m_stagingFlags |= Ndb_move_data::Opts::MD_ATTRIBUTE_DEMOTION;
       break;
     default:
       err << "internal error: illegal value of compat = " << compat << endl;
@@ -2094,6 +2408,70 @@ BackupRestore::table_compatible_check(const TableS & tableS)
          << tablename << "."
          << col_in_backup->getName()
          << " will be converted from Backup type into DB type." << endl;
+  }
+
+  if (tableS.m_staging)
+  {
+    // fully qualified name, dissected at createTable()
+    BaseString& stagingName = tableS.m_stagingName;
+    stagingName.assfmt("%s%s%d", tableS.getTableName(),
+                       NDB_RESTORE_STAGING_SUFFIX, m_backup_nodeid);
+
+    NdbDictionary::Table* stagingTable = new NdbDictionary::Table;
+
+    // handle very many rows
+    stagingTable->setFragmentType(tab->getFragmentType());
+    // XXX not sure about this
+    if (tab->getFragmentType() == NdbDictionary::Table::HashMapPartition &&
+        !tab->getDefaultNoPartitionsFlag())
+    {
+      stagingTable->setDefaultNoPartitionsFlag(false);
+      stagingTable->setFragmentCount(tab->getFragmentCount());
+      stagingTable->setFragmentData(0, 0);
+    }
+
+    // if kernel is DD, staging will be too
+    bool kernel_is_dd = false;
+    Uint32 ts_id = ~(Uint32)0;
+    if (tab->getTablespace(&ts_id))
+    {
+      // must be an initialization
+      NdbDictionary::Tablespace ts = dict->getTablespace(ts_id);
+      const char* ts_name = ts.getName();
+      // how to detect error?
+      if (strlen(ts_name) == 0)
+      {
+        err << "Kernel table " << tablename
+            << ": Failed to fetch tablespace id=" << ts_id
+            << ": " << dict->getNdbError() << endl;
+        return false;
+      }
+      info << "Kernel table " << tablename
+           << " tablespace " << ts_name << endl;
+      stagingTable->setTablespaceName(ts_name);
+      kernel_is_dd = true;
+    }
+
+    /*
+     * Staging table is the table in backup, omit excluded columns.
+     * Reset column mappings and convert methods.
+     */
+    int j = 0;
+    for (int i = 0; i < tableS.m_dictTable->getNoOfColumns(); i++)
+    {
+      AttributeDesc * attr_desc = tableS.getAttributeDesc(i);
+      const NDBCOL * col_in_backup = tableS.m_dictTable->getColumn(i);
+      if (attr_desc->m_exclude)
+        continue;
+      attr_desc->attrId = (uint32)(j++);
+      attr_desc->convertFunc = NULL;
+      stagingTable->addColumn(*col_in_backup);
+    }
+
+    if (m_tableChangesMask & TCM_EXCLUDE_MISSING_COLUMNS)
+      tableS.m_stagingFlags |= Ndb_move_data::Opts::MD_EXCLUDE_MISSING_COLUMNS;
+
+    tableS.m_stagingTable = stagingTable;
   }
 
   return true;  
@@ -2668,7 +3046,7 @@ void BackupRestore::tuple_a(restore_callback_t *cb)
     } // if
     
     const TupleS &tup = cb->tup;
-    const NdbDictionary::Table * table = get_table(tup.getTable()->m_dictTable);
+    const NdbDictionary::Table * table = get_table(*tup.getTable());
 
     NdbOperation * op = cb->connection->getNdbOperation(table);
     
@@ -2766,7 +3144,9 @@ void BackupRestore::tuple_a(restore_callback_t *cb)
                                                     truncated);
             if (!dataPtr)
             {
-              err << "Error: Convert data failed when restoring tuples!" << endl;
+              const char* tabname = tup.getTable()->m_dictTable->getName();
+              err << "Error: Convert data failed when restoring tuples!"
+                  << " Data part, table " << tabname << endl;
               exitHandler();
             }
             if (truncated)
@@ -3066,7 +3446,7 @@ retry:
   } // if
   
   TransGuard g(trans);
-  const NdbDictionary::Table * table = get_table(tup.m_table->m_dictTable);
+  const NdbDictionary::Table * table = get_table(*tup.m_table);
   NdbOperation * op = trans->getNdbOperation(table);
   if (op == NULL) 
   {
@@ -3128,7 +3508,8 @@ retry:
     const Uint32 length = (size / 8) * arraySize;
     n_bytes+= length;
 
-    if (attr->Desc->convertFunc)
+    if (attr->Desc->convertFunc &&
+        dataPtr != NULL) // NULL will not be converted
     {
       bool truncated = true; // assume data truncation until overridden
       dataPtr = (char*)attr->Desc->convertFunc(dataPtr,
@@ -3136,7 +3517,10 @@ retry:
                                                truncated);
       if (!dataPtr)
       {
-        err << "Error: Convert data failed when restoring tuples!" << endl;
+        const char* tabname = tup.m_table->m_dictTable->getName();
+        err << "Error: Convert data failed when restoring tuples!"
+            << " Log part, table " << tabname
+            << ", entry type " << tup.m_type << endl;
         exitHandler();
       }            
       if (truncated)
@@ -3334,6 +3718,45 @@ BackupRestore::check_compat_precision(const NDBCOL &old_col,
   return ACT_PRESERVING;
 }
 
+AttrConvType
+BackupRestore::check_compat_char_binary(const NDBCOL &old_col,
+                                           const NDBCOL &new_col)
+{
+  // as in check_compat_sizes
+  assert(old_col.getSize() == 1 && new_col.getSize() == 1);
+  Uint32 new_length = new_col.getLength();
+  Uint32 old_length = old_col.getLength();
+
+  if (new_length < old_length) {
+    return ACT_LOSSY;
+  }
+  return ACT_PRESERVING;
+}
+
+AttrConvType
+BackupRestore::check_compat_char_to_text(const NDBCOL &old_col,
+                                         const NDBCOL &new_col)
+{
+  if (new_col.getPrimaryKey()) {
+    // staging will refuse this so detect early
+    info << "convert of TEXT to primary key column not supported" << endl;
+    return ACT_UNSUPPORTED;
+  }
+  return ACT_STAGING_PRESERVING;
+}
+
+AttrConvType
+BackupRestore::check_compat_text_to_char(const NDBCOL &old_col,
+                                         const NDBCOL &new_col)
+{
+  if (old_col.getPrimaryKey()) {
+    // staging will refuse this so detect early
+    info << "convert of primary key column to TEXT not supported" << endl;
+    return ACT_UNSUPPORTED;
+  }
+  return ACT_STAGING_LOSSY;
+}
+
 // ----------------------------------------------------------------------
 // explicit template instantiations
 // ----------------------------------------------------------------------
@@ -3367,6 +3790,28 @@ template void * BackupRestore::convert_array< Hvarbinary, Hlongvarbinary >(const
 template void * BackupRestore::convert_array< Hlongvarbinary, Hbinary >(const void *, void *, bool &);
 template void * BackupRestore::convert_array< Hlongvarbinary, Hvarbinary >(const void *, void *, bool &);
 template void * BackupRestore::convert_array< Hlongvarbinary, Hlongvarbinary >(const void *, void *, bool &);
+
+// char to binary promotions/demotions
+template void * BackupRestore::convert_array< Hchar, Hbinary >(const void *, void *, bool &);
+template void * BackupRestore::convert_array< Hchar, Hvarbinary >(const void *, void *, bool &);
+template void * BackupRestore::convert_array< Hchar, Hlongvarbinary >(const void *, void *, bool &);
+template void * BackupRestore::convert_array< Hvarchar, Hbinary >(const void *, void *, bool &);
+template void * BackupRestore::convert_array< Hvarchar, Hvarbinary >(const void *, void *, bool &);
+template void * BackupRestore::convert_array< Hvarchar, Hlongvarbinary >(const void *, void *, bool &);
+template void * BackupRestore::convert_array< Hlongvarchar, Hbinary >(const void *, void *, bool &);
+template void * BackupRestore::convert_array< Hlongvarchar, Hvarbinary >(const void *, void *, bool &);
+template void * BackupRestore::convert_array< Hlongvarchar, Hlongvarbinary >(const void *, void *, bool &);
+
+// binary array to char array promotions/demotions
+template void * BackupRestore::convert_array< Hbinary, Hchar >(const void *, void *, bool &);
+template void * BackupRestore::convert_array< Hbinary, Hvarchar >(const void *, void *, bool &);
+template void * BackupRestore::convert_array< Hbinary, Hlongvarchar >(const void *, void *, bool &);
+template void * BackupRestore::convert_array< Hvarbinary, Hchar >(const void *, void *, bool &);
+template void * BackupRestore::convert_array< Hvarbinary, Hvarchar >(const void *, void *, bool &);
+template void * BackupRestore::convert_array< Hvarbinary, Hlongvarchar >(const void *, void *, bool &);
+template void * BackupRestore::convert_array< Hlongvarbinary, Hchar >(const void *, void *, bool &);
+template void * BackupRestore::convert_array< Hlongvarbinary, Hvarchar >(const void *, void *, bool &);
+template void * BackupRestore::convert_array< Hlongvarbinary, Hlongvarchar >(const void *, void *, bool &);
 
 // integral promotions
 template void * BackupRestore::convert_integral<Hint8, Hint16>(const void *, void *, bool &);
