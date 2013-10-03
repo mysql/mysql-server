@@ -9,57 +9,99 @@ drop table if exists t;
 enable_warnings;
 
 create table t (id int primary key);
-set autocommit=0;
-let $default_id=`select connection_id()`;
+
+# verify that txn_a insert (1) blocks txn_b insert (1) and txn_b gets a duplicate key error
 
 # should be empty
+select * from information_schema.tokudb_trx;
 select * from information_schema.tokudb_locks;
 select * from information_schema.tokudb_lock_waits;
-select * from information_schema.tokudb_trx;
 
 connect (conn_a,localhost,root,,);
 set autocommit=0;
-let $a_id=`select connection_id()`;
-
 insert into t values (1);
 
 connect (conn_b,localhost,root,,);
 set autocommit=0;
-let $b_id=`select connection_id()`;
-
 send insert into t values (1);
-
 
 # should find the presence of a lock on 1st transaction
 connection default;
 replace_column 1 TRX_ID 2 MYSQL_ID; 
-eval select * from information_schema.tokudb_locks;
+select * from information_schema.tokudb_locks;
 
 # should find the presence of a lock_wait on the 2nd transaction
 replace_column 1 REQUEST_TRX_ID 2 BLOCK_TRX_ID 6 LOCK_WAITS_START_TIME;
-eval select * from information_schema.tokudb_lock_waits;
+select * from information_schema.tokudb_lock_waits;
 
 # should find the presence of two transactions
 replace_column 1 TRX_ID 2 MYSQL_ID;
-eval select * from information_schema.tokudb_trx;
+select * from information_schema.tokudb_trx;
 
 connection conn_a;
 commit;
 # verify that the lock on the 1st transaction is released and replaced by the lock for the 2nd transaction
 replace_column 1 TRX_ID 2 MYSQL_ID;
-eval select * from information_schema.tokudb_locks;
+select * from information_schema.tokudb_locks;
+select * from information_schema.tokudb_lock_waits;
 
 connection conn_b;
---error 1062
+--error 1062 # duplicate key
 reap;
 commit;
 
+connection default;
+disconnect conn_a;
 disconnect conn_b;
 
-connection default;
+# verify that txn_a replace (1) blocks txn_b replace (1) and txn_b eventually gets the lock on (1) and completes
+
 # verify that the lock on the 2nd transaction has been released
 # should be be empty
+select * from information_schema.tokudb_trx;
+select * from information_schema.tokudb_locks;
+select * from information_schema.tokudb_lock_waits;
+
+connect (conn_a,localhost,root,,);
+set autocommit=0;
+replace into t values (1);
+
+connect (conn_b,localhost,root,,);
+set autocommit=0;
+send replace into t values (1);
+
+# should find the presence of a lock on 1st transaction
+connection default;
+replace_column 1 TRX_ID 2 MYSQL_ID; 
 select * from information_schema.tokudb_locks;
 
+# should find the presence of a lock_wait on the 2nd transaction
+replace_column 1 REQUEST_TRX_ID 2 BLOCK_TRX_ID 6 LOCK_WAITS_START_TIME;
+select * from information_schema.tokudb_lock_waits;
+
+# should find the presence of two transactions
+replace_column 1 TRX_ID 2 MYSQL_ID;
+select * from information_schema.tokudb_trx;
+
+connection conn_a;
+commit;
+# verify that the lock on the 1st transaction is released and replaced by the lock for the 2nd transaction
+replace_column 1 TRX_ID 2 MYSQL_ID;
+select * from information_schema.tokudb_locks;
+select * from information_schema.tokudb_lock_waits;
+
+connection conn_b;
+reap;
+commit;
+
+connection default;
+disconnect conn_a;
+disconnect conn_b;
+
+# verify that the lock on the 2nd transaction has been released
+# should be be empty
+select * from information_schema.tokudb_trx;
+select * from information_schema.tokudb_locks;
+select * from information_schema.tokudb_lock_waits;
 
 drop table t;
