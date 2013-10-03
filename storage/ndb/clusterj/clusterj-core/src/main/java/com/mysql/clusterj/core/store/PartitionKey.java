@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2010, 2011, Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2010, 2013, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -32,5 +32,7 @@ public interface PartitionKey {
     public void addStringKey(Column storeColumn, String string);
 
     public void addBytesKey(Column storeColumn, byte[] bytes);
+
+    public void addShortKey(Column storeColumn, short key);
 
 }
