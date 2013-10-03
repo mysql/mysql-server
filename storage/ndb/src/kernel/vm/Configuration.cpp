@@ -349,6 +349,21 @@ Configuration::setupConfiguration(){
   _realtimeScheduler = 0;
   iter.get(CFG_DB_REALTIME_SCHEDULER, &_realtimeScheduler);
 
+  /**
+   * Temporary fix for Bug#16961971:
+   * Implementation of RealtimeScheduler has never worked as
+   * intended in the multithreaded scheduler.
+   * Until this has been permanently fixed, we print a warning
+   * if anybody uses this cinfig option and then ignores it.
+   */
+  if (NdbIsMultiThreaded() && _realtimeScheduler)
+  {
+    g_eventLogger->warning("Configuration contains RealTimeScheduler setting, "
+                           "not currently supported with ndbmtd (bug# 16961971).  "
+                           "Disabling.");
+    _realtimeScheduler = 0;
+  }
+
   if(iter.get(CFG_DB_WATCHDOG_INTERVAL_INITIAL, 
               &_timeBetweenWatchDogCheckInitial)){
     ERROR_SET(fatal, NDBD_EXIT_INVALID_CONFIG, "Invalid configuration fetched", 
