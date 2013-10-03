@@ -143,6 +143,15 @@ max64(uint64_t a, uint64_t b) {
     return a < b ? b : a;
 }
 
+static void open_env(void) {
+    int r = db_env_create(&env, 0); CKERR(r);
+    env->set_errfile(env, stderr);
+    r = env->set_redzone(env, 0); CKERR(r);
+    r = env->set_generate_row_callback_for_put(env, my_generate_row); CKERR(r);
+    r = env->set_default_bt_compare(env, my_compare); CKERR(r);
+    r = env->open(env, envdir, DB_INIT_LOCK|DB_INIT_LOG|DB_INIT_MPOOL|DB_INIT_TXN|DB_CREATE|DB_PRIVATE, S_IRWXU+S_IRWXG+S_IRWXO); CKERR(r);
+}
+
 static void 
 run_test(void) {
     if (verbose) printf("%s %" PRIu64 "\n", __FUNCTION__, nrows);
@@ -152,14 +161,8 @@ run_test(void) {
     size_t est_row_size_with_overhead = 8 + key_size + 4 + val_size + 4 + 5; // xid + key + key_len + val + val_len + mvcc overhead
     size_t rows_per_basement = db_basement_size / est_row_size_with_overhead;
 
+    open_env();
     int r;
-    r = db_env_create(&env, 0); CKERR(r);
-    env->set_errfile(env, stderr);
-    r = env->set_redzone(env, 0); CKERR(r);
-    r = env->set_generate_row_callback_for_put(env, my_generate_row); CKERR(r);
-    r = env->set_default_bt_compare(env, my_compare); CKERR(r);
-    r = env->open(env, envdir, DB_INIT_LOCK|DB_INIT_LOG|DB_INIT_MPOOL|DB_INIT_TXN|DB_CREATE|DB_PRIVATE, S_IRWXU+S_IRWXG+S_IRWXO); CKERR(r);
-
     r = db_create(&db, env, 0); CKERR(r);
     r = db->set_pagesize(db, db_page_size); CKERR(r);
     r = db->set_readpagesize(db, db_basement_size); CKERR(r);
@@ -203,6 +206,10 @@ run_test(void) {
 
     // close and reopen to get rid of basements
     r = db->close(db, 0); CKERR(r); // close MUST flush the nodes of this db out of the cache table for this test to be valid
+    r = env->close(env, 0);   CKERR(r);
+    env = NULL;
+    open_env();
+
     r = db_create(&db, env, 0); CKERR(r);
     r = env->txn_begin(env, 0, &txn, 0); CKERR(r);
     r = db->open(db, txn, "foo.db", 0, DB_BTREE, 0, S_IRWXU+S_IRWXG+S_IRWXO); CKERR(r);
