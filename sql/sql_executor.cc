@@ -2674,33 +2674,31 @@ pick_table_access_method(JOIN_TAB *tab)
   // Must have an associated table
   if (!tab->table)
     return;
+
   /**
-    Set up modified access function for pushed joins.
+    Set up modified access function for children of pushed joins.
   */
-  uint pushed_joins= tab->table->file->number_of_pushed_joins();
-  if (pushed_joins > 0)
+  const TABLE *pushed_root= tab->table->file->root_of_pushed_join();
+  if (pushed_root && pushed_root != tab->table)
   {
-    if (tab->table->file->root_of_pushed_join() != tab->table)
-    {
-      /*
-        Is child of a pushed join operation:
-        Replace access functions with its linked counterpart.
-        ... Which is effectively a NOOP as the row is already fetched 
-        together with the root of the linked operation.
-      */
-      DBUG_ASSERT(tab->type != JT_REF_OR_NULL);
-      tab->read_first_record= join_read_linked_first;
-      tab->read_record.read_record= join_read_linked_next;
-      tab->read_record.unlock_row= rr_unlock_row;
-      return;
-    }
+    /**
+      Is child of a pushed join operation:
+      Replace access functions with its linked counterpart.
+      ... Which is effectively a NOOP as the row is already fetched 
+      together with the root of the linked operation.
+     */
+    DBUG_ASSERT(tab->type != JT_REF_OR_NULL);
+    tab->read_first_record= join_read_linked_first;
+    tab->read_record.read_record= join_read_linked_next;
+    tab->read_record.unlock_row= rr_unlock_row;
+    return;
   }
 
   /**
-    Already set to some non-default value in sql_select.cc
+    Already set to some non-default value in sql_select.cc?
     TODO: Move these settings into pick_table_access_method() also
   */
-  else if (tab->read_first_record != NULL)
+  if (tab->read_first_record != NULL)
     return;  
 
   // Fall through to set default access functions:
