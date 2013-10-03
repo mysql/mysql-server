@@ -64,6 +64,7 @@ MYSQL_ADD_EXECUTABLE(ndb_restore
   restore/consumer_restore.cpp
   restore/consumer_printer.cpp
   restore/Restore.cpp
+  ndb_lib_move_data.cpp
   COMPONENT ClusterTools)
 TARGET_LINK_LIBRARIES(ndb_restore ndbNDBT ndbgeneral)
 
@@ -104,6 +105,12 @@ MYSQL_ADD_EXECUTABLE(ndb_blob_tool
   ndb_blob_tool.cpp
   COMPONENT ClusterTools)
 TARGET_LINK_LIBRARIES(ndb_blob_tool ndbNDBT)
+
+MYSQL_ADD_EXECUTABLE(ndb_move_data
+  ndb_move_data.cpp
+  ndb_lib_move_data.cpp
+  COMPONENT ClusterTools)
+TARGET_LINK_LIBRARIES(ndb_move_data ndbNDBT ndbgeneral)
 
 IF (MYSQL_VERSION_ID LESS "50501")
   # Don't build or install this program anymore in 5.5+

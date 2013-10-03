@@ -35,7 +35,8 @@ ndbtools_PROGRAMS = \
   ndb_restore ndb_config \
   ndb_index_stat \
   ndbinfo_select_all \
-  ndb_blob_tool
+  ndb_blob_tool \
+  ndb_move_data
 
 tools_common_sources = ../test/src/NDBT_ReturnCodes.cpp \
                        ../test/src/NDBT_Table.cpp \
@@ -57,6 +58,7 @@ ndb_restore_SOURCES = restore/restore_main.cpp \
                       restore/consumer_restore.cpp \
                       restore/consumer_printer.cpp \
                       restore/Restore.cpp \
+                      ndb_lib_move_data.cpp \
                       ../test/src/NDBT_ResultRow.cpp $(tools_common_sources)
 
 ndb_config_SOURCES = ndb_config.cpp \
@@ -89,6 +91,10 @@ ndb_dump_frm_data_SOURCES = ndb_dump_frm_data.cpp
 ndbinfo_select_all_SOURCES = ndbinfo_select_all.cpp
 ndb_blob_tool_SOURCES = ndb_blob_tool.cpp $(tools_common_sources)
 
+ndb_move_data_SOURCES = ndb_move_data.cpp \
+                        ndb_lib_move_data.cpp \
+                        $(tools_common_sources)
+
 include $(top_srcdir)/storage/ndb/config/common.mk.am
 include $(top_srcdir)/storage/ndb/config/type_ndbapitools.mk.am
 
@@ -108,4 +114,5 @@ ndb_index_stat_LDFLAGS = @ndb_bin_am_ldflags@
 ndb_dump_frm_data_LDFLAGS = @ndb_bin_am_ldflags@
 ndbinfo_select_all_LDFLAGS = @ndb_bin_am_ldflags@
 ndb_blob_tool_LDFLAGS = @ndb_bin_am_ldflags@
+ndb_move_data_LDFLAGS = @ndb_bin_am_ldflags@
 
