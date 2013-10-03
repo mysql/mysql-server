@@ -36,6 +36,8 @@ public:
   virtual void endOfTuples(){}
   virtual void logEntry(const LogEntry &){}
   virtual void endOfLogEntrys(){}
+  virtual bool prepare_staging(const TableS &){return true;}
+  virtual bool finalize_staging(const TableS &){return true;}
   virtual bool finalize_table(const TableS &){return true;}
   virtual bool rebuild_indexes(const TableS &) { return true;}
   virtual bool createSystable(const TableS &){ return true;}
@@ -54,7 +56,7 @@ public:
   uint            m_nodegroup_map_len;
   virtual bool has_temp_error() {return false;}
   virtual bool table_equal(const TableS &) { return true; }
-  virtual bool table_compatible_check(const TableS &) {return true;}
+  virtual bool table_compatible_check(TableS &) {return true;}
 };
 
 #endif
