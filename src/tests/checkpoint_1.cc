@@ -122,11 +122,13 @@ checkpoint_test_1(uint32_t flags, uint32_t n, int snap_all) {
     const int num_runs = 4;
     for (run = 0; run < num_runs; run++) {
         uint32_t i;
-        for (i=0; i < n/2/num_runs; i++)
+        for (i=0; i < n/2/num_runs; i++) {
             insert_random(db_test.db, db_control.db, NULL);
+        }
         snapshot(&db_test, snap_all);
-        for (i=0; i < n/2/num_runs; i++)
+        for (i=0; i < n/2/num_runs; i++) {
             insert_random(db_test.db, NULL, NULL);
+        }
         db_replace(TOKU_TEST_FILENAME, &db_test, NULL);
         r = compare_dbs(db_test.db, db_control.db);
 	assert(r==0);
