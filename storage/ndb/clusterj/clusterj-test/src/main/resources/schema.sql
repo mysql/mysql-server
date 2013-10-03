@@ -483,6 +483,78 @@ create table nullvalues (
 
 ) ENGINE=ndbcluster DEFAULT CHARSET=latin1;
 
+drop table if exists mintpk;
+create table mintpk (
+ id mediumint not null primary key,
+ mint_null_none mediumint,
+ mint_null_btree mediumint,
+ mint_null_hash mediumint,
+ mint_null_both mediumint,
+ key idx_mint_null_btree (mint_null_btree),
+ unique key idx_mint_null_both (mint_null_both),
+ unique key idx_mint_null_hash (mint_null_hash) using hash
+ ) ENGINE=ndbcluster DEFAULT CHARSET=latin1;
+
+drop table if exists umintpk;
+create table umintpk (
+ id mediumint unsigned not null primary key,
+ umint_null_none mediumint unsigned,
+ umint_null_btree mediumint unsigned,
+ umint_null_hash mediumint unsigned,
+ umint_null_both mediumint unsigned,
+ key idx_umint_null_btree (umint_null_btree),
+ unique key idx_umint_null_both (umint_null_both),
+ unique key idx_umint_null_hash (umint_null_hash) using hash
+ ) ENGINE=ndbcluster DEFAULT CHARSET=latin1;
+
+drop table if exists shortpk;
+create table shortpk (
+ id smallint not null primary key,
+ short_null_none smallint,
+ short_null_btree smallint,
+ short_null_hash smallint,
+ short_null_both smallint,
+ key idx_short_null_btree (short_null_btree),
+ unique key idx_short_null_both (short_null_both),
+ unique key idx_short_null_hash (short_null_hash) using hash
+ ) ENGINE=ndbcluster DEFAULT CHARSET=latin1;
+
+drop table if exists ushortpk;
+create table ushortpk (
+ id smallint unsigned not null primary key,
+ ushort_null_none smallint unsigned,
+ ushort_null_btree smallint unsigned,
+ ushort_null_hash smallint unsigned,
+ ushort_null_both smallint unsigned,
+ key idx_ushort_null_btree (ushort_null_btree),
+ unique key idx_ushort_null_both (ushort_null_both),
+ unique key idx_ushort_null_hash (ushort_null_hash) using hash
+ ) ENGINE=ndbcluster DEFAULT CHARSET=latin1;
+
+drop table if exists bytepk;
+create table bytepk (
+ id tinyint not null primary key,
+ byte_null_none tinyint,
+ byte_null_btree tinyint,
+ byte_null_hash tinyint,
+ byte_null_both tinyint,
+ key idx_byte_null_btree (byte_null_btree),
+ unique key idx_byte_null_both (byte_null_both),
+ unique key idx_byte_null_hash (byte_null_hash) using hash
+ ) ENGINE=ndbcluster DEFAULT CHARSET=latin1;
+
+drop table if exists ubytepk;
+create table ubytepk (
+ id tinyint unsigned not null primary key,
+ ubyte_null_none tinyint unsigned,
+ ubyte_null_btree tinyint unsigned,
+ ubyte_null_hash tinyint unsigned,
+ ubyte_null_both tinyint unsigned,
+ key idx_ubyte_null_btree (ubyte_null_btree),
+ unique key idx_ubyte_null_both (ubyte_null_both),
+ unique key idx_ubyte_null_hash (ubyte_null_hash) using hash
+ ) ENGINE=ndbcluster DEFAULT CHARSET=latin1;
+
 drop table if exists allprimitives;
 create table allprimitives (
  id int not null primary key,

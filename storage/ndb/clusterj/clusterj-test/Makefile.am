@@ -62,6 +62,7 @@ clusterj_test_java = \
   $(clusterj_test_src)/testsuite/clusterj/DomainTypeHandlerFactoryTest.java \
   $(clusterj_test_src)/testsuite/clusterj/DynamicBinaryPKTest.java \
   $(clusterj_test_src)/testsuite/clusterj/DynamicObjectTest.java \
+  $(clusterj_test_src)/testsuite/clusterj/DynamicShortPKTest.java \
   $(clusterj_test_src)/testsuite/clusterj/FindByPrimaryKey2Test.java \
   $(clusterj_test_src)/testsuite/clusterj/FindByPrimaryKeyTest.java \
   $(clusterj_test_src)/testsuite/clusterj/HashOnlyLongIntStringPKTest.java \

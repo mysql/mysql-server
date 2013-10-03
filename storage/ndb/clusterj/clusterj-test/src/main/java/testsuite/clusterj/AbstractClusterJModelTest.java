@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2010, 2012, Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2010, 2013, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -155,11 +155,22 @@ public abstract class AbstractClusterJModelTest extends AbstractClusterJTest {
         return true;
     }
 
+    /** Set this to false to avoid running test (e.g. if no model class) */
+    protected boolean runTest = true;
+
     @Override
     public void localSetUp() {
         createSessionFactory();
         session = sessionFactory.getSession();
         setAutoCommit(connection, false);
+        try {
+            session.newInstance(getModelClass());
+            runTest = true;
+        } catch (Exception e) {
+            System.out.println("Ignoring test; no model class " + getModelClass().getName());
+            runTest = false;
+        }
+
         if (getModelClass() != null && getCleanupAfterTest()) {
             addTearDownClasses(getModelClass());
         }
@@ -323,8 +334,14 @@ public abstract class AbstractClusterJModelTest extends AbstractClusterJTest {
         return null;
     }
 
+    /** Subclasses may override this method to convert an int into a key value */
+    protected Object convertToKey(int i) {
+        return Integer.valueOf(i);
+    }
+
     /** Write data via JDBC and read back the data via NDB */
     protected void writeJDBCreadNDB() {
+        if (!runTest) return;
         generateInstances(getColumnDescriptors());
         removeAll(getModelClass());
         List<Object[]> result = null;
@@ -335,6 +352,7 @@ public abstract class AbstractClusterJModelTest extends AbstractClusterJTest {
 
     /** Write data via JDBC and read back the data via JDBC */
     protected void writeJDBCreadJDBC() {
+        if (!runTest) return;
         generateInstances(getColumnDescriptors());
         removeAll(getModelClass());
         List<Object[]> result = null;
@@ -345,6 +363,7 @@ public abstract class AbstractClusterJModelTest extends AbstractClusterJTest {
 
     /** Write data via NDB and read back the data via NDB */
     protected void writeNDBreadNDB() {
+        if (!runTest) return;
         generateInstances(getColumnDescriptors());
         removeAll(getModelClass());
         List<Object[]> result = null;
@@ -355,6 +374,7 @@ public abstract class AbstractClusterJModelTest extends AbstractClusterJTest {
 
     /** Write data via NDB and read back the data via JDBC */
     protected void writeNDBreadJDBC() {
+        if (!runTest) return;
         generateInstances(getColumnDescriptors());
         removeAll(getModelClass());
         List<Object[]> result = null;
@@ -578,7 +598,7 @@ public abstract class AbstractClusterJModelTest extends AbstractClusterJTest {
         List<Object[]> result = new ArrayList<Object[]>();
         session.currentTransaction().begin();
         for (int i = 0; i < getNumberOfInstances() ; ++i) {
-            IdBase instance = session.find(modelClass, i);
+            IdBase instance = session.find(modelClass, convertToKey(i));
             if (instance != null) {
                 Object[] row = createRow(columnDescriptors, instance);
                 result.add(row);
