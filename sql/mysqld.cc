@@ -1079,7 +1079,6 @@ struct rand_struct sql_rand; ///< used by sql_class.cc:THD::THD()
 #ifndef EMBEDDED_LIBRARY
 struct passwd *user_info;
 static pthread_t select_thread;
-static uint thr_kill_signal;
 #endif
 
 /* OS specific variables */
@@ -2192,19 +2191,6 @@ void setup_conn_event_handler_threads()
   DBUG_VOID_RETURN;
 }
 #endif
-
-
-/** Called when a thread is aborted. */
-/* ARGSUSED */
-extern "C" sig_handler end_thread_signal(int sig __attribute__((unused)))
-{
-  THD *thd=current_thd;
-  my_safe_printf_stderr("end_thread_signal %p", thd);
-  if (thd && ! thd->bootstrap)
-  {
-    Connection_handler_manager::get_instance()->remove_connection(thd);
-  }
-}
 #endif /*!EMBEDDED_LIBRARY*/
 
 
@@ -2479,14 +2465,7 @@ void my_init_signals(void)
   sigaddset(&set,SIGTSTP);
 #endif
   sigaddset(&set,thr_server_alarm);
-  if (test_flags & TEST_SIGINT)
-  {
-    my_sigset(thr_kill_signal, end_thread_signal);
-    // May be SIGINT
-    sigdelset(&set, thr_kill_signal);
-  }
-  else
-    sigaddset(&set,SIGINT);
+  sigaddset(&set,SIGINT);
   sigprocmask(SIG_SETMASK,&set,NULL);
   pthread_sigmask(SIG_SETMASK,&set,NULL);
   DBUG_VOID_RETURN;
@@ -2547,12 +2526,6 @@ pthread_handler_t signal_hand(void *arg __attribute__((unused)))
     but the +10 should be quite safe.
   */
   init_thr_alarm(Connection_handler_manager::max_threads + 10);
-  if (test_flags & TEST_SIGINT)
-  {
-    (void) sigemptyset(&set);     // Setup up SIGINT for debug
-    (void) sigaddset(&set,SIGINT);    // For debugging
-    (void) pthread_sigmask(SIG_UNBLOCK,&set,NULL);
-  }
   (void) sigemptyset(&set);     // Setup up SIGINT for debug
   (void) sigaddset(&set,thr_server_alarm);  // For alarms
   (void) sigaddset(&set,SIGQUIT);
@@ -4658,13 +4631,6 @@ int mysqld_main(int argc, char **argv)
 
   init_error_log_mutex();
   local_message_hook= error_log_print;  // we never change this in embedded
-
-  /* Set signal used to kill MySQL */
-#if defined(SIGUSR2)
-  thr_kill_signal= SIGUSR2;
-#else
-  thr_kill_signal= SIGINT;
-#endif
 
   /* Initialize audit interface globals. Audit plugins are inited later. */
   mysql_audit_initialize();
@@ -7493,8 +7459,8 @@ static int get_options(int *argc_ptr, char ***argv_ptr)
 #endif
   if (opt_debugging)
   {
-    /* Allow break with SIGINT, no core or stack trace */
-    test_flags|= TEST_SIGINT | TEST_NO_STACKTRACE;
+    /* Allow no core or stack trace */
+    test_flags|= TEST_NO_STACKTRACE;
     test_flags&= ~TEST_CORE_ON_SIGNAL;
   }
   /* Set global MyISAM variables from delay_key_write_options */

@@ -186,13 +186,6 @@ Connection_handler_manager::process_new_connection(Channel_info* channel_info)
 }
 
 
-void Connection_handler_manager::remove_connection(THD *thd)
-{
-  dec_connection_count();
-  m_connection_handler->remove_connection(thd);
-}
-
-
 THD* create_thd(Channel_info* channel_info)
 {
   THD* thd= channel_info->create_thd();
