@@ -161,10 +161,11 @@ struct thr_wait
  *
  * Returns 'true' if it actually did sleep.
  */
+template<typename T>
 static inline
 bool
 yield(struct thr_wait* wait, const Uint32 nsec,
-      bool (*check_callback)(void *), void *check_arg)
+      bool (*check_callback)(T*), T* check_arg)
 {
   volatile unsigned * val = &wait->m_futex_state;
 #ifndef NDEBUG
@@ -184,7 +185,7 @@ yield(struct thr_wait* wait, const Uint32 nsec,
    * Also need a memory barrier to ensure this extra check is race-free.
    *   but that is already provided by xcng
    */
-  bool waited = (*check_callback)(check_arg);
+  const bool waited = (*check_callback)(check_arg);
   if (waited)
   {
     struct timespec timeout;
@@ -228,10 +229,11 @@ struct thr_wait
   }
 };
 
+template<typename T>
 static inline
 bool
 yield(struct thr_wait* wait, const Uint32 nsec,
-      bool (*check_callback)(void *), void *check_arg)
+      bool (*check_callback)(T*), T* check_arg)
 {
   struct timespec end;
   NdbCondition_ComputeAbsTime(&end, nsec/1000000);
@@ -1379,7 +1381,7 @@ thr_send_threads::alert_send_thread(NodeId node)
 
 extern "C"
 bool
-check_available_send_data(void *not_used)
+check_available_send_data(struct thr_data *not_used)
 {
   (void)not_used;
   return !g_send_threads->data_available();
@@ -1491,7 +1493,7 @@ thr_send_threads::run_send_thread(Uint32 instance_no)
     /* Yield for a maximum of 1ms */
     const Uint32 wait = 1000000;
     yield(&this_send_thread->m_waiter_struct, wait,
-          check_available_send_data, NULL);
+          check_available_send_data, (struct thr_data*)NULL);
 
     NdbMutex_Lock(send_thread_mutex);
     this_send_thread->m_awake = TRUE;
@@ -2067,10 +2069,8 @@ dumpJobQueues(void)
  * 'full' condition before going to sleep.
  */
 static bool
-check_recv_queue(void *arg)
+check_recv_queue(thr_job_queue_head *q_head)
 {
-  thr_job_queue_head *q_head = static_cast<thr_job_queue_head*>(arg);
-
   const Uint32 minfree = (1024 + MIN_SIGNALS_PER_PAGE - 1)/MIN_SIGNALS_PER_PAGE;
   /**
    * NOTE: m_read_index is read wo/ lock (and updated by different thread)
@@ -3111,9 +3111,8 @@ read_jba_state(thr_data *selfptr)
 
 /* Check all job queues, return true only if all are empty. */
 static bool
-check_queues_empty(void *arg)
+check_queues_empty(thr_data *selfptr)
 {
-  thr_data *selfptr = static_cast<thr_data *>(arg);
   Uint32 thr_count = g_thr_repository.m_thread_count;
   bool empty = read_jba_state(selfptr);
   if (!empty)
@@ -3706,9 +3705,8 @@ sendpacked(struct thr_data* thr_ptr, Signal* signal)
  * is still full, return true if so.
  */
 static bool
-check_congested_job_queue(void *arg)
+check_congested_job_queue(thr_job_queue_head *waitfor)
 {
-  const thr_job_queue_head *waitfor = static_cast<thr_job_queue_head*>(arg);
   return (compute_free_buffers_in_queue(waitfor) == 0);
 }
 
@@ -3914,8 +3912,8 @@ mt_job_thread_main(void *thr_arg)
 
       if (pending_send == 0)
       {
-        bool waited = yield(&selfptr->m_waiter, nowait, check_queues_empty,
-                            selfptr);
+        bool waited = yield(&selfptr->m_waiter, nowait, 
+                            check_queues_empty, selfptr);
         if (waited)
         {
           waits++;
