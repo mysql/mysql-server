@@ -72,7 +72,9 @@ ut_dbg_assertion_failed(
 
 #include <sys/types.h>
 #include <sys/time.h>
-#include <sys/resource.h>
+#ifdef HAVE_SYS_RESOURCE_H
+# include <sys/resource.h>
+#endif
 
 #include <unistd.h>
 
