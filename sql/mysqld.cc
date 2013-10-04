@@ -2655,14 +2655,6 @@ static bool block_until_new_connection()
     */
     DBUG_ASSERT( ! _db_is_pushed_());
 
-#ifdef HAVE_PSI_THREAD_INTERFACE
-    /*
-      Delete the instrumentation for the job that just completed,
-      before blocking this pthread (blocked on COND_thread_cache).
-    */
-    PSI_THREAD_CALL(delete_current_thread)();
-#endif
-
     // Block pthread
     while (!abort_loop && !wake_pthread && !kill_blocked_pthreads_flag)
       mysql_cond_wait(&COND_thread_cache, &LOCK_thread_count);
@@ -2757,6 +2749,13 @@ bool one_thread_per_connection_end(THD *thd, bool block_pthread)
    */
   mysql_mutex_unlock(&LOCK_thread_count);
   delete thd;
+
+#ifdef HAVE_PSI_THREAD_INTERFACE
+  /*
+    Delete the instrumentation for the job that just completed.
+  */
+  PSI_THREAD_CALL(delete_current_thread)();
+#endif
 
   if (block_pthread)
     block_pthread= block_until_new_connection();
