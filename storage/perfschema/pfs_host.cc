@@ -275,14 +275,14 @@ search:
         pfs->m_disconnected_count= 0;
 
         int res;
+        pfs->m_lock.dirty_to_allocated();
         res= lf_hash_insert(&host_hash, pins, &pfs);
         if (likely(res == 0))
         {
-          pfs->m_lock.dirty_to_allocated();
           return pfs;
         }
 
-        pfs->m_lock.dirty_to_free();
+        pfs->m_lock.allocated_to_free();
 
         if (res > 0)
         {
