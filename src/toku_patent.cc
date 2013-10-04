@@ -49,6 +49,7 @@ UNIVERSITY PATENT NOTICE:
 PATENT MARKING NOTICE:
 
   This software is covered by US Patent No. 8,185,551.
+  This software is covered by US Patent No. 8,489,638.
 
 PATENT RIGHTS GRANT:
 
@@ -135,6 +136,7 @@ UNIVERSITY PATENT NOTICE:\n\
 PATENT MARKING NOTICE:\n\
 \n\
   This software is covered by US Patent No. 8,185,551.\n\
+  This software is covered by US Patent No. 8,489,638.\n\
 \n\
 PATENT RIGHTS GRANT:\n\
 \n\

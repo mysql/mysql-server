@@ -54,6 +54,7 @@ UNIVERSITY PATENT NOTICE:
 PATENT MARKING NOTICE:
 
   This software is covered by US Patent No. 8,185,551.
+  This software is covered by US Patent No. 8,489,638.
 
 PATENT RIGHTS GRANT:
 
