@@ -490,7 +490,7 @@ int dth_encode_varchar(const NdbDictionary::Column *col,
   *length_byte = (uint8_t) len;
   
   /* Copy string value into buffer */
-  strncpy(char_buffer, str, len);
+  memcpy(char_buffer, str, len);
 
   return len;
 }
@@ -529,7 +529,7 @@ int dth_encode_longvarchar(const NdbDictionary::Column *col, size_t len,
   * (cbuf+1) = (char) ((total_len & short_hi) >> 8);
   
   /* Copy string value into buffer */
-  strncpy(dest, str, len);
+  memcpy(dest, str, len);
   
   return len;
 }
