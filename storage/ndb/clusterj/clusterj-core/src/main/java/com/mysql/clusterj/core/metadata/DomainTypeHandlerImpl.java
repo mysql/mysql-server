@@ -602,7 +602,9 @@ public class DomainTypeHandlerImpl<T> extends AbstractDomainTypeHandlerImpl<T> {
                 (keyType == Long.class && valueType == long.class) ||
                 (keyType == long.class && valueType == Long.class) ||
                 (keyType == short.class && valueType == Short.class) ||
-                (keyType == Short.class && valueType == short.class)) {
+                (keyType == Short.class && valueType == short.class) ||
+                (keyType == byte.class && valueType == Byte.class) ||
+                (keyType == Byte.class && valueType == byte.class)) {
             return;
         } else {
                 throw new ClusterJUserException(

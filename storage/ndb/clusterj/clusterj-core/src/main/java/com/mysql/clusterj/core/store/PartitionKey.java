@@ -35,4 +35,6 @@ public interface PartitionKey {
 
     public void addShortKey(Column storeColumn, short key);
 
+    public void addByteKey(Column storeColumn, byte key);
+
 }
