@@ -489,7 +489,7 @@ public abstract class AbstractDomainFieldHandlerImpl implements DomainFieldHandl
         void partitionKeySetPart(AbstractDomainFieldHandlerImpl fmd, PartitionKey partitionKey, ValueHandler keyValueHandler);
     }
 
-    protected static ObjectOperationHandler objectOperationHandlerByte = new ObjectOperationHandler() {
+    protected abstract static class ObjectOperationHandlerByte implements ObjectOperationHandler {
 
         public boolean isPrimitive() {
             return true;
@@ -504,7 +504,7 @@ public abstract class AbstractDomainFieldHandlerImpl implements DomainFieldHandl
         }
 
         public Object getDefaultValueFor(AbstractDomainFieldHandlerImpl fmd, String columnDefaultValue) {
-            return (Byte) (columnDefaultValue == null ? Byte.valueOf((byte)0) : Byte.valueOf(columnDefaultValue));
+            return (Byte) (columnDefaultValue == null ? Byte.valueOf((byte) 0) : Byte.valueOf(columnDefaultValue));
         }
 
         public void operationSetValue(AbstractDomainFieldHandlerImpl fmd, Object value, Operation op) {
@@ -515,40 +515,39 @@ public abstract class AbstractDomainFieldHandlerImpl implements DomainFieldHandl
             if (logger.isDetailEnabled()) {
                 logger.detail("Column " + fmd.columnName + " set to value " + handler.getByte(fmd.fieldNumber));
             }
-            op.setByte(fmd.storeColumn, handler.getObjectByte(fmd.fieldNumber).byteValue());
-        }
-
-        public String handler() {
-            return "setByte";
+            op.setByte(fmd.storeColumn, handler.getByte(fmd.fieldNumber));
         }
 
         public void objectSetValue(AbstractDomainFieldHandlerImpl fmd, ResultData rs, ValueHandler handler) {
             handler.setByte(fmd.fieldNumber, rs.getByte(fmd.storeColumn));
         }
 
+        public void objectSetValue(AbstractDomainFieldHandlerImpl fmd, Object value, ValueHandler handler) {
+            handler.setByte(fmd.fieldNumber, ((Number)value).byteValue());
+        }
+
         public void operationSetBounds(AbstractDomainFieldHandlerImpl fmd, Object value, IndexScanOperation.BoundType type, IndexScanOperation op) {
-            op.setBoundByte(fmd.storeColumn, type, ((Number)value).byteValue());
+            try {
+                op.setBoundByte(fmd.storeColumn, type, ((Number) value).byteValue());
+            } catch (ClassCastException ex) {
+                throw new ClusterJUserException(local.message("ERR_Parameter_Type", "Number", value.getClass().getName()));
+            }
         }
 
         public void filterCompareValue(AbstractDomainFieldHandlerImpl fmd, Object value, ScanFilter.BinaryCondition condition, ScanFilter filter) {
-            filter.cmpByte(condition, fmd.storeColumn, ((Number) value).byteValue());
+            try {
+                filter.cmpByte(condition, fmd.storeColumn, ((Number) value).byteValue());
+            } catch (ClassCastException ex) {
+                throw new ClusterJUserException(local.message("ERR_Parameter_Type", "Number", value.getClass().getName()));
+            }
         }
 
         public void operationEqual(AbstractDomainFieldHandlerImpl fmd, Object value, Operation op) {
-            if (logger.isDetailEnabled()) {
-                logger.detail("setInt.setEqual " + fmd.columnName + " to value " + value);
-            }
             op.equalByte(fmd.storeColumn, ((Number) value).byteValue());
         }
 
         public boolean isValidIndexType(AbstractDomainFieldHandlerImpl fmd, boolean hashNotOrdered) {
             return true;
-        }
-
-        public void partitionKeySetPart(AbstractDomainFieldHandlerImpl fmd,
-                PartitionKey partitionKey, ValueHandler keyValueHandler) {
-            throw new ClusterJFatalInternalException(
-                    local.message("ERR_Operation_Not_Supported","partitionKeySetPart", "non-key fields"));
         }
 
         public Object getValue(QueryExecutionContext context, String index) {
@@ -558,11 +557,78 @@ public abstract class AbstractDomainFieldHandlerImpl implements DomainFieldHandl
         public Object objectGetValue(AbstractDomainFieldHandlerImpl fmd, ValueHandler handler) {
             return handler.getByte(fmd.fieldNumber);
         }
+    };
 
-        public void objectSetValue(AbstractDomainFieldHandlerImpl fmd, Object value, ValueHandler handler) {
-            handler.setByte(fmd.fieldNumber, (Byte)value);
+    protected static ObjectOperationHandler objectOperationHandlerByte = new ObjectOperationHandlerByte() {
+
+        public String handler() {
+            return "primitive byte";
         }
 
+        public void partitionKeySetPart(AbstractDomainFieldHandlerImpl fmd,
+                PartitionKey partitionKey, ValueHandler keyValueHandler) {
+            throw new ClusterJFatalInternalException(
+                    local.message("ERR_Operation_Not_Supported","partitionKeySetPart", "non-key fields"));
+        }
+    };
+
+    protected static ObjectOperationHandler objectOperationHandlerKeyByte = new ObjectOperationHandlerByte() {
+
+        public String handler() {
+            return "primitive key byte";
+        }
+
+        public void operationSetValue(AbstractDomainFieldHandlerImpl fmd, ValueHandler handler, Operation op) {
+            op.equalByte(fmd.storeColumn, handler.getByte(fmd.fieldNumber));
+        }
+
+        public void partitionKeySetPart(AbstractDomainFieldHandlerImpl fmd,
+                PartitionKey partitionKey, ValueHandler keyValueHandler) {
+            partitionKey.addByteKey(fmd.storeColumn, keyValueHandler.getByte(fmd.fieldNumber));
+        }
+    };
+
+    protected abstract static class ObjectOperationHandlerObjectByte extends ObjectOperationHandlerByte {
+
+        public boolean isPrimitive() {
+            return false;
+        }
+
+        public void objectInitializeJavaDefaultValue(AbstractDomainFieldHandlerImpl fmd, ValueHandler handler) {
+        }
+
+        public Object getDefaultValueFor(AbstractDomainFieldHandlerImpl fmd, String columnDefaultValue) {
+            return (Byte) (columnDefaultValue == null ? Byte.valueOf((byte)0) : Byte.valueOf(columnDefaultValue));
+        }
+
+        public void objectSetValue(AbstractDomainFieldHandlerImpl fmd, Object value, ValueHandler handler) {
+            handler.setObjectByte(fmd.fieldNumber, (value != null)?((Number)value).byteValue(): null);
+        }
+
+        public Object objectGetValue(AbstractDomainFieldHandlerImpl fmd, ValueHandler handler) {
+            return handler.getObjectByte(fmd.fieldNumber);
+        }
+    }
+
+    protected static ObjectOperationHandler objectOperationHandlerObjectByte = new ObjectOperationHandlerObjectByte() {
+
+        public String handler() {
+            return "object Byte";
+        }
+
+        public void operationSetValue(AbstractDomainFieldHandlerImpl fmd, ValueHandler handler, Operation op) {
+            if (handler.isNull(fmd.fieldNumber)) {
+                op.setNull(fmd.storeColumn);
+            } else {
+                op.setByte(fmd.storeColumn, handler.getObjectByte(fmd.fieldNumber));
+            }
+        }
+
+        public void partitionKeySetPart(AbstractDomainFieldHandlerImpl fmd,
+                PartitionKey partitionKey, ValueHandler keyValueHandler) {
+            throw new ClusterJFatalInternalException(
+                    local.message("ERR_Operation_Not_Supported","partitionKeySetPart", "non-key fields"));
+        }
     };
 
     protected static ObjectOperationHandler objectOperationHandlerBoolean = new ObjectOperationHandler() {
@@ -1993,81 +2059,6 @@ public abstract class AbstractDomainFieldHandlerImpl implements DomainFieldHandl
         public void partitionKeySetPart(AbstractDomainFieldHandlerImpl fmd,
                 PartitionKey partitionKey, ValueHandler keyValueHandler) {
             partitionKey.addLongKey(fmd.storeColumn, keyValueHandler.getLong(fmd.fieldNumber));
-        }
-
-    };
-    protected static ObjectOperationHandler objectOperationHandlerObjectByte = new ObjectOperationHandler() {
-
-        public boolean isPrimitive() {
-            return false;
-        }
-
-        public void objectInitializeJavaDefaultValue(AbstractDomainFieldHandlerImpl fmd, ValueHandler handler) {
-        }
-
-        public void operationGetValue(AbstractDomainFieldHandlerImpl fmd, Operation op) {
-            op.getValue(fmd.storeColumn);
-        }
-
-        public Object getDefaultValueFor(AbstractDomainFieldHandlerImpl fmd, String columnDefaultValue) {
-            return (Byte) (columnDefaultValue == null ? Byte.valueOf((byte)0) : Byte.valueOf(columnDefaultValue));
-        }
-
-        public void operationSetValue(AbstractDomainFieldHandlerImpl fmd, Object value, Operation op) {
-            op.setByte(fmd.storeColumn, (Byte) value);
-        }
-
-        public void operationSetValue(AbstractDomainFieldHandlerImpl fmd, ValueHandler handler, Operation op) {
-            if (handler.isNull(fmd.fieldNumber)) {
-                op.setNull(fmd.storeColumn);
-            } else {
-                op.setByte(fmd.storeColumn, handler.getObjectByte(fmd.fieldNumber).byteValue());
-            }
-        }
-
-        public String handler() {
-            return "object Byte";
-        }
-
-        public void objectSetValue(AbstractDomainFieldHandlerImpl fmd, ResultData rs, ValueHandler handler) {
-            handler.setObjectByte(fmd.fieldNumber, rs.getObjectByte(fmd.storeColumn));
-        }
-
-        public void operationSetBounds(AbstractDomainFieldHandlerImpl fmd, Object value, IndexScanOperation.BoundType type, IndexScanOperation op) {
-            op.setBoundByte(fmd.storeColumn, type, ((Number)value).byteValue());
-        }
-
-        public void filterCompareValue(AbstractDomainFieldHandlerImpl fmd, Object value, ScanFilter.BinaryCondition condition, ScanFilter filter) {
-            filter.cmpByte(condition, fmd.storeColumn, ((Number) value).byteValue());
-        }
-
-        public void operationEqual(AbstractDomainFieldHandlerImpl fmd, Object value, Operation op) {
-            if (logger.isDetailEnabled()) {
-                logger.detail("setObjectByte.setEqual " + fmd.columnName + " to value " + value);
-            }
-            op.equalByte(fmd.storeColumn, ((Number) value).byteValue());
-        }
-
-        public boolean isValidIndexType(AbstractDomainFieldHandlerImpl fmd, boolean hashNotOrdered) {
-            return true;
-        }
-
-        public void partitionKeySetPart(AbstractDomainFieldHandlerImpl fmd,
-                PartitionKey partitionKey, ValueHandler keyValueHandler) {
-            throw new ClusterJFatalInternalException(
-                    local.message("ERR_Operation_Not_Supported","partitionKeySetPart", "non-key fields"));
-        }
-
-        public Object getValue(QueryExecutionContext context, String index) {
-            return context.getByte(index);
-        }
-
-        public Object objectGetValue(AbstractDomainFieldHandlerImpl fmd, ValueHandler handler) {
-            return handler.getObjectByte(fmd.fieldNumber);
-        }
-
-        public void objectSetValue(AbstractDomainFieldHandlerImpl fmd, Object value, ValueHandler handler) {
-            handler.setObjectByte(fmd.fieldNumber, (Byte)value);
         }
 
     };
