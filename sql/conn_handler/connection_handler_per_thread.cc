@@ -74,14 +74,6 @@ Channel_info* Per_thread_connection_handler::block_until_new_connection()
     DBUG_POP();
     DBUG_ASSERT( ! _db_is_pushed_());
 
-#ifdef HAVE_PSI_THREAD_INTERFACE
-    /*
-      Delete the instrumentation for the job that just completed,
-      before blocking this pthread (blocked on COND_thread_cache).
-    */
-    PSI_THREAD_CALL(delete_current_thread)();
-#endif
-
     // Block pthread
     blocked_pthread_count++;
     while (!abort_loop && !wake_pthread && !kill_blocked_pthreads_flag)
@@ -235,6 +227,13 @@ pthread_handler_t handle_connection(void *arg)
 
     remove_global_thread(thd);
     delete thd;
+
+#ifdef HAVE_PSI_THREAD_INTERFACE
+    /*
+      Delete the instrumentation for the job that just completed.
+    */
+    PSI_THREAD_CALL(delete_current_thread)();
+#endif
 
     if (abort_loop) // Server is shutting down so end the pthread.
       break;
