@@ -428,11 +428,13 @@ int toku_cachetable_openfd_with_filenum (CACHEFILE *cfptr, CACHETABLE ct, int fd
         bjm_init(&existing_cf->bjm);
 
         // now we need to move all the PAIRs in it back into the cachetable
+        ct->list.write_list_lock();
         for (PAIR curr_pair = existing_cf->cf_head; curr_pair; curr_pair = curr_pair->cf_next) {
             pair_lock(curr_pair);
             ct->list.add_to_cachetable_only(curr_pair);
             pair_unlock(curr_pair);
         }
+        ct->list.write_list_unlock();
         // move the cachefile back to the list of active cachefiles
         ct->cf_list.remove_stale_cf_unlocked(existing_cf);
         ct->cf_list.add_cf_unlocked(existing_cf);
