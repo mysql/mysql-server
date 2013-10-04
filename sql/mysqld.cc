@@ -152,7 +152,9 @@ extern "C" {          // Because of SCO 3.2V4.2
 #include <my_net.h>
 
 #if !defined(_WIN32)
+#ifdef HAVE_SYS_RESOURCE_H
 #include <sys/resource.h>
+#endif
 #ifdef HAVE_SYS_UN_H
 #include <sys/un.h>
 #endif
