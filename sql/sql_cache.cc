@@ -2074,9 +2074,13 @@ def_week_frmt: %lu, in_trans: %d, autocommit: %d",
   }
 #endif /*!EMBEDDED_LIBRARY*/
 
-  thd->limit_found_rows = query->found_rows();
+  thd->sent_row_count= thd->limit_found_rows = query->found_rows();
   thd->status_var.last_query_cost= 0.0;
   thd->query_plan_flags= (thd->query_plan_flags & ~QPLAN_QC_NO) | QPLAN_QC;
+  if (!thd->sent_row_count)
+    status_var_increment(thd->status_var.empty_queries);
+  else
+    status_var_add(thd->status_var.rows_sent, thd->sent_row_count);
 
   /*
     End the statement transaction potentially started by an

@@ -1932,6 +1932,85 @@ set local query_cache_type= on;
 select @@query_cache_size, @@global.query_cache_type, @@local.query_cache_type;
 @@query_cache_size	@@global.query_cache_type	@@local.query_cache_type
 20971520	ON	ON
+#
+# MDEV-4981: Account for queries handled by query-cache in
+# USER_STATISTICS (and in HOST_STATISTICS)
+#
+SET GLOBAL userstat=1;
+set GLOBAL query_cache_size=1355776;
+FLUSH USER_STATISTICS;
+FLUSH CLIENT_STATISTICS;
+reset query cache;
+flush status;
+create table t1 (a int);
+insert into t1 values (1);
+select * from t1;
+a
+1
+select SELECT_COMMANDS,ROWS_SENT,EMPTY_QUERIES from INFORMATION_SCHEMA.CLIENT_STATISTICS
+where CLIENT="localhost";
+SELECT_COMMANDS	ROWS_SENT	EMPTY_QUERIES
+1	1	0
+select SELECT_COMMANDS,ROWS_SENT,EMPTY_QUERIES from INFORMATION_SCHEMA.USER_STATISTICS
+where USER="root";
+SELECT_COMMANDS	ROWS_SENT	EMPTY_QUERIES
+2	2	0
+show status like "Qcache_hits";
+Variable_name	Value
+Qcache_hits	0
+select * from t1;
+a
+1
+select * from t1;
+a
+1
+select SELECT_COMMANDS,ROWS_SENT,EMPTY_QUERIES from INFORMATION_SCHEMA.CLIENT_STATISTICS
+where CLIENT="localhost";
+SELECT_COMMANDS	ROWS_SENT	EMPTY_QUERIES
+5	5	0
+select SELECT_COMMANDS,ROWS_SENT,EMPTY_QUERIES from INFORMATION_SCHEMA.USER_STATISTICS
+where USER="root";
+SELECT_COMMANDS	ROWS_SENT	EMPTY_QUERIES
+6	6	0
+show status like "Qcache_hits";
+Variable_name	Value
+Qcache_hits	2
+drop table t1;
+FLUSH USER_STATISTICS;
+FLUSH CLIENT_STATISTICS;
+flush status;
+create table t1 (a int);
+select * from t1;
+a
+select SELECT_COMMANDS,ROWS_SENT,EMPTY_QUERIES from INFORMATION_SCHEMA.CLIENT_STATISTICS
+where CLIENT="localhost";
+SELECT_COMMANDS	ROWS_SENT	EMPTY_QUERIES
+1	0	1
+select SELECT_COMMANDS,ROWS_SENT,EMPTY_QUERIES from INFORMATION_SCHEMA.USER_STATISTICS
+where USER="root";
+SELECT_COMMANDS	ROWS_SENT	EMPTY_QUERIES
+2	1	1
+show status like "Qcache_hits";
+Variable_name	Value
+Qcache_hits	0
+select * from t1;
+a
+select * from t1;
+a
+select SELECT_COMMANDS,ROWS_SENT,EMPTY_QUERIES from INFORMATION_SCHEMA.CLIENT_STATISTICS
+where CLIENT="localhost";
+SELECT_COMMANDS	ROWS_SENT	EMPTY_QUERIES
+5	2	3
+select SELECT_COMMANDS,ROWS_SENT,EMPTY_QUERIES from INFORMATION_SCHEMA.USER_STATISTICS
+where USER="root";
+SELECT_COMMANDS	ROWS_SENT	EMPTY_QUERIES
+6	3	3
+show status like "Qcache_hits";
+Variable_name	Value
+Qcache_hits	2
+drop table t1;
+SET GLOBAL userstat=default;
+End of 5.5 tests
 restore defaults
 SET GLOBAL query_cache_type= default;
 SET GLOBAL query_cache_size= default;
