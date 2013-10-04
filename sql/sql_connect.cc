@@ -36,6 +36,7 @@
                                         // acl_getroot, NO_ACCESS
 #include "sql_callback.h"
 #include "log.h"
+#include "connection_handler_manager.h" // inc_aborted_connects
 
 #include <algorithm>
 
@@ -728,6 +729,7 @@ bool login_connection(THD *thd)
     if (vio_type(net->vio) == VIO_TYPE_NAMEDPIPE)
       my_sleep(1000);       /* must wait after eof() */
 #endif
+    inc_aborted_connects();
     DBUG_RETURN(1);
   }
   /* Connect completed, set read/write timeouts back to default */
