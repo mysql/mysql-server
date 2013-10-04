@@ -5993,6 +5993,11 @@ sub start_mysqltest ($) {
   if ( $opt_embedded_server )
   {
 
+    if ( $opt_ps_protocol )
+    {
+      mtr_error("Cannot use --ps-protocol with --embedded-server");
+    }
+
     # Get the args needed for the embedded server
     # and append them to args prefixed
     # with --sever-arg=

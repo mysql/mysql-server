@@ -8719,6 +8719,8 @@ int main(int argc, char **argv)
 
   st_connection *con= connections;
 #ifdef EMBEDDED_LIBRARY
+  if (ps_protocol)
+    die("--ps-protocol is not supported in embedded mode");
   init_connection_thd(con);
 #endif /*EMBEDDED_LIBRARY*/
   if (!( mysql_init(&con->mysql)))
