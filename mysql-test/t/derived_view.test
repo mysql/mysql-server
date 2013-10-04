@@ -1546,6 +1546,25 @@ set optimizer_switch=@save_optimizer_switch;
 
 
 --echo #
+--echo # mdev-5078: sum over a view/derived table
+--echo #
+
+CREATE TABLE t1 (a int);
+INSERT INTO t1 (a) VALUES (1), (2);
+
+CREATE TABLE t2 (b int(11));
+INSERT INTO t2 (b) VALUES (1), (2);
+
+CREATE VIEW v AS SELECT b as c FROM t2;
+
+SELECT a, (SELECT SUM(a + c) FROM v) FROM t1;
+
+SELECT a, (SELECT SUM(a + c) FROM (SELECT b as c FROM t2) AS v1) FROM t1;
+
+DROP VIEW v;
+DROP TABLE t1,t2;
+
+--echo #
 --echo # end of 5.3 tests
 --echo #
 

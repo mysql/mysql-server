@@ -4746,6 +4746,11 @@ bool Item_field::fix_fields(THD *thd, Item **reference)
         goto mark_non_agg_field;
     }
 
+    if (thd->lex->in_sum_func &&
+        thd->lex->in_sum_func->nest_level == 
+        thd->lex->current_select->nest_level)
+      set_if_bigger(thd->lex->in_sum_func->max_arg_level,
+                    thd->lex->current_select->nest_level);
     /*
       if it is not expression from merged VIEW we will set this field.
 
@@ -4762,11 +4767,6 @@ bool Item_field::fix_fields(THD *thd, Item **reference)
       return FALSE;
 
     set_field(from_field);
-    if (thd->lex->in_sum_func &&
-        thd->lex->in_sum_func->nest_level == 
-        thd->lex->current_select->nest_level)
-      set_if_bigger(thd->lex->in_sum_func->max_arg_level,
-                    thd->lex->current_select->nest_level);
   }
   else if (thd->mark_used_columns != MARK_COLUMNS_NONE)
   {
