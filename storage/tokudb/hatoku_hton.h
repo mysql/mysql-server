@@ -225,7 +225,7 @@ static MYSQL_THDVAR_UINT(read_block_size,
     "fractal tree read block size",
     NULL, 
     NULL, 
-    128*1024, // default
+    64*1024, // default
     4096,  // min
     ~0U,   // max
     1      // blocksize???
