@@ -170,6 +170,8 @@ public class DomainFieldHandlerImpl extends AbstractDomainFieldHandlerImpl {
                 objectOperationHandlerDelegate = objectOperationHandlerKeyBytes;
             } else if (type.equals(short.class)) {
                 objectOperationHandlerDelegate = objectOperationHandlerKeyShort;
+            } else if (type.equals(byte.class)) {
+                objectOperationHandlerDelegate = objectOperationHandlerKeyByte;
             } else {
                 objectOperationHandlerDelegate = objectOperationHandlerUnsupportedType;
                 error(
@@ -361,6 +363,11 @@ public class DomainFieldHandlerImpl extends AbstractDomainFieldHandlerImpl {
                 case Smallunsigned:
                     this.objectOperationHandlerDelegate = objectOperationHandlerKeyShort;
                     this.type = short.class;
+                    break;
+                case Tinyint:
+                case Tinyunsigned:
+                    this.objectOperationHandlerDelegate = objectOperationHandlerKeyByte;
+                    this.type = byte.class;
                     break;
                 default:
                     error(local.message("ERR_Primary_Column_Type", domainTypeHandler.getName(), name, this.storeColumnType));
