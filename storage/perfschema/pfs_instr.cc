@@ -1307,17 +1307,17 @@ search:
         pfs->m_identity= (const void *)pfs;
 
         int res;
+        pfs->m_lock.dirty_to_allocated();
         res= lf_hash_insert(&filename_hash, pins,
                             &pfs);
         if (likely(res == 0))
         {
-          pfs->m_lock.dirty_to_allocated();
           if (klass->is_singleton())
             klass->m_singleton= pfs;
           return pfs;
         }
 
-        pfs->m_lock.dirty_to_free();
+        pfs->m_lock.allocated_to_free();
 
         if (res > 0)
         {

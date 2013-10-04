@@ -1448,14 +1448,14 @@ search:
         set_keys(pfs, share);
 
         int res;
+        pfs->m_lock.dirty_to_allocated();
         res= lf_hash_insert(&table_share_hash, pins, &pfs);
         if (likely(res == 0))
         {
-          pfs->m_lock.dirty_to_allocated();
           return pfs;
         }
 
-        pfs->m_lock.dirty_to_free();
+        pfs->m_lock.allocated_to_free();
 
         if (res > 0)
         {

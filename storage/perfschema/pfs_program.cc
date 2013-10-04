@@ -286,15 +286,15 @@ search:
         pfs->m_timed= is_timed;
 
         /* Insert this record. */
+        pfs->m_lock.dirty_to_allocated();
         int res= lf_hash_insert(&program_hash, pins, &pfs);
 
         if (likely(res == 0))
         {
-          pfs->m_lock.dirty_to_allocated();
           return pfs;
         }
 
-        pfs->m_lock.dirty_to_free();
+        pfs->m_lock.allocated_to_free();
 
         if (res > 0)
         {
