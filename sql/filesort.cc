@@ -1,4 +1,4 @@
-/* Copyright (c) 2000, 2011, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2000, 2013, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -442,9 +442,10 @@ ha_rows filesort(THD *thd, TABLE *table, Filesort *filesort,
                     "%s: %s",
                     MYF(ME_ERROR + ME_WAITTANG),
                     ER_THD(thd, ER_FILSORT_ABORT),
-                    kill_errno ?
-                    ER(kill_errno) :
-                    thd->get_stmt_da()->message());
+                    kill_errno ? ((kill_errno == THD::KILL_CONNECTION &&
+                                 !shutdown_in_progress) ? ER(THD::KILL_QUERY) :
+                                                          ER(kill_errno)) :
+                                 thd->get_stmt_da()->message());
 
     if (log_warnings > 1)
     {
