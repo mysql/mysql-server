@@ -339,7 +339,10 @@ ha_rows filesort(THD *thd, TABLE *table, SORT_FIELD *sortorder, uint s_length,
                     "%s: %s",
                     MYF(ME_ERROR + ME_WAITTANG),
                     ER_THD(thd, ER_FILSORT_ABORT),
-                    kill_errno ? ER(kill_errno) : thd->stmt_da->message());
+                    kill_errno ? ((kill_errno == THD::KILL_CONNECTION &&
+                                 !shutdown_in_progress) ? ER(THD::KILL_QUERY) :
+                                                          ER(kill_errno)) :
+                                 thd->stmt_da->message());
                     
     if (global_system_variables.log_warnings > 1)
     {
