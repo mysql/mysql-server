@@ -33,7 +33,7 @@ info: Records: 0  Duplicates: 0  Warnings: 0
 SHOW CREATE TABLE t;
 Table	Create Table
 t	CREATE TABLE `t` (
-  `a` int(11) NOT NULL DEFAULT '0',
+  `a` int(11) NOT NULL,
   `b` int(11) DEFAULT NULL,
   `c` int(11) DEFAULT NULL,
   `d` int(11) DEFAULT NULL,
@@ -106,7 +106,7 @@ info: Records: 0  Duplicates: 0  Warnings: 0
 SHOW CREATE TABLE t;
 Table	Create Table
 t	CREATE TABLE `t` (
-  `a` int(11) NOT NULL DEFAULT '0',
+  `a` int(11) NOT NULL,
   `b` int(11) DEFAULT NULL,
   `c` int(11) DEFAULT NULL,
   `d` int(11) DEFAULT NULL,
@@ -196,7 +196,7 @@ info: Records: 0  Duplicates: 0  Warnings: 0
 SHOW CREATE TABLE t;
 Table	Create Table
 t	CREATE TABLE `t` (
-  `a` int(11) NOT NULL DEFAULT '0',
+  `a` int(11) NOT NULL,
   `b` int(11) DEFAULT NULL,
   `c` int(11) DEFAULT NULL,
   `d` int(11) DEFAULT NULL,
@@ -298,7 +298,7 @@ info: Records: 0  Duplicates: 0  Warnings: 0
 SHOW CREATE TABLE t;
 Table	Create Table
 t	CREATE TABLE `t` (
-  `a` int(11) NOT NULL DEFAULT '0',
+  `a` int(11) NOT NULL,
   `b` int(11) DEFAULT NULL,
   `c` int(11) DEFAULT NULL,
   `d` int(11) DEFAULT NULL,
@@ -397,7 +397,7 @@ info: Records: 0  Duplicates: 0  Warnings: 0
 SHOW CREATE TABLE t;
 Table	Create Table
 t	CREATE TABLE `t` (
-  `a` int(11) NOT NULL DEFAULT '0',
+  `a` int(11) NOT NULL,
   `b` int(11) DEFAULT NULL,
   `c` int(11) DEFAULT NULL,
   `d` int(11) DEFAULT NULL,
@@ -464,7 +464,7 @@ info: Records: 0  Duplicates: 0  Warnings: 0
 SHOW CREATE TABLE t;
 Table	Create Table
 t	CREATE TABLE `t` (
-  `a` int(11) NOT NULL DEFAULT '0',
+  `a` int(11) NOT NULL,
   `b` int(11) DEFAULT NULL,
   `c` int(11) DEFAULT NULL,
   `d` int(11) DEFAULT NULL,
@@ -551,7 +551,7 @@ info: Records: 0  Duplicates: 0  Warnings: 0
 SHOW CREATE TABLE t;
 Table	Create Table
 t	CREATE TABLE `t` (
-  `a` int(11) NOT NULL DEFAULT '0',
+  `a` int(11) NOT NULL,
   `b` int(11) DEFAULT NULL,
   `c` int(11) DEFAULT NULL,
   `d` int(11) DEFAULT NULL,
@@ -632,7 +632,7 @@ info: Records: 0  Duplicates: 0  Warnings: 0
 SHOW CREATE TABLE t;
 Table	Create Table
 t	CREATE TABLE `t` (
-  `a` int(11) NOT NULL DEFAULT '0',
+  `a` int(11) NOT NULL,
   `b` int(11) DEFAULT NULL,
   `c` int(11) DEFAULT NULL,
   `d` int(11) DEFAULT NULL,
@@ -713,7 +713,7 @@ info: Records: 0  Duplicates: 0  Warnings: 0
 SHOW CREATE TABLE t;
 Table	Create Table
 t	CREATE TABLE `t` (
-  `a` int(11) NOT NULL DEFAULT '0',
+  `a` int(11) NOT NULL,
   `b` int(11) DEFAULT NULL,
   `c` int(11) DEFAULT NULL,
   `d` int(11) DEFAULT NULL,
@@ -779,7 +779,7 @@ info: Records: 0  Duplicates: 0  Warnings: 0
 SHOW CREATE TABLE t;
 Table	Create Table
 t	CREATE TABLE `t` (
-  `a` int(11) NOT NULL DEFAULT '0',
+  `a` int(11) NOT NULL,
   `b` int(11) DEFAULT NULL,
   `c` int(11) DEFAULT NULL,
   `d` int(11) DEFAULT NULL,
@@ -849,7 +849,7 @@ info: Records: 0  Duplicates: 0  Warnings: 0
 SHOW CREATE TABLE t;
 Table	Create Table
 t	CREATE TABLE `t` (
-  `a` int(11) NOT NULL DEFAULT '0',
+  `a` int(11) NOT NULL,
   `b` int(11) DEFAULT NULL,
   `c` int(11) DEFAULT NULL,
   `d` int(11) DEFAULT NULL,
@@ -919,7 +919,7 @@ info: Records: 0  Duplicates: 0  Warnings: 0
 SHOW CREATE TABLE t;
 Table	Create Table
 t	CREATE TABLE `t` (
-  `a` int(11) NOT NULL DEFAULT '0',
+  `a` int(11) NOT NULL,
   `b` int(11) DEFAULT NULL,
   `c` int(11) DEFAULT NULL,
   `d` int(11) DEFAULT NULL,
@@ -1000,7 +1000,7 @@ ERROR 42000: Key 'i1' doesn't exist in table 't'
 SHOW CREATE TABLE t;
 Table	Create Table
 t	CREATE TABLE `t` (
-  `a` int(11) NOT NULL DEFAULT '0',
+  `a` int(11) NOT NULL,
   `b` int(11) DEFAULT NULL,
   `c` int(11) DEFAULT NULL,
   `d` int(11) DEFAULT NULL,
@@ -1217,7 +1217,7 @@ RENAME TABLE mysql.innodb_index_stats_ TO mysql.innodb_index_stats;
 SHOW CREATE TABLE t;
 Table	Create Table
 t	CREATE TABLE `t` (
-  `a` int(11) NOT NULL DEFAULT '0',
+  `a` int(11) NOT NULL,
   `b` int(11) DEFAULT NULL,
   PRIMARY KEY (`a`),
   KEY `i7` (`b`)
