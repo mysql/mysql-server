@@ -75,8 +75,8 @@ set @save.slave_transaction_retries= @@global.slave_transaction_retries;
 source include/start_slave.inc;
 
 let $ps_value= query_get_value(select Worker_Id from performance_schema.replication_execute_status_by_worker, Worker_Id, 1);
-let $assert_text= Worker_Id should be 0;
-let $assert_cond= "$ps_value"= 0;
+let $assert_text= Worker_Id should be 1;
+let $assert_cond= "$ps_value"= 1;
 source include/assert.inc;
 
 # To verify the correctness of thread_id field, we check for the name of
@@ -191,8 +191,8 @@ source include/assert.inc;
 --echo
 
 let $ps_value= query_get_value(select Worker_Id from performance_schema.replication_execute_status_by_worker, Worker_Id, 1);
-let $assert_text= Worker_Id should be 0;
-let $assert_cond= "$ps_value"= 0;
+let $assert_text= Worker_Id should be 1;
+let $assert_cond= "$ps_value"= 1;
 source include/assert.inc;
 
 let $sss_value= query_get_value(SHOW SLAVE STATUS, Last_SQL_Errno, 1);
