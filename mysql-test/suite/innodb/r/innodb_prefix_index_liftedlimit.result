@@ -1381,7 +1381,7 @@ info: Records: 0  Duplicates: 0  Warnings: 0
 SHOW CREATE TABLE worklog5743;
 Table	Create Table
 worklog5743	CREATE TABLE `worklog5743` (
-  `col_1_varchar` varchar(4000) NOT NULL DEFAULT '',
+  `col_1_varchar` varchar(4000) NOT NULL,
   `col_2_varchar` varchar(4000) DEFAULT NULL,
   PRIMARY KEY (`col_1_varchar`(767)),
   KEY `prefix_idx` (`col_1_varchar`(767))

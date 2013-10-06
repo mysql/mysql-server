@@ -865,6 +865,8 @@ col_datetime_key,col_datetime_nokey,
 col_varchar_key,col_varchar_nokey
 ) VALUES
 (8,7,'2008-10-02','2008-10-02','04:07:22.028954','04:07:22.028954','2001-10-08 00:00:00','2001-10-08 00:00:00','g','g');
+Warnings:
+Warning	1364	Field 'pk' doesn't have a default value
 CREATE TABLE t5 (
 pk INTEGER AUTO_INCREMENT,
 col_int_nokey INTEGER,

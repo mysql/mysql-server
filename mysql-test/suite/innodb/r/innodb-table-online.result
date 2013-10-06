@@ -352,8 +352,8 @@ ALTER TABLE t1 DISCARD TABLESPACE;
 SHOW CREATE TABLE t1;
 Table	Create Table
 t1	CREATE TABLE `t1` (
-  `c22f` int(11) NOT NULL DEFAULT '0',
-  `c1` int(11) NOT NULL DEFAULT '0',
+  `c22f` int(11) NOT NULL,
+  `c1` int(11) NOT NULL,
   `c3` text NOT NULL,
   `c4` varchar(6) NOT NULL DEFAULT 'Online',
   PRIMARY KEY (`c1`,`c22f`,`c4`(5))

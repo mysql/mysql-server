@@ -399,7 +399,7 @@ c4	multipoint	YES		NULL
 c5	multilinestring	YES		NULL	
 c6	multipolygon	YES		NULL	
 c7	geometrycollection	YES		NULL	
-c8	geometry	NO	PRI		
+c8	geometry	NO	PRI	NULL	
 #drop key
 ALTER TABLE tab DROP PRIMARY KEY;
 #check columns 
@@ -412,7 +412,7 @@ c4	multipoint	YES		NULL
 c5	multilinestring	YES		NULL	
 c6	multipolygon	YES		NULL	
 c7	geometrycollection	YES		NULL	
-c8	geometry	NO	UNI		
+c8	geometry	NO	UNI	NULL	
 #cleanup the table
 TRUNCATE TABLE tab;
 #check with procedures
@@ -490,7 +490,7 @@ tab2	CREATE TABLE `tab2` (
   `c5` multilinestring DEFAULT NULL,
   `c6` multipolygon DEFAULT NULL,
   `c7` geometrycollection DEFAULT NULL,
-  `c8` geometry NOT NULL DEFAULT ''
+  `c8` geometry NOT NULL
 ) ENGINE=InnoDB DEFAULT CHARSET=latin1
 #create a tigger and populate the values into tab2
 CREATE TRIGGER geom_trigger AFTER INSERT ON tab 

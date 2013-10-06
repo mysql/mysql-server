@@ -1292,11 +1292,13 @@ Warning	1264	Out of range value for column 'c1' at row 1
 SHOW CREATE TABLE t1;
 Table	Create Table
 t1	CREATE TABLE `t1` (
-  `c1` int(11) NOT NULL DEFAULT '0',
+  `c1` int(11) NOT NULL,
   `c2` varchar(10) DEFAULT NULL,
   PRIMARY KEY (`c1`)
 ) ENGINE=InnoDB DEFAULT CHARSET=latin1
 INSERT INTO t1(c2) VALUES('b');
+Warnings:
+Warning	1364	Field 'c1' doesn't have a default value
 SELECT * FROM t1;
 c1	c2
 0	b
@@ -1304,7 +1306,7 @@ c1	c2
 SHOW CREATE TABLE t1;
 Table	Create Table
 t1	CREATE TABLE `t1` (
-  `c1` int(11) NOT NULL DEFAULT '0',
+  `c1` int(11) NOT NULL,
   `c2` varchar(10) DEFAULT NULL,
   PRIMARY KEY (`c1`)
 ) ENGINE=InnoDB DEFAULT CHARSET=latin1

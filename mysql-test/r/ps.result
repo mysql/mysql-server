@@ -2432,22 +2432,22 @@ create procedure proc_1() show create table tab1;
 call proc_1();
 Table	Create Table
 tab1	CREATE TABLE `tab1` (
-  `a` int(11) NOT NULL DEFAULT '0',
-  `b` char(1) NOT NULL DEFAULT '',
+  `a` int(11) NOT NULL,
+  `b` char(1) NOT NULL,
   PRIMARY KEY (`a`,`b`)
 ) ENGINE=MyISAM DEFAULT CHARSET=latin1
 call proc_1();
 Table	Create Table
 tab1	CREATE TABLE `tab1` (
-  `a` int(11) NOT NULL DEFAULT '0',
-  `b` char(1) NOT NULL DEFAULT '',
+  `a` int(11) NOT NULL,
+  `b` char(1) NOT NULL,
   PRIMARY KEY (`a`,`b`)
 ) ENGINE=MyISAM DEFAULT CHARSET=latin1
 call proc_1();
 Table	Create Table
 tab1	CREATE TABLE `tab1` (
-  `a` int(11) NOT NULL DEFAULT '0',
-  `b` char(1) NOT NULL DEFAULT '',
+  `a` int(11) NOT NULL,
+  `b` char(1) NOT NULL,
   PRIMARY KEY (`a`,`b`)
 ) ENGINE=MyISAM DEFAULT CHARSET=latin1
 drop procedure proc_1;
@@ -2461,22 +2461,22 @@ prepare abc from "show create table tab1";
 execute abc;
 Table	Create Table
 tab1	CREATE TABLE `tab1` (
-  `a` int(11) NOT NULL DEFAULT '0',
-  `b` char(1) NOT NULL DEFAULT '',
+  `a` int(11) NOT NULL,
+  `b` char(1) NOT NULL,
   PRIMARY KEY (`a`,`b`)
 ) ENGINE=MyISAM DEFAULT CHARSET=latin1
 execute abc;
 Table	Create Table
 tab1	CREATE TABLE `tab1` (
-  `a` int(11) NOT NULL DEFAULT '0',
-  `b` char(1) NOT NULL DEFAULT '',
+  `a` int(11) NOT NULL,
+  `b` char(1) NOT NULL,
   PRIMARY KEY (`a`,`b`)
 ) ENGINE=MyISAM DEFAULT CHARSET=latin1
 execute abc;
 Table	Create Table
 tab1	CREATE TABLE `tab1` (
-  `a` int(11) NOT NULL DEFAULT '0',
-  `b` char(1) NOT NULL DEFAULT '',
+  `a` int(11) NOT NULL,
+  `b` char(1) NOT NULL,
   PRIMARY KEY (`a`,`b`)
 ) ENGINE=MyISAM DEFAULT CHARSET=latin1
 deallocate prepare abc;
