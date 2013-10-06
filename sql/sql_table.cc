@@ -3919,6 +3919,41 @@ mysql_prepare_create_table(THD *thd, HA_CREATE_INFO *create_info,
 	  }
 	}
         /*
+          Set NO_DEFAULT_VALUE_FLAG for the PRIMARY KEY column if default
+          values is not explicitly provided for the column in CREATE TABLE
+          statement and it is not an AUTO_INCREMENT field.
+
+          Default values for TIMESTAMP/DATETIME needs special handling as:
+
+         a) If default is explicitly specified (lets say this as case 1) :
+              DEFAULT CURRENT_TIMESTAMP
+              DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP
+            MySQL does not set sql_field->def flag , but sets
+            Field::TIMESTAMP_DN_FIELD/TIMESTAMP_DNUN_FIELD to the unireg_check.
+            These flags are also set during timestamp column promotion (case2)
+
+            When explicit_defaults_for_timestamp is not set, the behavior
+            expected in both case1 and case2 is to retain the defaults even
+            when the column participates in PRIMARY KEY. When
+            explicit_defaults_for_timestamp is set, the promotion logic
+            is disabled and the above mentioned flags are not used implicitly.
+
+         b) If explicit_defaults_for_timestamp variable is not set:
+             Default value assigned due to first timestamp column promotion is
+             retained.
+             Default constant value assigned due to implicit promotion of second
+             timestamp column is removed.
+        */
+        if (key->type == Key::PRIMARY && !sql_field->def &&
+            !(sql_field->flags & AUTO_INCREMENT_FLAG) &&
+            !(real_type_with_now_as_default(sql_field->sql_type) &&
+              (sql_field->unireg_check == Field::TIMESTAMP_DN_FIELD ||
+               sql_field->unireg_check == Field::TIMESTAMP_DNUN_FIELD)))
+        {
+          sql_field->flags|= NO_DEFAULT_VALUE_FLAG;
+          sql_field->pack_flag|= FIELDFLAG_NO_DEFAULT;
+        }
+        /*
           Emitting error when field is a part of primary key and is
           explicitly requested to be NULL by the user.
         */

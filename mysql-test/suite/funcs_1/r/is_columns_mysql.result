@@ -154,7 +154,7 @@ def	mysql	slave_master_info	Connect_retry	8	NULL	NO	int	NULL	NULL	10	0	NULL	NULL
 def	mysql	slave_master_info	Enabled_auto_position	23	NULL	NO	tinyint	NULL	NULL	3	0	NULL	NULL	NULL	tinyint(1)			select,insert,update,references	Indicates whether GTIDs will be used to retrieve events from the master.
 def	mysql	slave_master_info	Enabled_ssl	9	NULL	NO	tinyint	NULL	NULL	3	0	NULL	NULL	NULL	tinyint(1)			select,insert,update,references	Indicates whether the server supports SSL connections.
 def	mysql	slave_master_info	Heartbeat	16	NULL	NO	float	NULL	NULL	12	NULL	NULL	NULL	NULL	float			select,insert,update,references	
-def	mysql	slave_master_info	Host	4		NO	char	64	192	NULL	NULL	NULL	utf8	utf8_bin	char(64)	PRI		select,insert,update,references	The host name of the master.
+def	mysql	slave_master_info	Host	4	NULL	NO	char	64	192	NULL	NULL	NULL	utf8	utf8_bin	char(64)	PRI		select,insert,update,references	The host name of the master.
 def	mysql	slave_master_info	Ignored_server_ids	18	NULL	YES	text	65535	65535	NULL	NULL	NULL	utf8	utf8_bin	text			select,insert,update,references	The number of server IDs to be ignored, followed by the actual server IDs
 def	mysql	slave_master_info	Master_log_name	2	NULL	NO	text	65535	65535	NULL	NULL	NULL	utf8	utf8_bin	text			select,insert,update,references	The name of the master binary log currently being read from the master.
 def	mysql	slave_master_info	Master_log_pos	3	NULL	NO	bigint	NULL	NULL	20	0	NULL	NULL	NULL	bigint(20) unsigned			select,insert,update,references	The master log position of the last read event.
