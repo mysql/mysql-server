@@ -2215,6 +2215,22 @@ const ConfigInfo::ParamInfo ConfigInfo::m_ParamInfo[] = {
     STR_VALUE(NDB_DEFAULT_HASHMAP_BUCKETS)
   },
 
+  {
+    CFG_DB_LCP_SCAN_WATCHDOG_LIMIT,
+    "LcpScanProgressTimeout",
+    DB_TOKEN,
+    "Maximum time a local checkpoint fragment scan can be stalled for.  "
+    "If this is exceeded, the node will shutdown to ensure systemwide "
+    "LCP progress.  Warnings are periodically emitted when a fragment scan "
+    "stalls for more than one third of this time.  0 indicates no time limit.",
+    ConfigInfo::CI_USED,
+    false,
+    ConfigInfo::CI_INT,
+    "60",
+    "0",
+    STR_VALUE(MAX_INT_RNIL)
+  },
+
   /***************************************************************************
    * API
    ***************************************************************************/
