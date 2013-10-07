@@ -1,4 +1,5 @@
 SET DEFAULT_STORAGE_ENGINE='tokudb';
+set tokudb_hide_default_row_format=false;
 DROP TABLE IF EXISTS foo;
 set session tokudb_disable_slow_alter=ON;
 CREATE TABLE foo(a int auto_increment, b int, primary key(a))engine=TokuDB;
