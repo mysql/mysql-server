@@ -5145,6 +5145,147 @@ runTestScanFragWatchdog(NDBT_Context* ctx, NDBT_Step* step)
   return NDBT_FAILED;
 }
 
+static Uint32
+setConfigValueAndRestartNode(NdbMgmd *mgmd, Uint32 key, Uint32 value, int nodeId, NdbRestarter *restarter)
+{
+    // Get the binary config
+    Config conf;
+    if (!mgmd->get_config(conf)) 
+    {
+      g_err << "Failed to get config from ndb_mgmd." << endl;
+      return NDBT_FAILED;
+    }
+    // Set the key
+    ConfigValues::Iterator iter(conf.m_configValues->m_config);
+    for (int nodeid = 1; nodeid < MAX_NODES; nodeid ++)
+    {
+      Uint32 oldValue;
+      if (!iter.openSection(CFG_SECTION_NODE, nodeid))
+        continue;
+      if (iter.get(key, &oldValue))
+        iter.set(key, value);
+      iter.closeSection();
+    }
+    // Set the modified config
+    if (!mgmd->set_config(conf)) 
+    {
+      g_err << "Failed to set config in ndb_mgmd." << endl;
+      return NDBT_FAILED;
+    }
+    g_err << "Restarting node to apply config change..." << endl;
+    if (restarter->restartOneDbNode(nodeId, false, false, true))
+    {
+      g_err << "Failed to restart node." << endl;
+      return NDBT_FAILED;
+    }
+    if (restarter->waitNodesStarted(&nodeId, 1) != 0)
+    {
+      g_err << "Failed waiting for node started." << endl;
+      return NDBT_FAILED;
+    }
+    return NDBT_OK;
+} 
+
+int
+runTestScanFragWatchdogDisable(NDBT_Context* ctx, NDBT_Step* step)
+{
+  NdbRestarter restarter;
+  if (restarter.getNumDbNodes() < 2) 
+  {
+    g_err << "Insufficient nodes for test." << endl;
+    ctx->stopTest();
+    return NDBT_OK;
+  }
+  int victim = restarter.getNode(NdbRestarter::NS_RANDOM);
+  do
+  {
+    NdbMgmd mgmd;
+    if(!mgmd.connect()) 
+    {
+      g_err << "Failed to connect to ndb_mgmd." << endl;
+      break;
+    }
+    g_err << "Disabling LCP frag scan watchdog..." << endl;
+
+    // to disable the LCP frag scan watchdog, set 
+    // CFG_DB_LCP_SCAN_WATCHDOG_LIMIT = 0
+    if(setConfigValueAndRestartNode(&mgmd, CFG_DB_LCP_SCAN_WATCHDOG_LIMIT, 
+          0, victim, &restarter) == NDBT_FAILED)
+      break;
+
+    g_err << "Injecting fault in node " << victim;
+    g_err << " to suspend LCP frag scan..." << endl;
+    if (restarter.insertErrorInNode(victim, 10039) != 0) 
+    {
+      g_err << "Error insert failed." << endl;
+      break;
+    }
+    
+    g_err << "Creating table for LCP frag scan..." << endl;
+    runLoadTable(ctx, step);
+
+    g_err << "Triggering LCP..." << endl;
+    {
+      int startLcpDumpCode = 7099;
+      if (restarter.dumpStateAllNodes(&startLcpDumpCode, 1))
+      {
+        g_err << "Dump state failed." << endl;
+        break;
+      }
+    }
+
+    if (!mgmd.subscribe_to_events())
+    {
+      g_err << "Failed to subscribe to mgmd events." << endl;
+      break;
+    }
+
+    g_err << "Waiting for activity from LCP Frag watchdog..." << endl;
+    Uint64 maxWaitSeconds = 240;
+    Uint64 endTime = NdbTick_CurrentMillisecond() + 
+      (maxWaitSeconds * 1000);
+    int result = NDBT_OK; 
+    while (NdbTick_CurrentMillisecond() < endTime)
+    {
+      char buff[512];
+      
+      if (!mgmd.get_next_event_line(buff,
+                                    sizeof(buff),
+                                    10 * 1000))
+      {
+        g_err << "Failed to get event line." << endl;
+        result = NDBT_FAILED;
+        break;
+      }
+      if (strstr(buff, "Local checkpoint") && strstr(buff, "completed"))
+      {
+        g_err << "Failed to disable LCP Frag watchdog." << endl;
+        result = NDBT_FAILED;
+        break;
+      }
+    }
+    if(result == NDBT_FAILED)
+      break;
+
+    g_err << "No LCP activity: LCP Frag watchdog successfully disabled..." << endl;
+    g_err << "Restoring default LCP Frag watchdog config..." << endl;
+    if(setConfigValueAndRestartNode(&mgmd, CFG_DB_LCP_SCAN_WATCHDOG_LIMIT, 
+          60, victim, &restarter) == NDBT_FAILED)
+      break;
+
+    ctx->stopTest();
+    return NDBT_OK;
+  } while (0);
+ 
+  // Insert error code to resume LCP in case node halted
+  if (restarter.insertErrorInNode(victim, 10040) != 0) 
+  {
+    g_err << "Test cleanup failed: failed to resume LCP." << endl;
+  }
+  ctx->stopTest();
+  return NDBT_FAILED;
+}
+
 int
 runBug16834416(NDBT_Context* ctx, NDBT_Step* step)
 {
@@ -5978,6 +6119,11 @@ TESTCASE("LCPScanFragWatchdog",
   INITIALIZER(runLoadTable);
   STEP(runPkUpdateUntilStopped);
   STEP(runTestScanFragWatchdog);
+}
+TESTCASE("LCPScanFragWatchdogDisable", 
+         "Test disabling LCP scan watchdog")
+{
+  STEP(runTestScanFragWatchdogDisable);
 }
 TESTCASE("Bug16834416", "")
 {
