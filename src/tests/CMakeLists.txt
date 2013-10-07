@@ -52,7 +52,6 @@ if(BUILD_TESTING OR BUILD_SRC_TESTS)
       bug1381
       bug627
       cachetable-race
-      checkpoint_1
       checkpoint_callback
       checkpoint_stress
       cursor-isolation
@@ -787,7 +786,6 @@ if(BUILD_TESTING OR BUILD_SRC_TESTS)
 
   ## give some tests, that time out normally, 1 hour to complete
   set(long_tests
-    ydb/checkpoint_1.tdb
     ydb/drd_test_groupcommit_count.tdb
     ydb/env-put-multiple.tdb
     ydb/filesize.tdb
