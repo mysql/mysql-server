@@ -1100,8 +1100,8 @@ public:
   struct LCPFragWatchdog
   {
     STATIC_CONST( PollingPeriodMillis = 10000 ); /* 10s */
-    STATIC_CONST( WarnPeriodsWithNoProgress = 2); /* 20s */
-    STATIC_CONST( MaxPeriodsWithNoProgress = 6 ); /* 60s */
+    Uint32 WarnPeriodsWithNoProgress;
+    Uint32 MaxPeriodsWithNoProgress;
 
     SimulatedBlock* block;
     
