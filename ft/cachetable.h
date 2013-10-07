@@ -177,7 +177,7 @@ FILENUM toku_cachetable_reserve_filenum(CACHETABLE ct);
 // Returns the amount reserved.
 // To return the memory to the cachetable, call toku_cachetable_release_reserved_memory
 // Requires 0<fraction<1.
-uint64_t toku_cachetable_reserve_memory(CACHETABLE, double fraction);
+uint64_t toku_cachetable_reserve_memory(CACHETABLE, double fraction, uint64_t upper_bound);
 void toku_cachetable_release_reserved_memory(CACHETABLE, uint64_t);
 
 // cachefile operations

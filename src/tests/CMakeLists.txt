@@ -66,6 +66,7 @@ if(BUILD_TESTING OR BUILD_SRC_TESTS)
       directory_lock
       diskfull
       dump-env
+      env_loader_memory
       env-put-multiple
       env_startup
       execute-updates

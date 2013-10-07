@@ -519,7 +519,7 @@ public:
     void change_pair_attr(PAIR_ATTR old_attr, PAIR_ATTR new_attr);
     void add_to_size_current(long size);
     void remove_from_size_current(long size);
-    uint64_t reserve_memory(double fraction);
+    uint64_t reserve_memory(double fraction, uint64_t upper_bound);
     void release_reserved_memory(uint64_t reserved_memory);
     void run_eviction_thread();
     void do_partial_eviction(PAIR p, bool pair_mutex_held);

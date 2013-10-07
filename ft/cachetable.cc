@@ -319,9 +319,8 @@ CHECKPOINTER toku_cachetable_get_checkpointer(CACHETABLE ct) {
     return &ct->cp;
 }
 
-uint64_t toku_cachetable_reserve_memory(CACHETABLE ct, double fraction) {
-    uint64_t reserved_memory = 0;
-    reserved_memory = ct->ev.reserve_memory(fraction);
+uint64_t toku_cachetable_reserve_memory(CACHETABLE ct, double fraction, uint64_t upper_bound) {
+    uint64_t reserved_memory = ct->ev.reserve_memory(fraction, upper_bound);
     return reserved_memory;
 }
 
@@ -3818,10 +3817,15 @@ void evictor::remove_from_size_current(long size) {
 //
 // TODO: (Zardosht) comment this function
 //
-uint64_t evictor::reserve_memory(double fraction) {
-    uint64_t reserved_memory = 0;
+uint64_t evictor::reserve_memory(double fraction, uint64_t upper_bound) {
     toku_mutex_lock(&m_ev_thread_lock);
-    reserved_memory = fraction * (m_low_size_watermark - m_size_reserved);
+    uint64_t reserved_memory = fraction * (m_low_size_watermark - m_size_reserved);
+    if (0) { // debug
+        fprintf(stderr, "%s %" PRIu64 " %" PRIu64 "\n", __PRETTY_FUNCTION__, reserved_memory, upper_bound);
+    }
+    if (upper_bound > 0 && reserved_memory > upper_bound) {
+        reserved_memory = upper_bound;
+    }
     m_size_reserved += reserved_memory;
     (void) toku_sync_fetch_and_add(&m_size_current, reserved_memory);
     this->signal_eviction_thread();  

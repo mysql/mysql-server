@@ -237,7 +237,7 @@ void evictor_unit_test::verify_ev_m_size_reserved() {
     this->verify_ev_init(limit);
     assert(m_ev.m_size_reserved == expected_m_size_reserved);
     m_ev.m_num_eviction_thread_runs = 0;
-    m_ev.reserve_memory(0.5);
+    m_ev.reserve_memory(0.5, 0);
     assert(m_ev.m_size_reserved == 100+150); //100 original, 150 from last call
     assert(m_ev.m_size_current == 150);
     assert(m_ev.m_size_evicting == 0);
