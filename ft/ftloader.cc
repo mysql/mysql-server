@@ -542,6 +542,7 @@ int toku_ft_loader_internal_init (/* out */ FTLOADER *blp,
                                    LSN load_lsn,
                                    TOKUTXN txn,
                                    bool reserve_memory,
+                                   uint64_t reserve_memory_size,
                                    bool compress_intermediates)
 // Effect: Allocate and initialize a FTLOADER, but do not create the extractor thread.
 {
@@ -552,14 +553,16 @@ int toku_ft_loader_internal_init (/* out */ FTLOADER *blp,
     bl->cachetable = cachetable;
     if (reserve_memory && bl->cachetable) {
         bl->did_reserve_memory = true;
-        bl->reserved_memory = toku_cachetable_reserve_memory(bl->cachetable, 2.0/3.0); // allocate 2/3 of the unreserved part (which is 3/4 of the memory to start with).
+        bl->reserved_memory = toku_cachetable_reserve_memory(bl->cachetable, 2.0/3.0, reserve_memory_size); // allocate 2/3 of the unreserved part (which is 3/4 of the memory to start with).
     }
     else {
         bl->did_reserve_memory = false;
         bl->reserved_memory = 512*1024*1024; // if no cache table use 512MB.
     }
     bl->compress_intermediates = compress_intermediates;
-    //printf("Reserved memory=%ld\n", bl->reserved_memory);
+    if (0) { // debug
+        fprintf(stderr, "%s Reserved memory=%ld\n", __FUNCTION__, bl->reserved_memory);
+    }
 
     bl->src_db = src_db;
     bl->N = N;
@@ -646,6 +649,7 @@ int toku_ft_loader_open (/* out */ FTLOADER *blp,
                           LSN load_lsn,
                           TOKUTXN txn,
                           bool reserve_memory,
+                          uint64_t reserve_memory_size,
                           bool compress_intermediates)
 /* Effect: called by DB_ENV->create_loader to create a brt loader.
  * Arguments:
@@ -669,6 +673,7 @@ int toku_ft_loader_open (/* out */ FTLOADER *blp,
                                               load_lsn,
                                               txn,
                                               reserve_memory,
+                                              reserve_memory_size,
                                               compress_intermediates);
         if (r!=0) result = r;
     }

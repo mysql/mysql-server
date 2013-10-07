@@ -2416,6 +2416,14 @@ env_iterate_live_transactions(DB_ENV *env,
     return toku_txn_manager_iter_over_live_root_txns(txn_manager, iter_txns_callback, &e);
 }
 
+static void env_set_loader_memory_size(DB_ENV *env, uint64_t loader_memory_size) {
+    env->i->loader_memory_size = loader_memory_size;
+}
+
+static uint64_t env_get_loader_memory_size(DB_ENV *env) {
+    return env->i->loader_memory_size;
+}
+
 static int 
 toku_env_create(DB_ENV ** envp, uint32_t flags) {
     int r = ENOSYS;
@@ -2489,6 +2497,8 @@ toku_env_create(DB_ENV ** envp, uint32_t flags) {
     USENV(iterate_pending_lock_requests);
     USENV(iterate_live_transactions);
     USENV(change_fsync_log_period);
+    USENV(set_loader_memory_size);
+    USENV(get_loader_memory_size);
 #undef USENV
     
     // unlocked methods

@@ -182,6 +182,7 @@ struct __toku_db_env_internal {
     int datadir_lockfd;
     int logdir_lockfd;
     int tmpdir_lockfd;
+    uint64_t loader_memory_size;
 };
 
 // test-only environment function for running lock escalation

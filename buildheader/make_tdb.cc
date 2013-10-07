@@ -459,6 +459,8 @@ static void print_db_env_struct (void) {
                              "void (*change_fsync_log_period)             (DB_ENV*, uint32_t)",
                              "int (*iterate_live_transactions)            (DB_ENV *env, iterate_transactions_callback callback, void *extra)",
                              "int (*iterate_pending_lock_requests)        (DB_ENV *env, iterate_requests_callback callback, void *extra)",
+                             "void (*set_loader_memory_size)(DB_ENV *env, uint64_t loader_memory_size)",
+                             "uint64_t (*get_loader_memory_size)(DB_ENV *env)",
                              NULL};
 
         sort_and_dump_fields("db_env", true, extra);
