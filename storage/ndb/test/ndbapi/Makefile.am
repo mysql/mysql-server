@@ -116,7 +116,12 @@ testNativeDefault_SOURCES = testNativeDefault.cpp
 testNdbApi_SOURCES = testNdbApi.cpp
 testNdbApi_CXXFLAGS = -I$(top_srcdir)/storage/ndb/src/ndbapi \
 	-I$(top_srcdir)/storage/ndb/include/transporter
-testNodeRestart_SOURCES = testNodeRestart.cpp
+testNodeRestart_SOURCES = testNodeRestart.cpp \
+	$(top_srcdir)/storage/ndb/src/mgmsrv/Config.cpp \
+	$(top_srcdir)/storage/ndb/src/mgmsrv/ConfigInfo.cpp \
+	$(top_srcdir)/storage/ndb/src/mgmsrv/InitConfigFileParser.cpp \
+	$(top_srcdir)/storage/ndb/src/kernel/vm/mt_thr_config.cpp
+testNodeRestart_CXXFLAGS = -I$(top_srcdir)/storage/ndb/include/debugger
 testUpgrade_SOURCES = testUpgrade.cpp
 testUpgrade_LDADD = $(LDADD) $(top_srcdir)/libmysql_r/libmysqlclient_r.la
 testOIBasic_SOURCES = testOIBasic.cpp

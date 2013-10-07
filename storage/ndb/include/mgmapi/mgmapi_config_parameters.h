@@ -201,6 +201,8 @@
 #define CFG_DB_CRASH_ON_CORRUPTED_TUPLE  629
 #define CFG_DB_FREE_PCT                  630
 
+#define CFG_DB_LCP_SCAN_WATCHDOG_LIMIT   631
+
 /* 632 used for CFG_DB_NO_REDOLOG_PARTS */
 
 #define CFG_NODE_ARBIT_RANK           200
