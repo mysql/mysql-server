@@ -2822,16 +2822,13 @@ void st_select_lex::print(THD *thd, String *str, enum_query_type query_type)
   else
     str->append(STRING_WITH_LEN("select "));
 
-  if (master_unit()->cleaned == SELECT_LEX_UNIT::UC_CLEAN)
-  {
-    /*
-     In order to provide inf for EXPLAIN FOR CONNECTION units aren't
-     completely cleaned till the end of the query.
-    */
-    DBUG_ASSERT(false); /* purecov: inspected */
-    str->append(STRING_WITH_LEN("<already_cleaned_up>"));
-    return;
-  }
+  /*
+   In order to provide info for EXPLAIN FOR CONNECTION units shouldn't
+   be completely cleaned till the end of the query. This is valid only for
+   explainable commands.
+  */
+  DBUG_ASSERT(!(master_unit()->cleaned == SELECT_LEX_UNIT::UC_CLEAN &&
+                is_explainable_query(thd->lex->sql_command)));
 
   /* First add options */
   if (options & SELECT_STRAIGHT_JOIN)
