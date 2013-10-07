@@ -156,7 +156,7 @@ os_atomic_dec_ulint_func(
 	volatile ulint*	var,		/*!< in/out: variable to decrement */
 	ulint		delta)		/*!< in: delta to decrement */
 {
-	mutex->enter();
+	mutex_enter(mutex);
 
 	/* I don't think we will encounter a situation where
 	this check will not be required. */
