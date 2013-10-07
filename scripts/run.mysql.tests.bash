@@ -121,17 +121,17 @@ if [ -z $engine ] ; then
         else
             ./mysql-test-run.pl --suite=$teststorun_original --big-test --max-test-fail=0 --force --retry=1 --testcase-timeout=60 \
                 --mysqld=--default-storage-engine=myisam --mysqld=--sql-mode="" \
-                --mysqld=--loose-tokudb-debug=3072 --mysqld=--loose-tokudb-hide-default-row-format=1 \
+                --mysqld=--loose-tokudb_debug=3072 --mysqld=--loose-tokudb_hide_default_row_format=1 \
                 --parallel=$parallel >>$testresultsdir/$tracefile 2>&1
         fi
         
         if [[ $mysqlbuild =~ Percona ]] ; then
-            ./mysql-test-run.pl --suite=$teststorun_tokudb --big-test --mysqld=--plugin-load=tokudb=ha_tokudb.so --mysqld=--loose-tokudb-debug=3072 --max-test-fail=0 --force --retry=1 --testcase-timeout=60 \
+            ./mysql-test-run.pl --suite=$teststorun_tokudb --big-test --mysqld=--plugin-load=tokudb=ha_tokudb.so --mysqld=--loose-tokudb_debug=3072 --max-test-fail=0 --force --retry=1 --testcase-timeout=60 \
                 --parallel=$parallel >>$testresultsdir/$tracefile 2>&1  
         else
             ./mysql-test-run.pl --suite=$teststorun_tokudb --big-test --max-test-fail=0 --force --retry=1 --testcase-timeout=60 \
                 --mysqld=--default-storage-engine=tokudb \
-                --mysqld=--loose-tokudb-debug=3072 --mysqld=--loose-tokudb-hide-default-row-format=1 \
+                --mysqld=--loose-tokudb_debug=3072 --mysqld=--loose-tokudb_hide_default_row_format=1 \
                 --parallel=$parallel >>$testresultsdir/$tracefile 2>&1  
         fi
         exitcode=$?
@@ -146,7 +146,7 @@ if [ ! -z $engine ] ; then
     pushd $mysql_basedir/mysql-test
     if [ $? = 0 ] ; then
         ./mysql-test-run.pl --suite=$teststorun --force --retry-failure=0 --max-test-fail=0 --nowarnings --testcase-timeout=60 \
-            --mysqld=--default-storage-engine=$engine --mysqld=--loose-tokudb-hide-default-row-format=1 \
+            --mysqld=--default-storage-engine=$engine --mysqld=--loose-tokudb_hide_default_row_format=1 \
             --parallel=$parallel >>$testresultsdir/$tracefile 2>&1
         exitcode=$?
         popd
