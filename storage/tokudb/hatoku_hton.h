@@ -329,7 +329,7 @@ static MYSQL_THDVAR_ENUM(row_format, PLUGIN_VAR_OPCMDARG,
                          "Specifies the compression method for a table during this session. "
                          "Possible values are TOKUDB_UNCOMPRESSED, TOKUDB_ZLIB, TOKUDB_QUICKLZ, "
                          "TOKUDB_LZMA, TOKUDB_FAST, TOKUDB_SMALL and TOKUDB_DEFAULT",
-                         NULL, NULL, SRV_ROW_FORMAT_DEFAULT, &tokudb_row_format_typelib);
+                         NULL, NULL, SRV_ROW_FORMAT_ZLIB, &tokudb_row_format_typelib);
 
 static srv_row_format_t get_row_format(THD *thd) {
     return (srv_row_format_t) THDVAR(thd, row_format);
@@ -338,6 +338,8 @@ static srv_row_format_t get_row_format(THD *thd) {
 static MYSQL_THDVAR_UINT(lock_timeout_debug, 0, "TokuDB lock timeout debug", NULL /*check*/, NULL /*update*/, 1 /*default*/, 0 /*min*/, ~0U /*max*/, 1);
 
 static MYSQL_THDVAR_STR(last_lock_timeout, PLUGIN_VAR_MEMALLOC, "last TokuDB lock timeout", NULL /*check*/, NULL /*update*/, NULL /*default*/);
+
+static MYSQL_THDVAR_BOOL(hide_default_row_format, 0, "hide the default row format", NULL /*check*/, NULL /*update*/, false);
 
 extern HASH tokudb_open_tables;
 extern pthread_mutex_t tokudb_mutex;

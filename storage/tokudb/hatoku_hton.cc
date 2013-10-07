@@ -1309,6 +1309,7 @@ static struct st_mysql_sys_var *tokudb_system_variables[] = {
     MYSQL_SYSVAR(last_lock_timeout),
     MYSQL_SYSVAR(lock_timeout_debug),
     MYSQL_SYSVAR(loader_memory_size),
+    MYSQL_SYSVAR(hide_default_row_format),
     NULL
 };
 

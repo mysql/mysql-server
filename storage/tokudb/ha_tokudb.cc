@@ -6474,9 +6474,7 @@ THR_LOCK_DATA **ha_tokudb::store_lock(THD * thd, THR_LOCK_DATA ** to, enum thr_l
     DBUG_RETURN(to);
 }
 
-static inline enum row_type
-compression_method_to_row_type(enum toku_compression_method method)
-{
+static inline enum row_type compression_method_to_row_type(enum toku_compression_method method) {
     switch (method) {
 #if TOKU_INCLUDE_ROW_TYPE_COMPRESSION
     case TOKU_NO_COMPRESSION:
@@ -6500,28 +6498,22 @@ compression_method_to_row_type(enum toku_compression_method method)
     }
 }
 
-static enum row_type
-get_row_type_for_key(DB *file)
-{
+static enum row_type get_row_type_for_key(DB *file) {
     enum toku_compression_method method;
     int r = file->get_compression_method(file, &method);
     assert(r == 0);
     return compression_method_to_row_type(method);
 }
 
-enum row_type
 #if MYSQL_VERSION_ID >= 50521
-ha_tokudb::get_row_type(void) const
+enum row_type ha_tokudb::get_row_type(void) const {
 #else
-ha_tokudb::get_row_type(void)
+enum row_thype ha_tokudb::get_row_type(void) {
 #endif
-{
     return get_row_type_for_key(share->file);
 }
 
-static inline enum toku_compression_method
-row_type_to_compression_method(enum row_type type)
-{
+static inline enum toku_compression_method row_type_to_compression_method(enum row_type type) {
     switch (type) {
 #if TOKU_INCLUDE_ROW_TYPE_COMPRESSION
     case ROW_TYPE_TOKU_UNCOMPRESSED:
@@ -6538,9 +6530,9 @@ row_type_to_compression_method(enum row_type type)
         return TOKU_FAST_COMPRESSION_METHOD;
 #endif
     default:
-        DBUG_PRINT("info", ("Ignoring ROW_FORMAT not used by TokuDB, using TOKUDB_FAST by default instead"));
+        DBUG_PRINT("info", ("Ignoring ROW_FORMAT not used by TokuDB, using TOKUDB_ZLIB by default instead"));
     case ROW_TYPE_DEFAULT:
-        return TOKU_DEFAULT_COMPRESSION_METHOD;
+        return TOKU_ZLIB_WITHOUT_CHECKSUM_METHOD;
     }
 }
 
@@ -6622,6 +6614,9 @@ void ha_tokudb::update_create_info(HA_CREATE_INFO* create_info) {
         // show create table asks us to update this create_info, this makes it
         // so we'll always show what compression type we're using
         create_info->row_type = get_row_type();
+        if (create_info->row_type == ROW_TYPE_TOKU_ZLIB && THDVAR(ha_thd(), hide_default_row_format) != 0) {
+            create_info->row_type = ROW_TYPE_DEFAULT;
+        }
     }
 }
 
@@ -6921,9 +6916,7 @@ cleanup:
     return error;
 }
 
-static inline enum row_type
-row_format_to_row_type(srv_row_format_t row_format)
-{
+static inline enum row_type row_format_to_row_type(srv_row_format_t row_format) {
 #if TOKU_INCLUDE_ROW_TYPE_COMPRESSION
     switch (row_format) {
     case SRV_ROW_FORMAT_UNCOMPRESSED:
@@ -6943,7 +6936,7 @@ row_format_to_row_type(srv_row_format_t row_format)
     }
     assert(0);
 #endif
-    return ROW_TYPE_DEFAULT;;
+    return ROW_TYPE_DEFAULT;
 }
 
 //
