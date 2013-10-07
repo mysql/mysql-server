@@ -2,6 +2,7 @@
 # in alphabetical order. This also helps with merge conflict resolution.
 
 
+innodb.innodb_wl6326_big                 # 2013-09-04 mleich Mention the test as long as I fear sporadic failures in PB2.
 
 main.func_math @freebsd                  # Bug#11751977 2010-05-04 alik main.func_math fails on FreeBSD in PB2
 main.mysqlslap @windows                  # Bug#11761520 2010-08-10 alik mysqlslap fails sporadically starting from Dahlia
