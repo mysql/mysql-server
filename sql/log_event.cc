@@ -2261,8 +2261,12 @@ Rows_log_event::print_verbose_one_row(IO_CACHE *file, table_def *td,
   const uchar *null_bits= value;
   uint null_bit_index= 0;
   char typestr[64]= "";
-  
-  value+= (m_width + 7) / 8;
+
+  /*
+    Skip metadata bytes which gives the information about nullabity of master
+    columns. Master writes one bit for each affected column.
+   */
+  value+= (bitmap_bits_set(cols_bitmap) + 7) / 8;
   
   my_b_printf(file, "%s", prefix);
   
