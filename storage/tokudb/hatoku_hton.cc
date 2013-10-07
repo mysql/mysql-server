@@ -182,6 +182,7 @@ static ulonglong tokudb_lock_timeout;
 static void tokudb_lock_timeout_callback(DB *db, uint64_t requesting_txnid, const DBT *left_key, const DBT *right_key, uint64_t blocking_txnid);
 static ulong tokudb_cleaner_period;
 static ulong tokudb_cleaner_iterations;
+static ulonglong tokudb_loader_memory_size;
 
 #define ASSERT_MSGLEN 1024
 
@@ -457,6 +458,7 @@ static int tokudb_init_func(void *p) {
     db_env_set_direct_io(tokudb_directio == TRUE);
     db_env->change_fsync_log_period(db_env, tokudb_fsync_log_period);
     db_env->set_lock_timeout_callback(db_env, tokudb_lock_timeout_callback);
+    db_env->set_loader_memory_size(db_env, tokudb_loader_memory_size);
 
     r = db_env->open(db_env, tokudb_home, tokudb_init_flags, S_IRUSR|S_IWUSR|S_IRGRP|S_IWGRP|S_IROTH|S_IWOTH);
 
@@ -1250,6 +1252,19 @@ static void tokudb_fsync_log_period_update(THD *thd, struct st_mysql_sys_var *sy
 
 static MYSQL_SYSVAR_UINT(fsync_log_period, tokudb_fsync_log_period, 0, "TokuDB fsync log period", NULL, tokudb_fsync_log_period_update, 0, 0, ~0U, 0);
 
+static void tokudb_update_loader_memory_size(THD * thd, struct st_mysql_sys_var * sys_var, void * var, const void * save) {
+    ulonglong *p = (ulonglong *) var;
+    *p = *(const ulonglong *) save;
+    db_env->set_loader_memory_size(db_env, *p);
+}
+
+static MYSQL_SYSVAR_ULONGLONG(
+    loader_memory_size, tokudb_loader_memory_size,
+    0, "TokuDB loader memory size", 
+    NULL, tokudb_update_loader_memory_size, 
+    100 * 1000 * 1000 /*default*/, 0 /*min*/, ~0ULL /*max*/, 0
+);
+
 static struct st_mysql_sys_var *tokudb_system_variables[] = {
     MYSQL_SYSVAR(cache_size),
     MYSQL_SYSVAR(max_lock_memory),
@@ -1293,6 +1308,7 @@ static struct st_mysql_sys_var *tokudb_system_variables[] = {
 #endif
     MYSQL_SYSVAR(last_lock_timeout),
     MYSQL_SYSVAR(lock_timeout_debug),
+    MYSQL_SYSVAR(loader_memory_size),
     NULL
 };
 
