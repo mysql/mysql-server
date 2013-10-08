@@ -65,11 +65,11 @@ TEST_F(StringsUTF8Test, My_strchr)
 
   ASSERT_TRUE(NULL == pos);
 
-
-  char invalid_utf8_str[]= "\u00FFy\u00E6";
+  // Assign an invalid utf8 char to valid_utf8_str
+  valid_utf8_string[0]= 0xff;
   // Invalid utf8 character in str arg passed to my_strchr.
-  pos= my_strchr(system_charset_info, invalid_utf8_str,
-                 invalid_utf8_str+3,'y');
+  pos= my_strchr(system_charset_info, valid_utf8_string,
+                 valid_utf8_string+3,'y');
   ASSERT_TRUE(NULL == pos);
 
 }
