@@ -142,7 +142,7 @@ static char* add_identifier(THD* thd, char *to_p, const char * end_p,
       if (!length)
         length= 1;
       if (length == 1 && *conv_name == (char) quote)
-      { 
+      {
         if ((end_p - to_p) < 3)
           break;
         *(to_p++)= (char) quote;
