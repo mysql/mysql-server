@@ -92,6 +92,7 @@ UNIV_INTERN mysql_pfs_key_t	fts_delete_mutex_key;
 UNIV_INTERN mysql_pfs_key_t	fts_optimize_mutex_key;
 UNIV_INTERN mysql_pfs_key_t	fts_bg_threads_mutex_key;
 UNIV_INTERN mysql_pfs_key_t	fts_doc_id_mutex_key;
+UNIV_INTERN mysql_pfs_key_t	fts_pll_tokenize_mutex_key;
 #endif /* UNIV_PFS_MUTEX */
 
 /** variable to record innodb_fts_internal_tbl_name for information
