@@ -27,7 +27,7 @@ var q1 = {
   queryType: 3,  /* table scan */
   expected: [1,2,3,4,5,6,7,8,9,10,11,12,13,14,15,16,17,18,19,20,21],
   predicate: function(q) {
-    return q;
+    return /* ?what? */;
   }
 };
 
@@ -83,8 +83,30 @@ var q6 = {
   }
 };
 
+var q7 = {
+  /* id NOT EQUAL TO X.  This should scan two ranges on PRIMARY ?? */
+  name: 'q7',
+  queryType: 2,
+  expected: [1,2,3,  5,6,7,8,9,10,11,12,13,14,15,16,17,18,19,20,21],
+  p1: 4,
+  predicate: function(q) {
+    return q.id.ne(q.param("p1"));
+  }
+};
+
+var q8 = {
+  name: 'q8',
+  queryType: 2,
+  expected: [5,7],
+  p1: 1, p3: 3,
+  predicate: function(q) {
+    return q.k1.eq(q.param("p1")).and(q.k2.eq(q.param("p1")).or(q.k2.eq(q.param("p3"))));
+  }
+};
+
 //var queryTests = [q1, q2, q3];
-var queryTests = [ q5 ];
+// var queryTests = [ q3,q4,q5,q8 ];
+var queryTests = [ q8 ];
 
 /** Set up domain type */
 function mpk1() {};
