@@ -64,10 +64,10 @@ function RollbackOnly() {
 }
 var rollbackOnly = new RollbackOnly();
 
-/** An error occurred. If there is a callback defined, signal the error via the callback,
+/** An error may have occurred. If there is a callback defined, signal the error via the callback,
  * and return the new transaction state. The state should remain the same (the current state
  * is passed in the function).
- * If no callback is defined, throw an error (and remain in the current state).
+ * If no callback is defined with an error, throw the error (and remain in the current state).
  */
 var callbackErrOrThrow = function(err, user_arguments) {
   if (typeof(user_arguments[0]) === 'function') {
@@ -78,18 +78,20 @@ var callbackErrOrThrow = function(err, user_arguments) {
     }
     return_arguments[0] = err;
     user_arguments[0].apply(null, return_arguments);
-  } else {
+  } else if (err) {
     throw err;
   }
 };
 
-Idle.prototype.begin = function(session) {
+Idle.prototype.begin = function(session, user_arguments) {
   udebug.log('Idle begin');
   // notify dbSession if they are interested
   if (typeof(session.dbSession.begin) === 'function') {
     session.dbSession.begin();
   }
   session.tx.setState(active);
+  // no error
+  callbackErrOrThrow(null, user_arguments);
 };
 
 Idle.prototype.commit = function(session, user_arguments) {
