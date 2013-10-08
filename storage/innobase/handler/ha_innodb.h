@@ -477,7 +477,7 @@ innobase_table_flags(
 	const HA_CREATE_INFO*	create_info,	/*!< in: information
 						on table columns and indexes */
 	THD*			thd,		/*!< in: connection */
-	bool			use_tablespace,	/*!< in: whether to create
+	bool			use_file_per_table,/*!< in: whether to create
 						outside system tablespace */
 	ulint*			flags,		/*!< out: DICT_TF flags */
 	ulint*			flags2)		/*!< out: DICT_TF2 flags */
@@ -494,10 +494,8 @@ const char*
 create_options_are_invalid(
 /*=======================*/
 	THD*		thd,		/*!< in: connection thread. */
-	TABLE*		form,		/*!< in: information on table
-					columns and indexes */
 	HA_CREATE_INFO*	create_info,	/*!< in: create info. */
-	bool		use_tablespace)	/*!< in: srv_file_per_table */
+	bool		use_file_per_table)/*!< in: srv_file_per_table */
 	__attribute__((nonnull, warn_unused_result));
 
 /*********************************************************************//**

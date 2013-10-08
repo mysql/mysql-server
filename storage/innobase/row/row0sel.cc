@@ -504,7 +504,7 @@ sel_col_prefetch_buf_alloc(
 	ut_ad(que_node_get_type(column) == QUE_NODE_SYMBOL);
 
 	column->prefetch_buf = static_cast<sel_buf_t*>(
-		mem_alloc(SEL_MAX_N_PREFETCH * sizeof(sel_buf_t)));
+		ut_malloc(SEL_MAX_N_PREFETCH * sizeof(sel_buf_t)));
 
 	for (i = 0; i < SEL_MAX_N_PREFETCH; i++) {
 		sel_buf = column->prefetch_buf + i;
@@ -532,11 +532,11 @@ sel_col_prefetch_buf_free(
 
 		if (sel_buf->val_buf_size > 0) {
 
-			mem_free(sel_buf->data);
+			ut_free(sel_buf->data);
 		}
 	}
 
-	mem_free(prefetch_buf);
+	ut_free(prefetch_buf);
 }
 
 /*********************************************************************//**
@@ -3263,6 +3263,13 @@ sel_restore_position_for_mysql(
 		return(TRUE);
 	}
 
+	/* success can only be TRUE for BTR_PCUR_ON! */
+	ut_ad(!success);
+
+	/* BTR_PCUR_BEFORE -> the position is now set to the record before
+	pcur->old_rec.
+	BTR_PCUR_AFTER-> positioned to record after pcur->old_rec. */
+
 	if (relative_position == BTR_PCUR_AFTER
 	    || relative_position == BTR_PCUR_AFTER_LAST_IN_TREE) {
 
@@ -3397,7 +3404,7 @@ row_sel_prefetch_cache_init(
 
 	/* Reserve space for the magic number. */
 	sz = UT_ARR_SIZE(prebuilt->fetch_cache) * (prebuilt->mysql_row_len + 8);
-	ptr = static_cast<byte*>(mem_alloc(sz));
+	ptr = static_cast<byte*>(ut_malloc(sz));
 
 	for (i = 0; i < UT_ARR_SIZE(prebuilt->fetch_cache); i++) {
 
@@ -4356,6 +4363,14 @@ wrong_offs:
 
 			btr_pcur_store_position(pcur, &mtr);
 
+			/* The found record was not a match, but may be used
+			as NEXT record (index_next). Set the relative position
+			to BTR_PCUR_BEFORE, to reflect that the position of
+			the persistent cursor is before the found/stored row
+			(pcur->old_rec). */
+			ut_ad(pcur->rel_pos == BTR_PCUR_ON);
+			pcur->rel_pos = BTR_PCUR_BEFORE;
+
 			err = DB_RECORD_NOT_FOUND;
 #if 0
 			ut_print_name(stderr, trx, FALSE, index->name);
@@ -4396,6 +4411,14 @@ wrong_offs:
 			}
 
 			btr_pcur_store_position(pcur, &mtr);
+
+			/* The found record was not a match, but may be used
+			as NEXT record (index_next). Set the relative position
+			to BTR_PCUR_BEFORE, to reflect that the position of
+			the persistent cursor is before the found/stored row
+			(pcur->old_rec). */
+			ut_ad(pcur->rel_pos == BTR_PCUR_ON);
+			pcur->rel_pos = BTR_PCUR_BEFORE;
 
 			err = DB_RECORD_NOT_FOUND;
 #if 0
@@ -5083,6 +5106,7 @@ normal_return:
 		pre-fetch queue, but we definitely wrote to the record
 		buffer passed to use by MySQL. */
 
+		DEBUG_SYNC_C("row_search_cached_row");
 		err = DB_SUCCESS;
 	}
 

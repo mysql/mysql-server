@@ -602,7 +602,7 @@ void GRANT_NAME::set_user_details(const char *h, const char *d,
   }
   key_length= strlen(d) + strlen(u)+ strlen(t)+3;
   hash_key=   (char*) alloc_root(&memex,key_length);
-  strmov(strmov(strmov(hash_key,user)+1,db)+1,tname);
+  my_stpcpy(my_stpcpy(my_stpcpy(hash_key,user)+1,db)+1,tname);
 }
 
 GRANT_NAME::GRANT_NAME(const char *h, const char *d,const char *u,
@@ -645,7 +645,7 @@ GRANT_NAME::GRANT_NAME(TABLE *form, bool is_routine)
   }
   key_length= (strlen(db) + strlen(user) + strlen(tname) + 3);
   hash_key=   (char*) alloc_root(&memex, key_length);
-  strmov(strmov(strmov(hash_key,user)+1,db)+1,tname);
+  my_stpcpy(my_stpcpy(my_stpcpy(hash_key,user)+1,db)+1,tname);
   privs = (ulong) form->field[6]->val_int();
   privs = fix_rights_for_table(privs);
 }
@@ -874,13 +874,13 @@ ulong acl_get(const char *host, const char *ip,
                  strlen(user ? user : "") +
                  strlen(db ? db : ""));
   /*
-    Make sure that strmov() operations do not result in buffer overflow.
+    Make sure that my_stpcpy() operations do not result in buffer overflow.
   */
   if (copy_length >= ACL_KEY_LENGTH)
     DBUG_RETURN(0);
 
   mysql_mutex_lock(&acl_cache->lock);
-  end=strmov((tmp_db=strmov(strmov(key, ip ? ip : "")+1,user)+1),db);
+  end=my_stpcpy((tmp_db=my_stpcpy(my_stpcpy(key, ip ? ip : "")+1,user)+1),db);
   if (lower_case_table_names)
   {
     my_casedn_str(files_charset_info, tmp_db);
@@ -1701,7 +1701,7 @@ static my_bool acl_load(THD *thd, TABLE_LIST *tables)
         convert db to lower case and give a warning if the db wasn't
         already in lower case
       */
-      (void)strmov(tmp_name, db.db);
+      (void)my_stpcpy(tmp_name, db.db);
       my_casedn_str(files_charset_info, db.db);
       if (strcmp(db.db, tmp_name) != 0)
       {
@@ -1919,8 +1919,8 @@ GRANT_NAME *name_hash_search(HASH *name_hash,
   GRANT_NAME *grant_name,*found=0;
   HASH_SEARCH_STATE state;
 
-  name_ptr= strmov(strmov(helping, user) + 1, db) + 1;
-  len  = (uint) (strmov(name_ptr, tname) - helping) + 1;
+  name_ptr= my_stpcpy(my_stpcpy(helping, user) + 1, db) + 1;
+  len  = (uint) (my_stpcpy(name_ptr, tname) - helping) + 1;
   if (name_tolower)
     my_casedn_str(files_charset_info, name_ptr);
   for (grant_name= (GRANT_NAME*) my_hash_first(name_hash, (uchar*) helping,

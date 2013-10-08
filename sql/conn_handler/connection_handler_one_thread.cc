@@ -90,14 +90,9 @@ bool One_thread_connection_handler::add_connection(Channel_info* channel_info)
 
   end_connection(thd);
   close_connection(thd);
-  Connection_handler_manager::get_instance()->remove_connection(thd);
-  return false;
-}
-
-
-void One_thread_connection_handler::remove_connection(THD* thd)
-{
+  dec_connection_count();
   thd->release_resources();
   remove_global_thread(thd);
   delete thd;
+  return false;
 }

@@ -222,7 +222,7 @@ fil_node_create(
 	ulint		size,	/*!< in: file size in database blocks, rounded
 				downwards to an integer */
 	ulint		id,	/*!< in: space id where to append */
-	ibool		is_raw)	/*!< in: TRUE if a raw device or
+	bool		is_raw)	/*!< in: TRUE if a raw device or
 				a raw disk partition */
 	__attribute__((nonnull, warn_unused_result));
 /*******************************************************************//**
@@ -555,7 +555,7 @@ fil_rename_tablespace(
 
 /*******************************************************************//**
 Allocates a file name for a single-table tablespace. The string must be freed
-by caller with mem_free().
+by caller with ut_free().
 @return own: file name */
 
 char*
@@ -565,7 +565,7 @@ fil_make_ibd_name(
 	bool		is_full_path);	/*!< in: TRUE if it is a dir path */
 /*******************************************************************//**
 Allocates a file name for a tablespace ISL file (InnoDB Symbolic Link).
-The string must be freed by caller with mem_free().
+The string must be freed by caller with ut_free().
 @return own: file name */
 
 char*
@@ -603,7 +603,7 @@ fil_read_link_file(
 /*===============*/
 	const char*	name);		/*!< in: tablespace name */
 /*******************************************************************//**
-Creates a new single-table tablespace to a database directory of MySQL.
+Creates a new tablespace in a database directory of MySQL.
 Database directories are under the 'datadir' of MySQL. The datadir is the
 directory of a running mysqld program. We can refer to it by simply the
 path '.'. Tables created with CREATE TEMPORARY TABLE we place in the temp
@@ -935,7 +935,7 @@ struct PageCallback {
 	/** Called for every page in the tablespace. If the page was not
 	updated then its state must be set to BUF_PAGE_NOT_USED. For
 	compressed tables the page descriptor memory will be at offset:
-       	block->frame + UNIV_PAGE_SIZE;
+	block->frame + UNIV_PAGE_SIZE;
 	@param offset physical offset within the file
 	@param block block read from file, note it is not from the buffer pool
 	@retval DB_SUCCESS or error code. */

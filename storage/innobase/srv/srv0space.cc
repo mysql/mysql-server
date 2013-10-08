@@ -307,7 +307,7 @@ Tablespace::get_file_name(
 /*======================*/
 	const char*	filepath)
 {
-	char* last_slash = strrchr((char*) filepath, OS_FILE_PATH_SEPARATOR);
+	char* last_slash = strrchr((char*) filepath, OS_PATH_SEPARATOR);
 	return(last_slash ? last_slash + 1 : (char*) filepath);
 }
 
@@ -475,8 +475,8 @@ Tablespace::make_name(
 	memcpy(name, tablespace_path, dirnamelen);
 
 	/* Add a path separator if needed. */
-	if (dirnamelen && name[dirnamelen - 1] != SRV_PATH_SEPARATOR) {
-		name[dirnamelen++] = SRV_PATH_SEPARATOR;
+	if (dirnamelen && name[dirnamelen - 1] != OS_PATH_SEPARATOR) {
+		name[dirnamelen++] = OS_PATH_SEPARATOR;
 	}
 
 	strcpy(name + dirnamelen, file.m_name);

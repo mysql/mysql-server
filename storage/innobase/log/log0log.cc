@@ -150,7 +150,7 @@ struct Block {
 	Do a shallow copy.
 
 	@aram ptr	Start of the block. */
-	Block(byte* ptr) : m_ptr(ptr) { }
+	explicit Block(byte* ptr) : m_ptr(ptr) { }
 
 	static ulint capacity()
 	{
@@ -398,43 +398,18 @@ public:
 	buffer on IOBlock::Size.
 
 	@param size	of the buffer in bytes */
-	IOBuffer(size_t size)
+	explicit IOBuffer(size_t size)
 		:
 		m_size(size)
 	{
-		size += IOBlock::SIZE;
-
-		m_unaligned_ptr = new(std::nothrow) byte[size];
-
-		::memset(m_unaligned_ptr, 0x0, size);
-
-		void*	ptr = ut_align(m_unaligned_ptr, IOBlock::SIZE);
-		m_ptr = reinterpret_cast<byte*>(ptr);
-
-		m_iobuffers.reserve(size / IOBlock::SIZE);
-
-		byte*	p = m_ptr;
-
-		for (ulint i = 0; i < m_iobuffers.capacity(); ++i) {
-			m_iobuffers.push_back(new(std::nothrow) IOBlock(p));
-			p += IOBlock::SIZE;
-		}
+		alloc(size);
 	}
 
 	/**
 	Destructor */
 	~IOBuffer()
 	{
-		iobuffers_t::iterator	end = m_iobuffers.end();
-
-		for (iobuffers_t::iterator it = m_iobuffers.begin();
-		     it != end;
-		     ++it) {
-
-			delete *it;
-		}
-
-		delete[] m_unaligned_ptr;
+		free();
 	}
 
 	/*
@@ -455,6 +430,59 @@ public:
 	{
 		return(m_size);
 	}
+
+	/**
+	Resize the buffer, old contents are discarded */
+	void resize(ulint len)
+	{
+		free();
+
+		alloc(len);
+
+		m_size = len;
+	}
+
+private:
+	void alloc(size_t size)
+	{
+		size += IOBlock::SIZE;
+
+		m_unaligned_ptr = new(std::nothrow) byte[size];
+
+		::memset(m_unaligned_ptr, 0x0, size);
+
+		void*	ptr = ut_align(m_unaligned_ptr, IOBlock::SIZE);
+		m_ptr = reinterpret_cast<byte*>(ptr);
+
+		m_iobuffers.reserve(size / IOBlock::SIZE);
+
+		byte*	p = m_ptr;
+
+		for (size_t i = 0; i < m_iobuffers.capacity(); ++i) {
+			m_iobuffers.push_back(new(std::nothrow) IOBlock(p));
+			p += IOBlock::SIZE;
+		}
+	}
+
+	void free()
+	{
+		iobuffers_t::iterator	end = m_iobuffers.end();
+
+		for (iobuffers_t::iterator it = m_iobuffers.begin();
+		     it != end;
+		     ++it) {
+
+			delete *it;
+		}
+
+		delete[] m_unaligned_ptr;
+
+		m_ptr = NULL;
+		m_unaligned_ptr = NULL;
+
+		m_iobuffers.clear();
+	}
+
 private:
 	// Disable copying
 	IOBuffer(const IOBuffer&);
@@ -479,8 +507,8 @@ private:
 /** The logical buffer that is used to control the physical buffer. */
 struct RedoLog::LogBuffer {
 	/**
-	@param size		Size of the buffer */
-	LogBuffer(ulint size)
+	@param[in] size		Size of the buffer in bytes */
+	explicit LogBuffer(ulint size)
 		:
 		m_next_to_write(),
 		m_write_end_offset(),
@@ -568,8 +596,8 @@ struct RedoLog::LogBuffer {
 	{
 		ulint	end = ut_calc_align(m_free, IOBlock::SIZE);
 
-		::memcpy(ptr() + end,
-			 ptr() + end - IOBlock::SIZE, IOBlock::SIZE);
+		::memmove(ptr() + end,
+			  ptr() + end - IOBlock::SIZE, IOBlock::SIZE);
 
 		m_free += IOBlock::SIZE;
 	}
@@ -734,6 +762,34 @@ struct RedoLog::LogBuffer {
 	ulint get_first_rec_group() const
 	{
 		return(IOBlock::get_first_rec_group(block_header()));
+	}
+
+	/**
+	Currently only extend the log buffer
+	@param[in] len		new length of the log buffer in bytes */
+	void resize(size_t len)
+	{
+		ulint	end = m_free;
+		byte	buf[IOBlock::SIZE];
+		ulint	start = ut_calc_align_down(m_free, IOBlock::SIZE);
+
+		/* Store the last log block in buffer */
+		::memmove(buf, ptr() + start, end - start);
+
+		m_buffer.resize(m_buffer.capacity() + len);
+
+		srv_log_buffer_size = m_buffer.capacity() / UNIV_PAGE_SIZE + 1;
+
+		/* Restore the last log block */
+		ut_memcpy(ptr(), buf, end - start);
+
+		ulint	ratio = LOG_BUFFER_SIZE / BUF_FLUSH_RATIO;
+
+		m_free -= start;
+
+		m_next_to_write -= start;
+
+		m_max_free = ratio - BUF_FLUSH_MARGIN;
 	}
 
 	ulint capacity() const
@@ -928,7 +984,7 @@ public:
 
 struct RedoLog::Checkpoint {
 public:
-	Checkpoint(lsn_t last_lsn)
+	explicit Checkpoint(lsn_t last_lsn)
 		:
 		m_max_age_async(),
 		m_max_age(),
@@ -1408,7 +1464,7 @@ Writes to the log the string given. The log must be released with close().
 @param start_lsn	start lsn of the log record
 @return	end lsn of the log record, zero if did not succeed */
 lsn_t
-RedoLog::open(const void* ptr, ulint	 len, lsn_t* start_lsn)
+RedoLog::open(const void* ptr, ulint len, lsn_t* start_lsn)
 {
 	mutex_acquire();
 
@@ -1434,6 +1490,7 @@ RedoLog::open(const void* ptr, ulint	 len, lsn_t* start_lsn)
 Write the buffer to the log.
 @param ptr		buffer to write
 @param len 		length of buffer to write */
+
 void
 RedoLog::write(const byte* ptr, ulint len)
 {
@@ -1467,6 +1524,56 @@ RedoLog::write(const byte* ptr, ulint len)
 	srv_stats.log_write_requests.inc();
 }
 
+/** Extends the log buffer.
+@param[in] len	requested minimum size in bytes */
+
+void
+RedoLog::extend(ulint len)
+{
+	mutex_acquire();
+
+	while (m_is_extending) {
+
+		/* Another thread is trying to extend already.
+		Needs to wait for. */
+		mutex_release();
+
+		sync_flush();
+
+		mutex_acquire();
+
+		if (srv_log_buffer_size > len / UNIV_PAGE_SIZE) {
+			/* Already extended enough by the others */
+			mutex_release();
+			return;
+		}
+	}
+
+	m_is_extending = true;
+
+	while (m_n_pending_writes > 0 || m_buf->pending()) {
+
+		/* Buffer might have > 1 blocks to write still. */
+		mutex_release();
+
+		sync_flush();
+
+		mutex_acquire();
+	}
+
+	m_buf->resize(len);
+
+	ut_ad(m_is_extending);
+
+	m_is_extending = false;
+
+	mutex_release();
+
+	ib_logf(IB_LOG_LEVEL_INFO,
+		"innodb_log_buffer_size was extended to %luM bytes",
+		LOG_BUFFER_SIZE / (1024 * 1024));
+}
+
 /**
 Opens the log for log_write_low. The log must be closed with log_close and
 released with close().
@@ -1487,7 +1594,20 @@ RedoLog::open(ulint len, bool own_mutex)
 		ut_ad(is_mutex_owned());
 	}
 
-	ut_ad(len < m_buf->capacity() / 2);
+	if (len >= m_buf->capacity() / 2) {
+
+		DBUG_EXECUTE_IF("ib_log_buffer_is_short_crash",
+				DBUG_SUICIDE(););
+
+		/* log_buffer is too small. try to extend instead of crash. */
+		ib_logf(IB_LOG_LEVEL_WARN,
+			"The mini-transaction log size is too large "
+			"for innodb_log_buffer_size (%lu >= %lu / 2). "
+			"Trying to extend it.",
+			len, LOG_BUFFER_SIZE);
+
+		extend((len + 1) * 2);
+	}
 
 	for (;;) {
 		ut_ad(is_write_allowed());
@@ -1660,6 +1780,7 @@ RedoLog::calc_max_ages()
 
 /**
 @return true if success, false if not */
+
 bool
 RedoLog::init()
 {

@@ -44,7 +44,7 @@ struct row_esms_by_program
   char m_object_name[OBJECT_NAME_LENGTH];
   int m_object_name_length;
 
-  /** 
+  /**
     Columns COUNT_STAR
             SUM_TIMER_WAIT
             MIN_TIMER_WAIT

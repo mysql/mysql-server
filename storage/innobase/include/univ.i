@@ -371,9 +371,9 @@ limit both with this same constant. */
 /** Largest compressed page size */
 #define UNIV_ZIP_SIZE_MAX	(1 << UNIV_ZIP_SIZE_SHIFT_MAX)
 
-/** Number of supported page sizes (The convention 'ssize' is used
+/** Largest possible ssize (The convention 'ssize' is used
 for 'log2 minus 9' or the number of shifts starting with 512.)
-This number varies depending on UNIV_PAGE_SIZE. */
+This max number varies depending on UNIV_PAGE_SIZE. */
 #define UNIV_PAGE_SSIZE_MAX					\
 	(UNIV_PAGE_SIZE_SHIFT - UNIV_ZIP_SIZE_SHIFT_MIN + 1)
 
@@ -592,9 +592,11 @@ functions. */
 #ifdef _WIN32
 typedef ulint os_thread_ret_t;
 #define OS_THREAD_DUMMY_RETURN return(0)
+#define OS_PATH_SEPARATOR '\\'
 #else
 typedef void* os_thread_ret_t;
 #define OS_THREAD_DUMMY_RETURN return(NULL)
+#define OS_PATH_SEPARATOR '/'
 #endif
 
 #include <stdio.h>

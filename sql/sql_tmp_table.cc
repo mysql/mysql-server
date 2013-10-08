@@ -584,7 +584,7 @@ create_tmp_table(THD *thd,TMP_TABLE_PARAM *param,List<Item> &fields,
     DBUG_RETURN(NULL);				/* purecov: inspected */
   }
   param->items_to_copy= copy_func;
-  strmov(tmpname,path);
+  my_stpcpy(tmpname,path);
   /* make table according to fields */
 
   memset(table, 0, sizeof(*table));
@@ -1263,7 +1263,7 @@ TABLE *create_duplicate_weedout_tmp_table(THD *thd,
       bitmap_lock_clear_bit(&temp_pool, temp_pool_slot);
     DBUG_RETURN(NULL);
   }
-  strmov(tmpname,path);
+  my_stpcpy(tmpname,path);
   
 
   /* STEP 4: Create TABLE description */

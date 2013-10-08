@@ -188,7 +188,7 @@ sp_name::sp_name(const MDL_key *key, char *qname_buff)
   }
   else
   {
-    strmov(qname_buff, m_name.str);
+    my_stpcpy(qname_buff, m_name.str);
     m_qname.length= m_name.length;
   }
   m_explicit_name= false;

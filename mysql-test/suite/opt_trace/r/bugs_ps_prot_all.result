@@ -449,6 +449,7 @@ WHERE sq2_alias1.col_varchar_nokey <= alias1.col_varchar_key
                         {
                           "access_type": "scan",
                           "using_join_cache": true,
+                          "buffers_needed": 1,
                           "rows": 1,
                           "cost": 1.2,
                           "chosen": true
@@ -471,6 +472,7 @@ WHERE sq2_alias1.col_varchar_nokey <= alias1.col_varchar_key
                             {
                               "access_type": "scan",
                               "using_join_cache": true,
+                              "buffers_needed": 1,
                               "rows": 1,
                               "cost": 1.2,
                               "chosen": true
@@ -494,6 +496,7 @@ WHERE sq2_alias1.col_varchar_nokey <= alias1.col_varchar_key
                                 {
                                   "access_type": "scan",
                                   "using_join_cache": true,
+                                  "buffers_needed": 1,
                                   "rows": 1,
                                   "cost": 1.2001,
                                   "chosen": true
@@ -514,6 +517,7 @@ WHERE sq2_alias1.col_varchar_nokey <= alias1.col_varchar_key
                                           {
                                             "access_type": "scan",
                                             "using_join_cache": true,
+                                            "buffers_needed": 1,
                                             "rows": 1,
                                             "cost": 1.2001,
                                             "chosen": true
@@ -550,6 +554,7 @@ WHERE sq2_alias1.col_varchar_nokey <= alias1.col_varchar_key
                             {
                               "access_type": "scan",
                               "using_join_cache": true,
+                              "buffers_needed": 1,
                               "rows": 1,
                               "cost": 1.2,
                               "chosen": true
@@ -570,6 +575,7 @@ WHERE sq2_alias1.col_varchar_nokey <= alias1.col_varchar_key
                                       {
                                         "access_type": "scan",
                                         "using_join_cache": true,
+                                        "buffers_needed": 1,
                                         "rows": 1,
                                         "cost": 1.2,
                                         "chosen": true
@@ -605,6 +611,7 @@ WHERE sq2_alias1.col_varchar_nokey <= alias1.col_varchar_key
                         {
                           "access_type": "scan",
                           "using_join_cache": true,
+                          "buffers_needed": 1,
                           "rows": 1,
                           "cost": 1.2,
                           "chosen": true
@@ -627,6 +634,7 @@ WHERE sq2_alias1.col_varchar_nokey <= alias1.col_varchar_key
                         {
                           "access_type": "scan",
                           "using_join_cache": true,
+                          "buffers_needed": 1,
                           "rows": 1,
                           "cost": 1.2,
                           "chosen": true
@@ -712,6 +720,7 @@ WHERE sq2_alias1.col_varchar_nokey <= alias1.col_varchar_key
                           {
                             "access_type": "scan",
                             "using_join_cache": true,
+                            "buffers_needed": 1,
                             "rows": 1,
                             "cost": 1.2001,
                             "chosen": true
@@ -893,6 +902,7 @@ WHERE sq2_alias1.col_varchar_nokey <= alias1.col_varchar_key
                         {
                           "access_type": "scan",
                           "using_join_cache": true,
+                          "buffers_needed": 1,
                           "rows": 1,
                           "cost": 1.2,
                           "chosen": true
@@ -1847,6 +1857,7 @@ ON table2 .col_int_key = table1 .col_int_key
                               {
                                 "access_type": "scan",
                                 "using_join_cache": true,
+                                "buffers_needed": 1,
                                 "rows": 3,
                                 "cost": 4.607,
                                 "chosen": true
@@ -1899,6 +1910,7 @@ ON table2 .col_int_key = table1 .col_int_key
                               {
                                 "access_type": "scan",
                                 "using_join_cache": true,
+                                "buffers_needed": 1,
                                 "rows": 3,
                                 "cost": 4.607,
                                 "chosen": true
@@ -1954,6 +1966,7 @@ ON table2 .col_int_key = table1 .col_int_key
                         {
                           "access_type": "scan",
                           "using_join_cache": true,
+                          "buffers_needed": 1,
                           "rows": 3,
                           "cost": 5.8074,
                           "chosen": true
@@ -1983,6 +1996,7 @@ ON table2 .col_int_key = table1 .col_int_key
                             {
                               "access_type": "scan",
                               "using_join_cache": true,
+                              "buffers_needed": 1,
                               "rows": 3,
                               "cost": 13.009,
                               "chosen": true
@@ -2078,6 +2092,7 @@ ON table2 .col_int_key = table1 .col_int_key
                         {
                           "access_type": "scan",
                           "using_join_cache": true,
+                          "buffers_needed": 1,
                           "rows": 3,
                           "cost": 5.8074,
                           "chosen": true
@@ -2107,6 +2122,7 @@ ON table2 .col_int_key = table1 .col_int_key
                             {
                               "access_type": "scan",
                               "using_join_cache": true,
+                              "buffers_needed": 1,
                               "rows": 3,
                               "cost": 13.009,
                               "chosen": true
@@ -2222,6 +2238,7 @@ ON table2 .col_int_key = table1 .col_int_key
                         {
                           "access_type": "scan",
                           "using_join_cache": true,
+                          "buffers_needed": 1,
                           "rows": 6,
                           "cost": 6.8192,
                           "chosen": true
@@ -2251,6 +2268,7 @@ ON table2 .col_int_key = table1 .col_int_key
                             {
                               "access_type": "scan",
                               "using_join_cache": true,
+                              "buffers_needed": 1,
                               "rows": 3,
                               "cost": 16.61,
                               "chosen": true
@@ -2289,6 +2307,7 @@ ON table2 .col_int_key = table1 .col_int_key
                         {
                           "access_type": "scan",
                           "using_join_cache": true,
+                          "buffers_needed": 1,
                           "rows": 3,
                           "cost": 4.607,
                           "chosen": true
@@ -2315,6 +2334,7 @@ ON table2 .col_int_key = table1 .col_int_key
                             {
                               "access_type": "scan",
                               "using_join_cache": true,
+                              "buffers_needed": 1,
                               "rows": 6,
                               "cost": 16.42,
                               "chosen": true
@@ -2372,6 +2392,7 @@ ON table2 .col_int_key = table1 .col_int_key
                                       {
                                         "access_type": "scan",
                                         "using_join_cache": true,
+                                        "buffers_needed": 1,
                                         "rows": 6,
                                         "cost": 6.8194,
                                         "chosen": true
@@ -2435,6 +2456,7 @@ ON table2 .col_int_key = table1 .col_int_key
                         {
                           "access_type": "scan",
                           "using_join_cache": true,
+                          "buffers_needed": 1,
                           "rows": 6,
                           "cost": 6.8192,
                           "chosen": true
@@ -2464,6 +2486,7 @@ ON table2 .col_int_key = table1 .col_int_key
                             {
                               "access_type": "scan",
                               "using_join_cache": true,
+                              "buffers_needed": 1,
                               "rows": 3,
                               "cost": 16.61,
                               "chosen": true
@@ -2502,6 +2525,7 @@ ON table2 .col_int_key = table1 .col_int_key
                         {
                           "access_type": "scan",
                           "using_join_cache": true,
+                          "buffers_needed": 1,
                           "rows": 3,
                           "cost": 4.607,
                           "chosen": true
@@ -2528,6 +2552,7 @@ ON table2 .col_int_key = table1 .col_int_key
                             {
                               "access_type": "scan",
                               "using_join_cache": true,
+                              "buffers_needed": 1,
                               "rows": 6,
                               "cost": 16.42,
                               "chosen": true
@@ -2600,6 +2625,7 @@ ON table2 .col_int_key = table1 .col_int_key
                                       {
                                         "access_type": "scan",
                                         "using_join_cache": true,
+                                        "buffers_needed": 1,
                                         "rows": 6,
                                         "cost": 11.62,
                                         "chosen": true
@@ -2624,6 +2650,7 @@ ON table2 .col_int_key = table1 .col_int_key
                                       {
                                         "access_type": "scan",
                                         "using_join_cache": true,
+                                        "buffers_needed": 1,
                                         "rows": 6,
                                         "cost": 6.8194,
                                         "chosen": true
@@ -3075,8 +3102,8 @@ SELECT 1 FROM t1 WHERE 1 LIKE
                                           },
                                           {
                                             "access_type": "scan",
-                                            "cause": "covering_index_better_than_full_scan",
-                                            "chosen": false
+                                            "chosen": false,
+                                            "cause": "covering_index_better_than_full_scan"
                                           }
                                         ] /* considered_access_paths */
                                       } /* best_access_path */,

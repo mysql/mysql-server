@@ -56,9 +56,9 @@ void Binlog_sender::init()
     DBUG_VOID_RETURN;
   }
 
-  if (DBUG_EVALUATE_IF("simulate_no_server_id", true, !server_id_supplied))
+  if (DBUG_EVALUATE_IF("simulate_no_server_id", true, server_id == 0))
   {
-    set_fatal_error("Misconfigured master - server_id was not set");
+    set_fatal_error("Misconfigured master - master server_id is 0");
     DBUG_VOID_RETURN;
   }
 

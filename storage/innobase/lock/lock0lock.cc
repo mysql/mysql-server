@@ -766,7 +766,7 @@ lock_sys_create(
 	lock_sys_sz = sizeof(*lock_sys)
 		+ OS_THREAD_MAX_N * sizeof(srv_slot_t);
 
-	lock_sys = static_cast<lock_sys_t*>(mem_zalloc(lock_sys_sz));
+	lock_sys = static_cast<lock_sys_t*>(ut_zalloc(lock_sys_sz));
 
 	void*	ptr = &lock_sys[1];
 
@@ -815,7 +815,7 @@ lock_sys_close(void)
 		}
 	}
 
-	mem_free(lock_sys);
+	ut_free(lock_sys);
 
 	lock_sys = NULL;
 }
@@ -7489,7 +7489,7 @@ void
 lock_trx_alloc_locks(trx_t* trx)
 {
 	ulint	sz = REC_LOCK_SIZE * REC_LOCK_CACHE;
-	byte*	ptr = reinterpret_cast<byte*>(mem_alloc(sz));
+	byte*	ptr = reinterpret_cast<byte*>(ut_malloc(sz));
 
 	/* We allocate one big chunk and then distribute it among
 	the rest of the elements. The allocated chunk pointer is always
@@ -7501,7 +7501,7 @@ lock_trx_alloc_locks(trx_t* trx)
 	}
 
 	sz = TABLE_LOCK_SIZE * TABLE_LOCK_CACHE;
-	ptr = reinterpret_cast<byte*>(mem_alloc(sz));
+	ptr = reinterpret_cast<byte*>(ut_malloc(sz));
 
 	for (ulint i = 0; i < TABLE_LOCK_CACHE; ++i, ptr += TABLE_LOCK_SIZE) {
 		trx->lock.table_pool.push_back(

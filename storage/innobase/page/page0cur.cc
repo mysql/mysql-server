@@ -778,7 +778,7 @@ page_cur_parse_insert_rec(
 		buf = buf1;
 	} else {
 		buf = static_cast<byte*>(
-			mem_alloc(mismatch_index + end_seg_len));
+			ut_malloc(mismatch_index + end_seg_len));
 	}
 
 	/* Build the inserted record to buf */
@@ -828,7 +828,7 @@ page_cur_parse_insert_rec(
 
 	if (buf != buf1) {
 
-		mem_free(buf);
+		ut_free(buf);
 	}
 
 	if (UNIV_LIKELY_NULL(heap)) {

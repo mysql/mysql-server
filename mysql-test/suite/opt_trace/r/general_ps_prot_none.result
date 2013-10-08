@@ -1558,8 +1558,8 @@ explain SELECT c FROM t5 where c+1 in (select d+1 from t6 where d is null)	{
                     },
                     {
                       "access_type": "range",
-                      "cause": "heuristic_index_cheaper",
-                      "chosen": false
+                      "chosen": false,
+                      "cause": "heuristic_index_cheaper"
                     }
                   ] /* considered_access_paths */
                 } /* best_access_path */,
@@ -1858,8 +1858,8 @@ explain SELECT c FROM t5 where c+1 in (select d+1 from t6 where d is null)	{
                     },
                     {
                       "access_type": "range",
-                      "cause": "heuristic_index_cheaper",
-                      "chosen": false
+                      "chosen": false,
+                      "cause": "heuristic_index_cheaper"
                     }
                   ] /* considered_access_paths */
                 } /* best_access_path */,
@@ -3010,6 +3010,7 @@ explain select * from t1,t2	{
                         {
                           "access_type": "scan",
                           "using_join_cache": true,
+                          "buffers_needed": 1,
                           "rows": 3,
                           "cost": 3.2052,
                           "chosen": true
@@ -3049,6 +3050,7 @@ explain select * from t1,t2	{
                         {
                           "access_type": "scan",
                           "using_join_cache": true,
+                          "buffers_needed": 1,
                           "rows": 2,
                           "cost": 3.2035,
                           "chosen": true
@@ -3669,6 +3671,7 @@ WHERE c2 IN ( SELECT c2 FROM t2 WHERE c2 IN ( 1 ) )	{
                         {
                           "access_type": "scan",
                           "using_join_cache": true,
+                          "buffers_needed": 1,
                           "rows": 3,
                           "cost": 3.8052,
                           "chosen": true
@@ -4973,8 +4976,8 @@ trace
                       "access_type": "scan",
                       "cost": 2.4,
                       "rows": 2,
-                      "cause": "cost",
-                      "chosen": false
+                      "chosen": false,
+                      "cause": "cost"
                     }
                   ] /* considered_access_paths */
                 } /* best_access_path */,
@@ -5217,8 +5220,8 @@ trace
                       "access_type": "scan",
                       "cost": 2.4,
                       "rows": 2,
-                      "cause": "cost",
-                      "chosen": false
+                      "chosen": false,
+                      "cause": "cost"
                     }
                   ] /* considered_access_paths */
                 } /* best_access_path */,
@@ -5385,6 +5388,7 @@ select * from t1 left join t2 on t2.a=500 where t2.a is NULL	{
                         {
                           "access_type": "scan",
                           "using_join_cache": true,
+                          "buffers_needed": 1,
                           "rows": 2,
                           "cost": 2.8035,
                           "chosen": true
@@ -5859,6 +5863,7 @@ trace
                         {
                           "access_type": "scan",
                           "using_join_cache": true,
+                          "buffers_needed": 1,
                           "rows": 2,
                           "cost": 2.8045,
                           "chosen": true
@@ -11048,8 +11053,8 @@ explain select * from v1 where id="b"	{
                       "access_type": "scan",
                       "cost": 10.4,
                       "rows": 2,
-                      "cause": "cost",
-                      "chosen": false
+                      "chosen": false,
+                      "cause": "cost"
                     }
                   ] /* considered_access_paths */
                 } /* best_access_path */,

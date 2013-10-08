@@ -469,7 +469,7 @@ ibuf_close(void)
 	mutex_free(&ibuf_bitmap_mutex);
 	memset(&ibuf_bitmap_mutex, 0x0, sizeof(ibuf_mutex));
 
-	mem_free(ibuf);
+	ut_free(ibuf);
 	ibuf = NULL;
 }
 
@@ -511,7 +511,7 @@ ibuf_init_at_db_start(void)
 	page_t*		header_page;
 	dberr_t		error;
 
-	ibuf = static_cast<ibuf_t*>(mem_zalloc(sizeof(ibuf_t)));
+	ibuf = static_cast<ibuf_t*>(ut_zalloc(sizeof(ibuf_t)));
 
 	/* At startup we intialize ibuf to have a maximum of
 	CHANGE_BUFFER_DEFAULT_SIZE in terms of percentage of the
@@ -2748,6 +2748,10 @@ ibuf_merge(
 
 	if (ibuf->empty && !srv_shutdown_state) {
 		return(0);
+#if defined UNIV_DEBUG || defined UNIV_IBUF_DEBUG
+	} else if (ibuf_debug) {
+		return(0);
+#endif /* UNIV_DEBUG || UNIV_IBUF_DEBUG */
 	} else if (table_id == 0) {
 		return(ibuf_merge_pages(n_pages, sync));
 	} else if ((table = ibuf_get_table(table_id)) == 0) {
@@ -3928,7 +3932,7 @@ skip_watch:
 
 /********************************************************************//**
 During merge, inserts to an index page a secondary index entry extracted
-from the insert buffer. 
+from the insert buffer.
 @return newly inserted record */
 static __attribute__((nonnull))
 rec_t*

@@ -449,7 +449,7 @@ create_log_files(
 
 	logfile0 = fil_node_create(
 		logfilename, (ulint) srv_log_file_size,
-		RedoLog::SPACE_FIRST_ID, FALSE);
+		RedoLog::SPACE_FIRST_ID, false);
 	ut_a(logfile0);
 
 	for (ulint i = 1; i < srv_n_log_files; i++) {
@@ -458,7 +458,7 @@ create_log_files(
 
 		if (!fil_node_create(logfilename,
 				     (ulint) srv_log_file_size,
-				     RedoLog::SPACE_FIRST_ID, FALSE)) {
+				     RedoLog::SPACE_FIRST_ID, false)) {
 			ib_logf(IB_LOG_LEVEL_ERROR,
 				"Cannot create file node for log file %s",
 				logfilename);
@@ -676,7 +676,7 @@ srv_undo_tablespace_open(
 		is 64 bit. It is OK to cast the n_pages to ulint because
 		the unit has been scaled to pages and they are always
 		32 bit. */
-		if (fil_node_create(name, (ulint) n_pages, space, FALSE)) {
+		if (fil_node_create(name, (ulint) n_pages, space, false)) {
 			err = DB_SUCCESS;
 		}
 	}
@@ -702,7 +702,7 @@ srv_check_undo_redo_logs_exists()
 		ut_snprintf(
 			name, sizeof(name),
 			"%s%cundo%03lu",
-			srv_undo_dir, SRV_PATH_SEPARATOR,
+			srv_undo_dir, OS_PATH_SEPARATOR,
 			i);
 
 		fh = os_file_create(
@@ -800,7 +800,7 @@ srv_undo_tablespaces_init(
 		ut_snprintf(
 			name, sizeof(name),
 			"%s%cundo%03lu",
-			srv_undo_dir, SRV_PATH_SEPARATOR, i + 1);
+			srv_undo_dir, OS_PATH_SEPARATOR, i + 1);
 
 		/* Undo space ids start from 1. */
 		err = srv_undo_tablespace_create(
@@ -845,7 +845,7 @@ srv_undo_tablespaces_init(
 		ut_snprintf(
 			name, sizeof(name),
 			"%s%cundo%03lu",
-			srv_undo_dir, SRV_PATH_SEPARATOR,
+			srv_undo_dir, OS_PATH_SEPARATOR,
 			undo_tablespace_ids[i]);
 
 		/* Should be no gaps in undo tablespace ids. */
@@ -882,7 +882,7 @@ srv_undo_tablespaces_init(
 
 		ut_snprintf(
 			name, sizeof(name),
-			"%s%cundo%03lu", srv_undo_dir, SRV_PATH_SEPARATOR, i);
+			"%s%cundo%03lu", srv_undo_dir, OS_PATH_SEPARATOR, i);
 
 		/* Undo space ids start from 1. */
 		err = srv_undo_tablespace_open(name, i);
@@ -1204,6 +1204,10 @@ innobase_start_or_create_for_mysql(void)
 	/* Reset the start state. */
 	srv_start_state = SRV_START_STATE_NONE;
 
+	if (srv_force_recovery > SRV_FORCE_NO_TRX_UNDO) {
+		srv_read_only_mode = true;
+	}
+
 	if (srv_read_only_mode) {
 		ib_logf(IB_LOG_LEVEL_INFO, "Started in read only mode");
 	}
@@ -1479,7 +1483,7 @@ innobase_start_or_create_for_mysql(void)
 		if (srv_innodb_status) {
 
 			srv_monitor_file_name = static_cast<char*>(
-				mem_alloc(
+				ut_malloc(
 					strlen(fil_path_to_mysql_datadir)
 					+ 20 + sizeof "/innodb_status."));
 
@@ -1716,8 +1720,8 @@ innobase_start_or_create_for_mysql(void)
 	memcpy(logfilename, srv_log_group_home_dir, dirnamelen);
 
 	/* Add a path separator if needed. */
-	if (dirnamelen && logfilename[dirnamelen - 1] != SRV_PATH_SEPARATOR) {
-		logfilename[dirnamelen++] = SRV_PATH_SEPARATOR;
+	if (dirnamelen && logfilename[dirnamelen - 1] != OS_PATH_SEPARATOR) {
+		logfilename[dirnamelen++] = OS_PATH_SEPARATOR;
 	}
 
 	srv_log_file_size_requested = srv_log_file_size;
@@ -1863,8 +1867,7 @@ innobase_start_or_create_for_mysql(void)
 
 			if (!fil_node_create(logfilename,
 					     (ulint) srv_log_file_size,
-					     RedoLog::SPACE_FIRST_ID,
-					     FALSE)) {
+					     RedoLog::SPACE_FIRST_ID, false)) {
 
 				return(srv_init_abort(DB_ERROR));
 			}
@@ -2227,9 +2230,8 @@ files_checked:
 		srv_undo_tablespaces, srv_undo_logs, srv_tmp_undo_logs);
 
 	if (srv_available_undo_logs == ULINT_UNDEFINED) {
-		/* Can only happen if force recovery is set. */
-		ut_a(srv_force_recovery >= SRV_FORCE_NO_TRX_UNDO
-		     || srv_read_only_mode);
+		/* Can only happen if server is read only. */
+		ut_a(srv_read_only_mode);
 		srv_undo_logs = ULONG_UNDEFINED;
 	}
 
@@ -2552,7 +2554,7 @@ innobase_shutdown_for_mysql(void)
 		srv_monitor_file = 0;
 		if (srv_monitor_file_name) {
 			unlink(srv_monitor_file_name);
-			mem_free(srv_monitor_file_name);
+			ut_free(srv_monitor_file_name);
 		}
 	}
 
@@ -2770,7 +2772,7 @@ srv_get_meta_data_filename(
 		strcpy(suffix, ".cfg");
 	}
 
-	mem_free(path);
+	ut_free(path);
 
 	srv_normalize_path_for_win(filename);
 }

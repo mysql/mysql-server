@@ -127,7 +127,7 @@ int main(int argc, char *argv[])
   signal(SIGINT,endprog);
 
   printf("- Writing records:s\n");
-  strmov((char*) record,"          ..... key");
+  my_stpcpy((char*) record,"          ..... key");
 
   for (i=0 ; i < recant ; i++)
   {

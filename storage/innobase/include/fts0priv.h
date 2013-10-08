@@ -135,7 +135,7 @@ fts_eval_sql(
 	__attribute__((nonnull, warn_unused_result));
 /******************************************************************//**
 Construct the name of an ancillary FTS table for the given table.
-@return own: table name, must be freed with mem_free() */
+@return own: table name, must be freed with ut_free() */
 
 char*
 fts_get_table_name(
@@ -615,7 +615,7 @@ fts_optimize_do_table(
 	__attribute__((nonnull));
 /******************************************************************//**
 Construct the prefix name of an FTS table.
-@return own: table name, must be freed with mem_free() */
+@return own: table name, must be freed with ut_free() */
 
 char*
 fts_get_table_name_prefix(
