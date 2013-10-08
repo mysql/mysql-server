@@ -570,6 +570,7 @@ SyncDebug::check_order(const latch_t* latch)
 	case SYNC_RECV:
 	case SYNC_FTS_BG_THREADS:
 	case SYNC_WORK_QUEUE:
+	case SYNC_FTS_TOKENIZE:
 	case SYNC_FTS_OPTIMIZE:
 	case SYNC_FTS_CACHE:
 	case SYNC_FTS_CACHE_INIT:
@@ -910,6 +911,10 @@ sync_latch_meta_init()
 	LATCH_ADD(SrvLatches, "fts_doc_id",
 		  SYNC_FTS_OPTIMIZE,
 		  fts_doc_id_mutex_key);
+
+	LATCH_ADD(SrvLatches, "fts_pll_tokenize",
+		  SYNC_FTS_TOKENIZE,
+		  fts_pll_tokenize_mutex_key);
 
 	LATCH_ADD(SrvLatches, "hash_table_mutex",
 		  SYNC_BUF_PAGE_HASH,
