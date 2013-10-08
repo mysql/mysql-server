@@ -43,10 +43,11 @@ var udebug             = unified_debug.getLogger("IndexBounds.js");
    The NOT operator evaluates to the complement of an interval.  If Ia is 
    a finite inclusive interval [0, 30], then its complement is the pair of
    exclusive intervals (-Infinity, 0) and (30, +Infinity).
-   
-   NULLs sort low.  When a value is finally encoded for an index, 
-   NULL and -Infinity are equivalent, and both represent the lowest possible
-   value for a key.  So "age IS NOT NULL" is expressed as "age > NULL".
+
+   Of course -Infinity and +Infinity don't really represent infinite values,
+   only the lowest and highest values of the index.  NULLs sort low, so
+   -Infinity is equivalent to NULL, and "age IS NOT NULL" is expressed 
+   as "age > NULL".
 
    The end result is that a predicate tree, evaluated with regard to an 
    index column, is transformed into the set of ranges (segments) of the index
@@ -139,11 +140,11 @@ Endpoint.prototype.compare = function(that) {
   var cmp;
 
   /* First compare to infinity */
-  if(this.value == -Infinity || this.value == null || that.value == Infinity) {
+  if(this.value == -Infinity || that.value == Infinity) {
     return -1;
   }
 
-  if(this.value == Infinity || that.value == -Infinity || that.value == null) {
+  if(this.value == Infinity || that.value == -Infinity) {
     return 1;
   }
 
@@ -245,7 +246,6 @@ Segment.prototype.intersection = function(that) {
 Segment.prototype.span = function(that) {
   var s = null;
   var lp, hp;
-  assert(that.isSegment);
   if(this.intersects(that)) {
     lp = (this.low.compare(that.low) == -1) ? this.low : that.low;
     hp = (this.high.compare(that.high) == 1) ? this.high : that.high;
@@ -304,7 +304,6 @@ function createSegmentForComparator(operator, value) {
       return null;
   }
 }
-
 
 //////// NumberLine                 /////////////////
 
@@ -475,7 +474,9 @@ NumberLine.prototype.unionWithSegment = function(segment) {
   it = this.getIterator();
   line = new NumberLine();
   overlaps = [];
-  /* Include every segment that does not intersect */
+  /* Sort our own segments into two groups: 
+     those that overlap segment, and those that don't 
+  */
   while((s = it.next()) !== null) {
     if(s.intersects(segment)) {
       overlaps.push(s);
@@ -484,10 +485,11 @@ NumberLine.prototype.unionWithSegment = function(segment) {
       line.insertSegment(s);
     }
   }
-  /* Then add the span of all overlapping segments */
-  s = segment.span(overlaps.shift());
-  if(overlaps.length) s = s.span(overlaps.pop());
+  s = segment;
+  if(overlaps.length) s = s.span(overlaps.shift());  /* leftmost */
+  if(overlaps.length) s = s.span(overlaps.pop()); /* rightmost */
   line.insertSegment(s);
+
   this.setEqualTo(line);
 };
 
@@ -515,20 +517,6 @@ Segment.prototype.complement = function() {
 };
 
 
-/* Certain data types imply a set of bounds
-*/
-function getBoundingSegmentForDataType(columnMetadata) {
-  var lowBound, highBound;
-  highBound = Infinity;
-
-  if(columnMetadata.isUnsigned) lowBound = 0;
-  else if(columnMetadata.isNullable) lowBound = null;
-  else lowBound = -Infinity;
-
-  return new Segment(new Endpoint(lowBound), new Endpoint(highBound));
-}
-
-
 /****************************************** ColumnBoundVisitor ************
  *
  * Given a set of actual parameter values, 
@@ -539,7 +527,7 @@ function ColumnBoundVisitor(indexName, column, idxPartNo, params) {
   this.column = column;
   this.id     = idxPartNo;
   this.params = params;
-  this.boundingSegment = getBoundingSegmentForDataType(column);
+  this.boundingSegment = new Segment(negInf, posInf);
 }
 
 /** Store the index bounds inside the query node */
@@ -637,12 +625,12 @@ ColumnBoundVisitor.prototype.visitQueryBetweenOperator = function(node) {
 ColumnBoundVisitor.prototype.visitQueryUnaryOperator = function(node) {
   var pt, segment;
   if(node.operationCode == 7) {  // NULL
-    pt = new Endpoint(null);
+    pt = new Endpoint(negInf);
     segment = new Segment(pt, pt);
   }
-  else {   // NOT NULL, "i.e. > null"
+  else {   // IS NOT NULL, "i.e. > -Infinity"
     assert(node.operationCode == 8);
-    pt = new Endpoint(null, false);
+    pt = new Endpoint(negInf, false);
     segment = new Segment(pt, posInf);
   }
   this.storeRange(node, segment);
@@ -731,7 +719,9 @@ IndexColumn.prototype.consolidate = function(partialBounds, doLow, doHigh) {
 
   boundsIterator = this.columnBounds.getIterator();
   segment = boundsIterator.next();
+  console.log("consolidating", this.columnBounds.asString());
   while(segment) {
+    console.log("in loop");
     idxBounds = partialBounds.copy();
 
     if(doLow) {
@@ -742,14 +732,18 @@ IndexColumn.prototype.consolidate = function(partialBounds, doLow, doHigh) {
       idxBounds.high.push(segment.high);
       doHigh = segment.high.inclusive && segment.high.isFinite;
     }
+
     if(this.nextColumn && (doLow || doHigh)) {
       this.nextColumn.consolidate(idxBounds, doLow, doHigh);
     }
     else {
+      console.log("pushing");
       this.resultContainer.push(idxBounds);
     }
+
     segment = boundsIterator.next();
   }
+  console.log("out of loop");
 };
 
 
@@ -773,7 +767,7 @@ function consolidateRanges(indexName, predicate) {
 
   /* nextColumn is now the first column */  
   nextColumn.consolidate(new IndexBounds(), true, true);
-console.log("Bounds:", stringify());
+  console.log("Bounds:", stringify());
   return allBounds;
 }
 
