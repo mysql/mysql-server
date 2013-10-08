@@ -443,29 +443,15 @@ int table_events_waits_common::make_metadata_lock_object_columns(volatile PFS_ev
 
 /**
   Build a row.
-  @param thread_own_wait            True if the memory for the wait
-    is owned by pfs_thread
-  @param pfs_thread                 the thread the cursor is reading
   @param wait                       the wait the cursor is reading
 */
-void table_events_waits_common::make_row(bool thread_own_wait,
-                                         PFS_thread *pfs_thread,
-                                         volatile PFS_events_waits *wait)
+void table_events_waits_common::make_row(PFS_events_waits *wait)
 {
-  pfs_lock lock;
-  PFS_thread *safe_thread;
   PFS_instr_class *safe_class;
   const char *base;
   const char *safe_source_file;
 
   m_row_exists= false;
-  safe_thread= sanitize_thread(pfs_thread);
-  if (unlikely(safe_thread == NULL))
-    return;
-
-  /* Protect this reader against a thread termination */
-  if (thread_own_wait)
-    safe_thread->m_lock.begin_optimistic_lock(&lock);
 
   /*
     Design choice:
@@ -540,7 +526,7 @@ void table_events_waits_common::make_row(bool thread_own_wait,
   if (unlikely(safe_class == NULL))
     return;
 
-  m_row.m_thread_internal_id= safe_thread->m_thread_internal_id;
+  m_row.m_thread_internal_id= wait->m_thread_internal_id;
   m_row.m_event_id= wait->m_event_id;
   m_row.m_end_event_id= wait->m_end_event_id;
   m_row.m_nesting_event_id= wait->m_nesting_event_id;
@@ -570,22 +556,7 @@ void table_events_waits_common::make_row(bool thread_own_wait,
   m_row.m_number_of_bytes= wait->m_number_of_bytes;
   m_row.m_flags= wait->m_flags;
 
-  if (thread_own_wait)
-  {
-    if (safe_thread->m_lock.end_optimistic_lock(&lock))
-      m_row_exists= true;
-  }
-  else
-  {
-    /*
-      For EVENTS_WAITS_HISTORY_LONG (thread_own_wait is false),
-      the wait record is always valid, because it is not stored
-      in memory owned by pfs_thread.
-      Even when the thread terminated, the record is mostly readable,
-      so this record is displayed.
-    */
-    m_row_exists= true;
-  }
+  m_row_exists= true;
 }
 
 /**
@@ -896,7 +867,7 @@ int table_events_waits_current::rnd_next(void)
       continue;
     }
 
-    make_row(true, pfs_thread, wait);
+    make_row(pfs_thread, wait);
     /* Next iteration, look for the next locker in this thread */
     m_next_pos.set_after(&m_pos);
     return 0;
@@ -946,8 +917,21 @@ int table_events_waits_current::rnd_pos(const void *pos)
   if (wait->m_wait_class == NO_WAIT_CLASS)
     return HA_ERR_RECORD_DELETED;
 
-  make_row(true, pfs_thread, wait);
+  make_row(pfs_thread, wait);
   return 0;
+}
+
+void table_events_waits_current::make_row(PFS_thread *thread, PFS_events_waits *wait)
+{
+  pfs_lock lock;
+
+  /* Protect this reader against a thread termination */
+  thread->m_lock.begin_optimistic_lock(&lock);
+
+  table_events_waits_common::make_row(wait);
+
+  if (! thread->m_lock.end_optimistic_lock(&lock))
+    m_row_exists= false;
 }
 
 int table_events_waits_current::delete_all_rows(void)
@@ -1017,7 +1001,7 @@ int table_events_waits_history::rnd_next(void)
 
     wait= &pfs_thread->m_waits_history[m_pos.m_index_2];
 
-    make_row(true, pfs_thread, wait);
+    make_row(pfs_thread, wait);
     /* Next iteration, look for the next history in this thread */
     m_next_pos.set_after(&m_pos);
     return 0;
@@ -1050,8 +1034,21 @@ int table_events_waits_history::rnd_pos(const void *pos)
   if (wait->m_wait_class == NO_WAIT_CLASS)
     return HA_ERR_RECORD_DELETED;
 
-  make_row(true, pfs_thread, wait);
+  make_row(pfs_thread, wait);
   return 0;
+}
+
+void table_events_waits_history::make_row(PFS_thread *thread, PFS_events_waits *wait)
+{
+  pfs_lock lock;
+
+  /* Protect this reader against a thread termination */
+  thread->m_lock.begin_optimistic_lock(&lock);
+
+  table_events_waits_common::make_row(wait);
+
+  if (! thread->m_lock.end_optimistic_lock(&lock))
+    m_row_exists= false;
 }
 
 int table_events_waits_history::delete_all_rows(void)
@@ -1087,7 +1084,7 @@ int table_events_waits_history_long::rnd_next(void)
   if (events_waits_history_long_full)
     limit= events_waits_history_long_size;
   else
-    limit= events_waits_history_long_index % events_waits_history_long_size;
+    limit= events_waits_history_long_index.m_u32 % events_waits_history_long_size;
 
   for (m_pos.set_at(&m_next_pos); m_pos.m_index < limit; m_pos.next())
   {
@@ -1095,7 +1092,7 @@ int table_events_waits_history_long::rnd_next(void)
 
     if (wait->m_wait_class != NO_WAIT_CLASS)
     {
-      make_row(false, wait->m_thread, wait);
+      make_row(wait);
       /* Next iteration, look for the next entry */
       m_next_pos.set_after(&m_pos);
       return 0;
@@ -1118,7 +1115,7 @@ int table_events_waits_history_long::rnd_pos(const void *pos)
   if (events_waits_history_long_full)
     limit= events_waits_history_long_size;
   else
-    limit= events_waits_history_long_index % events_waits_history_long_size;
+    limit= events_waits_history_long_index.m_u32 % events_waits_history_long_size;
 
   if (m_pos.m_index >= limit)
     return HA_ERR_RECORD_DELETED;
@@ -1128,7 +1125,7 @@ int table_events_waits_history_long::rnd_pos(const void *pos)
   if (wait->m_wait_class == NO_WAIT_CLASS)
     return HA_ERR_RECORD_DELETED;
 
-  make_row(false, wait->m_thread, wait);
+  make_row(wait);
   return 0;
 }
 

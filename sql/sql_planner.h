@@ -90,8 +90,26 @@ private:
   */
   const table_map excluded_tables;
 
-  void best_access_path(JOIN_TAB *s, table_map remaining_tables, uint idx, 
-                        bool disable_jbuf, double record_count,
+  inline Key_use* find_best_ref(const JOIN_TAB  *tab,
+                                const table_map remaining_tables,
+                                const uint idx,
+                                const double prefix_rowcount,
+                                bool *found_condition,
+                                table_map *ref_depends_map,
+                                uint *used_key_parts);
+  inline double calculate_scan_cost(const JOIN_TAB *tab,
+                                    const uint idx,
+                                    const Key_use *best_ref,
+                                    const double prefix_rowcount,
+                                    const bool found_condition,
+                                    const bool disable_jbuf,
+                                    ha_rows *fanout,
+                                    Opt_trace_object *trace_access_scan);
+  void best_access_path(JOIN_TAB *tab,
+                        const table_map remaining_tables,
+                        const uint idx, 
+                        bool disable_jbuf,
+                        const double prefix_rowcount,
                         POSITION *pos);
   bool semijoin_loosescan_fill_driving_table_position(const JOIN_TAB  *s,
                                                       table_map remaining_tables,

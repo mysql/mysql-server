@@ -199,6 +199,13 @@ struct RedoLog {
 	lsn_t open(const void* ptr, ulint len, lsn_t* start_lsn);
 
 	/**
+	Resize the log.
+	@param n_files		The number of physical files
+	@param size		Size in bytes
+	@return true on success */
+	bool resize(ulint n_files, os_offset_t size);
+
+	/**
 	Closes the log.
 	@return	lsn */
 	lsn_t close();
@@ -288,13 +295,6 @@ struct RedoLog {
 	Initializes the log.
 	@return true if success, false if not */
 	bool init();
-
-	/**
-	Resize the log.
-	@param n_files		The number of physical files
-	@param size		Size in bytes
-	@return true on success */
-	bool resize(ulint n_files, os_offset_t size);
 
 	/**
 	This function is called, e.g., when a transaction wants to commit. It
@@ -716,6 +716,9 @@ private:
 	@return DB_SUCCESS or error code */
 	dberr_t check_block(Scan& scan, const byte* block);
 
+	/** Extends the log buffer.
+	@param[in] len	requested minimum size in bytes */
+	void extend(ulint len);
 #endif /* !UNIV_HOTBACKUP */
 
 private:
@@ -842,6 +845,9 @@ private:
 	buf_pool_get_oldest_modification() is exceeded, we start a
 	synchronous preflush of pool pages */
 	lsn_t			m_max_modified_age_sync;
+
+	/** Set to true when we extend the log buffer size */
+	volatile bool		m_is_extending;
 
 	Checkpoint*		m_checkpoint;
 #endif /* !UNIV_HOTBACKUP */

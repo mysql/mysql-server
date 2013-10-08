@@ -326,7 +326,7 @@ partition by hash (a)
 show create table t1;
 Table	Create Table
 t1	CREATE TABLE `t1` (
-  `a` bit(27) NOT NULL DEFAULT b'0',
+  `a` bit(27) NOT NULL,
   PRIMARY KEY (`a`)
 ) ENGINE=MyISAM DEFAULT CHARSET=latin1
 /*!50100 PARTITION BY HASH (a)

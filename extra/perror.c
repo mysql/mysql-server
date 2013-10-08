@@ -274,7 +274,7 @@ int main(int argc,char *argv[])
       the same pointer on some platforms such as Windows
     */
     unknown_error= malloc(strlen(msg)+1);
-    strmov(unknown_error, msg);
+    my_stpcpy(unknown_error, msg);
 
     for ( ; argc-- > 0 ; argv++)
     {

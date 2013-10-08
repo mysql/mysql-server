@@ -2111,25 +2111,28 @@ void pfs_set_thread_user_v1(const char *user, int user_len)
 
   set_thread_account(pfs);
 
-  bool enabled= true;
-  if (flag_thread_instrumentation)
+  bool enabled;
+  if (pfs->m_account != NULL)
+  {
+    enabled= pfs->m_account->m_enabled;
+  }
+  else
   {
     if ((pfs->m_username_length > 0) && (pfs->m_hostname_length > 0))
     {
-      /*
-        TODO: performance improvement.
-        Once performance_schema.USERS is exposed,
-        we can use PFS_user::m_enabled instead of looking up
-        SETUP_ACTORS every time.
-      */
       lookup_setup_actor(pfs,
                          pfs->m_username, pfs->m_username_length,
                          pfs->m_hostname, pfs->m_hostname_length,
                          &enabled);
     }
+    else
+    {
+      /* There is no setting for background threads */
+      enabled= true;
+    }
   }
 
-  pfs->m_enabled= enabled;
+  pfs->set_enabled(enabled);
 
   pfs->m_session_lock.dirty_to_allocated();
 }
@@ -2167,24 +2170,27 @@ void pfs_set_thread_account_v1(const char *user, int user_len,
 
   set_thread_account(pfs);
 
-  bool enabled= true;
-  if (flag_thread_instrumentation)
+  bool enabled;
+  if (pfs->m_account != NULL)
+  {
+    enabled= pfs->m_account->m_enabled;
+  }
+  else
   {
     if ((pfs->m_username_length > 0) && (pfs->m_hostname_length > 0))
     {
-      /*
-        TODO: performance improvement.
-        Once performance_schema.USERS is exposed,
-        we can use PFS_user::m_enabled instead of looking up
-        SETUP_ACTORS every time.
-      */
       lookup_setup_actor(pfs,
                          pfs->m_username, pfs->m_username_length,
                          pfs->m_hostname, pfs->m_hostname_length,
                          &enabled);
     }
+    else
+    {
+      /* There is no setting for background threads */
+      enabled= true;
+    }
   }
-  pfs->m_enabled= enabled;
+  pfs->set_enabled(enabled);
 
   pfs->m_session_lock.dirty_to_allocated();
 }
@@ -2379,7 +2385,7 @@ pfs_start_mutex_wait_v1(PSI_mutex_locker_state *state,
       wait->m_nesting_event_id= parent_event->m_event_id;
       wait->m_nesting_event_type= parent_event->m_event_type;
 
-      wait->m_thread= pfs_thread;
+      wait->m_thread_internal_id= pfs_thread->m_thread_internal_id;
       wait->m_class= pfs_mutex->m_class;
       wait->m_timer_start= timer_start;
       wait->m_timer_end= 0;
@@ -2477,7 +2483,7 @@ pfs_start_rwlock_rdwait_v1(PSI_rwlock_locker_state *state,
       wait->m_nesting_event_id= parent_event->m_event_id;
       wait->m_nesting_event_type= parent_event->m_event_type;
 
-      wait->m_thread= pfs_thread;
+      wait->m_thread_internal_id= pfs_thread->m_thread_internal_id;
       wait->m_class= pfs_rwlock->m_class;
       wait->m_timer_start= timer_start;
       wait->m_timer_end= 0;
@@ -2594,7 +2600,7 @@ pfs_start_cond_wait_v1(PSI_cond_locker_state *state,
       wait->m_nesting_event_id= parent_event->m_event_id;
       wait->m_nesting_event_type= parent_event->m_event_type;
 
-      wait->m_thread= pfs_thread;
+      wait->m_thread_internal_id= pfs_thread->m_thread_internal_id;
       wait->m_class= pfs_cond->m_class;
       wait->m_timer_start= timer_start;
       wait->m_timer_end= 0;
@@ -2739,7 +2745,7 @@ pfs_start_table_io_wait_v1(PSI_table_locker_state *state,
       wait->m_nesting_event_type= parent_event->m_event_type;
 
       PFS_table_share *share= pfs_table->m_share;
-      wait->m_thread= pfs_thread;
+      wait->m_thread_internal_id= pfs_thread->m_thread_internal_id;
       wait->m_class= &global_table_io_class;
       wait->m_timer_start= timer_start;
       wait->m_timer_end= 0;
@@ -2870,7 +2876,7 @@ pfs_start_table_lock_wait_v1(PSI_table_locker_state *state,
       wait->m_nesting_event_type= parent_event->m_event_type;
 
       PFS_table_share *share= pfs_table->m_share;
-      wait->m_thread= pfs_thread;
+      wait->m_thread_internal_id= pfs_thread->m_thread_internal_id;
       wait->m_class= &global_table_lock_class;
       wait->m_timer_start= timer_start;
       wait->m_timer_end= 0;
@@ -2933,7 +2939,7 @@ pfs_get_thread_file_name_locker_v1(PSI_file_locker_state *state,
   if (! klass->m_enabled)
     return NULL;
 
-  /* Needed for the LF_HASH */ 
+  /* Needed for the LF_HASH */
   PFS_thread *pfs_thread= my_pthread_get_THR_PFS();
   if (unlikely(pfs_thread == NULL))
     return NULL;
@@ -2966,7 +2972,7 @@ pfs_get_thread_file_name_locker_v1(PSI_file_locker_state *state,
     wait->m_nesting_event_id= parent_event->m_event_id;
     wait->m_nesting_event_type= parent_event->m_event_type;
 
-    wait->m_thread= pfs_thread;
+    wait->m_thread_internal_id= pfs_thread->m_thread_internal_id;
     wait->m_class= klass;
     wait->m_timer_start= 0;
     wait->m_timer_end= 0;
@@ -3042,7 +3048,7 @@ pfs_get_thread_file_stream_locker_v1(PSI_file_locker_state *state,
       wait->m_nesting_event_id= parent_event->m_event_id;
       wait->m_nesting_event_type= parent_event->m_event_type;
 
-      wait->m_thread= pfs_thread;
+      wait->m_thread_internal_id= pfs_thread->m_thread_internal_id;
       wait->m_class= klass;
       wait->m_timer_start= 0;
       wait->m_timer_end= 0;
@@ -3148,7 +3154,7 @@ pfs_get_thread_file_descriptor_locker_v1(PSI_file_locker_state *state,
       wait->m_nesting_event_id= parent_event->m_event_id;
       wait->m_nesting_event_type= parent_event->m_event_type;
 
-      wait->m_thread= pfs_thread;
+      wait->m_thread_internal_id= pfs_thread->m_thread_internal_id;
       wait->m_class= klass;
       wait->m_timer_start= 0;
       wait->m_timer_end= 0;
@@ -3244,7 +3250,7 @@ pfs_start_socket_wait_v1(PSI_socket_locker_state *state,
       wait->m_event_type= EVENT_TYPE_WAIT;
       wait->m_nesting_event_id=   parent_event->m_event_id;
       wait->m_nesting_event_type= parent_event->m_event_type;
-      wait->m_thread=       pfs_thread;
+      wait->m_thread_internal_id= pfs_thread->m_thread_internal_id;
       wait->m_class=        pfs_socket->m_class;
       wait->m_timer_start=  timer_start;
       wait->m_timer_end=    0;
@@ -3502,7 +3508,7 @@ pfs_start_idle_wait_v1(PSI_idle_locker_state* state, const char *src_file, uint 
       wait->m_nesting_event_id= 0;
       /* no need to set wait->m_nesting_event_type */
 
-      wait->m_thread= pfs_thread;
+      wait->m_thread_internal_id= pfs_thread->m_thread_internal_id;
       wait->m_class= &global_idle_class;
       wait->m_timer_start= timer_start;
       wait->m_timer_end= 0;
@@ -4451,8 +4457,7 @@ void pfs_start_stage_v1(PSI_stage_key key, const char *src_file, int src_line)
 
   if (flag_events_stages_current)
   {
-    /* m_thread_internal_id is immutable and already set */
-    DBUG_ASSERT(pfs->m_thread_internal_id == pfs_thread->m_thread_internal_id);
+    pfs->m_thread_internal_id= pfs_thread->m_thread_internal_id;
     pfs->m_event_id= pfs_thread->m_event_id++;
     pfs->m_end_event_id= 0;
     pfs->m_source_file= src_file;
@@ -4565,9 +4570,9 @@ pfs_get_thread_statement_locker_v1(PSI_statement_locker_state *state,
       }
 
       PFS_events_statements *pfs= & pfs_thread->m_statement_stack[pfs_thread->m_events_statements_count];
-      /* m_thread_internal_id is immutable and already set */
-      DBUG_ASSERT(pfs->m_thread_internal_id == pfs_thread->m_thread_internal_id);
+      pfs->m_thread_internal_id= pfs_thread->m_thread_internal_id;
       pfs->m_event_id= event_id;
+      pfs->m_event_type= EVENT_TYPE_STATEMENT;
       pfs->m_end_event_id= 0;
       pfs->m_class= klass;
       pfs->m_timer_start= 0;
@@ -4607,15 +4612,20 @@ pfs_get_thread_statement_locker_v1(PSI_statement_locker_state *state,
 
       /* New waits will have this statement as parent, if no stage is instrumented */
       PFS_events_waits *child_wait= & pfs_thread->m_events_waits_stack[0];
-      child_wait->m_nesting_event_id= event_id;
-      child_wait->m_nesting_event_type= EVENT_TYPE_STATEMENT;
+      child_wait->m_event_id= event_id;
+      child_wait->m_event_type= EVENT_TYPE_STATEMENT;
 
-      if(pfs_thread->m_events_statements_count > 0)
+      if (pfs_thread->m_events_statements_count > 0)
       {
-          PFS_events_statements *parent= pfs - 1;
-          pfs->m_nesting_event_id= parent->m_event_id;
-          pfs->m_nesting_event_type= parent->m_event_type;
-          pfs->m_nesting_event_level= parent->m_nesting_event_level + 1;
+        PFS_events_statements *parent= pfs - 1;
+        pfs->m_nesting_event_id= parent->m_event_id;
+        pfs->m_nesting_event_type= parent->m_event_type;
+        pfs->m_nesting_event_level= parent->m_nesting_event_level + 1;
+      }
+      else
+      {
+        pfs->m_nesting_event_id= 0;
+        pfs->m_nesting_event_level= 0;
       }
 
       /* Set parent Stored Procedure information for this statement. */
@@ -4951,7 +4961,7 @@ void pfs_end_statement_v1(PSI_statement_locker *locker, void *stmt_da)
   PFS_statement_stat *event_name_array;
   uint index= klass->m_event_name_index;
   PFS_statement_stat *stat;
-  
+
   /*
    Capture statement stats by digest.
   */
@@ -5020,8 +5030,8 @@ void pfs_end_statement_v1(PSI_statement_locker *locker, void *stmt_da)
         */
         digest_copy(& pfs->m_digest_storage, digest_storage);
       }
-    
-      pfs_program= reinterpret_cast<PFS_program*>(state->m_parent_sp_share); 
+
+      pfs_program= reinterpret_cast<PFS_program*>(state->m_parent_sp_share);
 
       if (flag_events_statements_history)
         insert_events_statements_history(thread, pfs);
@@ -5093,7 +5103,7 @@ void pfs_end_statement_v1(PSI_statement_locker *locker, void *stmt_da)
     {
       digest_stat->aggregate_counted();
     }
-  
+
     digest_stat->m_lock_time+= state->m_lock_time;
     digest_stat->m_rows_sent+= state->m_rows_sent;
     digest_stat->m_rows_examined+= state->m_rows_examined;
@@ -5126,7 +5136,7 @@ void pfs_end_statement_v1(PSI_statement_locker *locker, void *stmt_da)
       {
         sub_stmt_stat->aggregate_counted();
       }
-    
+
       sub_stmt_stat->m_lock_time+= state->m_lock_time;
       sub_stmt_stat->m_rows_sent+= state->m_rows_sent;
       sub_stmt_stat->m_rows_examined+= state->m_rows_examined;
@@ -5217,10 +5227,10 @@ static inline enum_object_type sp_type_to_object_type(uint sp_type)
   }
 }
 
-/**                                                                             
-  Implementation of the stored program instrumentation interface.                         
-  @sa PSI_v1::get_sp_share.                                      
-*/                                                                              
+/**
+  Implementation of the stored program instrumentation interface.
+  @sa PSI_v1::get_sp_share.
+*/
 PSI_sp_share *pfs_get_sp_share_v1(uint sp_type,
                                   const char* schema_name,
                                   uint schema_name_length,
@@ -5228,8 +5238,8 @@ PSI_sp_share *pfs_get_sp_share_v1(uint sp_type,
                                   uint object_name_length)
 {
 
-  PFS_thread *pfs_thread= my_pthread_get_THR_PFS();                             
-  if (unlikely(pfs_thread == NULL))                                             
+  PFS_thread *pfs_thread= my_pthread_get_THR_PFS();
+  if (unlikely(pfs_thread == NULL))
     return NULL;
 
   PFS_program *pfs_program;
@@ -5265,7 +5275,7 @@ PSI_sp_locker* pfs_start_sp_v1(PSI_sp_locker_state *state,
       return NULL;
   }
 
-  /* 
+  /*
     sp share might be null in case when stat array is full and no new
     stored program stats are being inserted into it.
   */
@@ -5278,7 +5288,7 @@ PSI_sp_locker* pfs_start_sp_v1(PSI_sp_locker_state *state,
   if(pfs_program->m_timed)
   {
     state->m_flags|= STATE_FLAG_TIMED;
-    state->m_timer_start= get_timer_raw_value_and_function(statement_timer, 
+    state->m_timer_start= get_timer_raw_value_and_function(statement_timer,
                                                   & state->m_timer);
   }
 
@@ -5318,8 +5328,8 @@ void pfs_drop_sp_v1(uint sp_type,
                     const char* object_name,
                     uint object_name_length)
 {
-  PFS_thread *pfs_thread= my_pthread_get_THR_PFS();                             
-  if (unlikely(pfs_thread == NULL))                                             
+  PFS_thread *pfs_thread= my_pthread_get_THR_PFS();
+  if (unlikely(pfs_thread == NULL))
     return;
 
   drop_program(pfs_thread,
@@ -5758,7 +5768,7 @@ pfs_start_metadata_wait_v1(PSI_metadata_locker_state *state,
       wait->m_nesting_event_id= parent_event->m_event_id;
       wait->m_nesting_event_type= parent_event->m_event_type;
 
-      wait->m_thread= pfs_thread;
+      wait->m_thread_internal_id= pfs_thread->m_thread_internal_id;
       wait->m_class= &global_metadata_class;
       wait->m_timer_start= timer_start;
       wait->m_timer_end= 0;

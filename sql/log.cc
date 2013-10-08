@@ -120,8 +120,8 @@ static const TABLE_FIELD_TYPE slow_query_log_table_fields[SQLT_FIELD_COUNT] =
   },
   {
     { C_STRING_WITH_LEN("sql_text") },
-    { C_STRING_WITH_LEN("mediumtext") },
-    { C_STRING_WITH_LEN("utf8") }
+    { C_STRING_WITH_LEN("mediumblob") },
+    { NULL, 0 }
   },
   {
     { C_STRING_WITH_LEN("thread_id") },
@@ -174,8 +174,8 @@ static const TABLE_FIELD_TYPE general_log_table_fields[GLT_FIELD_COUNT] =
   },
   {
     { C_STRING_WITH_LEN("argument") },
-    { C_STRING_WITH_LEN("mediumtext") },
-    { C_STRING_WITH_LEN("utf8") }
+    { C_STRING_WITH_LEN("mediumblob") },
+    { NULL, 0 }
   }
 };
 
@@ -366,7 +366,7 @@ bool File_query_log::open()
                         mysqld_port, mysqld_unix_port
 #endif
                         );
-    end= strnmov(buff + len, "Time                 Id Command    Argument\n",
+    end= my_stpncpy(buff + len, "Time                 Id Command    Argument\n",
                  sizeof(buff) - len);
     if (my_b_write(&log_file, (uchar*) buff, (uint) (end-buff)) ||
         flush_io_cache(&log_file))
@@ -538,11 +538,11 @@ bool File_query_log::write_slow(THD *thd, ulonglong current_utime,
   {						// Database changed
     if (my_b_printf(&log_file,"use %s;\n",thd->db) == (uint) -1)
       goto err;
-    strmov(db,thd->db);
+    my_stpcpy(db,thd->db);
   }
   if (thd->stmt_depends_on_first_successful_insert_id_in_prev_stmt)
   {
-    end=strmov(end, ",last_insert_id=");
+    end=my_stpcpy(end, ",last_insert_id=");
     end=longlong10_to_str((longlong)
                           thd->first_successful_insert_id_in_prev_stmt_for_binlog,
                           end, -10);
@@ -552,7 +552,7 @@ bool File_query_log::write_slow(THD *thd, ulonglong current_utime,
   {
     if (!(specialflag & SPECIAL_SHORT_LOG_FORMAT))
     {
-      end=strmov(end,",insert_id=");
+      end=my_stpcpy(end,",insert_id=");
       end=longlong10_to_str((longlong)
                             thd->auto_inc_intervals_in_cur_stmt_for_binlog.minimum(),
                             end, -10);
@@ -564,7 +564,7 @@ bool File_query_log::write_slow(THD *thd, ulonglong current_utime,
     checked the query start time or not. now we always write current
     timestamp to the slow log
   */
-  end= strmov(end, ",timestamp=");
+  end= my_stpcpy(end, ",timestamp=");
   end= int10_to_str((long) current_utime / 1000000, end, 10);
 
   if (end != buff)
@@ -690,7 +690,6 @@ bool Log_to_csv_event_handler::log_general(THD *thd, ulonglong event_utime,
     A positive return value in store() means truncation.
     Still logging a message in the log in this case.
   */
-  table->field[GLT_FIELD_ARGUMENT]->flags|= FIELDFLAG_HEX_ESCAPE;
   if (table->field[GLT_FIELD_ARGUMENT]->store(sql_text, sql_text_len,
                                               client_cs) < 0)
     goto err;
@@ -1665,7 +1664,7 @@ static void print_buffer_to_nt_eventlog(enum loglevel level, char *buff,
   DBUG_ENTER("print_buffer_to_nt_eventlog");
 
   /* Add ending CR/LF's to string, overwrite last chars if necessary */
-  strmov(buffptr+min(length, buffLen-5), "\r\n\r\n");
+  my_stpcpy(buffptr+min(length, buffLen-5), "\r\n\r\n");
 
   setup_windows_event_source();
   if ((event= RegisterEventSource(NULL,"MySQL")))

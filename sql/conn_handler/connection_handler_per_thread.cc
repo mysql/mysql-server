@@ -74,14 +74,6 @@ Channel_info* Per_thread_connection_handler::block_until_new_connection()
     DBUG_POP();
     DBUG_ASSERT( ! _db_is_pushed_());
 
-#ifdef HAVE_PSI_THREAD_INTERFACE
-    /*
-      Delete the instrumentation for the job that just completed,
-      before blocking this pthread (blocked on COND_thread_cache).
-    */
-    PSI_THREAD_CALL(delete_current_thread)();
-#endif
-
     // Block pthread
     blocked_pthread_count++;
     while (!abort_loop && !wake_pthread && !kill_blocked_pthreads_flag)
@@ -122,7 +114,7 @@ static THD* init_new_thd(Channel_info *channel_info)
     connection_errors_internal++;
     channel_info->send_error_and_close_channel(ER_OUT_OF_RESOURCES, 0, false);
     delete channel_info;
-    goto error;
+    return NULL;
   }
 
   mysql_mutex_lock(&LOCK_thread_count);
@@ -158,7 +150,7 @@ static THD* init_new_thd(Channel_info *channel_info)
     close_connection(thd, ER_OUT_OF_RESOURCES);
     thd->release_resources();
     delete thd;
-    goto error;
+    return NULL;
   }
 
   /*
@@ -168,11 +160,6 @@ static THD* init_new_thd(Channel_info *channel_info)
   */
   thd->mysys_var->abort= 0;
   return thd;
-
-error:
-  inc_aborted_connects();
-  dec_connection_count();
-  return NULL;
 }
 
 
@@ -206,7 +193,11 @@ pthread_handler_t handle_connection(void *arg)
 
   thd= init_new_thd(channel_info);
   if (thd == NULL)
+  {
+    inc_aborted_connects();
+    dec_connection_count();
     goto end_thread;
+  }
 
   for (;;)
   {
@@ -215,9 +206,7 @@ pthread_handler_t handle_connection(void *arg)
 
     add_global_thread(thd);
 
-    if (thd_prepare_connection(thd))
-      inc_aborted_connects();
-    else
+    if (!thd_prepare_connection(thd))
     {
       while (thd_is_connection_alive(thd))
       {
@@ -228,7 +217,23 @@ pthread_handler_t handle_connection(void *arg)
       end_connection(thd);
     }
     close_connection(thd);
-    Connection_handler_manager::get_instance()->remove_connection(thd);
+    dec_connection_count();
+
+    thd->get_stmt_da()->reset_diagnostics_area();
+    thd->release_resources();
+
+    // Clean up errors now, before possibly waiting for a new connection.
+    ERR_remove_state(0);
+
+    remove_global_thread(thd);
+    delete thd;
+
+#ifdef HAVE_PSI_THREAD_INTERFACE
+    /*
+      Delete the instrumentation for the job that just completed.
+    */
+    PSI_THREAD_CALL(delete_current_thread)();
+#endif
 
     if (abort_loop) // Server is shutting down so end the pthread.
       break;
@@ -239,7 +244,11 @@ pthread_handler_t handle_connection(void *arg)
 
     thd= init_new_thd(channel_info);
     if (thd == NULL)
+    {
+      inc_aborted_connects();
+      dec_connection_count();
       break;
+    }
 
 #ifdef HAVE_PSI_THREAD_INTERFACE
     /*
@@ -347,20 +356,6 @@ handle_error:
   inc_thread_created();
   DBUG_PRINT("info",("Thread created"));
   DBUG_RETURN(false);
-}
-
-
-void Per_thread_connection_handler::remove_connection(THD* thd)
-{
-  thd->get_stmt_da()->reset_diagnostics_area();
-  thd->release_resources();
-
-  // Clean up errors now, before possibly waiting for a new connection.
-  ERR_remove_state(0);
-
-  remove_global_thread(thd);
-
-  delete thd;
 }
 
 

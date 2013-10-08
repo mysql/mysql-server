@@ -32,12 +32,28 @@ SELECT @@GLOBAL.innodb_adaptive_max_sleep_delay;
 # Check if value can be set
 SET @@GLOBAL.innodb_adaptive_max_sleep_delay=100;
 
+# Check for valid values
+SET @@GLOBAL.innodb_adaptive_max_sleep_delay=0;
+SELECT @@GLOBAL.innodb_adaptive_max_sleep_delay;
+SET @@GLOBAL.innodb_adaptive_max_sleep_delay=100000;
+SELECT @@GLOBAL.innodb_adaptive_max_sleep_delay;
+SET @@GLOBAL.innodb_adaptive_max_sleep_delay=1000000;
+SELECT @@GLOBAL.innodb_adaptive_max_sleep_delay;
+
 # Check for out of bounds
 SET @@GLOBAL.innodb_adaptive_max_sleep_delay=1000001;
 SELECT @@GLOBAL.innodb_adaptive_max_sleep_delay;
 --echo 1000000 Expected
 
+SET @@GLOBAL.innodb_adaptive_max_sleep_delay=4294967295;
+SELECT @@GLOBAL.innodb_adaptive_max_sleep_delay;
+--echo 1000000 Expected
+
 SET @@GLOBAL.innodb_adaptive_max_sleep_delay=-1;
+SELECT @@GLOBAL.innodb_adaptive_max_sleep_delay;
+--echo 0 Expected
+
+SET @@GLOBAL.innodb_adaptive_max_sleep_delay=-1024;
 SELECT @@GLOBAL.innodb_adaptive_max_sleep_delay;
 --echo 0 Expected
 

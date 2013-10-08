@@ -44,7 +44,7 @@ btr_pcur_create_for_mysql(void)
 	btr_pcur_t*	pcur;
 	DBUG_ENTER("btr_pcur_create_for_mysql");
 
-	pcur = (btr_pcur_t*) mem_alloc(sizeof(btr_pcur_t));
+	pcur = (btr_pcur_t*) ut_malloc(sizeof(btr_pcur_t));
 
 	pcur->btr_cur.index = NULL;
 	btr_pcur_init(pcur);
@@ -62,13 +62,8 @@ btr_pcur_reset(
 /*===========*/
 	btr_pcur_t*	cursor)	/*!< in, out: persistent cursor */
 {
-	if (cursor->old_rec_buf != NULL) {
-
-		mem_free(cursor->old_rec_buf);
-
-		cursor->old_rec_buf = NULL;
-	}
-
+	ut_free(cursor->old_rec_buf);
+	cursor->old_rec_buf = NULL;
 	cursor->btr_cur.index = NULL;
 	cursor->btr_cur.page_cur.rec = NULL;
 	cursor->old_rec = NULL;
@@ -91,7 +86,7 @@ btr_pcur_free_for_mysql(
 	DBUG_PRINT("btr_pcur_free_for_mysql", ("pcur: %p", cursor));
 
 	btr_pcur_reset(cursor);
-	mem_free(cursor);
+	ut_free(cursor);
 	DBUG_VOID_RETURN;
 }
 
@@ -189,16 +184,13 @@ btr_pcur_copy_stored_position(
 	btr_pcur_t*	pcur_donate)	/*!< in: pcur from which the info is
 					copied */
 {
-	if (pcur_receive->old_rec_buf) {
-		mem_free(pcur_receive->old_rec_buf);
-	}
-
+	ut_free(pcur_receive->old_rec_buf);
 	ut_memcpy(pcur_receive, pcur_donate, sizeof(btr_pcur_t));
 
 	if (pcur_donate->old_rec_buf) {
 
 		pcur_receive->old_rec_buf = (byte*)
-			mem_alloc(pcur_donate->buf_size);
+			ut_malloc(pcur_donate->buf_size);
 
 		ut_memcpy(pcur_receive->old_rec_buf, pcur_donate->old_rec_buf,
 			  pcur_donate->buf_size);
@@ -282,13 +274,15 @@ btr_pcur_restore_position_func(
 
 	if (UNIV_LIKELY(latch_mode == BTR_SEARCH_LEAF)
 	    || UNIV_LIKELY(latch_mode == BTR_MODIFY_LEAF)) {
-		/* Try optimistic restoration */
+		/* Try optimistic restoration if cursor is expected to be
+		positioned on the same btr record as before (BTR_PCUR_ON). */
 
-		if (UNIV_LIKELY(buf_page_optimistic_get(
+		if (cursor->rel_pos == BTR_PCUR_ON
+		    && buf_page_optimistic_get(
 					latch_mode,
 					cursor->block_when_stored,
 					cursor->modify_clock,
-					file, line, mtr))) {
+					file, line, mtr)) {
 			cursor->pos_state = BTR_PCUR_IS_POSITIONED;
 
 			buf_block_dbg_add_level(
@@ -296,7 +290,7 @@ btr_pcur_restore_position_func(
 				dict_index_is_ibuf(index)
 				? SYNC_IBUF_TREE_NODE : SYNC_TREE_NODE);
 
-			if (cursor->rel_pos == BTR_PCUR_ON) {
+			{
 #ifdef UNIV_DEBUG
 				const rec_t*	rec;
 				const ulint*	offsets1;
@@ -321,8 +315,6 @@ btr_pcur_restore_position_func(
 #endif /* UNIV_DEBUG */
 				return(TRUE);
 			}
-
-			return(FALSE);
 		}
 	}
 

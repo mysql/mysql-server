@@ -247,9 +247,9 @@ void table_ews_by_thread_by_event_name
   PFS_connection_iterator::visit_thread(thread, &visitor);
 
   /*
-     If the aggregation for this class is deferred, then we must pull the
-     current wait stats from the instances associated with this thread.
-  */  
+    If the aggregation for this class is deferred, then we must pull the
+    current wait stats from the instances associated with this thread.
+  */
   if (klass->is_deferred())
   {
     /* Visit instances owned by this thread. Do not visit the class. */

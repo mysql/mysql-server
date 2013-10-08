@@ -49,56 +49,56 @@ this program; if not, write to the Free Software Foundation, Inc.,
 #include <sql_table.h>
 
 /* Include necessary InnoDB headers */
-#include "buf0dump.h"
-#include "buf0lru.h"
-#include "buf0flu.h"
-#include "buf0dblwr.h"
-#include "btr0sea.h"
-#include "os0file.h"
-#include "os0thread.h"
-#include "srv0srv.h"
-#include "srv0start.h"
-#include "srv0space.h"
-#include "trx0roll.h"
-#include "trx0trx.h"
-#include "trx0sys.h"
-#include "mtr0mtr.h"
-#include "rem0types.h"
-#include "row0ins.h"
-#include "row0mysql.h"
-#include "row0sel.h"
-#include "row0upd.h"
-#include "log0log.h"
-#include "lock0lock.h"
-#include "dict0crea.h"
-#include "btr0cur.h"
-#include "btr0btr.h"
-#include "fsp0fsp.h"
-#include "sync0mutex.h"
-#include "fil0fil.h"
-#include "trx0xa.h"
-#include "row0merge.h"
-#include "dict0boot.h"
-#include "dict0stats.h"
-#include "dict0stats_bg.h"
-#include "ut0mem.h"
-#include "ibuf0ibuf.h"
-#include "dict0dict.h"
-#include "srv0mon.h"
 #include "api0api.h"
 #include "api0misc.h"
-#include "pars0pars.h"
+#include "btr0btr.h"
+#include "btr0cur.h"
+#include "btr0sea.h"
+#include "buf0dblwr.h"
+#include "buf0dump.h"
+#include "buf0flu.h"
+#include "buf0lru.h"
+#include "dict0boot.h"
+#include "dict0crea.h"
+#include "dict0dict.h"
+#include "dict0stats.h"
+#include "dict0stats_bg.h"
+#include "fil0fil.h"
+#include "fsp0fsp.h"
 #include "fts0fts.h"
+#include "fts0plugin.h"
+#include "fts0priv.h"
 #include "fts0types.h"
+#include "ibuf0ibuf.h"
+#include "lock0lock.h"
+#include "log0log.h"
+#include "mtr0mtr.h"
+#include "os0file.h"
+#include "os0thread.h"
+#include "page0zip.h"
+#include "pars0pars.h"
+#include "rem0types.h"
 #include "row0import.h"
+#include "row0ins.h"
+#include "row0merge.h"
+#include "row0mysql.h"
 #include "row0quiesce.h"
+#include "row0sel.h"
+#include "row0trunc.h"
+#include "row0upd.h"
+#include "srv0mon.h"
+#include "srv0space.h"
+#include "srv0srv.h"
+#include "srv0start.h"
+#include "sync0mutex.h"
 #ifdef UNIV_DEBUG
 #include "trx0purge.h"
 #endif /* UNIV_DEBUG */
-#include "fts0priv.h"
-#include "fts0plugin.h"
-#include "page0zip.h"
-#include "row0trunc.h"
+#include "trx0roll.h"
+#include "trx0sys.h"
+#include "trx0trx.h"
+#include "trx0xa.h"
+#include "ut0mem.h"
 
 enum_tx_isolation thd_get_trx_isolation(const THD* thd);
 
@@ -3859,8 +3859,6 @@ ha_innobase::get_row_type() const
 	return(ROW_TYPE_NOT_USED);
 }
 
-
-
 /****************************************************************//**
 Get the table flags to use for the statement.
 @return table flags */
@@ -5900,7 +5898,7 @@ ha_innobase::build_template(
 
 	if (!prebuilt->mysql_template) {
 		prebuilt->mysql_template = (mysql_row_templ_t*)
-			mem_alloc(n_fields * sizeof(mysql_row_templ_t));
+			ut_malloc(n_fields * sizeof(mysql_row_templ_t));
 	}
 
 	prebuilt->template_type = whole_row
@@ -8648,22 +8646,22 @@ get_row_format_name(
 }
 
 /** If file-per-table is missing, issue warning and set ret false */
-#define CHECK_ERROR_ROW_TYPE_NEEDS_FILE_PER_TABLE(use_tablespace)\
-	if (!use_tablespace) {					\
-		push_warning_printf(				\
-			thd, Sql_condition::SL_WARNING,	\
-			ER_ILLEGAL_HA_CREATE_OPTION,		\
-			"InnoDB: ROW_FORMAT=%s requires"	\
-			" innodb_file_per_table.",		\
-			get_row_format_name(row_format));	\
+#define CHECK_ERROR_ROW_TYPE_NEEDS_FILE_PER_TABLE(use_file_per_table)	\
+	if (!use_file_per_table) {					\
+		push_warning_printf(					\
+			thd, Sql_condition::SL_WARNING,			\
+			ER_ILLEGAL_HA_CREATE_OPTION,			\
+			"InnoDB: ROW_FORMAT=%s requires"		\
+			" innodb_file_per_table.",			\
+			get_row_format_name(row_format));		\
 		ret = "ROW_FORMAT";					\
 	}
 
 /** If file-format is Antelope, issue warning and set ret false */
 #define CHECK_ERROR_ROW_TYPE_NEEDS_GT_ANTELOPE			\
-	if (srv_file_format < UNIV_FORMAT_B) {		\
+	if (srv_file_format < UNIV_FORMAT_B) {			\
 		push_warning_printf(				\
-			thd, Sql_condition::SL_WARNING,	\
+			thd, Sql_condition::SL_WARNING,		\
 			ER_ILLEGAL_HA_CREATE_OPTION,		\
 			"InnoDB: ROW_FORMAT=%s requires"	\
 			" innodb_file_format > Antelope.",	\
@@ -8671,6 +8669,43 @@ get_row_format_name(
 		ret = "ROW_FORMAT";				\
 	}
 
+/*****************************************************************//**
+Determines if create option DATA DIRECTORY is valid.
+@return true if valid, false if not. */
+
+bool
+create_option_data_directory_is_valid(
+/*==================================*/
+	THD*		thd,		/*!< in: connection thread. */
+	HA_CREATE_INFO*	create_info,	/*!< in: create info. */
+	bool		use_file_per_table)	/*!< in: srv_file_per_table */
+{
+	bool		is_valid = true;
+
+	ut_ad(create_info->data_file_name);
+
+	/* Use DATA DIRECTORY only with file-per-table. */
+	if (!use_file_per_table) {
+		push_warning(
+			thd, Sql_condition::SL_WARNING,
+			ER_ILLEGAL_HA_CREATE_OPTION,
+			"InnoDB: DATA DIRECTORY requires"
+			" innodb_file_per_table.");
+		is_valid = false;
+	}
+
+	/* Do not use DATA DIRECTORY with TEMPORARY TABLE. */
+	if (create_info->options & HA_LEX_CREATE_TMP_TABLE) {
+		push_warning(
+			thd, Sql_condition::SL_WARNING,
+			ER_ILLEGAL_HA_CREATE_OPTION,
+			"InnoDB: DATA DIRECTORY cannot be used"
+			" for TEMPORARY tables.");
+		is_valid = false;
+	}
+
+	return(is_valid);
+}
 
 /*****************************************************************//**
 Validates the create options. We may build on this function
@@ -8683,24 +8718,21 @@ const char*
 create_options_are_invalid(
 /*=======================*/
 	THD*		thd,		/*!< in: connection thread. */
-	TABLE*		form,		/*!< in: information on table
-					columns and indexes */
 	HA_CREATE_INFO*	create_info,	/*!< in: create info. */
-	bool		use_tablespace)	/*!< in: srv_file_per_table */
+	bool		use_file_per_table)	/*!< in: srv_file_per_table */
 {
 	ibool	kbs_specified	= FALSE;
 	const char*	ret	= NULL;
-	enum row_type	row_format	= form->s->row_type;
+	enum row_type	row_format	= create_info->row_type;
 
 	ut_ad(thd != NULL);
+	ut_ad(create_info != NULL);
 
 	/* If innodb_strict_mode is not set don't do any validation. */
 	if (!(THDVAR(thd, strict_mode))) {
 		return(NULL);
 	}
 
-	ut_ad(form != NULL);
-	ut_ad(create_info != NULL);
 
 	/* First check if a non-zero KEY_BLOCK_SIZE was specified. */
 	if (create_info->key_block_size) {
@@ -8713,7 +8745,7 @@ create_options_are_invalid(
 		case 8:
 		case 16:
 			/* Valid KEY_BLOCK_SIZE, check its dependencies. */
-			if (!use_tablespace) {
+			if (!use_file_per_table) {
 				push_warning(
 					thd, Sql_condition::SL_WARNING,
 					ER_ILLEGAL_HA_CREATE_OPTION,
@@ -8763,13 +8795,13 @@ create_options_are_invalid(
 	other incompatibilities. */
 	switch (row_format) {
 	case ROW_TYPE_COMPRESSED:
-		CHECK_ERROR_ROW_TYPE_NEEDS_FILE_PER_TABLE(use_tablespace);
+		CHECK_ERROR_ROW_TYPE_NEEDS_FILE_PER_TABLE(use_file_per_table);
 		CHECK_ERROR_ROW_TYPE_NEEDS_GT_ANTELOPE;
 		break;
 	case ROW_TYPE_DYNAMIC:
 		if (!(create_info->options & HA_LEX_CREATE_TMP_TABLE)) {
 			CHECK_ERROR_ROW_TYPE_NEEDS_FILE_PER_TABLE(
-				use_tablespace);
+				use_file_per_table);
 		}
 		CHECK_ERROR_ROW_TYPE_NEEDS_GT_ANTELOPE;
 		/* fall through since dynamic also shuns KBS */
@@ -8798,24 +8830,9 @@ create_options_are_invalid(
 		break;
 	}
 
-	/* Use DATA DIRECTORY only with file-per-table. */
-	if (create_info->data_file_name && !use_tablespace) {
-		push_warning(
-			thd, Sql_condition::SL_WARNING,
-			ER_ILLEGAL_HA_CREATE_OPTION,
-			"InnoDB: DATA DIRECTORY requires"
-			" innodb_file_per_table.");
-		ret = "DATA DIRECTORY";
-	}
-
-	/* Do not use DATA DIRECTORY with TEMPORARY TABLE. */
 	if (create_info->data_file_name
-	    && create_info->options & HA_LEX_CREATE_TMP_TABLE) {
-		push_warning(
-			thd, Sql_condition::SL_WARNING,
-			ER_ILLEGAL_HA_CREATE_OPTION,
-			"InnoDB: DATA DIRECTORY cannot be used"
-			" for TEMPORARY tables.");
+	    && !create_option_data_directory_is_valid(
+		    thd, create_info, use_file_per_table)) {
 		ret = "DATA DIRECTORY";
 	}
 
@@ -8888,7 +8905,9 @@ ha_innobase::parse_table_name(
 	char*		remote_path)	/*!< out: remote path of table */
 {
 	THD*		thd = ha_thd();
-	bool		use_tablespace = flags2 & DICT_TF2_USE_TABLESPACE;
+	bool		use_file_per_table =
+				flags2 & DICT_TF2_USE_FILE_PER_TABLE;
+
 	DBUG_ENTER("ha_innobase::parse_table_name");
 
 #ifdef _WIN32
@@ -8903,7 +8922,7 @@ ha_innobase::parse_table_name(
 	returns error if it is in full path format, but not creating a temp.
 	table. Currently InnoDB does not support symbolic link on Windows. */
 
-	if (use_tablespace
+	if (use_file_per_table
 	    && !mysqld_embedded
 	    && !(create_info->options & HA_LEX_CREATE_TMP_TABLE)) {
 
@@ -8927,30 +8946,10 @@ ha_innobase::parse_table_name(
 		strncpy(temp_path, name, FN_REFLEN - 1);
 	}
 
+	/* Make sure DATA DIRECTORY is compatible with other options. */
 	if (create_info->data_file_name) {
-		bool ignore = false;
-
-		/* Use DATA DIRECTORY only with file-per-table. */
-		if (!use_tablespace) {
-			push_warning(
-				thd, Sql_condition::SL_WARNING,
-				ER_ILLEGAL_HA_CREATE_OPTION,
-				"InnoDB: DATA DIRECTORY requires"
-				" innodb_file_per_table.");
-			ignore = true;
-		}
-
-		/* Do not use DATA DIRECTORY with TEMPORARY TABLE. */
-		if (create_info->options & HA_LEX_CREATE_TMP_TABLE) {
-			push_warning(
-				thd, Sql_condition::SL_WARNING,
-				ER_ILLEGAL_HA_CREATE_OPTION,
-				"InnoDB: DATA DIRECTORY cannot be"
-				" used for TEMPORARY tables.");
-			ignore = true;
-		}
-
-		if (ignore) {
+		if (!create_option_data_directory_is_valid(
+			    thd,create_info,use_file_per_table)) {
 			push_warning_printf(
 				thd, Sql_condition::SL_WARNING,
 				WARN_OPTION_IGNORED,
@@ -8984,7 +8983,7 @@ innobase_table_flags(
 	const HA_CREATE_INFO*	create_info,	/*!< in: information
 						on table columns and indexes */
 	THD*			thd,		/*!< in: connection */
-	bool			use_tablespace,	/*!< in: whether to create
+	bool			use_file_per_table,/*!< in: whether to create
 						outside system tablespace */
 	ulint*			flags,		/*!< out: DICT_TF flags */
 	ulint*			flags2)		/*!< out: DICT_TF2 flags */
@@ -9063,7 +9062,7 @@ index_bad:
 		}
 
 		/* Make sure compressed row format is allowed. */
-		if (!use_tablespace) {
+		if (!use_file_per_table) {
 			push_warning(
 				thd, Sql_condition::SL_WARNING,
 				ER_ILLEGAL_HA_CREATE_OPTION,
@@ -9134,10 +9133,10 @@ index_bad:
 
 	case ROW_TYPE_COMPRESSED:
 	case ROW_TYPE_DYNAMIC:
-		/* Check for use_tablespace only if
+		/* Check for use_file_per_table only if
 		row_format = compressed (temp + non_temp table)
 		row_format = dynamic (non_temp table) */
-		if ((!use_tablespace
+		if ((!use_file_per_table
 		     && (row_format == ROW_TYPE_COMPRESSED
 			 || (row_format == ROW_TYPE_DYNAMIC && !is_temp)))) {
 			push_warning_printf(
@@ -9180,7 +9179,7 @@ index_bad:
 		zip_ssize = 0;
 	}
 
-	use_data_dir = use_tablespace
+	use_data_dir = use_file_per_table
 		       && ((create_info->data_file_name != NULL)
 		       && !(create_info->options & HA_LEX_CREATE_TMP_TABLE));
 
@@ -9190,8 +9189,8 @@ index_bad:
 		*flags2 |= DICT_TF2_TEMPORARY;
 	}
 
-	if (use_tablespace) {
-		*flags2 |= DICT_TF2_USE_TABLESPACE;
+	if (use_file_per_table) {
+		*flags2 |= DICT_TF2_USE_FILE_PER_TABLE;
 	}
 
 	DBUG_RETURN(true);
@@ -9207,8 +9206,6 @@ innobase_table_is_noncompressed_temporary(
 	const HA_CREATE_INFO*	create_info,	/*!< in: more information of the
 						created table, contains also the
 						create statement string */
-	const TABLE*		form,		/*!< in: information on table
-						columns and indexes */
 	bool			file_per_table)	/*!< in: reflect current
 						file_per_table status */
 {
@@ -9217,7 +9214,7 @@ innobase_table_is_noncompressed_temporary(
 	is done in innodb at latter stage during data validation.
 	MySQL will continue to report key_block_size as 0 */
 	bool is_compressed =
-		(form->s->row_type == ROW_TYPE_COMPRESSED
+		(create_info->row_type == ROW_TYPE_COMPRESSED
 		 || create_info->key_block_size > 0)
 		&& (srv_file_format >= UNIV_FORMAT_B)
 		&& file_per_table;
@@ -9252,33 +9249,32 @@ ha_innobase::create(
 	char		remote_path[FN_REFLEN];	/* absolute path of table */
 	THD*		thd = ha_thd();
 	ib_int64_t	auto_inc_value;
+	ulint		flags;
+	ulint		flags2;
+	dict_table_t*	innobase_table = NULL;
+	const char*	stmt;
+	size_t		stmt_len;
+	bool		use_file_per_table;
+
+	DBUG_ENTER("ha_innobase::create");
+
+	DBUG_ASSERT(thd != NULL);
+	DBUG_ASSERT(create_info != NULL);
 
 	/* Cache the global variable "srv_file_per_table" to a local
 	variable before using it. Note that "srv_file_per_table"
 	is not under dict_sys mutex protection, and could be changed
 	while creating the table. So we read the current value here
 	and make all further decisions based on this. */
-	bool		use_tablespace = srv_file_per_table;
+	use_file_per_table = srv_file_per_table;
 
-	/* if table is non-compressed temp-table then ignore file-per-table */
-	if (innobase_table_is_noncompressed_temporary(
-		create_info, form, use_tablespace)) {
-		use_tablespace = false;
+	/* Ignore file-per-table if using a temporary, non-compressed
+	table. */
+	if (use_file_per_table
+		&& innobase_table_is_noncompressed_temporary(
+			create_info, use_file_per_table)) {
+		use_file_per_table = false;
 	}
-
-	/* Zip Shift Size - log2 - 9 of compressed page size,
-	zero for uncompressed */
-	ulint		flags;
-	ulint		flags2;
-	dict_table_t*	innobase_table = NULL;
-
-	const char*	stmt;
-	size_t		stmt_len;
-
-	DBUG_ENTER("ha_innobase::create");
-
-	DBUG_ASSERT(thd != NULL);
-	DBUG_ASSERT(create_info != NULL);
 
 	if (form->s->fields > REC_MAX_N_USER_FIELDS) {
 		DBUG_RETURN(HA_ERR_TOO_MANY_FIELDS);
@@ -9286,16 +9282,17 @@ ha_innobase::create(
 		DBUG_RETURN(HA_ERR_INNODB_READ_ONLY);
 	}
 
-	/* Create the table definition in InnoDB */
+	ut_ad(form->s->row_type == create_info->row_type);
 
 	/* Validate create options if innodb_strict_mode is set. */
 	if (create_options_are_invalid(
-			thd, form, create_info, use_tablespace)) {
+			thd, create_info, use_file_per_table)) {
 		DBUG_RETURN(HA_WRONG_CREATE_OPTION);
 	}
 
+	/* Create the table flags and flags2 */
 	if (!innobase_table_flags(form, create_info,
-				  thd, use_tablespace,
+				  thd, use_file_per_table,
 				  &flags, &flags2)) {
 		DBUG_RETURN(-1);
 	}

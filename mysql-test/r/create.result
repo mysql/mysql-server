@@ -758,7 +758,7 @@ b int not null, primary key (a)
 show create table t1;
 Table	Create Table
 t1	CREATE TABLE `t1` (
-  `a` varchar(12) CHARACTER SET utf8 COLLATE utf8_bin NOT NULL DEFAULT '',
+  `a` varchar(12) CHARACTER SET utf8 COLLATE utf8_bin NOT NULL,
   `b` int(11) NOT NULL,
   PRIMARY KEY (`a`)
 ) ENGINE=MyISAM DEFAULT CHARSET=latin1

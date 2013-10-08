@@ -4355,7 +4355,7 @@ String *Item_func_uuid::val_str(String *str)
   tohex(s, time_low, 8);
   tohex(s+9, time_mid, 4);
   tohex(s+14, time_hi_and_version, 4);
-  strmov(s+18, clock_seq_and_node_str);
+  my_stpcpy(s+18, clock_seq_and_node_str);
   return str;
 }
 

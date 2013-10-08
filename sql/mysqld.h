@@ -68,7 +68,11 @@ typedef Bitmap<((MAX_INDEXES+7)/8*8)> key_map; /* Used for finding keys */
 #define TEST_NO_EXTRA		128
 #define TEST_CORE_ON_SIGNAL	256	/**< Give core if signal */
 #define TEST_NO_STACKTRACE	512
-#define TEST_SIGINT		1024	/**< Allow sigint on threads */
+/*
+  TEST_SIGINT is no longer used. Was used to allow
+  sigint on individual threads.
+*/
+#define OBSOLETE_TEST_SIGINT	1024
 #define TEST_SYNCHRONIZATION    2048    /**< get server to do sleep in
                                            some places */
 #define TEST_DO_QUICK_LEAK_CHECK 4096   /**< Do Valgrind leak check for
@@ -507,6 +511,7 @@ extern PSI_memory_key key_memory_MYSQL_BIN_LOG_basename;
 extern PSI_memory_key key_memory_MYSQL_BIN_LOG_index;
 extern PSI_memory_key key_memory_MYSQL_RELAY_LOG_basename;
 extern PSI_memory_key key_memory_MYSQL_RELAY_LOG_index;
+extern PSI_memory_key key_memory_rpl_filter;
 extern PSI_memory_key key_memory_Security_context;
 extern PSI_memory_key key_memory_NET_buff;
 extern PSI_memory_key key_memory_NET_compress_packet;

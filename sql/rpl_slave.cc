@@ -722,7 +722,7 @@ static void print_slave_skip_errors(void)
     if (errnum < MAX_SLAVE_ERROR)
     {
       /* Couldn't show all errors */
-      buff= strmov(buff, "..."); /* purecov: tested */
+      buff= my_stpcpy(buff, "..."); /* purecov: tested */
     }
     *buff=0;
   }
@@ -2665,6 +2665,7 @@ bool show_slave_status(THD* thd, Master_info* mi)
                                              sql_gtid_set_size));
   field_list.push_back(new Item_return_int("Auto_Position", sizeof(ulong),
                                            MYSQL_TYPE_LONG));
+  field_list.push_back(new Item_empty_string("Replicate_Rewrite_DB", 24));
 
   if (protocol->send_result_set_metadata(&field_list,
                             Protocol::SEND_NUM_ROWS | Protocol::SEND_EOF))
@@ -2911,6 +2912,9 @@ bool show_slave_status(THD* thd, Master_info* mi)
     protocol->store(sql_gtid_set_buffer, &my_charset_bin);
     // Auto_Position
     protocol->store(mi->is_auto_position() ? 1 : 0);
+    // Replicate_Rewrite_DB
+    rpl_filter->get_rewrite_db(&tmp);
+    protocol->store(&tmp);
 
     mysql_mutex_unlock(&mi->rli->err_lock);
     mysql_mutex_unlock(&mi->err_lock);
@@ -4145,6 +4149,12 @@ pthread_handler_t handle_slave_io(void *arg)
   THD_CHECK_SENTRY(thd);
   mi->info_thd = thd;
 
+  #ifdef HAVE_PSI_INTERFACE
+  // save the instrumentation for IO thread in mi->info_thd->scheduler
+  struct PSI_thread *psi= PSI_THREAD_CALL(get_thread)();
+  thd_set_psi(mi->info_thd, psi);
+  #endif
+
   pthread_detach_this_thread();
   thd->thread_stack= (char*) &thd; // remember where our stack is
   mi->clear_error();
@@ -4579,6 +4589,9 @@ pthread_handler_t handle_slave_worker(void *arg)
   ulong purge_cnt= 0;
   ulonglong purge_size= 0;
   struct slave_job_item _item, *job_item= &_item;
+  #ifdef HAVE_PSI_INTERFACE
+  struct PSI_thread *psi;
+  #endif
 
   my_thread_init();
   DBUG_ENTER("handle_slave_worker");
@@ -4593,7 +4606,13 @@ pthread_handler_t handle_slave_worker(void *arg)
   w->info_thd= thd;
   mysql_mutex_unlock(&w->info_thd_lock);
   thd->thread_stack = (char*)&thd;
-  
+
+  #ifdef HAVE_PSI_INTERFACE
+  // save the instrumentation for worker thread in w->info_thd->scheduler
+  psi= PSI_THREAD_CALL(get_thread)();
+  thd_set_psi(w->info_thd, psi);
+  #endif
+
   pthread_detach_this_thread();
   if (init_slave_thread(thd, SLAVE_THD_WORKER))
   {
@@ -5536,6 +5555,12 @@ pthread_handler_t handle_slave_sql(void *arg)
   thd->thread_stack = (char*)&thd; // remember where our stack is
   mysql_mutex_lock(&rli->info_thd_lock);
   rli->info_thd= thd;
+
+  #ifdef HAVE_PSI_INTERFACE
+  // save the instrumentation for SQL thread in rli->info_thd->scheduler
+  struct PSI_thread *psi= PSI_THREAD_CALL(get_thread)();
+  thd_set_psi(rli->info_thd, psi);
+  #endif
 
  /*
   Create Mts Submode.

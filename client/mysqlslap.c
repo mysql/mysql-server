@@ -925,7 +925,7 @@ build_table_string(void)
                                   MYF(MY_ZEROFILL|MY_FAE|MY_WME));
   ptr->length= table_string.length+1;
   ptr->type= CREATE_TABLE_TYPE;
-  strmov(ptr->string, table_string.str);
+  my_stpcpy(ptr->string, table_string.str);
   dynstr_free(&table_string);
   DBUG_RETURN(ptr);
 }
@@ -999,7 +999,7 @@ build_update_string(void)
     ptr->type= UPDATE_TYPE_REQUIRES_PREFIX ;
   else
     ptr->type= UPDATE_TYPE;
-  strmov(ptr->string, update_string.str);
+  my_stpcpy(ptr->string, update_string.str);
   dynstr_free(&update_string);
   DBUG_RETURN(ptr);
 }
@@ -1092,7 +1092,7 @@ build_insert_string(void)
                               MYF(MY_ZEROFILL|MY_FAE|MY_WME));
   ptr->length= insert_string.length+1;
   ptr->type= INSERT_TYPE;
-  strmov(ptr->string, insert_string.str);
+  my_stpcpy(ptr->string, insert_string.str);
   dynstr_free(&insert_string);
   DBUG_RETURN(ptr);
 }
@@ -1162,7 +1162,7 @@ build_select_string(my_bool key)
     ptr->type= SELECT_TYPE_REQUIRES_PREFIX;
   else
     ptr->type= SELECT_TYPE;
-  strmov(ptr->string, query_string.str);
+  my_stpcpy(ptr->string, query_string.str);
   dynstr_free(&query_string);
   DBUG_RETURN(ptr);
 }

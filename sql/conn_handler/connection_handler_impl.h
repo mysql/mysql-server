@@ -88,8 +88,6 @@ public:
 protected:
   virtual bool add_connection(Channel_info* channel_info);
 
-  virtual void remove_connection(THD* thd);
-
   virtual uint get_max_threads() const;
 };
 
@@ -110,8 +108,6 @@ public:
 
 protected:
   virtual bool add_connection(Channel_info* channel_info);
-
-  virtual void remove_connection(THD* thd);
 
   virtual uint get_max_threads() const { return 1; }
 };

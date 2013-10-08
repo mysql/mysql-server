@@ -16,7 +16,7 @@
 #include <my_global.h>
 #include <my_sys.h>
 
-#ifdef HAVE_GETRUSAGE
+#ifdef HAVE_SYS_RESOURCE_H
 #include <sys/resource.h>
 #endif
 

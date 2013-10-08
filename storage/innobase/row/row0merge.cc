@@ -1128,7 +1128,7 @@ row_merge_read_clustered_index(
 	/* Create and initialize memory for record buffers */
 
 	merge_buf = static_cast<row_merge_buf_t**>(
-		mem_alloc(n_index * sizeof *merge_buf));
+		ut_malloc(n_index * sizeof *merge_buf));
 
 	for (ulint i = 0; i < n_index; i++) {
 		if (index[i]->type & DICT_FTS) {
@@ -1179,7 +1179,7 @@ row_merge_read_clustered_index(
 		do not violate the added NOT NULL constraints. */
 
 		nonnull = static_cast<ulint*>(
-			mem_alloc(dict_table_get_n_cols(new_table)
+			ut_malloc(dict_table_get_n_cols(new_table)
 				  * sizeof *nonnull));
 
 		for (ulint i = 0; i < dict_table_get_n_cols(old_table); i++) {
@@ -1202,7 +1202,7 @@ row_merge_read_clustered_index(
 		}
 
 		if (!n_nonnull) {
-			mem_free(nonnull);
+			ut_free(nonnull);
 			nonnull = NULL;
 		}
 	}
@@ -1294,9 +1294,7 @@ end_of_index:
 					row = NULL;
 					mtr_commit(&mtr);
 					mem_heap_free(row_heap);
-					if (nonnull) {
-						mem_free(nonnull);
-					}
+					ut_free(nonnull);
 					goto write_buffers;
 				}
 			} else {
@@ -1618,10 +1616,7 @@ write_buffers:
 func_exit:
 	mtr_commit(&mtr);
 	mem_heap_free(row_heap);
-
-	if (nonnull) {
-		mem_free(nonnull);
-	}
+	ut_free(nonnull);
 
 all_done:
 #ifdef FTS_INTERNAL_DIAG_PRINT
@@ -1698,7 +1693,7 @@ wait_again:
 
 	row_fts_free_pll_merge_buf(psort_info);
 
-	mem_free(merge_buf);
+	ut_free(merge_buf);
 
 	btr_pcur_close(&pcur);
 
@@ -2076,7 +2071,7 @@ row_merge_sort(
 	}
 
 	/* "run_offset" records each run's first offset number */
-	run_offset = (ulint*) mem_alloc(file->offset * sizeof(ulint));
+	run_offset = (ulint*) ut_malloc(file->offset * sizeof(ulint));
 
 	/* This tells row_merge() where to start for the first round
 	of merge. */
@@ -2098,7 +2093,7 @@ row_merge_sort(
 		UNIV_MEM_ASSERT_RW(run_offset, num_runs * sizeof *run_offset);
 	} while (num_runs > 1);
 
-	mem_free(run_offset);
+	ut_free(run_offset);
 
 	DBUG_RETURN(error);
 }
@@ -3038,7 +3033,7 @@ row_make_new_pathname(
 
 	new_path = os_file_make_new_pathname(old_path, new_name);
 
-	mem_free(old_path);
+	ut_free(old_path);
 
 	return(new_path);
 }
@@ -3115,7 +3110,7 @@ row_merge_rename_tables_dict(
 				   " WHERE SPACE = :old_space;\n"
 				   "END;\n", FALSE, trx);
 
-		mem_free(tmp_path);
+		ut_free(tmp_path);
 	}
 
 	/* Update SYS_TABLESPACES and SYS_DATAFILES if the new
@@ -3144,7 +3139,7 @@ row_merge_rename_tables_dict(
 				   " WHERE SPACE = :new_space;\n"
 				   "END;\n", FALSE, trx);
 
-		mem_free(old_path);
+		ut_free(old_path);
 	}
 
 	if (err == DB_SUCCESS && dict_table_is_discarded(new_table)) {
@@ -3366,7 +3361,7 @@ row_merge_build_indexes(
 	trx_start_if_not_started_xa(trx, true);
 
 	merge_files = static_cast<merge_file_t*>(
-		mem_alloc(n_indexes * sizeof *merge_files));
+		ut_malloc(n_indexes * sizeof *merge_files));
 
 	/* Initialize all the merge file descriptors, so that we
 	don't call row_merge_file_destroy() on uninitialized
@@ -3580,7 +3575,7 @@ func_exit:
 		dict_mem_index_free(fts_sort_idx);
 	}
 
-	mem_free(merge_files);
+	ut_free(merge_files);
 	os_mem_free_large(block, block_size);
 
 	DICT_TF2_FLAG_UNSET(new_table, DICT_TF2_FTS_ADD_DOC_ID);

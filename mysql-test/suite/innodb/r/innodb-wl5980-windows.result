@@ -1,3 +1,8 @@
+#Check whether unzip is installed on the system
+#Store the command output into a temp file.
+#Get the value of the  variable from perl, to MTR
+#Check the status is non-zero
+#Remove the temp file tar.inc
 # Set the environmental variables
 # Stop server
 # Copy the remote tablespace & DB zip files from suite location to working location.

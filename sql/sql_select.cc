@@ -1388,7 +1388,7 @@ bool JOIN::get_best_combination()
 
     // Copy data from existing join_tab
     *tab= *best_positions[tableno].table;
-    tab->rowcount= (ha_rows) best_positions[tableno].records_read;
+    tab->rowcount= (ha_rows) best_positions[tableno].fanout;
     tab->position= best_positions + tableno;
 
     TABLE *const table= tab->table;
@@ -2689,15 +2689,15 @@ bool JOIN::setup_materialized_table(JOIN_TAB *tab, uint tableno,
     tab->keys.set_bit(0);          // There is one index - use it always
     tab->index= 0;
     sjm_pos->set_prefix_costs(1.0, fanout);
-    sjm_pos->records_read= 1.0;   
-    sjm_pos->read_time= 1.0;      
+    sjm_pos->fanout= 1.0;   
+    sjm_pos->read_cost= 1.0;      
   }
   else
   {
     sjm_pos->key= NULL; // No index use for MaterializeScan
     sjm_pos->set_prefix_costs(tab->read_time, tab->records * fanout);
-    sjm_pos->records_read= tab->records;
-    sjm_pos->read_time= tab->read_time;
+    sjm_pos->fanout= tab->records;
+    sjm_pos->read_cost= tab->read_time;
   }
 
   DBUG_RETURN(false);
@@ -5529,10 +5529,10 @@ test_if_cheaper_ordering(const JOIN_TAB *tab, ORDER *order, TABLE *table,
 
   if (join)
   {
-    read_time= tab->position->read_time;
+    read_time= tab->position->read_cost;
     for (const JOIN_TAB *jt= tab + 1;
          jt < join->join_tab + join->primary_tables; jt++)
-      fanout*= jt->position->records_read; // fanout is always >= 1
+      fanout*= jt->position->fanout; // fanout is always >= 1
   }
   else
     read_time= table->file->scan_time();
@@ -5823,7 +5823,7 @@ uint get_index_for_order(ORDER *order, TABLE *table, SQL_SELECT *select,
   @return number of key parts.
 */
 
-uint actual_key_parts(KEY *key_info)
+uint actual_key_parts(const KEY *key_info)
 {
   return key_info->table->in_use->
     optimizer_switch_flag(OPTIMIZER_SWITCH_USE_INDEX_EXTENSIONS) ?

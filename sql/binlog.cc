@@ -2634,7 +2634,7 @@ static int find_uniq_filename(char *name)
   if ((DBUG_EVALUATE_IF("error_unique_log_filename", 1, 
       !(dir_info= my_dir(buff,MYF(MY_DONT_SORT))))))
   {						// This shouldn't happen
-    strmov(end,".1");				// use name+1
+    my_stpcpy(end,".1");				// use name+1
     DBUG_RETURN(1);
   }
   file_info= dir_info->dir_entry;
@@ -2741,7 +2741,7 @@ const char *MYSQL_BIN_LOG::generate_name(const char *log_name,
 bool MYSQL_BIN_LOG::init_and_set_log_file_name(const char *log_name,
                                                const char *new_name)
 {
-  if (new_name && !strmov(log_file_name, new_name))
+  if (new_name && !my_stpcpy(log_file_name, new_name))
     return TRUE;
   else if (!new_name && generate_new_name(log_file_name, log_name))
     return TRUE;
@@ -4987,7 +4987,7 @@ void MYSQL_BIN_LOG::make_log_name(char* buf, const char* log_ident)
   uint dir_len = dirname_length(log_file_name); 
   if (dir_len >= FN_REFLEN)
     dir_len=FN_REFLEN-1;
-  strnmov(buf, log_file_name, dir_len);
+  my_stpnmov(buf, log_file_name, dir_len);
   strmake(buf+dir_len, log_ident, FN_REFLEN - dir_len -1);
 }
 

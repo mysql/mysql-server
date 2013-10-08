@@ -166,7 +166,7 @@ static char *backtick_string(const CHARSET_INFO *cs, char *to, char *end,
     }
     if (start + char_len >= end)
       goto err;
-    start= strnmov(start, par, char_len);
+    start= my_stpnmov(start, par, char_len);
   }
     
   if (start + 1 >= end)
@@ -200,7 +200,7 @@ static char *process_str_arg(const CHARSET_INFO *cs, char *to, char *end,
   if (print_type & ESCAPED_ARG)
     to= backtick_string(cs, to, end, par, plen, '`');
   else
-    to= strnmov(to,par,plen);
+    to= my_stpnmov(to,par,plen);
   return to;
 }
 
@@ -495,7 +495,7 @@ start:
       length= MY_MIN(end - to , print_arr[i].end - print_arr[i].begin);
       if (to + length < end)
         length++;
-      to= strnmov(to, print_arr[i].begin, length);
+      to= my_stpnmov(to, print_arr[i].begin, length);
     }
     DBUG_ASSERT(to <= end);
     *to='\0';				/* End of errmessage */

@@ -13,6 +13,7 @@
 #
 
 --echo #---------------- 2-sweeps read Index merge test 2 -------------------------------
+--echo # (Start of test file: index_merge_2sweeps.inc)
 
 eval SET SESSION DEFAULT_STORAGE_ENGINE = $engine_type;
 

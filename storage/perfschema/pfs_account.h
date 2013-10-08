@@ -84,6 +84,8 @@ public:
   /** Internal lock. */
   pfs_lock m_lock;
   PFS_account_key m_key;
+  /** True if this account is enabled, per rules in table SETUP_ACTORS. */
+  bool m_enabled;
   const char *m_username;
   uint m_username_length;
   const char *m_hostname;
@@ -110,6 +112,7 @@ find_or_create_account(PFS_thread *thread,
 PFS_account *sanitize_account(PFS_account *unsafe);
 void purge_all_account(void);
 
+void update_accounts_derived_flags(PFS_thread *thread);
 
 /* For iterators and show status. */
 

@@ -4704,7 +4704,7 @@ i_s_innodb_buffer_stats_fill_table(
 		DBUG_RETURN(0);
 	}
 
-	pool_info = (buf_pool_info_t*) mem_zalloc(
+	pool_info = (buf_pool_info_t*) ut_zalloc(
 		srv_buf_pool_instances *  sizeof *pool_info);
 
 	/* Walk through each buffer pool */
@@ -4724,7 +4724,7 @@ i_s_innodb_buffer_stats_fill_table(
 		}
 	}
 
-	mem_free(pool_info);
+	ut_free(pool_info);
 
 	DBUG_RETURN(status);
 }

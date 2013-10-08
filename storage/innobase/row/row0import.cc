@@ -3613,14 +3613,14 @@ row_import_for_mysql(
 			ER_FILE_NOT_FOUND,
 			filepath, err, ut_strerr(err));
 
-		mem_free(filepath);
+		ut_free(filepath);
 
 		return(row_import_cleanup(prebuilt, trx, err));
 	}
 
 	row_mysql_unlock_data_dictionary(trx);
 
-	mem_free(filepath);
+	ut_free(filepath);
 
 	err = ibuf_check_bitmap_on_import(trx, table->space);
 

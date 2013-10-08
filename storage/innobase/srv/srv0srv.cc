@@ -40,33 +40,33 @@ Created 10/8/1995 Heikki Tuuri
 
 #include "ha_prototypes.h"
 
-#include "srv0srv.h"
-#include "ut0mem.h"
-#include "os0proc.h"
-#include "mem0mem.h"
-#include "mem0pool.h"
-#include "sync0mutex.h"
-#include "que0que.h"
-#include "log0recv.h"
-#include "pars0pars.h"
-#include "usr0sess.h"
-#include "lock0lock.h"
-#include "trx0purge.h"
-#include "ibuf0ibuf.h"
+#include "btr0sea.h"
 #include "buf0flu.h"
 #include "buf0lru.h"
-#include "btr0sea.h"
-#include "dict0load.h"
 #include "dict0boot.h"
+#include "dict0load.h"
 #include "dict0stats_bg.h"
-#include "srv0space.h"
-#include "srv0start.h"
+#include "ibuf0ibuf.h"
+#include "lock0lock.h"
+#include "log0recv.h"
+#include "mem0mem.h"
+#include "mem0pool.h"
+#include "os0proc.h"
+#include "pars0pars.h"
+#include "que0que.h"
 #include "row0mysql.h"
 #include "row0trunc.h"
-#include "trx0i_s.h"
 #include "srv0mon.h"
-#include "ut0crc32.h"
+#include "srv0space.h"
+#include "srv0srv.h"
+#include "srv0start.h"
+#include "sync0mutex.h"
 #include "sync0sync.h"
+#include "trx0i_s.h"
+#include "trx0purge.h"
+#include "usr0sess.h"
+#include "ut0crc32.h"
+#include "ut0mem.h"
 
 /* The following is the maximum allowed duration of a lock wait. */
 ulint	srv_fatal_semaphore_wait_threshold = 600;
@@ -857,7 +857,7 @@ srv_init(void)
 		srv_sys_sz += n_sys_threads * sizeof(*srv_sys->sys_threads);
 	}
 
-	srv_sys = static_cast<srv_sys_t*>(mem_zalloc(srv_sys_sz));
+	srv_sys = static_cast<srv_sys_t*>(ut_zalloc(srv_sys_sz));
 
 	srv_sys->n_sys_threads = n_sys_threads;
 
@@ -940,7 +940,7 @@ srv_free(void)
 
 	trx_i_s_cache_free(trx_i_s_cache);
 
-	mem_free(srv_sys);
+	ut_free(srv_sys);
 
 	srv_sys = 0;
 }
