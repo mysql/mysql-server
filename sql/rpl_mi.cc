@@ -177,13 +177,28 @@ bool Master_info::shall_ignore_server_id(ulong s_id)
       != NULL;
 }
 
+/**
+   Initialize master log position and reset master info.
+   -- Used by RESET SLAVE and RESET SLAVE ALL commands.
+
+   @param all Reset master info if true,
+              otherwise, just initialize master log position.
+*/
 void Master_info::clear_in_memory_info(bool all)
 {
   init_master_log_pos();
   if (all)
   {
-    port= MYSQL_PORT;
-    host[0] = 0; user[0] = 0; password[0] = 0;
+    start_user_configured= false; ssl= 0; port= MYSQL_PORT;
+    connect_retry= DEFAULT_CONNECT_RETRY; clock_diff_with_master= 0;
+    heartbeat_period= 0; received_heartbeats= 0; last_heartbeat= 0;
+    master_id= 0; checksum_alg_before_fd= BINLOG_CHECKSUM_ALG_UNDEF;
+    retry_count= master_retry_count; master_gtid_mode= 0;
+    auto_position= false; host[0]= 0; user[0]= 0;
+    password[0]= 0; bind_addr[0]= 0; start_password[0]= 0; ssl_ca[0]= 0;
+    ssl_capath[0]= 0; ssl_cert[0]= 0; ssl_cipher[0]= 0; ssl_key[0]= 0;
+    ssl_crl[0]= 0; ssl_crlpath[0]= 0; master_uuid[0]= 0;
+    start_plugin_auth[0]= 0; start_plugin_dir[0]= 0; start_user[0]= 0;
   }
 }
 

@@ -22,9 +22,7 @@ SET @@global.table_open_cache  = 1;
 SELECT @@global.table_open_cache ;
 @@global.table_open_cache
 1
-SET @@global.table_open_cache  = 1073741824;
-Warnings:
-Warning	1292	Truncated incorrect table_open_cache value: '1073741824'
+SET @@global.table_open_cache  = 524288;
 SELECT @@global.table_open_cache ;
 @@global.table_open_cache
 524288
@@ -43,6 +41,12 @@ Warning	1292	Truncated incorrect table_open_cache value: '-1'
 SELECT @@global.table_open_cache  ;
 @@global.table_open_cache
 1
+SET @@global.table_open_cache = 524289;
+Warnings:
+Warning	1292	Truncated incorrect table_open_cache value: '524289'
+SELECT @@global.table_open_cache ;
+@@global.table_open_cache
+524288
 SET @@global.table_open_cache = 100000000000;
 Warnings:
 Warning	1292	Truncated incorrect table_open_cache value: '100000000000'

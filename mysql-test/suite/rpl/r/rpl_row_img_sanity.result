@@ -273,6 +273,8 @@ CREATE TABLE t (c1 int, c2 int, c3 blob, primary key(c1,c3(512)));
 INSERT INTO t VALUES (1,2,"a");
 INSERT INTO t(c1,c3) VALUES (10,"a");
 INSERT INTO t(c1) VALUES (1000);
+Warnings:
+Warning	1364	Field 'c3' doesn't have a default value
 UPDATE t SET c1=2 WHERE c1=1;
 DELETE FROM t WHERE c2=2;
 DROP TABLE t;
@@ -283,7 +285,11 @@ include/rpl_reset.inc
 CREATE TABLE t (c1 int, c2 int, c3 blob, primary key(c1,c2));
 INSERT INTO t VALUES (1,2,"a");
 INSERT INTO t(c1,c3) VALUES (10,"a");
+Warnings:
+Warning	1364	Field 'c2' doesn't have a default value
 INSERT INTO t(c1) VALUES (1000);
+Warnings:
+Warning	1364	Field 'c2' doesn't have a default value
 UPDATE t SET c3='b' WHERE c1=1;
 DELETE FROM t WHERE c2=2;
 DROP TABLE t;

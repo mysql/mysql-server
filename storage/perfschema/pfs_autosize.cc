@@ -22,6 +22,10 @@
 #include "sql_const.h"
 #include "pfs_server.h"
 
+#include <my_pthread.h> /* For pthread_t */
+/* Make sure HAVE_PSI_XXX_INTERFACE flags are set */
+#include "mysql/psi/psi.h"
+
 #include <algorithm>
 using std::min;
 using std::max;
@@ -103,7 +107,7 @@ struct PFS_sizing_data
     Load factor for 'normal' objects (files).
     Instrumented objects that:
     - use a medium amount of memory
-    - are created/destroyed 
+    - are created/destroyed
     should be stored in a medium density memory buffer,
     as a trade off between space and speed.
   */
@@ -343,6 +347,67 @@ static void apply_heuristic(PFS_global_param *p, PFS_sizing_data *h)
 
 void pfs_automated_sizing(PFS_global_param *param)
 {
+#ifndef HAVE_PSI_MUTEX_INTERFACE
+  param->m_mutex_class_sizing= 0;
+  param->m_mutex_sizing= 0;
+#endif
+
+#ifndef HAVE_PSI_RWLOCK_INTERFACE
+  param->m_rwlock_class_sizing= 0;
+  param->m_rwlock_sizing= 0;
+#endif
+
+#ifndef HAVE_PSI_COND_INTERFACE
+  param->m_cond_class_sizing= 0;
+  param->m_cond_sizing= 0;
+#endif
+
+#ifndef HAVE_PSI_FILE_INTERFACE
+  param->m_file_class_sizing= 0;
+  param->m_file_sizing= 0;
+  param->m_file_handle_sizing= 0;
+#endif
+
+#ifndef HAVE_PSI_TABLE_INTERFACE
+  param->m_table_share_sizing= 0;
+  param->m_table_sizing= 0;
+#endif
+
+#ifndef HAVE_PSI_SOCKET_INTERFACE
+  param->m_socket_class_sizing= 0;
+  param->m_socket_sizing= 0;
+#endif
+
+#ifndef HAVE_PSI_STAGE_INTERFACE
+  param->m_stage_class_sizing= 0;
+  param->m_events_stages_history_sizing= 0;
+  param->m_events_stages_history_long_sizing= 0;
+#endif
+
+#ifndef HAVE_PSI_STATEMENT_INTERFACE
+  param->m_statement_class_sizing= 0;
+  param->m_events_statements_history_sizing= 0;
+  param->m_events_statements_history_long_sizing= 0;
+#endif
+
+#ifndef HAVE_PSI_SP_INTERFACE
+  param->m_program_sizing= 0;
+  if (param->m_statement_stack_sizing > 1)
+    param->m_statement_stack_sizing= 1;
+#endif
+
+#ifndef HAVE_PSI_STATEMENT_DIGEST_INTERFACE
+  param->m_digest_sizing= 0;
+#endif
+
+#ifndef HAVE_PSI_METADATA_INTERFACE
+  param->m_metadata_lock_sizing= 0;
+#endif
+
+#ifndef HAVE_PSI_MEMORY_INTERFACE
+  param->m_memory_class_sizing= 0;
+#endif
+
   PFS_sizing_data *heuristic;
   heuristic= estimate_hints(param);
   apply_heuristic(param, heuristic);

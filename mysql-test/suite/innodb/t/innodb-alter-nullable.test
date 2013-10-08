@@ -7,9 +7,10 @@ CREATE TABLE t (c1 INT PRIMARY KEY, c2 INT NOT NULL, c3 INT) ENGINE=InnoDB;
 INSERT INTO t VALUES (1,2,3),(4,5,6),(7,8,9);
 
 --enable_info
-# This one will be a no-op.
-# MySQL should perhaps issue an error, because it refuses to modify
-# the PRIMARY KEY column c1 from NOT NULL to NULL.
+# This one will be a no-op. Instead of implicitly refusing to modify the
+# PRIMARY KEY column c1 from NOT NULL to NULL, we now get an error for this
+# operation with the patch for Bug#16545198.
+--error ER_PRIMARY_CANT_HAVE_NULL
 ALTER TABLE t CHANGE c1 c1 INT NULL FIRST, ALGORITHM=INPLACE;
 
 # NULL -> NOT NULL only allowed INPLACE if strict sql_mode is on.

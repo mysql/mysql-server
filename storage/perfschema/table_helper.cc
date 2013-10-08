@@ -26,6 +26,7 @@
 #include "pfs_user.h"
 #include "pfs_account.h"
 #include "pfs_instr.h"
+#include "pfs_program.h"
 
 int PFS_host_row::make_row(PFS_host *pfs)
 {
@@ -193,6 +194,25 @@ int PFS_object_row::make_row(PFS_table_share *pfs)
     return 1;
   if (m_object_name_length > 0)
     memcpy(m_object_name, pfs->m_table_name, sizeof(m_object_name));
+
+  return 0;
+}
+
+int PFS_object_row::make_row(PFS_program *pfs)
+{
+  m_object_type= pfs->m_type;
+
+  m_schema_name_length= pfs->m_schema_name_length;
+  if (m_schema_name_length > sizeof(m_schema_name))
+    return 1;
+  if (m_schema_name_length > 0)
+    memcpy(m_schema_name, pfs->m_schema_name, sizeof(m_schema_name));
+
+  m_object_name_length= pfs->m_object_name_length;
+  if (m_object_name_length > sizeof(m_object_name))
+    return 1;
+  if (m_object_name_length > 0)
+    memcpy(m_object_name, pfs->m_object_name, sizeof(m_object_name));
 
   return 0;
 }

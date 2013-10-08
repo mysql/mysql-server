@@ -68,7 +68,7 @@ SELECT @@global.table_open_cache ;
 SET @@global.table_open_cache  = 1;
 SELECT @@global.table_open_cache ;
 
-SET @@global.table_open_cache  = 1073741824;
+SET @@global.table_open_cache  = 524288;
 SELECT @@global.table_open_cache ;
 
 SET @@global.table_open_cache  = 18000;
@@ -85,6 +85,9 @@ SELECT @@global.table_open_cache ;
 
 SET @@global.table_open_cache  = -1;
 SELECT @@global.table_open_cache  ;
+
+SET @@global.table_open_cache = 524289;
+SELECT @@global.table_open_cache ;
 
 SET @@global.table_open_cache = 100000000000;
 SELECT @@global.table_open_cache ;

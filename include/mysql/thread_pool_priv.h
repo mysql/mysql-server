@@ -50,9 +50,9 @@ extern "C" {
    order to activate the connection handler.
 
    The structure contains pointers to plugin functions which the server
-   will call when a new client connects, an existing client disconnects
-   or when the connection handler is unloaded. It also containts the
-   maximum number of threads the connection handler will create.
+   will call when a new client connects or when the connection handler is
+   unloaded. It also containts the maximum number of threads the connection
+   handler will create.
 */
 struct Connection_handler_functions
 {
@@ -73,19 +73,6 @@ struct Connection_handler_functions
   bool (*add_connection)(Channel_info *channel_info);
 
   /**
-     Called by the server when an existing client disconnects.
-
-     @param thd  Thread descriptor.
-
-     @note This function pointer can be NULL if the plugin connection
-           handler takes no action on disconnects.
-
-     @retval true  failure
-     @retval false success
-  */
-  bool (*remove_connection)(THD *thd);
-
-  /**
      Called by the server when the connection handler is destroyed.
   */
   void (*end)(void);
@@ -104,7 +91,6 @@ void dec_connection_count();
   inc_thread_created.
 */
 void inc_thread_created();
-void inc_aborted_connects();
 
 #ifdef __cplusplus
 }

@@ -30,12 +30,6 @@ Created 10/10/1995 Heikki Tuuri
 #include "log0log.h"
 #include "ut0byte.h"
 
-#ifdef _WIN32
-#define SRV_PATH_SEPARATOR	'\\'
-#else
-#define SRV_PATH_SEPARATOR	'/'
-#endif
-
 // Forward declaration
 struct dict_table_t;
 
@@ -50,7 +44,7 @@ struct dict_table_t;
 		exit(3);						\
 	}								\
 } while (0)
-#endif
+#endif /* DBUG_OFF */
 
 /*********************************************************************//**
 Normalizes a directory path for Windows: converts slashes to backslashes. */

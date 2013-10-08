@@ -13407,8 +13407,8 @@ include/show_binlog_events.inc
 Log_name	Pos	Event_type	Server_id	End_log_pos	Info
 master-bin.000001	#	Query	#	#	BEGIN
 master-bin.000001	#	Query	#	#	use `test`; CREATE TABLE `tt_xx_1` (
-  `trans_id` int(11) NOT NULL DEFAULT '0',
-  `stmt_id` int(11) NOT NULL DEFAULT '0',
+  `trans_id` int(11) NOT NULL,
+  `stmt_id` int(11) NOT NULL,
   `info` varchar(64) DEFAULT NULL,
   PRIMARY KEY (`trans_id`,`stmt_id`)
 ) ENGINE=InnoDB
@@ -13427,8 +13427,8 @@ include/show_binlog_events.inc
 Log_name	Pos	Event_type	Server_id	End_log_pos	Info
 master-bin.000001	#	Query	#	#	BEGIN
 master-bin.000001	#	Query	#	#	use `test`; CREATE TABLE `tt_xx_1` (
-  `trans_id` int(11) NOT NULL DEFAULT '0',
-  `stmt_id` int(11) NOT NULL DEFAULT '0',
+  `trans_id` int(11) NOT NULL,
+  `stmt_id` int(11) NOT NULL,
   `info` varchar(64) DEFAULT NULL,
   PRIMARY KEY (`trans_id`,`stmt_id`)
 ) ENGINE=InnoDB
@@ -13450,8 +13450,8 @@ include/show_binlog_events.inc
 Log_name	Pos	Event_type	Server_id	End_log_pos	Info
 master-bin.000001	#	Query	#	#	BEGIN
 master-bin.000001	#	Query	#	#	use `test`; CREATE TABLE `nt_xx_2` (
-  `trans_id` int(11) NOT NULL DEFAULT '0',
-  `stmt_id` int(11) NOT NULL DEFAULT '0',
+  `trans_id` int(11) NOT NULL,
+  `stmt_id` int(11) NOT NULL,
   `info` varchar(64) DEFAULT NULL,
   PRIMARY KEY (`trans_id`,`stmt_id`)
 ) ENGINE=MyISAM
@@ -13470,8 +13470,8 @@ include/show_binlog_events.inc
 Log_name	Pos	Event_type	Server_id	End_log_pos	Info
 master-bin.000001	#	Query	#	#	BEGIN
 master-bin.000001	#	Query	#	#	use `test`; CREATE TABLE `nt_xx_2` (
-  `trans_id` int(11) NOT NULL DEFAULT '0',
-  `stmt_id` int(11) NOT NULL DEFAULT '0',
+  `trans_id` int(11) NOT NULL,
+  `stmt_id` int(11) NOT NULL,
   `info` varchar(64) DEFAULT NULL,
   PRIMARY KEY (`trans_id`,`stmt_id`)
 ) ENGINE=MyISAM
@@ -13493,8 +13493,8 @@ include/show_binlog_events.inc
 Log_name	Pos	Event_type	Server_id	End_log_pos	Info
 master-bin.000001	#	Query	#	#	BEGIN
 master-bin.000001	#	Query	#	#	use `test`; CREATE TABLE `tt_xx_3` (
-  `trans_id` int(11) NOT NULL DEFAULT '0',
-  `stmt_id` int(11) NOT NULL DEFAULT '0',
+  `trans_id` int(11) NOT NULL,
+  `stmt_id` int(11) NOT NULL,
   `info` varchar(64) DEFAULT NULL,
   PRIMARY KEY (`trans_id`,`stmt_id`)
 ) ENGINE=InnoDB
@@ -13513,8 +13513,8 @@ include/show_binlog_events.inc
 Log_name	Pos	Event_type	Server_id	End_log_pos	Info
 master-bin.000001	#	Query	#	#	BEGIN
 master-bin.000001	#	Query	#	#	use `test`; CREATE TABLE `tt_xx_3` (
-  `trans_id` int(11) NOT NULL DEFAULT '0',
-  `stmt_id` int(11) NOT NULL DEFAULT '0',
+  `trans_id` int(11) NOT NULL,
+  `stmt_id` int(11) NOT NULL,
   `info` varchar(64) DEFAULT NULL,
   PRIMARY KEY (`trans_id`,`stmt_id`)
 ) ENGINE=InnoDB
@@ -13536,8 +13536,8 @@ include/show_binlog_events.inc
 Log_name	Pos	Event_type	Server_id	End_log_pos	Info
 master-bin.000001	#	Query	#	#	BEGIN
 master-bin.000001	#	Query	#	#	use `test`; CREATE TABLE `nt_xx_4` (
-  `trans_id` int(11) NOT NULL DEFAULT '0',
-  `stmt_id` int(11) NOT NULL DEFAULT '0',
+  `trans_id` int(11) NOT NULL,
+  `stmt_id` int(11) NOT NULL,
   `info` varchar(64) DEFAULT NULL,
   PRIMARY KEY (`trans_id`,`stmt_id`)
 ) ENGINE=MyISAM
@@ -13556,8 +13556,8 @@ include/show_binlog_events.inc
 Log_name	Pos	Event_type	Server_id	End_log_pos	Info
 master-bin.000001	#	Query	#	#	BEGIN
 master-bin.000001	#	Query	#	#	use `test`; CREATE TABLE `nt_xx_4` (
-  `trans_id` int(11) NOT NULL DEFAULT '0',
-  `stmt_id` int(11) NOT NULL DEFAULT '0',
+  `trans_id` int(11) NOT NULL,
+  `stmt_id` int(11) NOT NULL,
   `info` varchar(64) DEFAULT NULL,
   PRIMARY KEY (`trans_id`,`stmt_id`)
 ) ENGINE=MyISAM
@@ -13579,8 +13579,8 @@ include/show_binlog_events.inc
 Log_name	Pos	Event_type	Server_id	End_log_pos	Info
 master-bin.000001	#	Query	#	#	BEGIN
 master-bin.000001	#	Query	#	#	use `test`; CREATE TABLE `nt_xx_5` (
-  `trans_id` int(11) NOT NULL DEFAULT '0',
-  `stmt_id` int(11) NOT NULL DEFAULT '0',
+  `trans_id` int(11) NOT NULL,
+  `stmt_id` int(11) NOT NULL,
   `info` varchar(64) DEFAULT NULL,
   PRIMARY KEY (`trans_id`,`stmt_id`)
 ) ENGINE=MyISAM
@@ -13599,8 +13599,8 @@ include/show_binlog_events.inc
 Log_name	Pos	Event_type	Server_id	End_log_pos	Info
 master-bin.000001	#	Query	#	#	BEGIN
 master-bin.000001	#	Query	#	#	use `test`; CREATE TABLE `nt_xx_5` (
-  `trans_id` int(11) NOT NULL DEFAULT '0',
-  `stmt_id` int(11) NOT NULL DEFAULT '0',
+  `trans_id` int(11) NOT NULL,
+  `stmt_id` int(11) NOT NULL,
   `info` varchar(64) DEFAULT NULL,
   PRIMARY KEY (`trans_id`,`stmt_id`)
 ) ENGINE=MyISAM
@@ -13622,8 +13622,8 @@ include/show_binlog_events.inc
 Log_name	Pos	Event_type	Server_id	End_log_pos	Info
 master-bin.000001	#	Query	#	#	BEGIN
 master-bin.000001	#	Query	#	#	use `test`; CREATE TABLE `nt_xx_6` (
-  `trans_id` int(11) NOT NULL DEFAULT '0',
-  `stmt_id` int(11) NOT NULL DEFAULT '0',
+  `trans_id` int(11) NOT NULL,
+  `stmt_id` int(11) NOT NULL,
   `info` varchar(64) DEFAULT NULL,
   PRIMARY KEY (`trans_id`,`stmt_id`)
 ) ENGINE=MyISAM
@@ -13642,8 +13642,8 @@ include/show_binlog_events.inc
 Log_name	Pos	Event_type	Server_id	End_log_pos	Info
 master-bin.000001	#	Query	#	#	BEGIN
 master-bin.000001	#	Query	#	#	use `test`; CREATE TABLE `nt_xx_6` (
-  `trans_id` int(11) NOT NULL DEFAULT '0',
-  `stmt_id` int(11) NOT NULL DEFAULT '0',
+  `trans_id` int(11) NOT NULL,
+  `stmt_id` int(11) NOT NULL,
   `info` varchar(64) DEFAULT NULL,
   PRIMARY KEY (`trans_id`,`stmt_id`)
 ) ENGINE=MyISAM
@@ -13663,8 +13663,8 @@ include/show_binlog_events.inc
 Log_name	Pos	Event_type	Server_id	End_log_pos	Info
 master-bin.000001	#	Query	#	#	BEGIN
 master-bin.000001	#	Query	#	#	use `test`; CREATE TABLE `tt_xx_7` (
-  `trans_id` int(11) NOT NULL DEFAULT '0',
-  `stmt_id` int(11) NOT NULL DEFAULT '0',
+  `trans_id` int(11) NOT NULL,
+  `stmt_id` int(11) NOT NULL,
   `info` varchar(64) DEFAULT NULL,
   PRIMARY KEY (`trans_id`,`stmt_id`)
 ) ENGINE=InnoDB
@@ -13677,8 +13677,8 @@ include/show_binlog_events.inc
 Log_name	Pos	Event_type	Server_id	End_log_pos	Info
 master-bin.000001	#	Query	#	#	BEGIN
 master-bin.000001	#	Query	#	#	use `test`; CREATE TABLE `tt_xx_7` (
-  `trans_id` int(11) NOT NULL DEFAULT '0',
-  `stmt_id` int(11) NOT NULL DEFAULT '0',
+  `trans_id` int(11) NOT NULL,
+  `stmt_id` int(11) NOT NULL,
   `info` varchar(64) DEFAULT NULL,
   PRIMARY KEY (`trans_id`,`stmt_id`)
 ) ENGINE=InnoDB
@@ -13885,8 +13885,8 @@ include/show_binlog_events.inc
 Log_name	Pos	Event_type	Server_id	End_log_pos	Info
 master-bin.000001	#	Query	#	#	BEGIN
 master-bin.000001	#	Query	#	#	use `test`; CREATE TABLE `tt_xx_8` (
-  `trans_id` int(11) NOT NULL DEFAULT '0',
-  `stmt_id` int(11) NOT NULL DEFAULT '0',
+  `trans_id` int(11) NOT NULL,
+  `stmt_id` int(11) NOT NULL,
   `info` varchar(64) DEFAULT NULL,
   PRIMARY KEY (`trans_id`,`stmt_id`)
 ) ENGINE=InnoDB
@@ -13899,8 +13899,8 @@ include/show_binlog_events.inc
 Log_name	Pos	Event_type	Server_id	End_log_pos	Info
 master-bin.000001	#	Query	#	#	BEGIN
 master-bin.000001	#	Query	#	#	use `test`; CREATE TABLE `tt_xx_8` (
-  `trans_id` int(11) NOT NULL DEFAULT '0',
-  `stmt_id` int(11) NOT NULL DEFAULT '0',
+  `trans_id` int(11) NOT NULL,
+  `stmt_id` int(11) NOT NULL,
   `info` varchar(64) DEFAULT NULL,
   PRIMARY KEY (`trans_id`,`stmt_id`)
 ) ENGINE=InnoDB
@@ -14107,8 +14107,8 @@ include/show_binlog_events.inc
 Log_name	Pos	Event_type	Server_id	End_log_pos	Info
 master-bin.000001	#	Query	#	#	BEGIN
 master-bin.000001	#	Query	#	#	use `test`; CREATE TABLE `nt_xx_9` (
-  `trans_id` int(11) NOT NULL DEFAULT '0',
-  `stmt_id` int(11) NOT NULL DEFAULT '0',
+  `trans_id` int(11) NOT NULL,
+  `stmt_id` int(11) NOT NULL,
   `info` varchar(64) DEFAULT NULL,
   PRIMARY KEY (`trans_id`,`stmt_id`)
 ) ENGINE=MyISAM
@@ -14121,8 +14121,8 @@ include/show_binlog_events.inc
 Log_name	Pos	Event_type	Server_id	End_log_pos	Info
 master-bin.000001	#	Query	#	#	BEGIN
 master-bin.000001	#	Query	#	#	use `test`; CREATE TABLE `nt_xx_9` (
-  `trans_id` int(11) NOT NULL DEFAULT '0',
-  `stmt_id` int(11) NOT NULL DEFAULT '0',
+  `trans_id` int(11) NOT NULL,
+  `stmt_id` int(11) NOT NULL,
   `info` varchar(64) DEFAULT NULL,
   PRIMARY KEY (`trans_id`,`stmt_id`)
 ) ENGINE=MyISAM
@@ -14357,8 +14357,8 @@ include/show_binlog_events.inc
 Log_name	Pos	Event_type	Server_id	End_log_pos	Info
 master-bin.000001	#	Query	#	#	BEGIN
 master-bin.000001	#	Query	#	#	use `test`; CREATE TABLE `nt_xx_10` (
-  `trans_id` int(11) NOT NULL DEFAULT '0',
-  `stmt_id` int(11) NOT NULL DEFAULT '0',
+  `trans_id` int(11) NOT NULL,
+  `stmt_id` int(11) NOT NULL,
   `info` varchar(64) DEFAULT NULL,
   PRIMARY KEY (`trans_id`,`stmt_id`)
 ) ENGINE=MyISAM
@@ -14371,8 +14371,8 @@ include/show_binlog_events.inc
 Log_name	Pos	Event_type	Server_id	End_log_pos	Info
 master-bin.000001	#	Query	#	#	BEGIN
 master-bin.000001	#	Query	#	#	use `test`; CREATE TABLE `nt_xx_10` (
-  `trans_id` int(11) NOT NULL DEFAULT '0',
-  `stmt_id` int(11) NOT NULL DEFAULT '0',
+  `trans_id` int(11) NOT NULL,
+  `stmt_id` int(11) NOT NULL,
   `info` varchar(64) DEFAULT NULL,
   PRIMARY KEY (`trans_id`,`stmt_id`)
 ) ENGINE=MyISAM

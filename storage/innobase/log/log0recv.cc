@@ -1009,7 +1009,7 @@ redo_recover_t::recover_page(
 			/* We have to copy the record body to a separate
 			buffer */
 
-			buf = static_cast<byte*>(mem_alloc(recv->len));
+			buf = static_cast<byte*>(ut_malloc(recv->len));
 
 			data_copy_to_buf(buf, recv);
 		} else {
@@ -1073,7 +1073,7 @@ redo_recover_t::recover_page(
 		}
 
 		if (recv->len > RECV_DATA_BLOCK_SIZE) {
-			mem_free(buf);
+			ut_free(buf);
 		}
 
 		recv = UT_LIST_GET_NEXT(rec_list, recv);

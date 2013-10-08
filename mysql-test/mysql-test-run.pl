@@ -2526,17 +2526,6 @@ sub environment_setup {
   }
 
   # ----------------------------------------------------
-  # mysqld_safe
-  # ----------------------------------------------------
-  my $mysqld_safe=
-    mtr_pl_maybe_exists("$bindir/scripts/mysqld_safe") ||
-    mtr_pl_maybe_exists("$path_client_bindir/mysqld_safe");
-  if ($mysqld_safe)
-  {
-    $ENV{'MYSQLD_SAFE'}= $mysqld_safe;
-  }
-
-  # ----------------------------------------------------
   # perror
   # ----------------------------------------------------
   my $exe_perror= mtr_exe_exists(vs_config_dirs('extra', 'perror'),
@@ -6003,6 +5992,11 @@ sub start_mysqltest ($) {
 
   if ( $opt_embedded_server )
   {
+
+    if ( $opt_ps_protocol )
+    {
+      mtr_error("Cannot use --ps-protocol with --embedded-server");
+    }
 
     # Get the args needed for the embedded server
     # and append them to args prefixed

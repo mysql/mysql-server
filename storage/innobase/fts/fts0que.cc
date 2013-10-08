@@ -2629,17 +2629,18 @@ fts_query_phrase_split(
 	mem_heap_t*		heap)	/*!< in: mem heap */
 {
 	fts_string_t		phrase;
-	ulint			len;
-	ulint			cur_pos;
-	fts_ast_node_t*		term_node;
+	ulint			len = 0;
+	ulint			cur_pos = 0;
+	fts_ast_node_t*		term_node = NULL;
 
 	if (node->type == FTS_AST_TEXT) {
 		phrase.f_str = node->text.ptr;
 		phrase.f_len = ut_strlen(reinterpret_cast<char*>(node->text.ptr));
 		len = phrase.f_len;
-		cur_pos = 0;
 	} else {
 		ut_ad(node->type == FTS_AST_PARSER_PHRASE_LIST);
+		phrase.f_str = NULL;
+		phrase.f_len = 0;
 		term_node = node->list.head;
 	}
 

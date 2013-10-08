@@ -160,13 +160,13 @@ btr_search_sys_create(
 	see above at the global variable definition */
 
 	btr_search_latch_temp = reinterpret_cast<rw_lock_t*>(
-		mem_alloc(sizeof(rw_lock_t)));
+		ut_malloc(sizeof(rw_lock_t)));
 
 	rw_lock_create(
 		btr_search_latch_key, &btr_search_latch, SYNC_SEARCH_SYS);
 
 	btr_search_sys = reinterpret_cast<btr_search_sys_t*>(
-		mem_alloc(sizeof(btr_search_sys_t)));
+		ut_malloc(sizeof(btr_search_sys_t)));
 
 	btr_search_sys->hash_index = ib_create(
 		hash_size, "hash_table_mutex", 0, MEM_HEAP_FOR_BTR_SEARCH);
@@ -184,11 +184,11 @@ btr_search_sys_free(void)
 /*=====================*/
 {
 	rw_lock_free(&btr_search_latch);
-	mem_free(btr_search_latch_temp);
+	ut_free(btr_search_latch_temp);
 	btr_search_latch_temp = NULL;
 	mem_heap_free(btr_search_sys->hash_index->heap);
 	hash_table_free(btr_search_sys->hash_index);
-	mem_free(btr_search_sys);
+	ut_free(btr_search_sys);
 	btr_search_sys = NULL;
 }
 
@@ -1108,7 +1108,7 @@ retry:
 	/* Calculate and cache fold values into an array for fast deletion
 	from the hash index */
 
-	folds = (ulint*) mem_alloc(n_recs * sizeof(ulint));
+	folds = (ulint*) ut_malloc(n_recs * sizeof(ulint));
 
 	n_cached = 0;
 
@@ -1166,7 +1166,7 @@ next_rec:
 
 		rw_lock_x_unlock(&btr_search_latch);
 
-		mem_free(folds);
+		ut_free(folds);
 		goto retry;
 	}
 
@@ -1205,7 +1205,7 @@ cleanup:
 	rw_lock_x_unlock(&btr_search_latch);
 #endif /* UNIV_AHI_DEBUG || UNIV_DEBUG */
 
-	mem_free(folds);
+	ut_free(folds);
 }
 
 /********************************************************************//**
@@ -1327,8 +1327,8 @@ btr_search_build_page_hash_index(
 	/* Calculate and cache fold values and corresponding records into
 	an array for fast insertion to the hash index */
 
-	folds = (ulint*) mem_alloc(n_recs * sizeof(ulint));
-	recs = (rec_t**) mem_alloc(n_recs * sizeof(rec_t*));
+	folds = (ulint*) ut_malloc(n_recs * sizeof(ulint));
+	recs = (rec_t**) ut_malloc(n_recs * sizeof(rec_t*));
 
 	n_cached = 0;
 
@@ -1428,8 +1428,8 @@ btr_search_build_page_hash_index(
 exit_func:
 	rw_lock_x_unlock(&btr_search_latch);
 
-	mem_free(folds);
-	mem_free(recs);
+	ut_free(folds);
+	ut_free(recs);
 	if (UNIV_LIKELY_NULL(heap)) {
 		mem_heap_free(heap);
 	}

@@ -479,6 +479,7 @@ void init_update_queries(void)
   sql_command_flags[SQLCOM_ALTER_SERVER]=       CF_AUTO_COMMIT_TRANS;
   sql_command_flags[SQLCOM_DROP_SERVER]=        CF_AUTO_COMMIT_TRANS;
   sql_command_flags[SQLCOM_CHANGE_MASTER]=      CF_AUTO_COMMIT_TRANS;
+  sql_command_flags[SQLCOM_CHANGE_REPLICATION_FILTER]=    CF_AUTO_COMMIT_TRANS;
   sql_command_flags[SQLCOM_SLAVE_START]=        CF_AUTO_COMMIT_TRANS;
   sql_command_flags[SQLCOM_SLAVE_STOP]=         CF_AUTO_COMMIT_TRANS;
 
@@ -4714,6 +4715,7 @@ end_with_restore_list:
   case SQLCOM_SIGNAL:
   case SQLCOM_RESIGNAL:
   case SQLCOM_GET_DIAGNOSTICS:
+  case SQLCOM_CHANGE_REPLICATION_FILTER:
     DBUG_ASSERT(lex->m_sql_cmd != NULL);
     res= lex->m_sql_cmd->execute(thd);
     break;
@@ -6247,7 +6249,7 @@ bool append_file_to_dir(THD *thd, const char **filename_ptr,
     return 1;
   }
   /* Fix is using unix filename format on dos */
-  strmov(buff,*filename_ptr);
+  my_stpcpy(buff,*filename_ptr);
   end=convert_dirname(buff, *filename_ptr, NullS);
   if (!(ptr= (char*) thd->alloc((size_t) (end-buff) + strlen(table_name)+1)))
     return 1;					// End of memory

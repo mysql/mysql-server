@@ -1853,9 +1853,9 @@ DROP TABLE IF EXISTS "t1";
 /*!40101 SET @saved_cs_client     = @@character_set_client */;
 /*!40101 SET character_set_client = utf8 */;
 CREATE TABLE "t1" (
-  "a b" int(11) NOT NULL DEFAULT '0',
-  "c""d" int(11) NOT NULL DEFAULT '0',
-  "e`f" int(11) NOT NULL DEFAULT '0',
+  "a b" int(11) NOT NULL,
+  "c""d" int(11) NOT NULL,
+  "e`f" int(11) NOT NULL,
   PRIMARY KEY ("a b","c""d","e`f")
 );
 /*!40101 SET character_set_client = @saved_cs_client */;
@@ -1887,9 +1887,9 @@ DROP TABLE IF EXISTS `t1`;
 /*!40101 SET @saved_cs_client     = @@character_set_client */;
 /*!40101 SET character_set_client = utf8 */;
 CREATE TABLE `t1` (
-  `a b` int(11) NOT NULL DEFAULT '0',
-  `c"d` int(11) NOT NULL DEFAULT '0',
-  `e``f` int(11) NOT NULL DEFAULT '0',
+  `a b` int(11) NOT NULL,
+  `c"d` int(11) NOT NULL,
+  `e``f` int(11) NOT NULL,
   PRIMARY KEY (`a b`,`c"d`,`e``f`)
 ) ENGINE=MyISAM DEFAULT CHARSET=latin1;
 /*!40101 SET character_set_client = @saved_cs_client */;
@@ -5349,7 +5349,7 @@ general_log	CREATE TABLE `general_log` (
   `thread_id` bigint(21) unsigned NOT NULL,
   `server_id` int(10) unsigned NOT NULL,
   `command_type` varchar(64) NOT NULL,
-  `argument` mediumtext NOT NULL
+  `argument` mediumblob NOT NULL
 ) ENGINE=CSV DEFAULT CHARSET=utf8 COMMENT='General log'
 SHOW CREATE TABLE mysql.slow_log;
 Table	Create Table
@@ -5364,7 +5364,7 @@ slow_log	CREATE TABLE `slow_log` (
   `last_insert_id` int(11) NOT NULL,
   `insert_id` int(11) NOT NULL,
   `server_id` int(10) unsigned NOT NULL,
-  `sql_text` mediumtext NOT NULL,
+  `sql_text` mediumblob NOT NULL,
   `thread_id` bigint(21) unsigned NOT NULL
 ) ENGINE=CSV DEFAULT CHARSET=utf8 COMMENT='Slow log'
 SET @@global.log_output=       @old_log_output_state;
