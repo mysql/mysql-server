@@ -231,11 +231,29 @@ Segment.prototype.compare = function(that) {
 */
 Segment.prototype.intersection = function(that) {
   var s = null;
-  var lp, hp;
+  var lp, hp, lcmp, hcmp;
   assert(that.isSegment);
   if(this.intersects(that)) {
-    lp = (this.low.compare(that.low) == 1) ? this.low : that.low;
-    hp = (this.high.compare(that.high) == -1) ? this.high : that.high;
+    lcmp = this.low.compare(that.low);
+    hcmp = this.high.compare(that.high);
+    if(lcmp === false) {   /* Values are equal but one is exclusive. */
+      lp = new Endpoint(this.low.value, false); 
+    }
+    else if(lcmp === 1) {
+      lp = this.low;
+    }
+    else {
+      lp = that.low;
+    }
+    if(hcmp === false) {  /* Values are equal but one is exclusive. */
+      hp = new Endpoint(this.low.value, false);      
+    }
+    else if(hcmp === 1) {
+      hp = this.high;
+    }
+    else { 
+      hp = that.high;
+    }
     s = new Segment(lp, hp);
   }
   return s;
