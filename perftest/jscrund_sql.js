@@ -24,7 +24,7 @@ var mysql = require('mysql');
 
 var tableHandlers = {
     'a': {
-      insertSQL: 'INSERT INTO a(id, cint, clong, cfloat, cdouble) values (?,?,?,?,?)',
+      insertSQL: 'INSERT INTO a(id, cint, clong, cfloat, cdouble) VALUES (?,?,?,?,?)',
       createInsertParameterList: function(object) {
         var result = [];
         result.push(object.id);
@@ -42,7 +42,35 @@ var tableHandlers = {
           return [object.id];
         } else throw new Error('createFindParameterList parameter must be number or object');
       },
-      findSQL: 'SELECT id, cint, clong, cfloat, cdouble FROM a where id = ?',
+      findSQL: 'SELECT id, cint, clong, cfloat, cdouble FROM a WHERE id = ?',
+      createFindParameterList: function(object) {
+        if (typeof(object) === 'number') {
+          return [object];
+        } else if (typeof(object) === 'object') {
+          return [object.id];
+        } else throw new Error('createFindParameterList parameter must be number or object');
+      }
+    },
+    'b': {
+      insertSQL: 'INSERT INTO b(id, cint, clong, cfloat, cdouble) VALUES (?,?,?,?,?)',
+      createInsertParameterList: function(object) {
+        var result = [];
+        result.push(object.id);
+        result.push(object.cint);
+        result.push(object.clong);
+        result.push(object.cfloat);
+        result.push(object.cdouble);
+        return result;
+      },
+      deleteSQL: 'DELETE FROM b WHERE id = ?',
+      createDeleteParameterList: function(object) {
+        if (typeof(object) === 'number') {
+          return [object];
+        } else if (typeof(object) === 'object') {
+          return [object.id];
+        } else throw new Error('createFindParameterList parameter must be number or object');
+      },
+      findSQL: 'SELECT id, cint, clong, cfloat, cdouble FROM b WHERE id = ?',
       createFindParameterList: function(object) {
         if (typeof(object) === 'number') {
           return [object];
