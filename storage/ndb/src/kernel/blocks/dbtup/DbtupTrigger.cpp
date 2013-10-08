@@ -620,6 +620,7 @@ Dbtup::execFIRE_TRIG_REQ(Signal* signal)
   req_struct.TC_index = signal->theData[2];
   req_struct.trans_id1 = signal->theData[3];
   req_struct.trans_id2 = signal->theData[4];
+  req_struct.m_reorg = regOperPtr.p->op_struct.m_reorg;
 
   PagePtr page;
   Tuple_header* tuple_ptr = (Tuple_header*)
@@ -629,6 +630,7 @@ Dbtup::execFIRE_TRIG_REQ(Signal* signal)
   OperationrecPtr lastOperPtr;
   lastOperPtr.i = tuple_ptr->m_operation_ptr_i;
   c_operation_pool.getPtr(lastOperPtr);
+  ndbassert(regOperPtr.p->op_struct.m_reorg == lastOperPtr.p->op_struct.m_reorg);
 
   /**
    * Deferred triggers should fire only once per primary key (per pass)
