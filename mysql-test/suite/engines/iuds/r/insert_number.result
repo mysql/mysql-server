@@ -2391,6 +2391,7 @@ DROP TABLE t6,t7,t8;
 INSERT INTO t2 SET c3=5,c4=6;
 Warnings:
 Warning	1364	Field 'c1' doesn't have a default value
+Warning	1364	Field 'c6' doesn't have a default value
 SET SQL_MODE=STRICT_ALL_TABLES;
 INSERT INTO t2 SET c3=5,c4=6;
 ERROR HY000: Field 'c1' doesn't have a default value
@@ -7984,6 +7985,7 @@ DROP TABLE t6,t7,t8;
 INSERT INTO t2 SET c3=5,c4=6;
 Warnings:
 Warning	1364	Field 'c1' doesn't have a default value
+Warning	1364	Field 'c6' doesn't have a default value
 SET SQL_MODE=STRICT_ALL_TABLES;
 INSERT INTO t2 SET c3=5,c4=6;
 ERROR HY000: Field 'c1' doesn't have a default value
@@ -13682,6 +13684,7 @@ DROP TABLE t6,t7,t8;
 INSERT INTO t2 SET c3=5,c4=6;
 Warnings:
 Warning	1364	Field 'c1' doesn't have a default value
+Warning	1364	Field 'c6' doesn't have a default value
 SET SQL_MODE=STRICT_ALL_TABLES;
 INSERT INTO t2 SET c3=5,c4=6;
 ERROR HY000: Field 'c1' doesn't have a default value
@@ -19485,6 +19488,7 @@ DROP TABLE t6,t7,t8;
 INSERT INTO t2 SET c3=5,c4=6;
 Warnings:
 Warning	1364	Field 'c1' doesn't have a default value
+Warning	1364	Field 'c6' doesn't have a default value
 SET SQL_MODE=STRICT_ALL_TABLES;
 INSERT INTO t2 SET c3=5,c4=6;
 ERROR HY000: Field 'c1' doesn't have a default value
@@ -25393,6 +25397,7 @@ DROP TABLE t6,t7,t8;
 INSERT INTO t2 SET c3=5,c4=6;
 Warnings:
 Warning	1364	Field 'c1' doesn't have a default value
+Warning	1364	Field 'c6' doesn't have a default value
 SET SQL_MODE=STRICT_ALL_TABLES;
 INSERT INTO t2 SET c3=5,c4=6;
 ERROR HY000: Field 'c1' doesn't have a default value
@@ -31301,6 +31306,7 @@ DROP TABLE t6,t7,t8;
 INSERT INTO t2 SET c3=5,c4=6;
 Warnings:
 Warning	1364	Field 'c1' doesn't have a default value
+Warning	1364	Field 'c6' doesn't have a default value
 SET SQL_MODE=STRICT_ALL_TABLES;
 INSERT INTO t2 SET c3=5,c4=6;
 ERROR HY000: Field 'c1' doesn't have a default value

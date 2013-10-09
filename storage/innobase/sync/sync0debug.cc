@@ -570,6 +570,7 @@ SyncDebug::check_order(const latch_t* latch)
 	case SYNC_RECV:
 	case SYNC_FTS_BG_THREADS:
 	case SYNC_WORK_QUEUE:
+	case SYNC_FTS_TOKENIZE:
 	case SYNC_FTS_OPTIMIZE:
 	case SYNC_FTS_CACHE:
 	case SYNC_FTS_CACHE_INIT:
@@ -911,6 +912,10 @@ sync_latch_meta_init()
 		  SYNC_FTS_OPTIMIZE,
 		  fts_doc_id_mutex_key);
 
+	LATCH_ADD(SrvLatches, "fts_pll_tokenize",
+		  SYNC_FTS_TOKENIZE,
+		  fts_pll_tokenize_mutex_key);
+
 	LATCH_ADD(SrvLatches, "hash_table_mutex",
 		  SYNC_BUF_PAGE_HASH,
 		  hash_table_mutex_key);
@@ -985,22 +990,12 @@ sync_latch_meta_init()
 		  noredo_rseg_mutex_key);
 
 #ifdef UNIV_SYNC_DEBUG
-	LATCH_ADD(SrvLatches, ".innorwlock_test_mutex",
-		  SYNC_NO_ORDER_CHECK,
-		  PFS_NOT_INSTRUMENTED);
-
 	/* Mutex names starting with '.' are not tracked. They are assumed
 	to be diagnostic mustexes used in debugging. */
 	LATCH_ADD(SrvLatches, ".rw_lock_debug",
 		  SYNC_NO_ORDER_CHECK,
 		  rw_lock_debug_mutex_key);
 #endif /* UNIV_SYNC_DEBUG */
-
-#ifdef UNIV_MEM_DEBUG
-	LATCH_ADD(SrvLatches, "innorwlock_mem_hash_mutex",
-		  SYNC_NO_ORDER_CHECK,
-		  PFS_NOT_INSTRUMENTED);
-#endif /* UNIV_MEM_DEBUG */
 
 	LATCH_ADD(SrvLatches, "rw_lock_list",
 		  SYNC_NO_ORDER_CHECK,
@@ -1212,6 +1207,24 @@ sync_latch_meta_init()
 	LATCH_ADD(SrvLatches, "hash_table_rw_lock",
 		  SYNC_BUF_PAGE_HASH,
 		  hash_table_locks_key);
+}
+
+/**
+Add the latch meta data of Latch level is SYNC_NO_ORDER_CHECK.
+@param name		Latch name
+@param key		Performance schema key */
+
+void
+sync_latch_add_no_check(
+	const char*		name
+#ifdef UNIV_PFS_MUTEX
+	,mysql_pfs_key_t	key
+#endif /* UNIV_PFS_MUTEX */
+	)
+{
+	LATCH_ADD(SrvLatches, name,
+		  SYNC_NO_ORDER_CHECK,
+		  key);
 }
 
 /**
