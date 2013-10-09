@@ -342,7 +342,7 @@ struct dyn_buf_t {
 	Iterate over all the blocks in reverse and call the iterator
 	@return	false if iteration was terminated. */
 	template <typename Functor>
-	bool for_each_block_in_reverse(Functor& functor)
+	bool for_each_block_in_reverse(Functor& functor) const
 	{
 		for (block_t* block = UT_LIST_GET_LAST(m_list);
 		     block != NULL;

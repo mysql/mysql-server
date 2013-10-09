@@ -34,7 +34,7 @@ mtr_t::memo_push(void* object, mtr_memo_type_t type)
 	ut_ad(object != NULL);
 	ut_ad(type >= MTR_MEMO_PAGE_S_FIX);
 	ut_ad(type <= MTR_MEMO_SX_LOCK);
-	ut_ad(m_impl->m_magic_n == MTR_MAGIC_N);
+	ut_ad(m_impl.m_magic_n == MTR_MAGIC_N);
 	ut_ad(ut_is_2pow(type));
 
 	/* If this mtr has x-fixed a clean page then we set
@@ -43,15 +43,15 @@ mtr_t::memo_push(void* object, mtr_memo_type_t type)
 	can insert the dirtied page to the flush list. */
 
 	if ((type == MTR_MEMO_PAGE_X_FIX || type == MTR_MEMO_PAGE_SX_FIX)
-	    && !m_impl->m_made_dirty) {
+	    && !m_impl.m_made_dirty) {
 
-		m_impl->m_made_dirty = is_block_dirtied(
+		m_impl.m_made_dirty = is_block_dirtied(
 			reinterpret_cast<const buf_block_t*>(object));
 	}
 
 	mtr_memo_slot_t*	slot;
 
-	slot = m_impl->m_memo.push<mtr_memo_slot_t*>(sizeof(*slot));
+	slot = m_impl.m_memo.push<mtr_memo_slot_t*>(sizeof(*slot));
 
 	slot->type = type;
 	slot->object = object;
@@ -66,11 +66,11 @@ mtr_t::release_s_latch_at_savepoint(
 	rw_lock_t*	lock)
 {
 	ut_ad(is_active());
-	ut_ad(m_impl->m_magic_n == MTR_MAGIC_N);
+	ut_ad(m_impl.m_magic_n == MTR_MAGIC_N);
 
-	ut_ad(m_impl->m_memo.size() > savepoint);
+	ut_ad(m_impl.m_memo.size() > savepoint);
 
-	mtr_memo_slot_t* slot = m_impl->m_memo.at<mtr_memo_slot_t*>(savepoint);
+	mtr_memo_slot_t* slot = m_impl.m_memo.at<mtr_memo_slot_t*>(savepoint);
 
 	ut_ad(slot->object == lock);
 	ut_ad(slot->type == MTR_MEMO_S_LOCK);
@@ -89,8 +89,8 @@ mtr_t::sx_latch_at_savepoint(
 	buf_block_t*	block)
 {
 	ut_ad(is_active());
-	ut_ad(m_impl->m_magic_n == MTR_MAGIC_N);
-	ut_ad(m_impl->m_memo.size() > savepoint);
+	ut_ad(m_impl.m_magic_n == MTR_MAGIC_N);
+	ut_ad(m_impl.m_memo.size() > savepoint);
 
 	ut_ad(!memo_contains_flagged(
 			block,
@@ -100,7 +100,7 @@ mtr_t::sx_latch_at_savepoint(
 
 	mtr_memo_slot_t*	slot;
 
-	slot = m_impl->m_memo.at<mtr_memo_slot_t*>(savepoint);
+	slot = m_impl.m_memo.at<mtr_memo_slot_t*>(savepoint);
 
 	ut_ad(slot->object == block);
 
@@ -109,8 +109,8 @@ mtr_t::sx_latch_at_savepoint(
 
 	rw_lock_sx_lock(&block->lock);
 
-	if (!m_impl->m_made_dirty) {
-		m_impl->m_made_dirty = is_block_dirtied(block);
+	if (!m_impl.m_made_dirty) {
+		m_impl.m_made_dirty = is_block_dirtied(block);
 	}
 
 	slot->type = MTR_MEMO_PAGE_SX_FIX;
@@ -125,8 +125,8 @@ mtr_t::x_latch_at_savepoint(
 	buf_block_t*	block)
 {
 	ut_ad(is_active());
-	ut_ad(m_impl->m_magic_n == MTR_MAGIC_N);
-	ut_ad(m_impl->m_memo.size() > savepoint);
+	ut_ad(m_impl.m_magic_n == MTR_MAGIC_N);
+	ut_ad(m_impl.m_memo.size() > savepoint);
 
 	ut_ad(!memo_contains_flagged(
 			block,
@@ -136,7 +136,7 @@ mtr_t::x_latch_at_savepoint(
 
 	mtr_memo_slot_t*	slot;
 
-	slot = m_impl->m_memo.at<mtr_memo_slot_t*>(savepoint);
+	slot = m_impl.m_memo.at<mtr_memo_slot_t*>(savepoint);
 
 	ut_ad(slot->object == block);
 
@@ -145,8 +145,8 @@ mtr_t::x_latch_at_savepoint(
 
 	rw_lock_x_lock(&block->lock);
 
-	if (!m_impl->m_made_dirty) {
-		m_impl->m_made_dirty = is_block_dirtied(block);
+	if (!m_impl.m_made_dirty) {
+		m_impl.m_made_dirty = is_block_dirtied(block);
 	}
 
 	slot->type = MTR_MEMO_PAGE_X_FIX;
@@ -161,11 +161,11 @@ mtr_t::release_block_at_savepoint(
 	buf_block_t*	block)
 {
 	ut_ad(is_active());
-	ut_ad(m_impl->m_magic_n == MTR_MAGIC_N);
+	ut_ad(m_impl.m_magic_n == MTR_MAGIC_N);
 
 	mtr_memo_slot_t*	slot;
 
-	slot = m_impl->m_memo.at<mtr_memo_slot_t*>(savepoint);
+	slot = m_impl.m_memo.at<mtr_memo_slot_t*>(savepoint);
 
 	ut_a(slot->object == block);
 
@@ -183,28 +183,16 @@ mtr_t::release_block_at_savepoint(
 }
 
 /**
-Returns the log object of a mini-transaction buffer.
-@return	log */
-
-mtr_buf_t*
-mtr_t::get_log() const
-{
-	ut_ad(m_impl->m_magic_n == MTR_MAGIC_N);
-
-	return(&m_impl->m_log);
-}
-
-/**
 Gets the logging mode of a mini-transaction.
 @return	logging mode: MTR_LOG_NONE, ... */
 
 mtr_log_t
 mtr_t::get_log_mode() const
 {
-	ut_ad(m_impl->m_log_mode >= MTR_LOG_ALL);
-	ut_ad(m_impl->m_log_mode <= MTR_LOG_SHORT_INSERTS);
+	ut_ad(m_impl.m_log_mode >= MTR_LOG_ALL);
+	ut_ad(m_impl.m_log_mode <= MTR_LOG_SHORT_INSERTS);
 
-	return(m_impl->m_log_mode);
+	return(m_impl.m_log_mode);
 }
 
 /**
@@ -217,10 +205,10 @@ mtr_t::set_log_mode(mtr_log_t mode)
 	ut_ad(mode >= MTR_LOG_ALL);
 	ut_ad(mode <= MTR_LOG_SHORT_INSERTS);
 
-	mtr_log_t	old_mode = m_impl->m_log_mode;
+	mtr_log_t	old_mode = m_impl.m_log_mode;
 
 	if (mode != MTR_LOG_SHORT_INSERTS || old_mode != MTR_LOG_NONE) {
-		m_impl->m_log_mode = mode;
+		m_impl.m_log_mode = mode;
 	}
 
 	ut_ad(old_mode >= MTR_LOG_ALL);
