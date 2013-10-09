@@ -36,6 +36,7 @@ Created 2011-05-26 Marko Makela
 #include "row0ext.h"
 #include "data0data.h"
 #include "que0que.h"
+#include "srv0mon.h"
 #include "handler0alter.h"
 
 #include<map>
@@ -1711,7 +1712,7 @@ row_log_table_apply_update(
 	    || btr_pcur_get_low_match(&pcur) < index->n_uniq) {
 		mtr_commit(&mtr);
 insert:
-		ut_ad(mtr.state == MTR_COMMITTED);
+		ut_ad(mtr.has_committed());
 		/* The row was not found. Insert it. */
 		error = row_log_table_apply_insert_low(
 			thr, row, trx_id, offsets_heap, heap, dup);
@@ -1752,7 +1753,7 @@ err_exit:
 delete_insert:
 		error = row_log_table_apply_delete_low(
 			&pcur, cur_offsets, NULL, heap, &mtr);
-		ut_ad(mtr.state == MTR_COMMITTED);
+		ut_ad(mtr.has_committed());
 
 		if (error != DB_SUCCESS) {
 			goto err_exit;

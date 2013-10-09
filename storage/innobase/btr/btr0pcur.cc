@@ -233,7 +233,7 @@ btr_pcur_restore_position_func(
 	mem_heap_t*	heap;
 
 	ut_ad(mtr);
-	ut_ad(mtr->state == MTR_ACTIVE);
+	ut_ad(mtr->is_active());
 
 	index = btr_cur_get_index(btr_pcur_get_btr_cur(cursor));
 

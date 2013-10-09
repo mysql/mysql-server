@@ -248,7 +248,9 @@ released with log_release.
 lsn_t
 log_reserve_and_open(
 /*=================*/
-	ulint	len)	/*!< in: length of data to be catenated */
+	ulint		len,		/*!< in: length of data to be written */
+	bool		own_mutex)	/*!< in: true if caller owns
+					the mutex */
 {
 	log_t*	log			= log_sys;
 	ulint	len_upper_limit;
@@ -270,10 +272,17 @@ log_reserve_and_open(
 		log_buffer_extend((len + 1) * 2);
 	}
 loop:
-	log_mutex_enter();
+	if (!own_mutex) {
+		log_mutex_enter();
+	} else {
+		ut_ad(mutex_own(&log_sys->mutex));
+	}
+
 	ut_ad(!recv_no_log_write);
 
 	if (log_sys->is_extending) {
+
+		own_mutex = false;
 
 		log_mutex_exit();
 
@@ -293,6 +302,8 @@ loop:
 	len_upper_limit = LOG_BUF_WRITE_MARGIN + (5 * len) / 4;
 
 	if (log->buf_free + len_upper_limit > log->buf_size) {
+
+		own_mutex = false;
 
 		log_mutex_exit();
 
@@ -322,8 +333,8 @@ log mutex. */
 void
 log_write_low(
 /*==========*/
-	byte*	str,		/*!< in: string */
-	ulint	str_len)	/*!< in: string length */
+	const byte*	str,		/*!< in: string */
+	ulint		str_len)	/*!< in: string length */
 {
 	log_t*	log	= log_sys;
 	ulint	len;

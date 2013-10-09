@@ -25,7 +25,6 @@ Created 12/9/1995 Heikki Tuuri
 
 #include "os0file.h"
 #include "mach0data.h"
-#include "mtr0mtr.h"
 #include "srv0mon.h"
 
 #ifdef UNIV_LOG_DEBUG
@@ -336,8 +335,6 @@ log_reserve_and_write_fast(
 
 		/* The string does not fit within the current log block
 		or the log block would become full */
-
-		log_mutex_exit();
 
 		return(0);
 	}

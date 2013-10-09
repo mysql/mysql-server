@@ -1093,7 +1093,7 @@ buf_LRU_buf_pool_running_out(void)
 
 		buf_pool_mutex_enter(buf_pool);
 
-		if (!recv_recovery_on
+		if (!recv_recovery_is_on()
 		    && UT_LIST_GET_LEN(buf_pool->free)
 		       + UT_LIST_GET_LEN(buf_pool->LRU)
 		       < buf_pool->curr_size / 4) {
@@ -1158,7 +1158,8 @@ buf_LRU_check_size_of_non_data_objects(
 {
 	ut_ad(buf_pool_mutex_own(buf_pool));
 
-	if (!recv_recovery_on && UT_LIST_GET_LEN(buf_pool->free)
+	if (!recv_recovery_is_on()
+	    && UT_LIST_GET_LEN(buf_pool->free)
 	    + UT_LIST_GET_LEN(buf_pool->LRU) < buf_pool->curr_size / 20) {
 
 		ib_logf(IB_LOG_LEVEL_FATAL,
@@ -1172,7 +1173,7 @@ buf_LRU_check_size_of_non_data_objects(
 			(ulong) (buf_pool->curr_size
 				 / (1024 * 1024 / UNIV_PAGE_SIZE)));
 
-	} else if (!recv_recovery_on
+	} else if (!recv_recovery_is_on()
 		   && (UT_LIST_GET_LEN(buf_pool->free)
 		       + UT_LIST_GET_LEN(buf_pool->LRU))
 		   < buf_pool->curr_size / 3) {

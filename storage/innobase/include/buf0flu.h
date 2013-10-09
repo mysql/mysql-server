@@ -30,7 +30,6 @@ Created 11/5/1995 Heikki Tuuri
 #include "ut0byte.h"
 #include "log0log.h"
 #ifndef UNIV_HOTBACKUP
-#include "mtr0types.h"
 #include "buf0types.h"
 
 /** Flag indicating if the page_cleaner is in active state. */
@@ -153,8 +152,11 @@ UNIV_INLINE
 void
 buf_flush_note_modification(
 /*========================*/
-	buf_block_t*	block,	/*!< in: block which is modified */
-	mtr_t*		mtr);	/*!< in: mtr */
+	buf_block_t*	block,		/*!< in: block which is modified */
+	lsn_t		start_lsn,	/*!< in: start lsn of the first mtr in a
+					set of mtr's */
+	lsn_t		end_lsn);	/*!< in: end lsn of the last mtr in the
+					set of mtr's */
 /********************************************************************//**
 This function should be called when recovery has modified a buffer page. */
 UNIV_INLINE

@@ -53,7 +53,6 @@ Created 10/25/1995 Heikki Tuuri
 # include "os0event.h"
 #else /* !UNIV_HOTBACKUP */
 # include "srv0srv.h"
-static ulint srv_data_read, srv_data_written;
 #endif /* !UNIV_HOTBACKUP */
 #include "srv0space.h"
 #include <set>
@@ -307,6 +306,11 @@ struct fil_system_t {
 /** The tablespace memory cache. This variable is NULL before the module is
 initialized. */
 static fil_system_t*	fil_system	= NULL;
+
+#ifdef UNIV_HOTBACKUP
+static ulint	srv_data_read;
+static ulint	srv_data_written;
+#endif /* UNIV_HOTBACKUP */
 
 /** Determine if (i) is a user tablespace id or not. */
 # define fil_is_user_tablespace_id(i) 		\
@@ -1872,13 +1876,9 @@ fil_write_flushed_lsn_to_data_files(
 	lsn_t	lsn,		/*!< in: lsn to write */
 	ulint	arch_log_no)	/*!< in: latest archived log file number */
 {
-	fil_space_t*	space;
-	fil_node_t*	node;
-	dberr_t		err;
-
 	mutex_enter(&fil_system->mutex);
 
-	for (space = UT_LIST_GET_FIRST(fil_system->space_list);
+	for (fil_space_t* space = UT_LIST_GET_FIRST(fil_system->space_list);
 	     space != NULL;
 	     space = UT_LIST_GET_NEXT(space_list, space)) {
 
@@ -1892,9 +1892,11 @@ fil_write_flushed_lsn_to_data_files(
 		    && !fil_is_user_tablespace_id(space->id)) {
 			ulint	sum_of_sizes = 0;
 
-			for (node = UT_LIST_GET_FIRST(space->chain);
+			for (fil_node_t* node = UT_LIST_GET_FIRST(space->chain);
 			     node != NULL;
 			     node = UT_LIST_GET_NEXT(chain, node)) {
+
+				dberr_t		err;
 
 				mutex_exit(&fil_system->mutex);
 
@@ -2139,7 +2141,7 @@ static
 void
 fil_op_write_log(
 /*=============*/
-	ulint		type,		/*!< in: MLOG_FILE_CREATE,
+	mlog_id_t	type,		/*!< in: MLOG_FILE_CREATE,
 					MLOG_FILE_CREATE2,
 					MLOG_FILE_DELETE, or
 					MLOG_FILE_RENAME */
@@ -2171,6 +2173,7 @@ fil_op_write_log(
 
 	log_ptr = mlog_write_initial_log_record_for_file_op(
 		type, space_id, log_flags, log_ptr, mtr);
+
 	if (type == MLOG_FILE_CREATE2) {
 		mach_write_to_4(log_ptr, flags);
 		log_ptr += 4;

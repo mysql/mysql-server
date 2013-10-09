@@ -246,7 +246,6 @@ operations (very slow); also UNIV_DEBUG must be defined */
 
 /*
 #define UNIV_SQL_DEBUG
-#define UNIV_LOG_DEBUG
 */
 			/* the above option prevents forcing of log to disk
 			at a buffer page write: it should be tested with this
@@ -273,6 +272,8 @@ rarely invoked function for size instead for speed. */
 /* Definition for inline version */
 
 #define UNIV_INLINE static inline
+
+#define UNIV_CXX_INLINE inline
 
 #else /* !UNIV_MUST_NOT_INLINE */
 /* If we want to compile a noninlined version we use the following macro
