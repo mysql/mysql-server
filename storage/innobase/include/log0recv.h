@@ -31,6 +31,7 @@ Created 9/20/1997 Heikki Tuuri
 #include "buf0types.h"
 #include "hash0hash.h"
 #include "log0log.h"
+#include "mtr0types.h"
 
 #ifdef UNIV_HOTBACKUP
 extern ibool	recv_replay_file_ops;
@@ -254,7 +255,7 @@ struct recv_data_t{
 
 /** Stored log record struct */
 struct recv_t{
-	byte		type;	/*!< log record type */
+	mlog_id_t	type;	/*!< log record type */
 	ulint		len;	/*!< log record body length in bytes */
 	recv_data_t*	data;	/*!< chain of blocks containing the log record
 				body */

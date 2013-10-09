@@ -335,8 +335,8 @@ ibuf_enter(
 /*=======*/
 	mtr_t*	mtr)	/*!< in/out: mini-transaction */
 {
-	ut_ad(!mtr->inside_ibuf);
-	mtr->inside_ibuf = TRUE;
+	ut_ad(!mtr->is_inside_ibuf());
+	mtr->enter_ibuf();
 }
 
 /******************************************************************//**
@@ -348,8 +348,8 @@ ibuf_exit(
 /*======*/
 	mtr_t*	mtr)	/*!< in/out: mini-transaction */
 {
-	ut_ad(mtr->inside_ibuf);
-	mtr->inside_ibuf = FALSE;
+	ut_ad(mtr->is_inside_ibuf());
+	mtr->exit_ibuf();
 }
 
 /**************************************************************//**
@@ -4458,8 +4458,11 @@ ibuf_delete_rec(
 		an assertion failure after crash recovery. */
 		btr_cur_set_deleted_flag_for_ibuf(
 			btr_pcur_get_rec(pcur), NULL, TRUE, mtr);
+
 		ibuf_mtr_commit(mtr);
+
 		log_write_up_to(LSN_MAX, LOG_WAIT_ALL_GROUPS, TRUE);
+
 		DBUG_SUICIDE();
 	}
 #endif /* UNIV_DEBUG || UNIV_IBUF_DEBUG */
@@ -4517,7 +4520,7 @@ ibuf_delete_rec(
 			      pcur, mtr)) {
 
 		mutex_exit(&ibuf_mutex);
-		ut_ad(mtr->state == MTR_COMMITTED);
+		ut_ad(mtr->has_committed());
 		goto func_exit;
 	}
 
@@ -4537,7 +4540,7 @@ ibuf_delete_rec(
 	ibuf_btr_pcur_commit_specify_mtr(pcur, mtr);
 
 func_exit:
-	ut_ad(mtr->state == MTR_COMMITTED);
+	ut_ad(mtr->has_committed());
 	btr_pcur_close(pcur);
 
 	return(TRUE);
@@ -4868,7 +4871,7 @@ loop:
 						      BTR_MODIFY_LEAF,
 						      &pcur, &mtr)) {
 
-					ut_ad(mtr.state == MTR_COMMITTED);
+					ut_ad(mtr.has_committed());
 					mops[op]++;
 					ibuf_dummy_index_free(dummy_index);
 					goto loop;
@@ -4892,7 +4895,7 @@ loop:
 			/* Deletion was pessimistic and mtr was committed:
 			we start from the beginning again */
 
-			ut_ad(mtr.state == MTR_COMMITTED);
+			ut_ad(mtr.has_committed());
 			goto loop;
 		} else if (btr_pcur_is_after_last_on_page(&pcur)) {
 			ibuf_mtr_commit(&mtr);
@@ -5023,7 +5026,7 @@ loop:
 			/* Deletion was pessimistic and mtr was committed:
 			we start from the beginning again */
 
-			ut_ad(mtr.state == MTR_COMMITTED);
+			ut_ad(mtr.has_committed());
 			goto loop;
 		}
 
