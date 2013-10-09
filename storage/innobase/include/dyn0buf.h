@@ -258,16 +258,12 @@ struct dyn_buf_t {
 	@param len	string length */
 	void push(const byte* ptr, ulint len)
 	{
-		ulint	n_copied;
-
 		while (len > 0) {
-			if (len >= MAX_DATA_SIZE) {
-				n_copied = MAX_DATA_SIZE;
-			} else {
-				n_copied = len;
-			}
+			ulint	n_copied;
 
-			memcpy(push<byte*>(n_copied), ptr, n_copied);
+			n_copied = (len >= MAX_DATA_SIZE) : MAX_DATA_SIZE : len;
+
+			::memmove(push<byte*>(n_copied), ptr, n_copied);
 
 			ptr += n_copied;
 			len -= n_copied;
