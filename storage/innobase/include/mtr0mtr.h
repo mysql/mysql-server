@@ -196,9 +196,9 @@ struct mtr_t {
 		mtr_t*		m_mtr;
 	};
 
-	mtr_t() : m_impl() { }
+	mtr_t() { }
 
-	~mtr_t() { ut_a(m_impl == 0); }
+	~mtr_t() { }
 
 	/**
 	Starts a mini-transaction.
@@ -231,9 +231,9 @@ struct mtr_t {
 		__attribute__((warn_unused_result))
 	{
 		ut_ad(is_active());
-		ut_ad(m_impl->m_magic_n == MTR_MAGIC_N);
+		ut_ad(m_impl.m_magic_n == MTR_MAGIC_N);
 
-		return(m_impl->m_memo.size());
+		return(m_impl.m_memo.size());
 	}
 
 	/**
@@ -316,14 +316,14 @@ struct mtr_t {
 	Set the state to modified. */
 	void set_modified()
 	{
-		m_impl->m_modifications = true;
+		m_impl.m_modifications = true;
 	}
 
 	/**
 	Set the state to not-modified. This will not log the changes */
 	void discard_modifications()
 	{
-		m_impl->m_modifications = false;
+		m_impl.m_modifications = false;
 	}
 
 	/**
@@ -334,28 +334,28 @@ struct mtr_t {
 	Note that we are inside the change buffer code */
 	void enter_ibuf()
 	{
-		m_impl->m_inside_ibuf = true;
+		m_impl.m_inside_ibuf = true;
 	}
 
 	/**
 	Note that we have exited from the change buffer code */
 	void exit_ibuf()
 	{
-		m_impl->m_inside_ibuf = false;
+		m_impl.m_inside_ibuf = false;
 	}
 
 	/**
 	@return true if we are inside the change buffer code */
 	bool is_inside_ibuf() const
 	{
-		return(m_impl != NULL && m_impl->m_inside_ibuf);
+		return(m_impl.m_inside_ibuf);
 	}
 
 	/**
 	Note that some  pages were freed */
 	void add_freed_pages()
 	{
-		++m_impl->m_n_freed_pages;
+		++m_impl.m_n_freed_pages;
 	}
 
 	/**
@@ -369,7 +369,7 @@ struct mtr_t {
 	@return the number of freed pages */
 	ulint get_freed_pages() const
 	{
-		return(m_impl->m_n_freed_pages);
+		return(m_impl.m_n_freed_pages);
 	}
 
 #ifdef UNIV_DEBUG
@@ -421,36 +421,43 @@ struct mtr_t {
 	@return true if the mini-transaction is active */
 	bool is_active() const
 	{
-		return(m_impl->m_state == MTR_STATE_ACTIVE);
+		return(m_impl.m_state == MTR_STATE_ACTIVE);
 	}
 
 	/**
 	@return true if the mini-transaction has committed */
 	bool has_committed() const
 	{
-		return(m_impl == NULL
-		       || m_impl->m_state == MTR_STATE_COMMITTED);
+		return(m_impl.m_state == MTR_STATE_COMMITTED);
 	}
 
 	/**
 	@return true if the mini-transaction is committing */
 	bool is_committing() const
 	{
-		return(m_impl->m_state == MTR_STATE_COMMITTING);
+		return(m_impl.m_state == MTR_STATE_COMMITTING);
 	}
 
 	/**
 	@return true if mini-transaction contains modifications. */
 	bool has_modifications() const
 	{
-		return(m_impl->m_modifications);
+		return(m_impl.m_modifications);
+	}
+
+	/**
+	const version of the gettor
+	@return the memo stack */
+	const mtr_buf_t* get_memo() const
+	{
+		return(&m_impl.m_memo);
 	}
 
 	/**
 	@return the memo stack */
-	mtr_buf_t* get_memo() const
+	mtr_buf_t* get_memo()
 	{
-		return(&m_impl->m_memo);
+		return(&m_impl.m_memo);
 	}
 #endif /* UNIV_DEBUG */
 
@@ -458,20 +465,35 @@ struct mtr_t {
 	@return true if a record was added to the mini-transaction */
 	bool is_dirty() const
 	{
-		return(m_impl->m_made_dirty);
+		return(m_impl.m_made_dirty);
 	}
 
 	/**
 	Note that a record has been added to the log */
 	void added_rec()
 	{
-		++m_impl->m_n_log_recs;
+		++m_impl.m_n_log_recs;
+	}
+
+	/**
+	Returns the log object of a mini-transaction buffer.
+	@return	const log */
+	const mtr_buf_t* get_log() const
+	{
+		ut_ad(m_impl.m_magic_n == MTR_MAGIC_N);
+
+		return(&m_impl.m_log);
 	}
 
 	/**
 	Returns the log object of a mini-transaction buffer.
 	@return	log */
-	inline mtr_buf_t* get_log() const;
+	mtr_buf_t* get_log()
+	{
+		ut_ad(m_impl.m_magic_n == MTR_MAGIC_N);
+
+		return(&m_impl.m_log);
+	}
 
 	/**
 	Pushes an object to an mtr memo stack.
@@ -494,7 +516,7 @@ private:
 	friend class Command;
 
 private:
-	Impl*			m_impl;
+	Impl			m_impl;
 
 	/** LSN at commit time */
 	volatile lsn_t		m_commit_lsn;
