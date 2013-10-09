@@ -7,12 +7,12 @@ function usage() {
 
 # copy build files to amazon s3
 function copy_to_s3() {
-    local s3_build_bucket=$1; local s3_release_bucket=$2
+    local s3_build_bucket=$1; local s3_release_bucket=$2; local mysql_distro=$3
     local ts=$(date +%s)
     local ymd=$(date +%Y%m%d -d @$ts)
     local ym=$(date +%Y%m -d @$ts)
     local exitcode=0; local r=0
-    for f in $(find . -maxdepth 1 \( -name '*.tar.gz*' -o -name '*.rpm*' \) ) ; do
+    for f in $(find . -maxdepth 1 \( -name $mysql_distro'*.tar.gz*' -o -name $mysql_distro'*.rpm*' \) ) ; do
         f=$(basename $f)
         echo `date` s3put $s3_build_bucket $f
         s3put $s3_build_bucket $f $f
@@ -33,7 +33,7 @@ function copy_to_s3() {
         if [ $r != 0 ] ; then 
             exitcode=1
         else
-            for f in $(find . -maxdepth 1 \( -name '*.tar.gz*' -o -name '*.rpm*' \) ) ; do
+            for f in $(find . -maxdepth 1 \( -name $mysql_distro'*.tar.gz*' -o -name $mysql_distro'*.rpm*' \) ) ; do
                 f=$(basename $f)
                 echo `date` s3copykey $s3_release_bucket-$git_tag $f
                 s3copykey $s3_release_bucket-$git_tag $f $s3_build_bucket $f
@@ -99,7 +99,7 @@ done
 
 # copy to s3
 if [ $s3 != 0 ] ; then
-    copy_to_s3 $s3_build_bucket $s3_release_bucket
+    copy_to_s3 $s3_build_bucket $s3_release_bucket $mysql_distro
     if [ $? != 0 ] ; then exitcode=1; fi
 fi
 
