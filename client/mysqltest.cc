@@ -6284,17 +6284,18 @@ int read_line(char *buf, int size)
     {
       /* Could be a multibyte character */
       /* This code is based on the code in "sql_load.cc" */
-      int charlen = my_mbcharlen(charset_info, (unsigned char) c);
+      uint charlen= my_mbcharlen(charset_info, (unsigned char) c);
+      if(charlen == 0)
+        DBUG_RETURN(1);
       /* We give up if multibyte character is started but not */
       /* completed before we pass buf_end */
       if ((charlen > 1) && (p + charlen) <= buf_end)
       {
-	int i;
 	char* mb_start = p;
 
 	*p++ = c;
 
-	for (i= 1; i < charlen; i++)
+	for (uint i= 1; i < charlen; i++)
 	{
 	  c= my_getc(cur_file->file);
 	  if (feof(cur_file->file))

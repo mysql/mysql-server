@@ -50,6 +50,9 @@ Completed by Sunny Bains and Marko Makela
 /* Whether to disable file system cache */
 char	srv_disable_sort_file_cache;
 
+/* Maximum pending doc memory limit in bytes for a fts tokenization thread */
+#define FTS_PENDING_DOC_MEMORY_LIMIT	1000000
+
 /******************************************************//**
 Encode an index record. */
 static __attribute__((nonnull))
@@ -275,6 +278,9 @@ row_merge_buf_add(
 			if (index->type & DICT_FTS) {
 				fts_doc_item_t*	doc_item;
 				byte*		value;
+				void*		ptr;
+				const ulint	max_trial_count = 10000;
+				ulint		trial_count = 0;
 
 				/* fetch Doc ID if it already exists
 				in the row, and not supplied by the
@@ -304,13 +310,12 @@ row_merge_buf_add(
 					continue;
 				}
 
-				doc_item = static_cast<fts_doc_item_t*>(
-					mem_heap_alloc(
-						buf->heap,
-						sizeof(*doc_item)));
+				ptr = ut_malloc(sizeof(*doc_item)
+						+ field->len);
 
-				value = static_cast<byte*>(
-					ut_malloc(field->len));
+				doc_item = static_cast<fts_doc_item_t*>(ptr);
+				value = static_cast<byte*>(ptr)
+					+ sizeof(*doc_item);
 				memcpy(value, field->data, field->len);
 				field->data = value;
 
@@ -319,9 +324,27 @@ row_merge_buf_add(
 
 				bucket = *doc_id % fts_sort_pll_degree;
 
-				UT_LIST_ADD_LAST(
-					psort_info[bucket].fts_doc_list,
-					doc_item);
+				/* Add doc item to fts_doc_list */
+				mutex_enter(&psort_info[bucket].mutex);
+
+				if (psort_info[bucket].error == DB_SUCCESS) {
+					UT_LIST_ADD_LAST(
+						psort_info[bucket].fts_doc_list,
+						doc_item);
+					psort_info[bucket].memory_used +=
+						sizeof(*doc_item) + field->len;
+				} else {
+					ut_free(doc_item);
+				}
+
+				mutex_exit(&psort_info[bucket].mutex);
+
+				/* Sleep when memory used exceeds limit*/
+				while (psort_info[bucket].memory_used
+				       > FTS_PENDING_DOC_MEMORY_LIMIT
+				       && trial_count++ < max_trial_count) {
+					os_thread_sleep(1000);
+				}
 
 				n_row_added = 1;
 				continue;
@@ -1498,25 +1521,27 @@ write_buffers:
 					max_doc_id = doc_id;
 				}
 
+				if (buf->index->type & DICT_FTS) {
+					/* Check if error occurs in child thread */
+					for (ulint j = 0; j < fts_sort_pll_degree; j++) {
+						if (psort_info[j].error != DB_SUCCESS) {
+							err = psort_info[j].error;
+							trx->error_key_num = i;
+							break;
+						}
+					}
+
+					if (err != DB_SUCCESS) {
+						break;
+					}
+				}
+
 				continue;
 			}
 
 			if (buf->index->type & DICT_FTS) {
 				if (!row || !doc_id) {
 					continue;
-				}
-
-				/* Check if error occurs in child thread */
-				for (ulint j = 0; j < fts_sort_pll_degree; j++) {
-					if (psort_info[j].error != DB_SUCCESS) {
-						err = psort_info[j].error;
-						trx->error_key_num = i;
-						break;
-					}
-				}
-
-				if (err != DB_SUCCESS) {
-					break;
 				}
 			}
 
