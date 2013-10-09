@@ -4266,7 +4266,10 @@ QEP_tmp_table::prepare_tmp_table()
       join_tab->tmp_table_param->sum_func_count && table->s->keys)
     rc= table->file->ha_index_init(0, 0);
   else
-    rc= table->file->ha_rnd_init(0);
+  {
+    /* Start index scan in scanning mode */
+    rc= table->file->ha_rnd_init(true);
+  }
   if (rc)
   {
     table->file->print_error(rc, MYF(0));
