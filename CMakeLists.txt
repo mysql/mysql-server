@@ -465,26 +465,6 @@ IF(NOT INSTALL_LAYOUT MATCHES "RPM")
   INSTALL(FILES README DESTINATION ${INSTALL_DOCREADMEDIR} COMPONENT Readme)
   INSTALL(FILES ${CMAKE_BINARY_DIR}/Docs/INFO_SRC ${CMAKE_BINARY_DIR}/Docs/INFO_BIN DESTINATION ${INSTALL_DOCDIR})
   
-  IF(WIN32)
-     SET(EXTRA_PDB_FILES
-       ${CMAKE_BINARY_DIR}/libmysql/authentication_win/${CMAKE_BUILD_TYPE}/auth_win_client.pdb
-       ${CMAKE_BINARY_DIR}/libmysql/${CMAKE_BUILD_TYPE}/clientlib.pdb
-       ${CMAKE_BINARY_DIR}/strings/${CMAKE_BUILD_TYPE}/strings.pdb
-       ${CMAKE_BINARY_DIR}/mysys/${CMAKE_BUILD_TYPE}/mysys.pdb
-       ${CMAKE_BINARY_DIR}/vio/${CMAKE_BUILD_TYPE}/vio.pdb
-       ${CMAKE_BINARY_DIR}/zlib/${CMAKE_BUILD_TYPE}/zlib.pdb
-       ${CMAKE_BINARY_DIR}/extra/yassl/${CMAKE_BUILD_TYPE}/yassl.pdb
-       ${CMAKE_BINARY_DIR}/extra/yassl/taocrypt/${CMAKE_BUILD_TYPE}/taocrypt.pdb
-     )  
-     INSTALL(FILES ${EXTRA_PDB_FILES} DESTINATION ${INSTALL_LIBDIR} COMPONENT DebugBinaries)
-     FOREACH(f ${EXTRA_PDB_FILES})
-        STRING(REPLACE "RelWithDebInfo" "Debug" df ${f})
-        IF(EXISTS ${df})
-          INSTALL(FILES ${df} DESTINATION ${INSTALL_LIBDIR}/debug COMPONENT DebugBinaries)
-        ENDIF()
-     ENDFOREACH()
-  ENDIF()
-  
   IF(UNIX)
     INSTALL(FILES Docs/INSTALL-BINARY DESTINATION ${INSTALL_DOCREADMEDIR} COMPONENT Readme)
   ENDIF()
