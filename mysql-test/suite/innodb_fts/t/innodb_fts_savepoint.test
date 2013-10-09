@@ -1,0 +1,475 @@
+# This is the basic function tests for innodb FTS savepoint
+
+-- source include/have_innodb.inc
+
+
+CREATE TABLE articles (
+	id INT UNSIGNED NOT NULL PRIMARY KEY,
+	title VARCHAR(200),
+	FULLTEXT (title)
+	) ENGINE= InnoDB;
+
+# Test Part 1: ROLLBACK TO SAVEPOINT
+# Test rollback to savepoint 1(S1,RB1)
+TRUNCATE TABLE articles;
+
+INSERT INTO articles(id, title) VALUES(1, 'mysql');
+
+BEGIN;
+
+INSERT INTO articles(id, title) VALUES(2, 'mysql');
+
+SAVEPOINT sp1;
+
+INSERT INTO articles(id, title) VALUES(3, 'mysql');
+
+ROLLBACK TO SAVEPOINT sp1;
+
+INSERT INTO articles(id, title) VALUES(4, 'mysql');
+
+COMMIT;
+
+INSERT INTO articles(id, title) VALUES(5, 'mysql');
+
+SELECT * FROM articles WHERE MATCH(title) AGAINST('mysql');
+
+# Test rollback to savepoint 2(S1,RB1,S2,RB2)
+TRUNCATE TABLE articles;
+
+INSERT INTO articles(id, title) VALUES(1, 'mysql');
+
+BEGIN;
+
+INSERT INTO articles(id, title) VALUES(2, 'mysql');
+
+SAVEPOINT sp1;
+
+INSERT INTO articles(id, title) VALUES(3, 'mysql');
+
+ROLLBACK TO SAVEPOINT sp1;
+
+INSERT INTO articles(id, title) VALUES(4, 'mysql');
+
+SAVEPOINT sp2;
+
+INSERT INTO articles(id, title) VALUES(5, 'mysql');
+
+ROLLBACK TO SAVEPOINT sp2;
+
+INSERT INTO articles(id, title) VALUES(6, 'mysql');
+
+COMMIT;
+
+INSERT INTO articles(id, title) VALUES(7, 'mysql');
+
+SELECT * FROM articles WHERE MATCH(title) AGAINST('mysql');
+
+# Test rollback to savepoint 3(S1,S2,RB1)
+TRUNCATE TABLE articles;
+
+INSERT INTO articles(id, title) VALUES(1, 'mysql');
+
+BEGIN;
+
+INSERT INTO articles(id, title) VALUES(2, 'mysql');
+
+SAVEPOINT sp1;
+
+INSERT INTO articles(id, title) VALUES(3, 'mysql');
+
+SAVEPOINT sp2;
+
+INSERT INTO articles(id, title) VALUES(4, 'mysql');
+
+ROLLBACK TO SAVEPOINT sp1;
+
+INSERT INTO articles(id, title) VALUES(5, 'mysql');
+
+COMMIT;
+
+INSERT INTO articles(id, title) VALUES(6, 'mysql');
+
+SELECT * FROM articles WHERE MATCH(title) AGAINST('mysql');
+
+# Test rollback to savepoint 4(S1,S2,RB2,RB1)
+TRUNCATE TABLE articles;
+
+INSERT INTO articles(id, title) VALUES(1, 'mysql');
+
+BEGIN;
+
+INSERT INTO articles(id, title) VALUES(2, 'mysql');
+
+SAVEPOINT sp1;
+
+INSERT INTO articles(id, title) VALUES(3, 'mysql');
+
+SAVEPOINT sp2;
+
+INSERT INTO articles(id, title) VALUES(4, 'mysql');
+
+ROLLBACK TO SAVEPOINT sp2;
+
+INSERT INTO articles(id, title) VALUES(5, 'mysql');
+
+ROLLBACK TO SAVEPOINT sp1;
+
+INSERT INTO articles(id, title) VALUES(6, 'mysql');
+
+COMMIT;
+
+INSERT INTO articles(id, title) VALUES(7, 'mysql');
+
+SELECT * FROM articles WHERE MATCH(title) AGAINST('mysql');
+
+# Test Part 2: RELEASE SAVEPOINT
+# Test release savepoint 1(S1,RL1)
+TRUNCATE TABLE articles;
+
+INSERT INTO articles(id, title) VALUES(1, 'mysql');
+
+BEGIN;
+
+INSERT INTO articles(id, title) VALUES(2, 'mysql');
+
+SAVEPOINT sp1;
+
+INSERT INTO articles(id, title) VALUES(3, 'mysql');
+
+RELEASE SAVEPOINT sp1;
+
+INSERT INTO articles(id, title) VALUES(4, 'mysql');
+
+COMMIT;
+
+INSERT INTO articles(id, title) VALUES(5, 'mysql');
+
+SELECT * FROM articles WHERE MATCH(title) AGAINST('mysql');
+
+# Test release savepoint 2(S1,RL1,S2,RL2)
+TRUNCATE TABLE articles;
+
+INSERT INTO articles(id, title) VALUES(1, 'mysql');
+
+BEGIN;
+
+INSERT INTO articles(id, title) VALUES(2, 'mysql');
+
+SAVEPOINT sp1;
+
+INSERT INTO articles(id, title) VALUES(3, 'mysql');
+
+RELEASE SAVEPOINT sp1;
+
+INSERT INTO articles(id, title) VALUES(4, 'mysql');
+
+SAVEPOINT sp2;
+
+INSERT INTO articles(id, title) VALUES(5, 'mysql');
+
+RELEASE SAVEPOINT sp2;
+
+INSERT INTO articles(id, title) VALUES(6, 'mysql');
+
+COMMIT;
+
+INSERT INTO articles(id, title) VALUES(7, 'mysql');
+
+SELECT * FROM articles WHERE MATCH(title) AGAINST('mysql');
+
+# Test release savepoint 3(S1,S2,RL1)
+TRUNCATE TABLE articles;
+
+INSERT INTO articles(id, title) VALUES(1, 'mysql');
+
+BEGIN;
+
+INSERT INTO articles(id, title) VALUES(2, 'mysql');
+
+SAVEPOINT sp1;
+
+INSERT INTO articles(id, title) VALUES(3, 'mysql');
+
+SAVEPOINT sp2;
+
+INSERT INTO articles(id, title) VALUES(4, 'mysql');
+
+RELEASE SAVEPOINT sp1;
+
+INSERT INTO articles(id, title) VALUES(5, 'mysql');
+
+COMMIT;
+
+INSERT INTO articles(id, title) VALUES(6, 'mysql');
+
+SELECT * FROM articles WHERE MATCH(title) AGAINST('mysql');
+
+# Test release savepoint 4(S1,S2,RL2,RL1)
+TRUNCATE TABLE articles;
+
+INSERT INTO articles(id, title) VALUES(1, 'mysql');
+
+BEGIN;
+
+INSERT INTO articles(id, title) VALUES(2, 'mysql');
+
+SAVEPOINT sp1;
+
+INSERT INTO articles(id, title) VALUES(3, 'mysql');
+
+SAVEPOINT sp2;
+
+INSERT INTO articles(id, title) VALUES(4, 'mysql');
+
+RELEASE SAVEPOINT sp2;
+
+INSERT INTO articles(id, title) VALUES(5, 'mysql');
+
+RELEASE SAVEPOINT sp1;
+
+INSERT INTO articles(id, title) VALUES(6, 'mysql');
+
+COMMIT;
+
+INSERT INTO articles(id, title) VALUES(7, 'mysql');
+
+SELECT * FROM articles WHERE MATCH(title) AGAINST('mysql');
+
+# Test Part 3: RELEASE & ROLLBACK TO SAVEPOINT
+# Test release & rollback to savepoint 1(S1,RB1,S2,RL2)
+TRUNCATE TABLE articles;
+
+INSERT INTO articles(id, title) VALUES(1, 'mysql');
+
+BEGIN;
+
+INSERT INTO articles(id, title) VALUES(2, 'mysql');
+
+SAVEPOINT sp1;
+
+INSERT INTO articles(id, title) VALUES(3, 'mysql');
+
+ROLLBACK TO SAVEPOINT sp1;
+
+INSERT INTO articles(id, title) VALUES(4, 'mysql');
+
+SAVEPOINT sp2;
+
+INSERT INTO articles(id, title) VALUES(5, 'mysql');
+
+RELEASE SAVEPOINT sp2;
+
+INSERT INTO articles(id, title) VALUES(6, 'mysql');
+
+COMMIT;
+
+INSERT INTO articles(id, title) VALUES(7, 'mysql');
+
+SELECT * FROM articles WHERE MATCH(title) AGAINST('mysql');
+
+# Test release & rollback to savepoint 2(S1,RL1,S2,RB2)
+TRUNCATE TABLE articles;
+
+INSERT INTO articles(id, title) VALUES(1, 'mysql');
+
+BEGIN;
+
+INSERT INTO articles(id, title) VALUES(2, 'mysql');
+
+SAVEPOINT sp1;
+
+INSERT INTO articles(id, title) VALUES(3, 'mysql');
+
+RELEASE SAVEPOINT sp1;
+
+INSERT INTO articles(id, title) VALUES(4, 'mysql');
+
+SAVEPOINT sp2;
+
+INSERT INTO articles(id, title) VALUES(5, 'mysql');
+
+ROLLBACK TO SAVEPOINT sp2;
+
+INSERT INTO articles(id, title) VALUES(6, 'mysql');
+
+COMMIT;
+
+INSERT INTO articles(id, title) VALUES(7, 'mysql');
+
+SELECT * FROM articles WHERE MATCH(title) AGAINST('mysql');
+
+# Test release & rollback to savepoint 3(S1,S2,RL2,RB1)
+TRUNCATE TABLE articles;
+
+INSERT INTO articles(id, title) VALUES(1, 'mysql');
+
+BEGIN;
+
+INSERT INTO articles(id, title) VALUES(2, 'mysql');
+
+SAVEPOINT sp1;
+
+INSERT INTO articles(id, title) VALUES(3, 'mysql');
+
+SAVEPOINT sp2;
+
+INSERT INTO articles(id, title) VALUES(4, 'mysql');
+
+RELEASE SAVEPOINT sp2;
+
+INSERT INTO articles(id, title) VALUES(5, 'mysql');
+
+ROLLBACK TO SAVEPOINT sp1;
+
+INSERT INTO articles(id, title) VALUES(6, 'mysql');
+
+COMMIT;
+
+INSERT INTO articles(id, title) VALUES(7, 'mysql');
+
+SELECT * FROM articles WHERE MATCH(title) AGAINST('mysql');
+
+# Test release & rollback to savepoint 4(S1,S2,RB2,RL1)
+TRUNCATE TABLE articles;
+
+INSERT INTO articles(id, title) VALUES(1, 'mysql');
+
+BEGIN;
+
+INSERT INTO articles(id, title) VALUES(2, 'mysql');
+
+SAVEPOINT sp1;
+
+INSERT INTO articles(id, title) VALUES(3, 'mysql');
+
+SAVEPOINT sp2;
+
+INSERT INTO articles(id, title) VALUES(4, 'mysql');
+
+ROLLBACK TO SAVEPOINT sp2;
+
+INSERT INTO articles(id, title) VALUES(5, 'mysql');
+
+RELEASE SAVEPOINT sp1;
+
+INSERT INTO articles(id, title) VALUES(6, 'mysql');
+
+COMMIT;
+
+INSERT INTO articles(id, title) VALUES(7, 'mysql');
+
+SELECT * FROM articles WHERE MATCH(title) AGAINST('mysql');
+
+# Test Part 4: ROLLBACK & SAVEPOINT
+# Test rollback 1
+TRUNCATE TABLE articles;
+
+INSERT INTO articles(id, title) VALUES(1, 'mysql');
+
+BEGIN;
+
+INSERT INTO articles(id, title) VALUES(2, 'mysql');
+
+ROLLBACK;
+
+INSERT INTO articles(id, title) VALUES(3, 'mysql');
+
+SELECT * FROM articles WHERE MATCH(title) AGAINST('mysql');
+
+# Test rollback 2(S1)
+TRUNCATE TABLE articles;
+
+INSERT INTO articles(id, title) VALUES(1, 'mysql');
+
+BEGIN;
+
+INSERT INTO articles(id, title) VALUES(2, 'mysql');
+
+SAVEPOINT sp1;
+
+INSERT INTO articles(id, title) VALUES(3, 'mysql');
+
+ROLLBACK;
+
+INSERT INTO articles(id, title) VALUES(4, 'mysql');
+
+SELECT * FROM articles WHERE MATCH(title) AGAINST('mysql');
+
+# Test rollback 3(S1,RL1)
+TRUNCATE TABLE articles;
+
+INSERT INTO articles(id, title) VALUES(1, 'mysql');
+
+BEGIN;
+
+INSERT INTO articles(id, title) VALUES(2, 'mysql');
+
+SAVEPOINT sp1;
+
+INSERT INTO articles(id, title) VALUES(3, 'mysql');
+
+RELEASE SAVEPOINT sp1;
+
+INSERT INTO articles(id, title) VALUES(4, 'mysql');
+
+ROLLBACK;
+
+INSERT INTO articles(id, title) VALUES(5, 'mysql');
+
+SELECT * FROM articles WHERE MATCH(title) AGAINST('mysql');
+
+# Test rollback 4(S1,RB1)
+TRUNCATE TABLE articles;
+
+INSERT INTO articles(id, title) VALUES(1, 'mysql');
+
+BEGIN;
+
+INSERT INTO articles(id, title) VALUES(2, 'mysql');
+
+SAVEPOINT sp1;
+
+INSERT INTO articles(id, title) VALUES(3, 'mysql');
+
+ROLLBACK TO SAVEPOINT sp1;
+
+INSERT INTO articles(id, title) VALUES(4, 'mysql');
+
+ROLLBACK;
+
+INSERT INTO articles(id, title) VALUES(5, 'mysql');
+
+SELECT * FROM articles WHERE MATCH(title) AGAINST('mysql');
+
+# Test rollback 5(S1,S2,RB2,RL1)
+TRUNCATE TABLE articles;
+
+INSERT INTO articles(id, title) VALUES(1, 'mysql');
+
+BEGIN;
+
+INSERT INTO articles(id, title) VALUES(2, 'mysql');
+
+SAVEPOINT sp1;
+
+INSERT INTO articles(id, title) VALUES(3, 'mysql');
+
+SAVEPOINT sp2;
+
+INSERT INTO articles(id, title) VALUES(4, 'mysql');
+
+ROLLBACK TO SAVEPOINT sp2;
+
+INSERT INTO articles(id, title) VALUES(5, 'mysql');
+
+RELEASE SAVEPOINT sp1;
+
+INSERT INTO articles(id, title) VALUES(6, 'mysql');
+
+ROLLBACK;
+
+INSERT INTO articles(id, title) VALUES(7, 'mysql');
+
+SELECT * FROM articles WHERE MATCH(title) AGAINST('mysql');
+
+DROP TABLE articles;
