@@ -2350,7 +2350,7 @@ fts_trx_table_clone(
 	ftt->rows = rbt_create(sizeof(fts_trx_row_t), fts_trx_row_doc_id_cmp);
 
 	/* Copy the rb tree values to the new savepoint. */
-	rbt_merge_uniq(ftt_src->rows, ftt->rows);
+	rbt_merge_uniq(ftt->rows, ftt_src->rows);
 
 	/* These are only added on commit. At this stage we only have
 	the updated row state. */
@@ -5749,8 +5749,20 @@ fts_savepoint_release(
 
 	/* Only if we found and element to release. */
 	if (i < ib_vector_size(savepoints)) {
+		fts_savepoint_t*	last_savepoint;
+		fts_savepoint_t*	top_savepoint;
+		ib_rbt_t*		tables;
 
 		ut_a(top_of_stack < ib_vector_size(savepoints));
+
+		/* Exchange tables between last savepoint and top savepoint */
+		last_savepoint = static_cast<fts_savepoint_t*>(
+				ib_vector_last(trx->fts_trx->savepoints));
+		top_savepoint = static_cast<fts_savepoint_t*>(
+				ib_vector_get(savepoints, top_of_stack));
+		tables = top_savepoint->tables;
+		top_savepoint->tables = last_savepoint->tables;
+		last_savepoint->tables = tables;
 
 		/* Skip the implied savepoint. */
 		for (i = ib_vector_size(savepoints) - 1;
