@@ -24,7 +24,6 @@ Created 2011/12/19
 *******************************************************/
 
 #include "ha_prototypes.h"
-
 #include "buf0dblwr.h"
 
 #ifdef UNIV_NONINL
@@ -37,6 +36,8 @@ Created 2011/12/19
 #include "srv0srv.h"
 #include "page0zip.h"
 #include "trx0sys.h"
+
+#include "buf0dblwr.h"
 
 #ifndef UNIV_HOTBACKUP
 

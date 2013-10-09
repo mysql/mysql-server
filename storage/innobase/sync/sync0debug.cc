@@ -932,9 +932,14 @@ sync_latch_meta_init()
 		  SYNC_IBUF_PESS_INSERT_MUTEX,
 		  ibuf_pessimistic_insert_mutex_key);
 
+	// FIXME: Fix he mutex ordering
 	LATCH_ADD(SrvLatches, "log_sys",
-		  SYNC_LOG,
+		  SYNC_NO_ORDER_CHECK,
 		  log_sys_mutex_key);
+
+	LATCH_ADD(SrvLatches, "log_cmdq_mutex",
+		  SYNC_LOG,
+		  log_cmdq_mutex_key);
 
 	LATCH_ADD(SrvLatches, "log_flush_order",
 		  SYNC_LOG_FLUSH_ORDER,
