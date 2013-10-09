@@ -480,7 +480,7 @@ bool Gis_point::init_from_wkt(Gis_read_stream *trs, String *wkb)
 {
   double x, y;
   if (trs->get_next_number(&x) || trs->get_next_number(&y) ||
-      wkb->reserve(POINT_DATA_SIZE))
+      wkb->reserve(POINT_DATA_SIZE, 512))
     return 1;
   wkb->q_append(x);
   wkb->q_append(y);
