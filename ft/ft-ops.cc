@@ -2331,7 +2331,7 @@ basement_node_gc_all_les(BASEMENTNODE bn,
         void* keyp = NULL;
         uint32_t keylen = 0;
         LEAFENTRY leaf_entry;
-        bn->data_buffer.fetch_klpair(index, &leaf_entry, &keylen, &keyp);
+        r = bn->data_buffer.fetch_klpair(index, &leaf_entry, &keylen, &keyp);
         assert_zero(r);
         ft_basement_node_gc_once(
             bn,
