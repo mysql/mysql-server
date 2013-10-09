@@ -183,8 +183,10 @@ ENDIF()
 MERGE_LIBRARIES(mysqlclient STATIC ${LIBS} COMPONENT Development)
 
 # Visual Studio users need debug  static library for debug projects
+INSTALL_DEBUG_SYMBOLS(clientlib)
 IF(MSVC)
  INSTALL_DEBUG_TARGET(mysqlclient DESTINATION ${INSTALL_LIBDIR}/debug)
+ INSTALL_DEBUG_TARGET(clientlib DESTINATION ${INSTALL_LIBDIR}/debug)
 ENDIF()
 
 MACRO(GET_TARGET_NAME target out_name)
