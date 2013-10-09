@@ -362,7 +362,7 @@ struct mtr_t::Command {
 
 	void init(mtr_t* mtr)
 	{
-		m_impl = mtr->m_impl;
+		m_impl = &mtr->m_impl;
 		m_sync = mtr->m_sync;
 	}
 
@@ -453,28 +453,24 @@ Starts a mini-transaction.
 void
 mtr_t::start(bool sync, bool read_only)
 {
-	ut_ad(m_impl == NULL);
-
 	UNIV_MEM_INVALID(this, sizeof(*this));
 
-	m_impl = new (std::nothrow) Impl();
-
-	UNIV_MEM_INVALID(m_impl, sizeof(*m_impl));
+	UNIV_MEM_INVALID(&m_impl, sizeof(m_impl));
 
 	m_sync =  sync;
 
 	m_commit_lsn = 0;
 
-	m_impl->m_mtr = this;
-	m_impl->m_log_mode = MTR_LOG_ALL;
-	m_impl->m_inside_ibuf = false;
-	m_impl->m_modifications = false;
-	m_impl->m_made_dirty = false;
-	m_impl->m_n_log_recs = 0;
-	m_impl->m_n_freed_pages = 0;
+	m_impl.m_mtr = this;
+	m_impl.m_log_mode = MTR_LOG_ALL;
+	m_impl.m_inside_ibuf = false;
+	m_impl.m_modifications = false;
+	m_impl.m_made_dirty = false;
+	m_impl.m_n_log_recs = 0;
+	m_impl.m_n_freed_pages = 0;
 
-	ut_d(m_impl->m_state = MTR_STATE_ACTIVE);
-	ut_d(m_impl->m_magic_n = MTR_MAGIC_N);
+	ut_d(m_impl.m_state = MTR_STATE_ACTIVE);
+	ut_d(m_impl.m_magic_n = MTR_MAGIC_N);
 }
 
 /**
@@ -501,8 +497,6 @@ mtr_t::Command::release_resources()
 
 	ut_d(m_impl->m_state = MTR_STATE_COMMITTED);
 
-	delete m_impl;
-
 	m_impl = 0;
 }
 
@@ -514,15 +508,15 @@ mtr_t::commit()
 {
 	ut_ad(is_active());
 	ut_ad(!is_inside_ibuf());
-	ut_ad(m_impl->m_magic_n == MTR_MAGIC_N);
-	ut_d(m_impl->m_state = MTR_STATE_COMMITTING);
+	ut_ad(m_impl.m_magic_n == MTR_MAGIC_N);
+	ut_d(m_impl.m_state = MTR_STATE_COMMITTING);
 
 	/* This is a dirty read, for debugging. */
 	ut_ad(!recv_no_log_write);
 
-	if (m_impl->m_modifications
-	    && (m_impl->m_n_log_recs > 0
-		|| m_impl->m_log_mode == MTR_LOG_NO_REDO)) {
+	if (m_impl.m_modifications
+	    && (m_impl.m_n_log_recs > 0
+		|| m_impl.m_log_mode == MTR_LOG_NO_REDO)) {
 
 		ut_ad(!srv_read_only_mode);
 
@@ -536,8 +530,6 @@ mtr_t::commit()
 		cmd.release_all();
 		cmd.release_resources();
 	}
-
-	m_impl = NULL;
 }
 
 /**
@@ -558,17 +550,17 @@ Releases an object in the memo stack.
 bool
 mtr_t::memo_release(const void* object, ulint type)
 {
-	ut_ad(m_impl->m_magic_n == MTR_MAGIC_N);
+	ut_ad(m_impl.m_magic_n == MTR_MAGIC_N);
 	ut_ad(is_active());
 
 	/* We cannot release a page that has been written to in the
 	middle of a mini-transaction. */
-	ut_ad(!m_impl->m_modifications || type != MTR_MEMO_PAGE_X_FIX);
+	ut_ad(!m_impl.m_modifications || type != MTR_MEMO_PAGE_X_FIX);
 
 	Find		find(object, type);
 	Iterate<Find>	iterator(find);
 
-	if (!m_impl->m_memo.for_each_block_in_reverse(iterator)) {
+	if (!m_impl.m_memo.for_each_block_in_reverse(iterator)) {
 		memo_slot_release(find.m_slot);
 		return(true);
 	}
@@ -763,13 +755,13 @@ Checks if memo contains the given item.
 bool
 mtr_t::memo_contains_flagged(const void* ptr, ulint flags) const
 {
-	ut_ad(m_impl->m_magic_n == MTR_MAGIC_N);
+	ut_ad(m_impl.m_magic_n == MTR_MAGIC_N);
 	ut_ad(is_committing() || is_active());
 
 	FlaggedCheck		check(ptr, flags);
 	Iterate<FlaggedCheck>	iterator(check);
 
-	return(!m_impl->m_memo.for_each_block_in_reverse(iterator));
+	return(!m_impl.m_memo.for_each_block_in_reverse(iterator));
 }
 
 /**
@@ -796,7 +788,7 @@ mtr_t::print() const
 	ib_logf(IB_LOG_LEVEL_INFO,
 		"Mini-transaction handle: memo size %lu bytes "
 		"log size %lu bytes",
-		m_impl->m_memo.size(), get_log()->size());
+		m_impl.m_memo.size(), get_log()->size());
 }
 
 #endif /* UNIV_DEBUG */
