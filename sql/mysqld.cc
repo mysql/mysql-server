@@ -381,6 +381,7 @@ bool opt_using_transactions;
 bool volatile abort_loop;
 bool volatile shutdown_in_progress;
 ulong log_warnings;
+uint host_cache_size;
 ulong log_error_verbosity= 3; // have a non-zero value during early start-up
 #if defined(_WIN32) && !defined(EMBEDDED_LIBRARY)
 ulong slow_start_timeout;
@@ -3996,7 +3997,7 @@ static int init_server_components()
     all things are initialized so that unireg_abort() doesn't fail
   */
   mdl_init();
-  if (table_def_init() | hostname_cache_init())
+  if (table_def_init() | hostname_cache_init(host_cache_size))
     unireg_abort(1);
 
   init_server_query_cache();
