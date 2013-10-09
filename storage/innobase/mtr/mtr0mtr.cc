@@ -180,7 +180,6 @@ memo_latch_release(mtr_memo_slot_t* slot)
 		buf_page_release_latches(block, slot->type);
 		/* We will unfix the block later, preserve the object
 		pointer. */
-		// FIXME:
 		slot->object = NULL;
 		break;
 	}
@@ -230,8 +229,6 @@ memo_block_unfix(mtr_memo_slot_t* slot)
 		--block->page.buf_fix_count;
 
 		mutex_exit(&block->mutex);
-		// FIXME:
-		//slot->object = NULL;
 		break;
 	}
 
@@ -322,10 +319,6 @@ struct ReleaseBlocks {
 	@return true always. */
 	bool operator()(mtr_memo_slot_t* slot) const
 	{
-		/* FIXME: Currently there is a race here. It doesn't
-		affect correctness though. However, we should use separate
-		data structures where we can. */
-
 		if (slot->object != NULL) {
 
 			if (slot->type == MTR_MEMO_PAGE_X_FIX
@@ -491,6 +484,7 @@ mtr_t::Command::release_resources()
 	m_impl->m_memo.for_each_block_in_reverse(iterator);
 #endif /* UNIV_DEBUG */
 
+	/* Reset the mtr buffers */
 	m_impl->m_log.erase();
 
 	m_impl->m_memo.erase();
