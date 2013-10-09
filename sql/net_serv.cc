@@ -1,4 +1,4 @@
-/* Copyright (c) 2000, 2011, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2000, 2013, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -369,6 +369,12 @@ my_net_write(NET *net,const uchar *packet,size_t len)
     return 0;
 
   MYSQL_NET_WRITE_START(len);
+
+  DBUG_EXECUTE_IF("simulate_net_write_failure", {
+                  my_error(ER_NET_ERROR_ON_WRITE, MYF(0));
+                  return 1;
+                  };
+                 );
 
   /*
     Big packets are handled by splitting them in packets of MAX_PACKET_LENGTH
