@@ -419,6 +419,7 @@ recv_sys_empty_hash(void)
 }
 
 #ifndef UNIV_HOTBACKUP
+
 # ifndef UNIV_LOG_DEBUG
 /********************************************************//**
 Frees the recovery system. */
@@ -2021,13 +2022,12 @@ recv_check_incomplete_log_recs(
 	byte*	ptr,	/*!< in: pointer to a complete log record */
 	ulint	len)	/*!< in: length of the log record */
 {
-	ulint	i;
-	byte	type;
-	ulint	space;
-	ulint	page_no;
-	byte*	body;
+	for (ulint i = 0; i < len; i++) {
+		mlog_id_t	type;
+		byte*		body;
+		ulint		space;
+		ulint		page_no;
 
-	for (i = 0; i < len; i++) {
 		ut_a(0 == recv_parse_log_rec(ptr, ptr + i, &type, &space,
 					     &page_no, &body));
 	}

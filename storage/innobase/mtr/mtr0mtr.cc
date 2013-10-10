@@ -126,7 +126,7 @@ memo_slot_release(mtr_memo_slot_t* slot)
 	case MTR_MEMO_PAGE_X_FIX: {
 		buf_block_t*	block;
 
-	       	block = reinterpret_cast<buf_block_t*>(slot->object);
+		block = reinterpret_cast<buf_block_t*>(slot->object);
 
 		mutex_enter(&block->mutex);
 
@@ -175,7 +175,7 @@ memo_latch_release(mtr_memo_slot_t* slot)
 	case MTR_MEMO_PAGE_X_FIX: {
 		buf_block_t*	block;
 
-	       	block = reinterpret_cast<buf_block_t*>(slot->object);
+		block = reinterpret_cast<buf_block_t*>(slot->object);
 
 		buf_page_release_latches(block, slot->type);
 		/* We will unfix the block later, preserve the object
@@ -222,7 +222,7 @@ memo_block_unfix(mtr_memo_slot_t* slot)
 	case MTR_MEMO_PAGE_SX_FIX:
 		buf_block_t*	block;
 
-	       	block = reinterpret_cast<buf_block_t*>(slot->object);
+		block = reinterpret_cast<buf_block_t*>(slot->object);
 
 		mutex_enter(&block->mutex);
 
@@ -348,10 +348,10 @@ struct mtr_t::Command {
 	@param mtr	mini-transaction instance */
 	explicit Command(mtr_t* mtr)
 		:
-       		m_locks_released()
+		m_locks_released()
 	{
 		init(mtr);
-	} 
+	}
 
 	void init(mtr_t* mtr)
 	{
