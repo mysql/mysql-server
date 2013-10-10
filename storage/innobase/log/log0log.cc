@@ -2450,8 +2450,8 @@ log_check_log_recs(
 {
 	ib_uint64_t	contiguous_lsn;
 	ib_uint64_t	scanned_lsn;
-	const byte*	start;
-	const byte*	end;
+	byte*		start;
+	byte*		end;
 	byte*		buf1;
 	byte*		scan_buf;
 
@@ -2462,11 +2462,17 @@ log_check_log_recs(
 		return(TRUE);
 	}
 
-	start = ut_align_down(buf, OS_FILE_LOG_BLOCK_SIZE);
-	end = ut_align(buf + len, OS_FILE_LOG_BLOCK_SIZE);
+	start = reinterpret_cast<byte*>(
+		ut_align_down(buf, OS_FILE_LOG_BLOCK_SIZE));
 
-	buf1 = ut_malloc((end - start) + OS_FILE_LOG_BLOCK_SIZE);
-	scan_buf = ut_align(buf1, OS_FILE_LOG_BLOCK_SIZE);
+	end = reinterpret_cast<byte*>(
+		ut_align(buf + len, OS_FILE_LOG_BLOCK_SIZE));
+
+	buf1 = reinterpret_cast<byte*>(
+		ut_malloc((end - start) + OS_FILE_LOG_BLOCK_SIZE));
+
+	scan_buf = reinterpret_cast<byte*>(
+		ut_align(buf1, OS_FILE_LOG_BLOCK_SIZE));
 
 	ut_memcpy(scan_buf, start, end - start);
 
@@ -2632,7 +2638,7 @@ log_shutdown(void)
 
 #ifdef UNIV_LOG_DEBUG
 	recv_sys_debug_free();
-#endif
+#endif /* UNIV_LOG_DEBUG */
 
 	recv_sys_close();
 }
