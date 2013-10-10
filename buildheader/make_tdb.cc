@@ -449,7 +449,7 @@ static void print_db_env_struct (void) {
                              "int (*set_lk_max_memory)                    (DB_ENV *env, uint64_t max)",
                              "int (*get_lk_max_memory)                    (DB_ENV *env, uint64_t *max)",
                              "void (*set_update)                          (DB_ENV *env, int (*update_function)(DB *, const DBT *key, const DBT *old_val, const DBT *extra, void (*set_val)(const DBT *new_val, void *set_extra), void *set_extra))",
-                             "int (*set_lock_timeout)                     (DB_ENV *env, uint64_t lock_wait_time_msec)",
+                             "int (*set_lock_timeout)                     (DB_ENV *env, uint64_t lock_wait_time_msec, uint64_t (*get_lock_wait_time_cb)(uint64_t default_lock_wait_time))",
                              "int (*get_lock_timeout)                     (DB_ENV *env, uint64_t *lock_wait_time_msec)",
                              "int (*set_lock_timeout_callback)            (DB_ENV *env, lock_timeout_callback callback)",
                              "int (*txn_xa_recover)                       (DB_ENV*, TOKU_XA_XID list[/*count*/], long count, /*out*/ long *retp, uint32_t flags)",

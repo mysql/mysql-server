@@ -153,11 +153,16 @@ int locktree::manager::set_max_lock_memory(size_t max_lock_memory) {
 }
 
 uint64_t locktree::manager::get_lock_wait_time(void) {
-    return m_lock_wait_time_ms;
+    uint64_t wait_time = m_lock_wait_time_ms;
+    if (m_get_lock_wait_time_cb) {
+        wait_time = m_get_lock_wait_time_cb(wait_time);
+    }
+    return wait_time;
 }
 
-void locktree::manager::set_lock_wait_time(uint64_t lock_wait_time_ms) {
+void locktree::manager::set_lock_wait_time(uint64_t lock_wait_time_ms, uint64_t (*get_lock_wait_time_cb)(uint64_t)) {
     m_lock_wait_time_ms = lock_wait_time_ms;
+    m_get_lock_wait_time_cb = get_lock_wait_time_cb;
 }
 
 int locktree::manager::find_by_dict_id(locktree *const &lt, const DICTIONARY_ID &dict_id) {

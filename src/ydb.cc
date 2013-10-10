@@ -1715,8 +1715,8 @@ env_get_lock_timeout(DB_ENV *env, uint64_t *lock_timeout_msec) {
 }
 
 static int
-env_set_lock_timeout(DB_ENV *env, uint64_t lock_timeout_msec) {
-    env->i->ltm.set_lock_wait_time(lock_timeout_msec);
+env_set_lock_timeout(DB_ENV *env, uint64_t lock_timeout_msec, uint64_t (*get_lock_timeout_callback)(uint64_t default_lock_timeout_msec)) {
+    env->i->ltm.set_lock_wait_time(lock_timeout_msec, get_lock_timeout_callback);
     return 0;
 }
 
