@@ -2524,6 +2524,17 @@ sub environment_setup {
   {
     $ENV{'MYSQLHOTCOPY'}= $mysqlhotcopy;
   }
+  # ----------------------------------------------------
+  # mysqld_safe
+  # ----------------------------------------------------
+  my $mysqld_safe=
+    mtr_pl_maybe_exists("$bindir/scripts/mysqld_safe") ||
+    mtr_pl_maybe_exists("$path_client_bindir/mysqld_safe");
+  if ($mysqld_safe)
+  {
+    $ENV{'MYSQLD_SAFE'}= $mysqld_safe;
+  }
+
 
   # ----------------------------------------------------
   # perror
@@ -2880,6 +2891,19 @@ sub check_ndbcluster_support ($) {
     {
       # Compiled with ndbcluster but ndbcluster skipped
       mtr_report(" - skipping ndbcluster(--skip-ndbcluster)");
+      return;
+    }
+
+
+    # Not a MySQL Cluster tree, enable ndbcluster
+    # if --include-ndbcluster was used
+    if ($opt_include_ndbcluster)
+    {
+      # enable ndbcluster
+    }
+    else
+    {
+      mtr_report(" - skipping ndbcluster(disabled by default)");
       return;
     }
   }
@@ -5980,11 +6004,6 @@ sub start_mysqltest ($) {
   if ( $opt_embedded_server )
   {
 
-    if ( $opt_ps_protocol )
-    {
-      mtr_error("Cannot use --ps-protocol with --embedded-server");
-    }
-
     # Get the args needed for the embedded server
     # and append them to args prefixed
     # with --sever-arg=
@@ -6518,7 +6537,7 @@ Options to control what test suites or cases to run
 
   force                 Continue to run the suite after failure
   with-ndbcluster-only  Run only tests that include "ndb" in the filename
-  skip-ndb[cluster]     Skip all tests that need cluster.
+  skip-ndb[cluster]     Skip all tests that need cluster. Default.
   include-ndb[cluster]  Enable all tests that need cluster
   do-test=PREFIX or REGEX
                         Run test cases which name are prefixed with PREFIX
