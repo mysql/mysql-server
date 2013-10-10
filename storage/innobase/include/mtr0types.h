@@ -106,25 +106,25 @@ enum mlog_id_t {
 	MLOG_UNDO_INSERT = 20,
 
 	/** erase an undo log page end */
-	MLOG_UNDO_ERASE_END = 21,	
+	MLOG_UNDO_ERASE_END = 21,
 
 	/** initialize a page in an undo log */
-	MLOG_UNDO_INIT = 22,	
+	MLOG_UNDO_INIT = 22,
 
 	/** discard an update undo log header */
-	MLOG_UNDO_HDR_DISCARD = 23,	
+	MLOG_UNDO_HDR_DISCARD = 23,
 
 	/** reuse an insert undo log header */
-	MLOG_UNDO_HDR_REUSE = 24,	
+	MLOG_UNDO_HDR_REUSE = 24,
 
 	/** create an undo log header */
-	MLOG_UNDO_HDR_CREATE = 25,	
+	MLOG_UNDO_HDR_CREATE = 25,
 
 	/** mark an index record as the predefined minimum record */
 	MLOG_REC_MIN_MARK = 26,
 
 	/** initialize an ibuf bitmap page */
-	MLOG_IBUF_BITMAP_INIT = 27,	
+	MLOG_IBUF_BITMAP_INIT = 27,
 
 	/** this means that a file page is taken into use and the prior
 	contents of the page should be ignored: in recovery we must not
@@ -132,29 +132,29 @@ enum mlog_id_t {
 	MLOG_INIT_FILE_PAGE = 29,
 
 	/** write a string to a page */
-	MLOG_WRITE_STRING = 30,	
+	MLOG_WRITE_STRING = 30,
 
 	/** If a single mtr writes several log records, this log
 	record ends the sequence of these records */
 	MLOG_MULTI_REC_END = 31,
 
 	/** dummy log record used to pad a log block full */
-	MLOG_DUMMY_RECORD = 32,	
+	MLOG_DUMMY_RECORD = 32,
 
 	/** log record about an .ibd file creation */
-	MLOG_FILE_CREATE = 33,	
+	MLOG_FILE_CREATE = 33,
 
 	/** log record about an .ibd file rename */
-	MLOG_FILE_RENAME = 34,	
+	MLOG_FILE_RENAME = 34,
 
 	/** log record about an .ibd file deletion */
-	MLOG_FILE_DELETE = 35,	
+	MLOG_FILE_DELETE = 35,
 
 	/** mark a compact index record as the predefined minimum record */
 	MLOG_COMP_REC_MIN_MARK = 36,
 
 	/** create a compact index page */
-	MLOG_COMP_PAGE_CREATE = 37,	
+	MLOG_COMP_PAGE_CREATE = 37,
 
 	/** compact record insert */
 	MLOG_COMP_REC_INSERT = 38,
@@ -171,13 +171,13 @@ enum mlog_id_t {
 	MLOG_COMP_REC_UPDATE_IN_PLACE = 41,
 
 	/** delete a compact record from a page */
-	MLOG_COMP_REC_DELETE = 42,	
+	MLOG_COMP_REC_DELETE = 42,
 
 	/** delete compact record list end on index page */
-	MLOG_COMP_LIST_END_DELETE = 43,	
+	MLOG_COMP_LIST_END_DELETE = 43,
 
 	/*** delete compact record list start on index page */
-	MLOG_COMP_LIST_START_DELETE = 44,	
+	MLOG_COMP_LIST_START_DELETE = 44,
 
 	/** copy compact record list end to a new created index page */
 	MLOG_COMP_LIST_END_COPY_CREATED = 45,
@@ -186,7 +186,7 @@ enum mlog_id_t {
 	MLOG_COMP_PAGE_REORGANIZE = 46,
 
 	/** log record about creating an .ibd file, with format */
-	MLOG_FILE_CREATE2 = 47,	
+	MLOG_FILE_CREATE2 = 47,
 
 	/** write the node pointer of a record on a compressed
 	non-leaf B-tree page */
@@ -197,7 +197,7 @@ enum mlog_id_t {
 	MLOG_ZIP_WRITE_BLOB_PTR = 49,
 
 	/** write to compressed page header */
-	MLOG_ZIP_WRITE_HEADER = 50,	
+	MLOG_ZIP_WRITE_HEADER = 50,
 
 	/** compress an index page */
 	MLOG_ZIP_PAGE_COMPRESS = 51,

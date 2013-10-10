@@ -90,7 +90,7 @@ mlog_catenate_ulint(
 	case MLOG_2BYTES:
 		mach_write_to_2(ptr, val);
 		break;
-	case MLOG_1BYTE:	
+	case MLOG_1BYTE:
 		mach_write_to_1(ptr, val);
 		break;
 	default:

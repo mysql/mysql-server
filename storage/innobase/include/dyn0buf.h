@@ -208,7 +208,7 @@ struct dyn_buf_t {
 		ut_ad(size <= MAX_DATA_SIZE);
 
 		block_t*	block;
-	       
+       
 		block = has_space(size) ? back() : add_block();
 
 		ut_ad(block->m_used <= MAX_DATA_SIZE);
@@ -244,7 +244,7 @@ struct dyn_buf_t {
 		ut_ad(size <= MAX_DATA_SIZE);
 
 		block_t*	block;
-	       
+       
 		block = has_space(size) ? back() : add_block();
 
 		m_size += size;
@@ -373,7 +373,7 @@ private:
 	// Disable copying
 	dyn_buf_t(const dyn_buf_t&);
 	dyn_buf_t& operator=(const dyn_buf_t&);
- 
+
 	/**
 	Add the block to the end of the list*/
 	void push_back(block_t* block)
