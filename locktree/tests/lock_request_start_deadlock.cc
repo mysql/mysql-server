@@ -111,9 +111,9 @@ void lock_request_unit_test::test_start_deadlock(void) {
     lock_request request_a;
     lock_request request_b;
     lock_request request_c;
-    request_a.create(lock_wait_time);
-    request_b.create(lock_wait_time);
-    request_c.create(lock_wait_time);
+    request_a.create();
+    request_b.create();
+    request_c.create();
 
     const DBT *one = get_dbt(1);
     const DBT *two = get_dbt(2);
@@ -140,19 +140,19 @@ void lock_request_unit_test::test_start_deadlock(void) {
     request_c.set(lt, txnid_c, one, one, lock_request::type::WRITE);
     r = request_c.start();
     invariant(r == DB_LOCK_NOTGRANTED);
-    r = request_c.wait();
+    r = request_c.wait(lock_wait_time);
     invariant(r == DB_LOCK_NOTGRANTED);
     request_c.set(lt, txnid_c, two, two, lock_request::type::WRITE);
     r = request_c.start();
     invariant(r == DB_LOCK_NOTGRANTED);
-    r = request_c.wait();
+    r = request_c.wait(lock_wait_time);
     invariant(r == DB_LOCK_NOTGRANTED);
 
     // release locks for A and B, then wait on A's request which should succeed
     // since B just unlocked and should have completed A's pending request.
     release_lock_and_retry_requests(lt, txnid_a, one, one);
     release_lock_and_retry_requests(lt, txnid_b, two, two);
-    r = request_a.wait();
+    r = request_a.wait(lock_wait_time);
     invariant_zero(r);
     release_lock_and_retry_requests(lt, txnid_a, two, two);
 

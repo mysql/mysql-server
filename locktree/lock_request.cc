@@ -99,7 +99,7 @@ PATENT RIGHTS GRANT:
 namespace toku {
 
 // initialize a lock request's internals
-void lock_request::create(uint64_t wait_time) {
+void lock_request::create(void) {
     m_txnid = TXNID_NONE;
     m_conflicting_txnid = TXNID_NONE;
     m_start_time = 0;
@@ -114,7 +114,6 @@ void lock_request::create(uint64_t wait_time) {
     m_complete_r = 0;
     m_state = state::UNINITIALIZED;
 
-    m_wait_time = wait_time;
     toku_cond_init(&m_wait_cond, nullptr);
 }
 
@@ -236,12 +235,12 @@ int lock_request::start(void) {
     return m_state == state::COMPLETE ? m_complete_r : r;
 }
 
-void lock_request::calculate_cond_wakeup_time(struct timespec *ts) {
+void lock_request::calculate_cond_wakeup_time(struct timespec *ts, uint64_t wait_time) {
     struct timeval now;
     int r = gettimeofday(&now, NULL);
     invariant_zero(r);
-    int64_t sec = now.tv_sec + (m_wait_time / 1000);
-    int64_t usec = now.tv_usec + ((m_wait_time % 1000) * 1000);
+    int64_t sec = now.tv_sec + (wait_time / 1000);
+    int64_t usec = now.tv_usec + ((wait_time % 1000) * 1000);
     int64_t d_sec = usec / 1000000;
     int64_t d_usec = usec % 1000000;
     ts->tv_sec = sec + d_sec;
@@ -249,12 +248,12 @@ void lock_request::calculate_cond_wakeup_time(struct timespec *ts) {
 }
 
 // sleep on the lock request until it becomes resolved or the wait time has elapsed.
-int lock_request::wait(void) {
+int lock_request::wait(uint64_t wait_time) {
     uint64_t t_start = toku_current_time_microsec();
     toku_mutex_lock(&m_info->mutex);
     while (m_state == state::PENDING) {
         struct timespec ts;
-        calculate_cond_wakeup_time(&ts);
+        calculate_cond_wakeup_time(&ts, wait_time);
         int r = toku_cond_timedwait(&m_wait_cond, &m_info->mutex, &ts);
         invariant(r == 0 || r == ETIMEDOUT);
         if (r == ETIMEDOUT && m_state == state::PENDING) {

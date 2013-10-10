@@ -231,10 +231,8 @@ void toku_db_txn_escalate_callback(TXNID txnid, const toku::locktree *lt, const 
 // Return when the range lock is acquired or the default lock tree timeout has expired.  
 int toku_db_get_range_lock(DB *db, DB_TXN *txn, const DBT *left_key, const DBT *right_key,
         toku::lock_request::type lock_type) {
-    uint64_t wait_time = txn->mgrp->i->ltm.get_lock_wait_time();
     toku::lock_request request;
-    request.create(wait_time);
-
+    request.create();
     int r = toku_db_start_range_lock(db, txn, left_key, right_key, lock_type, &request);
     if (r == DB_LOCK_NOTGRANTED) {
         r = toku_db_wait_range_lock(db, txn, &request);
@@ -271,7 +269,8 @@ int toku_db_wait_range_lock(DB *db, DB_TXN *txn, toku::lock_request *request) {
     const DBT *left_key = request->get_left_key();
     const DBT *right_key = request->get_right_key();
 
-    const int r = request->wait();
+    uint64_t wait_time = txn->mgrp->i->ltm.get_lock_wait_time();
+    const int r = request->wait(wait_time);
     if (r == 0) {
         db_txn_note_row_lock(db, txn_anc, left_key, right_key);
     } else if (r == DB_LOCK_NOTGRANTED) {
@@ -296,10 +295,8 @@ void toku_db_grab_write_lock (DB *db, DBT *key, TOKUTXN tokutxn) {
     TXNID txn_anc_id = txn_anc->id64(txn_anc);
 
     // This lock request must succeed, so we do not want to wait
-    const uint64_t lock_wait_time = 0;
     toku::lock_request request;
-
-    request.create(lock_wait_time);
+    request.create();
     request.set(db->i->lt, txn_anc_id, key, key, toku::lock_request::type::WRITE);
     int r = request.start();
     invariant_zero(r);

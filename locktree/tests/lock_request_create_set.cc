@@ -96,8 +96,7 @@ namespace toku {
 // create and set the object's internals, destroy should not crash.
 void lock_request_unit_test::test_create_destroy(void) {
     lock_request request;
-    const uint64_t wait_time_magic = 5016342;
-    request.create(wait_time_magic);
+    request.create();
 
     invariant(request.m_txnid == TXNID_NONE);
     invariant(request.m_left_key == nullptr);
@@ -112,7 +111,6 @@ void lock_request_unit_test::test_create_destroy(void) {
 
     invariant(request.m_complete_r == 0);
     invariant(request.m_state == lock_request::state::UNINITIALIZED);
-    invariant(request.m_wait_time = wait_time_magic);
 
     request.destroy();
 }

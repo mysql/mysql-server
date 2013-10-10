@@ -98,8 +98,7 @@ namespace toku {
 // when appropriate and plays nice with +/- infinity.
 void lock_request_unit_test::test_get_set_keys(void) {
     lock_request request;
-    const uint64_t lock_wait_time = 10;
-    request.create(lock_wait_time);
+    request.create();
 
     locktree *const null_lt = nullptr;
 

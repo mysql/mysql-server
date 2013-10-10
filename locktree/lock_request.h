@@ -125,8 +125,8 @@ public:
         WRITE
     };
 
-    // effect: Initializes a lock request with a given wait time.
-    void create(uint64_t wait_time);
+    // effect: Initializes a lock request.
+    void create(void);
 
     // effect: Destroys a lock request.
     void destroy(void);
@@ -144,7 +144,7 @@ public:
     // effect: Sleeps until either the request is granted or the wait time expires.
     // returns: The return code of locktree::acquire_[write,read]_lock()
     //          or simply DB_LOCK_NOTGRANTED if the wait time expired.
-    int wait(void);
+    int wait(uint64_t wait_time);
 
     // return: left end-point of the lock range
     const DBT *get_left_key(void) const;
@@ -196,7 +196,6 @@ private:
     int m_complete_r;
     state m_state;
 
-    uint64_t m_wait_time;
     toku_cond_t m_wait_cond;
 
     // the lock request info state stored in the
@@ -235,7 +234,7 @@ private:
 
     void copy_keys(void);
 
-    void calculate_cond_wakeup_time(struct timespec *ts);
+    void calculate_cond_wakeup_time(struct timespec *ts, uint64_t wait_time);
 
     static int find_by_txnid(lock_request * const &request, const TXNID &txnid);
 
