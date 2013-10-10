@@ -4783,8 +4783,9 @@ uint prep_alter_part_table(THD *thd, TABLE *table, Alter_info *alter_info,
 {
   DBUG_ENTER("prep_alter_part_table");
 
-  /* Foreign keys on partitioned tables are not supported, waits for WL#148 */
-  if (table->part_info && (alter_info->flags & Alter_info::ADD_FOREIGN_KEY ||
+  /* Foreign keys are not supprted by ha_partition, waits for WL#148 */
+  if ((table->file->ht == partition_hton) &&
+      table->part_info && (alter_info->flags & Alter_info::ADD_FOREIGN_KEY ||
                            alter_info->flags & Alter_info::DROP_FOREIGN_KEY))
   {
 #ifndef MCP_WL6244
