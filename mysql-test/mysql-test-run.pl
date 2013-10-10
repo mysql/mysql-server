@@ -2882,19 +2882,6 @@ sub check_ndbcluster_support ($) {
       mtr_report(" - skipping ndbcluster(--skip-ndbcluster)");
       return;
     }
-
-
-    # Not a MySQL Cluster tree, enable ndbcluster
-    # if --include-ndbcluster was used
-    if ($opt_include_ndbcluster)
-    {
-      # enable ndbcluster
-    }
-    else
-    {
-      mtr_report(" - skipping ndbcluster(disabled by default)");
-      return;
-    }
   }
 
   mtr_report(" - enabling ndbcluster");
@@ -6531,7 +6518,7 @@ Options to control what test suites or cases to run
 
   force                 Continue to run the suite after failure
   with-ndbcluster-only  Run only tests that include "ndb" in the filename
-  skip-ndb[cluster]     Skip all tests that need cluster. Default.
+  skip-ndb[cluster]     Skip all tests that need cluster.
   include-ndb[cluster]  Enable all tests that need cluster
   do-test=PREFIX or REGEX
                         Run test cases which name are prefixed with PREFIX
