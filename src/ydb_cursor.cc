@@ -212,8 +212,7 @@ query_context_base_init(QUERY_CONTEXT_BASE context, DBC *c, uint32_t flag, bool 
     }
     context->do_locking = (context->db->i->lt != nullptr && !(lock_flags & (DB_PRELOCKED | DB_PRELOCKED_WRITE)));
     context->r_user_callback = 0;
-    uint64_t lock_wait_time = context->txn ? context->txn->mgrp->i->ltm.get_lock_wait_time() : 0;
-    context->request.create(lock_wait_time);
+    context->request.create();
 }
 
 static toku::lock_request::type

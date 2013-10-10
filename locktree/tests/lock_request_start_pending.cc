@@ -100,8 +100,6 @@ void lock_request_unit_test::test_start_pending(void) {
     locktree::manager mgr;
     locktree *lt;
     lock_request request;
-    // bogus, just has to be something.
-    const uint64_t lock_wait_time = 0;
 
     mgr.create(nullptr, nullptr, nullptr, nullptr);
     DICTIONARY_ID dict_id = { 1 };
@@ -122,7 +120,7 @@ void lock_request_unit_test::test_start_pending(void) {
 
     // start a lock request for 1,1
     // it should fail. the request should be stored and in the pending state.
-    request.create(lock_wait_time);
+    request.create();
     request.set(lt, txnid_a, one, one, lock_request::type::WRITE);
     r = request.start();
     invariant(r == DB_LOCK_NOTGRANTED);

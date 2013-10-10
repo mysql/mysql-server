@@ -135,11 +135,11 @@ void manager_unit_test::test_status(void) {
 
     // txn b tries to write lock one, conflicts, waits, and fails to lock one
     lock_request request_b;
-    request_b.create(1000);
+    request_b.create();
     request_b.set(lt, txnid_b, one, one, lock_request::type::WRITE);
     r = request_b.start();
     assert(r == DB_LOCK_NOTGRANTED);
-    r = request_b.wait();
+    r = request_b.wait(1000);
     assert(r == DB_LOCK_NOTGRANTED);
     request_b.destroy();
 
