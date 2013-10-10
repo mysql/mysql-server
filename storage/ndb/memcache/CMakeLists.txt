@@ -168,11 +168,11 @@ configure_file(${CMAKE_CURRENT_SOURCE_DIR}/include/ndbmemcache_config.in
 
 # Build sandbox.sh
 configure_file(${CMAKE_CURRENT_SOURCE_DIR}/sandbox.sh.in
-               ${CMAKE_CURRENT_SOURCE_DIR}/sandbox.sh)
+               ${CMAKE_CURRENT_BINARY_DIR}/sandbox.sh)
                
 # Build the perl include file used by mtr
 configure_file(${CMAKE_CURRENT_SOURCE_DIR}/memcached_path.pl.in
-               ${CMAKE_CURRENT_SOURCE_DIR}/memcached_path.pl)
+               ${CMAKE_CURRENT_BINARY_DIR}/memcached_path.pl)
 
 # Copy the SQL script into /scripts/ in the build directory.
 configure_file(${CMAKE_CURRENT_SOURCE_DIR}/scripts/ndb_memcache_metadata.sql
