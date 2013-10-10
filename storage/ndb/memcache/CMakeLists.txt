@@ -233,9 +233,10 @@ install(PROGRAMS ${MEMCLIENT} DESTINATION ${INSTALL_BINDIR})
 ###
 SET(MEMCACHE_API_DIR "${INSTALL_MYSQLSHAREDIR}/memcache-api")
 install(DIRECTORY DESTINATION ${MEMCACHE_API_DIR} )
-install(PROGRAMS sandbox.sh DESTINATION  ${MEMCACHE_API_DIR})
+install(PROGRAMS ${CMAKE_CURRENT_BINARY_DIR}/sandbox.sh 
+        DESTINATION  ${MEMCACHE_API_DIR})
 install(FILES README DESTINATION  ${MEMCACHE_API_DIR})
-install(FILES ${CMAKE_CURRENT_SOURCE_DIR}/scripts/ndb_memcache_metadata.sql 
+install(FILES ${CMAKE_CURRENT_BINARY_DIR}/scripts/ndb_memcache_metadata.sql 
         DESTINATION  ${MEMCACHE_API_DIR})
 # Upgrader scripts:
 install(DIRECTORY DESTINATION ${MEMCACHE_API_DIR}/upgrade)
@@ -243,7 +244,7 @@ install(FILES ${CMAKE_CURRENT_SOURCE_DIR}/scripts/update_to_1.2.sql
         DESTINATION ${MEMCACHE_API_DIR}/upgrade)
         
 # memcached_path.pl is also installed, for use by installed mtr
-install(FILES ${CMAKE_CURRENT_SOURCE_DIR}/memcached_path.pl
+install(FILES ${CMAKE_CURRENT_BINARY_DIR}/memcached_path.pl
         DESTINATION ${INSTALL_MYSQLTESTDIR}/lib)
         
 ######################################################## 
