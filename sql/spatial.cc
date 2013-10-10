@@ -793,7 +793,7 @@ int Gis_line_string::store_shapes(Gcalc_shape_transporter *trn) const
     return 1;
   n_points= uint4korr(data);
   data+= 4;
-  if (n_points < 1 || no_data(data, POINT_DATA_SIZE * n_points))
+  if (n_points < 1 || not_enough_points(data, n_points))
     return 1;
 
   trn->start_line();
@@ -1230,7 +1230,7 @@ int Gis_polygon::store_shapes(Gcalc_shape_transporter *trn) const
       return 1;
     n_points= uint4korr(data);
     data+= 4;
-    if (!n_points || no_data(data, POINT_DATA_SIZE * n_points))
+    if (!n_points || not_enough_points(data, n_points))
       return 1;
 
     trn->start_ring();
