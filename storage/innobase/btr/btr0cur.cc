@@ -2485,7 +2485,7 @@ btr_cur_pessimistic_insert(
 	big_rec_t*	big_rec_vec	= NULL;
 	dberr_t		err;
 	ibool		dummy_inh;
-	ibool		success;
+	bool		success;
 	ulint		n_reserved	= 0;
 
 	ut_ad(dtuple_check_typed(entry));
@@ -4235,7 +4235,7 @@ btr_cur_pessimistic_delete(
 	dict_index_t*	index;
 	rec_t*		rec;
 	ulint		n_reserved	= 0;
-	ibool		success;
+	bool		success;
 	ibool		ret		= FALSE;
 	ulint		level;
 	mem_heap_t*	heap;

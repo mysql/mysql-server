@@ -4574,8 +4574,8 @@ ibuf_merge_or_delete_for_page(
 	ulint		volume			= 0;
 #endif
 	page_zip_des_t*	page_zip		= NULL;
-	ibool		tablespace_being_deleted = FALSE;
-	ibool		corruption_noticed	= FALSE;
+	bool		tablespace_being_deleted = false;
+	bool		corruption_noticed	= false;
 	mtr_t		mtr;
 
 	/* Counts for merged & discarded operations. */
@@ -4679,7 +4679,7 @@ ibuf_merge_or_delete_for_page(
 
 			page_t*	bitmap_page;
 
-			corruption_noticed = TRUE;
+			corruption_noticed = true;
 
 			ut_print_timestamp(stderr);
 
