@@ -245,6 +245,9 @@ exec $mgm_cmd -e "CLUSTERLOG FILTER bogus1";
 echo # Should list default;
 exec $mgm_cmd -e "CLUSTERLOG INFO";
 
+echo # Bug 11752837: start backup wait started should not print completion logs;
+exec $mgm_cmd -e "START BACKUP WAIT STARTED";
+
 echo # Bug 16585455: start backup with backup ID out of range;
 --error 255
 exec $mgm_cmd -e "START BACKUP 201303271430 WAIT COMPLETED";
