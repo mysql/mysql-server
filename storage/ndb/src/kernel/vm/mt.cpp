@@ -652,11 +652,19 @@ struct thr_jb_write_state
   /* Thread-local copy of thr_job_queue::m_buffers[m_write_index]. */
   thr_job_buffer *m_write_buffer;
 
-  /* Number of signals inserted since last flush to thr_job_queue. */
-  Uint32 m_pending_signals;
+  /**
+    Number of signals inserted since last flush to thr_job_queue.
+    This variable stores the number of pending signals not yet flushed
+    in the lower 16 bits and the number of pending signals before a
+    wakeup is called of the other side in the upper 16 bits. To
+    simplify the code we implement the bit manipulations in the
+    methods below.
 
-  /* Number of signals inserted since last wakeup */
-  Uint32 m_pending_signals_wakeup;
+    The reason for this optimisation is to minimise use of memory for
+    these variables as they are likely to consume CPU cache memory.
+    It also speeds up some pending signal checks.
+  */
+  Uint32 m_pending_signals;
 };
 
 /*
@@ -693,6 +701,30 @@ struct thr_jb_read_state
   {
     assert(m_read_index != m_write_index  ||  m_read_pos <= m_read_end);
     return (m_read_index == m_write_index) && (m_read_pos >= m_read_end);
+  }
+  bool has_any_pending_signals() const
+  {
+    return m_pending_signals;
+  }
+  Uint32 get_pending_signals() const
+  {
+    return (m_pending_signals & 0xFFFF);
+  }
+  Uint32 get_pending_signals_wakeup() const
+  {
+    return (m_pending_signals >> 16);
+  }
+  void clear_pending_signals_and_set_wakeup(Uint32 wakeups)
+  {
+    m_pending_signals = (wakeups << 16);
+  }
+  void increment_pending_signals()
+  {
+    m_pending_signals++;
+  }
+  void init_pending_signals()
+  {
+    m_pending_signals = 0;
   }
 };
 
@@ -1959,8 +1991,7 @@ flush_write_state_self(thr_job_queue_head *q_head, thr_jb_write_state *w)
    */
   w->m_write_buffer->m_len = w->m_write_pos;
   q_head->m_write_index = w->m_write_index;
-  w->m_pending_signals_wakeup = 0;
-  w->m_pending_signals = 0;
+  w->init_pending_signals();
 }
 
 static inline
@@ -1968,6 +1999,7 @@ void
 flush_write_state_other(thr_data *dstptr, thr_job_queue_head *q_head,
                         thr_jb_write_state *w)
 {
+  Uint32 pending_signals_saved;
   /*
    * Two write memory barriers here, as assigning m_len may make signal data
    * available to other threads, and assigning m_write_index may make new
@@ -1983,16 +2015,26 @@ flush_write_state_other(thr_data *dstptr, thr_job_queue_head *q_head,
   wmb();
   q_head->m_write_index = w->m_write_index;
 
-  w->m_pending_signals_wakeup += w->m_pending_signals;
-  w->m_pending_signals = 0;
+  pending_signals_saved = w->get_pending_signals_wakeup();
+  pending_signals_saved += w->get_pending_signals();
 
-  if (w->m_pending_signals_wakeup >= MAX_SIGNALS_BEFORE_WAKEUP)
+  if (pending_signals_saved >= MAX_SIGNALS_BEFORE_WAKEUP)
   {
-    w->m_pending_signals_wakeup = 0;
+    w->init_pending_signals();
     wakeup(&(dstptr->m_waiter));
+  }
+  else
+  {
+    w->clear_pending_signals_and_set_wakeup(pending_signals_saved);
   }
 }
 
+/**
+  This function is used when we need to send signal immediately
+  due to the flush limit being reached. We don't know whether
+  signal is to ourselves in this case and we act dependent on who
+  is the receiver of the signal.
+*/
 static inline
 void
 flush_write_state(const thr_data *selfptr, thr_data *dstptr,
@@ -2008,6 +2050,52 @@ flush_write_state(const thr_data *selfptr, thr_data *dstptr,
   }
 }
 
+/**
+  This function is used when we are called from flush_jbb_write_state
+  where we know that the receiver should wakeup to receive the signals
+  we're sending.
+*/
+static inline
+void
+flush_write_state_other_wakeup(thr_data *dstptr,
+                               thr_job_queue_head *q_head,
+                               thr_jb_write_state *w)
+{
+  /*
+   * We already did a memory barrier before the loop calling this
+   * function to ensure the buffer is properly seen by receiving
+   * thread.
+   */
+  w->m_write_buffer->m_len = w->m_write_pos;
+  wmb();
+  q_head->m_write_index = w->m_write_index;
+
+  w->init_pending_signals();
+  wakeup(&(dstptr->m_waiter));
+}
+
+/**
+  This function is used when we need to send immediately, e.g. due to
+  the priority of the signal or as a crashing signal. We don't know
+  the receiver so check if it is to ourselves or to other thread.
+*/
+static inline
+void
+flush_write_state_wakeup(const thr_data *selfptr,
+                         thr_data *dstptr,
+                         thr_job_queue_head *q_head,
+                         thr_jb_write_state *w)
+{
+  if (dstptr == selfptr)
+  {
+    flush_write_state_self(q_head, w);
+  }
+  else
+  {
+    wmb();
+    flush_write_state_other_wakeup(dstptr, q_head, w);
+  }
+}
 
 static
 void
@@ -2016,16 +2104,34 @@ flush_jbb_write_state(thr_data *selfptr)
   Uint32 thr_count = g_thr_repository.m_thread_count;
   Uint32 self = selfptr->m_thr_no;
 
-  thr_jb_write_state *w = selfptr->m_write_states;
+  thr_jb_write_state *w = selfptr->m_write_states + self;
   thr_data_aligned *thr_align_ptr = g_thr_repository.m_thread;
-  for (Uint32 thr_no = 0; thr_no < thr_count; thr_no++, thr_align_ptr++, w++)
+
+  /**
+    We start by flushing to ourselves, this requires no extra memory
+    barriers and ensures that we can proceed in the loop knowing that
+    we will only send to remote threads.
+
+    After this we will insert a memory barrier before we start updating
+    the m_len variable that makes other threads see our signals that
+    we're sending to them. We need the memory barrier to ensure that the
+    buffers are seen properly updated by the remote thread when they see
+    the pointer to them.
+  */
+  if (w->has_any_pending_signals())
   {
-    if (w->m_pending_signals || w->m_pending_signals_wakeup)
+    flush_write_state_self(selfptr->m_in_queue_head + self, w);
+  }
+  wmb();
+  w = selfptr->m_write_states;
+  thr_jb_write_state *w_end = selfptr->m_write_states + thr_count;
+  for (; w < w_end; thr_align_ptr++, w++)
+  {
+    if (w->has_any_pending_signals())
     {
       struct thr_data *thrptr = &thr_align_ptr->m_thr_data;
-      w->m_pending_signals_wakeup = MAX_SIGNALS_BEFORE_WAKEUP;
       thr_job_queue_head *q_head = thrptr->m_in_queue_head + self;
-      flush_write_state(selfptr, thrptr, q_head, w);
+      flush_write_state_other_wakeup(thrptr, q_head, w);
     }
   }
 }
@@ -2420,7 +2526,12 @@ release_list(thread_local_pool<thr_send_page>* pool,
 
 /**
  * pack thr_send_pages for a particular send-buffer <em>db</em>
- *   release pages (local) to <em>pool<em>
+ * release pages (local) to <em>pool</em>
+ *
+ * We're using a very simple algorithm that packs two neighbour
+ * pages into one page if possible, if not possible we simply
+ * move on. This guarantees that pages will at least be full to
+ * 50% fill level which should be sufficient for our needs here.
  *
  * can only be called with sb->m_lock held
  */
@@ -2441,6 +2552,11 @@ pack_sb_pages(thread_local_pool<thr_send_page>* pool,
     assert(next->m_start == 0); // only first page should have half sent bytes
     if (next->m_bytes <= curr_free)
     {
+      /**
+       * There is free space in the current page and it is sufficient to
+       * store the entire next-page. Copy from next page to current page
+       * and update current page and release next page to local pool.
+       */
       thr_send_page * save = next;
       memcpy(curr->m_data + (curr->m_bytes + curr->m_start),
              next->m_data,
@@ -2455,6 +2571,7 @@ pack_sb_pages(thread_local_pool<thr_send_page>* pool,
     }
     else
     {
+      /* Not enough free space in current, move to next page */
       curr = next;
       curr_free = curr->max_bytes() - (curr->m_bytes + curr->m_start);
     }
@@ -2470,23 +2587,10 @@ bytes_sent(thread_local_pool<thr_send_page>* pool,
 {
   assert(bytes);
 
-  Uint32 remain = bytes;
-  thr_send_page * prev = 0;
-  thr_send_page * curr = sb->m_buffer.m_first_page;
-
-  assert(sb->m_bytes >= bytes);
-  while (remain && remain >= curr->m_bytes)
-  {
-    remain -= curr->m_bytes;
-    prev = curr;
-    curr = curr->m_next;
-  }
-
-  Uint32 total_bytes = sb->m_bytes;
-  if (total_bytes == bytes)
+  if (sb->m_bytes == bytes)
   {
     /**
-     * Every thing was released
+     * Every thing was released, release the pages in the local pool
      */
     release_list(pool, sb->m_buffer.m_first_page, sb->m_buffer.m_last_page);
     sb->m_buffer.m_first_page = 0;
@@ -2494,10 +2598,33 @@ bytes_sent(thread_local_pool<thr_send_page>* pool,
     sb->m_bytes = 0;
     return 0;
   }
-  else if (remain)
+
+  /* Not all data was sent, handle this */
+  Uint32 remain = bytes;
+  thr_send_page * prev = 0;
+  thr_send_page * curr = sb->m_buffer.m_first_page;
+
+  assert(sb->m_bytes > bytes);
+  while (remain && remain >= curr->m_bytes)
   {
     /**
-     * Half a page was released
+     * Calculate new current page such that we can release the
+     * pages that have been completed and update the state of
+     * the new current page
+     */
+    remain -= curr->m_bytes;
+    prev = curr;
+    curr = curr->m_next;
+  }
+
+  if (remain)
+  {
+    /**
+     * Not all pages was fully sent and we stopped in the middle of
+     * a page
+     *
+     * Update state of new current page and release any pages
+     * that have already been sent
      */
     curr->m_start += remain;
     assert(curr->m_bytes > remain);
@@ -2510,13 +2637,15 @@ bytes_sent(thread_local_pool<thr_send_page>* pool,
   else
   {
     /**
-     * X full page(s) was released
+     * We sent a couple of full pages and the sending stopped at a
+     * page boundary, so we only need to release the sent pages
+     * and update the new current page.
      */
     if (prev)
     {
       release_list(pool, sb->m_buffer.m_first_page, prev);
     }
-    else
+    else if (bytes > 0)
     {
       pool->release_local(sb->m_buffer.m_first_page);
     }
@@ -2528,8 +2657,8 @@ bytes_sent(thread_local_pool<thr_send_page>* pool,
 
   /**
    * Since not all bytes were sent...
-   *   spend the time to try to pack the pages
-   *   possibly releasing send-buffer
+   * spend the time to try to pack the pages
+   * possibly releasing send-buffer
    */
   pack_sb_pages(pool, sb);
 
@@ -2546,12 +2675,14 @@ trp_callback::bytes_sent(NodeId node, Uint32 bytes)
   {
     thr_data * thrptr = &g_thr_repository.m_thread[thr_no].m_thr_data;
     return ::bytes_sent(&thrptr->m_send_buffer_pool,
-                        sb, bytes);
+                        sb,
+                        bytes);
   }
   else
   {
     return ::bytes_sent(g_send_threads->get_send_buffer_pool(thr_no),
-                        sb, bytes);
+                        sb,
+                        bytes);
   }
 }
 
@@ -2636,19 +2767,20 @@ pack_send_buffer(thr_data *selfptr, Uint32 node)
   unlock(&sb->m_send_lock);
 
   /**
-   * release buffers prior to checking m_force_send
+   * release buffers fron local pool to global pool prior to checking
+   * m_force_send
    */
   pool->release_global(rep->m_mm, RG_TRANSPORTER_BUFFERS);
 
   /**
    * After having locked/unlock m_send_lock
-   *   "protocol" dictates that we must check the m_force_send
+   * "protocol" dictates that we must check the m_force_send
    */
 
   /**
    * We need a memory barrier here to prevent race between clearing lock
-   *   and reading of m_force_send.
-   *   CPU can reorder the load to before the clear of the lock
+   * and reading of m_force_send.
+   * CPU can reorder the load to before the clear of the lock
    */
   mb();
   if (sb->m_force_send)
@@ -2657,6 +2789,23 @@ pack_send_buffer(thr_data *selfptr, Uint32 node)
   }
 }
 
+/**
+  Pack send buffers to make memory available to other threads. The signals
+  sent uses often one page per signal which means that most pages are very
+  unpacked. In some situations this means that we can run out of send buffers
+  and still have massive amounts of free space. We solve this by calling
+  this function in a number of critical places.
+
+  We call this from the main loop in the block threads when we fail to
+  allocate enough send buffers. We also call the node local pack_send_buffer
+  function when we fail to send all data to one specific node immediately.
+  This ensures that we won't get pages allocated with lots of free spaces
+  when we use the send threads. The send threads will use the pack_send_buffer
+  from the bytes_sent function which is a callback from the transporter.
+
+  We also call the local pack_send_buffer when the buffer of pages in
+  flush_send_buffer is full.
+*/
 static
 void
 pack_send_buffers(thr_data* selfptr)
@@ -2861,9 +3010,16 @@ do_send(struct thr_data* selfptr, bool must_send)
 
     if (g_send_threads)
     {
+      /**
+       * We're using send threads, in this case we simply alert any send
+       * thread to take over the actual sending of the signals. In this case
+       * we will never have any failures. So we simply need to flush buffers
+       * leave over to the send thread
+       */
       g_send_threads->alert_send_thread(node);
       continue;
     }
+    /* We're not using send threads */
     thr_repository::send_buffer * sb = rep->m_send_buffers + node;
 
     /**
@@ -3017,7 +3173,7 @@ insert_signal(thr_job_queue *q, thr_job_queue_head *h,
   const Uint32 *p= secPtr;
   for (Uint32 i = 0; i < sh->m_noOfSections; i++)
     w->m_write_buffer->m_data[write_pos++] = *p++;
-  w->m_pending_signals++;
+  w->increment_pending_signals();
 
 #if SIZEOF_CHARP == 8
   /* Align to 8-byte boundary, to ensure aligned copies. */
@@ -4005,8 +4161,10 @@ sendlocal(Uint32 self, const SignalHeader *s, const Uint32 *data,
   {
     selfptr->m_next_buffer = seize_buffer(rep, self, false);
   }
-  if (w->m_pending_signals >= MAX_SIGNALS_BEFORE_FLUSH)
+  if (w->get_pending_signals() >= MAX_SIGNALS_BEFORE_FLUSH)
+  {
     flush_write_state(selfptr, dstptr, h, w);
+  }
 }
 
 void
@@ -4038,11 +4196,9 @@ sendprioa(Uint32 self, const SignalHeader *s, const uint32 *data,
   thr_job_buffer *buffer = q->m_buffers[index];
   w.m_write_buffer = buffer;
   w.m_write_pos = buffer->m_len;
-  w.m_pending_signals = 0;
-  w.m_pending_signals_wakeup = MAX_SIGNALS_BEFORE_WAKEUP;
   bool buf_used = insert_signal(q, h, &w, true, s, data, secPtr,
                                 selfptr->m_next_buffer);
-  flush_write_state(selfptr, dstptr, h, &w);
+  flush_write_state_wakeup(selfptr, dstptr, h, &w);
 
   unlock(&dstptr->m_jba_write_lock);
 
@@ -4137,11 +4293,9 @@ sendprioa_STOP_FOR_CRASH(const struct thr_data *selfptr, Uint32 dst)
   thr_job_buffer *buffer = q->m_buffers[index];
   w.m_write_buffer = buffer;
   w.m_write_pos = buffer->m_len;
-  w.m_pending_signals = 0;
-  w.m_pending_signals_wakeup = MAX_SIGNALS_BEFORE_WAKEUP;
   insert_signal(q, h, &w, true, &signalT.header, signalT.theData, NULL,
                 &dummy_buffer);
-  flush_write_state(selfptr, dstptr, h, &w);
+  flush_write_state_wakeup(selfptr, dstptr, h, &w);
 
   unlock(&dstptr->m_jba_write_lock);
 }
@@ -4232,8 +4386,7 @@ thr_init2(struct thr_repository* rep, struct thr_data *selfptr,
     selfptr->m_write_states[i].m_write_pos = 0;
     selfptr->m_write_states[i].m_write_buffer =
       rep->m_thread[i].m_thr_data.m_in_queue[thr_no].m_buffers[0];
-    selfptr->m_write_states[i].m_pending_signals = 0;
-    selfptr->m_write_states[i].m_pending_signals_wakeup = 0;
+    selfptr->m_write_states[i].init_pending_signals();
   }    
 }
 
