@@ -261,7 +261,7 @@ struct dyn_buf_t {
 		while (len > 0) {
 			ulint	n_copied;
 
-			n_copied = (len >= MAX_DATA_SIZE) : MAX_DATA_SIZE : len;
+			n_copied = (len >= MAX_DATA_SIZE) ? MAX_DATA_SIZE : len;
 
 			::memmove(push<byte*>(n_copied), ptr, n_copied);
 
