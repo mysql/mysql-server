@@ -247,7 +247,7 @@ int test_main(int argc, char * const argv[]) {
     }
     r = db_env->open(db_env, db_env_dir, db_env_open_flags, S_IRUSR | S_IWUSR | S_IRGRP | S_IROTH); assert(r == 0);
 #if TOKUDB
-    r = db_env->set_lock_timeout(db_env, 30 * 1000); assert(r == 0);
+    r = db_env->set_lock_timeout(db_env, 30 * 1000, nullptr); assert(r == 0);
 #endif
 
     // create the db

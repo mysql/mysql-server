@@ -233,7 +233,7 @@ int test_main(int argc, char * const argv[]) {
     uint64_t lock_timeout_msec;
     r = db_env->get_lock_timeout(db_env, &lock_timeout_msec); assert(r == 0);
     if (verbose) printf("lock timeout: %" PRIu64 "\n", lock_timeout_msec);
-    r = db_env->set_lock_timeout(db_env, 5000); assert(r == 0);
+    r = db_env->set_lock_timeout(db_env, 5000, nullptr); assert(r == 0);
     r = db_env->get_lock_timeout(db_env, &lock_timeout_msec); assert(r == 0);
     if (verbose) printf("lock timeout: %" PRIu64 "\n", lock_timeout_msec);
 #endif

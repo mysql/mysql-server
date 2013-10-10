@@ -273,7 +273,7 @@ int test_main(int argc, char * const argv[]) {
 #endif
     r = db_env->open(db_env, db_env_dir, db_env_open_flags, S_IRUSR | S_IWUSR | S_IRGRP | S_IROTH); assert(r == 0);
 #if defined(USE_TDB)
-    r = db_env->set_lock_timeout(db_env, 0); assert(r == 0); // no wait
+    r = db_env->set_lock_timeout(db_env, 0, nullptr); assert(r == 0); // no wait
 #elif defined(USE_BDB)
     r = db_env->set_lk_detect(db_env, DB_LOCK_YOUNGEST); assert(r == 0);
     r = db_env->set_timeout(db_env, 10000, DB_SET_LOCK_TIMEOUT); assert(r == 0);

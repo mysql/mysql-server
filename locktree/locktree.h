@@ -238,7 +238,7 @@ public:
 
         uint64_t get_lock_wait_time(void);
 
-        void set_lock_wait_time(uint64_t lock_wait_time);
+        void set_lock_wait_time(uint64_t lock_wait_time, uint64_t (*get_lock_wait_time_cb)(uint64_t default_lock_wait_time));
 
         // effect: Get a locktree from the manager. If a locktree exists with the given
         //         dict_id, it is referenced and then returned. If one did not exist, it
@@ -324,6 +324,7 @@ public:
 
         // lock wait time for blocking row locks, in ms
         uint64_t m_lock_wait_time_ms;
+        uint64_t (*m_get_lock_wait_time_cb)(uint64_t);
 
         // the create and destroy callbacks for the locktrees
         lt_create_cb m_lt_create_callback;
