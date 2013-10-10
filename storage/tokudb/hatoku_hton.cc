@@ -178,7 +178,6 @@ void toku_hton_update_primary_key_bytes_inserted(uint64_t row_size) {
     increment_partitioned_counter(tokudb_primary_key_bytes_inserted, row_size);
 }
 
-static ulonglong tokudb_lock_timeout;
 static void tokudb_lock_timeout_callback(DB *db, uint64_t requesting_txnid, const DBT *left_key, const DBT *right_key, uint64_t blocking_txnid);
 static ulong tokudb_cleaner_period;
 static ulong tokudb_cleaner_iterations;
@@ -476,7 +475,7 @@ static int tokudb_init_func(void *p) {
     r = db_env->cleaner_set_iterations(db_env, tokudb_cleaner_iterations);
     assert(r == 0);
 
-    r = db_env->set_lock_timeout(db_env, tokudb_lock_timeout);
+    r = db_env->set_lock_timeout(db_env, DEFAULT_TOKUDB_LOCK_TIMEOUT, tokudb_get_lock_wait_time_callback);
     assert(r == 0);
 
     r = db_env->get_engine_status_num_rows (db_env, &toku_global_status_max_rows);
@@ -1156,20 +1155,6 @@ static void tokudb_cleanup_log_files(void) {
 
 
 // system variables
-
-static void tokudb_lock_timeout_update(THD * thd, struct st_mysql_sys_var * sys_var, void * var, const void * save) {
-    ulonglong *timeout = (ulonglong *) var;
-    *timeout = *(const ulonglong *) save;
-    db_env->set_lock_timeout(db_env, *timeout);
-}
-
-#define DEFAULT_LOCK_TIMEOUT_MSEC 4000
-
-static MYSQL_SYSVAR_ULONGLONG(lock_timeout, tokudb_lock_timeout,
-    0, "TokuDB lock timeout", 
-    NULL, tokudb_lock_timeout_update, DEFAULT_LOCK_TIMEOUT_MSEC,
-    0, ~0ULL, 0);
-
 static void tokudb_cleaner_period_update(THD * thd, struct st_mysql_sys_var * sys_var, void * var, const void * save) {
     ulong * cleaner_period = (ulong *) var;
     *cleaner_period = *(const ulonglong *) save;

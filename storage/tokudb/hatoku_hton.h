@@ -341,6 +341,25 @@ static MYSQL_THDVAR_STR(last_lock_timeout, PLUGIN_VAR_MEMALLOC, "last TokuDB loc
 
 static MYSQL_THDVAR_BOOL(hide_default_row_format, 0, "hide the default row format", NULL /*check*/, NULL /*update*/, false);
 
+#define DEFAULT_TOKUDB_LOCK_TIMEOUT 4000 /*milliseconds*/
+
+static MYSQL_THDVAR_ULONGLONG(lock_timeout,
+    0,
+    "lock timeout",
+    NULL, 
+    NULL, 
+    DEFAULT_TOKUDB_LOCK_TIMEOUT, /*default*/
+    0, /*min*/
+    ~0ULL, /*max*/
+    1 /*blocksize*/
+);
+
+static uint64_t tokudb_get_lock_wait_time_callback(uint64_t default_wait_time) {
+    THD *thd = current_thd;
+    uint64_t wait_time = THDVAR(thd, lock_timeout);
+    return wait_time;
+}
+
 extern HASH tokudb_open_tables;
 extern pthread_mutex_t tokudb_mutex;
 extern pthread_mutex_t tokudb_meta_mutex;
