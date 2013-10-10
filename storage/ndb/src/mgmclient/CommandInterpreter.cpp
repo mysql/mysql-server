@@ -3096,6 +3096,12 @@ CommandInterpreter::executeStartBackup(char* parameters, bool interactive)
           Guard g(m_print_mutex);
           printLogEvent(&log_event);
           count++;
+          // for WAIT STARTED, exit after printing "Backup started" logevent
+          if(flags == 1 && log_event.type == NDB_LE_BackupStarted) 
+          {
+            ndb_mgm_destroy_logevent_handle(&log_handle);
+            return 0;
+          }
         }
       }
       else
