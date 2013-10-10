@@ -485,6 +485,8 @@ class Item_num_op :public Item_func_numhybrid
 
 class Item_int_func :public Item_func
 {
+protected:
+  bool sargable;
 public:
   Item_int_func() :Item_func() { max_length= 21; }
   Item_int_func(Item *a) :Item_func(a) { max_length= 21; }
@@ -496,7 +498,8 @@ public:
   double val_real();
   String *val_str(String*str);
   enum Item_result result_type () const { return INT_RESULT; }
-  void fix_length_and_dec() {}
+  void fix_length_and_dec() { sargable= false; }
+  bool count_sargable_conds(uchar *arg);
 };
 
 

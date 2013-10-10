@@ -733,6 +733,16 @@ double Item_int_func::val_real()
   return unsigned_flag ? (double) ((ulonglong) val_int()) : (double) val_int();
 }
 
+bool Item_int_func::count_sargable_conds(uchar *arg)
+{
+  if (sargable)
+  {
+    SELECT_LEX *sel= (SELECT_LEX *) arg;
+    sel->cond_count++;
+  }
+  return 0;
+}
+
 
 String *Item_int_func::val_str(String *str)
 {

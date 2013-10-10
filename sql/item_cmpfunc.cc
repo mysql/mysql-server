@@ -539,6 +539,8 @@ void Item_bool_func2::fix_length_and_dec()
     to the collation of A.
   */
 
+  sargable= true;
+
   DTCollation coll;
   if (args[0]->result_type() == STRING_RESULT &&
       args[1]->result_type() == STRING_RESULT &&
@@ -1433,6 +1435,7 @@ bool Item_in_optimizer::eval_not_null_tables(uchar *opt_arg)
   return FALSE;
 }
 
+
 bool Item_in_optimizer::fix_left(THD *thd, Item **ref)
 {
   if ((!args[0]->fixed && args[0]->fix_fields(thd, args)) ||
@@ -2160,6 +2163,15 @@ bool Item_func_between::eval_not_null_tables(uchar *opt_arg)
 }  
 
 
+bool Item_func_between::count_sargable_conds(uchar *arg)
+{
+  SELECT_LEX *sel= (SELECT_LEX *) arg;
+  sel->cond_count++;
+  sel->between_count++;
+  return 0;
+}
+
+
 void Item_func_between::fix_after_pullout(st_select_lex *new_parent, Item **ref)
 {
   /* This will re-calculate attributes of the arguments */
@@ -2173,6 +2185,7 @@ void Item_func_between::fix_length_and_dec()
   THD *thd= current_thd;
   max_length= 1;
   compare_as_dates= 0;
+  sargable= true;
 
   /*
     As some compare functions are generated after sql_yacc,
@@ -3852,6 +3865,7 @@ void Item_func_in::fix_length_and_dec()
   uint found_types= 0;
   uint type_cnt= 0, i;
   Item_result cmp_type= STRING_RESULT;
+  sargable= true;
   left_result_type= args[0]->cmp_type();
   if (!(found_types= collect_cmp_types(args, arg_count, true)))
     return;
@@ -4638,6 +4652,7 @@ longlong Item_func_isnull::val_int()
   return args[0]->is_null() ? 1: 0;
 }
 
+
 longlong Item_is_not_null_test::val_int()
 {
   DBUG_ASSERT(fixed == 1);
@@ -4840,6 +4855,7 @@ bool Item_func_like::fix_fields(THD *thd, Item **ref)
   }
   return FALSE;
 }
+
 
 void Item_func_like::cleanup()
 {
@@ -5868,6 +5884,14 @@ void Item_equal::update_used_tables()
 }
 
 
+bool Item_equal::count_sargable_conds(uchar *arg)
+{
+  SELECT_LEX *sel= (SELECT_LEX *) arg;
+  uint m= equal_items.elements;
+  sel->cond_count+= m*(m-1);
+  return 0;
+}
+
 
 /**
   @brief
@@ -5920,6 +5944,7 @@ void Item_equal::fix_length_and_dec()
   Item *item= get_first(NO_PARTICULAR_TAB, NULL);
   eval_item= cmp_item::get_comparator(item->cmp_type(), item,
                                       item->collation.collation);
+  sargable= true;
 }
 
 

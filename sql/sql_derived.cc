@@ -394,8 +394,6 @@ bool mysql_derived_merge(THD *thd, LEX *lex, TABLE_LIST *derived)
     if (dt_select->options & OPTION_SCHEMA_TABLE)
       parent_lex->options |= OPTION_SCHEMA_TABLE;
 
-    parent_lex->cond_count+= dt_select->cond_count;
-
     if (!derived->get_unit()->prepared)
     {
       dt_select->leaf_tables.empty();

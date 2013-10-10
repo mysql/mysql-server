@@ -4733,6 +4733,32 @@ update_ref_and_keys(THD *thd, DYNAMIC_ARRAY *keyuse,JOIN_TAB *join_tab,
   KEY_FIELD *key_fields, *end, *field;
   uint sz;
   uint m= max(select_lex->max_equal_elems,1);
+
+  SELECT_LEX *sel=thd->lex->current_select; 
+  sel->cond_count= 0;
+  sel->between_count= 0; 
+  if (cond)
+    cond->walk(&Item::count_sargable_conds, 0, (uchar*) sel);
+  for (i=0 ; i < tables ; i++)
+  {
+    if (*join_tab[i].on_expr_ref)
+      (*join_tab[i].on_expr_ref)->walk(&Item::count_sargable_conds,
+                                       0, (uchar*) sel);
+  }
+  {
+    List_iterator<TABLE_LIST> li(*join_tab->join->join_list);
+    TABLE_LIST *table;
+    while ((table= li++))
+    {
+      if (table->nested_join)
+      {
+        if (table->on_expr)
+          table->on_expr->walk(&Item::count_sargable_conds, 0, (uchar*) sel);
+        if (table->sj_on_expr)
+          table->sj_on_expr->walk(&Item::count_sargable_conds, 0, (uchar*) sel);
+      }
+    }
+  }
   
   /* 
     We use the same piece of memory to store both  KEY_FIELD 
@@ -4756,8 +4782,7 @@ update_ref_and_keys(THD *thd, DYNAMIC_ARRAY *keyuse,JOIN_TAB *join_tab,
     substitutions.
   */ 
   sz= max(sizeof(KEY_FIELD),sizeof(SARGABLE_PARAM))*
-      (((thd->lex->current_select->cond_count+1)*2 +
-	thd->lex->current_select->between_count)*m+1);
+    ((sel->cond_count*2 + sel->between_count)*m+1);
   if (!(key_fields=(KEY_FIELD*)	thd->alloc(sz)))
     return TRUE; /* purecov: inspected */
   and_level= 0;
@@ -11219,13 +11244,10 @@ static bool check_row_equality(THD *thd, Item *left_row, Item_row *right_row,
                                        (Item_row *) left_item,
                                        (Item_row *) right_item,
 			               cond_equal, eq_list);
-      if (!is_converted)
-        thd->lex->current_select->cond_count++;      
     }
     else
     { 
       is_converted= check_simple_equality(left_item, right_item, 0, cond_equal);
-      thd->lex->current_select->cond_count++;
     }  
  
     if (!is_converted)
@@ -11284,7 +11306,6 @@ static bool check_equality(THD *thd, Item *item, COND_EQUAL *cond_equal,
     if (left_item->type() == Item::ROW_ITEM &&
         right_item->type() == Item::ROW_ITEM)
     {
-      thd->lex->current_select->cond_count--;
       return check_row_equality(thd,
                                 (Item_row *) left_item,
                                 (Item_row *) right_item,

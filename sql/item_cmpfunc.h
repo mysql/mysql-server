@@ -118,7 +118,7 @@ public:
   Item_bool_func(Item *a,Item *b) :Item_int_func(a,b) {}
   Item_bool_func(THD *thd, Item_bool_func *item) :Item_int_func(thd, item) {}
   bool is_bool_func() { return 1; }
-  void fix_length_and_dec() { decimals=0; max_length=1; }
+  void fix_length_and_dec() { decimals=0; max_length=1; sargable= true;}
   uint decimal_precision() const { return 1; }
 };
 
@@ -681,6 +681,7 @@ public:
   uint decimal_precision() const { return 1; }
   bool eval_not_null_tables(uchar *opt_arg);
   void fix_after_pullout(st_select_lex *new_parent, Item **ref);
+  bool count_sargable_conds(uchar *arg);
 };
 
 
@@ -1747,6 +1748,7 @@ public:
   CHARSET_INFO *compare_collation();
 
   void set_context_field(Item_field *ctx_field) { context_field= ctx_field; }
+  bool count_sargable_conds(uchar *arg);
   friend class Item_equal_iterator<List_iterator_fast,Item>;
   friend class Item_equal_iterator<List_iterator,Item>;
   friend Item *eliminate_item_equal(COND *cond, COND_EQUAL *upper_levels,
