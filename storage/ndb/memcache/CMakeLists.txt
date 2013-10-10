@@ -236,7 +236,7 @@ install(DIRECTORY DESTINATION ${MEMCACHE_API_DIR} )
 install(PROGRAMS ${CMAKE_CURRENT_BINARY_DIR}/sandbox.sh 
         DESTINATION  ${MEMCACHE_API_DIR})
 install(FILES README DESTINATION  ${MEMCACHE_API_DIR})
-install(FILES ${CMAKE_CURRENT_BINARY_DIR}/scripts/ndb_memcache_metadata.sql 
+install(FILES ${CMAKE_CURRENT_SOURCE_DIR}/scripts/ndb_memcache_metadata.sql 
         DESTINATION  ${MEMCACHE_API_DIR})
 # Upgrader scripts:
 install(DIRECTORY DESTINATION ${MEMCACHE_API_DIR}/upgrade)
