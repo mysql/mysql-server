@@ -1444,7 +1444,7 @@ dict_table_rename_in_cache(
 
 	if (dict_table_is_discarded(table)) {
 		os_file_type_t	type;
-		ibool		exists;
+		bool		exists;
 		char*		filepath;
 
 		ut_ad(!Tablespace::is_system_tablespace(table->space));
@@ -1507,7 +1507,7 @@ dict_table_rename_in_cache(
 			}
 		}
 
-		ibool	success = fil_rename_tablespace(
+		bool	success = fil_rename_tablespace(
 			old_name, table->space, new_name, new_path);
 
 		/* If the tablespace is remote, a new .isl file was created

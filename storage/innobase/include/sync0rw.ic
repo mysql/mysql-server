@@ -541,7 +541,7 @@ rw_lock_s_unlock_func(
 	ut_ad(rw_lock_validate(lock));
 
 #ifdef UNIV_SYNC_PERF_STAT
-	rw_s_exit_count++;
+	rw_lock_stats.rw_s_exit_count.inc();
 #endif
 }
 
@@ -605,7 +605,7 @@ rw_lock_x_unlock_func(
 	ut_ad(rw_lock_validate(lock));
 
 #ifdef UNIV_SYNC_PERF_STAT
-	rw_x_exit_count++;
+	rw_lock_stats.rw_x_exit_count.inc();
 #endif /* UNIV_SYNC_DEBUG */
 }
 
@@ -662,7 +662,7 @@ rw_lock_sx_unlock_func(
 	ut_ad(rw_lock_validate(lock));
 
 #ifdef UNIV_SYNC_PERF_STAT
-	rw_sx_exit_count++;
+	rw_lock_stats.rw_sx_exit_count.inc();
 #endif /* UNIV_SYNC_PERF_STAT */
 }
 
