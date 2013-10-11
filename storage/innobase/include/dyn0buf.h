@@ -48,7 +48,7 @@ public:
 	typedef UT_LIST_BASE_NODE_T(block_t) block_list_t;
 
 	class block_t {
-	private:
+	public:
 
 		block_t() { init(); }
 		~block_t() { }
@@ -151,14 +151,19 @@ public:
 		/** Doubly linked list node. */
 		block_node_t	m_node;
 
-		/*!< number of data bytes used in this block;
+		/** number of data bytes used in this block;
 		DYN_BLOCK_FULL_FLAG is set when the block becomes full */
 		ib_uint32_t	m_used;
 
-		/*!< Storage */
-		byte		m_data[SIZE - sizeof(m_node) + sizeof(m_used)];
+		/** SIZE - sizeof(m_node) + sizeof(m_used) */
+		enum {
+			MAX_DATA_SIZE = SIZE
+				      - sizeof(block_node_t)
+		       		      + sizeof(ib_uint32_t)
+		};
 
-		enum { MAX_DATA_SIZE = sizeof(m_data) };
+		/** Storage */
+		byte            m_data[MAX_DATA_SIZE];
 
 		friend class dyn_buf_t;
 	};
