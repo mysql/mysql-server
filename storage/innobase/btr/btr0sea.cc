@@ -787,7 +787,7 @@ btr_search_failure(btr_search_t* info, btr_cur_t* cursor)
 	++info->n_hash_fail;
 
 	if (info->n_hash_succ > 0) {
-		--info->n_hash_succ
+		--info->n_hash_succ;
 	}
 #endif /* UNIV_SEARCH_PERF_STAT */
 

@@ -85,7 +85,7 @@ Tablespace::parse(
 	ulint	n_files = 0;
 
 	ut_ad(m_last_file_size_max == 0);
-	ut_ad(m_auto_extend_last_file == false);
+	ut_ad(!m_auto_extend_last_file);
 
 	char*	new_str = strdup(filepath);
 	char*	str = new_str;
@@ -374,7 +374,7 @@ Tablespace::open_data_file(
 /*=======================*/
 	file_t&	file)
 {
-	ibool	success;
+	bool	success;
 
 	file.m_handle = os_file_create(
 		innodb_data_file_key, file.m_filename, file.m_open_flags,
