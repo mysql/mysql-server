@@ -22,7 +22,6 @@
 #include <NdbMem.h>
 #include <NdbMutex.h>
 
-#define MAX_PROCESSOR_SETS 64
 struct processor_set_handler
 {
   Uint32 ref_count;
