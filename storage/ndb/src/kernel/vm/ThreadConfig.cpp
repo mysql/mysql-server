@@ -105,8 +105,10 @@ ThreadConfig::scanTimeQueue()
 // The timeout value in this call is calculated as (10 ms - laptime)
 // This would make ndb use less cpu while improving response time.
 //--------------------------------------------------------------------
-void ThreadConfig::ipControlLoop(NdbThread*, Uint32 thread_index)
+void ThreadConfig::ipControlLoop(NdbThread* pThis)
 {
+  Uint32 thread_index = globalEmulatorData.theConfiguration->addThread(pThis,
+                                                                 BlockThread);
   globalEmulatorData.theConfiguration->setAllLockCPU(true);
 
   Uint32 execute_loop_constant =
@@ -310,7 +312,7 @@ out:
   globalTransporterRegistry.performSend();
 
   globalEmulatorData.theWatchDog->unregisterWatchedThread(0);
-
+  globalEmulatorData.theConfiguration->removeThread(pThis);
 }//ThreadConfig::ipControlLoop()
 
 int
