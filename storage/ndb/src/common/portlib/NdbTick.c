@@ -190,3 +190,10 @@ NdbTick_getMicrosPassed(struct MicroSecondTimer start,
   }
   return ret_value;
 }
+
+NDB_TICKS NdbTick_getMillisecond(struct MicroSecondTimer *time)
+{
+  return 
+    ((NDB_TICKS)time->seconds)  * ((NDB_TICKS)MILLISEC_PER_SEC) +
+    ((NDB_TICKS)time->micro_seconds) / ((NDB_TICKS)MICROSEC_PER_MILLISEC);
+}
