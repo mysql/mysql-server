@@ -1027,7 +1027,6 @@ public:
     /* TCKEYREQ/TCINDXREQ only fields */
       UintR  schemaVersion;/* SCHEMA VERSION USED IN TRANSACTION         */
       UintR  tableref;     /* POINTER TO THE TABLE IN WHICH THE FRAGMENT EXISTS*/
-      Uint16 apiVersionNo;
     
       UintR  fragmentid;   /* THE COMPUTED FRAGMENT ID                     */
       UintR  hashValue;    /* THE HASH VALUE USED TO LOCATE FRAGMENT       */
