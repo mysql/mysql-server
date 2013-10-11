@@ -36,6 +36,7 @@
 #include <sys/lwp.h>
 #include <sys/processor.h>
 #include <sys/procset.h>
+#include <sys/pset.h>
 #endif
 
 #ifdef NDB_MUTEX_DEADLOCK_DETECTOR
@@ -583,11 +584,11 @@ NdbThread_UnlockCPU(struct NdbThread* pThread)
 #elif defined HAVE_SOLARIS_AFFINITY
   if (!pThread->first_lock_call)
   {
-    if (pThread->proc_set_id != MAX_PROC_SETS)
+    if (pThread->proc_set_id != MAX_PROCESSOR_SETS)
     {
       pset_destroy(pThread->proc_set);
       solaris_remove_use_proc_set(pThread->proc_set_id);
-      pThread->proc_set_id = MAX_PROC_SETS;
+      pThread->proc_set_id = MAX_PROCESSOR_SETS;
     }
     ret= pset_bind(pThread->orig_proc_set,
                    P_LWPID,
