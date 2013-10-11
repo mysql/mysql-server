@@ -378,12 +378,11 @@ JOIN::optimize()
       DBUG_RETURN(1);
     }
     /*
-      Fields may have been replaced by Item_func_rollup_const, so we must
-      recalculate the number of fields and functions. However,
-      JOIN::rollup_init() has set quick_group=0, and we must not undo that.
+      Fields may have been replaced by Item_func_rollup_const, and
+      these may be referred to by inner subqueries. We must
+      recalculate the number of fields and functions recursively.
     */
-    count_field_types(select_lex, &tmp_table_param, all_fields, false, false);
-    tmp_table_param.quick_group= 0; // Can't create groups in tmp table
+    recount_field_types();
   }
   else
   {
@@ -9841,6 +9840,25 @@ bool JOIN::compare_costs_of_subquery_strategies(
   return false;
 }
 
+
+void JOIN::recount_field_types()
+{
+  // JOIN::rollup_init() may set quick_group=0, and we must not undo that.
+  const uint save_quick_group= tmp_table_param.quick_group;
+
+  count_field_types(select_lex, &tmp_table_param, all_fields, false, false);
+  tmp_table_param.quick_group= save_quick_group;
+
+  for (SELECT_LEX_UNIT *u= select_lex->first_inner_unit();
+       u != NULL;
+       u= u->next_unit())
+  {
+    for (SELECT_LEX *s= u->first_select(); s != NULL; s= s->next_select())
+    {
+      s->join->recount_field_types();
+    }
+  }
+}
 
 /**
   Refine the best_rowcount estimation based on what happens after tables

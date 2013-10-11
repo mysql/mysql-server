@@ -36,10 +36,4 @@ bool trans_savepoint(THD *thd, LEX_STRING name);
 bool trans_rollback_to_savepoint(THD *thd, LEX_STRING name);
 bool trans_release_savepoint(THD *thd, LEX_STRING name);
 
-bool trans_xa_start(THD *thd);
-bool trans_xa_end(THD *thd);
-bool trans_xa_prepare(THD *thd);
-bool trans_xa_commit(THD *thd);
-bool trans_xa_rollback(THD *thd);
-
 #endif /* TRANSACTION_H */

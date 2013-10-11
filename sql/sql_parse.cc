@@ -89,6 +89,7 @@
 #include "events.h"
 #include "sql_trigger.h"      // mysql_create_or_drop_trigger
 #include "transaction.h"
+#include "xa.h"
 #include "sql_audit.h"
 #include "sql_prepare.h"
 #include "debug_sync.h"
@@ -158,10 +159,6 @@ const LEX_STRING command_name[]={
   { C_STRING_WITH_LEN("Daemon") },
   { C_STRING_WITH_LEN("Binlog Dump GTID") },
   { C_STRING_WITH_LEN("Error") }  // Last command number
-};
-
-const char *xa_state_names[]={
-  "NON-EXISTING", "ACTIVE", "IDLE", "PREPARED", "ROLLBACK ONLY"
 };
 
 #ifdef HAVE_REPLICATION
@@ -4081,16 +4078,20 @@ end_with_restore_list:
     {
       my_error(ER_NOT_SUPPORTED_YET, MYF(0), "Usage of subqueries or stored "
                "function calls as part of this statement");
-      break;
+      goto error;
     }
 
     if ((!it->fixed && it->fix_fields(lex->thd, &it)) || it->check_cols(1))
     {
-      my_message(ER_SET_CONSTANTS_ONLY, ER(ER_SET_CONSTANTS_ONLY),
-		 MYF(0));
+      my_error(ER_SET_CONSTANTS_ONLY, MYF(0));
       goto error;
     }
-    sql_kill(thd, (ulong)it->val_int(), lex->type & ONLY_KILL_QUERY);
+
+    ulong thread_id= static_cast<ulong>(it->val_int());
+    if (thd->is_error())
+      goto error;
+
+    sql_kill(thd, thread_id, lex->type & ONLY_KILL_QUERY);
     break;
   }
 #ifndef NO_EMBEDDED_ACCESS_CHECKS
@@ -4670,7 +4671,8 @@ end_with_restore_list:
     my_ok(thd);
     break;
   case SQLCOM_XA_RECOVER:
-    res= mysql_xa_recover(thd);
+    res= trans_xa_recover(thd);
+    DBUG_EXECUTE_IF("crash_after_xa_recover", {DBUG_SUICIDE();});
     break;
   case SQLCOM_ALTER_TABLESPACE:
     if (check_global_access(thd, CREATE_TABLESPACE_ACL))

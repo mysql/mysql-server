@@ -1486,7 +1486,6 @@ Query_cache::send_result_to_client(THD *thd, char *sql, uint query_length)
   Query_cache_block_table *block_table, *block_table_end;
   ulong tot_length;
   Query_cache_query_flags flags;
-  enum xa_states xa_state= thd->transaction.xid_state.xa_state;
   DBUG_ENTER("Query_cache::send_result_to_client");
 
   /*
@@ -1507,7 +1506,7 @@ Query_cache::send_result_to_client(THD *thd, char *sql, uint query_length)
     that is called when we are checking that query cache is allowed at
     this moment to operate on an InnoDB table.
   */
-  if (xa_state == XA_IDLE || xa_state == XA_PREPARED)
+  if (thd->transaction.xid_state.check_xa_idle_or_prepared(false))
     goto err;
 
   if (!thd->lex->safe_to_cache_query)
