@@ -189,15 +189,15 @@ int insert_setup_object(enum_object_type object_type, const String *schema,
         pfs->m_timed= timed;
 
         int res;
+        pfs->m_lock.dirty_to_allocated();
         res= lf_hash_insert(&setup_object_hash, pins, &pfs);
         if (likely(res == 0))
         {
-          pfs->m_lock.dirty_to_allocated();
           setup_objects_version++;
           return 0;
         }
 
-        pfs->m_lock.dirty_to_free();
+        pfs->m_lock.allocated_to_free();
         if (res > 0)
           return HA_ERR_FOUND_DUPP_KEY;
         /* OOM in lf_hash_insert */

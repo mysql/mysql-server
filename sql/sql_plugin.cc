@@ -335,7 +335,8 @@ static void report_error(int where_to, uint error, ...)
  */
 bool check_valid_path(const char *path, size_t len)
 {
-  size_t prefix= my_strcspn(files_charset_info, path, path + len, FN_DIRSEP);
+  size_t prefix= my_strcspn(files_charset_info, path, path + len, FN_DIRSEP,
+                            strlen(FN_DIRSEP));
   return  prefix < len;
 }
 

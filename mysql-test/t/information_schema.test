@@ -245,7 +245,7 @@ drop table t1;
 # Test for KEY_COLUMN_USAGE & TABLE_CONSTRAINTS tables
 #
 
-create table t1 (a int null, primary key(a));
+create table t1 (a int not null, primary key(a));
 alter table t1 add constraint constraint_1 unique (a);
 alter table t1 add constraint unique key_1(a);
 alter table t1 add constraint constraint_2 unique key_2(a);

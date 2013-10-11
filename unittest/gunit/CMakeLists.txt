@@ -284,6 +284,7 @@ SET(SERVER_TESTS
   opt_trace
   segfault
   sql_table
+  strings_utf8
   table_cache
   tc_log_mmap
 )

@@ -981,68 +981,22 @@ PFS_thread* create_thread(PFS_thread_class *klass, const void *identity,
         pfs->m_account= NULL;
         set_thread_account(pfs);
 
-        PFS_events_waits *child_wait;
-        for (index= 0; index < WAIT_STACK_SIZE; index++)
-        {
-          child_wait= & pfs->m_events_waits_stack[index];
-          child_wait->m_thread_internal_id= pfs->m_thread_internal_id;
-          child_wait->m_event_id= 0;
-          child_wait->m_end_event_id= 0;
-          child_wait->m_event_type= EVENT_TYPE_STATEMENT;
-          child_wait->m_wait_class= NO_WAIT_CLASS;
-        }
+        /*
+          For child waits, by default,
+          - NESTING_EVENT_ID is NULL
+          - NESTING_EVENT_TYPE is NULL
+        */
+        PFS_events_waits *child_wait= & pfs->m_events_waits_stack[0];
+        child_wait->m_event_id= 0;
 
+        /*
+          For child stages, by default,
+          - NESTING_EVENT_ID is NULL
+          - NESTING_EVENT_TYPE is NULL
+        */
         PFS_events_stages *child_stage= & pfs->m_stage_current;
-        child_stage->m_thread_internal_id= pfs->m_thread_internal_id;
-        child_stage->m_event_id= 0;
-        child_stage->m_end_event_id= 0;
-        child_stage->m_event_type= EVENT_TYPE_STATEMENT;
-        child_stage->m_class= NULL;
-        child_stage->m_timer_start= 0;
-        child_stage->m_timer_end= 0;
-        child_stage->m_source_file= NULL;
-        child_stage->m_source_line= 0;
+        child_stage->m_nesting_event_id= 0;
 
-        PFS_events_statements *child_statement;
-        for (index= 0; index < statement_stack_max; index++)
-        {
-          child_statement= & pfs->m_statement_stack[index];
-          child_statement->m_thread_internal_id= pfs->m_thread_internal_id;
-          child_statement->m_event_id= 0;
-          child_statement->m_end_event_id= 0;
-          child_statement->m_event_type= EVENT_TYPE_STATEMENT;
-          child_statement->m_class= NULL;
-          child_statement->m_timer_start= 0;
-          child_statement->m_timer_end= 0;
-          child_statement->m_lock_time= 0;
-          child_statement->m_source_file= NULL;
-          child_statement->m_source_line= 0;
-          child_statement->m_current_schema_name_length= 0;
-          child_statement->m_sqltext_length= 0;
-
-          child_statement->m_message_text[0]= '\0';
-          child_statement->m_sql_errno= 0;
-          child_statement->m_sqlstate[0]= '\0';
-          child_statement->m_error_count= 0;
-          child_statement->m_warning_count= 0;
-          child_statement->m_rows_affected= 0;
-
-          child_statement->m_rows_sent= 0;
-          child_statement->m_rows_examined= 0;
-          child_statement->m_created_tmp_disk_tables= 0;
-          child_statement->m_created_tmp_tables= 0;
-          child_statement->m_select_full_join= 0;
-          child_statement->m_select_full_range_join= 0;
-          child_statement->m_select_range= 0;
-          child_statement->m_select_range_check= 0;
-          child_statement->m_select_scan= 0;
-          child_statement->m_sort_merge_passes= 0;
-          child_statement->m_sort_range= 0;
-          child_statement->m_sort_rows= 0;
-          child_statement->m_sort_scan= 0;
-          child_statement->m_no_index_used= 0;
-          child_statement->m_no_good_index_used= 0;
-        }
         pfs->m_events_statements_count= 0;
 
         pfs->m_lock.dirty_to_allocated();
@@ -1353,17 +1307,17 @@ search:
         pfs->m_identity= (const void *)pfs;
 
         int res;
+        pfs->m_lock.dirty_to_allocated();
         res= lf_hash_insert(&filename_hash, pins,
                             &pfs);
         if (likely(res == 0))
         {
-          pfs->m_lock.dirty_to_allocated();
           if (klass->is_singleton())
             klass->m_singleton= pfs;
           return pfs;
         }
 
-        pfs->m_lock.dirty_to_free();
+        pfs->m_lock.allocated_to_free();
 
         if (res > 0)
         {

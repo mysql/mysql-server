@@ -352,7 +352,7 @@ test/parent
 SHOW CREATE TABLE child;
 Table	Create Table
 child	CREATE TABLE `child` (
-  `a3` int(11) NOT NULL DEFAULT '0',
+  `a3` int(11) NOT NULL,
   `a2` int(11) DEFAULT NULL,
   PRIMARY KEY (`a3`),
   KEY `tb` (`a2`),

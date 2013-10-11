@@ -6866,7 +6866,11 @@ opt_attribute_list:
         ;
 
 attribute:
-          NULL_SYM { Lex->type&= ~ NOT_NULL_FLAG; }
+          NULL_SYM
+          {
+            Lex->type&= ~ NOT_NULL_FLAG;
+            Lex->type|= EXPLICIT_NULL_FLAG;
+          }
         | not NULL_SYM { Lex->type|= NOT_NULL_FLAG; }
         | DEFAULT now_or_signed_literal { Lex->default_value=$2; }
         | ON UPDATE_SYM now { Lex->on_update_value= $3; }
@@ -13603,6 +13607,7 @@ literal:
         | temporal_literal { $$= $1; }
         | NULL_SYM
           {
+            Lex->type|= EXPLICIT_NULL_FLAG;
             $$ = new (YYTHD->mem_root) Item_null();
             if ($$ == NULL)
               MYSQL_YYABORT;

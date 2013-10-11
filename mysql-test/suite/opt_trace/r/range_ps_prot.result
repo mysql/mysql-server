@@ -527,7 +527,7 @@ EXPLAIN SELECT * FROM t1 WHERE key1 < 3 OR key2 > 1020	{
                       "cause": "too_few_roworder_scans"
                     } /* analyzing_roworder_intersect */
                   } /* analyzing_range_alternatives */,
-                  "analyzing_index_merge": [
+                  "analyzing_index_merge_union": [
                     {
                       "indexes_to_merge": [
                         {
@@ -574,7 +574,7 @@ EXPLAIN SELECT * FROM t1 WHERE key1 < 3 OR key2 > 1020	{
                       "cost_duplicate_removal": 38.361,
                       "total_cost": 58.363
                     }
-                  ] /* analyzing_index_merge */,
+                  ] /* analyzing_index_merge_union */,
                   "chosen_range_access_summary": {
                     "range_access_plan": {
                       "type": "index_merge",
@@ -1629,8 +1629,8 @@ EXPLAIN SELECT * FROM t2 WHERE key2 = 1 AND (key2_1 = 1 OR key3 = 5)	{
                     },
                     {
                       "access_type": "range",
-                      "cause": "heuristic_index_cheaper",
-                      "chosen": false
+                      "chosen": false,
+                      "cause": "heuristic_index_cheaper"
                     }
                   ] /* considered_access_paths */
                 } /* best_access_path */,
@@ -1806,7 +1806,7 @@ EXPLAIN SELECT * FROM t1 WHERE key2=10 OR key3=3 OR key4 <=> null	{
                       "cause": "too_few_roworder_scans"
                     } /* analyzing_roworder_intersect */
                   } /* analyzing_range_alternatives */,
-                  "analyzing_index_merge": [
+                  "analyzing_index_merge_union": [
                     {
                       "indexes_to_merge": [
                         {
@@ -1881,7 +1881,7 @@ EXPLAIN SELECT * FROM t1 WHERE key2=10 OR key3=3 OR key4 <=> null	{
                       "members": 2,
                       "chosen": true
                     }
-                  ] /* analyzing_index_merge */,
+                  ] /* analyzing_index_merge_union */,
                   "chosen_range_access_summary": {
                     "range_access_plan": {
                       "type": "index_roworder_union",
@@ -2907,7 +2907,7 @@ EXPLAIN SELECT * FROM t1 WHERE (key1 > 1 OR key2  > 2)	{
                       "cause": "too_few_roworder_scans"
                     } /* analyzing_roworder_intersect */
                   } /* analyzing_range_alternatives */,
-                  "analyzing_index_merge": [
+                  "analyzing_index_merge_union": [
                     {
                       "indexes_to_merge": [
                         {
@@ -2955,7 +2955,7 @@ EXPLAIN SELECT * FROM t1 WHERE (key1 > 1 OR key2  > 2)	{
                       "chosen": false,
                       "cause": "cost"
                     }
-                  ] /* analyzing_index_merge */
+                  ] /* analyzing_index_merge_union */
                 } /* range_analysis */
               }
             ] /* rows_estimation */
@@ -3242,6 +3242,7 @@ WHERE t1.key1=t2.key1a AND t1.key2 > 1020	{
                     {
                       "access_type": "scan",
                       "using_join_cache": true,
+                      "buffers_needed": 1,
                       "rows": 768,
                       "cost": 6510.7,
                       "chosen": false
@@ -3722,8 +3723,8 @@ EXPLAIN SELECT * FROM t1 WHERE cola = 'f\no'	{
                     },
                     {
                       "access_type": "range",
-                      "cause": "heuristic_index_cheaper",
-                      "chosen": false
+                      "chosen": false,
+                      "cause": "heuristic_index_cheaper"
                     }
                   ] /* considered_access_paths */
                 } /* best_access_path */,
@@ -6105,8 +6106,8 @@ EXPLAIN SELECT * FROM t1 WHERE c1 = '1' ORDER BY i1	{
                     },
                     {
                       "access_type": "range",
-                      "cause": "heuristic_index_cheaper",
-                      "chosen": false
+                      "chosen": false,
+                      "cause": "heuristic_index_cheaper"
                     }
                   ] /* considered_access_paths */
                 } /* best_access_path */,

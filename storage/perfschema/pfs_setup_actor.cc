@@ -197,15 +197,15 @@ int insert_setup_actor(const String *user, const String *host, const String *rol
         pfs->m_rolename_length= role->length();
 
         int res;
+        pfs->m_lock.dirty_to_allocated();
         res= lf_hash_insert(&setup_actor_hash, pins, &pfs);
         if (likely(res == 0))
         {
-          pfs->m_lock.dirty_to_allocated();
           update_setup_actors_derived_flags(thread);
           return 0;
         }
 
-        pfs->m_lock.dirty_to_free();
+        pfs->m_lock.allocated_to_free();
         if (res > 0)
           return HA_ERR_FOUND_DUPP_KEY;
         return HA_ERR_OUT_OF_MEM;

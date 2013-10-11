@@ -583,6 +583,13 @@ retry:
     goto err0;
   }
 
+  /*
+     Table->map should be set before we call fix_fields.
+     And we consider that handle statement operate on table number 0.
+  */
+  table->tablenr= 0;
+  table->map= (table_map)1 << table->tablenr;
+
   /* save open_tables state */
   backup_open_tables= thd->open_tables;
   /* Always a one-element list, see mysql_ha_open(). */

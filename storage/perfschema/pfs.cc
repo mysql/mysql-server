@@ -2385,7 +2385,7 @@ pfs_start_mutex_wait_v1(PSI_mutex_locker_state *state,
       wait->m_nesting_event_id= parent_event->m_event_id;
       wait->m_nesting_event_type= parent_event->m_event_type;
 
-      wait->m_thread= pfs_thread;
+      wait->m_thread_internal_id= pfs_thread->m_thread_internal_id;
       wait->m_class= pfs_mutex->m_class;
       wait->m_timer_start= timer_start;
       wait->m_timer_end= 0;
@@ -2483,7 +2483,7 @@ pfs_start_rwlock_rdwait_v1(PSI_rwlock_locker_state *state,
       wait->m_nesting_event_id= parent_event->m_event_id;
       wait->m_nesting_event_type= parent_event->m_event_type;
 
-      wait->m_thread= pfs_thread;
+      wait->m_thread_internal_id= pfs_thread->m_thread_internal_id;
       wait->m_class= pfs_rwlock->m_class;
       wait->m_timer_start= timer_start;
       wait->m_timer_end= 0;
@@ -2600,7 +2600,7 @@ pfs_start_cond_wait_v1(PSI_cond_locker_state *state,
       wait->m_nesting_event_id= parent_event->m_event_id;
       wait->m_nesting_event_type= parent_event->m_event_type;
 
-      wait->m_thread= pfs_thread;
+      wait->m_thread_internal_id= pfs_thread->m_thread_internal_id;
       wait->m_class= pfs_cond->m_class;
       wait->m_timer_start= timer_start;
       wait->m_timer_end= 0;
@@ -2745,7 +2745,7 @@ pfs_start_table_io_wait_v1(PSI_table_locker_state *state,
       wait->m_nesting_event_type= parent_event->m_event_type;
 
       PFS_table_share *share= pfs_table->m_share;
-      wait->m_thread= pfs_thread;
+      wait->m_thread_internal_id= pfs_thread->m_thread_internal_id;
       wait->m_class= &global_table_io_class;
       wait->m_timer_start= timer_start;
       wait->m_timer_end= 0;
@@ -2876,7 +2876,7 @@ pfs_start_table_lock_wait_v1(PSI_table_locker_state *state,
       wait->m_nesting_event_type= parent_event->m_event_type;
 
       PFS_table_share *share= pfs_table->m_share;
-      wait->m_thread= pfs_thread;
+      wait->m_thread_internal_id= pfs_thread->m_thread_internal_id;
       wait->m_class= &global_table_lock_class;
       wait->m_timer_start= timer_start;
       wait->m_timer_end= 0;
@@ -2972,7 +2972,7 @@ pfs_get_thread_file_name_locker_v1(PSI_file_locker_state *state,
     wait->m_nesting_event_id= parent_event->m_event_id;
     wait->m_nesting_event_type= parent_event->m_event_type;
 
-    wait->m_thread= pfs_thread;
+    wait->m_thread_internal_id= pfs_thread->m_thread_internal_id;
     wait->m_class= klass;
     wait->m_timer_start= 0;
     wait->m_timer_end= 0;
@@ -3048,7 +3048,7 @@ pfs_get_thread_file_stream_locker_v1(PSI_file_locker_state *state,
       wait->m_nesting_event_id= parent_event->m_event_id;
       wait->m_nesting_event_type= parent_event->m_event_type;
 
-      wait->m_thread= pfs_thread;
+      wait->m_thread_internal_id= pfs_thread->m_thread_internal_id;
       wait->m_class= klass;
       wait->m_timer_start= 0;
       wait->m_timer_end= 0;
@@ -3154,7 +3154,7 @@ pfs_get_thread_file_descriptor_locker_v1(PSI_file_locker_state *state,
       wait->m_nesting_event_id= parent_event->m_event_id;
       wait->m_nesting_event_type= parent_event->m_event_type;
 
-      wait->m_thread= pfs_thread;
+      wait->m_thread_internal_id= pfs_thread->m_thread_internal_id;
       wait->m_class= klass;
       wait->m_timer_start= 0;
       wait->m_timer_end= 0;
@@ -3250,7 +3250,7 @@ pfs_start_socket_wait_v1(PSI_socket_locker_state *state,
       wait->m_event_type= EVENT_TYPE_WAIT;
       wait->m_nesting_event_id=   parent_event->m_event_id;
       wait->m_nesting_event_type= parent_event->m_event_type;
-      wait->m_thread=       pfs_thread;
+      wait->m_thread_internal_id= pfs_thread->m_thread_internal_id;
       wait->m_class=        pfs_socket->m_class;
       wait->m_timer_start=  timer_start;
       wait->m_timer_end=    0;
@@ -3508,7 +3508,7 @@ pfs_start_idle_wait_v1(PSI_idle_locker_state* state, const char *src_file, uint 
       wait->m_nesting_event_id= 0;
       /* no need to set wait->m_nesting_event_type */
 
-      wait->m_thread= pfs_thread;
+      wait->m_thread_internal_id= pfs_thread->m_thread_internal_id;
       wait->m_class= &global_idle_class;
       wait->m_timer_start= timer_start;
       wait->m_timer_end= 0;
@@ -4457,8 +4457,7 @@ void pfs_start_stage_v1(PSI_stage_key key, const char *src_file, int src_line)
 
   if (flag_events_stages_current)
   {
-    /* m_thread_internal_id is immutable and already set */
-    DBUG_ASSERT(pfs->m_thread_internal_id == pfs_thread->m_thread_internal_id);
+    pfs->m_thread_internal_id= pfs_thread->m_thread_internal_id;
     pfs->m_event_id= pfs_thread->m_event_id++;
     pfs->m_end_event_id= 0;
     pfs->m_source_file= src_file;
@@ -4571,9 +4570,9 @@ pfs_get_thread_statement_locker_v1(PSI_statement_locker_state *state,
       }
 
       PFS_events_statements *pfs= & pfs_thread->m_statement_stack[pfs_thread->m_events_statements_count];
-      /* m_thread_internal_id is immutable and already set */
-      DBUG_ASSERT(pfs->m_thread_internal_id == pfs_thread->m_thread_internal_id);
+      pfs->m_thread_internal_id= pfs_thread->m_thread_internal_id;
       pfs->m_event_id= event_id;
+      pfs->m_event_type= EVENT_TYPE_STATEMENT;
       pfs->m_end_event_id= 0;
       pfs->m_class= klass;
       pfs->m_timer_start= 0;
@@ -4613,15 +4612,20 @@ pfs_get_thread_statement_locker_v1(PSI_statement_locker_state *state,
 
       /* New waits will have this statement as parent, if no stage is instrumented */
       PFS_events_waits *child_wait= & pfs_thread->m_events_waits_stack[0];
-      child_wait->m_nesting_event_id= event_id;
-      child_wait->m_nesting_event_type= EVENT_TYPE_STATEMENT;
+      child_wait->m_event_id= event_id;
+      child_wait->m_event_type= EVENT_TYPE_STATEMENT;
 
-      if(pfs_thread->m_events_statements_count > 0)
+      if (pfs_thread->m_events_statements_count > 0)
       {
-          PFS_events_statements *parent= pfs - 1;
-          pfs->m_nesting_event_id= parent->m_event_id;
-          pfs->m_nesting_event_type= parent->m_event_type;
-          pfs->m_nesting_event_level= parent->m_nesting_event_level + 1;
+        PFS_events_statements *parent= pfs - 1;
+        pfs->m_nesting_event_id= parent->m_event_id;
+        pfs->m_nesting_event_type= parent->m_event_type;
+        pfs->m_nesting_event_level= parent->m_nesting_event_level + 1;
+      }
+      else
+      {
+        pfs->m_nesting_event_id= 0;
+        pfs->m_nesting_event_level= 0;
       }
 
       /* Set parent Stored Procedure information for this statement. */
@@ -5764,7 +5768,7 @@ pfs_start_metadata_wait_v1(PSI_metadata_locker_state *state,
       wait->m_nesting_event_id= parent_event->m_event_id;
       wait->m_nesting_event_type= parent_event->m_event_type;
 
-      wait->m_thread= pfs_thread;
+      wait->m_thread_internal_id= pfs_thread->m_thread_internal_id;
       wait->m_class= &global_metadata_class;
       wait->m_timer_start= timer_start;
       wait->m_timer_end= 0;

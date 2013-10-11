@@ -1780,7 +1780,7 @@ recv_apply_log_recs_for_backup(void)
 	ulint		n_hash_cells;
 	buf_block_t*	block;
 	ulint		actual_size;
-	ibool		success;
+	bool		success;
 	ulint		error;
 	ulint		i;
 
@@ -3189,7 +3189,7 @@ recv_reset_log_files_for_backup(
 					divisible by OS_FILE_LOG_BLOCK_SIZE */
 {
 	os_file_t	log_file;
-	ibool		success;
+	bool		success;
 	byte*		buf;
 	ulint		i;
 	ulint		log_dir_len;

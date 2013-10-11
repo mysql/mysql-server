@@ -178,6 +178,7 @@
 #cmakedefine HAVE_SIGACTION 1
 #cmakedefine HAVE_SLEEP 1
 #cmakedefine HAVE_STPCPY 1
+#cmakedefine HAVE_STPNCPY 1
 #cmakedefine HAVE_STRSIGNAL 1
 #cmakedefine HAVE_STRLCPY 1
 #cmakedefine HAVE_STRLCAT 1

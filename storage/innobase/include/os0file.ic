@@ -43,7 +43,7 @@ pfs_os_file_create_simple_func(
 	ulint		create_mode,/*!< in: create mode */
 	ulint		access_type,/*!< in: OS_FILE_READ_ONLY or
 				OS_FILE_READ_WRITE */
-	ibool*		success,/*!< out: TRUE if succeed, FALSE if error */
+	bool*		success,/*!< out: TRUE if succeed, FALSE if error */
 	const char*	src_file,/*!< in: file name where func invoked */
 	ulint		src_line)/*!< in: line where the func invoked */
 {
@@ -87,7 +87,7 @@ pfs_os_file_create_simple_no_error_handling_func(
 				OS_FILE_READ_WRITE, or
 				OS_FILE_READ_ALLOW_DELETE; the last option is
 				used by a backup program reading the file */
-	ibool*		success,/*!< out: TRUE if succeed, FALSE if error */
+	bool*		success,/*!< out: TRUE if succeed, FALSE if error */
 	const char*	src_file,/*!< in: file name where func invoked */
 	ulint		src_line)/*!< in: line where the func invoked */
 {
@@ -133,7 +133,7 @@ pfs_os_file_create_func(
 				async i/o or unbuffered i/o: look in the
 				function source code for the exact rules */
 	ulint		type,	/*!< in: OS_DATA_FILE or OS_LOG_FILE */
-	ibool*		success,/*!< out: TRUE if succeed, FALSE if error */
+	bool*		success,/*!< out: TRUE if succeed, FALSE if error */
 	const char*	src_file,/*!< in: file name where func invoked */
 	ulint		src_line)/*!< in: line where the func invoked */
 {
@@ -161,14 +161,14 @@ this function!
 A performance schema instrumented wrapper function for os_file_close().
 @return TRUE if success */
 UNIV_INLINE
-ibool
+bool
 pfs_os_file_close_func(
 /*===================*/
-        os_file_t	file,	/*!< in, own: handle to a file */
+	os_file_t	file,	/*!< in, own: handle to a file */
 	const char*	src_file,/*!< in: file name where func invoked */
 	ulint		src_line)/*!< in: line where the func invoked */
 {
-	ibool	result;
+	bool	result;
 	struct PSI_file_locker*	locker = NULL;
 	PSI_file_locker_state	state;
 
@@ -190,7 +190,7 @@ Performance schema instrumented wrapper function of os_aio() which
 requests an asynchronous i/o operation.
 @return TRUE if request was queued successfully, FALSE if fail */
 UNIV_INLINE
-ibool
+bool
 pfs_os_aio_func(
 /*============*/
 	ulint		type,	/*!< in: OS_FILE_READ or OS_FILE_WRITE */
@@ -209,11 +209,11 @@ pfs_os_aio_func(
 	void*		message2,/*!< in: message for the aio handler
 				(can be used to identify a completed
 				aio operation); ignored if mode is
-                                OS_AIO_SYNC */
+				OS_AIO_SYNC */
 	const char*	src_file,/*!< in: file name where func invoked */
 	ulint		src_line)/*!< in: line where the func invoked */
 {
-	ibool	result;
+	bool	result;
 	struct PSI_file_locker*	locker = NULL;
 	PSI_file_locker_state	state;
 
@@ -239,7 +239,7 @@ This is the performance schema instrumented wrapper function for
 os_file_read() which requests a synchronous read operation.
 @return TRUE if request was successful, FALSE if fail */
 UNIV_INLINE
-ibool
+bool
 pfs_os_file_read_func(
 /*==================*/
 	os_file_t	file,	/*!< in: handle to a file */
@@ -249,7 +249,7 @@ pfs_os_file_read_func(
 	const char*	src_file,/*!< in: file name where func invoked */
 	ulint		src_line)/*!< in: line where the func invoked */
 {
-	ibool	result;
+	bool	result;
 	struct PSI_file_locker*	locker = NULL;
 	PSI_file_locker_state	state;
 
@@ -272,7 +272,7 @@ positioned read operation. This function does not do any error
 handling. In case of error it returns FALSE.
 @return TRUE if request was successful, FALSE if fail */
 UNIV_INLINE
-ibool
+bool
 pfs_os_file_read_no_error_handling_func(
 /*====================================*/
 	os_file_t	file,	/*!< in: handle to a file */
@@ -282,7 +282,7 @@ pfs_os_file_read_no_error_handling_func(
 	const char*	src_file,/*!< in: file name where func invoked */
 	ulint		src_line)/*!< in: line where the func invoked */
 {
-	ibool	result;
+	bool	result;
 	struct PSI_file_locker*	locker = NULL;
 	PSI_file_locker_state	state;
 
@@ -303,7 +303,7 @@ This is the performance schema instrumented wrapper function for
 os_file_write() which requests a synchronous write operation.
 @return TRUE if request was successful, FALSE if fail */
 UNIV_INLINE
-ibool
+bool
 pfs_os_file_write_func(
 /*===================*/
 	const char*	name,	/*!< in: name of the file or path as a
@@ -315,7 +315,7 @@ pfs_os_file_write_func(
 	const char*	src_file,/*!< in: file name where func invoked */
 	ulint		src_line)/*!< in: line where the func invoked */
 {
-	ibool	result;
+	bool	result;
 	struct PSI_file_locker*	locker = NULL;
 	PSI_file_locker_state	state;
 
@@ -336,14 +336,14 @@ This is the performance schema instrumented wrapper function for
 os_file_flush() which flushes the write buffers of a given file to the disk.
 @return TRUE if success */
 UNIV_INLINE
-ibool
+bool
 pfs_os_file_flush_func(
 /*===================*/
 	os_file_t	file,	/*!< in, own: handle to a file */
 	const char*	src_file,/*!< in: file name where func invoked */
 	ulint		src_line)/*!< in: line where the func invoked */
 {
-	ibool	result;
+	bool	result;
 	struct PSI_file_locker*	locker = NULL;
 	PSI_file_locker_state	state;
 
@@ -363,7 +363,7 @@ This is the performance schema instrumented wrapper function for
 os_file_rename()
 @return TRUE if success */
 UNIV_INLINE
-ibool
+bool
 pfs_os_file_rename_func(
 /*====================*/
 	mysql_pfs_key_t key,	/*!< in: Performance Schema Key */
@@ -373,7 +373,7 @@ pfs_os_file_rename_func(
 	const char*	src_file,/*!< in: file name where func invoked */
 	ulint		src_line)/*!< in: line where the func invoked */
 {
-	ibool	result;
+	bool	result;
 	struct PSI_file_locker*	locker = NULL;
 	PSI_file_locker_state	state;
 

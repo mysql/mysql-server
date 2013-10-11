@@ -58,12 +58,6 @@ protected:
     return m_functions->add_connection(channel_info);
   }
 
-  virtual void remove_connection(THD* thd)
-  {
-    if (m_functions->remove_connection)
-      m_functions->remove_connection(thd);
-  }
-
   virtual uint get_max_threads() const
   {
     return m_functions->max_threads;

@@ -1,5 +1,4 @@
-/* Copyright (c) 2000, 2001, 2006, 2007 MySQL AB
-   Use is subject to license terms.
+/* Copyright (c) 2000, 2013, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -15,16 +14,15 @@
    Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA */
 
 /*
-    strnmov(dst,src,length) moves length characters, or until end, of src to
-    dst and appends a closing NUL to dst if src is shorter than length.
-    The result is a pointer to the first NUL in dst, or is dst+n if dst was
-    truncated.
+  my_stpnmov(dst,src,length) moves length characters, or until end, of src to
+  dst and appends a closing NUL to dst if src is shorter than length.
+  The result is a pointer to the first NUL in dst, or is dst+n if dst was
+  truncated.
 */
 
-#include <my_global.h>
 #include "m_string.h"
 
-char *strnmov(char *dst, const char *src, size_t n)
+char *my_stpnmov(char *dst, const char *src, size_t n)
 {
   while (n-- != 0) {
     if (!(*dst++ = *src++)) {

@@ -2998,7 +2998,7 @@ trx_set_rw_mode(
 		MVCC::set_view_creator_trx_id(trx->read_view, trx->id);
 	}
 
-	ut_ad(trx->in_ro_trx_list == true);
+	ut_ad(trx->in_ro_trx_list);
 
 #ifdef UNIV_DEBUG
 	if (trx->id > trx_sys->rw_max_trx_id) {

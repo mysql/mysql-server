@@ -324,7 +324,7 @@ create_log_file(
 	os_file_t*	file,	/*!< out: file handle */
 	const char*	name)	/*!< in: log file name */
 {
-	ibool		ret;
+	bool		ret;
 
 	*file = os_file_create(
 		innodb_log_file_key, name,
@@ -505,7 +505,7 @@ create_log_files_rename(
 
 	mutex_enter(&log_sys->mutex);
 	ut_ad(strlen(logfile0) == 2 + strlen(logfilename));
-	ibool success = os_file_rename(
+	bool success = os_file_rename(
 		innodb_log_file_key, logfile0, logfilename);
 	ut_a(success);
 
@@ -531,7 +531,7 @@ open_log_file(
 	const char*	name,	/*!< in: log file name */
 	os_offset_t*	size)	/*!< out: file size */
 {
-	ibool	ret;
+	bool	ret;
 
 	*file = os_file_create(innodb_log_file_key, name,
 			       OS_FILE_OPEN, OS_FILE_AIO,
@@ -559,7 +559,7 @@ srv_undo_tablespace_create(
 	ulint		size)		/*!< in: tablespace size in pages */
 {
 	os_file_t	fh;
-	ibool		ret;
+	bool		ret;
 	dberr_t		err = DB_SUCCESS;
 
 	os_file_create_subdirs_if_needed(name);
@@ -623,7 +623,7 @@ srv_undo_tablespace_open(
 {
 	os_file_t	fh;
 	dberr_t		err	= DB_ERROR;
-	ibool		ret;
+	bool		ret;
 	ulint		flags;
 
 	if (!srv_file_check_mode(name)) {
@@ -691,7 +691,7 @@ static
 dberr_t
 srv_check_undo_redo_logs_exists()
 {
-	ibool		ret;
+	bool		ret;
 	os_file_t	fh;
 	char	name[OS_FILE_MAX_PATH];
 
@@ -1202,6 +1202,10 @@ innobase_start_or_create_for_mysql(void)
 
 	/* Reset the start state. */
 	srv_start_state = SRV_START_STATE_NONE;
+
+	if (srv_force_recovery > SRV_FORCE_NO_TRX_UNDO) {
+		srv_read_only_mode = true;
+	}
 
 	if (srv_read_only_mode) {
 		ib_logf(IB_LOG_LEVEL_INFO, "Started in read only mode");
@@ -2211,9 +2215,8 @@ files_checked:
 		srv_undo_tablespaces, srv_undo_logs, srv_tmp_undo_logs);
 
 	if (srv_available_undo_logs == ULINT_UNDEFINED) {
-		/* Can only happen if force recovery is set. */
-		ut_a(srv_force_recovery >= SRV_FORCE_NO_TRX_UNDO
-		     || srv_read_only_mode);
+		/* Can only happen if server is read only. */
+		ut_a(srv_read_only_mode);
 		srv_undo_logs = ULONG_UNDEFINED;
 	}
 

@@ -528,7 +528,7 @@ info: Records: 0  Duplicates: 0  Warnings: 0
 show create table t2;
 Table	Create Table
 t2	CREATE TABLE `t2` (
-  `alpha` int(11) NOT NULL DEFAULT '0',
+  `alpha` int(11) NOT NULL,
   `beta` int(11) DEFAULT NULL,
   `c` int(11) NOT NULL,
   `d` int(11) DEFAULT NULL,
@@ -1166,7 +1166,7 @@ t2	CREATE TABLE `t2` (
 show create table t2i;
 Table	Create Table
 t2i	CREATE TABLE `t2i` (
-  `a` int(11) NOT NULL DEFAULT '0',
+  `a` int(11) NOT NULL,
   `b` char(1) NOT NULL,
   PRIMARY KEY (`a`,`b`),
   KEY `t2a` (`a`)
@@ -1174,7 +1174,7 @@ t2i	CREATE TABLE `t2i` (
 show create table t2c;
 Table	Create Table
 t2c	CREATE TABLE `t2c` (
-  `a` int(11) NOT NULL DEFAULT '0',
+  `a` int(11) NOT NULL,
   `b` char(1) NOT NULL,
   PRIMARY KEY (`a`,`b`),
   KEY `t2a` (`a`)

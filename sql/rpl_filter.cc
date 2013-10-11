@@ -112,9 +112,9 @@ Rpl_filter::tables_ok(const char* db, TABLE_LIST* tables)
     if (!tables->updating) 
       continue;
     some_tables_updating= 1;
-    end= strmov(hash_key, tables->db ? tables->db : db);
+    end= my_stpcpy(hash_key, tables->db ? tables->db : db);
     *end++= '.';
-    len= (uint) (strmov(end, tables->table_name) - hash_key);
+    len= (uint) (my_stpcpy(end, tables->table_name) - hash_key);
     if (do_table_hash_inited) // if there are any do's
     {
       if (my_hash_search(&do_table_hash, (uchar*) hash_key, len))
@@ -249,7 +249,7 @@ Rpl_filter::db_ok_with_wild_table(const char *db)
   char hash_key[NAME_LEN+2];
   char *end;
   int len;
-  end= strmov(hash_key, db);
+  end= my_stpcpy(hash_key, db);
   *end++= '.';
   len= end - hash_key ;
   if (wild_do_table_inited && find_wild(&wild_do_table, hash_key, len))

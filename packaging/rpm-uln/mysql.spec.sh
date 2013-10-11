@@ -237,7 +237,7 @@ Patch5: mysql-install-test.patch
 # Patch7: mysql-disable-test.patch           Already fixed in current 5.1
 # Patch8: mysql-setschedparam.patch          Will not work in 5.5 (cmake)
 # Patch9: mysql-no-docs.patch                Will not work in 5.5 (cmake)
-Patch10: mysql-strmov.patch
+# Patch10: mysql-strmov.patch                Fixed in trunk
        # Not used by MySQL
 # Patch12: mysql-cve-2008-7247.patch         Already fixed in 5.5
 Patch13: mysql-expired-certs.patch

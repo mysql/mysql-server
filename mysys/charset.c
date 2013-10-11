@@ -506,7 +506,7 @@ static void init_available_charsets(void)
   }
 
   my_charset_loader_init_mysys(&loader);
-  strmov(get_charsets_dir(fname), MY_CHARSET_INDEX);
+  my_stpcpy(get_charsets_dir(fname), MY_CHARSET_INDEX);
   my_read_charset_file(&loader, fname, MYF(0));
 }
 
@@ -664,7 +664,7 @@ CHARSET_INFO *get_charset(uint cs_number, myf flags)
   if (!cs && (flags & MY_WME))
   {
     char index_file[FN_REFLEN + sizeof(MY_CHARSET_INDEX)], cs_string[23];
-    strmov(get_charsets_dir(index_file),MY_CHARSET_INDEX);
+    my_stpcpy(get_charsets_dir(index_file),MY_CHARSET_INDEX);
     cs_string[0]='#';
     int10_to_str(cs_number, cs_string+1, 10);
     my_error(EE_UNKNOWN_CHARSET, MYF(ME_BELL), cs_string, index_file);
@@ -697,7 +697,7 @@ my_collation_get_by_name(MY_CHARSET_LOADER *loader,
   if (!cs && (flags & MY_WME))
   {
     char index_file[FN_REFLEN + sizeof(MY_CHARSET_INDEX)];
-    strmov(get_charsets_dir(index_file),MY_CHARSET_INDEX);
+    my_stpcpy(get_charsets_dir(index_file),MY_CHARSET_INDEX);
     my_error(EE_UNKNOWN_COLLATION, MYF(ME_BELL), name, index_file);
   }
   return cs;
@@ -738,7 +738,7 @@ my_charset_get_by_name(MY_CHARSET_LOADER *loader,
   if (!cs && (flags & MY_WME))
   {
     char index_file[FN_REFLEN + sizeof(MY_CHARSET_INDEX)];
-    strmov(get_charsets_dir(index_file),MY_CHARSET_INDEX);
+    my_stpcpy(get_charsets_dir(index_file),MY_CHARSET_INDEX);
     my_error(EE_UNKNOWN_CHARSET, MYF(ME_BELL), cs_name, index_file);
   }
 

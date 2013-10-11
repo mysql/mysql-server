@@ -181,8 +181,6 @@ public:
                            connection channel information.
   */
   void process_new_connection(Channel_info* channel_info);
-
-  void remove_connection(THD *thd);
 };
 
 

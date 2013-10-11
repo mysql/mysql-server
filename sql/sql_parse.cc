@@ -6286,7 +6286,7 @@ bool append_file_to_dir(THD *thd, const char **filename_ptr,
     return 1;
   }
   /* Fix is using unix filename format on dos */
-  strmov(buff,*filename_ptr);
+  my_stpcpy(buff,*filename_ptr);
   end=convert_dirname(buff, *filename_ptr, NullS);
   if (!(ptr= (char*) thd->alloc((size_t) (end-buff) + strlen(table_name)+1)))
     return 1;					// End of memory

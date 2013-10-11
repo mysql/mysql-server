@@ -49,13 +49,6 @@ protected:
   virtual bool add_connection(Channel_info* channel_info) = 0;
 
   /**
-    Release a connection.
-
-    @param  THD   Pointer to the THD object.
-  */
-  virtual void remove_connection(THD* thd) = 0;
-
-  /**
     @return Maximum number of threads that can be created
             by this connection handler.
   */

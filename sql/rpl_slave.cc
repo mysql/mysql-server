@@ -722,7 +722,7 @@ static void print_slave_skip_errors(void)
     if (errnum < MAX_SLAVE_ERROR)
     {
       /* Couldn't show all errors */
-      buff= strmov(buff, "..."); /* purecov: tested */
+      buff= my_stpcpy(buff, "..."); /* purecov: tested */
     }
     *buff=0;
   }
