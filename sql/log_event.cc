@@ -7605,7 +7605,7 @@ int Xid_log_event::do_apply_event(Relay_log_info const *rli)
    */
   DBUG_EXECUTE_IF("simulate_commit_failure",
                   {
-                  thd->transaction.xid_state.xa_state = XA_IDLE;
+                    thd->transaction.xid_state.set_state(XID_STATE::XA_IDLE);
                   });
   error= do_commit(thd);
   if(error)

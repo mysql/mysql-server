@@ -2742,18 +2742,22 @@ static bool check_not_null_not_empty(sys_var *self, THD *thd, set_var *var)
 
 static bool check_update_mts_type(sys_var *self, THD *thd, set_var *var)
 {
+  bool result= false;
   if (check_not_null_not_empty(self, thd, var))
     return true;
-
-  mysql_mutex_lock(&active_mi->rli->run_lock);
-  if (active_mi && active_mi->rli->slave_running)
+  mysql_mutex_lock(&LOCK_active_mi);
+  if (active_mi != NULL)
   {
-    my_error(ER_SLAVE_MUST_STOP, MYF(0));
+    mysql_mutex_lock(&active_mi->rli->run_lock);
+    if (active_mi->rli->slave_running)
+    {
+      my_error(ER_SLAVE_MUST_STOP, MYF(0));
+      result= true;
+    }
     mysql_mutex_unlock(&active_mi->rli->run_lock);
-    return true;
   }
-  mysql_mutex_unlock(&active_mi->rli->run_lock);
-  return false;
+  mysql_mutex_unlock(&LOCK_active_mi);
+  return result;
 }
 
 static const char *slave_rows_search_algorithms_names[]= {"TABLE_SCAN", "INDEX_SCAN", "HASH_SCAN", 0};

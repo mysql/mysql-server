@@ -134,19 +134,20 @@ Relay_log_info::Relay_log_info(bool is_slave_recovery
   if(!rli_fake)
   {
     my_atomic_rwlock_init(&slave_open_temp_tables_lock);
+
+    mysql_mutex_init(key_relay_log_info_log_space_lock,
+                     &log_space_lock, MY_MUTEX_INIT_FAST);
+    mysql_cond_init(key_relay_log_info_log_space_cond, &log_space_cond, NULL);
+    mysql_mutex_init(key_mutex_slave_parallel_pend_jobs, &pending_jobs_lock,
+                     MY_MUTEX_INIT_FAST);
+    mysql_cond_init(key_cond_slave_parallel_pend_jobs, &pending_jobs_cond,
+                    NULL);
+    mysql_mutex_init(key_mts_temp_table_LOCK, &mts_temp_table_LOCK,
+                     MY_MUTEX_INIT_FAST);
+
+    relay_log.init_pthread_objects();
+    do_server_version_split(::server_version, slave_version_split);
   }
-
-
-  mysql_mutex_init(key_relay_log_info_log_space_lock,
-                   &log_space_lock, MY_MUTEX_INIT_FAST);
-  mysql_cond_init(key_relay_log_info_log_space_cond, &log_space_cond, NULL);
-  mysql_mutex_init(key_mutex_slave_parallel_pend_jobs, &pending_jobs_lock,
-                   MY_MUTEX_INIT_FAST);
-  mysql_cond_init(key_cond_slave_parallel_pend_jobs, &pending_jobs_cond, NULL);
-  mysql_mutex_init(key_mts_temp_table_LOCK, &mts_temp_table_LOCK, MY_MUTEX_INIT_FAST);
-
-  relay_log.init_pthread_objects();
-  do_server_version_split(::server_version, slave_version_split);
 
   DBUG_VOID_RETURN;
 }
@@ -180,28 +181,28 @@ Relay_log_info::~Relay_log_info()
 {
   DBUG_ENTER("Relay_log_info::~Relay_log_info");
 
-  if (recovery_groups_inited)
-    bitmap_free(&recovery_groups);
-  mysql_mutex_destroy(&log_space_lock);
-  mysql_cond_destroy(&log_space_cond);
-  mysql_mutex_destroy(&pending_jobs_lock);
-  mysql_cond_destroy(&pending_jobs_cond);
-  mysql_mutex_destroy(&mts_temp_table_LOCK);
-  delete current_mts_submode;
-
-  if(workers_copy_pfs.size())
-  {
-    for (int i= workers_copy_pfs.size() - 1; i >= 0; i--)
-      delete workers_copy_pfs[i];
-    workers_copy_pfs.clear();
-  }
-
   if(!rli_fake)
   {
+    if (recovery_groups_inited)
+      bitmap_free(&recovery_groups);
+    delete current_mts_submode;
+
+    if(workers_copy_pfs.size())
+    {
+      for (int i= workers_copy_pfs.size() - 1; i >= 0; i--)
+        delete workers_copy_pfs[i];
+      workers_copy_pfs.clear();
+    }
+
+    mysql_mutex_destroy(&log_space_lock);
+    mysql_cond_destroy(&log_space_cond);
+    mysql_mutex_destroy(&pending_jobs_lock);
+    mysql_cond_destroy(&pending_jobs_cond);
+    mysql_mutex_destroy(&mts_temp_table_LOCK);
     my_atomic_rwlock_destroy(&slave_open_temp_tables_lock);
+    relay_log.cleanup();
   }
 
-  relay_log.cleanup();
   set_rli_description_event(NULL);
 
   DBUG_VOID_RETURN;
