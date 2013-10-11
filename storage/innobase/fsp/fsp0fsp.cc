@@ -879,7 +879,7 @@ Tries to extend a single-table tablespace so that a page would fit in the
 data file.
 @return TRUE if success */
 static UNIV_COLD __attribute__((nonnull, warn_unused_result))
-ibool
+bool
 fsp_try_extend_data_file_with_pages(
 /*================================*/
 	ulint		space,		/*!< in: space */
@@ -887,7 +887,7 @@ fsp_try_extend_data_file_with_pages(
 	fsp_header_t*	header,		/*!< in/out: space header */
 	mtr_t*		mtr)		/*!< in/out: mini-transaction */
 {
-	ibool	success;
+	bool	success;
 	ulint	actual_size;
 	ulint	size;
 
@@ -911,7 +911,7 @@ fsp_try_extend_data_file_with_pages(
 Tries to extend the last data file of a tablespace if it is auto-extending.
 @return FALSE if not auto-extending */
 static UNIV_COLD __attribute__((nonnull))
-ibool
+bool
 fsp_try_extend_data_file(
 /*=====================*/
 	ulint*		actual_increase,/*!< out: actual increase in pages, where
@@ -929,7 +929,7 @@ fsp_try_extend_data_file(
 	ulint	old_size;
 	ulint	size_increase;
 	ulint	actual_size;
-	ibool	success;
+	bool	success;
 
 	*actual_increase = 0;
 
@@ -940,7 +940,7 @@ fsp_try_extend_data_file(
 		spamming the error log. Note that we don't need
 		to reset the flag to false as dealing with this
 		error requires server restart. */
-		if (srv_sys_space.get_tablespace_full_status() == false) {
+		if (!srv_sys_space.get_tablespace_full_status()) {
 			ib_logf(IB_LOG_LEVEL_ERROR,
 				"InnoDB: Error: Data file(s) ran"
 				" out of space."
@@ -957,7 +957,7 @@ fsp_try_extend_data_file(
 		spamming the error log. Note that we don't need
 		to reset the flag to false as dealing with this
 		error requires server restart. */
-		if (srv_tmp_space.get_tablespace_full_status() == false) {
+		if (!srv_tmp_space.get_tablespace_full_status()) {
 			ib_logf(IB_LOG_LEVEL_ERROR,
 				"Temp-Data file(s) ran out of space."
 				" Please add another temp-data file or"
@@ -1021,7 +1021,7 @@ fsp_try_extend_data_file(
 
 				*actual_increase = new_size - old_size;
 
-				return(FALSE);
+				return(false);
 			}
 
 			size = extent_size;
@@ -1039,7 +1039,7 @@ fsp_try_extend_data_file(
 
 	if (size_increase == 0) {
 
-		return(TRUE);
+		return(true);
 	}
 
 	success = fil_extend_space_to_desired_size(&actual_size, space,
@@ -1063,7 +1063,7 @@ fsp_try_extend_data_file(
 
 	*actual_increase = new_size - old_size;
 
-	return(TRUE);
+	return(true);
 }
 
 /**********************************************************************//**
@@ -2078,7 +2078,7 @@ fseg_create_general(
 	buf_block_t*	block	= 0; /* remove warning */
 	fseg_header_t*	header	= 0; /* remove warning */
 	rw_lock_t*	latch;
-	ibool		success;
+	bool		success;
 	ulint		n_reserved;
 	ulint		i;
 
@@ -2747,7 +2747,7 @@ inside the data file. If not, this function extends the tablespace with
 pages.
 @return TRUE if there were >= 3 free pages, or we were able to extend */
 static
-ibool
+bool
 fsp_reserve_free_pages(
 /*===================*/
 	ulint		space,		/*!< in: space id, must be != 0 */
@@ -2771,7 +2771,7 @@ fsp_reserve_free_pages(
 
 	if (size >= n_used + 2) {
 
-		return(TRUE);
+		return(true);
 	}
 
 	return(fsp_try_extend_data_file_with_pages(space, n_used + 1,
@@ -2805,7 +2805,7 @@ only occupies < 32 pages. That is why we apply different rules in that special
 case, just ensuring that there are 3 free pages available.
 @return TRUE if we were able to make the reservation */
 
-ibool
+bool
 fsp_reserve_free_extents(
 /*=====================*/
 	ulint*	n_reserved,/*!< out: number of extents actually reserved; if we
@@ -2826,7 +2826,7 @@ fsp_reserve_free_extents(
 	ulint		n_free;
 	ulint		n_free_up;
 	ulint		reserve;
-	ibool		success;
+	bool		success;
 	ulint		n_pages_added;
 
 	ut_ad(mtr);
@@ -2898,7 +2898,7 @@ try_again:
 	success = fil_space_reserve_free_extents(space, n_free, n_ext);
 
 	if (success) {
-		return(TRUE);
+		return(true);
 	}
 try_to_extend:
 	success = fsp_try_extend_data_file(&n_pages_added, space,
@@ -2908,7 +2908,7 @@ try_to_extend:
 		goto try_again;
 	}
 
-	return(FALSE);
+	return(false);
 }
 
 /**********************************************************************//**
