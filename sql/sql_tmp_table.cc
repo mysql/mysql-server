@@ -523,7 +523,9 @@ create_tmp_table(THD *thd,TMP_TABLE_PARAM *param,List<Item> &fields,
           can't index BIT fields.
       */
       (*tmp->item)->marker= 4;
-      if ((*tmp->item)->max_length >= CONVERT_IF_BIGGER_TO_BLOB)
+      const uint char_len=
+        (*tmp->item)->max_length / (*tmp->item)->collation.collation->mbmaxlen;
+      if (char_len > CONVERT_IF_BIGGER_TO_BLOB)
         using_unique_constraint= true;
     }
     if (param->group_length >= MAX_BLOB_WIDTH)
@@ -1239,7 +1241,7 @@ TABLE *create_duplicate_weedout_tmp_table(THD *thd,
   fn_format(path, path, mysql_tmpdir, "", MY_REPLACE_EXT|MY_UNPACK_FILENAME);
 
   /* STEP 2: Figure if we'll be using a key or blob+constraint */
-  if (uniq_tuple_length_arg >= CONVERT_IF_BIGGER_TO_BLOB)
+  if (uniq_tuple_length_arg > CONVERT_IF_BIGGER_TO_BLOB)
     using_unique_constraint= true;
 
   /* STEP 3: Allocate memory for temptable description */
