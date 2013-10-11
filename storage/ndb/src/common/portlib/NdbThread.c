@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2003, 2010, Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2003, 2013, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -42,9 +42,11 @@
 #include "NdbMutex_DeadlockDetector.h"
 #endif
 
+#if defined(HAVE_LINUX_SCHEDULING) || defined(HAVE_PTHREAD_SET_SCHEDPARAM)
 static int g_min_prio = 0;
 static int g_max_prio = 0;
-static int g_prio = 0;
+static my_bool get_prio_first = TRUE;
+#endif
 
 static NdbMutex *g_ndb_thread_mutex = 0;
 static struct NdbCondition * g_ndb_thread_condition = 0;
@@ -81,10 +83,23 @@ struct NdbThread
   HANDLE thread_handle;
 #endif
 #if defined HAVE_SOLARIS_AFFINITY
+  /* Our thread id */
   id_t tid;
+  /* Have we called any lock to CPU function yet for this thread */
+  my_bool first_lock_call;
+  /* Have we locked thread to a processor set for the moment */
+  my_bool locked_to_processor_set;
+  /* Processor set locked to */
+  Uint32 proc_set_id;
+  /* Original processor set locked to */
+  psetid_t orig_proc_set;
+  /* Original processor locked to */
+  processor_id_t orig_processor_id;
 #elif defined HAVE_LINUX_SCHEDULING
   pid_t tid;
+  struct NdbCpuSet *orig_cpu_set;
 #endif
+  const struct processor_set_handler *cpu_set_key;
   char thread_name[16];
   NDB_THREAD_FUNC * func;
   void * object;
@@ -298,7 +313,12 @@ NdbThread_Create(NDB_THREAD_FUNC *p_thread_func,
   tmpThread->inited = 0;
   tmpThread->func= p_thread_func;
   tmpThread->object= p_thread_arg;
-  tmpThread->thread_key = NULL;
+  tmpThread->cpu_set_key = NULL;
+#ifdef HAVE_LINUX_SCHEDULING
+  tmpThread->orig_cpu_set = NULL;
+#elif HAVE_SOLARIS_AFFINITY
+  tmpThread->first_lock_call = TRUE;
+#endif
 
   NdbMutex_Lock(g_ndb_thread_mutex);
   result = pthread_create(&tmpThread->thread,
@@ -348,11 +368,13 @@ void NdbThread_Destroy(struct NdbThread** p_thread)
       CloseHandle(thread_handle);
 #endif
     DBUG_PRINT("enter",("*p_thread: 0x%lx", (long) *p_thread));
-    if ((*p_thread)->thread_key)
+#ifdef HAVE_LINUX_SCHEDULING
+    if ((*p_thread)->orig_cpu_set)
     {
-      free((*p_thread)->thread_key);
-      (*p_thread)->thread_key = NULL;
+      free((void*)(*p_thread)->orig_cpu_set);
+      (*p_thread)->orig_cpu_set = NULL;
     }
+#endif
     free(* p_thread); 
     * p_thread = 0;
   }
@@ -442,14 +464,16 @@ get_min_prio(int policy)
 }
 
 static int
-get_prio(my_bool rt_prio, my_bool high_prio, int policy)
+get_prio(my_bool high_prio, int policy)
 {
-  if (!rt_prio)
-    return 0;
-  if (g_prio != 0)
-    return g_prio;
-  g_max_prio = get_max_prio(policy);
-  g_min_prio = get_min_prio(policy);
+  int prio;
+
+  if (get_prio_first)
+  {
+    g_max_prio = get_max_prio(policy);
+    g_min_prio = get_min_prio(policy);
+    get_prio_first = FALSE;
+  }
   /*
     We need to distinguish between high and low priority threads. High
     priority threads are the threads that don't execute the main thread.
@@ -460,12 +484,29 @@ get_prio(my_bool rt_prio, my_bool high_prio, int policy)
     extensions where a new priority level is required.
   */
   if (high_prio)
-    g_prio = g_min_prio + 3;
+    prio = g_min_prio + 3;
   else
-    g_prio = g_min_prio + 1;
-  if (g_prio < g_min_prio)
-    g_prio = g_min_prio;
-  return g_prio;
+    prio = g_min_prio + 1;
+  if (prio < g_min_prio)
+    prio = g_min_prio;
+  return prio;
+}
+#endif
+
+/**
+ * When running in real-time mode we stop everyone else from running,
+ * we make a short break to give others a chance to execute that are
+ * on lower prio. If we don't do this regularly and run for a long
+ * time on real-time prio then we can easily crash the system.
+ */
+int
+NdbThread_yield_rt(struct NdbThread* pThread, my_bool high_prio)
+{
+  int res = NdbThread_SetScheduler(pThread, FALSE, high_prio);
+  int res1 = NdbThread_SetScheduler(pThread, TRUE, high_prio);
+  if (res || res1)
+    return res;
+  return 0;
 }
 #endif
 
@@ -481,7 +522,7 @@ NdbThread_SetScheduler(struct NdbThread* pThread,
   if (rt_prio)
   {
     policy = SCHED_RR;
-    prio = get_prio(rt_prio, high_prio, policy);
+    prio = get_prio(high_prio, policy);
   }
   else
   {
@@ -503,7 +544,7 @@ NdbThread_SetScheduler(struct NdbThread* pThread,
   if (rt_prio)
   {
     policy = SCHED_RR;
-    prio = get_prio(rt_prio, high_prio, policy);
+    prio = get_prio(high_prio, policy);
   }
   else
   {
@@ -527,33 +568,243 @@ NdbThread_UnlockCPU(struct NdbThread* pThread)
 {
   int ret;
   int error_no = 0;
-  if (pThread->thread_key != NULL)
-  {
+
 #if defined HAVE_LINUX_SCHEDULING
-    cpu_set_t *cpu_set_ptr = (cpu_set_t *)pThread->thread_key;
+ if (pThread->orig_cpu_set != NULL)
+ {
+    cpu_set_t *cpu_set_ptr = (cpu_set_t *)pThread->orig_cpu_set;
     ret= sched_setaffinity(pThread->tid, sizeof(cpu_set_t), cpu_set_ptr);
     if (ret)
     {
       error_no = errno;
     }
+    free((void*)pThread->orig_cpu_set);
+    pThread->orig_cpu_set = NULL;
+  }
 #elif defined HAVE_SOLARIS_AFFINITY
-    processorid_t *cpu_id = (processorid_t*)pThread->thread_key;
-    ret= processor_bind(P_LWPID, pThread->tid, *cpu_id, NULL);
+  if (!pThread->first_lock_call)
+  {
+    if (pThread->proc_set_id != MAX_PROC_SETS)
+    {
+      pset_destroy(pThread->proc_set);
+      solaris_remove_use_proc_set(pThread->proc_set_id);
+      pThread->proc_set_id = MAX_PROC_SETS;
+    }
+    ret= pset_bind(pThread->orig_proc_set,
+                   P_LWPID,
+                   pThread->tid,
+                   NULL);
     if (ret)
     {
       error_no = errno;
     }
-#else
-    (void)ret;
-#endif
+    ret= processor_bind(P_LWPID,
+                        pThread->tid,
+                        pThread->orig_processor_id,
+                        NULL);
+    if (ret)
+    {
+      error_no = errno;
+    }
+    pThread->first_lock_call = TRUE;
   }
+#else
+  (void)ret;
+#endif
+  pThread->cpu_set_key = NULL;
+  return error_no;
+}
+
+static int
+set_old_cpu_locking(struct NdbThread* pThread)
+{
+  int error_no = 0;
+  int ret;
+#if defined HAVE_LINUX_SCHEDULING
+  if (pThread->orig_cpu_set == NULL)
+  {
+    cpu_set_t *old_cpu_set_ptr = malloc(sizeof(cpu_set_t));
+    if (!old_cpu_set_ptr)
+    {
+      error_no = errno;
+      goto end;
+    }
+    ret = sched_getaffinity(pThread->tid, sizeof(cpu_set_t), old_cpu_set_ptr);
+    if (ret)
+    {
+      error_no = errno;
+      goto end;
+    }
+    pThread->orig_cpu_set = (struct NdbCpuSet*)old_cpu_set_ptr;
+  }
+#elif defined HAVE_SOLARIS_AFFINITY
+  if (!pThread->first_lock_call)
+  {
+    ret = pset_bind(PS_QUERY, P_LWPID, pThread->tid, &pThread->old_proc_set);
+    if (ret)
+    {
+      error_no= errno;
+      goto end;
+    }
+    ret= processor_bind(P_LWPID,
+                        pThread->tid,
+                        PBIND_QUERY,
+                        &pThread->old_processor_id);
+    if (ret)
+    {
+      error_no= errno;
+      goto end;
+    }
+    pThread->first_lock_call = FALSE;
+  }
+#else
+  (void)ret;
+  goto end;
+#endif
+end:
   return error_no;
 }
 
 int
-NdbThread_LockCPU(struct NdbThread* pThread, Uint32 cpu_id)
+NdbThread_LockCreateCPUSet(const Uint32 *cpu_ids,
+                           Uint32 num_cpu_ids,
+                           struct NdbCpuSet **cpu_set)
 {
-  int error_no = 0;
+#if defined HAVE_LINUX_SCHEDULING
+  int error_no;
+  Uint32 cpu_id;
+  Uint32 i;
+  cpu_set_t *cpu_set_ptr = malloc(sizeof(cpu_set_t));
+
+  if (!cpu_set_ptr)
+  {
+    error_no = errno;
+    *cpu_set = NULL;
+    return error_no;
+  }
+  CPU_ZERO(cpu_set_ptr);
+  for (i = 0; i < num_cpu_ids; i++)
+  {
+    cpu_id = cpu_ids[i];
+    CPU_SET(cpu_id, cpu_set_ptr);
+  }
+  *cpu_set = (struct NdbCpuSet*)cpu_set_ptr;
+  return 0;
+#elif defined HAVE_SOLARIS_AFFINITY
+  int ret;
+  int error_no;
+  Uint32 i;
+  psetid_t *cpu_set_ptr = malloc(sizeof(psetid_t));
+
+  if (!cpu_set_ptr)
+    goto error;
+
+  if ((ret = pset_create(cpu_set_ptr)))
+    return errno;
+
+  for (i = 0; i < num_cpu_ids; i++)
+  {
+    if ((ret = pset_assign(*cpu_set_ptr, cpu_ids[i], NULL)))
+      goto error;
+  }
+  *cpu_set = (struct NdbCpuSet*)cpu_set_ptr;
+  return 0;
+error:
+  error_no = errno;
+  *cpu_set = NULL;
+  return error_no;
+#else
+  *cpu_set = NULL;
+  return 0;
+#endif
+}
+
+void
+NdbThread_LockDestroyCPUSet(struct NdbCpuSet *cpu_set)
+{
+  if (cpu_set != NULL)
+  {
+#if defined HAVE_SOLARIS_AFFINITY
+    pset_destroy((cpu_set_t*)cpu_set);
+#endif
+    free(cpu_set);
+  }
+}
+
+int
+NdbThread_LockCPUSet(struct NdbThread* pThread,
+                     struct NdbCpuSet *ndb_cpu_set,
+                     const struct processor_set_handler *cpu_set_key)
+{
+  int error_no;
+  int ret;
+#if defined(HAVE_LINUX_SCHEDULING) || defined(HAVE_SOLARIS_AFFINITY)
+  cpu_set_t *cpu_set_ptr;
+#endif
+
+  if ((error_no = set_old_cpu_locking(pThread)))
+    goto end;
+
+  if (ndb_cpu_set == NULL)
+  {
+    return 0;
+  }
+#if defined HAVE_LINUX_SCHEDULING
+  cpu_set_ptr = (cpu_set_t*)ndb_cpu_set;
+
+  /* Lock against the bitmask defined by CPUSet */
+  ret= sched_setaffinity(pThread->tid,
+                         sizeof(cpu_set_t),
+                         cpu_set_ptr);
+  if (ret)
+  {
+    error_no = errno;
+  }
+  goto end;
+#elif defined HAVE_SOLARIS_AFFINITY
+  cpu_set_ptr = (cpu_set_t*)ndb_cpu_set;
+
+  /* Lock against Solaris processor set */
+  ret= pset_bind(*cpu_set_ptr,
+                 P_LWPID,
+                 pThread->tid,
+                 NULL);
+  if (ret)
+  {
+    error_no = errno;
+    goto end;
+  }
+  return 0;
+#else
+  (void) ret;
+  goto end;
+#endif
+
+end:
+  if (!error_no)
+    pThread->cpu_set_key = cpu_set_key;
+  return error_no;
+}
+
+const struct processor_set_handler*
+NdbThread_LockGetCPUSetKey(struct NdbThread* pThread)
+{
+  return pThread->cpu_set_key;
+}
+
+int
+NdbThread_LockCPU(struct NdbThread* pThread,
+                  Uint32 cpu_id,
+                  const struct processor_set_handler *cpu_set_key)
+{
+  int error_no;
+  int ret;
+#if defined HAVE_LINUX_SCHEDULING
+  cpu_set_t cpu_set;
+#endif
+
+  if ((error_no = set_old_cpu_locking(pThread)))
+    goto end;
 
 #if defined HAVE_LINUX_SCHEDULING
 
@@ -567,20 +818,7 @@ NdbThread_LockCPU(struct NdbThread* pThread, Uint32 cpu_id)
     By combining Real-time Scheduling and Locking to CPU we can
     achieve more or less a realtime system for NDB Cluster.
   */
-  int ret;
-  cpu_set_t cpu_set;
 
-  if (pThread->thread_key == NULL)
-  {
-    cpu_set_t *old_cpu_set_ptr = malloc(sizeof(cpu_set));
-    ret = sched_getaffinity(pThread->tid, sizeof(cpu_set), old_cpu_set_ptr);
-    if (ret)
-    {
-      error_no = errno;
-      goto end;
-    }
-    pThread->thread_key = (void*)old_cpu_set_ptr;
-  }
   CPU_ZERO(&cpu_set);
   CPU_SET(cpu_id, &cpu_set);
   ret= sched_setaffinity(pThread->tid, sizeof(cpu_set), &cpu_set);
@@ -596,26 +834,19 @@ NdbThread_LockCPU(struct NdbThread* pThread, Uint32 cpu_id)
     A bit unclear as whether the id returned by pthread_self
     is the LWP id.
   */
-  int ret;
-  if (pThread->thread_key == NULL)
-  {
-    processorid_t *old_cpu_id_ptr = malloc(sizeof(processorid_t));
-    ret= processor_bind(P_LWPID, pThread->tid, PBIND_QUERY, old_cpu_id);
-    if (ret)
-    {
-      error_no= errno;
-      goto end;
-    }
-    pThread->thread_key = (void*)old_cpu_id_ptr;
-  }
   ret= processor_bind(P_LWPID, pThread->tid, cpu_id, NULL);
   if (ret)
+  {
     error_no= errno;
+  }
 #else
+  (void) ret;
   error_no = ENOSYS;
   goto end;
 #endif
 end:
+  if (!error_no)
+    pThread->cpu_set_key = cpu_set_key;
   return error_no;
 }
 
