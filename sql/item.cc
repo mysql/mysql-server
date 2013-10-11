@@ -1507,7 +1507,8 @@ bool Item::is_blob_field() const
 
   enum_field_types type= field_type();
   return (type == MYSQL_TYPE_BLOB || type == MYSQL_TYPE_GEOMETRY ||
-          max_length > CONVERT_IF_BIGGER_TO_BLOB);
+          // Char length, not the byte one, should be taken into account
+          max_length/collation.collation->mbmaxlen > CONVERT_IF_BIGGER_TO_BLOB);
 }
 
 
@@ -6089,7 +6090,7 @@ Field *Item::tmp_table_field_from_field_type(TABLE *table, bool fixed_length)
     /* If something goes awfully wrong, it's better to get a string than die */
   case MYSQL_TYPE_STRING:
   case MYSQL_TYPE_NULL:
-    if (fixed_length && max_length < CONVERT_IF_BIGGER_TO_BLOB)
+    if (fixed_length && max_length <= CONVERT_IF_BIGGER_TO_BLOB)
     {
       field= new Field_string(max_length, maybe_null, item_name.ptr(),
                               collation.collation);
