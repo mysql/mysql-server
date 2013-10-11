@@ -1,5 +1,5 @@
 /*
- Copyright (c) 2012, Oracle and/or its affiliates. All rights
+ Copyright (c) 2013, Oracle and/or its affiliates. All rights
  reserved.
  
  This program is free software; you can redistribute it and/or
@@ -36,6 +36,31 @@ using v8::String;
 
 
 /*****************************************************************
+ Code to confirm that C++ types wrapped as JavaScript values
+ are unwrapped back to the original type.
+ This can be disabled.
+ ******************************************************************/
+#define ENABLE_WRAPPER_TYPE_CHECKS 0
+
+#if ENABLE_WRAPPER_TYPE_CHECKS
+#include <typeinfo>
+inline void check_class_id(const char *a, const char *b) {
+  if(a != b) {
+    fprintf(stderr, " !!! Expected %s but unwrapped %s !!!\n", a, b);
+    assert(a == b);
+  }
+}
+#define TYPE_CHECK_T(x) const char * x
+#define SET_CLASS_ID(env, PTR) env.class_id = typeid(PTR).name()
+#define CHECK_CLASS_ID(env, PTR) check_class_id(env->class_id, typeid(PTR).name()) 
+#else
+#define TYPE_CHECK_T(x)
+#define SET_CLASS_ID(env, PTR)
+#define CHECK_CLASS_ID(env, PTR)
+#endif
+
+
+/*****************************************************************
  An Envelope is a simple structure providing some safety 
  & convenience for wrapped classes.
 
@@ -46,14 +71,13 @@ class Envelope {
 public:
   /* Instance variables */
   int magic;                            // for safety when unwrapping 
-  int class_id;                         // for checking type of wrapped object
+  TYPE_CHECK_T(class_id);               // for checking type of wrapped object
   const char * classname;               // for debugging output
   Persistent<ObjectTemplate> stencil;   // for creating JavaScript objects
   
   /* Constructor */
-  Envelope(const char *name, int id = 0) : 
+  Envelope(const char *name) : 
     magic(0xF00D), 
-    class_id(id),
     classname(name)
   {
     HandleScope scope; 
@@ -89,8 +113,9 @@ template<typename PTR>
 void freeFromGC(PTR ptr, Handle<Object> obj) {
   Persistent<Object> notifier = Persistent<Object>::New(obj);
   notifier.MarkIndependent();
-  notifier.MakeWeak(ptr, onGcReclaim<PTR>);
+  notifier.MakeWeak((void *) ptr, onGcReclaim<PTR>);
 }
+
 
 /*****************************************************************
  Construct a wrapped object. 
@@ -105,6 +130,7 @@ void wrapPointerInObject(PTR ptr,
                          Local<Object> obj) {
   DEBUG_PRINT("Constructor wrapping %s: %p", env.classname, ptr);
   DEBUG_ASSERT(obj->InternalFieldCount() == 2);
+  SET_CLASS_ID(env, PTR);
   obj->SetInternalField(0, v8::External::Wrap((void *) & env));
   obj->SetInternalField(1, v8::External::Wrap((void *) ptr));
 }
@@ -125,6 +151,7 @@ PTR unwrapPointer(Local<Object> obj) {
 #ifdef UNIFIED_DEBUG
   Envelope * env = static_cast<Envelope *>(obj->GetPointerFromInternalField(0));
   assert(env->magic == 0xF00D);
+  CHECK_CLASS_ID(env, PTR);
   DEBUG_PRINT_DETAIL("Unwrapping %s: %p", env->classname, ptr);
 #endif
   return ptr;
