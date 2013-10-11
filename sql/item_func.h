@@ -488,17 +488,20 @@ class Item_int_func :public Item_func
 protected:
   bool sargable;
 public:
-  Item_int_func() :Item_func() { max_length= 21; }
-  Item_int_func(Item *a) :Item_func(a) { max_length= 21; }
-  Item_int_func(Item *a,Item *b) :Item_func(a,b) { max_length= 21; }
+  Item_int_func() :Item_func() { max_length= 21; sargable= false; }
+  Item_int_func(Item *a) :Item_func(a) { max_length= 21; sargable= false; }
+  Item_int_func(Item *a,Item *b) :Item_func(a,b)
+  { max_length= 21; sargable= false; }
   Item_int_func(Item *a,Item *b,Item *c) :Item_func(a,b,c)
-  { max_length= 21; }
-  Item_int_func(List<Item> &list) :Item_func(list) { max_length= 21; }
-  Item_int_func(THD *thd, Item_int_func *item) :Item_func(thd, item) {}
+  { max_length= 21; sargable= false; }
+  Item_int_func(List<Item> &list) :Item_func(list)
+  { max_length= 21; sargable= false; }
+  Item_int_func(THD *thd, Item_int_func *item) :Item_func(thd, item)
+  { sargable= false;}
   double val_real();
   String *val_str(String*str);
   enum Item_result result_type () const { return INT_RESULT; }
-  void fix_length_and_dec() { sargable= false; }
+  void fix_length_and_dec() {}
   bool count_sargable_conds(uchar *arg);
 };
 
