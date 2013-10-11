@@ -1626,7 +1626,7 @@ buf_pool_clear_hash_index(void)
 Relocate a buffer control block.  Relocates the block on the LRU list
 and in buf_pool->page_hash.  Does not relocate bpage->list.
 The caller must take care of relocating bpage->list. */
-
+static
 void
 buf_relocate(
 /*=========*/
