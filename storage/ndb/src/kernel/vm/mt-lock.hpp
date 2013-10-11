@@ -33,9 +33,18 @@ struct mt_lock_stat
 };
 
 static void register_lock(const void * ptr, const char * name);
-static mt_lock_stat * lookup_lock(const void * ptr);
 
-#ifdef NDB_HAVE_XCNG
+/**
+ * We will disable use of spinlocks since it doesn't work properly
+ * with realtime settings. Will also provide more stable results in
+ * some environments at the expense of a minor optimisation. If
+ * desirable to have optimal performance without usage of realtime
+ * and always ensuring that each thread runs in its own processor,
+ * then enable spinlocks again by removing comment on
+ * #ifdef NDB_HAVE_XCNG
+ */
+#if defined(NDB_HAVE_XCNG) && defined(NDB_USE_SPINLOCK)
+static mt_lock_stat * lookup_lock(const void * ptr);
 template <unsigned SZ>
 struct thr_spin_lock
 {
