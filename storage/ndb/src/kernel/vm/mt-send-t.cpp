@@ -566,9 +566,11 @@ register_lock(const void * ptr, const char * name)
   return;
 }
 
+#if defined(NDB_HAVE_XCNG) && defined(NDB_USE_SPINLOCK)
 static
 mt_lock_stat *
 lookup_lock(const void * ptr)
 {
   return 0;
 }
+#endif
