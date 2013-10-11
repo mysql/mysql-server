@@ -1,4 +1,4 @@
-/* Copyright (c) 2008, 2011, 2013, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2008, 2013, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -851,6 +851,25 @@ struct thr_data
   unsigned m_thr_no;
 
   /**
+   * Spin time of thread after completing all its work (in microseconds).
+   * We won't go to sleep until we have spun for sufficient time, the aim
+   * is to increase readiness in systems with much CPU resources
+   */
+  unsigned m_spintime;
+
+  /**
+   * Realtime scheduler activated for this thread. This means this
+   * thread will run at a very high priority even beyond the priority
+   * of the OS.
+   */
+  unsigned m_realtime;
+
+  /**
+   * Index of thread locally in Configuration.cpp
+   */
+  unsigned m_thr_index;
+
+  /**
    * max signals to execute per JBB buffer
    */
   unsigned m_max_signals_per_jb;
@@ -1084,6 +1103,7 @@ struct thr_send_thread_instance
   Uint32 m_instance_no;
   Uint32 m_watchdog_counter;
   Uint32 m_awake;
+  Uint32 m_thr_index;
   NdbThread *m_thread;
   thr_wait m_waiter_struct;
   class thread_local_pool<thr_send_page> m_send_buffer_pool;
@@ -1239,6 +1259,8 @@ thr_send_threads::~thr_send_threads()
     /* Ensure thread is woken up to die */
     wakeup(&(m_send_threads[i].m_waiter_struct));
     NdbThread_WaitFor(m_send_threads[i].m_thread, &dummy_return_status);
+    globalEmulatorData.theConfiguration->removeThread(
+      m_send_threads[i].m_thread);
     NdbThread_Destroy(&(m_send_threads[i].m_thread));
   }
 }
@@ -1255,6 +1277,10 @@ thr_send_threads::start_send_threads()
                        1024*1024,
                        "send thread", //ToDo add number
                        NDB_THREAD_PRIO_MEAN);
+    m_send_threads[i].m_thr_index =
+      globalEmulatorData.theConfiguration->addThread(
+        m_send_threads[i].m_thread,
+        SendThread);
   }
   m_started_threads = TRUE;
 }
@@ -1433,6 +1459,104 @@ thr_send_threads::perform_send(NodeId node, Uint32 instance_no)
   return res;
 }
 
+static void
+update_send_sched_config(THRConfigApplier & conf,
+                         unsigned instance_no,
+                         bool & real_time,
+                         NDB_TICKS & spin_time)
+{
+  real_time = conf.do_get_realtime_send(instance_no);
+  spin_time = (NDB_TICKS)conf.do_get_spintime_send(instance_no);
+}
+
+static void
+yield_rt_break(NdbThread *thread,
+               enum ThreadTypes type,
+               bool real_time)
+{
+  Configuration * conf = globalEmulatorData.theConfiguration;
+  conf->setRealtimeScheduler(thread,
+                             type,
+                             FALSE,
+                             FALSE);
+  conf->setRealtimeScheduler(thread,
+                             type,
+                             real_time,
+                             FALSE);
+}
+
+static void
+check_real_time_break(struct MicroSecondTimer *yield_time,
+                      struct MicroSecondTimer *current_time,
+                      int res_start,
+                      int res_end,
+                      NdbThread *thread,
+                      enum ThreadTypes type)
+{
+  NDB_TICKS micros_passed = NdbTick_getMicrosPassed(*yield_time,
+                                                    *current_time);
+  if (micros_passed > (NDB_TICKS)50000 ||
+      res_start != 0 ||
+      res_end != 0)
+  {
+    /**
+     * Lower scheduling prio to time-sharing mode to ensure that
+     * other threads and processes gets a chance to be scheduled
+     * if we run for an extended time.
+     */
+    yield_rt_break(thread, type, TRUE);
+    *yield_time = *current_time;
+  }
+}
+
+static bool
+check_yield(struct MicroSecondTimer *start_spin_time,
+            int res_start,
+            bool *spin_flag,
+            NDB_TICKS min_spin_timer)
+{
+  struct MicroSecondTimer current_time;
+  NDB_TICKS micros_passed = 0;
+  int loc_res;
+  if (min_spin_timer == (NDB_TICKS)0 || res_start != 0)
+    goto yield;
+  loc_res = NdbTick_getMicroTimer(&current_time);
+  if (!(*spin_flag))
+  {
+    /**
+     * We haven't started spinning yet, set spin flag and start spin
+     * timer.
+     */
+    *start_spin_time = current_time;
+    if (loc_res == 0)
+      goto no_yield;
+    else
+      goto yield;
+  }
+  if (loc_res != 0)
+    goto yield;
+  /**
+   * We have a minimum spin timer before we go to sleep.
+   * We will go to sleep only if we have spun for longer
+   * time than required by the minimum spin time.
+   * If the timer handling for some reason fails we will
+   * always yield.
+   */
+  micros_passed =
+    NdbTick_getMicrosPassed(*start_spin_time, current_time);
+  if (min_spin_timer > micros_passed)
+    goto no_yield;
+  else
+    goto yield;
+yield:
+  *spin_flag = false;
+  return true;
+
+no_yield:
+  *spin_flag = true;
+  return false;
+}
+
 void
 thr_send_threads::run_send_thread(Uint32 instance_no)
 {
@@ -1486,14 +1610,41 @@ thr_send_threads::run_send_thread(Uint32 instance_no)
   this_send_thread->m_awake = FALSE;
   NdbMutex_Unlock(send_thread_mutex);
 
+  struct MicroSecondTimer start_spin_micro;
+  struct MicroSecondTimer current_micro;
+  struct MicroSecondTimer yield_micro;
+  bool real_time = false;
+  NDB_TICKS min_spin_timer = (NDB_TICKS)0;
+  bool spin_flag = false;
+  int res_current;
+  int res_yield = NdbTick_getMicroTimer(&yield_micro);
+  THRConfigApplier & conf = globalEmulatorData.theConfiguration->m_thr_config;
+  update_send_sched_config(conf, instance_no, real_time, min_spin_timer);
+
   while (globalData.theRestartFlag != perform_stop)
   {
     this_send_thread->m_watchdog_counter = 1;
 
-    /* Yield for a maximum of 1ms */
-    const Uint32 wait = 1000000;
-    yield(&this_send_thread->m_waiter_struct, wait,
-          check_available_send_data, (struct thr_data*)NULL);
+    if (real_time)
+    {
+      res_current = NdbTick_getMicroTimer(&current_micro);
+      check_real_time_break(&yield_micro,
+                            &current_micro,
+                            res_yield,
+                            res_current,
+                            this_send_thread->m_thread,
+                            SendThread);
+    }
+    if (check_yield(&start_spin_micro,
+                    0,
+                    &spin_flag,
+                    min_spin_timer))
+    {
+      /* Yield for a maximum of 1ms */
+      const Uint32 wait = 1000000;
+      yield(&this_send_thread->m_waiter_struct, wait,
+            check_available_send_data, (struct thr_data*)NULL);
+    }
 
     NdbMutex_Lock(send_thread_mutex);
     this_send_thread->m_awake = TRUE;
@@ -3520,9 +3671,11 @@ init_thread(thr_data *selfptr)
   }
 
   conf.appendInfo(tmp,
-                  selfptr->m_instance_list, selfptr->m_instance_count);
+                  selfptr->m_instance_list,
+                  selfptr->m_instance_count);
   int res = conf.do_bind(selfptr->m_thread,
-                         selfptr->m_instance_list, selfptr->m_instance_count);
+                         selfptr->m_instance_list,
+                         selfptr->m_instance_count);
   if (res < 0)
   {
     tmp.appfmt("err: %d ", -res);
@@ -3531,6 +3684,10 @@ init_thread(thr_data *selfptr)
   {
     tmp.appfmt("OK ");
   }
+  selfptr->m_realtime = conf.do_get_realtime(selfptr->m_instance_list,
+                                             selfptr->m_instance_count);
+  selfptr->m_spintime = conf.do_get_spintime(selfptr->m_instance_list,
+                                             selfptr->m_instance_count);
 
   selfptr->m_thr_id = pthread_self();
 
@@ -3582,6 +3739,40 @@ TransporterReceiveHandleKernel *
  */
 static NodeId g_node_to_recv_thr_map[MAX_NODES];
 
+/**
+ * We use this method both to initialise the realtime variable
+ * and also for updating it. Currently there is no method to
+ * update it, but it's likely that we will soon invent one and
+ * thus the code is prepared for this case.
+ */
+static void
+update_rt_config(struct thr_data *selfptr,
+                 bool & real_time,
+                 enum ThreadTypes type)
+{
+  bool old_real_time = real_time;
+  real_time = selfptr->m_realtime;
+  if (old_real_time == true && real_time == false)
+  {
+    yield_rt_break(selfptr->m_thread,
+                   type,
+                   false);
+  }
+}
+
+/**
+ * We use this method both to initialise the spintime variable
+ * and also for updating it. Currently there is no method to
+ * update it, but it's likely that we will soon invent one and
+ * thus the code is prepared for this case.
+ */
+static void
+update_spin_config(struct thr_data *selfptr,
+                   NDB_TICKS & min_spin_timer)
+{
+  min_spin_timer = (NDB_TICKS) selfptr->m_spintime;
+}
+
 extern "C"
 void *
 mt_receiver_thread_main(void *thr_arg)
@@ -3596,9 +3787,17 @@ mt_receiver_thread_main(void *thr_arg)
   const Uint32 recv_thread_idx = thr_no - first_receiver_thread_no;
   bool has_received = false;
   int cnt = 0;
+  bool real_time = false;
+  NDB_TICKS min_spin_timer;
+  struct MicroSecondTimer start_spin_micro;
+  struct MicroSecondTimer current_micro;
+  struct MicroSecondTimer yield_micro;
+
 
   init_thread(selfptr);
   signal = aligned_signal(signal_buf, thr_no);
+  update_rt_config(selfptr, real_time, ReceiveThread);
+  update_spin_config(selfptr, min_spin_timer);
 
   /**
    * Object that keeps track of our pollReceive-state
@@ -3611,6 +3810,10 @@ mt_receiver_thread_main(void *thr_arg)
    * Save pointer to this for management/error-insert
    */
   g_trp_receive_handle_ptr[recv_thread_idx] = &recvdata;
+
+  bool spin_flag = false;
+  int res_current;
+  int res_yield = NdbTick_getMicroTimer(&yield_micro);
 
   while (globalData.theRestartFlag != perform_stop)
   {
@@ -3639,7 +3842,28 @@ mt_receiver_thread_main(void *thr_arg)
     watchDogCounter = 7;
 
     has_received = false;
-    if (globalTransporterRegistry.pollReceive(1, recvdata))
+
+    if (real_time)
+    {
+      res_current = NdbTick_getMicroTimer(&current_micro);
+      check_real_time_break(&yield_micro,
+                            &current_micro,
+                            res_yield,
+                            res_current,
+                            selfptr->m_thread,
+                            ReceiveThread);
+    }
+
+    Uint32 delay = 0;
+    if (check_yield(&start_spin_micro,
+                    0,
+                    &spin_flag,
+                    min_spin_timer))
+    {
+      delay = 1;
+    }
+
+    if (globalTransporterRegistry.pollReceive(delay, recvdata))
     {
       watchDogCounter = 8;
       lock(&rep->m_receive_lock[recv_thread_idx]);
@@ -3853,7 +4077,22 @@ mt_job_thread_main(void *thr_arg)
   Uint32 loops = 0;
   Uint32 maxloops = 10;/* Loops before reading clock, fuzzy adapted to 1ms freq. */
   Uint32 waits = 0;
-  NDB_TICKS now = selfptr->m_time;
+
+  struct MicroSecondTimer start_micro;
+  struct MicroSecondTimer start_spin_micro;
+  struct MicroSecondTimer end_micro;
+  struct MicroSecondTimer yield_micro;
+
+  NDB_TICKS min_spin_timer;
+  bool spin_flag = false;
+  bool real_time = false;
+
+  update_rt_config(selfptr, real_time, BlockThread);
+  update_spin_config(selfptr, min_spin_timer);
+
+  int res_start = NdbTick_getMicroTimer(&start_micro);
+  NDB_TICKS now = selfptr->m_time = NdbTick_getMillisecond(&start_micro);
+  start_spin_micro = yield_micro = start_micro;
 
   while (globalData.theRestartFlag != perform_stop)
   { 
@@ -3887,6 +4126,7 @@ mt_job_thread_main(void *thr_arg)
       watchDogCounter = 6;
       flush_jbb_write_state(selfptr);
       send_sum += sum;
+      spin_flag = false;
 
       if (send_sum > MAX_SIGNALS_BEFORE_SEND)
       {
@@ -3912,16 +4152,27 @@ mt_job_thread_main(void *thr_arg)
 
       if (pending_send == 0)
       {
-        bool waited = yield(&selfptr->m_waiter, nowait, 
-                            check_queues_empty, selfptr);
-        if (waited)
+        if (check_yield(&start_spin_micro,
+                        res_start,
+                        &spin_flag,
+                        min_spin_timer))
         {
-          waits++;
-          /* Update current time after sleeping */
-          now = NdbTick_CurrentMillisecond();
-          selfptr->m_stat.m_wait_cnt += waits;
-          selfptr->m_stat.m_loop_cnt += loops;
-          waits = loops = 0;
+          bool waited = yield(&selfptr->m_waiter,
+                              nowait,
+                              check_queues_empty,
+                              selfptr);
+          if (waited)
+          {
+            waits++;
+            /* Update current time after sleeping */
+            res_start = NdbTick_getMicroTimer(&start_micro);
+            now = NdbTick_getMillisecond(&start_micro);
+            yield_micro = start_micro;
+            spin_flag = false;
+            selfptr->m_stat.m_wait_cnt += waits;
+            selfptr->m_stat.m_loop_cnt += loops;
+            waits = loops = 0;
+          }
         }
       }
     }
@@ -3935,10 +4186,14 @@ mt_job_thread_main(void *thr_arg)
       if (update_sched_config(selfptr, pending_send + send_sum))
       {
         /* Update current time after sleeping */
-        now = NdbTick_CurrentMillisecond();
+        NdbTick_getMicroTimer(&end_micro);
+        now = NdbTick_getMillisecond(&end_micro);
         selfptr->m_stat.m_wait_cnt += waits;
         selfptr->m_stat.m_loop_cnt += loops;
         waits = loops = 0;
+        spin_flag = false;
+        update_rt_config(selfptr, real_time, BlockThread);
+        update_spin_config(selfptr, min_spin_timer);
       }
     }
     else
@@ -3952,7 +4207,17 @@ mt_job_thread_main(void *thr_arg)
      */
     if (loops > maxloops)
     {
-      now = NdbTick_CurrentMillisecond();
+      int res_end = NdbTick_getMicroTimer(&end_micro);
+      now = NdbTick_getMillisecond(&end_micro);
+      if (real_time)
+      {
+        check_real_time_break(&yield_micro,
+                              &end_micro,
+                              res_start,
+                              res_end,
+                              selfptr->m_thread,
+                              BlockThread);
+      }
       Uint64 diff = now - selfptr->m_time;
 
       /* Adjust 'maxloop' to achieve clock reading frequency of 1ms */
@@ -4441,19 +4706,6 @@ ThreadConfig::init()
              globalEmulatorData.m_mem_manager);
 }
 
-static
-void
-setcpuaffinity(struct thr_repository* rep)
-{
-  THRConfigApplier & conf = globalEmulatorData.theConfiguration->m_thr_config;
-  conf.create_cpusets();
-  if (conf.getInfoMessage())
-  {
-    printf("%s", conf.getInfoMessage());
-    fflush(stdout);
-  }
-}
-
 /**
  * return receiver thread handling a particular node
  *   returned number is indexed from 0 and upwards to #receiver threads
@@ -4494,15 +4746,13 @@ assign_receiver_threads(void)
 }
 
 void
-ThreadConfig::ipControlLoop(NdbThread* pThis, Uint32 thread_index)
+ThreadConfig::ipControlLoop(NdbThread* pThis)
 {
   unsigned int thr_no;
   struct thr_repository* rep = &g_thr_repository;
 
-  /**
-   * assign threads to CPU's
-   */
-  setcpuaffinity(rep);
+  rep->m_thread[first_receiver_thread_no].m_thr_data.m_thr_index =
+    globalEmulatorData.theConfiguration->addThread(pThis, ReceiveThread);
 
   if (globalData.ndbMtSendThreads)
   {
@@ -4538,30 +4788,38 @@ ThreadConfig::ipControlLoop(NdbThread* pThis, Uint32 thread_index)
     if (thr_no < first_receiver_thread_no)
     {
       /* Start block threads */
-      rep->m_thread[thr_no].m_thr_data.m_thread =
+      struct NdbThread *thread_ptr =
         NdbThread_Create(mt_job_thread_main,
                          (void **)(rep->m_thread + thr_no),
                          1024*1024,
                          "execute thread", //ToDo add number
                          NDB_THREAD_PRIO_MEAN);
-      require(rep->m_thread[thr_no].m_thr_data.m_thread != NULL);
+      require(thread_ptr != NULL);
+      rep->m_thread[thr_no].m_thr_data.m_thr_index =
+        globalEmulatorData.theConfiguration->addThread(thread_ptr,
+                                                       BlockThread);
+      rep->m_thread[thr_no].m_thr_data.m_thread = thread_ptr;
     }
     else
     {
       /* Start a receiver thread, also block thread for TRPMAN */
-      rep->m_thread[thr_no].m_thr_data.m_thread =
+      struct NdbThread *thread_ptr =
         NdbThread_Create(mt_receiver_thread_main,
                          (void **)(&rep->m_thread[thr_no].m_thr_data),
                          1024*1024,
                          "receive thread", //ToDo add number
                          NDB_THREAD_PRIO_MEAN);
-      require(rep->m_thread[thr_no].m_thr_data.m_thread != NULL);
+      require(thread_ptr != NULL);
+      globalEmulatorData.theConfiguration->addThread(thread_ptr,
+                                                     ReceiveThread);
+      rep->m_thread[thr_no].m_thr_data.m_thread = thread_ptr;
     }
   }
 
   /* Now run the main loop for first receiver thread directly. */
   rep->m_thread[first_receiver_thread_no].m_thr_data.m_thread = pThis;
-  mt_receiver_thread_main(&(rep->m_thread[first_receiver_thread_no].m_thr_data));
+  mt_receiver_thread_main(
+    &(rep->m_thread[first_receiver_thread_no].m_thr_data));
 
   /* Wait for all threads to shutdown. */
   for (thr_no = 0; thr_no < num_threads; thr_no++)
@@ -4571,6 +4829,8 @@ ThreadConfig::ipControlLoop(NdbThread* pThis, Uint32 thread_index)
     void *dummy_return_status;
     NdbThread_WaitFor(rep->m_thread[thr_no].m_thr_data.m_thread,
                       &dummy_return_status);
+    globalEmulatorData.theConfiguration->removeThread(
+      rep->m_thread[thr_no].m_thr_data.m_thread);
     NdbThread_Destroy(&(rep->m_thread[thr_no].m_thr_data.m_thread));
   }
 
@@ -4579,6 +4839,7 @@ ThreadConfig::ipControlLoop(NdbThread* pThis, Uint32 thread_index)
   {
     delete g_send_threads;
   }
+  globalEmulatorData.theConfiguration->removeThread(pThis);
 }
 
 int
@@ -5025,6 +5286,7 @@ register_lock(const void * ptr, const char * name)
   g_locks.push_back(ln);
 }
 
+#if defined(NDB_HAVE_XCNG) && defined(NDB_USE_SPINLOCK)
 static
 mt_lock_stat *
 lookup_lock(const void * ptr)
@@ -5038,6 +5300,7 @@ lookup_lock(const void * ptr)
 
   return 0;
 }
+#endif
 
 Uint32
 mt_get_thread_references_for_blocks(const Uint32 blocks[], Uint32 threadId,
