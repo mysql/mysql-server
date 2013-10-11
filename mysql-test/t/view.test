@@ -4610,6 +4610,43 @@ deallocate prepare s;
 drop view v1;
 drop tables t1,t2;
 
+--echo #
+--echo # MDEV-5034 (duplicate of MDEV-5107):
+--echo # Left Join Yields All Nulls Instead of Appropriate Matches
+--echo #
+  
+ --echo # test #1
+
+CREATE TABLE t1 (state VARCHAR(32), INDEX(state));
+INSERT INTO t1 VALUES ('Indiana'),('Vermont');
+
+CREATE TABLE t2 (state VARCHAR(32));
+INSERT INTO t2 VALUES ('Hawaii'),('Oregon'),('Vermont');
+
+CREATE ALGORITHM=MERGE VIEW v1 AS SELECT t1.* FROM t2, t1;
+SELECT * FROM t1 AS outer_t1 LEFT JOIN v1 AS joined_t1
+ON (joined_t1.state = outer_t1.state AND joined_t1.state IN ( SELECT 'Vermont' UNION  SELECT 'Florida' ) );
+
+SELECT * FROM t1 AS outer_t1 LEFT JOIN (SELECT t1.* FROM t2, t1) AS joined_t1 ON (joined_t1.state = outer_t1.state AND joined_t1.state IN ( SELECT 'Vermont' UNION  SELECT 'Florida' ) );
+
+drop view v1;
+drop table t1, t2;
+
+--echo # test #1
+
+CREATE TABLE t1 (a INT, b VARCHAR(1), INDEX(b,a)); 
+INSERT INTO t1 VALUES (4,'p'),(1,'q'),(9,'w'); 
+
+CREATE TABLE t2 (c VARCHAR(1), INDEX(c)); 
+INSERT INTO t2 VALUES ('q'),('a'); 
+CREATE ALGORITHM=MERGE VIEW v1 AS SELECT t1a.* FROM t1, t1 AS t1a; 
+SELECT * FROM t2 LEFT JOIN v1 ON ( c=b AND a IN ( 1,6 ) ); 
+CREATE OR REPLACE ALGORITHM=TEMPTABLE VIEW v1 AS SELECT t1a.* FROM t1, t1 AS t1a; 
+SELECT * FROM t2 LEFT JOIN v1 ON ( c=b AND a IN ( 1,6 ) );
+
+drop view v1;
+drop table t1,t2;
+
 --echo # -----------------------------------------------------------------
 --echo # -- End of 5.3 tests.
 --echo # -----------------------------------------------------------------
