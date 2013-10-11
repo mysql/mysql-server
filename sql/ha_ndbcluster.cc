@@ -16617,6 +16617,22 @@ static MYSQL_SYSVAR_ULONG(
 );
 
 
+ulong opt_ndb_eventbuffer_max_alloc;
+static MYSQL_SYSVAR_ULONG(
+  eventbuffer_max_alloc,             /* name */
+  opt_ndb_eventbuffer_max_alloc,     /* var */
+  PLUGIN_VAR_RQCMDARG,
+  "Maximum memory that can be allocated for buffering "
+  "events by the ndb api.",
+  NULL,                              /* check func. */
+  NULL,                              /* update func. */
+  0,                                 /* default */
+  0,                                 /* min */
+  UINT_MAX32,                        /* max */
+  0                                  /* block */
+);
+
+
 my_bool opt_ndb_log_update_as_write;
 static MYSQL_SYSVAR_BOOL(
   log_update_as_write,               /* name */
@@ -16810,6 +16826,7 @@ static struct st_mysql_sys_var* system_variables[]= {
   MYSQL_SYSVAR(cluster_connection_pool),
   MYSQL_SYSVAR(report_thresh_binlog_mem_usage),
   MYSQL_SYSVAR(report_thresh_binlog_epoch_slip),
+  MYSQL_SYSVAR(eventbuffer_max_alloc),
   MYSQL_SYSVAR(log_update_as_write),
   MYSQL_SYSVAR(log_updated_only),
   MYSQL_SYSVAR(log_orig),
