@@ -44,6 +44,12 @@ You can set the compiler by passing `--cc` and `--cxx` to the script, to
 select one that's new enough.  The default is `scripts/make.mysql.bash
 --cc=gcc47 --cxx=g++47`, which may not exist on your system.
 
+To build a debug MySQL with TokuDB using the head of the Tokutek github
+repositories, run this:
+```sh
+scripts/make.mysql.debug.env.bash
+```
+
 
 Contributing
 ------------
