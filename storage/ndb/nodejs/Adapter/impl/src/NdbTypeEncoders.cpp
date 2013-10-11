@@ -37,7 +37,7 @@
 using namespace v8;
 
 Handle<String> 
-  K_sign, K_year, K_month, K_day, K_hour, K_minute, K_second, K_microsec;
+  K_sign, K_year, K_month, K_day, K_hour, K_minute, K_second, K_microsec, K_fsp;
 
 #define ENCODER(A, B, C) NdbTypeEncoder A = { & B, & C, 0 }
 
@@ -180,6 +180,7 @@ void NdbTypeEncoders_initOnLoad(Handle<Object> target) {
   K_minute = Persistent<String>::New(String::NewSymbol("minute"));
   K_second = Persistent<String>::New(String::NewSymbol("second"));
   K_microsec = Persistent<String>::New(String::NewSymbol("microsec"));
+  K_fsp = Persistent<String>::New(String::NewSymbol("fsp"));
 }
 
 
@@ -795,14 +796,14 @@ Handle<Value> CharReader(const NdbDictionary::Column *col,
     len /= 2;
     stats.read_strings_externalized++;
     uint16_t * buf = (uint16_t *) str;
-    while(buf[--len] == ' ') ; len++;  // skip padding, then undo 1
+    while(buf[--len] == ' ') {}; len++;  // skip padding, then undo 1
     ExternalizedUnicodeString * ext = new ExternalizedUnicodeString(buf, len);
     string = String::NewExternal(ext);
     //DEBUG_PRINT("(B): External UTF-16-LE");
   }
   else if(csinfo->isUtf8) {
     stats.read_strings_created++;
-    while(str[--len] == ' ') ; len++; // skip padding, then undo 1
+    while(str[--len] == ' ') {}; len++; // skip padding, then undo 1
     string = String::New(str, len);
     //DEBUG_PRINT("(C): New From UTF-8");
   }
@@ -824,7 +825,7 @@ Handle<Value> CharReader(const NdbDictionary::Column *col,
                  csmap.getUTF8CharsetNumber(),
                  str, recode_buffer);
     len = lengths[1];
-    while(recode_buffer[--len] == ' ') ; len++; // skip padding, then undo 1
+    while(recode_buffer[--len] == ' ') {}; len++; // skip padding, then undo 1
 
     /* Create a new JS String from the UTF-8 recode buffer */
     string = String::New(recode_buffer, len);
@@ -921,15 +922,6 @@ Handle<Value> varcharWriter(const NdbDictionary::Column * col,
 
 /******  Temporal types ********/
 
-
-/* TODO:
-   All temporal types should be liberal in what they accept:
-    number, string, TimeHelper, JS Date
-   This will allow us to set TypeConverter.toDB := null
-   and (in the case of NdbRecordObject) to avoid the trip out to JS and back
-   on every setter call.
-*/
-
 /* TimeHelper defines a C structure for managing parts of a MySQL temporal type
    and is able to read and write a JavaScript object that handles that date
    with no loss of precision.
@@ -937,7 +929,7 @@ Handle<Value> varcharWriter(const NdbDictionary::Column * col,
 class TimeHelper { 
 public:
   TimeHelper() : 
-    sign(+1), valid(true), 
+    sign(+1), valid(true), fsp(0), 
     year(0), month(0), day(0), hour(0), minute(0), second(0), microsec(0)
     {};
   TimeHelper(Handle<Value>);
@@ -959,7 +951,7 @@ public:
   /* data */
   int sign;
   bool valid;
-  unsigned int year, month, day, hour, minute, second, microsec;
+  unsigned int fsp, year, month, day, hour, minute, second, microsec;
 };
  
 Handle<Value> TimeHelper::toJs() {
@@ -973,6 +965,7 @@ Handle<Value> TimeHelper::toJs() {
   obj->Set(K_minute,   Integer::New(minute));
   obj->Set(K_second,   Integer::New(second));
   obj->Set(K_microsec, Integer::New(microsec));
+  obj->Set(K_fsp,      Integer::New(fsp));
   return scope.Close(obj);
 }
 
@@ -1123,7 +1116,7 @@ Handle<Value> Datetime2Reader(const NdbDictionary::Column *col,
   TimeHelper tm;
   uint64_t packedValue = unpack_bigendian(buffer+offset, 5);
   tm.microsec = readFraction(col, buffer+offset+5);
-
+  tm.fsp = col->getPrecision();
   tm.second = (packedValue & 0x3F);       packedValue >>= 6;
   tm.minute = (packedValue & 0x3F);       packedValue >>= 6;
   tm.hour   = (packedValue & 0x1F);       packedValue >>= 5;
@@ -1233,6 +1226,7 @@ Handle<Value> Time2Reader(const NdbDictionary::Column *col,
     tm.sign = -1;
     packedValue = sign_val - packedValue;   // two's complement
   }
+  tm.fsp      = prec;
   tm.microsec = (packedValue & fsp_mask);   packedValue >>= fsp_bits;
   tm.second   = (packedValue & 0x3F);       packedValue >>= 6;
   tm.minute   = (packedValue & 0x3F);       packedValue >>= 6;

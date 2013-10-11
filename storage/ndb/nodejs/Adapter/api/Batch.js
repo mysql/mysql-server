@@ -22,7 +22,7 @@
 
 "use strict";
 
-var userContext = require('../impl/common/UserContext.js'),
+var userContext = require("./UserContext.js"),
     udebug      = unified_debug.getLogger("Batch.js"),
     transaction = require('./Transaction.js');
 

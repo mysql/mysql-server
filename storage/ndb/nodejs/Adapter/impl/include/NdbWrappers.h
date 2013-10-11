@@ -1,5 +1,5 @@
 /*
- Copyright (c) 2012, Oracle and/or its affiliates. All rights
+ Copyright (c) 2013, Oracle and/or its affiliates. All rights
  reserved.
  
  This program is free software; you can redistribute it and/or
@@ -24,7 +24,7 @@
 #include "Record.h"
 #include "JsWrapper.h"
 
-Handle<Value> Record_Wrapper(Record *);
+Handle<Value> Record_Wrapper(const Record *);
 Handle<Value> Ndb_Wrapper(Ndb *);
 Handle<Value> NdbError_Wrapper(const NdbError &);
 Handle<Value> NdbOperation_Wrapper(const NdbOperation *);
