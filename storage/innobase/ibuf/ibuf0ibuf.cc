@@ -4405,15 +4405,6 @@ ibuf_restore_pos(
 
 		rec_print_old(stderr,
 			      page_rec_get_next(btr_pcur_get_rec(pcur)));
-		fflush(stderr);
-
-		ibuf_btr_pcur_commit_specify_mtr(pcur, mtr);
-
-		ib_logf(IB_LOG_LEVEL_INFO, "Validating insert buffer tree:");
-		if (!btr_validate_index(ibuf->index, 0, false)) {
-			ut_error;
-		}
-		ib_logf(IB_LOG_LEVEL_INFO, "ibuf tree is OK.");
 
 		ib_logf(IB_LOG_LEVEL_FATAL, "Failed to restore ibuf position.");
 	}
