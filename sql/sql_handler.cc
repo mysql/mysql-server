@@ -526,10 +526,8 @@ bool Sql_cmd_handler_read::execute(THD *thd)
   }
 
   /* Accessing data in XA_IDLE or XA_PREPARED is not allowed. */
-  enum xa_states xa_state= thd->transaction.xid_state.xa_state;
-  if (tables && (xa_state == XA_IDLE || xa_state == XA_PREPARED))
+  if (tables && thd->transaction.xid_state.check_xa_idle_or_prepared(true))
   {
-    my_error(ER_XAER_RMFAIL, MYF(0), xa_state_names[xa_state]);
     DBUG_RETURN(true);
   }
 

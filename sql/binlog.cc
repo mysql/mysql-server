@@ -6575,7 +6575,7 @@ TC_LOG::enum_result MYSQL_BIN_LOG::commit(THD *thd, bool all)
   DBUG_ENTER("MYSQL_BIN_LOG::commit");
 
   binlog_cache_mngr *cache_mngr= thd_get_cache_mngr(thd);
-  my_xid xid= thd->transaction.xid_state.xid.get_my_xid();
+  my_xid xid= thd->transaction.xid_state.get_xid()->get_my_xid();
   int error= RESULT_SUCCESS;
   bool stuff_logged= false;
 

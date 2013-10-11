@@ -692,6 +692,10 @@ private:
   void set_plan_state(enum_plan_state plan_state_arg);
   bool compare_costs_of_subquery_strategies(
          Item_exists_subselect::enum_exec_method *method);
+  /**
+    Recount temp table field types recursively.
+  */
+  void recount_field_types();
 };
 
 /// RAII class to ease the call of LEX::mark_broken() if error.

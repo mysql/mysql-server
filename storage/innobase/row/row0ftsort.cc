@@ -270,6 +270,7 @@ row_fts_psort_info_init(
 		psort_info[j].child_status = 0;
 		psort_info[j].state = 0;
 		psort_info[j].psort_common = common_info;
+		psort_info[j].error = DB_SUCCESS;
 	}
 
 	/* Initialize merge_info structures parallel merge and insert
@@ -843,9 +844,14 @@ loop:
 		row_merge_buf_write(buf[t_ctx.buf_used],
 				    merge_file[t_ctx.buf_used],
 				    block[t_ctx.buf_used]);
-		row_merge_write(merge_file[t_ctx.buf_used]->fd,
-				merge_file[t_ctx.buf_used]->offset++,
-				block[t_ctx.buf_used]);
+
+		if (!row_merge_write(merge_file[t_ctx.buf_used]->fd,
+				     merge_file[t_ctx.buf_used]->offset++,
+				     block[t_ctx.buf_used])) {
+			psort_info->error = DB_TEMP_FILE_WRITE_FAILURE;
+			goto func_exit;
+		}
+
 		UNIV_MEM_INVALID(block[t_ctx.buf_used][0], srv_sort_buf_size);
 		buf[t_ctx.buf_used] = row_merge_buf_empty(buf[t_ctx.buf_used]);
 		mycount[t_ctx.buf_used] += t_ctx.rows_added[t_ctx.buf_used];
@@ -871,6 +877,9 @@ loop:
 						psort_info->fts_doc_list));
 			goto exit;
 		}
+	} else if (psort_info->state == FTS_PARENT_EXITING) {
+		/* Parent abort */
+		goto func_exit;
 	}
 
 	if (doc_item) {
@@ -935,9 +944,12 @@ exit:
 			never flush to temp file, it can be held all in
 			memory */
 			if (merge_file[i]->offset != 0) {
-				row_merge_write(merge_file[i]->fd,
+				if (!row_merge_write(merge_file[i]->fd,
 						merge_file[i]->offset++,
-						block[i]);
+						block[i])) {
+					psort_info->error = DB_TEMP_FILE_WRITE_FAILURE;
+					goto func_exit;
+				}
 
 				UNIV_MEM_INVALID(block[i][0],
 						 srv_sort_buf_size);
@@ -953,6 +965,7 @@ exit:
 	}
 
 	for (i = 0; i < FTS_NUM_AUX_INDEX; i++) {
+		dberr_t		error;
 
 		if (!merge_file[i]->offset) {
 			continue;
@@ -960,12 +973,19 @@ exit:
 
 		tmpfd[i] = row_merge_file_create_low();
 		if (tmpfd[i] < 0) {
+			psort_info->error = DB_OUT_OF_MEMORY;
 			goto func_exit;
 		}
 
-		row_merge_sort(psort_info->psort_common->trx,
-			       psort_info->psort_common->dup,
-			       merge_file[i], block[i], &tmpfd[i]);
+		error = row_merge_sort(psort_info->psort_common->trx,
+				       psort_info->psort_common->dup,
+				       merge_file[i], block[i], &tmpfd[i]);
+		if (error != DB_SUCCESS) {
+			close(tmpfd[i]);
+			psort_info->error = error;
+			goto func_exit;
+		}
+
 		total_rec += merge_file[i]->n_rec;
 		close(tmpfd[i]);
 	}
