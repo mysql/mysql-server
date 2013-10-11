@@ -1141,6 +1141,7 @@ echo "====="                                                       >> $STATUS_HI
 %attr(755, root, root) %{_bindir}/ndb_drop_table
 %attr(755, root, root) %{_bindir}/ndb_index_stat
 %attr(755, root, root) %{_bindir}/ndb_mgm
+%attr(755, root, root) %{_bindir}/ndb_move_data
 %attr(755, root, root) %{_bindir}/ndb_print_backup_file
 %attr(755, root, root) %{_bindir}/ndb_print_file
 %attr(755, root, root) %{_bindir}/ndb_print_schema_file
