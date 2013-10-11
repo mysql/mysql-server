@@ -18,12 +18,7 @@
 #include "mt_thr_config.hpp"
 #include <kernel/ndb_limits.h>
 #include "../../common/util/parse_mask.hpp"
-
-#ifndef TEST_MT_THR_CONFIG
-#define SUPPORT_CPU_SET 0
-#else
-#define SUPPORT_CPU_SET 1
-#endif
+#include <NdbLockCpuUtil.h>
 
 static const struct THRConfig::Entries m_entries[] =
 {
@@ -33,20 +28,25 @@ static const struct THRConfig::Entries m_entries[] =
   { "recv",  THRConfig::T_RECV,  1, MAX_NDBMT_RECEIVE_THREADS },
   { "rep",   THRConfig::T_REP,   1, 1 },
   { "io",    THRConfig::T_IO,    1, 1 },
+  { "watchdog", THRConfig::T_WD, 1, 1 },
   { "tc",    THRConfig::T_TC,    0, MAX_NDBMT_TC_THREADS },
   { "send",  THRConfig::T_SEND,  0, MAX_NDBMT_SEND_THREADS }
 };
 
 static const struct THRConfig::Param m_params[] =
 {
-  { "count",   THRConfig::Param::S_UNSIGNED },
-  { "cpubind", THRConfig::Param::S_BITMASK },
-  { "cpuset",  THRConfig::Param::S_BITMASK }
+  { "count",    THRConfig::Param::S_UNSIGNED },
+  { "cpubind",  THRConfig::Param::S_BITMASK },
+  { "cpuset",   THRConfig::Param::S_BITMASK },
+  { "realtime", THRConfig::Param::S_UNSIGNED },
+  { "spintime", THRConfig::Param::S_UNSIGNED }
 };
 
 #define IX_COUNT    0
 #define IX_CPUBOUND 1
 #define IX_CPUSET   2
+#define IX_REALTIME 3
+#define IX_SPINTIME 4
 
 static
 unsigned
@@ -116,12 +116,16 @@ THRConfig::setLockIoThreadsToCPU(unsigned val)
 }
 
 void
-THRConfig::add(T_Type t)
+THRConfig::add(T_Type t, unsigned realtime, unsigned spintime)
 {
   T_Thread tmp;
   tmp.m_type = t;
   tmp.m_bind_type = T_Thread::B_UNBOUND;
   tmp.m_no = m_threads[t].size();
+  tmp.m_realtime = realtime;
+  if (spintime > 500)
+    spintime = 500;
+  tmp.m_spintime = spintime;
   m_threads[t].push_back(tmp);
 }
 
@@ -195,7 +199,9 @@ computeThreadConfig(Uint32 MaxNoOfExecutionThreads,
 int
 THRConfig::do_parse(unsigned MaxNoOfExecutionThreads,
                     unsigned __ndbmt_lqh_threads,
-                    unsigned __ndbmt_classic)
+                    unsigned __ndbmt_classic,
+                    unsigned realtime,
+                    unsigned spintime)
 {
   /**
    * This is old ndbd.cpp : get_multithreaded_config
@@ -203,9 +209,10 @@ THRConfig::do_parse(unsigned MaxNoOfExecutionThreads,
   if (__ndbmt_classic)
   {
     m_classic = true;
-    add(T_LDM);
-    add(T_MAIN);
-    add(T_IO);
+    add(T_LDM, realtime, spintime);
+    add(T_MAIN, realtime, spintime);
+    add(T_IO, realtime, 0);
+    add(T_WD, realtime, 0);
     const bool allow_too_few_cpus = true;
     return do_bindings(allow_too_few_cpus);
   }
@@ -243,24 +250,25 @@ THRConfig::do_parse(unsigned MaxNoOfExecutionThreads,
     lqhthreads = __ndbmt_lqh_threads;
   }
 
-  add(T_MAIN); /* Global */
-  add(T_REP);  /* Local, main consumer is SUMA */
+  add(T_MAIN, realtime, spintime); /* Global */
+  add(T_REP, realtime, spintime);  /* Local, main consumer is SUMA */
   for(Uint32 i = 0; i < recvthreads; i++)
   {
-    add(T_RECV);
+    add(T_RECV, realtime, spintime);
   }
-  add(T_IO);
+  add(T_IO, realtime, 0);
+  add(T_WD, realtime, 0);
   for(Uint32 i = 0; i < lqhthreads; i++)
   {
-    add(T_LDM);
+    add(T_LDM, realtime, spintime);
   }
   for(Uint32 i = 0; i < tcthreads; i++)
   {
-    add(T_TC);
+    add(T_TC, realtime, spintime);
   }
   for(Uint32 i = 0; i < sendthreads; i++)
   {
-    add(T_SEND);
+    add(T_SEND, realtime, spintime);
   }
 
   // If we have set TC-threads...we say that this is "new" code
@@ -275,16 +283,25 @@ THRConfig::do_parse(unsigned MaxNoOfExecutionThreads,
 int
 THRConfig::do_bindings(bool allow_too_few_cpus)
 {
+  /**
+   * Use LockIoThreadsToCPU also to lock to Watchdog, SocketServer
+   * and SocketClient for backwards compatibility reasons, 
+   * preferred manner is to only use ThreadConfig
+   */
   if (m_LockIoThreadsToCPU.count() == 1)
   {
     m_threads[T_IO][0].m_bind_type = T_Thread::B_CPU_BOUND;
     m_threads[T_IO][0].m_bind_no = m_LockIoThreadsToCPU.getBitNo(0);
+    m_threads[T_WD][0].m_bind_type = T_Thread::B_CPU_BOUND;
+    m_threads[T_WD][0].m_bind_no = m_LockIoThreadsToCPU.getBitNo(0);
   }
   else if (m_LockIoThreadsToCPU.count() > 1)
   {
     unsigned no = createCpuSet(m_LockIoThreadsToCPU);
     m_threads[T_IO][0].m_bind_type = T_Thread::B_CPUSET_BOUND;
     m_threads[T_IO][0].m_bind_no = no;
+    m_threads[T_WD][0].m_bind_type = T_Thread::B_CPUSET_BOUND;
+    m_threads[T_WD][0].m_bind_no = no;
   }
 
   /**
@@ -305,7 +322,7 @@ THRConfig::do_bindings(bool allow_too_few_cpus)
   }
 
   /**
-   * Check that no cpu_sets overlap
+   * Check that no cpu_sets overlap with cpu_bound
    */
   for (unsigned i = 0; i < NDB_ARRAY_SIZE(m_threads); i++)
   {
@@ -343,6 +360,11 @@ THRConfig::do_bindings(bool allow_too_few_cpus)
   unsigned cnt_unbound = 0;
   for (unsigned i = 0; i < NDB_ARRAY_SIZE(m_threads); i++)
   {
+    if (i == T_IO || i == T_WD)
+    {
+      /* IO and Watchdog threads aren't execute threads */
+      continue;
+    }
     for (unsigned j = 0; j < m_threads[i].size(); j++)
     {
       if (m_threads[i][j].m_bind_type == T_Thread::B_CPU_BOUND)
@@ -355,14 +377,6 @@ THRConfig::do_bindings(bool allow_too_few_cpus)
         cnt_unbound ++;
       }
     }
-  }
-
-  if (m_threads[T_IO][0].m_bind_type == T_Thread::B_UNBOUND)
-  {
-    /**
-     * don't count this one...
-     */
-    cnt_unbound--;
   }
 
   if (m_LockExecuteThreadToCPU.count())
@@ -396,7 +410,7 @@ THRConfig::do_bindings(bool allow_too_few_cpus)
       unsigned no = 0;
       for (unsigned i = 0; i < NDB_ARRAY_SIZE(m_threads); i++)
       {
-        if (i == T_IO)
+        if (i == T_IO || i == T_WD)
           continue;
         for (unsigned j = 0; j < m_threads[i].size(); j++)
         {
@@ -415,7 +429,7 @@ THRConfig::do_bindings(bool allow_too_few_cpus)
       m_info_msg.appfmt("Assigning all threads to CPU %u\n", cpu);
       for (unsigned i = 0; i < NDB_ARRAY_SIZE(m_threads); i++)
       {
-        if (i == T_IO)
+        if (i == T_IO || i == T_WD)
           continue;
         bind_unbound(m_threads[i], cpu);
       }
@@ -554,61 +568,85 @@ THRConfig::do_validate()
   return 0;
 }
 
+void
+THRConfig::append_name(const char *name,
+                       const char *sep,
+                       bool & append_name_flag)
+{
+  if (!append_name_flag)
+  {
+    m_cfg_string.append(sep);
+    m_cfg_string.append(name);
+    append_name_flag = true;
+  }
+}
+
 const char *
 THRConfig::getConfigString()
 {
   m_cfg_string.clear();
   const char * sep = "";
+  const char * end_sep;
+  const char * start_sep;
+  const char * between_sep;
+  bool append_name_flag;
   for (unsigned i = 0; i < NDB_ARRAY_SIZE(m_threads); i++)
   {
     if (m_threads[i].size())
     {
       const char * name = getEntryName(i);
-      if (i != T_IO)
+      for (unsigned j = 0; j < m_threads[i].size(); j++)
       {
-        for (unsigned j = 0; j < m_threads[i].size(); j++)
+        start_sep = "={";
+        end_sep = "";
+        between_sep="";
+        append_name_flag = false;
+        if (i != T_IO && i != T_WD)
         {
-          m_cfg_string.append(sep);
+          append_name(name, sep, append_name_flag);
           sep=",";
-          m_cfg_string.append(name);
-          if (m_threads[i][j].m_bind_type != T_Thread::B_UNBOUND)
-          {
-            m_cfg_string.append("={");
-            if (m_threads[i][j].m_bind_type == T_Thread::B_CPU_BOUND)
-            {
-              m_cfg_string.appfmt("cpubind=%u", m_threads[i][j].m_bind_no);
-            }
-            else if (m_threads[i][j].m_bind_type == T_Thread::B_CPUSET_BOUND)
-            {
-              m_cfg_string.appfmt("cpuset=%s",
-                                  m_cpu_sets[m_threads[i][j].m_bind_no].str().c_str());
-            }
-            m_cfg_string.append("}");
-          }
         }
-      }
-      else
-      {
-        for (unsigned j = 0; j < m_threads[i].size(); j++)
+        if (m_threads[i][j].m_bind_type != T_Thread::B_UNBOUND)
         {
-          if (m_threads[i][j].m_bind_type != T_Thread::B_UNBOUND)
+          append_name(name, sep, append_name_flag);
+          sep=",";
+          m_cfg_string.append(start_sep);
+          end_sep = "}";
+          start_sep="";
+          if (m_threads[i][j].m_bind_type == T_Thread::B_CPU_BOUND)
           {
-            m_cfg_string.append(sep);
-            sep=",";
-            m_cfg_string.append(name);
-            m_cfg_string.append("={");
-            if (m_threads[i][j].m_bind_type == T_Thread::B_CPU_BOUND)
-            {
-              m_cfg_string.appfmt("cpubind=%u", m_threads[i][j].m_bind_no);
-            }
-            else if (m_threads[i][j].m_bind_type == T_Thread::B_CPUSET_BOUND)
-            {
-              m_cfg_string.appfmt("cpuset=%s",
-                                  m_cpu_sets[m_threads[i][j].m_bind_no].str().c_str());
-            }
-            m_cfg_string.append("}");
+            m_cfg_string.appfmt("cpubind=%u", m_threads[i][j].m_bind_no);
+            between_sep=",";
+          }
+          else if (m_threads[i][j].m_bind_type == T_Thread::B_CPUSET_BOUND)
+          {
+            m_cfg_string.appfmt("cpuset=%s",
+                                m_cpu_sets[m_threads[i][j].m_bind_no].str().c_str());
+            between_sep=",";
           }
         }
+        if (m_threads[i][j].m_spintime || m_threads[i][j].m_realtime)
+        {
+          append_name(name, sep, append_name_flag);
+          sep=",";
+          m_cfg_string.append(start_sep);
+          end_sep = "}";
+          if (m_threads[i][j].m_spintime)
+          {
+            m_cfg_string.append(between_sep);
+            m_cfg_string.appfmt("spintime=%u",
+                                m_threads[i][j].m_spintime);
+            between_sep=",";
+          }
+          if (m_threads[i][j].m_realtime)
+          {
+            m_cfg_string.append(between_sep);
+            m_cfg_string.appfmt("realtime=%u",
+                                m_threads[i][j].m_realtime);
+            between_sep=",";
+          }
+        }
+        m_cfg_string.append(end_sep);
       }
     }
   }
@@ -622,7 +660,7 @@ THRConfig::getThreadCount() const
   Uint32 cnt = 0;
   for (Uint32 i = 0; i < NDB_ARRAY_SIZE(m_threads); i++)
   {
-    if (i != T_IO)
+    if (i != T_IO && i != T_WD)
     {
       cnt += m_threads[i].size();
     }
@@ -756,12 +794,6 @@ parseParams(char * str, ParamValue values[], BaseString& err)
     unsigned idx = 0;
     for (; idx < NDB_ARRAY_SIZE(m_params); idx++)
     {
-
-#if ! SUPPORT_CPU_SET
-      if (idx == IX_CPUSET)
-        continue;
-#endif
-
       if (strncasecmp(str, m_params[idx].name, strlen(m_params[idx].name)) == 0)
       {
         str += strlen(m_params[idx].name);
@@ -825,14 +857,20 @@ parseParams(char * str, ParamValue values[], BaseString& err)
 }
 
 int
-THRConfig::find_spec(char *& str, T_Type type)
+THRConfig::find_spec(char *& str,
+                     T_Type type,
+                     unsigned realtime,
+                     unsigned spintime)
 {
   str = skipblank(str);
 
   switch(* str){
   case ',':
   case 0:
-    add(type);
+    if (type != T_IO && type != T_WD)
+      add(type, realtime, spintime);
+    else
+      add(type, realtime, 0);
     return 0;
   }
 
@@ -873,6 +911,8 @@ err:
 
   ParamValue values[NDB_ARRAY_SIZE(m_params)];
   values[IX_COUNT].unsigned_val = 1;
+  values[IX_REALTIME].unsigned_val = realtime;
+  values[IX_SPINTIME].unsigned_val = spintime;
   int res = parseParams(start, values, m_err_msg);
   * end = save;
 
@@ -887,11 +927,20 @@ err:
     return -1;
   }
 
+  if (values[IX_SPINTIME].found &&
+      (type == T_IO || type == T_WD))
+  {
+    m_err_msg.assfmt("Cannot set spintime on IO threads and watchdog threads");
+    return -1;
+  }
+      
   unsigned cnt = values[IX_COUNT].unsigned_val;
   const int index = m_threads[type].size();
   for (unsigned i = 0; i < cnt; i++)
   {
-    add(type);
+    add(type,
+        values[IX_REALTIME].unsigned_val,
+        values[IX_SPINTIME].unsigned_val);
   }
 
   assert(m_threads[type].size() == index + cnt);
@@ -950,7 +999,9 @@ THRConfig::find_next(char *& str)
 }
 
 int
-THRConfig::do_parse(const char * ThreadConfig)
+THRConfig::do_parse(const char * ThreadConfig,
+                    unsigned realtime,
+                    unsigned spintime)
 {
   BaseString str(ThreadConfig);
   char * ptr = (char*)str.c_str();
@@ -960,7 +1011,7 @@ THRConfig::do_parse(const char * ThreadConfig)
     if (type == T_END)
       return -1;
 
-    if (find_spec(ptr, (T_Type)type) < 0)
+    if (find_spec(ptr, (T_Type)type, realtime, spintime) < 0)
       return -1;
 
     int ret = find_next(ptr);
@@ -974,7 +1025,7 @@ THRConfig::do_parse(const char * ThreadConfig)
   for (Uint32 i = 0; i < T_END; i++)
   {
     while (m_threads[i].size() < m_entries[i].m_min_cnt)
-      add((T_Type)i);
+      add((T_Type)i, realtime, spintime);
   }
 
   const bool allow_too_few_cpus =
@@ -1089,12 +1140,6 @@ THRConfigApplier::getName(const unsigned short list[], unsigned cnt) const
 }
 
 int
-THRConfigApplier::create_cpusets()
-{
-  return 0;
-}
-
-int
 THRConfigApplier::do_bind(NdbThread* thread,
                           const unsigned short list[], unsigned cnt)
 {
@@ -1110,31 +1155,101 @@ THRConfigApplier::do_bind_io(NdbThread* thread)
 }
 
 int
+THRConfigApplier::do_bind_watchdog(NdbThread* thread)
+{
+  const T_Thread* thr = &m_threads[T_WD][0];
+  return do_bind(thread, thr);
+}
+
+int
 THRConfigApplier::do_bind_send(NdbThread* thread, unsigned instance)
 {
   const T_Thread* thr = &m_threads[T_SEND][instance];
   return do_bind(thread, thr);
 }
 
+bool
+THRConfigApplier::do_get_realtime(const unsigned short list[],
+                                  unsigned cnt) const
+{
+  const T_Thread* thr = find_thread(list, cnt);
+  return (bool)thr->m_realtime;
+}
+
+unsigned
+THRConfigApplier::do_get_spintime(const unsigned short list[],
+                                  unsigned cnt) const
+{
+  const T_Thread* thr = find_thread(list, cnt);
+  return (bool)thr->m_spintime;
+}
+
+bool
+THRConfigApplier::do_get_realtime_io() const
+{
+  const T_Thread* thr = &m_threads[T_IO][0];
+  return (bool)thr->m_realtime;
+}
+
+bool
+THRConfigApplier::do_get_realtime_wd() const
+{
+  const T_Thread* thr = &m_threads[T_WD][0];
+  return (bool)thr->m_realtime;
+}
+
+bool
+THRConfigApplier::do_get_realtime_send(unsigned instance) const
+{
+  const T_Thread* thr = &m_threads[T_SEND][instance];
+  return (bool)thr->m_realtime;
+}
+
+unsigned
+THRConfigApplier::do_get_spintime_send(unsigned instance) const
+{
+  const T_Thread* thr = &m_threads[T_SEND][instance];
+  return thr->m_spintime;
+}
+
 int
 THRConfigApplier::do_bind(NdbThread* thread,
                           const T_Thread* thr)
 {
+  int res;
   if (thr->m_bind_type == T_Thread::B_CPU_BOUND)
   {
-    int res = NdbThread_LockCPU(thread, thr->m_bind_no);
-    if (res == 0)
-      return 1;
-    else
-      return -res;
+    res = Ndb_LockCPU(thread, thr->m_bind_no);
   }
-#if TODO
   else if (thr->m_bind_type == T_Thread::B_CPUSET_BOUND)
   {
+    SparseBitmask & tmp = m_cpu_sets[thr->m_bind_no];
+    unsigned num_bits_set = tmp.count();
+    Uint32 *cpu_ids = (Uint32*)malloc(sizeof(Uint32) * num_bits_set);
+    Uint32 num_cpu_ids = 0;
+    if (!cpu_ids)
+    {
+      return -errno;
+    }
+    for (unsigned i = 0; i < num_bits_set; i++)
+    {
+      if (tmp.get(i))
+      {
+        cpu_ids[num_cpu_ids] = i;
+        num_cpu_ids++;
+      }
+    }
+    res = Ndb_LockCPUSet(thread, cpu_ids, num_cpu_ids);
+    free((void*)cpu_ids);
   }
-#endif
-
-  return 0;
+  else
+  {
+    return 0;
+  }
+  if (res == 0)
+    return 1;
+  else
+    return -res;
 }
 #endif
 
@@ -1146,7 +1261,7 @@ TAPTEST(mt_thr_config)
 {
   {
     THRConfig tmp;
-    OK(tmp.do_parse(8, 0, 0) == 0);
+    OK(tmp.do_parse(8, 0, 0, 0, 0) == 0);
   }
 
   /**
@@ -1160,7 +1275,11 @@ TAPTEST(mt_thr_config)
         "ldm={cpubind=1-2,5,count=3},ldm",
         "ldm={ cpubind = 1- 2, 5 , count = 3 },ldm",
         "ldm={count=3,cpubind=1-2,5 },  ldm",
-        "ldm={cpuset=1-3,count=3 },ldm",
+        "ldm={cpuset=1-3,count=3,realtime=0,spintime=0 },ldm",
+        "ldm={cpuset=1-3,count=3,realtime=1,spintime=0 },ldm",
+        "ldm={cpuset=1-3,count=3,realtime=0,spintime=1 },ldm",
+        "ldm={cpuset=1-3,count=3,realtime=1,spintime=1 },ldm",
+        "io={cpuset=3,4,6}",
         "main,ldm={},ldm",
         "main,ldm={},ldm,tc",
         "main,ldm={},ldm,tc,tc",
@@ -1176,14 +1295,15 @@ TAPTEST(mt_thr_config)
         "main={ keso=88, count=23},ldm,ldm",
         "main={ cpuset=1-3 }, ldm={cpuset=3-4}",
         "main={ cpuset=1-3 }, ldm={cpubind=2}",
-        "tc,tc,tc={count=25}",
+        "io={ spintime = 0 }",
+        "tc,tc,tc={count=31}",
         0
       };
 
     for (Uint32 i = 0; ok[i]; i++)
     {
       THRConfig tmp;
-      int res = tmp.do_parse(ok[i]);
+      int res = tmp.do_parse(ok[i], 0, 0);
       printf("do_parse(%s) => %s - %s\n", ok[i],
              res == 0 ? "OK" : "FAIL",
              res == 0 ? "" : tmp.getErrorMessage());
@@ -1191,7 +1311,7 @@ TAPTEST(mt_thr_config)
       {
         BaseString out(tmp.getConfigString());
         THRConfig check;
-        OK(check.do_parse(out.c_str()) == 0);
+        OK(check.do_parse(out.c_str(), 0, 0) == 0);
         OK(strcmp(out.c_str(), check.getConfigString()) == 0);
       }
     }
@@ -1199,7 +1319,7 @@ TAPTEST(mt_thr_config)
     for (Uint32 i = 0; fail[i]; i++)
     {
       THRConfig tmp;
-      int res = tmp.do_parse(fail[i]);
+      int res = tmp.do_parse(fail[i], 0, 0);
       printf("do_parse(%s) => %s - %s\n", fail[i],
              res == 0 ? "OK" : "FAIL",
              res == 0 ? "" : tmp.getErrorMessage());
@@ -1267,7 +1387,7 @@ TAPTEST(mt_thr_config)
     {
       THRConfig tmp;
       tmp.setLockExecuteThreadToCPU(t[i+0]);
-      const int _res = tmp.do_parse(t[i+1]);
+      const int _res = tmp.do_parse(t[i+1], 0, 0);
       const int expect_res = strcmp(t[i+2], "OK") == 0 ? 0 : -1;
       const int res = _res == expect_res ? 0 : -1;
       int ok = expect_res == 0 ?
@@ -1303,7 +1423,7 @@ TAPTEST(mt_thr_config)
 #if 0
 
 /**
- * This c-program was written by mikael ronstrom to
+ * This C-program was written by Mikael Ronstrom to
  *  produce good distribution of threads, given MaxNoOfExecutionThreads
  *
  * Good is based on his experience experimenting/benchmarking
