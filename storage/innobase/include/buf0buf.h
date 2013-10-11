@@ -246,19 +246,6 @@ void
 buf_pool_clear_hash_index(void);
 /*===========================*/
 
-/********************************************************************//**
-Relocate a buffer control block.  Relocates the block on the LRU list
-and in buf_pool->page_hash.  Does not relocate bpage->list.
-The caller must take care of relocating bpage->list. */
-
-void
-buf_relocate(
-/*=========*/
-	buf_page_t*	bpage,	/*!< in/out: control block being relocated;
-				buf_page_get_state(bpage) must be
-				BUF_BLOCK_ZIP_DIRTY or BUF_BLOCK_ZIP_PAGE */
-	buf_page_t*	dpage)	/*!< in/out: destination control block */
-	__attribute__((nonnull));
 /*********************************************************************//**
 Gets the current size of buffer buf_pool in bytes.
 @return size in bytes */
