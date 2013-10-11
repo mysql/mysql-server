@@ -1110,6 +1110,8 @@ NdbEventBuffer::NdbEventBuffer(Ndb *ndb) :
   m_highest_sub_gcp_complete_GCI(0),
   m_latest_poll_GCI(0),
   m_total_alloc(0),
+  lastReportedState(EB_BUFFERINGEVENTS),
+  m_max_alloc(0),
   m_free_thresh(0),
   m_min_free_thresh(0),
   m_max_free_thresh(0),
@@ -1899,6 +1901,12 @@ NdbEventBuffer::complete_bucket(Gci_container* bucket)
        * as inconsistency marker.
        */
       EventBufData *dummy_data= alloc_data();
+      // clear any remains from its previous incarnation
+      // to avoid any side effects
+      if (dummy_data->memory)
+        dealloc_mem(dummy_data, NULL);
+      dummy_data->m_event_op = 0;
+
       EventBufData_list *dummy_event_list = new EventBufData_list;
       dummy_event_list->append_used_data(dummy_data);
       dummy_event_list->m_is_not_multi_list = true;
@@ -2098,6 +2106,19 @@ NdbEventBuffer::complete_outof_order_gcis()
 #endif
     minpos = (minpos + 1) & mask;
   } while (start_gci != stop_gci);
+}
+
+NdbEventBuffer::EventBufferState
+NdbEventBuffer::event_buffer_state()
+{
+ // no limit on memory usage or enough memory
+  if (m_max_alloc == 0 || (m_total_alloc*100/m_max_alloc) <= 70)
+    return EB_BUFFERINGEVENTS;
+
+  if ((m_total_alloc*100/m_max_alloc) <= 100)
+    return EB_DISCARDINGNEWEVENTS;
+
+  return EB_DISCARDINGEVENTS;
 }
 
 void
@@ -2545,6 +2566,9 @@ NdbEventBuffer::insertDataL(NdbEventOperationImpl *op,
         op->m_has_error = 2;
         DBUG_RETURN_EVENT(-1);
       }
+
+      // Initialize m_event_op, in case copy_data fails due to insufficient memory
+      data->m_event_op = 0;
       if (unlikely(copy_data(sdata, len, ptr, data, NULL)))
       {
         op->m_has_error = 3;
@@ -2718,13 +2742,16 @@ NdbEventBuffer::alloc_mem(EventBufData* data,
     NdbMem_Free((char*)data->memory);
     assert(m_total_alloc >= data->sz);
     data->memory = 0;
-    data->sz = 0;
+
+    if (outOfMemory(add_sz))
+    {
+      goto out_of_mem_err;
+    }
 
     data->memory = (Uint32*)NdbMem_Allocate(alloc_size);
     if (data->memory == 0)
     {
-      m_total_alloc -= data->sz;
-      DBUG_RETURN(-1);
+      goto out_of_mem_err;
     }
     data->sz = alloc_size;
     m_total_alloc += add_sz;
@@ -2732,7 +2759,7 @@ NdbEventBuffer::alloc_mem(EventBufData* data,
     if (change_sz != NULL)
       *change_sz += add_sz;
   }
-
+  {
   Uint32* memptr = data->memory;
   memptr += sz4;
   int i;
@@ -2742,8 +2769,18 @@ NdbEventBuffer::alloc_mem(EventBufData* data,
     data->ptr[i].sz = ptr[i].sz;
     memptr += ptr[i].sz;
   }
-
+  }
   DBUG_RETURN(0);
+
+out_of_mem_err:
+  // Dealloc succeeded, but alloc bigger size failed
+  fprintf(stderr, "Ndb Event Buffer : Attempt to allocate total of %u bytes failed\n",
+          m_total_alloc);
+  fprintf(stderr, "Ndb Event Buffer : Fatal error.\n");
+  exit(-1);
+  m_total_alloc -= data->sz;
+  data->sz = 0;
+  DBUG_RETURN(-1);
 }
 
 void
@@ -3508,6 +3545,16 @@ NdbEventBuffer::reportStatus()
   {
     goto send_report;
   }
+  {
+    const EventBufferState current_state = event_buffer_state();
+    // Report state changes, no reporting when fall back to normal state.
+    if (lastReportedState != current_state)
+    {
+      lastReportedState = current_state;
+      if (current_state != EB_BUFFERINGEVENTS)
+        goto send_report;
+    }
+  }
   return;
 
 send_report:
@@ -3515,7 +3562,7 @@ send_report:
   data[0]= NDB_LE_EventBufferStatus;
   data[1]= m_total_alloc-m_free_data_sz;
   data[2]= m_total_alloc;
-  data[3]= 0;
+  data[3]= m_max_alloc;
   data[4]= (Uint32)(apply_gci);
   data[5]= (Uint32)(apply_gci >> 32);
   data[6]= (Uint32)(latest_gci);
