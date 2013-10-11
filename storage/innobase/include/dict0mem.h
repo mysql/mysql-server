@@ -195,28 +195,33 @@ for unknown bits in order to protect backward incompatibility. */
 
 /** TEMPORARY; TRUE for tables from CREATE TEMPORARY TABLE. */
 #define DICT_TF2_TEMPORARY		1
+
 /** The table has an internal defined DOC ID column */
 #define DICT_TF2_FTS_HAS_DOC_ID		2
+
 /** The table has an FTS index */
 #define DICT_TF2_FTS			4
+
 /** Need to add Doc ID column for FTS index build.
 This is a transient bit for index build */
 #define DICT_TF2_FTS_ADD_DOC_ID		8
+
 /** This bit is used during table creation to indicate that it will
 use its own tablespace instead of the system tablespace. */
 #define DICT_TF2_USE_FILE_PER_TABLE	16
 
 /** Set when we discard/detach the tablespace */
 #define DICT_TF2_DISCARDED		32
+
 /* @} */
 
-#define DICT_TF2_FLAG_SET(table, flag)				\
+#define DICT_TF2_FLAG_SET(table, flag)		\
 	(table->flags2 |= (flag))
 
-#define DICT_TF2_FLAG_IS_SET(table, flag)			\
+#define DICT_TF2_FLAG_IS_SET(table, flag)	\
 	(table->flags2 & (flag))
 
-#define DICT_TF2_FLAG_UNSET(table, flag)			\
+#define DICT_TF2_FLAG_UNSET(table, flag)	\
 	(table->flags2 &= ~(flag))
 
 /** Tables could be chained together with Foreign key constraint. When

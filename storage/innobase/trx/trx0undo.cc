@@ -442,7 +442,7 @@ trx_undo_seg_create(
 	trx_upagef_t*	page_hdr;
 	trx_usegf_t*	seg_hdr;
 	ulint		n_reserved;
-	ibool		success;
+	bool		success;
 	dberr_t		err = DB_SUCCESS;
 
 	ut_ad(mtr && id && rseg_hdr);

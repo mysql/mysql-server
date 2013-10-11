@@ -483,7 +483,7 @@ void SelArgTest::check_tree_result(SEL_TREE *tree,
   String actual_result(buff, sizeof(buff), system_charset_info);
   actual_result.set_charset(system_charset_info);
   actual_result.length(0);
-  print_tree(&actual_result, "result", tree, m_opt_param);
+  print_tree(&actual_result, "result", tree, m_opt_param, false);
   EXPECT_STREQ(expected_result, actual_result.c_ptr());
   SCOPED_TRACE("check_use_count");
   check_use_count(tree);
@@ -868,12 +868,13 @@ TEST_F(SelArgTest, GetMMTreeOneTwoColIndex)
                 );
 
   range_string.length(0);
-  print_tree(&range_string, "result",tree , m_opt_param);
+  print_tree(&range_string, "result",tree , m_opt_param, false);
   EXPECT_STREQ(expected2, range_string.c_ptr());
 }
 
 /*
-  Optimizer tracing should only print ranges for applicable keyparts.
+  Optimizer tracing should only print ranges for applicable keyparts,
+  except when argument for print_tree() parameter 'print_full' is true.
  */
 TEST_F(SelArgTest, GetMMTreeNonApplicableKeypart)
 {
@@ -894,6 +895,12 @@ TEST_F(SelArgTest, GetMMTreeNonApplicableKeypart)
   String range_string(buff, sizeof(buff), system_charset_info);
   range_string.set_charset(system_charset_info);
 
+  SEL_TREE *tree=
+    get_mm_tree(m_opt_param,
+                new Item_cond_and(create_item(EQUAL, field_long1, 42),
+                                  create_item(EQUAL, field_long3, 10))
+                );
+
   /*
     Expected result is range only on first keypart. Third keypart is
     not applicable because there are no predicates on the second
@@ -901,16 +908,27 @@ TEST_F(SelArgTest, GetMMTreeNonApplicableKeypart)
   */
   const char expected1[]= 
     "result keys[0]: (42 <= field_1 <= 42)\n";
-  SEL_TREE *tree=
-    get_mm_tree(m_opt_param,
-                new Item_cond_and(create_item(EQUAL, field_long1, 42),
-                                  create_item(EQUAL, field_long3, 10))
-                );
-
   range_string.length(0);
-  print_tree(&range_string, "result", tree , m_opt_param);
+  print_tree(&range_string, "result", tree , m_opt_param, false);
   EXPECT_STREQ(expected1, range_string.c_ptr());
 
+  /*
+    Same SEL_ARG tree, but print_full argument is now true.
+    Non-applicable key parts are also printed in this case.
+  */
+  const char expected1_printfull[]= 
+    "result keys[0]: (42 <= field_1 <= 42 AND 10 <= field_3 <= 10)\n";
+
+  range_string.length(0);
+  print_tree(&range_string, "result", tree , m_opt_param, true);
+  EXPECT_STREQ(expected1_printfull, range_string.c_ptr());
+
+  tree=
+    get_mm_tree(m_opt_param,
+                new Item_cond_and(create_item(LESS, field_long1, 42),
+                                  create_item(EQUAL, field_long2, 10))
+                );
+  
   /*
     Expected result is range only on first keypart. Second keypart is
     not applicable because the predicate on the first keypart does not
@@ -918,15 +936,19 @@ TEST_F(SelArgTest, GetMMTreeNonApplicableKeypart)
   */
   const char expected2[]= 
     "result keys[0]: (field_1 < 42)\n";
-  tree=
-    get_mm_tree(m_opt_param,
-                new Item_cond_and(create_item(LESS, field_long1, 42),
-                                  create_item(EQUAL, field_long2, 10))
-                );
-  
   range_string.length(0);
-  print_tree(&range_string, "result", tree , m_opt_param);
+  print_tree(&range_string, "result", tree , m_opt_param, false);
   EXPECT_STREQ(expected2, range_string.c_ptr());
+
+  /*
+    Same SEL_ARG tree, but print_full argument is now true.
+    Non-applicable key parts are also printed in this case.
+  */
+  const char expected2_printfull[]= 
+    "result keys[0]: (field_1 < 42 AND 10 <= field_2 <= 10)\n";
+  range_string.length(0);
+  print_tree(&range_string, "result", tree , m_opt_param, true);
+  EXPECT_STREQ(expected2_printfull, range_string.c_ptr());
 }
 
 
@@ -1701,6 +1723,142 @@ TEST_F(SelArgTest, KeyOr1)
 
   SEL_ARG *tmp2= key_or(NULL, tmp, &sel_arg_lt4);
   EXPECT_EQ(null_arg, tmp2);
+}
+
+class Mock_SEL_ARG : public SEL_ARG
+{
+private:
+  ulong m_expected_use_count;
+public:
+  Mock_SEL_ARG(SEL_ARG *next_key_part_ptr,
+               int use_count_arg)
+    :m_expected_use_count(use_count_arg)
+  {
+    next_key_part= next_key_part_ptr;
+    make_root();
+  }
+
+  // Verify that use_count is as expected on destruction
+  ~Mock_SEL_ARG()
+  {
+    EXPECT_EQ (m_expected_use_count, use_count);
+  }
+};
+
+/*
+  Sets up a simplified tree to represent the interval list. The result
+  is not a proper RB-tree: on the "left" side of 'root', only 'left'
+  and 'parent' pointers are used, and on the "right" side of 'root'
+  only 'right' and 'parent' pointers are used. In addition, the nodes
+  are connected via 'next' linked list pointers.
+
+  This is sufficient for SEL_ARG's first() / last() /
+  increment_use_count() functions to work.
+
+  The root node of the tree will not change by calling this function.
+
+  @param root    The root of the tree that 'other' will be added to
+  @param other   SEL_ARG that will be added to the tree.
+
+  @note While it's perfectly fine for 'root' to be a tree of SEL_ARGs,
+  'other' can currently only be a single SEL_ARG (i.e., it cannot
+  refer to any other SEL_ARGs through next/prev/left/right)
+*/
+void build_interval_list(Mock_SEL_ARG *root, Mock_SEL_ARG *other)
+{
+  /*
+    Keep the tree balanced by adding nodes to left and right of
+    'root' in an alternating fashion
+  */
+  if (root->elements % 2)
+  {
+    SEL_ARG *add_to= root->first();
+    add_to->left=  other;
+    other->next=   add_to;
+    other->parent= add_to;
+  }
+  else
+  {
+    SEL_ARG *add_to= root->last();
+    add_to->next=  other;
+    add_to->right= other;
+    other->parent= add_to;
+  }
+
+  root->elements++;
+}
+
+
+TEST_F(SelArgTest, IncrementUseCount)
+{
+  /*
+    We build the following SEL_ARG graph, corresponding to the condition
+    (kp11 = c AND (kp12 = c OR kp22 = c) AND kp3 = c) OR
+    (kp12 = c AND (kp12 = c OR kp22 = c) AND kp3 = c)
+
+    [kp11*]---[kp21*]---[kp3*]
+       |      /  |      /
+    [kp12]---/ [kp22]--/
+
+    Vertical lines = next/prev pointers
+    Horizontal lines = next_key_part pointers
+    * indicates that the SEL_ARG is root 
+  */
+  Mock_SEL_ARG kp3(NULL, 4);
+
+  Mock_SEL_ARG kp21(&kp3, 2);
+  Mock_SEL_ARG kp22(&kp3, 0);
+  build_interval_list(&kp21, &kp22);
+
+  Mock_SEL_ARG kp11(&kp21, 0);
+  Mock_SEL_ARG kp12(&kp21, 0);
+  build_interval_list(&kp11, &kp12);
+
+  /*
+    At this point, no one refers to this SEL_ARG graph, so the
+    use_count is 0 for all roots. Below we check that
+    increment_use_count() correctly updates use_count for the whole
+    tree. The actual test that use_count is as expected is performed
+    in ~Mock_SEL_ARG.
+   */
+  kp11.increment_use_count(1);
+}
+
+TEST_F(SelArgTest, IncrementUseCount2)
+{
+  /*
+    We build the following SEL_ARG graph, corresponding to the condition
+    (kp11 = c AND kp2 = c AND (kp31 = c OR kp32 = c)) OR
+    (kp12 = c AND kp2 = c AND (kp31 = c OR kp32 = c))
+
+    [kp11*]---[kp2*]---[kp31*]
+       |      /           |
+    [kp12]---/         [kp32]
+
+    Vertical lines = next/prev pointers
+    Horizontal lines = next_key_part pointers
+    * indicates that the SEL_ARG is root 
+  */
+
+  Mock_SEL_ARG kp31(NULL, 2);
+  Mock_SEL_ARG kp32(NULL, 0);
+  build_interval_list(&kp31, &kp32);
+
+  Mock_SEL_ARG kp2(&kp31, 2);
+
+  Mock_SEL_ARG kp11(&kp2, 0);
+  Mock_SEL_ARG kp12(&kp2, 0);
+  build_interval_list(&kp11, &kp12);
+
+  /*
+    At this point, no one refers to this SEL_ARG graph, so the
+    use_count is 0 for all roots. Below we check that
+    increment_use_count() correctly updates use_count for the whole
+    tree. The actual test that use_count is as expected is performed
+    in ~Mock_SEL_ARG.
+ 
+   */
+  kp11.increment_use_count(1);
 }
 
 }
