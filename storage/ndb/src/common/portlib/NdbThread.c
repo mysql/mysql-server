@@ -83,7 +83,10 @@ struct NdbThread
   */
   HANDLE thread_handle;
 #endif
-#if defined HAVE_SOLARIS_AFFINITY
+#if defined HAVE_LINUX_SCHEDULING
+  pid_t tid;
+  struct NdbCpuSet *orig_cpu_set;
+#elif defined HAVE_SOLARIS_AFFINITY
   /* Our thread id */
   id_t tid;
   /* Have we called any lock to CPU function yet for this thread */
@@ -95,10 +98,7 @@ struct NdbThread
   /* Original processor set locked to */
   psetid_t orig_proc_set;
   /* Original processor locked to */
-  processor_id_t orig_processor_id;
-#elif defined HAVE_LINUX_SCHEDULING
-  pid_t tid;
-  struct NdbCpuSet *orig_cpu_set;
+  processorid_t orig_processor_id;
 #endif
   const struct processor_set_handler *cpu_set_key;
   char thread_name[16];
@@ -130,9 +130,7 @@ static
 void
 settid(struct NdbThread * thr)
 {
-#if defined HAVE_SOLARIS_AFFINITY
-  thr->tid = _lwp_self();
-#elif defined HAVE_LINUX_SCHEDULING
+#if defined HAVE_LINUX_SCHEDULING
   thr->tid = syscall(SYS_gettid);
   if (thr->tid == (pid_t)-1)
   {
@@ -143,18 +141,21 @@ settid(struct NdbThread * thr)
     */
     thr->tid = getpid();
   }
+#elif defined HAVE_SOLARIS_AFFINITY
+  thr->tid = (id_t)_lwp_self();
 #endif
 }
 
 int
 NdbThread_GetTid(struct NdbThread* thr)
 {
-#if defined HAVE_SOLARIS_AFFINITY
+#if defined HAVE_LINUX_SCHEDULING
   return (int)thr->tid;
-#elif defined HAVE_LINUX_SCHEDULING
+#elif defined HAVE_SOLARIS_AFFINITY
   return (int)thr->tid;
-#endif
+#else
   return -1;
+#endif
 }
 
 static
@@ -723,7 +724,9 @@ NdbThread_LockDestroyCPUSet(struct NdbCpuSet *cpu_set)
 {
   if (cpu_set != NULL)
   {
-#if defined HAVE_SOLARIS_AFFINITY
+#if defined HAVE_LINUX_SCHEDULING
+  /* Empty */
+#elif defined HAVE_SOLARIS_AFFINITY
     pset_destroy((cpu_set_t*)cpu_set);
 #endif
     free(cpu_set);
