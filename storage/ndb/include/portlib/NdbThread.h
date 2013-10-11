@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2003, 2010, Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2003, 2013, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -114,14 +114,35 @@ int NdbThread_SetConcurrencyLevel(int level);
 int NdbThread_GetTid(struct NdbThread*);
 
 /**
+ * Yield to normal time-share prio and back to real-time prio for
+ * real-time threads
+ */
+int NdbThread_yield_rt(struct NdbThread*, my_bool high_prio);
+
+/**
  * Set Scheduler for thread
  */
 int NdbThread_SetScheduler(struct NdbThread*, my_bool rt_prio, my_bool high_prio);
 
 /**
- * Lock Thread to CPU
+ * Lock/Unlock Thread to CPU
  */
-int NdbThread_LockCPU(struct NdbThread*, Uint32 cpu);
+struct NdbCpuSet;
+struct processor_set_handler;
+
+int NdbThread_LockCreateCPUSet(const Uint32 *cpu_ids,
+                               Uint32 num_cpus,
+                               struct NdbCpuSet **cpu_set);
+void NdbThread_LockDestroyCPUSet(struct NdbCpuSet *cpu_set);
+int NdbThread_LockCPUSet(struct NdbThread*,
+                         struct NdbCpuSet *cpu_set,
+                         const struct processor_set_handler *cpu_set_key);
+int NdbThread_LockCPU(struct NdbThread*,
+                      Uint32 cpu,
+                      const struct processor_set_handler *cpu_set_key);
+int NdbThread_UnlockCPU(struct NdbThread*);
+const struct processor_set_handler*
+  NdbThread_LockGetCPUSetKey(struct NdbThread*);
 
 /**
  * Fetch and set thread-local storage entry.
