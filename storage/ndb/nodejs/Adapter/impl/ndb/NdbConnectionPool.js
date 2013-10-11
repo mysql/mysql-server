@@ -1,5 +1,5 @@
 /*
- Copyright (c) 2012, Oracle and/or its affiliates. All rights
+ Copyright (c) 2013, Oracle and/or its affiliates. All rights
  reserved.
  
  This program is free software; you can redistribute it and/or
@@ -98,9 +98,19 @@ function releaseNdbConnection(connectString, msecToLinger, userCallback) {
 }
 
 
+function closeNdb(execQueue, ndb, callbackOnClose) {
+  var apiCall = new QueuedAsyncCall(execQueue, callbackOnClose);
+  apiCall.description = "closeNdb";
+  apiCall.ndb = ndb;
+  apiCall.run = function() {
+    this.ndb.close(this.callback);
+  };
+  apiCall.enqueue();
+}
+
+
 exports.closeNdbSession = function(ndbPool, ndbSession, userCallback) {
   var ndbConn = ndbPool.ndbConnection;
-  var apiCall;
 
   if(! ndbConn.isConnected) 
   {
@@ -112,15 +122,8 @@ exports.closeNdbSession = function(ndbPool, ndbSession, userCallback) {
              ndbPool.properties.ndb_session_pool_max))
   {
     /* (A) The connection is going to close, or (B) The freelist is full. 
-       Either way, enqueue a close call.
-    */
-    apiCall = new QueuedAsyncCall(ndbConn.execQueue, userCallback);
-    apiCall.description = "closeNdb";
-    apiCall.ndb = ndbSession.impl;
-    apiCall.run = function() {
-      this.ndb.close(this.callback);
-    };
-    apiCall.enqueue();
+       Either way, enqueue a close call. */
+    closeNdb(ndbConn.execQueue, ndbSession.impl, userCallback);    
   }
   else 
   { 
@@ -287,12 +290,12 @@ DBConnectionPool.prototype.close = function(userCallback) {
   
   /* Close the NDB on open tables */
   while(table = this.openTables.pop()) {
-    table.per_table_ndb.close(onNdbClose);
+    closeNdb(this.ndbConnection.execQueue, table.per_table_ndb , onNdbClose);
   }
 
   /* Close the NDBs from the session pool */
   while(session = this.ndbSessionFreeList.pop()) {
-    session.impl.close(onNdbClose);
+    closeNdb(this.ndbConnection.execQueue, session.impl, onNdbClose);
   }  
 };
 

@@ -27,7 +27,7 @@
 #include "NdbRecordObject.h"
 
 
-NdbRecordObject::NdbRecordObject(Record *_record, 
+NdbRecordObject::NdbRecordObject(const Record *_record, 
                                  ColumnHandlerSet * _handlers,
                                  Handle<Value> jsBuffer) : 
   record(_record), 

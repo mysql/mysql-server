@@ -94,6 +94,7 @@ TransporterReceiveData::TransporterReceiveData()
    */
   m_transporters.set();            // Handle all
   m_transporters.clear(Uint32(0)); // Except wakeup socket...
+  m_handled_transporters.clear();
 
 #if defined(HAVE_EPOLL_CREATE)
   m_epoll_fd = -1;
@@ -1321,13 +1322,14 @@ TransporterRegistry::poll_TCP(Uint32 timeOutMillis,
 
 /**
  * In multi-threaded cases, this must be protected by a global receive lock.
+ * In case we were unable to received due to job buffers being full.
+ * Returns 0 when receive succeeded from all Transporters having data,
+ * else 1.
  */
-void
+Uint32
 TransporterRegistry::performReceive(TransporterReceiveHandle& recvdata)
 {
   assert((receiveHandle == &recvdata) || (receiveHandle == 0));
-
-  bool hasReceived = false;
   bool stopReceiving = false;
 
   if (recvdata.m_recv_transporters.get(0))
@@ -1383,7 +1385,7 @@ TransporterRegistry::performReceive(TransporterReceiveHandle& recvdata)
   recvdata.m_recv_transporters.clear();
 
   /**
-   * Handle data either received above or pending from prev rounds.
+   * Unpack data either received above or pending from prev rounds.
    */
   for(Uint32 id = recvdata.m_has_data_transporters.find_first();
       id != BitmaskImpl::NotFound && !stopReceiving;
@@ -1398,9 +1400,10 @@ TransporterRegistry::performReceive(TransporterReceiveHandle& recvdata)
     {
       if (t->isConnected())
       {
-        if (hasReceived)
-          recvdata.checkJobBuffer();
-        hasReceived = true;
+        if (unlikely(recvdata.checkJobBuffer()))
+          return 1;     // Full, can't unpack more
+        if (unlikely(recvdata.m_handled_transporters.get(id)))
+          continue;     // Skip now to avoid starvation
         Uint32 * ptr;
         Uint32 sz = t->getReceiveData(&ptr);
         Uint32 szUsed = unpack(recvdata, ptr, sz, id, ioStates[id], stopReceiving);
@@ -1416,6 +1419,7 @@ TransporterRegistry::performReceive(TransporterReceiveHandle& recvdata)
     }
     // If transporter still have data, make sure that it's remember to next time
     recvdata.m_has_data_transporters.set(id, hasdata);
+    recvdata.m_handled_transporters.set(id, hasdata);
   }
 #endif
   
@@ -1431,9 +1435,11 @@ TransporterRegistry::performReceive(TransporterReceiveHandle& recvdata)
     {
       if(t->isConnected() && t->checkConnected())
       {
-        if (hasReceived)
-          callbackObj->checkJobBuffer();
-        hasReceived = true;
+        if (unlikely(recvdata.checkJobBuffer()))
+          return 1;      // Full, can't unpack more
+        if (unlikely(recvdata.m_handled_transporters.get(nodeId)))
+          continue;      // Skip now to avoid starvation
+
         Uint32 * readPtr, * eodPtr;
         t->getReceivePtr(&readPtr, &eodPtr);
         callbackObj->transporter_recv_from(nodeId);
@@ -1441,6 +1447,7 @@ TransporterRegistry::performReceive(TransporterReceiveHandle& recvdata)
         t->updateReceivePtr(newPtr);
       }
     } 
+    recvdata.m_handled_transporters.set(nodeId);
   }
 #endif
 #ifdef NDB_SHM_TRANSPORTER
@@ -1452,9 +1459,11 @@ TransporterRegistry::performReceive(TransporterReceiveHandle& recvdata)
     if(is_connected(nodeId)){
       if(t->isConnected() && t->checkConnected())
       {
-        if (hasReceived)
-          recvdata.checkJobBuffer();
-        hasReceived = true;
+        if (unlikely(recvdata.checkJobBuffer()))
+          return 1;      // Full, can't unpack more
+        if (unlikely(recvdata.m_handled_transporters.get(nodeId)))
+          continue;      // Previously handled, skip to avoid starvation
+
         Uint32 * readPtr, * eodPtr;
         t->getReceivePtr(&readPtr, &eodPtr);
         recvdata.transporter_recv_from(nodeId);
@@ -1464,8 +1473,11 @@ TransporterRegistry::performReceive(TransporterReceiveHandle& recvdata)
         t->updateReceivePtr(newPtr);
       }
     } 
+    recvdata.m_handled_transporters.set(nodeId);
   }
 #endif
+  recvdata.m_handled_transporters.clear();
+  return 0;
 }
 
 /**
@@ -1780,6 +1792,7 @@ TransporterRegistry::report_disconnect(TransporterReceiveHandle& recvdata,
   performStates[node_id] = DISCONNECTED;
   recvdata.m_recv_transporters.clear(node_id);
   recvdata.m_has_data_transporters.clear(node_id);
+  recvdata.m_handled_transporters.clear(node_id);
   recvdata.reportDisconnect(node_id, errnum);
   DBUG_VOID_RETURN;
 }
