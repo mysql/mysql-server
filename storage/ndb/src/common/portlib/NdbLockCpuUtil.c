@@ -26,7 +26,7 @@
 
 struct processor_set_handler
 {
-  Uint32 ref_count;
+  int ref_count;
   struct NdbCpuSet *ndb_cpu_set;
   const Uint32 *cpu_ids;
   Uint32 num_cpu_ids;
@@ -42,6 +42,7 @@ remove_use_processor_set(Uint32 proc_set_id)
   struct processor_set_handler *handler = &proc_set_array[proc_set_id];
 
   handler->ref_count--;
+  assert(handler->ref_count >= 0);
   if (handler->ref_count == 0)
   {
     NdbThread_LockDestroyCPUSet(handler->ndb_cpu_set);
