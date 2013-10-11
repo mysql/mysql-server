@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2003, 2012, Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2003, 2013, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -28,6 +28,7 @@
 #include <NdbOut.hpp>
 #include <NdbEnv.h>
 #include <NdbSleep.h>
+#include <NdbLockCpuUtil.h>
 
 #include <kernel/GlobalSignalNumbers.h>
 #include <mgmapi_config_parameters.h>
@@ -700,7 +701,7 @@ void
 TransporterFacade::unlock_recv_thread_cpu()
 {
   if (theReceiveThread)
-    NdbThread_UnlockCPU(theReceiveThread);
+    Ndb_UnlockCPU(theReceiveThread);
 }
 
 void
@@ -709,7 +710,7 @@ TransporterFacade::lock_recv_thread_cpu()
   Uint32 cpu_id = recv_thread_cpu_id;
   if (cpu_id != NO_RECV_THREAD_CPU_ID && theReceiveThread)
   {
-    NdbThread_LockCPU(theReceiveThread, cpu_id);
+    Ndb_LockCPU(theReceiveThread, cpu_id);
   }
 }
 
