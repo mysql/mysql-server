@@ -583,11 +583,11 @@ NdbThread_UnlockCPU(struct NdbThread* pThread)
 #elif defined HAVE_SOLARIS_AFFINITY
   if (!pThread->first_lock_call)
   {
-    if (pThread->proc_set_id != MAX_PROCESSOR_SETS)
+    if (pThread->proc_set_id != UNDEFINED_PROCESSOR_SET)
     {
       pset_destroy(pThread->proc_set);
       solaris_remove_use_proc_set(pThread->proc_set_id);
-      pThread->proc_set_id = MAX_PROCESSOR_SETS;
+      pThread->proc_set_id = UNDEFINED_PROCESSOR_SET;
     }
     ret= pset_bind(pThread->orig_proc_set,
                    P_LWPID,
