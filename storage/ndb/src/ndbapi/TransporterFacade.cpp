@@ -700,7 +700,7 @@ void
 TransporterFacade::unlock_recv_thread_cpu()
 {
   if (theReceiveThread)
-    NdbThread_UnlockCPU(theReceiveThread);
+    Ndb_UnlockCPU(theReceiveThread);
 }
 
 void
@@ -709,7 +709,7 @@ TransporterFacade::lock_recv_thread_cpu()
   Uint32 cpu_id = recv_thread_cpu_id;
   if (cpu_id != NO_RECV_THREAD_CPU_ID && theReceiveThread)
   {
-    NdbThread_LockCPU(theReceiveThread, cpu_id);
+    Ndb_LockCPU(theReceiveThread, cpu_id);
   }
 }
 
