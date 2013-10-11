@@ -1094,6 +1094,8 @@ Ndbfs::createIoThread(bool bound)
 
     struct NdbThread* thrptr = thr->doStart();
     globalEmulatorData.theConfiguration->addThread(thrptr, NdbfsThread);
+    thr->set_real_time(
+      globalEmulatorData.theConfiguration->get_io_real_time());
 
     if (bound)
       m_bound_threads_cnt++;

@@ -144,6 +144,10 @@ public:
   virtual ~AsyncIoThread() {};
 
   struct NdbThread* doStart();
+  void set_real_time(bool real_time)
+  {
+    m_real_time = real_time;
+  }
   void shutdown();
 
   // its a thread so its always running
@@ -165,6 +169,7 @@ private:
   MemoryChannel<Request> *theMemoryChannelPtr;
   MemoryChannel<Request> theMemoryChannel; // If file-bound
 
+  bool   m_real_time;
   bool   theStartFlag;
   struct NdbThread* theThreadPtr;
   NdbMutex* theStartMutexPtr;
