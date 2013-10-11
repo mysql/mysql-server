@@ -23,7 +23,7 @@ libportlib_la_SOURCES = \
 	ndb_daemon.cc NdbMem.c \
 	NdbConfig.c NdbDir.cpp ndb_socket.cpp \
         NdbMutex_DeadlockDetector.cpp \
-        NdbGetRUsage.cpp
+        NdbGetRUsage.cpp NdbLockCpuUtil.c
 
 include $(top_srcdir)/storage/ndb/config/common.mk.am
 include $(top_srcdir)/storage/ndb/config/type_util.mk.am

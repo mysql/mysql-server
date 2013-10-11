@@ -20,6 +20,14 @@
 #ifndef NDB_MT_ASM_H
 #define NDB_MT_ASM_H
 
+/**
+ * Remove comment on NDB_USE_SPINLOCK if it is desired to use spinlocks
+ * instead of the normal mutex calls. This will not work when configuring
+ * with realtime and is thus disabled by default, but can be activated for
+ * special builds.
+ */
+//#define NDB_USE_SPINLOCK
+
 #if defined(__GNUC__)
 /********************
  * GCC
