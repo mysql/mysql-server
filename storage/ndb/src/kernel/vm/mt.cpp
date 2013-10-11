@@ -665,6 +665,31 @@ struct thr_jb_write_state
     It also speeds up some pending signal checks.
   */
   Uint32 m_pending_signals;
+
+  bool has_any_pending_signals() const
+  {
+    return m_pending_signals;
+  }
+  Uint32 get_pending_signals() const
+  {
+    return (m_pending_signals & 0xFFFF);
+  }
+  Uint32 get_pending_signals_wakeup() const
+  {
+    return (m_pending_signals >> 16);
+  }
+  void clear_pending_signals_and_set_wakeup(Uint32 wakeups)
+  {
+    m_pending_signals = (wakeups << 16);
+  }
+  void increment_pending_signals()
+  {
+    m_pending_signals++;
+  }
+  void init_pending_signals()
+  {
+    m_pending_signals = 0;
+  }
 };
 
 /*
@@ -701,30 +726,6 @@ struct thr_jb_read_state
   {
     assert(m_read_index != m_write_index  ||  m_read_pos <= m_read_end);
     return (m_read_index == m_write_index) && (m_read_pos >= m_read_end);
-  }
-  bool has_any_pending_signals() const
-  {
-    return m_pending_signals;
-  }
-  Uint32 get_pending_signals() const
-  {
-    return (m_pending_signals & 0xFFFF);
-  }
-  Uint32 get_pending_signals_wakeup() const
-  {
-    return (m_pending_signals >> 16);
-  }
-  void clear_pending_signals_and_set_wakeup(Uint32 wakeups)
-  {
-    m_pending_signals = (wakeups << 16);
-  }
-  void increment_pending_signals()
-  {
-    m_pending_signals++;
-  }
-  void init_pending_signals()
-  {
-    m_pending_signals = 0;
   }
 };
 
