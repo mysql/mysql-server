@@ -24,6 +24,8 @@
 extern "C" {
 #endif
 
+#define MAX_PROCESSOR_SETS 64
+
 typedef enum NDB_THREAD_PRIO_ENUM {
   NDB_THREAD_PRIO_HIGHEST,
   NDB_THREAD_PRIO_HIGH,
