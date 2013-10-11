@@ -28,6 +28,7 @@
 #include <NdbOut.hpp>
 #include <NdbEnv.h>
 #include <NdbSleep.h>
+#include <NdbLockCpuUtil.h>
 
 #include <kernel/GlobalSignalNumbers.h>
 #include <mgmapi_config_parameters.h>

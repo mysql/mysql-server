@@ -81,7 +81,7 @@ SET(BINS create_all_tabs create_tab
   testScanFilter testScanInterpreter testScanPerf
   testSystemRestart testTimeout testTransactions
   testDeadlock test_event ndbapi_slow_select testReadPerf
-  testLcp testPartitioning testBitfield DbCreate
+  testLcp testPartitioning DbCreate
   DbAsyncGenerator test_event_merge testNdbinfo
   testNativeDefault testLimits testSpj
   testSingleUserMode
@@ -101,6 +101,9 @@ FOREACH(B ${BINS})
   TARGET_LINK_LIBRARIES(${B} ndbNDBT)
   TARGET_LINK_LIBRARIES(${B} ndbclient_so)
 ENDFOREACH()
+
+TARGET_LINK_LIBRARIES(testBitfield ndbNDBT ndbclient_static)
+SET(BINS ${BINS} testBitfield)
 
 TARGET_LINK_LIBRARIES(testUpgrade mysqlclient)
 
