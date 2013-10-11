@@ -1,7 +1,5 @@
 /* A DBOperation object represents a database operation. 
    It contains read-only user-visible fields.
-   
-   OBJECT DEFINITIONS:
 */
 
 //   DBSession.buildXXX takes additional transaction and callback
@@ -51,14 +49,10 @@ OperationStates = [
 /* All LockModes may not be implemented by all adapters.
    The LockMode in the DBOperation reflects the actual supported LockMode in use 
    for the operation.
-
-  TODO: Remove SHARED_RELEASE 
-        But use SimpleRead as a special case with SHARED & NDB Primary Key
 */   
 LockModes = [ 
   "EXCLUSIVE",         // Read with an exclusive lock
   "SHARED",            // Read with a shared-read lock
-  "SHARED_RELEASED",   // Read with a shared-read lock and release quickly  
   "COMMITTED"          // Read committed values (no locking)
 ];
 

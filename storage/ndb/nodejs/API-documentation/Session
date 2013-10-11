@@ -1,125 +1,137 @@
 
 
-  /** Get mappings for a table or class. 
-   * The result is a fully resolved TableMapping
-   * The parameter may be a table name, a mapped constructor function, or
-   * a domain object. 
-   * @method getMapping
-   * @param table the table name or constructor of a mapped class
-   * @param callback function to be called when mapping has been resolved, with parameters:
-   *   err: the node.js Error object
-   *   mapping: the mapping for the parameter
-   * @throws Error if the parameter is not an object, string, or function
-   * @return undefined
-   */
-  getMapping(Object domainObjectTableNameOrConstructor, Function(Object err, Object mapping [,...]) callback[,...]);
+/** Get mappings for a table or class. 
+ * The result is a fully resolved TableMapping
+ * The parameter may be a table name, a mapped constructor function, or
+ * a domain object. 
+ * @method getMapping
+ * @param table the table name or constructor of a mapped class
+ * @param callback function to be called when operation has completed,
+ *                 with parameters:
+ *                    err: the node.js Error object
+ *                    mapping: the mapping for the parameter
+ * @throws Error if the parameter is not an object, string, or function
+ * @return undefined
+ * ASYNC
+ */
+getMapping(domainObjectTableNameOrConstructor, 
+           Function(err, mapping, ...) callback, ...);
 
-    /** Create a query object that can be used to query the database.
-     * The first parameter is an object of a type whose constructor has been annotated;
-     * a constructor that has been annotated; or the name of a table.
-     * The returned query object implements the behavior of Query. 
-     */
-    createQuery(Object domainObjectConstructorOrTableName, Function(Object error, Object query) callback);
+/** Create a query object that can be used to query the database.
+ * The first parameter is:
+ *    an object of a type whose constructor has been annotated, or
+ *    a constructor that has been annotated, or 
+ *    the name of a table.
+ * The returned query object implements the behavior of Query. 
+ * ASYNC
+ */
+createQuery(domainObjectConstructorOrTableName,
+            Function(error, query, ...) callback, ...);
 
-    /** Create an empty batch.
-     *
-     * The batch is used to collect multiple operations to be executed together. 
-     */ 
-    Batch createBatch();
+/** Create an empty batch.
+ *
+ * The batch is used to collect multiple operations to be executed together. 
+ * IMMEDIATE
+ */ 
+Batch createBatch();
 
-    /** List all current batches.
-     */
-    Array listBatches();
+/** List all current batches.
+ * IMMEDIATE
+ */
+Array listBatches();
 
-    /** Get the current Transaction. 
-     * @method currentTransaction
-     * @return the transaction
-     */
-    Transaction currentTransaction();
+/** Get the current Transaction. 
+ * @method currentTransaction
+ * @return the transaction
+ * IMMEDIATE
+ */
+Transaction currentTransaction();
 
-    /** Close this session. This must be called when the session is
-     * no longer needed.
-     * 
-     * @method close
-     * @param callback
-     @ async
-     */
-    void close(Function(Object error) callback);
+/** Close this session. This must be called when the session is
+ * no longer needed.
+ * 
+ * @method close
+ * @param callback
+ @ async
+ */
+void close(Function(error) callback);
 
-    /** Is this session closed?
-     *
-     * @method isClosed
-     * @return {Boolean} true if the session is closed
-     */
-    boolean isClosed();
+/** Is this session closed?
+ *
+ * @method isClosed
+ * @return {Boolean} true if the session is closed
+ * IMMEDIATE
+ */
+boolean isClosed();
 
-    /** Set the partition key for the next transaction.
-     *
-     * Normally, this is not needed. Mysql-js will automatically set
-     * the partition key based on the first operation in the transaction.
-     * If the user needs explicit control over the partition key,
-     * this is the way to do it.
-     * 
-     * The instance must be an object that is capable of being persisted. 
-     * The values of the partition key will be taken from the values
-     * in the instance.
-     * 
-     * @method setPartitionKey
-     * @param instance the object with all partition key properties set
-     * @return an Error object or null if no error
-     */
-    Error setPartitionKey(Object instance);
+/** Set the partition key for the next transaction.
+ *
+ * Normally, this is not needed. Mysql-js will automatically set
+ * the partition key based on the first operation in the transaction.
+ * If the user needs explicit control over the partition key,
+ * this is the way to do it.
+ * 
+ * The instance must be an object that is capable of being persisted. 
+ * The values of the partition key will be taken from the values
+ * in the instance.
+ * 
+ * @method setPartitionKey
+ * @param instance the object with all partition key properties set
+ * @return an Error object or null if no error
+ * IMMEDIATE
+ */
+Error setPartitionKey(instance);
 
-    /** Set the partition key for the next transaction.
-     *
-     * Normally, this is not needed. Mysql-js will automatically set
-     * the partition key based on the first operation in the transaction.
-     * If the user needs explicit control over the partition key,
-     * this is the way to do it.
-     * 
-     * The mapping is an object obtained from a class after the
-     * class has been annotated. 
-     * The parameter "keys" may be of a type that can uniquely identify
-     * a single row in the database. If keys is a simple type
-     * (number or string), then the parameter type must be the 
-     * same type as or compatible with the primary key type of the mapped object.
-     * Otherwise, properties are taken
-     * from the parameter and matched against property names in the
-     * mapping. Primary key properties will be used if all are present,
-     * and other properties will be ignored. If keys cannot identify the 
-     * primary key, property names corresponding to unique key columns
-     * will be used. If no complete primary or unique key properties
-     * are found, an error is reported.
-     * The returned object will be loaded based on the mapping and the current
-     * values in the database.
-     * 
-     * @return an Error object or null if no error
-     */
-    Error setPartitionKey(TableMapping mapping, Object keys);
+/** Set the partition key for the next transaction.
+ *
+ * Normally, this is not needed. Mysql-js will automatically set
+ * the partition key based on the first operation in the transaction.
+ * If the user needs explicit control over the partition key,
+ * this is the way to do it.
+ * 
+ * The mapping is an object obtained from a class after the
+ * class has been annotated. 
+ * The parameter "keys" may be of a type that can uniquely identify
+ * a single row in the database. If keys is a simple type
+ * (number or string), then the parameter type must be the 
+ * same type as or compatible with the primary key type of the mapped object.
+ * Otherwise, properties are taken
+ * from the parameter and matched against property names in the
+ * mapping. Primary key properties will be used if all are present,
+ * and other properties will be ignored. If keys cannot identify the 
+ * primary key, property names corresponding to unique key columns
+ * will be used. If no complete primary or unique key properties
+ * are found, an error is reported.
+ * The returned object will be loaded based on the mapping and the current
+ * values in the database.
+ * 
+ * @return an Error object or null if no error
+ * IMMEDIATE
+ */
+Error setPartitionKey(mapping, keys);
 
-    /** Set the lock mode for read operations. This will take effect immediately
-     * and will remain in effect until this session is closed or this method
-     * is called again.
-     * @param lockmode the LockMode:
-     * 'EXCLUSIVE'
-     * 'SHARED'
-     * 'NONE'
-     */
-    void setLockMode(String lockmode);
+/** Set the lock mode for read operations. This will take effect immediately
+ * and will remain in effect until this session is closed or this method
+ * is called again.
+ * @param lockmode the LockMode: 'EXCLUSIVE', 'SHARED', or 'NONE'
+ *
+ * IMMEDIATE
+ */
+void setLockMode(lockmode);
 
-  
-    /** listTables(database, callback) 
-     *  ASYNC
-     *  
-     *  list tables in database
-     */
-    listTables(databaseName, callback);
-    
-    
-    /** getTableMetadata(databaseName, tableName, callback) 
-     *  ASYNC
-     *
-     *  Fetch metadata for table 
-     */
-    getTableMetadata(databaseName, tableName, callback);
+
+/** listTables(database, callback) 
+ *  ASYNC
+ *  
+ *  list tables in database
+ */
+listTables(databaseName, callback);
+
+
+/** getTableMetadata(databaseName, tableName, callback) 
+ *  ASYNC
+ *
+ *  Fetch metadata for table 
+ */
+getTableMetadata(databaseName, tableName, callback);
 }
