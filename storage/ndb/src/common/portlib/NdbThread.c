@@ -507,7 +507,6 @@ NdbThread_yield_rt(struct NdbThread* pThread, my_bool high_prio)
     return res;
   return 0;
 }
-#endif
 
 int
 NdbThread_SetScheduler(struct NdbThread* pThread,
