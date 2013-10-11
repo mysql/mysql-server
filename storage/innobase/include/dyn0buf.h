@@ -32,21 +32,23 @@ Created 2013-03-16 Sunny Bains
 #include "dyn0types.h"
 
 /** Class that manages dynamic buffers. It uses a UT_LIST of
-dyn_buf_t::block_t instances. We don't use of STL containers in
+dyn_buf_t::block_t instances. We don't use STL containers in
 order to avoid the overhead of heap calls. Using a custom memory
 allocator doesn't solve the problem either because we have to get
 the memory from somewhere. We can't use the block_t::m_data as the
 backend for the custom allocator because we would like the data in
 the blocks to be contiguous. */
 template <size_t SIZE = DYN_ARRAY_DATA_SIZE>
-struct dyn_buf_t {
+class dyn_buf_t {
+public:
 
-	struct block_t;
+	class block_t;
 
 	typedef UT_LIST_NODE_T(block_t) block_node_t;
 	typedef UT_LIST_BASE_NODE_T(block_t) block_list_t;
 
-	struct block_t {
+	class block_t {
+	private:
 
 		block_t() { init(); }
 		~block_t() { }
@@ -116,9 +118,10 @@ struct dyn_buf_t {
 		}
 
 		/**
-		Item pushed note actual used space. */
+		Grow the stack. */
 		void close(const byte* ptr)
 		{
+			/* Check that it is within bounds */
 			ut_ad(begin() + m_buf_end >= ptr);
 
 			m_used = ptr - begin();
