@@ -22,6 +22,8 @@
 #include <NdbMem.h>
 #include <NdbMutex.h>
 
+#define MAX_PROCESSOR_SETS 64
+
 struct processor_set_handler
 {
   Uint32 ref_count;
@@ -56,7 +58,7 @@ find_processor_set(struct NdbThread *pThread)
   const struct processor_set_handler *handler =
     NdbThread_LockGetCPUSetKey(pThread);
   if (handler == NULL)
-    return MAX_PROCESSOR_SETS;
+    return UNDEFINED_PROCESSOR_SET;
   return handler->index;
 }
 
@@ -67,7 +69,7 @@ use_processor_set(const Uint32 *cpu_ids,
 {
   int ret;
   Uint32 i;
-  Uint32 ret_proc_set_id = MAX_PROCESSOR_SETS;
+  Uint32 ret_proc_set_id = UNDEFINED_PROCESSOR_SET;
   struct processor_set_handler *handler;
 
   for (i = 0; i < MAX_PROCESSOR_SETS; i++)
@@ -124,7 +126,7 @@ Ndb_UnlockCPU(struct NdbThread* pThread)
   NdbMutex_Lock(g_ndb_lock_cpu_mutex);
   error_no = NdbThread_UnlockCPU(pThread);
   proc_set_id = find_processor_set(pThread);
-  if (proc_set_id == MAX_PROCESSOR_SETS)
+  if (proc_set_id == UNDEFINED_PROCESSOR_SET)
     goto end;
   remove_use_processor_set(proc_set_id);
 end:
