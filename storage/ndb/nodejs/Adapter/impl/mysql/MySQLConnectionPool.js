@@ -31,8 +31,38 @@ var udebug = unified_debug.getLogger("MySQLConnectionPool.js");
 var util = require('util');
 var stats_module = require(path.join(api_dir, "stats.js"));
 var stats = stats_module.getWriter(["spi","mysql","DBConnectionPool"]);
+var MySQLTime = require("../common/MySQLTime.js");
 
-
+/** Convert the raw data in the driver to the type expected by the adapter.
+ * @param field the field being processed in the driver
+ * @param next the next type converter in the chain
+ * @return the value to be passed to the adapter from the driver
+ */
+function driverTypeConverter(field, next) {
+//  console.log('MySQLConnectionPool.driverTypeConverter with field', util.inspect(field));
+  var type = field.type;
+  var name = field.name;
+  var value;
+  switch (type) {
+  case 'DATE':
+    value = field.string();
+    return value;
+  case 'TIMESTAMP':
+    value = field.string();
+    if (value === null) {
+      return null;
+    }
+    return value;
+  case 'DATETIME':
+    value = field.string();
+    if (value === null) {
+      return null;
+    }
+    return value;
+  default:
+    return next();
+  }
+}
 /* Translate our properties to the driver's */
 function getDriverProperties(props) {
   var driver = {};
@@ -57,64 +87,63 @@ function getDriverProperties(props) {
   return driver;
 }
 
-/** Type converter for timestamp objects. For now, userDate is a Javascript Date object that wraps
- * milliseconds since the Epoch UTC. Default behavior is that the value is converted to a String
- * for transmission to the database in the time zone of the date itself. But this does not work for mysql-js
- * because mysqld assumes that the string is in the time zone of the client regardless of the encoded date.
- * The conversion in this converter creates a String that is always in the time zone of the client regardless
- * of the time zone of the encoded date.
+/** Default domain type converter for timestamp and datetime objects. The domain type is Date
+ * and the intermediate type is MySQLTime. MySQLTime provides a lossless conversion from
+ * database DATETIME and TIMESTAMP with fractional microseconds. The default domain type converter
+ * to javascript Date is lossy: javascript Date does not support microseconds. Users might supply
+ * their own domain type with a converter that supports microseconds.
  */
-var TimestampTypeConverter = function() {
+var DomainTypeConverterDateTime = function() {
+  // just a bit of documentation for debugging
+  this.converter = 'DomainTypeConverterDateTime';
 };
 
-TimestampTypeConverter.prototype.toDB = function toDB(userDate) {
+DomainTypeConverterDateTime.prototype.toDB = function toDB(userDate) {
   if (userDate === null || userDate === undefined) {
     return userDate;
   }
-  // Date.getTimezoneOffset will change for daylight saving
-  var tzoffsetUserDate = userDate.getTimezoneOffset() * 60000; // timezone offset in minutes times milliseconds per minute
-  var userDateMillis = userDate.getTime();
-  var tzoffsetSystemDate = new Date().getTimezoneOffset() * 60000;
-  var dbDate = new Date((userDateMillis + tzoffsetUserDate) - tzoffsetSystemDate);
-  udebug.log_detail('userDate: ', userDate, 'dbDate: ', dbDate);
-  return dbDate;
+  // convert to the string form of the mySQLTime object
+  var mysqlTime = new MySQLTime();
+  mysqlTime.fsp = 6;
+  mysqlTime.initializeFromJsDateLocal(userDate);
+  return mysqlTime;
 };
   
-TimestampTypeConverter.prototype.fromDB =  function fromDB(dbDate) {
-  if (dbDate === null || dbDate === undefined) {
-    return dbDate;
+DomainTypeConverterDateTime.prototype.fromDB =  function fromDB(mysqlTime) {
+  if (mysqlTime === null || mysqlTime === undefined) {
+    return mysqlTime;
   }
-  // Date.getTimezoneOffset will change for daylight saving
-  var tzoffsetDbDate = dbDate.getTimezoneOffset() * 60000; // timezone offset in minutes times milliseconds per minute
-  var dbDateMillis = dbDate.getTime();
-  var tzoffsetSystemDate = new Date().getTimezoneOffset() * 60000;
-  var userDate = new Date((dbDateMillis - tzoffsetDbDate) + tzoffsetSystemDate);
-  udebug.log_detail('dbDate: ', dbDate, ' userDate: ', userDate);
-  return userDate;
+  var jsDate = mysqlTime.toJsDateLocal();
+  return jsDate;
 };
 
-/** Type converter for date objects. Instead of using timezone, use UTC to get just the date portion
- * of the Javascript Date object.
+/** Default database type converter for timestamp and datetime objects. The database type is string
+ * and the intermediate type is MySQLTime. MySQLTime provides a lossless conversion from
+ * database DATETIME and TIMESTAMP with fractional microseconds.
  */
-var DateTypeConverter = function() {
+var DatabaseTypeConverterDateTime = function() {
+  // just a bit of documentation for debugging
+  this.converter = 'DatabaseTypeConverterDateTime';
 };
 
-DateTypeConverter.prototype.toDB = function toDB(userDate) {
-  // no conversion is needed because time zone is stripped out already
-  return userDate;
+DatabaseTypeConverterDateTime.prototype.toDB = function toDB(mysqlTime) {
+  if (mysqlTime === null || mysqlTime === undefined) {
+    return mysqlTime;
+  }
+  // convert to the string form of the mySQLTime object
+  var dbDateTime = mysqlTime.toDateTimeString();
+  return dbDateTime;
 };
   
-DateTypeConverter.prototype.fromDB =  function fromDB(dbDate) {
-  // convert because Date object is relative to time zone
-  if (dbDate === null || dbDate === undefined) {
-    return dbDate;
+DatabaseTypeConverterDateTime.prototype.fromDB =  function fromDB(dbDateTime) {
+  if (dbDateTime === null || dbDateTime === undefined) {
+    return dbDateTime;
   }
-  var tzoffsetDbDate = dbDate.getTimezoneOffset() * 60000; // timezone offset in minutes times milliseconds per minute
-  var dbDateMillis = dbDate.getTime();
-  var userDate = new Date(dbDateMillis + tzoffsetDbDate);
-  udebug.log_detail('dbDate: ', dbDate, ' userDate: ', userDate);
-  return userDate;
+  var mysqlTime = new MySQLTime();
+  mysqlTime.initializeFromDateTimeString(dbDateTime);
+  return mysqlTime;
 };
+
 
 
 /* Constructor saves properties but doesn't actually do anything with them.
@@ -127,30 +156,41 @@ exports.DBConnectionPool = function(props) {
   // connections that are being used (wrapped by DBSession)
   this.openConnections = [];
   this.is_connected = false;
-  // create type converter map
-  this.typeConverterMap = {};
-//  type converters are not presently used
-//  this.typeConverterMap.timestamp = new TimestampTypeConverter();
-//  this.typeConverterMap.date = new DateTypeConverter();
+  // create database type converter map
+  this.databaseTypeConverterMap = {};
+  this.databaseTypeConverterMap.TIMESTAMP = new DatabaseTypeConverterDateTime();
+  this.databaseTypeConverterMap.DATETIME = new DatabaseTypeConverterDateTime();
+  // create domain type converter map
+  this.domainTypeConverterMap = {};
+  this.domainTypeConverterMap.TIMESTAMP = new DomainTypeConverterDateTime();
+  this.domainTypeConverterMap.DATETIME = new DomainTypeConverterDateTime();
+  this.driverTypeConverter = driverTypeConverter;
   stats.incr( [ "created" ]);
 };
 
-/** Register a user-specified type converter for this connection pool.
+/** Register a user-specified domain type converter for this connection pool.
  * Called by SessionFactory.registerTypeConverter.
  */
 exports.DBConnectionPool.prototype.registerTypeConverter = function(typeName, converterObject) {
   if (converterObject) {
-    this.typeConverterMap[typeName] = converterObject;
+    this.domainTypeConverterMap[typeName] = converterObject;
   } else {
-    this.typeConverterMap[typeName] = undefined;
+    this.domainTypeConverterMap[typeName] = undefined;
   }
 };
 
-/** Get the registered type converter for the parameter type name.
+/** Get the database type converter for the parameter type name.
  * Called when creating the DBTableHandler for a constructor.
  */
-exports.DBConnectionPool.prototype.getTypeConverter = function(typeName) {
-  return this.typeConverterMap[typeName];
+exports.DBConnectionPool.prototype.getDatabaseTypeConverter = function(typeName) {
+  return this.databaseTypeConverterMap[typeName];
+};
+
+/** Get the domain type converter for the parameter type name.
+ * Called when creating the DBTableHandler for a constructor.
+ */
+exports.DBConnectionPool.prototype.getDomainTypeConverter = function(typeName) {
+  return this.domainTypeConverterMap[typeName];
 };
 
 exports.DBConnectionPool.prototype.connectSync = function() {

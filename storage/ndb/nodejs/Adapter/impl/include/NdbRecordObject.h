@@ -23,7 +23,7 @@
 
 class NdbRecordObject {
 public:
-  NdbRecordObject(Record *, ColumnHandlerSet *, Handle<Value>);
+  NdbRecordObject(const Record *, ColumnHandlerSet *, Handle<Value>);
   ~NdbRecordObject();
   
   Handle<Value> getField(int);
@@ -31,13 +31,13 @@ public:
   Handle<Value> prepare();
   void resetMask();
 
-  Record * getRecord() const;
+  const Record * getRecord() const;
   char * getBuffer() const;
   uint32_t getMaskValue() const;
   unsigned short getWriteCount() const;
 
 private:
-  Record * record;
+  const Record * record;
   char * buffer;
   ColumnHandlerSet * handlers;
   Persistent<Value> persistentBufferHandle;
@@ -73,7 +73,7 @@ inline void NdbRecordObject::setField(int nField, Handle<Value> value) {
 }
 
 
-inline Record * NdbRecordObject::getRecord() const {
+inline const Record * NdbRecordObject::getRecord() const {
   return record;
 }
 

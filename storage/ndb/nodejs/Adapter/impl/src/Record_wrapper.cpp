@@ -1,5 +1,5 @@
 /*
- Copyright (c) 2012, Oracle and/or its affiliates. All rights
+ Copyright (c) 2013, Oracle and/or its affiliates. All rights
  reserved.
  
  This program is free software; you can redistribute it and/or
@@ -50,7 +50,7 @@ RecordEnvelopeClass RecordEnvelope;
 
 /****  CALL THIS FROM C++ CODE TO CREATE A WRAPPED RECORD OBJECT. 
 *****/
-Handle<Value> Record_Wrapper(Record *rec) {
+Handle<Value> Record_Wrapper(const Record *rec) {
   HandleScope scope;
   
   Local<Object> js_record = RecordEnvelope.newWrapper();
