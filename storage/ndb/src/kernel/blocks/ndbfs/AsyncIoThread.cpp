@@ -34,7 +34,8 @@
 extern EventLogger * g_eventLogger;
 
 AsyncIoThread::AsyncIoThread(class Ndbfs& fs, bool bound)
-  : m_fs(fs)
+  : m_fs(fs),
+    m_real_time(false)
 {
   m_current_file = 0;
   if (bound)
@@ -123,7 +124,10 @@ AsyncIoThread::dispatch(Request *request)
 void
 AsyncIoThread::run()
 {
+  bool first_flag = true;
   Request *request;
+  struct MicroSecondTimer last_yield_timer;
+  int res = 0;
 
   // Create theMemoryChannel in the thread that will wait for it
   NdbMutex_Lock(theStartMutexPtr);
@@ -138,6 +142,49 @@ AsyncIoThread::run()
 
   while (1)
   {
+    if (m_real_time)
+    {
+      /**
+       * If we are running in real-time we'll simply insert a break every
+       * so often to ensure that low-prio threads aren't blocked from the
+       * CPU, this is especially important if we're using a compressed
+       * file system where lots of CPU is used by this thread.
+       */
+      bool yield_flag = false;
+      struct MicroSecondTimer current_timer;
+      int res1 = NdbTick_getMicroTimer(&current_timer);
+
+      if (first_flag)
+      {
+        first_flag = false;
+        yield_flag = true;
+      }
+      else
+      {
+        if (res || res1)
+        {
+          yield_flag = true;
+        }
+        else
+        {
+          NDB_TICKS micros_passed =
+            NdbTick_getMicrosPassed(last_yield_timer, current_timer);
+          if (micros_passed > 10000)
+          {
+            yield_flag = true;
+          }
+        }
+      }
+      if (yield_flag)
+      {
+        if (NdbThread_yield_rt(theThreadPtr, TRUE))
+        {
+          m_real_time = false;
+        }
+        last_yield_timer = current_timer;
+        res = res1;
+      }
+    }
     request = theMemoryChannelPtr->readChannel();
     if (!request || request->action == Request::end)
     {

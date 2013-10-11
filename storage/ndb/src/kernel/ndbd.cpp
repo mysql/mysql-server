@@ -734,15 +734,13 @@ ndbd_run(bool foreground, int report_fd,
   globalEmulatorData.theConfiguration->addThread(pTrp, SocketClientThread);
   globalEmulatorData.theConfiguration->addThread(pWatchdog, WatchDogThread);
   globalEmulatorData.theConfiguration->addThread(pSockServ, SocketServerThread);
-
-  //  theConfig->closeConfiguration();
   {
     NdbThread *pThis = NdbThread_CreateObject(0);
-    Uint32 inx = globalEmulatorData.theConfiguration->addThread(pThis,
-                                                                MainThread);
-    globalEmulatorData.theThreadConfig->ipControlLoop(pThis, inx);
-    globalEmulatorData.theConfiguration->removeThreadId(inx);
+    globalEmulatorData.theThreadConfig->ipControlLoop(pThis);
   }
+  globalEmulatorData.theConfiguration->removeThread(pWatchdog);
+  globalEmulatorData.theConfiguration->removeThread(pTrp);
+  globalEmulatorData.theConfiguration->removeThread(pSockServ);
   NdbShutdown(0, NST_Normal);
 
   ndbd_exit(0);
