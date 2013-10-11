@@ -1334,6 +1334,12 @@ NdbDictionary::Event::setTable(const Table& table)
   m_impl.setTable(table);
 }
 
+int
+NdbDictionary::Event::setTable(const Table *table)
+{
+  return m_impl.setTable(table);
+}
+
 const NdbDictionary::Table *
 NdbDictionary::Event::getTable() const
 {
