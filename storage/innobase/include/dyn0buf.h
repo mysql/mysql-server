@@ -246,7 +246,7 @@ public:
 	@param size	in bytes of the element
 	@return	pointer to the element */
 	template <typename Type>
-	Type push(ulint size)
+	Type push(ib_uint32_t size)
 	{
 		ut_ad(size > 0);
 		ut_ad(size <= MAX_DATA_SIZE);
@@ -257,7 +257,9 @@ public:
 
 		m_size += size;
 
-		return(block->push<Type>(size));
+		/* See ISO C++03 14.2/4 for why "template" is required. */
+
+		return(block->template push<Type>(size));
 	}
 
 	/**
