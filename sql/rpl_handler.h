@@ -121,10 +121,20 @@ public:
     return inited;
   }
 
-  Delegate(PSI_rwlock_key key)
+  Delegate(
+#ifdef HAVE_PSI_INTERFACE
+           PSI_rwlock_key key
+#endif
+           )
   {
     inited= FALSE;
-    if (mysql_rwlock_init(key, &lock))
+    if (mysql_rwlock_init(
+#ifdef HAVE_PSI_INTERFACE
+                          key
+#else
+                          0
+#endif
+                          , &lock))
       return;
     init_sql_alloc(key_memory_delegate, &memroot, 1024, 0);
     inited= TRUE;
@@ -143,14 +153,20 @@ private:
   bool inited;
 };
 
+#ifdef HAVE_PSI_INTERFACE
 extern PSI_rwlock_key key_rwlock_Trans_delegate_lock;
+#endif
 
 class Trans_delegate
   :public Delegate {
 public:
 
   Trans_delegate()
-  : Delegate(key_rwlock_Trans_delegate_lock)
+  : Delegate(
+#ifdef HAVE_PSI_INTERFACE
+             key_rwlock_Trans_delegate_lock
+#endif
+             )
   {}
 
   typedef Trans_observer Observer;
@@ -160,14 +176,20 @@ public:
   int after_rollback(THD *thd, bool all);
 };
 
+#ifdef HAVE_PSI_INTERFACE
 extern PSI_rwlock_key key_rwlock_Binlog_storage_delegate_lock;
+#endif
 
 class Binlog_storage_delegate
   :public Delegate {
 public:
 
   Binlog_storage_delegate()
-  : Delegate(key_rwlock_Binlog_storage_delegate_lock)
+  : Delegate(
+#ifdef HAVE_PSI_INTERFACE
+             key_rwlock_Binlog_storage_delegate_lock
+#endif
+             )
   {}
 
   typedef Binlog_storage_observer Observer;
@@ -178,14 +200,20 @@ public:
 };
 
 #ifdef HAVE_REPLICATION
+#ifdef HAVE_PSI_INTERFACE
 extern PSI_rwlock_key key_rwlock_Binlog_transmit_delegate_lock;
+#endif
 
 class Binlog_transmit_delegate
   :public Delegate {
 public:
 
   Binlog_transmit_delegate()
-  : Delegate(key_rwlock_Binlog_transmit_delegate_lock)
+  : Delegate(
+#ifdef HAVE_PSI_INTERFACE
+             key_rwlock_Binlog_transmit_delegate_lock
+#endif
+             )
   {}
 
   typedef Binlog_transmit_observer Observer;
@@ -202,14 +230,20 @@ public:
   int after_reset_master(THD *thd, ushort flags);
 };
 
+#ifdef HAVE_PSI_INTERFACE
 extern PSI_rwlock_key key_rwlock_Binlog_relay_IO_delegate_lock;
+#endif
 
 class Binlog_relay_IO_delegate
   :public Delegate {
 public:
 
   Binlog_relay_IO_delegate()
-  : Delegate(key_rwlock_Binlog_relay_IO_delegate_lock)
+  : Delegate(
+#ifdef HAVE_PSI_INTERFACE
+             key_rwlock_Binlog_relay_IO_delegate_lock
+#endif
+             )
   {}
 
   typedef Binlog_relay_IO_observer Observer;
