@@ -373,3 +373,12 @@ id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
 SELECT * FROM t1 WHERE NOT (concat( dt, '1' ) IS NOT NULL);
 dt
 DROP TABLE t1;
+#
+# Bug mdev-5132: crash when exeicuting a join query
+#                with IS NULL and IS NOT NULL in where
+#
+CREATE TABLE t1 (a DATE, b INT, c INT, KEY(a), KEY(b), KEY(c)) ENGINE=MyISAM;
+CREATE TABLE t2 (d DATE) ENGINE=MyISAM;
+SELECT  * FROM t1,t2 WHERE  1 IS NOT NULL AND t1.b IS NULL;
+a	b	c	d
+DROP TABLE t1,t2;

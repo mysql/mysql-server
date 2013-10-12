@@ -539,8 +539,6 @@ void Item_bool_func2::fix_length_and_dec()
     to the collation of A.
   */
 
-  sargable= true;
-
   DTCollation coll;
   if (args[0]->result_type() == STRING_RESULT &&
       args[1]->result_type() == STRING_RESULT &&
@@ -2185,7 +2183,6 @@ void Item_func_between::fix_length_and_dec()
   THD *thd= current_thd;
   max_length= 1;
   compare_as_dates= 0;
-  sargable= true;
 
   /*
     As some compare functions are generated after sql_yacc,
@@ -3865,7 +3862,6 @@ void Item_func_in::fix_length_and_dec()
   uint found_types= 0;
   uint type_cnt= 0, i;
   Item_result cmp_type= STRING_RESULT;
-  sargable= true;
   left_result_type= args[0]->cmp_type();
   if (!(found_types= collect_cmp_types(args, arg_count, true)))
     return;
@@ -5491,7 +5487,8 @@ Item_equal::Item_equal(Item *f1, Item *f2, bool with_const_item)
   equal_items.push_back(f1);
   equal_items.push_back(f2);
   compare_as_dates= with_const_item && f2->cmp_type() == TIME_RESULT;
-  upper_levels= NULL;  
+  upper_levels= NULL;
+  sargable= TRUE; 
 }
 
 
@@ -5521,6 +5518,7 @@ Item_equal::Item_equal(Item_equal *item_equal)
   compare_as_dates= item_equal->compare_as_dates;
   cond_false= item_equal->cond_false;
   upper_levels= item_equal->upper_levels;
+  sargable= TRUE;
 }
 
 
@@ -5944,7 +5942,6 @@ void Item_equal::fix_length_and_dec()
   Item *item= get_first(NO_PARTICULAR_TAB, NULL);
   eval_item= cmp_item::get_comparator(item->cmp_type(), item,
                                       item->collation.collation);
-  sargable= true;
 }
 
 
