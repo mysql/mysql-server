@@ -1179,7 +1179,7 @@ performance-schema-max-file-handles 32768
 performance-schema-max-file-instances -1
 performance-schema-max-mutex-classes 200
 performance-schema-max-mutex-instances -1
-performance-schema-max-rwlock-classes 30
+performance-schema-max-rwlock-classes 40
 performance-schema-max-rwlock-instances -1
 performance-schema-max-socket-classes 10
 performance-schema-max-socket-instances -1
