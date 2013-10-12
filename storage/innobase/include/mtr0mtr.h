@@ -159,7 +159,7 @@ struct mtr_t {
 
 		/** Number of pages that have been freed in this
 		mini-transaction */
-		uint32_t	m_n_freed_pages;
+		ib_uint32_t	m_n_freed_pages;
 
 		/** true if mtr has made at least one buffer pool page dirty */
 		bool		m_made_dirty;
@@ -172,7 +172,7 @@ struct mtr_t {
 
 		/** Count of how many page initial log records have been
 		written to the mtr log */
-		uint32_t	m_n_log_recs;
+		ib_uint32_t	m_n_log_recs;
 
 		/** memo stack for locks etc. */
 		mtr_buf_t	m_memo;
@@ -510,7 +510,7 @@ struct mtr_t {
 
 private:
 
-	struct Command;
+	class Command;
 
 	// TODO: Get rid of the friend
 	friend class Command;
