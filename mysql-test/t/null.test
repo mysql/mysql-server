@@ -283,3 +283,15 @@ SELECT * FROM t1 WHERE NOT (concat( dt, '1' ) IS NOT NULL);
 SELECT * FROM t1 WHERE NOT (concat( dt, '1' ) IS NOT NULL); 
 
 DROP TABLE t1;
+
+--echo #
+--echo # Bug mdev-5132: crash when exeicuting a join query
+--echo #                with IS NULL and IS NOT NULL in where
+--echo #
+
+CREATE TABLE t1 (a DATE, b INT, c INT, KEY(a), KEY(b), KEY(c)) ENGINE=MyISAM; 
+CREATE TABLE t2 (d DATE) ENGINE=MyISAM; 
+
+SELECT  * FROM t1,t2 WHERE  1 IS NOT NULL AND t1.b IS NULL;
+
+DROP TABLE t1,t2;

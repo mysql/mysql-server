@@ -369,7 +369,8 @@ protected:
 
 public:
   Item_bool_func2(Item *a,Item *b)
-    :Item_int_func(a,b), cmp(tmp_arg, tmp_arg+1), abort_on_null(FALSE) {}
+    :Item_int_func(a,b), cmp(tmp_arg, tmp_arg+1),
+     abort_on_null(FALSE) { sargable= TRUE; }
   void fix_length_and_dec();
   int set_cmp_func()
   {
@@ -673,7 +674,7 @@ public:
   /* TRUE <=> arguments will be compared as dates. */
   Item *compare_as_dates;
   Item_func_between(Item *a, Item *b, Item *c)
-    :Item_func_opt_neg(a, b, c), compare_as_dates(FALSE) {}
+    :Item_func_opt_neg(a, b, c), compare_as_dates(FALSE) { sargable= TRUE; }
   longlong val_int();
   optimize_type select_optimize() const { return OPTIMIZE_KEY; }
   enum Functype functype() const   { return BETWEEN; }
@@ -686,6 +687,7 @@ public:
   uint decimal_precision() const { return 1; }
   bool eval_not_null_tables(uchar *opt_arg);
   void fix_after_pullout(st_select_lex *new_parent, Item **ref);
+  bool count_sargable_conds(uchar *arg);
 };
 
 
@@ -1291,10 +1293,11 @@ public:
 
   Item_func_in(List<Item> &list)
     :Item_func_opt_neg(list), array(0), have_null(0),
-    arg_types_compatible(FALSE)
+     arg_types_compatible(FALSE)
   {
     bzero(&cmp_items, sizeof(cmp_items));
     allowed_arg_cols= 0;  // Fetch this value from first argument
+    sargable= TRUE;
   }
   longlong val_int();
   bool fix_fields(THD *, Item **);
@@ -1360,7 +1363,7 @@ public:
 class Item_func_isnull :public Item_bool_func
 {
 public:
-  Item_func_isnull(Item *a) :Item_bool_func(a) {}
+  Item_func_isnull(Item *a) :Item_bool_func(a) { sargable= TRUE; }
   longlong val_int();
   enum Functype functype() const { return ISNULL_FUNC; }
   void fix_length_and_dec()
@@ -1422,7 +1425,8 @@ class Item_func_isnotnull :public Item_bool_func
 {
   bool abort_on_null;
 public:
-  Item_func_isnotnull(Item *a) :Item_bool_func(a), abort_on_null(0) {}
+  Item_func_isnotnull(Item *a) :Item_bool_func(a), abort_on_null(0)
+  { sargable= TRUE; }
   longlong val_int();
   enum Functype functype() const { return ISNOTNULL_FUNC; }
   void fix_length_and_dec()
@@ -1709,7 +1713,7 @@ public:
   inline Item_equal()
     : Item_bool_func(), with_const(FALSE), eval_item(0), cond_false(0),
       context_field(NULL)
-  { const_item_cache=0 ;}
+  { const_item_cache=0; sargable= TRUE; }
   Item_equal(Item *f1, Item *f2, bool with_const_item);
   Item_equal(Item_equal *item_equal);
   /* Currently the const item is always the first in the list of equal items */
@@ -1740,6 +1744,7 @@ public:
   CHARSET_INFO *compare_collation();
 
   void set_context_field(Item_field *ctx_field) { context_field= ctx_field; }
+  bool count_sargable_conds(uchar *arg);
   friend class Item_equal_iterator<List_iterator_fast,Item>;
   friend class Item_equal_iterator<List_iterator,Item>;
   friend Item *eliminate_item_equal(COND *cond, COND_EQUAL *upper_levels,

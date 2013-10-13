@@ -309,8 +309,9 @@ typedef struct st_join_table {
   uint          used_null_fields;
   uint          used_uneven_bit_fields;
   enum join_type type;
-  bool		cached_eq_ref_table,eq_ref_table,not_used_in_distinct;
-  bool		sorted;
+  bool          cached_eq_ref_table,eq_ref_table;
+  bool          shortcut_for_distinct;
+  bool          sorted;
   /* 
     If it's not 0 the number stored this field indicates that the index
     scan has been chosen to access the table data and we expect to scan 

@@ -8814,7 +8814,6 @@ int setup_conds(THD *thd, TABLE_LIST *tables, List<TABLE_LIST> &leaves,
              embedded->on_expr->fix_fields(thd, &embedded->on_expr)) ||
 	    embedded->on_expr->check_cols(1))
 	  goto err_no_arena;
-        select_lex->cond_count++;
       }
       /*
         If it's a semi-join nest, fix its "left expression", as it is used by

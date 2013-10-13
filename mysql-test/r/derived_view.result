@@ -2215,6 +2215,35 @@ DROP VIEW v1;
 DROP TABLE t1,t2;
 set optimizer_switch=@save_optimizer_switch;
 #
+# mdev-5078: sum over a view/derived table
+#
+CREATE TABLE t1 (a int);
+INSERT INTO t1 (a) VALUES (1), (2);
+CREATE TABLE t2 (b int(11));
+INSERT INTO t2 (b) VALUES (1), (2);
+CREATE VIEW v AS SELECT b as c FROM t2;
+SELECT a, (SELECT SUM(a + c) FROM v) FROM t1;
+a	(SELECT SUM(a + c) FROM v)
+1	5
+2	7
+SELECT a, (SELECT SUM(a + c) FROM (SELECT b as c FROM t2) AS v1) FROM t1;
+a	(SELECT SUM(a + c) FROM (SELECT b as c FROM t2) AS v1)
+1	5
+2	7
+DROP VIEW v;
+DROP TABLE t1,t2;
+#
+# mdev-5105: memory overwrite in multi-table update 
+#            using natuaral join with a view
+#
+create table t1(a int,b tinyint,c tinyint)engine=myisam;
+create table t2(a tinyint,b float,c int, d int, e int, f int, key (b), key(c), key(d), key(e), key(f))engine=myisam;
+create table t3(a int,b int,c int, d int, e int, f int, key(a), key(b), key(c), key(d), key(e), key(f))engine=myisam;
+create view v1 as select t2.b a, t1.b b, t2.c c, t2.d d, t2.e e, t2.f f from t1,t2 where t1.a=t2.a;
+update t3 natural join v1 set a:=1;
+drop view v1;
+drop table t1,t2,t3;
+#
 # end of 5.3 tests
 #
 set optimizer_switch=@exit_optimizer_switch;
