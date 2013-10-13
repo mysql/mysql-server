@@ -683,8 +683,10 @@ void *create_embedded_thd(int client_flag)
   thd->data_tail= &thd->first_data;
   bzero((char*) &thd->net, sizeof(thd->net));
 
+  mysql_mutex_lock(&LOCK_thread_count);
   thread_count++;
   threads.append(thd);
+  mysql_mutex_unlock(&LOCK_thread_count);
   thd->mysys_var= 0;
   return thd;
 err:
