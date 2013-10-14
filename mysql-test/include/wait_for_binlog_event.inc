@@ -13,6 +13,12 @@
 let $_loop_count= 300;
 let $_last_event= ;
 let $_event_pos= 1;
+let $_show_events_query= SHOW BINLOG EVENTS;
+if ($wait_binlog_file)
+{
+  # Show only binlog events in the given file
+  let $_show_events_query=SHOW BINLOG EVENTS IN '$wait_binlog_file';
+}
 
 while (`SELECT INSTR("$_last_event","$wait_binlog_event") = 0`)
 {
@@ -23,27 +29,14 @@ while (`SELECT INSTR("$_last_event","$wait_binlog_event") = 0`)
     --die ERROR: failed while waiting for $wait_binlog_event in binlog 
   }
   real_sleep 0.1;
-  if (!$wait_binlog_file)
-  {
-    let $_event= query_get_value(SHOW BINLOG EVENTS, Info, $_event_pos);
-  }
-  if ($wait_binlog_file)
-  {
-    let $_event= query_get_value(SHOW BINLOG EVENTS IN '$wait_binlog_file', Info, $_event_pos);
-  }
+  let $_event= query_get_value($_show_events_query, Info, $_event_pos);
   let $_last_event= $_event;
   while ($_event != "No such row")
   {
     inc $_event_pos;
     let $_last_event= $_event;
-    if (!$wait_binlog_file)
-    {
-      let $_event= query_get_value(SHOW BINLOG EVENTS, Info, $_event_pos);
-    }
-    if ($wait_binlog_file)
-    {
-      let $_event= query_get_value(SHOW BINLOG EVENTS IN '$wait_binlog_file', Info, $_event_pos);
-    }
+    let $_event= query_get_value($_show_events_query, Info, $_event_pos);
   }
 }
+# Reset the wait_binlog_file parameter
 let $wait_binlog_file=;
