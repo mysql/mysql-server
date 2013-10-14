@@ -732,18 +732,22 @@
    fun:_Z10pfs_mallocmi
 }
 
+# The '...' wildcard is for 'fun:my_raw_malloc' which is hidden with HAVE_VALGRIND
 {
    missing shutdown_performance_schema 2
    Memcheck:Leak
    fun:malloc
+   ...
    fun:my_malloc
    fun:_lf_alloc_new
    fun:lf_hash_insert
 }
 
+# The '...' wildcard is for 'fun:my_raw_malloc' which is hidden with HAVE_VALGRIND
 {
    missing shutdown_performance_schema 2-mem
    Memcheck:Leak
+   ...
    fun:my_malloc
    fun:_lf_alloc_new
    fun:lf_hash_insert
@@ -753,110 +757,136 @@
 # Note that initialize_bucket() is reccursive,
 # can't provide more stack context.
 #
+# The '...' wildcard is for 'fun:my_raw_malloc' which is hidden with HAVE_VALGRIND
 {
    missing shutdown_performance_schema 3a
    Memcheck:Leak
    fun:malloc
+   ...
    fun:my_malloc
    fun:initialize_bucket
 }
 
+# The '...' wildcard is for 'fun:my_raw_malloc' which is hidden with HAVE_VALGRIND
 {
    missing shutdown_performance_schema 3a-mem
    Memcheck:Leak
+   ...
    fun:my_malloc
    fun:initialize_bucket
 }
 
+# The '...' wildcard is for 'fun:my_raw_malloc' which is hidden with HAVE_VALGRIND
 {
    missing shutdown_performance_schema 3b
    Memcheck:Leak
    fun:malloc
+   ...
    fun:my_malloc
    fun:_lf_dynarray_lvalue
    fun:initialize_bucket
 }
 
+# The '...' wildcard is for 'fun:my_raw_malloc' which is hidden with HAVE_VALGRIND
 {
    missing shutdown_performance_schema 3b-mem
    Memcheck:Leak
+   ...
    fun:my_malloc
    fun:_lf_dynarray_lvalue
    fun:initialize_bucket
 }
 
+# The '...' wildcard is for 'fun:my_raw_malloc' which is hidden with HAVE_VALGRIND
 {
    missing shutdown_performance_schema 4
    Memcheck:Leak
    fun:malloc
+   ...
    fun:my_malloc
    fun:_lf_dynarray_lvalue
    fun:_lf_pinbox_get_pins
 }
 
+# The '...' wildcard is for 'fun:my_raw_malloc' which is hidden with HAVE_VALGRIND
 {
    missing shutdown_performance_schema 4-mem
    Memcheck:Leak
+   ...
    fun:my_malloc
    fun:_lf_dynarray_lvalue
    fun:_lf_pinbox_get_pins
 }
 
+# The '...' wildcard is for 'fun:my_raw_malloc' which is hidden with HAVE_VALGRIND
 {
    missing shutdown_performance_schema 5
    Memcheck:Leak
    fun:malloc
+   ...
    fun:my_malloc
    fun:_lf_dynarray_lvalue
    fun:lf_hash_insert
 }
 
+# The '...' wildcard is for 'fun:my_raw_malloc' which is hidden with HAVE_VALGRIND
 {
    missing shutdown_performance_schema 5-mem
    Memcheck:Leak
+   ...
    fun:my_malloc
    fun:_lf_dynarray_lvalue
    fun:lf_hash_insert
 }
 
+# The '...' wildcard is for 'fun:my_raw_malloc' which is hidden with HAVE_VALGRIND
 {
    missing shutdown_performance_schema 6
    Memcheck:Leak
    fun:malloc
+   ...
    fun:my_malloc
    fun:_lf_dynarray_lvalue
    fun:lf_hash_delete
 }
 
+# The '...' wildcard is for 'fun:my_raw_malloc' which is hidden with HAVE_VALGRIND
 {
    missing shutdown_performance_schema 6-mem
    Memcheck:Leak
+   ...
    fun:my_malloc
    fun:_lf_dynarray_lvalue
    fun:lf_hash_delete
 }
 
+# The '...' wildcard is for 'fun:my_raw_malloc' which is hidden with HAVE_VALGRIND
 {
    missing shutdown_performance_schema 7
    Memcheck:Leak
    fun:malloc
+   ...
    fun:my_malloc
    fun:_lf_dynarray_lvalue
    fun:lf_hash_search
 }
 
+# The '...' wildcard is for 'fun:my_raw_malloc' which is hidden with HAVE_VALGRIND
 {
    missing shutdown_performance_schema 7-mem
    Memcheck:Leak
+   ...
    fun:my_malloc
    fun:_lf_dynarray_lvalue
    fun:lf_hash_search
 }
 
+# The '...' wildcard is for 'fun:my_raw_malloc' which is hidden with HAVE_VALGRIND
 {
    missing shutdown_performance_schema 8
    Memcheck:Leak
    fun:malloc
+   ...
    fun:my_malloc
    fun:_Z22add_pfs_instr_to_arrayPKcS0_
    fun:mysqld_get_one_option
@@ -865,10 +895,12 @@
    fun:_Z20handle_early_optionsv
 }
 
+# The '...' wildcard is for 'fun:my_raw_malloc' which is hidden with HAVE_VALGRIND
 {
    missing shutdown_performance_schema 8-mem
    Memcheck:Leak
    fun:my_malloc
+   ...
    fun:_Z22add_pfs_instr_to_arrayPKcS0_
    fun:mysqld_get_one_option
    fun:my_handle_options
@@ -876,10 +908,12 @@
    fun:_Z20handle_early_optionsv
 }
 
+# The '...' wildcard is for 'fun:my_raw_malloc' which is hidden with HAVE_VALGRIND
 {
    missing shutdown_performance_schema 9
    Memcheck:Leak
    fun:malloc
+   ...
    fun:my_malloc
    fun:init_dynamic_array2
    fun:_Z25init_pfs_instrument_arrayv

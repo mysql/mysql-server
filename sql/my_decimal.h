@@ -1,4 +1,4 @@
-/* Copyright (c) 2005, 2011, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2005, 2013, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -179,6 +179,15 @@ public:
   {
     swap_variables(my_decimal, *this, rhs);
   }
+
+  // Error reporting in server code only.
+  int check_result(uint mask, int result) const
+#ifdef MYSQL_CLIENT
+  {
+    return result;
+  }
+#endif
+  ;
 };
 
 
@@ -196,14 +205,6 @@ bool str_set_decimal(uint mask, const my_decimal *val, uint fixed_prec,
 
 extern my_decimal decimal_zero;
 
-#ifndef MYSQL_CLIENT
-int decimal_operation_results(int result);
-#else
-inline int decimal_operation_results(int result)
-{
-  return result;
-}
-#endif /*MYSQL_CLIENT*/
 
 inline
 void max_my_decimal(my_decimal *to, int precision, int frac)
@@ -218,16 +219,9 @@ inline void max_internal_decimal(my_decimal *to)
   max_my_decimal(to, DECIMAL_MAX_PRECISION, 0);
 }
 
-inline int check_result(uint mask, int result)
-{
-  if (result & mask)
-    decimal_operation_results(result);
-  return result;
-}
-
 inline int check_result_and_overflow(uint mask, int result, my_decimal *val)
 {
-  if (check_result(mask, result) & E_DEC_OVERFLOW)
+  if (val->check_result(mask, result) & E_DEC_OVERFLOW)
   {
     bool sign= val->sign();
     val->fix_buffer_pointer();
@@ -310,7 +304,7 @@ inline
 int binary2my_decimal(uint mask, const uchar *bin, my_decimal *d, int prec,
 		      int scale)
 {
-  return check_result(mask, bin2decimal(bin, d, prec, scale));
+  return d->check_result(mask, bin2decimal(bin, d, prec, scale));
 }
 
 
@@ -338,22 +332,23 @@ inline
 int my_decimal_round(uint mask, const my_decimal *from, int scale,
                      bool truncate, my_decimal *to)
 {
-  return check_result(mask, decimal_round(from, to, scale,
-					  (truncate ? TRUNCATE : HALF_UP)));
+  return
+    from->check_result(mask, decimal_round(from, to, scale,
+                                           (truncate ? TRUNCATE : HALF_UP)));
 }
 
 
 inline
 int my_decimal_floor(uint mask, const my_decimal *from, my_decimal *to)
 {
-  return check_result(mask, decimal_round(from, to, 0, FLOOR));
+  return from->check_result(mask, decimal_round(from, to, 0, FLOOR));
 }
 
 
 inline
 int my_decimal_ceiling(uint mask, const my_decimal *from, my_decimal *to)
 {
-  return check_result(mask, decimal_round(from, to, 0, CEILING));
+  return from->check_result(mask, decimal_round(from, to, 0, CEILING));
 }
 
 
@@ -376,9 +371,9 @@ int my_decimal2int(uint mask, const my_decimal *d, my_bool unsigned_flag,
   my_decimal rounded;
   /* decimal_round can return only E_DEC_TRUNCATED */
   decimal_round(d, &rounded, 0, HALF_UP);
-  return check_result(mask, (unsigned_flag ?
-			     decimal2ulonglong(&rounded, (ulonglong *)l) :
-			     decimal2longlong(&rounded, l)));
+  return d->check_result(mask, (unsigned_flag ?
+                                decimal2ulonglong(&rounded, (ulonglong *)l) :
+                                decimal2longlong(&rounded, l)));
 }
 
 
@@ -392,7 +387,7 @@ int my_decimal2double(uint, const my_decimal *d, double *result)
 
 inline int my_decimal2lldiv_t(uint mask, const my_decimal *d, lldiv_t *to)
 {
-  return check_result(mask, decimal2lldiv_t(d, to));
+  return d->check_result(mask, decimal2lldiv_t(d, to));
 }
 
 
@@ -430,9 +425,9 @@ int double2my_decimal(uint mask, double val, my_decimal *d)
 inline
 int int2my_decimal(uint mask, longlong i, my_bool unsigned_flag, my_decimal *d)
 {
-  return check_result(mask, (unsigned_flag ?
-			     ulonglong2decimal((ulonglong)i, d) :
-			     longlong2decimal(i, d)));
+  return d->check_result(mask, (unsigned_flag ?
+                                ulonglong2decimal((ulonglong)i, d) :
+                                longlong2decimal(i, d)));
 }
 
 

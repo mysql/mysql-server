@@ -178,6 +178,7 @@
 #cmakedefine HAVE_SIGACTION 1
 #cmakedefine HAVE_SLEEP 1
 #cmakedefine HAVE_STPCPY 1
+#cmakedefine HAVE_STPNCPY 1
 #cmakedefine HAVE_STRSIGNAL 1
 #cmakedefine HAVE_STRLCPY 1
 #cmakedefine HAVE_STRLCAT 1
@@ -469,5 +470,21 @@
 /* CPU information */
 
 #cmakedefine CPU_LEVEL1_DCACHE_LINESIZE @CPU_LEVEL1_DCACHE_LINESIZE@
+
+/* Performance schema advanced build */
+
+#cmakedefine DISABLE_PSI_MUTEX 1
+#cmakedefine DISABLE_PSI_RWLOCK 1
+#cmakedefine DISABLE_PSI_COND 1
+#cmakedefine DISABLE_PSI_FILE 1
+#cmakedefine DISABLE_PSI_TABLE 1
+#cmakedefine DISABLE_PSI_SOCKET 1
+#cmakedefine DISABLE_PSI_STAGE 1
+#cmakedefine DISABLE_PSI_STATEMENT 1
+#cmakedefine DISABLE_PSI_SP 1
+#cmakedefine DISABLE_PSI_IDLE 1
+#cmakedefine DISABLE_PSI_STATEMENT_DIGEST 1
+#cmakedefine DISABLE_PSI_METADATA 1
+#cmakedefine DISABLE_PSI_MEMORY 1
 
 #endif

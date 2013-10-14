@@ -57,7 +57,7 @@ int Rpl_info_file::do_init_info(uint instance)
   DBUG_ENTER("Rpl_info_file::do_init_info(uint)");
 
   char fname_local[FN_REFLEN];
-  char *pos= strmov(fname_local, pattern_fname);
+  char *pos= my_stpcpy(fname_local, pattern_fname);
   if (name_indexed)
     sprintf(pos, "%u", instance);
 
@@ -181,7 +181,7 @@ enum_return_check Rpl_info_file::do_check_info(uint instance)
 
   for (i= 1; i <= instance && last_check == REPOSITORY_EXISTS; i++)
   {
-    pos= strmov(fname_local, pattern_fname);
+    pos= my_stpcpy(fname_local, pattern_fname);
     if (name_indexed)
       sprintf(pos, "%u", i);
     fn_format(fname_local, fname_local, mysql_data_home, "", 4 + 32);
@@ -231,7 +231,7 @@ bool Rpl_info_file::do_count_info(const int nparam,
 
   for (i= 1; last_check == REPOSITORY_EXISTS; i++)
   {
-    pos= strmov(fname_local, param_pattern);
+    pos= my_stpcpy(fname_local, param_pattern);
     if (indexed)
     {  
       sprintf(pos, "%u", i);
@@ -323,7 +323,7 @@ int Rpl_info_file::do_reset_info(const int nparam,
 
   for (i= 1; last_check == REPOSITORY_EXISTS; i++)
   {
-    pos= strmov(fname_local, param_pattern);
+    pos= my_stpcpy(fname_local, param_pattern);
     if (indexed)
     {  
       sprintf(pos, "%u", i);

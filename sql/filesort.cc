@@ -439,9 +439,10 @@ ha_rows filesort(THD *thd, TABLE *table, Filesort *filesort,
                     "%s: %s",
                     MYF(ME_ERROR + ME_WAITTANG),
                     ER_THD(thd, ER_FILSORT_ABORT),
-                    kill_errno ?
-                    ER(kill_errno) :
-                    thd->get_stmt_da()->message_text());
+                    kill_errno ? ((kill_errno == THD::KILL_CONNECTION &&
+                                 !shutdown_in_progress) ? ER(THD::KILL_QUERY) :
+                                                          ER(kill_errno)) :
+                                 thd->get_stmt_da()->message_text());
 
     sql_print_information("%s, host: %s, user: %s, "
                           "thread: %lu, query: %-.4096s",

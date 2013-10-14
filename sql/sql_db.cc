@@ -270,7 +270,7 @@ static my_bool put_dbopt(const char *dbname, HA_CREATE_INFO *create)
     }
     
     opt->name= tmp_name;
-    strmov(opt->name, dbname);
+    my_stpcpy(opt->name, dbname);
     opt->name_length= length;
     
     if ((error= my_hash_insert(&dboptions, (uchar*) opt)))
@@ -808,7 +808,7 @@ bool mysql_rm_db(THD *thd,char *db,bool if_exists, bool silent)
     DBUG_RETURN(true);
 
   length= build_table_filename(path, sizeof(path) - 1, db, "", "", 0);
-  strmov(path+length, MY_DB_OPT_FILE);		// Append db option file name
+  my_stpcpy(path+length, MY_DB_OPT_FILE);		// Append db option file name
   del_dbopt(path);				// Remove dboption hash entry
   path[length]= '\0';				// Remove file name
 
@@ -967,7 +967,7 @@ update_binlog:
 
     if (!(query= (char*) thd->alloc(MAX_DROP_TABLE_Q_LEN)))
       goto exit; /* not much else we can do */
-    query_pos= query_data_start= strmov(query,"DROP TABLE IF EXISTS ");
+    query_pos= query_data_start= my_stpcpy(query,"DROP TABLE IF EXISTS ");
     query_end= query + MAX_DROP_TABLE_Q_LEN;
     db_len= strlen(db);
 
@@ -1003,7 +1003,7 @@ update_binlog:
       id_length= my_strmov_quoted_identifier(thd, (char *)temp_identifier,
                                       tbl->table_name, 0);
       temp_identifier[id_length]= '\0';
-      query_pos= strmov(query_pos,(char *)&temp_identifier);
+      query_pos= my_stpcpy(query_pos,(char *)&temp_identifier);
       *query_pos++ = ',';
     }
 
@@ -1107,7 +1107,7 @@ static bool find_db_tables_and_rm_known_files(THD *thd, MY_DIR *dirp,
       if (!table_list)
         DBUG_RETURN(true);
       table_list->db= (char*) (table_list+1);
-      table_list->db_length= strmov(table_list->db, db) - table_list->db;
+      table_list->db_length= my_stpcpy(table_list->db, db) - table_list->db;
       table_list->table_name= table_list->db + table_list->db_length + 1;
       table_list->table_name_length= filename_to_tablename(file->name,
                                        table_list->table_name,

@@ -255,14 +255,14 @@ void set_mysql_error(MYSQL *mysql, int errcode, const char *sqlstate)
   {
     net= &mysql->net;
     net->last_errno= errcode;
-    strmov(net->last_error, ER(errcode));
-    strmov(net->sqlstate, sqlstate);
+    my_stpcpy(net->last_error, ER(errcode));
+    my_stpcpy(net->sqlstate, sqlstate);
     MYSQL_TRACE(ERROR, mysql, ());
   }
   else
   {
     mysql_server_last_errno= errcode;
-    strmov(mysql_server_last_error, ER(errcode));
+    my_stpcpy(mysql_server_last_error, ER(errcode));
   }
   DBUG_VOID_RETURN;
 }
@@ -287,7 +287,7 @@ void net_clear_error(NET *net)
 {
   net->last_errno= 0;
   net->last_error[0]= '\0';
-  strmov(net->sqlstate, not_error_sqlstate);
+  my_stpcpy(net->sqlstate, not_error_sqlstate);
 }
 
 /**
@@ -317,7 +317,7 @@ void set_mysql_extended_error(MYSQL *mysql, int errcode,
   my_vsnprintf(net->last_error, sizeof(net->last_error)-1,
                format, args);
   va_end(args);
-  strmov(net->sqlstate, sqlstate);
+  my_stpcpy(net->sqlstate, sqlstate);
 
   MYSQL_TRACE(ERROR, mysql, ());
 
@@ -481,7 +481,7 @@ static HANDLE create_shared_memory(MYSQL *mysql, NET *net,
   {
     prefix= name_prefixes[i];
     suffix_pos = strxmov(tmp, prefix , shared_memory_base_name, "_", NullS);
-    strmov(suffix_pos, "CONNECT_REQUEST");
+    my_stpcpy(suffix_pos, "CONNECT_REQUEST");
     event_connect_request= OpenEvent(event_access_rights, FALSE, tmp);
     if (event_connect_request)
     {
@@ -493,13 +493,13 @@ static HANDLE create_shared_memory(MYSQL *mysql, NET *net,
     error_allow = CR_SHARED_MEMORY_CONNECT_REQUEST_ERROR;
     goto err;
   }
-  strmov(suffix_pos, "CONNECT_ANSWER");
+  my_stpcpy(suffix_pos, "CONNECT_ANSWER");
   if (!(event_connect_answer= OpenEvent(event_access_rights,FALSE,tmp)))
   {
     error_allow = CR_SHARED_MEMORY_CONNECT_ANSWER_ERROR;
     goto err;
   }
-  strmov(suffix_pos, "CONNECT_DATA");
+  my_stpcpy(suffix_pos, "CONNECT_DATA");
   if (!(handle_connect_file_map= OpenFileMapping(FILE_MAP_WRITE,FALSE,tmp)))
   {
     error_allow = CR_SHARED_MEMORY_CONNECT_FILE_MAP_ERROR;
@@ -542,7 +542,7 @@ static HANDLE create_shared_memory(MYSQL *mysql, NET *net,
   */
   suffix_pos = strxmov(tmp, prefix , shared_memory_base_name, "_", connect_number_char,
 		       "_", NullS);
-  strmov(suffix_pos, "DATA");
+  my_stpcpy(suffix_pos, "DATA");
   if ((handle_file_map = OpenFileMapping(FILE_MAP_WRITE,FALSE,tmp)) == NULL)
   {
     error_allow = CR_SHARED_MEMORY_FILE_MAP_ERROR;
@@ -555,35 +555,35 @@ static HANDLE create_shared_memory(MYSQL *mysql, NET *net,
     goto err2;
   }
 
-  strmov(suffix_pos, "SERVER_WROTE");
+  my_stpcpy(suffix_pos, "SERVER_WROTE");
   if ((event_server_wrote = OpenEvent(event_access_rights,FALSE,tmp)) == NULL)
   {
     error_allow = CR_SHARED_MEMORY_EVENT_ERROR;
     goto err2;
   }
 
-  strmov(suffix_pos, "SERVER_READ");
+  my_stpcpy(suffix_pos, "SERVER_READ");
   if ((event_server_read = OpenEvent(event_access_rights,FALSE,tmp)) == NULL)
   {
     error_allow = CR_SHARED_MEMORY_EVENT_ERROR;
     goto err2;
   }
 
-  strmov(suffix_pos, "CLIENT_WROTE");
+  my_stpcpy(suffix_pos, "CLIENT_WROTE");
   if ((event_client_wrote = OpenEvent(event_access_rights,FALSE,tmp)) == NULL)
   {
     error_allow = CR_SHARED_MEMORY_EVENT_ERROR;
     goto err2;
   }
 
-  strmov(suffix_pos, "CLIENT_READ");
+  my_stpcpy(suffix_pos, "CLIENT_READ");
   if ((event_client_read = OpenEvent(event_access_rights,FALSE,tmp)) == NULL)
   {
     error_allow = CR_SHARED_MEMORY_EVENT_ERROR;
     goto err2;
   }
 
-  strmov(suffix_pos, "CONNECTION_CLOSED");
+  my_stpcpy(suffix_pos, "CONNECTION_CLOSED");
   if ((event_conn_closed = OpenEvent(event_access_rights,FALSE,tmp)) == NULL)
   {
     error_allow = CR_SHARED_MEMORY_EVENT_ERROR;
@@ -709,7 +709,7 @@ cli_safe_read(MYSQL *mysql)
           (unknown error sql state).
         */
 
-        strmov(net->sqlstate, unknown_sqlstate);
+        my_stpcpy(net->sqlstate, unknown_sqlstate);
       }
 
       (void) strmake(net->last_error,(char*) pos,
@@ -1847,7 +1847,7 @@ mysql_init(MYSQL *mysql)
   else
     memset(mysql, 0, sizeof(*(mysql)));
   mysql->charset=default_client_charset_info;
-  strmov(mysql->net.sqlstate, not_error_sqlstate);
+  my_stpcpy(mysql->net.sqlstate, not_error_sqlstate);
 
   /*
     Only enable LOAD DATA INFILE by default if configured with
@@ -2815,6 +2815,8 @@ static int send_client_reply_packet(MCPVIO_EXT *mpvio,
 #endif /* HAVE_OPENSSL && !EMBEDDED_LIBRARY*/
   if (mpvio->db)
     mysql->client_flag|= CLIENT_CONNECT_WITH_DB;
+  else
+    mysql->client_flag&= ~CLIENT_CONNECT_WITH_DB;
 
   /* Remove options that server doesn't support */
   mysql->client_flag= mysql->client_flag &
@@ -3943,13 +3945,13 @@ CLI_MYSQL_REAL_CONNECT(MYSQL *mysql,const char *host, const char *user,
     set_mysql_error(mysql, CR_OUT_OF_MEMORY, unknown_sqlstate);
     goto error;
   }
-  strmov(mysql->host_info,host_info);
-  strmov(mysql->host,host);
+  my_stpcpy(mysql->host_info,host_info);
+  my_stpcpy(mysql->host,host);
   if (unix_socket)
-    strmov(mysql->unix_socket,unix_socket);
+    my_stpcpy(mysql->unix_socket,unix_socket);
   else
     mysql->unix_socket=0;
-  strmov(mysql->server_version,(char*) net->read_pos+1);
+  my_stpcpy(mysql->server_version,(char*) net->read_pos+1);
   mysql->port=port;
 
   if (pkt_end >= end + SCRAMBLE_LENGTH - SCRAMBLE_LENGTH_323 + 1)
@@ -4097,8 +4099,8 @@ my_bool mysql_reconnect(MYSQL *mysql)
     memset(&tmp_mysql.options, 0, sizeof(tmp_mysql.options));
     mysql_close(&tmp_mysql);
     mysql->net.last_errno= tmp_mysql.net.last_errno;
-    strmov(mysql->net.last_error, tmp_mysql.net.last_error);
-    strmov(mysql->net.sqlstate, tmp_mysql.net.sqlstate);
+    my_stpcpy(mysql->net.last_error, tmp_mysql.net.last_error);
+    my_stpcpy(mysql->net.sqlstate, tmp_mysql.net.sqlstate);
     DBUG_RETURN(1);
   }
   if (mysql_set_character_set(&tmp_mysql, mysql->charset->csname))
@@ -4107,8 +4109,8 @@ my_bool mysql_reconnect(MYSQL *mysql)
     memset(&tmp_mysql.options, 0, sizeof(tmp_mysql.options));
     mysql_close(&tmp_mysql);
     mysql->net.last_errno= tmp_mysql.net.last_errno;
-    strmov(mysql->net.last_error, tmp_mysql.net.last_error);
-    strmov(mysql->net.sqlstate, tmp_mysql.net.sqlstate);
+    my_stpcpy(mysql->net.last_error, tmp_mysql.net.last_error);
+    my_stpcpy(mysql->net.sqlstate, tmp_mysql.net.sqlstate);
     DBUG_RETURN(1);
   }
 
@@ -4243,8 +4245,8 @@ static void mysql_prune_stmt_list(MYSQL *mysql)
     {
       stmt->mysql= 0;
       stmt->last_errno= CR_SERVER_LOST;
-      strmov(stmt->last_error, ER(CR_SERVER_LOST));
-      strmov(stmt->sqlstate, unknown_sqlstate);
+      my_stpcpy(stmt->last_error, ER(CR_SERVER_LOST));
+      my_stpcpy(stmt->sqlstate, unknown_sqlstate);
     }
     else
     {

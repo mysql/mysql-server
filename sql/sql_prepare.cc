@@ -2172,6 +2172,7 @@ static bool check_prepared_statement(Prepared_statement *stmt)
   case SQLCOM_ANALYZE:
   case SQLCOM_OPTIMIZE:
   case SQLCOM_CHANGE_MASTER:
+  case SQLCOM_CHANGE_REPLICATION_FILTER:
   case SQLCOM_RESET:
   case SQLCOM_FLUSH:
   case SQLCOM_SLAVE_START:

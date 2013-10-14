@@ -65,7 +65,10 @@ public:
       ref_table_rows(0),
       null_rejecting(false),
       cond_guard(NULL),
-      sj_pred_no(UINT_MAX)
+      sj_pred_no(UINT_MAX),
+      bound_keyparts(0),
+      fanout(0.0),
+      read_cost(0.0)
   {}
 
   Key_use(TABLE *table_arg, Item *val_arg, table_map used_tables_arg,
@@ -77,8 +80,10 @@ public:
   key(key_arg), keypart(keypart_arg), optimize(optimize_arg),
   keypart_map(keypart_map_arg), ref_table_rows(ref_table_rows_arg),
   null_rejecting(null_rejecting_arg), cond_guard(cond_guard_arg),
-  sj_pred_no(sj_pred_no_arg), bound_keyparts(0), rowcount(0), cost(0)
+  sj_pred_no(sj_pred_no_arg), bound_keyparts(0), fanout(0.0),
+  read_cost(0.0)
   {}
+
   TABLE *table;            ///< table owning the index
   Item	*val;              ///< other side of the equality, or value if no field
   table_map used_tables;   ///< tables used on other side of equality
@@ -131,18 +136,28 @@ public:
      This information is stored only in the first Key_use of the index.
   */
   key_part_map bound_keyparts;
+
   /**
      Fanout of the ref access path for this index, in the current join
      prefix.
      This information is stored only in the first Key_use of the index.
   */
-  double rowcount;
+  double fanout;
+
   /**
-     Cost of the ref access path for this index, in the current join
-     prefix.
-     This information is stored only in the first Key_use of the index.
+    Cost of the ref access path for the current join prefix, i.e. the
+    cost of using ref access once multiplied by estimated number of
+    partial rows from tables earlier in the join sequence.
+    read_cost does NOT include cost of processing rows on the
+    server side (ROW_EVALUATE_COST).
+
+    Example: If the cost of ref access on this index is 5, and the
+    estimated number of partial rows from earlier tables is 10,
+    read_cost=50.
+
+    This information is stored only in the first Key_use of the index.
   */
-  double cost;
+  double read_cost;
 };
 
 
@@ -389,18 +404,22 @@ enum quick_type { QS_NONE, QS_RANGE, QS_DYNAMIC_RANGE};
 typedef struct st_position : public Sql_alloc
 {
   /*
-    The "fanout" -  number of output rows that will be produced (after
-    pushed down selection condition is applied) per each row combination of
+    The number of rows that will be produced (after pushed down
+    selection condition is applied) per each row combination of
     previous tables.
   */
-  double records_read;
+  double fanout;
 
   /* 
-    Cost accessing the table in course of the entire complete join execution,
-    i.e. cost of one access method use (e.g. 'range' or 'ref' scan ) times 
-    number the access method will be invoked.
+    Cost of accessing the table in course of the entire complete join
+    execution, i.e. cost of one access method use (e.g. 'range' or
+    'ref' scan ) multiplied by estimated number of rows from tables
+    earlier in the join sequence.
+
+    read_cost does NOT include cost of processing rows within the
+    executor (ROW_EVALUATE_COST).
   */
-  double read_time;
+  double read_cost;
   JOIN_TAB *table;
 
   /*
@@ -1390,7 +1409,7 @@ static inline Item * and_items(Item* cond, Item *item)
   return (cond? (new Item_cond_and(cond, item)) : item);
 }
 
-uint actual_key_parts(KEY *key_info);
+uint actual_key_parts(const KEY *key_info);
 uint actual_key_flags(KEY *key_info);
 
 int test_if_order_by_key(ORDER *order, TABLE *table, uint idx,

@@ -1586,7 +1586,7 @@ bool pfs_show_status(handlerton *hton, THD *thd,
       name= "performance_schema.memory";
       size= total_memory;
       /* This will fail if something is not advertised here */
-      DBUG_ASSERT(size == pfs_allocated_memory);
+      DBUG_ASSERT(size == pfs_allocated_memory_size);
       break;
     default:
       goto end;

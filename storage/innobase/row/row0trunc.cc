@@ -277,10 +277,10 @@ public:
 		strcpy(m_log_file_name, srv_log_group_home_dir);
 		ulint	log_file_name_len = strlen(m_log_file_name);
 		if (m_log_file_name[log_file_name_len - 1]
-			!= SRV_PATH_SEPARATOR) {
+			!= OS_PATH_SEPARATOR) {
 
 			m_log_file_name[log_file_name_len]
-				= SRV_PATH_SEPARATOR;
+				= OS_PATH_SEPARATOR;
 			log_file_name_len = strlen(m_log_file_name);
 		}
 
@@ -335,7 +335,7 @@ public:
 			return(DB_ERROR);
 		}
 
-		ibool		ret;
+		bool		ret;
 		os_file_t	handle = os_file_create(
 			innodb_log_file_key, m_log_file_name,
 			OS_FILE_CREATE, OS_FILE_NORMAL,
@@ -346,7 +346,7 @@ public:
 
 
 		ulint	sz = UNIV_PAGE_SIZE;
-		void*	buf = mem_zalloc(sz + UNIV_PAGE_SIZE);
+		void*	buf = ut_zalloc(sz + UNIV_PAGE_SIZE);
 		if (buf == 0) {
 			os_file_close(handle);
 			return(DB_OUT_OF_MEMORY);
@@ -372,11 +372,11 @@ public:
 
 			if (err != DB_SUCCESS) {
 				ut_ad(err == DB_FAIL);
-				mem_free(buf);
+				ut_free(buf);
 				sz *= 2;
-				buf = mem_zalloc(sz + UNIV_PAGE_SIZE);
+				buf = ut_zalloc(sz + UNIV_PAGE_SIZE);
 				DBUG_EXECUTE_IF("ib_err_trunc_oom_logging",
-						mem_free(buf);
+						ut_free(buf);
 						buf = 0;);
 				if (buf == 0) {
 					os_file_close(handle);
@@ -392,7 +392,7 @@ public:
 		os_file_flush(handle);
 		os_file_close(handle);
 
-		mem_free(buf);
+		ut_free(buf);
 		return(DB_SUCCESS);
 	}
 
@@ -406,13 +406,13 @@ public:
 			return;
 		}
 
-		ibool	ret;
+		bool	ret;
 		os_file_t handle = os_file_create_simple_no_error_handling(
 			innodb_log_file_key, m_log_file_name,
 			OS_FILE_OPEN, OS_FILE_READ_WRITE, &ret);
 		DBUG_EXECUTE_IF("ib_err_trunc_writing_magic_number",
 				os_file_close(handle);
-				ret = 0;);
+				ret = false;);
 		if (!ret) {
 			ib_logf(IB_LOG_LEVEL_ERROR,
 				"Failed to open truncate log file %s. "
@@ -512,7 +512,7 @@ TruncateLogParser::scan(
 	ulint		dir_len = strlen(dir_path);
 
 	/* Scan and look out for the truncate log files. */
-	dir = os_file_opendir(dir_path, TRUE);
+	dir = os_file_opendir(dir_path, true);
 	if (dir == NULL) {
 		return(DB_IO_ERROR);
 	}
@@ -549,10 +549,10 @@ TruncateLogParser::scan(
 			strncpy(log_file_name, dir_path, dir_len);
 			ulint	log_file_name_len = strlen(log_file_name);
 			if (log_file_name[log_file_name_len - 1]
-				!= SRV_PATH_SEPARATOR) {
+				!= OS_PATH_SEPARATOR) {
 
 				log_file_name[log_file_name_len]
-					= SRV_PATH_SEPARATOR;
+					= OS_PATH_SEPARATOR;
 				log_file_name_len = strlen(log_file_name);
 			}
 			strcat(log_file_name, fileinfo.name);
@@ -581,7 +581,7 @@ TruncateLogParser::parse(
 
 	/* Open the file and read magic-number to findout if truncate action
 	was completed. */
-	ibool		ret;
+	bool		ret;
 	os_file_t	handle = os_file_create_simple(
 		innodb_log_file_key, log_file_name,
 		OS_FILE_OPEN, OS_FILE_READ_ONLY, &ret);
@@ -593,7 +593,7 @@ TruncateLogParser::parse(
 	}
 
 	ulint	sz = UNIV_PAGE_SIZE;
-	void*	buf = mem_zalloc(sz + UNIV_PAGE_SIZE);
+	void*	buf = ut_zalloc(sz + UNIV_PAGE_SIZE);
 	if (buf == 0) {
 		os_file_close(handle);
 		return(DB_OUT_OF_MEMORY);
@@ -635,12 +635,12 @@ TruncateLogParser::parse(
 
 			ut_ad(err == DB_FAIL);
 
-			mem_free(buf);
+			ut_free(buf);
 			buf = 0;
 
 			sz *= 2;
 
-			buf = mem_zalloc(sz + UNIV_PAGE_SIZE);
+			buf = ut_zalloc(sz + UNIV_PAGE_SIZE);
 
 			if (buf == 0) {
 				os_file_close(handle);
@@ -655,9 +655,7 @@ TruncateLogParser::parse(
 		}
 	} while (err != DB_SUCCESS);
 
-	if (buf != NULL) {
-		mem_free(buf);
-	}
+	ut_free(buf);
 
 	if (err == DB_SUCCESS && truncate != NULL) {
 		truncate_t::add(truncate);
@@ -1457,7 +1455,7 @@ row_truncate_prepare(dict_table_t* table, ulint* flags)
 
 	*flags = fil_space_get_flags(table->space);
 
-	ut_ad(!DICT_TF2_FLAG_IS_SET(table, DICT_TF2_TEMPORARY));
+	ut_ad(!dict_table_is_temporary(table));
 
 	dict_get_and_save_data_dir_path(table, true);
 
@@ -2022,7 +2020,7 @@ truncate_t::fixup_tables()
 						(*it)->m_tablename,
 						(*it)->m_dir_path,
 						(*it)->m_tablespace_flags,
-						DICT_TF2_USE_TABLESPACE,
+						DICT_TF2_USE_FILE_PER_TABLE,
 						FIL_IBD_FILE_INITIAL_SIZE)
 					!= DB_SUCCESS) {
 

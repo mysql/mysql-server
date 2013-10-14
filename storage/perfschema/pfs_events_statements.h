@@ -50,7 +50,7 @@ struct PFS_events_statements : public PFS_events
 
   /** Locked time. */
   ulonglong m_lock_time;
-  
+
   /** Diagnostics area, message text. */
   char m_message_text[MYSQL_ERRMSG_SIZE+1];
   /** Diagnostics area, error number. */
@@ -108,7 +108,7 @@ extern bool flag_events_statements_history;
 extern bool flag_events_statements_history_long;
 
 extern bool events_statements_history_long_full;
-extern volatile uint32 events_statements_history_long_index;
+extern PFS_ALIGNED PFS_cacheline_uint32 events_statements_history_long_index;
 extern PFS_events_statements *events_statements_history_long_array;
 extern ulong events_statements_history_long_size;
 

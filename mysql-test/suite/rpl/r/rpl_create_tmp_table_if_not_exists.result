@@ -18,4 +18,7 @@ master-bin.000001	#	Query	#	#	use `test`; CREATE TEMPORARY TABLE IF NOT EXISTS t
 master-bin.000001	#	Query	#	#	use `test`; CREATE TEMPORARY TABLE IF NOT EXISTS tmp1 LIKE tmp
 master-bin.000001	#	Query	#	#	use `test`; CREATE TEMPORARY TABLE IF NOT EXISTS tmp1 LIKE tmp
 master-bin.000001	#	Query	#	#	use `test`; CREATE TEMPORARY TABLE IF NOT EXISTS tmp2 SELECT * FROM tmp
+DROP TEMPORARY TABLE IF EXISTS tmp;
+DROP TEMPORARY TABLE IF EXISTS tmp1;
+DROP TEMPORARY TABLE IF EXISTS tmp2;
 include/rpl_end.inc

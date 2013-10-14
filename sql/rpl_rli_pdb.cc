@@ -850,7 +850,7 @@ Slave_worker *map_db_to_worker(const char *dbname, Relay_log_info *rli,
       my_free(db);
       goto err;
     }
-    strmov(db, dbname);
+    my_stpcpy(db, dbname);
     entry->db= db;
     entry->db_len= strlen(db);
     entry->usage= 1;
@@ -1037,8 +1037,7 @@ void Slave_worker::slave_worker_ends_group(Log_event* ev, int error)
 
   if (!error)
   {
-    Slave_committed_queue *gaq= c_rli->gaq;
-    Slave_job_group *ptr_g= gaq->get_job_group(gaq_index);
+    Slave_job_group *ptr_g= c_rli->gaq->get_job_group(gaq_index);
 
     DBUG_ASSERT(gaq_index == ev->mts_group_idx);
 

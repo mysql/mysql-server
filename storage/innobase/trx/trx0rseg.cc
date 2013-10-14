@@ -162,7 +162,7 @@ trx_rseg_mem_free(
 	ut_a(*((trx_rseg_t**) rseg_array + rseg->id) == rseg);
 	*((trx_rseg_t**) rseg_array + rseg->id) = NULL;
 
-	mem_free(rseg);
+	ut_free(rseg);
 }
 
 /***************************************************************************
@@ -194,7 +194,7 @@ trx_rseg_mem_create(
 	trx_ulogf_t*	undo_log_hdr;
 	ulint		sum_of_undo_sizes;
 
-	rseg = static_cast<trx_rseg_t*>(mem_zalloc(sizeof(trx_rseg_t)));
+	rseg = static_cast<trx_rseg_t*>(ut_zalloc(sizeof(trx_rseg_t)));
 
 	rseg->id = id;
 	rseg->space = space;

@@ -465,7 +465,7 @@ delete from mysql.tables_priv where user like 'mysqltest%';
 delete from mysql.columns_priv where user like 'mysqltest%';
 flush privileges;
 drop table t1;
-create table t1 (a int null, primary key(a));
+create table t1 (a int not null, primary key(a));
 alter table t1 add constraint constraint_1 unique (a);
 alter table t1 add constraint unique key_1(a);
 Warnings:
@@ -476,7 +476,7 @@ Warning	1831	Duplicate index 'key_2' defined on the table 'test.t1'. This is dep
 show create table t1;
 Table	Create Table
 t1	CREATE TABLE `t1` (
-  `a` int(11) NOT NULL DEFAULT '0',
+  `a` int(11) NOT NULL,
   PRIMARY KEY (`a`),
   UNIQUE KEY `constraint_1` (`a`),
   UNIQUE KEY `key_1` (`a`),

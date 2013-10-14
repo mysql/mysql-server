@@ -1280,7 +1280,13 @@ binlog_trx_cache_data::truncate(THD *thd, bool all)
   if (ending_trans(thd, all))
   {
     if (has_incident())
-      error= mysql_bin_log.write_incident(thd, true/*need_lock_log=true*/);
+    {
+      const char* err_msg= "Error happend while resetting the transaction "
+                           "cache for a rolled back transaction or a single "
+                           "statement not inside a transaction.";
+      error= mysql_bin_log.write_incident(thd, true/*need_lock_log=true*/,
+                                          err_msg);
+    }
     reset();
   }
   /*
@@ -1603,7 +1609,10 @@ int MYSQL_BIN_LOG::rollback(THD *thd, bool all)
   */
   if (cache_mngr->stmt_cache.has_incident())
   {
-    error= write_incident(thd, true/*need_lock_log=true*/);
+    const char* err_msg= "The content of the statement cache is corrupted "
+                         "while writing a rollback record of the transaction "
+                         "to the binary log.";
+    error= write_incident(thd, true/*need_lock_log=true*/, err_msg);
     cache_mngr->stmt_cache.reset();
   }
   else if (!cache_mngr->stmt_cache.is_binlog_empty())
@@ -2625,7 +2634,7 @@ static int find_uniq_filename(char *name)
   if ((DBUG_EVALUATE_IF("error_unique_log_filename", 1, 
       !(dir_info= my_dir(buff,MYF(MY_DONT_SORT))))))
   {						// This shouldn't happen
-    strmov(end,".1");				// use name+1
+    my_stpcpy(end,".1");				// use name+1
     DBUG_RETURN(1);
   }
   file_info= dir_info->dir_entry;
@@ -2732,7 +2741,7 @@ const char *MYSQL_BIN_LOG::generate_name(const char *log_name,
 bool MYSQL_BIN_LOG::init_and_set_log_file_name(const char *log_name,
                                                const char *new_name)
 {
-  if (new_name && !strmov(log_file_name, new_name))
+  if (new_name && !my_stpcpy(log_file_name, new_name))
     return TRUE;
   else if (!new_name && generate_new_name(log_file_name, log_name))
     return TRUE;
@@ -3113,7 +3122,7 @@ bool MYSQL_BIN_LOG::find_first_log_not_in_gtid_set(char *binlog_file_name,
   int error;
 
   list<string>::reverse_iterator rit;
-  Gtid_set previous_gtid_set(gtid_set->get_sid_map());
+  Gtid_set binlog_previous_gtid_set(gtid_set->get_sid_map());
 
   mysql_mutex_lock(&LOCK_index);
   for (error= find_log_pos(&linfo, NULL, false/*need_lock_index=false*/);
@@ -3158,7 +3167,7 @@ bool MYSQL_BIN_LOG::find_first_log_not_in_gtid_set(char *binlog_file_name,
     const char *filename= rit->c_str();
     DBUG_PRINT("info", ("Read Previous_gtids_log_event from filename='%s'",
                         filename));
-    switch (read_gtids_from_binlog(filename, NULL, &previous_gtid_set,
+    switch (read_gtids_from_binlog(filename, NULL, &binlog_previous_gtid_set,
                                    opt_master_verify_checksum))
     {
     case ERROR:
@@ -3175,7 +3184,7 @@ bool MYSQL_BIN_LOG::find_first_log_not_in_gtid_set(char *binlog_file_name,
       goto end;
     case GOT_GTIDS:
     case GOT_PREVIOUS_GTIDS:
-      if (previous_gtid_set.is_subset(gtid_set))
+      if (binlog_previous_gtid_set.is_subset(gtid_set))
       {
         strcpy(binlog_file_name, filename);
         /*
@@ -3189,7 +3198,7 @@ bool MYSQL_BIN_LOG::find_first_log_not_in_gtid_set(char *binlog_file_name,
     case TRUNCATED:
       break;
     }
-    previous_gtid_set.clear();
+    binlog_previous_gtid_set.clear();
 
     rit++;
   }
@@ -4978,7 +4987,7 @@ void MYSQL_BIN_LOG::make_log_name(char* buf, const char* log_ident)
   uint dir_len = dirname_length(log_file_name); 
   if (dir_len >= FN_REFLEN)
     dir_len=FN_REFLEN-1;
-  strnmov(buf, log_file_name, dir_len);
+  my_stpnmov(buf, log_file_name, dir_len);
   strmake(buf+dir_len, log_ident, FN_REFLEN - dir_len -1);
 }
 
@@ -5582,6 +5591,7 @@ int MYSQL_BIN_LOG::rotate(bool force_rotate, bool* check_purge)
   if (force_rotate || (my_b_tell(&log_file) >= (my_off_t) max_size))
   {
     if ((error= new_file_without_locking(NULL)))
+    {
       /** 
         Be conservative... There are possible lost events (eg, 
         failing to log the Execute_load_query_log_event
@@ -5591,19 +5601,12 @@ int MYSQL_BIN_LOG::rotate(bool force_rotate, bool* check_purge)
         We give it a shot and try to write an incident event anyway
         to the current log. 
       */
+      const char* err_msg= "The server was unable to create "
+                           "a new log file.";
       if (!write_incident(current_thd, false/*need_lock_log=false*/,
-                          false/*do_flush_and_sync==false*/))
-      {
-        /*
-          Write an error to log. So that user might have a chance
-          to be alerted and explore incident details before its
-          slave servers would stop.
-        */
-        sql_print_error("The server was unable to create a new log file. "
-                        "An incident event has been written to the binary "
-                        "log which will stop the slaves.");
+                          err_msg, false/*do_flush_and_sync==false*/))
         flush_and_sync(0);
-      }
+    }
 
     *check_purge= true;
   }
@@ -6015,6 +6018,7 @@ int MYSQL_BIN_LOG::do_write_cache(IO_CACHE *cache)
   @param ev Incident event to be written
   @param need_lock_log If true, will acquire LOCK_log; otherwise the
   caller should already have acquired LOCK_log.
+  @param err_msg Error message written to log file for the incident.
   @do_flush_and_sync If true, will call flush_and_sync(), rotate() and
   purge().
 
@@ -6022,10 +6026,11 @@ int MYSQL_BIN_LOG::do_write_cache(IO_CACHE *cache)
   @retval true success
 */
 bool MYSQL_BIN_LOG::write_incident(Incident_log_event *ev, bool need_lock_log,
-                                   bool do_flush_and_sync)
+                                   const char* err_msg, bool do_flush_and_sync)
 {
   uint error= 0;
   DBUG_ENTER("MYSQL_BIN_LOG::write_incident");
+  DBUG_ASSERT(err_msg);
 
   if (!is_open())
     DBUG_RETURN(error);
@@ -6038,6 +6043,14 @@ bool MYSQL_BIN_LOG::write_incident(Incident_log_event *ev, bool need_lock_log,
   // @todo make this work with the group log. /sven
 
   error= ev->write(&log_file);
+
+  /*
+    Write an error to log. So that user might have a chance
+    to be alerted and explore incident details.
+  */
+  if (!error)
+    sql_print_error("%s An incident event has been written to the binary "
+                    "log which will stop the slaves.", err_msg);
 
   if (do_flush_and_sync)
   {
@@ -6061,6 +6074,7 @@ bool MYSQL_BIN_LOG::write_incident(Incident_log_event *ev, bool need_lock_log,
 
   @param thd  Thread variable
   @param ev   Incident event to be written
+  @param err_msg Error message written to log file for the incident.
   @param lock If the binary lock should be locked or not
 
   @retval
@@ -6069,6 +6083,7 @@ bool MYSQL_BIN_LOG::write_incident(Incident_log_event *ev, bool need_lock_log,
     1    success
 */
 bool MYSQL_BIN_LOG::write_incident(THD *thd, bool need_lock_log,
+                                   const char* err_msg,
                                    bool do_flush_and_sync)
 {
   DBUG_ENTER("MYSQL_BIN_LOG::write_incident");
@@ -6076,12 +6091,11 @@ bool MYSQL_BIN_LOG::write_incident(THD *thd, bool need_lock_log,
   if (!is_open())
     DBUG_RETURN(0);
 
-  LEX_STRING const write_error_msg=
-    { C_STRING_WITH_LEN("error writing to the binary log") };
+  LEX_STRING write_error_msg= {(char*) err_msg, strlen(err_msg)};
   Incident incident= INCIDENT_LOST_EVENTS;
   Incident_log_event ev(thd, incident, write_error_msg);
 
-  DBUG_RETURN(write_incident(&ev, need_lock_log, do_flush_and_sync));
+  DBUG_RETURN(write_incident(&ev, need_lock_log, err_msg, do_flush_and_sync));
 }
 
 /**
@@ -6142,7 +6156,10 @@ bool MYSQL_BIN_LOG::write_cache(THD *thd, binlog_cache_data *cache_data)
       if ((write_error= do_write_cache(cache)))
         goto err;
 
+      const char* err_msg= "Non-transactional changes did not get into "
+                           "the binlog.";
       if (incident && write_incident(thd, false/*need_lock_log=false*/,
+                                     err_msg,
                                      false/*do_flush_and_sync==false*/))
         goto err;
 

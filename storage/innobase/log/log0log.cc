@@ -160,6 +160,86 @@ log_buf_pool_get_oldest_modification(void)
 	return(lsn);
 }
 
+/** Extends the log buffer.
+@param[in] len	requested minimum size in bytes */
+static
+void
+log_buffer_extend(
+	ulint	len)
+{
+	ulint	move_start;
+	ulint	move_end;
+	byte	tmp_buf[OS_FILE_LOG_BLOCK_SIZE];
+
+	log_mutex_enter();
+
+	while (log_sys->is_extending) {
+		/* Another thread is trying to extend already.
+		Needs to wait for. */
+		log_mutex_exit();
+
+		log_buffer_flush_to_disk();
+
+		log_mutex_enter();
+
+		if (srv_log_buffer_size > len / UNIV_PAGE_SIZE) {
+			/* Already extended enough by the others */
+			log_mutex_exit();
+			return;
+		}
+	}
+
+	log_sys->is_extending = true;
+
+	while (log_sys->n_pending_writes != 0
+	       || ut_calc_align_down(log_sys->buf_free,
+				     OS_FILE_LOG_BLOCK_SIZE)
+		  != ut_calc_align_down(log_sys->buf_next_to_write,
+					OS_FILE_LOG_BLOCK_SIZE)) {
+		/* Buffer might have >1 blocks to write still. */
+		log_mutex_exit();
+
+		log_buffer_flush_to_disk();
+
+		log_mutex_enter();
+	}
+
+	move_start = ut_calc_align_down(
+		log_sys->buf_free,
+		OS_FILE_LOG_BLOCK_SIZE);
+	move_end = log_sys->buf_free;
+
+	/* store the last log block in buffer */
+	ut_memcpy(tmp_buf, log_sys->buf + move_start,
+		  move_end - move_start);
+
+	log_sys->buf_free -= move_start;
+	log_sys->buf_next_to_write -= move_start;
+
+	/* reallocate log buffer */
+	srv_log_buffer_size = len / UNIV_PAGE_SIZE + 1;
+	ut_free(log_sys->buf_ptr);
+	log_sys->buf_ptr = static_cast<byte*>(
+		ut_zalloc(LOG_BUFFER_SIZE + OS_FILE_LOG_BLOCK_SIZE));
+	log_sys->buf = static_cast<byte*>(
+		ut_align(log_sys->buf_ptr, OS_FILE_LOG_BLOCK_SIZE));
+	log_sys->buf_size = LOG_BUFFER_SIZE;
+	log_sys->max_buf_free = log_sys->buf_size / LOG_BUF_FLUSH_RATIO
+		- LOG_BUF_FLUSH_MARGIN;
+
+	/* restore the last log block */
+	ut_memcpy(log_sys->buf, tmp_buf, move_end - move_start);
+
+	ut_ad(log_sys->is_extending);
+	log_sys->is_extending = false;
+
+	log_mutex_exit();
+
+	ib_logf(IB_LOG_LEVEL_INFO,
+		"innodb_log_buffer_size was extended to %lu.",
+		LOG_BUFFER_SIZE);
+}
+
 /************************************************************//**
 Opens the log for log_write_low. The log must be closed with log_close and
 released with log_release.
@@ -176,10 +256,36 @@ log_reserve_and_open(
 	ulint	count			= 0;
 #endif /* UNIV_DEBUG */
 
-	ut_a(len < log->buf_size / 2);
+	if (len >= log->buf_size / 2) {
+		DBUG_EXECUTE_IF("ib_log_buffer_is_short_crash",
+				DBUG_SUICIDE(););
+
+		/* log_buffer is too small. try to extend instead of crash. */
+		ib_logf(IB_LOG_LEVEL_WARN,
+			"The transaction log size is too large"
+			" for innodb_log_buffer_size (%lu >= %lu / 2). "
+			"Trying to extend it.",
+			len, LOG_BUFFER_SIZE);
+
+		log_buffer_extend((len + 1) * 2);
+	}
 loop:
 	log_mutex_enter();
 	ut_ad(!recv_no_log_write);
+
+	if (log_sys->is_extending) {
+
+		log_mutex_exit();
+
+		/* Log buffer size is extending. Writing up to the next block
+		should wait for the extending finished. */
+
+		os_thread_sleep(100000);
+
+		ut_ad(++count < 50);
+
+		goto loop;
+	}
 
 	/* Calculate an upper limit for the space the string may take in the
 	log buffer */
@@ -629,7 +735,7 @@ void
 log_init(void)
 /*==========*/
 {
-	log_sys = static_cast<log_t*>(mem_zalloc(sizeof(log_t)));
+	log_sys = static_cast<log_t*>(ut_zalloc(sizeof(log_t)));
 
 	mutex_create("log_sys", &log_sys->mutex);
 
@@ -646,7 +752,7 @@ log_init(void)
 	ut_a(LOG_BUFFER_SIZE >= 4 * UNIV_PAGE_SIZE);
 
 	log_sys->buf_ptr = static_cast<byte*>(
-		mem_zalloc(LOG_BUFFER_SIZE + OS_FILE_LOG_BLOCK_SIZE));
+		ut_zalloc(LOG_BUFFER_SIZE + OS_FILE_LOG_BLOCK_SIZE));
 
 	log_sys->buf = static_cast<byte*>(
 		ut_align(log_sys->buf_ptr, OS_FILE_LOG_BLOCK_SIZE));
@@ -695,7 +801,7 @@ log_init(void)
 		SYNC_NO_ORDER_CHECK);
 
 	log_sys->checkpoint_buf_ptr = static_cast<byte*>(
-		mem_zalloc(2 * OS_FILE_LOG_BLOCK_SIZE));
+		ut_zalloc(2 * OS_FILE_LOG_BLOCK_SIZE));
 
 	log_sys->checkpoint_buf = static_cast<byte*>(
 		ut_align(log_sys->checkpoint_buf_ptr, OS_FILE_LOG_BLOCK_SIZE));
@@ -748,7 +854,7 @@ log_group_init(
 	ulint	i;
 	log_group_t*	group;
 
-	group = static_cast<log_group_t*>(mem_alloc(sizeof(log_group_t)));
+	group = static_cast<log_group_t*>(ut_malloc(sizeof(log_group_t)));
 
 	group->id = id;
 	group->n_files = n_files;
@@ -760,14 +866,14 @@ log_group_init(
 	group->n_pending_writes = 0;
 
 	group->file_header_bufs_ptr = static_cast<byte**>(
-		mem_zalloc(sizeof(byte*) * n_files));
+		ut_zalloc(sizeof(byte*) * n_files));
 
 	group->file_header_bufs = static_cast<byte**>(
-		mem_zalloc(sizeof(byte**) * n_files));
+		ut_zalloc(sizeof(byte**) * n_files));
 
 	for (i = 0; i < n_files; i++) {
 		group->file_header_bufs_ptr[i] = static_cast<byte*>(
-			mem_zalloc(LOG_FILE_HDR_SIZE + OS_FILE_LOG_BLOCK_SIZE));
+			ut_zalloc(LOG_FILE_HDR_SIZE + OS_FILE_LOG_BLOCK_SIZE));
 
 		group->file_header_bufs[i] = static_cast<byte*>(
 			ut_align(group->file_header_bufs_ptr[i],
@@ -775,7 +881,7 @@ log_group_init(
 	}
 
 	group->checkpoint_buf_ptr = static_cast<byte*>(
-		mem_zalloc(2 * OS_FILE_LOG_BLOCK_SIZE));
+		ut_zalloc(2 * OS_FILE_LOG_BLOCK_SIZE));
 
 	group->checkpoint_buf = static_cast<byte*>(
 		ut_align(group->checkpoint_buf_ptr,OS_FILE_LOG_BLOCK_SIZE));
@@ -2348,7 +2454,7 @@ log_check_log_recs(
 	start = ut_align_down(buf, OS_FILE_LOG_BLOCK_SIZE);
 	end = ut_align(buf + len, OS_FILE_LOG_BLOCK_SIZE);
 
-	buf1 = mem_alloc((end - start) + OS_FILE_LOG_BLOCK_SIZE);
+	buf1 = ut_malloc((end - start) + OS_FILE_LOG_BLOCK_SIZE);
 	scan_buf = ut_align(buf1, OS_FILE_LOG_BLOCK_SIZE);
 
 	ut_memcpy(scan_buf, start, end - start);
@@ -2363,7 +2469,7 @@ log_check_log_recs(
 	ut_a(scanned_lsn == buf_start_lsn + len);
 	ut_a(recv_sys->recovered_lsn == scanned_lsn);
 
-	mem_free(buf1);
+	ut_free(buf1);
 
 	return(TRUE);
 }
@@ -2458,13 +2564,13 @@ log_group_close(
 	ulint	i;
 
 	for (i = 0; i < group->n_files; i++) {
-		mem_free(group->file_header_bufs_ptr[i]);
+		ut_free(group->file_header_bufs_ptr[i]);
 	}
 
-	mem_free(group->file_header_bufs_ptr);
-	mem_free(group->file_header_bufs);
-	mem_free(group->checkpoint_buf_ptr);
-	mem_free(group);
+	ut_free(group->file_header_bufs_ptr);
+	ut_free(group->file_header_bufs);
+	ut_free(group->checkpoint_buf_ptr);
+	ut_free(group);
 }
 
 /********************************************************//**
@@ -2498,10 +2604,10 @@ log_shutdown(void)
 {
 	log_group_close_all();
 
-	mem_free(log_sys->buf_ptr);
+	ut_free(log_sys->buf_ptr);
 	log_sys->buf_ptr = NULL;
 	log_sys->buf = NULL;
-	mem_free(log_sys->checkpoint_buf_ptr);
+	ut_free(log_sys->checkpoint_buf_ptr);
 	log_sys->checkpoint_buf_ptr = NULL;
 	log_sys->checkpoint_buf = NULL;
 
@@ -2529,7 +2635,7 @@ log_mem_free(void)
 {
 	if (log_sys != NULL) {
 		recv_sys_mem_free();
-		mem_free(log_sys);
+		ut_free(log_sys);
 
 		log_sys = NULL;
 	}

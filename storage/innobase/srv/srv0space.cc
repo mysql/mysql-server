@@ -85,7 +85,7 @@ Tablespace::parse(
 	ulint	n_files = 0;
 
 	ut_ad(m_last_file_size_max == 0);
-	ut_ad(m_auto_extend_last_file == false);
+	ut_ad(!m_auto_extend_last_file);
 
 	char*	new_str = strdup(filepath);
 	char*	str = new_str;
@@ -307,7 +307,7 @@ Tablespace::get_file_name(
 /*======================*/
 	const char*	filepath)
 {
-	char* last_slash = strrchr((char*) filepath, OS_FILE_PATH_SEPARATOR);
+	char* last_slash = strrchr((char*) filepath, OS_PATH_SEPARATOR);
 	return(last_slash ? last_slash + 1 : (char*) filepath);
 }
 
@@ -374,7 +374,7 @@ Tablespace::open_data_file(
 /*=======================*/
 	file_t&	file)
 {
-	ibool	success;
+	bool	success;
 
 	file.m_handle = os_file_create(
 		innodb_data_file_key, file.m_filename, file.m_open_flags,
@@ -475,8 +475,8 @@ Tablespace::make_name(
 	memcpy(name, tablespace_path, dirnamelen);
 
 	/* Add a path separator if needed. */
-	if (dirnamelen && name[dirnamelen - 1] != SRV_PATH_SEPARATOR) {
-		name[dirnamelen++] = SRV_PATH_SEPARATOR;
+	if (dirnamelen && name[dirnamelen - 1] != OS_PATH_SEPARATOR) {
+		name[dirnamelen++] = OS_PATH_SEPARATOR;
 	}
 
 	strcpy(name + dirnamelen, file.m_name);

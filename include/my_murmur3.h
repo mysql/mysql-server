@@ -1,5 +1,7 @@
-/* Copyright (c) 2000, 2001, 2006, 2007 MySQL AB
-   Use is subject to license terms.
+#ifndef MY_MURMUR3_INCLUDED
+#define MY_MURMUR3_INCLUDED
+
+/* Copyright (c) 2013, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -12,24 +14,14 @@
 
    You should have received a copy of the GNU General Public License
    along with this program; if not, write to the Free Software
-   Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA */
-
-/*
-    strnmov(dst,src,length) moves length characters, or until end, of src to
-    dst and appends a closing NUL to dst if src is shorter than length.
-    The result is a pointer to the first NUL in dst, or is dst+n if dst was
-    truncated.
-*/
+   Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA 02110-1301, USA */
 
 #include <my_global.h>
-#include "m_string.h"
 
-char *strnmov(char *dst, const char *src, size_t n)
-{
-  while (n-- != 0) {
-    if (!(*dst++ = *src++)) {
-      return (char*) dst-1;
-    }
-  }
-  return dst;
-}
+C_MODE_START
+
+uint32 murmur3_32(const uchar * key, size_t len, uint32 seed);
+
+C_MODE_END
+
+#endif /* MY_MURMUR3_INCLUDED */
