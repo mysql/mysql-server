@@ -70,9 +70,9 @@ d Int NULL AT=FIXED ST=MEMORY
 show create table t1;
 Table	Create Table
 t1	CREATE TABLE `t1` (
-  `a` int(11) NOT NULL DEFAULT '0',
-  `b` char(10) CHARACTER SET latin1 COLLATE latin1_bin NOT NULL DEFAULT '',
-  `c` int(11) NOT NULL DEFAULT '0',
+  `a` int(11) NOT NULL,
+  `b` char(10) CHARACTER SET latin1 COLLATE latin1_bin NOT NULL,
+  `c` int(11) NOT NULL,
   `d` int(11) DEFAULT NULL,
   PRIMARY KEY (`a`,`b`,`c`) USING HASH
 ) ENGINE=ndbcluster DEFAULT CHARSET=latin1
