@@ -1094,6 +1094,21 @@ COUNT(*)
 3724
 set optimizer_prune_level=@tmp_951283;
 DROP TABLE t1,t2;
+#
+# Bug mdev-5135: crash on semijoin with nested outer joins
+#
+CREATE TABLE t1 (i1 int) ENGINE=MyISAM;
+INSERT INTO t1 VALUES (1),(2);
+CREATE TABLE t2 (i2 int, INDEX(i2)) ENGINE=MyISAM;
+CREATE TABLE t3 (i3 int, c varchar(1), INDEX(i3), INDEX(c)) ENGINE=MyISAM;
+INSERT INTO t3 VALUES (3,'x'),(4,'y');
+SELECT * FROM t1 WHERE ( 1, 1 ) IN ( 
+SELECT i2, i2 FROM t2 LEFT OUTER JOIN ( 
+t3 AS t3a INNER JOIN t3 AS t3b ON ( t3a.i3 = t3b.i3 ) 
+) ON ( t3a.c = t3b.c ) 
+);
+i1
+DROP TABLE t1,t2,t3;
 DROP TABLE IF EXISTS t1,t2,t3,t4;
 #
 # MDEV-4782: Valgrind warnings (Conditional jump or move depends on uninitialised value) with InnoDB, semijoin
