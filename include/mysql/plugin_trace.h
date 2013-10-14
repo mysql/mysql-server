@@ -27,9 +27,11 @@
 */
 
 
-C_MODE_START
-
 #include <mysql/client_plugin.h>
+
+#ifdef __cplusplus
+extern "C" {
+#endif
 
 /*
   Lists of protocol stages and trace events
@@ -340,6 +342,8 @@ const char* trace_event_name(enum trace_event ev);
 
 #endif
 
-C_MODE_END
+#ifdef __cplusplus
+}
+#endif
 
 #endif
