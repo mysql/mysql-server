@@ -340,8 +340,8 @@ struct ReleaseBlocks {
 	lsn_t		m_start_lsn;
 };
 
-struct mtr_t::Command {
-
+class mtr_t::Command {
+public:
 	/**
 	Command takes ownership of the m_impl member of mtr and is responsible
 	for deleting it.
