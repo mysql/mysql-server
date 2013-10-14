@@ -362,12 +362,12 @@ struct mtr_t {
 	@return true if mini-transaction freed pages */
 	bool has_freed_pages() const
 	{
-		return(get_freed_pages() > 0);
+		return(get_freed_page_count() > 0);
 	}
 
 	/**
 	@return the number of freed pages */
-	ulint get_freed_pages() const
+	ulint get_freed_page_count() const
 	{
 		return(m_impl.m_n_freed_pages);
 	}
