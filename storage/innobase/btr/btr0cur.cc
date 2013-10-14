@@ -5428,14 +5428,14 @@ btr_store_big_rec_extern_fields(
 		if (btr_mtr->has_freed_pages()) {
 			if (heap == NULL) {
 				heap = mem_heap_create(
-					btr_mtr->get_freed_pages()
+					btr_mtr->get_freed_page_count()
 					* sizeof *freed_pages);
 			}
 
 			freed_pages = static_cast<buf_block_t**>(
 				mem_heap_alloc(
 					heap,
-					btr_mtr->get_freed_pages()
+					btr_mtr->get_freed_page_count()
 					* sizeof *freed_pages));
 			n_freed_pages = 0;
 		}
@@ -5536,7 +5536,7 @@ alloc_another:
 				ut_ad(alloc_mtr == btr_mtr);
 				ut_ad(btr_blob_op_is_update(op));
 				ut_ad(n_freed_pages
-				      < btr_mtr->get_freed_pages());
+				      < btr_mtr->get_freed_page_count());
 				freed_pages[n_freed_pages++] = block;
 				goto alloc_another;
 			}
