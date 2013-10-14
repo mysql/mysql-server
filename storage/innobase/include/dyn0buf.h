@@ -112,7 +112,7 @@ public:
 			Type	ptr = reinterpret_cast<Type>(end());
 
 			m_used += size;
-			ut_ad(m_used <= MAX_DATA_SIZE);
+			ut_ad(m_used <= ib_uint32_t(MAX_DATA_SIZE));
 
 			return(ptr);
 		}
@@ -126,7 +126,7 @@ public:
 
 			m_used = ptr - begin();
 
-			ut_ad(m_used <= MAX_DATA_SIZE);
+			ut_ad(m_used <= ib_uint32_t(MAX_DATA_SIZE));
 
 			ut_d(m_buf_end = 0);
 		}
@@ -159,7 +159,7 @@ public:
 		enum {
 			MAX_DATA_SIZE = SIZE
 				      - sizeof(block_node_t)
-		       		      + sizeof(ib_uint32_t)
+				      + sizeof(ib_uint32_t)
 		};
 
 		/** Storage */
@@ -216,7 +216,7 @@ public:
 		ut_ad(size <= MAX_DATA_SIZE);
 
 		block_t*	block;
-       
+
 		block = has_space(size) ? back() : add_block();
 
 		ut_ad(block->m_used <= MAX_DATA_SIZE);
@@ -252,7 +252,7 @@ public:
 		ut_ad(size <= MAX_DATA_SIZE);
 
 		block_t*	block;
-       
+
 		block = has_space(size) ? back() : add_block();
 
 		m_size += size;
@@ -269,9 +269,11 @@ public:
 	void push(const byte* ptr, ulint len)
 	{
 		while (len > 0) {
-			ulint	n_copied;
+			size_t	n_copied;
 
-			n_copied = (len >= MAX_DATA_SIZE) ? MAX_DATA_SIZE : len;
+			n_copied = (len >= size_t(MAX_DATA_SIZE))
+				 ? size_t(MAX_DATA_SIZE)
+				 : len;
 
 			::memmove(push<byte*>(n_copied), ptr, n_copied);
 
