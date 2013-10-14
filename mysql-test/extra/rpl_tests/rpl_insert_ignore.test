@@ -58,10 +58,8 @@ INSERT IGNORE INTO t1 SELECT NULL, t2.b FROM t2 ORDER BY t2.a;
 --let $assert_text= Count of elements in t1 should be 6.
 --source include/assert.inc
 
-# MCP
 # force outstanding executed transactions to be flushed to binlog for ndb
 --save_master_pos
-# MCP
 
 if (`SELECT @@BINLOG_FORMAT != 'STATEMENT'`)
 {
@@ -96,10 +94,8 @@ eval CREATE TABLE t2 (
 INSERT INTO t1 VALUES (1);
 INSERT INTO t2 VALUES (1);
 
-# MCP
 # force outstanding executed transactions to be flushed to binlog for ndb
 --save_master_pos
-# MCP
 
 --let $binlog_file= query_get_value("SHOW MASTER STATUS", File, 1)
 --let $binlog_start= query_get_value("SHOW MASTER STATUS", Position, 1)
@@ -111,10 +107,8 @@ INSERT INTO t2 VALUES (1);
 --let $assert_text= Sum of elements in t1 should be 1.
 --source include/assert.inc
 
-# MCP
 # force outstanding executed transactions to be flushed to binlog for ndb
 --save_master_pos
-# MCP
 
 if (`SELECT @@BINLOG_FORMAT != 'STATEMENT'`)
 {
