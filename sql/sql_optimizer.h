@@ -50,7 +50,21 @@ class JOIN :public Sql_alloc
   JOIN(const JOIN &rhs);                        /**< not implemented */
   JOIN& operator=(const JOIN &rhs);             /**< not implemented */
 public:
-  JOIN_TAB *join_tab,**best_ref;
+  /**
+    Optimal query execution plan. Initialized with a tentative plan in
+    make_join_statistics() and later replaced with the optimal plan in
+    get_best_combination().
+  */
+  JOIN_TAB *join_tab;
+
+  /**
+    Array of plan operators representing the current (partial) best
+    plan. The array is stack-allocated in make_join_statistics() as
+    stat_vector[MAX_TABLES + 1] and is thus valid only inside
+    make_join_statistics(). Initially (*best_ref[i]) ==
+    join_tab[i]. The optimizer reorders best_ref.
+  */
+  JOIN_TAB **best_ref;
   JOIN_TAB **map2table;    ///< mapping between table indexes and JOIN_TABs
   /*
     The table which has an index that allows to produce the requried ordering.
@@ -128,7 +142,11 @@ public:
   */
   ha_rows  min_ft_matches;
 
-  /* Finally picked QEP. This is result of join optimization */
+  /**
+    This is the result of join optimization.
+
+    @note This is a scratch array, not used after get_best_combination().
+  */
   POSITION *best_positions;
 
 /******* Join optimization state members start *******/

@@ -1539,9 +1539,12 @@ void JOIN::set_semijoin_info()
 
   @return False if success, True if error
 
-  @details
-    This function will set up a ref access using the best key found
-    during access path analysis and cost analysis.
+  Given a Key_use structure that specifies the fields that can be used
+  for index access, this function creates and set up the structure
+  used for index look up via one of the access methods {JT_FT,
+  JT_CONST, JT_REF_OR_NULL, JT_REF, JT_EQ_REF} for the plan operator
+  'j'. Generally the function sets up the structure j->ref (of type
+  TABLE_REF), and the access method j->type.
 
   @note We cannot setup fields used for ref access before we have sorted
         the items within multiple equalities according to the final order of
@@ -1567,6 +1570,7 @@ bool create_ref_for_key(JOIN *join, JOIN_TAB *j, Key_use *org_keyuse,
 
   DBUG_ASSERT(j->keys.is_set(org_keyuse->key));
 
+  /* Calculate the length of the used key. */
   if (ftkey)
   {
     Item_func_match *ifm=(Item_func_match *)keyuse->val;
@@ -1579,7 +1583,6 @@ bool create_ref_for_key(JOIN *join, JOIN_TAB *j, Key_use *org_keyuse,
   {
     keyparts=length=0;
     uint found_part_ref_or_null= 0;
-    // Calculate length for the used key. Remember chosen Key_use-s.
     do
     {
       /*
