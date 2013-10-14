@@ -277,10 +277,23 @@ void test_with_instances()
   ok(rc == 0, "instances init");
 
   dummy_mutex_class.m_event_name_index= 0;
+  dummy_mutex_class.m_flags= 0;
+  dummy_mutex_class.m_enabled= true;
   dummy_rwlock_class.m_event_name_index= 1;
+  dummy_rwlock_class.m_flags= 0;
+  dummy_rwlock_class.m_enabled= true;
   dummy_cond_class.m_event_name_index= 2;
+  dummy_cond_class.m_flags= 0;
+  dummy_cond_class.m_enabled= true;
   dummy_file_class.m_event_name_index= 3;
+  dummy_file_class.m_flags= 0;
+  dummy_file_class.m_enabled= true;
   dummy_socket_class.m_event_name_index= 4;
+  dummy_socket_class.m_flags= 0;
+  dummy_socket_class.m_enabled= true;
+
+  dummy_table_share.m_enabled= true;
+  dummy_table_share.m_timed= true;
 
   mutex_1= create_mutex(& dummy_mutex_class, NULL);
   ok(mutex_1 != NULL, "mutex");
@@ -413,6 +426,8 @@ void test_with_instances()
 void do_all_tests()
 {
   PFS_atomic::init();
+  flag_global_instrumentation= true;
+  flag_thread_instrumentation= true;
 
   test_no_instruments();
   test_no_instances();

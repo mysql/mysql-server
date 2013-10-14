@@ -170,10 +170,10 @@ struct TrxFactory {
 		trx->dict_operation_lock_mode = 0;
 
 		trx->xid = reinterpret_cast<XID*>(
-			mem_zalloc(sizeof(*trx->xid)));
+			ut_zalloc(sizeof(*trx->xid)));
 
 		trx->detailed_error = reinterpret_cast<char*>(
-			mem_zalloc(MAX_DETAILED_ERROR_LEN));
+			ut_zalloc(MAX_DETAILED_ERROR_LEN));
 
 		trx->xid->formatID = -1;
 
@@ -191,7 +191,7 @@ struct TrxFactory {
 
 		/* Explicitly call the constructor of the already
 		allocated object. trx_t objects are allocated by
-		mem_zalloc() in Pool::Pool() which would not call
+		ut_zalloc() in Pool::Pool() which would not call
 		the constructors of the trx_t members. */
 		new(&trx->mod_tables) trx_mod_tables_t();
 
@@ -225,8 +225,8 @@ struct TrxFactory {
 
 		ut_a(UT_LIST_GET_LEN(trx->lock.trx_locks) == 0);
 
-		mem_free(trx->xid);
-		mem_free(trx->detailed_error);
+		ut_free(trx->xid);
+		ut_free(trx->detailed_error);
 
 		mutex_free(&trx->mutex);
 		mutex_free(&trx->undo_mutex);
@@ -240,7 +240,7 @@ struct TrxFactory {
 			/* See lock_trx_alloc_locks() why we only free
 			the first element. */
 
-			mem_free(trx->lock.rec_pool[0]);
+			ut_free(trx->lock.rec_pool[0]);
 		}
 
 		if (!trx->lock.rec_pool.empty()) {
@@ -248,7 +248,7 @@ struct TrxFactory {
 			/* See lock_trx_alloc_locks() why we only free
 			the first element. */
 
-			mem_free(trx->lock.table_pool[0]);
+			ut_free(trx->lock.table_pool[0]);
 		}
 
 		trx->lock.rec_pool.~lock_pool_t();
@@ -2998,7 +2998,7 @@ trx_set_rw_mode(
 		MVCC::set_view_creator_trx_id(trx->read_view, trx->id);
 	}
 
-	ut_ad(trx->in_ro_trx_list == true);
+	ut_ad(trx->in_ro_trx_list);
 
 #ifdef UNIV_DEBUG
 	if (trx->id > trx_sys->rw_max_trx_id) {

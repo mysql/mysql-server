@@ -93,7 +93,6 @@ public:
   {
     m_initializer.SetUp();
     m_thd= m_initializer.thd();
-    my_pthread_setspecific_ptr(THR_THD, m_thd);
     m_go->wait_for_notification();
 
     if (m_wait_thread)

@@ -319,10 +319,10 @@ ha_innobase::check_if_supported_inplace_alter(
 	only go through the "Copy" method.*/
 	if ((ha_alter_info->handler_flags
 	     & Alter_inplace_info::ALTER_COLUMN_NULLABLE)) {
-		uint primary_key = altered_table->s->primary_key;
+		const uint my_primary_key = altered_table->s->primary_key;
 
 		/* See if MYSQL table has no pk but we do.*/
-		if (UNIV_UNLIKELY(primary_key >= MAX_KEY)
+		if (UNIV_UNLIKELY(my_primary_key >= MAX_KEY)
 		    && !row_table_got_default_clust_index(prebuilt->table)) {
 			ha_alter_info->unsupported_reason = innobase_get_err_msg(
 				ER_PRIMARY_CANT_HAVE_NULL);
@@ -3543,8 +3543,7 @@ ha_innobase::prepare_inplace_alter_table(
 	if (ha_alter_info->handler_flags
 	    & Alter_inplace_info::CHANGE_CREATE_OPTION) {
 		if (const char* invalid_opt = create_options_are_invalid(
-			    user_thd, altered_table,
-			    ha_alter_info->create_info,
+			    user_thd, ha_alter_info->create_info,
 			    prebuilt->table->space != 0)) {
 			my_error(ER_ILLEGAL_HA_CREATE_OPTION, MYF(0),
 				 table_type(), invalid_opt);
@@ -4340,7 +4339,7 @@ rollback_inplace_alter_table(
 		/* Since the FTS index specific auxiliary tables has
 		not yet registered with "table->fts" by fts_add_index(),
 		we will need explicitly delete them here */
-		if (DICT_TF2_FLAG_IS_SET(ctx->new_table, DICT_TF2_FTS)) {
+		if (dict_table_has_fts_index(ctx->new_table)) {
 
 			err = innobase_drop_fts_index_table(
 				ctx->new_table, ctx->trx);

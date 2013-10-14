@@ -1376,7 +1376,7 @@ buf_pool_init_instance(
 		buf_pool->n_chunks = 1;
 
 		buf_pool->chunks = chunk =
-			(buf_chunk_t*) mem_zalloc(sizeof *chunk);
+			(buf_chunk_t*) ut_zalloc(sizeof *chunk);
 
 		UT_LIST_INIT(buf_pool->LRU, &buf_page_t::LRU);
 		UT_LIST_INIT(buf_pool->free, &buf_page_t::list);
@@ -1393,8 +1393,8 @@ buf_pool_init_instance(
 		}
 
 		if (!buf_chunk_init(buf_pool, chunk, buf_pool_size)) {
-			mem_free(chunk);
-			mem_free(buf_pool);
+			ut_free(chunk);
+			ut_free(buf_pool);
 
 			buf_pool_mutex_exit(buf_pool);
 
@@ -1429,10 +1429,10 @@ buf_pool_init_instance(
 		buf_pool->no_flush[i] = os_event_create(0);
 	}
 
-	buf_pool->watch = (buf_page_t*) mem_zalloc(
+	buf_pool->watch = (buf_page_t*) ut_zalloc(
 		sizeof(*buf_pool->watch) * BUF_POOL_WATCH_SIZE);
 
-	/* All fields are initialized by mem_zalloc(). */
+	/* All fields are initialized by ut_zalloc(). */
 
 	buf_pool->try_LRU_scan = TRUE;
 
@@ -1491,7 +1491,7 @@ buf_pool_free_instance(
 		}
 	}
 
-	mem_free(buf_pool->watch);
+	ut_free(buf_pool->watch);
 	buf_pool->watch = NULL;
 
 	chunks = buf_pool->chunks;
@@ -1515,7 +1515,7 @@ buf_pool_free_instance(
 		os_event_destroy(buf_pool->no_flush[i]);
 	}
 
-	mem_free(buf_pool->chunks);
+	ut_free(buf_pool->chunks);
 	ha_clear(buf_pool->page_hash);
 	hash_table_free(buf_pool->page_hash);
 	hash_table_free(buf_pool->zip_hash);
@@ -1538,7 +1538,7 @@ buf_pool_init(
 	ut_ad(n_instances <= MAX_BUFFER_POOLS);
 	ut_ad(n_instances == srv_buf_pool_instances);
 
-	buf_pool_ptr = (buf_pool_t*) mem_zalloc(
+	buf_pool_ptr = (buf_pool_t*) ut_zalloc(
 		n_instances * sizeof *buf_pool_ptr);
 
 	for (i = 0; i < n_instances; i++) {
@@ -1574,7 +1574,7 @@ buf_pool_free(
 		buf_pool_free_instance(buf_pool_from_array(i));
 	}
 
-	mem_free(buf_pool_ptr);
+	ut_free(buf_pool_ptr);
 	buf_pool_ptr = NULL;
 }
 
@@ -1626,7 +1626,7 @@ buf_pool_clear_hash_index(void)
 Relocate a buffer control block.  Relocates the block on the LRU list
 and in buf_pool->page_hash.  Does not relocate bpage->list.
 The caller must take care of relocating bpage->list. */
-
+static
 void
 buf_relocate(
 /*=========*/
@@ -4814,9 +4814,9 @@ buf_print_instance(
 	size = buf_pool->curr_size;
 
 	index_ids = static_cast<index_id_t*>(
-		mem_alloc(size * sizeof *index_ids));
+		ut_malloc(size * sizeof *index_ids));
 
-	counts = static_cast<ulint*>(mem_alloc(sizeof(ulint) * size));
+	counts = static_cast<ulint*>(ut_malloc(sizeof(ulint) * size));
 
 	buf_pool_mutex_enter(buf_pool);
 	buf_flush_list_mutex_enter(buf_pool);
@@ -4905,8 +4905,8 @@ buf_print_instance(
 		putc('\n', stderr);
 	}
 
-	mem_free(index_ids);
-	mem_free(counts);
+	ut_free(index_ids);
+	ut_free(counts);
 
 	ut_a(buf_pool_validate_instance(buf_pool));
 }
@@ -5374,7 +5374,7 @@ buf_print_io(
 	one extra buf_pool_info_t, the last one stores
 	aggregated/total values from all pools */
 	if (srv_buf_pool_instances > 1) {
-		pool_info = (buf_pool_info_t*) mem_zalloc((
+		pool_info = (buf_pool_info_t*) ut_zalloc((
 			srv_buf_pool_instances + 1) * sizeof *pool_info);
 
 		pool_info_total = &pool_info[srv_buf_pool_instances];
@@ -5383,7 +5383,7 @@ buf_print_io(
 
 		pool_info_total = pool_info =
 			static_cast<buf_pool_info_t*>(
-				mem_zalloc(sizeof *pool_info));
+				ut_zalloc(sizeof *pool_info));
 	}
 
 	for (i = 0; i < srv_buf_pool_instances; i++) {
@@ -5419,7 +5419,7 @@ buf_print_io(
 		}
 	}
 
-	mem_free(pool_info);
+	ut_free(pool_info);
 }
 
 /**********************************************************************//**

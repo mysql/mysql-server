@@ -18,9 +18,14 @@
 #include "rpl_filter.h"
 #include "hash.h"                               // my_hash_free
 #include "table.h"                              // TABLE_LIST
+#include "item.h"
+#include "auth_common.h"                // for SUPER_ACL
+#include "rpl_slave.h"                  // for SLAVE_SQL and thread_mask
+#include "rpl_mi.h"                     // for Master_info
 
 #define TABLE_RULE_HASH_SIZE   16
 #define TABLE_RULE_ARR_SIZE   16
+extern PSI_memory_key key_memory_array_buffer;
 
 Rpl_filter::Rpl_filter() :
   table_rules_on(0),
@@ -48,9 +53,9 @@ Rpl_filter::~Rpl_filter()
     free_string_array(&wild_do_table);
   if (wild_ignore_table_inited)
     free_string_array(&wild_ignore_table);
-  free_list(&do_db);
-  free_list(&ignore_db);
-  free_list(&rewrite_db);
+  free_string_list(&do_db);
+  free_string_list(&ignore_db);
+  free_string_pair_list(&rewrite_db);
 }
 
 
@@ -107,9 +112,9 @@ Rpl_filter::tables_ok(const char* db, TABLE_LIST* tables)
     if (!tables->updating) 
       continue;
     some_tables_updating= 1;
-    end= strmov(hash_key, tables->db ? tables->db : db);
+    end= my_stpcpy(hash_key, tables->db ? tables->db : db);
     *end++= '.';
-    len= (uint) (strmov(end, tables->table_name) - hash_key);
+    len= (uint) (my_stpcpy(end, tables->table_name) - hash_key);
     if (do_table_hash_inited) // if there are any do's
     {
       if (my_hash_search(&do_table_hash, (uchar*) hash_key, len))
@@ -244,7 +249,7 @@ Rpl_filter::db_ok_with_wild_table(const char *db)
   char hash_key[NAME_LEN+2];
   char *end;
   int len;
-  end= strmov(hash_key, db);
+  end= my_stpcpy(hash_key, db);
   *end++= '.';
   len= end - hash_key ;
   if (wild_do_table_inited && find_wild(&wild_do_table, hash_key, len))
@@ -321,17 +326,17 @@ Rpl_filter::add_wild_ignore_table(const char* table_spec)
   if (!wild_ignore_table_inited)
     init_table_rule_array(&wild_ignore_table, &wild_ignore_table_inited);
   table_rules_on= 1;
-  DBUG_RETURN(add_table_rule_to_array(&wild_ignore_table, table_spec));
+  int ret= add_table_rule_to_array(&wild_ignore_table, table_spec);
+  DBUG_RETURN(ret);
 }
 
-
-void
+int
 Rpl_filter::add_db_rewrite(const char* from_db, const char* to_db)
 {
-  i_string_pair *db_pair = new i_string_pair(from_db, to_db);
-  rewrite_db.push_back(db_pair);
+  DBUG_ENTER("Rpl_filter::add_db_rewrite");
+  int ret= add_string_pair_list(&rewrite_db, (char*)from_db, (char*)to_db);
+  DBUG_RETURN(ret);
 }
-
 
 /*
   Build do_table rules to HASH from DYNAMIC_ARRAY
@@ -486,24 +491,231 @@ Rpl_filter::add_table_rule_to_array(DYNAMIC_ARRAY* a, const char* table_spec)
   return 0;
 }
 
-
-void
-Rpl_filter::add_do_db(const char* table_spec)
+int
+Rpl_filter::parse_filter_list(List<Item> *item_list, Add_filter add)
 {
-  DBUG_ENTER("Rpl_filter::add_do_db");
-  i_string *db = new i_string(table_spec);
-  do_db.push_back(db);
-  DBUG_VOID_RETURN;
+  DBUG_ENTER("Rpl_filter::parse_filter_rule");
+  int status= 0;
+  if (item_list->is_empty()) /* to support '()' syntax */
+    DBUG_RETURN(status);
+  List_iterator_fast<Item> it(*item_list);
+  Item * item;
+  while ((item= it++))
+  {
+    String buf;
+    status = (this->*add)(item->val_str(&buf)->c_ptr());
+    if (status)
+      break;
+  }
+  DBUG_RETURN(status);
 }
 
 
-void
+int
+Rpl_filter::set_do_db(List<Item> *do_db_list)
+{
+  DBUG_ENTER("Rpl_filter::set_do_db");
+  if (!do_db_list)
+    DBUG_RETURN(0);
+  free_string_list(&do_db);
+  int ret= parse_filter_list(do_db_list, &Rpl_filter::add_do_db);
+  DBUG_RETURN(ret);
+}
+
+int
+Rpl_filter::set_ignore_db(List<Item> *ignore_db_list)
+{
+  DBUG_ENTER("Rpl_filter::set_ignore_db");
+  if (!ignore_db_list)
+    DBUG_RETURN(0);
+  free_string_list(&ignore_db);
+  int ret= parse_filter_list(ignore_db_list, &Rpl_filter::add_ignore_db);
+  DBUG_RETURN(ret);
+}
+
+int
+Rpl_filter::set_do_table(List<Item> *do_table_list)
+{
+  DBUG_ENTER("Rpl_filter::set_do_table");
+  if (!do_table_list)
+    DBUG_RETURN(0);
+  int status;
+  if (do_table_hash_inited)
+    my_hash_free(&do_table_hash);
+  if (do_table_array_inited)
+    free_string_array(&do_table_array); /* purecov: inspected */
+  status= parse_filter_list(do_table_list, &Rpl_filter::add_do_table_array);
+  if (!status)
+  {
+    status = build_do_table_hash();
+    if (!do_table_hash.records)
+    {
+      my_hash_free(&do_table_hash);
+      do_table_hash_inited= 0;
+    }
+  }
+  DBUG_RETURN(status);
+}
+
+int
+Rpl_filter::set_ignore_table(List<Item>* ignore_table_list)
+{
+  DBUG_ENTER("Rpl_filter::set_ignore_table");
+  if (!ignore_table_list)
+    DBUG_RETURN(0);
+  int status;
+  if (ignore_table_hash_inited)
+    my_hash_free(&ignore_table_hash);
+  if (ignore_table_array_inited)
+    free_string_array(&ignore_table_array); /* purecov: inspected */
+  status= parse_filter_list(ignore_table_list, &Rpl_filter::add_ignore_table_array);
+  if (!status)
+  {
+    status = build_ignore_table_hash();
+    if (!ignore_table_hash.records)
+    {
+      my_hash_free(&ignore_table_hash);
+      ignore_table_hash_inited= 0;
+    }
+  }
+  DBUG_RETURN(status);
+}
+
+int
+Rpl_filter::set_wild_do_table(List<Item> *wild_do_table_list)
+{
+  DBUG_ENTER("Rpl_filter::set_wild_do_table");
+  if (!wild_do_table_list)
+    DBUG_RETURN(0);
+  int status;
+  if (wild_do_table_inited)
+    free_string_array(&wild_do_table);
+
+  status= parse_filter_list(wild_do_table_list, &Rpl_filter::add_wild_do_table);
+
+  if (!wild_do_table.elements)
+  {
+    delete_dynamic(&wild_do_table);
+    wild_do_table_inited= 0;
+  }
+  DBUG_RETURN(status);
+}
+
+int
+Rpl_filter::set_wild_ignore_table(List<Item> *wild_ignore_table_list)
+{
+  DBUG_ENTER("Rpl_filter::set_wild_ignore_table");
+  if (!wild_ignore_table_list)
+    DBUG_RETURN(0);
+  int status;
+  if (wild_ignore_table_inited)
+    free_string_array(&wild_ignore_table);
+
+  status= parse_filter_list(wild_ignore_table_list, &Rpl_filter::add_wild_ignore_table);
+
+  if (!wild_ignore_table.elements)
+  {
+    delete_dynamic(&wild_ignore_table);
+    wild_ignore_table_inited= 0;
+  }
+  DBUG_RETURN(status);
+}
+
+int
+Rpl_filter::set_db_rewrite(List<Item> *rewrite_db_pair_list)
+{
+  DBUG_ENTER("Rpl_filter::set_db_rewrite");
+  if (!rewrite_db_pair_list)
+    DBUG_RETURN(0);
+  int status= 0;
+  free_string_pair_list(&rewrite_db);
+  if (rewrite_db_pair_list->is_empty()) /* to support '()' syntax */
+    DBUG_RETURN(status);
+  List_iterator_fast<Item> it(*rewrite_db_pair_list);
+  Item * db_key, *db_val;
+
+  /* Please note that grammer itself allows only even number of db values. So
+   * it is ok to do it++ twice without checking anything. */
+  db_key= it++;
+  db_val= it++;
+  while (db_key && db_val)
+  {
+    String buf1, buf2;
+    status = add_db_rewrite(db_key->val_str(&buf1)->c_ptr(), db_val->val_str(&buf2)->c_ptr());
+    if (status)
+      break;
+    db_key= it++;
+    db_val= it++;
+  }
+  DBUG_RETURN(status);
+}
+
+int
+Rpl_filter::add_string_list(I_List<i_string> *list, const char* spec)
+{
+  char *str;
+  i_string *node;
+
+  if (! (str= my_strdup(key_memory_rpl_filter, spec, MYF(MY_WME))))
+    return true; /* purecov: inspected */
+
+  if (! (node= new i_string(str)))
+  {
+    /* purecov: begin inspected */
+    my_free(str);
+    return true;
+    /* purecov: end */
+  }
+
+  list->push_back(node);
+
+  return false;
+}
+
+int
+Rpl_filter::add_string_pair_list(I_List<i_string_pair> *list, char* key, char *val)
+{
+  char *dup_key, *dup_val;
+  i_string_pair *node;
+
+  if (! (dup_key= my_strdup(key_memory_rpl_filter, key, MYF(MY_WME))))
+    return true; /* purecov: inspected */
+  if (! (dup_val= my_strdup(key_memory_rpl_filter, val, MYF(MY_WME))))
+  {
+    /* purecov: begin inspected */
+    my_free(dup_key);
+    return true;
+    /* purecov: end */
+  }
+
+  if (! (node= new i_string_pair(dup_key, dup_val)))
+  {
+    /* purecov: begin inspected */
+    my_free(dup_key);
+    my_free(dup_val);
+    return true;
+    /* purecov: end */
+  }
+
+  list->push_back(node);
+
+  return false;
+}
+
+int
+Rpl_filter::add_do_db(const char* table_spec)
+{
+  DBUG_ENTER("Rpl_filter::add_do_db");
+  int ret= add_string_list(&do_db, table_spec);
+  DBUG_RETURN(ret);
+}
+
+int
 Rpl_filter::add_ignore_db(const char* table_spec)
 {
   DBUG_ENTER("Rpl_filter::add_ignore_db");
-  i_string *db = new i_string(table_spec);
-  ignore_db.push_back(db);
-  DBUG_VOID_RETURN;
+  int ret= add_string_list(&ignore_db, table_spec);
+  DBUG_RETURN(ret);
 }
 
 extern "C" uchar *get_table_key(const uchar *, size_t *, my_bool);
@@ -584,6 +796,35 @@ Rpl_filter::free_string_array(DYNAMIC_ARRAY *a)
   delete_dynamic(a);
 }
 
+void
+Rpl_filter::free_string_list(I_List<i_string> *l)
+{
+  void *ptr;
+  i_string *tmp;
+
+  while ((tmp= l->get()))
+  {
+    ptr= (void *) tmp->ptr;
+    my_free(ptr);
+    delete tmp;
+  }
+
+  l->empty();
+}
+
+void
+Rpl_filter::free_string_pair_list(I_List<i_string_pair> *pl)
+{
+  i_string_pair *tmp;
+  while ((tmp= pl->get()))
+  {
+    my_free((void*)tmp->key);
+    my_free((void*)tmp->val);
+    delete tmp;
+  }
+
+  pl->empty();
+}
 
 /*
   Builds a String from a HASH of TABLE_RULE_ENT. Cannot be used for any other 
@@ -661,6 +902,27 @@ Rpl_filter::get_wild_ignore_table(String* str)
   table_rule_ent_dynamic_array_to_str(str, &wild_ignore_table, wild_ignore_table_inited);
 }
 
+void
+Rpl_filter::get_rewrite_db(String *str)
+{
+  str->length(0);
+  if (!rewrite_db.is_empty())
+  {
+    I_List_iterator<i_string_pair> it(rewrite_db);
+    i_string_pair* s;
+    while ((s= it++))
+    {
+      str->append('(');
+      str->append(s->key);
+      str->append(',');
+      str->append(s->val);
+      str->append(')');
+      str->append(',');
+    }
+    // Remove last ',' str->chop();
+    str->chop();
+  }
+}
 
 const char*
 Rpl_filter::get_rewrite_db(const char* db, size_t *new_len)
@@ -698,4 +960,109 @@ I_List<i_string>*
 Rpl_filter::get_ignore_db()
 {
   return &ignore_db;
+}
+
+bool Sql_cmd_change_repl_filter::execute(THD *thd)
+{
+  DBUG_ENTER("Sql_cmd_change_rpl_filter::execute");
+  bool rc= change_rpl_filter(thd);
+  DBUG_RETURN(rc);
+}
+
+void Sql_cmd_change_repl_filter::set_filter_value(List<Item>* item_list,
+                                                  options_mysqld filter_type)
+{
+  DBUG_ENTER("Sql_cmd_change_repl_filter::set_filter_rule");
+  switch (filter_type)
+  {
+  case OPT_REPLICATE_DO_DB:
+    do_db_list= item_list;
+    break;
+  case OPT_REPLICATE_IGNORE_DB:
+    ignore_db_list= item_list;
+    break;
+  case OPT_REPLICATE_DO_TABLE:
+    do_table_list= item_list;
+    break;
+  case OPT_REPLICATE_IGNORE_TABLE:
+    ignore_table_list= item_list;
+    break;
+  case OPT_REPLICATE_WILD_DO_TABLE:
+    wild_do_table_list= item_list;
+    break;
+  case OPT_REPLICATE_WILD_IGNORE_TABLE:
+    wild_ignore_table_list= item_list;
+    break;
+  case OPT_REPLICATE_REWRITE_DB:
+    rewrite_db_pair_list= item_list;
+    break;
+  default:
+    /* purecov: begin deadcode */
+    DBUG_ASSERT(0);
+    break;
+    /* purecov: end */
+  }
+  DBUG_VOID_RETURN;
+}
+
+/**
+  Execute a CHANGE REPLICATION FILTER statement to set filter rules.
+
+  @param thd A pointer to the thread handler object.
+
+  @param mi Pointer to Master_info object belonging to the slave's IO
+  thread.
+
+  @retval FALSE success
+  @retval TRUE error
+ */
+bool Sql_cmd_change_repl_filter::change_rpl_filter(THD* thd)
+{
+  DBUG_ENTER("change_rpl_filter");
+  bool ret= true;
+#ifdef HAVE_REPLICATION
+  int thread_mask;
+  Master_info * mi= active_mi;
+  if (check_global_access(thd, SUPER_ACL))
+    goto err;
+  mysql_mutex_lock(&LOCK_active_mi);
+  if (mi == NULL)
+  {
+    my_message(ER_SLAVE_CONFIGURATION, ER(ER_SLAVE_CONFIGURATION),
+               MYF(0));
+    mysql_mutex_unlock(&LOCK_active_mi);
+    goto err;
+  }
+  mysql_mutex_lock(&mi->rli->run_lock); /* lock slave_sql_thread */
+  init_thread_mask(&thread_mask, mi, 0 /*not inverse*/);
+  if (thread_mask & SLAVE_SQL) /* We refuse if any slave thread is running */
+  {
+    my_message(ER_SLAVE_SQL_THREAD_MUST_STOP, ER(ER_SLAVE_SQL_THREAD_MUST_STOP), MYF(0));
+    mysql_mutex_unlock(&LOCK_active_mi);
+    mysql_mutex_unlock(&mi->rli->run_lock);
+    goto err;
+  }
+   if (!rpl_filter->set_do_db(do_db_list)
+      && !rpl_filter->set_ignore_db(ignore_db_list)
+      && !rpl_filter->set_do_table(do_table_list)
+      && !rpl_filter->set_ignore_table(ignore_table_list)
+      && !rpl_filter->set_wild_do_table(wild_do_table_list)
+      && !rpl_filter->set_wild_ignore_table(wild_ignore_table_list)
+      && rpl_filter->set_db_rewrite(rewrite_db_pair_list))
+  {
+    /* purecov: begin inspected */
+    my_error(ER_OUTOFMEMORY, MYF(ME_FATALERROR), 0);
+    mysql_mutex_unlock(&LOCK_active_mi);
+    mysql_mutex_unlock(&mi->rli->run_lock);
+    goto err;
+    /* purecov: end */
+  }
+  my_ok(thd);
+  ret= false;
+  mysql_mutex_unlock(&LOCK_active_mi);
+  mysql_mutex_unlock(&mi->rli->run_lock);
+
+err:
+#endif //HAVE_REPLICATION
+  DBUG_RETURN(ret);
 }

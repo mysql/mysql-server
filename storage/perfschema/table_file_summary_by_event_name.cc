@@ -1,4 +1,4 @@
-/* Copyright (c) 2008, 2011, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2008, 2013, Oracle and/or its affiliates. All rights reserved.
 
   This program is free software; you can redistribute it and/or modify
   it under the terms of the GNU General Public License as published by
@@ -242,7 +242,7 @@ void table_file_summary_by_event_name::make_row(PFS_file_class *file_class)
   PFS_instance_iterator::visit_file_instances(file_class, &visitor);
 
   time_normalizer *normalizer= time_normalizer::get(wait_timer);
-  
+
   /* Collect timer and byte count stats */
   m_row.m_io_stat.set(normalizer, &visitor.m_file_io_stat);
   m_row_exists= true;

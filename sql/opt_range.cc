@@ -367,9 +367,13 @@ public:
   */
   uint16 elements;
   /*
-    Valid only for elements which are RB-tree roots: Number of times this
-    RB-tree is referred to (it is referred by SEL_ARG::next_key_part or by
-    SEL_TREE::keys[i] or by a temporary SEL_ARG* variable)
+    Valid only for elements which are RB-tree roots: Number of
+    references to this SEL_ARG tree. References may be from
+    SEL_ARG::next_key_part of SEL_ARGs from earlier keyparts or
+    SEL_TREE::keys[i].
+
+    The SEL_ARGs are re-used in a lazy-copy manner based on this
+    reference counting.
   */
   ulong use_count;
 
@@ -645,14 +649,37 @@ public:
   {
     return !next_key_part && elements == 1;
   }
+  /**
+    Update use_count of all SEL_ARG trees for later keyparts to
+    reflect that this SEL_ARG tree is now referred to 'count' more
+    times than it used to be (either through SEL_TREE::keys[] or
+    SEL_ARG::next_key_part pointers).
+
+    This function does NOT update use_count of the current SEL_ARG
+    object.
+
+    @param count The number of additional references to this SEL_ARG
+                 tree.
+
+    @todo consider refactoring this function to also increase
+          use_count of 'this' instead of incrementing use_count only
+          on later keyparts.
+  */
   void increment_use_count(long count)
   {
-    if (next_key_part)
+    /*
+      Increment use_count for all SEL_ARG trees referenced via
+      next_key_part from any SEL_ARG in this tree.
+    */
+    for (SEL_ARG *cur_selarg= first();
+         cur_selarg;
+         cur_selarg= cur_selarg->next)
     {
-      next_key_part->use_count+=count;
-      for (SEL_ARG *pos=next_key_part->first(); pos ; pos=pos->next)
-	if (pos->next_key_part)
-	  pos->increment_use_count(count);
+      if (cur_selarg->next_key_part)
+      {
+        cur_selarg->next_key_part->use_count+= count;
+        cur_selarg->next_key_part->increment_use_count(count);
+      }
     }
   }
   void free_tree()
@@ -950,15 +977,17 @@ static void append_range_all_keyparts(Opt_trace_array *range_trace,
                                       String *range_string,
                                       String *range_so_far,
                                       SEL_ARG *keypart_root,
-                                      const KEY_PART_INFO *key_parts);
+                                      const KEY_PART_INFO *key_parts,
+                                      const bool print_full);
 static inline void dbug_print_tree(const char *tree_name,
-                                   SEL_TREE *tree, 
+                                   SEL_TREE *tree,
                                    const RANGE_OPT_PARAM *param);
 
 static inline void print_tree(String *out,
                               const char *tree_name,
-                              SEL_TREE *tree, 
-                              const RANGE_OPT_PARAM *param);
+                              SEL_TREE *tree,
+                              const RANGE_OPT_PARAM *param,
+                              const bool print_full);
 
 void append_range(String *out,
                   const KEY_PART_INFO *key_parts,
@@ -2238,8 +2267,8 @@ void TRP_RANGE::trace_basic_info(const PARAM *param,
 
   String range_info;
   range_info.set_charset(system_charset_info);
-  append_range_all_keyparts(&trace_range, NULL, &range_info, key, key_part);
-
+  append_range_all_keyparts(&trace_range, NULL, &range_info,
+                            key, key_part, false);
 #endif
 }
 
@@ -2513,7 +2542,7 @@ void TRP_GROUP_MIN_MAX::trace_basic_info(const PARAM *param,
     String range_info;
     range_info.set_charset(system_charset_info);
     append_range_all_keyparts(&trace_range, NULL,
-                              &range_info, index_tree, key_part);
+                              &range_info, index_tree, key_part, false);
   }
 #endif
 }
@@ -2913,7 +2942,7 @@ int SQL_SELECT::test_quick_select(THD *thd, key_map keys_to_use,
           LINT_INIT(new_conj_trp); /* no empty index_merge lists possible */
           List_iterator_fast<SEL_IMERGE> it(tree->merges);
           Opt_trace_array trace_idx_merge(trace,
-                                          "analyzing_index_merge",
+                                          "analyzing_index_merge_union",
                                           Opt_trace_context::RANGE_OPTIMIZER);
           while ((imerge= it++))
           {
@@ -5588,8 +5617,8 @@ static TRP_RANGE *get_key_scans_params(PARAM *param, SEL_TREE *tree,
 
         String range_info;
         range_info.set_charset(system_charset_info);
-        append_range_all_keyparts(&trace_range, NULL,
-                                  &range_info, *key, key_part);
+        append_range_all_keyparts(&trace_range, NULL, &range_info,
+                                  *key, key_part, false);
         trace_range.end(); // NOTE: ends the tracing scope
 
         trace_idx.add("index_dives_for_eq_ranges", !param->use_index_statistics).
@@ -7059,7 +7088,9 @@ get_mm_leaf(RANGE_OPT_PARAM *param, Item *conf_func, Field *field,
 
   switch (type) {
   case Item_func::LT_FUNC:
-    if (stored_field_cmp_to_item(param->thd, field, value) == 0)
+    /* Don't use open ranges for partial key_segments */
+    if ((!(key_part->flag & HA_PART_KEY_SEG)) &&
+        stored_field_cmp_to_item(param->thd, field, value) == 0)
       tree->max_flag=NEAR_MAX;
     /* fall through */
   case Item_func::LE_FUNC:
@@ -7395,7 +7426,7 @@ tree_or(RANGE_OPT_PARAM *param,SEL_TREE *tree1,SEL_TREE *tree2)
   if (!tree1->merges.is_empty())
   {
     for (uint i= 0; i < param->keys; i++)
-      if (tree1->keys[i] != NULL && tree2->keys[i] != &null_element)
+      if (tree1->keys[i] != NULL && tree1->keys[i] != &null_element)
       {
         tree1->merges.empty();
         break;
@@ -11838,7 +11869,7 @@ get_best_group_min_max(PARAM *param, SEL_TREE *tree, double read_time)
         String range_info;
         range_info.set_charset(system_charset_info);
         append_range_all_keyparts(&trace_range, NULL, &range_info,
-                                  cur_index_tree, key_part);
+                                  cur_index_tree, key_part, false);
       }
 #endif
     }
@@ -13771,7 +13802,11 @@ print_key_value(String *out, const KEY_PART_INFO *key_part, const uchar *key)
 
   if (field->flags & BLOB_FLAG)
   {
-    out->append(STRING_WITH_LEN("unprintable_blob_value"));    
+    // Byte 0 of a nullable key is the null-byte. If set, key is NULL.
+    if (field->real_maybe_null() && *key)
+      out->append(STRING_WITH_LEN("NULL"));
+    else
+      out->append(STRING_WITH_LEN("unprintable_blob_value"));    
     return;
   }
 
@@ -13862,12 +13897,14 @@ void append_range(String *out,
   @param[in,out] range_string  The string where range predicates are
                                appended when the last keypart has
                                been reached.
-  @param[in]     range_so_far  String containing ranges for keyparts prior
+  @param         range_so_far  String containing ranges for keyparts prior
                                to this keypart.
-  @param[in]     keypart_root  The root of the R-B tree containing intervals
+  @param         keypart_root  The root of the R-B tree containing intervals
                                for this keypart.
-  @param[in]     key_parts     Index components description, used when adding
+  @param         key_parts     Index components description, used when adding
                                information to the optimizer trace
+  @param         print_full    Whether or not ranges on unusable keyparts
+                               should be printed. Useful for debugging.
 
   @note This function mimics the behavior of sel_arg_range_seq_next()
 */
@@ -13875,7 +13912,8 @@ static void append_range_all_keyparts(Opt_trace_array *range_trace,
                                       String *range_string,
                                       String *range_so_far,
                                       SEL_ARG *keypart_root,
-                                      const KEY_PART_INFO *key_parts)
+                                      const KEY_PART_INFO *key_parts,
+                                      const bool print_full)
 {
   DBUG_ASSERT(keypart_root && keypart_root != &null_element);
 
@@ -13908,19 +13946,23 @@ static void append_range_all_keyparts(Opt_trace_array *range_trace,
                  keypart_range->min_value, keypart_range->max_value,
                  keypart_range->min_flag | keypart_range->max_flag);
 
-    /* 
+    /*
       Print range predicates for consecutive keyparts if
-      1) There are predicates for later keyparts
-      2) There are no "holes" in the used keyparts (keypartX can only
-         be used if there is a range predicate on keypartX-1)
-      3) The current range is an equality range
+      1) There are predicates for later keyparts, and
+      2) We explicitly requested to print even the ranges that will
+         not be usable by range access, or
+      3) There are no "holes" in the used keyparts (keypartX can only
+         be used if there is a range predicate on keypartX-1), and
+      4) The current range is an equality range
      */
-    if (keypart_range->next_key_part &&
-        keypart_range->next_key_part->part == keypart_range->part + 1 &&
-        keypart_range->is_singlepoint())
+    if (keypart_range->next_key_part &&                                    // 1
+        (print_full ||                                                     // 2
+         (keypart_range->next_key_part->part == keypart_range->part + 1 && // 3
+          keypart_range->is_singlepoint())))                               // 4
     {
       append_range_all_keyparts(range_trace, range_string, range_so_far,
-                                keypart_range->next_key_part, key_parts);
+                                keypart_range->next_key_part, key_parts,
+                                print_full);
     }
     else
     {
@@ -13964,14 +14006,15 @@ static inline void dbug_print_tree(const char *tree_name,
                                    const RANGE_OPT_PARAM *param)
 {
 #ifndef DBUG_OFF
-  print_tree(NULL, tree_name, tree, param);
+  print_tree(NULL, tree_name, tree, param, true);
 #endif
 }
 
 static inline void print_tree(String *out,
                               const char *tree_name,
                               SEL_TREE *tree,
-                              const RANGE_OPT_PARAM *param)
+                              const RANGE_OPT_PARAM *param,
+                              const bool print_full)
 {
   if (!param->using_real_indexes)
   {
@@ -14064,7 +14107,7 @@ static inline void print_tree(String *out,
       for (SEL_TREE** current= el->trees;
            current != el->trees_next;
            current++)
-        print_tree(out, "  merge_tree", *current, param);
+        print_tree(out, "  merge_tree", *current, param, print_full);
     }
   }
 
@@ -14095,7 +14138,7 @@ static inline void print_tree(String *out,
     range_so_far.length(0);
 
     append_range_all_keyparts(NULL, &range_result, &range_so_far,
-                              tree->keys[i], key_part);
+                              tree->keys[i], key_part, print_full);
 
     if (out)
     {

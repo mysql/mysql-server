@@ -265,7 +265,7 @@ JOIN::optimize()
   }
 
 #ifdef WITH_PARTITION_STORAGE_ENGINE
-  if (select_lex->partitioned_table_count && prune_table_partitions(thd))
+  if (select_lex->partitioned_table_count && prune_table_partitions())
   {
     error= 1;
     DBUG_PRINT("error", ("Error from prune_partitions"));
@@ -1071,11 +1071,10 @@ void JOIN::set_plan_state(enum_plan_state plan_state_arg)
 
   Requires that tables have been locked.
 
-  @param thd Thread pointer
-
   @returns false if success, true if error
 */
-bool JOIN::prune_table_partitions(THD *thd)
+
+bool JOIN::prune_table_partitions()
 {
   DBUG_ASSERT(select_lex->partitioned_table_count);
 
@@ -6076,9 +6075,9 @@ set_position(JOIN *join, uint idx, JOIN_TAB *table, Key_use *key)
 {
   join->positions[idx].table= table;
   join->positions[idx].key=key;
-  join->positions[idx].records_read=1.0;	/* This is a const table */
+  join->positions[idx].fanout=1.0;         /* This is a const table */
   join->positions[idx].prefix_record_count= 1.0;
-  join->positions[idx].read_time= 0.0;
+  join->positions[idx].read_cost= 0.0;
   join->positions[idx].ref_depend_map= 0;
 
   join->positions[idx].loosescan_key= MAX_KEY; /* Not a LooseScan */
@@ -7731,7 +7730,7 @@ static bool make_join_select(JOIN *join, Item *cond)
 	tab->use_quick=QS_RANGE;
         tab->ref.key= -1;
 	tab->ref.key_parts=0;		// Don't use ref key.
-	tab->position->records_read= rows2double(tab->quick->records);
+	tab->position->fanout= rows2double(tab->quick->records);
         /* 
           We will use join cache here : prevent sorting of the first
           table only and sort at the end.
@@ -7883,11 +7882,11 @@ static bool make_join_select(JOIN *join, Item *cond)
                (join->select_lex->master_unit()->item &&
                 cond->used_tables() & OUTER_REF_TABLE_BIT)))
             recheck_reason= NOT_FIRST_TABLE;
-          else if (!tab->const_keys.is_clear_all() &&               // 2a
-                   i == join->const_tables &&                       // 2b
+          else if (!tab->const_keys.is_clear_all() &&                // 2a
+                   i == join->const_tables &&                        // 2b
                    (join->unit->select_limit_cnt <
-                    tab->position->records_read) &&                 // 2c
-                   !(join->select_options & OPTION_FOUND_ROWS))     // 2d
+                    tab->position->fanout) &&                        // 2c
+                   !(join->select_options & OPTION_FOUND_ROWS))      // 2d
             recheck_reason= LOW_LIMIT;
 
           if (recheck_reason != DONT_RECHECK)
@@ -7900,7 +7899,7 @@ static bool make_join_select(JOIN *join, Item *cond)
             else
               trace_table.add_alnum("recheck_reason", "low_limit").
                 add("limit", join->unit->select_limit_cnt).
-                add("row_estimate", tab->position->records_read);
+                add("row_estimate", tab->position->fanout);
 
             /* Join with outer join condition */
             Item *orig_cond=sel->cond;
@@ -8026,7 +8025,7 @@ static bool make_join_select(JOIN *join, Item *cond)
 
 	    /* Fix for EXPLAIN */
 	    if (sel->quick)
-	      tab->position->records_read= (double)sel->quick->records;
+	      tab->position->fanout= (double)sel->quick->records;
           } // end of "if (recheck_reason != DONT_RECHECK)"
           else
             sel->needed_reg= tab->needed_reg;
@@ -9730,13 +9729,13 @@ bool JOIN::compare_costs_of_subquery_strategies(
         /*
           Subquery is attached to a certain 'pos', pos[-1].prefix_record_count
           is the number of times we'll start a loop accessing 'pos'; each such
-          loop will read pos->records_read records of 'pos', so subquery will
-          be evaluated pos[-1].prefix_record_count * pos->records_read times.
+          loop will read pos->fanout records of 'pos', so subquery will
+          be evaluated pos[-1].prefix_record_count * pos->fanout times.
           Exceptions:
           - if 'pos' is first, use 1 instead of pos[-1].prefix_record_count
           - if 'pos' is first of a sjerialization-mat nest, same.
 
-          If in a sj-materialization nest, pos->records_read and
+          If in a sj-materialization nest, pos->fanout and
           pos[-1].prefix_record_count are of the "nest materialization" plan
           (copied back in fix_semijoin_strategies()), which is
           appropriate as it corresponds to evaluations of our subquery.
@@ -9745,7 +9744,7 @@ bool JOIN::compare_costs_of_subquery_strategies(
         DBUG_ASSERT((int)idx >= 0 && idx < parent_join->tables);
         trace_parent.add("subq_attached_to_table", true);
         trace_parent.add_utf8_table(parent_join->join_tab[idx].table);
-        parent_fanout= parent_join->join_tab[idx].position->records_read;
+        parent_fanout= parent_join->join_tab[idx].position->fanout;
         if ((idx > parent_join->const_tables) &&
             !sj_is_materialize_strategy(parent_join
                                         ->join_tab[idx].position->sj_strategy))

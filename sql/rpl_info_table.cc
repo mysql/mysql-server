@@ -45,9 +45,9 @@ Rpl_info_table::Rpl_info_table(uint nparam,
       my_malloc(key_memory_Rpl_info_table,
                 str_schema.length + str_table.length + 2, MYF(0))))
   {
-    char *pos= strmov(description, param_schema);
-    pos= strmov(pos, ".");
-    pos= strmov(pos, param_table);
+    char *pos= my_stpcpy(description, param_schema);
+    pos= my_stpcpy(pos, ".");
+    pos= my_stpcpy(pos, param_table);
   }
 
   access= new Rpl_info_table_access();

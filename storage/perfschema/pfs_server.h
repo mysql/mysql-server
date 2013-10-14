@@ -160,7 +160,7 @@ struct PFS_global_param
   long m_file_handle_sizing;
   /**
     Maxium number of instrumented socket instances
-    @sa socket_lost  
+    @sa socket_lost
   */
   long m_socket_sizing;
   /**
@@ -206,7 +206,7 @@ struct PFS_global_param
   long m_program_sizing;
   /** Maximum number of session attribute strings per thread */
   long m_session_connect_attrs_sizing;
-  /** Maximum size of statement stack */ 
+  /** Maximum size of statement stack */
   ulong m_statement_stack_sizing;
 
   /**

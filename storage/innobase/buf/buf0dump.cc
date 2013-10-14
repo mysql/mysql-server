@@ -185,7 +185,7 @@ buf_dump(
 	int	ret;
 
 	ut_snprintf(full_filename, sizeof(full_filename),
-		    "%s%c%s", srv_data_home, SRV_PATH_SEPARATOR,
+		    "%s%c%s", srv_data_home, OS_PATH_SEPARATOR,
 		    srv_buf_dump_filename);
 
 	ut_snprintf(tmp_filename, sizeof(tmp_filename),
@@ -421,7 +421,7 @@ buf_load()
 	buf_load_abort_flag = FALSE;
 
 	ut_snprintf(full_filename, sizeof(full_filename),
-		    "%s%c%s", srv_data_home, SRV_PATH_SEPARATOR,
+		    "%s%c%s", srv_data_home, OS_PATH_SEPARATOR,
 		    srv_buf_dump_filename);
 
 	buf_load_status(STATUS_NOTICE,

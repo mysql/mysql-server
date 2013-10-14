@@ -6706,7 +6706,7 @@ create table t2 (id int, a int, primary key(id), key(a)) as select a as id, a as
 show create table t2;
 Table	Create Table
 t2	CREATE TABLE `t2` (
-  `id` int(11) NOT NULL DEFAULT '0',
+  `id` int(11) NOT NULL,
   `a` int(11) DEFAULT NULL,
   PRIMARY KEY (`id`),
   KEY `a` (`a`)

@@ -134,7 +134,7 @@ srv_conc_init(void)
 	UT_LIST_INIT(srv_conc_queue, &srv_conc_slot_t::srv_conc_queue);
 
 	srv_conc_slots = static_cast<srv_conc_slot_t*>(
-		mem_zalloc(OS_THREAD_MAX_N * sizeof(*srv_conc_slots)));
+		ut_zalloc(OS_THREAD_MAX_N * sizeof(*srv_conc_slots)));
 
 	for (i = 0; i < OS_THREAD_MAX_N; i++) {
 		srv_conc_slot_t*	conc_slot = &srv_conc_slots[i];
@@ -153,7 +153,7 @@ srv_conc_free(void)
 {
 #ifndef HAVE_ATOMIC_BUILTINS
 	mutex_free(&srv_conc_mutex);
-	mem_free(srv_conc_slots);
+	ut_free(srv_conc_slots);
 	srv_conc_slots = NULL;
 #endif /* !HAVE_ATOMIC_BUILTINS */
 }

@@ -2524,6 +2524,17 @@ sub environment_setup {
   {
     $ENV{'MYSQLHOTCOPY'}= $mysqlhotcopy;
   }
+  # ----------------------------------------------------
+  # mysqld_safe
+  # ----------------------------------------------------
+  my $mysqld_safe=
+    mtr_pl_maybe_exists("$bindir/scripts/mysqld_safe") ||
+    mtr_pl_maybe_exists("$path_client_bindir/mysqld_safe");
+  if ($mysqld_safe)
+  {
+    $ENV{'MYSQLD_SAFE'}= $mysqld_safe;
+  }
+
 
   # ----------------------------------------------------
   # perror

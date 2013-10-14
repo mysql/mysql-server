@@ -637,7 +637,7 @@ then
 fi
 if [ -z "$PID_FILE_PATT" ]
 then
-  PID_FILE_PATT="$mysql_datadir/*.pid"
+  PID_FILE_PATT=$(find $mysql_datadir -name '*.pid' ! -name mysqld_safe.pid -print)
 fi
 
 # Check if we can safely upgrade.  An upgrade is only safe if it's from one
@@ -719,7 +719,12 @@ fi
 
 # We assume that if there is exactly one ".pid" file,
 # it contains the valid PID of a running MySQL server.
-NR_PID_FILES=`ls $PID_FILE_PATT 2>/dev/null | wc -l`
+if [ -z "$PID_FILE_PATT" ]; then
+    NR_PID_FILES=0
+else
+    NR_PID_FILES=$(echo "$PID_FILE_PATT" | wc -l)
+fi
+
 case $NR_PID_FILES in
 	0 ) SERVER_TO_START=''  ;;  # No "*.pid" file == no running server
 	1 ) SERVER_TO_START='true' ;;
@@ -1292,6 +1297,9 @@ echo "====="                                                       >> $STATUS_HI
 # merging BK trees)
 ##############################################################################
 %changelog
+* Thu Sep 12 2013 Balasubramanian Kandasamy <balasubramanian.kandasamy@oracle.com>
+- Added logic to ignore mysqld_safe.pid file created by mysqld_safe script
+
 * Fri Aug 16 2013 Balasubramanian Kandasamy <balasubramanian.kandasamy@oracle.com>
 - Added provides lowercase mysql tags  
 

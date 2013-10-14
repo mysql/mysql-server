@@ -472,8 +472,8 @@ list_dbs(MYSQL *mysql,const char *wild)
       }
       else
       {
-	strmov(tables,"N/A");
-	strmov(rows,"N/A");
+	my_stpcpy(tables,"N/A");
+	my_stpcpy(rows,"N/A");
       }
     }
 
@@ -578,8 +578,8 @@ list_tables(MYSQL *mysql,const char *db,const char *table)
 	ulong rowcount=0L;
 	if (!rresult)
 	{
-	  strmov(fields,"N/A");
-	  strmov(rows,"N/A");
+	  my_stpcpy(fields,"N/A");
+	  my_stpcpy(rows,"N/A");
 	}
 	else
 	{
@@ -608,8 +608,8 @@ list_tables(MYSQL *mysql,const char *db,const char *table)
       }
       else
       {
-	strmov(fields,"N/A");
-	strmov(rows,"N/A");
+	my_stpcpy(fields,"N/A");
+	my_stpcpy(rows,"N/A");
       }
     }
     if (opt_table_type)

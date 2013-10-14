@@ -40,10 +40,61 @@
 
 typedef std::set<THD*>::iterator Thread_iterator;
 
+#ifdef __cplusplus
+extern "C" {
+#endif
+
+/**
+   This structure must be populated by plugins which implement connection
+   handlers and passed as an argument to my_connection_handler_set() in
+   order to activate the connection handler.
+
+   The structure contains pointers to plugin functions which the server
+   will call when a new client connects or when the connection handler is
+   unloaded. It also containts the maximum number of threads the connection
+   handler will create.
+*/
+struct Connection_handler_functions
+{
+  /**
+     The maximum number of threads this connection handler will create.
+  */
+  uint max_threads;
+
+  /**
+     Called by the server when a new client connects.
+
+     @param channel_info  Pointer to object containing information
+                          about the new connection.
+
+     @retval true  failure
+     @retval false success
+  */
+  bool (*add_connection)(Channel_info *channel_info);
+
+  /**
+     Called by the server when the connection handler is destroyed.
+  */
+  void (*end)(void);
+};
+
 /* create thd from channel_info object */
 THD* create_thd(Channel_info* channel_info);
 /* destroy channel_info object */
 void destroy_channel_info(Channel_info* channel_info);
+/* Decrement connection counter */
+void dec_connection_count();
+/*
+  thread_created is maintained by thread pool when activated since
+  user threads are created by the thread pool (and also special
+  threads to maintain the thread pool). This is done through
+  inc_thread_created.
+*/
+void inc_thread_created();
+
+#ifdef __cplusplus
+}
+#endif
 
 /* Needed to get access to scheduler variables */
 void* thd_get_scheduler_data(THD *thd);
@@ -112,8 +163,6 @@ void close_connection(THD *thd, uint errcode);
 void end_connection(THD *thd);
 /* Release resources of the THD object */
 void thd_release_resources(THD *thd);
-/* Decrement connection counter */
-void dec_connection_count();
 /* Reset the context associated with the thread */
 void restore_globals(THD *thd);
 /* Destroy THD object */
@@ -122,21 +171,16 @@ void destroy_thd(THD *thd);
 void remove_global_thread(THD *thd);
 
 /*
-  thread_created is maintained by thread pool when activated since
-  user threads are created by the thread pool (and also special
-  threads to maintain the thread pool). This is done through
-  inc_thread_created.
-
   max_connections is needed to calculate the maximum number of threads
   that is allowed to be started by the thread pool. The method
   get_max_connections() gets reference to this variable.
-
+*/
+ulong get_max_connections(void);
+/*
   connection_attrib is the thread attributes for connection threads,
   the method get_connection_attrib provides a reference to these
   attributes.
 */
-void inc_thread_created(void);
-void inc_aborted_connects(void);
-ulong get_max_connections(void);
 pthread_attr_t *get_connection_attrib(void);
-#endif
+
+#endif // THREAD_POOL_PRIV_INCLUDED

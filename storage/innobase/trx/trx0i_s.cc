@@ -255,7 +255,7 @@ table_cache_free(
 		/* the memory is actually allocated in
 		table_cache_create_empty_row() */
 		if (table_cache->chunks[i].base) {
-			mem_free(table_cache->chunks[i].base);
+			ut_free(table_cache->chunks[i].base);
 			table_cache->chunks[i].base = NULL;
 		}
 	}
@@ -336,7 +336,8 @@ table_cache_create_empty_row(
 
 		chunk = &table_cache->chunks[i];
 
-		chunk->base = mem_alloc2(req_bytes, &got_bytes);
+		got_bytes = req_bytes;
+		chunk->base = ut_malloc(req_bytes);
 
 		got_rows = got_bytes / table_cache->row_size;
 

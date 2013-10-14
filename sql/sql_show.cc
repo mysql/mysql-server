@@ -524,9 +524,9 @@ ignore_db_dirs_process_additions()
     get_dynamic(&ignore_db_dirs_array, (uchar *) &dir, i);
     if (my_hash_insert(&ignore_db_dirs_hash, (uchar *) dir))
       return true;
-    ptr= strnmov(ptr, dir->str, dir->length);
+    ptr= my_stpnmov(ptr, dir->str, dir->length);
     if (i + 1 < ignore_db_dirs_array.elements)
-      ptr= strmov(ptr, ",");
+      ptr= my_stpcpy(ptr, ",");
 
     /*
       Set the transferred array element to NULL to avoid double free
@@ -1095,15 +1095,14 @@ mysqld_list_fields(THD *thd, TABLE_LIST *table_list, const char *wild)
 
 static const char *require_quotes(const char *name, uint name_length)
 {
-  uint length;
   bool pure_digit= TRUE;
   const char *end= name + name_length;
 
   for (; name < end ; name++)
   {
     uchar chr= (uchar) *name;
-    length= my_mbcharlen(system_charset_info, chr);
-    if (length == 1 && !system_charset_info->ident_map[chr])
+    uint length= my_mbcharlen(system_charset_info, chr);
+    if (length == 0 || (length == 1 && !system_charset_info->ident_map[chr]))
       return name;
     if (length == 1 && (chr < '0' || chr > '9'))
       pure_digit= FALSE;
@@ -2490,7 +2489,7 @@ static bool show_status_array(THD *thd, const char *wild,
   null_lex_str.str= 0;				// For sys_var->value_ptr()
   null_lex_str.length= 0;
 
-  prefix_end=strnmov(name_buffer, prefix, sizeof(name_buffer)-1);
+  prefix_end=my_stpnmov(name_buffer, prefix, sizeof(name_buffer)-1);
   if (*prefix)
     *prefix_end++= '_';
   len=name_buffer + sizeof(name_buffer) - prefix_end;
@@ -2498,7 +2497,7 @@ static bool show_status_array(THD *thd, const char *wild,
 
   for (; variables->name; variables++)
   {
-    strnmov(prefix_end, variables->name, len);
+    my_stpnmov(prefix_end, variables->name, len);
     name_buffer[sizeof(name_buffer)-1]=0;       /* Safety */
     if (ucase_names)
       make_upper(name_buffer);
@@ -2571,10 +2570,10 @@ static bool show_status_array(THD *thd, const char *wild,
           end= longlong10_to_str((longlong) *(ha_rows*) value, buff, 10);
           break;
         case SHOW_BOOL:
-          end= strmov(buff, *(bool*) value ? "ON" : "OFF");
+          end= my_stpcpy(buff, *(bool*) value ? "ON" : "OFF");
           break;
         case SHOW_MY_BOOL:
-          end= strmov(buff, *(my_bool*) value ? "ON" : "OFF");
+          end= my_stpcpy(buff, *(my_bool*) value ? "ON" : "OFF");
           break;
         case SHOW_INT:
           end= int10_to_str((long) *(uint32*) value, buff, 10);
@@ -3726,8 +3725,8 @@ static int fill_schema_table_from_frm(THD *thd, TABLE_LIST *tables,
       cache subsystems require normalized (lowercased) database and table
       names as input.
     */
-    strmov(db_name_buff, db_name->str);
-    strmov(table_name_buff, table_name->str);
+    my_stpcpy(db_name_buff, db_name->str);
+    my_stpcpy(table_name_buff, table_name->str);
     my_casedn_str(files_charset_info, db_name_buff);
     my_casedn_str(files_charset_info, table_name_buff);
     table_list.db= db_name_buff;
@@ -4336,51 +4335,51 @@ static int get_schema_tables_record(THD *thd, TABLE_LIST *tables,
 
     if (share->min_rows)
     {
-      ptr=strmov(ptr," min_rows=");
+      ptr=my_stpcpy(ptr," min_rows=");
       ptr=longlong10_to_str(share->min_rows,ptr,10);
     }
 
     if (share->max_rows)
     {
-      ptr=strmov(ptr," max_rows=");
+      ptr=my_stpcpy(ptr," max_rows=");
       ptr=longlong10_to_str(share->max_rows,ptr,10);
     }
 
     if (share->avg_row_length)
     {
-      ptr=strmov(ptr," avg_row_length=");
+      ptr=my_stpcpy(ptr," avg_row_length=");
       ptr=longlong10_to_str(share->avg_row_length,ptr,10);
     }
 
     if (share->db_create_options & HA_OPTION_PACK_KEYS)
-      ptr=strmov(ptr," pack_keys=1");
+      ptr=my_stpcpy(ptr," pack_keys=1");
 
     if (share->db_create_options & HA_OPTION_NO_PACK_KEYS)
-      ptr=strmov(ptr," pack_keys=0");
+      ptr=my_stpcpy(ptr," pack_keys=0");
 
     if (share->db_create_options & HA_OPTION_STATS_PERSISTENT)
-      ptr=strmov(ptr," stats_persistent=1");
+      ptr=my_stpcpy(ptr," stats_persistent=1");
 
     if (share->db_create_options & HA_OPTION_NO_STATS_PERSISTENT)
-      ptr=strmov(ptr," stats_persistent=0");
+      ptr=my_stpcpy(ptr," stats_persistent=0");
 
     if (share->stats_auto_recalc == HA_STATS_AUTO_RECALC_ON)
-      ptr=strmov(ptr," stats_auto_recalc=1");
+      ptr=my_stpcpy(ptr," stats_auto_recalc=1");
     else if (share->stats_auto_recalc == HA_STATS_AUTO_RECALC_OFF)
-      ptr=strmov(ptr," stats_auto_recalc=0");
+      ptr=my_stpcpy(ptr," stats_auto_recalc=0");
 
     if (share->stats_sample_pages != 0)
     {
-      ptr= strmov(ptr, " stats_sample_pages=");
+      ptr= my_stpcpy(ptr, " stats_sample_pages=");
       ptr= longlong10_to_str(share->stats_sample_pages, ptr, 10);
     }
 
     /* We use CHECKSUM, instead of TABLE_CHECKSUM, for backward compability */
     if (share->db_create_options & HA_OPTION_CHECKSUM)
-      ptr=strmov(ptr," checksum=1");
+      ptr=my_stpcpy(ptr," checksum=1");
 
     if (share->db_create_options & HA_OPTION_DELAY_KEY_WRITE)
-      ptr=strmov(ptr," delay_key_write=1");
+      ptr=my_stpcpy(ptr," delay_key_write=1");
 
     if (share->row_type != ROW_TYPE_DEFAULT)
       ptr=strxmov(ptr, " row_format=", 
@@ -4389,13 +4388,13 @@ static int get_schema_tables_record(THD *thd, TABLE_LIST *tables,
 
     if (share->key_block_size)
     {
-      ptr= strmov(ptr, " KEY_BLOCK_SIZE=");
+      ptr= my_stpcpy(ptr, " KEY_BLOCK_SIZE=");
       ptr= longlong10_to_str(share->key_block_size, ptr, 10);
     }
 
 #ifdef WITH_PARTITION_STORAGE_ENGINE
     if (is_partitioned)
-      ptr= strmov(ptr, " partitioned");
+      ptr= my_stpcpy(ptr, " partitioned");
 #endif
 
     table->field[19]->store(option_buff+1,
@@ -4727,7 +4726,7 @@ static int get_schema_column_record(THD *thd, TABLE_LIST *tables,
       if (col_access & 1)
       {
         *end++=',';
-        end=strmov(end,grant_types.type_names[bitnr]);
+        end=my_stpcpy(end,grant_types.type_names[bitnr]);
       }
     }
     table->field[IS_COLUMNS_PRIVILEGES]->store(tmp+1,

@@ -427,7 +427,7 @@ fts_parse_by_parser(
 /*================*/
 	ibool			mode,		/*!< in: parse boolean mode */
 	uchar*			query_str,	/*!< in: query string */
-	uint			query_len,	/*!< in: query string length */
+	ulint			query_len,	/*!< in: query string length */
 	st_mysql_ftparser*	parser,		/*!< in: fts plugin parser */
 	fts_ast_state_t*	state)		/*!< in/out: parser state */
 {
@@ -442,7 +442,7 @@ fts_parse_by_parser(
 	param.mysql_ftparam = static_cast<void*>(state);
 	param.cs = state->charset;
 	param.doc = reinterpret_cast<char*>(query_str);
-	param.length = query_len;
+	param.length = static_cast<int>(query_len);
 	param.flags = 0;
 	param.mode = mode ?
 		     MYSQL_FTPARSER_FULL_BOOLEAN_INFO :

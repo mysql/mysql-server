@@ -1237,12 +1237,7 @@ dict_stats_analyze_index_level(
 	btr_leaf_page_release(btr_pcur_get_block(&pcur), BTR_SEARCH_LEAF, mtr);
 
 	btr_pcur_close(&pcur);
-
-	if (prev_rec_buf != NULL) {
-
-		mem_free(prev_rec_buf);
-	}
-
+	ut_free(prev_rec_buf);
 	mem_heap_free(heap);
 }
 
@@ -1842,7 +1837,7 @@ dict_stats_analyze_index(
 
 	/* set to zero */
 	n_diff_on_level = reinterpret_cast<ib_uint64_t*>
-		(mem_zalloc(n_uniq * sizeof(ib_uint64_t)));
+		(ut_zalloc(n_uniq * sizeof(ib_uint64_t)));
 
 	n_diff_boundaries = new boundaries_t[n_uniq];
 
@@ -1996,7 +1991,7 @@ found_level:
 
 	delete[] n_diff_boundaries;
 
-	mem_free(n_diff_on_level);
+	ut_free(n_diff_on_level);
 
 	dict_stats_assert_initialized_index(index);
 	DBUG_VOID_RETURN;

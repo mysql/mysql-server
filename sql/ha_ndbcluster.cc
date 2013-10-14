@@ -6463,7 +6463,7 @@ void ha_ndbcluster::print_results()
     field= table->field[f];
     if (!(value= m_value[f]).ptr)
     {
-      strmov(buf, "not read");
+      my_stpcpy(buf, "not read");
       goto print_value;
     }
 
@@ -6473,7 +6473,7 @@ void ha_ndbcluster::print_results()
     {
       if (value.rec->isNULL())
       {
-        strmov(buf, "NULL");
+        my_stpcpy(buf, "NULL");
         goto print_value;
       }
       type.length(0);
@@ -6489,7 +6489,7 @@ void ha_ndbcluster::print_results()
       assert(ndb_blob->getState() == NdbBlob::Active);
       ndb_blob->getNull(isNull);
       if (isNull)
-        strmov(buf, "NULL");
+        my_stpcpy(buf, "NULL");
     }
 
 print_value:
@@ -9301,7 +9301,7 @@ adjusted_frag_count(Ndb* ndb,
      */
     char dbname[FN_HEADLEN+1];
     dbname[FN_HEADLEN]= 0;
-    strnmov(dbname, ndb->getDatabaseName(), sizeof(dbname) - 1);
+    my_stpnmov(dbname, ndb->getDatabaseName(), sizeof(dbname) - 1);
     ndb->setDatabaseName("sys");
     Ndb_table_guard ndbtab_g(ndb->getDictionary(), "SYSTAB_0");
     const NdbDictionary::Table * tab = ndbtab_g.get_table();
@@ -11737,8 +11737,8 @@ int ndb_create_table_from_engine(THD *thd, const char *db,
   // ha_create_table_from_engine may convert to lowercase on some platforms
   char db_buf[FN_REFLEN + 1];
   char table_name_buf[FN_REFLEN + 1];
-  strnmov(db_buf, db, sizeof(db_buf));
-  strnmov(table_name_buf, table_name, sizeof(table_name_buf));
+  my_stpnmov(db_buf, db, sizeof(db_buf));
+  my_stpnmov(table_name_buf, table_name, sizeof(table_name_buf));
 
   LEX *old_lex= thd->lex, newlex;
   thd->lex= &newlex;
@@ -13344,7 +13344,7 @@ int ndbcluster_prepare_rename_share(NDB_SHARE *share, const char *new_key)
   */
   uint new_length= (uint) strlen(new_key);
   share->new_key= (char*) alloc_root(&share->mem_root, 2 * (new_length + 1));
-  strmov(share->new_key, new_key);
+  my_stpcpy(share->new_key, new_key);
   return 0;
 }
 
@@ -13475,11 +13475,11 @@ NDB_SHARE::create(const char* key, size_t key_length,
   /* Allocate enough space for key, db, and table_name */
   share->key= (char*) alloc_root(*root_ptr, 2 * (key_length + 1));
   share->key_length= (uint)key_length;
-  strmov(share->key, key);
+  my_stpcpy(share->key, key);
   share->db= share->key + key_length + 1;
-  strmov(share->db, db_name);
+  my_stpcpy(share->db, db_name);
   share->table_name= share->db + strlen(share->db) + 1;
-  strmov(share->table_name, table_name);
+  my_stpcpy(share->table_name, table_name);
   thr_lock_init(&share->lock);
   pthread_mutex_init(&share->mutex, MY_MUTEX_INIT_FAST);
   share->commit_count= 0;

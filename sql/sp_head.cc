@@ -188,7 +188,7 @@ sp_name::sp_name(const MDL_key *key, char *qname_buff)
   }
   else
   {
-    strmov(qname_buff, m_name.str);
+    my_stpcpy(qname_buff, m_name.str);
     m_qname.length= m_name.length;
   }
   m_explicit_name= false;
@@ -737,12 +737,12 @@ bool sp_head::execute(THD *thd, bool merge_da_on_success)
       thd->user_var_events_alloc= thd->mem_root;
 
 #ifdef HAVE_PSI_STATEMENT_INTERFACE
-    PSI_statement_locker_state state;
+    PSI_statement_locker_state psi_state;
     PSI_statement_locker *parent_locker;
     PSI_statement_info *psi_info = i->get_psi_info();
 
     parent_locker= thd->m_statement_psi;
-    thd->m_statement_psi= MYSQL_START_STATEMENT(& state, psi_info->m_key,
+    thd->m_statement_psi= MYSQL_START_STATEMENT(&psi_state, psi_info->m_key,
                                                 thd->db, thd->db_length,
                                                 thd->charset(),
                                                 this->m_sp_share);
@@ -1024,10 +1024,10 @@ bool sp_head::execute_trigger(THD *thd,
   thd->sp_runtime_ctx= trigger_runtime_ctx;
 
 #ifdef HAVE_PSI_SP_INTERFACE
-  PSI_sp_locker_state state;
+  PSI_sp_locker_state psi_state;
   PSI_sp_locker *locker;
 
-  locker= MYSQL_START_SP(&state, m_sp_share);
+  locker= MYSQL_START_SP(&psi_state, m_sp_share);
 #endif
   err_status= execute(thd, FALSE);
 #ifdef HAVE_PSI_SP_INTERFACE
@@ -1233,10 +1233,10 @@ bool sp_head::execute_function(THD *thd, Item **argp, uint argcount,
   thd->set_n_backup_active_arena(&call_arena, &backup_arena);
 
 #ifdef HAVE_PSI_SP_INTERFACE
-  PSI_sp_locker_state state;
+  PSI_sp_locker_state psi_state;
   PSI_sp_locker *locker;
 
-  locker= MYSQL_START_SP(&state, m_sp_share);
+  locker= MYSQL_START_SP(&psi_state, m_sp_share);
 #endif
   err_status= execute(thd, TRUE);
 #ifdef HAVE_PSI_SP_INTERFACE
@@ -1467,10 +1467,10 @@ bool sp_head::execute_procedure(THD *thd, List<Item> *args)
   opt_trace_disable_if_no_stored_proc_func_access(thd, this);
 
 #ifdef HAVE_PSI_SP_INTERFACE
-  PSI_sp_locker_state state;
+  PSI_sp_locker_state psi_state;
   PSI_sp_locker *locker;
 
-  locker= MYSQL_START_SP(&state, m_sp_share);
+  locker= MYSQL_START_SP(&psi_state, m_sp_share);
 #endif
   if (!err_status)
     err_status= execute(thd, TRUE);

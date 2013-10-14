@@ -1,4 +1,4 @@
-/* Copyright (c) 2008, 2012, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2008, 2013, Oracle and/or its affiliates. All rights reserved.
 
   This program is free software; you can redistribute it and/or modify
   it under the terms of the GNU General Public License as published by
@@ -152,7 +152,7 @@ bool read_nth_attr(const char *connect_attrs,
 
     if (idx == ordinal)
       *attr_name_length= copy_length;
-      
+
     /* read the value */
     if (parse_length_encoded_string(&ptr,
                                     attr_value, max_attr_value, &copy_length,

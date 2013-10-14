@@ -1567,7 +1567,7 @@ DROP TABLE where_subselect;
 #
 
 CREATE TABLE t1 (
-  id1 INT NULL,
+  id1 INT NOT NULL,
   id2 INT  NOT NULL,
   junk INT NOT NULL,
   PRIMARY KEY (id1, id2, junk),

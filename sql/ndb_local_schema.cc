@@ -249,8 +249,8 @@ Ndb_local_schema::Table::remove_table(void) const
   {
     // Copy to buffers since 'drop_all_triggers' want char*
     char db_name_buf[FN_REFLEN + 1], table_name_buf[FN_REFLEN + 1];
-    strmov(db_name_buf, m_db);
-    strmov(table_name_buf, m_name);
+    my_stpcpy(db_name_buf, m_db);
+    my_stpcpy(table_name_buf, m_name);
 
     if (drop_all_triggers(m_thd, db_name_buf, table_name_buf))
     {
