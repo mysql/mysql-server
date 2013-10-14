@@ -8,7 +8,8 @@ insert ignore t values(3, 9);
 insert ignore t values(4, 16);
 insert ignore t values(5, 25);
 insert ignore t values(6, 36);
-set global tokudb_lock_timeout=0;
+set session tokudb_lock_timeout=0;
+set session tokudb_lock_timeout=0;
 begin;
 select * from t where a=1 for update;
 a	b
@@ -1067,7 +1068,8 @@ a	b
 5	25
 6	36
 commit;
-set global tokudb_lock_timeout=500;
+set session tokudb_lock_timeout=500;
+set session tokudb_lock_timeout=500;
 begin;
 select * from t where a=1 for update;
 a	b
@@ -2287,4 +2289,3 @@ update t set b=b where a>=2 and a<=4;
 update t set b=b where a>=0 and a<=3;
 commit;
 drop table t;
-set global tokudb_lock_timeout=4000;
