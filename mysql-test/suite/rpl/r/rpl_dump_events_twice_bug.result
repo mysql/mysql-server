@@ -1,0 +1,15 @@
+include/master-slave.inc
+[connection master]
+CALL mtr.add_suppression("Failed to read an event from active binlog.*");
+SET @debug_saved= @@GLOBAL.DEBUG;
+CREATE TABLE t1(c1 INT);
+INSERT INTO t1 VALUES(1);
+[connection master]
+SET GLOBAL debug='+d,dump_fake_io_error';
+INSERT INTO t1 VALUES(2);
+INSERT INTO t1 VALUES(3);
+include/diff_tables.inc [master:t1, slave:t1]
+[connection master]
+SET @@GLOBAL.DEBUG= @debug_saved;
+DROP TABLE t1;
+include/rpl_end.inc
