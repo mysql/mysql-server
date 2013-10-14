@@ -4420,12 +4420,11 @@ public:
 
 typedef Mem_root_array<Item*, true> Func_ptr_array;
 
-/* 
-  Param to create temporary tables when doing SELECT:s 
-  NOTE
-    This structure is copied using memcpy as a part of JOIN.
+/**
+  Object containing parameters used when creating and using temporary
+  tables. Temporary tables created with the help of this object are
+  used only internally by the query execution engine.
 */
-
 class TMP_TABLE_PARAM :public Sql_alloc
 {
 public:
@@ -4434,6 +4433,12 @@ public:
   uchar	    *group_buff;
   Func_ptr_array *items_to_copy;             /* Fields in tmp table */
   MI_COLUMNDEF *recinfo,*start_recinfo;
+
+  /**
+    After temporary table creation, points to an index on the table
+    created depending on the purpose of the table - grouping,
+    duplicate elimination, etc. There is at most one such index.
+  */
   KEY *keyinfo;
   ha_rows end_write_records;
   /**
