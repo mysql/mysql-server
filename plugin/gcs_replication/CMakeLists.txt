@@ -12,6 +12,7 @@
 # You should have received a copy of the GNU General Public License
 # along with this program; if not, write to the Free Software
 # Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA  02110-1301 USA
+
 IF(CMAKE_SYSTEM_NAME MATCHES "Linux")
   SET(LIBCPG_PATH /usr/lib/corosync /usr/lib64/corosync CACHE STRING "Default locations for libcpg (cluster library)" )
 
@@ -27,7 +28,17 @@ IF(CMAKE_SYSTEM_NAME MATCHES "Linux")
   SET(GCS_SOURCES
     gcs_plugin.cc gcs_plugin.h
     observer_server_state.cc observer_server_state.h
-    observer_trans.cc observer_trans.h gcs_protocol_factory.cc gcs_corosync.cc)
+    observer_trans.cc observer_trans.h
+    gcs_protocol_factory.cc gcs_corosync.cc
+    pipeline_factory.h pipeline_factory.cc
+    gcs_applier.h gcs_applier.cc
+    handlers/certification_handler.h
+    handlers/certification_handler.cc
+    handlers/event_cataloger.h
+    handlers/event_cataloger.cc
+    handlers/applier_sql_thread.h
+    handlers/applier_sql_thread.cc
+  )
   ADD_LIBRARY(gcs STATIC gcs_protocol_factory.cc gcs_corosync.cc)
 
   MYSQL_ADD_PLUGIN(gcs_replication ${GCS_SOURCES}

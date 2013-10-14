@@ -31,6 +31,16 @@ int gcs_before_recovery(Server_state_param *param)
 
 int gcs_after_engine_recovery(Server_state_param *param)
 {
+  /*
+    The plugin was initialized on server start
+    so only now we can start the applier
+  */
+  if (wait_on_engine_initialization)
+  {
+    wait_on_engine_initialization= false;
+    return configure_and_start_applier();
+  }
+
   return 0;
 }
 

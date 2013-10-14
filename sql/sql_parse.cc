@@ -2984,13 +2984,20 @@ end_with_restore_list:
   case SQLCOM_START_GCS_REPLICATION:
   {
     res= start_gcs_rpl();
-    if (res == 2)
+    if (res == ER_GCS_REPLICATION_APPLIER_INIT_ERROR)
     {
-       my_message(ER_GCS_REPLICATION_RUNNING,
-                  ER(ER_GCS_REPLICATION_RUNNING), MYF(0));
-       goto error;
+      my_message(ER_GCS_REPLICATION_APPLIER_INIT_ERROR,
+                 ER(ER_GCS_REPLICATION_APPLIER_INIT_ERROR), MYF(0));
+      goto error;
     }
-    if (res == 1)
+
+    if (res == ER_GCS_REPLICATION_RUNNING)
+    {
+      my_message(ER_GCS_REPLICATION_RUNNING,
+                  ER(ER_GCS_REPLICATION_RUNNING), MYF(0));
+      goto error;
+    }
+    if (res == ER_GCS_REPLICATION_CONFIGURATION)
     {
       my_message(ER_GCS_REPLICATION_CONFIGURATION,
                  ER(ER_GCS_REPLICATION_CONFIGURATION), MYF(0));
@@ -3004,10 +3011,16 @@ end_with_restore_list:
   case SQLCOM_STOP_GCS_REPLICATION:
   {
     res= stop_gcs_rpl();
-    if (res)
+    if (res == ER_GCS_REPLICATION_CONFIGURATION)
     {
       my_message(ER_GCS_REPLICATION_CONFIGURATION,
                  ER(ER_GCS_REPLICATION_CONFIGURATION), MYF(0));
+      goto error;
+    }
+    if (res == ER_STOP_GCS_APPLIER_THREAD_TIMEOUT)
+    {
+      my_message(ER_STOP_GCS_APPLIER_THREAD_TIMEOUT,
+                 ER(ER_STOP_GCS_APPLIER_THREAD_TIMEOUT), MYF(0));
       goto error;
     }
     my_ok(thd);

@@ -49,7 +49,11 @@ public:
   */
   Packet(uchar *data, uint len) :len(len)
   {
-    payload= (uchar*)my_malloc(len, MYF(0));
+    payload= (uchar*)my_malloc(
+#ifdef HAVE_PSI_MEMORY_INTERFACE
+                               PSI_NOT_INSTRUMENTED,
+#endif
+                               len, MYF(0));
     memcpy(payload, data, len);
   }
 
@@ -230,9 +234,9 @@ private:
     IO_CACHE cache;
     String packet_data;
 
+    //The cache if for this event only so we know what size it needs.
     open_cached_file(&cache, mysql_tmpdir, "pipeline_cache",
-                     binlog_stmt_cache_size, MYF(MY_WME));
-
+                     log_event->data_written, MYF(MY_WME));
     if ((error= log_event->write(&cache)))
     {
       sql_print_error("Unable to convert the event into a packet on the applier!"
@@ -370,6 +374,20 @@ private:
 };
 
 /**
+  @enum Handler_role
+
+  Enumeration type for the different roles that handlers can have.
+*/
+enum Handler_role
+{
+  EVENT_CATALOGER= 0,
+  APPLIER= 1,
+  CERTIFIER= 2,
+  QUEUER= 3,
+  ROLE_NUMBER= 4 //The number of roles
+};
+
+/**
   @class EventHandler
 
   Interface for the application of events, them being packets or log events.
@@ -381,10 +399,17 @@ class EventHandler
 public:
   EventHandler() :next_in_pipeline(NULL) {}
 
+  virtual ~EventHandler(){}
+
   /**
     Initialization as defined in the handler implementation.
   */
   virtual int initialize()= 0;
+
+  /**
+    Terminate the execution as defined in the handler implementation.
+  */
+  virtual int terminate()= 0;
 
   /**
     Handling of an event as defined in the handler implementation.
@@ -401,6 +426,8 @@ public:
     @param[in,out]  continuation    termination notification object.
   */
   virtual int handle(PipelineEvent *event, Continuation *continuation)= 0;
+
+  //pipeline appending methods
 
   /**
     Plug an handler to be the next in line for execution.
@@ -441,6 +468,101 @@ public:
       *pipeline= event_handler;
     else
       (*pipeline)->append(event_handler);
+  }
+
+  //pipeline information methods
+
+  /**
+    Returns an handler that plays the given role
+
+    @Note if the pipeline is null, or the handler is not found, the retrieved
+    handler will be null.
+
+    @param[in]      pipeline       the handler pipeline
+    @param[in]      role           the role to retrieve
+    @param[out]     event_handler  the retrieved event handler
+  */
+  static void get_handler_by_role(EventHandler *pipeline, Handler_role role,
+                                  EventHandler **event_handler)
+  {
+    *event_handler= NULL;
+
+    if (pipeline == NULL)
+      return;
+
+    EventHandler *pipeline_iter= pipeline;
+    while (pipeline_iter)
+    {
+      if (pipeline_iter->get_role() == role )
+      {
+        *event_handler= pipeline_iter;
+        return;
+      }
+      pipeline_iter= pipeline_iter->next_in_pipeline;
+    }
+  }
+
+  /**
+    This method identifies the handler as being unique.
+
+    An handler that is defined as unique is an handler that cannot be used
+    more than once in a pipeline. Such tasks as certification and event
+    application can only be done once. Unique handlers are also the only that,
+    by being one of a kind, can be extracted during the pipeline life allowing
+    dynamic changes to them.
+
+    @return if the handler is the a unique handler
+      @retval true      is a unique handler
+      @retval false     is a repeatable handler
+  */
+  virtual bool is_unique()= 0;
+
+  /**
+    This method returns the handler role.
+    Handlers can have different roles according to the tasks they
+    represent. Is based on this role that certain components can
+    extract and interact with pipeline handlers. This means that if a
+    role is given to a singleton handler, no one else can has that
+    role.
+
+    @return the handler role
+      @retval EVENT_CATALOGER   handler for event cataloging
+      @retval APPLIER           handler for event application
+      @retval CERTIFIER         handler for certification
+      @retval QUEUER            handler for event queuing.
+      @retval OTHER             other defined roles
+  */
+  virtual Handler_role get_role()= 0;
+
+  //pipeline destruction methods
+
+  /**
+    Shutdown and delete all handlers in the pipeline.
+
+    @return the operation status
+      @retval 0      OK
+      @retval !=0    Error
+  */
+  int terminate_pipeline()
+  {
+
+    int error= 0;
+    while (next_in_pipeline != NULL)
+    {
+      EventHandler *pipeline_iter= this;
+      EventHandler *temp_handler= NULL;
+      while (pipeline_iter->next_in_pipeline != NULL)
+      {
+        temp_handler= pipeline_iter;
+        pipeline_iter= pipeline_iter->next_in_pipeline;
+      }
+      if (pipeline_iter->terminate())
+        error= 1;//report an error, but try to finish the job
+      delete temp_handler->next_in_pipeline;
+      temp_handler->next_in_pipeline= NULL;
+    }
+    this->terminate();
+    return error;
   }
 
 protected:

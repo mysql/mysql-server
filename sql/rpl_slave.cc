@@ -211,7 +211,7 @@ static int get_master_version_and_clock(MYSQL* mysql, Master_info* mi);
 static int get_master_uuid(MYSQL *mysql, Master_info *mi);
 int io_thread_init_commands(MYSQL *mysql, Master_info *mi);
 static Log_event* next_event(Relay_log_info* rli);
-static int queue_event(Master_info* mi,const char* buf,ulong event_len);
+int queue_event(Master_info* mi,const char* buf,ulong event_len);
 static void set_stop_slave_wait_timeout(unsigned long wait_timeout);
 static int terminate_slave_thread(THD *thd,
                                   mysql_mutex_t *term_lock,
@@ -6352,7 +6352,7 @@ static int queue_old_event(Master_info *mi, const char *buf,
   any >=5.0.0 format.
 */
 
-static int queue_event(Master_info* mi,const char* buf, ulong event_len)
+int queue_event(Master_info* mi,const char* buf, ulong event_len)
 {
   int error= 0;
   String error_msg;

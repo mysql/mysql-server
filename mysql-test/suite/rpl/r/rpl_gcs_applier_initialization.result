@@ -1,0 +1,28 @@
+include/install_gcs_replication.inc
+call mtr.add_suppression("An handler, marked as unique *.*");
+call mtr.add_suppression("The applier module shutdown is still running: *.*");
+[ON THE NODE]
+SET GLOBAL gcs_replication_plugin_group_name= "2d249320-2e06-11e3-aa6e-0800200c9a66";
+SET GLOBAL gcs_replication_plugin_start_on_boot= 1;
+include/assert.inc [The value of group name should be 2d249320-2e06-11e3-aa6e-0800200c9a66]
+include/assert.inc [The value of gcs_boot should be 1]
+SET @debug_save= @@GLOBAL.DEBUG;
+SET GLOBAL debug= 'd,double_unique_handler';
+START GCS_REPLICATION;
+ERROR HY000: The START GCS_REPLICATION command failed as the applier module failed to start.
+SET @@GLOBAL.DEBUG= @debug_save;
+START GCS_REPLICATION;
+SET GLOBAL gcs_replication_plugin_stop_applier_timeout= 2;
+include/assert.inc [The value of stop_applier_timeout should be 2]
+SET @@GLOBAL.DEBUG= 'd,applier_thd_timeout';
+STOP GCS_REPLICATION;
+ERROR HY000: The STOP GCS_REPLICATION command execution is incomplete: The applier thread got the stop signal while it was busy. The applier thread will stop once the current task is complete.
+START GCS_REPLICATION;
+ERROR HY000: The START GCS_REPLICATION command failed as the applier module failed to start.
+SET DEBUG_SYNC= "now SIGNAL signal.applier_continue";
+SET @@GLOBAL.DEBUG= @debug_save;
+START GCS_REPLICATION;
+STOP GCS_REPLICATION;
+SET @@GLOBAL.DEBUG= @debug_save;
+include/uninstall_gcs_replication.inc
+UNINSTALL PLUGIN gcs_replication_plugin;

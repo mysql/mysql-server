@@ -285,6 +285,7 @@ int terminate_slave_threads(Master_info* mi, int thread_mask,
                             bool need_lock_term= true);
 int start_slave_threads(bool need_lock_slave, bool wait_for_start,
 			Master_info* mi, int thread_mask);
+int queue_event(Master_info* mi,const char* buf, ulong event_len);
 /*
   cond_lock is usually same as start_lock. It is needed for the case when
   start_lock is 0 which happens if start_slave_thread() is called already

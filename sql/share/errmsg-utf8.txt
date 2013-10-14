@@ -7097,6 +7097,13 @@ ER_PASSWORD_EXPIRE_ANONYMOUS_USER
 
 ER_SLAVE_SQL_THREAD_MUST_STOP
   eng "This operation cannot be performed with a running slave sql thread; run STOP SLAVE SQL_THREAD first"
+
+ER_GCS_REPLICATION_APPLIER_INIT_ERROR
+  eng "The START GCS_REPLICATION command failed as the applier module failed to start."
+
+ER_STOP_GCS_APPLIER_THREAD_TIMEOUT
+  eng "The STOP GCS_REPLICATION command execution is incomplete: The applier thread got the stop signal while it was busy. The applier thread will stop once the current task is complete."
+
 #
 #  End of 5.7 error messages.
 #

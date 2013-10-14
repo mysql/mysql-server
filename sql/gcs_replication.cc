@@ -16,6 +16,9 @@
 #include "my_global.h"
 #include <gcs_replication.h>
 #include <mysqld.h>
+#include <log.h>
+#include <rpl_info_factory.h>
+#include <rpl_slave.h>
 
 Gcs_replication_handler::Gcs_replication_handler() :
   plugin(NULL), plugin_handle(NULL)
@@ -62,11 +65,11 @@ int Gcs_replication_handler::gcs_init()
   return 0;
 }
 
-Gcs_replication_handler* gcs_rpl_handler;
+Gcs_replication_handler* gcs_rpl_handler= NULL;
 
 int init_gcs_rpl()
 {
-  if (gcs_rpl_handler!= NULL)
+  if (gcs_rpl_handler != NULL)
     return 1;
   gcs_rpl_handler= new Gcs_replication_handler();
   return 0;
@@ -93,4 +96,44 @@ int cleanup_gcs_rpl()
   delete gcs_rpl_handler;
   gcs_rpl_handler= NULL;
   return 0;
+}
+
+/* Server access methods  */
+
+bool is_server_engine_ready()
+{
+  return (tc_log != NULL);
+}
+
+uint get_opt_mts_checkpoint_group()
+{
+  return opt_mts_checkpoint_group;
+}
+
+ulong get_opt_mts_slave_parallel_workers()
+{
+  return opt_mts_slave_parallel_workers;
+}
+
+ulong get_opt_rli_repository_id()
+{
+  return opt_rli_repository_id;
+}
+
+char *set_relay_log_name(char* name){
+  char *original_relaylog_name= opt_relay_logname;
+  opt_relay_logname= name;
+  return original_relaylog_name;
+}
+
+char *set_relay_log_index_name(char* name){
+  char *original_relaylog_index_name= opt_relaylog_index_name;
+  opt_relaylog_index_name= name;
+  return original_relaylog_index_name;
+}
+
+char *set_relay_log_info_name(char* name){
+  char *original_relay_info_file= relay_log_info_file;
+  relay_log_info_file=  name;
+  return original_relay_info_file;
 }

@@ -1,0 +1,70 @@
+# WL#6842 - GCS APPLIER MODULE
+
+# This test checks the basic functionality of the GCS replication
+# plugin: the initialization of it's applier module and error cases.
+
+--source include/have_debug.inc
+--source include/have_gcs_replication_plugin.inc
+--source include/install_gcs_replication.inc
+
+call mtr.add_suppression("An handler, marked as unique *.*");
+call mtr.add_suppression("The applier module shutdown is still running: *.*");
+
+--let $gcs_group_name= 2d249320-2e06-11e3-aa6e-0800200c9a66
+--echo [ON THE NODE]
+
+--eval SET GLOBAL gcs_replication_plugin_group_name= "$gcs_group_name"
+--eval SET GLOBAL gcs_replication_plugin_start_on_boot= 1
+
+--let $assert_text= The value of group name should be $gcs_group_name
+--let $assert_cond= "[SELECT @@gcs_replication_plugin_group_name]" = "$gcs_group_name"
+--source include/assert.inc
+
+--let $assert_text= The value of gcs_boot should be 1
+--let $assert_cond= [SELECT @@gcs_replication_plugin_start_on_boot] = 1
+--source include/assert.inc
+
+SET @debug_save= @@GLOBAL.DEBUG;
+SET GLOBAL debug= 'd,double_unique_handler';
+
+# This start command will error out due to the double occurrence
+# of a singleton handler (applier initialization error).
+--error ER_GCS_REPLICATION_APPLIER_INIT_ERROR
+START GCS_REPLICATION;
+
+SET @@GLOBAL.DEBUG= @debug_save;
+
+#The initialization process should now go smoothly
+START GCS_REPLICATION;
+
+#Set the timeout to the minimum value: 2
+--eval SET GLOBAL gcs_replication_plugin_stop_applier_timeout= 2
+
+--let $assert_text= The value of stop_applier_timeout should be 2
+--let $assert_cond= [SELECT @@gcs_replication_plugin_stop_applier_timeout] = 2
+--source include/assert.inc
+
+SET @@GLOBAL.DEBUG= 'd,applier_thd_timeout';
+
+#The applier thread is stuck so the STOP command will timeout
+--error ER_STOP_GCS_APPLIER_THREAD_TIMEOUT
+STOP GCS_REPLICATION;
+
+#The start command will fail as the applier is still running
+--error ER_GCS_REPLICATION_APPLIER_INIT_ERROR
+START GCS_REPLICATION;
+
+SET DEBUG_SYNC= "now SIGNAL signal.applier_continue";
+SET @@GLOBAL.DEBUG= @debug_save;
+
+#give it time to die
+--sleep 5
+
+#start and stop commands should work properly
+
+START GCS_REPLICATION;
+
+STOP GCS_REPLICATION;
+
+SET @@GLOBAL.DEBUG= @debug_save;
+--source include/uninstall_gcs_replication.inc
