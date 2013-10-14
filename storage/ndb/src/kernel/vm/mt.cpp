@@ -2941,7 +2941,7 @@ pack_send_buffer(thr_data *selfptr, Uint32 node)
   unlock(&sb->m_send_lock);
 
   /**
-   * release buffers fron local pool to global pool prior to checking
+   * release buffers from local pool to global pool prior to checking
    * m_force_send
    */
   pool->release_global(rep->m_mm, RG_TRANSPORTER_BUFFERS);
