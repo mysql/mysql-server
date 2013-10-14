@@ -18,7 +18,7 @@
 #include <mysqld.h>
 
 Gcs_replication_handler::Gcs_replication_handler() :
-  plugin(NULL), proto(NULL)
+  plugin(NULL), plugin_handle(NULL)
 {
   plugin_name.str= (char*) "gcs_replication_plugin";
   plugin_name.length= 22;
@@ -26,23 +26,23 @@ Gcs_replication_handler::Gcs_replication_handler() :
 
 Gcs_replication_handler::~Gcs_replication_handler()
 {
-  if (proto)
-    proto->gcs_rpl_stop();
+  if (plugin_handle)
+    plugin_handle->gcs_rpl_stop();
 }
 
 int Gcs_replication_handler::gcs_rpl_start()
 {
   int error= 0;
-  if (!proto)
+  if (!plugin_handle)
     if ((error = gcs_init()))
       return error;
-  return proto->gcs_rpl_start();
+  return plugin_handle->gcs_rpl_start();
 }
 
 int Gcs_replication_handler::gcs_rpl_stop()
 {
-  if (proto)
-    return proto->gcs_rpl_stop();
+  if (plugin_handle)
+    return plugin_handle->gcs_rpl_stop();
   return 1;
 }
 
@@ -51,12 +51,12 @@ int Gcs_replication_handler::gcs_init()
   plugin= my_plugin_lock_by_name(0, &plugin_name, MYSQL_GCS_RPL_PLUGIN);
   if (plugin)
   {
-    proto= (st_mysql_gcs_rpl *) plugin_decl(plugin)->info;
+    plugin_handle= (st_mysql_gcs_rpl *) plugin_decl(plugin)->info;
     plugin_unlock(0, plugin);
   }
   else
   {
-    proto= NULL;
+    plugin_handle= NULL;
     return 1;
   }
   return 0;

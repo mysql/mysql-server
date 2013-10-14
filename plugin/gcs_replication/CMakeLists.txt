@@ -12,11 +12,29 @@
 # You should have received a copy of the GNU General Public License
 # along with this program; if not, write to the Free Software
 # Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA  02110-1301 USA
+IF(CMAKE_SYSTEM_NAME MATCHES "Linux")
+  SET(LIBCPG_PATH /usr/lib/corosync /usr/lib64/corosync CACHE STRING "Default locations for libcpg (cluster library)" )
 
-SET(GCS_SOURCES
- gcs_plugin.cc gcs_plugin.h
- observer_server_state.cc observer_server_state.h
- observer_trans.cc observer_trans.h)
+  CHECK_INCLUDE_FILES(corosync/cpg.h HAVE_COROSYNC_CPG_H)
+  find_library(LIBCPG cpg ${LIBCPG_PATH})
+  find_library(LIBPTHREAD pthread ${LIBPTHREAD_PATH})
+  if (LIBCPG)
+    CHECK_LIBRARY_EXISTS (${LIBCPG} cpg_local_get "" HAVE_LIBCPG)
+    CHECK_INCLUDE_FILES (corosync/cpg.h HAVE_COROSYNC_CPG_H)
+  endif (LIBCPG)
 
-MYSQL_ADD_PLUGIN(gcs_replication ${GCS_SOURCES}
+  INCLUDE_DIRECTORIES(${CMAKE_SOURCE_DIR}/plugin/gcs_replication/include)
+  SET(GCS_SOURCES
+    gcs_plugin.cc gcs_plugin.h
+    observer_server_state.cc observer_server_state.h
+    observer_trans.cc observer_trans.h gcs_protocol_factory.cc gcs_corosync.cc)
+  ADD_LIBRARY(gcs STATIC gcs_protocol_factory.cc gcs_corosync.cc)
+
+  MYSQL_ADD_PLUGIN(gcs_replication ${GCS_SOURCES}
   MODULE_ONLY MODULE_OUTPUT_NAME "gcs_replication_plugin")
+
+  if (LIBCPG)
+    TARGET_LINK_LIBRARIES(gcs ${LIBCPG} ${LIBPTHREAD} )
+    TARGET_LINK_LIBRARIES(gcs_replication gcs)
+  endif(LIBCPG)
+endif(CMAKE_SYSTEM_NAME MATCHES "Linux")

@@ -1,6 +1,6 @@
 SELECT @@gcs_replication_plugin_group_name;
 @@gcs_replication_plugin_group_name
-8a94f357-aab4-11df-86ab-c80aa9429562
+8a94f357-aab4-11df-86ab-c80aa9429564
 SELECT @@gcs_replication_plugin_start_on_boot;
 @@gcs_replication_plugin_start_on_boot
 1

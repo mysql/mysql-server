@@ -13,26 +13,22 @@
    along with this program; if not, write to the Free Software Foundation,
    51 Franklin Street, Suite 500, Boston, MA 02110-1335 USA */
 
-#include <mysql/plugin.h>
-#include <mysql/plugin_gcs_rpl.h>
-#include "sql_plugin.h"
+#ifndef GCS_PROTOCOL_FACTORY_H
+#define GCS_PROTOCOL_FACTORY_H
 
-class Gcs_replication_handler
+#include <gcs_protocol.h>
+
+namespace GCS
+{
+
+class Protocol_factory
 {
 public:
-  Gcs_replication_handler();
-  ~Gcs_replication_handler();
-  int gcs_rpl_start();
-  int gcs_rpl_stop();
-
-private:
-  LEX_STRING plugin_name;
-  plugin_ref plugin;
-  st_mysql_gcs_rpl* plugin_handle;
-  int gcs_init();
+  static Protocol* create_protocol(Protocol_type type,
+                                   const char *proto_params);
+  static Protocol* get_instance();
 };
 
-int init_gcs_rpl();
-int start_gcs_rpl();
-int stop_gcs_rpl();
-int cleanup_gcs_rpl();
+} // namespace
+
+#endif

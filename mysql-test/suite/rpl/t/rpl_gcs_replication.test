@@ -8,7 +8,7 @@
 --source include/install_gcs_replication.inc
 
 call mtr.add_suppression("The group name *.*");
---let $gcs_group_name= 8a94f357-aab4-11df-86ab-c80aa9429562
+--let $gcs_group_name= 8a94f357-aab4-11df-86ab-c80aa9429563
 --echo [ON THE NODE]
 
 --error ER_WRONG_VALUE_FOR_VAR

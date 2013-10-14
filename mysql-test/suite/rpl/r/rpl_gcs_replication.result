@@ -3,18 +3,18 @@ call mtr.add_suppression("The group name *.*");
 [ON THE NODE]
 SET GLOBAL gcs_replication_plugin_group_name= "8a94f357-aab4-11df-86ab-invalid";
 ERROR 42000: Variable 'gcs_replication_plugin_group_name' can't be set to the value of '8a94f357-aab4-11df-86ab-invalid'
-SET GLOBAL gcs_replication_plugin_group_name= "8a94f357-aab4-11df-86ab-c80aa9429562";
+SET GLOBAL gcs_replication_plugin_group_name= "8a94f357-aab4-11df-86ab-c80aa9429563";
 SET GLOBAL gcs_replication_plugin_start_on_boot= 1;
-include/assert.inc [The value of group name should be 8a94f357-aab4-11df-86ab-c80aa9429562]
+include/assert.inc [The value of group name should be 8a94f357-aab4-11df-86ab-c80aa9429563]
 include/assert.inc [The value of gcs_boot should be 1]
 START GCS_REPLICATION;
 ERROR HY000: The server is not configured properly to be an active member of the GCS CLUSTER.
-SET GLOBAL gcs_replication_plugin_group_name= "8a94f357-aab4-11df-86ab-c80aa9429562";
+SET GLOBAL gcs_replication_plugin_group_name= "8a94f357-aab4-11df-86ab-c80aa9429563";
 START GCS_REPLICATION;
 START GCS_REPLICATION;
 ERROR HY000: The START GCS_REPLICATION failed since the cluster is already running.
-SET GLOBAL gcs_replication_plugin_group_name= "8a94f357-aab4-11df-86ab-c80aa9429562";
-ERROR 42000: Variable 'gcs_replication_plugin_group_name' can't be set to the value of '8a94f357-aab4-11df-86ab-c80aa9429562'
+SET GLOBAL gcs_replication_plugin_group_name= "8a94f357-aab4-11df-86ab-c80aa9429563";
+ERROR 42000: Variable 'gcs_replication_plugin_group_name' can't be set to the value of '8a94f357-aab4-11df-86ab-c80aa9429563'
 STOP GCS_REPLICATION;
 include/uninstall_gcs_replication.inc
 UNINSTALL PLUGIN gcs_replication_plugin;
