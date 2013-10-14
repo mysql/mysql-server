@@ -128,14 +128,13 @@ public:
            )
   {
     inited= FALSE;
-    if (mysql_rwlock_init(
 #ifdef HAVE_PSI_INTERFACE
-                          key
-#else
-                          0
-#endif
-                          , &lock))
+    if (mysql_rwlock_init(key, &lock))
       return;
+#else
+    if (mysql_rwlock_init(0, &lock))
+      return;
+#endif
     init_sql_alloc(key_memory_delegate, &memroot, 1024, 0);
     inited= TRUE;
   }
