@@ -1965,7 +1965,20 @@ Ndb::getSchemaFromInternalName(const char * internalName)
   return ret;
 }
 
-// ToDo set event buffer size
+unsigned Ndb::get_eventbuf_max_alloc()
+{
+    return theEventBuffer->m_max_alloc;
+}
+
+void
+Ndb::set_eventbuf_max_alloc(unsigned sz)
+{
+  if (theEventBuffer != NULL)
+  {
+    theEventBuffer->m_max_alloc = sz;
+  }
+}
+
 NdbEventOperation* Ndb::createEventOperation(const char* eventName)
 {
   DBUG_ENTER("Ndb::createEventOperation");
