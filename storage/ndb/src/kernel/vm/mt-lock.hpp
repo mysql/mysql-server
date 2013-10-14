@@ -111,6 +111,11 @@ unlock(struct thr_spin_lock<SZ>* sl)
   /**
    * Memory barrier here, to make sure all of our stores are visible before
    * the lock release is.
+   *
+   * NOTE: Bug#13870457 UNNECESSARY STRONG MEMORY BARRIER ...
+   *       Suggest that a 'wmb' may have been sufficient here.
+   *       However, as spinlocks are not used anymore, 
+   *       (see fix for bug#16961971) this will not be fixed.
    */
   mb();
   sl->m_lock = 0;
