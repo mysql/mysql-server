@@ -1811,9 +1811,11 @@ fts_optimize_words(
 		selected = fts_select_index(charset, word->f_str, word->f_len);
 
 		/* Read the index records to optimize. */
+		fetch.total_memory = 0;
 		error = fts_index_fetch_nodes(
 			trx, &graph, &optim->fts_index_table, word,
 			&fetch);
+		ut_ad(fetch.total_memory < fts_result_cache_limit);
 
 		if (error == DB_SUCCESS) {
 			/* There must be some nodes to read. */
