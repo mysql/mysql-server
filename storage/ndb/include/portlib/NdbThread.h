@@ -24,7 +24,7 @@
 extern "C" {
 #endif
 
-#define MAX_PROCESSOR_SETS 64
+#define UNDEFINED_PROCESSOR_SET 0xFFFF
 
 typedef enum NDB_THREAD_PRIO_ENUM {
   NDB_THREAD_PRIO_HIGHEST,

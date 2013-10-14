@@ -83,22 +83,18 @@ struct NdbThread
   */
   HANDLE thread_handle;
 #endif
-#if defined HAVE_SOLARIS_AFFINITY
+#if defined HAVE_LINUX_SCHEDULING
+  pid_t tid;
+  struct NdbCpuSet *orig_cpu_set;
+#elif defined HAVE_SOLARIS_AFFINITY
   /* Our thread id */
   id_t tid;
   /* Have we called any lock to CPU function yet for this thread */
   my_bool first_lock_call;
-  /* Have we locked thread to a processor set for the moment */
-  my_bool locked_to_processor_set;
-  /* Processor set locked to */
-  Uint32 proc_set_id;
   /* Original processor set locked to */
   psetid_t orig_proc_set;
   /* Original processor locked to */
-  processor_id_t orig_processor_id;
-#elif defined HAVE_LINUX_SCHEDULING
-  pid_t tid;
-  struct NdbCpuSet *orig_cpu_set;
+  processorid_t orig_processor_id;
 #endif
   const struct processor_set_handler *cpu_set_key;
   char thread_name[16];
@@ -131,9 +127,7 @@ static
 void
 settid(struct NdbThread * thr)
 {
-#if defined HAVE_SOLARIS_AFFINITY
-  thr->tid = _lwp_self();
-#elif defined HAVE_LINUX_SCHEDULING
+#if defined HAVE_LINUX_SCHEDULING
   thr->tid = syscall(SYS_gettid);
   if (thr->tid == (pid_t)-1)
   {
@@ -144,18 +138,21 @@ settid(struct NdbThread * thr)
     */
     thr->tid = getpid();
   }
+#elif defined HAVE_SOLARIS_AFFINITY
+  thr->tid = (id_t)_lwp_self();
 #endif
 }
 
 int
 NdbThread_GetTid(struct NdbThread* thr)
 {
-#if defined HAVE_SOLARIS_AFFINITY
+#if defined HAVE_LINUX_SCHEDULING
   return (int)thr->tid;
-#elif defined HAVE_LINUX_SCHEDULING
+#elif defined HAVE_SOLARIS_AFFINITY
   return (int)thr->tid;
-#endif
+#else
   return -1;
+#endif
 }
 
 static
@@ -584,12 +581,6 @@ NdbThread_UnlockCPU(struct NdbThread* pThread)
 #elif defined HAVE_SOLARIS_AFFINITY
   if (!pThread->first_lock_call)
   {
-    if (pThread->proc_set_id != MAX_PROCESSOR_SETS)
-    {
-      pset_destroy(pThread->proc_set);
-      solaris_remove_use_proc_set(pThread->proc_set_id);
-      pThread->proc_set_id = MAX_PROCESSOR_SETS;
-    }
     ret= pset_bind(pThread->orig_proc_set,
                    P_LWPID,
                    pThread->tid,
@@ -598,15 +589,21 @@ NdbThread_UnlockCPU(struct NdbThread* pThread)
     {
       error_no = errno;
     }
-    ret= processor_bind(P_LWPID,
-                        pThread->tid,
-                        pThread->orig_processor_id,
-                        NULL);
-    if (ret)
+    else
     {
-      error_no = errno;
+      ret= processor_bind(P_LWPID,
+                          pThread->tid,
+                          pThread->orig_processor_id,
+                          NULL);
+      if (ret)
+      {
+        error_no = errno;
+      }
+      else
+      {
+        pThread->first_lock_call = TRUE;
+      }
     }
-    pThread->first_lock_call = TRUE;
   }
 #else
   (void)ret;
@@ -638,9 +635,9 @@ set_old_cpu_locking(struct NdbThread* pThread)
     pThread->orig_cpu_set = (struct NdbCpuSet*)old_cpu_set_ptr;
   }
 #elif defined HAVE_SOLARIS_AFFINITY
-  if (!pThread->first_lock_call)
+  if (pThread->first_lock_call)
   {
-    ret = pset_bind(PS_QUERY, P_LWPID, pThread->tid, &pThread->old_proc_set);
+    ret = pset_bind(PS_QUERY, P_LWPID, pThread->tid, &pThread->orig_proc_set);
     if (ret)
     {
       error_no= errno;
@@ -649,7 +646,7 @@ set_old_cpu_locking(struct NdbThread* pThread)
     ret= processor_bind(P_LWPID,
                         pThread->tid,
                         PBIND_QUERY,
-                        &pThread->old_processor_id);
+                        &pThread->orig_processor_id);
     if (ret)
     {
       error_no= errno;
@@ -697,22 +694,36 @@ NdbThread_LockCreateCPUSet(const Uint32 *cpu_ids,
   psetid_t *cpu_set_ptr = malloc(sizeof(psetid_t));
 
   if (!cpu_set_ptr)
-    goto error;
+  {
+    error_no = errno;
+    goto end_error;
+  }
 
   if ((ret = pset_create(cpu_set_ptr)))
-    return errno;
+  {
+    error_no = errno;
+    goto error;
+  }
 
   for (i = 0; i < num_cpu_ids; i++)
   {
     if ((ret = pset_assign(*cpu_set_ptr, cpu_ids[i], NULL)))
-      goto error;
+    {
+      error_no = errno;
+      goto late_error;
+    }
   }
   *cpu_set = (struct NdbCpuSet*)cpu_set_ptr;
   return 0;
+
+late_error:
+  pset_destroy(cpu_set_ptr);
 error:
-  error_no = errno;
+  free((void*)cpu_set_ptr);
+end_error:
   *cpu_set = NULL;
   return error_no;
+
 #else
   *cpu_set = NULL;
   return 0;
@@ -724,8 +735,10 @@ NdbThread_LockDestroyCPUSet(struct NdbCpuSet *cpu_set)
 {
   if (cpu_set != NULL)
   {
-#if defined HAVE_SOLARIS_AFFINITY
-    pset_destroy((cpu_set_t*)cpu_set);
+#if defined HAVE_LINUX_SCHEDULING
+  /* Empty */
+#elif defined HAVE_SOLARIS_AFFINITY
+    pset_destroy((psetid_t*)cpu_set);
 #endif
     free(cpu_set);
   }
@@ -738,8 +751,10 @@ NdbThread_LockCPUSet(struct NdbThread* pThread,
 {
   int error_no;
   int ret;
-#if defined(HAVE_LINUX_SCHEDULING) || defined(HAVE_SOLARIS_AFFINITY)
+#if defined(HAVE_LINUX_SCHEDULING)
   cpu_set_t *cpu_set_ptr;
+#elif defined(HAVE_SOLARIS_AFFINITY)
+  psetid_t *cpu_set_ptr;
 #endif
 
   if ((error_no = set_old_cpu_locking(pThread)))
@@ -762,7 +777,7 @@ NdbThread_LockCPUSet(struct NdbThread* pThread,
   }
   goto end;
 #elif defined HAVE_SOLARIS_AFFINITY
-  cpu_set_ptr = (cpu_set_t*)ndb_cpu_set;
+  cpu_set_ptr = (psetid_t*)ndb_cpu_set;
 
   /* Lock against Solaris processor set */
   ret= pset_bind(*cpu_set_ptr,
