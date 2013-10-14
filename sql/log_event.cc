@@ -397,7 +397,7 @@ static void set_thd_db(THD *thd, const char *db, uint32 db_len)
   new_db.length= db_len;
   if (lower_case_table_names)
   {
-    strmov(lcase_db_buf, db); 
+    my_stpcpy(lcase_db_buf, db); 
     my_casedn_str(system_charset_info, lcase_db_buf);
     new_db.str= lcase_db_buf;
   }
@@ -618,7 +618,7 @@ static char *slave_load_file_stem(char *buf, uint file_id,
   int appended_length= sprintf(buf, "%s-%d-", server_uuid, event_server_id);
   buf+= appended_length;
   res= int10_to_str(file_id, buf, 10);
-  strmov(res, ext);                             // Add extension last
+  my_stpcpy(res, ext);                             // Add extension last
   return res;                                   // Pointer to extension
 }
 #endif
@@ -722,7 +722,7 @@ char *str_to_hex(char *to, const char *from, uint len)
     to= octet2hex(to, from, len);
   }
   else
-    to= strmov(to, "\"\"");
+    to= my_stpcpy(to, "\"\"");
   return to;                               // pointer to end 0 of 'to'
 }
 
@@ -2495,8 +2495,12 @@ Rows_log_event::print_verbose_one_row(IO_CACHE *file, table_def *td,
   const uchar *null_bits= value;
   uint null_bit_index= 0;
   char typestr[64]= "";
-  
-  value+= (m_width + 7) / 8;
+
+  /*
+    Skip metadata bytes which gives the information about nullabity of master
+    columns. Master writes one bit for each affected column.
+   */
+  value+= (bitmap_bits_set(cols_bitmap) + 7) / 8;
   
   my_b_printf(file, "%s", prefix);
   
@@ -2942,7 +2946,7 @@ Slave_worker *Log_event::get_slave_worker(Relay_log_info *rli)
   Slave_worker *ret_worker= NULL;
   char llbuff[22];
 #ifndef DBUG_OFF
-  THD *thd= rli->info_thd;
+  THD *rli_thd= rli->info_thd;
 #endif
   Slave_committed_queue *gaq= rli->gaq;
   DBUG_ENTER("Log_event::get_slave_worker");
@@ -3114,7 +3118,7 @@ Slave_worker *Log_event::get_slave_worker(Relay_log_info *rli)
         DBUG_RETURN(ret_worker);
       }
       // all temporary tables are transferred from Coordinator in over-max case
-      DBUG_ASSERT(num_dbs != OVER_MAX_DBS_IN_EVENT_MTS || !thd->temporary_tables);
+      DBUG_ASSERT(num_dbs != OVER_MAX_DBS_IN_EVENT_MTS || !rli_thd->temporary_tables);
       DBUG_ASSERT(!strcmp(mts_assigned_partitions[i]->db, *ref_cur_db));
       DBUG_ASSERT(ret_worker == mts_assigned_partitions[i]->worker);
       DBUG_ASSERT(mts_assigned_partitions[i]->usage >= 0);
@@ -3280,7 +3284,7 @@ int Log_event::apply_event(Relay_log_info *rli)
   DBUG_ENTER("LOG_EVENT:apply_event");
   bool parallel= FALSE;
   enum enum_mts_event_exec_mode actual_exec_mode= EVENT_EXEC_PARALLEL;
-  THD *thd= rli->info_thd;
+  THD *rli_thd= rli->info_thd;
 
   worker= rli;
 
@@ -3412,7 +3416,7 @@ int Log_event::apply_event(Relay_log_info *rli)
 #endif
 
 err:
-  if (thd->is_error())
+  if (rli_thd->is_error())
   {
     DBUG_ASSERT(!worker);
 
@@ -3435,7 +3439,7 @@ err:
     DBUG_ASSERT(worker || rli->curr_group_assigned_parts.elements == 0);
   }
 
-  DBUG_RETURN((!thd->is_error() ||
+  DBUG_RETURN((!rli_thd->is_error() ||
                DBUG_EVALUATE_IF("fault_injection_get_slave_worker", 1, 0)) ?
               0 : -1);
 }
@@ -3460,20 +3464,20 @@ err:
 int Query_log_event::pack_info(Protocol *protocol)
 {
   // TODO: show the catalog ??
-  String temp_buf;
+  String str_buf;
   // Add use `DB` to the string if required
   if (!(flags & LOG_EVENT_SUPPRESS_USE_F)
       && db && db_len)
   {
-    temp_buf.append("use ");
-    append_identifier(this->thd, &temp_buf, db, db_len);
-    temp_buf.append("; ");
+    str_buf.append("use ");
+    append_identifier(this->thd, &str_buf, db, db_len);
+    str_buf.append("; ");
   }
   // Add the query to the string
   if (query && q_len)
-    temp_buf.append(query);
+    str_buf.append(query);
  // persist the buffer in protocol
-  protocol->store(temp_buf.ptr(), temp_buf.length(), &my_charset_bin);
+  protocol->store(str_buf.ptr(), str_buf.length(), &my_charset_bin);
   return 0;
 }
 #endif
@@ -3654,31 +3658,31 @@ bool Query_log_event::write(IO_CACHE* file)
 
   if (thd && thd->need_binlog_invoker())
   {
-    LEX_STRING user;
-    LEX_STRING host;
-    memset(&user, 0, sizeof(user));
-    memset(&host, 0, sizeof(host));
+    LEX_STRING invoker_user;
+    LEX_STRING invoker_host;
+    memset(&invoker_user, 0, sizeof(invoker_user));
+    memset(&invoker_host, 0, sizeof(invoker_host));
 
     if (thd->slave_thread && thd->has_invoker())
     {
       /* user will be null, if master is older than this patch */
-      user= thd->get_invoker_user();
-      host= thd->get_invoker_host();
+      invoker_user= thd->get_invoker_user();
+      invoker_host= thd->get_invoker_host();
     }
     else if (thd->security_ctx->priv_user)
     {
       Security_context *ctx= thd->security_ctx;
 
-      user.length= strlen(ctx->priv_user);
-      user.str= ctx->priv_user;
+      invoker_user.length= strlen(ctx->priv_user);
+      invoker_user.str= ctx->priv_user;
       if (ctx->priv_host[0] != '\0')
       {
-        host.str= ctx->priv_host;
-        host.length= strlen(ctx->priv_host);
+        invoker_host.str= ctx->priv_host;
+        invoker_host.length= strlen(ctx->priv_host);
       }
     }
 
-    if (user.length > 0)
+    if (invoker_user.length > 0)
     {
       *start++= Q_INVOKER;
 
@@ -3686,17 +3690,17 @@ bool Query_log_event::write(IO_CACHE* file)
         Store user length and user. The max length of use is 16, so 1 byte is
         enough to store the user's length.
        */
-      *start++= (uchar)user.length;
-      memcpy(start, user.str, user.length);
-      start+= user.length;
+      *start++= (uchar)invoker_user.length;
+      memcpy(start, invoker_user.str, invoker_user.length);
+      start+= invoker_user.length;
 
       /*
         Store host length and host. The max length of host is 60, so 1 byte is
         enough to store the host's length.
        */
-      *start++= (uchar)host.length;
-      memcpy(start, host.str, host.length);
-      start+= host.length;
+      *start++= (uchar)invoker_host.length;
+      memcpy(start, invoker_host.str, invoker_host.length);
+      start+= invoker_host.length;
     }
   }
 
@@ -4552,10 +4556,10 @@ void Query_log_event::print_query_header(IO_CACHE* file,
       my_b_printf(file, "use %s%s\n", quoted_id, print_event_info->delimiter);
   }
 
-  end=int10_to_str((long) when.tv_sec, strmov(buff,"SET TIMESTAMP="),10);
+  end=int10_to_str((long) when.tv_sec, my_stpcpy(buff,"SET TIMESTAMP="),10);
   if (when.tv_usec)
     end+= sprintf(end, ".%06d", (int) when.tv_usec);
-  end= strmov(end, print_event_info->delimiter);
+  end= my_stpcpy(end, print_event_info->delimiter);
   *end++='\n';
   DBUG_ASSERT(end < buff + sizeof(buff));
   my_b_write(file, (uchar*) buff, (uint) (end-buff));
@@ -4713,13 +4717,13 @@ void Query_log_event::print(FILE* file, PRINT_EVENT_INFO* print_event_info)
 /**
    Associating slave Worker thread to a subset of temporary tables.
 
-   @param thd   THD instance pointer
-   @param rli   Relay_log_info of the worker
+   @param thd_arg THD instance pointer
+   @param rli     Relay_log_info of the worker
 */
-void Query_log_event::attach_temp_tables_worker(THD *thd,
+void Query_log_event::attach_temp_tables_worker(THD *thd_arg,
                                                 const Relay_log_info* rli)
 {
-  rli->current_mts_submode->attach_temp_tables(thd, rli, this);
+  rli->current_mts_submode->attach_temp_tables(thd_arg, rli, this);
 }
 
 /**
@@ -4727,13 +4731,13 @@ void Query_log_event::attach_temp_tables_worker(THD *thd,
    to possibly update the involved entries of db-to-worker hash
    with new values of temporary_tables.
 
-   @param thd   THD instance pointer
-   @param rli   relay log info of the worker thread
+   @param thd_arg THD instance pointer
+   @param rli     relay log info of the worker thread
 */
-void Query_log_event::detach_temp_tables_worker(THD *thd,
+void Query_log_event::detach_temp_tables_worker(THD *thd_arg,
                                                 const Relay_log_info *rli)
 {
-  rli->current_mts_submode->detach_temp_tables(thd, rli, this);
+  rli->current_mts_submode->detach_temp_tables(thd_arg, rli, this);
 }
 
 /*
@@ -5299,9 +5303,9 @@ Start_log_event_v3::Start_log_event_v3()
 int Start_log_event_v3::pack_info(Protocol *protocol)
 {
   char buf[12 + ST_SERVER_VER_LEN + 14 + 22], *pos;
-  pos= strmov(buf, "Server ver: ");
-  pos= strmov(pos, server_version);
-  pos= strmov(pos, ", Binlog ver: ");
+  pos= my_stpcpy(buf, "Server ver: ");
+  pos= my_stpcpy(pos, server_version);
+  pos= my_stpcpy(pos, ", Binlog ver: ");
   pos= int10_to_str(binlog_version, pos, 10);
   protocol->store(buf, (uint) (pos-buf), &my_charset_bin);
   return 0;
@@ -5510,7 +5514,7 @@ Format_description_log_event(uint8 binlog_ver, const char* server_ver)
   case 4: /* MySQL 5.0 */
     memcpy(server_version, ::server_version, ST_SERVER_VER_LEN);
     DBUG_EXECUTE_IF("pretend_version_50034_in_binlog",
-                    strmov(server_version, "5.0.34"););
+                    my_stpcpy(server_version, "5.0.34"););
     common_header_len= LOG_EVENT_HEADER_LEN;
     number_of_event_types= LOG_EVENT_TYPES;
     /* we'll catch my_malloc() error in is_valid() */
@@ -5605,9 +5609,9 @@ Format_description_log_event(uint8 binlog_ver, const char* server_ver)
       describes what those old master versions send.
     */
     if (binlog_ver==1)
-      strmov(server_version, server_ver ? server_ver : "3.23");
+      my_stpcpy(server_version, server_ver ? server_ver : "3.23");
     else
-      strmov(server_version, server_ver ? server_ver : "4.0");
+      my_stpcpy(server_version, server_ver ? server_ver : "4.0");
     common_header_len= binlog_ver==1 ? OLD_HEADER_LEN :
       LOG_EVENT_MINIMAL_HEADER_LEN;
     /*
@@ -6078,7 +6082,7 @@ void Load_log_event::print_query(bool need_db, const char *cs, char *buf,
 
   if (need_db && db && db_len)
   {
-    pos= strmov(pos, "use ");
+    pos= my_stpcpy(pos, "use ");
 #ifdef MYSQL_SERVER
     quoted_id_len= my_strmov_quoted_identifier(this->thd, (char *) quoted_id,
                                                db, 0);
@@ -6086,75 +6090,75 @@ void Load_log_event::print_query(bool need_db, const char *cs, char *buf,
     quoted_id_len= my_strmov_quoted_identifier((char *) quoted_id, db);
 #endif
     quoted_id[quoted_id_len]= '\0';
-    pos= strmov(pos, quoted_id);
-    pos= strmov(pos, "; ");
+    pos= my_stpcpy(pos, quoted_id);
+    pos= my_stpcpy(pos, "; ");
   }
 
-  pos= strmov(pos, "LOAD DATA ");
+  pos= my_stpcpy(pos, "LOAD DATA ");
 
   if (is_concurrent)
-    pos= strmov(pos, "CONCURRENT ");
+    pos= my_stpcpy(pos, "CONCURRENT ");
 
   if (fn_start)
     *fn_start= pos;
 
   if (check_fname_outside_temp_buf())
-    pos= strmov(pos, "LOCAL ");
-  pos= strmov(pos, "INFILE '");
+    pos= my_stpcpy(pos, "LOCAL ");
+  pos= my_stpcpy(pos, "INFILE '");
   memcpy(pos, fname, fname_len);
-  pos= strmov(pos+fname_len, "' ");
+  pos= my_stpcpy(pos+fname_len, "' ");
 
   if (sql_ex.opt_flags & REPLACE_FLAG)
-    pos= strmov(pos, "REPLACE ");
+    pos= my_stpcpy(pos, "REPLACE ");
   else if (sql_ex.opt_flags & IGNORE_FLAG)
-    pos= strmov(pos, "IGNORE ");
+    pos= my_stpcpy(pos, "IGNORE ");
 
-  pos= strmov(pos ,"INTO");
+  pos= my_stpcpy(pos ,"INTO");
 
   if (fn_end)
     *fn_end= pos;
 
-  pos= strmov(pos ," TABLE ");
+  pos= my_stpcpy(pos ," TABLE ");
   memcpy(pos, table_name, table_name_len);
   pos+= table_name_len;
 
   if (cs != NULL)
   {
-    pos= strmov(pos ," CHARACTER SET ");
-    pos= strmov(pos ,  cs);
+    pos= my_stpcpy(pos ," CHARACTER SET ");
+    pos= my_stpcpy(pos ,  cs);
   }
 
   /* We have to create all optional fields as the default is not empty */
-  pos= strmov(pos, " FIELDS TERMINATED BY ");
+  pos= my_stpcpy(pos, " FIELDS TERMINATED BY ");
   pos= pretty_print_str(pos, sql_ex.field_term, sql_ex.field_term_len);
   if (sql_ex.opt_flags & OPT_ENCLOSED_FLAG)
-    pos= strmov(pos, " OPTIONALLY ");
-  pos= strmov(pos, " ENCLOSED BY ");
+    pos= my_stpcpy(pos, " OPTIONALLY ");
+  pos= my_stpcpy(pos, " ENCLOSED BY ");
   pos= pretty_print_str(pos, sql_ex.enclosed, sql_ex.enclosed_len);
 
-  pos= strmov(pos, " ESCAPED BY ");
+  pos= my_stpcpy(pos, " ESCAPED BY ");
   pos= pretty_print_str(pos, sql_ex.escaped, sql_ex.escaped_len);
 
-  pos= strmov(pos, " LINES TERMINATED BY ");
+  pos= my_stpcpy(pos, " LINES TERMINATED BY ");
   pos= pretty_print_str(pos, sql_ex.line_term, sql_ex.line_term_len);
   if (sql_ex.line_start_len)
   {
-    pos= strmov(pos, " STARTING BY ");
+    pos= my_stpcpy(pos, " STARTING BY ");
     pos= pretty_print_str(pos, sql_ex.line_start, sql_ex.line_start_len);
   }
 
   if ((long) skip_lines > 0)
   {
-    pos= strmov(pos, " IGNORE ");
+    pos= my_stpcpy(pos, " IGNORE ");
     pos= longlong10_to_str((longlong) skip_lines, pos, 10);
-    pos= strmov(pos," LINES ");    
+    pos= my_stpcpy(pos," LINES ");    
   }
 
   if (num_fields)
   {
     uint i;
     const char *field= fields;
-    pos= strmov(pos, " (");
+    pos= my_stpcpy(pos, " (");
     for (i = 0; i < num_fields; i++)
     {
       if (i)
@@ -6418,7 +6422,7 @@ void Load_log_event::print(FILE* file_arg, PRINT_EVENT_INFO* print_event_info,
 {
   IO_CACHE *const head= &print_event_info->head_cache;
   size_t id_len= 0;
-  char temp_buf[1 + 2*FN_REFLEN + 2];
+  char str_buf[1 + 2*FN_REFLEN + 2];
 
   DBUG_ENTER("Load_log_event::print");
   if (!print_event_info->short_form)
@@ -6445,13 +6449,13 @@ void Load_log_event::print(FILE* file_arg, PRINT_EVENT_INFO* print_event_info,
   if (db && db[0] && different_db)
   {
 #ifdef MYSQL_SERVER
-    id_len= my_strmov_quoted_identifier(this->thd, temp_buf, db, 0);
+    id_len= my_strmov_quoted_identifier(this->thd, str_buf, db, 0);
 #else
-    id_len= my_strmov_quoted_identifier(temp_buf, db);
+    id_len= my_strmov_quoted_identifier(str_buf, db);
 #endif
-    temp_buf[id_len]= '\0';
+    str_buf[id_len]= '\0';
     my_b_printf(head, "%suse %s%s\n",
-                commented ? "# " : "", temp_buf, print_event_info->delimiter);
+                commented ? "# " : "", str_buf, print_event_info->delimiter);
   }
   if (flags & LOG_EVENT_THREAD_SPECIFIC_F)
     my_b_printf(head,"%sSET @@session.pseudo_thread_id=%lu%s\n",
@@ -6469,12 +6473,12 @@ void Load_log_event::print(FILE* file_arg, PRINT_EVENT_INFO* print_event_info,
     my_b_printf(head,"IGNORE ");
 
 #ifdef MYSQL_SERVER
-    id_len= my_strmov_quoted_identifier(this->thd, temp_buf, table_name, 0);
+    id_len= my_strmov_quoted_identifier(this->thd, str_buf, table_name, 0);
 #else
-    id_len= my_strmov_quoted_identifier(temp_buf, table_name);
+    id_len= my_strmov_quoted_identifier(str_buf, table_name);
 #endif
-  temp_buf[id_len]= '\0';
-  my_b_printf(head, "INTO TABLE %s", temp_buf);
+  str_buf[id_len]= '\0';
+  my_b_printf(head, "INTO TABLE %s", str_buf);
 
   my_b_printf(head, " FIELDS TERMINATED BY ");
   pretty_print_str(head, sql_ex.field_term, sql_ex.field_term_len);
@@ -6508,9 +6512,9 @@ void Load_log_event::print(FILE* file_arg, PRINT_EVENT_INFO* print_event_info,
     {
       if (i)
         my_b_printf(head, ",");
-      id_len= my_strmov_quoted_identifier((char *) temp_buf, field);
-      temp_buf[id_len]= '\0';
-      my_b_printf(head, "%s", temp_buf);
+      id_len= my_strmov_quoted_identifier((char *) str_buf, field);
+      str_buf[id_len]= '\0';
+      my_b_printf(head, "%s", str_buf);
 
       field += field_lens[i]  + 1;
     }
@@ -6640,7 +6644,7 @@ int Load_log_event::do_apply_event(NET* net, Relay_log_info const *rli,
 
     TABLE_LIST tables;
     char table_buf[NAME_LEN + 1];
-    strmov(table_buf, table_name);
+    my_stpcpy(table_buf, table_name);
     if (lower_case_table_names)
       my_casedn_str(system_charset_info, table_buf);
     tables.init_one_table(thd->strmake(thd->db, thd->db_length),
@@ -7276,9 +7280,9 @@ Intvar_log_event::do_shall_skip(Relay_log_info *rli)
 int Rand_log_event::pack_info(Protocol *protocol)
 {
   char buf1[256], *pos;
-  pos= strmov(buf1,"rand_seed1=");
+  pos= my_stpcpy(buf1,"rand_seed1=");
   pos= int10_to_str((long) seed1, pos, 10);
-  pos= strmov(pos, ",rand_seed2=");
+  pos= my_stpcpy(pos, ",rand_seed2=");
   pos= int10_to_str((long) seed2, pos, 10);
   protocol->store(buf1, (uint) (pos-buf1), &my_charset_bin);
   return 0;
@@ -7401,9 +7405,9 @@ bool slave_execute_deferred_events(THD *thd)
 int Xid_log_event::pack_info(Protocol *protocol)
 {
   char buf[128], *pos;
-  pos= strmov(buf, "COMMIT /* xid=");
+  pos= my_stpcpy(buf, "COMMIT /* xid=");
   pos= longlong10_to_str(xid, pos, 10);
-  pos= strmov(pos, " */");
+  pos= my_stpcpy(pos, " */");
   protocol->store(buf, (uint) (pos-buf), &my_charset_bin);
   return 0;
 }
@@ -7464,31 +7468,31 @@ void Xid_log_event::print(FILE* file, PRINT_EVENT_INFO* print_event_info)
    The methods combines few commit actions to make it useable
    as in the single- so multi- threaded case.
 
-   @param  thd    a pointer to THD handle
+   @param  thd_arg a pointer to THD handle
    @return false  as success and
            true   as an error 
 */
 
-bool Xid_log_event::do_commit(THD *thd)
+bool Xid_log_event::do_commit(THD *thd_arg)
 {
-  bool error= trans_commit(thd); /* Automatically rolls back on error. */
+  bool error= trans_commit(thd_arg); /* Automatically rolls back on error. */
   DBUG_EXECUTE_IF("crash_after_apply", 
                   sql_print_information("Crashing crash_after_apply.");
                   DBUG_SUICIDE(););
-  thd->mdl_context.release_transactional_locks();
+  thd_arg->mdl_context.release_transactional_locks();
 
-  if (thd->variables.gtid_next.type == GTID_GROUP &&
-      thd->owned_gtid.sidno != 0)
+  if (thd_arg->variables.gtid_next.type == GTID_GROUP &&
+      thd_arg->owned_gtid.sidno != 0)
   {
     // GTID logging and cleanup runs regardless of the current res
-    error |= gtid_empty_group_log_and_cleanup(thd);
+    error |= gtid_empty_group_log_and_cleanup(thd_arg);
   }
 
   /*
     Increment the global status commit count variable
   */
   if (!error)
-    thd->status_var.com_stat[SQLCOM_COMMIT]++;
+    thd_arg->status_var.com_stat[SQLCOM_COMMIT]++;
 
   return error;
 }
@@ -7651,7 +7655,7 @@ int User_var_log_event::pack_info(Protocol* protocol)
     if (!(buf= (char*) my_malloc(key_memory_log_event,
                                  val_offset + 5, MYF(MY_WME))))
       return 1;
-    strmov(buf + val_offset, "NULL");
+    my_stpcpy(buf + val_offset, "NULL");
     event_len= val_offset + 4;
   }
   else
@@ -7699,7 +7703,7 @@ int User_var_log_event::pack_info(Protocol* protocol)
         return 1;
       if (!(cs= get_charset(charset_number, MYF(0))))
       {
-        strmov(buf+val_offset, "???");
+        my_stpcpy(buf+val_offset, "???");
         event_len+= 3;
       }
       else
@@ -7912,7 +7916,7 @@ void User_var_log_event::print(FILE* file, PRINT_EVENT_INFO* print_event_info)
     print_header(head, print_event_info, FALSE);
     my_b_printf(head, "\tUser_var\n");
   }
-  strmov(name_id, name);
+  my_stpcpy(name_id, name);
   name_id[name_len]= '\0';
   my_b_printf(head, "SET @");
   quoted_len= my_strmov_quoted_identifier((char *) quoted_id,
@@ -8394,13 +8398,13 @@ void Create_file_log_event::print(FILE* file, PRINT_EVENT_INFO* print_event_info
 int Create_file_log_event::pack_info(Protocol *protocol)
 {
   char buf[NAME_LEN*2 + 30 + 21*2], *pos;
-  pos= strmov(buf, "db=");
+  pos= my_stpcpy(buf, "db=");
   memcpy(pos, db, db_len);
-  pos= strmov(pos + db_len, ";table=");
+  pos= my_stpcpy(pos + db_len, ";table=");
   memcpy(pos, table_name, table_name_len);
-  pos= strmov(pos + table_name_len, ";file_id=");
+  pos= my_stpcpy(pos + table_name_len, ";file_id=");
   pos= int10_to_str((long) file_id, pos, 10);
-  pos= strmov(pos, ";block_len=");
+  pos= my_stpcpy(pos, ";block_len=");
   pos= int10_to_str((long) block_len, pos, 10);
   protocol->store(buf, (uint) (pos-buf), &my_charset_bin);
   return 0;
@@ -8458,10 +8462,10 @@ int Create_file_log_event::do_apply_event(Relay_log_info const *rli)
   
   // a trick to avoid allocating another buffer
   fname= fname_buf;
-  fname_len= (uint) (strmov(ext, ".data") - fname);
+  fname_len= (uint) (my_stpcpy(ext, ".data") - fname);
   if (write_base(&file))
   {
-    strmov(ext, ".info"); // to have it right in the error message
+    my_stpcpy(ext, ".info"); // to have it right in the error message
     rli->report(ERROR_LEVEL, thd->get_stmt_da()->mysql_errno(),
                 "Error in Create_file event: could not write to file '%s', '%s'",
                 fname_buf, thd->get_stmt_da()->message_text());
@@ -8511,9 +8515,9 @@ err:
     /*
       Error occured. Delete .info and .data files if they are created.
     */
-    strmov(ext,".info");
+    my_stpcpy(ext,".info");
     mysql_file_delete(key_file_log_event_info, fname_buf, MYF(0));
-    strmov(ext,".data");
+    my_stpcpy(ext,".data");
     mysql_file_delete(key_file_log_event_data, fname_buf, MYF(0));
   }
   if (fd >= 0)
@@ -8800,7 +8804,7 @@ int Delete_file_log_event::do_apply_event(Relay_log_info const *rli)
   mysql_reset_thd_for_next_command(thd);
   char *ext= slave_load_file_stem(fname, file_id, server_id, ".data");
   mysql_file_delete(key_file_log_event_data, fname, MYF(MY_WME));
-  strmov(ext, ".info");
+  my_stpcpy(ext, ".info");
   mysql_file_delete(key_file_log_event_info, fname, MYF(MY_WME));
   return 0;
 }
@@ -8983,10 +8987,10 @@ int Execute_load_log_event::do_apply_event(Relay_log_info const *rli)
 err:
   DBUG_EXECUTE_IF("simulate_file_open_error_exec_event",
                   {
-                     strmov(ext, ".info");
+                     my_stpcpy(ext, ".info");
                   });
   mysql_file_delete(key_file_log_event_info, fname, MYF(MY_WME));
-  strmov(ext, ".data");
+  my_stpcpy(ext, ".data");
   mysql_file_delete(key_file_log_event_data, fname, MYF(MY_WME));
   delete lev;
   if (fd >= 0)
@@ -9178,16 +9182,16 @@ int Execute_load_query_log_event::pack_info(Protocol *protocol)
     char quoted_db[1 + NAME_LEN * 2 + 2];// quoted length of the identifier
     size_t size= 0;
     size= my_strmov_quoted_identifier(this->thd, quoted_db, db, 0);
-    pos= strmov(buf, "use ");
+    pos= my_stpcpy(buf, "use ");
     memcpy(pos, quoted_db, size);
-    pos= strmov(pos + size, "; ");
+    pos= my_stpcpy(pos + size, "; ");
   }
   if (query && q_len)
   {
     memcpy(pos, query, q_len);
     pos+= q_len;
   }
-  pos= strmov(pos, " ;file_id=");
+  pos= my_stpcpy(pos, " ;file_id=");
   pos= int10_to_str((long) file_id, pos, 10);
   protocol->store(buf, pos-buf, &my_charset_bin);
   my_free(buf);
@@ -11889,10 +11893,10 @@ int Table_map_log_event::save_field_metadata()
   (tbl->s->db etc) and not pointer content.
  */
 #if !defined(MYSQL_CLIENT)
-Table_map_log_event::Table_map_log_event(THD *thd, TABLE *tbl,
+Table_map_log_event::Table_map_log_event(THD *thd_arg, TABLE *tbl,
                                          const Table_id& tid,
                                          bool using_trans)
-  : Log_event(thd, 0,
+  : Log_event(thd_arg, 0,
               using_trans ? Log_event::EVENT_TRANSACTIONAL_CACHE :
                             Log_event::EVENT_STMT_CACHE,
               Log_event::EVENT_NORMAL_LOGGING),
@@ -11984,11 +11988,11 @@ Table_map_log_event::Table_map_log_event(THD *thd, TABLE *tbl,
     Unlike Query_log_event where this fact is encoded through 
     the accessed db list in the Table_map case m_flags is exploited.
   */
-  uchar dbs= thd->get_binlog_accessed_db_names() ?
-    thd->get_binlog_accessed_db_names()->elements : 0;
+  uchar dbs= thd_arg->get_binlog_accessed_db_names() ?
+    thd_arg->get_binlog_accessed_db_names()->elements : 0;
   if (dbs == 1)
   {
-    char *db_name= thd->get_binlog_accessed_db_names()->head();
+    char *db_name= thd_arg->get_binlog_accessed_db_names()->head();
     if (!strcmp(db_name, ""))
       m_flags |= TM_REFERRED_FK_DB_F;
   }
@@ -12242,8 +12246,8 @@ int Table_map_log_event::do_apply_event(Relay_log_info const *rli)
                                 NullS)))
     DBUG_RETURN(HA_ERR_OUT_OF_MEM);
 
-  strmov(db_mem, m_dbnam);
-  strmov(tname_mem, m_tblnam);
+  my_stpcpy(db_mem, m_dbnam);
+  my_stpcpy(tname_mem, m_tblnam);
 
   if (lower_case_table_names)
   {
@@ -12253,7 +12257,7 @@ int Table_map_log_event::do_apply_event(Relay_log_info const *rli)
 
   /* rewrite rules changed the database */
   if (((ptr= (char*) rpl_filter->get_rewrite_db(db_mem, &dummy_len)) != db_mem))
-    strmov(db_mem, ptr);
+    my_stpcpy(db_mem, ptr);
 
   table_list->init_one_table(db_mem, strlen(db_mem),
                              tname_mem, strlen(tname_mem),
@@ -13645,10 +13649,10 @@ int Gtid_log_event::do_apply_event(Relay_log_info const *rli)
     performance_schema.replication_execute_status_by_worker
     to show the GTID of last transaction picked up by this worker thread.
   */
-  const Slave_worker* worker;
-  worker= dynamic_cast<const Slave_worker* >(rli);
+  const Slave_worker* my_worker;
+  my_worker= dynamic_cast<const Slave_worker* >(rli);
   if (is_mts_worker(thd))
-    worker->currently_executing_gtid= thd->variables.gtid_next.gtid;
+    my_worker->currently_executing_gtid= thd->variables.gtid_next.gtid;
   DBUG_PRINT("info", ("setting gtid_next=%d:%lld",
                       sidno, spec.gtid.gno));
 

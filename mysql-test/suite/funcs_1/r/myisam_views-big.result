@@ -23744,6 +23744,8 @@ f1	f2	f3	f4
 1	NULL	NULL	NULL
 DELETE FROM t1;
 INSERT INTO v1 SET f2 = 'ABC';
+Warnings:
+Warning	1423	Field of view 'test.v1' underlying table doesn't have a default value
 INSERT INTO v1 SET f2 = 'ABC';
 ERROR 23000: Duplicate entry '0' for key 'PRIMARY'
 SELECT * from t1;
@@ -23813,6 +23815,8 @@ DELETE FROM t1;
 DROP VIEW v1;
 CREATE VIEW v1 AS SELECT f2, f3 FROM t1;
 INSERT INTO v1 SET f2 = 'ABC';
+Warnings:
+Warning	1423	Field of view 'test.v1' underlying table doesn't have a default value
 INSERT INTO v1 SET f2 = 'ABC';
 ERROR 23000: Duplicate entry '0' for key 'PRIMARY'
 SELECT * from t1;

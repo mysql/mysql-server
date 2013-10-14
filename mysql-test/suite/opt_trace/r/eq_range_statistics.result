@@ -1378,8 +1378,8 @@ EXPLAIN SELECT * FROM t1 WHERE a=5	{
                     },
                     {
                       "access_type": "range",
-                      "cause": "heuristic_index_cheaper",
-                      "chosen": false
+                      "chosen": false,
+                      "cause": "heuristic_index_cheaper"
                     }
                   ] /* considered_access_paths */
                 } /* best_access_path */,

@@ -993,7 +993,7 @@ btr_create(
 						pages */
 	index_id_t		index_id,	/*!< in: index id */
 	dict_index_t*		index,		/*!< in: index, or NULL when
-						applying TRUNCATE log 
+						applying TRUNCATE log
 						record during recovery */
 	const btr_create_t*	btr_redo_create_info,
 						/*!< in: used for applying
@@ -1306,6 +1306,8 @@ btr_page_reorganize_low(
 #endif /* !UNIV_HOTBACKUP */
 	temp_page = temp_block->frame;
 
+	MONITOR_INC(MONITOR_INDEX_REORG_ATTEMPTS);
+
 	/* Copy the old page to temporary space */
 	buf_frame_copy(temp_page, page);
 
@@ -1456,6 +1458,8 @@ func_exit:
 			mach_write_to_1(log_ptr, z_level);
 			mlog_close(mtr, log_ptr + 1);
 		}
+
+		MONITOR_INC(MONITOR_INDEX_REORG_SUCCESSFUL);
 	}
 #endif /* !UNIV_HOTBACKUP */
 
@@ -2476,7 +2480,7 @@ func_start:
 insert_empty:
 		ut_ad(!split_rec);
 		ut_ad(!insert_left);
-		buf = (byte*) mem_alloc(rec_get_converted_size(cursor->index,
+		buf = (byte*) ut_malloc(rec_get_converted_size(cursor->index,
 							       tuple, n_ext));
 
 		first_rec = rec_convert_dtuple_to_rec(buf, cursor->index,
@@ -2500,7 +2504,7 @@ insert_empty:
 						offsets, tuple, n_ext, heap);
 	} else {
 		if (!insert_left) {
-			mem_free(buf);
+			ut_free(buf);
 			buf = NULL;
 		}
 
@@ -3113,6 +3117,8 @@ btr_compress(
 	space = dict_index_get_space(index);
 	zip_size = dict_table_zip_size(index->table);
 
+	MONITOR_INC(MONITOR_INDEX_MERGE_ATTEMPTS);
+
 	left_page_no = btr_page_get_prev(page, mtr);
 	right_page_no = btr_page_get_next(page, mtr);
 
@@ -3357,6 +3363,9 @@ func_exit:
 			page_rec_get_nth(merge_block->frame, nth_rec),
 			merge_block, cursor);
 	}
+
+	MONITOR_INC(MONITOR_INDEX_MERGE_SUCCESSFUL);
+
 	DBUG_RETURN(TRUE);
 
 err_exit:
@@ -3483,9 +3492,12 @@ btr_discard_page(
 	space = dict_index_get_space(index);
 	zip_size = dict_table_zip_size(index->table);
 
+	MONITOR_INC(MONITOR_INDEX_DISCARD);
+
 #ifdef UNIV_DEBUG
 	btr_page_get_father(index, block, mtr, &parent_cursor);
 #endif
+
 	/* Decide the page which will inherit the locks */
 
 	left_page_no = btr_page_get_prev(buf_block_get_frame(block), mtr);

@@ -6,15 +6,11 @@ Note	####	Storing MySQL user name or password information in the master info rep
 include/assert.inc [On master, the table should return an empty set.]
 
 # Verify that SELECT works for every field and produces an output similar
-# to the corresponding field in SHOW SLAVE STATUS(SSS). For thread_id
-# field in this PS table, there is no corresponding field in SSS.
-# So, the value of thread_id field is matched with the IO thread_id taken
-# from SHOW PROCESSLIST.
+# to the corresponding field in SHOW SLAVE STATUS(SSS). To verify the
+# correctness of thread_id field, we check for the name of the thread.
 
 include/assert.inc [Value returned by SSS and PS table for Source_UUID should be same.]
-include/wait_for_slave_param.inc [Slave_IO_State]
-io thread id extracted from SHOW PROCESSLIST and PS table match correctly.
-# End of perl code for thread_id testing.
+include/assert.inc [thread_name should should indicate io thread.]
 include/assert.inc [SSS shows Slave_IO_Running as "Yes". So, Service_State from this PS table should be "ON".]
 include/assert.inc [Value returned by SSS and PS table for Received_Transaction_Set should be same.]
 include/assert.inc [Value returned by SSS and PS table for Last_Error_Number should be same.]

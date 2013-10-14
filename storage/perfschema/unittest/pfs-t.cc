@@ -785,7 +785,7 @@ void test_init_disabled()
   ok(socket_A1 == NULL, "socket key 0 not instrumented");
   socket_A1= psi->init_socket(99, NULL, NULL, 0);
   ok(socket_A1 == NULL, "broken socket key not instrumented");
-  
+
   /* Pretend thread T-1 is enabled */
   /* ----------------------------- */
 
@@ -1022,7 +1022,7 @@ void test_init_disabled()
   ok(socket_A1 == NULL, "socket key 0 not instrumented");
   socket_A1= psi->init_socket(99, NULL, NULL, 0);
   ok(socket_A1 == NULL, "broken socket key not instrumented");
-  
+
   shutdown_performance_schema();
 }
 
@@ -1329,7 +1329,7 @@ void test_locker_disabled()
   /* Socket thread owner has not been set */
   socket_locker= psi->start_socket_wait(&socket_state, socket_A1, PSI_SOCKET_SEND, 12, "foo.cc", 12);
   ok(socket_locker == NULL, "no locker (no thread owner)");
-  
+
   /* Pretend the running thread is not instrumented */
   /* ---------------------------------------------- */
 
@@ -1633,6 +1633,8 @@ void test_event_name_index()
   ok(global_table_io_class.m_event_name_index == 0, "index 0");
   ok(global_table_lock_class.m_event_name_index == 1, "index 1");
   ok(wait_class_max= 314, "314 event names"); // 4 global classes
+
+  shutdown_performance_schema();
 }
 
 void test_memory_instruments()
@@ -1720,6 +1722,57 @@ void test_memory_instruments()
   shutdown_performance_schema();
 }
 
+void test_leaks()
+{
+  PSI_bootstrap *boot;
+  PFS_global_param param;
+
+  /* Allocate everything, to make sure cleanup does not forget anything. */
+
+  memset(& param, 0xFF, sizeof(param));
+  param.m_enabled= true;
+  param.m_mutex_class_sizing= 10;
+  param.m_rwlock_class_sizing= 10;
+  param.m_cond_class_sizing= 10;
+  param.m_thread_class_sizing= 10;
+  param.m_table_share_sizing= 10;
+  param.m_file_class_sizing= 10;
+  param.m_socket_class_sizing= 10;
+  param.m_mutex_sizing= 1000;
+  param.m_rwlock_sizing= 1000;
+  param.m_cond_sizing= 1000;
+  param.m_thread_sizing= 1000;
+  param.m_table_sizing= 1000;
+  param.m_file_sizing= 1000;
+  param.m_file_handle_sizing= 1000;
+  param.m_socket_sizing= 1000;
+  param.m_events_waits_history_sizing= 10;
+  param.m_events_waits_history_long_sizing= 1000;
+  param.m_setup_actor_sizing= 1000;
+  param.m_setup_object_sizing= 1000;
+  param.m_host_sizing= 1000;
+  param.m_user_sizing= 1000;
+  param.m_account_sizing= 1000;
+  param.m_stage_class_sizing= 10;
+  param.m_events_stages_history_sizing= 10;
+  param.m_events_stages_history_long_sizing= 1000;
+  param.m_statement_class_sizing= 10;
+  param.m_events_statements_history_sizing= 10;
+  param.m_events_statements_history_long_sizing= 1000;
+  param.m_session_connect_attrs_sizing= 1000;
+  param.m_memory_class_sizing= 10;
+  param.m_metadata_lock_sizing= 1000;
+  param.m_digest_sizing= 1000;
+  param.m_program_sizing= 1000;
+  param.m_statement_stack_sizing= 10;
+
+  boot= initialize_performance_schema(& param);
+  ok(boot != NULL, "bootstrap");
+  shutdown_performance_schema();
+
+  /* Leaks will be reported with valgrind */
+}
+
 void do_all_tests()
 {
   /* Using initialize_performance_schema(), no partial init needed. */
@@ -1731,11 +1784,12 @@ void do_all_tests()
   test_file_instrumentation_leak();
   test_event_name_index();
   test_memory_instruments();
+  test_leaks();
 }
 
 int main(int, char **)
 {
-  plan(228);
+  plan(229);
 
   MY_INIT("pfs-t");
   do_all_tests();

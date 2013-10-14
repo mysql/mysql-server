@@ -722,7 +722,7 @@ static void print_slave_skip_errors(void)
     if (errnum < MAX_SLAVE_ERROR)
     {
       /* Couldn't show all errors */
-      buff= strmov(buff, "..."); /* purecov: tested */
+      buff= my_stpcpy(buff, "..."); /* purecov: tested */
     }
     *buff=0;
   }
@@ -2665,6 +2665,7 @@ bool show_slave_status(THD* thd, Master_info* mi)
                                              sql_gtid_set_size));
   field_list.push_back(new Item_return_int("Auto_Position", sizeof(ulong),
                                            MYSQL_TYPE_LONG));
+  field_list.push_back(new Item_empty_string("Replicate_Rewrite_DB", 24));
 
   if (protocol->send_result_set_metadata(&field_list,
                             Protocol::SEND_NUM_ROWS | Protocol::SEND_EOF))
@@ -2911,6 +2912,9 @@ bool show_slave_status(THD* thd, Master_info* mi)
     protocol->store(sql_gtid_set_buffer, &my_charset_bin);
     // Auto_Position
     protocol->store(mi->is_auto_position() ? 1 : 0);
+    // Replicate_Rewrite_DB
+    rpl_filter->get_rewrite_db(&tmp);
+    protocol->store(&tmp);
 
     mysql_mutex_unlock(&mi->rli->err_lock);
     mysql_mutex_unlock(&mi->err_lock);
@@ -4145,6 +4149,12 @@ pthread_handler_t handle_slave_io(void *arg)
   THD_CHECK_SENTRY(thd);
   mi->info_thd = thd;
 
+  #ifdef HAVE_PSI_INTERFACE
+  // save the instrumentation for IO thread in mi->info_thd->scheduler
+  struct PSI_thread *psi= PSI_THREAD_CALL(get_thread)();
+  thd_set_psi(mi->info_thd, psi);
+  #endif
+
   pthread_detach_this_thread();
   thd->thread_stack= (char*) &thd; // remember where our stack is
   mi->clear_error();
@@ -4156,10 +4166,8 @@ pthread_handler_t handle_slave_io(void *arg)
     goto err;
   }
 
-  mysql_mutex_lock(&LOCK_thread_count);
   add_global_thread(thd);
   thd_added= true;
-  mysql_mutex_unlock(&LOCK_thread_count);
 
   mi->slave_running = 1;
   mi->abort_slave = 0;
@@ -4483,11 +4491,9 @@ err:
   net_end(&thd->net); // destructor will not free it, because net.vio is 0
 
   thd->release_resources();
-  mysql_mutex_lock(&LOCK_thread_count);
   THD_CHECK_SENTRY(thd);
   if (thd_added)
     remove_global_thread(thd);
-  mysql_mutex_unlock(&LOCK_thread_count);
 
   mi->abort_slave= 0;
   mi->slave_running= 0;
@@ -4583,6 +4589,9 @@ pthread_handler_t handle_slave_worker(void *arg)
   ulong purge_cnt= 0;
   ulonglong purge_size= 0;
   struct slave_job_item _item, *job_item= &_item;
+  #ifdef HAVE_PSI_INTERFACE
+  struct PSI_thread *psi;
+  #endif
 
   my_thread_init();
   DBUG_ENTER("handle_slave_worker");
@@ -4597,7 +4606,13 @@ pthread_handler_t handle_slave_worker(void *arg)
   w->info_thd= thd;
   mysql_mutex_unlock(&w->info_thd_lock);
   thd->thread_stack = (char*)&thd;
-  
+
+  #ifdef HAVE_PSI_INTERFACE
+  // save the instrumentation for worker thread in w->info_thd->scheduler
+  psi= PSI_THREAD_CALL(get_thread)();
+  thd_set_psi(w->info_thd, psi);
+  #endif
+
   pthread_detach_this_thread();
   if (init_slave_thread(thd, SLAVE_THD_WORKER))
   {
@@ -4607,10 +4622,8 @@ pthread_handler_t handle_slave_worker(void *arg)
   }
   thd->init_for_queries(w);
 
-  mysql_mutex_lock(&LOCK_thread_count);
   add_global_thread(thd);
   thd_added= true;
-  mysql_mutex_unlock(&LOCK_thread_count);
 
   if (w->update_is_transactional())
   {
@@ -4703,11 +4716,9 @@ err:
     thd->system_thread= NON_SYSTEM_THREAD;
     thd->release_resources();
 
-    mysql_mutex_lock(&LOCK_thread_count);
     THD_CHECK_SENTRY(thd);
     if (thd_added)
       remove_global_thread(thd);
-    mysql_mutex_unlock(&LOCK_thread_count);
     delete thd;
   }
 
@@ -5545,6 +5556,12 @@ pthread_handler_t handle_slave_sql(void *arg)
   mysql_mutex_lock(&rli->info_thd_lock);
   rli->info_thd= thd;
 
+  #ifdef HAVE_PSI_INTERFACE
+  // save the instrumentation for SQL thread in rli->info_thd->scheduler
+  struct PSI_thread *psi= PSI_THREAD_CALL(get_thread)();
+  thd_set_psi(rli->info_thd, psi);
+  #endif
+
  /*
   Create Mts Submode.
   It is possible that we may not have deleted the last MTS submode in case
@@ -5583,10 +5600,8 @@ pthread_handler_t handle_slave_sql(void *arg)
   thd->temporary_tables = rli->save_temporary_tables; // restore temp tables
   set_thd_in_use_temporary_tables(rli);   // (re)set sql_thd in use for saved temp tables
 
-  mysql_mutex_lock(&LOCK_thread_count);
   add_global_thread(thd);
   thd_added= true;
-  mysql_mutex_unlock(&LOCK_thread_count);
 
   /* MTS: starting the worker pool */
   if (slave_start_workers(rli, rli->opt_slave_parallel_workers, &mts_inited) != 0)
@@ -5911,11 +5926,9 @@ llstr(rli->get_group_master_log_pos(), llbuff));
   set_thd_in_use_temporary_tables(rli);  // (re)set info_thd in use for saved temp tables
 
   thd->release_resources();
-  mysql_mutex_lock(&LOCK_thread_count);
   THD_CHECK_SENTRY(thd);
   if (thd_added)
     remove_global_thread(thd);
-  mysql_mutex_unlock(&LOCK_thread_count);
 
   /*
     The thd can only be destructed after indirect references

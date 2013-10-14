@@ -41,7 +41,7 @@ sess_open(void)
 {
 	sess_t*	sess;
 
-	sess = static_cast<sess_t*>(mem_zalloc(sizeof(*sess)));
+	sess = static_cast<sess_t*>(ut_zalloc(sizeof(*sess)));
 
 	sess->state = SESS_ACTIVE;
 
@@ -60,5 +60,5 @@ sess_close(
 	sess_t*	sess)	/*!< in, own: session object */
 {
 	trx_free_for_background(sess->trx);
-	mem_free(sess);
+	ut_free(sess);
 }

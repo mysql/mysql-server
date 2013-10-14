@@ -590,7 +590,7 @@ public:
 
     memset(&UNIXaddr, 0, sizeof(UNIXaddr));
     UNIXaddr.sun_family= AF_UNIX;
-    strmov(UNIXaddr.sun_path, m_unix_sockname.c_str());
+    my_stpcpy(UNIXaddr.sun_path, m_unix_sockname.c_str());
     (void) unlink(m_unix_sockname.c_str());
 
     // Set socket option SO_REUSEADDR

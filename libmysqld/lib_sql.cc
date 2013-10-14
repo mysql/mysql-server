@@ -425,9 +425,7 @@ static void emb_free_embedded_thd(MYSQL *mysql)
   thd->store_globals();
   thd->release_resources();
 
-  mysql_mutex_lock(&LOCK_thread_count);
   remove_global_thread(thd);
-  mysql_mutex_unlock(&LOCK_thread_count);
 
   delete thd;
   my_pthread_setspecific_ptr(THR_THD,  0);
@@ -493,7 +491,7 @@ char **copy_arguments(int argc, char **argv)
     for (from=argv ; from != end ;)
     {
       *to++= to_str;
-      to_str= strmov(to_str, *from++)+1;
+      to_str= my_stpcpy(to_str, *from++)+1;
     }
     *to= 0;					// Last ptr should be null
   }
@@ -738,9 +736,7 @@ void *create_embedded_thd(int client_flag)
   thd->data_tail= &thd->first_data;
   memset(&thd->net, 0, sizeof(thd->net));
 
-  mysql_mutex_lock(&LOCK_thread_count);
   add_global_thread(thd);
-  mysql_mutex_unlock(&LOCK_thread_count);
   thd->mysys_var= 0;
   return thd;
 err:
@@ -1272,7 +1268,7 @@ bool net_send_error_packet(THD *thd, uint sql_errno, const char *err,
                         system_charset_info, &error);
   /* Converted error message is always null-terminated. */
   strmake(ei->info, converted_err, sizeof(ei->info)-1);
-  strmov(ei->sqlstate, sqlstate);
+  my_stpcpy(ei->sqlstate, sqlstate);
   ei->server_status= thd->server_status;
   thd->cur_data= 0;
   return FALSE;

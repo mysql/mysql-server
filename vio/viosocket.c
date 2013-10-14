@@ -605,7 +605,7 @@ my_bool vio_peer_addr(Vio *vio, char *ip_buffer, uint16 *port,
 
     /* Initialize ip_buffer and port. */
 
-    strmov(ip_buffer, "127.0.0.1");
+    my_stpcpy(ip_buffer, "127.0.0.1");
     *port= 0;
   }
   else

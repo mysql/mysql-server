@@ -1605,7 +1605,7 @@ fts_rename_aux_tables(
 
 		err = fts_rename_one_aux_table(new_name, old_table_name, trx);
 
-		mem_free(old_table_name);
+		ut_free(old_table_name);
 
 		if (err != DB_SUCCESS) {
 			return(err);
@@ -1638,7 +1638,7 @@ fts_rename_aux_tables(
 			DBUG_EXECUTE_IF("fts_rename_failure",
 					err = DB_DEADLOCK;);
 
-			mem_free(old_table_name);
+			ut_free(old_table_name);
 
 			if (err != DB_SUCCESS) {
 				return(err);
@@ -1680,7 +1680,7 @@ fts_drop_common_tables(
 			error = err;
 		}
 
-		mem_free(table_name);
+		ut_free(table_name);
 	}
 
 	return(error);
@@ -1719,7 +1719,7 @@ fts_drop_index_split_tables(
 			error = err;
 		}
 
-		mem_free(table_name);
+		ut_free(table_name);
 	}
 
 	return(error);
@@ -1769,7 +1769,7 @@ fts_drop_index_tables(
 			error = err;
 		}
 
-		mem_free(table_name);
+		ut_free(table_name);
 	}
 #endif /* FTS_DOC_STATS_DEBUG */
 
@@ -1840,7 +1840,7 @@ fts_drop_tables(
 
 /*********************************************************************//**
 Prepare the SQL, so that all '%s' are replaced by the common prefix.
-@return sql string, use mem_free() to free the memory */
+@return sql string, use ut_free() to free the memory */
 static
 char*
 fts_prepare_sql(
@@ -1853,7 +1853,7 @@ fts_prepare_sql(
 
 	name_prefix = fts_get_table_name_prefix(fts_table);
 	sql = ut_strreplace(my_template, "%s", name_prefix);
-	mem_free(name_prefix);
+	ut_free(name_prefix);
 
 	return(sql);
 }
@@ -1891,7 +1891,7 @@ fts_create_common_tables(
 	/* Create the FTS tables that are common to an FTS index. */
 	sql = fts_prepare_sql(&fts_table, fts_create_common_tables_sql);
 	graph = fts_parse_sql_no_dict_lock(NULL, NULL, sql);
-	mem_free(sql);
+	ut_free(sql);
 
 	error = fts_eval_sql(trx, graph);
 
@@ -2011,7 +2011,7 @@ fts_create_one_index_table(
 			"Fail to create FTS index table %s", table_name);
 	}
 
-	mem_free(table_name);
+	ut_free(table_name);
 
 	return(new_table);
 }
@@ -2051,7 +2051,7 @@ fts_create_index_tables_low(
 	sql = fts_prepare_sql(&fts_table, fts_create_index_tables_sql);
 
 	graph = fts_parse_sql_no_dict_lock(NULL, NULL, sql);
-	mem_free(sql);
+	ut_free(sql);
 
 	error = fts_eval_sql(trx, graph);
 	que_graph_free(graph);
@@ -2350,7 +2350,7 @@ fts_trx_table_clone(
 	ftt->rows = rbt_create(sizeof(fts_trx_row_t), fts_trx_row_doc_id_cmp);
 
 	/* Copy the rb tree values to the new savepoint. */
-	rbt_merge_uniq(ftt_src->rows, ftt->rows);
+	rbt_merge_uniq(ftt->rows, ftt_src->rows);
 
 	/* These are only added on commit. At this stage we only have
 	the updated row state. */
@@ -4463,6 +4463,10 @@ fts_sync(
 		index_cache = static_cast<fts_index_cache_t*>(
 			ib_vector_get(cache->indexes, i));
 
+		if (index_cache->index->to_be_dropped) {
+			continue;
+		}
+
 		error = fts_sync_index(sync, index_cache);
 
 		if (error != DB_SUCCESS && !sync->interrupted) {
@@ -4472,7 +4476,8 @@ fts_sync(
 	}
 
 	DBUG_EXECUTE_IF("fts_instrument_sync_interrupted",
-			 sync->interrupted = true;
+			sync->interrupted = true;
+			error = DB_INTERRUPTED;
 	);
 
 	if (error == DB_SUCCESS && !sync->interrupted) {
@@ -4498,17 +4503,20 @@ fts_sync(
 /****************************************************************//**
 Run SYNC on the table, i.e., write out data from the cache to the
 FTS auxiliary INDEX table and clear the cache at the end. */
-
-void
+dberr_t
 fts_sync_table(
 /*===========*/
 	dict_table_t*	table)		/*!< in: table */
 {
+	dberr_t	err = DB_SUCCESS;
+
 	ut_ad(table->fts);
 
 	if (table->fts->cache) {
-		fts_sync(table->fts->cache->sync);
+		err = fts_sync(table->fts->cache->sync);
 	}
+
+	return(err);
 }
 
 /********************************************************************
@@ -4669,7 +4677,7 @@ fts_tokenize_document_internal(
 
 	str.f_str = buf;
 
-	for (int i = 0, inc = 0; i < len; i += inc) {
+	for (ulint i = 0, inc = 0; i < static_cast<ulint>(len); i += inc) {
 		inc = innobase_mysql_fts_get_token(
 			const_cast<CHARSET_INFO*>(param->cs),
 			reinterpret_cast<byte*>(doc) + i,
@@ -4677,14 +4685,16 @@ fts_tokenize_document_internal(
 			&str);
 
 		if (str.f_len > 0) {
-			bool_info.position = i + inc - str.f_len;
+			bool_info.position =
+				static_cast<int>(i + inc - str.f_len);
 			ut_ad(bool_info.position >= 0);
 
 			/* Stop when add word fails */
 			if (param->mysql_add_word(
 				param,
 				reinterpret_cast<char*>(str.f_str),
-				str.f_len, &bool_info)) {
+				static_cast<int>(str.f_len),
+				&bool_info)) {
 				break;
 			}
 		}
@@ -4748,7 +4758,7 @@ fts_tokenize_by_parser(
 	param.mysql_ftparam = fts_param;
 	param.cs = doc->charset;
 	param.doc = reinterpret_cast<char*>(doc->text.f_str);
-	param.length = doc->text.f_len;
+	param.length = static_cast<int>(doc->text.f_len);
 	param.mode= MYSQL_FTPARSER_SIMPLE_MODE;
 
 	PARSER_INIT(parser, &param);
@@ -5739,8 +5749,20 @@ fts_savepoint_release(
 
 	/* Only if we found and element to release. */
 	if (i < ib_vector_size(savepoints)) {
+		fts_savepoint_t*	last_savepoint;
+		fts_savepoint_t*	top_savepoint;
+		ib_rbt_t*		tables;
 
 		ut_a(top_of_stack < ib_vector_size(savepoints));
+
+		/* Exchange tables between last savepoint and top savepoint */
+		last_savepoint = static_cast<fts_savepoint_t*>(
+				ib_vector_last(trx->fts_trx->savepoints));
+		top_savepoint = static_cast<fts_savepoint_t*>(
+				ib_vector_get(savepoints, top_of_stack));
+		tables = top_savepoint->tables;
+		top_savepoint->tables = last_savepoint->tables;
+		last_savepoint->tables = tables;
 
 		/* Skip the implied savepoint. */
 		for (i = ib_vector_size(savepoints) - 1;
@@ -6191,7 +6213,7 @@ fts_check_and_drop_orphaned_tables(
 				os_file_delete_if_exists(innodb_data_file_key,
 							 path, NULL);
 
-				mem_free(path);
+				ut_free(path);
 			}
 		}
 	}

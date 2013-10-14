@@ -81,7 +81,7 @@ ib_create(
 	}
 
 	table->heaps = static_cast<mem_heap_t**>(
-		mem_alloc(n_sync_obj * sizeof(void*)));
+		ut_malloc(n_sync_obj * sizeof(void*)));
 
 	for (ulint i = 0; i < n_sync_obj; i++) {
 		table->heaps[i] = mem_heap_create_typed(4096, type);
@@ -108,16 +108,14 @@ ha_clear(
 		mem_heap_free(table->heaps[i]);
 	}
 
-	if (table->heaps) {
-		mem_free(table->heaps);
-	}
+	ut_free(table->heaps);
 
 	switch (table->type) {
 	case HASH_TABLE_SYNC_MUTEX:
 		for (ulint i = 0; i < table->n_sync_obj; ++i) {
 			mutex_destroy(&table->sync_obj.mutexes[i]);
 		}
-		mem_free(table->sync_obj.mutexes);
+		ut_free(table->sync_obj.mutexes);
 		table->sync_obj.mutexes = NULL;
 		break;
 
@@ -126,7 +124,7 @@ ha_clear(
 			rw_lock_free(&table->sync_obj.rw_locks[i]);
 		}
 
-		mem_free(table->sync_obj.rw_locks);
+		ut_free(table->sync_obj.rw_locks);
 		table->sync_obj.rw_locks = NULL;
 		break;
 

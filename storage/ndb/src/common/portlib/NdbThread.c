@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2003, 2010, Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2003, 2013, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -208,7 +208,7 @@ NdbThread_CreateObject(const char * name)
     settid(g_main_thread);
     if (name)
     {
-      strnmov(g_main_thread->thread_name, name, sizeof(tmpThread->thread_name));
+      my_stpnmov(g_main_thread->thread_name, name, sizeof(tmpThread->thread_name));
     }
     DBUG_RETURN(g_main_thread);
   }
@@ -220,11 +220,11 @@ NdbThread_CreateObject(const char * name)
   bzero(tmpThread, sizeof(* tmpThread));
   if (name)
   {
-    strnmov(tmpThread->thread_name, name, sizeof(tmpThread->thread_name));
+    my_stpnmov(tmpThread->thread_name, name, sizeof(tmpThread->thread_name));
   }
   else
   {
-    strnmov(tmpThread->thread_name, "main", sizeof(tmpThread->thread_name));
+    my_stpnmov(tmpThread->thread_name, "main", sizeof(tmpThread->thread_name));
   }
 
 #ifdef HAVE_PTHREAD_SELF
@@ -274,7 +274,7 @@ NdbThread_Create(NDB_THREAD_FUNC *p_thread_func,
 
   DBUG_PRINT("info",("thread_name: %s", p_thread_name));
 
-  strnmov(tmpThread->thread_name,p_thread_name,sizeof(tmpThread->thread_name));
+  my_stpnmov(tmpThread->thread_name,p_thread_name,sizeof(tmpThread->thread_name));
 
   pthread_attr_init(&thread_attr);
 #ifdef PTHREAD_STACK_MIN

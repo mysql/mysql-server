@@ -14,7 +14,7 @@ partition by key (a) partitions 2;
 show create table t1;
 Table	Create Table
 t1	CREATE TABLE `t1` (
-  `a` bit(64) NOT NULL DEFAULT b'0',
+  `a` bit(64) NOT NULL,
   PRIMARY KEY (`a`)
 ) ENGINE=MyISAM DEFAULT CHARSET=latin1
 /*!50100 PARTITION BY KEY (a)
@@ -42,7 +42,7 @@ partition pa4 max_rows=40 min_rows=2);
 show create table t1;
 Table	Create Table
 t1	CREATE TABLE `t1` (
-  `a` bit(64) NOT NULL DEFAULT b'0',
+  `a` bit(64) NOT NULL,
   PRIMARY KEY (`a`)
 ) ENGINE=MyISAM DEFAULT CHARSET=latin1
 /*!50100 PARTITION BY KEY (a)
@@ -72,7 +72,7 @@ partition by key (a) partitions 4;
 show create table t2;
 Table	Create Table
 t2	CREATE TABLE `t2` (
-  `a` bit(1) NOT NULL DEFAULT b'0',
+  `a` bit(1) NOT NULL,
   PRIMARY KEY (`a`)
 ) ENGINE=MyISAM DEFAULT CHARSET=latin1
 /*!50100 PARTITION BY KEY (a)
@@ -86,7 +86,7 @@ alter table t2 drop primary key;
 show create table t2;
 Table	Create Table
 t2	CREATE TABLE `t2` (
-  `a` bit(1) NOT NULL DEFAULT b'0'
+  `a` bit(1) NOT NULL
 ) ENGINE=MyISAM DEFAULT CHARSET=latin1
 /*!50100 PARTITION BY KEY (a)
 PARTITIONS 4 */
@@ -98,7 +98,7 @@ alter table t2 add primary key (a);
 show create table t2;
 Table	Create Table
 t2	CREATE TABLE `t2` (
-  `a` bit(1) NOT NULL DEFAULT b'0',
+  `a` bit(1) NOT NULL,
   PRIMARY KEY (`a`)
 ) ENGINE=MyISAM DEFAULT CHARSET=latin1
 /*!50100 PARTITION BY KEY (a)
@@ -117,7 +117,7 @@ partition pa4 values less than (256));
 show create table t3;
 Table	Create Table
 t3	CREATE TABLE `t3` (
-  `a` bit(8) NOT NULL DEFAULT b'0',
+  `a` bit(8) NOT NULL,
   PRIMARY KEY (`a`)
 ) ENGINE=MyISAM DEFAULT CHARSET=latin1
 /*!50100 PARTITION BY RANGE (a)
@@ -400,7 +400,7 @@ partition pa3 values in (17,18,19,20,21,22,23,24,25,26,27,28,29,30,31,32));
 show create table t4;
 Table	Create Table
 t4	CREATE TABLE `t4` (
-  `a` bit(8) NOT NULL DEFAULT b'0',
+  `a` bit(8) NOT NULL,
   PRIMARY KEY (`a`)
 ) ENGINE=MyISAM DEFAULT CHARSET=latin1
 /*!50100 PARTITION BY LIST (a)

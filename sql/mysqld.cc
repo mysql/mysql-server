@@ -152,7 +152,9 @@ extern "C" {          // Because of SCO 3.2V4.2
 #include <my_net.h>
 
 #if !defined(_WIN32)
+#ifdef HAVE_SYS_RESOURCE_H
 #include <sys/resource.h>
+#endif
 #ifdef HAVE_SYS_UN_H
 #include <sys/un.h>
 #endif
@@ -372,13 +374,14 @@ bool opt_error_log= IF_WIN(1,0);
 bool opt_disable_networking=0, opt_skip_show_db=0;
 bool opt_skip_name_resolve=0;
 my_bool opt_character_set_client_handshake= 1;
-bool server_id_supplied = 0;
+bool server_id_supplied = false;
 bool opt_endinfo, using_udf_functions;
 my_bool locked_in_memory;
 bool opt_using_transactions;
 bool volatile abort_loop;
 bool volatile shutdown_in_progress;
 ulong log_warnings;
+uint host_cache_size;
 ulong log_error_verbosity= 3; // have a non-zero value during early start-up
 #if defined(_WIN32) && !defined(EMBEDDED_LIBRARY)
 ulong slow_start_timeout;
@@ -828,7 +831,7 @@ void copy_global_thread_list(std::set<THD*> *new_copy)
 void add_global_thread(THD *thd)
 {
   DBUG_PRINT("info", ("add_global_thread %p", thd));
-  mysql_mutex_assert_owner(&LOCK_thread_count);
+  mysql_mutex_lock(&LOCK_thread_count);
   const bool have_thread=
     global_thread_list->find(thd) != global_thread_list->end();
   if (!have_thread)
@@ -838,14 +841,22 @@ void add_global_thread(THD *thd)
   }
   // Adding the same THD twice is an error.
   DBUG_ASSERT(!have_thread);
+  mysql_mutex_unlock(&LOCK_thread_count);
 }
 
 void remove_global_thread(THD *thd)
 {
   DBUG_PRINT("info", ("remove_global_thread %p current_linfo %p",
                       thd, thd->current_linfo));
-  mysql_mutex_assert_owner(&LOCK_thread_count);
+  mysql_mutex_lock(&LOCK_thread_count);
   DBUG_ASSERT(thd->release_resources_done());
+
+  /*
+    Used by binlog_reset_master.  It would be cleaner to use
+    DEBUG_SYNC here, but that's not possible because the THD's debug
+    sync feature has been shut down at this point.
+  */
+  DBUG_EXECUTE_IF("sleep_after_lock_thread_count_before_delete_thd", sleep(5););
 
   mysql_mutex_lock(&LOCK_thread_remove);
   const size_t num_erased= global_thread_list->erase(thd);
@@ -856,6 +867,7 @@ void remove_global_thread(THD *thd)
   DBUG_ASSERT(1 == num_erased);
 
   mysql_cond_broadcast(&COND_thread_count);
+  mysql_mutex_unlock(&LOCK_thread_count);
 }
 
 uint get_thread_count()
@@ -1068,7 +1080,6 @@ struct rand_struct sql_rand; ///< used by sql_class.cc:THD::THD()
 #ifndef EMBEDDED_LIBRARY
 struct passwd *user_info;
 static pthread_t select_thread;
-static uint thr_kill_signal;
 #endif
 
 /* OS specific variables */
@@ -1273,7 +1284,7 @@ static void close_connections(void)
                       DBUG_ASSERT(tmp->get_command() != COM_BINLOG_DUMP &&
                                   tmp->get_command() != COM_BINLOG_DUMP_GTID);
                     };);
-    MYSQL_CALLBACK(Connection_handler_manager::callback,
+    MYSQL_CALLBACK(Connection_handler_manager::event_functions,
                    post_kill_notification, (tmp));
     mysql_mutex_lock(&tmp->LOCK_thd_data);
     if (tmp->mysys_var)
@@ -1316,7 +1327,7 @@ static void close_connections(void)
           tmp->get_command() == COM_BINLOG_DUMP_GTID)
       {
         tmp->killed= THD::KILL_CONNECTION;
-        MYSQL_CALLBACK(Connection_handler_manager::callback,
+        MYSQL_CALLBACK(Connection_handler_manager::event_functions,
                        post_kill_notification, (tmp));
         mysql_mutex_lock(&tmp->LOCK_thd_data);
         if (tmp->mysys_var)
@@ -2181,19 +2192,6 @@ void setup_conn_event_handler_threads()
   DBUG_VOID_RETURN;
 }
 #endif
-
-
-/** Called when a thread is aborted. */
-/* ARGSUSED */
-extern "C" sig_handler end_thread_signal(int sig __attribute__((unused)))
-{
-  THD *thd=current_thd;
-  my_safe_printf_stderr("end_thread_signal %p", thd);
-  if (thd && ! thd->bootstrap)
-  {
-    Connection_handler_manager::get_instance()->remove_connection(thd);
-  }
-}
 #endif /*!EMBEDDED_LIBRARY*/
 
 
@@ -2468,14 +2466,7 @@ void my_init_signals(void)
   sigaddset(&set,SIGTSTP);
 #endif
   sigaddset(&set,thr_server_alarm);
-  if (test_flags & TEST_SIGINT)
-  {
-    my_sigset(thr_kill_signal, end_thread_signal);
-    // May be SIGINT
-    sigdelset(&set, thr_kill_signal);
-  }
-  else
-    sigaddset(&set,SIGINT);
+  sigaddset(&set,SIGINT);
   sigprocmask(SIG_SETMASK,&set,NULL);
   pthread_sigmask(SIG_SETMASK,&set,NULL);
   DBUG_VOID_RETURN;
@@ -2535,14 +2526,7 @@ pthread_handler_t signal_hand(void *arg __attribute__((unused)))
     This should actually be '+ max_number_of_slaves' instead of +10,
     but the +10 should be quite safe.
   */
-  init_thr_alarm(Connection_handler_manager::get_instance()->get_max_threads()
-                 + 10);
-  if (test_flags & TEST_SIGINT)
-  {
-    (void) sigemptyset(&set);     // Setup up SIGINT for debug
-    (void) sigaddset(&set,SIGINT);    // For debugging
-    (void) pthread_sigmask(SIG_UNBLOCK,&set,NULL);
-  }
+  init_thr_alarm(Connection_handler_manager::max_threads + 10);
   (void) sigemptyset(&set);     // Setup up SIGINT for debug
   (void) sigaddset(&set,thr_server_alarm);  // For alarms
   (void) sigaddset(&set,SIGQUIT);
@@ -2831,6 +2815,7 @@ SHOW_VAR com_status_vars[]= {
   {"call_procedure",       (char*) offsetof(STATUS_VAR, com_stat[(uint) SQLCOM_CALL]), SHOW_LONG_STATUS},
   {"change_db",            (char*) offsetof(STATUS_VAR, com_stat[(uint) SQLCOM_CHANGE_DB]), SHOW_LONG_STATUS},
   {"change_master",        (char*) offsetof(STATUS_VAR, com_stat[(uint) SQLCOM_CHANGE_MASTER]), SHOW_LONG_STATUS},
+  {"change_repl_filter",   (char*) offsetof(STATUS_VAR, com_stat[(uint) SQLCOM_CHANGE_REPLICATION_FILTER]), SHOW_LONG_STATUS},
   {"check",                (char*) offsetof(STATUS_VAR, com_stat[(uint) SQLCOM_CHECK]), SHOW_LONG_STATUS},
   {"checksum",             (char*) offsetof(STATUS_VAR, com_stat[(uint) SQLCOM_CHECKSUM]), SHOW_LONG_STATUS},
   {"commit",               (char*) offsetof(STATUS_VAR, com_stat[(uint) SQLCOM_COMMIT]), SHOW_LONG_STATUS},
@@ -3178,7 +3163,7 @@ int init_common_variables()
       sizeof(default_logfile_name)-5);
 
   strmake(pidfile_name, default_logfile_name, sizeof(pidfile_name)-5);
-  strmov(fn_ext(pidfile_name),".pid");    // Add proper extension
+  my_stpcpy(fn_ext(pidfile_name),".pid");    // Add proper extension
 
 
   /*
@@ -4012,7 +3997,7 @@ static int init_server_components()
     all things are initialized so that unireg_abort() doesn't fail
   */
   mdl_init();
-  if (table_def_init() | hostname_cache_init())
+  if (table_def_init() | hostname_cache_init(host_cache_size))
     unireg_abort(1);
 
   init_server_query_cache();
@@ -4319,14 +4304,7 @@ a file name for --log-bin-index option", opt_binlog_index_name);
   }
 
   if (opt_bootstrap)
-  {
     log_output_options= LOG_FILE;
-    /*
-      Show errors during bootstrap, but gag everything else so critical
-      info isn't lost during install.  WL#6661 et al.
-    */
-    log_error_verbosity= 1;
-  }
 
   /*
     Issue a warning if there were specified additional options to the
@@ -4655,13 +4633,6 @@ int mysqld_main(int argc, char **argv)
   init_error_log_mutex();
   local_message_hook= error_log_print;  // we never change this in embedded
 
-  /* Set signal used to kill MySQL */
-#if defined(SIGUSR2)
-  thr_kill_signal= SIGUSR2;
-#else
-  thr_kill_signal= SIGINT;
-#endif
-
   /* Initialize audit interface globals. Audit plugins are inited later. */
   mysql_audit_initialize();
 
@@ -4761,15 +4732,13 @@ int mysqld_main(int argc, char **argv)
       set_user(mysqld_user, user_info);
   }
 
-  if (opt_bin_log && server_id == 0)
+  //If the binlog is enabled, one needs to provide a server-id
+  if (opt_bin_log && !(server_id_supplied) )
   {
-    server_id= 1;
-#ifdef EXTRA_DEBUG
-    sql_print_warning("You have enabled the binary log, but you haven't set "
-                      "server-id to a non-zero value: we force server id to 1; "
-                      "updates will be logged to the binary log, but "
-                      "connections from slaves will not be accepted.");
-#endif
+    sql_print_error("You have enabled the binary log, but you haven't provided "
+                    "the mandatory server-id. Please refer to the proper "
+                    "server start-up parameters documentation");
+    unireg_abort(1);
   }
 
   /* 
@@ -5135,7 +5104,7 @@ default_service_handling(char **argv,
     if (opt_delim= strchr(extra_opt, '='))
     {
       size_t length= ++opt_delim - extra_opt;
-      pos= strnmov(pos, extra_opt, length);
+      pos= my_stpnmov(pos, extra_opt, length);
     }
     else
       opt_delim= extra_opt;
@@ -5174,7 +5143,7 @@ int mysqld_main(int argc, char **argv)
     need to have an  unique  named  hEventShudown  through the
     application PID e.g.: MySQLShutdown1890; MySQLShutdown2342
   */
-  int10_to_str((int) GetCurrentProcessId(),strmov(shutdown_event_name,
+  int10_to_str((int) GetCurrentProcessId(),my_stpcpy(shutdown_event_name,
                                                   "MySQLShutdown"), 10);
 
   /* Must be initialized early for comparison of service name */
@@ -6313,7 +6282,7 @@ static int show_ssl_get_cipher_list(THD *thd, SHOW_VAR *var, char *buff)
     for (i=0; (p= SSL_get_cipher_list((SSL*) thd->net.vio->ssl_arg,i)) &&
                buff < end; i++)
     {
-      buff= strnmov(buff, p, end-buff-1);
+      buff= my_stpnmov(buff, p, end-buff-1);
       *buff++= ':';
     }
     if (i)
@@ -6741,7 +6710,7 @@ static int mysql_init_variables(void)
   mqh_used= 0;
   kill_in_progress= 0;
   cleanup_done= 0;
-  server_id_supplied= 0;
+  server_id_supplied= false;
   test_flags= select_errors= dropping_tables= ha_open_options=0;
   global_thread_count= num_thread_running= 0;
   slave_open_temp_tables= 0;
@@ -6786,7 +6755,7 @@ static int mysql_init_variables(void)
   my_atomic_rwlock_init(&opt_binlog_max_flush_queue_time_lock);
   my_atomic_rwlock_init(&global_query_id_lock);
   my_atomic_rwlock_init(&thread_running_lock);
-  strmov(server_version, MYSQL_SERVER_VERSION);
+  my_stpcpy(server_version, MYSQL_SERVER_VERSION);
   global_thread_list= new std::set<THD*>;
   key_caches.empty();
   if (!(dflt_key_cache= get_or_create_key_cache(default_key_cache_base.str,
@@ -7097,7 +7066,13 @@ mysqld_get_one_option(int optid,
     opt_bootstrap=1;
     break;
   case OPT_SERVER_ID:
-    server_id_supplied = 1;
+    /*
+     Consider that one received a Server Id when 2 conditions are present:
+     1) The argument is on the list
+     2) There is a value present
+    */
+    server_id_supplied= (*argument != 0);
+
     break;
   case OPT_LOWER_CASE_TABLE_NAMES:
     lower_case_table_names_used= 1;
@@ -7356,6 +7331,21 @@ static int get_options(int *argc_ptr, char ***argv_ptr)
   sys_var_add_options(&all_options, sys_var::PARSE_NORMAL);
   add_terminator(&all_options);
 
+  if (opt_help || opt_bootstrap)
+  {
+    /*
+      Show errors during --help, but gag everything else so the info the
+      user actually wants isn't lost in the spam.  (For --help --verbose,
+      we need to set up far enough to be able to print variables provided
+      by plugins, so a good number of warnings/notes might get printed.)
+      Likewise for --bootstrap.
+    */
+    struct my_option *opt= &all_options[0];
+    for (; opt->name; opt++)
+      if (!strcmp("log_error_verbosity", opt->name))
+        opt->def_value= 1;
+  }
+
   /* Skip unknown options so that they may be processed later by plugins */
   my_getopt_skip_unknown= TRUE;
 
@@ -7377,17 +7367,7 @@ static int get_options(int *argc_ptr, char ***argv_ptr)
     Do them here.
   */
 
-  if (opt_help)
-  {
-    /*
-      Show errors during --help, but gag everything else so the info the
-      user actually wants isn't lost in the spam.  (For --help --verbose,
-      we need to set up far enough to be able to print variables provided
-      by plugins.)
-    */
-    log_error_verbosity= 1;
-  }
-  else if (opt_verbose)
+  if (!opt_help && opt_verbose)
     sql_print_error("--verbose is for use with --help; "
                     "did you mean --log-error-verbosity?");
 
@@ -7480,8 +7460,8 @@ static int get_options(int *argc_ptr, char ***argv_ptr)
 #endif
   if (opt_debugging)
   {
-    /* Allow break with SIGINT, no core or stack trace */
-    test_flags|= TEST_SIGINT | TEST_NO_STACKTRACE;
+    /* Allow no core or stack trace */
+    test_flags|= TEST_NO_STACKTRACE;
     test_flags&= ~TEST_CORE_ON_SIGNAL;
   }
   /* Set global MyISAM variables from delay_key_write_options */
@@ -7544,14 +7524,14 @@ static void set_server_version(void)
   char *end= strxmov(server_version, MYSQL_SERVER_VERSION,
                      MYSQL_SERVER_SUFFIX_STR, NullS);
 #ifdef EMBEDDED_LIBRARY
-  end= strmov(end, "-embedded");
+  end= my_stpcpy(end, "-embedded");
 #endif
 #ifndef DBUG_OFF
   if (!strstr(MYSQL_SERVER_SUFFIX_STR, "-debug"))
-    end= strmov(end, "-debug");
+    end= my_stpcpy(end, "-debug");
 #endif
   if (opt_general_log || opt_slow_log || opt_bin_log)
-    strmov(end, "-log");                        // This may slow down system
+    my_stpcpy(end, "-log");                        // This may slow down system
 }
 
 
@@ -8425,6 +8405,7 @@ PSI_memory_key key_memory_MYSQL_BIN_LOG_basename;
 PSI_memory_key key_memory_MYSQL_BIN_LOG_index;
 PSI_memory_key key_memory_MYSQL_RELAY_LOG_basename;
 PSI_memory_key key_memory_MYSQL_RELAY_LOG_index;
+PSI_memory_key key_memory_rpl_filter;
 PSI_memory_key key_memory_errmsgs;
 PSI_memory_key key_memory_Gcalc_dyn_list_block;
 PSI_memory_key key_memory_Gis_read_stream_err_msg;
@@ -8560,6 +8541,7 @@ static PSI_memory_info all_server_memory[]=
   { &key_memory_MYSQL_BIN_LOG_index, "MYSQL_BIN_LOG::index", 0},
   { &key_memory_MYSQL_RELAY_LOG_basename, "MYSQL_RELAY_LOG::basename", 0},
   { &key_memory_MYSQL_RELAY_LOG_index, "MYSQL_RELAY_LOG::index", 0},
+  { &key_memory_rpl_filter, "rpl_filter memory", 0},
   { &key_memory_errmsgs, "errmsgs", 0},
   { &key_memory_Gcalc_dyn_list_block, "Gcalc_dyn_list::block", 0},
   { &key_memory_Gis_read_stream_err_msg, "Gis_read_stream::err_msg", 0},

@@ -562,6 +562,7 @@ TRACE
                         {
                           "access_type": "scan",
                           "using_join_cache": true,
+                          "buffers_needed": 1,
                           "rows": 4,
                           "cost": 5.207,
                           "chosen": true
@@ -582,6 +583,7 @@ TRACE
                             {
                               "access_type": "scan",
                               "using_join_cache": true,
+                              "buffers_needed": 1,
                               "rows": 4,
                               "cost": 14.808,
                               "chosen": true
@@ -859,6 +861,7 @@ TRACE
                         {
                           "access_type": "scan",
                           "using_join_cache": true,
+                          "buffers_needed": 1,
                           "rows": 1,
                           "cost": 2.4049,
                           "chosen": true
@@ -879,6 +882,7 @@ TRACE
                             {
                               "access_type": "scan",
                               "using_join_cache": true,
+                              "buffers_needed": 1,
                               "rows": 2,
                               "cost": 2.8099,
                               "chosen": true
@@ -903,6 +907,7 @@ TRACE
                         {
                           "access_type": "scan",
                           "using_join_cache": true,
+                          "buffers_needed": 1,
                           "rows": 2,
                           "cost": 2.8098,
                           "chosen": true
@@ -2440,6 +2445,7 @@ table3.col_varchar_10_utf8_key	{
                         {
                           "access_type": "scan",
                           "using_join_cache": true,
+                          "buffers_needed": 1,
                           "rows": 1,
                           "cost": 2.405,
                           "chosen": true
@@ -2902,6 +2908,7 @@ from t0 where a in
                         {
                           "access_type": "scan",
                           "using_join_cache": true,
+                          "buffers_needed": 1,
                           "rows": 8,
                           "cost": 18.422,
                           "chosen": false
@@ -2929,6 +2936,7 @@ from t0 where a in
                             {
                               "access_type": "scan",
                               "using_join_cache": true,
+                              "buffers_needed": 1,
                               "rows": 8,
                               "cost": 18.423,
                               "chosen": false
@@ -2984,6 +2992,7 @@ from t0 where a in
                         {
                           "access_type": "scan",
                           "using_join_cache": true,
+                          "buffers_needed": 1,
                           "rows": 8,
                           "cost": 18.422,
                           "chosen": false
@@ -3011,6 +3020,7 @@ from t0 where a in
                             {
                               "access_type": "scan",
                               "using_join_cache": true,
+                              "buffers_needed": 1,
                               "rows": 8,
                               "cost": 18.423,
                               "chosen": false
@@ -3040,6 +3050,7 @@ from t0 where a in
                             {
                               "access_type": "scan",
                               "using_join_cache": true,
+                              "buffers_needed": 1,
                               "rows": 8,
                               "cost": 18.423,
                               "chosen": false
@@ -3069,6 +3080,7 @@ from t0 where a in
                         {
                           "access_type": "scan",
                           "using_join_cache": true,
+                          "buffers_needed": 1,
                           "rows": 8,
                           "cost": 18.422,
                           "chosen": false
@@ -3121,6 +3133,7 @@ from t0 where a in
                         {
                           "access_type": "scan",
                           "using_join_cache": true,
+                          "buffers_needed": 1,
                           "rows": 8,
                           "cost": 18.422,
                           "chosen": false
@@ -3148,6 +3161,7 @@ from t0 where a in
                             {
                               "access_type": "scan",
                               "using_join_cache": true,
+                              "buffers_needed": 1,
                               "rows": 8,
                               "cost": 18.423,
                               "chosen": false
@@ -3177,6 +3191,7 @@ from t0 where a in
                             {
                               "access_type": "scan",
                               "using_join_cache": true,
+                              "buffers_needed": 1,
                               "rows": 8,
                               "cost": 18.423,
                               "chosen": false
@@ -3206,6 +3221,7 @@ from t0 where a in
                         {
                           "access_type": "scan",
                           "using_join_cache": true,
+                          "buffers_needed": 1,
                           "rows": 8,
                           "cost": 18.422,
                           "chosen": false
@@ -3536,8 +3552,8 @@ select 497, tmp.ID, NULL from (select 497 as ID, MAX(t3.DATA) as DATA      from 
                             "access_type": "scan",
                             "cost": 3.6,
                             "rows": 8,
-                            "cause": "cost",
-                            "chosen": false
+                            "chosen": false,
+                            "cause": "cost"
                           }
                         ] /* considered_access_paths */
                       } /* best_access_path */,
@@ -3563,8 +3579,8 @@ select 497, tmp.ID, NULL from (select 497 as ID, MAX(t3.DATA) as DATA      from 
                                 "access_type": "scan",
                                 "cost": 3.8,
                                 "rows": 9,
-                                "cause": "cost",
-                                "chosen": false
+                                "chosen": false,
+                                "cause": "cost"
                               }
                             ] /* considered_access_paths */
                           } /* best_access_path */,
@@ -3589,8 +3605,8 @@ select 497, tmp.ID, NULL from (select 497 as ID, MAX(t3.DATA) as DATA      from 
                                 "access_type": "scan",
                                 "cost": 3.8,
                                 "rows": 9,
-                                "cause": "cost",
-                                "chosen": false
+                                "chosen": false,
+                                "cause": "cost"
                               }
                             ] /* considered_access_paths */
                           } /* best_access_path */,
@@ -3618,8 +3634,8 @@ select 497, tmp.ID, NULL from (select 497 as ID, MAX(t3.DATA) as DATA      from 
                             "access_type": "scan",
                             "cost": 3.8,
                             "rows": 9,
-                            "cause": "cost",
-                            "chosen": false
+                            "chosen": false,
+                            "cause": "cost"
                           }
                         ] /* considered_access_paths */
                       } /* best_access_path */,
@@ -4237,8 +4253,8 @@ select replace(t3._field_140, "\r","^M"),t3_id,min(t3._field_131), min(t3._field
                     },
                     {
                       "access_type": "range",
-                      "cause": "heuristic_index_cheaper",
-                      "chosen": false
+                      "chosen": false,
+                      "cause": "heuristic_index_cheaper"
                     }
                   ] /* considered_access_paths */
                 } /* best_access_path */,
@@ -4264,8 +4280,8 @@ select replace(t3._field_140, "\r","^M"),t3_id,min(t3._field_131), min(t3._field
                           "access_type": "scan",
                           "cost": 2.6,
                           "rows": 3,
-                          "cause": "cost",
-                          "chosen": false
+                          "chosen": false,
+                          "cause": "cost"
                         }
                       ] /* considered_access_paths */
                     } /* best_access_path */,
@@ -4291,8 +4307,8 @@ select replace(t3._field_140, "\r","^M"),t3_id,min(t3._field_131), min(t3._field
                             },
                             {
                               "access_type": "range",
-                              "cause": "heuristic_index_cheaper",
-                              "chosen": false
+                              "chosen": false,
+                              "cause": "heuristic_index_cheaper"
                             }
                           ] /* considered_access_paths */
                         } /* best_access_path */,
@@ -4321,8 +4337,8 @@ select replace(t3._field_140, "\r","^M"),t3_id,min(t3._field_131), min(t3._field
                                   "access_type": "scan",
                                   "cost": 2.6,
                                   "rows": 3,
-                                  "cause": "cost",
-                                  "chosen": false
+                                  "chosen": false,
+                                  "cause": "cost"
                                 }
                               ] /* considered_access_paths */
                             } /* best_access_path */,
@@ -4350,8 +4366,8 @@ select replace(t3._field_140, "\r","^M"),t3_id,min(t3._field_131), min(t3._field
                                     },
                                     {
                                       "access_type": "range",
-                                      "cause": "heuristic_index_cheaper",
-                                      "chosen": false
+                                      "chosen": false,
+                                      "cause": "heuristic_index_cheaper"
                                     }
                                   ] /* considered_access_paths */
                                 } /* best_access_path */,
@@ -4382,8 +4398,8 @@ select replace(t3._field_140, "\r","^M"),t3_id,min(t3._field_131), min(t3._field
                                           "access_type": "scan",
                                           "cost": 2.4,
                                           "rows": 2,
-                                          "cause": "cost",
-                                          "chosen": false
+                                          "chosen": false,
+                                          "cause": "cost"
                                         }
                                       ] /* considered_access_paths */
                                     } /* best_access_path */,
@@ -4739,6 +4755,7 @@ GROUP BY field2 ORDER BY alias1.col_int_key,alias2.pk	{
                         {
                           "access_type": "scan",
                           "using_join_cache": true,
+                          "buffers_needed": 1,
                           "rows": 75,
                           "cost": 307.49,
                           "chosen": false
@@ -5070,6 +5087,7 @@ select * from t1,mysqltest2.t2	{
                         {
                           "access_type": "scan",
                           "using_join_cache": true,
+                          "buffers_needed": 1,
                           "rows": 3,
                           "cost": 3.2052,
                           "chosen": true

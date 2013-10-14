@@ -41,7 +41,7 @@ PFS_ALIGNED bool flag_events_statements_history_long= false;
 /** True if EVENTS_STATEMENTS_HISTORY_LONG circular buffer is full. */
 PFS_ALIGNED bool events_statements_history_long_full= false;
 /** Index in EVENTS_STATEMENTS_HISTORY_LONG circular buffer. */
-PFS_ALIGNED volatile uint32 events_statements_history_long_index= 0;
+PFS_ALIGNED PFS_cacheline_uint32 events_statements_history_long_index;
 /** EVENTS_STATEMENTS_HISTORY_LONG circular buffer. */
 PFS_ALIGNED PFS_events_statements *events_statements_history_long_array= NULL;
 
@@ -53,7 +53,7 @@ int init_events_statements_history_long(uint events_statements_history_long_sizi
 {
   events_statements_history_long_size= events_statements_history_long_sizing;
   events_statements_history_long_full= false;
-  PFS_atomic::store_u32(&events_statements_history_long_index, 0);
+  PFS_atomic::store_u32(&events_statements_history_long_index.m_u32, 0);
 
   if (events_statements_history_long_size == 0)
     return 0;
@@ -122,7 +122,7 @@ void insert_events_statements_history_long(PFS_events_statements *statement)
 
   DBUG_ASSERT(events_statements_history_long_array != NULL);
 
-  uint index= PFS_atomic::add_u32(&events_statements_history_long_index, 1);
+  uint index= PFS_atomic::add_u32(&events_statements_history_long_index.m_u32, 1);
 
   index= index % events_statements_history_long_size;
   if (index == 0)
@@ -169,7 +169,7 @@ void reset_events_statements_history(void)
 /** Reset table EVENTS_STATEMENTS_HISTORY_LONG data. */
 void reset_events_statements_history_long(void)
 {
-  PFS_atomic::store_u32(&events_statements_history_long_index, 0);
+  PFS_atomic::store_u32(&events_statements_history_long_index.m_u32, 0);
   events_statements_history_long_full= false;
 
   PFS_events_statements *pfs= events_statements_history_long_array;

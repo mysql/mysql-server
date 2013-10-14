@@ -165,21 +165,21 @@ bool Shared_mem_listener::setup_listener()
       unique_part is unique value for each object (events and file-mapping)
   */
   m_suffix_pos= strxmov(m_temp_buffer,m_shared_mem_name.c_str(),"_",NullS);
-  strmov(m_suffix_pos, "CONNECT_REQUEST");
+  my_stpcpy(m_suffix_pos, "CONNECT_REQUEST");
   if ((m_event_connect_request= CreateEvent(m_sa_event,
                                             FALSE, FALSE, m_temp_buffer)) == 0)
   {
     errmsg= "Could not create request event";
     goto error;
   }
-  strmov(m_suffix_pos, "CONNECT_ANSWER");
+  my_stpcpy(m_suffix_pos, "CONNECT_ANSWER");
   if ((m_event_connect_answer= CreateEvent(m_sa_event, FALSE,
                                            FALSE, m_temp_buffer)) == 0)
   {
     errmsg="Could not create answer event";
     goto error;
   }
-  strmov(m_suffix_pos, "CONNECT_DATA");
+  my_stpcpy(m_suffix_pos, "CONNECT_DATA");
   if ((m_connect_file_map=
        CreateFileMapping(INVALID_HANDLE_VALUE, m_sa_mapping, PAGE_READWRITE, 0,
                          sizeof(m_connect_number), m_temp_buffer)) == 0)
@@ -238,7 +238,7 @@ Channel_info* Shared_mem_listener::listen_for_connection_event()
   const char *errmsg= NULL;
   ulong smem_buffer_length= shared_memory_buffer_length + 4;
 
-  strmov(m_suffix_pos, "DATA");
+  my_stpcpy(m_suffix_pos, "DATA");
   if ((m_handle_client_file_map=
        CreateFileMapping(INVALID_HANDLE_VALUE, m_sa_mapping, PAGE_READWRITE,
                          0, smem_buffer_length, m_temp_buffer)) == 0)
@@ -253,35 +253,35 @@ Channel_info* Shared_mem_listener::listen_for_connection_event()
     errmsg= "Could not create memory map";
     goto errorconn;
   }
-  strmov(m_suffix_pos, "CLIENT_WROTE");
+  my_stpcpy(m_suffix_pos, "CLIENT_WROTE");
   if ((m_event_client_wrote= CreateEvent(m_sa_event, FALSE, FALSE,
                                          m_temp_buffer)) == 0)
   {
     errmsg= "Could not create client write event";
     goto errorconn;
   }
-  strmov(m_suffix_pos, "CLIENT_READ");
+  my_stpcpy(m_suffix_pos, "CLIENT_READ");
   if ((m_event_client_read= CreateEvent(m_sa_event, FALSE, FALSE,
                                         m_temp_buffer)) == 0)
   {
     errmsg= "Could not create client read event";
     goto errorconn;
   }
-  strmov(m_suffix_pos, "SERVER_READ");
+  my_stpcpy(m_suffix_pos, "SERVER_READ");
   if ((m_event_server_read= CreateEvent(m_sa_event, FALSE, FALSE,
                                         m_temp_buffer)) == 0)
   {
     errmsg= "Could not create server read event";
     goto errorconn;
   }
-  strmov(m_suffix_pos, "SERVER_WROTE");
+  my_stpcpy(m_suffix_pos, "SERVER_WROTE");
   if ((m_event_server_wrote= CreateEvent(m_sa_event, FALSE, FALSE,
                                          m_temp_buffer)) == 0)
   {
     errmsg= "Could not create server write event";
     goto errorconn;
   }
-  strmov(m_suffix_pos, "CONNECTION_CLOSED");
+  my_stpcpy(m_suffix_pos, "CONNECTION_CLOSED");
   if ((m_event_conn_closed= CreateEvent(m_sa_event, TRUE, FALSE,
                                         m_temp_buffer)) == 0)
   {

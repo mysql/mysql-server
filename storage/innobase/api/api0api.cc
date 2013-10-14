@@ -1234,7 +1234,7 @@ ib_cursor_open_table(
 	dict_table_t*	table;
 	char*		normalized_name;
 
-	normalized_name = static_cast<char*>(mem_alloc(ut_strlen(name) + 1));
+	normalized_name = static_cast<char*>(ut_malloc(ut_strlen(name) + 1));
 	ib_normalize_table_name(normalized_name, name);
 
 	if (ib_trx != NULL) {
@@ -1249,7 +1249,7 @@ ib_cursor_open_table(
 		table = (dict_table_t*)ib_open_table_by_name(normalized_name);
 	}
 
-	mem_free(normalized_name);
+	ut_free(normalized_name);
 	normalized_name = NULL;
 
 	/* It can happen that another thread has created the table but
@@ -1345,9 +1345,9 @@ ib_cursor_new_trx(
 
 	trx_assign_read_view(prebuilt->trx);
 
-        ib_qry_proc_free(&cursor->q_proc);
+	ib_qry_proc_free(&cursor->q_proc);
 
-        mem_heap_empty(cursor->query_heap);
+	mem_heap_empty(cursor->query_heap);
 
 	return(err);
 }
@@ -2123,7 +2123,7 @@ ib_cursor_position(
 	row_prebuilt_t*	prebuilt = cursor->prebuilt;
 	unsigned char*	buf;
 
-	buf = static_cast<unsigned char*>(mem_alloc(UNIV_PAGE_SIZE));
+	buf = static_cast<unsigned char*>(ut_malloc(UNIV_PAGE_SIZE));
 
 	/* We want to position at one of the ends, row_search_for_mysql()
 	uses the search_tuple fields to work out what to do. */
@@ -2132,7 +2132,7 @@ ib_cursor_position(
 	err = static_cast<ib_err_t>(row_search_for_mysql(
 		buf, mode, prebuilt, 0, 0));
 
-	mem_free(buf);
+	ut_free(buf);
 
 	return(err);
 }
@@ -2225,12 +2225,12 @@ ib_cursor_moveto(
 
 	prebuilt->innodb_api_rec = NULL;
 
-	buf = static_cast<unsigned char*>(mem_alloc(UNIV_PAGE_SIZE));
+	buf = static_cast<unsigned char*>(ut_malloc(UNIV_PAGE_SIZE));
 
 	err = static_cast<ib_err_t>(row_search_for_mysql(
 		buf, ib_srch_mode, prebuilt, cursor->match_mode, 0));
 
-	mem_free(buf);
+	ut_free(buf);
 
 	return(err);
 }
@@ -3277,12 +3277,12 @@ ib_index_get_id(
 	*index_id = 0;
 
 	normalized_name = static_cast<char*>(
-		mem_alloc(ut_strlen(table_name) + 1));
+		ut_malloc(ut_strlen(table_name) + 1));
 	ib_normalize_table_name(normalized_name, table_name);
 
 	table = ib_lookup_table_by_name(normalized_name);
 
-	mem_free(normalized_name);
+	ut_free(normalized_name);
 	normalized_name = NULL;
 
 	if (table != NULL) {
@@ -3304,13 +3304,6 @@ ib_index_get_id(
 
 	return(err);
 }
-
-#ifdef _WIN32
-#define SRV_PATH_SEPARATOR      '\\'
-#else
-#define SRV_PATH_SEPARATOR      '/'
-#endif
-
 
 /*****************************************************************//**
 Check if cursor is positioned.
