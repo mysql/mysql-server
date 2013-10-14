@@ -360,6 +360,23 @@ static uint64_t tokudb_get_lock_wait_time_callback(uint64_t default_wait_time) {
     return wait_time;
 }
 
+static MYSQL_THDVAR_ULONGLONG(loader_memory_size,
+    0,
+    "TokuDB loader memory size",
+    NULL, 
+    NULL, 
+    100*1000*1000, /*default*/
+    0, /*min*/
+    ~0ULL, /*max*/
+    1 /*blocksize*/
+);
+
+static uint64_t tokudb_get_loader_memory_size_callback(void) {
+    THD *thd = current_thd;
+    uint64_t memory_size = THDVAR(thd, loader_memory_size);
+    return memory_size;
+}
+
 extern HASH tokudb_open_tables;
 extern pthread_mutex_t tokudb_mutex;
 extern pthread_mutex_t tokudb_meta_mutex;
