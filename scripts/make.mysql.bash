@@ -97,7 +97,7 @@ fi
 
 # download all the mysql source
 if [ ! -d $mysql_distro ] ; then
-    github_download Tokutek/$mysql_distro $(git_tree $git_tag $mysql_tree) $mysql_distro
+    github_download Tokutek/$mysql_repo $(git_tree $git_tag $mysql_tree) $mysql_distro
 fi
 
 cd $mysql_distro
