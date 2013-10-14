@@ -414,6 +414,7 @@ public:
   int setName(const char * name);
   const char * getName() const;
   int setTable(const NdbDictionary::Table& table);
+  int setTable(const NdbDictionary::Table *table);
   const NdbDictionary::Table * getTable() const;
   int setTable(const char * table);
   const char * getTableName() const;
