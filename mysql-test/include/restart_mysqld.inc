@@ -12,8 +12,7 @@ if ($rpl_inited)
 --let $_server_id= `SELECT @@server_id`
 --let $_expect_file_name= $MYSQLTEST_VARDIR/tmp/mysqld.$_server_id.expect
 
-# MCP -->
-# patch to allow restarting different server than the one currently
+# Allow restarting different server than the one currently
 # connected to, actually one where suffix is not .serverid but
 # .serverid.clusterid
 if (`SELECT LENGTH("$mysqld_name")`)
@@ -21,7 +20,6 @@ if (`SELECT LENGTH("$mysqld_name")`)
   let $_expect_file_name= $MYSQLTEST_VARDIR/tmp/$mysqld_name.expect;
   # echo expect_file_name: $_expect_file_name;
 }
-# MCP <--
 --exec echo "wait" > $_expect_file_name
 
 # Send shutdown to the connected server and give
