@@ -53,19 +53,20 @@ static Item_result item_store_type(Item_result a, Item *item,
     return INT_RESULT;
 }
 
-static void agg_result_type(Item_result *type, Item **items, uint nitems)
+static void agg_result_type(Item_result *type, my_bool *unsigned_flag,
+                            Item **items, uint nitems)
 {
   Item **item, **item_end;
-  my_bool unsigned_flag= 0;
 
   *type= STRING_RESULT;
+  *unsigned_flag= FALSE;
   /* Skip beginning NULL items */
   for (item= items, item_end= item + nitems; item < item_end; item++)
   {
     if ((*item)->type() != Item::NULL_ITEM)
     {
       *type= (*item)->result_type();
-      unsigned_flag= (*item)->unsigned_flag;
+      *unsigned_flag= (*item)->unsigned_flag;
       item++;
       break;
     }
@@ -74,7 +75,10 @@ static void agg_result_type(Item_result *type, Item **items, uint nitems)
   for (; item < item_end; item++)
   {
     if ((*item)->type() != Item::NULL_ITEM)
-      *type= item_store_type(*type, *item, unsigned_flag);
+    {
+      *type= item_store_type(*type, *item, *unsigned_flag);
+      *unsigned_flag= *unsigned_flag && (*item)->unsigned_flag;
+    }
   }
 }
 
@@ -2776,11 +2780,10 @@ void
 Item_func_ifnull::fix_length_and_dec()
 {
   uint32 char_length;
-  agg_result_type(&hybrid_type, args, 2);
+  agg_result_type(&hybrid_type, &unsigned_flag, args, 2);
   cached_field_type= agg_field_type(args, 2);
   maybe_null=args[1]->maybe_null;
   decimals= max(args[0]->decimals, args[1]->decimals);
-  unsigned_flag= args[0]->unsigned_flag && args[1]->unsigned_flag;
 
   if (hybrid_type == DECIMAL_RESULT || hybrid_type == INT_RESULT) 
   {
@@ -2989,11 +2992,10 @@ Item_func_if::fix_length_and_dec()
     return;
   }
 
-  agg_result_type(&cached_result_type, args + 1, 2);
+  agg_result_type(&cached_result_type, &unsigned_flag, args + 1, 2);
   cached_field_type= agg_field_type(args + 1, 2);
   maybe_null= args[1]->maybe_null || args[2]->maybe_null;
   decimals= max(args[1]->decimals, args[2]->decimals);
-  unsigned_flag=args[1]->unsigned_flag && args[2]->unsigned_flag;
 
   if (cached_result_type == STRING_RESULT)
   {
@@ -3404,7 +3406,6 @@ void Item_func_case::agg_num_lengths(Item *arg)
                                            arg->unsigned_flag) - arg->decimals;
   set_if_bigger(max_length, len); 
   set_if_bigger(decimals, arg->decimals);
-  unsigned_flag= unsigned_flag && arg->unsigned_flag; 
 }
 
 
@@ -3459,7 +3460,7 @@ void Item_func_case::fix_length_and_dec()
     agg[nagg++]= args[else_expr_num];
 
   cached_field_type= agg_field_type(agg, nagg);
-  agg_result_type(&cached_result_type, agg, nagg);
+  agg_result_type(&cached_result_type, &unsigned_flag, agg, nagg);
   if (cached_result_type == STRING_RESULT)
   {
     /* Note: String result type is the same for CASE and COALESCE. */
@@ -3488,7 +3489,6 @@ void Item_func_case::fix_length_and_dec()
     collation.set_numeric();
     max_length= 0;
     decimals= 0;
-    unsigned_flag= TRUE;
     for (uint i= 0; i < nagg; i++)
       agg_num_lengths(agg[i]);
     max_length= my_decimal_precision_to_length_no_truncation(max_length +
@@ -3728,7 +3728,7 @@ bool Item_func_coalesce::time_op(MYSQL_TIME *ltime)
 void Item_func_coalesce::fix_length_and_dec()
 {
   cached_field_type= agg_field_type(args, arg_count);
-  agg_result_type(&hybrid_type, args, arg_count);
+  agg_result_type(&hybrid_type, &unsigned_flag, args, arg_count);
   switch (hybrid_type) {
   case STRING_RESULT:
     if (count_string_result_length(cached_field_type, args, arg_count))

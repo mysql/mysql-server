@@ -100,19 +100,40 @@ only_eq_ref_tables(JOIN *join, ORDER *order, table_map tables,
                    table_map *cached_eq_ref_tables, table_map
                    *eq_ref_tables);
 
-
 /**
-  global select optimisation.
+  Optimizes one query block into a query execution plan (QEP.)
 
-  @note
-    error code saved in field 'error'
+  This is the entry point to the query optimization phase. This phase
+  applies both logical (equivalent) query rewrites, cost-based join
+  optimization, and rule-based access path selection. Once an optimal
+  plan is found, the member function creates/initializes all
+  structures needed for query execution. The main optimization phases
+  are outlined below:
 
-  @retval
-    0   success
-  @retval
-    1   error
+    -# Logical transformations:
+      - Outer to inner joins transformation.
+      - Equality/constant propagation.
+      - Partition pruning.
+      - COUNT(*), MIN(), MAX() constant substitution in case of
+        implicit grouping.
+      - ORDER BY optimization.
+    -# Perform cost-based optimization of table order and access path
+       selection. See make_join_statistics()
+    -# Post-join order optimization:
+       - Create optimal table conditions from the where clause and the
+         join conditions.
+       - Inject outer-join guarding conditions.
+       - Adjust data access methods after determining table condition
+         (several times.)
+       - Optimize ORDER BY/DISTINCT.
+    -# Code generation
+       - Set data access functions.
+       - Try to optimize away sorting/distinct.
+       - Setup temporary table usage for grouping and/or sorting.
+
+  @retval 0 Success.
+  @retval 1 Error, error code saved in member JOIN::error.
 */
-
 int
 JOIN::optimize()
 {
@@ -286,7 +307,7 @@ JOIN::optimize()
     int res;
     /*
       opt_sum_query() returns HA_ERR_KEY_NOT_FOUND if no rows match
-      to the WHERE conditions,
+      the WHERE condition,
       or 1 if all items were resolved (optimized away),
       or 0, or an error number HA_ERR_...
 
@@ -500,7 +521,7 @@ JOIN::optimize()
 
   error= -1;					/* if goto err */
 
-  /* Optimize distinct away if possible */
+  /* Optimize DISTINCT away if possible */
   {
     ORDER *org_order= order;
     order= ORDER_with_src(remove_const(this, order, conds, 1, &simple_order, "ORDER BY"), order.src);;
@@ -3140,15 +3161,17 @@ void JOIN::set_prefix_tables()
 /**
   Calculate best possible join order and initialize the join structure.
 
-  @param  join          Join object that is populated with statistics data
-  @param  tables_arg    List of tables that is referenced by this query 
-  @param  conds         Where condition of query
-  @param  keyuse_array[out] Populated with key_use information  
-  @param  first_optimization True if first optimization of this query
+  @param join[in,out]       Execution plan and context for the current query
+                            block.
+  @param tables_arg         List of tables referenced by this query block.
+  @param conds              Query search condition (derived version of the
+                            WHERE clause.) 
+  @param keyuse_array[out]  Populated with key_use information.
+  @param first_optimization True if this is the first optimization of this
+                            query.
 
-  @return true if success, false if error
+  @return True if success, false if error .
 
-  @details
   Here is an overview of the logic of this function:
 
   - Initialize JOIN data structures and setup basic dependencies between tables.
@@ -3485,7 +3508,10 @@ make_join_statistics(JOIN *join, TABLE_LIST *tables_arg, Item *conds,
   }
 
 const_table_extraction_done:
-  /* loop until no more const tables are found */
+  /*
+    Constant table analysis. Discover and read all constant tables
+    until no more constant tables can be found.
+  */
   int ref_changed;
   do
   {
@@ -3973,27 +3999,40 @@ void semijoin_types_allow_materialization(TABLE_LIST *sj_nest)
 *****************************************************************************/
 
 /**
-  @brief
-  Returns estimated number of rows that could be fetched by given select
+  Returns estimated number of rows that could be fetched by given
+  access method.
 
-  @param thd    thread handle
-  @param select select to test
-  @param table  source table
-  @param keys   allowed keys
-  @param limit  select limit
+  The function calls the range optimizer to estimate the cost of the
+  cheapest QUICK_* index access method to scan one or several of the
+  'keys' using the conditions 'select->cond'. The range optimizer
+  compares several different types of 'quick select' methods (range
+  scan, index merge, loose index scan) and selects the cheapest one.
 
-  @notes
+  If the best index access method is cheaper than a table- and an index
+  scan, then the range optimizer also constructs the corresponding
+  QUICK_* object and assigns it to select->quick. In most cases this
+  is the QUICK_* object used at later (optimization and execution)
+  phases.
+
+  @param thd    Session that runs the query.
+  @param select Single-table SQL_SELECT that uses an index.
+  @param table  Source table.
+  @param keys   Candidate indexes for index scan.
+  @param limit  maximum number of rows to select.
+
+  @note
     In case of valid range, a QUICK_SELECT_I object will be constructed and
     saved in select->quick.
 
-  @return
-    HA_POS_ERROR for derived tables/views or if an error occur.
-    Otherwise, estimated number of rows.
-*/
+  @return Estimated number of result rows selected from 'table'.
 
+  @retval HA_POS_ERROR For derived tables/views or if an error occur.
+  @retval 0            If impossible query (i.e. certainly no rows will be
+                       selected.)
+*/
 static ha_rows get_quick_record_count(THD *thd, SQL_SELECT *select,
-				      TABLE *table,
-				      const key_map *keys,ha_rows limit)
+                                      TABLE *table,
+                                      const key_map *keys, ha_rows limit)
 {
   DBUG_ENTER("get_quick_record_count");
   uchar buff[STACK_BUFF_ALLOC];
@@ -4645,15 +4684,50 @@ static bool pull_out_semijoin_tables(JOIN *join)
 }
 
 
-/*****************************************************************************
-  Check with keys are used and with tables references with tables
-  Updates in stat:
-	  keys	     Bitmap of all used keys
-	  const_keys Bitmap of all keys with may be used with quick_select
-	  keyuse     Pointer to possible keys
-*****************************************************************************/
+/**
+  @defgroup RefOptimizerModule Ref Optimizer
 
-/// Used when finding key fields
+  @{
+
+  This module analyzes all equality predicates to determine the best
+  independent ref/eq_ref/ref_or_null index access methods.
+
+  The 'ref' optimizer determines the columns (and expressions over them) that
+  reference columns in other tables via an equality, and analyzes which keys
+  and key parts can be used for index lookup based on these references. The
+  main outcomes of the 'ref' optimizer are:
+
+  - A bi-directional graph of all equi-join conditions represented as an
+    array of Key_use elements. This array is stored in JOIN::keyuse_array in
+    table, key, keypart order. Each JOIN_TAB::keyuse points to the
+    first Key_use element with the same table as JOIN_TAB::table.
+
+  - The table dependencies needed by the optimizer to determine what
+    tables must be before certain table so that they provide the
+    necessary column bindings for the equality predicates.
+
+  - Computed properties of the equality predicates such as null_rejecting
+    and the result size of each separate condition.
+
+  Updates in JOIN_TAB:
+  - JOIN_TAB::keys       Bitmap of all used keys.
+  - JOIN_TAB::const_keys Bitmap of all keys that may be used with quick_select.
+  - JOIN_TAB::keyuse     Pointer to possible keys.
+*/  
+
+/**
+  A Key_field is a descriptor of a predicate of the form (column <op> val).
+  Currently 'op' is one of {'=', '<=>', 'IS [NOT] NULL', 'arg1 IN arg2'},
+  and 'val' can be either another column or an expression (including constants).
+
+  Key_field's are used to analyze columns that may potentially serve as
+  parts of keys for index lookup. If 'field' is part of an index, then
+  add_key_part() creates a corresponding Key_use object and inserts it
+  into the JOIN::keyuse_array which is passed by update_ref_and_keys().
+
+  The structure is used only during analysis of the candidate columns for
+  index 'ref' access.
+*/
 struct Key_field {
   Key_field(Field *field, Item *val, uint level, uint optimize, bool eq_func,
             bool null_rejecting, bool *cond_guard, uint sj_pred_no)
@@ -4786,7 +4860,7 @@ merge_key_fields(Key_field *start, Key_field *new_fields, Key_field *end,
 	  /*
 	    We are comparing two different const.  In this case we can't
 	    use a key-lookup on this so it's better to remove the value
-	    and let the range optimzier handle it
+	    and let the range optimizer handle it
 	  */
 	  if (old == --first_free)		// If last item
 	    break;
@@ -5492,7 +5566,24 @@ add_ft_keys(Key_use_array *keyuse_array,
   return keyuse_array->push_back(keyuse);
 }
 
+ 
+/**
+  Compares two keyuse elements.
 
+  @param a first Key_use element
+  @param b second Key_use element
+
+  Compare Key_use elements so that they are sorted as follows:
+    -# By table.
+    -# By key for each table.
+    -# By keypart for each key.
+    -# Const values.
+    -# Ref_or_null.
+
+  @retval  0 If a = b.
+  @retval <0 If a < b.
+  @retval >0 If a > b.
+*/
 static int sort_keyuse(Key_use *a, Key_use *b)
 {
   int res;
@@ -5581,6 +5672,9 @@ static void add_key_fields_for_nj(JOIN *join, TABLE_LIST *nested_join_table,
     add_key_fields(join, end, and_level, nested_join_table->join_cond(), tables,
                    sargables);
 }
+
+
+///  @} (end of group RefOptimizerModule)
 
 
 /**
@@ -9254,6 +9348,13 @@ static void save_index_subquery_explain_info(JOIN_TAB *join_tab, Item* where)
 
 /**
   Update some values in keyuse for faster choose_table_order() loop.
+
+  @todo Check if this is the real meaning of ref_table_rows.
+
+  @param join          Current (incomplete) join plan.
+  @param keyuse_array  Array of Key_use elements being updated.
+
+  
 */
 
 static void optimize_keyuse(JOIN *join, Key_use_array *keyuse_array)
@@ -9280,6 +9381,7 @@ static void optimize_keyuse(JOIN *join, Key_use_array *keyuse_array)
       if (map == 1)			// Only one table
       {
 	TABLE *tmp_table= join->join_tab[tablenr].table;
+
 	keyuse->ref_table_rows= max<ha_rows>(tmp_table->file->stats.records, 100);
       }
     }

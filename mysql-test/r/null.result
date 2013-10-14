@@ -331,11 +331,11 @@ DROP TABLE t2;
 CREATE TABLE t2 SELECT IFNULL(a, NULL) FROM t1;
 DESCRIBE t2;
 Field	Type	Null	Key	Default	Extra
-IFNULL(a, NULL)	decimal(1,0)	YES		NULL	
+IFNULL(a, NULL)	decimal(1,0) unsigned	YES		NULL	
 DROP TABLE t2;
 CREATE TABLE t2 SELECT IFNULL(NULL, b) FROM t1;
 DESCRIBE t2;
 Field	Type	Null	Key	Default	Extra
-IFNULL(NULL, b)	decimal(1,0)	YES		NULL	
+IFNULL(NULL, b)	decimal(1,0) unsigned	YES		NULL	
 DROP TABLE t1, t2;
 # End of 5.0 tests

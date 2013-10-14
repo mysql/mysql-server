@@ -166,12 +166,12 @@ void my_print_stacktrace(uchar* stack_bottom __attribute__((unused)),
     my_safe_printf_stderr("%s",
       "Error when traversing the stack, stack appears corrupt.\n");
   else
-    my_safe_printf_stderr("%s",
-      "Please read "
-      "http://dev.mysql.com/doc/refman/5.1/en/resolve-stack-dump.html\n"
+    my_safe_printf_stderr("Please read "
+      "http://dev.mysql.com/doc/refman/%u.%u/en/resolve-stack-dump.html\n"
       "and follow instructions on how to resolve the stack trace.\n"
       "Resolved stack trace is much more helpful in diagnosing the\n"
-      "problem, so please do resolve it\n");
+      "problem, so please do resolve it\n",
+      MYSQL_VERSION_MAJOR, MYSQL_VERSION_MINOR);
 }
 
 #elif HAVE_BACKTRACE && (HAVE_BACKTRACE_SYMBOLS || HAVE_BACKTRACE_SYMBOLS_FD)
