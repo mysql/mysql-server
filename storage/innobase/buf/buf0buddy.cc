@@ -554,7 +554,7 @@ buf_buddy_relocate(
 
 	ut_ad(space != BUF_BUDDY_STAMP_FREE);
 
-	bpage = buf_page_hash_get(buf_pool, space, offset);
+	bpage = buf_page_hash_get(buf_pool, page_id_t(space, offset, size));
 
 	if (!bpage || bpage->zip.data != src) {
 		/* The block has probably been freshly

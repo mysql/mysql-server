@@ -147,25 +147,17 @@ ibuf_inside(
 	return(mtr->inside_ibuf);
 }
 
-/***********************************************************************//**
-Checks if a page address is an ibuf bitmap page address.
+/** Checks if a page address is an ibuf bitmap page (level 3 page) address.
+@param[in] page_id page id
 @return TRUE if a bitmap page */
 UNIV_INLINE
 ibool
 ibuf_bitmap_page(
-/*=============*/
-	ulint	zip_size,/*!< in: compressed page size in bytes;
-			0 for uncompressed pages */
-	ulint	page_no)/*!< in: page number */
+	const page_id_t&	page_id)
 {
-	ut_ad(ut_is_2pow(zip_size));
+	const ulint	page_size = page_size_from_zip_size(page_id.zip_size());
 
-	if (!zip_size) {
-		return((page_no & (UNIV_PAGE_SIZE - 1))
-			== FSP_IBUF_BITMAP_OFFSET);
-	}
-
-	return((page_no & (zip_size - 1)) == FSP_IBUF_BITMAP_OFFSET);
+	return((page_id.page_no() & (page_size - 1)) == FSP_IBUF_BITMAP_OFFSET);
 }
 
 /*********************************************************************//**
@@ -242,16 +234,13 @@ UNIV_INLINE
 ulint
 ibuf_index_page_calc_free_zip(
 /*==========================*/
-	ulint			zip_size,
-					/*!< in: compressed page size in bytes */
 	const buf_block_t*	block)	/*!< in: buffer block */
 {
 	ulint			max_ins_size;
 	const page_zip_des_t*	page_zip;
 	lint			zip_max_ins;
 
-	ut_ad(zip_size == buf_block_get_zip_size(block));
-	ut_ad(zip_size);
+	ut_ad(block->page.id.zip_size() > 0);
 
 	/* Consider the maximum insert size on the uncompressed page
 	without reorganizing the page. We must not assume anything
@@ -274,7 +263,8 @@ ibuf_index_page_calc_free_zip(
 		max_ins_size = (ulint) zip_max_ins;
 	}
 
-	return(ibuf_index_page_calc_free_bits(zip_size, max_ins_size));
+	return(ibuf_index_page_calc_free_bits(block->page.id.zip_size(),
+					      max_ins_size));
 }
 
 /*********************************************************************//**
@@ -284,13 +274,9 @@ UNIV_INLINE
 ulint
 ibuf_index_page_calc_free(
 /*======================*/
-	ulint			zip_size,/*!< in: compressed page size in bytes;
-					0 for uncompressed pages */
 	const buf_block_t*	block)	/*!< in: buffer block */
 {
-	ut_ad(zip_size == buf_block_get_zip_size(block));
-
-	if (!zip_size) {
+	if (block->page.id.zip_size() == 0) {
 		ulint	max_ins_size;
 
 		max_ins_size = page_get_max_insert_size_after_reorganize(
@@ -298,7 +284,7 @@ ibuf_index_page_calc_free(
 
 		return(ibuf_index_page_calc_free_bits(0, max_ins_size));
 	} else {
-		return(ibuf_index_page_calc_free_zip(zip_size, block));
+		return(ibuf_index_page_calc_free_zip(block));
 	}
 }
 
@@ -345,10 +331,10 @@ ibuf_update_free_bits_if_full(
 		after = ibuf_index_page_calc_free_bits(0, max_ins_size
 						       - increase);
 #ifdef UNIV_IBUF_DEBUG
-		ut_a(after <= ibuf_index_page_calc_free(0, block));
+		ut_a(after <= ibuf_index_page_calc_free(block));
 #endif
 	} else {
-		after = ibuf_index_page_calc_free(0, block);
+		after = ibuf_index_page_calc_free(block);
 	}
 
 	if (after == 0) {

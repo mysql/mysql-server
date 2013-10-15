@@ -255,8 +255,8 @@ buf_dump(
 
 			ut_a(buf_page_in_file(bpage));
 
-			dump[j] = BUF_DUMP_CREATE(buf_page_get_space(bpage),
-						  buf_page_get_page_no(bpage));
+			dump[j] = BUF_DUMP_CREATE(bpage->id.space(),
+						  bpage->id.page_no());
 		}
 
 		ut_a(j == n_pages);
@@ -543,8 +543,15 @@ buf_load()
 
 	for (i = 0; i < dump_n && !SHUTTING_DOWN(); i++) {
 
-		buf_read_page_async(BUF_DUMP_SPACE(dump[i]),
-				    BUF_DUMP_PAGE(dump[i]));
+		const ulint	space = BUF_DUMP_SPACE(dump[i]);
+		const ulint	zip_size = fil_space_get_zip_size(space);
+
+		if (zip_size == ULINT_UNDEFINED) {
+			continue;
+		}
+
+		buf_read_page_async(
+			page_id_t(space, BUF_DUMP_PAGE(dump[i]), zip_size));
 
 		if (i % 64 == 63) {
 			os_aio_simulated_wake_handler_threads();

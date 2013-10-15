@@ -717,9 +717,13 @@ fill_lock_data(
 
 	mtr_start(&mtr);
 
-	block = buf_page_try_get(lock_rec_get_space_id(lock),
-				 lock_rec_get_page_no(lock),
-				 &mtr);
+	const ulint	space = lock_rec_get_space_id(lock);
+
+	block = buf_page_try_get(
+		page_id_t(space,
+			  lock_rec_get_page_no(lock),
+			  fil_space_get_zip_size(space)),
+		&mtr);
 
 	if (block == NULL) {
 

@@ -615,16 +615,15 @@ fseg_free_step_not_header(
 				the adaptive hash index */
 	mtr_t*		mtr)	/*!< in/out: mini-transaction */
 	__attribute__((nonnull, warn_unused_result));
-/***********************************************************************//**
-Checks if a page address is an extent descriptor page address.
+
+/** Checks if a page address is an extent descriptor page address.
+@param[in] page_id page id
 @return TRUE if a descriptor page */
 UNIV_INLINE
 ibool
 fsp_descr_page(
-/*===========*/
-	ulint	zip_size,/*!< in: compressed page size in bytes;
-			0 for uncompressed pages */
-	ulint	page_no);/*!< in: page number */
+	const page_id_t&	page_id);
+
 /***********************************************************//**
 Parses a redo log record of a file page init.
 @return end of log record or NULL */

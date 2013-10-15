@@ -2519,7 +2519,8 @@ truncate_t::is_index_modified_since_logged(
 	mtr_set_log_mode(&mtr, MTR_LOG_NO_REDO);
 
 	page_t* root = btr_page_get(
-		space_id, zip_size, root_page_no, RW_X_LATCH, NULL, &mtr);
+		page_id_t(space_id, root_page_no, zip_size),
+		RW_X_LATCH, NULL, &mtr);
 
 	lsn_t page_lsn = mach_read_from_8(root + FIL_PAGE_LSN);
 
@@ -2571,14 +2572,16 @@ truncate_t::drop_indexes(
 
 		if (root_page_no != FIL_NULL && zip_size != ULINT_UNDEFINED) {
 
+			const page_id_t	root_page_id(space_id,
+						     root_page_no,
+						     zip_size);
+
 			/* We free all the pages but the root page first;
 			this operation may span several mini-transactions */
-			btr_free_but_not_root(
-				space_id, zip_size, root_page_no,
-				MTR_LOG_NO_REDO);
+			btr_free_but_not_root(root_page_id, MTR_LOG_NO_REDO);
 
 			/* Then we free the root page. */
-			btr_free_root(space_id, zip_size, root_page_no, &mtr);
+			btr_free_root(root_page_id, &mtr);
 		}
 
 		/* If tree is already freed then we might return immediately

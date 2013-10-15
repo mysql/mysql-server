@@ -404,64 +404,55 @@ fil_space_free(
 	ulint		id,		/* in: space id */
 	bool		x_latched);	/* in: true if caller has space->latch
 					in X mode */
-/********************************************************************//**
-Reads data from a space to a buffer. Remember that the possible incomplete
+
+/** Reads data from a space to a buffer. Remember that the possible incomplete
 blocks at the end of file are ignored: they are not taken into account when
 calculating the byte offset within a space.
+@param[in] page_id page id
+@param[in] byte_offset remainder of offset in bytes; in aio this must be
+divisible by the OS block size
+@param[in] len how many bytes to read; this must not cross a file boundary;
+in aio this must be a block size multiple
+@param[in,out] buf buffer where to store data read; in aio this must be
+appropriately aligned
 @return DB_SUCCESS, or DB_TABLESPACE_DELETED if we are trying to do
 i/o on a tablespace which does not exist */
 UNIV_INLINE
 dberr_t
 fil_read(
-/*=====*/
-	bool	sync,		/*!< in: true if synchronous aio is desired */
-	ulint	space_id,	/*!< in: space id */
-	ulint	zip_size,	/*!< in: compressed page size in bytes;
-				0 for uncompressed pages */
-	ulint	block_offset,	/*!< in: offset in number of blocks */
-	ulint	byte_offset,	/*!< in: remainder of offset in bytes; in aio
-				this must be divisible by the OS block size */
-	ulint	len,		/*!< in: how many bytes to read; this must not
-				cross a file boundary; in aio this must be a
-				block size multiple */
-	void*	buf,		/*!< in/out: buffer where to store data read;
-				in aio this must be appropriately aligned */
-	void*	message)	/*!< in: message for aio handler if non-sync
-				aio used, else ignored */
+	const page_id_t&	page_id,
+	ulint			byte_offset,
+	ulint			len,
+	void*			buf)
 {
-	return(fil_io(OS_FILE_READ, sync, space_id, zip_size, block_offset,
-					  byte_offset, len, buf, message));
+	return(fil_io(OS_FILE_READ, true, page_id,
+		      byte_offset, len, buf, NULL));
 }
 
-/********************************************************************//**
-Writes data to a space from a buffer. Remember that the possible incomplete
+/** Writes data to a space from a buffer. Remember that the possible incomplete
 blocks at the end of file are ignored: they are not taken into account when
 calculating the byte offset within a space.
+@param[in] page_id page id
+@param[in] byte_offset remainder of offset in bytes; in aio this must be
+divisible by the OS block size
+@param[in] len how many bytes to write; this must not cross a file boundary;
+in aio this must be a block size multiple
+@param[in] buf buffer from which to write; in aio this must be appropriately
+aligned
 @return DB_SUCCESS, or DB_TABLESPACE_DELETED if we are trying to do
 i/o on a tablespace which does not exist */
 UNIV_INLINE
 dberr_t
 fil_write(
-/*======*/
-	bool	sync,		/*!< in: true if synchronous aio is desired */
-	ulint	space_id,	/*!< in: space id */
-	ulint	zip_size,	/*!< in: compressed page size in bytes;
-				0 for uncompressed pages */
-	ulint	block_offset,	/*!< in: offset in number of blocks */
-	ulint	byte_offset,	/*!< in: remainder of offset in bytes; in aio
-				this must be divisible by the OS block size */
-	ulint	len,		/*!< in: how many bytes to write; this must
-				not cross a file boundary; in aio this must
-				be a block size multiple */
-	void*	buf,		/*!< in: buffer from which to write; in aio
-				this must be appropriately aligned */
-	void*	message)	/*!< in: message for aio handler if non-sync
-				aio used, else ignored */
+	const page_id_t&	page_id,
+	ulint			byte_offset,
+	ulint			len,
+	void*			buf)
 {
 	ut_ad(!srv_read_only_mode);
 
-	return(fil_io(OS_FILE_WRITE, sync, space_id, zip_size, block_offset,
-					   byte_offset, len, buf, message));
+	return(fil_io(OS_FILE_WRITE, true, page_id,
+		      byte_offset, len, buf, NULL));
 }
 
 /*******************************************************************//**
@@ -1836,13 +1827,14 @@ fil_write_lsn_and_arch_no_to_file(
 	buf1 = static_cast<byte*>(ut_malloc(2 * UNIV_PAGE_SIZE));
 	buf = static_cast<byte*>(ut_align(buf1, UNIV_PAGE_SIZE));
 
-	err = fil_read(true, space, 0, sum_of_sizes, 0,
-		       UNIV_PAGE_SIZE, buf, NULL);
+	const page_id_t	page_id(space, sum_of_sizes, 0);
+
+	err = fil_read(page_id, 0, UNIV_PAGE_SIZE, buf);
+
 	if (err == DB_SUCCESS) {
 		mach_write_to_8(buf + FIL_PAGE_FILE_FLUSH_LSN, lsn);
 
-		err = fil_write(true, space, 0, sum_of_sizes, 0,
-				UNIV_PAGE_SIZE, buf, NULL);
+		err = fil_write(page_id, 0, UNIV_PAGE_SIZE, buf);
 	}
 
 	ut_free(buf1);
@@ -2316,9 +2308,8 @@ fil_recreate_tablespace(
 		page_zip.m_end = page_zip.m_nonempty = page_zip.n_blobs = 0;
 		buf_flush_init_for_writing(page, &page_zip, 0);
 
-		err = fil_write(
-			true, space_id, zip_size, 0, 0, zip_size,
-			page_zip.data, NULL);
+		err = fil_write(page_id_t(space_id, 0, zip_size), 0, zip_size,
+				page_zip.data);
 
 		ut_free(buf);
 
@@ -2367,18 +2358,20 @@ fil_recreate_tablespace(
 
 	for (ulint page_no = 0; page_no < node->size; ++page_no) {
 
-		buf_block_t*	block = buf_page_get(
-			space_id, zip_size, page_no, RW_X_LATCH, &mtr);
+		const page_id_t	cur_page_id(space_id, page_no, zip_size);
+
+		buf_block_t*	block = buf_page_get(cur_page_id, RW_X_LATCH,
+						     &mtr);
 
 		byte*	page = buf_block_get_frame(block);
 
 		if (!fsp_flags_is_compressed(flags)) {
 
+			ut_ad(zip_size == 0);
+
 			buf_flush_init_for_writing(page, NULL, recv_lsn);
 
-			err = fil_write(
-				true, space_id, 0, page_no, 0,
-				UNIV_PAGE_SIZE, page, NULL);
+			err = fil_write(cur_page_id, 0, UNIV_PAGE_SIZE, page);
 		} else {
 
 			/* We don't want to rewrite empty pages. */
@@ -2390,9 +2383,8 @@ fil_recreate_tablespace(
 				buf_flush_init_for_writing(
 					page, page_zip, recv_lsn);
 
-				err = fil_write(
-					true, space_id, zip_size, page_no, 0,
-					zip_size, page_zip->data, NULL);
+				err = fil_write(cur_page_id, 0, zip_size,
+						page_zip->data);
 			} else {
 #ifdef UNIV_DEBUG
 				const byte*	data = block->page.zip.data;
@@ -5297,9 +5289,12 @@ fil_extend_tablespaces_to_stored_len(void)
 		mutex_exit(&fil_system->mutex); /* no need to protect with a
 					      mutex, because this is a
 					      single-threaded operation */
-		error = fil_read(true, space->id,
-				 fsp_flags_get_zip_size(space->flags),
-				 0, 0, UNIV_PAGE_SIZE, buf, NULL);
+		error = fil_read(
+			page_id_t(space->id,
+				  0,
+				  fsp_flags_get_zip_size(space->flags)),
+			0, UNIV_PAGE_SIZE, buf);
+
 		ut_a(error == DB_SUCCESS);
 
 		size_in_header = fsp_get_size_low(buf);
@@ -5548,39 +5543,34 @@ fil_report_invalid_page_access(
 		(ulong) byte_offset, (ulong) len, (ulong) type);
 }
 
-/********************************************************************//**
-Reads or writes data. This operation is asynchronous (aio).
+/** Reads or writes data. This operation could be asynchronous (aio).
+@param[in] type OS_FILE_READ or OS_FILE_WRITE,
+ORed to OS_FILE_LOG, if a log i/o and
+ORed to OS_AIO_SIMULATED_WAKE_LATER if simulated aio and we want to post
+a batch of i/os;
+NOTE that a simulated batch may introduce hidden chances of deadlocks,
+because i/os are not actually handled until all have been posted: use
+with great caution!
+@param[in] sync true if synchronous aio is desired
+@param[in] page_id page id
+@param[in] byte_offset remainder of offset in bytes; in aio this must be
+divisible by the OS block size
+@param[in] len how many bytes to read or write; this must not cross a file
+boundary; in aio this must be a block size multiple
+@param[in,out] buf buffer where to store read data or from where to write;
+in aio this must be appropriately aligned
+@param[in] message message for aio handler if non-sync aio used, else ignored
 @return DB_SUCCESS, DB_TABLESPACE_DELETED or DB_TABLESPACE_TRUNCATED
 if we are trying to do i/o on a tablespace which does not exist */
-
 dberr_t
 fil_io(
-/*===*/
-	ulint	type,		/*!< in: OS_FILE_READ or OS_FILE_WRITE,
-				ORed to OS_FILE_LOG, if a log i/o
-				and ORed to OS_AIO_SIMULATED_WAKE_LATER
-				if simulated aio and we want to post a
-				batch of i/os; NOTE that a simulated batch
-				may introduce hidden chances of deadlocks,
-				because i/os are not actually handled until
-				all have been posted: use with great
-				caution! */
-	bool	sync,		/*!< in: true if synchronous aio is desired */
-	ulint	space_id,	/*!< in: space id */
-	ulint	zip_size,	/*!< in: compressed page size in bytes;
-				0 for uncompressed pages */
-	ulint	block_offset,	/*!< in: offset in number of blocks */
-	ulint	byte_offset,	/*!< in: remainder of offset in bytes; in
-				aio this must be divisible by the OS block
-				size */
-	ulint	len,		/*!< in: how many bytes to read or write; this
-				must not cross a file boundary; in aio this
-				must be a block size multiple */
-	void*	buf,		/*!< in/out: buffer where to store read data
-				or from where to write; in aio this must be
-				appropriately aligned */
-	void*	message)	/*!< in: message for aio handler if non-sync
-				aio used, else ignored */
+	ulint			type,
+	bool			sync,
+	const page_id_t&	page_id,
+	ulint			byte_offset,
+	ulint			len,
+	void*			buf,
+	void*			message)
 {
 	ulint		mode;
 	fil_space_t*	space;
@@ -5601,8 +5591,7 @@ fil_io(
 	type &= ~BUF_READ_IGNORE_NONEXISTENT_PAGES;
 
 	ut_ad(byte_offset < UNIV_PAGE_SIZE);
-	ut_ad(!zip_size || !byte_offset);
-	ut_ad(ut_is_2pow(zip_size));
+	ut_ad(page_id.zip_size() == 0 || !byte_offset);
 	ut_ad(buf);
 	ut_ad(len > 0);
 	ut_ad(UNIV_PAGE_SIZE == (ulong)(1 << UNIV_PAGE_SIZE_SHIFT));
@@ -5618,7 +5607,7 @@ fil_io(
 	/* ibuf bitmap pages must be read in the sync aio mode: */
 	ut_ad(recv_no_ibuf_operations
 	      || type == OS_FILE_WRITE
-	      || !ibuf_bitmap_page(zip_size, block_offset)
+	      || !ibuf_bitmap_page(page_id)
 	      || sync
 	      || is_log);
 # endif /* UNIV_LOG_DEBUG */
@@ -5628,7 +5617,7 @@ fil_io(
 		mode = OS_AIO_LOG;
 	} else if (type == OS_FILE_READ
 		   && !recv_no_ibuf_operations
-		   && ibuf_page(space_id, zip_size, block_offset, NULL)) {
+		   && ibuf_page(page_id, NULL)) {
 		mode = OS_AIO_IBUF;
 	} else {
 		mode = OS_AIO_NORMAL;
@@ -5648,9 +5637,9 @@ fil_io(
 	/* Reserve the fil_system mutex and make sure that we can open at
 	least one file while holding it, if the file is not already open */
 
-	fil_mutex_enter_and_prepare_for_io(space_id);
+	fil_mutex_enter_and_prepare_for_io(page_id.space());
 
-	space = fil_space_get_by_id(space_id);
+	space = fil_space_get_by_id(page_id.space());
 
 	/* If we are deleting a tablespace we don't allow any read
 	operations on that. However, we do allow write operations. */
@@ -5661,9 +5650,9 @@ fil_io(
 
 		ib_logf(IB_LOG_LEVEL_ERROR,
 			"Trying to do i/o to a tablespace which does "
-			"not exist. i/o type %lu, space id %lu, "
-			"page no. %lu, i/o length %lu bytes",
-			(ulong) type, (ulong) space_id, (ulong) block_offset,
+			"not exist. i/o type %lu, space id " UINT32PF ", "
+			"page no. " UINT32PF ", i/o length %lu bytes",
+			(ulong) type, page_id.space(), page_id.page_no(),
 			(ulong) len);
 
 		return(DB_TABLESPACE_DELETED);
@@ -5673,6 +5662,8 @@ fil_io(
 
 	node = UT_LIST_GET_FIRST(space->chain);
 
+	page_id_t	cur_page_id = page_id;
+
 	for (;;) {
 		if (node == NULL) {
 			if (ignore_nonexistent_pages != 0) {
@@ -5681,8 +5672,8 @@ fil_io(
 			}
 
 			fil_report_invalid_page_access(
-				block_offset, space_id, space->name,
-				byte_offset, len, type);
+				cur_page_id.page_no(), cur_page_id.space(),
+				space->name, byte_offset, len, type);
 
 			ut_error;
 
@@ -5692,7 +5683,7 @@ fil_io(
 			/* We do not know the size of a single-table tablespace
 			before we open the file */
 			break;
-		} else if (node->size > block_offset) {
+		} else if (node->size > cur_page_id.page_no()) {
 			/* Found! */
 			break;
 		} else {
@@ -5708,7 +5699,11 @@ fil_io(
 				return(DB_TABLESPACE_TRUNCATED);
 			}
 
-			block_offset -= node->size;
+			cur_page_id = page_id_t(
+				cur_page_id.space(),
+				cur_page_id.page_no() - node->size,
+				cur_page_id.zip_size());
+
 			node = UT_LIST_GET_NEXT(chain, node);
 		}
 	}
@@ -5722,10 +5717,13 @@ fil_io(
 			ib_logf(IB_LOG_LEVEL_ERROR,
 				"Trying to do i/o to a tablespace which "
 				"exists without .ibd data file. "
-				"i/o type %lu, space id %lu, page no %lu, "
+				"i/o type %lu, space id " UINT32PF
+				", page no " UINT32PF ", "
 				"i/o length %lu bytes",
-				(ulong) type, (ulong) space_id,
-				(ulong) block_offset, (ulong) len);
+				(ulint) type,
+				cur_page_id.space(),
+				cur_page_id.page_no(),
+				(ulint) len);
 
 			return(DB_TABLESPACE_DELETED);
 		}
@@ -5739,12 +5737,12 @@ fil_io(
 
 	/* Check that at least the start offset is within the bounds of a
 	single-table tablespace, including rollback tablespaces. */
-	if (UNIV_UNLIKELY(node->size <= block_offset)
+	if (node->size <= cur_page_id.page_no()
 	    && space->id != 0 && space->purpose == FIL_TABLESPACE) {
 
 		fil_report_invalid_page_access(
-			block_offset, space_id, space->name, byte_offset,
-			len, type);
+			cur_page_id.page_no(), cur_page_id.space(),
+			space->name, byte_offset, len, type);
 
 		ut_error;
 	}
@@ -5754,16 +5752,16 @@ fil_io(
 
 	/* Calculate the low 32 bits and the high 32 bits of the file offset */
 
-	if (!zip_size) {
-		offset = ((os_offset_t) block_offset << UNIV_PAGE_SIZE_SHIFT)
-			+ byte_offset;
+	if (cur_page_id.zip_size() == 0) {
+		offset = ((os_offset_t) cur_page_id.page_no()
+			  << UNIV_PAGE_SIZE_SHIFT) + byte_offset;
 
-		ut_a(node->size - block_offset
+		ut_a(node->size - cur_page_id.page_no()
 		     >= ((byte_offset + len + (UNIV_PAGE_SIZE - 1))
 			 / UNIV_PAGE_SIZE));
 	} else {
 		ulint	zip_size_shift;
-		switch (zip_size) {
+		switch (cur_page_id.zip_size()) {
 		case 1024: zip_size_shift = 10; break;
 		case 2048: zip_size_shift = 11; break;
 		case 4096: zip_size_shift = 12; break;
@@ -5771,10 +5769,12 @@ fil_io(
 		case 16384: zip_size_shift = 14; break;
 		default: ut_error;
 		}
-		offset = ((os_offset_t) block_offset << zip_size_shift)
+		offset = ((os_offset_t) cur_page_id.page_no() << zip_size_shift)
 			+ byte_offset;
-		ut_a(node->size - block_offset
-		     >= (len + (zip_size - 1)) / zip_size);
+
+		ut_a(node->size - cur_page_id.page_no()
+		     >= (len + (cur_page_id.zip_size() - 1))
+		     / cur_page_id.zip_size());
 	}
 
 	/* Do aio */
@@ -6307,6 +6307,10 @@ fil_iterate(
 		if (callback.get_zip_size() > 0) {
 			page_zip_des_init(&block->page.zip);
 			page_zip_set_size(&block->page.zip, iter.page_size);
+			block->page.id = page_id_t(
+				block->page.id.space(),
+				block->page.id.page_no(),
+				iter.page_size);
 			block->page.zip.data = block->frame + UNIV_PAGE_SIZE;
 			ut_d(block->page.zip.m_external = true);
 			ut_ad(iter.page_size == callback.get_zip_size());
@@ -6341,7 +6345,9 @@ fil_iterate(
 
 		for (ulint i = 0; i < n_pages_read; ++i) {
 
-			buf_block_set_file_page(block, space_id, page_no++);
+			buf_block_set_file_page(
+				block,
+				page_id_t(space_id, page_no++, iter.page_size));
 
 			dberr_t	err;
 

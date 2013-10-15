@@ -239,7 +239,7 @@ trx_rseg_mem_create(
 		rseg->last_offset = node_addr.boffset;
 
 		undo_log_hdr = trx_undo_page_get(
-			rseg->space, rseg->zip_size, node_addr.page,
+			page_id_t(rseg->space, node_addr.page, rseg->zip_size),
 			mtr) + node_addr.boffset;
 
 		rseg->last_trx_no = mach_read_from_8(

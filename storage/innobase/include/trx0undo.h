@@ -98,30 +98,27 @@ trx_read_roll_ptr(
 /*==============*/
 	const byte*	ptr);	/*!< in: pointer to memory from where to read */
 #ifndef UNIV_HOTBACKUP
-/******************************************************************//**
-Gets an undo log page and x-latches it.
+
+/** Gets an undo log page and x-latches it.
+@param[in] page_id page id
+@param[in,out] mtr mini-transaction
 @return pointer to page x-latched */
 UNIV_INLINE
 page_t*
 trx_undo_page_get(
-/*==============*/
-	ulint	space,		/*!< in: space where placed */
-	ulint	zip_size,	/*!< in: compressed page size in bytes
-				or 0 for uncompressed pages */
-	ulint	page_no,	/*!< in: page number */
-	mtr_t*	mtr);		/*!< in: mtr */
-/******************************************************************//**
-Gets an undo log page and s-latches it.
+	const page_id_t&	page_id,
+	mtr_t*			mtr);
+
+/** Gets an undo log page and s-latches it.
+@param[in] page_id page id
+@param[in,out] mtr mini-transaction
 @return pointer to page s-latched */
 UNIV_INLINE
 page_t*
 trx_undo_page_get_s_latched(
-/*========================*/
-	ulint	space,		/*!< in: space where placed */
-	ulint	zip_size,	/*!< in: compressed page size in bytes
-				or 0 for uncompressed pages */
-	ulint	page_no,	/*!< in: page number */
-	mtr_t*	mtr);		/*!< in: mtr */
+	const page_id_t&	page_id,
+	mtr_t*			mtr);
+
 /******************************************************************//**
 Returns the previous undo record on the page in the specified log, or
 NULL if none exists.

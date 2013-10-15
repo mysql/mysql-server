@@ -655,7 +655,8 @@ trx_sys_file_format_max_write(
 	mtr_start(&mtr);
 
 	block = buf_page_get(
-		TRX_SYS_SPACE, 0, TRX_SYS_PAGE_NO, RW_X_LATCH, &mtr);
+		page_id_t(TRX_SYS_SPACE, TRX_SYS_PAGE_NO, 0),
+		RW_X_LATCH, &mtr);
 
 	file_format_max.id = format_id;
 	file_format_max.name = trx_sys_file_format_id_to_name(format_id);
@@ -692,7 +693,8 @@ trx_sys_file_format_max_read(void)
 	mtr_start(&mtr);
 
 	block = buf_page_get(
-		TRX_SYS_SPACE, 0, TRX_SYS_PAGE_NO, RW_X_LATCH, &mtr);
+		page_id_t(TRX_SYS_SPACE, TRX_SYS_PAGE_NO, 0),
+		RW_X_LATCH, &mtr);
 
 	ptr = buf_block_get_frame(block) + TRX_SYS_FILE_FORMAT_TAG;
 	file_format_id = mach_read_from_8(ptr);

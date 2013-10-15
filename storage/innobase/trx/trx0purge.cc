@@ -432,7 +432,8 @@ trx_purge_free_segment(
 			rseg->space, rseg->zip_size, rseg->page_no, &mtr);
 
 		undo_page = trx_undo_page_get(
-			rseg->space, rseg->zip_size, hdr_addr.page, &mtr);
+			page_id_t(rseg->space, hdr_addr.page, rseg->zip_size),
+			&mtr);
 
 		seg_hdr = undo_page + TRX_UNDO_SEG_HDR;
 		log_hdr = undo_page + hdr_addr.boffset;
@@ -546,8 +547,9 @@ loop:
 		return;
 	}
 
-	undo_page = trx_undo_page_get(rseg->space, rseg->zip_size,
-				      hdr_addr.page, &mtr);
+	undo_page = trx_undo_page_get(
+		page_id_t(rseg->space, hdr_addr.page, rseg->zip_size),
+		&mtr);
 
 	log_hdr = undo_page + hdr_addr.boffset;
 
@@ -686,7 +688,8 @@ trx_purge_rseg_get_next_history_log(
 	mtr_start(&mtr);
 
 	undo_page = trx_undo_page_get_s_latched(
-		rseg->space, rseg->zip_size, rseg->last_page_no, &mtr);
+		page_id_t(rseg->space, rseg->last_page_no, rseg->zip_size),
+		&mtr);
 
 	log_hdr = undo_page + rseg->last_offset;
 
@@ -740,8 +743,9 @@ trx_purge_rseg_get_next_history_log(
 	/* Read the trx number and del marks from the previous log header */
 	mtr_start(&mtr);
 
-	log_hdr = trx_undo_page_get_s_latched(rseg->space, rseg->zip_size,
-					      prev_log_addr.page, &mtr)
+	log_hdr = trx_undo_page_get_s_latched(
+		page_id_t(rseg->space, prev_log_addr.page, rseg->zip_size),
+		&mtr)
 		+ prev_log_addr.boffset;
 
 	trx_no = mach_read_from_8(log_hdr + TRX_UNDO_TRX_NO);
@@ -897,7 +901,9 @@ trx_purge_get_next_rec(
 
 	mtr_start(&mtr);
 
-	undo_page = trx_undo_page_get_s_latched(space, zip_size, page_no, &mtr);
+	undo_page = trx_undo_page_get_s_latched(
+		page_id_t(space, page_no, zip_size),
+		&mtr);
 
 	rec = undo_page + offset;
 
@@ -955,7 +961,8 @@ trx_purge_get_next_rec(
 		mtr_start(&mtr);
 
 		undo_page = trx_undo_page_get_s_latched(
-			space, zip_size, page_no, &mtr);
+			page_id_t(space, page_no, zip_size),
+			&mtr);
 
 		rec = undo_page + offset;
 	} else {
