@@ -24,6 +24,7 @@
 #endif
 
 #include <queue>
+#include <vector>
 #include <my_global.h>
 #include <my_sys.h>
 
@@ -122,5 +123,50 @@ static void register_gcs_psi_keys(PSI_mutex_info gcs_mutexes[],
 inline bool is_local(){
   return false;
 }
+
+
+class MessageBuffer
+{
+
+private:
+  std::vector<unsigned char> *buffer;
+
+public:
+  MessageBuffer()
+  {
+    this->buffer= new std::vector<unsigned char>();
+  }
+
+  MessageBuffer(int capacity)
+  {
+    this->buffer= new std::vector<unsigned char>();
+    this->buffer->reserve(capacity);
+  }
+
+  ~MessageBuffer()
+  {
+    delete this->buffer;
+  }
+
+  size_t length()
+  {
+    return this->buffer->size();
+  }
+
+  void append(const unsigned char *s, size_t len)
+  {
+    this->buffer->insert(this->buffer->end(), s, s+len);
+  }
+
+  void reset()
+  {
+    this->buffer->clear();
+  }
+
+  const unsigned char* data()
+  {
+    return &this->buffer->front();
+  }
+};
 
 #endif /* GCS_UTILS_INCLUDE */

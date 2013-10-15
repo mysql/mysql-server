@@ -15,6 +15,9 @@
 
 #include "gcs_plugin.h"
 #include "observer_trans.h"
+#include "gcs_utils.h"
+#include <gcs_protocol.h>
+#include <gcs_protocol_factory.h>
 #include <log_event.h>
 #include <log.h>
 
@@ -26,7 +29,7 @@ static bool reinit_cache(IO_CACHE *cache,
                          enum cache_type type,
                          my_off_t position);
 
-static bool copy_cache(IO_CACHE *dest, IO_CACHE *src);
+static bool copy_cache(MessageBuffer *dest, IO_CACHE *src);
 
 
 /*
@@ -48,6 +51,11 @@ int gcs_trans_before_commit(Trans_param *param)
   Transaction_context_log_event *tcle= NULL;
   rpl_gno snapshot_timestamp;
   IO_CACHE cache;
+  MessageBuffer *buffer= new MessageBuffer();
+
+  // GCS API.
+  GCS::Protocol *protocol= GCS::Protocol_factory::get_instance();
+  GCS::Message *message= NULL;
 
   // Binlog cache.
   bool is_dml= true;
@@ -97,7 +105,7 @@ int gcs_trans_before_commit(Trans_param *param)
   // Reinit binlog cache to read.
   if (reinit_cache(cache_log, READ_CACHE, 0))
   {
-    sql_print_error("Failed to reopen binlog cache log for read");
+    sql_print_error("Failed to reinit binlog cache log for read");
     error= 1;
     goto err;
   }
@@ -117,10 +125,26 @@ int gcs_trans_before_commit(Trans_param *param)
   // Write transaction context to GCS cache.
   tcle->write(&cache);
 
-  // Copy binlog cache content to GCS cache.
-  if (copy_cache(&cache, cache_log))
+  // Reinit GCS cache to read.
+  if (reinit_cache(&cache, READ_CACHE, 0))
   {
-    sql_print_error("Failed while writing binlog cache to GCS cache");
+    sql_print_error("Failed to reinit GCS cache log for read");
+    error= 1;
+    goto err;
+  }
+
+  // Copy GCS cache to buffer.
+  if (copy_cache(buffer, &cache))
+  {
+    sql_print_error("Failed while writing GCS cache to buffer");
+    error= 1;
+    goto err;
+  }
+
+  // Copy binlog cache content to buffer.
+  if (copy_cache(buffer, cache_log))
+  {
+    sql_print_error("Failed while writing binlog cache to buffer");
     error= 1;
     goto err;
   }
@@ -128,25 +152,28 @@ int gcs_trans_before_commit(Trans_param *param)
   // Reinit binlog cache to write (revert what we did).
   if (reinit_cache(cache_log, WRITE_CACHE, cache_log_position))
   {
-    sql_print_error("Failed to reopen binlog cache log for write");
+    sql_print_error("Failed to reinit binlog cache log for write");
     error= 1;
     goto err;
   }
 
-  // Reinit GCS cache to read.
-  if (reinit_cache(&cache, READ_CACHE, 0))
+  // Broadcast GCS message.
+  message= new GCS::Message(GCS::MSG_REGULAR, GCS::MSGQOS_UNIFORM,
+                                GCS::MSGORD_TOTAL_ORDER,
+                                buffer->data(), buffer->length());
+  if (protocol->broadcast(*message))
   {
-    sql_print_error("Failed to reopen GCS cache log for read");
+    sql_print_error("Failed to broadcast GCS message");
     error= 1;
     goto err;
   }
-
-  // TODO: WL#6855: broadcast GCS cache content
 
   // TODO: WL#6826: wait for certification decision
 
 err:
   delete tcle;
+  delete buffer;
+  delete message;
   close_cached_file(&cache);
 
   DBUG_RETURN(error);
@@ -207,25 +234,24 @@ static bool reinit_cache(IO_CACHE *cache,
 }
 
 /*
-  Copy one cache content to another cache.
+  Copy one cache content to a buffer.
 
-  @param[in] dest  cache to where data will be written
+  @param[in] dest  buffer to where data will be written
   @param[in] src   cache from which data will be read
 */
-static bool copy_cache(IO_CACHE *dest, IO_CACHE *src)
+static bool copy_cache(MessageBuffer *dest, IO_CACHE *src)
 {
   DBUG_ENTER("copy_cache");
   size_t length;
 
-  DBUG_ASSERT(src->type == READ_CACHE && dest->type == WRITE_CACHE);
+  DBUG_ASSERT(src->type == READ_CACHE);
 
   while ((length= my_b_fill(src)) > 0)
   {
     if (src->error)
       DBUG_RETURN(true);
 
-    if (my_b_write(dest, src->read_pos, length))
-      DBUG_RETURN(true);
+    dest->append(src->read_pos, length);
   }
 
   DBUG_RETURN(false);

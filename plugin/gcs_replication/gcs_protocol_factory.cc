@@ -51,6 +51,7 @@ Protocol_factory::create_protocol(Protocol_type type,
 
 Protocol* Protocol_factory::get_instance()
 {
+  DBUG_ASSERT(single_instance);
   return single_instance;
 }
 
