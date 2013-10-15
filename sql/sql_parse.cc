@@ -158,6 +158,7 @@ const LEX_STRING command_name[]={
   { C_STRING_WITH_LEN("Fetch") },
   { C_STRING_WITH_LEN("Daemon") },
   { C_STRING_WITH_LEN("Binlog Dump GTID") },
+  { C_STRING_WITH_LEN("Reset Connection") },
   { C_STRING_WITH_LEN("Error") }  // Last command number
 };
 
@@ -1216,13 +1217,19 @@ bool dispatch_command(enum enum_server_command command, THD *thd,
     break;
   }
 #endif
+  case COM_RESET_CONNECTION:
+  {
+    thd->status_var.com_other++;
+    thd->cleanup_connection();
+    my_ok(thd);
+    break;
+  }
   case COM_CHANGE_USER:
   {
     int auth_rc;
     thd->status_var.com_other++;
 
-    thd->change_user();
-    thd->clear_error();                         // if errors from rollback
+    thd->cleanup_connection();
 
     /* acl_authenticate() takes the data from net->read_pos */
     net->read_pos= (uchar*)packet;

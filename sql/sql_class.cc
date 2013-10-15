@@ -1349,7 +1349,7 @@ extern "C"   THD *_current_thd_noinline(void)
 }
 #endif
 /*
-  Init common variables that has to be reset on start and on change_user
+  Init common variables that has to be reset on start and on cleanup_connection
 */
 
 void THD::init(void)
@@ -1435,14 +1435,14 @@ void THD::init_for_queries(Relay_log_info *rli)
   Do what's needed when one invokes change user
 
   SYNOPSIS
-    change_user()
+    cleanup_connection()
 
   IMPLEMENTATION
     Reset all resources that are connection specific
 */
 
 
-void THD::change_user(void)
+void THD::cleanup_connection(void)
 {
   mysql_mutex_lock(&LOCK_status);
   add_to_status(&global_status_var, &status_var);
@@ -1458,6 +1458,31 @@ void THD::change_user(void)
                (my_hash_free_key) free_user_var, 0);
   sp_cache_clear(&sp_proc_cache);
   sp_cache_clear(&sp_func_cache);
+
+  clear_error();
+
+#ifndef DBUG_OFF
+    /* DEBUG code only (begin) */
+    bool check_cleanup= FALSE;
+    DBUG_EXECUTE_IF("debug_test_cleanup_connection", check_cleanup= TRUE;);
+    if(check_cleanup)
+    {
+      /* isolation level should be default */
+      DBUG_ASSERT(variables.tx_isolation == ISO_REPEATABLE_READ);
+      /* check autocommit is ON by default */
+      DBUG_ASSERT(server_status == SERVER_STATUS_AUTOCOMMIT);
+      /* check prepared stmts are cleaned up */
+      DBUG_ASSERT(prepared_stmt_count == 0);
+      /* check diagnostic area is cleaned up */
+      DBUG_ASSERT(get_stmt_da()->status() == Diagnostics_area::DA_EMPTY);
+      /* check if temp tables are deleted */
+      DBUG_ASSERT(temporary_tables == NULL);
+      /* check if tables are unlocked */
+      DBUG_ASSERT(locked_tables_list.locked_tables() == NULL);
+    }
+    /* DEBUG code only (end) */
+#endif
+
 }
 
 
