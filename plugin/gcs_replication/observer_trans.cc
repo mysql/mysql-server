@@ -41,24 +41,44 @@ int gcs_trans_before_commit(Trans_param *param)
   if (!is_real_trans)
     DBUG_RETURN(0);
 
+  if (!is_gcs_rpl_running())
+    DBUG_RETURN(0);
+
   // GCS cache.
   Transaction_context_log_event *tcle= NULL;
   rpl_gno snapshot_timestamp;
   IO_CACHE cache;
 
-  // Binlog transactional cache.
-  IO_CACHE *trx_cache_log= param->trx_cache_log;
-  DBUG_ASSERT(trx_cache_log->type == WRITE_CACHE);
-  const my_off_t trx_cache_log_position= my_b_tell(trx_cache_log);
-  DBUG_PRINT("trx_cache_log", ("thread_id: %lu, trx_cache_log_position: %llu",
-                               param->thread_id, trx_cache_log_position));
+  // Binlog cache.
+  bool is_dml= true;
+  IO_CACHE *cache_log= NULL;
+  my_off_t cache_log_position= 0;
+  const my_off_t trx_cache_log_position= my_b_tell(param->trx_cache_log);
+  const my_off_t stmt_cache_log_position= my_b_tell(param->stmt_cache_log);
 
-  /*
-    If cache log position is 0, that means the transaction is DDL, which
-    won't be handled here.
-  */
-  if (0 == trx_cache_log_position)
-    DBUG_RETURN(0);
+  if (trx_cache_log_position > 0 && stmt_cache_log_position == 0)
+  {
+    cache_log= param->trx_cache_log;
+    cache_log_position= trx_cache_log_position;
+  }
+  else if (trx_cache_log_position == 0 && stmt_cache_log_position > 0)
+  {
+    cache_log= param->stmt_cache_log;
+    cache_log_position= stmt_cache_log_position;
+    is_dml= false;
+  }
+  else
+  {
+    sql_print_error("We can only use one cache type at a time");
+    error= 1;
+    goto err;
+  }
+
+  DBUG_ASSERT(cache_log->type == WRITE_CACHE);
+  DBUG_PRINT("cache_log", ("thread_id: %lu, trx_cache_log_position: %llu,"
+                           " stmt_cache_log_position: %llu",
+                           param->thread_id, trx_cache_log_position,
+                           stmt_cache_log_position));
 
   // Get transaction snapshot timestamp.
   snapshot_timestamp= get_last_gno_without_gaps(gcs_cluster_sidno);
@@ -67,15 +87,15 @@ int gcs_trans_before_commit(Trans_param *param)
 
   // Open GCS cache.
   if (open_cached_file(&cache, mysql_tmpdir, "gcs_trans_before_commit_cache",
-                       param->trx_cache_log_max_size, MYF(MY_WME)))
+                       param->cache_log_max_size, MYF(MY_WME)))
   {
     sql_print_error("Failed to create gcs commit cache");
     error= 1;
     goto err;
   }
 
-  // Reinit binlog transactional cache to read.
-  if (reinit_cache(trx_cache_log, READ_CACHE, 0))
+  // Reinit binlog cache to read.
+  if (reinit_cache(cache_log, READ_CACHE, 0))
   {
     sql_print_error("Failed to reopen binlog cache log for read");
     error= 1;
@@ -87,21 +107,26 @@ int gcs_trans_before_commit(Trans_param *param)
                                           param->thread_id,
                                           snapshot_timestamp);
 
-  // TODO: WL#6834: add write set
+  // TODO: For now DDL won't have write-set, it will be added by
+  // WL#6823 and WL#6824.
+  if (is_dml)
+  {
+    // TODO: WL#6834: add write set
+  }
 
   // Write transaction context to GCS cache.
   tcle->write(&cache);
 
-  // Copy binlog transactional cache content to GCS cache.
-  if (copy_cache(&cache, trx_cache_log))
+  // Copy binlog cache content to GCS cache.
+  if (copy_cache(&cache, cache_log))
   {
     sql_print_error("Failed while writing binlog cache to GCS cache");
     error= 1;
     goto err;
   }
 
-  // Reinit binlog transactional cache to write (revert what we did).
-  if (reinit_cache(trx_cache_log, WRITE_CACHE, trx_cache_log_position))
+  // Reinit binlog cache to write (revert what we did).
+  if (reinit_cache(cache_log, WRITE_CACHE, cache_log_position))
   {
     sql_print_error("Failed to reopen binlog cache log for write");
     error= 1;

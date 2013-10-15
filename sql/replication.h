@@ -55,7 +55,8 @@ typedef struct Trans_param {
     Set on before_commit hook.
   */
   IO_CACHE *trx_cache_log;
-  ulonglong trx_cache_log_max_size;
+  IO_CACHE *stmt_cache_log;
+  ulonglong cache_log_max_size;
 } Trans_param;
 
 /**

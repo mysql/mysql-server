@@ -13875,7 +13875,8 @@ Transaction_context_log_event::Transaction_context_log_event(const char *buffer,
 
 err:
   // Make is_valid() return false.
-  clear_set(&write_set);
+  my_free(server_uuid);
+  server_uuid= NULL;
   DBUG_VOID_RETURN;
 }
 

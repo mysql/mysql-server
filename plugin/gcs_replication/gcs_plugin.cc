@@ -100,6 +100,15 @@ static bool init_cluster_sidno();
 static bool server_engine_initialized();
 
 /*
+  Auxiliary public functions.
+*/
+bool is_gcs_rpl_running()
+{
+  return gcs_running;
+}
+
+
+/*
   Plugin interface.
 */
 struct st_mysql_gcs_rpl gcs_rpl_descriptor =
@@ -115,7 +124,7 @@ int gcs_rpl_start()
 
   DBUG_ENTER("gcs_rpl_start");
 
-  if (gcs_running)
+  if (is_gcs_rpl_running())
     DBUG_RETURN(ER_GCS_REPLICATION_RUNNING);
   if (check_group_name_string(gcs_group_pointer))
     DBUG_RETURN(ER_GCS_REPLICATION_CONFIGURATION);
@@ -139,9 +148,9 @@ int gcs_rpl_start()
     gcs_instance->close_session();
 
   /* Protocol_corosync::test_me (a part of unit testing) */
-  if (gcs_running && !strcmp(gcs_group_pointer, "00000000-0000-0000-0000-000000000000"))
+  if (is_gcs_rpl_running() && !strcmp(gcs_group_pointer, "00000000-0000-0000-0000-000000000000"))
     gcs_instance->test_me();
-  DBUG_RETURN(!gcs_running);
+  DBUG_RETURN(!is_gcs_rpl_running());
 }
 
 int gcs_rpl_stop()
@@ -149,7 +158,7 @@ int gcs_rpl_stop()
   Mutex_autolock a(&gcs_running_mutex);
   DBUG_ENTER("gcs_rpl_stop");
 
-  if (!gcs_running)
+  if (!is_gcs_rpl_running())
     DBUG_RETURN(0);
 
   int error= 0;
@@ -176,7 +185,6 @@ int gcs_rpl_stop()
   gcs_running= false;
 
   DBUG_RETURN(error);
-
 }
 
 int gcs_replication_init(MYSQL_PLUGIN plugin_info)
@@ -336,8 +344,7 @@ static int check_group_name(MYSQL_THD thd, SYS_VAR *var, void* prt,
   const char *str;
 
   //safe_mutex_assert_owner(&gcs_running_mutex);
-
-  if (gcs_running)
+  if (is_gcs_rpl_running())
   {
     sql_print_error("The group name cannot be changed when cluster is running");
     DBUG_RETURN(1);

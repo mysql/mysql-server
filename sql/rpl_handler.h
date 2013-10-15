@@ -147,8 +147,10 @@ class Trans_delegate
   :public Delegate {
 public:
   typedef Trans_observer Observer;
-  int before_commit(THD *thd, bool all, IO_CACHE *trx_cache_log,
-                    ulonglong trx_cache_log_max_size);
+  int before_commit(THD *thd, bool all,
+                    IO_CACHE *trx_cache_log,
+                    IO_CACHE *stmt_cache_log,
+                    ulonglong cache_log_max_size);
   int before_rollback(THD *thd, bool all);
   int after_commit(THD *thd, bool all);
   int after_rollback(THD *thd, bool all);

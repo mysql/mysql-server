@@ -44,5 +44,6 @@ int gcs_replication_deinit(void *p);
 int configure_and_start_applier();
 int gcs_rpl_start();
 int gcs_rpl_stop();
+bool is_gcs_rpl_running();
 
 #endif /* GCS_PLUGIN_INCLUDE */

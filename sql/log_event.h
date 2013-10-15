@@ -5219,7 +5219,7 @@ public:
 
   bool is_valid() const
   {
-    return server_uuid != NULL && write_set.size() > 0;
+    return server_uuid != NULL;
   }
 
   int get_data_size();
