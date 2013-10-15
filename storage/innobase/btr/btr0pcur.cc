@@ -425,9 +425,9 @@ btr_pcur_move_to_next_page(
 
 	buf_block_t*	block = btr_pcur_get_block(cursor);
 
-	page_id_t	next_page_id(buf_block_get_space(block),
+	page_id_t	next_page_id(block->page.id.space(),
 				     next_page_no,
-				     buf_block_get_zip_size(block));
+				     block->page.id.zip_size());
 
 	ut_ad(next_page_no != FIL_NULL);
 
@@ -445,7 +445,7 @@ btr_pcur_move_to_next_page(
 #ifdef UNIV_BTR_DEBUG
 	ut_a(page_is_comp(next_page) == page_is_comp(page));
 	ut_a(btr_page_get_prev(next_page, mtr)
-	     == buf_block_get_page_no(btr_pcur_get_block(cursor)));
+	     == btr_pcur_get_block(cursor)->page.id.page_no());
 #endif /* UNIV_BTR_DEBUG */
 	next_block->check_index_page_at_flush = TRUE;
 

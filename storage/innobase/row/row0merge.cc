@@ -1280,8 +1280,8 @@ row_merge_read_clustered_index(
 				/* Leaf pages must never be empty, unless
 				this is the only page in the index tree. */
 				ut_ad(btr_pcur_is_on_user_rec(&pcur)
-				      || buf_block_get_page_no(
-					      btr_pcur_get_block(&pcur))
+				      || btr_pcur_get_block(
+					      &pcur)->page.id.page_no()
 				      == clust_index->page);
 
 				btr_pcur_store_position(&pcur, &mtr);

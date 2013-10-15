@@ -946,7 +946,7 @@ trx_undo_add_page(
 
 	ut_ad(rw_lock_get_x_lock_count(&new_block->lock) == 1);
 	buf_block_dbg_add_level(new_block, SYNC_TRX_UNDO_PAGE);
-	undo->last_page_no = buf_block_get_page_no(new_block);
+	undo->last_page_no = new_block->page.id.page_no();
 
 	new_page = buf_block_get_frame(new_block);
 

@@ -271,7 +271,7 @@ start_again:
 		has not been written to in doublewrite. */
 
 		ut_ad(rw_lock_get_x_lock_count(&new_block->lock) == 1);
-		page_no = buf_block_get_page_no(new_block);
+		page_no = new_block->page.id.page_no();
 
 		if (i == FSP_EXTENT_SIZE / 2) {
 			ut_a(page_no == FSP_EXTENT_SIZE);
@@ -699,8 +699,8 @@ buf_dblwr_assert_on_corrupt_block(
 		" %lu to be written to data file. We intentionally crash"
 		" the server to prevent corrupt data from ending up in"
 		" data files.",
-		(ulong) buf_block_get_page_no(block),
-		(ulong) buf_block_get_space(block));
+		(ulong) block->page.id.page_no(),
+		(ulong) block->page.id.space());
 }
 
 /********************************************************************//**
