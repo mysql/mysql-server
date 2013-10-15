@@ -616,16 +616,15 @@ ibuf_bitmap_page_init(
 {
 	page_t*	page;
 	ulint	byte_offset;
-	ulint	zip_size = buf_block_get_zip_size(block);
-
-	ut_a(ut_is_2pow(zip_size));
 
 	page = buf_block_get_frame(block);
 	fil_page_set_type(page, FIL_PAGE_IBUF_BITMAP);
 
 	/* Write all zeros to the bitmap */
 
-	if (!zip_size) {
+	const ulint	zip_size = block->page.id.zip_size();
+
+	if (zip_size == 0) {
 		byte_offset = UT_BITS_IN_BYTES(UNIV_PAGE_SIZE
 					       * IBUF_BITS_PER_PAGE);
 	} else {
@@ -3642,11 +3641,10 @@ fail_exit:
 			ibuf_entry, &ins_rec,
 			&dummy_big_rec, 0, thr, &mtr);
 		block = btr_cur_get_block(cursor);
-		ut_ad(buf_block_get_space(block) == IBUF_SPACE_ID);
+		ut_ad(block->page.id.space() == IBUF_SPACE_ID);
 
 		/* If this is the root page, update ibuf->empty. */
-		if (UNIV_UNLIKELY(buf_block_get_page_no(block)
-				  == FSP_IBUF_TREE_ROOT_PAGE_NO)) {
+		if (block->page.id.page_no() == FSP_IBUF_TREE_ROOT_PAGE_NO) {
 			const page_t*	root = buf_block_get_frame(block);
 
 			ut_ad(page_get_space_id(root) == IBUF_SPACE_ID);
@@ -3686,7 +3684,7 @@ fail_exit:
 		ibuf->empty = page_is_empty(root);
 
 		block = btr_cur_get_block(cursor);
-		ut_ad(buf_block_get_space(block) == IBUF_SPACE_ID);
+		ut_ad(block->page.id.space() == IBUF_SPACE_ID);
 	}
 
 	if (offsets_heap) {
@@ -3983,7 +3981,7 @@ ibuf_insert_to_index_page(
 
 	DBUG_ENTER("ibuf_insert_to_index_page");
 
-	DBUG_PRINT("ibuf", ("page_no: %ld", buf_block_get_page_no(block)));
+	DBUG_PRINT("ibuf", ("page_no: " UINT32PF, block->page.id.page_no()));
 	DBUG_PRINT("ibuf", ("index name: %s", index->name));
 	DBUG_PRINT("ibuf", ("online status: %d",
 			    dict_index_get_online_status(index)));
@@ -4201,12 +4199,12 @@ ibuf_set_del_mark(
 		fputs("\n"
 		      "InnoDB: record ", stderr);
 		rec_print(stderr, page_cur_get_rec(&page_cur), index);
-		fprintf(stderr, "\nspace %u offset %u"
+		fprintf(stderr, "\nspace " UINT32PF " offset " UINT32PF
 			" (%u records, index id %llu)\n"
 			"InnoDB: Submit a detailed bug report"
 			" to http://bugs.mysql.com\n",
-			(unsigned) buf_block_get_space(block),
-			(unsigned) buf_block_get_page_no(block),
+			block->page.id.space(),
+			block->page.id.page_no(),
 			(unsigned) page_get_n_recs(page),
 			(ulonglong) btr_page_get_index_id(page));
 		ut_ad(0);
@@ -4264,12 +4262,12 @@ ibuf_delete(
 			fputs("\n"
 			      "InnoDB: record ", stderr);
 			rec_print_new(stderr, rec, offsets);
-			fprintf(stderr, "\nspace %u offset %u"
+			fprintf(stderr, "\nspace " UINT32PF " offset " UINT32PF
 				" (%u records, index id %llu)\n"
 				"InnoDB: Submit a detailed bug report"
 				" to http://bugs.mysql.com\n",
-				(unsigned) buf_block_get_space(block),
-				(unsigned) buf_block_get_page_no(block),
+				block->page.id.space(),
+				block->page.id.page_no(),
 				(unsigned) page_get_n_recs(page),
 				(ulonglong) btr_page_get_index_id(page));
 

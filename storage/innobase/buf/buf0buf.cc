@@ -2325,8 +2325,8 @@ buf_zip_decompress(
 	const byte*	frame = block->page.zip.data;
 	ulint		size = page_zip_get_size(&block->page.zip);
 
-	ut_ad(buf_block_get_zip_size(block));
-	ut_a(buf_block_get_space(block) != 0);
+	ut_ad(block->page.id.zip_size() > 0);
+	ut_a(block->page.id.space() != 0);
 
 	if (UNIV_UNLIKELY(check && !page_zip_verify_checksum(frame, size))) {
 
@@ -2367,8 +2367,7 @@ buf_zip_decompress(
 	case FIL_PAGE_TYPE_ZBLOB:
 	case FIL_PAGE_TYPE_ZBLOB2:
 		/* Copy to uncompressed storage. */
-		memcpy(block->frame, frame,
-		       buf_block_get_zip_size(block));
+		memcpy(block->frame, frame, block->page.id.zip_size());
 		return(TRUE);
 	}
 
@@ -4093,7 +4092,7 @@ buf_page_io_complete(
 		ulint	read_space_id;
 		byte*	frame;
 
-		if (bpage->id.zip_size()) {
+		if (bpage->id.zip_size() > 0) {
 			frame = bpage->zip.data;
 			buf_pool->n_pend_unzip++;
 			if (uncompressed

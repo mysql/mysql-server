@@ -1334,7 +1334,7 @@ trx_undo_report_row_operation(
 		ulint		offset;
 
 		undo_page = buf_block_get_frame(undo_block);
-		ut_ad(page_no == buf_block_get_page_no(undo_block));
+		ut_ad(page_no == undo_block->page.id.page_no());
 
 		switch (op_type) {
 		case TRX_UNDO_INSERT_OP:

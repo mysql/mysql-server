@@ -1427,8 +1427,8 @@ lock_rec_get_first_on_page(
 {
 	ulint	hash;
 	lock_t*	lock;
-	ulint	space	= buf_block_get_space(block);
-	ulint	page_no	= buf_block_get_page_no(block);
+	ulint	space = block->page.id.space();
+	ulint	page_no	= block->page.id.page_no();
 
 	ut_ad(lock_mutex_own());
 
@@ -1955,8 +1955,8 @@ lock_rec_create(
 	}
 #endif /* UNIV_DEBUG */
 
-	space = buf_block_get_space(block);
-	page_no	= buf_block_get_page_no(block);
+	space = block->page.id.space();
+	page_no	= block->page.id.page_no();
 	page = block->frame;
 
 	btr_assert_not_corrupted(block, index);
@@ -2746,8 +2746,8 @@ lock_rec_free_all_from_discard_page(
 
 	ut_ad(lock_mutex_own());
 
-	space = buf_block_get_space(block);
-	page_no = buf_block_get_page_no(block);
+	space = block->page.id.space();
+	page_no = block->page.id.page_no();
 
 	lock = lock_rec_get_first_on_page_addr(space, page_no);
 
@@ -5485,8 +5485,8 @@ lock_rec_validate_page(
 	lock_mutex_enter();
 	mutex_enter(&trx_sys->mutex);
 loop:
-	lock = lock_rec_get_first_on_page_addr(buf_block_get_space(block),
-					       buf_block_get_page_no(block));
+	lock = lock_rec_get_first_on_page_addr(block->page.id.space(),
+					       block->page.id.page_no());
 
 	if (!lock) {
 		goto function_exit;

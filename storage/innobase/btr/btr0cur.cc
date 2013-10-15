@@ -2231,7 +2231,7 @@ btr_cur_optimistic_insert(
 	      || (flags & BTR_CREATE_FLAG));
 	ut_ad(dtuple_check_typed(entry));
 
-	zip_size = buf_block_get_zip_size(block);
+	zip_size = block->page.id.zip_size();
 #ifdef UNIV_DEBUG_VALGRIND
 	if (zip_size) {
 		UNIV_MEM_ASSERT_RW(page, UNIV_PAGE_SIZE);
@@ -2565,7 +2565,7 @@ btr_cur_pessimistic_insert(
 	}
 
 	if (dict_index_get_page(index)
-	    == buf_block_get_page_no(btr_cur_get_block(cursor))) {
+	    == btr_cur_get_block(cursor)->page.id.page_no()) {
 
 		/* The page is the root page */
 		*rec = btr_root_raise_and_insert(
@@ -3294,9 +3294,9 @@ btr_cur_pess_upd_restore_supremum(
 
 	const ulint		prev_page_no = btr_page_get_prev(page, mtr);
 
-	const page_id_t	page_id(buf_block_get_space(block),
+	const page_id_t	page_id(block->page.id.space(),
 				prev_page_no,
-				buf_block_get_zip_size(block));
+				block->page.id.zip_size());
 
 	ut_ad(prev_page_no != FIL_NULL);
 	prev_block = buf_page_get_with_no_latch(page_id, mtr);
@@ -4303,7 +4303,7 @@ btr_cur_pessimistic_delete(
 
 	if (UNIV_UNLIKELY(page_get_n_recs(page) < 2)
 	    && UNIV_UNLIKELY(dict_index_get_page(index)
-			     != buf_block_get_page_no(block))) {
+			     != block->page.id.page_no())) {
 
 		/* If there is only one record, drop the whole page in
 		btr_discard_page, if this is not the root page */
@@ -4348,7 +4348,7 @@ btr_cur_pessimistic_delete(
 			btr_node_ptr_delete(index, block, mtr);
 
 			dtuple_t*	node_ptr = dict_index_build_node_ptr(
-				index, next_rec, buf_block_get_page_no(block),
+				index, next_rec, block->page.id.page_no(),
 				heap, level);
 
 			btr_insert_on_non_leaf_level(
@@ -4500,11 +4500,9 @@ btr_estimate_n_rows_in_range_on_level(
 	average from the pages scanned so far */
 #	define N_PAGES_READ_LIMIT	10
 
-	const ulint	space = dict_index_get_space(index);
-
-	page_id_t	page_id(space,
+	page_id_t	page_id(dict_index_get_space(index),
 				slot1->page_no,
-				fil_space_get_zip_size(space));
+				dict_table_zip_size(index->table));
 
 	level = slot1->page_level;
 
@@ -5324,8 +5322,8 @@ btr_blob_free(
 	mtr_t*		mtr)	/*!< in: mini-transaction to commit */
 {
 	buf_pool_t*	buf_pool = buf_pool_from_block(block);
-	ulint		space	= buf_block_get_space(block);
-	ulint		page_no	= buf_block_get_page_no(block);
+	ulint		space = block->page.id.space();
+	ulint		page_no	= block->page.id.page_no();
 
 	ut_ad(mtr_memo_contains(mtr, block, MTR_MEMO_PAGE_X_FIX));
 
@@ -5338,8 +5336,8 @@ btr_blob_free(
 
 	if (buf_block_get_state(block)
 	    == BUF_BLOCK_FILE_PAGE
-	    && buf_block_get_space(block) == space
-	    && buf_block_get_page_no(block) == page_no) {
+	    && block->page.id.space() == space
+	    && block->page.id.page_no() == page_no) {
 
 		if (!buf_LRU_free_page(&block->page, all)
 		    && all && block->page.zip.data) {
@@ -5408,11 +5406,11 @@ btr_store_big_rec_extern_fields(
 
 	page_zip = buf_block_get_page_zip(rec_block);
 	ut_a(dict_table_zip_size(index->table)
-	     == buf_block_get_zip_size(rec_block));
+	     == rec_block->page.id.zip_size());
 
-	space_id = buf_block_get_space(rec_block);
-	zip_size = buf_block_get_zip_size(rec_block);
-	rec_page_no = buf_block_get_page_no(rec_block);
+	space_id = rec_block->page.id.space();
+	zip_size = rec_block->page.id.zip_size();
+	rec_page_no = rec_block->page.id.page_no();
 	ut_a(fil_page_get_type(page_align(rec)) == FIL_PAGE_INDEX);
 
 	if (page_zip) {
@@ -5549,7 +5547,7 @@ alloc_another:
 				goto alloc_another;
 			}
 
-			page_no = buf_block_get_page_no(block);
+			page_no = block->page.id.page_no();
 			page = buf_block_get_frame(block);
 
 			if (prev_page_no != FIL_NULL) {
@@ -5948,18 +5946,7 @@ btr_free_externally_stored_field(
 
 	ut_ad(space_id == index->space);
 
-	if (UNIV_UNLIKELY(space_id != dict_index_get_space(index))) {
-		ext_zip_size = fil_space_get_zip_size(space_id);
-		/* This must be an undo log record in the system tablespace,
-		that is, in row_purge_upd_exist_or_extern().
-		Currently, externally stored records are stored in the
-		same tablespace as the referring records. */
-		ut_ad(!page_get_space_id(page_align(field_ref)));
-		ut_ad(!rec);
-		ut_ad(!page_zip);
-	} else {
-		ext_zip_size = rec_zip_size;
-	}
+	ext_zip_size = rec_zip_size;
 
 	if (!rec) {
 		/* This is a call from row_purge_upd_exist_or_extern(). */

@@ -1863,7 +1863,7 @@ PageConverter::update_index_page(
 	index_id_t	id;
 	buf_frame_t*	page = block->frame;
 
-	if (is_free(buf_block_get_page_no(block))) {
+	if (is_free(block->page.id.page_no())) {
 		return(DB_SUCCESS);
 	} else if ((id = btr_page_get_index_id(page)) != m_index->m_id) {
 
@@ -1969,7 +1969,7 @@ PageConverter::update_page(
 	switch (page_type = fil_page_get_type(get_frame(block))) {
 	case FIL_PAGE_TYPE_FSP_HDR:
 		/* Work directly on the uncompressed page headers. */
-		ut_a(buf_block_get_page_no(block) == 0);
+		ut_a(block->page.id.page_no() == 0);
 		return(update_header(block));
 
 	case FIL_PAGE_INDEX:
@@ -1994,7 +1994,7 @@ PageConverter::update_page(
 
 	case FIL_PAGE_TYPE_XDES:
 		err = set_current_xdes(
-			buf_block_get_page_no(block), get_frame(block));
+			block->page.id.page_no(), get_frame(block));
 	case FIL_PAGE_INODE:
 	case FIL_PAGE_TYPE_TRX_SYS:
 	case FIL_PAGE_IBUF_FREE_LIST:

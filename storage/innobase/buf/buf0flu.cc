@@ -326,9 +326,9 @@ buf_flush_insert_into_flush_list(
 
 #ifdef UNIV_DEBUG_VALGRIND
 	{
-		ulint	zip_size = buf_block_get_zip_size(block);
+		const ulint	zip_size = block->page.id.zip_size();
 
-		if (zip_size) {
+		if (zip_size > 0) {
 			UNIV_MEM_ASSERT_RW(block->page.zip.data, zip_size);
 		} else {
 			UNIV_MEM_ASSERT_RW(block->frame, UNIV_PAGE_SIZE);
@@ -386,9 +386,9 @@ buf_flush_insert_sorted_into_flush_list(
 
 #ifdef UNIV_DEBUG_VALGRIND
 	{
-		ulint	zip_size = buf_block_get_zip_size(block);
+		const ulint	zip_size = block->page.id.zip_size();
 
-		if (zip_size) {
+		if (zip_size > 0) {
 			UNIV_MEM_ASSERT_RW(block->page.zip.data, zip_size);
 		} else {
 			UNIV_MEM_ASSERT_RW(block->frame, UNIV_PAGE_SIZE);

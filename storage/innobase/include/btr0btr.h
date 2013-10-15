@@ -273,30 +273,6 @@ btr_page_get_prev(
 	const page_t*	page,	/*!< in: index page */
 	mtr_t*		mtr)	/*!< in: mini-transaction handle */
 	__attribute__((nonnull, warn_unused_result));
-/*************************************************************//**
-Gets pointer to the previous user record in the tree. It is assumed
-that the caller has appropriate latches on the page and its neighbor.
-@return previous user record, NULL if there is none */
-
-rec_t*
-btr_get_prev_user_rec(
-/*==================*/
-	rec_t*	rec,	/*!< in: record on leaf level */
-	mtr_t*	mtr)	/*!< in: mtr holding a latch on the page, and if
-			needed, also to the previous page */
-	__attribute__((nonnull, warn_unused_result));
-/*************************************************************//**
-Gets pointer to the next user record in the tree. It is assumed
-that the caller has appropriate latches on the page and its neighbor.
-@return next user record, NULL if there is none */
-
-rec_t*
-btr_get_next_user_rec(
-/*==================*/
-	rec_t*	rec,	/*!< in: record on leaf level */
-	mtr_t*	mtr)	/*!< in: mtr holding a latch on the page, and if
-			needed, also to the next page */
-	__attribute__((nonnull, warn_unused_result));
 /**************************************************************//**
 Releases the latch on a leaf page and bufferunfixes it. */
 UNIV_INLINE

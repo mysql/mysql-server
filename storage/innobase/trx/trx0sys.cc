@@ -458,7 +458,7 @@ trx_sysf_create(
 			    mtr);
 	buf_block_dbg_add_level(block, SYNC_TRX_SYS_HEADER);
 
-	ut_a(buf_block_get_page_no(block) == TRX_SYS_PAGE_NO);
+	ut_a(block->page.id.page_no() == TRX_SYS_PAGE_NO);
 
 	page = buf_block_get_frame(block);
 
