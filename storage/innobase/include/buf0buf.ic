@@ -691,21 +691,6 @@ ok:
 }
 #endif /* UNIV_DEBUG */
 
-/*********************************************************************//**
-Gets the space id of a block.
-@return space id */
-UNIV_INLINE
-ulint
-buf_block_get_space(
-/*================*/
-	const buf_block_t*	block)	/*!< in: pointer to the control block */
-{
-	ut_ad(block);
-	ut_a(buf_block_get_state(block) == BUF_BLOCK_FILE_PAGE);
-
-	return(block->page.id.space());
-}
-
 /***********************************************************************
 FIXME_FTS Gets the frame the pointer is pointing to. */
 UNIV_INLINE
@@ -722,33 +707,6 @@ buf_frame_align(
         frame = (buf_frame_t*) ut_align_down(ptr, UNIV_PAGE_SIZE);
 
         return(frame);
-}
-
-/*********************************************************************//**
-Gets the page number of a block.
-@return page number */
-UNIV_INLINE
-ulint
-buf_block_get_page_no(
-/*==================*/
-	const buf_block_t*	block)	/*!< in: pointer to the control block */
-{
-	ut_ad(block);
-	ut_a(buf_block_get_state(block) == BUF_BLOCK_FILE_PAGE);
-
-	return(block->page.id.page_no());
-}
-
-/*********************************************************************//**
-Gets the compressed page size of a block.
-@return compressed page size, or 0 */
-UNIV_INLINE
-ulint
-buf_block_get_zip_size(
-/*===================*/
-	const buf_block_t*	block)	/*!< in: pointer to the control block */
-{
-	return(block->page.id.zip_size());
 }
 
 #ifndef UNIV_HOTBACKUP

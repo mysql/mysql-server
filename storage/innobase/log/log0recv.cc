@@ -1375,8 +1375,8 @@ recv_recover_page_func(
 		return;
 	}
 
-	recv_addr = recv_get_fil_addr_struct(buf_block_get_space(block),
-					     buf_block_get_page_no(block));
+	recv_addr = recv_get_fil_addr_struct(block->page.id.space(),
+					     block->page.id.page_no());
 
 	if ((recv_addr == NULL)
 	    || (recv_addr->state == RECV_BEING_PROCESSED)
@@ -1389,7 +1389,7 @@ recv_recover_page_func(
 
 #if 0
 	fprintf(stderr, "Recovering space %lu, page %lu\n",
-		buf_block_get_space(block), buf_block_get_page_no(block));
+		block->page.id.space(), block->page.id.page_no());
 #endif
 
 	recv_addr->state = RECV_BEING_PROCESSED;

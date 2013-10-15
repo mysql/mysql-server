@@ -604,9 +604,9 @@ fsp_init_file_page_low(
 #endif /* !UNIV_HOTBACKUP */
 
 	memset(page, 0, UNIV_PAGE_SIZE);
-	mach_write_to_4(page + FIL_PAGE_OFFSET, buf_block_get_page_no(block));
+	mach_write_to_4(page + FIL_PAGE_OFFSET, block->page.id.page_no());
 	mach_write_to_4(page + FIL_PAGE_ARCH_LOG_NO_OR_SPACE_ID,
-			buf_block_get_space(block));
+			block->page.id.space());
 
 	if (page_zip) {
 		memset(page_zip->data, 0, page_zip_get_size(page_zip));
@@ -2576,7 +2576,7 @@ take_hinted_page:
 			ut_a(n != ULINT_UNDEFINED);
 
 			fseg_set_nth_frag_page_no(
-				seg_inode, n, buf_block_get_page_no(block),
+				seg_inode, n, block->page.id.page_no(),
 				mtr);
 		}
 
