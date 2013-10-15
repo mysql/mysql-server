@@ -19438,6 +19438,54 @@ static void test_wl5928()
   mysql_stmt_close(stmt);
 }
 
+static void test_wl6797()
+{
+  MYSQL_STMT *stmt;
+  int        rc;
+  const char *stmt_text;
+
+  myheader("test_wl6797");
+
+  if (mysql_get_server_version(mysql) < 50703)
+  {
+    if (!opt_silent)
+      fprintf(stdout, "Skipping test_wl6797: "
+             "tested feature does not exist in versions before MySQL 5.7.3\n");
+    return;
+  }
+  /* clean up the session */
+  rc= mysql_reset_connection(mysql);
+  DIE_UNLESS(rc == 0);
+
+  /* do prepare of a query */
+  mysql_query(mysql, "use test");
+  mysql_query(mysql, "DROP TABLE IF EXISTS t1");
+  mysql_query(mysql, "CREATE TABLE t1 (a int)");
+
+  stmt= mysql_stmt_init(mysql);
+  stmt_text= "INSERT INTO t1 VALUES (1), (2)";
+
+  rc= mysql_stmt_prepare(stmt, stmt_text, strlen(stmt_text));
+  check_execute(stmt, rc);
+
+  /* Execute the insert statement */
+  rc= mysql_stmt_execute(stmt);
+  check_execute(stmt, rc);
+
+  /*
+   clean the session this should remove the prepare statement
+   from the cache.
+  */
+  rc= mysql_reset_connection(mysql);
+  DIE_UNLESS(rc == 0);
+
+  /* this below stmt should report error */
+  rc= mysql_stmt_execute(stmt);
+  DIE_IF(rc == 0);
+
+  mysql_query(mysql, "DROP TABLE IF EXISTS t1");
+  mysql_stmt_close(stmt);
+}
 
 static struct my_tests_st my_tests[]= {
   { "disable_query_logs", disable_query_logs },
@@ -19709,6 +19757,7 @@ static struct my_tests_st my_tests[]= {
   { "test_wl5924", test_wl5924 },
   { "test_wl6587", test_wl6587 },
   { "test_wl5928", test_wl5928 },
+  { "test_wl6797", test_wl6797 },
   { 0, 0 }
 };
 

@@ -3004,7 +3004,7 @@ public:
     alloc_root. 
   */
   void init_for_queries(Relay_log_info *rli= NULL);
-  void change_user(void);
+  void cleanup_connection(void);
   void cleanup_after_query();
   bool store_globals();
   bool restore_globals();
