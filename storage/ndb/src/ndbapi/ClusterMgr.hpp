@@ -32,7 +32,19 @@ extern "C" void* runClusterMgr_C(void * me);
 
 
 /**
- * @class ClusterMgr
+  @class ClusterMgr
+  This class runs a heart beat protocol between nodes, to detect if remote
+  nodes are reachable or not. This protocol is needed because the underlying
+  transporter connection may need a long time (or even forever) to detect 
+  node or network failure. (TCP typically gives up retransmission after about
+  20 minutes). 
+  Therefore API_REGREQ signal are sent on regular intervals. If more than 
+  three signals are unanswered (by API_REGCONF) the node is presumed dead or
+  unreachable, and the transporter is disconnected.
+  This class handles heart beat between the following types of node pairs: 
+  API-DB, MGMD-DB and MGMD-MGMD, where DB means data node. There is another
+  heart beat mechanism between pairs of data nodes, using the CM_HEARTBEAT
+  signal.
  */
 class ClusterMgr : public trp_client
 {
@@ -61,6 +73,9 @@ public:
   void unlock() { trp_client::unlock();NdbMutex_Unlock(clusterMgrThreadMutex); }
 
 private:
+  // 100ms is the smallest heart beat interval supported.
+  static const Uint32  minHeartBeatInterval = 100;
+
   void startup();
   void threadMain();
   
@@ -111,6 +126,11 @@ private:
    */
   NdbMutex*     clusterMgrThreadMutex;
 
+  /**
+    The rate (in milliseconds) at which this node expects to receive 
+    API_REGREQ heartbeat messages.
+   */
+  Uint32 m_hbFrequency;
   /**
    * Signals received
    */

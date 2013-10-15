@@ -2678,6 +2678,19 @@ const ConfigInfo::ParamInfo ConfigInfo::m_ParamInfo[] = {
     0, 0, 0
   },
 
+  {
+    CFG_MGMD_MGMD_HEARTBEAT_INTERVAL,
+    "HeartbeatIntervalMgmdMgmd",
+    MGM_TOKEN,
+    "Time between " MGM_TOKEN_PRINT "-" MGM_TOKEN_PRINT " heartbeats. " 
+    MGM_TOKEN_PRINT " considered dead after 3 missed HBs",
+    ConfigInfo::CI_USED,
+    0,
+    ConfigInfo::CI_INT,
+    "1500",
+    "100",
+    STR_VALUE(MAX_INT_RNIL) },
+
   /****************************************************************************
    * TCP
    ***************************************************************************/
