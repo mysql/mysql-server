@@ -30,10 +30,6 @@ ndb_mgm_configuration_iterator::ndb_mgm_configuration_iterator
   first();
 }
 
-ndb_mgm_configuration_iterator::~ndb_mgm_configuration_iterator(){
-  reset();
-}
-
 void 
 ndb_mgm_configuration_iterator::reset(){
   if(m_sectionNo != (Uint32)~0){
@@ -90,6 +86,11 @@ ndb_mgm_configuration_iterator::find(int param, unsigned search){
 
 int
 ndb_mgm_configuration_iterator::get(int param, unsigned * value) const {
+  /*
+    Verify that we call the right overloaded version of 
+    ConfigValues::ConstIterator::get().
+  */
+  assert(sizeof *value == sizeof(Uint32));
   return m_config.get(param, value) != true;
 
 }
