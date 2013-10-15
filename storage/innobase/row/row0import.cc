@@ -707,24 +707,23 @@ FetchIndexRootPages::operator() (
 
 	ulint	page_type = fil_page_get_type(page);
 
-	if (block->page.offset * m_page_size != offset) {
+	if (block->page.id.page_no() * m_page_size != offset) {
 		ib_logf(IB_LOG_LEVEL_ERROR,
 			"Page offset doesn't match file offset: "
 			"page offset: %lu, file offset: %lu",
-			(ulint) block->page.offset,
+			(ulint) block->page.id.page_no(),
 			(ulint) (offset / m_page_size));
 
 		err = DB_CORRUPTION;
 	} else if (page_type == FIL_PAGE_TYPE_XDES) {
-		err = set_current_xdes(block->page.offset, page);
+		err = set_current_xdes(block->page.id.page_no(), page);
 	} else if (page_type == FIL_PAGE_INDEX
-		   && !is_free(block->page.offset)
+		   && !is_free(block->page.id.page_no())
 		   && is_root_page(page)) {
 
 		index_id_t	id = btr_page_get_index_id(page);
-		ulint		page_no = buf_block_get_page_no(block);
 
-		m_indexes.push_back(Index(id, page_no));
+		m_indexes.push_back(Index(id, block->page.id.page_no()));
 
 		if (m_indexes.size() == 1) {
 

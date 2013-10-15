@@ -89,8 +89,8 @@ buf_dblwr_get(
 {
 	buf_block_t*	block;
 
-	block = buf_page_get(TRX_SYS_SPACE, 0, TRX_SYS_PAGE_NO,
-			     RW_X_LATCH, mtr);
+	block = buf_page_get(page_id_t(TRX_SYS_SPACE, TRX_SYS_PAGE_NO, 0),
+		RW_X_LATCH, mtr);
 	buf_block_dbg_add_level(block, SYNC_NO_ORDER_CHECK);
 
 	return(buf_block_get_frame(block) + TRX_SYS_DOUBLEWRITE);
@@ -378,8 +378,10 @@ buf_dblwr_init_or_restore_pages(
 	/* Read the trx sys header to check if we are using the doublewrite
 	buffer */
 
-	fil_io(OS_FILE_READ, true, TRX_SYS_SPACE, 0, TRX_SYS_PAGE_NO, 0,
-	       UNIV_PAGE_SIZE, read_buf, NULL);
+	fil_io(OS_FILE_READ, true,
+	       page_id_t(TRX_SYS_SPACE, TRX_SYS_PAGE_NO, 0),
+	       0, UNIV_PAGE_SIZE, read_buf, NULL);
+
 	doublewrite = read_buf + TRX_SYS_DOUBLEWRITE;
 
 	if (mach_read_from_4(doublewrite + TRX_SYS_DOUBLEWRITE_MAGIC)
@@ -413,13 +415,15 @@ buf_dblwr_init_or_restore_pages(
 
 	/* Read the pages from the doublewrite buffer to memory */
 
-	fil_io(OS_FILE_READ, true, TRX_SYS_SPACE, 0, block1, 0,
-	       TRX_SYS_DOUBLEWRITE_BLOCK_SIZE * UNIV_PAGE_SIZE,
-	       buf, NULL);
-	fil_io(OS_FILE_READ, true, TRX_SYS_SPACE, 0, block2, 0,
-	       TRX_SYS_DOUBLEWRITE_BLOCK_SIZE * UNIV_PAGE_SIZE,
-	       buf + TRX_SYS_DOUBLEWRITE_BLOCK_SIZE * UNIV_PAGE_SIZE,
-	       NULL);
+	fil_io(OS_FILE_READ, true,
+	       page_id_t(TRX_SYS_SPACE, block1, 0),
+	       0, TRX_SYS_DOUBLEWRITE_BLOCK_SIZE * UNIV_PAGE_SIZE, buf, NULL);
+
+	fil_io(OS_FILE_READ, true,
+	       page_id_t(TRX_SYS_SPACE, block2, 0),
+	       0, TRX_SYS_DOUBLEWRITE_BLOCK_SIZE * UNIV_PAGE_SIZE,
+	       buf + TRX_SYS_DOUBLEWRITE_BLOCK_SIZE * UNIV_PAGE_SIZE, NULL);
+
 	/* Check if any of these pages is half-written in data files, in the
 	intended position */
 
@@ -446,8 +450,9 @@ buf_dblwr_init_or_restore_pages(
 					+ i - TRX_SYS_DOUBLEWRITE_BLOCK_SIZE;
 			}
 
-			fil_io(OS_FILE_WRITE, true, 0, 0, source_page_no, 0,
-			       UNIV_PAGE_SIZE, page, NULL);
+			fil_io(OS_FILE_WRITE, true,
+			       page_id_t(0, source_page_no, 0),
+			       0, UNIV_PAGE_SIZE, page, NULL);
 		} else {
 
 			space_id = mach_read_from_4(
@@ -491,9 +496,9 @@ buf_dblwr_init_or_restore_pages(
 			ulint	zip_size = fil_space_get_zip_size(space_id);
 
 			/* Read in the actual page from the file */
-			fil_io(OS_FILE_READ, true, space_id, zip_size,
-			       page_no, 0,
-			       zip_size ? zip_size : UNIV_PAGE_SIZE,
+			fil_io(OS_FILE_READ, true,
+			       page_id_t(space_id, page_no, zip_size),
+			       0, page_size_from_zip_size(zip_size),
 			       read_buf, NULL);
 
 			/* Check if the page is corrupt */
@@ -537,9 +542,9 @@ buf_dblwr_init_or_restore_pages(
 				doublewrite buffer to the intended
 				position */
 
-				fil_io(OS_FILE_WRITE, true, space_id,
-				       zip_size, page_no, 0,
-				       zip_size ? zip_size : UNIV_PAGE_SIZE,
+				fil_io(OS_FILE_WRITE, true,
+				       page_id_t(space_id, page_no, zip_size),
+				       0, page_size_from_zip_size(zip_size),
 				       page, NULL);
 
 				ib_logf(IB_LOG_LEVEL_INFO,
@@ -747,24 +752,24 @@ buf_dblwr_write_block_to_datafile(
 		? OS_FILE_WRITE
 		: OS_FILE_WRITE | OS_AIO_SIMULATED_WAKE_LATER;
 
-	if (bpage->zip.data) {
-		fil_io(flags, sync, buf_page_get_space(bpage),
-		       buf_page_get_zip_size(bpage),
-		       buf_page_get_page_no(bpage), 0,
-		       buf_page_get_zip_size(bpage),
+	if (bpage->zip.data != NULL) {
+		ut_ad(bpage->id.zip_size() > 0);
+
+		fil_io(flags, sync, bpage->id, 0,
+		       bpage->id.zip_size(),
 		       (void*) bpage->zip.data,
 		       (void*) bpage);
 
 		return;
 	}
 
+	ut_ad(bpage->id.zip_size() == 0);
 
 	const buf_block_t* block = (buf_block_t*) bpage;
 	ut_a(buf_block_get_state(block) == BUF_BLOCK_FILE_PAGE);
 	buf_dblwr_check_page_lsn(block->frame);
 
-	fil_io(flags, sync, buf_block_get_space(block), 0,
-	       buf_block_get_page_no(block), 0, UNIV_PAGE_SIZE,
+	fil_io(flags, sync, bpage->id, 0, UNIV_PAGE_SIZE,
 	       (void*) block->frame, (void*) block);
 }
 
@@ -857,9 +862,9 @@ try_again:
 	len = ut_min(TRX_SYS_DOUBLEWRITE_BLOCK_SIZE,
 		     buf_dblwr->first_free) * UNIV_PAGE_SIZE;
 
-	fil_io(OS_FILE_WRITE, true, TRX_SYS_SPACE, 0,
-	       buf_dblwr->block1, 0, len,
-	       (void*) write_buf, NULL);
+	fil_io(OS_FILE_WRITE, true,
+	       page_id_t(TRX_SYS_SPACE, buf_dblwr->block1, 0),
+	       0, len, (void*) write_buf, NULL);
 
 	if (buf_dblwr->first_free <= TRX_SYS_DOUBLEWRITE_BLOCK_SIZE) {
 		/* No unwritten pages in the second block. */
@@ -873,9 +878,9 @@ try_again:
 	write_buf = buf_dblwr->write_buf
 		    + TRX_SYS_DOUBLEWRITE_BLOCK_SIZE * UNIV_PAGE_SIZE;
 
-	fil_io(OS_FILE_WRITE, true, TRX_SYS_SPACE, 0,
-	       buf_dblwr->block2, 0, len,
-	       (void*) write_buf, NULL);
+	fil_io(OS_FILE_WRITE, true,
+	       page_id_t(TRX_SYS_SPACE, buf_dblwr->block2, 0),
+	       0, len, (void*) write_buf, NULL);
 
 flush:
 	/* increment the doublewrite flushed pages counter */
@@ -955,7 +960,7 @@ try_again:
 		goto try_again;
 	}
 
-	zip_size = buf_page_get_zip_size(bpage);
+	zip_size = bpage->id.zip_size();
 
 	if (zip_size) {
 		UNIV_MEM_ASSERT_RW(bpage->zip.data, zip_size);
@@ -1094,22 +1099,24 @@ retry:
 	write it. This is so because we want to pad the remaining
 	bytes in the doublewrite page with zeros. */
 
-	zip_size = buf_page_get_zip_size(bpage);
+	zip_size = bpage->id.zip_size();
 	if (zip_size) {
 		memcpy(buf_dblwr->write_buf + UNIV_PAGE_SIZE * i,
 		       bpage->zip.data, zip_size);
 		memset(buf_dblwr->write_buf + UNIV_PAGE_SIZE * i
 		       + zip_size, 0, UNIV_PAGE_SIZE - zip_size);
 
-		fil_io(OS_FILE_WRITE, true, TRX_SYS_SPACE, 0,
-		       offset, 0, UNIV_PAGE_SIZE,
-		       (void*) (buf_dblwr->write_buf
-				+ UNIV_PAGE_SIZE * i), NULL);
+		fil_io(OS_FILE_WRITE, true,
+		       page_id_t(TRX_SYS_SPACE, offset, 0),
+		       0, UNIV_PAGE_SIZE,
+		       (void*) (buf_dblwr->write_buf + UNIV_PAGE_SIZE * i),
+		       NULL);
 	} else {
 		/* It is a regular page. Write it directly to the
 		doublewrite buffer */
-		fil_io(OS_FILE_WRITE, true, TRX_SYS_SPACE, 0,
-		       offset, 0, UNIV_PAGE_SIZE,
+		fil_io(OS_FILE_WRITE, true,
+		       page_id_t(TRX_SYS_SPACE, offset, 0),
+		       0, UNIV_PAGE_SIZE,
 		       (void*) ((buf_block_t*) bpage)->frame,
 		       NULL);
 	}

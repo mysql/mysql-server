@@ -4733,7 +4733,7 @@ lock_rec_print(
 
 	const buf_block_t*	block;
 
-	block = buf_page_try_get(space, page_no, &mtr);
+	block = buf_page_try_get(page_id_t(space, page_no, 0), &mtr);
 
 	for (ulint i = 0; i < lock_rec_get_n_bits(lock); ++i) {
 
@@ -5097,7 +5097,8 @@ lock_rec_fetch_page(
 
 		mtr_start(&mtr);
 
-		buf_page_get_with_no_latch(space, zip_size, page_no, &mtr);
+		buf_page_get_with_no_latch(
+			page_id_t(space, page_no, zip_size), &mtr);
 
 		mtr_commit(&mtr);
 
@@ -5653,8 +5654,10 @@ lock_rec_block_validate(
 	if (!fil_inc_pending_ops(space)) {
 		mtr_start(&mtr);
 		block = buf_page_get_gen(
-			space, fil_space_get_zip_size(space),
-			page_no, RW_X_LATCH, NULL,
+			page_id_t(space,
+				  page_no,
+				  fil_space_get_zip_size(space)),
+			RW_X_LATCH, NULL,
 			BUF_GET_POSSIBLY_FREED,
 			__FILE__, __LINE__, &mtr);
 

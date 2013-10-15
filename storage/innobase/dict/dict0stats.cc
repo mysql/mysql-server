@@ -1383,10 +1383,7 @@ dict_stats_analyze_index_below_cur(
 	mtr_t*		mtr)		/*!< in/out: mini-transaction */
 {
 	dict_index_t*	index;
-	ulint		space;
-	ulint		zip_size;
 	buf_block_t*	block;
-	ulint		page_no;
 	const page_t*	page;
 	mem_heap_t*	heap;
 	const rec_t*	rec;
@@ -1419,20 +1416,20 @@ dict_stats_analyze_index_below_cur(
 	rec_offs_set_n_alloc(offsets1, size);
 	rec_offs_set_n_alloc(offsets2, size);
 
-	space = dict_index_get_space(index);
-	zip_size = dict_table_zip_size(index->table);
-
 	rec = btr_cur_get_rec(cur);
 
 	offsets_rec = rec_get_offsets(rec, index, offsets1,
 				      ULINT_UNDEFINED, &heap);
 
-	page_no = btr_node_ptr_get_child_page_no(rec, offsets_rec);
+	page_id_t	page_id(dict_index_get_space(index),
+				btr_node_ptr_get_child_page_no(
+					rec, offsets_rec),
+				dict_table_zip_size(index->table));
 
 	/* descend to the leaf level on the B-tree */
 	for (;;) {
 
-		block = buf_page_get_gen(space, zip_size, page_no, RW_S_LATCH,
+		block = buf_page_get_gen(page_id, RW_S_LATCH,
 					 NULL /* no guessed block */,
 					 BUF_GET, __FILE__, __LINE__, mtr);
 
@@ -1472,7 +1469,10 @@ dict_stats_analyze_index_below_cur(
 
 		/* we have a non-boring record in rec, descend below it */
 
-		page_no = btr_node_ptr_get_child_page_no(rec, offsets_rec);
+		page_id = page_id_t(page_id.space(),
+				    btr_node_ptr_get_child_page_no(
+					    rec, offsets_rec),
+				    page_id.zip_size());
 	}
 
 	/* make sure we got a leaf page as a result from the above loop */
