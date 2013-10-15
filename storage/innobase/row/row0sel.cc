@@ -30,8 +30,6 @@ Select
 Created 12/19/1997 Heikki Tuuri
 *******************************************************/
 
-#include "ha_prototypes.h"
-
 #include "row0sel.h"
 
 #ifdef UNIV_NONINL

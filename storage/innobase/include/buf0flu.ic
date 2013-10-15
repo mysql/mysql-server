@@ -58,10 +58,10 @@ void
 buf_flush_note_modification(
 /*========================*/
 	buf_block_t*	block,		/*!< in: block which is modified */
-	lsn_t		start_lsn,	/*!< in: start lsn of the first mtr in a
-					set of mtr's */
-	lsn_t		end_lsn)	/*!< in: end lsn of the last mtr in the
-					set of mtr's */
+	lsn_t		start_lsn,	/*!< in: start lsn of the mtr that
+					modified this block */
+	lsn_t		end_lsn)	/*!< in: end lsn of the mtr that
+					modified this block */
 {
 #ifdef UNIV_DEBUG
 	{

@@ -37,8 +37,6 @@ Created 2011/12/19
 #include "page0zip.h"
 #include "trx0sys.h"
 
-#include "buf0dblwr.h"
-
 #ifndef UNIV_HOTBACKUP
 
 /** The doublewrite buffer */

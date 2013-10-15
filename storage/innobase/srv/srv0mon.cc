@@ -1799,13 +1799,12 @@ srv_mon_process_existing_counter(
 		value = srv_get_activity_count();
 		break;
 
-	// FIXME:
 	case MONITOR_OVLD_LSN_FLUSHDISK:
-		value = 0; //(mon_type_t) redo_log->m_flushed_to_disk_lsn;
+		value = (mon_type_t) log_sys->flushed_to_disk_lsn;
 		break;
 
 	case MONITOR_OVLD_LSN_CURRENT:
-		value = 0; //(mon_type_t) redo_log->m_lsn;
+		value = (mon_type_t) log_sys->lsn;
 		break;
 
 	case MONITOR_OVLD_BUF_OLDEST_LSN:
@@ -1813,15 +1812,15 @@ srv_mon_process_existing_counter(
 		break;
 
 	case MONITOR_OVLD_LSN_CHECKPOINT:
-		value = 0; //(mon_type_t) redo_log->m_last_checkpoint_lsn;
+		value = (mon_type_t) log_sys->last_checkpoint_lsn;
 		break;
 
 	case MONITOR_OVLD_MAX_AGE_ASYNC:
-		value = 0; //redo_log->m_max_modified_age_async;
+		value = log_sys->max_modified_age_async;
 		break;
 
 	case MONITOR_OVLD_MAX_AGE_SYNC:
-		value = 0; //redo_log->m_max_modified_age_sync;
+		value = log_sys->max_modified_age_sync;
 		break;
 
 	case MONITOR_OVLD_ADAPTIVE_HASH_SEARCH:
