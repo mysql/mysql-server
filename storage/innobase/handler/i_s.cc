@@ -5264,9 +5264,9 @@ i_s_innodb_buffer_page_get_info(
 		const byte*	frame;
 		ulint		page_type;
 
-		page_info->space_id = buf_page_get_space(bpage);
+		page_info->space_id = bpage->id.space();
 
-		page_info->page_num = buf_page_get_page_no(bpage);
+		page_info->page_num = bpage->id.page_no();
 
 		page_info->flush_type = bpage->flush_type;
 

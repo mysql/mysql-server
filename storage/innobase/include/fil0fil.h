@@ -47,6 +47,7 @@ struct trx_t;
 class truncate_t;
 struct fil_space_t;
 struct btr_create_t;
+class page_id_t;
 
 typedef std::list<const char*> space_name_list_t;
 
@@ -781,40 +782,36 @@ ulint
 fil_space_get_n_reserved_extents(
 /*=============================*/
 	ulint	id);		/*!< in: space id */
-/********************************************************************//**
-Reads or writes data. This operation is asynchronous (aio).
-@return DB_SUCCESS, or DB_TABLESPACE_DELETED if we are trying to do
-i/o on a tablespace which does not exist */
 
+/** Reads or writes data. This operation could be asynchronous (aio).
+@param[in] type OS_FILE_READ or OS_FILE_WRITE,
+ORed to OS_FILE_LOG, if a log i/o and
+ORed to OS_AIO_SIMULATED_WAKE_LATER if simulated aio and we want to post
+a batch of i/os;
+NOTE that a simulated batch may introduce hidden chances of deadlocks,
+because i/os are not actually handled until all have been posted: use
+with great caution!
+@param[in] sync true if synchronous aio is desired
+@param[in] page_id page id
+@param[in] byte_offset remainder of offset in bytes; in aio this must be
+divisible by the OS block size
+@param[in] len how many bytes to read or write; this must not cross a file
+boundary; in aio this must be a block size multiple
+@param[in,out] buf buffer where to store read data or from where to write;
+in aio this must be appropriately aligned
+@param[in] message message for aio handler if non-sync aio used, else ignored
+@return DB_SUCCESS, DB_TABLESPACE_DELETED or DB_TABLESPACE_TRUNCATED
+if we are trying to do i/o on a tablespace which does not exist */
 dberr_t
 fil_io(
-/*===*/
-	ulint	type,		/*!< in: OS_FILE_READ or OS_FILE_WRITE,
-				ORed to OS_FILE_LOG, if a log i/o
-				and ORed to OS_AIO_SIMULATED_WAKE_LATER
-				if simulated aio and we want to post a
-				batch of i/os; NOTE that a simulated batch
-				may introduce hidden chances of deadlocks,
-				because i/os are not actually handled until
-				all have been posted: use with great
-				caution! */
-	bool	sync,		/*!< in: true if synchronous aio is desired */
-	ulint	space_id,	/*!< in: space id */
-	ulint	zip_size,	/*!< in: compressed page size in bytes;
-				0 for uncompressed pages */
-	ulint	block_offset,	/*!< in: offset in number of blocks */
-	ulint	byte_offset,	/*!< in: remainder of offset in bytes; in
-				aio this must be divisible by the OS block
-				size */
-	ulint	len,		/*!< in: how many bytes to read or write; this
-				must not cross a file boundary; in aio this
-				must be a block size multiple */
-	void*	buf,		/*!< in/out: buffer where to store read data
-				or from where to write; in aio this must be
-				appropriately aligned */
-	void*	message)	/*!< in: message for aio handler if non-sync
-				aio used, else ignored */
-	__attribute__((nonnull(8)));
+	ulint			type,
+	bool			sync,
+	const page_id_t&	page_id,
+	ulint			byte_offset,
+	ulint			len,
+	void*			buf,
+	void*			message);
+
 /**********************************************************************//**
 Waits for an aio operation to complete. This function is used to write the
 handler for completed requests. The aio array of pending requests is divided

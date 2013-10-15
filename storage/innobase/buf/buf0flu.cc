@@ -207,12 +207,13 @@ buf_flush_block_cmp(
 	int			ret;
 	const buf_page_t*	b1 = *(const buf_page_t**) p1;
 	const buf_page_t*	b2 = *(const buf_page_t**) p2;
-#ifdef UNIV_DEBUG
-	buf_pool_t*		buf_pool = buf_pool_from_bpage(b1);
-#endif /* UNIV_DEBUG */
 
 	ut_ad(b1 != NULL);
 	ut_ad(b2 != NULL);
+
+#ifdef UNIV_DEBUG
+	buf_pool_t*	buf_pool = buf_pool_from_bpage(b1);
+#endif /* UNIV_DEBUG */
 
 	ut_ad(buf_flush_list_mutex_own(buf_pool));
 
@@ -226,10 +227,10 @@ buf_flush_block_cmp(
 	}
 
 	/* If oldest_modification is same then decide on the space. */
-	ret = (int)(b2->space - b1->space);
+	ret = (int)(b2->id.space() - b1->id.space());
 
-	/* Or else decide ordering on the offset field. */
-	return(ret ? ret : (int)(b2->offset - b1->offset));
+	/* Or else decide ordering on the page number. */
+	return(ret ? ret : (int) (b2->id.page_no() - b1->id.page_no()));
 }
 
 /********************************************************************//**
@@ -824,8 +825,7 @@ buf_flush_write_block_low(
 	buf_flush_t	flush_type,	/*!< in: type of flush */
 	bool		sync)		/*!< in: true if sync IO request */
 {
-	ulint	zip_size	= buf_page_get_zip_size(bpage);
-	page_t*	frame		= NULL;
+	page_t*	frame = NULL;
 
 #ifdef UNIV_DEBUG
 	buf_pool_t*	buf_pool = buf_pool_from_bpage(bpage);
@@ -836,9 +836,9 @@ buf_flush_write_block_low(
 	static ibool	univ_log_debug_warned;
 #endif /* UNIV_LOG_DEBUG */
 
-	DBUG_PRINT("ib_buf", ("flush %s %u page %u:%u",
-			      sync ? "sync" : "async", unsigned(flush_type),
-			      bpage->space, bpage->offset));
+	DBUG_PRINT("ib_buf", ("flush %s %u page " UINT32PF ":" UINT32PF,
+			      sync ? "sync" : "async", (unsigned) flush_type,
+			      bpage->id.space(), bpage->id.page_no()));
 
 	ut_ad(buf_page_in_file(bpage));
 
@@ -854,7 +854,7 @@ buf_flush_write_block_low(
 	ut_ad(bpage->oldest_modification != 0);
 
 #ifdef UNIV_IBUF_COUNT_DEBUG
-	ut_a(ibuf_count_get(bpage->space, bpage->offset) == 0);
+	ut_a(ibuf_count_get(bpage->id) == 0);
 #endif
 	ut_ad(bpage->newest_modification != 0);
 
@@ -882,7 +882,7 @@ buf_flush_write_block_low(
 	case BUF_BLOCK_ZIP_DIRTY:
 		frame = bpage->zip.data;
 
-		ut_a(page_zip_verify_checksum(frame, zip_size));
+		ut_a(page_zip_verify_checksum(frame, bpage->id.zip_size()));
 
 		mach_write_to_8(frame + FIL_PAGE_LSN,
 				bpage->newest_modification);
@@ -903,9 +903,8 @@ buf_flush_write_block_low(
 
 	if (!srv_use_doublewrite_buf || !buf_dblwr) {
 		fil_io(OS_FILE_WRITE | OS_AIO_SIMULATED_WAKE_LATER,
-		       sync, buf_page_get_space(bpage), zip_size,
-		       buf_page_get_page_no(bpage), 0,
-		       zip_size ? zip_size : UNIV_PAGE_SIZE,
+		       sync, bpage->id, 0,
+		       page_size_from_zip_size(bpage->id.zip_size()),
 		       frame, bpage);
 	} else if (flush_type == BUF_FLUSH_SINGLE_PAGE) {
 		buf_dblwr_write_single_page(bpage, sync);
@@ -919,7 +918,7 @@ buf_flush_write_block_low(
 	are working on. */
 	if (sync) {
 		ut_ad(flush_type == BUF_FLUSH_SINGLE_PAGE);
-		fil_flush(buf_page_get_space(bpage));
+		fil_flush(bpage->id.space());
 
 		/* true means we want to evict this page from the
 		LRU list as well. */
@@ -1073,20 +1072,19 @@ buf_flush_page_try(
 	return(TRUE);
 }
 # endif /* UNIV_DEBUG || UNIV_IBUF_DEBUG */
-/***********************************************************//**
-Check the page is in buffer pool and can be flushed.
+
+/** Check the page is in buffer pool and can be flushed.
+@param[in] page_id page id
+@param[in] flush_type BUF_FLUSH_LRU or BUF_FLUSH_LIST
 @return true if the page can be flushed. */
 static
 bool
 buf_flush_check_neighbor(
-/*=====================*/
-	ulint		space,		/*!< in: space id */
-	ulint		offset,		/*!< in: page offset */
-	buf_flush_t	flush_type)	/*!< in: BUF_FLUSH_LRU or
-					BUF_FLUSH_LIST */
+	const page_id_t&	page_id,
+	buf_flush_t		flush_type)
 {
 	buf_page_t*	bpage;
-	buf_pool_t*	buf_pool = buf_pool_get(space, offset);
+	buf_pool_t*	buf_pool = buf_pool_get(page_id);
 	bool		ret;
 
 	ut_ad(flush_type == BUF_FLUSH_LRU
@@ -1095,7 +1093,7 @@ buf_flush_check_neighbor(
 	buf_pool_mutex_enter(buf_pool);
 
 	/* We only want to flush pages from this buffer pool. */
-	bpage = buf_page_hash_get(buf_pool, space, offset);
+	bpage = buf_page_hash_get(buf_pool, page_id);
 
 	if (!bpage) {
 
@@ -1123,27 +1121,25 @@ buf_flush_check_neighbor(
 	return(ret);
 }
 
-/***********************************************************//**
-Flushes to disk all flushable pages within the flush area.
+/** Flushes to disk all flushable pages within the flush area.
+@param[in] page_id page id
+@param[in] flush_type BUF_FLUSH_LRU or BUF_FLUSH_LIST
+@param[in] n_flushed number of pages flushed so far in this batch
+@param[in] n_to_flush maximum number of pages we are allowed to flush
 @return number of pages flushed */
 static
 ulint
 buf_flush_try_neighbors(
-/*====================*/
-	ulint		space,		/*!< in: space id */
-	ulint		offset,		/*!< in: page offset */
-	buf_flush_t	flush_type,	/*!< in: BUF_FLUSH_LRU or
-					BUF_FLUSH_LIST */
-	ulint		n_flushed,	/*!< in: number of pages
-					flushed so far in this batch */
-	ulint		n_to_flush)	/*!< in: maximum number of pages
-					we are allowed to flush */
+	const page_id_t&	page_id,
+	buf_flush_t		flush_type,
+	ulint			n_flushed,
+	ulint			n_to_flush)
 {
 	ulint		i;
 	ulint		low;
 	ulint		high;
 	ulint		count = 0;
-	buf_pool_t*	buf_pool = buf_pool_get(space, offset);
+	buf_pool_t*	buf_pool = buf_pool_get(page_id);
 
 	ut_ad(flush_type == BUF_FLUSH_LRU || flush_type == BUF_FLUSH_LIST);
 
@@ -1151,8 +1147,8 @@ buf_flush_try_neighbors(
 	    || srv_flush_neighbors == 0) {
 		/* If there is little space or neighbor flushing is
 		not enabled then just flush the victim. */
-		low = offset;
-		high = offset + 1;
+		low = page_id.page_no();
+		high = page_id.page_no() + 1;
 	} else {
 		/* When flushed, dirty blocks are searched in
 		neighborhoods of this size, and flushed along with the
@@ -1164,27 +1160,29 @@ buf_flush_try_neighbors(
 			BUF_READ_AHEAD_AREA(buf_pool),
 			buf_pool->curr_size / 16);
 
-		low = (offset / buf_flush_area) * buf_flush_area;
-		high = (offset / buf_flush_area + 1) * buf_flush_area;
+		low = (page_id.page_no() / buf_flush_area) * buf_flush_area;
+		high = (page_id.page_no() / buf_flush_area + 1) * buf_flush_area;
 
 		if (srv_flush_neighbors == 1) {
 			/* adjust 'low' and 'high' to limit
 			   for contiguous dirty area */
-			if (offset > low) {
-				for (i = offset - 1;
+			if (page_id.page_no() > low) {
+				for (i = page_id.page_no() - 1;
 				     i >= low
 				     && buf_flush_check_neighbor(
-						space, i, flush_type);
+					     page_id_t(page_id.space(), i, 0),
+					     flush_type);
 				     i--) {
 					/* do nothing */
 				}
 				low = i + 1;
 			}
 
-			for (i = offset + 1;
+			for (i = page_id.page_no() + 1;
 			     i < high
 			     && buf_flush_check_neighbor(
-						space, i, flush_type);
+				     page_id_t(page_id.space(), i, 0),
+				     flush_type);
 			     i++) {
 				/* do nothing */
 			}
@@ -1192,13 +1190,13 @@ buf_flush_try_neighbors(
 		}
 	}
 
-	if (high > fil_space_get_size(space)) {
-		high = fil_space_get_size(space);
+	if (high > fil_space_get_size(page_id.space())) {
+		high = fil_space_get_size(page_id.space());
 	}
 
-	DBUG_PRINT("ib_buf", ("flush %u:%u..%u",
-			      unsigned(space),
-			      unsigned(low), unsigned(high)));
+	DBUG_PRINT("ib_buf", ("flush " UINT32PF ":%u..%u",
+			      page_id.space(),
+			      (unsigned) low, (unsigned) high));
 
 	for (i = low; i < high; i++) {
 
@@ -1212,19 +1210,21 @@ buf_flush_try_neighbors(
 			are flushing has not been flushed yet then
 			we'll try to flush the victim that we
 			selected originally. */
-			if (i <= offset) {
-				i = offset;
+			if (i <= page_id.page_no()) {
+				i = page_id.page_no();
 			} else {
 				break;
 			}
 		}
 
-		buf_pool = buf_pool_get(space, i);
+		const page_id_t	cur_page_id(page_id.space(), i, 0);
+
+		buf_pool = buf_pool_get(cur_page_id);
 
 		buf_pool_mutex_enter(buf_pool);
 
 		/* We only want to flush pages from this buffer pool. */
-		bpage = buf_page_hash_get(buf_pool, space, i);
+		bpage = buf_page_hash_get(buf_pool, cur_page_id);
 
 		if (!bpage) {
 
@@ -1238,14 +1238,15 @@ buf_flush_try_neighbors(
 		because the flushed blocks are soon freed */
 
 		if (flush_type != BUF_FLUSH_LRU
-		    || i == offset
+		    || i == page_id.page_no()
 		    || buf_page_is_old(bpage)) {
 			BPageMutex* block_mutex = buf_page_get_mutex(bpage);
 
 			mutex_enter(block_mutex);
 
 			if (buf_flush_ready_for_flush(bpage, flush_type)
-			    && (i == offset || !bpage->buf_fix_count)) {
+			    && (i == page_id.page_no()
+				|| !bpage->buf_fix_count)) {
 				/* We only try to flush those
 				neighbors != offset where the buf fix
 				count is zero, as we then know that we
@@ -1313,24 +1314,18 @@ buf_flush_page_and_try_neighbors(
 	ut_a(buf_page_in_file(bpage));
 
 	if (buf_flush_ready_for_flush(bpage, flush_type)) {
-		ulint		space;
-		ulint		offset;
 		buf_pool_t*	buf_pool;
 
 		buf_pool = buf_pool_from_bpage(bpage);
 
-		buf_pool_mutex_exit(buf_pool);
-
-		/* These fields are protected by both the
-		buffer pool mutex and block mutex. */
-		space = buf_page_get_space(bpage);
-		offset = buf_page_get_page_no(bpage);
+		const page_id_t	page_id = bpage->id;
 
 		mutex_exit(block_mutex);
 
+		buf_pool_mutex_exit(buf_pool);
+
 		/* Try to flush also all the neighbors */
-		*count += buf_flush_try_neighbors(space,
-						  offset,
+		*count += buf_flush_try_neighbors(page_id,
 						  flush_type,
 						  *count,
 						  n_to_flush);
@@ -2560,7 +2555,7 @@ buf_pool_get_dirty_pages_count(
 		ut_ad(bpage->in_flush_list);
 		ut_ad(bpage->oldest_modification > 0);
 
-		if (buf_page_get_space(bpage) == id) {
+		if (bpage->id.space() == id) {
 			++count;
 		}
 	}

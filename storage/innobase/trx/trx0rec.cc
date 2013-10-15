@@ -1321,9 +1321,12 @@ trx_undo_report_row_operation(
 	}
 
 	page_no = undo->last_page_no;
+
 	undo_block = buf_page_get_gen(
-		undo->space, undo->zip_size, page_no, RW_X_LATCH,
-		undo->guess_block, BUF_GET, __FILE__, __LINE__, &mtr);
+		page_id_t(undo->space, page_no, undo->zip_size),
+		RW_X_LATCH, undo->guess_block, BUF_GET, __FILE__, __LINE__,
+		&mtr);
+
 	buf_block_dbg_add_level(undo_block, SYNC_TRX_UNDO_PAGE);
 
 	do {
@@ -1459,8 +1462,9 @@ trx_undo_get_undo_rec_low(
 
 	mtr_start(&mtr);
 
-	undo_page = trx_undo_page_get_s_latched(rseg->space, rseg->zip_size,
-						page_no, &mtr);
+	undo_page = trx_undo_page_get_s_latched(
+		page_id_t(rseg->space, page_no, rseg->zip_size),
+		&mtr);
 
 	undo_rec = trx_undo_rec_copy(undo_page + offset, heap);
 

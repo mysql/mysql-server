@@ -1,6 +1,6 @@
 /*****************************************************************************
 
-Copyright (c) 1995, 2009, Oracle and/or its affiliates. All Rights Reserved.
+Copyright (c) 1995, 2013, Oracle and/or its affiliates. All Rights Reserved.
 
 This program is free software; you can redistribute it and/or modify it under
 the terms of the GNU General Public License as published by the Free Software
@@ -49,7 +49,8 @@ fut_get_ptr(
 	      || (rw_latch == RW_X_LATCH)
 	      || (rw_latch == RW_SX_LATCH));
 
-	block = buf_page_get(space, zip_size, addr.page, rw_latch, mtr);
+	block = buf_page_get(page_id_t(space, addr.page, zip_size),
+			     rw_latch, mtr);
 	ptr = buf_block_get_frame(block) + addr.boffset;
 
 	buf_block_dbg_add_level(block, SYNC_NO_ORDER_CHECK);

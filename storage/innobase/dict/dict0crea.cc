@@ -906,16 +906,17 @@ dict_drop_index_tree(
 	/* We free all the pages but the root page first; this operation
 	may span several mini-transactions */
 
-	btr_free_but_not_root(
-		space, zip_size, root_page_no, mtr_get_log_mode(mtr));
+	const page_id_t	root_page_id(space, root_page_no, zip_size);
+
+	btr_free_but_not_root(root_page_id, mtr_get_log_mode(mtr));
 
 	/* Then we free the root page in the same mini-transaction where
 	we write FIL_NULL to the appropriate field in the SYS_INDEXES
 	record: this mini-transaction marks the B-tree totally freed */
-	btr_block_get(space, zip_size, root_page_no, RW_X_LATCH, NULL, mtr);
+	btr_block_get(root_page_id, RW_X_LATCH, NULL, mtr);
 	/* printf("Dropping index tree in space %lu root page %lu\n", space,
 	root_page_no); */
-	btr_free_root(space, zip_size, root_page_no, mtr);
+	btr_free_root(root_page_id, mtr);
 
 	if (is_drop) {
 		page_rec_write_field(
@@ -954,15 +955,17 @@ dict_drop_index_tree_in_mem(
 	else free the all the pages */
 	if (root_page_no != FIL_NULL && zip_size != ULINT_UNDEFINED) {
 
+		const page_id_t	root_page_id(space, root_page_no, zip_size);
+
 		/* We free all the pages but the root page first; this operation
 		may span several mini-transactions */
 		btr_free_but_not_root(
-			space, zip_size, root_page_no,
+			root_page_id,
 			(dict_table_is_temporary(index->table)
 			 ? MTR_LOG_NO_REDO : mtr_get_log_mode(&mtr)));
 
 		/* Then we free the root page. */
-		btr_free_root(space, zip_size, root_page_no, &mtr);
+		btr_free_root(root_page_id, &mtr);
 	}
 
 	mtr_commit(&mtr);
@@ -1112,8 +1115,10 @@ dict_truncate_index_tree_in_mem(
 		/* We free all the pages but the root page first; this operation
 		may span several mini-transactions */
 
+		const page_id_t	root_page_id(space, root_page_no, zip_size);
+
 		btr_free_but_not_root(
-			space, zip_size, root_page_no,
+			root_page_id,
 			(dict_table_is_temporary(index->table)
 			 ? MTR_LOG_NO_REDO : mtr_get_log_mode(&mtr)));
 
@@ -1122,10 +1127,9 @@ dict_truncate_index_tree_in_mem(
 		appropriate field in the SYS_INDEXES record: this
 		mini-transaction marks the B-tree totally truncated */
 
-		btr_block_get(
-			space, zip_size, root_page_no, RW_X_LATCH, NULL, &mtr);
+		btr_block_get(root_page_id, RW_X_LATCH, NULL, &mtr);
 
-		btr_free_root(space, zip_size, root_page_no, &mtr);
+		btr_free_root(root_page_id, &mtr);
 	}
 
 	mtr_commit(&mtr);

@@ -161,7 +161,7 @@ struct trx_rseg_t{
 					its slot in the trx system file copy */
 	RsegMutex	mutex;		/*!< mutex protecting the fields in this
 					struct except id, which is constant */
-	ulint		space;		/*!< space where the rollback segment is
+	ulint		space;		/*!< space where the rollback segment
 					header is placed */
 	ulint		zip_size;	/* compressed page size of space
 					in bytes, or 0 for uncompressed spaces */

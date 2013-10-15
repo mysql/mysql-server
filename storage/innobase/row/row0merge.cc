@@ -1332,9 +1332,10 @@ end_of_index:
 
 				block = page_cur_get_block(cur);
 				block = btr_block_get(
-					buf_block_get_space(block),
-					buf_block_get_zip_size(block),
-					next_page_no, BTR_SEARCH_LEAF,
+					page_id_t(block->page.id.space(),
+						  next_page_no,
+						  block->page.id.zip_size()),
+					BTR_SEARCH_LEAF,
 					clust_index, &mtr);
 
 				btr_leaf_page_release(page_cur_get_block(cur),

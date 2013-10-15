@@ -43,7 +43,9 @@ trx_rsegf_get(
 	buf_block_t*	block;
 	trx_rsegf_t*	header;
 
-	block = buf_page_get(space, zip_size, page_no, RW_X_LATCH, mtr);
+	block = buf_page_get(
+		page_id_t(space, page_no, zip_size), RW_X_LATCH, mtr);
+
 	buf_block_dbg_add_level(block, SYNC_RSEG_HEADER);
 
 	header = TRX_RSEG + buf_block_get_frame(block);
@@ -67,7 +69,9 @@ trx_rsegf_get_new(
 	buf_block_t*	block;
 	trx_rsegf_t*	header;
 
-	block = buf_page_get(space, zip_size, page_no, RW_X_LATCH, mtr);
+	block = buf_page_get(
+		page_id_t(space, page_no, zip_size), RW_X_LATCH, mtr);
+
 	buf_block_dbg_add_level(block, SYNC_RSEG_HEADER_NEW);
 
 	header = TRX_RSEG + buf_block_get_frame(block);
