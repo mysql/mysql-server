@@ -550,10 +550,13 @@ size_t my_xml_error_pos(MY_XML_PARSER *p)
 {
   const char *beg=p->beg;
   const char *s;
-  for ( s=p->beg ; s<p->cur; s++)
+  for ( s=p->cur - 1 ; s>p->beg - 1; s--)
   {
     if (s[0] == '\n')
+    {
       beg=s;
+      break;
+    }
   }
   return (size_t) (p->cur-beg);
 }
