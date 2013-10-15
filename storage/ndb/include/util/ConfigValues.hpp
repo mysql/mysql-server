@@ -49,6 +49,19 @@ public:
     };
   };
   
+  /**
+    This class is used for accessing indvidual ConfigValues::Entry objects
+    within a ConfigValues instance. Despite the name, this is *not* an 
+    iterator. Instead, it provides two-step associative lookup:
+    - First call openSection() to choose a section type (e.g. CFG_SECTION_NODE)
+      and an instance (0..n) of that section type. (_paramId of each 
+      ConfigInfo::m_ParamInfo element with _type==ConfigInfo::CI_SECTION is 
+      a section type identifier.)
+     - Then access config values within that section instance using 
+       get(key,...)
+    After that, possibly call closeSection() and start again if you want to
+    read values from a different section.
+   */
   class ConstIterator {
     friend class ConfigValuesFactory;
     const ConfigValues & m_cfg;
@@ -56,9 +69,18 @@ public:
     Uint32 m_currentSection;
     ConstIterator(const ConfigValues&c) : m_cfg(c) { m_currentSection = 0;}
     
+    /** 
+      Set section and section instance. Return false if no matching section
+      or instance was found.
+    */
     bool openSection(Uint32 key, Uint32 no);
+
+    /** Close current section so that you can open another.*/
     bool closeSection();
 
+    /** 
+      Get entry within current section. Return false if 'key' was not found.
+     */
     bool get(Uint32 key, Entry *) const;
     
     bool get(Uint32 key, Uint32 * value) const;
