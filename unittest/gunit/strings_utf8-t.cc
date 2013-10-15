@@ -45,16 +45,17 @@ private:
 TEST_F(StringsUTF8Test, My_strchr)
 {
   char* pos;
-  char valid_utf8_string[]= "\u00E5y\u00E6";
+  char valid_utf8_string[]="str1";
 
   /*
     All valid utf8 characters in str arg passed to  my_strchr and  char to be
     found not in str.
   */
-  pos= my_strchr(system_charset_info, valid_utf8_string,
-                       valid_utf8_string+3,'y');
 
-  EXPECT_STREQ(pos, valid_utf8_string+2);
+  pos= my_strchr(system_charset_info, valid_utf8_string,
+                       valid_utf8_string+3,'t');
+
+  EXPECT_EQ(pos, valid_utf8_string+1);
 
   /*
     All valid utf8 characters in str arg passed to  my_strchr and  char to be
@@ -66,7 +67,7 @@ TEST_F(StringsUTF8Test, My_strchr)
   ASSERT_TRUE(NULL == pos);
 
   // Assign an invalid utf8 char to valid_utf8_str
-  valid_utf8_string[0]= 0xff;
+  valid_utf8_string[0]= '\xff';
   // Invalid utf8 character in str arg passed to my_strchr.
   pos= my_strchr(system_charset_info, valid_utf8_string,
                  valid_utf8_string+3,'y');
@@ -76,20 +77,21 @@ TEST_F(StringsUTF8Test, My_strchr)
 
 TEST_F(StringsUTF8Test, My_strcasecmp_mb)
 {
+  std::string utf8_src= "str";
+  std::string utf8_dst= "str";
 
-  char utf8_src[]= "\u00E5y\u00E6";
-  char utf8_dst[] = "\u00E5y\u00E6";
-
-  // src and dst are equal utf8 strings
-  EXPECT_EQ(my_strcasecmp_mb(system_charset_info, utf8_src, utf8_dst), 0);
+  EXPECT_EQ(my_strcasecmp_mb(system_charset_info, utf8_src.c_str(),
+                             utf8_dst.c_str()), 0);
 
   utf8_dst[1]= 'd';
   // src and dst are different utf8 strings
-  EXPECT_EQ(my_strcasecmp_mb(system_charset_info, utf8_src, utf8_dst), 1);
+  EXPECT_EQ(my_strcasecmp_mb(system_charset_info, utf8_src.c_str(),
+                             utf8_dst.c_str()), 1);
 
-  char invalid_utf8_dst[]= "\u00E5\u00FF\u00E6";
+
   // dst contain an invalid utf8 string
-  EXPECT_EQ(my_strcasecmp_mb(system_charset_info, utf8_src, invalid_utf8_dst),
-            1);
+  utf8_dst[1]= '\xFF';
+  EXPECT_EQ(my_strcasecmp_mb(system_charset_info, utf8_src.c_str(),
+                             utf8_dst.c_str()), 1);
 }
 }

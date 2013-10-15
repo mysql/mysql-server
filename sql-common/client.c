@@ -853,7 +853,11 @@ cli_advanced_command(MYSQL *mysql, enum enum_server_command command,
     Server replies to COM_STATISTICS with a single packet 
     containing a string with statistics information.
   */
+  /* Server replies to COM_RESET_CONNECTION with OK or
+     Error Packet.
+  */
   case COM_STATISTICS:
+  case COM_RESET_CONNECTION:
     MYSQL_TRACE_STAGE(mysql, WAIT_FOR_PACKET);
     break;
 
