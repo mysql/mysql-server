@@ -50,7 +50,12 @@ public:
 	class block_t {
 	public:
 
-		block_t() { init(); }
+		block_t()
+		{
+			ut_ad(MAX_DATA_SIZE <= (2 << 15));
+			init();
+		}
+
 		~block_t() { }
 
 		/**
@@ -124,9 +129,9 @@ public:
 			/* Check that it is within bounds */
 			ut_ad(begin() + m_buf_end >= ptr);
 
-			m_used = ptr - begin();
+			m_used = ptrdiff_t(ptr - begin());
 
-			ut_ad(m_used <= ib_uint32_t(MAX_DATA_SIZE));
+			ut_ad(m_used <= MAX_DATA_SIZE);
 
 			ut_d(m_buf_end = 0);
 		}
@@ -269,11 +274,9 @@ public:
 	void push(const byte* ptr, ulint len)
 	{
 		while (len > 0) {
-			size_t	n_copied;
+			ib_uint32_t	n_copied;
 
-			n_copied = (len >= size_t(MAX_DATA_SIZE))
-				 ? size_t(MAX_DATA_SIZE)
-				 : len;
+			n_copied = (len >= MAX_DATA_SIZE) ? MAX_DATA_SIZE : len;
 
 			::memmove(push<byte*>(n_copied), ptr, n_copied);
 

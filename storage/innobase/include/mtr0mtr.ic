@@ -267,23 +267,3 @@ mtr_t::read_ulint(const byte* ptr, mlog_id_t type) const
 
 	return(mach_read_ulint(ptr, type));
 }
-
-/**
-Reads 8 bytes from a file page buffered in the buffer pool.
-@return	value read */
-
-ib_id_t
-mtr_t::read_ull(const byte* ptr, ulint type) const
-{
-	ut_ad(is_active());
-	ut_ad(type == MLOG_8BYTES);
-
-	ut_ad(memo_contains_page_flagged(
-			ptr,
-			MTR_MEMO_PAGE_S_FIX
-			| MTR_MEMO_PAGE_X_FIX
-			| MTR_MEMO_PAGE_SX_FIX));
-
-	return(mach_read_from_8(ptr));
-}
-

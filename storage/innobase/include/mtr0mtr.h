@@ -280,12 +280,6 @@ struct mtr_t {
 		__attribute__((warn_unused_result));
 
 	/**
-	Reads 8 bytes from a file page buffered in the buffer pool.
-	@return	value read */
-	inline ib_id_t read_ull(const byte* ptr, ulint type) const
-		__attribute__((warn_unused_result));
-
-	/**
 	NOTE! Use the macro above!
 	Locks a lock in s-mode.
 	@param lock	rw-lock
