@@ -136,7 +136,7 @@ memo_slot_release(mtr_memo_slot_t* slot)
 
 		mutex_exit(&block->mutex);
 
-		buf_page_release_latches(block, slot->type);
+		buf_page_release_latch(block, slot->type);
 		break;
 	}
 
@@ -177,7 +177,7 @@ memo_latch_release(mtr_memo_slot_t* slot)
 
 		block = reinterpret_cast<buf_block_t*>(slot->object);
 
-		buf_page_release_latches(block, slot->type);
+		buf_page_release_latch(block, slot->type);
 		/* We will unfix the block later, preserve the object
 		pointer. */
 		slot->object = NULL;
