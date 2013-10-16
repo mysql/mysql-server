@@ -3031,6 +3031,7 @@ err_during_init:
 
   DBUG_LEAVE;                                   // Must match DBUG_ENTER()
   my_thread_end();
+  ERR_remove_state(0);
   pthread_exit(0);
   return 0;                                     // Avoid compiler warnings
 }
@@ -3433,6 +3434,7 @@ err_during_init:
 
   DBUG_LEAVE;                                   // Must match DBUG_ENTER()
   my_thread_end();
+  ERR_remove_state(0);
   pthread_exit(0);
   return 0;                                     // Avoid compiler warnings
 }
