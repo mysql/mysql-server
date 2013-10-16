@@ -160,9 +160,12 @@ function parse_mysqlbuild() {
             if [ -z $mysql_tree ] ; then mysql_tree=$mysql_version; fi
             if [ -z $jemalloc_tree ] ; then jemalloc_tree=$jemalloc_version; fi
         fi
-        # 5.6 is temp in  another repo
+        # 5.6 is in another repo
         mysql_repo=$mysql_distro
-        if [[ $mysql_distro = mysql && $mysql_version =~ ^5.6 ]] ; then mysql_repo=mysql56; fi
+        if [[ $mysql_distro = mysql && $mysql_version =~ ^5.6 ]] ; then 
+            mysql_repo=mysql56
+            mysql_tree=$mysql_distro-$mysql_version
+        fi
     else
         exitcode=1
     fi
