@@ -12397,7 +12397,7 @@ innodb_show_status(
 
 	ret_val= stat_print(thd, innobase_hton_name,
 				(uint) strlen(innobase_hton_name),
-				STRING_WITH_LEN(""), str, flen);
+				STRING_WITH_LEN(""), str, uint(flen));
 
 	my_free(str);
 
