@@ -3236,7 +3236,7 @@ WHERE t1.key1=t2.key1a AND t1.key2 > 1020	{
                       "access_type": "ref",
                       "index": "PRIMARY",
                       "rows": 10,
-                      "cost": 432.08,
+                      "cost": 514.08,
                       "chosen": true
                     },
                     {

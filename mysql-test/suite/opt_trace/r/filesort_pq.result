@@ -5830,14 +5830,14 @@ LIMIT 30	{
                           "access_type": "ref",
                           "index": "<auto_key0>",
                           "rows": 10,
-                          "cost": 1002,
+                          "cost": 1200,
                           "chosen": true
                         },
                         {
                           "access_type": "ref",
                           "index": "<auto_key1>",
                           "rows": 10,
-                          "cost": 1002,
+                          "cost": 1200,
                           "chosen": false
                         },
                         {
@@ -5896,14 +5896,14 @@ LIMIT 30	{
                           "access_type": "ref",
                           "index": "<auto_key0>",
                           "rows": 10,
-                          "cost": 1002,
+                          "cost": 1200,
                           "chosen": true
                         },
                         {
                           "access_type": "ref",
                           "index": "<auto_key1>",
                           "rows": 10,
-                          "cost": 1002,
+                          "cost": 1200,
                           "chosen": false
                         },
                         {
@@ -7480,14 +7480,14 @@ ORDER BY d1.f2 DESC LIMIT 30	{
                           "access_type": "ref",
                           "index": "<auto_key0>",
                           "rows": 3,
-                          "cost": 1500.6,
+                          "cost": 1800,
                           "chosen": true
                         },
                         {
                           "access_type": "ref",
                           "index": "<auto_key1>",
                           "rows": 3,
-                          "cost": 1500.6,
+                          "cost": 1800,
                           "chosen": false
                         },
                         {
