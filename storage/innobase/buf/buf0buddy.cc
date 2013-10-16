@@ -69,11 +69,11 @@ are written.*/
 
 /** Value that we stamp on all buffers that are currently on the zip_free
 list. This value is stamped at BUF_BUDDY_STAMP_OFFSET offset */
-#define BUF_BUDDY_STAMP_FREE	(0xFFFFFFE0UL)
+#define BUF_BUDDY_STAMP_FREE	 0xFFFFFFE0UL
 
 /** Stamp value for non-free buffers. Will be overwritten by a non-zero
 value by the consumer of the block */
-#define BUF_BUDDY_STAMP_NONFREE	(0XFFFFFFFF)
+#define BUF_BUDDY_STAMP_NONFREE	0XFFFFFFFFUL
 
 #if BUF_BUDDY_STAMP_FREE >= BUF_BUDDY_STAMP_NONFREE
 # error "BUF_BUDDY_STAMP_FREE >= BUF_BUDDY_STAMP_NONFREE"

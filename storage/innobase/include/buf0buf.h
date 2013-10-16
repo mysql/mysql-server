@@ -459,7 +459,7 @@ buf_page_release_zip(
 Releases a latch, if specified. */
 UNIV_INLINE
 void
-buf_page_release_latches(
+buf_page_release_latch(
 /*=====================*/
 	buf_block_t*	block,		/*!< in: buffer block */
 	ulint		rw_latch);	/*!< in: RW_S_LATCH, RW_X_LATCH,
