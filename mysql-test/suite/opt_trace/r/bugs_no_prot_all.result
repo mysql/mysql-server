@@ -1851,7 +1851,7 @@ ON table2 .col_int_key = table1 .col_int_key
                                 "access_type": "ref",
                                 "index": "col_int_key",
                                 "rows": 2,
-                                "cost": 4.493,
+                                "cost": 5.693,
                                 "chosen": true
                               },
                               {
@@ -1904,7 +1904,7 @@ ON table2 .col_int_key = table1 .col_int_key
                                 "access_type": "ref",
                                 "index": "col_int_key",
                                 "rows": 2,
-                                "cost": 4.493,
+                                "cost": 5.693,
                                 "chosen": true
                               },
                               {
@@ -1960,7 +1960,7 @@ ON table2 .col_int_key = table1 .col_int_key
                           "access_type": "ref",
                           "index": "col_int_key",
                           "rows": 2,
-                          "cost": 6.5395,
+                          "cost": 8.5395,
                           "chosen": true
                         },
                         {
@@ -1990,7 +1990,7 @@ ON table2 .col_int_key = table1 .col_int_key
                               "access_type": "ref",
                               "index": "col_int_key",
                               "rows": 2,
-                              "cost": 18.819,
+                              "cost": 25.619,
                               "chosen": true
                             },
                             {
@@ -2018,7 +2018,7 @@ ON table2 .col_int_key = table1 .col_int_key
                                         "access_type": "ref",
                                         "index": "col_int_key",
                                         "rows": 2,
-                                        "cost": 6.5395,
+                                        "cost": 8.5395,
                                         "chosen": true
                                       },
                                       {
@@ -2038,7 +2038,7 @@ ON table2 .col_int_key = table1 .col_int_key
                                         "access_type": "ref",
                                         "index": "col_int_key",
                                         "rows": 2,
-                                        "cost": 12.679,
+                                        "cost": 17.079,
                                         "chosen": true
                                       },
                                       {
@@ -2086,7 +2086,7 @@ ON table2 .col_int_key = table1 .col_int_key
                           "access_type": "ref",
                           "index": "col_int_key",
                           "rows": 2,
-                          "cost": 6.5395,
+                          "cost": 8.5395,
                           "chosen": true
                         },
                         {
@@ -2116,7 +2116,7 @@ ON table2 .col_int_key = table1 .col_int_key
                               "access_type": "ref",
                               "index": "col_int_key",
                               "rows": 2,
-                              "cost": 18.819,
+                              "cost": 25.619,
                               "chosen": true
                             },
                             {
@@ -2144,7 +2144,7 @@ ON table2 .col_int_key = table1 .col_int_key
                                         "access_type": "ref",
                                         "index": "col_int_key",
                                         "rows": 2,
-                                        "cost": 6.5395,
+                                        "cost": 8.5395,
                                         "chosen": true
                                       },
                                       {
@@ -2164,7 +2164,7 @@ ON table2 .col_int_key = table1 .col_int_key
                                         "access_type": "ref",
                                         "index": "col_int_key",
                                         "rows": 2,
-                                        "cost": 12.679,
+                                        "cost": 17.079,
                                         "chosen": true
                                       },
                                       {
@@ -2262,7 +2262,7 @@ ON table2 .col_int_key = table1 .col_int_key
                               "access_type": "ref",
                               "index": "col_int_key",
                               "rows": 2,
-                              "cost": 24.958,
+                              "cost": 34.158,
                               "chosen": true
                             },
                             {
@@ -2301,7 +2301,7 @@ ON table2 .col_int_key = table1 .col_int_key
                           "access_type": "ref",
                           "index": "col_int_key",
                           "rows": 2,
-                          "cost": 4.493,
+                          "cost": 5.693,
                           "chosen": true
                         },
                         {
@@ -2480,7 +2480,7 @@ ON table2 .col_int_key = table1 .col_int_key
                               "access_type": "ref",
                               "index": "col_int_key",
                               "rows": 2,
-                              "cost": 24.958,
+                              "cost": 34.158,
                               "chosen": true
                             },
                             {
@@ -2519,7 +2519,7 @@ ON table2 .col_int_key = table1 .col_int_key
                           "access_type": "ref",
                           "index": "col_int_key",
                           "rows": 2,
-                          "cost": 4.493,
+                          "cost": 5.693,
                           "chosen": true
                         },
                         {
@@ -2606,7 +2606,7 @@ ON table2 .col_int_key = table1 .col_int_key
                                         "access_type": "ref",
                                         "index": "col_int_key",
                                         "rows": 2,
-                                        "cost": 4.493,
+                                        "cost": 5.693,
                                         "chosen": true
                                       },
                                       {
