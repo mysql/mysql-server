@@ -7104,6 +7104,11 @@ ER_GCS_REPLICATION_APPLIER_INIT_ERROR
 ER_STOP_GCS_APPLIER_THREAD_TIMEOUT
   eng "The STOP GCS_REPLICATION command execution is incomplete: The applier thread got the stop signal while it was busy. The applier thread will stop once the current task is complete."
 
-#
+ER_GCS_COMMUNICATION_LAYER_SESSION_ERROR
+  eng "The START GCS_REPLICATION command failed as there was an error when initializing the group communication layer."
+
+ER_GCS_COMMUNICATION_LAYER_JOIN_ERROR
+  eng "The START GCS_REPLICATION command failed as there was an error when joining the communication group"
+
 #  End of 5.7 error messages.
 #

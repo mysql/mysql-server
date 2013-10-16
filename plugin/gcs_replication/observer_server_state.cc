@@ -37,8 +37,23 @@ int gcs_after_engine_recovery(Server_state_param *param)
   */
   if (wait_on_engine_initialization)
   {
+    int error= 0;
     wait_on_engine_initialization= false;
-    return configure_and_start_applier();
+
+    if ((error= configure_and_start_applier()))
+      return error;
+
+    if ((error= configure_and_start_gcs()))
+    {
+      //terminate the before created pipeline
+      log_message(MY_ERROR_LEVEL,
+                  "Error on gcs initialization methods, killing the applier");
+      applier->terminate_applier_thread();
+      return error;
+    }
+
+    declare_plugin_running(); //All is OK
+    return 0;
   }
 
   return 0;

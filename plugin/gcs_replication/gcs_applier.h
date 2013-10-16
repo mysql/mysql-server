@@ -17,7 +17,7 @@
 #define GCS_APPLIER_INCLUDE
 
 #include <vector>
-#include "gcs_utils.h"
+#include "gcs_plugin_utils.h"
 #include <my_global.h>
 #include <applier_interfaces.h>
 #include "pipeline_factory.h"

@@ -15,7 +15,7 @@
 
 #include "gcs_plugin.h"
 #include "observer_trans.h"
-#include "gcs_utils.h"
+#include "gcs_plugin_utils.h"
 #include <gcs_protocol.h>
 #include <gcs_protocol_factory.h>
 #include <log_event.h>

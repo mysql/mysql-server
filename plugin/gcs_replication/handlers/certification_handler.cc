@@ -14,7 +14,6 @@
    51 Franklin Street, Suite 500, Boston, MA 02110-1335 USA */
 
 #include "certification_handler.h"
-#include "../gcs_utils.h"
 
 Certification_handler::Certification_handler()
 {}

@@ -1,6 +1,6 @@
 include/install_gcs_replication.inc
 call mtr.add_suppression("An handler, marked as unique *.*");
-call mtr.add_suppression("The applier module shutdown is still running: *.*");
+call mtr.add_suppression("Cannot start the applier as a *.*");
 [ON THE NODE]
 SET GLOBAL gcs_replication_plugin_group_name= "2d249320-2e06-11e3-aa6e-0800200c9a66";
 SET GLOBAL gcs_replication_plugin_start_on_boot= 1;

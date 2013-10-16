@@ -125,6 +125,31 @@ static void register_gcs_psi_keys(PSI_mutex_info gcs_mutexes[],
   }
 }
 
+class Mutex_autolock
+{
+
+public:
+  Mutex_autolock(pthread_mutex_t *arg) : ptr_mutex(arg)
+  {
+    DBUG_ENTER("Mutex_autolock::Mutex_autolock");
+
+    DBUG_ASSERT(arg != NULL);
+
+    pthread_mutex_lock(ptr_mutex);
+    DBUG_VOID_RETURN;
+  }
+  ~Mutex_autolock()
+  {
+      pthread_mutex_unlock(ptr_mutex);
+  }
+
+private:
+  pthread_mutex_t *ptr_mutex;
+  Mutex_autolock(Mutex_autolock const&); // no copies permitted
+  void operator=(Mutex_autolock const&);
+};
+
+
 inline bool is_local(){
   return false;
 }

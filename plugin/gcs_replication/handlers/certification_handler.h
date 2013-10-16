@@ -16,7 +16,7 @@
 #ifndef CERTIFICATION_HANDLER_INCLUDE
 #define CERTIFICATION_HANDLER_INCLUDE
 
-#include "../gcs_applier.h"
+#include "../gcs_plugin_utils.h"
 #include <applier_interfaces.h>
 
 class Certification_handler : public EventHandler

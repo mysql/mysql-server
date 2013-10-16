@@ -2984,24 +2984,30 @@ end_with_restore_list:
   case SQLCOM_START_GCS_REPLICATION:
   {
     res= start_gcs_rpl();
-    if (res == ER_GCS_REPLICATION_APPLIER_INIT_ERROR)
-    {
-      my_message(ER_GCS_REPLICATION_APPLIER_INIT_ERROR,
-                 ER(ER_GCS_REPLICATION_APPLIER_INIT_ERROR), MYF(0));
-      goto error;
-    }
 
-    if (res == ER_GCS_REPLICATION_RUNNING)
+    //To reduce server dependency, server errors are not used here
+    switch (res)
     {
-      my_message(ER_GCS_REPLICATION_RUNNING,
-                  ER(ER_GCS_REPLICATION_RUNNING), MYF(0));
-      goto error;
-    }
-    if (res == ER_GCS_REPLICATION_CONFIGURATION)
-    {
-      my_message(ER_GCS_REPLICATION_CONFIGURATION,
-                 ER(ER_GCS_REPLICATION_CONFIGURATION), MYF(0));
-      goto error;
+      case 1: //GCS_CONFIGURATION_ERROR
+        my_message(ER_GCS_REPLICATION_CONFIGURATION,
+                   ER(ER_GCS_REPLICATION_CONFIGURATION), MYF(0));
+        goto error;
+      case 2: //GCS_ALREADY_RUNNING
+        my_message(ER_GCS_REPLICATION_RUNNING,
+                   ER(ER_GCS_REPLICATION_RUNNING), MYF(0));
+        goto error;
+      case 3: //GCS_REPLICATION_APPLIER_INIT_ERROR
+        my_message(ER_GCS_REPLICATION_APPLIER_INIT_ERROR,
+                   ER(ER_GCS_REPLICATION_APPLIER_INIT_ERROR), MYF(0));
+        goto error;
+      case 4: //GCS_COMMUNICATION_LAYER_JOIN_ERROR
+        my_message(ER_GCS_COMMUNICATION_LAYER_SESSION_ERROR,
+                   ER(ER_GCS_COMMUNICATION_LAYER_SESSION_ERROR), MYF(0));
+        goto error;
+      case 5: //GCS_COMMUNICATION_LAYER_SESSION_ERROR
+        my_message(ER_GCS_COMMUNICATION_LAYER_JOIN_ERROR,
+                   ER(ER_GCS_COMMUNICATION_LAYER_JOIN_ERROR), MYF(0));
+        goto error;
     }
     my_ok(thd);
     res= 0;

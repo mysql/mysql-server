@@ -152,8 +152,11 @@ int Applier_sql_thread::initialize()
   mi->set_mi_description_event(
     new Format_description_log_event(BINLOG_VERSION));
 
+  //set a dummy host
   mi->host[0]= 'h';
   mi->host[1]= '\0';
+  //set a dummy log name
+  mi->set_master_log_name("dummy_log.log");
 
   if ((error= rli->rli_init_info()))
   {
@@ -206,7 +209,7 @@ int Applier_sql_thread::handle(PipelineEvent *event,Continuation* cont)
 {
   DBUG_ENTER("Applier_sql_thread::handle");
 
-  Packet* p;
+  Packet* p=  NULL;
   event->get_Packet(&p);
 
   int error= queue_event(this->mi, (const char*)p->payload, p->len);

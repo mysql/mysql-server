@@ -13,7 +13,7 @@
    along with this program; if not, write to the Free Software Foundation,
    51 Franklin Street, Suite 500, Boston, MA 02110-1335 USA */
 
-#include "gcs_utils.h"
+#include "gcs_plugin_utils.h"
 #include "pipeline_factory.h"
 #include "handlers/event_cataloger.h"
 #include "handlers/certification_handler.h"

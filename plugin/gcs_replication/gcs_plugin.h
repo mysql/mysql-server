@@ -16,7 +16,7 @@
 #ifndef GCS_PLUGIN_INCLUDE
 #define GCS_PLUGIN_INCLUDE
 
-#include "gcs_utils.h" //defines have_replication and mysql_server
+#include "gcs_plugin_utils.h" //defines HAVE_REPLICATION and MYSQL_SERVER flags
 #ifdef HAVE_CONFIG_H
 #include "config.h"
 #endif
@@ -27,6 +27,17 @@
 #include <mysqld.h>               // UUID_LENGTH
 #include <rpl_gtid.h>             // rpl_sidno
 #include "gcs_applier.h"
+#include <gcs_protocol.h>
+
+/*
+  Plugin errors
+  TODO: If this goes into the server side, replace this with server errors.
+*/
+#define GCS_CONFIGURATION_ERROR 1
+#define GCS_ALREADY_RUNNING 2
+#define GCS_REPLICATION_APPLIER_INIT_ERROR 3
+#define GCS_COMMUNICATION_LAYER_JOIN_ERROR 4
+#define GCS_COMMUNICATION_LAYER_SESSION_ERROR 5
 
 //Plugin variables
 typedef st_mysql_sys_var SYS_VAR;
@@ -37,11 +48,17 @@ extern ulong handler_pipeline_type;
 extern Applier_module *applier;
 extern bool wait_on_engine_initialization;
 extern ulong gcs_applier_thread_timeout;
+extern char *gcs_group_pointer;
+extern GCS::Event_handlers gcs_plugin_event_handlers;
 
-//Plugin methods
+//Plugin global methods
+int configure_and_start_applier();
+int configure_and_start_gcs();
+void declare_plugin_running();
+
+//Plugin public methods
 int gcs_replication_init(MYSQL_PLUGIN plugin_info);
 int gcs_replication_deinit(void *p);
-int configure_and_start_applier();
 int gcs_rpl_start();
 int gcs_rpl_stop();
 bool is_gcs_rpl_running();
