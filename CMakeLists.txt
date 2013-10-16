@@ -527,7 +527,6 @@ ADD_SUBDIRECTORY(packaging/solaris)
 # (see http://public.kitware.com/Bug/view.php?id=11452)
 SET(CPACK_MONOLITHIC_INSTALL 1 CACHE INTERNAL "")
 
-INCLUDE(CPack)
 IF(UNIX)
   INSTALL(FILES Docs/mysql.info DESTINATION ${INSTALL_INFODIR} OPTIONAL COMPONENT Info)
 ENDIF()
@@ -559,3 +558,5 @@ IF(NOT INSTALL_LAYOUT MATCHES "RPM")
     PATTERN "sp-imp-spec.txt" EXCLUDE
   )
 ENDIF()
+
+INCLUDE(CPack)
