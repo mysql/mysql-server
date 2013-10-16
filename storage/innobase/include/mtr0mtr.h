@@ -506,7 +506,6 @@ private:
 
 	class Command;
 
-	// TODO: Get rid of the friend
 	friend class Command;
 
 private:

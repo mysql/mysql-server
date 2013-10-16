@@ -126,6 +126,11 @@ enum mlog_id_t {
 	/** initialize an ibuf bitmap page */
 	MLOG_IBUF_BITMAP_INIT = 27,
 
+#ifdef UNIV_LOG_LSN_DEBUG
+	/** Current LSN */
+	MLOG_LSN = 28,
+#endif /* UNIV_LOG_LSN_DEBUG */
+
 	/** this means that a file page is taken into use and the prior
 	contents of the page should be ignored: in recovery we must not
 	trust the lsn values stored to the file page */
