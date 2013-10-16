@@ -30,7 +30,7 @@ IF(UNIX)
           mysqld.service mysql-systemd-start mysql.conf
           mysql-5.6.14-mysql-install.patch
           filter-requires.sh filter-provides.sh
-          mysql-5.1.70.tar.gz mysql-embedded-check.c)
+          mysql-5.1.70.tar.gz mysql-embedded-check.c mysql.init)
     CONFIGURE_FILE(${fedfile} ${CMAKE_CURRENT_BINARY_DIR}/${fedfile} COPYONLY)
   ENDFOREACH()
 ENDIF()
