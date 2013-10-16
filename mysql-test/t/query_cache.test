@@ -1665,7 +1665,47 @@ select SELECT_COMMANDS,ROWS_SENT,EMPTY_QUERIES from INFORMATION_SCHEMA.USER_STAT
 where USER="root";
 show status like "Qcache_hits";
 
+FLUSH USER_STATISTICS;
+FLUSH CLIENT_STATISTICS;
+flush status;
+
+create procedure p1()
+  select * from t1;
+call p1;
+select SELECT_COMMANDS,ROWS_SENT,EMPTY_QUERIES from INFORMATION_SCHEMA.CLIENT_STATISTICS
+where CLIENT="localhost";
+select SELECT_COMMANDS,ROWS_SENT,EMPTY_QUERIES from INFORMATION_SCHEMA.USER_STATISTICS
+where USER="root";
+show status like "Qcache_hits";
+call p1;
+call p1;
+select SELECT_COMMANDS,ROWS_SENT,EMPTY_QUERIES from INFORMATION_SCHEMA.CLIENT_STATISTICS
+where CLIENT="localhost";
+select SELECT_COMMANDS,ROWS_SENT,EMPTY_QUERIES from INFORMATION_SCHEMA.USER_STATISTICS
+where USER="root";
+show status like "Qcache_hits";
+
+FLUSH USER_STATISTICS;
+FLUSH CLIENT_STATISTICS;
+flush status;
+
+SET GLOBAL query_cache_size= 0;
+call p1;
+select SELECT_COMMANDS,ROWS_SENT,EMPTY_QUERIES from INFORMATION_SCHEMA.CLIENT_STATISTICS
+where CLIENT="localhost";
+select SELECT_COMMANDS,ROWS_SENT,EMPTY_QUERIES from INFORMATION_SCHEMA.USER_STATISTICS
+where USER="root";
+show status like "Qcache_hits";
+call p1;
+call p1;
+select SELECT_COMMANDS,ROWS_SENT,EMPTY_QUERIES from INFORMATION_SCHEMA.CLIENT_STATISTICS
+where CLIENT="localhost";
+select SELECT_COMMANDS,ROWS_SENT,EMPTY_QUERIES from INFORMATION_SCHEMA.USER_STATISTICS
+where USER="root";
+show status like "Qcache_hits";
+drop procedure p1;
 drop table t1;
+set GLOBAL query_cache_size=1355776;
 SET GLOBAL userstat=default;
 
 --echo End of 5.5 tests

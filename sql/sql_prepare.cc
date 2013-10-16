@@ -3905,6 +3905,12 @@ bool Prepared_statement::execute(String *expanded_query, bool open_cursor)
       error= mysql_execute_command(thd);
       MYSQL_QUERY_EXEC_DONE(error);
     }
+    else
+    {
+      thd->lex->sql_command= SQLCOM_SELECT;
+      status_var_increment(thd->status_var.com_stat[SQLCOM_SELECT]);
+      thd->update_stats();
+    }
   }
 
   /*

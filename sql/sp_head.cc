@@ -3137,7 +3137,15 @@ sp_instr_stmt::execute(THD *thd, uint *nextp)
         log_slow_statement(thd);
     }
     else
+    {
+      /* change statistics */
+      enum_sql_command save_sql_command= thd->lex->sql_command;
+      thd->lex->sql_command= SQLCOM_SELECT;
+      status_var_increment(thd->status_var.com_stat[SQLCOM_SELECT]);
+      thd->update_stats();
+      thd->lex->sql_command= save_sql_command;
       *nextp= m_ip+1;
+    }
     thd->set_query(query_backup);
     thd->query_name_consts= 0;
 

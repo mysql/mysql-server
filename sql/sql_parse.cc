@@ -5791,7 +5791,7 @@ void mysql_parse(THD *thd, char *rawbuf, uint length,
   {
     /* Update statistics for getting the query from the cache */
     thd->lex->sql_command= SQLCOM_SELECT;
-    status_var_increment(thd->status_var.com_stat[thd->lex->sql_command]);
+    status_var_increment(thd->status_var.com_stat[SQLCOM_SELECT]);
     thd->update_stats();
   }
   DBUG_VOID_RETURN;
