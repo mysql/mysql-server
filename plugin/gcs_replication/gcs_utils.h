@@ -27,6 +27,11 @@
 #include <vector>
 #include <my_global.h>
 #include <my_sys.h>
+#include <mysql/plugin.h>
+#include <mysql/service_my_plugin_log.h>
+
+
+int log_message(enum plugin_log_level level, const char *format, ...);
 
 
 static void register_gcs_psi_keys(PSI_mutex_info gcs_mutexes[],

@@ -40,15 +40,16 @@ int Applier_sql_thread::initialize_sql_thread()
                                thread_mask);
     if (error)
     {
-      sql_print_error("Error on the SQL thread initialization");
+      log_message(MY_ERROR_LEVEL, "Error on the SQL thread initialization");
     }
 
     unlock_slave_threads(mi);
   }
   else
   {
-    sql_print_error("No information available when starting the SQL thread "
-                     "due to an error on the relay log initialization");
+    log_message(MY_ERROR_LEVEL,
+                "No information available when starting the SQL thread "
+                "due to an error on the relay log initialization");
   }
 
   DBUG_RETURN(error);
@@ -75,7 +76,7 @@ int Applier_sql_thread::terminate_sql_thread()
     lock_slave_threads(mi);
 
     if ((error= terminate_slave_threads(mi, thread_mask, false))){
-      sql_print_error("Error when stopping the applier SQL thread");
+      log_message(MY_ERROR_LEVEL, "Error when stopping the applier SQL thread");
     }
 
     //don't return the possible error and go to the relay log flushing.
@@ -91,7 +92,7 @@ int Applier_sql_thread::terminate_sql_thread()
     if (mi->rli->relay_log.is_open() &&
         mi->rli->relay_log.flush_and_sync(true))
     {
-      sql_print_error("Error when flushing the applier's relay log");
+      log_message(MY_ERROR_LEVEL, "Error when flushing the applier's relay log");
       error= 1;
     }
 
@@ -135,7 +136,7 @@ int Applier_sql_thread::initialize()
                                                     INFO_REPOSITORY_FILE,
                                                     &this->rli)))
   {
-    sql_print_error("Failed to setup the node metadata containers.");
+    log_message(MY_ERROR_LEVEL, "Failed to setup the node metadata containers.");
     DBUG_RETURN(1);
   }
 
@@ -144,7 +145,7 @@ int Applier_sql_thread::initialize()
 
   if ((error= mi->mi_init_info()))
   {
-    sql_print_error("Failed to setup the node (mi) metadata container.");
+    log_message(MY_ERROR_LEVEL, "Failed to setup the node (mi) metadata container.");
     DBUG_RETURN(1);
   }
 
@@ -156,7 +157,7 @@ int Applier_sql_thread::initialize()
 
   if ((error= rli->rli_init_info()))
   {
-    sql_print_error("Failed to setup the node (rli) metadata container.");
+    log_message(MY_ERROR_LEVEL, "Failed to setup the node (rli) metadata container.");
     DBUG_RETURN(1);
   }
 
@@ -185,7 +186,7 @@ int Applier_sql_thread::terminate()
   int error= 0;
   if ((error= terminate_sql_thread()))
   {
-    sql_print_error("Failed to stop the node SQL thread.");
+    log_message(MY_ERROR_LEVEL, "Failed to stop the node SQL thread.");
     DBUG_RETURN(error);
   }
 

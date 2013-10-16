@@ -47,7 +47,7 @@ int get_pipeline_configuration(Handler_pipeline_type pipeline_type,
       (*pipeline_conf)[2]= SQL_THREAD_APPLICATION_HANDLER;
       DBUG_RETURN(3);
     default:
-      sql_print_error("Unknown applier pipeline requested");
+      log_message(MY_ERROR_LEVEL, "Unknown applier pipeline requested");
   }
   DBUG_RETURN(0);
 }
@@ -78,15 +78,16 @@ int configure_pipeline(EventHandler** pipeline, Handler_id handler_list[],
         break;
       default:
         error= 1;
-        sql_print_error("Unknown requested handler");
+        log_message(MY_ERROR_LEVEL, "Unknown requested handler");
     }
 
     if (!handler)
     {
       if (!error) //not an unknown handler but a initialization error
       {
-        sql_print_error("One of the applier handlers is null due to"
-                        "an initialization error");
+        log_message(MY_ERROR_LEVEL,
+                    "One of the applier handlers is null due to an"
+                    " initialization error");
       }
       DBUG_RETURN(1);
     }
@@ -106,7 +107,8 @@ int configure_pipeline(EventHandler** pipeline, Handler_id handler_list[],
         //Check to see if the handler was already used in this pipeline
         if (handler_list[i] == handler_list[z])
         {
-          sql_print_error("An handler, marked as unique, is already in use.");
+          log_message(MY_ERROR_LEVEL,
+                      "An handler, marked as unique, is already in use.");
           DBUG_RETURN(1);
         }
 
@@ -116,8 +118,9 @@ int configure_pipeline(EventHandler** pipeline, Handler_id handler_list[],
                                           &handler_with_same_role);
         if (handler_with_same_role != NULL)
         {
-          sql_print_error("An handler role, that was marked as unique, \
-            is already in use.");
+          log_message(MY_ERROR_LEVEL,
+                      "An handler role, that was marked as unique, "
+                      "is already in use.");
           DBUG_RETURN(1);
         }
 
@@ -126,7 +129,7 @@ int configure_pipeline(EventHandler** pipeline, Handler_id handler_list[],
 
     if ((error= handler->initialize()))
     {
-      sql_print_error("Error on handler initialization");
+      log_message(MY_ERROR_LEVEL, "Error on handler initialization");
       DBUG_RETURN(error);
     }
 

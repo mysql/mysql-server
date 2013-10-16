@@ -138,7 +138,7 @@ Applier_module::applier_thread_handle()
 
     if ((error= this->incoming->pop(&packet))) // blocking
     {
-      sql_print_error("Error when reading from applier's queue");
+      log_message(MY_ERROR_LEVEL, "Error when reading from applier's queue");
       break;
     }
 
@@ -149,7 +149,7 @@ Applier_module::applier_thread_handle()
         break;
       else //something bad happened
       {
-        sql_print_error("Error: Null packet on applier's queue");
+        log_message(MY_ERROR_LEVEL, "Error: Null packet on applier's queue");
         error= 1;
         break;
       }
@@ -173,14 +173,14 @@ Applier_module::applier_thread_handle()
       pipeline->handle(pevent, cont);
 
       if ((error= cont->wait()))
-        sql_print_error("Error at event handling! Got error: %d \n", error);
+        log_message(MY_ERROR_LEVEL, "Error at event handling! Got error: %d \n", error);
 
       delete pevent;
     }
     delete packet;
   }
 
-  sql_print_information("The applier thread was killed");
+  log_message(MY_INFORMATION_LEVEL, "The applier thread was killed");
 
   DBUG_EXECUTE_IF("applier_thd_timeout",
                   {
@@ -239,8 +239,9 @@ Applier_module::terminate_applier_pipeline()
   {
     if ((error= pipeline->terminate_pipeline()))
     {
-      sql_print_warning("The pipeline was not properly disposed. "
-                        "Check the error log for further info.");
+      log_message(MY_WARNING_LEVEL,
+                  "The pipeline was not properly disposed. "
+                  "Check the error log for further info.");
     }
     //delete anyway, as we can't do much on error cases
     delete pipeline;

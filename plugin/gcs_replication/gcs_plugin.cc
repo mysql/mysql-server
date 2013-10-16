@@ -17,11 +17,11 @@
 #include "observer_server_state.h"
 #include "observer_trans.h"
 #include <sql_class.h>                          // THD
-#include <log.h>
 #include <gcs_replication.h>
 #include <gcs_protocol.h>
 #include <gcs_protocol_factory.h>
 #include <pthread.h>
+
 
 using std::string;
 
@@ -107,6 +107,16 @@ bool is_gcs_rpl_running()
   return gcs_running;
 }
 
+int log_message(enum plugin_log_level level, const char *format, ...)
+{
+  va_list args;
+  char buff[1024];
+
+  va_start(args, format);
+  my_vsnprintf(buff, sizeof(buff), format, args);
+  va_end(args);
+  return my_plugin_log_message(&plugin_info_ptr, level, buff);
+}
 
 /*
   Plugin interface.
@@ -196,20 +206,22 @@ int gcs_replication_init(MYSQL_PLUGIN plugin_info)
 
   if (register_server_state_observer(&server_state_observer, (void *)plugin_info_ptr))
   {
-    sql_print_error("Failure in GCS cluster during registering the server state observers");
+    log_message(MY_ERROR_LEVEL,
+                "Failure in GCS cluster during registering the server state observers");
     return 1;
   }
 
   if (register_trans_observer(&trans_observer, (void *)plugin_info_ptr))
   {
-    sql_print_error("Failure in GCS cluster during registering the transactions state observers");
+    log_message(MY_ERROR_LEVEL,
+                "Failure in GCS cluster during registering the transactions state observers");
     return 1;
   }
 
   if (!(gcs_instance= GCS::Protocol_factory::create_protocol((GCS::Protocol_type)
                                                              gcs_protocol_opt, NULL)))
   {
-    sql_print_error("Failure in GCS protocol initialization");
+    log_message(MY_ERROR_LEVEL, "Failure in GCS protocol initialization");
     return 1;
   };
 
@@ -227,17 +239,20 @@ int gcs_replication_deinit(void *p)
 
   if (unregister_server_state_observer(&server_state_observer, p))
   {
-    sql_print_error("Failure in GCS cluster during unregistering the server state observers");
+    log_message(MY_ERROR_LEVEL,
+                "Failure in GCS cluster during unregistering the server state observers");
     return 1;
   }
 
   if (unregister_trans_observer(&trans_observer, p))
   {
-    sql_print_error("Failure in GCS cluster during unregistering the transactions state observers");
+    log_message(MY_ERROR_LEVEL,
+                "Failure in GCS cluster during unregistering the transactions state observers");
     return 1;
   }
 
-  sql_print_information("The observers in GCS cluster have been successfully unregistered");
+  log_message(MY_INFORMATION_LEVEL,
+              "The observers in GCS cluster have been successfully unregistered");
   return 0;
 }
 
@@ -277,8 +292,9 @@ int configure_and_start_applier()
   {
     if ((error= applier->is_running())) //it is still running?
     {
-      sql_print_error("The applier module shutdown is still running: "
-                      "The thread will stop once its task is complete.");
+      log_message(MY_ERROR_LEVEL,
+                  "The applier module shutdown is still running: "
+                  "The thread will stop once its task is complete.");
       DBUG_RETURN(error);
     }
     else
@@ -301,14 +317,15 @@ int configure_and_start_applier()
 
   if ((error= applier->initialize_applier_thread()))
   {
-    sql_print_error("Unable to initialize the plugin applier module !");
+    log_message(MY_ERROR_LEVEL, "Unable to initialize the plugin applier module!");
     //clean a possible existent pipeline
     applier->terminate_applier_pipeline();
     delete applier;
     applier= NULL;
   }
   else
-    sql_print_information("Event applier module successfully initialized!");
+    log_message(MY_INFORMATION_LEVEL,
+                "Event applier module successfully initialized!");
 
   DBUG_RETURN(error);
 }
@@ -323,12 +340,12 @@ static int check_group_name_string(const char *str)
 
   if (!str)
   {
-    sql_print_error("The group name option is mandatory");
+    log_message(MY_ERROR_LEVEL, "The group name option is mandatory");
     DBUG_RETURN(1);
   }
   if (!Uuid::is_valid(str))
   {
-    sql_print_error("The group name '%s' is not a valid UUID", str);
+    log_message(MY_ERROR_LEVEL, "The group name '%s' is not a valid UUID", str);
     DBUG_RETURN(1);
   }
 
@@ -346,7 +363,8 @@ static int check_group_name(MYSQL_THD thd, SYS_VAR *var, void* prt,
   //safe_mutex_assert_owner(&gcs_running_mutex);
   if (is_gcs_rpl_running())
   {
-    sql_print_error("The group name cannot be changed when cluster is running");
+    log_message(MY_ERROR_LEVEL,
+                "The group name cannot be changed when cluster is running");
     DBUG_RETURN(1);
   }
 
@@ -497,9 +515,10 @@ void handle_view_change(View& view, Member_set& totl,
                         Member_set& left, Member_set& joined, bool quorate)
 {
   if (!strcmp(gcs_group_pointer, "00000000-0000-0000-0000-000000000000"))
-    sql_print_warning("GCS dummy_test_cluster: received View change. "
-                    "Current # of members %d, Left %d, Joined %d",
-                      (int) totl.size(), (int) left.size(), (int) joined.size());
+    log_message(MY_WARNING_LEVEL,
+                "GCS dummy_test_cluster: received View change. "
+                "Current # of members %d, Left %d, Joined %d",
+                (int) totl.size(), (int) left.size(), (int) joined.size());
   if (!quorate)
     gcs_rpl_stop();
 }
@@ -516,8 +535,9 @@ void handle_message_delivery(Message *msg, const View& view)
   {
     // report each 100th message
     if (++received_messages % 100 == 0)
-      sql_print_warning("GCS dummy_test_cluster: received %lu:th message",
-                        received_messages);
+      log_message(MY_WARNING_LEVEL,
+                  "GCS dummy_test_cluster: received %lu:th message",
+                  received_messages);
   }
 };
 

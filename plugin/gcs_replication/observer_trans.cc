@@ -19,7 +19,6 @@
 #include <gcs_protocol.h>
 #include <gcs_protocol_factory.h>
 #include <log_event.h>
-#include <log.h>
 
 
 /*
@@ -77,7 +76,7 @@ int gcs_trans_before_commit(Trans_param *param)
   }
   else
   {
-    sql_print_error("We can only use one cache type at a time");
+    log_message(MY_ERROR_LEVEL, "We can only use one cache type at a time");
     error= 1;
     goto err;
   }
@@ -97,7 +96,7 @@ int gcs_trans_before_commit(Trans_param *param)
   if (open_cached_file(&cache, mysql_tmpdir, "gcs_trans_before_commit_cache",
                        param->cache_log_max_size, MYF(MY_WME)))
   {
-    sql_print_error("Failed to create gcs commit cache");
+    log_message(MY_ERROR_LEVEL, "Failed to create gcs commit cache");
     error= 1;
     goto err;
   }
@@ -105,7 +104,7 @@ int gcs_trans_before_commit(Trans_param *param)
   // Reinit binlog cache to read.
   if (reinit_cache(cache_log, READ_CACHE, 0))
   {
-    sql_print_error("Failed to reinit binlog cache log for read");
+    log_message(MY_ERROR_LEVEL, "Failed to reinit binlog cache log for read");
     error= 1;
     goto err;
   }
@@ -128,7 +127,7 @@ int gcs_trans_before_commit(Trans_param *param)
   // Reinit GCS cache to read.
   if (reinit_cache(&cache, READ_CACHE, 0))
   {
-    sql_print_error("Failed to reinit GCS cache log for read");
+    log_message(MY_ERROR_LEVEL, "Failed to reinit GCS cache log for read");
     error= 1;
     goto err;
   }
@@ -136,7 +135,7 @@ int gcs_trans_before_commit(Trans_param *param)
   // Copy GCS cache to buffer.
   if (copy_cache(buffer, &cache))
   {
-    sql_print_error("Failed while writing GCS cache to buffer");
+    log_message(MY_ERROR_LEVEL, "Failed while writing GCS cache to buffer");
     error= 1;
     goto err;
   }
@@ -144,7 +143,7 @@ int gcs_trans_before_commit(Trans_param *param)
   // Copy binlog cache content to buffer.
   if (copy_cache(buffer, cache_log))
   {
-    sql_print_error("Failed while writing binlog cache to buffer");
+    log_message(MY_ERROR_LEVEL, "Failed while writing binlog cache to buffer");
     error= 1;
     goto err;
   }
@@ -152,7 +151,7 @@ int gcs_trans_before_commit(Trans_param *param)
   // Reinit binlog cache to write (revert what we did).
   if (reinit_cache(cache_log, WRITE_CACHE, cache_log_position))
   {
-    sql_print_error("Failed to reinit binlog cache log for write");
+    log_message(MY_ERROR_LEVEL, "Failed to reinit binlog cache log for write");
     error= 1;
     goto err;
   }
@@ -163,7 +162,7 @@ int gcs_trans_before_commit(Trans_param *param)
                                 buffer->data(), buffer->length());
   if (protocol->broadcast(*message))
   {
-    sql_print_error("Failed to broadcast GCS message");
+    log_message(MY_ERROR_LEVEL, "Failed to broadcast GCS message");
     error= 1;
     goto err;
   }
