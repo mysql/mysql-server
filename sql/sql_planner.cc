@@ -534,7 +534,8 @@ Key_use* Optimize_table_order::find_best_ref(const JOIN_TAB *tab,
     start_key->fanout= cur_fanout;
     start_key->read_cost= cur_read_cost;
 
-    const double cur_ref_cost= cur_read_cost + cur_fanout * ROW_EVALUATE_COST;
+    const double cur_ref_cost=
+      cur_read_cost + prefix_rowcount * cur_fanout * ROW_EVALUATE_COST;
     trace_access_idx.add("rows", cur_fanout).add("cost", cur_ref_cost);
     if (cur_ref_cost < best_ref_cost)
     {
