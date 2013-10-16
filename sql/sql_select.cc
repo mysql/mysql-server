@@ -16631,7 +16631,15 @@ sub_select(JOIN *join,JOIN_TAB *join_tab,bool end_of_records)
 {
   DBUG_ENTER("sub_select");
 
-  join_tab->table->null_row=0;
+  if (join_tab->last_inner)
+  {
+    JOIN_TAB *last_inner_tab= join_tab->last_inner;
+    for (JOIN_TAB  *jt= join_tab; jt <= last_inner_tab; jt++)
+      jt->table->null_row= 0;
+  }
+  else
+    join_tab->table->null_row=0;
+
   if (end_of_records)
   {
     enum_nested_loop_state nls=
