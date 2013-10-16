@@ -134,7 +134,7 @@ UPDATE t1 SET c3=@b1 where c1 = 2;
 SHOW CREATE TABLE t1;
 Table	Create Table
 t1	CREATE TABLE `t1` (
-  `c1` double NOT NULL DEFAULT '0',
+  `c1` double NOT NULL,
   `c2` decimal(10,2) DEFAULT NULL,
   `c3` blob,
   `c5` double DEFAULT NULL,
@@ -153,7 +153,7 @@ c1	c2	c3	c5
 SHOW CREATE TABLE t1;
 Table	Create Table
 t1	CREATE TABLE `t1` (
-  `c1` double NOT NULL DEFAULT '0',
+  `c1` double NOT NULL,
   `c2` decimal(10,2) DEFAULT NULL,
   `c3` blob,
   `c5` double DEFAULT NULL,
