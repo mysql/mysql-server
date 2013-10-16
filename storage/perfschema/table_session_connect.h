@@ -1,4 +1,4 @@
-/* Copyright (c) 2012, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2012, 2013, Oracle and/or its affiliates. All rights reserved.
 
   This program is free software; you can redistribute it and/or modify
   it under the terms of the GNU General Public License as published by
@@ -58,8 +58,7 @@ protected:
   table_session_connect(const PFS_engine_table_share *share);
 
 public:
-  ~table_session_connect()
-  {}
+  ~table_session_connect();
 
 protected:
   virtual void make_row(PFS_thread *pfs, uint ordinal);
@@ -71,6 +70,10 @@ protected:
   static TABLE_FIELD_DEF m_field_def;
   /** Current row. */
   row_session_connect_attrs m_row;
+  /** Safe copy of @c PFS_thread::m_session_connect_attrs. */
+  char *m_copy_session_connect_attrs;
+  /** Safe copy of @c PFS_thread::m_session_connect_attrs_length. */
+  uint m_copy_session_connect_attrs_length;
 };
 
 /** @} */
