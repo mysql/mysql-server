@@ -4349,7 +4349,7 @@ drop table t1;
 
 connection ddl;
 CREATE TABLE table1 (
-  col_int_unique int(11) DEFAULT NULL,
+  col_int_unique int(11), 
   PRIMARY KEY (col_int_unique)
 ) ENGINE=ndbcluster;
 
