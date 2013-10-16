@@ -1636,7 +1636,7 @@ static Sys_var_ulong Sys_log_throttle_queries_not_using_indexes(
        "summary line. A value of 0 disables throttling. "
        "Option has no effect unless --log_queries_not_using_indexes is set.",
        GLOBAL_VAR(opt_log_throttle_queries_not_using_indexes),
-       CMD_LINE(OPT_ARG),
+       CMD_LINE(REQUIRED_ARG),
        VALID_RANGE(0, ULONG_MAX), DEFAULT(0), BLOCK_SIZE(1),
        NO_MUTEX_GUARD, NOT_IN_BINLOG,
        ON_CHECK(0),
