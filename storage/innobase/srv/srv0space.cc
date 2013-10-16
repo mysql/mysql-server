@@ -900,9 +900,10 @@ Tablespace::check_file_spec(
 	/* If there is more than one data file and the last data file
 	doesn't exist, that is OK. We allow adding of new data files. */
 
+	files_t::iterator	begin = m_files.begin();
 	files_t::iterator	end = m_files.end();
 
-	for (files_t::iterator it = m_files.begin(); it != end; ++it) {
+	for (files_t::iterator it = begin; it != end; ++it) {
 
 		make_name(*it, m_tablespace_path);
 
@@ -936,7 +937,7 @@ Tablespace::check_file_spec(
 				"found but one of the other data files \"%s\" "
 				"exists.",
 				((m_space_id == TRX_SYS_SPACE) ? "" : "temp-"),
-				it->m_name, it->m_name);
+				begin->m_name, it->m_name);
 
 			err = DB_ERROR;
 			break;
