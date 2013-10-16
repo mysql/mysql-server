@@ -2094,6 +2094,9 @@ bool one_thread_per_connection_end(THD *thd, bool put_in_cache)
   /* It's safe to broadcast outside a lock (COND... is not deleted here) */
   DBUG_PRINT("signal", ("Broadcasting COND_thread_count"));
   DBUG_LEAVE;                                   // Must match DBUG_ENTER()
+#ifndef EMBEDDED_LIBRARY
+  ERR_remove_state(0);
+#endif
   my_thread_end();
   (void) pthread_cond_broadcast(&COND_thread_count);
 
@@ -3750,6 +3753,7 @@ static void init_ssl()
 					  opt_ssl_ca, opt_ssl_capath,
 					  opt_ssl_cipher, &error);
     DBUG_PRINT("info",("ssl_acceptor_fd: 0x%lx", (long) ssl_acceptor_fd));
+    ERR_remove_state(0);
     if (!ssl_acceptor_fd)
     {
       sql_print_warning("Failed to setup SSL");
