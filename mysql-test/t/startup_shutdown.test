@@ -2,7 +2,7 @@
 # of the mysql server
 # Skip test in embedded mode
 --source include/not_embedded.inc
-
+--source include/not_valgrind.inc
 # stop server 
 --exec echo "wait" > $MYSQLTEST_VARDIR/tmp/mysqld.1.expect
 --shutdown_server 10
@@ -10,7 +10,7 @@
 
 # Use new error log file so as to read only test log and not old log of suite
 
-#restart server
+# restart server
 --exec echo "restart:" > $MYSQLTEST_VARDIR/tmp/mysqld.1.expect
 --enable_reconnect
 --source include/wait_until_connected_again.inc
@@ -18,7 +18,7 @@
 --exec echo "wait" > $MYSQLTEST_VARDIR/tmp/mysqld.1.expect
 --shutdown_server 10
 --source include/wait_until_disconnected.inc
-#restart server
+# restart server
 --exec echo "restart:" > $MYSQLTEST_VARDIR/tmp/mysqld.1.expect
 --enable_reconnect
 --source include/wait_until_connected_again.inc
@@ -79,13 +79,6 @@ perl;
       if ($current_line =~ m{$shutdown_complete_pattern}) {
          $server_down_line = $current_line if (!defined($server_down_line));
       }
-  # }
-
-   # Find "ready for connection" last occurance , hence reversing file
-  # open IN_FILE,"<", "$dir/log/$file" or die $! ;
-  # my @lines = reverse <IN_FILE>; 
-   #close(IN_FILE);
-   #foreach my $current_line (@lines) {
       if ($current_line =~ m{$ready_for_connection_pattern}) {
          $ready_for_connection_line = $current_line if (!defined($ready_for_connection_line));
       }
