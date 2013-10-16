@@ -738,8 +738,16 @@ static bool write_execute_load_query_log_event(THD *thd, sql_exchange* ex,
       if (n++)
         pfields.append(", ");
       append_identifier(thd, &pfields, item->name, strlen(item->name));
+      // Extract exact Item value
+      str->copy();
       pfields.append((char *)str->ptr());
+      str->free();
     }
+    /*
+      Clear the SET string list once the SET command is reconstructed
+      as we donot require the list anymore.
+    */
+    thd->lex->load_set_str_list.empty();
   }
 
   p= pfields.c_ptr_safe();
