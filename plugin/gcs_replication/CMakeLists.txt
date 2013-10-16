@@ -29,6 +29,7 @@ IF(CMAKE_SYSTEM_NAME MATCHES "Linux")
     gcs_plugin.cc gcs_plugin.h
     observer_server_state.cc observer_server_state.h
     observer_trans.cc observer_trans.h
+    gcs_certifier.cc gcs_certifier.h
     gcs_event_handlers.cc gcs_event_handlers.h
     gcs_protocol_factory.cc gcs_corosync.cc
     pipeline_factory.h pipeline_factory.cc

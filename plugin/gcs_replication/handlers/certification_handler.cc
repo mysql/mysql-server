@@ -14,6 +14,8 @@
    51 Franklin Street, Suite 500, Boston, MA 02110-1335 USA */
 
 #include "certification_handler.h"
+#include "../gcs_certifier.h"
+Certifier* cert_map;
 
 Certification_handler::Certification_handler()
 {}
@@ -21,7 +23,10 @@ Certification_handler::Certification_handler()
 int
 Certification_handler::initialize()
 {
-  return 0;
+  cert_map= new Certifier();
+  if(cert_map)
+    return 0;
+  return 1;
 }
 
 int
@@ -45,7 +50,12 @@ Certification_handler::handle(PipelineEvent *pevent,Continuation* cont)
   pevent->get_LogEvent(&event);
 
   //certification logic
-  ulong seq_number= 1;
+  Log_event_type ev_type= event->get_type_code();
+  rpl_gno seq_number= 0;
+  if(ev_type == TRANSACTION_CONTEXT_EVENT)
+    seq_number= cert_map->certify((Transaction_context_log_event*)event);
+  else
+    DBUG_RETURN(1);
 
   //this method should be based on the log event
   if (is_local())
