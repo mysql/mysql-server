@@ -99,9 +99,9 @@ performance_schema	rwlock_instances.memory	1747584
 performance_schema	cond_instances.row_size	128
 performance_schema	cond_instances.row_count	3504
 performance_schema	cond_instances.memory	448512
-performance_schema	threads.row_size	2880
+performance_schema	threads.row_size	2816
 performance_schema	threads.row_count	402
-performance_schema	threads.memory	1157760
+performance_schema	threads.memory	1132032
 performance_schema	file_instances.row_size	704
 performance_schema	file_instances.row_count	7693
 performance_schema	file_instances.memory	5415872
@@ -221,4 +221,4 @@ performance_schema	(table_share_hash).size	12500
 performance_schema	(user_hash).count	2
 performance_schema	(user_hash).size	100
 performance_schema	host_cache.size	336
-performance_schema	performance_schema.memory	422257056
+performance_schema	performance_schema.memory	422231328

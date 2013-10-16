@@ -552,7 +552,7 @@ struct PFS_ALIGNED PFS_thread : PFS_connection_slice
     Character set in which @c m_connect_attrs are encoded.
     Protected by @c m_session_lock.
   */
-  const CHARSET_INFO *m_session_connect_attrs_cs;
+  uint m_session_connect_attrs_cs_number;
 };
 
 extern PFS_stage_stat *global_instr_class_stages_array;
