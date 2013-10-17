@@ -101,5 +101,4 @@ private:
 
 };
 
-extern Certifier* cert_map;
 #endif /* GCS_CERTIFIER */
