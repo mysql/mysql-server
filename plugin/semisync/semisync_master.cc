@@ -482,13 +482,17 @@ void ReplSemiSyncMaster::remove_slave()
   lock();
   rpl_semi_sync_master_clients--;
 
-  /* If user has chosen not to wait if no semi-sync slave available
-     and the last semi-sync slave exits, turn off semi-sync on master
-     immediately.
-   */
-  if (!rpl_semi_sync_master_wait_no_slave &&
-      rpl_semi_sync_master_clients == 0)
-    switch_off();
+  /* Only switch off if semi-sync is enabled and is on */
+  if (getMasterEnabled() && is_on())
+  {
+    /* If user has chosen not to wait if no semi-sync slave available
+       and the last semi-sync slave exits, turn off semi-sync on master
+       immediately.
+     */
+    if (!rpl_semi_sync_master_wait_no_slave &&
+        rpl_semi_sync_master_clients == 0)
+      switch_off();
+  }
   unlock();
 }
 
