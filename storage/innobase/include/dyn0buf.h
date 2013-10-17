@@ -127,12 +127,13 @@ public:
 		void close(const byte* ptr)
 		{
 			/* Check that it is within bounds */
-			ut_ad(begin() + m_buf_end >= ptr);
+			ut_ad(ptr >= begin());
+			ut_ad(ptr < begin() + m_buf_end);
 
-			m_used = ptrdiff_t(ptr - begin());
+			/* We have done the boundary check above */
+			m_used = ib_uint32_t(ptr - begin());
 
 			ut_ad(m_used <= MAX_DATA_SIZE);
-
 			ut_d(m_buf_end = 0);
 		}
 
@@ -271,7 +272,7 @@ public:
 	Pushes n bytes.
 	@param str	string to write
 	@param len	string length */
-	void push(const byte* ptr, ulint len)
+	void push(const byte* ptr, ib_uint32_t len)
 	{
 		while (len > 0) {
 			ib_uint32_t	n_copied;
