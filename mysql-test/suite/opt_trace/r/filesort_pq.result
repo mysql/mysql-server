@@ -5830,14 +5830,14 @@ LIMIT 30	{
                           "access_type": "ref",
                           "index": "<auto_key0>",
                           "rows": 10,
-                          "cost": 1002,
+                          "cost": 1200,
                           "chosen": true
                         },
                         {
                           "access_type": "ref",
                           "index": "<auto_key1>",
                           "rows": 10,
-                          "cost": 1002,
+                          "cost": 1200,
                           "chosen": false
                         },
                         {
@@ -5896,14 +5896,14 @@ LIMIT 30	{
                           "access_type": "ref",
                           "index": "<auto_key0>",
                           "rows": 10,
-                          "cost": 1002,
+                          "cost": 1200,
                           "chosen": true
                         },
                         {
                           "access_type": "ref",
                           "index": "<auto_key1>",
                           "rows": 10,
-                          "cost": 1002,
+                          "cost": 1200,
                           "chosen": false
                         },
                         {
@@ -6146,7 +6146,7 @@ GROUP BY 1 ORDER BY 2,1 LIMIT 5	{
         "select#": 1,
         "steps": [
           {
-            "expanded_query": "/* select#1 */ select floor((`t1`.`f1` / 10)) AS `f3`,count(`t1`.`f2`) AS `count(f2)` from `t1` group by 1 order by 2,1 limit 5"
+            "expanded_query": "/* select#1 */ select floor((`t1`.`f1` / 10)) AS `f3`,count(`t1`.`f2`) AS `count(f2)` from `t1` group by floor((`t1`.`f1` / 10)) order by count(`t1`.`f2`),floor((`t1`.`f1` / 10)) limit 5"
           }
         ]
       }
@@ -6215,7 +6215,7 @@ GROUP BY 1 ORDER BY 2,1 LIMIT 5	{
           {
             "clause_processing": {
               "clause": "ORDER BY",
-              "original_clause": "2,1",
+              "original_clause": "count(`t1`.`f2`),floor((`t1`.`f1` / 10))",
               "items": [
                 {
                   "item": "count(`t1`.`f2`)"
@@ -6225,20 +6225,20 @@ GROUP BY 1 ORDER BY 2,1 LIMIT 5	{
                 }
               ],
               "resulting_clause_is_simple": false,
-              "resulting_clause": "2,1"
+              "resulting_clause": "count(`t1`.`f2`),floor((`t1`.`f1` / 10))"
             }
           },
           {
             "clause_processing": {
               "clause": "GROUP BY",
-              "original_clause": "1",
+              "original_clause": "floor((`t1`.`f1` / 10))",
               "items": [
                 {
                   "item": "floor((`t1`.`f1` / 10))"
                 }
               ],
               "resulting_clause_is_simple": true,
-              "resulting_clause": "1"
+              "resulting_clause": "floor((`t1`.`f1` / 10))"
             }
           },
           {
@@ -6316,7 +6316,7 @@ GROUP BY 1 ORDER BY 2,1 LIMIT 0	{
         "select#": 1,
         "steps": [
           {
-            "expanded_query": "/* select#1 */ select floor((`t1`.`f1` / 10)) AS `f3`,count(`t1`.`f2`) AS `count(f2)` from `t1` group by 1 order by 2,1 limit 0"
+            "expanded_query": "/* select#1 */ select floor((`t1`.`f1` / 10)) AS `f3`,count(`t1`.`f2`) AS `count(f2)` from `t1` group by floor((`t1`.`f1` / 10)) order by count(`t1`.`f2`),floor((`t1`.`f1` / 10)) limit 0"
           }
         ]
       }
@@ -7480,14 +7480,14 @@ ORDER BY d1.f2 DESC LIMIT 30	{
                           "access_type": "ref",
                           "index": "<auto_key0>",
                           "rows": 3,
-                          "cost": 1500.6,
+                          "cost": 1800,
                           "chosen": true
                         },
                         {
                           "access_type": "ref",
                           "index": "<auto_key1>",
                           "rows": 3,
-                          "cost": 1500.6,
+                          "cost": 1800,
                           "chosen": false
                         },
                         {
@@ -7668,13 +7668,13 @@ SELECT * FROM t1 WHERE f1 = (SELECT f1 FROM t1 ORDER BY 1 LIMIT 1)	{
               "select#": 2,
               "steps": [
                 {
-                  "expanded_query": "/* select#2 */ select `t1`.`f1` from `t1` order by 1 limit 1"
+                  "expanded_query": "/* select#2 */ select `t1`.`f1` from `t1` order by `t1`.`f1` limit 1"
                 }
               ]
             }
           },
           {
-            "expanded_query": "/* select#1 */ select `t1`.`f0` AS `f0`,`t1`.`f1` AS `f1`,`t1`.`f2` AS `f2` from `t1` where (`t1`.`f1` = (/* select#2 */ select `t1`.`f1` from `t1` order by 1 limit 1))"
+            "expanded_query": "/* select#1 */ select `t1`.`f0` AS `f0`,`t1`.`f1` AS `f1`,`t1`.`f2` AS `f2` from `t1` where (`t1`.`f1` = (/* select#2 */ select `t1`.`f1` from `t1` order by `t1`.`f1` limit 1))"
           }
         ]
       }
@@ -7686,21 +7686,21 @@ SELECT * FROM t1 WHERE f1 = (SELECT f1 FROM t1 ORDER BY 1 LIMIT 1)	{
           {
             "condition_processing": {
               "condition": "WHERE",
-              "original_condition": "(`t1`.`f1` = (/* select#2 */ select `t1`.`f1` from `t1` order by 1 limit 1))",
+              "original_condition": "(`t1`.`f1` = (/* select#2 */ select `t1`.`f1` from `t1` order by `t1`.`f1` limit 1))",
               "steps": [
                 {
                   "transformation": "equality_propagation",
                   "subselect_evaluation": [
                   ],
-                  "resulting_condition": "multiple equal((/* select#2 */ select `t1`.`f1` from `t1` order by 1 limit 1), `t1`.`f1`)"
+                  "resulting_condition": "multiple equal((/* select#2 */ select `t1`.`f1` from `t1` order by `t1`.`f1` limit 1), `t1`.`f1`)"
                 },
                 {
                   "transformation": "constant_propagation",
-                  "resulting_condition": "multiple equal((/* select#2 */ select `t1`.`f1` from `t1` order by 1 limit 1), `t1`.`f1`)"
+                  "resulting_condition": "multiple equal((/* select#2 */ select `t1`.`f1` from `t1` order by `t1`.`f1` limit 1), `t1`.`f1`)"
                 },
                 {
                   "transformation": "trivial_condition_removal",
-                  "resulting_condition": "multiple equal((/* select#2 */ select `t1`.`f1` from `t1` order by 1 limit 1), `t1`.`f1`)"
+                  "resulting_condition": "multiple equal((/* select#2 */ select `t1`.`f1` from `t1` order by `t1`.`f1` limit 1), `t1`.`f1`)"
                 }
               ]
             }
@@ -7755,13 +7755,13 @@ SELECT * FROM t1 WHERE f1 = (SELECT f1 FROM t1 ORDER BY 1 LIMIT 1)	{
           },
           {
             "attaching_conditions_to_tables": {
-              "original_condition": "(`t1`.`f1` = (/* select#2 */ select `t1`.`f1` from `t1` order by 1 limit 1))",
+              "original_condition": "(`t1`.`f1` = (/* select#2 */ select `t1`.`f1` from `t1` order by `t1`.`f1` limit 1))",
               "attached_conditions_computation": [
               ],
               "attached_conditions_summary": [
                 {
                   "table": "`t1`",
-                  "attached": "(`t1`.`f1` = (/* select#2 */ select `t1`.`f1` from `t1` order by 1 limit 1))"
+                  "attached": "(`t1`.`f1` = (/* select#2 */ select `t1`.`f1` from `t1` order by `t1`.`f1` limit 1))"
                 }
               ]
             }
@@ -7841,14 +7841,14 @@ SELECT * FROM t1 WHERE f1 = (SELECT f1 FROM t1 ORDER BY 1 LIMIT 1)	{
           {
             "clause_processing": {
               "clause": "ORDER BY",
-              "original_clause": "1",
+              "original_clause": "`t1`.`f1`",
               "items": [
                 {
                   "item": "`t1`.`f1`"
                 }
               ],
               "resulting_clause_is_simple": true,
-              "resulting_clause": "1"
+              "resulting_clause": "`t1`.`f1`"
             }
           },
           {
@@ -11418,13 +11418,13 @@ SELECT * FROM t1 WHERE f1 = (SELECT f1 FROM t1 ORDER BY 1 LIMIT 2)	{
               "select#": 2,
               "steps": [
                 {
-                  "expanded_query": "/* select#2 */ select `t1`.`f1` from `t1` order by 1 limit 2"
+                  "expanded_query": "/* select#2 */ select `t1`.`f1` from `t1` order by `t1`.`f1` limit 2"
                 }
               ]
             }
           },
           {
-            "expanded_query": "/* select#1 */ select `t1`.`f0` AS `f0`,`t1`.`f1` AS `f1`,`t1`.`f2` AS `f2` from `t1` where (`t1`.`f1` = (/* select#2 */ select `t1`.`f1` from `t1` order by 1 limit 2))"
+            "expanded_query": "/* select#1 */ select `t1`.`f0` AS `f0`,`t1`.`f1` AS `f1`,`t1`.`f2` AS `f2` from `t1` where (`t1`.`f1` = (/* select#2 */ select `t1`.`f1` from `t1` order by `t1`.`f1` limit 2))"
           }
         ]
       }
@@ -11436,21 +11436,21 @@ SELECT * FROM t1 WHERE f1 = (SELECT f1 FROM t1 ORDER BY 1 LIMIT 2)	{
           {
             "condition_processing": {
               "condition": "WHERE",
-              "original_condition": "(`t1`.`f1` = (/* select#2 */ select `t1`.`f1` from `t1` order by 1 limit 2))",
+              "original_condition": "(`t1`.`f1` = (/* select#2 */ select `t1`.`f1` from `t1` order by `t1`.`f1` limit 2))",
               "steps": [
                 {
                   "transformation": "equality_propagation",
                   "subselect_evaluation": [
                   ],
-                  "resulting_condition": "multiple equal((/* select#2 */ select `t1`.`f1` from `t1` order by 1 limit 2), `t1`.`f1`)"
+                  "resulting_condition": "multiple equal((/* select#2 */ select `t1`.`f1` from `t1` order by `t1`.`f1` limit 2), `t1`.`f1`)"
                 },
                 {
                   "transformation": "constant_propagation",
-                  "resulting_condition": "multiple equal((/* select#2 */ select `t1`.`f1` from `t1` order by 1 limit 2), `t1`.`f1`)"
+                  "resulting_condition": "multiple equal((/* select#2 */ select `t1`.`f1` from `t1` order by `t1`.`f1` limit 2), `t1`.`f1`)"
                 },
                 {
                   "transformation": "trivial_condition_removal",
-                  "resulting_condition": "multiple equal((/* select#2 */ select `t1`.`f1` from `t1` order by 1 limit 2), `t1`.`f1`)"
+                  "resulting_condition": "multiple equal((/* select#2 */ select `t1`.`f1` from `t1` order by `t1`.`f1` limit 2), `t1`.`f1`)"
                 }
               ]
             }
@@ -11505,13 +11505,13 @@ SELECT * FROM t1 WHERE f1 = (SELECT f1 FROM t1 ORDER BY 1 LIMIT 2)	{
           },
           {
             "attaching_conditions_to_tables": {
-              "original_condition": "(`t1`.`f1` = (/* select#2 */ select `t1`.`f1` from `t1` order by 1 limit 2))",
+              "original_condition": "(`t1`.`f1` = (/* select#2 */ select `t1`.`f1` from `t1` order by `t1`.`f1` limit 2))",
               "attached_conditions_computation": [
               ],
               "attached_conditions_summary": [
                 {
                   "table": "`t1`",
-                  "attached": "(`t1`.`f1` = (/* select#2 */ select `t1`.`f1` from `t1` order by 1 limit 2))"
+                  "attached": "(`t1`.`f1` = (/* select#2 */ select `t1`.`f1` from `t1` order by `t1`.`f1` limit 2))"
                 }
               ]
             }
@@ -11591,14 +11591,14 @@ SELECT * FROM t1 WHERE f1 = (SELECT f1 FROM t1 ORDER BY 1 LIMIT 2)	{
           {
             "clause_processing": {
               "clause": "ORDER BY",
-              "original_clause": "1",
+              "original_clause": "`t1`.`f1`",
               "items": [
                 {
                   "item": "`t1`.`f1`"
                 }
               ],
               "resulting_clause_is_simple": true,
-              "resulting_clause": "1"
+              "resulting_clause": "`t1`.`f1`"
             }
           },
           {

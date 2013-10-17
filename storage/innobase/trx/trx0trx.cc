@@ -1609,12 +1609,11 @@ trx_flush_log_if_needed_low(
 	case 1:
 		/* Write the log and optionally flush it to disk */
 		log_write_up_to(
-			lsn, LOG_WAIT_ONE_GROUP,
-			srv_unix_file_flush_method != SRV_UNIX_NOSYNC);
+			lsn, srv_unix_file_flush_method != SRV_UNIX_NOSYNC);
 		break;
 	case 2:
 		/* Write the log but do not flush it to disk */
-		log_write_up_to(lsn, LOG_WAIT_ONE_GROUP, FALSE);
+		log_write_up_to(lsn, false);
 
 		break;
 	default:

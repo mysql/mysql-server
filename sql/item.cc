@@ -704,7 +704,18 @@ void Item::print_for_order(String *str,
     append_identifier(current_thd, str, item_name);
   }
   else
-    print(str,query_type);
+  {
+    if (type() == Item::INT_ITEM && basic_const_item())
+    {
+      /*
+        "ORDER BY N" means "order by the N-th element". To avoid such
+        interpretation we write "ORDER BY ''", which is equivalent.
+      */
+      str->append("''");
+    }
+    else
+      print(str,query_type);
+  }
 }
 
 

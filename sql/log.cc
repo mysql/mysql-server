@@ -1008,19 +1008,13 @@ void Query_logger::cleanup()
 bool Query_logger::slow_log_write(THD *thd, const char *query,
                                   size_t query_length)
 {
-  DBUG_ASSERT(thd->enable_slow_log);
-  /*
-    Print the message to the buffer if we have slow log enabled
-  */
+  DBUG_ASSERT(thd->enable_slow_log && opt_slow_log);
 
   if (!(*slow_log_handler_list))
     return false;
 
   /* do not log slow queries from replication threads */
   if (thd->slave_thread && !opt_log_slow_slave_statements)
-    return false;
-
-  if (!opt_slow_log)
     return false;
 
   mysql_rwlock_rdlock(&LOCK_logger);
@@ -1336,7 +1330,7 @@ bool log_slow_applicable(THD *thd)
     Do not log administrative statements unless the appropriate option is
     set.
   */
-  if (thd->enable_slow_log)
+  if (thd->enable_slow_log && opt_slow_log)
   {
     bool warn_no_index= ((thd->server_status &
                           (SERVER_QUERY_NO_INDEX_USED |
@@ -1578,7 +1572,7 @@ bool Error_log_throttle::flush(THD *thd)
 
 static bool slow_log_write(THD *thd, const char *query, size_t query_length)
 {
-  return query_logger.slow_log_write(thd, query, query_length);
+  return opt_slow_log && query_logger.slow_log_write(thd, query, query_length);
 }
 
 
