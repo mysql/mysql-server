@@ -902,10 +902,7 @@ int ReplSemiSyncMaster::updateSyncHeader(unsigned char *packet,
    * target, do not request replies from the slave.
    */
   if (!getMasterEnabled() || !is_semi_sync_slave())
-  {
-    sync = false;
     return 0;
-  }
 
   function_enter(kWho);
 
@@ -913,15 +910,12 @@ int ReplSemiSyncMaster::updateSyncHeader(unsigned char *packet,
 
   /* This is the real check inside the mutex. */
   if (!getMasterEnabled())
-  {
-    sync = false;
-    goto l_end;
-  }
+    goto l_end; // sync= false at this point in time
 
   if (is_on())
   {
     /* semi-sync is ON */
-    sync = false;     /* No sync unless a transaction is involved. */
+    /* sync= false; No sync unless a transaction is involved. */
 
     if (reply_file_name_inited_)
     {
