@@ -1,5 +1,5 @@
 ndbd(s)
-id=1	@127.0.0.1  (MYSQL_VERSION NDB_VERSION, Nodegroup: 0, Master)
+id=1	@127.0.0.1  (MYSQL_VERSION NDB_VERSION, Nodegroup: 0, *)
 id=2	@127.0.0.1  (MYSQL_VERSION NDB_VERSION, Nodegroup: 0)
 ndb_mgmd(s)
 id=3	@127.0.0.1  (MYSQL_VERSION NDB_VERSION)
