@@ -4485,6 +4485,8 @@ dict_update_statistics(
 	dict_index_t*	index;
 	ulint		sum_of_index_sizes	= 0;
 
+	DBUG_EXECUTE_IF("skip_innodb_statistics", return;);
+
 	if (table->ibd_file_missing) {
 		ut_print_timestamp(stderr);
 		fprintf(stderr,

@@ -33,7 +33,7 @@ extern "C" {
 #endif
 #include "my_compare.h"
 #include <mysql/plugin.h>
-
+#include <my_check_opt.h>
 /*
   Limit max keys according to HA_MAX_POSSIBLE_KEY
 */
@@ -310,51 +310,6 @@ extern uint mi_get_pointer_length(ulonglong file_length, uint def);
 
 #define   MYISAMCHK_REPAIR 1  /* equivalent to myisamchk -r */
 #define   MYISAMCHK_VERIFY 2  /* Verify, run repair if failure */
-
-/*
-  Definitions needed for myisamchk.c
-
-  Entries marked as "QQ to be removed" are NOT used to
-  pass check/repair options to mi_check.c. They are used
-  internally by myisamchk.c or/and ha_myisam.cc and should NOT
-  be stored together with other flags. They should be removed
-  from the following list to make addition of new flags possible.
-*/
-
-#define T_AUTO_INC              1
-#define T_AUTO_REPAIR           2              /* QQ to be removed */
-#define T_BACKUP_DATA           4
-#define T_CALC_CHECKSUM         8
-#define T_CHECK                 16             /* QQ to be removed */
-#define T_CHECK_ONLY_CHANGED    32             /* QQ to be removed */
-#define T_CREATE_MISSING_KEYS   64
-#define T_DESCRIPT              128
-#define T_DONT_CHECK_CHECKSUM   256
-#define T_EXTEND                512
-#define T_FAST                  (1L << 10)     /* QQ to be removed */
-#define T_FORCE_CREATE          (1L << 11)     /* QQ to be removed */
-#define T_FORCE_UNIQUENESS      (1L << 12)
-#define T_INFO                  (1L << 13)
-#define T_MEDIUM                (1L << 14)
-#define T_QUICK                 (1L << 15)     /* QQ to be removed */
-#define T_READONLY              (1L << 16)     /* QQ to be removed */
-#define T_REP                   (1L << 17)
-#define T_REP_BY_SORT           (1L << 18)     /* QQ to be removed */
-#define T_REP_PARALLEL          (1L << 19)     /* QQ to be removed */
-#define T_RETRY_WITHOUT_QUICK   (1L << 20)
-#define T_SAFE_REPAIR           (1L << 21)
-#define T_SILENT                (1L << 22)
-#define T_SORT_INDEX            (1L << 23)     /* QQ to be removed */
-#define T_SORT_RECORDS          (1L << 24)     /* QQ to be removed */
-#define T_STATISTICS            (1L << 25)
-#define T_UNPACK                (1L << 26)
-#define T_UPDATE_STATE          (1L << 27)
-#define T_VERBOSE               (1L << 28)
-#define T_VERY_SILENT           (1L << 29)
-#define T_WAIT_FOREVER          (1L << 30)
-#define T_WRITE_LOOP            ((ulong) 1L << 31)
-
-#define T_REP_ANY               (T_REP | T_REP_BY_SORT | T_REP_PARALLEL)
 
 /*
   Flags used by myisamchk.c or/and ha_myisam.cc that are NOT passed
