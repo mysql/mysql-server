@@ -345,7 +345,7 @@ static MYSQL_THDVAR_BOOL(hide_default_row_format, 0, "hide the default row forma
 
 static MYSQL_THDVAR_ULONGLONG(lock_timeout,
     0,
-    "lock timeout",
+    "TokuDB lock timeout",
     NULL, 
     NULL, 
     DEFAULT_TOKUDB_LOCK_TIMEOUT, /*default*/
