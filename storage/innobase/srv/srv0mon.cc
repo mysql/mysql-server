@@ -837,9 +837,9 @@ static monitor_info_t	innodb_counter_info[] =
 	 MONITOR_EXISTING | MONITOR_DISPLAY_CURRENT),
 	 MONITOR_DEFAULT_START, MONITOR_OVLD_MAX_AGE_SYNC},
 
-	{"log_pending_log_writes", "recovery", "Pending log writes",
+	{"log_pending_log_flushes", "recovery", "Pending log flushes",
 	 MONITOR_NONE,
-	 MONITOR_DEFAULT_START, MONITOR_PENDING_LOG_WRITE},
+	 MONITOR_DEFAULT_START, MONITOR_PENDING_LOG_FLUSH},
 
 	{"log_pending_checkpoint_writes", "recovery", "Pending checkpoints",
 	 MONITOR_NONE,
