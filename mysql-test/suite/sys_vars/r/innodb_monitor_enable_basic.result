@@ -152,7 +152,7 @@ log_lsn_checkpoint_age	disabled
 log_lsn_buf_pool_oldest	disabled
 log_max_modified_age_async	disabled
 log_max_modified_age_sync	disabled
-log_pending_log_writes	disabled
+log_pending_log_flushes	disabled
 log_pending_checkpoint_writes	disabled
 log_num_log_io	disabled
 log_waits	disabled
