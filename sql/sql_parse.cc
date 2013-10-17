@@ -5536,7 +5536,6 @@ bool add_to_list(THD *thd, SQL_I_List<ORDER> &list, Item *item,bool asc)
   order->direction= (asc ? ORDER::ORDER_ASC : ORDER::ORDER_DESC);
   order->used_alias= false;
   order->used=0;
-  order->counter_used= 0;
   list.link_in_list(order, &order->next);
   DBUG_RETURN(0);
 }
