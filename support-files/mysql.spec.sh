@@ -30,7 +30,7 @@
 %define mysqld_group    mysql
 %define mysqldatadir    /var/lib/mysql
 
-%define release         1
+%global release         1  
 
 #
 # Macros we use which are not available in all supported versions of RPM
@@ -226,7 +226,7 @@
 # Configuration based upon above user input, not to be set directly
 ##############################################################################
 
-%if %{commercial}
+%if 0%{?commercial}
 %define license_files_server    %{src_dir}/LICENSE.mysql
 %define license_type            Commercial
 %else
@@ -249,7 +249,6 @@ Source:         %{src_dir}.tar.gz
 URL:            http://www.mysql.com/
 Packager:       MySQL Release Engineering <mysql-build@oss.oracle.com> 
 Vendor:         %{mysql_vendor}
-Conflicts:      msqlormysql MySQL-server mysql
 BuildRequires:  %{distro_buildreq}
 
 # Regression tests may take a long time, override the default to skip them 
@@ -286,11 +285,15 @@ documentation and the manual for more information.
 Summary:        MySQL: a very fast and reliable SQL database server
 Group:          Applications/Databases
 Requires:       %{distro_requires}
-Provides:       MySQL-Cluster-server msqlormysql mysql MySQL mysql-server MySQL-server
-Obsoletes:      MySQL-Cluster-server
+%if 0%{?commercial}
+Obsoletes:      MySQL-Cluster-server-gpl
+%else
+Obsoletes:      MySQL-Cluster-server-advanced
+%endif
 Obsoletes:      MySQL-Cluster-management MySQL-Cluster-storage
 Obsoletes:      MySQL-Cluster-extra MySQL-Cluster-tools
-Obsoletes:      mysql MySQL mysql-server MySQL-server
+Obsoletes:      mysql-server mysql-server-advanced MySQL-server
+Provides:       mysql-server
 
 %description -n MySQL-Cluster-server%{product_suffix}
 The MySQL(TM) software delivers a very fast, multi-threaded, multi-user,
@@ -317,12 +320,18 @@ If you want to access and work with the database, you have to install
 package "MySQL-Cluster-client%{product_suffix}" as well!
 
 # ----------------------------------------------------------------------------
-
 %package -n MySQL-Cluster-client%{product_suffix}
 Summary:        MySQL Cluster - Client
 Group:          Applications/Databases
-Provides:       MySQL-Cluster-client
-Obsoletes:      MySQL-Cluster-client
+%if 0%{?commercial}
+Obsoletes:      MySQL-Cluster-client-gpl
+%else
+Obsoletes:      MySQL-Cluster-client-advanced
+%endif
+Obsoletes:      mysql mysql-advanced 
+Obsoletes:      MySQL-client-classic MySQL-client-community MySQL-client-enterprise
+Obsoletes:      MySQL-client-advanced-gpl MySQL-client-enterprise-gpl MySQL-client
+Provides:       mysql 
 
 %description -n MySQL-Cluster-client%{product_suffix}
 This package contains the standard MySQL clients and administration tools.
@@ -331,11 +340,18 @@ For a description of MySQL see the base MySQL RPM or http://www.mysql.com/
 
 # ----------------------------------------------------------------------------
 %package -n MySQL-Cluster-test%{product_suffix}
-Requires:       MySQL-Cluster-client%{product_suffix} perl
 Summary:        MySQL Cluster - Test suite
 Group:          Applications/Databases
-Provides:       MySQL-Cluster-test
-Obsoletes:      MySQL-Cluster-test
+%if 0%{?commercial}
+Requires:       MySQL-Cluster-client-advanced perl
+Obsoletes:      MySQL-Cluster-test-gpl
+%else
+Requires:       MySQL-Cluster-client-gpl perl
+Obsoletes:      MySQL-Cluster-test-advanced
+%endif
+Obsoletes:      mysql-test mysql-test-advanced MySQL-test-classic MySQL-test-community MySQL-test-enterprise
+Obsoletes:      MySQL-test-advanced-gpl MySQL-test-enterprise-gpl
+Provides:       mysql-test 
 AutoReqProv:    no
 
 %description -n MySQL-Cluster-test%{product_suffix}
@@ -347,8 +363,17 @@ For a description of MySQL see the base MySQL RPM or http://www.mysql.com/
 %package -n MySQL-Cluster-devel%{product_suffix}
 Summary:        MySQL Cluster - Development header files and libraries
 Group:          Applications/Databases
-Provides:       MySQL-Cluster-devel
-Obsoletes:      MySQL-Cluster-devel
+%if 0%{?commercial}
+Obsoletes:      MySQL-Cluster-devel-gpl
+%else
+Obsoletes:      MySQL-Cluster-devel-advanced
+%endif
+Obsoletes:      mysql-devel mysql-devel-advanced
+Obsoletes:      mysql-embedded-devel mysql-embedded-devel-advanced
+Obsoletes:      MySQL-devel-classic MySQL-devel-community MySQL-devel-enterprise
+Obsoletes:      MySQL-devel-advanced-gpl MySQL-devel-enterprise-gpl
+Provides:       mysql-devel 
+
 
 %description -n MySQL-Cluster-devel%{product_suffix}
 This package contains the development header files and libraries necessary
@@ -357,12 +382,20 @@ to develop MySQL client applications.
 For a description of MySQL see the base MySQL RPM or http://www.mysql.com/
 
 # ----------------------------------------------------------------------------
-
 %package -n MySQL-Cluster-shared%{product_suffix}
 Summary:        MySQL Cluster - Shared libraries
 Group:          Applications/Databases
-Provides:       MySQL-Cluster-shared
-Obsoletes:      MySQL-Cluster-shared
+%if 0%{?commercial}
+Obsoletes:      MySQL-Cluster-shared-gpl
+%else
+Obsoletes:      MySQL-Cluster-shared-advanced
+%endif
+Obsoletes:      MySQL-shared-standard MySQL-shared-pro
+Obsoletes:      MySQL-shared-pro-cert MySQL-shared-pro-gpl
+Obsoletes:      MySQL-shared-pro-gpl-cert
+Obsoletes:      MySQL-shared-classic MySQL-shared-community MySQL-shared-enterprise
+Obsoletes:      MySQL-shared-advanced-gpl MySQL-shared-enterprise-gpl
+
 
 %description -n MySQL-Cluster-shared%{product_suffix}
 This package contains the shared libraries (*.so*) which certain languages
@@ -372,9 +405,18 @@ and applications need to dynamically load and use MySQL.
 %package -n MySQL-Cluster-embedded%{product_suffix}
 Summary:        MySQL Cluster - embedded library
 Group:          Applications/Databases
-Requires:       MySQL-Cluster-devel%{product_suffix}
-Provides:       MySQL-Cluster-embedded
-Obsoletes:      MySQL-Cluster-embedded
+%if 0%{?commercial}
+Requires:       MySQL-Cluster-devel-advanced
+Obsoletes:      MySQL-Cluster-embedded-gpl
+%else
+Requires:       MySQL-Cluster-devel-gpl
+Obsoletes:      MySQL-Cluster-embedded-advanced
+%endif
+Obsoletes:      mysql-embedded mysql-embedded-advanced 
+Obsoletes:      MySQL-embedded-pro
+Obsoletes:      MySQL-embedded-classic MySQL-embedded-community MySQL-embedded-enterprise
+Obsoletes:      MySQL-embedded-advanced-gpl MySQL-embedded-enterprise-gpl
+Provides:       mysql-emdedded
 
 %description -n MySQL-Cluster-embedded%{product_suffix}
 This package contains the MySQL server as an embedded library.
@@ -1028,36 +1070,36 @@ echo "====="                                                       >> $STATUS_HI
 %doc %attr(644, root, man) %{_mandir}/man1/mysql_tzinfo_to_sql.1*
 %doc %attr(644, root, man) %{_mandir}/man1/mysql_zap.1*
 %doc %attr(644, root, man) %{_mandir}/man1/mysqlbug.1*
-%doc %attr(644, root, man) %{_mandir}/man1/ndb_blob_tool.1*
-%doc %attr(644, root, man) %{_mandir}/man1/ndb_config.1*
-%doc %attr(644, root, man) %{_mandir}/man1/ndb_cpcd.1*
-%doc %attr(644, root, man) %{_mandir}/man1/ndb_delete_all.1*
-%doc %attr(644, root, man) %{_mandir}/man1/ndb_desc.1*
-%doc %attr(644, root, man) %{_mandir}/man1/ndb_drop_index.1*
-%doc %attr(644, root, man) %{_mandir}/man1/ndb_drop_table.1*
-%doc %attr(644, root, man) %{_mandir}/man1/ndb_error_reporter.1*
-%doc %attr(644, root, man) %{_mandir}/man1/ndb_index_stat.1*
-%doc %attr(644, root, man) %{_mandir}/man1/ndb_mgm.1*
-%doc %attr(644, root, man) %{_mandir}/man1/ndb_print_backup_file.1*
-%doc %attr(644, root, man) %{_mandir}/man1/ndb_print_schema_file.1*
-%doc %attr(644, root, man) %{_mandir}/man1/ndb_print_sys_file.1*
-%doc %attr(644, root, man) %{_mandir}/man1/ndb_restore.1*
-%doc %attr(644, root, man) %{_mandir}/man1/ndb_select_all.1*
-%doc %attr(644, root, man) %{_mandir}/man1/ndb_select_count.1*
-%doc %attr(644, root, man) %{_mandir}/man1/ndb_show_tables.1*
-%doc %attr(644, root, man) %{_mandir}/man1/ndb_size.pl.1*
-%doc %attr(644, root, man) %{_mandir}/man1/ndb_waiter.1*
-%doc %attr(644, root, man) %{_mandir}/man1/ndbd_redo_log_reader.1*
-%doc %attr(644, root, man) %{_mandir}/man8/ndb_mgmd.8*
-%doc %attr(644, root, man) %{_mandir}/man8/ndbd.8*
-%doc %attr(644, root, man) %{_mandir}/man8/ndbmtd.8*
-%doc %attr(644, root, man) %{_mandir}/man1/ndbinfo_select_all.1*
+#%doc %attr(644, root, man) %{_mandir}/man1/ndb_blob_tool.1*
+#%doc %attr(644, root, man) %{_mandir}/man1/ndb_config.1*
+#%doc %attr(644, root, man) %{_mandir}/man1/ndb_cpcd.1*
+#%doc %attr(644, root, man) %{_mandir}/man1/ndb_delete_all.1*
+#%doc %attr(644, root, man) %{_mandir}/man1/ndb_desc.1*
+#%doc %attr(644, root, man) %{_mandir}/man1/ndb_drop_index.1*
+#%doc %attr(644, root, man) %{_mandir}/man1/ndb_drop_table.1*
+#%doc %attr(644, root, man) %{_mandir}/man1/ndb_error_reporter.1*
+#%doc %attr(644, root, man) %{_mandir}/man1/ndb_index_stat.1*
+#%doc %attr(644, root, man) %{_mandir}/man1/ndb_mgm.1*
+#%doc %attr(644, root, man) %{_mandir}/man1/ndb_print_backup_file.1*
+#%doc %attr(644, root, man) %{_mandir}/man1/ndb_print_schema_file.1*
+#%doc %attr(644, root, man) %{_mandir}/man1/ndb_print_sys_file.1*
+#%doc %attr(644, root, man) %{_mandir}/man1/ndb_restore.1*
+#%doc %attr(644, root, man) %{_mandir}/man1/ndb_select_all.1*
+#%doc %attr(644, root, man) %{_mandir}/man1/ndb_select_count.1*
+#%doc %attr(644, root, man) %{_mandir}/man1/ndb_show_tables.1*
+#%doc %attr(644, root, man) %{_mandir}/man1/ndb_size.pl.1*
+#%doc %attr(644, root, man) %{_mandir}/man1/ndb_waiter.1*
+#%doc %attr(644, root, man) %{_mandir}/man1/ndbd_redo_log_reader.1*
+#%doc %attr(644, root, man) %{_mandir}/man8/ndb_mgmd.8*
+#%doc %attr(644, root, man) %{_mandir}/man8/ndbd.8*
+#%doc %attr(644, root, man) %{_mandir}/man8/ndbmtd.8*
+#%doc %attr(644, root, man) %{_mandir}/man1/ndbinfo_select_all.1*
 %doc %attr(644, root, man) %{_mandir}/man1/perror.1*
 %doc %attr(644, root, man) %{_mandir}/man1/replace.1*
 %doc %attr(644, root, man) %{_mandir}/man1/resolve_stack_dump.1*
 %doc %attr(644, root, man) %{_mandir}/man1/resolveip.1*
 
-%doc %attr(644, root, man) %{_mandir}/man1/ndb-common-options.1*
+#%doc %attr(644, root, man) %{_mandir}/man1/ndb-common-options.1*
 
 %ghost %config(noreplace,missingok) %{_sysconfdir}/my.cnf
 
@@ -1223,6 +1265,9 @@ echo "====="                                                       >> $STATUS_HI
 # merging BK trees)
 ##############################################################################
 %changelog
+* Fri Oct 18 2013 Balasubramanian Kandasamy <balasubramanian.kandasamy@oracle.com>
+- Updated spec file for Cluster release
+
 * Wed Jun 26 2013 Balasubramanian Kandasamy <balasubramanian.kandasamy@oracle.com>
 - Cleaned up spec file to resolve rpm dependencies.
 
