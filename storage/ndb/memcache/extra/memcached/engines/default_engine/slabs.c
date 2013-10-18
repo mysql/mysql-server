@@ -69,6 +69,9 @@ ENGINE_ERROR_CODE slabs_init(struct default_engine *engine,
 
     engine->slabs.mem_limit = limit;
 
+    EXTENSION_LOGGER_DESCRIPTOR *logger;
+    logger = (void*)engine->server.extension->get_extension(EXTENSION_LOGGER);
+
     if (prealloc) {
         /* Allocate everything in a big chunk with malloc */
         engine->slabs.mem_base = malloc(engine->slabs.mem_limit);
@@ -76,6 +79,9 @@ ENGINE_ERROR_CODE slabs_init(struct default_engine *engine,
             engine->slabs.mem_current = engine->slabs.mem_base;
             engine->slabs.mem_avail = engine->slabs.mem_limit;
         } else {
+            logger->log(EXTENSION_LOG_WARNING, NULL,
+                        "default_engine: Failed attempt to preallocate %zu bytes.",
+                        engine->slabs.mem_limit);                        
             return ENGINE_ENOMEM;
         }
     }
@@ -91,8 +97,6 @@ ENGINE_ERROR_CODE slabs_init(struct default_engine *engine,
         engine->slabs.slabclass[i].perslab = engine->config.item_size_max / engine->slabs.slabclass[i].size;
         size *= factor;
         if (engine->config.verbose > 1) {
-            EXTENSION_LOGGER_DESCRIPTOR *logger;
-            logger = (void*)engine->server.extension->get_extension(EXTENSION_LOGGER);
             logger->log(EXTENSION_LOG_INFO, NULL,
                         "slab class %3d: chunk size %9u perslab %7u\n",
                         i, engine->slabs.slabclass[i].size,
@@ -104,8 +108,6 @@ ENGINE_ERROR_CODE slabs_init(struct default_engine *engine,
     engine->slabs.slabclass[engine->slabs.power_largest].size = engine->config.item_size_max;
     engine->slabs.slabclass[engine->slabs.power_largest].perslab = 1;
     if (engine->config.verbose > 1) {
-        EXTENSION_LOGGER_DESCRIPTOR *logger;
-        logger = (void*)engine->server.extension->get_extension(EXTENSION_LOGGER);
         logger->log(EXTENSION_LOG_INFO, NULL,
                     "slab class %3d: chunk size %9u perslab %7u\n",
                     i, engine->slabs.slabclass[i].size,

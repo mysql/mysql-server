@@ -483,6 +483,30 @@ create table nullvalues (
 
 ) ENGINE=ndbcluster DEFAULT CHARSET=latin1;
 
+drop table if exists shortpk;
+create table shortpk (
+ id smallint not null primary key,
+ short_null_none smallint,
+ short_null_btree smallint,
+ short_null_hash smallint,
+ short_null_both smallint,
+ key idx_short_null_btree (short_null_btree),
+ unique key idx_short_null_both (short_null_both),
+ unique key idx_short_null_hash (short_null_hash) using hash
+ ) ENGINE=ndbcluster DEFAULT CHARSET=latin1;
+
+drop table if exists bytepk;
+create table bytepk (
+ id tinyint not null primary key,
+ byte_null_none tinyint,
+ byte_null_btree tinyint,
+ byte_null_hash tinyint,
+ byte_null_both tinyint,
+ key idx_byte_null_btree (byte_null_btree),
+ unique key idx_byte_null_both (byte_null_both),
+ unique key idx_byte_null_hash (byte_null_hash) using hash
+ ) ENGINE=ndbcluster DEFAULT CHARSET=latin1;
+
 drop table if exists allprimitives;
 create table allprimitives (
  id int not null primary key,

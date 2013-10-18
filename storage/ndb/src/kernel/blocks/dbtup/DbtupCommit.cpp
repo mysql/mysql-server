@@ -703,6 +703,7 @@ void Dbtup::execTUP_COMMITREQ(Signal* signal)
   /* Put transid in req_struct, so detached triggers can access it */
   req_struct.trans_id1 = transId1;
   req_struct.trans_id2 = transId2;
+  req_struct.m_reorg = regOperPtr.p->op_struct.m_reorg;
   regOperPtr.p->m_commit_disk_callback_page = tupCommitReq->diskpage;
 
 #ifdef VM_TRACE

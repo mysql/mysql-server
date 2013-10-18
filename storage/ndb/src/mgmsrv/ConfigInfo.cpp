@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2003, 2010, 2011, 2013, Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2003, 2013, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -2215,6 +2215,22 @@ const ConfigInfo::ParamInfo ConfigInfo::m_ParamInfo[] = {
     STR_VALUE(NDB_DEFAULT_HASHMAP_BUCKETS)
   },
 
+  {
+    CFG_DB_LCP_SCAN_WATCHDOG_LIMIT,
+    "LcpScanProgressTimeout",
+    DB_TOKEN,
+    "Maximum time a local checkpoint fragment scan can be stalled for.  "
+    "If this is exceeded, the node will shutdown to ensure systemwide "
+    "LCP progress.  Warnings are periodically emitted when a fragment scan "
+    "stalls for more than one third of this time.  0 indicates no time limit.",
+    ConfigInfo::CI_USED,
+    false,
+    ConfigInfo::CI_INT,
+    "60",
+    "0",
+    STR_VALUE(MAX_INT_RNIL)
+  },
+
   /***************************************************************************
    * API
    ***************************************************************************/
@@ -2660,6 +2676,19 @@ const ConfigInfo::ParamInfo ConfigInfo::m_ParamInfo[] = {
     ConfigInfo::CI_STRING,
     0, 0, 0
   },
+
+  {
+    CFG_MGMD_MGMD_HEARTBEAT_INTERVAL,
+    "HeartbeatIntervalMgmdMgmd",
+    MGM_TOKEN,
+    "Time between " MGM_TOKEN_PRINT "-" MGM_TOKEN_PRINT " heartbeats. " 
+    MGM_TOKEN_PRINT " considered dead after 3 missed HBs",
+    ConfigInfo::CI_USED,
+    0,
+    ConfigInfo::CI_INT,
+    "1500",
+    "100",
+    STR_VALUE(MAX_INT_RNIL) },
 
   /****************************************************************************
    * TCP
@@ -4981,6 +5010,8 @@ checkThreadConfig(InitConfigFileParser::Context & ctx, const char * unused)
   Uint32 lqhThreads = 0;
   Uint32 classic = 0;
   Uint32 ndbLogParts = 0;
+  Uint32 realtimeScheduler = 0;
+  Uint32 spinTimer = 0;
   const char * thrconfig = 0;
   const char * locktocpu = 0;
 
@@ -4994,6 +5025,8 @@ checkThreadConfig(InitConfigFileParser::Context & ctx, const char * unused)
   ctx.m_currentSection->get("__ndbmt_lqh_threads", &lqhThreads);
   ctx.m_currentSection->get("__ndbmt_classic", &classic);
   ctx.m_currentSection->get("NoOfFragmentLogParts", &ndbLogParts);
+  ctx.m_currentSection->get("RealtimeScheduler", &realtimeScheduler);
+  ctx.m_currentSection->get("SchedulerSpinTimer", &spinTimer);
 
   if (!check_2n_number_less_32(lqhThreads))
   {
@@ -5008,7 +5041,7 @@ checkThreadConfig(InitConfigFileParser::Context & ctx, const char * unused)
   }
   if (ctx.m_currentSection->get("ThreadConfig", &thrconfig))
   {
-    int ret = tmp.do_parse(thrconfig);
+    int ret = tmp.do_parse(thrconfig, realtimeScheduler, spinTimer);
     if (ret)
     {
       ctx.reportError("Unable to parse ThreadConfig: %s",
@@ -5033,7 +5066,11 @@ checkThreadConfig(InitConfigFileParser::Context & ctx, const char * unused)
   }
   else if (maxExecuteThreads || lqhThreads || classic)
   {
-    int ret = tmp.do_parse(maxExecuteThreads, lqhThreads, classic);
+    int ret = tmp.do_parse(maxExecuteThreads,
+                           lqhThreads,
+                           classic,
+                           realtimeScheduler,
+                           spinTimer);
     if (ret)
     {
       ctx.reportError("Unable to set thread configuration: %s",
