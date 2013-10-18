@@ -6051,6 +6051,53 @@ count(*)
 set optimizer_switch='materialization=default';
 set global debug=@save_debug;
 drop table t1;
+CREATE TABLE ndb_order_test (
+node_id int(10) unsigned NOT NULL,
+user_id int(10) unsigned NOT NULL,
+sort_number int(10) unsigned NOT NULL,
+KEY node_id (node_id,sort_number)
+) ENGINE=ndbcluster DEFAULT CHARSET=utf8;
+CREATE TABLE ndb_user_test (
+user_id int(10) unsigned NOT NULL AUTO_INCREMENT,
+name varchar(20) NOT NULL,
+PRIMARY KEY (user_id)
+) ENGINE=ndbcluster DEFAULT CHARSET=utf8 AUTO_INCREMENT=2;
+INSERT INTO ndb_order_test (node_id, user_id, sort_number) VALUES
+(68, 1, 1398029),
+(68, 1, 549053);
+INSERT INTO ndb_user_test (user_id, name) VALUES
+(1, 'Shawn');
+EXPLAIN 
+SELECT *
+FROM ndb_order_test JOIN ndb_user_test USING (user_id)
+WHERE node_id = 68
+ORDER BY sort_number DESC;
+id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
+1	SIMPLE	ndb_order_test	ref	node_id	node_id	4	const	2	Parent of 2 pushed join@1; Using where
+1	SIMPLE	ndb_user_test	eq_ref	PRIMARY	PRIMARY	4	test.ndb_order_test.user_id	1	Child of 'ndb_order_test' in pushed join@1
+SELECT *
+FROM ndb_order_test JOIN ndb_user_test USING (user_id)
+WHERE node_id = 68
+ORDER BY sort_number DESC;
+user_id	node_id	sort_number	name
+1	68	1398029	Shawn
+1	68	549053	Shawn
+EXPLAIN 
+SELECT *
+FROM ndb_order_test JOIN ndb_user_test USING (user_id)
+WHERE node_id = 68
+ORDER BY sort_number ASC;
+id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
+1	SIMPLE	ndb_order_test	ref	node_id	node_id	4	const	2	Parent of 2 pushed join@1; Using where
+1	SIMPLE	ndb_user_test	eq_ref	PRIMARY	PRIMARY	4	test.ndb_order_test.user_id	1	Child of 'ndb_order_test' in pushed join@1
+SELECT *
+FROM ndb_order_test JOIN ndb_user_test USING (user_id)
+WHERE node_id = 68
+ORDER BY sort_number ASC;
+user_id	node_id	sort_number	name
+1	68	549053	Shawn
+1	68	1398029	Shawn
+DROP TABLE ndb_order_test, ndb_user_test;
 create temporary table spj_counts_at_end
 select counter_name, sum(val) as val 
 from ndbinfo.counters 
@@ -6071,7 +6118,7 @@ counter_name	spj_counts_at_end.val - spj_counts_at_startup.val
 CONST_PRUNED_RANGE_SCANS_RECEIVED	8
 LOCAL_TABLE_SCANS_SENT	260
 PRUNED_RANGE_SCANS_RECEIVED	27
-RANGE_SCANS_RECEIVED	769
+RANGE_SCANS_RECEIVED	773
 READS_RECEIVED	50
 TABLE_SCANS_RECEIVED	260
 drop table spj_counts_at_startup;
@@ -6083,10 +6130,10 @@ where new.variable_name = old.variable_name
 order by new.variable_name;
 variable_name	new.variable_value - old.variable_value
 NDB_PRUNED_SCAN_COUNT	11
-NDB_PUSHED_QUERIES_DEFINED	416
+NDB_PUSHED_QUERIES_DEFINED	420
 NDB_PUSHED_QUERIES_DROPPED	11
-NDB_PUSHED_QUERIES_EXECUTED	563
-NDB_SORTED_SCAN_COUNT	91
+NDB_PUSHED_QUERIES_EXECUTED	565
+NDB_SORTED_SCAN_COUNT	93
 drop table server_counts_at_startup;
 set ndb_join_pushdown = @save_ndb_join_pushdown;
 set @@global.optimizer_switch=default;

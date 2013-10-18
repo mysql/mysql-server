@@ -737,6 +737,10 @@ TableS::TableS(Uint32 version, NdbTableImpl* tableImpl)
   
   for (int i = 0; i < tableImpl->getNoOfColumns(); i++)
     createAttr(tableImpl->getColumn(i));
+
+  m_staging = false;
+  m_stagingTable = NULL;
+  m_stagingFlags = 0;
 }
 
 TableS::~TableS()
@@ -1770,6 +1774,7 @@ AttributeDesc::AttributeDesc(NdbDictionary::Column *c)
 {
   size = 8*NdbColumnImpl::getImpl(* c).m_attrSize;
   arraySize = NdbColumnImpl::getImpl(* c).m_arraySize;
+  staging = false;
 }
 
 void TableS::createAttr(NdbDictionary::Column *column)

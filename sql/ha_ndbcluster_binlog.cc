@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2000, 2013, Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2006, 2013, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -6774,6 +6774,7 @@ injectApplyStatusWriteRow(injector::transaction& trans,
 
 extern ulong opt_ndb_report_thresh_binlog_epoch_slip;
 extern ulong opt_ndb_report_thresh_binlog_mem_usage;
+extern ulong opt_ndb_eventbuffer_max_alloc;
 
 pthread_handler_t
 ndb_binlog_thread_func(void *arg)
@@ -7132,8 +7133,12 @@ restart_cluster_failure:
     /* wait for event or 1000 ms */
     Uint64 gci= 0, schema_gci;
     int res= 0, tot_poll_wait= 1000;
+
     if (ndb_binlog_running)
     {
+      // Capture any dynamic changes to max_alloc
+      i_ndb->set_eventbuf_max_alloc(opt_ndb_eventbuffer_max_alloc);
+
       res= i_ndb->pollEvents(tot_poll_wait, &gci);
       tot_poll_wait= 0;
     }
@@ -7309,6 +7314,8 @@ restart_cluster_failure:
         DBUG_ASSERT(gci <= ndb_latest_received_binlog_epoch);
 
         /* initialize some variables for this epoch */
+
+        i_ndb->set_eventbuf_max_alloc(opt_ndb_eventbuffer_max_alloc);
         g_ndb_log_slave_updates= opt_log_slave_updates;
         i_ndb->
           setReportThreshEventGCISlip(opt_ndb_report_thresh_binlog_epoch_slip);
@@ -7470,6 +7477,9 @@ restart_cluster_failure:
               }
             }
           }
+
+          // Capture any dynamic changes to max_alloc
+          i_ndb->set_eventbuf_max_alloc(opt_ndb_eventbuffer_max_alloc);
 
           pOp= i_ndb->nextEvent();
         } while (pOp && pOp->getGCI() == gci);

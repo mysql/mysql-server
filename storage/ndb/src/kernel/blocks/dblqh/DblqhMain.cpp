@@ -1434,6 +1434,29 @@ void Dblqh::execREAD_CONFIG_REQ(Signal* signal)
     jam();
     c_max_parallel_scans_per_frag = (256 - MAX_PARALLEL_SCANS_PER_FRAG) / 2;
   }
+
+  {
+    Uint32 param = 60;
+    ndb_mgm_get_int_parameter(p, CFG_DB_LCP_SCAN_WATCHDOG_LIMIT,
+                              &param);
+   
+    /* Convert to next-largest whole number of polling periods */ 
+    Uint32 resolutionInSeconds = LCPFragWatchdog::PollingPeriodMillis/1000;
+    ndbassert(resolutionInSeconds >= 1);
+    param = (param + (resolutionInSeconds - 1)) / resolutionInSeconds;
+    c_lcpFragWatchdog.MaxPeriodsWithNoProgress = param;
+    
+    /* Warn when stalled for roughly 1/3 time, */  
+    c_lcpFragWatchdog.WarnPeriodsWithNoProgress = (param + 2)/3;
+    
+    ndbrequire(c_lcpFragWatchdog.MaxPeriodsWithNoProgress >= 
+               c_lcpFragWatchdog.WarnPeriodsWithNoProgress);
+
+    /* Dump LCPFragWatchdog parameter values */
+    signal->theData[0] = 2395;
+    execDUMP_STATE_ORD(signal);
+   }
+
   return;
 }//Dblqh::execSIZEALT_REP()
 
@@ -23893,6 +23916,14 @@ Dblqh::execDUMP_STATE_ORD(Signal* signal)
                LcpStatusReq::SignalLength, JBB);
   }
 
+  if (arg == 2395)
+  {
+    ndbout_c("LCPFragWatchdog : WarnPeriods : %u MaxPeriods %u : period millis : %u",
+             c_lcpFragWatchdog.WarnPeriodsWithNoProgress,
+             c_lcpFragWatchdog.MaxPeriodsWithNoProgress,
+             LCPFragWatchdog::PollingPeriodMillis);
+    return;
+  }
 
   if(arg == 2309)
   {
@@ -24358,8 +24389,9 @@ Dblqh::checkLcpFragWatchdog(Signal* signal)
   c_lcpFragWatchdog.pollCount++;
 
   /* Check how long we've been waiting for progress on this scan */
-  if (c_lcpFragWatchdog.pollCount >=
-      LCPFragWatchdog::WarnPeriodsWithNoProgress)
+  if ((c_lcpFragWatchdog.MaxPeriodsWithNoProgress > 0) &&
+      ((c_lcpFragWatchdog.pollCount >=
+        c_lcpFragWatchdog.WarnPeriodsWithNoProgress)))
   {
     jam();
     const char* completionStatusString = 
@@ -24385,7 +24417,7 @@ Dblqh::checkLcpFragWatchdog(Signal* signal)
              completionStatusString);
     
     if (c_lcpFragWatchdog.pollCount >= 
-        LCPFragWatchdog::MaxPeriodsWithNoProgress)
+        c_lcpFragWatchdog.MaxPeriodsWithNoProgress)
     {
       jam();
       /* Too long with no progress... */
@@ -24395,13 +24427,13 @@ Dblqh::checkLcpFragWatchdog(Signal* signal)
                    c_lcpFragWatchdog.tableId,
                    c_lcpFragWatchdog.fragId,
                    (LCPFragWatchdog::PollingPeriodMillis * 
-                    LCPFragWatchdog::MaxPeriodsWithNoProgress) / 1000);
+                    c_lcpFragWatchdog.MaxPeriodsWithNoProgress) / 1000);
       ndbout_c("LCP Frag watchdog : Checkpoint of table %u fragment %u "
                "too slow (no progress for > %u s).",
                c_lcpFragWatchdog.tableId,
                c_lcpFragWatchdog.fragId,
                (LCPFragWatchdog::PollingPeriodMillis * 
-                LCPFragWatchdog::MaxPeriodsWithNoProgress) / 1000);
+                c_lcpFragWatchdog.MaxPeriodsWithNoProgress) / 1000);
       
       /* Dump some LCP state for debugging... */
       {

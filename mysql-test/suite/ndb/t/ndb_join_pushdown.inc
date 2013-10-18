@@ -4483,6 +4483,59 @@ set global debug=@save_debug;
 connection ddl;
 drop table t1;
 
+##############
+# 16999886 ORDER BY DOESN'T WORK WITH JOIN
+# (Limited to pushed join + DESC order only)
+
+connection ddl;
+CREATE TABLE ndb_order_test (
+  node_id int(10) unsigned NOT NULL,
+  user_id int(10) unsigned NOT NULL,
+  sort_number int(10) unsigned NOT NULL,
+  KEY node_id (node_id,sort_number)
+) ENGINE=ndbcluster DEFAULT CHARSET=utf8;
+
+CREATE TABLE ndb_user_test (
+  user_id int(10) unsigned NOT NULL AUTO_INCREMENT,
+  name varchar(20) NOT NULL,
+  PRIMARY KEY (user_id)
+) ENGINE=ndbcluster DEFAULT CHARSET=utf8 AUTO_INCREMENT=2;
+
+
+connection spj;
+INSERT INTO ndb_order_test (node_id, user_id, sort_number) VALUES
+(68, 1, 1398029),
+(68, 1, 549053);
+
+INSERT INTO ndb_user_test (user_id, name) VALUES
+(1, 'Shawn');
+
+
+EXPLAIN 
+SELECT *
+ FROM ndb_order_test JOIN ndb_user_test USING (user_id)
+ WHERE node_id = 68
+ ORDER BY sort_number DESC;
+
+SELECT *
+ FROM ndb_order_test JOIN ndb_user_test USING (user_id)
+ WHERE node_id = 68
+ ORDER BY sort_number DESC;
+
+EXPLAIN 
+SELECT *
+ FROM ndb_order_test JOIN ndb_user_test USING (user_id)
+ WHERE node_id = 68
+ ORDER BY sort_number ASC;
+
+SELECT *
+ FROM ndb_order_test JOIN ndb_user_test USING (user_id)
+ WHERE node_id = 68
+ ORDER BY sort_number ASC;
+
+connection ddl;
+DROP TABLE ndb_order_test, ndb_user_test;
+
 ########################################
 # Verify DBSPJ counters for entire test:
 # Note: These tables are 'temporary' withing 'connection spj'
