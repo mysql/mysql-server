@@ -997,6 +997,10 @@ struct trx_t{
 	ulint		start_line;	/*!< Track where it was started from */
 	const char*	start_file;	/*!< Filename where it was started */
 #endif /* UNIV_DEBUG */
+	/*------------------------------*/
+	bool		api_trx;	/*!< trx started by InnoDB API */
+	bool		api_auto_commit;/*!< automatic commit */
+	bool		read_write;	/*!< if read and write operation */
 
 	/*------------------------------*/
 	char detailed_error[256];	/*!< detailed error message for last
