@@ -5178,6 +5178,8 @@ that are reorganised.
     }
     else if (alter_info->flags & ALTER_REBUILD_PARTITION)
     {
+      set_engine_all_partitions(tab_part_info,
+                                tab_part_info->default_engine_type);
       if (set_part_state(alter_info, tab_part_info, PART_CHANGED))
       {
         my_error(ER_DROP_PARTITION_NON_EXISTENT, MYF(0), "REBUILD");
