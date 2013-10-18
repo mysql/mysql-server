@@ -870,8 +870,7 @@ loop:
 
 	/* Parent done scanning, and if finish processing all the docs, exit */
 	if (psort_info->state == FTS_PARENT_COMPLETE) {
-	    	if (num_doc_processed >= UT_LIST_GET_LEN(
-			psort_info->fts_doc_list)) {
+		if (UT_LIST_GET_LEN(psort_info->fts_doc_list) == 0) {
 			goto exit;
 		} else if (retried > 10000) {
 			ut_ad(!doc_item);
@@ -999,6 +998,10 @@ func_exit:
 	mutex_enter(&psort_info->mutex);
 	psort_info->error = error;
 	mutex_exit(&psort_info->mutex);
+
+	if (UT_LIST_GET_LEN(psort_info->fts_doc_list) > 0) {
+		ut_ad(error != DB_SUCCESS);
+	}
 
 	/* Free fts doc list in case of error. */
 	do {
