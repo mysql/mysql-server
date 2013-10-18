@@ -1199,7 +1199,9 @@ loop:
 	be. If we have to flush as well then we check if there is a
 	pending flush and based on that we wait for it to finish
 	before proceeding further. */
-	if (flush_to_disk && log_sys->n_pending_flushes > 0) {
+	if (flush_to_disk
+	    && (log_sys->n_pending_flushes > 0
+		|| !os_event_is_set(log_sys->flush_event))) {
 		/* Figure out if the current flush will do the job
 		for us. */
 		bool work_done = log_sys->current_flush_lsn >= lsn;
