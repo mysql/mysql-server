@@ -17,6 +17,7 @@
 #define GCS_PROTOCOL_FACTORY_H
 
 #include <gcs_protocol.h>
+#include "gcs_stats.h"
 
 namespace GCS
 {
@@ -25,7 +26,7 @@ class Protocol_factory
 {
 public:
   static Protocol* create_protocol(Protocol_type type,
-                                   const char *proto_params);
+                                   Stats& collector);
   static Protocol* get_instance();
 };
 

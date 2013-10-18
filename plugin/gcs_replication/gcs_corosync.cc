@@ -77,9 +77,12 @@ void view_change(cpg_handle_t handle, const struct cpg_name *name,
   fill_member_set(join, join_entries, ms_join);
   if (!view.has_group_name())
   {
+    uint32 local_nodeid;
     /* the very first View change initialized the group name */
     string gname= string(name->value);
     view.set_group_name(gname);
+    cpg_local_get(handle, &local_nodeid);
+    view.set_local_node_id((ulonglong) local_nodeid);
   }
   /*
     Todo: replace the local quorate comptutation with one of the protocol.
@@ -89,6 +92,9 @@ void view_change(cpg_handle_t handle, const struct cpg_name *name,
   bool quorate= ms_totl.size() == ms_join.size() ||
     (ms_totl.size() - ms_join.size()) > ms_left.size();
   view.update(ms_totl, quorate);
+
+  // stats
+  p->group_stats.update_per_view_change(view);
 
   p->handlers->view_change(view, ms_totl, ms_left, ms_join, quorate);
 }
@@ -100,6 +106,9 @@ static void deliver(cpg_handle_t handle, const struct cpg_name *name,
   Protocol_corosync *p= static_cast<Protocol_corosync*>(Protocol_factory::get_instance());
 
   p->handlers->message_delivery(msg, p->get_view(string(name->value)));
+
+  /* gcs statistic */
+  p->group_stats.update_per_message_delivery((ulonglong) len);
 }
 
 /*
@@ -171,6 +180,10 @@ bool Protocol_corosync::broadcast(const Message& msg)
   iov.iov_base= const_cast<Message&>(msg).get_data();
   iov.iov_len= const_cast<Message&>(msg).get_length();
   int res= cpg_mcast_joined(handle, get_guarantee(msg), &iov, 1);
+
+  // stats
+  Protocol_corosync *p= static_cast<Protocol_corosync*>(Protocol_factory::get_instance());
+  p->group_stats.update_per_message_sent((ulonglong) iov.iov_len);
 
   return res != CS_OK;
 };

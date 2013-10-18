@@ -21,9 +21,12 @@
 #include <mysql/plugin.h>
 #define MYSQL_GCS_REPLICATION_INTERFACE_VERSION 0x0100
 
+typedef void (*gcs_stats_cb_t)(void);
+
 struct st_mysql_gcs_rpl
 {
   int interface_version;
+  gcs_stats_cb_t *stats_callbacks;
   /*
     This function is to used to start the gcs replication based on the
     gcs group that is specified by the user.

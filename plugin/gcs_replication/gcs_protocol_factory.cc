@@ -31,7 +31,7 @@ static Protocol* single_instance= NULL;
 
 Protocol*
 Protocol_factory::create_protocol(Protocol_type type,
-                                  const char *proto_params)
+                                  Stats& stats_collector)
 {
   DBUG_ENTER("GCS::Protocol_factory::create_protocol");
 
@@ -40,7 +40,7 @@ Protocol_factory::create_protocol(Protocol_type type,
 
     DBUG_ASSERT(!single_instance); // an creator can't do it 2nd time.
 
-    DBUG_RETURN(single_instance= new Protocol_corosync());
+    DBUG_RETURN(single_instance= new Protocol_corosync(stats_collector));
 
   default:
     DBUG_ASSERT(0);

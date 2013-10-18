@@ -22,7 +22,7 @@
 #include <gcs_protocol_factory.h>
 #include <pthread.h>
 #include "gcs_event_handlers.h"
-
+#include "gcs_stats.h"
 
 using std::string;
 
@@ -60,6 +60,88 @@ GCS::Event_handlers gcs_plugin_event_handlers=
   handle_message_delivery
 };
 
+GCS::Stats cluster_stats;
+
+/*
+  P_S statistics collectors to be used as callbacks
+*/
+char* get_gcs_group_name()
+{
+  return cluster_stats.get_group_name();
+}
+
+longlong get_view_id()
+{
+  return cluster_stats.get_view_id();
+}
+
+longlong get_node_id()
+{
+  return cluster_stats.get_node_id();
+}
+
+longlong get_number_of_nodes()
+{
+  return cluster_stats.get_number_of_nodes();
+}
+
+bool get_node_state()
+{
+  return gcs_running; // binary return, todo: add connecting state to plugin
+}
+
+ulonglong get_total_messages_sent()
+{
+  return cluster_stats.get_total_messages_sent();
+}
+
+ulonglong get_total_bytes_sent()
+{
+  return cluster_stats.get_total_bytes_sent();
+}
+
+ulonglong get_total_messages_received()
+{
+  return cluster_stats.get_total_messages_received();
+}
+
+ulonglong get_total_bytes_received()
+{
+  return cluster_stats.get_total_bytes_received();
+}
+
+/* the first message is one of joinging the Group */
+time_t get_last_message_timestamp()
+{
+  return cluster_stats.get_last_message_timestamp();
+}
+
+ulonglong get_min_message_length()
+{
+  return cluster_stats.get_min_message_length();
+}
+
+ulonglong get_max_message_length()
+{
+  return cluster_stats.get_max_message_length();
+}
+
+gcs_stats_cb_t gcs_stats_cbs[]=
+{
+  (gcs_stats_cb_t) get_gcs_group_name,
+  (gcs_stats_cb_t) get_view_id(),
+  (gcs_stats_cb_t) get_number_of_nodes(),
+  (gcs_stats_cb_t) get_node_id(),
+  (gcs_stats_cb_t) get_node_state(),
+  (gcs_stats_cb_t) get_total_messages_sent(),
+  (gcs_stats_cb_t) get_total_bytes_sent(),
+  (gcs_stats_cb_t) get_total_messages_received(),
+  (gcs_stats_cb_t) get_total_bytes_received(),
+  (gcs_stats_cb_t) get_last_message_timestamp(),
+  (gcs_stats_cb_t) get_min_message_length(),
+  (gcs_stats_cb_t) get_max_message_length()
+};
+
 /*
   Internal auxiliary functions signatures.
 */
@@ -91,9 +173,10 @@ int log_message(enum plugin_log_level level, const char *format, ...)
 /*
   Plugin interface.
 */
-struct st_mysql_gcs_rpl gcs_rpl_descriptor =
+struct st_mysql_gcs_rpl gcs_rpl_descriptor=
 {
   MYSQL_GCS_REPLICATION_INTERFACE_VERSION,
+  gcs_stats_cbs,
   gcs_rpl_start,
   gcs_rpl_stop
 };
@@ -192,7 +275,7 @@ int gcs_replication_init(MYSQL_PLUGIN plugin_info)
   }
 
   if (!(gcs_instance= GCS::Protocol_factory::create_protocol((GCS::Protocol_type)
-                                                             gcs_protocol_opt, NULL)))
+                                                             gcs_protocol_opt, cluster_stats)))
   {
     log_message(MY_ERROR_LEVEL, "Failure in GCS protocol initialization");
     return 1;
@@ -376,6 +459,8 @@ static void update_group_name(MYSQL_THD thd, SYS_VAR *var, void *ptr, const
   const char *newGroup= *(const char**)val;
   strncpy(gcs_replication_group, newGroup, UUID_LENGTH);
   gcs_group_pointer= &gcs_replication_group[0];
+
+  cluster_stats.reset(gcs_group_pointer);
 
   DBUG_VOID_RETURN;
 }

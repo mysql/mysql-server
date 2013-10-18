@@ -73,8 +73,7 @@ protected:
 class View : public Group_members
 {
 public:
-
-  View() : is_quorate(false) {};
+  View() : is_quorate(false), local_node_id(0) {};
   ~View() {};
   bool get_quorate() { return is_quorate; }
   void update(Member_set &ms, bool verdict)
@@ -82,10 +81,12 @@ public:
       reset_members(ms);
       is_quorate= verdict;
     }
-
+  void set_local_node_id(ulonglong arg) { local_node_id= arg; };
+  ulonglong get_local_node_id() { return local_node_id; };
 private:
 
   bool is_quorate;         // flag to designate the quorate view
+  ulonglong local_node_id; // Note, a member of the group is a pair!
 };
 
 typedef enum enum_protocol_type { PROTO_COROSYNC } Protocol_type;

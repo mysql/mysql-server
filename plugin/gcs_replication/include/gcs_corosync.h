@@ -19,6 +19,7 @@
 #include <corosync/cpg.h>
 #include <my_pthread.h>
 #include <corosync/corotypes.h>
+#include "gcs_stats.h"
 
 namespace GCS
 {
@@ -32,8 +33,9 @@ private:
 
 public:
 
-  Protocol_corosync() :
-    Protocol(), handle(0), dispatcher_thd(0) { };
+  Stats& group_stats;
+  Protocol_corosync(Stats& collector) :
+    Protocol(), handle(0), dispatcher_thd(0), group_stats(collector) { };
   Protocol_type get_type() { return PROTO_COROSYNC; };
   ~Protocol_corosync() { /* delete from current_views; */ };
   bool open_session(Event_handlers* handlers);
