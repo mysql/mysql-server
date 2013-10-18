@@ -162,53 +162,6 @@ memo_slot_release(mtr_memo_slot_t* slot)
 }
 
 /**
-Releases latches represented by a slot.
-@param slot	memo slot */
-static
-void
-memo_latch_release(mtr_memo_slot_t* slot)
-{
-	switch (slot->type) {
-	case MTR_MEMO_BUF_FIX:
-	case MTR_MEMO_PAGE_S_FIX:
-	case MTR_MEMO_PAGE_SX_FIX:
-	case MTR_MEMO_PAGE_X_FIX: {
-		buf_block_t*	block;
-
-		block = reinterpret_cast<buf_block_t*>(slot->object);
-
-		buf_page_release_latch(block, slot->type);
-		/* We will unfix the block later, preserve the object
-		pointer. */
-		slot->object = NULL;
-		break;
-	}
-
-	case MTR_MEMO_S_LOCK:
-		rw_lock_s_unlock(reinterpret_cast<rw_lock_t*>(slot->object));
-		slot->object = NULL;
-		break;
-
-	case MTR_MEMO_X_LOCK:
-		rw_lock_x_unlock(reinterpret_cast<rw_lock_t*>(slot->object));
-		slot->object = NULL;
-		break;
-
-	case MTR_MEMO_SX_LOCK:
-		rw_lock_sx_unlock(reinterpret_cast<rw_lock_t*>(slot->object));
-		slot->object = NULL;
-		break;
-
-#ifdef UNIV_DEBUG
-	default:
-		ut_ad(slot->type == MTR_MEMO_MODIFY);
-
-		slot->object = NULL;
-#endif /* UNIV_DEBUG */
-	}
-}
-
-/**
 Unfix a page, does not release the latches on the page.
 @param slot	memo slot */
 static
@@ -240,6 +193,53 @@ memo_block_unfix(mtr_memo_slot_t* slot)
 	default:
 #endif /* UNIV_DEBUG */
 		break;
+	}
+}
+/**
+Releases latches represented by a slot.
+@param slot	memo slot */
+static
+void
+memo_latch_release(mtr_memo_slot_t* slot)
+{
+	switch (slot->type) {
+	case MTR_MEMO_BUF_FIX:
+	case MTR_MEMO_PAGE_S_FIX:
+	case MTR_MEMO_PAGE_SX_FIX:
+	case MTR_MEMO_PAGE_X_FIX: {
+		buf_block_t*	block;
+
+		block = reinterpret_cast<buf_block_t*>(slot->object);
+
+		memo_block_unfix(slot);
+
+		buf_page_release_latch(block, slot->type);
+
+		slot->object = NULL;
+		break;
+	}
+
+	case MTR_MEMO_S_LOCK:
+		rw_lock_s_unlock(reinterpret_cast<rw_lock_t*>(slot->object));
+		slot->object = NULL;
+		break;
+
+	case MTR_MEMO_X_LOCK:
+		rw_lock_x_unlock(reinterpret_cast<rw_lock_t*>(slot->object));
+		slot->object = NULL;
+		break;
+
+	case MTR_MEMO_SX_LOCK:
+		rw_lock_sx_unlock(reinterpret_cast<rw_lock_t*>(slot->object));
+		slot->object = NULL;
+		break;
+
+#ifdef UNIV_DEBUG
+	default:
+		ut_ad(slot->type == MTR_MEMO_MODIFY);
+
+		slot->object = NULL;
+#endif /* UNIV_DEBUG */
 	}
 }
 
@@ -326,8 +326,6 @@ struct ReleaseBlocks {
 
 				add_dirty_page_to_flush_list(slot);
 			}
-
-			memo_block_unfix(slot);
 		}
 
 		return(true);

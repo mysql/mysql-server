@@ -128,7 +128,7 @@ public:
 		{
 			/* Check that it is within bounds */
 			ut_ad(ptr >= begin());
-			ut_ad(ptr < begin() + m_buf_end);
+			ut_ad(ptr <= begin() + m_buf_end);
 
 			/* We have done the boundary check above */
 			m_used = ib_uint32_t(ptr - begin());
