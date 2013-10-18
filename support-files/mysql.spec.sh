@@ -602,6 +602,31 @@ install -m 644 "%{malloc_lib_source}" \
 # Remove man pages we explicitly do not want to package, avoids 'unpackaged
 # files' warning.
 # This has become obsolete:  rm -f $RBR%{_mandir}/man1/make_win_bin_dist.1*
+rm -f $RBR%{_mandir}/man1/ndb_blob_tool.1*
+rm -f $RBR%{_mandir}/man1/ndb_config.1*
+rm -f $RBR%{_mandir}/man1/ndb_cpcd.1*
+rm -f $RBR%{_mandir}/man1/ndb_delete_all.1*
+rm -f $RBR%{_mandir}/man1/ndb_desc.1*
+rm -f $RBR%{_mandir}/man1/ndb_drop_index.1*
+rm -f $RBR%{_mandir}/man1/ndb_drop_table.1*
+rm -f $RBR%{_mandir}/man1/ndb_error_reporter.1*
+rm -f $RBR%{_mandir}/man1/ndb_index_stat.1*
+rm -f $RBR%{_mandir}/man1/ndb_mgm.1*
+rm -f $RBR%{_mandir}/man1/ndb_print_backup_file.1*
+rm -f $RBR%{_mandir}/man1/ndb_print_schema_file.1*
+rm -f $RBR%{_mandir}/man1/ndb_print_sys_file.1*
+rm -f $RBR%{_mandir}/man1/ndb_restore.1*
+rm -f $RBR%{_mandir}/man1/ndb_select_all.1*
+rm -f $RBR%{_mandir}/man1/ndb_select_count.1*
+rm -f $RBR%{_mandir}/man1/ndb_show_tables.1*
+rm -f $RBR%{_mandir}/man1/ndb_size.pl.1*
+rm -f $RBR%{_mandir}/man1/ndb_waiter.1*
+rm -f $RBR%{_mandir}/man1/ndbd_redo_log_reader.1*
+rm -f $RBR%{_mandir}/man8/ndb_mgmd.8*
+rm -f $RBR%{_mandir}/man8/ndbd.8*
+rm -f $RBR%{_mandir}/man8/ndbmtd.8*
+rm -f $RBR%{_mandir}/man1/ndbinfo_select_all.1*
+rm -f $RBR%{_mandir}/man1/ndb-common-options.1*
 
 ##############################################################################
 #  Post processing actions, i.e. when installed
