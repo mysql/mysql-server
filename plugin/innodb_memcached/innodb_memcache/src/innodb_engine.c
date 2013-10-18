@@ -1318,7 +1318,8 @@ innodb_release(
 	ENGINE_HANDLE*		handle,		/*!< in: Engine handle */
 	const void*		cookie __attribute__((unused)),
 						/*!< in: connection cookie */
-	item*			item)		/*!< in: item to free */
+	item*			item __attribute__((unused)))
+						/*!< in: item to free */
 {
 	struct innodb_engine*	innodb_eng = innodb_handle(handle);
 	innodb_conn_data_t*	conn_data;
@@ -1485,14 +1486,14 @@ search_done:
 	if (report_table_switch) {
 		char	table_name[MAX_TABLE_NAME_LEN
 				   + MAX_DATABASE_NAME_LEN];
+		char*	name;
+		char*	dbname;
 
 		conn_data = innodb_eng->server.cookie->get_engine_specific(cookie);
 		assert(nkey > 0);
 
-		char*	name = conn_data->conn_meta->col_info[
-				CONTAINER_TABLE].col_name;
-		char*	dbname = conn_data->conn_meta->col_info[
-				CONTAINER_DB].col_name;
+		name = conn_data->conn_meta->col_info[CONTAINER_TABLE].col_name;
+		dbname = conn_data->conn_meta->col_info[CONTAINER_DB].col_name;
 #ifdef __WIN__
 		sprintf(table_name, "%s\%s", dbname, name);
 #else
@@ -1543,11 +1544,11 @@ search_done:
 	}
 
 	if (result->extra_col_value) {
-		int     i;
-		char*	c_value;
-		char*	value_end;
-		int	total_len = 0;
-		char	int_buf[MAX_INT_CHAR_LEN];
+		int     	i;
+		char*		c_value;
+		char*		value_end;
+		unsigned int	total_len = 0;
+		char		int_buf[MAX_INT_CHAR_LEN];
 
 		GET_OPTION(meta_info, OPTION_ID_COL_SEP, option_delimiter,
 			   option_length);
@@ -1638,8 +1639,8 @@ search_done:
 		free(result->extra_col_value);
 	} else if (!result->col_value[MCI_COL_VALUE].is_str
 		&& result->col_value[MCI_COL_VALUE].value_len != 0) {
-		int	int_len;
-		char	int_buf[MAX_INT_CHAR_LEN];
+		unsigned int	int_len;
+		char		int_buf[MAX_INT_CHAR_LEN];
 
 		int_len = convert_to_char(
 			int_buf, sizeof int_buf,
