@@ -6909,7 +6909,7 @@ mysqld_get_one_option(int optid,
       sql_print_warning("Ignoring user change to '%s' because the user was set to '%s' earlier on the command line\n", argument, mysqld_user);
     break;
   case 'L':
-    WARN_DEPRECATED(NULL, "--language/-l", "'--lc-messages-dir'");
+    push_deprecated_warn(NULL, "--language/-l", "'--lc-messages-dir'");
     /* Note:  fall-through */
   case OPT_LC_MESSAGES_DIRECTORY:
     strmake(lc_messages_dir, argument, sizeof(lc_messages_dir)-1);
@@ -6925,7 +6925,7 @@ mysqld_get_one_option(int optid,
     exit(0);
 #endif /*EMBEDDED_LIBRARY*/
   case 'W':
-    WARN_DEPRECATED(NULL, "--log_warnings/-W", "'--log_error_verbosity'");
+    push_deprecated_warn(NULL, "--log_warnings/-W", "'--log_error_verbosity'");
     if (!argument)
       log_error_verbosity++;
     else if (argument == disabled_my_option)
@@ -7033,7 +7033,7 @@ mysqld_get_one_option(int optid,
   }
 #endif /* HAVE_REPLICATION */
   case (int) OPT_MASTER_RETRY_COUNT:
-    WARN_DEPRECATED(NULL, "--master-retry-count", "'CHANGE MASTER TO master_retry_count = <num>'");
+    push_deprecated_warn(NULL, "--master-retry-count", "'CHANGE MASTER TO master_retry_count = <num>'");
     break;
   case (int) OPT_SKIP_NEW:
     opt_specialflag|= SPECIAL_NO_NEW_FUNC;
@@ -7126,7 +7126,7 @@ mysqld_get_one_option(int optid,
     break;
   case OPT_SECURE_AUTH:
     if (opt_secure_auth == 0)
-      WARN_DEPRECATED(NULL, "pre-4.1 password hash", "post-4.1 password hash");
+      push_deprecated_warn(NULL, "pre-4.1 password hash", "post-4.1 password hash");
     break;
   case OPT_PFS_INSTRUMENT:
     {
