@@ -2527,6 +2527,12 @@ pthread_handler_t signal_hand(void *arg __attribute__((unused)))
     but the +10 should be quite safe.
   */
   init_thr_alarm(Connection_handler_manager::max_threads + 10);
+  if (test_flags & TEST_SIGINT)
+  {
+    (void) sigemptyset(&set);     // Setup up SIGINT for debug
+    (void) sigaddset(&set,SIGINT);    // For debugging
+    (void) pthread_sigmask(SIG_UNBLOCK,&set,NULL);
+  }
   (void) sigemptyset(&set);     // Setup up SIGINT for debug
   (void) sigaddset(&set,thr_server_alarm);  // For alarms
   (void) sigaddset(&set,SIGQUIT);
@@ -7460,8 +7466,8 @@ static int get_options(int *argc_ptr, char ***argv_ptr)
 #endif
   if (opt_debugging)
   {
-    /* Allow no core or stack trace */
-    test_flags|= TEST_NO_STACKTRACE;
+    /* Allow break with SIGINT, no core or stack trace */
+    test_flags|= TEST_SIGINT | TEST_NO_STACKTRACE;
     test_flags&= ~TEST_CORE_ON_SIGNAL;
   }
   /* Set global MyISAM variables from delay_key_write_options */
