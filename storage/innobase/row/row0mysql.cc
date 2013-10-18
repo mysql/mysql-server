@@ -3616,7 +3616,7 @@ next_rec:
 		if (has_internal_doc_id && table->fts->cache) {
 			table->fts->fts_status |= TABLE_DICT_LOCKED;
 			fts_update_next_doc_id(trx, table, NULL, 0);
-			fts_cache_clear(table->fts->cache, TRUE);
+			fts_cache_clear(table->fts->cache);
 			fts_cache_init(table->fts->cache);
 			table->fts->fts_status &= ~TABLE_DICT_LOCKED;
 		}
