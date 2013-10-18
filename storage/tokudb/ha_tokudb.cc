@@ -6525,9 +6525,9 @@ static inline enum toku_compression_method row_type_to_compression_method(enum r
     case ROW_TYPE_TOKU_LZMA:
         return TOKU_LZMA_METHOD;
     case ROW_TYPE_TOKU_SMALL:
-        return TOKU_SMALL_COMPRESSION_METHOD;
+        return TOKU_QUICKLZ_METHOD;
     case ROW_TYPE_TOKU_FAST:
-        return TOKU_FAST_COMPRESSION_METHOD;
+        return TOKU_LZMA_METHOD;
 #endif
     default:
         DBUG_PRINT("info", ("Ignoring ROW_FORMAT not used by TokuDB, using TOKUDB_ZLIB by default instead"));
