@@ -19,7 +19,7 @@
 #include <gcs_protocol.h>
 #include <gcs_protocol_factory.h>
 #include <log_event.h>
-
+#include <my_stacktrace.h>
 
 /*
   Internal auxiliary functions signatures.
@@ -30,6 +30,25 @@ static bool reinit_cache(IO_CACHE *cache,
 
 static bool copy_cache(MessageBuffer *dest, IO_CACHE *src);
 
+void add_write_set(Transaction_context_log_event *tcle,
+                   std::list<unsigned long> *set)
+{
+  DBUG_ENTER("enter_write_set");
+  for (std::list<unsigned long>::iterator it= set->begin();
+       it!=set->end();
+       ++it)
+  {
+    char buff[22];
+    const char *pke_field_value= my_safe_itoa(10, *it, &buff[sizeof(buff)-1]);
+    // TODO: This will be later moved to transaction memroot to be persisted
+    //       as long as the transaction persists.
+    char *write_set_value=my_strdup(PSI_NOT_INSTRUMENTED, pke_field_value,
+                                    MYF(MY_WME));
+    if (write_set_value)
+      tcle->add_write_set(write_set_value);
+  }
+  DBUG_VOID_RETURN;
+}
 
 /*
   Transaction lifecycle events observers.
@@ -114,11 +133,12 @@ int gcs_trans_before_commit(Trans_param *param)
                                           param->thread_id,
                                           snapshot_timestamp);
 
+
   // TODO: For now DDL won't have write-set, it will be added by
   // WL#6823 and WL#6824.
   if (is_dml)
   {
-    // TODO: WL#6834: add write set
+    add_write_set(tcle, param->write_set);
   }
 
   // Write transaction context to GCS cache.

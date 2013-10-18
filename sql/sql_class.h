@@ -50,6 +50,7 @@
 #include "xa.h"
 
 #define FLAGSTR(V,F) ((V)&(F)?#F" ":"")
+#include <list>
 
 /**
   The meat of thd_proc_info(THD*, char*), a macro that packs the last
@@ -2563,8 +2564,25 @@ private:
   */
 
   longlong m_row_count_func;    /* For the ROW_COUNT() function */
+  std::list<unsigned long> hash_pke_list;
 
 public:
+  void add_write_set(unsigned long hash)
+  {
+    DBUG_ENTER("Transaction_context_log_event::add_write_set");
+    hash_pke_list.push_back(hash);
+    DBUG_VOID_RETURN;
+  }
+
+  std::list<unsigned long> *get_write_set() { return &hash_pke_list; }
+
+  void clear_hash_pke_list(std::list<unsigned long> *set)
+  {
+    DBUG_ENTER("Transaction_context_log_event::clear_set");
+    set->clear();
+    DBUG_VOID_RETURN;
+  }
+
   inline longlong get_row_count_func() const
   {
     return m_row_count_func;

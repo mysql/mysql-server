@@ -17,8 +17,11 @@
 #define REPLICATION_H
 
 #include <mysql.h>
+#include <list>
 
 typedef struct st_mysql MYSQL;
+typedef unsigned long Row_identifier;
+typedef std::list<Row_identifier> Row_identifier_list;
 
 #ifdef __cplusplus
 extern "C" {
@@ -55,8 +58,16 @@ typedef struct Trans_param {
     Set on before_commit hook.
   */
   IO_CACHE *trx_cache_log;
+  ulonglong trx_cache_log_max_size;
+
   IO_CACHE *stmt_cache_log;
   ulonglong cache_log_max_size;
+
+  /*
+    This is the list containing the write_set of the transaction
+    that is tranferrred for the certification purpose.
+  */
+  Row_identifier_list *write_set;;
 } Trans_param;
 
 /**
