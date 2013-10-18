@@ -2117,7 +2117,7 @@ ib_cursor_read_row(
 
 			if (!rec_get_deleted_flag(rec, page_format)) {
 				ib_read_tuple(rec, page_format, tuple,
-					      row_buf, row_len);
+					      row_buf, (ulint*) row_len);
 				err = DB_SUCCESS;
 			} else{
 				err = DB_RECORD_NOT_FOUND;
