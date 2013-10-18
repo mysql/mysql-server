@@ -1794,6 +1794,19 @@ NdbEventImpl::setTable(const NdbDictionary::Table& table)
   return !m_tableName.assign(m_tableImpl->getName());
 }
 
+int
+NdbEventImpl::setTable(const NdbDictionary::Table *table)
+{
+  DBUG_ENTER("NdbEventImpl::setTable(const NdbDictionary::Table *table)");
+  if (table == 0)
+  {
+    DBUG_PRINT("info", ("NdbEventImpl::setTable() this: %p invalid table ptr %p", this, table));
+    DBUG_RETURN(-1);
+  }
+  setTable(&NdbTableImpl::getImpl(*table));
+  DBUG_RETURN(!m_tableName.assign(m_tableImpl->getName()));
+}
+
 void 
 NdbEventImpl::setTable(NdbTableImpl *tableImpl)
 {
