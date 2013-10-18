@@ -479,7 +479,8 @@ ib_cb_t innodb_api_cb[] = {
 	(ib_cb_t) ib_get_idx_field_name,
 	(ib_cb_t) ib_trx_get_start_time,
 	(ib_cb_t) ib_cfg_bk_commit_interval,
-	(ib_cb_t) ib_ut_strerr
+	(ib_cb_t) ib_ut_strerr,
+	(ib_cb_t) ib_cursor_stmt_begin
 };
 
 /*************************************************************//**
