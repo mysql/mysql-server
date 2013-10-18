@@ -85,6 +85,33 @@ static inline void item_set_cas(const void *cookie, item *it, uint64_t cas) {
 #define STATS_MISS(conn, op, key, nkey) \
     STATS_TWO(conn, op##_misses, cmd_##op, key, nkey)
 
+#if defined(HAVE_GCC_ATOMIC_BUILTINS)
+
+#define STATS_NOKEY(conn, op)	\
+do { \
+    struct thread_stats *thread_stats = \
+        get_thread_stats(conn); \
+	__sync_add_and_fetch(&thread_stats->op, 1); \
+} while (0)
+
+#define STATS_NOKEY2(conn, op1, op2)	\
+do { \
+    struct thread_stats *thread_stats = \
+        get_thread_stats(conn); \
+	__sync_add_and_fetch(&thread_stats->op1, 1); \
+	__sync_add_and_fetch(&thread_stats->op2, 1); \
+} while (0)
+
+#define STATS_ADD(conn, op, amt)	\
+do { \
+    struct thread_stats *thread_stats = \
+        get_thread_stats(conn); \
+	__sync_add_and_fetch(&thread_stats->op, amt); \
+} while (0)
+
+#define MEMCACHED_ATOMIC_MSG	"InnoDB MEMCACHED: Memcached uses atomic increment \n"
+
+#else /* HAVE_GCC_ATOMIC_BUILTINS */
 #define STATS_NOKEY(conn, op) { \
     struct thread_stats *thread_stats = \
         get_thread_stats(conn); \
@@ -109,6 +136,9 @@ static inline void item_set_cas(const void *cookie, item *it, uint64_t cas) {
     thread_stats->op += amt; \
     pthread_mutex_unlock(&thread_stats->mutex); \
 }
+
+#define MEMCACHED_ATOMIC_MSG	"InnoDB Memcached: Memcached DOES NOT use atomic increment"
+#endif /* HAVE_GCC_ATOMIC_BUILTINS */
 
 volatile sig_atomic_t memcached_shutdown;
 
@@ -7329,6 +7359,7 @@ int main (int argc, char **argv) {
 
 	free(option_argv);
     }
+    fprintf(stderr, MEMCACHED_ATOMIC_MSG);
 #else
     /* process arguments */
     while (-1 != (c = getopt(argc, argv,
