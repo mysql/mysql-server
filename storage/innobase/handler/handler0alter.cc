@@ -5664,6 +5664,9 @@ foreign_fail:
 
 			if (index->type & DICT_FTS) {
 				DBUG_ASSERT(index->type == DICT_FTS);
+				/* We reset DICT_TF2_FTS here because the bit
+				is left unset when a drop proceeds the add. */
+				DICT_TF2_FLAG_SET(ctx->new_table, DICT_TF2_FTS);
 				fts_add_index(index, ctx->new_table);
 				add_fts = true;
 			}
