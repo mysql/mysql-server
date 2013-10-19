@@ -3,12 +3,12 @@ DROP TABLE IF EXISTS foo;
 create table foo (a int)ROW_FORMAT=tokudb_small;
 select ROW_FORMAT from information_schema.tables where table_name='foo';
 ROW_FORMAT
-tokudb_small
+tokudb_lzma
 drop table foo;
 create table foo (a int)ROW_FORMAT=tokudb_fast;
 select ROW_FORMAT from information_schema.tables where table_name='foo';
 ROW_FORMAT
-tokudb_fast
+tokudb_quicklz
 drop table foo;
 create table foo (a int)ROW_FORMAT=tokudb_zlib;
 select ROW_FORMAT from information_schema.tables where table_name='foo';
