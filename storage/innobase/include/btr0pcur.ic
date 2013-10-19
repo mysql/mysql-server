@@ -91,8 +91,7 @@ btr_pcur_get_block(
 /*===============*/
 	const btr_pcur_t*	cursor)	/*!< in: persistent cursor */
 {
-	ut_ad(cursor->pos_state == BTR_PCUR_IS_POSITIONED_OPTIMISTIC
-	      || cursor->pos_state == BTR_PCUR_IS_POSITIONED);
+	ut_ad(cursor->pos_state == BTR_PCUR_IS_POSITIONED);
 
 	return(btr_cur_get_block(btr_pcur_get_btr_cur(cursor)));
 }
@@ -165,8 +164,7 @@ btr_pcur_is_after_last_on_page(
 /*===========================*/
 	const btr_pcur_t*	cursor)	/*!< in: persistent cursor */
 {
-	ut_ad(cursor->pos_state == BTR_PCUR_IS_POSITIONED_OPTIMISTIC
-	      || cursor->pos_state == BTR_PCUR_IS_POSITIONED);
+	ut_ad(cursor->pos_state == BTR_PCUR_IS_POSITIONED);
 	ut_ad(cursor->latch_mode != BTR_NO_LATCHES);
 
 	return(page_cur_is_after_last(btr_pcur_get_page_cur(cursor)));
@@ -311,8 +309,7 @@ btr_pcur_move_to_next_user_rec(
 				function may release the page latch */
 	mtr_t*		mtr)	/*!< in: mtr */
 {
-	ut_ad(cursor->pos_state == BTR_PCUR_IS_POSITIONED_OPTIMISTIC
-	      || cursor->pos_state == BTR_PCUR_IS_POSITIONED);
+	ut_ad(cursor->pos_state == BTR_PCUR_IS_POSITIONED);
 	ut_ad(cursor->latch_mode != BTR_NO_LATCHES);
 	cursor->old_stored = BTR_PCUR_OLD_NOT_STORED;
 loop:
