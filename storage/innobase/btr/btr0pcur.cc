@@ -271,6 +271,7 @@ btr_pcur_restore_position_func(
 					    cursor->block_when_stored,
 					    cursor->modify_clock,
 					    file, line, mtr)) {
+			cursor->pos_state = BTR_PCUR_IS_POSITIONED;
 
 			buf_block_dbg_add_level(
 				btr_pcur_get_block(cursor),
@@ -284,7 +285,6 @@ btr_pcur_restore_position_func(
 				const ulint*	offsets2;
 #endif /* UNIV_DEBUG */
 				cursor->latch_mode = latch_mode;
-				cursor->pos_state = BTR_PCUR_IS_POSITIONED;
 #ifdef UNIV_DEBUG
 				rec = btr_pcur_get_rec(cursor);
 
