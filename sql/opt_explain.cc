@@ -2270,10 +2270,7 @@ void mysql_explain_other(THD *thd)
   }
 
   if (!query_thd)
-  {
-    send_ok= true;
     goto err;
-  }
 
   qp= &query_thd->query_plan;
 
@@ -2347,7 +2344,9 @@ err:
     mysql_mutex_unlock(&query_thd->LOCK_query_plan);
     if (unlock_thd_data)
       mysql_mutex_unlock(&query_thd->LOCK_thd_data);
-  }
+  } 
+  else
+    my_error(ER_NO_SUCH_THREAD, MYF(0), thd->lex->query_id);
 
   DEBUG_SYNC(thd, "after_explain_other");
   if (!res && send_ok)
