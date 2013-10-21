@@ -5644,10 +5644,7 @@ runBug16944817(NDBT_Context* ctx, NDBT_Step* step)
     restarter.waitClusterStarted();
   }
 
-  /**
-   * the kernel only fix does leak markers...but it does not crash!!
-   */
-  bool checkMarkers = false;
+  bool checkMarkers = true;
 
   if (checkMarkers)
   {
