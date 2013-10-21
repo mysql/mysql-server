@@ -4405,15 +4405,6 @@ ibuf_restore_pos(
 
 		rec_print_old(stderr,
 			      page_rec_get_next(btr_pcur_get_rec(pcur)));
-		fflush(stderr);
-
-		ibuf_btr_pcur_commit_specify_mtr(pcur, mtr);
-
-		ib_logf(IB_LOG_LEVEL_INFO, "Validating insert buffer tree:");
-		if (!btr_validate_index(ibuf->index, 0, false)) {
-			ut_error;
-		}
-		ib_logf(IB_LOG_LEVEL_INFO, "ibuf tree is OK.");
 
 		ib_logf(IB_LOG_LEVEL_FATAL, "Failed to restore ibuf position.");
 	}
@@ -4459,7 +4450,7 @@ ibuf_delete_rec(
 		btr_cur_set_deleted_flag_for_ibuf(
 			btr_pcur_get_rec(pcur), NULL, TRUE, mtr);
 		ibuf_mtr_commit(mtr);
-		log_write_up_to(LSN_MAX, LOG_WAIT_ALL_GROUPS, TRUE);
+		log_write_up_to(LSN_MAX, true);
 		DBUG_SUICIDE();
 	}
 #endif /* UNIV_DEBUG || UNIV_IBUF_DEBUG */
@@ -4574,8 +4565,8 @@ ibuf_merge_or_delete_for_page(
 	ulint		volume			= 0;
 #endif
 	page_zip_des_t*	page_zip		= NULL;
-	ibool		tablespace_being_deleted = FALSE;
-	ibool		corruption_noticed	= FALSE;
+	bool		tablespace_being_deleted = false;
+	bool		corruption_noticed	= false;
 	mtr_t		mtr;
 
 	/* Counts for merged & discarded operations. */
@@ -4679,7 +4670,7 @@ ibuf_merge_or_delete_for_page(
 
 			page_t*	bitmap_page;
 
-			corruption_noticed = TRUE;
+			corruption_noticed = true;
 
 			ut_print_timestamp(stderr);
 

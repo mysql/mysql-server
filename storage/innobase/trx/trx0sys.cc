@@ -1048,7 +1048,7 @@ trx_sys_read_file_format_id(
 				         space */
 {
 	os_file_t	file;
-	ibool		success;
+	bool		success;
 	byte		buf[UNIV_PAGE_SIZE * 2];
 	page_t*		page = ut_align(buf, UNIV_PAGE_SIZE);
 	const byte*	ptr;
@@ -1128,7 +1128,7 @@ trx_sys_read_pertable_file_format_id(
 				         data file */
 {
 	os_file_t	file;
-	ibool		success;
+	bool		success;
 	byte		buf[UNIV_PAGE_SIZE * 2];
 	page_t*		page = ut_align(buf, UNIV_PAGE_SIZE);
 	const byte*	ptr;

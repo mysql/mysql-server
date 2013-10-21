@@ -380,6 +380,12 @@ trx_create_low()
 	mem_heap_t*	heap;
 	ib_alloc_t*	alloc;
 
+	trx->api_trx = false;
+
+	trx->api_auto_commit = false;
+
+	trx->read_write = true;
+
 	heap = mem_heap_create(sizeof(ib_vector_t) + sizeof(void*) * 8);
 
 	alloc = ib_heap_allocator_create(heap);
@@ -1179,12 +1185,13 @@ trx_start_low(
 	ut_ad(!trx->in_rollback);
 
 	/* Check whether it is an AUTOCOMMIT SELECT */
-	trx->auto_commit = thd_trx_is_auto_commit(trx->mysql_thd);
+	trx->auto_commit = (trx->api_trx && trx->api_auto_commit)
+			   || thd_trx_is_auto_commit(trx->mysql_thd);
 
 	trx->read_only =
-		(!trx->ddl
-		 && !trx->internal
-		 && thd_trx_is_read_only(trx->mysql_thd))
+		(trx->api_trx && !trx->read_write)
+		|| (!trx->ddl && !trx->internal
+		    && thd_trx_is_read_only(trx->mysql_thd))
 		|| srv_read_only_mode;
 
 	if (!trx->auto_commit) {
@@ -1608,12 +1615,12 @@ trx_flush_log_if_needed_low(
 		break;
 	case 1:
 		/* Write the log and optionally flush it to disk */
-		log_write_up_to(lsn, LOG_WAIT_ONE_GROUP,
+		log_write_up_to(lsn,
 				srv_unix_file_flush_method != SRV_UNIX_NOSYNC);
 		break;
 	case 2:
 		/* Write the log but do not flush it to disk */
-		log_write_up_to(lsn, LOG_WAIT_ONE_GROUP, FALSE);
+		log_write_up_to(lsn, false);
 
 		break;
 	default:
@@ -2998,7 +3005,7 @@ trx_set_rw_mode(
 		MVCC::set_view_creator_trx_id(trx->read_view, trx->id);
 	}
 
-	ut_ad(trx->in_ro_trx_list == true);
+	ut_ad(trx->in_ro_trx_list);
 
 #ifdef UNIV_DEBUG
 	if (trx->id > trx_sys->rw_max_trx_id) {

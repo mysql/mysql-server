@@ -2502,14 +2502,7 @@ void st_select_lex::print_order(String *str,
 {
   for (; order; order= order->next)
   {
-    if (order->counter_used)
-    {
-      char buffer[20];
-      size_t length= my_snprintf(buffer, 20, "%d", order->counter);
-      str->append(buffer, (uint) length);
-    }
-    else
-      (*order->item)->print_for_order(str, query_type, order->used_alias);
+    (*order->item)->print_for_order(str, query_type, order->used_alias);
     if (order->direction == ORDER::ORDER_DESC)
       str->append(STRING_WITH_LEN(" desc"));
     if (order->next)
@@ -2822,16 +2815,13 @@ void st_select_lex::print(THD *thd, String *str, enum_query_type query_type)
   else
     str->append(STRING_WITH_LEN("select "));
 
-  if (master_unit()->cleaned == SELECT_LEX_UNIT::UC_CLEAN)
-  {
-    /*
-     In order to provide inf for EXPLAIN FOR CONNECTION units aren't
-     completely cleaned till the end of the query.
-    */
-    DBUG_ASSERT(false); /* purecov: inspected */
-    str->append(STRING_WITH_LEN("<already_cleaned_up>"));
-    return;
-  }
+  /*
+   In order to provide info for EXPLAIN FOR CONNECTION units shouldn't
+   be completely cleaned till the end of the query. This is valid only for
+   explainable commands.
+  */
+  DBUG_ASSERT(!(master_unit()->cleaned == SELECT_LEX_UNIT::UC_CLEAN &&
+                is_explainable_query(thd->lex->sql_command)));
 
   /* First add options */
   if (options & SELECT_STRAIGHT_JOIN)
