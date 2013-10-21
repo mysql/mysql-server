@@ -2134,7 +2134,7 @@ bool one_thread_per_connection_end(THD *thd, bool put_in_cache)
   /* It's safe to broadcast outside a lock (COND... is not deleted here) */
   DBUG_PRINT("signal", ("Broadcasting COND_thread_count"));
   DBUG_LEAVE;                                   // Must match DBUG_ENTER()
-#ifndef EMBEDDED_LIBRARY
+#if defined(HAVE_OPENSSL) && !defined(EMBEDDED_LIBRARY)
   ERR_remove_state(0);
 #endif
   my_thread_end();
