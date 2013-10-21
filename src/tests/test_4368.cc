@@ -113,7 +113,8 @@ test_main (int UU(argc), char UU(*const argv[])) {
   r = db->open(db, NULL, "test.db", 0, DB_BTREE, DB_CREATE, S_IRWXU+S_IRWXG+S_IRWXO); assert(r == 0);
 
   // call hot_optimize on an empty db. The empty db should have only a root node, which should invoke the bug
-  r = db->hot_optimize(db, NULL, NULL, NULL, NULL); assert_zero(r);
+  uint64_t loops_run;
+  r = db->hot_optimize(db, NULL, NULL, NULL, NULL, &loops_run); assert_zero(r);
     
   r=db->close(db, 0);       assert(r==0);
   r=env->close(env, 0);     assert(r==0);
