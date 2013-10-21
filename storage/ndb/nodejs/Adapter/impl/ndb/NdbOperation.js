@@ -37,6 +37,7 @@ prepareFilterSpec = require("./NdbScanFilter.js").prepareFilterSpec,
     opcodes       = doc.OperationCodes,
     udebug        = unified_debug.getLogger("NdbOperation.js");
 
+var storeNativeConstructorInMapping;
 
 /* Constructors.
    All of these use prototypes directly from the documentation.
@@ -163,11 +164,12 @@ function releaseRowBuffer(op) {
 
 function encodeRowBuffer(op) {
   udebug.log("encodeRowBuffer");
-  var i, offset, value, err;
-  var record = op.tableHandler.dbTable.record;
-  var nfields = op.tableHandler.getMappedFieldCount();
+  var i, offset, value, err, errors, record, nfields, col;
+  errors = {};
+  record = op.tableHandler.dbTable.record;
+  nfields = op.tableHandler.getMappedFieldCount();
   udebug.log("encodeRowBuffer nfields", nfields);
-  var col = op.tableHandler.getColumnMetadata();
+  col = op.tableHandler.getColumnMetadata();
   
   for(i = 0 ; i < nfields ; i++) {  
     value = op.tableHandler.get(op.values, i);
@@ -182,10 +184,13 @@ function encodeRowBuffer(op) {
         value = col[i].typeConverter.ndb.toDB(value);
       }
       err = adapter.impl.encoderWrite(col[i], value, op.buffers.row, offset);
-      if(err) { udebug.log("encoderWrite: ", err); }
-      // FIXME: What to do with this error?
+      if(err) { 
+        udebug.log("encoderWrite:", err);
+        errors[col[i].name] = err;
+      }
     }
   }
+  return Object.keys(errors).length ? errors : null;
 }
 
 function HelperSpec() {
@@ -225,6 +230,7 @@ var scanSpec = new ScanHelperSpec();
 DBOperation.prototype.prepare = function(ndbTransaction) {
   var code = this.opcode;
   var isVOwrite = (this.values && adapter.impl.isValueObject(this.values));
+  var error = null;
 
   /* There is one global helperSpec */
   helperSpec.clear();
@@ -259,7 +265,7 @@ DBOperation.prototype.prepare = function(ndbTransaction) {
         helperSpec[OpHelper.lock_mode]  = constants.LockModes[this.lockMode];
       }
       else { 
-        encodeRowBuffer(this);
+        error = encodeRowBuffer(this);
       }
     }
   }
@@ -268,14 +274,17 @@ DBOperation.prototype.prepare = function(ndbTransaction) {
   this.ndbop = 
     adapter.impl.DBOperationHelper(helperSpec, code, ndbTransaction, isVOwrite);
   this.state = doc.OperationStates[1];  // PREPARED
+  return error;
 };
 
 
 /* Prepare a scan operation.
    This produces the scan filter and index bounds, which are stored in op.scan 
-   to protect them from garbage collecteion before their use in the async call.
+   to protect them from garbage collection before their use in the async call.
    A ScanHelperSpec is used to build a scan helper, which will run an async
-   prepareScan call.    
+   prepareScan call.  prepareScan() simply calls scan_table or scan_index
+   and returns an NdbScanOperation (the equivalent call for key operations 
+   can run synchronously, but this one is async).
 */
 DBOperation.prototype.prepareScan = function(ndbTransaction, callback) {
   var opcode = 33;  // How to tell from operation?
@@ -290,7 +299,7 @@ DBOperation.prototype.prepareScan = function(ndbTransaction, callback) {
 
   if(this.query.queryType == 2) {  /* Index Scan */
     scanSpec[ScanHelper.index_record] = this.query.dbIndexHandler.dbIndex.record;
-//    boundHelper = getBoundHelper(this.query, this.keys);
+//    boundHelper = getBoundHelper(this.query, this.params);
 //    if(boundHelper) {
 //      scanHelper[bounds] = adapter.impl.IndexBound.create(boundHelper);
 //      this.scan.bounds = scanHelper[bounds];
@@ -299,9 +308,9 @@ DBOperation.prototype.prepareScan = function(ndbTransaction, callback) {
 
   scanSpec[ScanHelper.lock_mode] = constants.LockModes[this.lockMode];
 
-  if(typeof this.keys.order !== 'undefined') {
+  if(this.params.order !== undefined) {
     var flags = constants.Scan.flags.SF_OrderBy;
-    if(this.keys.order == 'desc') {
+    if(this.params.order.toLocaleLowerCase() == 'desc') {
       flags |= constants.Scan.flags.SF_Descending;
     }
     scanSpec[ScanHelper.flags] = flags;  
@@ -309,7 +318,7 @@ DBOperation.prototype.prepareScan = function(ndbTransaction, callback) {
 
   if(this.query.ndbFilterSpec) {
     scanSpec[ScanHelper.filter_code] = 
-      this.query.ndbFilterSpec.getScanFilterCode(this.keys);  // call them params?
+      this.query.ndbFilterSpec.getScanFilterCode(this.params); 
     this.scan.filter = scanSpec[ScanHelper.filter_code];
   }
 
@@ -341,7 +350,7 @@ function readResultRow(op) {
   
   for(i = 0 ; i < nfields ; i++) {
     offset  = record.getColumnOffset(i);
-  if(record.isNull(i, op.buffers.row)) {
+    if(record.isNull(i, op.buffers.row)) {
       value = col[i].defaultValue;
     }
     else {
@@ -399,15 +408,23 @@ function buildValueObject(op) {
 
 
 function getScanResults(scanop, userCallback) {
-  var buffer;
-  var results;
-  var dbSession = scanop.transaction.dbSession;
-  var ResultConstructor = scanop.tableHandler.ValueObject;
+  var buffer, results, dbSession, ResultConstructor, nSkip, maxRow;
+  dbSession = scanop.transaction.dbSession;
+  ResultConstructor = scanop.tableHandler.ValueObject;
   var postScanCallback = {
     fn  : userCallback,
     arg0: null,
     arg1: null  
   };
+  var i = 0;
+
+  nSkip = 0;
+  maxRow = 100000000000;
+  if(scanop.params) {
+    if(scanop.params.skip > 0)   { nSkip = scanop.params.skip;           }
+    if(scanop.params.limit >= 0) { maxRow = nSkip + scanop.params.limit; }
+  }
+  udebug.log("skip", nSkip, "+ limit", scanop.params.limit, "=", maxRow);
 
   if(ResultConstructor == null) {
     storeNativeConstructorInMapping(scanop.tableHandler);
@@ -421,12 +438,13 @@ function getScanResults(scanop, userCallback) {
     var force_send = true;
     apiCall.preCallback = gather;
     apiCall.ndb_scan_op = ndb_scan_op;
-    apiCall.description = "fetchResults";
+    apiCall.description = "fetchResults" + scanop.transaction.moniker + i;
     apiCall.buffer = buffer;
     apiCall.run = function runFetchResults() {
       this.ndb_scan_op.fetchResults(this.buffer, force_send, this.callback);
     };
     apiCall.enqueue();
+    i++;
   }
 
   function fetch() {
@@ -456,21 +474,26 @@ function getScanResults(scanop, userCallback) {
     }
     
     /* Gather more results. */
-    while(status === 0) {
+    while(status === 0 && results.length < maxRow) {
       udebug.log("gather() 0 Result_Ready");
       buffer = new Buffer(recordSize);
       status = scanop.ndbop.nextResult(buffer);
       if(status === 0) {
         results.push(new ResultConstructor(buffer));
-      }    
+      }
     }
     
-    if(status == 2) {  // No more locally cached results
+    if(status == 2 && results.length < maxRow) { 
       udebug.log("gather() 2 Cache_Empty");
       fetch();
     }
     else {  // end of scan.
-      // assert(status === 1);
+      /* It is possible to have one row too many, due to the optimistic fetch */
+      if(results.length > maxRow) results.pop();
+      /* Now remove the rows that should have been skipped 
+         (fixme: do something more efficient) */
+      for(i = 0 ; i < nSkip ; i++) results.shift();
+    
       udebug.log("gather() 1 End_Of_Scan.  Final length:", results.length);
       scanop.result.success = true;
       scanop.result.value = results;
@@ -670,7 +693,7 @@ function newScanOperation(tx, QueryTree, properties) {
                            queryHandler.dbTableHandler);
   prepareFilterSpec(queryHandler);
   op.query = queryHandler;
-  op.keys = properties;
+  op.params = properties;
   return op;
 }
 

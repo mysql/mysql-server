@@ -33,18 +33,22 @@ function blah() {
 
 /* ParamRecordSpec describes how a parameter value is encoded into a buffer
 */
-function ParamRecordSpec(column, offset, paramName) {
+function ParamRecordSpec(column, visitor, paramName) {
   this.column = column;
-  this.offset = offset;
+  this.offset = visitor.paramBufferSize;
   this.param  = paramName;
+  visitor.paramLayout.push(this);
+  visitor.paramBufferSize += column.columnSpace;
 }
 
 /* ConstRecordSpec describes the encoding of query parameter constants
 */
-function ConstRecordSpec(column, offset, value) {
+function ConstRecordSpec(column, visitor, value) {
   this.column = column;
-  this.offset = offset;
+  this.offset = visitor.paramBufferSize;
   this.value  = value;
+  visitor.paramLayout.push(this);
+  visitor.paramBufferSize += column.columnSpace;
 }
 
 /* FilterSpec describes filter implementation; will be stored in QueryHandler
@@ -117,10 +121,9 @@ BufferManagerVisitor.prototype.visitQueryComparator = function(node) {
   var col = this.dbTable.columns[colId];
   var spec;
   // if param
-    spec = new ParamRecordSpec(col, this.paramBufferSize, node.parameter.name);
-    this.paramBufferSize += col.columnSpace;
-    this.paramLayout.push(spec);
+    spec = new ParamRecordSpec(col, this, node.parameter.name);
   // else if constant
+    // spec = new ConstRecordSpec(...
   node.ndb.layout = spec;   // store the layout in the query node
 };
 
@@ -132,8 +135,13 @@ BufferManagerVisitor.prototype.visitQueryUnaryPredicate = function(node) {
 
 /** Handle node QueryBetween */
 BufferManagerVisitor.prototype.visitQueryBetweenOperator = function(node) {
+  var colId, col, spec1, spec2;
   markNode(node);
-  blah("visitQueryBetweenOperator", node);
+  colId = node.queryField.field.columnNumber;
+  col = this.dbTable.columns[colId];
+  spec1 = new ParamRecordSpec(col, this, node.parameter1.name);
+  spec2 = new ParamRecordSpec(col, this, node.parameter2.name);
+  node.ndb.layout = { "between" : [ spec1 , spec2 ] };
 };
 
 /** Handle nodes QueryIsNull, QueryIsNotNull */
@@ -154,6 +162,7 @@ function FilterBuildingVisitor(filterSpec, paramBuffer) {
   this.paramBuffer        = paramBuffer;
   this.ndbInterpretedCode = NdbInterpretedCode.create(filterSpec.dbTable);
   this.ndbScanFilter      = NdbScanFilter.create(this.ndbInterpretedCode);
+  this.ndbScanFilter.begin(1);  // implicit top-level AND group
 }
 
 /** Handle nodes QueryAnd, QueryOr */
@@ -190,9 +199,19 @@ FilterBuildingVisitor.prototype.visitQueryUnaryOperator = function(node) {
 
 /** Handle node QueryBetween */
 FilterBuildingVisitor.prototype.visitQueryBetweenOperator = function(node) {
-  blah("visitQueryBetweenOperator", node);
+  var col1 = node.ndb.layout.between[0];
+  var col2 = node.ndb.layout.between[1];  
+  this.ndbScanFilter.begin(1);  // AND
+  this.ndbScanFilter.cmp(2, col1.column.columnNumber, this.paramBuffer,
+                         col1.offset, col1.column.columnSpace); // >= col1
+  this.ndbScanFilter.cmp(0, col2.column.columnNumber, this.paramBuffer,
+                         col2.offset, col2.column.columnSpace); // <= col2
+  this.ndbScanFilter.end();
 };
 
+FilterBuildingVisitor.prototype.finalise = function() {
+  this.ndbScanFilter.end();
+};
 
 /*************************************************/
 
@@ -259,6 +278,7 @@ FilterSpec.prototype.getScanFilterCode = function(params) {
   /* Build the NdbScanFilter for this operation */
   var filterBuildingVisitor = new FilterBuildingVisitor(this, paramBuffer);
   this.predicate.visit(filterBuildingVisitor);
+  filterBuildingVisitor.finalise();
   
   return filterBuildingVisitor.ndbInterpretedCode;
 };

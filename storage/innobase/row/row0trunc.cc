@@ -335,7 +335,7 @@ public:
 			return(DB_ERROR);
 		}
 
-		ibool		ret;
+		bool		ret;
 		os_file_t	handle = os_file_create(
 			innodb_log_file_key, m_log_file_name,
 			OS_FILE_CREATE, OS_FILE_NORMAL,
@@ -406,13 +406,13 @@ public:
 			return;
 		}
 
-		ibool	ret;
+		bool	ret;
 		os_file_t handle = os_file_create_simple_no_error_handling(
 			innodb_log_file_key, m_log_file_name,
 			OS_FILE_OPEN, OS_FILE_READ_WRITE, &ret);
 		DBUG_EXECUTE_IF("ib_err_trunc_writing_magic_number",
 				os_file_close(handle);
-				ret = 0;);
+				ret = false;);
 		if (!ret) {
 			ib_logf(IB_LOG_LEVEL_ERROR,
 				"Failed to open truncate log file %s. "
@@ -512,7 +512,7 @@ TruncateLogParser::scan(
 	ulint		dir_len = strlen(dir_path);
 
 	/* Scan and look out for the truncate log files. */
-	dir = os_file_opendir(dir_path, TRUE);
+	dir = os_file_opendir(dir_path, true);
 	if (dir == NULL) {
 		return(DB_IO_ERROR);
 	}
@@ -581,7 +581,7 @@ TruncateLogParser::parse(
 
 	/* Open the file and read magic-number to findout if truncate action
 	was completed. */
-	ibool		ret;
+	bool		ret;
 	os_file_t	handle = os_file_create_simple(
 		innodb_log_file_key, log_file_name,
 		OS_FILE_OPEN, OS_FILE_READ_ONLY, &ret);
@@ -1431,7 +1431,7 @@ row_truncate_update_system_tables(
 		if (has_internal_doc_id && table->fts->cache != NULL) {
 			table->fts->fts_status |= TABLE_DICT_LOCKED;
 			fts_update_next_doc_id(trx, table, NULL, 0);
-			fts_cache_clear(table->fts->cache, TRUE);
+			fts_cache_clear(table->fts->cache);
 			fts_cache_init(table->fts->cache);
 			table->fts->fts_status &= ~TABLE_DICT_LOCKED;
 		}

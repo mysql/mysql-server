@@ -6577,6 +6577,65 @@ VARIABLE_NAME	old.VARIABLE_VALUE - scan_count.VARIABLE_VALUE
 NDB_SCAN_COUNT	2
 drop table scan_count;
 drop table t1;
+CREATE TABLE table1 (
+col_int_unique int(11) DEFAULT NULL,
+PRIMARY KEY (col_int_unique)
+) ENGINE=ndbcluster;
+CREATE TABLE table3 (
+col_int int(11) NOT NULL DEFAULT '0',
+KEY (col_int)
+) ENGINE=ndbcluster;
+CREATE TABLE table4 (
+col_int int(11) DEFAULT NULL,
+pk int(11) NOT NULL,
+PRIMARY KEY (pk)
+) ENGINE=ndbcluster;
+CREATE TABLE table6 (
+col_int int(11) DEFAULT NULL,
+col_int_unique int(11) DEFAULT NULL
+) ENGINE=ndbcluster;
+insert into table6 values
+(2,NULL), 
+(2,NULL), 
+(2,NULL), 
+(2,NULL), 
+(2,NULL), 
+(2,NULL), 
+(2,NULL), 
+(2,NULL);
+set global debug='+d,max_4rows_in_spj_batches';
+EXPLAIN EXTENDED
+SELECT * FROM
+table1 RIGHT JOIN 
+table3 LEFT JOIN table4 ON table3.col_int = table4.col_int 
+JOIN
+table6 ON table4.pk = table6.col_int_unique 
+ON table1.col_int_unique = table6.col_int;
+id	select_type	table	type	possible_keys	key	key_len	ref	rows	filtered	Extra
+1	SIMPLE	table6	ALL	NULL	NULL	NULL	NULL	8	100.00	NULL
+1	SIMPLE	table1	eq_ref	PRIMARY	PRIMARY	4	test.table6.col_int	1	100.00	Using join buffer (Batched Key Access)
+1	SIMPLE	table4	eq_ref	PRIMARY	PRIMARY	4	test.table6.col_int_unique	1	100.00	Using where with pushed condition (`test`.`table4`.`col_int` is not null); Using join buffer (Batched Key Access)
+1	SIMPLE	table3	ref	col_int	col_int	4	test.table4.col_int	2	100.00	Using join buffer (Batched Key Access)
+Warnings:
+Note	1003	Cannot push table 'table1' as child of table 'table6'. Doing so would prevent using join buffer for table 'table1'.
+Note	1003	Cannot push table 'table4' as child of table 'table6'. Doing so would prevent using join buffer for table 'table4'.
+Note	1003	Cannot push table 'table3' as child of table 'table6'. Doing so would prevent using join buffer for table 'table3'.
+Note	1003	Cannot push table 'table4' as child of table 'table1'. Doing so would prevent using join buffer for table 'table4'.
+Note	1003	Push of table 'table3' as scan-child with lookup-root 'table1' not implemented
+Note	1003	Push of table 'table3' as scan-child with lookup-root 'table4' not implemented
+Note	1003	/* select#1 */ select `test`.`table1`.`col_int_unique` AS `col_int_unique`,`test`.`table3`.`col_int` AS `col_int`,`test`.`table4`.`col_int` AS `col_int`,`test`.`table4`.`pk` AS `pk`,`test`.`table6`.`col_int` AS `col_int`,`test`.`table6`.`col_int_unique` AS `col_int_unique` from `test`.`table3` join `test`.`table4` join `test`.`table6` left join `test`.`table1` on((`test`.`table1`.`col_int_unique` = `test`.`table6`.`col_int`)) where ((`test`.`table3`.`col_int` = `test`.`table4`.`col_int`) and (`test`.`table4`.`pk` = `test`.`table6`.`col_int_unique`))
+SELECT * FROM
+table1 RIGHT JOIN 
+table3 LEFT JOIN table4 ON table3.col_int = table4.col_int 
+JOIN
+table6 ON table4.pk = table6.col_int_unique 
+ON table1.col_int_unique = table6.col_int;
+col_int_unique	col_int	col_int	pk	col_int	col_int_unique
+set global debug=@save_debug;
+drop table table6;
+drop table table4;
+drop table table3;
+drop table table1;
 5.6 tests
 create table t1 (
 a int not null,

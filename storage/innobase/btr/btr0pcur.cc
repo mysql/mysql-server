@@ -111,7 +111,7 @@ btr_pcur_store_position(
 	page_t*		page;
 	ulint		offs;
 
-	ut_a(cursor->pos_state == BTR_PCUR_IS_POSITIONED);
+	ut_ad(cursor->pos_state == BTR_PCUR_IS_POSITIONED);
 	ut_ad(cursor->latch_mode != BTR_NO_LATCHES);
 
 	block = btr_pcur_get_block(cursor);
@@ -234,20 +234,11 @@ btr_pcur_restore_position_func(
 
 	ut_ad(mtr);
 	ut_ad(mtr->state == MTR_ACTIVE);
+	ut_ad(cursor->old_stored == BTR_PCUR_OLD_STORED);
+	ut_ad(cursor->pos_state == BTR_PCUR_WAS_POSITIONED
+	      || cursor->pos_state == BTR_PCUR_IS_POSITIONED);
 
 	index = btr_cur_get_index(btr_pcur_get_btr_cur(cursor));
-
-	if (UNIV_UNLIKELY(cursor->old_stored != BTR_PCUR_OLD_STORED)
-	    || UNIV_UNLIKELY(cursor->pos_state != BTR_PCUR_WAS_POSITIONED
-			     && cursor->pos_state != BTR_PCUR_IS_POSITIONED)) {
-		ut_print_buf(stderr, cursor, sizeof(btr_pcur_t));
-		putc('\n', stderr);
-		if (cursor->trx_if_known) {
-			trx_print(stderr, cursor->trx_if_known, 0);
-		}
-
-		ut_error;
-	}
 
 	if (UNIV_UNLIKELY
 	    (cursor->rel_pos == BTR_PCUR_AFTER_LAST_IN_TREE
@@ -274,15 +265,12 @@ btr_pcur_restore_position_func(
 
 	if (UNIV_LIKELY(latch_mode == BTR_SEARCH_LEAF)
 	    || UNIV_LIKELY(latch_mode == BTR_MODIFY_LEAF)) {
-		/* Try optimistic restoration if cursor is expected to be
-		positioned on the same btr record as before (BTR_PCUR_ON). */
+		/* Try optimistic restoration. */
 
-		if (cursor->rel_pos == BTR_PCUR_ON
-		    && buf_page_optimistic_get(
-					latch_mode,
-					cursor->block_when_stored,
-					cursor->modify_clock,
-					file, line, mtr)) {
+		if (buf_page_optimistic_get(latch_mode,
+					    cursor->block_when_stored,
+					    cursor->modify_clock,
+					    file, line, mtr)) {
 			cursor->pos_state = BTR_PCUR_IS_POSITIONED;
 
 			buf_block_dbg_add_level(
@@ -290,7 +278,7 @@ btr_pcur_restore_position_func(
 				dict_index_is_ibuf(index)
 				? SYNC_IBUF_TREE_NODE : SYNC_TREE_NODE);
 
-			{
+			if (cursor->rel_pos == BTR_PCUR_ON) {
 #ifdef UNIV_DEBUG
 				const rec_t*	rec;
 				const ulint*	offsets1;
@@ -315,6 +303,11 @@ btr_pcur_restore_position_func(
 #endif /* UNIV_DEBUG */
 				return(TRUE);
 			}
+			/* This is the same record as stored,
+			may need to be adjusted for BTR_PCUR_BEFORE/AFTER,
+			depending on search mode and direction. */
+			cursor->pos_state = BTR_PCUR_IS_POSITIONED_OPTIMISTIC;
+			return(FALSE);
 		}
 	}
 
@@ -416,7 +409,7 @@ btr_pcur_move_to_next_page(
 	page_t*		next_page;
 	ulint		mode;
 
-	ut_a(cursor->pos_state == BTR_PCUR_IS_POSITIONED);
+	ut_ad(cursor->pos_state == BTR_PCUR_IS_POSITIONED);
 	ut_ad(cursor->latch_mode != BTR_NO_LATCHES);
 	ut_ad(btr_pcur_is_after_last_on_page(cursor));
 
@@ -478,7 +471,6 @@ btr_pcur_move_backward_from_page(
 	ulint		latch_mode;
 	ulint		latch_mode2;
 
-	ut_a(cursor->pos_state == BTR_PCUR_IS_POSITIONED);
 	ut_ad(cursor->latch_mode != BTR_NO_LATCHES);
 	ut_ad(btr_pcur_is_before_first_on_page(cursor));
 	ut_ad(!btr_pcur_is_before_first_in_tree(cursor, mtr));

@@ -281,6 +281,12 @@ my_bool my_net_write(NET *net, const uchar *packet, size_t len)
 
   MYSQL_NET_WRITE_START(len);
 
+  DBUG_EXECUTE_IF("simulate_net_write_failure", {
+                  my_error(ER_NET_ERROR_ON_WRITE, MYF(0));
+                  return 1;
+                  };
+                 );
+
   /*
     Big packets are handled by splitting them in packets of MAX_PACKET_LENGTH
     length. The last packet is always a packet that is < MAX_PACKET_LENGTH.

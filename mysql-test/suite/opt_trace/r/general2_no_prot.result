@@ -2902,7 +2902,7 @@ from t0 where a in
                           "access_type": "ref",
                           "index": "a",
                           "rows": 1,
-                          "cost": 10.2,
+                          "cost": 12,
                           "chosen": true
                         },
                         {
@@ -2930,7 +2930,7 @@ from t0 where a in
                               "access_type": "ref",
                               "index": "a",
                               "rows": 1,
-                              "cost": 10.2,
+                              "cost": 12,
                               "chosen": true
                             },
                             {
@@ -2986,7 +2986,7 @@ from t0 where a in
                           "access_type": "ref",
                           "index": "a",
                           "rows": 1,
-                          "cost": 10.2,
+                          "cost": 12,
                           "chosen": true
                         },
                         {
@@ -3014,7 +3014,7 @@ from t0 where a in
                               "access_type": "ref",
                               "index": "a",
                               "rows": 1,
-                              "cost": 10.2,
+                              "cost": 12,
                               "chosen": true
                             },
                             {
@@ -3044,7 +3044,7 @@ from t0 where a in
                               "access_type": "ref",
                               "index": "a",
                               "rows": 1,
-                              "cost": 10.2,
+                              "cost": 12,
                               "chosen": true
                             },
                             {
@@ -3074,7 +3074,7 @@ from t0 where a in
                           "access_type": "ref",
                           "index": "a",
                           "rows": 1,
-                          "cost": 10.2,
+                          "cost": 12,
                           "chosen": true
                         },
                         {
@@ -3127,7 +3127,7 @@ from t0 where a in
                           "access_type": "ref",
                           "index": "a",
                           "rows": 1,
-                          "cost": 10.2,
+                          "cost": 12,
                           "chosen": true
                         },
                         {
@@ -3155,7 +3155,7 @@ from t0 where a in
                               "access_type": "ref",
                               "index": "a",
                               "rows": 1,
-                              "cost": 10.2,
+                              "cost": 12,
                               "chosen": true
                             },
                             {
@@ -3185,7 +3185,7 @@ from t0 where a in
                               "access_type": "ref",
                               "index": "a",
                               "rows": 1,
-                              "cost": 10.2,
+                              "cost": 12,
                               "chosen": true
                             },
                             {
@@ -3215,7 +3215,7 @@ from t0 where a in
                           "access_type": "ref",
                           "index": "a",
                           "rows": 1,
-                          "cost": 10.2,
+                          "cost": 12,
                           "chosen": true
                         },
                         {
@@ -3572,7 +3572,7 @@ select 497, tmp.ID, NULL from (select 497 as ID, MAX(t3.DATA) as DATA      from 
                                 "access_type": "ref",
                                 "index": "t2_ID_IDX",
                                 "rows": 2,
-                                "cost": 2,
+                                "cost": 1.92,
                                 "chosen": true
                               },
                               {
@@ -3598,7 +3598,7 @@ select 497, tmp.ID, NULL from (select 497 as ID, MAX(t3.DATA) as DATA      from 
                                 "access_type": "ref",
                                 "index": "t2_ID_IDX",
                                 "rows": 2,
-                                "cost": 2,
+                                "cost": 1.92,
                                 "chosen": true
                               },
                               {
@@ -4749,7 +4749,7 @@ GROUP BY field2 ORDER BY alias1.col_int_key,alias2.pk	{
                           "access_type": "ref",
                           "index": "PRIMARY",
                           "rows": 1,
-                          "cost": 20.2,
+                          "cost": 24,
                           "chosen": true
                         },
                         {
