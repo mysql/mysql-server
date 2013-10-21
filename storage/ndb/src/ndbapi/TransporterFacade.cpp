@@ -217,7 +217,7 @@ TransporterFacade::deliver_signal(SignalHeader * const header,
                                   LinearSectionPtr ptr[3])
 {
   Uint32 tRecBlockNo = header->theReceiversBlockNumber;
-  
+
 #ifdef API_TRACE
   if(setSignalLog() && TRACE_GSN(header->theVerId_signalNumber)){
     signalLogger.executeSignal(* header, 
@@ -250,7 +250,11 @@ TransporterFacade::deliver_signal(SignalHeader * const header,
       NdbApiSignal * tSignal = &tmpSignal;
       tSignal->setDataPtr(theData);
       clnt->trp_deliver_signal(tSignal, ptr);
-    }//if
+    }
+    else
+    {
+      handleMissingClnt(header, theData);
+    }
   }
   else if (tRecBlockNo == API_PACKED)
   {
@@ -294,6 +298,10 @@ TransporterFacade::deliver_signal(SignalHeader * const header,
               m_poll_owner->m_poll.lock_client(clnt);
               clnt->trp_deliver_signal(tSignal, 0);
             }
+            else
+            {
+              handleMissingClnt(header, tDataPtr);
+            }
           }
         }
       }
@@ -311,7 +319,11 @@ TransporterFacade::deliver_signal(SignalHeader * const header,
       tSignal->setDataPtr(theData);
       m_poll_owner->m_poll.lock_client(clnt);
       clnt->trp_deliver_signal(tSignal, ptr);
-    }//if   
+    }
+    else
+    {
+      handleMissingClnt(header, theData);
+    }
   }
   else
   {
@@ -334,6 +346,69 @@ TransporterFacade::deliver_signal(SignalHeader * const header,
   const Uint32 MAX_MESSAGES_IN_LOCKED_CLIENTS =
     m_poll_owner->m_poll.m_lock_array_size - 6;
    return m_poll_owner->m_poll.m_locked_cnt >= MAX_MESSAGES_IN_LOCKED_CLIENTS;
+}
+
+#include <signaldata/TcKeyConf.hpp>
+#include <signaldata/TcCommit.hpp>
+#include <signaldata/TcKeyFailConf.hpp>
+
+void
+TransporterFacade::handleMissingClnt(const SignalHeader * header,
+                                     const Uint32 * theData)
+{
+  Uint32 gsn = header->theVerId_signalNumber;
+  Uint32 transId[2];
+  if (gsn == GSN_TCKEYCONF || gsn == GSN_TCINDXCONF)
+  {
+    const TcKeyConf * conf = CAST_CONSTPTR(TcKeyConf, theData);
+    if (TcKeyConf::getMarkerFlag(conf->confInfo) == false)
+    {
+      return;
+    }
+    transId[0] = conf->transId1;
+    transId[1] = conf->transId2;
+  }
+  else if (gsn == GSN_TC_COMMITCONF)
+  {
+    const TcCommitConf * conf = CAST_CONSTPTR(TcCommitConf, theData);
+    if ((conf->apiConnectPtr & 1) == 0)
+    {
+      return;
+    }
+    transId[0] = conf->transId1;
+    transId[1] = conf->transId2;
+  }
+  else if (gsn == GSN_TCKEY_FAILCONF)
+  {
+    const TcKeyFailConf * conf = CAST_CONSTPTR(TcKeyFailConf, theData);
+    if ((conf->apiConnectPtr & 1) == 0)
+    {
+      return;
+    }
+    transId[0] = conf->transId1;
+    transId[1] = conf->transId2;
+  }
+  else
+  {
+    return;
+  }
+
+  // ndbout_c("KESO KESO KESO: sending commit ack marker 0x%.8x 0x%.8x (gsn: %u)",
+  //         transId[0], transId[1], gsn);
+
+  Uint32 ownBlockNo = header->theReceiversBlockNumber;
+  Uint32 aTCRef = header->theSendersBlockRef;
+
+  NdbApiSignal tSignal(numberToRef(ownBlockNo, ownId()));
+  tSignal.theReceiversBlockNumber = refToBlock(aTCRef);
+  tSignal.theVerId_signalNumber   = GSN_TC_COMMIT_ACK;
+  tSignal.theLength               = 2;
+
+  Uint32 * dataPtr = tSignal.getDataPtrSend();
+  dataPtr[0] = transId[0];
+  dataPtr[1] = transId[1];
+
+  m_poll_owner->safe_sendSignal(&tSignal, refToNode(aTCRef));
 }
 
 // These symbols are needed, but not used in the API

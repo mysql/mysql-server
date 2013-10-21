@@ -213,6 +213,9 @@ public:
                       Uint8 prio,
                       Uint32 * const signalData,
                       LinearSectionPtr ptr[3]);
+  void handleMissingClnt(const SignalHeader * header,
+                         const Uint32 * theData);
+
   int checkJobBuffer();
   void reportSendLen(NodeId nodeId, Uint32 count, Uint64 bytes);
   void reportReceiveLen(NodeId nodeId, Uint32 count, Uint64 bytes);
