@@ -1,8 +1,5 @@
-# The include statement below is a temp one for tests that are yet to
-#be ported to run with InnoDB,
-#but needs to be kept for tests that would need MyISAM in future.
---source include/force_myisam_default.inc
-
+# one subtest needs page size > 8k
+--source include/have_innodb_16k.inc
 --disable_warnings
 drop table if exists t1,t2,t3;
 --enable_warnings
@@ -188,14 +185,14 @@ drop table t1;
 #
 
 CREATE TABLE t1 (c CHAR(10) NOT NULL,i INT NOT NULL AUTO_INCREMENT,
-UNIQUE (c,i));
+UNIQUE (c,i)) ENGINE=MYISAM;
 INSERT INTO t1 (c) VALUES (NULL),(NULL);
 SELECT * FROM t1;
 INSERT INTO t1 (c) VALUES ('a'),('a');
 SELECT * FROM t1;
 DROP TABLE IF EXISTS t1;
 CREATE TABLE t1 (c CHAR(10) NULL, i INT NOT NULL AUTO_INCREMENT,
-UNIQUE (c,i));
+UNIQUE (c,i)) ENGINE=MYISAM;
 INSERT INTO t1 (c) VALUES (NULL),(NULL);
 SELECT * FROM t1;
 INSERT INTO t1 (c) VALUES ('a'),('a');
@@ -205,7 +202,12 @@ drop table t1;
 #
 # longer keys
 #
-create table t1 (i int, a char(200), b text, unique (a), unique (b(300))) charset utf8;
+let $innodb_large_prefix_orig=`select @@innodb_large_prefix`;
+let $innodb_file_format = `SELECT @@innodb_file_format`;
+set global innodb_large_prefix=1;
+SET GLOBAL innodb_file_format = `Barracuda`;
+
+create table t1 (i int, a char(200), b text, unique (a), unique (b(300))) charset utf8 row_format=dynamic engine=innodb;
 insert t1 values (1, repeat('a',210), repeat('b', 310));
 insert t1 values (2, repeat(0xD0B1,215), repeat(0xD0B1, 310));
 select i, length(a), length(b), char_length(a), char_length(b) from t1;
@@ -213,7 +215,8 @@ select i from t1 where a=repeat(_utf8 'a',200);
 select i from t1 where a=repeat(_utf8 0xD0B1,200);
 select i from t1 where b=repeat(_utf8 'b',310);
 drop table t1;
-
+eval SET GLOBAL innodb_large_prefix=$innodb_large_prefix_orig;
+eval SET GLOBAL INNODB_FILE_FORMAT=$innodb_file_format;
 #
 # Test of key read with primary key (Bug #3497)
 #
@@ -557,7 +560,7 @@ DROP TABLE t1;
 # Bug #31974: Wrong EXPLAIN output
 #
 
-CREATE TABLE t1 (a INT, b INT, INDEX (a,b));
+CREATE TABLE t1 (a INT, b INT, INDEX (a,b)) engine=myisam;
 INSERT INTO t1 (a, b)
    VALUES
      (1,1), (1,2), (1,3), (1,4), (1,5),
@@ -575,7 +578,7 @@ DROP TABLE t1;
 --echo # We are interested in showing that the cost for the last plan is higher
 --echo # than for the preceding two plans.
 --echo #
-CREATE TABLE t1( a INT, b INT, KEY( a ) );  
+CREATE TABLE t1( a INT, b INT, KEY( a ) ) engine=myisam;  
 INSERT INTO t1 values (1, 2), (1, 3), (2, 3), (2, 4), (3, 4), (3, 5);
 
 EXPLAIN SELECT a, SUM( b ) FROM t1 GROUP BY a;

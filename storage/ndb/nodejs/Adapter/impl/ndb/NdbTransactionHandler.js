@@ -54,7 +54,6 @@ function DBTransactionHandler(dbsession) {
   this.executedOperations = [];  // All finished operations 
   this.execAfterOpenQueue = [];  // exec calls waiting on startTransaction()
   this.asyncContext       = dbsession.parentPool.asyncNdbContext;
-  this.canUseNdbAsynch    = dbsession.parentPool.properties.use_ndb_async_api;
   this.serial             = serial++;
   this.moniker            = "(" + this.serial + ")";
   udebug.log("NEW ", this.moniker);
@@ -63,7 +62,7 @@ function DBTransactionHandler(dbsession) {
 DBTransactionHandler.prototype = proto;
 
 function onAsyncSent(a,b) {
-  // udebug.log("execute onAsyncSent");
+  udebug.log("execute onAsyncSent");
 }
 
 /* NdbTransactionHandler internal run():
@@ -71,7 +70,7 @@ function onAsyncSent(a,b) {
 */
 function run(self, execMode, abortFlag, callback) {
   var qpos;
-  var apiCall = new QueuedAsyncCall(self.dbSession.execQueue, callback, null);
+  var apiCall = new QueuedAsyncCall(self.dbSession.execQueue, callback);
   apiCall.tx = self;
   apiCall.execMode = execMode;
   apiCall.abortFlag = abortFlag;
@@ -85,7 +84,7 @@ function run(self, execMode, abortFlag, callback) {
     */
     var force_send = 1;
 
-    if(this.tx.canUseNdbAsynch) {
+    if(this.tx.asyncContext) {
       stats.incr(["run","async"]);
       this.tx.asyncContext.executeAsynch(this.tx.ndbtx, 
                                          this.execMode, this.abortFlag,
@@ -156,31 +155,48 @@ function attachErrorToTransaction(dbTxHandler, err) {
 /* Common callback for execute, commit, and rollback 
 */
 function onExecute(dbTxHandler, execMode, err, execId, userCallback) {
+  var apiCall;
   /* Update our own success and error objects */
   attachErrorToTransaction(dbTxHandler, err);
   udebug.log("onExecute", modeNames[execMode], dbTxHandler.moniker,
              "success:", dbTxHandler.success);
+
+  function continueAfterExecute() {
+    /* send the next exec call on its way */
+    runExecAfterOpenQueue(dbTxHandler);
+
+    /* Attach results to their operations */
+    ndboperation.completeExecutedOps(dbTxHandler, execMode, 
+                                     dbTxHandler.pendingOpsLists[execId]);
+
+    /* Next callback */
+    if(typeof userCallback === 'function') {
+      userCallback(dbTxHandler.error, dbTxHandler);
+    }
+  }
   
   /* If we just executed with Commit or Rollback, close the NdbTransaction 
      and register the DBTransactionHandler as closed with DBSession
   */
+  function onNdbTransactionClosed() {
+    ndbsession.closeNdbTransaction(dbTxHandler, dbTxHandler.nTxRecords);
+    continueAfterExecute();
+  }
+    
   if(execMode === COMMIT || execMode === ROLLBACK) {
     if(dbTxHandler.ndbtx) {       // May not exist on "stub" commit/rollback
-      dbTxHandler.ndbtx.close();
-      ndbsession.closeNdbTransaction(dbTxHandler, dbTxHandler.nTxRecords);
+      apiCall = new QueuedAsyncCall(dbTxHandler.dbSession.execQueue, 
+                                    onNdbTransactionClosed);
+      apiCall.ndbTransaction = dbTxHandler.ndbtx;
+      apiCall.description = "close " + dbTxHandler.moniker;
+      apiCall.run = function closeNdbTransaction() {
+        this.ndbTransaction.close(this.callback);
+      };
+      apiCall.enqueue();
     }
   }
-
-  /* send the next exec call on its way */
-  runExecAfterOpenQueue(dbTxHandler);
-
-  /* Attach results to their operations */
-  ndboperation.completeExecutedOps(dbTxHandler, execMode, 
-                                   dbTxHandler.pendingOpsLists[execId]);
-
-  /* Next callback */
-  if(typeof userCallback === 'function') {
-    userCallback(dbTxHandler.error, dbTxHandler);
+  else {
+    continueAfterExecute();
   }
 }
 
@@ -270,9 +286,11 @@ function executeNonScan(self, execMode, abortFlag, dbOperationList, callback) {
     var i, op, fatalError;
     for(i = 0 ; i < dbOperationList.length; i++) {
       op = dbOperationList[i];
-      op.prepare(self.ndbtx);
+      fatalError = op.prepare(self.ndbtx);
       if(! op.ndbop) {
         fatalError = self.ndbtx.getNdbError();
+      }
+      if(fatalError) {
         callback(new ndboperation.DBOperationError(fatalError), self);
         return;  /* is that correct? */
       }

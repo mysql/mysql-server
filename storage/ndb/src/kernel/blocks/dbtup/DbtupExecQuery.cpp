@@ -29,6 +29,7 @@
 #include <signaldata/TupKey.hpp>
 #include <signaldata/AttrInfo.hpp>
 #include <signaldata/TuxMaint.hpp>
+#include <signaldata/ScanFrag.hpp>
 #include <NdbSqlUtil.hpp>
 
 #define JAM_FILE_ID 422
@@ -277,11 +278,11 @@ Dbtup::setup_read(KeyReqStruct *req_struct,
   currOpPtr.i= req_struct->m_tuple_ptr->m_operation_ptr_i;
   Uint32 bits = req_struct->m_tuple_ptr->m_header_bits;
 
-  if (unlikely(req_struct->m_reorg))
+  if (unlikely(req_struct->m_reorg != ScanFragReq::REORG_ALL))
   {
     Uint32 moved = bits & Tuple_header::REORG_MOVE;
-    if (! ((req_struct->m_reorg == 1 && moved == 0) ||
-           (req_struct->m_reorg == 2 && moved != 0)))
+    if (! ((req_struct->m_reorg == ScanFragReq::REORG_NOT_MOVED && moved == 0) ||
+           (req_struct->m_reorg == ScanFragReq::REORG_MOVED && moved != 0)))
     {
       terrorCode= ZTUPLE_DELETED_ERROR;
       return false;
@@ -602,8 +603,8 @@ void Dbtup::execTUPKEYREQ(Signal* signal)
    req_struct.fragPtrP = fragptr.p;
    req_struct.operPtrP = operPtr.p;
    req_struct.signal= signal;
-   req_struct.dirty_op= TrequestInfo & 1;
-   req_struct.interpreted_exec= (TrequestInfo >> 10) & 1;
+   req_struct.dirty_op= TupKeyReq::getDirtyFlag(TrequestInfo);
+   req_struct.interpreted_exec= TupKeyReq::getInterpretedFlag(TrequestInfo);
    req_struct.no_fired_triggers= 0;
    req_struct.read_length= 0;
    req_struct.last_row= false;
@@ -625,9 +626,9 @@ void Dbtup::execTUPKEYREQ(Signal* signal)
    Uint32 Rstoredid= tupKeyReq->storedProcedure;
 
    regOperPtr->fragmentPtr= Rfragptr;
-   regOperPtr->op_struct.op_type= (TrequestInfo >> 6) & 0x7;
+   regOperPtr->op_struct.op_type= TupKeyReq::getOperation(TrequestInfo);
    regOperPtr->op_struct.delete_insert_flag = false;
-   regOperPtr->op_struct.m_reorg = (TrequestInfo >> 12) & 3;
+   regOperPtr->op_struct.m_reorg = TupKeyReq::getReorgFlag(TrequestInfo);
 
    regOperPtr->op_struct.m_disable_fk_checks = tupKeyReq->disable_fk_checks;
 
@@ -652,8 +653,8 @@ void Dbtup::execTUPKEYREQ(Signal* signal)
    req_struct.TC_index= sig2;
    req_struct.TC_ref= sig3;
    Uint32 pageid = req_struct.frag_page_id= sig4;
-   req_struct.m_use_rowid = (TrequestInfo >> 11) & 1;
-   req_struct.m_reorg = (TrequestInfo >> 12) & 3;
+   req_struct.m_use_rowid = TupKeyReq::getRowidFlag(TrequestInfo);
+   req_struct.m_reorg = TupKeyReq::getReorgFlag(TrequestInfo);
 
    sig1= tupKeyReq->attrBufLen;
    sig2= tupKeyReq->applRef;
@@ -1111,11 +1112,11 @@ handle_reorg(Dbtup::KeyReqStruct * req_struct,
     return;
   case Dbtup::Fragrecord::FS_REORG_COMMIT:
   case Dbtup::Fragrecord::FS_REORG_COMPLETE:
-    if (reorg != 1)
+    if (reorg != ScanFragReq::REORG_NOT_MOVED)
       return;
     break;
   case Dbtup::Fragrecord::FS_ONLINE:
-    if (reorg != 2)
+    if (reorg != ScanFragReq::REORG_MOVED)
       return;
     break;
   default:
@@ -1271,7 +1272,7 @@ int Dbtup::handleUpdateReq(Signal* signal,
     }
   }
 
-  if (req_struct->m_reorg)
+  if (req_struct->m_reorg != ScanFragReq::REORG_ALL)
   {
     handle_reorg(req_struct, regFragPtr->fragStatus);
   }
@@ -1862,7 +1863,8 @@ int Dbtup::handleInsertReq(Signal* signal,
       if (!varalloc)
       {
 	jam();
-	ptr= alloc_fix_rec(&terrorCode,
+	ptr= alloc_fix_rec(jamBuffer(),
+                           &terrorCode,
                            regFragPtr,
 			   regTabPtr,
 			   &regOperPtr.p->m_tuple_location,
@@ -1987,7 +1989,7 @@ int Dbtup::handleInsertReq(Signal* signal,
     disk_ptr->m_base_record_ref= ref.ref();
   }
 
-  if (req_struct->m_reorg)
+  if (req_struct->m_reorg != ScanFragReq::REORG_ALL)
   {
     handle_reorg(req_struct, regFragPtr->fragStatus);
   }

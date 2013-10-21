@@ -68,11 +68,7 @@ typedef Bitmap<((MAX_INDEXES+7)/8*8)> key_map; /* Used for finding keys */
 #define TEST_NO_EXTRA		128
 #define TEST_CORE_ON_SIGNAL	256	/**< Give core if signal */
 #define TEST_NO_STACKTRACE	512
-/*
-  TEST_SIGINT is no longer used. Was used to allow
-  sigint on individual threads.
-*/
-#define OBSOLETE_TEST_SIGINT	1024
+#define TEST_SIGINT	        1024    /**< Allow sigint on threads */
 #define TEST_SYNCHRONIZATION    2048    /**< get server to do sleep in
                                            some places */
 #define TEST_DO_QUICK_LEAK_CHECK 4096   /**< Do Valgrind leak check for
@@ -294,6 +290,8 @@ extern ulong connection_errors_internal;
 extern ulong connection_errors_max_connection;
 extern ulong connection_errors_peer_addr;
 extern ulong log_warnings;
+/** The size of the host_cache. */
+extern uint host_cache_size;
 extern ulong log_error_verbosity;
 extern LEX_CSTRING sql_statement_names[(uint) SQLCOM_END + 1];
 extern mysql_cond_t COND_thread_cache, COND_flush_thread_cache;

@@ -324,7 +324,7 @@ create_log_file(
 	os_file_t*	file,	/*!< out: file handle */
 	const char*	name)	/*!< in: log file name */
 {
-	ibool		ret;
+	bool		ret;
 
 	*file = os_file_create(
 		innodb_log_file_key, name,
@@ -505,7 +505,7 @@ create_log_files_rename(
 
 	mutex_enter(&log_sys->mutex);
 	ut_ad(strlen(logfile0) == 2 + strlen(logfilename));
-	ibool success = os_file_rename(
+	bool success = os_file_rename(
 		innodb_log_file_key, logfile0, logfilename);
 	ut_a(success);
 
@@ -531,7 +531,7 @@ open_log_file(
 	const char*	name,	/*!< in: log file name */
 	os_offset_t*	size)	/*!< out: file size */
 {
-	ibool	ret;
+	bool	ret;
 
 	*file = os_file_create(innodb_log_file_key, name,
 			       OS_FILE_OPEN, OS_FILE_AIO,
@@ -559,7 +559,7 @@ srv_undo_tablespace_create(
 	ulint		size)		/*!< in: tablespace size in pages */
 {
 	os_file_t	fh;
-	ibool		ret;
+	bool		ret;
 	dberr_t		err = DB_SUCCESS;
 
 	os_file_create_subdirs_if_needed(name);
@@ -623,7 +623,7 @@ srv_undo_tablespace_open(
 {
 	os_file_t	fh;
 	dberr_t		err	= DB_ERROR;
-	ibool		ret;
+	bool		ret;
 	ulint		flags;
 
 	if (!srv_file_check_mode(name)) {
@@ -691,7 +691,7 @@ static
 dberr_t
 srv_check_undo_redo_logs_exists()
 {
-	ibool		ret;
+	bool		ret;
 	os_file_t	fh;
 	char	name[OS_FILE_MAX_PATH];
 

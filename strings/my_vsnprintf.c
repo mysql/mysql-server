@@ -157,7 +157,7 @@ static char *backtick_string(const CHARSET_INFO *cs, char *to, char *end,
   {
     uchar c= *(uchar *) par;
     if (!(char_len= my_mbcharlen(cs, c)))
-      char_len= 1;
+      goto err;
     if (char_len == 1 && c == (uchar) quote_char )
     {
       if (start + 1 >= end)
@@ -168,7 +168,7 @@ static char *backtick_string(const CHARSET_INFO *cs, char *to, char *end,
       goto err;
     start= my_stpnmov(start, par, char_len);
   }
-    
+
   if (start + 1 >= end)
     goto err;
   *start++= quote_char;

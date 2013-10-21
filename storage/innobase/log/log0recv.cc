@@ -1780,7 +1780,7 @@ recv_apply_log_recs_for_backup(void)
 	ulint		n_hash_cells;
 	buf_block_t*	block;
 	ulint		actual_size;
-	ibool		success;
+	bool		success;
 	ulint		error;
 	ulint		i;
 
@@ -2985,8 +2985,7 @@ recv_recovery_from_checkpoint_start(
 
 	log_sys->buf_free = (ulint) log_sys->lsn % OS_FILE_LOG_BLOCK_SIZE;
 	log_sys->buf_next_to_write = log_sys->buf_free;
-	log_sys->written_to_some_lsn = log_sys->lsn;
-	log_sys->written_to_all_lsn = log_sys->lsn;
+	log_sys->write_lsn = log_sys->lsn;
 
 	log_sys->last_checkpoint_lsn = checkpoint_lsn;
 
@@ -3150,8 +3149,7 @@ recv_reset_logs(
 	}
 
 	log_sys->buf_next_to_write = 0;
-	log_sys->written_to_some_lsn = log_sys->lsn;
-	log_sys->written_to_all_lsn = log_sys->lsn;
+	log_sys->write_lsn = log_sys->lsn;
 
 	log_sys->next_checkpoint_no = 0;
 	log_sys->last_checkpoint_lsn = 0;
@@ -3189,7 +3187,7 @@ recv_reset_log_files_for_backup(
 					divisible by OS_FILE_LOG_BLOCK_SIZE */
 {
 	os_file_t	log_file;
-	ibool		success;
+	bool		success;
 	byte*		buf;
 	ulint		i;
 	ulint		log_dir_len;

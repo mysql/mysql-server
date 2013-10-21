@@ -45,6 +45,7 @@ This file contains the implementation of error and warnings related
 #include "unireg.h"
 #include "sql_error.h"
 #include "sp_rcontext.h"
+#include "log.h"          // sql_print_warning
 
 using std::min;
 using std::max;
@@ -754,6 +755,34 @@ void push_warning_printf(THD *thd, Sql_condition::enum_severity_level severity,
   va_end(args);
   push_warning(thd, severity, code, warning);
   DBUG_VOID_RETURN;
+}
+
+
+void push_deprecated_warn(THD *thd, const char *old_syntax,
+                          const char *new_syntax)
+{
+  if (thd != NULL)
+    push_warning_printf(thd, Sql_condition::SL_WARNING,
+                        ER_WARN_DEPRECATED_SYNTAX,
+                        ER_THD(thd, ER_WARN_DEPRECATED_SYNTAX),
+                        old_syntax, new_syntax);
+  else
+    sql_print_warning("The syntax '%s' is deprecated and will be removed "
+                      "in a future release. Please use %s instead.",
+                      old_syntax, new_syntax);
+}
+
+
+void push_deprecated_warn_no_replacement(THD *thd, const char *old_syntax)
+{
+  if (thd != NULL)
+    push_warning_printf(thd, Sql_condition::SL_WARNING,
+                        ER_WARN_DEPRECATED_SYNTAX_NO_REPLACEMENT,
+                        ER_THD(thd, ER_WARN_DEPRECATED_SYNTAX_NO_REPLACEMENT),
+                        old_syntax);
+  else
+    sql_print_warning("The syntax '%s' is deprecated and will be removed "
+                      "in a future release", old_syntax);
 }
 
 

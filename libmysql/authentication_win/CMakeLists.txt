@@ -31,3 +31,8 @@ TARGET_LINK_LIBRARIES(auth_win_client Secur32)
 # In IDE, group headers in a separate folder.
 
 SOURCE_GROUP(Headers REGULAR_EXPRESSION ".*h$")
+
+INSTALL_DEBUG_SYMBOLS(auth_win_client)
+IF(MSVC)
+   INSTALL_DEBUG_TARGET(auth_win_client DESTINATION ${INSTALL_LIBDIR}/debug)
+ENDIF()

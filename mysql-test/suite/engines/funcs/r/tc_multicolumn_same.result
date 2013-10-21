@@ -315,7 +315,7 @@ m1	CREATE TABLE `m1` (
   `c1` timestamp NULL DEFAULT NULL,
   `c2` timestamp NOT NULL DEFAULT '0000-00-00 00:00:00',
   `c3` timestamp NULL DEFAULT NULL,
-  `c4` timestamp NOT NULL DEFAULT '0000-00-00 00:00:00',
+  `c4` timestamp NOT NULL,
   `c5` timestamp NOT NULL DEFAULT '0000-00-00 00:00:00',
   PRIMARY KEY (`c4`),
   UNIQUE KEY `c5` (`c5`)
