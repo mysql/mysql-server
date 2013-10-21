@@ -35,6 +35,8 @@ class TcKeyConf {
   friend class Ndbcntr;
   friend class DbUtil;
 
+  friend class TransporterFacade;
+
   /**
    * Sender(s)
    */
