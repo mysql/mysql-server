@@ -269,7 +269,8 @@ static int com_quit(String *str,char*),
 	   com_rehash(String *str, char*), com_tee(String *str, char*),
            com_notee(String *str, char*), com_charset(String *str,char*),
            com_prompt(String *str, char*), com_delimiter(String *str, char*),
-     com_warnings(String *str, char*), com_nowarnings(String *str, char*);
+     com_warnings(String *str, char*), com_nowarnings(String *str, char*),
+     com_resetconnection(String *str, char*);
 
 #ifdef USE_POPEN
 static int com_nopager(String *str, char*), com_pager(String *str, char*),
@@ -368,6 +369,8 @@ static COMMANDS commands[] = {
     "Show warnings after every statement." },
   { "nowarning", 'w', com_nowarnings, 0,
     "Don't show warnings after every statement." },
+  { "resetconnection",  'x', com_resetconnection, 0,
+    "Clean session context." },
   /* Get bash-like expansion for some commands */
   { "create table",     0, 0, 0, ""},
   { "create database",  0, 0, 0, ""},
@@ -5740,4 +5743,19 @@ static int com_prompt(String *buffer __attribute__((unused)),
   else
     tee_fprintf(stdout, "PROMPT set to '%s'\n", current_prompt);
   return 0;
+}
+
+static int
+com_resetconnection(String *buffer __attribute__((unused)),
+                    char *line __attribute__((unused)))
+{
+  int error;
+  error= mysql_reset_connection(&mysql);
+  if(error)
+  {
+    if (status.batch)
+      return 0;
+    return put_info("Unsupported command.\n",INFO_ERROR);
+  }
+  return error;
 }

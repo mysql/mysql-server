@@ -125,4 +125,25 @@ mysql_pfs_key_t
 sync_latch_get_pfs_key(const char* name);
 #endif /* UNIV_PFS_MUTEX */
 
+/**
+Add the latch meta data of Latch level is SYNC_NO_ORDER_CHECK.
+@param name		Latch name
+@param key		Performance schema key */
+
+void
+sync_latch_add_no_check(
+	const char*		name
+#ifdef UNIV_PFS_MUTEX
+	,mysql_pfs_key_t	key
+#endif /* UNIV_PFS_MUTEX */
+	);
+
+#ifdef UNIV_PFS_MUTEX
+/** Wrapper around latch_add() - PFS version. */
+#define SYNC_LATCH_ADD(m, n)	sync_latch_add_no_check((m), (n))
+#else
+/** Wrapper around latch_add() */
+#define SYNC_LATCH_ADD(m, n)	sync_latch_add_no_check((m))
+#endif /* UNIV_PFS_MUTEX */
+
 #endif /* !sync0debug_h */

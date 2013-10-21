@@ -2142,16 +2142,14 @@ String *Item_func_encode::val_str(String *str)
 
 void Item_func_encode::crypto_transform(String *res)
 {
-  THD *thd= current_thd;
-  WARN_DEPRECATED(thd, "ENCODE", "AES_ENCRYPT");
+  push_deprecated_warn(current_thd, "ENCODE", "AES_ENCRYPT");
   sql_crypt.encode((char*) res->ptr(),res->length());
   res->set_charset(&my_charset_bin);
 }
 
 void Item_func_decode::crypto_transform(String *res)
 {
-  THD *thd= current_thd;
-  WARN_DEPRECATED(thd, "DECODE", "AES_DECRYPT");
+  push_deprecated_warn(current_thd, "DECODE", "AES_DECRYPT");
   sql_crypt.decode((char*) res->ptr(),res->length());
 }
 
