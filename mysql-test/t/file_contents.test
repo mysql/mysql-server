@@ -33,6 +33,8 @@ if ($dir_bin eq '/usr/') {
     $dir_docs = glob "$dir_docs/mariadb-server-*";
     $dir_docs = glob "$dir_docs/MySQL-server*" unless -d $dir_docs;
   }
+  # Slackware
+  $dir_docs = glob "$dir_bin/doc/mariadb-[0-9]*" unless -d $dir_docs;
 } else {
   # tar.gz package, Windows, or developer work (in BZR)
   $dir_docs = $dir_bin;
