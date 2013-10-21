@@ -2854,7 +2854,9 @@ err:
 
   DBUG_LEAVE;                                   // Must match DBUG_ENTER()
   my_thread_end();
+#ifdef HAVE_OPENSSL
   ERR_remove_state(0);
+#endif
   pthread_exit(0);
   return 0;                                     // Avoid compiler warnings
 }
@@ -3251,7 +3253,9 @@ the slave SQL thread with \"SLAVE START\". We stopped at log \
 
   DBUG_LEAVE;                                   // Must match DBUG_ENTER()
   my_thread_end();
+#ifdef HAVE_OPENSSL
   ERR_remove_state(0);
+#endif
   pthread_exit(0);
   return 0;                                     // Avoid compiler warnings
 }
