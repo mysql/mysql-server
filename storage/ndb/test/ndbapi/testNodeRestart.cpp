@@ -5546,6 +5546,116 @@ runNodeFailGCPOpen(NDBT_Context* ctx, NDBT_Step* step)
   return NDBT_OK;
 }
 
+static
+void
+callback(int retCode, NdbTransaction * trans, void * ptr)
+{
+}
+
+int
+runBug16944817(NDBT_Context* ctx, NDBT_Step* step)
+{
+  NdbRestarter restarter;
+
+  if (restarter.getNumDbNodes() < 2)
+  {
+    g_err << "Insufficient nodes for test." << endl;
+    ctx->stopTest();
+    return NDBT_OK;
+  }
+
+#ifndef NDEBUG
+  /**
+   * This program doesn't work with debug compiled due
+   * due various asserts...which are correct...
+   */
+  {
+    ctx->stopTest();
+    return NDBT_OK;
+  }
+#endif
+
+  const int loops = ctx->getNumLoops();
+  for (int i = 0; i < loops; i++)
+  {
+    ndbout_c("loop %u/%u", (i+1), loops);
+    Ndb* pNdb = new Ndb(&ctx->m_cluster_connection, "TEST_DB");
+    if (pNdb->init() != 0 || pNdb->waitUntilReady(30))
+    {
+      delete pNdb;
+      return NDBT_FAILED;
+    }
+
+    ndbout_c("  start trans");
+    HugoOperations hugoOps(*ctx->getTab());
+    if(hugoOps.startTransaction(pNdb) != 0)
+      return NDBT_FAILED;
+
+    if(hugoOps.pkInsertRecord(pNdb, i, 1, rand()) != 0)
+      return NDBT_FAILED;
+
+    if(hugoOps.execute_NoCommit(pNdb) != 0)
+      return NDBT_FAILED;
+
+    NdbTransaction * pTrans = hugoOps.getTransaction();
+    hugoOps.setTransaction(0, true);
+
+    ndbout_c("  executeAsynchPrepare");
+    pTrans->executeAsynchPrepare(Commit, callback, 0, AbortOnError);
+
+    int nodeId = pTrans->getConnectedNodeId();
+    ndbout_c("  insert error 8054 into %d", nodeId);
+    restarter.insertErrorInNode(nodeId, 8054);
+    int val2[] = { DumpStateOrd::CmvmiSetRestartOnErrorInsert, 1 };
+    if (restarter.dumpStateOneNode(nodeId, val2, 2))
+      return NDBT_FAILED;
+
+    ndbout_c("  sendPreparedTransactions");
+    const int forceSend = 1;
+    pNdb->sendPreparedTransactions(forceSend);
+
+    /**
+     * Now delete ndb-object with having heard reply from commit
+     */
+    ndbout_c("  delete pNdb");
+    delete pNdb;
+
+    /**
+     * nodeId will die due to errorInsert 8054 above
+     */
+    ndbout_c("  wait nodes no start");
+    restarter.waitNodesNoStart(&nodeId, 1);
+    ndbout_c("  start nodes");
+    restarter.startNodes(&nodeId, 1);
+    ndbout_c("  wait nodes started");
+    restarter.waitNodesStarted(&nodeId, 1);
+
+    /**
+     * restart it again...will cause duplicate marker (before bug fix)
+     */
+    ndbout_c("  restart (again)");
+    restarter.restartNodes(&nodeId, 1,
+                           NdbRestarter::NRRF_NOSTART | NdbRestarter::NRRF_ABORT);
+    ndbout_c("  wait nodes no start");
+    restarter.waitNodesNoStart(&nodeId, 1);
+    ndbout_c("  start nodes");
+    restarter.startNodes(&nodeId, 1);
+    ndbout_c("  wait nodes started");
+    restarter.waitClusterStarted();
+  }
+
+  bool checkMarkers = true;
+
+  if (checkMarkers)
+  {
+    ndbout_c("and finally...check markers");
+    int check = 2552; // check that no markers are leaked
+    restarter.dumpStateAllNodes(&check, 1);
+  }
+
+  return NDBT_OK;
+}
+
 NDBT_TESTSUITE(testNodeRestart);
 TESTCASE("NoLoad", 
 	 "Test that one node at a time can be stopped and then restarted "\
@@ -6076,6 +6186,10 @@ TESTCASE("Bug57767", "")
 TESTCASE("Bug57522", "")
 {
   INITIALIZER(runBug57522);
+}
+TESTCASE("Bug16944817", "")
+{
+  INITIALIZER(runBug16944817);
 }
 TESTCASE("MasterFailSlowLCP",
          "DIH Master failure during a slow LCP can cause a crash.")
