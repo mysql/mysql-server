@@ -1,5 +1,5 @@
 
-# Copyright (c) 2010, Oracle and/or its affiliates. All rights reserved.
+# Copyright (c) 2010, 2013, Oracle and/or its affiliates. All rights reserved.
 # 
 # This program is free software; you can redistribute it and/or modify
 # it under the terms of the GNU General Public License as published by
@@ -33,7 +33,10 @@ ENDFOREACH()
 
 # Ensure we have clean build for shared libraries
 # without unresolved symbols
-SET(LINK_FLAG_NO_UNDEFINED "-Wl,--no-undefined")
+# Not supported with AddressSanitizer
+IF(NOT WITH_ASAN)
+  SET(LINK_FLAG_NO_UNDEFINED "-Wl,--no-undefined")
+ENDIF()
 
 # 64 bit file offset support flag
 SET(_FILE_OFFSET_BITS 64)
