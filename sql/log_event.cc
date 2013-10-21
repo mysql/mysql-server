@@ -3026,7 +3026,7 @@ Slave_worker *Log_event::get_slave_worker(Relay_log_info *rli)
       insert_dynamic(&rli->curr_group_da, (uchar*) &ptr_curr_ev);
       rli->curr_group_seen_begin= true;
       rli->mts_end_group_sets_max_dbs= true;
-      if (schedule_next_event(this, rli))
+      if (!rli->curr_group_seen_gtid && schedule_next_event(this, rli))
       {
         rli->abort_slave= 1;
         DBUG_RETURN(NULL);
