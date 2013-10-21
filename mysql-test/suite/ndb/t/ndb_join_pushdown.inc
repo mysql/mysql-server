@@ -4342,6 +4342,73 @@ drop table scan_count;
 connection ddl;
 drop table t1;
 
+##############
+# Bug#16925513: HIT DBUG_ASSERT IN SPJ BLOCK, ~LINE 4406
+#
+# Testcase extracted from failing RQG test.
+
+connection ddl;
+CREATE TABLE table1 (
+  col_int_unique int(11) DEFAULT NULL,
+  PRIMARY KEY (col_int_unique)
+) ENGINE=ndbcluster;
+
+CREATE TABLE table3 (
+  col_int int(11) NOT NULL DEFAULT '0',
+  KEY (col_int)
+) ENGINE=ndbcluster;
+
+CREATE TABLE table4 (
+  col_int int(11) DEFAULT NULL,
+  pk int(11) NOT NULL,
+  PRIMARY KEY (pk)
+) ENGINE=ndbcluster;
+
+CREATE TABLE table6 (
+  col_int int(11) DEFAULT NULL,
+  col_int_unique int(11) DEFAULT NULL
+) ENGINE=ndbcluster;
+
+connection spj;
+insert into table6 values
+ (2,NULL), 
+ (2,NULL), 
+ (2,NULL), 
+ (2,NULL), 
+ (2,NULL), 
+ (2,NULL), 
+ (2,NULL), 
+ (2,NULL);
+
+--error 0,1193
+set global debug='+d,max_4rows_in_spj_batches';
+
+EXPLAIN EXTENDED
+ SELECT * FROM
+ table1 RIGHT JOIN 
+   table3 LEFT JOIN table4 ON table3.col_int = table4.col_int 
+     JOIN
+   table6 ON table4.pk = table6.col_int_unique 
+ ON table1.col_int_unique = table6.col_int;
+
+--sorted_result
+ SELECT * FROM
+ table1 RIGHT JOIN 
+   table3 LEFT JOIN table4 ON table3.col_int = table4.col_int 
+     JOIN
+   table6 ON table4.pk = table6.col_int_unique 
+ ON table1.col_int_unique = table6.col_int;
+
+
+--error 0,1193
+set global debug=@save_debug;
+
+connection ddl;
+drop table table6;
+drop table table4;
+drop table table3;
+drop table table1;
+
 
 --echo 5.6 tests
 #######################################
@@ -4415,8 +4482,6 @@ set global debug=@save_debug;
 
 connection ddl;
 drop table t1;
-
-
 
 ########################################
 # Verify DBSPJ counters for entire test:

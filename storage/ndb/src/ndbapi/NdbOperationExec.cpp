@@ -458,7 +458,6 @@ NdbOperation::prepareSend(Uint32 aTC_ConnectPtr,
   }
   Uint32 TattrLen = 0;
   tcKeyReq->setAttrinfoLen(TattrLen, 0); // Not required for long signals.
-  tcKeyReq->setAPIVersion(TattrLen, NDB_VERSION);
   tcKeyReq->attrLen            = TattrLen;
 
   tcKeyReq->tableId            = tTableId;
@@ -1462,9 +1461,7 @@ NdbOperation::fillTcKeyReqHdr(TcKeyReq *tcKeyReq,
   /* With long TCKEYREQ, we do not need to set the attrlength 
    * in the header since it is encoded as the AI section length
    */
-  UintR attrLenAPIVer= 0;
-  TcKeyReq::setAPIVersion(attrLenAPIVer, NDB_VERSION);
-  tcKeyReq->attrLen= attrLenAPIVer;
+  tcKeyReq->attrLen= 0;
 
   UintR reqInfo= 0;
   /* Dirty flag, Commit flag, Start flag, Simple flag set later

@@ -70,7 +70,7 @@ Handle<Value> executeAsynch(const Arguments &args) {
 
   /* TODO: The JsValueConverter constructor for arg4 creates a 
      Persistent<Function> from a Local<Value>, but is there 
-     actually a chain of destructors that will call Dispose() on the it? 
+     actually a chain of destructors that will call Dispose() on it? 
   */  
   typedef NativeMethodCall_5_<int, AsyncNdbContext, NdbTransaction *,
                               int, int, int, Persistent<Function> > NCALL;
@@ -113,4 +113,8 @@ void AsyncNdbContext_initOnLoad(Handle<Object> target) {
   DEFINE_JS_METHOD(JsAsyncNdbContext, "shutdown", shutdown);
   DEFINE_JS_METHOD(JsAsyncNdbContext, "delete", destroy);
   DEFINE_JS_CONSTRUCTOR(target, "AsyncNdbContext", JsAsyncNdbContext);
+  DEFINE_JS_CONSTANT(target, MULTIWAIT_ENABLED);
+#ifdef USE_OLD_MULTIWAIT_API
+  DEFINE_JS_CONSTANT(target, USE_OLD_MULTIWAIT_API);
+#endif
 }

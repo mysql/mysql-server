@@ -15274,7 +15274,7 @@ lock_option:
         | LOW_PRIORITY WRITE_SYM 
           { 
             $$= TL_WRITE_LOW_PRIORITY; 
-            WARN_DEPRECATED(YYTHD, "LOW_PRIORITY WRITE", "WRITE");
+            push_deprecated_warn(YYTHD, "LOW_PRIORITY WRITE", "WRITE");
           }
         | READ_SYM LOCAL_SYM     { $$= TL_READ; }
         ;

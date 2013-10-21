@@ -648,11 +648,6 @@ public:
      * all rows for this operation in this batch.
      */
     Uint32 m_outstanding;
-    /**
-     * If true, the parent operation has received all the rows it will get
-     * in this batch.
-     */
-    bool m_parent_batch_complete;
     Uint32 m_lqhKeyReq[LqhKeyReq::FixedSignalLength + 4];
   };
 
@@ -943,12 +938,12 @@ public:
       T_ROW_BUFFER_MAP = 0x100,
 
       /**
-       * Does any child need to know about when *my* batch is complete
+       * Does any child need to know when all its ancestors are complete
        */
       T_REPORT_BATCH_COMPLETE  = 0x200,
 
       /**
-       * Do I need to know when parent batch is completed
+       * Do *I need* to know when all ancestors has completed this batch
        */
       T_NEED_REPORT_BATCH_COMPLETED = 0x400,
 
@@ -1117,6 +1112,8 @@ public:
     Uint32 m_cnt_active;       // No of "running" nodes
     TreeNodeBitMask
            m_active_nodes;     // Nodes which will return more data in NEXTREQ
+    TreeNodeBitMask
+           m_completed_nodes;  // Nodes wo/ any 'outstanding' signals
     Uint32 m_rows;             // Rows accumulated in current batch
     Uint32 m_outstanding;      // Outstanding signals, when 0, batch is done
     Uint16 m_lookup_node_data[MAX_NDB_NODES];
@@ -1325,7 +1322,8 @@ private:
   Uint32 nodeFail(Signal*, Ptr<Request>, NdbNodeBitmask mask);
 
   Uint32 createNode(Build_context&, Ptr<Request>, Ptr<TreeNode> &);
-  void reportBatchComplete(Signal*, Ptr<Request>, Ptr<TreeNode>);
+  void handleTreeNodeComplete(Signal*, Ptr<Request>, Ptr<TreeNode>);
+  void reportAncestorsComplete(Signal*, Ptr<Request>, Ptr<TreeNode>);
   void releaseScanBuffers(Ptr<Request> requestPtr);
   void releaseRequestBuffers(Ptr<Request> requestPtr);
   void releaseNodeRows(Ptr<Request> requestPtr, Ptr<TreeNode>);
@@ -1437,7 +1435,6 @@ private:
   void lookup_execLQHKEYREF(Signal*, Ptr<Request>, Ptr<TreeNode>);
   void lookup_execLQHKEYCONF(Signal*, Ptr<Request>, Ptr<TreeNode>);
   void lookup_parent_row(Signal*, Ptr<Request>, Ptr<TreeNode>, const RowPtr &);
-  void lookup_parent_batch_complete(Signal*, Ptr<Request>, Ptr<TreeNode>);
   void lookup_row(Signal*, Ptr<Request>, Ptr<TreeNode>, const RowPtr &);
   void lookup_abort(Signal*, Ptr<Request>, Ptr<TreeNode>);
   Uint32 lookup_execNODE_FAILREP(Signal*signal, Ptr<Request>, Ptr<TreeNode>,

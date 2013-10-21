@@ -170,10 +170,11 @@ get_page_size(
 	flags = mach_read_from_4(buf + FIL_PAGE_DATA + FSP_SPACE_FLAGS);
 
 	/* srv_page_size is used by InnoDB code as UNIV_PAGE_SIZE */
-	srv_page_size = *logical_page_size = fsp_flags_get_page_size(flags);
+	srv_page_size = *logical_page_size =
+		ulong(fsp_flags_get_page_size(ulint(flags)));
 
 	/* fsp_flags_get_zip_size() will return zero if not compressed. */
-	*physical_page_size = fsp_flags_get_zip_size(flags);
+	*physical_page_size = ulong(fsp_flags_get_zip_size(ulint(flags)));
 
 	if (*physical_page_size == 0) {
 		/* uncompressed page. */
@@ -308,7 +309,9 @@ ulong read_file(
 		bytes = UNIV_ZIP_SIZE_MIN;
 	}
 
-	return bytes + fread(buf, 1, physical_page_size, fil_in);
+	bytes += ulong(fread(buf, 1, physical_page_size, fil_in));
+
+	return bytes;
 }
 
 /*****************************************************************//*
@@ -1230,7 +1233,7 @@ int main(
 #endif /* _WIN32 */
 
 		/* Read the minimum page size. */
-		bytes = fread(buf, 1, UNIV_ZIP_SIZE_MIN, fil_in);
+		bytes = ulong(fread(buf, 1, UNIV_ZIP_SIZE_MIN, fil_in));
 		partial_page_read = true;
 
 		if (bytes != UNIV_ZIP_SIZE_MIN) {

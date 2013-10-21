@@ -756,8 +756,16 @@ static bool write_execute_load_query_log_event(THD *thd, sql_exchange* ex,
         pfields.append(", ");
       append_identifier(thd, &pfields, item->item_name.ptr(),
                         strlen(item->item_name.ptr()));
+      // Extract exact Item value
+      str->copy();
       pfields.append((char *)str->ptr());
+      str->free();
     }
+    /*
+      Clear the SET string list once the SET command is reconstructed
+      as we donot require the list anymore.
+    */
+    thd->lex->load_set_str_list.empty();
   }
 
   p= pfields.c_ptr_safe();
@@ -1638,16 +1646,29 @@ int READ_INFO::read_field()
 	  return 0;
 	}
       }
-      if (my_mbcharlen(read_charset, chr) > 1 &&
-          to + my_mbcharlen(read_charset, chr) <= end_of_buff)
+
+      uint ml= my_mbcharlen(read_charset, chr);
+      if (ml == 0)
+      {
+        error= 1;
+        return 1;
+      }
+
+
+      if (ml > 1 &&
+          to + ml <= end_of_buff)
       {
         uchar* p= (uchar*) to;
-        int ml, i;
         *to++ = chr;
 
         ml= my_mbcharlen(read_charset, chr);
+        if (ml == 0)
+        {
+          error= 1;
+          return 1;
+        }
 
-        for (i= 1; i < ml; i++) 
+        for (uint i= 1; i < ml; i++) 
         {
           chr= GET;
           if (chr == my_b_EOF)
@@ -1665,7 +1686,7 @@ int READ_INFO::read_field()
                         (const char *)p,
                         (const char *)to))
           continue;
-        for (i= 0; i < ml; i++)
+        for (uint i= 0; i < ml; i++)
           PUSH((uchar) *--to);
         chr= GET;
       }
@@ -1914,11 +1935,19 @@ int READ_INFO::read_value(int delim, String *val)
 
   for (chr= GET; my_tospace(chr) != delim && chr != my_b_EOF;)
   {
-    if (my_mbcharlen(read_charset, chr) > 1)
+    uint ml= my_mbcharlen(read_charset, chr);
+    if (ml == 0)
+    {
+      chr= my_b_EOF;
+      val->length(0);
+      return chr;
+    }
+
+    if (ml > 1)
     {
       DBUG_PRINT("read_xml",("multi byte"));
-      int i, ml= my_mbcharlen(read_charset, chr);
-      for (i= 1; i < ml; i++) 
+
+      for (uint i= 1; i < ml; i++)
       {
         val->append(chr);
         /*

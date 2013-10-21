@@ -360,6 +360,7 @@ enum enum_commands {
   Q_RESULT_FORMAT_VERSION,
   Q_MOVE_FILE, Q_REMOVE_FILES_WILDCARD, Q_SEND_EVAL,
   Q_OUTPUT,                            /* redirect output to a file */
+  Q_RESET_CONNECTION,
   Q_UNKNOWN,			       /* Unknown command.   */
   Q_COMMENT,			       /* Comments, ignored. */
   Q_COMMENT_WITH_COMMAND,
@@ -462,6 +463,7 @@ const char *command_names[]=
   "remove_files_wildcard",
   "send_eval",
   "output",
+  "resetconnection",
 
   0
 };
@@ -6059,6 +6061,25 @@ void do_delimiter(struct st_command* command)
   DBUG_VOID_RETURN;
 }
 
+/*
+  do_reset_connection
+
+  DESCRIPTION
+  Reset the current session.
+*/
+void do_reset_connection()
+{
+  MYSQL *mysql = &cur_con->mysql;
+
+  DBUG_ENTER("do_reset_connection");
+  if (mysql_reset_connection(mysql))
+    die("reset connection failed: %s", mysql_error(mysql));
+  if (cur_con->stmt)
+  {
+    mysql_stmt_close(cur_con->stmt);
+    cur_con->stmt= NULL;
+  }
+}
 
 my_bool match_delimiter(int c, const char *delim, uint length)
 {
@@ -6284,17 +6305,18 @@ int read_line(char *buf, int size)
     {
       /* Could be a multibyte character */
       /* This code is based on the code in "sql_load.cc" */
-      int charlen = my_mbcharlen(charset_info, (unsigned char) c);
+      uint charlen= my_mbcharlen(charset_info, (unsigned char) c);
+      if(charlen == 0)
+        DBUG_RETURN(1);
       /* We give up if multibyte character is started but not */
       /* completed before we pass buf_end */
       if ((charlen > 1) && (p + charlen) <= buf_end)
       {
-	int i;
 	char* mb_start = p;
 
 	*p++ = c;
 
-	for (i= 1; i < charlen; i++)
+	for (uint i= 1; i < charlen; i++)
 	{
 	  c= my_getc(cur_file->file);
 	  if (feof(cur_file->file))
@@ -9098,6 +9120,9 @@ int main(int argc, char **argv)
         break;
       case Q_PING:
         handle_command_error(command, mysql_ping(&cur_con->mysql));
+        break;
+      case Q_RESET_CONNECTION:
+        do_reset_connection();
         break;
       case Q_SEND_SHUTDOWN:
         handle_command_error(command,
