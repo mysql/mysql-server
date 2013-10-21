@@ -205,7 +205,8 @@ doit (void) {
     toku_fill_dbt(&left, "g", 2);
     DBT right;
     toku_fill_dbt(&right, "n", 2);
-    r = toku_ft_hot_optimize(t, &left, &right, NULL, NULL);
+    uint64_t loops_run = 0;
+    r = toku_ft_hot_optimize(t, &left, &right, NULL, NULL, &loops_run);
     assert(r==0);
 
     // at this point, we have should have flushed

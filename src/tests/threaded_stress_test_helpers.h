@@ -1621,7 +1621,8 @@ static int UU() hot_op(DB_TXN *UU(txn), ARG UU(arg), void* UU(operation_extra), 
     int r;
     for (int i = 0; run_test && i < arg->cli->num_DBs; i++) {
         DB* db = arg->dbp[i];
-        r = db->hot_optimize(db, NULL, NULL, hot_progress_callback, nullptr);
+        uint64_t loops_run;
+        r = db->hot_optimize(db, NULL, NULL, hot_progress_callback, nullptr, &loops_run);
         if (run_test) {
             CKERR(r);
         }

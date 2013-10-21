@@ -898,13 +898,13 @@ toku_db_optimize(DB *db) {
 static int
 toku_db_hot_optimize(DB *db, DBT* left, DBT* right,
                      int (*progress_callback)(void *extra, float progress),
-                     void *progress_extra)
+                     void *progress_extra, uint64_t* loops_run)
 {
     HANDLE_PANICKED_DB(db);
     int r = 0;
     r = toku_ft_hot_optimize(db->i->ft_handle, left, right,
                               progress_callback,
-                              progress_extra);
+                              progress_extra, loops_run);
 
     return r;
 }

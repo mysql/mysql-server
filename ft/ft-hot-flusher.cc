@@ -299,7 +299,7 @@ hot_flusher_destroy(struct hot_flusher_extra *flusher)
 int
 toku_ft_hot_optimize(FT_HANDLE brt, DBT* left, DBT* right,
                       int (*progress_callback)(void *extra, float progress),
-                      void *progress_extra)
+                      void *progress_extra, uint64_t* loops_run)
 {
     int r = 0;
     struct hot_flusher_extra flusher;
@@ -403,6 +403,7 @@ toku_ft_hot_optimize(FT_HANDLE brt, DBT* left, DBT* right,
         // Loop until the max key has been updated to positive
         // infinity.
     } while (!flusher.rightmost_leaf_seen);
+    *loops_run = loop_count;
 
     // Cleanup.
     hot_flusher_destroy(&flusher);

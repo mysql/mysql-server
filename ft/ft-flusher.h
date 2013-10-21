@@ -232,6 +232,6 @@ void toku_ft_hot_get_status(FT_HOT_STATUS);
 int
 toku_ft_hot_optimize(FT_HANDLE brt, DBT* left, DBT* right,
                       int (*progress_callback)(void *extra, float progress),
-                      void *progress_extra);
+                      void *progress_extra, uint64_t* loops_run);
 
 #endif // End of header guardian.
