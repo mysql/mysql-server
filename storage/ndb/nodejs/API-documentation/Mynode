@@ -1,5 +1,5 @@
 
-/***
+/**
  * ConnectionProperties()
  * IMMEDIATE
  * CONSTRUCTOR
@@ -17,7 +17,7 @@
 ConnectionProperties(implName_or_connectionProperties);
 
 
-/***
+/**
  * TableMapping()
  * IMMEDIATE
  * CONSTRUCTOR
@@ -28,43 +28,44 @@ ConnectionProperties(implName_or_connectionProperties);
 TableMapping(tableName_or_tableMapping);
 
  
-/* 
+/**
  * connect()
  * ASYNC
  * 
- * Connect to the data source.  This is a "superheavyweight" call: 
- * it could involve connecting to many other nodes on the network,
- * waiting for them to become ready, and making multiple requests to them.
+ * Connect to the data source. 
+ * This is a "superheavyweight" call:  it could involve connecting to many 
+ * other nodes on the network, waiting for them to become ready, and making 
+ * multiple requests to them. 
  *
- * It returns a SessionFactory in the callback function.
- * The "implementation" member of the properties object determines the 
- * implementation of the SessionFactory.
+ * It returns a SessionFactory in the callback function.  The "implementation" 
+ * member of the properties object determines the backend driver implementating
+ * the SessionFactory.
  *
- * If mappings is undefined, null, or an empty array, no mappings are loaded
- * or validated. When needed during the execution of a method, any required
- * mappings will be loaded and validated.
- *
- * If mappings contains a string or a constructor function, the metadata for the
- * table (or mapped table) is loaded from the database and validated against the
- * requirements of the mapping.
- *
- * Multiple tables and constructors may be passed as elements in an array.
- * 
+ * The "mappings" parameter can be used to preload metadata for application 
+ * tables and to validate the defind mappings between stored data and 
+ * JavaScript objects.  If mappings contains a string table name, a Domain 
+ * Object Constructor function, or an array of these, then metadata is loaded 
+ * from the database and validated against the requirements of the mapping.
+ * If mappings is undefined, null, or an empty array, no mappings will be 
+ * loaded or validated; this means validation is deferred until tables are 
+ * used in application code.
+ *  
  *  @param properties  properties object describing the session
- *  @param mappings    Table Mappings to validated when connection is made
+ *  @param mappings    mappings to validate when connection is made
  *  @param callback    function called after connection is complete.
  *  @return void
  */
-connect(properties, mappings, Function(err, SessionFactory[, ...]) callback[, ...]);
+connect(properties, mappings, Function(err, SessionFactory, ...) callback, ...);
 
 
-/* 
+/**
  * openSession()
  * ASYNC
  * 
- * Connect to the data source and get a Session.  This is a "superheavyweight" call: 
- * it could involve connecting to many other nodes on the network,
- * waiting for them to become ready, and making multiple requests to them.
+ * Connect to the data source and get a Session.  
+ * This is a "superheavyweight" call:  it could involve connecting to many 
+ * other nodes on the network, waiting for them to become ready, and making 
+ * multiple requests to them.
  *
  * This is a convenience method. It returns a Session in the callback function.
  * This is equivalent to calling connect and then getSession on the
@@ -73,33 +74,34 @@ connect(properties, mappings, Function(err, SessionFactory[, ...]) callback[, ..
  * The "implementation" member of the properties object determines the 
  * implementation of the Session.
  *
- * If mappings is undefined, null, or an empty array, no mappings are loaded
- * or validated. When needed during the execution of a method, any required
- * mappings will be loaded and validated.
- *
- * If mappings contains a string or a constructor function, the metadata for the
- * table (or mapped table) is loaded from the database and validated against the
- * requirements of the mapping.
- *
- * Multiple tables and constructors may be passed as elements in an array.
- * 
+ * The "mappings" parameter can be used to preload metadata for application 
+ * tables and to validate the defind mappings between stored data and 
+ * JavaScript objects.  If mappings contains a string table name, a Domain 
+ * Object Constructor function, or an array of these, then metadata is loaded 
+ * from the database and validated against the requirements of the mapping.
+ * If mappings is undefined, null, or an empty array, no mappings will be 
+ * loaded or validated; this means validation is deferred until tables are 
+ * used in application code.
+ *  
  *  @param properties  properties object describing the session
- *  @param mappings    Table Mappings to validated when session is opened
+ *  @param mappings    mappings to validate when connection is made
  *  @param callback    function called after connection is complete.
  *  @async
  */
-openSession(Properties, mappings, Function(err, Session[, ...]) callback[, ...]);
+openSession(Properties, mappings, Function(err, Session, ...) callback, ...);
 
 
 /** Get all SessionFactories that have been created by this module.
  * All session factories are returned in an array. 
  * @return open session factories
+ * IMMEDIATE
  */
 getOpenSessionFactories();
 
 
-// The following functions are part of the public API but are not intended for application use.
-// They form part of the contract between mynode and SessionFactory.
+// The following functions are part of the public API but are not intended for
+// application use.  They form part of the contract between mynode and 
+// SessionFactory.
 
 Connection();
 getConnectionKey();

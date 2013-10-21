@@ -1636,7 +1636,7 @@ static Sys_var_ulong Sys_log_throttle_queries_not_using_indexes(
        "summary line. A value of 0 disables throttling. "
        "Option has no effect unless --log_queries_not_using_indexes is set.",
        GLOBAL_VAR(opt_log_throttle_queries_not_using_indexes),
-       CMD_LINE(OPT_ARG),
+       CMD_LINE(REQUIRED_ARG),
        VALID_RANGE(0, ULONG_MAX), DEFAULT(0), BLOCK_SIZE(1),
        NO_MUTEX_GUARD, NOT_IN_BINLOG,
        ON_CHECK(0),
@@ -2633,7 +2633,8 @@ on_check_opt_secure_auth(sys_var *self, THD *thd, set_var *var)
 {
   if (!var->save_result.ulonglong_value)
   {
-    WARN_DEPRECATED(thd, "pre-4.1 password hash", "post-4.1 password hash");
+    push_deprecated_warn(thd, "pre-4.1 password hash",
+                         "post-4.1 password hash");
   }
   return false;
 }
@@ -4306,11 +4307,11 @@ static Sys_var_tz Sys_time_zone(
 
 static bool fix_host_cache_size(sys_var *, THD *, enum_var_type)
 {
-  hostname_cache_resize((uint) host_cache_size);
+  hostname_cache_resize(host_cache_size);
   return false;
 }
 
-static Sys_var_ulong Sys_host_cache_size(
+static Sys_var_uint Sys_host_cache_size(
        "host_cache_size",
        "How many host names should be cached to avoid resolving.",
        GLOBAL_VAR(host_cache_size),

@@ -2105,7 +2105,7 @@ bool Relay_log_info::read_info(Rpl_info_handler *from)
   ulong temp_group_relay_log_pos= 0;
   ulong temp_group_master_log_pos= 0;
   int temp_sql_delay= 0;
-  int temp_internal_id= 0;
+  int temp_internal_id= internal_id;
 
   DBUG_ENTER("Relay_log_info::read_info");
 

@@ -381,6 +381,7 @@ bool opt_using_transactions;
 bool volatile abort_loop;
 bool volatile shutdown_in_progress;
 ulong log_warnings;
+uint host_cache_size;
 ulong log_error_verbosity= 3; // have a non-zero value during early start-up
 #if defined(_WIN32) && !defined(EMBEDDED_LIBRARY)
 ulong slow_start_timeout;
@@ -2526,6 +2527,12 @@ pthread_handler_t signal_hand(void *arg __attribute__((unused)))
     but the +10 should be quite safe.
   */
   init_thr_alarm(Connection_handler_manager::max_threads + 10);
+  if (test_flags & TEST_SIGINT)
+  {
+    (void) sigemptyset(&set);     // Setup up SIGINT for debug
+    (void) sigaddset(&set,SIGINT);    // For debugging
+    (void) pthread_sigmask(SIG_UNBLOCK,&set,NULL);
+  }
   (void) sigemptyset(&set);     // Setup up SIGINT for debug
   (void) sigaddset(&set,thr_server_alarm);  // For alarms
   (void) sigaddset(&set,SIGQUIT);
@@ -3996,7 +4003,7 @@ static int init_server_components()
     all things are initialized so that unireg_abort() doesn't fail
   */
   mdl_init();
-  if (table_def_init() | hostname_cache_init())
+  if (table_def_init() | hostname_cache_init(host_cache_size))
     unireg_abort(1);
 
   init_server_query_cache();
@@ -6908,7 +6915,7 @@ mysqld_get_one_option(int optid,
       sql_print_warning("Ignoring user change to '%s' because the user was set to '%s' earlier on the command line\n", argument, mysqld_user);
     break;
   case 'L':
-    WARN_DEPRECATED(NULL, "--language/-l", "'--lc-messages-dir'");
+    push_deprecated_warn(NULL, "--language/-l", "'--lc-messages-dir'");
     /* Note:  fall-through */
   case OPT_LC_MESSAGES_DIRECTORY:
     strmake(lc_messages_dir, argument, sizeof(lc_messages_dir)-1);
@@ -6924,7 +6931,7 @@ mysqld_get_one_option(int optid,
     exit(0);
 #endif /*EMBEDDED_LIBRARY*/
   case 'W':
-    WARN_DEPRECATED(NULL, "--log_warnings/-W", "'--log_error_verbosity'");
+    push_deprecated_warn(NULL, "--log_warnings/-W", "'--log_error_verbosity'");
     if (!argument)
       log_error_verbosity++;
     else if (argument == disabled_my_option)
@@ -7032,7 +7039,7 @@ mysqld_get_one_option(int optid,
   }
 #endif /* HAVE_REPLICATION */
   case (int) OPT_MASTER_RETRY_COUNT:
-    WARN_DEPRECATED(NULL, "--master-retry-count", "'CHANGE MASTER TO master_retry_count = <num>'");
+    push_deprecated_warn(NULL, "--master-retry-count", "'CHANGE MASTER TO master_retry_count = <num>'");
     break;
   case (int) OPT_SKIP_NEW:
     opt_specialflag|= SPECIAL_NO_NEW_FUNC;
@@ -7125,7 +7132,7 @@ mysqld_get_one_option(int optid,
     break;
   case OPT_SECURE_AUTH:
     if (opt_secure_auth == 0)
-      WARN_DEPRECATED(NULL, "pre-4.1 password hash", "post-4.1 password hash");
+      push_deprecated_warn(NULL, "pre-4.1 password hash", "post-4.1 password hash");
     break;
   case OPT_PFS_INSTRUMENT:
     {
@@ -7459,8 +7466,8 @@ static int get_options(int *argc_ptr, char ***argv_ptr)
 #endif
   if (opt_debugging)
   {
-    /* Allow no core or stack trace */
-    test_flags|= TEST_NO_STACKTRACE;
+    /* Allow break with SIGINT, no core or stack trace */
+    test_flags|= TEST_SIGINT | TEST_NO_STACKTRACE;
     test_flags&= ~TEST_CORE_ON_SIGNAL;
   }
   /* Set global MyISAM variables from delay_key_write_options */
@@ -7984,10 +7991,21 @@ PSI_rwlock_key key_rwlock_LOCK_grant, key_rwlock_LOCK_logger,
   key_rwlock_LOCK_system_variables_hash, key_rwlock_query_cache_query_lock,
   key_rwlock_global_sid_lock;
 
+PSI_rwlock_key key_rwlock_Trans_delegate_lock;
+PSI_rwlock_key key_rwlock_Binlog_storage_delegate_lock;
+#ifdef HAVE_REPLICATION
+PSI_rwlock_key key_rwlock_Binlog_transmit_delegate_lock;
+PSI_rwlock_key key_rwlock_Binlog_relay_IO_delegate_lock;
+#endif
+
 static PSI_rwlock_info all_server_rwlocks[]=
 {
 #if defined (HAVE_OPENSSL) && !defined(HAVE_YASSL)
   { &key_rwlock_openssl, "CRYPTO_dynlock_value::lock", 0},
+#endif
+#ifdef HAVE_REPLICATION
+  { &key_rwlock_Binlog_transmit_delegate_lock, "Binlog_transmit_delegate::lock", PSI_FLAG_GLOBAL},
+  { &key_rwlock_Binlog_relay_IO_delegate_lock, "Binlog_relay_IO_delegate::lock", PSI_FLAG_GLOBAL},
 #endif
   { &key_rwlock_LOCK_grant, "LOCK_grant", PSI_FLAG_GLOBAL},
   { &key_rwlock_LOCK_logger, "LOGGER::LOCK_logger", 0},
@@ -7995,7 +8013,9 @@ static PSI_rwlock_info all_server_rwlocks[]=
   { &key_rwlock_LOCK_sys_init_slave, "LOCK_sys_init_slave", PSI_FLAG_GLOBAL},
   { &key_rwlock_LOCK_system_variables_hash, "LOCK_system_variables_hash", PSI_FLAG_GLOBAL},
   { &key_rwlock_query_cache_query_lock, "Query_cache_query::lock", 0},
-  { &key_rwlock_global_sid_lock, "gtid_commit_rollback", PSI_FLAG_GLOBAL}
+  { &key_rwlock_global_sid_lock, "gtid_commit_rollback", PSI_FLAG_GLOBAL},
+  { &key_rwlock_Trans_delegate_lock, "Trans_delegate::lock", PSI_FLAG_GLOBAL},
+  { &key_rwlock_Binlog_storage_delegate_lock, "Binlog_storage_delegate::lock", PSI_FLAG_GLOBAL}
 };
 
 #ifdef HAVE_MMAP

@@ -22,7 +22,7 @@ Full Text Search plugin support.
 
 Created 2013/06/04 Shaohua Wang
 ***********************************************************************/
-
+ 
 #include "fts0ast.h"
 #include "fts0plugin.h"
 

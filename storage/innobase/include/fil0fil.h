@@ -219,15 +219,15 @@ fil_node_create(
 	ulint		size,	/*!< in: file size in database blocks, rounded
 				downwards to an integer */
 	ulint		id,	/*!< in: space id where to append */
-	bool		is_raw)	/*!< in: TRUE if a raw device or
+	bool		is_raw)	/*!< in: true if a raw device or
 				a raw disk partition */
 	__attribute__((nonnull, warn_unused_result));
 /*******************************************************************//**
 Creates a space memory object and puts it to the 'fil system' hash table.
 If there is an error, prints an error message to the .err log.
-@return TRUE if success */
+@return true if success */
 
-ibool
+bool
 fil_space_create(
 /*=============*/
 	const char*	name,	/*!< in: space name */
@@ -239,9 +239,9 @@ fil_space_create(
 Assigns a new space id for a new single-table tablespace. This works simply by
 incrementing the global counter. If 4 billion id's is not enough, we may need
 to recycle id's.
-@return TRUE if assigned, FALSE if not */
+@return true if assigned, false if not */
 
-ibool
+bool
 fil_assign_new_space_id(
 /*====================*/
 	ulint*	space_id);	/*!< in/out: space id */
@@ -285,9 +285,9 @@ fil_space_get_zip_size(
 /*******************************************************************//**
 Checks if the pair space, page_no refers to an existing page in a tablespace
 file space. The tablespace must be cached in the memory cache.
-@return TRUE if the address is meaningful */
+@return true if the address is meaningful */
 
-ibool
+bool
 fil_check_adress_in_tablespace(
 /*===========================*/
 	ulint	id,	/*!< in: space id */
@@ -372,9 +372,9 @@ fil_read_first_page(
 	__attribute__((warn_unused_result));
 /*******************************************************************//**
 Increments the count of pending operation, if space is not being deleted.
-@return TRUE if being deleted, and operation should be skipped */
+@return true if being deleted, and operation should be skipped */
 
-ibool
+bool
 fil_inc_pending_ops(
 /*================*/
 	ulint	id);	/*!< in: space id */
@@ -458,7 +458,7 @@ fil_op_log_parse_or_replay(
 /*******************************************************************//**
 Deletes a single-table tablespace. The tablespace must be cached in the
 memory cache.
-@return TRUE if success */
+@return true if success */
 
 dberr_t
 fil_delete_tablespace(
@@ -520,7 +520,7 @@ memory cache. Discarding is like deleting a tablespace, but
  3. When the user does IMPORT TABLESPACE, the tablespace will have the
     same id as it originally had.
 
- 4. Free all the pages in use by the tablespace if rename=TRUE.
+ 4. Free all the pages in use by the tablespace if rename=true.
 @return DB_SUCCESS or error */
 
 dberr_t
@@ -532,9 +532,9 @@ fil_discard_tablespace(
 /*******************************************************************//**
 Renames a single-table tablespace. The tablespace must be cached in the
 tablespace memory cache.
-@return TRUE if success */
+@return true if success */
 
-ibool
+bool
 fil_rename_tablespace(
 /*==================*/
 	const char*	old_name_in,	/*!< in: old table name in the
@@ -560,7 +560,7 @@ char*
 fil_make_ibd_name(
 /*==============*/
 	const char*	name,		/*!< in: table name or a dir path */
-	bool		is_full_path);	/*!< in: TRUE if it is a dir path */
+	bool		is_full_path);	/*!< in: true if it is a dir path */
 /*******************************************************************//**
 Allocates a file name for a tablespace ISL file (InnoDB Symbolic Link).
 The string must be freed by caller with ut_free().
@@ -637,7 +637,7 @@ If the validate boolean is set, we read the first page of the file and
 check that the space id in the file is what we expect. We assume that
 this function runs much faster if no check is made, since accessing the
 file inode probably is much faster (the OS caches them) than accessing
-the first page of the file.  This boolean may be initially FALSE, but if
+the first page of the file.  This boolean may be initially false, but if
 a remote tablespace is found it will be changed to true.
 
 If the fix_dict boolean is set, then it is safe to use an internal SQL
@@ -687,11 +687,11 @@ dberr_t
 fil_load_single_table_tablespaces(void);
 /*===================================*/
 /*******************************************************************//**
-Returns TRUE if a single-table tablespace does not exist in the memory cache,
+Returns true if a single-table tablespace does not exist in the memory cache,
 or is being deleted there.
-@return TRUE if does not exist or is being deleted */
+@return true if does not exist or is being deleted */
 
-ibool
+bool
 fil_tablespace_deleted_or_being_deleted_in_mem(
 /*===========================================*/
 	ulint		id,	/*!< in: space id */
@@ -699,21 +699,21 @@ fil_tablespace_deleted_or_being_deleted_in_mem(
 				you pass -1 as the value of this, then this
 				parameter is ignored */
 /*******************************************************************//**
-Returns TRUE if a single-table tablespace exists in the memory cache.
-@return TRUE if exists */
+Returns true if a single-table tablespace exists in the memory cache.
+@return true if exists */
 
-ibool
+bool
 fil_tablespace_exists_in_mem(
 /*=========================*/
 	ulint	id);	/*!< in: space id */
 #ifndef UNIV_HOTBACKUP
 /*******************************************************************//**
-Returns TRUE if a matching tablespace exists in the InnoDB tablespace memory
+Returns true if a matching tablespace exists in the InnoDB tablespace memory
 cache. Note that if we have not done a crash recovery at the database startup,
 there may be many tablespaces which are not yet in the memory cache.
-@return TRUE if a matching tablespace exists in the memory cache */
+@return true if a matching tablespace exists in the memory cache */
 
-ibool
+bool
 fil_space_for_table_exists_in_mem(
 /*==============================*/
 	ulint		id,		/*!< in: space id */
@@ -743,9 +743,9 @@ fil_extend_tablespaces_to_stored_len(void);
 Tries to extend a data file so that it would accommodate the number of pages
 given. The tablespace must be cached in the memory cache. If the space is big
 enough already, does nothing.
-@return TRUE if success */
+@return true if success */
 
-ibool
+bool
 fil_extend_space_to_desired_size(
 /*=============================*/
 	ulint*	actual_size,	/*!< out: size of the space after extension;
@@ -757,9 +757,9 @@ fil_extend_space_to_desired_size(
 				than this already, the function does nothing */
 /*******************************************************************//**
 Tries to reserve free extents in a file space.
-@return TRUE if succeed */
+@return true if succeed */
 
-ibool
+bool
 fil_space_reserve_free_extents(
 /*===========================*/
 	ulint	id,		/*!< in: space id */
@@ -845,16 +845,16 @@ fil_flush_file_spaces(
 	ulint	purpose);	/*!< in: FIL_TABLESPACE, FIL_LOG */
 /******************************************************************//**
 Checks the consistency of the tablespace cache.
-@return TRUE if ok */
+@return true if ok */
 
-ibool
+bool
 fil_validate(void);
 /*==============*/
 /********************************************************************//**
-Returns TRUE if file address is undefined.
-@return TRUE if undefined */
+Returns true if file address is undefined.
+@return true if undefined */
 
-ibool
+bool
 fil_addr_is_null(
 /*=============*/
 	fil_addr_t	addr);	/*!< in: address */
@@ -893,10 +893,10 @@ fil_page_get_type(
 	const byte*	page);	/*!< in: file page */
 
 /*******************************************************************//**
-Returns TRUE if a single-table tablespace is being deleted.
-@return TRUE if being deleted */
+Returns true if a single-table tablespace is being deleted.
+@return true if being deleted */
 
-ibool
+bool
 fil_tablespace_is_being_deleted(
 /*============================*/
 	ulint		id);	/*!< in: space id */
