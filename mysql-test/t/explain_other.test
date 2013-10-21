@@ -137,7 +137,10 @@ eval EXPLAIN FOR CONNECTION $qid;
 --enable_query_log
 
 # Explain for non-existing connection
+--error ER_NO_SUCH_THREAD
 EXPLAIN FOR CONNECTION 11111111;
+--error ER_NO_SUCH_THREAD
+EXPLAIN FOR CONNECTION 2147483647;
 --echo Explain queries with ready plan
 
 let $err=0;
