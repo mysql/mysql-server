@@ -7835,6 +7835,13 @@ ha_innobase::ft_init_ext(
 		return(NULL);
 	}
 
+	/* If tablespace is discarded, we should return here */
+	if (dict_table_is_discarded(ft_table)) {
+		my_error(ER_NO_SUCH_TABLE, MYF(0), table->s->db.str,
+			 table->s->table_name.str);
+		return(NULL);
+	}
+
 	if (keynr == NO_SUCH_KEY) {
 		/* FIXME: Investigate the NO_SUCH_KEY usage */
 		index = (dict_index_t*) ib_vector_getp(ft_table->fts->indexes, 0);
