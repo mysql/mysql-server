@@ -350,6 +350,40 @@ drop procedure p;
 
 drop temporary table t1;
 
+
+--echo #
+--echo # MDEV-5143: update of a joined table with a nested subquery with 
+--echo # a syntax error crashes mysqld with signal 11
+--echo #
+
+create table t1 (id int(11) not null auto_increment, val varchar(100) null,primary key (id));
+create table t2 (id int(11) not null auto_increment, val varchar(100) null,primary key (id));
+
+insert into t1 (val) values('a');
+insert into t2 (val) values('1');
+
+--error ER_BAD_FIELD_ERROR
+update 
+    (
+        select 
+            val
+        from
+            (
+                select 
+                    v.val
+                from 
+                    t2 wrong_table_alias
+            ) t4
+    ) t3
+    inner join t1 on 
+        t1.id=t3.val
+set 
+    t1.val=t3.val
+;
+
+drop table t1, t2;
+
+
 --echo # End of 5.3 tests
 
 set optimizer_switch=@save_derived_optimizer_switch;

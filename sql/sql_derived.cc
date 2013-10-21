@@ -619,7 +619,8 @@ bool mysql_derived_prepare(THD *thd, LEX *lex, TABLE_LIST *derived)
   {
     sl->context.outer_context= 0;
     // Prepare underlying views/DT first.
-    sl->handle_derived(lex, DT_PREPARE);
+    if ((res= sl->handle_derived(lex, DT_PREPARE)))
+      goto exit;
 
     if (derived->outer_join)
     {

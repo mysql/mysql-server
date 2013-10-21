@@ -438,5 +438,32 @@ CALL p();
 id
 drop procedure p;
 drop temporary table t1;
+#
+# MDEV-5143: update of a joined table with a nested subquery with 
+# a syntax error crashes mysqld with signal 11
+#
+create table t1 (id int(11) not null auto_increment, val varchar(100) null,primary key (id));
+create table t2 (id int(11) not null auto_increment, val varchar(100) null,primary key (id));
+insert into t1 (val) values('a');
+insert into t2 (val) values('1');
+update 
+(
+select 
+val
+from
+(
+select 
+v.val
+from 
+t2 wrong_table_alias
+) t4
+) t3
+inner join t1 on 
+t1.id=t3.val
+set 
+t1.val=t3.val
+;
+ERROR 42S22: Unknown column 'v.val' in 'field list'
+drop table t1, t2;
 # End of 5.3 tests
 set optimizer_switch=@save_derived_optimizer_switch;
