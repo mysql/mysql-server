@@ -19,6 +19,9 @@
 #include <mysql/plugin.h>
 #include <mysql/plugin_gcs_rpl.h>
 #include "sql_plugin.h"
+#include "rpl_gtid.h"
+#include "log.h"
+#include <map>
 
 class Gcs_replication_handler
 {
@@ -27,6 +30,7 @@ public:
   ~Gcs_replication_handler();
   int gcs_rpl_start();
   int gcs_rpl_stop();
+  bool is_gcs_rpl_running();
 
 private:
   LEX_STRING plugin_name;
@@ -35,9 +39,48 @@ private:
   int gcs_init();
 };
 
+/*
+  This method adds a members to the thread_to_seq_num_map which is the
+  thread identifier and cluster transaction identifier, i.e. pair of
+  sequence number and cluster_sidno. In case the transaction is not
+  certified we store std::pair<0, 0>.
+
+  @param[in] thread_id      The key of the map.
+  @param[in] seq_num        The sequence number of the certified transaction.
+  @param[in] cluster_sidno  The cluster sidno.
+
+  @retval  0  if the addition of the sequence number was successful
+          !=0 if there was a failure during the addition to the map.
+
+*/
+int add_transaction_certification_result(my_thread_id thread_id,
+                                         rpl_gno seq_num,
+                                         rpl_sidno cluster_sidno);
+
+/*
+  This method fetches the sequence number from the sequence number
+  map.
+
+  @param[in] thread_id   The key of the map
+
+  @retval returns the sequence number of the transaction being executed
+          by the thread. Incase the thread_id is not found we return
+          std::pair (-1, -1);
+*/
+std::pair <rpl_sidno, rpl_gno> get_transaction_certification_result(my_thread_id thread_id);
+
+/*
+  This method deletes a sequence number and thread id pair from the
+  sequence number map once the after the transaction is committed/rollback.
+
+  @param[in] thread_id   The key of the map
+*/
+void delete_transaction_certification_result(my_thread_id thread_id);
+
 int init_gcs_rpl();
 int start_gcs_rpl();
 int stop_gcs_rpl();
+bool is_running_gcs_rpl();
 int cleanup_gcs_rpl();
 
 /* Server access methods and variables */

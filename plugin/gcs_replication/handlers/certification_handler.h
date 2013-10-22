@@ -28,6 +28,44 @@ public:
   int terminate();
   bool is_unique();
   Handler_role get_role();
+
+  /**
+    Sets the value of the transaction sequence number.
+
+    @param[in]  seq_number  transaction sequence number.
+  */
+  void set_seq_number(rpl_gno seq_number)
+  {
+    DBUG_ASSERT(seq_number > 0);
+    this->seq_number= seq_number;
+  }
+
+  /**
+    Gets the value of the transaction sequence number.
+
+    @return  transaction sequence number.
+  */
+  rpl_gno get_and_reset_seq_number()
+  {
+    DBUG_ASSERT(seq_number > 0);
+    rpl_gno res= seq_number;
+    seq_number= 0;
+    return res;
+  }
+
+private:
+  rpl_gno seq_number;
+  /*
+    This method is used to call the certification method of the plugin
+    and based on the output it updates the condition variable map and
+    signals the thread waiting in the before_commit method.
+  */
+  int certify(PipelineEvent *ev, Continuation *cont);
+  /*
+    This method creates a gtid_event for the remote transactions and
+    adds it in the pipeline.
+  */
+  int inject_gtid(PipelineEvent *ev, Continuation *cont);
 };
 
 #endif /* CERTIFICATION_HANDLER_INCLUDE */

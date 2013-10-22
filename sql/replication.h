@@ -53,6 +53,10 @@ typedef struct Trans_param {
   */
   const char *log_file;
   my_off_t log_pos;
+  /*
+    Set for the remote transaction.
+  */
+  bool local;
 
   /*
     Set on before_commit hook.
@@ -67,7 +71,7 @@ typedef struct Trans_param {
     This is the list containing the write_set of the transaction
     that is tranferrred for the certification purpose.
   */
-  Row_identifier_list *write_set;;
+  Row_identifier_list *write_set;
 } Trans_param;
 
 /**

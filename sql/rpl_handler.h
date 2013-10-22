@@ -149,6 +149,7 @@ public:
   typedef Trans_observer Observer;
   int before_commit(THD *thd, bool all,
                     IO_CACHE *trx_cache_log,
+                    bool local,
                     IO_CACHE *stmt_cache_log,
                     ulonglong cache_log_max_size,
                     Row_identifier_list *pke_write_set);

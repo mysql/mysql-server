@@ -18,6 +18,7 @@
 
 #include "gcs_plugin.h"
 #include <replication.h>
+#include "gcs_commit_validation.h"
 
 /*
   Transaction lifecycle events observers.

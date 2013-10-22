@@ -1,6 +1,11 @@
+include/have_gcs_replication_plugin.inc
 include/install_gcs_replication.inc
 SET GLOBAL gcs_replication_plugin_group_name= "8a94f357-aab4-11df-86ab-c80aa9429562";
 START GCS_REPLICATION;
+include/install_gcs_replication.inc
+SET GLOBAL gcs_replication_plugin_group_name= "8a94f357-aab4-11df-86ab-c80aa9429562";
+START GCS_REPLICATION;
+sleeping for view with 2 nodes
 CREATE TABLE t1 (c1 INT NOT NULL PRIMARY KEY) ENGINE=InnoDB;
 CREATE TABLE t2 (c1 INT NOT NULL PRIMARY KEY) ENGINE=InnoDB;
 BEGIN;
@@ -16,7 +21,33 @@ INSERT INTO t1 VALUES (5);
 INSERT INTO t1 VALUES (6);
 COMMIT;
 CREATE TEMPORARY TABLE t3 (c1 INT NOT NULL PRIMARY KEY) ENGINE=InnoDB;
+INSERT INTO t1 VALUES (1000);
+sleeping
+
+server1
+SELECT @@GLOBAL.GTID_EXECUTED;
+@@GLOBAL.GTID_EXECUTED
+8a94f357-aab4-11df-86ab-c80aa9429562:1-6
+SHOW TABLES FROM test;
+Tables_in_test
+t1
+t2
+
+server2
+SELECT @@GLOBAL.GTID_EXECUTED;
+@@GLOBAL.GTID_EXECUTED
+8a94f357-aab4-11df-86ab-c80aa9429562:1-6
+SHOW TABLES FROM test;
+Tables_in_test
+t1
+t2
+include/diff_tables.inc [server1:test.t1, server2:test.t1]
+include/diff_tables.inc [server1:test.t2, server2:test.t2]
+
 DROP TABLE t1, t2, t3;
+STOP GCS_REPLICATION;
+include/uninstall_gcs_replication.inc
+UNINSTALL PLUGIN gcs_replication_plugin;
 STOP GCS_REPLICATION;
 include/uninstall_gcs_replication.inc
 UNINSTALL PLUGIN gcs_replication_plugin;

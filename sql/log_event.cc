@@ -13569,6 +13569,30 @@ Gtid_log_event::Gtid_log_event(THD* thd_arg, bool using_trans,
 #endif
   DBUG_VOID_RETURN;
 }
+
+Gtid_log_event::Gtid_log_event(uint32 server_id_arg, bool using_trans,
+                               const Gtid_specification spec_arg)
+: Log_event(using_trans ? Log_event::EVENT_TRANSACTIONAL_CACHE :
+            Log_event::EVENT_STMT_CACHE, Log_event::EVENT_NORMAL_LOGGING),
+  commit_flag(true)
+{
+  DBUG_ENTER("Gtid_log_event::Gtid_log_event(bool, const Gtid_specification*, uint32)");
+  DBUG_ASSERT(spec_arg.type == GTID_GROUP);
+
+  server_id= server_id_arg;
+  unmasked_server_id= server_id_arg;
+
+  spec= spec_arg;
+  global_sid_lock->rdlock();
+  sid= global_sid_map->sidno_to_sid(spec.gtid.sidno);
+  global_sid_lock->unlock();
+#ifndef DBUG_OFF
+  char buf[MAX_SET_STRING_LENGTH + 1];
+  to_string(buf);
+  DBUG_PRINT("info", ("%s", buf));
+#endif
+  DBUG_VOID_RETURN;
+}
 #endif
 
 #ifndef MYSQL_CLIENT

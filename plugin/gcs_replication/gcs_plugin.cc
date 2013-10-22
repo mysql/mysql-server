@@ -16,6 +16,7 @@
 #include "gcs_plugin.h"
 #include "observer_server_state.h"
 #include "observer_trans.h"
+#include "gcs_commit_validation.h"
 #include <sql_class.h>                          // THD
 #include <gcs_replication.h>
 #include <gcs_protocol.h>
@@ -178,7 +179,8 @@ struct st_mysql_gcs_rpl gcs_rpl_descriptor=
   MYSQL_GCS_REPLICATION_INTERFACE_VERSION,
   gcs_stats_cbs,
   gcs_rpl_start,
-  gcs_rpl_stop
+  gcs_rpl_stop,
+  is_gcs_rpl_running
 };
 
 int gcs_rpl_start()
@@ -260,7 +262,9 @@ int gcs_replication_init(MYSQL_PLUGIN plugin_info)
   if (init_gcs_rpl())
     return 1;
 
-  if (register_server_state_observer(&server_state_observer, (void *)plugin_info_ptr))
+  init_validation_structures();
+
+  if(register_server_state_observer(&server_state_observer, (void *)plugin_info_ptr))
   {
     log_message(MY_ERROR_LEVEL,
                 "Failure in GCS cluster during registering the server state observers");

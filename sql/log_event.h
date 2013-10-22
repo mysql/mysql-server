@@ -4952,6 +4952,13 @@ public:
   */
   Gtid_log_event(THD *thd_arg, bool using_trans,
                  const Gtid_specification *spec= NULL);
+
+  /**
+    Create a new event using the GTID from the given Gtid_specification
+    without a THD object.
+  */
+  Gtid_log_event(uint32 server_id_arg, bool using_trans,
+                 const Gtid_specification spec_arg);
 #endif
 
 #ifndef MYSQL_CLIENT

@@ -47,6 +47,7 @@
 #include <functional>
 #include <my_murmur3.h>
 #include <my_stacktrace.h>
+#include "gcs_replication.h"
 
 #ifdef WITH_PARTITION_STORAGE_ENGINE
 #include "ha_partition.h"
@@ -1605,6 +1606,9 @@ int ha_rollback_low(THD *thd, bool all)
   THD_TRANS *trans=all ? &thd->transaction.all : &thd->transaction.stmt;
   Ha_trx_info *ha_info= trans->ha_list, *ha_info_next;
   int error= 0;
+
+  // Deleting the elements from the thread_to_seq_num map.
+  delete_transaction_certification_result(thd->thread_id);
   thd->clear_hash_pke_list(thd->get_write_set());
   (void) RUN_HOOK(transaction, before_rollback, (thd, all));
 

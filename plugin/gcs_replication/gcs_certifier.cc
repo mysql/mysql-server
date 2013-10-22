@@ -16,6 +16,7 @@
 using namespace std;
 
 #include "gcs_certifier.h"
+#include "gcs_plugin.h"
 
 Certifier:: Certifier() :
   next_seqno(1)

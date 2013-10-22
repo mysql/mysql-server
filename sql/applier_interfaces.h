@@ -122,6 +122,20 @@ public:
   }
 
   /**
+    Return current format description event.
+
+    @param[out]  out_fde    the outputted format description event
+
+    @return Operation status
+      @retval 0      OK
+  */
+  int get_FormatDescription(Format_description_log_event **out_fde)
+  {
+    *out_fde= format_descriptor;
+    return 0;
+  }
+
+  /**
     Return a log event. If one does not exist, the contained packet will be
     converted into one.
 
@@ -367,6 +381,7 @@ private:
   bool          ready;
   int           error_code;
   bool          transaction_discarded;
+
 #ifdef HAVE_PSI_INTERFACE
   PSI_mutex_key key_mutex;
   PSI_cond_key  key_cond;

@@ -34,6 +34,7 @@ IF(CMAKE_SYSTEM_NAME MATCHES "Linux")
     gcs_protocol_factory.cc gcs_corosync.cc
     pipeline_factory.h pipeline_factory.cc
     gcs_applier.h gcs_applier.cc
+    gcs_commit_validation.cc gcs_commit_validation.h
     handlers/certification_handler.h
     handlers/certification_handler.cc
     handlers/event_cataloger.h

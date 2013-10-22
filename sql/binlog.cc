@@ -34,6 +34,7 @@
 #include <string>
 #include <m_ctype.h>				// For is_number
 #include <my_stacktrace.h>
+#include "gcs_replication.h"
 
 using std::max;
 using std::min;
@@ -1068,11 +1069,36 @@ gtid_before_write_cache(THD* thd, binlog_cache_data* cache_data)
 
   if (thd->variables.gtid_next.type == AUTOMATIC_GROUP)
   {
-    if (group_cache->generate_automatic_gno(thd) !=
-        RETURN_STATUS_OK)
+    /*
+      Update group number with certification sequence number.
+    */
+    std::pair<rpl_sidno, rpl_gno> cert_seq_num=
+      get_transaction_certification_result(thd->thread_id);
+    if (cert_seq_num.second > 0)
     {
-      global_sid_lock->unlock();
-      DBUG_RETURN(1); 
+      // Update cached group.
+      Cached_group *cached_group= group_cache->get_unsafe_pointer(0);
+      cached_group->spec.type= GTID_GROUP;
+      cached_group->spec.gtid.sidno= cert_seq_num.first;
+      cached_group->spec.gtid.gno= cert_seq_num.second;
+      // Update memory structures.
+      gtid_state->lock_sidno(cached_group->spec.gtid.sidno);
+      gtid_state->acquire_ownership(thd, cached_group->spec.gtid);
+      gtid_state->unlock_sidno(cached_group->spec.gtid.sidno);
+      delete_transaction_certification_result(thd->thread_id);
+    }
+    else
+    {
+      /*
+        If an automatic group number was generated, change the first event
+        into a "real" one.
+      */
+      if (group_cache->generate_automatic_gno(thd) !=
+          RETURN_STATUS_OK)
+      {
+        global_sid_lock->unlock();
+        DBUG_RETURN(1);
+      }
     }
   }
   if (write_empty_groups_to_cache(thd, cache_data) != 0)
@@ -6725,10 +6751,15 @@ TC_LOG::enum_result MYSQL_BIN_LOG::commit(THD *thd, bool all)
   */
   if (stuff_logged)
   {
+    /*TODO:
+      All this block needs refactoring after prototype, we are taking
+      the binlog.
+    */
     if (RUN_HOOK(transaction,
                  before_commit,
                  (thd, all,
                   thd_get_cache_mngr(thd)->get_binlog_cache_log(true),
+                  (!(thd->slave_thread)),
                   thd_get_cache_mngr(thd)->get_binlog_cache_log(false),
                   max<my_off_t>(max_binlog_cache_size,
                                 max_binlog_stmt_cache_size),
@@ -6736,8 +6767,36 @@ TC_LOG::enum_result MYSQL_BIN_LOG::commit(THD *thd, bool all)
       DBUG_RETURN(RESULT_ABORTED);
 
     thd->clear_hash_pke_list(thd->get_write_set());
-    if (ordered_commit(thd, all))
-      DBUG_RETURN(RESULT_INCONSISTENT);
+    if (is_running_gcs_rpl())
+    {
+      // We need to follow GCS certification.
+      std::pair<rpl_sidno, rpl_gno> cert_seq_num=
+          get_transaction_certification_result(thd->thread_id);
+
+      if (!thd->slave_thread)
+      {
+        // Local transaction that went trough certification.
+        if (cert_seq_num.second > 0)
+        {
+          if (ordered_commit(thd, all))
+            DBUG_RETURN(RESULT_INCONSISTENT);
+        }
+        else
+          DBUG_RETURN(RESULT_ABORTED);
+      }
+      else
+      {
+        // Remote transaction is already certified.
+       if (ordered_commit(thd, all))
+          DBUG_RETURN(RESULT_INCONSISTENT);
+      }
+    }
+    else
+    {
+      // Regular case, no certification needed.
+      if (ordered_commit(thd, all))
+        DBUG_RETURN(RESULT_INCONSISTENT);
+    }
   }
   else
   {

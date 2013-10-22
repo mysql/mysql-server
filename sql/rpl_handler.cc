@@ -227,15 +227,17 @@ void delegates_destroy()
 
 int Trans_delegate::before_commit(THD *thd, bool all,
                                   IO_CACHE *trx_cache_log,
+                                  bool local,
                                   IO_CACHE *stmt_cache_log,
                                   ulonglong cache_log_max_size,
                                   Row_identifier_list *pke_write_set)
 {
   DBUG_ENTER("Trans_delegate::before_commit");
-  Trans_param param = { 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0 };
+  Trans_param param = { 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0 };
   param.server_id= thd->server_id;
   param.server_uuid= server_uuid;
   param.thread_id= thd->thread_id;
+  param.local= local;
   param.trx_cache_log= trx_cache_log;
   param.stmt_cache_log= stmt_cache_log;
   param.cache_log_max_size= cache_log_max_size;
@@ -253,7 +255,7 @@ int Trans_delegate::before_commit(THD *thd, bool all,
 int Trans_delegate::before_rollback(THD *thd, bool all)
 {
   DBUG_ENTER("Trans_delegate::before_rollback");
-  Trans_param param = { 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0 };
+  Trans_param param = { 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0 };
   param.server_id= thd->server_id;
   param.server_uuid= server_uuid;
   param.thread_id= thd->thread_id;
@@ -270,7 +272,7 @@ int Trans_delegate::before_rollback(THD *thd, bool all)
 int Trans_delegate::after_commit(THD *thd, bool all)
 {
   DBUG_ENTER("Trans_delegate::after_commit");
-  Trans_param param = { 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0 };
+  Trans_param param = { 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0 };
   param.server_uuid= server_uuid;
   param.thread_id= thd->thread_id;
 
@@ -292,7 +294,7 @@ int Trans_delegate::after_commit(THD *thd, bool all)
 int Trans_delegate::after_rollback(THD *thd, bool all)
 {
   DBUG_ENTER("Trans_delegate::after_rollback");
-  Trans_param param = { 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0 };
+  Trans_param param = { 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0 };
   param.server_uuid= server_uuid;
   param.thread_id= thd->thread_id;
 

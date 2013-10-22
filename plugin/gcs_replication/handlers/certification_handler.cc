@@ -15,9 +15,13 @@
 
 #include "certification_handler.h"
 #include "../gcs_certifier.h"
-Certifier* cert_map;
+#include "../gcs_commit_validation.h"
+#include "../gcs_plugin_utils.h"
+#include "../observer_trans.h"
+#include <gcs_replication.h>
 
-Certification_handler::Certification_handler()
+Certifier* cert_map;
+Certification_handler::Certification_handler(): seq_number(0)
 {}
 
 int
@@ -36,31 +40,40 @@ Certification_handler::terminate()
 }
 
 int
-Certification_handler::handle(PipelineEvent *pevent,Continuation* cont)
+Certification_handler::handle(PipelineEvent *pevent, Continuation* cont)
 {
   DBUG_ENTER("Certification_handler::handle");
-  //only the first event is needed
-  if (pevent->get_event_context() != TRANSACTION_BEGIN)
-  {
-    next(pevent, cont);
-    DBUG_RETURN(0);
-  }
+  Packet *packet= NULL;
+  pevent->get_Packet(&packet);
+  Log_event_type ev_type= (Log_event_type) packet->payload[EVENT_TYPE_OFFSET];
 
-  Log_event* event= NULL;
+  switch (ev_type)
+  {
+    case TRANSACTION_CONTEXT_EVENT:
+      DBUG_RETURN(certify(pevent, cont));
+    case GTID_LOG_EVENT:
+      DBUG_RETURN(inject_gtid(pevent, cont));
+    default:
+      next(pevent, cont);
+      DBUG_RETURN(0);
+  }
+}
+
+int
+Certification_handler::certify(PipelineEvent *pevent, Continuation *cont)
+{
+  DBUG_ENTER("Certification_handler::certify");
+  Log_event *event= NULL;
   pevent->get_LogEvent(&event);
 
-  //certification logic
-  Log_event_type ev_type= event->get_type_code();
-  rpl_gno seq_number= 0;
-  if(ev_type == TRANSACTION_CONTEXT_EVENT)
-    seq_number= cert_map->certify((Transaction_context_log_event*)event);
-  else
-    DBUG_RETURN(1);
+  Transaction_context_log_event *tcle= (Transaction_context_log_event*) event;
+  rpl_gno seq_number= cert_map->certify(tcle);
 
-  //this method should be based on the log event
-  if (is_local())
+  // FIXME: This needs to be improved before 0.2
+  if (!strncmp(tcle->get_server_uuid(), server_uuid, UUID_LENGTH))
   {
     /*
+      Local transaction.
       After a certification we need to wake up the waiting thread on the
       plugin to proceed with the transaction processing. Here we use the
       global array of conditions. We extract the condition variable
@@ -68,11 +81,33 @@ Certification_handler::handle(PipelineEvent *pevent,Continuation* cont)
       This will be used later in the code to signal the thread after the
       sequence number is updated.
     */
+    if (add_transaction_certification_result(tcle->get_thread_id(),
+                                             seq_number,
+                                             gcs_cluster_sidno))
+    {
+      log_message(MY_ERROR_LEVEL,
+                  "Unable to update certification result on server side, thread_id: %lu",
+                  tcle->get_thread_id());
+      cont->signal(1,true);
+      DBUG_RETURN(1);
+    }
 
-    //mysql_cond_t cond_i=
-    //      find_condition_in_map(map, trxCtd->thread_id);
-    //insert_Trx_CTID(&seq_num_map, trxCtd->thread_id, seq_number);
-    //mysql_cond_signal(cond_i);
+    mysql_cond_t *cond_i=
+      get_transaction_wait_cond(tcle->get_thread_id()).first;
+    mysql_mutex_t *mutex_i=
+      get_transaction_wait_cond(tcle->get_thread_id()).second;
+
+    if (cond_i == NULL || mutex_i == NULL)
+    {
+      log_message(MY_ERROR_LEVEL,
+                  "Got NULL when retrieving the structures for signaling the waiting thread: %lu",
+                  tcle->get_thread_id());
+      cont->signal(1,true);
+      DBUG_RETURN(1);
+    }
+    mysql_mutex_lock(mutex_i);
+    mysql_cond_signal(cond_i);
+    mysql_mutex_unlock(mutex_i);
 
     //The pipeline ended for this transaction
     cont->signal(0,true);
@@ -83,10 +118,36 @@ Certification_handler::handle(PipelineEvent *pevent,Continuation* cont)
       //The transaction was not certified so discard it.
       cont->signal(0,true);
     else
-      // create CTID event and add it to the stream
-      // next(new_CTID_event, cont);
+    {
+      set_seq_number(seq_number);
       next(pevent, cont);
     }
+  }
+  DBUG_RETURN(0);
+}
+
+int
+Certification_handler::inject_gtid(PipelineEvent *pevent, Continuation *cont)
+{
+  DBUG_ENTER("Certification_handler::inject_gtid");
+  Log_event *event= NULL;
+  pevent->get_LogEvent(&event);
+  Gtid_log_event *gle_old= (Gtid_log_event*)event;
+
+  // Create new GTID event.
+  Gtid gtid= { gcs_cluster_sidno, get_and_reset_seq_number() };
+  Gtid_specification spec= { GTID_GROUP, gtid };
+  Gtid_log_event *gle= new Gtid_log_event(gle_old->server_id,
+                                          gle_old->is_using_trans_cache(),
+                                          spec);
+
+  // Pass it to next handler.
+  Format_description_log_event *fde= NULL;
+  pevent->get_FormatDescription(&fde);
+  delete pevent;
+  pevent= new PipelineEvent(gle, fde);
+  next(pevent, cont);
+
   DBUG_RETURN(0);
 }
 

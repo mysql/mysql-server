@@ -149,12 +149,6 @@ private:
   void operator=(Mutex_autolock const&);
 };
 
-
-inline bool is_local(){
-  return false;
-}
-
-
 class MessageBuffer
 {
 

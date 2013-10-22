@@ -37,6 +37,10 @@ struct st_mysql_gcs_rpl
     group.
   */
   int (*gcs_rpl_stop)();
+  /*
+    This function is used to get the current gcs plugin running status.
+  */
+  bool (*is_gcs_rpl_running)();
 };
 
 #endif

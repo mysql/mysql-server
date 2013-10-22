@@ -20,6 +20,13 @@
 #include <rpl_info_factory.h>
 #include <rpl_slave.h>
 
+/* Maps a sequence number to it's thread_id. */
+typedef std::map<my_thread_id, std::pair<rpl_sidno, rpl_gno> > seq_num_map;
+/* A Map that maps, a thread_id to a sequence number. */
+seq_num_map thread_to_seq_num_map;
+/* An iterator to traverse the map. */
+seq_num_map::iterator seq_num_iterator;
+
 Gcs_replication_handler::Gcs_replication_handler() :
   plugin(NULL), plugin_handle(NULL)
 {
@@ -49,6 +56,13 @@ int Gcs_replication_handler::gcs_rpl_stop()
   return 1;
 }
 
+bool Gcs_replication_handler::is_gcs_rpl_running()
+{
+  if (plugin_handle)
+    return plugin_handle->is_gcs_rpl_running();
+  return false;
+}
+
 int Gcs_replication_handler::gcs_init()
 {
   plugin= my_plugin_lock_by_name(0, &plugin_name, MYSQL_GCS_RPL_PLUGIN);
@@ -63,6 +77,59 @@ int Gcs_replication_handler::gcs_init()
     return 1;
   }
   return 0;
+}
+
+int add_transaction_certification_result(my_thread_id thread_id,
+                                         rpl_gno seq_num,
+                                         rpl_sidno cluster_id)
+{
+  DBUG_ENTER("add_transaction_certification_result");
+  mysql_mutex_lock(&LOCK_seq_num_map);
+
+  std::pair <rpl_sidno, rpl_gno> temp= std::make_pair (cluster_id, seq_num);
+  std::pair<std::map<my_thread_id, std::pair <rpl_sidno, rpl_gno> >::iterator,bool> ret;
+  ret= thread_to_seq_num_map.insert(std::pair<my_thread_id, std::pair <rpl_sidno, rpl_gno> >(thread_id, temp));
+
+  mysql_mutex_unlock(&LOCK_seq_num_map);
+  // If a map insert fails, ret.second is false
+  if(ret.second)
+    DBUG_RETURN(0);
+  DBUG_RETURN(1);
+}
+
+std::pair <rpl_sidno, rpl_gno>
+get_transaction_certification_result(my_thread_id thread_id)
+{
+  DBUG_ENTER("get_transaction_certification_result");
+
+  seq_num_map::const_iterator iterator;
+  mysql_mutex_lock(&LOCK_seq_num_map);
+
+  iterator= thread_to_seq_num_map.find(thread_id);
+  if (iterator == thread_to_seq_num_map.end())
+  {
+    mysql_mutex_unlock(&LOCK_seq_num_map);
+    DBUG_RETURN(std::make_pair(-1, -1));
+  }
+  mysql_mutex_unlock(&LOCK_seq_num_map);
+  DBUG_RETURN(iterator->second);
+}
+
+void delete_transaction_certification_result(my_thread_id thread_id)
+{
+  DBUG_ENTER("delete_transaction_certification_result");
+
+  seq_num_map::iterator iterator;
+  mysql_mutex_lock(&LOCK_seq_num_map);
+  iterator= thread_to_seq_num_map.find(thread_id);
+  if (iterator == thread_to_seq_num_map.end())
+  {
+    mysql_mutex_unlock(&LOCK_seq_num_map);
+    DBUG_VOID_RETURN;
+  }
+  thread_to_seq_num_map.erase(iterator);
+  mysql_mutex_unlock(&LOCK_seq_num_map);
+  DBUG_VOID_RETURN;
 }
 
 Gcs_replication_handler* gcs_rpl_handler= NULL;
@@ -87,6 +154,13 @@ int stop_gcs_rpl()
   if (gcs_rpl_handler)
    return gcs_rpl_handler->gcs_rpl_stop();
   return 1;
+}
+
+bool is_running_gcs_rpl()
+{
+  if (gcs_rpl_handler)
+    return gcs_rpl_handler->is_gcs_rpl_running();
+  return false;
 }
 
 int cleanup_gcs_rpl()
