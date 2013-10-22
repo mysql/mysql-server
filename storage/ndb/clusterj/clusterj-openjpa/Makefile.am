@@ -56,6 +56,7 @@ clusterj_openjpa_tests = \
   $(clusterj_openjpa_test)/com/mysql/clusterj/openjpatest/BasicTest.java \
   $(clusterj_openjpa_test)/com/mysql/clusterj/openjpatest/BigIntegerTypesTest.java \
   $(clusterj_openjpa_test)/com/mysql/clusterj/openjpatest/BlobTest.java \
+  $(clusterj_openjpa_test)/com/mysql/clusterj/openjpatest/BytePKTest.java \
   $(clusterj_openjpa_test)/com/mysql/clusterj/openjpatest/ClobTest.java \
   $(clusterj_openjpa_test)/com/mysql/clusterj/openjpatest/CrundTest.java \
   $(clusterj_openjpa_test)/com/mysql/clusterj/openjpatest/DateAsSqlDateTest.java \
@@ -68,6 +69,7 @@ clusterj_openjpa_tests = \
   $(clusterj_openjpa_test)/com/mysql/clusterj/openjpatest/LongLongStringPKOneManyTest.java \
   $(clusterj_openjpa_test)/com/mysql/clusterj/openjpatest/LongLongStringPKTest.java \
   $(clusterj_openjpa_test)/com/mysql/clusterj/openjpatest/OneToManyRelationshipTest.java \
+  $(clusterj_openjpa_test)/com/mysql/clusterj/openjpatest/ShortPKTest.java \
   $(clusterj_openjpa_test)/com/mysql/clusterj/openjpatest/TestBadPersistenceUnitNoConnectString.java \
   $(clusterj_openjpa_test)/com/mysql/clusterj/openjpatest/TimeAsSqlTimeTest.java \
   $(clusterj_openjpa_test)/com/mysql/clusterj/openjpatest/TimeAsUtilDateTest.java \
