@@ -157,6 +157,12 @@ struct mtr_t {
 	/** State variables of the mtr */
 	struct Impl {
 
+		/** memo stack for locks etc. */
+		mtr_buf_t	m_memo;
+
+		/** mini-transaction log */
+		mtr_buf_t	m_log;
+
 		/** Number of pages that have been freed in this
 		mini-transaction */
 		ib_uint32_t	m_n_freed_pages;
@@ -173,12 +179,6 @@ struct mtr_t {
 		/** Count of how many page initial log records have been
 		written to the mtr log */
 		ib_uint32_t	m_n_log_recs;
-
-		/** memo stack for locks etc. */
-		mtr_buf_t	m_memo;
-
-		/** mini-transaction log */
-		mtr_buf_t	m_log;
 
 		/** specifies which operations should be logged; default
 		value MTR_LOG_ALL */
