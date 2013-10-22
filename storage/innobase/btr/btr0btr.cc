@@ -3719,7 +3719,7 @@ btr_print_index(
 
 	mtr_commit(&mtr);
 
-	btr_validate_index(index, 0, false);
+	ut_ad(btr_validate_index(index, 0, false));
 }
 #endif /* UNIV_BTR_PRINT */
 
