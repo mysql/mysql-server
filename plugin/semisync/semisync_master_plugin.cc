@@ -99,7 +99,7 @@ int repl_semi_binlog_dump_start(Binlog_transmit_param *param,
       Let's assume this semi-sync slave has already received all
       binlog events before the filename and position it requests.
     */
-    repl_semisync.reportReplyBinlog(param->server_id, log_file, log_pos);
+    repl_semisync.handleAck(param->server_id, log_file, log_pos);
   }
   sql_print_information("Start %s binlog_dump to slave (server_id: %d), pos(%s, %lu)",
 			semi_sync_slave ? "semi-sync" : "asynchronous",
@@ -194,6 +194,11 @@ static void fix_rpl_semi_sync_master_enabled(MYSQL_THD thd,
 				      void *ptr,
 				      const void *val);
 
+static void fix_rpl_semi_sync_master_wait_for_slave_count(MYSQL_THD thd,
+                                                          SYS_VAR *var,
+                                                          void *ptr,
+                                                          const void *val);
+
 static MYSQL_SYSVAR_BOOL(enabled, rpl_semi_sync_master_enabled,
   PLUGIN_VAR_OPCMDARG,
  "Enable semi-synchronous replication master (disabled by default). ",
@@ -248,12 +253,23 @@ static MYSQL_SYSVAR_ENUM(
   &wait_point_typelib              /* typelib  */
 );
 
+static MYSQL_SYSVAR_UINT(wait_for_slave_count,   /* name  */
+  rpl_semi_sync_master_wait_for_slave_count,     /* var   */
+  PLUGIN_VAR_OPCMDARG,                           /* flags */
+  "How many slaves the events should be replicated to. Semisynchronous "
+  "replication master will wait until all events of the transaction are "
+  "replicated to at least rpl_semi_sync_master_wait_for_slave_count slaves",
+  NULL,                                           /* check() */
+  &fix_rpl_semi_sync_master_wait_for_slave_count, /* update */
+  1, 1, 65535, 1);
+
 static SYS_VAR* semi_sync_master_system_vars[]= {
   MYSQL_SYSVAR(enabled),
   MYSQL_SYSVAR(timeout),
   MYSQL_SYSVAR(wait_no_slave),
   MYSQL_SYSVAR(trace_level),
   MYSQL_SYSVAR(wait_point),
+  MYSQL_SYSVAR(wait_for_slave_count),
   NULL,
 };
 static void fix_rpl_semi_sync_master_timeout(MYSQL_THD thd,
@@ -293,6 +309,15 @@ static void fix_rpl_semi_sync_master_enabled(MYSQL_THD thd,
       rpl_semi_sync_master_enabled = true;
   }
 
+  return;
+}
+
+static void fix_rpl_semi_sync_master_wait_for_slave_count(MYSQL_THD thd,
+                                                          SYS_VAR *var,
+                                                          void *ptr,
+                                                          const void *val)
+{
+  (void) repl_semisync.setWaitSlaveCount(*(unsigned int*) val);
   return;
 }
 
