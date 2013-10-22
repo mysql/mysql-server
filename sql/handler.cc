@@ -6944,11 +6944,17 @@ int handler::ha_external_lock(THD *thd, int lock_type)
   }
 
   if (MYSQL_HANDLER_RDLOCK_DONE_ENABLED() && lock_type == F_RDLCK)
+  {
     MYSQL_HANDLER_RDLOCK_DONE(error);
+  }
   else if (MYSQL_HANDLER_WRLOCK_DONE_ENABLED() && lock_type == F_WRLCK)
+  {
     MYSQL_HANDLER_WRLOCK_DONE(error);
+  }
   else if (MYSQL_HANDLER_UNLOCK_DONE_ENABLED() && lock_type == F_UNLCK)
+  {
     MYSQL_HANDLER_UNLOCK_DONE(error);
+  }
   DBUG_RETURN(error);
 }
 
