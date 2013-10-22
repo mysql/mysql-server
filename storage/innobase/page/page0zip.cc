@@ -3480,7 +3480,7 @@ page_zip_validate(
 	const dict_index_t*	index)	/*!< in: index of the page, if known */
 {
 	return(page_zip_validate_low(page_zip, page, index,
-				     recv_recovery_is_on()()));
+				     recv_recovery_is_on()));
 }
 #endif /* UNIV_ZIP_DEBUG */
 
