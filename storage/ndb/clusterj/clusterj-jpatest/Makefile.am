@@ -50,6 +50,7 @@ clusterj_jpatest_java = \
   $(clusterj_jpatest_src)/com/mysql/clusterj/jpatest/model/B0.java \
   $(clusterj_jpatest_src)/com/mysql/clusterj/jpatest/model/BigIntegerTypes.java \
   $(clusterj_jpatest_src)/com/mysql/clusterj/jpatest/model/BlobTypes.java \
+  $(clusterj_jpatest_src)/com/mysql/clusterj/jpatest/model/BytePK.java \
   $(clusterj_jpatest_src)/com/mysql/clusterj/jpatest/model/ClobTypes.java \
   $(clusterj_jpatest_src)/com/mysql/clusterj/jpatest/model/DateAsSqlDateTypes.java \
   $(clusterj_jpatest_src)/com/mysql/clusterj/jpatest/model/DateAsUtilDateTypes.java \
@@ -69,6 +70,7 @@ clusterj_jpatest_java = \
   $(clusterj_jpatest_src)/com/mysql/clusterj/jpatest/model/LongLongStringOid.java \
   $(clusterj_jpatest_src)/com/mysql/clusterj/jpatest/model/LongLongStringPK.java \
   $(clusterj_jpatest_src)/com/mysql/clusterj/jpatest/model/LongLongStringPKOneMany.java \
+  $(clusterj_jpatest_src)/com/mysql/clusterj/jpatest/model/ShortPK.java \
   $(clusterj_jpatest_src)/com/mysql/clusterj/jpatest/model/TimeAsSqlTimeTypes.java \
   $(clusterj_jpatest_src)/com/mysql/clusterj/jpatest/model/TimeAsUtilDateTypes.java \
   $(clusterj_jpatest_src)/com/mysql/clusterj/jpatest/model/TimestampAsSqlTimestampTypes.java \
