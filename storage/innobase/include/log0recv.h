@@ -243,7 +243,17 @@ Applies log records in the hash table to a backup. */
 void
 recv_apply_log_recs_for_backup(void);
 /*================================*/
-#endif
+
+#elif defined(UNIV_LOG_DEBUG)
+
+/********************************************************//**
+Frees the recovery system. */
+
+void
+recv_sys_debug_free(void);
+/*=====================*/
+
+#endif /* UNIV_HOTBACKUP */
 
 /** Block of log record data */
 struct recv_data_t{

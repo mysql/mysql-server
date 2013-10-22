@@ -171,8 +171,8 @@ memo_block_unfix(mtr_memo_slot_t* slot)
 	switch (slot->type) {
 	case MTR_MEMO_BUF_FIX:
 	case MTR_MEMO_PAGE_S_FIX:
-	case MTR_MEMO_PAGE_X_FIX: {
-	case MTR_MEMO_PAGE_SX_FIX:
+	case MTR_MEMO_PAGE_X_FIX:
+	case MTR_MEMO_PAGE_SX_FIX: {
 		buf_block_t*	block;
 
 		block = reinterpret_cast<buf_block_t*>(slot->object);

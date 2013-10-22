@@ -420,10 +420,11 @@ recv_sys_empty_hash(void)
 
 #ifndef UNIV_HOTBACKUP
 
-# ifndef UNIV_LOG_DEBUG
 /********************************************************//**
 Frees the recovery system. */
+# ifndef UNIV_LOG_DEBUG
 static
+# endif /* !UNIV_LOG_DEBUG */
 void
 recv_sys_debug_free(void)
 /*=====================*/
@@ -445,7 +446,6 @@ recv_sys_debug_free(void)
 	/* Free up the flush_rbt. */
 	buf_flush_free_flush_rbt();
 }
-# endif /* UNIV_LOG_DEBUG */
 
 /********************************************************//**
 Copies a log segment from the most up-to-date log group to the other log
