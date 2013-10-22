@@ -201,6 +201,7 @@ checkDirectory(suites_dir, "autoincrement");
 // checkDirectory(suites_dir, "multidb");  
 checkDirectory(suites_dir, "t_basic");
 
+checkDirectory(parent_dir, "samples/tweet");
 
 /**** ERRORS TO IGNORE:
    ignore(filename, startpos, message) 
@@ -209,8 +210,11 @@ checkDirectory(suites_dir, "t_basic");
    If multiple errors are declared for one file, they must match in the order declared.
 ***/
 
+// Adapter/impl/common
+ignore("IndexBounds.js", 11, "Expected a conditional expression and instead saw an assignment.");
+ignore("IndexBounds.js", 13, "Expected a conditional expression and instead saw an assignment.");
+
 // Adapter/impl/ndb
-ignore("NdbOperation.js",5,"\'storeNativeConstructorInMapping\' was used before it was defined.");
 ignore("NdbOperation.js",27,"\'gather\' was used before it was defined.");
 ignore("NdbOperation.js",7,"Empty block.");
 ignore("NdbConnectionPool.js",15,"Expected a conditional expression and instead saw an assignment.");
@@ -245,3 +249,17 @@ ignore("CharsetTest.js", 26, "Missing \'new\'.", 14);
 ignore("QueryKeywordTest.js", 95, "Expected \'String\' and instead saw \'\'\'\'.");
 ignore("lib.js", 95, "Expected \'String\' and instead saw \'\'\'\'.");
 
+// t_basic
+ignore("BatchTest.js", 6, "Don't make functions within a loop.");
+ignore("ParallelOperationTest.js", 6, "Don't make functions within a loop.");
+ignore("SaveTest.js", 8, "Don't make functions within a loop.");
+ignore("SaveTest.js", 8, "Don't make functions within a loop.");
+ignore("SaveTest.js", 10, "Don't make functions within a loop.");
+ignore("UpdateTest.js", 8, "Don't make functions within a loop.");
+ignore("UpdateTest.js", 10, "Don't make functions within a loop.");
+ignore("UpdateTest.js", 8, "Don't make functions within a loop.");
+ignore("UpdateTest.js", 10, "Don't make functions within a loop.");
+ignore("UpdateTest.js", 8, "Don't make functions within a loop.");
+ignore("UpdateTest.js", 10, "Don't make functions within a loop.");
+ignore("UpdateTest.js", 8, "Don't make functions within a loop.");
+ignore("UpdateTest.js", 10, "Don't make functions within a loop.");

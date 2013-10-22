@@ -3789,7 +3789,7 @@ EXPLAIN SELECT 1 FROM
         "select#": 2,
         "steps": [
           {
-            "expanded_query": "/* select#2 */ select 1 AS `1` from `t2` join `t1` where (`t2`.`b` < `t1`.`c`) group by 1+0 limit 1"
+            "expanded_query": "/* select#2 */ select 1 AS `1` from `t2` join `t1` where (`t2`.`b` < `t1`.`c`) group by '' limit 1"
           }
         ] /* steps */
       } /* join_preparation */
@@ -3799,7 +3799,7 @@ EXPLAIN SELECT 1 FROM
         "select#": 1,
         "steps": [
           {
-            "expanded_query": "/* select#1 */ select 1 AS `1` from (/* select#2 */ select 1 AS `1` from `t2` join `t1` where (`t2`.`b` < `t1`.`c`) group by 1+0 limit 1) `d2`"
+            "expanded_query": "/* select#1 */ select 1 AS `1` from (/* select#2 */ select 1 AS `1` from `t2` join `t1` where (`t2`.`b` < `t1`.`c`) group by '' limit 1) `d2`"
           }
         ] /* steps */
       } /* join_preparation */
@@ -3940,7 +3940,7 @@ EXPLAIN SELECT 1 FROM
                 {
                   "clause_processing": {
                     "clause": "GROUP BY",
-                    "original_clause": "1+0",
+                    "original_clause": "''",
                     "items": [
                       {
                         "item": "1",
@@ -4114,7 +4114,7 @@ EXPLAIN SELECT 1 FROM
         "select#": 2,
         "steps": [
           {
-            "expanded_query": "/* select#2 */ select 1 AS `1` from `t2` join `t1` where (`t2`.`b` < `t1`.`c`) group by 1+0 limit 1"
+            "expanded_query": "/* select#2 */ select 1 AS `1` from `t2` join `t1` where (`t2`.`b` < `t1`.`c`) group by '' limit 1"
           }
         ] /* steps */
       } /* join_preparation */
@@ -4124,7 +4124,7 @@ EXPLAIN SELECT 1 FROM
         "select#": 1,
         "steps": [
           {
-            "expanded_query": "/* select#1 */ select 1 AS `1` from (/* select#2 */ select 1 AS `1` from `t2` join `t1` where (`t2`.`b` < `t1`.`c`) group by 1+0 limit 1) `d2`"
+            "expanded_query": "/* select#1 */ select 1 AS `1` from (/* select#2 */ select 1 AS `1` from `t2` join `t1` where (`t2`.`b` < `t1`.`c`) group by '' limit 1) `d2`"
           }
         ] /* steps */
       } /* join_preparation */
@@ -4265,7 +4265,7 @@ EXPLAIN SELECT 1 FROM
                 {
                   "clause_processing": {
                     "clause": "GROUP BY",
-                    "original_clause": "1+0",
+                    "original_clause": "''",
                     "items": [
                       {
                         "item": "1",

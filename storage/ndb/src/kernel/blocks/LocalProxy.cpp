@@ -293,7 +293,7 @@ LocalProxy::loadWorkers()
   c_workers = mt_get_instance_count(number());
   for (Uint32 i = 0; i < c_workers; i++)
   {
-    jam();
+    jamNoBlock();
     Uint32 instanceNo = workerInstance(i);
 
     SimulatedBlock* worker = newWorker(instanceNo);
