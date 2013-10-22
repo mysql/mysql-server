@@ -24,6 +24,7 @@ ERROR HY000: EXPLAIN FOR CONNECTION command is supported only for SELECT/UPDATE/
 DROP PROCEDURE proc6369;
 ERROR HY000: EXPLAIN FOR CONNECTION command is supported only for SELECT/UPDATE/INSERT/DELETE/REPLACE
 EXPLAIN FOR CONNECTION 11111111;
+ERROR HY000: Unknown thread id: 11111111
 Explain queries with ready plan
 EXPLAIN FORMAT=TRADITIONAL FOR QUERY 'SELECT f1 FROM t1'
 id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra

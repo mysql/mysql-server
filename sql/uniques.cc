@@ -37,6 +37,8 @@
 #include "my_tree.h"                            // element_count
 #include "uniques.h"                            // Unique
 
+#include <algorithm>
+
 int unique_write_to_file(uchar* key, element_count count, Unique *unique)
 {
   /*
@@ -561,12 +563,21 @@ bool Unique::walk(tree_walk_action action, void *walk_action_arg)
     return 1;
   if (flush_io_cache(&file) || reinit_io_cache(&file, READ_CACHE, 0L, 0, 0))
     return 1;
+
+  /*
+    Compute the size of the merge buffer used by merge_walk(). This buffer
+    must at least be able to store one element from each file pointer plus
+    one extra.
+  */
+  const ulong min_merge_buffer_size= (file_ptrs.size() + 1) * size;
+  const ulong merge_buffer_size=
+    std::max<ulong>(min_merge_buffer_size, max_in_memory_size);
+
   if (!(merge_buffer= (uchar *) my_malloc(key_memory_Unique_merge_buffer,
-                                          (ulong) max_in_memory_size, MYF(0))))
+                                          merge_buffer_size, MYF(0))))
     return 1;
-  res= merge_walk(merge_buffer, (ulong) max_in_memory_size, size,
-                  file_ptrs.begin(),
-                  file_ptrs.end(),
+  res= merge_walk(merge_buffer, merge_buffer_size, size,
+                  file_ptrs.begin(), file_ptrs.end(),
                   action, walk_action_arg,
                   tree.compare, tree.custom_arg, &file);
   my_free(merge_buffer);

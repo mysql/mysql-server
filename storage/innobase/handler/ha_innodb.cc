@@ -479,7 +479,8 @@ ib_cb_t innodb_api_cb[] = {
 	(ib_cb_t) ib_get_idx_field_name,
 	(ib_cb_t) ib_trx_get_start_time,
 	(ib_cb_t) ib_cfg_bk_commit_interval,
-	(ib_cb_t) ib_ut_strerr
+	(ib_cb_t) ib_ut_strerr,
+	(ib_cb_t) ib_cursor_stmt_begin
 };
 
 /*************************************************************//**
@@ -7834,6 +7835,13 @@ ha_innobase::ft_init_ext(
 		return(NULL);
 	}
 
+	/* If tablespace is discarded, we should return here */
+	if (dict_table_is_discarded(ft_table)) {
+		my_error(ER_NO_SUCH_TABLE, MYF(0), table->s->db.str,
+			 table->s->table_name.str);
+		return(NULL);
+	}
+
 	if (keynr == NO_SUCH_KEY) {
 		/* FIXME: Investigate the NO_SUCH_KEY usage */
 		index = (dict_index_t*) ib_vector_getp(ft_table->fts->indexes, 0);
@@ -8335,9 +8343,6 @@ create_table_def(
 			}
 		}
 
-		/* we assume in dtype_form_prtype() that this fits in
-		two bytes */
-		ut_a(field->type() <= MAX_CHAR_COLL_NUM);
 		col_len = field->pack_length();
 
 		/* The MySQL pack length contains 1 or 2 bytes length field

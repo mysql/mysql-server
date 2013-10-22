@@ -189,7 +189,7 @@ void table_replication_connection_status::make_row()
   mysql_mutex_lock(&active_mi->data_lock);
   mysql_mutex_lock(&active_mi->rli->data_lock);
 
-  memcpy(m_row.source_uuid, active_mi->master_uuid, UUID_LENGTH+1);
+  memcpy(m_row.source_uuid, active_mi->master_uuid, UUID_LENGTH);
 
   m_row.thread_id= 0;
 
