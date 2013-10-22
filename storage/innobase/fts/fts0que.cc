@@ -784,7 +784,7 @@ fts_query_remove_doc_id(
 	    && rbt_search(query->doc_ids, &parent, &doc_id) == 0) {
 		ut_free(rbt_remove_node(query->doc_ids, parent.last));
 
-		ut_ad(query->total_size >
+		ut_ad(query->total_size >=
 		      SIZEOF_RBT_NODE_ADD + sizeof(fts_ranking_t));
 		query->total_size -= SIZEOF_RBT_NODE_ADD
 			+ sizeof(fts_ranking_t);
@@ -935,7 +935,7 @@ fts_query_free_doc_ids(
 
 		ut_free(rbt_remove_node(doc_ids, node));
 
-		ut_ad(query->total_size >
+		ut_ad(query->total_size >=
 		      SIZEOF_RBT_NODE_ADD + sizeof(fts_ranking_t));
 		query->total_size -= SIZEOF_RBT_NODE_ADD
 			+ sizeof(fts_ranking_t);
@@ -943,7 +943,7 @@ fts_query_free_doc_ids(
 
 	rbt_free(doc_ids);
 
-	ut_ad(query->total_size > SIZEOF_RBT_CREATE);
+	ut_ad(query->total_size >= SIZEOF_RBT_CREATE);
 	query->total_size -= SIZEOF_RBT_CREATE;
 }
 
