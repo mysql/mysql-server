@@ -5771,6 +5771,9 @@ fts_savepoint_rollback(
 
 		/* Make sure we don't delete the implied savepoint. */
 		ut_a(ib_vector_size(savepoints) > 0);
+
+		/* Restore the savepoint. */
+		fts_savepoint_take(trx, name);
 	}
 }
 
