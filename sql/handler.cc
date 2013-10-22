@@ -6907,25 +6907,20 @@ int handler::ha_external_lock(THD *thd, int lock_type)
   /* SQL HANDLER call locks/unlock while scanning (RND/INDEX). */
   DBUG_ASSERT(inited == NONE || table->open_by_handler);
 
-  if (MYSQL_HANDLER_RDLOCK_START_ENABLED() ||
-      MYSQL_HANDLER_WRLOCK_START_ENABLED() ||
-      MYSQL_HANDLER_UNLOCK_START_ENABLED())
+  if (MYSQL_HANDLER_RDLOCK_START_ENABLED() && lock_type == F_RDLCK)
   {
-    if (lock_type == F_RDLCK)
-    {
-      MYSQL_HANDLER_RDLOCK_START(table_share->db.str,
-                                 table_share->table_name.str);
-    }
-    else if (lock_type == F_WRLCK)
-    {
-      MYSQL_HANDLER_WRLOCK_START(table_share->db.str,
-                                 table_share->table_name.str);
-    }
-    else if (lock_type == F_UNLCK)
-    {
-      MYSQL_HANDLER_UNLOCK_START(table_share->db.str,
-                                 table_share->table_name.str);
-    }
+    MYSQL_HANDLER_RDLOCK_START(table_share->db.str,
+                               table_share->table_name.str);
+  }
+  else if (MYSQL_HANDLER_WRLOCK_START_ENABLED() && lock_type == F_WRLCK)
+  {
+    MYSQL_HANDLER_WRLOCK_START(table_share->db.str,
+                               table_share->table_name.str);
+  }
+  else if (MYSQL_HANDLER_UNLOCK_START_ENABLED() && lock_type == F_UNLCK)
+  {
+    MYSQL_HANDLER_UNLOCK_START(table_share->db.str,
+                               table_share->table_name.str);
   }
 
   ha_statistic_increment(&SSV::ha_external_lock_count);
@@ -6948,22 +6943,17 @@ int handler::ha_external_lock(THD *thd, int lock_type)
     cached_table_flags= table_flags();
   }
 
-  if (MYSQL_HANDLER_RDLOCK_DONE_ENABLED() ||
-      MYSQL_HANDLER_WRLOCK_DONE_ENABLED() ||
-      MYSQL_HANDLER_UNLOCK_DONE_ENABLED())
+  if (MYSQL_HANDLER_RDLOCK_DONE_ENABLED() && lock_type == F_RDLCK)
   {
-    if (lock_type == F_RDLCK)
-    {
-      MYSQL_HANDLER_RDLOCK_DONE(error);
-    }
-    else if (lock_type == F_WRLCK)
-    {
-      MYSQL_HANDLER_WRLOCK_DONE(error);
-    }
-    else if (lock_type == F_UNLCK)
-    {
-      MYSQL_HANDLER_UNLOCK_DONE(error);
-    }
+    MYSQL_HANDLER_RDLOCK_DONE(error);
+  }
+  else if (MYSQL_HANDLER_WRLOCK_DONE_ENABLED() && lock_type == F_WRLCK)
+  {
+    MYSQL_HANDLER_WRLOCK_DONE(error);
+  }
+  else if (MYSQL_HANDLER_UNLOCK_DONE_ENABLED() && lock_type == F_UNLCK)
+  {
+    MYSQL_HANDLER_UNLOCK_DONE(error);
   }
   DBUG_RETURN(error);
 }

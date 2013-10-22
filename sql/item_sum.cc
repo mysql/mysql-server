@@ -39,8 +39,12 @@ using std::max;
 
 ulonglong Item_sum::ram_limitation(THD *thd)
 {
-  return min(thd->variables.tmp_table_size,
-      thd->variables.max_heap_table_size);
+  ulonglong limitation= min(thd->variables.tmp_table_size,
+                            thd->variables.max_heap_table_size);
+
+  DBUG_EXECUTE_IF("simulate_low_itemsum_ram_limitation", limitation= 32;);
+
+  return limitation;
 }
 
 

@@ -1,5 +1,5 @@
 /*
- Copyright (c) 2012, Oracle and/or its affiliates. All rights
+ Copyright (c) 2013, Oracle and/or its affiliates. All rights
  reserved.
  
  This program is free software; you can redistribute it and/or
@@ -143,7 +143,7 @@ Handle<Value> Ndb_cluster_connection_node_id(const Arguments &args) {
 
 Handle<Value> Ndb_cluster_connection_delete_wrapper(const Arguments &args) {
   DEBUG_MARKER(UDEB_DETAIL);
-  typedef NativeDestructorCall<Ndb_cluster_connection *> MCALL;
+  typedef NativeDestructorCall<Ndb_cluster_connection> MCALL;
   MCALL * mcallptr = new MCALL(args);
   mcallptr->runAsync();
   return Undefined();

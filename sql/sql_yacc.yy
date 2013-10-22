@@ -11705,7 +11705,7 @@ delete_limit_clause:
 
 ulong_num:
           NUM           { int error; $$= (ulong) my_strtoll10($1.str, (char**) 0, &error); }
-        | HEX_NUM       { $$= (ulong) strtol($1.str, (char**) 0, 16); }
+        | HEX_NUM       { $$= (ulong) strtoll($1.str, (char**) 0, 16); }
         | LONG_NUM      { int error; $$= (ulong) my_strtoll10($1.str, (char**) 0, &error); }
         | ULONGLONG_NUM { int error; $$= (ulong) my_strtoll10($1.str, (char**) 0, &error); }
         | DECIMAL_NUM   { int error; $$= (ulong) my_strtoll10($1.str, (char**) 0, &error); }
@@ -11714,7 +11714,7 @@ ulong_num:
 
 real_ulong_num:
           NUM           { int error; $$= (ulong) my_strtoll10($1.str, (char**) 0, &error); }
-        | HEX_NUM       { $$= (ulong) strtol($1.str, (char**) 0, 16); }
+        | HEX_NUM       { $$= (ulong) strtoll($1.str, (char**) 0, 16); }
         | LONG_NUM      { int error; $$= (ulong) my_strtoll10($1.str, (char**) 0, &error); }
         | ULONGLONG_NUM { int error; $$= (ulong) my_strtoll10($1.str, (char**) 0, &error); }
         | dec_num_error { MYSQL_YYABORT; }
@@ -12991,9 +12991,8 @@ explanable_command:
         | replace
         | update
         | delete
-        | FOR_SYM CONNECTION_SYM NUM
+        | FOR_SYM CONNECTION_SYM real_ulong_num
           {
-            int error;
             Lex->sql_command= SQLCOM_EXPLAIN_OTHER;
             if (Lex->sphead)
             {
@@ -13001,9 +13000,7 @@ explanable_command:
                        "non-standalone EXPLAIN FOR CONNECTION");
               MYSQL_YYABORT;
             }
-            Lex->query_id= my_strtoll10($3.str, NULL, &error);
-            if (error != 0)
-              MYSQL_YYABORT;
+            Lex->query_id= (my_thread_id)($3);
           }
         ;
 
@@ -15274,7 +15271,7 @@ lock_option:
         | LOW_PRIORITY WRITE_SYM 
           { 
             $$= TL_WRITE_LOW_PRIORITY; 
-            WARN_DEPRECATED(YYTHD, "LOW_PRIORITY WRITE", "WRITE");
+            push_deprecated_warn(YYTHD, "LOW_PRIORITY WRITE", "WRITE");
           }
         | READ_SYM LOCAL_SYM     { $$= TL_READ; }
         ;

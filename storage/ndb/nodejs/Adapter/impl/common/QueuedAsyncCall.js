@@ -75,13 +75,17 @@ function QueuedAsyncCall(queue, mainCallback) {
         nextCall.run();
       }
 
-       /* The preCallback may have returned a postCallback */
+      /* The preCallback may have returned a postCallback */
       if(postCallback && postCallback.fn) {
-       postCallback.fn(postCallback.arg0, postCallback.arg1);
+        udebug.log(thisCall.description," /// Running postCallback");
+        postCallback.fn(postCallback.arg0, postCallback.arg1);
       }
       /* Run the user's main callback function */
       else if(typeof mainCallback === 'function') {  
         mainCallback(err, obj);  
+      }
+      else {
+        udebug.log(thisCall.description," /// No callback");
       }
     };
   }

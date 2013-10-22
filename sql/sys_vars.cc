@@ -2633,7 +2633,8 @@ on_check_opt_secure_auth(sys_var *self, THD *thd, set_var *var)
 {
   if (!var->save_result.ulonglong_value)
   {
-    WARN_DEPRECATED(thd, "pre-4.1 password hash", "post-4.1 password hash");
+    push_deprecated_warn(thd, "pre-4.1 password hash",
+                         "post-4.1 password hash");
   }
   return false;
 }
