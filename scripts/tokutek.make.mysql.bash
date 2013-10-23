@@ -10,7 +10,6 @@ function copy_to_s3() {
     local s3_build_bucket=$1; local s3_release_bucket=$2; local mysql_distro=$3
     local ts=$(date +%s)
     local ymd=$(date +%Y%m%d -d @$ts)
-    local ym=$(date +%Y%m -d @$ts)
     local exitcode=0; local r=0
     for f in $(find . -maxdepth 1 \( -name $mysql_distro'*.tar.gz*' -o -name $mysql_distro'*.rpm*' \) ) ; do
         f=$(basename $f)
@@ -24,9 +23,6 @@ function copy_to_s3() {
         r=$?
         echo `date` s3put $s3_build_bucket-date $ymd/$f $r
         if [ $r != 0 ] ; then exitcode=1; fi
-        # copy to partition by date
-        s3mkbucket $s3_build_bucket-$ym
-        s3copykey $s3_build_bucket-$ym $f $s3_build_bucket $f
     done
     if [[ $git_tag =~ tokudb-.* ]] ; then
         s3mkbucket $s3_release_bucket-$git_tag
