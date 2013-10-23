@@ -2992,7 +2992,17 @@ static int replace_user_table(THD *thd, TABLE *table, LEX_USER *combo,
       my_error(ER_NONEXISTING_GRANT, MYF(0), combo->user.str, combo->host.str);
       goto end;
     }
-    
+
+    if (!combo->uses_identified_by_clause &&
+        !combo->uses_identified_with_clause &&
+        !combo->uses_identified_by_password_clause)
+    {
+      if (check_password_policy(NULL))
+      {
+        error= 1;
+        goto end;
+      }
+    }
     /* 1. Unresolved plugins become default plugin */
     if (!combo->uses_identified_with_clause)
     {

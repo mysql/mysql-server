@@ -15562,7 +15562,6 @@ grant_user:
           {
             $$= $1;
             $1->password= null_lex_str;
-            check_password_policy(NULL);
           }
         ;
 
