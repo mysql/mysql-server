@@ -315,6 +315,15 @@ static int tokudb_init_func(void *p) {
     // tokudb_hton->flags= HTON_CAN_RECREATE;  // QQQ this came from skeleton
     tokudb_hton->flags = HTON_CLOSE_CURSORS_AT_COMMIT;
 
+#if TOKU_INCLUDE_EXTENDED_KEYS
+#if defined(HTON_SUPPORTS_EXTENDED_KEYS)
+    tokudb_hton->flags |= HTON_SUPPORTS_EXTENDED_KEYS;
+#endif
+#if defined(HTON_EXTENDED_KEYS)
+    tokudb_hton->flags |= HTON_EXTENDED_KEYS;
+#endif
+#endif
+
 #if TOKU_INCLUDE_OTHER_DB_TYPE
     // we have historically been a dynamic storage engine, so we set db_type according.
     // however, extended keys is triggered off of the db_type, so tokudb adds another type so that extended keys works
