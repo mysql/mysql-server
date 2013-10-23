@@ -32,7 +32,7 @@ static bool reinit_cache(IO_CACHE *cache,
 
 static bool copy_cache(MessageBuffer *dest, IO_CACHE *src);
 
-void add_write_set(Transaction_context_log_event *tcle,
+int add_write_set(Transaction_context_log_event *tcle,
                    std::list<unsigned long> *set)
 {
   DBUG_ENTER("enter_write_set");
@@ -48,8 +48,13 @@ void add_write_set(Transaction_context_log_event *tcle,
                                     MYF(MY_WME));
     if (write_set_value)
       tcle->add_write_set(write_set_value);
+    else
+    {
+      log_message(MY_ERROR_LEVEL, "Failed during mysql_strdup call");
+      DBUG_RETURN(1);
+    }
   }
-  DBUG_VOID_RETURN;
+  DBUG_RETURN(0);
 }
 
 /*
@@ -155,7 +160,13 @@ int gcs_trans_before_commit(Trans_param *param)
   // WL#6823 and WL#6824.
   if (is_dml)
   {
-    add_write_set(tcle, param->write_set);
+    if (add_write_set(tcle, param->write_set))
+    {
+      log_message(MY_ERROR_LEVEL, "Failed to add values to tcle write_set");
+      error= 1;
+      goto err;
+    }
+    DBUG_ASSERT(tcle->get_write_set()->size() > 0);
   }
 
   // Write transaction context to GCS cache.

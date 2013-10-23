@@ -47,6 +47,7 @@
 #include <functional>
 #include <my_murmur3.h>
 #include <my_stacktrace.h>
+#include <my_dbug.h>
 #include "gcs_replication.h"
 
 #ifdef WITH_PARTITION_STORAGE_ENGINE
@@ -186,14 +187,13 @@ template <class type> uint calc_hash(type T)
   return (murmur3_32((const uchar*)T, strlen(T), 0));
 }
 
-void add_pke_to_list(TABLE *table)
+void add_pke_to_list(TABLE *table, THD *thd)
 {
   std::string pke;
   std::string temp_pk;
   char buff[1024];
   String str(buff, sizeof(buff), &my_charset_bin);
   char* pk_value;
-  THD *thd= current_thd;
 
   temp_pk.append(table->s->db.str);
   temp_pk.append(".");
@@ -211,39 +211,38 @@ void add_pke_to_list(TABLE *table)
     length1<field_value1>length2<field_value2>..
     to have less collision.
   */
-  if(table->key_info && (table->s->primary_key >= MAX_KEY))
+  if(table->key_info && (table->s->primary_key < MAX_KEY))
   {
-  for (uint i=0;i< table->key_info->user_defined_key_parts; i++)
-  {
-    char buff[1024];
-    String str(buff, sizeof(buff), &my_charset_bin);
-    // read the primary key field values in str.
-    int index= table->key_info->key_part[i].fieldnr;
-    table->field[index-1]->val_str(&str);
+    for (uint i= 0; i < table->key_info->user_defined_key_parts; i++)
+    {
+      // read the primary key field values in str.
+      int index= table->key_info->key_part[i].fieldnr;
+      table->field[index-1]->val_str(&str);
 
-    // TODO: This will be moved to transaction memroot..
-    pk_value= new char[sizeof(str.length())+1];
+      // TODO: This will be moved to transaction memroot..
+      pk_value= new char[sizeof(str.length())+1];
 
-    size_t length= str.length();
-    // TODO: This will be moved to transaction memroot..
+      size_t length= str.length();
+      // TODO: This will be moved to transaction memroot..
 
-    // buffer to be used for my_safe_itoa.
-    char *buf= (char*) my_malloc(PSI_NOT_INSTRUMENTED, length,
-                                 MYF(MY_WME));
+      // buffer to be used for my_safe_itoa.
+      char *buf= (char*) my_malloc(PSI_NOT_INSTRUMENTED, length,
+                                   MYF(MY_WME));
 
-    strmake(pk_value, str.c_ptr_safe(), str.length());
-    const char *lenStr = my_safe_itoa(10, (str.length()), &buf[sizeof(buf)-1]);
-    pke.append(lenStr);
-    pke.append(pk_value);
-    my_free(buf);
-  }
+      strmake(pk_value, str.c_ptr_safe(), str.length());
+      const char *lenStr = my_safe_itoa(10, (str.length()), &buf[sizeof(buf)-1]);
+      pke.append(lenStr);
+      pke.append(pk_value);
+      my_free(buf);
+    }
 
-  const char* pk=NULL;
-  pk= (char *)pke.c_str();
-  sql_print_information("the hashed value is %s", pk);
-  uint temp_1= calc_hash<const char *>(pk);
-  delete pk_value;
-  thd->add_write_set(temp_1);
+    const char* pk=NULL;
+    pk= (char *)pke.c_str();
+    DBUG_PRINT("info", ("The hashed value is %s for %lu", pk,
+                        thd->thread_id));
+    uint temp_1= calc_hash<const char *>(pk);
+    delete pk_value;
+    thd->add_write_set(temp_1);
   }
 }
 
@@ -6945,39 +6944,41 @@ int binlog_log_row(TABLE* table,
 
   if (check_table_binlog_row_based(thd, table))
   {
-    if (before_record && after_record)
+    if(is_running_gcs_rpl())
     {
-      size_t length= table->s->reclength;
-      uchar* temp_image=(uchar*) my_malloc(PSI_NOT_INSTRUMENTED,
-                                           length,
-                                           MYF(MY_WME));
-      if (!temp_image)
+      if (before_record && after_record)
       {
-        sql_print_error("No space left on disk");
-        return 1;
+        size_t length= table->s->reclength;
+        uchar* temp_image=(uchar*) my_malloc(PSI_NOT_INSTRUMENTED,
+                                             length,
+                                             MYF(MY_WME));
+        if (!temp_image)
+        {
+          sql_print_error("No space left on disk");
+          return 1;
+        }
+        add_pke_to_list(table, thd);
+
+        /*
+          TODO: Allocations in this sections are short- and long- term
+                optimizable.
+                The short term - keep it in the the trans memroot.
+                The long term  - the engine could be asked to return
+                                 `rid' value of the updated record. So
+                                 we would not have to mess around BI
+        */
+        memcpy(temp_image, table->record[0],(size_t) table->s->reclength);
+        memcpy(table->record[0],table->record[1],(size_t) table->s->reclength);
+
+        add_pke_to_list(table, thd);
+
+        memcpy(table->record[0], temp_image, (size_t) table->s->reclength);
+
+        my_free(temp_image);
       }
-      add_pke_to_list(table);
-
-      /*
-        TODO: Allocations in this sections are short- and long- term
-              optimizable.
-              The short term - keep it in the the trans memroot.
-              The long term  - the engine could be asked to return
-                               `rid' value of the updated record. So
-                               we would not have to mess around BI
-      */
-      memcpy(temp_image, table->record[0],(size_t) table->s->reclength);
-      memcpy(table->record[0],table->record[1],(size_t) table->s->reclength);
-
-      add_pke_to_list(table);
-
-      memcpy(table->record[0], temp_image, (size_t) table->s->reclength);
-
-      my_free(temp_image);
+      else
+        add_pke_to_list(table, thd);
     }
-    else
-      add_pke_to_list(table);
-
     DBUG_DUMP("read_set 10", (uchar*) table->read_set->bitmap,
               (table->s->fields + 7) / 8);
 
