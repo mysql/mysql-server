@@ -13019,13 +13019,13 @@ opt_extended_describe:
           {
             if ((Lex->explain_format= new Explain_format_traditional) == NULL)
               MYSQL_YYABORT;
-            Lex->describe|= DESCRIBE_EXTENDED;
+            push_deprecated_warn_no_replacement(YYTHD, "EXTENDED");
           }
         | PARTITIONS_SYM
           {
             if ((Lex->explain_format= new Explain_format_traditional) == NULL)
               MYSQL_YYABORT;
-            Lex->describe|= DESCRIBE_PARTITIONS;
+            push_deprecated_warn_no_replacement(YYTHD, "PARTITIONS");
           }
         | FORMAT_SYM EQ ident_or_text
           {
@@ -13033,7 +13033,6 @@ opt_extended_describe:
             {
               if ((Lex->explain_format= new Explain_format_JSON) == NULL)
                 MYSQL_YYABORT;
-              Lex->describe|= DESCRIBE_EXTENDED | DESCRIBE_PARTITIONS;
             }
             else if (!my_strcasecmp(system_charset_info, $3.str, "TRADITIONAL"))
             {
@@ -15751,7 +15750,6 @@ grant_user:
           {
             $$= $1;
             $1->password= null_lex_str;
-            check_password_policy(NULL);
           }
         ;
 

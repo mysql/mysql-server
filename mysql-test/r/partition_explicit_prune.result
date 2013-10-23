@@ -483,12 +483,18 @@ HANDLER_WRITE	89
 EXPLAIN PARTITIONS SELECT * FROM t1 PARTITION (pNonexistent);
 ERROR HY000: Unknown partition 'pNonexistent' in table 't1'
 EXPLAIN PARTITIONS SELECT * FROM t1 PARTITION (subp2);
-id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	Extra
-1	SIMPLE	t1	p0-9_subp2	index	NULL	b	71	NULL	2	Using index
+id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
+1	SIMPLE	t1	p0-9_subp2	index	NULL	b	71	NULL	2	100.00	Using index
+Warnings:
+Warning	1681	'PARTITIONS' is deprecated and will be removed in a future release.
+Note	1003	/* select#1 */ select `test`.`t1`.`a` AS `a`,`test`.`t1`.`b` AS `b` from `test`.`t1` PARTITION (`subp2`)
 FLUSH STATUS;
-EXPLAIN PARTITIONS SELECT * FROM t1 PARTITION (subp2,pNeg) AS TableAlias;
-id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	Extra
-1	SIMPLE	TableAlias	pNeg_subp0,pNeg_subp1,p0-9_subp2	index	NULL	b	71	NULL	4	Using index
+EXPLAIN PARTITIONS SELECT * FROM t1 PARTITION (subp2,pNeg) AS tablealias;
+id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
+1	SIMPLE	tablealias	pNeg_subp0,pNeg_subp1,p0-9_subp2	index	NULL	b	71	NULL	4	100.00	Using index
+Warnings:
+Warning	1681	'PARTITIONS' is deprecated and will be removed in a future release.
+Note	1003	/* select#1 */ select `test`.`tablealias`.`a` AS `a`,`test`.`tablealias`.`b` AS `b` from `test`.`t1` PARTITION (`subp2`,`pNeg`) `tablealias`
 SELECT * FROM INFORMATION_SCHEMA.SESSION_STATUS
 WHERE VARIABLE_NAME LIKE 'HANDLER_%' AND VARIABLE_VALUE > 0;
 VARIABLE_NAME	VARIABLE_VALUE
@@ -496,18 +502,30 @@ HANDLER_COMMIT	1
 HANDLER_EXTERNAL_LOCK	8
 HANDLER_WRITE	17
 # 8 locks (1 ha_partition + 3 ha_innobase) x 2 (lock/unlock)
-EXPLAIN PARTITIONS SELECT * FROM t1 PARTITION (subp3) AS TableAlias;
-id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	Extra
-1	SIMPLE	TableAlias	p0-9_subp3	index	NULL	b	71	NULL	3	Using index
+EXPLAIN PARTITIONS SELECT * FROM t1 PARTITION (subp3) AS tablealias;
+id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
+1	SIMPLE	tablealias	p0-9_subp3	index	NULL	b	71	NULL	3	100.00	Using index
+Warnings:
+Warning	1681	'PARTITIONS' is deprecated and will be removed in a future release.
+Note	1003	/* select#1 */ select `test`.`tablealias`.`a` AS `a`,`test`.`tablealias`.`b` AS `b` from `test`.`t1` PARTITION (`subp3`) `tablealias`
 EXPLAIN PARTITIONS SELECT COUNT(*) FROM t1 PARTITION (`p10-99`);
-id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	Extra
-1	SIMPLE	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	Select tables optimized away
+id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
+1	SIMPLE	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	Select tables optimized away
+Warnings:
+Warning	1681	'PARTITIONS' is deprecated and will be removed in a future release.
+Note	1003	/* select#1 */ select count(0) AS `COUNT(*)` from `test`.`t1` PARTITION (`p10-99`)
 EXPLAIN PARTITIONS SELECT * FROM t1 WHERE a = 1000000;
-id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	Extra
-1	SIMPLE	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	no matching row in const table
+id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
+1	SIMPLE	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	no matching row in const table
+Warnings:
+Warning	1681	'PARTITIONS' is deprecated and will be removed in a future release.
+Note	1003	/* select#1 */ select NULL AS `a`,NULL AS `b` from `test`.`t1` where multiple equal(1000000, NULL)
 EXPLAIN PARTITIONS SELECT * FROM t1 PARTITION (pNeg) WHERE a = 100;
-id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	Extra
-1	SIMPLE	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	no matching row in const table
+id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
+1	SIMPLE	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	no matching row in const table
+Warnings:
+Warning	1681	'PARTITIONS' is deprecated and will be removed in a future release.
+Note	1003	/* select#1 */ select NULL AS `a`,NULL AS `b` from `test`.`t1` PARTITION (`pNeg`) where multiple equal(100, NULL)
 # Test how it changes the alias/keywords/reserved words
 SELECT * FROM t1 PARTITION;
 ERROR 42000: You have an error in your SQL syntax; check the manual that corresponds to your MySQL server version for the right syntax to use near '' at line 1
@@ -819,8 +837,10 @@ HANDLER_WRITE	17
 #             read next row from second rnd_next)
 # 1 update (update the row)
 EXPLAIN PARTITIONS UPDATE t1 PARTITION(subp0) SET b = concat(b, ', Updated');
-id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	Extra
-1	UPDATE	t1	pNeg_subp0	index	NULL	PRIMARY	4	NULL	2	NULL
+id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
+1	UPDATE	t1	pNeg_subp0	index	NULL	PRIMARY	4	NULL	2	100.00	NULL
+Warnings:
+Warning	1681	'PARTITIONS' is deprecated and will be removed in a future release.
 SELECT * FROM t1 PARTITION (subp0) ORDER BY a;
 a	b
 -2	(pNeg-)subp0, Updated
@@ -839,8 +859,10 @@ HANDLER_WRITE	17
 # 1 read key
 # 1 update
 EXPLAIN PARTITIONS UPDATE t1 PARTITION(subp0) SET b = concat(b, ', Updated2') WHERE a = -2;
-id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	Extra
-1	UPDATE	t1	pNeg_subp0	range	PRIMARY	PRIMARY	4	const	1	Using where
+id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
+1	UPDATE	t1	pNeg_subp0	range	PRIMARY	PRIMARY	4	const	1	100.00	Using where
+Warnings:
+Warning	1681	'PARTITIONS' is deprecated and will be removed in a future release.
 FLUSH STATUS;
 UPDATE t1 PARTITION(subp0) SET a = -4, b = concat(b, ', Updated from a = -2')
 WHERE a = -2;
@@ -859,8 +881,10 @@ HANDLER_WRITE	17
 # 1 read rnd - rnd_pos
 # 1 update
 EXPLAIN PARTITIONS UPDATE t1 PARTITION(subp0) SET a = -4, b = concat(b, ', Updated from a = -2');
-id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	Extra
-1	UPDATE	t1	pNeg_subp0	index	NULL	PRIMARY	4	NULL	2	Using temporary
+id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
+1	UPDATE	t1	pNeg_subp0	index	NULL	PRIMARY	4	NULL	2	100.00	Using temporary
+Warnings:
+Warning	1681	'PARTITIONS' is deprecated and will be removed in a future release.
 FLUSH STATUS;
 UPDATE t1 PARTITION(subp0) SET b = concat(b, ', Updated2') WHERE a = 100;
 SELECT * FROM INFORMATION_SCHEMA.SESSION_STATUS
@@ -869,8 +893,10 @@ VARIABLE_NAME	VARIABLE_VALUE
 HANDLER_WRITE	17
 # Nothing, since impossible PARTITION+WHERE clause.
 EXPLAIN PARTITIONS UPDATE t1 PARTITION(subp0) SET b = concat(b, ', Updated2') WHERE a = 100;
-id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	Extra
-1	UPDATE	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	No matching rows after partition pruning
+id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
+1	UPDATE	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	No matching rows after partition pruning
+Warnings:
+Warning	1681	'PARTITIONS' is deprecated and will be removed in a future release.
 FLUSH STATUS;
 UPDATE t1 PARTITION(subp0) SET a = -2, b = concat(b, ', Updated from a = 100')
 WHERE a = 100;
@@ -881,8 +907,10 @@ HANDLER_WRITE	17
 # Nothing, since impossible PARTITION+WHERE clause.
 EXPLAIN PARTITIONS UPDATE t1 PARTITION(subp0)
 SET a = -2, b = concat(b, ', Updated from a = 100') WHERE a = 100;
-id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	Extra
-1	UPDATE	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	No matching rows after partition pruning
+id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
+1	UPDATE	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	No matching rows after partition pruning
+Warnings:
+Warning	1681	'PARTITIONS' is deprecated and will be removed in a future release.
 FLUSH STATUS;
 UPDATE t1 PARTITION(`p100-99999`) SET a = -2, b = concat(b, ', Updated from a = 100')
 WHERE a = 100;
@@ -1674,17 +1702,29 @@ drop table t1,t2,t3,t4,t5;
 create table t1 (a int) partition by hash(a) partitions 3;
 insert into t1 values(1),(2),(3);
 explain partitions select * from t1 where a=1;
-id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	Extra
-1	SIMPLE	t1	p1	ALL	NULL	NULL	NULL	NULL	2	Using where
+id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
+1	SIMPLE	t1	p1	ALL	NULL	NULL	NULL	NULL	2	100.00	Using where
+Warnings:
+Warning	1681	'PARTITIONS' is deprecated and will be removed in a future release.
+Note	1003	/* select#1 */ select `test`.`t1`.`a` AS `a` from `test`.`t1` where (`test`.`t1`.`a` = 1)
 explain partitions select * from t1 partition (p1) where a=1;
-id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	Extra
-1	SIMPLE	t1	p1	ALL	NULL	NULL	NULL	NULL	2	Using where
+id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
+1	SIMPLE	t1	p1	ALL	NULL	NULL	NULL	NULL	2	100.00	Using where
+Warnings:
+Warning	1681	'PARTITIONS' is deprecated and will be removed in a future release.
+Note	1003	/* select#1 */ select `test`.`t1`.`a` AS `a` from `test`.`t1` PARTITION (`p1`) where (`test`.`t1`.`a` = 1)
 explain partitions select * from t1 partition (p1) where a=1 or a=2;
-id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	Extra
-1	SIMPLE	t1	p1	ALL	NULL	NULL	NULL	NULL	2	Using where
+id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
+1	SIMPLE	t1	p1	ALL	NULL	NULL	NULL	NULL	2	100.00	Using where
+Warnings:
+Warning	1681	'PARTITIONS' is deprecated and will be removed in a future release.
+Note	1003	/* select#1 */ select `test`.`t1`.`a` AS `a` from `test`.`t1` PARTITION (`p1`) where ((`test`.`t1`.`a` = 1) or (`test`.`t1`.`a` = 2))
 explain partitions select * from t1 partition (p2) where a=1;
-id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	Extra
-1	SIMPLE	t1	NULL	ALL	NULL	NULL	NULL	NULL	0	Using where
+id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
+1	SIMPLE	t1	NULL	ALL	NULL	NULL	NULL	NULL	0	0.00	Using where
+Warnings:
+Warning	1681	'PARTITIONS' is deprecated and will be removed in a future release.
+Note	1003	/* select#1 */ select `test`.`t1`.`a` AS `a` from `test`.`t1` PARTITION (`p2`) where (`test`.`t1`.`a` = 1)
 drop table t1;
 #
 # Bug#59864: Crash if table empty: DELETE FROM t2 PARTITION (subp3).

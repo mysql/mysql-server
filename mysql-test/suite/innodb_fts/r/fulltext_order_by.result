@@ -66,8 +66,10 @@ a	rel
 alter table t1 add key m (message);
 ANALYZE TABLE t1;
 explain SELECT message FROM t1 WHERE MATCH (message) AGAINST ('steve') ORDER BY message;
-id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
-1	SIMPLE	t1	fulltext	message	message	0	const	1	Using where; Using filesort
+id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
+1	SIMPLE	t1	NULL	fulltext	message	message	0	const	1	100.00	Using where; Using filesort
+Warnings:
+Note	1003	/* select#1 */ select `test`.`t1`.`message` AS `message` from `test`.`t1` where (match `test`.`t1`.`message` against ('steve')) order by `test`.`t1`.`message`
 SELECT message FROM t1 WHERE MATCH (message) AGAINST ('steve') ORDER BY message desc;
 message
 steve is cool

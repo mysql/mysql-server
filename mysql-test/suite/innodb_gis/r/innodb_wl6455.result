@@ -33,8 +33,10 @@ MULTIPOLYGON(((0 0,0 3,3 3,3 0,0 0),(1 1,1 2,2 2,2 1,1 1)))
 GEOMETRYCOLLECTION(POINT(1 1),LINESTRING(2 2,3 3))
 CREATE INDEX i_p ON t_wl6455 (g(10));
 EXPLAIN SELECT AsText(g) FROM t_wl6455 WHERE g = POINT(2,2);
-id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
-1	SIMPLE	t_wl6455	ref	i_p	i_p	12	const	#	Using where
+id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
+1	SIMPLE	t_wl6455	NULL	ref	i_p	i_p	12	const	#	100.00	Using where
+Warnings:
+Note	1003	/* select#1 */ select st_astext(`test`.`t_wl6455`.`g`) AS `AsText(g)` from `test`.`t_wl6455` where (`test`.`t_wl6455`.`g` = <cache>(st_point(2,2)))
 SELECT AsText(g) FROM t_wl6455 WHERE g = POINT(2,2);
 AsText(g)
 POINT(2 2)

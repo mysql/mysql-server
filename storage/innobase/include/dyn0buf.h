@@ -277,7 +277,11 @@ public:
 		while (len > 0) {
 			ib_uint32_t	n_copied;
 
-			n_copied = (len >= MAX_DATA_SIZE) ? MAX_DATA_SIZE : len;
+			if (len >= MAX_DATA_SIZE) {
+				n_copied = MAX_DATA_SIZE;
+			} else {
+				n_copied = len;
+			}
 
 			::memmove(push<byte*>(n_copied), ptr, n_copied);
 

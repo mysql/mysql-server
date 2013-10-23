@@ -134,6 +134,7 @@ INSERT INTO db4.t values (1),(2),(3);
 UPDATE db1.t SET db1.t.a= 2 WHERE db1.t.a > 2;
 COMMIT;
 
+SET GLOBAL DEBUG ='-d,set_commit_parent_100';
 # temp tables operations DELETE
 -- connection m1
 DROP TABLE db1.t_temp;
