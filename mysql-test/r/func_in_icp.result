@@ -144,9 +144,10 @@ select * from t1 where 'a' in (a,b,c collate latin1_bin);
 a	b	c
 a	c	c
 explain extended select * from t1 where 'a' in (a,b,c collate latin1_bin);
-id	select_type	table	type	possible_keys	key	key_len	ref	rows	filtered	Extra
-1	SIMPLE	t1	ALL	NULL	NULL	NULL	NULL	2	100.00	Using where
+id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
+1	SIMPLE	t1	NULL	ALL	NULL	NULL	NULL	NULL	2	100.00	Using where
 Warnings:
+Warning	1681	'EXTENDED' is deprecated and will be removed in a future release.
 Note	1003	/* select#1 */ select `test`.`t1`.`a` AS `a`,`test`.`t1`.`b` AS `b`,`test`.`t1`.`c` AS `c` from `test`.`t1` where ('a' in (`test`.`t1`.`a`,`test`.`t1`.`b`,(`test`.`t1`.`c` collate latin1_bin)))
 drop table t1;
 set names utf8;
@@ -241,8 +242,10 @@ insert into t2 select C.a*2,   'no'  from t1 A, t1 B, t1 C;
 insert into t2 select C.a*2+1, 'yes' from t1 C;
 explain 
 select * from t2 where a NOT IN (0, 2,4,6,8,10,12,14,16,18);
-id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
-1	SIMPLE	t2	range	a	a	5	NULL	12	Using index condition
+id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
+1	SIMPLE	t2	NULL	range	a	a	5	NULL	12	100.00	Using index condition
+Warnings:
+Note	1003	/* select#1 */ select `test`.`t2`.`a` AS `a`,`test`.`t2`.`filler` AS `filler` from `test`.`t2` where (`test`.`t2`.`a` not in (0,2,4,6,8,10,12,14,16,18))
 select * from t2 where a NOT IN (0, 2,4,6,8,10,12,14,16,18);
 a	filler
 1	yes
@@ -256,11 +259,15 @@ a	filler
 17	yes
 19	yes
 explain select * from t2 force index(a) where a NOT IN (2,2,2,2,2,2);
-id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
-1	SIMPLE	t2	range	a	a	5	NULL	912	Using index condition
+id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
+1	SIMPLE	t2	NULL	range	a	a	5	NULL	912	100.00	Using index condition
+Warnings:
+Note	1003	/* select#1 */ select `test`.`t2`.`a` AS `a`,`test`.`t2`.`filler` AS `filler` from `test`.`t2` FORCE INDEX (`a`) where (`test`.`t2`.`a` not in (2,2,2,2,2,2))
 explain select * from t2 force index(a) where a <> 2;
-id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
-1	SIMPLE	t2	range	a	a	5	NULL	912	Using index condition
+id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
+1	SIMPLE	t2	NULL	range	a	a	5	NULL	912	100.00	Using index condition
+Warnings:
+Note	1003	/* select#1 */ select `test`.`t2`.`a` AS `a`,`test`.`t2`.`filler` AS `filler` from `test`.`t2` FORCE INDEX (`a`) where (`test`.`t2`.`a` <> 2)
 drop table t2;
 create table t2 (a datetime, filler char(200), key(a));
 insert into t2 select '2006-04-25 10:00:00' + interval C.a minute,
@@ -271,8 +278,10 @@ explain
 select * from t2 where a NOT IN (
 '2006-04-25 10:00:00','2006-04-25 10:02:00','2006-04-25 10:04:00', 
 '2006-04-25 10:06:00', '2006-04-25 10:08:00');
-id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
-1	SIMPLE	t2	range	a	a	6	NULL	12	Using index condition
+id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
+1	SIMPLE	t2	NULL	range	a	a	6	NULL	12	100.00	Using index condition
+Warnings:
+Note	1003	/* select#1 */ select `test`.`t2`.`a` AS `a`,`test`.`t2`.`filler` AS `filler` from `test`.`t2` where (`test`.`t2`.`a` not in ('2006-04-25 10:00:00','2006-04-25 10:02:00','2006-04-25 10:04:00','2006-04-25 10:06:00','2006-04-25 10:08:00'))
 select * from t2 where a NOT IN (
 '2006-04-25 10:00:00','2006-04-25 10:02:00','2006-04-25 10:04:00', 
 '2006-04-25 10:06:00', '2006-04-25 10:08:00');
@@ -295,8 +304,10 @@ insert into t2 select 'bazbazbaz', 'no' from t1 A, t1 B;
 insert into t2 values ('fon', '1'), ('fop','1'), ('barbaq','1'), 
 ('barbas','1'), ('bazbazbay', '1'),('zz','1');
 explain select * from t2 where a not in('foo','barbar', 'bazbazbaz');
-id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
-1	SIMPLE	t2	range	a	a	13	NULL	7	Using index condition
+id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
+1	SIMPLE	t2	NULL	range	a	a	13	NULL	7	100.00	Using index condition
+Warnings:
+Note	1003	/* select#1 */ select `test`.`t2`.`a` AS `a`,`test`.`t2`.`filler` AS `filler` from `test`.`t2` where (`test`.`t2`.`a` not in ('foo','barbar','bazbazbaz'))
 drop table t2;
 create table t2 (a decimal(10,5), filler char(200), key(a));
 insert into t2 select 345.67890, 'no' from t1 A, t1 B;
@@ -306,8 +317,10 @@ insert into t2 values (0, '1'), (22334.123,'1'), (33333,'1'),
 (55555,'1'), (77777, '1');
 explain
 select * from t2 where a not in (345.67890, 43245.34, 64224.56344);
-id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
-1	SIMPLE	t2	range	a	a	7	NULL	7	Using index condition
+id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
+1	SIMPLE	t2	NULL	range	a	a	7	NULL	7	100.00	Using index condition
+Warnings:
+Note	1003	/* select#1 */ select `test`.`t2`.`a` AS `a`,`test`.`t2`.`filler` AS `filler` from `test`.`t2` where (`test`.`t2`.`a` not in (345.67890,43245.34,64224.56344))
 select * from t2 where a not in (345.67890, 43245.34, 64224.56344);
 a	filler
 0.00000	1
@@ -369,11 +382,13 @@ EXPLAIN SELECT STRAIGHT_JOIN * FROM t3
 JOIN t1 ON t3.a=t1.a 
 JOIN t2 ON t3.a=t2.a
 JOIN t4 WHERE t4.a IN (t1.b, t2.b);
-id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
-1	SIMPLE	t3	index	PRIMARY	PRIMARY	4	NULL	4	Using index
-1	SIMPLE	t1	eq_ref	PRIMARY	PRIMARY	4	test.t3.a	1	NULL
-1	SIMPLE	t2	eq_ref	PRIMARY	PRIMARY	4	test.t3.a	1	NULL
-1	SIMPLE	t4	ALL	PRIMARY	NULL	NULL	NULL	7	Range checked for each record (index map: 0x1)
+id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
+1	SIMPLE	t3	NULL	index	PRIMARY	PRIMARY	4	NULL	4	100.00	Using index
+1	SIMPLE	t1	NULL	eq_ref	PRIMARY	PRIMARY	4	test.t3.a	1	100.00	NULL
+1	SIMPLE	t2	NULL	eq_ref	PRIMARY	PRIMARY	4	test.t3.a	1	100.00	NULL
+1	SIMPLE	t4	NULL	ALL	PRIMARY	NULL	NULL	NULL	7	100.00	Range checked for each record (index map: 0x1)
+Warnings:
+Note	1003	/* select#1 */ select straight_join `test`.`t3`.`a` AS `a`,`test`.`t1`.`a` AS `a`,`test`.`t1`.`b` AS `b`,`test`.`t2`.`a` AS `a`,`test`.`t2`.`b` AS `b`,`test`.`t4`.`a` AS `a`,`test`.`t4`.`b` AS `b` from `test`.`t3` join `test`.`t1` join `test`.`t2` join `test`.`t4` where ((`test`.`t1`.`a` = `test`.`t3`.`a`) and (`test`.`t2`.`a` = `test`.`t3`.`a`) and (`test`.`t4`.`a` in (`test`.`t1`.`b`,`test`.`t2`.`b`)))
 SELECT STRAIGHT_JOIN * FROM t3 
 JOIN t1 ON t3.a=t1.a 
 JOIN t2 ON t3.a=t2.a
@@ -387,11 +402,15 @@ EXPLAIN SELECT STRAIGHT_JOIN
 (SELECT SUM(t4.a) FROM t4 WHERE t4.a IN (t1.b, t2.b)) 
 FROM t3, t1, t2
 WHERE t3.a=t1.a AND t3.a=t2.a;
-id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
-1	PRIMARY	t3	index	PRIMARY	PRIMARY	4	NULL	4	Using index
-1	PRIMARY	t1	eq_ref	PRIMARY	PRIMARY	4	test.t3.a	1	NULL
-1	PRIMARY	t2	eq_ref	PRIMARY	PRIMARY	4	test.t3.a	1	NULL
-2	DEPENDENT SUBQUERY	t4	index	NULL	PRIMARY	4	NULL	7	Using where; Using index
+id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
+1	PRIMARY	t3	NULL	index	PRIMARY	PRIMARY	4	NULL	4	100.00	Using index
+1	PRIMARY	t1	NULL	eq_ref	PRIMARY	PRIMARY	4	test.t3.a	1	100.00	NULL
+1	PRIMARY	t2	NULL	eq_ref	PRIMARY	PRIMARY	4	test.t3.a	1	100.00	NULL
+2	DEPENDENT SUBQUERY	t4	NULL	index	NULL	PRIMARY	4	NULL	7	100.00	Using where; Using index
+Warnings:
+Note	1276	Field or reference 'test.t1.b' of SELECT #2 was resolved in SELECT #1
+Note	1276	Field or reference 'test.t2.b' of SELECT #2 was resolved in SELECT #1
+Note	1003	/* select#1 */ select straight_join (/* select#2 */ select sum(`test`.`t4`.`a`) from `test`.`t4` where (`test`.`t4`.`a` in (`test`.`t1`.`b`,`test`.`t2`.`b`))) AS `(SELECT SUM(t4.a) FROM t4 WHERE t4.a IN (t1.b, t2.b))` from `test`.`t3` join `test`.`t1` join `test`.`t2` where ((`test`.`t1`.`a` = `test`.`t3`.`a`) and (`test`.`t2`.`a` = `test`.`t3`.`a`))
 SELECT STRAIGHT_JOIN 
 (SELECT SUM(t4.a) FROM t4 WHERE t4.a IN (t1.b, t2.b)) 
 FROM t3, t1, t2
@@ -513,15 +532,19 @@ a
 Warnings:
 Warning	1292	Truncated incorrect DOUBLE value: 'b'
 explain select f1 from t1 where f1 in ('a',1);
-id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
-1	SIMPLE	t1	index	t1f1_idx	t1f1_idx	2	NULL	3	Using where; Using index
+id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
+1	SIMPLE	t1	NULL	index	t1f1_idx	t1f1_idx	2	NULL	3	100.00	Using where; Using index
+Warnings:
+Note	1003	/* select#1 */ select `test`.`t1`.`f1` AS `f1` from `test`.`t1` where (`test`.`t1`.`f1` in ('a',1))
 select f1 from t1 where f1 in ('a','b');
 f1
 a
 b
 explain select f1 from t1 where f1 in ('a','b');
-id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
-1	SIMPLE	t1	range	t1f1_idx	t1f1_idx	2	NULL	2	Using where; Using index
+id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
+1	SIMPLE	t1	NULL	range	t1f1_idx	t1f1_idx	2	NULL	2	100.00	Using where; Using index
+Warnings:
+Note	1003	/* select#1 */ select `test`.`t1`.`f1` AS `f1` from `test`.`t1` where (`test`.`t1`.`f1` in ('a','b'))
 select f1 from t1 where f1 in (2,1);
 f1
 1
@@ -529,8 +552,11 @@ Warnings:
 Warning	1292	Truncated incorrect DOUBLE value: 'a'
 Warning	1292	Truncated incorrect DOUBLE value: 'b'
 explain select f1 from t1 where f1 in (2,1);
-id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
-1	SIMPLE	t1	index	t1f1_idx	t1f1_idx	2	NULL	3	Using where; Using index
+id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
+1	SIMPLE	t1	NULL	index	t1f1_idx	t1f1_idx	2	NULL	3	100.00	Using where; Using index
+Warnings:
+Warning	1739	Cannot use range access on index 't1f1_idx' due to type or collation conversion on field 'f1'
+Note	1003	/* select#1 */ select `test`.`t1`.`f1` AS `f1` from `test`.`t1` where (`test`.`t1`.`f1` in (2,1))
 create table t2(f2 int, index t2f2(f2));
 insert into t2 values(0),(1),(2);
 select f2 from t2 where f2 in ('a',2);
@@ -542,8 +568,10 @@ Warning	1292	Truncated incorrect DOUBLE value: 'a'
 Warning	1292	Truncated incorrect DOUBLE value: 'a'
 Warning	1292	Truncated incorrect DOUBLE value: 'a'
 explain select f2 from t2 where f2 in ('a',2);
-id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
-1	SIMPLE	t2	index	t2f2	t2f2	5	NULL	3	Using where; Using index
+id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
+1	SIMPLE	t2	NULL	index	t2f2	t2f2	5	NULL	3	100.00	Using where; Using index
+Warnings:
+Note	1003	/* select#1 */ select `test`.`t2`.`f2` AS `f2` from `test`.`t2` where (`test`.`t2`.`f2` in ('a',2))
 select f2 from t2 where f2 in ('a','b');
 f2
 0
@@ -551,11 +579,12 @@ Warnings:
 Warning	1292	Truncated incorrect DOUBLE value: 'a'
 Warning	1292	Truncated incorrect DOUBLE value: 'b'
 explain select f2 from t2 where f2 in ('a','b');
-id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
-1	SIMPLE	t2	range	t2f2	t2f2	5	NULL	1	Using where; Using index
+id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
+1	SIMPLE	t2	NULL	range	t2f2	t2f2	5	NULL	1	100.00	Using where; Using index
 Warnings:
 Warning	1292	Truncated incorrect DOUBLE value: 'a'
 Warning	1292	Truncated incorrect DOUBLE value: 'b'
+Note	1003	/* select#1 */ select `test`.`t2`.`f2` AS `f2` from `test`.`t2` where (`test`.`t2`.`f2` in ('a','b'))
 select f2 from t2 where f2 in (1,'b');
 f2
 0
@@ -564,8 +593,10 @@ Warnings:
 Warning	1292	Truncated incorrect DOUBLE value: 'b'
 Warning	1292	Truncated incorrect DOUBLE value: 'b'
 explain select f2 from t2 where f2 in (1,'b');
-id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
-1	SIMPLE	t2	index	t2f2	t2f2	5	NULL	3	Using where; Using index
+id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
+1	SIMPLE	t2	NULL	index	t2f2	t2f2	5	NULL	3	100.00	Using where; Using index
+Warnings:
+Note	1003	/* select#1 */ select `test`.`t2`.`f2` AS `f2` from `test`.`t2` where (`test`.`t2`.`f2` in (1,'b'))
 drop table t1, t2;
 create table t1 (a time, key(a));
 insert into t1 values (),(),(),(),(),(),(),(),(),();
@@ -632,125 +663,201 @@ INSERT INTO t1 (c_int) VALUES (1), (2), (3), (4), (5);
 INSERT INTO t1 (c_int) SELECT 0 FROM t1;
 INSERT INTO t1 (c_int) SELECT 0 FROM t1;
 EXPLAIN SELECT * FROM t1 WHERE c_int IN (1, 2, 3);
-id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
-1	SIMPLE	t1	range	c_int	c_int	4	NULL	3	Using index condition
+id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
+1	SIMPLE	t1	NULL	range	c_int	c_int	4	NULL	3	100.00	Using index condition
+Warnings:
+Note	1003	/* select#1 */ select `test`.`t1`.`c_int` AS `c_int`,`test`.`t1`.`c_decimal` AS `c_decimal`,`test`.`t1`.`c_float` AS `c_float`,`test`.`t1`.`c_bit` AS `c_bit`,`test`.`t1`.`c_date` AS `c_date`,`test`.`t1`.`c_datetime` AS `c_datetime`,`test`.`t1`.`c_timestamp` AS `c_timestamp`,`test`.`t1`.`c_time` AS `c_time`,`test`.`t1`.`c_year` AS `c_year`,`test`.`t1`.`c_char` AS `c_char` from `test`.`t1` where (`test`.`t1`.`c_int` in (1,2,3))
 EXPLAIN SELECT * FROM t1 WHERE c_int IN (NULL, 1, 2, 3);
-id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
-1	SIMPLE	t1	range	c_int	c_int	4	NULL	3	Using index condition
+id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
+1	SIMPLE	t1	NULL	range	c_int	c_int	4	NULL	3	100.00	Using index condition
+Warnings:
+Note	1003	/* select#1 */ select `test`.`t1`.`c_int` AS `c_int`,`test`.`t1`.`c_decimal` AS `c_decimal`,`test`.`t1`.`c_float` AS `c_float`,`test`.`t1`.`c_bit` AS `c_bit`,`test`.`t1`.`c_date` AS `c_date`,`test`.`t1`.`c_datetime` AS `c_datetime`,`test`.`t1`.`c_timestamp` AS `c_timestamp`,`test`.`t1`.`c_time` AS `c_time`,`test`.`t1`.`c_year` AS `c_year`,`test`.`t1`.`c_char` AS `c_char` from `test`.`t1` where (`test`.`t1`.`c_int` in (NULL,1,2,3))
 EXPLAIN SELECT * FROM t1 WHERE c_int IN (1, 2, 3);
-id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
-1	SIMPLE	t1	range	c_int	c_int	4	NULL	3	Using index condition
+id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
+1	SIMPLE	t1	NULL	range	c_int	c_int	4	NULL	3	100.00	Using index condition
+Warnings:
+Note	1003	/* select#1 */ select `test`.`t1`.`c_int` AS `c_int`,`test`.`t1`.`c_decimal` AS `c_decimal`,`test`.`t1`.`c_float` AS `c_float`,`test`.`t1`.`c_bit` AS `c_bit`,`test`.`t1`.`c_date` AS `c_date`,`test`.`t1`.`c_datetime` AS `c_datetime`,`test`.`t1`.`c_timestamp` AS `c_timestamp`,`test`.`t1`.`c_time` AS `c_time`,`test`.`t1`.`c_year` AS `c_year`,`test`.`t1`.`c_char` AS `c_char` from `test`.`t1` where (`test`.`t1`.`c_int` in (1,2,3))
 EXPLAIN SELECT * FROM t1 WHERE c_int IN (1, NULL, 2, NULL, 3, NULL);
-id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
-1	SIMPLE	t1	range	c_int	c_int	4	NULL	3	Using index condition
+id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
+1	SIMPLE	t1	NULL	range	c_int	c_int	4	NULL	3	100.00	Using index condition
+Warnings:
+Note	1003	/* select#1 */ select `test`.`t1`.`c_int` AS `c_int`,`test`.`t1`.`c_decimal` AS `c_decimal`,`test`.`t1`.`c_float` AS `c_float`,`test`.`t1`.`c_bit` AS `c_bit`,`test`.`t1`.`c_date` AS `c_date`,`test`.`t1`.`c_datetime` AS `c_datetime`,`test`.`t1`.`c_timestamp` AS `c_timestamp`,`test`.`t1`.`c_time` AS `c_time`,`test`.`t1`.`c_year` AS `c_year`,`test`.`t1`.`c_char` AS `c_char` from `test`.`t1` where (`test`.`t1`.`c_int` in (1,NULL,2,NULL,3,NULL))
 EXPLAIN SELECT * FROM t1 WHERE c_int IN (NULL);
-id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
-1	SIMPLE	NULL	NULL	NULL	NULL	NULL	NULL	NULL	no matching row in const table
+id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
+1	SIMPLE	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	no matching row in const table
+Warnings:
+Note	1003	/* select#1 */ select `test`.`t1`.`c_int` AS `c_int`,`test`.`t1`.`c_decimal` AS `c_decimal`,`test`.`t1`.`c_float` AS `c_float`,`test`.`t1`.`c_bit` AS `c_bit`,`test`.`t1`.`c_date` AS `c_date`,`test`.`t1`.`c_datetime` AS `c_datetime`,`test`.`t1`.`c_timestamp` AS `c_timestamp`,`test`.`t1`.`c_time` AS `c_time`,`test`.`t1`.`c_year` AS `c_year`,`test`.`t1`.`c_char` AS `c_char` from `test`.`t1` where (`test`.`t1`.`c_int` = NULL)
 EXPLAIN SELECT * FROM t1 WHERE c_int IN (NULL, NULL);
-id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
-1	SIMPLE	NULL	NULL	NULL	NULL	NULL	NULL	NULL	no matching row in const table
+id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
+1	SIMPLE	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	no matching row in const table
+Warnings:
+Note	1003	/* select#1 */ select `test`.`t1`.`c_int` AS `c_int`,`test`.`t1`.`c_decimal` AS `c_decimal`,`test`.`t1`.`c_float` AS `c_float`,`test`.`t1`.`c_bit` AS `c_bit`,`test`.`t1`.`c_date` AS `c_date`,`test`.`t1`.`c_datetime` AS `c_datetime`,`test`.`t1`.`c_timestamp` AS `c_timestamp`,`test`.`t1`.`c_time` AS `c_time`,`test`.`t1`.`c_year` AS `c_year`,`test`.`t1`.`c_char` AS `c_char` from `test`.`t1` where (`test`.`t1`.`c_int` in (NULL,NULL))
 EXPLAIN SELECT * FROM t1 WHERE c_decimal IN (1, 2, 3);
-id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
-1	SIMPLE	t1	range	c_decimal	c_decimal	3	NULL	3	Using index condition
+id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
+1	SIMPLE	t1	NULL	range	c_decimal	c_decimal	3	NULL	3	100.00	Using index condition
+Warnings:
+Note	1003	/* select#1 */ select `test`.`t1`.`c_int` AS `c_int`,`test`.`t1`.`c_decimal` AS `c_decimal`,`test`.`t1`.`c_float` AS `c_float`,`test`.`t1`.`c_bit` AS `c_bit`,`test`.`t1`.`c_date` AS `c_date`,`test`.`t1`.`c_datetime` AS `c_datetime`,`test`.`t1`.`c_timestamp` AS `c_timestamp`,`test`.`t1`.`c_time` AS `c_time`,`test`.`t1`.`c_year` AS `c_year`,`test`.`t1`.`c_char` AS `c_char` from `test`.`t1` where (`test`.`t1`.`c_decimal` in (1,2,3))
 EXPLAIN SELECT * FROM t1 WHERE c_decimal IN (NULL, 1, 2, 3);
-id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
-1	SIMPLE	t1	range	c_decimal	c_decimal	3	NULL	3	Using index condition
+id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
+1	SIMPLE	t1	NULL	range	c_decimal	c_decimal	3	NULL	3	100.00	Using index condition
+Warnings:
+Note	1003	/* select#1 */ select `test`.`t1`.`c_int` AS `c_int`,`test`.`t1`.`c_decimal` AS `c_decimal`,`test`.`t1`.`c_float` AS `c_float`,`test`.`t1`.`c_bit` AS `c_bit`,`test`.`t1`.`c_date` AS `c_date`,`test`.`t1`.`c_datetime` AS `c_datetime`,`test`.`t1`.`c_timestamp` AS `c_timestamp`,`test`.`t1`.`c_time` AS `c_time`,`test`.`t1`.`c_year` AS `c_year`,`test`.`t1`.`c_char` AS `c_char` from `test`.`t1` where (`test`.`t1`.`c_decimal` in (NULL,1,2,3))
 EXPLAIN SELECT * FROM t1 WHERE c_decimal IN (NULL);
-id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
-1	SIMPLE	NULL	NULL	NULL	NULL	NULL	NULL	NULL	no matching row in const table
+id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
+1	SIMPLE	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	no matching row in const table
+Warnings:
+Note	1003	/* select#1 */ select `test`.`t1`.`c_int` AS `c_int`,`test`.`t1`.`c_decimal` AS `c_decimal`,`test`.`t1`.`c_float` AS `c_float`,`test`.`t1`.`c_bit` AS `c_bit`,`test`.`t1`.`c_date` AS `c_date`,`test`.`t1`.`c_datetime` AS `c_datetime`,`test`.`t1`.`c_timestamp` AS `c_timestamp`,`test`.`t1`.`c_time` AS `c_time`,`test`.`t1`.`c_year` AS `c_year`,`test`.`t1`.`c_char` AS `c_char` from `test`.`t1` where (`test`.`t1`.`c_decimal` = NULL)
 EXPLAIN SELECT * FROM t1 WHERE c_decimal IN (NULL, NULL);
-id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
-1	SIMPLE	NULL	NULL	NULL	NULL	NULL	NULL	NULL	no matching row in const table
+id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
+1	SIMPLE	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	no matching row in const table
+Warnings:
+Note	1003	/* select#1 */ select `test`.`t1`.`c_int` AS `c_int`,`test`.`t1`.`c_decimal` AS `c_decimal`,`test`.`t1`.`c_float` AS `c_float`,`test`.`t1`.`c_bit` AS `c_bit`,`test`.`t1`.`c_date` AS `c_date`,`test`.`t1`.`c_datetime` AS `c_datetime`,`test`.`t1`.`c_timestamp` AS `c_timestamp`,`test`.`t1`.`c_time` AS `c_time`,`test`.`t1`.`c_year` AS `c_year`,`test`.`t1`.`c_char` AS `c_char` from `test`.`t1` where (`test`.`t1`.`c_decimal` in (NULL,NULL))
 EXPLAIN SELECT * FROM t1 WHERE c_float IN (1, 2, 3);
-id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
-1	SIMPLE	t1	range	c_float	c_float	4	NULL	3	Using index condition
+id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
+1	SIMPLE	t1	NULL	range	c_float	c_float	4	NULL	3	100.00	Using index condition
+Warnings:
+Note	1003	/* select#1 */ select `test`.`t1`.`c_int` AS `c_int`,`test`.`t1`.`c_decimal` AS `c_decimal`,`test`.`t1`.`c_float` AS `c_float`,`test`.`t1`.`c_bit` AS `c_bit`,`test`.`t1`.`c_date` AS `c_date`,`test`.`t1`.`c_datetime` AS `c_datetime`,`test`.`t1`.`c_timestamp` AS `c_timestamp`,`test`.`t1`.`c_time` AS `c_time`,`test`.`t1`.`c_year` AS `c_year`,`test`.`t1`.`c_char` AS `c_char` from `test`.`t1` where (`test`.`t1`.`c_float` in (1,2,3))
 EXPLAIN SELECT * FROM t1 WHERE c_float IN (NULL, 1, 2, 3);
-id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
-1	SIMPLE	t1	range	c_float	c_float	4	NULL	3	Using index condition
+id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
+1	SIMPLE	t1	NULL	range	c_float	c_float	4	NULL	3	100.00	Using index condition
+Warnings:
+Note	1003	/* select#1 */ select `test`.`t1`.`c_int` AS `c_int`,`test`.`t1`.`c_decimal` AS `c_decimal`,`test`.`t1`.`c_float` AS `c_float`,`test`.`t1`.`c_bit` AS `c_bit`,`test`.`t1`.`c_date` AS `c_date`,`test`.`t1`.`c_datetime` AS `c_datetime`,`test`.`t1`.`c_timestamp` AS `c_timestamp`,`test`.`t1`.`c_time` AS `c_time`,`test`.`t1`.`c_year` AS `c_year`,`test`.`t1`.`c_char` AS `c_char` from `test`.`t1` where (`test`.`t1`.`c_float` in (NULL,1,2,3))
 EXPLAIN SELECT * FROM t1 WHERE c_float IN (NULL);
-id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
-1	SIMPLE	NULL	NULL	NULL	NULL	NULL	NULL	NULL	no matching row in const table
+id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
+1	SIMPLE	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	no matching row in const table
+Warnings:
+Note	1003	/* select#1 */ select `test`.`t1`.`c_int` AS `c_int`,`test`.`t1`.`c_decimal` AS `c_decimal`,`test`.`t1`.`c_float` AS `c_float`,`test`.`t1`.`c_bit` AS `c_bit`,`test`.`t1`.`c_date` AS `c_date`,`test`.`t1`.`c_datetime` AS `c_datetime`,`test`.`t1`.`c_timestamp` AS `c_timestamp`,`test`.`t1`.`c_time` AS `c_time`,`test`.`t1`.`c_year` AS `c_year`,`test`.`t1`.`c_char` AS `c_char` from `test`.`t1` where (`test`.`t1`.`c_float` = NULL)
 EXPLAIN SELECT * FROM t1 WHERE c_float IN (NULL, NULL);
-id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
-1	SIMPLE	NULL	NULL	NULL	NULL	NULL	NULL	NULL	no matching row in const table
+id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
+1	SIMPLE	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	no matching row in const table
+Warnings:
+Note	1003	/* select#1 */ select `test`.`t1`.`c_int` AS `c_int`,`test`.`t1`.`c_decimal` AS `c_decimal`,`test`.`t1`.`c_float` AS `c_float`,`test`.`t1`.`c_bit` AS `c_bit`,`test`.`t1`.`c_date` AS `c_date`,`test`.`t1`.`c_datetime` AS `c_datetime`,`test`.`t1`.`c_timestamp` AS `c_timestamp`,`test`.`t1`.`c_time` AS `c_time`,`test`.`t1`.`c_year` AS `c_year`,`test`.`t1`.`c_char` AS `c_char` from `test`.`t1` where (`test`.`t1`.`c_float` in (NULL,NULL))
 EXPLAIN SELECT * FROM t1 WHERE c_bit IN (1, 2, 3);
-id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
-1	SIMPLE	t1	range	c_bit	c_bit	2	NULL	3	Using index condition
+id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
+1	SIMPLE	t1	NULL	range	c_bit	c_bit	2	NULL	3	100.00	Using index condition
+Warnings:
+Note	1003	/* select#1 */ select `test`.`t1`.`c_int` AS `c_int`,`test`.`t1`.`c_decimal` AS `c_decimal`,`test`.`t1`.`c_float` AS `c_float`,`test`.`t1`.`c_bit` AS `c_bit`,`test`.`t1`.`c_date` AS `c_date`,`test`.`t1`.`c_datetime` AS `c_datetime`,`test`.`t1`.`c_timestamp` AS `c_timestamp`,`test`.`t1`.`c_time` AS `c_time`,`test`.`t1`.`c_year` AS `c_year`,`test`.`t1`.`c_char` AS `c_char` from `test`.`t1` where (`test`.`t1`.`c_bit` in (1,2,3))
 EXPLAIN SELECT * FROM t1 WHERE c_bit IN (NULL, 1, 2, 3);
-id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
-1	SIMPLE	t1	range	c_bit	c_bit	2	NULL	3	Using index condition
+id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
+1	SIMPLE	t1	NULL	range	c_bit	c_bit	2	NULL	3	100.00	Using index condition
+Warnings:
+Note	1003	/* select#1 */ select `test`.`t1`.`c_int` AS `c_int`,`test`.`t1`.`c_decimal` AS `c_decimal`,`test`.`t1`.`c_float` AS `c_float`,`test`.`t1`.`c_bit` AS `c_bit`,`test`.`t1`.`c_date` AS `c_date`,`test`.`t1`.`c_datetime` AS `c_datetime`,`test`.`t1`.`c_timestamp` AS `c_timestamp`,`test`.`t1`.`c_time` AS `c_time`,`test`.`t1`.`c_year` AS `c_year`,`test`.`t1`.`c_char` AS `c_char` from `test`.`t1` where (`test`.`t1`.`c_bit` in (NULL,1,2,3))
 EXPLAIN SELECT * FROM t1 WHERE c_bit IN (NULL);
-id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
-1	SIMPLE	NULL	NULL	NULL	NULL	NULL	NULL	NULL	no matching row in const table
+id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
+1	SIMPLE	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	no matching row in const table
+Warnings:
+Note	1003	/* select#1 */ select `test`.`t1`.`c_int` AS `c_int`,`test`.`t1`.`c_decimal` AS `c_decimal`,`test`.`t1`.`c_float` AS `c_float`,`test`.`t1`.`c_bit` AS `c_bit`,`test`.`t1`.`c_date` AS `c_date`,`test`.`t1`.`c_datetime` AS `c_datetime`,`test`.`t1`.`c_timestamp` AS `c_timestamp`,`test`.`t1`.`c_time` AS `c_time`,`test`.`t1`.`c_year` AS `c_year`,`test`.`t1`.`c_char` AS `c_char` from `test`.`t1` where (`test`.`t1`.`c_bit` = NULL)
 EXPLAIN SELECT * FROM t1 WHERE c_bit IN (NULL, NULL);
-id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
-1	SIMPLE	NULL	NULL	NULL	NULL	NULL	NULL	NULL	no matching row in const table
+id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
+1	SIMPLE	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	no matching row in const table
+Warnings:
+Note	1003	/* select#1 */ select `test`.`t1`.`c_int` AS `c_int`,`test`.`t1`.`c_decimal` AS `c_decimal`,`test`.`t1`.`c_float` AS `c_float`,`test`.`t1`.`c_bit` AS `c_bit`,`test`.`t1`.`c_date` AS `c_date`,`test`.`t1`.`c_datetime` AS `c_datetime`,`test`.`t1`.`c_timestamp` AS `c_timestamp`,`test`.`t1`.`c_time` AS `c_time`,`test`.`t1`.`c_year` AS `c_year`,`test`.`t1`.`c_char` AS `c_char` from `test`.`t1` where (`test`.`t1`.`c_bit` in (NULL,NULL))
 EXPLAIN SELECT * FROM t1 WHERE c_date 
 IN ('2009-09-01', '2009-09-02', '2009-09-03');
-id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
-1	SIMPLE	t1	range	c_date	c_date	3	NULL	3	Using index condition
+id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
+1	SIMPLE	t1	NULL	range	c_date	c_date	3	NULL	3	100.00	Using index condition
+Warnings:
+Note	1003	/* select#1 */ select `test`.`t1`.`c_int` AS `c_int`,`test`.`t1`.`c_decimal` AS `c_decimal`,`test`.`t1`.`c_float` AS `c_float`,`test`.`t1`.`c_bit` AS `c_bit`,`test`.`t1`.`c_date` AS `c_date`,`test`.`t1`.`c_datetime` AS `c_datetime`,`test`.`t1`.`c_timestamp` AS `c_timestamp`,`test`.`t1`.`c_time` AS `c_time`,`test`.`t1`.`c_year` AS `c_year`,`test`.`t1`.`c_char` AS `c_char` from `test`.`t1` where (`test`.`t1`.`c_date` in ('2009-09-01','2009-09-02','2009-09-03'))
 EXPLAIN SELECT * FROM t1 WHERE c_date
 IN (NULL, '2009-09-01', '2009-09-02', '2009-09-03');
-id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
-1	SIMPLE	t1	range	c_date	c_date	3	NULL	3	Using index condition
+id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
+1	SIMPLE	t1	NULL	range	c_date	c_date	3	NULL	3	100.00	Using index condition
+Warnings:
+Note	1003	/* select#1 */ select `test`.`t1`.`c_int` AS `c_int`,`test`.`t1`.`c_decimal` AS `c_decimal`,`test`.`t1`.`c_float` AS `c_float`,`test`.`t1`.`c_bit` AS `c_bit`,`test`.`t1`.`c_date` AS `c_date`,`test`.`t1`.`c_datetime` AS `c_datetime`,`test`.`t1`.`c_timestamp` AS `c_timestamp`,`test`.`t1`.`c_time` AS `c_time`,`test`.`t1`.`c_year` AS `c_year`,`test`.`t1`.`c_char` AS `c_char` from `test`.`t1` where (`test`.`t1`.`c_date` in (NULL,'2009-09-01','2009-09-02','2009-09-03'))
 EXPLAIN SELECT * FROM t1 WHERE c_date IN (NULL);
-id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
-1	SIMPLE	NULL	NULL	NULL	NULL	NULL	NULL	NULL	no matching row in const table
+id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
+1	SIMPLE	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	no matching row in const table
+Warnings:
+Note	1003	/* select#1 */ select `test`.`t1`.`c_int` AS `c_int`,`test`.`t1`.`c_decimal` AS `c_decimal`,`test`.`t1`.`c_float` AS `c_float`,`test`.`t1`.`c_bit` AS `c_bit`,`test`.`t1`.`c_date` AS `c_date`,`test`.`t1`.`c_datetime` AS `c_datetime`,`test`.`t1`.`c_timestamp` AS `c_timestamp`,`test`.`t1`.`c_time` AS `c_time`,`test`.`t1`.`c_year` AS `c_year`,`test`.`t1`.`c_char` AS `c_char` from `test`.`t1` where multiple equal(NULL, `test`.`t1`.`c_date`)
 EXPLAIN SELECT * FROM t1 WHERE c_date IN (NULL, NULL);
-id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
-1	SIMPLE	NULL	NULL	NULL	NULL	NULL	NULL	NULL	no matching row in const table
+id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
+1	SIMPLE	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	no matching row in const table
+Warnings:
+Note	1003	/* select#1 */ select `test`.`t1`.`c_int` AS `c_int`,`test`.`t1`.`c_decimal` AS `c_decimal`,`test`.`t1`.`c_float` AS `c_float`,`test`.`t1`.`c_bit` AS `c_bit`,`test`.`t1`.`c_date` AS `c_date`,`test`.`t1`.`c_datetime` AS `c_datetime`,`test`.`t1`.`c_timestamp` AS `c_timestamp`,`test`.`t1`.`c_time` AS `c_time`,`test`.`t1`.`c_year` AS `c_year`,`test`.`t1`.`c_char` AS `c_char` from `test`.`t1` where (`test`.`t1`.`c_date` in (NULL,NULL))
 EXPLAIN SELECT * FROM t1 WHERE c_datetime
 IN ('2009-09-01 00:00:01', '2009-09-02 00:00:01', '2009-09-03 00:00:01');
-id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
-1	SIMPLE	t1	range	c_datetime	c_datetime	5	NULL	3	Using index condition
+id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
+1	SIMPLE	t1	NULL	range	c_datetime	c_datetime	5	NULL	3	100.00	Using index condition
+Warnings:
+Note	1003	/* select#1 */ select `test`.`t1`.`c_int` AS `c_int`,`test`.`t1`.`c_decimal` AS `c_decimal`,`test`.`t1`.`c_float` AS `c_float`,`test`.`t1`.`c_bit` AS `c_bit`,`test`.`t1`.`c_date` AS `c_date`,`test`.`t1`.`c_datetime` AS `c_datetime`,`test`.`t1`.`c_timestamp` AS `c_timestamp`,`test`.`t1`.`c_time` AS `c_time`,`test`.`t1`.`c_year` AS `c_year`,`test`.`t1`.`c_char` AS `c_char` from `test`.`t1` where (`test`.`t1`.`c_datetime` in ('2009-09-01 00:00:01','2009-09-02 00:00:01','2009-09-03 00:00:01'))
 EXPLAIN SELECT * FROM t1 WHERE c_datetime
 IN (NULL, '2009-09-01 00:00:01', '2009-09-02 00:00:01', '2009-09-03 00:00:01');
-id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
-1	SIMPLE	t1	range	c_datetime	c_datetime	5	NULL	3	Using index condition
+id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
+1	SIMPLE	t1	NULL	range	c_datetime	c_datetime	5	NULL	3	100.00	Using index condition
+Warnings:
+Note	1003	/* select#1 */ select `test`.`t1`.`c_int` AS `c_int`,`test`.`t1`.`c_decimal` AS `c_decimal`,`test`.`t1`.`c_float` AS `c_float`,`test`.`t1`.`c_bit` AS `c_bit`,`test`.`t1`.`c_date` AS `c_date`,`test`.`t1`.`c_datetime` AS `c_datetime`,`test`.`t1`.`c_timestamp` AS `c_timestamp`,`test`.`t1`.`c_time` AS `c_time`,`test`.`t1`.`c_year` AS `c_year`,`test`.`t1`.`c_char` AS `c_char` from `test`.`t1` where (`test`.`t1`.`c_datetime` in (NULL,'2009-09-01 00:00:01','2009-09-02 00:00:01','2009-09-03 00:00:01'))
 EXPLAIN SELECT * FROM t1 WHERE c_datetime IN (NULL);
-id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
-1	SIMPLE	NULL	NULL	NULL	NULL	NULL	NULL	NULL	no matching row in const table
+id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
+1	SIMPLE	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	no matching row in const table
+Warnings:
+Note	1003	/* select#1 */ select `test`.`t1`.`c_int` AS `c_int`,`test`.`t1`.`c_decimal` AS `c_decimal`,`test`.`t1`.`c_float` AS `c_float`,`test`.`t1`.`c_bit` AS `c_bit`,`test`.`t1`.`c_date` AS `c_date`,`test`.`t1`.`c_datetime` AS `c_datetime`,`test`.`t1`.`c_timestamp` AS `c_timestamp`,`test`.`t1`.`c_time` AS `c_time`,`test`.`t1`.`c_year` AS `c_year`,`test`.`t1`.`c_char` AS `c_char` from `test`.`t1` where multiple equal(NULL, `test`.`t1`.`c_datetime`)
 EXPLAIN SELECT * FROM t1 WHERE c_datetime IN (NULL, NULL);
-id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
-1	SIMPLE	NULL	NULL	NULL	NULL	NULL	NULL	NULL	no matching row in const table
+id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
+1	SIMPLE	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	no matching row in const table
+Warnings:
+Note	1003	/* select#1 */ select `test`.`t1`.`c_int` AS `c_int`,`test`.`t1`.`c_decimal` AS `c_decimal`,`test`.`t1`.`c_float` AS `c_float`,`test`.`t1`.`c_bit` AS `c_bit`,`test`.`t1`.`c_date` AS `c_date`,`test`.`t1`.`c_datetime` AS `c_datetime`,`test`.`t1`.`c_timestamp` AS `c_timestamp`,`test`.`t1`.`c_time` AS `c_time`,`test`.`t1`.`c_year` AS `c_year`,`test`.`t1`.`c_char` AS `c_char` from `test`.`t1` where (`test`.`t1`.`c_datetime` in (NULL,NULL))
 EXPLAIN SELECT * FROM t1 WHERE c_timestamp
 IN ('2009-09-01 00:00:01', '2009-09-01 00:00:02', '2009-09-01 00:00:03');
-id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
-1	SIMPLE	t1	range	c_timestamp	c_timestamp	4	NULL	3	Using index condition
+id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
+1	SIMPLE	t1	NULL	range	c_timestamp	c_timestamp	4	NULL	3	100.00	Using index condition
+Warnings:
+Note	1003	/* select#1 */ select `test`.`t1`.`c_int` AS `c_int`,`test`.`t1`.`c_decimal` AS `c_decimal`,`test`.`t1`.`c_float` AS `c_float`,`test`.`t1`.`c_bit` AS `c_bit`,`test`.`t1`.`c_date` AS `c_date`,`test`.`t1`.`c_datetime` AS `c_datetime`,`test`.`t1`.`c_timestamp` AS `c_timestamp`,`test`.`t1`.`c_time` AS `c_time`,`test`.`t1`.`c_year` AS `c_year`,`test`.`t1`.`c_char` AS `c_char` from `test`.`t1` where (`test`.`t1`.`c_timestamp` in ('2009-09-01 00:00:01','2009-09-01 00:00:02','2009-09-01 00:00:03'))
 EXPLAIN SELECT * FROM t1 WHERE c_timestamp
 IN (NULL, '2009-09-01 00:00:01', '2009-09-01 00:00:02', '2009-09-01 00:00:03');
-id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
-1	SIMPLE	t1	range	c_timestamp	c_timestamp	4	NULL	3	Using index condition
+id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
+1	SIMPLE	t1	NULL	range	c_timestamp	c_timestamp	4	NULL	3	100.00	Using index condition
+Warnings:
+Note	1003	/* select#1 */ select `test`.`t1`.`c_int` AS `c_int`,`test`.`t1`.`c_decimal` AS `c_decimal`,`test`.`t1`.`c_float` AS `c_float`,`test`.`t1`.`c_bit` AS `c_bit`,`test`.`t1`.`c_date` AS `c_date`,`test`.`t1`.`c_datetime` AS `c_datetime`,`test`.`t1`.`c_timestamp` AS `c_timestamp`,`test`.`t1`.`c_time` AS `c_time`,`test`.`t1`.`c_year` AS `c_year`,`test`.`t1`.`c_char` AS `c_char` from `test`.`t1` where (`test`.`t1`.`c_timestamp` in (NULL,'2009-09-01 00:00:01','2009-09-01 00:00:02','2009-09-01 00:00:03'))
 EXPLAIN SELECT * FROM t1 WHERE c_timestamp IN (NULL);
-id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
-1	SIMPLE	NULL	NULL	NULL	NULL	NULL	NULL	NULL	no matching row in const table
+id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
+1	SIMPLE	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	no matching row in const table
+Warnings:
+Note	1003	/* select#1 */ select `test`.`t1`.`c_int` AS `c_int`,`test`.`t1`.`c_decimal` AS `c_decimal`,`test`.`t1`.`c_float` AS `c_float`,`test`.`t1`.`c_bit` AS `c_bit`,`test`.`t1`.`c_date` AS `c_date`,`test`.`t1`.`c_datetime` AS `c_datetime`,`test`.`t1`.`c_timestamp` AS `c_timestamp`,`test`.`t1`.`c_time` AS `c_time`,`test`.`t1`.`c_year` AS `c_year`,`test`.`t1`.`c_char` AS `c_char` from `test`.`t1` where multiple equal(NULL, `test`.`t1`.`c_timestamp`)
 EXPLAIN SELECT * FROM t1 WHERE c_timestamp IN (NULL, NULL);
-id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
-1	SIMPLE	NULL	NULL	NULL	NULL	NULL	NULL	NULL	no matching row in const table
+id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
+1	SIMPLE	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	no matching row in const table
+Warnings:
+Note	1003	/* select#1 */ select `test`.`t1`.`c_int` AS `c_int`,`test`.`t1`.`c_decimal` AS `c_decimal`,`test`.`t1`.`c_float` AS `c_float`,`test`.`t1`.`c_bit` AS `c_bit`,`test`.`t1`.`c_date` AS `c_date`,`test`.`t1`.`c_datetime` AS `c_datetime`,`test`.`t1`.`c_timestamp` AS `c_timestamp`,`test`.`t1`.`c_time` AS `c_time`,`test`.`t1`.`c_year` AS `c_year`,`test`.`t1`.`c_char` AS `c_char` from `test`.`t1` where (`test`.`t1`.`c_timestamp` in (NULL,NULL))
 EXPLAIN SELECT * FROM t1 WHERE c_year IN (1, 2, 3);
-id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
-1	SIMPLE	t1	range	c_year	c_year	1	NULL	3	Using index condition
+id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
+1	SIMPLE	t1	NULL	range	c_year	c_year	1	NULL	3	100.00	Using index condition
+Warnings:
+Note	1003	/* select#1 */ select `test`.`t1`.`c_int` AS `c_int`,`test`.`t1`.`c_decimal` AS `c_decimal`,`test`.`t1`.`c_float` AS `c_float`,`test`.`t1`.`c_bit` AS `c_bit`,`test`.`t1`.`c_date` AS `c_date`,`test`.`t1`.`c_datetime` AS `c_datetime`,`test`.`t1`.`c_timestamp` AS `c_timestamp`,`test`.`t1`.`c_time` AS `c_time`,`test`.`t1`.`c_year` AS `c_year`,`test`.`t1`.`c_char` AS `c_char` from `test`.`t1` where (`test`.`t1`.`c_year` in (1,2,3))
 EXPLAIN SELECT * FROM t1 WHERE c_year IN (NULL, 1, 2, 3);
-id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
-1	SIMPLE	t1	range	c_year	c_year	1	NULL	3	Using index condition
+id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
+1	SIMPLE	t1	NULL	range	c_year	c_year	1	NULL	3	100.00	Using index condition
+Warnings:
+Note	1003	/* select#1 */ select `test`.`t1`.`c_int` AS `c_int`,`test`.`t1`.`c_decimal` AS `c_decimal`,`test`.`t1`.`c_float` AS `c_float`,`test`.`t1`.`c_bit` AS `c_bit`,`test`.`t1`.`c_date` AS `c_date`,`test`.`t1`.`c_datetime` AS `c_datetime`,`test`.`t1`.`c_timestamp` AS `c_timestamp`,`test`.`t1`.`c_time` AS `c_time`,`test`.`t1`.`c_year` AS `c_year`,`test`.`t1`.`c_char` AS `c_char` from `test`.`t1` where (`test`.`t1`.`c_year` in (NULL,1,2,3))
 EXPLAIN SELECT * FROM t1 WHERE c_year IN (NULL);
-id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
-1	SIMPLE	NULL	NULL	NULL	NULL	NULL	NULL	NULL	no matching row in const table
+id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
+1	SIMPLE	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	no matching row in const table
+Warnings:
+Note	1003	/* select#1 */ select `test`.`t1`.`c_int` AS `c_int`,`test`.`t1`.`c_decimal` AS `c_decimal`,`test`.`t1`.`c_float` AS `c_float`,`test`.`t1`.`c_bit` AS `c_bit`,`test`.`t1`.`c_date` AS `c_date`,`test`.`t1`.`c_datetime` AS `c_datetime`,`test`.`t1`.`c_timestamp` AS `c_timestamp`,`test`.`t1`.`c_time` AS `c_time`,`test`.`t1`.`c_year` AS `c_year`,`test`.`t1`.`c_char` AS `c_char` from `test`.`t1` where (`test`.`t1`.`c_year` = NULL)
 EXPLAIN SELECT * FROM t1 WHERE c_year IN (NULL, NULL);
-id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
-1	SIMPLE	NULL	NULL	NULL	NULL	NULL	NULL	NULL	no matching row in const table
+id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
+1	SIMPLE	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	no matching row in const table
+Warnings:
+Note	1003	/* select#1 */ select `test`.`t1`.`c_int` AS `c_int`,`test`.`t1`.`c_decimal` AS `c_decimal`,`test`.`t1`.`c_float` AS `c_float`,`test`.`t1`.`c_bit` AS `c_bit`,`test`.`t1`.`c_date` AS `c_date`,`test`.`t1`.`c_datetime` AS `c_datetime`,`test`.`t1`.`c_timestamp` AS `c_timestamp`,`test`.`t1`.`c_time` AS `c_time`,`test`.`t1`.`c_year` AS `c_year`,`test`.`t1`.`c_char` AS `c_char` from `test`.`t1` where (`test`.`t1`.`c_year` in (NULL,NULL))
 EXPLAIN SELECT * FROM t1 WHERE c_char IN ('1', '2', '3');
-id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
-1	SIMPLE	t1	range	c_char	c_char	10	NULL	3	Using index condition
+id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
+1	SIMPLE	t1	NULL	range	c_char	c_char	10	NULL	3	100.00	Using index condition
+Warnings:
+Note	1003	/* select#1 */ select `test`.`t1`.`c_int` AS `c_int`,`test`.`t1`.`c_decimal` AS `c_decimal`,`test`.`t1`.`c_float` AS `c_float`,`test`.`t1`.`c_bit` AS `c_bit`,`test`.`t1`.`c_date` AS `c_date`,`test`.`t1`.`c_datetime` AS `c_datetime`,`test`.`t1`.`c_timestamp` AS `c_timestamp`,`test`.`t1`.`c_time` AS `c_time`,`test`.`t1`.`c_year` AS `c_year`,`test`.`t1`.`c_char` AS `c_char` from `test`.`t1` where (`test`.`t1`.`c_char` in ('1','2','3'))
 EXPLAIN SELECT * FROM t1 WHERE c_char IN (NULL, '1', '2', '3');
-id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
-1	SIMPLE	t1	range	c_char	c_char	10	NULL	3	Using index condition
+id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
+1	SIMPLE	t1	NULL	range	c_char	c_char	10	NULL	3	100.00	Using index condition
+Warnings:
+Note	1003	/* select#1 */ select `test`.`t1`.`c_int` AS `c_int`,`test`.`t1`.`c_decimal` AS `c_decimal`,`test`.`t1`.`c_float` AS `c_float`,`test`.`t1`.`c_bit` AS `c_bit`,`test`.`t1`.`c_date` AS `c_date`,`test`.`t1`.`c_datetime` AS `c_datetime`,`test`.`t1`.`c_timestamp` AS `c_timestamp`,`test`.`t1`.`c_time` AS `c_time`,`test`.`t1`.`c_year` AS `c_year`,`test`.`t1`.`c_char` AS `c_char` from `test`.`t1` where (`test`.`t1`.`c_char` in (NULL,'1','2','3'))
 EXPLAIN SELECT * FROM t1 WHERE c_char IN (NULL);
-id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
-1	SIMPLE	NULL	NULL	NULL	NULL	NULL	NULL	NULL	no matching row in const table
+id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
+1	SIMPLE	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	no matching row in const table
+Warnings:
+Note	1003	/* select#1 */ select `test`.`t1`.`c_int` AS `c_int`,`test`.`t1`.`c_decimal` AS `c_decimal`,`test`.`t1`.`c_float` AS `c_float`,`test`.`t1`.`c_bit` AS `c_bit`,`test`.`t1`.`c_date` AS `c_date`,`test`.`t1`.`c_datetime` AS `c_datetime`,`test`.`t1`.`c_timestamp` AS `c_timestamp`,`test`.`t1`.`c_time` AS `c_time`,`test`.`t1`.`c_year` AS `c_year`,`test`.`t1`.`c_char` AS `c_char` from `test`.`t1` where multiple equal(NULL, `test`.`t1`.`c_char`)
 EXPLAIN SELECT * FROM t1 WHERE c_char IN (NULL, NULL);
-id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
-1	SIMPLE	NULL	NULL	NULL	NULL	NULL	NULL	NULL	no matching row in const table
+id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
+1	SIMPLE	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	no matching row in const table
+Warnings:
+Note	1003	/* select#1 */ select `test`.`t1`.`c_int` AS `c_int`,`test`.`t1`.`c_decimal` AS `c_decimal`,`test`.`t1`.`c_float` AS `c_float`,`test`.`t1`.`c_bit` AS `c_bit`,`test`.`t1`.`c_date` AS `c_date`,`test`.`t1`.`c_datetime` AS `c_datetime`,`test`.`t1`.`c_timestamp` AS `c_timestamp`,`test`.`t1`.`c_time` AS `c_time`,`test`.`t1`.`c_year` AS `c_year`,`test`.`t1`.`c_char` AS `c_char` from `test`.`t1` where (`test`.`t1`.`c_char` in (NULL,NULL))
 DROP TABLE t1;
 #
 # Bug#54477: Crash on IN / CASE with NULL arguments

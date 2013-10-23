@@ -810,13 +810,13 @@ INSERT INTO `t1` VALUES
 (0,0),(1,0),(2,0),(3,0),(4,0),(5,1),(6,1),(7,1),(8,1),(9,1),(10,2),(11,2),(12,2)
 ,(13,2),(14,2),(15,3),(16,3),(17,3),(18,3),(19,3);
 
---replace_column 9 #
+--replace_column 10 #
 explain select * from t1 where a in (3,4)  and b in (1,2,3);
---replace_column 9 #
+--replace_column 10 #
 explain select * from v1 where a in (3,4)  and b in (1,2,3);
---replace_column 9 #
+--replace_column 10 #
 explain select * from t1 where a between 3 and 4 and b between 1 and 2;
---replace_column 9 #
+--replace_column 10 #
 explain select * from v1 where a between 3 and 4 and b between 1 and 2;
  
 drop view v1;
@@ -836,18 +836,18 @@ insert into t1 select concat('a', 1000 + A.a + 10 * (B.a + 10 * C.a)), ''
 create table t2 (a varchar(10), filler char(200), key(a));
 insert into t2 select * from t1;
 
---replace_column 9 #
+--replace_column 10 #
 explain select * from t1 where a between 'a' and 'a '; 
---replace_column 9 #
+--replace_column 10 #
 explain select * from t1 where a = 'a' or a='a ';
 
---replace_column 9 #
+--replace_column 10 #
 explain select * from t2 where a between 'a' and 'a '; 
---replace_column 9 #
+--replace_column 10 #
 explain select * from t2 where a = 'a' or a='a ';
 
 update t1 set a='b' where a<>'a';
---replace_column 9 #
+--replace_column 10 #
 explain select * from t1 where a not between 'b' and 'b'; 
 select a, hex(filler) from t1 where a not between 'b' and 'b'; 
 
@@ -1197,7 +1197,7 @@ INSERT INTO t2 VALUES ('2009-09-23 12:00:00'), ('2009-09-23 12:00:00'),
                       ('2009-09-23 12:00:00');
 
 --echo # DATE vs DATE
---replace_column 1 X 2 X 3 X 7 X 8 X 9 X 10 X
+--replace_column 1 X 2 X 3 X 8 X 9 X 10 X 12 X
 EXPLAIN
 SELECT * FROM t1 WHERE a >= '2009/09/23';
 SELECT * FROM t1 WHERE a >= '2009/09/23';
@@ -1208,7 +1208,7 @@ SELECT * FROM t1 WHERE a >= '2009.09.23';
 SELECT * FROM t1 WHERE a >= '2009:09:23';
 
 --echo # DATE vs DATETIME
---replace_column 1 X 2 X 3 X 7 X 8 X 9 X 10 X
+--replace_column 1 X 2 X 3 X 8 X 9 X 10 X 12 X
 EXPLAIN
 SELECT * FROM t2 WHERE a >= '2009/09/23';
 SELECT * FROM t2 WHERE a >= '2009/09/23';
@@ -1220,7 +1220,7 @@ SELECT * FROM t2 WHERE a >= '2009.09.23';
 SELECT * FROM t2 WHERE a >= '2009:09:23';
 
 --echo # DATETIME vs DATETIME
---replace_column 1 X 2 X 3 X 7 X 8 X 9 X 10 X
+--replace_column 1 X 2 X 3 X 8 X 9 X 10 X 12 X
 EXPLAIN
 SELECT * FROM t2 WHERE a >= '2009/09/23 12:00:00';
 SELECT * FROM t2 WHERE a >= '2009/09/23 12:00:00';
@@ -1231,7 +1231,7 @@ SELECT * FROM t2 WHERE a >= '2009.09.23 12:00:00';
 SELECT * FROM t2 WHERE a >= '2009:09:23 12:00:00';
 
 --echo # DATETIME vs DATE
---replace_column 1 X 2 X 3 X 7 X 8 X 9 X 10 X
+--replace_column 1 X 2 X 3 X 8 X 9 X 10 X 12 X
 EXPLAIN
 SELECT * FROM t1 WHERE a >= '2009/09/23 00:00:00';
 SELECT * FROM t1 WHERE a >= '2009/09/23 00:00:00';
@@ -1302,7 +1302,7 @@ CREATE TABLE t1 (a INT, b INT, PRIMARY KEY (a));
 
 INSERT INTO t1 VALUES (0,0), (1,1);
 
---replace_column 1 @ 2 @ 3 @ 5 @ 6 @ 7 @ 8 @ 9 @ 10 @
+--replace_column 1 @ 2 @ 3 @ 6 @ 7 @ 8 @ 9 @ 10 @ 12 @
 EXPLAIN 
 SELECT * FROM t1 FORCE INDEX (PRIMARY) 
  WHERE (a>=1 AND a<=2) OR (a>=4 AND a<=5) OR (a>=0 AND a <=10);
