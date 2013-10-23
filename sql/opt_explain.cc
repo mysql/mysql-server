@@ -136,7 +136,6 @@ protected:
   bool explain_subqueries();
   bool mark_subqueries(Item *item, qep_row *destination);
   bool prepare_columns();
-  bool describe(uint8 mask) const { return thd->lex->describe & mask; }
 
   /**
     Push a part of the "extra" column into formatter
@@ -1037,7 +1036,7 @@ bool Explain_table_base::explain_extra_common(const SQL_SELECT *select,
           pushed_cond)
       {
         StringBuffer<64> buff(cs);
-        if (describe(DESCRIBE_EXTENDED) && can_print_clauses())
+        if (can_print_clauses())
           ((Item *)pushed_cond)->print(&buff, cond_print_flags);
         if (push_extra(ET_USING_WHERE_WITH_PUSHED_CONDITION, buff))
           return true;
@@ -1462,7 +1461,6 @@ bool Explain_join::explain_rows_and_filtered()
   fmt->entry()->col_rows.set(static_cast<ulonglong>(examined_rows));
 
   /* Add "filtered" field */
-  if (describe(DESCRIBE_EXTENDED))
   {
     float f= 0.0;
     if (examined_rows)
@@ -1812,8 +1810,7 @@ bool Explain_table::explain_rows_and_filtered()
   double examined_rows= table->in_use->query_plan.get_plan()->examined_rows;
   fmt->entry()->col_rows.set(static_cast<long long>(examined_rows));
 
-  if (describe(DESCRIBE_EXTENDED))
-    fmt->entry()->col_filtered.set(100.0);
+  fmt->entry()->col_filtered.set(100.0);
   
   return false;
 }
@@ -2152,13 +2149,11 @@ bool explain_query(THD *ethd, SELECT_LEX_UNIT *unit, select_result *result)
        against malformed queries, so skip it if we have an error.
     2) The code also isn't thread-safe, skip if explaining other thread
     (see Explain::can_print_clauses())
-    3) Print only when requested
-    4) Currently only SELECT queries can be printed (TODO: fix this)
+    3) Currently only SELECT queries can be printed (TODO: fix this)
   */
   if (!res &&                                       // (1)
       ethd == query_thd &&                          // (2)
-      (ethd->lex->describe & DESCRIBE_EXTENDED) &&  // (3)
-      query_thd->query_plan.get_command() == SQLCOM_SELECT) // (4)
+      query_thd->query_plan.get_command() == SQLCOM_SELECT) // (3)
   {
     StringBuffer<1024> str;
     /*

@@ -2,14 +2,16 @@ drop table if exists t1;
 create table t1 (a varchar(10), key(a));
 insert into t1 values ("a"),("abc"),("abcd"),("hello"),("test");
 explain extended select * from t1 where a like 'abc%';
-id	select_type	table	type	possible_keys	key	key_len	ref	rows	filtered	Extra
-1	SIMPLE	t1	range	a	a	13	NULL	1	100.00	Using where; Using index
+id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
+1	SIMPLE	t1	NULL	range	a	a	13	NULL	1	100.00	Using where; Using index
 Warnings:
+Warning	1681	'EXTENDED' is deprecated and will be removed in a future release.
 Note	1003	/* select#1 */ select `test`.`t1`.`a` AS `a` from `test`.`t1` where (`test`.`t1`.`a` like 'abc%')
 explain extended select * from t1 where a like concat('abc','%');
-id	select_type	table	type	possible_keys	key	key_len	ref	rows	filtered	Extra
-1	SIMPLE	t1	range	a	a	13	NULL	1	100.00	Using where; Using index
+id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
+1	SIMPLE	t1	NULL	range	a	a	13	NULL	1	100.00	Using where; Using index
 Warnings:
+Warning	1681	'EXTENDED' is deprecated and will be removed in a future release.
 Note	1003	/* select#1 */ select `test`.`t1`.`a` AS `a` from `test`.`t1` where (`test`.`t1`.`a` like <cache>(concat('abc','%')))
 select * from t1 where a like "abc%";
 a

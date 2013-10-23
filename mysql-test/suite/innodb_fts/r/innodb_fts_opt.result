@@ -366,8 +366,10 @@ If count optimization applies, EXPLAIN shows
 EXPLAIN SELECT COUNT(*)
 FROM wp
 WHERE MATCH(title,text) AGAINST ('database' IN NATURAL LANGUAGE MODE);
-id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
-1	SIMPLE	NULL	NULL	NULL	NULL	NULL	NULL	NULL	Select tables optimized away
+id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
+1	SIMPLE	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	Select tables optimized away
+Warnings:
+Note	1003	/* select#1 */ select count(0) AS `COUNT(*)` from `test`.`wp` where (match `test`.`wp`.`title`,`test`.`wp`.`text` against ('database'))
 FLUSH STATUS;
 SELECT COUNT(*)
 FROM wp
@@ -388,8 +390,10 @@ Optimization applies also to COUNT(expr) as long as expr is not nullable
 EXPLAIN SELECT COUNT(title)
 FROM wp
 WHERE MATCH(title,text) AGAINST ('database' IN NATURAL LANGUAGE MODE);
-id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
-1	SIMPLE	NULL	NULL	NULL	NULL	NULL	NULL	NULL	Select tables optimized away
+id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
+1	SIMPLE	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	Select tables optimized away
+Warnings:
+Note	1003	/* select#1 */ select count(`test`.`wp`.`title`) AS `COUNT(title)` from `test`.`wp` where (match `test`.`wp`.`title`,`test`.`wp`.`text` against ('database'))
 SELECT COUNT(title)
 FROM wp
 WHERE MATCH(title,text) AGAINST ('database' IN NATURAL LANGUAGE MODE);
@@ -399,9 +403,11 @@ Optimization does not apply if not a single table query.
 EXPLAIN SELECT count(*)
 FROM wp, t1 
 WHERE MATCH(title, text) AGAINST ('database');
-id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
-1	SIMPLE	wp	fulltext	idx	idx	0	const	1	Using where
-1	SIMPLE	t1	ALL	NULL	NULL	NULL	NULL	6	NULL
+id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
+1	SIMPLE	wp	NULL	fulltext	idx	idx	0	const	1	100.00	Using where
+1	SIMPLE	t1	NULL	ALL	NULL	NULL	NULL	NULL	6	100.00	NULL
+Warnings:
+Note	1003	/* select#1 */ select count(0) AS `count(*)` from `test`.`wp` join `test`.`t1` where (match `test`.`wp`.`title`,`test`.`wp`.`text` against ('database'))
 SELECT count(*)
 FROM wp, t1 
 WHERE MATCH(title, text) AGAINST ('database');
@@ -411,8 +417,10 @@ Optimization does not apply if MATCH is part of an expression
 EXPLAIN SELECT COUNT(title) 
 FROM wp 
 WHERE MATCH(title,text) AGAINST ('database' IN NATURAL LANGUAGE MODE) > 0;
-id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
-1	SIMPLE	wp	fulltext	idx	idx	0	const	1	Using where
+id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
+1	SIMPLE	wp	NULL	fulltext	idx	idx	0	const	1	100.00	Using where
+Warnings:
+Note	1003	/* select#1 */ select count(`test`.`wp`.`title`) AS `COUNT(title)` from `test`.`wp` where ((match `test`.`wp`.`title`,`test`.`wp`.`text` against ('database')) > 0)
 SELECT COUNT(title) 
 FROM wp 
 WHERE MATCH(title,text) AGAINST ('database' IN NATURAL LANGUAGE MODE) > 0;
@@ -422,8 +430,10 @@ Optimization does not apply if MATCH is part of an expression
 EXPLAIN SELECT COUNT(title) 
 FROM wp 
 WHERE MATCH(title,text) AGAINST ('database' IN NATURAL LANGUAGE MODE) > 0;
-id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
-1	SIMPLE	wp	fulltext	idx	idx	0	const	1	Using where
+id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
+1	SIMPLE	wp	NULL	fulltext	idx	idx	0	const	1	100.00	Using where
+Warnings:
+Note	1003	/* select#1 */ select count(`test`.`wp`.`title`) AS `COUNT(title)` from `test`.`wp` where ((match `test`.`wp`.`title`,`test`.`wp`.`text` against ('database')) > 0)
 SELECT COUNT(title) 
 FROM wp 
 WHERE MATCH(title,text) AGAINST ('database' IN NATURAL LANGUAGE MODE) > 0;
@@ -433,8 +443,10 @@ Optimization does not apply if COUNT expression is nullable
 EXPLAIN SELECT COUNT(dummy) 
 FROM wp 
 WHERE MATCH(title,text) AGAINST ('database' IN NATURAL LANGUAGE MODE);
-id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
-1	SIMPLE	wp	fulltext	idx	idx	0	const	1	Using where
+id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
+1	SIMPLE	wp	NULL	fulltext	idx	idx	0	const	1	100.00	Using where
+Warnings:
+Note	1003	/* select#1 */ select count(`test`.`wp`.`dummy`) AS `COUNT(dummy)` from `test`.`wp` where (match `test`.`wp`.`title`,`test`.`wp`.`text` against ('database'))
 SELECT COUNT(dummy) 
 FROM wp 
 WHERE MATCH(title,text) AGAINST ('database' IN NATURAL LANGUAGE MODE);
@@ -516,8 +528,10 @@ Sort_scan	0
 EXPLAIN SELECT COUNT(*)
 FROM wp
 WHERE MATCH(title,text) AGAINST ('database' WITH QUERY EXPANSION);
-id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
-1	SIMPLE	NULL	NULL	NULL	NULL	NULL	NULL	NULL	Select tables optimized away
+id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
+1	SIMPLE	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	Select tables optimized away
+Warnings:
+Note	1003	/* select#1 */ select count(0) AS `COUNT(*)` from `test`.`wp` where (match `test`.`wp`.`title`,`test`.`wp`.`text` against ('database' with query expansion))
 FLUSH STATUS;
 SELECT COUNT(*)
 FROM wp
@@ -611,8 +625,10 @@ Sort_scan	0
 EXPLAIN SELECT COUNT(*) 
 FROM wp 
 WHERE MATCH(title,text) AGAINST ('+MySQL -database' IN BOOLEAN MODE);
-id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
-1	SIMPLE	NULL	NULL	NULL	NULL	NULL	NULL	NULL	Select tables optimized away
+id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
+1	SIMPLE	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	Select tables optimized away
+Warnings:
+Note	1003	/* select#1 */ select count(0) AS `COUNT(*)` from `test`.`wp` where (match `test`.`wp`.`title`,`test`.`wp`.`text` against ('+MySQL -database' in boolean mode))
 FLUSH STATUS;
 SELECT COUNT(*) 
 FROM wp 
@@ -696,8 +712,10 @@ Sort_scan	0
 EXPLAIN SELECT COUNT(*)
 FROM wp
 WHERE MATCH(title,text) AGAINST ('"MySQL database"@5' IN BOOLEAN MODE);
-id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
-1	SIMPLE	NULL	NULL	NULL	NULL	NULL	NULL	NULL	Select tables optimized away
+id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
+1	SIMPLE	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	Select tables optimized away
+Warnings:
+Note	1003	/* select#1 */ select count(0) AS `COUNT(*)` from `test`.`wp` where (match `test`.`wp`.`title`,`test`.`wp`.`text` against ('"MySQL database"@5' in boolean mode))
 FLUSH STATUS;
 SELECT COUNT(*)
 FROM wp
@@ -813,8 +831,10 @@ Sort_scan	0
 EXPLAIN SELECT COUNT(*) 
 FROM wp 
 WHERE MATCH(title,text) AGAINST ('database' IN NATURAL LANGUAGE MODE);
-id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
-1	SIMPLE	wp	fulltext	idx	idx	0	const	1	Using where
+id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
+1	SIMPLE	wp	NULL	fulltext	idx	idx	0	const	1	100.00	Using where
+Warnings:
+Note	1003	/* select#1 */ select count(0) AS `COUNT(*)` from `test`.`wp` where (match `test`.`wp`.`title`,`test`.`wp`.`text` against ('database'))
 FLUSH STATUS;
 SELECT COUNT(*) 
 FROM wp 
