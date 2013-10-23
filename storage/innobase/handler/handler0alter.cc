@@ -4171,7 +4171,8 @@ oom:
 	DEBUG_SYNC_C("inplace_after_index_build");
 
 	DBUG_EXECUTE_IF("create_index_fail",
-			error = DB_DUPLICATE_KEY;);
+			error = DB_DUPLICATE_KEY;
+			prebuilt->trx->error_key_num = ULINT_UNDEFINED;);
 
 	/* After an error, remove all those index definitions
 	from the dictionary which were defined. */
