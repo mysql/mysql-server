@@ -1199,8 +1199,7 @@ row_log_table_blob_alloc(
 
 /******************************************************//**
 Converts a log record to a table row.
-@return converted row, or NULL if the conversion fails
-or the transaction has been rolled back */
+@return converted row, or NULL if the conversion fails */
 static __attribute__((nonnull, warn_unused_result))
 const dtuple_t*
 row_log_table_apply_convert_mrec(
@@ -1653,9 +1652,6 @@ dberr_t
 row_log_table_apply_update(
 /*=======================*/
 	que_thr_t*		thr,		/*!< in: query graph */
-	ulint			trx_id_col,	/*!< in: position of
-						DB_TRX_ID in the
-						old clustered index */
 	ulint			new_trx_id_col,	/*!< in: position of
 						DB_TRX_ID in the new
 						clustered index */
@@ -1716,14 +1712,14 @@ row_log_table_apply_update(
 
 	if (page_rec_is_infimum(btr_pcur_get_rec(&pcur))
 	    || btr_pcur_get_low_match(&pcur) < index->n_uniq) {
+		ut_ad(0);
+		error = DB_CORRUPTION;
+func_exit:
 		mtr_commit(&mtr);
-insert:
+func_exit_committed:
 		ut_ad(mtr.state == MTR_COMMITTED);
-		/* The row was not found. Insert it. */
-		error = row_log_table_apply_insert_low(
-			thr, row, trx_id, offsets_heap, heap, dup);
+
 		if (error != DB_SUCCESS) {
-err_exit:
 			/* Report the erroneous row using the new
 			version of the table. */
 			innobase_row_to_mysql(dup->table, log->table, row);
@@ -1750,26 +1746,17 @@ err_exit:
 		goto func_exit;
 	}
 
-	if (rec_offs_any_extern(cur_offsets)) {
+	const bool	pk_updated
+		= upd_get_nth_field(update, 0)->field_no < new_trx_id_col;
+
+	if (pk_updated || rec_offs_any_extern(cur_offsets)) {
 		/* If the record contains any externally stored
 		columns, perform the update by delete and insert,
 		because we will not write any undo log that would
 		allow purge to free any orphaned externally stored
 		columns. */
-delete_insert:
-		error = row_log_table_apply_delete_low(
-			&pcur, cur_offsets, NULL, heap, &mtr);
-		ut_ad(mtr.state == MTR_COMMITTED);
 
-		if (error != DB_SUCCESS) {
-			goto err_exit;
-		}
-
-		goto insert;
-	}
-
-	if (upd_get_nth_field(update, 0)->field_no < new_trx_id_col) {
-		if (dup->index->online_log->same_pk) {
+		if (pk_updated && dup->index->online_log->same_pk) {
 			/* The ROW_T_UPDATE log record should only be
 			written when the PRIMARY KEY fields of the
 			record did not change in the old table.  We
@@ -1781,40 +1768,16 @@ delete_insert:
 			goto func_exit;
 		}
 
-		/* The PRIMARY KEY columns have changed.
-		Delete the record with the old PRIMARY KEY value,
-		provided that it carries the same
-		DB_TRX_ID,DB_ROLL_PTR. Then, insert the new row. */
-		ulint		len;
-		const byte*	cur_trx_roll	= rec_get_nth_field(
-			mrec, offsets, trx_id_col, &len);
-		ut_ad(len == DATA_TRX_ID_LEN);
-		const dfield_t*	new_trx_roll	= dtuple_get_nth_field(
-			old_pk, new_trx_id_col);
-		/* We assume that DB_TRX_ID,DB_ROLL_PTR are stored
-		in one contiguous block. */
-		ut_ad(rec_get_nth_field(mrec, offsets, trx_id_col + 1, &len)
-		      == cur_trx_roll + DATA_TRX_ID_LEN);
-		ut_ad(len == DATA_ROLL_PTR_LEN);
-		ut_ad(new_trx_roll->len == DATA_TRX_ID_LEN);
-		ut_ad(dtuple_get_nth_field(old_pk, new_trx_id_col + 1)
-		      -> len == DATA_ROLL_PTR_LEN);
-		ut_ad(static_cast<const byte*>(
-			      dtuple_get_nth_field(old_pk, new_trx_id_col + 1)
-			      ->data)
-		      == static_cast<const byte*>(new_trx_roll->data)
-		      + DATA_TRX_ID_LEN);
+		error = row_log_table_apply_delete_low(
+			&pcur, cur_offsets, NULL, heap, &mtr);
+		ut_ad(mtr.state == MTR_COMMITTED);
 
-		if (!memcmp(cur_trx_roll, new_trx_roll->data,
-			    DATA_TRX_ID_LEN + DATA_ROLL_PTR_LEN)) {
-			/* The old row exists. Remove it. */
-			goto delete_insert;
+		if (error == DB_SUCCESS) {
+			error = row_log_table_apply_insert_low(
+				thr, row, trx_id, offsets_heap, heap, dup);
 		}
 
-		/* Unless we called row_log_table_apply_delete_low(),
-		this will likely cause a duplicate key error. */
-		mtr_commit(&mtr);
-		goto insert;
+		goto func_exit_committed;
 	}
 
 	dtuple_t*	old_row;
@@ -1913,13 +1876,7 @@ delete_insert:
 		mtr_start(&mtr);
 	}
 
-func_exit:
-	mtr_commit(&mtr);
-	if (error != DB_SUCCESS) {
-		goto err_exit;
-	}
-
-	return(error);
+	goto func_exit;
 }
 
 /******************************************************//**
@@ -2200,7 +2157,7 @@ row_log_table_apply_op(
 					mrec, offsets, trx_id_col, &len);
 			ut_ad(len == DATA_TRX_ID_LEN);
 			*error = row_log_table_apply_update(
-				thr, trx_id_col, new_trx_id_col,
+				thr, new_trx_id_col,
 				mrec, offsets, offsets_heap,
 				heap, dup, trx_read_trx_id(db_trx_id), old_pk);
 		}
@@ -2772,7 +2729,16 @@ row_log_apply_op_low(
 		switch (op) {
 		case ROW_OP_DELETE:
 			if (!exists) {
-				/* The record was already deleted. */
+				/* The existing record matches the
+				unique secondary index key, but the
+				PRIMARY KEY columns differ. So, this
+				exact record does not exist. For
+				example, we could detect a duplicate
+				key error in some old index before
+				logging an ROW_OP_INSERT for our
+				index. This ROW_OP_DELETE could have
+				been logged for rolling back
+				TRX_UNDO_INSERT_REC. */
 				goto func_exit;
 			}
 
@@ -2812,7 +2778,24 @@ row_log_apply_op_low(
 		case ROW_OP_INSERT:
 			if (exists) {
 				/* The record already exists. There
-				is nothing to be inserted. */
+				is nothing to be inserted.
+				This could happen when processing
+				TRX_UNDO_DEL_MARK_REC in statement
+				rollback:
+
+				UPDATE of PRIMARY KEY can lead to
+				statement rollback if the updated
+				value of the PRIMARY KEY already
+				exists. In this case, the UPDATE would
+				be mapped to DELETE;INSERT, and we
+				only wrote undo log for the DELETE
+				part. The duplicate key error would be
+				triggered before logging the INSERT
+				part.
+
+				Theoretically, we could also get a
+				similar situation when a DELETE operation
+				is blocked by a FOREIGN KEY constraint. */
 				goto func_exit;
 			}
 
@@ -2823,17 +2806,18 @@ row_log_apply_op_low(
 				goto insert_the_rec;
 			}
 
-			/* Duplicate key error */
-			ut_ad(dict_index_is_unique(index));
-			row_merge_dup_report(dup, entry->fields);
-			goto func_exit;
+			goto duplicate;
 		}
 	} else {
 		switch (op) {
 			rec_t*		rec;
 			big_rec_t*	big_rec;
 		case ROW_OP_DELETE:
-			/* The record does not exist. */
+			/* The record does not exist. For example, we
+			could detect a duplicate key error in some old
+			index before logging an ROW_OP_INSERT for our
+			index. This ROW_OP_DELETE could be logged for
+			rolling back TRX_UNDO_INSERT_REC. */
 			goto func_exit;
 		case ROW_OP_INSERT:
 			if (dict_index_is_unique(index)
@@ -2843,8 +2827,11 @@ row_log_apply_op_low(
 				>= dict_index_get_n_unique(index))
 			    && (!index->n_nullable
 				|| !dtuple_contains_null(entry))) {
+duplicate:
 				/* Duplicate key */
+				ut_ad(dict_index_is_unique(index));
 				row_merge_dup_report(dup, entry->fields);
+				*error = DB_DUPLICATE_KEY;
 				goto func_exit;
 			}
 insert_the_rec:
@@ -3368,7 +3355,7 @@ row_log_apply(
 		error = DB_SUCCESS;
 	}
 
-	if (error != DB_SUCCESS || dup.n_dup) {
+	if (error != DB_SUCCESS) {
 		ut_a(!dict_table_is_discarded(index->table));
 		/* We set the flag directly instead of invoking
 		dict_set_corrupted_index_cache_only(index) here,
@@ -3376,12 +3363,9 @@ row_log_apply(
 		index->type |= DICT_CORRUPT;
 		index->table->drop_aborted = TRUE;
 
-		if (error == DB_SUCCESS) {
-			error = DB_DUPLICATE_KEY;
-		}
-
 		dict_index_set_online_status(index, ONLINE_INDEX_ABORTED);
 	} else {
+		ut_ad(dup.n_dup == 0);
 		dict_index_set_online_status(index, ONLINE_INDEX_COMPLETE);
 	}
 
