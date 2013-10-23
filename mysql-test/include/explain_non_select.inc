@@ -756,7 +756,7 @@ while ($1) {
 CREATE TABLE t2 LIKE t1;
 
 # replace "rows" column for InnoDB
---replace_column 9 X
+--replace_column 10 X
 EXPLAIN INSERT INTO t2 SELECT * FROM t1;
 INSERT INTO t2 SELECT * FROM t1;
 --disable_result_log

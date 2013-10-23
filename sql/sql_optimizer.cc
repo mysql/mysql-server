@@ -354,7 +354,7 @@ JOIN::optimize()
         conjunctions.
         Preserve conditions for EXPLAIN.
       */
-      if (conds && !(thd->lex->describe & DESCRIBE_EXTENDED))
+      if (conds && !thd->lex->describe)
       {
         Item *table_independent_conds=
           make_cond_for_table(conds, PSEUDO_TABLE_BITS, 0, 0);
@@ -4949,7 +4949,7 @@ static void
 warn_index_not_applicable(THD *thd, const Field *field, 
                           const key_map cant_use_index) 
 {
-  if (thd->lex->describe & DESCRIBE_EXTENDED)
+  if (thd->lex->describe)
     for (uint j=0 ; j < field->table->s->keys ; j++)
       if (cant_use_index.is_set(j))
         push_warning_printf(thd,

@@ -4606,7 +4606,7 @@ static void mark_as_dependent(THD *thd, SELECT_LEX *last, SELECT_LEX *current,
   if (mark_item)
     mark_item->depended_from= last;
   current->mark_as_dependent(last);
-  if (thd->lex->describe & DESCRIBE_EXTENDED)
+  if (thd->lex->describe)
   {
     /*
       UNION's result has select_number == INT_MAX which is printed as -1 and

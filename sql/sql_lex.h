@@ -176,12 +176,6 @@ typedef struct YYLTYPE
 // describe/explain types
 #define DESCRIBE_NONE		0 // Not explain query
 #define DESCRIBE_NORMAL		1
-#define DESCRIBE_EXTENDED	2
-/*
-  This is not within #ifdef because we want "EXPLAIN PARTITIONS ..." to produce
-  additional "partitions" column even if partitioning is not compiled in.
-*/
-#define DESCRIBE_PARTITIONS	4
 
 #ifdef MYSQL_SERVER
 

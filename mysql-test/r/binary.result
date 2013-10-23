@@ -173,15 +173,19 @@ hex(a)
 1F9480179366F2BF567E1C4B964C1EF029082020
 1F9480179366F2BF567E1C4B964C1EF029087575
 EXPLAIN SELECT hex(a) FROM t1 order by a;
-id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
-1	SIMPLE	t1	index	NULL	idx	20	NULL	3	Using index
+id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
+1	SIMPLE	t1	NULL	index	NULL	idx	20	NULL	3	100.00	Using index
+Warnings:
+Note	1003	/* select#1 */ select hex(`test`.`t1`.`a`) AS `hex(a)` from `test`.`t1` order by `test`.`t1`.`a`
 SELECT hex(a) from t1 WHERE a=unhex('1F9480179366F2BF567E1C4B964C1EF029082020');
 hex(a)
 1F9480179366F2BF567E1C4B964C1EF029082020
 EXPLAIN
 SELECT hex(a) from t1 WHERE a=unhex('1F9480179366F2BF567E1C4B964C1EF029082020');
-id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
-1	SIMPLE	t1	ref	idx	idx	20	const	1	Using where; Using index
+id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
+1	SIMPLE	t1	NULL	ref	idx	idx	20	const	1	100.00	Using where; Using index
+Warnings:
+Note	1003	/* select#1 */ select hex(`test`.`t1`.`a`) AS `hex(a)` from `test`.`t1` where (`test`.`t1`.`a` = <cache>(unhex('1F9480179366F2BF567E1C4B964C1EF029082020')))
 SELECT hex(a) from t1 WHERE a=unhex('1F9480179366F2BF567E1C4B964C1EF02908');
 hex(a)
 DROP TABLE t1;
