@@ -64,7 +64,7 @@ ANALYZE TABLE t1;
 
 --let $query = WHERE b=6 AND c=6 
 --replace_result "idx_c,idx_b" "idx_b,idx_c"
---replace_column 9 #
+--replace_column 10 #
 --eval EXPLAIN UPDATE t1 SET a=2 $query
 --eval SELECT COUNT(*), SUM(a) FROM t1 $query 
 --eval UPDATE t1 SET a=2 $query
@@ -72,7 +72,7 @@ ANALYZE TABLE t1;
 
 --let $query = WHERE b=6 AND c=6 AND d=6
 --replace_result idx_b idx_x idx_c idx_x idx_d idx_x
---replace_column 9 #
+--replace_column 10 #
 --eval EXPLAIN UPDATE t1 SET a=2 $query
 --eval SELECT COUNT(*), SUM(a) FROM t1 $query
 --eval UPDATE t1 SET a=2 $query
@@ -80,28 +80,28 @@ ANALYZE TABLE t1;
 
 --let $query = WHERE d=6 AND a IS NOT NULL AND b=6
 --replace_result "idx_d,idx_b" "idx_b,idx_d"
---replace_column 9 #
+--replace_column 10 #
 --eval EXPLAIN UPDATE t1 SET c=6 $query
 --eval SELECT COUNT(*), SUM(c) FROM t1 $query
 --eval UPDATE t1 SET c=6 $query
 --eval SELECT COUNT(*), SUM(c) FROM t1 $query
 
 --let $query = WHERE d=6 AND a=6  AND c <> 6
---replace_column 9 #
+--replace_column 10 #
 --eval EXPLAIN UPDATE t1 SET b=0 $query
 --eval SELECT COUNT(*), SUM(b) FROM t1 $query
 --eval UPDATE t1 SET b=0 $query
 --eval SELECT COUNT(*), SUM(b) FROM t1 $query
 
 --let $query = WHERE d=6 AND a=6 AND c IN (1,2,3,4,5)
---replace_column 9 #
+--replace_column 10 #
 --eval EXPLAIN UPDATE t1 SET a=100 $query
 --eval SELECT COUNT(*), SUM(a) FROM t1 $query
 --eval UPDATE t1 SET a=100 $query
 --eval SELECT COUNT(*), SUM(a) FROM t1 $query
 
 --let $query = WHERE a=5 AND b=4 AND d<3
---replace_column 9 #
+--replace_column 10 #
 --eval EXPLAIN UPDATE t1 SET a=2 $query
 --eval UPDATE t1 SET a=2 $query
 
@@ -124,7 +124,7 @@ INSERT INTO t2 SELECT * FROM t1;
 ANALYZE TABLE t2;
 
 --let $query = WHERE pk<2492 AND d=1
---replace_column 9 #
+--replace_column 10 #
 --eval EXPLAIN UPDATE t2 SET a=2 $query
 --eval UPDATE t2 SET a=2 $query
 
@@ -143,14 +143,14 @@ INSERT INTO t3(a,b,c,d,e) VALUES (4000,4000,4000,4000,4000);
 
 --let $query = INTO t3 SELECT * FROM t1 WHERE b=6 AND c=6
 --replace_result "idx_c,idx_b" "idx_b,idx_c"
---replace_column 9 #
+--replace_column 10 #
 --eval EXPLAIN REPLACE $query
 --eval SELECT COUNT(*) FROM t3
 --eval REPLACE $query
 --eval SELECT COUNT(*) FROM t3
 
 --let $query = INTO t3 SELECT * FROM t1 WHERE d=6 AND a IS NOT NULL AND b=6
---replace_column 9 #
+--replace_column 10 #
 --replace_result "idx_d,idx_b" "idx_b,idx_d"
 --eval EXPLAIN INSERT $query
 --eval SELECT COUNT(*) FROM t3
@@ -179,7 +179,7 @@ ANALYZE TABLE t4;
 
 --let $query = WHERE b=6 AND c=6 AND d=6
 --replace_result idx_b idx_x idx_c idx_x idx_d idx_x
---replace_column 9 #
+--replace_column 10 #
 --eval EXPLAIN UPDATE t4 SET a=2 $query
 --eval SELECT COUNT(*), SUM(a) FROM t4 $query
 --eval UPDATE t4 SET a=2 $query

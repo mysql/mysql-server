@@ -5795,7 +5795,7 @@ QUICK_SELECT_I *TRP_ROR_UNION::make_quick(PARAM *param,
 
 
 /**
-   If EXPLAIN EXTENDED, add a warning that the index cannot be
+   If EXPLAIN, add a warning that the index cannot be
    used for range access due to either type conversion or different
    collations on the field used for comparison
 
@@ -5804,12 +5804,12 @@ QUICK_SELECT_I *TRP_ROR_UNION::make_quick(PARAM *param,
    @param field              Field in the predicate
  */
 static void 
-if_extended_explain_warn_index_not_applicable(const RANGE_OPT_PARAM *param,
+if_explain_warn_index_not_applicable(const RANGE_OPT_PARAM *param,
                                               const uint key_num,
                                               const Field *field)
 {
   if (param->using_real_indexes &&
-      param->thd->lex->describe & DESCRIBE_EXTENDED)
+      param->thd->lex->describe)
     push_warning_printf(
             param->thd,
             Sql_condition::SL_WARNING,
@@ -6868,7 +6868,7 @@ get_mm_leaf(RANGE_OPT_PARAM *param, Item *conf_func, Field *field,
        !(conf_func->compare_collation()->state & MY_CS_BINSORT &&
          (type == Item_func::EQUAL_FUNC || type == Item_func::EQ_FUNC))))
   {
-    if_extended_explain_warn_index_not_applicable(param, key_part->key, field);
+    if_explain_warn_index_not_applicable(param, key_part->key, field);
     goto end;
   }
 
@@ -6898,7 +6898,7 @@ get_mm_leaf(RANGE_OPT_PARAM *param, Item *conf_func, Field *field,
   if ((!field->is_temporal() && value->is_temporal()) ||   // 1)
       field_time_cmp_date(field, value))                   // 2)
   {
-    if_extended_explain_warn_index_not_applicable(param, key_part->key, field);
+    if_explain_warn_index_not_applicable(param, key_part->key, field);
     goto end;
   }
 
@@ -7023,7 +7023,7 @@ get_mm_leaf(RANGE_OPT_PARAM *param, Item *conf_func, Field *field,
       value->result_type() != STRING_RESULT &&
       field->cmp_type() != value->result_type())
   {
-    if_extended_explain_warn_index_not_applicable(param, key_part->key, field);
+    if_explain_warn_index_not_applicable(param, key_part->key, field);
     goto end;
   }
 

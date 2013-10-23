@@ -4,9 +4,9 @@ STATUS:NOT_EQUAL
 SYNC_POINT:before_reset_query_plan
 Diff: EXPLAIN NORMAL vs OTHER
 @@ -1,2 +1,2 @@
- id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
--1	DELETE	t1	ALL	NULL	NULL	NULL	NULL	1	Deleting all rows
-+1	DELETE	NULL	NULL	NULL	NULL	NULL	NULL	NULL	Plan isn't ready yet
+ id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
+-1	DELETE	t1	NULL	ALL	NULL	NULL	NULL	NULL	1	100.00	Deleting all rows
++1	DELETE	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	Plan isn't ready yet
 QUERY: SELECT * from t1,t2,t3 where t1.a=t2.a AND t2.b=t3.a and t1.b=t3.b 
 STATUS: EQUAL
 QUERY: SELECT 1 FROM ( SELECT 1, 2 FROM DUAL WHERE EXISTS  ( SELECT f1 FROM t1 )) AS tt 
@@ -14,18 +14,18 @@ STATUS:NOT_EQUAL
 SYNC_POINT:after_join_optimize
 Diff: EXPLAIN NORMAL vs OTHER
 @@ -1,4 +0,0 @@
--id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
--1	PRIMARY	NULL	NULL	NULL	NULL	NULL	NULL	NULL	no matching row in const table
--2	DERIVED	NULL	NULL	NULL	NULL	NULL	NULL	NULL	Impossible WHERE
--3	SUBQUERY	NULL	NULL	NULL	NULL	NULL	NULL	NULL	no matching row in const table
+-id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
+-1	PRIMARY	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	no matching row in const table
+-2	DERIVED	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	Impossible WHERE
+-3	SUBQUERY	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	no matching row in const table
 QUERY: SELECT STRAIGHT_JOIN * FROM t3  JOIN t1 ON t3.a=t1.a  JOIN t2 ON t3.a=t2.a JOIN t4 WHERE t4.a IN (t1.b, t2.b) 
 STATUS:NOT_EQUAL
 SYNC_POINT:before_reset_query_plan
 Diff: EXPLAIN NORMAL vs OTHER
 @@ -4,2 +4,2 @@
- 1	SIMPLE	t2	eq_ref	PRIMARY	PRIMARY	4	test.t3.a	1	NULL
--1	SIMPLE	t4	ALL	PRIMARY	NULL	NULL	NULL	7	Range checked for each record (index map: 0x1)
-+1	SIMPLE	t4	range	PRIMARY	PRIMARY	4	NULL	2	Range checked for each record (index map: 0x1)
+ 1	SIMPLE	t2	NULL	eq_ref	PRIMARY	PRIMARY	4	test.t3.a	1	100.00	NULL
+-1	SIMPLE	t4	NULL	ALL	PRIMARY	NULL	NULL	NULL	7	100.00	Range checked for each record (index map: 0x1)
++1	SIMPLE	t4	NULL	range	PRIMARY	PRIMARY	4	NULL	2	350.00	Range checked for each record (index map: 0x1)
 QUERY: SELECT STRAIGHT_JOIN  (SELECT SUM(t4.a) FROM t4 WHERE t4.a IN (t1.b, t2.b))  FROM t3, t1, t2 WHERE t3.a=t1.a AND t3.a=t2.a 
 STATUS: EQUAL
 QUERY: SELECT * FROM (SELECT max(b), a FROM t1 GROUP BY a) b 
@@ -35,9 +35,9 @@ STATUS:NOT_EQUAL
 SYNC_POINT:planned_single_delete
 Diff: EXPLAIN NORMAL vs OTHER
 @@ -1,3 +0,0 @@
--id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
--1	DELETE	NULL	NULL	NULL	NULL	NULL	NULL	NULL	Impossible WHERE
--2	SUBQUERY	t1	range	a	a	5	NULL	8	Using index for group-by
+-id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
+-1	DELETE	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	Impossible WHERE
+-2	SUBQUERY	t1	NULL	range	a	a	5	NULL	8	100.00	Using index for group-by
 QUERY: SELECT * FROM t1 WHERE key1=1130 AND col1 IS NULL ORDER BY text1 
 STATUS: EQUAL
 QUERY: SELECT t1.c2   FROM t2 STRAIGHT_JOIN t1 ON t1.c1 < t2.c1 
@@ -59,17 +59,17 @@ STATUS:NOT_EQUAL
 SYNC_POINT:before_reset_query_plan
 Diff: EXPLAIN NORMAL vs OTHER
 @@ -2,2 +2,2 @@
- 1	UPDATE	t1	ALL	NULL	NULL	NULL	NULL	3	NULL
--1	UPDATE	t2	ALL	NULL	NULL	NULL	NULL	2	Using where; Using join buffer (Block Nested Loop)
-+1	UPDATE	t2	ALL	NULL	NULL	NULL	NULL	2	Using where
+ 1	UPDATE	t1	NULL	ALL	NULL	NULL	NULL	NULL	3	100.00	NULL
+-1	UPDATE	t2	NULL	ALL	NULL	NULL	NULL	NULL	2	100.00	Using where; Using join buffer (Block Nested Loop)
++1	UPDATE	t2	NULL	ALL	NULL	NULL	NULL	NULL	2	100.00	Using where
 QUERY: UPDATE t1 LEFT JOIN t2 USING(id) SET s1 = 'b' 
 STATUS:NOT_EQUAL
 SYNC_POINT:before_reset_query_plan
 Diff: EXPLAIN NORMAL vs OTHER
 @@ -2,2 +2,2 @@
- 1	SIMPLE	t1	index	NULL	PRIMARY	4	NULL	64	Using index
--1	UPDATE	t2	ALL	NULL	NULL	NULL	NULL	64	Using where; Using join buffer (Block Nested Loop)
-+1	UPDATE	t2	ALL	NULL	NULL	NULL	NULL	64	Using where
+ 1	SIMPLE	t1	NULL	index	NULL	PRIMARY	4	NULL	64	100.00	Using index
+-1	UPDATE	t2	NULL	ALL	NULL	NULL	NULL	NULL	64	100.00	Using where; Using join buffer (Block Nested Loop)
++1	UPDATE	t2	NULL	ALL	NULL	NULL	NULL	NULL	64	100.00	Using where
 QUERY: SELECT * from t1 where a = 1 and b is null order by a desc, b desc 
 STATUS: EQUAL
 QUERY: SELECT * from t1 where b=1 or b is null order by a 
@@ -83,9 +83,9 @@ STATUS:NOT_EQUAL
 SYNC_POINT:planned_single_update
 Diff: EXPLAIN NORMAL vs OTHER
 @@ -2,2 +2,2 @@
- 1	UPDATE	t1	range	PRIMARY	PRIMARY	4	const	1	Using where
--2	SUBQUERY	NULL	NULL	NULL	NULL	NULL	NULL	NULL	Select tables optimized away
-+2	SUBQUERY	NULL	NULL	NULL	NULL	NULL	NULL	NULL	Plan isn't ready yet
+ 1	UPDATE	t1	p5	range	PRIMARY	PRIMARY	4	const	1	100.00	Using where
+-2	SUBQUERY	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	Select tables optimized away
++2	SUBQUERY	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	Plan isn't ready yet
 QUERY: UPDATE t1, t2 SET t1.b = CONCAT(t1.b, ', t2.b:', t2.b), t2.b = CONCAT(t2.b, ', t1.b:', t1.b) WHERE t2.b = t1.b and t2.a = 4 
 STATUS: EQUAL
 QUERY: SELECT s.oxid FROM t1 v, t1 s  WHERE s.oxrootid = 'd8c4177d09f8b11f5.52725521' AND v.oxrootid ='d8c4177d09f8b11f5.52725521' AND s.oxleft > v.oxleft AND s.oxleft < v.oxright 
@@ -97,9 +97,9 @@ STATUS:NOT_EQUAL
 SYNC_POINT:planned_single_delete
 Diff: EXPLAIN NORMAL vs OTHER
 @@ -2,2 +2,2 @@
- 1	DELETE	t1	ALL	NULL	NULL	NULL	NULL	3	Using where
--2	DEPENDENT SUBQUERY	t2	eq_ref	PRIMARY	PRIMARY	4	test.t1.a	1	NULL
-+2	SUBQUERY	NULL	NULL	NULL	NULL	NULL	NULL	NULL	Plan isn't ready yet
+ 1	DELETE	t1	NULL	ALL	NULL	NULL	NULL	NULL	3	100.00	Using where
+-2	DEPENDENT SUBQUERY	t2	NULL	eq_ref	PRIMARY	PRIMARY	4	test.t1.a	1	100.00	NULL
++2	SUBQUERY	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	Plan isn't ready yet
 QUERY: SELECT DISTINCT topic FROM t2 WHERE NOT EXISTS(SELECT * FROM t3 WHERE numeropost=topic) 
 STATUS: EQUAL
 QUERY: DELETE FROM t1 WHERE topic IN (SELECT DISTINCT topic FROM t2 WHERE NOT EXISTS(SELECT * FROM t3 WHERE numeropost=topic)) 
@@ -107,11 +107,11 @@ STATUS:NOT_EQUAL
 SYNC_POINT:planned_single_delete
 Diff: EXPLAIN NORMAL vs OTHER
 @@ -2,3 +2,3 @@
- 1	DELETE	t1	ALL	NULL	NULL	NULL	NULL	2	Using where
--2	DEPENDENT SUBQUERY	t2	index_subquery	topic	topic	3	func	2	Using index; Using where
--3	DEPENDENT SUBQUERY	t3	system	PRIMARY	NULL	NULL	NULL	1	NULL
-+2	SUBQUERY	NULL	NULL	NULL	NULL	NULL	NULL	NULL	Plan isn't ready yet
-+3	SUBQUERY	NULL	NULL	NULL	NULL	NULL	NULL	NULL	Plan isn't ready yet
+ 1	DELETE	t1	NULL	ALL	NULL	NULL	NULL	NULL	2	100.00	Using where
+-2	DEPENDENT SUBQUERY	t2	NULL	index_subquery	topic	topic	3	func	2	100.00	Using index; Using where
+-3	DEPENDENT SUBQUERY	t3	NULL	system	PRIMARY	NULL	NULL	NULL	1	100.00	NULL
++2	SUBQUERY	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	Plan isn't ready yet
++3	SUBQUERY	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	Plan isn't ready yet
 QUERY: SELECT cns.id, cns.max_anno_dep, cns.max_anno_dep = (SELECT s.anno_dep FROM t1 AS s WHERE s.id_cns = cns.id ORDER BY s.anno_dep DESC LIMIT 1) AS PIPPO FROM t2 AS cns 
 STATUS: EQUAL
 QUERY: SELECT (SELECT 1 FROM  t1 WHERE t1.a=t2.a ORDER BY t1.b LIMIT 1) AS d1 FROM t2 

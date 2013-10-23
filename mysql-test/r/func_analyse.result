@@ -25,13 +25,17 @@ SELECT 1 FROM (SELECT 1) a PROCEDURE ANALYSE();
 Field_name	Min_value	Max_value	Min_length	Max_length	Empties_or_zeros	Nulls	Avg_value_or_avg_length	Std	Optimal_fieldtype
 1	1	1	1	1	0	0	1.0000	0.0000	ENUM('1') NOT NULL
 EXPLAIN SELECT 1 FROM (SELECT 1) a PROCEDURE ANALYSE();
-id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
-1	PRIMARY	<derived2>	system	NULL	NULL	NULL	NULL	1	NULL
-2	DERIVED	NULL	NULL	NULL	NULL	NULL	NULL	NULL	No tables used
+id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
+1	PRIMARY	<derived2>	NULL	system	NULL	NULL	NULL	NULL	1	100.00	NULL
+2	DERIVED	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	No tables used
+Warnings:
+Note	1003	/* select#1 */ select 1 AS `1` from dual
 EXPLAIN SELECT 1 FROM (SELECT 1) a;
-id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
-1	PRIMARY	<derived2>	system	NULL	NULL	NULL	NULL	1	NULL
-2	DERIVED	NULL	NULL	NULL	NULL	NULL	NULL	NULL	No tables used
+id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
+1	PRIMARY	<derived2>	NULL	system	NULL	NULL	NULL	NULL	1	100.00	NULL
+2	DERIVED	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	No tables used
+Warnings:
+Note	1003	/* select#1 */ select 1 AS `1` from dual
 create table t1 (v varchar(128));
 insert into t1 values ('abc'),('abc\'def\\hij\"klm\0opq'),('\''),('\"'),('\\'),('a\0'),('b\''),('c\"'),('d\\'),('\'b'),('\"c'),('\\d'),('a\0\0\0b'),('a\'\'\'\'b'),('a\"\"\"\"b'),('a\\\\\\\\b'),('\'\0\\\"'),('\'\''),('\"\"'),('\\\\'),('The\ZEnd');
 select * from t1 procedure analyse();
@@ -124,9 +128,11 @@ ANALYZE TABLE t1;
 CREATE ALGORITHM=TEMPTABLE VIEW v1 AS SELECT * FROM t1;
 #should have a derived table
 EXPLAIN SELECT * FROM v1;
-id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
-1	PRIMARY	<derived2>	ALL	NULL	NULL	NULL	NULL	2	NULL
-2	DERIVED	t1	ALL	NULL	NULL	NULL	NULL	2	NULL
+id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
+1	PRIMARY	<derived2>	NULL	ALL	NULL	NULL	NULL	NULL	2	100.00	NULL
+2	DERIVED	t1	NULL	ALL	NULL	NULL	NULL	NULL	2	100.00	NULL
+Warnings:
+Note	1003	/* select#1 */ select `v1`.`a` AS `a`,`v1`.`b` AS `b`,`v1`.`c` AS `c`,`v1`.`d` AS `d`,`v1`.`e` AS `e`,`v1`.`f` AS `f`,`v1`.`g` AS `g`,`v1`.`h` AS `h`,`v1`.`i` AS `i`,`v1`.`j` AS `j`,`v1`.`k` AS `k` from `test`.`v1`
 #should not crash
 SELECT * FROM v1 PROCEDURE analyse();
 Field_name	Min_value	Max_value	Min_length	Max_length	Empties_or_zeros	Nulls	Avg_value_or_avg_length	Std	Optimal_fieldtype
@@ -295,15 +301,19 @@ DROP PROCEDURE p1;
 # EXPLAIN with or wihtout PROCEDURE ANALYSE should be same:
 ANALYZE TABLE t1;
 EXPLAIN SELECT * FROM t1, (SELECT * FROM t1) tt1 WHERE t1.a = tt1.a;
-id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
-1	PRIMARY	t1	ALL	NULL	NULL	NULL	NULL	5	Using where
-1	PRIMARY	<derived2>	ref	<auto_key0>	<auto_key0>	5	test.t1.a	2	Using index
-2	DERIVED	t1	ALL	NULL	NULL	NULL	NULL	5	NULL
+id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
+1	PRIMARY	t1	NULL	ALL	NULL	NULL	NULL	NULL	5	100.00	Using where
+1	PRIMARY	<derived2>	NULL	ref	<auto_key0>	<auto_key0>	5	test.t1.a	2	100.00	Using index
+2	DERIVED	t1	NULL	ALL	NULL	NULL	NULL	NULL	5	100.00	NULL
+Warnings:
+Note	1003	/* select#1 */ select `test`.`t1`.`a` AS `a`,`tt1`.`a` AS `a` from `test`.`t1` join (/* select#2 */ select `test`.`t1`.`a` AS `a` from `test`.`t1`) `tt1` where (`tt1`.`a` = `test`.`t1`.`a`)
 EXPLAIN SELECT * FROM t1, (SELECT * FROM t1) tt1 WHERE t1.a = tt1.a PROCEDURE ANALYSE();
-id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
-1	PRIMARY	t1	ALL	NULL	NULL	NULL	NULL	5	Using where
-1	PRIMARY	<derived2>	ref	<auto_key0>	<auto_key0>	5	test.t1.a	2	Using index
-2	DERIVED	t1	ALL	NULL	NULL	NULL	NULL	5	NULL
+id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
+1	PRIMARY	t1	NULL	ALL	NULL	NULL	NULL	NULL	5	100.00	Using where
+1	PRIMARY	<derived2>	NULL	ref	<auto_key0>	<auto_key0>	5	test.t1.a	2	100.00	Using index
+2	DERIVED	t1	NULL	ALL	NULL	NULL	NULL	NULL	5	100.00	NULL
+Warnings:
+Note	1003	/* select#1 */ select `test`.`t1`.`a` AS `a`,`tt1`.`a` AS `a` from `test`.`t1` join (/* select#2 */ select `test`.`t1`.`a` AS `a` from `test`.`t1`) `tt1` where (`tt1`.`a` = `test`.`t1`.`a`)
 CREATE TABLE t2 (i INT, j INT);
 # PROCEDURE ANALYSE ignores ROLLUP rows:
 INSERT INTO t2 VALUES (1, 1), (2, 2), (3, 3), (4, 4);
