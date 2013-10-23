@@ -247,7 +247,7 @@ INSERT INTO t1_values SET
        my_varbinary_1000 = '',
        my_datetime = '0001-01-01 00:00:00',
        my_date = '0001-01-01',
-       my_timestamp = '1970-01-01 03:00:01',
+       my_timestamp = '1970-01-01 14:00:01',
        my_time = '-838:59:59',
        my_year = '1901',
        my_bigint = -9223372036854775808,
