@@ -7,7 +7,8 @@ function usage() {
 
 # copy build files to amazon s3
 function copy_to_s3() {
-    local s3_build_bucket=$1; local s3_release_bucket=$2; local mysql_distro=$3
+    local s3_build_bucket=$1; shift
+    local mysql_distro=$1; shift
     local ts=$(date +%s)
     local ymd=$(date +%Y%m%d -d @$ts)
     local exitcode=0; local r=0
@@ -25,16 +26,16 @@ function copy_to_s3() {
         if [ $r != 0 ] ; then exitcode=1; fi
     done
     if [[ $git_tag =~ tokudb-.* ]] ; then
-        s3mkbucket $s3_release_bucket-$git_tag
+        s3mkbucket $git_tag
         if [ $r != 0 ] ; then 
             exitcode=1
         else
             for f in $(find . -maxdepth 1 \( -name $mysql_distro'*.tar.gz*' -o -name $mysql_distro'*.rpm*' \) ) ; do
                 f=$(basename $f)
-                echo `date` s3copykey $s3_release_bucket-$git_tag $f
-                s3copykey $s3_release_bucket-$git_tag $f $s3_build_bucket $f
+                echo `date` s3copykey $git_tag $f
+                s3copykey $git_tag $f $s3_build_bucket $f
                 r=$?
-                echo `date` s3copykey $s3_release_bucket-$git_tag $f $r
+                echo `date` s3copykey $git_tag $f $r
                 if [ $r != 0 ] ; then exitcode=1; fi
             done
         fi
@@ -45,7 +46,6 @@ function copy_to_s3() {
 mysqlbuild=
 s3=1
 s3_build_bucket=tokutek-mysql-build
-s3_release_bucket=tokutek-mysql
 system=$(uname -s | tr '[:upper:]' '[:lower:]')
 arch=$(uname -m | tr '[:upper:]' '[:lower:]')
 
@@ -95,7 +95,7 @@ done
 
 # copy to s3
 if [ $s3 != 0 ] ; then
-    copy_to_s3 $s3_build_bucket $s3_release_bucket $mysql_distro
+    copy_to_s3 $s3_build_bucket $mysql_distro
     if [ $? != 0 ] ; then exitcode=1; fi
 fi
 
