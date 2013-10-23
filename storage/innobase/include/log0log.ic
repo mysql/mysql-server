@@ -27,9 +27,11 @@ Created 12/9/1995 Heikki Tuuri
 #include "mach0data.h"
 #include "srv0mon.h"
 
-#ifdef UNIV_LOG_DEBUG
-
+#ifdef UNIV_LOG_LSN_DEBUG
 #include "mtr0types.h"
+#endif /* UNIV_LOG_LSN_DEBUG */
+
+#ifdef UNIV_LOG_DEBUG
 
 /******************************************************//**
 Checks by parsing that the catenated log segment for a single mtr is
