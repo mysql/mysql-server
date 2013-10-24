@@ -38,7 +38,7 @@ Created 10/10/1995 Heikki Tuuri
 		fprintf(stderr, "innodb_force_recovery_crash=%lu\n",	\
 			srv_force_recovery_crash);			\
 		fflush(stderr);						\
-		exit(3);						\
+		DBUG_SUICIDE();						\
 	}								\
 } while (0)
 #endif
