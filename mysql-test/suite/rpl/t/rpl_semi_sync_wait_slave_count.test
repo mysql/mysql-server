@@ -43,6 +43,7 @@ INSERT INTO t1 VALUES(1);
 --source include/wait_for_semisync_master_status_on.inc
 --source include/save_semisync_yesno_tx.inc
 
+SET GLOBAL rpl_semi_sync_master_timeout=100000;
 INSERT INTO t1 VALUES(3);
 INSERT INTO t1 VALUES(4);
 
@@ -74,7 +75,7 @@ INSERT INTO t1 VALUES(10);
 --source include/wait_for_semisync_master_status_on.inc
 --source include/save_semisync_yesno_tx.inc
 
-SET GLOBAL rpl_semi_sync_master_timeout = 10000;
+SET GLOBAL rpl_semi_sync_master_timeout = 100000;
 INSERT INTO t1 VALUES(102);
 INSERT INTO t1 VALUES(103);
 
@@ -106,7 +107,7 @@ INSERT INTO t1 VALUES(101);
 --source include/wait_for_semisync_master_status_on.inc
 --source include/save_semisync_yesno_tx.inc
 
-SET GLOBAL rpl_semi_sync_master_timeout = 10000;
+SET GLOBAL rpl_semi_sync_master_timeout = 100000;
 INSERT INTO t1 VALUES(102);
 INSERT INTO t1 VALUES(103);
 
@@ -180,7 +181,6 @@ SET DEBUG_SYNC = 'now SIGNAL continue';
 --echo ######################################################################
 --let $rpl_connection_name= server_1
 --source include/rpl_connection.inc
-SET GLOBAL rpl_semi_sync_master_timeout=10000;
 --source include/save_semisync_yesno_tx.inc
 --send INSERT INTO t1 VALUES(130);
 
@@ -381,13 +381,14 @@ SET GLOBAL rpl_semi_sync_master_wait_no_slave = 0;
 --echo ########################################################################
 --echo # Coverage Test
 --echo ########################################################################
-# Ack array should be cleaned when disabling semisync master
-SET GLOBAL rpl_semi_sync_master_enabled= OFF;
-SET GLOBAL rpl_semi_sync_master_enabled= ON;
-
 # Nothing is changed if the new value equals to the original value
 SET GLOBAL rpl_semi_sync_master_wait_for_slave_count = 4;
 SET GLOBAL rpl_semi_sync_master_wait_for_slave_count = 4;
+
+# Ack array should be cleaned when disabling semisync master
+SET GLOBAL rpl_semi_sync_master_enabled= OFF;
+SET GLOBAL rpl_semi_sync_master_enabled= OFF;
+SET GLOBAL rpl_semi_sync_master_enabled= ON;
 
 # Ack array should be freed when uninstalling semisync master
 --source include/uninstall_semisync_master.inc
