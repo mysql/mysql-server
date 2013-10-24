@@ -226,6 +226,7 @@ ha_partition::ha_partition(handlerton *hton, TABLE_SHARE *share,
   m_is_sub_partitioned= m_part_info->is_sub_partitioned();
   m_is_clone_of= clone_arg;
   m_clone_mem_root= clone_mem_root_arg;
+  m_pkey_is_clustered= clone_arg->primary_key_is_clustered(); 
   DBUG_VOID_RETURN;
 }
 
