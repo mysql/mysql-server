@@ -166,7 +166,7 @@ exports.DBConnectionPool.prototype.connect = function(user_callback) {
   var callback = user_callback;
   var connectionPool = this;
   var pooledConnection;
-  stats.incr( [ "connect","async" ]);
+  stats.incr( [ "connect" ]);
   
   if (this.is_connected) {
     udebug.log('MySQLConnectionPool.connect is already connected');

@@ -198,7 +198,7 @@ function DBConnectionPool(props) {
 /* Async connect 
 */
 DBConnectionPool.prototype.connect = function(user_callback) {
-  stats.incr([ "connect", "async" ] );
+  stats.incr([ "connect" ]);
   var self = this;
 
   function onConnected(err) {
