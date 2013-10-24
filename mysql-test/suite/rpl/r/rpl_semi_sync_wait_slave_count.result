@@ -29,6 +29,7 @@ include/assert.inc [rpl_semi_sync_master_no_tx should be 0 + 1]
 [connection server_2]
 include/install_semisync_slave.inc
 [connection server_1]
+SET GLOBAL rpl_semi_sync_master_timeout=100000;
 INSERT INTO t1 VALUES(3);
 INSERT INTO t1 VALUES(4);
 include/assert.inc [rpl_semi_sync_master_yes_tx should be 0 + 2]
@@ -47,7 +48,7 @@ include/assert.inc [rpl_semi_sync_master_no_tx should be 1 + 1]
 [connection server_3]
 include/install_semisync_slave.inc
 [connection server_1]
-SET GLOBAL rpl_semi_sync_master_timeout = 10000;
+SET GLOBAL rpl_semi_sync_master_timeout = 100000;
 INSERT INTO t1 VALUES(102);
 INSERT INTO t1 VALUES(103);
 include/assert.inc [rpl_semi_sync_master_yes_tx should be 2 + 2]
@@ -67,7 +68,7 @@ include/assert.inc [rpl_semi_sync_master_no_tx should be 2 + 2]
 [connection server_4]
 include/install_semisync_slave.inc
 [connection server_1]
-SET GLOBAL rpl_semi_sync_master_timeout = 10000;
+SET GLOBAL rpl_semi_sync_master_timeout = 100000;
 INSERT INTO t1 VALUES(102);
 INSERT INTO t1 VALUES(103);
 include/assert.inc [rpl_semi_sync_master_yes_tx should be 4 + 2]
@@ -101,7 +102,6 @@ include/assert.inc [rpl_semi_sync_master_no_tx should be 4 + 0]
 #            greater than the acked already received.
 ######################################################################
 [connection server_1]
-SET GLOBAL rpl_semi_sync_master_timeout=10000;
 INSERT INTO t1 VALUES(130);;
 [connection server_2]
 SET @original_debug = @@GLOBAL.debug;
@@ -203,10 +203,11 @@ include/uninstall_semisync_slave.inc
 ########################################################################
 # Coverage Test
 ########################################################################
+SET GLOBAL rpl_semi_sync_master_wait_for_slave_count = 4;
+SET GLOBAL rpl_semi_sync_master_wait_for_slave_count = 4;
+SET GLOBAL rpl_semi_sync_master_enabled= OFF;
 SET GLOBAL rpl_semi_sync_master_enabled= OFF;
 SET GLOBAL rpl_semi_sync_master_enabled= ON;
-SET GLOBAL rpl_semi_sync_master_wait_for_slave_count = 4;
-SET GLOBAL rpl_semi_sync_master_wait_for_slave_count = 4;
 include/uninstall_semisync_master.inc
 [connection server_1]
 DROP TABLE t1;
