@@ -107,7 +107,7 @@ NdbConnection.prototype.connect = function(properties, callback) {
   else {
     this.pendingConnections.push(callback);
     if(this.pendingConnections.length === 1) {
-      stats.incr( [ "connect", "async" ] );
+      stats.incr( ["connect"] );
       this.ndb_cluster_connection.connect(
         properties.ndb_connect_retries, properties.ndb_connect_delay,
         properties.ndb_connect_verbose, onConnected);
