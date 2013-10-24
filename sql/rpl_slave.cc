@@ -54,11 +54,11 @@
                                                 // Format_description_log_event
 #include "dynamic_ids.h"
 #include "rpl_rli_pdb.h"
-#include "global_threads.h"
 
 #include "rpl_tblmap.h"
 #include "debug_sync.h"
 #include "rpl_mts_submode.h"
+#include "mysqld_thd_manager.h"                 // Global_THD_manager
 
 using std::min;
 using std::max;
@@ -3002,6 +3002,7 @@ void set_slave_thread_default_charset(THD* thd, Relay_log_info const *rli)
 static int init_slave_thread(THD* thd, SLAVE_THD_TYPE thd_type)
 {
   DBUG_ENTER("init_slave_thread");
+  Global_THD_manager *thd_manager= Global_THD_manager::get_instance();
 #if !defined(DBUG_OFF)
   int simulate_error= 0;
 #endif
@@ -3014,9 +3015,8 @@ static int init_slave_thread(THD* thd, SLAVE_THD_TYPE thd_type)
   thd->enable_slow_log= opt_log_slow_slave_statements;
   set_slave_thread_options(thd);
   thd->client_capabilities = CLIENT_LOCAL_FILES;
-  mysql_mutex_lock(&LOCK_thread_count);
-  thd->thread_id= thd->variables.pseudo_thread_id= thread_id++;
-  mysql_mutex_unlock(&LOCK_thread_count);
+  thd->variables.pseudo_thread_id= thd_manager->get_inc_thread_id();
+  thd->thread_id= thd->variables.pseudo_thread_id;
 
   DBUG_EXECUTE_IF("simulate_io_slave_error_on_init",
                   simulate_error|= (1 << SLAVE_THD_IO););
@@ -4129,6 +4129,7 @@ pthread_handler_t handle_slave_io(void *arg)
 #ifndef DBUG_OFF
   uint retry_count_reg= 0, retry_count_dump= 0, retry_count_event= 0;
 #endif
+  Global_THD_manager *thd_manager= Global_THD_manager::get_instance();
   // needs to call my_thread_init(), otherwise we get a coredump in DBUG_ stuff
   my_thread_init();
   DBUG_ENTER("handle_slave_io");
@@ -4166,7 +4167,7 @@ pthread_handler_t handle_slave_io(void *arg)
     goto err;
   }
 
-  add_global_thread(thd);
+  thd_manager->add_thd(thd);
   thd_added= true;
 
   mi->slave_running = 1;
@@ -4493,7 +4494,7 @@ err:
   thd->release_resources();
   THD_CHECK_SENTRY(thd);
   if (thd_added)
-    remove_global_thread(thd);
+    thd_manager->remove_thd(thd);
 
   mi->abort_slave= 0;
   mi->slave_running= 0;
@@ -4589,6 +4590,7 @@ pthread_handler_t handle_slave_worker(void *arg)
   ulong purge_cnt= 0;
   ulonglong purge_size= 0;
   struct slave_job_item _item, *job_item= &_item;
+  Global_THD_manager *thd_manager= Global_THD_manager::get_instance();
   #ifdef HAVE_PSI_INTERFACE
   struct PSI_thread *psi;
   #endif
@@ -4621,8 +4623,7 @@ pthread_handler_t handle_slave_worker(void *arg)
     goto err;
   }
   thd->init_for_queries(w);
-
-  add_global_thread(thd);
+  thd_manager->add_thd(thd);
   thd_added= true;
 
   if (w->update_is_transactional())
@@ -4718,7 +4719,7 @@ err:
 
     THD_CHECK_SENTRY(thd);
     if (thd_added)
-      remove_global_thread(thd);
+      thd_manager->remove_thd(thd);
     delete thd;
   }
 
@@ -5538,6 +5539,7 @@ pthread_handler_t handle_slave_sql(void *arg)
   Relay_log_info* rli = ((Master_info*)arg)->rli;
   const char *errmsg;
   bool mts_inited= false;
+  Global_THD_manager *thd_manager= Global_THD_manager::get_instance();
 
   // needs to call my_thread_init(), otherwise we get a coredump in DBUG_ stuff
   my_thread_init();
@@ -5600,7 +5602,7 @@ pthread_handler_t handle_slave_sql(void *arg)
   thd->temporary_tables = rli->save_temporary_tables; // restore temp tables
   set_thd_in_use_temporary_tables(rli);   // (re)set sql_thd in use for saved temp tables
 
-  add_global_thread(thd);
+  thd_manager->add_thd(thd);
   thd_added= true;
 
   /* MTS: starting the worker pool */
@@ -5928,7 +5930,7 @@ llstr(rli->get_group_master_log_pos(), llbuff));
   thd->release_resources();
   THD_CHECK_SENTRY(thd);
   if (thd_added)
-    remove_global_thread(thd);
+    thd_manager->remove_thd(thd);
 
   /*
     The thd can only be destructed after indirect references

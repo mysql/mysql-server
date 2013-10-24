@@ -440,7 +440,7 @@ ha_rows filesort(THD *thd, TABLE *table, Filesort *filesort,
                     MYF(ME_ERROR + ME_WAITTANG),
                     ER_THD(thd, ER_FILSORT_ABORT),
                     kill_errno ? ((kill_errno == THD::KILL_CONNECTION &&
-                                 !shutdown_in_progress) ? ER(THD::KILL_QUERY) :
+                                 !abort_loop) ? ER(THD::KILL_QUERY) :
                                                           ER(kill_errno)) :
                                  thd->get_stmt_da()->message_text());
 

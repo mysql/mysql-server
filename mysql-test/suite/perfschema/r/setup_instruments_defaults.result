@@ -15,10 +15,10 @@ wait/synch/mutex/sql/LOCK_user_conn	YES	NO
 wait/synch/mutex/sql/LOCK_uuid_generator	YES	NO
 wait/synch/mutex/sql/LOCK_xid_cache	YES	NO
 SELECT * FROM performance_schema.setup_instruments
-WHERE name = 'wait/synch/mutex/sql/LOCK_thread_count'
+WHERE name = 'wait/synch/mutex/sql/LOCK_thd_count'
 AND enabled = 'no' AND timed = 'no';
 NAME	ENABLED	TIMED
-wait/synch/mutex/sql/LOCK_thread_count	NO	NO
+wait/synch/mutex/sql/LOCK_thd_count	NO	NO
 SELECT * FROM performance_schema.setup_instruments
 WHERE name IN (
 'wait/synch/mutex/sql/LOG_INFO::lock',
