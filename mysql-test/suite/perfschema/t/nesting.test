@@ -7,6 +7,7 @@
 --source include/not_windows.inc
 --source ../include/no_protocol.inc
 --source ../include/wait_for_pfs_thread_count.inc
+--source include/have_QC_Disabled.inc
 
 --disable_query_log
 
