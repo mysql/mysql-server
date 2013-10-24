@@ -229,6 +229,14 @@ int gcs_rpl_stop()
   if (!is_gcs_rpl_running())
     DBUG_RETURN(0);
 
+  /* first leave all joined groups (currently one) */
+  gcs_instance->leave(string(gcs_group_pointer));
+  gcs_instance->close_session();
+
+  /*
+    The applier is only shutdown after the communication layer to avoid
+    messages being delivered in the current view, but not applied
+  */
   int error= 0;
   if (applier != NULL)
   {
@@ -246,12 +254,7 @@ int gcs_rpl_stop()
       error= ER_STOP_GCS_APPLIER_THREAD_TIMEOUT;
     }
   }
-
-  /* first leave all joined groups (currently one) */
-  gcs_instance->leave(string(gcs_group_pointer));
-  gcs_instance->close_session();
   gcs_running= false;
-
   DBUG_RETURN(error);
 }
 

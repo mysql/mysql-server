@@ -165,8 +165,9 @@ bool is_running_gcs_rpl()
 
 int cleanup_gcs_rpl()
 {
-  if (gcs_rpl_handler)
-    gcs_rpl_handler->gcs_rpl_stop();
+  if(!gcs_rpl_handler)
+    return 0;
+
   delete gcs_rpl_handler;
   gcs_rpl_handler= NULL;
   return 0;
