@@ -25,7 +25,6 @@
 #include "rpl_info_factory.h"
 #include "rpl_utility.h"
 #include "debug_sync.h"
-#include "global_threads.h"
 #include "sql_show.h"
 #include "sql_parse.h"
 #include "rpl_mi.h"
@@ -34,6 +33,7 @@
 #include <string>
 #include <m_ctype.h>				// For is_number
 #include <my_stacktrace.h>
+#include "mysqld_thd_manager.h"                 // Global_THD_manager
 
 using std::max;
 using std::min;
@@ -1841,9 +1841,39 @@ static uint purge_log_get_error_code(int res)
 }
 
 #ifdef HAVE_REPLICATION
+/**
+  Adjust log offset in the binary log file for all running slaves
+  This class implements call back function for do_for_all_thd().
+  It is called for each thd in thd list to adjust offset.
+*/
+class Adjust_offset : public Do_THD_Impl
+{
+public:
+  Adjust_offset(my_off_t value) : m_purge_offset(value) {}
+  virtual void operator()(THD *thd)
+  {
+    LOG_INFO* linfo;
+    if ((linfo= thd->current_linfo))
+    {
+      mysql_mutex_lock(&linfo->lock);
+      /*
+        Index file offset can be less that purge offset only if
+        we just started reading the index file. In that case
+        we have nothing to adjust.
+      */
+      if (linfo->index_file_offset < m_purge_offset)
+        linfo->fatal = (linfo->index_file_offset != 0);
+      else
+        linfo->index_file_offset -= m_purge_offset;
+      mysql_mutex_unlock(&linfo->lock);
+    }
+  }
+private:
+  my_off_t m_purge_offset;
+};
 
 /*
-  Adjust the position pointer in the binary log file for all running slaves
+  Adjust the position pointer in the binary log file for all running slaves.
 
   SYNOPSIS
     adjust_linfo_offsets()
@@ -1851,74 +1881,65 @@ static uint purge_log_get_error_code(int res)
 
   NOTES
     - This is called when doing a PURGE when we delete lines from the
-      index log file
+      index log file.
 
   REQUIREMENTS
     - Before calling this function, we have to ensure that no threads are
-      using any binary log file before purge_offset.a
+      using any binary log file before purge_offset.
 
   TODO
     - Inform the slave threads that they should sync the position
       in the binary log file with flush_relay_log_info.
       Now they sync is done for next read.
 */
-
 static void adjust_linfo_offsets(my_off_t purge_offset)
 {
-  mysql_mutex_lock(&LOCK_thread_count);
-
-  Thread_iterator it= global_thread_list_begin();
-  Thread_iterator end= global_thread_list_end();
-  for (; it != end; ++it)
-  {
-    LOG_INFO* linfo;
-    if ((linfo = (*it)->current_linfo))
-    {
-      mysql_mutex_lock(&linfo->lock);
-      /*
-	Index file offset can be less that purge offset only if
-	we just started reading the index file. In that case
-	we have nothing to adjust
-      */
-      if (linfo->index_file_offset < purge_offset)
-	linfo->fatal = (linfo->index_file_offset != 0);
-      else
-	linfo->index_file_offset -= purge_offset;
-      mysql_mutex_unlock(&linfo->lock);
-    }
-  }
-  mysql_mutex_unlock(&LOCK_thread_count);
+  Adjust_offset adjust_offset(purge_offset);
+  Global_THD_manager::get_instance()->do_for_all_thd(&adjust_offset);
 }
 
+/**
+  This class implements Call back function for do_for_all_thd().
+  It is called for each thd in thd list to count
+  threads using bin log file
+*/
 
-static int log_in_use(const char* log_name)
+class Log_in_use : public Do_THD_Impl
 {
-  size_t log_name_len = strlen(log_name) + 1;
-  int thread_count=0;
-
-  mysql_mutex_lock(&LOCK_thread_count);
-
-  Thread_iterator it= global_thread_list_begin();
-  Thread_iterator end= global_thread_list_end();
-  for (; it != end; ++it)
+public:
+  Log_in_use(const char* value) : m_log_name(value), m_count(0)
+  {
+    m_log_name_len = strlen(m_log_name) + 1;
+  }
+  virtual void operator()(THD *thd)
   {
     LOG_INFO* linfo;
-    if ((linfo = (*it)->current_linfo))
+    if ((linfo = thd->current_linfo))
     {
       mysql_mutex_lock(&linfo->lock);
-      if(!memcmp(log_name, linfo->log_file_name, log_name_len))
+      if(!memcmp(m_log_name, linfo->log_file_name, m_log_name_len))
       {
-        thread_count++;
         sql_print_warning("file %s was not purged because it was being read"
-                          "by thread number %llu", log_name,
-                          (ulonglong)(*it)->thread_id);
+                          "by thread number %llu", m_log_name,
+                          (ulonglong)thd->thread_id);
+        m_count++;
       }
       mysql_mutex_unlock(&linfo->lock);
     }
+    return;
   }
+  int get_count() { return m_count; }
+private:
+  const char* m_log_name;
+  size_t m_log_name_len;
+  int m_count;
+};
 
-  mysql_mutex_unlock(&LOCK_thread_count);
-  return thread_count;
+static int log_in_use(const char* log_name)
+{
+  Log_in_use log_in_use(log_name);
+  Global_THD_manager::get_instance()->do_for_all_thd(&log_in_use);
+  return log_in_use.get_count();
 }
 
 static bool purge_error_message(THD* thd, int res)
@@ -2276,6 +2297,7 @@ bool show_binlog_events(THD *thd, MYSQL_BIN_LOG *binary_log)
   File file = -1;
   int old_max_allowed_packet= thd->variables.max_allowed_packet;
   LOG_INFO linfo;
+  Global_THD_manager *thd_manager= Global_THD_manager::get_instance();
 
   DBUG_ENTER("show_binlog_events");
 
@@ -2314,9 +2336,9 @@ bool show_binlog_events(THD *thd, MYSQL_BIN_LOG *binary_log)
       goto err;
     }
 
-    mysql_mutex_lock(&LOCK_thread_count);
+    thd_manager->acquire_thd_lock();
     thd->current_linfo = &linfo;
-    mysql_mutex_unlock(&LOCK_thread_count);
+    thd_manager->release_thd_lock();
 
     if ((file=open_binlog_file(&log, linfo.log_file_name, &errmsg)) < 0)
       goto err;
@@ -2417,9 +2439,9 @@ err:
   else
     my_eof(thd);
 
-  mysql_mutex_lock(&LOCK_thread_count);
+  thd_manager->acquire_thd_lock();
   thd->current_linfo = 0;
-  mysql_mutex_unlock(&LOCK_thread_count);
+  thd_manager->release_thd_lock();
   thd->variables.max_allowed_packet= old_max_allowed_packet;
   DBUG_RETURN(ret);
 }
@@ -3972,7 +3994,8 @@ bool MYSQL_BIN_LOG::reset_logs(THD* thd)
     thread. If the transaction involved MyISAM tables, it should go
     into binlog even on rollback.
   */
-  mysql_mutex_lock(&LOCK_thread_count);
+  Global_THD_manager *thd_manager= Global_THD_manager::get_instance();
+  thd_manager->acquire_thd_lock();
 
   /*
     We need to get both locks to be sure that no one is trying to
@@ -4095,7 +4118,7 @@ err:
   if (error == 1)
     name= const_cast<char*>(save_name);
   global_sid_lock->unlock();
-  mysql_mutex_unlock(&LOCK_thread_count);
+  thd_manager->release_thd_lock();
   mysql_mutex_unlock(&LOCK_index);
   mysql_mutex_unlock(&LOCK_log);
   DBUG_RETURN(error);

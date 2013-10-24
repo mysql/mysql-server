@@ -108,7 +108,6 @@ public:
   static ulong aborted_connects;
   static uint connection_count;          // Protected by LOCK_connection_count
   static ulong max_used_connections;
-  static ulong thread_created;           // Protected by LOCK_thread_created
   // System variable
   static ulong thread_handling;
   // Functions for lock wait and post-kill notification events
@@ -185,28 +184,14 @@ public:
 
 
 /////////////////////////////////////////////////
-// Functions needed by plugins (thread pool)
+// Functions also needed by plugins (thread pool)
 /////////////////////////////////////////////////
 
 #ifdef __cplusplus
 extern "C" {
 #endif
 
-/**
-  Create a THD object from channel_info.
-
-  @note If creation fails, ER_OUT_OF_RESOURCES will be be reported.
-
-  @param channel_info     Pointer to Channel_info object or NULL if
-                          creation failed.
-*/
-THD* create_thd(Channel_info* channel_info);
-
-void destroy_channel_info(Channel_info* channel_info);
-
 void dec_connection_count();
-
-void inc_thread_created();
 
 void inc_aborted_connects();
 

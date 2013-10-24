@@ -59,9 +59,9 @@
 #include "sql_parse.h"                          // is_update_query
 #include "sql_callback.h"
 #include "lock.h"
-#include "global_threads.h"
 #include "mysqld.h"
 #include "connection_handler_manager.h"   // Connection_handler_manager
+#include "mysqld_thd_manager.h"           // Global_THD_manager
 
 #include <mysql/psi/mysql_statement.h>
 
@@ -301,29 +301,6 @@ void thd_set_thread_stack(THD *thd, char *stack_start)
 }
 
 /**
-  Lock connection data for the set of connections this connection
-  belongs to
-
-  @param thd                       THD object
-*/
-void thd_lock_thread_count(THD *)
-{
-  mysql_mutex_lock(&LOCK_thread_count);
-}
-
-/**
-  Lock connection data for the set of connections this connection
-  belongs to
-
-  @param thd                       THD object
-*/
-void thd_unlock_thread_count(THD *)
-{
-  mysql_cond_broadcast(&COND_thread_count);
-  mysql_mutex_unlock(&LOCK_thread_count);
-}
-
-/**
   Close the socket used by this connection
 
   @param thd                THD object
@@ -342,25 +319,6 @@ void thd_close_connection(THD *thd)
 THD *thd_get_current_thd()
 {
   return current_thd;
-}
-
-/**
-  Get iterator begin of global thread list
-
-  @retval Iterator begin of global thread list
-*/
-Thread_iterator thd_get_global_thread_list_begin()
-{
-  return global_thread_list_begin();
-}
-/**
-  Get iterator end of global thread list
-
-  @retval Iterator end of global thread list
-*/
-Thread_iterator thd_get_global_thread_list_end()
-{
-  return global_thread_list_end();
 }
 
 extern "C"
@@ -382,9 +340,9 @@ void thd_binlog_pos(const THD *thd,
 void thd_new_connection_setup(THD *thd, char *stack_start)
 {
   DBUG_ENTER("thd_new_connection_setup");
-  mysql_mutex_lock(&LOCK_thread_count);
-  thd->thread_id= thd->variables.pseudo_thread_id= thread_id++;
-  mysql_mutex_unlock(&LOCK_thread_count);
+  Global_THD_manager *thd_manager= Global_THD_manager::get_instance();
+  thd->variables.pseudo_thread_id= thd_manager->get_inc_thread_id();
+  thd->thread_id= thd->variables.pseudo_thread_id;
 #ifdef HAVE_PSI_INTERFACE
   thd_set_psi(thd,
               PSI_THREAD_CALL(new_thread)
@@ -393,7 +351,7 @@ void thd_new_connection_setup(THD *thd, char *stack_start)
   thd->set_time();
   thd->thr_create_utime= thd->start_utime= my_micro_time();
 
-  add_global_thread(thd);
+  thd_manager->add_thd(thd);
 
   DBUG_PRINT("info", ("init new connection. thd: 0x%lx fd: %d",
           (ulong)thd, mysql_socket_getfd(thd->net.vio->mysql_socket)));
@@ -729,9 +687,9 @@ void thd_inc_row_count(THD *thd)
   @param length length of buffer
   @param max_query_len how many chars of query to copy (0 for all)
 
-  @req LOCK_thread_count
+  @req LOCK_thd_count
   
-  @note LOCK_thread_count mutex is not necessary when the function is invoked on
+  @note LOCK_thd_count mutex is not necessary when the function is invoked on
    the currently running thread (current_thd) or if the caller in some other
    way guarantees that access to thd->query is serialized.
  
@@ -752,7 +710,7 @@ char *thd_security_context(THD *thd, char *buffer, unsigned int length,
     values doesn't have to very accurate and the memory it points to is static,
     but we need to attempt a snapshot on the pointer values to avoid using NULL
     values. The pointer to thd->query however, doesn't point to static memory
-    and has to be protected by LOCK_thread_count or risk pointing to
+    and has to be protected by LOCK_thd_data or risk pointing to
     uninitialized memory.
   */
   const char *proc_info= thd->proc_info;
@@ -882,6 +840,9 @@ THD::THD(bool enable_plugins)
    :Statement(&main_lex, &main_mem_root, STMT_CONVENTIONAL_EXECUTION,
               /* statement id */ 0),
    rli_fake(0), rli_slave(NULL),
+#ifdef EMBEDDED_LIBRARY
+   mysql(NULL),
+#endif
    query_plan(this),
    in_sub_stmt(0),
    fill_status_recursion_level(0),
@@ -1566,7 +1527,7 @@ void THD::cleanup(void)
  */
 void THD::release_resources()
 {
-  mysql_mutex_assert_not_owner(&LOCK_thread_count);
+  Global_THD_manager::get_instance()->assert_if_mutex_owner();
   DBUG_ASSERT(m_release_resources_done == false);
 
   mysql_mutex_lock(&LOCK_status);
@@ -1608,7 +1569,7 @@ void THD::release_resources()
 
 THD::~THD()
 {
-  mysql_mutex_assert_not_owner(&LOCK_thread_count);
+  Global_THD_manager::get_instance()->assert_if_mutex_owner();
   THD_CHECK_SENTRY(this);
   DBUG_ENTER("~THD()");
   DBUG_PRINT("info", ("THD dtor, this %p", this));
