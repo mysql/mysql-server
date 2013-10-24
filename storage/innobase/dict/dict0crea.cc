@@ -803,6 +803,7 @@ dict_truncate_index_tree(
 	const byte*	ptr;
 	ulint		len;
 	dict_index_t*	index;
+	bool		has_been_dropped = false;
 
 	ut_ad(mutex_own(&(dict_sys->mutex)));
 	ut_a(!dict_table_is_comp(dict_sys->sys_indexes));
@@ -815,11 +816,7 @@ dict_truncate_index_tree(
 	root_page_no = mtr_read_ulint(ptr, MLOG_4BYTES, mtr);
 
 	if (drop && root_page_no == FIL_NULL) {
-		/* The tree has been freed. */
-
-		ut_print_timestamp(stderr);
-		fprintf(stderr, "  InnoDB: Trying to TRUNCATE"
-			" a missing index of table %s!\n", table->name);
+		has_been_dropped = true;
 		drop = FALSE;
 	}
 
@@ -896,6 +893,13 @@ create:
 			if (index->type & DICT_FTS) {
 				return(FIL_NULL);
 			} else {
+				if (has_been_dropped) {
+					fprintf(stderr,	"  InnoDB: Trying to"
+						" TRUNCATE a missing index of"
+						" table %s!\n",
+						index->table->name);
+				}
+
 				root_page_no = btr_create(type, space, zip_size,
 							  index_id, index, mtr);
 				index->page = (unsigned int) root_page_no;
