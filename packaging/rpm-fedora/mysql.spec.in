@@ -347,6 +347,7 @@ mkdir debug
            -DINSTALL_LAYOUT=RPM \
            -DCMAKE_BUILD_TYPE=Debug \
            -DINSTALL_LIBDIR="%{_lib}/mysql" \
+           -DINSTALL_PLUGINDIR="%{_lib}/mysql/plugin" \
            -DMYSQL_UNIX_ADDR="%{mysqldatadir}/mysql.sock" \
            -DFEATURE_SET="%{feature_set}" \
            %{?ssl_option} \
@@ -365,6 +366,7 @@ mkdir release
            -DINSTALL_LAYOUT=RPM \
            -DCMAKE_BUILD_TYPE=RelWithDebInfo \
            -DINSTALL_LIBDIR="%{_lib}/mysql" \
+           -DINSTALL_PLUGINDIR="%{_lib}/mysql/plugin" \
            -DMYSQL_UNIX_ADDR="%{mysqldatadir}/mysql.sock" \
            -DFEATURE_SET="%{feature_set}" \
            %{?ssl_option} \
@@ -400,6 +402,7 @@ mkdir client
            -DINSTALL_LAYOUT=RPM \
            -DCMAKE_BUILD_TYPE=RelWithDebInfo \
            -DINSTALL_LIBDIR="%{_lib}/mysql" \
+           -DINSTALL_PLUGINDIR="%{_lib}/mysql/plugin" \
            -DMYSQL_UNIX_ADDR="%{mysqldatadir}/mysql.sock" \
            -DFEATURE_SET="%{feature_set}" \
            %{?ssl_option} \
@@ -526,7 +529,7 @@ fi
 
 %postun embedded -p /sbin/ldconfig
 
-%files server -f release/support-files/plugins.files
+%files server
 %defattr(-, root, root, -)
 %doc %{?license_files_server} %{src_dir}/Docs/ChangeLog
 %doc %{src_dir}/Docs/INFO_SRC*
@@ -590,7 +593,8 @@ fi
 
 %attr(755, root, root) %{_sbindir}/mysqld
 %attr(755, root, root) %{_sbindir}/mysqld-debug
-%attr(644, root, root) %{_libdir}/mysql/plugin/daemon_example.ini
+
+%{_libdir}/mysql/plugin
 
 %attr(644, root, root) %{_datadir}/mysql/fill_help_tables.sql
 %attr(644, root, root) %{_datadir}/mysql/mysql_system_tables.sql
@@ -722,8 +726,11 @@ fi
 %attr(755, root, root) %{_libdir}/mysql/libmysqld.so
 
 %changelog
-* Tue Oct 08 2013 Balasubramanian Kandasamy <balasubramanian.kandasamy@oracle.com> - 5.6.15-1
+* Fri Oct 25 2013 Balasubramanian Kandasamy <balasubramanian.kandasamy@oracle.com> - 5.6.15-1
 - Updated to 5.6.15
+
+* Wed Oct 16 2013 Balasubramanian Kandasamy <balasubramanian.kandasamy@oracle.com> - 5.6.14-3
+- Improved handling of plugin directory 
 
 * Fri Sep 27 2013 Balasubramanian Kandasamy <balasubramanian.kandasamy@oracle.com> - 5.6.14-2
 - Refresh mysql-install patch and service renaming
